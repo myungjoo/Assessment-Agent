@@ -2,11 +2,14 @@
 id: T-0005
 title: CI hygiene — add concurrency group and resolve single-element matrix
 phase: P0
-status: PENDING
+status: SUPERSEDED
 commitMode: pr
 estimatedDiff: 25
 estimatedFiles: 1
 created: 2026-05-23
+supersededAt: 2026-05-23T11:45:00Z
+supersededBy: "PR #1 round 1 (commit to follow on branch claude/assessment-agent-long-horizon-t2xNF)"
+supersededReason: "CLAUDE.md §3.2 reviewer-round consensus rule requires same-PR resolution. m-3 concurrency + m-4 matrix-decoration removed in round 1 of PR #1. Also caught a side bug (CI test command `pnpm test -- --ci` was producing 'No tests found' due to argument-forwarding shape; switched to `pnpm exec jest --ci`)."
 plannerNote: P0 follow-up to T-0001 review m-3+m-4; small CI workflow polish; ideal candidate to verify the pr-mode flow end-to-end on a tiny PR.
 ---
 

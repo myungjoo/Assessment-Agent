@@ -7,19 +7,14 @@
  * tests arrive with their owning modules in Phase P1+.
  */
 import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module';
+import { bootstrap } from '../src/main';
 
 describe('T-0001 bootstrap sanity', () => {
   it('arithmetic baseline (jest is alive)', () => {
     expect(1 + 1).toBe(2);
   });
 
-  it('AppModule bootstraps via NestFactory.createApplicationContext', async () => {
-    const app = await NestFactory.createApplicationContext(AppModule, {
-      logger: false,
-    });
-    expect(app).toBeDefined();
-    await app.close();
+  it('exported bootstrap() runs end-to-end (createApplicationContext + close)', async () => {
+    await expect(bootstrap()).resolves.toBeUndefined();
   });
 });

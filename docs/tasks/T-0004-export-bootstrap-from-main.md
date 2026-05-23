@@ -2,11 +2,14 @@
 id: T-0004
 title: Refactor src/main.ts to export bootstrap() and cover with test
 phase: P0
-status: PENDING
+status: SUPERSEDED
 commitMode: pr
 estimatedDiff: 60
 estimatedFiles: 3
 created: 2026-05-23
+supersededAt: 2026-05-23T11:45:00Z
+supersededBy: "PR #1 round 1 (commit to follow on branch claude/assessment-agent-long-horizon-t2xNF)"
+supersededReason: "CLAUDE.md §3.2 (reviewer-round consensus rule, added 2026-05-23) requires findings to be resolved in the same PR rather than split into separate PRs. m-2 was small enough to fix in round 1 of PR #1."
 plannerNote: P0 follow-up to T-0001 review m-2; current sanity test bypasses main.ts entry; export bootstrap() so test covers real entry path.
 ---
 

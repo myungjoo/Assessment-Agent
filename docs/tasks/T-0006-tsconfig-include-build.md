@@ -2,11 +2,14 @@
 id: T-0006
 title: Move tsconfig include into tsconfig.build.json (clean up override reliance)
 phase: P0
-status: PENDING
+status: SUPERSEDED
 commitMode: pr
 estimatedDiff: 20
 estimatedFiles: 2
 created: 2026-05-23
+supersededAt: 2026-05-23T11:45:00Z
+supersededBy: "PR #1 round 1 (commit to follow on branch claude/assessment-agent-long-horizon-t2xNF)"
+supersededReason: "CLAUDE.md §3.2 reviewer-round consensus rule requires same-PR resolution. m-5 fixed by narrowing tsconfig.build.json to include only src/**/* in round 1 of PR #1."
 plannerNote: P0 follow-up to T-0001 review m-5; tsconfig.json includes test/**/* and tsconfig.build.json only excludes; cleaner to scope include in build config.
 ---
 

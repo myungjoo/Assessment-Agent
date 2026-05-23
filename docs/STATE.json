@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
   "phase": "P0-bootstrap",
-  "currentTask": null,
-  "nextTask": "T-0005",
+  "currentTask": "T-0001",
+  "nextTask": "T-0002",
   "lock": null,
-  "lastActivity": "2026-05-23T10:55:00Z",
-  "lastCommit": "f0e8375",
+  "lastActivity": "2026-05-23T11:45:00Z",
+  "lastCommit": "5d2e446",
   "ci": {
     "lastRun": "2026-05-23T10:40:29Z",
     "status": "mock-env-no-actions-runner",
     "consecutiveFails": 0
   },
   "reviewRounds": {
-    "T-0001": 0
+    "T-0001": 1
   },
   "pullRequests": {
     "T-0001": {
@@ -20,14 +20,26 @@
       "url": "https://github.com/myungjoo/Assessment-Agent/pull/1",
       "head": "c32c64e",
       "openedAt": "2026-05-23T10:40:29Z",
-      "reviewerVerdict": "COMMENT",
-      "reviewerFindings": {"blockers": 0, "major": 1, "minor": 8, "majorIsInformational": true},
-      "reviewerComment": "https://github.com/myungjoo/Assessment-Agent/pull/1#issuecomment-4525097153",
-      "mergeAttempt": {
-        "at": "2026-05-23T10:49:30Z",
-        "result": "failed",
-        "reason": "mock-env-main-divergence: github.com main SHA (8f40ad7) differs from local origin/main (518cc99); merge_pull_request returned 405 'Pull Request has merge conflicts'. Automation logic verified end-to-end up to this step; merge itself requires the local mock and github.com main to share history."
-      }
+      "rounds": [
+        {
+          "round": 0,
+          "verdict": "COMMENT",
+          "findings": {"blockers": 0, "major": 1, "minor": 8, "majorIsInformational": true},
+          "comment": "https://github.com/myungjoo/Assessment-Agent/pull/1#issuecomment-4525097153",
+          "mergeAttempt": {
+            "at": "2026-05-23T10:49:30Z",
+            "result": "failed",
+            "reason": "mock-env-main-divergence"
+          }
+        },
+        {
+          "round": 1,
+          "status": "in-progress",
+          "fixesInCode": ["m-2 (bootstrap export + test)", "m-3 (CI concurrency)", "m-4 (matrix decoration removed)", "m-5 (tsconfig build include)", "self-discovered: CI test command argv shape"],
+          "supersededFollowups": ["T-0004", "T-0005", "T-0006"],
+          "pendingRationaleComment": ["M-1 (→ T-0002 ADR)", "m-1 (→ T-0003 planner cap)", "m-7 (→ T-0007 DEFERRED)", "branch-protection (→ T-0008)", "m-6 (intentional)", "m-8 (no action)"]
+        }
+      ]
     }
   },
   "blockers": [],
@@ -38,7 +50,7 @@
       "asked": "2026-05-23T10:37:54Z",
       "question": "Integrator needs a GitHub API channel to open PR for branch claude/assessment-agent-long-horizon-t2xNF (commit 10554d5). Neither mcp__github__* tools nor gh CLI are available. Please either (a) expose mcp__github__* tools to the integrator agent, or (b) open the PR manually and re-invoke integrator with the PR number.",
       "resolvedAt": "2026-05-23T10:46:40Z",
-      "decision": "Option (b) — driver opens PR directly via mcp__github__create_pull_request and feeds reviewer subagent the diff via a file path (prompt input). Subagent MCP schema exposure remains an open question for the integrator role; followed up as a separate task."
+      "decision": "Option (b) — driver opens PR directly via mcp__github__create_pull_request and feeds reviewer subagent the diff via a file path (prompt input). Subagent MCP schema exposure remains an open question for the integrator role; followed up as T-0009 (ADR-0003 to formalize driver-does-MCP pattern)."
     }
   ],
   "counters": {
