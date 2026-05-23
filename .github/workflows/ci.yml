@@ -17,6 +17,18 @@ jobs:
     steps:
       - name: 저장소 checkout
         uses: actions/checkout@v4
+        with:
+          # spec-presence 검사가 origin/main 과 diff 를 비교하려면 history 가 필요.
+          fetch-depth: 0
+
+      - name: spec 파일 동반 여부 검사
+        # CLAUDE.md §3.2 R-112 의 1차 자동 layer. 자세한 규칙은 scripts/check-spec-presence.sh 참조.
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          BASE_REF=origin/main bash scripts/check-spec-presence.sh
+
+      - name: spec-presence 자체 test
+        run: bash scripts/check-spec-presence.test.sh
 
       - name: pnpm 설치
         uses: pnpm/action-setup@v4

@@ -141,6 +141,7 @@ AA의 평가 대상은 크게 코드 작성과 문서 작성으로 나누어 볼
 - `pnpm lint` — ESLint 로 코드 스타일·정적 분석 검사.
 - `pnpm build` — Nest 빌드 (TypeScript → `dist/`).
 - `pnpm test` — Jest 로 unit / spec 테스트 실행.
+- `BASE_REF=origin/main bash scripts/check-spec-presence.sh` — 신규 production `.ts` 에 대응 spec 이 함께 추가됐는지 로컬에서 흉내내 검사 (CI 와 동일 규칙, T-0007).
 
 CI (`.github/workflows/ci.yml`) 가 모든 PR 과 main push 마다 동일한 step 을 자동 실행한다. PR 의 CI 실패가 reviewer 점검 전에 명확히 보이도록 GitHub UI 에서 main branch protection rule (필수 status check: `기본 검사`) 을 활성화하는 것을 권장한다 (관리자 1회 수동 설정).
 
