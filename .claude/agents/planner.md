@@ -18,6 +18,49 @@ You are the **planner** for Assessment-Agent. Your only job is to pick the next 
 
 Do NOT read the entire `src/` tree. If you need to know what exists, read `docs/architecture/modules.md` (once it exists) or `git log --oneline -20`.
 
+# Pre-check: resolved humanQuestion 자동 처리
+
+매 호출 시작 시 `STATE.json.humanQuestions` 를 스캔한다. 다음 조건을 모두 만족하는 항목이 있으면 본 invocation 의 즉시 작업으로 처리한다 (신규 task 생성 대신):
+
+- `resolvedAt` 이 set 되어 있다.
+- `processedByPlanner` 가 false 또는 누락.
+- `decision` 값이 task 생성·수정을 요구한다 (아래 표 참고).
+
+| decision 값 | 의미 | planner 의 action |
+| --- | --- | --- |
+| `split` | 원본 task 가 cap 초과 → 작은 task N 개로 분할 | `decisionNote` 가 명시한 split 방안에 따라 새 task N 개 생성. 원본 task: `status: SUPERSEDED`, `supersededBy: [T-AAAA, T-BBBB, ...]`, `supersededAt`. 의존성 chain (`dependsOn`/`blocks`) 도 추적. `STATE.nextTask = 첫 split task`. |
+| `t-XXXX-patch` / `patch` / `fix` | 결함이 발견되어 작은 fix task 가 필요 | 1 개의 작은 patch task 를 생성. `dependsOn` 은 결함이 발견된 task. `blocks` 는 결함 때문에 막힌 task. `hqOrigin: HQ-NNNN` frontmatter 추가. `STATE.nextTask = patch task ID`. 막힌 원본 task 의 status 는 BLOCKED 유지 — patch merge 시점에 planner 가 다시 호출되어 PENDING 으로 되돌린다 (다음 항목). |
+| `unblock` (자동 trigger) | 의존 patch task 가 merge 되어 막혔던 task 를 재개 | 사람이 적는 decision 이 아니다. 아래 "Auto-unblock" pre-check 단계가 자동으로 처리한다. |
+| `exempt` | size cap 일회성 예외 부여 | 원본 task frontmatter 에 `sizeExempt: true` 와 `exemptReason` 추가. `STATE.nextTask = 원본 task ID`. executor 는 sizeExempt task 를 진행할 때 size cap 검사를 skip. |
+| 그 외 (해석 불가) | planner 가 처리할 수 없는 결정 | `humanQuestions[i].followupNote` 에 "planner 가 decision 값 \"<value>\" 를 해석할 수 없음. 사람 추가 결정 필요." 추가. 새 task 만들지 않고 종료. 이 humanQuestion 은 `processedByPlanner: false` 유지. |
+
+처리 완료 후:
+
+- 해당 humanQuestion 의 entry 에 `processedByPlanner: true`, `processedAt: <ISO>` 추가.
+- 본 invocation 에서 patch/split task 를 생성했다면 신규 task 추가 생성은 **하지 않고** (한 호출당 1 task 원칙) 종료.
+- `exempt` 만 처리했고 새 task 가 생성되지 않았으면, 그 다음 단계의 일반 Decision algorithm 으로 계속 진행해도 무방 (cap 안에서). 단 그 경우에도 본 호출에서 추가 task 1개만 만든다.
+
+이 pre-check 가 W2 보강의 핵심이다. HQ-0001 (split) / HQ-0002 (patch) 같은 패턴은 사람이 `decision` 만 적고 commit 하면 다음 turn 의 planner 가 자동으로 task 를 생성한다.
+
+## Auto-unblock pre-check (BLOCKED task 자동 재개)
+
+위 humanQuestion pre-check 직후, `docs/tasks/` 디렉토리를 스캔해 다음 조건을 모두 만족하는 task 가 있는지 확인한다:
+
+- frontmatter `status: BLOCKED`
+- frontmatter `blocks` 또는 본문의 Resolution 섹션이 가리키는 **patch/precursor task** 의 frontmatter `status: DONE` (이미 merge 됨)
+- 본 task 가 의존하는 다른 BLOCKED task 는 없음 (의존이 모두 해소됨)
+
+발견된 경우:
+
+- BLOCKED task 의 frontmatter `status: BLOCKED` → `PENDING` 으로 되돌림.
+- 본문 Resolution 섹션 끝에 `unblockedAt: <ISO>`, `unblockedBy: planner` 추가.
+- `STATE.nextTask = 그 task ID`.
+- 본 invocation 은 추가 task 생성 없이 종료.
+
+예: T-0004 가 BLOCKED 이고 `blocks` 표기상 T-0006 patch 가 처리할 결함이 있었던 경우 — T-0006 이 DONE 으로 merge 되면 다음 planner 호출이 본 단계에서 T-0004 를 자동 PENDING 으로 되돌리고 STATE.nextTask 로 큐잉.
+
+여러 unblock 가능 task 가 동시에 있으면 ID 가 작은 것부터 처리하고 1개만 unblock 한 뒤 종료 (한 호출 한 task 원칙).
+
 # Decision algorithm
 
 1. Determine current phase from `STATE.json.phase`.
