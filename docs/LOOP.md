@@ -35,15 +35,26 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
 - driver context에는 이 두 덩어리만 들어온다. 그 외 sub-agent 출력은
   executor 안에서 흡수되어 driver 메모리에 안 남는다.
 
-[4] COMMIT MODE 분기
+[4] COMMIT MODE 분기 (충돌-안전 push)
 - executor STATUS가 BLOCKED면 notifier sub-agent를 호출한다.
   notifier가 STATE.humanQuestions를 갱신하고 BLOCKER trail을 반환한다.
+- 모든 commit·push는 다음 충돌-안전 절차를 따른다 (§4 graceful 종료):
+  (i)   git add <변경 파일들> && git commit -m "<message with trail>"
+  (ii)  git fetch origin <target>      # direct→main, pr→해당 feature branch
+  (iii) target이 origin보다 뒤져있으면 git rebase origin/<target> 시도
+        - rebase OK → (iv)
+        - STATE/journal text conflict → driver가 base를 origin 값으로 채택하고
+          자기 변경(특히 counters: origin+1)을 재적용 후 commit. (iv)
+        - 코드 영역 conflict (src/, web/, test/) → BLOCKED, reason=merge-conflict-code
+  (iv)  git push origin HEAD:<target>
+        - 성공 → 종료, [5] CI 검증으로
+        - reject (다른 driver가 그 사이 push) → 재시도 카운터 +1, (ii)로 돌아감
+        - 3회 reject 후에도 실패 → git stash 후 BLOCKED, reason=push-contention
 - DONE이고 task.commitMode == "direct":
-    main 브랜치에서 git add + commit (메시지 본문에 executor TRAIL blob 포함,
-    CLAUDE.md §11 포맷). 즉시 git push origin main.
+    target=main. 위 (i)~(iv) 따라 main에 push.
 - DONE이고 task.commitMode == "pr":
-    feature branch (claude/<TaskID>-<slug>)에서 git add + commit
-    (메시지 본문에 executor TRAIL blob 포함). git push -u origin <branch>.
+    target=claude/<TaskID>-<slug> (없으면 main에서 새로 생성).
+    위 (i)~(iv) 따라 feature branch에 push.
     이어서 integrator sub-agent 호출 (PR open + reviewer dispatch + 결과 판정).
     integrator 반환에 따라:
       MERGED → INTEGRATOR trail을 merge commit 메시지에 포함시켜 머지 (이미 됨).
@@ -201,11 +212,47 @@ schedule 측은 lock holder를 `"cron"` 으로 잡는다. `/loop`("loop")과 cro
 
 ## 4. Lock & 충돌 규약
 
-- `state.lock = {"holder": "loop" | "cron", "since": "<ISO>"}`
-- 다른 holder의 lock이 60분 미만이면 → 즉시 종료 (no-op)
-- 60분 이상이면 stale로 간주, 탈취 후 작업 시작. 탈취 시 journal에 1줄 기록.
-- 정상 종료 또는 BLOCKED 종료 시 항상 lock 해제. commit으로 영속화.
-- worktree 충돌 방지: 모든 driver가 동일 working tree 또는 동일 base branch 기준으로 동작해야 한다. 별도 worktree에서 동시 진행 시 lock이 무용지물이 되므로 1개 working tree 사용을 원칙으로 한다.
+이 시스템의 lock은 **git push fast-forward 검사에 기대는 약한 mutex** 다. race-free 보장은 아니므로 CLAUDE.md §10 "동시 실행 정책"과 함께 읽어야 한다.
+
+### Lock 형태
+
+```json
+"lock": {
+  "holder": "loop" | "cron" | "human",
+  "session": "<선택 — 사용자가 부여한 식별 문자열, 예: hostname+timestamp>",
+  "since": "<ISO 8601>"
+}
+```
+
+`session` 필드는 같은 holder 카테고리(예: 두 cron) 사이의 구분을 돕는다. driver가 lock 잡을 때 가능하면 채운다.
+
+### 획득 / 해제
+
+- 다른 holder의 lock이 60분 미만이면 → 즉시 종료 (no-op).
+- 60분 이상이면 stale로 간주, 탈취 후 작업 시작. 탈취 시 journal에 1줄 기록 (`<HH:MM> driver: stole stale lock from <prev-holder>`).
+- 정상 종료·BLOCKED 종료 시 항상 lock 해제. commit으로 영속화.
+- 사람이 점검·정지 목적으로 `human` holder lock을 commit으로 박을 수 있다 (수동 일시정지).
+
+### Commit · Push 충돌 처리 (graceful 종료)
+
+driver가 변경을 commit한 후 push할 때 fast-forward fail (다른 driver가 먼저 push)이 일어나면:
+
+1. `git reset --soft HEAD~1` 으로 자기 commit 풀기 (변경은 working tree에 보존).
+2. `git fetch origin main && git rebase origin/main` 으로 최신 main 위로 변경 이식 시도.
+   - rebase가 자동 성공: 다시 commit + push. 재시도 카운터 +1.
+   - rebase가 conflict: STATE.json·journal 같은 단순 textual conflict는 driver가 직접 해결 시도 (origin쪽 값을 base로 자기 변경 다시 적용 — 특히 counters는 origin+1).
+   - rebase conflict가 코드 영역(`src/`, `web/`, `test/`)이면: driver는 **건드리지 않고** BLOCKED 처리 (reason: `merge-conflict-code`). 사람이 해결.
+3. push 재시도. 총 3회 시도까지 허용.
+4. 3회 후에도 push 실패: BLOCKED 처리 (notifier; reason: `push-contention`). working tree의 변경은 stash해서 보존 (`git stash push -m "T-NNNN driver attempt"`).
+
+### worktree 정책
+
+- 모든 driver는 동일 working tree 또는 같은 base branch 기준으로 동작한다. 별도 worktree에서 동시 진행하면 lock의 commit이 즉시 보이지 않을 수 있어 약한 mutex가 깨진다.
+- **1 driver = 1 working tree** 를 원칙으로 한다. multi-worktree 환경에서 driver를 동시 가동하지 않는다.
+
+### Single-writer 룰 (STATE/journal/counters)
+
+CLAUDE.md §9의 "STATE 단일 writer 원칙"에 의해 STATE.json·journal·counters를 write할 수 있는 액터는 **driver, planner, notifier 3종 뿐**이다. 그 외 sub-agent는 자기 결과를 trail blob으로만 돌려보낸다. write 표면을 작게 유지하는 것이 충돌 회피의 핵심이다.
 
 ---
 

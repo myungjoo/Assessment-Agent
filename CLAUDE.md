@@ -189,6 +189,8 @@ Long-horizon으로 살아남는 핵심.
 - secret(API key, token)은 코드·journal·task 파일에 절대 적지 않는다.
 - 새 dependency 추가는 BLOCKED. 사용자 승인 후 ADR 작성 → 추가.
 - 어떤 turn에서도 commit 없이 push하지 않는다.
+- **STATE 단일 writer 원칙**: `docs/STATE.json`, `docs/progress/journal-*.md`, `STATE.counters.*` 는 **driver와 planner와 notifier만** write할 수 있다. architect / implementer / tester / reviewer / integrator / executor 는 read는 자유지만 write 금지. 이는 단순 약속이 아니라 race 방지의 핵심이다 — write 권한 있는 액터가 적을수록 충돌 표면이 작아진다.
+- **Counters는 read-modify-write 방식**: `tasksCompleted` 등 누적 카운터를 갱신할 때 driver는 항상 최신 origin/main의 STATE를 fetch한 직후의 값을 base로 +1 한다. 절대값 덮어쓰기 금지.
 
 ---
 
@@ -201,6 +203,18 @@ Long-horizon으로 살아남는 핵심.
 3. **`/loop` dynamic pacing (보조)** — 사용자가 옆에 있을 때 1~5 turn 모니터링·디버깅용. **무한 long-horizon용 아님**: 같은 conversation 안에서 turn이 누적되므로, 10 turn 이상은 새 `/loop` 세션으로 갈아탄다. dynamic mode에서는 driver prompt가 매 turn 끝에 `ScheduleWakeup` 도구로 자기 자신을 재예약해야 turn이 이어진다 ([docs/LOOP.md](docs/LOOP.md) §1 step [8]). 그렇지 않으면 1 turn 후 정지한다.
 
 같은 lock·STATE를 공유하므로 어느 모드든 일관되게 진행된다.
+
+### 동시 실행 정책 (race 회피)
+
+본 시스템의 lock은 git push의 fast-forward 검사에 기대는 **약한 mutex**다. 진짜 동시 실행은 정책으로 회피한다.
+
+1. **`/loop` dynamic mode는 동시에 1개 세션만**. 두 conversation을 동시에 띄우지 않는다.
+2. **`/schedule` cron 간격 ≥ 평균 task 소요시간 × 2**. 예: task 평균 15분이면 cron 간격 ≥ 30분. 처음엔 2시간 간격으로 시작해 안정화되면 조정.
+3. **`/loop` 사용 시간대와 cron 발화 시간대를 분리**. 예: 사용자 `/loop`은 09–18시 주간, cron은 23·02·14시 같은 야간/유휴 시간대.
+4. cron이 직전 invocation을 아직 끝내지 못한 상태에서 다음 cron 시점이 오면 — 새 invocation의 driver가 [1] STATE & LOCK 단계에서 holder=cron lock을 발견하고 (60분 이내라면) 즉시 종료한다. 이 동작은 LOOP.md §1·§4가 보장한다.
+5. **충돌은 graceful 종료로 흡수** (LOOP.md §4): commit 직전 fetch+rebase, push fail 시 reset+재시도 최대 3회, 그래도 실패하면 BLOCKED. 작업 결과는 working tree에 남으므로 사람이 검토 가능.
+
+이 5개 규칙이 지켜지면 single-operator 환경에서 race는 사실상 일어나지 않는다. 다운라이저/multi-operator 환경이 필요해지면 lock-acquire를 별도 atomic git commit으로 분리하는 강한 mutex(별도 ADR 필요)로 전환한다.
 
 ---
 
