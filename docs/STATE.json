@@ -1,22 +1,27 @@
 {
   "schemaVersion": 1,
-  "phase": "P0-bootstrap",
+  "phase": "P0.5-test-ci-infra",
   "currentTask": null,
-  "nextTask": "T-0005",
+  "nextTask": "T-0007",
   "lock": null,
-  "lastActivity": "2026-05-24T00:16:36+09:00",
-  "lastCommit": "0e5855f",
-  "mostRecentTasks": ["T-0004", "T-0006", "T-0003", "T-0002", "T-0001"],
-  "loopSession": null,
+  "lastActivity": "2026-05-24T00:35:00+09:00",
+  "lastCommit": "e58852d",
+  "mostRecentTasks": ["T-0005", "T-0004", "T-0006", "T-0003", "T-0002"],
+  "loopSession": {
+    "turnCount": 2,
+    "startedAt": "2026-05-23T23:27:17+09:00",
+    "cap": 10,
+    "note": "사용자 명령 'turn cap 10으로 해서 시작해' (23:27 KST). 이 turn = #2. session 사이에 외부 actor 가 STATE.loopSession 을 null 로 reset 한 적 있으나 본 conversation 의 ScheduleWakeup 이 계속 살아있어 cap counter 는 본 driver 가 in-conversation 으로 추적."
+  },
   "ci": {
-    "lastRun": "2026-05-24T00:12:43+09:00",
-    "status": "skeleton-green",
+    "lastRun": "2026-05-24T00:34:00+09:00",
+    "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26336230323",
-    "note": "T-0004 PR-6 의 skeleton CI run 성공 (7초). workflow 는 여전히 echo 만 — 실제 lint/build/test step 은 T-0005 에서 추가. 본 STATE 의 status='skeleton-green' 은 '검증력 없으나 통과는 함' 의미."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26336564237",
+    "note": "T-0005 머지로 CI 가 실제 lint/build/test 를 검증. main CI 33초 pass. Phase P0 완료. 다음부터 모든 PR 은 실제 검증 게이트 통과 필수."
   },
-  "reviewRounds": {},
+  "reviewRounds": {"T-0005": 1},
   "blockers": [],
   "humanQuestions": [
     {
@@ -43,7 +48,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 4,
+    "tasksCompleted": 5,
     "tasksBlocked": 0,
     "tasksSuperseded": 1
   }

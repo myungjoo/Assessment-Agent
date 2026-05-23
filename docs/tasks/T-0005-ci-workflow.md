@@ -2,12 +2,18 @@
 id: T-0005
 title: CI workflow 에 lint/build/test step 추가 + README 명령어 단락
 phase: P0
-status: PENDING
+status: DONE
 commitMode: pr
 estimatedDiff: 60
 estimatedFiles: 2
+actualDiff: 48
+actualFiles: 2
 created: 2026-05-23
 updated: 2026-05-23
+completedAt: 2026-05-24T00:34:00+09:00
+prNumber: 7
+mergedAs: e58852d
+reviewRounds: 1
 plannerNote: T-0001 split의 마지막 task. skeleton ci.yml 위에 setup pnpm/node + install + lint/build/test step 을 채우고 README 명령어 단락 추가. Phase P0 완료의 마무리.
 dependsOn: [T-0004]
 blocks: []

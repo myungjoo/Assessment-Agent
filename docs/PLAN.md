@@ -16,12 +16,12 @@
 - [x] T-0002 — ADR-0001 stack 결정 박제 (NestJS / TS / pnpm / Jest / GHA) (PR-2, 8c6defe)
 - [x] T-0003 — 프로젝트 base config (pnpm + tsconfig + ESLint + .gitignore) (PR-3, e6052d4)
 - [x] T-0006 — T-0003 결함 patch: jest.roots 라인 제거 (HQ-0002, AC#1 deviation 옵션 a) (PR-5, 3e501a7)
-- [ ] T-0004 — NestJS minimal src skeleton + 첫 sanity test (T-0006 머지로 unblock, stash@{0} draft 보존)
-- [ ] T-0005 — CI workflow 에 lint/build/test step 추가 + README 명령어 단락
+- [x] T-0004 — NestJS minimal src skeleton + 첫 sanity test (PR-6, 0e5855f; cron 발화)
+- [x] T-0005 — CI workflow 에 lint/build/test step 추가 + README 로컬 빌드 단락 (PR-7, e58852d; loop session #2/10)
 
-**참고**: `.github/workflows/ci.yml` 의 trigger·job 골격은 부트스트랩 단계에서 사용자 명시 요청에 따라 main에 직접 박혀 있다 (skeleton 상태). T-0005는 그 위에 실제 step 들을 채운다.
+**Phase P0 완료 (2026-05-24 00:34 KST)**. main CI 가 실제 lint/build/test 검증 — 자동 루프 골격 완성.
 
-완료 조건: `pnpm test` 가 통과하는 빈 NestJS 프로젝트가 main에 merge되고, CI가 green.
+**참고**: `.github/workflows/ci.yml` 의 trigger·job 골격은 부트스트랩 단계에서 사용자 명시 요청에 따라 main에 직접 박혀 있었고 (skeleton), T-0005가 그 위에 실제 step 채움.
 
 ---
 
