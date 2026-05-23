@@ -2,24 +2,21 @@
   "schemaVersion": 1,
   "phase": "P0-bootstrap",
   "currentTask": null,
-  "nextTask": "T-0004",
+  "nextTask": "T-0005",
   "lock": null,
-  "lastActivity": "2026-05-23T23:35:00+09:00",
-  "lastCommit": "3e501a7",
-  "mostRecentTasks": ["T-0006", "T-0004", "T-0003", "T-0002", "T-0001"],
-  "loopSession": {
-    "turnCount": 1,
-    "startedAt": "2026-05-23T23:27:17+09:00",
-    "cap": 10,
-    "note": "사용자 명령 'turn cap 10으로 해서 시작해' (23:27 KST). LOOP.md §1 [8] (e) 의 cap 10 spec 따름. 매 turn 시작 시 +1. cap 도달 시 ScheduleWakeup 안 함."
-  },
+  "lastActivity": "2026-05-24T00:16:36+09:00",
+  "lastCommit": "0e5855f",
+  "mostRecentTasks": ["T-0004", "T-0006", "T-0003", "T-0002", "T-0001"],
+  "loopSession": null,
   "ci": {
-    "lastRun": null,
-    "status": "skeleton-only",
+    "lastRun": "2026-05-24T00:12:43+09:00",
+    "status": "skeleton-green",
     "consecutiveFails": 0,
-    "note": "workflow 파일은 존재(.github/workflows/ci.yml)하지만 실제 lint/build/test step은 T-0005에서 추가됨. driver는 push 후 gh run list 결과를 정상 confirm 가능."
+    "lastConclusion": "success",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26336230323",
+    "note": "T-0004 PR-6 의 skeleton CI run 성공 (7초). workflow 는 여전히 echo 만 — 실제 lint/build/test step 은 T-0005 에서 추가. 본 STATE 의 status='skeleton-green' 은 '검증력 없으나 통과는 함' 의미."
   },
-  "reviewRounds": {"T-0006": 1},
+  "reviewRounds": {},
   "blockers": [],
   "humanQuestions": [
     {
@@ -46,7 +43,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 3,
+    "tasksCompleted": 4,
     "tasksBlocked": 0,
     "tasksSuperseded": 1
   }
