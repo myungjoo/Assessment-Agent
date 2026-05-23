@@ -84,6 +84,24 @@
 
 **모든 commit (direct·pr 둘 다) 의 본문에는 agent-trail blob을 포함한다** (§11 참조). 이것이 driver context 외화의 핵심 메커니즘이다.
 
+### 3.2 Reviewer round 합의 룰 (모든 long-horizon agent 글로벌)
+
+PR 머지 조건은 **reviewer finding 0개 + CI green + AC 완료** 셋이 모두 충족되어야 한다. reviewer가 어떤 severity (BLOCKER/MAJOR/MINOR/informational) 든 finding을 1개라도 남기면 round를 더 돈다.
+
+각 finding은 implementer가 둘 중 하나로 처리한다:
+
+- **(a) 코드 수정**: 같은 PR에 새 commit으로 finding을 해소.
+- **(b) 무시 + rationale**: 무시할 이유를 PR에 comment로 게시 (`mcp__github__add_issue_comment`). 별도 follow-up task로 분리하는 경우도 (b)에 해당하며, task ID와 분리 이유를 comment에 명시한다.
+
+매 round 끝에 reviewer를 재호출한다. 이전 round의 모든 finding이 (해소 또는 rationale로 답변) 된 것이 확인되면 reviewer는 verdict=APPROVE 또는 finding=0 으로 합의한다. **VERDICT=COMMENT여도 finding ≠ 0이면 round 대상이다** (`.claude/agents/reviewer.md` 정의 보완).
+
+- finding=0 + CI green + AC 완료 → integrator가 머지 (`mcp__github__merge_pull_request`, designated branch delete=false).
+- finding ≠ 0 + round < 7 → 다음 round (implementer hand-back).
+- CI fail → implementer로 hand-back; `consecutiveFails ≥ 3` 시 BLOCKED.
+- round 7 초과 합의 실패 → BLOCKED + notifier.
+
+이 룰은 driver, executor, integrator, reviewer, implementer, planner 모든 long-horizon agent에 **무조건** 적용된다. follow-up task로 미루기는 (b) rationale의 일종이지 자동 합의가 아니다 — 같은 PR의 reviewer 다음 round에서 rationale을 명시적으로 확인해야 한다.
+
 ---
 
 ## 4. Sub-agent dispatch (context 관리 핵심)

@@ -62,6 +62,7 @@ Use this header for the body:
 - **Be specific.** "Add more tests" is not a finding; "negative test for empty input on `Foo.parse()` is missing" is.
 - **Don't review files outside the diff** unless they're directly relevant to a regression risk.
 - **Round counter**: when posting, append the current review round number (`Round N/7`) so integrator can track against the README's 7-round limit.
+- **Round-合의 룰 (CLAUDE.md §3.2)**: any finding (BLOCKER/MAJOR/MINOR/informational) means the PR is NOT mergeable until a subsequent round confirms `findings=0`. Verdict `COMMENT` with `findings>0` is treated by the driver/integrator as round-continuation, not as merge consent. When re-reviewing, explicitly acknowledge whether each prior-round finding was (a) resolved in code or (b) rationale-deferred via PR comment — only when *all* are accounted for may you return `findings=0`.
 
 # Output to caller (integrator / driver)
 

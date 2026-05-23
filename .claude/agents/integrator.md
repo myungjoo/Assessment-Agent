@@ -34,12 +34,13 @@ If invoked on a `direct` task by mistake, refuse immediately and report the erro
 ## B. After a review
 
 1. Read reviewer's verdict.
-2. If `APPROVE` AND CI green AND all Acceptance Criteria checked → merge:
+2. If reviewer `findings = 0` (verdict APPROVE, or COMMENT with no remaining items) AND CI green AND all Acceptance Criteria checked → merge:
    - `mcp__github__merge_pull_request` with `merge_method: "squash"`. Set `delete_branch: false` (see Hard rules — designated branch must persist).
    - Update STATE.json: `currentTask=null`, increment `tasksCompleted`, clear `reviewRounds[T-NNNN]`.
-3. If `REQUEST_CHANGES` and round < 7:
+3. If `REQUEST_CHANGES`, OR (`COMMENT` AND `findings > 0`), AND round < 7 (CLAUDE.md §3.2):
    - Increment `reviewRounds[T-NNNN]`.
    - Hand back to `implementer` with the review comments as input.
+   - Implementer either (a) fixes in code, or (b) posts a rationale PR comment via `mcp__github__add_issue_comment` for each finding being deferred. Both paths must be reflected before the next round.
    - After implementer + tester re-run, **driver pushes**; integrator then re-fetches CI (`get_check_runs`) and re-dispatches `reviewer`.
 4. If `REQUEST_CHANGES` and round == 7:
    - Stop. Dispatch `notifier` with reason `review-rounds-exhausted` and the latest review.
