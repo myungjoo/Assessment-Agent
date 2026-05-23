@@ -11,7 +11,11 @@
 
 목표: 자동 루프가 도는 데 필요한 최소 골격을 만든다.
 
-- [ ] T-0001 — ADR-0001 stack 결정 + NestJS 프로젝트 골격 + GitHub Actions CI
+- [~] T-0001 — ADR-0001 stack 결정 + NestJS 프로젝트 골격 + GitHub Actions CI **(SUPERSEDED — size cap 초과로 4개로 split, HQ-0001 결정)**
+- [ ] T-0002 — ADR-0001 stack 결정 박제 (NestJS / TS / pnpm / Jest / GHA)
+- [ ] T-0003 — 프로젝트 base config (pnpm + tsconfig + ESLint + .gitignore)
+- [ ] T-0004 — NestJS minimal src skeleton + 첫 sanity test
+- [ ] T-0005 — GitHub Actions CI workflow + README 명령어 단락
 
 완료 조건: `pnpm test` 가 통과하는 빈 NestJS 프로젝트가 main에 merge되고, CI가 green.
 

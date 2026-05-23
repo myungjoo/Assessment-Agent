@@ -2,11 +2,13 @@
 id: T-0001
 title: ADR-0001 stack 결정 + NestJS 프로젝트 골격 + 기본 CI
 phase: P0
-status: BLOCKED
+status: SUPERSEDED
 commitMode: pr
 estimatedDiff: 250
 estimatedFiles: 5
 created: 2026-05-23
+supersededBy: [T-0002, T-0003, T-0004, T-0005]
+supersededAt: 2026-05-23
 ---
 
 # T-0001 — ADR-0001 stack 결정 + NestJS 프로젝트 골격 + 기본 CI
@@ -52,11 +54,16 @@ created: 2026-05-23
 
 ## Follow-ups
 
-(빈 칸 — 작업하면서 발견되는 후속 작업은 여기에 적기)
+- driver/planner 정책 보강: humanQuestion 의 `decision` 값을 보고 planner가 자동으로 split task들을 생성하도록 planner.md 확장. 현재는 사람이 수동으로 split task 파일들을 작성. (`docs/tasks/T-0001` 의 split은 사람이 직접 수행했다.)
+- size cap 자체의 적정성 재검토: 단일 commit 기준 ≤300 LOC / ≤5 파일이 부트스트랩성·CI workflow 추가성 task에는 빠듯할 수 있음. 별도 ADR로 task type별 cap 정의 가능성 검토.
 
-## Blocker
+## Resolution (2026-05-23)
 
-- reason: task-too-large
-- humanQuestion: HQ-0001
-- stashRef: `stash@{0}` — message: `T-0001 draft pre-split (executor BLOCKED task-too-large) — recoverable with: git stash apply stash@{0}`
-- summary: Executor reports bootstrap requires ~11 files / +365 LOC (ADR-0001 + package.json + tsconfig + .eslintrc + .gitignore + .github/workflows/ci.yml + NestJS src skeleton (main/app.module/app.controller/app.service) + app.service.spec + README updates), exceeding CLAUDE.md §3 cap of ≤5 files / ≤300 LOC. The 8 acceptance criteria leave no realistic decomposition under the file cap. Awaiting human decision: split into 2–3 tasks, grant one-shot cap exception, or other.
+- HQ-0001 결정: **split** (사용자 결정 A 선택).
+- 본 task는 SUPERSEDED. 다음 4개 task로 대체:
+  - [T-0002](T-0002-adr-0001-stack.md) — ADR-0001 stack 결정 (NestJS / TS / pnpm / Jest / GitHub Actions)
+  - [T-0003](T-0003-project-config.md) — pnpm + tsconfig + lint + .gitignore base config
+  - [T-0004](T-0004-nestjs-skeleton-and-sanity-test.md) — NestJS minimal src skeleton + 첫 sanity test
+  - [T-0005](T-0005-ci-workflow.md) — GitHub Actions CI workflow + README 명령어 단락
+- 의존성 chain: T-0002 → T-0003 → T-0004 → T-0005.
+- driver의 직전 시도 작업물: `git stash apply stash@{0}` 으로 복구 가능. 다만 4개 task로 잘리면서 file별로 적절한 task에 흩어져야 하므로, 각 task의 implementer는 stash를 reference로만 활용하고 처음부터 새로 작성하는 것이 안전하다. stash는 후속 task가 모두 끝난 뒤 `git stash drop stash@{0}` 으로 정리한다.

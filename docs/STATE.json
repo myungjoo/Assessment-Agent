@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "phase": "P0-bootstrap",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0002",
   "lock": null,
   "lastActivity": "2026-05-23T19:16:02+09:00",
   "lastCommit": null,
@@ -13,14 +13,7 @@
     "consecutiveFails": 0
   },
   "reviewRounds": {},
-  "blockers": [
-    {
-      "taskId": "T-0001",
-      "reason": "task-too-large",
-      "humanQuestionId": "HQ-0001",
-      "createdAt": "2026-05-23T19:16:02+09:00"
-    }
-  ],
+  "blockers": [],
   "humanQuestions": [
     {
       "id": "HQ-0001",
@@ -28,12 +21,15 @@
       "taskId": "T-0001",
       "question": "T-0001 (bootstrap) cannot fit within the CLAUDE.md §3 size cap (≤5 files / ≤300 LOC). The 8 acceptance criteria mandate ADR + package.json + tsconfig + lint config + .gitignore + CI workflow + NestJS src skeleton + tests + README — minimum ~11 files / ~365 LOC.\n\nChoose one:\n  (a) Split T-0001 into 2–3 smaller tasks (planner will draft).\n  (b) Approve a one-shot cap exception for T-0001 (mark this task as size-exempt; raise neither the global cap nor future tasks).\n  (c) Other (specify).\n\nDraft work is preserved in `git stash@{0}` and can be recovered with `git stash apply stash@{0}` once the path forward is decided.",
       "options": ["split", "exempt", "other"],
-      "decision": null,
-      "resolvedAt": null
+      "decision": "split",
+      "decisionNote": "T-0001을 T-0002~T-0005 4개 task로 split. 사람이 직접 task 파일 작성. driver는 다음 turn에서 T-0002 picking up. stash@{0}는 4 task 모두 끝난 뒤 정리.",
+      "resolvedAt": "2026-05-23T20:30:00+09:00",
+      "resolvedBy": "human"
     }
   ],
   "counters": {
     "tasksCompleted": 0,
-    "tasksBlocked": 1
+    "tasksBlocked": 0,
+    "tasksSuperseded": 1
   }
 }
