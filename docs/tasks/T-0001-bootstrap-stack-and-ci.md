@@ -2,11 +2,15 @@
 id: T-0001
 title: ADR-0001 stack 결정 + NestJS 프로젝트 골격 + 기본 CI
 phase: P0
-status: PENDING
+status: DONE
 commitMode: pr
 estimatedDiff: 250
 estimatedFiles: 5
+actualDiff: 447
+actualFiles: 11
 created: 2026-05-23
+completed: 2026-05-23T09:34:00Z
+commit: 10554d5
 ---
 
 # T-0001 — ADR-0001 stack 결정 + NestJS 프로젝트 골격 + 기본 CI

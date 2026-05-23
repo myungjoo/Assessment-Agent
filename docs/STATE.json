@@ -2,20 +2,21 @@
   "schemaVersion": 1,
   "phase": "P0-bootstrap",
   "currentTask": null,
-  "nextTask": "T-0001",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": null,
-  "lastCommit": null,
+  "lastActivity": "2026-05-23T09:34:00Z",
+  "lastCommit": "10554d5",
   "ci": {
-    "lastRun": null,
-    "status": null,
+    "lastRun": "2026-05-23T09:34:00Z",
+    "status": "running",
     "consecutiveFails": 0
   },
   "reviewRounds": {},
   "blockers": [],
   "humanQuestions": [],
   "counters": {
-    "tasksCompleted": 0,
+    "tasksCompleted": 1,
     "tasksBlocked": 0
-  }
+  },
+  "mostRecentTasks": ["T-0001"]
 }
