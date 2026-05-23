@@ -4,16 +4,35 @@
   "currentTask": null,
   "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-23T09:34:00Z",
-  "lastCommit": "10554d5",
+  "lastActivity": "2026-05-23T10:46:40Z",
+  "lastCommit": "c32c64e",
   "ci": {
-    "lastRun": "2026-05-23T09:34:00Z",
-    "status": "running",
+    "lastRun": "2026-05-23T10:40:29Z",
+    "status": "mock-env-no-actions-runner",
     "consecutiveFails": 0
   },
-  "reviewRounds": {},
+  "reviewRounds": {
+    "T-0001": 0
+  },
+  "pullRequests": {
+    "T-0001": {
+      "number": 1,
+      "url": "https://github.com/myungjoo/Assessment-Agent/pull/1",
+      "head": "c32c64e",
+      "openedAt": "2026-05-23T10:40:29Z"
+    }
+  },
   "blockers": [],
-  "humanQuestions": [],
+  "humanQuestions": [
+    {
+      "id": "Q-0001",
+      "task": "T-0001",
+      "asked": "2026-05-23T10:37:54Z",
+      "question": "Integrator needs a GitHub API channel to open PR for branch claude/assessment-agent-long-horizon-t2xNF (commit 10554d5). Neither mcp__github__* tools nor gh CLI are available. Please either (a) expose mcp__github__* tools to the integrator agent, or (b) open the PR manually and re-invoke integrator with the PR number.",
+      "resolvedAt": "2026-05-23T10:46:40Z",
+      "decision": "Option (b) — driver opens PR directly via mcp__github__create_pull_request and feeds reviewer subagent the diff via a file path (prompt input). Subagent MCP schema exposure remains an open question for the integrator role; followed up as a separate task."
+    }
+  ],
   "counters": {
     "tasksCompleted": 1,
     "tasksBlocked": 0
