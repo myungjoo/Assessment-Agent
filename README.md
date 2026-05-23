@@ -101,4 +101,32 @@ AA의 평가 대상은 크게 코드 작성과 문서 작성으로 나누어 볼
     - anthropic
     - google gemini
     - open AI
- 
+
+
+# 구현 과정에 대한 제약
+
+- Well-known & Well-maintained library를 사용하여 construct해도 좋다. 단, 중복하여 사용하지 않아야 하며, 이미 import한 library가 제공되는 기능을 위해 다른 library나 다른 version을 다시 더 import하게 되지 않도록 해야 한다.
+- 한번에 많은 구현을 하지 않고, 한번에 하나의 coherent한 기능과 부품을 제작하여야 한다. (하나의 commit에는 하나의 주제)
+- 하나의 commit 혹은 PR 작성 후 코드 검토와 test case 작성 및 test 수행이 이뤄져야 한다.
+- 모든 test case들은 CI를 통해 자동 실행이 되고, test case fail 발생시 CI error 발생으로 연결되어 코드 작성 agent와 개발자 모두 쉽게 인지할 수 있어야 한다.
+- 개별 feature 작성 시 feature 내 기능, feature 내 예외 처리 기능, feature 내 flow를 대부분 커버하도록 unit test case가 작성되어야 한다. 예외 처리 기능 검증을 위해 negative test cases들도 추가되어야 한다.
+- unit test case 외에 smoke test, end-to-end test도 이뤄져야 하며, 이들도 CI 에서 함께 수행되어야 한다.
+- Agent가 하나의 활동 (commit 추가)를 하고 나면 test 수행을 하여 검증을 해 두어야 하며, Agent 종료 전 commit PR된 내용에 대한 CI수행도 하여야 한다.
+- Agent가 하나의 활동을 마무리 하면서 PR을 만들면 다른 Agent가 fire되어 PR에 대한 review를 수행하여야 한다.
+- Reviewer Agent와 Committer Agent가 모두 Merge에 합의되면 PR Merge되어야 한다.
+- Reviewer Agent는 다음의 항목을 검사하여야 한다.
+```
+코드 리뷰를 수행하라. 리뷰 대상 코드 변경사항과 기존 Repository내 내용, Target Software가 사용하는 외부 Library들을 모두 분석 대상으로 하되, 리뷰 지적 대상은 지정된 코드 변경사항으로 제한한다.
+
+- 주어진 주제를 해결하고 있는지 검사하라.
+- 기존 기능이나 성능을 해치지 않는지 검사하라. 특히 타 모듈에 Regression을 일으킬 수 있는지 점검해라.
+- 코드 크기가 주제에 비해 지나치게 크거나, 불필요하게 다른 모듈을 건드리지 않는지 검사하라.
+- 코드 내용을 검증하고, 미래에 문제가 발생하지 않도록 막기 위해 필요한 test case가 완비되었는지 검사하라.
+- 미래에 타 모듈의 기능 추가로 인해 검사 대상 코드의 기능과 성능에 영향을 받게 되었을 떄에 그 영향을 바로 Detect할 수 있도록 Test Case가 있는지 검사하라.
+- Test Case로 찾아진 Issue가 있을 때에 CI가 Fail이 나서 해당 문제를 일으킨 코드가 Merge되지 않도록 막을 수 있는지 점검하라.
+- ARCHITECTURE 변경을 일으키거나 API 변경이 있는 경우 그와 관련한 문서 수정이 PR 내에서 함께 이뤄지거나, 문서 수정이 이미 되어있는지 점검하라.
+- 이슈가 있을 경우 이슈 심각성과 문제인 이유와 한께 PR에 Comment를 남긴다. 단, 타 Agent가 작성한 리뷰를 옮겨 적은 것임을 명시하라.
+``` 
+
+
+
