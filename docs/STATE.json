@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "phase": "P0-bootstrap",
   "currentTask": null,
-  "nextTask": "T-0003",
+  "nextTask": "T-0004",
   "lock": null,
-  "lastActivity": "2026-05-23T20:48:00+09:00",
-  "lastCommit": "8c6defe",
-  "mostRecentTasks": ["T-0002", "T-0001"],
+  "lastActivity": "2026-05-23T21:29:14+09:00",
+  "lastCommit": "e6052d4",
+  "mostRecentTasks": ["T-0003", "T-0002", "T-0001"],
   "ci": {
     "lastRun": null,
     "status": "skeleton-only",
     "consecutiveFails": 0,
     "note": "workflow 파일은 존재(.github/workflows/ci.yml)하지만 실제 lint/build/test step은 T-0005에서 추가됨. driver는 push 후 gh run list 결과를 정상 confirm 가능."
   },
-  "reviewRounds": {"T-0002": 1},
+  "reviewRounds": {"T-0002": 1, "T-0003": 1},
   "blockers": [],
   "humanQuestions": [
     {
@@ -29,7 +29,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 1,
+    "tasksCompleted": 2,
     "tasksBlocked": 0,
     "tasksSuperseded": 1
   }

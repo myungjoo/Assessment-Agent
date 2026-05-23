@@ -13,7 +13,7 @@
 
 - [~] T-0001 — ADR-0001 stack 결정 + NestJS 프로젝트 골격 + GitHub Actions CI **(SUPERSEDED — size cap 초과로 4개로 split, HQ-0001 결정)**
 - [x] T-0002 — ADR-0001 stack 결정 박제 (NestJS / TS / pnpm / Jest / GHA) (PR-2, 8c6defe)
-- [ ] T-0003 — 프로젝트 base config (pnpm + tsconfig + ESLint + .gitignore)
+- [x] T-0003 — 프로젝트 base config (pnpm + tsconfig + ESLint + .gitignore) (PR-3, e6052d4)
 - [ ] T-0004 — NestJS minimal src skeleton + 첫 sanity test
 - [ ] T-0005 — CI workflow 에 lint/build/test step 추가 + README 명령어 단락
 

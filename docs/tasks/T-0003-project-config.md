@@ -2,11 +2,17 @@
 id: T-0003
 title: 프로젝트 base config (pnpm + tsconfig + ESLint + .gitignore)
 phase: P0
-status: PENDING
+status: DONE
 commitMode: pr
 estimatedDiff: 150
 estimatedFiles: 5
+actualDiff: 165
+actualFiles: 5
 created: 2026-05-23
+completedAt: 2026-05-23T21:29:14+09:00
+prNumber: 3
+mergedAs: e6052d4
+reviewRounds: 1
 plannerNote: T-0001 split의 두 번째 task. ADR-0001 의 결정대로 빈 NestJS 프로젝트의 base config 만 셋업. src 코드와 CI 는 후속 task.
 dependsOn: [T-0002]
 blocks: [T-0004]
