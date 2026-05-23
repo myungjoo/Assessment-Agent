@@ -131,3 +131,17 @@ AA의 평가 대상은 크게 코드 작성과 문서 작성으로 나누어 볼
 
 
 - 코드 작성에 대해서는 PR 작성 후 Reviewer와의 합의 과정이 필요하지만, PLAN 업데이트나 구현 진행 상황 문서 업데이트 에 대해서는 direct commit을 하라. (예를 들어 PLAN.md, STATE.json, CLAUDE.md 등) 이를 위해서 코드 작성 커밋과 이런 진행 상황 업데이트 커밋은 따로 만드는 것이 좋다.
+
+
+# Development
+
+Backend stack은 [ADR-0001](docs/decisions/ADR-0001-stack.md) 에서 확정한 Node.js 22 + TypeScript + NestJS + pnpm + Jest 조합이다. 로컬 / CI에서 동일한 명령어를 사용한다.
+
+```bash
+pnpm install          # 의존성 설치 (lockfile은 결정적: pnpm-lock.yaml)
+pnpm build            # tsc -p tsconfig.build.json → dist/
+pnpm test             # Jest unit + sanity 스위트
+pnpm lint             # ESLint (TypeScript rules)
+```
+
+CI([.github/workflows/ci.yml](.github/workflows/ci.yml))는 `main` 브랜치로 push 되거나 PR 이 열릴 때 위 4 단계를 그대로 실행한다.
