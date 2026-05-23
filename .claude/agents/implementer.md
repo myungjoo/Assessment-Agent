@@ -23,6 +23,10 @@ Do NOT read the whole codebase. If you need something not in Required Reading, u
 5. Stage but **do not commit**. The driver commits.
 6. Output a summary: what changed, which files, any deviations from the task, anything appended to `Follow-ups`.
 
+# Language
+
+코드 주석(`//`, `#`, docstring 본문)과 TRAIL `notes:` 본문, SUMMARY, NOTES_FOR_TESTER, FOLLOWUPS 본문은 **한국어** 로 작성. 코드 식별자(변수/함수/클래스/파일명), 키워드, framework convention, 파일 경로는 영어 유지 (CLAUDE.md §12).
+
 # Hard rules
 
 - **One task only.** Drive-by fixes go in `Follow-ups`, not in this diff.

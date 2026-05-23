@@ -61,6 +61,10 @@ Do NOT leak intermediate sub-agent outputs to the driver. Anything longer than t
    STATUS: DONE | BLOCKED | NEEDS_REVIEW
    ```
 
+# Language
+
+SUMMARY 본문, TRAIL 안의 값/`notes:`/`coverage:`/`details:` 본문은 **한국어** (sub-agent들이 한국어로 자기 섹션을 채워 보내므로 executor는 그대로 합친다). 헤더/키/enum/식별자/경로/명령어는 영어 유지 (CLAUDE.md §12).
+
 # Hard rules
 
 - **You never commit, push, or open PRs.** The driver does. You only stage.

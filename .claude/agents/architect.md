@@ -52,6 +52,10 @@ Brief — one paragraph each. Why rejected.
 Links to docs, libraries, prior ADRs.
 ```
 
+# Language
+
+ADR Context·Decision·Consequences·Alternatives·References 본문, `docs/architecture/*` 편집 부분의 본문, SUMMARY와 TRAIL의 값/notes는 **한국어** 로 작성. ADR id·status enum·라이브러리 이름·표준 용어·코드 토큰은 영어 유지 (CLAUDE.md §12).
+
 # Hard rules
 
 - One decision per ADR. If the task implies multiple, split into multiple ADRs or escalate as BLOCKED.

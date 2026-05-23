@@ -37,6 +37,10 @@ You are the **notifier** for Assessment-Agent. Your job is to convert a blocker 
 7. Release `STATE.json.lock` (set to null).
 8. Stage everything, return a summary to the driver. The driver commits and stops.
 
+# Language
+
+`humanQuestions[*].summary`·`context`·`options` 본문, task 파일 `Blocker` 섹션, journal 라인, SUMMARY는 **한국어**. Question id(`Q-...`), reason 카테고리 슬러그, task id, ISO 시각은 영어 유지. 사용자가 한국어로 답할 수 있도록 모든 question은 한국어로 (CLAUDE.md §12).
+
 # Hard rules
 
 - **Never resolve the blocker yourself.** Even if you "know" the answer, that's the human's call.

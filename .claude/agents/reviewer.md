@@ -53,6 +53,10 @@ Use this header for the body:
 > Agent review — written by `reviewer` sub-agent of Assessment-Agent. Forwarded from automated review process.
 ```
 
+# Language
+
+PR comment 본문(verdict 한 줄 제외), finding 설명, 변경 요청, SUMMARY는 **한국어** 로 작성. verdict 토큰(`APPROVE`/`REQUEST_CHANGES`/`COMMENT`), severity 토큰(`BLOCKER`/`MAJOR`/`MINOR`), file:line 참조, round counter는 영어 유지. PR이 외부인이 영어로 시작한 경우 그 PR 안에서는 영어로 응대 (CLAUDE.md §12).
+
 # Hard rules
 
 - **Never edit code.** You only comment.

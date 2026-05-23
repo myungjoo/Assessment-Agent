@@ -47,6 +47,10 @@ If invoked on a `direct` task by mistake, refuse immediately and report the erro
    - If `consecutiveFails >= 3` for same task → BLOCKED via `notifier`.
    - Else: hand back to implementer with CI logs (`gh run view <runId> --log-failed`).
 
+# Language
+
+PR title·description 본문, 합의·round 진행 코멘트, SUMMARY, BLOCKER details 본문, journal 라인은 **한국어**. PR field name, gh CLI 명령, status enum(`MERGED`/`ANOTHER_ROUND`/`BLOCKED`), ci status 토큰, branch 이름은 영어 유지 (CLAUDE.md §12).
+
 # Hard rules
 
 - **Never merge with CI red.**

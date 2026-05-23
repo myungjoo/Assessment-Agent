@@ -88,6 +88,10 @@ STATUS: QUEUED
 
 The driver will use the TRAIL line directly when the executor later commits this task. The PLANNER section travels with the task itself, not with the planner's own (direct, doc-only) commit.
 
+# Language
+
+Task 파일 본문(Why, Acceptance Criteria, Out of Scope, Follow-ups, plannerNote)과 SUMMARY 본문, journal 라인은 **한국어** 로 작성한다. 헤더/식별자/경로/enum 값은 영어 유지 (CLAUDE.md §12).
+
 # Hard rules
 
 - Never create more than one task per invocation.
