@@ -1,22 +1,25 @@
 ---
 id: T-0005
-title: GitHub Actions CI workflow + README 명령어 단락
+title: CI workflow 에 lint/build/test step 추가 + README 명령어 단락
 phase: P0
 status: PENDING
 commitMode: pr
-estimatedDiff: 80
+estimatedDiff: 60
 estimatedFiles: 2
 created: 2026-05-23
-plannerNote: T-0001 split의 마지막 task. lint/build/test 를 자동 실행하는 CI 와 사용자용 명령어 안내. Phase P0 완료의 마무리.
+updated: 2026-05-23
+plannerNote: T-0001 split의 마지막 task. skeleton ci.yml 위에 setup pnpm/node + install + lint/build/test step 을 채우고 README 명령어 단락 추가. Phase P0 완료의 마무리.
 dependsOn: [T-0004]
 blocks: []
 ---
 
-# T-0005 — GitHub Actions CI workflow + README 명령어 단락
+# T-0005 — CI workflow 에 lint/build/test step 추가 + README 명령어 단락
 
 ## Why
 
 [T-0004](T-0004-nestjs-skeleton-and-sanity-test.md) 까지 끝나면 `pnpm build`·`pnpm test`·`pnpm lint` 가 로컬에서 통과한다. 본 task 가 이를 GitHub Actions 로 자동화하여, 모든 PR 과 main push 마다 검증되도록 한다.
+
+**주의**: `.github/workflows/ci.yml` 의 **skeleton (trigger + job 형태) 은 이미 부트스트랩 단계에서 main 에 박혀 있다** (사용자 명시 요청). 본 task 는 그 위에 실제 step (`setup pnpm` → `setup-node with cache` → `pnpm install --frozen-lockfile` → `pnpm lint` → `pnpm build` → `pnpm test`) 을 채운다.
 
 이게 끝나면 Phase P0 완료 — LOOP.md §1 [5] CI 검증 단계가 진짜로 동작하기 시작하고, driver 가 안전하게 long-horizon 으로 진입할 수 있다.
 
@@ -30,13 +33,21 @@ blocks: []
 
 ## Acceptance Criteria
 
-- [ ] `.github/workflows/ci.yml` 존재. 다음 trigger: `push` (모든 branch), `pull_request` (target: main).
-- [ ] job 이름 `ci`. runs-on `ubuntu-latest`. Node 버전은 `package.json` 의 `packageManager` / `engines` 와 일치 (LTS 22 또는 그 시점 LTS).
-- [ ] step 순서: checkout → setup pnpm → setup-node with cache: 'pnpm' → `pnpm install --frozen-lockfile` → `pnpm lint` → `pnpm build` → `pnpm test`.
-- [ ] 각 step 이름은 한국어로 (예: `name: "의존성 설치"`). action 이름·flag 는 영어 유지 (§12).
+- [ ] 기존 `.github/workflows/ci.yml` 의 trigger (`pull_request` target main + `push` to main) 는 그대로 유지한다.
+- [ ] 기존 "부트스트랩 안내 출력" step 은 제거하거나, 마지막에 "step 추가 완료" 출력으로 대체한다.
+- [ ] 다음 step 들이 추가된다 (순서 중요):
+  - checkout (`actions/checkout@v4`)
+  - `pnpm/action-setup@v4` 로 pnpm 설치 (`package.json` 의 `packageManager` 와 동일 버전)
+  - `actions/setup-node@v4` 로 Node LTS (`package.json` 의 `engines.node` 와 일치) + `cache: 'pnpm'`
+  - `pnpm install --frozen-lockfile`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test`
+- [ ] 각 step `name:` 은 한국어로 (예: `name: 의존성 설치`). action 이름·flag·env 변수 이름은 영어 유지 (§12).
 - [ ] PR 에서 CI 가 실패하면 reviewer 점검 전에 명확히 보이도록 default branch protection 가정 (실제 protection rule 설정은 사람이 GitHub UI 에서 — 본 task 의 일이 아님; 단 README 에 한 줄 안내).
 - [ ] [README.md](../../README.md) 끝에 새 섹션 (예: `# 로컬 빌드 / 테스트`) 한 단락 추가: `pnpm install`, `pnpm build`, `pnpm test`, `pnpm lint` 사용법 한국어로 한 줄씩.
-- [ ] 단일 commit 으로 staged 된다 (2 파일).
+- [ ] STATE.json 의 `ci.status` 를 `skeleton-only` → 적절한 상태로 갱신은 driver/integrator 가 push 후 자동 수행 (LOOP.md §1 [5]).
+- [ ] 단일 commit 으로 staged 된다 (ci.yml + README.md = 2 파일).
 
 ## Out of Scope
 

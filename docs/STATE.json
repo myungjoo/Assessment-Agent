@@ -9,8 +9,9 @@
   "mostRecentTasks": ["T-0001"],
   "ci": {
     "lastRun": null,
-    "status": "not-yet-configured",
-    "consecutiveFails": 0
+    "status": "skeleton-only",
+    "consecutiveFails": 0,
+    "note": "workflow 파일은 존재(.github/workflows/ci.yml)하지만 실제 lint/build/test step은 T-0005에서 추가됨. driver는 push 후 gh run list 결과를 정상 confirm 가능."
   },
   "reviewRounds": {},
   "blockers": [],

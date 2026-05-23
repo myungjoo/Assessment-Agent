@@ -1,0 +1,27 @@
+name: CI
+
+# Assessment-Agent 의 PR/main push 마다 동작하는 기초 CI.
+# 본 파일은 부트스트랩 단계의 skeleton 으로, trigger 와 job 형태만 정의한다.
+# 실제 lint / build / test step 은 T-0005 에서 채워진다 (docs/tasks/T-0005-ci-workflow.md).
+# 정책: CLAUDE.md §3.1 상 .github/workflows/ 는 pr-mode 영역이나, 본 skeleton 은
+# driver pipeline 가동 전의 부트스트랩 commit 으로 main direct push 됨 (commit 메시지 참조).
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    name: 기본 검사
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 checkout
+        uses: actions/checkout@v4
+
+      - name: 부트스트랩 안내 출력
+        run: |
+          echo "Assessment-Agent CI skeleton 입니다."
+          echo "실제 lint/build/test step 은 T-0005 에서 추가됩니다."
+          echo "현재 phase: P0-bootstrap"
