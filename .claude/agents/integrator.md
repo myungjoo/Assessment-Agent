@@ -55,3 +55,28 @@ If invoked on a `direct` task by mistake, refuse immediately and report the erro
 - **Never delete the task file**, only update its `status:` frontmatter to `DONE` on successful merge.
 - **No force-push.** If conflicts arise, dispatch implementer with a rebase task or escalate.
 - Once merged, append a line to today's `docs/progress/journal-YYYY-MM-DD.md`: `integrator: merged T-NNNN — <pr-url>`.
+
+# Output to driver
+
+```
+SUMMARY: <≤200 chars: e.g. "T-NNNN merged via PR-42 round 1/7, ci=pass">
+TRAIL: INTEGRATOR: pr=<num> round=<n> ci=<pass|fail> merged=<yes|no>
+STATUS: MERGED | ANOTHER_ROUND | BLOCKED
+```
+
+If ANOTHER_ROUND (reviewer wants changes and round < 7):
+
+```
+NEXT: re-invoke executor on T-NNNN with review comments as amendment input
+REVIEW_FINDINGS: <comma-separated file:line refs from reviewer's PR comment>
+```
+
+If BLOCKED:
+
+```
+BLOCKER:
+  reason: review-rounds-exhausted | ci-repeat-fail | merge-conflict | protected-branch
+  details: <≤3 lines, include PR url and last failing run url>
+```
+
+The TRAIL line goes into the merge commit (or the round N follow-up commit) — driver assembles. For pr-mode, INTEGRATOR is the final line of the trail before ACCEPTANCE.

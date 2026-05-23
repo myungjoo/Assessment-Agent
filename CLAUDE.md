@@ -80,23 +80,35 @@
 
 **Driver loop은 task의 `commitMode` 를 따라 자동 분기한다**. 자세한 절차는 [docs/LOOP.md](docs/LOOP.md) §1 참조.
 
+**모든 commit (direct·pr 둘 다) 의 본문에는 agent-trail blob을 포함한다** (§11 참조). 이것이 driver context 외화의 핵심 메커니즘이다.
+
 ---
 
 ## 4. Sub-agent dispatch (context 관리 핵심)
 
-메인 에이전트의 context를 비우는 가장 효과적인 도구. 각 sub-agent는 자기만의 fresh context를 받는다.
+**Long-horizon에서 driver(메인 conversation)의 context가 누적되지 않도록 하는 핵심 메커니즘.**
 
-| Sub-agent | 언제 호출 | 무엇을 받음 | 무엇을 반환 |
-| --- | --- | --- | --- |
-| `planner` | 다음 task가 정해지지 않았을 때 / task 분할 필요 시 | `STATE.json`, `PLAN.md`, 최근 journal | 새 task 파일 + `STATE.json.nextTask` 갱신 |
-| `architect` | 모듈/API/스키마 변경, ADR 필요 | task 정의서 | ADR 1개 + `docs/architecture/` 업데이트 |
-| `implementer` | 코드 변경이 필요한 모든 task | task 정의서 + Required Reading 파일 목록 | 코드 변경 (commit 직전 상태) |
-| `tester` | implementer 직후, 또는 회귀 검증 필요 시 | 변경된 파일 목록 + task 정의서 | 테스트 코드 + 실행 결과 |
-| `reviewer` | PR push 후 (자동 hook 또는 integrator가 호출) | PR 번호 / diff | review 코멘트 (README 117–128행 형식) |
-| `integrator` | reviewer 끝난 뒤 | PR 번호 | merge 결정 또는 추가 round 요청 |
-| `notifier` | BLOCKED 상태 / review round 7 초과 / 사람 결정 필요 | blocker 설명 | `STATE.json.humanQuestions` 항목 + 종료 |
+기본 원칙:
+- driver는 `executor`만 호출한다. 다른 sub-agent들은 `executor` 안에서 호출된다.
+- 모든 sub-agent는 driver/상위 caller에게 **≤200 char SUMMARY + 자기 trail section** 만 반환한다. 긴 출력은 파일로 외화하거나 `docs/progress/details/T-NNNN-<step>.md` 에 적는다.
 
-**규칙**: 메인 에이전트는 가능한 한 빨리 sub-agent에 위임하고 자기 context를 짧게 유지한다. 메인이 직접 코드를 짜는 것은 task가 trivial(≤30 LOC, 단일 파일)할 때만 허용한다.
+| Sub-agent | 누가 호출 | 언제 호출 | 무엇을 받음 | 무엇을 반환 |
+| --- | --- | --- | --- | --- |
+| `planner` | driver | currentTask·nextTask 둘 다 비었을 때 | `STATE.json`, `PLAN.md`, 최근 journal | 새 task 파일 + `STATE.json.nextTask` 갱신 (코드 변경 없음) |
+| `executor` | driver | task 1개를 실제로 수행할 때 | task ID | 짧은 SUMMARY + 조립된 agent-trail blob + status |
+| `architect` | executor | 모듈/API/스키마/library 결정 필요 시 | task 정의서 | ADR 1개 + `docs/architecture/` 업데이트 + ARCHITECT trail section |
+| `implementer` | executor | 코드 변경이 필요한 모든 task | task 정의서 + Required Reading | 스테이징된 코드 변경 + IMPLEMENTER trail section |
+| `tester` | executor | implementer 직후 | 변경된 파일 목록 | 테스트 코드 + 실행 결과 + TESTER trail section |
+| `reviewer` | driver (executor 아님) | PR push 후 | PR 번호 / diff | review 코멘트 (README 117–128행) |
+| `integrator` | driver | pr-mode commit 후 | PR 번호 | merge 결정 / 다음 round 요청 / BLOCKED |
+| `notifier` | driver | executor가 STATUS=BLOCKED 반환 또는 review round 7 초과 | blocker 설명 | `STATE.json.humanQuestions` 항목 + 종료 |
+
+**Driver context 누적 방지 룰**:
+
+1. driver는 task 본문을 직접 읽지 않는다. executor가 읽는다.
+2. driver는 ADR, 코드, 테스트 결과를 직접 보지 않는다. trail section을 commit message로 그대로 흘려보낸다.
+3. driver는 어떤 sub-agent의 long output도 자기 conversation으로 받지 않는다. 받는 건 SUMMARY + TRAIL blob 두 덩어리뿐.
+4. 호출 chain은 최대 2단계: **driver → executor → {architect, implementer, tester}**. 3단계 chain 금지.
 
 ---
 
@@ -177,6 +189,70 @@ Long-horizon으로 살아남는 핵심.
 - secret(API key, token)은 코드·journal·task 파일에 절대 적지 않는다.
 - 새 dependency 추가는 BLOCKED. 사용자 승인 후 ADR 작성 → 추가.
 - 어떤 turn에서도 commit 없이 push하지 않는다.
+
+---
+
+## 10. Long-horizon 실행 모드
+
+각 turn을 **fresh process / fresh conversation** 으로 실행해야 driver conversation 자체의 누적이 일어나지 않는다. 우선순위:
+
+1. **`/schedule` cron routine (주력)** — 매 발화가 새 conversation. 가장 견고. KST 02:00·14:00 권장. [docs/LOOP.md](docs/LOOP.md) §3.
+2. **`claude -p "..."` headless** — GitHub Actions 또는 외부 cron에서 호출 가능. 매 invocation fresh. (P6 phase에서 셋업)
+3. **`/loop` dynamic pacing (보조)** — 사용자가 옆에 있을 때 1~5 turn 모니터링·디버깅용. **무한 long-horizon용 아님**: 같은 conversation 안에서 turn이 누적되므로, 10 turn 이상은 새 `/loop` 세션으로 갈아탄다.
+
+같은 lock·STATE를 공유하므로 어느 모드든 일관되게 진행된다.
+
+---
+
+## 11. Commit message agent-trail (long-horizon 외화의 핵심)
+
+driver context를 비우는 가장 강력한 도구. 각 sub-agent의 결과물은 **commit message body 안의 표준 trail section**으로 영속화된다. 나중에 `git log --grep "T-NNNN"` 으로 한 task의 모든 활동을 재구성할 수 있다.
+
+### 표준 포맷
+
+```
+<type>(<scope>): <subject> (T-NNNN)
+
+<2~5줄 사람 친화 요약 — PR/changelog용>
+
+--- agent-trail ---
+PLANNER: <task가 어느 phase·bullet에서 split됐는지, 한 줄>
+ARCHITECT: <ADR-NN 링크, 핵심 결정 키워드, 한 줄>   (해당 시)
+IMPLEMENTER:
+  files: <변경 파일 목록, comma-separated>
+  loc: +X/-Y
+  notes: <1~2줄, 무엇을 어떻게>
+TESTER:
+  added: <추가된 test 파일 목록 또는 "none">
+  result: pass | fail(N)
+  coverage: <간단 메모>
+INTEGRATOR: pr=<num> round=<n> ci=<pass|fail>   (pr-mode만)
+ACCEPTANCE:
+  - <criterion 1>: ok | pending | failed
+  - <criterion 2>: ok | pending | failed
+--- /agent-trail ---
+
+Refs: T-NNNN [, ADR-NN] [, PR-NN]
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+```
+
+### 규칙
+
+- **trail은 commit message body 안에 인라인**으로 들어간다. 첨부파일이 아니다.
+- 해당 task에서 호출되지 않은 sub-agent의 섹션은 **생략**한다. 빈 섹션 두지 않는다.
+- 각 sub-agent는 자기 섹션의 본문을 자기 출력의 `TRAIL:` 블록으로 반환한다. driver/executor가 합친다.
+- BLOCKED 종료 시에도 trail은 만든다 (`BLOCKER:` 섹션 추가). 그래야 다음 turn이 상황을 안다.
+- `notes:` 와 `coverage:` 는 **각각 ≤2줄**. 더 길면 `docs/progress/details/T-NNNN-<step>.md` 로 외화하고 그 경로만 적는다.
+- subject 길이 ≤ 70 char (gh/git 표준).
+- body 첫 줄과 trail 사이에 빈 줄 1개 필수.
+
+### CI 검증과의 연계
+
+- 모든 commit이 push되면 GitHub Actions가 lint/build/test 자동 실행 (T-0001에서 셋업).
+- driver는 push 후 `gh run list --limit 1` 로 latest run을 확인. fail이면 다음 turn에서 BLOCKED. (자세히는 [docs/LOOP.md](docs/LOOP.md) §1)
+- direct-mode commit이 main의 CI를 깨면 즉시 다음 turn BLOCKED → 사람 개입.
+- pr-mode는 PR check가 fail이면 integrator가 round를 진행하거나 BLOCKED.
 
 ---
 

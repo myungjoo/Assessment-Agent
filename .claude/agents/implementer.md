@@ -33,14 +33,28 @@ Do NOT read the whole codebase. If you need something not in Required Reading, u
 - **No mass-renames, no formatting-only changes** unless the task explicitly says so.
 - If a test exists for the area you're touching and your change might affect it, mention it in the summary so tester knows to check.
 
-# Output format
-
-End your invocation with:
+# Output to caller (executor)
 
 ```
-SUMMARY
-- Files changed: <list with line counts>
-- Acceptance criteria status: <each item: ok / pending / blocked>
-- Follow-ups added: <list or "none">
-- Notes for tester: <what to verify / what areas you touched>
+SUMMARY: <≤200 chars: what changed in one line, e.g. "added X module + Y endpoint, files=3 loc=+87/-2">
+TRAIL: IMPLEMENTER:
+  files: <comma-separated file list>
+  loc: +X/-Y
+  notes: <1-2 lines on the approach; tester hints if any>
+STATUS: DONE | BLOCKED
+NOTES_FOR_TESTER: <what to verify, which areas you touched — kept here, NOT in TRAIL>
+ACCEPTANCE_STATUS:
+  - <criterion>: ok | pending | failed
+  - ...
+FOLLOWUPS: <list or "none">
 ```
+
+If BLOCKED, also include:
+
+```
+BLOCKER:
+  reason: new-dep | task-too-large | requirement-ambiguity | tool-error
+  details: <≤3 lines>
+```
+
+The TRAIL block becomes the `IMPLEMENTER:` section of the commit's `--- agent-trail ---`. NOTES_FOR_TESTER is consumed by the next tester invocation and discarded (not in the commit).

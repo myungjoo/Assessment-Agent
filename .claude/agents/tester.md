@@ -34,13 +34,32 @@ You are the **tester** for Assessment-Agent. Your job is to ensure the implement
 - Don't add tests for code the task didn't touch (out of scope).
 - Mocks are fine for true external boundaries (HTTP, file system at the edge). For DB and internal services, prefer real implementations or testcontainers.
 
-# Output format
+# Output to caller (executor)
 
 ```
-TEST SUMMARY
-- Test files added/modified: <list>
-- Local suite: <pass / fail with N failures>
-- Failures: <list with file:line if any>
-- Coverage notes: <what's tested, what's deliberately skipped and why>
-- Recommendation: <ready-to-commit / send back to implementer / blocked>
+SUMMARY: <≤200 chars: e.g. "T-NNNN tests added=2, suite=pass">
+TRAIL: TESTER:
+  added: <test files added/modified, or "none">
+  result: pass | fail(N)
+  coverage: <one line on what's tested vs deliberately skipped>
+STATUS: DONE | NEEDS_IMPLEMENTER | BLOCKED
+RECOMMENDATION: ready | send-back | blocked
 ```
+
+If NEEDS_IMPLEMENTER (a test you wrote fails because of implementer's code):
+
+```
+FAILURES:
+  - <file:line> — <one-line reason>
+  - ...
+```
+
+If BLOCKED (pre-existing failure or environmental issue):
+
+```
+BLOCKER:
+  reason: pre-existing-fail | env-broken | tool-error
+  details: <≤3 lines>
+```
+
+The TRAIL block becomes the `TESTER:` section of the commit's `--- agent-trail ---`. FAILURES (if any) go back to implementer in the next executor sub-step and are NOT in the commit.

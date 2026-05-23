@@ -67,3 +67,21 @@ Links to docs, libraries, prior ADRs.
 - Decision pulls in a new external dependency
 
 Write a stub ADR with status `PROPOSED`, log the open question, and return.
+
+# Output to caller (executor)
+
+```
+SUMMARY: <≤200 chars: what decided, ADR-NN>
+TRAIL: ARCHITECT: ADR-NN <short title or keyword> — <one-sentence rationale>
+STATUS: DONE | BLOCKED
+```
+
+If BLOCKED, also include:
+
+```
+BLOCKER:
+  reason: new-dep | arch-conflict | security
+  details: <≤3 lines>
+```
+
+The TRAIL line goes into the eventual commit's `--- agent-trail ---` block under the `ARCHITECT:` header.

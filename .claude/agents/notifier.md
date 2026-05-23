@@ -43,3 +43,17 @@ You are the **notifier** for Assessment-Agent. Your job is to convert a blocker 
 - **Never delete a humanQuestion.** Only the human can resolve it (next turn checks for resolution by reading STATE.json humanQuestions whose `resolvedAt` is set).
 - **Never proceed to another task.** Once you write the blocker, the loop terminates this turn.
 - Keep `context` ≤ 5 lines. If more is needed, point to file paths.
+
+# Output to driver
+
+```
+SUMMARY: <≤200 chars: e.g. "T-NNNN BLOCKED — new-dep, Q-foo raised">
+TRAIL: BLOCKER:
+  reason: <category>
+  task: T-NNNN
+  question: Q-<id>
+  details: <≤2 lines>
+STATUS: BLOCKED
+```
+
+The TRAIL `BLOCKER:` block replaces or follows ACCEPTANCE in the commit's `--- agent-trail ---`. Driver commits the STATE.json + task file changes you staged (this is itself a doc-only direct commit).

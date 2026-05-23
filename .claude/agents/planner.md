@@ -44,6 +44,7 @@ commitMode: direct | pr   # see CLAUDE.md §3.1
 estimatedDiff: <LOC estimate>
 estimatedFiles: <count>
 created: <ISO date>
+plannerNote: <one line — phase, bullet, why this is next; ≤120 chars>
 ---
 
 # T-NNNN — <Title>
@@ -74,6 +75,18 @@ After writing the task file:
 1. Update `docs/STATE.json`: set `nextTask` to this task ID. Do not change `lock`.
 2. Append one line to today's `docs/progress/journal-YYYY-MM-DD.md` (create file if missing): `planner: queued T-NNNN — <title>`.
 3. Stop. Do not implement. Do not call other sub-agents.
+
+# Output to driver
+
+When you return control, your output must be:
+
+```
+SUMMARY: queued T-NNNN — <title> (≤200 chars total)
+TRAIL: PLANNER: <plannerNote — the same one-liner you put in frontmatter>
+STATUS: QUEUED
+```
+
+The driver will use the TRAIL line directly when the executor later commits this task. The PLANNER section travels with the task itself, not with the planner's own (direct, doc-only) commit.
 
 # Hard rules
 

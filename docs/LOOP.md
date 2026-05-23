@@ -8,48 +8,78 @@
 
 ## 1. 표준 Driver Prompt
 
-`/loop` 와 `schedule` 모두 다음 prompt 1개를 그대로 사용한다.
+`/loop` 와 `schedule` 모두 다음 prompt 1개를 그대로 사용한다. **driver는 task 본문을 직접 읽지 않는다.** 모든 task 수행은 `executor` sub-agent가 한다 — driver는 그저 lock·STATE·commit·CI 검증 coordinator일 뿐이다.
 
 ```
 Assessment-Agent long-horizon driver를 1 turn 수행한다.
+이 turn은 fresh process여야 한다 (CLAUDE.md §10).
 
-1. CLAUDE.md를 읽지 않았다면 읽는다. 절대 규칙이다.
-2. docs/STATE.json을 읽는다.
-3. state.lock이 비어있지 않고 holder가 본인(driver: "loop" 또는 "cron")이 아니며
-   since로부터 60분이 지나지 않았다면 즉시 종료한다.
-4. state.lock을 본인 holder로 설정하고 (since=현재 ISO) commit 없이 메모리상에서 잡는다.
-5. 작업 선정:
-   - state.currentTask가 있으면 그 task를 이어 수행한다.
-   - 없고 state.nextTask가 있으면 state.currentTask = state.nextTask로 옮기고
-     state.nextTask = null로 둔다.
-   - 둘 다 없으면 planner sub-agent를 dispatch하여 다음 task 1개를 생성한 뒤,
-     아래 6단계 commit·해제를 수행하고 종료한다.
-6. task 수행:
-   - docs/tasks/<currentTask>.md 를 읽는다.
-   - frontmatter commitMode 확인 (direct | pr). 누락 시 BLOCKED — planner 재호출.
-   - Required Reading 외 광범위 read 금지.
-   - commitMode == "pr" 이면 작업 시작 전에 feature branch (claude/<TaskID>-<slug>) 로 이동
-     하거나 새로 만든다. commitMode == "direct" 이면 main에서 작업.
-   - Suggested Sub-agents 순서대로 dispatch한다.
-   - 어느 단계에서든 BLOCKED 신호가 오면 notifier를 즉시 dispatch한다.
-7. 완료 처리:
-   - task 파일 frontmatter status: DONE (또는 IN_PROGRESS, BLOCKED).
-   - state.currentTask = null (DONE인 경우), counters.tasksCompleted++.
-   - docs/progress/journal-<YYYY-MM-DD>.md 에 1~5줄 append.
-   - state.lock = null.
-   - state.lastActivity = ISO 현재, state.lastCommit = (commit 이후 추가)
-8. 단일 commit으로 묶어 commit (CLAUDE.md §3). 메시지: <type>(<scope>): <subject> (T-NNNN).
-   commitMode 별 후처리:
-   - direct: main 브랜치에서 작업 중이므로 commit 후 즉시 git push origin main.
-     PR 생성·reviewer dispatch 안 함.
-   - pr: feature branch 에 commit 후 git push -u origin <branch>. 이어서 integrator
-     sub-agent를 dispatch (PR open, reviewer 호출, 합의·merge 또는 round 진행).
-     integrator가 BLOCKED 또는 round 미합의를 반환하면 notifier로.
-9. 종료. 다음 task로 자동 진입 금지.
+[1] STATE & LOCK
+- CLAUDE.md 미로드라면 읽는다. docs/STATE.json 읽는다.
+- state.lock이 다른 holder가 잡고 있고 since < 60분이면 즉시 종료.
+- 본인(driver: "loop" 또는 "cron")으로 lock 잡는다 (메모리상, since=현재 ISO).
+- 미해결 humanQuestion이 있고 resolvedAt 없는 항목이 1개라도 있으면 즉시 종료
+  (사람이 답할 때까지 대기). turn end summary에 그 사실 표기.
 
-종료 시 한 줄 요약을 사용자에게 보여라:
-"turn end — <T-NNNN status>; next: <state.nextTask or 'planner needed'>".
+[2] 작업 선정
+- state.currentTask가 있으면 그것을 그대로 사용한다.
+- 없고 state.nextTask가 있으면 currentTask=nextTask, nextTask=null.
+- 둘 다 없으면 planner sub-agent를 dispatch한다.
+  → planner가 task 1개를 만들고 STATE.nextTask를 갱신해 돌아오면
+    아래 [5][6] 단계로 가서 doc-only direct commit으로 마무리하고 종료.
+
+[3] EXECUTOR 호출
+- task 파일은 driver가 읽지 않는다. taskId만 executor에게 전달한다.
+- executor sub-agent를 1회 호출.
+- executor 반환 형태: SUMMARY (≤200 chars) + TRAIL blob + STATUS.
+- driver context에는 이 두 덩어리만 들어온다. 그 외 sub-agent 출력은
+  executor 안에서 흡수되어 driver 메모리에 안 남는다.
+
+[4] COMMIT MODE 분기
+- executor STATUS가 BLOCKED면 notifier sub-agent를 호출한다.
+  notifier가 STATE.humanQuestions를 갱신하고 BLOCKER trail을 반환한다.
+- DONE이고 task.commitMode == "direct":
+    main 브랜치에서 git add + commit (메시지 본문에 executor TRAIL blob 포함,
+    CLAUDE.md §11 포맷). 즉시 git push origin main.
+- DONE이고 task.commitMode == "pr":
+    feature branch (claude/<TaskID>-<slug>)에서 git add + commit
+    (메시지 본문에 executor TRAIL blob 포함). git push -u origin <branch>.
+    이어서 integrator sub-agent 호출 (PR open + reviewer dispatch + 결과 판정).
+    integrator 반환에 따라:
+      MERGED → INTEGRATOR trail을 merge commit 메시지에 포함시켜 머지 (이미 됨).
+      ANOTHER_ROUND → STATE.reviewRounds++; executor 재호출은 다음 turn으로 미룬다.
+      BLOCKED → notifier 호출.
+
+[5] CI 검증 (push 직후)
+- .github/workflows/ 디렉토리가 비어있으면 (T-0001 완료 전 부트스트랩 구간)
+  이 단계를 skip하고 STATE.ci.status="not-yet-configured" 로만 표기.
+- 그 외:
+  gh run list --limit 1 --json status,conclusion,headSha 으로 latest run 확인.
+  - in_progress: STATE.ci.lastRun=ISO, status="running" 표기. 다음 turn에서 재확인.
+  - failure: STATE.ci.consecutiveFails++. 3 이상이면 BLOCKED 처리 (notifier).
+    그렇지 않으면 CI 결과 SUMMARY에 표기하고 다음 turn에서 재시도.
+  - success: STATE.ci.consecutiveFails=0, STATE.ci.lastRun=ISO, status="green".
+- gh CLI 인증 실패 시: BLOCKED (reason: credential, "gh auth required").
+
+[6] STATE & JOURNAL 갱신
+- task 파일 frontmatter status: DONE / BLOCKED.
+- STATE.currentTask = null (DONE인 경우), counters.tasksCompleted 또는 tasksBlocked++.
+- mostRecentTasks 배열에 taskId prepend, 길이 5 cap.
+- docs/progress/journal-<YYYY-MM-DD>.md 에 한 줄 append:
+    "<HH:MM> driver: T-NNNN <STATUS> — <SUMMARY 첫 100 chars>"
+- STATE.lock = null. STATE.lastActivity = ISO.
+- 이 STATE/journal/task-file 변경은 doc-only이므로 main에 direct commit해도 무방.
+  단, pr-mode task의 본 commit과는 별도 commit으로 분리한다
+  (한 commit = 한 주제 원칙 보존).
+
+[7] 종료
+- 종료 한 줄 요약을 사용자에게 출력:
+    "turn end — T-NNNN <STATUS>; next: <STATE.nextTask or 'planner needed'>;
+     ci: <ok|fail|pending>; blockers: <count>"
+- 다음 task 자동 진입 금지. 다음 turn까지 대기.
 ```
+
+driver 자신은 이 prompt 외에 절대 추가 read·grep를 하지 않는다. 모든 본문 read는 executor가 한다.
 
 ---
 

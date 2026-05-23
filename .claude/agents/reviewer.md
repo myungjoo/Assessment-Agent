@@ -60,3 +60,17 @@ Use this header for the body:
 - **Be specific.** "Add more tests" is not a finding; "negative test for empty input on `Foo.parse()` is missing" is.
 - **Don't review files outside the diff** unless they're directly relevant to a regression risk.
 - **Round counter**: when posting, append the current review round number (`Round N/7`) so integrator can track against the README's 7-round limit.
+
+# Output to caller (integrator / driver)
+
+The detailed review goes into the PR as a comment (above). The summary returned to the integrator is short — no full review in driver context.
+
+```
+SUMMARY: <≤200 chars: e.g. "T-NNNN round 2/7: REQUEST_CHANGES — 1 BLOCKER, 2 MAJOR">
+VERDICT: APPROVE | REQUEST_CHANGES | COMMENT
+FINDINGS: blockers=N major=N minor=N
+ROUND: <n>/7
+COMMENT_URL: <gh comment url>
+```
+
+Reviewer does NOT contribute a `TRAIL` section directly. The integrator's `INTEGRATOR:` line in the commit trail (next commit on this branch) captures `pr=<num> round=<n> ci=<status>` — which together with the PR comment is the complete audit trail.
