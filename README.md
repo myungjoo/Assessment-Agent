@@ -113,7 +113,7 @@ AA의 평가 대상은 크게 코드 작성과 문서 작성으로 나누어 볼
 - unit test case 외에 smoke test, end-to-end test도 이뤄져야 하며, 이들도 CI 에서 함께 수행되어야 한다.
 - Agent가 하나의 활동 (commit 추가)를 하고 나면 test 수행을 하여 검증을 해 두어야 하며, Agent 종료 전 commit PR된 내용에 대한 CI수행도 하여야 한다.
 - Agent가 하나의 활동을 마무리 하면서 PR을 만들면 다른 Agent가 fire되어 PR에 대한 review를 수행하여야 한다.
-- Reviewer Agent와 Committer Agent가 모두 Merge에 합의되면 PR Merge되어야 한다.
+- Reviewer Agent와 Committer Agent가 모두 Merge에 합의되면 PR Merge되어야 한다. 이를 위해 PR -> code review -> PR update -> code review round 2 -> ...  와 같은 반복이 이뤄질 수 있다. round 7 까지 갈때까지 합의에 이르지 못하면 해당 주제를 중단하고 개발자에게 Notify하여 대답을 받아오도록 한다.
 - Reviewer Agent는 다음의 항목을 검사하여야 한다.
 ```
 코드 리뷰를 수행하라. 리뷰 대상 코드 변경사항과 기존 Repository내 내용, Target Software가 사용하는 외부 Library들을 모두 분석 대상으로 하되, 리뷰 지적 대상은 지정된 코드 변경사항으로 제한한다.
