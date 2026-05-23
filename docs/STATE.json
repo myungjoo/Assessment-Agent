@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "phase": "P0-bootstrap",
+  "currentTask": null,
+  "nextTask": "T-0001",
+  "lock": null,
+  "lastActivity": null,
+  "lastCommit": null,
+  "ci": {
+    "lastRun": null,
+    "status": null,
+    "consecutiveFails": 0
+  },
+  "reviewRounds": {},
+  "blockers": [],
+  "humanQuestions": [],
+  "counters": {
+    "tasksCompleted": 0,
+    "tasksBlocked": 0
+  }
+}
