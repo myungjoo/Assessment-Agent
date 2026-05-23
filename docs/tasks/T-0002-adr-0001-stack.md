@@ -2,11 +2,15 @@
 id: T-0002
 title: ADR-0001 stack 결정 박제 (NestJS / TypeScript / pnpm / Jest / GitHub Actions)
 phase: P0
-status: PENDING
+status: DONE
 commitMode: pr
 estimatedDiff: 80
 estimatedFiles: 1
 created: 2026-05-23
+completedAt: 2026-05-23T20:48:00+09:00
+mergedAs: 8c6defe
+prNumber: 2
+reviewRounds: 1
 plannerNote: T-0001 split의 첫 task. 코드 작성 전 stack 결정을 ADR로 박제한다. T-0003~T-0005의 전제 문서.
 dependsOn: []
 blocks: [T-0003, T-0004, T-0005]
