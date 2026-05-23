@@ -40,21 +40,57 @@
 
 ---
 
-## Phase P1 — Requirements decomposition
+## Phase P1 — Architecture (MVA)
 
-목표: README를 use case와 모듈로 분해하여 이후 phase의 입력을 만든다.
+목표: 도메인 코드가 들어가기 전에 **꼭 필요한 architecture 결정** 을 박제. 4+1 view 전체가 아니라 **Minimum Viable Architecture** — 코드 시작에 필요한 만큼만, 나머지는 task 진행 중 ADR 로 진화.
 
-- [ ] Use case 발굴: README 각 섹션 → `docs/use-cases/UC-NN-*.md`
-- [ ] 모듈 경계 정의: `docs/architecture/modules.md`
-- [ ] 데이터 모델 초안: `docs/architecture/data-model.md`
-- [ ] API contract 초안: `docs/architecture/api.md`
-- [ ] 디렉토리 구조 정의: `docs/architecture/directory.md`
+- [ ] **P1-Entry** — README → REQ 매핑 표 완성 ([docs/requirements.md](requirements.md) 모든 row 검증). planner 가 자동 생성하는 P1 첫 task. commitMode: direct.
+- [ ] **T-A1: Requirement 분리** — FR (Functional Requirement) / NFR (Non-Functional Requirement) / Constraint 컬럼 추가. [docs/requirements.md](requirements.md) 의 `kind` 컬럼을 채운다. 검증 위치 (test 종류) 와 결합.
+- [ ] **T-A2: Deployment view** — [docs/architecture/deployment.md](architecture/deployment.md) 신설. 다음을 결정·박제 (ADR-0003):
+  - Monolithic NestJS vs queue+worker 분리 (R-91 1h 처리량을 고려)
+  - DB (외부 PostgreSQL vs embedded vs sqlite — ADR-0002 로 합쳐도 OK)
+  - Secret 저장 (env / vault / file)
+  - Scheduler 위치 (NestJS `@nestjs/schedule` / 외부 cron / queue trigger)
+  - 외부 네트워크 boundary (Samsung 내부망 접근 — github.sec / ecode)
+- [ ] **T-A3: Component view** — [docs/architecture/components.md](architecture/components.md) 신설. mermaid 다이어그램 + 각 component 책임:
+  - Web UI (Frontend) ↔ Backend API
+  - Worker (평가 파이프라인)
+  - DB / Persistence
+  - LLM Gateway (5 provider abstraction)
+  - GitHub Adapter (3 instance) / Confluence Adapter
+  - Scheduler / Trigger
+  각 컴포넌트 간 contract (sync/async, message format) 명시.
+- [ ] **T-A4: Module view (확장)** — [docs/architecture/modules.md](architecture/modules.md). NestJS module 구조 (AssessmentModule / UserModule / GithubModule / ConfluenceModule / LlmModule / AuthModule / SchedulerModule / WebModule). 의존성 방향 acyclic 확인. component view 와 mapping.
 
-각 항목은 planner가 1~3개의 T-NNNN task로 분할한다.
+완료 조건: 4개 architecture document (deployment / components / modules / 그리고 requirements 의 kind 컬럼) 이 main 에 merge 되고, ADR-0002 (DB) + ADR-0003 (Deployment) 가 ACCEPTED 상태.
+
+이 phase 끝나면 P2 (Use case decomposition) 가 architecture 기반으로 use case 를 각 component / module 에 분류해 진행할 수 있다.
+
+**범위 밖** (over-design 회피, 후속 phase 에서 진화):
+
+- 구체적 데이터 모델 schema (테이블 컬럼) — P3 (Domain core) 에서.
+- 구체적 API endpoint signature — P3 / P4 진행 중.
+- 구체적 NestJS service 클래스 / 메서드 시그니처 — implementer 책임.
+- Frontend 컴포넌트 트리 — P6 (Web UI) 진입 시.
 
 ---
 
-## Phase P2 — Domain core
+## Phase P2 — Use case decomposition
+
+목표: README + P1 architecture 를 기반으로 각 use case 를 1 파일씩 분해. 이후 phase 들의 task 가 use case 를 cover 하는 형태로 진행.
+
+- [ ] Use case 발굴: README 각 섹션 → [docs/use-cases/](use-cases/) 의 `UC-NN-*.md`. 각 use case 는 actor (SuperAdmin / Admin / User / Scheduler / Reviewer Agent) / 트리거 / 흐름 / 데이터 / NFR (성능·보안) / 관련 REQ 명시.
+- [ ] 각 use case 가 P1 component view 의 어느 component 를 거치는지 매핑 (sequence diagram 또는 텍스트).
+- [ ] **Use case 인벤토리 검증**: requirements.md 의 모든 functional REQ 가 1+ use case 로 cover 되는지 확인. 빠지면 use case 추가.
+- [ ] **API contract 초안** — [docs/architecture/api.md](architecture/api.md). use case 흐름 기반으로 HTTP endpoint 목록. 구체 schema 는 P3 에서.
+- [ ] **데이터 모델 초안** — [docs/architecture/data-model.md](architecture/data-model.md). 핵심 entity (Person / ServiceIdentity / Assessment / Contribution / Summary / Group / Part / LlmProviderConfig 등) 의 conceptual model. 테이블 컬럼은 P3.
+- [ ] **디렉토리 구조 정의** — [docs/architecture/directory.md](architecture/directory.md). NestJS 표준 + module view 와 mapping.
+
+각 항목은 planner가 1~3개의 T-NNNN task로 분할한다. 모두 commitMode: direct 또는 pr (use case 는 doc → direct; api/data-model 은 ADR 동반 시 pr).
+
+---
+
+## Phase P3 — Domain core
 
 목표: 외부 통합 없이 자체적으로 돌릴 수 있는 도메인 핵심.
 
@@ -65,13 +101,13 @@
 - [ ] 평가 결과 저장 모델 (commit/document 단위, 일/주/월 요약)
 - [ ] **🔥 Raw data 저장 금지 (R-59)** — code commit 본문·문서 변경 본문 등 raw 는 저장하지 않고 평가된 결과 (난이도/기여도/양/평가문) 만 보유. ADR-필수 항목.
 - [ ] **상대 비교 가능 데이터 구조** — 개발자 간 동일 metric 비교가 가능한 형태 (R-63)
-- [ ] Persistence layer (DB 선택은 ADR-0002로)
+- [ ] Persistence layer (DB 는 ADR-0002 에서 이미 결정됨 — 본 phase 에서 구현)
 - [ ] Auth/RBAC 모델 (SuperAdmin/Admin/User) — 첫 로그인 SuperAdmin 지정, Admin→User 변경은 SuperAdmin만, 본인 self-demote 금지 (R-84)
 - [ ] User read-only 권한 범위 명시 — 조회·sort·filter 만 (R-86)
 
 ---
 
-## Phase P3 — External integrations
+## Phase P4 — External integrations
 
 - [ ] GitHub 통합 — 3 instance 모두: **github.com / github.sec.samsung.net / github.ecodesamsung.com**. 각 instance 의 URL·org·token 설정 분리.
 - [ ] **GitHub Issue 평가** (R-30) — Repo 내 Issue 작성을 문서 기여로 평가. 단 **본인이 본인 follow-up 을 남기고 본인이 소비하는 경우 카운트 제외**.
@@ -84,7 +120,7 @@
 
 ---
 
-## Phase P4 — Evaluation pipeline
+## Phase P5 — Evaluation pipeline
 
 - [ ] 단위 commit/document 평가 (난이도·기여도·양)
 - [ ] 일/주/월 요약 평가 (LLM 정성 + Metric 수치). **당일 활동은 자정까지 평가 미실시** (R-61). 주간은 다음주 시작 시, 월간은 다음달 시작 시.
@@ -100,7 +136,7 @@
 
 ---
 
-## Phase P5 — Web UI
+## Phase P6 — Web UI
 
 - [ ] 로그인 / SuperAdmin 초기 셋업 흐름
 - [ ] 시각화 대시보드 (정렬·필터·시계열)
@@ -109,7 +145,7 @@
 
 ---
 
-## Phase P6 — Scheduling & operations
+## Phase P7 — Scheduling & operations
 
 - [ ] Admin이 cron 주기 지정 (예: KST 02:00) (R-72)
 - [ ] Manual trigger (R-73)
@@ -123,7 +159,7 @@
 
 ---
 
-## Phase P7 — Hardening & launch
+## Phase P8 — Hardening & launch
 
 - [ ] E2E 시나리오 커버리지
 - [ ] 보안 점검 (secret 처리, 인증 흐름, RBAC)
@@ -134,6 +170,8 @@
 
 ## 의존성
 
-P0 → P1 → (P2, P3 병행) → P4 → P5 → P6 → P7
+P0 → P0.5 → **P1 (Architecture)** → **P2 (Use case decomposition)** → (P3, P4 병행) → P5 → P6 → P7 → P8
 
 각 phase 내부 task 순서는 planner가 결정한다.
+
+P1 의 architecture document 는 living document — 이후 task 진행 중 architect 가 ADR 와 함께 갱신한다 ([.claude/agents/architect.md](../.claude/agents/architect.md)).

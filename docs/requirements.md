@@ -5,12 +5,15 @@
 ## 운영 룰
 
 - **단일 source of truth**: README 의 새 지시 / 수정 / 삭제는 본 문서의 매핑에도 즉시 반영 (planner 가 README 변경을 감지하면 REQ row 갱신).
+- **kind enum**: `FR` (Functional Requirement — 사용자 시나리오 / 기능 / 행동) / `NFR` (Non-Functional Requirement — 성능·보안·가용성·확장성·UX 품질) / `Constraint` (외부 제약 — 사용 가능 stack / 외부 시스템 / 정책 / 법적 / 운영).
 - **상태 enum**: `PLANNED` (PLAN.md 에 bullet 으로 등록) / `IN_PROGRESS` (대응 task 진행 중) / `DONE` (대응 PR merge 됨) / `BLOCKED` (humanQuestion 발생) / `SUPERSEDED` (해당 REQ 가 다른 REQ 로 대체됨).
-- **검증 위치 enum**: `unit` / `smoke` / `e2e` / `policy` (정책 / 문서 / agent rule) / `manual` (사람 검증 필요) / `n/a`.
+- **검증 위치 enum**: `unit` / `smoke` / `e2e` / `perf` / `policy` (정책 / 문서 / agent rule) / `manual` (사람 검증 필요) / `n/a`.
 - **하나의 REQ 가 여러 task 에 분포 가능**: "구현 위치" 컬럼에 phase / task 목록을 comma 로.
-- 본 표의 **본문은 P1 phase 의 첫 task 가 채운다** ([.claude/agents/planner.md](../.claude/agents/planner.md) "P1 entry" 참조). 현재는 점검에서 발견된 핵심 REQ 와 빈 row 일부만 박혀있다.
+- 본 표의 **본문은 P1 phase 의 첫 task (P1-Entry) 가 채운다** ([.claude/agents/planner.md](../.claude/agents/planner.md) "Phase entry task" 참조). 현재는 점검에서 발견된 핵심 REQ 와 빈 row 일부만 박혀있고, `kind` 컬럼은 빠져있다 — P1-Entry 가 채움.
 
-## 매핑 표 (P1 첫 task 가 완성)
+## 매핑 표
+
+**주의**: 현재 6 컬럼. P1-Entry task 가 `kind` 컬럼을 추가하여 7 컬럼으로 확장하고 모든 row 의 kind 를 채운다 (FR / NFR / Constraint 분류).
 
 | REQ | README 행 | 요약 | 구현 위치 (phase/task) | 검증 위치 | 상태 |
 | --- | --- | --- | --- | --- | --- |

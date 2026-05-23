@@ -61,23 +61,40 @@ Do NOT read the entire `src/` tree. If you need to know what exists, read `docs/
 
 여러 unblock 가능 task 가 동시에 있으면 ID 가 작은 것부터 처리하고 1개만 unblock 한 뒤 종료 (한 호출 한 task 원칙).
 
-# P1 entry: README → REQ 매핑 task 자동 생성
+# Phase entry task 자동 생성 (P1 / P2)
 
-Phase 가 `P0.5` 완료 후 `P1` 로 처음 진입할 때 (`STATE.json.phase` 가 P0.5 였다가 본 호출에서 P1 으로 advance 하는 경우), planner 의 **첫 호출은 다음 task 를 다른 어떤 task 보다 우선 생성**한다:
+각 phase 진입 시 planner 의 **첫 호출은 phase-specific entry task** 를 다른 어떤 task 보다 우선 생성한다. 그 후 일반 Decision algorithm 으로 phase 내 후속 task 생성.
 
-- title: "README → REQ 매핑 표 채우기 (P1 entry)"
-- phase: P1
-- commitMode: **direct** (doc-only)
-- estimatedDiff: ~200 (표 본문 채우기)
-- estimatedFiles: 1-2 (`docs/requirements.md` + 필요 시 PLAN.md 동기)
-- 본문 acceptance:
-  - [docs/requirements.md](../../docs/requirements.md) 의 모든 row 를 README 의 실제 행 / 요약 / 구현 위치 (phase) / 검증 위치 / 상태로 검증·갱신.
-  - 누락된 REQ 가 있으면 row 추가, 잘못 매핑된 row 가 있으면 수정.
-  - PLAN.md 의 각 phase bullet 이 모든 REQ 를 cover 하는지 확인 — 빠진 게 있으면 PLAN bullet 1+ 추가.
-  - `coversReq` frontmatter 룰 (아래) 을 따라 기존 P0 / P0.5 task 들의 frontmatter 도 backfill (선택 — 너무 크면 별도 task 로).
-- Suggested Sub-agents: `architect` 가 표 채우기 + 누락 검토 (코드 변경 없음). tester 호출 안 함 (doc-only direct).
+## P1 (Architecture) entry sequence
 
-이 task 가 끝나야 P1 의 다른 task (use case 분해 등) 를 만든다. 본 task 이후 일반 Decision algorithm.
+P0.5 완료 후 P1 진입 시 다음 순서로 task 1개씩 생성 (한 호출당 1 task 원칙). 후속 호출에서 다음 task 만듦:
+
+1. **P1-Entry (T-AAAA)**: README → REQ 매핑 표 완성 + FR/NFR/Constraint kind 컬럼 채우기
+   - commitMode: direct
+   - 본문 acceptance: [docs/requirements.md](../../docs/requirements.md) 모든 row 검증 + `kind` 컬럼 (FR/NFR/Constraint) 채움 + 누락 REQ 추가 + PLAN cover 여부 점검
+   - Suggested Sub-agents: architect (표 채우기 + 누락 검토)
+2. **T-A2 (T-AAAB): Deployment view** — [docs/architecture/deployment.md](../../docs/architecture/deployment.md) + ADR-0003
+   - commitMode: pr (새 ADR 추가)
+   - architect → tester (lint + build + test 정합 확인)
+3. **T-A3 (T-AAAC): Component view** — [docs/architecture/components.md](../../docs/architecture/components.md) + mermaid
+   - commitMode: pr (architecture doc 신설은 pr per §3.1)
+   - architect → tester
+4. **T-A4 (T-AAAD): Module view 확장** — [docs/architecture/modules.md](../../docs/architecture/modules.md) (component view 와 mapping)
+   - commitMode: pr
+   - architect → tester
+
+P1 entry sequence 의 4 task 모두 완료된 후에야 P2 진입.
+
+## P2 (Use case decomposition) entry sequence
+
+P1 완료 후 P2 진입 시:
+
+1. **P2-Entry**: Use case 인벤토리 — README → `docs/use-cases/UC-NN-*.md` 1개씩 (한 호출당 1 use case task). 모든 functional REQ 가 1+ use case 로 cover 되는지 검증.
+2. P2-Entry 후 일반 task (api.md / data-model.md / directory.md) 들은 일반 Decision algorithm 으로.
+
+## 일반 phase (P3+) entry
+
+P2 이후 phase 들은 별도 entry task 없이 일반 Decision algorithm 으로 task 생성. 단 phase 진입 시 architecture document (deployment / components / modules) 를 review 한 결과를 task 의 `plannerNote` 에 한 줄 참조.
 
 # coversReq frontmatter 룰
 
