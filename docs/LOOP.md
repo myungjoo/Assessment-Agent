@@ -18,6 +18,12 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
 - CLAUDE.md 미로드라면 읽는다. docs/STATE.json 읽는다.
 - state.lock이 다른 holder가 잡고 있고 since < 60분이면 즉시 종료.
 - 본인(driver: "loop" 또는 "cron")으로 lock 잡는다 (메모리상, since=현재 ISO).
+- holder == "loop" 일 때 loopSessionTurnCount 처리:
+  - 직전 lock 의 holder 가 "loop" 이고 본 wake 가 그 session 의 연속이면
+    (ScheduleWakeup 으로 wake — 같은 conversation, lock 이 정리된 상태에서 본인이 다시 잡음)
+    → loopSessionTurnCount = (직전 값) + 1, loopSessionStartedAt 유지.
+  - 새 /loop session 첫 turn (직전 holder 가 다른 값이거나 필드 부재)
+    → loopSessionTurnCount = 1, loopSessionStartedAt = 현재 ISO.
 - 미해결 humanQuestion이 있고 resolvedAt 없는 항목이 1개라도 있으면 즉시 종료
   (사람이 답할 때까지 대기). turn end summary에 그 사실 표기.
 
@@ -97,6 +103,15 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
   (b) 이번 turn STATUS = BLOCKED
   (c) STATE.ci.consecutiveFails >= 3
   (d) PLAN.md 의 마지막 phase 마지막 bullet까지 done (시스템 완성)
+  (e) **같은 /loop 세션의 누적 turn 수 ≥ 10**
+      — STATE.lock.loopSessionTurnCount 가 10 이상이면 reschedule 안 함.
+      이는 같은 conversation 안에서 turn 이 누적되어 context 비대화·오염되는 것을 막기 위함
+      (ScheduleWakeup 이 같은 conversation 의 새 turn 으로 wake 한다는 공식 사실 — CLAUDE.md §10).
+      종료 메시지에 다음을 포함:
+      "/loop session turn cap (10) 도달. cleanup 권장:
+       (1) /compact 로 같은 conversation 압축 후 새 /loop, 또는
+       (2) /clear 로 새 conversation 시작 후 /loop, 또는
+       (3) 그냥 종료하고 다음 cron 발화 (KST 01-05시) 를 기다림."
 - 그 외에는 ScheduleWakeup 호출:
     delaySeconds: 1200 (기본 20분).
       - 직전 turn이 CI in_progress 였다면 270 (cache 안에서 재확인).
@@ -142,13 +157,37 @@ docs/LOOP.md §1 표준 prompt를 그대로 따른다.
 
 **중지**: 사용자가 대화창에서 다른 prompt를 입력하거나 ESC.
 
-### 주의: /loop의 한계
+### 주의: /loop의 한계 (검증된 사실)
 
-같은 conversation 안에서 turn이 쌓이므로 conversation context는 결국 자란다. driver와 executor의 누적이 잘 차단되어 있어도 conversation 외피는 자란다 (CLAUDE.md §10). 따라서:
+**공식 문서 확인**: `ScheduleWakeup` 은 같은 conversation 안에서 다음 turn 을 wake 한다 ([scheduled-tasks.md](https://code.claude.com/docs/en/scheduled-tasks.md): "Tasks are session-scoped: they live in the current conversation"). 새 conversation 으로 자동 분리되지 않는다.
 
-- **수십 turn 이상**의 진행에는 `/schedule` cron (§3)을 사용한다.
-- `/loop`은 사용자가 옆에서 5~20 turn 모니터링·디버깅할 때 적절.
-- 둘을 **병행** 가능: cron이 야간/주말 백그라운드 backbone, `/loop`은 주간 모니터링.
+따라서 /loop dynamic 으로 진행할수록 conversation context 가 누적된다. driver / executor 의 누적이 잘 차단되어 있어도 (CLAUDE.md §4) **conversation 외피 자체는 자란다**. 자동 summarization 이 일부 회수하긴 하나 정보 손실 + 오염 위험.
+
+**Claude Code 의 자동 cleanup 메커니즘은 현재 존재하지 않음**:
+
+- Hook 으로 `/clear` 또는 `/compact` 자동 호출 불가 — hook 은 shell / HTTP / MCP / prompt / agent 만 가능, slash command 못 호출 ([hooks.md](https://code.claude.com/docs/en/hooks.md)).
+- `ScheduleWakeup` 에 "fresh conversation 으로 시작" 옵션 없음.
+- → 사용자 수동만 가능.
+
+### 그래서 /loop 의 운영 룰
+
+- §1 [8] (e) 의 **10-turn cap** 으로 driver 가 자체적으로 종료 + 사용자에게 cleanup 안내.
+- 사용자가 cap 도달 시:
+  - **`/compact`** — 같은 conversation 안에서 context 압축. 빠른 cleanup. CLAUDE.md / system prompt / TaskCreate task / memory 는 유지 ([commands.md](https://code.claude.com/docs/en/commands.md)). conversation 흐름은 보존되지만 압축됨.
+  - **`/clear`** — 새 conversation 시작. 이전 대화는 `/resume` 으로 복구 가능. 가장 깔끔한 cleanup.
+- 그 다음 `/loop` 입력하면 새 session 시작 (turn count reset).
+- 또는 그냥 종료하고 cron 발화 (KST 01-05) 를 기다림.
+
+### /loop ↔ /schedule cron 의 정확한 관계 (대체 X, 보완)
+
+| 항목 | /loop dynamic | /schedule cron |
+| --- | --- | --- |
+| 매 turn conversation | 같은 conversation 누적 | 매 발화 **새 conversation** (자동 cleanup) |
+| 사용자 자리 | 필요 (Claude Code 켜둬야) | 불필요 (백그라운드 클라우드) |
+| 진정한 long-horizon | **불가** (10-turn cap) | **가능** (무한) |
+| 적정 용도 | **5~10 turn 모니터링·디버깅** + 사용자 옆 | **무한 진행 backbone** |
+
+**cron 은 대체 가능한 게 아니라 long-horizon 의 진정한 backbone**. /loop 은 사용자가 옆에 있을 때의 짧은 sprint 용도.
 
 ---
 
@@ -220,11 +259,17 @@ schedule 측은 lock holder를 `"cron"` 으로 잡는다. `/loop`("loop")과 cro
 "lock": {
   "holder": "loop" | "cron" | "human",
   "session": "<선택 — 사용자가 부여한 식별 문자열, 예: hostname+timestamp>",
-  "since": "<ISO 8601>"
+  "since": "<ISO 8601>",
+  "loopSessionStartedAt": "<ISO 8601 — loop dynamic 첫 turn 시각, holder=loop 일 때만>",
+  "loopSessionTurnCount": "<integer — 같은 loop dynamic session 안에서 누적 turn 수, holder=loop 일 때만>"
 }
 ```
 
 `session` 필드는 같은 holder 카테고리(예: 두 cron) 사이의 구분을 돕는다. driver가 lock 잡을 때 가능하면 채운다.
+
+`loopSessionTurnCount`·`loopSessionStartedAt` 는 **`/loop` dynamic mode 전용** — §1 [8] (e) turn cap (10) 의 카운터다. 매 turn 시작 시 driver 가 1 증가. holder 가 "loop" 가 아닌 다른 값으로 바뀌면 (cron 이 다음 발화에서 lock 잡거나, human 이 잡으면) 이 두 필드는 누락되어도 무방. 새 /loop session (`holder=loop` 이고 직전 holder 가 다른 값이거나 lock=null 상태에서) 의 첫 turn 시점에 카운터 1 로 reset.
+
+cron / human / headless mode 의 lock 에는 본 두 필드 없음 — 매 발화 / 호출이 새 conversation 이라 누적 위험 없음.
 
 ### 획득 / 해제
 

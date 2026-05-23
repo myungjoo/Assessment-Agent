@@ -248,9 +248,17 @@ Long-horizon으로 살아남는 핵심.
 
 1. **`/schedule` cron routine (주력)** — 매 발화가 새 conversation. 가장 견고. KST 02:00·14:00 권장. [docs/LOOP.md](docs/LOOP.md) §3.
 2. **`claude -p "..."` headless** — GitHub Actions 또는 외부 cron에서 호출 가능. 매 invocation fresh. (P6 phase에서 셋업)
-3. **`/loop` dynamic pacing (보조)** — 사용자가 옆에 있을 때 1~5 turn 모니터링·디버깅용. **무한 long-horizon용 아님**: 같은 conversation 안에서 turn이 누적되므로, 10 turn 이상은 새 `/loop` 세션으로 갈아탄다. dynamic mode에서는 driver prompt가 매 turn 끝에 `ScheduleWakeup` 도구로 자기 자신을 재예약해야 turn이 이어진다 ([docs/LOOP.md](docs/LOOP.md) §1 step [8]). 그렇지 않으면 1 turn 후 정지한다.
+3. **`/loop` dynamic pacing (보조)** — 사용자가 옆에 있을 때 **5~10 turn** 모니터링·디버깅용. **무한 long-horizon용 아님**.
 
-같은 lock·STATE를 공유하므로 어느 모드든 일관되게 진행된다.
+**ScheduleWakeup 의 검증된 동작 (공식 사실)**: `ScheduleWakeup` 은 같은 conversation 의 새 turn 으로 wake 한다 — 새 conversation 으로 분리하지 않는다 ([scheduled-tasks.md](https://code.claude.com/docs/en/scheduled-tasks.md): "Tasks are session-scoped: they live in the current conversation"). 따라서 같은 conversation 안에서 turn 이 누적되어 context 가 자란다.
+
+**자동 cleanup 메커니즘 부재**: Hook 에서 `/clear` 또는 `/compact` 호출 불가 ([hooks.md](https://code.claude.com/docs/en/hooks.md): hook 은 shell/HTTP/MCP/prompt/agent 만 가능). `ScheduleWakeup` 에 fresh-conversation 옵션 없음. **그래서 /loop dynamic 은 본질적으로 short-sprint 도구**.
+
+이를 완화하기 위해 [docs/LOOP.md](docs/LOOP.md) §1 [8] (e) 에 **10-turn cap** 룰을 두어, cap 도달 시 driver 가 자체적으로 종료하고 사용자에게 `/compact` 또는 `/clear` 후 새 `/loop` 시작을 안내한다.
+
+dynamic mode 에서 driver prompt 가 매 turn 끝에 `ScheduleWakeup` 도구로 자기 자신을 재예약해야 turn 이 이어진다 ([docs/LOOP.md](docs/LOOP.md) §1 step [8]). reschedule 안 하면 1 turn 후 정지.
+
+같은 lock·STATE를 공유하므로 어느 모드든 일관되게 진행된다. **진정한 long-horizon 은 cron (또는 headless) 만이 보장** — 매 발화 새 conversation 으로 자동 cleanup.
 
 ### 동시 실행 정책 (race 회피)
 
