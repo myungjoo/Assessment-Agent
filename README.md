@@ -131,3 +131,16 @@ AA의 평가 대상은 크게 코드 작성과 문서 작성으로 나누어 볼
 
 
 - 코드 작성에 대해서는 PR 작성 후 Reviewer와의 합의 과정이 필요하지만, PLAN 업데이트나 구현 진행 상황 문서 업데이트 에 대해서는 direct commit을 하라. (예를 들어 PLAN.md, STATE.json, CLAUDE.md 등) 이를 위해서 코드 작성 커밋과 이런 진행 상황 업데이트 커밋은 따로 만드는 것이 좋다.
+
+
+# 로컬 빌드 / 테스트
+
+본 저장소는 Node 20 LTS + pnpm 9 (ADR-0001) 환경을 가정한다. 처음 clone 후 실행 순서는 다음과 같다.
+
+- `pnpm install` — 의존성 설치 (CI 에서는 `--frozen-lockfile` 사용).
+- `pnpm lint` — ESLint 로 코드 스타일·정적 분석 검사.
+- `pnpm build` — Nest 빌드 (TypeScript → `dist/`).
+- `pnpm test` — Jest 로 unit / spec 테스트 실행.
+
+CI (`.github/workflows/ci.yml`) 가 모든 PR 과 main push 마다 동일한 step 을 자동 실행한다. PR 의 CI 실패가 reviewer 점검 전에 명확히 보이도록 GitHub UI 에서 main branch protection rule (필수 status check: `기본 검사`) 을 활성화하는 것을 권장한다 (관리자 1회 수동 설정).
+

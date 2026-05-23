@@ -1,10 +1,8 @@
 name: CI
 
-# Assessment-Agent 의 PR/main push 마다 동작하는 기초 CI.
-# 본 파일은 부트스트랩 단계의 skeleton 으로, trigger 와 job 형태만 정의한다.
-# 실제 lint / build / test step 은 T-0005 에서 채워진다 (docs/tasks/T-0005-ci-workflow.md).
-# 정책: CLAUDE.md §3.1 상 .github/workflows/ 는 pr-mode 영역이나, 본 skeleton 은
-# driver pipeline 가동 전의 부트스트랩 commit 으로 main direct push 됨 (commit 메시지 참조).
+# Assessment-Agent 의 PR (main 대상) / main push 마다 동작하는 기본 CI.
+# Node 20 LTS + pnpm 9 (ADR-0001) 기반으로 lint / build / test 를 실행한다.
+# 정책: CLAUDE.md §3.1 상 .github/workflows/ 는 pr-mode 영역.
 
 on:
   pull_request:
@@ -20,8 +18,25 @@ jobs:
       - name: 저장소 checkout
         uses: actions/checkout@v4
 
-      - name: 부트스트랩 안내 출력
-        run: |
-          echo "Assessment-Agent CI skeleton 입니다."
-          echo "실제 lint/build/test step 은 T-0005 에서 추가됩니다."
-          echo "현재 phase: P0-bootstrap"
+      - name: pnpm 설치
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint 검사
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test 실행
+        run: pnpm test
