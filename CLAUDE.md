@@ -101,8 +101,8 @@
 | `architect` | executor | 모듈/API/스키마/library 결정 필요 시 | task 정의서 | ADR 1개 + `docs/architecture/` 업데이트 + ARCHITECT trail section |
 | `implementer` | executor | 코드 변경이 필요한 모든 task | task 정의서 + Required Reading | 스테이징된 코드 변경 + IMPLEMENTER trail section |
 | `tester` | executor | implementer 직후 | 변경된 파일 목록 | 테스트 코드 + 실행 결과 + TESTER trail section |
-| `reviewer` | driver (executor 아님) | PR push 후 | PR 번호 / diff | review 코멘트 (README 117–128행) |
-| `integrator` | driver | pr-mode commit 후 | PR 번호 | merge 결정 / 다음 round 요청 / BLOCKED |
+| `reviewer` | integrator | integrator가 PR open + CI green 확인 후 | PR 번호 / diff | review 코멘트 (README 117–128행) + verdict SUMMARY |
+| `integrator` | driver | pr-mode commit 후 | PR 번호 | PR open + CI 폴링 + reviewer dispatch + merge 결정 / 다음 round 요청 / BLOCKED |
 | `notifier` | driver | executor가 STATUS=BLOCKED 반환 또는 review round 7 초과 | blocker 설명 | `STATE.json.humanQuestions` 항목 + 종료 |
 
 **Driver context 누적 방지 룰**:
@@ -110,7 +110,7 @@
 1. driver는 task 본문을 직접 읽지 않는다. executor가 읽는다.
 2. driver는 ADR, 코드, 테스트 결과를 직접 보지 않는다. trail section을 commit message로 그대로 흘려보낸다.
 3. driver는 어떤 sub-agent의 long output도 자기 conversation으로 받지 않는다. 받는 건 SUMMARY + TRAIL blob 두 덩어리뿐.
-4. 호출 chain은 최대 2단계: **driver → executor → {architect, implementer, tester}**. 3단계 chain 금지.
+4. 호출 chain은 최대 2단계 (driver 기준): **driver → executor → {architect, implementer, tester}** 또는 **driver → integrator → reviewer**. 그 외 3단계 chain 금지. integrator→reviewer는 verdict SUMMARY만 흐르므로 context 누적 없다.
 
 ---
 
