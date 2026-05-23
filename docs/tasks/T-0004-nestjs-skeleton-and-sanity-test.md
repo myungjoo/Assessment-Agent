@@ -69,3 +69,15 @@ architect 는 호출하지 않는다 (ADR-0001 의 결정만 적용; 새 결정 
 - humanQuestion: HQ-0002
 - stashRef: stash@{0} ("T-0004 draft pre-decision ... — recoverable with: git stash apply stash@{0}"). T-0001 stash 는 stash@{1} 로 밀려남.
 - 한 줄 요약: T-0003 의 `package.json` 의 `jest.roots` 가 부재 디렉토리 `<rootDir>/test` 를 요구해서 `pnpm test` 가 jest Validation Error 로 즉시 종료 — acceptance `pnpm test 성공` 불가.
+
+## Resolution (2026-05-23)
+
+- HQ-0002 결정: `t-0003-patch` (사용자 결정 (b)).
+- [T-0006](T-0006-jest-roots-patch.md) 가 1줄 patch (`jest.roots` 에서 `"<rootDir>/test"` 제거) 로 결함을 fix.
+- T-0006 가 main 에 merge 되면 본 task 는 자동으로 unblock — driver 의 다음 turn 에서 STATE.nextTask = T-0004 로 복귀해 본 task 재개.
+- stash@{0} 의 T-0004 draft 는 그대로 보존. T-0006 merge 후 implementer 가 `git stash apply stash@{0}` 로 복구해서 재사용 가능 (반드시는 아님 — 새로 작성도 OK).
+- 본 task 의 status 를 PENDING 으로 되돌리는 것은 T-0006 merge 시점에 driver/planner 가 자동 처리해야 한다 (W2 보강 후의 planner 가 처리하면 더 매끄러움).
+
+## Follow-ups (T-0004 가 unblock 된 후의 후속 사항)
+
+- reviewer agent 의 jest config 검증 강화: 본 결함이 T-0003 PR-3 round 1 에서 reviewer 가 catch 했어야 함. README 117–128행 reviewer charter 의 "기존 기능이나 성능을 해치지 않는지 검사" 와 "타 모듈에 Regression 을 일으킬 수 있는지 점검" 항목을 더 구체적인 checklist 로 보강하는 ADR 또는 reviewer.md 갱신 task 필요.
