@@ -4,14 +4,15 @@
   "currentTask": null,
   "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-24T01:05:00+09:00",
-  "lastCommit": "e58852d",
+  "lastActivity": "2026-05-24T01:12:00+09:00",
+  "lastCommit": "d484955",
   "mostRecentTasks": ["T-0007", "T-0005", "T-0004", "T-0006", "T-0003"],
   "loopSession": {
     "turnCount": 3,
     "startedAt": "2026-05-23T23:27:17+09:00",
     "cap": 10,
-    "note": "사용자 명령 'turn cap 10으로 해서 시작해' (23:27 KST). 이 turn = #3 — T-0007 BLOCKED (ci-trigger-missing, HQ-0003). cap 10 중 7 turn 남았으나 HQ-0003 미해결로 reschedule 안 함 (§1 [8] (a))."
+    "haltedReason": "사고: driver 가 feature branch 에서 bookkeeping commit (1a0dbb9) 작성 후 `git push origin HEAD:main` 으로 feature branch 의 모든 commit (d484955 포함) 을 main 에 fast-forward 시킴. GitHub 가 PR-8 head sha 를 main 에서 발견 → 자동 MERGED 표시. 그러나 d484955 에 대한 CI run 은 trigger 안 됨 — T-0007 코드가 main 에 CI 검증 없이 박힌 상태. 자율 reschedule 정지, 사용자 검토 필요.",
+    "note": "사용자 명령 'turn cap 10으로 해서 시작해' (23:27 KST). 이 turn = #3 — T-0007 driver-misroute-merge (사고). cap 10 중 7 turn 남았으나 사용자 검토 위해 자율 정지."
   },
   "ci": {
     "lastRun": "2026-05-24T00:34:00+09:00",
@@ -21,17 +22,8 @@
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26336564237",
     "note": "T-0005 머지로 CI 가 실제 lint/build/test 를 검증. main CI 33초 pass. Phase P0 완료. 다음부터 모든 PR 은 실제 검증 게이트 통과 필수."
   },
-  "reviewRounds": {"T-0005": 1},
-  "blockers": [
-    {
-      "taskId": "T-0007",
-      "reason": "ci-trigger-missing",
-      "humanQuestionId": "HQ-0003",
-      "createdAt": "2026-05-24T01:05:00+09:00",
-      "prNumber": 8,
-      "prState": "OPEN"
-    }
-  ],
+  "reviewRounds": {"T-0005": 1, "T-0007": 1},
+  "blockers": [],
   "humanQuestions": [
     {
       "id": "HQ-0001",
@@ -61,13 +53,16 @@
       "taskId": "T-0007",
       "question": "T-0007 PR-8 의 CI 가 trigger 되지 않음 (GitHub Actions 인프라 문제 의심). reviewer round 1/7 APPROVE 완료. PR head sha `d4849556` 에 대해 close/reopen 재시도 후에도 35분+ workflow_runs=0. main 의 직전 run (T-0005, 15:32Z) 은 정상.\n\n옵션:\n  (a) 사람이 직접 retrigger: `git commit --allow-empty -m \"chore(ci): retrigger T-0007\" && git push origin claude/T-0007-ci-spec-presence-check`. CI 통과 확인 후 `gh pr merge 8 --squash --delete-branch`.\n  (b) ci.yml 에 `workflow_dispatch:` trigger 추가하는 별도 patch task 신설 후 `gh workflow run CI --ref claude/...` 로 강제 실행.\n  (c) Actions 측 incident 가 해소될 때까지 대기 (https://www.githubstatus.com/ 확인).\n  (d) 기타.\n\nreviewer 가 이미 APPROVE 했으므로 CI green 만 확인되면 즉시 merge 가능.",
       "options": ["retrigger-empty-commit", "add-workflow-dispatch", "wait-incident", "other"],
-      "decision": null,
-      "resolvedAt": null
+      "decision": "accidentally-self-resolved-via-driver-misroute",
+      "decisionNote": "driver=loop session #3 가 BLOCKED bookkeeping commit (1a0dbb9) 을 feature branch 에서 작성 후 `git push origin HEAD:main` 으로 main 에 push. 이때 feature branch 의 parent chain 인 d484955 (T-0007 code) 도 fast-forward 로 main 에 같이 들어감. GitHub 가 PR-8 head sha 를 main 에서 발견 → 자동 MERGED 표시. 결과적으로 T-0007 코드가 main 에 있으나 d484955 에 대한 CI run 은 여전히 trigger 안 됨. **T-0007 코드는 CI 검증 누락 상태로 박힘.** 다음 PR 의 CI 가 정상 trigger 되는지 모니터링 필요. CI trigger 인프라 문제 자체는 별도 follow-up.",
+      "resolvedAt": "2026-05-24T01:12:00+09:00",
+      "resolvedBy": "driver-misroute-self-resolve (사고)"
     }
   ],
   "counters": {
-    "tasksCompleted": 5,
-    "tasksBlocked": 1,
-    "tasksSuperseded": 1
+    "tasksCompleted": 6,
+    "tasksBlocked": 0,
+    "tasksSuperseded": 1,
+    "tasksAccidentalMerge": 1
   }
 }

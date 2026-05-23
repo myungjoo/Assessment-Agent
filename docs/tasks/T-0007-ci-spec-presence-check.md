@@ -2,11 +2,19 @@
 id: T-0007
 title: CI 에 "신규 production .ts → 대응 .spec.ts 필수" 검사 step 추가
 phase: P0.5
-status: BLOCKED
+status: DONE-WITH-CAVEAT
 commitMode: pr
 estimatedDiff: 80
 estimatedFiles: 3
+actualDiff: 117
+actualFiles: 4
 created: 2026-05-23
+completedAt: 2026-05-24T01:12:00+09:00
+prNumber: 8
+mergedAs: d484955
+mergedVia: driver-misroute-fast-forward (사고 — 의도된 squash merge 아님)
+reviewRounds: 1
+caveat: "PR-8 의 CI 가 GitHub Actions 인프라 이슈로 trigger 되지 않은 상태에서 driver=loop session #3 의 BLOCKED bookkeeping commit (1a0dbb9) 을 feature branch 에서 작성 후 `git push origin HEAD:main` 으로 main 에 push. 이때 d484955 (T-0007 code) 도 fast-forward 로 같이 들어가 GitHub 가 PR-8 을 자동 MERGED 처리. **T-0007 코드는 CI 검증 없이 main 에 박힌 상태.** 본 검사 스크립트의 self-test 는 로컬에서 5/5 pass 했으나 ubuntu CI 환경에서의 실제 검증은 다음 PR 의 trigger 가 정상 작동해야 사후 확인 가능."
 plannerNote: README 112 / §3.2 R-112 의 "기능 + 예외 + flow + negative test 의무" 가 단순 문서 정책에 머무르지 않고 CI 게이트로 강제되도록 한다. reviewer / integrator 의 catch 누락 보호 layer.
 dependsOn: [T-0005]
 blocks: []
