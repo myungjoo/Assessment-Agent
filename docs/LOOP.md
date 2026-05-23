@@ -26,7 +26,10 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
      아래 6단계 commit·해제를 수행하고 종료한다.
 6. task 수행:
    - docs/tasks/<currentTask>.md 를 읽는다.
+   - frontmatter commitMode 확인 (direct | pr). 누락 시 BLOCKED — planner 재호출.
    - Required Reading 외 광범위 read 금지.
+   - commitMode == "pr" 이면 작업 시작 전에 feature branch (claude/<TaskID>-<slug>) 로 이동
+     하거나 새로 만든다. commitMode == "direct" 이면 main에서 작업.
    - Suggested Sub-agents 순서대로 dispatch한다.
    - 어느 단계에서든 BLOCKED 신호가 오면 notifier를 즉시 dispatch한다.
 7. 완료 처리:
@@ -36,6 +39,12 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
    - state.lock = null.
    - state.lastActivity = ISO 현재, state.lastCommit = (commit 이후 추가)
 8. 단일 commit으로 묶어 commit (CLAUDE.md §3). 메시지: <type>(<scope>): <subject> (T-NNNN).
+   commitMode 별 후처리:
+   - direct: main 브랜치에서 작업 중이므로 commit 후 즉시 git push origin main.
+     PR 생성·reviewer dispatch 안 함.
+   - pr: feature branch 에 commit 후 git push -u origin <branch>. 이어서 integrator
+     sub-agent를 dispatch (PR open, reviewer 호출, 합의·merge 또는 round 진행).
+     integrator가 BLOCKED 또는 round 미합의를 반환하면 notifier로.
 9. 종료. 다음 task로 자동 진입 금지.
 
 종료 시 한 줄 요약을 사용자에게 보여라:

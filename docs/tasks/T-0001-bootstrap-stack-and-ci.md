@@ -3,6 +3,7 @@ id: T-0001
 title: ADR-0001 stack 결정 + NestJS 프로젝트 골격 + 기본 CI
 phase: P0
 status: PENDING
+commitMode: pr
 estimatedDiff: 250
 estimatedFiles: 5
 created: 2026-05-23

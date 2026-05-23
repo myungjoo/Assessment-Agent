@@ -23,8 +23,12 @@ Do NOT read the entire `src/` tree. If you need to know what exists, read `docs/
 1. Determine current phase from `STATE.json.phase`.
 2. Find the next undone bullet from `PLAN.md` under that phase.
 3. If that bullet is too large for one commit (estimate > 300 LOC or > 5 files), split it into multiple T-NNNN tasks and pick the first.
-4. If the phase is exhausted, advance to the next phase and update `STATE.json.phase`.
-5. If you cannot decide because of ambiguity in README, add a `humanQuestion` entry to STATE.json and stop (do not create a task).
+4. **Determine `commitMode`** per CLAUDE.md §3.1:
+   - Only doc/state files touched → `direct`.
+   - Any production code, ADR creation, CI workflow, or dependency manifest touched → `pr`.
+   - If both kinds are needed, **split into two tasks** — direct one first (or whichever is the dependency), pr one second. Don't mix in one task.
+5. If the phase is exhausted, advance to the next phase and update `STATE.json.phase`.
+6. If you cannot decide because of ambiguity in README, add a `humanQuestion` entry to STATE.json and stop (do not create a task).
 
 # Output: a single task file
 
@@ -36,6 +40,7 @@ id: T-NNNN
 title: <imperative phrase>
 phase: P<n>
 status: PENDING
+commitMode: direct | pr   # see CLAUDE.md §3.1
 estimatedDiff: <LOC estimate>
 estimatedFiles: <count>
 created: <ISO date>

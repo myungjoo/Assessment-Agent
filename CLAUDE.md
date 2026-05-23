@@ -56,11 +56,29 @@
 
 ## 3. Task / Commit / PR 원칙
 
-- **1 task = 1 commit = 1 PR** (README 109행 준수).
+- **1 task = 1 commit** (README 109행). PR 사용 여부는 아래 commit mode를 따른다.
 - **Task 크기 상한**: diff ≤ 300 LOC, 변경 파일 ≤ 5개. 초과 예상 시 planner가 task를 split한다.
 - 한 task 작업 중 다른 주제(linter 의견, 보이는 버그 등)가 보여도 **즉시 고치지 않는다**. planner에게 follow-up task 생성을 요청하거나 task 파일의 `Follow-ups` 섹션에 적어둔다.
 - Commit message: `<type>(<scope>): <subject> (T-NNNN)` — type 예: feat, fix, refactor, test, docs, chore, ci.
 - PR 본문에는 반드시 task 파일 링크와 acceptance criteria 체크리스트를 포함한다.
+
+### 3.1 Commit mode (README 1f17123 규칙)
+
+코드 작성은 PR + reviewer 합의 과정을 거치지만, **PLAN/STATE/CLAUDE 같은 진행상황 문서 업데이트**는 direct commit한다. 이 둘은 **별도 task·별도 commit**으로 분리한다.
+
+| commitMode | 적용 대상 | 절차 |
+| --- | --- | --- |
+| `direct` | `docs/STATE.json`, `docs/PLAN.md`, `docs/progress/`, `docs/tasks/` 의 status 업데이트, `CLAUDE.md` 내 운영규칙 변경, `.claude/` 메타 변경, `README.md` 변경 | main 브랜치에 직접 commit → push. PR·reviewer 없음. |
+| `pr` | `src/`, `web/`, `test/`, 새 `docs/architecture/*` 또는 `docs/decisions/*` 추가, `.github/workflows/` (CI 변경), `package.json`/lockfile, 그 외 동작 변경을 일으키는 모든 파일 | feature branch (`claude/T-NNNN-<slug>`) → commit → push → PR open → reviewer dispatch → 합의 → integrator merge. |
+
+**판정 규칙 (planner가 task 생성 시 결정, frontmatter `commitMode:` 에 명시)**:
+
+1. task의 변경 대상이 위 `direct` 컬럼에만 속하면 → `direct`.
+2. 변경 대상이 `pr` 컬럼 파일을 하나라도 포함하면 → `pr`.
+3. 한 task가 두 종류를 모두 건드려야 한다면 **task를 두 개로 split**한다 (먼저 direct doc task, 다음 pr code task — 또는 그 반대 순서 중 의존성에 맞는 것).
+4. 새 ADR 자체는 `pr` (아키텍처 결정은 reviewer 점검 대상). 단, ADR의 status 갱신(예: PROPOSED→ACCEPTED) 한 줄 수정은 `direct`.
+
+**Driver loop은 task의 `commitMode` 를 따라 자동 분기한다**. 자세한 절차는 [docs/LOOP.md](docs/LOOP.md) §1 참조.
 
 ---
 
