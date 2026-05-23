@@ -24,6 +24,21 @@
 
 ---
 
+## Phase P0.5 — Test·CI infra hardening (README 110-114 / §3.2 강제층)
+
+목표: README 110–114 의 절대 규칙이 단순 문서 정책이 아니라 **CI 게이트로 강제되는 메커니즘**까지 구축. P0 끝나고 P1 진입 전에 진행 (도메인 코드가 들어가기 전에 test 인프라가 준비돼있어야 효과 큼).
+
+- [ ] T-0007 — CI 에 "신규 production .ts 파일 → 대응 .spec.ts 필수" 검사 step 추가 (간단한 bash check 또는 git diff 분석 step)
+- [ ] T-0008 — `pnpm test:cov` 를 CI 에 통합 + 최소 line/branch coverage threshold (낮게 시작, 예: 50%) — jest 설정에 threshold 명시
+- [ ] T-0009 — Smoke test 인프라 (supertest 기반) + 1개 sanity smoke + CI 의 `pnpm test:smoke` step 추가 — R-113 (smoke 부분) 충족
+- [ ] T-0010 — E2E test 인프라 (NestJS testing module + supertest 또는 별도 runner) + 1개 e2e + CI 의 `pnpm test:e2e` step 추가 — R-113 (e2e 부분) 충족
+
+완료 조건: 변경된 production code 에 spec 누락이 자동으로 CI fail 을 일으키고, coverage threshold 미만이면 CI fail, smoke·e2e 까지 CI 에서 자동 실행되어 R-113 까지 모두 강제된다.
+
+각 task 의 acceptance criteria 는 planner 의 R-112 의무 항목을 따라 happy/error/branch/negative test 자체 가짐 (즉 T-0007 의 검사 step 자체에도 test 가 따라야 한다).
+
+---
+
 ## Phase P1 — Requirements decomposition
 
 목표: README를 use case와 모듈로 분해하여 이후 phase의 입력을 만든다.
