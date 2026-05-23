@@ -2,20 +2,38 @@
   "schemaVersion": 1,
   "phase": "P0-bootstrap",
   "currentTask": null,
-  "nextTask": "T-0001",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": null,
+  "lastActivity": "2026-05-23T19:16:02+09:00",
   "lastCommit": null,
+  "mostRecentTasks": ["T-0001"],
   "ci": {
     "lastRun": null,
-    "status": null,
+    "status": "not-yet-configured",
     "consecutiveFails": 0
   },
   "reviewRounds": {},
-  "blockers": [],
-  "humanQuestions": [],
+  "blockers": [
+    {
+      "taskId": "T-0001",
+      "reason": "task-too-large",
+      "humanQuestionId": "HQ-0001",
+      "createdAt": "2026-05-23T19:16:02+09:00"
+    }
+  ],
+  "humanQuestions": [
+    {
+      "id": "HQ-0001",
+      "createdAt": "2026-05-23T19:16:02+09:00",
+      "taskId": "T-0001",
+      "question": "T-0001 (bootstrap) cannot fit within the CLAUDE.md §3 size cap (≤5 files / ≤300 LOC). The 8 acceptance criteria mandate ADR + package.json + tsconfig + lint config + .gitignore + CI workflow + NestJS src skeleton + tests + README — minimum ~11 files / ~365 LOC.\n\nChoose one:\n  (a) Split T-0001 into 2–3 smaller tasks (planner will draft).\n  (b) Approve a one-shot cap exception for T-0001 (mark this task as size-exempt; raise neither the global cap nor future tasks).\n  (c) Other (specify).\n\nDraft work is preserved in `git stash@{0}` and can be recovered with `git stash apply stash@{0}` once the path forward is decided.",
+      "options": ["split", "exempt", "other"],
+      "decision": null,
+      "resolvedAt": null
+    }
+  ],
   "counters": {
     "tasksCompleted": 0,
-    "tasksBlocked": 0
+    "tasksBlocked": 1
   }
 }

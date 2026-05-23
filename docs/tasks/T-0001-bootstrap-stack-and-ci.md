@@ -2,7 +2,7 @@
 id: T-0001
 title: ADR-0001 stack 결정 + NestJS 프로젝트 골격 + 기본 CI
 phase: P0
-status: PENDING
+status: BLOCKED
 commitMode: pr
 estimatedDiff: 250
 estimatedFiles: 5
@@ -53,3 +53,10 @@ created: 2026-05-23
 ## Follow-ups
 
 (빈 칸 — 작업하면서 발견되는 후속 작업은 여기에 적기)
+
+## Blocker
+
+- reason: task-too-large
+- humanQuestion: HQ-0001
+- stashRef: `stash@{0}` — message: `T-0001 draft pre-split (executor BLOCKED task-too-large) — recoverable with: git stash apply stash@{0}`
+- summary: Executor reports bootstrap requires ~11 files / +365 LOC (ADR-0001 + package.json + tsconfig + .eslintrc + .gitignore + .github/workflows/ci.yml + NestJS src skeleton (main/app.module/app.controller/app.service) + app.service.spec + README updates), exceeding CLAUDE.md §3 cap of ≤5 files / ≤300 LOC. The 8 acceptance criteria leave no realistic decomposition under the file cap. Awaiting human decision: split into 2–3 tasks, grant one-shot cap exception, or other.
