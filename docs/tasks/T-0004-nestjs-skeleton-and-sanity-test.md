@@ -2,13 +2,15 @@
 id: T-0004
 title: NestJS minimal src skeleton + 첫 sanity test
 phase: P0
-status: BLOCKED
+status: PENDING
 commitMode: pr
 estimatedDiff: 120
 estimatedFiles: 5
 created: 2026-05-23
+unblockedBy: T-0006 (merged 3e501a7, HQ-0002 해소)
+unblockedAt: 2026-05-23T23:35:00+09:00
 plannerNote: T-0001 split의 세 번째 task. NestJS 의 가장 작은 동작 단위 (main + module + controller + service + 그 service에 대한 spec) 만 작성.
-dependsOn: [T-0003]
+dependsOn: [T-0003, T-0006]
 blocks: [T-0005]
 ---
 

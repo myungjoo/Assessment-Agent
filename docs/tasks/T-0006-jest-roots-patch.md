@@ -2,11 +2,18 @@
 id: T-0006
 title: T-0003 결함 patch — jest.roots 에서 부재 디렉토리 제거
 phase: P0
-status: PENDING
+status: DONE
 commitMode: pr
 estimatedDiff: 2
 estimatedFiles: 1
+actualDiff: 1
+actualFiles: 1
 created: 2026-05-23
+completedAt: 2026-05-23T23:35:00+09:00
+prNumber: 5
+mergedAs: 3e501a7
+reviewRounds: 1
+deviation: "AC#1 옵션 a (roots 키 자체 제거) — driver self-resolve. spec 의 메타-bug (src/ 부재) 의 합리적 해결. reviewer MINOR=1 로 accept."
 plannerNote: HQ-0002 결정 (b) patch. T-0003 이 만든 package.json 의 jest.roots = ["<rootDir>/src", "<rootDir>/test"] 중 "<rootDir>/test" 가 부재 디렉토리라 jest Validation Error. T-0004 BLOCKED 의 직접 원인을 1줄 fix 로 제거.
 dependsOn: [T-0003]
 blocks: [T-0004]

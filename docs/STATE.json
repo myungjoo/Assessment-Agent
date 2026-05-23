@@ -2,18 +2,24 @@
   "schemaVersion": 1,
   "phase": "P0-bootstrap",
   "currentTask": null,
-  "nextTask": "T-0006",
+  "nextTask": "T-0004",
   "lock": null,
-  "lastActivity": "2026-05-23T21:58:20+09:00",
-  "lastCommit": "e6052d4",
-  "mostRecentTasks": ["T-0004", "T-0003", "T-0002", "T-0001"],
+  "lastActivity": "2026-05-23T23:35:00+09:00",
+  "lastCommit": "3e501a7",
+  "mostRecentTasks": ["T-0006", "T-0004", "T-0003", "T-0002", "T-0001"],
+  "loopSession": {
+    "turnCount": 1,
+    "startedAt": "2026-05-23T23:27:17+09:00",
+    "cap": 10,
+    "note": "사용자 명령 'turn cap 10으로 해서 시작해' (23:27 KST). LOOP.md §1 [8] (e) 의 cap 10 spec 따름. 매 turn 시작 시 +1. cap 도달 시 ScheduleWakeup 안 함."
+  },
   "ci": {
     "lastRun": null,
     "status": "skeleton-only",
     "consecutiveFails": 0,
     "note": "workflow 파일은 존재(.github/workflows/ci.yml)하지만 실제 lint/build/test step은 T-0005에서 추가됨. driver는 push 후 gh run list 결과를 정상 confirm 가능."
   },
-  "reviewRounds": {},
+  "reviewRounds": {"T-0006": 1},
   "blockers": [],
   "humanQuestions": [
     {
@@ -40,7 +46,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 2,
+    "tasksCompleted": 3,
     "tasksBlocked": 0,
     "tasksSuperseded": 1
   }
