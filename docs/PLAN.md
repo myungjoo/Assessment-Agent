@@ -11,9 +11,20 @@
 
 목표: 자동 루프가 도는 데 필요한 최소 골격을 만든다.
 
-- [ ] T-0001 — ADR-0001 stack 결정 + NestJS 프로젝트 골격 + GitHub Actions CI
+- [x] T-0001 — ADR-0001 stack 결정 + NestJS 프로젝트 골격 + GitHub Actions CI (DONE; PR #1)
 
-완료 조건: `pnpm test` 가 통과하는 빈 NestJS 프로젝트가 main에 merge되고, CI가 green.
+P0 follow-ups from T-0001 review round 0 (see [docs/progress/details/T-0001-review-round-0.md](progress/details/T-0001-review-round-0.md)), in dependency order:
+
+- [ ] T-0005 — CI hygiene: concurrency group + matrix decoration (m-3+m-4) — pr; smallest, validates pr-mode flow end-to-end
+- [ ] T-0002 — ADR-0002: direct-mode docs under single-working-branch constraint (M-1) — pr; new ADR
+- [ ] T-0003 — CLAUDE.md §3 bootstrap-cap exception clause (m-1) — direct doc edit
+- [ ] T-0004 — Refactor `src/main.ts` to export `bootstrap()` + cover with test (m-2) — pr
+- [ ] T-0006 — Move tsconfig `include` into `tsconfig.build.json` (m-5) — pr
+- [ ] T-0009 — ADR-0003: sub-agent MCP exposure pattern (Q-0001 fallout) — pr; formalizes driver-does-MCP
+- [ ] T-0008 — Document & request branch-protection on `main` (reviewer rec #1) — direct doc + STATE Q-0002
+- [ ] T-0007 — Promote inline Jest config to `jest.config.ts` (m-7) — **DEFERRED**; auto-activate when triggers hit
+
+완료 조건: `pnpm test` 가 통과하는 빈 NestJS 프로젝트가 main에 merge되고, CI가 green, 위 follow-up 들이 모두 처리되거나 명시적으로 deferred 상태로 정착.
 
 ---
 

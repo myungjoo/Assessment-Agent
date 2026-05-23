@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "phase": "P0-bootstrap",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0005",
   "lock": null,
-  "lastActivity": "2026-05-23T10:50:00Z",
+  "lastActivity": "2026-05-23T10:55:00Z",
   "lastCommit": "f0e8375",
   "ci": {
     "lastRun": "2026-05-23T10:40:29Z",
