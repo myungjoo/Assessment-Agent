@@ -61,6 +61,32 @@ Do NOT read the entire `src/` tree. If you need to know what exists, read `docs/
 
 여러 unblock 가능 task 가 동시에 있으면 ID 가 작은 것부터 처리하고 1개만 unblock 한 뒤 종료 (한 호출 한 task 원칙).
 
+# P1 entry: README → REQ 매핑 task 자동 생성
+
+Phase 가 `P0.5` 완료 후 `P1` 로 처음 진입할 때 (`STATE.json.phase` 가 P0.5 였다가 본 호출에서 P1 으로 advance 하는 경우), planner 의 **첫 호출은 다음 task 를 다른 어떤 task 보다 우선 생성**한다:
+
+- title: "README → REQ 매핑 표 채우기 (P1 entry)"
+- phase: P1
+- commitMode: **direct** (doc-only)
+- estimatedDiff: ~200 (표 본문 채우기)
+- estimatedFiles: 1-2 (`docs/requirements.md` + 필요 시 PLAN.md 동기)
+- 본문 acceptance:
+  - [docs/requirements.md](../../docs/requirements.md) 의 모든 row 를 README 의 실제 행 / 요약 / 구현 위치 (phase) / 검증 위치 / 상태로 검증·갱신.
+  - 누락된 REQ 가 있으면 row 추가, 잘못 매핑된 row 가 있으면 수정.
+  - PLAN.md 의 각 phase bullet 이 모든 REQ 를 cover 하는지 확인 — 빠진 게 있으면 PLAN bullet 1+ 추가.
+  - `coversReq` frontmatter 룰 (아래) 을 따라 기존 P0 / P0.5 task 들의 frontmatter 도 backfill (선택 — 너무 크면 별도 task 로).
+- Suggested Sub-agents: `architect` 가 표 채우기 + 누락 검토 (코드 변경 없음). tester 호출 안 함 (doc-only direct).
+
+이 task 가 끝나야 P1 의 다른 task (use case 분해 등) 를 만든다. 본 task 이후 일반 Decision algorithm.
+
+# coversReq frontmatter 룰
+
+planner 가 **모든** task 를 생성할 때 frontmatter 에 `coversReq: [REQ-NNN, ...]` 를 명시한다. 이 task 가 어떤 README 지시를 cover 하는지 추적하기 위함.
+
+- 1 task ↔ 1+ REQ. 1 REQ ↔ 1+ task 도 가능 (큰 REQ 는 여러 task 로 분할).
+- 부트스트랩 / infra task (T-0001~T-0010) 는 `coversReq: [REQ-057, REQ-058, ...]` 같이 정책 REQ 를 가리킨다.
+- REQ ID 가 docs/requirements.md 에 없는 경우 P1 entry task 끝나기 전에는 임의 ID 만들지 말고 `coversReq: [TBD]` 로 두고 follow-up.
+
 # Decision algorithm
 
 1. Determine current phase from `STATE.json.phase`.
@@ -108,6 +134,7 @@ title: <imperative phrase>
 phase: P<n>
 status: PENDING
 commitMode: direct | pr   # see CLAUDE.md §3.1
+coversReq: [REQ-NNN, ...]   # docs/requirements.md 의 REQ ID. 없으면 [TBD]
 estimatedDiff: <LOC estimate>
 estimatedFiles: <count>
 created: <ISO date>

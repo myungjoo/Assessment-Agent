@@ -2,6 +2,7 @@
 
 > 이 파일은 planner sub-agent가 점진적으로 채우고 정련한다. 부트스트랩 시점에는 phase 골격만 존재한다.
 > 자세한 단위 작업은 [docs/tasks/](tasks/) 의 T-NNNN 파일을 참조.
+> 각 phase 의 bullet 은 [README.md](../README.md) 의 지시사항과 [docs/requirements.md](requirements.md) 의 REQ-NNN 매핑을 cover 해야 한다.
 
 상태는 [STATE.json](STATE.json) 의 `phase` 필드와 동기화되어야 한다.
 
@@ -57,29 +58,45 @@
 
 목표: 외부 통합 없이 자체적으로 돌릴 수 있는 도메인 핵심.
 
-- [ ] 평가 대상 인원 관리 (CRUD, group, deactivate)
+- [ ] 평가 대상 인원 관리 (CRUD, group, deactivate/activate — 휴직 시 숨김)
+- [ ] **서비스별 ID 매핑** — github.com / github.sec.samsung.net / github.ecodesamsung.com / confluence.sec.samsung.net 등 각 서비스의 ID 보유, 일부 NULL 허용 (R-48)
+- [ ] **Primary key 역할 ID 지정** — 서비스 중 1개의 ID 를 기준 식별자로 (예: confluence.sec.samsung.net ID) (R-47)
+- [ ] **Group 정책** — 한 인원은 임의 group 다중 소속 가능, 단 조직도 파트는 정확히 1개 (R-51)
 - [ ] 평가 결과 저장 모델 (commit/document 단위, 일/주/월 요약)
+- [ ] **🔥 Raw data 저장 금지 (R-59)** — code commit 본문·문서 변경 본문 등 raw 는 저장하지 않고 평가된 결과 (난이도/기여도/양/평가문) 만 보유. ADR-필수 항목.
+- [ ] **상대 비교 가능 데이터 구조** — 개발자 간 동일 metric 비교가 가능한 형태 (R-63)
 - [ ] Persistence layer (DB 선택은 ADR-0002로)
-- [ ] Auth/RBAC 모델 (SuperAdmin/Admin/User)
+- [ ] Auth/RBAC 모델 (SuperAdmin/Admin/User) — 첫 로그인 SuperAdmin 지정, Admin→User 변경은 SuperAdmin만, 본인 self-demote 금지 (R-84)
+- [ ] User read-only 권한 범위 명시 — 조회·sort·filter 만 (R-86)
 
 ---
 
 ## Phase P3 — External integrations
 
-- [ ] GitHub (github.com / github.sec.samsung.net / github.ecodesamsung.com) 통합
-- [ ] Confluence 통합
-- [ ] LLM provider 추상화 (custom OpenAI-호환 / Azure / Anthropic / Gemini / OpenAI)
-- [ ] 자격증명 관리 + 권한 부족 감지·통지
+- [ ] GitHub 통합 — 3 instance 모두: **github.com / github.sec.samsung.net / github.ecodesamsung.com**. 각 instance 의 URL·org·token 설정 분리.
+- [ ] **GitHub Issue 평가** (R-30) — Repo 내 Issue 작성을 문서 기여로 평가. 단 **본인이 본인 follow-up 을 남기고 본인이 소비하는 경우 카운트 제외**.
+- [ ] Confluence 통합 — 지정 주소의 Confluence Service 내 **지정 SPACE들** 다중 관리
+- [ ] **Confluence SPACE 탐색 정책** (R-34) — Crawling 또는 page List/Hierarchy 기반 탐색 중 택. ADR 로 결정.
+- [ ] **LLM provider 추상화** — 5 provider: **custom (OpenAI 호환 / 내부 자체 서버 / proxy 가능 / 3 model 슬롯을 모두 custom 으로 채울 수도 있음)** / Azure OpenAI / Anthropic / Google Gemini / OpenAI (R-99~103)
+- [ ] **3가지 난이도 모델 할당** (R-97) — 평가 항목별 난이도 분류 + 어떤 항목이 어떤 난이도 모델로 처리될지 구현 과정에서 결정. ADR 로 박제.
+- [ ] **Admin 이 LLM 모델 지정** UI (R-96)
+- [ ] 자격증명 관리 + **권한 부족 감지·통지** (사용자 + 관리자 모두 인식 가능, R-20·33)
 
 ---
 
 ## Phase P4 — Evaluation pipeline
 
 - [ ] 단위 commit/document 평가 (난이도·기여도·양)
-- [ ] 일/주/월 요약 평가 (LLM 정성 + Metric 수치)
-- [ ] 중복 제거 (fork/rebase/meld)
-- [ ] Abusing 방지 metric
-- [ ] 평가 재실행·부분 reset
+- [ ] 일/주/월 요약 평가 (LLM 정성 + Metric 수치). **당일 활동은 자정까지 평가 미실시** (R-61). 주간은 다음주 시작 시, 월간은 다음달 시작 시.
+- [ ] **사용자 지정 기간** 임의 평가문 생성 (R-9) — Admin/User 가 임의 기간을 지정해 LLM 평가문 요청
+- [ ] **중복 제거** — fork/rebase/meld 로 인한 중복 + **시간적 중복** (earlier date 우선 — 2월 결과물이 3월 timestamp 일 때 2월 기여로 판단, R-21)
+- [ ] **재수집 정책** — 평가 자료 재수집 시 저장 부분 중복 방지. **최근 1주 는 재수집·중복 제거 OK** (data sync 보호, R-58)
+- [ ] **Abusing 방지 metric** — 코드 abusing (commit/PR 숫자만 늘리기, R-26) + **문서 abusing** (의미 없는 기여 단순 반복, R-40)
+- [ ] **문서 update 횟수 중립화** (R-41) — 습관적 중간 저장으로 update 횟수만 늘어나는 경우 advantage/disadvantage **둘 다 없어야**
+- [ ] **품질 분류** (R-37·38) — 단순 보고·copy-paste 로그 = **zero-contribution** / 새 알고리즘 설계·외부 연구 도입 소개자료 = **높은 contribution**
+- [ ] **"어렵고 남이 못할 일" 정성 평가** (R-25) — 중요한 기여 / 난이도 높은 기여 식별
+- [ ] **저성과자 식별** (R-27) — 코드 기여 현격히 떨어지는 인원 식별
+- [ ] 평가 재실행·부분 reset (R-64)
 
 ---
 
@@ -94,11 +111,15 @@
 
 ## Phase P6 — Scheduling & operations
 
-- [ ] Admin이 cron 주기 지정 (예: KST 02:00)
-- [ ] Manual trigger
-- [ ] 최근 N일 결과 manual delete → 재수집
-- [ ] Import / export / restore
-- [ ] 100~200명 / 50~100 repo / ~1000 confluence page / 1h 이내 성능 검증
+- [ ] Admin이 cron 주기 지정 (예: KST 02:00) (R-72)
+- [ ] Manual trigger (R-73)
+- [ ] 최근 N일 결과 manual delete → 재수집 (예: 1일/7일/30일, R-74)
+- [ ] **신규 인원 추가 시 1년치 평가 1회** (R-50) — 일반 인원의 매일 1주일 단위 평가와 분리
+- [ ] Import / export / restore (R-57) — 평가 자료 backup/restore
+- [ ] **성능 검증**:
+  - 100~200명 / 50~100 repo / ~1000 confluence page / **1h 이내** (R-91)
+  - **조회·시각화 3초 이내** (R-92) — 이미 저장된 결과 조회 시
+- [ ] **평가 진행 중 시각화 보호** (R-78) — 평가 자료 수집/평가 중에는 기존 자료만 표시 + 상단 경고 배너
 
 ---
 
