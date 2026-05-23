@@ -82,6 +82,54 @@
 
 **모든 commit (direct·pr 둘 다) 의 본문에는 agent-trail blob을 포함한다** (§11 참조). 이것이 driver context 외화의 핵심 메커니즘이다.
 
+### 3.2 Test·CI 절대 규칙 (README 110–114행 명문화)
+
+본 시스템은 [README.md](README.md) 110–114행의 다음 지시를 **task / commit / PR / merge 의 어떤 단계에서도 우회 불가능한 절대 규칙**으로 강제한다.
+
+**R-110** ([README.md](README.md) 110행) — 하나의 commit 혹은 PR 작성 후 **코드 검토 + test case 작성 + test 수행** 이 모두 이뤄져야 한다.
+
+- 적용: `commitMode: pr` task 는 architect/implementer 호출 후 `tester` 를 **반드시** 호출한다. production code 변경이 0 LOC 이어도 (config/CI/doc 변경 task) `tester` 가 `pnpm lint && pnpm build && pnpm test` 실행 결과를 확인해야 한다. tester 미호출은 §3 위반.
+- direct-mode doc-only commit 만 본 규칙 면제 (코드가 없으므로).
+
+**R-111** ([README.md](README.md) 111행) — 모든 test 는 **CI 에서 자동 실행** 되고, test fail 시 **CI error 로 연결되어** 코드 작성 agent 와 개발자 모두 인지한다.
+
+- 적용: `.github/workflows/ci.yml` 의 step 중 어느 하나라도 fail 이면 PR 의 GitHub Actions 가 red. integrator 의 3중 게이트 중 "CI green" 검사가 이를 강제한다.
+- T-0005 완료 전 skeleton 상태에서는 CI 가 사실상 검증을 안 하므로 일시적 면제 — T-0005 가 끝나는 즉시 본 규칙이 active.
+
+**R-112** ([README.md](README.md) 112행) — 개별 feature 작성 시 **(기능 + 예외처리 + flow) 3종을 대부분 커버하는 unit test 작성**, **negative test cases 포함**.
+
+- 적용: 모든 `commitMode: pr` 코드 task 의 Acceptance Criteria 에 다음 4 항목을 planner 가 **자동으로** 포함시킨다:
+  1. 추가/수정된 모든 public symbol(함수/클래스/엔드포인트)에 대해 happy-path unit test 1+
+  2. 각 symbol 의 error path 1+ (잘못된 입력, 의존성 실패 등)
+  3. flow / 분기 cover (분기 발생 시 각 분기 1+ test)
+  4. negative test 1+ (예: 권한 없음, 빈 입력, 경계값)
+- patch task (frontmatter `hqOrigin` 있음) 는 추가로 **regression test 1+** 의무 — 결함이 다시 발생하면 그 test 가 fail 하도록.
+
+**R-113** ([README.md](README.md) 113행) — unit 외에 **smoke + end-to-end test 도 CI 에서 함께 수행**.
+
+- 적용: CI workflow 는 단일 step 이 아니라 unit (`pnpm test`) + smoke (`pnpm test:smoke`) + e2e (`pnpm test:e2e`) 3 종을 각각 실행. 셋 다 fail 시 PR fail.
+- P0.5 phase 의 T-0009/T-0010 이 smoke/e2e 인프라를 도입. 그 전까지는 unit 만으로 진행하되, PR 본문에 "smoke/e2e 미존재 — P0.5 에서 도입 예정" 명시.
+
+**R-114** ([README.md](README.md) 114행) — agent 가 commit 후 **test 수행으로 검증**, agent 종료 전 **commit/PR된 내용에 대한 CI 수행**까지 완료.
+
+- 적용: driver 는 push 후 `gh run list` 로 latest run 의 conclusion 확인 (LOOP.md §1 [5]).
+  - `success`: STATE.ci 갱신 후 정상 종료.
+  - `in_progress`: 본 turn 종료해도 무방하나, 다음 turn 의 [1] 단계에서 가장 먼저 conclusion 재확인.
+  - `failure`: 즉시 BLOCKED (ci-repeat-fail 또는 ci-fail) 처리, notifier.
+- "종료 전 CI 수행" 의 정확한 의미: CI 가 **시작은** 되어 있어야 한다 (push 자체로 trigger). conclusion 까지 본 turn 안에서 기다릴 수도 있고 (`gh run watch`), 그렇지 않으면 다음 turn 에서 확인.
+
+### 3.3 Reviewer + Committer Agent 이중 합의 (README 116행 명문화)
+
+[README.md](README.md) 116행: "Reviewer Agent 와 Committer Agent 가 모두 Merge 에 합의되면 PR Merge 되어야 한다."
+
+본 시스템의 매핑:
+
+- **Reviewer Agent**: [.claude/agents/reviewer.md](.claude/agents/reviewer.md) — PR diff 를 README 117–128 의 8 check 로 검토. verdict 반환.
+- **Committer Agent**: [.claude/agents/integrator.md](.claude/agents/integrator.md) — reviewer 의 verdict 를 받은 후, **자체적으로** Acceptance Criteria 충족 여부 + CI 결과 + Out of Scope 준수 여부를 한 번 더 확인해 "merge 가능" 의 자체 판단을 내린다. integrator 가 README 116 의 Committer Agent 역할을 겸한다.
+- **이중 합의 = 모두 yes**: reviewer.verdict == APPROVE **AND** integrator 자체 판단 == merge-ok **AND** CI green. 셋 중 하나라도 no 면 ANOTHER_ROUND 또는 BLOCKED.
+
+이 패턴은 reviewer 의 catch 누락(예: T-0003 의 jest.roots 결함이 round 1 에서 통과된 사례)에 대한 보호 layer 다. integrator 가 자체 점검 단계에서 acceptance criteria 의 모호한 항목이나 PR 본문의 self-claim 을 검증하면 두 agent 의 시각 차이가 결함을 잡아낼 가능성이 커진다.
+
 ---
 
 ## 4. Sub-agent dispatch (context 관리 핵심)
