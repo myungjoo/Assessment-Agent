@@ -26,6 +26,29 @@ if git merge-base --is-ancestor HEAD origin/main 2>/dev/null; then
   exit 0
 fi
 
+# If STATE.json says the current task already has an open PR, this code
+# commit is round-N work on an existing PR (not a forgotten first push).
+if [ -f docs/STATE.json ] && command -v python3 >/dev/null 2>&1; then
+  HAS_OPEN_PR=$(python3 - <<'PY' 2>/dev/null
+import json
+try:
+    s = json.load(open("docs/STATE.json"))
+except Exception:
+    print("no"); raise SystemExit
+curr = s.get("currentTask")
+prs = s.get("pullRequests") or {}
+pr = prs.get(curr) if curr else None
+if pr and pr.get("number") and not pr.get("merged"):
+    print("yes")
+else:
+    print("no")
+PY
+)
+  if [ "$HAS_OPEN_PR" = "yes" ]; then
+    exit 0
+  fi
+fi
+
 LAST_FILES=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null) || exit 0
 NON_DOC=$(echo "$LAST_FILES" \
   | grep -Ev '^(docs/|README\.md$|CLAUDE\.md$|\.claude/)' \
