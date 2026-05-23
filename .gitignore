@@ -1,0 +1,31 @@
+# 노드 의존성 / pnpm store
+node_modules/
+.pnpm-store/
+
+# 빌드 산출물
+dist/
+build/
+*.tsbuildinfo
+
+# 테스트 / 커버리지 산출물
+coverage/
+.nyc_output/
+
+# 환경변수 (secret 보호 — CLAUDE.md §9)
+.env
+.env.*
+!.env.example
+
+# 로그
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS / 에디터 메타
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
