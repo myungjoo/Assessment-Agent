@@ -30,8 +30,10 @@ Do NOT leak intermediate sub-agent outputs to the driver. Anything longer than t
 3. **Dispatch sub-agents in the order suggested by the task file.** Default order:
    - `architect` (only if task lists it or touches `docs/architecture/`/`docs/decisions/`)
    - `implementer` (whenever there's code to write)
-   - `tester` (whenever implementer changed production code)
+   - `tester` (CLAUDE.md §3.2 R-110 강제 — **항상 호출**, production code 변경이 0 LOC 인 config/CI/lint/build/lockfile-only task 라도 호출. tester 가 `pnpm lint && pnpm build && pnpm test` 의 정합성을 확인하는 게 R-110 의 "test 수행" 의무.)
    - For `pr`-mode after local tester passes: stage everything but do **not** commit yet. Commit + push + `integrator` happen at the driver level (see §5 of LOOP.md).
+
+   **tester 호출 면제는 commitMode: direct (doc-only) task 에 한한다.** pr-mode 인데 tester 를 호출하지 않고 STATUS=DONE 반환하는 것은 R-110 위반으로 BLOCKED.
 4. **After each sub-agent**:
    - Capture its `TRAIL` section (the sub-agent's own deliverable in commit-trail format).
    - Capture its short `SUMMARY` if any.

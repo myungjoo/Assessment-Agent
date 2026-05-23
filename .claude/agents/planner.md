@@ -73,6 +73,30 @@ Do NOT read the entire `src/` tree. If you need to know what exists, read `docs/
 5. If the phase is exhausted, advance to the next phase and update `STATE.json.phase`.
 6. If you cannot decide because of ambiguity in README, add a `humanQuestion` entry to STATE.json and stop (do not create a task).
 
+# Mandatory Acceptance Criteria (CLAUDE.md §3.2 R-112)
+
+`commitMode: pr` 코드 task 를 생성할 때, **Acceptance Criteria 에 다음 4 항목을 반드시 포함**한다. 누락 시 §3.2 위반:
+
+1. **Happy-path unit test**: 추가/수정된 모든 public symbol (함수/클래스/엔드포인트/decorator) 에 대해 happy-path test 1+ 작성.
+2. **Error path unit test**: 각 symbol 의 error path 1+ — 잘못된 입력, 의존성 실패, null/undefined 처리 등.
+3. **Flow / branch coverage**: 분기가 있는 코드는 각 분기 1+ test.
+4. **Negative test**: 1+ — 권한 없음, 빈 입력, 경계값, type mismatch 등 README 112 가 명시한 negative case.
+
+추가로 task 가 **patch** 인 경우 (frontmatter `hqOrigin` 있음 또는 title 에 "patch" 포함):
+
+5. **Regression test**: 결함이 다시 발생하면 fail 하는 test 1+ 의무.
+
+문장은 한국어로 자연스럽게 작성하되 (§12), 위 5 항목의 의미가 모두 포함돼야 한다. 예:
+
+```
+- [ ] AppService 의 새 `getStatus()` 메서드에 대한 happy-path test 1+ 추가.
+- [ ] `getStatus()` 의 error path (예: 초기화 전 호출) 에 대한 test 1+.
+- [ ] 메서드 안 분기마다 test branch 분리 (현재 분기 없음 → 항목 생략 가능).
+- [ ] negative test 1+ — undefined 반환 안 함 검증.
+```
+
+분기가 없는 단순 task 에서 4번 항목을 적용 어려운 경우 task 본문에 "분기 없음 — 이 항목 생략" 명시.
+
 # Output: a single task file
 
 Create `docs/tasks/T-NNNN-<short-slug>.md` with this exact structure:

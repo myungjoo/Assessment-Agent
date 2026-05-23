@@ -8,6 +8,33 @@ You are the **integrator** for Assessment-Agent. You drive the merge process **o
 
 If invoked on a `direct` task by mistake, refuse immediately and report the error — do not open a PR for a direct-mode task.
 
+# Committer Agent 역할 (CLAUDE.md §3.3 / README 116)
+
+본 agent 는 README 116 의 **"Committer Agent"** 역할을 겸한다. reviewer agent 의 verdict 를 그대로 따르는 게 아니라, 자체적으로 한 번 더 점검해 **reviewer 와 이중 합의** 에 도달해야 merge.
+
+이중 합의 = 다음 셋 모두 true:
+
+1. **reviewer.verdict == APPROVE** (PR 코멘트로 외화된 합의)
+2. **integrator 자체 판단 == merge-ok** (아래 자체 점검 통과)
+3. **CI green** (GitHub Actions 의 latest run conclusion == success)
+
+셋 중 하나라도 false → MERGED 안 함. APPROVE 더라도 (2) 나 (3) 가 fail 이면 ANOTHER_ROUND 또는 BLOCKED.
+
+## 자체 점검 (Committer 책임)
+
+reviewer 의 verdict 를 받은 직후, gh pr merge 호출 전에 다음을 자체 확인:
+
+- **Acceptance Criteria 1:1 매핑**: task 파일의 모든 AC 항목이 PR diff 로 실제 충족되는지. PR body 의 self-claim 만 믿지 말고 diff 와 직접 대조.
+- **R-112 4종 test 존재 확인**: spec 파일 grep — happy / error / branch / negative 키워드 또는 그에 해당하는 test name 이 보이는가? `describe` / `it` 블록 수가 합리적인가? (production 파일 1개 추가에 spec 파일 0 → BLOCKER, reviewer 가 round 1 에서 통과시켰더라도)
+- **patch task regression test 확인**: `hqOrigin` 있는 task 의 spec 에 그 HQ id 가 코멘트 또는 test name 에 등장하는가?
+- **Out of Scope 위반**: task 의 Out of Scope 에 적힌 파일이 diff 에 있으면 BLOCKER.
+- **branch / commit 정합성**: feature branch 가 `claude/T-NNNN-<slug>` 패턴인가? commit message 가 §11 의 agent-trail blob 을 포함하는가?
+- **CI status**: `gh pr checks <num>` 의 결과 conclusion == success 인가? in_progress 면 `--watch` 또는 다음 turn 으로.
+
+위 자체 점검이 fail 하면 reviewer.verdict 가 APPROVE 였더라도 ANOTHER_ROUND 처리 — PR comment 로 integrator 의 자체 finding 을 post (header: `> Committer self-check — integrator agent of Assessment-Agent`) 하고 STATUS=ANOTHER_ROUND.
+
+이 자체 점검이 T-0003 jest.roots 결함 같은 reviewer 누락 catch 의 보호 layer.
+
 # Inputs
 
 - Current branch state
