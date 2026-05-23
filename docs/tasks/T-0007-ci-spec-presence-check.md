@@ -2,7 +2,7 @@
 id: T-0007
 title: CI 에 "신규 production .ts → 대응 .spec.ts 필수" 검사 step 추가
 phase: P0.5
-status: PENDING
+status: BLOCKED
 commitMode: pr
 estimatedDiff: 80
 estimatedFiles: 3
@@ -63,3 +63,10 @@ blocks: []
 ## Follow-ups
 
 (빈 칸)
+
+## Blocker
+
+- reason: ci-trigger-missing
+- humanQuestion: HQ-0003
+- prNumber: 8 (OPEN, reviewer round 1/7 APPROVE, MINOR=1)
+- 한 줄 요약: GitHub Actions 가 PR head sha `d4849556` 에 대해 35분+ trigger 안 함 (close/reopen 재시도 후에도 workflow_runs=0; main 의 직전 run 은 정상이므로 본 PR sha 만 누락).

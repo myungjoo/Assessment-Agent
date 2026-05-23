@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "phase": "P0.5-test-ci-infra",
   "currentTask": null,
-  "nextTask": "T-0007",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-24T00:35:00+09:00",
+  "lastActivity": "2026-05-24T01:05:00+09:00",
   "lastCommit": "e58852d",
-  "mostRecentTasks": ["T-0005", "T-0004", "T-0006", "T-0003", "T-0002"],
+  "mostRecentTasks": ["T-0007", "T-0005", "T-0004", "T-0006", "T-0003"],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-05-23T23:27:17+09:00",
     "cap": 10,
-    "note": "사용자 명령 'turn cap 10으로 해서 시작해' (23:27 KST). 이 turn = #2. session 사이에 외부 actor 가 STATE.loopSession 을 null 로 reset 한 적 있으나 본 conversation 의 ScheduleWakeup 이 계속 살아있어 cap counter 는 본 driver 가 in-conversation 으로 추적."
+    "note": "사용자 명령 'turn cap 10으로 해서 시작해' (23:27 KST). 이 turn = #3 — T-0007 BLOCKED (ci-trigger-missing, HQ-0003). cap 10 중 7 turn 남았으나 HQ-0003 미해결로 reschedule 안 함 (§1 [8] (a))."
   },
   "ci": {
     "lastRun": "2026-05-24T00:34:00+09:00",
@@ -22,7 +22,16 @@
     "note": "T-0005 머지로 CI 가 실제 lint/build/test 를 검증. main CI 33초 pass. Phase P0 완료. 다음부터 모든 PR 은 실제 검증 게이트 통과 필수."
   },
   "reviewRounds": {"T-0005": 1},
-  "blockers": [],
+  "blockers": [
+    {
+      "taskId": "T-0007",
+      "reason": "ci-trigger-missing",
+      "humanQuestionId": "HQ-0003",
+      "createdAt": "2026-05-24T01:05:00+09:00",
+      "prNumber": 8,
+      "prState": "OPEN"
+    }
+  ],
   "humanQuestions": [
     {
       "id": "HQ-0001",
@@ -45,11 +54,20 @@
       "decisionNote": "사용자 결정 (b) — T-0006 patch task 생성. package.json의 jest.roots에서 \"<rootDir>/test\"만 제거. T-0006이 merge되면 T-0004는 자동 unblock되어 다음 turn에서 진행 재개.",
       "resolvedAt": "2026-05-23T22:30:00+09:00",
       "resolvedBy": "human"
+    },
+    {
+      "id": "HQ-0003",
+      "createdAt": "2026-05-24T01:05:00+09:00",
+      "taskId": "T-0007",
+      "question": "T-0007 PR-8 의 CI 가 trigger 되지 않음 (GitHub Actions 인프라 문제 의심). reviewer round 1/7 APPROVE 완료. PR head sha `d4849556` 에 대해 close/reopen 재시도 후에도 35분+ workflow_runs=0. main 의 직전 run (T-0005, 15:32Z) 은 정상.\n\n옵션:\n  (a) 사람이 직접 retrigger: `git commit --allow-empty -m \"chore(ci): retrigger T-0007\" && git push origin claude/T-0007-ci-spec-presence-check`. CI 통과 확인 후 `gh pr merge 8 --squash --delete-branch`.\n  (b) ci.yml 에 `workflow_dispatch:` trigger 추가하는 별도 patch task 신설 후 `gh workflow run CI --ref claude/...` 로 강제 실행.\n  (c) Actions 측 incident 가 해소될 때까지 대기 (https://www.githubstatus.com/ 확인).\n  (d) 기타.\n\nreviewer 가 이미 APPROVE 했으므로 CI green 만 확인되면 즉시 merge 가능.",
+      "options": ["retrigger-empty-commit", "add-workflow-dispatch", "wait-incident", "other"],
+      "decision": null,
+      "resolvedAt": null
     }
   ],
   "counters": {
     "tasksCompleted": 5,
-    "tasksBlocked": 0,
+    "tasksBlocked": 1,
     "tasksSuperseded": 1
   }
 }
