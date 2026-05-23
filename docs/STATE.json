@@ -4,8 +4,8 @@
   "currentTask": null,
   "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-23T10:46:40Z",
-  "lastCommit": "c32c64e",
+  "lastActivity": "2026-05-23T10:50:00Z",
+  "lastCommit": "f0e8375",
   "ci": {
     "lastRun": "2026-05-23T10:40:29Z",
     "status": "mock-env-no-actions-runner",
@@ -19,7 +19,15 @@
       "number": 1,
       "url": "https://github.com/myungjoo/Assessment-Agent/pull/1",
       "head": "c32c64e",
-      "openedAt": "2026-05-23T10:40:29Z"
+      "openedAt": "2026-05-23T10:40:29Z",
+      "reviewerVerdict": "COMMENT",
+      "reviewerFindings": {"blockers": 0, "major": 1, "minor": 8, "majorIsInformational": true},
+      "reviewerComment": "https://github.com/myungjoo/Assessment-Agent/pull/1#issuecomment-4525097153",
+      "mergeAttempt": {
+        "at": "2026-05-23T10:49:30Z",
+        "result": "failed",
+        "reason": "mock-env-main-divergence: github.com main SHA (8f40ad7) differs from local origin/main (518cc99); merge_pull_request returned 405 'Pull Request has merge conflicts'. Automation logic verified end-to-end up to this step; merge itself requires the local mock and github.com main to share history."
+      }
     }
   },
   "blockers": [],
