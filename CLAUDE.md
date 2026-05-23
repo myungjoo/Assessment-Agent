@@ -216,6 +216,14 @@ Long-horizon으로 살아남는 핵심.
 
 이 5개 규칙이 지켜지면 single-operator 환경에서 race는 사실상 일어나지 않는다. 다운라이저/multi-operator 환경이 필요해지면 lock-acquire를 별도 atomic git commit으로 분리하는 강한 mutex(별도 ADR 필요)로 전환한다.
 
+### Branch protection 정책 (자동 merge 보장)
+
+- **main branch protection: 없음으로 시작.** GitHub UI 에서 main 에 어떤 protection rule (review approval required / status check required / linear history 등) 도 설정하지 않는다.
+- **자동 merge 권한**: integrator agent 는 reviewer agent 의 VERDICT=APPROVE + CI green + Acceptance Criteria 다 ok 의 3중 게이트가 모두 충족되면 `gh pr merge --squash --delete-branch` 를 즉시 수행한다. 사람 PR 승인 단계 없음.
+- **이유**: long-horizon 자동화에는 사람 critical path 가 없어야 한다. reviewer agent 의 review 가 사람의 review 를 대신한다고 본다. README 117–128행이 이 위임을 정당화한다.
+- **이슈 발생 시 상향**: reviewer 가 너무 헐겁다고 판단되면 별도 ADR 로 정책 상향 (예: "main 에 status check required 만 추가" 또는 "reviewer 가 일정 조건에서 `gh pr review --approve` 호출"). 그때까지는 본 정책 유지.
+- **사용자가 GitHub UI 에서 protection rule 을 켜면**: integrator 가 `gh pr merge` 시 fail → BLOCKED (`protected-branch`) → notifier → 사용자 결정. CLAUDE.md §10 본 단락도 동기 갱신해야 한다.
+
 ---
 
 ## 11. Commit message agent-trail (long-horizon 외화의 핵심)
