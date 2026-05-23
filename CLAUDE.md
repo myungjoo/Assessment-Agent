@@ -198,7 +198,7 @@ Long-horizon으로 살아남는 핵심.
 
 1. **`/schedule` cron routine (주력)** — 매 발화가 새 conversation. 가장 견고. KST 02:00·14:00 권장. [docs/LOOP.md](docs/LOOP.md) §3.
 2. **`claude -p "..."` headless** — GitHub Actions 또는 외부 cron에서 호출 가능. 매 invocation fresh. (P6 phase에서 셋업)
-3. **`/loop` dynamic pacing (보조)** — 사용자가 옆에 있을 때 1~5 turn 모니터링·디버깅용. **무한 long-horizon용 아님**: 같은 conversation 안에서 turn이 누적되므로, 10 turn 이상은 새 `/loop` 세션으로 갈아탄다.
+3. **`/loop` dynamic pacing (보조)** — 사용자가 옆에 있을 때 1~5 turn 모니터링·디버깅용. **무한 long-horizon용 아님**: 같은 conversation 안에서 turn이 누적되므로, 10 turn 이상은 새 `/loop` 세션으로 갈아탄다. dynamic mode에서는 driver prompt가 매 turn 끝에 `ScheduleWakeup` 도구로 자기 자신을 재예약해야 turn이 이어진다 ([docs/LOOP.md](docs/LOOP.md) §1 step [8]). 그렇지 않으면 1 turn 후 정지한다.
 
 같은 lock·STATE를 공유하므로 어느 모드든 일관되게 진행된다.
 

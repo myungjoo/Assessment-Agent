@@ -72,11 +72,30 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
   단, pr-mode task의 본 commit과는 별도 commit으로 분리한다
   (한 commit = 한 주제 원칙 보존).
 
-[7] 종료
+[7] 종료 요약
 - 종료 한 줄 요약을 사용자에게 출력:
     "turn end — T-NNNN <STATUS>; next: <STATE.nextTask or 'planner needed'>;
      ci: <ok|fail|pending>; blockers: <count>"
-- 다음 task 자동 진입 금지. 다음 turn까지 대기.
+
+[8] DYNAMIC SELF-RESCHEDULE (오직 /loop dynamic mode일 때)
+- ScheduleWakeup 도구가 가용한지 확인.
+  - 없으면 (schedule cron 또는 headless 모드) 이 단계 skip. 그냥 종료.
+  - 있으면 아래 조건 평가:
+- Reschedule 하지 않는 조건 (어느 하나라도 해당 시 호출 안 함 → loop 종료):
+  (a) STATE.humanQuestions 에 resolvedAt 없는 항목이 1개 이상
+  (b) 이번 turn STATUS = BLOCKED
+  (c) STATE.ci.consecutiveFails >= 3
+  (d) PLAN.md 의 마지막 phase 마지막 bullet까지 done (시스템 완성)
+- 그 외에는 ScheduleWakeup 호출:
+    delaySeconds: 1200 (기본 20분).
+      - 직전 turn이 CI in_progress 였다면 270 (cache 안에서 재확인).
+      - 직전 turn에 새 task 생성만 했고 다음 turn이 즉시 가용하다면 60.
+    prompt: 사용자가 처음 /loop에 넣었던 그 prompt 문자열 그대로
+            (ScheduleWakeup 도구 설명 참조: 같은 /loop input을 verbatim).
+    reason: 한 줄, 구체적으로
+            (예: "T-0001 in PR review round 1; check next CI run").
+- 다음 task 자동 진입(현 turn에서 두 번째 task 시작)은 금지. ScheduleWakeup은
+  *다음* turn 예약일 뿐이다.
 ```
 
 driver 자신은 이 prompt 외에 절대 추가 read·grep를 하지 않는다. 모든 본문 read는 executor가 한다.
@@ -85,41 +104,98 @@ driver 자신은 이 prompt 외에 절대 추가 read·grep를 하지 않는다.
 
 ## 2. /loop 사용법 (사용자 대면)
 
-대화창에서 한 번만 실행:
+### Dynamic mode (권장 일반 사용)
+
+대화창에 한 번 입력:
 
 ```
-/loop
+/loop Assessment-Agent long-horizon driver를 1 turn 수행해라.
+docs/LOOP.md §1 표준 prompt를 그대로 따른다.
 ```
 
-interval 없이 dynamic pacing 으로 시작하면 driver가 1 turn 끝나고 자기 pacing으로 다음 turn 시작 시점을 결정한다 (보통 즉시).
+이 dynamic mode에서는 §1 step [8]에 의해 driver가 매 turn 끝에 `ScheduleWakeup`을 호출하여 자기 자신을 재예약한다. **BLOCKED·humanQuestion이 없는 한 무한 진행**한다. 기본 간격 1200초 (20분), CI 대기 중이면 270초, 즉시 진행 가능하면 60초.
 
-interval 지정 가능:
+### Interval mode (간단한 강제 주기)
 
 ```
-/loop 30m
+/loop 30m Assessment-Agent long-horizon driver를 1 turn 수행해라.
+docs/LOOP.md §1 표준 prompt를 그대로 따른다.
 ```
 
-→ 30분마다 1 turn. 사용자가 자리에 있으나 turn 사이에 코드 리뷰를 할 시간이 필요할 때.
+→ loop skill이 30분마다 강제로 1 turn 실행. dynamic mode의 self-reschedule 로직(§1 [8])은 작동하지 않아도 무방하지만, 매 발화가 같은 conversation에 누적되는 점은 dynamic과 동일.
+
+### Dynamic vs Interval 선택 가이드
+
+- **Dynamic**: turn 사이 간격이 작업 종류에 따라 가변적이어도 OK일 때. CI 대기 중엔 짧게, 정상 진행 중엔 길게 자동 조정.
+- **Interval**: 단순·예측 가능한 주기가 필요할 때.
 
 **중지**: 사용자가 대화창에서 다른 prompt를 입력하거나 ESC.
+
+### 주의: /loop의 한계
+
+같은 conversation 안에서 turn이 쌓이므로 conversation context는 결국 자란다. driver와 executor의 누적이 잘 차단되어 있어도 conversation 외피는 자란다 (CLAUDE.md §10). 따라서:
+
+- **수십 turn 이상**의 진행에는 `/schedule` cron (§3)을 사용한다.
+- `/loop`은 사용자가 옆에서 5~20 turn 모니터링·디버깅할 때 적절.
+- 둘을 **병행** 가능: cron이 야간/주말 백그라운드 backbone, `/loop`은 주간 모니터링.
 
 ---
 
 ## 3. schedule (cron) 사용법 (백그라운드)
 
-[/schedule](https://docs.claude.com/) 로 routine을 등록. 예시 (KST 02:00, 14:00):
+`/schedule` skill로 cron routine을 등록한다. **매 발화가 새 conversation으로 시작**되므로 진정한 long-horizon에 적합 (CLAUDE.md §10).
+
+### 등록 방법
+
+대화창에서 다음과 같이 invoke:
 
 ```
 /schedule
-  name: assessment-agent-driver
-  cron: "0 17,5 * * *"   # UTC; KST 02:00, 14:00
-  prompt: <위 §1의 표준 prompt 전체>
-  cwd: <이 저장소 경로>
 ```
 
-schedule 측은 `driver: "cron"` 으로 lock holder를 잡는다. `/loop`와 cron이 동시에 깨어나도 lock으로 한 쪽만 진행한다.
+또는 자연어로:
 
-**중지**: `/schedule list` → `/schedule delete <id>` 또는 disable.
+```
+/schedule 매일 KST 02:00과 14:00에 routine 등록. 이름은
+assessment-agent-driver. prompt는 docs/LOOP.md §1 표준 prompt 전체.
+cwd는 이 저장소.
+```
+
+또는 더 구체적으로 cron 식으로:
+
+- cron: `0 17,5 * * *` (UTC; KST 02:00·14:00)
+- 또는 시작 시점: `0 */3 * * *` (3시간마다)
+
+권장: **하루 2~4회**. 너무 자주 돌리면 CI 비용·LLM 비용이 누적되고, 너무 드물면 진척이 느림. 처음 1~2주는 2회로 시작해 phase 진척 상황 보고 조정.
+
+### routine prompt 본문
+
+routine의 prompt 필드에는 docs/LOOP.md §1의 driver prompt 전체를 넣는다 (또는 줄여서):
+
+```
+Assessment-Agent long-horizon driver를 1 turn 수행한다.
+docs/LOOP.md §1 표준 prompt를 그대로 따른다.
+이 invocation은 schedule cron 발화이므로 [8] DYNAMIC RESCHEDULE는 skip한다.
+```
+
+마지막 한 줄을 추가해 두면 ScheduleWakeup이 잘못 호출되는 일을 막을 수 있다 (cron 모드에서 또 dynamic reschedule을 하면 두 메커니즘이 겹친다).
+
+### Lock과 충돌 방지
+
+schedule 측은 lock holder를 `"cron"` 으로 잡는다. `/loop`("loop")과 cron("cron")이 동시에 깨어나도 §4 lock 규약에 의해 한쪽만 진행한다.
+
+### 관리
+
+- 목록: `/schedule list`
+- 일시 중지: `/schedule disable <id>` 또는 cron을 비활성화하는 prompt
+- 삭제: `/schedule delete <id>`
+- 한 번만 실행: `/schedule 내일 오전 10시에 한 번만 driver turn 실행` 같이 one-shot도 가능
+
+### 첫 등록 시 권장 절차
+
+1. 부트스트랩 후 사용자가 `/loop` dynamic으로 5~10 turn 직접 모니터링하며 driver·executor·sub-agent 동작 확인.
+2. T-0001 (NestJS·CI) 완료된 뒤 cron 등록 — CI가 동작해야 routine이 안전.
+3. 처음 1주는 매일 사람이 STATE.json·journal 점검. 안정되면 주간 점검.
 
 ---
 
