@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "phase": "P0-bootstrap",
   "currentTask": null,
-  "nextTask": "T-0004",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-23T21:29:14+09:00",
+  "lastActivity": "2026-05-23T21:58:20+09:00",
   "lastCommit": "e6052d4",
-  "mostRecentTasks": ["T-0003", "T-0002", "T-0001"],
+  "mostRecentTasks": ["T-0004", "T-0003", "T-0002", "T-0001"],
   "ci": {
     "lastRun": null,
     "status": "skeleton-only",
@@ -14,7 +14,14 @@
     "note": "workflow 파일은 존재(.github/workflows/ci.yml)하지만 실제 lint/build/test step은 T-0005에서 추가됨. driver는 push 후 gh run list 결과를 정상 confirm 가능."
   },
   "reviewRounds": {"T-0002": 1, "T-0003": 1},
-  "blockers": [],
+  "blockers": [
+    {
+      "taskId": "T-0004",
+      "reason": "requirement-ambiguity",
+      "humanQuestionId": "HQ-0002",
+      "createdAt": "2026-05-23T21:58:20+09:00"
+    }
+  ],
   "humanQuestions": [
     {
       "id": "HQ-0001",
@@ -26,11 +33,20 @@
       "decisionNote": "T-0001을 T-0002~T-0005 4개 task로 split. 사람이 직접 task 파일 작성. driver는 다음 turn에서 T-0002 picking up. stash@{0}는 4 task 모두 끝난 뒤 정리.",
       "resolvedAt": "2026-05-23T20:30:00+09:00",
       "resolvedBy": "human"
+    },
+    {
+      "id": "HQ-0002",
+      "createdAt": "2026-05-23T21:58:20+09:00",
+      "taskId": "T-0004",
+      "question": "T-0004 (NestJS skeleton) 가 `pnpm test` acceptance 를 충족할 수 없다. T-0003 의 `package.json` 의 `jest.roots` 가 부재 디렉토리 `<rootDir>/test` 를 포함해서 jest 가 Validation Error 로 종료된다.\n\n옵션:\n  (a) `test/.gitkeep` 추가 — 6 파일 (cap 5 초과 1건), LOC 0.\n  (b) T-0003 의 `package.json` 의 `jest.roots` 에서 `test` 제거 — T-0003-patch 별도 task 또는 본 task scope 확장.\n  (c) T-0004 의 acceptance 를 완화 — `pnpm test` 대신 `pnpm jest --roots src`. 단 main 의 `pnpm test` 는 여전히 실패 상태로 남음.\n  (d) 기타.\n\nDraft 5 파일은 `git stash@{0}` 에 보존. T-0001 stash 는 stash@{1} 로 밀려남.",
+      "options": ["cap-bend-gitkeep", "t-0003-patch", "loosen-acceptance", "other"],
+      "decision": null,
+      "resolvedAt": null
     }
   ],
   "counters": {
     "tasksCompleted": 2,
-    "tasksBlocked": 0,
+    "tasksBlocked": 1,
     "tasksSuperseded": 1
   }
 }

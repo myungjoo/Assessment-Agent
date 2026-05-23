@@ -2,7 +2,7 @@
 id: T-0004
 title: NestJS minimal src skeleton + 첫 sanity test
 phase: P0
-status: PENDING
+status: BLOCKED
 commitMode: pr
 estimatedDiff: 120
 estimatedFiles: 5
@@ -62,3 +62,10 @@ architect 는 호출하지 않는다 (ADR-0001 의 결정만 적용; 새 결정 
 ## Follow-ups
 
 (빈 칸)
+
+## Blocker
+
+- reason: requirement-ambiguity
+- humanQuestion: HQ-0002
+- stashRef: stash@{0} ("T-0004 draft pre-decision ... — recoverable with: git stash apply stash@{0}"). T-0001 stash 는 stash@{1} 로 밀려남.
+- 한 줄 요약: T-0003 의 `package.json` 의 `jest.roots` 가 부재 디렉토리 `<rootDir>/test` 를 요구해서 `pnpm test` 가 jest Validation Error 로 즉시 종료 — acceptance `pnpm test 성공` 불가.
