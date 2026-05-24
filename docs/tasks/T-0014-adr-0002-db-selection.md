@@ -2,11 +2,17 @@
 id: T-0014
 title: ADR-0002 — DB 선택 (PostgreSQL / SQLite / 기타) + deployment.md DB 단락 신설
 phase: P1
-status: PENDING
+status: DONE
+completedAt: 2026-05-24T20:12:00+09:00
+mergedAs: 56a93b0
+prNumber: 13
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-029, REQ-031, REQ-032, REQ-033, REQ-036, REQ-047, REQ-048]
 estimatedDiff: 150
 estimatedFiles: 3
+actualDiff: 166
+actualFiles: 3
 created: 2026-05-24
 plannerNote: P1 T-A2 split 첫 task — DB 결정만 박제 (ADR-0002 + deployment.md DB 단락). cap 안에서 응집. pr-mode doc-only.
 dependsOn: [T-0013]

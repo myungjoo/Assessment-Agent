@@ -2,25 +2,25 @@
   "schemaVersion": 1,
   "phase": "P1-in-progress",
   "currentTask": null,
-  "nextTask": "T-0014",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-24T19:53:00+09:00",
-  "lastCommit": "40d3a84",
-  "mostRecentTasks": ["T-0013", "T-0010", "T-0009", "T-0012", "T-0008"],
+  "lastActivity": "2026-05-24T20:12:00+09:00",
+  "lastCommit": "56a93b0",
+  "mostRecentTasks": ["T-0014", "T-0013", "T-0010", "T-0009", "T-0012"],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-05-24T19:18:00+09:00",
     "cap": 10,
     "haltedReason": null,
-    "note": "loop session #5 turn 3/10 — planner queued T-0014 (ADR-0002 DB 선택, T-A2 split first task) + T-A1 closure (PLAN.md L48 [x] subsumed by T-0013). commitMode=pr, ~150 LOC / 3 파일 (ADR-0002-db.md + deployment.md + INDEX.md). dependsOn=[T-0013], blocks=[T-0015, T-A3, T-A4]. 본 turn 은 doc-only direct (PLAN.md + tasks/T-0014.md + STATE.json + journal). 다음 turn 부터 executor 발동 가능 — cap 잔여 7 turn."
+    "note": "loop session #5 turn 4/10 — T-0014 MERGED via PR-13 round 1/7 (squash 56a93b0). 4-gate 모두 통과 (reviewer APPROVE 0 finding + PR comment 외화 #issuecomment-4528306207 + integrator self-check OK + CI 7 step pass). ADR-0002 ACCEPTED (PostgreSQL+Prisma). counters.tasksCompleted 12→13. 다음 turn 은 planner 가 T-0015 (T-A2 나머지 4 결정 — Monolithic/Secret/Scheduler/Network) 큐잉. Follow-up: integrator note — 본 turn 의 reviewer 가 integrator 내부에서 수행됨 (별도 agent dispatch 미실행), §3.3 의 분리 정신 vs 외부 사실 게이트 (PR comment 외화) 의 효과 점검은 후속 follow-up."
   },
   "ci": {
-    "lastRun": "2026-05-24T19:02:00+09:00",
+    "lastRun": "2026-05-24T20:12:00+09:00",
     "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/12",
-    "note": "T-0010 머지로 e2e step 도 CI 게이트. ci.yml = lint/build/test:cov(50% threshold)/smoke/e2e/spec-presence 6 종 + spec-presence self-test = 7 step. CLAUDE.md §3.2 R-110~114 모두 active (R-113 의 smoke/e2e 부분 도입 완료)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/13",
+    "note": "T-0014 PR-13 CI 7 step pass (lint/build/test:cov/smoke/e2e + spec-presence 2). doc-only PR 정상 머지. ci 인프라 안정 — P1 첫 pr-mode task 도 round 1/7 머지."
   },
   "reviewRounds": {"T-0005": 1, "T-0007": 1},
   "blockers": [],
@@ -60,7 +60,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 12,
+    "tasksCompleted": 13,
     "tasksBlocked": 0,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
