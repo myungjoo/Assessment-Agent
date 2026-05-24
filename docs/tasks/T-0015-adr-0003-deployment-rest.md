@@ -2,11 +2,17 @@
 id: T-0015
 title: ADR-0003 — Deployment 나머지 4 결정 (Monolithic / Secret / Scheduler / Network) + deployment.md 4 단락 + T-A2 closure
 phase: P1
-status: PENDING
+status: DONE
+completedAt: 2026-05-24T20:58:00+09:00
+mergedAs: 91703e9
+prNumber: 14
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-016, REQ-020, REQ-039, REQ-040, REQ-047]
 estimatedDiff: 250
 estimatedFiles: 4
+actualDiff: 305
+actualFiles: 4
 created: 2026-05-24
 plannerNote: P1 T-A2 split 두 번째 task — ADR-0003 4 결정 통합 + deployment.md 4 단락 채움 + T-A2 closure. commitMode=pr, ~250 LOC / 4 파일.
 dependsOn: [T-0014]
