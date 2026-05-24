@@ -118,17 +118,23 @@
   - `failure`: 즉시 BLOCKED (ci-repeat-fail 또는 ci-fail) 처리, notifier.
 - "종료 전 CI 수행" 의 정확한 의미: CI 가 **시작은** 되어 있어야 한다 (push 자체로 trigger). conclusion 까지 본 turn 안에서 기다릴 수도 있고 (`gh run watch`), 그렇지 않으면 다음 turn 에서 확인.
 
-### 3.3 Reviewer + Committer Agent 이중 합의 (README 116행 명문화)
+### 3.3 Reviewer + Committer 이중 합의 (README 116행 명문화)
 
-[README.md](README.md) 116행: "Reviewer Agent 와 Committer Agent 가 모두 Merge 에 합의되면 PR Merge 되어야 한다."
+[README.md](README.md) 116행 — Reviewer 와 Committer 두 agent 가 모두 merge 에 합의해야 PR merge. 본 시스템의 매핑:
 
-본 시스템의 매핑:
+- **Reviewer Agent** ([.claude/agents/reviewer.md](.claude/agents/reviewer.md)) — PR diff 를 README 117–128 의 8 check 로 검토. **review 결과는 반드시 `gh pr comment` 로 PR 에 외화** (post 안 하면 reviewer-post-failed BLOCKED).
+- **Committer Agent** ([.claude/agents/integrator.md](.claude/agents/integrator.md)) — reviewer verdict 를 받은 후 자체적으로 Acceptance Criteria / CI / Out of Scope / 기타 6 항목을 재점검. integrator 가 본 역할 겸함.
 
-- **Reviewer Agent**: [.claude/agents/reviewer.md](.claude/agents/reviewer.md) — PR diff 를 README 117–128 의 8 check 로 검토. verdict 반환.
-- **Committer Agent**: [.claude/agents/integrator.md](.claude/agents/integrator.md) — reviewer 의 verdict 를 받은 후, **자체적으로** Acceptance Criteria 충족 여부 + CI 결과 + Out of Scope 준수 여부를 한 번 더 확인해 "merge 가능" 의 자체 판단을 내린다. integrator 가 README 116 의 Committer Agent 역할을 겸한다.
-- **이중 합의 = 모두 yes**: reviewer.verdict == APPROVE **AND** integrator 자체 판단 == merge-ok **AND** CI green. 셋 중 하나라도 no 면 ANOTHER_ROUND 또는 BLOCKED.
+**합의 충족 = 4-게이트 모두 true**:
 
-이 패턴은 reviewer 의 catch 누락(예: T-0003 의 jest.roots 결함이 round 1 에서 통과된 사례)에 대한 보호 layer 다. integrator 가 자체 점검 단계에서 acceptance criteria 의 모호한 항목이나 PR 본문의 self-claim 을 검증하면 두 agent 의 시각 차이가 결함을 잡아낼 가능성이 커진다.
+1. reviewer.VERDICT == APPROVE
+2. PR 에 reviewer header comment 외부 존재 (`gh pr view --json comments` 로 검증 — driver context 안 verdict 만으로 부족)
+3. integrator 자체 점검 통과
+4. CI green
+
+하나라도 false → ANOTHER_ROUND 또는 BLOCKED. 게이트 (2) 는 reviewer 위장 (PR body 에 verdict inline) 패턴을 차단하는 외부 사실 게이트.
+
+이 4-게이트가 reviewer round 1 catch 누락 (예: T-0003 jest.roots) 의 보호 layer.
 
 ---
 
@@ -147,8 +153,8 @@
 | `architect` | executor | 모듈/API/스키마/library 결정 필요 시 | task 정의서 | ADR 1개 + `docs/architecture/` 업데이트 + ARCHITECT trail section |
 | `implementer` | executor | 코드 변경이 필요한 모든 task | task 정의서 + Required Reading | 스테이징된 코드 변경 + IMPLEMENTER trail section |
 | `tester` | executor | implementer 직후 | 변경된 파일 목록 | 테스트 코드 + 실행 결과 + TESTER trail section |
-| `reviewer` | driver (executor 아님) | PR push 후 | PR 번호 / diff | review 코멘트 (README 117–128행) |
-| `integrator` | driver | pr-mode commit 후 | PR 번호 | merge 결정 / 다음 round 요청 / BLOCKED |
+| `reviewer` | integrator | PR push 후 + 매 ANOTHER_ROUND 마다 | PR 번호 / diff | review 코멘트 (README 117–128행). **반드시 `gh pr comment` 로 PR 에 post** — post 안 하면 BLOCKED (§3.3 게이트 2) |
+| `integrator` | driver | pr-mode commit 후 | PR 번호 | merge 결정 (§3.3 4-게이트) / 다음 round 요청 / BLOCKED |
 | `notifier` | driver | executor가 STATUS=BLOCKED 반환 또는 review round 7 초과 | blocker 설명 | `STATE.json.humanQuestions` 항목 + 종료 |
 
 **Driver context 누적 방지 룰**:
