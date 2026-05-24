@@ -1,28 +1,28 @@
 {
   "schemaVersion": 1,
   "phase": "P1-in-progress",
-  "currentTask": null,
-  "nextTask": "T-0015",
+  "currentTask": "T-0015",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-24T20:24:00+09:00",
-  "lastCommit": "56a93b0",
+  "lastActivity": "2026-05-24T20:35:00+09:00",
+  "lastCommit": "5e85613",
   "mostRecentTasks": ["T-0014", "T-0013", "T-0010", "T-0009", "T-0012"],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-05-24T19:18:00+09:00",
     "cap": 10,
     "haltedReason": null,
-    "note": "loop session #5 turn 5/10 — planner queued T-0015 (T-A2 split 두 번째 — ADR-0003 4 결정 통합 Monolithic/Secret/Scheduler/Network + deployment.md 4 단락 채움 + T-A2 closure). commitMode=pr, doc-only (~250 LOC / 4 파일: ADR-0003-deployment.md + deployment.md + INDEX.md + PLAN.md). dependsOn=[T-0014], blocks=[T-A3, T-A4]. coversReq=[REQ-005,006,007,016,020,039,040,047]. 신규 dep 0 (실제 패키지 도입은 P3/P4/P7 의 별도 task). R-110 active(pr) 이지만 production code 0 LOC → R-112 N/A, tester 는 CI 7 step green 확인. cap 잔여 5 turn (turn 6~10 — executor + integrator chain 후 다음 phase entry 또는 reserve)."
+    "note": "loop session #5 turn 6/10 — T-0015 PR-14 (c972e21) reviewer round 1 REQUEST_CHANGES. MAJOR: deployment.md L147 dangling REQ-099~103 인용 (requirements.md last REQ = REQ-066, README line# 와 REQ ID 혼동). MINOR: L148-151 '동상' 표현 비통일. PR comment 외화 #issuecomment-4528466297. 다음 turn (7/10): implementer 가 L147 (+ L148-151) 수정 → push → reviewer round 2 → 4-gate → merge. **Integrator agent 구조 결함 발견**: .claude/agents/integrator.md frontmatter tools 에 Agent 미포함 → reviewer sub-agent dispatch 구조적 불가 → 본 round 는 driver 가 reviewer 를 직접 dispatch (one-time workaround). Follow-up task 필요: integrator.md 의 tools 에 Agent 추가. cap 잔여 4 turn (tight)."
   },
   "ci": {
-    "lastRun": "2026-05-24T20:12:00+09:00",
+    "lastRun": "2026-05-24T20:24:00+09:00",
     "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/13",
-    "note": "T-0014 PR-13 CI 7 step pass (lint/build/test:cov/smoke/e2e + spec-presence 2). doc-only PR 정상 머지. ci 인프라 안정 — P1 첫 pr-mode task 도 round 1/7 머지."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/14",
+    "note": "T-0015 PR-14 (c972e21) CI 7 step pass — reviewer round 1 REQUEST_CHANGES 는 코드 issue 아닌 doc dangling REQ 인용. 다음 round push 후 CI 재실행 예상 green."
   },
-  "reviewRounds": {"T-0005": 1, "T-0007": 1},
+  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 1},
   "blockers": [],
   "humanQuestions": [
     {
