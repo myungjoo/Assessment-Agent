@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "phase": "P2-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0023",
   "lock": null,
-  "lastActivity": "2026-05-25T01:15:00+09:00",
+  "lastActivity": "2026-05-25T06:13:00+09:00",
   "lastCommit": "9fc1588",
   "mostRecentTasks": ["T-0022", "T-0021", "T-0020", "T-0019", "T-0017"],
   "loopSession": {
