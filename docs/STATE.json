@@ -1,25 +1,26 @@
 {
   "schemaVersion": 1,
-  "phase": "P0.5-test-ci-infra",
+  "phase": "P0.5-complete-pending-P1",
   "currentTask": null,
-  "nextTask": "T-0010",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-24T18:48:00+09:00",
-  "lastCommit": "6a06638",
-  "mostRecentTasks": ["T-0009", "T-0012", "T-0008", "T-0011", "T-0007"],
+  "lastActivity": "2026-05-24T19:05:00+09:00",
+  "lastCommit": "9df2831",
+  "mostRecentTasks": ["T-0010", "T-0009", "T-0012", "T-0008", "T-0011"],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-05-24T01:42:00+09:00",
     "cap": 10,
-    "note": "loopSession #4 turn 9/10 — planner queued T-0010 (E2E 인프라, P0.5 마지막 bullet, REQ-061 의 e2e 부분). T-0009 DONE 으로 dependsOn 해소. 기존 task 파일 보강 (coversReq=[REQ-061] / requeuedAt / R-112 4 항목 happy·error·branch=N/A·negative 명문화 / R-110·111·114 명시 / Out of Scope 에 신규 dep BLOCKED 룰 강화). supertest/@nestjs/testing/@types/supertest 모두 devDep — 신규 dep 0, BLOCKED risk 0. 예상 ~80 LOC / 4 파일. **cap 잔여 1 turn — 다음 turn 10/10 에서 T-0010 executor 완주 후 ScheduleWakeup 없이 종료. 사용자 /compact 후 새 loop session 으로 P1 진입.** P0.5 phase close 는 본 task 머지 후 별도 direct task 또는 다음 session 의 planner 가 처리."
+    "haltedReason": "loopSession #4 cap (10) 도달 — LOOP.md §1 [8] (e) 에 따라 ScheduleWakeup 안 함. 사용자 cleanup (/compact 또는 /clear) 후 새 /loop session 으로 P1 phase 진입 권장.",
+    "note": "loopSession #4 turn 10/10 (cap) — T-0010 MERGED via PR-12 round 1/7 (squash 9df2831). reviewer APPROVE + integrator self-check + CI 40s pass 7 step (lint/build/cov/smoke/e2e + spec-presence 2). **Phase P0.5 4 bullet (unit/coverage/smoke/e2e) 모두 완료**. counters.tasksCompleted 10→11. session 통계: 10 turn 안에 T-0011/T-0008/T-0009/T-0012/T-0010 5 task 머지 (turn 평균 1 task per 2 turn — bookkeeping/CI 대기 turn 포함). 다음 session 은 P1 phase 진입 (planner 가 PLAN.md 의 P1 첫 bullet 선정)."
   },
   "ci": {
-    "lastRun": "2026-05-24T18:36:00+09:00",
+    "lastRun": "2026-05-24T19:02:00+09:00",
     "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/10",
-    "note": "T-0009 머지로 smoke step 도 CI 게이트. ci.yml = lint/build/test:cov(50% threshold)/smoke. e2e 는 T-0010 에서 도입 예정. unit/coverage/smoke 3 게이트 모두 active."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/12",
+    "note": "T-0010 머지로 e2e step 도 CI 게이트. ci.yml = lint/build/test:cov(50% threshold)/smoke/e2e/spec-presence 6 종 + spec-presence self-test = 7 step. CLAUDE.md §3.2 R-110~114 모두 active (R-113 의 smoke/e2e 부분 도입 완료)."
   },
   "reviewRounds": {"T-0005": 1, "T-0007": 1},
   "blockers": [],
@@ -59,7 +60,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 10,
+    "tasksCompleted": 11,
     "tasksBlocked": 0,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

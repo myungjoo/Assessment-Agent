@@ -2,13 +2,19 @@
 id: T-0010
 title: E2E test 인프라 + 첫 e2e + CI 통합
 phase: P0.5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 150
+actualDiff: 71
 estimatedFiles: 5
+actualFiles: 4
 created: 2026-05-23
 requeuedAt: 2026-05-24
+completedAt: 2026-05-24T19:02+09:00
+mergedAs: 9df2831
+prNumber: 12
+reviewRounds: 1
 plannerNote: P0.5 마지막 bullet. REQ-061 의 e2e 부분 구현 (smoke 는 T-0009 가 완료). T-0009 DONE 으로 dependsOn 해소. 신규 dep 0 — supertest/@nestjs/testing/@types/supertest 모두 devDep.
 dependsOn: [T-0009]
 blocks: []
