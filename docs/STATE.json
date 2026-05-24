@@ -4,32 +4,25 @@
   "currentTask": null,
   "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-24T02:50:00+09:00",
-  "lastCommit": "91b600c",
-  "mostRecentTasks": ["T-0012", "T-0008", "T-0011", "T-0007", "T-0005"],
+  "lastActivity": "2026-05-24T18:36:00+09:00",
+  "lastCommit": "6a06638",
+  "mostRecentTasks": ["T-0009", "T-0012", "T-0008", "T-0011", "T-0007"],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-05-24T01:42:00+09:00",
     "cap": 10,
-    "note": "loopSession #4 turn 7/10 — T-0012 MERGED via PR-11 round 1/7 (squash 91b600c). check-spec-presence.sh patch + R-112 regression 3 case. T-0009 unblock 진행: branch 에 main merge (4872c1d) + push → PR-10 의 CI 재시도 중. 다음 turn 에서 CI green 확인 후 integrator 머지."
+    "note": "loopSession #4 turn 8/10 — T-0009 MERGED via PR-10 round 1/7 (squash 6a06638). T-0012 patch 머지 후 reviewer/integrator 정식 3중 게이트 통과. smoke 인프라 + 첫 spec + ci.yml step. counters.tasksCompleted 9→10. blockers[T-0009 on T-0012] resolved. 사용자 commit 19c3786 (reviewer.md 강제화 cleanup) 도 turn 사이에 반영됨. cap 잔여 2 turn."
   },
   "ci": {
-    "lastRun": "2026-05-24T02:50:00+09:00",
+    "lastRun": "2026-05-24T18:36:00+09:00",
     "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/11",
-    "note": "T-0012 머지로 check-spec-presence.sh 결함 fix + regression test 추가. T-0009 PR-10 CI 재시도 중 (4872c1d). consecutiveFails 1→0 reset (T-0012 가 patch 성공)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/10",
+    "note": "T-0009 머지로 smoke step 도 CI 게이트. ci.yml = lint/build/test:cov(50% threshold)/smoke. e2e 는 T-0010 에서 도입 예정. unit/coverage/smoke 3 게이트 모두 active."
   },
   "reviewRounds": {"T-0005": 1, "T-0007": 1},
-  "blockers": [
-    {
-      "taskId": "T-0009",
-      "blockedBy": "T-0012",
-      "since": "2026-05-24T02:40:00+09:00",
-      "details": "T-0009 PR-10 의 spec-presence-check step 이 check-spec-presence.sh 결함으로 fail. T-0012 (script patch) merge 후 T-0009 PR 재시도 필요. T-0009 task status 는 PENDING 유지 (BLOCKED-on-T-0012)."
-    }
-  ],
+  "blockers": [],
   "humanQuestions": [
     {
       "id": "HQ-0001",
@@ -66,7 +59,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 9,
+    "tasksCompleted": 10,
     "tasksBlocked": 0,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

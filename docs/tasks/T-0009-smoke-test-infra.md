@@ -2,13 +2,20 @@
 id: T-0009
 title: Smoke test 인프라 + 첫 smoke + CI 통합
 phase: P0.5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 120
+actualDiff: 63
 estimatedFiles: 5
+actualFiles: 5
 created: 2026-05-23
 requeuedAt: 2026-05-24
+completedAt: 2026-05-24T18:34+09:00
+mergedAs: 6a06638
+prNumber: 10
+reviewRounds: 1
+unblockHistory: "BLOCKED 2026-05-24T02:40 (T-0009 PR-10 spec-presence script fail on .smoke-spec.ts misclassification) → T-0012 patch merged 2026-05-24T02:48 (91b600c) → branch rebase via main merge (4872c1d) → CI re-run pass → integrator merge 18:36 (6a06638)"
 plannerNote: P0.5 세 번째 bullet. README 113 / R-113 의 smoke 부분 구현. supertest/@nestjs/testing 이미 devDep — 신규 dep 0. T-0008 DONE 으로 unblocked.
 dependsOn: [T-0008]
 blocks: [T-0010]
