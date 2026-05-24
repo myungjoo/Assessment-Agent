@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "phase": "P1-complete",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0019",
   "lock": null,
-  "lastActivity": "2026-05-24T23:45:00+09:00",
+  "lastActivity": "2026-05-24T23:55:00+09:00",
   "lastCommit": "23fa092",
   "mostRecentTasks": ["T-0017", "T-0018", "T-0016", "T-0015", "T-0014"],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-05-24T21:55:00+09:00",
     "cap": 10,
-    "note": "session #6 turn 2/10 — **Phase P1 (Architecture/MVA) 전체 완료**. T-A1 (T-0013 requirements.md kind) / T-A2 (T-0014 ADR-0002 DB + T-0015 ADR-0003 deployment) / T-A3 (T-0016 components.md) / T-A4 (T-0017 modules.md) 4 architecture task 머지. 본 turn 2 task 머지 (T-0018 PR-17 5-LOC ci.yml permissions fix 4fab0e5 + T-0017 PR-16 merge commit 23fa092). T-0018 첫 round 1 APPROVE merge — 새 612a1c6 round-per-turn 룰 완화 첫 dogfood. T-0017 round 2 APPROVE (driver 직접 dispatch — integrator session 단위 agent config cache 결함 재현) + driver 직접 merge (gh pr merge 16 --squash, local branch 삭제는 main worktree 충돌로 fail 하나 GitHub 머지 성공 23fa092). counters.tasksCompleted 15→17. Phase P2 (Use case decomposition) 진입 — 다음 turn planner 가 P2-Entry task 큐잉."
+    "note": "session #6 turn 3/10 — planner: queued T-0019 (P2-Entry, Use case index 신설 docs/use-cases/INDEX.md). Phase P1 완료 후 첫 P2 task. ≥5 UC row (UC-01 평가 실행 / UC-02 조회/sort/filter / UC-03 인원 CRUD / UC-04 권한·계정 / UC-05 LLM 설정 / UC-06 manual delete + 재수집 / UC-07 Export/Import / UC-08 권한 부족 통지) 권장 + actor/component/module/REQ 매핑 박제. commitMode=pr (새 docs/use-cases/ 디렉토리), doc-only ~80 LOC / 2-3 파일. R-110 active tester 호출, R-112 N/A (doc-only). dependsOn=[T-0017] (P1 완료 필요, 이미 충족), blocks=[P2-Mod-1..5] (후속 UC 본문 task 들). 후속 task 들이 본 INDEX.md 의 row 1 개씩을 풀어 actor/trigger/흐름/sequence 분해."
   },
   "ci": {
     "lastRun": "2026-05-24T23:40:00+09:00",
