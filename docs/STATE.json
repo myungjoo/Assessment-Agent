@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "phase": "P2-architecture-complete",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0022",
   "lock": null,
-  "lastActivity": "2026-05-25T00:52:00+09:00",
+  "lastActivity": "2026-05-25T01:05:00+09:00",
   "lastCommit": "ca41bc6",
   "mostRecentTasks": ["T-0021", "T-0020", "T-0019", "T-0017", "T-0018"],
   "loopSession": {
