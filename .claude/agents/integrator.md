@@ -21,9 +21,17 @@ tools: Read, Edit, Bash, Glob, Grep, Agent
 6. `STATE.reviewRounds[T-NNNN] = 0`, `STATE.ci.lastRun = <ISO>`.
 7. **`reviewer` sub-agent dispatch (의무)** — reviewer 호출 없이 merge 시도 금지. reviewer 가 STATUS=BLOCKED 반환하면 본 agent 도 동일 STATUS 로 driver 반환.
 
-# Workflow B. After a review (round 당 1 turn)
+# Workflow B. After a review
 
-한 turn 에 한 round 만 처리. implementer/tester 직접 재호출 금지 (다음 turn 의 executor re-entry 책임 — `executor.md` "Re-entry"). 이 분리는 driver context 누적 방지 (CLAUDE.md §10).
+같은 turn 안에서 reviewer → executor re-entry (implementer fix) → reviewer 재호출 의 round loop 을 순차로 여러 번 진행해도 무방. 한 PR 의 commit → review → fix → review → merge 가 한 cron 발화 안에서 끝나는 게 자연스러우면 그렇게 한다 (PR-14/T-0015 가 모범 사례 — round 1 REQUEST_CHANGES → 10 분 내 fix → round 2 APPROVE → merge).
+
+단 다음 중 하나라면 ANOTHER_ROUND 반환 후 **다음 turn 으로 미룬다** (context cleanup 기회):
+
+- 본 turn 에서 이미 reviewer round 3 회 이상 누적 (sub-agent 출력이 driver context 에 부담)
+- LOOP §1 [8] (e) 의 turn cap 임박
+- ANOTHER_ROUND 사유가 단순 fix 가 아니라 architect 재호출 / 설계 재검토 같은 큰 변경 (다음 turn 의 fresh start 가 안전)
+
+implementer/tester 재호출은 executor 의 re-entry mode (`executor.md` "Re-entry") 로 — 같은 turn 안이든 다음 turn 이든 진입 가능.
 
 **1. reviewer 결과 검증**
 
@@ -50,7 +58,7 @@ tools: Read, Edit, Bash, Glob, Grep, Agent
 
 | 상황 | 액션 |
 | --- | --- |
-| REQUEST_CHANGES + round < 7 | `reviewRounds[T-NNNN]` 1 증가. REVIEW_FINDINGS 수집. STATUS=ANOTHER_ROUND. (executor re-entry 는 다음 turn) |
+| REQUEST_CHANGES + round < 7 | `reviewRounds[T-NNNN]` 1 증가. REVIEW_FINDINGS 수집. 위 § 의 "다음 turn 으로 미룸" 조건 해당 시 STATUS=ANOTHER_ROUND 반환 + 다음 turn 으로. 그 외엔 같은 turn 안에서 executor re-entry 직접 진행 (driver 가 executor 를 즉시 재호출하도록 신호) |
 | REQUEST_CHANGES + round == 7 | STATUS=BLOCKED (reason: `review-rounds-exhausted`). driver 가 notifier 로. |
 | 게이트 (b) PR comment 부재 | (1) reviewer 재dispatch. 그래도 부재 시 STATUS=BLOCKED (`reviewer-post-failed`). |
 | 게이트 (c) 자체 점검 fail | PR comment 로 self-finding post (header: `> Committer self-check — integrator agent of Assessment-Agent`). STATUS=ANOTHER_ROUND. |
