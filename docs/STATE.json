@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "phase": "P0.5-test-ci-infra",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0008",
   "lock": null,
-  "lastActivity": "2026-05-24T01:50:00+09:00",
+  "lastActivity": "2026-05-24T02:05:00+09:00",
   "lastCommit": "65ed3a5",
   "mostRecentTasks": ["T-0011", "T-0007", "T-0005", "T-0004", "T-0006"],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-05-24T01:42:00+09:00",
     "cap": 10,
-    "note": "loopSession #4 turn 2/10 — T-0011 DONE (LOOP.md §4 push hard rule 보강). 새 hard rule 첫 dogfood: implementer staged worktree → driver 가 main worktree 로 patch 이송 후 main:main push. counters.tasksCompleted 6→7."
+    "note": "loopSession #4 turn 3/10 — planner queued T-0008 (coverage threshold). T-0007 follow-up 3건 모두 자연 해소 또는 T-0011 로 처리 완료, PLAN.md 순서대로 P0.5 두 번째 task 진입. T-0008 task 파일 frontmatter 에 coversReq=[REQ-060,REQ-059] + R-112 4종 acceptance criteria 보강."
   },
   "ci": {
     "lastRun": "2026-05-24T00:34:00+09:00",
