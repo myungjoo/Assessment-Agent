@@ -2,16 +2,20 @@
 id: T-0023
 title: P2-UC-03 — 평가 대상 인원 CRUD + Group/파트 + Activate/Deactivate use case 분해 (docs/use-cases/UC-03-person-crud.md)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-045]
 estimatedDiff: 180
 estimatedFiles: 3
 created: 2026-05-25
+completed: 2026-05-25T08:52:10+09:00
+mergedPr: 22
+mergeSha: 7fc267a
 plannerNote: P2 세번째 UC 본문 분해 (UC-03 인원 CRUD). UC-04/UC-05 동일 template 후속 큐잉 예정. T-0020/T-0022 template 적용.
 dependsOn: [T-0019, T-0022]
 blocks: []
 hqOrigin: null
+resultSummary: PR-22 round 1/7 squash 7fc267a — UC-03-person-crud.md 200 LOC 신설 + INDEX.md status DONE + PLAN.md cover marker. 11 section + mermaid 11-step + alt 2 (Group invariant / 신규 인원 1년치 평가 emit). reviewer 0 BLOCKER/MAJOR/MINOR 2 NIT. CI rerun --failed 1회 (5번째 dogfood). integrator session-cache 결함 5회 재현 — driver workaround 표준 절차 안착.
 ---
 
 # T-0023 — P2-UC-03: 평가 대상 인원 CRUD + Group/파트 + Activate/Deactivate use case 분해
