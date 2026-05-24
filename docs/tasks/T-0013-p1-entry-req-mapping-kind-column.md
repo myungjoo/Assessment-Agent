@@ -2,7 +2,8 @@
 id: T-0013
 title: P1-Entry — requirements.md 에 kind 컬럼 추가 + 66 REQ row 채움 + REQ-061 DONE 갱신
 phase: P1
-status: PENDING
+status: DONE
+finishedAt: 2026-05-24T19:42:00+09:00
 commitMode: direct
 coversReq: [REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-011, REQ-012, REQ-013, REQ-014, REQ-015, REQ-016, REQ-017, REQ-018, REQ-019, REQ-020, REQ-021, REQ-022, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-029, REQ-030, REQ-031, REQ-032, REQ-033, REQ-034, REQ-035, REQ-036, REQ-037, REQ-038, REQ-039, REQ-040, REQ-041, REQ-042, REQ-043, REQ-044, REQ-045, REQ-046, REQ-047, REQ-048, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-056, REQ-057, REQ-058, REQ-059, REQ-060, REQ-061, REQ-062, REQ-063, REQ-064, REQ-065, REQ-066]
 estimatedDiff: 140
@@ -95,4 +96,9 @@ implementer (doc 편집만) — architect 불필요 (architecture 결정 아님,
 
 ## Follow-ups
 
-(작성 시점엔 비어있음. sub-agent 가 본 task 진행 중 분류 애매 row 또는 추후 재검토 필요 항목 발견 시 여기 1줄씩 append. 예: "REQ-NNN 의 kind 분류는 FR/NFR 경계상 1 차로 FR 로 두었으나 P2 phase 에서 NFR 재분류 후보로 재검토.")
+- REQ-017 / REQ-024 / REQ-032 / REQ-050 — 1차 분류 `Constraint` (ADR 필수 정책 / data model 정책). 그러나 ADR 결정 후 실제 구현 단계 (P2/P3) 에서는 FR 측면 (예: REQ-024 의 ID-PK 선택은 인원 관리 기능의 일부) 으로 재해석 가능. P2 phase 진입 시 재검토 후보.
+- REQ-008 / REQ-016 (접근 권한 부족 통지) — 1차 `FR` (시스템이 행동 / 통지 기능). 그러나 보안 정책 (NFR) 측면도 있음. P3 phase (provider) 구현 시 재검토 후보.
+- REQ-029 (non-volatile 저장) — 1차 `NFR` (durability). 그러나 P2 의 storage layer 구현이 따라가는 기능 (FR) 측면도 있음. ADR 작성 시 재검토.
+- REQ-043 (ID/Password 보호) — 1차 `NFR` (security policy). 그러나 P5 의 auth flow 는 FR 로 분해될 가능성. P2/P5 auth task 진입 시 재검토.
+
+**최종 분류 분포**: FR 46 / NFR 4 / Constraint 16 / 합계 66 row.

@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "phase": "P0.5-complete-pending-P1",
+  "phase": "P1-in-progress",
   "currentTask": null,
-  "nextTask": "T-0013",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-24T19:18:00+09:00",
-  "lastCommit": "9df2831",
-  "mostRecentTasks": ["T-0010", "T-0009", "T-0012", "T-0008", "T-0011"],
+  "lastActivity": "2026-05-24T19:42:00+09:00",
+  "lastCommit": "40d3a84",
+  "mostRecentTasks": ["T-0013", "T-0010", "T-0009", "T-0012", "T-0008"],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-05-24T19:18:00+09:00",
     "cap": 10,
     "haltedReason": null,
-    "note": "loop session #5 turn 1/10 — planner queued T-0013 (P1-Entry: requirements.md kind 컬럼 추가 + 66 row 채움 + REQ-061 DONE). P1 phase 진입 첫 task. doc-only direct, R-110 면제. 후속 turn 에서 executor 가 T-0013 수행 → DONE 후 T-A2 (deployment view) 로 진행."
+    "note": "loop session #5 turn 2/10 — T-0013 DONE (P1-Entry). requirements.md 7 컬럼 schema + 66 REQ kind 채움 (FR 46 / NFR 4 / Constraint 16) + REQ-061 DONE. doc-only direct. phase P0.5-complete-pending-P1 → P1-in-progress. counters.tasksCompleted 11→12. 다음 turn 은 planner 가 P1 의 두 번째 task (PLAN.md T-A1 또는 T-A2) 큐잉."
   },
   "ci": {
     "lastRun": "2026-05-24T19:02:00+09:00",
@@ -60,7 +60,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 11,
+    "tasksCompleted": 12,
     "tasksBlocked": 0,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
