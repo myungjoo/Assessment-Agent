@@ -167,6 +167,14 @@
 
 ---
 
+## 운영 정책 review backlog
+
+phase 진행과 별개로, driver / loop / cron 등 운영 정책 자체의 완화·강화를 정기 검토 대상으로 박제. 본 절은 결정이 아니라 **future ADR 의 출발점 인덱스** — 트리거 조건이 충족되면 planner 가 해당 항목을 ADR 작성 task 로 변환한다.
+
+- [ ] **cron 1-fire 1-task 정책 완화 검토** — 현 [docs/LOOP.md](LOOP.md) §3 은 cron 매 발화마다 task 1 개 처리 후 종료. 시스템 안정 후 multi-task chaining (1 fire 안 task 2~3 개) 가능성을 ADR-NNNN (cron multi-task fire policy) 로 검토 예정.
+
+---
+
 ## 의존성
 
 P0 → P0.5 → **P1 (Architecture)** → **P2 (Use case decomposition)** → (P3, P4 병행) → P5 → P6 → P7 → P8

@@ -271,6 +271,8 @@ schedule 측은 lock holder를 `"cron"` 으로 잡는다. `/loop`("loop")과 cro
 2. T-0001 (NestJS·CI) 완료된 뒤 cron 등록 — CI가 동작해야 routine이 안전.
 3. 처음 1주는 매일 사람이 STATE.json·journal 점검. 안정되면 주간 점검.
 
+**미래 완화 검토**: "1 fire = 1 task" 룰은 영속 정책이 아니라 시스템 안정 후 multi-task chaining 가능성을 ADR 로 검토 — [PLAN.md](PLAN.md) "운영 정책 review backlog" 참조. 트리거 충족 전까지 임의 chaining 금지.
+
 ---
 
 ## 4. Lock & 충돌 규약
