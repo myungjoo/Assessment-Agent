@@ -27,8 +27,24 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
 - 미해결 humanQuestion이 있고 resolvedAt 없는 항목이 1개라도 있으면 즉시 종료
   (사람이 답할 때까지 대기). turn end summary에 그 사실 표기.
 
-[2] 작업 선정
+[2] 작업 선정 + (PR 미완료) Resume 판정
 - state.currentTask가 있으면 그것을 그대로 사용한다.
+  - **추가**: task.commitMode == "pr" 이고 task 파일 frontmatter 에 `prNumber: N`
+    이 있으면 **이전 turn 의 PR 진행이 도중 종료된 상태로 본 turn 에서 resume**.
+    [3] EXECUTOR 호출 직전에 다음 점검을 수행해 다음 step 을 결정:
+      a. `gh pr view N --json state,mergedAt,reviews,comments,headRefOid,mergeable`
+         으로 PR 현 상태 fetch.
+      b. PR state == MERGED → cleanup 누락. integrator §C cleanup checklist 만
+         실행 후 본 turn 종료.
+      c. PR 의 latest `Round N/7` reviewer comment 의 N 과 STATE.reviewRounds[T-X]
+         비교. latest comment 의 N 이 더 크면 → integrator 가 verdict 처리 미완.
+         바로 integrator dispatch 로 점프해 4-게이트 검증부터.
+      d. PR head sha 의 시각 > 마지막 reviewer comment 시각 → executor 가 fix
+         push 후 reviewer 재호출 못 한 상태. integrator dispatch (reviewer 재호출
+         포함) 로 점프.
+      e. head sha == 마지막 reviewer-인지 sha + reviewer.VERDICT == REQUEST_CHANGES
+         → executor re-entry mode 로 진입 ([3] EXECUTOR 호출 단계로).
+      f. 위 모두 아님 (정상 진행 중) → [3] EXECUTOR 호출.
 - 없고 state.nextTask가 있으면 currentTask=nextTask, nextTask=null.
 - 둘 다 없으면 planner sub-agent를 dispatch한다.
   → planner가 task 1개를 만들고 STATE.nextTask를 갱신해 돌아오면
@@ -68,7 +84,11 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
     이어서 integrator sub-agent 호출 (PR open + reviewer dispatch + 결과 판정).
     integrator 반환에 따라:
       MERGED → INTEGRATOR trail을 merge commit 메시지에 포함시켜 머지 (이미 됨).
-      ANOTHER_ROUND → STATE.reviewRounds++; executor 재호출은 다음 turn으로 미룬다.
+      ANOTHER_ROUND → STATE.reviewRounds++. 같은 turn 안에서 executor re-entry 즉시
+        진행 (REVIEW_FINDINGS 를 amendment 로 전달). 단 integrator 가 § B 의 "다음
+        turn 으로 미룸" 조건 (round 누적 3+ / turn cap 임박 / 큰 변경) 신호를 보내면
+        본 turn 종료 후 다음 turn 에서 executor 재호출. 같은 PR 안에서 round 여러
+        번 진행 가능.
       BLOCKED → notifier 호출.
 
 [5] CI 검증 (push 직후)
