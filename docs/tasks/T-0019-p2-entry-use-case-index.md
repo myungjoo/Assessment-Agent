@@ -2,12 +2,13 @@
 id: T-0019
 title: P2-Entry — Use case index 신설 (docs/use-cases/INDEX.md + UC-NN row 목록 + actor/component/module/REQ 매핑)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [TBD]
 estimatedDiff: 80
 estimatedFiles: 3
 created: 2026-05-24
+completedAt: 2026-05-24
 plannerNote: P2-Entry — use-cases/INDEX.md 신설 (UC-NN 목록 + actor/component/module/REQ 매핑). 후속 UC-NN 분해 task 들의 backbone. pr-mode doc-only.
 dependsOn: [T-0017]
 blocks: [P2-Mod-1, P2-Mod-2, P2-API, P2-DataModel, P2-Directory]
@@ -103,4 +104,21 @@ hqOrigin: null
 
 ## Follow-ups
 
-(implementer / tester 가 본 task 진행 중 발견한 follow-up 후보를 여기에 append. 빈 상태로 시작.)
+본 task executor 가 진행 중 식별한 후속 task 후보 (planner 가 P2 진행 시 task 생성 후보로 검토):
+
+- **P2-Mod-1 ~ P2-Mod-8** — 각 UC (UC-01 ~ UC-08) 별 본문 파일 (`docs/use-cases/UC-NN-*.md`) 신설. 각 task 는 1 UC 만 분해 (size cap 보호) — actor 의 단계별 흐름 / sequence diagram (mermaid) / 데이터 model 후보 entity 명세 / NFR (성능·보안) / 실패·재시도 경로 / post-condition. 분해 우선순위: UC-04 (auth, P3 의 RBAC 모듈 기반) → UC-03 (인원 관리) → UC-01 (평가 실행, 가장 복잡) → UC-02 (조회 / UI) → 나머지.
+- **P2-API entry** — `docs/architecture/api.md` 신설 (PLAN.md L85). 본 INDEX.md 의 8 UC 흐름에서 도출되는 HTTP endpoint 목록을 모아 단일 표로 박제. 구체 schema 는 P3.
+- **P2-DataModel entry** — `docs/architecture/data-model.md` 신설 (PLAN.md L86). 본 INDEX.md 의 8 UC 가 다루는 entity (Person / ServiceIdentity / Assessment / Contribution / Summary / Group / Part / LlmProviderConfig 등) 의 conceptual model. 테이블 컬럼은 P3.
+- **P2-Directory entry** — `docs/architecture/directory.md` 신설 (PLAN.md L87). NestJS 표준 디렉토리 구조 + [modules.md](../architecture/modules.md) 의 8 module ↔ `src/<module>/...` mapping.
+- **Use case 인벤토리 검증** — [PLAN.md](../PLAN.md) L84 의 별도 bullet. 본 INDEX.md 머지 후 functional REQ 중 본 표의 어느 UC 에도 cover 되지 않은 REQ 가 있는지 검증 → 빠지면 UC 추가. 본 task 시점에 candidate 검사:
+  - REQ-002 (Web Interface 제공) — UC-02 + UC-03 + UC-04 + 모든 Admin UI UC 가 분산 cover (UI 의 존재 자체가 actor 가 Web UI 인 모든 UC 로 cover). pass.
+  - REQ-003 (양·질 평가 / 저장 / 표시) — UC-01 + UC-02. pass.
+  - REQ-004 (사용자 지정 기간 LLM 평가 코멘트) — UC-02 의 시계열 + UC-01 의 LLM 평가문 생성. pass.
+  - REQ-009 (Fork/Rebase/Meld 중복 제거) — UC-01 의 평가 파이프라인 내부 — 표면화 안 됨. **후속 분해 시 UC-01 본문에 명시 필요**.
+  - REQ-010~013 (코드 평가 목표 — 양/질/abusing/저성과자) — UC-01 의 LLM + Metric. cover.
+  - REQ-018~022 (문서 평가 목표 — 보고·copy-paste / 새 알고리즘 / 조직 기여 / 문서 abusing / update 횟수 중립화) — UC-01 의 Confluence Adapter + LLM. cover.
+  - REQ-029, REQ-031, REQ-032, REQ-033 (저장 정책 — non-volatile / 재수집 / raw 금지 / commit·문서 단위) — UC-01 의 DB Persistence + UC-06 의 재수집. cover.
+  - REQ-034, REQ-035, REQ-036 (일·주·월 요약 + 상대 비교) — UC-01 의 LLM + Metric. cover.
+  - REQ-047 (100~200명 / 1h 이내) — NFR. UC-01 의 평가 파이프라인. cover (NFR 별도 검증).
+- **UC-08 의 actor 명** — 본 INDEX.md 는 "System" 으로 표기. 후속 UC-08 본문에서 정확한 trigger (외부 GitHub/Confluence 의 4xx response) + receiver (사용자 + 관리자 모두, REQ-008 / REQ-016) 를 명시할 때 actor 정의 재검토. 필요 시 PLAN.md 의 actor 정의 (현재 "SuperAdmin / Admin / User / Scheduler / Reviewer Agent") 에 "System" 추가 검토.
+- **R-112 N/A 명시** — 본 task 는 doc-only (production code 0 LOC). PR 본문에 "doc-only — R-112 N/A" 명시 (driver 가 PR 생성 시).
