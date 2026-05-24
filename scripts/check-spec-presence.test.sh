@@ -42,13 +42,22 @@ setup_branch() {
 }
 setup_negative() { mkdir -p src; echo 't' >src/onlyspec.spec.ts; }
 setup_regression() { mkdir -p src; echo 'export class C{}' >src/c.ts; }
+# T-0012 regression: .smoke-spec.ts suffix 가 spec 으로 인식되어야 한다.
+setup_smoke_suffix() { mkdir -p test/smoke; echo 't' >test/smoke/app.smoke-spec.ts; }
+# T-0012 regression: leading 'test/' path (no leading slash) 가 test 디렉토리로 인식되어야 한다.
+setup_test_leading() { mkdir -p test/e2e; echo 'export const e=1;' >test/e2e/util.ts; }
+# T-0012 추가 negative: 잘못된 suffix (.notspec.ts) 는 spec 으로 잘못 통과되면 안 됨.
+setup_bad_suffix() { mkdir -p src; echo 'export const d=1;' >src/d.ts; echo 't' >src/d.notspec.ts; }
 
 echo "[test] check-spec-presence.sh 자체 검증"
-case_run happy      0 setup_happy
-case_run error      1 setup_error
-case_run branch     0 setup_branch
-case_run negative   0 setup_negative
-case_run regression 1 setup_regression
+case_run happy         0 setup_happy
+case_run error         1 setup_error
+case_run branch        0 setup_branch
+case_run negative      0 setup_negative
+case_run regression    1 setup_regression
+case_run smoke_suffix  0 setup_smoke_suffix
+case_run test_leading  0 setup_test_leading
+case_run bad_suffix    1 setup_bad_suffix
 
 read -r p f <"$COUNTERS"; rm -f "$COUNTERS"
 echo "[test] pass=$p fail=$f"
