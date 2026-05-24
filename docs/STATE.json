@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "phase": "P0.5-test-ci-infra",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0010",
   "lock": null,
-  "lastActivity": "2026-05-24T18:36:00+09:00",
+  "lastActivity": "2026-05-24T18:48:00+09:00",
   "lastCommit": "6a06638",
   "mostRecentTasks": ["T-0009", "T-0012", "T-0008", "T-0011", "T-0007"],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-05-24T01:42:00+09:00",
     "cap": 10,
-    "note": "loopSession #4 turn 8/10 — T-0009 MERGED via PR-10 round 1/7 (squash 6a06638). T-0012 patch 머지 후 reviewer/integrator 정식 3중 게이트 통과. smoke 인프라 + 첫 spec + ci.yml step. counters.tasksCompleted 9→10. blockers[T-0009 on T-0012] resolved. 사용자 commit 19c3786 (reviewer.md 강제화 cleanup) 도 turn 사이에 반영됨. cap 잔여 2 turn."
+    "note": "loopSession #4 turn 9/10 — planner queued T-0010 (E2E 인프라, P0.5 마지막 bullet, REQ-061 의 e2e 부분). T-0009 DONE 으로 dependsOn 해소. 기존 task 파일 보강 (coversReq=[REQ-061] / requeuedAt / R-112 4 항목 happy·error·branch=N/A·negative 명문화 / R-110·111·114 명시 / Out of Scope 에 신규 dep BLOCKED 룰 강화). supertest/@nestjs/testing/@types/supertest 모두 devDep — 신규 dep 0, BLOCKED risk 0. 예상 ~80 LOC / 4 파일. **cap 잔여 1 turn — 다음 turn 10/10 에서 T-0010 executor 완주 후 ScheduleWakeup 없이 종료. 사용자 /compact 후 새 loop session 으로 P1 진입.** P0.5 phase close 는 본 task 머지 후 별도 direct task 또는 다음 session 의 planner 가 처리."
   },
   "ci": {
     "lastRun": "2026-05-24T18:36:00+09:00",
