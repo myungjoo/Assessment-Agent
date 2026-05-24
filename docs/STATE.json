@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "phase": "P1-complete",
+  "phase": "P2-entry-merged",
   "currentTask": null,
-  "nextTask": "T-0019",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-24T23:55:00+09:00",
-  "lastCommit": "23fa092",
-  "mostRecentTasks": ["T-0017", "T-0018", "T-0016", "T-0015", "T-0014"],
+  "lastActivity": "2026-05-25T00:08:00+09:00",
+  "lastCommit": "56ed162",
+  "mostRecentTasks": ["T-0019", "T-0017", "T-0018", "T-0016", "T-0015"],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-05-24T21:55:00+09:00",
     "cap": 10,
-    "note": "session #6 turn 3/10 — planner: queued T-0019 (P2-Entry, Use case index 신설 docs/use-cases/INDEX.md). Phase P1 완료 후 첫 P2 task. ≥5 UC row (UC-01 평가 실행 / UC-02 조회/sort/filter / UC-03 인원 CRUD / UC-04 권한·계정 / UC-05 LLM 설정 / UC-06 manual delete + 재수집 / UC-07 Export/Import / UC-08 권한 부족 통지) 권장 + actor/component/module/REQ 매핑 박제. commitMode=pr (새 docs/use-cases/ 디렉토리), doc-only ~80 LOC / 2-3 파일. R-110 active tester 호출, R-112 N/A (doc-only). dependsOn=[T-0017] (P1 완료 필요, 이미 충족), blocks=[P2-Mod-1..5] (후속 UC 본문 task 들). 후속 task 들이 본 INDEX.md 의 row 1 개씩을 풀어 actor/trigger/흐름/sequence 분해."
+    "note": "session #6 turn 4/10 — T-0019 (P2-Entry use-cases/INDEX.md) **MERGED** via PR-18 round 1/7 squash 56ed162. executor DONE (architect 8 UC 채택 + implementer +122/-3 LOC / 3 파일 + tester build/test pass) → driver push + integrator (BLOCKED reviewer-not-dispatched: Agent tool runtime cache 결함 재현 session #5/6 패턴) → driver workaround: reviewer 직접 dispatch round 1/7 APPROVE (4 MINOR follow-up 만, 머지 블록 아님, comment 4529091416) → CI rerun (issue_comment event 가 main ref 로 trigger 되므로 pull_request run 을 gh run rerun --failed 으로 재실행 47s pass) → 4-gate green → gh pr merge 18 --squash. **Phase P2 (Use case decomposition) entry 달성** — INDEX.md 8 UC backbone 박제 (UC-01 평가 실행 / UC-02 조회 / UC-03 인원 CRUD / UC-04 권한 / UC-05 LLM 설정 / UC-06 평가 삭제+재수집 / UC-07 데이터 export/import / UC-08 통지). 후속 UC-NN 본문 task 들 (P2-Mod-1..8) 의 backbone. counters.tasksCompleted 17→18. reviewRounds[T-0019]=1. 다음 turn 은 planner 가 UC-01 or 첫 UC 본문 task 큐잉. **612a1c6 round-per-turn 룰 완화 후 정상 패턴**: 본 turn 은 1 task executor→push→reviewer→merge 라 multi-round 미발생. **cap 잔여 6 turn**."
   },
   "ci": {
-    "lastRun": "2026-05-24T23:40:00+09:00",
+    "lastRun": "2026-05-25T00:04:22+09:00",
     "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26363996216",
-    "note": "PR-16 (T-0017) merge commit 7043353 CI 38s pass (7 step + reviewer-approval). T-0018 ci.yml permissions fix (4fab0e5) 가 본 PR 의 merge 로 main 에 박힘 + PR-16 의 merged 7043353 head 가 fix 포함된 workflow 실행 — 동일 PR 안에서 fix dogfood + 해소. ci.consecutiveFails 1→0 reset. T-0018 PR-17 (4fab0e5) 자체 CI 도 pass (regression evidence)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26364570351",
+    "note": "PR-18 (T-0019) CI 47s pass on rerun (run 26364570351). issue_comment event 가 main ref 에서 trigger 된 별도 run (26364671444) 은 PR head 와 무관 — pull_request run 의 rerun --failed 으로 reviewer-approval step 통과. 본 패턴은 향후 모든 PR 의 표준: (1) executor push → pull_request CI run 시 reviewer-approval step fail (comment 부재) → (2) reviewer comment post → (3) driver 가 pull_request run 을 gh run rerun --failed 으로 재실행 → reviewer-approval step pass."
   },
-  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1},
+  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1},
   "blockers": [],
   "humanQuestions": [
     {
@@ -59,7 +59,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 17,
+    "tasksCompleted": 18,
     "tasksBlocked": 0,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

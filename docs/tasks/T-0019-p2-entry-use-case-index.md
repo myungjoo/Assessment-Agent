@@ -8,7 +8,10 @@ coversReq: [TBD]
 estimatedDiff: 80
 estimatedFiles: 3
 created: 2026-05-24
-completedAt: 2026-05-24
+completedAt: 2026-05-25T00:04:22+09:00
+mergedAs: 56ed16226456f0a5b115d6464cdf966ca1840685
+prNumber: 18
+reviewRounds: 1
 plannerNote: P2-Entry — use-cases/INDEX.md 신설 (UC-NN 목록 + actor/component/module/REQ 매핑). 후속 UC-NN 분해 task 들의 backbone. pr-mode doc-only.
 dependsOn: [T-0017]
 blocks: [P2-Mod-1, P2-Mod-2, P2-API, P2-DataModel, P2-Directory]
