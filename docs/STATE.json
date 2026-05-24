@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "phase": "P2-in-progress",
+  "phase": "P2-architecture-complete",
   "currentTask": null,
-  "nextTask": "T-0021",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-25T00:32:00+09:00",
-  "lastCommit": "888d1a3",
-  "mostRecentTasks": ["T-0020", "T-0019", "T-0017", "T-0018", "T-0016"],
+  "lastActivity": "2026-05-25T00:52:00+09:00",
+  "lastCommit": "ca41bc6",
+  "mostRecentTasks": ["T-0021", "T-0020", "T-0019", "T-0017", "T-0018"],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 8,
     "startedAt": "2026-05-24T21:55:00+09:00",
     "cap": 10,
-    "note": "session #6 turn 6/10 — T-0020 (P2-UC-01 평가 실행) **MERGED** via PR-19 round 1/7 squash 888d1a3. executor DONE (architect UC-01 outline + implementer UC-01 본문 191 LOC + INDEX.md status PLANNED→DONE + PLAN.md L82-83 marker + tester build/test pass) → driver push + reviewer 직접 dispatch (integrator session-cache workaround 표준 절차) round 1/7 APPROVE 0 BLOCKER 0 MAJOR 1 MINOR (mermaid par/and 누락 nit, comment 4529148117) → CI 1차 fail (comment-deadlock pattern) → `gh run rerun 26365097175 --failed` 38s pass → 4-gate green → gh pr merge 19 --squash. counters.tasksCompleted 18→19. reviewRounds[T-0020]=1. Phase P2 sub-task 진행 — UC-01 분해 완료 + UC-02~08 task pattern template 박제. 본 turn 은 executor→push→reviewer→rerun→merge 표준 5-step. **cap 잔여 4 turn**. 다음 turn 은 planner 가 UC-02 또는 다음 P2 sub-task 큐잉 (예: directory.md, 또는 UC-03 인원 CRUD)."
+    "note": "session #6 turn 8/10 — T-0021 (P2-Directory directory.md) **MERGED** via PR-20 round 1/7 squash ca41bc6. executor DONE (architect 9 module ↔ src/<module>/ + common/config/prisma/test layout + WebModule 옵션 2 default + implementer +171/-2 LOC / 3 파일 + tester build/test pass) → driver push + reviewer 직접 dispatch (session-cache workaround 표준) round 1/7 APPROVE 0 BLOCKER 0 MAJOR 2 MINOR (estimatedDiff/본문길이 가이드 초과, non-blocking, comment 4529218056) → CI 1차 fail → `gh run rerun 26365716082 --failed` 41s pass → 4-gate green → gh pr merge 20 --squash. **P1+P2 architecture 완전 blueprint 박제** — components.md (T-0016) + modules.md (T-0017) + directory.md (T-0021) = component 분해 + module class 분해 + src/ 디렉토리 layout. P3 entry 준비 완료. counters.tasksCompleted 19→20. reviewRounds[T-0021]=1. Phase 갱신 P2-in-progress → P2-architecture-complete. **cap 잔여 2 turn**. 다음 turn 은 planner 가 UC-02 또는 다음 P2 UC 본문 task 큐잉 (UC-02 조회 / UC-03 인원 CRUD 등). UC-02~08 는 T-0020 template 박제됨 — 빠른 진행 가능."
   },
   "ci": {
-    "lastRun": "2026-05-25T00:25:09+09:00",
+    "lastRun": "2026-05-25T00:51:56+09:00",
     "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26365097175",
-    "note": "PR-19 (T-0020) CI 38s pass on rerun (run 26365097175 attempt 2). issue_comment event 가 main ref 로 trigger 되어 별도 run 26365148265 in_progress 였으나 PR check 와 무관. 표준 절차 (1) executor push → pull_request run fail (reviewer-approval comment 부재) → (2) reviewer comment → (3) gh run rerun --failed → pass. 본 turn 도 동일 패턴 dogfood."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26365716082",
+    "note": "PR-20 (T-0021) CI 41s pass on rerun (run 26365716082 attempt 2). 표준 절차 3차 dogfood (T-0019/T-0020/T-0021 동일 패턴). issue_comment event 별도 run 은 PR check 와 무관 — pull_request run rerun --failed 으로 reviewer-approval step 통과."
   },
-  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1},
+  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1},
   "blockers": [],
   "humanQuestions": [
     {
@@ -59,7 +59,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 19,
+    "tasksCompleted": 20,
     "tasksBlocked": 0,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

@@ -2,12 +2,16 @@
 id: T-0021
 title: P2-Directory — docs/architecture/directory.md 신설 (NestJS 표준 디렉토리 구조 + 8 module ↔ src/<module>/ mapping)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [TBD]
 estimatedDiff: 90
 estimatedFiles: 4
 created: 2026-05-25
+completedAt: 2026-05-25T00:51:56+09:00
+mergedAs: ca41bc6b122f6c9de0da90973c82f803be3aae67
+prNumber: 20
+reviewRounds: 1
 plannerNote: P2 architecture closure — modules.md (T-0017) 의 8 module 을 NestJS 표준 src/<module>/ 디렉토리로 mapping 박제. P3+ Persistence/Auth/Domain core 진입 전 src/ blueprint 완성.
 dependsOn: [T-0017]
 blocks: []
