@@ -2,24 +2,24 @@
   "schemaVersion": 1,
   "phase": "P0.5-test-ci-infra",
   "currentTask": null,
-  "nextTask": "T-0008",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-24T02:05:00+09:00",
-  "lastCommit": "65ed3a5",
-  "mostRecentTasks": ["T-0011", "T-0007", "T-0005", "T-0004", "T-0006"],
+  "lastActivity": "2026-05-24T02:15:00+09:00",
+  "lastCommit": "5c5fd56",
+  "mostRecentTasks": ["T-0008", "T-0011", "T-0007", "T-0005", "T-0004"],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-05-24T01:42:00+09:00",
     "cap": 10,
-    "note": "loopSession #4 turn 3/10 — planner queued T-0008 (coverage threshold). T-0007 follow-up 3건 모두 자연 해소 또는 T-0011 로 처리 완료, PLAN.md 순서대로 P0.5 두 번째 task 진입. T-0008 task 파일 frontmatter 에 coversReq=[REQ-060,REQ-059] + R-112 4종 acceptance criteria 보강."
+    "note": "loopSession #4 turn 4/10 — T-0008 MERGED via PR-9 round 1/7 (reviewer APPROVE + integrator self-check ok + CI pass 30s). squash 5c5fd56. counters.tasksCompleted 7→8. R-112 4종 (happy/error/N/A/negative) evidence 전부 PR 본문에 기록. scope deviation (coveragePathIgnorePatterns) reviewer 가 load-bearing 으로 평가, 허용."
   },
   "ci": {
-    "lastRun": "2026-05-24T00:34:00+09:00",
+    "lastRun": "2026-05-24T02:14:00+09:00",
     "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26336564237",
-    "note": "T-0005 머지로 CI 가 실제 lint/build/test 를 검증. main CI 33초 pass. Phase P0 완료. 다음부터 모든 PR 은 실제 검증 게이트 통과 필수."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/9",
+    "note": "T-0008 머지로 CI 가 coverage threshold 50% 도 게이트화. 향후 모든 PR 은 line/branch/function/statement 4 metric 50% 이상 충족 필수. 50% 상향은 별도 ADR/task."
   },
   "reviewRounds": {"T-0005": 1, "T-0007": 1},
   "blockers": [],
@@ -59,7 +59,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 7,
+    "tasksCompleted": 8,
     "tasksBlocked": 0,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

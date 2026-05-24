@@ -2,13 +2,18 @@
 id: T-0008
 title: CI 에 pnpm test:cov 통합 + 최소 coverage threshold
 phase: P0.5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060, REQ-059]
 estimatedDiff: 60
+actualDiff: 14
 estimatedFiles: 3
 created: 2026-05-23
 requeuedAt: 2026-05-24T02:05:00+09:00
+completedAt: 2026-05-24T02:14+09:00
+mergedAs: 5c5fd56
+prNumber: 9
+reviewRounds: 1
 plannerNote: P0.5 두 번째 task. spec 존재(T-0007)에 더해 spec 내용의 충실도를 coverage threshold 로 CI 게이트화 — R-112 강제층의 2단.
 dependsOn: [T-0007]
 blocks: []
