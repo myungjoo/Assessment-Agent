@@ -17,6 +17,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "test:smoke": "jest --config ./test/jest-smoke.json",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
@@ -54,6 +55,7 @@
     "moduleFileExtensions": ["js", "json", "ts"],
     "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
+    "testPathIgnorePatterns": ["/node_modules/", "<rootDir>/test/smoke/", "<rootDir>/test/e2e/"],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
