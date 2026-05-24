@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "phase": "P1-T-A3-complete",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0017",
   "lock": null,
-  "lastActivity": "2026-05-24T21:20:00+09:00",
-  "lastCommit": "2f04892",
+  "lastActivity": "2026-05-24T21:40:00+09:00",
+  "lastCommit": "8f6be74",
   "mostRecentTasks": ["T-0016", "T-0015", "T-0014", "T-0013", "T-0010"],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-05-24T19:18:00+09:00",
     "cap": 10,
-    "haltedReason": null,
-    "note": "loop session #5 turn 9/10 — T-0016 MERGED via PR-15 round 1/7 (squash 2f04892). components.md 신설 (190 LOC) + mermaid 8 component + 16 contract row + GithubAdapter 3-instance 묶음 결정 (단일+sub-config) + INDEX/PLAN/deployment cross-reference. 4 파일 / +196/-4 LOC. **Phase P1 T-A3 (Component view) 완료**. counters.tasksCompleted 14→15. **integrator BLOCKED 재발견** — turn 8 의 ba85ac2 integrator.md tools+Agent fix 가 runtime 에 미반영 (session 시작 시 agent config 가 cache 됨 추정). 본 round 도 driver one-time workaround 로 reviewer 직접 dispatch — APPROVE 0 finding (#issuecomment-4528627487) → 4-gate ok → squash merge. **ba85ac2 fix 는 session #6 (새 conversation) 부터 effective**. cap 잔여 1 turn — turn 10 은 planner 가 T-0017 (T-A4 module view) 큐잉 + session #5 cap halt 마무리."
+    "haltedReason": "loopSession #5 cap (10) 도달 — LOOP.md §1 [8] (e) 에 따라 ScheduleWakeup 안 함. 사용자 cleanup (/compact 또는 /clear) 후 새 /loop session 으로 P1 마지막 task T-0017 (T-A4 module view) 진행. session #6 시작 시 integrator.md ba85ac2 fix 가 runtime effective 가 되어 BLOCKED 회피 예상.",
+    "note": "session #5 종합 통계 — 10 turn 안에 4 task 머지 (T-0013 P1-Entry kind 컬럼 / T-0014 ADR-0002 DB / T-0015 ADR-0003 deployment 4 결정 / T-0016 components.md) + 1 structural fix (ba85ac2 integrator.md tools+Agent). PR 4건 / reviewer round 누적 5 (T-0014 r1 / T-0015 r1+r2 / T-0016 r1 + driver workaround). counters.tasksCompleted 11→15. BLOCKED 자체 해소 사례: T-0015 round 1 REQUEST_CHANGES + 2회의 integrator runtime cache 결함 (driver workaround). Phase 전이: P0.5-complete → P1-T-A1 → P1-T-A2 (DB+Deployment) → P1-T-A3-complete (3 architecture task main 진입). turn 10 (CAP): T-0017 (T-A4 module view, NestJS 8 module + acyclic + components ↔ modules mapping) 큐잉 + session halt. session #6 시작 시 T-0017 머지 = Phase P1 전체 완료 + P2 진입."
   },
   "ci": {
     "lastRun": "2026-05-24T21:20:00+09:00",
