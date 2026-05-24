@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "phase": "P1-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0014",
   "lock": null,
-  "lastActivity": "2026-05-24T19:42:00+09:00",
+  "lastActivity": "2026-05-24T19:53:00+09:00",
   "lastCommit": "40d3a84",
   "mostRecentTasks": ["T-0013", "T-0010", "T-0009", "T-0012", "T-0008"],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-05-24T19:18:00+09:00",
     "cap": 10,
     "haltedReason": null,
-    "note": "loop session #5 turn 2/10 — T-0013 DONE (P1-Entry). requirements.md 7 컬럼 schema + 66 REQ kind 채움 (FR 46 / NFR 4 / Constraint 16) + REQ-061 DONE. doc-only direct. phase P0.5-complete-pending-P1 → P1-in-progress. counters.tasksCompleted 11→12. 다음 turn 은 planner 가 P1 의 두 번째 task (PLAN.md T-A1 또는 T-A2) 큐잉."
+    "note": "loop session #5 turn 3/10 — planner queued T-0014 (ADR-0002 DB 선택, T-A2 split first task) + T-A1 closure (PLAN.md L48 [x] subsumed by T-0013). commitMode=pr, ~150 LOC / 3 파일 (ADR-0002-db.md + deployment.md + INDEX.md). dependsOn=[T-0013], blocks=[T-0015, T-A3, T-A4]. 본 turn 은 doc-only direct (PLAN.md + tasks/T-0014.md + STATE.json + journal). 다음 turn 부터 executor 발동 가능 — cap 잔여 7 turn."
   },
   "ci": {
     "lastRun": "2026-05-24T19:02:00+09:00",

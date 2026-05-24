@@ -45,8 +45,8 @@
 목표: 도메인 코드가 들어가기 전에 **꼭 필요한 architecture 결정** 을 박제. 4+1 view 전체가 아니라 **Minimum Viable Architecture** — 코드 시작에 필요한 만큼만, 나머지는 task 진행 중 ADR 로 진화.
 
 - [ ] **P1-Entry** — README → REQ 매핑 표 완성 ([docs/requirements.md](requirements.md) 모든 row 검증). planner 가 자동 생성하는 P1 첫 task. commitMode: direct.
-- [ ] **T-A1: Requirement 분리** — FR (Functional Requirement) / NFR (Non-Functional Requirement) / Constraint 컬럼 추가. [docs/requirements.md](requirements.md) 의 `kind` 컬럼을 채운다. 검증 위치 (test 종류) 와 결합.
-- [ ] **T-A2: Deployment view** — [docs/architecture/deployment.md](architecture/deployment.md) 신설. 다음을 결정·박제 (ADR-0003):
+- [x] **T-A1: Requirement 분리** — FR / NFR / Constraint 컬럼 추가 (T-0013 으로 subsumed: requirements.md kind 컬럼이 채워짐, FR 46 / NFR 4 / Constraint 16). 검증 위치 (test 종류) 와의 결합 미세조정은 P2 진입 시 재검토.
+- [ ] **T-A2: Deployment view** — [docs/architecture/deployment.md](architecture/deployment.md) 신설. 다음을 결정·박제 (ADR-0003) — split 진행 중: T-0014 = ADR-0002 DB 선택 (first), T-0015 = ADR-0003 나머지 4 결정:
   - Monolithic NestJS vs queue+worker 분리 (R-91 1h 처리량을 고려)
   - DB (외부 PostgreSQL vs embedded vs sqlite — ADR-0002 로 합쳐도 OK)
   - Secret 저장 (env / vault / file)
