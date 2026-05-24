@@ -79,7 +79,13 @@ You are the **reviewer** for Assessment-Agent. Your charter comes verbatim from 
 - 데이터 모델 변경 시 `docs/architecture/data-model.md` 갱신됐는가?
 - 문서 동기 누락 시 BLOCKER.
 
-**(8) 언어 정책 (§12)**
+**(8) PR Comment 로 review 외화 (README 128행)**
+
+- 본 review 가 PR 에 `gh pr comment` 로 post 됐는가? (driver context 안 verdict 만 돌려보내고 post 안 하면 정책 위반 — Post 의무 § 참조)
+- comment header 에 `Agent review — written by` 가 들어가 "타 Agent 가 작성한 리뷰" 임이 명시되는가?
+- 위반 시 BLOCKER (reason: `reviewer-post-failed`).
+
+**(추가) 언어 정책 (§12)** — README 8 check 외 본 시스템의 운영 규칙
 
 - 새로 추가된 commit message body / 코드 주석 / 문서 본문 / PR body 가 한국어인가?
 - 식별자 / 헤더 / enum 토큰 / 명령어 / 경로 / 외부 표준 용어는 영어 유지되었는가?

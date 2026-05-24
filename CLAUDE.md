@@ -128,9 +128,9 @@
 **합의 충족 = 4-게이트 모두 true**:
 
 1. reviewer.VERDICT == APPROVE
-2. PR 에 reviewer header comment 외부 존재 (`gh pr view --json comments` 로 검증 — driver context 안 verdict 만으로 부족)
+2. PR 에 reviewer comment 외부 존재 — integrator self-check + **CI step "reviewer agent approval 검증" 이 자동 게이트** (GitHub formal review APPROVED 1+ 또는 PR comment 의 approve 어휘 한/영 case-insensitive 매칭 1+). 향후 별도 identity reviewer-bot 도입 시 formal approve 도 활용.
 3. integrator 자체 점검 통과
-4. CI green
+4. CI green (위 (2) 의 CI step 포함)
 
 하나라도 false → ANOTHER_ROUND 또는 BLOCKED. 게이트 (2) 는 reviewer 위장 (PR body 에 verdict inline) 패턴을 차단하는 외부 사실 게이트.
 

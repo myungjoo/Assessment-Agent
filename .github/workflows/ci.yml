@@ -9,11 +9,19 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # reviewer comment 추가 시 CI 자동 재실행 — reviewer-approval 검증 게이트가 다시 평가될 수 있도록.
+  issue_comment:
+    types: [created, edited]
+  # GitHub formal review 추가 시도 (다른 identity 의 reviewer-bot 도입 시 활용).
+  pull_request_review:
+    types: [submitted]
 
 jobs:
   ci:
     name: 기본 검사
     runs-on: ubuntu-latest
+    # issue_comment event 시엔 PR 의 comment 일 때만 실행 (issue comment 는 무시).
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request != null
     steps:
       - name: 저장소 checkout
         uses: actions/checkout@v4
@@ -65,3 +73,38 @@ jobs:
         # 와 flow 를 검증. unit / coverage / smoke step 과 격리된 별도 jest config
         # (test/jest-e2e.json). T-0010 도입.
         run: pnpm test:e2e
+
+      - name: reviewer agent approval 검증
+        # CLAUDE.md §3.3 4-게이트 (b) 의 외부 자동 layer. PR event 일 때만 실행.
+        # PR-5/6/7 reviewer 우회 패턴 (미 dispatch / 위장 / comment 누락) 자동 차단.
+        # 통과 조건 (둘 중 하나):
+        #   (a) GitHub formal review 가 APPROVED 1+ (별도 identity reviewer-bot 도입 시 활용)
+        #   (b) PR conversation comment 중 case-insensitive 로 approve 어휘 (한글/영어) 1+ 매칭
+        # main push event 는 PR 거치지 않은 doc-only direct commit (§3.1) 이라 skip.
+        if: github.event_name == 'pull_request' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUM="${{ github.event.pull_request.number || github.event.issue.number }}"
+          if [ -z "$PR_NUM" ]; then echo "::error::PR 번호 추출 실패"; exit 1; fi
+
+          # (a) GitHub formal review APPROVED 1+
+          FORMAL=$(gh pr view "$PR_NUM" --json reviews \
+            --jq '[.reviews[] | select(.state == "APPROVED")] | length')
+          if [ "$FORMAL" -ge 1 ]; then
+            echo "✅ GitHub formal review APPROVED ($FORMAL 건) — 4-게이트 (b) 통과"
+            exit 0
+          fi
+
+          # (b) PR comment 중 approve 어휘 매칭 (case-insensitive, 한/영)
+          PATTERN='approve|approved|approval|lgtm|ok[ -]to[ -]merge|ready[ -]to[ -]merge|allowed[ -]to[ -]merge|merge[ -]?ok|sign[ -]?off|signed[ -]off|ship[ -]?it|승인|머지\s*가능|머지\s*해도\s*(됨|좋음|괜찮)|통과|합의|인정'
+          MATCHES=$(gh pr view "$PR_NUM" --json comments --jq '.comments[].body' \
+            | grep -ciE "$PATTERN" || true)
+          if [ "$MATCHES" -ge 1 ]; then
+            echo "✅ reviewer comment 에 approve 어휘 $MATCHES 건 매칭 — 4-게이트 (b) 통과"
+            exit 0
+          fi
+
+          echo "::error::4-게이트 (b) 위반 — formal review APPROVED 0건 + comment approve 어휘 매칭 0건."
+          echo "::error::reviewer agent 가 PR 에 review comment 를 post 했는지 확인. CLAUDE.md §3.3 / reviewer.md Post 의무 참조."
+          exit 1
