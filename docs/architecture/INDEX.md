@@ -12,7 +12,7 @@
 | [modules.md](modules.md) | Module view — NestJS module 구조 + 의존성 방향 (acyclic) | T-A4 (P1) | 완료 (T-0017) |
 | [api.md](api.md) | API contract — HTTP endpoint 목록 + schema | P2 use case decomposition 후 | 미작성 |
 | [data-model.md](data-model.md) | Conceptual data model — entity + 관계 (구체 schema 는 P3) | P2 후 | 미작성 |
-| [directory.md](directory.md) | 디렉토리 구조 정의 — NestJS 표준 + module view mapping | P2 후 | 미작성 |
+| [directory.md](directory.md) | 디렉토리 구조 정의 — NestJS 표준 + module view mapping | P2 (T-0021) | 완료 (T-0021) |
 
 ## 갱신 룰
 

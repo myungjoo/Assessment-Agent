@@ -84,7 +84,7 @@
 - [ ] **Use case 인벤토리 검증**: requirements.md 의 모든 functional REQ 가 1+ use case 로 cover 되는지 확인. 빠지면 use case 추가.
 - [ ] **API contract 초안** — [docs/architecture/api.md](architecture/api.md). use case 흐름 기반으로 HTTP endpoint 목록. 구체 schema 는 P3 에서.
 - [ ] **데이터 모델 초안** — [docs/architecture/data-model.md](architecture/data-model.md). 핵심 entity (Person / ServiceIdentity / Assessment / Contribution / Summary / Group / Part / LlmProviderConfig 등) 의 conceptual model. 테이블 컬럼은 P3.
-- [ ] **디렉토리 구조 정의** — [docs/architecture/directory.md](architecture/directory.md). NestJS 표준 + module view 와 mapping.
+- [x] **디렉토리 구조 정의** — [docs/architecture/directory.md](architecture/directory.md). NestJS 표준 + module view 와 mapping. T-0021 으로 박제 완료.
 
 각 항목은 planner가 1~3개의 T-NNNN task로 분할한다. 모두 commitMode: direct 또는 pr (use case 는 doc → direct; api/data-model 은 ADR 동반 시 pr).
 
