@@ -1,12 +1,12 @@
 # Deployment view
 
-> **본 문서는 P1 T-A2 의 산출물이다. 본 task ([T-0014](../tasks/T-0014-adr-0002-db-selection.md)) 가 DB 단락만 채운다. 나머지 4 결정 단락 (Monolithic vs worker / Secret 저장 / Scheduler 위치 / 외부 네트워크 boundary) 은 T-0015 (ADR-0003) 에서 추가될 예정.**
+> **본 문서는 P1 T-A2 의 산출물이다. [T-0014](../tasks/T-0014-adr-0002-db-selection.md) 가 DB 단락을 채우고 ([ADR-0002](../decisions/ADR-0002-db.md)), [T-0015](../tasks/T-0015-adr-0003-deployment-rest.md) 가 나머지 4 단락 (Monolithic / Secret / Scheduler / Network) 을 채워 ([ADR-0003](../decisions/ADR-0003-deployment.md)) T-A2 가 완성됐다.**
 
 ## 개요
 
 본 문서는 Assessment-Agent 의 **deployment view** — 어떤 process / 인스턴스 구조로 운영되며, 어떤 외부 자원에 의존하는지 — 를 박제한다. [docs/architecture/INDEX.md](INDEX.md) 의 MVA 원칙에 따라 운영 가능한 최소 결정만 다루고, 구체적인 manifest (Dockerfile / docker-compose.yml / Kubernetes manifest 등) 는 다루지 않는다 — 그것은 P7 (Scheduling & operations) phase 의 운영 task 책임.
 
-본 view 는 [ADR-0002](../decisions/ADR-0002-db.md) (DB) 와 향후 [ADR-0003](../decisions/ADR-0003-deployment.md) (TBD — T-0015) 가 결정한 사항을 view layer 로 모은다. ADR 이 결정의 source of truth 이고, 본 문서는 ADR 결정이 운영 토폴로지에 어떻게 반영되는지의 도식 / 텍스트 설명이다.
+본 view 는 [ADR-0002](../decisions/ADR-0002-db.md) (DB) 와 [ADR-0003](../decisions/ADR-0003-deployment.md) (Deployment 4 결정) 가 결정한 사항을 view layer 로 모은다. ADR 이 결정의 source of truth 이고, 본 문서는 ADR 결정이 운영 토폴로지에 어떻게 반영되는지의 도식 / 텍스트 설명이다.
 
 ## DB / Persistence
 
@@ -43,18 +43,133 @@
 
 Schema 컬럼 설계 / 인덱스 정책 / migration 도구 실제 도입 (`prisma` package install) / PrismaService NestJS module 작성은 모두 P3 (Domain core) phase 의 Persistence layer task 에서 진행된다. 본 task 와 본 단락은 결정과 정책만 박제하며, 코드 변경은 0 LOC.
 
-## Monolithic vs worker 분리
+## 배포 토폴로지 (Monolithic vs worker 분리)
 
-TBD — [T-0015](../tasks/T-0015-adr-0003-deployment.md) (ADR-0003) 에서 채울 예정.
+본 단락의 결정은 [ADR-0003 §1 — Monolithic NestJS process](../decisions/ADR-0003-deployment.md) 에서 박제했다.
 
-## Secret 저장
+**채택: 단일 NestJS process (monolithic)**. HTTP API / scheduler / 평가 파이프라인 / LLM gateway / GitHub & Confluence adapter 가 동일 process 안에서 동작한다. 별도 worker process / 외부 큐 broker 는 도입하지 않는다.
 
-TBD — T-0015 (ADR-0003) 에서 채울 예정.
+### process 1 개의 책임 범위
+
+- **HTTP API** — controller layer 가 Web UI / Admin UI 요청을 수신.
+- **Scheduler** — `@nestjs/schedule` 기반 in-process cron + manual trigger endpoint (자세히는 아래 [Scheduler 위치](#scheduler-위치) 단락).
+- **평가 파이프라인** — commit / 문서 / Confluence page 의 평가 (난이도 / 기여도 / 양 / LLM 정성 + Metric) 처리. service layer 의 동기 호출 또는 `Promise.all` + concurrency limit 으로 운영.
+- **LLM gateway** — 5 provider (custom / Azure OpenAI / Anthropic / Google / OpenAI) 의 단일 추상화 service.
+- **GitHub / Confluence adapter** — 3 GitHub instance + Confluence 의 외부 HTTPS 호출. adapter service 로 분리되어 있으나 동일 process.
+
+### REQ-047 (1 h 처리) 충족 시나리오
+
+100~200 명 × 50~100 repo × 7 일치 commit data + ~1000 Confluence page 를 1 h 내 처리. 일 평균 1 회 cron 기반 야간 처리이므로 동시성 압박이 낮다. NestJS service 의 `Promise.all` + `p-limit`-style concurrency limiter (예: 10 동시 외부 호출) 패턴으로 들어온다. 본 NFR 의 실측 검증은 P5 (Evaluation pipeline) phase 의 task 책임.
+
+### worker 분리 전환 시점
+
+다음 중 하나 발생 시 [ADR-0003](../decisions/ADR-0003-deployment.md) 를 SUPERSEDE 하는 별도 ADR 에서 worker + 외부 큐 (Redis + BullMQ) 도입 검토 — (a) 실측 REQ-047 미충족, (b) 사용자 / 대상 규모 300+ 명, (c) HA 가 요구사항화, (d) durable retry 가 운영 요구. 본 단락의 구체 도입은 **P5 phase 이후의 별도 task 책임**.
+
+## Secret / 자격증명 저장
+
+본 단락의 결정은 [ADR-0003 §2 — env + `@nestjs/config`](../decisions/ADR-0003-deployment.md) 에서 박제했다.
+
+**채택: 환경변수 (`process.env`) + `@nestjs/config` 의 `ConfigModule` 패턴**. 개발 환경은 `.env` 파일 (`.gitignore` 등록 필수, repo 에 commit 금지), 운영 환경은 process supervisor 의 환경변수 주입.
+
+### 운영 환경 secret 주입 방식
+
+- **systemd**: `EnvironmentFile=/etc/assessment-agent.env` 디렉티브로 unit file 에 외부 env 파일 mount. 파일 권한 `0600` + owner `assessment-agent` (전용 unprivileged user) 권장.
+- **Docker / container**: `--env-file /path/to/.env.prod` 또는 orchestrator (docker-compose / k8s) 의 secret object 마운트.
+- **CI/CD**: GitHub Actions 의 secret store 에서 deployment step 의 환경변수로 inject. repo 의 코드 / log 에 평문 노출 금지.
+
+### 개발 환경 `.env` 정책
+
+- `.env` 파일은 dev 머신 로컬에만 존재. `.gitignore` 에 등록 (실제 등록은 P3 / P4 도입 task 가 처리).
+- `.env.example` 파일을 commit 하여 schema (변수 이름 + dummy value) 만 공유. 본 task 는 `.env.example` 작성하지 않음 — env schema 가 P3 / P4 진행 중 모이면 별도 task 가 작성.
+- `@nestjs/config` 의 `ConfigModule.forRoot({ envFilePath: '.env', validationSchema: ... })` 로 schema validation 강제.
+
+### Secret 의 종류 (참고)
+
+GitHub 3 instance 의 PAT 또는 OAuth token / Confluence 의 PAT / LLM provider 5 종의 API key / DB 의 `DATABASE_URL` / Backend 의 JWT secret 또는 session secret. 각 환경변수 이름은 도입 task 의 reviewer 가 schema 일관성 점검.
+
+### Secret rotation 정책
+
+본 ADR 단계에서는 **수동 rotation** (사람이 PAT / API key 갱신 후 env 파일 갱신 + process restart). 자동 rotation (vault 도입 / dynamic credentials) 은 P7 / P8 phase 의 별도 ADR 책임. 구체 도입은 **P3 / P4 / P7 의 task 책임**.
 
 ## Scheduler 위치
 
-TBD — T-0015 (ADR-0003) 에서 채울 예정.
+본 단락의 결정은 [ADR-0003 §3 — `@nestjs/schedule` (in-process)](../decisions/ADR-0003-deployment.md) 에서 박제했다.
+
+**채택: NestJS 내장 `@nestjs/schedule` 모듈**. Backend NestJS process 내부에서 cron + interval + timeout trigger 를 모두 처리. 외부 cron (system cron / k8s CronJob 등) 은 사용하지 않는다.
+
+### cron 주기 설정 흐름 (REQ-039)
+
+```
+Admin UI (cron 주기 변경)
+  → HTTP PATCH /admin/schedule
+  → ScheduleService.updateCron(newSpec)
+  → DB 의 schedule 설정 row 갱신
+  → SchedulerRegistry.deleteCronJob(name) + addCronJob(name, newCronJob)
+  → 다음 trigger 부터 새 주기로 동작
+```
+
+cron 표현식 (예: `"0 2 * * *"` = KST 02:00 매일) 이 DB 에 저장되어 process restart 후에도 복원. 초기 default 는 [README.md](../../README.md) L72 예시 (KST 02:00). 실제 default 값과 cron 표현식 schema validation 은 P7 phase 의 도입 task 가 박제.
+
+### Manual trigger 흐름 (REQ-040)
+
+```
+Admin UI (즉시 평가 버튼)
+  → HTTP POST /admin/evaluation/trigger
+  → EvaluationController.triggerNow()
+  → EvaluationOrchestrator.runFullAssessment()  ← cron 도 동일 메서드 호출
+  → 평가 파이프라인 진입
+```
+
+cron 과 manual 이 같은 service 메서드 (`EvaluationOrchestrator.runFullAssessment`) 를 호출 — code duplication 0. controller 와 scheduler handler 는 thin wrapper.
+
+### 동시 실행 방지
+
+평가 진행 중 새 trigger (cron 또는 manual) 가 와도 중복 실행되지 않도록 in-process mutex 또는 DB 의 `evaluation_runs` row 의 `status=RUNNING` 검사. 구체 구현은 **P5 phase 의 task 책임**.
+
+### 후속 task 책임
+
+`@nestjs/schedule` 의 실제 도입 (`pnpm add` + ScheduleModule import) / SchedulerRegistry 의 dynamic cron 등록 코드 / Admin UI 의 cron 편집 컴포넌트는 모두 **P7 phase 의 도입 task 책임**.
 
 ## 외부 네트워크 boundary
 
-TBD — T-0015 (ADR-0003) 에서 채울 예정.
+본 단락의 결정은 [ADR-0003 §4 — direct outbound from app process](../decisions/ADR-0003-deployment.md) 에서 박제했다.
+
+**채택: Backend process 가 모든 외부 endpoint 에 직접 outbound**. 별도 egress proxy / NAT gateway / SOCKS bastion 없음. 운영 호스트는 corporate network (Samsung 사내 host 또는 VPN) 에 위치하여 내부+외부 둘 다 reach.
+
+### 접근 대상 목록
+
+| 대상 | 위치 | 인증 | 관련 REQ |
+| --- | --- | --- | --- |
+| github.com | public | PAT (or OAuth) | REQ-005 |
+| github.sec.samsung.net | Samsung 내부망 | PAT (사내 발급) | REQ-006 |
+| github.ecodesamsung.com | Samsung 내부망 | PAT (사내 발급) | REQ-007 |
+| confluence.sec.samsung.net (+ 추가 사내 Confluence) | Samsung 내부망 | PAT | REQ-016 |
+| Azure OpenAI | public (Azure) | API key | (LLM provider — REQ TBD, P2 가 requirements.md 에 추가 시 부여) |
+| Anthropic API | public | API key | (LLM provider — REQ TBD) |
+| Google Gemini | public | API key | (LLM provider — REQ TBD) |
+| OpenAI API | public | API key | (LLM provider — REQ TBD) |
+| Custom (사내 LLM proxy / OpenAI 호환 서버) | Samsung 내부망 또는 사용자 지정 | API key 또는 사내 token | (LLM provider — REQ TBD) |
+
+### TLS / 사내 인증서 처리
+
+사내 PKI (Samsung 사내 CA) 가 발급한 인증서를 trust 하기 위해 `NODE_EXTRA_CA_CERTS=/path/to/samsung-ca-bundle.pem` 환경변수 사용. Node.js 표준 메커니즘 — 별도 dependency 0. **`NODE_TLS_REJECT_UNAUTHORIZED=0` 사용 금지** (MITM 위험, 보안 사고 표면).
+
+Public network 접근 시 corporate egress proxy 가 필요한 경우 표준 `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` 환경변수 사용 — Node.js 의 HTTPS stack 이 native 지원하므로 코드 변경 0.
+
+### 권한 부족 (REQ-020) 감지 흐름
+
+```
+Adapter (GithubAdapter / ConfluenceAdapter / LlmGatewayService)
+  → 외부 HTTPS 호출 (axios / undici / NestJS HttpModule)
+  → 4xx 응답 catch (특히 401 / 403)
+  → PermissionDeniedEvent emit (NestJS EventEmitter)
+  → NotificationService 가 수신 → Admin 알림 + 해당 User 알림
+```
+
+4xx 응답 분류 (token 만료 / scope 부족 / repo / space 비공개 / rate limit) 와 알림 채널 (in-app banner / email / 별도 채널) 의 구체 구현은 **P4 phase 의 도입 task 책임**.
+
+### 운영 호스트 가정
+
+본 단락은 운영 호스트가 corporate network 안에 있다고 가정. cloud-managed (AWS / Azure 등) 환경으로 이전 시 [ADR-0003](../decisions/ADR-0003-deployment.md) SUPERSEDE + 사내 endpoint reach 토폴로지 (사내 VPN tunnel / Direct Connect / ExpressRoute) 의 새 ADR 필요. 본 task 의 범위 밖.
+
+구체 도입 — `NODE_EXTRA_CA_CERTS` 환경변수 setup / corporate proxy 설정 / adapter 의 4xx catch 코드 / 알림 channel — 은 모두 **P4 / P7 의 task 책임**.

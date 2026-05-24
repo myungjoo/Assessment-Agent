@@ -46,7 +46,7 @@
 
 - [ ] **P1-Entry** — README → REQ 매핑 표 완성 ([docs/requirements.md](requirements.md) 모든 row 검증). planner 가 자동 생성하는 P1 첫 task. commitMode: direct.
 - [x] **T-A1: Requirement 분리** — FR / NFR / Constraint 컬럼 추가 (T-0013 으로 subsumed: requirements.md kind 컬럼이 채워짐, FR 46 / NFR 4 / Constraint 16). 검증 위치 (test 종류) 와의 결합 미세조정은 P2 진입 시 재검토.
-- [ ] **T-A2: Deployment view** — [docs/architecture/deployment.md](architecture/deployment.md) 신설. 다음을 결정·박제 (ADR-0003) — split 진행 중: T-0014 = ADR-0002 DB 선택 (first), T-0015 = ADR-0003 나머지 4 결정:
+- [x] **T-A2: Deployment view** — [docs/architecture/deployment.md](architecture/deployment.md) 신설 완료. (T-0014 + T-0015 = T-A2 complete; [ADR-0002](decisions/ADR-0002-db.md) + [ADR-0003](decisions/ADR-0003-deployment.md) 모두 ACCEPTED). split 결과: T-0014 = ADR-0002 DB 선택, T-0015 = ADR-0003 나머지 4 결정:
   - Monolithic NestJS vs queue+worker 분리 (R-91 1h 처리량을 고려)
   - DB (외부 PostgreSQL vs embedded vs sqlite — ADR-0002 로 합쳐도 OK)
   - Secret 저장 (env / vault / file)
@@ -62,7 +62,7 @@
   각 컴포넌트 간 contract (sync/async, message format) 명시.
 - [ ] **T-A4: Module view (확장)** — [docs/architecture/modules.md](architecture/modules.md). NestJS module 구조 (AssessmentModule / UserModule / GithubModule / ConfluenceModule / LlmModule / AuthModule / SchedulerModule / WebModule). 의존성 방향 acyclic 확인. component view 와 mapping.
 
-완료 조건: 4개 architecture document (deployment / components / modules / 그리고 requirements 의 kind 컬럼) 이 main 에 merge 되고, ADR-0002 (DB) + ADR-0003 (Deployment) 가 ACCEPTED 상태.
+완료 조건: 4개 architecture document (deployment / components / modules / 그리고 requirements 의 kind 컬럼) 이 main 에 merge 되고, ADR-0002 (DB) + ADR-0003 (Deployment) 가 ACCEPTED 상태. **T-A2 완료 상태 (deployment.md + ADR-0002 + ADR-0003 모두 main 진입 = T-0014 + T-0015 머지 후).** 잔여: T-A3 (components.md) + T-A4 (modules.md).
 
 이 phase 끝나면 P2 (Use case decomposition) 가 architecture 기반으로 use case 를 각 component / module 에 분류해 진행할 수 있다.
 
