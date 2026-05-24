@@ -144,11 +144,11 @@ cron 과 manual 이 같은 service 메서드 (`EvaluationOrchestrator.runFullAss
 | github.sec.samsung.net | Samsung 내부망 | PAT (사내 발급) | REQ-006 |
 | github.ecodesamsung.com | Samsung 내부망 | PAT (사내 발급) | REQ-007 |
 | confluence.sec.samsung.net (+ 추가 사내 Confluence) | Samsung 내부망 | PAT | REQ-016 |
-| Azure OpenAI | public (Azure) | API key | REQ-099~103 (LLM provider) |
-| Anthropic API | public | API key | 동상 |
-| Google Gemini | public | API key | 동상 |
-| OpenAI API | public | API key | 동상 |
-| Custom (사내 LLM proxy / OpenAI 호환 서버) | Samsung 내부망 또는 사용자 지정 | API key 또는 사내 token | 동상 |
+| Azure OpenAI | public (Azure) | API key | (LLM provider — REQ TBD, P2 가 requirements.md 에 추가 시 부여) |
+| Anthropic API | public | API key | (LLM provider — REQ TBD) |
+| Google Gemini | public | API key | (LLM provider — REQ TBD) |
+| OpenAI API | public | API key | (LLM provider — REQ TBD) |
+| Custom (사내 LLM proxy / OpenAI 호환 서버) | Samsung 내부망 또는 사용자 지정 | API key 또는 사내 token | (LLM provider — REQ TBD) |
 
 ### TLS / 사내 인증서 처리
 
