@@ -172,6 +172,7 @@
 phase 진행과 별개로, driver / loop / cron 등 운영 정책 자체의 완화·강화를 정기 검토 대상으로 박제. 본 절은 결정이 아니라 **future ADR 의 출발점 인덱스** — 트리거 조건이 충족되면 planner 가 해당 항목을 ADR 작성 task 로 변환한다.
 
 - [ ] **cron 1-fire 1-task 정책 완화 검토** — 현 [docs/LOOP.md](LOOP.md) §3 은 cron 매 발화마다 task 1 개 처리 후 종료. 시스템 안정 후 multi-task chaining (1 fire 안 task 2~3 개) 가능성을 ADR-NNNN (cron multi-task fire policy) 로 검토 예정.
+- [ ] **CLAUDE.md / LOOP.md 길이 mitigation 검토** — 두 문서 (각 ~390 LOC) 의 후반부 hard rule (CLAUDE §11 trail / §12 언어 / LOOP §4 push hard rule / [.claude/agents/reviewer.md](../.claude/agents/reviewer.md) (4) sub-check 등) attention drift 누락 위험. 대표 후보: (a) CLAUDE.md 앞단 "Hard rule 인덱스" 1 페이지 cheat sheet, (b) LOOP.md §1 표준 prompt 를 `docs/DRIVER_PROMPT.md` 로 분리. 트리거: 룰 누락 사고 1건 재발 또는 두 문서 LOC 합 ≥ 800.
 
 ---
 
