@@ -1,27 +1,28 @@
 {
   "schemaVersion": 1,
-  "phase": "P2-architecture-complete",
+  "phase": "P2-in-progress",
   "currentTask": null,
-  "nextTask": "T-0022",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-25T01:05:00+09:00",
-  "lastCommit": "ca41bc6",
-  "mostRecentTasks": ["T-0021", "T-0020", "T-0019", "T-0017", "T-0018"],
+  "lastActivity": "2026-05-25T01:15:00+09:00",
+  "lastCommit": "9fc1588",
+  "mostRecentTasks": ["T-0022", "T-0021", "T-0020", "T-0019", "T-0017"],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 10,
     "startedAt": "2026-05-24T21:55:00+09:00",
     "cap": 10,
-    "note": "session #6 turn 8/10 — T-0021 (P2-Directory directory.md) **MERGED** via PR-20 round 1/7 squash ca41bc6. executor DONE (architect 9 module ↔ src/<module>/ + common/config/prisma/test layout + WebModule 옵션 2 default + implementer +171/-2 LOC / 3 파일 + tester build/test pass) → driver push + reviewer 직접 dispatch (session-cache workaround 표준) round 1/7 APPROVE 0 BLOCKER 0 MAJOR 2 MINOR (estimatedDiff/본문길이 가이드 초과, non-blocking, comment 4529218056) → CI 1차 fail → `gh run rerun 26365716082 --failed` 41s pass → 4-gate green → gh pr merge 20 --squash. **P1+P2 architecture 완전 blueprint 박제** — components.md (T-0016) + modules.md (T-0017) + directory.md (T-0021) = component 분해 + module class 분해 + src/ 디렉토리 layout. P3 entry 준비 완료. counters.tasksCompleted 19→20. reviewRounds[T-0021]=1. Phase 갱신 P2-in-progress → P2-architecture-complete. **cap 잔여 2 turn**. 다음 turn 은 planner 가 UC-02 또는 다음 P2 UC 본문 task 큐잉 (UC-02 조회 / UC-03 인원 CRUD 등). UC-02~08 는 T-0020 template 박제됨 — 빠른 진행 가능."
+    "haltedReason": "loopSession #6 cap (10) 도달 — LOOP.md §1 [8] (e) 에 따라 ScheduleWakeup 안 함. 사용자 cleanup (/compact 또는 /clear) 후 새 /loop session 으로 P2 진행 재개 권장. 다음 후보 task: UC-03 인원 CRUD 또는 UC-04 권한·계정 또는 UC-05 LLM 설정 — UC-02 가 머지되었으므로 어느 것이든 T-0020 template 으로 빠르게 진행 가능.",
+    "note": "session #6 turn 10/10 (**CAP**) — T-0022 (P2-UC-02 평가 결과 조회) **MERGED** via PR-21 round 1/7 squash 9fc1588. 본 session 통계: **10 turn 안에 6 task 머지** (T-0017 modules.md / T-0018 ci.yml permissions / T-0019 INDEX.md backbone / T-0020 UC-01 평가 실행 / T-0021 directory.md / T-0022 UC-02 조회). counters.tasksCompleted 15→21 (+6). **Phase 전이**: P1-T-A3-complete → P1-complete (T-0017 머지 시 P1 architecture 4 task 모두 완성) → P2-entry-merged (T-0019 INDEX.md) → P2-architecture-complete (T-0021 directory.md) → P2-in-progress (UC-01/UC-02 본문 머지). **dogfood**: 612a1c6 round-per-turn 룰 완화 1회 사용 (T-0017 resume + T-0018 새 task 같은 turn 처리), CI rerun pattern 4회 (T-0019/T-0020/T-0021/T-0022 모두 동일 — pull_request CI 1차 fail → reviewer post → gh run rerun --failed → pass). **integrator session-cache 결함**: session #5/6 모두 재현 — driver workaround (직접 reviewer dispatch + 직접 merge) 표준 절차로 안착. session #7 (신규 conversation) 시 integrator config 재로드 가능성. **블록 0건 / BLOCKED 자체 해소 1건 (T-0017 ci-workflow-bug → T-0018 patch 자동 회복)**. reviewRounds 누적: T-0017=2 / T-0018=1 / T-0019=1 / T-0020=1 / T-0021=1 / T-0022=1 = 7 round. **남은 P2 UC**: UC-03 인원 CRUD / UC-04 권한·계정 / UC-05 LLM 설정 / UC-06 평가 삭제·재수집 / UC-07 export/import / UC-08 통지 — 6 UC 본문. **P3 entry 준비 완료** (architecture 3-layer + UC 2개 본문 박제)."
   },
   "ci": {
-    "lastRun": "2026-05-25T00:51:56+09:00",
+    "lastRun": "2026-05-25T01:11:25+09:00",
     "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26365716082",
-    "note": "PR-20 (T-0021) CI 41s pass on rerun (run 26365716082 attempt 2). 표준 절차 3차 dogfood (T-0019/T-0020/T-0021 동일 패턴). issue_comment event 별도 run 은 PR check 와 무관 — pull_request run rerun --failed 으로 reviewer-approval step 통과."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26366159929",
+    "note": "PR-21 (T-0022) CI 40s pass on rerun (run 26366159929 attempt 2). 표준 절차 4차 dogfood. 본 session 4 PR (T-0019/T-0020/T-0021/T-0022) 모두 reviewer post + rerun --failed → green 패턴 동일."
   },
-  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1},
+  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1},
   "blockers": [],
   "humanQuestions": [
     {
@@ -59,7 +60,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 20,
+    "tasksCompleted": 21,
     "tasksBlocked": 0,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

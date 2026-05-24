@@ -2,12 +2,16 @@
 id: T-0022
 title: P2-UC-02 — 평가 결과 조회/sort/filter/시계열 use case 분해 (docs/use-cases/UC-02-evaluation-query.md)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-038, REQ-042, REQ-046, REQ-048]
 estimatedDiff: 160
 estimatedFiles: 3
 created: 2026-05-25
+completedAt: 2026-05-25T01:11:25+09:00
+mergedAs: 9fc1588bed10789f1ddda516d85ca7bc51f521a8
+prNumber: 21
+reviewRounds: 1
 plannerNote: P2 두번째 UC 본문 분해 (UC-02 조회). UC-01 평가 실행의 자연 페어 — 실행 → 조회 = 1·2 most-used flow. T-0020 template 적용.
 dependsOn: [T-0019, T-0020]
 blocks: []
