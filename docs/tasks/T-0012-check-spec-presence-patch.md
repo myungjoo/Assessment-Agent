@@ -2,12 +2,18 @@
 id: T-0012
 title: scripts/check-spec-presence.sh 결함 patch (smoke suffix + test/* glob)
 phase: P0.5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060]
 estimatedDiff: 5
+actualDiff: 16
 estimatedFiles: 1
+actualFiles: 2
 created: 2026-05-24
+completedAt: 2026-05-24T02:48+09:00
+mergedAs: 91b600c
+prNumber: 11
+reviewRounds: 1
 hqOrigin: T-0009-fallout
 plannerNote: T-0007 산출물 결함 2건 patch — `.smoke-spec.ts` suffix 미포함 + `*/test/*` glob 이 leading-slash 없는 `test/*` 미매칭. T-0009 PR-10 CI fail 원인.
 dependsOn: []
