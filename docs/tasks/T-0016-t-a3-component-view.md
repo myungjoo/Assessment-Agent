@@ -2,7 +2,13 @@
 id: T-0016
 title: T-A3 — Component view (components.md 신설 + mermaid + 8 component table + contracts)
 phase: P1
-status: PENDING
+status: DONE
+completedAt: 2026-05-24T21:20:00+09:00
+mergedAs: 2f04892
+prNumber: 15
+reviewRounds: 1
+actualDiff: 200
+actualFiles: 4
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-015, REQ-026, REQ-038, REQ-044, REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055]
 estimatedDiff: 220
