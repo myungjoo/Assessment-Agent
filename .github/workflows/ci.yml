@@ -59,3 +59,9 @@ jobs:
         # CLAUDE.md §3.2 R-113 의 smoke 부분. NestJS app 부트스트랩 + GET / healthcheck.
         # unit / coverage step 과 격리된 별도 jest config (test/jest-smoke.json). T-0009 도입.
         run: pnpm test:smoke
+
+      - name: e2e test
+        # CLAUDE.md §3.2 R-113 의 e2e 부분. 응답 contract (status + header + body)
+        # 와 flow 를 검증. unit / coverage / smoke step 과 격리된 별도 jest config
+        # (test/jest-e2e.json). T-0010 도입.
+        run: pnpm test:e2e

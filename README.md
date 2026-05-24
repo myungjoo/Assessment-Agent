@@ -142,7 +142,8 @@ AA의 평가 대상은 크게 코드 작성과 문서 작성으로 나누어 볼
 - `pnpm build` — Nest 빌드 (TypeScript → `dist/`).
 - `pnpm test` — Jest 로 unit / spec 테스트 실행.
 - `pnpm test:cov` — Jest + coverage 측정. `package.json` 의 `coverageThreshold.global` (branches/functions/lines/statements 각 50%) 미달 시 jest 가 exit 1 → CI fail (T-0008).
-- `pnpm test:smoke` — Smoke 테스트 (NestJS app 부트스트랩 + 핵심 endpoint 200 확인, `test/jest-smoke.json`). unit 과 격리되며 coverage 미수집 (T-0009).
+- `pnpm test:smoke` — Smoke 테스트 (NestJS app 부트스트랩 + 핵심 endpoint 200 확인, `test/jest-smoke.json`). unit 과 격리되며 coverage 미수집 (T-0009). 의도: 빠른 healthcheck.
+- `pnpm test:e2e` — E2E 테스트 (응답 contract + flow 검증, `test/jest-e2e.json`). unit / smoke 와 격리 (T-0010). 의도: status·header·body shape 까지 검증하는 회귀 anchor.
 - `BASE_REF=origin/main bash scripts/check-spec-presence.sh` — 신규 production `.ts` 에 대응 spec 이 함께 추가됐는지 로컬에서 흉내내 검사 (CI 와 동일 규칙, T-0007).
 
 CI (`.github/workflows/ci.yml`) 가 모든 PR 과 main push 마다 동일한 step 을 자동 실행한다. PR 의 CI 실패가 reviewer 점검 전에 명확히 보이도록 GitHub UI 에서 main branch protection rule (필수 status check: `기본 검사`) 을 활성화하는 것을 권장한다 (관리자 1회 수동 설정).
