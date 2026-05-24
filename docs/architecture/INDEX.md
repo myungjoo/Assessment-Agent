@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | [requirements.md](../requirements.md) | FR/NFR/Constraint 분리된 REQ-NNN 매핑 표 | T-A1 (P1) | 부분 (P1-Entry 가 kind 채움) |
 | [deployment.md](deployment.md) | Deployment view — monolith vs worker / DB / secrets / scheduler / 네트워크 boundary | T-A2 (P1) | 완료 (T-0014 + T-0015) |
-| [components.md](components.md) | Component view — 시스템을 component 단위 + 외부 시스템 + 상호 contract | T-A3 (P1) | 미작성 |
+| [components.md](components.md) | Component view — 시스템을 component 단위 + 외부 시스템 + 상호 contract | T-A3 (P1) | 완료 (T-0016) |
 | [modules.md](modules.md) | Module view — NestJS module 구조 + 의존성 방향 (acyclic) | T-A4 (P1) | 미작성 |
 | [api.md](api.md) | API contract — HTTP endpoint 목록 + schema | P2 use case decomposition 후 | 미작성 |
 | [data-model.md](data-model.md) | Conceptual data model — entity + 관계 (구체 schema 는 P3) | P2 후 | 미작성 |

@@ -52,17 +52,17 @@
   - Secret 저장 (env / vault / file)
   - Scheduler 위치 (NestJS `@nestjs/schedule` / 외부 cron / queue trigger)
   - 외부 네트워크 boundary (Samsung 내부망 접근 — github.sec / ecode)
-- [ ] **T-A3: Component view** — [docs/architecture/components.md](architecture/components.md) 신설. mermaid 다이어그램 + 각 component 책임:
+- [x] **T-A3: Component view** — [docs/architecture/components.md](architecture/components.md) 신설 완료 (T-0016, components.md ACCEPTED). mermaid 다이어그램 + 각 component 책임:
   - Web UI (Frontend) ↔ Backend API
   - Worker (평가 파이프라인)
   - DB / Persistence
   - LLM Gateway (5 provider abstraction)
-  - GitHub Adapter (3 instance) / Confluence Adapter
+  - GitHub Adapter (3 instance, 단일 component + sub-config 묶음 결정 박제) / Confluence Adapter
   - Scheduler / Trigger
   각 컴포넌트 간 contract (sync/async, message format) 명시.
 - [ ] **T-A4: Module view (확장)** — [docs/architecture/modules.md](architecture/modules.md). NestJS module 구조 (AssessmentModule / UserModule / GithubModule / ConfluenceModule / LlmModule / AuthModule / SchedulerModule / WebModule). 의존성 방향 acyclic 확인. component view 와 mapping.
 
-완료 조건: 4개 architecture document (deployment / components / modules / 그리고 requirements 의 kind 컬럼) 이 main 에 merge 되고, ADR-0002 (DB) + ADR-0003 (Deployment) 가 ACCEPTED 상태. **T-A2 완료 상태 (deployment.md + ADR-0002 + ADR-0003 모두 main 진입 = T-0014 + T-0015 머지 후).** 잔여: T-A3 (components.md) + T-A4 (modules.md).
+완료 조건: 4개 architecture document (deployment / components / modules / 그리고 requirements 의 kind 컬럼) 이 main 에 merge 되고, ADR-0002 (DB) + ADR-0003 (Deployment) 가 ACCEPTED 상태. **T-A2 + T-A3 완료 상태 (deployment.md + components.md + ADR-0002 + ADR-0003 모두 main 진입 = T-0014 + T-0015 + T-0016 머지 후).** 잔여: T-A4 (modules.md).
 
 이 phase 끝나면 P2 (Use case decomposition) 가 architecture 기반으로 use case 를 각 component / module 에 분류해 진행할 수 있다.
 
