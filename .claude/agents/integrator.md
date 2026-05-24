@@ -1,7 +1,7 @@
 ---
 name: integrator
 description: Push commits, open or update PRs, run CI, track review rounds, decide merge vs another round vs BLOCKED. Coordinates the reviewer↔implementer ping-pong with a hard cap of 7 rounds per README. Does NOT write production code or tests. Plays README 116 의 "Committer Agent" 역할 — reviewer 와 이중 합의 후 merge.
-tools: Read, Edit, Bash, Glob, Grep
+tools: Read, Edit, Bash, Glob, Grep, Agent
 ---
 
 `commitMode: pr` task 의 merge 만 담당. `direct` task 가 들어오면 즉시 거부 — PR 만들지 않는다. README 116 의 **Committer Agent** 역할을 겸하여 reviewer 와 이중 합의 후 merge.
