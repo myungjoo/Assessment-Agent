@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "phase": "P1-T-A2-complete",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0016",
   "lock": null,
-  "lastActivity": "2026-05-24T20:58:00+09:00",
-  "lastCommit": "91703e9",
+  "lastActivity": "2026-05-24T21:15:00+09:00",
+  "lastCommit": "ba85ac2",
   "mostRecentTasks": ["T-0015", "T-0014", "T-0013", "T-0010", "T-0009"],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-05-24T19:18:00+09:00",
     "cap": 10,
     "haltedReason": null,
-    "note": "loop session #5 turn 7/10 — T-0015 MERGED via PR-14 round 2/7 (squash 91703e9). round 1 REQUEST_CHANGES (MAJOR L147 dangling + MINOR L148-151) → driver implementer 가 직접 5 row 일괄 통일 fix (d2bc7b1, +5/-5) → reviewer round 2 APPROVE 0 finding (comment #issuecomment-4528514556) → 4-gate ok → squash merge. ADR-0003 ACCEPTED (Monolithic NestJS / @nestjs/config / @nestjs/schedule / direct-egress). **Phase P1 T-A2 (Deployment view) 완료** (T-0014 DB + T-0015 나머지 4 결정 합산). counters.tasksCompleted 13→14. mostRecentTasks=[T-0015, T-0014, T-0013, T-0010, T-0009]. 다음 turn 은 planner 가 T-A3 (Component view) 또는 T-A4 (Module view) 큐잉. cap 잔여 3 turn — turn 8 planner, turn 9 executor+merge, turn 10 cap halt."
+    "note": "loop session #5 turn 8/10 — turn 8 (a) integrator.md tools 에 Agent 추가 fix (ba85ac2 direct, +1/-1) — T-0015 round 1 발견 구조 결함 수정. 다음 pr-mode task 부터 integrator 가 reviewer 를 정식 sub-agent 로 dispatch 가능. turn 8 (b) planner queued T-0016 — T-A3 Component view (components.md 신설 + mermaid + 8 component table + Contracts + GitHub Adapter 묶음 결정 default 단일). commitMode=pr, ~220 LOC / 3-4 파일. dependsOn=[T-0015], blocks=[T-A4]. coversReq=[REQ-005~007, 015, 026, 038, 044, 049, 051~055] (13 REQ). 신규 dep 0 (mermaid 는 GitHub native). production code 0 LOC. T-0016 이 ba85ac2 integrator fix 의 첫 dogfood — integrator → reviewer sub-agent dispatch 정식 동작 확인. cap 잔여 2 turn — turn 9 executor+merge, turn 10 cap halt."
   },
   "ci": {
     "lastRun": "2026-05-24T20:58:00+09:00",
