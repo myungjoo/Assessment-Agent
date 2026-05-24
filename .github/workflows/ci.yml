@@ -50,5 +50,7 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Test 실행
-        run: pnpm test
+      - name: 테스트 + 커버리지 검사
+        # CLAUDE.md §3.2 R-112 2 차 layer: jest 의 coverageThreshold (package.json) 가
+        # 미달일 경우 exit code 비0 -> CI fail. T-0008 도입.
+        run: pnpm test:cov
