@@ -2,12 +2,16 @@
 id: T-0020
 title: P2-UC-01 — 평가 실행 use case 분해 (docs/use-cases/UC-01-evaluation-execution.md)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-014, REQ-015, REQ-039, REQ-040, REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055]
 estimatedDiff: 160
 estimatedFiles: 3
 created: 2026-05-25
+completedAt: 2026-05-25T00:25:09+09:00
+mergedAs: 888d1a3b75466f39bb10e1d6ceca8cb82645c74e
+prNumber: 19
+reviewRounds: 1
 plannerNote: P2 첫 UC 본문 분해 (UC-01 평가 실행). INDEX.md 의 UC-01 row 를 sequence diagram + 흐름 + 실패 경로로 풀어냄. 후속 UC-02~08 의 template.
 dependsOn: [T-0019]
 blocks: []
