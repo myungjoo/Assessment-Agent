@@ -21,8 +21,8 @@ missing=()
 for f in "${added[@]}"; do
   # 제외: spec / test 파일 그 자체
   case "$f" in
-    *.spec.ts|*.test.ts|*.e2e-spec.ts) continue ;;
-    */test/*|*/__tests__/*) continue ;;
+    *.spec.ts|*.test.ts|*.e2e-spec.ts|*.smoke-spec.ts) continue ;;
+    test/*|*/test/*|*/__tests__/*) continue ;;
     src/main.ts) continue ;;
   esac
   # 제외: 단일 re-export 만 있는 index.ts (export/import 라인만, 그 외 빈 줄·주석만 허용)

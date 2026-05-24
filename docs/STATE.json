@@ -2,27 +2,34 @@
   "schemaVersion": 1,
   "phase": "P0.5-test-ci-infra",
   "currentTask": null,
-  "nextTask": "T-0009",
+  "nextTask": "T-0012",
   "lock": null,
-  "lastActivity": "2026-05-24T02:25:00+09:00",
+  "lastActivity": "2026-05-24T02:40:00+09:00",
   "lastCommit": "5c5fd56",
   "mostRecentTasks": ["T-0008", "T-0011", "T-0007", "T-0005", "T-0004"],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-05-24T01:42:00+09:00",
     "cap": 10,
-    "note": "loopSession #4 turn 5/10 — planner queued T-0009 (smoke test infra, P0.5 3번째 bullet). 기존 T-0009 파일 보강 (coversReq=[REQ-061] / requeuedAt / R-112 4항목 명문화 / R-110·111·114 명시 / Out of Scope 에 신규 dep BLOCKED 룰 / dependsOn=T-0008 unblocked). supertest+@nestjs/testing 이미 devDep 이라 신규 dep 0. T-0010 (e2e) 가 본 task 에 dependsOn."
+    "note": "loopSession #4 turn 6/10 — planner queued T-0012 (T-0007 산출물 check-spec-presence.sh 결함 patch). T-0009 PR-10 CI fail 노출: line 24 의 `.smoke-spec.ts` suffix 누락 + line 25 의 `*/test/*` glob 이 leading-slash 없는 `test/*` 미매칭. T-0009 는 본 patch merge 후 CI 재시도 대기 (blockedBy=T-0012)."
   },
   "ci": {
-    "lastRun": "2026-05-24T02:14:00+09:00",
+    "lastRun": "2026-05-24T02:35:00+09:00",
     "status": "operational",
-    "consecutiveFails": 0,
-    "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/9",
-    "note": "T-0008 머지로 CI 가 coverage threshold 50% 도 게이트화. 향후 모든 PR 은 line/branch/function/statement 4 metric 50% 이상 충족 필수. 50% 상향은 별도 ADR/task."
+    "consecutiveFails": 1,
+    "lastConclusion": "failure",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/10",
+    "note": "T-0009 PR-10 의 spec-presence-check step 이 fail. 원인은 T-0007 산출물 결함 — T-0012 patch 머지 후 T-0009 PR 재실행 예정. failure 1회로 §5 의 3회 연속 fail BLOCKED 한계에는 미달."
   },
   "reviewRounds": {"T-0005": 1, "T-0007": 1},
-  "blockers": [],
+  "blockers": [
+    {
+      "taskId": "T-0009",
+      "blockedBy": "T-0012",
+      "since": "2026-05-24T02:40:00+09:00",
+      "details": "T-0009 PR-10 의 spec-presence-check step 이 check-spec-presence.sh 결함으로 fail. T-0012 (script patch) merge 후 T-0009 PR 재시도 필요. T-0009 task status 는 PENDING 유지 (BLOCKED-on-T-0012)."
+    }
+  ],
   "humanQuestions": [
     {
       "id": "HQ-0001",

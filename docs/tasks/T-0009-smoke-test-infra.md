@@ -96,3 +96,4 @@ T-0010 (e2e) 의 prerequisite. T-0008 (coverage threshold) merge 완료로 본 t
 - T-0008 의 coverage threshold 가 smoke 도 합산할지 결정 (ADR 후보) — 본 task 와 별도.
 - T-0010 (e2e) 에서 본 task 의 smoke 격리 패턴을 참고해 e2e 격리도 동일 방식으로 (testRegex 분리).
 - 도메인 모듈이 추가될 때마다 smoke spec 1개 추가 (별도 task).
+- **2026-05-24 — BLOCKED on [T-0012](T-0012-check-spec-presence-patch.md)**: PR-10 의 `spec-presence-check` step 이 T-0007 산출물 `scripts/check-spec-presence.sh` 결함으로 fail (`.smoke-spec.ts` suffix 누락 + `test/*` leading-glob 미매칭). T-0012 merge 후 본 PR 의 CI 재시도 필요. status 는 PENDING 유지 (BLOCKED-on-T-0012 의미).
