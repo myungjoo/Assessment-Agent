@@ -60,9 +60,9 @@
   - GitHub Adapter (3 instance, 단일 component + sub-config 묶음 결정 박제) / Confluence Adapter
   - Scheduler / Trigger
   각 컴포넌트 간 contract (sync/async, message format) 명시.
-- [ ] **T-A4: Module view (확장)** — [docs/architecture/modules.md](architecture/modules.md). NestJS module 구조 (AssessmentModule / UserModule / GithubModule / ConfluenceModule / LlmModule / AuthModule / SchedulerModule / WebModule). 의존성 방향 acyclic 확인. component view 와 mapping.
+- [x] **T-A4: Module view (확장)** — [docs/architecture/modules.md](architecture/modules.md) 신설 완료 (T-0017). NestJS 8 module (AssessmentModule / UserModule / GithubModule / ConfluenceModule / LlmModule / AuthModule / SchedulerModule / WebModule) 의 책임 표 + 의존성 mermaid graph + topological order 로 acyclic 검증 + components ↔ modules N:N mapping + PersistenceModule 분리 결정 인라인 박제.
 
-완료 조건: 4개 architecture document (deployment / components / modules / 그리고 requirements 의 kind 컬럼) 이 main 에 merge 되고, ADR-0002 (DB) + ADR-0003 (Deployment) 가 ACCEPTED 상태. **T-A2 + T-A3 완료 상태 (deployment.md + components.md + ADR-0002 + ADR-0003 모두 main 진입 = T-0014 + T-0015 + T-0016 머지 후).** 잔여: T-A4 (modules.md).
+**Phase P1 (Architecture / MVA) 완료**. 4 architecture document (requirements.md kind 컬럼 / deployment.md / components.md / modules.md) 모두 main 진입 + ADR-0001 / ADR-0002 / ADR-0003 ACCEPTED. P2 (Use case decomposition) 진입 가능.
 
 이 phase 끝나면 P2 (Use case decomposition) 가 architecture 기반으로 use case 를 각 component / module 에 분류해 진행할 수 있다.
 

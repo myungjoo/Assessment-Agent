@@ -2,7 +2,7 @@
 id: T-0017
 title: T-A4 — Module view (modules.md 신설 + NestJS 8 module 구조 + 의존성 acyclic + components ↔ modules mapping)
 phase: P1
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-015, REQ-026, REQ-038, REQ-039, REQ-044, REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055]
 estimatedDiff: 180
