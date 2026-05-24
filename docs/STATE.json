@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "phase": "P2-entry-merged",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0020",
   "lock": null,
   "lastActivity": "2026-05-25T00:08:00+09:00",
   "lastCommit": "56ed162",
