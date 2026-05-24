@@ -1,35 +1,28 @@
 {
   "schemaVersion": 1,
-  "phase": "P1-T-A4-in-progress-blocked-on-ci",
-  "currentTask": "T-0017",
-  "nextTask": "T-0018",
+  "phase": "P1-complete",
+  "currentTask": null,
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-24T22:15:00+09:00",
-  "lastCommit": "c1e1ff3",
-  "mostRecentTasks": ["T-0016", "T-0015", "T-0014", "T-0013", "T-0010"],
+  "lastActivity": "2026-05-24T23:45:00+09:00",
+  "lastCommit": "23fa092",
+  "mostRecentTasks": ["T-0017", "T-0018", "T-0016", "T-0015", "T-0014"],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-05-24T21:55:00+09:00",
     "cap": 10,
-    "note": "session #6 turn 1/10 — T-0017 (T-A4 module view) executor DONE, PR-16 open (commit c1e1ff3). reviewer round 1/7 APPROVE 완료. **하지만 CI fail 로 머지 보류** — ci.yml 의 reviewer-approval step (06504fe 도입) 이 workflow-level `permissions:` block 부재로 GITHUB_TOKEN 의 pull-requests:read 결여 → `gh pr view --json reviews/comments` GraphQL 'Resource not accessible by integration' → step exit 1 → CI red. 모든 PR 영향 (structural defect). 자동 회복 경로: T-0018 (planner 본 turn 신설, 5 LOC patch) 머지 후 PR-16 rerun → 머지. CLAUDE.md §5 HITL 의 CI 3-연속-fail 룰 미적용 (현재 fail 1회). 다음 turn (session #6 turn 2) 가 T-0018 picking up."
+    "note": "session #6 turn 2/10 — **Phase P1 (Architecture/MVA) 전체 완료**. T-A1 (T-0013 requirements.md kind) / T-A2 (T-0014 ADR-0002 DB + T-0015 ADR-0003 deployment) / T-A3 (T-0016 components.md) / T-A4 (T-0017 modules.md) 4 architecture task 머지. 본 turn 2 task 머지 (T-0018 PR-17 5-LOC ci.yml permissions fix 4fab0e5 + T-0017 PR-16 merge commit 23fa092). T-0018 첫 round 1 APPROVE merge — 새 612a1c6 round-per-turn 룰 완화 첫 dogfood. T-0017 round 2 APPROVE (driver 직접 dispatch — integrator session 단위 agent config cache 결함 재현) + driver 직접 merge (gh pr merge 16 --squash, local branch 삭제는 main worktree 충돌로 fail 하나 GitHub 머지 성공 23fa092). counters.tasksCompleted 15→17. Phase P2 (Use case decomposition) 진입 — 다음 turn planner 가 P2-Entry task 큐잉."
   },
   "ci": {
-    "lastRun": "2026-05-24T22:00:00+09:00",
-    "status": "failing-workflow-defect",
-    "consecutiveFails": 1,
-    "lastConclusion": "failure",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26363373490",
-    "note": "PR-16 (T-0017) CI fail — ci.yml 'reviewer agent approval 검증' step (line 77–110, 06504fe 도입) 이 workflow-level permissions block 부재로 GITHUB_TOKEN 권한 부족 → gh pr view --json reviews/comments 가 GraphQL permission error 로 fail. 2 attempts (pull_request + gh run rerun --failed) 둘 다 동일 사유 fail. 본 defect 는 PR-16 content 와 무관 — main 의 모든 향후 PR 도 동일 fail 예정. T-0018 (3-line permissions block 추가) 머지 후 자동 회복."
+    "lastRun": "2026-05-24T23:40:00+09:00",
+    "status": "operational",
+    "consecutiveFails": 0,
+    "lastConclusion": "success",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26363996216",
+    "note": "PR-16 (T-0017) merge commit 7043353 CI 38s pass (7 step + reviewer-approval). T-0018 ci.yml permissions fix (4fab0e5) 가 본 PR 의 merge 로 main 에 박힘 + PR-16 의 merged 7043353 head 가 fix 포함된 workflow 실행 — 동일 PR 안에서 fix dogfood + 해소. ci.consecutiveFails 1→0 reset. T-0018 PR-17 (4fab0e5) 자체 CI 도 pass (regression evidence)."
   },
-  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 1},
-  "blockers": [
-    {
-      "taskId": "T-0017",
-      "createdAt": "2026-05-24T22:05:00+09:00",
-      "reason": "ci-workflow-bug",
-      "details": "PR-16 (https://github.com/myungjoo/Assessment-Agent/pull/16) reviewer round 1/7 APPROVE + integrator self-check PASS + reviewer comment 외부 존재 (gate 1/2/3 PASS) 이나 CI red (gate 4 FAIL). 원인: .github/workflows/ci.yml 의 reviewer-approval step 이 gh pr view 호출 시 GITHUB_TOKEN 의 pull-requests:read 권한 결여로 GraphQL permission error. Fix: T-0018 (본 turn planner 가 신설) — workflow-level `permissions: { contents: read, pull-requests: read }` 3-line 추가. T-0018 머지 후 PR-16 의 CI 재실행 → green → T-0017 머지 가능 → Phase P1 완료. blocker 자동 회복 경로 — humanQuestion 미신설."
-    }
-  ],
+  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1},
+  "blockers": [],
   "humanQuestions": [
     {
       "id": "HQ-0001",
@@ -66,7 +59,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 15,
+    "tasksCompleted": 17,
     "tasksBlocked": 0,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

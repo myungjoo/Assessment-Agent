@@ -2,12 +2,16 @@
 id: T-0018
 title: T-0017-patch — ci.yml workflow permissions 누락 수정 (gh pr view 권한)
 phase: P1
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060]
 estimatedDiff: 5
 estimatedFiles: 1
 created: 2026-05-24
+completedAt: 2026-05-24T23:30:51+09:00
+mergedAs: 4fab0e55ca546149a4c18e03c389fbe73f36a18f
+prNumber: 17
+reviewRounds: 1
 hqOrigin: null
 patchOrigin: T-0017
 prOrigin: PR-16

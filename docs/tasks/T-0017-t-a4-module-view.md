@@ -8,6 +8,10 @@ coversReq: [REQ-005, REQ-006, REQ-007, REQ-015, REQ-026, REQ-038, REQ-039, REQ-0
 estimatedDiff: 180
 estimatedFiles: 4
 created: 2026-05-24
+completedAt: 2026-05-24T23:38:04+09:00
+mergedAs: 23fa0922e0dae1140dfc60eca0ad0ff6dca87226
+prNumber: 16
+reviewRounds: 2
 plannerNote: P1 T-A4 — modules.md 신설 (NestJS 8 module 구조 + 의존성 acyclic + components ↔ modules mapping). T-A4 머지 시 Phase P1 완료 → P2 진입. pr-mode doc-only.
 dependsOn: [T-0016]
 blocks: [P2-Entry]
