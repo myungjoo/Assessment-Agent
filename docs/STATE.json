@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "phase": "P0.5-test-ci-infra",
   "currentTask": null,
-  "nextTask": "T-0011",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-24T01:42:00+09:00",
-  "lastCommit": "d484955",
-  "mostRecentTasks": ["T-0007", "T-0005", "T-0004", "T-0006", "T-0003"],
+  "lastActivity": "2026-05-24T01:50:00+09:00",
+  "lastCommit": "65ed3a5",
+  "mostRecentTasks": ["T-0011", "T-0007", "T-0005", "T-0004", "T-0006"],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-05-24T01:42:00+09:00",
     "cap": 10,
-    "note": "loopSession #4 첫 turn — planner dispatched. T-0011 (LOOP.md §4 push hard rule 보강) queued. 직전 session #3 사고 (driver-misroute) 의 안전장치 follow-up."
+    "note": "loopSession #4 turn 2/10 — T-0011 DONE (LOOP.md §4 push hard rule 보강). 새 hard rule 첫 dogfood: implementer staged worktree → driver 가 main worktree 로 patch 이송 후 main:main push. counters.tasksCompleted 6→7."
   },
   "ci": {
     "lastRun": "2026-05-24T00:34:00+09:00",
@@ -59,7 +59,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 6,
+    "tasksCompleted": 7,
     "tasksBlocked": 0,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

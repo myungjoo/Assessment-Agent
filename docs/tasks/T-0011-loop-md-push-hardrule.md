@@ -2,12 +2,15 @@
 id: T-0011
 title: LOOP.md §4 보강 — driver push hard rule (feature→main 직접 push 금지)
 phase: P0.5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 45
+actualDiff: 18
 estimatedFiles: 1
 created: 2026-05-24
+completedAt: 2026-05-24T01:49+09:00
+completedCommit: 65ed3a5
 plannerNote: P0.5 안전장치 follow-up — T-0007 driver-misroute (feature→main fast-forward) 재발 방지. doc-only, R-110 면제.
 dependsOn: []
 blocks: []
