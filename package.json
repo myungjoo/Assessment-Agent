@@ -58,7 +58,16 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": ["src/**/*.(t|j)s"],
+    "coveragePathIgnorePatterns": ["/node_modules/", "src/main.ts", "\\.module\\.ts$"],
     "coverageDirectory": "./coverage",
+    "coverageThreshold": {
+      "global": {
+        "branches": 50,
+        "functions": 50,
+        "lines": 50,
+        "statements": 50
+      }
+    },
     "testEnvironment": "node",
     "passWithNoTests": true
   }
