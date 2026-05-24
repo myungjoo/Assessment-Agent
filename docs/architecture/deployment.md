@@ -8,6 +8,8 @@
 
 본 view 는 [ADR-0002](../decisions/ADR-0002-db.md) (DB) 와 [ADR-0003](../decisions/ADR-0003-deployment.md) (Deployment 4 결정) 가 결정한 사항을 view layer 로 모은다. ADR 이 결정의 source of truth 이고, 본 문서는 ADR 결정이 운영 토폴로지에 어떻게 반영되는지의 도식 / 텍스트 설명이다.
 
+본 deployment view 가 박제한 단일 NestJS process 안의 **component 분해 + contract** 는 [components.md](components.md) (T-0016 의 산출물) 에 박제되어 있다.
+
 ## DB / Persistence
 
 본 단락의 결정은 [ADR-0002 — Persistence DB / ORM 선택](../decisions/ADR-0002-db.md) 에서 박제했다. 본 view 는 그 결정을 운영 토폴로지로 풀어낸다.
