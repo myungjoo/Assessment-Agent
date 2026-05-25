@@ -9,7 +9,7 @@
 본 문서의 기반:
 
 - [docs/PLAN.md](../PLAN.md) Phase P3 단락 (L47–60) — **본 문서의 1차 source**. 11 bullet 의 매핑 대상.
-- [docs/architecture/data-model.md](data-model.md) — T-0031 산출물. 10 entity (+1 conceptual mention) 의 책임 / 책임 module / 관계 inventory. 본 문서의 task row 의 entity scope 와 책임 module 컬럼의 source.
+- [docs/architecture/data-model.md](data-model.md) — T-0031 산출물. 11 entity (+1 conceptual mention = AuditLog) 의 책임 / 책임 module / 관계 inventory. 본 문서의 task row 의 entity scope 와 책임 module 컬럼의 source.
 - [docs/architecture/modules.md](modules.md) — T-A4 산출물. 9 NestJS module (8 application + PersistenceModule) 의 이름 / 책임 / 의존성. 본 문서의 "책임 module" 컬럼 값의 source.
 - [docs/architecture/directory.md](directory.md) — T-0021 산출물. `src/<module>/` layout. 본 문서가 박제할 후속 task 들이 어느 디렉토리에 코드를 추가할지의 source.
 - [docs/decisions/ADR-0002-db.md](../decisions/ADR-0002-db.md) — **본 문서의 핵심 reference**. PostgreSQL + Prisma 결정 ACCEPTED. T-0033 의 `pnpm add prisma @prisma/client pg` 가 본 ADR 의 "범위 밖 (deferred)" 단락에서 명시한 인간 승인 게이트 대상.
@@ -31,9 +31,11 @@ P3 11 bullet → 8 T-NNNN task 매핑. 각 row 의 estimated LOC ≤ 300 / 변�
 | **T-0039** | PermissionDeniedRecord entity Prisma model + ServiceIdentity↔Record 1:N + Person↔Record 1:N (reverse traversal) + audience field (user / admin) + AssessmentModule 의 event listener skeleton (실제 event emit 은 P4 의 GithubAdapter / ConfluenceAdapter 책임) | (P3 외 — P5 dependency. 본 task 위치는 P3 끝 — entity scaffold 만) | T-0037 | 없음 | 없음 | ~220 | AssessmentModule |
 | **T-0040** | Cross-cutting field 적용 (createdAt / updatedAt / deletedAt / createdBy) 정책 박제 ADR + entity 별 soft/hard delete 결정 표 + Prisma `@default(now())` / `@updatedAt` 일괄 적용 + UTC vs KST timezone 결정 | (data-model.md §5 conceptual 의 schema-level 적용) | T-0037 | **신설 — ADR-0005 (cross-cutting field policy: timezone / soft delete entity inventory)** | 없음 | ~200 | (cross-cutting — 모든 entity 영향) |
 
-**합계**: 8 task / 4 module (PersistenceModule / UserModule / AuthModule / AssessmentModule / LlmModule — modules.md 9 module 중 P3 scope 5 module, 외부 adapter 4 module 은 P4 책임) / 11 PLAN bullet cover (L51 L52 L53 L54 L55 L56 L57 L58 L59 L60 모두 매핑 + cross-cutting field 의 L0).
+**합계**: 8 task / **5 module** (PersistenceModule / UserModule / AuthModule / AssessmentModule / LlmModule — modules.md 9 module 중 P3 scope 5 module, 외부 adapter 4 module [GithubModule / ConfluenceModule / SchedulerModule / WebModule] 은 P4+ 책임) / **10 PLAN bullet cover** ([PLAN.md](../PLAN.md) L51 L52 L53 L54 L55 L56 L57 L58 L59 L60 — P3 단락의 실제 10 bullet 모두 매핑) + cross-cutting field 항목 (T-0040) 은 PLAN 본문 bullet 외 data-model.md §5 derived 의 별도 cross-cutting concern.
 
-**Cap discipline 검산**: 모든 row 의 est LOC ≤ 300 / 변경 파일 ≤ 5 ([CLAUDE.md §3](../../CLAUDE.md)). T-0034 / T-0036 / T-0037 이 ~290–300 LOC 로 cap 임계 — 실제 작업 시 architect 가 split 권장 trigger (예: T-0034 split = PersonModule + ServiceIdentityModule 별도, T-0036 split = AuthModule scaffold 와 SuperAdmin 자동 지정 logic 별도).
+**Cap discipline 검산**: 모든 row 의 est LOC ≤ 300 / 변경 파일 ≤ 5 ([CLAUDE.md §3](../../CLAUDE.md)). **임계 task (T-0034 / T-0036 / T-0037, ~290–300 LOC)** — 실제 진입 시 architect 가 **첫 read 직후 split 의무 평가**: 실제 LOC 추정 > 300 이거나 변경 파일 > 5 이면 planner 호출하여 split (예: T-0034 → PersonModule + ServiceIdentityModule 별도, T-0036 → AuthModule scaffold + SuperAdmin auto-promote logic 별도, T-0037 → Assessment + Contribution + Summary 3 entity 분할). split 결정은 architect ADR 가 아닌 planner task split — 본 문서 갱신.
+
+**§ 2 표의 "P3 외" 분류**: T-0038 / T-0039 의 status 컬럼이 "(P3 외 — P4/P5 dependency)" 로 표기된 것은 *task 의 실행 자체가 P3 외* 가 아니라 *task 가 의존하는 외부 시스템 / event* 가 P4+ (T-0038 의 실제 LLM HTTP client / T-0039 의 실제 Adapter event emit) 라는 의미. **task 자체는 P3 안에서 entity scaffold + module skeleton 까지 실행** — Domain core entity inventory 완성을 위해 P3 끝에 위치.
 
 **dependency cap 검산**: T-0033 root → T-0034 fan-out (T-0035, T-0036, T-0037 의 prerequisite 만) → T-0037 fan-out (T-0038, T-0039, T-0040) — cycle 0 (§3 graph 참조).
 
@@ -78,13 +80,13 @@ graph TD
 
 | 후보 ADR | 책임 task | 신설 사유 | source |
 | --- | --- | --- | --- |
-| **ADR-0002 status 재확인** | T-0033 | ADR-0002 status 갱신 — 실제 `pnpm add prisma @prisma/client pg` 시점 + version (예: `prisma@5.x` / `pg@8.x`) 박제. 또는 보강 ADR 신설 (Prisma version pinning 정책 / `pg` driver 선택 근거). | [ADR-0002 §"범위 밖 (deferred)"](../decisions/ADR-0002-db.md) ("실제 `prisma` / `@prisma/client` 패키지 도입 — CLAUDE.md §5 BLOCKED 룰. P3 진입 시 별도 task.") |
+| **ADR-0002 의존성 도입 보강** (직접 status 변경 아님 — ADR-0002 는 이미 ACCEPTED) | T-0033 | ADR-0002 는 conceptual 결정만 박제 (Prisma + PostgreSQL 채택). 실제 `pnpm add prisma @prisma/client pg` 진입 시 보강 ADR 신설 후보: Prisma version pinning 정책 + `pg` driver version + lockfile 검증 절차. 보강 ADR 미신설 시 ADR-0002 본문에 "도입 commit SHA + package version" 한 줄 inline 박제로 대체 가능 (architect 판단). | [ADR-0002 §"범위 밖 (deferred)"](../decisions/ADR-0002-db.md) ("실제 `prisma` / `@prisma/client` 패키지 도입 — CLAUDE.md §5 BLOCKED 룰. P3 진입 시 별도 task.") |
 | **ADR-0004 — Auth credential type (JWT vs session cookie)** | T-0036 | api.md §2 "Auth credential" 행이 "P3 AuthModule 도입 task 의 ADR 에서 택일 — 본 문서는 둘 다 허용 conceptual 박제". T-0036 진입 시 택일 + ADR 박제. | [api.md §2](api.md) Protocol/host 표 |
 | **ADR-0005 — Cross-cutting field policy** | T-0040 | timezone (UTC vs KST) / soft delete entity 별 적용 표 / `createdBy` audit-source 박제. data-model.md §5 의 conceptual 박제를 schema-level 정책으로 격상. | [data-model.md §5](data-model.md) Cross-cutting field 단락 |
 | **ADR-0006 (hook) — LLM API key encryption-at-rest** | P4 (T-0038 이후 별도 task) | LlmProviderConfig.apiKey 컬럼의 encryption mechanism (PostgreSQL `pgcrypto` / KMS / application-layer envelope encryption 등) 결정. T-0038 은 placeholder 만, 실제 encryption 은 P4 책임. | [data-model.md §7](data-model.md) "LLM API key 의 encryption-at-rest 구체 mechanism — 별도 보안 ADR" |
 | **ADR-0007 (hook) — Audit log entity schema** | P3 끝 또는 P4 (별도 task) | data-model.md §2 의 conceptual mention "AuditLog" 의 구체 schema 박제. User mutation event (등급 변경 / 평가 삭제 / Import-Export) 의 영속화 정책. T-0039 의 PermissionDeniedRecord 와 분리 entity. | [data-model.md §2](data-model.md) entity 표의 conceptual mention row |
 
-**합계**: 5 후보 ADR — 2 개는 P3 안에서 신설 (T-0033 + T-0036 + T-0040), 2 개는 P4 hook (ADR-0006 / ADR-0007). 본 task 는 후보 list 만 박제, 실제 신설은 각 책임 task 의 권한.
+**합계**: 5 후보 ADR — **3 개는 P3 안에서 신설** (T-0033 의존성 도입 보강 + ADR-0004 auth credential @ T-0036 + ADR-0005 cross-cutting @ T-0040), **2 개는 P4+ hook** (ADR-0006 LLM key encryption / ADR-0007 audit log schema). 본 task 는 후보 list 만 박제, 실제 신설은 각 책임 task 의 권한.
 
 ## 5. 인간 승인 게이트 (CLAUDE.md §5)
 
@@ -105,8 +107,8 @@ graph TD
 
 본 P3 task 시퀀스 (T-0033 ~ T-0040) 가 모두 머지되면 다음 조건이 충족되어 **Phase P3 complete** + Phase P4 entry 준비 완료:
 
-- **10 entity Prisma model 박제** — data-model.md §2 의 10 entity (Person / ServiceIdentity / Group / Part / User / Assessment / Contribution / Summary / LlmProviderConfig / DifficultyMapping / PermissionDeniedRecord) 가 모두 `prisma/schema.prisma` 에 model 로 존재. AuditLog 는 conceptual mention 으로 deferred.
-- **5 module skeleton 박제** — PersistenceModule / UserModule / AuthModule / AssessmentModule / LlmModule 의 `<module>.module.ts` + service / controller 골격 존재. modules.md 8 module 중 외부 adapter 4 module (GithubModule / ConfluenceModule + LlmModule 의 실제 HTTP client + SchedulerModule + WebModule) 은 P4+ 책임.
+- **11 entity Prisma model 박제** — data-model.md §2 의 11 entity (Person / ServiceIdentity / Group / Part / User / Assessment / Contribution / Summary / LlmProviderConfig / DifficultyMapping / PermissionDeniedRecord) 가 모두 `prisma/schema.prisma` 에 model 로 존재. AuditLog 는 conceptual mention 으로 deferred (data-model.md 와 동일 입장 — actual schema 는 P3 외).
+- **5 module skeleton 박제** — PersistenceModule / UserModule / AuthModule / AssessmentModule / LlmModule 의 `<module>.module.ts` + service / controller 골격 존재. modules.md 9 module 중 외부 adapter 4 module (GithubModule / ConfluenceModule / SchedulerModule / WebModule — 및 LlmModule 의 실제 HTTP client implementation) 은 P4+ 책임.
 - **3 ADR 신설** — ADR-0002 status 재확인 + ADR-0004 (auth credential) + ADR-0005 (cross-cutting field).
 - **raw 미저장 invariant schema-level 강제** — Assessment / Contribution / Summary 의 schema.prisma 에 raw body column 0 — reviewer agent 가 PR diff 의 `String` column 추가를 자동 검출 가능.
 
@@ -132,7 +134,7 @@ P4 (External integrations) entry 의 첫 task 는 별도 planner task 가 결정
 
 - [docs/PLAN.md](../PLAN.md) Phase P3 단락 (L47–60) — 본 문서의 1차 source. 11 bullet 의 매핑 대상.
 - [docs/architecture/INDEX.md](INDEX.md) — architecture document 목록 + MVA 원칙. 본 문서가 row 신규 추가 대상.
-- [docs/architecture/data-model.md](data-model.md) — T-0031 산출물. 10 entity (+1 conceptual) inventory. 본 task 시퀀스의 entity scope source.
+- [docs/architecture/data-model.md](data-model.md) — T-0031 산출물. 11 entity (+1 conceptual = AuditLog) inventory. 본 task 시퀀스의 entity scope source.
 - [docs/architecture/api.md](api.md) — T-0030 산출물. 9 resource prefix × 35 endpoint. T-0034+ controller 의 contract source.
 - [docs/architecture/components.md](components.md) — T-A3 산출물. 8 component 의 boundary. 본 task 시퀀스의 module 매핑이 본 문서 component scope 와 일관.
 - [docs/architecture/modules.md](modules.md) — T-A4 산출물. 9 NestJS module. 본 표 "책임 module" 컬럼 source.
