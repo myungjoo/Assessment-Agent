@@ -2,16 +2,20 @@
 id: T-0029
 title: P2 Use case 인벤토리 검증 — requirements.md 의 모든 functional REQ ↔ UC cover audit
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [TBD]
 estimatedDiff: 110
 estimatedFiles: 3
 created: 2026-05-25
+completed: 2026-05-25T11:25:00+09:00
+mergedPr: 28
+mergeSha: cd61232
 plannerNote: P2 Use case 인벤토리 검증 — 66 REQ 중 FR 행이 1+ UC 로 cover 되는지 audit. P2 첫 bullet의 마지막 sub-task. gap 발견 시 follow-up task 생성.
 dependsOn: [T-0019, T-0028]
 blocks: []
 hqOrigin: null
+resultSummary: PR-28 round 1/7 squash cd61232 — REQ-COVERAGE-AUDIT.md 177 LOC 신설 + INDEX/PLAN closure marker. 66 REQ × 4 enum 분류 (uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1 = REQ-004) + count 검산 통과. gap 1 건 (REQ-004 사용자 지정 기간 임의 평가문) follow-up 권장 (UC-09 신설 vs UC-01 확장). reviewer 0 BLOCKER/MAJOR 2 MINOR (§4 narrative 31→33 / §7 placeholder L_? — absorbable). CI rerun --failed 11번째 dogfood.
 ---
 
 # T-0029 — P2 Use case 인벤토리 검증 (REQ ↔ UC coverage audit)

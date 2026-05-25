@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "phase": "P2-uc-bodies-complete",
+  "phase": "P2-uc-audit-complete",
   "currentTask": null,
-  "nextTask": "T-0029",
+  "nextTask": "T-0030",
   "lock": null,
-  "lastActivity": "2026-05-25T11:02:00+09:00",
-  "lastCommit": "db65dd7",
-  "mostRecentTasks": ["T-0028", "T-0027", "T-0026", "T-0025", "T-0024"],
+  "lastActivity": "2026-05-25T11:27:00+09:00",
+  "lastCommit": "cd61232",
+  "mostRecentTasks": ["T-0029", "T-0028", "T-0027", "T-0026", "T-0025"],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-05-25T08:30:00+09:00",
     "cap": 10,
-    "note": "session #7 turn 6/10 — T-0028 (P2-UC-08 권한 부족 인식·통지) MERGED via PR-27 round 1/7 squash db65dd7. **P2 UC backbone 8/8 closure 달성** (UC-01~UC-08 모두 본문 분해 + sequence + REQ 매핑 박제). driver workaround 10번째 표준 절차. reviewer round 1/7 APPROVE 0 BLOCKER/MAJOR 1 MINOR. CI rerun --failed 10번째 dogfood. counters 26→27 (+6 in session). **executor 결함 patch**: executor 가 T-0028 작업 완료 후 commit/push 누락 (staged but not committed) — driver 가 직접 commit + push 로 보완. 후속 follow-up 권장. P2 남은 entry artifact 3 (UC 인벤토리 audit / api.md / data-model.md). phase 갱신 P2-in-progress → P2-uc-bodies-complete."
+    "note": "session #7 turn 7/10 — T-0029 (P2 UC 인벤토리 audit) MERGED via PR-28 round 1/7 squash cd61232. driver workaround 11번째 표준 절차. reviewer round 1/7 APPROVE 0 BLOCKER/MAJOR 2 MINOR (narrative 수치 / placeholder — absorbable). CI rerun --failed 11번째 dogfood. counters 27→28 (+7 in session). **66 REQ classified**: uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1 (REQ-004 사용자 지정 기간 임의 평가문). gap follow-up 권장 (UC-09 신설 또는 UC-01 확장 — T-0031+ 별도). P2 남은 entry artifact 2 (api.md / data-model.md). phase 갱신 P2-uc-bodies-complete → P2-uc-audit-complete."
   },
   "ci": {
-    "lastRun": "2026-05-25T10:58:00+09:00",
+    "lastRun": "2026-05-25T11:23:00+09:00",
     "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26379187503",
-    "note": "PR-27 (T-0028) CI run 26379187503 attempt 2 pass on rerun. 표준 절차 10차 dogfood. P2 UC backbone 8/8 closure 머지."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26379667170",
+    "note": "PR-28 (T-0029) CI run 26379667170 attempt 2 pass on rerun. 표준 절차 11차 dogfood."
   },
-  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1},
+  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1},
   "blockers": [],
   "humanQuestions": [
     {
@@ -59,7 +59,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 27,
+    "tasksCompleted": 28,
     "tasksBlocked": 0,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
