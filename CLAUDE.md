@@ -11,6 +11,23 @@
 
 ---
 
+## 0.5 Hard rule 인덱스 (cheat sheet — 본문 § 참조)
+
+prompt 후반부에 박힌 hard rule 의 attention drift 누락을 막기 위해 핵심 8 개를 앞단에 모은다. 본문은 각 § 에서 자세히 — 본 인덱스는 navigation + 한 줄 요약.
+
+1. **R-110~R-114 (test/CI 절대 규칙)** — pr-mode tester 의무, CI fail = merge 차단, happy/error/branch/negative test 필수, smoke+e2e 도 CI 에서. → §3.2.
+2. **4-게이트 (reviewer + integrator 이중 합의)** — reviewer.APPROVE + PR comment 외부 존재 + integrator 자체 점검 + CI green. 하나라도 false → ANOTHER_ROUND / BLOCKED. → §3.3.
+3. **Sub-agent dispatch (context 누적 방지)** — driver → executor → {architect, implementer, tester, ...}. 3 단계 chain 금지. 모든 sub-agent ≤ 200 char SUMMARY + trail blob 만 반환. → §4.
+4. **Push source/target 매칭** — direct → main 에서 `push HEAD:main`. pr → feature branch 에서 `push HEAD:claude/T-NNNN-<slug>`. source ≠ target push 는 agent 자동 실행 금지. 위반 = `wrong-source-branch` BLOCKED. → [docs/LOOP.md](docs/LOOP.md) §4.
+5. **STATE single-writer** — `STATE.json` / journal / counters 는 driver / planner / notifier 만 write. counter 는 origin+1 read-modify-write. → §9.
+6. **Commit trail blob 표준 포맷** — 모든 commit (direct · pr) 본문에 trail blob 포함. 헤더 / 키는 영어, 값 / 본문은 한국어. `notes` / `coverage` ≤ 2 줄. → §11.
+7. **언어 정책** — commit subject · body / 코드 주석 / PR comment / 문서 본문 = 한국어. 식별자 / enum / commit type prefix / 명령어 / 경로 / status 토큰 = 영어. → §12.
+8. **1 task = 1 commit / 1 fire = 1 task** — task 크기 ≤ 300 LOC / 5 파일. 다른 주제는 즉시 고치지 말고 task 의 Follow-ups 에. cron 1 fire 1 task 후 종료. → §3 + [docs/LOOP.md](docs/LOOP.md) §1 [7].
+
+historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-0007 PR-8 source≠target / T-0003 jest.roots catch 누락 / T-0001 task-too-large / T-0009 PR-10 spec check — [docs/progress/](docs/progress/) journal 참조.
+
+---
+
 ## 1. 기술 스택 (확정)
 
 | 영역 | 선택 |
