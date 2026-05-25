@@ -1,17 +1,18 @@
 {
   "schemaVersion": 1,
   "phase": "P2-complete",
-  "currentTask": null,
-  "nextTask": "T-0032",
+  "currentTask": "T-0032",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-25T12:05:00+09:00",
+  "lastActivity": "2026-05-25T12:25:00+09:00",
   "lastCommit": "83b8b42",
   "mostRecentTasks": ["T-0031", "T-0030", "T-0029", "T-0028", "T-0027"],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-05-25T08:30:00+09:00",
     "cap": 10,
-    "note": "session #7 turn 9/10 — T-0031 (data-model.md) MERGED via PR-30 round 1/7 squash 83b8b42. **🎉 Phase P2 fully complete 달성** — UC-01~08 bodies + 매핑 + audit + api.md + data-model.md + directory.md (6 entry artifact 모두 main). driver workaround 12번째 표준 절차. reviewer round 1/7 APPROVE 0 BLOCKER/MAJOR 3 MINOR (entity count narrative / cardinality nuance / ADR typo — 모두 absorbable). CI rerun --failed 12번째 dogfood. counters 29→30 (+9 in session). phase 갱신 P2-api-complete → P2-complete. **Phase P3 (Domain core) 진입 준비**: T-0032 P3-Entry implementation-plan.md 큐잉 (11 P3 PLAN bullet ↔ ~8 T-NNNN sequence 매핑, ADR / 의존성 / human approval gate 박제). 다음 turn 은 T-0032 executor (cap 마지막 turn 10) — turn 10 에서 T-0032 머지 후 session #7 cap halt."
+    "haltedReason": "loopSession #7 cap (10) 도달 — LOOP.md §1 [8] (e) 에 따라 ScheduleWakeup 안 함. 사용자 cleanup (/compact 또는 /clear) 후 새 /loop session 으로 T-0032 PR-31 round 3 진행 권장. T-0032 PR-31 OPEN 상태 (round 2 REQUEST_CHANGES, BLOCKER 1 partial-fix 미해소).",
+    "note": "session #7 turn 10/10 (**CAP**) — T-0032 (P3-Entry implementation plan) PR-31 OPEN 상태로 cap halt. **두 번째 ANOTHER_ROUND 사례 in session** (T-0030 다음). round 1 REQUEST_CHANGES (4 MAJOR count inconsistencies + 3 MINOR) → driver 직접 fix c3aca76 → round 2 REQUEST_CHANGES **1 BLOCKER (partial fix)** + 1 MAJOR + 1 MINOR (comment 4531211816). 원인: round 1 fix 가 §2 합계 row 만 갱신, 5+1 군데 sibling references stale (L3 header / L11 §1 / L21 §2 opener / L135 References / INDEX L16 / PLAN L51 의 '11 bullet' 잔류); ADR-0002 wording 도 3 군데 sibling stale; SchedulerModule/WebModule 의 external adapter 오분류 1 건. session #8 에 round 3 진행 위임. **session #7 종합 통계 (turn 10 CAP)**: **9 PR 머지** (T-0023~T-0031) + counters 21→30 (+9) + reviewer round 누적 13 (T-0030 R2 / T-0032 R1+R2 포함) + driver workaround 12 + CI rerun 12 + 첫 ANOTHER_ROUND (T-0030 round 1→2 clean) + 첫 CI rerun-free (T-0030 R2) + executor commit/push miss patch (T-0028) + executor 결함 patch 2건 (T-0028 commit, T-0032 incomplete partial fix 사실상 driver lesson). **Phase 전이 4건**: P2-in-progress → P2-uc-bodies-complete → P2-uc-audit-complete → P2-api-complete → **P2-complete** (T-0031 머지). T-0032 PR-31 round 3 가 머지되면 P3-entry-merged → P3 본 task chain (T-0033+) 진입. P3 첫 task T-0033 은 `pnpm add prisma @prisma/client pg` 의존성 추가 trigger — CLAUDE.md §5 BLOCKED 게이트 (사용자 승인 필요)."
   },
   "ci": {
     "lastRun": "2026-05-25T12:00:00+09:00",
@@ -21,7 +22,7 @@
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26380653907",
     "note": "PR-30 (T-0031) CI run 26380653907 attempt 2 pass on rerun. 표준 절차 12차 dogfood. Phase P2 closure PR."
   },
-  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1},
+  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 2},
   "blockers": [],
   "humanQuestions": [
     {
