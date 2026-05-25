@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": null,
+  "currentTask": "T-0036",
   "nextTask": null,
-  "lock": null,
-  "lastActivity": "2026-05-25T21:25:00+09:00",
+  "lock": {"holder": "loop-session-8-turn-6", "since": "2026-05-25T21:30:00+09:00"},
+  "lastActivity": "2026-05-25T21:58:00+09:00",
   "lastCommit": "f14a84f",
   "mostRecentTasks": ["T-0035", "T-0034", "T-0033", "T-0032", "T-0031"],
   "loopSession": {
@@ -67,6 +67,19 @@
       "decisionNote": "사용자 결정 (a) — accept-latest-stable. T-0033 은 `pnpm add prisma @prisma/client pg` 로 latest stable (prisma@^5 + @prisma/client@^5 + pg@^8) 도입. 다음 driver turn 의 [1] 단계 미해결 humanQuestion 0 → currentTask=T-0033 resume → executor re-entry → architect (ADR-0002 status 갱신 / 선택한 version range 박제) + implementer (`pnpm add` + prisma/schema.prisma skeleton + src/persistence/{prisma.service.ts, persistence.module.ts} + docker-compose.yml + .env.example + app.module.ts wiring + unit/error/branch/negative tests) + tester (lint + build + test:cov coverage line/function ≥ 80% + smoke + e2e) + reviewer (PR diff 8-check) + integrator (4-게이트 + squash merge).",
       "resolvedAt": "2026-05-25T13:00:00+09:00",
       "resolvedBy": "human"
+    },
+    {
+      "id": "HQ-0005",
+      "createdAt": "2026-05-25T21:45:00+09:00",
+      "taskId": "T-0036",
+      "question": "T-0036 (P3 넷째 task — PersonService + PersonController + DTO) 는 NestJS REST endpoint payload 검증을 위해 일반적으로 `class-validator` + `class-transformer` 두 패키지에 의존한다 (NestJS 공식 권장 validation pipe: `app.useGlobalPipes(new ValidationPipe())`). 현재 [package.json](../package.json) dependencies 에 둘 다 부재 — 새 외부 dependency 2 종 추가 = [CLAUDE.md §5](../CLAUDE.md) HITL BLOCKED 게이트 발화 대상. ADR-0001 (NestJS 채택) 는 표준 NestJS stack 을 정당화 하나 본 두 패키지의 explicit 도입은 ADR 박제 안 됨. 옵션:\n  (a) **standard-class-validator-stack** — `pnpm add class-validator class-transformer` (latest stable, NestJS 10 권장 호환 — class-validator@^0.14 + class-transformer@^0.5). T-0036 의 controller layer 가 `@IsString()` / `@IsBoolean()` / `@IsOptional()` 등 decorator + `ValidationPipe` 로 runtime 검증. ADR-0002 의 Prisma 와 정합 (Prisma 가 DB 차원 strict typing 제공 + class-validator 가 HTTP request 차원 추가 layer).\n  (b) **defer-validation-task** — T-0036 은 PersonService + Controller 만 plain TypeScript type 으로 작성 (runtime validation 0, build-time only). 별도 T-0036.5 또는 T-0037+ task 가 class-validator 도입 + 모든 DTO retroactive decorate. 일시적으로 controller 가 `unknown` body 를 manual type-check 또는 Service-layer 에서 검증.\n  (c) **plain-typescript-only** — class-validator 영구 미도입. controller 가 manual validation (`if (typeof body.name !== 'string') throw new BadRequestException(...)`) 패턴 채택. NestJS 표준에서 벗어남 — 별도 ADR 박제 필요.\n  (d) **other** — alternative library (`zod` / `joi` 등) 또는 dependency 추가 자체 보류.\n\n옵션 선택 후 driver turn 의 [1] 단계 humanQuestion 처리에서 planner 가 결정에 따라 T-0036 작성. (a) 가 NestJS 표준 + ADR-0001 정합 + 최소 도입 비용으로 권장.",
+      "options": ["standard-class-validator-stack", "defer-validation-task", "plain-typescript-only", "other"],
+      "decision": "standard-class-validator-stack",
+      "decisionNote": "사용자 결정 (a) — standard-class-validator-stack. T-0036 은 `pnpm add class-validator class-transformer` (latest stable: class-validator@^0.14 + class-transformer@^0.5, NestJS 공식 권장 stack, ADR-0001 NestJS 채택과 정합) 도입 후 PersonService + PersonController + DTO + ValidationPipe 한 task 로 진행. 다음 단계: 본 turn 안에서 planner 재호출 → T-0036 task 파일 작성 (HQ-0005 resolved 반영).",
+      "resolvedAt": "2026-05-25T21:50:00+09:00",
+      "resolvedBy": "human",
+      "processedByPlanner": true,
+      "processedAt": "2026-05-25T21:55:00+09:00"
     }
   ],
   "counters": {
