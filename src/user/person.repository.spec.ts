@@ -23,6 +23,9 @@ function buildPersonFixture(overrides: Partial<Person> = {}): Person {
     fullName: "홍길동",
     email: "hong@example.com",
     active: true,
+    // T-0039 — Person 에 partId nullable 컬럼 추가. fixture 의 default 는 null
+    // (Part 미배정). mandatory 1 Part invariant 의 service-layer 강제는 T-0040.
+    partId: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,

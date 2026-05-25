@@ -20,13 +20,15 @@ import type { UpdatePersonDto } from "./dto/update-person.dto";
 import type { PersonRepository } from "./person.repository";
 import { PersonService } from "./person.service";
 
-// Person fixture — 6 컬럼 (schema.prisma) 를 모두 채운 default row.
+// Person fixture — 7 컬럼 (schema.prisma) 를 모두 채운 default row.
+// T-0039 가 partId nullable 컬럼 추가, fixture default 는 null (Part 미배정).
 function buildPersonFixture(overrides: Partial<Person> = {}): Person {
   return {
     id: "cuid-default",
     fullName: "홍길동",
     email: "hong@example.com",
     active: true,
+    partId: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,

@@ -1,6 +1,8 @@
-// Prisma schema — T-0033 (init) + T-0034 (Person model + 첫 migration) 위에
-// T-0035 가 ServiceIdentity model + Person↔ServiceIdentity 1:N relation +
-// `@@unique([personId, service])` invariant 를 추가한다.
+// Prisma schema — T-0033 (init) + T-0034 (Person model + 첫 migration) +
+// T-0035 (ServiceIdentity model + Person↔ServiceIdentity 1:N relation +
+// `@@unique([personId, service])` invariant) 위에
+// T-0039 가 Group + Part + PersonGroupMembership (join) model 3 종과
+// Person↔Part N:1 + Person↔Group N:M (via join) relation 을 추가한다.
 //
 // Prisma 7.x 모델 (Prisma 5.x 와 차이):
 //   - datasource.url 은 schema 가 아닌 `prisma.config.ts` 에서 adapter 로 inject.
@@ -9,14 +11,34 @@
 //   - 추가 dependency `@prisma/adapter-pg` 가 본 결정의 implication 으로 자동 도입
 //     (T-0033 acceptance).
 //
-// T-0035 책임 범위:
-//   - ServiceIdentity model 1 개 추가 (id / personId / service / externalId /
-//     isPrimary / createdAt / updatedAt).
-//   - Person.serviceIdentities relation 필드 1 줄 추가.
-//   - `@@unique([personId, service])` invariant — 1 Person 의 동일 service 중복 금지.
-// 추가 entity (Group / Part / User / Assessment / Contribution / Summary /
-// LlmProviderConfig / DifficultyMapping / PermissionDeniedRecord) 는 T-0036+
-// 의 책임이므로 본 task 의 Out of Scope.
+// T-0039 책임 범위:
+//   - Group model 1 개 추가 (id / name / createdAt / updatedAt).
+//   - Part model 1 개 추가 (id / name unique / createdAt / updatedAt).
+//   - PersonGroupMembership join model (id / personId / groupId / createdAt;
+//     `@@unique([personId, groupId])` — 동일 Person 의 동일 Group 중복 소속 금지).
+//   - Person.partId nullable + Person.part / Person.groups relation 필드.
+//   - Part.persons / Group.memberships reverse relation 필드.
+//
+// 본 task 의 schema 차원 결정:
+//   - Person.partId 는 **nullable** 유지. REQ-028 의 mandatory 1 Part invariant 는
+//     service-layer (후속 T-0040) 책임. 본 task 는 schema 차원에서 (a) 기존 Person
+//     row 의 default Part seed migration 부재 + (b) NOT NULL 전환 의 2 단계 cost
+//     를 회피 — nullable + Follow-up 명시.
+//   - Person → Part cascade: `onDelete: SetNull` 채택 안 함, default `Restrict`
+//     (Prisma 의 default behaviour — FK constraint 가 P2003 throw). 이유: REQ-028
+//     "Part 정확히 1" invariant 의 schema 차원 enforce — 소속 Person 1+ 일 때 Part
+//     삭제를 막아 dangling reference 자체를 차단. 모든 Person 을 다른 Part 로
+//     재배치한 뒤에야 Part 삭제 가능 (service-layer 책임).
+//   - PersonGroupMembership → Person cascade: `onDelete: Cascade` — Person 삭제 시
+//     모든 membership row 동반 삭제. 단 Person 의 hard delete 는 REQ-026 에 따라
+//     발생 안 함 (soft delete `active=false`), 본 cascade 는 안전망.
+//   - PersonGroupMembership → Group cascade: `onDelete: Cascade` — Group 삭제 시
+//     모든 membership row 동반 삭제. Group 은 hard delete 채택 (소속 Person 0+
+//     무관 — REQ-028 "임의 group" semantics 가 Group 의 자유로운 삭제 허용).
+//
+// 추가 entity (User / Assessment / Contribution / Summary / LlmProviderConfig /
+// DifficultyMapping / PermissionDeniedRecord) 는 T-0040+ 의 책임이므로 본 task
+// 의 Out of Scope.
 
 datasource db {
   provider = "postgresql"
@@ -43,6 +65,71 @@ model Person {
   // `onDelete: Cascade` 가 양방향 의미를 박제). soft delete (active=false) 시에는
   // 본 cascade 발동 안 함 — ServiceIdentity 는 그대로 보존.
   serviceIdentities ServiceIdentity[]
+
+  // T-0039 — Person ↔ Part N:1 (mandatory in service-layer; schema 차원 nullable).
+  // REQ-028 의 "조직도 파트 정확히 1" invariant 의 service-layer 강제는 후속 T-0040
+  // 책임. 본 task 는 schema 차원에서 nullable 유지 + Follow-up 명시.
+  // Part 삭제 시 본 row 의 partId 는 default `Restrict` (FK constraint P2003) 로
+  // 보호된다 — 모든 Person 의 part 가 재배치된 후에야 Part 삭제 가능.
+  partId String?
+  part   Part?   @relation(fields: [partId], references: [id])
+
+  // T-0039 — Person ↔ Group N:M via PersonGroupMembership join entity.
+  // REQ-028 의 "임의 group 다중 소속 가능" semantics — 1 Person 은 0+ Group.
+  // PersonGroupMembership 의 `onDelete: Cascade` 가 Person 삭제 시 모든 membership
+  // row 를 동반 삭제 (안전망 — Person 은 REQ-026 에 따라 hard delete 채택 안 함).
+  groups PersonGroupMembership[]
+}
+
+// Group — data-model.md §2 row 3 + §3 관계 2 + REQ-028 의 schema 차원 박제.
+// 1 Person 이 임의 다수 Group 에 소속 가능 (N:M) — PersonGroupMembership join 으로 표현.
+// 본 task 는 schema 차원에서 hard delete 채택 — Group 삭제 시 PersonGroupMembership
+// row 들이 cascade 동반 삭제. Person 의 part 와 달리 Group 은 "조직도 파트" 가 아닌
+// 자유로운 grouping 이므로 자유로운 삭제 허용 (REQ-028 "임의 group" semantics).
+model Group {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // reverse relation — 1 Group 은 0+ PersonGroupMembership row 를 가진다.
+  memberships PersonGroupMembership[]
+}
+
+// Part — data-model.md §2 row 4 + §3 관계 3 + REQ-028 의 schema 차원 박제.
+// "조직도 파트" — 1 Person 은 정확히 1 Part 에 소속 (mandatory invariant 는
+// service-layer 책임, 본 task 는 schema 차원에서 nullable 유지).
+// `name @unique` — 동일 이름의 Part 중복 금지 (조직도의 고유성 가정).
+// Part → Person 의 cascade 는 default `Restrict` (Prisma 의 default behaviour) —
+// 소속 Person 1+ 인 Part 삭제 시 FK constraint (P2003) 가 throw, dangling
+// reference 차단. service-layer 가 사전에 모든 Person 의 part 를 재배치 책임.
+model Part {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // reverse relation — 1 Part 는 0+ Person 을 거느린다.
+  persons Person[]
+}
+
+// PersonGroupMembership — Person ↔ Group 의 N:M join entity (data-model.md §3
+// 관계 2). 각 row 가 (personId, groupId) 한 쌍을 박제. `@@unique([personId, groupId])`
+// invariant — 동일 Person 의 동일 Group 중복 소속 금지.
+//
+// cascade 정책 (schema.prisma 헤더 결정 §28–37 참조):
+//   - Person 삭제 시 본 row Cascade 동반 삭제 (안전망 — Person 은 soft delete 채택).
+//   - Group 삭제 시 본 row Cascade 동반 삭제 (Group 의 자유 삭제 semantics).
+model PersonGroupMembership {
+  id        String   @id @default(cuid())
+  personId  String
+  groupId   String
+  createdAt DateTime @default(now())
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, groupId])
 }
 
 // ServiceIdentity — data-model.md §2 row 2 + §3 관계 1 + REQ-023 / REQ-024 cover.
