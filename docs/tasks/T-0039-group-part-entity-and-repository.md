@@ -2,7 +2,9 @@
 id: T-0039
 title: Group + Part entity Prisma model + GroupRepository + PartRepository + UserModule wiring (Service/Controller 는 후속 task 책임)
 phase: P3
-status: PENDING
+status: BLOCKED
+prNumber: 37
+mergedAs: pending
 commitMode: pr
 coversReq: [REQ-028]
 estimatedDiff: 280
@@ -103,3 +105,30 @@ plannerSource: docs/architecture/p3-implementation-plan.md §2 표 row "Group + 
 - [ ] T-0040 (또는 다음 backbone) — GroupService + PartService + Controller + DTO + class-validator decorator + Person.partId NOT NULL 전환 + default Part seed.
 - [ ] PersonRepository 확장 — `findByPartId(partId)` + `findByGroupId(groupId)` query 메서드.
 - [ ] data-model.md / api.md / modules.md living document 갱신 — Group / Part / PersonGroupMembership entity 의 컬럼 박제 + Person↔Part / Person↔Group endpoint 추가.
+
+## Blocker
+
+**Status**: BLOCKED — HQ-0006 / Q-0006 (reason: `credential`) raised 2026-05-26T05:27:50+09:00.
+
+**현황**:
+
+- 코드 작업 완료 — feature branch `claude/T-0039-group-part-entity-and-repository` 의 commit **612a02b** 가 push 되고 [PR-37](https://github.com/myungjoo/Assessment-Agent/pull/37) 이 GitHub MCP tool 로 open. base=main / head=claude/T-0039-group-part-entity-and-repository.
+- executor sub-agent 안에서 5종 grand validation 통과 — `pnpm lint` + `pnpm build` + `pnpm test:cov` (line/function 100% / threshold global 80% 통과) + `pnpm test:smoke` + `pnpm test:e2e` (총 159 tests pass).
+- **size cap 위반** — 11 파일 / +867 / -28 LOC (cap: ≤5 파일 / ≤300 LOC). executor 는 T-0035 (1 entity = 510 LOC / 5 파일 MERGED) 선례의 3 entity 비례로 정당화 시도. 본 게이트는 reviewer 의 size check 판단 대상 (README 117–128 §size).
+
+**Blocker 본질** (gh CLI 부재):
+
+- 본 Anthropic cloud 실행 환경에 `gh` CLI 가 설치되어 있지 않다.
+- [.claude/agents/reviewer.md](../../.claude/agents/reviewer.md) 는 verdict 를 `gh pr comment` 로 외부 post 의무 — §3.3 4-게이트 #2 (PR 에 reviewer comment 외부 존재) 의 핵심.
+- [.claude/agents/integrator.md](../../.claude/agents/integrator.md) 는 `gh pr checks` (게이트 #4 CI green 확인) + `gh pr merge --squash --delete-branch` (squash merge + branch 정리) 의무.
+- driver 는 GitHub MCP tool (`mcp__github__*`) 을 보유하나 두 agent 의 instruction 본문은 MCP 호환 형태가 아니다 — agent dispatch 시 도구 부재로 fail.
+- 따라서 PR-37 의 reviewer round + 4-게이트 자동 진행 + squash merge 가 **본 turn 에서 불가**. 사용자 결정 후 재개.
+
+**Resume 조건**:
+
+- HQ-0006 에 사용자가 옵션 선택 (install-gh-cli / adapt-agents-to-mcp / manual-review-and-merge / other) + (선택 옵션에 따른 추가 action: gh 설치 / MCP 적응 task 머지 / 수동 merge commit SHA 알림) 완료 시 다음 driver turn 의 [1] 단계에서 humanQuestion resolved 감지 → currentTask=T-0039 resume.
+
+**관련 commit**:
+
+- feature branch tip: `612a02b` (push 완료).
+- PR-37 open via GitHub MCP — base main / head claude/T-0039-group-part-entity-and-repository.

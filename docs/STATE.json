@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": null,
-  "nextTask": "T-0039",
+  "currentTask": "T-0039",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-26T03:32:00+09:00",
+  "lastActivity": "2026-05-26T05:27:50+09:00",
   "lastCommit": "a89d6af",
   "mostRecentTasks": ["T-0038", "T-0037", "T-0036", "T-0035", "T-0034"],
   "loopSession": {
@@ -22,7 +22,15 @@
     "note": "cron #7 의 T-0038 DONE commit (14e8256) + lastCommit 동기화 commit (a89d6af) 의 main CI 는 doc-only 로 통과 가정 (별도 conclusion 확인은 본 cron #8 가 push 후 [5] 단계에서 latest run 확인). cron #8 본 commit (T-0039 queued — doc-only direct: task 파일 + STATE.nextTask + journal append) 도 doc-only — lint/build/test 모두 no-op 으로 통과 예상, push 후 별도 conclusion 확인. 다음 cron #9 가 T-0039 promote + executor pr-mode full chain dispatch."
   },
   "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1, "T-0035": 1, "T-0036": 2, "T-0037": 1},
-  "blockers": [],
+  "blockers": [
+    {
+      "id": "Q-0006",
+      "taskId": "T-0039",
+      "raisedAt": "2026-05-26T05:27:50+09:00",
+      "reason": "credential",
+      "details": "gh CLI 가 Anthropic cloud 실행 환경에 부재. reviewer/integrator agent 가 PR comment post (4-게이트 #2) / CI checks 조회 (#4) / squash merge 전부 gh 의존 — PR-37 의 4-게이트 자동 진행 불가. HQ-0006 으로 사용자 결정 대기."
+    }
+  ],
   "humanQuestions": [
     {
       "id": "HQ-0001",
@@ -80,11 +88,26 @@
       "resolvedBy": "human",
       "processedByPlanner": true,
       "processedAt": "2026-05-25T21:55:00+09:00"
+    },
+    {
+      "id": "HQ-0006",
+      "createdAt": "2026-05-26T05:27:50+09:00",
+      "taskId": "T-0039",
+      "reason": "credential",
+      "summary": "T-0039 PR-37 의 reviewer/integrator 4-게이트 자동 진행이 막혔다 — Anthropic cloud 실행 환경에 `gh` CLI 가 부재하여 reviewer 의 PR comment post (게이트 #2 외부 사실) / integrator 의 CI checks 조회 (게이트 #4) / squash merge 가 전부 불가. 진행 경로를 선택해달라.",
+      "options": [
+        "install-gh-cli — 본 실행 환경에 gh CLI 설치 + `gh auth login` 완료. reviewer/integrator agent 정의 변경 없이 기존 flow 그대로 PR-37 reviewer round + 4-게이트 + squash merge 진행. 가장 빠른 unblock.",
+        "adapt-agents-to-mcp — reviewer/integrator agent 정의를 GitHub MCP tool 호출 (mcp__github__create_pull_request_review / mcp__github__merge_pull_request 등) 로 재작성. 별도 doc-only direct task (또는 ADR) 로 분리 → T-0039 는 그 task 머지 후 재개. 장기적으로 cloud-native.",
+        "manual-review-and-merge — 사용자가 PR-37 (https://github.com/myungjoo/Assessment-Agent/pull/37) 을 직접 review + GitHub UI 또는 로컬 gh 로 squash merge + branch delete. 머지 commit SHA 를 댓글로 알려주면 driver 가 STATE.lastCommit / mostRecentTasks / counters.tasksCompleted++ / task frontmatter status DONE + mergedAs<SHA> 로 마무리.",
+        "other — 위 3 옵션이 다 부적합. 사용자가 대안을 명시 (예: PR-37 close + 코드 폐기 / size cap 위반 사유로 reviewer 호출 전 split task 재작성 등)."
+      ],
+      "optionSlugs": ["install-gh-cli", "adapt-agents-to-mcp", "manual-review-and-merge", "other"],
+      "context": "T-0039 코드 작업 자체는 완료 — commit 612a02b 가 claude/T-0039-group-part-entity-and-repository 에 push 되고 PR-37 (https://github.com/myungjoo/Assessment-Agent/pull/37) 이 GitHub MCP 로 open. 5종 grand validation (lint + build + test:cov line/function 100% + smoke + e2e on 159 tests) 은 executor sub-agent 안에서 로컬 pass. 단 (1) size cap 위반 — 11 파일 / +867 -28 LOC (cap ≤5 / ≤300) — T-0035 (1 entity = 510 LOC / 5 파일 MERGED) 선례의 3 entity 비례 정당화 시도, reviewer 의 size check 판단 필요. (2) BLOCKED 본질 — .claude/agents/integrator.md 와 .claude/agents/reviewer.md 가 PR open / `gh pr comment` (reviewer verdict 외부 post — §3.3 게이트 #2) / `gh pr checks` (게이트 #4) / `gh pr merge --squash --delete-branch` 에 전부 gh CLI 의존. 본 cloud 환경엔 gh 부재 — driver 가 GitHub MCP tool 은 보유하나 agent 들은 MCP 호환 아님. PR-37 은 open 상태로 대기, base=main / head=claude/T-0039-group-part-entity-and-repository."
     }
   ],
   "counters": {
     "tasksCompleted": 37,
-    "tasksBlocked": 1,
+    "tasksBlocked": 2,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
   }
