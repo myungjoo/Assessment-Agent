@@ -1,18 +1,16 @@
 // 애플리케이션 진입점. NestJS 표준 부트스트랩 패턴.
 // 외부 의존성(`@nestjs/config` 등)은 의도적으로 도입하지 않음 (T-0004 Out of Scope).
+// PORT env parsing 의 분기 로직은 ./parse-port 로 분리 — main.ts 자체는
+// CLAUDE.md §3.2 R-112 entrypoint 예외 정책에 따라 coverage / spec-presence
+// 제외이지만, 분기 있는 helper 는 R-112 negative cases 충분 cover 의무.
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
-
-// 기본 포트. env.PORT 가 있고 유효한 양수면 그것을 사용, 그 외에는 3000.
-const DEFAULT_PORT = 3000;
+import { parsePort } from "./parse-port";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
-  // env 변수 파싱은 단순 패턴: 유효한 양수만 통과, 나머지는 fallback.
-  const parsedPort = Number.parseInt(process.env.PORT ?? "", 10);
-  const port =
-    Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : DEFAULT_PORT;
+  const port = parsePort(process.env.PORT);
   await app.listen(port);
 }
 

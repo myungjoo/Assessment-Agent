@@ -120,6 +120,7 @@ historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-00
   3. flow / 분기 cover (분기 발생 시 각 분기 1+ test)
   4. **negative cases 충분 cover** — 예외 상황 (권한 부족 · 빈 입력 · 경계값 · type mismatch · 의존성 실패 · 비정상 시퀀스 등) **각 1+ test**. 단일 negative 만으로 부족 — 예외 처리 분기마다 cover.
 - **Coverage 최소치 (jest `coverageThreshold` 강제)**: **line ≥ 80% AND function ≥ 80%** (`package.json` 의 `coverageThreshold.global`). 미달 시 jest exit 1 → CI `test:cov` step fail → PR red.
+- **Entrypoint 예외**: `src/main.ts` 같이 NestJS 부트스트랩 함수만 담는 entrypoint 는 직접 unit-test 가 까다로워 [package.json](package.json) 의 `coveragePathIgnorePatterns` + [scripts/check-spec-presence.sh](scripts/check-spec-presence.sh) 에서 제외 처리. 단 entrypoint 안에 **분기 있는 helper 로직** (env parsing · 조건 부 init 등) 이 있으면 **별도 함수로 분리해 unit-testable 하게** 만들고 spec 추가 의무 — entrypoint 는 helper 호출만. helper 분리 없이 entrypoint 안에 분기 두면 R-112 위반. 예: `src/parse-port.ts` (helper) + `src/parse-port.spec.ts` (R-112 4 종 + negative cases 충분 cover).
 - patch task (frontmatter `hqOrigin` 있음) 는 추가로 **regression test 1+** 의무 — 결함이 다시 발생하면 그 test 가 fail 하도록.
 
 **R-113** ([README.md](README.md) 113행) — unit 외에 **smoke + end-to-end test 도 CI 에서 함께 수행**.
