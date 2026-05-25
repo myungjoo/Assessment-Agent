@@ -2,7 +2,7 @@
 id: T-0033
 title: P3 — Prisma + PostgreSQL scaffold + PersistenceModule skeleton (인간 승인 게이트 발화)
 phase: P3
-status: PENDING
+status: BLOCKED
 commitMode: pr
 coversReq: [REQ-058]
 estimatedDiff: 280
@@ -119,7 +119,9 @@ executor 가 본 task 진입 시 다음 절차를 **순서대로** 수행한다:
 
 ## Suggested Sub-agents
 
-순서: **(BLOCKED phase 1)** `executor → notifier` (인간 승인 게이트 발화 + 종료) → **(사용자 결정 후 phase 2)** `executor → architect → implementer → tester → reviewer → integrator`.
+순서: **(BLOCKED phase 1 — DONE cron #2 2026-05-25T12:42 KST)** `executor → notifier` (인간 승인 게이트 발화 + 종료, HQ-0004 박제) → **(사용자 결정 후 phase 2 — PENDING)** `executor → architect → implementer → tester → reviewer → integrator`.
+
+**Phase 1 결과** (cron #2): executor 가 §A 규약대로 architect/implementer 호출 일절 없이 STATE.humanQuestions 박제 요청 + STATUS=BLOCKED 반환. driver 가 HQ-0004 박제 (3 옵션: `accept-latest-stable` / `specify-versions` / `other`) + task frontmatter status BLOCKED 갱신 + main 에 direct commit. 사용자 답변 시 다음 cron 발화의 [1] 단계에서 미해결 humanQuestion 0 → resume.
 
 ## Follow-ups
 
