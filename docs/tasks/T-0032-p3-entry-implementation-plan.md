@@ -2,15 +2,19 @@
 id: T-0032
 title: P3-Entry — docs/architecture/p3-implementation-plan.md 신설 (P3 PLAN bullet ↔ task 시퀀스 매핑)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-032, REQ-037, REQ-038, REQ-041, REQ-043, REQ-044, REQ-045, REQ-046, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-063]
 estimatedDiff: 140
 estimatedFiles: 3
 created: 2026-05-25
-plannerNote: P3 첫 task — Domain core 의 11 PLAN bullet 을 T-0033~T-0040+ task 시퀀스로 매핑 + ADR / 의존성 / 인간 승인 게이트 박제. doc-only pr.
+completedAt: 2026-05-25T12:30:00+09:00
+prNumber: 31
+mergedCommit: 6c4bb24
+reviewRounds: 3
+plannerNote: P3 첫 task — Domain core 의 10 PLAN bullet 을 T-0033~T-0040 task 시퀀스로 매핑 + ADR / 의존성 / 인간 승인 게이트 박제. doc-only pr.
 dependsOn: [T-0028, T-0029, T-0030, T-0031]
-blocks: []
+blocks: [T-0033, T-0034, T-0035, T-0036, T-0037, T-0038, T-0039, T-0040]
 hqOrigin: null
 ---
 
