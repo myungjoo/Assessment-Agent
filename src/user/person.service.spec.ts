@@ -271,6 +271,115 @@ describe("PersonService", () => {
       expect(repoMock.update).toHaveBeenCalledWith("id-4", {});
     });
 
+    // T-0037 acceptance C — active forward (단독 / 동시 / regression / branch / negative)
+    it("REGRESSION: T-0036 MAJOR-2 — active+other 동시 patch active forward (happy)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      const fixture = buildPersonFixture({ id: "id-co", active: true });
+      repoMock.update.mockResolvedValueOnce(fixture);
+
+      const service = new PersonService(repository, prisma);
+      const patch: UpdatePersonDto = { fullName: "박영희", active: true };
+      const result = await service.update("id-co", patch);
+
+      // active 키가 spread 에 forward 되는지가 본 regression 의 핵심 — 묵시 drop 시 fail.
+      expect(repoMock.update).toHaveBeenCalledWith("id-co", {
+        fullName: "박영희",
+        active: true,
+      });
+      expect(result).toBe(fixture);
+    });
+
+    it("동시 patch — active:false + email 동시 forward (happy + branch)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      repoMock.update.mockResolvedValueOnce(
+        buildPersonFixture({ active: false }),
+      );
+
+      const service = new PersonService(repository, prisma);
+      await service.update("id-co2", { active: false, email: "x@y.z" });
+
+      expect(repoMock.update).toHaveBeenCalledWith("id-co2", {
+        active: false,
+        email: "x@y.z",
+      });
+    });
+
+    it("단독 active:true patch 가 {active:true} 로 forward 된다 (happy + branch)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      repoMock.update.mockResolvedValueOnce(buildPersonFixture());
+
+      const service = new PersonService(repository, prisma);
+      await service.update("id-a1", { active: true });
+
+      expect(repoMock.update).toHaveBeenCalledWith("id-a1", { active: true });
+    });
+
+    it("단독 active:false patch 가 {active:false} 로 forward 된다 (happy + branch)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      repoMock.update.mockResolvedValueOnce(
+        buildPersonFixture({ active: false }),
+      );
+
+      const service = new PersonService(repository, prisma);
+      await service.update("id-a0", { active: false });
+
+      expect(repoMock.update).toHaveBeenCalledWith("id-a0", { active: false });
+    });
+
+    it("active undefined (fullName 만 patch) 시 active 키 자동 추가 없음 (regression branch)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      repoMock.update.mockResolvedValueOnce(buildPersonFixture());
+
+      const service = new PersonService(repository, prisma);
+      await service.update("id-noact", { fullName: "유관순" });
+
+      // active 키가 자동으로 추가되어선 안 됨 — undefined 분기가 spread 에서 제외.
+      const callArg = repoMock.update.mock.calls[0][1];
+      expect(callArg).toEqual({ fullName: "유관순" });
+      expect("active" in callArg).toBe(false);
+    });
+
+    it("동시 patch + P2025 propagate 시 NotFoundException 으로 변환 (error)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      repoMock.update.mockRejectedValueOnce(buildPrismaError("P2025"));
+
+      const service = new PersonService(repository, prisma);
+      await expect(
+        service.update("missing", { active: true, fullName: "x" }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("동시 patch + P2002 propagate 시 ConflictException 으로 변환 (error)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      repoMock.update.mockRejectedValueOnce(buildPrismaError("P2002"));
+
+      const service = new PersonService(repository, prisma);
+      await expect(
+        service.update("id-co3", { active: true, email: "dup@example.com" }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("active 가 boolean 이 아닌 값 (string) 도 service 는 raw forward — validator 책임 (negative)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      repoMock.update.mockResolvedValueOnce(buildPersonFixture());
+
+      const service = new PersonService(repository, prisma);
+      // class-validator 가 controller 단계에서 reject 하나 service 단위 격리 시 raw pass-through.
+      await service.update("id-ng", {
+        active: "true" as unknown as boolean,
+      });
+
+      expect(repoMock.update).toHaveBeenCalledWith("id-ng", { active: "true" });
+    });
+
     it("P2025 (record not found) 를 NotFoundException 으로 변환한다 (error)", async () => {
       const { repository, repoMock } = buildRepositoryMock();
       const { prisma } = buildPrismaMock();

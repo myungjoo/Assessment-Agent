@@ -95,6 +95,8 @@ step 수: 약 11 (autonumber 기준 — alt block 안의 분기 포함, 8 ≤ 11
 
 본 UC 는 **두 가지 "제거" 흐름** 을 명확히 구분한다. **Deactivate (soft)** — Person row 의 `isActive` flag 만 false 로 toggle, 기존 평가 데이터는 보존, UC-01 다음 cron 발화 시 평가 대상자 명단 제외 (휴직·이직 시 default). **Delete (hard)** — Person row 자체 제거. 참조 무결성 cascade vs restrict 정책 (Person → AssessmentRun → 평가 결과 row) 은 P3 data-model.md 의 책임. 실제 운영에서는 Deactivate 가 권장 default 이며 Delete 는 잘못 추가된 인원 등 예외 케이스에 한정.
 
+**Deactivate / Activate 의 trigger** 는 별도 endpoint 가 아닌 `PATCH /api/persons/:id` 의 partial update 로 cover — `{active:false}` 가 Deactivate, `{active:true}` 가 Activate. 다른 필드 (`fullName` / `email`) 와의 동시 patch 도 허용되어 한 번의 요청으로 reactivate + 이름 변경을 동시에 수행 가능 (RFC-7396 JSON Merge Patch semantic, REQ-026 + REQ-027 정합, T-0037 박제).
+
 ### 6.2 primary key 역할 ID 변경 (REQ-024)
 
 Person 의 primary key 역할 ID 는 4 서비스 ID 중 1 개 ([REQ-024](../requirements.md)). 본 ID 가 변경되는 경우 — 예: 기존 confluence.sec ID 였다가 github.sec ID 로 변경 — 기존 평가 데이터의 personId 참조가 의미상 유지되어야 한다. 본 UC 는 "변경 허용 + 기존 평가 데이터 보존" 의 conceptual level 만 박제하며, 구체 마이그레이션 흐름 (기존 평가 row 의 ID 재매핑 / 별도 mapping table 도입 / unique constraint 재구성) 은 P3 data-model.md 의 별도 ADR 책임.
