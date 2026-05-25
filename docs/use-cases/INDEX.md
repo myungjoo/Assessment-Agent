@@ -35,9 +35,11 @@ Phase P2 (Use case decomposition) 의 목표는 [README.md](../../README.md) + P
 | UC-05 | LLM 설정 (provider / model / 난이도) | Admin | Web UI, Backend API, LLM Gateway, DB Persistence | WebModule, LlmModule, AuthModule, PersistenceModule | REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055 | DONE |
 | UC-06 | 평가 결과 manual delete + 재수집 | Admin | Web UI, Backend API, DB Persistence | WebModule, AssessmentModule, AuthModule, PersistenceModule | REQ-037, REQ-041, REQ-045 | DONE |
 | UC-07 | Export / Import / Backup / Restore | Admin | Web UI, Backend API, DB Persistence | WebModule, AssessmentModule, AuthModule, PersistenceModule | REQ-030, REQ-032, REQ-045 | DONE |
-| UC-08 | 권한 부족 인식·통지 (GitHub / Confluence) | System (GitHub Adapter / Confluence Adapter emit → Web UI 표시) | GitHub Adapter, Confluence Adapter, Backend API, Web UI | GithubModule, ConfluenceModule, AssessmentModule, WebModule | REQ-008, REQ-016 | PLANNED |
+| UC-08 | 권한 부족 인식·통지 (GitHub / Confluence) | System (GitHub Adapter / Confluence Adapter emit → Web UI 표시) | GitHub Adapter, Confluence Adapter, Backend API, Web UI | GithubModule, ConfluenceModule, AssessmentModule, WebModule | REQ-008, REQ-016 | DONE |
 
 총 8 UC. README 의 7 단락 (Assessment Target / 평가 대상 인원 / 평가 자료의 저장 / 평가 자료의 시각화와 UI / 평가 실행 제약 / 보안 특성 / LLM Serving) 에서 추출. functional REQ cover 검증은 후속 task ("Use case 인벤토리 검증", [PLAN.md](../PLAN.md) L84) 에서 본격 수행.
+
+**P2 UC 본문 분해 8/8 closure** — UC-01 ~ UC-08 의 본문 분해 (T-0020 / T-0022 / T-0023 / T-0024 / T-0025 / T-0026 / T-0027 / T-0028) 가 모두 완료되어 본 INDEX.md 의 8 UC 모두 `status: DONE`. 후속 P2 task (api.md / data-model.md / Use case 인벤토리 검증) 는 본 backbone 위에서 진행.
 
 ## 3. 각 UC 별 description
 
@@ -71,7 +73,7 @@ Admin 이 저장된 평가 자료 (raw 미포함, REQ-032) 를 Export 하여 bac
 
 ### UC-08 권한 부족 인식·통지 (GitHub / Confluence)
 
-GitHub Adapter / Confluence Adapter 가 외부 시스템의 4xx 응답을 감지하면 PermissionDeniedEvent 를 emit. AssessmentModule 이 event 를 받아 DB 에 권한 부족 기록을 남기고, Web UI 가 사용자 (REQ-008 — GitHub) 및 관리자 (REQ-016 — Confluence) 모두 인식할 수 있도록 표시. 시스템 자체가 actor 인 use case — 사람이 직접 trigger 하지 않으나 사람이 인식·대응할 수 있어야 함.
+GitHub Adapter / Confluence Adapter 가 외부 시스템의 4xx 응답을 감지하면 PermissionDeniedEvent 를 emit. AssessmentModule 이 event 를 받아 DB 에 권한 부족 기록을 남기고, Web UI 가 사용자 (REQ-008 — GitHub) 및 관리자 (REQ-016 — Confluence) 모두 인식할 수 있도록 표시. 시스템 자체가 actor 인 use case — 사람이 직접 trigger 하지 않으나 사람이 인식·대응할 수 있어야 함. → [UC-08-permission-denied.md](UC-08-permission-denied.md)
 
 ## 4. References
 
@@ -98,4 +100,4 @@ GitHub Adapter / Confluence Adapter 가 외부 시스템의 4xx 응답을 감지
 
 본 INDEX.md 는 P2 의 후속 task (`P2-Mod-1` ~ `P2-Mod-N` — 각 UC 별 본문 분해) 와 P2 의 나머지 entry artifact (api.md / data-model.md / directory.md) 의 backbone 으로 사용된다. P3+ 의 모든 task 는 frontmatter 의 `coversReq` 또는 본문 Why 단락에서 본 INDEX.md 의 UC ID 를 인용하여 "본 task 는 UC-03 의 service layer 를 구현한다" 와 같이 추적성을 박제한다.
 
-Refs: T-0027, T-0026, T-0025, T-0024, T-0023, T-0022, T-0020, T-0019, T-0016, T-0017, ADR-0001, ADR-0002, ADR-0003, REQ-005, REQ-006, REQ-007, REQ-008, REQ-014, REQ-015, REQ-016, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-030, REQ-032, REQ-037, REQ-038, REQ-039, REQ-040, REQ-041, REQ-042, REQ-043, REQ-044, REQ-045, REQ-046, REQ-048, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055
+Refs: T-0028, T-0027, T-0026, T-0025, T-0024, T-0023, T-0022, T-0020, T-0019, T-0016, T-0017, ADR-0001, ADR-0002, ADR-0003, REQ-005, REQ-006, REQ-007, REQ-008, REQ-014, REQ-015, REQ-016, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-030, REQ-032, REQ-037, REQ-038, REQ-039, REQ-040, REQ-041, REQ-042, REQ-043, REQ-044, REQ-045, REQ-046, REQ-048, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055
