@@ -2,16 +2,20 @@
 id: T-0030
 title: P2 API contract 초안 — docs/architecture/api.md (HTTP endpoint 표 + 8 UC 매핑)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-026, REQ-027, REQ-028, REQ-030, REQ-032, REQ-037, REQ-038, REQ-040, REQ-041, REQ-043, REQ-044, REQ-045, REQ-049, REQ-050]
 estimatedDiff: 170
 estimatedFiles: 4
 created: 2026-05-25
+completed: 2026-05-25T11:40:00+09:00
+mergedPr: 29
+mergeSha: 13de859
 plannerNote: P2 넷째 bullet (api.md). 8 UC §5 sequence 기반 HTTP endpoint 표 + resource model + auth tier. data-model.md 의 prerequisite.
 dependsOn: [T-0019, T-0028, T-0029]
 blocks: []
 hqOrigin: null
+resultSummary: PR-29 round 2/7 squash 13de859 — api.md 175 LOC 신설 + INDEX/PLAN/use-cases INDEX 갱신. 9 section + ~35 endpoint × 9 prefix × 8 UC + auth tier + status code. round 1 REQUEST_CHANGES (1 MAJOR self-password auth tier + 2 MINOR module count / PUT 정책) → driver 직접 fix 58e49e3 → round 2 APPROVE clean 0/0/0. **첫 ANOTHER_ROUND 사례 — session #7** (이전 10 PR 은 round 1 APPROVE). 첫 CI clean 패턴 (rerun 불필요 — round 2 push 가 이미 reviewer comment 이후라 approval validation pass).
 ---
 
 # T-0030 — P2 API contract 초안 (`docs/architecture/api.md` 신설)
