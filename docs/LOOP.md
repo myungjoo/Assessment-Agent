@@ -92,10 +92,7 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
       BLOCKED → notifier 호출.
 
 [5] CI 검증 (push 직후)
-- .github/workflows/ 디렉토리가 비어있으면 (T-0001 완료 전 부트스트랩 구간)
-  이 단계를 skip하고 STATE.ci.status="not-yet-configured" 로만 표기.
-- 그 외:
-  gh run list --limit 1 --json status,conclusion,headSha 으로 latest run 확인.
+- gh run list --limit 1 --json status,conclusion,headSha 으로 latest run 확인.
   - in_progress: STATE.ci.lastRun=ISO, status="running" 표기. 다음 turn에서 재확인.
   - failure: STATE.ci.consecutiveFails++. 3 이상이면 BLOCKED 처리 (notifier).
     그렇지 않으면 CI 결과 SUMMARY에 표기하고 다음 turn에서 재시도.
@@ -265,11 +262,9 @@ schedule 측은 lock holder를 `"cron"` 으로 잡는다. `/loop`("loop")과 cro
 - 삭제: `/schedule delete <id>`
 - 한 번만 실행: `/schedule 내일 오전 10시에 한 번만 driver turn 실행` 같이 one-shot도 가능
 
-### 첫 등록 시 권장 절차
+### 운영 점검
 
-1. 부트스트랩 후 사용자가 `/loop` dynamic으로 5~10 turn 직접 모니터링하며 driver·executor·sub-agent 동작 확인.
-2. T-0001 (NestJS·CI) 완료된 뒤 cron 등록 — CI가 동작해야 routine이 안전.
-3. 처음 1주는 매일 사람이 STATE.json·journal 점검. 안정되면 주간 점검.
+- 처음 1 주는 매일 사람이 STATE.json·journal 점검. 안정되면 주간 점검.
 
 **미래 완화 검토**: "1 fire = 1 task" 룰은 영속 정책이 아니라 시스템 안정 후 multi-task chaining 가능성을 ADR 로 검토 — [PLAN.md](PLAN.md) "운영 정책 review backlog" 참조. 트리거 충족 전까지 임의 chaining 금지.
 

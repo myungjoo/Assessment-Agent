@@ -61,29 +61,9 @@ Do NOT read the entire `src/` tree. If you need to know what exists, read `docs/
 
 여러 unblock 가능 task 가 동시에 있으면 ID 가 작은 것부터 처리하고 1개만 unblock 한 뒤 종료 (한 호출 한 task 원칙).
 
-# Phase entry task 자동 생성 (P1 / P2)
+# Phase entry task 자동 생성 (P2 이후)
 
-각 phase 진입 시 planner 의 **첫 호출은 phase-specific entry task** 를 다른 어떤 task 보다 우선 생성한다. 그 후 일반 Decision algorithm 으로 phase 내 후속 task 생성.
-
-## P1 (Architecture) entry sequence
-
-P0.5 완료 후 P1 진입 시 다음 순서로 task 1개씩 생성 (한 호출당 1 task 원칙). 후속 호출에서 다음 task 만듦:
-
-1. **P1-Entry (T-AAAA)**: README → REQ 매핑 표 완성 + FR/NFR/Constraint kind 컬럼 채우기
-   - commitMode: direct
-   - 본문 acceptance: [docs/requirements.md](../../docs/requirements.md) 모든 row 검증 + `kind` 컬럼 (FR/NFR/Constraint) 채움 + 누락 REQ 추가 + PLAN cover 여부 점검
-   - Suggested Sub-agents: architect (표 채우기 + 누락 검토)
-2. **T-A2 (T-AAAB): Deployment view** — [docs/architecture/deployment.md](../../docs/architecture/deployment.md) + ADR-0003
-   - commitMode: pr (새 ADR 추가)
-   - architect → tester (lint + build + test 정합 확인)
-3. **T-A3 (T-AAAC): Component view** — [docs/architecture/components.md](../../docs/architecture/components.md) + mermaid
-   - commitMode: pr (architecture doc 신설은 pr per §3.1)
-   - architect → tester
-4. **T-A4 (T-AAAD): Module view 확장** — [docs/architecture/modules.md](../../docs/architecture/modules.md) (component view 와 mapping)
-   - commitMode: pr
-   - architect → tester
-
-P1 entry sequence 의 4 task 모두 완료된 후에야 P2 진입.
+각 phase 진입 시 planner 의 **첫 호출은 phase-specific entry task** 를 다른 어떤 task 보다 우선 생성한다. 그 후 일반 Decision algorithm 으로 phase 내 후속 task 생성. P1 (Architecture) entry sequence 는 [PLAN_archive.md](../../docs/PLAN_archive.md#phase-p1--architecture-mva) 참조 — 4 entry task (P1-Entry, T-A2, T-A3, T-A4) 모두 완료.
 
 ## P2 (Use case decomposition) entry sequence
 

@@ -16,8 +16,8 @@
 | 영역 | 선택 |
 | --- | --- |
 | Backend | Node.js LTS + NestJS + TypeScript |
-| Frontend | (T-0001 이후 별도 ADR로 결정 — 기본 후보: React + Vite) |
-| DB | (별도 ADR로 결정 — 기본 후보: PostgreSQL via Prisma 또는 TypeORM) |
+| Frontend | (별도 ADR로 결정 — 기본 후보: React + Vite, P6 진입 시) |
+| DB | PostgreSQL ([ADR-0002](docs/decisions/ADR-0002-db.md) ACCEPTED) |
 | Test | Jest (unit), supertest (e2e) |
 | CI | GitHub Actions |
 | Package manager | pnpm |
@@ -94,7 +94,6 @@
 **R-111** ([README.md](README.md) 111행) — 모든 test 는 **CI 에서 자동 실행** 되고, test fail 시 **CI error 로 연결되어** 코드 작성 agent 와 개발자 모두 인지한다.
 
 - 적용: `.github/workflows/ci.yml` 의 step 중 어느 하나라도 fail 이면 PR 의 GitHub Actions 가 red. integrator 의 3중 게이트 중 "CI green" 검사가 이를 강제한다.
-- T-0005 완료 전 skeleton 상태에서는 CI 가 사실상 검증을 안 하므로 일시적 면제 — T-0005 가 끝나는 즉시 본 규칙이 active.
 
 **R-112** ([README.md](README.md) 112행) — 개별 feature 작성 시 **(기능 + 예외처리 + flow) 3종을 대부분 커버하는 unit test 작성**, **negative test cases 포함**.
 
@@ -207,8 +206,8 @@ docs/
 .claude/
   agents/<role>.md                 sub-agent 정의
   settings.json                    권한 / hook
-src/                               (T-0001 이후) NestJS backend
-web/                               (이후 ADR) Frontend
+src/                               NestJS backend
+web/                               (P6) Frontend
 .github/workflows/                 CI
 ```
 
@@ -334,7 +333,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 ### CI 검증과의 연계
 
-- 모든 commit이 push되면 GitHub Actions가 lint/build/test 자동 실행 (T-0001에서 셋업).
+- 모든 commit이 push되면 GitHub Actions가 lint/build/test 자동 실행.
 - driver는 push 후 `gh run list --limit 1` 로 latest run을 확인. fail이면 다음 turn에서 BLOCKED. (자세히는 [docs/LOOP.md](docs/LOOP.md) §1)
 - direct-mode commit이 main의 CI를 깨면 즉시 다음 turn BLOCKED → 사람 개입.
 - pr-mode는 PR check가 fail이면 integrator가 round를 진행하거나 BLOCKED.
