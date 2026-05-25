@@ -2,16 +2,20 @@
 id: T-0026
 title: P2-UC-06 — 평가 결과 manual delete + 재수집 use case 분해 (docs/use-cases/UC-06-evaluation-delete-reeval.md)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-041, REQ-045]
 estimatedDiff: 150
 estimatedFiles: 3
 created: 2026-05-25
+completed: 2026-05-25T10:15:00+09:00
+mergedPr: 25
+mergeSha: 77dc265
 plannerNote: P2 여섯번째 UC 본문 분해 (UC-06 평가 결과 manual delete + 재수집). UC-01 평가 실행과 자연 페어 — 삭제 후 다음 cron 발화 시 비어있는 시간 구간 자동 재수집.
 dependsOn: [T-0019, T-0025]
 blocks: []
 hqOrigin: null
+resultSummary: PR-25 round 1/7 squash 77dc265 — UC-06-evaluation-delete-reeval.md 177 LOC 신설 (UC-05 reviewer LOC discipline MINOR 반영, ≤180 가이드 충족) + INDEX/PLAN 갱신. 11 section + mermaid 13-step + alt 2 + UC-01 자동 재수집 Note. reviewer 0 BLOCKER/MAJOR 2 MINOR. CI rerun --failed 8번째 dogfood.
 ---
 
 # T-0026 — P2-UC-06: 평가 결과 manual delete + 재수집 use case 분해
