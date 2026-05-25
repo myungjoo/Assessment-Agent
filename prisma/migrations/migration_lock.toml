@@ -1,0 +1,5 @@
+# 본 파일은 Prisma CLI 가 생성/관리하는 lock 파일이다.
+# provider 가 한 번 박제되면 동일 migrations 폴더의 모든 migration 이 같은 DB
+# provider (postgresql) 를 가정한다 — 다른 provider 로 전환 시 reset 필요.
+# 본 lock 은 T-0034 의 첫 migration 과 함께 박제 (ADR-0002 PostgreSQL).
+provider = "postgresql"
