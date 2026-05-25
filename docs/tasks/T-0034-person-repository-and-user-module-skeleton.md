@@ -2,7 +2,12 @@
 id: T-0034
 title: P3 — Person Repository + UserModule skeleton + Prisma migration init
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-05-25T20:30:00+09:00
+mergeCommit: 087b322
+prNumber: 33
+ciRunUrl: https://github.com/myungjoo/Assessment-Agent/actions/runs/26400363781
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-023, REQ-026]
 estimatedDiff: 240
