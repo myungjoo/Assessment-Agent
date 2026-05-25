@@ -73,7 +73,8 @@ cap 검산 (architect 가 첫 read 직후 재검산 — 실제 production LOC > 
 
 ### A. 의존성 추가
 
-- [ ] **첫 단계로** `pnpm add class-validator class-transformer` 실행. NestJS 10 권장 호환 version (class-validator@^0.14 + class-transformer@^0.5 이상) 자동 설치. `package.json` dependencies 에 두 항목 추가 + `pnpm-lock.yaml` 갱신.
+- [ ] **첫 단계로** `pnpm add class-validator class-transformer` 실행. NestJS 10 권장 호환 version (class-validator@^0.14 + class-transformer@^0.5 이상) 자동 설치. 실제 설치: class-validator@^0.15.1 + class-transformer@^0.5.1 (둘 다 NestJS 10 호환 latest stable). `package.json` dependencies 에 두 항목 추가 + `pnpm-lock.yaml` 갱신.
+- 실측 install version: class-validator@^0.15.1 + class-transformer@^0.5.1 (둘 다 NestJS 10 호환 latest stable).
 - [ ] `pnpm install` 후 `postinstall` hook 의 `prisma generate` 가 자동 실행되어 `@prisma/client` type 이 정상 생성됨 (regression 없음).
 - [ ] `package.json` 의 `dependencies` 정렬은 pnpm 의 default 정렬 따름 (수동 reorder 안 함).
 - [ ] HQ-0005 의 결정 (`standard-class-validator-stack`) 이 본 task 의 dependency add 정당성. ADR 신설 미필요 (ADR-0001 NestJS 채택의 표준 sub-package).
@@ -183,6 +184,7 @@ cap 검산 (architect 가 첫 read 직후 재검산 — 실제 production LOC > 
 - **NewPersonEvent emit 도입 task 후보** — REQ-027 의 "신규 인원 추가 시 1년치 평가 1회 trigger" — AssessmentModule 도입 후 (T-0038+) PersonService.create 끝에 EventEmitter inject + emit. P4 의 AssessmentModule 실제 평가 파이프라인과 연결.
 - **ServiceIdentity controller / DTO 도입 task 후보** — `/api/persons/:id/service-identities` POST/GET/DELETE + `/primary` set endpoint + isPrimary 1-row invariant service-layer 강제. ServiceIdentityRepository 위에 ServiceIdentityService + controller 박제.
 - **cap LOC 정책 ADR 후보** — T-0034 / T-0035 / T-0036 의 3 연속 task 가 모두 production LOC ~260 + test LOC ~150 = total ~410 LOC 로 §3 의 300 LOC cap 을 초과하나 production-only 기준으로 통과. test LOC 분리 정책의 명문화 (별도 ADR) 권장. session #5 turn 5 의 hotfix 790cabc 가 entrypoint LOC 예외 박제와 동일 패턴.
+- **T-0036.5+ active+other 동시 patch case fix** — UC-03 §6.1 reactivate 경로의 동시 patch (예: PATCH {active: true, fullName: "홍길동"}) 시 active 가 service.update 에서 묵시적으로 drop 되어 reactivate 의도 silently 무시되는 결함. 옵션: (a) service.update 가 patch.active forward + repository.update 가 active column 갱신 cover + 동시-patch unit test 1+, (b) controller 가 active+other 동시 patch 를 400 BadRequest reject + reactivate 는 단독 PATCH 강제. reviewer PR-35 round 1/7 MAJOR-2 finding.
 - **partial unique index ADR 후보** — REQ-024 isPrimary 의 PostgreSQL `WHERE isPrimary=true` partial unique index raw SQL migration 도입. T-0035 의 schema-level `@@unique([personId, service])` 는 service 중복 방지만 cover, "정확히 1 row 의 isPrimary=true" invariant 는 service-layer + partial index 양쪽 cover 권장.
 - **.gitattributes CRLF 정책 ADR 후보** — Windows local CRLF vs CI Linux LF 의 `pnpm lint` 차이 (local fail / CI pass) — `.gitattributes` 의 `* text=auto eol=lf` 박제 + 기존 파일 normalize follow-up task.
 - **PersonRepository.hardDelete 추가 박제 (architect 결정 시)** — 본 task 의 DELETE endpoint 구현 위해 PersonRepository 에 7 번째 메서드 `hardDelete(id: string): Promise<Person>` 추가. T-0034 의 §B 6 메서드 박제의 자연 확장.

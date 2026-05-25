@@ -93,10 +93,12 @@ export class PersonService {
     return found;
   }
 
-  // update — PATCH /api/persons/:id 의 backend. `{active: true|false}` payload 는
-  // controller 에서 deactivate / reactivate 로 별도 routing 하므로 본 메서드 는 순수
-  // fullName / email 의 부분 수정만 forward (active 가 patch 에 포함되어 들어와도 별도
-  // 처리 없이 그대로 forward — repository 의 update 가 partial column 갱신 cover).
+  // update — PATCH /api/persons/:id 의 backend. 단독 {active: true|false} payload 는
+  // controller 가 별도 routing 으로 service.deactivate / service.reactivate 호출, 본
+  // 메서드는 fullName / email 의 부분 수정만 처리. active 가 patch 에 동시 포함되어
+  // 들어와도 본 메서드는 묵시적으로 drop (L102-107 의 spread 에서 active 키 제외).
+  // 동시 patch 의 active 처리는 T-0036.5 follow-up — UC-03 §6.1 reactivate 의도가 동시
+  // patch 케이스에서 silently 무시되는 점은 reviewer PR-35 round 1/7 MAJOR-2 박제.
   async update(id: string, patch: UpdatePersonDto): Promise<Person> {
     try {
       // class-validator 가 통과시킨 patch 객체는 keys 가 dto 의 정의된 필드 (whitelist) 로

@@ -72,12 +72,12 @@ export class PersonController {
   }
 
   // PATCH /api/persons/:id — 부분 수정 + active toggle.
-  //   - patch.active === false → service.deactivate (soft, REQ-026)
-  //   - patch.active === true  → service.reactivate
-  //   - 그 외 (fullName / email 변경) → service.update
-  // active 와 다른 필드의 동시 포함 시 active 가 우선 routing 후 다른 필드도 update.
-  // 단순화: active 만 있으면 deactivate / reactivate, fullName / email 만 있으면 update,
-  // 둘 다 있으면 update 가 active 포함하여 forward (Prisma 가 한 query 로 처리).
+  // - 단독 patch.active === false → service.deactivate (soft, REQ-026).
+  // - 단독 patch.active === true  → service.reactivate.
+  // - 그 외 (fullName / email 단독 또는 active 와 동시 patch) → service.update — 단 active 는
+  //   service.update 가 묵시적으로 drop (fullName / email 만 forward). 동시 patch 의 active
+  //   처리는 T-0036.5 follow-up — 옵션 (a) service forward 또는 (b) controller 400 reject.
+  //   의도: 단독 active 케이스만 본 task scope, 동시 patch 의 reactivate 의도는 후속 task.
   @Patch(":id")
   async update(
     @Param("id") id: string,
