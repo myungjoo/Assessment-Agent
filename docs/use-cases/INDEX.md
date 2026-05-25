@@ -82,6 +82,7 @@ GitHub Adapter / Confluence Adapter 가 외부 시스템의 4xx 응답을 감지
 - [docs/architecture/modules.md](../architecture/modules.md) — T-A4 산출물. UC 목록 표의 "주요 module" 컬럼 값의 source.
 - [docs/requirements.md](../requirements.md) — REQ-NNN source of truth. UC 목록 표의 "관련 REQ" 컬럼 값의 source.
 - [docs/architecture/INDEX.md](../architecture/INDEX.md) — architecture document 인덱스 + MVA 원칙. 본 INDEX.md 가 동일 style 을 따른다.
+- [docs/architecture/api.md](../architecture/api.md) — API contract (T-0030). 본 INDEX.md 8 UC §5 sequence 가 source 인 HTTP endpoint 표.
 - [docs/architecture/deployment.md](../architecture/deployment.md) — T-A2 산출물. UC 의 운영 토폴로지 cross-reference.
 - [docs/decisions/ADR-0001-stack.md](../decisions/ADR-0001-stack.md) — NestJS / TypeScript / pnpm / Jest / GitHub Actions stack. 모든 UC 의 구현 기반.
 - [docs/decisions/ADR-0002-db.md](../decisions/ADR-0002-db.md) — PostgreSQL + Prisma. UC 의 영속 저장 기반.
