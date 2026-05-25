@@ -2,12 +2,16 @@
 id: T-0038
 title: p3-implementation-plan §2 시퀀스 표 갱신 (T-0035 ServiceIdentity split + T-0036 PersonService + T-0037 patch 반영 → 잔여 task ID shift)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [TBD]
 estimatedDiff: 60
 estimatedFiles: 1
+actualDiff: 95
+actualFiles: 1
 created: 2026-05-26
+completedAt: 2026-05-26T03:09:00+09:00
+resultSummary: docs/architecture/p3-implementation-plan.md 단일 파일 +54/-41 (net +13) 갱신. §2 표 11 row (원안 8 + T-0035/T-0036/T-0037 신규 3), §3 mermaid 11 노드 재구성 (T-0034 fan-out hub 유지 + T-0035→T-0036→T-0037→T-0038 직선 chain + T-0040 fan-out hub), §4 ADR 표 책임 task ID shift (ADR-0004→T-0039, ADR-0005→T-0043, ADR-0006 hook→T-0041, ADR-0007 ref→T-0042), §5 HQ-0005 class-validator stack footnote + T-0039 auth credential reference, §6 P3 closure 조건 (T-0033~T-0043 11 task) + expansion 단락 추가, §7 Out of scope 3 신규 bullet, §8 Refs T-0034~T-0038 추가. 후속 backbone (Group+Part) ID = T-0038 미사용 — 본 plan §2 row 30 으로 이미 박제, planner 가 다음 turn 에 별도 T-NNNN 할당.
 plannerNote: P3 plan §2 원안과 실제 머지 시퀀스 mismatch — 잔여 task ID 한 자리 이상 shift 매핑 박제 후 다음 backbone task ID 충돌 회피.
 dependsOn: [T-0037]
 blocks: []
