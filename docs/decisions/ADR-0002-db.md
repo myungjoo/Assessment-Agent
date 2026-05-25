@@ -5,6 +5,15 @@ status: ACCEPTED
 date: 2026-05-24
 relatedTask: T-0014
 supersedes: null
+amendments:
+  - date: 2026-05-25
+    task: T-0033
+    hq: HQ-0004
+    decision: accept-latest-stable
+    versionPinning:
+      prisma: "^7.8.0"
+      "@prisma/client": "^7.8.0"
+      pg: "^8.21.0"
 ---
 
 # ADR-0002 — Persistence DB / ORM 선택
@@ -76,9 +85,25 @@ Assessment-Agent 는 평가 자료를 **non-volatile** 하게 보유하고, 100~
 | MongoDB (NoSQL document) | flexible schema / horizontal scale 용이 / write throughput 큼 | R-36 의 상대 비교를 위한 ORDER BY / GROUP BY 가 SQL 대비 2급 / R-38 (sort / filter) 의 표준 indexing 이 SQL 보다 복잡 / schema-less 가 R-32 raw 저장 금지 enforce 약화 / agent 가 schema 추론할 single source 없음 | 미채택 — orderable / sort / filter 가 1 급이어야 하는 본 도메인과 어긋남 |
 | Embedded (lowdb / nedb / PouchDB / LevelDB) | dependency 0 또는 매우 적음 / 별도 process 불필요 | R-29 durability 보장 약함 (lowdb 는 JSON file write — corruption 위험) / R-47 처리량 NFR 미달 가능성 / production 운영 검증 사례 부족 / R-32 schema 강제 메커니즘 없음 | 미채택 |
 
+## Amendment — 2026-05-25 (T-0033, HQ-0004 해소)
+
+T-0033 (P3 첫 task) 의 `pnpm add prisma @prisma/client pg` 실행 시점 박제. [CLAUDE.md §5](../../CLAUDE.md) HITL BLOCKED 게이트가 발화 → HQ-0004 박제 → 사용자 결정 `accept-latest-stable` (2026-05-25T13:00:00+09:00, resolvedBy: human).
+
+**Version pinning (lockfile 정확 version 은 `pnpm-lock.yaml` 참조)**:
+
+| 패키지 | semver range | 본 commit 시점 resolved | 결정 근거 |
+| --- | --- | --- | --- |
+| `prisma` | `^7.8.0` | `7.8.0` | npm registry 의 latest stable. 사용자 옵션 `accept-latest-stable` 의 직역. Prisma 7.x 는 5.x 의 후속 major (2025 H2 release line). schema DSL · `prisma generate` · `prisma migrate` API 는 5.x 와 호환. |
+| `@prisma/client` | `^7.8.0` | `7.8.0` | prisma CLI 와 minor lock-step. generated type 의 source. |
+| `pg` | `^8.21.0` | `8.21.0` | PostgreSQL Node.js driver. Prisma 의 query engine 이 native 로 사용 (Prisma 내부 driver — 추가로 raw `pg` Pool 의 직접 사용은 본 commit scope 외). 단, ADR-0002 §2 "PostgreSQL 16+" 와의 wire-protocol 호환 driver 로 dependency tree 에 명시 박제. |
+
+**선택하지 않은 옵션 (specify-versions / other)**: 사용자가 `accept-latest-stable` 을 명시했으므로 다른 옵션은 적용되지 않음. 향후 specific version pinning (예: security advisory 대응) 필요 시 별도 ADR amendment.
+
+**lockfile 검증**: 본 commit 의 `pnpm-lock.yaml` 갱신이 위 3 패키지의 정확 version + 전이 의존성 (예: `@prisma/engines`, `pg-pool`, `pg-protocol` 등) 을 박제. reviewer agent 가 `pnpm-lock.yaml` diff 의 add-only 성격 (기존 dependency version downgrade 0) 을 점검.
+
 ## 범위 밖 (deferred)
 
-- 실제 `prisma` / `@prisma/client` 패키지 도입 — [CLAUDE.md](../../CLAUDE.md) §5 BLOCKED 룰. P3 진입 시 별도 task.
+- 실제 `prisma` / `@prisma/client` 패키지 도입 — [CLAUDE.md](../../CLAUDE.md) §5 BLOCKED 룰. P3 진입 시 별도 task. **(2026-05-25 T-0033 에서 해소 — 위 Amendment 참조.)**
 - 구체 schema (table 컬럼 / 인덱스 / unique constraint / relation) — P2 conceptual data-model.md → P3 schema.prisma.
 - Migration 도구 도입 (`prisma migrate` workflow / CI 통합) — P3 별도 task.
 - Backup / restore 자동화 (`pg_dump` cron / S3 업로드 등) — P7 task.

@@ -1,0 +1,27 @@
+# Local development PostgreSQL skeleton — T-0033.
+# ADR-0002 (PostgreSQL + Prisma ACCEPTED) 의 local dev DB.
+#
+# 주의:
+#   - 본 compose 는 개발 / 테스트용 skeleton 만. production 의 replica / health check
+#     / network policy 는 P7 phase 의 별도 ops task 책임 (Out of Scope).
+#   - POSTGRES_PASSWORD 는 placeholder 'change_me_in_env' — 실제 password 는
+#     `.env` 파일에 두고 절대 commit 하지 않는다 (CLAUDE.md §9).
+#   - DATABASE_URL 의 자세한 형태는 `.env.example` 참조.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: assessment-agent-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-assessment_agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_env}
+      POSTGRES_DB: ${POSTGRES_DB:-assessment_agent}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
+    name: assessment-agent-postgres-data

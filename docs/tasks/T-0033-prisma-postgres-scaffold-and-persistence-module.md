@@ -2,13 +2,14 @@
 id: T-0033
 title: P3 — Prisma + PostgreSQL scaffold + PersistenceModule skeleton (인간 승인 게이트 발화)
 phase: P3
-status: BLOCKED
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 32
 coversReq: [REQ-058]
 estimatedDiff: 280
 estimatedFiles: 5
 created: 2026-05-25
-plannerNote: P3 첫 task. p3-implementation-plan.md § 2 row 1. 새 외부 dependency 3 종 추가 — CLAUDE.md §5 BLOCKED 게이트 의도적 발화. executor 가 STATE.humanQuestions 박제 후 BLOCKED 종료 → 사용자 승인 후 다음 turn 진입.
+plannerNote: P3 첫 task. p3-implementation-plan.md § 2 row 1. 새 외부 dependency 3 종 추가 — CLAUDE.md §5 BLOCKED 게이트 의도적 발화. executor 가 STATE.humanQuestions 박제 후 BLOCKED 종료 → 사용자 승인 후 다음 turn 진입. cron #3 (2026-05-25 KST 14:00) 에서 HQ-0004 resolved 상태로 resume — executor 가 architect/implementer/tester full chain 수행 → PR-32 open. 후속 cron 의 [2] 단계 resume 로직이 본 prNumber 를 인지하여 integrator+reviewer chain 으로 진입.
 dependsOn: [T-0032]
 blocks: [T-0034, T-0035, T-0036, T-0037, T-0038, T-0039, T-0040]
 hqOrigin: null

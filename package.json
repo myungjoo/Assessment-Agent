@@ -18,12 +18,17 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:smoke": "jest --config ./test/jest-smoke.json",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@nestjs/common": "10.4.4",
     "@nestjs/core": "10.4.4",
     "@nestjs/platform-express": "10.4.4",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "pg": "^8.21.0",
+    "prisma": "^7.8.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.1"
   },
@@ -52,15 +57,29 @@
     "typescript": "5.6.2"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
-    "testPathIgnorePatterns": ["/node_modules/", "<rootDir>/test/smoke/", "<rootDir>/test/e2e/"],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/test/smoke/",
+      "<rootDir>/test/e2e/"
+    ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
-    "collectCoverageFrom": ["src/**/*.(t|j)s"],
-    "coveragePathIgnorePatterns": ["/node_modules/", "src/main.ts", "\\.module\\.ts$"],
+    "collectCoverageFrom": [
+      "src/**/*.(t|j)s"
+    ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "src/main.ts",
+      "\\.module\\.ts$"
+    ],
     "coverageDirectory": "./coverage",
     "coverageThreshold": {
       "global": {
