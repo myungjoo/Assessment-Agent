@@ -2,16 +2,20 @@
 id: T-0028
 title: P2-UC-08 — 권한 부족 인식·통지 (GitHub / Confluence) use case 분해 (docs/use-cases/UC-08-permission-denied.md)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-008, REQ-016]
 estimatedDiff: 170
 estimatedFiles: 3
 created: 2026-05-25
+completed: 2026-05-25T11:00:00+09:00
+mergedPr: 27
+mergeSha: db65dd7
 plannerNote: P2 마지막 (8/8) UC 본문 분해 (UC-08 권한 부족 인식·통지). System-actor 첫 사례 — Adapter 4xx 감지 → PermissionDeniedEvent → DB 기록 → Web UI 표시. 본 task 머지 시 P2 UC 본문 8/8 closure.
 dependsOn: [T-0019, T-0027]
 blocks: []
 hqOrigin: null
+resultSummary: PR-27 round 1/7 squash db65dd7 — UC-08-permission-denied.md 179 LOC 신설 + INDEX/PLAN 8/8 closure 박제. 11 section + mermaid 14-step (8 participant + 2 actor + 2 alt + 4 Note) + System-actor invariant + Dual audience 분기 + 3 phase (emit/propagation/display). reviewer 0 BLOCKER/MAJOR 1 MINOR. **P2 UC backbone 8/8 closure achieved**. CI rerun --failed 10번째 dogfood. driver workaround 10번째. executor 가 commit/push 누락 → driver 가 직접 commit + push 보완 (executor 결함 patch — 후속 follow-up).
 ---
 
 # T-0028 — P2-UC-08: 권한 부족 인식·통지 (GitHub / Confluence) use case 분해
