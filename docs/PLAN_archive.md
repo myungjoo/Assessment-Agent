@@ -23,6 +23,24 @@
 
 ---
 
+## Phase P0.5 — Test·CI infra hardening (README 110-114 / §3.2 강제층)
+
+목표: README 110–114 의 절대 규칙이 단순 문서 정책이 아니라 **CI 게이트로 강제되는 메커니즘**까지 구축. P0 끝나고 P1 진입 전에 진행 (도메인 코드가 들어가기 전에 test 인프라가 준비돼있어야 효과 큼).
+
+- [x] T-0007 — CI 에 "신규 production .ts 파일 → 대응 .spec.ts 필수" 검사 step 추가 (`scripts/check-spec-presence.sh`, d484955; PR-8 사고 후 자체 해소 + T-0012 patch 로 결함 보강)
+- [x] T-0012 — T-0007 patch: `check-spec-presence.sh` 결함 (`.smoke-spec.ts` suffix 누락 + `test/*` leading glob 미매칭) fix + regression self-test 3 case (PR-11, 91b600c)
+- [x] T-0008 — `pnpm test:cov` 를 CI 에 통합 + coverage threshold 50% (4 metric: branches/functions/lines/statements) + `coveragePathIgnorePatterns` (main.ts / *.module.ts) (PR-9, 5c5fd56)
+- [x] T-0009 — Smoke test 인프라 (supertest + @nestjs/testing) + `test/jest-smoke.json` + 첫 smoke spec (NestJS app 부트스트랩 + GET / 200 + 404 negative) + CI 의 `pnpm test:smoke` step (PR-10, 6a06638)
+- [x] T-0010 — E2E test 인프라 + `test/jest-e2e.json` + 첫 e2e spec (응답 contract: status + content-type + body 정확 매칭 + 404 json error) + CI 의 `pnpm test:e2e` step (PR-12, 9df2831)
+
+**Phase P0.5 완료 (2026-05-24 19:02 KST)** — R-110~R-114 multi-layer 강제 동작 중. CI 8 step (spec-presence 검사 + spec-presence self-test + lint + build + test:cov + smoke + e2e + reviewer-approval) 모두 fail 시 PR red.
+
+**완료 조건 충족**: 변경된 production code 에 spec 누락 시 CI fail (spec-presence) / coverage threshold 미만 시 CI fail (jest --coverage) / smoke·e2e fail 시 CI fail. R-113 까지 모두 강제됨.
+
+**Follow-up (P3 진입 시 검토)**: coverage threshold 50% 는 부트스트랩 sample 기준. 도메인 코드 추가 후 상향 검토 (예: 70% → 80%) — 별도 ADR.
+
+---
+
 ## Phase P1 — Architecture (MVA)
 
 목표: 도메인 코드가 들어가기 전에 **꼭 필요한 architecture 결정** 을 박제. 4+1 view 전체가 아니라 **Minimum Viable Architecture** — 코드 시작에 필요한 만큼만, 나머지는 task 진행 중 ADR 로 진화.
