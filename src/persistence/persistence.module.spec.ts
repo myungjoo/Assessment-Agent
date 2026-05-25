@@ -31,12 +31,17 @@ describe("PersistenceModule", () => {
   // Nest 의 @Global() decorator 는 `__module:global__` symbol 을 module class 에 박는다.
   it("@Global() flag 가 module 에 박제되어 있다", () => {
     // 'public' Symbol 의 description 으로 검증.
-    const globalKey = Reflect.getMetadataKeys(PersistenceModule).find((k: unknown) => {
-      const s = String(k);
-      return s.includes("global");
-    });
+    const globalKey = Reflect.getMetadataKeys(PersistenceModule).find(
+      (k: unknown) => {
+        const s = String(k);
+        return s.includes("global");
+      },
+    );
     expect(globalKey).toBeDefined();
-    const isGlobal = Reflect.getMetadata(globalKey as string, PersistenceModule);
+    const isGlobal = Reflect.getMetadata(
+      globalKey as string,
+      PersistenceModule,
+    );
     expect(isGlobal).toBe(true);
   });
 
