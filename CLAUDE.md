@@ -15,7 +15,7 @@
 
 prompt 후반부에 박힌 hard rule 의 attention drift 누락을 막기 위해 핵심 8 개를 앞단에 모은다. 본문은 각 § 에서 자세히 — 본 인덱스는 navigation + 한 줄 요약.
 
-1. **R-110~R-114 (test/CI 절대 규칙)** — pr-mode tester 의무, CI fail = merge 차단, happy/error/branch/negative test 필수, smoke+e2e 도 CI 에서. → §3.2.
+1. **R-110~R-114 (test/CI 절대 규칙)** — pr-mode tester 의무, CI fail = merge 차단, happy/error/branch/negative test 필수 (negative cases 충분 cover — 예외 상황 분기마다), **coverage line ≥ 80% AND function ≥ 80%**, smoke+e2e 도 CI 에서. → §3.2.
 2. **4-게이트 (reviewer + integrator 이중 합의)** — reviewer.APPROVE + PR comment 외부 존재 + integrator 자체 점검 + CI green. 하나라도 false → ANOTHER_ROUND / BLOCKED. → §3.3.
 3. **Sub-agent dispatch (context 누적 방지)** — driver → executor → {architect, implementer, tester, ...}. 3 단계 chain 금지. 모든 sub-agent ≤ 200 char SUMMARY + trail blob 만 반환. → §4.
 4. **Push source/target 매칭** — direct → main 에서 `push HEAD:main`. pr → feature branch 에서 `push HEAD:claude/T-NNNN-<slug>`. source ≠ target push 는 agent 자동 실행 금지. 위반 = `wrong-source-branch` BLOCKED. → [docs/LOOP.md](docs/LOOP.md) §4.
@@ -118,7 +118,8 @@ historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-00
   1. 추가/수정된 모든 public symbol(함수/클래스/엔드포인트)에 대해 happy-path unit test 1+
   2. 각 symbol 의 error path 1+ (잘못된 입력, 의존성 실패 등)
   3. flow / 분기 cover (분기 발생 시 각 분기 1+ test)
-  4. negative test 1+ (예: 권한 없음, 빈 입력, 경계값)
+  4. **negative cases 충분 cover** — 예외 상황 (권한 부족 · 빈 입력 · 경계값 · type mismatch · 의존성 실패 · 비정상 시퀀스 등) **각 1+ test**. 단일 negative 만으로 부족 — 예외 처리 분기마다 cover.
+- **Coverage 최소치 (jest `coverageThreshold` 강제)**: **line ≥ 80% AND function ≥ 80%** (`package.json` 의 `coverageThreshold.global`). 미달 시 jest exit 1 → CI `test:cov` step fail → PR red.
 - patch task (frontmatter `hqOrigin` 있음) 는 추가로 **regression test 1+** 의무 — 결함이 다시 발생하면 그 test 가 fail 하도록.
 
 **R-113** ([README.md](README.md) 113행) — unit 외에 **smoke + end-to-end test 도 CI 에서 함께 수행**.

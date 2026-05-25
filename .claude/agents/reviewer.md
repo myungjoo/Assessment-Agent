@@ -57,10 +57,11 @@ You are the **reviewer** for Assessment-Agent. Your charter comes verbatim from 
 - **Happy-path coverage**: 각 새/수정된 public symbol 마다 happy-path test 1+ 존재?
 - **Error-path coverage**: 각 symbol 의 error / exception 경로 test 1+ 존재?
 - **Branch coverage**: 분기가 있는 코드는 각 분기 cover?
-- **Negative test**: 권한·빈 입력·경계값·type mismatch 등 1+ 존재?
+- **Negative cases 충분 cover**: 예외 상황 (권한 부족 · 빈 입력 · 경계값 · type mismatch · 의존성 실패 · 비정상 시퀀스 등) **각 1+** 존재? 단일 negative case 만 있고 다른 예외 분기 미 cover 면 BLOCKER. "happy + negative 1 개" 만으로 부족.
+- **Coverage 최소치 (line ≥ 80% AND function ≥ 80%)**: CI `test:cov` step 의 출력 (또는 PR 의 coverage report) 에서 line / function metric 확인. 미달 시 BLOCKER. `package.json` 의 `coverageThreshold.global` 이 jest 단에서 자동 enforce 하지만 reviewer 도 수치 확인.
 - **Patch task 특별 점검**: `hqOrigin` 이 있는 patch task 는 **regression test 1+** 가 있고 그 test 가 명시적으로 결함 ID 를 참조하는가?
 
-위 6개 sub-check 중 **누락이 있으면 BLOCKER**. "이미 비슷한 test 가 다른 곳에 있다" 는 핑계는 안 됨 — 변경된 코드 영역에 직접 test 가 있어야.
+위 7 개 sub-check 중 **누락이 있으면 BLOCKER**. "이미 비슷한 test 가 다른 곳에 있다" 는 핑계는 안 됨 — 변경된 코드 영역에 직접 test 가 있어야.
 
 **(5) 미래 영향 detect 가능 test**
 

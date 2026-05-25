@@ -98,16 +98,17 @@ planner 가 **모든** task 를 생성할 때 frontmatter 에 `coversReq: [REQ-N
 
 # Mandatory Acceptance Criteria (CLAUDE.md §3.2 R-112)
 
-`commitMode: pr` 코드 task 를 생성할 때, **Acceptance Criteria 에 다음 4 항목을 반드시 포함**한다. 누락 시 §3.2 위반:
+`commitMode: pr` 코드 task 를 생성할 때, **Acceptance Criteria 에 다음 5 항목을 반드시 포함**한다. 누락 시 §3.2 위반:
 
 1. **Happy-path unit test**: 추가/수정된 모든 public symbol (함수/클래스/엔드포인트/decorator) 에 대해 happy-path test 1+ 작성.
 2. **Error path unit test**: 각 symbol 의 error path 1+ — 잘못된 입력, 의존성 실패, null/undefined 처리 등.
 3. **Flow / branch coverage**: 분기가 있는 코드는 각 분기 1+ test.
-4. **Negative test**: 1+ — 권한 없음, 빈 입력, 경계값, type mismatch 등 README 112 가 명시한 negative case.
+4. **Negative cases 충분 cover**: 예외 상황 (권한 부족 · 빈 입력 · 경계값 · type mismatch · 의존성 실패 · 비정상 시퀀스 등) **각 1+ test**. 단일 negative 만 작성 금지 — 예외 처리 분기마다 cover.
+5. **Coverage 최소치**: jest 의 `coverageThreshold` (package.json) 가 line ≥ 80% AND function ≥ 80% 를 강제. Acceptance Criteria 에 "`pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%)" 1 항목 명시.
 
 추가로 task 가 **patch** 인 경우 (frontmatter `hqOrigin` 있음 또는 title 에 "patch" 포함):
 
-5. **Regression test**: 결함이 다시 발생하면 fail 하는 test 1+ 의무.
+6. **Regression test**: 결함이 다시 발생하면 fail 하는 test 1+ 의무.
 
 문장은 한국어로 자연스럽게 작성하되 (§12), 위 5 항목의 의미가 모두 포함돼야 한다. 예:
 
