@@ -2,16 +2,20 @@
 id: T-0031
 title: P2 데이터 모델 초안 — docs/architecture/data-model.md (conceptual entity model)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-032, REQ-037, REQ-038, REQ-043, REQ-044, REQ-045, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-063]
 estimatedDiff: 180
 estimatedFiles: 3
 created: 2026-05-25
+completed: 2026-05-25T12:00:00+09:00
+mergedPr: 30
+mergeSha: 83b8b42
 plannerNote: P2 다섯째 bullet (data-model.md). 8-10 entity conceptual model + 관계 + REQ-032 raw 미저장 invariant 박제. T-0031 머지 시 P2 fully complete.
 dependsOn: [T-0019, T-0028, T-0029, T-0030]
 blocks: []
 hqOrigin: null
+resultSummary: PR-30 round 1/7 squash 83b8b42 — data-model.md 171 LOC 신설 + INDEX/PLAN 갱신 + Phase P2 fully complete marker. 8 section + 11 entity 표 + 10 관계 mermaid ER + raw 미저장 invariant (REQ-032) + REQ coverage 20/20. reviewer 0 BLOCKER/MAJOR 3 MINOR (entity count narrative 10→11 / Person↔PermissionDenied cardinality 0..1:N / task-file ADR-0002 filename typo — 모두 absorbable). CI rerun --failed 12번째 dogfood. **Phase P2 fully complete 달성**.
 ---
 
 # T-0031 — P2 데이터 모델 초안 (`docs/architecture/data-model.md` 신설)
