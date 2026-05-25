@@ -38,7 +38,7 @@
 
 ## 4. Resource model
 
-본 시스템의 endpoint 는 다음 conceptual resource path prefix 로 분리된다. 각 prefix 의 책임 module 은 [modules.md](modules.md) 의 8 NestJS module 안에서 결정 — **신규 module 신설 0**.
+본 시스템의 endpoint 는 다음 conceptual resource path prefix 로 분리된다. 각 prefix 의 책임 module 은 [modules.md](modules.md) 의 9 NestJS module (AuthModule / PersistenceModule / UserModule / GithubModule / ConfluenceModule / LlmModule / AssessmentModule / SchedulerModule / WebModule) 안에서 결정 — **신규 module 신설 0**.
 
 | prefix | 책임 module ([modules.md](modules.md)) | 책임 UC | 비고 |
 | --- | --- | --- | --- |
@@ -66,7 +66,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | GET | `/api/auth/me` | UC-04 | 현재 인증 user 의 등급 + 식별자 조회 | User+ |
 | POST | `/api/users` | [UC-04 §5 step 1](../use-cases/UC-04-account-auth.md#5-main-flow-sequence-diagram) | 신규 user 계정 생성 (등급 default = User) | Admin+ |
 | PATCH | `/api/users/:id/role` | UC-04 §5 step 4 | user 등급 변경 (Admin→User 분기는 SuperAdmin 전용, self-demote 차단) | Admin (User→Admin) / SuperAdmin (Admin→User) |
-| PATCH | `/api/users/:id/password` | UC-04 §5 step 4 | user password 재설정 | Admin+ |
+| PATCH | `/api/users/:id/password` | UC-04 §5 step 4, §6.3 | user password 재설정 (`:id == self` → User 본인 변경 허용; `:id != self` → Admin+ 만) | User (self) / Admin+ (other) |
 | **UC-03 평가 대상 인원 (`/api/persons`, `/api/groups`, `/api/parts`)** | | | | |
 | GET | `/api/persons` | [UC-03 §5](../use-cases/UC-03-person-crud.md#5-main-flow-sequence-diagram) | 평가 대상 인원 목록 (active filter / group filter 가능) | User+ (조회) |
 | POST | `/api/persons` | UC-03 §5 step 2 | 신규 인원 추가 (서비스 ID 매핑 + primary key + group/part) | Admin+ |
@@ -155,13 +155,14 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 - **API versioning policy** (`/api/v1/*`) — 현 시점 unversioned. 필요 시 별도 ADR.
 - **Rate limiting / throttling / quota / CORS specifics** — P4+ 의 책임.
 - **gap REQ-004** (사용자 지정 기간 임의 평가문) — [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) 의 gap 1 건. UC-09 신설 또는 UC-01 확장 후 본 § 5 에 endpoint 추가 예정.
+- **PUT 전체 교체 vs PATCH 부분 갱신 선택** — UC-03 §5 / §9 의 `POST/PUT/PATCH/DELETE` 4-method enumeration 중 본 문서는 **PATCH 만 채택** (RFC 5789 — 부분 갱신 표준 + REST 관행). 사용자 의도가 "전체 자원 교체" 인 케이스가 발견되면 별도 row 로 PUT 추가 예정. P3 implementation 에서 controller decorator 선택 확정.
 
 ## 9. References
 
 - [docs/PLAN.md](../PLAN.md) Phase P2 의 넷째 bullet (L37) — 본 문서가 cover
 - [docs/architecture/INDEX.md](INDEX.md) — architecture document 목록 + MVA 원칙
 - [docs/architecture/components.md](components.md) — "Backend API" component (본 문서의 책임 component) + Contracts 표 (Web UI ↔ Backend API)
-- [docs/architecture/modules.md](modules.md) — 8 NestJS module — 본 문서의 endpoint 가 어느 module controller 의 책임인지 mapping
+- [docs/architecture/modules.md](modules.md) — 9 NestJS module — 본 문서의 endpoint 가 어느 module controller 의 책임인지 mapping
 - [docs/architecture/directory.md](directory.md) — `src/<module>/<module>.controller.ts` layout — 본 문서의 endpoint 가 디렉토리 어디에 박제될지 conceptual
 - [docs/use-cases/INDEX.md](../use-cases/INDEX.md) — 8 UC backbone 표
 - [docs/use-cases/UC-01-evaluation-execution.md](../use-cases/UC-01-evaluation-execution.md) ~ [UC-08-permission-denied.md](../use-cases/UC-08-permission-denied.md) — **본 문서의 endpoint source** (각 UC §5 sequence + §9 component/module mapping)
