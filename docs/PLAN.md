@@ -48,6 +48,8 @@
 
 목표: 외부 통합 없이 자체적으로 돌릴 수 있는 도메인 핵심.
 
+**P3 entry document**: [p3-implementation-plan.md](architecture/p3-implementation-plan.md) ([T-0032](tasks/T-0032-p3-entry-implementation-plan.md)) — 11 bullet ↔ 약 8 T-NNNN task 시퀀스 (T-0033 ~ T-0040) 매핑 + 의존성 graph + ADR 후보 5 항목 + 인간 승인 게이트 (T-0033 `pnpm add prisma @prisma/client pg`).
+
 - [ ] 평가 대상 인원 관리 (CRUD, group, deactivate/activate — 휴직 시 숨김)
 - [ ] **서비스별 ID 매핑** — github.com / github.sec.samsung.net / github.ecodesamsung.com / confluence.sec.samsung.net 등 각 서비스의 ID 보유, 일부 NULL 허용 (R-48)
 - [ ] **Primary key 역할 ID 지정** — 서비스 중 1개의 ID 를 기준 식별자로 (예: confluence.sec.samsung.net ID) (R-47)

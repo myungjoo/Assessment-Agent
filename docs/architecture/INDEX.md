@@ -13,6 +13,7 @@
 | [api.md](api.md) | API contract — HTTP endpoint 목록 + schema | T-0030 (P2) | 완료 (T-0030) |
 | [data-model.md](data-model.md) | Conceptual data model — entity + 관계 (구체 schema 는 P3) | T-0031 (P2) | 완료 (T-0031) |
 | [directory.md](directory.md) | 디렉토리 구조 정의 — NestJS 표준 + module view mapping | P2 (T-0021) | 완료 (T-0021) |
+| [p3-implementation-plan.md](p3-implementation-plan.md) | P3 task 시퀀스 매핑 — 11 PLAN bullet ↔ T-NNNN task 8 row + ADR 후보 + 의존성 graph + 인간 승인 게이트 | T-0032 (P3-Entry) | 완료 (T-0032) |
 
 ## 갱신 룰
 
