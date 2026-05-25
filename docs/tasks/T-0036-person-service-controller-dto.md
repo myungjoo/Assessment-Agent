@@ -2,7 +2,12 @@
 id: T-0036
 title: P3 — PersonService + PersonController + DTO (class-validator stack 도입)
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-05-25T22:30:00+09:00
+mergeCommit: 6b84c62
+prNumber: 35
+ciRunUrl: https://github.com/myungjoo/Assessment-Agent/actions/runs/26406118264
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-045]
 estimatedDiff: 280

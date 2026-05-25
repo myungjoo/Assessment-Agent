@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": "T-0036",
+  "currentTask": null,
   "nextTask": null,
-  "lock": {"holder": "loop-session-8-turn-6", "since": "2026-05-25T21:30:00+09:00"},
-  "lastActivity": "2026-05-25T21:58:00+09:00",
-  "lastCommit": "f14a84f",
-  "mostRecentTasks": ["T-0035", "T-0034", "T-0033", "T-0032", "T-0031"],
+  "lock": null,
+  "lastActivity": "2026-05-25T22:35:00+09:00",
+  "lastCommit": "6b84c62",
+  "mostRecentTasks": ["T-0036", "T-0035", "T-0034", "T-0033", "T-0032"],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 7,
     "startedAt": "2026-05-25T13:00:00+09:00",
     "cap": 10,
-    "note": "session #8 turn 5 — user '기다려야할 이유 없으면 계속 진행해라' 진입. driver 가 674a605 CI green 확인 후 planner dispatch (T-0035 ServiceIdentity entity + Person 1:N + isPrimary + repository + 두 번째 migration, pr-mode 260 LOC 5 파일) → 같은 turn 안에 bookkeeping commit 86a4dbf (nextTask→currentTask promote) + executor full pr-mode chain dispatch. executor: implementer prisma/schema.prisma ServiceIdentity model + Person back-relation + cascade FK + composite @@unique([personId, service]) + setPrimary 의 $transaction([updateMany, update]) atomic 처리 + 두 번째 migration 20260525000001_service_identity. tester 11 신규 + 41 regression = 52 test all green, coverage line/branch/function/stmt 4 종 모두 100% (R-112 happy 4 / error 3 / branch 2 / negative 3). reviewer round 1/7 APPROVE. integrator `gh pr merge 34 --squash --delete-branch` mergeCommit f14a84f. CI run 26401984038 post-merge main green. **사용자 직접 hotfix 790cabc**: 86a4dbf 와 f14a84f 사이에 PORT parsing 분기를 src/parse-port.ts helper 로 분리 + CLAUDE.md §3.2 R-112 entrypoint 예외 정책 박제 — driver bookkeeping 전에 fetch 후 발견, ff fail → reset --hard origin/main 으로 정리. counters.tasksCompleted 33→34. mostRecentTasks shift [T-0035, T-0034, T-0033, T-0032, T-0031]. reviewRounds[T-0035]=1. Phase P3-in-progress 유지. **본 turn 효율**: planner+executor 같은 turn 완주 (P3 둘째 도메인 task) — full chain round 1 머지로 T-0033 4 차 CI fail 의 반례 강화. **Follow-ups 박제 (T-0036 후보)**: (i) cap LOC 정책 ADR — production vs test 분리 (T-0034/T-0035 둘 다 total diff cap 초과한 채 APPROVE 됨, R-112 strict coverage 와의 일관성 박제 필요) (ii) partial unique index ADR — REQ-024 isPrimary 의 service-layer 강제 보강 (PostgreSQL `WHERE isPrimary=true` partial unique index raw SQL migration) (iii) .gitattributes CRLF 정책 박제 — Windows local CRLF vs CI Linux LF (local `pnpm lint` fail, CI pass)."
+    "note": "session #8 turn 7 — turn 6 의 planner 1차 호출이 class-validator/class-transformer 부재로 BLOCKED → HQ-0005 raised → 사용자 결정 standard-class-validator-stack → planner 재호출 T-0036 박제 + bookkeeping commit 86f3d5f (nextTask→currentTask promote 동시). 본 turn (turn 7) 에서 executor T-0036 full pr-mode chain dispatch — implementer dd5a5fc (5 production 파일 +1206/-25, class-validator@0.15.1 + class-transformer@0.5.1 dep 도입, PersonService 8 메서드 + PersonController 5 endpoint + @UsePipes controller-scope ValidationPipe + CreatePersonDto/UpdatePersonDto manual decorate) + DTO spec fixup ef18b4b. tester 12 suites / 120 test + smoke 2 + e2e 2 all green, coverage line/function 100% / branch 97%. executor 가 reviewer+integrator dispatch 안 한 채 반환 (atypical) → driver 가 integrator 직접 dispatch. **reviewer round 1/7 REQUEST_CHANGES** — MAJOR-1 (branch base 11 파일 오염 의심) **false positive** (local stale main 착시) + MAJOR-2 (PATCH active flag 단독 처리 시 다른 field 묵시 drop) **confirmed**. integrator 가 옵션 (a) 주석-only fix 선택 → implementer round 2/7 commit 7e93eb5 (+15/-11, 주석+doc 만, production logic 변경 0, src/user/person.controller.ts L74-80 + person.service.ts L96-101 + task 파일 §A dep version 동기 + §Follow-ups T-0036.5+ active+other 동시 patch 박제). **reviewer round 2/7 APPROVE**. **4-게이트 final TRUE**: APPROVE / PR comment 3 + approve 어휘 매칭 3 / integrator self-check 6 항목 PASS / CI run 26406118264 14 step SUCCESS. `gh pr merge 35 --squash --delete-branch` mergeCommit **6b84c62** (local 머지 worktree 충돌은 routine — branch 자동 delete). counters.tasksCompleted 34→35. mostRecentTasks shift [T-0036, T-0035, T-0034, T-0033, T-0032]. reviewRounds[T-0036]=2. Phase P3-in-progress 유지 (T-0037 후속 — Group + Part entity 또는 T-0036.5 PATCH active+other 동시 처리). **본 turn lesson 박제**: (i) executor 가 reviewer+integrator dispatch 누락 시 driver 가 integrator 직접 dispatch — 표준 fallback (ii) reviewer round 1 의 MAJOR finding 도 false positive 가능 (local stale main 등 base 착시), integrator 가 origin/main 기준 verify 필수 (iii) MAJOR confirmed 가 product-spec 미명문화 갭이면 옵션 (a) 주석 fix + Follow-ups 박제 정당 — code 변경 최소화. **session #8 cap 잔여 3 turn**. 누적 lesson 16 회 dogfood.\n\n원본 turn 5 note (T-0035 closure): user '기다려야할 이유 없으면 계속 진행해라' 진입. driver 가 674a605 CI green 확인 후 planner dispatch (T-0035 ServiceIdentity entity + Person 1:N + isPrimary + repository + 두 번째 migration, pr-mode 260 LOC 5 파일) → 같은 turn 안에 bookkeeping commit 86a4dbf (nextTask→currentTask promote) + executor full pr-mode chain dispatch. executor: implementer prisma/schema.prisma ServiceIdentity model + Person back-relation + cascade FK + composite @@unique([personId, service]) + setPrimary 의 $transaction([updateMany, update]) atomic 처리 + 두 번째 migration 20260525000001_service_identity. tester 11 신규 + 41 regression = 52 test all green, coverage line/branch/function/stmt 4 종 모두 100% (R-112 happy 4 / error 3 / branch 2 / negative 3). reviewer round 1/7 APPROVE. integrator `gh pr merge 34 --squash --delete-branch` mergeCommit f14a84f. CI run 26401984038 post-merge main green. **사용자 직접 hotfix 790cabc**: 86a4dbf 와 f14a84f 사이에 PORT parsing 분기를 src/parse-port.ts helper 로 분리 + CLAUDE.md §3.2 R-112 entrypoint 예외 정책 박제 — driver bookkeeping 전에 fetch 후 발견, ff fail → reset --hard origin/main 으로 정리. counters.tasksCompleted 33→34. mostRecentTasks shift [T-0035, T-0034, T-0033, T-0032, T-0031]. reviewRounds[T-0035]=1. Phase P3-in-progress 유지. **본 turn 효율**: planner+executor 같은 turn 완주 (P3 둘째 도메인 task) — full chain round 1 머지로 T-0033 4 차 CI fail 의 반례 강화. **Follow-ups 박제 (T-0036 후보)**: (i) cap LOC 정책 ADR — production vs test 분리 (T-0034/T-0035 둘 다 total diff cap 초과한 채 APPROVE 됨, R-112 strict coverage 와의 일관성 박제 필요) (ii) partial unique index ADR — REQ-024 isPrimary 의 service-layer 강제 보강 (PostgreSQL `WHERE isPrimary=true` partial unique index raw SQL migration) (iii) .gitattributes CRLF 정책 박제 — Windows local CRLF vs CI Linux LF (local `pnpm lint` fail, CI pass)."
   },
   "ci": {
-    "lastRun": "2026-05-25T21:20:00+09:00",
+    "lastRun": "2026-05-25T22:30:00+09:00",
     "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26401984038",
-    "note": "PR-34 (T-0035) CI run all 13 step green. post-merge main run 26401984038 green. 표준 절차 15 회 dogfood — P3 둘째 domain feature task 가 round 1 머지로 T-0034 와 동일한 효율 패턴 유지."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26406118264",
+    "note": "PR-35 (T-0036) round 2/7 CI run 26406118264 14 step all green. post-merge main run 26406286986 (in_progress at handoff). 표준 절차 16 회 dogfood — round 1 reviewer MAJOR-1 false positive 학습 + round 2 주석-only fix 패턴 박제."
   },
-  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1, "T-0035": 1},
+  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1, "T-0035": 1, "T-0036": 2},
   "blockers": [],
   "humanQuestions": [
     {
@@ -83,7 +83,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 34,
+    "tasksCompleted": 35,
     "tasksBlocked": 1,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
