@@ -1,0 +1,171 @@
+# Conceptual data model
+
+> **본 문서는 P2 의 다섯째이자 마지막 entry artifact ([T-0031](../tasks/T-0031-p2-data-model.md)) 의 산출물이다.** [docs/PLAN.md](../PLAN.md) Phase P2 의 "데이터 모델 초안" bullet (L38) 을 cover. 8 UC ([UC-01](../use-cases/UC-01-evaluation-execution.md) ~ [UC-08](../use-cases/UC-08-permission-denied.md)) 의 §5 sequence diagram + §6 데이터 단락에서 호명된 **entity (개념적 데이터 단위) + 관계 (cardinality) + 핵심 invariant (REQ-032 raw 미저장)** 를 단일 문서로 박제하여 P3+ Persistence 구현 task 의 contract source 로 사용한다. **본 문서는 living document** — entity 가 새로 식별되거나 기존 관계가 분리·통합되면 architect agent 가 본 표를 갱신한다. 본 task 머지 시 **Phase P2 fully complete**.
+
+## 1. 개요
+
+본 문서의 범위는 [docs/architecture/INDEX.md](INDEX.md) 의 **MVA (Minimum Viable Architecture)** 원칙에 따라 **conceptual model only** 로 한정한다 — entity 이름 / 책임 / source UC / 관련 REQ / 책임 module 5-컬럼 표 + 관계 (mermaid ER diagram) + raw 미저장 invariant + cross-cutting field conceptual mention + REQ → entity coverage 까지만 박제. **구체 컬럼 type (CHAR(50) / TEXT / TIMESTAMPTZ / JSONB) · index · unique constraint · cascade policy · Prisma schema 코드 · migration SQL 은 본 문서의 범위 밖** 이며 [§ 7](#7-out-of-scope) 에 명시. 그 구체화는 P3 의 `prisma/schema.prisma` + repository 구현 task 의 책임이다.
+
+본 문서의 기반:
+
+- [ADR-0002 — Persistence DB / ORM 선택](../decisions/ADR-0002-db.md) — **PostgreSQL 16+ + Prisma**. 관계형 DB 의 schema-as-code (`schema.prisma`) 가 본 conceptual model 의 실 구현 form.
+- [ADR-0003 — Deployment 토폴로지](../decisions/ADR-0003-deployment.md) §1 — monolithic NestJS process + **단일 DB 인스턴스**. 본 문서의 모든 entity 가 동일 DB 안에 거주, multi-DB 분리 없음.
+- [components.md](components.md) "DB Persistence" component — 본 문서의 entity 들이 거주하는 component 의 책임 정의 (raw text 컬럼 미정의 — REQ-032 schema-level 강제).
+- [modules.md](modules.md) — 8 NestJS module 의 책임 분배. 본 문서의 각 entity 가 어느 module 의 책임인지 매핑 (§ 2 표 "책임 module" 컬럼).
+
+## 2. Entity 목록
+
+본 시스템은 다음 **10 entity (+ 1 conceptual mention)** 로 분해된다. 각 entity 의 책임은 1~2 줄로 한정하며, 구체 컬럼 / type / index 는 P3 의 범위.
+
+| entity | 책임 | source UC | 관련 REQ | 책임 module ([modules.md](modules.md)) |
+| --- | --- | --- | --- | --- |
+| **Person** | 평가 대상 인원 (사람). 이름 / 이메일 / active flag (휴직 시 false = 명단에서 숨김). 로그인 계정 User 와 분리된 개념. | [UC-03](../use-cases/UC-03-person-crud.md), UC-01, UC-02 | REQ-023, REQ-026, REQ-028 | UserModule |
+| **ServiceIdentity** | Person ↔ 외부 서비스별 ID 매핑 (github.com / github.sec.samsung.net / github.ecodesamsung.com / confluence.sec.samsung.net 외). 일부 NULL 허용 (REQ-025). 하나가 primary key 역할 (REQ-024). | UC-03, UC-01 | REQ-023, REQ-024, REQ-025 | UserModule |
+| **Group** | 임의 그룹. 1 Person 이 N Group 에 다중 소속 가능 (REQ-028). | UC-03 | REQ-028 | UserModule |
+| **Part** | 조직도 파트. 1 Person 이 **정확히 1 Part** 에 소속 (REQ-028 invariant). | UC-03 | REQ-028 | UserModule |
+| **User** | 로그인 계정 (서비스 사용자). 등급 SuperAdmin / Admin / User. Person 과 conceptual 분리 — User 는 시스템 인증 식별자, Person 은 평가 대상자. | [UC-04](../use-cases/UC-04-account-auth.md) | REQ-043, REQ-044, REQ-045, REQ-046 | AuthModule |
+| **Assessment** | 평가 결과의 unit. Person × period (일·주·월) × scope (commit / document / aggregate) 의 cross product. **raw commit 본문 / 문서 본문 미저장** — 평가 결과 (난이도 / 기여도 / 양 / LLM 평가문) 만 보유. | [UC-01](../use-cases/UC-01-evaluation-execution.md), [UC-02](../use-cases/UC-02-evaluation-query.md), [UC-06](../use-cases/UC-06-evaluation-delete-reeval.md) | REQ-029, REQ-032, REQ-033, REQ-037, REQ-038, REQ-041, REQ-063 | AssessmentModule |
+| **Contribution** | 개별 기여 단위 (단일 commit / 단일 PR / 단일 문서 변경). Assessment 의 component — N Contribution 이 1 Assessment 로 aggregate. raw 본문 미저장 (REQ-032), 평가 결과만 보유. | UC-01, UC-02 | REQ-029, REQ-032, REQ-033 | AssessmentModule |
+| **Summary** | 일·주·월 단위 요약 평가문. Person 단위 (default) 또는 Group/Part 단위 aggregate. LLM 정성 평가문 + Metric 수치 (REQ-036). 본 시점 결정: **Person 단위 default**, Group/Part aggregate 는 view-time 계산 (별도 entity 아님). | [UC-02](../use-cases/UC-02-evaluation-query.md) | REQ-034, REQ-035, REQ-036, REQ-038 | AssessmentModule |
+| **LlmProviderConfig** | 5 provider (custom / Azure OpenAI / Anthropic / Google Gemini / OpenAI) 별 설정 1 row — endpoint URL / API key (encrypted at rest, 별도 ADR) / model 식별자. **다중 row 모델** (각 provider 별 1+ row, custom 은 3 model 슬롯 모두 차지 가능 — REQ-051). | [UC-05](../use-cases/UC-05-llm-config.md) | REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055 | LlmModule |
+| **DifficultyMapping** | 3 난이도 (easy / medium / hard) ↔ LlmProviderConfig.modelId 매핑. **3 row 고정** (난이도 슬롯 3 개) 또는 sub-relation. | UC-05 | REQ-049, REQ-050 | LlmModule |
+| **PermissionDeniedRecord** | 외부 4xx (GitHub / Confluence) 를 GithubAdapter / ConfluenceAdapter 가 catch → System emit event 의 영속화. ServiceIdentity 또는 Person 에 N:1. user / admin audience 분리. | [UC-08](../use-cases/UC-08-permission-denied.md) | REQ-008, REQ-016 | AssessmentModule |
+| *(conceptual mention)* **AuditLog** | User mutation event (등급 변경 / 평가 삭제 / Import-Export 등) 의 감사 로그. **본 task scope 외** — conceptual mention 만, 구체 schema 는 별도 보안 ADR 책임. | (전 UC cross-cutting) | (cross-cutting) | AuthModule (또는 별도) |
+
+**합계**: 10 entity (+ 1 conceptual mention) / 4 module (UserModule / AuthModule / AssessmentModule / LlmModule) / 8 UC cover. 향후 entity 추가는 본 표 갱신 PR 의 reviewer 점검 대상.
+
+**module 명 정합성**: 본 문서의 "책임 module" 컬럼은 [modules.md](modules.md) 의 8 NestJS module 명만 사용 — 신규 module 신설 0. PermissionDeniedRecord 의 책임 module 은 AssessmentModule (event 수신·DB 저장 — [components.md](components.md) "AssessmentModule 이 event 를 받아 DB 에 권한 부족 기록을 남기고").
+
+## 3. Entity 간 관계 (ER diagram)
+
+```mermaid
+erDiagram
+    Person ||--o{ ServiceIdentity : "1:N (Person 당 N 서비스 ID, 일부 NULL 허용 REQ-025)"
+    Person }o--o{ Group : "N:M (다중 그룹 소속 REQ-028)"
+    Person }o--|| Part : "N:1 (정확히 1 Part REQ-028 invariant)"
+    Person ||--o{ Assessment : "1:N (Person × period × scope)"
+    Person ||--o{ Summary : "1:N (일·주·월 단위)"
+    Assessment ||--o{ Contribution : "1:N (개별 commit/문서 → aggregate)"
+    User |o--o| Person : "0..1:0..1 (선택적 매핑, SuperAdmin 첫 로긴 시 자동 또는 수동)"
+    LlmProviderConfig ||--o{ DifficultyMapping : "1:N (3 난이도 슬롯 → provider/model)"
+    ServiceIdentity ||--o{ PermissionDeniedRecord : "1:N (외부 4xx event)"
+    Person ||--o{ PermissionDeniedRecord : "1:N (audience 분기)"
+```
+
+**관계 박제 요지**:
+
+1. **Person ↔ ServiceIdentity (1:N)** — REQ-023. 1 Person 이 N 서비스 ID 보유, ServiceIdentity 중 하나가 `isPrimary = true` (REQ-024). 일부 서비스 ID 는 NULL 가능 — 해당 서비스에 계정이 없으면 row 자체 없음 (NULL 컬럼이 아니라 absent row 로 표현).
+2. **Person ↔ Group (N:M)** — REQ-028 "다중 임의 group 소속 가능". 중간 join entity (예: `PersonGroupMembership`) 의 구체 schema 는 P3.
+3. **Person ↔ Part (N:1, mandatory)** — REQ-028 "조직도 파트는 정확히 1 개". Person row 가 Part 없이 존재 불가 (invariant). Part 삭제 시 소속 Person 0 일 때만 허용.
+4. **Person ↔ Assessment (1:N)** — 평가 결과는 Person 단위. 한 Person 이 시간 흐름에 따라 N 개 Assessment 누적.
+5. **Assessment ↔ Contribution (1:N)** — Contribution (개별 commit/문서) 이 모여 Assessment (일·주·월 또는 commit/document scope) 를 구성. raw 본문 미저장 (REQ-032) invariant 가 양 entity 에 적용 (§ 4).
+6. **Person ↔ Summary (1:N)** — 일·주·월 요약은 Person 단위 default. Group/Part aggregate Summary 는 view-time 계산 (별도 entity 아님) — 본 결정은 P3 에서 별도 entity 도입 가능성 (e.g. `GroupSummary`) 으로 갱신될 수 있다.
+7. **User ↔ Person (0..1:0..1)** — 선택적 매핑. SuperAdmin / Admin 등급 User 가 본인 Person 을 가지지 않는 경우도 가능 (외부 관리자). User 등급 User 가 본인 Person 과 매핑되어 본인 평가 결과 조회 (UC-08 user audience). **자동 매핑 정책** (예: 첫 로긴 시 동명 Person 자동 link) 은 P3 AuthModule 책임 — 본 문서는 관계만 박제.
+8. **LlmProviderConfig ↔ DifficultyMapping (1:N)** — 3 난이도 슬롯 (easy / medium / hard) 이 각각 어느 provider 의 어느 model 을 사용할지 매핑. DifficultyMapping row 3 개 고정.
+9. **ServiceIdentity ↔ PermissionDeniedRecord (1:N)** — 외부 4xx 가 발생한 ServiceIdentity 단위 (예: 특정 GitHub instance + 특정 user ID 의 권한 부족). audience 분기 (UC-08 user / admin) 는 record 의 `audience` 필드로.
+10. **Person ↔ PermissionDeniedRecord (1:N)** — ServiceIdentity 의 owner Person 으로 reverse traversal. user audience GET `/api/me/permission-denied` 가 본 관계를 사용 (REQ-008).
+
+**cardinality 정확도** (1:1 / 1:N / N:M / optional) 의 P3 schema 단계 검증은 별도 — 본 문서는 MVA 수준 conceptual 만 박제.
+
+## 4. Raw 미저장 invariant (REQ-032)
+
+본 시스템의 **핵심 architectural invariant** — [README.md](../../README.md) L59 ("🔥 Raw data 저장 금지") + [REQ-032](../requirements.md) 가 박제.
+
+**적용 범위**:
+
+- **Assessment** entity 는 raw commit body / 문서 본문 / Confluence page 본문을 컬럼으로 보유하지 **않는다**. 평가 결과 (난이도 / 기여도 / 양 / LLM 평가문 텍스트) 만 보유.
+- **Contribution** entity 동일 — 개별 commit/문서 단위에서도 raw 본문 미저장. 외부 GitHub/Confluence URL + commit SHA / page version ID 등 **참조 식별자** 만 보유 (필요 시 재수집 가능 — REQ-031).
+- **Summary** entity 의 LLM 평가문 텍스트는 **LLM 이 생성한 결과물** — raw 가 아니므로 본 invariant 적용 외. 단, 평가문 안에 raw 본문이 quote 형태로 포함되지 않도록 prompt 설계 책임은 P5 의 LLM gateway / evaluation pipeline.
+
+**schema-level 강제**:
+
+- [components.md](components.md) "DB Persistence" component 의 책임 단락 — "raw text 컬럼 미정의 (REQ-032 schema-level 강제)" — P3 의 `schema.prisma` 가 본 invariant 를 schema 차원에서 보장 (즉 raw body column 자체를 만들지 않음).
+- 본 invariant 위반은 **ADR 신설 필수** — 별도 ADR 없이 raw column 추가 금지 (CLAUDE.md §5 — 기존 ADR 충돌은 BLOCKED).
+
+**Export 시 처리**: UC-07 의 Export 산출물도 raw 미포함 (REQ-030, REQ-032) — `/api/admin/export` 의 응답 schema 가 본 invariant 를 준수.
+
+## 5. Cross-cutting field (conceptual)
+
+본 시스템의 모든 entity 는 다음 cross-cutting 필드를 **conceptual level 에서 보유**한다. 구체 컬럼명·type·default·timezone 정책은 P3 의 `schema.prisma` 책임.
+
+| 필드 | 의미 | 비고 |
+| --- | --- | --- |
+| `createdAt` | row 최초 생성 시각 | 모든 entity 공통. timezone 정책 (UTC / KST) 은 P3. |
+| `updatedAt` | 최근 갱신 시각 | mutable entity (Person / User / Group / Part / LlmProviderConfig / DifficultyMapping) 에 적용. immutable entity (Assessment / Contribution / PermissionDeniedRecord) 는 불필요 — P3 결정. |
+| `deletedAt` | soft delete tombstone | **entity 별 결정** — Person 은 soft (Deactivate flag = `active: false` + 평가 데이터 보존, [UC-03](../use-cases/UC-03-person-crud.md) §5 step "Deactivate"). Assessment / Contribution 은 hard delete (REQ-041 Admin manual delete). 본 task 는 entity 별 채택 여부 박제 안 함 — P3. |
+| `createdBy` | mutation 발화 User | mutable entity 의 감사 추적. User entity 참조. AuditLog entity (§ 2 conceptual mention) 와 별도 — `createdBy` 는 row 자체에, AuditLog 는 event-stream 형태. |
+
+**soft delete vs hard delete 의 entity 별 결정** 은 P3 schema 작성 task 에서 박제 — 본 문서는 두 정책의 존재만 conceptual 명시.
+
+## 6. REQ → entity coverage cross-reference
+
+본 task 의 [frontmatter](../tasks/T-0031-p2-data-model.md) `coversReq` 의 20 REQ 가 어느 entity 로 cover 되는지 1:1 매핑. uncovered 0 검산.
+
+| REQ | 요약 | cover 하는 entity |
+| --- | --- | --- |
+| REQ-023 | 서비스별 ID 매핑 (1:N) | Person, ServiceIdentity |
+| REQ-024 | Primary key 역할 ID 1 개 | ServiceIdentity (isPrimary flag) |
+| REQ-025 | 일부 서비스 ID NULL 허용 | ServiceIdentity (absent row 표현) |
+| REQ-026 | 인원 CRUD + Deactivate/Activate | Person (active flag) |
+| REQ-027 | 신규 인원 1 년치 평가 1 회 | Person + Assessment (lifecycle 정책은 P7) |
+| REQ-028 | Group (다중) + Part (정확히 1) | Group, Part |
+| REQ-032 | 🔥 raw data 저장 금지 | Assessment, Contribution (§ 4) |
+| REQ-037 | 평가 없는 부분 일괄 평가 + Reset & Reeval | Assessment (delete + 재수집 lifecycle) |
+| REQ-038 | UI 조회 / sort / filter / 시계열 | Assessment, Summary |
+| REQ-043 | ID/Password 보호 | User (credential) |
+| REQ-044 | 3 등급 + SuperAdmin / 승급 | User (role 필드) |
+| REQ-045 | Admin 권한 | User (role = Admin) |
+| REQ-049 | Admin 이 LLM 모델 지정 | LlmProviderConfig, DifficultyMapping |
+| REQ-050 | 3 난이도 모델 매핑 | DifficultyMapping |
+| REQ-051 | custom LLM (3 model 슬롯) | LlmProviderConfig |
+| REQ-052 | Azure OpenAI | LlmProviderConfig |
+| REQ-053 | Anthropic | LlmProviderConfig |
+| REQ-054 | Google Gemini | LlmProviderConfig |
+| REQ-055 | OpenAI | LlmProviderConfig |
+| REQ-063 | 상대 비교 가능 데이터 구조 | Assessment (Person × metric 의 cross product 가능 형태) |
+
+**uncovered 0** — frontmatter coversReq 의 20 REQ 모두 1+ entity 로 cover.
+
+**추가 cover** (frontmatter 외 — 관련 REQ 자동 cover):
+
+- REQ-008 / REQ-016 (권한 부족 통지) — PermissionDeniedRecord (§ 2).
+- REQ-029 (non-volatile 저장) — 모든 entity 가 PostgreSQL row 로 영속 (ADR-0002).
+- REQ-031 (재수집 중복 방지) — Contribution / Assessment 의 unique constraint (구체는 P3).
+- REQ-033 (commit/문서 단위) — Contribution entity.
+- REQ-034 / REQ-035 (일·주·월 요약) — Summary entity.
+- REQ-036 (상대 비교 + LLM + Metric) — Assessment, Summary.
+
+## 7. Out of scope
+
+본 문서는 **하지 않는다** — 다음 항목은 후속 phase / 별도 ADR 의 책임:
+
+- **구체 컬럼 type** (예: `CHAR(50)` / `TEXT` / `TIMESTAMPTZ` / `JSONB` / `DECIMAL(10,2)` 등 specific type) — P3 의 `prisma/schema.prisma`.
+- **Index / unique constraint specifics** (예: `@@index([personId, createdAt])` / `@@unique([personId, period, scope])`) — P3.
+- **Cascade policy** (ON DELETE CASCADE / RESTRICT / SET NULL — 예: Person 삭제 시 Assessment cascade vs Part 삭제 차단) — P3 결정. 본 문서는 관계 자체만 박제.
+- **Prisma schema 코드 작성** — P3 책임. 본 문서의 entity / 관계는 그 source 만 제공.
+- **Migration SQL / migration 정책** (`prisma migrate dev` 흐름 등) — P3.
+- **Audit log entity 의 구체 schema** — § 2 conceptual mention 만, 별도 보안 ADR (예: ADR-0004 audit-log) 필요.
+- **LLM API key 의 encryption-at-rest 구체 mechanism** — 별도 보안 ADR (예: ADR-0005 secret-encryption) 책임. 본 문서는 "encrypted at rest" 박제만.
+- **Soft delete vs hard delete 의 entity 별 specific 결정** — § 5 conceptual 박제, entity 별 적용은 P3.
+- **GroupSummary / PartSummary** 같은 aggregate Summary entity 신설 가능성 — view-time 계산으로 시작, 성능 / 요구에 따라 P5+ 에서 별도 entity 도입 가능.
+- **새 entity 발굴이 8 UC scope 를 벗어나는 경우** — 본 task scope 외, 후속 task 로 follow-up. ADR 없이 신규 entity 결정 금지.
+- **gap REQ-004** (사용자 지정 기간 임의 평가문) — [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) gap. UC-09 신설 또는 UC-01 확장 후 본 § 2 표에 row 추가 예정.
+- **ER cardinality 의 P3 schema-level 검증** — 본 문서는 MVA conceptual 만, schema-level 정확도는 P3 review 단계.
+
+## 8. References
+
+- [docs/PLAN.md](../PLAN.md) Phase P2 의 다섯째 bullet (L38) — 본 문서가 cover. 본 task 머지 시 **Phase P2 fully complete**.
+- [docs/architecture/INDEX.md](INDEX.md) — architecture document 목록 + MVA 원칙. 본 문서가 row 갱신 대상.
+- [docs/architecture/api.md](api.md) — T-0030 산출물. resource path prefix (`/api/persons` / `/api/assessments` / `/api/llm` 등) 가 본 문서 entity 이름의 1:1 source.
+- [docs/architecture/components.md](components.md) — T-A3 산출물. "DB Persistence" component 의 책임 + raw 미저장 schema-level 강제 출처.
+- [docs/architecture/modules.md](modules.md) — T-A4 산출물. 본 문서의 "책임 module" 컬럼 값의 source (8 NestJS module 명).
+- [docs/use-cases/INDEX.md](../use-cases/INDEX.md) — 8 UC backbone. 본 문서 entity 의 source UC 출처.
+- [docs/use-cases/UC-01-evaluation-execution.md](../use-cases/UC-01-evaluation-execution.md) ~ [UC-08-permission-denied.md](../use-cases/UC-08-permission-denied.md) — 8 UC 본문. 각 UC §5 / §6 의 entity 호명이 본 문서의 source.
+- [docs/use-cases/REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) — T-0029 산출물. uc-covered 48 REQ × entity 매핑 cross-reference.
+- [docs/requirements.md](../requirements.md) — REQ-NNN source of truth. 본 문서의 모든 REQ 인용 출처.
+- [docs/decisions/ADR-0001-stack.md](../decisions/ADR-0001-stack.md) — NestJS / TypeScript stack. 본 문서 entity 의 implementation language 결정 (P3 의 Prisma model class).
+- [docs/decisions/ADR-0002-db.md](../decisions/ADR-0002-db.md) — **본 문서의 핵심 기반**. PostgreSQL + Prisma. schema-as-code 형태가 본 conceptual model 의 실 구현 form.
+- [docs/decisions/ADR-0003-deployment.md](../decisions/ADR-0003-deployment.md) — monolithic / 단일 DB 인스턴스. 본 문서 entity 가 동일 DB 안에 거주.
+- **future ADR hook**: ADR-0004 audit-log entity schema / ADR-0005 secret-encryption (LLM API key encryption-at-rest) — 본 § 7 Out of scope 의 2 항목이 별도 ADR 후보.
+
+Refs: T-0031, T-0030, T-0029, T-0028, T-0027, T-0026, T-0025, T-0024, T-0023, T-0022, T-0020, T-0019, T-0017, T-0016, ADR-0001, ADR-0002, ADR-0003, REQ-008, REQ-016, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-029, REQ-031, REQ-032, REQ-033, REQ-034, REQ-035, REQ-036, REQ-037, REQ-038, REQ-041, REQ-043, REQ-044, REQ-045, REQ-046, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-063
