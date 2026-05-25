@@ -1,12 +1,13 @@
-// 루트 모듈. AppController 와 AppService 만 등록한다.
-// 도메인 모듈 (AssessmentModule, UserModule 등) 은 Phase P2 이후 추가 — 본 task 의 Out of Scope.
+// 루트 모듈. AppController + AppService + PersistenceModule (T-0033) 을 등록한다.
+// 도메인 모듈 (UserModule / AssessmentModule 등) 은 T-0034+ 의 책임 (Out of Scope).
 import { Module } from "@nestjs/common";
 
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
+import { PersistenceModule } from "./persistence/persistence.module";
 
 @Module({
-  imports: [],
+  imports: [PersistenceModule],
   controllers: [AppController],
   providers: [AppService],
 })

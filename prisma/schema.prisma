@@ -1,0 +1,33 @@
+// Prisma schema skeleton — T-0033 P3 첫 task.
+// ADR-0002 (PostgreSQL + Prisma ACCEPTED) + HQ-0004 (`accept-latest-stable`) 의 첫 schema 박제.
+//
+// Prisma 7.x 모델 (Prisma 5.x 와 차이):
+//   - datasource.url 은 schema 가 아닌 `prisma.config.ts` 에서 adapter 로 inject.
+//     본 schema 는 provider 만 박제 — runtime connection 은 PrismaClient 의 adapter
+//     생성자 옵션 (`@prisma/adapter-pg`) 가 DATABASE_URL 을 읽어 pg Pool 을 구성.
+//   - 추가 dependency `@prisma/adapter-pg` 가 본 결정의 implication 으로 자동 도입.
+//
+// 본 파일은 datasource provider + generator + Person 1 entity 만 정의한다.
+// 추가 entity (ServiceIdentity / Group / Part / User / Assessment / Contribution
+// / Summary / LlmProviderConfig / DifficultyMapping / PermissionDeniedRecord) 는
+// T-0034 이후의 책임이므로 본 task 의 Out of Scope.
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Prisma Client (TypeScript) 생성기. NestJS service / controller 가 사용할 type 의 source.
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Person — data-model.md §2 row 1 의 최소 컬럼 skeleton.
+// 본 task 의 Out of Scope 에 따라 추가 컬럼·인덱스·relation 은 T-0034+ 에서 도입.
+model Person {
+  id        String   @id @default(cuid())
+  fullName  String
+  email     String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
