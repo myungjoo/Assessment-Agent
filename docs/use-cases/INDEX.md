@@ -31,7 +31,7 @@ Phase P2 (Use case decomposition) 의 목표는 [README.md](../../README.md) + P
 | UC-01 | 평가 실행 (자동 cron + manual trigger) | Scheduler / Admin | Scheduler, Worker, GitHub Adapter, Confluence Adapter, LLM Gateway, DB Persistence | SchedulerModule, AssessmentModule, GithubModule, ConfluenceModule, LlmModule, PersistenceModule | REQ-005, REQ-006, REQ-007, REQ-014, REQ-015, REQ-039, REQ-040, REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055 | DONE |
 | UC-02 | 평가 결과 조회 / sort / filter / 시계열 | User / Admin | Web UI, Backend API, DB Persistence | WebModule, AssessmentModule, AuthModule, PersistenceModule | REQ-038, REQ-042, REQ-046, REQ-048 | DONE |
 | UC-03 | 평가 대상 인원 CRUD + Group / 파트 + Activate/Deactivate | Admin | Web UI, Backend API, DB Persistence | WebModule, UserModule, AuthModule, PersistenceModule | REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-045 | DONE |
-| UC-04 | 권한·계정 관리 (SuperAdmin 첫 로긴 / 등급 승급) | SuperAdmin / Admin | Web UI, Backend API, DB Persistence | WebModule, AuthModule, UserModule, PersistenceModule | REQ-043, REQ-044 | PLANNED |
+| UC-04 | 권한·계정 관리 (SuperAdmin 첫 로긴 / 등급 승급) | SuperAdmin / Admin | Web UI, Backend API, DB Persistence | WebModule, AuthModule, UserModule, PersistenceModule | REQ-043, REQ-044 | DONE |
 | UC-05 | LLM 설정 (provider / model / 난이도) | Admin | Web UI, Backend API, LLM Gateway, DB Persistence | WebModule, LlmModule, AuthModule, PersistenceModule | REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055 | PLANNED |
 | UC-06 | 평가 결과 manual delete + 재수집 | Admin | Web UI, Backend API, DB Persistence | WebModule, AssessmentModule, AuthModule, PersistenceModule | REQ-037, REQ-041, REQ-045 | PLANNED |
 | UC-07 | Export / Import / Backup / Restore | Admin | Web UI, Backend API, DB Persistence | WebModule, AssessmentModule, AuthModule, PersistenceModule | REQ-030, REQ-045 | PLANNED |
@@ -55,7 +55,7 @@ Admin 이 Web UI 의 인원 관리 화면에서 평가 대상 인원을 추가·
 
 ### UC-04 권한·계정 관리 (SuperAdmin 첫 로긴 / 등급 승급)
 
-서비스 런칭 후 첫 로긴 사용자가 SuperAdmin (내부적으로 SuperAdmin / Admin / User 의 3 등급) 으로 지정. SuperAdmin 이 사용자 추가 및 등급 승급 / 강등 권한 보유 — Admin → User 강등은 SuperAdmin 만 수행 가능, SuperAdmin 본인의 self-demote 금지 (REQ-044). 모든 기능은 ID / Password 보호 (REQ-043).
+서비스 런칭 후 첫 로긴 사용자가 SuperAdmin (내부적으로 SuperAdmin / Admin / User 의 3 등급) 으로 지정. SuperAdmin 이 사용자 추가 및 등급 승급 / 강등 권한 보유 — Admin → User 강등은 SuperAdmin 만 수행 가능, SuperAdmin 본인의 self-demote 금지 (REQ-044). 모든 기능은 ID / Password 보호 (REQ-043). → [UC-04-account-auth.md](UC-04-account-auth.md)
 
 ### UC-05 LLM 설정 (provider / model / 난이도)
 
@@ -98,4 +98,4 @@ GitHub Adapter / Confluence Adapter 가 외부 시스템의 4xx 응답을 감지
 
 본 INDEX.md 는 P2 의 후속 task (`P2-Mod-1` ~ `P2-Mod-N` — 각 UC 별 본문 분해) 와 P2 의 나머지 entry artifact (api.md / data-model.md / directory.md) 의 backbone 으로 사용된다. P3+ 의 모든 task 는 frontmatter 의 `coversReq` 또는 본문 Why 단락에서 본 INDEX.md 의 UC ID 를 인용하여 "본 task 는 UC-03 의 service layer 를 구현한다" 와 같이 추적성을 박제한다.
 
-Refs: T-0023, T-0022, T-0020, T-0019, T-0016, T-0017, ADR-0001, ADR-0002, ADR-0003, REQ-005, REQ-006, REQ-007, REQ-008, REQ-014, REQ-015, REQ-016, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-030, REQ-037, REQ-038, REQ-039, REQ-040, REQ-041, REQ-042, REQ-043, REQ-044, REQ-045, REQ-046, REQ-048, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055
+Refs: T-0024, T-0023, T-0022, T-0020, T-0019, T-0016, T-0017, ADR-0001, ADR-0002, ADR-0003, REQ-005, REQ-006, REQ-007, REQ-008, REQ-014, REQ-015, REQ-016, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-030, REQ-037, REQ-038, REQ-039, REQ-040, REQ-041, REQ-042, REQ-043, REQ-044, REQ-045, REQ-046, REQ-048, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055
