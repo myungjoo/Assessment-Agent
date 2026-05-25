@@ -2,7 +2,7 @@
 id: T-0024
 title: P2-UC-04 — 권한·계정 관리 (SuperAdmin 첫 로긴 / 등급 승급) use case 분해 (docs/use-cases/UC-04-account-auth.md)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 140
