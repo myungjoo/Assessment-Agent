@@ -1,16 +1,22 @@
-// Prisma schema skeleton — T-0033 P3 첫 task.
-// ADR-0002 (PostgreSQL + Prisma ACCEPTED) + HQ-0004 (`accept-latest-stable`) 의 첫 schema 박제.
+// Prisma schema — T-0033 (init) + T-0034 (Person model + 첫 migration) 위에
+// T-0035 가 ServiceIdentity model + Person↔ServiceIdentity 1:N relation +
+// `@@unique([personId, service])` invariant 를 추가한다.
 //
 // Prisma 7.x 모델 (Prisma 5.x 와 차이):
 //   - datasource.url 은 schema 가 아닌 `prisma.config.ts` 에서 adapter 로 inject.
 //     본 schema 는 provider 만 박제 — runtime connection 은 PrismaClient 의 adapter
 //     생성자 옵션 (`@prisma/adapter-pg`) 가 DATABASE_URL 을 읽어 pg Pool 을 구성.
-//   - 추가 dependency `@prisma/adapter-pg` 가 본 결정의 implication 으로 자동 도입.
+//   - 추가 dependency `@prisma/adapter-pg` 가 본 결정의 implication 으로 자동 도입
+//     (T-0033 acceptance).
 //
-// 본 파일은 datasource provider + generator + Person 1 entity 만 정의한다.
-// 추가 entity (ServiceIdentity / Group / Part / User / Assessment / Contribution
-// / Summary / LlmProviderConfig / DifficultyMapping / PermissionDeniedRecord) 는
-// T-0034 이후의 책임이므로 본 task 의 Out of Scope.
+// T-0035 책임 범위:
+//   - ServiceIdentity model 1 개 추가 (id / personId / service / externalId /
+//     isPrimary / createdAt / updatedAt).
+//   - Person.serviceIdentities relation 필드 1 줄 추가.
+//   - `@@unique([personId, service])` invariant — 1 Person 의 동일 service 중복 금지.
+// 추가 entity (Group / Part / User / Assessment / Contribution / Summary /
+// LlmProviderConfig / DifficultyMapping / PermissionDeniedRecord) 는 T-0036+
+// 의 책임이므로 본 task 의 Out of Scope.
 
 datasource db {
   provider = "postgresql"
@@ -21,8 +27,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Person — data-model.md §2 row 1 의 최소 컬럼 skeleton.
-// 본 task 의 Out of Scope 에 따라 추가 컬럼·인덱스·relation 은 T-0034+ 에서 도입.
+// Person — data-model.md §2 row 1 의 최소 컬럼 + ServiceIdentity 1:N relation.
+// T-0035 가 `serviceIdentities` relation 필드를 추가 — Prisma 의 양방향 relation
+// 요건 (back-relation 필드 필수). 추가 컬럼 (group / part / 동명이인 등) 은 T-0036+.
 model Person {
   id        String   @id @default(cuid())
   fullName  String
@@ -30,4 +37,37 @@ model Person {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // 1 Person 은 0+ 개의 ServiceIdentity 를 가진다 (REQ-023 / data-model.md §3 관계 1).
+  // hard delete 시 Cascade 로 ServiceIdentity 동반 삭제 (ServiceIdentity model 의
+  // `onDelete: Cascade` 가 양방향 의미를 박제). soft delete (active=false) 시에는
+  // 본 cascade 발동 안 함 — ServiceIdentity 는 그대로 보존.
+  serviceIdentities ServiceIdentity[]
+}
+
+// ServiceIdentity — data-model.md §2 row 2 + §3 관계 1 + REQ-023 / REQ-024 cover.
+// 1 Person 의 N 서비스 ID 를 매핑 (github.com / github.sec.samsung.net /
+// github.ecodesamsung.com / confluence.sec.samsung.net 등). isPrimary 가 REQ-024
+// invariant (1 Person 당 정확히 1 primary) 의 schema-level 표식 — service-layer
+// 강제 (정확히 1 row) 는 후속 T-0036 책임. 본 task 는 schema 의 `@@unique` 만 박제.
+//
+// service 필드는 본 task 에서 String 으로 유지 — enum 도입 / lookup table 격상은
+// P4 진입 시 별도 ADR 권장 (task 의 Follow-ups §149 참조).
+model ServiceIdentity {
+  id         String   @id @default(cuid())
+  personId   String
+  service    String
+  externalId String
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Person 과 의 N:1 — Person 의 hard delete 시 ServiceIdentity 도 cascade 삭제.
+  // soft delete 의 경우 active flag 만 toggle 이므로 본 cascade 는 발동 안 함.
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  // 1 Person 이 동일 service 의 ID 2 개 가질 수 없음 invariant (REQ-023 변형).
+  // 예: 동일 person 이 github.com 의 ID 2 개를 등록할 수 없다 — 서비스 측 user 의
+  // 1:1 매핑 가정.
+  @@unique([personId, service])
 }
