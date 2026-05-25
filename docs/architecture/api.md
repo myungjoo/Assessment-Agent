@@ -71,7 +71,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | GET | `/api/persons` | [UC-03 §5](../use-cases/UC-03-person-crud.md#5-main-flow-sequence-diagram) | 평가 대상 인원 목록 (active filter / group filter 가능) | User+ (조회) |
 | POST | `/api/persons` | UC-03 §5 step 2 | 신규 인원 추가 (서비스 ID 매핑 + primary key + group/part) | Admin+ |
 | GET | `/api/persons/:id` | UC-03 | 단일 인원 상세 조회 | User+ |
-| PATCH | `/api/persons/:id` | UC-03 §5 step 2 | 인원 수정 (서비스 ID 매핑·group/part·primary key 변경, deactivate/activate 의 soft flag toggle 포함) | Admin+ |
+| PATCH | `/api/persons/:id` | UC-03 §5 step 2 | 인원 수정 — RFC-7396 JSON Merge Patch partial update semantic (전달된 모든 필드 적용). `fullName` / `email` / `active` 의 단독 또는 동시 patch 모두 허용 — `{active:false}` 가 Deactivate, `{active:true}` 가 Activate, 다른 필드와의 동시 patch 도 자연스러운 partial update (T-0037 박제 — 동시 patch 에서 active 묵시 drop 안 함). | Admin+ |
 | DELETE | `/api/persons/:id` | UC-03 §5 step 2 | 인원 hard delete (REQ-026 — soft 는 PATCH active=false) | Admin+ |
 | GET | `/api/groups` | UC-03 | 임의 group 목록 (REQ-028) | User+ |
 | POST | `/api/groups` | UC-03 | group 신설 | Admin+ |

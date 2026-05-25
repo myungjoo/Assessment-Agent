@@ -169,44 +169,75 @@ describe("PersonController (unit)", () => {
     expect(serviceMock.reactivate).not.toHaveBeenCalled();
   });
 
-  it("PATCH /api/persons/:id — {active:false} 단독 시 service.deactivate routing (branch)", async () => {
+  it("PATCH /api/persons/:id — {active:false} 단독 시 service.update 로 forward (branch, T-0037)", async () => {
     const { service, serviceMock } = buildServiceMock();
-    serviceMock.deactivate.mockResolvedValueOnce(
+    serviceMock.update.mockResolvedValueOnce(
       buildPersonFixture({ active: false }),
     );
 
     const controller = new PersonController(service);
     await controller.update("id-2", { active: false });
 
-    expect(serviceMock.deactivate).toHaveBeenCalledWith("id-2");
-    expect(serviceMock.update).not.toHaveBeenCalled();
+    // T-0037 — keys 길이 routing 제거. 단독 active 도 service.update 가 partial update 처리.
+    expect(serviceMock.update).toHaveBeenCalledWith("id-2", { active: false });
+    expect(serviceMock.deactivate).not.toHaveBeenCalled();
     expect(serviceMock.reactivate).not.toHaveBeenCalled();
   });
 
-  it("PATCH /api/persons/:id — {active:true} 단독 시 service.reactivate routing (branch)", async () => {
+  it("PATCH /api/persons/:id — {active:true} 단독 시 service.update 로 forward (branch, T-0037)", async () => {
     const { service, serviceMock } = buildServiceMock();
-    serviceMock.reactivate.mockResolvedValueOnce(buildPersonFixture());
+    serviceMock.update.mockResolvedValueOnce(buildPersonFixture());
 
     const controller = new PersonController(service);
     await controller.update("id-3", { active: true });
 
-    expect(serviceMock.reactivate).toHaveBeenCalledWith("id-3");
-    expect(serviceMock.update).not.toHaveBeenCalled();
+    expect(serviceMock.update).toHaveBeenCalledWith("id-3", { active: true });
     expect(serviceMock.deactivate).not.toHaveBeenCalled();
+    expect(serviceMock.reactivate).not.toHaveBeenCalled();
   });
 
-  it("PATCH /api/persons/:id — active + fullName 동시 patch 시 service.update 호출 (branch)", async () => {
+  it("REGRESSION: T-0036 MAJOR-2 — active+fullName 동시 patch 가 service.update 로 forward (branch)", async () => {
     const { service, serviceMock } = buildServiceMock();
     serviceMock.update.mockResolvedValueOnce(buildPersonFixture());
 
     const controller = new PersonController(service);
     await controller.update("id-4", { active: true, fullName: "이순신" });
 
+    // active 동시 forward 가 핵심 — service layer 가 묵시 drop 안 함 (T-0037 결합).
     expect(serviceMock.update).toHaveBeenCalledWith("id-4", {
       active: true,
       fullName: "이순신",
     });
+    expect(serviceMock.deactivate).not.toHaveBeenCalled();
     expect(serviceMock.reactivate).not.toHaveBeenCalled();
+  });
+
+  it("PATCH /api/persons/:id — {active:false, email} 동시 patch 도 service.update 로 forward (branch)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.update.mockResolvedValueOnce(
+      buildPersonFixture({ active: false }),
+    );
+
+    const controller = new PersonController(service);
+    await controller.update("id-4b", { active: false, email: "x@y.z" });
+
+    expect(serviceMock.update).toHaveBeenCalledWith("id-4b", {
+      active: false,
+      email: "x@y.z",
+    });
+    expect(serviceMock.deactivate).not.toHaveBeenCalled();
+    expect(serviceMock.reactivate).not.toHaveBeenCalled();
+  });
+
+  it("PATCH /api/persons/:id — 빈 {} patch 도 service.update 로 forward (negative, T-0037)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.update.mockResolvedValueOnce(buildPersonFixture());
+
+    const controller = new PersonController(service);
+    // ValidationPipe 가 controller 진입 전 검증 — controller 자체는 검증 책임 안 짐.
+    await controller.update("id-empty", {});
+
+    expect(serviceMock.update).toHaveBeenCalledWith("id-empty", {});
   });
 
   it("PATCH /api/persons/:id — service 의 NotFoundException propagate (error)", async () => {

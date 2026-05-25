@@ -72,24 +72,17 @@ export class PersonController {
   }
 
   // PATCH /api/persons/:id — 부분 수정 + active toggle.
-  // - 단독 patch.active === false → service.deactivate (soft, REQ-026).
-  // - 단독 patch.active === true  → service.reactivate.
-  // - 그 외 (fullName / email 단독 또는 active 와 동시 patch) → service.update — 단 active 는
-  //   service.update 가 묵시적으로 drop (fullName / email 만 forward). 동시 patch 의 active
-  //   처리는 T-0036.5 follow-up — 옵션 (a) service forward 또는 (b) controller 400 reject.
-  //   의도: 단독 active 케이스만 본 task scope, 동시 patch 의 reactivate 의도는 후속 task.
+  // 단독 / 동시 patch 모두 service.update 가 partial update 처리 (active forward 포함).
+  // RFC-7396 JSON Merge Patch semantic — 전달된 모든 필드 (fullName / email / active) 를
+  // 그대로 forward, 의미 결정은 service layer 책임 (controller 는 routing 만). T-0037
+  // 전환 — 이전 keys 길이 검사 routing 은 active+other 동시 patch 에서 active 묵시 drop
+  // 결함 (round 1/7 MAJOR-2) 의 원인이라 제거. deactivate / reactivate service 메서드
+  // 자체는 향후 dedicated endpoint (예: POST /:id/deactivate) 또는 직접 호출용으로 보존.
   @Patch(":id")
   async update(
     @Param("id") id: string,
     @Body() patch: UpdatePersonDto,
   ): Promise<Person> {
-    const keys = Object.keys(patch);
-    if (keys.length === 1 && patch.active === false) {
-      return this.service.deactivate(id);
-    }
-    if (keys.length === 1 && patch.active === true) {
-      return this.service.reactivate(id);
-    }
     return this.service.update(id, patch);
   }
 

@@ -40,9 +40,12 @@ export interface PersonCreateInput {
   email: string;
 }
 
-// PATCH 의 부분 update 의도 — fullName / email 만 변경 가능 (active 변경은
-// softDelete / restore 전용 메서드로 분리).
-export type PersonUpdatePatch = Partial<PersonCreateInput>;
+// PATCH 의 부분 update 의도 — fullName / email / active 변경 가능. softDelete /
+// restore 전용 메서드는 보존 (별도 caller 가 직접 호출 가능, T-0037 박제) — 본
+// patch type 은 service 가 PATCH partial update 의 active 동시 forward 를 위해 확장.
+export type PersonUpdatePatch = Partial<PersonCreateInput> & {
+  active?: boolean;
+};
 
 @Injectable()
 export class PersonRepository {
