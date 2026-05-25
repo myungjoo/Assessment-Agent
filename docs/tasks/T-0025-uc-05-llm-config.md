@@ -2,16 +2,20 @@
 id: T-0025
 title: P2-UC-05 — LLM 설정 (provider / model / 난이도 매핑) use case 분해 (docs/use-cases/UC-05-llm-config.md)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055]
 estimatedDiff: 190
 estimatedFiles: 3
 created: 2026-05-25
+completed: 2026-05-25T09:50:00+09:00
+mergedPr: 24
+mergeSha: 8f874a0
 plannerNote: P2 다섯번째 UC 본문 분해 (UC-05 LLM 설정). UC-01 이 인용하는 5 provider + 3 난이도 매핑의 source. T-0023/T-0024 template 적용.
 dependsOn: [T-0019, T-0024]
 blocks: []
 hqOrigin: null
+resultSummary: PR-24 round 1/7 squash 8f874a0 — UC-05-llm-config.md 225 LOC 신설 + INDEX/PLAN 갱신. 11 section + mermaid 12-step + alt 2 + error flow 6. reviewer 0 BLOCKER/MAJOR 3 MINOR (본문 LOC 가이드 초과 / LLMGateway participant naming / REQ-046 adjacentReq 누락 — 모두 absorbable). CI rerun --failed 7번째 dogfood.
 ---
 
 # T-0025 — P2-UC-05: LLM 설정 (provider / model / 난이도 매핑) use case 분해
