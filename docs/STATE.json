@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": null,
+  "currentTask": "T-0035",
   "nextTask": null,
-  "lock": null,
-  "lastActivity": "2026-05-25T20:35:00+09:00",
+  "lock": {"holder": "loop-session-8-turn-5", "since": "2026-05-25T20:40:00+09:00"},
+  "lastActivity": "2026-05-25T20:58:00+09:00",
   "lastCommit": "087b322",
   "mostRecentTasks": ["T-0034", "T-0033", "T-0032", "T-0031", "T-0030"],
   "loopSession": {
