@@ -2,7 +2,12 @@
 id: T-0035
 title: P3 — ServiceIdentity entity + Person↔ServiceIdentity 1:N + isPrimary invariant + migration
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-05-25T21:20:00+09:00
+mergeCommit: f14a84f
+prNumber: 34
+ciRunUrl: https://github.com/myungjoo/Assessment-Agent/actions/runs/26401984038
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-023, REQ-024]
 estimatedDiff: 260

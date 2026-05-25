@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": "T-0035",
+  "currentTask": null,
   "nextTask": null,
-  "lock": {"holder": "loop-session-8-turn-5", "since": "2026-05-25T20:40:00+09:00"},
-  "lastActivity": "2026-05-25T20:58:00+09:00",
-  "lastCommit": "087b322",
-  "mostRecentTasks": ["T-0034", "T-0033", "T-0032", "T-0031", "T-0030"],
+  "lock": null,
+  "lastActivity": "2026-05-25T21:25:00+09:00",
+  "lastCommit": "f14a84f",
+  "mostRecentTasks": ["T-0035", "T-0034", "T-0033", "T-0032", "T-0031"],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-05-25T13:00:00+09:00",
     "cap": 10,
-    "note": "session #8 turn 4 — turn 3 (user 'What are you waiting for?') 가 idling 탄핵. driver 가 STATE.json (currentTask=null/nextTask=null/lock=null) 확인 후 planner sub-agent dispatch — drafted T-0034 'person-entity-extension-and-user-module-skeleton' 290 LOC 5 파일. 그 사이 cron #5 가 17:19 KST 에 별도 T-0034 'person-repository-and-user-module-skeleton' 240 LOC 5 파일을 main 에 5d49737 로 push 완료. 본 driver 가 origin/main fetch 후 race 검출 → §10 race policy 에 따라 local duplicate 폐기 (planner stash drop + git restore + git rm 신규 task 파일) + ff-merge to 5d49737. **Lesson**: planner dispatch 전에 origin/main fetch + planner 출력 commit 전에 fetch 재확인 필수 — long-horizon 다중 mode (cron + /loop) 환경에서 stale STATE 신뢰 금지. 이어 turn 4 에서 user 'go!' 로 executor T-0034 dispatch (cron #5 큐잉본 기준) — full pr-mode chain (architect skip + implementer + tester + reviewer + integrator) 1 회 완주, round 1/7 APPROVE, CI run 26400363781 13 step all green (build/lint/test/test:cov/smoke/e2e + reviewer-approval), `gh pr merge 33 --squash --delete-branch` mergeCommit 087b322. coverage src/user/person.repository.ts line/branch/function/stmt 4 종 모두 100% — happy 6 + error 3 (null/P2025/P2002) + branch 3 (findMany activeOnly 분기) + negative 4 (reject propagate / empty email pass-through / softDelete·restore idempotent) + UserModule spec 3 (happy/branch/negative) = 41 test all green. counters.tasksCompleted 32→33. mostRecentTasks shift [T-0034, T-0033, T-0032, T-0031, T-0030]. reviewRounds[T-0034]=1. Phase P3-in-progress 유지 (T-0035~T-0037 후속). 본 turn 의 효율: 첫 P3 domain feature task 가 round 1 머지 — T-0033 의 4 차 CI fail loop 와 대조적. CI 의 prisma postinstall + reviewer-approval step rerun pattern 박제 활용 (full executor chain 자체적으로 reviewer-approval step 까지 통과시킴)."
+    "note": "session #8 turn 5 — user '기다려야할 이유 없으면 계속 진행해라' 진입. driver 가 674a605 CI green 확인 후 planner dispatch (T-0035 ServiceIdentity entity + Person 1:N + isPrimary + repository + 두 번째 migration, pr-mode 260 LOC 5 파일) → 같은 turn 안에 bookkeeping commit 86a4dbf (nextTask→currentTask promote) + executor full pr-mode chain dispatch. executor: implementer prisma/schema.prisma ServiceIdentity model + Person back-relation + cascade FK + composite @@unique([personId, service]) + setPrimary 의 $transaction([updateMany, update]) atomic 처리 + 두 번째 migration 20260525000001_service_identity. tester 11 신규 + 41 regression = 52 test all green, coverage line/branch/function/stmt 4 종 모두 100% (R-112 happy 4 / error 3 / branch 2 / negative 3). reviewer round 1/7 APPROVE. integrator `gh pr merge 34 --squash --delete-branch` mergeCommit f14a84f. CI run 26401984038 post-merge main green. **사용자 직접 hotfix 790cabc**: 86a4dbf 와 f14a84f 사이에 PORT parsing 분기를 src/parse-port.ts helper 로 분리 + CLAUDE.md §3.2 R-112 entrypoint 예외 정책 박제 — driver bookkeeping 전에 fetch 후 발견, ff fail → reset --hard origin/main 으로 정리. counters.tasksCompleted 33→34. mostRecentTasks shift [T-0035, T-0034, T-0033, T-0032, T-0031]. reviewRounds[T-0035]=1. Phase P3-in-progress 유지. **본 turn 효율**: planner+executor 같은 turn 완주 (P3 둘째 도메인 task) — full chain round 1 머지로 T-0033 4 차 CI fail 의 반례 강화. **Follow-ups 박제 (T-0036 후보)**: (i) cap LOC 정책 ADR — production vs test 분리 (T-0034/T-0035 둘 다 total diff cap 초과한 채 APPROVE 됨, R-112 strict coverage 와의 일관성 박제 필요) (ii) partial unique index ADR — REQ-024 isPrimary 의 service-layer 강제 보강 (PostgreSQL `WHERE isPrimary=true` partial unique index raw SQL migration) (iii) .gitattributes CRLF 정책 박제 — Windows local CRLF vs CI Linux LF (local `pnpm lint` fail, CI pass)."
   },
   "ci": {
-    "lastRun": "2026-05-25T20:30:00+09:00",
+    "lastRun": "2026-05-25T21:20:00+09:00",
     "status": "operational",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26400363781",
-    "note": "PR-33 (T-0034) CI run 26400363781 head sha ff95258 — 첫 commit e239bd0 의 spec-presence fail 을 user.module.spec.ts 추가 (ff95258) 로 회복. pull_request rerun 시 13 step all green: build/lint/test (41 test) /test:cov (line/branch/func/stmt 100%) /smoke/e2e/reviewer-approval. 표준 절차 14 회 dogfood — T-0034 가 P3 첫 domain feature task 임에도 round 1 머지로 T-0033 의 4 차 CI fail loop 회피."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26401984038",
+    "note": "PR-34 (T-0035) CI run all 13 step green. post-merge main run 26401984038 green. 표준 절차 15 회 dogfood — P3 둘째 domain feature task 가 round 1 머지로 T-0034 와 동일한 효율 패턴 유지."
   },
-  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1},
+  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1, "T-0035": 1},
   "blockers": [],
   "humanQuestions": [
     {
@@ -70,7 +70,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 33,
+    "tasksCompleted": 34,
     "tasksBlocked": 1,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
