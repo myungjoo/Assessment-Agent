@@ -2,16 +2,20 @@
 id: T-0027
 title: P2-UC-07 — Export / Import / Backup / Restore use case 분해 (docs/use-cases/UC-07-export-import.md)
 phase: P2
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 170
 estimatedFiles: 3
 created: 2026-05-25
+completed: 2026-05-25T10:35:00+09:00
+mergedPr: 26
+mergeSha: 3fe3781
 plannerNote: P2 일곱번째 UC 본문 분해 (UC-07 Export/Import/Backup/Restore). raw 미저장 정책 (REQ-032) 하에서 평가 결과 dump/load 흐름 박제 — Admin 권한 한정.
 dependsOn: [T-0019, T-0026]
 blocks: []
 hqOrigin: null
+resultSummary: PR-26 round 1/7 squash 3fe3781 — UC-07-export-import.md 178 LOC 신설 (≤180 discipline 충족) + INDEX/PLAN 갱신. 11 section + mermaid + alt 통합 (Export/Import 분기) + 3 invariant 박제 (raw 미저장 / Import atomic / UC-01 자동 재수집). reviewer 0 BLOCKER/MAJOR 1 MINOR. CI rerun --failed 9번째 dogfood.
 ---
 
 # T-0027 — P2-UC-07: Export / Import / Backup / Restore use case 분해
