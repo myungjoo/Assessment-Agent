@@ -8,5 +8,6 @@
   },
   "globalSetup": "<rootDir>/test/helpers/jest-e2e-setup.ts",
   "testEnvironment": "node",
-  "passWithNoTests": false
+  "passWithNoTests": false,
+  "maxWorkers": 1
 }
