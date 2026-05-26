@@ -3,8 +3,9 @@
 // ServiceIdentityRepository, T-0036 에서 PersonService + PersonController 가 등록되었고
 // T-0039 가 GroupRepository + PartRepository 를 추가 wiring. T-0046 가 PartService +
 // PartController + CreatePartDto 를 추가 — Part 의 HTTP-facing layer 박제 완료.
-// GroupService / GroupController + Person.partId 의 mandatory invariant 강제 는 후속
-// 별도 task 책임.
+// T-0049 가 PersonGroupMembershipRepository 를 추가 wiring — GroupService 의 N:M
+// membership add/remove 책임의 repository-layer prerequisite. GroupService /
+// GroupController + Person.partId 의 mandatory invariant 강제 는 후속 별도 task 책임.
 //
 // PersistenceModule (`@Global()`) 이 PrismaService 를 application-wide 로
 // export 하므로 본 module 은 PersistenceModule 을 imports 에 명시할 필요가 없다.
@@ -14,16 +15,18 @@
 //   - controllers: PersonController — `/api/persons` 5 endpoint 노출.
 //                  PartController — `/api/parts` 5 endpoint 노출 (T-0046).
 //   - providers: PersonRepository, ServiceIdentityRepository, GroupRepository,
-//     PartRepository, PersonService, PartService.
+//     PartRepository, PersonGroupMembershipRepository, PersonService, PartService.
 //   - exports: PersonRepository, ServiceIdentityRepository, GroupRepository,
-//     PartRepository, PersonService, PartService — 다른 module (예: 후속
-//     AssessmentModule / GroupService) 이 PartService / Repo inject 가능하도록.
+//     PartRepository, PersonGroupMembershipRepository, PersonService, PartService —
+//     다른 module (예: 후속 AssessmentModule / GroupService) 이 PartService / Repo
+//     inject 가능하도록.
 import { Module } from "@nestjs/common";
 
 import { GroupRepository } from "./group.repository";
 import { PartController } from "./part.controller";
 import { PartRepository } from "./part.repository";
 import { PartService } from "./part.service";
+import { PersonGroupMembershipRepository } from "./person-group-membership.repository";
 import { PersonController } from "./person.controller";
 import { PersonRepository } from "./person.repository";
 import { PersonService } from "./person.service";
@@ -36,6 +39,7 @@ import { ServiceIdentityRepository } from "./service-identity.repository";
     ServiceIdentityRepository,
     GroupRepository,
     PartRepository,
+    PersonGroupMembershipRepository,
     PersonService,
     PartService,
   ],
@@ -44,6 +48,7 @@ import { ServiceIdentityRepository } from "./service-identity.repository";
     ServiceIdentityRepository,
     GroupRepository,
     PartRepository,
+    PersonGroupMembershipRepository,
     PersonService,
     PartService,
   ],
