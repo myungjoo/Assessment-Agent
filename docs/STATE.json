@@ -2,26 +2,26 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0047",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-26T13:02:36+09:00",
-  "lastCommit": "2a314bc",
-  "mostRecentTasks": ["T-0046", "T-0045", "T-0044", "T-0043", "T-0042"],
+  "lastActivity": "2026-05-26T13:19:00+09:00",
+  "lastCommit": "460b302",
+  "mostRecentTasks": ["T-0047", "T-0046", "T-0045", "T-0044", "T-0043"],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-05-26T12:30:00+09:00",
     "cap": 10,
-    "note": "session #12 turn 2 (cap 10, 2/10 used, planner-only) — ScheduleWakeup 270s wake (KST 13:02 fallback heartbeat) continuation of session #12. [1] STATE 로드 → 직전 9f7619d (T-0046 bookkeeping doc-only direct) main CI run 26431306278 SUCCESS, lock=null, currentTask=null, nextTask=null. 미해결 humanQuestion 0. loopSession.turnCount 1→2 increment / startedAt 12:30 유지. [2] currentTask=null & nextTask=null → planner dispatch. planner 가 4 후보 (a GroupService backbone cap ~280 tight / b PersonController PATCH T-0037 closed 검증 / c PersonService vs PartService findByPartId 중복 doc / d shared test helper 추출) 검토 후 **(d) shared test helper 추출 phase 1** 선택 — (i) buildMockPrismaService/buildPersonFixture/buildPrismaError 5+ spec inline (T-0044/T-0046 §Follow-ups 박제) 임계 3+ 초과 (ii) test/smoke + test/e2e 2 파일 사실상 동일 시그니처 mechanical migration (iii) cap 보존 — 1 신규 helper (~80 LOC) + 2 migration = 3 파일 / ~130 LOC (iv) src/user/*.spec.ts 5 spec 는 fixture variant 검토 동반 phase 2 follow-up (v) production 변경 0 / dependency 0 / coverage threshold 회귀 위험 0 (vi) GroupService backbone 진입 전 helper 추출이 새 spec 작성 비용 절감. T-0047 task 파일 작성 (pr-mode, 130 LOC / 3 파일). STATE.nextTask=T-0047 set + lastActivity 13:02. [4] commitMode=direct → main 직접 commit + push (3 파일: STATE + journal + T-0047 task). [8] turnCount 2 < cap 10 → reschedule (60s — 다음 turn 즉시 executor T-0047 진입). 본 turn lesson: (i) planner-only turn 의 cost — cap budget 1 turn 소모하나 다음 task 의 cleaner entry 확보 (cron #6/#8 동일 패턴) (ii) T-0044/T-0046 §Follow-ups 의 박제 패턴이 planner 의 candidate 결정에 직접 source — task 본문 §Follow-ups 가 backlog 역할로 기능. 누적 lesson 26 회 유지 (planner-only — lesson 신규 추가 minor)."
+    "note": "session #12 turn 3 (cap 10, 3/10 used) — ScheduleWakeup 60s wake (KST 13:10) continuation. [1] STATE 로드 → 직전 3aa9ddd (T-0047 큐잉 doc) main CI SUCCESS, lock=null, currentTask=null, nextTask=T-0047. loopSession.turnCount 2→3 increment / startedAt 12:30 유지. 미해결 humanQuestion 0. [2] nextTask=T-0047 → currentTask promote. [3] executor T-0047 full pr-mode chain dispatch — architect skip (mechanical migration, ADR 신설 불요) + implementer (test/helpers/prisma-mock.ts +91 신규 + test/smoke/persons.smoke-spec.ts -38 + test/e2e/persons.e2e-spec.ts -41, net +108/-98, 3 파일) + tester (lint 0 / build pass / unit 221 pass / smoke 11 pass / e2e 13 pass / coverage production 100% 유지 — helper 파일은 collectCoverageFrom src/** scope 밖, threshold line 80% & func 80% 통과) + reviewer round 1/7 APPROVE (`gh pr comment` 외부 post — 4-게이트 #2, comment 4539967151) + integrator 4-게이트 final TRUE `gh pr merge 43 --squash --delete-branch` mergeCommit **460b302** ([PR-43](https://github.com/myungjoo/Assessment-Agent/pull/43)). [5] reviewer-gate race 1 회 → `gh run rerun` SUCCESS (T-0036/T-0039/T-0041/T-0042/T-0044/T-0046/T-0047 7 회 연속 패턴 — fix follow-up 가치 강화). [6] STATE 갱신: currentTask=null, nextTask=null, lastCommit=460b302, mostRecentTasks=[T-0047, T-0046, T-0045, T-0044, T-0043], reviewRounds[T-0047]=1, counters.tasksCompleted 45→46. T-0047 frontmatter status PENDING→DONE + mergedAs=460b302 + prNumber=43 + completedAt. 본 commit doc-only direct (3 파일: STATE + T-0047 task + journal) — HEAD:main push (선례). **T-0044/T-0046 §Follow-ups 박제 candidate (d) closure — 3+ spec 임계 helper 외화 완료. phase 2 (src/user/*.spec.ts 5 spec migration with fixture variant 검토) 는 별도 task — 다음 planner 가 backbone 진입 또는 phase 2 중 결정**. [8] turnCount 3 < cap 10 → reschedule (270s — CI in_progress 대기 또는 1200s fallback). 본 turn lesson: (i) test-only refactoring pr-mode 가 production 0 변경 + coverage threshold 회귀 위험 0 으로 round 1 단발 머지 (T-0042 micro-test 패턴 reuse 확인) (ii) helper 외화 후 향후 backbone task 의 새 spec 작성 비용 절감 effect — phase 2 migration + 새 GroupService spec 작성 시 즉시 import 가능 (iii) reviewer-gate race 7 회 연속 — agent definition 의 reviewer comment post timing 을 PR open 직후로 앞당기는 follow-up 의 ROI 가 점진 증가 (현 ad-hoc `gh run rerun` 대응 비용 누적). 누적 lesson 27 회 dogfood."
   },
   "ci": {
-    "lastRun": "2026-05-26T12:48:24+09:00",
+    "lastRun": "2026-05-26T13:16:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26431016502",
-    "note": "session #12 turn 1 의 [5] 단계 — PR-42 squash merge 후 main CI run 26430971753 was failure (reviewer-gate race — comment post 전 CI start, T-0036/T-0039/T-0041/T-0042/T-0044 선례 동일 패턴 재발). `gh run rerun` 으로 재실행한 26431016502 SUCCESS. consecutiveFails 0 유지 (rerun success = effective green)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26431306278",
+    "note": "session #12 turn 3 — PR-43 squash merge 후 main CI in_progress (다음 turn 의 [1] 단계에서 conclusion 재확인). 직전 3aa9ddd (T-0047 큐잉 doc) main CI run 26431306278 SUCCESS, 9f7619d 직전 SUCCESS. consecutiveFails 0 유지. PR-43 첫 CI 는 reviewer-gate race fail → rerun green (7 회 연속 패턴)."
   },
-  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1, "T-0035": 1, "T-0036": 2, "T-0037": 1, "T-0039": 1, "T-0041": 1, "T-0042": 1, "T-0043": 1, "T-0044": 1, "T-0046": 1},
+  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1, "T-0035": 1, "T-0036": 2, "T-0037": 1, "T-0039": 1, "T-0041": 1, "T-0042": 1, "T-0043": 1, "T-0044": 1, "T-0046": 1, "T-0047": 1},
   "blockers": [],
   "humanQuestions": [
     {
@@ -102,7 +102,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 45,
+    "tasksCompleted": 46,
     "tasksBlocked": 2,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

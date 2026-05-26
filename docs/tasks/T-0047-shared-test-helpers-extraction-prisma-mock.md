@@ -2,12 +2,15 @@
 id: T-0047
 title: shared test helper 추출 — test/helpers/prisma-mock.ts + smoke / e2e spec migration
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-058]
 estimatedDiff: 130
 estimatedFiles: 3
 created: 2026-05-26
+completedAt: 2026-05-26T13:19:00+09:00
+prNumber: 43
+mergedAs: 460b302
 plannerNote: T-0044 / T-0046 §Follow-ups 박제 후보 — 동일 helper inline 이 5+ spec 누적, 3+ 임계 초과. 2 test/ spec 만 phase 1 migration (cap 보존). src/user/*.spec.ts 5 파일 phase 2 follow-up.
 dependsOn: [T-0044, T-0046]
 blocks: []
