@@ -96,4 +96,49 @@ export class PersonRepository {
       data: { active: true },
     });
   }
+
+  // findByPartId — REQ-028 "조직도 파트 정확히 1" invariant 의 reverse query
+  // (지정 Part 에 소속된 모든 Person 조회). Person.partId 컬럼 (T-0039) 의 직접
+  // equality filter 로 충분 — join 불필요. activeOnly 분기는 findMany 와 동일
+  // semantics (default true — 휴직 / 비활성 Person 은 숨김, REQ-026).
+  // 매칭 row 0 이면 Prisma findMany 의 native 동작에 따라 빈 배열 `[]` 반환
+  // (null 반환 안 함). partId 자체의 존재 검증 (Part row 가 실제 존재하는지) 은
+  // 본 layer 책임 외 — 호출자 (후속 PartService) 가 별도 lookup 으로 처리.
+  async findByPartId(
+    partId: string,
+    options?: PersonFindManyOptions,
+  ): Promise<Person[]> {
+    const activeOnly = options?.activeOnly ?? true;
+    if (activeOnly) {
+      return this.prisma.person.findMany({
+        where: { partId, active: true },
+      });
+    }
+    return this.prisma.person.findMany({ where: { partId } });
+  }
+
+  // findByGroupId — REQ-028 "임의 group 다중 소속 가능" semantics 의 reverse
+  // query (지정 Group 의 모든 멤버 Person 조회). 구현 옵션 (a) 채택 — Prisma 의
+  // nested relation filter `{ groups: { some: { groupId } } }` 로 PersonGroupMembership
+  // join entity 를 우회한 1 query 검색. 옵션 (b) (PersonGroupMembershipRepository
+  // 경유 후 Person nested include) 대비 장점: (1) `Promise<Person[]>` 시그니처
+  // 직접 유지 — 별도 mapping 불필요, (2) Prisma idiomatic — many-to-many 의 표준
+  // 표현, (3) extra abstraction layer 0 — 기존 6 메서드 의 forwarding 패턴 그대로.
+  // activeOnly 분기는 findMany / findByPartId 와 동일 (default true).
+  // 매칭 membership row 0 이면 빈 배열 `[]` 반환. groupId 자체의 존재 검증은
+  // 본 layer 책임 외 — 호출자 (후속 GroupService) 책임.
+  async findByGroupId(
+    groupId: string,
+    options?: PersonFindManyOptions,
+  ): Promise<Person[]> {
+    const activeOnly = options?.activeOnly ?? true;
+    if (activeOnly) {
+      return this.prisma.person.findMany({
+        where: { groups: { some: { groupId } }, active: true },
+      });
+    }
+    return this.prisma.person.findMany({
+      where: { groups: { some: { groupId } } },
+    });
+  }
 }
