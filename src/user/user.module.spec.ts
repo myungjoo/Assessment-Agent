@@ -54,6 +54,8 @@ import { PersistenceModule } from "../persistence/persistence.module";
 // eslint-disable-next-line import/first
 import { GroupRepository } from "./group.repository";
 // eslint-disable-next-line import/first
+import { GroupService } from "./group.service";
+// eslint-disable-next-line import/first
 import { PartRepository } from "./part.repository";
 // eslint-disable-next-line import/first
 import { PartService } from "./part.service";
@@ -207,6 +209,35 @@ describe("UserModule", () => {
       .compile();
 
     const resolved = moduleRef.get(PersonGroupMembershipRepository);
+    expect(resolved).toBe(sentinel);
+
+    await moduleRef.close();
+  });
+
+  // T-0050: GroupService provider 가 module 안에서 resolve + export 등록.
+  it("compile 시 GroupService provider 가 resolve 된다", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    }).compile();
+
+    const service = moduleRef.get(GroupService);
+    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(GroupService);
+
+    await moduleRef.close();
+  });
+
+  // T-0050: GroupService sentinel override — exports 등록 간접 검증.
+  it("GroupService provider 가 sentinel 로 override 되어도 compile 한다", async () => {
+    const sentinel = { __sentinel: "group-service-override" };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    })
+      .overrideProvider(GroupService)
+      .useValue(sentinel)
+      .compile();
+
+    const resolved = moduleRef.get(GroupService);
     expect(resolved).toBe(sentinel);
 
     await moduleRef.close();
