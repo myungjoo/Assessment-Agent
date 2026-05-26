@@ -2,8 +2,11 @@
 id: T-0056
 title: GroupService N:M membership ops (addMember / removeMember / findPersonsByGroupId, T-0055 Follow-up #1, pr-mode)
 phase: P3
-status: IN_PROGRESS
+status: DONE
 prNumber: 52
+mergedAs: abb70a704bd31ae2232ff6b1b1a951ac11ba1df0
+completedAt: 2026-05-26
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-028]
 estimatedDiff: 240
