@@ -2,7 +2,10 @@
 id: T-0044
 title: P3 — e2e test domain endpoint 확장 `/api/persons` HTTP contract + DTO body shape + 4xx error envelope
 phase: P3
-status: PENDING
+status: DONE
+mergedAs: 2b9131d
+prNumber: 41
+completedAt: 2026-05-26T11:50:00+09:00
 commitMode: pr
 coversReq: [REQ-113]
 estimatedDiff: 200
