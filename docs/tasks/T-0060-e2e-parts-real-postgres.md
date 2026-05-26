@@ -2,8 +2,11 @@
 id: T-0060
 title: parts.e2e-spec 신설 — PartController 5 endpoint real PostgreSQL HTTP contract depth e2e + jest-e2e maxWorkers:1 race fix (T-0059 amendment mirror)
 phase: P3
-status: IN_PROGRESS
+status: DONE
 prNumber: 56
+mergedAs: acef3f494b3f29ae248dfd6005ea515ab743424f
+completedAt: 2026-05-27
+reviewRounds: 1
 commitMode: pr
 slug: e2e-parts-real-postgres
 coversReq: [REQ-028, REQ-029, REQ-058]
