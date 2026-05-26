@@ -2,8 +2,9 @@
 id: T-0057
 title: GroupController N:M membership endpoints + AddMemberDto (T-0056 Follow-up #1, pr-mode)
 phase: P3
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 53
 coversReq: [REQ-028]
 estimatedDiff: 280
 estimatedFiles: 3

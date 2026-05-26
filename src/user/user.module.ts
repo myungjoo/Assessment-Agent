@@ -11,7 +11,10 @@
 // (addMember / removeMember / findPersonsByGroupId) 3 메서드 추가 —
 // PersonGroupMembershipRepository + PersonRepository 2 collaborator inject. providers
 // 배열 변경 0 (T-0034 / T-0049 가 PersonRepository / PersonGroupMembershipRepository
-// 이미 등록). controller endpoint 는 후속 T-0057 분리. Person.partId 의 mandatory
+// 이미 등록). T-0057 가 GroupController 에 N:M membership endpoint 3 종 추가 (POST
+// /:id/members / DELETE /:id/members/:membershipId / GET /:id/persons) + AddMemberDto
+// 신설 — REQ-028 fully operational closure. controllers / providers 배열 변경 0
+// (GroupController 이미 등록, DTO 는 module 등록 불요). Person.partId 의 mandatory
 // invariant 강제 도 별도 task.
 //
 // PersistenceModule (`@Global()`) 이 PrismaService 를 application-wide 로
@@ -21,7 +24,7 @@
 // 외부 노출:
 //   - controllers: PersonController — `/api/persons` 5 endpoint 노출.
 //                  PartController — `/api/parts` 5 endpoint 노출 (T-0046).
-//                  GroupController — `/api/groups` 4 endpoint 노출 (T-0055).
+//                  GroupController — `/api/groups` 7 endpoint 노출 (T-0055 CRUD 4 + T-0057 N:M 3).
 //   - providers: PersonRepository, ServiceIdentityRepository, GroupRepository,
 //     PartRepository, PersonGroupMembershipRepository, PersonService, PartService,
 //     GroupService.
