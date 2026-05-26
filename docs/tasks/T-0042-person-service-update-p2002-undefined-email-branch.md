@@ -2,7 +2,10 @@
 id: T-0042
 title: P3 — PersonService.update P2002 + patch.email undefined branch unit test (branch coverage 100%)
 phase: P3
-status: PENDING
+status: DONE
+mergedAs: 20ef2c5
+prNumber: 39
+completedAt: 2026-05-26T10:49:00+09:00
 commitMode: pr
 coversReq: [REQ-112]
 estimatedDiff: 25
