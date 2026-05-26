@@ -2,7 +2,7 @@
 id: T-0059
 title: parts.smoke-spec 신설 — PartController 5 endpoint real PostgreSQL bootstrap smoke
 phase: P3
-status: PENDING
+status: BLOCKED
 commitMode: pr
 coversReq: [REQ-028, REQ-029, REQ-058]
 estimatedDiff: 220
@@ -117,6 +117,21 @@ PartController 의 5 endpoint 각 1+ happy test. arrange 단계 `await prisma.pa
 ## Follow-ups
 
 (empty at creation — 비워둠. implementer / tester / reviewer 가 spotted work 박제.)
+
+## Blocker (HQ-0007, raised 2026-05-26T20:55:36+09:00)
+
+**Reason**: `ci-trigger-missing` — GitHub Actions CI 가 T-0059 PR-54 의 4 trigger event (PR open + impl push b783382 + round-setup push 8f4a420 + reviewer/integrator 2 PR comments) 어디에서도 1h+ 동안 workflow_runs 0. 정상 latency 10-30s 대비 비정상. 타 PR / main CI 는 정상 작동 — branch claude/T-0059-smoke-parts-real-postgres 한정 또는 일시적 Actions 인프라 anomaly 의심.
+
+**현재 상태**:
+- impl commit b783382 (test/smoke/parts.smoke-spec.ts 신설, +293 LOC test-only) push 완료
+- PR-54 (https://github.com/myungjoo/Assessment-Agent/pull/54) open + frontmatter status IN_PROGRESS + prNumber 54
+- reviewer round 1 APPROVE comment + integrator self-check comment 모두 정상 post
+- 4-게이트 (a) reviewer APPROVE / (b) PR comment 외부 존재 / (c) integrator self-check 통과
+- 4-게이트 (d) CI green — **CI 미발화로 자동 검증 불가**
+
+**Needed**: 사용자 결정 — HQ-0007 5 options ((a) retrigger-empty-commit / (b) diagnose-and-fix / (c) skip-ci-and-merge **권장 안 함** / (d) close-and-rework / (e) other) 중 1 선택 + (해당 시) 진단 결과 / 명령 지시.
+
+**Resume path**: HQ-0007 resolved 후 driver turn 의 [1] 단계 humanQuestion 처리 → 결정에 따라 (a) 빈 commit push 또는 (b) 사용자 fix 후 retrigger / (c) gh pr merge 강행 / (d) PR close + branch 폐기 / (e) 별도 path. CI green 확보 후 integrator 4-게이트 final TRUE → `gh pr merge 54 --squash --delete-branch` → DONE bookkeeping.
 
 ## Suggested Sub-agents
 
