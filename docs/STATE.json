@@ -2,24 +2,25 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0046",
   "lock": null,
-  "lastActivity": "2026-05-26T12:14:00+09:00",
-  "lastCommit": "7d1713d",
+  "lastActivity": "2026-05-26T12:21:00+09:00",
+  "lastCommit": "9aa143d",
   "mostRecentTasks": ["T-0045", "T-0044", "T-0043", "T-0042", "T-0041"],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-05-26T11:20:00+09:00",
     "cap": 5,
-    "note": "session #11 turn 4 (cap 5, 4/5 used) — ScheduleWakeup (270s) wake (KST 12:09). [1] STATE 로드 → 직전 7d1713d (T-0045 큐잉 doc) main CI SUCCESS, lock=null, currentTask=null, nextTask=T-0045. loopSession turnCount 3 → 4 increment. [2] nextTask=T-0045 → currentTask promote. [3] executor T-0045 doc-only direct dispatch — architect skip, implementer (docs/architecture/p3-implementation-plan.md +81/-55 LOC, 단일 파일: §1 task expansion 12 task / §2 표 12 row 재구성 T-0033~T-0044 + 합계 + cap discipline 정정 / §3 mermaid 12 node 12 edge + T-0036 fan-out hub / §4 ADR 표 책임 task ID shift + P3 ADR 신설 0/3 / §5 T-0038~T-0044 dependency-zero 한 줄 / §6 entity 5/11 + module 2/5 + ADR 0/3 + test-quality 3/3 closure progress / §7 다음 backbone task entry 책임 + ADR ref 정정 / §8 5 task reference + Refs prepend 6 ID + REQ-058 추가) + tester (R-110 면제 — doc-only / markdown rendering 검증 pass: table 9-col 정합 / mermaid 12 node 12 edge syntax / 5 task file link 존재). [4] commitMode=direct → main 직접 commit + push (driver wrap 4 파일: STATE + T-0045 task 파일 + journal + p3-implementation-plan.md). [6] STATE 갱신: currentTask=null, nextTask=null, lastCommit=7d1713d (직전 doc) → 본 commit 후 새 SHA, mostRecentTasks prepend T-0045, counters.tasksCompleted 43→44 (reviewRounds 항목 없음 — direct mode 는 reviewer 미적용). T-0045 frontmatter status PENDING→DONE + completedAt. **본 turn lesson**: (i) executor 가 doc-only direct task 의 file edit 단계만 수행 + driver 가 STATE/task-frontmatter/journal 과 함께 1 commit wrap 패턴 — cron #7 T-0038 선례 동일 (ii) plan §2 ID shift 정정은 reviewer 가 outdated reference 로 confused 되는 사고 방지 prerequisite — backbone task entry (T-0046+) 의 reference 정합성 회복 (iii) doc-only direct = R-110 면제 + markdown rendering 검증으로 충분 (table column / mermaid syntax / link reference) — full test gate 불필요. cap 5 잔여 1 turn — 다음 turn 5 cap close turn, planner dispatch 후 cleanup 안내."
+    "endedAt": "2026-05-26T12:21:00+09:00",
+    "note": "session #11 turn 5 (cap close, 5/5 used) — ScheduleWakeup (270s) wake (KST 12:21). [1] STATE 로드 → 직전 9aa143d (T-0045 plan §2 정정 direct) main CI SUCCESS, lock=null, currentTask=null, nextTask=null. loopSession turnCount 4 → 5 increment (cap reach), startedAt 11:20 유지. [2] currentTask=null & nextTask=null → planner dispatch. planner 가 후보 3 (Group backbone / Part backbone / shared test helper 추출) 검토 후 **option 2 (PartService + PartController + PartDTO + PartModule)** 선택 — (a) Part 가 Group 보다 단순 (N:M 없음) cap 보존 안전 (b) Person.partId mandatory invariant 의 service-layer 강제 가능 (c) 의존성 적음 — Group 이전 prerequisite. T-0046 task 파일 작성 (pr-mode, ~240 LOC / 5 파일, T-0036 PersonService 패턴 reuse). STATE.nextTask=T-0046 set + lastActivity 12:21. [4] commitMode=direct → main 직접 commit + push (3 파일: STATE + journal + T-0046 task). [8] turnCount 5 ≥ cap 5 → LOOP.md §1 [8] (e) **NO reschedule**. **session #11 cap close cleanup 안내**: (1) `/compact` 후 새 `/loop turn cap N`, 또는 (2) `/clear` 후 새 `/loop turn cap N`, 또는 (3) 그냥 종료하고 다음 cron 발화 대기. **session #11 누적 통계 (cap 5 = 5 turn 사용)**: turn 1 (planner T-0044) + turn 2 (T-0044 PR-41 round 1 merge 2b9131d) + turn 3 (planner T-0045) + turn 4 (T-0045 direct merge 9aa143d) + turn 5 (planner T-0046 + cap close). counters.tasksCompleted 43→44 (+1 net — T-0044 pr-mode + T-0045 doc-only direct), reviewRounds[T-0044]=1, **2 task completed (1 pr 1 direct)** — session #10 의 3 pr 보다 진척 적으나 plan §2 정정 prerequisite 박제 완료. PLAN.md P3 test-quality 3 bullet 전체 closure (T-0042/43/44). 다음 cron/session 에서 executor T-0046 PartService backbone full pr-mode chain 진입 — entity 6/11 (Person+Group+Part+PersonGroupMembership+User+Part-service-layer) / module 3/5 (UserModule+PersistenceModule+PartModule) 진척 예상. **본 session lesson**: (i) doc-only direct + pr-mode 혼합 session 의 cap 5 처리량 = 2 task — pr full chain 1 + doc 1 + planner 3 (ii) plan §2 정정 (T-0045) 같은 doc-only direct prerequisite 가 다음 backbone (T-0046) entry 의 reference 정합성 보장 — backbone 진입 직전 prerequisite 격리 패턴 (iii) executor 의 doc-only direct mode 와 pr-mode 처리 시간 차이 — doc-only ~5 min vs pr-mode ~10-15 min (T-0044 e2e), 따라서 cap 5 안에서의 task type 안배가 throughput 결정 (iv) reviewer-gate race (PR-41 첫 fail → rerun green) 패턴 재발 — agent definition 의 comment post timing 개선 follow-up 후보 누적. 누적 lesson 25 회 dogfood."
   },
   "ci": {
-    "lastRun": "2026-05-26T11:50:00+09:00",
+    "lastRun": "2026-05-26T12:21:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26429316409",
-    "note": "session #11 turn 2 의 PR-41 merge commit 2b9131d main CI SUCCESS. 직전 79d1303 main CI 도 SUCCESS (doc-only). PR-41 자체 CI 는 첫 run 에서 reviewer-gate race (comment post 전 CI start) 로 fail → rerun 후 green — T-0036/T-0039 과 같은 기존 패턴. consecutiveFails 0 유지."
+    "note": "session #11 turn 5 의 [1] 단계 재확인 — 직전 9aa143d (T-0045 direct) main CI SUCCESS. session #11 누적 머지 2 (2b9131d T-0044 pr-mode + 9aa143d T-0045 direct) 모두 CI green. consecutiveFails 0 유지."
   },
   "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1, "T-0035": 1, "T-0036": 2, "T-0037": 1, "T-0039": 1, "T-0041": 1, "T-0042": 1, "T-0043": 1, "T-0044": 1},
   "blockers": [],
