@@ -38,13 +38,14 @@ import { PersonService } from "./person.service";
 /* eslint-enable import/first */
 
 // Person fixture — service.spec 의 helper 와 동일 shape (별도 정의 — DRY 회피로
-// spec 간 독립 유지).
+// spec 간 독립 유지). T-0039 가 partId nullable 컬럼 추가.
 function buildPersonFixture(overrides: Partial<Person> = {}): Person {
   return {
     id: "cuid-default",
     fullName: "홍길동",
     email: "hong@example.com",
     active: true,
+    partId: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,
