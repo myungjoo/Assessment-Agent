@@ -2,8 +2,11 @@
 id: T-0059
 title: parts.smoke-spec 신설 — PartController 5 endpoint real PostgreSQL bootstrap smoke
 phase: P3
-status: IN_PROGRESS
+status: DONE
 prNumber: 54
+mergedAs: 3f71c64292335458d00b08ebbd2d809af5aa1c2f
+completedAt: 2026-05-26T21:48:08+09:00
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-028, REQ-029, REQ-058]
 estimatedDiff: 220
