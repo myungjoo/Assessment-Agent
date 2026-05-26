@@ -2,16 +2,17 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0041",
   "lock": null,
-  "lastActivity": "2026-05-26T09:53:30+09:00",
-  "lastCommit": "c4b57fc",
+  "lastActivity": "2026-05-26T09:59:30+09:00",
+  "lastCommit": "a41c036",
   "mostRecentTasks": ["T-0040", "T-0039", "T-0038", "T-0037", "T-0036"],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-05-26T09:20:22+09:00",
     "cap": 5,
-    "note": "session #9 turn 4 — KST 09:53 ScheduleWakeup 발화 (delay 60s — 최소). [1] STATE 로드 → c4b57fc main CI run 26426068653 SUCCESS, lock=null, currentTask=null, nextTask=T-0040. [2] nextTask 를 currentTask 로 promote. [3] executor (subagent_type=executor) dispatch — taskId 만 전달, task 본문 driver 미열람. executor 가 task 파일 + Required Reading (data-model.md / T-0039 task / p3-implementation-plan §2) 자체 read 후 data-model.md 단일 파일 +9/-6 LOC 갱신 — §2 PersonGroupMembership row 신설 + 합계 10→11 + §3 mermaid ER diagram 의 Person-Group N:M 을 join entity 2 관계로 분해 + §3 관계 2 본문 격상 (T-0039 c25a5de + prisma/schema.prisma 참조) + §6 REQ-028 cover entity 갱신 + §8 References + Refs. Acceptance Criteria 11종 ok. tester R-110 면제 (코드 변경 0). [4] commitMode=direct → main target, 본 commit (driver bookkeeping + executor's edit 번들) main + worktree branch 양방향 push. [6] STATE 갱신: currentTask=null, nextTask=null (planner 가 다음 turn 또는 cron 에서 다음 task 결정), lastActivity 09:53 KST, mostRecentTasks [T-0040, T-0039, T-0038, T-0037, T-0036], counters.tasksCompleted 38→39. Phase P3-in-progress 유지. cap 잔여 1 turn (#9-turn-5 = cap reach, cleanup 안내 + 종료)."
+    "endedAt": "2026-05-26T09:59:30+09:00",
+    "note": "session #9 turn 5 — KST 09:59 ScheduleWakeup 발화 (delay 60s). [1] STATE 로드 → a41c036 main CI run 26426236204 SUCCESS, lock=null, currentTask=null, nextTask=null, turnCount 4 → 5 increment (cap reach). [2] 둘 다 null → planner dispatch. planner 가 T-0039/T-0040 §Follow-ups 박제 source 검토 후 T-0041 (PersonRepository.findByPartId / findByGroupId 추가) 큐잉 — pr-mode, ~110 LOC / 2 파일, GroupService/PartService backbone 의 repository prerequisite. STATE.nextTask=T-0041 set. [4] commitMode=direct → main + worktree branch 양방향 push. [8] (e) turnCount >= cap (5/5) → NO reschedule. cleanup 안내 (사용자 대면): `/compact` 또는 `/clear` 후 새 `/loop` 또는 다음 cron #9 (KST 14:00 예정) 발화 대기. **session #9 5 turn 통계**: turn 1 (HQ-0006 resolve) + turn 2 (T-0039 PR-37 round 1/7 MERGED c25a5de) + turn 3 (planner T-0040) + turn 4 (executor T-0040 done a41c036) + turn 5 (planner T-0041 + cap close). counters.tasksCompleted 37→39 (+2), tasksBlocked 그대로 2, reviewRounds +T-0039:1. 누적 lesson 19 회 dogfood."
   },
   "ci": {
     "lastRun": "2026-05-26T09:36:38+09:00",
