@@ -2,12 +2,15 @@
 id: T-0046
 title: PartService + PartController + Part DTO backbone + module wiring (R-112 4종 + coverage)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028]
 estimatedDiff: 240
 estimatedFiles: 5
 created: 2026-05-26
+completedAt: 2026-05-26T12:50:00+09:00
+prNumber: 42
+mergedAs: 2a314bc
 plannerNote: T-0040 / T-0041 §Follow-ups 박제 — Part backbone service layer 진입. PartRepository (T-0039) + PersonRepository.findByPartId (T-0041) 위에서 service+controller+DTO, GroupService 보다 단순 (N:M 없음) cap 보존 안전.
 dependsOn: [T-0039, T-0041]
 blocks: []
