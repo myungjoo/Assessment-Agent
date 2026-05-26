@@ -404,6 +404,29 @@ describe("PersonService", () => {
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
+    it("patch.email 이 undefined 인 상태에서 P2002 propagate 시 ConflictException 으로 변환 + email 부분이 빈 문자열 fallback (branch coverage)", async () => {
+      // person.service.ts L120 의 `patch.email ?? ""` 의 right (undefined → "" fallback)
+      // 분기 cover. 시나리오: patch 에 email 없이 (fullName 만) update 호출했는데
+      // repository 가 P2002 reject — race condition / repository 내부 fallback 등
+      // 비정상 시퀀스의 defensive 처리. error.message 는 colon 뒤 빈 문자열 (trailing
+      // 공백) 로 끝남. R-112 negative case 충분 cover 의무.
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      repoMock.update.mockRejectedValueOnce(buildPrismaError("P2002"));
+
+      const service = new PersonService(repository, prisma);
+      // patch 에 email 키 자체를 omit — `patch.email` 은 undefined.
+      await expect(
+        service.update("id-undef-email", { fullName: "홍길동" }),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      // message 가 `"email already in use:"` (colon 뒤 빈 문자열 fallback) 로 끝남을 검증.
+      repoMock.update.mockRejectedValueOnce(buildPrismaError("P2002"));
+      await expect(
+        service.update("id-undef-email-2", { fullName: "홍길동" }),
+      ).rejects.toThrow(/email already in use:\s*$/);
+    });
+
     it("unknown Prisma error code 는 그대로 propagate 한다 (negative branch)", async () => {
       const { repository, repoMock } = buildRepositoryMock();
       const { prisma } = buildPrismaMock();
