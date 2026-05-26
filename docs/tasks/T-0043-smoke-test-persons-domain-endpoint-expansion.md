@@ -2,7 +2,10 @@
 id: T-0043
 title: P3 — smoke test domain endpoint 확장 `/api/persons` CRUD bootstrap smoke (mock PrismaService)
 phase: P3
-status: PENDING
+status: DONE
+mergedAs: e7bb95a
+prNumber: 40
+completedAt: 2026-05-26T11:18:00+09:00
 commitMode: pr
 coversReq: [REQ-113]
 estimatedDiff: 180
