@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0040",
   "lock": null,
-  "lastActivity": "2026-05-26T09:37:51+09:00",
-  "lastCommit": "c25a5de",
+  "lastActivity": "2026-05-26T09:45:30+09:00",
+  "lastCommit": "bff5375",
   "mostRecentTasks": ["T-0039", "T-0038", "T-0037", "T-0036", "T-0035"],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-05-26T09:20:22+09:00",
     "cap": 5,
-    "note": "session #9 turn 2 — KST 09:30 ScheduleWakeup 발화 (delay 270s). [1] STATE 로드 → 미해결 humanQuestion 0, lock=null, currentTask=T-0039, prNumber=37. [2] LOOP §1 [2] resume 분기 (f) 정상 진행 → executor dispatch. executor 가 gh CLI 가용성 재검증 (v2.88.1 + auth login myungjoo) 후 reviewer round 1/7 dispatch (gh pr comment 4538475252 외부 post — 4-게이트 #2 자동 충족) → integrator 4-게이트 final TRUE (APPROVE / comment external / self-check 6항목 / CI green run 26425671660 rerun --failed → reviewer agent approval 검증 PASS) → `gh pr merge 37 --squash --delete-branch` mergeCommit **c25a5de** (KST 09:36:35). reviewer 1 MAJOR (size cap 11파일/+867 LOC vs ≤5/300 — T-0035 1.7× 비례 + 분리 불가능성 + Out of Scope 엄수로 수용) + 1 MINOR (data-model.md/modules.md doc 동기 — task §Follow-ups L107 queued). counters.tasksCompleted 37→38 (origin+1 read-modify-write). 다음 turn (#9-turn-3) 의 planner dispatch — Group/Part 후속 (T-0040 GroupService/PartService + class-validator decorator + Person.partId NOT NULL + default Part seed) 또는 data-model/modules doc 동기 task 결정. cap 잔여 3 turn."
+    "note": "session #9 turn 3 — KST 09:45 ScheduleWakeup 발화 (delay 276s). [1] STATE 로드 → 미해결 humanQuestion 0, lock=null, currentTask=null, nextTask=null. bff5375 main CI run 26425764723 SUCCESS 확인 (doc-only bookkeeping). [2] 둘 다 null → planner dispatch. planner 가 T-0039 reviewer MINOR follow-up (data-model.md/api.md/modules.md doc 동기) 후보 검토 — api.md L76~83 Group/Part endpoint + modules.md L34 UserModule 책임은 이미 박제 확인, 실제 gap 은 data-model.md 단일 파일. T-0040 큐잉 = data-model.md §2 PersonGroupMembership row 신설 + §3 join entity 분해 + §6 REQ-028 갱신 + §8 Refs + 합계 정정 (~45 LOC, 1 파일, doc-only direct, R-110 면제). 큰 backbone (Assessment+Contribution+Summary 등 원안 T-0040+) 은 session #9 cap 잔여 budget tight 으로 다음 cron 결정. STATE.nextTask=T-0040, currentTask 그대로 null — 다음 turn driver 가 promote + executor dispatch. cap 잔여 2 turn (#9-turn-4 executor + #9-turn-5 cleanup/cap)."
   },
   "ci": {
     "lastRun": "2026-05-26T09:36:38+09:00",
