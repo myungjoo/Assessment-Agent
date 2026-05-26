@@ -1,6 +1,11 @@
 // prisma-mock.ts — `/api/persons` smoke + e2e (그리고 후속 spec) 의 공용
 // PrismaService mock + Person fixture + Prisma error 생성 helper 의 단일 source.
 //
+// 위상 (T-0053 박제 — ADR-0004 §Decision):
+//   - unit-only 보조 — smoke/e2e 는 T-0053 이후 real PrismaService 사용 (ADR-0004 §Decision 박제).
+//   - 본 mock 의 위상: deprecated 가 아닌 unit-only 보조 — Prisma error code 변환 분기 (P2002 / P2025 / P2003 / unknown) 의 explicit 박제로 R-112 negative case cover 에 유리 (ADR-0004 §Decision 의 mock 위상 결정).
+//   - smoke/e2e 의 import 제거 시점: T-0053 (smoke) / T-0054 (e2e) 머지 시점.
+//
 // 책임 (T-0047 phase 1 추출):
 //   - smoke (test/smoke/persons.smoke-spec.ts) + e2e (test/e2e/persons.e2e-spec.ts)
 //     2 spec 의 inline 중복을 본 모듈로 통합. T-0044 / T-0046 §Follow-ups 의 박제
