@@ -10,10 +10,11 @@
 // exports 등록 정합성만 검증.
 
 // PrismaService 를 mock — PrismaClient extends 의 부작용 (adapter 생성 / connect)
-// 을 회피. PersonRepository / GroupRepository / PartRepository 의 생성자 dep 으로
-// PrismaService 가 inject 되나, 본 spec 은 instance 동작이 아닌 module compile 만 검증.
-// T-0039 — group / part delegate 추가 (mock 의 instance 가 GroupRepository /
-// PartRepository 생성자 인자로 들어가야 하므로 두 delegate property 필요).
+// 을 회피. PersonRepository / GroupRepository / PartRepository /
+// PersonGroupMembershipRepository 의 생성자 dep 으로 PrismaService 가 inject 되나,
+// 본 spec 은 instance 동작이 아닌 module compile 만 검증.
+// T-0039 — group / part delegate 추가. T-0049 — personGroupMembership delegate
+// 추가 (PersonGroupMembershipRepository 가 inject 됨).
 jest.mock("../persistence/prisma.service", () => ({
   PrismaService: class MockPrismaService {
     person = {
@@ -34,6 +35,11 @@ jest.mock("../persistence/prisma.service", () => ({
       create: jest.fn(),
       delete: jest.fn(),
     };
+    personGroupMembership = {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
     onModuleInit = jest.fn().mockResolvedValue(undefined);
     enableShutdownHooks = jest.fn();
   },
@@ -51,6 +57,8 @@ import { GroupRepository } from "./group.repository";
 import { PartRepository } from "./part.repository";
 // eslint-disable-next-line import/first
 import { PartService } from "./part.service";
+// eslint-disable-next-line import/first
+import { PersonGroupMembershipRepository } from "./person-group-membership.repository";
 // eslint-disable-next-line import/first
 import { PersonRepository } from "./person.repository";
 // eslint-disable-next-line import/first
@@ -170,6 +178,35 @@ describe("UserModule", () => {
       .compile();
 
     const resolved = moduleRef.get(PartService);
+    expect(resolved).toBe(sentinel);
+
+    await moduleRef.close();
+  });
+
+  // T-0049: PersonGroupMembershipRepository 도 providers / exports 에 등록되어 resolve 된다.
+  it("compile 시 PersonGroupMembershipRepository provider 가 resolve 된다", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    }).compile();
+
+    const repo = moduleRef.get(PersonGroupMembershipRepository);
+    expect(repo).toBeDefined();
+    expect(repo).toBeInstanceOf(PersonGroupMembershipRepository);
+
+    await moduleRef.close();
+  });
+
+  // T-0049: PersonGroupMembershipRepository sentinel override — exports 등록 간접 검증.
+  it("PersonGroupMembershipRepository provider 가 sentinel 로 override 되어도 compile 한다", async () => {
+    const sentinel = { __sentinel: "person-group-membership-repo-override" };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    })
+      .overrideProvider(PersonGroupMembershipRepository)
+      .useValue(sentinel)
+      .compile();
+
+    const resolved = moduleRef.get(PersonGroupMembershipRepository);
     expect(resolved).toBe(sentinel);
 
     await moduleRef.close();
