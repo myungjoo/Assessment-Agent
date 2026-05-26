@@ -2,8 +2,11 @@
 id: T-0052
 title: CI services.postgres + DATABASE_URL + migrate deploy step + db-truncate helper (ADR-0004 follow-up, pr-mode)
 phase: P3
-status: IN_PROGRESS
+status: DONE
 prNumber: 47
+mergedAs: e0f4a9ce1ac6604c295f50f08302d7d44491e50c
+completedAt: 2026-05-26
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-029, REQ-058]
 estimatedDiff: 140
