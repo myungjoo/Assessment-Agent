@@ -335,4 +335,192 @@ describe("PersonRepository", () => {
       expect(returned.active).toBe(true);
     });
   });
+
+  // ------------------------------------------------------------------
+  // findByPartId — happy + branch (activeOnly default true vs explicit false)
+  //   + error (Prisma reject propagate) + negative (빈 partId / 매칭 0행)
+  // ------------------------------------------------------------------
+  describe("findByPartId()", () => {
+    // Happy + branch 1: 옵션 미지정 시 default activeOnly=true 가 적용되어
+    // where: { partId, active: true } 로 호출.
+    it("옵션 미지정 시 where: { partId, active: true } 로 findMany 를 호출한다", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      const fixture = [buildPersonFixture({ id: "p-1", partId: "part-1" })];
+      personMock.findMany.mockResolvedValueOnce(fixture);
+
+      const repo = new PersonRepository(prisma);
+      const result = await repo.findByPartId("part-1");
+
+      expect(personMock.findMany).toHaveBeenCalledTimes(1);
+      expect(personMock.findMany).toHaveBeenCalledWith({
+        where: { partId: "part-1", active: true },
+      });
+      expect(result).toBe(fixture);
+    });
+
+    // Branch 2: activeOnly=true 명시도 동일하게 active: true 가 where 에 포함.
+    it("activeOnly=true 명시 시 where 에 active: true 가 포함된다", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      personMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new PersonRepository(prisma);
+      await repo.findByPartId("part-2", { activeOnly: true });
+
+      expect(personMock.findMany).toHaveBeenCalledWith({
+        where: { partId: "part-2", active: true },
+      });
+    });
+
+    // Branch 3: activeOnly=false 면 active 조건 제외 — partId 만 where 에 남음.
+    // active=false Person 도 결과에 포함됨을 fixture 로 검증.
+    it("activeOnly=false 시 where: { partId } 만 사용 (active filter 제외)", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      const fixture = [
+        buildPersonFixture({ id: "p-2", partId: "part-3", active: true }),
+        buildPersonFixture({ id: "p-3", partId: "part-3", active: false }),
+      ];
+      personMock.findMany.mockResolvedValueOnce(fixture);
+
+      const repo = new PersonRepository(prisma);
+      const result = await repo.findByPartId("part-3", { activeOnly: false });
+
+      expect(personMock.findMany).toHaveBeenCalledTimes(1);
+      expect(personMock.findMany).toHaveBeenCalledWith({
+        where: { partId: "part-3" },
+      });
+      expect(result).toHaveLength(2);
+    });
+
+    // Error path: PrismaService 가 reject 하면 catch 없이 그대로 propagate.
+    it("PrismaService 가 reject 하면 error 를 그대로 전파한다", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      personMock.findMany.mockRejectedValueOnce(new Error("db-down"));
+
+      const repo = new PersonRepository(prisma);
+      await expect(repo.findByPartId("part-1")).rejects.toThrow("db-down");
+    });
+
+    // Negative 1: 매칭 row 0 시 빈 배열 반환 (null 반환 안 함).
+    it("매칭 row 0 시 빈 배열을 반환한다 (null 아님)", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      personMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new PersonRepository(prisma);
+      const result = await repo.findByPartId("part-no-match");
+
+      expect(result).toEqual([]);
+    });
+
+    // Negative 2: 빈 partId 도 raw pass-through — 검증은 service / DTO 책임.
+    // Prisma 가 빈 문자열을 그대로 query 에 넣어 결과 0 행 반환을 mock 으로 검증.
+    it("partId 가 빈 문자열이어도 PrismaService 로 그대로 전달한다", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      personMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new PersonRepository(prisma);
+      await repo.findByPartId("");
+
+      expect(personMock.findMany).toHaveBeenCalledWith({
+        where: { partId: "", active: true },
+      });
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // findByGroupId — happy + branch (activeOnly default true vs explicit false)
+  //   + error (Prisma reject propagate) + negative (빈 groupId / 매칭 0행)
+  // ------------------------------------------------------------------
+  describe("findByGroupId()", () => {
+    // Happy + branch 1: 옵션 미지정 시 default activeOnly=true — nested relation
+    // filter `groups: { some: { groupId } }` + active: true.
+    it("옵션 미지정 시 nested groups.some + active: true 로 findMany 를 호출한다", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      const fixture = [buildPersonFixture({ id: "p-4" })];
+      personMock.findMany.mockResolvedValueOnce(fixture);
+
+      const repo = new PersonRepository(prisma);
+      const result = await repo.findByGroupId("group-1");
+
+      expect(personMock.findMany).toHaveBeenCalledTimes(1);
+      expect(personMock.findMany).toHaveBeenCalledWith({
+        where: {
+          groups: { some: { groupId: "group-1" } },
+          active: true,
+        },
+      });
+      expect(result).toBe(fixture);
+    });
+
+    // Branch 2: activeOnly=true 명시도 동일하게 where 에 active: true 포함.
+    it("activeOnly=true 명시 시 where 에 active: true 가 포함된다", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      personMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new PersonRepository(prisma);
+      await repo.findByGroupId("group-2", { activeOnly: true });
+
+      expect(personMock.findMany).toHaveBeenCalledWith({
+        where: {
+          groups: { some: { groupId: "group-2" } },
+          active: true,
+        },
+      });
+    });
+
+    // Branch 3: activeOnly=false 면 active filter 제외 — nested groups.some 만.
+    // active=false 멤버도 결과에 포함됨을 fixture 로 검증.
+    it("activeOnly=false 시 where 에 active filter 제외 (nested groups.some 만)", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      const fixture = [
+        buildPersonFixture({ id: "p-5", active: true }),
+        buildPersonFixture({ id: "p-6", active: false }),
+      ];
+      personMock.findMany.mockResolvedValueOnce(fixture);
+
+      const repo = new PersonRepository(prisma);
+      const result = await repo.findByGroupId("group-3", { activeOnly: false });
+
+      expect(personMock.findMany).toHaveBeenCalledTimes(1);
+      expect(personMock.findMany).toHaveBeenCalledWith({
+        where: { groups: { some: { groupId: "group-3" } } },
+      });
+      expect(result).toHaveLength(2);
+    });
+
+    // Error path: PrismaService 가 reject 하면 catch 없이 그대로 propagate.
+    it("PrismaService 가 reject 하면 error 를 그대로 전파한다", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      personMock.findMany.mockRejectedValueOnce(new Error("db-down"));
+
+      const repo = new PersonRepository(prisma);
+      await expect(repo.findByGroupId("group-1")).rejects.toThrow("db-down");
+    });
+
+    // Negative 1: 매칭 membership row 0 시 빈 배열 반환.
+    it("매칭 membership row 0 시 빈 배열을 반환한다 (null 아님)", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      personMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new PersonRepository(prisma);
+      const result = await repo.findByGroupId("group-no-match");
+
+      expect(result).toEqual([]);
+    });
+
+    // Negative 2: 빈 groupId 도 raw pass-through.
+    it("groupId 가 빈 문자열이어도 PrismaService 로 그대로 전달한다", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      personMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new PersonRepository(prisma);
+      await repo.findByGroupId("");
+
+      expect(personMock.findMany).toHaveBeenCalledWith({
+        where: {
+          groups: { some: { groupId: "" } },
+          active: true,
+        },
+      });
+    });
+  });
 });
