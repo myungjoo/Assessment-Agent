@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0040",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-26T09:45:30+09:00",
-  "lastCommit": "bff5375",
-  "mostRecentTasks": ["T-0039", "T-0038", "T-0037", "T-0036", "T-0035"],
+  "lastActivity": "2026-05-26T09:53:30+09:00",
+  "lastCommit": "c4b57fc",
+  "mostRecentTasks": ["T-0040", "T-0039", "T-0038", "T-0037", "T-0036"],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-05-26T09:20:22+09:00",
     "cap": 5,
-    "note": "session #9 turn 3 — KST 09:45 ScheduleWakeup 발화 (delay 276s). [1] STATE 로드 → 미해결 humanQuestion 0, lock=null, currentTask=null, nextTask=null. bff5375 main CI run 26425764723 SUCCESS 확인 (doc-only bookkeeping). [2] 둘 다 null → planner dispatch. planner 가 T-0039 reviewer MINOR follow-up (data-model.md/api.md/modules.md doc 동기) 후보 검토 — api.md L76~83 Group/Part endpoint + modules.md L34 UserModule 책임은 이미 박제 확인, 실제 gap 은 data-model.md 단일 파일. T-0040 큐잉 = data-model.md §2 PersonGroupMembership row 신설 + §3 join entity 분해 + §6 REQ-028 갱신 + §8 Refs + 합계 정정 (~45 LOC, 1 파일, doc-only direct, R-110 면제). 큰 backbone (Assessment+Contribution+Summary 등 원안 T-0040+) 은 session #9 cap 잔여 budget tight 으로 다음 cron 결정. STATE.nextTask=T-0040, currentTask 그대로 null — 다음 turn driver 가 promote + executor dispatch. cap 잔여 2 turn (#9-turn-4 executor + #9-turn-5 cleanup/cap)."
+    "note": "session #9 turn 4 — KST 09:53 ScheduleWakeup 발화 (delay 60s — 최소). [1] STATE 로드 → c4b57fc main CI run 26426068653 SUCCESS, lock=null, currentTask=null, nextTask=T-0040. [2] nextTask 를 currentTask 로 promote. [3] executor (subagent_type=executor) dispatch — taskId 만 전달, task 본문 driver 미열람. executor 가 task 파일 + Required Reading (data-model.md / T-0039 task / p3-implementation-plan §2) 자체 read 후 data-model.md 단일 파일 +9/-6 LOC 갱신 — §2 PersonGroupMembership row 신설 + 합계 10→11 + §3 mermaid ER diagram 의 Person-Group N:M 을 join entity 2 관계로 분해 + §3 관계 2 본문 격상 (T-0039 c25a5de + prisma/schema.prisma 참조) + §6 REQ-028 cover entity 갱신 + §8 References + Refs. Acceptance Criteria 11종 ok. tester R-110 면제 (코드 변경 0). [4] commitMode=direct → main target, 본 commit (driver bookkeeping + executor's edit 번들) main + worktree branch 양방향 push. [6] STATE 갱신: currentTask=null, nextTask=null (planner 가 다음 turn 또는 cron 에서 다음 task 결정), lastActivity 09:53 KST, mostRecentTasks [T-0040, T-0039, T-0038, T-0037, T-0036], counters.tasksCompleted 38→39. Phase P3-in-progress 유지. cap 잔여 1 turn (#9-turn-5 = cap reach, cleanup 안내 + 종료)."
   },
   "ci": {
     "lastRun": "2026-05-26T09:36:38+09:00",
@@ -102,7 +102,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 38,
+    "tasksCompleted": 39,
     "tasksBlocked": 2,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

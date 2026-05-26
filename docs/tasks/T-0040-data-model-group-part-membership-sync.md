@@ -2,7 +2,8 @@
 id: T-0040
 title: data-model.md 갱신 — Group / Part / PersonGroupMembership entity 박제 + Person↔Group N:M 관계의 join entity 명시 (T-0039 reviewer MINOR follow-up)
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-05-26T09:53:30+09:00
 commitMode: direct
 coversReq: [REQ-028]
 estimatedDiff: 45

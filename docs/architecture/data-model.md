@@ -15,7 +15,7 @@
 
 ## 2. Entity 목록
 
-본 시스템은 다음 **10 entity (+ 1 conceptual mention)** 로 분해된다. 각 entity 의 책임은 1~2 줄로 한정하며, 구체 컬럼 / type / index 는 P3 의 범위.
+본 시스템은 다음 **11 entity (+ 1 conceptual mention)** 로 분해된다. 각 entity 의 책임은 1~2 줄로 한정하며, 구체 컬럼 / type / index 는 P3 의 범위.
 
 | entity | 책임 | source UC | 관련 REQ | 책임 module ([modules.md](modules.md)) |
 | --- | --- | --- | --- | --- |
@@ -23,6 +23,7 @@
 | **ServiceIdentity** | Person ↔ 외부 서비스별 ID 매핑 (github.com / github.sec.samsung.net / github.ecodesamsung.com / confluence.sec.samsung.net 외). 일부 NULL 허용 (REQ-025). 하나가 primary key 역할 (REQ-024). | UC-03, UC-01 | REQ-023, REQ-024, REQ-025 | UserModule |
 | **Group** | 임의 그룹. 1 Person 이 N Group 에 다중 소속 가능 (REQ-028). | UC-03 | REQ-028 | UserModule |
 | **Part** | 조직도 파트. 1 Person 이 **정확히 1 Part** 에 소속 (REQ-028 invariant). | UC-03 | REQ-028 | UserModule |
+| **PersonGroupMembership** | Person ↔ Group 다대다 관계의 join entity (REQ-028). `@@unique([personId, groupId])` 로 중복 membership 방지. | UC-03 | REQ-028 | UserModule |
 | **User** | 로그인 계정 (서비스 사용자). 등급 SuperAdmin / Admin / User. Person 과 conceptual 분리 — User 는 시스템 인증 식별자, Person 은 평가 대상자. | [UC-04](../use-cases/UC-04-account-auth.md) | REQ-043, REQ-044, REQ-045, REQ-046 | AuthModule |
 | **Assessment** | 평가 결과의 unit. Person × period (일·주·월) × scope (commit / document / aggregate) 의 cross product. **raw commit 본문 / 문서 본문 미저장** — 평가 결과 (난이도 / 기여도 / 양 / LLM 평가문) 만 보유. | [UC-01](../use-cases/UC-01-evaluation-execution.md), [UC-02](../use-cases/UC-02-evaluation-query.md), [UC-06](../use-cases/UC-06-evaluation-delete-reeval.md) | REQ-029, REQ-032, REQ-033, REQ-037, REQ-038, REQ-041, REQ-063 | AssessmentModule |
 | **Contribution** | 개별 기여 단위 (단일 commit / 단일 PR / 단일 문서 변경). Assessment 의 component — N Contribution 이 1 Assessment 로 aggregate. raw 본문 미저장 (REQ-032), 평가 결과만 보유. | UC-01, UC-02 | REQ-029, REQ-032, REQ-033 | AssessmentModule |
@@ -32,7 +33,7 @@
 | **PermissionDeniedRecord** | 외부 4xx (GitHub / Confluence) 를 GithubAdapter / ConfluenceAdapter 가 catch → System emit event 의 영속화. ServiceIdentity 또는 Person 에 N:1. user / admin audience 분리. | [UC-08](../use-cases/UC-08-permission-denied.md) | REQ-008, REQ-016 | AssessmentModule |
 | *(conceptual mention)* **AuditLog** | User mutation event (등급 변경 / 평가 삭제 / Import-Export 등) 의 감사 로그. **본 task scope 외** — conceptual mention 만, 구체 schema 는 별도 보안 ADR 책임. | (전 UC cross-cutting) | (cross-cutting) | AuthModule (또는 별도) |
 
-**합계**: 10 entity (+ 1 conceptual mention) / 4 module (UserModule / AuthModule / AssessmentModule / LlmModule) / 8 UC cover. 향후 entity 추가는 본 표 갱신 PR 의 reviewer 점검 대상.
+**합계**: 11 entity (+ 1 conceptual mention) / 4 module (UserModule / AuthModule / AssessmentModule / LlmModule) / 8 UC cover. 본 합계는 [T-0039](../tasks/T-0039-group-part-entity-and-repository.md) (mergeCommit c25a5de) 가 PersonGroupMembership join entity 를 schema-level 박제한 결과 10 → 11 로 1 자리 shift. 향후 entity 추가는 본 표 갱신 PR 의 reviewer 점검 대상.
 
 **module 명 정합성**: 본 문서의 "책임 module" 컬럼은 [modules.md](modules.md) 의 8 NestJS module 명만 사용 — 신규 module 신설 0. PermissionDeniedRecord 의 책임 module 은 AssessmentModule (event 수신·DB 저장 — [components.md](components.md) "AssessmentModule 이 event 를 받아 DB 에 권한 부족 기록을 남기고").
 
@@ -41,7 +42,8 @@
 ```mermaid
 erDiagram
     Person ||--o{ ServiceIdentity : "1:N (Person 당 N 서비스 ID, 일부 NULL 허용 REQ-025)"
-    Person }o--o{ Group : "N:M (다중 그룹 소속 REQ-028)"
+    Person ||--o{ PersonGroupMembership : "1:N (membership row)"
+    Group ||--o{ PersonGroupMembership : "1:N (membership row)"
     Person }o--|| Part : "N:1 (정확히 1 Part REQ-028 invariant)"
     Person ||--o{ Assessment : "1:N (Person × period × scope)"
     Person ||--o{ Summary : "1:N (일·주·월 단위)"
@@ -55,7 +57,7 @@ erDiagram
 **관계 박제 요지**:
 
 1. **Person ↔ ServiceIdentity (1:N)** — REQ-023. 1 Person 이 N 서비스 ID 보유, ServiceIdentity 중 하나가 `isPrimary = true` (REQ-024). 일부 서비스 ID 는 NULL 가능 — 해당 서비스에 계정이 없으면 row 자체 없음 (NULL 컬럼이 아니라 absent row 로 표현).
-2. **Person ↔ Group (N:M)** — REQ-028 "다중 임의 group 소속 가능". 중간 join entity (예: `PersonGroupMembership`) 의 구체 schema 는 P3.
+2. **Person ↔ Group (N:M via PersonGroupMembership)** — REQ-028 "다중 임의 group 소속 가능". **PersonGroupMembership join entity 가 [T-0039](../tasks/T-0039-group-part-entity-and-repository.md) (mergeCommit c25a5de) 시점에 박제 완료. [prisma/schema.prisma](../../prisma/schema.prisma) 참조** — `@@unique([personId, groupId])` 로 중복 membership schema-level 차단.
 3. **Person ↔ Part (N:1, mandatory)** — REQ-028 "조직도 파트는 정확히 1 개". Person row 가 Part 없이 존재 불가 (invariant). Part 삭제 시 소속 Person 0 일 때만 허용.
 4. **Person ↔ Assessment (1:N)** — 평가 결과는 Person 단위. 한 Person 이 시간 흐름에 따라 N 개 Assessment 누적.
 5. **Assessment ↔ Contribution (1:N)** — Contribution (개별 commit/문서) 이 모여 Assessment (일·주·월 또는 commit/document scope) 를 구성. raw 본문 미저장 (REQ-032) invariant 가 양 entity 에 적용 (§ 4).
@@ -108,7 +110,7 @@ erDiagram
 | REQ-025 | 일부 서비스 ID NULL 허용 | ServiceIdentity (absent row 표현) |
 | REQ-026 | 인원 CRUD + Deactivate/Activate | Person (active flag) |
 | REQ-027 | 신규 인원 1 년치 평가 1 회 | Person + Assessment (lifecycle 정책은 P7) |
-| REQ-028 | Group (다중) + Part (정확히 1) | Group, Part |
+| REQ-028 | Group (다중) + Part (정확히 1) | Group, Part, **PersonGroupMembership** |
 | REQ-032 | 🔥 raw data 저장 금지 | Assessment, Contribution (§ 4) |
 | REQ-037 | 평가 없는 부분 일괄 평가 + Reset & Reeval | Assessment (delete + 재수집 lifecycle) |
 | REQ-038 | UI 조회 / sort / filter / 시계열 | Assessment, Summary |
@@ -166,6 +168,7 @@ erDiagram
 - [docs/decisions/ADR-0001-stack.md](../decisions/ADR-0001-stack.md) — NestJS / TypeScript stack. 본 문서 entity 의 implementation language 결정 (P3 의 Prisma model class).
 - [docs/decisions/ADR-0002-db.md](../decisions/ADR-0002-db.md) — **본 문서의 핵심 기반**. PostgreSQL + Prisma. schema-as-code 형태가 본 conceptual model 의 실 구현 form.
 - [docs/decisions/ADR-0003-deployment.md](../decisions/ADR-0003-deployment.md) — monolithic / 단일 DB 인스턴스. 본 문서 entity 가 동일 DB 안에 거주.
+- [docs/tasks/T-0039-group-part-entity-and-repository.md](../tasks/T-0039-group-part-entity-and-repository.md) — T-0039 산출물 (mergeCommit c25a5de). Group / Part / PersonGroupMembership 의 Prisma schema 박제. 본 §2 / §3 / §6 갱신의 source.
 - **future ADR hook**: ADR-0004 audit-log entity schema / ADR-0005 secret-encryption (LLM API key encryption-at-rest) — 본 § 7 Out of scope 의 2 항목이 별도 ADR 후보.
 
-Refs: T-0031, T-0030, T-0029, T-0028, T-0027, T-0026, T-0025, T-0024, T-0023, T-0022, T-0020, T-0019, T-0017, T-0016, ADR-0001, ADR-0002, ADR-0003, REQ-008, REQ-016, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-029, REQ-031, REQ-032, REQ-033, REQ-034, REQ-035, REQ-036, REQ-037, REQ-038, REQ-041, REQ-043, REQ-044, REQ-045, REQ-046, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-063
+Refs: T-0040, T-0039, T-0031, T-0030, T-0029, T-0028, T-0027, T-0026, T-0025, T-0024, T-0023, T-0022, T-0020, T-0019, T-0017, T-0016, ADR-0001, ADR-0002, ADR-0003, REQ-008, REQ-016, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-029, REQ-031, REQ-032, REQ-033, REQ-034, REQ-035, REQ-036, REQ-037, REQ-038, REQ-041, REQ-043, REQ-044, REQ-045, REQ-046, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-063
