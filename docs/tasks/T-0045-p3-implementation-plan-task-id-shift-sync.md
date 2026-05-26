@@ -2,7 +2,8 @@
 id: T-0045
 title: p3-implementation-plan.md §2 task ID shift 정정 — 원안 8 row → 실제 머지 12 task (T-0033 ~ T-0044) 재매핑 + §3 mermaid + §4 ADR 표 + §6 closure 조건 동기
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-05-26T12:14:00+09:00
 commitMode: direct
 coversReq: [REQ-058]
 estimatedDiff: 180
