@@ -2,7 +2,11 @@
 id: T-0054
 title: persons.e2e-spec real PostgreSQL cutover + jest-e2e globalSetup wiring + app.e2e 호환 점검 (ADR-0004 §Migration #4+#5 e2e 절반 완성)
 phase: P3
-status: PENDING
+status: DONE
+prNumber: 50
+mergedAs: 2d521283216412980b819238d05071fe8207f928
+completedAt: 2026-05-26
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-029, REQ-058]
 estimatedDiff: 180
