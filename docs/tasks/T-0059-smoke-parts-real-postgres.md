@@ -2,7 +2,8 @@
 id: T-0059
 title: parts.smoke-spec 신설 — PartController 5 endpoint real PostgreSQL bootstrap smoke
 phase: P3
-status: BLOCKED
+status: IN_PROGRESS
+prNumber: 54
 commitMode: pr
 coversReq: [REQ-028, REQ-029, REQ-058]
 estimatedDiff: 220
