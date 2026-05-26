@@ -5,6 +5,7 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
+  "globalSetup": "<rootDir>/test/helpers/jest-smoke-setup.ts",
   "testEnvironment": "node",
   "passWithNoTests": false
 }
