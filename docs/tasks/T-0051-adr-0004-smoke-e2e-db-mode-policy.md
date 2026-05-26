@@ -2,7 +2,8 @@
 id: T-0051
 title: ADR-0004 — smoke/e2e CI DB mode policy (mock vs real PostgreSQL trade-off 박제) (pr-mode)
 phase: P3
-status: PENDING
+status: IN_PROGRESS
+prNumber: 46
 commitMode: pr
 coversReq: [REQ-029, REQ-058]
 estimatedDiff: 130
