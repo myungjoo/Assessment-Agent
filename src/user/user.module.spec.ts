@@ -1,7 +1,7 @@
 // UserModule spec — T-0034 acceptance C 보완 (CI scripts/check-spec-presence.sh
 // 가 신규 production .ts 에 동반 spec 의무를 강제). PersonRepository + (T-0039)
-// GroupRepository + PartRepository provider 가 module 안에서 resolve 되고
-// export 되는지 검증.
+// GroupRepository + PartRepository + (T-0046) PartService provider 가 module 안에서
+// resolve 되고 export 되는지 검증.
 //
 // 본 spec 은 PersistenceModule (`@Global()`) 을 함께 imports 하여 PrismaService
 // dep 를 만족시킨다. PrismaService 의 super() 부작용 (PrismaClient 생성 +
@@ -49,6 +49,8 @@ import { PersistenceModule } from "../persistence/persistence.module";
 import { GroupRepository } from "./group.repository";
 // eslint-disable-next-line import/first
 import { PartRepository } from "./part.repository";
+// eslint-disable-next-line import/first
+import { PartService } from "./part.service";
 // eslint-disable-next-line import/first
 import { PersonRepository } from "./person.repository";
 // eslint-disable-next-line import/first
@@ -139,6 +141,35 @@ describe("UserModule", () => {
       .compile();
 
     const resolved = moduleRef.get(PartRepository);
+    expect(resolved).toBe(sentinel);
+
+    await moduleRef.close();
+  });
+
+  // T-0046: PartService provider 가 module 안에서 resolve + export 등록.
+  it("compile 시 PartService provider 가 resolve 된다", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    }).compile();
+
+    const service = moduleRef.get(PartService);
+    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(PartService);
+
+    await moduleRef.close();
+  });
+
+  // T-0046: PartService sentinel override — exports 등록 간접 검증.
+  it("PartService provider 가 sentinel 로 override 되어도 compile 한다", async () => {
+    const sentinel = { __sentinel: "part-service-override" };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    })
+      .overrideProvider(PartService)
+      .useValue(sentinel)
+      .compile();
+
+    const resolved = moduleRef.get(PartService);
     expect(resolved).toBe(sentinel);
 
     await moduleRef.close();
