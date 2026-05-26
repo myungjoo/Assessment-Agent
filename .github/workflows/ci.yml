@@ -27,6 +27,36 @@ jobs:
     runs-on: ubuntu-latest
     # issue_comment event 시엔 PR 의 comment 일 때만 실행 (issue comment 는 무시).
     if: github.event_name != 'issue_comment' || github.event.issue.pull_request != null
+    # ADR-0004 §Decision — smoke/e2e 가 실 PostgreSQL 16 container 위에서 발화.
+    # PrismaService 의 `onModuleInit` 의 `$connect` 가 본 services.postgres 의
+    # localhost:5432 로 connection 을 establish (T-0053 머지 후 실 query 발화).
+    # T-0052 본 task 머지 시점엔 smoke/e2e 4 spec 이 여전히 mock override 유지로
+    # 실 query 발화 0 — services.postgres 부트는 무해 (idle DB) + migrate deploy
+    # step 만 실 query 발화 (schema 생성).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: assessment_test
+        ports:
+          - 5432:5432
+        # health-cmd / health-interval / health-retries — ADR-0004 §Decision 박제.
+        # pg_isready 가 ready 응답할 때까지 max 50s (10 retry × 5s interval) 대기.
+        # GitHub Actions 가 services 의 health 가 green 일 때만 후속 step 시작.
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # DATABASE_URL — job 전체 scope 에 주입. PrismaService 의 buildPrismaAdapter()
+    # 가 process.env.DATABASE_URL 을 읽어 PrismaPg adapter 를 구성한다 (T-0033).
+    # unit test (pnpm test:cov) 도 본 env 를 보지만 PrismaService 의 onModuleInit
+    # 자체가 mock 으로 치환되므로 영향 0. smoke/e2e 도 본 task 시점엔 mock
+    # override 유지 — DATABASE_URL 은 migrate deploy step 의 prisma CLI 가 사용.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/assessment_test?schema=public
     steps:
       - name: 저장소 checkout
         uses: actions/checkout@v4
@@ -62,6 +92,15 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Prisma migrate deploy
+        # ADR-0004 §Migration 의무 #3 박제 — services.postgres 의 assessment_test
+        # DB 에 prisma/migrations/ 의 3 migration (init / service_identity /
+        # group_part) 을 순차 적용. prisma CLI 는 package.json L33 의 prisma
+        # ^7.8.0 로 이미 설치됨 (T-0033) — 새 dep 0.
+        # 본 step 이 fail 하면 후속 test:smoke / test:e2e 도 자연 fail (T-0053
+        # 머지 후 실 query 발화 시점부터). T-0052 시점엔 mock override 가 보호.
+        run: pnpm prisma migrate deploy
 
       - name: 테스트 + 커버리지 검사
         # CLAUDE.md §3.2 R-112 2 차 layer: jest 의 coverageThreshold (package.json) 가
