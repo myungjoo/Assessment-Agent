@@ -1,55 +1,20 @@
 // persons.e2e-spec.ts — `/api/persons` HTTP contract depth e2e (T-0044, R-113).
 // smoke (T-0043) 는 status 1-level / 본 e2e 는 status + content-type + body shape +
-// 4xx envelope 까지 cover. mock / helper / 격리 = T-0043 smoke spec 동일 패턴.
+// 4xx envelope 까지 cover. mock / helper = [test/helpers/prisma-mock.ts](../helpers/prisma-mock.ts)
+// 공용 (T-0047 추출). 격리 = T-0043 smoke spec 동일 패턴 (beforeAll/afterAll +
+// afterEach jest.clearAllMocks()).
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
-import type { Person } from "@prisma/client";
 import request from "supertest";
 
 import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/persistence/prisma.service";
-
-// mock shape (T-0043 동일).
-type MockPrismaService = {
-  person: {
-    findMany: jest.Mock;
-    findUnique: jest.Mock;
-    create: jest.Mock;
-    update: jest.Mock;
-    delete: jest.Mock;
-  };
-};
-
-function buildMockPrismaService(): MockPrismaService {
-  return {
-    person: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
-  };
-}
-
-// schema.prisma 7 컬럼 모두 채움 (T-0043 동일).
-function buildPersonFixture(overrides: Partial<Person> = {}): Person {
-  return {
-    id: "cuid-e2e-default",
-    fullName: "홍길동",
-    email: "hong@example.test",
-    active: true,
-    partId: null,
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-    ...overrides,
-  };
-}
-
-// `code` field 가 PersonService.getPrismaErrorCode() duck typing 의 인식 대상.
-function buildPrismaError(code: string, message = "prisma-error"): Error {
-  return Object.assign(new Error(message), { code });
-}
+import {
+  buildMockPrismaService,
+  buildPersonFixture,
+  buildPrismaError,
+  type MockPrismaService,
+} from "../helpers/prisma-mock";
 
 // Person DTO 필수 5 field — 모든 happy endpoint 응답이 동일하게 노출.
 const PERSON_DTO_FIELDS = [

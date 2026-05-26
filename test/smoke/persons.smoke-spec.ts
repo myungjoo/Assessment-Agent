@@ -16,8 +16,8 @@
 //   - mock 객체는 `person` 속성에 5 jest.fn() (findMany / findUnique / create / update /
 //     delete) 보유. supertest 호출 → controller → service → repository → mock 까지의
 //     full wiring 검증.
-//   - mock helper 는 본 파일 안에 inline (1 파일 budget 유지) — 두 번째 smoke spec 이
-//     동일 패턴을 필요로 할 때 `test/helpers/prisma-mock.ts` 디렉토리 신설 (Follow-up).
+//   - mock helper 는 [test/helpers/prisma-mock.ts](../helpers/prisma-mock.ts) 에서
+//     import (T-0047 추출). e2e + 후속 spec 와 단일 source 공유.
 //
 // R-113 cover:
 //   - 본 spec 은 CI 의 `pnpm test:smoke` step 에서 자동 실행 (test/jest-smoke.json 의
@@ -30,62 +30,16 @@
 // 추가돼 있어 `pnpm test` / `pnpm test:cov` 실행 시에는 본 파일이 picking 되지 않는다.
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
-import type { Person } from "@prisma/client";
 import request from "supertest";
 
 import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/persistence/prisma.service";
-
-// PrismaService 의 mock shape — PersonController/Service/Repository 가 사용하는
-// `person` delegate 의 5 메서드만 mock 으로 보유.
-type MockPrismaService = {
-  person: {
-    findMany: jest.Mock;
-    findUnique: jest.Mock;
-    create: jest.Mock;
-    update: jest.Mock;
-    delete: jest.Mock;
-  };
-};
-
-// 신규 mock PrismaService 객체 생성 — 5 jest.fn() 보유한 `person` delegate.
-// `Test.createTestingModule().overrideProvider(PrismaService).useValue(...)` 의
-// useValue 인자로 그대로 전달. PrismaService 의 PrismaClient 상속 (`@prisma/client`)
-// 의 모든 메서드는 본 mock 으로 호출되지 않으므로 부분 mock 으로 충분.
-function buildMockPrismaService(): MockPrismaService {
-  return {
-    person: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
-  };
-}
-
-// Person fixture — person.service.spec.ts 의 buildPersonFixture 와 동일 shape.
-// schema.prisma 의 7 컬럼 (id / fullName / email / active / partId / createdAt /
-// updatedAt) 모두 채움. partId 는 T-0039 가 추가한 nullable 컬럼 — fixture default null.
-function buildPersonFixture(overrides: Partial<Person> = {}): Person {
-  return {
-    id: "cuid-smoke-default",
-    fullName: "홍길동",
-    email: "hong@example.test",
-    active: true,
-    partId: null,
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-    ...overrides,
-  };
-}
-
-// Prisma known error helper — service.spec 패턴 (PersonService spec §75) 동일.
-// `code` field 가 known request error 의 식별자 — duck typing 으로 PersonService 의
-// getPrismaErrorCode() helper 가 인식.
-function buildPrismaError(code: string, message = "prisma-error"): Error {
-  return Object.assign(new Error(message), { code });
-}
+import {
+  buildMockPrismaService,
+  buildPersonFixture,
+  buildPrismaError,
+  type MockPrismaService,
+} from "../helpers/prisma-mock";
 
 describe("Smoke: /api/persons CRUD bootstrap", () => {
   let app: INestApplication;
