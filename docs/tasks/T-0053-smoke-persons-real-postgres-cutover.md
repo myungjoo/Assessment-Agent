@@ -2,7 +2,11 @@
 id: T-0053
 title: persons.smoke-spec real PostgreSQL cutover + jest globalSetup hook + mock 보조 표기 (ADR-0004 §Migration #4+#5 1차)
 phase: P3
-status: PENDING
+status: DONE
+prNumber: 49
+mergedAs: 888a960402c3aeff5387238308df7ff322949773
+completedAt: 2026-05-26
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-029, REQ-058]
 estimatedDiff: 220
