@@ -7,9 +7,12 @@
 // membership add/remove 책임의 repository-layer prerequisite. T-0050 가
 // GroupService 를 추가 — Group entity 의 CRUD-only service layer. T-0055 가
 // GroupController + CreateGroupDto 를 추가 — Group entity 의 HTTP-facing layer
-// 박제 (CRUD-only 4 endpoint). N:M membership operations (addMember / removeMember /
-// findPersonsByGroupId) 는 후속 별도 task (T-0056 예상) 책임. Person.partId 의
-// mandatory invariant 강제 도 별도 task.
+// 박제 (CRUD-only 4 endpoint). T-0056 가 GroupService 에 N:M membership operations
+// (addMember / removeMember / findPersonsByGroupId) 3 메서드 추가 —
+// PersonGroupMembershipRepository + PersonRepository 2 collaborator inject. providers
+// 배열 변경 0 (T-0034 / T-0049 가 PersonRepository / PersonGroupMembershipRepository
+// 이미 등록). controller endpoint 는 후속 T-0057 분리. Person.partId 의 mandatory
+// invariant 강제 도 별도 task.
 //
 // PersistenceModule (`@Global()`) 이 PrismaService 를 application-wide 로
 // export 하므로 본 module 은 PersistenceModule 을 imports 에 명시할 필요가 없다.
