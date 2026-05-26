@@ -2,7 +2,8 @@
 id: T-0056
 title: GroupService N:M membership ops (addMember / removeMember / findPersonsByGroupId, T-0055 Follow-up #1, pr-mode)
 phase: P3
-status: PENDING
+status: IN_PROGRESS
+prNumber: 52
 commitMode: pr
 coversReq: [REQ-028]
 estimatedDiff: 240
