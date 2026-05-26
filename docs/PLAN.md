@@ -63,6 +63,7 @@
 - [ ] **[테스트 품질] unit branch coverage 완성** — `person.service.ts` L120 `update()` P2002 발생 시 `patch.email` 이 undefined 인 케이스 unit test 추가 (현재 branch 96.66% → 100% 목표). R-112 negative case 충분 cover 의무 이행.
 - [ ] **[테스트 품질] smoke test domain endpoint 확장** — 현재 smoke 가 `GET /` 만 커버. `/api/persons` CRUD (POST·GET·PATCH·DELETE) + 향후 Group/Part endpoint 에 대한 bootstrap smoke 추가. AppModule mock-DB 방식으로 실 DB 없이 supertest 실행.
 - [ ] **[테스트 품질] e2e test domain endpoint 확장** — 현재 e2e 가 `GET /` HTTP contract 만 검증. `/api/persons` 의 status code + response body shape (DTO contract) + 4xx error shape 를 e2e-spec 으로 커버. R-113 e2e 의무 이행.
+- [ ] **[테스트 품질] CI smoke/e2e real PostgreSQL 전환** — 현재 T-0043 smoke / T-0044 e2e 는 [test/helpers/prisma-mock.ts](../test/helpers/prisma-mock.ts) 의 PrismaService override 로 mock-DB 사용. 사용자 정책 변경 (2026-05-26): mock 이 아닌 real PostgreSQL 을 CI 안에서 직접 띄워서 통합 검증. 구현 방향: `.github/workflows/ci.yml` 에 `services: postgres:` container (또는 `apt install postgresql` + `pg_ctlcluster start`) + `DATABASE_URL` env var 셋업 + `pnpm prisma migrate deploy` step 추가 + smoke/e2e 가 real DB 에 query 발행하도록 PrismaService override 제거 (또는 mock 과 real 양쪽 mode 병행 — `TEST_DB_MODE` env var 분기). ADR 동반 — mock vs real 의 trade-off (CI 속도 vs 통합 정확도) 박제 + 선택 사유 + 후속 e2e cleanup (`afterEach` truncate) 정책. 본 task 후 mock-DB helper 의 위상 (unit-only 보조 vs deprecated) 도 결정.
 
 ---
 
