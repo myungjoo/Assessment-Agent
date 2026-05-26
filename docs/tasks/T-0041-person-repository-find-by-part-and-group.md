@@ -2,7 +2,10 @@
 id: T-0041
 title: PersonRepository 확장 — findByPartId / findByGroupId query 메서드 + spec (R-112 4종 + coverage)
 phase: P3
-status: PENDING
+status: DONE
+mergedAs: 4cd302f
+prNumber: 38
+completedAt: 2026-05-26T10:26:33+09:00
 commitMode: pr
 coversReq: [REQ-028]
 estimatedDiff: 110

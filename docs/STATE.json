@@ -2,27 +2,26 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0041",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-26T09:59:30+09:00",
-  "lastCommit": "a41c036",
-  "mostRecentTasks": ["T-0040", "T-0039", "T-0038", "T-0037", "T-0036"],
+  "lastActivity": "2026-05-26T10:26:33+09:00",
+  "lastCommit": "4cd302f",
+  "mostRecentTasks": ["T-0041", "T-0040", "T-0039", "T-0038", "T-0037"],
   "loopSession": {
-    "turnCount": 5,
-    "startedAt": "2026-05-26T09:20:22+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-05-26T10:20:00+09:00",
     "cap": 5,
-    "endedAt": "2026-05-26T09:59:30+09:00",
-    "note": "session #9 turn 5 — KST 09:59 ScheduleWakeup 발화 (delay 60s). [1] STATE 로드 → a41c036 main CI run 26426236204 SUCCESS, lock=null, currentTask=null, nextTask=null, turnCount 4 → 5 increment (cap reach). [2] 둘 다 null → planner dispatch. planner 가 T-0039/T-0040 §Follow-ups 박제 source 검토 후 T-0041 (PersonRepository.findByPartId / findByGroupId 추가) 큐잉 — pr-mode, ~110 LOC / 2 파일, GroupService/PartService backbone 의 repository prerequisite. STATE.nextTask=T-0041 set. [4] commitMode=direct → main + worktree branch 양방향 push. [8] (e) turnCount >= cap (5/5) → NO reschedule. cleanup 안내 (사용자 대면): `/compact` 또는 `/clear` 후 새 `/loop` 또는 다음 cron #9 (KST 14:00 예정) 발화 대기. **session #9 5 turn 통계**: turn 1 (HQ-0006 resolve) + turn 2 (T-0039 PR-37 round 1/7 MERGED c25a5de) + turn 3 (planner T-0040) + turn 4 (executor T-0040 done a41c036) + turn 5 (planner T-0041 + cap close). counters.tasksCompleted 37→39 (+2), tasksBlocked 그대로 2, reviewRounds +T-0039:1. 누적 lesson 19 회 dogfood."
+    "note": "session #10 turn 1 — 사용자 `/loop turn cap 5` wake (KST 10:20). [1] STATE 로드 → 직전 session #9 5/5 cap close, lock=null, currentTask=null, nextTask=T-0041, humanQuestions 6/6 resolved, ci green (a41c036 run 26426236204 SUCCESS). 새 /loop session 첫 turn → turnCount=1, startedAt=10:20. [2] nextTask=T-0041 → currentTask promote. [3] executor T-0041 full pr-mode chain dispatch — architect (Prisma nested relation filter `{groups: {some: {groupId}}}` 옵션 a 채택, ADR 신설 불요 / JSDoc 박제) + implementer (src/user/person.repository.ts +233 LOC + person.repository.spec.ts 12 신규 test, 2 파일 cap 보존) + tester (lint env CRLF skip + build + test 171/171 pass + coverage line/function/stmts/branch 100% + smoke 2 + e2e 2 green) + reviewer round 1/7 APPROVE (gh pr comment 외부 post — 4-게이트 #2) + integrator 4-게이트 final TRUE → squash merge **4cd302f** ([PR-38](https://github.com/myungjoo/Assessment-Agent/pull/38)). [5] post-merge main CI run 26426993782 SUCCESS (KST 10:24:45 UTC = 19:24 KST 오타 — 실제 10:24:45 KST). [6] STATE 갱신: currentTask=null, nextTask=null, lastCommit=4cd302f, mostRecentTasks prepend T-0041, reviewRounds[T-0041]=1, counters.tasksCompleted 39→40. Phase P3-in-progress 유지. 다음 backbone GroupService / PartService 진입 prerequisite 충족 — PersonRepository.findByPartId/findByGroupId 가 service-layer 호출 source 로 사용 가능. **본 turn lesson**: (i) 사용자가 cap 도달 직후 새 /loop session 즉시 재시작 가능 (session #9 → #10 seamless) (ii) executor 가 round 1 APPROVE 단발 머지로 5-step chain (architect→implementer→tester→reviewer→integrator) 완주 — turn 1 안에서 pr-mode 전 과정 박제 (iii) Prisma nested relation filter `{ some: { ... } }` 가 idiomatic — extra abstraction 0 / Promise<Person[]> 시그니처 유지 (iv) cap ≤300/5 보존하면서 12 신규 test + coverage 100% 달성. 누적 lesson 20 회 dogfood. cap 5 잔여 4 turn — 다음 turn 진입 시 planner dispatch (T-0042+ 큐잉)."
   },
   "ci": {
-    "lastRun": "2026-05-26T09:36:38+09:00",
+    "lastRun": "2026-05-26T10:24:45+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26425671660",
-    "note": "session #9 turn 2 의 PR-37 merge commit c25a5de main CI run 26425671660 SUCCESS (KST 09:36:38). 직전 cc636e3 main CI run 26425613441 도 SUCCESS (doc-only). PR-37 의 612a02b 원 CI run 26418482060 은 reviewer-gate fail → 본 turn 의 `gh run rerun --failed` 후 step 13 (reviewer agent approval 검증) PASS 으로 전환. consecutiveFails 0 유지."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26426993782",
+    "note": "session #10 turn 1 의 PR-38 merge commit 4cd302f main CI run 26426993782 SUCCESS (KST 10:24:45). 직전 a41c036 main CI run 26426236204 도 SUCCESS (doc-only). PR-38 자체 commit (cea270b 등) 의 reviewer-gate step 은 PR open 직후 reviewer comment post 전이라 첫 run 에서 fail → `gh run rerun --failed` 후 PASS 로 전환 (T-0039 PR-37 과 같은 race, 기존 패턴). consecutiveFails 0 유지."
   },
-  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1, "T-0035": 1, "T-0036": 2, "T-0037": 1, "T-0039": 1},
+  "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1, "T-0035": 1, "T-0036": 2, "T-0037": 1, "T-0039": 1, "T-0041": 1},
   "blockers": [],
   "humanQuestions": [
     {
@@ -103,7 +102,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 39,
+    "tasksCompleted": 40,
     "tasksBlocked": 2,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
