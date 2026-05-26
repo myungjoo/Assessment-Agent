@@ -60,6 +60,9 @@
 - [ ] Persistence layer (DB 는 ADR-0002 에서 이미 결정됨 — 본 phase 에서 구현)
 - [ ] Auth/RBAC 모델 (SuperAdmin/Admin/User) — 첫 로그인 SuperAdmin 지정, Admin→User 변경은 SuperAdmin만, 본인 self-demote 금지 (R-84)
 - [ ] User read-only 권한 범위 명시 — 조회·sort·filter 만 (R-86)
+- [ ] **[테스트 품질] unit branch coverage 완성** — `person.service.ts` L120 `update()` P2002 발생 시 `patch.email` 이 undefined 인 케이스 unit test 추가 (현재 branch 96.66% → 100% 목표). R-112 negative case 충분 cover 의무 이행.
+- [ ] **[테스트 품질] smoke test domain endpoint 확장** — 현재 smoke 가 `GET /` 만 커버. `/api/persons` CRUD (POST·GET·PATCH·DELETE) + 향후 Group/Part endpoint 에 대한 bootstrap smoke 추가. AppModule mock-DB 방식으로 실 DB 없이 supertest 실행.
+- [ ] **[테스트 품질] e2e test domain endpoint 확장** — 현재 e2e 가 `GET /` HTTP contract 만 검증. `/api/persons` 의 status code + response body shape (DTO contract) + 4xx error shape 를 e2e-spec 으로 커버. R-113 e2e 의무 이행.
 
 ---
 
