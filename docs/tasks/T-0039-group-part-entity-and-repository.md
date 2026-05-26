@@ -2,9 +2,11 @@
 id: T-0039
 title: Group + Part entity Prisma model + GroupRepository + PartRepository + UserModule wiring (Service/Controller 는 후속 task 책임)
 phase: P3
-status: IN_PROGRESS
+status: DONE
 prNumber: 37
-mergedAs: pending
+mergedAs: c25a5de4055978820ce0db774e466f63583620b9
+completedAt: 2026-05-26T09:36:35+09:00
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-028]
 estimatedDiff: 280
