@@ -2,7 +2,11 @@
 id: T-0055
 title: GroupController + CreateGroupDto + REST endpoints CRUD-only (T-0050 Follow-up #1, pr-mode)
 phase: P3
-status: PENDING
+status: DONE
+prNumber: 51
+mergedAs: a037a4e5d766158a084821a28440a84f47be735c
+completedAt: 2026-05-26
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-028]
 estimatedDiff: 305
