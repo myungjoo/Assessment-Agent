@@ -2,8 +2,17 @@
 id: T-0061
 title: groups.smoke-spec 신설 — GroupController 7 endpoint real PostgreSQL bootstrap smoke
 phase: P3
-status: PENDING
+status: BLOCKED
 commitMode: pr
+prNumber: 57
+prUrl: https://github.com/myungjoo/Assessment-Agent/pull/57
+prHead: claude/T-0061-smoke-groups-real-postgres
+implCommit: 0cd28f4
+blocker:
+  id: HQ-0008
+  reason: credential
+  raisedAt: 2026-05-27T12:50:00+09:00
+  detail: cloud invocation 환경 `gh` CLI 부재로 reviewer/integrator 4-게이트 자동 진행 불가. 코드 작업 + PR open (PR-57) + push 까지 완료. 사용자 결정 후 다음 turn 에서 진행 재개.
 coversReq: [REQ-028, REQ-029, REQ-051, REQ-058]
 estimatedDiff: 260
 estimatedFiles: 1
