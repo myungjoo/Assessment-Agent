@@ -2,24 +2,24 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0049",
   "lock": null,
-  "lastActivity": "2026-05-26T13:37:00+09:00",
+  "lastActivity": "2026-05-26T13:50:00+09:00",
   "lastCommit": "e094058",
   "mostRecentTasks": ["T-0048", "T-0047", "T-0046", "T-0045", "T-0044"],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-05-26T12:30:00+09:00",
     "cap": 10,
-    "note": "session #12 turn 5 (cap 10, 5/10 used) — ScheduleWakeup 60s wake (KST 13:34) continuation. [1] STATE 로드 → 직전 e094058 (T-0048 큐잉 doc) main CI SUCCESS, lock=null, currentTask=null, nextTask=T-0048. loopSession.turnCount 4→5 increment / startedAt 12:30 유지. 미해결 humanQuestion 0. [2] nextTask=T-0048 → currentTask promote. [3] executor T-0048 direct-mode chain dispatch — architect skip (agent procedure patch, ADR 불요) + implementer (.claude/agents/integrator.md +20L Workflow B 게이트 (d) race 인지 subsection + 분기 표 갱신 + Hard rule 추가, .claude/agents/reviewer.md +2L Output 섹션 Post-comment note 권고, net +24/-1, 2 파일) + tester (R-110 면제 — doc-only direct, markdown rendering 검증 pass, cross-reference 링크 정합). [4] commitMode=direct → driver 가 executor 의 2 파일 + STATE/journal/task-frontmatter 3 파일 = 5 파일 1 commit wrap → push HEAD:main (선례 동일). [6] STATE 갱신: currentTask=null, nextTask=null, mostRecentTasks=[T-0048, T-0047, T-0046, T-0045, T-0044], counters.tasksCompleted 46→47. T-0048 frontmatter status PENDING→DONE + completedAt. **reviewer-gate race fix 박제 완료 — 다음 pr-mode task 부터 integrator 가 첫 CI fail 시 reviewer comment 후 자동 rerun pending 상태로 인지 + comment-triggered run conclusion wait, 그래도 fail 시 ad-hoc `gh run rerun` self-heal**. [8] turnCount 5 < cap 10 → reschedule (270s — CI in_progress 대기, 다음 turn planner). 본 turn lesson: (i) doc-only direct agent 정의 patch 가 1 turn 안에 완결되어 backbone 진입 직전 long-horizon leverage 의 effect 확보 (cumulative cost 절감의 즉시 회수 시작) (ii) executor 가 direct-mode 의 staging-only 패턴 정확히 수행 (driver wrap 절차 보존) — full chain 아닌 부분 chain 의 sub-agent contract 박제 확인 (iii) integrator.md / reviewer.md 의 변경이 additive 패턴 (기존 4-게이트 / 6 self-check / Output 형식 0 변경) — backwards compatibility 의 reviewer 의 sanity 검증 simplicity 보존. 누적 lesson 29 회 dogfood."
+    "note": "session #12 turn 6 (cap 10, 6/10 used, planner-only) — ScheduleWakeup 270s wake (KST 13:48 fallback) continuation. [1] STATE 로드 → 직전 826f4dd (T-0048 direct reviewer-race fix) main CI SUCCESS, lock=null, currentTask=null, nextTask=null. 미해결 humanQuestion 0. loopSession.turnCount 5→6 increment / startedAt 12:30 유지. [2] currentTask=null & nextTask=null → planner dispatch. planner 가 4 후보 (a GroupService backbone cap-tight / b phase 2 src/user/*.spec migration / c PersonGroupMembershipRepository prerequisite / d PLAN.md §6 progress doc) 검토 후 **(c) PersonGroupMembershipRepository** 선택 — (i) GroupService 의 membership add/remove 책임 prerequisite (a1 GroupService-CRUD-only split 안전 entry 확보) (ii) cap 보존 — ~180 LOC / 3 파일 (repository + spec + user.module wiring) (iii) T-0047 shared helper (buildMockPrismaService) 즉시 import → 새 spec 작성 비용 절감 회수 (iv) T-0048 reviewer-race fix 첫 적용 dogfood — race 대응 절차 검증 (v) 후속 backbone 의 cleanness 확보. T-0049 task 파일 작성 (pr-mode, ~180 LOC / 3 파일, dependsOn T-0039+T-0041+T-0046). STATE.nextTask=T-0049 set + lastActivity 13:50. [4] commitMode=direct → main 직접 commit + push (3 파일: STATE + journal + T-0049 task). [8] turnCount 6 < cap 10 → reschedule (60s — 다음 turn 즉시 executor T-0049 진입). 본 turn lesson: (i) backbone task split 전략 (PersonGroupMembershipRepository → GroupService-CRUD → GroupService-membership-ops) 의 sequencing 검증 — cap-tight backbone 의 prerequisite 박제로 후속 task 의 cleanness 확보 (ii) planner 의 candidate evaluation 에서 infrastructure leverage (T-0047 helper + T-0048 race fix) 가 prerequisite task 의 ROI 를 amplify — 새 spec 가 helper 즉시 import 로 ~40 LOC 절감 + integrator race 대응 자동화. 누적 lesson 30 회 dogfood (planner-only — lesson 신규 미세 추가)."
   },
   "ci": {
-    "lastRun": "2026-05-26T13:30:00+09:00",
+    "lastRun": "2026-05-26T13:44:05+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/e094058",
-    "note": "session #12 turn 5 — 직전 e094058 (T-0048 큐잉 doc) main CI SUCCESS 확인. 본 turn commit push 후 CI in_progress 전이 — 다음 turn 의 [1] 단계에서 conclusion 재확인. consecutiveFails 0 유지."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/826f4dd",
+    "note": "session #12 turn 6 — 직전 826f4dd (T-0048 direct) main CI SUCCESS 확인 (04:44Z UTC = 13:44 KST). 본 turn commit push 후 CI in_progress 전이 — 다음 turn 의 [1] 단계에서 conclusion 재확인. consecutiveFails 0 유지."
   },
   "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1, "T-0035": 1, "T-0036": 2, "T-0037": 1, "T-0039": 1, "T-0041": 1, "T-0042": 1, "T-0043": 1, "T-0044": 1, "T-0046": 1, "T-0047": 1},
   "blockers": [],
