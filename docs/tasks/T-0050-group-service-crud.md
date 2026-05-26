@@ -2,12 +2,15 @@
 id: T-0050
 title: GroupService CRUD-only service-layer — Group entity 의 4 메서드 (create/findAll/findById/delete) + R-112 spec (pr-mode)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028]
 estimatedDiff: 310
 estimatedFiles: 3
 created: 2026-05-26
+completedAt: 2026-05-26T14:36:00+09:00
+prNumber: 45
+mergedAs: 4ed4321
 plannerNote: P3 backbone 다음 단계 — GroupService 의 CRUD-only 서비스 레이어 (Controller/DTO/N:M ops 는 후속 task). PartService (T-0046) 1:1 mirror, GroupRepository 위 4 메서드 + R-112 4 카테고리 spec + UserModule wiring. cap envelope (~310 LOC/3 파일).
 dependsOn: [T-0039, T-0049]
 blocks: []
