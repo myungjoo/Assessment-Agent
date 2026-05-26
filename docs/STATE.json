@@ -2,25 +2,24 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0044",
   "lock": null,
-  "lastActivity": "2026-05-26T11:18:00+09:00",
-  "lastCommit": "e7bb95a",
+  "lastActivity": "2026-05-26T11:21:00+09:00",
+  "lastCommit": "f74fb80",
   "mostRecentTasks": ["T-0043", "T-0042", "T-0041", "T-0040", "T-0039"],
   "loopSession": {
-    "turnCount": 5,
-    "startedAt": "2026-05-26T10:20:00+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-05-26T11:20:00+09:00",
     "cap": 5,
-    "endedAt": "2026-05-26T11:18:00+09:00",
-    "note": "session #10 turn 5 (cap close, 5/5 used) — 사용자 `wake up and continue` 명시 wake (ScheduleWakeup 270s 도달 전 manual fire, KST 11:11). [1] STATE 로드 → 직전 doc commit 9f56381 CI run 26428449631 SUCCESS, lock=null, currentTask=null, nextTask=T-0043. loopSession turnCount 4 → 5 increment (cap reach), startedAt 10:20 유지. [2] nextTask=T-0043 → currentTask promote. [3] executor T-0043 full pr-mode chain dispatch — architect 한 줄 박제 (mock-DB Test.overrideProvider(PrismaService).useValue(buildMockPrismaService()) 패턴, helper inline 1 파일 budget, ADR 신설 skip) + implementer (test/smoke/persons.smoke-spec.ts +256/-0 LOC, 9 신규 test: 5 endpoint × happy + 2 negative shape (404 / 400 validation) + 1 whitelist 400 + 1 branch (P2002 → 409 PATCH), beforeAll AppModule + PrismaService mock 부트스트랩, afterEach jest.clearAllMocks() 격리, buildPersonFixture / buildMockPrismaService / buildPrismaError helper inline) + tester (lint 0 error / build ok / unit 172 pass / smoke 11 pass (기존 2 + 신규 9) / e2e 2 pass / coverage line/function 100% — 6 gate green) + reviewer round 1/7 APPROVE (`gh pr comment` 외부 post — 4-게이트 #2 충족, comment id 4539152105) + integrator 4-게이트 final TRUE → squash merge **e7bb95a** ([PR-40](https://github.com/myungjoo/Assessment-Agent/pull/40)). [5] post-merge main CI run 26428497674 in_progress (KST 11:18 시점) — 다음 cron/session 의 [1] 단계에서 conclusion 재확인. [6] STATE 갱신: currentTask=null, nextTask=null, lastCommit=e7bb95a, mostRecentTasks prepend T-0043, reviewRounds[T-0043]=1, counters.tasksCompleted 41→42. T-0043 frontmatter status PENDING→DONE + mergedAs=e7bb95a + prNumber=40 + completedAt. 본 commit doc-only direct (3 파일: STATE + T-0043 task + journal). [8] turnCount 5 ≥ cap 5 → LOOP.md §1 [8] (e) NO reschedule. **session #10 cap close cleanup 안내**: (1) `/compact` 로 같은 conversation 압축 후 새 `/loop turn cap N`, 또는 (2) `/clear` 로 새 conversation 시작 후 `/loop turn cap N`, 또는 (3) 그냥 종료하고 다음 cron 발화 대기. **session #10 누적 통계 (turn 1-5)**: T-0041 (4cd302f) + T-0042 (20ef2c5) + T-0043 (e7bb95a) 3 task pr-mode merge — counters.tasksCompleted 39→42 (+3), reviewRounds[T-0041,T-0042,T-0043]=1 each, 모두 round 1 APPROVE 단발 머지. PLAN.md L63 bullet 1 (T-0042) + L64 bullet 2 (T-0043) 2 개 closed — 잔여 L65 bullet 3 (e2e domain). **본 turn lesson**: (i) session #10 가 cap 5 안에서 3 task pr-mode merge — 1 turn = 1 task 의 평균 처리량 확인 (cap 5 = T-0041 backbone + T-0042 micro test + planner T-0043 + planner T-0042 외 1 planner turn = 5 turn 안에 2 pr task + 2 planner + 1 pr-mode-with-cleanup task) (ii) executor 의 full pr-mode chain (architect→implementer→tester→reviewer→integrator) 가 round 1 APPROVE 단발 머지로 3/3 성공률 — backbone (T-0041) / micro (T-0042) / smoke (T-0043) 3 가지 task type 다 동일 패턴 적용 가능 확인 (iii) Test.overrideProvider(PrismaService).useValue(mock) + inline helper 패턴이 smoke spec 의 budget-friendly 표준 — 1 파일 / ~250 LOC 안에서 5 endpoint cover + R-113 smoke 의무 이행 (iv) 사용자 'wake up and continue' manual fire 가 ScheduleWakeup deadline 도달 전이라도 turn 진입 가능 — 사용자 옆에 있을 때 ad-hoc pacing 패턴. 누적 lesson 22 회 dogfood."
+    "note": "session #11 turn 1 (cap 5, 1/5 used) — 사용자 `/loop turn cap 5` 명시 wake (KST 11:20). 새 /loop session 첫 turn → turnCount=1, startedAt=11:20, endedAt 필드 reset. **session #10 직전 cap-close 후 즉시 재시작** (사용자 seamless restart 패턴). [1] STATE 로드 → 직전 e7bb95a (PR-40 머지) + f74fb80 (session #10 cap-close doc) main CI 모두 SUCCESS 확인, lock=null, currentTask=null, nextTask=null. humanQuestions 6/6 resolved 유지. [2] currentTask=null & nextTask=null → planner dispatch. planner 가 PLAN.md L65 bullet 3 (e2e `/api/persons` HTTP contract + DTO body shape + 4xx envelope, R-113 e2e 의무) 을 T-0044 로 큐잉 — pr-mode, ~150-200 LOC / 1 파일 (test/e2e/persons.e2e-spec.ts 신규), T-0043 의 mock PrismaService 패턴 + helper inline reuse. **PLAN.md P3 test-quality 3 bullet 의 마지막 closure**. STATE.nextTask=T-0044 set + lastActivity 11:21. [4] commitMode=direct → main 직접 commit + push (3 파일: STATE + journal + T-0044 task 파일). [8] 다음 turn 진입 시 executor T-0044 full pr-mode chain dispatch (~150-200 LOC, round 1 APPROVE 머지 기대). cap 5 잔여 4 turn — 충분한 진척 budget. **session #10 직전 통계 (참고)**: counters.tasksCompleted 39→42 (+3), reviewRounds[T-0041,T-0042,T-0043]=1 each, 3/3 round 1 APPROVE 단발 머지."
   },
   "ci": {
-    "lastRun": "2026-05-26T11:18:00+09:00",
-    "status": "running",
+    "lastRun": "2026-05-26T11:21:00+09:00",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26428497674",
-    "note": "session #10 turn 5 의 PR-40 merge commit e7bb95a main CI run 26428497674 in_progress (KST 11:18 시점 post-merge). 직전 9f56381 main CI run 26428449631 SUCCESS (doc-only). PR-40 자체 CI는 reviewer-gate race 없이 round 1 첫 run 에서 8 step green. 다음 cron/session 의 [1] 단계에서 e7bb95a conclusion 재확인. consecutiveFails 0 유지."
+    "note": "session #11 turn 1 의 [1] 단계 재확인 — 직전 e7bb95a main CI run 26428497674 SUCCESS (post-merge, in_progress → completed transition) + f74fb80 main CI 도 SUCCESS (doc-only cap-close). 본 turn 의 doc-only direct commit 도 post-push CI 실행 예정. consecutiveFails 0 유지."
   },
   "reviewRounds": {"T-0005": 1, "T-0007": 1, "T-0015": 2, "T-0016": 1, "T-0017": 2, "T-0018": 1, "T-0019": 1, "T-0020": 1, "T-0021": 1, "T-0022": 1, "T-0023": 1, "T-0024": 1, "T-0025": 1, "T-0026": 1, "T-0027": 1, "T-0028": 1, "T-0029": 1, "T-0030": 2, "T-0031": 1, "T-0032": 3, "T-0033": 1, "T-0034": 1, "T-0035": 1, "T-0036": 2, "T-0037": 1, "T-0039": 1, "T-0041": 1, "T-0042": 1, "T-0043": 1},
   "blockers": [],
