@@ -132,6 +132,8 @@ STATUS: DONE | BLOCKED
 
 Reviewer 는 commit-trail `TRAIL` 섹션을 직접 채우지 않는다. integrator 의 `INTEGRATOR:` 라인 (`pr=<num> round=<n> ci=<status>`) + PR comment 가 완전한 audit trail.
 
+**Post-comment note** (T-0048 박제 — 권고, 의무화 X): `gh pr comment` post 직후 본 PR 의 CI 는 `issue_comment: [created]` trigger ([.github/workflows/ci.yml](../../.github/workflows/ci.yml) L13-16) 로 **자동 재실행**된다. integrator 가 게이트 (d) CI green 을 평가할 때 본 재실행 run (= second run, event=issue_comment) 의 conclusion 을 기준으로 한다 — first push 직후 trigger 된 first run 의 `reviewer agent approval 검증` step fail 은 comment post 전 race 의 자연 결과이므로 무시 가능. SUMMARY 형식의 6 라인 단순성을 위해 본 권고를 SUMMARY 에 명시할 의무는 없다.
+
 # Hard rules
 
 - **Never edit code** — comment 만.

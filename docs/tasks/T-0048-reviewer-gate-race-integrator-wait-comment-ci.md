@@ -2,12 +2,13 @@
 id: T-0048
 title: reviewer-gate race fix — integrator 가 comment-triggered CI run 을 기다리도록 절차 박제 (doc-only direct)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-058]
 estimatedDiff: 90
 estimatedFiles: 2
 created: 2026-05-26
+completedAt: 2026-05-26T13:37:00+09:00
 plannerNote: T-0047 §Follow-ups + journal 7 회 연속 race 패턴 박제 — integrator.md Workflow B 의 게이트 (d) CI green 검사를 comment-triggered run 까지 wait 하도록 절차 갱신. direct (.claude/ meta).
 dependsOn: []
 blocks: []
