@@ -5,9 +5,11 @@
 // PartController + CreatePartDto 를 추가 — Part 의 HTTP-facing layer 박제 완료.
 // T-0049 가 PersonGroupMembershipRepository 를 추가 wiring — GroupService 의 N:M
 // membership add/remove 책임의 repository-layer prerequisite. T-0050 가
-// GroupService 를 추가 — Group entity 의 CRUD-only service layer. GroupController +
-// Group DTO + REST endpoint + N:M membership add/remove operations 는 후속 별도 task
-// (T-0051 / T-0052 예상) 책임. Person.partId 의 mandatory invariant 강제 도 별도 task.
+// GroupService 를 추가 — Group entity 의 CRUD-only service layer. T-0055 가
+// GroupController + CreateGroupDto 를 추가 — Group entity 의 HTTP-facing layer
+// 박제 (CRUD-only 4 endpoint). N:M membership operations (addMember / removeMember /
+// findPersonsByGroupId) 는 후속 별도 task (T-0056 예상) 책임. Person.partId 의
+// mandatory invariant 강제 도 별도 task.
 //
 // PersistenceModule (`@Global()`) 이 PrismaService 를 application-wide 로
 // export 하므로 본 module 은 PersistenceModule 을 imports 에 명시할 필요가 없다.
@@ -16,15 +18,17 @@
 // 외부 노출:
 //   - controllers: PersonController — `/api/persons` 5 endpoint 노출.
 //                  PartController — `/api/parts` 5 endpoint 노출 (T-0046).
+//                  GroupController — `/api/groups` 4 endpoint 노출 (T-0055).
 //   - providers: PersonRepository, ServiceIdentityRepository, GroupRepository,
 //     PartRepository, PersonGroupMembershipRepository, PersonService, PartService,
 //     GroupService.
 //   - exports: PersonRepository, ServiceIdentityRepository, GroupRepository,
 //     PartRepository, PersonGroupMembershipRepository, PersonService, PartService,
-//     GroupService — 다른 module (예: 후속 AssessmentModule / GroupController) 이
-//     PartService / GroupService / Repo inject 가능하도록.
+//     GroupService — 다른 module (예: 후속 AssessmentModule) 이 PartService /
+//     GroupService / Repo inject 가능하도록.
 import { Module } from "@nestjs/common";
 
+import { GroupController } from "./group.controller";
 import { GroupRepository } from "./group.repository";
 import { GroupService } from "./group.service";
 import { PartController } from "./part.controller";
@@ -37,7 +41,7 @@ import { PersonService } from "./person.service";
 import { ServiceIdentityRepository } from "./service-identity.repository";
 
 @Module({
-  controllers: [PersonController, PartController],
+  controllers: [PersonController, PartController, GroupController],
   providers: [
     PersonRepository,
     ServiceIdentityRepository,
