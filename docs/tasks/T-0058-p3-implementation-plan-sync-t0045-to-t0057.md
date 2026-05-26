@@ -2,7 +2,8 @@
 id: T-0058
 title: p3-implementation-plan.md §2/§3/§6 sync — T-0045 ~ T-0057 row 13 추가 + 진척 progress 갱신 (doc-only direct)
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-05-26
 commitMode: direct
 coversReq: [REQ-028, REQ-057, REQ-058]
 estimatedDiff: 180
