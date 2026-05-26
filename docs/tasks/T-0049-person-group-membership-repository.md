@@ -2,12 +2,15 @@
 id: T-0049
 title: PersonGroupMembershipRepository — Group ↔ Person N:M join repository CRUD primitive 4 종 (pr-mode)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028]
 estimatedDiff: 180
 estimatedFiles: 3
 created: 2026-05-26
+completedAt: 2026-05-26T14:08:00+09:00
+prNumber: 44
+mergedAs: dc3e056
 plannerNote: P3 backbone 다음 단계 — GroupService 의 membership add/remove 책임 prerequisite. PersonGroupMembership repository (findByGroupId/findByPersonId/create/delete) + spec (R-112 4 + negative cases) + UserModule wiring. cap 보존 (~180 LOC/3 파일).
 dependsOn: [T-0039, T-0041]
 blocks: []
