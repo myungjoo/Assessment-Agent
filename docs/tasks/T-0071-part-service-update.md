@@ -2,13 +2,16 @@
 id: T-0071
 title: PartService.update + spec — P2025→NotFoundException + P2002→ConflictException 변환 (Group T-0067 mirror + ConflictException 추가)
 phase: P3
-status: IN_PROGRESS
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-051, REQ-058]
 estimatedDiff: 360
 estimatedFiles: 2
 created: 2026-05-27
+completedAt: 2026-05-27
 prNumber: 64
+mergedAs: 7383b7839136c44eb6e6389c6de99350639d5763
+reviewRounds: 1
 dependsOn: [T-0036, T-0050, T-0057, T-0067, T-0069]
 plannerNote: session #20 turn 10 cap-close — T-0069 의 자연 follow-up. Part service-layer update + P2002→ConflictException 변환 박제 (Group T-0067 mirror, Part.name @unique 분기 추가).
 ---
