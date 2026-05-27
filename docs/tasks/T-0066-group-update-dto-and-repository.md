@@ -2,8 +2,11 @@
 id: T-0066
 title: UpdateGroupDto + GroupRepository.update 부분 update 첫 layer (Person 패턴 mirror, controller PATCH 는 후속)
 phase: P3
-status: PENDING
+status: BLOCKED
 commitMode: pr
+blockerReason: credential
+blockedAt: 2026-05-27T14:10:00+09:00
+linkedHumanQuestion: HQ-0009
 coversReq: [REQ-028, REQ-051, REQ-058]
 estimatedDiff: 220
 estimatedFiles: 4
@@ -95,6 +98,16 @@ REQ-028 (Group 정책 — 임의 group 다중 소속 가능) + REQ-051 (Group en
 - **tester** — C.1~C.6 (lint / build / test:cov / smoke / e2e). DATABASE_URL local 의존 (jest-smoke-setup / jest-e2e maxWorkers:1).
 - **reviewer** — R-112 4 카테고리 cover 검증 + JSDoc 한국어 박제 + Person precedent mirror 정합 + Out of Scope 준수 + race-patterns.md cross-ref 검증.
 - **integrator** — 4-게이트 + worktree race fallback (8 회차 가능성).
+
+## Blocker (2026-05-27T14:10:00+09:00 — credential)
+
+cron 발화 turn 진입 시 Anthropic 클라우드 env 에 `gh` CLI 부재 확정 (`which gh` → command not found). T-0066 은 pr-mode 라 reviewer agent 의 PR comment 외부 post (4-게이트 #2) + integrator agent 의 `gh pr checks` / `gh pr merge` (4-게이트 #4 + 실 merge action) 가 전부 gh 의존. executor dispatch 전 graceful BLOCKED, 코드 변경 0.
+
+- HQ-0006 (T-0039, 2026-05-26): install-gh-cli env-bound 1 회성 resolved
+- HQ-0008 (T-0061, 2026-05-27): use-local-env-gh 1 회성 resolved
+- HQ-0009 (본 task, 2026-05-27): 영구 정책 결정 요청 — install-gh-cli-in-cron-env / adapt-agents-to-mcp / use-local-env-gh-3rd-time / other
+
+다음 turn (사용자 unblock 후): driver [1] STATE 로드 → currentTask=T-0066 status=BLOCKED → HQ-0009.decision 분기. (a)/(c) 채택 시 executor pr-mode full chain (architect 0 + implementer + tester + reviewer + integrator) 진행. (b) 채택 시 adapt task 후속 머지 후 본 T-0066 재개.
 
 ## Follow-ups
 

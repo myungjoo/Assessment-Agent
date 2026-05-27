@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": null,
-  "nextTask": "T-0066",
+  "currentTask": "T-0066",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-27T13:50:00+09:00",
-  "lastCommit": "ebe3803",
+  "lastActivity": "2026-05-27T14:10:00+09:00",
+  "lastCommit": "99c10b0",
   "mostRecentTasks": [
     "T-0065",
     "T-0064",
@@ -75,7 +75,16 @@
     "T-0061": 1,
     "T-0062": 1
   },
-  "blockers": [],
+  "blockers": [
+    {
+      "id": "B-0001",
+      "taskId": "T-0066",
+      "reason": "credential",
+      "raisedAt": "2026-05-27T14:10:00+09:00",
+      "summary": "Anthropic cloud cron 발화 env 의 gh CLI 부재 — T-0066 (pr-mode) 의 reviewer/integrator 4-게이트 자동 진행 불가. HQ-0009 발화, 영구 정책 결정 요청.",
+      "linkedHumanQuestion": "HQ-0009"
+    }
+  ],
   "humanQuestions": [
     {
       "id": "HQ-0001",
@@ -230,11 +239,31 @@
       "decisionNote": "사용자 `/loop turn cap 10` 진입 (session #19 turn 1, KST 13:00) 후 driver 가 본 /loop 세션 환경 (Windows local worktree D:/Assessment-Agent) 에서 `where gh` → `C:\\Program Files\\GitHub CLI\\gh.exe` v2.88.1 + `gh auth status` Active=true 확인 (HQ-0006 precedent 동일 상황). AskUserQuestion 으로 3 옵션 (use-local-env-gh / adapt-agents-to-mcp / manual-review-and-merge) 제시 → 사용자 응답 'reviewer agent 띄워서 comment 남기도록 하면 되는 것 아닌가?' = **use-local-env-gh 결정 박제** (옵션 (a)). driver 가 즉시 진행: `gh pr ready 57` → integrator dispatch → reviewer round 1 APPROVE comment 4550548211 post → 4-게이트 평가 (issue_comment-triggered feature-branch run 0 건 발화 = main HEAD context 의존 박제 → integrator.md L67-69 race-fix fallback `gh run rerun 26463458217` 80 초만에 success) → 4-게이트 all PASS → `gh pr merge 57 --squash --delete-branch` local exit 1 (worktree race 6 회차 dogfood) BUT remote SUCCESS sha **2238e51fea594f879563a35af03e15f790565786**. **resolution 패턴**: HQ-0006 (T-0039) 가 첫 dogfood, 본 HQ-0008 (T-0061) 가 2 회차 dogfood — cloud cron env 의 gh 부재가 발견되면 사용자가 gh 가용 환경 (local /loop) 으로 driver 재진입시키는 게 가장 빠른 unblock. 영구 정책 (cron env setup script 에 gh 박제) 은 별도 follow-up task 필요 — 본 resolution 은 즉각 unblock 만 처리.",
       "resolvedAt": "2026-05-27T13:00:00+09:00",
       "resolvedBy": "human + use-local-env-gh"
+    },
+    {
+      "id": "HQ-0009",
+      "createdAt": "2026-05-27T14:10:00+09:00",
+      "taskId": "T-0066",
+      "reason": "credential",
+      "summary": "Anthropic 클라우드 cron 발화 env 의 `gh` CLI 부재 3 회차 반복 (HQ-0006 T-0039 / HQ-0008 T-0061 / 본 HQ-0009 T-0066). cron backbone 의 실효 부재 박제 — 영구 fix 정책 결정 요청. 본 turn 은 executor dispatch 전 graceful BLOCKED, 코드 변경 0.",
+      "options": [
+        "(a) install-gh-cli-in-cron-env — Anthropic cloud 환경의 setup script 또는 SessionStart hook 에 `gh` 설치 + auth (GITHUB_TOKEN 환경변수 또는 별도 PAT) 추가. 1 회 설정 후 모든 후속 cron 발화의 reviewer/integrator 4-게이트 자동 진행 unblock. 단 token secret 관리 정책 (PAT scope / rotation) 별도 필요. 가장 영구적 unblock.",
+        "(b) adapt-agents-to-mcp — reviewer / integrator agent 정의의 모든 `gh pr|run|api` 호출을 `mcp__github__*` MCP tool 호출로 재작성 (driver 가 이미 보유). 별도 doc-only direct task 또는 ADR 로 분리 (예상 ~150-200 LOC + agent 2 파일 + 검증). cron / /loop / local 어디서나 동일 동작 — gh 의존 영구 제거. 장기적으로 cloud-native + portable.",
+        "(c) use-local-env-gh-3rd-time — 사용자가 다시 local /loop (Windows + gh v2.88.1) 으로 T-0066 진행. HQ-0006/HQ-0008 패턴 3 회 반복 — cron backbone 실효 부재 확정 박제. 본 회차만 즉시 unblock, 영구 fix 는 (a)/(b) 중 별도 task 로 후속.",
+        "(d) other — 위 3 옵션이 다 부적합. 사용자가 대안 명시 (예: cron 시간대 변경 / cron 폐기 / GitHub Actions self-trigger 등)."
+      ],
+      "optionSlugs": [
+        "install-gh-cli-in-cron-env",
+        "adapt-agents-to-mcp",
+        "use-local-env-gh-3rd-time",
+        "other"
+      ],
+      "context": "본 cron 발화 (KST 14:00, scheduled routine) 의 working env: Anthropic 클라우드 fresh checkout, harness-assigned working branch=`claude/blissful-clarke-VX9m8` (origin/main HEAD 99c10b0 fork). `which gh` → command not found 확정 — HQ-0006 (T-0039, 2026-05-26 09:20 install-gh-cli env-bound resolved) 와 HQ-0008 (T-0061, 2026-05-27 13:00 use-local-env-gh resolved) 모두 일회성 fix 였고 영구 정책 박제 0. 본 회차에서 영구 정책 결정. T-0066 (UpdateGroupDto + GroupRepository.update, pr-mode ~220 LOC / 4 파일, dependsOn=[T-0036, T-0039, T-0057]) 의 executor dispatch 자체는 시작 안 함 (코드 변경 0) — 4-게이트 #2 (reviewer comment 외부 post) / #4 (CI green) 검증 path 가 gh 부재로 차단되기 때문. driver 자체는 GitHub MCP tool (mcp__github__pull_request_read / create_pull_request / merge_pull_request 등) 가용하나 reviewer/integrator agent 정의가 gh-bound. 본 turn 은 doc-only direct main bookkeeping 1 commit (STATE + 본 humanQuestion + B-0001 blocker + T-0066 task file status PENDING→BLOCKED + journal append) 으로 마무리. 다음 turn (사용자 unblock 후) 우선순위: driver [1] STATE 로드 → currentTask=T-0066 status=BLOCKED → resolution 분기."
     }
   ],
   "counters": {
     "tasksCompleted": 64,
-    "tasksBlocked": 4,
+    "tasksBlocked": 5,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
   }
