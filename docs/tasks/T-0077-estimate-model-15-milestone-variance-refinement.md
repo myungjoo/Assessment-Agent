@@ -2,12 +2,16 @@
 id: T-0077
 title: estimate-model.md 15 회차 milestone + inline-amend variance 박제 refinement
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 60
+actualDiff: 65
 estimatedFiles: 2
+actualFiles: 2
+estimateOutcome: +8% accurate-pass (envelope 60 actual ~65 semantic delta, raw +309/-297 prettier table reformat 자연 inflation 무시; inline-amend × 0.4 dogfood 4 회차 누적 = T-0070 -63% / T-0073 -86% / T-0076 -1% / 본 T-0077 +8% → range +8 to -86 = 94pp, variance 큼 박제 본 task 가 자체 검증 — sub-multiplier × 0.4 calibration "high variance" 자기 박제 정당화)
 created: 2026-05-28
+completedAt: 2026-05-28T00:42:00+09:00
 dependsOn: [T-0070, T-0073, T-0076]
 plannerNote: cap-bend pre-justified: doc-only enumerated-section × 1.6 × 0.4 inline-amend = 60 LOC, T-0070/T-0073 패턴 정당화 — 15 회차 milestone + variance 박제
 ---

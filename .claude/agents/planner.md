@@ -26,13 +26,13 @@ Do NOT read the entire `src/` tree. If you need to know what exists, read `docs/
 - `processedByPlanner` 가 false 또는 누락.
 - `decision` 값이 task 생성·수정을 요구한다 (아래 표 참고).
 
-| decision 값 | 의미 | planner 의 action |
-| --- | --- | --- |
-| `split` | 원본 task 가 cap 초과 → 작은 task N 개로 분할 | `decisionNote` 가 명시한 split 방안에 따라 새 task N 개 생성. 원본 task: `status: SUPERSEDED`, `supersededBy: [T-AAAA, T-BBBB, ...]`, `supersededAt`. 의존성 chain (`dependsOn`/`blocks`) 도 추적. `STATE.nextTask = 첫 split task`. |
-| `t-XXXX-patch` / `patch` / `fix` | 결함이 발견되어 작은 fix task 가 필요 | 1 개의 작은 patch task 를 생성. `dependsOn` 은 결함이 발견된 task. `blocks` 는 결함 때문에 막힌 task. `hqOrigin: HQ-NNNN` frontmatter 추가. `STATE.nextTask = patch task ID`. 막힌 원본 task 의 status 는 BLOCKED 유지 — patch merge 시점에 planner 가 다시 호출되어 PENDING 으로 되돌린다 (다음 항목). |
-| `unblock` (자동 trigger) | 의존 patch task 가 merge 되어 막혔던 task 를 재개 | 사람이 적는 decision 이 아니다. 아래 "Auto-unblock" pre-check 단계가 자동으로 처리한다. |
-| `exempt` | size cap 일회성 예외 부여 | 원본 task frontmatter 에 `sizeExempt: true` 와 `exemptReason` 추가. `STATE.nextTask = 원본 task ID`. executor 는 sizeExempt task 를 진행할 때 size cap 검사를 skip. |
-| 그 외 (해석 불가) | planner 가 처리할 수 없는 결정 | `humanQuestions[i].followupNote` 에 "planner 가 decision 값 \"<value>\" 를 해석할 수 없음. 사람 추가 결정 필요." 추가. 새 task 만들지 않고 종료. 이 humanQuestion 은 `processedByPlanner: false` 유지. |
+| decision 값                      | 의미                                              | planner 의 action                                                                                                                                                                                                                                                                                       |
+| -------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `split`                          | 원본 task 가 cap 초과 → 작은 task N 개로 분할     | `decisionNote` 가 명시한 split 방안에 따라 새 task N 개 생성. 원본 task: `status: SUPERSEDED`, `supersededBy: [T-AAAA, T-BBBB, ...]`, `supersededAt`. 의존성 chain (`dependsOn`/`blocks`) 도 추적. `STATE.nextTask = 첫 split task`.                                                                    |
+| `t-XXXX-patch` / `patch` / `fix` | 결함이 발견되어 작은 fix task 가 필요             | 1 개의 작은 patch task 를 생성. `dependsOn` 은 결함이 발견된 task. `blocks` 는 결함 때문에 막힌 task. `hqOrigin: HQ-NNNN` frontmatter 추가. `STATE.nextTask = patch task ID`. 막힌 원본 task 의 status 는 BLOCKED 유지 — patch merge 시점에 planner 가 다시 호출되어 PENDING 으로 되돌린다 (다음 항목). |
+| `unblock` (자동 trigger)         | 의존 patch task 가 merge 되어 막혔던 task 를 재개 | 사람이 적는 decision 이 아니다. 아래 "Auto-unblock" pre-check 단계가 자동으로 처리한다.                                                                                                                                                                                                                 |
+| `exempt`                         | size cap 일회성 예외 부여                         | 원본 task frontmatter 에 `sizeExempt: true` 와 `exemptReason` 추가. `STATE.nextTask = 원본 task ID`. executor 는 sizeExempt task 를 진행할 때 size cap 검사를 skip.                                                                                                                                     |
+| 그 외 (해석 불가)                | planner 가 처리할 수 없는 결정                    | `humanQuestions[i].followupNote` 에 "planner 가 decision 값 \"<value>\" 를 해석할 수 없음. 사람 추가 결정 필요." 추가. 새 task 만들지 않고 종료. 이 humanQuestion 은 `processedByPlanner: false` 유지.                                                                                                  |
 
 처리 완료 후:
 
@@ -98,28 +98,28 @@ planner 가 **모든** task 를 생성할 때 frontmatter 에 `coversReq: [REQ-N
 
 # Estimate model (T-0064 + T-0070 estimate-model.md 박제 기반)
 
-본 단락은 [docs/architecture/estimate-model.md](../../docs/architecture/estimate-model.md) 의 14 회차 cap-bend 박제 (base 7: T-0055 ~ T-0063 +79% over + session #20 4: T-0066 ~ T-0069 +16% over + session #20-21 4: T-0070/T-0071/T-0072/T-0073 -41% over → 누적 +41%) 기반 multiplier 적용 가이드다.
+본 단락은 [docs/architecture/estimate-model.md](../../docs/architecture/estimate-model.md) 의 15 회차 cap-bend 박제 (base 7: T-0055 ~ T-0063 +79% over + session #20 4: T-0066 ~ T-0069 +16% over + session #20-21-22 5: T-0070/T-0071/T-0072/T-0073/T-0076 -33% over → 누적 +30%, 15 회차 milestone 도달) 기반 multiplier 적용 가이드다.
 
 **4 카테고리 multiplier table**:
 
-| 카테고리 | multiplier | precedent |
-| --- | --- | --- |
-| R-112 4-카테고리 cover backbone (service / controller / DTO + spec 4 layer 동시 박제) | × 1.5 | T-0055 / T-0056 / T-0057 / T-0066 / T-0067 / T-0068 / T-0069 / T-0071 |
-| doc-only enumerated-section (architecture doc 또는 ADR 신설 또는 inline-amend) | × 1.6 | T-0063 / T-0070 / T-0072 / T-0073 |
-| ADR-first split stage (ADR → CI → smoke → e2e chain 의 개별 stage) | × 1.3 | T-0061 / T-0062 |
-| single-helper test (jest config / shared mock helper 단일 변경) | × 1.0 | T-0058 |
+| 카테고리                                                                              | multiplier | precedent                                                             |
+| ------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------- |
+| R-112 4-카테고리 cover backbone (service / controller / DTO + spec 4 layer 동시 박제) | × 1.5      | T-0055 / T-0056 / T-0057 / T-0066 / T-0067 / T-0068 / T-0069 / T-0071 |
+| doc-only enumerated-section (architecture doc 또는 ADR 신설 또는 inline-amend)        | × 1.6      | T-0063 / T-0070 / T-0072 / T-0073                                     |
+| ADR-first split stage (ADR → CI → smoke → e2e chain 의 개별 stage)                    | × 1.3      | T-0061 / T-0062                                                       |
+| single-helper test (jest config / shared mock helper 단일 변경)                       | × 1.0      | T-0058                                                                |
 
 **sub-multiplier — P2002 분기 추가 (unique constraint entity)**:
 
-| sub-pattern | sub-multiplier | effective (base × sub) | precedent |
-| --- | --- | --- | --- |
-| P2002 분기 추가 (schema.prisma `@unique` / `@@unique` 박제 entity 의 update DTO + repo + service) | × 1.2 | × 1.5 × 1.2 = × 1.8 | T-0069 (Part.name @unique 존재, +52% over) vs T-0066 (Group.name @unique 미정의, +28% over) — Δ +24% 가 systematic +60 ~ 100 LOC mass 박제 + **T-0071 (effective × 1.8 첫 사용 사례 -10% accurate-pass)** 검증 데이터 1 회차 |
+| sub-pattern                                                                                       | sub-multiplier | effective (base × sub) | precedent                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------- | -------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2002 분기 추가 (schema.prisma `@unique` / `@@unique` 박제 entity 의 update DTO + repo + service) | × 1.2          | × 1.5 × 1.2 = × 1.8    | T-0069 (Part.name @unique 존재, +52% over) vs T-0066 (Group.name @unique 미정의, +28% over) — Δ +24% 가 systematic +60 ~ 100 LOC mass 박제 + **T-0071 (effective × 1.8 첫 사용 사례 -10% accurate-pass)** 검증 데이터 1 회차 |
 
 **sub-multiplier — doc-only inline-amend (기존 doc section 단위 수정)**:
 
-| sub-pattern | sub-multiplier | effective (base × sub) | precedent |
-| --- | --- | --- | --- |
-| doc-only inline-amend (`.claude/agents/*.md` / `CLAUDE.md` / `docs/architecture/*.md` 기존 파일의 section 단위 수정) | × 0.4 | × 1.6 × 0.4 = × 0.64 | T-0070 (estimate-model.md amend, -63% over) + T-0073 (integrator.md + CLAUDE.md amend, -86% over) → 평균 -74% systematic over-estimate. ADR / task spec 이 source 라서 inline edit 가 wholesale replacement 의 ~1/3 LOC 으로 가능 |
+| sub-pattern                                                                                                          | sub-multiplier | effective (base × sub) | precedent                                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------------------------------------------------------------------------------- | -------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| doc-only inline-amend (`.claude/agents/*.md` / `CLAUDE.md` / `docs/architecture/*.md` 기존 파일의 section 단위 수정) | × 0.4          | × 1.6 × 0.4 = × 0.64   | T-0070 (-63%) + T-0073 (-86%) + T-0076 (-1%) → **3 회차 평균 -50% over, range ~85 percentage point variance 큼** — sub-multiplier × 0.4 값 변경 0 (systematic over-estimate 일관성 박제, under-estimate 0 회차). ADR / task spec 이 source 라서 inline edit 가 wholesale replacement 의 ~1/3 ~ 1/1 LOC 으로 가능 |
 
 **적용 절차**:
 
@@ -179,8 +179,8 @@ id: T-NNNN
 title: <imperative phrase>
 phase: P<n>
 status: PENDING
-commitMode: direct | pr   # see CLAUDE.md §3.1
-coversReq: [REQ-NNN, ...]   # docs/requirements.md 의 REQ ID. 없으면 [TBD]
+commitMode: direct | pr # see CLAUDE.md §3.1
+coversReq: [REQ-NNN, ...] # docs/requirements.md 의 REQ ID. 없으면 [TBD]
 estimatedDiff: <LOC estimate>
 estimatedFiles: <count>
 created: <ISO date>
@@ -190,23 +190,30 @@ plannerNote: <one line — phase, bullet, why this is next; ≤120 chars>
 # T-NNNN — <Title>
 
 ## Why
+
 1–3 sentences linking to the PLAN.md bullet and the README requirement this serves.
 
 ## Required Reading
+
 Bullet list of files the implementer must read. Be specific — paths, not directories. Keep this list minimal.
 
 ## Acceptance Criteria
+
 A checklist. Each item must be verifiable by either:
+
 - running a command (state it: `pnpm test`, `pnpm build`, etc.), or
 - inspecting a specific file/symbol.
 
 ## Out of Scope
+
 Bullet list of things the implementer must NOT do in this task (to keep diff small).
 
 ## Suggested Sub-agents
+
 Order: e.g., `architect → implementer → tester` or just `implementer → tester`.
 
 ## Follow-ups
+
 Empty at creation. Sub-agents append here when they spot related work.
 ```
 
