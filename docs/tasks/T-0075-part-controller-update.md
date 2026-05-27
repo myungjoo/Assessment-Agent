@@ -2,15 +2,23 @@
 id: T-0075
 title: PartController @Patch(":id") endpoint + spec — Part 도메인 CRUD-U 4-layer fully closed (GroupController T-0068 mirror)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-051, REQ-058]
 estimatedDiff: 322
+actualDiff: 265
 estimatedFiles: 2
+actualFiles: 3
 sizeExempt: true
 exemptReason: R-112 4-카테고리 cover backbone (controller @Patch + spec) atomic-introduce — happy/error/branch/negative 4 카테고리 동일 commit 의무 (§3.2). PersonController.@Patch + GroupController.@Patch (T-0068) precedent 322 LOC envelope 정합. base ~215 × 1.5 = 322 LOC.
+estimateOutcome: -17% within-tolerance (envelope 322 actual 265, base 215 × 1.5 × 1.2 P2002 sub × 2 회차 누적 — 첫 사용 T-0071 -10% / 본 task -17%, sub-multiplier × 1.2 정확도 2 회차 dogfood)
 created: 2026-05-27
+completedAt: 2026-05-27T23:45:05+09:00
 dependsOn: [T-0036, T-0068, T-0071]
+prNumber: 66
+prUrl: https://github.com/myungjoo/Assessment-Agent/pull/66
+mergedAs: e5bb1d28c69a706ce56e041940870cc41a7df13a
+reviewRounds: 1
 plannerNote: session #21 turn 5 cap-close — Part 도메인 마지막 layer (PartController @Patch endpoint), Group 도메인 CRUD-U 4-layer closure (T-0068) 의 mirror. T-0071 PartService.update 의 controller layer forward target.
 ---
 
