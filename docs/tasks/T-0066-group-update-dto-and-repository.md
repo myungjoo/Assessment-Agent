@@ -2,13 +2,20 @@
 id: T-0066
 title: UpdateGroupDto + GroupRepository.update 부분 update 첫 layer (Person 패턴 mirror, controller PATCH 는 후속)
 phase: P3
-status: BLOCKED
+status: DONE
 commitMode: pr
+prNumber: 60
+mergedAs: 91182a5
+completedAt: 2026-05-27
+reviewRounds: 1
 blockerReason: credential
 blockedAt: 2026-05-27T14:10:00+09:00
+blockerResolvedAt: 2026-05-27T14:20:00+09:00
+blockerResolution: HQ-0009-use-local-env-gh-3rd-time
 linkedHumanQuestion: HQ-0009
 coversReq: [REQ-028, REQ-051, REQ-058]
 estimatedDiff: 220
+actualDiff: 281
 estimatedFiles: 4
 created: 2026-05-27
 plannerNote: session #19 turn 10 cap-close — Group entity CRUD-U gap (Person UpdatePersonDto + PATCH precedent 박제) 의 repository+DTO layer 만 우선 박제, controller/service PATCH 는 후속 task.
@@ -99,15 +106,18 @@ REQ-028 (Group 정책 — 임의 group 다중 소속 가능) + REQ-051 (Group en
 - **reviewer** — R-112 4 카테고리 cover 검증 + JSDoc 한국어 박제 + Person precedent mirror 정합 + Out of Scope 준수 + race-patterns.md cross-ref 검증.
 - **integrator** — 4-게이트 + worktree race fallback (8 회차 가능성).
 
-## Blocker (2026-05-27T14:10:00+09:00 — credential)
+## Blocker → Resolved (2026-05-27T14:10:00 → 14:20:00+09:00 — credential → use-local-env-gh-3rd-time)
 
-cron 발화 turn 진입 시 Anthropic 클라우드 env 에 `gh` CLI 부재 확정 (`which gh` → command not found). T-0066 은 pr-mode 라 reviewer agent 의 PR comment 외부 post (4-게이트 #2) + integrator agent 의 `gh pr checks` / `gh pr merge` (4-게이트 #4 + 실 merge action) 가 전부 gh 의존. executor dispatch 전 graceful BLOCKED, 코드 변경 0.
+원본 BLOCKED 사유: cron 발화 turn 진입 시 Anthropic 클라우드 env 에 `gh` CLI 부재 확정 (`which gh` → command not found). T-0066 은 pr-mode 라 reviewer agent 의 PR comment 외부 post (4-게이트 #2) + integrator agent 의 `gh pr checks` / `gh pr merge` (4-게이트 #4 + 실 merge action) 가 전부 gh 의존. executor dispatch 전 graceful BLOCKED, 코드 변경 0.
 
 - HQ-0006 (T-0039, 2026-05-26): install-gh-cli env-bound 1 회성 resolved
 - HQ-0008 (T-0061, 2026-05-27): use-local-env-gh 1 회성 resolved
-- HQ-0009 (본 task, 2026-05-27): 영구 정책 결정 요청 — install-gh-cli-in-cron-env / adapt-agents-to-mcp / use-local-env-gh-3rd-time / other
+- HQ-0009 (본 task, 2026-05-27): **use-local-env-gh-3rd-time** resolved — 사용자 `/loop turn cap 10` (session #20 turn 1, KST 14:15) 진입 후 local Windows env (D:/Assessment-Agent/.claude/worktrees/suspicious-fermat-39846f) gh v2.88.1 + Active=true 확인 + executor pr-mode full chain (architect 0 + implementer + tester + reviewer + integrator) → 4-게이트 all PASS → PR-60 squash merge sha **91182a5** (worktree race 8 회차 dogfood `gh api -X DELETE` fallback). 영구 fix (install-gh-cli-in-cron-env 또는 adapt-agents-to-mcp ADR 박제) 는 별도 follow-up task 책임.
 
-다음 turn (사용자 unblock 후): driver [1] STATE 로드 → currentTask=T-0066 status=BLOCKED → HQ-0009.decision 분기. (a)/(c) 채택 시 executor pr-mode full chain (architect 0 + implementer + tester + reviewer + integrator) 진행. (b) 채택 시 adapt task 후속 머지 후 본 T-0066 재개.
+**Resolution outcomes**:
+- (i) cron-vs-loop env credential 3 회차 반복 = systemic — 영구 fix 책임 follow-up task 위임 박제
+- (ii) cron-vs-loop race 첫 dogfood — cron a153ae5 BLOCKED bookkeeping push 와 loop executor merge 가 동시 발화, executor merge 가 cron commit 위에 자연 stack (lost work 0)
+- (iii) estimate model first-pass under-estimate 검증 — service-with-spec × 1.5 multiplier 의 220 estimate 가 281 actual (+61 LOC), enumerated negative 카테고리 별도 multiplier 분리 follow-up
 
 ## Follow-ups
 
