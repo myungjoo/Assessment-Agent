@@ -2,10 +2,15 @@
 id: T-0067
 title: GroupService.update + spec — P2025 → NotFoundException 변환 (Person 패턴 mirror, controller PATCH 는 후속)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 61
+mergedAs: 84104ac
+completedAt: 2026-05-27
+reviewRounds: 1
 coversReq: [REQ-028, REQ-051, REQ-058]
 estimatedDiff: 200
+actualDiff: 214
 estimatedFiles: 2
 created: 2026-05-27
 dependsOn: [T-0036, T-0050, T-0056, T-0066]
