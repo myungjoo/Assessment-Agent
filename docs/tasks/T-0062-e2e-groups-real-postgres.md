@@ -2,8 +2,9 @@
 id: T-0062
 title: groups.e2e-spec 신설 — GroupController 7 endpoint (CRUD 4 + N:M 3) real PostgreSQL HTTP contract depth e2e
 phase: P3
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 58
 slug: e2e-groups-real-postgres
 coversReq: [REQ-028, REQ-029, REQ-051, REQ-058]
 estimatedDiff: 300
