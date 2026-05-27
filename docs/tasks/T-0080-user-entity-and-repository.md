@@ -2,15 +2,22 @@
 id: T-0080
 title: User entity Prisma 박제 + UserRepository (create + findByEmail) — ADR-0008 후속 chain 첫 task
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 280
+actualDiff: 353
 estimatedFiles: 5
+actualFiles: 4
 sizeExempt: true
 exemptReason: R-112 4-카테고리 backbone (entity Prisma model + migration.sql + UserRepository + repository spec) × 1.5 multiplier + P2002 sub-multiplier × 1.2 (User.email `@unique` 박제로 unique constraint 분기 spec 추가 의무) = effective × 1.8. 단 본 task scope = create + findByEmail 의 **2 메서드만** (full CRUD 가 아닌 AuthModule consumption-driven minimal surface — PersonRepository 의 6 메서드 precedent 대비 1/3 scope). base ~155 LOC × 1.8 = ~280 LOC envelope. T-0069 (Part.name @unique P2002 분기 추가 effective × 1.8 첫 사용 -10% accurate-pass) precedent 정합. split 시 schema/migration 과 repository/spec 의 의존성이 1 commit 안에서 자연 — Prisma generate 후 type 이 repository import 필요.
-created: 2026-05-28
+estimateOutcome: +26% over (envelope 280 actual 353 — R-112 × 1.5 × P2002 × 1.2 = effective × 1.8 패턴 2 회차 누적 / T-0069 -10% accurate-pass + 본 T-0080 +26% over → range 36pp). User.role 컬럼 + spec 변종 3 종 (role 변종) 이 envelope 추가 — role 컬럼은 ADR-0008 후속 T-0083 RBAC chain 의 prerequisite, scope 자연 확장.
+completedAt: 2026-05-28T01:44:00+09:00
 dependsOn: [T-0079, T-0036, T-0039]
+prNumber: 72
+prUrl: https://github.com/myungjoo/Assessment-Agent/pull/72
+mergedAs: 881cc51
+reviewRounds: 1
 plannerNote: ADR-0008 후속 chain 첫 task — User entity Prisma + UserRepository (create + findByEmail) backbone, Person 1:1 mirror 패턴, R-112 × 1.5 × 1.2 P2002 sub = × 1.8 effective, dep install 0 (bcrypt 는 T-0081 deferred — hashedPassword 컬럼은 String 박제, hashing 책임은 AuthService layer), BLOCKED risk 0.
 ---
 
