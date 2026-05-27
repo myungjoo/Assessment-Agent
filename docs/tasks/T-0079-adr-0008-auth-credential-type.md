@@ -2,14 +2,22 @@
 id: T-0079
 title: ADR-0008 신설 — Auth credential type 결정 박제 (JWT vs session cookie)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045, REQ-046]
 estimatedDiff: 320
+actualDiff: 174
 estimatedFiles: 1
-created: 2026-05-28
+actualFiles: 1
 sizeExempt: true
 exemptReason: doc-only enumerated-section NEW-doc 카테고리 (multiplier × 1.6) — base ~200 LOC × 1.6 = 320 LOC envelope. ADR 4 section 정공법 (Context / Decision / Consequences / Alternatives) + REQ mapping 표 + 후속 ADR-first split chain 박제 + 후속 task 목록 박제 가 자연 필요. T-0063 / T-0076 NEW-doc precedent (각 +119/+200 LOC 박제) 와 동일 카테고리, cap 초과는 ADR scope 박제 의 자연 결과 — split 시 ADR 의 의사결정 일관성 손상.
+estimateOutcome: -46% under (envelope 320 actual 174 — NEW-doc × 1.6 + ADR-pre-decided pattern 4 회차 누적 변동 추가 데이터, T-0063 +119 / T-0076 +200 / 본 T-0079 +174). ADR scope = 결정 박제만 (실 install 은 후속) → 6 Alternatives 부담 가벼움 + 후속 task chain 박제 가 cap 초과 안 함. estimate-model.md §3.2.1 NEW-doc 카테고리 calibration: ~85-200 LOC range 박제 (~ 100% spread).
+completedAt: 2026-05-28T01:20:00+09:00
+dependsOn: []
+prNumber: 71
+prUrl: https://github.com/myungjoo/Assessment-Agent/pull/71
+mergedAs: e3afd25c609d21cbe83dc5866644bc3fb2d5ceab
+reviewRounds: 1
 plannerNote: cap-bend pre-justified — doc-only NEW-doc × 1.6 = 320 LOC, T-0063/T-0076 precedent 동일 카테고리. ADR-0008 신설로 P4 binding-decision 박제 entry (p3-to-p4-transition.md §4.1 권장), 신규 dep install 0 — Decision 본문은 라이브러리 선택 박제만, 실 install 은 후속 T-0080+ implementer task chain.
 ---
 
