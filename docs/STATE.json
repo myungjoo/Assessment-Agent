@@ -1,29 +1,24 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": "T-0081",
+  "currentTask": null,
   "nextTask": null,
-  "lock": {
-    "holder": "loop",
-    "session": "session-23",
-    "since": "2026-05-28T07:37:58+09:00",
-    "loopSessionStartedAt": "2026-05-28T02:18:09+09:00",
-    "loopSessionTurnCount": 2
-  },
-  "lastActivity": "2026-05-28T07:37:58+09:00",
-  "lastCommit": "881cc51",
+  "lock": null,
+  "lastActivity": "2026-05-28T07:55:01+09:00",
+  "lastCommit": "ea1cfcd",
   "mostRecentTasks": [
+    "T-0081",
     "T-0080",
     "T-0079",
     "T-0078",
-    "T-0077",
-    "T-0076"
+    "T-0077"
   ],
   "loopSession": {
     "turnCount": 2,
     "startedAt": "2026-05-28T02:18:09+09:00",
     "cap": 8,
-    "note": "session #23 turn 2/8 — HQ-0011 resolved decision=A (사용자 직접 응답 \"A\"). 6 종 dep install 승인 → T-0081 unblock + 본격 execution 시작. [1] STATE 갱신: humanQuestions[HQ-0011].resolvedAt/decision 박제, blockers[]에서 HQ-0011 pop, lock re-acquire (turnCount 1→2), currentTask=T-0081 유지 (status BLOCKED→IN_PROGRESS). [2] T-0081 task 파일: status BLOCKED→IN_PROGRESS + ## Resolution 섹션 append. [3] journal append. [4] direct commit (unblock bookkeeping). [5] executor dispatch (T-0081, pr-mode, dep install 명시 승인) → implementer (pnpm add 6 종 + src/auth/auth.module.ts + auth.service.ts + auth.service.spec.ts + app.module.ts import) + tester (R-112 4 카테고리 + negative cases) + integrator (feature branch claude/T-0081-auth-module-and-dep-install + PR + reviewer + 4-게이트 + merge). 후속 turn 분배: turn 3 executor 본 실행 / turn 4 integrator merge 후 final STATE bookkeeping."
+    "note": "session #23 turn 2/8 NORMAL CLOSE (cap 8 미도달, 잔여 6 turn 미사용). turn 1 = BLOCKED on T-0081 new-dep + HQ-0011 raise. 사용자 직접 응답 \"A\" 로 HQ-0011 resolved (decision=A 6 종 dep install 승인 ADR-0008 정공법). turn 2 = unblock bookkeeping direct commit (79b0bcb) + executor pr-mode full chain → T-0081 PR-74 round 1 single-shot APPROVE merged **ea1cfcd** + final bookkeeping. T-0081 BLOCKED-then-resolved cycle 의 첫 박제 (LOOP.md §1 [8] interactive resume path 박제). 실 LOC +900/-3 (envelope 200 vs actual 900 = +350% over, R-112 4 카테고리 + negative cases 충분 cover + lockfile inflation 자연 확장 — sizeExempt 명시 의무 학습 데이터). single-shot first-run pass cadence 3 회차 누적 (T-0079 + T-0080 + T-0081). 후속 chain: T-0082 (login/logout/refresh endpoint) → T-0083 (RBAC). counters.tasksCompleted 79→80, mostRecentTasks prepend T-0081, lock release, loopSession.endedAt 박제, NO ScheduleWakeup (interactive session 종료).",
+    "endedAt": "2026-05-28T07:55:01+09:00"
   },
   "ci": {
     "lastRun": "2026-05-28T01:45:00+09:00",
@@ -88,7 +83,8 @@
     "T-0072": 1,
     "T-0075": 1,
     "T-0079": 1,
-    "T-0080": 1
+    "T-0080": 1,
+    "T-0081": 1
   },
   "blockers": [],
   "humanQuestions": [
@@ -312,7 +308,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 79,
+    "tasksCompleted": 80,
     "tasksBlocked": 6,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

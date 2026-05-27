@@ -2,13 +2,20 @@
 id: T-0081
 title: AuthModule scaffold + @nestjs/jwt + @nestjs/passport + bcrypt dep install — ADR-0008 후속 chain BLOCKED 게이트 (사용자 결정 필수)
 phase: P3
-status: IN_PROGRESS
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045]
 estimatedDiff: 200
 estimatedFiles: 5
 sizeExempt: false
 created: 2026-05-28
+completedAt: 2026-05-28T07:53:28+09:00
+mergedAs: ea1cfcd
+prNumber: 74
+reviewRounds: 1
+actualDiff: 903
+actualFiles: 7
+estimateOutcome: "+350% over (envelope 200 vs actual 903 — sizeExempt 명시 의무 학습; R-112 spec 418 LOC + module.spec 88 LOC + lockfile 214 LOC + auth.service 116 LOC + auth.module 57 LOC + app.module 4 LOC + package.json 6 LOC 자연 확장)"
 dependsOn: [T-0079, T-0080]
 plannerNote: session #22 turn 10 cap-close — driver inline planner (T-0075 session #21 cap-close precedent 패턴). ADR-0008 후속 chain 의 BLOCKED 게이트 task — @nestjs/jwt + @nestjs/passport + @nestjs/passport-jwt + bcrypt 신규 dep 4 종 install 필요 → CLAUDE.md §5 "새 외부 dependency 추가" trigger 발화 예상. executor 시작 시 implementer 가 package.json 변경 시도 → BLOCKED return → notifier 가 HQ-NNNN raise (사용자 결정: install 진행 OR pivot OR partial scope). 사용자 unblock 후에 AuthModule scaffold (AuthService.hashPassword + verifyPassword + JWT issue/verify) 실 박제.
 expectedBlocker: new-dep (CLAUDE.md §5 의 "새 외부 dependency 추가" trigger — ADR-0008 Decision 본문이 @nestjs/jwt + passport + bcrypt 4 패키지 install 을 후속 task chain 으로 deferred 박제. 본 task 의 execute 가 자연 발현)
