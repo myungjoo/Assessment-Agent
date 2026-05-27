@@ -69,8 +69,8 @@
 
 P3 진행 중 발견된 진척 status quo + P4 진입 trigger 의사결정 가능 형태를 별도 doc 으로 박제: [docs/architecture/p3-to-p4-transition.md](architecture/p3-to-p4-transition.md) (T-0063 doc-only direct).
 
-- **현 status (T-0062 closure 시점)**: entity 5/11 (Person / ServiceIdentity / Group / Part / PersonGroupMembership) / module 2/5 (PersistenceModule / UserModule) / ADR 1/4 (ADR-0004 ACCEPTED) / test-quality 4/4 + 9-cell closure (backbone 3 도메인 × 3 layer fully closed, mock 시대 종결).
-- **권장 trigger option**: **(c) hybrid-parallel** — 핵심 backbone (User + AuthModule + ADR-0008 + Assessment + Contribution + Summary + ADR-0005 cross-cutting + raw 미저장 R-59 schema-level 강제) 완성 후 P4 진입. LlmProviderConfig + DifficultyMapping + PermissionDeniedRecord 는 P4 와 병행. ~9 task estimate. (선택 강제 안 함, 권장만 박제.)
+- **현 status (T-0075 closure 시점, session #22 turn 1 refresh)**: entity 박제 layer-progress 5/11 → **8/11 (45% → 73%)** — Person / ServiceIdentity / Group (CRUD-U 4-layer fully closed) / Part (CRUD-U 4-layer fully closed) / PersonGroupMembership / module 2/5 유지 (PersistenceModule / UserModule) / ADR 1/4 유지 (ADR-0004 ACCEPTED) / test-quality 4/4 + 9-cell closure 유지 (backbone 3 도메인 × 3 layer, mock 시대 종결). Group + Part CRUD-U 4-layer 박제 milestone 추가 (T-0066+T-0067+T-0068 + T-0069+T-0071+T-0075).
+- **권장 trigger option**: **(c) hybrid-parallel** — 핵심 backbone (User + AuthModule + ADR-0008 + Assessment + Contribution + Summary + ADR-0005 cross-cutting + raw 미저장 R-59 schema-level 강제) 완성 후 P4 진입. LlmProviderConfig + DifficultyMapping + PermissionDeniedRecord 는 P4 와 병행. ~9 task estimate (T-0063 박제 시점) → **~5~6 task** 로 축소 (T-0076 session #22 refresh, Group + Part CRUD-U 박제 후). 권장 강화 (선택 강제 안 함, 권장만 박제 — [p3-to-p4-transition.md §4.1](architecture/p3-to-p4-transition.md) 박제).
 - **전이 시점의 실 의사결정은 다음 planner dispatch 또는 humanQuestion 발화의 책임** — 본 doc 은 trigger option (a) eager-transition / (b) strict-completion / (c) hybrid-parallel 의 trade-off 만 박제, T-0063 머지로 STATE.phase 변경 0 (P3-in-progress 유지).
 
 ---

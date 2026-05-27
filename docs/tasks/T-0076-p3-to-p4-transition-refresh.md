@@ -2,12 +2,16 @@
 id: T-0076
 title: p3-to-p4-transition.md refresh — entity backbone 5/11 → 8/11 status quo 갱신 + P4 진입 binding-decision 권장 (Group + Part CRUD-U 4-layer closure 후)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-051, REQ-058, REQ-028]
 estimatedDiff: 120
+actualDiff: 119
 estimatedFiles: 2
+actualFiles: 2
+estimateOutcome: -1% accurate-pass (envelope 120 actual 119 raw-add, +119/-52 net +67, inline-amend sub-multiplier × 0.4 dogfood 3 회차 - 정확도 우수, T-0070 -63% / T-0073 -86% 누적 후 본 task accurate-pass = sub-multiplier × 0.4 calibration variance 큼)
 created: 2026-05-27
+completedAt: 2026-05-28T00:08:00+09:00
 dependsOn: [T-0063, T-0075]
 plannerNote: session #22 turn 2 — Group + Part CRUD-U 4-layer closure 후 entity backbone 8/11 박제, transition doc 의 5/11 status quo 와 갈림. P4 binding-decision 직전 refresh.
 ---

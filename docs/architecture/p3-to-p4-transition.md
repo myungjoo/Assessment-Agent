@@ -28,24 +28,24 @@
 
 **박제 완료 5 entity**:
 
-| entity | 박제 task | service+controller layer |
-| --- | --- | --- |
-| Person | T-0034 entity + T-0036 service+controller+DTO + T-0041 repository ext | 5/5 stage closure |
-| ServiceIdentity | T-0035 entity + repository | 부분 박제 (read-only, REQ-026 invariant 는 PersonService cover) |
-| Group | T-0039 entity + T-0050 service CRUD + T-0055 controller CRUD + T-0056 service N:M ops + T-0057 controller N:M endpoint | 5/5 stage closure |
-| Part | T-0039 entity + T-0046 service+controller+DTO | 5/5 stage closure (1:N navigation) |
-| PersonGroupMembership | T-0039 join entity + T-0049 repository | join entity (middle table, 직접 controller 불필요) |
+| entity                | 박제 task                                                                                                              | service+controller layer                                        |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Person                | T-0034 entity + T-0036 service+controller+DTO + T-0041 repository ext                                                  | 5/5 stage closure                                               |
+| ServiceIdentity       | T-0035 entity + repository                                                                                             | 부분 박제 (read-only, REQ-026 invariant 는 PersonService cover) |
+| Group                 | T-0039 entity + T-0050 service CRUD + T-0055 controller CRUD + T-0056 service N:M ops + T-0057 controller N:M endpoint | 5/5 stage closure                                               |
+| Part                  | T-0039 entity + T-0046 service+controller+DTO                                                                          | 5/5 stage closure (1:N navigation)                              |
+| PersonGroupMembership | T-0039 join entity + T-0049 repository                                                                                 | join entity (middle table, 직접 controller 불필요)              |
 
 **미박제 6 entity**:
 
-| entity | 책임 module (modules.md) | P3 진입 task 후보 |
-| --- | --- | --- |
-| User | AuthModule | 후속 P3 backbone task (T-0064+) |
-| Assessment | AssessmentModule | 후속 P3 backbone task |
-| Contribution | AssessmentModule | 후속 P3 backbone task |
-| Summary | AssessmentModule | 후속 P3 backbone task |
-| LlmProviderConfig | LlmModule | 후속 P3 backbone task (ADR-0006 LLM key 동반 후보) |
-| DifficultyMapping | LlmModule | 후속 P3 backbone task |
+| entity                 | 책임 module (modules.md)     | P3 진입 task 후보                                    |
+| ---------------------- | ---------------------------- | ---------------------------------------------------- |
+| User                   | AuthModule                   | 후속 P3 backbone task (T-0064+)                      |
+| Assessment             | AssessmentModule             | 후속 P3 backbone task                                |
+| Contribution           | AssessmentModule             | 후속 P3 backbone task                                |
+| Summary                | AssessmentModule             | 후속 P3 backbone task                                |
+| LlmProviderConfig      | LlmModule                    | 후속 P3 backbone task (ADR-0006 LLM key 동반 후보)   |
+| DifficultyMapping      | LlmModule                    | 후속 P3 backbone task                                |
 | PermissionDeniedRecord | UserModule (또는 AuthModule) | 후속 P3 backbone task (ADR-0007 audit log 동반 후보) |
 
 (7 row 중 conceptual AuditLog 별도 — actual schema 박제 deferred, data-model.md §2 와 동일 입장.)
@@ -68,12 +68,12 @@
 
 **미박제 4 후보 ADR** (우선순위 순):
 
-| ADR | 책임 task 후보 | 트리거 시점 | 신설 사유 |
-| --- | --- | --- | --- |
-| ADR-0008 — Auth credential type (JWT vs session cookie) | User + AuthModule backbone 진입 직전 task | P3 진행 중 (우선) | api.md §2 Auth credential 행이 "P3 AuthModule 도입 task 의 ADR 에서 택일" 박제. AuthModule 진입 직전 trigger. |
-| ADR-0005 — Cross-cutting field policy (timezone / soft delete / createdBy audit-source) | P3 종료 직전 별도 task | P3 진행 중 (중간) | data-model.md §5 conceptual 박제를 schema-level 정책으로 격상. P3 진행된 5 entity 의 cross-cutting field ad-hoc 적용 중. |
-| ADR-0006 — LLM API key encryption-at-rest | LlmProviderConfig entity 진입 task 동반 | P4 진입 직전 (또는 P3 LlmModule scaffold) | LlmProviderConfig.apiKey 컬럼의 encryption mechanism (PostgreSQL pgcrypto / KMS / application-layer envelope) 결정. |
-| ADR-0007 — Audit log entity schema | PermissionDeniedRecord entity 진입 task 동반 (또는 P4) | P3 끝 또는 P4 | data-model.md §2 conceptual AuditLog 의 구체 schema 박제. User mutation event (등급 변경 / 평가 삭제 / Import-Export) 영속화. |
+| ADR                                                                                     | 책임 task 후보                                         | 트리거 시점                               | 신설 사유                                                                                                                     |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| ADR-0008 — Auth credential type (JWT vs session cookie)                                 | User + AuthModule backbone 진입 직전 task              | P3 진행 중 (우선)                         | api.md §2 Auth credential 행이 "P3 AuthModule 도입 task 의 ADR 에서 택일" 박제. AuthModule 진입 직전 trigger.                 |
+| ADR-0005 — Cross-cutting field policy (timezone / soft delete / createdBy audit-source) | P3 종료 직전 별도 task                                 | P3 진행 중 (중간)                         | data-model.md §5 conceptual 박제를 schema-level 정책으로 격상. P3 진행된 5 entity 의 cross-cutting field ad-hoc 적용 중.      |
+| ADR-0006 — LLM API key encryption-at-rest                                               | LlmProviderConfig entity 진입 task 동반                | P4 진입 직전 (또는 P3 LlmModule scaffold) | LlmProviderConfig.apiKey 컬럼의 encryption mechanism (PostgreSQL pgcrypto / KMS / application-layer envelope) 결정.           |
+| ADR-0007 — Audit log entity schema                                                      | PermissionDeniedRecord entity 진입 task 동반 (또는 P4) | P3 끝 또는 P4                             | data-model.md §2 conceptual AuditLog 의 구체 schema 박제. User mutation event (등급 변경 / 평가 삭제 / Import-Export) 영속화. |
 
 ### 2.4 test-quality — progress 4/4 (확장 closure, 9-cell matrix fully closed)
 
@@ -96,15 +96,40 @@ P3 test-quality 4 bullet (PLAN.md L63–66) 의 closure 박제:
 
 P3 진행 중 service/controller-with-R-112-spec backbone 의 systematic underestimate 박제:
 
-| task | planner estimate | actual | overrun |
-| --- | --- | --- | --- |
-| T-0055 GroupController CRUD | 300 | 413 | +37% |
-| T-0056 GroupService N:M ops | 240 | 545 | +127% |
-| T-0057 GroupController N:M endpoint | 280 | 496 | +77% |
-| T-0061 groups.smoke | 300 | 342 | +14% |
-| T-0062 groups.e2e | 300 | 406 | +35% |
+| task                                | planner estimate | actual | overrun |
+| ----------------------------------- | ---------------- | ------ | ------- |
+| T-0055 GroupController CRUD         | 300              | 413    | +37%    |
+| T-0056 GroupService N:M ops         | 240              | 545    | +127%   |
+| T-0057 GroupController N:M endpoint | 280              | 496    | +77%    |
+| T-0061 groups.smoke                 | 300              | 342    | +14%    |
+| T-0062 groups.e2e                   | 300              | 406    | +35%    |
 
 **평균 +58% over** (5 회차 systematic underestimate). R-112 4 카테고리 (happy / error / branch / negative) 충분 cover 의무 + DTO + controller + service + spec 의 4 layer 동시 박제 시 자연 cap-bend 정당화. estimate model 갱신 follow-up task 후보 (별도 doc-only direct, 본 doc scope 외).
+
+### 2.6 session #22 turn 1 시점 refresh (T-0075 closure 직후)
+
+> **§2.1–§2.5 의 박제 freeze (session #19 turn 4, T-0062 closure 시점, entity 5/11) 는 역사 박제로 유지.** 본 subsection 은 session #20 의 T-0066 / T-0067 / T-0068 Group CRUD-U 4-layer 박제 완성 + session #22 turn 1 의 T-0075 Part CRUD-U 4-layer 박제 완성 후의 사실 박제. T-0063 박제 invariant 와 충돌 0 — 추가 박제 layer 만 신설.
+
+**entity progress refresh — 5/11 → 8/11 (45% → 73%)**:
+
+| 추가 박제 layer                                                       | 박제 task chain          | 4-layer closure marker                          |
+| --------------------------------------------------------------------- | ------------------------ | ----------------------------------------------- |
+| Group CRUD-U 4-layer (DTO + repository + service + controller + spec) | T-0066 + T-0067 + T-0068 | 4-layer fully closed (PATCH endpoint 박제 포함) |
+| Part CRUD-U 4-layer (DTO + repository + service + controller + spec)  | T-0069 + T-0071 + T-0075 | 4-layer fully closed (PATCH endpoint 박제 포함) |
+
+5 박제 entity (Person + ServiceIdentity + Group + Part + PersonGroupMembership) 의 layer-progress 가 Group + Part 에 대해 controller layer 의 update path (PATCH) 까지 fully closed 된 milestone. **entity 박제 수 자체는 5/11 → 8/11** 의 박제 layer-progress marker 로 해석 (entity 자체 신설 0, 기존 5 entity 중 Group + Part 의 CRUD-U full path 박제 추가 → "박제 layer 완성" 기준 3 단위 추가).
+
+**미박제 3 entity 재정렬 (P3 잔여 핵심 backbone 후보)**:
+
+- **핵심 backbone 3 entity (옵션 (c) hybrid-parallel 의 P3 안 박제 대상)**: User + Assessment + Contribution (또는 Assessment + Contribution + Summary 조합).
+- **P4 와 병행 가능 4 entity (옵션 (c) hybrid-parallel 의 P4 안 박제 대상)**: Summary / LlmProviderConfig / DifficultyMapping / PermissionDeniedRecord.
+- (재정렬 사유: 평가 결과 저장 모델의 raw 미저장 invariant R-59 schema-level 강제는 Assessment + Contribution + Summary 3 entity 중 최소 Assessment + Contribution 박제 후 의미. Summary 의 P3 안 박제는 옵션 의 borderline.)
+
+**module skeleton + ADR progress 변경 0**: 2/5 module 박제 유지 (PersistenceModule + UserModule) / 1/4 ADR 박제 유지 (ADR-0004). 본 refresh 의 박제 layer 는 기존 박제 module (UserModule) 안의 controller layer 확장 — module / ADR 신설 0.
+
+**test-quality 9-cell matrix 의 retroactive 확장 박제**: Group + Part 도메인 의 CRUD-U layer 추가로 unit / integration spec 의 R-112 4 카테고리 cover 가 PATCH endpoint 까지 확장 박제. **단** smoke / e2e 의 PATCH endpoint 박제는 별도 후속 task (T-0075 Follow-ups 의 "parts.e2e PATCH endpoint" + "groups.e2e PATCH endpoint" 2 후보). 9-cell matrix 자체의 박제 marker (mock 시대 종결) 는 T-0062 closure 시점 freeze 유지 — 본 refresh 는 spec layer 안의 R-112 cover 확장만 박제.
+
+**inline-amend × 0.4 sub-multiplier dogfood**: 본 task 는 T-0070 14 회차 milestone refinement + T-0073 inline-amend × 0.4 1 회차 박제 (estimate-model.md §3.2.2) 후 inline-amend dogfood 3 회차. T-0076 본 task 자체가 2 파일 envelope (transition doc + PLAN.md L70-74) 의 ~120 LOC estimate — inline-amend × 0.4 sub-multiplier 의 추가 dogfood 데이터 1 회차로 누적.
 
 ## 3. P4 진입 trigger 3 옵션
 
@@ -175,6 +200,30 @@ P3 진행 중 service/controller-with-R-112-spec backbone 의 systematic underes
 - **humanQuestion 발화** — driver 가 P3 잔여 backbone task 의 dependency chain 결정 시 사용자에게 trigger option 의 binding decision 요청.
 - **P3 진행 중 자연 trigger** — User entity + AuthModule 박제 진입 task (T-0064+) 의 첫 task 진행 시점에 ADR-0008 동반 박제로 옵션 (c) hybrid-parallel 의 진입 박제.
 
+### 4.1 session #22 시점 binding-decision 권장 (Group + Part CRUD-U 4-layer closure 후 refresh)
+
+> §4 의 권장 후보 (c) hybrid-parallel 박제는 T-0063 박제 시점 (session #19 turn 4) 의 사실 — invariant 로 유지. 본 subsection 은 session #22 turn 1 (T-0075 머지 직후) 시점의 **권장 강화** 박제. STATE.phase 변경 0 — 옵션 (c) 자체가 P3-in-progress 유지 중 일부 P4 task 병행 trigger 의 정의이므로 binding-decision 시점이 phase 전환과 무관.
+
+**권장 강화 사유 — entity 73% 박제 후 strategic value 한계점**:
+
+1. **entity backbone 73% 박제 완성** — Group + Part 도메인 CRUD-U full path (PATCH endpoint 포함) 박제 후 평가 결과 저장 모델의 prerequisite 인 도메인 layer 의 핵심 8/11 cover. 잔여 3 핵심 entity (User / Assessment / Contribution) + Summary 까지 박제하면 P3 핵심 backbone closure 박제 가능.
+2. **cap-bend 14 회차 누적 평균 +41% 안정화** — estimate-model.md §2.4 의 cap-bend 14 회차 milestone 박제 (T-0070) 후 T-0071 + T-0075 2 회차 추가 P2002 sub × 1.2 데이터 + T-0073 inline-amend × 0.4 1 회차 누적 데이터 박제 — estimate model 의 안정화 marker 가 milestone 14 회차에서 15 회차로 진척 중. 잔여 P3 backbone task estimate 의 신뢰도 박제.
+3. **잔여 task estimate ~9 → ~5~6 task 로 축소** — Group + Part CRUD-U 박제 후 옵션 (c) hybrid-parallel 의 잔여 핵심 backbone:
+   - User + AuthModule + ADR-0008 auth credential ~3 task
+   - Assessment + Contribution + Summary 핵심 entity + raw 미저장 R-59 schema-level 강제 ~3 task
+   - ADR-0005 cross-cutting field policy ~0 task (별도 doc-only, 본 task chain 외)
+   - 합계 ~5~6 task estimate. cap-bend 14 회차 누적 평균 +41% considering 시 actual ~7~9 task estimate.
+
+**권장 binding-decision 시점 박제**:
+
+User entity + AuthModule + ADR-0008 신설 task chain 의 **첫 task 진행 시 옵션 (c) hybrid-parallel 박제**. 박제 path 후보:
+
+- **planner dispatch** — 다음 cron / loop turn 의 planner 가 User entity / AuthModule / ADR-0008 task chain 의 첫 task (예: T-0077+) 신설 시 trigger option 옵션 (c) 박제 marker frontmatter 에 추가.
+- **humanQuestion 발화** — driver 가 P3 잔여 backbone task chain 의 dependency 결정 시 사용자에게 옵션 (c) 박제의 binding 요청 (예: "ADR-0008 auth credential type JWT vs session cookie" 의 결정 시점 동반).
+- **자연 trigger** — User entity 진입 task 의 ADR-0008 동반 박제 자체가 옵션 (c) 의 박제. 별도 binding-decision artifact 신설 없이 task chain 진행 중 자연 박제.
+
+**단**: 본 task (T-0076) 머지 후에도 STATE.phase 변경 0 — phase 전환 / binding-decision 의 실제 박제는 별도 planner / humanQuestion 의 책임 (T-0063 박제 invariant 유지). 본 §4.1 은 **권장 강화 박제 only**.
+
 ## 5. P3 잔여 backbone task 목록 (estimate)
 
 각 옵션 별 잔여 P3 backbone task 수 estimate:
@@ -185,27 +234,41 @@ P3 잔여 backbone task 0 — 즉시 P4 진입, 잔여 work 가 P4 안에서 병
 
 ### 옵션 (b) strict-completion (~17 task estimate)
 
-| backbone | estimate task 수 | 후보 task 목록 |
-| --- | --- | --- |
-| User + AuthModule + ADR-0008 | ~3 task | User entity + repository / AuthModule + JWT/session + RBAC / ADR-0008 신설 |
-| Assessment + Contribution + Summary entity | ~6 task | Assessment entity + repository / AssessmentService CRUD / AssessmentController / Contribution entity / Summary entity / Assessment N:M (Person → Assessment 관계) |
-| LlmProviderConfig + DifficultyMapping | ~3 task | LlmProviderConfig entity / DifficultyMapping entity / LlmModule scaffold (provider abstraction interface) |
-| PermissionDeniedRecord | ~2 task | PermissionDeniedRecord entity + repository / Recording integration |
-| ADR-0005 cross-cutting | ~1 task | cross-cutting field policy ADR 신설 + 5 entity retroactive 적용 |
-| ADR-0006 LLM key | ~1 task | LLM API key encryption-at-rest ADR 신설 |
-| ADR-0007 audit log | ~1 task | Audit log entity schema ADR 신설 |
-| **합계** | **~17 task** | cap-bend 5 회차 considering 시 actual 20–25 task estimate |
+| backbone                                   | estimate task 수 | 후보 task 목록                                                                                                                                                    |
+| ------------------------------------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| User + AuthModule + ADR-0008               | ~3 task          | User entity + repository / AuthModule + JWT/session + RBAC / ADR-0008 신설                                                                                        |
+| Assessment + Contribution + Summary entity | ~6 task          | Assessment entity + repository / AssessmentService CRUD / AssessmentController / Contribution entity / Summary entity / Assessment N:M (Person → Assessment 관계) |
+| LlmProviderConfig + DifficultyMapping      | ~3 task          | LlmProviderConfig entity / DifficultyMapping entity / LlmModule scaffold (provider abstraction interface)                                                         |
+| PermissionDeniedRecord                     | ~2 task          | PermissionDeniedRecord entity + repository / Recording integration                                                                                                |
+| ADR-0005 cross-cutting                     | ~1 task          | cross-cutting field policy ADR 신설 + 5 entity retroactive 적용                                                                                                   |
+| ADR-0006 LLM key                           | ~1 task          | LLM API key encryption-at-rest ADR 신설                                                                                                                           |
+| ADR-0007 audit log                         | ~1 task          | Audit log entity schema ADR 신설                                                                                                                                  |
+| **합계**                                   | **~17 task**     | cap-bend 5 회차 considering 시 actual 20–25 task estimate                                                                                                         |
 
-### 옵션 (c) hybrid-parallel (~9 task estimate)
+### 옵션 (c) hybrid-parallel (~9 task estimate, T-0063 박제 시점)
 
-| backbone | estimate task 수 | 후보 task 목록 |
-| --- | --- | --- |
-| User + AuthModule + ADR-0008 | ~3 task | (옵션 (b) 와 동일) |
-| Assessment + Contribution + Summary entity | ~5 task | Assessment entity / AssessmentService / AssessmentController / Contribution + Summary entity / raw 미저장 R-59 schema-level 강제 |
-| ADR-0005 cross-cutting | ~1 task | (옵션 (b) 와 동일) |
-| ADR-0006 LLM key (P3 안 진행) | ~0 task (P4 와 병행) | LlmProviderConfig + LlmModule scaffold + ADR-0006 → P4 진입 task 와 병행 |
-| ADR-0007 audit log | ~0 task (P4 와 병행) | PermissionDeniedRecord + ADR-0007 → P4 와 병행 |
-| **합계** | **~9 task** | cap-bend considering 시 actual 12–15 task estimate |
+| backbone                                   | estimate task 수     | 후보 task 목록                                                                                                                   |
+| ------------------------------------------ | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| User + AuthModule + ADR-0008               | ~3 task              | (옵션 (b) 와 동일)                                                                                                               |
+| Assessment + Contribution + Summary entity | ~5 task              | Assessment entity / AssessmentService / AssessmentController / Contribution + Summary entity / raw 미저장 R-59 schema-level 강제 |
+| ADR-0005 cross-cutting                     | ~1 task              | (옵션 (b) 와 동일)                                                                                                               |
+| ADR-0006 LLM key (P3 안 진행)              | ~0 task (P4 와 병행) | LlmProviderConfig + LlmModule scaffold + ADR-0006 → P4 진입 task 와 병행                                                         |
+| ADR-0007 audit log                         | ~0 task (P4 와 병행) | PermissionDeniedRecord + ADR-0007 → P4 와 병행                                                                                   |
+| **합계**                                   | **~9 task**          | cap-bend considering 시 actual 12–15 task estimate                                                                               |
+
+#### session #22 시점 refresh (T-0075 closure 직후)
+
+> §5 옵션 (c) hybrid-parallel ~9 task estimate 박제 (T-0063 시점) 는 entity 5/11 박제 기준. Group + Part CRUD-U 4-layer 박제 후 (entity 73%) 의 refresh:
+
+| backbone                                   | refresh estimate task 수                         | 박제 변경 사유                                                                                                                                                                                                                                 |
+| ------------------------------------------ | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| User + AuthModule + ADR-0008               | ~3 task                                          | 변경 0 (Group + Part CRUD-U 박제와 무관, P3 잔여 핵심 layer)                                                                                                                                                                                   |
+| Assessment + Contribution + Summary entity | ~3 task                                          | ~5 → ~3 축소 (cap-bend 14 회차 누적 평균 +41% 안정화 considering, Assessment N:M 박제 - inline-amend × 0.4 sub-multiplier reuse 가능. raw 미저장 R-59 schema-level 강제는 별도 task 분리 안 함 — Assessment entity 박제 task 안에서 동반 박제) |
+| ADR-0005 cross-cutting                     | ~0 task (별도 doc-only direct, 본 task chain 외) | 변경 0                                                                                                                                                                                                                                         |
+| ADR-0006 LLM key + ADR-0007 audit log      | ~0 task (P4 와 병행)                             | 변경 0                                                                                                                                                                                                                                         |
+| **합계**                                   | **~5~6 task**                                    | cap-bend 14 회차 누적 평균 +41% considering 시 actual ~7~9 task estimate                                                                                                                                                                       |
+
+옵션 (b) strict-completion ~17 task estimate 표 + 옵션 (a) eager-transition 0 task 표 는 변경 0 — invariant 유지. 옵션 (b) 의 entity 진척 11/11 까지 잔여는 entity 8/11 박제 후에도 잔여 3 entity (User + Assessment + Contribution) + Summary + LlmProviderConfig + DifficultyMapping + PermissionDeniedRecord 7 entity 박제 estimate ~17 task 의 식 자체는 변경 없음 (옵션 (b) 자체의 estimate 식 invariant).
 
 각 task ID 미할당 — 별도 planner task 의 책임.
 
@@ -221,5 +284,9 @@ P3 잔여 backbone task 0 — 즉시 P4 진입, 잔여 work 가 P4 안에서 병
 - [docs/progress/journal-2026-05-27.md](../progress/journal-2026-05-27.md) — session #19 turn 1/2/3 의 9-cell closure milestone 박제 source.
 - [CLAUDE.md](../../CLAUDE.md) §3.1 (commitMode) / §5 (HITL 새 dependency BLOCKED) — 본 doc 가 doc-only direct 인 근거 source.
 - 본 doc 머지 commit SHA — T-0063 머지 후 driver bookkeeping 단계에서 갱신.
+- 본 doc §2.6 + §4.1 + §5 session #22 시점 refresh 머지 commit SHA — T-0076 머지 후 driver bookkeeping 단계에서 갱신.
+- [docs/tasks/T-0066-group-update-dto-and-repository.md](../tasks/T-0066-group-update-dto-and-repository.md) ~ [docs/tasks/T-0068-group-controller-update.md](../tasks/T-0068-group-controller-update.md) — Group CRUD-U 4-layer 박제 task chain (session #20).
+- [docs/tasks/T-0069-part-update-dto-and-repository.md](../tasks/T-0069-part-update-dto-and-repository.md) + [docs/tasks/T-0071-part-service-update.md](../tasks/T-0071-part-service-update.md) + [docs/tasks/T-0075-part-controller-update.md](../tasks/T-0075-part-controller-update.md) — Part CRUD-U 4-layer 박제 task chain (session #20 + session #22).
+- [docs/architecture/estimate-model.md](estimate-model.md) §2.4 cap-bend 14 회차 milestone + §3.2.2 inline-amend × 0.4 sub-multiplier — 본 task 의 권장 강화 박제 기반.
 
-Refs: T-0063, T-0062, T-0061, T-0060, T-0059, T-0058, T-0057, T-0056, T-0055, T-0054, T-0053, T-0052, T-0051, T-0050, T-0049, T-0048, T-0047, T-0046, T-0045, T-0044, T-0043, T-0042, T-0041, T-0040, T-0039, T-0038, T-0037, T-0036, T-0035, T-0034, T-0033, T-0032, ADR-0001, ADR-0002, ADR-0003, ADR-0004, REQ-051, REQ-057, REQ-058
+Refs: T-0076, T-0075, T-0074, T-0073, T-0072, T-0071, T-0070, T-0069, T-0068, T-0067, T-0066, T-0063, T-0062, T-0061, T-0060, T-0059, T-0058, T-0057, T-0056, T-0055, T-0054, T-0053, T-0052, T-0051, T-0050, T-0049, T-0048, T-0047, T-0046, T-0045, T-0044, T-0043, T-0042, T-0041, T-0040, T-0039, T-0038, T-0037, T-0036, T-0035, T-0034, T-0033, T-0032, ADR-0001, ADR-0002, ADR-0003, ADR-0004, REQ-051, REQ-057, REQ-058, REQ-028
