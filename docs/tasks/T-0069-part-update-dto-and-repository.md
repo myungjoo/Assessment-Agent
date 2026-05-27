@@ -2,10 +2,15 @@
 id: T-0069
 title: UpdatePartDto + PartRepository.update 부분 update 첫 layer (Group precedent mirror, P2002 분기 박제)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 63
+mergedAs: 14f64bf
+completedAt: 2026-05-27
+reviewRounds: 1
 coversReq: [REQ-028, REQ-051, REQ-058]
 estimatedDiff: 220
+actualDiff: 334
 estimatedFiles: 4
 created: 2026-05-27
 dependsOn: [T-0036, T-0039, T-0057, T-0066]
