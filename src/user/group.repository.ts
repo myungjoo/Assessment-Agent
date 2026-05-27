@@ -1,9 +1,11 @@
-// GroupRepository — Group entity 의 CRUD primitive 4 종을 PrismaService 위에
-// 얇게 wrapping 한 repository. T-0039 acceptance B §52–56 의 4 메서드 시그니처 박제.
+// GroupRepository — Group entity 의 CRUD primitive 5 종을 PrismaService 위에
+// 얇게 wrapping 한 repository. T-0039 acceptance B §52–56 의 4 메서드 시그니처 +
+// T-0066 acceptance §B 의 update 메서드 (5 번째) 박제.
 //
 // 책임 경계:
 //   - 본 repository 는 도메인 invariant (Group name 중복 정책 / Person↔Group N:M
-//     membership 추가/제거 등) 를 검증하지 않는다 — 후속 GroupService (T-0040) 책임.
+//     membership 추가/제거 등) 를 검증하지 않는다 — 후속 GroupService (T-0040 +
+//     T-0067 update) 책임.
 //   - 본 class 는 PrismaService 의 `group` delegate 에 1:1 forwarding 만 한다.
 //     테스트는 PrismaService 의 `group` 를 Jest mock 으로 대체해 호출 인자 +
 //     return 값 정합성만 검증한다 (DB 실연결 불필요).
@@ -20,6 +22,12 @@
 //   - delete 가 cascade 로 PersonGroupMembership row 들도 함께 삭제 — schema 의
 //     `onDelete: Cascade` 가 그 동작 박제 (PersonGroupMembership.group 의 relation
 //     정의 참조). 본 layer 는 그 cascade 결과를 가공하지 않음.
+//   - update 가 row 부재 시 Prisma `P2025` 그대로 propagate — 호출자 (후속
+//     GroupService.update T-0067) 가 NotFoundException 변환 책임.
+//   - update 는 P2002 (unique 위반) 분기 부재 — Group.name 컬럼이 schema 차원
+//     `@unique` 미정의이므로 동명 Group 의 update 가 unique constraint 위반을
+//     일으키지 않음. PersonRepository.create (email @unique) 의 P2002 패턴과
+//     대조.
 import { Injectable } from "@nestjs/common";
 import type { Group } from "@prisma/client";
 
@@ -30,6 +38,14 @@ import { PrismaService } from "../persistence/prisma.service";
 // 가 cover 하므로 input 에서 제외.
 export interface GroupCreateInput {
   name: string;
+}
+
+// 본 repository 의 update 메서드 input shape — PATCH 의 partial semantics.
+// 모든 필드 optional, 미지정 필드는 Prisma 가 변경 안 함. 빈 객체 `{}` 도 valid —
+// Prisma 가 `@updatedAt` directive 로 updatedAt 만 갱신 (no-op 아님).
+// 현재는 name 단일 필드 (Group entity 의 user-settable 컬럼이 name 뿐).
+export interface GroupUpdateInput {
+  name?: string;
 }
 
 @Injectable()
@@ -57,5 +73,14 @@ export class GroupRepository {
   // schema 의 cascade 정책에 따라 PersonGroupMembership row 들도 함께 삭제.
   async delete(id: string): Promise<Group> {
     return this.prisma.group.delete({ where: { id } });
+  }
+
+  // update — PATCH 부분 수정. id 부재 시 Prisma `P2025` throw — 본 layer catch X
+  // (후속 GroupService.update 가 NotFoundException 변환 책임). input 이 빈 객체
+  // `{}` 이어도 Prisma update 가 정상 수행되며 `@updatedAt` directive 가 updatedAt
+  // 만 갱신 (no-op 아님). PersonRepository.update (T-0034) 의 동일 패턴 mirror,
+  // 단 Group 은 P2002 분기 부재 (name 컬럼 @unique 미정의).
+  async update(id: string, input: GroupUpdateInput): Promise<Group> {
+    return this.prisma.group.update({ where: { id }, data: input });
   }
 }
