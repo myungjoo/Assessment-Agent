@@ -2,7 +2,7 @@
 id: T-0071
 title: PartService.update + spec — P2025→NotFoundException + P2002→ConflictException 변환 (Group T-0067 mirror + ConflictException 추가)
 phase: P3
-status: BLOCKED
+status: IN_PROGRESS
 commitMode: pr
 coversReq: [REQ-028, REQ-051, REQ-058]
 estimatedDiff: 360
@@ -14,23 +14,11 @@ plannerNote: session #20 turn 10 cap-close — T-0069 의 자연 follow-up. Part
 
 # T-0071 — PartService.update + spec (P2025 → NotFoundException + P2002 → ConflictException 변환 layer)
 
-## Blocker (2026-05-27T16:05:55+09:00 — cron session)
+## Resolution (2026-05-27T21:00:00+09:00 — /loop session #21 turn 1)
 
-본 cron 발화 (KST 16:00, scheduled routine) 의 Anthropic 클라우드 fresh checkout env 에서 `which gh` → exit=1 — gh CLI 부재. T-0071 은 pr-mode 이므로 reviewer/integrator 4-게이트 자동 진행 필수인데 다음 path 가 모두 gh 의존:
+직전 Blocker (cron session #20.5, B-0001 credential, 2026-05-27T16:05:55+09:00) 는 [HQ-0010](../STATE.json) 의 사용자 결정 **(c) use-local-env-gh-4th-time** 으로 unblock. 사용자가 local Windows 환경 (gh v2.88.1 + myungjoo account 활성) 에서 `/loop turn cap 5` 새 session 진입, driver 가 worktree=vigilant-boyd-707106 에서 stale T-0060 staged 변경 discard 후 `claude/T-0071-part-service-update` branch 신설 (origin/main HEAD fe9efd5 fork). status=BLOCKED → IN_PROGRESS, executor dispatch 진행.
 
-- 게이트 #2: `gh pr comment` 로 reviewer verdict 외부 post (§3.3)
-- 게이트 #4: `gh pr checks` / `gh run list` 로 CI conclusion 조회
-- merge action: `gh pr merge --squash --delete-branch`
-
-driver 자체는 GitHub MCP tool (`mcp__github__*`) 가용하나 reviewer/integrator agent 정의가 gh-bound — MCP 재작성 필요 (HQ-0010 옵션 b "adapt-agents-to-mcp").
-
-본 turn 은 executor dispatch 전 graceful BLOCKED — 코드 변경 0. STATE 에 [HQ-0010](../STATE.json) (credential, cron-gh-absent-4th-time) + [B-0001](../STATE.json) 박제 후 main bookkeeping 1 commit 으로 마무리. **HQ-0006 / HQ-0008 / HQ-0009 / HQ-0010 패턴 4 회차 반복** = cron backbone 실효 부재 systemic 확정.
-
-**unblock 경로** (HQ-0010 옵션 참조):
-
-- (a) install-gh-cli-in-cron-env — 영구 fix 1 차 후보
-- (b) adapt-agents-to-mcp — 영구 fix 2 차 후보
-- (c) use-local-env-gh-4th-time — 즉시 unblock (사용자가 local /loop 진입, HQ-0006/8/9 패턴 mirror)
+**HQ-0006 / HQ-0008 / HQ-0009 / HQ-0010 4 회차 반복 영구 fix** 는 follow-up task 로 분리 — install-gh-cli-in-cron-env (옵션 a) 또는 adapt-agents-to-mcp (옵션 b) ADR 박제 + setup hook / agent 재작성 별도 task 가 본 T-0071 머지 후 planner queue 대상.
 
 
 
