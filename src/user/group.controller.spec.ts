@@ -1,7 +1,10 @@
 // GroupController spec — T-0055 acceptance §C 박제 (CRUD-only 4 endpoint, R-112:
 // happy / error / branch / negative + ValidationPipe negative integration via supertest)
 // + T-0057 acceptance §C 확장 (N:M membership 3 endpoint — addMember / removeMember /
-// findPersons + AddMemberDto ValidationPipe negative integration).
+// findPersons + AddMemberDto ValidationPipe negative integration)
+// + T-0068 acceptance §B 확장 (@Patch(":id") update — R-112 4 카테고리 unit-level
+// + UpdateGroupDto ValidationPipe negative integration). PersonController.update spec
+// (T-0036/T-0037) 1:1 mirror, 단 Group 은 `name` 단일 필드만 cover.
 //
 // 본 spec 은 두 부분으로 구성 (PartController spec T-0046 1:1 mirror + N:M 확장):
 //   1. Unit-level (controller-only with mocked GroupService) — 7 endpoint 의 routing /
@@ -107,15 +110,17 @@ function buildPersonGroupMembershipFixture(
   };
 }
 
-// GroupService mock factory — 7 메서드 모두 jest.fn() (GroupService 의 create /
+// GroupService mock factory — 8 메서드 모두 jest.fn() (GroupService 의 create /
 // findAll / findById / delete + T-0056 박제 addMember / removeMember /
-// findPersonsByGroupId 1:1). 각 test 마다 새 mock 생성 (호출 카운터 격리).
+// findPersonsByGroupId + T-0067 박제 update 1:1). 각 test 마다 새 mock 생성 (호출
+// 카운터 격리).
 function buildGroupServiceMock(): {
   groupService: GroupService;
   serviceMock: {
     create: jest.Mock;
     findAll: jest.Mock;
     findById: jest.Mock;
+    update: jest.Mock;
     delete: jest.Mock;
     addMember: jest.Mock;
     removeMember: jest.Mock;
@@ -126,6 +131,7 @@ function buildGroupServiceMock(): {
     create: jest.fn(),
     findAll: jest.fn(),
     findById: jest.fn(),
+    update: jest.fn(),
     delete: jest.fn(),
     addMember: jest.fn(),
     removeMember: jest.fn(),
@@ -208,6 +214,102 @@ describe("GroupController (unit)", () => {
 
     expect(serviceMock.create).toHaveBeenCalledWith(dto);
     expect(result).toBe(fixture);
+  });
+
+  // -----------------------------------------------------------------------
+  // update (PATCH /:id) — T-0068 추가. R-112 4 카테고리 cover (happy / error / branch /
+  // negative). PersonController.update spec (T-0036/T-0037) 1:1 mirror, 단 Group 은
+  // `name` 단일 필드만 cover (UpdateGroupDto). ValidationPipe negative 는 integration
+  // section 에서 supertest 로 cover.
+  // -----------------------------------------------------------------------
+  it("PATCH /api/groups/:id — name patch 시 (id, {name}) 를 service.update 로 forward + row 반환 (happy)", async () => {
+    const { groupService, serviceMock } = buildGroupServiceMock();
+    const fixture = buildGroupFixture({ id: "g-1", name: "수정된그룹" });
+    serviceMock.update.mockResolvedValueOnce(fixture);
+
+    const controller = new GroupController(groupService);
+    const result = await controller.update("g-1", { name: "수정된그룹" });
+
+    // service.update 호출 인자 1:1 검증 — id (path) / patch (body).
+    expect(serviceMock.update).toHaveBeenCalledWith("g-1", {
+      name: "수정된그룹",
+    });
+    expect(serviceMock.update).toHaveBeenCalledTimes(1);
+    // service return 그대로 controller 가 propagate.
+    expect(result).toBe(fixture);
+  });
+
+  it("PATCH /api/groups/:id — 빈 {} patch 도 service.update 로 forward (branch — PATCH no-op semantic)", async () => {
+    const { groupService, serviceMock } = buildGroupServiceMock();
+    const fixture = buildGroupFixture();
+    serviceMock.update.mockResolvedValueOnce(fixture);
+
+    const controller = new GroupController(groupService);
+    // ValidationPipe 가 controller 진입 전 검증 — controller 자체는 검증 책임 안 짐.
+    // PersonController.update L233-242 의 1:1 mirror.
+    await controller.update("id-empty", {});
+
+    expect(serviceMock.update).toHaveBeenCalledWith("id-empty", {});
+  });
+
+  it("PATCH /api/groups/:id — undefined name 명시도 service.update 로 forward (branch — explicit undefined)", async () => {
+    const { groupService, serviceMock } = buildGroupServiceMock();
+    serviceMock.update.mockResolvedValueOnce(buildGroupFixture());
+
+    const controller = new GroupController(groupService);
+    // class-validator 의 @IsOptional 이 undefined 통과시킴 — controller 는 routing 만.
+    await controller.update("g-2", { name: undefined });
+
+    expect(serviceMock.update).toHaveBeenCalledWith("g-2", { name: undefined });
+  });
+
+  it("PATCH /api/groups/:id — service 의 NotFoundException (P2025 변환) 그대로 propagate (error)", async () => {
+    const { groupService, serviceMock } = buildGroupServiceMock();
+    serviceMock.update.mockRejectedValueOnce(
+      new NotFoundException("group not found: missing"),
+    );
+
+    const controller = new GroupController(groupService);
+    await expect(
+      controller.update("missing", { name: "x" }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("PATCH /api/groups/:id — service 의 ConflictException-like 도 raw propagate (negative — 변환 안 함)", async () => {
+    const { groupService, serviceMock } = buildGroupServiceMock();
+    // Group.name @unique 미정의 따라 P2002 변환 분기 부재 — 가설적 ConflictException
+    // 도 controller 는 그대로 propagate. PersonController.update L254-264 mirror.
+    serviceMock.update.mockRejectedValueOnce(
+      new ConflictException("unexpected conflict"),
+    );
+
+    const controller = new GroupController(groupService);
+    await expect(
+      controller.update("g-3", { name: "x" }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("PATCH /api/groups/:id — service 의 raw Error (HttpException 아님) 도 그대로 propagate (negative — unknown error)", async () => {
+    const { groupService, serviceMock } = buildGroupServiceMock();
+    const rawError = new Error("unexpected DB outage");
+    serviceMock.update.mockRejectedValueOnce(rawError);
+
+    const controller = new GroupController(groupService);
+    // unit-level 은 raw Error 그대로 propagate — NestJS 500 변환은 e2e/integration 차원.
+    await expect(controller.update("g-4", { name: "x" })).rejects.toBe(
+      rawError,
+    );
+  });
+
+  it("PATCH /api/groups/:id — 빈 string id ('') 도 service.update 로 forward (negative — controller 는 id 검증 책임 없음)", async () => {
+    const { groupService, serviceMock } = buildGroupServiceMock();
+    serviceMock.update.mockResolvedValueOnce(buildGroupFixture());
+
+    const controller = new GroupController(groupService);
+    // controller 는 id 의 빈 string 검증 안 함 — service / Prisma 의 P2025 분기 책임.
+    await controller.update("", { name: "x" });
+
+    expect(serviceMock.update).toHaveBeenCalledWith("", { name: "x" });
   });
 
   // -----------------------------------------------------------------------
@@ -403,6 +505,7 @@ describe("GroupController (ValidationPipe integration)", () => {
     create: jest.Mock;
     findAll: jest.Mock;
     findById: jest.Mock;
+    update: jest.Mock;
     delete: jest.Mock;
     addMember: jest.Mock;
     removeMember: jest.Mock;
@@ -414,6 +517,7 @@ describe("GroupController (ValidationPipe integration)", () => {
       create: jest.fn(),
       findAll: jest.fn(),
       findById: jest.fn(),
+      update: jest.fn(),
       delete: jest.fn(),
       addMember: jest.fn(),
       removeMember: jest.fn(),
@@ -589,5 +693,92 @@ describe("GroupController (ValidationPipe integration)", () => {
       .expect(200);
 
     expect(res.body).toEqual([]);
+  });
+
+  // ----- T-0068 추가: UpdateGroupDto (PATCH /:id) ValidationPipe negative cases -----
+
+  // Happy reference — UpdateGroupDto 정상 payload 통과 → 200 + service.update 호출.
+  it("UpdateGroupDto 정상 payload 는 ValidationPipe 통과 후 200 (sanity)", async () => {
+    serviceMock.update.mockResolvedValueOnce(
+      buildGroupFixture({ name: "정상그룹" }),
+    );
+
+    await request(app.getHttpServer())
+      .patch("/api/groups/g-1")
+      .send({ name: "정상그룹" })
+      .expect(200);
+
+    expect(serviceMock.update).toHaveBeenCalledTimes(1);
+    expect(serviceMock.update).toHaveBeenCalledWith("g-1", {
+      name: "정상그룹",
+    });
+  });
+
+  // Branch — 빈 `{}` payload 는 @IsOptional 통과 → 200 + service.update 호출
+  // (RFC-7396 no-op semantic 박제, ValidationPipe layer 통과).
+  it("UpdateGroupDto 빈 {} payload 는 @IsOptional 통과 후 200 (branch — PATCH no-op semantic)", async () => {
+    serviceMock.update.mockResolvedValueOnce(buildGroupFixture());
+
+    await request(app.getHttpServer())
+      .patch("/api/groups/g-1")
+      .send({})
+      .expect(200);
+
+    expect(serviceMock.update).toHaveBeenCalledTimes(1);
+    expect(serviceMock.update).toHaveBeenCalledWith("g-1", {});
+  });
+
+  // Negative 1: name 이 빈 문자열 → @IsNotEmpty 위반 → 400.
+  it("UpdateGroupDto name 이 빈 문자열 시 400 (negative #1: empty string)", async () => {
+    await request(app.getHttpServer())
+      .patch("/api/groups/g-1")
+      .send({ name: "" })
+      .expect(400);
+
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
+
+  // Negative 2: 정의되지 않은 필드 (`foo`) → forbidNonWhitelisted → 400.
+  it("UpdateGroupDto 정의되지 않은 필드 포함 시 400 (negative #2: extra unknown field)", async () => {
+    await request(app.getHttpServer())
+      .patch("/api/groups/g-1")
+      .send({ name: "그룹", foo: "bar" })
+      .expect(400);
+
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
+
+  // Negative 3: name 이 number → @IsString 위반 → 400.
+  it("UpdateGroupDto name 이 number 시 400 (negative #3: wrong type)", async () => {
+    await request(app.getHttpServer())
+      .patch("/api/groups/g-1")
+      .send({ name: 12345 })
+      .expect(400);
+
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
+
+  // Negative 4: name 이 256 자 초과 → @MaxLength(255) 위반 → 400.
+  it("UpdateGroupDto name 이 256자 초과 시 400 (negative #4: MaxLength violation)", async () => {
+    await request(app.getHttpServer())
+      .patch("/api/groups/g-1")
+      .send({ name: "a".repeat(256) })
+      .expect(400);
+
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
+
+  // PATCH error path — service NotFoundException (P2025 변환) → 404 자동.
+  it("PATCH /api/groups/:id — service NotFoundException 시 404 (error path)", async () => {
+    serviceMock.update.mockRejectedValueOnce(
+      new NotFoundException("group not found: missing"),
+    );
+
+    await request(app.getHttpServer())
+      .patch("/api/groups/missing")
+      .send({ name: "x" })
+      .expect(404);
+
+    expect(serviceMock.update).toHaveBeenCalledTimes(1);
   });
 });
