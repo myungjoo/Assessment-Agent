@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0081",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-28T01:51:00+09:00",
+  "lastActivity": "2026-05-28T02:07:00+09:00",
   "lastCommit": "881cc51",
   "mostRecentTasks": [
+    "T-0081",
     "T-0080",
     "T-0079",
     "T-0078",
-    "T-0077",
-    "T-0076"
+    "T-0077"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -85,7 +85,14 @@
     "T-0079": 1,
     "T-0080": 1
   },
-  "blockers": [],
+  "blockers": [
+    {
+      "taskId": "T-0081",
+      "reason": "new-dep",
+      "hqId": "HQ-0011",
+      "raisedAt": "2026-05-28T02:05:02+09:00"
+    }
+  ],
   "humanQuestions": [
     {
       "id": "HQ-0001",
@@ -288,11 +295,36 @@
       "decisionNote": "사용자 결정 (c) — use-local-env-gh-4th-time. 본 /loop session #21 turn 1 (KST 21:00, 사용자 cap 5) 에서 AskUserQuestion 으로 4 옵션 제시 후 사용자가 즉시 unblock 채택. driver 가 현 local Windows env 의 gh CLI 실 가용성 검증: `which gh` → /c/Program Files/GitHub CLI/gh, `gh --version` v2.88.1 (2026-03-12), `gh auth status` myungjoo account active (keyring). reviewer/integrator 4-게이트 자동 진행 가용. HQ-0006/HQ-0008/HQ-0009/HQ-0010 4 회차 반복 영구 fix 는 후속 별도 task — install-gh-cli-in-cron-env 또는 adapt-agents-to-mcp ADR 박제 follow-up (T-0071 머지 후 planner queue). 본 회차는 즉시 unblock 으로 T-0071 (PartService.update + spec, pr-mode ~360 LOC) 진행. stale-worktree cleanup 부수: vigilant-boyd-707106 worktree 가 claude/T-0060-... (origin 삭제 branch) 에 stuck + T-0060 bookkeeping 5 파일 staged — 모두 12a2cc5 (T-0060 DONE) 중복으로 확정 후 discard, claude/T-0071-part-service-update branch 신설 origin/main HEAD fe9efd5 fork.",
       "resolvedAt": "2026-05-27T21:00:00+09:00",
       "resolvedBy": "human"
+    },
+    {
+      "id": "HQ-0011",
+      "createdAt": "2026-05-28T02:05:02+09:00",
+      "raisedBy": "notifier",
+      "taskId": "T-0081",
+      "reason": "new-dep",
+      "summary": "ADR-0008 JWT hybrid 박제용 신규 dep 6 종 install 승인 필요",
+      "context": "T-0081 (AuthModule scaffold + dep install) 의 Acceptance Criterion A 가 `@nestjs/jwt` + `@nestjs/passport` + `@nestjs/passport-jwt` + `bcrypt` (production) + `@types/bcrypt` + `@types/passport-jwt` (dev) 총 6 종 install 을 요구. CLAUDE.md §5 의 \"새 외부 dependency 추가\" trigger 가 발화 — 사용자 승인 없이 package.json mutation 금지. ADR-0008 Decision 본문이 본 4 종 production dep 채택을 deferred 박제했으며, 본 task 가 실 install 의 게이트. unblock 후 path: implementer 가 `pnpm add` 실행 → AuthService (hashPassword + verifyPassword + issueAccessToken + issueRefreshToken + verifyToken) + spec R-112 4 카테고리 → 4-게이트 머지. pivot 또는 partial scope 채택 시 task supersede 또는 split 필요.",
+      "options": [
+        "(a) install 진행 승인 — ADR-0008 정공법대로 6 종 dep 박제 후 AuthModule scaffold (auth.service.ts hashPassword + verifyPassword + issueAccessToken + issueRefreshToken + verifyToken + spec) 실 박제. ADR-0008 후속 chain T-0081 → T-0082 (endpoint) → T-0083 (RBAC) 자연 progression.",
+        "(b) pivot scope — JWT hybrid 대신 다른 auth credential 방식 채택 (예: session cookie 만 / OAuth 위임 / 자체 token). ADR-0008 재논의 + 새 ADR 작성 필요, T-0081 supersede.",
+        "(c) partial scope — 일부 dep 만 install (예: `bcrypt` + `@types/bcrypt` 먼저 박제 → password hashing layer 만, passport stack 은 T-0082 로 deferral). T-0081 split 필요.",
+        "(d) other — 위 3 옵션이 다 부적합. 사용자가 대안 명시."
+      ],
+      "optionSlugs": [
+        "install-all-six-deps",
+        "pivot-auth-credential-type",
+        "partial-scope-bcrypt-only",
+        "other"
+      ],
+      "decision": null,
+      "decisionNote": null,
+      "resolvedAt": null,
+      "resolvedBy": null
     }
   ],
   "counters": {
     "tasksCompleted": 79,
-    "tasksBlocked": 5,
+    "tasksBlocked": 6,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
   }

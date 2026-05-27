@@ -2,7 +2,9 @@
 id: T-0081
 title: AuthModule scaffold + @nestjs/jwt + @nestjs/passport + bcrypt dep install — ADR-0008 후속 chain BLOCKED 게이트 (사용자 결정 필수)
 phase: P3
-status: PENDING
+status: BLOCKED
+blockedAt: 2026-05-28T02:05:02+09:00
+hqId: HQ-0011
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045]
 estimatedDiff: 200
@@ -64,3 +66,19 @@ expectedBlocker: new-dep (CLAUDE.md §5 의 "새 외부 dependency 추가" trigg
 - T-0082 — login / logout / refresh endpoint (AuthController + cookie set/clear).
 - T-0083 — RBAC AuthGuard + @Role() decorator + role-based 권한 invariant.
 - estimate-model.md 16 회차 milestone refinement (본 task BLOCKED return + unblock cycle 의 estimate variance 박제 — BLOCKED 자체는 LOC 0, unblock 후 actual LOC vs envelope 비교 데이터).
+
+## Status: BLOCKED
+
+- **blockedAt**: 2026-05-28T02:05:02+09:00
+- **reason**: `new-dep` (CLAUDE.md §5 의 "새 외부 dependency 추가" trigger 발화)
+- **hqId**: [HQ-0011](../STATE.json) — `docs/STATE.json.humanQuestions[]` 참조
+- **신규 dep 6 종**:
+  - production: `@nestjs/jwt`, `@nestjs/passport`, `@nestjs/passport-jwt`, `bcrypt`
+  - dev: `@types/bcrypt`, `@types/passport-jwt`
+- **근거 ADR**: [ADR-0008](../decisions/ADR-0008-auth-credential-type.md) Decision 본문이 JWT (HS256) in HttpOnly cookie hybrid 박제용 4 종 production dep 채택을 deferred 박제 — 본 task 가 실 install 의 게이트.
+- **사용자 결정 대기 옵션** (자세히는 HQ-0011 본문):
+  1. install 진행 승인 — ADR-0008 정공법대로 6 종 박제 후 AuthModule scaffold.
+  2. pivot scope — 다른 auth credential 방식 채택 (ADR-0008 재논의 + 새 ADR).
+  3. partial scope — 일부 dep 만 install (예: bcrypt 먼저, passport stack 은 T-0082 deferral).
+  4. other — 위 3 옵션이 다 부적합 시 사용자가 대안 명시.
+- **Unblock 후 path**: driver [1] STATE 로드 → HQ-0011 `resolvedAt` 검출 → `decision` 분기 → (a) currentTask=T-0081 승격, executor dispatch / (b) T-0081 supersede + 새 ADR task / (c) T-0081 split. counter `tasksBlocked` 는 +1 박제된 채 유지 (resolved 후에도 BLOCKED 발화 사실 박제).
