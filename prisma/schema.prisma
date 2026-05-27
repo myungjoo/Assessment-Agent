@@ -132,6 +132,42 @@ model PersonGroupMembership {
   @@unique([personId, groupId])
 }
 
+// User — data-model.md §2 row "User" + REQ-043 (ID/Password) + REQ-044 (3 등급).
+// T-0080 — ADR-0008 후속 chain 첫 task. AuthModule (T-0081) 의 prerequisite.
+//
+// 책임 경계:
+//   - 로그인 계정 (서비스 사용자). Person 과 conceptual 분리 — User 는 시스템 인증
+//     식별자, Person 은 평가 대상자 (data-model.md §2 박제).
+//   - User ↔ Person 0..1:0..1 relation 은 본 task 의 Out of Scope — data-model.md
+//     §3 관계 7 의 AuthModule 책임 deferral 정합. 향후 별도 task 가 relation 컬럼
+//     (예: personId String? @unique + relation 필드) 추가.
+//
+// 컬럼 결정:
+//   - email @unique — REQ-043 의 로그인 identifier. unique constraint 위반 시
+//     Prisma 가 P2002 throw (UserRepository.create 에서 catch 0 — caller 책임).
+//   - hashedPassword — raw String. hashing logic (bcrypt / argon2 등) 자체는 T-0081
+//     의 AuthService layer 책임 — 본 schema 는 hashed 결과를 저장만 한다 (hashing
+//     알고리즘 / cost factor 같은 결정은 ADR-0008 후속 task 가 별도 박제).
+//   - role — String literal ("SuperAdmin" / "Admin" / "User") 의 단순 박제. Prisma
+//     enum 도입 / role lookup table 격상은 별도 ADR 의 책임 — Person model 의
+//     ServiceIdentity.service 컬럼 (String 박제) 정공법 정합. service-layer
+//     (T-0081 AuthService) 가 값 invariant 검증 책임. self-demote 차단 (REQ-044)
+//     은 T-0083 의 책임.
+//   - createdAt / updatedAt — Person / Group / Part 와 동일한 표준 timestamp 패턴.
+//
+// cascade 정책:
+//   - User 삭제 시의 cascade 는 본 task 에서 결정 안 함 — relation 컬럼 부재
+//     (Person/RefreshToken 등 후속 entity 와의 관계가 아직 박제 안 됨) 으로 cascade
+//     의 적용 대상이 없음. relation 추가 시 별도 task 가 cascade 정책 박제.
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  hashedPassword String
+  role           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 // ServiceIdentity — data-model.md §2 row 2 + §3 관계 1 + REQ-023 / REQ-024 cover.
 // 1 Person 의 N 서비스 ID 를 매핑 (github.com / github.sec.samsung.net /
 // github.ecodesamsung.com / confluence.sec.samsung.net 등). isPrimary 가 REQ-024
