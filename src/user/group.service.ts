@@ -40,10 +40,12 @@
 //   - findPersonsByGroupId: Group 사전 존재 검증 (findById null 시 NotFoundException),
 //     membership 0 → 빈 배열, Person 부분 삭제 race window → null 필터링.
 //
-// 책임 경계 (Out of Scope — T-0056 시점):
+// 책임 경계 (Out of Scope — T-0056 시점, T-0067 갱신):
 //   - GroupController N:M endpoints (POST /:id/members / DELETE /:id/members/:personId /
 //     GET /:id/persons) 없음 — 후속 T-0057 책임.
-//   - GroupRepository.update 추가 / PATCH endpoint 없음 (CRUD 의 C/R/D 만 — 별도 후속 task).
+//   - GroupController PATCH 없음 (CRUD 의 C/R/D + service.update 만 — controller PATCH
+//     는 별도 후속 task T-0068). T-0067 박제 — service.update 메서드는 본 layer 에
+//     추가되었으나 HTTP-layer endpoint forward 는 별도 task 책임.
 //   - AuthGuard / 권한 없음 (후속 auth task 책임).
 //   - PersonRepository.findManyByIds batch 메서드 신설 없음 — 본 service 는 loop
 //     findById 채택 (P0 acceptable). N+1 query 회피는 별도 follow-up.
@@ -54,6 +56,7 @@ import {
 } from "@nestjs/common";
 import type { Group, Person, PersonGroupMembership } from "@prisma/client";
 
+import type { UpdateGroupDto } from "./dto/update-group.dto";
 import { GroupRepository } from "./group.repository";
 import { PersonGroupMembershipRepository } from "./person-group-membership.repository";
 import { PersonRepository } from "./person.repository";
@@ -120,6 +123,51 @@ export class GroupService {
   async delete(id: string): Promise<void> {
     try {
       await this.groupRepository.delete(id);
+    } catch (error) {
+      if (getPrismaErrorCode(error) === "P2025") {
+        throw new NotFoundException(`group not found: ${id}`);
+      }
+      throw error;
+    }
+  }
+
+  // update — PATCH /api/groups/:id 의 backend layer (T-0067 추가). RFC-7396
+  // (JSON Merge Patch) 의 partial update semantics — `patch.name` 이 명시적으로
+  // 전달된 경우 (undefined 아님) 에만 GroupRepository.update spread 에 포함, 그 외
+  // 빈 객체 `{}` 를 forward (PATCH no-op semantic — Prisma `@updatedAt` directive
+  // 가 updatedAt 만 갱신). PersonService.update (T-0036/T-0037) 의 1:1 mirror,
+  // 단 Group 은 `name` 단일 필드만 cover.
+  //
+  // 분기 박제 (R-112 cover):
+  //   - `patch.name !== undefined` → `{ name }` spread → repository.update.
+  //   - `patch.name === undefined` (UpdateGroupDto 의 모든 필드 미지정 시 등가) →
+  //     빈 객체 `{}` forward → repository.update 가 `@updatedAt` 만 갱신.
+  //
+  // Prisma error 정책:
+  //   - P2025 (row 부재) → NotFoundException 변환 (HTTP 404 자동 mapping).
+  //   - **P2002 변환 분기 부재** — Group.name 컬럼이 schema 차원 `@unique` 미정의
+  //     (prisma/schema.prisma L89-91 + group.repository.ts L25-30 박제). 동명
+  //     Group 의 update 는 unique constraint 위반을 일으키지 않으므로 P2002
+  //     발생 가능성 자체 부재. PersonService.update 의 P2002 → ConflictException
+  //     변환 분기와 대조 (Person.email `@unique` 정의됨).
+  //   - 그 외 (unknown Prisma error code / code 없는 generic Error / 의존성 fail)
+  //     → raw propagate.
+  //
+  // 책임 경계 (Out of Scope):
+  //   - GroupController @Patch(":id") endpoint 신설 안 함 — 후속 T-0068 책임.
+  //     본 메서드는 service-layer 만 박제, HTTP-layer forward 는 별도 task.
+  //   - name 의 형식 / 길이 validation 은 UpdateGroupDto (T-0066) 의 class-
+  //     validator decorator 책임 — controller-scope ValidationPipe 가 service
+  //     호출 전에 reject. 본 layer 는 raw forward.
+  async update(id: string, patch: UpdateGroupDto): Promise<Group> {
+    try {
+      // class-validator 가 통과시킨 patch 객체는 keys 가 UpdateGroupDto 의 정의된
+      // 필드 (name) 로 한정. 명시적으로 전달된 경우 (undefined 아님) 에만 spread
+      // 에 포함 — undefined 키가 Prisma update 에 들어가 의도치 않은 null overwrite
+      // 가 일어나지 않도록 한다. PersonService.update 의 동일 패턴 mirror.
+      return await this.groupRepository.update(id, {
+        ...(patch.name !== undefined && { name: patch.name }),
+      });
     } catch (error) {
       if (getPrismaErrorCode(error) === "P2025") {
         throw new NotFoundException(`group not found: ${id}`);
