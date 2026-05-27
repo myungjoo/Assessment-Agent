@@ -36,6 +36,7 @@ function buildPrismaMock(): {
     findUnique: jest.Mock;
     create: jest.Mock;
     delete: jest.Mock;
+    update: jest.Mock;
   };
 } {
   const partMock = {
@@ -43,6 +44,7 @@ function buildPrismaMock(): {
     findUnique: jest.fn(),
     create: jest.fn(),
     delete: jest.fn(),
+    update: jest.fn(),
   };
   const prisma = { part: partMock } as unknown as PrismaService;
   return { prisma, partMock };
@@ -243,6 +245,130 @@ describe("PartRepository", () => {
 
       expect(partMock.delete).toHaveBeenCalledWith({
         where: { id: "" },
+      });
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // update — happy + error (P2002 unique 위반 — Part 만의 분기) +
+  //   error (P2025 row 부재) + branch (empty input) + negative ≥3
+  //   (T-0069 acceptance §B — R-112 4 카테고리 cover)
+  //
+  // **Group precedent 와의 차이 박제**: GroupRepository.spec.ts 의 update
+  // describe block 은 P2002 분기 부재 (Group.name `@unique` 미정의). 본 spec
+  // 의 P2002 test 는 Part.name `@unique` (prisma/schema.prisma L108) 의
+  // schema-level enforce 박제 — Part 도메인 만의 분기.
+  // ------------------------------------------------------------------
+  describe("update()", () => {
+    // Happy path: id + name patch → PrismaService.part.update 호출 + 결과 반환.
+    it("id + input 으로 PrismaService.part.update 를 호출하고 결과를 반환한다", async () => {
+      const { prisma, partMock } = buildPrismaMock();
+      const fixture = buildPartFixture({
+        id: "p-renamed",
+        name: "조직도파트신규",
+      });
+      partMock.update.mockResolvedValueOnce(fixture);
+
+      const repo = new PartRepository(prisma);
+      const result = await repo.update("p-renamed", { name: "조직도파트신규" });
+
+      expect(partMock.update).toHaveBeenCalledWith({
+        where: { id: "p-renamed" },
+        data: { name: "조직도파트신규" },
+      });
+      expect(result).toBe(fixture);
+    });
+
+    // Error path #1 (Part 만의 핵심 분기 — P2002): name 중복 시 Prisma P2002
+    // 그대로 throw. Part.name `@unique` (schema.prisma L108) 의 schema-level
+    // enforce — Group.name 은 `@unique` 미정의로 P2002 분기 부재. 후속
+    // PartService.update (T-0070) 가 ConflictException 변환 책임.
+    it("name 중복 시 Prisma P2002 error 를 그대로 throw 한다 (Part.name @unique — Group precedent 와의 핵심 차이)", async () => {
+      const { prisma, partMock } = buildPrismaMock();
+      const p2002 = Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+      });
+      partMock.update.mockRejectedValueOnce(p2002);
+
+      const repo = new PartRepository(prisma);
+      await expect(
+        repo.update("p-existing", { name: "조직도파트A-중복" }),
+      ).rejects.toMatchObject({ code: "P2002" });
+    });
+
+    // Error path #2: id 부재 시 Prisma P2025 그대로 throw — repo catch 안 함.
+    // 후속 PartService.update (T-0070) 가 NotFoundException 변환 책임.
+    it("id 부재 시 Prisma P2025 error 를 그대로 throw 한다", async () => {
+      const { prisma, partMock } = buildPrismaMock();
+      const p2025 = Object.assign(new Error("Record to update not found"), {
+        code: "P2025",
+      });
+      partMock.update.mockRejectedValueOnce(p2025);
+
+      const repo = new PartRepository(prisma);
+      await expect(
+        repo.update("missing-id", { name: "any" }),
+      ).rejects.toMatchObject({ code: "P2025" });
+    });
+
+    // Branch: empty input (`{}`) 도 raw forward — Prisma 가 `@updatedAt`
+    // directive 로 updatedAt 만 갱신 (no-op 아님). PATCH 의 부분 update 의
+    // "name 미지정" 분기 cover. GroupRepository.spec 의 동일 branch 패턴 mirror.
+    it("input 이 빈 객체이어도 PrismaService 로 그대로 전달한다 (branch — name 미지정 PATCH)", async () => {
+      const { prisma, partMock } = buildPrismaMock();
+      const fixture = buildPartFixture({ id: "p-noop" });
+      partMock.update.mockResolvedValueOnce(fixture);
+
+      const repo = new PartRepository(prisma);
+      const result = await repo.update("p-noop", {});
+
+      expect(partMock.update).toHaveBeenCalledWith({
+        where: { id: "p-noop" },
+        data: {},
+      });
+      expect(result).toBe(fixture);
+    });
+
+    // Negative #1: PrismaService 가 generic Error (non-Prisma) reject 시 그대로
+    // propagate — DB 장애 등.
+    it("PrismaService 가 generic Error 로 reject 하면 error 를 그대로 전파한다 (negative)", async () => {
+      const { prisma, partMock } = buildPrismaMock();
+      partMock.update.mockRejectedValueOnce(new Error("db-down"));
+
+      const repo = new PartRepository(prisma);
+      await expect(repo.update("p-x", { name: "x" })).rejects.toThrow(
+        "db-down",
+      );
+    });
+
+    // Negative #2: 알려지지 않은 Prisma code (P9999) 도 raw propagate — repo
+    // 는 P2002 / P2025 만 의식하지 않고 모든 error 를 통과시킴 (catch 분기
+    // 부재 검증).
+    it("미지정 Prisma code P9999 도 그대로 throw 한다 (negative — repo 는 code 검사 안 함)", async () => {
+      const { prisma, partMock } = buildPrismaMock();
+      const p9999 = Object.assign(new Error("future-prisma-code"), {
+        code: "P9999",
+      });
+      partMock.update.mockRejectedValueOnce(p9999);
+
+      const repo = new PartRepository(prisma);
+      await expect(repo.update("p-x", { name: "x" })).rejects.toMatchObject({
+        code: "P9999",
+      });
+    });
+
+    // Negative #3: empty string id 도 raw forward — id 자체의 형식 validation
+    // 은 service 책임 (repo 는 pass-through).
+    it("id 가 빈 문자열이어도 PrismaService 로 그대로 전달한다 (negative)", async () => {
+      const { prisma, partMock } = buildPrismaMock();
+      partMock.update.mockResolvedValueOnce(buildPartFixture({ id: "" }));
+
+      const repo = new PartRepository(prisma);
+      await repo.update("", { name: "any" });
+
+      expect(partMock.update).toHaveBeenCalledWith({
+        where: { id: "" },
+        data: { name: "any" },
       });
     });
   });
