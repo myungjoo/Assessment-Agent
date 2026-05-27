@@ -22,6 +22,7 @@
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import type { Group, Person, PersonGroupMembership } from "@prisma/client";
 
+import type { UpdateGroupDto } from "./dto/update-group.dto";
 import type { GroupRepository } from "./group.repository";
 import { GroupService } from "./group.service";
 import type { PersonGroupMembershipRepository } from "./person-group-membership.repository";
@@ -76,6 +77,7 @@ function buildGroupRepositoryMock(): {
     findById: jest.Mock;
     findMany: jest.Mock;
     delete: jest.Mock;
+    update: jest.Mock;
   };
 } {
   const groupRepoMock = {
@@ -83,6 +85,9 @@ function buildGroupRepositoryMock(): {
     findById: jest.fn(),
     findMany: jest.fn(),
     delete: jest.fn(),
+    // T-0067 추가 — GroupService.update 의 collaborator. 본 task 머지 후 본
+    // mock 필드가 5 번째 메서드로 박제.
+    update: jest.fn(),
   };
   return {
     groupRepository: groupRepoMock as unknown as GroupRepository,
@@ -406,6 +411,165 @@ describe("GroupService", () => {
       groupRepoMock.delete.mockRejectedValueOnce(nonStringCodeError);
 
       await expect(service.delete("g-weird")).rejects.toBe(nonStringCodeError);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // update() — T-0067 추가 (R-112 4 카테고리)
+  //   happy / P2025 → NotFound / branch (name undefined → 빈 객체 forward) /
+  //   negative (unknown propagate / code 없는 error / empty id / null code 등).
+  //   Person.update 의 P2002 변환 분기 부재 — Group.name `@unique` 미정의.
+  // -----------------------------------------------------------------------
+  describe("update()", () => {
+    it("name patch 를 그대로 GroupRepository.update 로 forward (happy)", async () => {
+      const { service, groupRepoMock } = buildService();
+      const fixture = buildGroupFixture({ id: "g-1", name: "변경후" });
+      groupRepoMock.update.mockResolvedValueOnce(fixture);
+
+      const patch: UpdateGroupDto = { name: "변경후" };
+      const result = await service.update("g-1", patch);
+
+      expect(groupRepoMock.update).toHaveBeenCalledWith("g-1", {
+        name: "변경후",
+      });
+      expect(result).toBe(fixture);
+    });
+
+    it("name 만 patch 시 `{name}` spread 만 forward (branch — name defined)", async () => {
+      const { service, groupRepoMock } = buildService();
+      groupRepoMock.update.mockResolvedValueOnce(buildGroupFixture());
+
+      await service.update("g-2", { name: "다른이름" });
+
+      // spread 가 `{name}` 1 필드만 forward — undefined 키 자동 추가 없음.
+      const callArg = groupRepoMock.update.mock.calls[0][1];
+      expect(callArg).toEqual({ name: "다른이름" });
+      expect(Object.keys(callArg)).toHaveLength(1);
+    });
+
+    it("name undefined (빈 patch) 시 빈 객체 `{}` 를 forward (branch — name undefined, PATCH no-op)", async () => {
+      // UpdateGroupDto 의 모든 필드 미지정 시 → spread 가 false 평가 →
+      // 빈 객체 `{}` forward. Prisma `@updatedAt` directive 가 updatedAt 만
+      // 갱신 (no-op 아님). PersonService.update 의 빈 patch branch mirror.
+      const { service, groupRepoMock } = buildService();
+      const fixture = buildGroupFixture({ id: "g-noop" });
+      groupRepoMock.update.mockResolvedValueOnce(fixture);
+
+      const result = await service.update("g-noop", {});
+
+      expect(groupRepoMock.update).toHaveBeenCalledWith("g-noop", {});
+      expect(result).toBe(fixture);
+    });
+
+    it("name undefined 명시 시에도 빈 객체 `{}` forward (branch — explicit undefined)", async () => {
+      // UpdateGroupDto 의 `name?: string` 시그니처가 허용하는 `{ name: undefined }`
+      // 명시 case. spread 가 false 평가 → 빈 객체 forward. class-validator 의
+      // @IsOptional 이 undefined skip 하므로 controller layer 에서도 valid.
+      const { service, groupRepoMock } = buildService();
+      groupRepoMock.update.mockResolvedValueOnce(buildGroupFixture());
+
+      await service.update("g-uu", { name: undefined });
+
+      const callArg = groupRepoMock.update.mock.calls[0][1];
+      expect(callArg).toEqual({});
+      expect("name" in callArg).toBe(false);
+    });
+
+    it("P2025 (row 부재) 를 NotFoundException 으로 변환한다 (error / branch — P2025)", async () => {
+      const { service, groupRepoMock } = buildService();
+      groupRepoMock.update.mockRejectedValueOnce(buildPrismaError("P2025"));
+
+      await expect(
+        service.update("missing", { name: "x" }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(groupRepoMock.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("P2025 변환 시 message 가 'group not found' + id 를 포함한다 (error message regex)", async () => {
+      const { service, groupRepoMock } = buildService();
+      groupRepoMock.update.mockRejectedValueOnce(buildPrismaError("P2025"));
+
+      await expect(service.update("g-missing", { name: "x" })).rejects.toThrow(
+        /group not found: g-missing/,
+      );
+    });
+
+    it("unknown Prisma error code (P9999) 는 그대로 propagate — NotFoundException 변환 안 함 (negative — unknown code)", async () => {
+      const { service, groupRepoMock } = buildService();
+      const unknownError = buildPrismaError("P9999");
+      groupRepoMock.update.mockRejectedValueOnce(unknownError);
+
+      await expect(service.update("g-u", { name: "x" })).rejects.toBe(
+        unknownError,
+      );
+    });
+
+    it("P2002 (다른 layer 의 unique 위반) 도 그대로 propagate — Group.name `@unique` 부재로 변환 분기 자체 없음 (negative — no P2002 conversion)", async () => {
+      // PersonService.update 와 달리 GroupService.update 는 P2002 → Conflict
+      // 변환 분기 부재. 미래에 다른 unique constraint 가 schema 에 추가되어
+      // P2002 throw 되더라도 그대로 propagate 가 정답. precedent 박제.
+      const { service, groupRepoMock } = buildService();
+      const p2002Error = buildPrismaError("P2002");
+      groupRepoMock.update.mockRejectedValueOnce(p2002Error);
+
+      await expect(service.update("g-1", { name: "x" })).rejects.toBe(
+        p2002Error,
+      );
+    });
+
+    it("code field 가 없는 generic Error 도 그대로 propagate (negative — no code)", async () => {
+      const { service, groupRepoMock } = buildService();
+      const plainError = new Error("network-down");
+      groupRepoMock.update.mockRejectedValueOnce(plainError);
+
+      await expect(service.update("g-x", { name: "x" })).rejects.toBe(
+        plainError,
+      );
+    });
+
+    it("empty string id 도 그대로 GroupRepository 로 forward (negative — empty id)", async () => {
+      const { service, groupRepoMock } = buildService();
+      groupRepoMock.update.mockResolvedValueOnce(buildGroupFixture());
+
+      await service.update("", { name: "x" });
+
+      expect(groupRepoMock.update).toHaveBeenCalledWith("", { name: "x" });
+    });
+
+    it("null throw (object null) 도 그대로 propagate — getPrismaErrorCode duck typing branch (negative)", async () => {
+      // getPrismaErrorCode 의 `error !== null` 분기 cover. null throw 는 catch
+      // 절 진입 → code undefined → P2025 분기 미진입 → throw error (null) propagate.
+      const { service, groupRepoMock } = buildService();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, prefer-promise-reject-errors
+      groupRepoMock.update.mockReturnValueOnce(Promise.reject(null as any));
+
+      await expect(service.update("g-null", { name: "x" })).rejects.toBeNull();
+    });
+
+    it("code 가 non-string 인 error 도 그대로 propagate — getPrismaErrorCode duck typing branch (negative)", async () => {
+      // getPrismaErrorCode 의 `typeof code === "string"` 분기 cover.
+      const { service, groupRepoMock } = buildService();
+      const nonStringCodeError = Object.assign(new Error("weird"), {
+        code: 2025,
+      });
+      groupRepoMock.update.mockRejectedValueOnce(nonStringCodeError);
+
+      await expect(service.update("g-weird", { name: "x" })).rejects.toBe(
+        nonStringCodeError,
+      );
+    });
+
+    it("빈 patch + P2025 propagate 시에도 NotFoundException 변환 (error — empty patch path)", async () => {
+      // 빈 patch (no-op) 경로에서도 P2025 변환 분기가 동일하게 동작. branch +
+      // error 동시 cover — try block 의 빈 객체 spread 가 catch block 의 변환
+      // 흐름과 정합.
+      const { service, groupRepoMock } = buildService();
+      groupRepoMock.update.mockRejectedValueOnce(buildPrismaError("P2025"));
+
+      await expect(service.update("g-noop-miss", {})).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(groupRepoMock.update).toHaveBeenCalledWith("g-noop-miss", {});
     });
   });
 
