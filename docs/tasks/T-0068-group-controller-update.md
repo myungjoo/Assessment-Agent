@@ -2,10 +2,15 @@
 id: T-0068
 title: GroupController @Patch(":id") endpoint + spec — Group CRUD-U 4-layer 완성 (PersonController 패턴 mirror)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 62
+mergedAs: 7509a7a
+completedAt: 2026-05-27
+reviewRounds: 1
 coversReq: [REQ-028, REQ-051, REQ-058]
 estimatedDiff: 322
+actualDiff: 244
 estimatedFiles: 2
 sizeExempt: true
 exemptReason: cap-bend pre-justified — R-112 4-카테고리 cover backbone × 1.5 multiplier (estimate-model.md §3.1 / §4) controller-with-spec 박제. 315~330 LOC envelope 안 — controller @Patch(":id") 메서드 신설 (~15 LOC) + spec describe("PATCH /api/groups/:id") block 추가 (unit-level happy 1 + branch 2 + error 1 + ValidationPipe integration negative 4~5 + 200 LOC) + JSDoc 한국어 + R-112 의 atomic-introduce 의무 (§3.2 — public symbol 의 4 카테고리 cover 가 동일 commit 안). T-0055 (413 LOC sizeExempt 박제) + T-0056 (545 LOC) + T-0057 (496 LOC) R-112 backbone precedent 3 회차 정당화. split 안 함 — R-112 의 atomic-introduce 의무 위반 회피.
