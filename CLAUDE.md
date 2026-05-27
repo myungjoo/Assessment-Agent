@@ -22,7 +22,7 @@ prompt 후반부에 박힌 hard rule 의 attention drift 누락을 막기 위해
 5. **STATE single-writer** — `STATE.json` / journal / counters 는 driver / planner / notifier 만 write. counter 는 origin+1 read-modify-write. → §9.
 6. **Commit trail blob 표준 포맷** — 모든 commit (direct · pr) 본문에 trail blob 포함. 헤더 / 키는 영어, 값 / 본문은 한국어. `notes` / `coverage` ≤ 2 줄. → §11.
 7. **언어 정책** — commit subject · body / 코드 주석 / PR comment / 문서 본문 = 한국어. 식별자 / enum / commit type prefix / 명령어 / 경로 / status 토큰 = 영어. → §12.
-8. **1 task = 1 commit / 1 fire = 1 task** — task 크기 ≤ 300 LOC / 5 파일. 다른 주제는 즉시 고치지 말고 task 의 Follow-ups 에. cron 1 fire 1 task 후 종료. → §3 + [docs/LOOP.md](docs/LOOP.md) §1 [7].
+8. **1 task = 1 commit / 1 fire = 1 task** — task 크기 ≤ 300 LOC / 5 파일. 다른 주제는 즉시 고치지 말고 task 의 Follow-ups 에. cron 1 fire 1 task 후 종료. **기본 OFF — 실험적 multi-task fire 는 §2.5**. → §3 + [docs/LOOP.md](docs/LOOP.md) §1 [7].
 
 historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-0007 PR-8 source≠target / T-0003 jest.roots catch 누락 / T-0001 task-too-large / T-0009 PR-10 spec check — [docs/progress/](docs/progress/) journal 참조.
 
@@ -68,6 +68,44 @@ historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-00
 7. **종료 조건**:
    - Task 1개 완료 후 종료. 다음 task로 자동 진입하지 않는다 (context 누적 방지).
    - Blocker 발생 시 notifier sub-agent에게 넘기고 즉시 종료.
+   - **Multi-task fire ([§2.5](#25-multi-task-fire-실험적-기본-off)) 활성 시에는 본 step 의 "1 task 후 종료" 가 조건부** — §2.5 의 활성화 조건 (a)~(e) 모두 충족 시에만 다음 task 진입 허용. **현재 기본 OFF** — 별도 ADR + `STATE.flags.multiTaskFire = true` 토글로만 활성.
+
+---
+
+## 2.5 Multi-task fire (실험적, 기본 OFF)
+
+§2 step 7 의 "Task 1 개 완료 후 종료" 는 본 시스템의 **기본 동작이자 default rule**. 단, 향후 throughput 개선 실험을 위해 driver 가 한 cron fire / `/loop` turn 안에서 **task 2 개까지 연속 진행** 할 수 있는 opt-in 경로를 본 § 에 명문화한다. **현재 기본값 OFF — 활성화는 별도 ADR + `docs/STATE.json.flags.multiTaskFire = true` 토글로만 가능**.
+
+도입 배경: cron 1 fire 1 task 패턴은 cold-start tax (CLAUDE.md / STATE / PLAN / journal 재로드 ~ 15k tok / fire) 를 매 task 마다 지불한다. multi-task fire 는 1 회 cold-start + N × orchestration overhead 로 token 측면 cheaper 하지만 driver context "fresh process per task" 격리 보장이 약화된다 ([§10](#10-long-horizon-실행-모드) 의 자동 cleanup 메커니즘 의도와 부분 충돌). 그래서 활성화 조건과 안전 가드레일을 사전 박제한 후 별도 ADR 에서 활성 결정.
+
+### 활성화 조건 (5 개 모두 충족 시에만 chain 허용)
+
+- (a) **Sub-agent 격리** — 직전 task 를 `executor` sub-agent 1 회 호출로 처리했고, driver 가 받은 응답이 ≤ 200 char SUMMARY + 표준 trail blob 뿐 ([§4](#4-sub-agent-dispatch-context-관리-핵심), [§11](#11-commit-message-agent-trail-long-horizon-외화의-핵심)). raw output / 긴 log 를 driver context 로 끌고 오면 chain 자동 차단. driver 책임 self-enforce.
+- (b) **N ≤ 2** — 한 fire 의 task 수 최대 2. **3 이상은 본 § 가 명시적으로 금지** — N 상향은 별도 ADR 로만 가능.
+- (c) **실패 시 즉시 종료** — 직전 task 가 `BLOCKED`, CI fail, push contention, merge conflict 중 하나라도 발생하면 chain 중단 + fire 종료. notifier 호출은 [§5](#5-hitl-human-in-the-loop-정책--균형).
+- (d) **Lock 45 분 임계** — `STATE.json.lock.since` 로부터 경과 시간 ≥ 45 분이면 추가 task 진입 금지 ([§2](#2-실행-루프-매-turn-반드시-따른다) step 2 의 60 분 stale 임계 보호 — 두 번째 task 가 lock holding 을 60 분 너머로 끌고 가는 시나리오 차단).
+- (e) **commitMode mixed chain 금지** — 같은 `commitMode` 끼리만 chain 허용 (direct + direct OR pr + pr). direct + pr 또는 pr + direct 혼합은 [§3.2](#32-testci-절대-규칙-readme-110114행-명문화) R-114 CI 검증 경계가 모호 (direct push 가 main CI 와 PR CI 사이에 끼면 검증 책임 모호) — 본 § 는 명시 금지.
+
+### 기본 OFF 의 의미
+
+- 현재 driver loop 는 §2 step 7 그대로 — 1 task 완료 후 종료. [docs/LOOP.md](docs/LOOP.md) §1 [7] 의 종료 분기가 본 § 와 충돌하지 않음 (활성 OFF 상태에서는 본 § 가 noop).
+- 활성화 step (모두 별도 task / ADR):
+  1. ADR 작성 — trade-off 박제 + N=2 명문화 + dogfood 30 일 기간 + 활성 결정 근거.
+  2. `docs/STATE.json` schema 에 `flags.multiTaskFire: boolean` 필드 추가 (기본 `false`) + `docs/architecture/data-model.md` 또는 schema 문서 동기.
+  3. [docs/LOOP.md](docs/LOOP.md) §1 에 chain 분기 step 추가 — 직전 task 완료 후 (a)~(e) 평가 → true 시 다음 task entry, false 시 §2 step 7 그대로.
+  4. `flags.multiTaskFire = true` 토글 (별도 direct commit).
+- 비활성 동안 본 § 는 forward-looking spec 으로 기능 — 향후 활성 의도와 안전 가드레일을 사전에 박제. 활성화 전에는 본 § 만으로 driver 동작이 변하지 않음.
+
+### 활성 시 위반 처리
+
+- (a)~(e) 중 하나라도 false 인 상태에서 driver 가 두 번째 task 로 진입 → `multi-task-fire-violation` BLOCKED → notifier → 종료. STATE.blockers[] 에 위반 조건 명시.
+- reviewer agent 는 PR 검토 시 trail blob 의 fire 구조 (commit message footer 에 박제될 `FIRE-BATCH: <task1>+<task2>` 형태 marker) 를 보고 위반을 catch — MINOR finding 분류 (CI 가 별도 정상 통과했다면). marker 형식 자체는 활성화 ADR 에서 확정.
+- 활성 후 첫 30 일은 dogfood 기간 — 위반 / context 누적 증후 / race 발생 시 ADR 갱신 또는 본 § 폐기 결정.
+
+### 본 § 와 §10 의 관계
+
+- §10 의 "진정한 long-horizon 은 cron 만이 보장 — 매 발화 새 conversation 으로 자동 cleanup" 룰은 **유지**. 본 § 는 1 fire 안의 N=2 일 뿐 — N>1 이어도 fire 자체는 매 발화 fresh.
+- §10 "동시 실행 정책" 의 "cron 간격 ≥ 평균 task 소요시간 × 2" 는 multi-task fire 활성 시 `(N × 평균 task) × 2` 로 scale 필요 — 활성화 ADR 에서 함께 갱신. 그 전까지는 활성 OFF 라 변경 불요.
 
 ---
 

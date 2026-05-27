@@ -4,14 +4,14 @@
   "currentTask": null,
   "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-28T00:42:00+09:00",
+  "lastActivity": "2026-05-28T01:03:59+09:00",
   "lastCommit": "e5bb1d2",
   "mostRecentTasks": [
+    "T-0078",
     "T-0077",
     "T-0076",
     "T-0075",
-    "T-0074",
-    "T-0073"
+    "T-0074"
   ],
   "loopSession": {
     "turnCount": 5,
@@ -288,7 +288,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 76,
+    "tasksCompleted": 77,
     "tasksBlocked": 5,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
