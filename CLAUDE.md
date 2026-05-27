@@ -152,6 +152,8 @@ historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-00
 
 하나라도 false → ANOTHER_ROUND 또는 BLOCKED. 게이트 (2) 는 reviewer 위장 (PR body 에 verdict inline) 패턴을 차단하는 외부 사실 게이트.
 
+**4-게이트 평가 도구는 gh / MCP unified** ([ADR-0005](docs/decisions/ADR-0005-mcp-tools-for-pr-review-flow.md) ACCEPTED) — 게이트 (2) = `gh pr view <num> --json comments` OR `mcp__github__list_issue_comments(issue_number)` 결과 header 매칭 1+, 게이트 (4) = `gh pr checks <num>` OR `mcp__github__list_check_runs(ref=head_sha)` conclusion == success. 게이트 자체는 도구 path 무관 — 평가 결과 (boolean) 만이 합의 충족 판정 기준이며 외부 fact (PR comment / CI run conclusion) 가 어느 path 로 박제되든 동등.
+
 이 4-게이트가 reviewer round 1 catch 누락 (예: T-0003 jest.roots) 의 보호 layer.
 
 ---
@@ -171,8 +173,8 @@ historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-00
 | `architect` | executor | 모듈/API/스키마/library 결정 필요 시 | task 정의서 | ADR 1개 + `docs/architecture/` 업데이트 + ARCHITECT trail section |
 | `implementer` | executor | 코드 변경이 필요한 모든 task | task 정의서 + Required Reading | 스테이징된 코드 변경 + IMPLEMENTER trail section |
 | `tester` | executor | implementer 직후 | 변경된 파일 목록 | 테스트 코드 + 실행 결과 + TESTER trail section |
-| `reviewer` | integrator | PR push 후 + 매 ANOTHER_ROUND 마다 | PR 번호 / diff | review 코멘트 (README 117–128행). **반드시 `gh pr comment` 로 PR 에 post** — post 안 하면 BLOCKED (§3.3 게이트 2) |
-| `integrator` | driver | pr-mode commit 후 | PR 번호 | merge 결정 (§3.3 4-게이트) / 다음 round 요청 / BLOCKED |
+| `reviewer` | integrator | PR push 후 + 매 ANOTHER_ROUND 마다 | PR 번호 / diff | verdict 본문 (≤200 char SUMMARY + trail section, README 117–128행). PR 외부 post 는 driver 가 `mcp__github__add_issue_comment` 또는 reviewer 가 직접 `gh pr comment` (local /loop fallback) — [ADR-0005](docs/decisions/ADR-0005-mcp-tools-for-pr-review-flow.md) 참조. post 안 되면 §3.3 게이트 2 fail. |
+| `integrator` | driver | pr-mode commit 후 | PR 번호 | merge decision (§3.3 4-게이트 모두 PASS / ANOTHER_ROUND / BLOCKED). 실 머지 action 은 driver 가 `mcp__github__merge_pull_request(squash)` + `mcp__github__delete_branch` 또는 integrator 가 직접 `gh pr merge --squash --delete-branch` (local /loop fallback) — [ADR-0005](docs/decisions/ADR-0005-mcp-tools-for-pr-review-flow.md) 참조. |
 | `notifier` | driver | executor가 STATUS=BLOCKED 반환 또는 review round 7 초과 | blocker 설명 | `STATE.json.humanQuestions` 항목 + 종료 |
 
 **Driver context 누적 방지 룰**:
@@ -181,6 +183,7 @@ historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-00
 2. driver는 ADR, 코드, 테스트 결과를 직접 보지 않는다. trail section을 commit message로 그대로 흘려보낸다.
 3. driver는 어떤 sub-agent의 long output도 자기 conversation으로 받지 않는다. 받는 건 SUMMARY + TRAIL blob 두 덩어리뿐.
 4. 호출 chain은 최대 2단계: **driver → executor → {architect, implementer, tester}**. 3단계 chain 금지.
+5. **driver 의 외부 API call 예외** ([ADR-0005](docs/decisions/ADR-0005-mcp-tools-for-pr-review-flow.md) Path A 영구화 박제) — reviewer / integrator sub-agent 가 verdict / finding / merge decision 만 return 하고 driver 가 `mcp__github__add_issue_comment` / `mcp__github__merge_pull_request` / `mcp__github__list_check_runs` 등 외부 API 를 직접 호출하는 패턴은 ≤200 char SUMMARY 룰의 예외. 단 driver 는 raw MCP response (JSON 전문) 를 받자마자 핵심 결과 (boolean / SHA / id 1~2 개) 만 남기고 raw payload 는 즉시 discard — context 외화 의무는 driver 책임 self-enforce. cron env (`which gh` exit 1) 에서 sub-agent 환경의 MCP grant unknown 으로 인한 책임 분담 backbone.
 
 ---
 
@@ -330,7 +333,7 @@ TESTER:
   added: <test 파일 목록 또는 "none">
   result: pass | fail(N)
   coverage: <한국어 간단 메모>
-INTEGRATOR: pr=<num> round=<n> ci=<pass|fail>   (pr-mode만)
+INTEGRATOR: pr=<num> round=<n> ci=<pass|fail> [tool=<gh|mcp>]   (pr-mode만; tool 토큰은 선택 — driver 가 어느 path 로 머지했는지 박제, ADR-0005)
 ACCEPTANCE:
   - <criterion 본문 한국어>: ok | pending | failed
 --- /agent-trail ---
