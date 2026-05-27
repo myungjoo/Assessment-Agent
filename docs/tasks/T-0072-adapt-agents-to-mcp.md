@@ -2,12 +2,13 @@
 id: T-0072
 title: adapt-agents-to-mcp 영구 fix backbone — ADR-0005 신설 + reviewer.md MCP equivalent path 박제 (HQ-0010 4 회차 영구 fix 1/2)
 phase: P3
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 240
 estimatedFiles: 2
 created: 2026-05-27
+prNumber: 65
 dependsOn: [T-0039, T-0061, T-0066, T-0071]
 parents: [HQ-0006, HQ-0008, HQ-0009, HQ-0010]
 plannerNote: HQ-0010 4 회차 cron-gh-absent 영구 fix backbone split 1/2 — ADR-0005 신설 + reviewer.md MCP equivalent path 박제 (Path A driver fallback 영구화).
