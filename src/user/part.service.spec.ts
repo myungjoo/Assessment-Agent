@@ -1,22 +1,28 @@
 // PartService spec — T-0046 acceptance §PartService spec (R-112: happy / error /
-// branch / negative 4 카테고리 + coverage line/function ≥ 80%).
+// branch / negative 4 카테고리 + coverage line/function ≥ 80%) + T-0071 acceptance
+// §B (update 메서드 R-112 4 카테고리 신설 — P2025 → NotFoundException + P2002 →
+// ConflictException 변환 박제).
 //
 // 본 spec 은 PartRepository + PersonRepository 두 의존성을 모두 Jest mock 으로 대체
 // 하여 PostgreSQL container 없이 isolated 하게 실행. 검증 포인트:
-//   - 5 메서드 (create / findAll / findById / delete / findPersonsByPartId) 의 happy
-//     path 각 1+ test.
+//   - 6 메서드 (create / findAll / findById / delete / findPersonsByPartId / update)
+//     의 happy path 각 1+ test.
 //   - Prisma error code (P2002 / P2025 / P2003) 의 NestJS exception 변환 (Conflict /
 //     NotFound) 각 1+ test.
 //   - branch coverage:
 //       * delete 의 P2025 vs P2003 vs unknown 3 분기.
 //       * findPersonsByPartId 의 (Part 없음 → 404 propagate) vs (Part 있음 + Person 0)
 //         vs (Part 있음 + Person 다수).
+//       * update 의 (patch.name 정의 → spread forward) vs (patch.name undefined →
+//         빈 객체 forward) vs (P2025 → NotFound) vs (P2002 → Conflict) vs (unknown
+//         propagate). Group precedent 차별 핵심 — P2002 변환 분기 존재.
 //   - negative: unknown Prisma error code propagation / 빈 id / non-existent id /
-//     PersonRepository.findByPartId throw propagate.
+//     PersonRepository.findByPartId throw propagate / P2002 + undefined name fallback.
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import type { Part, Person } from "@prisma/client";
 
 import type { CreatePartDto } from "./dto/create-part.dto";
+import type { UpdatePartDto } from "./dto/update-part.dto";
 import type { PartRepository } from "./part.repository";
 import { PartService } from "./part.service";
 import type { PersonRepository } from "./person.repository";
@@ -47,7 +53,8 @@ function buildPersonFixture(overrides: Partial<Person> = {}): Person {
   };
 }
 
-// PartRepository mock factory — 4 메서드 모두 jest.fn() 으로 대체.
+// PartRepository mock factory — 5 메서드 모두 jest.fn() 으로 대체.
+// T-0071 추가 — update 메서드 (T-0069 박제) 가 PartService.update 의 collaborator.
 function buildPartRepositoryMock(): {
   partRepository: PartRepository;
   partRepoMock: {
@@ -55,6 +62,7 @@ function buildPartRepositoryMock(): {
     findById: jest.Mock;
     findMany: jest.Mock;
     delete: jest.Mock;
+    update: jest.Mock;
   };
 } {
   const partRepoMock = {
@@ -62,6 +70,7 @@ function buildPartRepositoryMock(): {
     findById: jest.fn(),
     findMany: jest.fn(),
     delete: jest.fn(),
+    update: jest.fn(),
   };
   return {
     partRepository: partRepoMock as unknown as PartRepository,
@@ -387,6 +396,244 @@ describe("PartService", () => {
 
       const service = new PartService(partRepository, personRepository);
       await expect(service.findPersonsByPartId("p-1")).rejects.toBe(dbError);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // update() — T-0071 추가 (R-112 4 카테고리)
+  //   happy / P2025 → NotFound / P2002 → Conflict (Group precedent 차별 핵심) /
+  //   branch (name undefined → 빈 객체 forward / P2002 + undefined name fallback) /
+  //   negative (unknown propagate / code 없는 error / empty id / null code 등).
+  //   GroupService.update + PersonService.update 패턴 mirror 의 합성 박제.
+  // -----------------------------------------------------------------------
+  describe("update()", () => {
+    it("name patch 를 그대로 PartRepository.update 로 forward (happy)", async () => {
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      const fixture = buildPartFixture({ id: "p-1", name: "변경후" });
+      partRepoMock.update.mockResolvedValueOnce(fixture);
+
+      const service = new PartService(partRepository, personRepository);
+      const patch: UpdatePartDto = { name: "변경후" };
+      const result = await service.update("p-1", patch);
+
+      expect(partRepoMock.update).toHaveBeenCalledWith("p-1", {
+        name: "변경후",
+      });
+      expect(result).toBe(fixture);
+    });
+
+    it("name 만 patch 시 `{name}` spread 만 forward (branch — name defined)", async () => {
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      partRepoMock.update.mockResolvedValueOnce(buildPartFixture());
+
+      const service = new PartService(partRepository, personRepository);
+      await service.update("p-2", { name: "다른파트이름" });
+
+      // spread 가 `{name}` 1 필드만 forward — undefined 키 자동 추가 없음.
+      const callArg = partRepoMock.update.mock.calls[0][1];
+      expect(callArg).toEqual({ name: "다른파트이름" });
+      expect(Object.keys(callArg)).toHaveLength(1);
+    });
+
+    it("name undefined (빈 patch) 시 빈 객체 `{}` 를 forward (branch — name undefined, PATCH no-op)", async () => {
+      // UpdatePartDto 의 모든 필드 미지정 시 → spread 가 false 평가 → 빈 객체 `{}`
+      // forward. Prisma `@updatedAt` directive 가 updatedAt 만 갱신 (no-op 아님).
+      // GroupService.update / PersonService.update 의 빈 patch branch mirror.
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      const fixture = buildPartFixture({ id: "p-noop" });
+      partRepoMock.update.mockResolvedValueOnce(fixture);
+
+      const service = new PartService(partRepository, personRepository);
+      const result = await service.update("p-noop", {});
+
+      expect(partRepoMock.update).toHaveBeenCalledWith("p-noop", {});
+      expect(result).toBe(fixture);
+    });
+
+    it("name undefined 명시 시에도 빈 객체 `{}` forward (branch — explicit undefined)", async () => {
+      // UpdatePartDto 의 `name?: string` 시그니처가 허용하는 `{ name: undefined }`
+      // 명시 case. spread 가 false 평가 → 빈 객체 forward. class-validator 의
+      // @IsOptional 이 undefined skip 하므로 controller layer 에서도 valid.
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      partRepoMock.update.mockResolvedValueOnce(buildPartFixture());
+
+      const service = new PartService(partRepository, personRepository);
+      await service.update("p-uu", { name: undefined });
+
+      const callArg = partRepoMock.update.mock.calls[0][1];
+      expect(callArg).toEqual({});
+      expect("name" in callArg).toBe(false);
+    });
+
+    it("P2025 (row 부재) 를 NotFoundException 으로 변환한다 (error / branch — P2025)", async () => {
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      partRepoMock.update.mockRejectedValueOnce(buildPrismaError("P2025"));
+
+      const service = new PartService(partRepository, personRepository);
+      await expect(
+        service.update("missing", { name: "x" }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(partRepoMock.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("P2025 변환 시 message 가 'part not found' + id 를 포함한다 (error message regex)", async () => {
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      partRepoMock.update.mockRejectedValueOnce(buildPrismaError("P2025"));
+
+      const service = new PartService(partRepository, personRepository);
+      await expect(service.update("p-missing", { name: "x" })).rejects.toThrow(
+        /part not found: p-missing/,
+      );
+    });
+
+    it("P2002 (name unique 위반) 를 ConflictException 으로 변환한다 (error / branch — P2002, Group precedent 차별 핵심)", async () => {
+      // Group precedent (T-0067) 와의 핵심 차이: Part.name `@unique` (schema.prisma
+      // L108) 정의로 P2002 분기 존재. PartService.create L62-64 동일 메시지 정합.
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      partRepoMock.update.mockRejectedValueOnce(buildPrismaError("P2002"));
+
+      const service = new PartService(partRepository, personRepository);
+      await expect(
+        service.update("p-1", { name: "중복파트" }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(partRepoMock.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("P2002 변환 시 message 가 'part name already in use' + patch.name 을 포함한다 (error message regex)", async () => {
+      // PartService.create L62-64 의 동일 메시지 정합 검증.
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      partRepoMock.update.mockRejectedValueOnce(buildPrismaError("P2002"));
+
+      const service = new PartService(partRepository, personRepository);
+      await expect(
+        service.update("p-1", { name: "중복파트X" }),
+      ).rejects.toThrow(/part name already in use: 중복파트X/);
+    });
+
+    it("P2002 + patch.name undefined 시 message fallback empty string 박제 (branch — defensive)", async () => {
+      // 실 사용 unlikely (PATCH no-op + race 로 name unique conflict 발생할 경로
+      // 부재) 이나 분기 cover 박제 — `patch.name ?? ""` fallback 의 nullish 분기.
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      partRepoMock.update.mockRejectedValueOnce(buildPrismaError("P2002"));
+
+      const service = new PartService(partRepository, personRepository);
+      await expect(service.update("p-1", {})).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+    });
+
+    it("P2002 + patch.name undefined 시 message 가 빈 string 으로 형성 (branch — fallback message regex)", async () => {
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      partRepoMock.update.mockRejectedValueOnce(buildPrismaError("P2002"));
+
+      const service = new PartService(partRepository, personRepository);
+      // 메시지 형태: "part name already in use: " (trailing empty string)
+      await expect(service.update("p-1", {})).rejects.toThrow(
+        /part name already in use: /,
+      );
+    });
+
+    it("unknown Prisma error code (P9999) 는 그대로 propagate — NotFound/Conflict 변환 안 함 (negative — unknown code)", async () => {
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      const unknownError = buildPrismaError("P9999");
+      partRepoMock.update.mockRejectedValueOnce(unknownError);
+
+      const service = new PartService(partRepository, personRepository);
+      await expect(service.update("p-u", { name: "x" })).rejects.toBe(
+        unknownError,
+      );
+    });
+
+    it("code field 가 없는 generic Error 도 그대로 propagate (negative — no code)", async () => {
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      const plainError = new Error("network-down");
+      partRepoMock.update.mockRejectedValueOnce(plainError);
+
+      const service = new PartService(partRepository, personRepository);
+      await expect(service.update("p-x", { name: "x" })).rejects.toBe(
+        plainError,
+      );
+    });
+
+    it("empty string id 도 그대로 PartRepository 로 forward (negative — empty id)", async () => {
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      partRepoMock.update.mockResolvedValueOnce(buildPartFixture());
+
+      const service = new PartService(partRepository, personRepository);
+      await service.update("", { name: "x" });
+
+      expect(partRepoMock.update).toHaveBeenCalledWith("", { name: "x" });
+    });
+
+    it("undefined name + repository 가 정상 Part 반환 시 no-op semantic 박제 (negative — undefined name happy)", async () => {
+      // PATCH no-op 의 정상 path — repository 가 row 반환 (updatedAt 만 갱신된 row).
+      // service 는 ConflictException 변환 안 함 + 받은 row 그대로 반환.
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      const fixture = buildPartFixture({ id: "p-noop2" });
+      partRepoMock.update.mockResolvedValueOnce(fixture);
+
+      const service = new PartService(partRepository, personRepository);
+      const result = await service.update("p-noop2", { name: undefined });
+
+      expect(partRepoMock.update).toHaveBeenCalledWith("p-noop2", {});
+      expect(result).toBe(fixture);
+    });
+
+    it("null throw (object null) 도 그대로 propagate — getPrismaErrorCode duck typing branch (negative)", async () => {
+      // getPrismaErrorCode 의 `error !== null` 분기 cover. null throw 는 catch 절
+      // 진입 → code undefined → P2025/P2002 분기 미진입 → throw error (null) propagate.
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, prefer-promise-reject-errors
+      partRepoMock.update.mockReturnValueOnce(Promise.reject(null as any));
+
+      const service = new PartService(partRepository, personRepository);
+      await expect(service.update("p-null", { name: "x" })).rejects.toBeNull();
+    });
+
+    it("code 가 non-string 인 error 도 그대로 propagate — getPrismaErrorCode duck typing branch (negative)", async () => {
+      // getPrismaErrorCode 의 `typeof code === "string"` 분기 cover. code 가 number
+      // 면 helper 가 undefined 반환 → P2025/P2002 분기 미진입 → throw error propagate.
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      const nonStringCodeError = Object.assign(new Error("weird"), {
+        code: 2025,
+      });
+      partRepoMock.update.mockRejectedValueOnce(nonStringCodeError);
+
+      const service = new PartService(partRepository, personRepository);
+      await expect(service.update("p-weird", { name: "x" })).rejects.toBe(
+        nonStringCodeError,
+      );
+    });
+
+    it("빈 patch + P2025 propagate 시에도 NotFoundException 변환 (error — empty patch path)", async () => {
+      // 빈 patch (no-op) 경로에서도 P2025 변환 분기가 동일하게 동작. branch +
+      // error 동시 cover — try block 의 빈 객체 spread 가 catch block 의 변환
+      // 흐름과 정합. Group precedent (T-0067) 의 동일 패턴 mirror.
+      const { partRepository, partRepoMock } = buildPartRepositoryMock();
+      const { personRepository } = buildPersonRepositoryMock();
+      partRepoMock.update.mockRejectedValueOnce(buildPrismaError("P2025"));
+
+      const service = new PartService(partRepository, personRepository);
+      await expect(service.update("p-noop-miss", {})).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(partRepoMock.update).toHaveBeenCalledWith("p-noop-miss", {});
     });
   });
 });

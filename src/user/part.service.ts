@@ -1,18 +1,23 @@
-// PartService — Part 도메인 의 application service. T-0046 acceptance §PartService 박제.
+// PartService — Part 도메인 의 application service. T-0046 acceptance §PartService 박제
+// + T-0071 acceptance §A 추가 (PartService.update — P2025 → NotFoundException +
+// P2002 → ConflictException 변환).
 //
 // 책임:
-//   - PartRepository 의 4 CRUD primitive (create / findById / findMany / delete) +
-//     PersonRepository.findByPartId (T-0041) 위에 도메인 의미 부여 — NotFoundException /
-//     ConflictException 으로 Prisma known error code 변환, REQ-028 의 "정확히 1 Part"
-//     invariant 의 service-layer enforce.
-//   - 본 service 가 노출하는 5 메서드 (create / findAll / findById / delete /
-//     findPersonsByPartId) 가 PartController 의 5 endpoint 의 forward 대상.
+//   - PartRepository 의 5 CRUD primitive (create / findById / findMany / delete /
+//     update) + PersonRepository.findByPartId (T-0041) 위에 도메인 의미 부여 —
+//     NotFoundException / ConflictException 으로 Prisma known error code 변환,
+//     REQ-028 의 "정확히 1 Part" invariant 의 service-layer enforce.
+//   - 본 service 가 노출하는 6 메서드 (create / findAll / findById / delete /
+//     findPersonsByPartId / update) 가 PartController endpoint 의 forward 대상
+//     (단 PATCH controller endpoint 는 후속 T-0072 책임 — 본 task 는 service-layer
+//     update 만).
 //   - Prisma 의 known error code (`P2002` = unique constraint / `P2025` = record not
 //     found / `P2003` = FK constraint failed) 를 NestJS 의 HttpException
 //     (ConflictException / NotFoundException) 으로 변환.
 //
 // 책임 경계 (Out of Scope — task §Out of Scope 박제):
-//   - PartRepository.update 추가 / PATCH endpoint 없음 (CRUD 의 C/R/D 만 — 별도 후속 task).
+//   - PartController PATCH 없음 (CRUD 의 C/R/D + service.update 만 — controller PATCH
+//     는 별도 후속 task T-0072).
 //   - Part name 의 regex / trim / case-insensitive 중복 검증 같은 정교한 validation 없음
 //     (schema `@unique` 의 raw propagate 만).
 //   - Person.partId 의 mandatory invariant 강제 없음 (PersonService 책임).
@@ -26,6 +31,7 @@ import {
 import type { Part, Person } from "@prisma/client";
 
 import type { CreatePartDto } from "./dto/create-part.dto";
+import type { UpdatePartDto } from "./dto/update-part.dto";
 import { PartRepository } from "./part.repository";
 import { PersonRepository } from "./person.repository";
 
@@ -114,5 +120,64 @@ export class PartService {
     // Part 존재 검증 — null 시 NotFoundException throw (findById 가 책임).
     await this.findById(partId);
     return this.personRepository.findByPartId(partId);
+  }
+
+  // update — PATCH /api/parts/:id 의 service-layer backend. T-0071 acceptance §A 박제.
+  // RFC-7396 (JSON Merge Patch) semantic 의 partial update — patch 객체에 정의된
+  // 필드만 PartRepository.update 로 forward.
+  //
+  // branch 분기 박제:
+  //   - `patch.name !== undefined` → `{name}` spread forward (실 update).
+  //   - `patch.name === undefined` → 빈 객체 `{}` forward (PATCH no-op semantic).
+  //     Prisma `@updatedAt` directive 가 updatedAt 만 갱신 — 완전 no-op 아님.
+  //     spread `...(false && {...})` 는 빈 객체로 평가 (TypeScript spread 표준 동작).
+  //
+  // Prisma error 분기 2 종 변환:
+  //   - `P2025` (row 부재) → NotFoundException("part not found: ${id}") — PartService
+  //     의 다른 메서드 (delete / findById) 와 메시지 정합.
+  //   - `P2002` (name unique 위반) → ConflictException("part name already in use:
+  //     ${patch.name ?? ''}") — PartService.create L62-64 의 동일 메시지 정합.
+  //     `patch.name` undefined 시 빈 string fallback (defensive — 실 사용 unlikely,
+  //     PATCH no-op + race 로 name unique conflict 가 자동 발생할 시나리오 부재이나
+  //     분기 cover 박제).
+  //   - 그 외 (P9999 / code 없는 Error / null throw 등) → raw propagate.
+  //
+  // P2002 분기 존재 사유 (Group precedent 와의 핵심 차이):
+  //   - Part.name 은 prisma/schema.prisma L108 의 `@unique` directive **정의** —
+  //     동명 Part update 시 schema-level enforce 로 Prisma P2002 raise. 후속
+  //     PartService.update 가 ConflictException 변환 책임. PartService.create
+  //     L58-67 가 동일 분기 1 차 박제 — 본 update 메서드가 2 차 박제.
+  //   - 반면 Group.name 은 `@unique` 미정의 → GroupService.update (T-0067) 의
+  //     P2002 분기 부재 (raw propagate 만). Part 도메인 의 unique invariant 차이.
+  //
+  // 책임 경계 (Out of Scope):
+  //   - PartController @Patch(":id") endpoint 신설 안 함 — 후속 T-0072 책임. 본
+  //     메서드는 service-layer 만 박제.
+  //   - name 의 형식 / 길이 validation 은 UpdatePartDto (T-0069) 의 class-validator
+  //     decorator 책임 — controller-scope ValidationPipe 가 service 호출 전에 reject.
+  async update(id: string, patch: UpdatePartDto): Promise<Part> {
+    try {
+      // class-validator 가 통과시킨 patch 객체는 keys 가 UpdatePartDto 의 정의된
+      // 필드 (name 단일) 로 한정. 명시적으로 전달된 경우 (undefined 아님) 에만
+      // spread 에 포함 — undefined 키가 Prisma update 에 들어가 의도치 않은 null
+      // overwrite 가 일어나지 않도록 한다. GroupService.update / PersonService.update
+      // 의 동일 패턴 mirror.
+      return await this.partRepository.update(id, {
+        ...(patch.name !== undefined && { name: patch.name }),
+      });
+    } catch (error) {
+      const code = getPrismaErrorCode(error);
+      if (code === "P2025") {
+        throw new NotFoundException(`part not found: ${id}`);
+      }
+      if (code === "P2002") {
+        // PartService.create L62-64 의 메시지 정합 — `patch.name` undefined 시
+        // 빈 string fallback (defensive, branch cover 박제).
+        throw new ConflictException(
+          `part name already in use: ${patch.name ?? ""}`,
+        );
+      }
+      throw error;
+    }
   }
 }

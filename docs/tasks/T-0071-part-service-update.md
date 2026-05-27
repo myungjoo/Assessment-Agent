@@ -8,6 +8,7 @@ coversReq: [REQ-028, REQ-051, REQ-058]
 estimatedDiff: 360
 estimatedFiles: 2
 created: 2026-05-27
+prNumber: 64
 dependsOn: [T-0036, T-0050, T-0057, T-0067, T-0069]
 plannerNote: session #20 turn 10 cap-close — T-0069 의 자연 follow-up. Part service-layer update + P2002→ConflictException 변환 박제 (Group T-0067 mirror, Part.name @unique 분기 추가).
 ---
