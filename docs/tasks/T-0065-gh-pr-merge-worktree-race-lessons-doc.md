@@ -2,7 +2,8 @@
 id: T-0065
 title: gh pr merge worktree race + reviewer-gate race-fix lessons doc 박제
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-05-27
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 110

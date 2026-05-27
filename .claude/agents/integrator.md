@@ -68,6 +68,8 @@ implementer/tester 재호출은 executor 의 re-entry mode (`executor.md` "Re-en
 4. 그 run 의 conclusion=success → 게이트 (d) PASS. conclusion=failure → 게이트 (d) FAIL (실제 코드 결함 가능성 — `gh run view <runId> --log-failed` 로 finding 분석 후 ad-hoc fallback 전 원인 식별).
 5. comment post 후 ~60 초 안에 comment-triggered run 이 trigger 안 되면 (GitHub event delay / workflow 정책 변경 등) 기존 `gh run rerun <firstRunId>` ad-hoc fallback (self-heal 패턴 — `close+reopen` 은 §Hard rules 의 금지 패턴이므로 사용 금지).
 
+→ 본 race pattern 의 7+7=14 회차 누적 박제는 [docs/architecture/race-patterns.md](../../docs/architecture/race-patterns.md) 참조.
+
 **3. Merge 수행** (4-게이트 통과 시)
 
 - `gh pr merge <num> --squash --delete-branch`
