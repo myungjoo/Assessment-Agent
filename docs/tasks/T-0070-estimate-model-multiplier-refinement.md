@@ -2,13 +2,16 @@
 id: T-0070
 title: estimate-model.md multiplier refinement — 4 회차 calibration data 박제 + P2002 sub-multiplier 검토
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
+completedAt: 2026-05-27
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 140
+actualDiff: 52
 estimatedFiles: 3
 created: 2026-05-27T15:35:00+09:00
 plannerNote: P3 doc-only direct — session #20 4 회차 calibration data (T-0066~T-0069) 박제 + R-112 backbone multiplier 1.5→1.7 refinement + P2002 sub-multiplier 검토
+implementerNote: §2 split 2.1+2.2+2.3 (11 회차 누적 평균 분리) + §3.1.1 P2002 sub-pattern + §4 multiplier × 1.5 유지 결정 + §4.1 P2002 sub-multiplier × 1.2 first 박제 (effective × 1.8) + planner.md 동기 갱신. 변경은 doc 2 파일 (+78/-26).
 ---
 
 # T-0070 — estimate-model.md multiplier refinement (4 회차 calibration 박제)
