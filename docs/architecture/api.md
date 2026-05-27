@@ -79,7 +79,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | DELETE | `/api/groups/:id` | UC-03 | group 삭제 (소속 인원의 다대다 link 만 제거) | Admin+ |
 | GET | `/api/parts` | UC-03 | 조직도 파트 목록 (REQ-028) | User+ |
 | POST | `/api/parts` | UC-03 | 파트 신설 | Admin+ |
-| PATCH | `/api/parts/:id` | UC-03 | 파트 수정 | Admin+ |
+| PATCH | `/api/parts/:id` | UC-03 | 파트 수정 — RFC-7396 JSON Merge Patch partial update (T-0075 박제). body shape `UpdatePartDto` (`name?: string`, IsOptional / IsString / IsNotEmpty / MaxLength(255)). response 200 OK + Part row. error: 404 NotFound (P2025 변환, T-0071 박제) / 409 Conflict (P2002 변환 — Part.name `@unique` schema-level enforce, Group 도메인 차별 분기) / 400 BadRequest (ValidationPipe 위반). | Admin+ |
 | DELETE | `/api/parts/:id` | UC-03 | 파트 삭제 (소속 인원 0 일 때만 — invariant) | Admin+ |
 | **UC-01 / UC-02 / UC-06 평가 (`/api/assessments`)** | | | | |
 | GET | `/api/assessments` | [UC-02 §5 step 1](../use-cases/UC-02-evaluation-query.md#5-main-flow-sequence-diagram) | 평가 결과 조회 (`sort`, `filter`, `window=daily/weekly/monthly`, page) — REQ-038 | User+ |
