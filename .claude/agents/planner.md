@@ -98,14 +98,14 @@ planner 가 **모든** task 를 생성할 때 frontmatter 에 `coversReq: [REQ-N
 
 # Estimate model (T-0064 + T-0070 estimate-model.md 박제 기반)
 
-본 단락은 [docs/architecture/estimate-model.md](../../docs/architecture/estimate-model.md) 의 11 회차 cap-bend 박제 (base 7: T-0055 / T-0056 / T-0057 / T-0058 / T-0061 / T-0062 / T-0063 평균 +79% over + session #20 4 회차: T-0066 / T-0067 / T-0068 / T-0069 평균 +16% over → 누적 +74%) 기반 multiplier 적용 가이드다.
+본 단락은 [docs/architecture/estimate-model.md](../../docs/architecture/estimate-model.md) 의 14 회차 cap-bend 박제 (base 7: T-0055 ~ T-0063 +79% over + session #20 4: T-0066 ~ T-0069 +16% over + session #20-21 4: T-0070/T-0071/T-0072/T-0073 -41% over → 누적 +41%) 기반 multiplier 적용 가이드다.
 
 **4 카테고리 multiplier table**:
 
 | 카테고리 | multiplier | precedent |
 | --- | --- | --- |
-| R-112 4-카테고리 cover backbone (service / controller / DTO + spec 4 layer 동시 박제) | × 1.5 | T-0055 / T-0056 / T-0057 / T-0066 / T-0067 / T-0068 / T-0069 |
-| doc-only enumerated-section (architecture doc 또는 ADR 신설 + INDEX row) | × 1.6 | T-0063 |
+| R-112 4-카테고리 cover backbone (service / controller / DTO + spec 4 layer 동시 박제) | × 1.5 | T-0055 / T-0056 / T-0057 / T-0066 / T-0067 / T-0068 / T-0069 / T-0071 |
+| doc-only enumerated-section (architecture doc 또는 ADR 신설 또는 inline-amend) | × 1.6 | T-0063 / T-0070 / T-0072 / T-0073 |
 | ADR-first split stage (ADR → CI → smoke → e2e chain 의 개별 stage) | × 1.3 | T-0061 / T-0062 |
 | single-helper test (jest config / shared mock helper 단일 변경) | × 1.0 | T-0058 |
 
@@ -113,13 +113,19 @@ planner 가 **모든** task 를 생성할 때 frontmatter 에 `coversReq: [REQ-N
 
 | sub-pattern | sub-multiplier | effective (base × sub) | precedent |
 | --- | --- | --- | --- |
-| P2002 분기 추가 (schema.prisma `@unique` / `@@unique` 박제 entity 의 update DTO + repo) | × 1.2 | × 1.5 × 1.2 = × 1.8 | T-0069 (Part.name @unique 존재, +52% over) vs T-0066 (Group.name @unique 미정의, +28% over) — Δ +24% 가 systematic +60 ~ 100 LOC mass 박제 |
+| P2002 분기 추가 (schema.prisma `@unique` / `@@unique` 박제 entity 의 update DTO + repo + service) | × 1.2 | × 1.5 × 1.2 = × 1.8 | T-0069 (Part.name @unique 존재, +52% over) vs T-0066 (Group.name @unique 미정의, +28% over) — Δ +24% 가 systematic +60 ~ 100 LOC mass 박제 + **T-0071 (effective × 1.8 첫 사용 사례 -10% accurate-pass)** 검증 데이터 1 회차 |
+
+**sub-multiplier — doc-only inline-amend (기존 doc section 단위 수정)**:
+
+| sub-pattern | sub-multiplier | effective (base × sub) | precedent |
+| --- | --- | --- | --- |
+| doc-only inline-amend (`.claude/agents/*.md` / `CLAUDE.md` / `docs/architecture/*.md` 기존 파일의 section 단위 수정) | × 0.4 | × 1.6 × 0.4 = × 0.64 | T-0070 (estimate-model.md amend, -63% over) + T-0073 (integrator.md + CLAUDE.md amend, -86% over) → 평균 -74% systematic over-estimate. ADR / task spec 이 source 라서 inline edit 가 wholesale replacement 의 ~1/3 LOC 으로 가능 |
 
 **적용 절차**:
 
 1. base estimate 직관 산정 (multiplier 미적용 LOC).
-2. 본 task 의 카테고리 classification (복합 시 가장 큰 multiplier). **R-112 backbone 카테고리 일 경우 추가 sub-multiplier 판정** — `prisma/schema.prisma` 의 본 entity 정의에 `@unique` 또는 `@@unique` 가 박제된 entity 면 P2002 sub-multiplier × 1.2 추가 적용.
-3. `estimated = base × multiplier × p2002_sub_multiplier?` → frontmatter `estimatedDiff` 박제. P2002 분기 추가 entity 면 effective × 1.8.
+2. 본 task 의 카테고리 classification (복합 시 가장 큰 multiplier). **R-112 backbone 카테고리 일 경우 P2002 sub-multiplier 판정** — `prisma/schema.prisma` 의 본 entity 정의에 `@unique` 또는 `@@unique` 가 박제된 entity 면 P2002 sub-multiplier × 1.2 추가 적용. **doc-only enumerated-section 카테고리 일 경우 inline-amend sub-multiplier 판정** — 본 task 의 변경 대상이 기존 doc 의 section 단위 inline 수정이면 inline-amend sub-multiplier × 0.4 추가 적용.
+3. `estimated = base × multiplier × sub_multiplier?` → frontmatter `estimatedDiff` 박제. P2002 분기 추가 entity 면 effective × 1.8. doc-only inline-amend 면 effective × 0.64.
 4. multiplier 적용 후 estimate > 300 LOC 또는 > 5 파일 시:
    - **planner-pre-justified note 의무** — frontmatter `plannerNote` 에 "cap-bend pre-justified: <category> × <multiplier> [× <sub-multiplier>] = <est> LOC, <precedent task ID> 패턴 정당화" 명시 + `sizeExempt: true` + `exemptReason` 박제 → executor cap 검사 skip.
    - 또는 **split** — 2+ 작은 task 로 분할 (dependency chain 박제).
