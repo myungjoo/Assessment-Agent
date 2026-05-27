@@ -3,8 +3,14 @@
   "phase": "P3-in-progress",
   "currentTask": "T-0081",
   "nextTask": null,
-  "lock": null,
-  "lastActivity": "2026-05-28T02:20:46+09:00",
+  "lock": {
+    "holder": "loop",
+    "session": "session-23",
+    "since": "2026-05-28T07:37:58+09:00",
+    "loopSessionStartedAt": "2026-05-28T02:18:09+09:00",
+    "loopSessionTurnCount": 2
+  },
+  "lastActivity": "2026-05-28T07:37:58+09:00",
   "lastCommit": "881cc51",
   "mostRecentTasks": [
     "T-0080",
@@ -14,10 +20,10 @@
     "T-0076"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-05-28T02:18:09+09:00",
     "cap": 8,
-    "note": "session #23 turn 1/8 — /loop turn cap 8 진입 (사용자 prompt 직역). [1] STATE: lock=null/currentTask=null/nextTask=T-0081/lastCommit=881cc51/phase=P3-in-progress/blockers=[]. fresh session→turnCount=1/cap=8/startedAt 신설. [2] T-0081→currentTask, nextTask=null. [3] executor dispatch (T-0081, pr-mode, expectedBlocker=new-dep). [4] executor 결과 STATUS=BLOCKED reason=new-dep (ADR-0008 채택한 @nestjs/jwt+passport+passport-jwt+bcrypt 4 종 install 필요 — CLAUDE.md §5 trigger). [5] notifier dispatch → HQ-0011 raise (사용자 결정 entry: install 진행/pivot/partial scope). [6] direct-mode bookkeeping: STATE update (lock release/currentTask 유지 BLOCKED/blockers[] push/humanQuestions[] HQ-0011 push/counters.tasksBlocked 5→6) + T-0081 frontmatter status BLOCKED + journal append + 본 commit. [7] BLOCKED → 즉시 종료 (CLAUDE.md §2 step 7) — NO ScheduleWakeup, session #23 ends turn 1/8 BLOCKED CLOSE."
+    "note": "session #23 turn 2/8 — HQ-0011 resolved decision=A (사용자 직접 응답 \"A\"). 6 종 dep install 승인 → T-0081 unblock + 본격 execution 시작. [1] STATE 갱신: humanQuestions[HQ-0011].resolvedAt/decision 박제, blockers[]에서 HQ-0011 pop, lock re-acquire (turnCount 1→2), currentTask=T-0081 유지 (status BLOCKED→IN_PROGRESS). [2] T-0081 task 파일: status BLOCKED→IN_PROGRESS + ## Resolution 섹션 append. [3] journal append. [4] direct commit (unblock bookkeeping). [5] executor dispatch (T-0081, pr-mode, dep install 명시 승인) → implementer (pnpm add 6 종 + src/auth/auth.module.ts + auth.service.ts + auth.service.spec.ts + app.module.ts import) + tester (R-112 4 카테고리 + negative cases) + integrator (feature branch claude/T-0081-auth-module-and-dep-install + PR + reviewer + 4-게이트 + merge). 후속 turn 분배: turn 3 executor 본 실행 / turn 4 integrator merge 후 final STATE bookkeeping."
   },
   "ci": {
     "lastRun": "2026-05-28T01:45:00+09:00",
@@ -84,15 +90,7 @@
     "T-0079": 1,
     "T-0080": 1
   },
-  "blockers": [
-    {
-      "id": "HQ-0011",
-      "task": "T-0081",
-      "reason": "new-dep",
-      "raisedAt": "2026-05-28T02:20:46+09:00",
-      "details": "ADR-0008 후속 chain 의 6 종 외부 dep install (prod 4 + dev 2) 사용자 승인 대기 — CLAUDE.md §5 BLOCKED 게이트."
-    }
-  ],
+  "blockers": [],
   "humanQuestions": [
     {
       "id": "HQ-0001",
@@ -308,7 +306,9 @@
         "C: ADR-0008 폐기 + session-based auth (cookie + Redis session store) 로 pivot — 별도 ADR 작성 필요.",
         "D: 후속 chain delay, 다른 P3 task (UserController CRUD 등) 우선 진행 — T-0081 PENDING 보류."
       ],
-      "context": "ADR-0008 (JWT in HttpOnly cookie hybrid, ACCEPTED) Decision 본문이 후속 chain 으로 deferred 박제한 dep install 의 진입점 task — T-0081. 신규 dep 6 종: prod 4 (@nestjs/jwt, @nestjs/passport, @nestjs/passport-jwt, bcrypt) + dev 2 (@types/bcrypt, @types/passport-jwt). CLAUDE.md §5 '새 외부 dependency 추가' 가 BLOCKED trigger — 사용자 결정 후에만 unblock. T-0080 (User entity Prisma + UserRepository) 머지 완료 (881cc51) → AuthService.hashPassword/verifyPassword/issueAccessToken/issueRefreshToken/verifyToken 박제가 다음 layer. 관련 파일: docs/tasks/T-0081-auth-module-and-dep-install.md, docs/decisions/ADR-0008-auth-credential-type.md, package.json."
+      "context": "ADR-0008 (JWT in HttpOnly cookie hybrid, ACCEPTED) Decision 본문이 후속 chain 으로 deferred 박제한 dep install 의 진입점 task — T-0081. 신규 dep 6 종: prod 4 (@nestjs/jwt, @nestjs/passport, @nestjs/passport-jwt, bcrypt) + dev 2 (@types/bcrypt, @types/passport-jwt). CLAUDE.md §5 '새 외부 dependency 추가' 가 BLOCKED trigger — 사용자 결정 후에만 unblock. T-0080 (User entity Prisma + UserRepository) 머지 완료 (881cc51) → AuthService.hashPassword/verifyPassword/issueAccessToken/issueRefreshToken/verifyToken 박제가 다음 layer. 관련 파일: docs/tasks/T-0081-auth-module-and-dep-install.md, docs/decisions/ADR-0008-auth-credential-type.md, package.json.",
+      "resolvedAt": "2026-05-28T07:37:58+09:00",
+      "decision": "A: 6 종 dep install 승인 — @nestjs/jwt + @nestjs/passport + @nestjs/passport-jwt + bcrypt (prod) + @types/bcrypt + @types/passport-jwt (dev). ADR-0008 정공법 진행."
     }
   ],
   "counters": {

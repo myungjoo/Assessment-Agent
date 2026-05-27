@@ -2,7 +2,7 @@
 id: T-0081
 title: AuthModule scaffold + @nestjs/jwt + @nestjs/passport + bcrypt dep install — ADR-0008 후속 chain BLOCKED 게이트 (사용자 결정 필수)
 phase: P3
-status: BLOCKED
+status: IN_PROGRESS
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045]
 estimatedDiff: 200
@@ -69,3 +69,7 @@ expectedBlocker: new-dep (CLAUDE.md §5 의 "새 외부 dependency 추가" trigg
 
 - 2026-05-28T02:20:46+09:00 notifier BLOCKED — reason `new-dep`, HQ-0011 raise (STATE.humanQuestions 참조). ADR-0008 후속 chain 의 6 종 신규 dep (prod 4: @nestjs/jwt + @nestjs/passport + @nestjs/passport-jwt + bcrypt, dev 2: @types/bcrypt + @types/passport-jwt) install 이 CLAUDE.md §5 의 "새 외부 dependency 추가" trigger 발화 → 사용자 결정 필수.
 - Unblock path: 사용자가 HQ-0011 의 option A~D 중 하나 선택 → STATE.humanQuestions[HQ-0011].resolvedAt + answer 박제 → 다음 turn 의 driver 가 status BLOCKED → PENDING 되돌리고 executor 진입 (option A 시) 또는 task 폐기/pivot (option B/C/D 시).
+
+## Resolution
+
+- 2026-05-28T07:37:58+09:00 사용자 직접 응답 "A" — option A (6 종 dep install 승인, ADR-0008 정공법 진행) 선택. STATE.humanQuestions[HQ-0011].resolvedAt + decision 박제, blockers[] 에서 HQ-0011 pop, status BLOCKED → IN_PROGRESS, currentTask=T-0081 유지. session #23 turn 2/8 으로 unblock bookkeeping direct commit, turn 3+ executor 본격 실행 (pnpm add 6 종 + src/auth/* 박제 + tester + reviewer + integrator merge).
