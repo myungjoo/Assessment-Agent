@@ -15,6 +15,7 @@
 | [directory.md](directory.md) | 디렉토리 구조 정의 — NestJS 표준 + module view mapping | P2 (T-0021) | 완료 (T-0021) |
 | [p3-implementation-plan.md](p3-implementation-plan.md) | P3 task 시퀀스 매핑 — 10 PLAN bullet ↔ T-NNNN task 8 row + ADR 후보 + 의존성 graph + 인간 승인 게이트 | T-0032 (P3-Entry) | 완료 (T-0032) |
 | [p3-to-p4-transition.md](p3-to-p4-transition.md) | P3 → P4 전이 checkpoint — 진척 status quo (entity 5/11 / module 2/5 / ADR 1/4 / test-quality 4/4 9-cell closure) + 3 trigger option (eager / strict / hybrid) + 권장 hybrid-parallel | T-0063 (P3 → P4 transition) | 완료 (T-0063) |
+| [estimate-model.md](estimate-model.md) | planner estimate calibration — 7 회차 cap-bend case study (T-0055/56/57/58/61/62/63) + 4 카테고리 multiplier (× 1.5 / × 1.6 / × 1.3 / × 1.0) + planner 적용 절차 | T-0064 (estimate model 박제) | 완료 (T-0064) |
 
 ## 갱신 룰
 

@@ -96,6 +96,30 @@ planner 가 **모든** task 를 생성할 때 frontmatter 에 `coversReq: [REQ-N
 5. If the phase is exhausted, advance to the next phase and update `STATE.json.phase`.
 6. If you cannot decide because of ambiguity in README, add a `humanQuestion` entry to STATE.json and stop (do not create a task).
 
+# Estimate model (T-0064 + estimate-model.md 박제 기반)
+
+본 단락은 [docs/architecture/estimate-model.md](../../docs/architecture/estimate-model.md) 의 7 회차 cap-bend 박제 (T-0055 / T-0056 / T-0057 / T-0058 / T-0061 / T-0062 / T-0063 평균 +79% over) 기반 multiplier 적용 가이드다.
+
+**4 카테고리 multiplier table**:
+
+| 카테고리 | multiplier | precedent |
+| --- | --- | --- |
+| R-112 4-카테고리 cover backbone (service / controller / DTO + spec 4 layer 동시 박제) | × 1.5 | T-0055 / T-0056 / T-0057 |
+| doc-only enumerated-section (architecture doc 또는 ADR 신설 + INDEX row) | × 1.6 | T-0063 |
+| ADR-first split stage (ADR → CI → smoke → e2e chain 의 개별 stage) | × 1.3 | T-0061 / T-0062 |
+| single-helper test (jest config / shared mock helper 단일 변경) | × 1.0 | T-0058 |
+
+**적용 절차**:
+
+1. base estimate 직관 산정 (multiplier 미적용 LOC).
+2. 본 task 의 카테고리 classification (복합 시 가장 큰 multiplier).
+3. `estimated = base × multiplier` → frontmatter `estimatedDiff` 박제.
+4. multiplier 적용 후 estimate > 300 LOC 또는 > 5 파일 시:
+   - **planner-pre-justified note 의무** — frontmatter `plannerNote` 에 "cap-bend pre-justified: <category> × <multiplier> = <est> LOC, <precedent task ID> 패턴 정당화" 명시 + `sizeExempt: true` + `exemptReason` 박제 → executor cap 검사 skip.
+   - 또는 **split** — 2+ 작은 task 로 분할 (dependency chain 박제).
+
+**cap policy 자체 변경 0** — multiplier 는 planner 의 estimate 직관 calibration 만, executor cap envelope (≤ 300 LOC / ≤ 5 파일) 정책은 불변. 자세히는 [docs/architecture/estimate-model.md](../../docs/architecture/estimate-model.md) §4 (multiplier 산출) + §5 (planner 적용 절차).
+
 # Mandatory Acceptance Criteria (CLAUDE.md §3.2 R-112)
 
 `commitMode: pr` 코드 task 를 생성할 때, **Acceptance Criteria 에 다음 5 항목을 반드시 포함**한다. 누락 시 §3.2 위반:
@@ -120,6 +144,18 @@ planner 가 **모든** task 를 생성할 때 frontmatter 에 `coversReq: [REQ-N
 ```
 
 분기가 없는 단순 task 에서 4번 항목을 적용 어려운 경우 task 본문에 "분기 없음 — 이 항목 생략" 명시.
+
+## R-112 colocated-spec ordering hint (T-0055 / T-0057 round 2 catch 2 회차 박제 기반)
+
+신규 spec 추가 task 생성 시 spec 위치 ordering 을 task 본문에 명시한다 — colocated 우선, fallback helper:
+
+1. **Required Reading 에 colocated spec 위치 명시 의무** — 신규 DTO / service / controller 박제 task 의 Required Reading 에 colocated spec 의 정확한 경로 박제. 예: `Add<X>Dto.ts` 신설 시 `src/user/<module>/dto/add-<x>.dto.spec.ts` (colocated) 박제 의무. `<Feature>Service.ts` 신설 시 `src/user/<module>/<feature>.service.spec.ts` (colocated) 박제 의무.
+2. **spec 위치 ordering**:
+   - **colocated 우선** — `src/<module>/<file>.spec.ts` 또는 `src/<module>/<subdir>/<file>.spec.ts` 의 colocated spec 박제 default. NestJS convention + discoverability + module boundary 명확성.
+   - **helper fallback** — 2+ spec 가 공유하는 mock / fixture 는 `test/helpers/<helper>.ts` (예: `test/helpers/prisma-mock.ts` T-0047 박제) 추출 → 각 colocated spec 가 helper import.
+3. **tester sub-agent 호출 시 가이드** — Acceptance Criteria 의 spec 항목에 colocated 위치 explicit. tester 가 spec 위치 결정 시 ambiguity 0.
+
+**박제 근거** — T-0055 round 2 (CreateGroupDto.spec.ts colocated 누락 catch) + T-0057 round 2 (membership 관련 spec colocated 누락 catch) 2 회차 reviewer catch streak → planner 가 task 생성 시 colocated 위치 explicit 으로 사전 차단.
 
 # Output: a single task file
 

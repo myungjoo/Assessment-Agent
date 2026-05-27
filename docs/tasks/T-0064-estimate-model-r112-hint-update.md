@@ -2,7 +2,8 @@
 id: T-0064
 title: planner estimate model 갱신 + R-112 colocated-spec hint 강화 doc
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-05-27
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 110
