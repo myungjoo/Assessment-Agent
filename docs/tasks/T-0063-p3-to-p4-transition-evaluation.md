@@ -2,7 +2,8 @@
 id: T-0063
 title: P3 → P4 전이 조건 evaluation doc + PLAN.md trigger 명시
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-05-27
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 80

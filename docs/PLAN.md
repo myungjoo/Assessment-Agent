@@ -65,6 +65,14 @@
 - [ ] **[테스트 품질] e2e test domain endpoint 확장** — 현재 e2e 가 `GET /` HTTP contract 만 검증. `/api/persons` 의 status code + response body shape (DTO contract) + 4xx error shape 를 e2e-spec 으로 커버. R-113 e2e 의무 이행.
 - [ ] **[테스트 품질] CI smoke/e2e real PostgreSQL 전환** — 현재 T-0043 smoke / T-0044 e2e 는 [test/helpers/prisma-mock.ts](../test/helpers/prisma-mock.ts) 의 PrismaService override 로 mock-DB 사용. 사용자 정책 변경 (2026-05-26): mock 이 아닌 real PostgreSQL 을 CI 안에서 직접 띄워서 통합 검증. 구현 방향: `.github/workflows/ci.yml` 에 `services: postgres:` container (또는 `apt install postgresql` + `pg_ctlcluster start`) + `DATABASE_URL` env var 셋업 + `pnpm prisma migrate deploy` step 추가 + smoke/e2e 가 real DB 에 query 발행하도록 PrismaService override 제거 (또는 mock 과 real 양쪽 mode 병행 — `TEST_DB_MODE` env var 분기). ADR 동반 — mock vs real 의 trade-off (CI 속도 vs 통합 정확도) 박제 + 선택 사유 + 후속 e2e cleanup (`afterEach` truncate) 정책. 본 task 후 mock-DB helper 의 위상 (unit-only 보조 vs deprecated) 도 결정. **[ADR-0004](decisions/ADR-0004-smoke-e2e-db-mode.md) 박제 완료 (T-0051) — 후속 T-0052 가 본 ADR 의 결정에 따라 .github/workflows/ci.yml services.postgres + DATABASE_URL env + migrate deploy step + smoke/e2e override 제거 + afterEach truncate helper 추가.**
 
+### P3 → P4 전이 trigger
+
+P3 진행 중 발견된 진척 status quo + P4 진입 trigger 의사결정 가능 형태를 별도 doc 으로 박제: [docs/architecture/p3-to-p4-transition.md](architecture/p3-to-p4-transition.md) (T-0063 doc-only direct).
+
+- **현 status (T-0062 closure 시점)**: entity 5/11 (Person / ServiceIdentity / Group / Part / PersonGroupMembership) / module 2/5 (PersistenceModule / UserModule) / ADR 1/4 (ADR-0004 ACCEPTED) / test-quality 4/4 + 9-cell closure (backbone 3 도메인 × 3 layer fully closed, mock 시대 종결).
+- **권장 trigger option**: **(c) hybrid-parallel** — 핵심 backbone (User + AuthModule + ADR-0008 + Assessment + Contribution + Summary + ADR-0005 cross-cutting + raw 미저장 R-59 schema-level 강제) 완성 후 P4 진입. LlmProviderConfig + DifficultyMapping + PermissionDeniedRecord 는 P4 와 병행. ~9 task estimate. (선택 강제 안 함, 권장만 박제.)
+- **전이 시점의 실 의사결정은 다음 planner dispatch 또는 humanQuestion 발화의 책임** — 본 doc 은 trigger option (a) eager-transition / (b) strict-completion / (c) hybrid-parallel 의 trade-off 만 박제, T-0063 머지로 STATE.phase 변경 0 (P3-in-progress 유지).
+
 ---
 
 ## Phase P4 — External integrations
