@@ -2,14 +2,18 @@
 id: T-0088
 title: api.md PATCH /api/users/:id/role row amend + modules.md UserModule row 갱신 — T-0087 실 구현 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-044, REQ-045, REQ-046]
 estimatedDiff: 32
+actualDiff: 6
 estimatedFiles: 2
+actualFiles: 2
 created: 2026-05-29
+completedAt: 2026-05-29T03:10:00+09:00
 dependsOn: [T-0087]
 plannerNote: "session #26 turn 1 planner — T-0087 RBAC 첫 production endpoint 머지 후 api.md row + modules.md UserModule row 실 구현 동기 박제. doc-only inline-amend × 0.64, ~32 LOC."
+driverNote: "cron fire (KST 03:00) DONE — executor (implementer 1 회) dispatch → api.md L35+L71 + modules.md L34 4 곳 inline-amend +3/-3 LOC actual (envelope 32 × 0.19 = table row 단일 라인 amend 패턴, T-0084 × 0.37 보다 가벼운 sub-multiplier 박제). grep D1~D7 all pass. direct main commit."
 ---
 
 # T-0088 — api.md PATCH /api/users/:id/role row amend + modules.md UserModule row 갱신

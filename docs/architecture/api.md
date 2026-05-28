@@ -32,7 +32,7 @@
 | **Public** | 인증 불필요. 미인증 user 도 접근 가능. | `POST /api/auth/login`, health check (별도 endpoint 도입 시) | REQ-043 (예외 — login 자체는 credential 발급 path) |
 | **User** | 일반 사용자 — read-only. 조회 / sort / filter / 시계열만 가능, mutation 0. | UC-02 의 GET, UC-08 의 user-audience GET | REQ-046 (User read-only) |
 | **Admin** | 관리자 — 평가 master data / LLM 설정 / 평가 실행·삭제·재수집 / Export·Import·Backup 전반의 mutation 권한 | UC-01 manual trigger / UC-03 person CRUD / UC-05 LLM config / UC-06 delete·reeval / UC-07 export·import / UC-08 admin-audience GET | REQ-045 (Admin 권한) |
-| **SuperAdmin** | 최상위 — 사용자 등급 변경 권한 + Admin→User 강등 권한. 본인 self-demote 금지 (REQ-044). | `PATCH /api/users/:id/role` 의 일부 분기 (Admin→User) | REQ-044 (3 등급 + SuperAdmin 만 Admin→User) |
+| **SuperAdmin** | 최상위 — 사용자 등급 변경 권한 + Admin→User 강등 권한. 본인 self-demote 금지 (REQ-044). | `PATCH /api/users/:id/role` 전체 (T-0087 박제 — `@Roles("SuperAdmin")` 단일 적용. RBAC 첫 production 사용 사례 — JwtAuthGuard + RolesGuard + ChangeRoleDto + UserService.changeRole 4 layer 동시 박제) | REQ-044 (3 등급 + SuperAdmin 만 Admin→User) |
 
 **tier 의 escalation 의미**: SuperAdmin ⊇ Admin ⊇ User ⊇ Public. 상위 등급은 하위 endpoint 도 호출 가능. 단 SuperAdmin self-demote 차단 등 invariant 는 endpoint 내부 검증 (AuthModule guard + UserModule service invariant).
 
@@ -68,7 +68,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | POST | `/api/auth/refresh` | UC-04 | refresh_token cookie 검증 (AuthService.verifyToken with refresh secret) → 신규 access + refresh token 발급 (rotation, [ADR-0008 §3](../decisions/ADR-0008-auth-credential-type.md)) + cookie set 2 종, response body `{ userId }`. 실패 시 401 (missing cookie / expired / invalid signature 동일 응답, T-0082 박제). | User+ |
 | GET | `/api/auth/me` | UC-04 | 현재 인증 user 의 등급 + 식별자 조회 (JwtAuthGuard + req.user.sub/role 반환, T-0085 candidate 미구현 — endpoint 자체는 ADR-0008 후속 chain 의 자연 박제점). | User+ |
 | POST | `/api/users` | [UC-04 §5 step 1](../use-cases/UC-04-account-auth.md#5-main-flow-sequence-diagram) | 신규 user 계정 생성 (등급 default = User) | Admin+ |
-| PATCH | `/api/users/:id/role` | UC-04 §5 step 4 | user 등급 변경 (Admin→User 분기는 SuperAdmin 전용, self-demote 차단) | Admin (User→Admin) / SuperAdmin (Admin→User) |
+| PATCH | `/api/users/:id/role` | UC-04 §5 step 4 | user 등급 변경 — `ChangeRoleDto.role` validation (`@IsIn(["SuperAdmin", "Admin", "User"])`) + `UserService.changeRole` 5 invariant 박제 (actor=SuperAdmin / role enum / target 부재 → 404 / self-demote → 403 / P2025 race → 404). 응답 200 + user body. 실패 401 (cookie 부재 또는 invalid token) / 403 (User+Admin role 또는 self-demote) / 404 (target 부재) / 400 (DTO 위반). T-0087 박제 — RBAC 첫 production 적용 endpoint. | SuperAdmin (T-0087 박제 — `@Roles("SuperAdmin")` 단일. Admin 의 User→Admin 승급 분기는 README L84 후반 박제하나 본 endpoint scope 외 — 별도 task chain) |
 | PATCH | `/api/users/:id/password` | UC-04 §5 step 4, §6.3 | user password 재설정 (`:id == self` → User 본인 변경 허용; `:id != self` → Admin+ 만) | User (self) / Admin+ (other) |
 | **UC-03 평가 대상 인원 (`/api/persons`, `/api/groups`, `/api/parts`)** | | | | |
 | GET | `/api/persons` | [UC-03 §5](../use-cases/UC-03-person-crud.md#5-main-flow-sequence-diagram) | 평가 대상 인원 목록 (active filter / group filter 가능) | User+ (조회) |
