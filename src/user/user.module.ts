@@ -45,6 +45,7 @@ import { PersonController } from "./person.controller";
 import { PersonRepository } from "./person.repository";
 import { PersonService } from "./person.service";
 import { ServiceIdentityRepository } from "./service-identity.repository";
+import { UserRepository } from "./user.repository";
 
 @Module({
   controllers: [PersonController, PartController, GroupController],
@@ -57,6 +58,10 @@ import { ServiceIdentityRepository } from "./service-identity.repository";
     PersonService,
     PartService,
     GroupService,
+    // UserRepository — T-0082 추가. AuthController (auth/auth.controller.ts) 가
+    // UserRepository.findByEmail 을 inject 하여 login flow 의 user lookup 수행.
+    // AuthModule 이 UserModule 을 import 하여 UserRepository 를 resolve.
+    UserRepository,
   ],
   exports: [
     PersonRepository,
@@ -67,6 +72,8 @@ import { ServiceIdentityRepository } from "./service-identity.repository";
     PersonService,
     PartService,
     GroupService,
+    // UserRepository export (T-0082) — AuthModule 의 AuthController 가 inject.
+    UserRepository,
   ],
 })
 export class UserModule {}
