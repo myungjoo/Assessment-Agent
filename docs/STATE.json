@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0084",
   "lock": null,
-  "lastActivity": "2026-05-28T23:15:00+09:00",
+  "lastActivity": "2026-05-28T23:24:00+09:00",
   "lastCommit": "6223fdd",
   "mostRecentTasks": [
     "T-0083",
@@ -14,10 +14,10 @@
     "T-0079"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-05-28T21:00:00+09:00",
     "cap": 10,
-    "note": "session #25 turn 2/10 DONE — **T-0083 MERGED PR-77 sha 6223fdd round 1 single-shot APPROVE**. ADR-0008 후속 chain 4/4 마지막 단계 완료 (T-0079 ADR + T-0080 User entity + T-0081 AuthModule + T-0082 endpoint + **T-0083 RBAC scaffold 본 task**). **entity backbone 10/11 → 11/11 (100%) 도달** + **P4 entry path 완성** (p3-to-p4-transition.md §4.1 옵션 (c) hybrid-parallel backbone 완결 trigger). 4 신규 surface 동시 도입 — JwtStrategy (passport-jwt cookie extractor + validate sub/role 검증) + JwtAuthGuard (AuthGuard(\"jwt\") wrapping) + @Roles decorator (ROLES_METADATA_KEY) + RolesGuard (escalation SuperAdmin⊇Admin⊇User + ForbiddenException/UnauthorizedException 분기). 부수: JwtPayload role claim 확장 + issueAccessToken/issueRefreshToken role 인자 + AuthController login/refresh user.role 전달 + rotation role 보존 + AuthModule providers/exports/PassportModule defaultStrategy. 실 LOC +1062/-74 across 14 files (8 신규 + 6 갱신, envelope 600 sizeExempt=true pre-justified vs actual 1062 = +77% over but exemptReason 박제 — R-112 backbone × 1.5 multiplier 4 신규 surface). src/auth/* coverage line/function/branch/statement 모두 100%. R-112 4-카테고리 + negative cases 충분 cover (cookieExtractor 4 negative + JwtStrategy.validate 8 negative + RolesGuard escalation/권한부족/미인증/unknown 분기). **single-shot first-run pass cadence 5 회차 누적** (T-0079+T-0080+T-0081+T-0082+T-0083). 4-게이트 all PASS (reviewer APPROVE + PR comment 외부 + integrator self-check + CI green). counters.tasksCompleted 81→82 (T-0083 본 turn +1, T-0082 의 +1 은 다른 driver 가 직전에 박제 완료), mostRecentTasks prepend T-0083 (cap 5 = [T-0083, T-0082, T-0081, T-0080, T-0079]), reviewRounds[T-0083]=1, lock release. 다음 turn = T-0084 후보 (UserService.changeRole + REQ-044 self-demote invariant 분리, 또는 api.md /api/auth/* 3 row 박제 doc-only direct task T-0086) — planner 결정 위임.\n\n[직전 turn 1 note 보존]\nsession #25 turn 1/10 RACE-INDUCED NO-OP — push race detect + main ff-merge to origin/main 9b7e802 (T-0083 queued by other /loop session #24). lost work 0. race-observability commit 7f96504."
+    "note": "session #25 turn 3/10 IN_PROGRESS — planner inline 경로 (T-0083 머지 후 currentTask=null + nextTask=null + humanQuestions 미해결 0 확인 후 planner sub-agent dispatch). planner 가 T-0084 (api.md §2 Auth credential + §3 Auth tier + §5 /api/auth/* row amend 박제, doc-only direct ~51 LOC / 1 파일, T-0082 reviewer MINOR follow-up + T-0083 RBAC scaffold 박제 후 api.md 실 구현 동기) 신설 + STATE.nextTask=T-0084 갱신. driver 가 본 turn 은 doc-only direct main bookkeeping (STATE + journal + T-0084 task 파일 신설 3 파일) 1 commit 으로 마무리 + push + reschedule. 다음 turn = T-0084 executor dispatch (doc-only direct, 가벼운 ~51 LOC inline-amend).\n\n[직전 turn 2 note 보존]\nsession #25 turn 2/10 DONE — T-0083 MERGED PR-77 sha 6223fdd round 1 single-shot APPROVE. ADR-0008 후속 chain 4/4 마지막. entity backbone 11/11 (100%) 도달 + P4 entry path 완성. 실 LOC +1062/-74 across 14 files. src/auth/* coverage 100%. single-shot cadence 5 회차 누적. 4-게이트 all PASS. counters 81→82.\n\n[직전 turn 1 note 보존]\nsession #25 turn 1/10 RACE-INDUCED NO-OP — push race detect + main ff-merge to origin/main 9b7e802. lost work 0. race-observability commit 7f96504."
   },
   "ci": {
     "lastRun": "2026-05-28T20:32:15+09:00",
