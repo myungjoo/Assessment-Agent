@@ -1,0 +1,239 @@
+// AuthController — `/api/auth` 의 login / logout / refresh 3 endpoint.
+// T-0082 acceptance §D 박제 (ADR-0008 Decision §1–§3 정공 박제).
+//
+// 책임 (api.md §3 의 후속 row, doc-only direct follow-up 에서 별도 박제):
+//   - POST /api/auth/login    → 200 + access_token + refresh_token cookie set (성공) /
+//                               401 Invalid credentials (실패 — enumeration 차단).
+//   - POST /api/auth/logout   → 204 + access_token + refresh_token cookie clear.
+//   - POST /api/auth/refresh  → 200 + 신규 access_token + refresh_token cookie set
+//                               (rotation, ADR-0008 §3) / 401 (cookie 부재 / 만료 /
+//                               signature invalid — 동일 응답).
+//
+// Cookie attributes (ADR-0008 Decision §2 박제):
+//   - HttpOnly: true     — JS read 차단 (XSS 안전).
+//   - Secure: true       — HTTPS 전용 (ADR-0003 §4 정합). 본 시점 dev 환경에서도
+//                          true 유지 — local HTTPS 가 아닐 시 cookie 가 전송 안 됨,
+//                          dev/prod 분기는 후속 task (env-based COOKIE_SECURE flag).
+//   - SameSite: "strict" — CSRF 차단 (cross-site request 자동 미전송).
+//   - Path: "/"          — 모든 API endpoint 적용.
+//   - Domain: 미명시      — 운영 호스트 default domain.
+//
+// Cookie name 박제:
+//   - access_token  — access JWT (15min TTL, ADR-0008 §3).
+//   - refresh_token — refresh JWT (7day TTL, ADR-0008 §3).
+//
+// Refresh secret 분리 (ADR-0008 Decision §5):
+//   - access secret  → AUTH_JWT_SECRET (AuthModule.registerAsync default secret).
+//   - refresh secret → AUTH_JWT_REFRESH_SECRET (본 controller 가 JwtService.verify
+//     의 secret option 으로 매 호출 override). access secret 탈취 시 refresh forge 차단.
+//
+// ValidationPipe wire (PersonController / GroupController 1:1 mirror, T-0036 precedent):
+//   - controller-scope @UsePipes(ValidationPipe).
+//   - whitelist: 정의되지 않은 필드 제거.
+//   - forbidNonWhitelisted: 정의되지 않은 필드 포함 시 400.
+//   - transform: plain JSON 을 DTO instance 로 변환.
+//
+// 책임 경계 (Out of Scope, task §Out of Scope 박제):
+//   - ConfigModule fail-fast (Joi schema for AUTH_JWT_SECRET / AUTH_JWT_REFRESH_SECRET)
+//     — T-0084 candidate. 본 controller 의 refresh endpoint 는 process.env 직접 read +
+//     JwtService.verify secret override path.
+//   - JwtStrategy + JwtAuthGuard (passport-jwt cookie extractor) — T-0083 RBAC chain.
+//     본 task 의 refresh 는 JwtService.verify 직접 호출 (controller layer manual verify).
+//   - RBAC @Role() decorator + RolesGuard — T-0083.
+//   - RefreshToken DB rotation (revocation path) — ADR-0008 양의 Consequences §6 의
+//     박제만, 실 DB layer 는 후속 task. 본 시점 rotation 은 cookie 단순 재발급.
+//   - GET /api/me endpoint — T-0083 또는 T-0084 candidate.
+//   - SignupController / AddUserDto — T-0083 SuperAdmin RBAC scope.
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UsePipes,
+  ValidationPipe,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import type { Request, Response } from "express";
+
+import { UserRepository } from "../user/user.repository";
+
+import { AuthService, REFRESH_SECRET_ENV } from "./auth.service";
+import { LoginDto } from "./dto/login.dto";
+
+// Cookie name 단일 source of truth — spec 도 동일 const 를 import 하여 round-trip
+// 검증. controller 외부에 export — refresh endpoint 검증 / e2e 후속 task 가 reuse.
+export const ACCESS_TOKEN_COOKIE = "access_token";
+export const REFRESH_TOKEN_COOKIE = "refresh_token";
+
+// Cookie attributes 단일 source of truth — ADR-0008 Decision §2 박제. spec / e2e
+// 가 동일 const 를 import 하여 attribute 정합 검증. Note: `sameSite: "strict"`
+// 의 lowercase 형태는 express @types 의 cookie option signature 정합 (TS strict).
+export const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "strict" as const,
+  path: "/",
+};
+
+// JwtPayload (refresh-side) — refresh JWT 의 최소 contract. AuthService 의 JwtPayload
+// 와 동일 surface (sub claim). type narrowing 을 위해 본 module 안에서 local 박제.
+interface RefreshJwtPayload {
+  sub?: string;
+  iat?: number;
+  exp?: number;
+}
+
+@Controller("api/auth")
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  }),
+)
+export class AuthController {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userRepository: UserRepository,
+    // JwtService — refresh endpoint 가 verify(token, { secret: refreshSecret }) 직접
+    // 호출 위해 inject. AuthService 의 verifyToken 은 access secret 사용 (module
+    // default) 이라 refresh secret override path 가 부재 — controller layer 에서
+    // manual verify 박제. JwtStrategy 도입 (T-0083) 후에는 본 직접 호출이 strategy
+    // 의 secretOrKeyProvider 로 위임.
+    private readonly jwtService: JwtService,
+  ) {}
+
+  // POST /api/auth/login — body LoginDto → User lookup → password verify →
+  // cookie set 2 종 → 200 + { userId }. enumeration 차단 목적으로 email 부재 /
+  // password 불일치 의 응답 메시지 + status 동일 (둘 다 401 "Invalid credentials").
+  //
+  // 흐름:
+  //   1. UserRepository.findByEmail(dto.email) — null 시 401.
+  //   2. AuthService.verifyPassword(dto.password, user.password) — false 시 401.
+  //   3. issueAccessToken / issueRefreshToken 으로 JWT 2 종 발급.
+  //   4. res.cookie 로 HttpOnly Secure SameSite=Strict cookie 2 종 set.
+  //   5. 200 + { userId: user.id } 응답.
+  //
+  // 응답 body 의 `userId` 박제 의도:
+  //   - 후속 GET /api/me endpoint (T-0083 candidate) 가 본 token 으로 user 정보를
+  //     반환하므로, login 응답에 userId 만 박제 — email / role 등 추가 정보는 후속
+  //     endpoint 책임. token 자체는 cookie 로만 전송 — body 에 token 박제 0 (HttpOnly
+  //     원칙 위배 방지).
+  @Post("login")
+  @HttpCode(200)
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ userId: string }> {
+    const user = await this.userRepository.findByEmail(dto.email);
+    if (user === null) {
+      // email 부재 → 401. enumeration 차단 — 동일 응답 message.
+      throw new UnauthorizedException("Invalid credentials");
+    }
+    const ok = await this.authService.verifyPassword(
+      dto.password,
+      user.hashedPassword,
+    );
+    if (!ok) {
+      // password 불일치 → 401. enumeration 차단 — 동일 응답 message.
+      throw new UnauthorizedException("Invalid credentials");
+    }
+    // JWT 2 종 발급 — AuthService 가 ADR-0008 §3 TTL (access 15m / refresh 7d) 박제.
+    const accessToken = this.authService.issueAccessToken(user.id);
+    const refreshToken = this.authService.issueRefreshToken(user.id);
+    // cookie set — ADR-0008 §2 의 HttpOnly + Secure + SameSite=Strict + Path=/.
+    res.cookie(ACCESS_TOKEN_COOKIE, accessToken, COOKIE_OPTIONS);
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, COOKIE_OPTIONS);
+    return { userId: user.id };
+  }
+
+  // POST /api/auth/logout — cookie clear 2 종 (access + refresh) → 204.
+  //
+  // 흐름:
+  //   1. res.clearCookie(ACCESS_TOKEN_COOKIE, COOKIE_OPTIONS).
+  //   2. res.clearCookie(REFRESH_TOKEN_COOKIE, COOKIE_OPTIONS).
+  //   3. 204 No Content 응답 (body 없음).
+  //
+  // Idempotent — cookie 가 이미 없는 상태에서 호출해도 정상 (express clearCookie 는
+  // Set-Cookie header 만 박제, 기존 cookie 존재 여부와 무관). Logout 의 "보안적 안전"
+  // semantic 박제 — 인증 상태와 무관하게 호출 가능. RBAC guard 적용 안 함
+  // (T-0083 후속) — 본 시점 logout 은 public endpoint.
+  //
+  // path/sameSite 명시 박제 — clearCookie 가 set 시점 attributes 와 동일해야
+  // 브라우저가 정확히 매칭하여 제거 (특히 SameSite=Strict cookie 는 attributes 분리 시
+  // 별도 cookie 로 인식되어 제거 실패 가능). 동일 COOKIE_OPTIONS 사용으로 round-trip
+  // 정합 보장.
+  @Post("logout")
+  @HttpCode(204)
+  logout(@Res({ passthrough: true }) res: Response): void {
+    res.clearCookie(ACCESS_TOKEN_COOKIE, COOKIE_OPTIONS);
+    res.clearCookie(REFRESH_TOKEN_COOKIE, COOKIE_OPTIONS);
+  }
+
+  // POST /api/auth/refresh — refresh cookie 읽기 → verify (refresh secret override) →
+  // 신규 access + refresh token rotation → cookie set 2 종 → 200 + { userId }.
+  //
+  // 흐름:
+  //   1. req.cookies[REFRESH_TOKEN_COOKIE] — 부재 / 빈 문자열 시 401.
+  //   2. JwtService.verify(token, { secret: refreshSecret }) — refresh secret override.
+  //      jsonwebtoken 표준 에러 (TokenExpiredError / JsonWebTokenError / NotBeforeError)
+  //      는 try/catch 로 401 변환 (enumeration 차단 — 동일 응답).
+  //   3. payload.sub (userId) 추출 → issueAccessToken / issueRefreshToken 신규 발급
+  //      (rotation, ADR-0008 §3). 기존 refresh token 의 DB revocation 은 후속 task —
+  //      본 시점 rotation 은 cookie 단순 재발급 (revocation gap risk 인지, follow-up T-0086).
+  //   4. cookie set 2 종 → 200 + { userId } 응답.
+  //
+  // refresh secret 이 module init 시점에 binding 되지 않음 (AuthModule 의 JwtModule
+  // default 는 access secret) — 따라서 매 호출 시 process.env 직접 read + override.
+  // AuthService 의 verifyToken 은 access secret 사용이라 본 endpoint 가 직접 호출
+  // (manual verify) — service layer 에 refresh-verify 추가는 후속 task 책임.
+  @Post("refresh")
+  @HttpCode(200)
+  refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): { userId: string } {
+    // cookie-parser middleware (src/main.ts 박제) 가 req.cookies 자동 parsing.
+    // cookie 부재 / 빈 문자열 → 401.
+    const cookies = req.cookies as
+      | Record<string, string | undefined>
+      | undefined;
+    const refreshToken = cookies?.[REFRESH_TOKEN_COOKIE];
+    if (refreshToken === undefined || refreshToken === "") {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+    // refresh secret env read — 미설정 시 빈 문자열 fallback. 빈 secret 으로의
+    // verify 는 jsonwebtoken 이 자동 fail (signature mismatch) → catch 분기에서 401.
+    const refreshSecret = process.env[REFRESH_SECRET_ENV] ?? "";
+    // manual verify — jwt expired / signature invalid / NotBefore / 잘못된 payload
+    // 모두 동일 401. JwtService.verify 의 secret option 으로 refresh secret override.
+    let userId: string;
+    try {
+      const payload = this.jwtService.verify<RefreshJwtPayload>(refreshToken, {
+        secret: refreshSecret,
+      });
+      if (payload.sub === undefined || payload.sub === "") {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      userId = payload.sub;
+    } catch (err) {
+      // UnauthorizedException 은 그대로 re-throw — controller 가 raw error 401 변환
+      // 분기 박제. 그 외 (TokenExpiredError / JsonWebTokenError / NotBeforeError) 모두
+      // 401 변환 (enumeration 차단 — 동일 응답 message).
+      if (err instanceof UnauthorizedException) {
+        throw err;
+      }
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+    // rotation — 신규 access + refresh 2 종 발급 + cookie set. 기존 refresh 의 DB
+    // revocation 은 후속 task T-0086.
+    const newAccessToken = this.authService.issueAccessToken(userId);
+    const newRefreshToken = this.authService.issueRefreshToken(userId);
+    res.cookie(ACCESS_TOKEN_COOKIE, newAccessToken, COOKIE_OPTIONS);
+    res.cookie(REFRESH_TOKEN_COOKIE, newRefreshToken, COOKIE_OPTIONS);
+    return { userId };
+  }
+}
