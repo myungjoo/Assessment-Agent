@@ -57,11 +57,7 @@ const expectUserDtoFields = (body: object): void => {
 
 // JWT issue helper — JwtService.sign 으로 inline 발급. AccessTokenTTL (15m) 박제,
 // role 포함 (RolesGuard 가 검증). REFRESH_SECRET 분리는 본 endpoint 와 무관.
-function issueAccessToken(
-  jwt: JwtService,
-  sub: string,
-  role: string,
-): string {
+function issueAccessToken(jwt: JwtService, sub: string, role: string): string {
   return jwt.sign({ sub, role }, { expiresIn: "15m" });
 }
 
@@ -227,7 +223,9 @@ describe("E2E: /api/users HTTP contract + RBAC 첫 production 적용", () => {
     expect(response.status).toBe(403);
 
     // 본인 role 변경 0 확인 — SuperAdmin 유지.
-    const dbRow = await prisma.user.findUnique({ where: { id: superAdmin.id } });
+    const dbRow = await prisma.user.findUnique({
+      where: { id: superAdmin.id },
+    });
     expect(dbRow?.role).toBe("SuperAdmin");
   });
 
