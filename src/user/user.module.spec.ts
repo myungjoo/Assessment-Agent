@@ -64,6 +64,8 @@ import { PersonGroupMembershipRepository } from "./person-group-membership.repos
 // eslint-disable-next-line import/first
 import { PersonRepository } from "./person.repository";
 // eslint-disable-next-line import/first
+import { UserController } from "./user.controller";
+// eslint-disable-next-line import/first
 import { UserModule } from "./user.module";
 // eslint-disable-next-line import/first
 import { UserService } from "./user.service";
@@ -255,6 +257,23 @@ describe("UserModule", () => {
     const service = moduleRef.get(UserService);
     expect(service).toBeDefined();
     expect(service).toBeInstanceOf(UserService);
+
+    await moduleRef.close();
+  });
+
+  // T-0087: UserController 가 controllers 배열에 등록 + AuthModule import (forwardRef)
+  // 의 circular dependency 정상 resolve. NestJS TestingModule.get<UserController>(...)
+  // 으로 controller instance 획득 — provider chain (UserService + JwtAuthGuard +
+  // RolesGuard) 모두 resolve 됐다는 의미. PATCH /api/users/:id/role endpoint 의 RBAC
+  // 첫 production 적용 wiring 검증.
+  it("compile 시 UserController 가 controllers 에 등록되어 resolve 된다 (T-0087 RBAC 첫 production wiring)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    }).compile();
+
+    const controller = moduleRef.get(UserController);
+    expect(controller).toBeDefined();
+    expect(controller).toBeInstanceOf(UserController);
 
     await moduleRef.close();
   });
