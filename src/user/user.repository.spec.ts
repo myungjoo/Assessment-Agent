@@ -378,7 +378,9 @@ describe("UserRepository", () => {
     it("id 부재 시 Prisma P2025 error 를 그대로 throw 한다", async () => {
       const { prisma, userMock } = buildPrismaMock();
       const p2025 = Object.assign(
-        new Error("An operation failed because it depends on one or more records that were required but not found"),
+        new Error(
+          "An operation failed because it depends on one or more records that were required but not found",
+        ),
         { code: "P2025" },
       );
       userMock.update.mockRejectedValueOnce(p2025);
@@ -396,9 +398,9 @@ describe("UserRepository", () => {
       userMock.update.mockRejectedValueOnce(new Error("db-down"));
 
       const repo = new UserRepository(prisma);
-      await expect(
-        repo.updateRole("cuid-any", "Admin"),
-      ).rejects.toThrow("db-down");
+      await expect(repo.updateRole("cuid-any", "Admin")).rejects.toThrow(
+        "db-down",
+      );
     });
 
     // Negative case (task §E-5): empty role string 으로 호출 시 PrismaService 로
