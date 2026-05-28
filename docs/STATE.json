@@ -4,7 +4,7 @@
   "currentTask": null,
   "nextTask": "T-0083",
   "lock": null,
-  "lastActivity": "2026-05-28T20:45:00+09:00",
+  "lastActivity": "2026-05-28T21:00:00+09:00",
   "lastCommit": "5314c27",
   "mostRecentTasks": [
     "T-0082",
@@ -14,11 +14,10 @@
     "T-0078"
   ],
   "loopSession": {
-    "turnCount": 2,
-    "startedAt": "2026-05-28T11:45:00+09:00",
-    "cap": 5,
-    "note": "session #24 turn 2/5 DONE — T-0082 MERGED 5314c27 PR-75 round 1, user direct merge (harness UI path, CI second-run 의 reviewer-gate 게이트 4 자동 통과 expected but user merge precedence). turn 1 = BLOCKED on T-0082 new-dep HQ-0012 raise (cookie-parser + @types/cookie-parser 2 종, 75dbb7a). 사용자 직접 응답 \"A\" → HQ-0012 resolved decision=A 2 종 dep install 승인 ADR-0008 §6 정공법. turn 2 = unblock bookkeeping direct commit (918fb3b) + executor pr-mode full chain (f470a3a impl + spec, +1177/-21 LOC across 10 files) + driver MCP path (PR-75 open + reviewer round 1 APPROVE comment 4561106419 + integrator self-check comment 4561110047) → user direct merge 5314c27 (4-게이트 (1)(2)(3) PASS, (4) CI race fail expected race-pattern §2, user override merge). ADR-0008 후속 chain 2/4 단계 완료 (T-0079 ADR + T-0080 User + T-0081 AuthModule + **T-0082 endpoint 본 task**). 잔여 1/4 = T-0083 RBAC AuthGuard. entity backbone 10/11 → 10/11 (AuthController 는 endpoint layer 박제, entity 신설 0 — 11/11 은 T-0083 RBAC 후). counters.tasksCompleted 80→81, tasksBlocked 7 유지 (historical accumulator), mostRecentTasks 유지 [T-0082, T-0081, T-0080, T-0079, T-0078] (turn 1 prepend 이미 적용). T-0081 HQ-0011 BLOCKED-then-resolved cycle 2 회차 mirror 정착. **single-shot first-run pass cadence 4 회차 누적** (T-0079 + T-0080 + T-0081 + T-0082 round 1 APPROVE). LOOP.md §1 [8] (a) humanQuestions all resolved + 본 turn STATUS=DONE → reschedule 가능 path 지만 user merge 로 사실상 본 turn 종료, 잔여 3 turn 미사용 NORMAL CLOSE. **Follow-ups**: (i) remote feature branch `claude/T-0082-...` 삭제 HTTP 403 (harness proxy 제한) — user manual cleanup 또는 GitHub UI delete-branch. (ii) reviewer MINOR 1 — api.md §3 의 /api/auth/* 3 row 박제 direct doc task 박제 의무 (T-0086 candidate). (iii) T-0083 RBAC AuthGuard queue — ADR-0008 후속 chain 마지막 task, entity backbone 11/11 도달 + P4 진입 path 박제.",
-    "endedAt": "2026-05-28T20:33:26+09:00"
+    "turnCount": 1,
+    "startedAt": "2026-05-28T21:00:00+09:00",
+    "cap": 10,
+    "note": "session #25 turn 1/10 RACE-INDUCED NO-OP — 사용자 `/loop turn cap 10` 진입 시점에 본 driver 가 stale STATE 스냅샷 (#23 종료 직후, currentTask=null + nextTask=null + lastCommit=ea1cfcd) 위에서 planner sub-agent dispatch → T-0082 (auth-login-endpoint scope) task 신설 + STATE.nextTask=T-0082 갱신 + doc-only direct commit f772e84 (3 파일 +165/-7, source=target=main) 까지 진행. push 시점 fast-forward fail — origin/main 이 73b683d→9b7e802 로 진행 (다른 /loop session #24 turn 2 가 같은 13 시간 동안 T-0082 (auth-controller-login-logout-refresh scope) MERGED 5314c27 PR-75 round 1 single-shot + T-0083 queued 9b7e802 까지 완료). 본 driver 처리: (i) `git reset --soft HEAD~1` f772e84 풀기 + restore --staged + working tree restore + T-0082-auth-login-endpoint.md rm — 본 driver 가 만든 변경 모두 discard (다른 driver 의 동등 outcome 이 이미 머지). (ii) src/ + test/ line-ending noise checkout HEAD -- (CRLF/LF normalize). (iii) `merge --ff-only origin/main` 으로 main = 9b7e802 정렬. (iv) 본 commit (race observability + session #25 turn 1 박제) 1 회로 마무리 + reschedule 60s. **lesson**: cron-vs-loop race (T-0066 precedent) 의 /loop-vs-/loop 변종 첫 dogfood — 사용자가 두 /loop session 을 시간차로 열어두고 각각 ScheduleWakeup 으로 진행 중일 때 같은 STATE 시작점에서 동시 fork. 본 race 가 [lost work 0] (본 driver 만든 변경 100% obsolete, 다른 driver outcome 이 strict superset) 으로 자연 해소 — race-patterns.md (T-0065) §1 lost-work-0 분류 누적. 다음 turn (session #25 turn 2) = T-0083 RBAC executor dispatch full chain 예정 (ADR-0008 후속 chain 4/4 마지막, entity backbone 11/11 도달 path). \n\n[직전 session #24 note 보존]\nsession #24 turn 2/5 DONE — T-0082 MERGED 5314c27 PR-75 round 1, user direct merge. ADR-0008 후속 chain 2/4 완료. single-shot first-run pass cadence 4 회차 누적 (T-0079+T-0080+T-0081+T-0082)."
   },
   "ci": {
     "lastRun": "2026-05-28T20:32:15+09:00",
