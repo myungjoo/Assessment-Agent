@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0090",
   "lock": null,
-  "lastActivity": "2026-05-29T04:10:00+09:00",
-  "lastCommit": "fd1bfcf",
+  "lastActivity": "2026-05-29T04:35:00+09:00",
+  "lastCommit": "9c740e2",
   "mostRecentTasks": [
     "T-0089",
     "T-0088",
