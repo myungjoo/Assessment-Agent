@@ -40,6 +40,7 @@ import type { INestApplication } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test, type TestingModule } from "@nestjs/testing";
 import * as bcrypt from "bcrypt";
+import cookieParser from "cookie-parser";
 import request from "supertest";
 
 import { AppModule } from "../../src/app.module";
@@ -72,6 +73,13 @@ describe("E2E: /api/users HTTP contract + RBAC 첫 production 적용", () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
+    // cookie-parser middleware — main.ts 의 boot wire 와 의미 정합. e2e 의
+    // Test.createTestingModule 부트스트랩 path 는 main.ts 를 거치지 않아 직접 wire.
+    // JwtStrategy.cookieExtractor 가 req.cookies[access_token] 로 token 추출하므로
+    // 본 middleware 부재 시 모든 authenticated request 가 401 (cookieExtractor null
+    // 반환 → passport-jwt 자동 401). CI 의 e2e fail 박제 — auth-e2e-helper (T-0091
+    // candidate) 추출 시 본 wire 도 함께 외화 의무.
+    app.use(cookieParser());
     await app.init();
 
     prisma = moduleRef.get<PrismaService>(PrismaService);
