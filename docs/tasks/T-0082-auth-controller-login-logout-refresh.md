@@ -2,7 +2,7 @@
 id: T-0082
 title: AuthController login/logout/refresh endpoint + LoginDto + cookie-parser dep install — ADR-0008 후속 chain 2/4
 phase: P3
-status: BLOCKED
+status: IN_PROGRESS
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045, REQ-046]
 estimatedDiff: 450
@@ -114,7 +114,7 @@ plannerNote: "session #23 후 첫 planner dispatch — ADR-0008 후속 chain 2/4
 - **expected resolution**: 사용자가 ADR-0008 Decision §6 의 cookie-parser 박제 정합 사전 인지 → 4 옵션 (A=2 종 install 승인 ADR-0008 정공법 / B=cookie-parser 만 install + @types 보류 / C=cookie-parser pivot — 직접 cookie set/clear via `res.cookie()` 표준 express API + cookie-parser 회피 / D=후속 chain delay, 다른 P3 task 우선) 중 결정. 권장 A (정공법, ADR-0008 박제 정합 + npm canonical + NestJS 표준).
 - **unblock path**: HQ resolved → blockers[] pop → status BLOCKED → IN_PROGRESS → executor pr-mode full chain → implementer (pnpm add 2 종 + src/auth/dto/login.dto.ts + auth.controller.ts + main.ts middleware wire + auth.module.ts controllers 추가) → tester (R-112 4 카테고리 + negative 충분 + coverage ≥ 80%) → integrator (feature branch claude/T-0082-auth-controller-login-logout-refresh + PR + reviewer + 4-게이트 + merge).
 
-## Blocker (HQ-0012)
+## Blocker (HQ-0012) — RESOLVED
 
 본 task 의 cookie set/clear (login/logout/refresh) + req.cookies 파싱 (refresh endpoint) 이 `cookie-parser` middleware 의존 → CLAUDE.md §5 "새 외부 dependency 추가" 게이트 발화로 graceful BLOCKED. ADR-0008 Decision §6 라이브러리 채택 표 L96 에 박제된 `cookie-parser` 가 [T-0081](T-0081-auth-module-and-dep-install.md) (MERGED ea1cfcd) 의 실 install 6 종 list 에서 누락 — 본 회차에서 2 종 (production `cookie-parser` + dev `@types/cookie-parser`) 추가 install 사용자 결정 필요.
 
@@ -125,4 +125,4 @@ executor 코드 변경 0 LOC / branch 미신설 / commit·push 미수행 — gra
 - **C (cookie-parser pivot)** — 직접 `res.cookie()` / `req.cookies` 표준 express API 활용으로 cookie-parser 회피. express 4.x 가 cookie set/clear 는 native 지원하나 req.cookies 파싱은 middleware 부재 시 수동 parsing 필요 — ADR-0008 §6 amend (cookie-parser deferred → 영구 미도입 박제 갱신) 의무.
 - **D (chain delay)** — T-0082 PENDING 보류, T-0083 (RBAC AuthGuard) 또는 다른 P3 task 우선. ADR-0008 후속 chain 2/4 단계 지연, entity backbone 10/11 유지. 추후 dep 정책 정착 후 T-0082 재진입.
 
-사용자 결정 후 unblock path: HQ-0012 resolved → blockers[B-0002] pop → status BLOCKED → IN_PROGRESS → executor pr-mode full chain (선택 옵션에 따라 dep install + main.ts middleware wire 또는 pivot 박제).
+**Resolution** (2026-05-28T14:10:00+09:00, by human via /loop session #24 turn 2): 사용자 직접 응답 "A" 로 HQ-0012 resolved — 2 종 install 승인 (cookie-parser + @types/cookie-parser, ADR-0008 정공법). status BLOCKED → IN_PROGRESS, blockers[B-0002] removed. executor pr-mode full chain 진행 (dep install + main.ts middleware wire + LoginDto + AuthController login/logout/refresh endpoint + spec R-112 4 카테고리 + negative cases 충분 cover) → integrator 4-게이트 → PR merge target. T-0081 HQ-0011 BLOCKED-then-resolved cycle 2 회차 mirror.
