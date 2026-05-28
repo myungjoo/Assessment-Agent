@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": null,
-  "nextTask": "T-0082",
+  "currentTask": "T-0082",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-05-28T08:05:00+09:00",
+  "lastActivity": "2026-05-28T11:49:00+09:00",
   "lastCommit": "ea1cfcd",
   "mostRecentTasks": [
+    "T-0082",
     "T-0081",
     "T-0080",
     "T-0079",
-    "T-0078",
-    "T-0077"
+    "T-0078"
   ],
   "loopSession": {
-    "turnCount": 2,
-    "startedAt": "2026-05-28T02:18:09+09:00",
-    "cap": 8,
-    "note": "session #23 turn 2/8 NORMAL CLOSE (cap 8 미도달, 잔여 6 turn 미사용). turn 1 = BLOCKED on T-0081 new-dep + HQ-0011 raise. 사용자 직접 응답 \"A\" 로 HQ-0011 resolved (decision=A 6 종 dep install 승인 ADR-0008 정공법). turn 2 = unblock bookkeeping direct commit (79b0bcb) + executor pr-mode full chain → T-0081 PR-74 round 1 single-shot APPROVE merged **ea1cfcd** + final bookkeeping. T-0081 BLOCKED-then-resolved cycle 의 첫 박제 (LOOP.md §1 [8] interactive resume path 박제). 실 LOC +900/-3 (envelope 200 vs actual 900 = +350% over, R-112 4 카테고리 + negative cases 충분 cover + lockfile inflation 자연 확장 — sizeExempt 명시 의무 학습 데이터). single-shot first-run pass cadence 3 회차 누적 (T-0079 + T-0080 + T-0081). 후속 chain: T-0082 (login/logout/refresh endpoint) → T-0083 (RBAC). counters.tasksCompleted 79→80, mostRecentTasks prepend T-0081, lock release, loopSession.endedAt 박제, NO ScheduleWakeup (interactive session 종료).",
-    "endedAt": "2026-05-28T07:55:01+09:00"
+    "turnCount": 1,
+    "startedAt": "2026-05-28T11:45:00+09:00",
+    "cap": 5,
+    "note": "session #24 turn 1/5 BLOCKED on T-0082 new-dep HQ-0012 raise (cookie-parser + @types/cookie-parser 2 종, ADR-0008 §6 박제). graceful return, 코드 변경 0 LOC, branch 미신설. executor 사전 박제 BLOCKER trail 그대로 — 4 옵션 (A=2 종 install 정공법 ADR-0008 / B=cookie-parser 만 + @types 보류 / C=cookie-parser pivot 표준 express API / D=후속 chain delay) 사용자 결정 후 unblock path. T-0081 BLOCKED-then-resolved cycle (HQ-0011) 2 회차 candidate. counters.tasksBlocked 6→7 read-modify-write, mostRecentTasks prepend T-0082 cap 5, lock release. LOOP.md §1 [8] (a) humanQuestions 미해결 + (b) STATUS=BLOCKED 둘 다 발화 → NO ScheduleWakeup. local main reset to origin/main (9 bootstrap orphan commits discarded with user 승인) precedent.",
+    "endedAt": "2026-05-28T11:49:00+09:00"
   },
   "ci": {
     "lastRun": "2026-05-28T01:45:00+09:00",
@@ -86,7 +86,15 @@
     "T-0080": 1,
     "T-0081": 1
   },
-  "blockers": [],
+  "blockers": [
+    {
+      "id": "B-0002",
+      "taskId": "T-0082",
+      "reason": "new-dep",
+      "raisedAt": "2026-05-28T11:49:00+09:00",
+      "details": "T-0082 AuthController login/logout/refresh endpoint 진입을 위해 cookie-parser (production) + @types/cookie-parser (dev) 2 종 신규 외부 dependency 추가 필요. ADR-0008 Decision §6 라이브러리 표 박제 정합이나 T-0081 의 실 install 6 종 list 에서 누락된 2 종. CLAUDE.md §5 \"새 외부 dependency 추가\" 게이트 발화 — 사용자 사전 승인 0 → graceful BLOCKED. executor 코드 변경 0 LOC / branch 미신설 / commit·push 미수행. HQ-0012 raise 후속 결정 대기."
+    }
+  ],
   "humanQuestions": [
     {
       "id": "HQ-0001",
@@ -305,11 +313,25 @@
       "context": "ADR-0008 (JWT in HttpOnly cookie hybrid, ACCEPTED) Decision 본문이 후속 chain 으로 deferred 박제한 dep install 의 진입점 task — T-0081. 신규 dep 6 종: prod 4 (@nestjs/jwt, @nestjs/passport, @nestjs/passport-jwt, bcrypt) + dev 2 (@types/bcrypt, @types/passport-jwt). CLAUDE.md §5 '새 외부 dependency 추가' 가 BLOCKED trigger — 사용자 결정 후에만 unblock. T-0080 (User entity Prisma + UserRepository) 머지 완료 (881cc51) → AuthService.hashPassword/verifyPassword/issueAccessToken/issueRefreshToken/verifyToken 박제가 다음 layer. 관련 파일: docs/tasks/T-0081-auth-module-and-dep-install.md, docs/decisions/ADR-0008-auth-credential-type.md, package.json.",
       "resolvedAt": "2026-05-28T07:37:58+09:00",
       "decision": "A: 6 종 dep install 승인 — @nestjs/jwt + @nestjs/passport + @nestjs/passport-jwt + bcrypt (prod) + @types/bcrypt + @types/passport-jwt (dev). ADR-0008 정공법 진행."
+    },
+    {
+      "id": "HQ-0012",
+      "createdAt": "2026-05-28T11:49:00+09:00",
+      "taskId": "T-0082",
+      "reason": "new-dep",
+      "summary": "T-0082 AuthController login/logout/refresh endpoint 진입을 위해 cookie-parser (production) + @types/cookie-parser (dev) 2 종 신규 외부 dependency 추가 승인 필요 — CLAUDE.md §5 BLOCKED 게이트 발화, ADR-0008 Decision §6 박제 정합이나 T-0081 의 6 종 install list 에서 누락된 2 종.",
+      "options": [
+        "A: 2 종 install 승인 (ADR-0008 정공법, 권장) — `pnpm add cookie-parser` (production) + `pnpm add -D @types/cookie-parser` (dev). ADR-0008 Decision §6 라이브러리 표 박제 정합 + NestJS / express 표준 cookie middleware. T-0082 의 cookie set/clear (login/logout/refresh) + req.cookies 읽기 (refresh endpoint) 의 자연 진입점.",
+        "B: cookie-parser 만 install + @types/cookie-parser 보류 — typing any 허용으로 진행. install 1 종 축소 (blast radius 감소) but TypeScript strict 환경에서 implicit any warning 발생, R-112 spec 의 type-safety 약화. 후속 task 에서 @types 추가 보강 chain.",
+        "C: cookie-parser pivot — 직접 `res.cookie()` / `req.cookies` 표준 express API 활용하여 cookie-parser 없이 구현. express 4.x 가 cookie 직접 set/clear API 는 native 지원하나 req.cookies 파싱은 middleware 없으면 부재 (수동 parsing 필요). ADR-0008 §6 amend 필요 (cookie-parser deferred → 영구 미도입 박제 갱신).",
+        "D: 후속 chain delay — T-0082 PENDING 보류, T-0083 (RBAC AuthGuard) 또는 다른 P3 task 우선 진행. ADR-0008 후속 chain 의 2/4 단계가 지연되나 entity backbone 10/11 유지 가능. 추후 dep 정책 정착 후 T-0082 재진입."
+      ],
+      "context": "ADR-0008 (JWT in HttpOnly cookie hybrid, ACCEPTED) Decision §6 라이브러리 채택 표 L96 에 박제된 cookie-parser 가 T-0081 (MERGED ea1cfcd) 의 실 install 6 종 list 에서 누락 (typo/scope 누락) — 본 task 의 cookie set/clear + req.cookies 읽기가 cookie-parser middleware 의존 → CLAUDE.md §5 \"새 외부 dependency 추가\" 게이트 발화. T-0081 머지 (AuthService 5 메서드 hashPassword/verifyPassword/issueAccessToken/issueRefreshToken/verifyToken 박제 완성) → T-0082 가 AuthController endpoint layer 박제 진입점. 관련 파일: docs/tasks/T-0082-auth-controller-login-logout-refresh.md, docs/decisions/ADR-0008-auth-credential-type.md, src/main.ts (cookie-parser middleware wire 대상), src/auth/auth.module.ts (controllers 등록), package.json. executor 코드 변경 0 LOC / branch 미신설 / commit·push 미수행 — graceful BLOCKED return."
     }
   ],
   "counters": {
     "tasksCompleted": 80,
-    "tasksBlocked": 6,
+    "tasksBlocked": 7,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
   }
