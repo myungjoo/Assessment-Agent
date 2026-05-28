@@ -2,7 +2,14 @@
 id: T-0083
 title: JwtAuthGuard + JwtStrategy (cookie extractor) + @Roles() decorator + RolesGuard scaffold — ADR-0008 후속 chain 4/4
 phase: P3
-status: PENDING
+status: DONE
+mergedAs: 6223fdd
+prNumber: 77
+reviewRounds: 1
+completedAt: 2026-05-28T23:15:00+09:00
+actualDiff: 1062
+actualFiles: 14
+estimateOutcome: "+77% over (envelope 600 sizeExempt vs actual 1062, R-112 backbone × 1.5 multiplier + 4 신규 surface 정당화 — exemptReason 박제 적중)"
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045, REQ-046]
 estimatedDiff: 600
