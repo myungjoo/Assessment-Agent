@@ -2,7 +2,14 @@
 id: T-0085
 title: UserRepository.findById + updateRole 2 메서드 추가 + spec — UserService.changeRole precursor
 phase: P3
-status: PENDING
+status: DONE
+mergedAs: f14d6b3
+prNumber: 78
+reviewRounds: 1
+completedAt: 2026-05-29T00:15:00+09:00
+actualDiff: 200
+actualFiles: 2
+estimateOutcome: "+11% over (envelope 180 vs actual 200, partial-backbone × 1.3 multiplier within tolerance; round 0 single-shot 깨짐 — prettier lint fix 1 회 re-push 로 round 1 회복)"
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 180
