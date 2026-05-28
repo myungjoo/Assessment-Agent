@@ -38,6 +38,7 @@ import type { INestApplication } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { User } from "@prisma/client";
+import cookieParser from "cookie-parser";
 import request from "supertest";
 
 import { AppModule } from "../../src/app.module";
@@ -69,6 +70,11 @@ describe("E2E: PATCH /api/users/:id/role HTTP contract", () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
+    // cookie-parser middleware — req.cookies 자동 parsing 의무. main.ts 의
+    // bootstrap path 가 e2e 의 AppModule init 만으로는 wire 되지 않으므로 본
+    // spec 에서 명시적으로 use 한다 (JwtStrategy 의 cookieExtractor 가 req.cookies
+    // 의존 — ADR-0008 §2 정합).
+    app.use(cookieParser());
     await app.init();
 
     prisma = moduleRef.get<PrismaService>(PrismaService);
