@@ -12,7 +12,9 @@
 //     CASCADE 는 ON DELETE 와 분리된 별도 의미 — 모든 referenced 테이블 동반 truncate).
 //
 // 테이블 명단 (prisma/migrations/ 의 CREATE TABLE 문 기준 PascalCase quoted identifier):
-//   "Person", "ServiceIdentity", "Group", "Part", "PersonGroupMembership"
+//   "Person", "ServiceIdentity", "Group", "Part", "PersonGroupMembership", "User"
+// User 추가 (T-0087) — RBAC 첫 production 적용 endpoint (users.e2e-spec.ts) 의
+// afterEach 격리. email @unique 의 cross-test 충돌 방지.
 //
 // 사용 예시 (T-0053 머지 시점부터 활용):
 //   afterEach(async () => {
@@ -29,14 +31,17 @@ import type { PrismaService } from "../../src/persistence/prisma.service";
 // 에서 jest.fn() 1 개로 검증 가능.
 export type TruncatableClient = Pick<PrismaService, "$executeRawUnsafe">;
 
-// TRUNCATE 대상 5 테이블 (PascalCase quoted identifier — prisma default mapping).
+// TRUNCATE 대상 6 테이블 (PascalCase quoted identifier — prisma default mapping).
 // const 로 노출하여 spec 에서 substring 검증 anchor 로 활용.
+// T-0087: "User" 추가 — RBAC 첫 production 적용 endpoint 의 e2e 가 User 테이블에
+// SuperAdmin / target user seed → afterEach 격리 필수.
 export const TRUNCATE_TABLES: readonly string[] = [
   '"Person"',
   '"ServiceIdentity"',
   '"Group"',
   '"Part"',
   '"PersonGroupMembership"',
+  '"User"',
 ];
 
 // truncateAll — 5 테이블 전체를 1 SQL 문으로 TRUNCATE.

@@ -32,7 +32,7 @@ describe("truncateAll", () => {
       expect(result).toBeUndefined();
     });
 
-    it("SQL 문 안에 5 도메인 테이블 (PascalCase quoted identifier) 이 모두 포함된다", async () => {
+    it("SQL 문 안에 6 도메인 테이블 (PascalCase quoted identifier) 이 모두 포함된다", async () => {
       const executeRawUnsafe = jest.fn().mockResolvedValue(0);
       const prisma = {
         $executeRawUnsafe: executeRawUnsafe,
@@ -41,17 +41,19 @@ describe("truncateAll", () => {
       await truncateAll(prisma);
 
       const sql = executeRawUnsafe.mock.calls[0][0] as string;
-      // 5 테이블 substring 검증 — schema 변경 시 회귀 anchor.
+      // 6 테이블 substring 검증 — schema 변경 시 회귀 anchor.
       for (const table of TRUNCATE_TABLES) {
         expect(sql).toContain(table);
       }
-      // 명시 검증: 5 표 + helper 상수 일치.
+      // 명시 검증: 6 표 + helper 상수 일치. T-0087 — "User" 추가
+      // (RBAC 첫 production 적용 endpoint 의 e2e 가 User 테이블 seed).
       expect(TRUNCATE_TABLES).toEqual([
         '"Person"',
         '"ServiceIdentity"',
         '"Group"',
         '"Part"',
         '"PersonGroupMembership"',
+        '"User"',
       ]);
     });
   });
