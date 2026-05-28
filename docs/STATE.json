@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0085",
   "lock": null,
-  "lastActivity": "2026-05-28T23:38:00+09:00",
+  "lastActivity": "2026-05-28T23:42:00+09:00",
   "lastCommit": "24b4436",
   "mostRecentTasks": [
     "T-0084",
@@ -14,10 +14,10 @@
     "T-0080"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-05-28T21:00:00+09:00",
     "cap": 10,
-    "note": "session #25 turn 4/10 DONE — **T-0084 DONE direct main commit 24b4436** (api.md §2 Auth credential + §3 Auth tier + §5 /api/auth/* 4 row amend, T-0083 RBAC scaffold 후 api.md 실 구현 동기). executor doc-only direct single-shot — implementer (api.md inline-amend 4 곳 + task 파일 frontmatter 갱신) + tester (R-110 doc-only direct 면제 박제 + grep 4 종 검증 ADR-0008 3hit / HttpOnly 2hit / refresh 2hit / ROLE_HIERARCHY 1hit). 실 LOC +12/-7 = 19 LOC across 2 파일 (envelope 51 vs actual 19 = -63% under, **doc inline-amend × 0.37 multiplier 첫 사용 사례 박제** — estimate-model.md §4 doc-only multiplier 데이터 1 회차 누적). source=target=main hard rule 준수, fast-forward push c52e227→24b4436. CI 가 doc-only path 라 빠르게 PASS / skip 예정. **single-shot first-run pass cadence 6 회차 누적** (T-0079+T-0080+T-0081+T-0082+T-0083+T-0084 — 단 T-0084 는 direct mode 라 reviewer round 없음, single-shot 은 round 1 APPROVE 가 default direct mode 의 동등 outcome). counters.tasksCompleted 82→83, mostRecentTasks prepend T-0084 (cap 5 = [T-0084, T-0083, T-0082, T-0081, T-0080]). reviewRounds[T-0084] 미박제 (direct mode 라 reviewer round 항목 부재). lock release. 다음 turn = planner 또는 T-0085 executor — T-0083 Follow-ups 의 UserService.changeRole + REQ-044 self-demote invariant 또는 P4 entry decision.\n\n[직전 turn 3 note 보존]\nsession #25 turn 3/10 — planner inline 경로 (T-0083 머지 후) T-0084 신설 + bookkeeping c52e227.\n\n[직전 turn 2 note 보존]\nsession #25 turn 2/10 DONE — T-0083 MERGED PR-77 sha 6223fdd round 1 single-shot APPROVE. ADR-0008 chain 4/4 마지막. entity backbone 11/11 (100%) 도달.\n\n[직전 turn 1 note 보존]\nsession #25 turn 1/10 RACE-INDUCED NO-OP."
+    "note": "session #25 turn 5/10 IN_PROGRESS — planner inline 경로 (T-0084 머지 후 currentTask=null + nextTask=null + humanQuestions 미해결 0 확인 후 planner sub-agent dispatch). planner 가 T-0085 (UserRepository.findById + updateRole 2 메서드 추가 + spec, UserService.changeRole chain split precursor, RBAC 첫 사용 사례 진입 path, partial-backbone × 1.3 ~180 LOC cap-within / pr-mode) 신설 + STATE.nextTask=T-0085 갱신. driver 가 본 turn 은 doc-only direct main bookkeeping 1 commit 으로 마무리 + push + reschedule. 다음 turn = T-0085 executor dispatch (pr-mode partial-backbone repository layer, 후속 T-0086 UserService.changeRole + T-0087 UserController.changeRole endpoint chain).\n\n[직전 turn 4 note 보존]\nsession #25 turn 4/10 DONE — T-0084 DONE direct main commit 24b4436 (api.md /api/auth/* 4 row amend). 실 LOC +12/-7 = 19 LOC. doc inline-amend × 0.37 multiplier 첫 박제. single-shot cadence 6 회차 누적 (T-0079~T-0084). counters 82→83.\n\n[직전 turn 3 note 보존]\nsession #25 turn 3/10 — planner inline 경로 T-0084 신설.\n\n[직전 turn 2 note 보존]\nsession #25 turn 2/10 DONE — T-0083 MERGED 6223fdd. ADR-0008 chain 4/4 마지막. entity backbone 11/11 (100%) 도달.\n\n[직전 turn 1 note 보존]\nsession #25 turn 1/10 RACE-INDUCED NO-OP."
   },
   "ci": {
     "lastRun": "2026-05-28T20:32:15+09:00",
