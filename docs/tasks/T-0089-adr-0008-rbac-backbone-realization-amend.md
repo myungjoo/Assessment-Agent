@@ -2,8 +2,12 @@
 id: T-0089
 title: ADR-0008 §6 retroactive amend — RBAC backbone 실현 시점 + cross-ref + within-round 2 fix push lesson 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
+completedAt: 2026-05-29T03:00:00+09:00
+actualDiff: 32
+actualFiles: 1
+estimateOutcome: "-9% under (envelope 35 vs actual 32, doc-only direct inline-amend × 0.91 within tolerance — ADR §6 new sub-section + 후속 chain 실현 표 3 row + within-round 2 fix push lesson + frontmatter amendments 갱신)"
 coversReq: [REQ-043, REQ-044, REQ-045, REQ-046]
 estimatedDiff: 35
 estimatedFiles: 1

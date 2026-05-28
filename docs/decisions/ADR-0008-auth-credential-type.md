@@ -5,7 +5,9 @@ status: ACCEPTED
 date: 2026-05-28
 relatedTask: T-0079
 supersedes: null
-amendments: []
+amendments: ["T-0089"]
+amendedAt: 2026-05-29
+amendReason: "T-0083 (RBAC scaffold) + T-0086 (UserService.changeRole) + T-0087 (UserController PATCH /api/users/:id/role) 머지 후 RBAC backbone 의 첫 production endpoint 적용 박제 완결 — §6 후속 chain candidate 가 실현 시점 박제 0 인 stale 상태, retroactive amend 로 source of truth 정합 (T-0089)."
 ---
 
 # ADR-0008 — Auth credential type 결정 박제
@@ -127,6 +129,27 @@ amendments: []
 | **T-0081 candidate** | `@nestjs/jwt` + `@nestjs/passport` + `passport-jwt` + `cookie-parser` install + AuthModule scaffold (`AuthService`, `AuthController`, `JwtStrategy`, `JwtAuthGuard`, `RolesGuard`) | T-0080 (User entity) | **있음 — 새 dep install 발화** ([CLAUDE.md §5](../../CLAUDE.md) BLOCKED 게이트). 본 ADR 박제 후 사용자 승인 → install 만 trigger. |
 | **T-0082 candidate** | `POST /api/auth/login` + `POST /api/auth/logout` + `POST /api/auth/refresh` + `GET /api/me` endpoint + RBAC guard 적용 | T-0081 (AuthModule) | 없음 — endpoint 신설 + e2e test. |
 | **T-0083 candidate** | RBAC self-demote invariant (REQ-044 본인 Admin→User 차단) + 401/403 error shape ([api.md §7 error shape](../architecture/api.md) 정합) | T-0082 (endpoint) | 없음 — service layer invariant + test. |
+
+### 후속 chain 실현 박제 (T-0089 retroactive amend, 2026-05-29)
+
+본 § 의 위 후속 task chain candidate 표 (T-0080~T-0083) 는 박제 시점 (2026-05-28, T-0079 머지 직후) 의 후보 estimate. 그 후 RBAC 실현 chain 이 다음과 같이 머지되어 **RBAC backbone 의 첫 production endpoint 적용 박제 완결** — 본 amend 가 그 실현 시점 + cross-ref + lesson 박제.
+
+| 실 머지 task | scope | 머지 sha | PR | 완료 일자 |
+| --- | --- | --- | --- | --- |
+| **T-0083** | JwtAuthGuard + JwtStrategy (cookie extractor) + @Roles() decorator + RolesGuard scaffold (4 신규 surface) | `6223fdd` | PR-77 | 2026-05-28 23:15 KST |
+| **T-0086** | UserService.changeRole + REQ-044 5 invariant (actor=SuperAdmin / role enum / target null / self-demote 차단 / P2025 변환) + UserRole literal union + colocated spec 22 it | `f1d5aa8` | PR-80 | 2026-05-29 (session #25 turn 8) |
+| **T-0087** | UserController + ChangeRoleDto + PATCH /api/users/:id/role + @Roles SuperAdmin 단일 + colocated spec 22 it + e2e 7 it + AuthModule↔UserModule forwardRef cycle 해결 + db-truncate User 추가 | `fabeb40` | PR-82 | 2026-05-29 (session #25 turn 10) |
+
+**RBAC backbone 실현 시점 = T-0087 머지 (PR-82 `fabeb40`)** — "scaffold (T-0083) → service (T-0086) → controller endpoint (T-0087)" 3 chain closed. 첫 production endpoint 가 `PATCH /api/users/:id/role` 로 @Roles SuperAdmin 단일 보호 + JwtAuthGuard + RolesGuard 전 layer 실 적용.
+
+#### Within-round 2 fix push lesson (T-0087 박제)
+
+T-0087 round 1 안에서 push 가 2 회 fix 후 final green 도달 — 본 ADR 후속 chain 박제 의 lesson:
+
+1. **prettier lint auto-fix** — push 1 차 후 CI lint step 에서 `test/e2e/users.e2e-spec.ts` L60 + L230 두 곳 prettier formatting error 발견 → `pnpm prettier --write` 로 자동 보정 후 push 2 차. lint step pass 도달.
+2. **cookie-parser middleware test-path 격차 catch** — push 2 차 후 CI e2e step 7/7 fail with 401 (인증 실패) 진단. root cause: `src/main.ts` boot path 에만 `app.use(cookieParser())` wire 되어 있고, `Test.createTestingModule(...).compile()` path (supertest e2e 진입점) 에는 cookie-parser middleware 가 미적용 → e2e 가 cookie 기반 JWT verify 실패. **production code path 와 test path 의 격차가 처음 발견된 사례**. fix: e2e setup helper (또는 `beforeAll`) 에 1 라인 `app.use(cookieParser())` 추가 → push 3 차 → e2e 7/7 green.
+
+본 lesson 의 follow-up 후보: **production-test path 격차 영구 fix task** (T-0091 candidate — main.ts 의 middleware wire 를 test path 도 자동 포함하는 helper 함수 추출, 또는 ConditionalMiddleware / NestApplication.create() 공통 setup 패턴 박제). 본 amend 는 lesson 만 박제, fix 자체는 별도 task.
 
 ### 후속 amend 후보 (별도 doc-only direct task)
 
