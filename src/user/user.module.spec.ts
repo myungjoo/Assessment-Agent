@@ -65,6 +65,8 @@ import { PersonGroupMembershipRepository } from "./person-group-membership.repos
 import { PersonRepository } from "./person.repository";
 // eslint-disable-next-line import/first
 import { UserModule } from "./user.module";
+// eslint-disable-next-line import/first
+import { UserService } from "./user.service";
 
 describe("UserModule", () => {
   // Happy path: PersistenceModule (@Global, mocked PrismaService) 와 함께
@@ -239,6 +241,20 @@ describe("UserModule", () => {
 
     const resolved = moduleRef.get(GroupService);
     expect(resolved).toBe(sentinel);
+
+    await moduleRef.close();
+  });
+
+  // T-0086: UserService provider 가 module 안에서 resolve + export 등록.
+  // T-0082 의 UserRepository resolve 테스트 패턴 mirror.
+  it("compile 시 UserService provider 가 resolve 된다", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    }).compile();
+
+    const service = moduleRef.get(UserService);
+    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(UserService);
 
     await moduleRef.close();
   });

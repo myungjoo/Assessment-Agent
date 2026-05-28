@@ -46,6 +46,7 @@ import { PersonRepository } from "./person.repository";
 import { PersonService } from "./person.service";
 import { ServiceIdentityRepository } from "./service-identity.repository";
 import { UserRepository } from "./user.repository";
+import { UserService } from "./user.service";
 
 @Module({
   controllers: [PersonController, PartController, GroupController],
@@ -62,6 +63,9 @@ import { UserRepository } from "./user.repository";
     // UserRepository.findByEmail 을 inject 하여 login flow 의 user lookup 수행.
     // AuthModule 이 UserModule 을 import 하여 UserRepository 를 resolve.
     UserRepository,
+    // UserService — T-0086 추가. REQ-044 박제 (RBAC self-demote invariant).
+    // UserController (T-0087 candidate) 또는 후속 module 이 inject 가능.
+    UserService,
   ],
   exports: [
     PersonRepository,
@@ -74,6 +78,9 @@ import { UserRepository } from "./user.repository";
     GroupService,
     // UserRepository export (T-0082) — AuthModule 의 AuthController 가 inject.
     UserRepository,
+    // UserService export (T-0086) — 후속 T-0087 candidate (UserController) 의
+    // PATCH /api/users/:id/role endpoint 가 본 service 를 inject.
+    UserService,
   ],
 })
 export class UserModule {}
