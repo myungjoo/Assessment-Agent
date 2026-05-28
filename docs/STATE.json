@@ -3,13 +3,8 @@
   "phase": "P3-in-progress",
   "currentTask": "T-0082",
   "nextTask": null,
-  "lock": {
-    "holder": "loop",
-    "since": "2026-05-28T14:10:00+09:00",
-    "loopSessionStartedAt": "2026-05-28T11:45:00+09:00",
-    "loopSessionTurnCount": 2
-  },
-  "lastActivity": "2026-05-28T14:10:00+09:00",
+  "lock": null,
+  "lastActivity": "2026-05-28T16:02:28+09:00",
   "lastCommit": "75dbb7a",
   "mostRecentTasks": [
     "T-0082",
@@ -22,7 +17,9 @@
     "turnCount": 2,
     "startedAt": "2026-05-28T11:45:00+09:00",
     "cap": 5,
-    "note": "session #24 turn 2/5 IN_PROGRESS — turn 1 = BLOCKED on T-0082 new-dep HQ-0012 raise (cookie-parser + @types/cookie-parser 2 종, ADR-0008 §6 박제). 사용자 직접 응답 \"A\" 로 HQ-0012 resolved (decision=A 2 종 dep install 승인 ADR-0008 정공법). turn 2 진입 = unblock bookkeeping direct commit on main + executor pr-mode full chain (cookie-parser dep install + middleware wire on src/main.ts + LoginDto + AuthController login/logout/refresh endpoint + spec R-112 4 카테고리 + negative cases 충분 cover) → integrator 4-게이트 → PR merge target. T-0081 HQ-0011 BLOCKED-then-resolved cycle (session #23 turn 2) 2 회차 mirror, single-shot first-run pass cadence 4 회차 누적 후보. counters.tasksBlocked 7 유지 (resolved 는 카운터 감소 안 함 — historical 누적). blockers[] B-0002 제거 (resolved). LOOP.md §1 [8] (a) humanQuestions 모두 resolved 후 reschedule path 가용하나 본 turn 은 큰 chain (450 LOC pr-mode + integrator) 진행 중이므로 turn 단위 분할 자연. local main reset to origin/main precedent 유지."
+    "endedAt": "2026-05-28T16:02:28+09:00",
+    "endedBy": "cron-stale-steal",
+    "note": "session #24 turn 2/5 ended IN_PROGRESS — turn 1 = BLOCKED on T-0082 new-dep HQ-0012 raise (cookie-parser + @types/cookie-parser 2 종, ADR-0008 §6 박제). 사용자 직접 응답 \"A\" 로 HQ-0012 resolved (decision=A 2 종 dep install 승인 ADR-0008 정공법). turn 2 진입 = unblock bookkeeping direct commit on main (918fb3b T-0082 status BLOCKED→IN_PROGRESS) 만 완료, executor pr-mode full chain (cookie-parser dep install + middleware wire on src/main.ts + LoginDto + AuthController login/logout/refresh endpoint + spec R-112 4 카테고리 + negative cases 충분 cover) 미진행 — /loop session 이 lock 미해제 상태에서 자연 종료 (≥112 분 idle). cron fire (KST 16:02, scheduled routine) 가 stale lock (>60 분 임계) detect → LOOP.md §4 steal protocol 적용 → lock null release + endedAt/endedBy 박제 + cron-fire bookkeeping (본 commit) 으로 마무리. T-0082 currentTask 유지 (status=IN_PROGRESS, frontmatter 변경 0), 다음 /loop session #25 또는 후속 cron 진입 시 executor pr-mode full chain 재개 entry point. T-0081 HQ-0011 BLOCKED-then-resolved cycle (session #23 turn 2) 2 회차 mirror, single-shot first-run pass cadence 4 회차 누적 후보 미발화 (chain 미진행). cron-env gh-missing 5 회차 (HQ-0006/8/9/10 후속) 잠재 발화 대상 — 본 fire 는 executor dispatch 미진입 (lock-cleanup-only) 이므로 새 HQ raise 0, 다음 turn 의 actual dispatch 시점에 재평가."
   },
   "ci": {
     "lastRun": "2026-05-28T01:45:00+09:00",
