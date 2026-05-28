@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0088",
   "lock": null,
-  "lastActivity": "2026-05-29T01:35:00+09:00",
+  "lastActivity": "2026-05-29T02:45:00+09:00",
   "lastCommit": "fabeb40",
   "mostRecentTasks": [
     "T-0087",
