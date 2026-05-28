@@ -2,8 +2,12 @@
 id: T-0087
 title: UserController + ChangeRoleDto + PATCH /api/users/:id/role + @Roles SuperAdmin + colocated spec + e2e
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: fabeb408a73481a3d5d87948142a2d5099838197
+prNumber: 82
+completedAt: 2026-05-29T01:32:00+09:00
+reviewRounds: 1
 coversReq: [REQ-043, REQ-044, REQ-045, REQ-046]
 estimatedDiff: 540
 estimatedFiles: 5
