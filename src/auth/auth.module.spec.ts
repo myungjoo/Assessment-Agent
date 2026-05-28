@@ -1,11 +1,13 @@
 // AuthModule spec — T-0081 acceptance §B 박제 + T-0082 갱신 (AuthModule 이
 // UserModule import 로 인해 PrismaService 의존성 추가 — PersistenceModule 도 함께
-// import 의무, user.module.spec 정공 패턴). CI scripts/check-spec-presence.sh 의
-// spec-presence rule 충족 + module compile + provider/exports 정합성 검증.
+// import 의무, user.module.spec 정공 패턴) + T-0083 §E 갱신 (JwtStrategy +
+// JwtAuthGuard + RolesGuard provider/exports 검증). CI scripts/check-spec-presence.sh
+// 의 spec-presence rule 충족 + module compile + provider/exports 정합성 검증.
 //
 // 본 spec 은 JwtModule.registerAsync 의 useFactory 가 process.env.AUTH_JWT_SECRET
-// 을 read 하는 boundary 를 spec env 로 isolation. PassportModule 의 strategy
-// registration 표면은 본 task scope 밖 (T-0083 책임) — 단순 import 정합만 검증.
+// 을 read 하는 boundary 를 spec env 로 isolation. PassportModule 의 defaultStrategy
+// "jwt" 정합 검증 — JwtStrategy class 가 PassportStrategy(Strategy, "jwt") 의
+// name 정합.
 import { JwtService } from "@nestjs/jwt";
 import { Test, type TestingModule } from "@nestjs/testing";
 
@@ -14,6 +16,9 @@ import { PrismaService } from "../persistence/prisma.service";
 
 import { AuthModule } from "./auth.module";
 import { AuthService } from "./auth.service";
+import { JwtAuthGuard } from "./jwt-auth.guard";
+import { JwtStrategy } from "./jwt.strategy";
+import { RolesGuard } from "./roles.guard";
 
 // PrismaService mock — UserModule 의 repository 들이 PrismaService 를 inject 하지만,
 // 본 spec 의 검증 표면은 AuthModule wiring (AuthService + JwtService) 정합 — DB
@@ -96,7 +101,7 @@ describe("AuthModule", () => {
 
   it("AUTH_JWT_SECRET 미설정 시에도 compile 한다 (negative — env missing fallback)", async () => {
     // useFactory 의 `?? ""` fallback 박제 검증 — module init 자체는 throw 안 함.
-    // 실 환경에서는 ConfigModule + Joi schema 가 boot 단계에서 reject 의무 (T-0084).
+    // 실 환경에서는 ConfigModule + Joi schema 가 boot 단계에서 reject 의무 (T-0087).
     delete process.env.AUTH_JWT_SECRET;
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -108,6 +113,53 @@ describe("AuthModule", () => {
 
     const service = moduleRef.get(AuthService);
     expect(service).toBeDefined();
+
+    await moduleRef.close();
+  });
+
+  // T-0083 §E — JwtStrategy / JwtAuthGuard / RolesGuard provider/export 정합 검증.
+
+  it("JwtStrategy provider 가 resolve 된다 (happy — T-0083 §E)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, AuthModule],
+    })
+      .overrideProvider(PrismaService)
+      .useValue(buildPrismaServiceMock())
+      .compile();
+
+    const strategy = moduleRef.get(JwtStrategy);
+    expect(strategy).toBeDefined();
+    expect(strategy).toBeInstanceOf(JwtStrategy);
+
+    await moduleRef.close();
+  });
+
+  it("JwtAuthGuard provider 가 resolve 된다 (happy — T-0083 §E)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, AuthModule],
+    })
+      .overrideProvider(PrismaService)
+      .useValue(buildPrismaServiceMock())
+      .compile();
+
+    const guard = moduleRef.get(JwtAuthGuard);
+    expect(guard).toBeDefined();
+    expect(guard).toBeInstanceOf(JwtAuthGuard);
+
+    await moduleRef.close();
+  });
+
+  it("RolesGuard provider 가 resolve 된다 (happy — T-0083 §E)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, AuthModule],
+    })
+      .overrideProvider(PrismaService)
+      .useValue(buildPrismaServiceMock())
+      .compile();
+
+    const guard = moduleRef.get(RolesGuard);
+    expect(guard).toBeDefined();
+    expect(guard).toBeInstanceOf(RolesGuard);
 
     await moduleRef.close();
   });

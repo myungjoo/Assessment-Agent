@@ -79,9 +79,11 @@ export const COOKIE_OPTIONS = {
 };
 
 // JwtPayload (refresh-side) — refresh JWT 의 최소 contract. AuthService 의 JwtPayload
-// 와 동일 surface (sub claim). type narrowing 을 위해 본 module 안에서 local 박제.
+// 와 동일 surface (sub + role claim, T-0083). type narrowing 을 위해 본 module 안에서
+// local 박제 — refresh rotation 시 payload.role 을 다음 token 으로 보존 (DB lookup 없음).
 interface RefreshJwtPayload {
   sub?: string;
+  role?: string;
   iat?: number;
   exp?: number;
 }
@@ -142,8 +144,10 @@ export class AuthController {
       throw new UnauthorizedException("Invalid credentials");
     }
     // JWT 2 종 발급 — AuthService 가 ADR-0008 §3 TTL (access 15m / refresh 7d) 박제.
-    const accessToken = this.authService.issueAccessToken(user.id);
-    const refreshToken = this.authService.issueRefreshToken(user.id);
+    // T-0083 acceptance §A — user.role 을 두 번째 인자로 전달, payload.role claim
+    // 박제 (RolesGuard 가 본 claim 위에서 escalation 검증).
+    const accessToken = this.authService.issueAccessToken(user.id, user.role);
+    const refreshToken = this.authService.issueRefreshToken(user.id, user.role);
     // cookie set — ADR-0008 §2 의 HttpOnly + Secure + SameSite=Strict + Path=/.
     res.cookie(ACCESS_TOKEN_COOKIE, accessToken, COOKIE_OPTIONS);
     res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, COOKIE_OPTIONS);
@@ -210,7 +214,9 @@ export class AuthController {
     const refreshSecret = process.env[REFRESH_SECRET_ENV] ?? "";
     // manual verify — jwt expired / signature invalid / NotBefore / 잘못된 payload
     // 모두 동일 401. JwtService.verify 의 secret option 으로 refresh secret override.
+    // T-0083 acceptance §A — payload.role 도 추출하여 rotation 시 보존.
     let userId: string;
+    let role: string;
     try {
       const payload = this.jwtService.verify<RefreshJwtPayload>(refreshToken, {
         secret: refreshSecret,
@@ -218,7 +224,14 @@ export class AuthController {
       if (payload.sub === undefined || payload.sub === "") {
         throw new UnauthorizedException("Invalid refresh token");
       }
+      if (payload.role === undefined || payload.role === "") {
+        // role claim 부재 → 401. T-0083 acceptance §A 의 RBAC backbone — payload
+        // 의 role 부재는 access secret/payload 변조 가능성 (legacy token 또는
+        // forged token). enumeration 차단 — 동일 응답 message.
+        throw new UnauthorizedException("Invalid refresh token");
+      }
       userId = payload.sub;
+      role = payload.role;
     } catch (err) {
       // UnauthorizedException 은 그대로 re-throw — controller 가 raw error 401 변환
       // 분기 박제. 그 외 (TokenExpiredError / JsonWebTokenError / NotBeforeError) 모두
@@ -229,9 +242,10 @@ export class AuthController {
       throw new UnauthorizedException("Invalid refresh token");
     }
     // rotation — 신규 access + refresh 2 종 발급 + cookie set. 기존 refresh 의 DB
-    // revocation 은 후속 task T-0086.
-    const newAccessToken = this.authService.issueAccessToken(userId);
-    const newRefreshToken = this.authService.issueRefreshToken(userId);
+    // revocation 은 후속 task T-0088 candidate. role 은 payload 에서 보존 (DB lookup
+    // 없음 — 본 task 의 rotation 은 cookie 단순 재발급, role 변경 reflect 는 T-0088).
+    const newAccessToken = this.authService.issueAccessToken(userId, role);
+    const newRefreshToken = this.authService.issueRefreshToken(userId, role);
     res.cookie(ACCESS_TOKEN_COOKIE, newAccessToken, COOKIE_OPTIONS);
     res.cookie(REFRESH_TOKEN_COOKIE, newRefreshToken, COOKIE_OPTIONS);
     return { userId };
