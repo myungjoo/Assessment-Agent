@@ -3,7 +3,7 @@ id: T-0090
 taskId: T-0090
 title: e2e-app-factory helper 추출 + cookie-parser middleware test-path wire 영구 일관성 박제
 phase: P3
-status: PENDING
+status: BLOCKED
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045, REQ-046, REQ-057, REQ-058]
 estimatedDiff: 220
@@ -13,6 +13,9 @@ dependsOn: [T-0087]
 sizeExempt: false
 created: 2026-05-29
 createdAt: 2026-05-29T04:25:00+09:00
+blockedAt: 2026-05-29T07:10:00+09:00
+blockerReason: credential
+blockerSummary: cron env (Anthropic 클라우드 fresh checkout) 의 gh CLI 부재 5 회차 (pr-mode block) — HQ-0013 raise. HQ-0006/8/9/10 패턴 정공법 mirror.
 plannerNote: "cron fire 후속 — T-0087 within-round 2 fix push 의 cookie-parser test-path 격차 lesson 영구 fix. partial-backbone × 1.3 envelope 220 LOC / 5 파일. T-0091 helper 추출의 선행 의존."
 ---
 
@@ -123,6 +126,20 @@ plannerNote: "cron fire 후속 — T-0087 within-round 2 fix push 의 cookie-par
 ## Suggested Sub-agents
 
 `implementer → tester → reviewer → integrator` (architect=0 — 신규 결정 0, T-0087 lesson 박제 정공법 mirror + ADR-0008 §2 정합 유지).
+
+## Blocker (cron env KST 2026-05-29 07:10)
+
+본 cron 발화 (KST 07:00 scheduled routine, Anthropic 클라우드 fresh checkout) env 의 `gh` CLI 부재 — `which gh` exit 1 확정. HQ-0006 (T-0039) / HQ-0008 (T-0061) / HQ-0009 (T-0066) / HQ-0010 (T-0071) **4 prior precedents 의 5 회차 반복 (pr-mode block 한정)**. doc-only direct cron fire (T-0084 / T-0088 / T-0089) 는 reviewer/integrator 4-게이트 불요로 우회 가능했으나, T-0090 은 pr-mode partial-backbone × 1.3 — push to feature branch + reviewer round + 4-게이트 (PR comment 외부 + CI green + squash merge) 가 전부 gh CLI 의존이라 자동 진행 차단. 추가로 본 env 에는 PostgreSQL 부재 (`pg_isready -h localhost` no response) 로 local tester sub-agent 의 `pnpm test:smoke` / `pnpm test:e2e` 도 실행 불가 — R-113 (smoke + e2e CI 강제) 의 local proxy 박제 0.
+
+driver 자체는 MCP github tools (mcp__github__create_pull_request / add_issue_comment / merge_pull_request / list_check_runs / pull_request_read 등) 가용 — ADR-0005 Path A 영구화 정합. 따라서 사용자가 cron env 에 gh CLI 설치 + auth 박제 또는 reviewer/integrator agent 정의를 MCP path 로 재작성 (별도 ADR + doc-only task) 하면 cron backbone 의 pr-mode 진행 가능. 또는 4 prior precedents 처럼 사용자가 local /loop (gh 가용) 으로 즉시 unblock.
+
+본 turn 은 executor dispatch 전 graceful BLOCKED — 코드 변경 0 LOC / branch 미신설 / commit·push 미수행. doc-only direct bookkeeping (본 task file Blocker section + STATE.json blockers/humanQuestions/counters + journal append) 1 commit on `claude/affectionate-babbage-Ptugc` (harness-assigned 작업 branch — origin/main 이 bootstrap 518cc99 인 상태에서 cron 누적 backbone 의 실 trunk 역할).
+
+resolution 후보:
+- **(a) install-gh-cli-in-cron-env** — Anthropic cloud setup script / SessionStart hook 에 gh 설치 + auth 추가. 5 회차 반복 영구 fix backbone 후보. token secret 관리 (PAT scope / rotation) 별도 정책 필요.
+- **(b) adapt-agents-to-mcp** — reviewer / integrator agent 정의의 `gh pr|run|api` 호출을 `mcp__github__*` 로 재작성. driver MCP backbone 정합 (ADR-0005 Path A 영구화) — cron / /loop / local 어디서나 동일 동작. 별도 doc-only ADR + agent 2 파일 + 검증 task (~150-200 LOC).
+- **(c) use-local-env-gh-5th-time** — 사용자 local /loop (Windows + gh v2.88.1) 으로 T-0090 즉시 unblock. HQ-0006/8/9/10 4 회차 정공법 mirror. 본 회차 immediate fix, 영구 정책 은 (a)/(b) 별도 후속.
+- **(d) other** — alternative (예: cron 시간대 변경 / cron 폐기 / GitHub Actions self-trigger 등).
 
 ## Follow-ups
 
