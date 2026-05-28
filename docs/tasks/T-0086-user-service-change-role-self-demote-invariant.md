@@ -2,13 +2,20 @@
 id: T-0086
 title: UserService 신설 + changeRole + REQ-044 self-demote invariant + colocated spec
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-044]
 estimatedDiff: 260
 estimatedFiles: 3
+actualDiff: 594
+actualFiles: 4
+sizeVariance: "×2.28 LOC / +1 파일 — R-112 22 it spec mass (envelope 12+ 대비 invariant 5 × 분기 변종 cover 완전) + Korean 주석 ~30% overhead. production code user.service.ts 138 LOC envelope 정합. spec 433 LOC 가 variance source. scope creep 0, reviewer 게이트 판정 round 1 single-shot APPROVE."
 dependsOn: [T-0085, T-0083]
 created: 2026-05-29
+completedAt: 2026-05-29T00:38:46+09:00
+mergedAs: f1d5aa8
+prNumber: 80
+reviewRounds: 1
 plannerNote: "session #25 turn 7 — T-0085 머지 후 RBAC 첫 production 사용 사례 chain 의 service layer. partial-backbone × 1.3, ~200 base × 1.3 = ~260 LOC."
 ---
 
