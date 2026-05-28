@@ -2,7 +2,7 @@
 id: T-0082
 title: AuthController login/logout/refresh endpoint + LoginDto + cookie-parser dep install — ADR-0008 후속 chain 2/4
 phase: P3
-status: IN_PROGRESS
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045, REQ-046]
 estimatedDiff: 450
@@ -10,8 +10,16 @@ estimatedFiles: 6
 sizeExempt: true
 exemptReason: "R-112 4-카테고리 cover backbone × 1.5 + R-112 negative cases 충분 cover (cookie 검증 + 401 invalid credentials + missing refresh + expired refresh + rotation race 등 6+ negative branch) = effective × 1.7. base intuition 270 LOC (AuthController login/logout/refresh ~110 + LoginDto ~25 + main.ts cookie-parser middleware ~5 + auth.controller.spec ~280 + package.json/lockfile noise) → estimated 450 LOC (cap 초과 250%). T-0055/T-0057/T-0067 controller backbone precedent 정합. split 검토 결과: cookie-parser install 과 endpoint 박제는 자연 1-task chain (install 만 분리 시 endpoint 가 의미적으로 nullary — middleware 없이는 cookie set/clear 불가), R-112 spec 도 endpoint 와 colocated 필수 — single-task pre-justified."
 estimatedBlocker: new-dep (cookie-parser + @types/cookie-parser 2 종 — ADR-0008 Decision §6 의 deferred list 박제 정합, T-0081 의 6 종 install 명시 list 에서 누락된 2 종, CLAUDE.md §5 trigger 발화 expected)
+actualBlocker: "new-dep (HQ-0012 raised 11:49 + resolved 14:10 decision=A 2 종 install 승인 ADR-0008 §6 정공법, BLOCKED-then-resolved cycle 2 회차)"
 dependsOn: [T-0079, T-0080, T-0081]
 created: 2026-05-28
+completedAt: 2026-05-28T20:33:00+09:00
+mergedAs: 5314c27
+prNumber: 75
+reviewRounds: 1
+actualDiff: 1177
+actualFiles: 10
+estimateOutcome: "+161% over (envelope 450 vs actual 1177 = R-112 backbone × 1.5 + negative-cover 30+ branches 자연 확장 × 1.8 + lockfile inflation 자연. T-0081 +350% precedent 대비 보수적, sizeExempt 정합 검증)"
 plannerNote: "session #23 후 첫 planner dispatch — ADR-0008 후속 chain 2/4 (T-0079 ADR / T-0080 User / T-0081 AuthModule scaffold DONE → T-0082 endpoint 본 task → T-0083 RBAC). cap-bend pre-justified: R-112 backbone × 1.5 + negative cases 충분 cover = 450 LOC, T-0055/T-0057 precedent."
 ---
 
