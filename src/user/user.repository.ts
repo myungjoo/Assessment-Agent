@@ -54,4 +54,20 @@ export class UserRepository {
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email } });
   }
+
+  // findById — 본 task (T-0085) 추가, UserService.changeRole (T-0086 candidate) 의
+  // target user lookup 책임. PersonRepository.findById (T-0034) 정공법 정합.
+  // row 부재 시 null 반환 (throw 0) — service-layer 가 NotFoundException 변환 책임.
+  async findById(id: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { id } });
+  }
+
+  // updateRole — 본 task (T-0085) 추가, UserService.changeRole 의 실 update 책임.
+  // role 값 invariant (SuperAdmin / Admin / User) 검증은 service-layer (T-0086
+  // candidate) 책임, 본 layer 는 string forwarding 만. id 부재 시 Prisma `P2025`
+  // throw — catch 0 그대로 propagate (service-layer 가 NotFoundException 변환).
+  // GroupRepository.update (T-0066) 의 update forwarding 정공법 정합.
+  async updateRole(id: string, role: string): Promise<User> {
+    return this.prisma.user.update({ where: { id }, data: { role } });
+  }
 }

@@ -11,9 +11,10 @@
 //   - findByEmail 의 null-safe API (row 부재 시 null 반환, throw 0) 분기 cover.
 //   - role 값 변종 3 종 (SuperAdmin / Admin / User) 의 forwarding 분기 cover.
 //
-// 본 task scope = create + findByEmail 2 메서드만. PersonRepository.spec.ts 의
-// 6 메서드 cover 패턴 대비 narrow scope — AuthModule consumption-driven minimal
-// surface (T-0080 task §29 박제).
+// 본 task scope (T-0080 머지 시점) = create + findByEmail 2 메서드. T-0085 가
+// findById + updateRole 2 메서드 추가 (R-112 4 카테고리 × 2 block + buildPrismaMock
+// 의 user.update jest.fn() 확장). PersonRepository.spec.ts 의 6 메서드 cover 패턴
+// 대비 점진 확장 — AuthModule consumption-driven minimal surface 의 자연 progression.
 import type { User } from "@prisma/client";
 
 import type { PrismaService } from "../persistence/prisma.service";
@@ -36,18 +37,21 @@ function buildUserFixture(overrides: Partial<User> = {}): User {
 }
 
 // PrismaService 의 `user` delegate mock factory — 각 test 마다 새 instance 를
-// 만들어 호출 카운터가 격리되도록 한다. 본 repository 가 사용하는 2 delegate
-// 메서드 (create / findUnique) 만 mock 으로 노출.
+// 만들어 호출 카운터가 격리되도록 한다. 본 repository 가 사용하는 3 delegate
+// 메서드 (create / findUnique / update) 만 mock 으로 노출. T-0085 가 update 추가
+// (UserRepository.updateRole 책임).
 function buildPrismaMock(): {
   prisma: PrismaService;
   userMock: {
     create: jest.Mock;
     findUnique: jest.Mock;
+    update: jest.Mock;
   };
 } {
   const userMock = {
     create: jest.fn(),
     findUnique: jest.fn(),
+    update: jest.fn(),
   };
   const prisma = { user: userMock } as unknown as PrismaService;
   return { prisma, userMock };
@@ -241,6 +245,172 @@ describe("UserRepository", () => {
       await expect(repo.findByEmail("any@example.com")).rejects.toThrow(
         "db-down",
       );
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // findById (T-0085 추가) — happy + branch (found vs null) + negative
+  //   (empty id / Prisma reject propagate)
+  // ------------------------------------------------------------------
+  describe("findById()", () => {
+    // Happy path (task §D-happy): cuid id 로 호출 시 PrismaService mock 이 fixture
+    // 반환 + repository 가 그대로 반환. findUnique 의 `{ where: { id } }` 호출 인자
+    // contract 검증.
+    it("id 로 호출하면 PrismaService.user.findUnique 의 { where: { id } } 로 forwarding 한다", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      const fixture = buildUserFixture({
+        id: "cuid-target",
+        email: "target@example.com",
+      });
+      userMock.findUnique.mockResolvedValueOnce(fixture);
+
+      const repo = new UserRepository(prisma);
+      const result = await repo.findById("cuid-target");
+
+      expect(userMock.findUnique).toHaveBeenCalledTimes(1);
+      expect(userMock.findUnique).toHaveBeenCalledWith({
+        where: { id: "cuid-target" },
+      });
+      expect(result).toBe(fixture);
+    });
+
+    // Branch (task §D-branch): row 존재 시 fixture 반환 / 부재 시 null 반환
+    // (throw 0, null-safe API). findByEmail 정공법 정합.
+    it("row 가 부재하면 null 을 반환한다 (throw 하지 않음)", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.findUnique.mockResolvedValueOnce(null);
+
+      const repo = new UserRepository(prisma);
+      const result = await repo.findById("cuid-missing");
+
+      expect(userMock.findUnique).toHaveBeenCalledWith({
+        where: { id: "cuid-missing" },
+      });
+      expect(result).toBeNull();
+    });
+
+    // Negative case (task §D-empty-id): empty string id 로 호출 시 PrismaService
+    // 로 그대로 forwarding (input validation 은 service-layer 책임). findUnique 의
+    // 호출 인자만 검증 — `{ where: { id: "" } }`.
+    it("id 가 빈 문자열이어도 PrismaService 로 그대로 전달한다 (validator 는 service 책임)", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.findUnique.mockResolvedValueOnce(null);
+
+      const repo = new UserRepository(prisma);
+      const result = await repo.findById("");
+
+      expect(userMock.findUnique).toHaveBeenCalledWith({
+        where: { id: "" },
+      });
+      expect(result).toBeNull();
+    });
+
+    // Negative case (task §D-reject): PrismaService 가 generic Error throw 시
+    // 그대로 propagate — catch 0 의 일반 보장 (DB connection drop 등).
+    it("PrismaService 가 reject 하면 error 를 그대로 전파한다", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.findUnique.mockRejectedValueOnce(new Error("db-down"));
+
+      const repo = new UserRepository(prisma);
+      await expect(repo.findById("cuid-any")).rejects.toThrow("db-down");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // updateRole (T-0085 추가) — happy + branch (role 값 변종 3 종) +
+  //   error (P2025 propagate) + negative (generic error / empty role)
+  // ------------------------------------------------------------------
+  describe("updateRole()", () => {
+    // Happy path (task §E-happy): id + role 인자로 호출 시 PrismaService.user.update
+    // 의 `{ where: { id }, data: { role } }` 호출 인자 contract 검증 + fixture
+    // (role 갱신본) 반환.
+    it("id + role 을 PrismaService.user.update 의 { where + data } 로 forwarding 한다", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      const fixture = buildUserFixture({
+        id: "cuid-promote",
+        role: "Admin",
+      });
+      userMock.update.mockResolvedValueOnce(fixture);
+
+      const repo = new UserRepository(prisma);
+      const result = await repo.updateRole("cuid-promote", "Admin");
+
+      expect(userMock.update).toHaveBeenCalledTimes(1);
+      expect(userMock.update).toHaveBeenCalledWith({
+        where: { id: "cuid-promote" },
+        data: { role: "Admin" },
+      });
+      expect(result).toBe(fixture);
+    });
+
+    // Branch (task §E-branch): role 값 변종 3 종 (SuperAdmin / Admin / User) 각각
+    // happy forwarding. T-0080 spec 의 create 패턴 mirror — 본 layer 가 string
+    // forwarding 만 한다는 invariant 검증 (값에 따른 분기 0).
+    it("role 값 SuperAdmin / Admin / User 모두 그대로 PrismaService 로 forwarding 한다", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.update.mockResolvedValue(buildUserFixture());
+
+      const repo = new UserRepository(prisma);
+
+      await repo.updateRole("u1", "SuperAdmin");
+      await repo.updateRole("u2", "Admin");
+      await repo.updateRole("u3", "User");
+
+      expect(userMock.update).toHaveBeenCalledTimes(3);
+      expect(userMock.update).toHaveBeenNthCalledWith(1, {
+        where: { id: "u1" },
+        data: { role: "SuperAdmin" },
+      });
+      expect(userMock.update).toHaveBeenNthCalledWith(2, {
+        where: { id: "u2" },
+        data: { role: "Admin" },
+      });
+      expect(userMock.update).toHaveBeenNthCalledWith(3, {
+        where: { id: "u3" },
+        data: { role: "User" },
+      });
+    });
+
+    // Error path (task §E-P2025): row 부재 시 Prisma 가 `P2025` (record not found)
+    // throw → UserRepository 가 catch 0 그대로 propagate. service-layer 가
+    // NotFoundException 변환 책임의 backbone 검증.
+    it("id 부재 시 Prisma P2025 error 를 그대로 throw 한다", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      const p2025 = Object.assign(new Error("Record to update not found"), {
+        code: "P2025",
+      });
+      userMock.update.mockRejectedValueOnce(p2025);
+
+      const repo = new UserRepository(prisma);
+      await expect(repo.updateRole("missing", "Admin")).rejects.toMatchObject({
+        code: "P2025",
+      });
+    });
+
+    // Negative case (task §E-generic): PrismaService 가 generic Error throw 시
+    // 그대로 propagate — catch 0 의 일반 보장.
+    it("PrismaService 가 generic error 를 reject 하면 그대로 전파한다", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.update.mockRejectedValueOnce(new Error("db-down"));
+
+      const repo = new UserRepository(prisma);
+      await expect(repo.updateRole("any", "User")).rejects.toThrow("db-down");
+    });
+
+    // Negative case (task §E-empty-role): empty role string 으로 호출 시
+    // PrismaService 로 그대로 forwarding (invariant 검증은 service-layer 책임).
+    // 본 layer 의 string forward-only contract 검증.
+    it("role 이 빈 문자열이어도 PrismaService 로 그대로 전달한다 (invariant 는 service 책임)", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.update.mockResolvedValueOnce(buildUserFixture({ role: "" }));
+
+      const repo = new UserRepository(prisma);
+      await repo.updateRole("cuid-x", "");
+
+      expect(userMock.update).toHaveBeenCalledWith({
+        where: { id: "cuid-x" },
+        data: { role: "" },
+      });
     });
   });
 });
