@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0086",
   "lock": null,
-  "lastActivity": "2026-05-29T00:15:00+09:00",
+  "lastActivity": "2026-05-29T00:20:00+09:00",
   "lastCommit": "f14d6b3",
   "mostRecentTasks": [
     "T-0085",
@@ -14,10 +14,10 @@
     "T-0081"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-05-28T21:00:00+09:00",
     "cap": 10,
-    "note": "session #25 turn 6/10 DONE — **T-0085 MERGED PR-78 sha f14d6b3 round 1** (1 lint fix re-push). UserRepository.findById + updateRole 2 메서드 + 9 it spec 신설 (R-112 4 카테고리 cover — happy 2 + error 2 + branch 2 + negative 3). 실 LOC +200/-2 across 2 파일 (envelope 180 vs actual 200 = +11% over, partial-backbone × 1.3 multiplier 정합 — within tolerance). UserRepository spec 17/17 (기존 8 + 신규 9), 전체 644/644 jest test pass, user.repository.ts coverage line/branch/function/statement 모두 100% 유지. 4-게이트 all PASS (reviewer APPROVE round 1 comment 4565481424 + PR comment 외부 + integrator self-check + CI run 26583475321 success). **round 0 single-shot 깨짐** — 초기 push lint fail (prettier line wrap 2 곳) → re-push fix → all green = round 1 cadence. single-shot first-run pass cadence 6 회차 누적에서 본 task 가 round 1 lint round 1 회 (cadence reset 박제 — 7 회차 누적 안 됨, 다음 task 부터 cadence 재축적). counters.tasksCompleted 83→84, mostRecentTasks prepend T-0085 (cap 5 = [T-0085, T-0084, T-0083, T-0082, T-0081]), reviewRounds[T-0085]=1, lock release. **RBAC 첫 production 사용 사례 진입 path 박제 시작** — 후속 T-0086 (UserService.changeRole + REQ-044 self-demote invariant) → T-0087 (UserController.changeRole endpoint + e2e) → T-0088 (api.md amend). 다음 turn = planner 또는 T-0086 후속 chain.\n\n[직전 turn 5 note 보존]\nsession #25 turn 5/10 — planner inline 경로 T-0085 신설 + bookkeeping 904aae2.\n\n[직전 turn 4 note 보존]\nsession #25 turn 4/10 DONE — T-0084 DONE direct main commit 24b4436 (api.md /api/auth/* 4 row amend). doc inline-amend × 0.37 multiplier 첫 박제. single-shot cadence 6 회차 누적.\n\n[직전 turn 2 note 보존]\nsession #25 turn 2/10 DONE — T-0083 MERGED 6223fdd. ADR-0008 chain 4/4 마지막. entity backbone 11/11 (100%) 도달.\n\n[직전 turn 1 note 보존]\nsession #25 turn 1/10 RACE-INDUCED NO-OP."
+    "note": "session #25 turn 7/10 IN_PROGRESS — planner inline 경로. planner 가 T-0086 (UserService 신설 + changeRole + REQ-044 self-demote invariant + colocated spec, pr-mode, partial-backbone × 1.3 ~260 LOC / 3 파일, RBAC 첫 production 사용 사례 chain 의 service layer, dependsOn=[T-0085, T-0083]) 신설 + STATE.nextTask=T-0086 갱신. driver 가 본 turn 은 doc-only direct main bookkeeping 1 commit + push + reschedule. 다음 turn = T-0086 executor pr-mode full chain.\n\n[직전 turn 6 note 보존]\nsession #25 turn 6/10 DONE — **T-0085 MERGED PR-78 sha f14d6b3 round 1** (1 lint fix re-push). UserRepository.findById + updateRole 2 메서드 + 9 it spec 신설 (R-112 4 카테고리 cover — happy 2 + error 2 + branch 2 + negative 3). 실 LOC +200/-2 across 2 파일 (envelope 180 vs actual 200 = +11% over, partial-backbone × 1.3 multiplier 정합 — within tolerance). UserRepository spec 17/17 (기존 8 + 신규 9), 전체 644/644 jest test pass, user.repository.ts coverage line/branch/function/statement 모두 100% 유지. 4-게이트 all PASS (reviewer APPROVE round 1 comment 4565481424 + PR comment 외부 + integrator self-check + CI run 26583475321 success). **round 0 single-shot 깨짐** — 초기 push lint fail (prettier line wrap 2 곳) → re-push fix → all green = round 1 cadence. single-shot first-run pass cadence 6 회차 누적에서 본 task 가 round 1 lint round 1 회 (cadence reset 박제 — 7 회차 누적 안 됨, 다음 task 부터 cadence 재축적). counters.tasksCompleted 83→84, mostRecentTasks prepend T-0085 (cap 5 = [T-0085, T-0084, T-0083, T-0082, T-0081]), reviewRounds[T-0085]=1, lock release. **RBAC 첫 production 사용 사례 진입 path 박제 시작** — 후속 T-0086 (UserService.changeRole + REQ-044 self-demote invariant) → T-0087 (UserController.changeRole endpoint + e2e) → T-0088 (api.md amend). 다음 turn = planner 또는 T-0086 후속 chain.\n\n[직전 turn 5 note 보존]\nsession #25 turn 5/10 — planner inline 경로 T-0085 신설 + bookkeeping 904aae2.\n\n[직전 turn 4 note 보존]\nsession #25 turn 4/10 DONE — T-0084 DONE direct main commit 24b4436 (api.md /api/auth/* 4 row amend). doc inline-amend × 0.37 multiplier 첫 박제. single-shot cadence 6 회차 누적.\n\n[직전 turn 2 note 보존]\nsession #25 turn 2/10 DONE — T-0083 MERGED 6223fdd. ADR-0008 chain 4/4 마지막. entity backbone 11/11 (100%) 도달.\n\n[직전 turn 1 note 보존]\nsession #25 turn 1/10 RACE-INDUCED NO-OP."
   },
   "ci": {
     "lastRun": "2026-05-28T20:32:15+09:00",
