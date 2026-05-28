@@ -1,4 +1,4 @@
-// UserModule — Person / ServiceIdentity / Group / Part entity 의 책임 module
+// UserModule — Person / ServiceIdentity / Group / Part / User entity 의 책임 module
 // (data-model.md §2 "책임 module" 컬럼). T-0034 에서 PersonRepository, T-0035 에서
 // ServiceIdentityRepository, T-0036 에서 PersonService + PersonController 가 등록되었고
 // T-0039 가 GroupRepository + PartRepository 를 추가 wiring. T-0046 가 PartService +
@@ -17,6 +17,13 @@
 // (GroupController 이미 등록, DTO 는 module 등록 불요). Person.partId 의 mandatory
 // invariant 강제 도 별도 task.
 //
+// T-0087 추가 — UserController 등록 (PATCH /api/users/:id/role) + AuthModule import
+// (JwtAuthGuard + RolesGuard 의존성). RBAC backbone 의 첫 production 사용 사례 박제.
+// AuthModule 이 UserModule 을 import (T-0082) + UserModule 이 AuthModule 을 import
+// (본 task) → 양방향 cycle. `forwardRef(() => AuthModule)` 로 lazy resolution 박제.
+// AuthModule 측에도 동일 `forwardRef(() => UserModule)` 적용 의무 — cycle 양 측면
+// 모두 lazy 가 아니면 NestJS DI 가 boot 단계에서 fail.
+//
 // PersistenceModule (`@Global()`) 이 PrismaService 를 application-wide 로
 // export 하므로 본 module 은 PersistenceModule 을 imports 에 명시할 필요가 없다.
 // 각 Repository 의 PrismaService 생성자 주입은 global scope 에서 해결됨.
@@ -25,14 +32,17 @@
 //   - controllers: PersonController — `/api/persons` 5 endpoint 노출.
 //                  PartController — `/api/parts` 5 endpoint 노출 (T-0046).
 //                  GroupController — `/api/groups` 7 endpoint 노출 (T-0055 CRUD 4 + T-0057 N:M 3).
+//                  UserController — `/api/users` 1 endpoint 노출 (T-0087, RBAC 첫 적용).
 //   - providers: PersonRepository, ServiceIdentityRepository, GroupRepository,
 //     PartRepository, PersonGroupMembershipRepository, PersonService, PartService,
-//     GroupService.
+//     GroupService, UserRepository, UserService.
 //   - exports: PersonRepository, ServiceIdentityRepository, GroupRepository,
 //     PartRepository, PersonGroupMembershipRepository, PersonService, PartService,
-//     GroupService — 다른 module (예: 후속 AssessmentModule) 이 PartService /
-//     GroupService / Repo inject 가능하도록.
-import { Module } from "@nestjs/common";
+//     GroupService, UserRepository, UserService — 다른 module (예: 후속 AssessmentModule
+//     / AuthModule) 이 PartService / GroupService / Repo / UserService inject 가능하도록.
+import { forwardRef, Module } from "@nestjs/common";
+
+import { AuthModule } from "../auth/auth.module";
 
 import { GroupController } from "./group.controller";
 import { GroupRepository } from "./group.repository";
@@ -45,11 +55,24 @@ import { PersonController } from "./person.controller";
 import { PersonRepository } from "./person.repository";
 import { PersonService } from "./person.service";
 import { ServiceIdentityRepository } from "./service-identity.repository";
+import { UserController } from "./user.controller";
 import { UserRepository } from "./user.repository";
 import { UserService } from "./user.service";
 
 @Module({
-  controllers: [PersonController, PartController, GroupController],
+  // AuthModule import (T-0087) — UserController 의 @UseGuards(JwtAuthGuard,
+  // RolesGuard) 의존성. AuthModule 의 exports 에 두 guard 가 박제되어 본 module 의
+  // controller 가 inject 가능. `forwardRef` 로 lazy resolution 박제 — AuthModule
+  // 이 UserModule 을 import (T-0082, UserRepository 의존) 하는 양방향 cycle 회피.
+  imports: [forwardRef(() => AuthModule)],
+  controllers: [
+    PersonController,
+    PartController,
+    GroupController,
+    // UserController — T-0087 추가. PATCH /api/users/:id/role endpoint (RBAC 첫
+    // production 사용 사례). UserService 를 inject.
+    UserController,
+  ],
   providers: [
     PersonRepository,
     ServiceIdentityRepository,
@@ -64,7 +87,7 @@ import { UserService } from "./user.service";
     // AuthModule 이 UserModule 을 import 하여 UserRepository 를 resolve.
     UserRepository,
     // UserService — T-0086 추가. REQ-044 박제 (RBAC self-demote invariant).
-    // UserController (T-0087 candidate) 또는 후속 module 이 inject 가능.
+    // UserController (T-0087) + 후속 module 이 inject.
     UserService,
   ],
   exports: [
@@ -78,8 +101,8 @@ import { UserService } from "./user.service";
     GroupService,
     // UserRepository export (T-0082) — AuthModule 의 AuthController 가 inject.
     UserRepository,
-    // UserService export (T-0086) — 후속 T-0087 candidate (UserController) 의
-    // PATCH /api/users/:id/role endpoint 가 본 service 를 inject.
+    // UserService export (T-0086) — T-0087 의 UserController 가 inject (본 module
+    // 안에서 self-resolve 되나 export 유지 — 후속 module 이 직접 inject 가능).
     UserService,
   ],
 })

@@ -27,7 +27,7 @@
 //     실 환경에서는 boot 단계에서 env 검증 layer (ConfigModule + Joi schema 등) 가
 //     reject 의무 — T-0087 candidate. 본 module 은 ADR-0008 Decision §5 의 환경변수
 //     이름 contract 만 박제.
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 
@@ -47,7 +47,10 @@ import { RolesGuard } from "./roles.guard";
     // UserModule import — AuthController 의 UserRepository inject 의존성 (T-0082).
     // UserRepository 는 UserModule 의 exports 에 포함되므로 본 import 만으로
     // AuthController 의 constructor injection 정상 resolve.
-    UserModule,
+    // T-0087 변경 — `forwardRef(() => UserModule)` 으로 lazy resolution 박제.
+    // UserModule 이 본 AuthModule 을 import (T-0087, UserController 의 guard 의존)
+    // 하는 양방향 cycle 회피. UserModule 측에도 동일 `forwardRef` 적용 의무.
+    forwardRef(() => UserModule),
     // JwtModule.registerAsync — async factory 로 env 를 module init 시점에 read.
     // global: false (default) — AuthModule import 한 module 에서만 JwtService inject
     // 가능. AuthService 가 본 module 의 provider 이므로 self-resolve.

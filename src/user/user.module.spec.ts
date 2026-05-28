@@ -64,6 +64,8 @@ import { PersonGroupMembershipRepository } from "./person-group-membership.repos
 // eslint-disable-next-line import/first
 import { PersonRepository } from "./person.repository";
 // eslint-disable-next-line import/first
+import { UserController } from "./user.controller";
+// eslint-disable-next-line import/first
 import { UserModule } from "./user.module";
 // eslint-disable-next-line import/first
 import { UserService } from "./user.service";
@@ -255,6 +257,21 @@ describe("UserModule", () => {
     const service = moduleRef.get(UserService);
     expect(service).toBeDefined();
     expect(service).toBeInstanceOf(UserService);
+
+    await moduleRef.close();
+  });
+
+  // T-0087: UserController 가 module 안에서 resolve 된다. AuthModule import
+  // (forwardRef) 의 cycle 검증 — provider 미해결 시 compile fail. RBAC 첫 production
+  // 사용 사례의 module wiring 박제.
+  it("compile 시 UserController 가 resolve 된다 (AuthModule cycle 정상 해결)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    }).compile();
+
+    const controller = moduleRef.get(UserController);
+    expect(controller).toBeDefined();
+    expect(controller).toBeInstanceOf(UserController);
 
     await moduleRef.close();
   });
