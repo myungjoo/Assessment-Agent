@@ -20,7 +20,7 @@
 | Host model | **단일 NestJS process** 의 HTTP listener 1 개 (port 별도 결정 — 운영 환경별 변경 가능) | [ADR-0003 §1](../decisions/ADR-0003-deployment.md) (monolithic) / [components.md](components.md) "Backend API" |
 | Base path | `/api` prefix — 모든 backend endpoint 가 `/api/*` 하위 | NestJS 표준 `app.setGlobalPrefix('api')` (구체 적용은 P3) |
 | Content type | `application/json; charset=utf-8` (default) / `multipart/form-data` (UC-07 Import upload 만) | UC-07 §5 sequence (file upload) |
-| Auth credential | **session cookie 또는 Bearer JWT** 중 P3 AuthModule 도입 task 의 ADR 에서 택일 — 본 문서는 둘 다 허용 conceptual 박제 | [ADR-0003 §2](../decisions/ADR-0003-deployment.md) (JWT/session secret 환경변수) / [modules.md](modules.md) AuthModule row |
+| Auth credential | **JWT in HttpOnly Secure SameSite=Strict cookie** ([ADR-0008](../decisions/ADR-0008-auth-credential-type.md) ACCEPTED, T-0079 박제 + T-0081/T-0082 실 구현). access token 15min + refresh token 7day rotation. T-0083 RBAC scaffold 박제 (JwtStrategy cookie extractor + JwtAuthGuard + @Roles + RolesGuard). | [ADR-0008](../decisions/ADR-0008-auth-credential-type.md) / [ADR-0003 §2](../decisions/ADR-0003-deployment.md) / [modules.md](modules.md) AuthModule row |
 | API versioning | **unversioned** — `/api/v1/*` 미도입. 필요 시 별도 ADR. | § 8 Out of scope |
 
 ## 3. Auth tier
@@ -35,6 +35,8 @@
 | **SuperAdmin** | 최상위 — 사용자 등급 변경 권한 + Admin→User 강등 권한. 본인 self-demote 금지 (REQ-044). | `PATCH /api/users/:id/role` 의 일부 분기 (Admin→User) | REQ-044 (3 등급 + SuperAdmin 만 Admin→User) |
 
 **tier 의 escalation 의미**: SuperAdmin ⊇ Admin ⊇ User ⊇ Public. 상위 등급은 하위 endpoint 도 호출 가능. 단 SuperAdmin self-demote 차단 등 invariant 는 endpoint 내부 검증 (AuthModule guard + UserModule service invariant).
+
+**실 적용**: [`src/auth/roles.guard.ts`](../../src/auth/roles.guard.ts) 의 `ROLE_HIERARCHY` 가 `SuperAdmin: ["SuperAdmin", "Admin", "User"] / Admin: ["Admin", "User"] / User: ["User"]` 매핑 박제 (T-0083), [`@Roles()`](../../src/auth/roles.decorator.ts) decorator 가 endpoint metadata 로 required tier 박제 + [`JwtAuthGuard`](../../src/auth/jwt-auth.guard.ts) 와 결합하여 인증 + role 검증 layer 분리.
 
 ## 4. Resource model
 
@@ -61,9 +63,10 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | METHOD | path | UC | description | auth tier |
 | --- | --- | --- | --- | --- |
 | **UC-04 권한·계정 (`/api/auth`, `/api/users`)** | | | | |
-| POST | `/api/auth/login` | [UC-04](../use-cases/UC-04-account-auth.md#5-main-flow-sequence-diagram) | ID / Password 인증, session 또는 JWT 발급 | Public |
-| POST | `/api/auth/logout` | UC-04 | 현재 session 또는 JWT 무효화 | User+ |
-| GET | `/api/auth/me` | UC-04 | 현재 인증 user 의 등급 + 식별자 조회 | User+ |
+| POST | `/api/auth/login` | [UC-04](../use-cases/UC-04-account-auth.md#5-main-flow-sequence-diagram) | email + password 인증 (`LoginDto` validation), 성공 시 HttpOnly Secure SameSite=Strict Path=/ cookie 에 access (15min) + refresh (7day) token 발급, response body `{ userId }` (T-0082 박제). 실패 시 401 `Invalid credentials` (email 부재 + password 불일치 동일 응답으로 enumeration attack 차단). | Public |
+| POST | `/api/auth/logout` | UC-04 | access_token + refresh_token cookie clear 2 종, 204 No Content. cookie 미존재 상태에서도 idempotent (T-0082 박제). | User+ |
+| POST | `/api/auth/refresh` | UC-04 | refresh_token cookie 검증 (AuthService.verifyToken with refresh secret) → 신규 access + refresh token 발급 (rotation, [ADR-0008 §3](../decisions/ADR-0008-auth-credential-type.md)) + cookie set 2 종, response body `{ userId }`. 실패 시 401 (missing cookie / expired / invalid signature 동일 응답, T-0082 박제). | User+ |
+| GET | `/api/auth/me` | UC-04 | 현재 인증 user 의 등급 + 식별자 조회 (JwtAuthGuard + req.user.sub/role 반환, T-0085 candidate 미구현 — endpoint 자체는 ADR-0008 후속 chain 의 자연 박제점). | User+ |
 | POST | `/api/users` | [UC-04 §5 step 1](../use-cases/UC-04-account-auth.md#5-main-flow-sequence-diagram) | 신규 user 계정 생성 (등급 default = User) | Admin+ |
 | PATCH | `/api/users/:id/role` | UC-04 §5 step 4 | user 등급 변경 (Admin→User 분기는 SuperAdmin 전용, self-demote 차단) | Admin (User→Admin) / SuperAdmin (Admin→User) |
 | PATCH | `/api/users/:id/password` | UC-04 §5 step 4, §6.3 | user password 재설정 (`:id == self` → User 본인 변경 허용; `:id != self` → Admin+ 만) | User (self) / Admin+ (other) |
@@ -104,7 +107,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | GET | `/api/me/permission-denied` | [UC-08 §5](../use-cases/UC-08-permission-denied.md#5-main-flow-sequence-diagram) | 본인 관련 권한 부족 event 조회 (REQ-008 — user audience) | User+ |
 | GET | `/api/admin/permission-denied` | UC-08 §5 | 시스템 전체 권한 부족 event 조회 (REQ-016 — admin audience) | Admin+ |
 
-**합계**: 약 35 endpoint / 9 resource prefix / 8 UC cover. 향후 UC 추가·세분화 시 본 표가 source — endpoint 신설은 본 표 갱신 PR 의 reviewer 점검 대상.
+**합계**: 약 36 endpoint / 9 resource prefix / 8 UC cover (T-0084 박제로 `/api/auth/refresh` 1 endpoint 추가). 향후 UC 추가·세분화 시 본 표가 source — endpoint 신설은 본 표 갱신 PR 의 reviewer 점검 대상.
 
 ## 6. 표준 status code policy
 
@@ -172,4 +175,4 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 - [docs/decisions/ADR-0003-deployment.md](../decisions/ADR-0003-deployment.md) — monolithic / direct egress / @nestjs/schedule (본 문서의 host model 기반)
 - **future ADR hook**: `@nestjs/swagger` 도입 ADR (P3+) — endpoint 표 ↔ swagger annotation 의 single source 결정 필요. 본 문서가 swagger annotation 의 design source 역할 유지 권장.
 
-Refs: T-0030, T-0029, T-0028, T-0027, T-0026, T-0025, T-0024, T-0023, T-0022, T-0020, T-0019, T-0017, T-0016, ADR-0001, ADR-0003, REQ-026, REQ-027, REQ-028, REQ-030, REQ-032, REQ-037, REQ-038, REQ-040, REQ-041, REQ-043, REQ-044, REQ-045, REQ-046, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055
+Refs: T-0030, T-0029, T-0028, T-0027, T-0026, T-0025, T-0024, T-0023, T-0022, T-0020, T-0019, T-0017, T-0016, T-0079, T-0081, T-0082, T-0083, T-0084, ADR-0001, ADR-0003, ADR-0008, REQ-026, REQ-027, REQ-028, REQ-030, REQ-032, REQ-037, REQ-038, REQ-040, REQ-041, REQ-043, REQ-044, REQ-045, REQ-046, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055

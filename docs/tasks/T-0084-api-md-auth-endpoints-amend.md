@@ -2,7 +2,7 @@
 id: T-0084
 title: api.md §2 Auth credential + §3 Auth tier + §5 /api/auth/* row amend — T-0082/T-0083 실 구현 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-044, REQ-045, REQ-046]
 estimatedDiff: 51
