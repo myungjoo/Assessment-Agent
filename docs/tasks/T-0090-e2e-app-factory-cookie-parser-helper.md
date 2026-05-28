@@ -3,7 +3,10 @@ id: T-0090
 taskId: T-0090
 title: e2e-app-factory helper 추출 + cookie-parser middleware test-path wire 영구 일관성 박제
 phase: P3
-status: PENDING
+status: BLOCKED
+blockerId: B-0006
+blockedAt: 2026-05-29T05:05:00+09:00
+blockedReason: credential
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045, REQ-046, REQ-057, REQ-058]
 estimatedDiff: 220
@@ -133,3 +136,13 @@ plannerNote: "cron fire 후속 — T-0087 within-round 2 fix push 의 cookie-par
 - **smoke-app-factory 추출** — smoke 가 본 helper 와 정합되도록 별도 helper (또는 createE2EApp 의 smoke variant 통합). smoke 의 부트스트랩 책임은 jest-smoke-setup.ts 가 cover — 본 task 머지 후 검토.
 - **estimate-model.md 16 회차 milestone refinement** — 본 task 의 partial-backbone × 1.3 multiplier (helper 추출 + 2 path 갱신 + colocated spec) variance 박제.
 - **NestFactory factory 외화** — main.ts 의 NestFactory.create / app.listen 책임도 helper 로 추출 — R-112 entrypoint 정책 재검토 (별도 ADR).
+
+## Blocker (2026-05-29T05:05:00+09:00 — KST 05:00 cron fire BLOCKED)
+
+- **reason**: `credential`
+- **B-0006 / HQ-0013** — Anthropic 클라우드 cron 발화 env 의 `gh` CLI 부재 **5 회차 반복** (HQ-0006 T-0039 / HQ-0008 T-0061 / HQ-0009 T-0066 / HQ-0010 T-0071 / 본 HQ-0013 T-0090). 본 task 는 `commitMode: pr` → reviewer/integrator 4-게이트 (#2 PR comment 외부 post + #4 CI conclusion 조회 + squash merge) 가 모두 gh 의존. driver 자체는 GitHub MCP tool (`mcp__github__*`) 가용하나 reviewer/integrator sub-agent 정의가 gh-bound — Path A (ADR-0005) 영구화 도입 task (HQ-0009/10 의 영구 fix 후속) 가 아직 완결되지 않은 상태. 본 turn 은 executor dispatch 전 graceful BLOCKED — 코드 변경 0, branch 미신설, push 0.
+- **resolution candidate**:
+  - (a) 사용자가 local /loop (Windows + gh v2.88.1) 진입 — HQ-0006/8/9/10 의 즉시 unblock 패턴 5 회차 반복.
+  - (b) `install-gh-cli-in-cron-env` 영구 fix 별도 doc-only/ADR task — Anthropic cloud setup script 또는 SessionStart hook 에 gh 설치 + GITHUB_TOKEN auth 박제.
+  - (c) `adapt-agents-to-mcp` reviewer/integrator agent 정의의 `gh pr|run|api` → `mcp__github__*` 전면 재작성 별도 task — gh 의존 영구 제거.
+- **본 cron fire 의 graceful 분기**: doc-only direct bookkeeping (STATE.json + 본 task frontmatter + B-0006 blocker 신설 + HQ-0013 + journal) 1 commit 으로 마무리, push to harness branch + draft PR. 다음 turn (사용자 unblock 후) 우선순위: driver [1] STATE 로드 → currentTask=T-0090 status=BLOCKED → resolution 분기.
