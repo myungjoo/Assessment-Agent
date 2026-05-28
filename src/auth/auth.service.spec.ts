@@ -171,28 +171,29 @@ describe("AuthService", () => {
   });
 
   // ---------------------------------------------------------------------
-  // issueAccessToken() — HS256 + 15min TTL + sub claim.
+  // issueAccessToken() — HS256 + 15min TTL + sub + role claim (T-0083 §A).
   // ---------------------------------------------------------------------
   describe("issueAccessToken()", () => {
     it("non-empty JWT string 을 반환한다 (happy)", () => {
       const { service } = buildService();
-      const token = service.issueAccessToken("user-1");
+      const token = service.issueAccessToken("user-1", "User");
       expect(typeof token).toBe("string");
       // JWT 표준 format: 3 segment dot-separated.
       expect(token.split(".")).toHaveLength(3);
     });
 
-    it("payload 의 sub claim 이 userId 와 일치한다 (happy — payload binding)", () => {
+    it("payload 의 sub + role claim 이 인자와 일치한다 (happy — payload binding, T-0083 §A)", () => {
       const { service, jwtService } = buildService();
-      const token = service.issueAccessToken("user-2");
+      const token = service.issueAccessToken("user-2", "Admin");
       // 동일 JwtService 로 verify → access secret 정합.
       const payload = jwtService.verify<JwtPayload>(token);
       expect(payload.sub).toBe("user-2");
+      expect(payload.role).toBe("Admin");
     });
 
     it("access token 의 exp 가 iat + 15min (= 900s) 인근에 박제된다 (branch — 15min TTL)", () => {
       const { service, jwtService } = buildService();
-      const token = service.issueAccessToken("user-3");
+      const token = service.issueAccessToken("user-3", "User");
       const payload = jwtService.verify<JwtPayload>(token);
       expect(payload.iat).toEqual(expect.any(Number));
       expect(payload.exp).toEqual(expect.any(Number));
@@ -201,20 +202,37 @@ describe("AuthService", () => {
       expect(ttl).toBe(15 * 60);
     });
 
+    it("role 인자 = SuperAdmin 도 그대로 payload.role 에 박제된다 (branch — role 값 분기)", () => {
+      const { service, jwtService } = buildService();
+      const token = service.issueAccessToken("user-sa", "SuperAdmin");
+      const payload = jwtService.verify<JwtPayload>(token);
+      expect(payload.role).toBe("SuperAdmin");
+    });
+
     it("빈 userId 도 그대로 sub claim 으로 sign 된다 (negative — empty userId, validation 책임 분리)", () => {
       // service-layer validation 책임 분리 (PartService.create precedent 정합).
       // jsonwebtoken 은 빈 string sub 도 정상 sign — controller / DTO layer 가
       // @IsNotEmpty 등으로 reject 의무.
       const { service, jwtService } = buildService();
-      const token = service.issueAccessToken("");
+      const token = service.issueAccessToken("", "User");
       const payload = jwtService.verify<JwtPayload>(token);
       expect(payload.sub).toBe("");
+      expect(payload.role).toBe("User");
     });
 
-    it("동일 userId 호출도 매 호출 정상 동작 (negative — repeated call)", () => {
+    it("빈 role 도 그대로 payload.role 로 sign (negative — empty role, validation 책임 분리)", () => {
+      // 본 service 는 role 값 검증 0 — service-layer 책임 분리. RolesGuard 가 빈 role
+      // 시 unauthorized 책임.
+      const { service, jwtService } = buildService();
+      const token = service.issueAccessToken("user-er", "");
+      const payload = jwtService.verify<JwtPayload>(token);
+      expect(payload.role).toBe("");
+    });
+
+    it("동일 (userId, role) 호출도 매 호출 정상 동작 (negative — repeated call)", () => {
       const { service } = buildService();
-      const t1 = service.issueAccessToken("user-rep");
-      const t2 = service.issueAccessToken("user-rep");
+      const t1 = service.issueAccessToken("user-rep", "User");
+      const t2 = service.issueAccessToken("user-rep", "User");
       // jsonwebtoken 의 iat 이 초 단위 → 동일 초 안에서는 동일 token 가능.
       // 양쪽 token 모두 non-empty + format 적합.
       expect(t1.split(".")).toHaveLength(3);
@@ -223,28 +241,29 @@ describe("AuthService", () => {
   });
 
   // ---------------------------------------------------------------------
-  // issueRefreshToken() — HS256 + 7day TTL + secret 분리 (access 와 다른 secret).
+  // issueRefreshToken() — HS256 + 7day TTL + secret 분리 + role claim (T-0083 §A).
   // ---------------------------------------------------------------------
   describe("issueRefreshToken()", () => {
     it("non-empty JWT string 을 반환한다 (happy)", () => {
       const { service } = buildService();
-      const token = service.issueRefreshToken("user-1");
+      const token = service.issueRefreshToken("user-1", "User");
       expect(typeof token).toBe("string");
       expect(token.split(".")).toHaveLength(3);
     });
 
-    it("refresh token 의 payload sub claim 이 userId 와 일치한다 (happy — payload binding)", () => {
+    it("refresh token 의 payload sub + role claim 이 인자와 일치한다 (happy — payload binding, T-0083 §A)", () => {
       const { service } = buildService();
-      const token = service.issueRefreshToken("user-r2");
+      const token = service.issueRefreshToken("user-r2", "Admin");
       // refresh secret 으로 verify (별도 JwtService instance — secret override).
       const verifier = new JwtService({ secret: REFRESH_SECRET });
       const payload = verifier.verify<JwtPayload>(token);
       expect(payload.sub).toBe("user-r2");
+      expect(payload.role).toBe("Admin");
     });
 
     it("refresh token 의 exp 가 iat + 7day (= 604800s) 인근에 박제된다 (branch — 7day TTL)", () => {
       const { service } = buildService();
-      const token = service.issueRefreshToken("user-r3");
+      const token = service.issueRefreshToken("user-r3", "User");
       const verifier = new JwtService({ secret: REFRESH_SECRET });
       const payload = verifier.verify<JwtPayload>(token);
       const ttl = (payload.exp as number) - (payload.iat as number);
@@ -257,14 +276,14 @@ describe("AuthService", () => {
       // refresh 가 REFRESH_SECRET 으로 sign 되었으므로 ACCESS_SECRET 으로 verify
       // 시 JsonWebTokenError (invalid signature) throw.
       const { service, jwtService } = buildService();
-      const refreshToken = service.issueRefreshToken("user-r4");
+      const refreshToken = service.issueRefreshToken("user-r4", "User");
       // jwtService 가 ACCESS_SECRET 로 binding 되어 있으므로 verify fail.
       expect(() => jwtService.verify<JwtPayload>(refreshToken)).toThrow();
     });
 
     it("access token 을 refresh secret 으로 verify 하면 fail 한다 (branch — 양방향 분리)", () => {
       const { service } = buildService();
-      const accessToken = service.issueAccessToken("user-r5");
+      const accessToken = service.issueAccessToken("user-r5", "User");
       const refreshVerifier = new JwtService({ secret: REFRESH_SECRET });
       expect(() => refreshVerifier.verify<JwtPayload>(accessToken)).toThrow();
     });
@@ -272,12 +291,11 @@ describe("AuthService", () => {
     it("REFRESH_SECRET_ENV 미설정 시 빈 string fallback path 가 service 안에서 raw 동작 (negative — env missing)", () => {
       // env 미설정 시 service 의 `?? ""` fallback branch 박제. jsonwebtoken 6.x 는
       // sign 시 빈 secret 도 수용 (non-empty JWT 산출), verify 시에는 reject — 본
-      // contract 가 ADR-0008 후속 chain (T-0082 의 ConfigModule + Joi schema) 의
-      // boundary 박제 의무를 발화시키는 negative path. 본 spec 은 sign path 의
-      // raw 동작만 cover.
+      // contract 가 T-0087 candidate (ConfigModule + Joi schema) 의 boundary 박제
+      // 의무를 발화시키는 negative path. 본 spec 은 sign path 의 raw 동작만 cover.
       delete process.env[REFRESH_SECRET_ENV];
       const { service } = buildService();
-      const token = service.issueRefreshToken("user-no-env");
+      const token = service.issueRefreshToken("user-no-env", "User");
       // sign path 는 정상 — non-empty JWT 형식 산출.
       expect(typeof token).toBe("string");
       expect(token.split(".")).toHaveLength(3);
@@ -286,10 +304,10 @@ describe("AuthService", () => {
     it("REFRESH_SECRET_ENV 값을 runtime 에서 변경하면 다음 issue 가 새 secret 으로 sign (branch — env runtime read)", () => {
       // service 가 매 호출 시 process.env 읽음 — module init 시점 cache 없음 검증.
       const { service } = buildService();
-      const t1 = service.issueRefreshToken("user-rt1");
+      const t1 = service.issueRefreshToken("user-rt1", "User");
       process.env[REFRESH_SECRET_ENV] =
         "second-refresh-secret-32b-min-length-XX";
-      const t2 = service.issueRefreshToken("user-rt2");
+      const t2 = service.issueRefreshToken("user-rt2", "User");
       // t1 은 REFRESH_SECRET 로 verify 가능.
       const verifier1 = new JwtService({ secret: REFRESH_SECRET });
       expect(verifier1.verify<JwtPayload>(t1).sub).toBe("user-rt1");
@@ -309,9 +327,10 @@ describe("AuthService", () => {
   describe("verifyToken()", () => {
     it("정상 access token 의 payload 를 반환한다 (happy)", () => {
       const { service } = buildService();
-      const token = service.issueAccessToken("user-v1");
+      const token = service.issueAccessToken("user-v1", "User");
       const payload = service.verifyToken(token);
       expect(payload.sub).toBe("user-v1");
+      expect(payload.role).toBe("User");
       expect(payload.iat).toEqual(expect.any(Number));
       expect(payload.exp).toEqual(expect.any(Number));
     });
@@ -331,7 +350,10 @@ describe("AuthService", () => {
       const foreignJwt = new JwtService({
         secret: "different-secret-XYZ-1234567890",
       });
-      const foreignToken = foreignJwt.sign({ sub: "user-foreign" });
+      const foreignToken = foreignJwt.sign({
+        sub: "user-foreign",
+        role: "User",
+      });
       expect(() => service.verifyToken(foreignToken)).toThrow();
     });
 
@@ -343,7 +365,7 @@ describe("AuthService", () => {
         signOptions: { algorithm: "HS256" },
       });
       const expired = expiredJwt.sign(
-        { sub: "user-exp" },
+        { sub: "user-exp", role: "User" },
         { expiresIn: "-1s" },
       );
       expect(() => service.verifyToken(expired)).toThrow(
@@ -381,14 +403,14 @@ describe("AuthService", () => {
       // verifyToken 은 access secret 으로 verify → refresh token (다른 secret) 은 fail.
       // ADR-0008 의 분리 invariant 의 negative path.
       const { service } = buildService();
-      const refreshToken = service.issueRefreshToken("user-rv");
+      const refreshToken = service.issueRefreshToken("user-rv", "User");
       expect(() => service.verifyToken(refreshToken)).toThrow();
     });
 
     it("verifyToken 결과의 sub 가 issue 시 userId 와 정확히 일치 (branch — payload integrity)", () => {
       const { service } = buildService();
       const userId = "한글-사용자-id-12345";
-      const token = service.issueAccessToken(userId);
+      const token = service.issueAccessToken(userId, "User");
       const payload = service.verifyToken(token);
       expect(payload.sub).toBe(userId);
     });

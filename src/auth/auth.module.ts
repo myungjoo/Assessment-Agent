@@ -1,31 +1,32 @@
 // AuthModule — ADR-0008 의 AuthModule scaffold (T-0081 acceptance §B 박제) +
-// T-0082 acceptance §D 확장 (AuthController 등록 + UserModule import).
+// T-0082 acceptance §D 확장 (AuthController 등록 + UserModule import) +
+// T-0083 acceptance §E 확장 (JwtStrategy + JwtAuthGuard + RolesGuard 등록 + export).
 //
 // 책임:
 //   - JwtModule.registerAsync 로 AUTH_JWT_SECRET env 를 process boot 시점에 한 번 읽어
 //     JwtService 의 default secret 으로 binding (HS256). signOptions.algorithm =
 //     "HS256" 명시 — ADR-0008 Decision §4 의 HS256 채택 invariant.
-//   - PassportModule import — 후속 T-0083 의 JwtStrategy (cookie / Bearer extractor)
-//     base 구성을 위해 본 task 에서 미리 import. defaultStrategy 명시 안 함 (strategy
-//     class 미신설 — T-0083 책임). PassportModule 의 strategies 등록 표면은 후속.
-//   - AuthService provide + export — User module 등 다른 module 이 AuthService 를
-//     inject 할 수 있도록.
+//   - PassportModule.register({ defaultStrategy: "jwt" }) — JwtStrategy 등록 정합
+//     (T-0083 의 strategy name).
+//   - AuthService / JwtStrategy / RolesGuard provide. AuthService / JwtAuthGuard /
+//     RolesGuard export — 다른 module 의 controller 가 @UseGuards(JwtAuthGuard) /
+//     @UseGuards(RolesGuard) 적용 가능.
 //   - AuthController 등록 (T-0082) — `/api/auth/login` + `/logout` + `/refresh` 3 endpoint.
 //   - UserModule import (T-0082) — AuthController 가 UserRepository inject 의무.
 //     UserRepository 는 UserModule 의 exports 에 포함됨.
 //
 // 책임 경계 (Out of Scope):
-//   - JwtStrategy / JwtAuthGuard 신설 안 함 (T-0083 책임). refresh endpoint 는 본
-//     module 의 JwtService 를 controller layer 에서 직접 호출 (manual verify).
-//   - RolesGuard / @Role() decorator 신설 안 함 (T-0083 책임).
 //   - cookie-parser middleware 직접 등록 안 함 — main.ts 의 bootstrap() 단계에서
 //     `app.use(cookieParser())` 호출 (T-0082 §B 박제).
+//   - endpoint 별 @Roles() 박제 — T-0084 / T-0085 candidate (본 task 는 guard /
+//     decorator scaffold 만).
+//   - RefreshToken DB rotation — T-0088 candidate.
 //
 // secret 미설정 시 fallback 정책:
 //   - useFactory 가 `process.env.AUTH_JWT_SECRET ?? ""` 로 빈 secret fallback.
 //     실 환경에서는 boot 단계에서 env 검증 layer (ConfigModule + Joi schema 등) 가
-//     reject 의무 — 본 ADR-0008 후속 chain 의 T-0084 candidate.
-//     본 module 은 ADR-0008 Decision §5 의 환경변수 이름 contract 만 박제.
+//     reject 의무 — T-0087 candidate. 본 module 은 ADR-0008 Decision §5 의 환경변수
+//     이름 contract 만 박제.
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
@@ -34,12 +35,15 @@ import { UserModule } from "../user/user.module";
 
 import { AuthController } from "./auth.controller";
 import { ACCESS_TOKEN_TTL, AuthService } from "./auth.service";
+import { JwtAuthGuard } from "./jwt-auth.guard";
+import { JwtStrategy } from "./jwt.strategy";
+import { RolesGuard } from "./roles.guard";
 
 @Module({
   imports: [
-    // PassportModule — defaultStrategy 미지정 (T-0083 의 JwtStrategy 신설 시 명시).
-    // 본 task 의 import 는 후속 strategy registration 의 base wiring.
-    PassportModule,
+    // PassportModule — defaultStrategy "jwt" 명시 (T-0083). JwtStrategy class 의
+    // PassportStrategy(Strategy, "jwt") 의 strategy name 정합.
+    PassportModule.register({ defaultStrategy: "jwt" }),
     // UserModule import — AuthController 의 UserRepository inject 의존성 (T-0082).
     // UserRepository 는 UserModule 의 exports 에 포함되므로 본 import 만으로
     // AuthController 의 constructor injection 정상 resolve.
@@ -63,7 +67,7 @@ import { ACCESS_TOKEN_TTL, AuthService } from "./auth.service";
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard],
+  exports: [AuthService, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}

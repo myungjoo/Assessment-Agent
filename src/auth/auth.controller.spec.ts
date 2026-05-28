@@ -148,8 +148,15 @@ describe("AuthController (unit)", () => {
         "pw",
         user.hashedPassword,
       );
-      expect(authServiceMock.issueAccessToken).toHaveBeenCalledWith("u-1");
-      expect(authServiceMock.issueRefreshToken).toHaveBeenCalledWith("u-1");
+      // T-0083 §A — issueAccessToken/issueRefreshToken 의 2 번째 인자 = user.role.
+      expect(authServiceMock.issueAccessToken).toHaveBeenCalledWith(
+        "u-1",
+        user.role,
+      );
+      expect(authServiceMock.issueRefreshToken).toHaveBeenCalledWith(
+        "u-1",
+        user.role,
+      );
       // cookie set 2 종 — name / token / 4 attribute 모두 검증.
       expect(cookieMock).toHaveBeenCalledTimes(2);
       expect(cookieMock).toHaveBeenNthCalledWith(
@@ -320,7 +327,13 @@ describe("AuthController (unit)", () => {
         buildControllerWithMocks();
       const { res, cookieMock } = buildResMock();
       const req = buildReqMock({ [REFRESH_TOKEN_COOKIE]: "old.refresh.jwt" });
-      jwtServiceMock.verify.mockReturnValueOnce({ sub: "u-1", iat: 1, exp: 2 });
+      // T-0083 §A — payload 에 role claim 박제, rotation 이 role 보존.
+      jwtServiceMock.verify.mockReturnValueOnce({
+        sub: "u-1",
+        role: "Admin",
+        iat: 1,
+        exp: 2,
+      });
       authServiceMock.issueAccessToken.mockReturnValueOnce("new.access.jwt");
       authServiceMock.issueRefreshToken.mockReturnValueOnce("new.refresh.jwt");
 
@@ -330,9 +343,15 @@ describe("AuthController (unit)", () => {
       expect(jwtServiceMock.verify).toHaveBeenCalledWith("old.refresh.jwt", {
         secret: REFRESH_SECRET,
       });
-      // rotation — 신규 token 2 종 발급 + cookie set 2 종.
-      expect(authServiceMock.issueAccessToken).toHaveBeenCalledWith("u-1");
-      expect(authServiceMock.issueRefreshToken).toHaveBeenCalledWith("u-1");
+      // rotation — 신규 token 2 종 발급 + cookie set 2 종. role 보존 (payload.role → 신규 token).
+      expect(authServiceMock.issueAccessToken).toHaveBeenCalledWith(
+        "u-1",
+        "Admin",
+      );
+      expect(authServiceMock.issueRefreshToken).toHaveBeenCalledWith(
+        "u-1",
+        "Admin",
+      );
       expect(cookieMock).toHaveBeenCalledTimes(2);
       expect(cookieMock).toHaveBeenNthCalledWith(
         1,
@@ -411,7 +430,11 @@ describe("AuthController (unit)", () => {
       const { controller, jwtServiceMock } = buildControllerWithMocks();
       const { res, cookieMock } = buildResMock();
       const req = buildReqMock({ [REFRESH_TOKEN_COOKIE]: "valid.jwt" });
-      jwtServiceMock.verify.mockReturnValueOnce({ iat: 1, exp: 2 });
+      jwtServiceMock.verify.mockReturnValueOnce({
+        role: "User",
+        iat: 1,
+        exp: 2,
+      });
 
       expect(() => controller.refresh(req, res)).toThrow(UnauthorizedException);
       expect(cookieMock).not.toHaveBeenCalled();
@@ -421,7 +444,27 @@ describe("AuthController (unit)", () => {
       const { controller, jwtServiceMock } = buildControllerWithMocks();
       const { res } = buildResMock();
       const req = buildReqMock({ [REFRESH_TOKEN_COOKIE]: "valid.jwt" });
-      jwtServiceMock.verify.mockReturnValueOnce({ sub: "" });
+      jwtServiceMock.verify.mockReturnValueOnce({ sub: "", role: "User" });
+
+      expect(() => controller.refresh(req, res)).toThrow(UnauthorizedException);
+    });
+
+    it("verify payload 의 role 부재 (role === undefined) → 401 (negative #7b — T-0083 §A)", () => {
+      // T-0083 §A — payload.role 부재 시 401. legacy token 또는 forged token 차단.
+      const { controller, jwtServiceMock } = buildControllerWithMocks();
+      const { res, cookieMock } = buildResMock();
+      const req = buildReqMock({ [REFRESH_TOKEN_COOKIE]: "valid.jwt" });
+      jwtServiceMock.verify.mockReturnValueOnce({ sub: "u-1", iat: 1, exp: 2 });
+
+      expect(() => controller.refresh(req, res)).toThrow(UnauthorizedException);
+      expect(cookieMock).not.toHaveBeenCalled();
+    });
+
+    it("verify payload 의 role 이 빈 문자열 → 401 (negative #7c — T-0083 §A)", () => {
+      const { controller, jwtServiceMock } = buildControllerWithMocks();
+      const { res } = buildResMock();
+      const req = buildReqMock({ [REFRESH_TOKEN_COOKIE]: "valid.jwt" });
+      jwtServiceMock.verify.mockReturnValueOnce({ sub: "u-1", role: "" });
 
       expect(() => controller.refresh(req, res)).toThrow(UnauthorizedException);
     });
@@ -621,7 +664,7 @@ describe("AuthController (ValidationPipe + cookie integration)", () => {
   // ---- refresh — happy + negative (cookie 부재 / verify fail) -----------
 
   it("POST /api/auth/refresh + 유효 refresh cookie → 200 + 신규 cookie set 2 종 + { userId }", async () => {
-    jwtServiceMock.verify.mockReturnValueOnce({ sub: "u-77" });
+    jwtServiceMock.verify.mockReturnValueOnce({ sub: "u-77", role: "User" });
     authServiceMock.issueAccessToken.mockReturnValueOnce("new.a.j.t");
     authServiceMock.issueRefreshToken.mockReturnValueOnce("new.r.j.t");
 

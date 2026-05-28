@@ -30,12 +30,16 @@ import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 
 // JwtPayload — JWT payload 의 최소 contract. ADR-0008 Decision §1 의 sub (userId) +
-// role + iat + exp claim 중 본 task 시점에 박제하는 surface 는 sub 단일 (role 은
-// T-0083 RBAC AuthGuard 가 도입 시점에 추가). iat / exp 는 jsonwebtoken 표준 claim
-// 으로 verify 시 자동 binding.
+// role + iat + exp claim 박제 (T-0083 acceptance §A — role claim 추가, RBAC
+// RolesGuard 가 본 claim 위에서 작동). iat / exp 는 jsonwebtoken 표준 claim 으로
+// verify 시 자동 binding.
 export interface JwtPayload {
   // userId — ADR-0008 의 sub claim (RFC 7519 표준 "subject").
   sub: string;
+  // role — User entity 의 role 컬럼 (String literal "SuperAdmin" / "Admin" / "User").
+  // T-0083 의 RolesGuard 가 본 claim 위에서 escalation 매핑 적용. issue 시점에
+  // user.role 을 controller 가 인자로 전달, refresh rotation 시 payload.role 보존.
+  role: string;
   // jsonwebtoken 표준 claim — verify 시점에 library 가 자동 채움. optional 로 박제.
   iat?: number;
   exp?: number;
@@ -81,12 +85,13 @@ export class AuthService {
     return bcrypt.compare(plain, hash);
   }
 
-  // issueAccessToken — access token (HS256, 15min TTL) 발급. payload `{ sub: userId }`.
+  // issueAccessToken — access token (HS256, 15min TTL) 발급. payload `{ sub, role }`.
   // JwtService 는 module init 시점에 AUTH_JWT_SECRET 으로 binding 된 default secret 사용.
-  // userId 가 빈 string 이어도 jsonwebtoken 은 정상 sign — DTO layer validation 책임 분리.
-  issueAccessToken(userId: string): string {
+  // userId / role 이 빈 string 이어도 jsonwebtoken 은 정상 sign — DTO layer validation
+  // 책임 분리. controller 가 user.role 을 두 번째 인자로 전달 (T-0083 acceptance §A).
+  issueAccessToken(userId: string, role: string): string {
     return this.jwtService.sign(
-      { sub: userId },
+      { sub: userId, role },
       { expiresIn: ACCESS_TOKEN_TTL },
     );
   }
@@ -94,11 +99,13 @@ export class AuthService {
   // issueRefreshToken — refresh token (HS256, 7day TTL) 발급. AUTH_JWT_REFRESH_SECRET
   // override (access secret 과 분리 — ADR-0008 Decision §5 invariant).
   // env 미설정 시 빈 문자열 fallback — jsonwebtoken 이 빈 secret 로 sign 가능 (실 환경
-  // 에서는 module init / process boot 단계에서 env 검증 의무, T-0082 의 @nestjs/config
-  // 도입 시점에 boundary 박제).
-  issueRefreshToken(userId: string): string {
+  // 에서는 module init / process boot 단계에서 env 검증 의무, T-0087 candidate 의
+  // ConfigModule + Joi schema 도입 시점에 boundary 박제).
+  // role 은 rotation 시 보존을 위해 second arg — refresh endpoint 가 payload.role 을
+  // 직접 다음 token 으로 전달 (DB lookup 없이 rotation 의 role 보존).
+  issueRefreshToken(userId: string, role: string): string {
     return this.jwtService.sign(
-      { sub: userId },
+      { sub: userId, role },
       {
         expiresIn: REFRESH_TOKEN_TTL,
         secret: process.env[REFRESH_SECRET_ENV] ?? "",
