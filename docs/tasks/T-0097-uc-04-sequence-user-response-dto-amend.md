@@ -2,14 +2,18 @@
 id: T-0097
 title: UC-04 §5 sequence + §8 postconditions amend — UserResponseDto 응답 매핑 박제 (T-0095/T-0096 use-case layer 정합)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 25
 estimatedFiles: 1
 created: 2026-05-29
+completedAt: 2026-05-29T19:20:00+09:00
+actualDiff: 4
+actualFiles: 1
 dependsOn: [T-0095, T-0096]
 plannerNote: "cron (KST 2026-05-29 evening) planner — T-0095 UserResponseDto + T-0096 api.md/modules.md 머지 후 UC-04 use-case layer 정합 박제. doc-only inline-amend × 1.6 × 0.4 = × 0.64, ~25 LOC / 1 파일."
+driverNote: "cron (KST 2026-05-29 19:00 scheduled, Anthropic 클라우드 fresh checkout) driver inline 경로 — UC-04 §5 sequence diagram L87 응답 step `JSON 응답 (성공 = UserResponseDto / 검증 실패 / 권한 부족)` 갱신 + Note over BackendAPI 1 줄 추가 (5 readonly 필드 id/email/role/createdAt/updatedAt + hashedPassword 차단 + defence in depth 2 layer + ADR-0008 §6 cross-ref) + §8 postconditions L152 직후 응답 layer hashedPassword 누출 차단 bullet 1 개 삽입. 실 +4/-1 LOC 1 파일 (envelope 25 의 ×0.16 sub-multiplier — Note 1 줄 + bullet 1 줄 이 가장 가벼운 inline-amend 패턴). C1~C8 grep/inspect self-검증 all PASS (UserResponseDto×3 / T-0095×2 / hashedPassword×2 / defence in depth×2 / ADR-0008 §6×2 / sequenceDiagram fence intact / §8 bullet 5→6 / diff 1 파일 한정). 본 환경 (Anthropic 클라우드 cloud-session) 의 branch policy 상 main 직접 push 불가 — claude/affectionate-babbage-JxV07 feature branch + draft PR 경로로 진행 (LOOP.md §4 direct→main 룰의 cloud session 변형). doc-only inline-amend 누적 7 회차: T-0084 ×0.37 + T-0088 ×0.19 + T-0089 ×0.91 + T-0093 ×0.23 + T-0096 ×0.17 + 본 T-0097 ×0.16 (estimate-model.md milestone refinement 데이터, × 0.16~0.91 spread)."
 ---
 
 # T-0097 — UC-04 §5 sequence + §8 postconditions amend — UserResponseDto 응답 매핑 박제
