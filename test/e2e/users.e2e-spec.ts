@@ -17,35 +17,34 @@
 //   - arrange 단계 prisma.user.create 실 seed → endpoint 호출 → 응답 + 실 DB state 검증.
 //   - afterEach(truncateAll) + afterAll(app.close + prisma.$disconnect) 박제.
 //
-// JWT 발급 setup (login flow bypass — T-0087 acceptance §F):
-//   - beforeAll 에서 JwtService inject + AUTH_JWT_SECRET 으로 inline sign.
-//   - SuperAdmin token + User token 2 종 inline 발급 (sub + role claim).
-//   - cookie 형식: `access_token=<token>` (AuthController 의 ACCESS_TOKEN_COOKIE 정합).
-//   - AUTH_JWT_SECRET 환경변수 — 본 spec 진입 시점 process.env 직접 박제 (jest 의
-//     environment 격리). cookie-parser middleware 는 main.ts 에서 setup, 본 spec 은
-//     supertest 의 `Cookie:` header 로 직접 박제.
+// JWT 발급 setup (login flow bypass — T-0087 acceptance §F + T-0091 helper 외화):
+//   - beforeAll 에서 JwtService inject — createE2EApp 의 moduleRef.get.
+//   - SuperAdmin/Admin/User token inline 발급은 helper 의 issueAccessTokenFor 호출.
+//   - cookie 형식: helper 의 buildAuthCookie — AuthController 의 ACCESS_TOKEN_COOKIE 정합.
+//   - AUTH_JWT_SECRET 환경변수 박제는 auth-e2e-helper 의 module-load side-effect 가 담당
+//     (jest 의 environment 격리). cookie-parser middleware 는 createE2EApp 의
+//     applyGlobalMiddleware (T-0090) 책임.
 //
 // 책임 경계 (Out of Scope, task §F 박제):
-//   - test/helpers/auth-e2e-helper.ts 추출 — T-0091 candidate. 본 task 는 inline.
+//   - auth-e2e-helper.ts 추출 — T-0091 MERGED, 본 spec 이 첫 호출 측 변환 reference.
 //   - login flow 통과 (POST /api/auth/login → cookie) — auth.e2e-spec.ts 별도 task.
-//   - ConfigModule fail-fast (Joi schema) — T-0090 candidate. 본 spec 은 inline secret.
+//   - ConfigModule fail-fast (Joi schema) — T-0090 candidate. 본 spec 은 helper 박제 secret.
 
-// AUTH_JWT_SECRET — Module init 보다 먼저 박제. JwtStrategy.constructor 가
-// process.env.AUTH_JWT_SECRET ?? PLACEHOLDER_SECRET 으로 secret bind 하므로 module
-// load 시점에 이미 셋팅되어야 실 verify 가능. spec 의 jwtService.sign 도 동일 secret.
-process.env.AUTH_JWT_SECRET = "test-auth-jwt-secret-e2e-users";
-
-/* eslint-disable import/first */
 import type { INestApplication } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import request from "supertest";
 
-import { ACCESS_TOKEN_COOKIE } from "../../src/auth/auth.controller";
 import { PrismaService } from "../../src/persistence/prisma.service";
+// helper module-load side-effect — process.env.AUTH_JWT_SECRET 박제 (??= 보존). 본
+// import 는 호출 측 spec 의 top-level evaluation 시점에 module init 보다 먼저 secret
+// bind (T-0091 박제).
+import {
+  buildAuthCookie,
+  issueAccessTokenFor,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
 import { createE2EApp } from "../helpers/e2e-app-factory";
-/* eslint-enable import/first */
 
 // User DTO 필수 4 field — happy endpoint 응답이 노출.
 const USER_DTO_FIELDS = ["id", "email", "role"] as const;
@@ -53,12 +52,6 @@ const USER_DTO_FIELDS = ["id", "email", "role"] as const;
 const expectUserDtoFields = (body: object): void => {
   USER_DTO_FIELDS.forEach((f) => expect(body).toHaveProperty(f));
 };
-
-// JWT issue helper — JwtService.sign 으로 inline 발급. AccessTokenTTL (15m) 박제,
-// role 포함 (RolesGuard 가 검증). REFRESH_SECRET 분리는 본 endpoint 와 무관.
-function issueAccessToken(jwt: JwtService, sub: string, role: string): string {
-  return jwt.sign({ sub, role }, { expiresIn: "15m" });
-}
 
 describe("E2E: /api/users HTTP contract + RBAC 첫 production 적용", () => {
   let app: INestApplication;
@@ -106,11 +99,14 @@ describe("E2E: /api/users HTTP contract + RBAC 첫 production 적용", () => {
         role: "User",
       },
     });
-    const token = issueAccessToken(jwtService, superAdmin.id, "SuperAdmin");
+    const token = issueAccessTokenFor(jwtService, {
+      id: superAdmin.id,
+      role: "SuperAdmin",
+    });
 
     const response = await request(app.getHttpServer())
       .patch(`/api/users/${target.id}/role`)
-      .set("Cookie", `${ACCESS_TOKEN_COOKIE}=${token}`)
+      .set("Cookie", buildAuthCookie(token))
       .send({ role: "Admin" });
 
     expect(response.status).toBe(200);
@@ -159,7 +155,7 @@ describe("E2E: /api/users HTTP contract + RBAC 첫 production 적용", () => {
 
     const response = await request(app.getHttpServer())
       .patch(`/api/users/${target.id}/role`)
-      .set("Cookie", `${ACCESS_TOKEN_COOKIE}=garbage.token.invalid`)
+      .set("Cookie", buildAuthCookie("garbage.token.invalid"))
       .send({ role: "Admin" });
 
     expect(response.status).toBe(401);
@@ -185,11 +181,14 @@ describe("E2E: /api/users HTTP contract + RBAC 첫 production 적용", () => {
         role: "User",
       },
     });
-    const token = issueAccessToken(jwtService, actor.id, "User");
+    const token = issueAccessTokenFor(jwtService, {
+      id: actor.id,
+      role: "User",
+    });
 
     const response = await request(app.getHttpServer())
       .patch(`/api/users/${target.id}/role`)
-      .set("Cookie", `${ACCESS_TOKEN_COOKIE}=${token}`)
+      .set("Cookie", buildAuthCookie(token))
       .send({ role: "Admin" });
 
     expect(response.status).toBe(403);
@@ -208,11 +207,14 @@ describe("E2E: /api/users HTTP contract + RBAC 첫 production 적용", () => {
         role: "SuperAdmin",
       },
     });
-    const token = issueAccessToken(jwtService, superAdmin.id, "SuperAdmin");
+    const token = issueAccessTokenFor(jwtService, {
+      id: superAdmin.id,
+      role: "SuperAdmin",
+    });
 
     const response = await request(app.getHttpServer())
       .patch(`/api/users/${superAdmin.id}/role`)
-      .set("Cookie", `${ACCESS_TOKEN_COOKIE}=${token}`)
+      .set("Cookie", buildAuthCookie(token))
       .send({ role: "Admin" });
 
     expect(response.status).toBe(403);
@@ -234,11 +236,14 @@ describe("E2E: /api/users HTTP contract + RBAC 첫 production 적용", () => {
         role: "SuperAdmin",
       },
     });
-    const token = issueAccessToken(jwtService, superAdmin.id, "SuperAdmin");
+    const token = issueAccessTokenFor(jwtService, {
+      id: superAdmin.id,
+      role: "SuperAdmin",
+    });
 
     const response = await request(app.getHttpServer())
       .patch(`/api/users/non-existent-id-12345/role`)
-      .set("Cookie", `${ACCESS_TOKEN_COOKIE}=${token}`)
+      .set("Cookie", buildAuthCookie(token))
       .send({ role: "Admin" });
 
     expect(response.status).toBe(404);
@@ -261,11 +266,14 @@ describe("E2E: /api/users HTTP contract + RBAC 첫 production 적용", () => {
         role: "User",
       },
     });
-    const token = issueAccessToken(jwtService, superAdmin.id, "SuperAdmin");
+    const token = issueAccessTokenFor(jwtService, {
+      id: superAdmin.id,
+      role: "SuperAdmin",
+    });
 
     const response = await request(app.getHttpServer())
       .patch(`/api/users/${target.id}/role`)
-      .set("Cookie", `${ACCESS_TOKEN_COOKIE}=${token}`)
+      .set("Cookie", buildAuthCookie(token))
       .send({ role: "Owner" });
 
     expect(response.status).toBe(400);
