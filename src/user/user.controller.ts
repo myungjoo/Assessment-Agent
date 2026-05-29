@@ -11,11 +11,22 @@
 //     3 invariant (countAll 분기 / bcrypt hash / P2002 → 409 변환) 를 HTTP 표면에 노출.
 //     RBAC 강화 (Admin+ tier 격상) 는 별도 ADR — 첫 user 진입 path 가 분리될 시점.
 //
-// 응답 정책 (T-0092):
-//   - POST /api/users 응답은 User row 그대로 (id / email / hashedPassword / role /
-//     createdAt / updatedAt). hashedPassword 컬럼 포함 — 보안 risk 박제, 별도 task
-//     (UserResponseDto / Prisma select projection 으로 정제).
-//   - 201 Created status (@HttpCode(201)) — Public 첫 user 진입 path 의 직관 정합.
+// 응답 정책 (T-0095 박제 — T-0092 의 active 보안 risk fix):
+//   - POST /api/users / PATCH /api/users/:id/role 두 endpoint 모두 응답 body 는
+//     **UserResponseDto** (id / email / role / createdAt / updatedAt 5 필드). User
+//     entity 의 hashedPassword 컬럼은 응답에서 **제외** — bcrypt 10 rounds 라
+//     rainbow table 공격 비용은 높지만 hashedPassword 가 HTTP 응답으로 흘러나가면
+//     offline brute-force / GPU cracking 의 attack surface 가 공개됨, T-0095 가
+//     그 surface 를 0 으로 만든다.
+//   - service-layer 의 `UserService.signup` / `UserService.changeRole` 은 도메인
+//     entity (User row) 를 그대로 반환 — 도메인 invariant 검증과 DB persistence 만
+//     책임. 응답 DTO 변환은 controller 의 단일 책임 (clean separation 정공법).
+//   - UserResponseDto.fromEntity(serviceResult) 가 변환의 단일 경로 — 임의 신규
+//     컬럼 (schema migration) 도 whitelist 정합으로 자동 차단.
+//   - 201 Created status (@HttpCode(201) for POST) — Public 첫 user 진입 path 의
+//     직관 정합. PATCH 는 NestJS default 200.
+//   - ADR-0008 §6 정합 — DB-level 은 hashedPassword 컬럼 (bcrypt) + HTTP-layer 는
+//     본 DTO 차단. password 보호 layering 2 단계 모두 박제.
 //
 // 책임 경계 (Out of Scope — task §Out of Scope 박제):
 //   - 첫 user 분기의 race window 강제 — 별도 ADR (DB advisory lock / unique partial
@@ -77,6 +88,7 @@ import { RolesGuard } from "../auth/roles.guard";
 
 import { AddUserDto } from "./dto/add-user.dto";
 import { ChangeRoleDto } from "./dto/change-role.dto";
+import { UserResponseDto } from "./dto/user-response.dto";
 import { UserService } from "./user.service";
 
 @Controller("api/users")
@@ -110,11 +122,18 @@ export class UserController {
     @Param("id") id: string,
     @Body() dto: ChangeRoleDto,
     @Req() req: Request,
-  ): Promise<User> {
+  ): Promise<UserResponseDto> {
     // req.user 는 JwtStrategy.validate 가 박제한 payload — type narrowing 으로 sub 추출.
     // AuthController.refresh 의 cookies type narrowing 정공법 정합.
     const actorUserId = (req.user as { sub: string }).sub;
-    return this.userService.changeRole(actorUserId, id, dto.role);
+    // service-layer 는 도메인 entity (User row) 반환 — DTO 변환은 controller layer
+    // 단일 책임. T-0095 박제 — hashedPassword 컬럼은 본 변환에서 자동 제외.
+    const updated: User = await this.userService.changeRole(
+      actorUserId,
+      id,
+      dto.role,
+    );
+    return UserResponseDto.fromEntity(updated);
   }
 
   // POST /api/users — signup endpoint. REQ-044 후반 박제 (첫 등록 user SuperAdmin
@@ -130,11 +149,18 @@ export class UserController {
   //   - service.signup(dto.email, dto.password) 호출 — service layer 의 3 invariant
   //     (countAll 분기 / bcrypt hash / P2002 → 409 변환) 가 도메인 검증. service throw
   //     는 NestJS 가 status 자동 mapping (ConflictException → 409, 그 외 500).
-  //   - 응답은 User row 그대로 (hashedPassword 컬럼 포함). 별도 task 의 UserResponseDto
-  //     로 정제 예정 — Out of Scope.
+  //   - 응답은 UserResponseDto (T-0095 박제) — id / email / role / createdAt /
+  //     updatedAt 5 필드만 노출, hashedPassword 컬럼은 fromEntity 가 자동 제외.
+  //     T-0092 의 active 보안 risk fix 완결.
   @Post()
   @HttpCode(201)
-  async signup(@Body() dto: AddUserDto): Promise<User> {
-    return this.userService.signup(dto.email, dto.password);
+  async signup(@Body() dto: AddUserDto): Promise<UserResponseDto> {
+    // service-layer 는 도메인 entity (User row) 반환 — DTO 변환은 controller layer
+    // 단일 책임. T-0095 박제 — hashedPassword 컬럼은 본 변환에서 자동 제외.
+    const created: User = await this.userService.signup(
+      dto.email,
+      dto.password,
+    );
+    return UserResponseDto.fromEntity(created);
   }
 }
