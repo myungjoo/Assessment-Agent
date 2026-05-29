@@ -41,6 +41,7 @@ import request from "supertest";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 
+import { UserResponseDto } from "./dto/user-response.dto";
 import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 /* eslint-enable import/first */
@@ -103,7 +104,15 @@ describe("UserController (unit)", () => {
       "Admin",
     );
     expect(serviceMock.changeRole).toHaveBeenCalledTimes(1);
-    expect(result).toBe(fixture);
+    // T-0095 — controller 가 UserResponseDto 로 wrap → entity reference 동일성 비교
+    // 0, 5 필드 정합 비교 + UserResponseDto instance 확인 + hashedPassword 부재.
+    expect(result).toBeInstanceOf(UserResponseDto);
+    expect(result.id).toBe(fixture.id);
+    expect(result.email).toBe(fixture.email);
+    expect(result.role).toBe(fixture.role);
+    expect(result.createdAt).toEqual(fixture.createdAt);
+    expect(result.updatedAt).toEqual(fixture.updatedAt);
+    expect(result).not.toHaveProperty("hashedPassword");
   });
 
   it("PATCH /api/users/:id/role — role='User' 시 service.changeRole 호출 (branch — User role)", async () => {
@@ -277,7 +286,13 @@ describe("UserController (unit)", () => {
 
       expect(serviceMock.signup).toHaveBeenCalledWith("a@b.c", "securepass");
       expect(serviceMock.signup).toHaveBeenCalledTimes(1);
-      expect(result).toBe(created);
+      // T-0095 — controller 가 UserResponseDto 로 wrap → entity reference 동일성
+      // 비교 0, 5 필드 정합 비교 + UserResponseDto instance 확인.
+      expect(result).toBeInstanceOf(UserResponseDto);
+      expect(result.id).toBe(created.id);
+      expect(result.email).toBe(created.email);
+      expect(result.role).toBe(created.role);
+      expect(result).not.toHaveProperty("hashedPassword");
     });
 
     it("POST /api/users — dto.email + dto.password 의 인자 순서 정합 (branch — propagation 정합)", async () => {
@@ -328,6 +343,119 @@ describe("UserController (unit)", () => {
       await expect(
         controller.signup({ email: "a@b.c", password: "plain" }),
       ).rejects.toBe(rawError);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // T-0095 — UserResponseDto 매핑 검증 (signup / changeRole 양쪽).
+  //   - happy: 응답이 UserResponseDto instance + 5 필드 정합.
+  //   - negative: 응답 body 에 hashedPassword 키 부재 (보안 risk regression guard).
+  // -----------------------------------------------------------------------
+  describe("UserResponseDto 매핑 (T-0095 보안 risk fix)", () => {
+    it("happy — signup 응답이 UserResponseDto instance + 5 필드 정합", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const created = buildUserFixture({
+        id: "new-1",
+        email: "new@example.com",
+        role: "SuperAdmin",
+      });
+      serviceMock.signup.mockResolvedValueOnce(created);
+
+      const controller = new UserController(userService);
+      const result = await controller.signup({
+        email: "new@example.com",
+        password: "securepass",
+      });
+
+      expect(result).toBeInstanceOf(UserResponseDto);
+      expect(result.id).toBe("new-1");
+      expect(result.email).toBe("new@example.com");
+      expect(result.role).toBe("SuperAdmin");
+      expect(result.createdAt).toEqual(created.createdAt);
+      expect(result.updatedAt).toEqual(created.updatedAt);
+    });
+
+    it("happy — changeRole 응답이 UserResponseDto instance + 5 필드 정합", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const updated = buildUserFixture({
+        id: "t-95",
+        email: "target@example.com",
+        role: "Admin",
+      });
+      serviceMock.changeRole.mockResolvedValueOnce(updated);
+
+      const controller = new UserController(userService);
+      const req = buildReqWithUser({ sub: "actor-95", role: "SuperAdmin" });
+      const result = await controller.changeRole(
+        "t-95",
+        { role: "Admin" },
+        req,
+      );
+
+      expect(result).toBeInstanceOf(UserResponseDto);
+      expect(result.id).toBe("t-95");
+      expect(result.email).toBe("target@example.com");
+      expect(result.role).toBe("Admin");
+      expect(result.createdAt).toEqual(updated.createdAt);
+      expect(result.updatedAt).toEqual(updated.updatedAt);
+    });
+
+    it("negative — signup 응답에 hashedPassword 키 부재 (보안 regression guard)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      serviceMock.signup.mockResolvedValueOnce(
+        buildUserFixture({
+          hashedPassword: "$2b$10$LEAKED.HASH.SHOULD.NOT.APPEAR",
+        }),
+      );
+
+      const controller = new UserController(userService);
+      const result = await controller.signup({
+        email: "a@b.c",
+        password: "securepass",
+      });
+
+      expect(result).not.toHaveProperty("hashedPassword");
+      expect(Object.keys(result).sort()).toEqual(
+        ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+      );
+    });
+
+    it("negative — changeRole 응답에 hashedPassword 키 부재 (보안 regression guard)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      serviceMock.changeRole.mockResolvedValueOnce(
+        buildUserFixture({
+          hashedPassword: "$2b$10$LEAKED.HASH.SHOULD.NOT.APPEAR",
+        }),
+      );
+
+      const controller = new UserController(userService);
+      const req = buildReqWithUser({ sub: "actor", role: "SuperAdmin" });
+      const result = await controller.changeRole("t", { role: "User" }, req);
+
+      expect(result).not.toHaveProperty("hashedPassword");
+      expect(Object.keys(result).sort()).toEqual(
+        ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+      );
+    });
+
+    it("negative — signup 응답이 JSON 직렬화 후에도 hashedPassword 부재 (직렬화 path)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      serviceMock.signup.mockResolvedValueOnce(
+        buildUserFixture({
+          hashedPassword: "$2b$10$ANOTHER.LEAKED.HASH",
+        }),
+      );
+
+      const controller = new UserController(userService);
+      const result = await controller.signup({
+        email: "a@b.c",
+        password: "securepass",
+      });
+      const serialized = JSON.parse(JSON.stringify(result));
+
+      // HTTP 직렬화 path 의 정합 — Express 가 JSON.stringify 로 응답 직렬화 시
+      // hashedPassword 가 누출되지 않는지 끝-단 검증.
+      expect(serialized).not.toHaveProperty("hashedPassword");
     });
   });
 });
@@ -406,6 +534,8 @@ describe("UserController (ValidationPipe + Guard integration)", () => {
     );
     expect(res.body.id).toBe("t-1");
     expect(res.body.role).toBe("Admin");
+    // T-0095 — HTTP 응답 body 에 hashedPassword 키 부재 (regression guard).
+    expect(res.body).not.toHaveProperty("hashedPassword");
   });
 
   // ---- ValidationPipe negative -----------------------------------------

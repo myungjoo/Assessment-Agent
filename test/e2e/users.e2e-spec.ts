@@ -116,9 +116,17 @@ describe("E2E: /api/users HTTP contract + RBAC 첫 production 적용", () => {
     expect(response.body.id).toBe(target.id);
     expect(response.body.role).toBe("Admin");
 
-    // 실 DB row 의 role 컬럼이 "Admin" 으로 갱신됐는지 확인.
+    // T-0095 — 응답 body 에 hashedPassword 부재 + 정확히 5 필드만 노출.
+    expect(response.body).not.toHaveProperty("hashedPassword");
+    expect(Object.keys(response.body).sort()).toEqual(
+      ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+    );
+
+    // 실 DB row 의 role 컬럼이 "Admin" 으로 갱신됐는지 확인. DB-level 의
+    // hashedPassword 는 보존 — HTTP-layer 만 차단 (T-0095 의 책임 경계).
     const dbRow = await prisma.user.findUnique({ where: { id: target.id } });
     expect(dbRow?.role).toBe("Admin");
+    expect(dbRow?.hashedPassword).toBeDefined();
   });
 
   // -- C. Negative: 401 (no cookie) ----------------------------------------
@@ -312,11 +320,18 @@ describe("E2E: POST /api/users signup — REQ-044 후반 첫 등록 user SuperAd
       expect(response.body.email).toBe("first@e2e.test");
       expect(response.body.role).toBe("SuperAdmin");
 
-      // DB row 의 role 도 "SuperAdmin" 박제 검증.
+      // T-0095 — 응답 body 에 hashedPassword 부재 (보안 regression guard).
+      expect(response.body).not.toHaveProperty("hashedPassword");
+      expect(Object.keys(response.body).sort()).toEqual(
+        ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+      );
+
+      // DB row 의 role 도 "SuperAdmin" 박제 검증. DB-level hashedPassword 는 보존.
       const dbRow = await ctx.prisma.user.findUnique({
         where: { email: "first@e2e.test" },
       });
       expect(dbRow?.role).toBe("SuperAdmin");
+      expect(dbRow?.hashedPassword).toBeDefined();
     } finally {
       await truncateAll(ctx.prisma);
       await ctx.app.close();
@@ -336,6 +351,9 @@ describe("E2E: POST /api/users signup — REQ-044 후반 첫 등록 user SuperAd
       expect(response.status).toBe(201);
       expect(response.body.email).toBe("second@e2e.test");
       expect(response.body.role).toBe("User");
+
+      // T-0095 — 응답 body 에 hashedPassword 부재 (보안 regression guard).
+      expect(response.body).not.toHaveProperty("hashedPassword");
 
       const dbRow = await ctx.prisma.user.findUnique({
         where: { email: "second@e2e.test" },
