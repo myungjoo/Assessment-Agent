@@ -26,6 +26,7 @@ jest.mock("../persistence/prisma.service", () => ({
 /* eslint-disable import/first */
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
   UnauthorizedException,
@@ -59,13 +60,13 @@ function buildUserFixture(overrides: Partial<User> = {}): User {
   };
 }
 
-// UserService mock factory — controller 가 사용하는 1 메서드 (changeRole) 만
-// jest.fn() 으로 대체. 각 test 마다 새 mock 생성 (호출 카운터 격리).
+// UserService mock factory — controller 가 사용하는 2 메서드 (changeRole / signup)
+// 를 jest.fn() 으로 대체. 각 test 마다 새 mock 생성 (호출 카운터 격리).
 function buildUserServiceMock(): {
   userService: UserService;
-  serviceMock: { changeRole: jest.Mock };
+  serviceMock: { changeRole: jest.Mock; signup: jest.Mock };
 } {
-  const serviceMock = { changeRole: jest.fn() };
+  const serviceMock = { changeRole: jest.fn(), signup: jest.fn() };
   return {
     userService: serviceMock as unknown as UserService,
     serviceMock,
@@ -250,6 +251,84 @@ describe("UserController (unit)", () => {
     await expect(
       controller.changeRole("t", { role: "Admin" }, req),
     ).rejects.toBe(rawError);
+  });
+
+  // -----------------------------------------------------------------------
+  // POST signup — T-0092 acceptance §G (R-112 4 카테고리). REQ-044 후반 박제.
+  //   - happy: dto.email + dto.password 를 service.signup 인자로 forward + 반환.
+  //   - branch: dto 인자 propagation 검증.
+  //   - error: ConflictException / BadRequestException / 그 외 raw propagate.
+  // -----------------------------------------------------------------------
+  describe("POST signup (unit)", () => {
+    it("POST /api/users — dto 의 email + password 를 service.signup 인자로 forward + 결과 반환 (happy)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const created = buildUserFixture({
+        id: "new-user",
+        email: "a@b.c",
+        role: "SuperAdmin",
+      });
+      serviceMock.signup.mockResolvedValueOnce(created);
+
+      const controller = new UserController(userService);
+      const result = await controller.signup({
+        email: "a@b.c",
+        password: "securepass",
+      });
+
+      expect(serviceMock.signup).toHaveBeenCalledWith("a@b.c", "securepass");
+      expect(serviceMock.signup).toHaveBeenCalledTimes(1);
+      expect(result).toBe(created);
+    });
+
+    it("POST /api/users — dto.email + dto.password 의 인자 순서 정합 (branch — propagation 정합)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      serviceMock.signup.mockResolvedValueOnce(buildUserFixture());
+
+      const controller = new UserController(userService);
+      await controller.signup({
+        email: "second@example.com",
+        password: "anotherpass",
+      });
+
+      // .mock.calls inspection — email 가 첫 인자, password 가 두 번째 인자.
+      expect(serviceMock.signup.mock.calls[0][0]).toBe("second@example.com");
+      expect(serviceMock.signup.mock.calls[0][1]).toBe("anotherpass");
+    });
+
+    it("POST /api/users — service 의 ConflictException 그대로 propagate (error — email 중복)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      serviceMock.signup.mockRejectedValueOnce(
+        new ConflictException("email already exists: dup@example.com"),
+      );
+
+      const controller = new UserController(userService);
+      await expect(
+        controller.signup({ email: "dup@example.com", password: "plain" }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("POST /api/users — service 의 BadRequestException 그대로 propagate (error — DTO 우회 path)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      serviceMock.signup.mockRejectedValueOnce(
+        new BadRequestException("invalid signup payload"),
+      );
+
+      const controller = new UserController(userService);
+      await expect(
+        controller.signup({ email: "a@b.c", password: "plain" }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("POST /api/users — service 의 raw Error 그대로 propagate (negative — unknown error)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const rawError = new Error("unexpected outage");
+      serviceMock.signup.mockRejectedValueOnce(rawError);
+
+      const controller = new UserController(userService);
+      await expect(
+        controller.signup({ email: "a@b.c", password: "plain" }),
+      ).rejects.toBe(rawError);
+    });
   });
 });
 

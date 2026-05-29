@@ -1,40 +1,58 @@
 // UserService — User 도메인 의 application service. T-0086 acceptance §A/B 박제.
 // RBAC 첫 production 사용 사례 chain 의 service layer 진입점 — UserRepository
-// (T-0080 / T-0085 의 4 메서드: create / findByEmail / findById / updateRole) 위에
-// REQ-044 의 5 invariant 도메인 의미를 부여한다.
+// (T-0080 / T-0085 / T-0092 의 5 메서드: create / findByEmail / findById /
+// updateRole / countAll) 위에 REQ-044 의 5 invariant + signup 첫 user SuperAdmin
+// 자동 지정 (REQ-044 후반) 도메인 의미를 부여한다.
 //
-// 책임 (T-0086 scope):
+// 책임 (T-0086 + T-0092 scope):
 //   - changeRole(actorUserId, targetUserId, newRole) — README L84 REQ-044 박제 :
 //     "Admin→User 변경은 첫 로긴 Admin (= SuperAdmin) 만 수행할 수 있고, 본인에 대해서는
 //     Admin→User 를 할 수 없다". 5 invariant 모두 service-layer 책임 — UserRepository
 //     는 string forwarding 만 한다.
-//   - Prisma 의 known error code (P2025 = record not found) 를 NestJS HttpException
-//     (NotFoundException) 으로 변환. GroupService / PersonService 정공법 정합.
+//   - signup(email, plainPassword) — README L84 REQ-044 후반 박제: 첫 등록 user 의
+//     role 을 SuperAdmin 으로 자동 지정 (countAll === 0 분기), 두 번째 이후는 default
+//     User. password 는 AuthService.hashPassword (bcrypt 10 rounds, ADR-0008 §6) 로
+//     hash 후 hashedPassword 컬럼에 저장. P2002 (email @unique 위반) → ConflictException
+//     변환 (PartService.update P2002 분기 1:1 mirror).
+//   - Prisma 의 known error code (P2025 = record not found / P2002 = unique constraint)
+//     를 NestJS HttpException (NotFoundException / ConflictException) 으로 변환.
+//     GroupService / PersonService 정공법 정합.
 //
 // 책임 경계 (Out of Scope — task §Out of Scope 박제):
-//   - UserController / ChangeRoleDto / PATCH endpoint / @Roles guard 없음 — T-0087
-//     candidate 책임. 본 service 의 actorUserId 는 임의 input — HTTP layer 에서
-//     JwtAuthGuard 가 cookie 의 sub claim 으로 주입할 예정.
-//   - 첫 로그인 SuperAdmin 자동 지정 (REQ-044 후반) 없음 — register/signup endpoint
-//     박제 시점 (T-0089+ candidate) 의 별도 메서드.
+//   - 첫 user 분기의 race window 강제 — DB advisory lock / `@@check` / unique constraint
+//     on role="SuperAdmin" 등의 강제는 본 task 0. 현재는 service-layer count check
+//     후 create 분기 — concurrent 2 signup 동시 첫 → 둘 다 SuperAdmin 가능. 별도 ADR
+//     + task. signup() 의 race window 박제 (countAll → create 간 시간 차).
+//   - User response shape 정제 (hashedPassword 제거) — 현재 signup 응답은 User row
+//     그대로 (hashedPassword 컬럼 포함). 보안 risk 박제, 별도 task (UserResponseDto
+//     또는 Prisma select projection).
+//   - password 정책 강화 (복잡도 / blacklist / breach API check) — 본 service 는
+//     hash 만, 정책은 DTO + 별도 task.
 //   - Admin → SuperAdmin 승급 invariant — README L84 후반 "Admin 권한 사용자는 User→
 //     Admin 승급" 분기는 본 service 의 invariant 1 (only SuperAdmin) 와 충돌, 별도
 //     task / ADR 로 분리.
 //   - AuthService.issueAccessToken role rotation 호출 — changeRole 후 자동 token
 //     refresh 박제는 별도 task (refresh endpoint 와 동기).
 //
-// Prisma error 정책 (T-0086):
+// Prisma error 정책 (T-0086 + T-0092):
 //   - changeRole: P2025 (race window — invariant 3 통과 후 target user 가 동시 삭제)
 //     → NotFoundException 변환. 그 외 (P9999 / code 없는 generic Error / 의존성 fail)
 //     → raw propagate. GroupService.delete / PartService.delete 패턴 mirror.
+//   - signup: P2002 (email @unique 위반) → ConflictException 변환. 그 외 raw propagate.
+//     AuthService.hashPassword 의 throw 도 raw propagate (catch 0).
 import {
   BadRequestException,
+  ConflictException,
+  forwardRef,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
 import type { User } from "@prisma/client";
+
+import { AuthService } from "../auth/auth.service";
 
 import { UserRepository } from "./user.repository";
 
@@ -70,7 +88,14 @@ function getPrismaErrorCode(error: unknown): string | undefined {
 
 @Injectable()
 export class UserService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    // AuthService inject — UserService.signup 의 password hash 위해. AuthModule ↔
+    // UserModule circular dependency (T-0087 의 forwardRef 정공법 정합) — 양방향
+    // @Inject(forwardRef()) 로 NestJS provider resolution lazy 처리.
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
+  ) {}
 
   // changeRole — REQ-044 박제 (README L84). 5 invariant 책임 + UserRepository.updateRole
   // forwarding. race window (invariant 3 통과 후 target user 동시 삭제) 의 P2025 →
@@ -131,6 +156,56 @@ export class UserService {
     } catch (error) {
       if (getPrismaErrorCode(error) === "P2025") {
         throw new NotFoundException(`user not found: ${targetUserId}`);
+      }
+      throw error;
+    }
+  }
+
+  // signup — REQ-044 후반 박제 (README L84 "SuperAdmin (첫 로긴), Admin, User 3 등급").
+  // 첫 등록 user 의 role 을 SuperAdmin 자동 지정 + email @unique (P2002) → 409 변환 +
+  // bcrypt 10 rounds password hash (ADR-0008 §6 정합). UserController.signup 의
+  // POST /api/users endpoint 진입점 — Public tier (인증 없는 첫 user 진입 path 필수).
+  //
+  // invariant 순서 (early-return 정공법, changeRole 패턴 1:1 mirror):
+  //   1. 첫 user 분기 검증 — UserRepository.countAll() 호출. count === 0 → role
+  //      "SuperAdmin", count > 0 → role "User". race window 박제 (Out of Scope):
+  //      countAll → create 사이에 다른 signup 동시 진행 시 둘 다 첫 user 분기 진입
+  //      가능 → 둘 다 SuperAdmin 가능 (schema-level 강제 0). 별도 ADR 후속 — DB
+  //      advisory lock / unique partial index on role="SuperAdmin" 등.
+  //   2. password hash — AuthService.hashPassword(plainPassword) 호출. bcrypt 10
+  //      rounds (ADR-0008 §6). DB 의 hashedPassword 컬럼 source. hashPassword throw
+  //      는 raw propagate (catch 0, AuthService 의 책임 분리).
+  //   3. UserRepository.create forwarding — { email, hashedPassword, role } 인자.
+  //      P2002 (User.email @unique 위반) → ConflictException 변환. 그 외 raw
+  //      propagate (P9999 / generic Error / DB outage 등). PartService.update 의
+  //      P2002 분기 1:1 mirror (T-0071 precedent).
+  //
+  // 호출자 책임 (Out of Scope, controller layer):
+  //   - email / password 의 형식 검증 (RFC 5322 / MinLength 8) → AddUserDto + DTO
+  //     ValidationPipe 가 controller 진입 전 reject (400 자동). 본 service 는 빈
+  //     email / 빈 password 도 raw forward (DTO 우회 시 DB 의 unique constraint /
+  //     hashedPassword not-null 이 fallback).
+  //   - role 외부 지정 우회 차단 → AddUserDto 의 forbidNonWhitelisted 가 controller
+  //     진입 전 reject. 본 service 는 role 인자 0 — 자동 분기.
+  async signup(email: string, plainPassword: string): Promise<User> {
+    // invariant 1 — 첫 user 분기 검증. count === 0 일 때 SuperAdmin, 외 User.
+    // race window 박제: countAll → create 사이 시간 차 — 별도 ADR 후속.
+    const existingCount = await this.userRepository.countAll();
+    const role = existingCount === 0 ? "SuperAdmin" : "User";
+
+    // invariant 2 — password hash (bcrypt 10 rounds). throw 는 raw propagate.
+    const hashedPassword = await this.authService.hashPassword(plainPassword);
+
+    // invariant 3 — create forwarding + P2002 → ConflictException 변환.
+    try {
+      return await this.userRepository.create({
+        email,
+        hashedPassword,
+        role,
+      });
+    } catch (error) {
+      if (getPrismaErrorCode(error) === "P2002") {
+        throw new ConflictException(`email already exists: ${email}`);
       }
       throw error;
     }

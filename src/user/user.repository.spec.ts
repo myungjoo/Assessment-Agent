@@ -46,12 +46,14 @@ function buildPrismaMock(): {
     create: jest.Mock;
     findUnique: jest.Mock;
     update: jest.Mock;
+    count: jest.Mock;
   };
 } {
   const userMock = {
     create: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
+    count: jest.fn(),
   };
   const prisma = { user: userMock } as unknown as PrismaService;
   return { prisma, userMock };
@@ -417,6 +419,55 @@ describe("UserRepository", () => {
         where: { id: "cuid-target" },
         data: { role: "" },
       });
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // countAll (T-0092 추가) — UserService.signup 의 첫 user 분기 backbone.
+  // happy (count 0 / count > 0) + error (PrismaService reject propagate).
+  // ------------------------------------------------------------------
+  describe("countAll()", () => {
+    // Happy path 1: 빈 table 시 count 가 0 반환 — signup 의 첫 user 분기 진입.
+    it("user table 이 빈 상태에서 0 반환 (happy — 첫 user 분기 backbone)", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.count.mockResolvedValueOnce(0);
+
+      const repo = new UserRepository(prisma);
+      const result = await repo.countAll();
+
+      expect(userMock.count).toHaveBeenCalledTimes(1);
+      expect(userMock.count).toHaveBeenCalledWith();
+      expect(result).toBe(0);
+    });
+
+    // Happy path 2: row 가 1+ 있을 시 count 가 N 반환 — signup 의 default User 분기.
+    it("user table 에 row 1 개 시 1 반환 (happy — 두 번째 user 분기)", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.count.mockResolvedValueOnce(1);
+
+      const repo = new UserRepository(prisma);
+      const result = await repo.countAll();
+
+      expect(result).toBe(1);
+    });
+
+    it("user table 에 row 42 개 시 42 반환 (happy — N 번째 user 분기)", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.count.mockResolvedValueOnce(42);
+
+      const repo = new UserRepository(prisma);
+      const result = await repo.countAll();
+
+      expect(result).toBe(42);
+    });
+
+    // Negative case: PrismaService 가 generic error reject 시 그대로 propagate.
+    it("PrismaService 가 reject 하면 error 를 그대로 전파한다 (negative — catch 0)", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.count.mockRejectedValueOnce(new Error("db-down"));
+
+      const repo = new UserRepository(prisma);
+      await expect(repo.countAll()).rejects.toThrow("db-down");
     });
   });
 });

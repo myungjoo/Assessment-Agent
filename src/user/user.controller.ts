@@ -1,24 +1,40 @@
-// UserController — `/api/users` HTTP-facing layer. T-0087 acceptance §B 박제.
+// UserController — `/api/users` HTTP-facing layer. T-0087 + T-0092 acceptance 박제.
 //
-// 책임 (T-0087 scope):
+// 책임 (T-0087 + T-0092 scope):
 //   - PATCH /api/users/:id/role — user role 변경 endpoint. RBAC backbone (JwtAuthGuard +
 //     RolesGuard + @Roles("SuperAdmin")) 의 **첫 production 적용 endpoint**. T-0083
 //     이 박제한 4 surface (JwtAuthGuard / JwtStrategy / @Roles / RolesGuard) 의 첫
 //     사용 사례. UserService.changeRole (T-0086) 의 5 invariant 를 HTTP 표면에 노출.
+//   - POST /api/users — signup endpoint. T-0092 acceptance §F 박제. **Public tier
+//     (인증 없는 첫 user 진입 path 필수)** — 첫 등록 user 의 role = "SuperAdmin"
+//     자동 지정 (REQ-044 후반), 두 번째 이후는 default "User". UserService.signup 의
+//     3 invariant (countAll 분기 / bcrypt hash / P2002 → 409 변환) 를 HTTP 표면에 노출.
+//     RBAC 강화 (Admin+ tier 격상) 는 별도 ADR — 첫 user 진입 path 가 분리될 시점.
+//
+// 응답 정책 (T-0092):
+//   - POST /api/users 응답은 User row 그대로 (id / email / hashedPassword / role /
+//     createdAt / updatedAt). hashedPassword 컬럼 포함 — 보안 risk 박제, 별도 task
+//     (UserResponseDto / Prisma select projection 으로 정제).
+//   - 201 Created status (@HttpCode(201)) — Public 첫 user 진입 path 의 직관 정합.
 //
 // 책임 경계 (Out of Scope — task §Out of Scope 박제):
-//   - POST /api/users (signup) endpoint 부재 — T-0089 candidate. 첫 로그인 SuperAdmin
-//     자동 지정 invariant (REQ-044 후반) 도 별도.
+//   - 첫 user 분기의 race window 강제 — 별도 ADR (DB advisory lock / unique partial
+//     index on role="SuperAdmin").
+//   - POST /api/users 의 RBAC 강화 (Admin+ tier 격상) — 첫 user 등록 후 본 endpoint
+//     를 Admin+ 격상 또는 분리 endpoint (`POST /api/auth/setup`) 로 분리. 별도 ADR.
 //   - PATCH /api/users/:id/password endpoint 부재 — api.md L72 박제, 별도 task.
 //   - GET /api/users / GET /api/users/:id endpoint 부재 — read-only path, RBAC tier
 //     검토 후 별도.
 //   - Admin 의 User→Admin 승급 분기 부재 — README L84 후반. 별도 service / endpoint
 //     또는 service 분기 확장 ADR.
-//   - api.md §5 의 PATCH /api/users/:id/role row amend — T-0088 candidate (doc-only).
+//   - api.md §5 의 PATCH /api/users/:id/role row amend — T-0088 MERGED. POST
+//     /api/users row amend 는 T-0093 candidate (doc-only direct).
 //   - CurrentUser decorator (`@CurrentUser() actor: JwtPayload`) 부재 — 2+ controller
 //     의 동일 패턴 출현 시 추출 (별도 task).
 //   - immediate role rotation (changeRole 후 access token 즉시 refresh) 부재 — cookie
 //     의 token 은 다음 refresh 시점 (7day TTL 내) 에 새 role propagate. 별도 task.
+//   - email 검증 (verification mail) / password 정책 강화 / rate limiting / brute-force
+//     차단 — 별도 task / ADR.
 //
 // RBAC actor user id propagate path (T-0083 JwtStrategy.validate 박제 → 본 controller):
 //   1. client → HttpOnly cookie access_token (JWT, payload = { sub, role, iat, exp }).
@@ -43,8 +59,10 @@
 import {
   Body,
   Controller,
+  HttpCode,
   Param,
   Patch,
+  Post,
   Req,
   UseGuards,
   UsePipes,
@@ -57,6 +75,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
+import { AddUserDto } from "./dto/add-user.dto";
 import { ChangeRoleDto } from "./dto/change-role.dto";
 import { UserService } from "./user.service";
 
@@ -96,5 +115,26 @@ export class UserController {
     // AuthController.refresh 의 cookies type narrowing 정공법 정합.
     const actorUserId = (req.user as { sub: string }).sub;
     return this.userService.changeRole(actorUserId, id, dto.role);
+  }
+
+  // POST /api/users — signup endpoint. REQ-044 후반 박제 (첫 등록 user SuperAdmin
+  // 자동 지정). T-0092 acceptance §F.
+  //   - guard 없음 — Public tier (인증 없는 첫 user 진입 path 필수). 향후 첫 user
+  //     등록 후 본 endpoint 를 Admin+ 격상 또는 분리 endpoint 으로 분리 검토는 별도
+  //     ADR (Out of Scope).
+  //   - @HttpCode(201) — Created. POST 의 default 인 201 명시 박제 (NestJS 의 POST
+  //     default 가 201 이지만 명시 박제로 status contract 외화).
+  //   - body 의 dto.email + dto.password 검증은 ValidationPipe + AddUserDto 의 @IsEmail
+  //     + @IsString + @IsNotEmpty + @MinLength(8) decorator + forbidNonWhitelisted
+  //     (role 우회 차단) 가 controller 진입 전 reject (400 자동).
+  //   - service.signup(dto.email, dto.password) 호출 — service layer 의 3 invariant
+  //     (countAll 분기 / bcrypt hash / P2002 → 409 변환) 가 도메인 검증. service throw
+  //     는 NestJS 가 status 자동 mapping (ConflictException → 409, 그 외 500).
+  //   - 응답은 User row 그대로 (hashedPassword 컬럼 포함). 별도 task 의 UserResponseDto
+  //     로 정제 예정 — Out of Scope.
+  @Post()
+  @HttpCode(201)
+  async signup(@Body() dto: AddUserDto): Promise<User> {
+    return this.userService.signup(dto.email, dto.password);
   }
 }

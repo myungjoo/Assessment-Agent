@@ -38,9 +38,10 @@ import request from "supertest";
 import { PrismaService } from "../../src/persistence/prisma.service";
 // helper module-load side-effect — process.env.AUTH_JWT_SECRET 박제 (??= 보존). 본
 // import 는 호출 측 spec 의 top-level evaluation 시점에 module init 보다 먼저 secret
-// bind (T-0091 박제).
+// bind (T-0091 박제). T-0092 가 createAuthenticatedE2EApp 의 첫 production 소비.
 import {
   buildAuthCookie,
+  createAuthenticatedE2EApp,
   issueAccessTokenFor,
 } from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
@@ -281,5 +282,116 @@ describe("E2E: /api/users HTTP contract + RBAC 첫 production 적용", () => {
     // DB role 변경 0 확인 — ValidationPipe 가 controller 진입 전 reject.
     const dbRow = await prisma.user.findUnique({ where: { id: target.id } });
     expect(dbRow?.role).toBe("User");
+  });
+});
+
+// -----------------------------------------------------------------------
+// POST /api/users signup e2e — T-0092 acceptance §H 박제. createAuthenticatedE2EApp
+// helper 의 **첫 production 소비 사례** — 빈 seed (첫 user 분기) + 1 seed (default
+// user 분기) 두 시나리오를 helper 호출 1 줄로 박제.
+// -----------------------------------------------------------------------
+describe("E2E: POST /api/users signup — REQ-044 후반 첫 등록 user SuperAdmin 자동", () => {
+  // 본 describe block 은 매 it 마다 helper 호출 (createAuthenticatedE2EApp) — 첫
+  // signup 분기 검증 시 매 it 마다 User table 비우기 의무 (첫 user 분기의 SuperAdmin
+  // 자동 지정 invariant 의 재현성 보장).
+
+  afterEach(async () => {
+    // afterEach 의 책임: 각 it 가 own context (app + prisma) 를 close. 본 describe
+    // block 은 매 it 안에서 helper 호출 → 같은 it 의 afterEach 가 cleanup.
+    // (e2e-app-factory + helper 의 context 격리 패턴.)
+  });
+
+  it("첫 signup → SuperAdmin 자동 지정 + 201 응답 (happy — 빈 seed 분기)", async () => {
+    const ctx = await createAuthenticatedE2EApp([]);
+    try {
+      const response = await request(ctx.app.getHttpServer())
+        .post("/api/users")
+        .send({ email: "first@e2e.test", password: "securepass" });
+
+      expect(response.status).toBe(201);
+      expect(response.body.email).toBe("first@e2e.test");
+      expect(response.body.role).toBe("SuperAdmin");
+
+      // DB row 의 role 도 "SuperAdmin" 박제 검증.
+      const dbRow = await ctx.prisma.user.findUnique({
+        where: { email: "first@e2e.test" },
+      });
+      expect(dbRow?.role).toBe("SuperAdmin");
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("두 번째 signup → User default 지정 + 201 응답 (happy — 1 seed 분기)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "SuperAdmin", email: "existing@e2e.test" },
+    ]);
+    try {
+      const response = await request(ctx.app.getHttpServer())
+        .post("/api/users")
+        .send({ email: "second@e2e.test", password: "securepass" });
+
+      expect(response.status).toBe(201);
+      expect(response.body.email).toBe("second@e2e.test");
+      expect(response.body.role).toBe("User");
+
+      const dbRow = await ctx.prisma.user.findUnique({
+        where: { email: "second@e2e.test" },
+      });
+      expect(dbRow?.role).toBe("User");
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("duplicate email → 409 Conflict (error — P2002 분기)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "SuperAdmin", email: "dup@e2e.test" },
+    ]);
+    try {
+      const response = await request(ctx.app.getHttpServer())
+        .post("/api/users")
+        .send({ email: "dup@e2e.test", password: "securepass" });
+
+      expect(response.status).toBe(409);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("invalid payload (password 빈 string) → 400 BadRequest (error — ValidationPipe)", async () => {
+    const ctx = await createAuthenticatedE2EApp([]);
+    try {
+      const response = await request(ctx.app.getHttpServer())
+        .post("/api/users")
+        .send({ email: "test@e2e.test", password: "" });
+
+      expect(response.status).toBe(400);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("invalid payload (email 형식 위반) → 400 BadRequest (error — IsEmail)", async () => {
+    const ctx = await createAuthenticatedE2EApp([]);
+    try {
+      const response = await request(ctx.app.getHttpServer())
+        .post("/api/users")
+        .send({ email: "not-an-email", password: "securepass" });
+
+      expect(response.status).toBe(400);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
   });
 });
