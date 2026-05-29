@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0092",
   "lock": {
-    "holder": "loop-session-26-turn-3",
-    "since": "2026-05-29T12:07:29+09:00"
+    "holder": "loop-session-26-turn-4",
+    "since": "2026-05-29T13:35:00+09:00"
   },
-  "lastActivity": "2026-05-29T13:30:00+09:00",
+  "lastActivity": "2026-05-29T13:35:00+09:00",
   "lastCommit": "2e1b4b4",
   "mostRecentTasks": [
     "T-0091",
