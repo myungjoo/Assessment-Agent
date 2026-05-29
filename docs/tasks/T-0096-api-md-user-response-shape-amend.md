@@ -2,14 +2,18 @@
 id: T-0096
 title: api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref — T-0095 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 35
 estimatedFiles: 2
+actualDiff: 6
+actualFiles: 2
 created: 2026-05-29
+completedAt: 2026-05-30T05:00:00+09:00
 dependsOn: [T-0095]
 plannerNote: "session #26 turn 10 (cap) planner — T-0095 UserResponseDto 머지 후 api.md L70/L71 응답 shape doc-amend + modules.md UserModule UserResponseDto cross-ref. doc-only inline-amend × 0.64, ~35 LOC / 2 파일."
+driverNote: "cron fire (KST 05:00 scheduled routine, Anthropic 클라우드 fresh checkout `claude/affectionate-babbage-lYmHe` branch) — doc-only inline-amend +6/-3 LOC across 2 파일 (api.md L70 POST /api/users row 응답 shape 갱신 + L71 PATCH /api/users/:id/role row 응답 shape 갱신 + modules.md L34 UserModule row UserResponseDto cross-ref + follow-up chain 갱신). 실 LOC × 0.17 sub-multiplier — envelope 35 LOC 의 약 1/6 — T-0088 × 0.19 sub-multiplier 와 거의 동일 (단순 in-place row description amend 가 가장 가벼운 inline-amend 패턴). D1~D9 grep / inspect 검증 all PASS — api.md T-0095 cross-ref 2 + UserResponseDto 2 + hashedPassword 2 + defence in depth 1 / modules.md T-0095 1 + UserResponseDto 1 + fromEntity 1 + row count 변동 0 + 2 파일 한정 scope. **env 적응 — cloud env 의 session branch 제약** (push to main 불가) 에 의해 본 fire 는 doc-only direct task 를 session branch `claude/affectionate-babbage-lYmHe` 에 commit + push 후 draft PR open. 본 commit 의 STATE/task/journal bookkeeping 은 PR merge 시점에 atomic 적용 (counters 94→95, mostRecentTasks prepend T-0096, currentTask=null, nextTask=null)."
 ---
 
 # T-0096 — api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref
