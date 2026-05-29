@@ -3,7 +3,7 @@ id: T-0092
 taskId: T-0092
 title: POST /api/users 신규 user 등록 + 첫 등록 user SuperAdmin 자동 지정 (REQ-044 후반)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 320
@@ -14,6 +14,13 @@ sizeExempt: true
 exemptReason: "R-112 backbone × 1.5 × P2002 sub-multiplier × 1.2 = × 1.8 pre-justified — 4 layer 동시 박제 (AddUserDto / UserService.signup / UserController POST / 4 colocated spec) + User.email @unique 의 P2002 분기 추가. base ~ 180 LOC × 1.8 ≈ 320 LOC. T-0086 ×2.28 + T-0087 ×1.98 + T-0091 ×1.86 precedent 정합."
 created: 2026-05-29
 createdAt: 2026-05-29T13:35:00+09:00
+completedAt: 2026-05-29T14:42:00+09:00
+prNumber: 87
+mergedAs: f97329b
+reviewRounds: 1
+actualLoc: "+854/-26"
+actualFiles: 9
+completionNote: "T-0092 MERGED PR-87 sha f97329b round 1 single-shot. AddUserDto (email + password MinLength 8) + UserService.signup (countAll → SuperAdmin/User 분기 + bcrypt 10 rounds + P2002 → 409 변환) + UserRepository.countAll + UserController @Post() (Public, @HttpCode 201) + AuthService inject via forwardRef + colocated spec (AddUserDto 18 it / signup 12 it / countAll 4 it / POST controller 5 it) + e2e 5 it (T-0091 createAuthenticatedE2EApp 첫 production 소비). 실 LOC +854/-26 across 9 파일 (envelope 320 × 1.8 의 ×0.83 within tolerance — under-use 첫 사례, R-112 + P2002 backbone 예측 정확). 신규 surface 100% line/function/branch/statement coverage (40 suites / 713 tests). 4-게이트 all PASS: reviewer round 1 APPROVE comment 4571022205 + PR comment 외부 + integrator self-check + CI run 26620063895 conclusion=success. RBAC backbone last-mile 박제 완결 (T-0083 → T-0086 → T-0087 → T-0092 chain 4/4 closed + ADR-0008 §6 후속 chain 마지막 production endpoint 공백 해소). single-shot first-run pass cadence 5 회차 누적 (T-0086 + T-0087 + T-0090 + T-0091 + T-0092)."
 plannerNote: "POST /api/users + AddUserDto + UserService.signup (첫 user SuperAdmin 분기 invariant + email P2002) — REQ-044 후반 첫 로그인 SuperAdmin backbone, T-0091 helper 의 첫 production 소비."
 ---
 
