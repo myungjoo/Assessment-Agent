@@ -2,14 +2,18 @@
 id: T-0096
 title: api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref — T-0095 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 35
 estimatedFiles: 2
+actualDiff: 6
+actualFiles: 2
 created: 2026-05-29
+completedAt: 2026-05-30T02:04:19+09:00
 dependsOn: [T-0095]
 plannerNote: "session #26 turn 10 (cap) planner — T-0095 UserResponseDto 머지 후 api.md L70/L71 응답 shape doc-amend + modules.md UserModule UserResponseDto cross-ref. doc-only inline-amend × 0.64, ~35 LOC / 2 파일."
+driverNote: "KST 2026-05-30 02:04 cron fire (Anthropic 클라우드 fresh checkout, harness branch claude/affectionate-babbage-eoAen) — driver inline 경로 (executor sub-agent dispatch 없이 driver 가 직접 doc edit + grep D1~D9 자체 검증, T-0093 mirror). api.md L70 POST /api/users row + L71 PATCH /api/users/:id/role row 응답 shape 갱신 (UserResponseDto 5 readonly 필드 / hashedPassword 응답 누출 차단 / defence in depth 2 layer 박제 / ADR-0008 §6 application-layer last-mile cross-ref) + modules.md L34 UserModule row 책임 description 의 UserResponseDto chain 추가 + follow-up 항목 갱신 (fromEntities 배열 helper + ClassSerializerInterceptor 도입 ADR). 실 LOC +3/-3 across 2 파일 = 6 LOC total (envelope 35 의 × 0.17 sub-multiplier — table row 단일 cell description in-place 갱신 패턴이 T-0088 × 0.19 보다도 약간 가벼움, T-0084 × 0.37 / T-0088 × 0.19 / T-0089 × 0.91 / T-0093 × 0.23 precedent 4 회차 정합 doc-only inline-amend 5 회차 누적 박제). D1~D9 all PASS (grep T-0095/UserResponseDto/hashedPassword/defence in depth/fromEntity 모두 임계 만족, 표 syntax 깨짐 0, src/test/package.json 변경 0). 본 commit 은 harness 정책 (claude/affectionate-babbage-eoAen 강제) 에 의해 feature branch 에 push — main 머지는 draft PR 경로 (사용자 검토 후 squash merge). prior planner-only direct commit f582d99 / b73a616 도 동일 harness 패턴 정합."
 ---
 
 # T-0096 — api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref
