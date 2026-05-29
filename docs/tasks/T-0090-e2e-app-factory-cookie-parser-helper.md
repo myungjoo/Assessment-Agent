@@ -3,17 +3,25 @@ id: T-0090
 taskId: T-0090
 title: e2e-app-factory helper 추출 + cookie-parser middleware test-path wire 영구 일관성 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045, REQ-046, REQ-057, REQ-058]
 estimatedDiff: 220
 estimatedFiles: 5
 estimatedLoc: 220
+actualLoc: 314
+actualFiles: 10
+multiplierActual: 1.43
 dependsOn: [T-0087]
 sizeExempt: false
 created: 2026-05-29
 createdAt: 2026-05-29T04:25:00+09:00
+completedAt: 2026-05-29T10:01:57+09:00
+prNumber: 85
+mergedAs: 59d1a26509f6d0777914fa099ef5f98b8d1bb860
+reviewRounds: 1
 plannerNote: "cron fire 후속 — T-0087 within-round 2 fix push 의 cookie-parser test-path 격차 lesson 영구 fix. partial-backbone × 1.3 envelope 220 LOC / 5 파일. T-0091 helper 추출의 선행 의존."
+completionNote: "PR-85 round 1 single-shot squash merge sha 59d1a26 (cron/MCP path, KST 10:01:57 머지). 실 LOC +251/-63 across 10 파일 (frontmatter 220 envelope vs actual 251 = ×1.14 within partial-backbone tolerance — 단 frontmatter estimatedFiles 5 vs actual 10 은 task body D/E/F 섹션 enumerate 시 자연스러운 — planner underestimate variance MINOR). 4-게이트 all PASS: reviewer round 1 APPROVE comment + integrator self-check + CI run 26611604028 conclusion=success + PR comment 외부 박제. bootstrap.ts line/branch/function/stmt 모두 100% (R-112 4 카테고리 cover). e2e spec 5종 (users/persons/groups/parts/app) 의 부트스트랩 5 라인 → createE2EApp() 1 라인 mechanical 변환. T-0087 lesson (cookie-parser middleware production main.ts boot path 만 wire 의 Test.createTestingModule path 누락 regression) 영구 fix 박제 완결. T-0091 (auth-e2e-helper) 진입 가능 — createE2EApp 위에 JWT issue + SuperAdmin/Admin/User 3 종 token 발급 utility 자연 chain."
 ---
 
 # T-0090 — e2e-app-factory helper 추출 + cookie-parser middleware test-path wire 영구 일관성 박제
