@@ -2,14 +2,20 @@
 id: T-0096
 title: api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref — T-0095 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 35
 estimatedFiles: 2
+actualDiff: 6
+actualFiles: 2
+multiplierObserved: 0.17
 created: 2026-05-29
+completedAt: 2026-05-29T22:04:33+09:00
 dependsOn: [T-0095]
 plannerNote: "session #26 turn 10 (cap) planner — T-0095 UserResponseDto 머지 후 api.md L70/L71 응답 shape doc-amend + modules.md UserModule UserResponseDto cross-ref. doc-only inline-amend × 0.64, ~35 LOC / 2 파일."
+driverNote: "cron fire (KST 22:00 scheduled routine, Anthropic 클라우드 fresh checkout, branch=claude/affectionate-babbage-GaeFJ per cron framework override) DONE — direct-target push to assigned feature branch (CLAUDE.md §3.1 direct main 정공법 conflict 시 cron framework branch instruction 우선). api.md L70 POST /api/users row 응답 shape (UserResponseDto 5 readonly + hashedPassword 차단 + defence in depth 2 layer + ADR-0008 §6 application-layer last-mile) + L71 PATCH /api/users/:id/role row 응답 shape (UserResponseDto 동일 shape) + modules.md L34 UserModule UserResponseDto cross-ref (T-0095 박제 + fromEntity static factory + 5 readonly 필드 + GET /api/users list / ClassSerializerInterceptor ADR follow-up chain 박제) 4 곳 inline-amend +6/-2 LOC actual across 2 파일 (envelope 35 LOC × 0.17 sub-multiplier — T-0088 × 0.19 보다 가벼움, T-0093 × 0.23 보다 가벼움). D1~D9 검증 all PASS (T-0095 cross-ref 2 in api.md + 1 in modules.md / UserResponseDto 2 in api.md + 1 in modules.md / hashedPassword 2 in api.md / defence in depth 1 in api.md / fromEntity 1 in modules.md / row count 변동 0 / diff 2 파일 한정). driver inline 경로 (executor sub-agent dispatch 없이 driver 가 직접 doc edit + grep D1~D9 검증) — T-0093 cron driver inline 패턴 1:1 mirror. doc-only inline-amend 누적 패턴: T-0084 × 0.37 + T-0088 × 0.19 + T-0089 × 0.91 + T-0093 × 0.23 + 본 T-0096 × 0.17 = 5 회차 누적, × 0.17~0.91 spread (estimate-model.md milestone refinement 데이터 갱신). counters.tasksCompleted 94→95, mostRecentTasks prepend T-0096 (cap 5 = [T-0096, T-0095, T-0094, T-0093, T-0092])."
+amendments: []
 ---
 
 # T-0096 — api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref

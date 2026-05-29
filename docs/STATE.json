@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0096",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-29T17:58:00+09:00",
+  "lastActivity": "2026-05-29T22:04:33+09:00",
   "lastCommit": "d842d35",
   "mostRecentTasks": [
+    "T-0096",
     "T-0095",
     "T-0094",
     "T-0093",
-    "T-0092",
-    "T-0091"
+    "T-0092"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -337,7 +337,7 @@
     }
   ],
   "counters": {
-    "tasksCompleted": 94,
+    "tasksCompleted": 95,
     "tasksBlocked": 7,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
