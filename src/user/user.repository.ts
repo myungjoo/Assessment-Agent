@@ -72,4 +72,14 @@ export class UserRepository {
   async updateRole(id: string, role: string): Promise<User> {
     return this.prisma.user.update({ where: { id }, data: { role } });
   }
+
+  // countAll — 본 task (T-0092) 추가. UserService.signup 의 첫 user 분기 backbone
+  // (REQ-044 후반 — 첫 등록 user 의 role = "SuperAdmin" 자동 지정). row 0 일 때
+  // 정상 분기 — null-safe (prisma.user.count 는 항상 number 반환, throw 0 정상).
+  // 실 race window 강제는 별도 ADR 후속 — 본 layer 는 단순 count 만, service-layer
+  // 가 분기 책임 보유. PartRepository / PersonRepository 의 동일 count 패턴 정공법
+  // 정합 (단순 prisma delegate wrapping).
+  async countAll(): Promise<number> {
+    return this.prisma.user.count();
+  }
 }

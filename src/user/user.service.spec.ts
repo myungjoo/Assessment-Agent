@@ -19,11 +19,14 @@
 //     Error → raw propagate.
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
 import type { User } from "@prisma/client";
+
+import type { AuthService } from "../auth/auth.service";
 
 import type { UserRepository } from "./user.repository";
 import { UserService } from "./user.service";
@@ -43,18 +46,23 @@ function buildUserFixture(overrides: Partial<User> = {}): User {
   };
 }
 
-// UserRepository mock factory — 본 service 가 사용하는 2 메서드 (findById /
-// updateRole) 만 jest.fn() 으로 대체. 각 test 마다 새 mock 생성 (호출 카운터 격리).
+// UserRepository mock factory — 본 service 가 사용하는 4 메서드 (findById /
+// updateRole / countAll / create) 를 jest.fn() 으로 대체. 각 test 마다 새 mock
+// 생성 (호출 카운터 격리).
 function buildUserRepositoryMock(): {
   userRepository: UserRepository;
   userRepoMock: {
     findById: jest.Mock;
     updateRole: jest.Mock;
+    countAll: jest.Mock;
+    create: jest.Mock;
   };
 } {
   const userRepoMock = {
     findById: jest.fn(),
     updateRole: jest.fn(),
+    countAll: jest.fn(),
+    create: jest.fn(),
   };
   return {
     userRepository: userRepoMock as unknown as UserRepository,
@@ -62,14 +70,29 @@ function buildUserRepositoryMock(): {
   };
 }
 
+// AuthService mock factory — UserService.signup 이 사용하는 1 메서드 (hashPassword)
+// 만 jest.fn() 으로 대체.
+function buildAuthServiceMock(): {
+  authService: AuthService;
+  authMock: { hashPassword: jest.Mock };
+} {
+  const authMock = { hashPassword: jest.fn() };
+  return {
+    authService: authMock as unknown as AuthService,
+    authMock,
+  };
+}
+
 // buildService — mock 을 일괄 생성하여 UserService 인스턴스를 조립.
 function buildService(): {
   service: UserService;
   userRepoMock: ReturnType<typeof buildUserRepositoryMock>["userRepoMock"];
+  authMock: ReturnType<typeof buildAuthServiceMock>["authMock"];
 } {
   const { userRepository, userRepoMock } = buildUserRepositoryMock();
-  const service = new UserService(userRepository);
-  return { service, userRepoMock };
+  const { authService, authMock } = buildAuthServiceMock();
+  const service = new UserService(userRepository, authService);
+  return { service, userRepoMock, authMock };
 }
 
 // Prisma known error helper — GroupService / PartService / PersonService spec 의
@@ -428,6 +451,202 @@ describe("UserService", () => {
         service.changeRole("actor-order", "target", "Owner"),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(userRepoMock.findById).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // signup — T-0092 acceptance §E (R-112 4 카테고리). REQ-044 후반 박제.
+  //   - happy: 첫 user → SuperAdmin / 두 번째 user → User / N 번째 user → User.
+  //   - branch: countAll === 0 / countAll > 0 두 분기.
+  //   - error: P2002 → ConflictException / 그 외 raw propagate.
+  //   - negative: empty email forward / hashPassword throw propagate /
+  //               null throw propagate / unknown error code propagate.
+  // ---------------------------------------------------------------------
+  describe("signup()", () => {
+    // happy — 첫 user (countAll === 0) → role "SuperAdmin" 자동 지정 박제.
+    it("countAll === 0 시 role='SuperAdmin' + hashed password 로 create 호출 (happy — 첫 user)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      const created = buildUserFixture({
+        id: "first-user",
+        email: "first@example.com",
+        role: "SuperAdmin",
+      });
+      userRepoMock.countAll.mockResolvedValueOnce(0);
+      authMock.hashPassword.mockResolvedValueOnce("hashed-pw");
+      userRepoMock.create.mockResolvedValueOnce(created);
+
+      const result = await service.signup("first@example.com", "plain-pw");
+
+      expect(userRepoMock.countAll).toHaveBeenCalledTimes(1);
+      expect(authMock.hashPassword).toHaveBeenCalledWith("plain-pw");
+      expect(userRepoMock.create).toHaveBeenCalledWith({
+        email: "first@example.com",
+        hashedPassword: "hashed-pw",
+        role: "SuperAdmin",
+      });
+      expect(result).toBe(created);
+    });
+
+    // happy — 두 번째 user (countAll === 1) → role "User" 자동 지정 박제.
+    it("countAll === 1 시 role='User' default 로 create 호출 (happy — 두 번째 user)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      const created = buildUserFixture({
+        id: "second-user",
+        email: "second@example.com",
+        role: "User",
+      });
+      userRepoMock.countAll.mockResolvedValueOnce(1);
+      authMock.hashPassword.mockResolvedValueOnce("hashed-pw-2");
+      userRepoMock.create.mockResolvedValueOnce(created);
+
+      const result = await service.signup("second@example.com", "plain-pw-2");
+
+      expect(userRepoMock.create).toHaveBeenCalledWith({
+        email: "second@example.com",
+        hashedPassword: "hashed-pw-2",
+        role: "User",
+      });
+      expect(result).toBe(created);
+    });
+
+    // happy — N 번째 user (countAll === 42) → role "User" default 박제.
+    it("countAll === 42 시 role='User' default 로 create 호출 (happy — N 번째 user)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      const created = buildUserFixture({
+        id: "nth-user",
+        role: "User",
+      });
+      userRepoMock.countAll.mockResolvedValueOnce(42);
+      authMock.hashPassword.mockResolvedValueOnce("hashed-nth");
+      userRepoMock.create.mockResolvedValueOnce(created);
+
+      await service.signup("nth@example.com", "plain-nth");
+
+      // create 호출의 role 인자가 "User" (SuperAdmin 아님) 검증.
+      expect(userRepoMock.create).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "User" }),
+      );
+    });
+
+    // branch — countAll === 0 분기 (happy 첫 user 와 동일 분기 박제, 명시).
+    it("countAll === 0 분기 진입 시 role 이 'SuperAdmin' (branch — 첫 user 분기)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      userRepoMock.countAll.mockResolvedValueOnce(0);
+      authMock.hashPassword.mockResolvedValueOnce("h");
+      userRepoMock.create.mockResolvedValueOnce(buildUserFixture());
+
+      await service.signup("a@b.c", "plain");
+
+      const callArg = userRepoMock.create.mock.calls[0][0] as { role: string };
+      expect(callArg.role).toBe("SuperAdmin");
+    });
+
+    // branch — countAll > 0 분기 박제.
+    it("countAll > 0 분기 진입 시 role 이 'User' (branch — default user 분기)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      userRepoMock.countAll.mockResolvedValueOnce(5);
+      authMock.hashPassword.mockResolvedValueOnce("h");
+      userRepoMock.create.mockResolvedValueOnce(buildUserFixture());
+
+      await service.signup("a@b.c", "plain");
+
+      const callArg = userRepoMock.create.mock.calls[0][0] as { role: string };
+      expect(callArg.role).toBe("User");
+    });
+
+    // error — UserRepository.create P2002 → ConflictException 변환 박제.
+    it("UserRepository.create 의 P2002 → ConflictException 변환 (error — email 중복)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      userRepoMock.countAll.mockResolvedValueOnce(1);
+      authMock.hashPassword.mockResolvedValueOnce("h");
+      userRepoMock.create.mockRejectedValueOnce(buildPrismaError("P2002"));
+
+      await expect(
+        service.signup("dup@example.com", "plain"),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("P2002 변환 시 message 에 email 포함 (error — message regex)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      userRepoMock.countAll.mockResolvedValueOnce(1);
+      authMock.hashPassword.mockResolvedValueOnce("h");
+      userRepoMock.create.mockRejectedValueOnce(buildPrismaError("P2002"));
+
+      await expect(service.signup("dup@example.com", "plain")).rejects.toThrow(
+        /email already exists: dup@example\.com/,
+      );
+    });
+
+    // error — UserRepository.create 의 그 외 error raw propagate.
+    it("UserRepository.create 의 P9999 (unknown) → raw propagate (error — catch 0)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      userRepoMock.countAll.mockResolvedValueOnce(1);
+      authMock.hashPassword.mockResolvedValueOnce("h");
+      const unknownError = buildPrismaError("P9999");
+      userRepoMock.create.mockRejectedValueOnce(unknownError);
+
+      await expect(service.signup("a@b.c", "plain")).rejects.toBe(unknownError);
+    });
+
+    it("UserRepository.create 의 generic Error (code 없음) → raw propagate (negative — code 분기 false)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      userRepoMock.countAll.mockResolvedValueOnce(1);
+      authMock.hashPassword.mockResolvedValueOnce("h");
+      const genericError = new Error("postgres-down");
+      userRepoMock.create.mockRejectedValueOnce(genericError);
+
+      await expect(service.signup("a@b.c", "plain")).rejects.toBe(genericError);
+    });
+
+    // negative — empty email 도 service forward (DTO layer 의 책임 분리).
+    it("empty email 도 hash + create 까지 forward (negative — DTO 우회 시 DB 가 fallback)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      userRepoMock.countAll.mockResolvedValueOnce(1);
+      authMock.hashPassword.mockResolvedValueOnce("h");
+      userRepoMock.create.mockResolvedValueOnce(
+        buildUserFixture({ email: "" }),
+      );
+
+      await service.signup("", "plain");
+
+      expect(userRepoMock.create).toHaveBeenCalledWith(
+        expect.objectContaining({ email: "" }),
+      );
+    });
+
+    // negative — AuthService.hashPassword throw → service raw propagate (catch 0).
+    it("AuthService.hashPassword throw 시 raw propagate (negative — hash error catch 0)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      userRepoMock.countAll.mockResolvedValueOnce(0);
+      const hashError = new Error("bcrypt-fail");
+      authMock.hashPassword.mockRejectedValueOnce(hashError);
+
+      await expect(service.signup("a@b.c", "plain")).rejects.toBe(hashError);
+      // create 는 호출되지 않음 — hash 단계에서 reject.
+      expect(userRepoMock.create).not.toHaveBeenCalled();
+    });
+
+    // negative — countAll throw → service raw propagate.
+    it("UserRepository.countAll throw 시 raw propagate (negative — countAll error)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      const countError = new Error("db-down");
+      userRepoMock.countAll.mockRejectedValueOnce(countError);
+
+      await expect(service.signup("a@b.c", "plain")).rejects.toBe(countError);
+      // hash / create 모두 호출 안 됨 — 첫 단계 reject.
+      expect(authMock.hashPassword).not.toHaveBeenCalled();
+      expect(userRepoMock.create).not.toHaveBeenCalled();
+    });
+
+    // negative — null throw 도 raw propagate (catch 의 code 분기 미진입).
+    it("UserRepository.create 가 null throw 시 raw propagate (negative — null/code 분기 false)", async () => {
+      const { service, userRepoMock, authMock } = buildService();
+      userRepoMock.countAll.mockResolvedValueOnce(1);
+      authMock.hashPassword.mockResolvedValueOnce("h");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, prefer-promise-reject-errors
+      userRepoMock.create.mockReturnValueOnce(Promise.reject(null as any));
+
+      await expect(service.signup("a@b.c", "plain")).rejects.toBeNull();
     });
   });
 });
