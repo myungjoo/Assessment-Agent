@@ -2,14 +2,18 @@
 id: T-0096
 title: api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref — T-0095 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 35
 estimatedFiles: 2
 created: 2026-05-29
+completedAt: 2026-05-29T18:00:00+09:00
+actualDiff: 6
+actualFiles: 2
 dependsOn: [T-0095]
 plannerNote: "session #26 turn 10 (cap) planner — T-0095 UserResponseDto 머지 후 api.md L70/L71 응답 shape doc-amend + modules.md UserModule UserResponseDto cross-ref. doc-only inline-amend × 0.64, ~35 LOC / 2 파일."
+driverNote: "cron fire (KST 18:00 scheduled routine, Anthropic 클라우드 fresh checkout) DONE direct main commit. api.md L70 POST /api/users + L71 PATCH /api/users/:id/role row 응답 shape 2 곳 + modules.md L34 UserModule row 책임 description 1 곳 = 총 doc-only inline-amend 3 곳 across 2 파일, +3/-3 LOC actual (row description in-place 갱신, envelope 35 의 × 0.17 sub-multiplier — T-0088 ×0.19 정공법 1:1 mirror, T-0093 ×0.23 보다도 가벼움). D1~D9 grep/inspect self-검증 all PASS: T-0095×2/UserResponseDto×2/hashedPassword×2/defence in depth×1 in api.md, T-0095×1/UserResponseDto×1/fromEntity×1 in modules.md, markdown 표 row count 변동 0 (in-place 갱신), diff 2 파일 한정. T-0095 (UserResponseDto MERGED d842d35 PR-89 round 1 single-shot) 머지 후 contract source 정합 박제 완결. cron env (gh CLI 가용성 unknown) BUT doc-only direct main commit 은 reviewer/integrator/4-게이트 / CI green / gh CLI 모두 불요 — graceful 진행. driver inline 경로 (executor sub-agent dispatch 없이 driver 가 직접 doc edit + grep D1~D9 검증, T-0093 cron driver inline 패턴 1:1 mirror). doc-only direct inline-amend 누적 5 회차: T-0084 ×0.37 + T-0088 ×0.19 + T-0089 ×0.91 + T-0093 ×0.23 + 본 T-0096 ×0.17 (estimate-model.md milestone refinement 데이터, × 0.17~0.91 spread)."
 ---
 
 # T-0096 — api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref
