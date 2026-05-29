@@ -10,6 +10,7 @@ estimatedFiles: 2
 created: 2026-05-29
 dependsOn: [T-0095]
 plannerNote: "session #26 turn 10 (cap) planner — T-0095 UserResponseDto 머지 후 api.md L70/L71 응답 shape doc-amend + modules.md UserModule UserResponseDto cross-ref. doc-only inline-amend × 0.64, ~35 LOC / 2 파일."
+driverNote: "cron fire KST 2026-05-30 00:05 (Anthropic 클라우드 fresh checkout). 본 작업은 commitMode=direct 이나 harness branch policy (claude/affectionate-babbage-hfhSC 지정) 로 인해 feature branch + draft PR 경로로 reroute. doc edits (api.md L70/L71 + modules.md L34) + grep D1~D9 검증 all pass (D1=2/D2=2/D3=2/D4=1/D5=1/D6=1/D7=1/D8 row count intact/D9 2 파일만). 다음 cron 또는 local /loop driver 가 PR merge 후 status: DONE + counters 94→95 + mostRecentTasks prepend 박제. 본 turn 의 STATE counters 변동 0 (PR 미머지)."
 ---
 
 # T-0096 — api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref
