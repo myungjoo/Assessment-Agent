@@ -3,7 +3,7 @@ id: T-0095
 taskId: T-0095
 title: UserResponseDto 도입 + signup 응답에서 hashedPassword 제거 (보안 risk fix)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 200
@@ -13,6 +13,15 @@ dependsOn: [T-0092]
 sizeExempt: false
 created: 2026-05-29
 createdAt: 2026-05-29T17:35:00+09:00
+completedAt: 2026-05-29T17:42:00+09:00
+actualDiff: 469
+actualFiles: 5
+actualLoc: 469
+mergedAs: d842d35
+pullRequest: 89
+reviewRound: 1
+ciRun: 26627221248
+driverNote: "loop session #26 turn 9/10 — driver inline-executor 경로 (executor sub-agent 미dispatch, driver 가 직접 implementer + tester + push + reviewer + integrator 전체 chain 완수). round 1 single-shot first-run pass (post-push first-run reviewer-gate race trigger 0, case-insensitive approve 어휘 1+ 매칭 same-run catch). 실 LOC × 2.34 within R-112 spec mass tolerance (T-0094 ×2.19 + T-0091 ×1.86 + T-0086 ×2.28 + T-0083 ×1.77 precedent 5 회차 누적 정합, scope creep 0). T-0092 active 보안 risk fix application-layer 박제 완결 — POST + PATCH 두 endpoint hashedPassword 응답 누출 차단 + JSON 직렬화 round-trip 검증 + e2e regression guard. defence in depth 2 layer (DB-level bcrypt + HTTP-layer whitelist DTO) 완결. T-0094 e2e body assert 누락 공백 5 곳 regression assert 박제로 보강."
 plannerNote: "loop session #26 turn 8/10 — T-0092 follow-up 보안 risk fix (signup 응답 hashedPassword leak 제거). partial-backbone × 1.3 envelope 200 LOC / 5 파일."
 ---
 
