@@ -2,14 +2,18 @@
 id: T-0096
 title: api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref — T-0095 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 35
 estimatedFiles: 2
 created: 2026-05-29
+completedAt: 2026-05-30T01:08:00+09:00
+actualDiff: 6
+actualFiles: 2
 dependsOn: [T-0095]
 plannerNote: "session #26 turn 10 (cap) planner — T-0095 UserResponseDto 머지 후 api.md L70/L71 응답 shape doc-amend + modules.md UserModule UserResponseDto cross-ref. doc-only inline-amend × 0.64, ~35 LOC / 2 파일."
+driverNote: "cron fire (KST 02:00 scheduled routine, Anthropic 클라우드 fresh checkout, branch claude/affectionate-babbage-4zGKm) DONE — driver inline 경로 (executor sub-agent dispatch 없이 driver 가 직접 doc edit + grep D1~D9 검증, T-0093 mirror). A (api.md L70 응답 shape + defence in depth 2 layer + ADR-0008 §6 박제) + B (api.md L71 응답 shape + POST 동일 박제) + C (modules.md L34 UserModule UserResponseDto cross-ref + fromEntity + 5 필드 + follow-up chain 갱신) 3 곳 amend. D1=2 D2=2 D3=2 D4=1 D5=1 D6=1 D7=1 D8 row count 변동 0 (in-place row description re-write) D9 변경 2 파일 한정 모두 검증 PASS. 실 LOC 변경 +3/-3 in api.md + +1/-1 in modules.md = +4/-4 = 8 변경 LOC envelope 35 의 × 0.23 (in-place row description re-write 패턴 — T-0093 × 0.23 1:1 mirror, T-0088 × 0.19 도 정합). doc-only direct inline-amend × 0.19~0.91 spread 5 회차 누적 (T-0084 × 0.37 + T-0088 × 0.19 + T-0089 × 0.91 + T-0093 × 0.23 + 본 T-0096 × 0.23 actual / × 0.64 envelope estimate — envelope vs actual variance 박제, estimate-model.md milestone refinement 8 회차 누적 데이터)."
 ---
 
 # T-0096 — api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref
