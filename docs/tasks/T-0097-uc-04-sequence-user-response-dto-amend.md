@@ -2,14 +2,18 @@
 id: T-0097
 title: UC-04 §5 sequence + §8 postconditions amend — UserResponseDto 응답 매핑 박제 (T-0095/T-0096 use-case layer 정합)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 25
 estimatedFiles: 1
+actualDiff: 4
+actualFiles: 1
 created: 2026-05-29
+completedAt: 2026-05-30T08:05:00+09:00
 dependsOn: [T-0095, T-0096]
 plannerNote: "cron (KST 2026-05-29 evening) planner — T-0095 UserResponseDto + T-0096 api.md/modules.md 머지 후 UC-04 use-case layer 정합 박제. doc-only inline-amend × 1.6 × 0.4 = × 0.64, ~25 LOC / 1 파일."
+driverNote: "cron fire (KST 2026-05-30 08:00 scheduled routine, Anthropic 클라우드 fresh checkout) — driver inline 경로 (executor sub-agent dispatch 없이 driver 가 직접 doc edit + grep C1~C8 검증, T-0093/T-0096 mirror). UC-04 §5 sequence diagram 응답 step 갱신 (L87 JSON 응답 = UserResponseDto) + Note over BackendAPI 1 개 추가 (5 readonly 필드 + hashedPassword 차단 + defence in depth 2 layer + ADR-0008 §6 cross-ref) + §8 postconditions User row CRUD bullet 직후 응답 layer hashedPassword 누출 차단 bullet 1 개 삽입. 실 diff +3/-1 LOC actual (envelope 25 × 0.16 sub-multiplier — Note 1 줄 + bullet 1 줄 + L87 1 줄 in-place re-write, T-0096 ×0.17 보다 약간 가벼움). C1~C8 grep/inspect self-검증 all PASS: UserResponseDto×3 / T-0095×2 / hashedPassword×2 / defence in depth×2 / ADR-0008 §6×2 / mermaid sequenceDiagram L55 정합 + close fence 정합 / 기존 4 bullet 보존 + 1 bullet 삽입만 / diff 1 파일 한정. doc-only direct inline-amend 누적 7 회차 박제: T-0084 ×0.37 + T-0088 ×0.19 + T-0089 ×0.91 + T-0093 ×0.23 + T-0096 ×0.17 + 본 T-0097 ×0.16 envelope estimate (× 0.16~0.91 spread 박제). architecture spec (api.md + modules.md) → use-case spec (UC-04) 정합 동기 순서 박제 완결."
 ---
 
 # T-0097 — UC-04 §5 sequence + §8 postconditions amend — UserResponseDto 응답 매핑 박제
