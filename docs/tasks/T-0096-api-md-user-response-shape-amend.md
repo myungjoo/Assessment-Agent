@@ -2,14 +2,17 @@
 id: T-0096
 title: api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref — T-0095 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 35
 estimatedFiles: 2
 created: 2026-05-29
+completedAt: 2026-05-30T03:10:00+09:00
+completedSha: 14de1cf
 dependsOn: [T-0095]
 plannerNote: "session #26 turn 10 (cap) planner — T-0095 UserResponseDto 머지 후 api.md L70/L71 응답 shape doc-amend + modules.md UserModule UserResponseDto cross-ref. doc-only inline-amend × 0.64, ~35 LOC / 2 파일."
+completedNote: "cron fire (KST 03:10) executor sub-agent — idempotent re-entry 박제 (직전 turn 의 implementer 가 이미 sha 14de1cf 로 commit + push 완료, working tree clean). 실 +3/-3 LOC across 2 파일 (envelope 35 의 × 0.09 sub-multiplier — T-0088 × 0.19 보다도 가벼움). D1~D9 grep / inspect 검증 9/9 통과 재확인 (T-0095 ×2 in api.md, UserResponseDto ×2 in api.md, hashedPassword ×2 in api.md, defence in depth ×1 in api.md, T-0095/UserResponseDto/fromEntity ×1 each in modules.md). 5 회차 doc-only inline-amend variance 누적: T-0084 ×0.37 + T-0088 ×0.19 + T-0089 ×0.91 + T-0093 ×0.23 + 본 T-0096 ×0.09 (envelope estimate 0.64 was significant over)."
 ---
 
 # T-0096 — api.md POST /api/users + PATCH /api/users/:id/role 응답 shape amend + modules.md UserModule UserResponseDto cross-ref
