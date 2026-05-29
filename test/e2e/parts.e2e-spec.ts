@@ -24,12 +24,11 @@
 //     측 fix 동등 e2e 적용) — parts.e2e + persons.e2e 의 afterEach(truncateAll)
 //     cross-file race 차단. app.e2e 는 DB 미사용이라 영향 0.
 import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 
-import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/persistence/prisma.service";
 import { truncateAll } from "../helpers/db-truncate";
+import { createE2EApp } from "../helpers/e2e-app-factory";
 
 // Part DTO 필수 2 field — happy endpoint (GET list / GET :id / POST) 공통.
 const PART_DTO_FIELDS = ["id", "name"] as const;
@@ -49,14 +48,10 @@ describe("E2E: /api/parts HTTP contract", () => {
   let prisma: PrismaService;
 
   beforeAll(async () => {
-    const moduleRef: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
-
-    prisma = moduleRef.get<PrismaService>(PrismaService);
+    // 부트스트랩 + applyGlobalMiddleware wire 는 createE2EApp 책임 (T-0090 박제).
+    const created = await createE2EApp();
+    app = created.app;
+    prisma = created.moduleRef.get<PrismaService>(PrismaService);
   });
 
   afterAll(async () => {

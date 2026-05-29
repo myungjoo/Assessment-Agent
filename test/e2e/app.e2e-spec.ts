@@ -8,22 +8,18 @@
 // `pnpm test` / `pnpm test:cov` 실행 시에도 본 파일이 picking 되지 않는다.
 // 본 spec 은 README 113 / CLAUDE.md §3.2 R-113 의 e2e 부분을 충족하는 첫 sample.
 import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 
-import { AppModule } from "../../src/app.module";
 import { APP_STATUS_MESSAGE } from "../../src/app.service";
+import { createE2EApp } from "../helpers/e2e-app-factory";
 
 describe("E2E: AppModule HTTP contract", () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    const moduleRef: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
+    // 부트스트랩 + applyGlobalMiddleware wire 는 createE2EApp 책임 (T-0090 박제).
+    const created = await createE2EApp();
+    app = created.app;
   });
 
   afterAll(async () => {

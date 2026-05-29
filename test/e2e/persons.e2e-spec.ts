@@ -32,12 +32,11 @@
 //   - 기존 app.e2e-spec.ts 2 test + 본 spec 11 test (happy 5 + negative 3 + branch 3)
 //     = 합계 13 test. T-0054 cutover 는 test 개수 보존 — mock → real seed mechanical 변환.
 import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 
-import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/persistence/prisma.service";
 import { truncateAll } from "../helpers/db-truncate";
+import { createE2EApp } from "../helpers/e2e-app-factory";
 
 // Person DTO 필수 5 field — 모든 happy endpoint 응답이 동일하게 노출.
 const PERSON_DTO_FIELDS = [
@@ -64,15 +63,11 @@ describe("E2E: /api/persons HTTP contract", () => {
   let prisma: PrismaService;
 
   beforeAll(async () => {
-    const moduleRef: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
-
+    // 부트스트랩 + applyGlobalMiddleware wire 는 createE2EApp 책임 (T-0090 박제).
+    const created = await createE2EApp();
+    app = created.app;
     // 실 PrismaService 인스턴스를 DI container 에서 획득 — seed / truncate / disconnect 용.
-    prisma = moduleRef.get<PrismaService>(PrismaService);
+    prisma = created.moduleRef.get<PrismaService>(PrismaService);
   });
 
   afterAll(async () => {
