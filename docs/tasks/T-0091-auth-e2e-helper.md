@@ -3,7 +3,7 @@ id: T-0091
 taskId: T-0091
 title: auth-e2e-helper.ts 추출 — JWT issue + SuperAdmin/Admin/User 3종 token 발급 utility
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-057, REQ-058]
 estimatedDiff: 260
@@ -13,7 +13,14 @@ dependsOn: [T-0090]
 sizeExempt: false
 created: 2026-05-29
 createdAt: 2026-05-29T12:15:00+09:00
+completedAt: 2026-05-29T13:30:00+09:00
+prNumber: 86
+mergedAs: 2e1b4b4
+reviewRounds: 1
+actualLoc: 485
+actualFiles: 4
 plannerNote: "T-0090 createE2EApp 위에 JWT issue + 3종 token 발급 helper 추출 — users.e2e inline 패턴 외화 + 후속 auth/signup e2e 의 선행 의존. partial-backbone × 1.3 envelope 260 LOC / 5 파일."
+completionNote: "MERGED PR-86 sha 2e1b4b4 round 1 single-shot (first-run reviewer-gate race fail expected → issue_comment trigger second-run conclusion=success). 실 LOC +519/-34 across 4 파일 (×1.86 envelope variance, R-112 spec mass 본질, scope creep 0 — T-0083 ×1.76 / T-0086 ×2.28 / T-0087 ×1.98 precedent 정합). 100% unit coverage 유지 (39 suites / 673 tests). reviewer round 1 APPROVE comment 4570492674 MINOR-1 (size variance) only + integrator self-check 6/6 comment 4570505178 + CI run 26617695680 conclusion=success. e2e 인증 패턴 단일 source 박제 완결 — 후속 T-0093 (signup) + auth.e2e-spec.ts (login flow) 의 선행 helper."
 ---
 
 # T-0091 — auth-e2e-helper.ts 추출 (JWT issue + SuperAdmin/Admin/User 3종 token 발급 utility)
