@@ -3,17 +3,23 @@ id: T-0094
 taskId: T-0094
 title: auth.e2e-spec.ts 신설 — POST /api/auth/login + logout + refresh end-to-end (T-0091 helper + T-0092 signup round-trip)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 260
 estimatedFiles: 2
 estimatedLoc: 260
+actualDiff: 569
+actualFiles: 1
 dependsOn: [T-0091, T-0092]
 sizeExempt: false
 created: 2026-05-29
 createdAt: 2026-05-29T16:30:00+09:00
+completedAt: 2026-05-29T17:20:00+09:00
+mergedAs: "61b4e1e9bfd4ce6a8a3266c3039921b7d018e068"
+prNumber: 88
 plannerNote: "loop session #27 turn 1 — RBAC backbone 4/4 + contract source 정합 박제 완결 후 자연 next: auth flow e2e 공백 박제, partial-backbone × 1.3 envelope 260 LOC / 2 파일."
+driverNote: "loop session #26 turn 7/10 DONE — executor sub-agent full chain (implementer + tester + push + reviewer + integrator) round 1 single-shot. PR-88 sha 61b4e1e via gh path. 실 LOC +569/-0 in 1 파일 (envelope 260 × 2.19 over within R-112 spec mass tolerance — T-0091 ×1.86 + T-0086 ×2.28 + T-0083 ×1.77 precedent 4 회차 누적 정합, scope creep 0, test-only + production 변경 0). 19 it 박제 (login 7 + logout 3 + refresh 9, ≥ 13 envelope 의 1.46×) 모두 R-112 4 카테고리 cover. 4-게이트 all PASS: reviewer round 1 APPROVE comment 4572471453 + PR comment 외부 + integrator self-check comment 4572477519 + CI run 26626176166 conclusion=success 1m26s post-push first-run pass. single-shot first-run pass cadence 6 회차 누적. auth flow e2e 공백 박제 완결 — T-0082 (AuthController production endpoint MERGED 5314c27) 후 6.5 일 만에 R-113 e2e 의무 마지막 공백 해소."
 ---
 
 # T-0094 — auth.e2e-spec.ts 신설 (POST /api/auth/login + logout + refresh end-to-end, T-0091 helper + T-0092 signup round-trip)
