@@ -2,15 +2,20 @@
 id: T-0093
 title: api.md POST /api/users row amend + modules.md UserModule row 갱신 — T-0092 signup 실 구현 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 35
 estimatedFiles: 2
 created: 2026-05-29
+completedAt: 2026-05-29T16:05:00+09:00
 dependsOn: [T-0092]
 plannerNote: "session #26 turn 6 planner — T-0092 signup 머지 후 api.md POST /api/users row + modules.md UserModule row 실 구현 동기 박제. doc-only inline-amend × 0.64, ~35 LOC."
----
+driverNote: "cron 발화 (KST 16:00 scheduled routine, Anthropic 클라우드 fresh checkout) — stale lock (loop-session-26-turn-6 since 15:00, 62 min 경과 §4 stale 임계 over) takeover 후 직접 doc-only direct main commit 박제. driver inline 경로 (executor sub-agent dispatch 없이 driver 가 직접 api.md L70 POST /api/users row 갱신 + modules.md L34 UserModule row 갱신 — Suggested Sub-agents '실 변경은 driver 가 직접' 분기 정합). D1~D9 grep / inspect 자체 검증 all PASS. Acceptance A/B/C/D/E ok."
+actualDiff: 8
+actualFiles: 2
+multiplierObserved: 0.23
+amendments: []
 
 # T-0093 — api.md POST /api/users row amend + modules.md UserModule row 갱신
 
