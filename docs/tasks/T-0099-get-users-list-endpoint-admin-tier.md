@@ -3,7 +3,7 @@ id: T-0099
 taskId: T-0099
 title: GET /api/users list endpoint (Admin+ tier) + UserResponseDto.fromEntities 배열 helper + e2e
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045]
 estimatedDiff: 260
@@ -13,7 +13,14 @@ dependsOn: [T-0085, T-0091, T-0095]
 sizeExempt: false
 created: 2026-05-30
 createdAt: 2026-05-30T09:55:00+09:00
+completedAt: 2026-05-30T10:25:00+09:00
+actualDiff: 660
+actualFiles: 9
+prNumber: 100
+mergedAs: e91559b
+reviewRounds: 1
 plannerNote: "loop session #27 turn 4/10 — P3 user CRUD-R 자연 progression. partial-backbone × 1.3 envelope 260 LOC / 5 파일 (UserResponseDto.fromEntities + UserRepository.findAll + UserService.findAll + UserController.list + Admin+ RBAC + colocated spec 4 + e2e regression)."
+driverNote: "loop session #27 turn 5/10 (KST 2026-05-30 10:25, local Windows env, gh CLI v2.88.1) — executor sub-agent dispatch (implementer + tester) → driver branch create + commit + push + PR open + integrator sub-agent dispatch (reviewer round 1 APPROVE + self-check 6/6 + 4-게이트) → squash merge sha e91559b PR-100 round 1 single-shot. **첫 Admin+ tier production 활용 박제** — UserController.list `@Get() @UseGuards(JwtAuthGuard, RolesGuard) @Roles('Admin')` — escalation hierarchy descent (SuperAdmin actor → Admin gate 통과) production 첫 활용, RBAC backbone 두 번째 production 사용 사례 (T-0087 SuperAdmin literal match 이후). **UserResponseDto.fromEntities batch helper 박제** — T-0095 §Out of Scope L122 follow-up 박제점 완결 (private constructor + fromEntity static factory + fromEntities batch helper 3 factory 박제). 실 LOC +658/-2 across 9 파일 (envelope 260 × 1.3 partial-backbone 의 ×2.53 over within R-112 spec mass tolerance — T-0095 ×2.34 + T-0094 ×2.19 + T-0091 ×1.86 + T-0086 ×2.28 + T-0083 ×1.77 precedent 6 회차 누적 정합 MINOR-only, production source 108 LOC envelope 정합, 나머지 ~550 LOC 가 spec / e2e mass 본질, scope creep 0). 신규 surface 100% line/branch/function/statement coverage (795/795 tests pass — smoke/e2e local DATABASE_URL 부재로 CI services.postgres 위임 R-113 정공법). 4-게이트 all PASS: reviewer round 1 APPROVE comment 4581119897 (8-check pass + R-112 4 카테고리 + Admin+ tier RBAC + MINOR task-text-paraphrase-only code-correct) + PR comment 외부 박제 + integrator self-check 6/6 comment 4581131319 + CI run 26670596589 issue_comment trigger second-run conclusion=success 10/10 step green (push-event first-run 26670536435 reviewer-gate race fail expected → issue_comment second-run authority 정합 — race-pattern 15+ 회차 누적 backbone). **single-shot first-run pass cadence 8 회차 누적** (T-0086 + T-0087 within-round 2 fix + T-0090 + T-0091 + T-0092 + T-0094 + T-0095 + 본 T-0099). **size variance ×2.53 7 회차 누적** (T-0083/T-0086/T-0087/T-0091/T-0094/T-0095/T-0099) — R-112 spec mass underestimate 패턴 박제. **CI step 'reviewer agent approval 검증' 자동 게이트 박제 17 회차 누적** (T-0066~T-0099). counters.tasksCompleted 97→98, mostRecentTasks prepend T-0099 (cap 5 = [T-0099, T-0098, T-0097, T-0096, T-0095]), reviewRounds[T-0099]=1. **User CRUD-R 표면 첫 박제 완결** — POST signup (T-0092) + GET list (본 T-0099) + PATCH changeRole (T-0087) production endpoint chain 3/4 closed (GET /:id detail 만 미박제 — follow-up). **core.autocrlf=false local config 부산물** — Windows 기본 autocrlf=true 의 prettier entire-repo CRLF errors 차단 위해 executor 가 변경, follow-up: .gitattributes `* text=auto eol=lf` 박제 (doc-only direct task) 로 미래 contributor trap 방지."
 ---
 
 # T-0099 — GET /api/users list endpoint (Admin+ tier) + UserResponseDto.fromEntities 배열 helper + e2e
