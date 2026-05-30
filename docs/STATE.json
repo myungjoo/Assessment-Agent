@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0113",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T07:25:00+09:00",
+  "lastActivity": "2026-05-31T07:35:00+09:00",
   "lastCommit": "1d093f7",
   "mostRecentTasks": [
     "T-0112",
@@ -20,7 +20,7 @@
     "turnCount": 0,
     "startedAt": null,
     "cap": 10,
-    "note": "cron fire (2026-05-31 KST 07:03~07:25) 가 T-0112 (ContributionRepository) PR-113 round 1 single-shot 머지 1d093f7 완료. counters 110→111. 다음 /loop 또는 cron 진입 시 currentTask/nextTask 모두 null → planner dispatch (다음 ADR-0006 후속 chain candidate = SummaryRepository, AssessmentService, ContributionService). 본 cron fire 의 운영 로그는 journal-2026-05-31.md 의 07:25 driver entry 참조."
+    "note": "cron fire (2026-05-31 KST 07:35) planner-only dispatch — T-0112 머지 후 currentTask/nextTask 모두 null → planner sub-agent 가 T-0113 (SummaryRepository CRUD primitive) 큐잉. ADR-0006 chain 의 Summary slice, ContributionRepository T-0112 1:1 mirror, pr-mode, §5 미발동. 다음 /loop 또는 cron 진입 시 nextTask=T-0113 → currentTask 로 promote 후 executor dispatch."
   },
   "ci": {
     "lastRun": "2026-05-31T07:19:41+09:00",
