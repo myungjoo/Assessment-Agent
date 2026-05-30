@@ -47,6 +47,7 @@ function buildPrismaMock(): {
     findUnique: jest.Mock;
     update: jest.Mock;
     count: jest.Mock;
+    findMany: jest.Mock;
   };
 } {
   const userMock = {
@@ -54,6 +55,7 @@ function buildPrismaMock(): {
     findUnique: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
+    findMany: jest.fn(),
   };
   const prisma = { user: userMock } as unknown as PrismaService;
   return { prisma, userMock };
@@ -468,6 +470,55 @@ describe("UserRepository", () => {
 
       const repo = new UserRepository(prisma);
       await expect(repo.countAll()).rejects.toThrow("db-down");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // findAll (T-0099 §D) — happy (prisma.user.findMany 위임 + 결과 propagate)
+  //   + branch (빈 배열 / 다중 row) + negative (PrismaService reject propagate).
+  // ------------------------------------------------------------------
+  describe("findAll()", () => {
+    // Happy path (T-0099 §D-1): prisma.user.findMany 가 인자 없이 1 회 호출 +
+    // 반환 배열이 결과로 그대로 propagate. GroupRepository.findMany 패턴 1:1 mirror.
+    it("happy — prisma.user.findMany 위임 + 반환 배열 propagate", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      const users = [
+        buildUserFixture({ id: "u-1", email: "a@e.test", role: "Admin" }),
+        buildUserFixture({ id: "u-2", email: "b@e.test", role: "User" }),
+        buildUserFixture({ id: "u-3", email: "c@e.test", role: "SuperAdmin" }),
+      ];
+      userMock.findMany.mockResolvedValueOnce(users);
+
+      const repo = new UserRepository(prisma);
+      const result = await repo.findAll();
+
+      expect(userMock.findMany).toHaveBeenCalledTimes(1);
+      expect(userMock.findMany).toHaveBeenCalledWith();
+      expect(result).toBe(users);
+      expect(result).toHaveLength(3);
+    });
+
+    // Branch (T-0099 §D-2): 빈 배열 분기 — prisma.user.findMany 가 [] 반환 →
+    // repository.findAll 결과 [] (raw forward, throw 0).
+    it("branch — 빈 table 시 [] 반환 (throw 0)", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new UserRepository(prisma);
+      const result = await repo.findAll();
+
+      expect(result).toEqual([]);
+      expect(result).toHaveLength(0);
+    });
+
+    // Negative: PrismaService 가 generic error reject 시 그대로 propagate.
+    // catch 0 의 일반 보장. countAll / findByEmail 패턴 정합.
+    it("negative — PrismaService 가 reject 하면 error 를 그대로 전파한다 (catch 0)", async () => {
+      const { prisma, userMock } = buildPrismaMock();
+      userMock.findMany.mockRejectedValueOnce(new Error("db-down"));
+
+      const repo = new UserRepository(prisma);
+      await expect(repo.findAll()).rejects.toThrow("db-down");
     });
   });
 });

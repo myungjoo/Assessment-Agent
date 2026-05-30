@@ -100,4 +100,32 @@ export class UserResponseDto {
       user.updatedAt,
     );
   }
+
+  // fromEntities — User row 배열 → UserResponseDto 배열 변환. T-0099 acceptance §A
+  // 박제. fromEntity 의 single-entity 변환을 .map 으로 wrap — 단순 batch helper.
+  //
+  // 책임 분리:
+  //   - fromEntity = single-entity 변환의 단일 경로 (whitelist 정공법).
+  //   - fromEntities = 배열 wrap 만 — fromEntity 호출의 .map composition. 새 필드
+  //     추가 시 fromEntity 한 곳만 수정하면 배열 경로도 자동 정합 (drift 차단).
+  //
+  // 도입 배경: GET /api/users list endpoint (T-0099) 의 응답 mapping source — Admin+
+  // tier 의 user list 조회 시 N 개 row 를 controller 단에서 .map(fromEntity) 손으로
+  // 박제하던 패턴을 본 helper 1 곳으로 외화. T-0095 acceptance §Out of Scope 의
+  // "fromEntities 배열 helper 는 GET /api/users list endpoint 박제 시점에 도입"
+  // 박제 follow-up 의 실 박제점.
+  //
+  // hashedPassword 차단 invariant 자동 propagate: 각 element 의 변환은 fromEntity
+  // 책임 — whitelist 정합이 그대로 적용되므로 list 응답에도 hashedPassword 누출 0.
+  //
+  // 빈 배열 input → 빈 배열 output: [].map(...) 의 native 동작 — throw 0 / 분기 0.
+  // 호출 측 (UserService.findAll 의 빈 list 분기) 가 자연 처리.
+  //
+  // Out of Scope:
+  //   - pagination (skip/take) / sorting (orderBy) / filtering (where) — 본 helper 는
+  //     단순 N→N 변환만, query parameter 정합은 service / controller layer 책임.
+  //   - 응답 envelope (`{ data, meta }`) 표준화 — 별도 ADR (T-0099 follow-up).
+  static fromEntities(users: User[]): UserResponseDto[] {
+    return users.map((u) => UserResponseDto.fromEntity(u));
+  }
 }

@@ -70,6 +70,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   Param,
   Patch,
@@ -162,5 +163,50 @@ export class UserController {
       dto.password,
     );
     return UserResponseDto.fromEntity(created);
+  }
+
+  // GET /api/users — 전체 user 목록 조회. T-0099 acceptance §G 박제. RBAC backbone 의
+  // **두 번째 production 적용 endpoint** — T-0087 (PATCH /api/users/:id/role, SuperAdmin
+  // 단일) 이후 첫 **Admin+ tier** 적용.
+  //
+  // RBAC 박제 — Admin+ tier (Admin / SuperAdmin 만 통과):
+  //   - @UseGuards(JwtAuthGuard, RolesGuard) — stacked 순서: JwtAuthGuard 가 인증 먼저
+  //     (cookie → JWT verify → req.user 박제), RolesGuard 가 권한 검증.
+  //   - @Roles("Admin") — Admin tier 박제. RolesGuard 의 ROLE_HIERARCHY 의
+  //     `Admin: ["Admin", "SuperAdmin"]` 매핑 → Admin literal 통과 + SuperAdmin
+  //     escalation 자동 통과. User actor 는 403 (어느 escalation 목록에도 미포함).
+  //   - RBAC backbone 의 escalation hierarchy descent (Admin 명시 시 SuperAdmin actor
+  //     자동 통과) 의 첫 production 활용. T-0087 은 SuperAdmin literal match 만, 본
+  //     endpoint 는 escalation 분기까지 검증 박제 (e2e 의 happy SuperAdmin actor).
+  //
+  // Admin+ tier 박제 근거 (task §Why 박제):
+  //   - User list 는 privileged data — email / role / 등록 시각 5 컬럼 모두 administrative
+  //     view. 일반 User actor 가 다른 user 목록 조회의 정상 use case 0.
+  //   - api.md L33-35 RBAC tier table — Admin = "관리자: 평가 master data / 사용자·
+  //     시스템 설정" — User 관리 = Admin 의 정공법.
+  //
+  // 응답 매핑 — UserResponseDto.fromEntities (T-0099 §A 박제):
+  //   - service-layer 는 도메인 entity (User row 배열) 반환 — DTO 변환은 controller
+  //     layer 단일 책임. T-0095 의 fromEntity whitelist 가 array map 에서도 정합
+  //     propagate — hashedPassword 컬럼 모든 element 에서 자동 제외 (보안 invariant
+  //     auto-propagate).
+  //   - 빈 list 분기 (seed 0 — production 발생 0 이지만 invariant 보호): service 가
+  //     [] 반환 → fromEntities([]) → [] 응답. throw 0 / 분기 0.
+  //
+  // Out of Scope (task §Out of Scope 박제):
+  //   - pagination (page/pageSize) / sorting (orderBy) / filtering (role/email) query
+  //     param — REST 표준 query parameter, 별도 task / ADR.
+  //   - 응답 envelope (`{ data: [...], meta }`) 표준화 — pagination 도입 시점 동기.
+  //   - GET /api/users/:id (single user detail) — read-detail 표면 0, 별도 task.
+  //   - actor self-info 분기 (User actor 가 본인 데이터만 조회) — fine-grained access
+  //     control, 별도 ADR.
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async list(): Promise<UserResponseDto[]> {
+    // service-layer 의 raw forward — repository.findAll 결과 그대로 통과. controller
+    // 의 단일 책임은 DTO 변환 (fromEntities) + HTTP 직렬화.
+    const users: User[] = await this.userService.findAll();
+    return UserResponseDto.fromEntities(users);
   }
 }
