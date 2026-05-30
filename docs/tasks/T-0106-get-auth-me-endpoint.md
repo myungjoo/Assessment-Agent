@@ -2,13 +2,17 @@
 id: T-0106
 title: GET /api/auth/me endpoint (User+ tier, req.user.sub 기반 self-detail)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-046]
 estimatedDiff: 220
 estimatedFiles: 5
+actualDiff: 457
+actualFiles: 4
 created: 2026-05-30
+completedAt: 2026-05-30T14:35:00+09:00
 plannerNote: P3 — api.md L69 박제 T-0085 candidate 미구현 GET /api/auth/me 박제. ADR-0008 후속 chain 자연 박제점, JwtAuthGuard + UserService.findById + UserResponseDto.fromEntity 재활용 partial-backbone ×1.3.
+driverNote: cron fire env=sandbox (claude/affectionate-babbage-f4uZi 단일-branch 정책) — env 정책상 정상 pr-mode flow (claude/T-0106-* feature branch + PR open + reviewer/integrator) 불가, 전체 작업 commit 을 현 branch 에 직접 박제 (branch 자체가 사용자 meta-PR). 4-게이트 reviewer / integrator 면제, R-110~R-112 + coverage 80% 게이트는 정상 적용 (executor 가 lint/build/test:cov 100% 검증, 766/766 unit pass). 실 457 LOC +447/-10 across 4 파일 (envelope 220 ×2.08 over — partial-backbone ×1.3 → ×2.08 8 회차 누적 ×1.77~2.53 band 정합, test scaffolding 길이 inflation 박제). AuthController.me 메서드 박제 alternative — UserService inject 대신 UserRepository 직접 사용 (race 회피 정공법, T-0101 1:1 mirror). CurrentUser decorator + base-controller 일반화 follow-up 후보.
 ---
 
 # T-0106 — GET /api/auth/me endpoint (User+ tier, req.user.sub 기반 self-detail)

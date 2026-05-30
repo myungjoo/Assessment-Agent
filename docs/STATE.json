@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0106",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-30T14:01:00+09:00",
-  "lastCommit": "cc39bea",
+  "lastActivity": "2026-05-30T14:35:00+09:00",
+  "lastCommit": "b12654b",
   "mostRecentTasks": [
+    "T-0106",
     "T-0105",
     "T-0104",
     "T-0103",
-    "T-0102",
-    "T-0101"
+    "T-0102"
   ],
   "loopSession": {
     "turnCount": 5,
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 104,
+    "tasksCompleted": 105,
     "tasksBlocked": 7,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
