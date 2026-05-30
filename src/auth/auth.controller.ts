@@ -42,26 +42,41 @@
 //   - RBAC @Role() decorator + RolesGuard — T-0083.
 //   - RefreshToken DB rotation (revocation path) — ADR-0008 양의 Consequences §6 의
 //     박제만, 실 DB layer 는 후속 task. 본 시점 rotation 은 cookie 단순 재발급.
-//   - GET /api/me endpoint — T-0083 또는 T-0084 candidate.
 //   - SignupController / AddUserDto — T-0083 SuperAdmin RBAC scope.
+//
+// GET /api/auth/me 박제 (T-0106 acceptance §A — api.md L69 의 "T-0085 candidate
+// 미구현" 박제점):
+//   - GET /api/auth/me → 200 + UserResponseDto (User+ tier — 인증된 사용자 자기
+//     자신 조회). req.user.sub → UserService.findById → UserResponseDto.fromEntity
+//     변환. UserController.detail (T-0101) 의 self-read path 1:1 mirror BUT path
+//     param 없음 (self-detail — :id 분기 0, RolesGuard 미적용).
+//   - ADR-0008 §6 application-layer last-mile chain 의 마지막 미박제 endpoint —
+//     DB-level hashedPassword (bcrypt) + HTTP-layer UserResponseDto 차단 2 단계
+//     layering 이 본 endpoint 에도 동일 propagate (T-0095 invariant 자동 재활용).
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   Post,
   Req,
   Res,
   UnauthorizedException,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import type { User } from "@prisma/client";
 import type { Request, Response } from "express";
 
+import { UserResponseDto } from "../user/dto/user-response.dto";
 import { UserRepository } from "../user/user.repository";
+import { UserService } from "../user/user.service";
 
 import { AuthService, REFRESH_SECRET_ENV } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
+import { JwtAuthGuard } from "./jwt-auth.guard";
 
 // Cookie name 단일 source of truth — spec 도 동일 const 를 import 하여 round-trip
 // 검증. controller 외부에 export — refresh endpoint 검증 / e2e 후속 task 가 reuse.
@@ -106,6 +121,12 @@ export class AuthController {
     // manual verify 박제. JwtStrategy 도입 (T-0083) 후에는 본 직접 호출이 strategy
     // 의 secretOrKeyProvider 로 위임.
     private readonly jwtService: JwtService,
+    // UserService inject — GET /api/auth/me 의 findById 호출 위해 (T-0106). AuthModule
+    // 이 UserModule 을 forwardRef 로 import (T-0087 박제) — UserService 는 UserModule
+    // 의 exports 에 포함되므로 본 constructor injection 정상 resolve. AuthService ↔
+    // UserService circular (T-0092) 는 service-layer 의 @Inject(forwardRef()) 가 해소
+    // — controller 는 그 resolved graph 위에서 직접 inject.
+    private readonly userService: UserService,
   ) {}
 
   // POST /api/auth/login — body LoginDto → User lookup → password verify →
@@ -249,5 +270,46 @@ export class AuthController {
     res.cookie(ACCESS_TOKEN_COOKIE, newAccessToken, COOKIE_OPTIONS);
     res.cookie(REFRESH_TOKEN_COOKIE, newRefreshToken, COOKIE_OPTIONS);
     return { userId };
+  }
+
+  // GET /api/auth/me — 인증된 사용자 자기 자신 조회. T-0106 acceptance §A 박제.
+  // api.md L69 의 "T-0085 candidate 미구현" 박제점 — ADR-0008 §6 application-layer
+  // last-mile chain 의 마지막 미박제 endpoint.
+  //
+  // RBAC tier — User+ (인증된 사용자면 누구나 자기 자신 조회):
+  //   - @UseGuards(JwtAuthGuard) 만 — RolesGuard 미적용. self-detail 이라 role 분기
+  //     0 (UserController.detail 의 self OR Admin+ 분기 중 self path 만, path param
+  //     없음). JwtAuthGuard 가 cookie → JWT verify → req.user = { sub, role } 박제
+  //     (T-0083 JwtStrategy.validate).
+  //
+  // 흐름 (UserController.detail self path 1:1 mirror):
+  //   1. req.user.sub 추출 — JwtStrategy.validate 가 박제한 payload. type narrowing
+  //      으로 sub 추출 (changeRole L131 / detail L263 cast 정공법 정합).
+  //   2. defence in depth — req.user / req.user.sub 부재 시 UnauthorizedException.
+  //      JwtAuthGuard 정상 작동 시 req.user 는 항상 set 되므로 일반 분기에서 발생 0,
+  //      guard 우회 / 미장착 hypothetical 의 방어선 (UserService.changeRole 의 actor
+  //      null → UnauthorizedException 정공법 정합).
+  //   3. userService.findById(sub) — row 부재 시 NotFoundException (P2025 → 404 변환
+  //      invariant, T-0101). valid token 이지만 DB row 삭제된 stale token 경우의 분기.
+  //   4. UserResponseDto.fromEntity(user) 변환 — hashedPassword 컬럼 차단 invariant
+  //      자동 propagate (T-0095). 응답은 5 readonly 필드만.
+  @Get("me")
+  @UseGuards(JwtAuthGuard)
+  async me(@Req() req: Request): Promise<UserResponseDto> {
+    // req.user 는 JwtStrategy.validate (T-0083) 가 박제한 payload — type narrowing
+    // 으로 sub 추출. UserController.detail L263 cast 패턴 1:1 mirror.
+    const actor = req.user as { sub?: string } | undefined;
+    const userId = actor?.sub;
+    // defence in depth — guard 우회 / req.user 미박제 hypothetical 방어선. JwtAuthGuard
+    // 정상 작동 시 sub 는 항상 non-empty string 이라 일반 분기 발생 0. UserService
+    // .changeRole 의 actor null → UnauthorizedException 정공법 정합 (인증 자체 실패).
+    if (userId === undefined || userId === "") {
+      throw new UnauthorizedException("Invalid authentication context");
+    }
+    // service-layer 가 row 부재 → NotFoundException (404 자동 mapping). stale token
+    // (valid signature 이지만 DB row 삭제됨) 경우의 분기. controller 는 도메인 entity
+    // (User row) → UserResponseDto 변환만 책임 (T-0095 hashedPassword 차단 자동 propagate).
+    const user: User = await this.userService.findById(userId);
+    return UserResponseDto.fromEntity(user);
   }
 }
