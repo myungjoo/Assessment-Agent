@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0111",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T03:12:00+09:00",
-  "lastCommit": "e076c92",
+  "lastActivity": "2026-05-31T03:18:00+09:00",
+  "lastCommit": "a81b013",
   "mostRecentTasks": [
     "T-0110",
     "T-0109",
@@ -17,18 +17,18 @@
     "T-0106"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-05-31T01:17:00+09:00",
     "cap": 10,
-    "note": "loop session #29 turn 9 — T-0110 MERGED PR-109 round 1 (Assessment/Contribution/Summary Prisma schema + migration, ADR-0006 first slice). CI migrate deploy 성공으로 offline migration 검증. turn-by-turn 운영 로그는 journal 이 durable source."
+    "note": "loop session #29 turn 10 CAP-REACHED — planner queued T-0111 (AssessmentRepository, pr) as resume seed. session #29 결산: T-0106 MERGED + T-0107/T-0108 doc + T-0109 ADR-0006 + T-0110 Prisma schema MERGED (counters 104→109, +5). 다음 /loop 또는 cron 이 T-0111 resume. turn-by-turn 운영 로그는 journal 이 durable source."
   },
   "ci": {
-    "lastRun": "2026-05-31T03:11:00+09:00",
+    "lastRun": "2026-05-31T03:14:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/109",
-    "note": "PR-109 round 1 merge 기준 green — prisma migrate deploy 성공 (offline 생성 migration 의 실적용 검증). first-run reviewer-gate race → gh run rerun self-heal (17 회차). 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
+    "note": "a81b013 (T-0110 bookkeeping) main push CI green 확인. PR-109 merge (prisma migrate deploy 성공) 도 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
