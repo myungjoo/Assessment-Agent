@@ -84,7 +84,8 @@ sequenceDiagram
     PersistenceModule-->>UserModule: 결과 (성공 row 또는 DB error)
 
     UserModule-->>BackendAPI: result + audit metadata
-    BackendAPI-->>WebUI: JSON 응답 (성공 / 검증 실패 / 권한 부족)
+    BackendAPI-->>WebUI: JSON 응답 (성공 = UserResponseDto / 검증 실패 / 권한 부족)
+    Note over BackendAPI: 성공 응답 body = UserResponseDto (5 readonly 필드 id/email/role/createdAt/updatedAt — hashedPassword 응답 누출 차단, T-0095 박제). defence in depth 2 layer: DB bcrypt 10 rounds (T-0092) + HTTP whitelist DTO (T-0095). ADR-0008 §6 application-layer last-mile.
     WebUI->>Actor: 결과 표시 (성공 / 검증 실패 안내 / 권한 부족 안내)
 ```
 
@@ -150,6 +151,7 @@ SuperAdmin 본인이 본인의 등급을 Admin / User 로 변경 시도 — PATC
 본 UC 는 **write operation** 이므로 시스템 상태 변경이 발생한다. main flow 가 종료된 후의 시스템 상태:
 
 - **User row CRUD 완료** — PersistenceModule 의 User 테이블에 row 가 insert (사용자 추가) 또는 update (등급 변경 / Password 변경) 됨. Password 는 hash 저장 (schema-level 강제, hash 알고리즘은 P3 의 별도 ADR 책임).
+- **응답 layer 의 hashedPassword 누출 차단** — UserResponseDto (T-0095 박제 — private constructor + fromEntity static factory + 5 readonly 필드 id/email/role/createdAt/updatedAt) 가 HTTP 응답 body 의 whitelist 강제, Prisma User entity 의 hashedPassword 컬럼 응답 누출 0. defence in depth 2 layer 박제 — DB-level bcrypt 10 rounds (T-0092 박제) + HTTP-layer UserResponseDto whitelist (T-0095 박제), ADR-0008 §6 application-layer last-mile 완결 cross-ref.
 - **등급 변경 시 즉시 발효** — 변경된 사용자의 다음 API 호출부터 새 등급 적용. session / JWT invalidation 의 구체 mechanism (현 session 강제 종료 / 재로그인 요구 / claim refresh) 은 P3 의 책임.
 - **첫 로긴 trigger 의 경우 User 테이블에 SuperAdmin row 1 개 영구 생성** — 이후 동일 trigger 재발화 불가 (§6.1).
 - **Audit log 1 row 생성** — 작업 종류 (USER_CREATE / ROLE_CHANGE / PASSWORD_CHANGE) + actor + target user + before/after role + timestamp 박제 (감사 추적 목적). 구체 schema 는 P3 data-model.md 의 책임 — 본 UC 는 "Audit log 1 row 생성" 까지만.
