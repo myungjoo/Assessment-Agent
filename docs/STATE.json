@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0110",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T02:52:00+09:00",
-  "lastCommit": "a5adc25",
+  "lastActivity": "2026-05-31T03:12:00+09:00",
+  "lastCommit": "e076c92",
   "mostRecentTasks": [
+    "T-0110",
     "T-0109",
     "T-0108",
     "T-0107",
-    "T-0106",
-    "T-0105"
+    "T-0106"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-05-31T01:17:00+09:00",
     "cap": 10,
-    "note": "loop session #29 turn 8 — planner queued T-0110 (prisma/schema.prisma Assessment/Contribution/Summary 3 model + migration, ADR-0006 구현 first slice, commitMode pr). 누적: T-0106 endpoint + T-0107/T-0108 doc + T-0109 ADR. turn-by-turn 운영 로그는 journal 이 durable source."
+    "note": "loop session #29 turn 9 — T-0110 MERGED PR-109 round 1 (Assessment/Contribution/Summary Prisma schema + migration, ADR-0006 first slice). CI migrate deploy 성공으로 offline migration 검증. turn-by-turn 운영 로그는 journal 이 durable source."
   },
   "ci": {
-    "lastRun": "2026-05-31T02:48:00+09:00",
+    "lastRun": "2026-05-31T03:11:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/108",
-    "note": "a5adc25 (T-0109 bookkeeping) main push CI green 확인. PR-108 merge 도 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/109",
+    "note": "PR-109 round 1 merge 기준 green — prisma migrate deploy 성공 (offline 생성 migration 의 실적용 검증). first-run reviewer-gate race → gh run rerun self-heal (17 회차). 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 108,
+    "tasksCompleted": 109,
     "tasksBlocked": 7,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

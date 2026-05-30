@@ -2,12 +2,18 @@
 id: T-0110
 title: prisma/schema.prisma 에 Assessment/Contribution/Summary 3 model + relation + migration 추가 (ADR-0006 구현 first slice)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-029, REQ-032, REQ-033, REQ-034, REQ-035, REQ-036]
 estimatedDiff: 180
+actualDiff: 367
 estimatedFiles: 4
+actualFiles: 3
 created: 2026-05-31
+completedAt: 2026-05-31
+prNumber: 109
+mergedAs: e076c92
+reviewRounds: 1
 plannerNote: P3 backbone — ADR-0006 reviewer 사인오프 완료 → §5 DB-schema 해소된 additive schema. 3 model + relation + migration only, service/repo/controller 는 T-0111+ defer.
 ---
 
