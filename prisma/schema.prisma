@@ -79,6 +79,14 @@ model Person {
   // PersonGroupMembership 의 `onDelete: Cascade` 가 Person 삭제 시 모든 membership
   // row 를 동반 삭제 (안전망 — Person 은 REQ-026 에 따라 hard delete 채택 안 함).
   groups PersonGroupMembership[]
+
+  // T-0110 (ADR-0006 Decision §1 / §3 / §6) — Person ↔ Assessment / Summary back-relation.
+  // 1 Person 은 0+ Assessment (period × scope cross product) + 0+ Summary (일/주/월) 를 가진다.
+  // 두 model 모두 `onDelete: Cascade` (해당 model 의 relation 필드가 양방향 의미 박제) —
+  // Person 의 hard delete 시 평가 결과 동반 삭제 (단 Person 은 soft delete 채택이라
+  // 본 cascade 는 안전망. ServiceIdentity / PersonGroupMembership 의 기존 Cascade 정합).
+  assessments Assessment[]
+  summaries   Summary[]
 }
 
 // Group — data-model.md §2 row 3 + §3 관계 2 + REQ-028 의 schema 차원 박제.
@@ -193,4 +201,99 @@ model ServiceIdentity {
   // 예: 동일 person 이 github.com 의 ID 2 개를 등록할 수 없다 — 서비스 측 user 의
   // 1:1 매핑 가정.
   @@unique([personId, service])
+}
+
+// Assessment — ADR-0006 Decision §1 + data-model.md §2 / §3 관계 4 (Person↔Assessment).
+// 평가 결과의 unit. Person × period (일/주/월) × scope (commit/document/aggregate) 의
+// cross product. 평가 결과값 (난이도/기여도/양/LLM 정성 평가문) 만 보유.
+//
+// 🔥 raw 본문 컬럼 0 (R-59 / REQ-032 / ADR-0006 Decision §4 schema-level 강제):
+//   commit message 본문 / diff / 문서 본문 / Confluence page 본문 컬럼을 **정의하지 않는다**.
+//   "저장하지 않는다" 를 application-layer 검증이 아닌 schema 차원 (컬럼 자체의 부재) 으로
+//   보장한다 — schema 에 자리가 없으면 저장 자체가 불가. 외부 본문이 필요하면 Contribution 의
+//   참조 식별자 (sourceUrl / sourceRef) 로 재수집 (REQ-031). narrative 는 LLM 생성 결과물
+//   이므로 raw 아님 (R-59 적용 외).
+//
+// 컬럼 결정 (ADR-0006 Decision §1 과 1:1):
+//   - period / scope / difficulty 는 enum-as-String literal 박제 (ServiceIdentity.service /
+//     User.role 정공법 정합 — Prisma enum 격상은 별도 ADR). 값 invariant 는 service-layer 책임.
+//   - contributionScore 는 Decimal (정규화 수치 — REQ-036 상대 비교 가능 형태, Float 부동소수
+//     오차 회피). @db.Decimal(p,s) 구체 precision/scale 은 후속 schema task 책임 (default 시작).
+//   - updatedAt **미정의** — Assessment 는 immutable (재평가는 hard delete 후 재생성,
+//     REQ-037/REQ-041). data-model.md §5 정합.
+model Assessment {
+  id                String   @id @default(cuid())
+  personId          String
+  period            String
+  scope             String
+  periodStart       DateTime
+  difficulty        String
+  contributionScore Decimal
+  volume            Int
+  narrative         String
+  createdAt         DateTime @default(now())
+
+  // Person N:1 — Person 의 hard delete 시 Assessment 동반 cascade (ADR-0006 Decision §6).
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  // 1 Assessment 는 0+ Contribution 으로 구성 (ADR-0006 Decision §2 / §3 관계 5).
+  contributions Contribution[]
+
+  // 동일 Person 의 동일 (period, scope, periodStart) 조합 중복 Assessment 차단 →
+  // 재수집 중복 방지 (REQ-031) 의 schema-level backbone (ADR-0006 Decision §6).
+  @@unique([personId, period, scope, periodStart])
+  // 시계열 조회 (REQ-038) 용 index 후보 (ADR-0006 Decision §6).
+  @@index([personId, period, periodStart])
+}
+
+// Contribution — ADR-0006 Decision §2 + data-model.md §3 관계 5 (Assessment↔Contribution).
+// 개별 기여 단위 (단일 commit / 단일 PR / 단일 문서 변경). N Contribution 이 1 Assessment 로
+// aggregate. 참조 식별자만 보유, raw 본문 미저장 (REQ-032).
+//
+// 🔥 raw 본문 컬럼 0 (R-59 / ADR-0006 Decision §4):
+//   commit body / diff / 문서 본문 컬럼 정의 안 함. sourceUrl (외부 GitHub / Confluence URL) +
+//   sourceRef (commit SHA / PR number / page version ID) 만으로 필요 시 재수집 (REQ-031).
+//   sourceUrl / sourceRef 는 외부 본문을 가리키는 pointer 일 뿐 본문 자체가 아님.
+//
+// updatedAt **미정의** — Contribution 은 immutable (ADR-0006 Decision §2).
+model Contribution {
+  id                String   @id @default(cuid())
+  assessmentId      String
+  sourceType        String
+  sourceUrl         String
+  sourceRef         String
+  difficulty        String
+  contributionScore Decimal
+  volume            Int
+  createdAt         DateTime @default(now())
+
+  // Assessment N:1 — Assessment 의 hard delete (REQ-041 Admin manual delete) 시
+  // component Contribution 동반 cascade 삭제 (ADR-0006 Decision §6).
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+// Summary — ADR-0006 Decision §3 + data-model.md §3 관계 6 (Person↔Summary).
+// 일·주·월 단위 요약 평가문. Person N:1 (default). LLM 정성 평가문 + Metric 수치.
+// Group/Part aggregate Summary 는 별도 entity 신설 안 함 — view-time 계산 (ADR-0006
+// Alternatives (c) defer). 동일 Group/Part 소속 Person 들의 Summary 를 query-time 집계.
+//
+// 🔥 raw 본문 컬럼 0 (R-59 / ADR-0006 Decision §4):
+//   narrative 는 LLM 정성 요약 평가문 (LLM 생성 결과물 — raw 아님). raw 본문 컬럼 정의 안 함.
+//
+// updatedAt **미정의** — Summary 는 재계산 가능하나 본 ADR 은 immutable 로 보고 재계산 =
+// hard delete 후 재생성으로 처리 (ADR-0006 Decision §3).
+model Summary {
+  id          String   @id @default(cuid())
+  personId    String
+  period      String
+  periodStart DateTime
+  narrative   String
+  metricScore Decimal
+  createdAt   DateTime @default(now())
+
+  // Person N:1 — Person 의 hard delete 시 Summary 동반 cascade (ADR-0006 Decision §6).
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  // 시계열 조회 (REQ-038) 용 index 후보 (ADR-0006 Decision §6).
+  @@index([personId, period, periodStart])
 }
