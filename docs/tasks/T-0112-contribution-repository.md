@@ -2,15 +2,22 @@
 id: T-0112
 title: ContributionRepository 추가 (Contribution entity CRUD primitive + raw 미저장 invariant 검증)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 dependsOn: [T-0110, T-0111]
 coversReq: [REQ-029, REQ-032, REQ-033]
 hqOrigin: null
 estimatedDiff: 170
 estimatedFiles: 3
+actualDiff: 502
+actualFiles: 4
 created: 2026-05-31
+completedAt: 2026-05-31T07:25:00+09:00
+prNumber: 113
+mergeSha: 1d093f7
+reviewRounds: 1
 plannerNote: "P3 ~99.2% — ADR-0006 후속 chain 의 Contribution slice (Assessment N:1 참조 식별자, raw 본문 컬럼 0). AssessmentRepository T-0111 1:1 mirror, pr-mode, §5 미발동."
+result: "PR-113 round 1 single-shot 머지 1d093f7. ContributionRepository (4 메서드 + 7 키 input shape) + colocated spec (336 LOC, R-112 4 카테고리 + R-59 dual-guard) + UserModule wiring. 808/808 test pass, coverage line/function/branch/statement 100%. reviewer APPROVE findings 0. CI first-run reviewer-gate race (T-0048 19 회차) 재현 + empty commit synchronize self-heal (T-0111 패턴 1:1 mirror)."
 suggestedAgents: implementer → tester
 ---
 
