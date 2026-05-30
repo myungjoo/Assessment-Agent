@@ -2,13 +2,18 @@
 id: T-0104
 title: STATE.json 의 12 resolved humanQuestions 를 docs/progress/ archive 로 externalize
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 90
 estimatedFiles: 3
 estimatedLoc: 90
 created: 2026-05-30
+completedAt: 2026-05-30T13:33:00+09:00
+actualDiff: 349
+actualFiles: 4
+diffNote: "+349/-245 gross (archive +332 라인 = STATE.json -245 라인 의 1:1 mechanical relocation, net 정보 변화 0). planner estimate 90 의 ×3.9 over — externalize/JSON-fenced 1:1 preservation 의 verbosity 미반영. doc-only direct 라 executor task-too-large hard-stop 미적용. estimate-model.md externalize sub-pattern 박제 source (T-0104 Follow-up)."
+driverNote: "loop session #28 turn 3 — driver inline (executor dispatch 0, single-writer STATE 룰 준수). 12 resolved HQ → docs/progress/humanQuestions-archive.md (33.9k chars, 12 ## HQ- heading + lossless json fenced). STATE.humanQuestions=[] + humanQuestionsArchive 포인터 + humanQuestionsArchivedCount=12, STATE.json 32.5k→2.5k chars. node 생성기로 1:1 정보 보존."
 dependsOn: []
 sizeExempt: false
 plannerNote: "loop session #28 — STATE.json hot-read bloat 제거 (12 resolved HQ ~28k chars → archive). cron-safe doc-only direct, 1-turn, PR cycle 0. 다음 cron ~14:00 collision 회피."

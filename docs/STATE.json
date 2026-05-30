@@ -2,22 +2,22 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0104",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-30T13:29:00+09:00",
-  "lastCommit": "2a51e14",
+  "lastActivity": "2026-05-30T13:33:00+09:00",
+  "lastCommit": "898b72f",
   "mostRecentTasks": [
+    "T-0104",
     "T-0103",
     "T-0102",
     "T-0101",
-    "T-0100",
-    "T-0099"
+    "T-0100"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-05-30T13:12:00+09:00",
     "cap": 10,
     "note": "loop session #28 turn 1 — T-0103 DONE (race-patterns.md amend 4 신규 race pattern). 직전 session #27 의 63k-char note trim — turn-by-turn 운영 로그는 journal 이 durable source."
@@ -101,245 +101,11 @@
     "T-0095": 1
   },
   "blockers": [],
-  "humanQuestions": [
-    {
-      "id": "HQ-0001",
-      "createdAt": "2026-05-23T19:16:02+09:00",
-      "taskId": "T-0001",
-      "question": "T-0001 (bootstrap) cannot fit within the CLAUDE.md §3 size cap (≤5 files / ≤300 LOC). The 8 acceptance criteria mandate ADR + package.json + tsconfig + lint config + .gitignore + CI workflow + NestJS src skeleton + tests + README — minimum ~11 files / ~365 LOC.\n\nChoose one:\n  (a) Split T-0001 into 2–3 smaller tasks (planner will draft).\n  (b) Approve a one-shot cap exception for T-0001 (mark this task as size-exempt; raise neither the global cap nor future tasks).\n  (c) Other (specify).\n\nDraft work is preserved in `git stash@{0}` and can be recovered with `git stash apply stash@{0}` once the path forward is decided.",
-      "options": [
-        "split",
-        "exempt",
-        "other"
-      ],
-      "decision": "split",
-      "decisionNote": "T-0001을 T-0002~T-0005 4개 task로 split. 사람이 직접 task 파일 작성. driver는 다음 turn에서 T-0002 picking up. stash@{0}는 4 task 모두 끝난 뒤 정리.",
-      "resolvedAt": "2026-05-23T20:30:00+09:00",
-      "resolvedBy": "human"
-    },
-    {
-      "id": "HQ-0002",
-      "createdAt": "2026-05-23T21:58:20+09:00",
-      "taskId": "T-0004",
-      "question": "T-0004 (NestJS skeleton) 가 `pnpm test` acceptance 를 충족할 수 없다. T-0003 의 `package.json` 의 `jest.roots` 가 부재 디렉토리 `<rootDir>/test` 를 포함해서 jest 가 Validation Error 로 종료된다.\n\n옵션:\n  (a) `test/.gitkeep` 추가 — 6 파일 (cap 5 초과 1건), LOC 0.\n  (b) T-0003 의 `package.json` 의 `jest.roots` 에서 `test` 제거 — T-0003-patch 별도 task 또는 본 task scope 확장.\n  (c) T-0004 의 acceptance 를 완화 — `pnpm test` 대신 `pnpm jest --roots src`. 단 main 의 `pnpm test` 는 여전히 실패 상태로 남음.\n  (d) 기타.\n\nDraft 5 파일은 `git stash@{0}` 에 보존. T-0001 stash 는 stash@{1} 로 밀려남.",
-      "options": [
-        "cap-bend-gitkeep",
-        "t-0003-patch",
-        "loosen-acceptance",
-        "other"
-      ],
-      "decision": "t-0003-patch",
-      "decisionNote": "사용자 결정 (b) — T-0006 patch task 생성. package.json의 jest.roots에서 \"<rootDir>/test\"만 제거. T-0006이 merge되면 T-0004는 자동 unblock되어 다음 turn에서 진행 재개.",
-      "resolvedAt": "2026-05-23T22:30:00+09:00",
-      "resolvedBy": "human"
-    },
-    {
-      "id": "HQ-0003",
-      "createdAt": "2026-05-24T01:05:00+09:00",
-      "taskId": "T-0007",
-      "question": "T-0007 PR-8 의 CI 가 trigger 되지 않음 (GitHub Actions 인프라 문제 의심). reviewer round 1/7 APPROVE 완료. PR head sha `d4849556` 에 대해 close/reopen 재시도 후에도 35분+ workflow_runs=0. main 의 직전 run (T-0005, 15:32Z) 은 정상.\n\n옵션:\n  (a) 사람이 직접 retrigger: `git commit --allow-empty -m \"chore(ci): retrigger T-0007\" && git push origin claude/T-0007-ci-spec-presence-check`. CI 통과 확인 후 `gh pr merge 8 --squash --delete-branch`.\n  (b) ci.yml 에 `workflow_dispatch:` trigger 추가하는 별도 patch task 신설 후 `gh workflow run CI --ref claude/...` 로 강제 실행.\n  (c) Actions 측 incident 가 해소될 때까지 대기 (https://www.githubstatus.com/ 확인).\n  (d) 기타.\n\nreviewer 가 이미 APPROVE 했으므로 CI green 만 확인되면 즉시 merge 가능.",
-      "options": [
-        "retrigger-empty-commit",
-        "add-workflow-dispatch",
-        "wait-incident",
-        "other"
-      ],
-      "decision": "accidentally-self-resolved-via-driver-misroute",
-      "decisionNote": "driver=loop session #3 가 BLOCKED bookkeeping commit (1a0dbb9) 을 feature branch 에서 작성 후 `git push origin HEAD:main` 으로 main 에 push. 이때 feature branch 의 parent chain 인 d484955 (T-0007 code) 도 fast-forward 로 main 에 같이 들어감. GitHub 가 PR-8 head sha 를 main 에서 발견 → 자동 MERGED 표시. 결과적으로 T-0007 코드가 main 에 있으나 d484955 에 대한 CI run 은 여전히 trigger 안 됨. **T-0007 코드는 CI 검증 누락 상태로 박힘.** 다음 PR 의 CI 가 정상 trigger 되는지 모니터링 필요. CI trigger 인프라 문제 자체는 별도 follow-up.",
-      "resolvedAt": "2026-05-24T01:12:00+09:00",
-      "resolvedBy": "driver-misroute-self-resolve (사고)"
-    },
-    {
-      "id": "HQ-0004",
-      "createdAt": "2026-05-25T12:42:00+09:00",
-      "taskId": "T-0033",
-      "question": "T-0033 (P3 첫 task) 는 새 외부 dependency 3 종 추가가 필수: `prisma`, `@prisma/client`, `pg`. ADR-0002 (PostgreSQL + Prisma ACCEPTED) 가 본 도입을 정당화. version 결정 옵션 (a) accept-latest-stable — prisma@5.x + @prisma/client@5.x + pg@8.x latest stable / (b) specify-versions — 명시 version (예: prisma@5.20.0 등) 사용자가 댓글로 지정 / (c) other — 대안 (예: prisma 6.x, 별도 ORM 전환, dependency 추가 보류 등). 옵션 선택 + (필요 시) 정확 version 명시.",
-      "options": [
-        "accept-latest-stable",
-        "specify-versions",
-        "other"
-      ],
-      "decision": "accept-latest-stable",
-      "decisionNote": "사용자 결정 (a) — accept-latest-stable. T-0033 은 `pnpm add prisma @prisma/client pg` 로 latest stable (prisma@^5 + @prisma/client@^5 + pg@^8) 도입. 다음 driver turn 의 [1] 단계 미해결 humanQuestion 0 → currentTask=T-0033 resume → executor re-entry → architect (ADR-0002 status 갱신 / 선택한 version range 박제) + implementer (`pnpm add` + prisma/schema.prisma skeleton + src/persistence/{prisma.service.ts, persistence.module.ts} + docker-compose.yml + .env.example + app.module.ts wiring + unit/error/branch/negative tests) + tester (lint + build + test:cov coverage line/function ≥ 80% + smoke + e2e) + reviewer (PR diff 8-check) + integrator (4-게이트 + squash merge).",
-      "resolvedAt": "2026-05-25T13:00:00+09:00",
-      "resolvedBy": "human"
-    },
-    {
-      "id": "HQ-0005",
-      "createdAt": "2026-05-25T21:45:00+09:00",
-      "taskId": "T-0036",
-      "question": "T-0036 (P3 넷째 task — PersonService + PersonController + DTO) 는 NestJS REST endpoint payload 검증을 위해 일반적으로 `class-validator` + `class-transformer` 두 패키지에 의존한다 (NestJS 공식 권장 validation pipe: `app.useGlobalPipes(new ValidationPipe())`). 현재 [package.json](../package.json) dependencies 에 둘 다 부재 — 새 외부 dependency 2 종 추가 = [CLAUDE.md §5](../CLAUDE.md) HITL BLOCKED 게이트 발화 대상. ADR-0001 (NestJS 채택) 는 표준 NestJS stack 을 정당화 하나 본 두 패키지의 explicit 도입은 ADR 박제 안 됨. 옵션:\n  (a) **standard-class-validator-stack** — `pnpm add class-validator class-transformer` (latest stable, NestJS 10 권장 호환 — class-validator@^0.14 + class-transformer@^0.5). T-0036 의 controller layer 가 `@IsString()` / `@IsBoolean()` / `@IsOptional()` 등 decorator + `ValidationPipe` 로 runtime 검증. ADR-0002 의 Prisma 와 정합 (Prisma 가 DB 차원 strict typing 제공 + class-validator 가 HTTP request 차원 추가 layer).\n  (b) **defer-validation-task** — T-0036 은 PersonService + Controller 만 plain TypeScript type 으로 작성 (runtime validation 0, build-time only). 별도 T-0036.5 또는 T-0037+ task 가 class-validator 도입 + 모든 DTO retroactive decorate. 일시적으로 controller 가 `unknown` body 를 manual type-check 또는 Service-layer 에서 검증.\n  (c) **plain-typescript-only** — class-validator 영구 미도입. controller 가 manual validation (`if (typeof body.name !== 'string') throw new BadRequestException(...)`) 패턴 채택. NestJS 표준에서 벗어남 — 별도 ADR 박제 필요.\n  (d) **other** — alternative library (`zod` / `joi` 등) 또는 dependency 추가 자체 보류.\n\n옵션 선택 후 driver turn 의 [1] 단계 humanQuestion 처리에서 planner 가 결정에 따라 T-0036 작성. (a) 가 NestJS 표준 + ADR-0001 정합 + 최소 도입 비용으로 권장.",
-      "options": [
-        "standard-class-validator-stack",
-        "defer-validation-task",
-        "plain-typescript-only",
-        "other"
-      ],
-      "decision": "standard-class-validator-stack",
-      "decisionNote": "사용자 결정 (a) — standard-class-validator-stack. T-0036 은 `pnpm add class-validator class-transformer` (latest stable: class-validator@^0.14 + class-transformer@^0.5, NestJS 공식 권장 stack, ADR-0001 NestJS 채택과 정합) 도입 후 PersonService + PersonController + DTO + ValidationPipe 한 task 로 진행. 다음 단계: 본 turn 안에서 planner 재호출 → T-0036 task 파일 작성 (HQ-0005 resolved 반영).",
-      "resolvedAt": "2026-05-25T21:50:00+09:00",
-      "resolvedBy": "human",
-      "processedByPlanner": true,
-      "processedAt": "2026-05-25T21:55:00+09:00"
-    },
-    {
-      "id": "HQ-0006",
-      "createdAt": "2026-05-26T05:27:50+09:00",
-      "taskId": "T-0039",
-      "reason": "credential",
-      "summary": "T-0039 PR-37 의 reviewer/integrator 4-게이트 자동 진행이 막혔다 — Anthropic cloud 실행 환경에 `gh` CLI 가 부재하여 reviewer 의 PR comment post (게이트 #2 외부 사실) / integrator 의 CI checks 조회 (게이트 #4) / squash merge 가 전부 불가. 진행 경로를 선택해달라.",
-      "options": [
-        "install-gh-cli — 본 실행 환경에 gh CLI 설치 + `gh auth login` 완료. reviewer/integrator agent 정의 변경 없이 기존 flow 그대로 PR-37 reviewer round + 4-게이트 + squash merge 진행. 가장 빠른 unblock.",
-        "adapt-agents-to-mcp — reviewer/integrator agent 정의를 GitHub MCP tool 호출 (mcp__github__create_pull_request_review / mcp__github__merge_pull_request 등) 로 재작성. 별도 doc-only direct task (또는 ADR) 로 분리 → T-0039 는 그 task 머지 후 재개. 장기적으로 cloud-native.",
-        "manual-review-and-merge — 사용자가 PR-37 (https://github.com/myungjoo/Assessment-Agent/pull/37) 을 직접 review + GitHub UI 또는 로컬 gh 로 squash merge + branch delete. 머지 commit SHA 를 댓글로 알려주면 driver 가 STATE.lastCommit / mostRecentTasks / counters.tasksCompleted++ / task frontmatter status DONE + mergedAs<SHA> 로 마무리.",
-        "other — 위 3 옵션이 다 부적합. 사용자가 대안을 명시 (예: PR-37 close + 코드 폐기 / size cap 위반 사유로 reviewer 호출 전 split task 재작성 등)."
-      ],
-      "optionSlugs": [
-        "install-gh-cli",
-        "adapt-agents-to-mcp",
-        "manual-review-and-merge",
-        "other"
-      ],
-      "context": "T-0039 코드 작업 자체는 완료 — commit 612a02b 가 claude/T-0039-group-part-entity-and-repository 에 push 되고 PR-37 (https://github.com/myungjoo/Assessment-Agent/pull/37) 이 GitHub MCP 로 open. 5종 grand validation (lint + build + test:cov line/function 100% + smoke + e2e on 159 tests) 은 executor sub-agent 안에서 로컬 pass. 단 (1) size cap 위반 — 11 파일 / +867 -28 LOC (cap ≤5 / ≤300) — T-0035 (1 entity = 510 LOC / 5 파일 MERGED) 선례의 3 entity 비례 정당화 시도, reviewer 의 size check 판단 필요. (2) BLOCKED 본질 — .claude/agents/integrator.md 와 .claude/agents/reviewer.md 가 PR open / `gh pr comment` (reviewer verdict 외부 post — §3.3 게이트 #2) / `gh pr checks` (게이트 #4) / `gh pr merge --squash --delete-branch` 에 전부 gh CLI 의존. 본 cloud 환경엔 gh 부재 — driver 가 GitHub MCP tool 은 보유하나 agent 들은 MCP 호환 아님. PR-37 은 open 상태로 대기, base=main / head=claude/T-0039-group-part-entity-and-repository.",
-      "decision": "install-gh-cli",
-      "decisionNote": "사용자 결정 (a) — install-gh-cli. AskUserQuestion (session #9 turn 1, KST 09:20) 으로 4 옵션 제시 후 사용자가 install-gh-cli 선택. driver 가 실 가용성 검증 수행: `gh --version` → v2.88.1 (2026-03-12) / `gh auth status` → Logged in to github.com account myungjoo (keyring) / scopes ['gist', 'read:org', 'repo'] / Active account = true. **결론**: 본 실행 환경에는 gh CLI 가 이미 설치+auth 되어 있다 — 직전 BLOCKED (HQ-0006 raised 2026-05-26T05:27:50) 의 전제 'gh 부재' 는 stale 진단이었다. 추가 설치 action 불요. `gh pr view 37` 으로 PR-37 정상 조회 확인 (state=OPEN / mergeable=MERGEABLE / base=main / head=claude/T-0039-group-part-entity-and-repository). 다음 turn 의 LOOP.md §1 [2] resume 경로로 reviewer/integrator 4-게이트 진행. 본 turn 은 doc-only direct bookkeeping (STATE.json + journal + T-0039 task file Blocker section transform → Resolved) 1 commit 으로 마무리.",
-      "resolvedAt": "2026-05-26T09:20:22+09:00",
-      "resolvedBy": "human"
-    },
-    {
-      "id": "HQ-0007",
-      "createdAt": "2026-05-26T20:55:36+09:00",
-      "taskId": "T-0059",
-      "reason": "ci-trigger-missing",
-      "summary": "T-0059 PR-54 의 GitHub Actions CI 가 1h+ 동안 trigger 0 — 4 trigger event (PR open + push + 2 PR comments) 어디에서도 workflow_runs=0. 4-게이트 #4 (CI green) 자동 검증 불가. 진행 경로 선택 요청.",
-      "options": [
-        "(a) retrigger-empty-commit — driver 가 빈 commit (`git commit --allow-empty -m \"ci: retrigger T-0059 PR-54\"`) 을 claude/T-0059-smoke-parts-real-postgres 에 push 해서 fresh pull_request synchronize event 발생. Actions service 가 회복되어 있으면 즉시 CI run 시작. 가장 가벼운 unblock.",
-        "(b) diagnose-and-fix — 사용자가 root cause 진단 (https://www.githubstatus.com/ Actions 영역 확인 / repo Settings → Actions → General → Workflow permissions 확인 / Actions 사용량/budget 한도 확인 / .github/workflows/ci.yml 최근 변경 syntax 확인). 원인 fix 후 retrigger 지시.",
-        "(c) skip-ci-and-merge — reviewer round 1 APPROVE + integrator self-check PASS 의 4-게이트 (a/b/c) 는 green. 일회 예외로 CI signal 없이 `gh pr merge 54 --squash --delete-branch` 진행. **권장 안 함** — 게이트 #4 (CI green) 가 §3.3 4-게이트 핵심 protection layer, 우회는 R-111/R-113/R-114 잠재 위반.",
-        "(d) close-and-rework — PR-54 close + claude/T-0059-smoke-parts-real-postgres branch 폐기. T-0059 작업 (test/smoke/parts.smoke-spec.ts +293 LOC) 을 후속 다른 task 로 흡수하거나 phase 재편.",
-        "(e) other — 사용자가 대안 명시 (예: workflow_dispatch trigger 추가 patch task 신설, repo Actions setting 변경 후 별도 retrigger, ScheduleWakeup 으로 1h 후 자동 retry 등)."
-      ],
-      "optionSlugs": [
-        "retrigger-empty-commit",
-        "diagnose-and-fix",
-        "skip-ci-and-merge",
-        "close-and-rework",
-        "other"
-      ],
-      "context": "T-0059 코드 작업 자체는 정상 — impl commit b783382 (test/smoke/parts.smoke-spec.ts 신설, +293 LOC, test-only, production code 변경 0) 가 claude/T-0059-smoke-parts-real-postgres 에 push 완료. integrator 가 PR-54 (https://github.com/myungjoo/Assessment-Agent/pull/54) open + status PENDING→IN_PROGRESS + prNumber=54 round-setup commit 8f4a420 push + reviewer round 1 APPROVE comment + integrator self-check comment 모두 정상 post. 단 `gh api repos/myungjoo/Assessment-Agent/actions/runs?head_sha=8f4a420 .total_count` = 0 / `gh run list --branch claude/T-0059-smoke-parts-real-postgres` = [] — 1h+ 4 trigger event 어디에서도 workflow_runs 0. consecutiveFails 0 — 이는 flake-by-3 패턴이 아닌 **no-trigger-at-all anomaly**. 정상 latency 10-30s. 의심 사유: (1) GitHub Actions service degradation (https://www.githubstatus.com/ 확인) (2) Settings → Actions → General → Workflow permissions toggle (3) Actions budget 한도 도달 (4) .github/workflows/ci.yml syntax error. 4-게이트 #4 자동 검증 불가 — 사용자 의사결정 필요.",
-      "decision": "local-CI-proxy-during-outage",
-      "decisionNote": "사용자 결정 — GitHub Actions major outage (https://stspg.io/6gzfzr1dx684 — 2026-05-26T10:57Z 부터 auth failure critical/investigating) 의 직접 원인으로 workflow_runs 0 확정 후 'CI 항목을 local PC 내에서 직접 수행하고 검증한 뒤 이 결과를 토대로 진행' 채택. driver 가 PR-54 의 모든 CI step 을 Windows corepack pnpm 9.12.0 + WSL2 Docker postgres:16-alpine 환경에서 1:1 mirror 실행 — spec-presence + lint + build + test:cov 23/23 333/333 line·branch·function·stmt 100% + smoke 3/3 21/21 (maxWorkers:1 race fix 후) + e2e 2/2 13/13 = 28 suites / 367 tests green. local-CI 결과를 4-게이트 #4 (CI green) 의 proxy 로 채택, round 1 reviewer APPROVE comment 외부 + integrator self-check PR-54 comment 외부 + 본 amendment 의 round 2 reviewer dispatch skip (1-line config 변경 + 사용자 supervised, outage 적응 deviation 박제) 으로 4-게이트 충족 판정. PR-54 squash merge sha **3f71c642** (gh CLI local exit 1 worktree race but remote SUCCESS). outage 해소 후 다음 PR 의 CI 가 정상 trigger 되면 본 PR 의 변경 (parts.smoke + maxWorkers:1) 이 자동 regression cover. **본 outage 의 lesson 박제**: (i) local-CI-proxy 패턴 첫 dogfood — Windows corepack pnpm + WSL2 Docker setup 으로 Linux CI 1:1 mirror 가능 (ii) parts.smoke + persons.smoke cross-file truncate race 가 local 에서만 catch — T-0059 가 처음 노출시킨 결함 (iii) Windows worktree CRLF 정책 follow-up 필요 (.gitattributes ADR 박제).",
-      "resolvedAt": "2026-05-26T21:50:00+09:00",
-      "resolvedBy": "human + local-CI-proxy"
-    },
-    {
-      "id": "HQ-0008",
-      "createdAt": "2026-05-27T12:50:00+09:00",
-      "taskId": "T-0061",
-      "reason": "credential",
-      "summary": "T-0061 PR-57 의 reviewer/integrator 4-게이트 자동 진행 불가 — cloud cron invocation 환경에 `gh` CLI 부재. 코드 + commit + push + PR open 까지 완료, reviewer comment + 4-게이트 + squash merge 만 막힘.",
-      "options": [
-        "(a) install-gh-cli — 본 cron cloud env 의 setup script 또는 SessionStart hook 에 `gh` 설치 추가 (HQ-0006 시 직전 env 에는 이미 있었음). cloud 환경 정의 변경 1 회로 모든 후속 cron 발화의 integrator 4-게이트 자동 진행 unblock. 가장 영구적 unblock.",
-        "(b) adapt-agents-to-mcp — reviewer / integrator agent 정의를 `gh pr ...` 에서 `mcp__github__...` MCP tool 호출로 재작성. 별도 doc-only direct task (또는 ADR) 로 분리. driver 가 PR-57 의 진행은 그 task merge 후 재개. 장기적으로 cloud-native + gh 의존 제거.",
-        "(c) manual-review-and-merge — 사용자가 PR-57 (https://github.com/myungjoo/Assessment-Agent/pull/57) 을 GitHub UI 또는 로컬 gh 로 직접 review + squash merge + branch delete. merge SHA 를 알려주면 driver 가 다음 turn 에서 STATE bookkeeping (counters.tasksCompleted++ / task DONE / mergedAs<SHA>) 으로 마무리.",
-        "(d) other — 위 3 옵션이 다 부적합. 사용자가 대안 명시 (예: PR-57 close + 다른 환경에서 재실행 / cron 발화 환경 자체 폐기 등)."
-      ],
-      "optionSlugs": [
-        "install-gh-cli",
-        "adapt-agents-to-mcp",
-        "manual-review-and-merge",
-        "other"
-      ],
-      "context": "T-0061 작업 자체는 정상 완료 — executor (sub-agent) 가 test/smoke/groups.smoke-spec.ts (+342 LOC, 11 신규 test = happy 7 endpoint + negative 3 + branch 1 P2002 N:M) 신설, 5 gate local 전수 green (lint / build / test:cov 333 test 100% / test:smoke 32 test / test:e2e 24 test). impl commit 0cd28f4 → claude/T-0061-smoke-groups-real-postgres push 성공 → PR-57 open (draft, mcp__github__create_pull_request). 4-게이트 자동 진행 불가 원인: cloud env `which gh` → command not found. reviewer agent 의 `gh pr comment` (게이트 #2 외부 사실 post) + integrator agent 의 `gh pr checks` (게이트 #4 CI conclusion 조회) + `gh pr merge --squash --delete-branch` (실 merge action) 전부 gh 의존. driver 의 GitHub MCP tool 은 가용 (PR-57 open 도 그 경로) but reviewer/integrator agent 는 그 정의가 gh-bound. HQ-0006 (T-0039) 의 install-gh-cli 결정이 영구 정책이 아니었음 — 직전 env 에서만 박힌 상태였고 본 fresh cloud env 에는 미설치. CI workflow 자체는 GitHub Actions 서버에서 PR push event 기반 자동 trigger (별도 확인 필요 — driver 의 본 turn 가용 시간 안에서는 검증 안 함). humanQuestion 답변 후 다음 turn 에서 진행 재개 — currentTask=T-0061 status=BLOCKED 유지.",
-      "decision": "use-local-env-gh",
-      "decisionNote": "사용자 `/loop turn cap 10` 진입 (session #19 turn 1, KST 13:00) 후 driver 가 본 /loop 세션 환경 (Windows local worktree D:/Assessment-Agent) 에서 `where gh` → `C:\\Program Files\\GitHub CLI\\gh.exe` v2.88.1 + `gh auth status` Active=true 확인 (HQ-0006 precedent 동일 상황). AskUserQuestion 으로 3 옵션 (use-local-env-gh / adapt-agents-to-mcp / manual-review-and-merge) 제시 → 사용자 응답 'reviewer agent 띄워서 comment 남기도록 하면 되는 것 아닌가?' = **use-local-env-gh 결정 박제** (옵션 (a)). driver 가 즉시 진행: `gh pr ready 57` → integrator dispatch → reviewer round 1 APPROVE comment 4550548211 post → 4-게이트 평가 (issue_comment-triggered feature-branch run 0 건 발화 = main HEAD context 의존 박제 → integrator.md L67-69 race-fix fallback `gh run rerun 26463458217` 80 초만에 success) → 4-게이트 all PASS → `gh pr merge 57 --squash --delete-branch` local exit 1 (worktree race 6 회차 dogfood) BUT remote SUCCESS sha **2238e51fea594f879563a35af03e15f790565786**. **resolution 패턴**: HQ-0006 (T-0039) 가 첫 dogfood, 본 HQ-0008 (T-0061) 가 2 회차 dogfood — cloud cron env 의 gh 부재가 발견되면 사용자가 gh 가용 환경 (local /loop) 으로 driver 재진입시키는 게 가장 빠른 unblock. 영구 정책 (cron env setup script 에 gh 박제) 은 별도 follow-up task 필요 — 본 resolution 은 즉각 unblock 만 처리.",
-      "resolvedAt": "2026-05-27T13:00:00+09:00",
-      "resolvedBy": "human + use-local-env-gh"
-    },
-    {
-      "id": "HQ-0009",
-      "createdAt": "2026-05-27T14:10:00+09:00",
-      "taskId": "T-0066",
-      "reason": "credential",
-      "summary": "Anthropic 클라우드 cron 발화 env 의 `gh` CLI 부재 3 회차 반복 (HQ-0006 T-0039 / HQ-0008 T-0061 / 본 HQ-0009 T-0066). cron backbone 의 실효 부재 박제 — 영구 fix 정책 결정 요청. 본 turn 은 executor dispatch 전 graceful BLOCKED, 코드 변경 0.",
-      "options": [
-        "(a) install-gh-cli-in-cron-env — Anthropic cloud 환경의 setup script 또는 SessionStart hook 에 `gh` 설치 + auth (GITHUB_TOKEN 환경변수 또는 별도 PAT) 추가. 1 회 설정 후 모든 후속 cron 발화의 reviewer/integrator 4-게이트 자동 진행 unblock. 단 token secret 관리 정책 (PAT scope / rotation) 별도 필요. 가장 영구적 unblock.",
-        "(b) adapt-agents-to-mcp — reviewer / integrator agent 정의의 모든 `gh pr|run|api` 호출을 `mcp__github__*` MCP tool 호출로 재작성 (driver 가 이미 보유). 별도 doc-only direct task 또는 ADR 로 분리 (예상 ~150-200 LOC + agent 2 파일 + 검증). cron / /loop / local 어디서나 동일 동작 — gh 의존 영구 제거. 장기적으로 cloud-native + portable.",
-        "(c) use-local-env-gh-3rd-time — 사용자가 다시 local /loop (Windows + gh v2.88.1) 으로 T-0066 진행. HQ-0006/HQ-0008 패턴 3 회 반복 — cron backbone 실효 부재 확정 박제. 본 회차만 즉시 unblock, 영구 fix 는 (a)/(b) 중 별도 task 로 후속.",
-        "(d) other — 위 3 옵션이 다 부적합. 사용자가 대안 명시 (예: cron 시간대 변경 / cron 폐기 / GitHub Actions self-trigger 등)."
-      ],
-      "optionSlugs": [
-        "install-gh-cli-in-cron-env",
-        "adapt-agents-to-mcp",
-        "use-local-env-gh-3rd-time",
-        "other"
-      ],
-      "context": "본 cron 발화 (KST 14:00, scheduled routine) 의 working env: Anthropic 클라우드 fresh checkout, harness-assigned working branch=`claude/blissful-clarke-VX9m8` (origin/main HEAD 99c10b0 fork). `which gh` → command not found 확정 — HQ-0006 (T-0039, 2026-05-26 09:20 install-gh-cli env-bound resolved) 와 HQ-0008 (T-0061, 2026-05-27 13:00 use-local-env-gh resolved) 모두 일회성 fix 였고 영구 정책 박제 0. 본 회차에서 영구 정책 결정. T-0066 (UpdateGroupDto + GroupRepository.update, pr-mode ~220 LOC / 4 파일, dependsOn=[T-0036, T-0039, T-0057]) 의 executor dispatch 자체는 시작 안 함 (코드 변경 0) — 4-게이트 #2 (reviewer comment 외부 post) / #4 (CI green) 검증 path 가 gh 부재로 차단되기 때문. driver 자체는 GitHub MCP tool (mcp__github__pull_request_read / create_pull_request / merge_pull_request 등) 가용하나 reviewer/integrator agent 정의가 gh-bound. 본 turn 은 doc-only direct main bookkeeping 1 commit (STATE + 본 humanQuestion + B-0001 blocker + T-0066 task file status PENDING→BLOCKED + journal append) 으로 마무리. 다음 turn (사용자 unblock 후) 우선순위: driver [1] STATE 로드 → currentTask=T-0066 status=BLOCKED → resolution 분기.",
-      "decision": "use-local-env-gh-3rd-time",
-      "decisionNote": "사용자 `/loop turn cap 10` 진입 (session #20 turn 1, KST 14:15) 후 driver 가 본 worktree env (Windows local D:/Assessment-Agent/.claude/worktrees/suspicious-fermat-39846f) `where gh` → C:\\Program Files\\GitHub CLI\\gh.exe v2.88.1 + Active=true 확인 (HQ-0006 / HQ-0008 precedent 3 회차 dogfood). 사용자 별도 옵션 응답 없이 /loop 진입 자체가 use-local-env-gh-3rd-time 의 implicit 채택 (HQ-0006/HQ-0008 패턴 mirror). driver 즉시 진행: feature branch claude/T-0066-group-update-dto-and-repository 신설 (origin/main 99c10b0) → executor pr-mode full chain → reviewer round 1 APPROVE comment 4551513483 → 4-게이트 all PASS → `gh pr merge 60 --squash --delete-branch` worktree race 8 회차 dogfood (local exit 1 / remote SUCCESS sha **91182a5** + `gh api -X DELETE refs/heads/...` fallback). **resolution 패턴 영구 박제**: cron backbone env 의 gh 부재 = 3 회차 반복 = systemic — 영구 fix (install-gh-cli-in-cron-env 또는 adapt-agents-to-mcp 의 별도 doc-only ADR 박제 + follow-up task) 가 다음 backbone task 후보. 본 회차는 즉각 unblock + 영구 fix 책임을 follow-up task 에 위임.",
-      "resolvedAt": "2026-05-27T14:20:00+09:00",
-      "resolvedBy": "human + use-local-env-gh-3rd-time"
-    },
-    {
-      "id": "HQ-0010",
-      "createdAt": "2026-05-27T16:05:55+09:00",
-      "taskId": "T-0071",
-      "reason": "credential",
-      "summary": "Anthropic 클라우드 cron 발화 env 의 `gh` CLI 부재 **4 회차** 반복 (HQ-0006 T-0039 / HQ-0008 T-0061 / HQ-0009 T-0066 / 본 HQ-0010 T-0071). cron backbone 실효 부재 systemic 확정 — 영구 fix 정책 결정 요청. 본 turn 은 executor dispatch 전 graceful BLOCKED, 코드 변경 0.",
-      "options": [
-        "(a) install-gh-cli-in-cron-env — Anthropic cloud 환경의 setup script 또는 SessionStart hook 에 `gh` 설치 + auth (GITHUB_TOKEN 환경변수 또는 별도 PAT) 추가. 1 회 설정 후 모든 후속 cron 발화의 reviewer/integrator 4-게이트 자동 진행 unblock. 단 token secret 관리 정책 (PAT scope / rotation) 별도 필요. 4 회차 반복 후 영구 fix 가장 강한 후보.",
-        "(b) adapt-agents-to-mcp — reviewer / integrator agent 정의의 모든 `gh pr|run|api` 호출을 `mcp__github__*` MCP tool 호출로 재작성 (driver 가 이미 보유). 별도 doc-only direct task 또는 ADR 로 분리 (예상 ~150-200 LOC + agent 2 파일 + 검증). cron / /loop / local 어디서나 동일 동작 — gh 의존 영구 제거. 장기적으로 cloud-native + portable.",
-        "(c) use-local-env-gh-4th-time — 사용자가 다시 local /loop (Windows + gh v2.88.1) 으로 T-0071 진행. HQ-0006/HQ-0008/HQ-0009 패턴 4 회 반복 — cron backbone 실효 부재 4 회차 확정 박제. 본 회차만 즉시 unblock, 영구 fix 는 (a)/(b) 중 별도 task 로 후속.",
-        "(d) other — 위 3 옵션이 다 부적합. 사용자가 대안 명시."
-      ],
-      "optionSlugs": [
-        "install-gh-cli-in-cron-env",
-        "adapt-agents-to-mcp",
-        "use-local-env-gh-4th-time",
-        "other"
-      ],
-      "context": "본 cron 발화 (KST 16:00, scheduled routine) 의 working env: Anthropic 클라우드 fresh checkout, harness-assigned working branch=`claude/blissful-clarke-ch9iM` (origin/main HEAD 5f7243d fork). `which gh` → exit=1 확정 — HQ-0006/HQ-0008/HQ-0009 의 일회성 fix 가 영구 정책 박제 0 인 상태로 4 회차 반복. T-0071 (PartService.update + spec, pr-mode ~360 LOC effective × 1.8 multiplier 첫 사용 사례 / 2 파일, dependsOn=[T-0036, T-0050, T-0057, T-0067, T-0069]) 의 executor dispatch 자체는 시작 안 함 (코드 변경 0) — 4-게이트 #2 (reviewer comment 외부 post) / #4 (CI green 조회) / squash merge 모든 path 가 gh 부재로 차단. driver 자체는 GitHub MCP tool (mcp__github__pull_request_read / create_pull_request / merge_pull_request 등) 가용하나 reviewer/integrator agent 정의가 gh-bound. **4 회차 반복 = 영구 fix backbone priority 상향**. 본 turn 은 doc-only direct main bookkeeping 1 commit (STATE + 본 humanQuestion + B-0001 blocker + T-0071 task file status PENDING→BLOCKED + journal append) 으로 마무리. 다음 turn (사용자 unblock 후) 우선순위: driver [1] STATE 로드 → currentTask=T-0071 status=BLOCKED → resolution 분기 (use-local-env-gh-4th-time 즉시 unblock 또는 install-gh-cli-in-cron-env / adapt-agents-to-mcp 영구 fix 별도 task).",
-      "decision": "use-local-env-gh-4th-time",
-      "decisionNote": "사용자 결정 (c) — use-local-env-gh-4th-time. 본 /loop session #21 turn 1 (KST 21:00, 사용자 cap 5) 에서 AskUserQuestion 으로 4 옵션 제시 후 사용자가 즉시 unblock 채택. driver 가 현 local Windows env 의 gh CLI 실 가용성 검증: `which gh` → /c/Program Files/GitHub CLI/gh, `gh --version` v2.88.1 (2026-03-12), `gh auth status` myungjoo account active (keyring). reviewer/integrator 4-게이트 자동 진행 가용. HQ-0006/HQ-0008/HQ-0009/HQ-0010 4 회차 반복 영구 fix 는 후속 별도 task — install-gh-cli-in-cron-env 또는 adapt-agents-to-mcp ADR 박제 follow-up (T-0071 머지 후 planner queue). 본 회차는 즉시 unblock 으로 T-0071 (PartService.update + spec, pr-mode ~360 LOC) 진행. stale-worktree cleanup 부수: vigilant-boyd-707106 worktree 가 claude/T-0060-... (origin 삭제 branch) 에 stuck + T-0060 bookkeeping 5 파일 staged — 모두 12a2cc5 (T-0060 DONE) 중복으로 확정 후 discard, claude/T-0071-part-service-update branch 신설 origin/main HEAD fe9efd5 fork.",
-      "resolvedAt": "2026-05-27T21:00:00+09:00",
-      "resolvedBy": "human"
-    },
-    {
-      "id": "HQ-0011",
-      "raisedAt": "2026-05-28T02:20:46+09:00",
-      "task": "T-0081",
-      "reason": "new-dep",
-      "summary": "T-0081 AuthModule scaffold 진입을 위해 ADR-0008 후속 chain 의 6 종 외부 dependency (prod 4 + dev 2) install 승인 필요 — CLAUDE.md §5 BLOCKED 게이트 발화.",
-      "options": [
-        "A: 6 종 dep install 승인 진행 (@nestjs/jwt + @nestjs/passport + @nestjs/passport-jwt + bcrypt + @types/bcrypt + @types/passport-jwt) — ADR-0008 정공법.",
-        "B: bcrypt 만 우선 install + JWT 는 jose 또는 직접 구현 으로 pivot (smaller blast radius).",
-        "C: ADR-0008 폐기 + session-based auth (cookie + Redis session store) 로 pivot — 별도 ADR 작성 필요.",
-        "D: 후속 chain delay, 다른 P3 task (UserController CRUD 등) 우선 진행 — T-0081 PENDING 보류."
-      ],
-      "context": "ADR-0008 (JWT in HttpOnly cookie hybrid, ACCEPTED) Decision 본문이 후속 chain 으로 deferred 박제한 dep install 의 진입점 task — T-0081. 신규 dep 6 종: prod 4 (@nestjs/jwt, @nestjs/passport, @nestjs/passport-jwt, bcrypt) + dev 2 (@types/bcrypt, @types/passport-jwt). CLAUDE.md §5 '새 외부 dependency 추가' 가 BLOCKED trigger — 사용자 결정 후에만 unblock. T-0080 (User entity Prisma + UserRepository) 머지 완료 (881cc51) → AuthService.hashPassword/verifyPassword/issueAccessToken/issueRefreshToken/verifyToken 박제가 다음 layer. 관련 파일: docs/tasks/T-0081-auth-module-and-dep-install.md, docs/decisions/ADR-0008-auth-credential-type.md, package.json.",
-      "resolvedAt": "2026-05-28T07:37:58+09:00",
-      "decision": "A: 6 종 dep install 승인 — @nestjs/jwt + @nestjs/passport + @nestjs/passport-jwt + bcrypt (prod) + @types/bcrypt + @types/passport-jwt (dev). ADR-0008 정공법 진행."
-    },
-    {
-      "id": "HQ-0012",
-      "createdAt": "2026-05-28T11:49:00+09:00",
-      "taskId": "T-0082",
-      "reason": "new-dep",
-      "summary": "T-0082 AuthController login/logout/refresh endpoint 진입을 위해 cookie-parser (production) + @types/cookie-parser (dev) 2 종 신규 외부 dependency 추가 승인 필요 — CLAUDE.md §5 BLOCKED 게이트 발화, ADR-0008 Decision §6 박제 정합이나 T-0081 의 6 종 install list 에서 누락된 2 종.",
-      "options": [
-        "A: 2 종 install 승인 (ADR-0008 정공법, 권장) — `pnpm add cookie-parser` (production) + `pnpm add -D @types/cookie-parser` (dev). ADR-0008 Decision §6 라이브러리 표 박제 정합 + NestJS / express 표준 cookie middleware. T-0082 의 cookie set/clear (login/logout/refresh) + req.cookies 읽기 (refresh endpoint) 의 자연 진입점.",
-        "B: cookie-parser 만 install + @types/cookie-parser 보류 — typing any 허용으로 진행. install 1 종 축소 (blast radius 감소) but TypeScript strict 환경에서 implicit any warning 발생, R-112 spec 의 type-safety 약화. 후속 task 에서 @types 추가 보강 chain.",
-        "C: cookie-parser pivot — 직접 `res.cookie()` / `req.cookies` 표준 express API 활용하여 cookie-parser 없이 구현. express 4.x 가 cookie 직접 set/clear API 는 native 지원하나 req.cookies 파싱은 middleware 없으면 부재 (수동 parsing 필요). ADR-0008 §6 amend 필요 (cookie-parser deferred → 영구 미도입 박제 갱신).",
-        "D: 후속 chain delay — T-0082 PENDING 보류, T-0083 (RBAC AuthGuard) 또는 다른 P3 task 우선 진행. ADR-0008 후속 chain 의 2/4 단계가 지연되나 entity backbone 10/11 유지 가능. 추후 dep 정책 정착 후 T-0082 재진입."
-      ],
-      "context": "ADR-0008 (JWT in HttpOnly cookie hybrid, ACCEPTED) Decision §6 라이브러리 채택 표 L96 에 박제된 cookie-parser 가 T-0081 (MERGED ea1cfcd) 의 실 install 6 종 list 에서 누락 (typo/scope 누락) — 본 task 의 cookie set/clear + req.cookies 읽기가 cookie-parser middleware 의존 → CLAUDE.md §5 \"새 외부 dependency 추가\" 게이트 발화. T-0081 머지 (AuthService 5 메서드 hashPassword/verifyPassword/issueAccessToken/issueRefreshToken/verifyToken 박제 완성) → T-0082 가 AuthController endpoint layer 박제 진입점. 관련 파일: docs/tasks/T-0082-auth-controller-login-logout-refresh.md, docs/decisions/ADR-0008-auth-credential-type.md, src/main.ts (cookie-parser middleware wire 대상), src/auth/auth.module.ts (controllers 등록), package.json. executor 코드 변경 0 LOC / branch 미신설 / commit·push 미수행 — graceful BLOCKED return.",
-      "resolvedAt": "2026-05-28T14:10:00+09:00",
-      "resolvedBy": "human",
-      "decision": "A: 2 종 install 승인 — cookie-parser (production) + @types/cookie-parser (dev). ADR-0008 §6 박제 정합 정공법 진행. CLAUDE.md §5 게이트 통과 후 executor pr-mode full chain (cookie-parser dep install + middleware wire on src/main.ts + LoginDto + AuthController login/logout/refresh endpoint + spec R-112 4 카테고리 + negative cases 충분 cover) + integrator 4-게이트 (reviewer APPROVE + PR comment 외부 + integrator self-check + CI green) → PR merge 진입. T-0081 HQ-0011 BLOCKED-then-resolved cycle 2 회차 mirror — single-shot first-run pass cadence 4 회차 누적 후보."
-    }
-  ],
+  "humanQuestions": [],
+  "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
+  "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 102,
+    "tasksCompleted": 103,
     "tasksBlocked": 7,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1
