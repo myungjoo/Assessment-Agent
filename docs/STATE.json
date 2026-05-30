@@ -23,12 +23,12 @@
     "note": "loop session #28 turn 1 — T-0103 DONE (race-patterns.md amend 4 신규 race pattern). 직전 session #27 의 63k-char note trim — turn-by-turn 운영 로그는 journal 이 durable source."
   },
   "ci": {
-    "lastRun": "2026-05-30T11:15:00+09:00",
-    "status": "green",
+    "lastRun": "2026-05-30T15:28:47+00:00",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/101",
-    "note": "PR-101 round 1 merge 기준 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl). 직전 18k-char prose note trim — 상세 history 는 commit trail / journal 참조."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26687632297",
+    "note": "PR-105 (T-0106 cron driver, claude/affectionate-babbage-f4uZi single-branch sandbox env) push 직후 CI in_progress. 직전 lastConclusion=success (PR-101 round 1). 다음 turn [1] STATE LOAD 의 첫 단계에서 conclusion 재확인 (LOOP.md §1 [5]). check_run id=78658471819 (이름: '기본 검사')."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
