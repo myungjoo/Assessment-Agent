@@ -2,12 +2,16 @@
 id: T-0105
 title: STATE.json 의 reviewRounds block (~70 entry) 을 docs/progress/ archive 로 externalize
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 130
 estimatedFiles: 3
 created: 2026-05-30
+completedAt: 2026-05-30T13:48:00+09:00
+actualDiff: 87
+actualFiles: 4
+diffNote: "+87/-71 gross (archive +83 라인 compact markdown 표 = STATE.json -71 라인 의 1:1 relocation). planner estimate 130 의 ×0.67 — compact markdown 채택으로 T-0104 의 JSON-fenced ×3.9 verbosity inflation 회피 입증 (archive 83 라인 vs T-0104 332 라인, 68 vs 12 entry 인데도 1/4). externalize sub-pattern 포맷별 LOC 차이 박제."
 dependsOn: []
 plannerNote: "loop session #28 — STATE.json reviewRounds (~70 entry) externalize. cron-safe doc-only direct, 1-turn, PR cycle 0. 다음 cron ~14:00 collision 회피. T-0104 패턴 1:1 mirror."
 ---
