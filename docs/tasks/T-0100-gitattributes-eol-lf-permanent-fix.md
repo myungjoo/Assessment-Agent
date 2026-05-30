@@ -2,14 +2,18 @@
 id: T-0100
 title: .gitattributes 신설 — EOL LF 영구 정책 + CRLF trap 차단
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 15
 estimatedFiles: 1
 created: 2026-05-30
+completedAt: 2026-05-30T10:45:00+09:00
+actualDiff: 31
+actualFiles: 1
 dependsOn: []
 plannerNote: doc-only direct .gitattributes 신설 — Windows core.autocrlf=true 자동 CRLF 회귀 영구 차단, executor friction 제거, T-0099 부산물 follow-up
+driverNote: "loop session #27 turn 7/10 (KST 2026-05-30 10:45, local Windows env) — driver inline 경로 정공법 (T-0093/T-0096/T-0097/T-0098 driver inline 패턴 1:1 mirror, sub-agent dispatch 0). .gitattributes 신설 31 LOC (envelope 15 의 ×2.07 over within doc-only direct tolerance — 12 text 확장자 + 10 binary 확장자 + 2 줄 한국어 헤더 주석 + 4 줄 grouping 주석 + 3 empty 줄 mass 본질). **Acceptance Criteria all PASS**: A (.gitattributes 신설 repo root) + B (`* text=auto eol=lf` default) + C (12 explicit text + LF: ts/js/tsx/jsx/json/md/yml/yaml/html/css/scss/sh) + D (10 explicit binary: png/jpg/jpeg/gif/ico/pdf/zip/woff/woff2/ttf) + E (*.sh LF in C 박제) + F (한국어 헤더 주석 2 줄 — CLAUDE.md §3.1 doc-only direct + T-0100 cross-ref) + G (prettier endOfLine 정합 확인 — package.json 의 prettier config 부재 + .prettierrc* 부재 → prettier v3 default `endOfLine: 'lf'` 자동 정합, 변경 0 Out of Scope) + H (git check-attr 검증 all PASS — README.md/src/main.ts/docs/STATE.json 모두 `text: set + eol: lf`, a.png 가상 binary 파일 `binary: set + diff: unset + merge: unset + text: unset`) + I (STATE counters 98→99 + mostRecentTasks prepend + lastCommit + lastActivity + loopSession.turnCount 6→7 + nextTask=null + lock release / journal 10:45 driver append / 본 task 파일 status DONE + actualDiff 31 + actualFiles 1 + driverNote 박제). doc-only direct inline-amend 누적 7 회차: T-0084 ×0.37 + T-0088 ×0.19 + T-0089 ×0.91 + T-0093 ×0.23 + T-0096 ×0.17 + T-0097 ×0.16 + 본 T-0100 ×2.07 (single file 신설 패턴 첫 박제 — table row inline-amend 6 회차 보다 무거움, classification 분리 후보 — estimate-model.md follow-up — single-file-create vs inline-amend 별도 multiplier 박제 candidate). **executor friction 영구 차단 박제** — Windows core.autocrlf=true system-scope (local override false 박제 무관) trap 이 미래 contributor 모든 새 clone / 새 worktree 에서 동일 재발 차단, .gitattributes 가 git 정책 우선이라 `core.autocrlf` 무관 LF 정규화 강제. **R-110/R-114 CI 안정성 정책 운영 기반 박제** — REQ-057/REQ-058 의 lint/build/test/smoke/e2e/spec-presence/reviewer-gate 7 step CI 가 contributor env 의 EOL 차이로 false-positive fail 차단."
 ---
 
 # T-0100 — .gitattributes 신설 (EOL LF 영구 정책)

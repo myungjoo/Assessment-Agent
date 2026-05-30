@@ -1,0 +1,31 @@
+# .gitattributes — EOL 정규화 정책 (CLAUDE.md §3.1 doc-only direct, T-0100)
+# 모든 text 파일 LF 통일, Windows core.autocrlf 무관하게 일관성 보장
+
+# default text normalization — git 가 text 로 분류한 모든 파일을 LF 로 저장/checkout
+* text=auto eol=lf
+
+# explicit text + LF (소스 / 설정 / 문서)
+*.ts        text eol=lf
+*.js        text eol=lf
+*.tsx       text eol=lf
+*.jsx       text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.scss      text eol=lf
+*.sh        text eol=lf
+
+# explicit binary (git diff / merge 오작동 차단)
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.pdf       binary
+*.zip       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
