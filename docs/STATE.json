@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0110",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T02:46:00+09:00",
-  "lastCommit": "b9fd482",
+  "lastActivity": "2026-05-31T02:52:00+09:00",
+  "lastCommit": "a5adc25",
   "mostRecentTasks": [
     "T-0109",
     "T-0108",
@@ -17,18 +17,18 @@
     "T-0105"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-05-31T01:17:00+09:00",
     "cap": 10,
-    "note": "loop session #29 turn 7 — T-0109 MERGED PR-108 round 1 (ADR-0006 Assessment/Contribution/Summary 데이터모델 + raw 미저장 R-59). 누적: T-0106 endpoint MERGED + T-0107/T-0108 doc direct + T-0109 ADR. turn-by-turn 운영 로그는 journal 이 durable source."
+    "note": "loop session #29 turn 8 — planner queued T-0110 (prisma/schema.prisma Assessment/Contribution/Summary 3 model + migration, ADR-0006 구현 first slice, commitMode pr). 누적: T-0106 endpoint + T-0107/T-0108 doc + T-0109 ADR. turn-by-turn 운영 로그는 journal 이 durable source."
   },
   "ci": {
-    "lastRun": "2026-05-31T02:45:00+09:00",
+    "lastRun": "2026-05-31T02:48:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/108",
-    "note": "PR-108 round 1 merge 기준 green. first-run reviewer-gate 검증 step race → gh run rerun self-heal (16 회차). 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
+    "note": "a5adc25 (T-0109 bookkeeping) main push CI green 확인. PR-108 merge 도 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
