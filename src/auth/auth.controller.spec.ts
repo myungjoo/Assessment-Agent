@@ -23,7 +23,11 @@ jest.mock("../persistence/prisma.service", () => ({
 }));
 
 /* eslint-disable import/first */
-import { UnauthorizedException, type INestApplication } from "@nestjs/common";
+import {
+  NotFoundException,
+  UnauthorizedException,
+  type INestApplication,
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { User } from "@prisma/client";
@@ -31,6 +35,7 @@ import cookieParser from "cookie-parser";
 import type { Request, Response } from "express";
 import request from "supertest";
 
+import { UserResponseDto } from "../user/dto/user-response.dto";
 import { UserRepository } from "../user/user.repository";
 
 import {
@@ -62,6 +67,11 @@ function buildUserFixture(overrides: Partial<User> = {}): User {
 }
 
 // Service / repository mock factory — 각 describe 마다 fresh.
+// T-0106 — userRepositoryMock 에 findById 추가 (`me()` endpoint 가 직접 호출).
+// UserService inject 추가는 AuthModule↔UserModule forwardRef circular chain race
+// (user.module.spec NestJS injector unhandledPromiseRejection) 회피 위해 채택
+// 안 함 — UserRepository.findById null-safe API 직접 호출 + controller-layer
+// inline null → NotFoundException 변환 패턴 (T-0101 UserService.findById 1:1 mirror).
 function buildControllerWithMocks(): {
   controller: AuthController;
   authServiceMock: {
@@ -69,7 +79,7 @@ function buildControllerWithMocks(): {
     issueAccessToken: jest.Mock;
     issueRefreshToken: jest.Mock;
   };
-  userRepositoryMock: { findByEmail: jest.Mock };
+  userRepositoryMock: { findByEmail: jest.Mock; findById: jest.Mock };
   jwtServiceMock: { verify: jest.Mock };
 } {
   const authServiceMock = {
@@ -77,14 +87,19 @@ function buildControllerWithMocks(): {
     issueAccessToken: jest.fn(),
     issueRefreshToken: jest.fn(),
   };
-  const userRepositoryMock = { findByEmail: jest.fn() };
+  const userRepositoryMock = { findByEmail: jest.fn(), findById: jest.fn() };
   const jwtServiceMock = { verify: jest.fn() };
   const controller = new AuthController(
     authServiceMock as unknown as AuthService,
     userRepositoryMock as unknown as UserRepository,
     jwtServiceMock as unknown as JwtService,
   );
-  return { controller, authServiceMock, userRepositoryMock, jwtServiceMock };
+  return {
+    controller,
+    authServiceMock,
+    userRepositoryMock,
+    jwtServiceMock,
+  };
 }
 
 // res mock factory — express Response 의 cookie / clearCookie 호출 추적용.
@@ -488,6 +503,132 @@ describe("AuthController (unit)", () => {
       });
     });
   });
+
+  // -----------------------------------------------------------------------
+  // me — GET /api/auth/me (T-0106). happy + error + negative 6+ cover.
+  // 본 endpoint 는 JwtAuthGuard 통과 후 req.user.sub 추출 → UserRepository.findById
+  // 호출 + null → NotFoundException 변환 → UserResponseDto.fromEntity 변환. R-112
+  // 4 카테고리 + negative 충분.
+  // -----------------------------------------------------------------------
+  describe("me() (GET /api/auth/me)", () => {
+    // req mock helper — JwtAuthGuard 통과 후 req.user 박제 가정.
+    function buildReqMockWithUser(
+      user: { sub?: string; role?: string } | undefined,
+    ): Request {
+      return { user } as unknown as Request;
+    }
+
+    it("happy — req.user.sub valid + userRepository.findById User 반환 → UserResponseDto shape (5 필드, hashedPassword 부재)", async () => {
+      const { controller, userRepositoryMock } = buildControllerWithMocks();
+      const fixture = buildUserFixture({ id: "u-me-1", role: "User" });
+      userRepositoryMock.findById.mockResolvedValueOnce(fixture);
+      const req = buildReqMockWithUser({ sub: "u-me-1", role: "User" });
+
+      const result = await controller.me(req);
+
+      // repository.findById 호출 인자 — req.user.sub 정합.
+      expect(userRepositoryMock.findById).toHaveBeenCalledWith("u-me-1");
+      // 반환은 UserResponseDto instance — 5 readonly 필드 (id/email/role/
+      // createdAt/updatedAt) 모두 fixture 정합.
+      expect(result).toBeInstanceOf(UserResponseDto);
+      expect(result.id).toBe("u-me-1");
+      expect(result.email).toBe(fixture.email);
+      expect(result.role).toBe("User");
+      expect(result.createdAt).toBe(fixture.createdAt);
+      expect(result.updatedAt).toBe(fixture.updatedAt);
+      // T-0095 hashedPassword 차단 invariant — 응답 객체에 hashedPassword 키 부재.
+      expect(result).not.toHaveProperty("hashedPassword");
+    });
+
+    it("error — userRepository.findById null 반환 시 NotFoundException 변환 (race window stale token / DB row 동시 삭제)", async () => {
+      const { controller, userRepositoryMock } = buildControllerWithMocks();
+      userRepositoryMock.findById.mockResolvedValueOnce(null);
+      const req = buildReqMockWithUser({ sub: "u-missing", role: "User" });
+
+      // controller 가 null → NotFoundException 변환. T-0101 UserService.findById
+      // 패턴 1:1 mirror. NestJS exception filter 가 404 status 자동 mapping.
+      await expect(controller.me(req)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(userRepositoryMock.findById).toHaveBeenCalledWith("u-missing");
+    });
+
+    it("negative #1 — req.user 자체가 undefined 시 UnauthorizedException (defence in depth)", async () => {
+      const { controller, userRepositoryMock } = buildControllerWithMocks();
+      const req = buildReqMockWithUser(undefined);
+
+      await expect(controller.me(req)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      // repository 호출 0 — short-circuit.
+      expect(userRepositoryMock.findById).not.toHaveBeenCalled();
+    });
+
+    it("negative #2 — req.user.sub === undefined 시 UnauthorizedException", async () => {
+      const { controller, userRepositoryMock } = buildControllerWithMocks();
+      const req = buildReqMockWithUser({ role: "User" });
+
+      await expect(controller.me(req)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(userRepositoryMock.findById).not.toHaveBeenCalled();
+    });
+
+    it("negative #3 — req.user.sub === '' (빈 문자열) 시 UnauthorizedException", async () => {
+      const { controller, userRepositoryMock } = buildControllerWithMocks();
+      const req = buildReqMockWithUser({ sub: "", role: "User" });
+
+      await expect(controller.me(req)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(userRepositoryMock.findById).not.toHaveBeenCalled();
+    });
+
+    it("negative #4 — userRepository.findById throw raw Error (DB outage 등 unexpected) → 그대로 propagate (500 변환)", async () => {
+      const { controller, userRepositoryMock } = buildControllerWithMocks();
+      const rawError = new Error("unexpected DB outage");
+      userRepositoryMock.findById.mockRejectedValueOnce(rawError);
+      const req = buildReqMockWithUser({ sub: "u-1", role: "User" });
+
+      // controller 가 raw Error 변환 0 — NestJS default 500 자동 mapping (e2e 차원).
+      await expect(controller.me(req)).rejects.toBe(rawError);
+    });
+
+    it("negative #5 — User entity 의 hashedPassword 컬럼 응답 누출 차단 (T-0095 fromEntity whitelist)", async () => {
+      const { controller, userRepositoryMock } = buildControllerWithMocks();
+      // fixture 의 hashedPassword 컬럼 — fromEntity 의 whitelist 가 차단해야 함.
+      const fixture = buildUserFixture({
+        id: "u-leak-check",
+        hashedPassword: "$2b$10$SHOULD-NEVER-LEAK",
+      });
+      userRepositoryMock.findById.mockResolvedValueOnce(fixture);
+      const req = buildReqMockWithUser({ sub: "u-leak-check", role: "User" });
+
+      const result = await controller.me(req);
+
+      // T-0095 invariant — fromEntity whitelist 가 hashedPassword 컬럼 차단.
+      expect(result).not.toHaveProperty("hashedPassword");
+      // 응답 키 정확히 5 종 (id/email/role/createdAt/updatedAt).
+      const keys = Object.keys(result).sort();
+      expect(keys).toEqual(
+        ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+      );
+    });
+
+    it("branch — Admin role token 의 me 호출도 동일 흐름 (role 분기 0, User+ tier)", async () => {
+      // 본 endpoint 는 RolesGuard 미적용 — Admin / SuperAdmin / User 모두 동일 path.
+      // 본 unit-level 검증은 controller 자체에 role 분기 0 임을 명시 박제.
+      const { controller, userRepositoryMock } = buildControllerWithMocks();
+      const fixture = buildUserFixture({ id: "u-admin", role: "Admin" });
+      userRepositoryMock.findById.mockResolvedValueOnce(fixture);
+      const req = buildReqMockWithUser({ sub: "u-admin", role: "Admin" });
+
+      const result = await controller.me(req);
+
+      expect(userRepositoryMock.findById).toHaveBeenCalledWith("u-admin");
+      expect(result.role).toBe("Admin");
+    });
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -504,7 +645,8 @@ describe("AuthController (ValidationPipe + cookie integration)", () => {
     issueAccessToken: jest.Mock;
     issueRefreshToken: jest.Mock;
   };
-  let userRepositoryMock: { findByEmail: jest.Mock };
+  // T-0106 — findById 추가 (`me()` endpoint 의 단일 호출).
+  let userRepositoryMock: { findByEmail: jest.Mock; findById: jest.Mock };
   let jwtServiceMock: { verify: jest.Mock };
   let originalRefreshSecret: string | undefined;
 
@@ -518,7 +660,7 @@ describe("AuthController (ValidationPipe + cookie integration)", () => {
       issueAccessToken: jest.fn(),
       issueRefreshToken: jest.fn(),
     };
-    userRepositoryMock = { findByEmail: jest.fn() };
+    userRepositoryMock = { findByEmail: jest.fn(), findById: jest.fn() };
     jwtServiceMock = { verify: jest.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({

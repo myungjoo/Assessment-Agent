@@ -12,8 +12,16 @@
 //     RolesGuard export — 다른 module 의 controller 가 @UseGuards(JwtAuthGuard) /
 //     @UseGuards(RolesGuard) 적용 가능.
 //   - AuthController 등록 (T-0082) — `/api/auth/login` + `/logout` + `/refresh` 3 endpoint.
-//   - UserModule import (T-0082) — AuthController 가 UserRepository inject 의무.
-//     UserRepository 는 UserModule 의 exports 에 포함됨.
+//     T-0106 추가 — `/api/auth/me` (User+ tier self-detail) 4 번째 endpoint.
+//   - UserModule import (T-0082 + T-0106) — AuthController 가 UserRepository (login
+//     + me 두 endpoint 공통) inject 의무. UserRepository 는 UserModule 의 exports
+//     에 포함 (T-0080 박제). T-0106 의 me endpoint 는 controller 안에서 직접
+//     UserRepository.findById null-safe API 호출 + null → NotFoundException 변환 —
+//     UserService inject 추가는 AuthModule ↔ UserModule forwardRef circular chain
+//     의 deep resolution path 가 user.module.spec test fixture 와 충돌 (NestJS
+//     injector parallel Promise.all race window → unhandledPromiseRejection) 박제,
+//     controller-layer inline null check 정공법 채택. forwardRef wrap 자체는
+//     T-0087 박제 패턴 정합 (양방향 circular dependency 해결).
 //
 // 책임 경계 (Out of Scope):
 //   - cookie-parser middleware 직접 등록 안 함 — main.ts 의 bootstrap() 단계에서

@@ -42,26 +42,46 @@
 //   - RBAC @Role() decorator + RolesGuard — T-0083.
 //   - RefreshToken DB rotation (revocation path) — ADR-0008 양의 Consequences §6 의
 //     박제만, 실 DB layer 는 후속 task. 본 시점 rotation 은 cookie 단순 재발급.
-//   - GET /api/me endpoint — T-0083 또는 T-0084 candidate.
 //   - SignupController / AddUserDto — T-0083 SuperAdmin RBAC scope.
+//
+// T-0106 추가 (GET /api/auth/me endpoint — User+ tier self-detail):
+//   - 본 controller 에 `me()` 메서드 박제 — @Get("me") + @UseGuards(JwtAuthGuard) +
+//     req.user.sub 추출 → UserRepository.findById(sub) → null → NotFoundException
+//     변환 → UserResponseDto.fromEntity 변환.
+//   - UserController.detail (T-0101) 의 self 분기 1:1 mirror — 단 path param 없음
+//     (self-detail 전용). RolesGuard 미적용 — User+ 면 누구나 자기 조회 가능.
+//   - ADR-0008 §6 application-layer chain 의 마지막 미박제 endpoint — User CRUD-R
+//     표면 4/4 closure (T-0099 GET list + T-0101 GET detail + T-0106 GET me + 후속).
+//   - UserRepository 직접 inject (이미 login endpoint 가 inject) — UserService inject
+//     추가는 AuthModule ↔ UserModule forwardRef circular chain 의 deep resolution
+//     path 가 user.module.spec test fixture 와 충돌 (NestJS injector parallel
+//     Promise.all race window → unhandledPromiseRejection 으로 Jest worker 종료)
+//     박제, controller-layer inline null→NotFoundException 변환 채택. service-layer
+//     변환 logic (T-0101 UserService.findById) 과 동일 의미 — minor duplication 은
+//     CurrentUser decorator + base-controller 일반화 follow-up candidate.
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
+  NotFoundException,
   Post,
   Req,
   Res,
   UnauthorizedException,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { Request, Response } from "express";
 
+import { UserResponseDto } from "../user/dto/user-response.dto";
 import { UserRepository } from "../user/user.repository";
 
 import { AuthService, REFRESH_SECRET_ENV } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
+import { JwtAuthGuard } from "./jwt-auth.guard";
 
 // Cookie name 단일 source of truth — spec 도 동일 const 를 import 하여 round-trip
 // 검증. controller 외부에 export — refresh endpoint 검증 / e2e 후속 task 가 reuse.
@@ -249,5 +269,66 @@ export class AuthController {
     res.cookie(ACCESS_TOKEN_COOKIE, newAccessToken, COOKIE_OPTIONS);
     res.cookie(REFRESH_TOKEN_COOKIE, newRefreshToken, COOKIE_OPTIONS);
     return { userId };
+  }
+
+  // GET /api/auth/me — 인증된 user 의 self-detail 조회 endpoint. T-0106 acceptance §A
+  // 박제. ADR-0008 §6 application-layer chain 의 마지막 미박제 endpoint — User CRUD-R
+  // 표면 closure (T-0099 GET list + T-0101 GET detail + 본 endpoint 가 self-detail 박제).
+  //
+  // 책임 (UserController.detail T-0101 의 self 분기 1:1 mirror, 단 path param 없음):
+  //   1. JwtAuthGuard 통과 → req.user 박제 (JwtStrategy.validate 가 payload 의 sub +
+  //      role claim 을 req.user 에 설정, T-0083).
+  //   2. req.user.sub 추출 — actor 본인의 user id. type narrowing 으로 string 확정.
+  //   3. UserRepository.findById(sub) 호출 — null 반환 시 controller-layer NotFoundException
+  //      (404) 변환. T-0101 의 UserService.findById null→NotFoundException 패턴을 본
+  //      controller 안에 inline 박제 — UserService inject 추가가 AuthModule ↔ UserModule
+  //      forwardRef circular chain 의 deep resolution path (AuthController →
+  //      UserService → UserRepository → PrismaService) 에서 NestJS injector 의
+  //      parallel Promise.all 의 race window 와 충돌 (user.module.spec test fixture
+  //      의 unhandledPromiseRejection). 대안 — UserRepository 직접 inject + null
+  //      체크 controller 안 박제. T-0086 acceptance §A 의 null-safe API 정공법은
+  //      UserRepository 도 동일 (findById 가 null 반환), service-layer null→404 변환
+  //      logic 1 줄만 controller 안에 inline. 같은 변환 분기를 두 곳 (UserService
+  //      + AuthController) 에 박제하는 minor duplication 은 follow-up T-NNNN 에서
+  //      CurrentUser decorator + base-controller 일반화 박제 시 일괄 정리 candidate.
+  //   4. UserResponseDto.fromEntity(user) 변환 → 200 응답. T-0095 박제 — hashedPassword
+  //      컬럼 차단 invariant 자동 propagate (controller layer 의 단일 변환 진입점).
+  //
+  // RBAC tier 결정 — User+ (인증만 강제, role 분기 0):
+  //   - decorator stack 은 @UseGuards(JwtAuthGuard) 만 — RolesGuard 미적용. 본 endpoint
+  //     는 "본인 self-detail" 의미 — User / Admin / SuperAdmin 모두 자기 자신은 조회
+  //     가능해야 함 (REQ-046 정합). path param 없음 → 다른 user 조회 분기 0 → role 검증
+  //     불요. UserController.detail (T-0101) 의 self OR Admin+ 분기 의 self 만 박제.
+  //
+  // req.user shape — JwtStrategy.validate (T-0083) 가 박제한 payload (`{ sub: string,
+  // role: UserRole }`) 정합. UserController.detail (L263 `(req.user as { sub: string;
+  // role: UserRole }).sub`) cast 정공법 1:1 mirror — type narrowing 으로 sub 추출.
+  //
+  // defence in depth — req.user / req.user.sub 부재 분기:
+  //   - JwtAuthGuard 가 정상 작동 시 req.user 는 항상 set (JwtStrategy.validate 통과
+  //     보장). 본 분기는 guard 우회 / strategy 변경 시 fallback — UnauthorizedException
+  //     변환 (의미: 인증 자체의 실패). 일반 분기에서 발생 0 — defence in depth.
+  //
+  // ValidationPipe @UsePipes (controller-scope, L92) 는 본 endpoint 에서 noop —
+  // @Get 은 body 없음 (DTO 검증 path 0). 응답 변환만 책임.
+  @Get("me")
+  @UseGuards(JwtAuthGuard)
+  async me(@Req() req: Request): Promise<UserResponseDto> {
+    // defence in depth — req.user / req.user.sub 부재 fallback. JwtAuthGuard 정상
+    // 작동 시 발생 0, guard 우회 / strategy 변경 / 미래 ref. 차단 위한 explicit guard.
+    const user = req.user as { sub?: string; role?: string } | undefined;
+    if (user === undefined || user.sub === undefined || user.sub === "") {
+      throw new UnauthorizedException("Invalid token payload");
+    }
+    // UserRepository.findById null-safe API — row 부재 시 null 반환. controller-layer
+    // 가 null → NotFoundException (404) 변환. T-0101 UserService.findById 패턴 1:1
+    // mirror — race window (stale token 의 sub 가 가리키는 user row 동시 삭제됨)
+    // 도 404 변환. controller 는 도메인 entity → UserResponseDto 변환만 책임 (T-0095
+    // 박제 — hashedPassword 컬럼 차단 invariant 자동 propagate).
+    const found = await this.userRepository.findById(user.sub);
+    if (found === null) {
+      throw new NotFoundException(`User ${user.sub} 가 존재하지 않습니다.`);
+    }
+    return UserResponseDto.fromEntity(found);
   }
 }
