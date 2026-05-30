@@ -56,6 +56,7 @@ function buildUserRepositoryMock(): {
     updateRole: jest.Mock;
     countAll: jest.Mock;
     create: jest.Mock;
+    findAll: jest.Mock;
   };
 } {
   const userRepoMock = {
@@ -63,6 +64,7 @@ function buildUserRepositoryMock(): {
     updateRole: jest.fn(),
     countAll: jest.fn(),
     create: jest.fn(),
+    findAll: jest.fn(),
   };
   return {
     userRepository: userRepoMock as unknown as UserRepository,
@@ -647,6 +649,67 @@ describe("UserService", () => {
       userRepoMock.create.mockReturnValueOnce(Promise.reject(null as any));
 
       await expect(service.signup("a@b.c", "plain")).rejects.toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // findAll — T-0099 acceptance §F. UserController.list 의 service forward.
+  //   - happy: repository.findAll 결과 raw forward + reference 동일.
+  //   - branch: 빈 list 분기.
+  //   - negative: repository throw raw propagate (catch 0).
+  // ---------------------------------------------------------------------
+  describe("findAll()", () => {
+    // happy — repository.findAll 의 3 user 배열 raw forward 박제.
+    it("happy — repository.findAll 결과 (3 user 배열) 그대로 propagate", async () => {
+      const { service, userRepoMock } = buildService();
+      const users = [
+        buildUserFixture({ id: "u-1", role: "SuperAdmin" }),
+        buildUserFixture({ id: "u-2", role: "Admin" }),
+        buildUserFixture({ id: "u-3", role: "User" }),
+      ];
+      userRepoMock.findAll.mockResolvedValueOnce(users);
+
+      const result = await service.findAll();
+
+      expect(userRepoMock.findAll).toHaveBeenCalledTimes(1);
+      expect(userRepoMock.findAll).toHaveBeenCalledWith();
+      expect(result).toHaveLength(3);
+      expect(result[0].id).toBe("u-1");
+      expect(result[1].id).toBe("u-2");
+      expect(result[2].id).toBe("u-3");
+    });
+
+    // happy — service 가 transform 0, repository 반환 reference 그대로 통과.
+    // `expect(result).toBe(repoResult)` 로 동일 reference 강제 검증.
+    it("happy — repository 반환 reference 동일성 (transform 0)", async () => {
+      const { service, userRepoMock } = buildService();
+      const repoResult = [buildUserFixture({ id: "ref-1" })];
+      userRepoMock.findAll.mockResolvedValueOnce(repoResult);
+
+      const result = await service.findAll();
+
+      // service 의 raw forward 박제 — 동일 reference 통과.
+      expect(result).toBe(repoResult);
+    });
+
+    // branch — 빈 list 분기. repository 가 [] 반환 → service 도 [] 반환 (throw 0).
+    it("branch — 빈 list 분기 (repository [] → service [])", async () => {
+      const { service, userRepoMock } = buildService();
+      userRepoMock.findAll.mockResolvedValueOnce([]);
+
+      const result = await service.findAll();
+
+      expect(result).toEqual([]);
+      expect(result).toHaveLength(0);
+    });
+
+    // negative — repository throw raw propagate (catch 0). NestJS default 500 자동.
+    it("negative — repository throw 시 raw propagate (catch 0 — NestJS default 500 mapping)", async () => {
+      const { service, userRepoMock } = buildService();
+      const dbError = new Error("db down");
+      userRepoMock.findAll.mockRejectedValueOnce(dbError);
+
+      await expect(service.findAll()).rejects.toBe(dbError);
     });
   });
 });

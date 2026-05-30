@@ -82,4 +82,18 @@ export class UserRepository {
   async countAll(): Promise<number> {
     return this.prisma.user.count();
   }
+
+  // findAll — 본 task (T-0099) 추가. UserService.findAll 의 raw forward 책임.
+  // GET /api/users list endpoint (Admin+ tier) 의 data source — GroupRepository.findMany
+  // (L66-70) 1:1 mirror. 단순 prisma.user.findMany delegate wrapping.
+  //
+  // 정렬 / pagination / filtering 미지원 — Prisma default 순서 유지, query parameter
+  // 정합은 service / controller layer 결정 책임 (별도 task). 본 layer 는 raw forward 만.
+  //
+  // 빈 list 분기: prisma.user.findMany 는 항상 array 반환 — throw 0, 빈 table 시 [].
+  // 호출 측 (UserService.findAll → UserResponseDto.fromEntities) 자연 처리 (빈 배열
+  // → 빈 배열).
+  async findAll(): Promise<User[]> {
+    return this.prisma.user.findMany();
+  }
 }

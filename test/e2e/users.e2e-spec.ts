@@ -413,3 +413,167 @@ describe("E2E: POST /api/users signup — REQ-044 후반 첫 등록 user SuperAd
     }
   });
 });
+
+// -----------------------------------------------------------------------
+// GET /api/users list e2e — T-0099 acceptance §I 박제. Admin+ tier 첫 production
+// 적용 endpoint 의 HTTP round-trip 검증. RBAC backbone 의 escalation hierarchy descent
+// (Admin 명시 시 SuperAdmin actor 자동 통과) 의 첫 e2e 박제 — happy SuperAdmin actor
+// case 가 분기 cover.
+//
+// 책임 분리:
+//   - 401 (cookie 부재 / invalid JWT) — JwtAuthGuard 책임 검증.
+//   - 403 (User role actor) — RolesGuard 의 Admin+ tier 미달 검증.
+//   - happy Admin actor — Admin literal match path.
+//   - happy SuperAdmin actor — escalation hierarchy descent path (RBAC backbone 의
+//     ROLE_HIERARCHY 의 Admin: ["Admin", "SuperAdmin"] 매핑 첫 production 검증).
+//   - hashedPassword 누출 차단 (T-0095 regression mirror — list 응답 모든 element).
+// -----------------------------------------------------------------------
+describe("E2E: GET /api/users list — T-0099 Admin+ tier 박제", () => {
+  it("happy — Admin actor 가 list 호출 시 200 + 4 element 배열 + 각 element 5 필드 정합 + hashedPassword 부재", async () => {
+    // seed 4 user: admin actor (Admin) + 3 추가 user (SuperAdmin / Admin / User).
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: "admin-actor@e2e.test" },
+      { role: "SuperAdmin", email: "extra-super@e2e.test" },
+      { role: "Admin", email: "extra-admin@e2e.test" },
+      { role: "User", email: "extra-user@e2e.test" },
+    ]);
+    try {
+      const token = ctx.tokens["admin-actor@e2e.test"];
+      const response = await request(ctx.app.getHttpServer())
+        .get("/api/users")
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(200);
+      expect(response.headers["content-type"]).toMatch(/application\/json/);
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body).toHaveLength(4);
+
+      // 각 element 의 5 필드 정합 + hashedPassword 누출 차단.
+      for (const element of response.body) {
+        expectUserDtoFields(element);
+        expect(element).toHaveProperty("createdAt");
+        expect(element).toHaveProperty("updatedAt");
+        expect(element).not.toHaveProperty("hashedPassword");
+        // 정확히 5 키만 (e2e round-trip JSON 직렬화 정합 — T-0095 패턴 1:1 mirror).
+        expect(Object.keys(element).sort()).toEqual(
+          ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+        );
+      }
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("happy — SuperAdmin actor 가 list 호출 시 200 (escalation hierarchy descent 첫 e2e 박제)", async () => {
+    // RBAC ROLE_HIERARCHY 의 Admin: ["Admin", "SuperAdmin"] 매핑 검증 — @Roles("Admin")
+    // 박제 endpoint 가 SuperAdmin actor 도 통과해야 함.
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "SuperAdmin", email: "super-actor@e2e.test" },
+      { role: "User", email: "extra@e2e.test" },
+    ]);
+    try {
+      const token = ctx.tokens["super-actor@e2e.test"];
+      const response = await request(ctx.app.getHttpServer())
+        .get("/api/users")
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body).toHaveLength(2);
+      // 모든 element 의 hashedPassword 부재.
+      for (const element of response.body) {
+        expect(element).not.toHaveProperty("hashedPassword");
+      }
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  // 빈 list 분기 — e2e 의 seed 가 actor 박제하므로 불가. unit spec 만 cover 박제.
+  it.skip("빈 list 분기는 unit spec (user.controller.spec / user.service.spec) 박제", () => {
+    // e2e 는 actor token 발급 자체에 user seed 1+ 필요 — 빈 list 분기 불가.
+    // unit spec 이 service.findAll → [] / controller.list → [] 분기 cover.
+  });
+
+  it("negative — cookie 부재 시 401 (인증 자체 부재, JwtAuthGuard reject)", async () => {
+    // seed 1 user — list endpoint 호출 자체는 인증 부재로 401, seed 와 무관.
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: "anything@e2e.test" },
+    ]);
+    try {
+      const response = await request(ctx.app.getHttpServer()).get("/api/users");
+
+      expect(response.status).toBe(401);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — invalid JWT cookie 시 401 (JwtAuthGuard verify fail)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: "anything-2@e2e.test" },
+    ]);
+    try {
+      const response = await request(ctx.app.getHttpServer())
+        .get("/api/users")
+        .set("Cookie", buildAuthCookie("garbage.token.invalid"));
+
+      expect(response.status).toBe(401);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — User role actor token 시 403 (RolesGuard Admin+ tier 미달 reject)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "user-actor@e2e.test" },
+    ]);
+    try {
+      const token = ctx.tokens["user-actor@e2e.test"];
+      const response = await request(ctx.app.getHttpServer())
+        .get("/api/users")
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(403);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — list 응답의 모든 element 가 5 키만 포함 (round-trip JSON 직렬화 정합, T-0095 mirror)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: "key-check-actor@e2e.test" },
+      { role: "User", email: "key-check-user@e2e.test" },
+    ]);
+    try {
+      const token = ctx.tokens["key-check-actor@e2e.test"];
+      const response = await request(ctx.app.getHttpServer())
+        .get("/api/users")
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(200);
+      // body 자체가 array — 모든 element 가 정확히 5 키 (createdAt/email/id/role/
+      // updatedAt) 만 포함, hashedPassword 키는 모든 element 에 부재.
+      for (const element of response.body) {
+        expect(Object.keys(element).sort()).toEqual(
+          ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+        );
+        expect(element).not.toHaveProperty("hashedPassword");
+      }
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+});

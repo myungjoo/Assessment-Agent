@@ -175,3 +175,136 @@ describe("UserResponseDto.fromEntity", () => {
     expect(original.hashedPassword).toBe("$2b$10$ORIGINAL.HASH.PRESERVED");
   });
 });
+
+// -----------------------------------------------------------------------
+// fromEntities (T-0099 §B) — 배열 wrap helper. fromEntity .map composition.
+// R-112 4 카테고리 (happy / branch / negative) — error 분기 0 (단순 .map).
+// -----------------------------------------------------------------------
+describe("UserResponseDto.fromEntities (T-0099)", () => {
+  // -----------------------------------------------------------------------
+  // happy — 3 user 배열 → 3 DTO 배열 정합
+  // -----------------------------------------------------------------------
+  it("happy — 3 user 배열 입력 시 3 DTO 배열 출력 + 각 DTO 의 5 필드 정합", () => {
+    const users: User[] = [
+      buildUserFixture({
+        id: "uid-a",
+        email: "a@example.com",
+        role: "SuperAdmin",
+      }),
+      buildUserFixture({
+        id: "uid-b",
+        email: "b@example.com",
+        role: "Admin",
+      }),
+      buildUserFixture({
+        id: "uid-c",
+        email: "c@example.com",
+        role: "User",
+      }),
+    ];
+
+    const dtos = UserResponseDto.fromEntities(users);
+
+    expect(dtos).toHaveLength(3);
+    expect(dtos[0].id).toBe("uid-a");
+    expect(dtos[0].email).toBe("a@example.com");
+    expect(dtos[0].role).toBe("SuperAdmin");
+    expect(dtos[1].id).toBe("uid-b");
+    expect(dtos[1].role).toBe("Admin");
+    expect(dtos[2].id).toBe("uid-c");
+    expect(dtos[2].role).toBe("User");
+
+    // 각 DTO 의 hashedPassword 부재 — whitelist 정합 propagate.
+    for (const dto of dtos) {
+      expect(dto).not.toHaveProperty("hashedPassword");
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // branch — 빈 배열 input → 빈 배열 output (throw 0, [].map native 동작)
+  // -----------------------------------------------------------------------
+  it("branch — 빈 배열 input 시 빈 배열 output (throw 0)", () => {
+    expect(() => UserResponseDto.fromEntities([])).not.toThrow();
+    const result = UserResponseDto.fromEntities([]);
+    expect(result).toEqual([]);
+    expect(result).toHaveLength(0);
+  });
+
+  // -----------------------------------------------------------------------
+  // branch — 단일 element 배열 (1 user) 정합
+  // -----------------------------------------------------------------------
+  it("branch — 단일 element 배열 (1 user) → 1 DTO 배열 + fromEntity single-entity 와 결과 정합", () => {
+    const user = buildUserFixture({
+      id: "uid-single",
+      email: "single@example.com",
+      role: "Admin",
+    });
+
+    const arr = UserResponseDto.fromEntities([user]);
+    const single = UserResponseDto.fromEntity(user);
+
+    expect(arr).toHaveLength(1);
+    expect(arr[0].id).toBe(single.id);
+    expect(arr[0].email).toBe(single.email);
+    expect(arr[0].role).toBe(single.role);
+    expect(arr[0].createdAt).toEqual(single.createdAt);
+    expect(arr[0].updatedAt).toEqual(single.updatedAt);
+  });
+
+  // -----------------------------------------------------------------------
+  // negative — 다중 element 의 hashedPassword 누출 차단 (regression — 핵심 보호)
+  // -----------------------------------------------------------------------
+  it("negative — 다중 user 모두 hashedPassword 박제 시 결과 DTO 모두 hashedPassword 부재", () => {
+    const users: User[] = [
+      buildUserFixture({
+        id: "uid-1",
+        hashedPassword: "$2b$10$LEAKED.HASH.1.SHOULD.NOT.APPEAR",
+      }),
+      buildUserFixture({
+        id: "uid-2",
+        hashedPassword: "$2b$10$LEAKED.HASH.2.SHOULD.NOT.APPEAR",
+      }),
+      buildUserFixture({
+        id: "uid-3",
+        hashedPassword: "$2b$10$LEAKED.HASH.3.SHOULD.NOT.APPEAR",
+      }),
+    ];
+
+    const dtos = UserResponseDto.fromEntities(users);
+
+    expect(dtos).toHaveLength(3);
+    for (const dto of dtos) {
+      expect(dto).not.toHaveProperty("hashedPassword");
+      // 정확히 5 필드만 노출 — array map 에서도 whitelist 정합.
+      expect(Object.keys(dto).sort()).toEqual(
+        ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+      );
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // negative — JSON 직렬화 후에도 hashedPassword 부재 (round-trip 정합)
+  // -----------------------------------------------------------------------
+  it("negative — 배열 JSON 직렬화 후에도 모든 element 에 hashedPassword 부재", () => {
+    const users: User[] = [
+      buildUserFixture({
+        id: "uid-x",
+        hashedPassword: "$2b$10$ROUND.TRIP.HASH",
+      }),
+      buildUserFixture({
+        id: "uid-y",
+        hashedPassword: "$2b$10$ANOTHER.HASH",
+      }),
+    ];
+
+    const dtos = UserResponseDto.fromEntities(users);
+    const serialized = JSON.parse(JSON.stringify(dtos)) as Array<
+      Record<string, unknown>
+    >;
+
+    expect(serialized).toHaveLength(2);
+    for (const obj of serialized) {
+      expect(obj).not.toHaveProperty("hashedPassword");
+    }
+  });
+});

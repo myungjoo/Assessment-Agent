@@ -161,6 +161,26 @@ export class UserService {
     }
   }
 
+  // findAll — 본 task (T-0099) 추가. UserController.list 의 raw forward 책임.
+  // GET /api/users list endpoint (Admin+ tier) 의 service layer 진입점. GroupService.findAll
+  // (L101-106) 1:1 mirror — UserRepository.findAll forwarding 만.
+  //
+  // 도메인 invariant 0 — 단순 조회 path. RBAC tier 결정 (Admin+) 은 controller layer
+  // 의 @Roles decorator 책임, 본 service 는 권한 분기 0.
+  //
+  // DTO 변환 책임 0 — controller layer (UserController.list) 가 UserResponseDto.fromEntities
+  // 변환을 단일 책임. clean separation 정공법 정합 (changeRole / signup 의 controller
+  // 측 DTO wrap 패턴 1:1 mirror).
+  //
+  // Prisma error 정책: findMany 는 known error code 0 — DB connection fail / outage
+  // 등의 generic Error 만 raw propagate (catch 0). NestJS default 500 자동 mapping.
+  //
+  // pagination / sorting / filtering 미지원 — repository 의 raw findMany 정공법 정합.
+  // query parameter 정합은 별도 task / ADR.
+  async findAll(): Promise<User[]> {
+    return this.userRepository.findAll();
+  }
+
   // signup — REQ-044 후반 박제 (README L84 "SuperAdmin (첫 로긴), Admin, User 3 등급").
   // 첫 등록 user 의 role 을 SuperAdmin 자동 지정 + email @unique (P2002) → 409 변환 +
   // bcrypt 10 rounds password hash (ADR-0008 §6 정합). UserController.signup 의

@@ -65,9 +65,17 @@ function buildUserFixture(overrides: Partial<User> = {}): User {
 // 를 jest.fn() 으로 대체. 각 test 마다 새 mock 생성 (호출 카운터 격리).
 function buildUserServiceMock(): {
   userService: UserService;
-  serviceMock: { changeRole: jest.Mock; signup: jest.Mock };
+  serviceMock: {
+    changeRole: jest.Mock;
+    signup: jest.Mock;
+    findAll: jest.Mock;
+  };
 } {
-  const serviceMock = { changeRole: jest.fn(), signup: jest.fn() };
+  const serviceMock = {
+    changeRole: jest.fn(),
+    signup: jest.fn(),
+    findAll: jest.fn(),
+  };
   return {
     userService: serviceMock as unknown as UserService,
     serviceMock,
@@ -456,6 +464,135 @@ describe("UserController (unit)", () => {
       // HTTP 직렬화 path 의 정합 — Express 가 JSON.stringify 로 응답 직렬화 시
       // hashedPassword 가 누출되지 않는지 끝-단 검증.
       expect(serialized).not.toHaveProperty("hashedPassword");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // GET list — T-0099 acceptance §H (R-112 4 카테고리). Admin+ tier 박제.
+  //   - happy: list 응답이 UserResponseDto[] 배열 + 5 필드 정합 + 빈 list 분기.
+  //   - branch: 다중 role mix (SuperAdmin / Admin / User) 모두 변환.
+  //   - negative: hashedPassword 누출 차단 (regression) + service throw raw propagate.
+  // -------------------------------------------------------------------------
+  describe("GET list (unit) — T-0099", () => {
+    it("happy — service.findAll 의 3 user 배열 → controller.list 결과가 3 DTO 배열 + 각 5 필드 정합", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const users = [
+        buildUserFixture({
+          id: "u-1",
+          email: "a@e.test",
+          role: "SuperAdmin",
+        }),
+        buildUserFixture({ id: "u-2", email: "b@e.test", role: "Admin" }),
+        buildUserFixture({ id: "u-3", email: "c@e.test", role: "User" }),
+      ];
+      serviceMock.findAll.mockResolvedValueOnce(users);
+
+      const controller = new UserController(userService);
+      const result = await controller.list();
+
+      expect(serviceMock.findAll).toHaveBeenCalledTimes(1);
+      expect(serviceMock.findAll).toHaveBeenCalledWith();
+      expect(result).toHaveLength(3);
+      // 각 DTO 의 5 필드 정합 검증.
+      expect(result[0].id).toBe("u-1");
+      expect(result[0].email).toBe("a@e.test");
+      expect(result[0].role).toBe("SuperAdmin");
+      expect(result[1].id).toBe("u-2");
+      expect(result[1].email).toBe("b@e.test");
+      expect(result[2].id).toBe("u-3");
+      expect(result[2].role).toBe("User");
+      // 각 DTO 의 createdAt / updatedAt 보존.
+      for (let i = 0; i < users.length; i += 1) {
+        expect(result[i].createdAt).toEqual(users[i].createdAt);
+        expect(result[i].updatedAt).toEqual(users[i].updatedAt);
+        // 핵심 보호 — hashedPassword 키 부재.
+        expect(result[i]).not.toHaveProperty("hashedPassword");
+      }
+    });
+
+    it("happy — 빈 list 분기 (service.findAll [] → controller.list [])", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      serviceMock.findAll.mockResolvedValueOnce([]);
+
+      const controller = new UserController(userService);
+      const result = await controller.list();
+
+      expect(result).toEqual([]);
+      expect(result).toHaveLength(0);
+    });
+
+    it("negative — 3 user 모두 hashedPassword 박제 시 결과 DTO 모두 hashedPassword 키 부재 (regression — 핵심 보호)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const users = [
+        buildUserFixture({
+          id: "u-1",
+          hashedPassword: "$2b$10$LEAKED.HASH.ONE",
+        }),
+        buildUserFixture({
+          id: "u-2",
+          hashedPassword: "$2b$10$LEAKED.HASH.TWO",
+        }),
+        buildUserFixture({
+          id: "u-3",
+          hashedPassword: "$2b$10$LEAKED.HASH.THREE",
+        }),
+      ];
+      serviceMock.findAll.mockResolvedValueOnce(users);
+
+      const controller = new UserController(userService);
+      const result = await controller.list();
+
+      expect(result).toHaveLength(3);
+      for (const dto of result) {
+        expect(dto).not.toHaveProperty("hashedPassword");
+        // 정확히 5 필드만 — fromEntities 의 whitelist 정합 propagate.
+        expect(Object.keys(dto).sort()).toEqual(
+          ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+        );
+      }
+    });
+
+    it("negative — 결과 element 가 UserResponseDto instance + 임의 추가 컬럼 (extraField) 부재", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const userWithExtra = {
+        ...buildUserFixture({ id: "u-instance" }),
+        extraField: "should-not-leak",
+      };
+      serviceMock.findAll.mockResolvedValueOnce([userWithExtra]);
+
+      const controller = new UserController(userService);
+      const result = await controller.list();
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toBeInstanceOf(UserResponseDto);
+      expect(result[0]).not.toHaveProperty("extraField");
+    });
+
+    it("branch — 다중 role mix (SuperAdmin / Admin / User) 모두 변환 + 각 DTO 의 role 필드 정합", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const users = [
+        buildUserFixture({ id: "u-sa", role: "SuperAdmin" }),
+        buildUserFixture({ id: "u-ad", role: "Admin" }),
+        buildUserFixture({ id: "u-us", role: "User" }),
+      ];
+      serviceMock.findAll.mockResolvedValueOnce(users);
+
+      const controller = new UserController(userService);
+      const result = await controller.list();
+
+      expect(result[0].role).toBe("SuperAdmin");
+      expect(result[1].role).toBe("Admin");
+      expect(result[2].role).toBe("User");
+      // controller 는 list 변환만 — RBAC 검증은 Guard layer 책임 (본 spec scope 외).
+    });
+
+    it("negative — service.findAll throw → controller.list 가 동일 error 그대로 propagate (catch 0)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const svcError = new Error("svc down");
+      serviceMock.findAll.mockRejectedValueOnce(svcError);
+
+      const controller = new UserController(userService);
+      await expect(controller.list()).rejects.toBe(svcError);
     });
   });
 });
