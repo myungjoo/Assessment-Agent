@@ -653,6 +653,63 @@ describe("UserService", () => {
   });
 
   // ---------------------------------------------------------------------
+  // findById — T-0101 acceptance §B. UserController.detail 의 service forward.
+  //   - happy: repository.findById 결과 raw forward + reference 동일성.
+  //   - branch: id 인자가 repository 에 그대로 전달.
+  //   - negative: repository null → NotFoundException + message 정합.
+  //   - negative: repository throw → raw propagate (catch 0).
+  // ---------------------------------------------------------------------
+  describe("findById()", () => {
+    // happy — repository.findById 결과 raw forward + 동일 reference 검증.
+    it("happy — repository.findById 결과 user entity 그대로 반환 (raw forward)", async () => {
+      const { service, userRepoMock } = buildService();
+      const user = buildUserFixture({ id: "user-123", email: "u@e.test" });
+      userRepoMock.findById.mockResolvedValueOnce(user);
+
+      const result = await service.findById("user-123");
+
+      expect(userRepoMock.findById).toHaveBeenCalledTimes(1);
+      // service 의 raw forward 박제 — 동일 reference 통과.
+      expect(result).toBe(user);
+    });
+
+    // branch — id 인자가 repository 에 그대로 forward 검증.
+    it("branch — id 인자가 repository.findById 에 그대로 전달", async () => {
+      const { service, userRepoMock } = buildService();
+      userRepoMock.findById.mockResolvedValueOnce(buildUserFixture());
+
+      await service.findById("user-123");
+
+      expect(userRepoMock.findById).toHaveBeenCalledWith("user-123");
+    });
+
+    // negative — repository null → NotFoundException 변환 (HTTP 404 자동 mapping).
+    it("negative — repository null 반환 시 NotFoundException throw + message 에 id 포함", async () => {
+      const { service, userRepoMock } = buildService();
+      // 두 await expect 가 각각 service.findById 호출 → repository.findById 도 두 번
+      // 호출 → mockResolvedValue (persistent) 로 두 호출 모두 null 반환 박제.
+      userRepoMock.findById.mockResolvedValue(null);
+
+      await expect(service.findById("ghost-id")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      // message 정합 — id 가 message 에 포함 (호출 측 debug 용).
+      await expect(service.findById("ghost-id")).rejects.toThrow(
+        /User ghost-id 가 존재하지 않습니다/,
+      );
+    });
+
+    // negative — repository throw → raw propagate (catch 0).
+    it("negative — repository throw 시 raw propagate (catch 0 — NestJS default 500)", async () => {
+      const { service, userRepoMock } = buildService();
+      const dbError = new Error("db down");
+      userRepoMock.findById.mockRejectedValueOnce(dbError);
+
+      await expect(service.findById("user-x")).rejects.toBe(dbError);
+    });
+  });
+
+  // ---------------------------------------------------------------------
   // findAll — T-0099 acceptance §F. UserController.list 의 service forward.
   //   - happy: repository.findAll 결과 raw forward + reference 동일.
   //   - branch: 빈 list 분기.
