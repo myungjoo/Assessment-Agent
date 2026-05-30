@@ -40,6 +40,7 @@ import { forwardRef, Module } from "@nestjs/common";
 
 import { AuthModule } from "../auth/auth.module";
 
+import { AssessmentRepository } from "./assessment.repository";
 import { GroupController } from "./group.controller";
 import { GroupRepository } from "./group.repository";
 import { GroupService } from "./group.service";
@@ -86,6 +87,11 @@ import { UserService } from "./user.service";
     // UserService — T-0086 추가. REQ-044 박제 (RBAC self-demote invariant).
     // UserController (T-0087) 가 inject — PATCH /api/users/:id/role endpoint.
     UserService,
+    // AssessmentRepository — T-0111 추가. ADR-0006 의 후속 구현 chain 의 첫 slice
+    // (Assessment entity 의 CRUD primitive). 후속 AssessmentService (별도 task)
+    // 가 본 repository 를 inject 하여 P2002 → ConflictException / P2025 →
+    // NotFoundException 변환 + 도메인 invariant 강제 책임.
+    AssessmentRepository,
   ],
   exports: [
     PersonRepository,
@@ -101,6 +107,9 @@ import { UserService } from "./user.service";
     // UserService export (T-0086) — UserController (T-0087) 의 PATCH
     // /api/users/:id/role endpoint 가 본 service 를 inject (본 module 내 의존).
     UserService,
+    // AssessmentRepository export (T-0111) — 후속 AssessmentModule / Service 가
+    // 다른 module 에서 본 repository 를 inject 가능하도록 노출.
+    AssessmentRepository,
   ],
 })
 export class UserModule {}
