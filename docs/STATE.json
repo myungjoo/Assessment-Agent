@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0106",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-30T14:01:00+09:00",
-  "lastCommit": "cc39bea",
+  "lastActivity": "2026-05-31T01:47:00+09:00",
+  "lastCommit": "62f93aa",
   "mostRecentTasks": [
+    "T-0106",
     "T-0105",
     "T-0104",
     "T-0103",
-    "T-0102",
-    "T-0101"
+    "T-0102"
   ],
   "loopSession": {
-    "turnCount": 5,
-    "startedAt": "2026-05-30T13:12:00+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-05-31T01:17:00+09:00",
     "cap": 10,
-    "note": "loop session #28 turn 1 — T-0103 DONE (race-patterns.md amend 4 신규 race pattern). 직전 session #27 의 63k-char note trim — turn-by-turn 운영 로그는 journal 이 durable source."
+    "note": "loop session #29 turn 1 — T-0106 MERGED PR-107 round 1 (GET /api/auth/me self-detail endpoint). turn-by-turn 운영 로그는 journal 이 durable source."
   },
   "ci": {
-    "lastRun": "2026-05-30T11:15:00+09:00",
+    "lastRun": "2026-05-31T01:46:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/101",
-    "note": "PR-101 round 1 merge 기준 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl). 직전 18k-char prose note trim — 상세 history 는 commit trail / journal 참조."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/107",
+    "note": "PR-107 round 1 merge 기준 green. first-run reviewer-gate 검증 step race (15 회차) 가 gh run rerun 으로 self-heal. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 104,
+    "tasksCompleted": 105,
     "tasksBlocked": 7,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

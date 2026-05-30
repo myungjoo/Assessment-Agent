@@ -2,12 +2,18 @@
 id: T-0106
 title: GET /api/auth/me endpoint (User+ tier, req.user.sub 기반 self-detail)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-046]
 estimatedDiff: 220
 estimatedFiles: 5
+actualDiff: 393
+actualFiles: 5
 created: 2026-05-30
+completedAt: 2026-05-31
+prNumber: 107
+mergedAs: 62f93aa
+reviewRounds: 1
 plannerNote: P3 — api.md L69 박제 T-0085 candidate 미구현 GET /api/auth/me 박제. ADR-0008 후속 chain 자연 박제점, JwtAuthGuard + UserService.findById + UserResponseDto.fromEntity 재활용 partial-backbone ×1.3.
 ---
 
