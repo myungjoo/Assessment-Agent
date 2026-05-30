@@ -2,14 +2,18 @@
 id: T-0098
 title: Stale cron PR cleanup — claude/affectionate-babbage-* 13 PR close + branch delete (HQ-0006/8/9/10/13 누적 cron-env breakage 잔재)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 20
 estimatedFiles: 2
 created: 2026-05-30
+completedAt: 2026-05-30T09:47:00+09:00
+actualDiff: 3
+actualFiles: 3
 dependsOn: []
 plannerNote: "loop session #27 turn 2/10 (KST 2026-05-30 09:35) planner — cron env (Anthropic cloud) gh CLI 부재 systemic breakage (HQ-0006/8/9/10/13 5+ 회차) 의 잔재 13 stale PR 일괄 cleanup. PR-90/91/92/93/94/95/96/97/98/99/76/83/84 모두 FAILURE CI + claude/affectionate-babbage-* 또는 claude/loop-command-* / claude/T-0082-* branch + T-0096/T-0097 직접 머지 이후 redundant. doc-only direct main commit — gh CLI 호출만, src/test/docs 변경 0 (단 본 task 의 bookkeeping commit 본문에 cleanup 결과 박제). estimate-model.md cleanup-only × 0.5 multiplier 첫 박제 후보 (분류 미정)."
+driverNote: "loop session #27 turn 3/10 (KST 2026-05-30 09:47, local Windows env, gh CLI v2.88.1) — driver inline 경로 정공법 (T-0093/T-0096/T-0097 driver inline 패턴 1:1 mirror, sub-agent dispatch 없이 driver 가 직접 13 `gh pr close` + 13 `gh api -X DELETE refs/heads/...` 후 STATE/journal bookkeeping commit 1 회). **Acceptance Criteria A all PASS**: PR-76/83/84/90/91/92/93/94/95/96/97/98/99 모두 `gh pr close <num> --comment '...'` exit 0 + `gh pr view <num> --json state -q .state` == `CLOSED` 13/13. **Acceptance Criteria B all PASS**: claude/affectionate-babbage-{bAHnf, Ptugc, zQabQ, lYmHe, GaeFJ, hfhSC, 4zGKm, eoAen, Z0CVo, 8SXI9, JxV07, iVGhj} + claude/loop-command-t0Tua = 13 branch `gh api -X DELETE refs/heads/...` (MSYS_NO_PATHCONV=1 환경변수로 Git Bash MSYS path translation 차단 후 정공법) 후 verify `gh api refs/heads/...` 404 13/13. **Git Bash MSYS path translation 박제** — 초기 leading `/` 포함 endpoint 가 `C:/Program Files/Git/repos/...` 으로 자동 변환되어 invalid endpoint error 발생, `MSYS_NO_PATHCONV=1` prefix 로 차단 후 정공법 (cleanup task / shell env 박제 follow-up 후보). **Acceptance Criteria C PASS**: `gh pr list --state open --json number` 결과 0 (13 stale PR 모두 missing). **Acceptance Criteria D/E/F PASS**: STATE counters 96→97 / mostRecentTasks prepend T-0098 / loopSession.turnCount 2→3 / 본 task 파일 status DONE + actualDiff 3 + actualFiles 3 + driverNote 박제. **envelope 20 LOC vs actual 3 LOC ×0.15 cleanup-only multiplier 박제** — 단발 사례, classification 자체는 다음 cleanup-only task 가 2 회차 발생 후 (현재 multiplier classification 미정 — estimate-model.md follow-up 후보). cleanup signal/cost ratio 박제 — 13 PR + 13 branch (총 26 외부 effect) / 3 파일 bookkeeping = 1 turn 안에서 완수, repo state pollution 13 fail PR → 0 dramatic 정화. cron env permanent fix 는 별도 follow-up 그대로 — 본 task 는 1 회성 reactive cleanup."
 ---
 
 # T-0098 — Stale cron PR cleanup (claude/affectionate-babbage-* 13 PR close + branch delete)
