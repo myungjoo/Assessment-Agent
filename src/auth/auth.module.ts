@@ -44,9 +44,11 @@ import { RolesGuard } from "./roles.guard";
     // PassportModule — defaultStrategy "jwt" 명시 (T-0083). JwtStrategy class 의
     // PassportStrategy(Strategy, "jwt") 의 strategy name 정합.
     PassportModule.register({ defaultStrategy: "jwt" }),
-    // UserModule import — AuthController 의 UserRepository inject 의존성 (T-0082).
-    // UserRepository 는 UserModule 의 exports 에 포함되므로 본 import 만으로
-    // AuthController 의 constructor injection 정상 resolve.
+    // UserModule import — AuthController 의 UserRepository inject 의존성 (T-0082) +
+    // UserService inject 의존성 (T-0106 — GET /api/auth/me 의 findById 호출). 두
+    // provider 모두 UserModule 의 exports 에 포함되므로 본 import 만으로 AuthController
+    // 의 constructor injection 정상 resolve. T-0106 은 AuthModule 변경 0 (forwardRef +
+    // UserService export 가 T-0087 / T-0086 에서 이미 박제).
     //
     // T-0087 forwardRef wrap — UserModule 이 AuthModule 을 import (UserController
     // 의 JwtAuthGuard + RolesGuard inject) 로 양방향 circular dependency 발생.

@@ -23,7 +23,11 @@ jest.mock("../persistence/prisma.service", () => ({
 }));
 
 /* eslint-disable import/first */
-import { UnauthorizedException, type INestApplication } from "@nestjs/common";
+import {
+  NotFoundException,
+  UnauthorizedException,
+  type INestApplication,
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { User } from "@prisma/client";
@@ -32,6 +36,7 @@ import type { Request, Response } from "express";
 import request from "supertest";
 
 import { UserRepository } from "../user/user.repository";
+import { UserService } from "../user/user.service";
 
 import {
   ACCESS_TOKEN_COOKIE,
@@ -71,6 +76,8 @@ function buildControllerWithMocks(): {
   };
   userRepositoryMock: { findByEmail: jest.Mock };
   jwtServiceMock: { verify: jest.Mock };
+  // userServiceMock — T-0106 GET /api/auth/me 의 findById 호출 검증용.
+  userServiceMock: { findById: jest.Mock };
 } {
   const authServiceMock = {
     verifyPassword: jest.fn(),
@@ -79,12 +86,20 @@ function buildControllerWithMocks(): {
   };
   const userRepositoryMock = { findByEmail: jest.fn() };
   const jwtServiceMock = { verify: jest.fn() };
+  const userServiceMock = { findById: jest.fn() };
   const controller = new AuthController(
     authServiceMock as unknown as AuthService,
     userRepositoryMock as unknown as UserRepository,
     jwtServiceMock as unknown as JwtService,
+    userServiceMock as unknown as UserService,
   );
-  return { controller, authServiceMock, userRepositoryMock, jwtServiceMock };
+  return {
+    controller,
+    authServiceMock,
+    userRepositoryMock,
+    jwtServiceMock,
+    userServiceMock,
+  };
 }
 
 // res mock factory — express Response 의 cookie / clearCookie 호출 추적용.
@@ -488,6 +503,95 @@ describe("AuthController (unit)", () => {
       });
     });
   });
+
+  // -----------------------------------------------------------------------
+  // me — GET /api/auth/me. T-0106 acceptance §B 박제. happy + error (NotFound
+  // propagate) + negative 충분 (req.user undefined / sub undefined / sub 빈
+  // 문자열 / findById raw Error propagate / hashedPassword 누출 차단).
+  //
+  // JwtAuthGuard 통과 검증은 e2e 책임 — 본 unit spec 은 controller 메서드 자체의
+  // 흐름 (req.user.sub 추출 + service 호출 + DTO 변환 + 에러 propagate) 검증.
+  // -----------------------------------------------------------------------
+  describe("me() (GET /api/auth/me)", () => {
+    // req mock helper — user 객체만 박제 (express Request 의 다른 path 는 미사용).
+    function buildReqWithUser(user: unknown): Request {
+      return { user } as unknown as Request;
+    }
+
+    it("req.user.sub valid + findById User 반환 → UserResponseDto (5 필드 + hashedPassword 부재) (happy)", async () => {
+      const { controller, userServiceMock } = buildControllerWithMocks();
+      const user = buildUserFixture({ id: "u-1", email: "me@example.com" });
+      userServiceMock.findById.mockResolvedValueOnce(user);
+      const req = buildReqWithUser({ sub: "u-1", role: "User" });
+
+      const result = await controller.me(req);
+
+      // findById 가 req.user.sub 로 호출됨 — actor self-detail 박제.
+      expect(userServiceMock.findById).toHaveBeenCalledWith("u-1");
+      // UserResponseDto shape — 5 필드 노출 + hashedPassword 누출 차단 (T-0095).
+      expect(result.id).toBe("u-1");
+      expect(result.email).toBe("me@example.com");
+      expect(result.role).toBe("User");
+      expect(result.createdAt).toEqual(user.createdAt);
+      expect(result.updatedAt).toEqual(user.updatedAt);
+      expect(result).not.toHaveProperty("hashedPassword");
+      expect(Object.keys(result).sort()).toEqual(
+        ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+      );
+    });
+
+    it("findById 가 NotFoundException throw → 그대로 propagate (error — stale token, P2025 → 404)", async () => {
+      const { controller, userServiceMock } = buildControllerWithMocks();
+      userServiceMock.findById.mockRejectedValueOnce(
+        new NotFoundException("User u-1 가 존재하지 않습니다."),
+      );
+      const req = buildReqWithUser({ sub: "u-1", role: "User" });
+
+      await expect(controller.me(req)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it("req.user undefined → 401 UnauthorizedException + findById 호출 안 됨 (negative #1 — defence in depth)", async () => {
+      const { controller, userServiceMock } = buildControllerWithMocks();
+      const req = buildReqWithUser(undefined);
+
+      await expect(controller.me(req)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(userServiceMock.findById).not.toHaveBeenCalled();
+    });
+
+    it("req.user.sub undefined → 401 + findById 호출 안 됨 (negative #2)", async () => {
+      const { controller, userServiceMock } = buildControllerWithMocks();
+      const req = buildReqWithUser({ role: "User" });
+
+      await expect(controller.me(req)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(userServiceMock.findById).not.toHaveBeenCalled();
+    });
+
+    it("req.user.sub 빈 문자열 → 401 + findById 호출 안 됨 (negative #3)", async () => {
+      const { controller, userServiceMock } = buildControllerWithMocks();
+      const req = buildReqWithUser({ sub: "", role: "User" });
+
+      await expect(controller.me(req)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(userServiceMock.findById).not.toHaveBeenCalled();
+    });
+
+    it("findById raw Error throw (P2025 외 unexpected) → 그대로 propagate (negative #4 — 500 변환)", async () => {
+      const { controller, userServiceMock } = buildControllerWithMocks();
+      const rawError = new Error("unexpected DB outage");
+      userServiceMock.findById.mockRejectedValueOnce(rawError);
+      const req = buildReqWithUser({ sub: "u-1", role: "User" });
+
+      // unit-level 은 raw Error 그대로 propagate — NestJS 500 변환은 e2e 차원.
+      await expect(controller.me(req)).rejects.toBe(rawError);
+    });
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -506,6 +610,8 @@ describe("AuthController (ValidationPipe + cookie integration)", () => {
   };
   let userRepositoryMock: { findByEmail: jest.Mock };
   let jwtServiceMock: { verify: jest.Mock };
+  // userServiceMock — T-0106 GET /api/auth/me 의 findById provider resolve 용.
+  let userServiceMock: { findById: jest.Mock };
   let originalRefreshSecret: string | undefined;
 
   beforeEach(async () => {
@@ -520,6 +626,7 @@ describe("AuthController (ValidationPipe + cookie integration)", () => {
     };
     userRepositoryMock = { findByEmail: jest.fn() };
     jwtServiceMock = { verify: jest.fn() };
+    userServiceMock = { findById: jest.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -527,6 +634,7 @@ describe("AuthController (ValidationPipe + cookie integration)", () => {
         { provide: AuthService, useValue: authServiceMock },
         { provide: UserRepository, useValue: userRepositoryMock },
         { provide: JwtService, useValue: jwtServiceMock },
+        { provide: UserService, useValue: userServiceMock },
       ],
     }).compile();
 

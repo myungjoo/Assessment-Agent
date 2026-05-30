@@ -57,10 +57,15 @@ import {
   REFRESH_TOKEN_COOKIE,
 } from "../../src/auth/auth.controller";
 import { PrismaService } from "../../src/persistence/prisma.service";
-// auth-e2e-helper module-load side-effect — AUTH_JWT_SECRET 박제 (T-0091).
-// 본 import 가 helper 의 top-level `process.env.AUTH_JWT_SECRET ??= ...` 를
+// auth-e2e-helper — module-load side-effect 로 AUTH_JWT_SECRET 박제 (T-0091). 본
+// named import 가 helper 의 top-level `process.env.AUTH_JWT_SECRET ??= ...` 를
 // evaluation → JwtStrategy.constructor 의 module init 시점에 정상 secret bind.
-import "../helpers/auth-e2e-helper";
+// T-0106 GET /api/auth/me 는 createAuthenticatedE2EApp / buildAuthCookie 재활용
+// (신규 helper 추출 0).
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
 import { createE2EApp } from "../helpers/e2e-app-factory";
 /* eslint-enable import/first */
@@ -565,5 +570,164 @@ describe("E2E: /api/auth/* — login + logout + refresh end-to-end (ADR-0008 §2
       expect(response.status).toBe(401);
       expect(response.body.message).toBe(REFRESH_INVALID_MESSAGE);
     });
+  });
+});
+
+// -----------------------------------------------------------------------
+// GET /api/auth/me e2e — T-0106 acceptance §D 박제. ADR-0008 §6 application-layer
+// last-mile chain 의 마지막 endpoint 의 HTTP round-trip 검증. JwtAuthGuard 통과
+// (cookie + 정상 token → 200) / 통과 실패 (cookie 부재 / invalid signature /
+// expired → 401) / stale token (valid 이지만 DB row 삭제 → 404) / UserResponseDto
+// 응답 shape (5 필드 + hashedPassword 누출 차단) regression.
+//
+// createAuthenticatedE2EApp helper 재활용 (T-0091) — JWT issue + cookie 박제 패턴.
+// 신규 helper 추출 0. expired / invalid-signature token 은 ctx.jwtService 직접 sign.
+// -----------------------------------------------------------------------
+describe("E2E: GET /api/auth/me — T-0106 User+ self-detail 박제", () => {
+  it("happy — User actor + 정상 cookie → 200 + UserResponseDto (5 필드 + hashedPassword 부재)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "me-user@e2e.test" },
+    ]);
+    try {
+      const self = ctx.users["me-user@e2e.test"];
+      const token = ctx.tokens["me-user@e2e.test"];
+      const response = await request(ctx.app.getHttpServer())
+        .get("/api/auth/me")
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(200);
+      expect(response.headers["content-type"]).toMatch(/application\/json/);
+      expect(response.body.id).toBe(self.id);
+      expect(response.body.email).toBe("me-user@e2e.test");
+      expect(response.body.role).toBe("User");
+      // T-0095 — hashedPassword 누출 차단 + 정확히 5 키만 (UserResponseDto regression).
+      expect(response.body).not.toHaveProperty("hashedPassword");
+      expect(Object.keys(response.body).sort()).toEqual(
+        ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+      );
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("happy — Admin / SuperAdmin role 도 동일 200 응답 (User+ tier — role 분기 0)", async () => {
+    // User+ tier 박제 — 인증된 사용자면 role 무관 자기 자신 조회 (RolesGuard 미적용).
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: "me-admin@e2e.test" },
+      { role: "SuperAdmin", email: "me-super@e2e.test" },
+    ]);
+    try {
+      for (const email of ["me-admin@e2e.test", "me-super@e2e.test"]) {
+        const self = ctx.users[email];
+        const token = ctx.tokens[email];
+        const response = await request(ctx.app.getHttpServer())
+          .get("/api/auth/me")
+          .set("Cookie", buildAuthCookie(token));
+
+        expect(response.status).toBe(200);
+        expect(response.body.id).toBe(self.id);
+        expect(response.body.role).toBe(self.role);
+        expect(response.body).not.toHaveProperty("hashedPassword");
+      }
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — cookie 부재 시 401 (JwtAuthGuard reject)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "me-no-cookie@e2e.test" },
+    ]);
+    try {
+      const response = await request(ctx.app.getHttpServer()).get(
+        "/api/auth/me",
+      );
+
+      expect(response.status).toBe(401);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — invalid signature token 시 401 (JwtAuthGuard verify fail)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "me-invalid-sig@e2e.test" },
+    ]);
+    try {
+      const self = ctx.users["me-invalid-sig@e2e.test"];
+      // 다른 secret 으로 sign 한 forged token — access secret 과 mismatch → verify fail.
+      const forgedToken = ctx.jwtService.sign(
+        { sub: self.id, role: "User" },
+        {
+          secret: "forged-different-secret-32bytes-min-1234567890",
+          expiresIn: "15m",
+        },
+      );
+      const response = await request(ctx.app.getHttpServer())
+        .get("/api/auth/me")
+        .set("Cookie", buildAuthCookie(forgedToken));
+
+      expect(response.status).toBe(401);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — expired token 시 401 (JwtAuthGuard ignoreExpiration=false)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "me-expired@e2e.test" },
+    ]);
+    try {
+      const self = ctx.users["me-expired@e2e.test"];
+      // 1ms TTL — sign 직후 즉시 만료. JwtStrategy 의 ignoreExpiration=false 분기 cover.
+      // access secret (helper 박제 AUTH_JWT_SECRET) default 로 sign — signature 는 valid.
+      const expiredToken = ctx.jwtService.sign(
+        { sub: self.id, role: "User" },
+        { expiresIn: "1ms" },
+      );
+      // exp 박제 완전 보장 위해 50ms 대기.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const response = await request(ctx.app.getHttpServer())
+        .get("/api/auth/me")
+        .set("Cookie", buildAuthCookie(expiredToken));
+
+      expect(response.status).toBe(401);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — valid token 이지만 DB user row 삭제됨 → 404 (P2025 변환 — stale token)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "me-stale@e2e.test" },
+    ]);
+    try {
+      const self = ctx.users["me-stale@e2e.test"];
+      const token = ctx.tokens["me-stale@e2e.test"];
+      // token 발급 후 DB row 삭제 — valid signature 이지만 findById 가 null →
+      // UserService.findById 의 NotFoundException → 404 자동 mapping.
+      await ctx.prisma.user.delete({ where: { id: self.id } });
+
+      const response = await request(ctx.app.getHttpServer())
+        .get("/api/auth/me")
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(404);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
   });
 });
