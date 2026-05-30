@@ -49,6 +49,16 @@ jest.mock("../persistence/prisma.service", () => ({
       create: jest.fn(),
       delete: jest.fn(),
     };
+    // T-0112 — ContributionRepository 가 PrismaService 의 `contribution` delegate
+    // 사용. module compile 단계에서 instance 가 생성되며 생성자가 PrismaService 를
+    // inject — 실제 query 는 본 module spec 에서 호출되지 않으나 typing 안전을
+    // 위해 정의.
+    contribution = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
     onModuleInit = jest.fn().mockResolvedValue(undefined);
     enableShutdownHooks = jest.fn();
   },
@@ -62,6 +72,8 @@ import { PersistenceModule } from "../persistence/persistence.module";
 
 // eslint-disable-next-line import/first
 import { AssessmentRepository } from "./assessment.repository";
+// eslint-disable-next-line import/first
+import { ContributionRepository } from "./contribution.repository";
 // eslint-disable-next-line import/first
 import { GroupRepository } from "./group.repository";
 // eslint-disable-next-line import/first
@@ -316,6 +328,36 @@ describe("UserModule", () => {
       .compile();
 
     const resolved = moduleRef.get(AssessmentRepository);
+    expect(resolved).toBe(sentinel);
+
+    await moduleRef.close();
+  });
+
+  // T-0112: ContributionRepository 가 providers / exports 에 등록되어 resolve 된다.
+  // ADR-0006 chain 의 Contribution slice — 개별 commit/PR/문서 단위의 CRUD primitive.
+  it("compile 시 ContributionRepository provider 가 resolve 된다 (T-0112)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    }).compile();
+
+    const repo = moduleRef.get(ContributionRepository);
+    expect(repo).toBeDefined();
+    expect(repo).toBeInstanceOf(ContributionRepository);
+
+    await moduleRef.close();
+  });
+
+  // T-0112: ContributionRepository sentinel override — exports 등록 간접 검증.
+  it("ContributionRepository provider 가 sentinel 로 override 되어도 compile 한다 (T-0112)", async () => {
+    const sentinel = { __sentinel: "contribution-repo-override" };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    })
+      .overrideProvider(ContributionRepository)
+      .useValue(sentinel)
+      .compile();
+
+    const resolved = moduleRef.get(ContributionRepository);
     expect(resolved).toBe(sentinel);
 
     await moduleRef.close();
