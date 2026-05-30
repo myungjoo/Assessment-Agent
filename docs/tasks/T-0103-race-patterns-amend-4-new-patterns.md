@@ -2,12 +2,16 @@
 id: T-0103
 title: race-patterns.md amend — 4 신규 race pattern 박제 (Windows CRLF / Git Bash MSYS / harness phantom worktree / cron-vs-manual overlap)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 130
 estimatedFiles: 1
+actualDiff: 99
+actualFiles: 1
 created: 2026-05-30
+completedAt: 2026-05-30T13:12:00+09:00
+driverNote: loop session #28 turn 1 — executor 경유 race-patterns.md amend (4 신규 race pattern §4~§7 + §8 20 회차 누적 + §9 refs, 9 section), direct main commit. (task 는 driver-inline 권장이었으나 executor dispatch 진행 — 결과 동일)
 dependsOn: []
 plannerNote: doc-only inline-amend × 0.4 — race-patterns.md (현재 95 줄, 2 종 14 회차 박제) 에 4 신규 race pattern §4~§7 추가 (cron-vs-manual overlap 3 회차 누적 = TODAY 박제, externalize 우선)
 ---
