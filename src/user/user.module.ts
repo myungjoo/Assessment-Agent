@@ -41,6 +41,7 @@ import { forwardRef, Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 
 import { AssessmentRepository } from "./assessment.repository";
+import { ContributionRepository } from "./contribution.repository";
 import { GroupController } from "./group.controller";
 import { GroupRepository } from "./group.repository";
 import { GroupService } from "./group.service";
@@ -92,6 +93,12 @@ import { UserService } from "./user.service";
     // 가 본 repository 를 inject 하여 P2002 → ConflictException / P2025 →
     // NotFoundException 변환 + 도메인 invariant 강제 책임.
     AssessmentRepository,
+    // ContributionRepository — T-0112 추가. ADR-0006 chain 의 Contribution slice
+    // (Assessment N:1, 개별 commit/PR/문서 단위, 참조 식별자만 보유 raw 본문 0,
+    // REQ-029/032/033). 후속 ContributionService (별도 task) 가 본 repository
+    // 를 inject 하여 P2003 → BadRequestException / P2025 → NotFoundException
+    // 변환 + 도메인 invariant (sourceType literal 검증 등) 강제 책임.
+    ContributionRepository,
   ],
   exports: [
     PersonRepository,
@@ -110,6 +117,10 @@ import { UserService } from "./user.service";
     // AssessmentRepository export (T-0111) — 후속 AssessmentModule / Service 가
     // 다른 module 에서 본 repository 를 inject 가능하도록 노출.
     AssessmentRepository,
+    // ContributionRepository export (T-0112) — 후속 ContributionService /
+    // AssessmentService 등이 다른 module 에서 본 repository 를 inject 가능
+    // 하도록 노출.
+    ContributionRepository,
   ],
 })
 export class UserModule {}
