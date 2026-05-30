@@ -3,7 +3,7 @@ id: T-0101
 taskId: T-0101
 title: GET /api/users/:id detail endpoint (self OR Admin+ tier) + UserService.findById + e2e
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-046]
 estimatedDiff: 260
@@ -13,7 +13,14 @@ dependsOn: [T-0085, T-0091, T-0095, T-0099]
 sizeExempt: false
 created: 2026-05-30
 createdAt: 2026-05-30T10:55:00+09:00
+completedAt: 2026-05-30T11:15:00+09:00
+actualDiff: 516
+actualFiles: 5
+prNumber: 101
+mergedAs: 432974a
+reviewRounds: 1
 plannerNote: "loop session #27 turn 8/10 — P3 User CRUD-R 표면 4/4 closure (GET detail). partial-backbone × 1.3 envelope 260 LOC / 5 파일. self OR Admin+ 분기 (REQ-046 User self-read 박제) — RBAC 본 system 첫 conditional branch + RolesGuard.optional 정공법 박제."
+driverNote: "loop session #27 turn 9/10 (KST 2026-05-30 11:15, local Windows env) — executor sub-agent dispatch (implementer + tester, 5 파일 across UserController.detail + UserService.findById + colocated spec 3 + e2e) → integrator sub-agent dispatch (reviewer round 1 APPROVE + self-check 6/6 + 4-게이트 all PASS) → squash merge sha 432974a PR-101 round 1 single-shot. **RBAC backbone 의 첫 conditional branch production 박제** — UserController.detail 의 controller 내부 `isSelf := id === req.user.sub` OR `isAdminPlus := req.user.role in {Admin, SuperAdmin}` else ForbiddenException, RolesGuard 미적용 + JwtAuthGuard 단독 stack + 분기 inline 정공법 박제 (REQ-046 User self-read + REQ-043 Admin other-read). **UserResponseDto.fromEntity 재활용 (T-0095) hashedPassword 차단 invariant 자동 propagate**. **UserRepository.findById 미사용 surface 활성화 박제** — T-0085 박제 4 일 만에 첫 production 활용. **User CRUD-R 표면 4/4 closure** — POST signup (T-0092) + GET list (T-0099) + GET detail (본 T-0101) + PATCH changeRole (T-0087) = P3 user-domain HTTP layer 완결점 (DELETE 는 P4 후속). 실 LOC +516/-0 across 5 파일 (envelope 260 × 1.3 partial-backbone 의 ×1.98 over within R-112 spec mass tolerance — T-0095 ×2.34 + T-0094 ×2.19 + T-0091 ×1.86 + T-0099 ×2.53 precedent 7 회차 누적 정합 MINOR-only, production 약 101 LOC envelope 정합, 415 LOC 가 spec / e2e mass 본질). 신규 surface 100% line/branch/function/statement coverage (808/808 tests pass — smoke/e2e local DATABASE_URL 부재로 CI services.postgres 위임 R-113 정공법). 4-게이트 all PASS: reviewer round 1 APPROVE comment 4581314525 (8-check pass + R-112 4 카테고리 + MINOR ×2 size variance ×1.98 within precedent + doc sync Out-of-Scope follow-up) + PR comment 외부 박제 + integrator self-check 6/6 + CI run conclusion=success. **single-shot first-run pass cadence 9 회차 누적** (T-0086 + T-0087 + T-0090 + T-0091 + T-0092 + T-0094 + T-0095 + T-0099 + 본 T-0101). **size variance ×1.98 8 회차 누적** (T-0083/T-0086/T-0087/T-0091/T-0094/T-0095/T-0099/T-0101) — R-112 spec mass underestimate 패턴 박제 8 회차. **CI step 'reviewer agent approval 검증' 자동 게이트 박제 18 회차 누적** (T-0066~T-0101). counters.tasksCompleted 99→100, mostRecentTasks prepend T-0101 (cap 5 = [T-0101, T-0100, T-0099, T-0098, T-0097]), reviewRounds[T-0101]=1."
 ---
 
 # T-0101 — GET /api/users/:id detail endpoint (self OR Admin+ tier) + UserService.findById + e2e
