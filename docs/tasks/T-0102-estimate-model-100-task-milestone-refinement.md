@@ -2,14 +2,18 @@
 id: T-0102
 title: estimate-model.md 100 task milestone refinement — session #23~#27 누적 박제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 120
 estimatedFiles: 1
+actualDiff: 107
+actualFiles: 4
+completedAt: 2026-05-30T11:42:00+09:00
 created: 2026-05-30
 dependsOn: []
 plannerNote: doc-only inline-amend × 0.64 — 100 task milestone refinement, session #23~#27 누적 박제 (doc-only inline-amend 7 회차 + pr-mode partial-backbone 8 회차 + single-file-create 1 회차 + cleanup-only 1 회차 신규 sub-pattern 2 종)
+driverNote: manual /loop session turn 4/5 — driver inline 경로 (T-0070/T-0076/T-0093/T-0096/T-0097 패턴 1:1 mirror) 9 AC all PASS. 실 107 LOC +93/-14 across 4 파일 (envelope 120 의 ×0.89 within tolerance — inline-amend × 0.4 sub-multiplier band 정합 11 회차 누적). estimate-model.md §1/§2.5+§2.6 추가/§3.1.2 추가/§3.2.2 갱신/§3.5+§3.6 추가/§4 footnote/§6/§7 References 8 곳 amend. partial-backbone ×1.3 → ×2.0 재산출 후보 marker 박제 (별도 follow-up task). single-file-create/cleanup-only 1 회차 박제 (다음 2 회차 발생 후 분리 결정).
 ---
 
 # T-0102 — estimate-model.md 100 task milestone refinement
