@@ -577,3 +577,194 @@ describe("E2E: GET /api/users list — T-0099 Admin+ tier 박제", () => {
     }
   });
 });
+
+// -----------------------------------------------------------------------
+// GET /api/users/:id detail e2e — T-0101 acceptance §E 박제. self OR Admin+ 첫
+// conditional branch 의 HTTP round-trip 검증.
+//
+// 책임 분리:
+//   - 401 (cookie 부재 / invalid JWT) — JwtAuthGuard 책임 검증.
+//   - 403 (User actor → other user) — controller 내부 self OR Admin+ 분기 reject.
+//   - 404 (not-found) — service NotFoundException → NestJS 자동 404 변환.
+//   - happy User self / Admin other / SuperAdmin other — 3 happy 분기 cover.
+//   - hashedPassword 누출 차단 (T-0095 regression mirror — detail 응답).
+// -----------------------------------------------------------------------
+describe("E2E: GET /api/users/:id detail — T-0101 self OR Admin+ 분기", () => {
+  it("happy — User actor 가 본인 detail 호출 시 200 + 5 필드 정합 + hashedPassword 부재 (self 분기)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "user-self@e2e.test" },
+    ]);
+    try {
+      const selfId = ctx.users["user-self@e2e.test"].id;
+      const token = ctx.tokens["user-self@e2e.test"];
+      const response = await request(ctx.app.getHttpServer())
+        .get(`/api/users/${selfId}`)
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(200);
+      expect(response.headers["content-type"]).toMatch(/application\/json/);
+      expectUserDtoFields(response.body);
+      expect(response.body.id).toBe(selfId);
+      expect(response.body.email).toBe("user-self@e2e.test");
+      expect(response.body.role).toBe("User");
+
+      // T-0095 — 응답 body 에 hashedPassword 부재 + 정확히 5 필드만.
+      expect(response.body).not.toHaveProperty("hashedPassword");
+      expect(Object.keys(response.body).sort()).toEqual(
+        ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+      );
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("happy — Admin actor 가 다른 user detail 호출 시 200 + target user 데이터 정합 (Admin+ other 분기)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: "admin-actor@e2e.test" },
+      { role: "User", email: "target-user@e2e.test" },
+    ]);
+    try {
+      const targetId = ctx.users["target-user@e2e.test"].id;
+      const token = ctx.tokens["admin-actor@e2e.test"];
+      const response = await request(ctx.app.getHttpServer())
+        .get(`/api/users/${targetId}`)
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(200);
+      expect(response.body.id).toBe(targetId);
+      expect(response.body.email).toBe("target-user@e2e.test");
+      expect(response.body.role).toBe("User");
+      expect(response.body).not.toHaveProperty("hashedPassword");
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("happy — SuperAdmin actor 가 다른 user detail 호출 시 200 (escalation 분기 — SuperAdmin)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "SuperAdmin", email: "sa-actor@e2e.test" },
+      { role: "Admin", email: "target-admin@e2e.test" },
+    ]);
+    try {
+      const targetId = ctx.users["target-admin@e2e.test"].id;
+      const token = ctx.tokens["sa-actor@e2e.test"];
+      const response = await request(ctx.app.getHttpServer())
+        .get(`/api/users/${targetId}`)
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(200);
+      expect(response.body.id).toBe(targetId);
+      expect(response.body.role).toBe("Admin");
+      expect(response.body).not.toHaveProperty("hashedPassword");
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — cookie 부재 시 401 (JwtAuthGuard reject)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: "any@e2e.test" },
+    ]);
+    try {
+      const anyId = ctx.users["any@e2e.test"].id;
+      const response = await request(ctx.app.getHttpServer()).get(
+        `/api/users/${anyId}`,
+      );
+
+      expect(response.status).toBe(401);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — invalid JWT cookie 시 401 (JwtAuthGuard verify fail)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: "any-2@e2e.test" },
+    ]);
+    try {
+      const anyId = ctx.users["any-2@e2e.test"].id;
+      const response = await request(ctx.app.getHttpServer())
+        .get(`/api/users/${anyId}`)
+        .set("Cookie", buildAuthCookie("garbage.token.invalid"));
+
+      expect(response.status).toBe(401);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — User actor 가 다른 user detail 호출 시 403 (controller 내부 분기 차단)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "user-actor-403@e2e.test" },
+      { role: "User", email: "other-target-403@e2e.test" },
+    ]);
+    try {
+      const targetId = ctx.users["other-target-403@e2e.test"].id;
+      const token = ctx.tokens["user-actor-403@e2e.test"];
+      const response = await request(ctx.app.getHttpServer())
+        .get(`/api/users/${targetId}`)
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(403);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — Admin actor 가 non-existent ID 호출 시 404 (service NotFoundException → 404 자동 변환)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: "admin-404@e2e.test" },
+    ]);
+    try {
+      const token = ctx.tokens["admin-404@e2e.test"];
+      // cuid 형식 의 unused ID — schema 의 @default(cuid()) 와 호환되는 임의 string.
+      const response = await request(ctx.app.getHttpServer())
+        .get(`/api/users/non-existent-id-12345`)
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(404);
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+
+  it("negative — 모든 happy 응답의 body 가 정확히 5 키만 + hashedPassword 부재 (regression — T-0095 mirror)", async () => {
+    const ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: "regression-admin@e2e.test" },
+      { role: "User", email: "regression-target@e2e.test" },
+    ]);
+    try {
+      const targetId = ctx.users["regression-target@e2e.test"].id;
+      const token = ctx.tokens["regression-admin@e2e.test"];
+      const response = await request(ctx.app.getHttpServer())
+        .get(`/api/users/${targetId}`)
+        .set("Cookie", buildAuthCookie(token));
+
+      expect(response.status).toBe(200);
+      // round-trip JSON 직렬화 정합 — 정확히 5 키 (createdAt/email/id/role/updatedAt) 만,
+      // hashedPassword 부재. T-0095 의 fromEntity whitelist propagate.
+      expect(Object.keys(response.body).sort()).toEqual(
+        ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+      );
+      expect(response.body).not.toHaveProperty("hashedPassword");
+    } finally {
+      await truncateAll(ctx.prisma);
+      await ctx.app.close();
+      await ctx.prisma.$disconnect();
+    }
+  });
+});

@@ -712,4 +712,65 @@ describe("UserService", () => {
       await expect(service.findAll()).rejects.toBe(dbError);
     });
   });
+
+  // ---------------------------------------------------------------------
+  // findById — T-0101 acceptance §B. UserController.detail 의 service forward.
+  //   - happy: repository.findById 결과 raw forward + reference 동일.
+  //   - branch: id 인자 propagation 정합 (controller 에서 받은 id 가 repository 로 전달).
+  //   - negative: repository null → NotFoundException 변환 + message 에 id 포함.
+  //   - negative: repository throw raw propagate (catch 0).
+  // ---------------------------------------------------------------------
+  describe("findById()", () => {
+    // happy — repository.findById 의 user entity raw forward + reference 동일성 박제.
+    it("happy — repository.findById 결과 raw forward + 동일 reference", async () => {
+      const { service, userRepoMock } = buildService();
+      const user = buildUserFixture({ id: "user-123", role: "Admin" });
+      userRepoMock.findById.mockResolvedValueOnce(user);
+
+      const result = await service.findById("user-123");
+
+      expect(userRepoMock.findById).toHaveBeenCalledTimes(1);
+      // service 의 raw forward 박제 — 동일 reference 통과 (transform 0).
+      expect(result).toBe(user);
+    });
+
+    // branch — id 인자가 repository.findById 에 그대로 전달.
+    it("branch — id 인자가 repository.findById 에 그대로 전달", async () => {
+      const { service, userRepoMock } = buildService();
+      userRepoMock.findById.mockResolvedValueOnce(
+        buildUserFixture({ id: "any-shape-id" }),
+      );
+
+      await service.findById("any-shape-id");
+
+      expect(userRepoMock.findById).toHaveBeenCalledWith("any-shape-id");
+    });
+
+    // negative — repository null → NotFoundException 발화 + message 에 id 포함.
+    it("negative — repository.findById null 반환 시 NotFoundException 발화 (message 에 id 포함)", async () => {
+      const { service, userRepoMock } = buildService();
+      // 2 회 호출 — 첫 await expect 와 두 번째 await expect 각각 service.findById
+      // 새로 호출하므로 mockResolvedValueOnce 2 회 박제 필요.
+      userRepoMock.findById
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+
+      await expect(service.findById("ghost-id")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      // message 가 changeRole 의 `user not found: ${id}` 와 동일 형식.
+      await expect(service.findById("ghost-id")).rejects.toThrow(
+        /user not found: ghost-id/,
+      );
+    });
+
+    // negative — repository throw raw propagate (catch 0).
+    it("negative — repository.findById throw 시 raw propagate (catch 0 — DB outage 등)", async () => {
+      const { service, userRepoMock } = buildService();
+      const dbError = new Error("db down");
+      userRepoMock.findById.mockRejectedValueOnce(dbError);
+
+      await expect(service.findById("any-id")).rejects.toBe(dbError);
+    });
+  });
 });

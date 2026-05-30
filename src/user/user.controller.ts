@@ -70,6 +70,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   Param,
@@ -90,7 +91,7 @@ import { RolesGuard } from "../auth/roles.guard";
 import { AddUserDto } from "./dto/add-user.dto";
 import { ChangeRoleDto } from "./dto/change-role.dto";
 import { UserResponseDto } from "./dto/user-response.dto";
-import { UserService } from "./user.service";
+import { UserService, type UserRole } from "./user.service";
 
 @Controller("api/users")
 @UsePipes(
@@ -208,5 +209,94 @@ export class UserController {
     // 의 단일 책임은 DTO 변환 (fromEntities) + HTTP 직렬화.
     const users: User[] = await this.userService.findAll();
     return UserResponseDto.fromEntities(users);
+  }
+
+  // GET /api/users/:id — 단일 user detail 조회. T-0101 acceptance §C 박제. RBAC backbone
+  // 의 **세 번째 production 적용 endpoint** + **첫 conditional branch** (self OR Admin+).
+  //
+  // RBAC 박제 — self OR Admin+ tier (task §Why L27-35 박제):
+  //   - REQ-046 (User read-only) 박제 — User tier 가 본인 데이터 조회 가능해야 자연
+  //     (login 후 자기 프로필 확인 등 일반적 use case). Admin+ tier 만 강제 시 User
+  //     본인 조회 0 → REQ-046 형해화.
+  //   - REQ-043 (User CRUD 의 read-detail) 박제 — 다른 user 조회는 administrative concern.
+  //     T-0099 list 패턴 정합.
+  //   - **첫 conditional branch 박제** — T-0087 (SuperAdmin literal match) + T-0099
+  //     (Admin+ escalation descent) 이후 self OR role 의 OR 분기 첫 production 사용.
+  //     RolesGuard 의 @Roles literal match 만으로는 OR 분기 불가 — controller 내부
+  //     분기 필요.
+  //
+  // RolesGuard 적용 정책 — Guard 는 인증만 강제, role 분기는 controller 내부 (정공법):
+  //   - decorator stack: @UseGuards(JwtAuthGuard) 만 — RolesGuard 미적용. JwtAuthGuard
+  //     단독 의의: 인증 (cookie → JWT verify → req.user 박제) 만 강제, role 검증은
+  //     application logic 책임.
+  //   - 대안 — RolesGuard + @Roles("User") + controller 분기 강화 (User tier 이상 통과,
+  //     controller 가 self check). User+ 가 사실상 모든 인증된 사용자 → RolesGuard 의의
+  //     약화. 본 task 는 첫 안 (Guard 인증만, controller 분기) 정공법 박제.
+  //
+  // req.user shape 박제 (JwtStrategy.validate 박제):
+  //   - JwtStrategy.validate (T-0083) 가 payload 의 `{ sub: string, role: UserRole }` 를
+  //     req.user 에 박제. type narrowing 으로 sub + role 추출 — changeRole L129
+  //     `(req.user as { sub: string }).sub` cast 정공법 mirror.
+  //
+  // 분기 우선순위:
+  //   1. isSelf check 먼저 — actor.sub === :id 일 경우 self detail (User actor 도 통과).
+  //      role 검증 skip (or 분기의 short-circuit 정공법 — 본인 조회는 role 무관).
+  //   2. isAdminPlus check 다음 — actor.role ∈ {Admin, SuperAdmin} 일 경우 administrative
+  //      detail (다른 user 의 데이터 조회 권한).
+  //   3. 둘 다 false → ForbiddenException — User actor 가 다른 user 조회 시점의
+  //     기본 거부 (REQ-043 의 administrative concern 보호).
+  //
+  // ForbiddenException vs NotFoundException 분리:
+  //   - 403 (Forbidden) — 권한 부족 (다른 user 의 데이터 접근 시도). controller layer
+  //     책임 — service 호출 전 사전 차단.
+  //   - 404 (NotFoundException) — 대상 부재 (DB row 0). service layer 책임 — repository
+  //     의 null 반환을 NotFoundException 으로 변환 (T-0101 §A 박제).
+  //   - 보안 정책 측면 — 403 vs 404 분리가 enumeration attack 의 단서 (ID 존재성 누출)
+  //     를 만들 수 있으나 본 task 는 administrative concern 의 명시성 우선 (Admin+
+  //     actor 가 not-found 와 forbidden 구분 가능). 추가 강화는 별도 ADR.
+  //
+  // UserResponseDto.fromEntity 매핑 박제 (T-0095):
+  //   - hashedPassword 차단 invariant 자동 propagate — fromEntity 의 whitelist 정합이
+  //     detail 응답에서도 동일 보호. signup / changeRole / list 의 1:1 mirror.
+  //   - service-layer (UserService.findById) 는 도메인 entity (User row) 반환. DTO
+  //     변환은 controller layer 단일 책임 (clean separation 정공법 정합).
+  //
+  // endpoint 순서 (NestJS routing 우선순위):
+  //   - @Get(":id") 는 @Get() 보다 **뒤** 또는 NestJS 가 specificity 로 자동 분리.
+  //     list 가 @Get() — 충돌 0. signup 의 @Post(), changeRole 의 @Patch(":id/role") 와
+  //     route segment 도 충돌 0.
+  @Get(":id")
+  @UseGuards(JwtAuthGuard)
+  async detail(
+    @Param("id") id: string,
+    @Req() req: Request,
+  ): Promise<UserResponseDto> {
+    // req.user 의 type narrowing — JwtStrategy.validate 가 박제한 payload shape.
+    // changeRole L129 `(req.user as { sub: string }).sub` cast 정공법 mirror,
+    // role 도 함께 추출 — self OR Admin+ 분기 source.
+    const actor = req.user as { sub: string; role: UserRole };
+
+    // 분기 1 — self check. actor.sub === :id 일 경우 본인 조회 (role 무관, User actor
+    // 도 통과). REQ-046 박제 — User tier 의 self read-only path.
+    const isSelf = actor.sub === id;
+
+    // 분기 2 — Admin+ tier check. actor.role ∈ {Admin, SuperAdmin} 일 경우 administrative
+    // detail. REQ-043 박제 — Admin tier 의 user CRUD read 책임. T-0099 list pattern
+    // 의 RolesGuard escalation hierarchy descent 와 등가 (Admin literal + SuperAdmin
+    // 자동 통과).
+    const isAdminPlus = actor.role === "Admin" || actor.role === "SuperAdmin";
+
+    // 분기 3 — 둘 다 false → 403. User actor 가 다른 user 조회 시점의 기본 거부.
+    // service.findById 호출 0 — controller layer 가 사전 차단 (T-0101 §D negative case).
+    if (!isSelf && !isAdminPlus) {
+      throw new ForbiddenException(
+        "다른 user 의 상세 조회는 Admin+ 권한이 필요합니다.",
+      );
+    }
+
+    // service-layer 의 raw forward + not-found 분기 — repository.findById null →
+    // NotFoundException 변환 (T-0101 §A 박제). controller 의 단일 책임은 DTO 변환만.
+    const user: User = await this.userService.findById(id);
+    return UserResponseDto.fromEntity(user);
   }
 }

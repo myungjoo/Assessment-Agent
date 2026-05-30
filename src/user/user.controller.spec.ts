@@ -69,12 +69,14 @@ function buildUserServiceMock(): {
     changeRole: jest.Mock;
     signup: jest.Mock;
     findAll: jest.Mock;
+    findById: jest.Mock;
   };
 } {
   const serviceMock = {
     changeRole: jest.fn(),
     signup: jest.fn(),
     findAll: jest.fn(),
+    findById: jest.fn(),
   };
   return {
     userService: serviceMock as unknown as UserService,
@@ -593,6 +595,164 @@ describe("UserController (unit)", () => {
 
       const controller = new UserController(userService);
       await expect(controller.list()).rejects.toBe(svcError);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // GET detail — T-0101 acceptance §D (R-112 4 카테고리). self OR Admin+ 첫 분기 박제.
+  //   - happy: User self / Admin other / SuperAdmin other / Admin self (4 happy branch).
+  //   - negative: User other → 403 / hashedPassword 부재 / NotFound propagate /
+  //               req.user undefined graceful.
+  // -------------------------------------------------------------------------
+  describe("GET detail (unit) — T-0101 self OR Admin+ 분기", () => {
+    it("happy — User actor 가 본인 조회 시 200 + DTO 5 필드 정합 + hashedPassword 부재 (self 분기)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const fixture = buildUserFixture({
+        id: "user-self",
+        email: "self@e.test",
+        role: "User",
+      });
+      serviceMock.findById.mockResolvedValueOnce(fixture);
+
+      const controller = new UserController(userService);
+      const req = buildReqWithUser({ sub: "user-self", role: "User" });
+      const result = await controller.detail("user-self", req);
+
+      expect(serviceMock.findById).toHaveBeenCalledWith("user-self");
+      expect(serviceMock.findById).toHaveBeenCalledTimes(1);
+      expect(result).toBeInstanceOf(UserResponseDto);
+      expect(result.id).toBe("user-self");
+      expect(result.email).toBe("self@e.test");
+      expect(result.role).toBe("User");
+      expect(result.createdAt).toEqual(fixture.createdAt);
+      expect(result.updatedAt).toEqual(fixture.updatedAt);
+      expect(result).not.toHaveProperty("hashedPassword");
+    });
+
+    it("happy — Admin actor 가 다른 user 조회 시 200 + DTO 5 필드 정합 (Admin+ other 분기)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const fixture = buildUserFixture({
+        id: "other-user",
+        email: "other@e.test",
+        role: "User",
+      });
+      serviceMock.findById.mockResolvedValueOnce(fixture);
+
+      const controller = new UserController(userService);
+      const req = buildReqWithUser({ sub: "admin-self", role: "Admin" });
+      const result = await controller.detail("other-user", req);
+
+      expect(serviceMock.findById).toHaveBeenCalledWith("other-user");
+      expect(result).toBeInstanceOf(UserResponseDto);
+      expect(result.id).toBe("other-user");
+      expect(result.email).toBe("other@e.test");
+    });
+
+    it("happy — SuperAdmin actor 가 다른 user 조회 시 200 (escalation 분기 — SuperAdmin)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const fixture = buildUserFixture({
+        id: "other-user",
+        role: "Admin",
+      });
+      serviceMock.findById.mockResolvedValueOnce(fixture);
+
+      const controller = new UserController(userService);
+      const req = buildReqWithUser({ sub: "sa-self", role: "SuperAdmin" });
+      const result = await controller.detail("other-user", req);
+
+      expect(serviceMock.findById).toHaveBeenCalledWith("other-user");
+      expect(result).toBeInstanceOf(UserResponseDto);
+      expect(result.role).toBe("Admin");
+    });
+
+    it("happy — Admin actor 가 본인 조회 시 200 (self 우선순위 — isSelf=true 이미 통과)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const fixture = buildUserFixture({
+        id: "admin-self",
+        role: "Admin",
+      });
+      serviceMock.findById.mockResolvedValueOnce(fixture);
+
+      const controller = new UserController(userService);
+      const req = buildReqWithUser({ sub: "admin-self", role: "Admin" });
+      const result = await controller.detail("admin-self", req);
+
+      // isSelf=true 통과 — isAdminPlus 평가는 무관 (둘 다 true 여도 OR 분기 통과).
+      expect(serviceMock.findById).toHaveBeenCalledWith("admin-self");
+      expect(result).toBeInstanceOf(UserResponseDto);
+    });
+
+    it("negative — User actor 가 다른 user 조회 시 ForbiddenException + service 미호출 (분기 차단)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+
+      const controller = new UserController(userService);
+      const req = buildReqWithUser({ sub: "user-self", role: "User" });
+
+      await expect(controller.detail("other-user", req)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      // 분기 차단 — service.findById 호출 0 (controller layer 사전 차단).
+      expect(serviceMock.findById).not.toHaveBeenCalled();
+    });
+
+    it("negative — detail 응답에 hashedPassword 키 부재 + 정확히 5 키만 (regression — T-0095 mirror)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      serviceMock.findById.mockResolvedValueOnce(
+        buildUserFixture({
+          id: "leak-test",
+          hashedPassword: "$2b$10$LEAKED.HASH.DETAIL.SHOULD.NOT.APPEAR",
+        }),
+      );
+
+      const controller = new UserController(userService);
+      const req = buildReqWithUser({ sub: "leak-test", role: "User" });
+      const result = await controller.detail("leak-test", req);
+
+      expect(result).not.toHaveProperty("hashedPassword");
+      expect(Object.keys(result).sort()).toEqual(
+        ["createdAt", "email", "id", "role", "updatedAt"].sort(),
+      );
+    });
+
+    it("negative — service.findById NotFoundException propagate (catch 0 — raw propagate)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      serviceMock.findById.mockRejectedValueOnce(
+        new NotFoundException("user not found: non-existent"),
+      );
+
+      const controller = new UserController(userService);
+      const req = buildReqWithUser({ sub: "admin-self", role: "Admin" });
+
+      await expect(
+        controller.detail("non-existent", req),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("negative — req.user undefined 시 TypeError (Guard 미통과 theoretical — unit 분기 안전성)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+
+      const controller = new UserController(userService);
+      // req.user = undefined — JwtAuthGuard 미통과 시점, 정상 운영에서는 도달 0
+      // (Guard 가 통상 401 차단). unit 의 분기 안전성 박제 — 본 경로는 cast 후
+      // `.sub` access 시점에 TypeError 자연 발화.
+      const req = buildReqWithUser(undefined);
+
+      await expect(controller.detail("any-id", req)).rejects.toBeInstanceOf(
+        TypeError,
+      );
+      // service.findById 호출 0 — cast 실패 시점에 분기 전 종료.
+      expect(serviceMock.findById).not.toHaveBeenCalled();
+    });
+
+    it("branch — service.findById 의 raw Error 도 raw propagate (negative — unknown error)", async () => {
+      const { userService, serviceMock } = buildUserServiceMock();
+      const rawError = new Error("unexpected outage");
+      serviceMock.findById.mockRejectedValueOnce(rawError);
+
+      const controller = new UserController(userService);
+      const req = buildReqWithUser({ sub: "admin-self", role: "Admin" });
+
+      await expect(controller.detail("any-id", req)).rejects.toBe(rawError);
     });
   });
 });
