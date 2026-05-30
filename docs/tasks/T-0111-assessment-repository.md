@@ -2,12 +2,16 @@
 id: T-0111
 title: AssessmentRepository 추가 (Assessment entity CRUD primitive + raw 미저장 invariant 검증)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-029, REQ-032, REQ-033, REQ-036, REQ-038]
 estimatedDiff: 170
 estimatedFiles: 3
 created: 2026-05-31
+completedAt: 2026-05-31T04:25:00+09:00
+prNumber: 111
+mergedAs: b346d31
+reviewRounds: 1
 plannerNote: "P3 ~99% — ADR-0006 구현 chain 의 T-0111 candidate. 머지된 Assessment schema 위 data-access layer (repository slice). pr-mode, §5 미발동(schema/migration 0)."
 ---
 

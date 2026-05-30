@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0111",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T03:26:00+09:00",
-  "lastCommit": "409c062",
+  "lastActivity": "2026-05-31T04:26:00+09:00",
+  "lastCommit": "b346d31",
   "mostRecentTasks": [
+    "T-0111",
     "T-0110",
     "T-0109",
     "T-0108",
-    "T-0107",
-    "T-0106"
+    "T-0107"
   ],
   "loopSession": {
     "turnCount": 10,
     "startedAt": "2026-05-31T01:17:00+09:00",
     "cap": 10,
-    "note": "loop session #29 turn 10 CAP-REACHED — planner queued T-0111 (AssessmentRepository, pr) as resume seed. session #29 결산: T-0106 MERGED + T-0107/T-0108 doc + T-0109 ADR-0006 + T-0110 Prisma schema MERGED (counters 104→109, +5). 다음 /loop 또는 cron 이 T-0111 resume. turn-by-turn 운영 로그는 journal 이 durable source."
+    "note": "session #29 종료 (turn 10 CAP-REACHED). cron fire (2026-05-31 KST 04:13~04:26) 가 T-0111 (AssessmentRepository) PR-111 round 1 single-shot 머지 b346d31 완료. counters 109→110. 다음 /loop 또는 cron 진입 시 currentTask/nextTask 모두 null → planner dispatch (다음 ADR-0006 후속 chain candidate = AssessmentService / Contribution repo / Summary repo). 본 cron fire 의 운영 로그는 journal-2026-05-31.md 의 04:26 driver entry 참조."
   },
   "ci": {
-    "lastRun": "2026-05-31T03:14:00+09:00",
+    "lastRun": "2026-05-31T04:23:46+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/109",
-    "note": "a81b013 (T-0110 bookkeeping) main push CI green 확인. PR-109 merge (prisma migrate deploy 성공) 도 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/111",
+    "note": "PR-111 (T-0111) round 1 single-shot merge b346d31. CI first-run (run 26692512178, head fc1d77d) 의 reviewer-gate step 만 fail (comment post 이전 발화) → comment 외부화 후 issue_comment trigger 가 새 run 미발화 (GitHub bot-token recursion guard 추정) → empty commit a3b958c push 로 synchronize 재발화 → run 26692716971 (head a3b958c) green. T-0048 race-pattern 18 회차 재현 + synchronize self-heal."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 109,
+    "tasksCompleted": 110,
     "tasksBlocked": 7,
     "tasksSuperseded": 2,
     "tasksAccidentalMerge": 1
