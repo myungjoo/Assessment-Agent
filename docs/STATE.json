@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0109",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T02:26:00+09:00",
-  "lastCommit": "3bd31fc",
+  "lastActivity": "2026-05-31T02:46:00+09:00",
+  "lastCommit": "b9fd482",
   "mostRecentTasks": [
+    "T-0109",
     "T-0108",
     "T-0107",
     "T-0106",
-    "T-0105",
-    "T-0104"
+    "T-0105"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-05-31T01:17:00+09:00",
     "cap": 10,
-    "note": "loop session #29 turn 6 — planner queued T-0109 (ADR-0006 Assessment/Contribution/Summary data model + raw 미저장 R-59, commitMode pr). 누적: T-0106 MERGED, T-0107/T-0108 doc direct. turn-by-turn 운영 로그는 journal 이 durable source."
+    "note": "loop session #29 turn 7 — T-0109 MERGED PR-108 round 1 (ADR-0006 Assessment/Contribution/Summary 데이터모델 + raw 미저장 R-59). 누적: T-0106 endpoint MERGED + T-0107/T-0108 doc direct + T-0109 ADR. turn-by-turn 운영 로그는 journal 이 durable source."
   },
   "ci": {
-    "lastRun": "2026-05-31T02:22:00+09:00",
+    "lastRun": "2026-05-31T02:45:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/107",
-    "note": "3bd31fc (T-0108 amend) main push CI green 확인. 직전 doc commit 들 + PR-107 도 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/108",
+    "note": "PR-108 round 1 merge 기준 green. first-run reviewer-gate 검증 step race → gh run rerun self-heal (16 회차). 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 107,
+    "tasksCompleted": 108,
     "tasksBlocked": 7,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

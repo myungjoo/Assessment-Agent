@@ -2,12 +2,18 @@
 id: T-0109
 title: ADR-0006 신설 — Assessment/Contribution/Summary 데이터 모델 + raw 미저장 R-59 schema-level 강제
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-029, REQ-032, REQ-033, REQ-034, REQ-035, REQ-036]
 estimatedDiff: 300
 estimatedFiles: 1
+actualDiff: 177
+actualFiles: 1
 created: 2026-05-31
+completedAt: 2026-05-31
+prNumber: 108
+mergedAs: b9fd482
+reviewRounds: 1
 plannerNote: P3 backbone — Assessment/Contribution/Summary entity 의 raw 미저장(R-59) 결정을 ADR-first 로 박제. requirements.md L51 REQ-032 "P3 (ADR 필수)" 충족. §5 DB-schema 는 ADR 단계라 미발동.
 ---
 
