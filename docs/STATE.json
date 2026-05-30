@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0105",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-30T13:33:00+09:00",
+  "lastActivity": "2026-05-30T13:43:00+09:00",
   "lastCommit": "898b72f",
   "mostRecentTasks": [
     "T-0104",
@@ -17,7 +17,7 @@
     "T-0100"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-05-30T13:12:00+09:00",
     "cap": 10,
     "note": "loop session #28 turn 1 — T-0103 DONE (race-patterns.md amend 4 신규 race pattern). 직전 session #27 의 63k-char note trim — turn-by-turn 운영 로그는 journal 이 durable source."
