@@ -161,6 +161,36 @@ export class UserService {
     }
   }
 
+  // findById — 본 task (T-0101) 추가. UserController.detail (GET /api/users/:id)
+  // 의 service layer 진입점. UserRepository.findById (T-0085 박제) 의 raw forward
+  // 위에 not-found 분기 (null → NotFoundException) 만 추가. UserService.changeRole
+  // 의 invariant 3 `target` not-found 분기 (L136-140 `if (target === null) throw
+  // new NotFoundException(...)`) 정공법 1:1 mirror.
+  //
+  // 책임 분리 — controller layer (UserController.detail) 가 self OR Admin+ 분기 +
+  // UserResponseDto.fromEntity 변환을 책임. 본 service 는 도메인 entity (User row)
+  // 그대로 반환 — clean separation 정공법 정합 (findAll / changeRole / signup 패턴
+  // 1:1 mirror). DTO 변환 책임 0.
+  //
+  // 도메인 invariant 0 — 단순 조회 path. RBAC tier 결정 (self OR Admin+) 은 controller
+  // layer 책임, 본 service 는 권한 분기 0. id 인자의 형식 (cuid / uuid / etc.)
+  // 검증도 controller / DTO layer 책임, 본 service 는 string forward.
+  //
+  // Prisma error 정책: findUnique 의 row 부재는 throw 0 / null 반환 — repository 의
+  // null-safe API 정합. service layer 는 그 null 을 NotFoundException 으로 변환 (HTTP
+  // 404 NestJS 자동 mapping). 그 외 (DB connection fail / outage 등의 generic Error)
+  // 는 raw propagate (catch 0). NestJS default 500 자동 mapping.
+  async findById(id: string): Promise<User> {
+    // repository 의 raw forward — row 부재 시 null 반환 (null-safe API). 본 service
+    // 는 null 분기를 NotFoundException 으로 변환 — changeRole `target` not-found
+    // 패턴 1:1 mirror.
+    const user = await this.userRepository.findById(id);
+    if (user === null) {
+      throw new NotFoundException(`User ${id} 가 존재하지 않습니다.`);
+    }
+    return user;
+  }
+
   // findAll — 본 task (T-0099) 추가. UserController.list 의 raw forward 책임.
   // GET /api/users list endpoint (Admin+ tier) 의 service layer 진입점. GroupService.findAll
   // (L101-106) 1:1 mirror — UserRepository.findAll forwarding 만.

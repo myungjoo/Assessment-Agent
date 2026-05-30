@@ -70,6 +70,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   Param,
@@ -90,6 +91,7 @@ import { RolesGuard } from "../auth/roles.guard";
 import { AddUserDto } from "./dto/add-user.dto";
 import { ChangeRoleDto } from "./dto/change-role.dto";
 import { UserResponseDto } from "./dto/user-response.dto";
+import type { UserRole } from "./user.service";
 import { UserService } from "./user.service";
 
 @Controller("api/users")
@@ -208,5 +210,74 @@ export class UserController {
     // 의 단일 책임은 DTO 변환 (fromEntities) + HTTP 직렬화.
     const users: User[] = await this.userService.findAll();
     return UserResponseDto.fromEntities(users);
+  }
+
+  // GET /api/users/:id — single user detail 조회. T-0101 acceptance §C 박제. RBAC
+  // backbone 의 **첫 conditional branch 박제** — T-0087 (PATCH role, SuperAdmin
+  // literal) 과 T-0099 (GET list, Admin+ escalation hierarchy descent) 이후 본
+  // endpoint 가 **self OR Admin+** 의 OR 분기를 처음 production 에 박제.
+  //
+  // RBAC tier 결정 — self OR Admin+ (task §Why 박제):
+  //   - REQ-046 User read-only 박제 — User tier 가 본인 데이터 조회 가능해야 자연
+  //     (login 후 자기 프로필 확인 등 일반적 use case). Admin+ tier 만 강제 시 User
+  //     본인 조회 0 → REQ-046 형해화.
+  //   - Admin+ tier other-read — 다른 user 조회는 administrative concern (REQ-043
+  //     User CRUD 의 read-detail 책임). T-0099 의 list 패턴 정합.
+  //
+  // RolesGuard 미적용 정책 — Guard 는 인증만 강제, role 분기는 controller 내부:
+  //   - decorator stack 은 @UseGuards(JwtAuthGuard) 만 — RolesGuard 미적용. @Roles
+  //     decorator 의 literal match 는 OR 분기 (self OR role) 표현 불가 — controller
+  //     layer 가 application logic 으로 분기 책임.
+  //   - 대안 — RolesGuard + @Roles("User") + controller 분기 강화 (User+ 가 사실상
+  //     모든 인증된 사용자 → RolesGuard 의의 약화). 본 task 는 첫 안 (Guard 인증만,
+  //     controller 분기) 정공법 박제.
+  //
+  // 분기 우선순위 — isSelf check 먼저, isAdminPlus 다음, 둘 다 false 시 403:
+  //   - isSelf=true 인 경우 role 검증 skip (User actor 본인 조회 path).
+  //   - isSelf=false + isAdminPlus=true 인 경우 다른 user 조회 통과 (Admin / SuperAdmin
+  //     actor 의 other-read path).
+  //   - 둘 다 false 시 ForbiddenException — User actor 가 다른 user 조회 시도 reject.
+  //   - 분기 후 service.findById 가 not-found (404 — service layer NotFoundException
+  //     변환) 또는 entity 반환. ForbiddenException (403) vs NotFoundException (404) 의
+  //     의미 분리 박제 — 권한 부족 vs 존재 부재.
+  //
+  // req.user shape — JwtStrategy.validate (T-0083) 가 박제한 payload (`{ sub: string,
+  // role: UserRole }`) 정합. changeRole L129 (`(req.user as { sub: string }).sub`)
+  // cast 정공법 1:1 mirror — type narrowing 으로 sub + role 추출.
+  //
+  // UserResponseDto.fromEntity (T-0095 박제) — hashedPassword 컬럼 차단 invariant
+  // 자동 propagate. service-layer 의 User row 반환을 controller layer 가 단일 진입점
+  // (fromEntity) 으로 변환 — clean separation 정공법 정합.
+  //
+  // endpoint 순서 박제 — `@Get(":id")` 는 list 의 `@Get()` 보다 **뒤**. NestJS routing
+  // 우선순위에서 static path (없음) > param path 순. list 와 detail 모두 `@Get()`
+  // 와 `@Get(":id")` 로 path-level 충돌 0 — NestJS 가 path 매칭으로 자동 분기.
+  @Get(":id")
+  @UseGuards(JwtAuthGuard)
+  async detail(
+    @Param("id") id: string,
+    @Req() req: Request,
+  ): Promise<UserResponseDto> {
+    // req.user 는 JwtStrategy.validate 가 박제한 payload — type narrowing 으로
+    // sub + role 추출. changeRole L129 의 cast 패턴 1:1 mirror.
+    const actor = req.user as { sub: string; role: UserRole };
+    // 분기 1: self check — :id 가 actor 본인 ID 와 일치하면 통과 (User tier 의 본인
+    // 조회 path, REQ-046).
+    const isSelf = actor.sub === id;
+    // 분기 2: Admin+ check — actor role 이 Admin 또는 SuperAdmin 이면 통과 (다른
+    // user 조회 administrative concern, REQ-043).
+    const isAdminPlus = actor.role === "Admin" || actor.role === "SuperAdmin";
+    // 둘 다 false 시 ForbiddenException — User actor 가 다른 user 조회 시도 reject.
+    // service.findById 호출 0 — controller layer 분기 차단 (불필요 DB 조회 회피).
+    if (!isSelf && !isAdminPlus) {
+      throw new ForbiddenException(
+        "다른 user 의 상세 조회는 Admin+ 권한이 필요합니다.",
+      );
+    }
+    // service-layer 가 not-found 분기 → NotFoundException (404) 자동 mapping.
+    // controller 는 도메인 entity (User row) → UserResponseDto 변환만 책임 (T-0095
+    // 박제 — hashedPassword 컬럼 차단 invariant 자동 propagate).
+    const user: User = await this.userService.findById(id);
+    return UserResponseDto.fromEntity(user);
   }
 }
