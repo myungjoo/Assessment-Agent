@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0108",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T02:03:00+09:00",
-  "lastCommit": "cef27fa",
+  "lastActivity": "2026-05-31T02:11:00+09:00",
+  "lastCommit": "c4ae9df",
   "mostRecentTasks": [
     "T-0107",
     "T-0106",
@@ -17,18 +17,18 @@
     "T-0103"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-05-31T01:17:00+09:00",
     "cap": 10,
-    "note": "loop session #29 turn 3 — T-0107 DONE direct (api.md L69 GET /api/auth/me stale annotation amend). turn 1 = T-0106 MERGED PR-107, turn 2 = T-0107 queued. turn-by-turn 운영 로그는 journal 이 durable source."
+    "note": "loop session #29 turn 4 — planner queued T-0108 (race-patterns.md §7 amend, doc-only direct). turn 1 T-0106 MERGED PR-107, turn 2/3 T-0107 queue+done. cron fire 가 T-0107 race-absorb (c4ae9df, ff-only graceful). turn-by-turn 운영 로그는 journal 이 durable source."
   },
   "ci": {
-    "lastRun": "2026-05-31T02:00:00+09:00",
+    "lastRun": "2026-05-31T02:09:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/107",
-    "note": "cef27fa (T-0107 queue doc-commit) main push CI green 확인. bf1ffe0 / PR-107 round 1 도 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
+    "note": "5047bcb (T-0107 amend) + c4ae9df (cron race-note) main push CI 모두 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
