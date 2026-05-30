@@ -2,12 +2,15 @@
 id: T-0108
 title: race-patterns.md §7 amend — user-vs-cron concurrent direct-mode edit race 4 회차 박제 (ff-only graceful absorb)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 45
 estimatedFiles: 1
+actualDiff: 12
+actualFiles: 1
 created: 2026-05-31
+completedAt: 2026-05-31
 plannerNote: doc-only inline-amend ×0.4 — race-patterns.md §7 cron-vs-manual overlap 에 4 회차 (user-vs-cron concurrent direct-mode edit, ff-only absorb) 추가. cron-safe.
 ---
 

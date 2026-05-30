@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0108",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T02:11:00+09:00",
-  "lastCommit": "c4ae9df",
+  "lastActivity": "2026-05-31T02:18:00+09:00",
+  "lastCommit": "6934ec4",
   "mostRecentTasks": [
+    "T-0108",
     "T-0107",
     "T-0106",
     "T-0105",
-    "T-0104",
-    "T-0103"
+    "T-0104"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-05-31T01:17:00+09:00",
     "cap": 10,
-    "note": "loop session #29 turn 4 — planner queued T-0108 (race-patterns.md §7 amend, doc-only direct). turn 1 T-0106 MERGED PR-107, turn 2/3 T-0107 queue+done. cron fire 가 T-0107 race-absorb (c4ae9df, ff-only graceful). turn-by-turn 운영 로그는 journal 이 durable source."
+    "note": "loop session #29 turn 5 — T-0108 DONE direct (race-patterns.md §7 user-vs-cron direct-edit race 4 회차 amend + §8 21 회차 누적). turn 1 T-0106 MERGED PR-107, 2/3 T-0107, 4 planner T-0108 queue. turn-by-turn 운영 로그는 journal 이 durable source."
   },
   "ci": {
-    "lastRun": "2026-05-31T02:09:00+09:00",
+    "lastRun": "2026-05-31T02:16:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/107",
-    "note": "5047bcb (T-0107 amend) + c4ae9df (cron race-note) main push CI 모두 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
+    "note": "6934ec4 (T-0108 queue) main push CI green 확인. 5047bcb / c4ae9df / PR-107 도 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 106,
+    "tasksCompleted": 107,
     "tasksBlocked": 7,
     "tasksSuperseded": 1,
     "tasksAccidentalMerge": 1

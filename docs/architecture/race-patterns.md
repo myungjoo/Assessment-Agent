@@ -136,34 +136,39 @@
 
 ## §7 Cron-vs-manual /loop overlap race-condition
 
-### 회차 enumeration (3 회차 = TODAY 박제, 가장 신선한 데이터)
+### 회차 enumeration (4 회차 누적 — 1~3 회차 2026-05-30 pr-mode race-loss, 4 회차 2026-05-31 doc-only direct ff-only graceful absorb)
 
 | # | 시각 (2026-05-30 KST) | level | 박제 |
 | --- | --- | --- | --- |
 | 1 | ~10:50 | planner-level | T-0101 nextTask 양쪽 동시 queue, **cron win** — cron driver 가 manual planner 보다 먼저 STATE 갱신 |
 | 2 | ~11:25 | executor-level | T-0101 코드 완성 양쪽 동시 ship, **cron win** — cron PR-101 sha 432974a merged, manual PR-102 close + 76979ec cleanup, 5 파일 staged executor 작업 폐기 |
 | 3 | ~11:29 | planner-level | T-0102 nextTask cron planner-only 우선 박제, **cron win** — cron 가 planner-only 차원으로 manual 발 race 흡수, manual driver 가 turn 4 에서 T-0102 자연 이어받음 |
+| 4 | ~02:08 (2026-05-31 KST) | driver-level (direct-mode edit) | T-0107 동일 doc-only direct edit 양쪽 동시 수행, **cron loser** — cron 가 push 직전 fetch 로 origin 이동 (5047bcb) 감지 후 ff-only graceful 흡수 (작업 폐기 0, PR/branch cleanup 0) |
 
 단일 manual /loop session 3 turn 연속 cron lose.
+
+4 회차는 다른 sub-pattern — doc-only direct edit 동시 수행이 ff-only 로 무손실 흡수된 best-case (이전 3 회차 pr-mode race-loss 와 대조, §7 lesson 의 cron-safe doc-only direct 선호 실증).
 
 ### 원인
 
 - CLAUDE.md §10 동시 실행 정책 point 3 "사용 시간대 분리" 의 실증적 위반 박제 — cron 가 KST 09:25~11:16 6 turn 연속 fire.
 - estimated 평균 fire 간격 약 20 분 — §10 의 "cron 간격 ≥ 평균 task 소요시간 × 2" 의 30 분~2 시간 가이드라인 위반.
 - manual /loop session 이 같은 lock / STATE 를 공유하며 substantive pr-mode task 를 시도 → race 충돌.
+- 4 회차는 cron KST 02:05 fire 가 manual /loop session #29 active window (KST 01:17~02:03) 의 직후 ~5min residual 과 겹침 — §10 cron 권장 발화 시간대 (KST 02:00·14:00) 자체가 야간 manual /loop 과 충돌 가능한 구조적 overlap 박제 (4 회차 반복).
 
 ### 처리
 
 1. manual /loop session 의 substantive pr-mode task 시도가 race 충돌 시 → 직접 작업 폐기 + cleanup 책임 (PR close + branch delete + ff sync).
 2. T-0098 stale-cron-PR cleanup 패턴 1:1 mirror (직전은 13 PR + 13 branch / 본 회차는 1 PR + 1 branch).
 3. **lesson**: cron 활성 중 manual /loop 는 cron-safe doc-only direct task OR cron suspend 후 진입 정공법. substantive pr-mode 시도는 race-loss 후 폐기 비용 부담.
-4. cross-ref: [CLAUDE.md](../../CLAUDE.md) §10 (동시 실행 정책) + [docs/tasks/T-0098-stale-cron-pr-cleanup.md](../tasks/T-0098-stale-cron-pr-cleanup.md) (cleanup 패턴 mirror) + [docs/progress/journal-2026-05-30.md](../progress/journal-2026-05-30.md) L7 (race-condition 2 차 사례 source).
+4. **doc-only direct edit 동시 수행 race** 는 LOOP.md §4 ff-only graceful 흡수로 무손실 처리 (`git reset --soft HEAD~1` + `git stash --include-untracked` audit 보존 + `git merge --ff-only origin/main`) — PR/branch cleanup 불요 (pr-mode race 의 폐기 비용 0, 4 회차 실증).
+5. cross-ref: [CLAUDE.md](../../CLAUDE.md) §10 (동시 실행 정책) + [docs/tasks/T-0098-stale-cron-pr-cleanup.md](../tasks/T-0098-stale-cron-pr-cleanup.md) (cleanup 패턴 mirror) + [docs/progress/journal-2026-05-30.md](../progress/journal-2026-05-30.md) L7 (race-condition 2 차 사례 source) + [docs/progress/journal-2026-05-31.md](../progress/journal-2026-05-31.md) L3 (4 회차 ff-only absorb source).
 
 ## §8 observed cumulative
 
-- 7 + 7 + 1 + 1 + 1 + 3 = **20 회차 누적** (gh worktree 7 + reviewer-gate 7 + Windows CRLF 1 + Git Bash MSYS 1 + harness phantom 1 + cron-vs-manual overlap 3).
+- 7 + 7 + 1 + 1 + 1 + 4 = **21 회차 누적** (gh worktree 7 + reviewer-gate 7 + Windows CRLF 1 + Git Bash MSYS 1 + harness phantom 1 + cron-vs-manual overlap 4).
 - 다음 회차 시점 update 책임 — architect agent follow-up (race 발견 추가 회차 누적 시 §2~§7 enumeration 갱신).
-- **20 회차 누적 marker — ADR 신설 검토 후보** (race-handling policy escalation — 본 doc 의 observation 을 decision 으로 escalate). 특히 cron-vs-manual overlap 은 CLAUDE.md §10 동시 실행 정책 갱신 (cron 간격 권장 / 사용 시간대 분리 강화 / 강한 mutex 도입) 의 박제 source.
+- **21 회차 누적 marker — ADR 신설 검토 후보** (race-handling policy escalation — 본 doc 의 observation 을 decision 으로 escalate). 특히 cron-vs-manual overlap 은 CLAUDE.md §10 동시 실행 정책 갱신 (cron 간격 권장 / 사용 시간대 분리 강화 / 강한 mutex 도입) 의 박제 source.
 - **integrator agent 의 race-aware 평가 절차** — procedural source 는 [.claude/agents/integrator.md](../../.claude/agents/integrator.md) L52-69 의 5 step 체크리스트, 본 doc 와 cross-reference 동기.
 - **anti-pattern (사용 금지)**: `close+reopen` (issue_comment trigger 우회 목적의 close-then-reopen 은 PR review state reset → `gh run rerun` 사용) / `gh pr merge --force` (4-게이트 우회) / `--no-verify` (pre-commit hook 우회, CLAUDE.md §9 위반).
 
