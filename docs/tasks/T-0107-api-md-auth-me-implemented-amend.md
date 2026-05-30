@@ -2,12 +2,15 @@
 id: T-0107
 title: api.md L69 GET /api/auth/me "T-0085 candidate 미구현" annotation amend (구현 완료 반영)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-046]
 estimatedDiff: 22
 estimatedFiles: 1
+actualDiff: 2
+actualFiles: 1
 created: 2026-05-31
+completedAt: 2026-05-31
 plannerNote: P3 — api.md L69 stale annotation amend. T-0106 (PR-107 sha 62f93aa) merge 로 GET /api/auth/me 구현 완료 → "미구현" 박제 정정. doc-only direct inline-amend ×0.4.
 ---
 
