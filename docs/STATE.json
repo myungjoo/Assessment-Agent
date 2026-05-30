@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0112",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T04:26:00+09:00",
+  "lastActivity": "2026-05-31T06:02:00+09:00",
   "lastCommit": "b346d31",
   "mostRecentTasks": [
     "T-0111",
