@@ -7,8 +7,8 @@
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T03:18:00+09:00",
-  "lastCommit": "a81b013",
+  "lastActivity": "2026-05-31T03:26:00+09:00",
+  "lastCommit": "409c062",
   "mostRecentTasks": [
     "T-0110",
     "T-0109",
@@ -40,7 +40,7 @@
   "counters": {
     "tasksCompleted": 109,
     "tasksBlocked": 7,
-    "tasksSuperseded": 1,
+    "tasksSuperseded": 2,
     "tasksAccidentalMerge": 1
   }
 }
