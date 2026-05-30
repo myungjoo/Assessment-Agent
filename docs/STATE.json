@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0107",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T01:47:00+09:00",
-  "lastCommit": "62f93aa",
+  "lastActivity": "2026-05-31T01:57:00+09:00",
+  "lastCommit": "bf1ffe0",
   "mostRecentTasks": [
     "T-0106",
     "T-0105",
@@ -17,18 +17,18 @@
     "T-0102"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-05-31T01:17:00+09:00",
     "cap": 10,
-    "note": "loop session #29 turn 1 — T-0106 MERGED PR-107 round 1 (GET /api/auth/me self-detail endpoint). turn-by-turn 운영 로그는 journal 이 durable source."
+    "note": "loop session #29 turn 2 — planner queued T-0107 (api.md L69 stale-annotation amend, doc-only direct). turn 1 = T-0106 MERGED PR-107. turn-by-turn 운영 로그는 journal 이 durable source."
   },
   "ci": {
-    "lastRun": "2026-05-31T01:46:00+09:00",
+    "lastRun": "2026-05-31T01:51:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/107",
-    "note": "PR-107 round 1 merge 기준 green. first-run reviewer-gate 검증 step race (15 회차) 가 gh run rerun 으로 self-heal. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
+    "note": "bf1ffe0 (T-0106 bookkeeping doc-commit) main push CI green 확인. PR-107 round 1 merge 도 green. 실제 CI 상태는 구조화 필드(status/consecutiveFails/lastConclusion/lastRunUrl)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
