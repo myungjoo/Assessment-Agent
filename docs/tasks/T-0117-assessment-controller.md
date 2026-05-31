@@ -2,8 +2,11 @@
 id: T-0117
 title: AssessmentController + CreateAssessmentDto 추가 (AssessmentService 위 /api/assessments REST endpoint + e2e)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 91331f7
+prNumber: 119
+reviewRounds: 2
 coversReq: [REQ-029, REQ-032, REQ-033, REQ-036, REQ-038]
 estimatedDiff: 480
 estimatedFiles: 5

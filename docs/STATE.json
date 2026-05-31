@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0117",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T16:38:00+09:00",
-  "lastCommit": "35dfae9",
+  "lastActivity": "2026-05-31T17:00:00+09:00",
+  "lastCommit": "91331f7",
   "mostRecentTasks": [
+    "T-0117",
     "T-0116",
     "T-0115",
     "T-0114",
-    "T-0113",
-    "T-0112"
+    "T-0113"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-05-31T14:59:00+09:00",
     "cap": 10,
-    "note": "/loop session #30 turn 8 (planner-only). turn 7 의 T-0116 (SummaryService) 머지 (PR-118 35dfae9) → ADR-0006 chain 6/6 완결 후 currentTask/nextTask 모두 null → planner dispatch. 진입 origin/main fetch stale guard — HEAD == af3f917, cron 추가 없음 (직전 cron 발화는 16:21 의 a2b9497 PR-117 supersede, 그 이후 quiet). planner 가 T-0117 (AssessmentController + CreateAssessmentDto — AssessmentService 위 /api/assessments REST 4 endpoint + e2e, 기존 controller mirror) 큐잉. §5 미발동 (plain controller, 신규 dep/schema/auth-model 변경 0, AuthGuard 미적용은 기존 패턴 mirror). HTTP-facing layer 첫 slice. cap 10 중 turn 8 — 다음 turn 9 execute T-0117, turn 10 planner (cap-reached resume seed)."
+    "note": "/loop session #30 turn 9 (pr-mode 실행, 2-round). T-0117 (AssessmentController + CreateAssessmentDto, /api/assessments 4 REST endpoint) PR-119 **round 2** merge 91331f7. 진입 origin/main fetch stale guard — HEAD == 3e25f7c, cron 추가 없음. executor → 5 파일 staged (controller/dto/module + controller.spec + e2e spec, +1059) → commit 1c28f76 → integrator round 1: reviewer APPROVE 이나 CI gate fail (check-spec-presence.sh — create-assessment.dto.spec.ts 부재, race 아닌 실 결함) → ANOTHER_ROUND. 같은 turn 내 executor re-entry 로 DTO spec 추가 (3bfff2d, 972 tests) → integrator round 2: reviewer APPROVE + CI 전부 green (spec-presence + lint/build/test:cov + smoke + **e2e** + reviewer-gate) → squash merge 91331f7. e2e CI job 정상 통과 (HTTP-facing 첫 slice 검증). counters tasksCompleted 115→116, tasksSuperseded 3 유지. 다음 turn 10 = cap-reached planner (resume seed) 후 종료."
   },
   "ci": {
-    "lastRun": "2026-05-31T16:25:00+09:00",
+    "lastRun": "2026-05-31T16:58:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/118",
-    "note": "PR-118 (T-0116 SummaryService) round 1 merge 35dfae9. CI green — reviewer-gate first-run pass (approve-comment 가 gate step 이전 post). gh `--body-file` 로 post (T-0114/T-0115/T-0116 3 연속 clean). 직전 cron a2b9497 (PR-117 supersede) 도 main CI green."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/119",
+    "note": "PR-119 (T-0117 AssessmentController) round 2 merge 91331f7. round 1 CI 는 check-spec-presence.sh gate fail (DTO colocated spec 부재) → DTO spec 추가 (3bfff2d) 후 round 2 run 26707071372 (head 3bfff2d, synchronize) 전부 green (spec-presence/lint/build/test:cov/smoke/e2e/reviewer-gate). e2e CI job 정상 통과. gh `--body-file` 사용 (4 연속 clean)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 115,
+    "tasksCompleted": 116,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
