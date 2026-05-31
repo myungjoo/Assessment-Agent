@@ -33,12 +33,18 @@ jest.mock("../persistence/prisma.service", () => ({
 import {
   BadRequestException,
   NotFoundException,
+  UnauthorizedException,
+  type ExecutionContext,
   type INestApplication,
 } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { Contribution } from "@prisma/client";
 import { Prisma } from "@prisma/client";
+import type { Request } from "express";
 import request from "supertest";
+
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RolesGuard } from "../auth/roles.guard";
 
 import { ContributionController } from "./contribution.controller";
 import { ContributionService } from "./contribution.service";
@@ -291,7 +297,16 @@ describe("ContributionController (ValidationPipe integration)", () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [ContributionController],
       providers: [{ provide: ContributionService, useValue: serviceMock }],
-    }).compile();
+    })
+      // T-0122 RBAC — JwtAuthGuard / RolesGuard 를 통과 mock 으로 override (실 verify
+      // path 는 별도 layer 책임, T-0083 의 roles.guard.spec / jwt.strategy.spec 이 cover).
+      // 본 integration block 은 ValidationPipe negative case 가 책임 — guard 는 통과시켜
+      // ValidationPipe 분기에 도달하게 함. assessment.controller.spec 의 overrideGuard 패턴 mirror.
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     app = moduleRef.createNestApplication();
     // Controller-scope @UsePipes 가 자동 활성화 — global wire 안 함 (별도 후속 책임).
@@ -433,5 +448,348 @@ describe("ContributionController (ValidationPipe integration)", () => {
       .expect(400);
 
     expect(serviceMock.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+// -----------------------------------------------------------------------
+// Integration — RBAC guard wire (T-0122). JwtAuthGuard / RolesGuard 의 통과/거부
+// 분기를 overrideGuard 로 박제. assessment.controller.spec (T-0121) 의 "RBAC guard
+// integration" 1:1 mirror. 실 verify path (cookie → JWT verify / escalation 매핑) 는
+// 별도 layer spec (T-0083) 책임 — 본 block 은 controller 의 4 endpoint 에 guard 가
+// wire 됐는지 + 거부 시 service 미호출 + 통과 시 service 위임을 검증.
+// e2e (contributions.e2e-spec.ts) 가 실 verify path round-trip 박제.
+// -----------------------------------------------------------------------
+describe("ContributionController (RBAC guard integration)", () => {
+  let app: INestApplication;
+  let serviceMock: {
+    create: jest.Mock;
+    findById: jest.Mock;
+    findByAssessment: jest.Mock;
+    remove: jest.Mock;
+  };
+
+  // 통과 JwtAuthGuard mock — req.user 박제 + true 반환 (assessment.controller.spec 의
+  // makeAllowingJwtGuard 1:1 mirror).
+  function makeAllowingJwtGuard(sub: string, role: string) {
+    return {
+      canActivate: (ctx: ExecutionContext): boolean => {
+        const req = ctx.switchToHttp().getRequest<Request>();
+        (req as Request & { user?: { sub: string; role: string } }).user = {
+          sub,
+          role,
+        };
+        return true;
+      },
+    };
+  }
+
+  const ALLOW_ALL_ROLES = { canActivate: (): boolean => true };
+
+  // buildApp — guard override 분기 주입 후 app 부트스트랩. assessment.controller.spec
+  // buildApp 패턴 mirror (ContributionService mock + 2 guard override).
+  async function buildApp(opts: {
+    jwt: { canActivate: (ctx: ExecutionContext) => boolean };
+    roles: { canActivate: (ctx: ExecutionContext) => boolean };
+  }): Promise<INestApplication> {
+    serviceMock = {
+      create: jest.fn(),
+      findById: jest.fn(),
+      findByAssessment: jest.fn(),
+      remove: jest.fn(),
+    };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      controllers: [ContributionController],
+      providers: [{ provide: ContributionService, useValue: serviceMock }],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(opts.jwt)
+      .overrideGuard(RolesGuard)
+      .useValue(opts.roles)
+      .compile();
+
+    const a = moduleRef.createNestApplication();
+    await a.init();
+    return a;
+  }
+
+  afterEach(async () => {
+    if (app !== undefined) {
+      await app.close();
+    }
+  });
+
+  // -- happy — User+ tier (GET) : User role token 으로 GET 통과 + service 위임 ----
+  it("GET /api/contributions — User role 통과 시 200 + service.findByAssessment 위임 (happy — User+ tier)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.findByAssessment.mockResolvedValueOnce([
+      buildContributionFixture(),
+    ]);
+
+    await request(app.getHttpServer())
+      .get("/api/contributions?assessmentId=a-1")
+      .expect(200);
+
+    expect(serviceMock.findByAssessment).toHaveBeenCalledWith("a-1");
+  });
+
+  it("GET /api/contributions/:id — User role 통과 시 200 + service.findById 위임 (happy — User+ tier)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.findById.mockResolvedValueOnce(buildContributionFixture());
+
+    await request(app.getHttpServer())
+      .get("/api/contributions/c-1")
+      .expect(200);
+
+    expect(serviceMock.findById).toHaveBeenCalledWith("c-1");
+  });
+
+  // -- happy — Admin+ tier (POST/DELETE) : Admin role 통과 + service 위임 --------
+  it("POST /api/contributions — Admin role 통과 시 201 + service.create 위임 (happy — Admin+ tier)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.create.mockResolvedValueOnce(buildContributionFixture());
+
+    await request(app.getHttpServer())
+      .post("/api/contributions")
+      .send({
+        assessmentId: "a-1",
+        sourceType: "commit",
+        sourceUrl: "https://github.com/org/repo/commit/abc123",
+        sourceRef: "abc123",
+        difficulty: "medium",
+        contributionScore: 0.5,
+        volume: 5,
+      })
+      .expect(201);
+
+    expect(serviceMock.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("DELETE /api/contributions/:id — Admin role 통과 시 204 + service.remove 위임 (happy — Admin+ tier)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.remove.mockResolvedValueOnce(undefined);
+
+    await request(app.getHttpServer())
+      .delete("/api/contributions/c-1")
+      .expect(204);
+
+    expect(serviceMock.remove).toHaveBeenCalledWith("c-1");
+  });
+
+  // -- negative — 401 (JwtAuthGuard reject — 인증 부재 / verify fail) -----------
+  // NestJS AuthGuard 의 canActivate=false → 통상 UnauthorizedException(401).
+  // override mock 이 UnauthorizedException 을 throw 하여 실 JwtAuthGuard 의 401 분기 mirror.
+  it("GET /api/contributions — JwtAuthGuard reject 시 401 + service 미호출 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .get("/api/contributions?assessmentId=a-1")
+      .expect(401);
+
+    expect(serviceMock.findByAssessment).not.toHaveBeenCalled();
+  });
+
+  it("POST /api/contributions — JwtAuthGuard reject 시 401 + service 미호출 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/contributions")
+      .send({})
+      .expect(401);
+
+    expect(serviceMock.create).not.toHaveBeenCalled();
+  });
+
+  // -- negative — 403 (RolesGuard reject — Admin+ tier 미달, User actor) --------
+  it("POST /api/contributions — RolesGuard reject 시 403 + service 미호출 (negative — User actor Admin+ 미달)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: { canActivate: () => false },
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/contributions")
+      .send({
+        assessmentId: "a-1",
+        sourceType: "commit",
+        sourceUrl: "https://github.com/org/repo/commit/abc123",
+        sourceRef: "abc123",
+        difficulty: "medium",
+        contributionScore: 0.5,
+        volume: 5,
+      })
+      .expect(403);
+
+    expect(serviceMock.create).not.toHaveBeenCalled();
+  });
+
+  it("DELETE /api/contributions/:id — RolesGuard reject 시 403 + service 미호출 (negative — User actor Admin+ 미달)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: { canActivate: () => false },
+    });
+
+    await request(app.getHttpServer())
+      .delete("/api/contributions/c-1")
+      .expect(403);
+
+    expect(serviceMock.remove).not.toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
+// RealRolesGuard escalation — 실 RolesGuard 를 사용해 User+ / Admin+ tier 분기 박제
+// (mock 이 아닌 실 escalation 매핑 cover). JwtAuthGuard 는 통과 mock (req.user 박제),
+// RolesGuard 는 실 instance (Reflector + ROLE_HIERARCHY 실 매핑). assessment.controller.spec
+// 의 동일 describe 1:1 mirror.
+// -----------------------------------------------------------------------
+describe("ContributionController (real RolesGuard escalation 분기)", () => {
+  let app: INestApplication;
+  let serviceMock: {
+    create: jest.Mock;
+    findById: jest.Mock;
+    findByAssessment: jest.Mock;
+    remove: jest.Mock;
+  };
+
+  function makeAllowingJwtGuard(sub: string, role: string) {
+    return {
+      canActivate: (ctx: ExecutionContext): boolean => {
+        const req = ctx.switchToHttp().getRequest<Request>();
+        (req as Request & { user?: { sub: string; role: string } }).user = {
+          sub,
+          role,
+        };
+        return true;
+      },
+    };
+  }
+
+  // 실 RolesGuard 사용 — JwtAuthGuard 만 override (req.user 박제). RolesGuard 는
+  // module 의 실 provider (Reflector 자동 주입) 그대로.
+  async function buildAppWithRealRolesGuard(
+    actorRole: string,
+  ): Promise<INestApplication> {
+    serviceMock = {
+      create: jest.fn(),
+      findById: jest.fn(),
+      findByAssessment: jest.fn(),
+      remove: jest.fn(),
+    };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      controllers: [ContributionController],
+      providers: [
+        { provide: ContributionService, useValue: serviceMock },
+        RolesGuard,
+      ],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(makeAllowingJwtGuard("actor-1", actorRole))
+      .compile();
+
+    const a = moduleRef.createNestApplication();
+    await a.init();
+    return a;
+  }
+
+  afterEach(async () => {
+    if (app !== undefined) {
+      await app.close();
+    }
+  });
+
+  // User+ tier (GET) — User / Admin / SuperAdmin 모두 통과.
+  it.each(["User", "Admin", "SuperAdmin"])(
+    "GET /api/contributions — %s actor 는 User+ tier 통과 (200, escalation)",
+    async (role) => {
+      app = await buildAppWithRealRolesGuard(role);
+      serviceMock.findByAssessment.mockResolvedValueOnce([]);
+
+      await request(app.getHttpServer())
+        .get("/api/contributions?assessmentId=a-1")
+        .expect(200);
+
+      expect(serviceMock.findByAssessment).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  // Admin+ tier (POST) — User actor 는 403 차단.
+  it("POST /api/contributions — User actor 는 Admin+ tier 미달 → 403 (실 RolesGuard escalation)", async () => {
+    app = await buildAppWithRealRolesGuard("User");
+
+    await request(app.getHttpServer())
+      .post("/api/contributions")
+      .send({
+        assessmentId: "a-1",
+        sourceType: "commit",
+        sourceUrl: "https://github.com/org/repo/commit/abc123",
+        sourceRef: "abc123",
+        difficulty: "medium",
+        contributionScore: 0.5,
+        volume: 5,
+      })
+      .expect(403);
+
+    expect(serviceMock.create).not.toHaveBeenCalled();
+  });
+
+  // Admin+ tier (POST) — Admin / SuperAdmin actor 통과 (escalation hierarchy descent).
+  it.each(["Admin", "SuperAdmin"])(
+    "POST /api/contributions — %s actor 는 Admin+ tier 통과 (201, escalation hierarchy descent)",
+    async (role) => {
+      app = await buildAppWithRealRolesGuard(role);
+      serviceMock.create.mockResolvedValueOnce(buildContributionFixture());
+
+      await request(app.getHttpServer())
+        .post("/api/contributions")
+        .send({
+          assessmentId: "a-1",
+          sourceType: "commit",
+          sourceUrl: "https://github.com/org/repo/commit/abc123",
+          sourceRef: "abc123",
+          difficulty: "medium",
+          contributionScore: 0.5,
+          volume: 5,
+        })
+        .expect(201);
+
+      expect(serviceMock.create).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  // Admin+ tier (DELETE) — User actor 403 차단.
+  it("DELETE /api/contributions/:id — User actor 는 Admin+ tier 미달 → 403 (실 RolesGuard)", async () => {
+    app = await buildAppWithRealRolesGuard("User");
+
+    await request(app.getHttpServer())
+      .delete("/api/contributions/c-1")
+      .expect(403);
+
+    expect(serviceMock.remove).not.toHaveBeenCalled();
   });
 });
