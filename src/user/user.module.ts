@@ -56,6 +56,7 @@ import { PersonRepository } from "./person.repository";
 import { PersonService } from "./person.service";
 import { ServiceIdentityRepository } from "./service-identity.repository";
 import { SummaryRepository } from "./summary.repository";
+import { SummaryService } from "./summary.service";
 import { UserController } from "./user.controller";
 import { UserRepository } from "./user.repository";
 import { UserService } from "./user.service";
@@ -120,6 +121,13 @@ import { UserService } from "./user.service";
     // repository 를 inject 하여 P2003 → BadRequestException / P2025 →
     // NotFoundException 변환 + 도메인 invariant (period literal 검증 등) 강제 책임.
     SummaryRepository,
+    // SummaryService — T-0116 추가. SummaryRepository 위 application service.
+    // P2003 → BadRequestException / null → NotFoundException / P2025 →
+    // NotFoundException 변환 + period enum-as-String literal 값 검증 (허용 집합
+    // 밖 → BadRequestException, ADR-0006 §Consequences 음의 4). Summary 는
+    // @@unique 부재 → P2002 변환 분기 없음 (ContributionService 와 동일).
+    // immutable 이라 update/deactivate/reactivate 미박제.
+    SummaryService,
   ],
   exports: [
     PersonRepository,
@@ -151,6 +159,9 @@ import { UserService } from "./user.service";
     // SummaryRepository export (T-0113) — 후속 SummaryService / AssessmentService
     // 등이 다른 module 에서 본 repository 를 inject 가능하도록 노출.
     SummaryRepository,
+    // SummaryService export (T-0116) — 후속 SummaryController / endpoint 가
+    // 다른 module 에서 본 service 를 inject 가능하도록 노출.
+    SummaryService,
   ],
 })
 export class UserModule {}
