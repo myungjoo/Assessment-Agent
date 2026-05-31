@@ -43,6 +43,7 @@ import { AuthModule } from "../auth/auth.module";
 import { AssessmentRepository } from "./assessment.repository";
 import { AssessmentService } from "./assessment.service";
 import { ContributionRepository } from "./contribution.repository";
+import { ContributionService } from "./contribution.service";
 import { GroupController } from "./group.controller";
 import { GroupRepository } from "./group.repository";
 import { GroupService } from "./group.service";
@@ -106,6 +107,13 @@ import { UserService } from "./user.service";
     // 를 inject 하여 P2003 → BadRequestException / P2025 → NotFoundException
     // 변환 + 도메인 invariant (sourceType literal 검증 등) 강제 책임.
     ContributionRepository,
+    // ContributionService — T-0115 추가. ContributionRepository 위 application
+    // service. P2003 → BadRequestException / null → NotFoundException / P2025 →
+    // NotFoundException 변환 + sourceType/difficulty enum-as-String literal 값
+    // 검증 (허용 집합 밖 → BadRequestException, ADR-0006 §Consequences 음의 4).
+    // Contribution 은 @@unique 부재 → P2002 변환 분기 없음 (AssessmentService 와의
+    // 차이점).
+    ContributionService,
     // SummaryRepository — T-0113 추가. ADR-0006 chain 의 Summary slice (Person N:1,
     // 일·주·월 단위 요약 평가문, LLM 정성 narrative + 정규화 metricScore, 수집 원천
     // raw 본문 0, REQ-029/032/034/035/038). 후속 SummaryService (별도 task) 가 본
@@ -137,6 +145,9 @@ import { UserService } from "./user.service";
     // AssessmentService 등이 다른 module 에서 본 repository 를 inject 가능
     // 하도록 노출.
     ContributionRepository,
+    // ContributionService export (T-0115) — 후속 ContributionController /
+    // endpoint 가 다른 module 에서 본 service 를 inject 가능하도록 노출.
+    ContributionService,
     // SummaryRepository export (T-0113) — 후속 SummaryService / AssessmentService
     // 등이 다른 module 에서 본 repository 를 inject 가능하도록 노출.
     SummaryRepository,
