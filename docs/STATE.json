@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0118",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T17:00:00+09:00",
+  "lastActivity": "2026-05-31T17:09:00+09:00",
   "lastCommit": "91331f7",
   "mostRecentTasks": [
     "T-0117",
@@ -17,10 +17,10 @@
     "T-0113"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-05-31T14:59:00+09:00",
     "cap": 10,
-    "note": "/loop session #30 turn 9 (pr-mode 실행, 2-round). T-0117 (AssessmentController + CreateAssessmentDto, /api/assessments 4 REST endpoint) PR-119 **round 2** merge 91331f7. 진입 origin/main fetch stale guard — HEAD == 3e25f7c, cron 추가 없음. executor → 5 파일 staged (controller/dto/module + controller.spec + e2e spec, +1059) → commit 1c28f76 → integrator round 1: reviewer APPROVE 이나 CI gate fail (check-spec-presence.sh — create-assessment.dto.spec.ts 부재, race 아닌 실 결함) → ANOTHER_ROUND. 같은 turn 내 executor re-entry 로 DTO spec 추가 (3bfff2d, 972 tests) → integrator round 2: reviewer APPROVE + CI 전부 green (spec-presence + lint/build/test:cov + smoke + **e2e** + reviewer-gate) → squash merge 91331f7. e2e CI job 정상 통과 (HTTP-facing 첫 slice 검증). counters tasksCompleted 115→116, tasksSuperseded 3 유지. 다음 turn 10 = cap-reached planner (resume seed) 후 종료."
+    "note": "/loop session #30 turn 10 CAP-REACHED — planner queued T-0118 (ContributionController, pr) as resume seed. §1[8](e) 로 loop 종료, 다음 /loop 또는 cron 이 T-0118 resume. **session #30 결산** (KST 14:59~17:09, 주간 window): tasksCompleted 111→116 (+5 머지 = T-0113 SummaryRepository / T-0114 AssessmentService / T-0115 ContributionService / T-0116 SummaryService / T-0117 AssessmentController). **ADR-0006 chain 완전 종결** (schema + repository 3 + service 3 = 6/6) **+ HTTP-facing layer 첫 slice (AssessmentController)**. turn 1 은 stale worktree 에서 cron 이 이미 머지한 T-0111 을 중복 실행 → push reject 로 race 감지 후 폐기 (force-push 0). turn 9 (T-0117) 는 session 첫 ANOTHER_ROUND — check-spec-presence gate 가 DTO spec 누락 catch → 같은 turn re-entry 로 fix → round 2 merge. cron 1 회 동시 발화 (16:21, PR-117 T-0115 중복 supersede, tasksSuperseded 2→3) 도 무해 흡수. gh `--body-file` 4 연속 clean (turn 1 `@-` stdin 버그 회피). turn-by-turn 운영 로그는 journal 이 durable source."
   },
   "ci": {
     "lastRun": "2026-05-31T16:58:00+09:00",
