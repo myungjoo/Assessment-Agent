@@ -2,7 +2,11 @@
 id: T-0123
 title: SummaryController 에 RBAC guard 적용 (User+/Admin+ tier 강제)
 phase: P3
-status: PENDING
+status: DONE
+mergedAs: 31c96bd
+prNumber: 125
+reviewRounds: 1
+completedAt: 2026-06-01T00:29:00+09:00
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-046, REQ-084, REQ-086]
 estimatedDiff: 270

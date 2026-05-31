@@ -1,34 +1,34 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": "T-0123",
+  "currentTask": null,
   "nextTask": null,
   "lock": {
-    "holder": "loop",
-    "since": "2026-06-01T00:13:00+09:00"
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-01T00:13:00+09:00",
-  "lastCommit": "6779cf8",
+  "lastActivity": "2026-06-01T00:29:00+09:00",
+  "lastCommit": "31c96bd",
   "mostRecentTasks": [
+    "T-0123",
     "T-0122",
     "T-0121",
     "T-0120",
-    "T-0119",
-    "T-0118"
+    "T-0119"
   ],
   "loopSession": {
     "turnCount": 1,
     "startedAt": "2026-06-01T00:13:00+09:00",
     "cap": 10,
-    "note": "/loop session #33 (KST 00:13~) t1 — T-0123 claim. cron(00:06 fire, 20644b0)이 T-0123 (SummaryController RBAC chain 3/3) 을 doc-only direct 로 clean queue 후 lock 해제 (turn 완료). #31/#32 와 달리 active concurrent malfunction 부재 — 진입 시점 open PR 0 / T-0123·summary remote branch 0 / main 20644b0 CI green 확인. 사용자가 `/loop turn cap 10` 명시 invocation. duplicate-PR race (=#31/#32 orphan 원인) 방어로 visible lock-claim 선행: 본 commit 이 currentTask=T-0123 + lock=loop 를 main 에 push → 향후 60분간 cron fire 가 lock(<60min) 인지하고 backoff. 이후 같은 turn 에서 executor dispatch 로 T-0123 (pr-mode) 실행 예정. 다중 turn pr 진행 동안 lock 유지 (turn 간 release 안 함 — race 표면 차단)."
+    "note": "/loop session #33 (KST 00:13~00:29) t1 — T-0123 DONE + STAND DOWN. cron(00:06, 20644b0)이 T-0123 (SummaryController RBAC chain 3/3) clean queue. 진입 시점 active concurrent malfunction 부재 확인 (open PR 0 / branch 0 / main green) → #31/#32(active-race) 와 다른 clean handoff. visible lock-claim(4e2296d, lock=loop push) 선행으로 60분 cron backoff 확보 후, **단일 turn 안에서 executor(implement+test) → integrator(PR-125 open+reviewer+4-gate merge) end-to-end 완수**. round 1 reviewer APPROVE, reviewer-gate race 무발생(comment 선 post), squash merge 31c96bd, branch auto-delete. tasksCompleted 122. **STAND DOWN 사유**: 핸드오프된 queued task 완료 = 자연스러운 종료점. 다음 task 의 planner dispatch 는 cron backbone 역할(§10 night-window=cron domain) — /loop 이 새 task 를 만들면 planner 중복(둘 다 T-0124 선택) + 야간 race 표면 재개방. lock 해제하여 cron unblock. reschedule 안 함."
   },
   "ci": {
-    "lastRun": "2026-05-31T22:36:33+09:00",
+    "lastRun": "2026-06-01T00:29:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/6779cf8",
-    "note": "T-0122 PR-124 round 1: push-triggered 첫 run 26713802418 reviewer-gate fail (race — reviewer comment posted 후 fail 완료) → empty commit 1fdec77 push 으로 CI 재 trigger → run 26713996968 success 13:33:21Z → merge 6779cf8. 4-게이트 (reviewer APPROVE / PR comment 4586817997 / integrator self-check / CI green) 모두 PASS. PR-122 (T-0121) 도 동일 timing race 패턴이나 그쪽은 reviewer comment 가 run 중 posted 돼 1발 통과 — 본 PR-124 는 race 진 후 empty-commit fallback 박제."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/125",
+    "note": "T-0123 PR-125 round 1: reviewer comment 를 PR open 직후 즉시 post → 첫 pull_request run 26716570877 의 reviewer-gate step(job 후반)이 comment 인지하여 1발 green (PR-124 의 timing race 무발생 — empty-commit fallback 불요). 4-게이트 (reviewer APPROVE / PR comment 4587144509 / integrator self-check / CI green) 모두 PASS → squash merge 31c96bd. 머지 코드 tree(47ee157) PR-CI success 로 검증 완료. merge 후 main run(31c96bd)은 in_progress — 동일 tree 라 green 예상, 다음 cron turn 이 재확인."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 121,
+    "tasksCompleted": 122,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
