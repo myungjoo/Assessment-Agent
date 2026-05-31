@@ -3,8 +3,8 @@
 // ContributionRepository (T-0112) / AssessmentRepository (T-0111) 의 패턴 1:1 mirror.
 //
 // 책임 경계:
-//   - 본 repository 는 도메인 invariant (period 의 `"daily"` / `"weekly"` /
-//     `"monthly"` literal 검증, periodStart 의 단위 정합 (일=자정 / 주=월요일 자정 /
+//   - 본 repository 는 도메인 invariant (period 의 `"day"` / `"week"` /
+//     `"month"` literal 검증, periodStart 의 단위 정합 (일=자정 / 주=월요일 자정 /
 //     월=1일 자정), FK 부재 시 HTTP exception 변환 등) 를 검증하지 않는다 — 후속
 //     SummaryService 책임 (ADR-0006 §Consequences 음의 4).
 //   - 본 class 는 PrismaService 의 `summary` delegate 에 1:1 forwarding 만 한다.
@@ -56,7 +56,7 @@ import { PrismaService } from "../persistence/prisma.service";
 export interface SummaryCreateInput {
   // Person N:1 FK — 부재 시 Prisma `P2003` propagate.
   personId: string;
-  // `"daily"` / `"weekly"` / `"monthly"` enum-as-String. literal 값 검증은 service-layer 책임.
+  // `"day"` / `"week"` / `"month"` enum-as-String. literal 값 검증은 service-layer 책임.
   period: string;
   // 요약 기간 시작 (일/주/월 경계). 단위 정합 (자정 / 월요일 / 1일) 검증은 service-layer 책임.
   periodStart: Date;
@@ -70,7 +70,7 @@ export interface SummaryCreateInput {
 // 아니면 `where: { personId }` 의 2 분기. 시계열 조회 (REQ-038) 의 query 단순화
 // (AssessmentRepository.AssessmentFindByPersonOptions 패턴 1:1 mirror).
 export interface SummaryFindByPersonOptions {
-  // `"daily"` / `"weekly"` / `"monthly"` 중 하나. undefined 면 전체 period 조회.
+  // `"day"` / `"week"` / `"month"` 중 하나. undefined 면 전체 period 조회.
   period?: string;
 }
 
