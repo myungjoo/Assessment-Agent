@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0119",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T18:43:18+09:00",
+  "lastActivity": "2026-05-31T18:54:00+09:00",
   "lastCommit": "5a0ae0e",
   "mostRecentTasks": [
     "T-0118",
@@ -17,18 +17,18 @@
     "T-0114"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-05-31T18:25:00+09:00",
     "cap": 10,
-    "note": "/loop session #31 turn 1 (KST ~18:25~): T-0118 (ContributionController + CreateContributionDto, pr) MERGED via PR-120 round 1 — AssessmentController(T-0117) 1:1 mirror, /api/contributions 4 endpoint (GET ?assessmentId= / GET :id / POST 201 / DELETE 204). tasksCompleted 116->117. nextTask=null (다음 turn planner 가 P3 다음 task queue). **운영 특이사항 (durable)**: 본 session 은 harness 가 broken/empty worktree (.claude/worktrees/vigilant-boyd-707106 — git worktree list 미등록, repo 파일 부재, .claude+NVIDIA 폴더만) 에서 발화 → relative-path tool 호출 전부 fail. EnterWorktree/ExitWorktree 둘 다 거부 (main 은 linked worktree 아님). git 은 toplevel 로 main repo 정상 resolve. workaround: 모든 sub-agent (executor/integrator/reviewer) prompt 에 'cd /c/Users/myung/Assessment-Agent + 절대경로 Read/Edit' note 주입 → clean 통과. bash cwd 가 매 명령 stray dir 로 reset 되므로 driver 도 매 명령 inline cd. reviewer 는 headless `claude -p` 라 gh comment 승인 못 받아 integrator 가 ADR-0005 Path A fallback 으로 verdict body 대리 post (attribution header 보존, 위장 아님). reviewer-gate race 정상 흡수 (first run pull_request fail expected -> comment-triggered issue_comment second run green). 향후 clean 실행은 main repo 디렉토리에서 직접 /loop (worktree 밖)."
+    "note": "/loop session #31 (KST 18:25~, 주간 window). turn 1: T-0118 (ContributionController+DTO) MERGED PR-120 round 1 single-shot (5a0ae0e). turn 2: planner 가 T-0119 (SummaryController + CreateSummaryDto + /api/summaries 4 endpoint, pr) queue — controller mirror chain 3/3 종결 slice (Assessment T-0117 / Contribution T-0118 / Summary T-0119, ADR-0006 trio HTTP-facing layer 완성), §5 全 미발동. turn 1 의 doc CI f471c37 success 확인. **운영**: harness phantom worktree (vigilant-boyd-707106 — 미등록/repo 파일 부재, session #29/#30 동일 quirk) 에서 발화 → 모든 sub-agent prompt 에 절대경로+inline-cd env note 주입 workaround. EnterWorktree/ExitWorktree 거부, in-chat cd 미반영 (harness cwd launch 시 고정). reviewer headless 라 integrator 가 ADR-0005 Path A 로 verdict 대리 post. gh --body-file. tasksCompleted 116->117. 잔여 turn 8 (cap 10). 다음 turn = driver 가 T-0119 executor dispatch."
   },
   "ci": {
-    "lastRun": "2026-05-31T18:40:00+09:00",
+    "lastRun": "2026-05-31T18:48:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/120",
-    "note": "PR-120 (T-0118 ContributionController) round 1 merge 5a0ae0e. first run 26708966947 (event=pull_request) 는 reviewer-gate step `reviewer agent approval 검증` 단독 fail (race, expected — reviewer comment post 전). comment-triggered second run 26709096270 (event=issue_comment) 19 step 전부 green (spec-presence/lint/build/test:cov/smoke/e2e/reviewer-gate). gate (d) 는 second run 으로 평가 (issue_comment run 은 headBranch=main 으로 보고되어 --branch 필터로 안 잡힘 — 비필터 run list 로 발견, T-0117 동일). gh `--body-file` 사용."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions",
+    "note": "doc bookkeeping commit f471c37 (T-0118 DONE) push run completed success (lint/build/test:cov/smoke/e2e/spec-presence — 코드 변경 0). 직전 PR-120 (T-0118) merge 5a0ae0e + comment-triggered second run 26709096270 19 step green. gh --body-file 사용."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
