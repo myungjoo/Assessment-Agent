@@ -7,7 +7,7 @@
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T22:36:33+09:00",
+  "lastActivity": "2026-05-31T23:36:00+09:00",
   "lastCommit": "6779cf8",
   "mostRecentTasks": [
     "T-0122",
@@ -17,10 +17,10 @@
     "T-0118"
   ],
   "loopSession": {
-    "turnCount": 9,
-    "startedAt": "2026-05-31T18:25:00+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-05-31T23:33:00+09:00",
     "cap": 10,
-    "note": "/loop session #31 (KST 18:25~). t1-t8 요약: T-0118/T-0119 MERGED (controller chain 3/3), T-0120 DONE (api.md sync), T-0121 MERGED (AssessmentController RBAC chain 1/3), T-0122 queued (ContributionController RBAC). tasksCompleted 116->120. **t9: 동시 driver RACE 감지 → /loop STAND DOWN (T-0122 미실행)**. 증거: PR-123 (branch claude/affectionate-babbage-L3i1d, 20:07 KST 생성) + PR-112 (branch claude/affectionate-babbage-SnbCC, 05-30 20:08 UTC 생성) 가 동일 doc-only direct 변경을 auto-worktree branch + PR 로 우회. /loop yield 후 KST 22:11 cron fire (본 fire) 가 T-0122 실 실행 → PR-124 round 1 single-shot MERGED 6779cf8. **사용자 개입 권장 (잔여)**: orphan PR-112/PR-123 close + auto-worktree branch (L3i1d / SnbCC / mig2a) cleanup."
+    "note": "/loop session #32 (KST 23:33~) t1 — orphan PR cleanup + STAND DOWN. 진입 시 local main 이 origin 보다 3 commit stale (d33a9b7) → ff-sync 하여 f46b696 동기. **#31 t9 STAND DOWN(20:10) 이후 cron(22:11 fire, ~22:36 종료)이 T-0122 (ContributionController RBAC chain 2/3) 정상 머지 (PR-124 6779cf8)** — §10 cron=backbone / loop=guest 위임이 의도대로 작동, tasksCompleted 121. 사용자 AskUserQuestion='Clean up orphans first' 결정대로 잔여 orphan 정리만 수행: PR-123(T-0122 중복 queue)+PR-112(T-0112 중복 queue) 둘 다 동시 driver malfunction 의 doc-only auto-worktree PR(CI 실패 잔존, main 최신이라 손실 0) → Korean 코멘트 후 close (open PR 0). orphan branch L3i1d/SnbCC gh-api DELETE 성공, mig2a 이미 부재(422). **잔여 (사용자 판단 대기, orphan 아님)**: merged-PR leftover branch 5개 (claude/T-0110·T-0111·T-0112·T-0115·T-0122 — squash-merge auto-delete 403 누적) housekeeping. /loop reschedule 안 함 — 동일 evening window cron 충돌 회피 + cron 이 backbone(다음 task=SummaryController RBAC chain 3/3 인계)."
   },
   "ci": {
     "lastRun": "2026-05-31T22:36:33+09:00",
