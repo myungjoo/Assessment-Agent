@@ -41,6 +41,7 @@ import { forwardRef, Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 
 import { AssessmentRepository } from "./assessment.repository";
+import { AssessmentService } from "./assessment.service";
 import { ContributionRepository } from "./contribution.repository";
 import { GroupController } from "./group.controller";
 import { GroupRepository } from "./group.repository";
@@ -94,6 +95,11 @@ import { UserService } from "./user.service";
     // 가 본 repository 를 inject 하여 P2002 → ConflictException / P2025 →
     // NotFoundException 변환 + 도메인 invariant 강제 책임.
     AssessmentRepository,
+    // AssessmentService — T-0114 추가. AssessmentRepository 위 application service.
+    // P2002 → ConflictException / null → NotFoundException / P2025 →
+    // NotFoundException 변환 + period/scope/difficulty enum-as-String literal 값
+    // 검증 (허용 집합 밖 → BadRequestException, ADR-0006 §Consequences 음의 4).
+    AssessmentService,
     // ContributionRepository — T-0112 추가. ADR-0006 chain 의 Contribution slice
     // (Assessment N:1, 개별 commit/PR/문서 단위, 참조 식별자만 보유 raw 본문 0,
     // REQ-029/032/033). 후속 ContributionService (별도 task) 가 본 repository
@@ -124,6 +130,9 @@ import { UserService } from "./user.service";
     // AssessmentRepository export (T-0111) — 후속 AssessmentModule / Service 가
     // 다른 module 에서 본 repository 를 inject 가능하도록 노출.
     AssessmentRepository,
+    // AssessmentService export (T-0114) — 후속 AssessmentController / endpoint 가
+    // 다른 module 에서 본 service 를 inject 가능하도록 노출.
+    AssessmentService,
     // ContributionRepository export (T-0112) — 후속 ContributionService /
     // AssessmentService 등이 다른 module 에서 본 repository 를 inject 가능
     // 하도록 노출.
