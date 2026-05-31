@@ -7,8 +7,8 @@
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-06-01T05:25:00+09:00",
-  "lastCommit": "d1b396b",
+  "lastActivity": "2026-06-01T06:05:00+09:00",
+  "lastCommit": "5280b02",
   "mostRecentTasks": [
     "T-0124",
     "T-0123",
@@ -23,12 +23,12 @@
     "note": "/loop session #33 (KST 00:13~00:29) t1 — T-0123 DONE + STAND DOWN. cron(00:06, 20644b0)이 T-0123 (SummaryController RBAC chain 3/3) clean queue. 진입 시점 active concurrent malfunction 부재 확인 (open PR 0 / branch 0 / main green) → #31/#32(active-race) 와 다른 clean handoff. visible lock-claim(4e2296d, lock=loop push) 선행으로 60분 cron backoff 확보 후, **단일 turn 안에서 executor(implement+test) → integrator(PR-125 open+reviewer+4-gate merge) end-to-end 완수**. round 1 reviewer APPROVE, reviewer-gate race 무발생(comment 선 post), squash merge 31c96bd, branch auto-delete. tasksCompleted 122. **STAND DOWN 사유**: 핸드오프된 queued task 완료 = 자연스러운 종료점. 다음 task 의 planner dispatch 는 cron backbone 역할(§10 night-window=cron domain) — /loop 이 새 task 를 만들면 planner 중복(둘 다 T-0124 선택) + 야간 race 표면 재개방. lock 해제하여 cron unblock. reschedule 안 함."
   },
   "ci": {
-    "lastRun": "2026-06-01T00:29:00+09:00",
-    "status": "green",
-    "consecutiveFails": 0,
-    "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/126",
-    "note": "T-0125 cron turn end — code 작업 (decorator + UserController 2 callsite refactor + spec) 단일 commit (d1b396b) 으로 harness session branch `claude/nifty-knuth-EBG6G` push, PR-126 DRAFT open (사용자 cron prompt 의 'draft PR, 사람 검토 후 merge' 규약). LOOP.md §3.3 의 4-게이트 (reviewer + integrator + 자동 merge) 는 본 PR 에서 사용하지 않음 — 사람 직접 검토 후 ready-for-review 전환 또는 merge. local test 1060/1060 pass + 100% coverage (decorator 신설 파일 line+function+branch+statement 전 100%). smoke/e2e 는 local DATABASE_URL 부재로 skip — CI 책임. CI conclusion 본 turn 안에서 확인 0 — PR draft 라 ready-for-review 전환 전 CI 미실행 가능성 + cron mode 다음 turn 책임."
+    "lastRun": "2026-06-01T05:23:58+09:00",
+    "status": "fail",
+    "consecutiveFails": 1,
+    "lastConclusion": "failure",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26723469195",
+    "note": "T-0125 PR-126 (draft, claude/nifty-knuth-EBG6G@d1b396b) 의 첫 CI run 26723469195 conclusion=failure (job 78754584178 '기본 검사' completed_at 2026-05-31T20:23:58Z = 2026-06-01T05:23:58 KST). 본 cron(06:05) 의 R-114 후속 점검에서 catch. failure 세부 step (lint/build/test:cov/smoke/e2e/spec-presence/reviewer-gate 중 어느 것) 은 본 환경에서 gh CLI 부재 + WebFetch 인증 부재 + MCP get-logs 미노출 로 driver 직접 확인 불가 — 사람이 actions 페이지에서 확인 후 결정. consecutiveFails 0→1 (LOOP §1 [5], BLOCKED threshold 3 미만). 본 PR 은 사용자 cron prompt 의 'draft PR, 사람 검토 후 merge' 규약으로 자동 reviewer/integrator 4-게이트 미적용 — driver 가 fix push 도 자동 수행하지 않음 (human-review domain). 다음 cron turn 의 §1 [2] resume 판정은 PR state 와 사람 행동 (CI fix push / ready-for-review 전환 / merge) 에 따라 분기. local test 1060/1060 pass + 100% coverage (T-0125 turn end 시점) — CI fail 은 e2e/smoke 의 DB 의존 또는 환경 차이 가능성 (DATABASE_URL CI env 책임)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
