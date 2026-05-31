@@ -7,8 +7,8 @@
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-06-01T07:04:00+09:00",
-  "lastCommit": "ae65e22",
+  "lastActivity": "2026-06-01T08:02:00+09:00",
+  "lastCommit": "3599231",
   "mostRecentTasks": [
     "T-0124",
     "T-0123",
@@ -28,7 +28,7 @@
     "consecutiveFails": 1,
     "lastConclusion": "failure",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26723469195",
-    "note": "T-0125 PR-126 (draft, claude/nifty-knuth-EBG6G@d1b396b) 의 첫 CI run 26723469195 conclusion=failure (job 78754584178 '기본 검사' completed_at 2026-05-31T20:23:58Z = 2026-06-01T05:23:58 KST). 본 cron(07:04) 재점검: PR-126 state unchanged — open / draft=true / merged=false / mergeable_state=unknown / head sha d1b396b 변동 0 / comments 0 / reviews 0 / check_runs 동일 1건 (78754584178 failure). 사람 fix push / ready-for-review 전환 / merge 행위 부재. 직전 cron(06:05) 박제 그대로. failure 세부 step 은 본 환경에서 gh CLI 부재 + MCP get-logs 미노출 로 직접 확인 불가 — 사람이 actions 페이지에서 확인 후 결정. consecutiveFails 1 유지 (같은 run 의 재관측이라 증가 안 함 — LOOP §1 [5] BLOCKED threshold 3 미만). 본 PR 은 사용자 cron prompt 의 'draft PR, 사람 검토 후 merge' 규약으로 자동 reviewer/integrator 4-게이트 미적용 — driver 가 fix push 도 자동 수행하지 않음 (human-review domain). 다음 cron turn 의 §1 [2] resume 판정은 PR state 와 사람 행동에 따라 분기."
+    "note": "T-0125 PR-126 (draft, claude/nifty-knuth-EBG6G@d1b396b) 의 첫 CI run 26723469195 conclusion=failure (job 78754584178 '기본 검사' completed_at 2026-05-31T20:23:58Z = 2026-06-01T05:23:58 KST). 본 cron(08:02) 재점검 — 직전 cron(07:04, 3599231) 의 PR-126 no-change 재관측 패턴이 4 회차 연속 반복. MCP `pull_request_read` 결과: PR-126 state=open / draft=true / merged=false / head sha d1b396b 불변 / commits=1 / updated_at=2026-05-31T20:22:12Z (PR open 시점 그대로) / check_runs 동일 1건 (78754584178 failure). 사람 fix push / ready-for-review 전환 / merge / close 행위 부재. failure 세부 step 은 본 환경에서 gh CLI 부재 + MCP get-logs 미노출 로 직접 확인 불가 — 사람이 actions 페이지에서 확인 후 결정. consecutiveFails 1 유지 (같은 run 의 재관측이라 증가 안 함 — LOOP §1 [5] BLOCKED threshold 3 미만). 본 PR 은 사용자 cron prompt 의 'draft PR, 사람 검토 후 merge' 규약으로 자동 reviewer/integrator 4-게이트 미적용 — driver 가 fix push 도 자동 수행하지 않음 (human-review domain). 다음 cron turn 의 §1 [2] resume 판정도 PR state 와 사람 행동에 따라 분기 — 사람 행동 없으면 본 turn 과 동일 no-op 패턴 반복."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
