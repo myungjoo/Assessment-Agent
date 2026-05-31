@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0114",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T15:21:00+09:00",
+  "lastActivity": "2026-05-31T15:35:00+09:00",
   "lastCommit": "714cc20",
   "mostRecentTasks": [
     "T-0113",
@@ -17,18 +17,18 @@
     "T-0109"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-05-31T14:59:00+09:00",
     "cap": 10,
-    "note": "/loop session #30 turn 1 (KST 14:59 주간 window — cron 야간대와 분리, §10 rule 3). 본 turn 은 stale worktree 에서 wake — 로컬 STATE 가 nextTask=T-0111 로 ~10h 뒤쳐져 있어 T-0111 을 중복 실행했으나, origin/main 점검 결과 T-0111(PR-111)·T-0112(PR-113) 이미 cron 머지 완료 + 실제 nextTask=T-0113 확인. 중복 commit a73aa71 폐기 (force-push 없음), origin/main(f35c31a) 동기 후 실제 T-0113 실행. T-0113 (SummaryRepository) PR-114 round 1 single-shot merge 714cc20. cron-vs-loop race graceful 흡수 (§10 rule 5)."
+    "note": "/loop session #30 turn 2 (planner-only). turn 1 에서 T-0113 머지 (PR-114 714cc20) + bookkeeping push (7442d4e, main CI green 확인) 후 currentTask/nextTask 모두 null → planner dispatch. 진입 시 origin/main fetch 로 stale 재발 방지 (turn 1 의 cron-vs-loop race 교훈) — origin/main HEAD == 7442d4e 로 cron 추가 진행 없음 확인. planner 가 T-0114 (AssessmentService — AssessmentRepository 위 HTTP exception 변환 + enum-as-String literal 검증, pr-mode, sizeExempt) 큐잉. ADR-0006 chain repository half(T-0111~T-0113) 완결 후 service half 진입. 다음 turn 3 의 driver 가 currentTask=T-0114 transfer → executor dispatch."
   },
   "ci": {
-    "lastRun": "2026-05-31T15:18:00+09:00",
+    "lastRun": "2026-05-31T15:30:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/114",
-    "note": "PR-114 (T-0113) round 1 merge 714cc20. reviewer-gate CI first-run race 재현 — gh `--body @-` stdin 미소비로 PR body/comment 가 literal \"@-\" → `--body-file` 로 재post 후 approve-vocab 4 hit, empty commit 으로 synchronize 재발화 → run 26705194816 (head c97ed22) green (reviewer agent approval 검증 step 포함). T-0111/T-0112 패턴 1:1 mirror. (이 머신은 향후 `--body-file` 사용 권장.)"
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/7442d4e",
+    "note": "turn 1 bookkeeping 7442d4e (main push, doc-only) CI green (run 26705309221 success). 직전 PR-114 (T-0113) merge 714cc20 도 green. reviewer-gate first-run race 는 gh `--body @-` stdin 미소비 → `--body-file` 재post + synchronize empty commit 으로 self-heal (T-0111/T-0112 1:1 mirror). (이 머신은 향후 `--body-file` 사용 권장.)"
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
