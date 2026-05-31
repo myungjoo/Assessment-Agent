@@ -2,7 +2,7 @@
 id: T-0118
 title: ContributionController + CreateContributionDto + /api/contributions endpoint
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-029, REQ-032, REQ-033, REQ-036]
 estimatedDiff: 470
@@ -12,6 +12,10 @@ sizeExempt: true
 exemptReason: "R-112 4-카테고리 HTTP backbone (controller + colocated controller spec + DTO + DTO spec + e2e) × 1.5 — T-0117 actual ~1059 LOC 1:1 mirror. 4 endpoint × (happy + error envelope + branch + negative 충분) unit spec + e2e spec 2 layer test mass. estimatedDiff 470 cap 초과이나 indivisible controller+DTO+spec+e2e slice, T-0117 precedent 정당화."
 plannerNote: "P3 controller mirror chain — AssessmentController(T-0117) 직후 ContributionController. plain controller over 기존 ContributionService(T-0115), §5 미발동."
 dependsOn: [T-0115, T-0117]
+completedAt: 2026-05-31T18:43:00+09:00
+mergedAs: 5a0ae0e
+prNumber: 120
+reviewRounds: 1
 ---
 
 # T-0118 — ContributionController + CreateContributionDto + /api/contributions endpoint
