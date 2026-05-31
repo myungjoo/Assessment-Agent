@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0122",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T19:58:50+09:00",
+  "lastActivity": "2026-05-31T20:06:00+09:00",
   "lastCommit": "929166d",
   "mostRecentTasks": [
     "T-0121",
@@ -17,10 +17,10 @@
     "T-0117"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-05-31T18:25:00+09:00",
     "cap": 10,
-    "note": "/loop session #31 (KST 18:25~, 주간 window). t1: T-0118 MERGED PR-120. t2: queued T-0119. t3: T-0119 MERGED PR-121 — controller mirror chain 3/3 완결. t4: queued T-0120. t5: T-0120 DONE (api.md sync, direct). t6: queued T-0121. t7: T-0121 MERGED PR-122 round 1 single-shot (929166d) — AssessmentController 4 endpoint RBAC tier enforce (GET=User+ / POST·DELETE=Admin+), ADR-0008/T-0083 scaffold 구현. reviewer 가 tier 정합(ROLE_HIERARCHY 대조) + 401/403 negative + size overage(총 +654/-61, prod +43/-3, 3 파일 < 5 cap, T-0117/118/119 precedent) 독립 검증 후 APPROVE. e2e real-PostgreSQL auth job green. tasksCompleted 116->120 (코드 +3 머지 + doc +1). **운영**: harness phantom worktree (memory env_phantom_worktree). reviewer headless → integrator ADR-0005 Path A. gh --body-file. 잔여 turn 3 (cap 10) — 다음 turn = planner dispatch (P3 RBAC chain 2/3 = ContributionController RBAC 후보 또는 다음 P3 bullet). cap 도달 시 resume seed queue 후 §1[8](e) 종료 예정."
+    "note": "/loop session #31 (KST 18:25~, 주간 window). t1: T-0118 MERGED PR-120. t2: queued T-0119. t3: T-0119 MERGED PR-121 (controller chain 3/3 완결). t4: queued T-0120. t5: T-0120 DONE (api.md sync, direct). t6: queued T-0121. t7: T-0121 MERGED PR-122 (929166d, AssessmentController RBAC, chain 1/3). t8: planner queued T-0122 (ContributionController RBAC, chain 2/3, pr, **sizeExempt pre-set** per T-0121 lesson — e2e auth 전환으로 ~650 LOC 예상). ADR-0008/T-0083 scaffold 구현이라 §5 BLOCKED 아님, T-0121 1:1 mirror. tasksCompleted 116->120. **운영**: harness phantom worktree (memory env_phantom_worktree). reviewer headless → integrator ADR-0005 Path A. gh --body-file. 잔여 turn 2 (cap 10) — t9 = driver T-0122 execute, t10 = resume seed queue + §1[8](e) cap 종료."
   },
   "ci": {
     "lastRun": "2026-05-31T19:56:00+09:00",
@@ -28,7 +28,7 @@
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/122",
-    "note": "PR-122 (T-0121 AssessmentController RBAC) round 1 merge 929166d. comment-triggered run 26710671660 (event=issue_comment) all-green incl real-PostgreSQL e2e auth job + reviewer-gate. first run (pull_request) reviewer-gate race expected. post-merge main run (929166d push) in_progress 확인 — 이미 검증된 merged code 라 green 예상. gh --body-file."
+    "note": "doc commit ff419d0 (T-0121 DONE) push run + post-merge main run 929166d 둘 다 completed success. PR-122 (T-0121) comment-triggered run all-green incl real-PostgreSQL e2e auth. gh --body-file 사용."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
