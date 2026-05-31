@@ -2,13 +2,16 @@
 id: T-0125
 title: "@CurrentUser() param decorator 신설 + UserController 2 callsite refactor (3-controller actor cast 중복 제거 first cut)"
 phase: P3
-status: PENDING
+status: IN_REVIEW
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-046, REQ-084]
 estimatedDiff: 230
 estimatedFiles: 4
 created: 2026-06-01
 dependsOn: [T-0083, T-0088, T-0101]
+prNumber: 126
+prBranch: claude/nifty-knuth-EBG6G
+prHeadSha: d1b396b
 plannerNote: "T-0123/T-0124 Follow-ups #2 — `req.user as { sub, role }` 3 callsite 중복 (user.controller × 2 + auth.controller × 1) 의 first cut. CurrentUser decorator 추출 + UserController 2 callsite refactor 만."
 ---
 
