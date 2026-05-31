@@ -43,6 +43,7 @@ import { AuthModule } from "../auth/auth.module";
 import { AssessmentController } from "./assessment.controller";
 import { AssessmentRepository } from "./assessment.repository";
 import { AssessmentService } from "./assessment.service";
+import { ContributionController } from "./contribution.controller";
 import { ContributionRepository } from "./contribution.repository";
 import { ContributionService } from "./contribution.service";
 import { GroupController } from "./group.controller";
@@ -82,6 +83,13 @@ import { UserService } from "./user.service";
     // 이미 providers/exports 등록 — providers 변경 0. AuthGuard 미적용 (기존
     // controller 동일 정책).
     AssessmentController,
+    // ContributionController — T-0118 추가. controller mirror chain 의 2번째 slice
+    // (AssessmentController 직후). `/api/contributions` 4 endpoint 노출 (GET list?
+    // assessmentId= / GET :id / POST / DELETE :id). ContributionService 는 T-0115
+    // 에서 이미 providers/exports 등록 — providers 변경 0. Contribution 은 immutable
+    // (ADR-0006 §2) 이라 PATCH 부재 + `@@unique` 부재라 409 분기 없음. AuthGuard
+    // 미적용 (기존 controller 동일 정책).
+    ContributionController,
   ],
   providers: [
     PersonRepository,
