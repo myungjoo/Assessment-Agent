@@ -2,7 +2,7 @@
 id: T-0113
 title: SummaryRepository 추가 (Summary entity CRUD primitive + raw 미저장 invariant 검증)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 dependsOn: [T-0110, T-0111, T-0112]
 coversReq: [REQ-029, REQ-032, REQ-034, REQ-035, REQ-038]
