@@ -2,7 +2,7 @@
 id: T-0116
 title: SummaryService 추가 (SummaryRepository 위 HTTP exception 변환 + period literal 검증) + summary.repository.ts period 주석 결함 정정
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-029, REQ-032, REQ-034, REQ-035, REQ-036, REQ-038]
 estimatedDiff: 420

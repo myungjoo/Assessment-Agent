@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0116",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T16:22:00+09:00",
-  "lastCommit": "f93f693",
+  "lastActivity": "2026-05-31T16:27:00+09:00",
+  "lastCommit": "35dfae9",
   "mostRecentTasks": [
+    "T-0116",
     "T-0115",
     "T-0114",
     "T-0113",
-    "T-0112",
-    "T-0111"
+    "T-0112"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-05-31T14:59:00+09:00",
     "cap": 10,
-    "note": "/loop session #30 turn 6 (planner-only). turn 5 의 T-0115 (ContributionService) 머지 (PR-116 f93f693) + bookkeeping (fe2b260, main CI green) 후 currentTask/nextTask 모두 null → planner dispatch. 진입 origin/main fetch stale guard — HEAD == fe2b260, cron 추가 없음. planner 가 T-0116 (SummaryService — SummaryRepository 위 application service, ContributionService mirror: @@unique 부재→P2002 분기 없음, personId FK→P2003→BadRequest, period day/week/month literal 검증) 큐잉 + summary.repository.ts period 주석 결함 (daily/weekly/monthly→day/week/month) fold (4 파일). ADR-0006 service half 3/3 (마지막 slice). 다음 turn 7 의 driver 가 currentTask=T-0116 transfer → executor dispatch."
+    "note": "/loop session #30 turn 7 (pr-mode 실행). T-0116 (SummaryService) PR-118 round 1 single-shot merge 35dfae9. **cron-vs-loop race 흡수 (T-0115)**: turn 6 이후 cron 이 16:21 KST 발화해 PR-117 (cron 이 T-0115 를 중복 실행한 duplicate, 본 loop 의 PR-116 이 선행 머지) 를 close + supersede 기록 (a2b9497, tasksSuperseded 2→3). 본 turn 진입 시 그 변경 동기 후 T-0116 진행 — counters 는 origin(tasksSuperseded=3) base read-modify-write. executor (impl+tester, architect=0) → 4 파일 staged (summary.service.ts +153 / spec +357 / summary.repository.ts 주석정정 -4 / user.module.ts +11, 936 tests, service 100% cov) → commit fb861ab → integrator (reviewer round 1 APPROVE 0 findings + 4-게이트 PASS, race 미발생). summary.repository.ts period 주석 결함 fold 완료. **ADR-0006 chain 6/6 완결** (schema T-0110 + repository T-0111~T-0113 + service T-0114~T-0116). 다음 turn 8 = planner dispatch."
   },
   "ci": {
-    "lastRun": "2026-05-31T16:03:00+09:00",
+    "lastRun": "2026-05-31T16:25:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/116",
-    "note": "PR-116 (T-0115 ContributionService) round 1 merge f93f693. CI green — reviewer-gate first-run pass (approve-comment 가 gate step 이전 post, empty-commit 재발화 불요). gh `--body-file` 로 post (turn 1 `@-` 버그 회피, T-0114/T-0115 2 연속 clean)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/118",
+    "note": "PR-118 (T-0116 SummaryService) round 1 merge 35dfae9. CI green — reviewer-gate first-run pass (approve-comment 가 gate step 이전 post). gh `--body-file` 로 post (T-0114/T-0115/T-0116 3 연속 clean). 직전 cron a2b9497 (PR-117 supersede) 도 main CI green."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 114,
+    "tasksCompleted": 115,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
