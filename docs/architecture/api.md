@@ -87,24 +87,24 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | PATCH | `/api/parts/:id` | UC-03 | 파트 수정 — RFC-7396 JSON Merge Patch partial update (T-0075 박제). body shape `UpdatePartDto` (`name?: string`, IsOptional / IsString / IsNotEmpty / MaxLength(255)). response 200 OK + Part row. error: 404 NotFound (P2025 변환, T-0071 박제) / 409 Conflict (P2002 변환 — Part.name `@unique` schema-level enforce, Group 도메인 차별 분기) / 400 BadRequest (ValidationPipe 위반). | Admin+ |
 | DELETE | `/api/parts/:id` | UC-03 | 파트 삭제 (소속 인원 0 일 때만 — invariant) | Admin+ |
 | **UC-01 / UC-02 / UC-06 평가 (`/api/assessments`)** | | | | |
-| GET | `/api/assessments` | [UC-02 §5 step 1](../use-cases/UC-02-evaluation-query.md#5-main-flow-sequence-diagram) | 평가 결과 시계열 조회 (`?personId=&period=`, findByPerson) — REQ-038. personId 누락 시 400. **T-0117 박제 (PR-119) — plain CRUD; `sort`/`filter`/`window`/page 고도화는 P5** | User+ |
-| GET | `/api/assessments/:id` | UC-02 | 단일 평가 결과 row 상세 (404 if 부재). T-0117 박제 | User+ |
-| POST | `/api/assessments` | UC-01 | 평가 결과 생성 (201, `CreateAssessmentDto` whitelist) — literal 위반 400 / `@@unique`(personId+period) 중복 409. T-0117 박제 | Admin+ |
-| DELETE | `/api/assessments/:id` | UC-06 | 단일 평가 결과 삭제 (204, 404 if 부재). T-0117 박제 | Admin+ |
+| GET | `/api/assessments` | [UC-02 §5 step 1](../use-cases/UC-02-evaluation-query.md#5-main-flow-sequence-diagram) | 평가 결과 시계열 조회 (`?personId=&period=`, findByPerson) — REQ-038. personId 누락 시 400. **T-0117 박제 (PR-119) — plain CRUD; `sort`/`filter`/`window`/page 고도화는 P5**. **T-0121 박제 (PR-122) — RBAC enforced (User+ via JwtAuthGuard+RolesGuard, @Roles(USER, ADMIN, SUPERADMIN))** | User+ |
+| GET | `/api/assessments/:id` | UC-02 | 단일 평가 결과 row 상세 (404 if 부재). T-0117 박제. **T-0121 박제 (PR-122) — RBAC enforced (User+)** | User+ |
+| POST | `/api/assessments` | UC-01 | 평가 결과 생성 (201, `CreateAssessmentDto` whitelist) — literal 위반 400 / `@@unique`(personId+period) 중복 409. T-0117 박제. **T-0121 박제 (PR-122) — RBAC enforced (Admin+ via @Roles(ADMIN, SUPERADMIN))** | Admin+ |
+| DELETE | `/api/assessments/:id` | UC-06 | 단일 평가 결과 삭제 (204, 404 if 부재). T-0117 박제. **T-0121 박제 (PR-122) — RBAC enforced (Admin+)** | Admin+ |
 | POST | `/api/assessments/run` | [UC-01 §5 alt block](../use-cases/UC-01-evaluation-execution.md#5-main-flow-sequence-diagram) | 평가 manual trigger (REQ-040) — **미구현, P5 evaluation pipeline 에서 도입 예정 (UC-06 batch)** | Admin+ |
 | DELETE | `/api/assessments` | [UC-06 §5](../use-cases/UC-06-evaluation-delete-reeval.md#5-main-flow-sequence-diagram) | 최근 N 일치 bulk delete (`dateRange`, `personIds` query) — REQ-041 — **미구현, P5 (UC-06 batch)** | Admin+ |
 | POST | `/api/assessments/reeval` | UC-06 §5 | 평가 없는 부분 일괄 재평가 — REQ-037 — **미구현, P5 (UC-06 batch)** | Admin+ |
 | POST | `/api/assessments/reset` | UC-06 §5 | Reset & Reeval (전체 또는 범위) — REQ-037 — **미구현, P5 (UC-06 batch)** | Admin+ |
-| **`/api/contributions` — 개별 commit/PR/문서 단위 기여 (T-0118 박제, PR-120)** | | | | |
-| GET | `/api/contributions` | UC-01, UC-02 | assessment 별 기여 목록 (`?assessmentId=`, findByAssessment) — assessmentId 누락 시 400, 매칭 0 시 빈 배열. T-0118 박제 | User+ |
-| GET | `/api/contributions/:id` | UC-02 | 단일 기여 상세 (404 if 부재). T-0118 박제 | User+ |
-| POST | `/api/contributions` | UC-01 | 기여 생성 (201, `CreateContributionDto` whitelist) — literal·FK(P2003) 위반 400, `@@unique` 부재라 409 분기 없음. T-0118 박제 | Admin+ |
-| DELETE | `/api/contributions/:id` | UC-06 | 단일 기여 삭제 (204, 404 if 부재). immutable 이라 PATCH 부재. T-0118 박제 | Admin+ |
-| **`/api/summaries` — 일/주/월 시계열 요약 평가 (T-0119 박제, PR-121)** | | | | |
-| GET | `/api/summaries` | UC-02 | person 별 요약 시계열 조회 (`?personId=&period=`, findByPerson) — personId 누락 시 400. T-0119 박제 | User+ |
-| GET | `/api/summaries/:id` | UC-02 | 단일 요약 상세 (404 if 부재). T-0119 박제 | User+ |
-| POST | `/api/summaries` | UC-02 | 요약 생성 (201, `CreateSummaryDto` whitelist) — period literal·FK(P2003) 위반 400, 409 분기 없음. T-0119 박제 | Admin+ |
-| DELETE | `/api/summaries/:id` | UC-06 | 단일 요약 삭제 (204, 404 if 부재). immutable 이라 PATCH 부재. T-0119 박제 | Admin+ |
+| **`/api/contributions` — 개별 commit/PR/문서 단위 기여 (T-0118 박제, PR-120; RBAC enforced T-0122)** | | | | |
+| GET | `/api/contributions` | UC-01, UC-02 | assessment 별 기여 목록 (`?assessmentId=`, findByAssessment) — assessmentId 누락 시 400, 매칭 0 시 빈 배열. T-0118 박제. **T-0122 박제 (PR-124) — RBAC enforced (User+ via JwtAuthGuard+RolesGuard, @Roles(USER, ADMIN, SUPERADMIN))** | User+ |
+| GET | `/api/contributions/:id` | UC-02 | 단일 기여 상세 (404 if 부재). T-0118 박제. **T-0122 박제 (PR-124) — RBAC enforced (User+)** | User+ |
+| POST | `/api/contributions` | UC-01 | 기여 생성 (201, `CreateContributionDto` whitelist) — literal·FK(P2003) 위반 400, `@@unique` 부재라 409 분기 없음. T-0118 박제. **T-0122 박제 (PR-124) — RBAC enforced (Admin+ via @Roles(ADMIN, SUPERADMIN))** | Admin+ |
+| DELETE | `/api/contributions/:id` | UC-06 | 단일 기여 삭제 (204, 404 if 부재). immutable 이라 PATCH 부재. T-0118 박제. **T-0122 박제 (PR-124) — RBAC enforced (Admin+)** | Admin+ |
+| **`/api/summaries` — 일/주/월 시계열 요약 평가 (T-0119 박제, PR-121; RBAC enforced T-0123)** | | | | |
+| GET | `/api/summaries` | UC-02 | person 별 요약 시계열 조회 (`?personId=&period=`, findByPerson) — personId 누락 시 400. T-0119 박제. **T-0123 박제 (PR-125) — RBAC enforced (User+ via JwtAuthGuard+RolesGuard, @Roles(USER, ADMIN, SUPERADMIN))** | User+ |
+| GET | `/api/summaries/:id` | UC-02 | 단일 요약 상세 (404 if 부재). T-0119 박제. **T-0123 박제 (PR-125) — RBAC enforced (User+)** | User+ |
+| POST | `/api/summaries` | UC-02 | 요약 생성 (201, `CreateSummaryDto` whitelist) — period literal·FK(P2003) 위반 400, 409 분기 없음. T-0119 박제. **T-0123 박제 (PR-125) — RBAC enforced (Admin+ via @Roles(ADMIN, SUPERADMIN))** | Admin+ |
+| DELETE | `/api/summaries/:id` | UC-06 | 단일 요약 삭제 (204, 404 if 부재). immutable 이라 PATCH 부재. T-0119 박제. **T-0123 박제 (PR-125) — RBAC enforced (Admin+)** | Admin+ |
 | **UC-05 LLM 설정 (`/api/llm`)** | | | | |
 | GET | `/api/llm/providers` | [UC-05 §5](../use-cases/UC-05-llm-config.md#5-main-flow-sequence-diagram) | 5 provider (custom / Azure OpenAI / Anthropic / Google Gemini / OpenAI) 설정 목록 — REQ-051~055 | Admin+ |
 | POST | `/api/llm/providers` | UC-05 §5 step 2 | provider 추가 (endpoint URL / API key / model 식별자) | Admin+ |
@@ -122,6 +122,8 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | GET | `/api/admin/permission-denied` | UC-08 §5 | 시스템 전체 권한 부족 event 조회 (REQ-016 — admin audience) | Admin+ |
 
 **합계**: 약 46 endpoint / 11 resource prefix / 8 UC cover (T-0117/T-0118/T-0119 박제로 `/api/assessments` CRUD 정정 + `/api/contributions` 4 + `/api/summaries` 4 추가, prefix 9 → 11; `/api/assessments` 의 batch 4 건 [`/run`·bulk `DELETE`·`/reeval`·`/reset`] 은 P5 evaluation pipeline 의존 미구현 deferred). 향후 UC 추가·세분화 시 본 표가 source — endpoint 신설은 본 표 갱신 PR 의 reviewer 점검 대상.
+
+**Auth/RBAC chain 3/3 종결 (T-0124 박제)**: Assessment/Contribution/Summary 3 controller (총 12 endpoint) 의 RBAC enforcement (User+ GET / Admin+ POST·DELETE) 는 T-0121 (PR-122) / T-0122 (PR-124) / T-0123 (PR-125) chain 으로 완료 — auth tier 컬럼 의도값 ↔ reality 가 JwtAuthGuard+RolesGuard+@Roles decorator 로 align (R-43/R-45/R-46/R-84/R-86). 다른 controller (Person / Group / Part / User / Llm / Admin / `/api/me`) 의 RBAC 적용은 별도 후속 chain (현재 미적용, P3 backbone task).
 
 ## 6. 표준 status code policy
 

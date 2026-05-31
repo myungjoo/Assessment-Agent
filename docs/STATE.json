@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0124",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-06-01T00:35:00+09:00",
-  "lastCommit": "31c96bd",
+  "lastActivity": "2026-06-01T02:05:30+09:00",
+  "lastCommit": "pending",
   "mostRecentTasks": [
+    "T-0124",
     "T-0123",
     "T-0122",
     "T-0121",
-    "T-0120",
-    "T-0119"
+    "T-0120"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -28,7 +28,7 @@
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/125",
-    "note": "T-0123 PR-125 round 1: reviewer comment 를 PR open 직후 즉시 post → 첫 pull_request run 26716570877 의 reviewer-gate step(job 후반)이 comment 인지하여 1발 green (PR-124 의 timing race 무발생 — empty-commit fallback 불요). 4-게이트 (reviewer APPROVE / PR comment 4587144509 / integrator self-check / CI green) 모두 PASS → squash merge 31c96bd. 머지 코드 tree(47ee157) PR-CI success 로 검증 완료. merge 후 main run(31c96bd)은 in_progress — 동일 tree 라 green 예상, 다음 cron turn 이 재확인."
+    "note": "T-0123 PR-125 round 1: reviewer comment 를 PR open 직후 즉시 post → 첫 pull_request run 26716570877 의 reviewer-gate step(job 후반)이 comment 인지하여 1발 green (PR-124 의 timing race 무발생 — empty-commit fallback 불요). 4-게이트 (reviewer APPROVE / PR comment 4587144509 / integrator self-check / CI green) 모두 PASS → squash merge 31c96bd. 머지 코드 tree(47ee157) PR-CI success 로 검증 완료. merge 후 main run(31c96bd)은 in_progress — 동일 tree 라 green 예상, 다음 cron turn 이 재확인. T-0124 (doc-only direct) push 는 CI 영향 0 — markdown 만."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 122,
+    "tasksCompleted": 123,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

@@ -2,7 +2,8 @@
 id: T-0124
 title: api.md auth tier 컬럼 RBAC enforced 표기 보강 (T-0121/T-0122/T-0123 chain 3/3 closure doc-sync)
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T02:05:00+09:00
 commitMode: direct
 coversReq: [REQ-043, REQ-045, REQ-046, REQ-084, REQ-086]
 estimatedDiff: 40
@@ -10,6 +11,7 @@ estimatedFiles: 1
 created: 2026-05-31
 dependsOn: [T-0121, T-0122, T-0123]
 plannerNote: "T-0123 Follow-ups #1 — controller RBAC chain 3/3 (Assessment/Contribution/Summary) 종결 후 api.md description 컬럼의 의도값 표기를 reality 와 align 하는 doc-sync. doc-only direct, cap 안전."
+result: "api.md §5 의 `/api/assessments`·`/api/contributions`·`/api/summaries` 3 controller × 4 endpoint = 12 row description 컬럼 + 2 group header (L98/L103) + 1 합계 줄 (L126 신규 paragraph) 에 RBAC enforced 박제 완료. grep 'RBAC enforc' 매치 = 15 (AC 6 이상 충족). auth tier 컬럼 User+/Admin+ 변경 0 (이미 의도값). actual diff: 1 파일 / +6/-6 (실제 line touch — markdown 표 inline append + 1 paragraph 추가)."
 ---
 
 # T-0124 — api.md auth tier 컬럼 RBAC enforced 표기 보강
