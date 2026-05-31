@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": null,
-  "nextTask": "T-0125",
+  "currentTask": "T-0125",
+  "nextTask": null,
   "lock": {
-    "holder": "",
-    "since": ""
+    "holder": "cron",
+    "since": "2026-06-01T05:09:00+09:00"
   },
-  "lastActivity": "2026-06-01T04:10:00+09:00",
+  "lastActivity": "2026-06-01T05:09:00+09:00",
   "lastCommit": "pending",
   "mostRecentTasks": [
     "T-0124",
