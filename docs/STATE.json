@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0114",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T15:35:00+09:00",
-  "lastCommit": "714cc20",
+  "lastActivity": "2026-05-31T15:48:00+09:00",
+  "lastCommit": "6944662",
   "mostRecentTasks": [
+    "T-0114",
     "T-0113",
     "T-0112",
     "T-0111",
-    "T-0110",
-    "T-0109"
+    "T-0110"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-05-31T14:59:00+09:00",
     "cap": 10,
-    "note": "/loop session #30 turn 2 (planner-only). turn 1 에서 T-0113 머지 (PR-114 714cc20) + bookkeeping push (7442d4e, main CI green 확인) 후 currentTask/nextTask 모두 null → planner dispatch. 진입 시 origin/main fetch 로 stale 재발 방지 (turn 1 의 cron-vs-loop race 교훈) — origin/main HEAD == 7442d4e 로 cron 추가 진행 없음 확인. planner 가 T-0114 (AssessmentService — AssessmentRepository 위 HTTP exception 변환 + enum-as-String literal 검증, pr-mode, sizeExempt) 큐잉. ADR-0006 chain repository half(T-0111~T-0113) 완결 후 service half 진입. 다음 turn 3 의 driver 가 currentTask=T-0114 transfer → executor dispatch."
+    "note": "/loop session #30 turn 3 (pr-mode 실행). T-0114 (AssessmentService) PR-115 round 1 single-shot merge 6944662. 진입 시 origin/main fetch 로 stale guard — HEAD == ba7659b 로 cron 추가 없음. executor (implementer+tester, architect=0 — ADR-0006 + PersonService mirror) → 3 파일 staged (assessment.service.ts +150 / spec +356 / user.module.ts +9, 894 tests, service 100% cov) → commit 0d85669 → integrator (reviewer round 1 APPROVE 0 findings + 4-게이트 PASS). gh `--body-file` 사용으로 turn 1 의 `@-` stdin 버그 회피 — reviewer-gate first-run green (race 미발생, empty-commit 재발화 불요). ADR-0006 service half 진입. 다음 turn 4 = planner dispatch (currentTask/nextTask 모두 null)."
   },
   "ci": {
-    "lastRun": "2026-05-31T15:30:00+09:00",
+    "lastRun": "2026-05-31T15:45:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/7442d4e",
-    "note": "turn 1 bookkeeping 7442d4e (main push, doc-only) CI green (run 26705309221 success). 직전 PR-114 (T-0113) merge 714cc20 도 green. reviewer-gate first-run race 는 gh `--body @-` stdin 미소비 → `--body-file` 재post + synchronize empty commit 으로 self-heal (T-0111/T-0112 1:1 mirror). (이 머신은 향후 `--body-file` 사용 권장.)"
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/115",
+    "note": "PR-115 (T-0114 AssessmentService) round 1 merge 6944662. CI run 26705683849 green — reviewer-gate `reviewer agent approval 검증` step 이 first-run 에서 pass (PR run 1m48s 가 충분히 느려 approve-comment 가 gate step 이전 post 완료, empty-commit synchronize 재발화 불요). gh `--body-file` 로 PR body/comment post (turn 1 `@-` stdin 버그 회피)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 112,
+    "tasksCompleted": 113,
     "tasksBlocked": 7,
     "tasksSuperseded": 2,
     "tasksAccidentalMerge": 1

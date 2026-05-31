@@ -2,7 +2,7 @@
 id: T-0114
 title: AssessmentService 추가 (AssessmentRepository 위 HTTP exception 변환 + enum-as-String literal 검증)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-029, REQ-032, REQ-033, REQ-036, REQ-038]
 estimatedDiff: 520
