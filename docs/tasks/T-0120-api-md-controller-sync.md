@@ -2,7 +2,7 @@
 id: T-0120
 title: api.md §4·§5 를 shipped controller 현실과 동기 (assessments 정정 + contributions/summaries 추가)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-029, REQ-032, REQ-033, REQ-034, REQ-035, REQ-036, REQ-037, REQ-038]
 estimatedDiff: 45
@@ -10,6 +10,8 @@ estimatedFiles: 1
 created: 2026-05-31
 plannerNote: "P3 controller mirror chain 3/3(T-0117/0118/0119) 의 defer 된 api.md row 보강 — doc-only enumerated-section inline-amend × 0.64, living architecture doc(§3.1 direct)."
 dependsOn: [T-0117, T-0118, T-0119]
+completedAt: 2026-05-31T19:28:00+09:00
+committedVia: direct (driver-inline, no PR)
 ---
 
 # T-0120 — api.md §4·§5 를 shipped controller 현실과 동기

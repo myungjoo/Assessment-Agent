@@ -49,7 +49,9 @@
 | `/api/persons` | UserModule | UC-03 | 평가 대상 인원 (시스템 로그인 user 와 다름) 의 CRUD (REQ-026, REQ-027) |
 | `/api/groups` | UserModule | UC-03 | 임의 group N 개 — Person 다대다 (REQ-028) |
 | `/api/parts` | UserModule | UC-03 | 조직도 파트 (Person 당 정확히 1, REQ-028) |
-| `/api/assessments` | AssessmentModule | UC-01, UC-02, UC-06 | 평가 결과 조회 + manual trigger + 삭제·재수집 (REQ-038, REQ-040, REQ-041, REQ-037) |
+| `/api/assessments` | AssessmentModule | UC-01, UC-02, UC-06 | 평가 결과 조회 + manual trigger + 삭제·재수집 (REQ-038, REQ-040, REQ-041, REQ-037). **CRUD 는 UserModule controller 에서 shipped (T-0117); batch (manual trigger·bulk delete·reeval) 는 P5 deferred** |
+| `/api/contributions` | UserModule | UC-01, UC-02 | 개별 commit/PR/문서 단위 기여 (REQ-033) — Assessment 의 component, immutable (PATCH 부재). T-0118 박제 |
+| `/api/summaries` | UserModule | UC-02 | 일/주/월 시계열 요약 평가 (REQ-034, REQ-035, REQ-038) — immutable (PATCH 부재). T-0119 박제 |
 | `/api/llm` | LlmModule | UC-05 | LLM provider · 난이도 매핑 설정 (REQ-049, REQ-050) |
 | `/api/admin` | AssessmentModule (controller) | UC-07 | Export / Import / Backup / Restore (REQ-030, REQ-032 — Admin 전용 sub-namespace) |
 | `/api/me` | AuthModule + AssessmentModule | UC-08 (user audience) | 인증된 user 본인 시점의 read endpoint (예: 본인 관련 권한 부족 통지) |
@@ -85,12 +87,24 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | PATCH | `/api/parts/:id` | UC-03 | 파트 수정 — RFC-7396 JSON Merge Patch partial update (T-0075 박제). body shape `UpdatePartDto` (`name?: string`, IsOptional / IsString / IsNotEmpty / MaxLength(255)). response 200 OK + Part row. error: 404 NotFound (P2025 변환, T-0071 박제) / 409 Conflict (P2002 변환 — Part.name `@unique` schema-level enforce, Group 도메인 차별 분기) / 400 BadRequest (ValidationPipe 위반). | Admin+ |
 | DELETE | `/api/parts/:id` | UC-03 | 파트 삭제 (소속 인원 0 일 때만 — invariant) | Admin+ |
 | **UC-01 / UC-02 / UC-06 평가 (`/api/assessments`)** | | | | |
-| GET | `/api/assessments` | [UC-02 §5 step 1](../use-cases/UC-02-evaluation-query.md#5-main-flow-sequence-diagram) | 평가 결과 조회 (`sort`, `filter`, `window=daily/weekly/monthly`, page) — REQ-038 | User+ |
-| GET | `/api/assessments/:id` | UC-02 | 단일 평가 결과 row 상세 | User+ |
-| POST | `/api/assessments/run` | [UC-01 §5 alt block](../use-cases/UC-01-evaluation-execution.md#5-main-flow-sequence-diagram) | 평가 manual trigger (REQ-040) — 즉시 AssessmentRun 시작 | Admin+ |
-| DELETE | `/api/assessments` | [UC-06 §5](../use-cases/UC-06-evaluation-delete-reeval.md#5-main-flow-sequence-diagram) | 최근 N 일치 평가 결과 manual delete (`dateRange`, `personIds` query) — REQ-041 | Admin+ |
-| POST | `/api/assessments/reeval` | UC-06 §5 | 평가 없는 부분 일괄 재평가 — REQ-037 | Admin+ |
-| POST | `/api/assessments/reset` | UC-06 §5 | Reset & Reeval (전체 또는 범위) — REQ-037 | Admin+ |
+| GET | `/api/assessments` | [UC-02 §5 step 1](../use-cases/UC-02-evaluation-query.md#5-main-flow-sequence-diagram) | 평가 결과 시계열 조회 (`?personId=&period=`, findByPerson) — REQ-038. personId 누락 시 400. **T-0117 박제 (PR-119) — plain CRUD; `sort`/`filter`/`window`/page 고도화는 P5** | User+ |
+| GET | `/api/assessments/:id` | UC-02 | 단일 평가 결과 row 상세 (404 if 부재). T-0117 박제 | User+ |
+| POST | `/api/assessments` | UC-01 | 평가 결과 생성 (201, `CreateAssessmentDto` whitelist) — literal 위반 400 / `@@unique`(personId+period) 중복 409. T-0117 박제 | Admin+ |
+| DELETE | `/api/assessments/:id` | UC-06 | 단일 평가 결과 삭제 (204, 404 if 부재). T-0117 박제 | Admin+ |
+| POST | `/api/assessments/run` | [UC-01 §5 alt block](../use-cases/UC-01-evaluation-execution.md#5-main-flow-sequence-diagram) | 평가 manual trigger (REQ-040) — **미구현, P5 evaluation pipeline 에서 도입 예정 (UC-06 batch)** | Admin+ |
+| DELETE | `/api/assessments` | [UC-06 §5](../use-cases/UC-06-evaluation-delete-reeval.md#5-main-flow-sequence-diagram) | 최근 N 일치 bulk delete (`dateRange`, `personIds` query) — REQ-041 — **미구현, P5 (UC-06 batch)** | Admin+ |
+| POST | `/api/assessments/reeval` | UC-06 §5 | 평가 없는 부분 일괄 재평가 — REQ-037 — **미구현, P5 (UC-06 batch)** | Admin+ |
+| POST | `/api/assessments/reset` | UC-06 §5 | Reset & Reeval (전체 또는 범위) — REQ-037 — **미구현, P5 (UC-06 batch)** | Admin+ |
+| **`/api/contributions` — 개별 commit/PR/문서 단위 기여 (T-0118 박제, PR-120)** | | | | |
+| GET | `/api/contributions` | UC-01, UC-02 | assessment 별 기여 목록 (`?assessmentId=`, findByAssessment) — assessmentId 누락 시 400, 매칭 0 시 빈 배열. T-0118 박제 | User+ |
+| GET | `/api/contributions/:id` | UC-02 | 단일 기여 상세 (404 if 부재). T-0118 박제 | User+ |
+| POST | `/api/contributions` | UC-01 | 기여 생성 (201, `CreateContributionDto` whitelist) — literal·FK(P2003) 위반 400, `@@unique` 부재라 409 분기 없음. T-0118 박제 | Admin+ |
+| DELETE | `/api/contributions/:id` | UC-06 | 단일 기여 삭제 (204, 404 if 부재). immutable 이라 PATCH 부재. T-0118 박제 | Admin+ |
+| **`/api/summaries` — 일/주/월 시계열 요약 평가 (T-0119 박제, PR-121)** | | | | |
+| GET | `/api/summaries` | UC-02 | person 별 요약 시계열 조회 (`?personId=&period=`, findByPerson) — personId 누락 시 400. T-0119 박제 | User+ |
+| GET | `/api/summaries/:id` | UC-02 | 단일 요약 상세 (404 if 부재). T-0119 박제 | User+ |
+| POST | `/api/summaries` | UC-02 | 요약 생성 (201, `CreateSummaryDto` whitelist) — period literal·FK(P2003) 위반 400, 409 분기 없음. T-0119 박제 | Admin+ |
+| DELETE | `/api/summaries/:id` | UC-06 | 단일 요약 삭제 (204, 404 if 부재). immutable 이라 PATCH 부재. T-0119 박제 | Admin+ |
 | **UC-05 LLM 설정 (`/api/llm`)** | | | | |
 | GET | `/api/llm/providers` | [UC-05 §5](../use-cases/UC-05-llm-config.md#5-main-flow-sequence-diagram) | 5 provider (custom / Azure OpenAI / Anthropic / Google Gemini / OpenAI) 설정 목록 — REQ-051~055 | Admin+ |
 | POST | `/api/llm/providers` | UC-05 §5 step 2 | provider 추가 (endpoint URL / API key / model 식별자) | Admin+ |
@@ -107,7 +121,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | GET | `/api/me/permission-denied` | [UC-08 §5](../use-cases/UC-08-permission-denied.md#5-main-flow-sequence-diagram) | 본인 관련 권한 부족 event 조회 (REQ-008 — user audience) | User+ |
 | GET | `/api/admin/permission-denied` | UC-08 §5 | 시스템 전체 권한 부족 event 조회 (REQ-016 — admin audience) | Admin+ |
 
-**합계**: 약 36 endpoint / 9 resource prefix / 8 UC cover (T-0084 박제로 `/api/auth/refresh` 1 endpoint 추가). 향후 UC 추가·세분화 시 본 표가 source — endpoint 신설은 본 표 갱신 PR 의 reviewer 점검 대상.
+**합계**: 약 46 endpoint / 11 resource prefix / 8 UC cover (T-0117/T-0118/T-0119 박제로 `/api/assessments` CRUD 정정 + `/api/contributions` 4 + `/api/summaries` 4 추가, prefix 9 → 11; `/api/assessments` 의 batch 4 건 [`/run`·bulk `DELETE`·`/reeval`·`/reset`] 은 P5 evaluation pipeline 의존 미구현 deferred). 향후 UC 추가·세분화 시 본 표가 source — endpoint 신설은 본 표 갱신 PR 의 reviewer 점검 대상.
 
 ## 6. 표준 status code policy
 
@@ -134,7 +148,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | UC | §5 의 핵심 endpoint 호출 step | 본 문서의 endpoint group |
 | --- | --- | --- |
 | [UC-01](../use-cases/UC-01-evaluation-execution.md#5-main-flow-sequence-diagram) | manual trigger 의 alt block (Admin→AssessmentModule) | `POST /api/assessments/run` |
-| [UC-02](../use-cases/UC-02-evaluation-query.md#5-main-flow-sequence-diagram) | step 1 (WebUI→BackendAPI GET) | `GET /api/assessments`, `GET /api/assessments/:id` |
+| [UC-02](../use-cases/UC-02-evaluation-query.md#5-main-flow-sequence-diagram) | step 1 (WebUI→BackendAPI GET) | `GET /api/assessments`, `GET /api/assessments/:id` (+ `/api/contributions`·`/api/summaries` — P3 controller chain 으로 신설된 backing store, REQ-033/034/035, UC sequence 직접 호명 0) |
 | [UC-03](../use-cases/UC-03-person-crud.md#5-main-flow-sequence-diagram) | step 1 (WebUI→BackendAPI mutation) + group/part 분기 | `POST/GET/PATCH/DELETE /api/persons[/:id]`, `/api/groups`, `/api/parts` |
 | [UC-04](../use-cases/UC-04-account-auth.md#5-main-flow-sequence-diagram) | step 1 (login 또는 user mutation) | `/api/auth/login`, `/api/auth/me`, `POST /api/users`, `PATCH /api/users/:id/role`, `PATCH /api/users/:id/password` |
 | [UC-05](../use-cases/UC-05-llm-config.md#5-main-flow-sequence-diagram) | step 2 (provider · difficulty-mapping mutation) | `/api/llm/providers`, `/api/llm/difficulty-mapping` |
@@ -175,4 +189,4 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 - [docs/decisions/ADR-0003-deployment.md](../decisions/ADR-0003-deployment.md) — monolithic / direct egress / @nestjs/schedule (본 문서의 host model 기반)
 - **future ADR hook**: `@nestjs/swagger` 도입 ADR (P3+) — endpoint 표 ↔ swagger annotation 의 single source 결정 필요. 본 문서가 swagger annotation 의 design source 역할 유지 권장.
 
-Refs: T-0030, T-0029, T-0028, T-0027, T-0026, T-0025, T-0024, T-0023, T-0022, T-0020, T-0019, T-0017, T-0016, T-0079, T-0081, T-0082, T-0083, T-0084, ADR-0001, ADR-0003, ADR-0008, REQ-026, REQ-027, REQ-028, REQ-030, REQ-032, REQ-037, REQ-038, REQ-040, REQ-041, REQ-043, REQ-044, REQ-045, REQ-046, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055
+Refs: T-0030, T-0029, T-0028, T-0027, T-0026, T-0025, T-0024, T-0023, T-0022, T-0020, T-0019, T-0017, T-0016, T-0079, T-0081, T-0082, T-0083, T-0084, ADR-0001, ADR-0003, ADR-0008, REQ-026, REQ-027, REQ-028, REQ-030, REQ-032, REQ-037, REQ-038, REQ-040, REQ-041, REQ-043, REQ-044, REQ-045, REQ-046, REQ-049, REQ-050, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, T-0117, T-0118, T-0119, REQ-033, REQ-034, REQ-035, REQ-036

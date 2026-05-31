@@ -2,25 +2,25 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0120",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T19:21:00+09:00",
+  "lastActivity": "2026-05-31T19:28:00+09:00",
   "lastCommit": "25b767a",
   "mostRecentTasks": [
+    "T-0120",
     "T-0119",
     "T-0118",
     "T-0117",
-    "T-0116",
-    "T-0115"
+    "T-0116"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-05-31T18:25:00+09:00",
     "cap": 10,
-    "note": "/loop session #31 (KST 18:25~, 주간 window). t1: T-0118 MERGED PR-120 (5a0ae0e). t2: planner queued T-0119. t3: T-0119 MERGED PR-121 (25b767a) — **P3 controller mirror chain 3/3 완결** (Assessment/Contribution/Summary HTTP-facing layer). t4: planner queued T-0120 (api.md §4·§5 를 shipped controller 3종과 동기 — assessments stale 행 정정 + contributions/summaries row 추가, **doc-only direct**, T-0117/0118/0119 의 deferred living-doc 보강). tasksCompleted 116->118 (코드 +2 머지). **운영**: harness phantom worktree (vigilant-boyd-707106, session #29/#30/#31 동일 quirk — memory env_phantom_worktree 박제). reviewer headless 라 integrator 가 ADR-0005 Path A 로 verdict 대리 post. gh --body-file. reviewer-gate race 정상 흡수. 잔여 turn 6 (cap 10). 다음 turn = driver 가 T-0120 실행 (doc-only direct, 45 LOC/1 파일 — driver inline 가능)."
+    "note": "/loop session #31 (KST 18:25~, 주간 window). t1: T-0118 MERGED PR-120. t2: planner queued T-0119. t3: T-0119 MERGED PR-121 — P3 controller mirror chain 3/3 완결. t4: planner queued T-0120. t5: T-0120 DONE (doc-only **direct**, driver-inline — executor 미dispatch) — api.md §4·§5 를 shipped controller 3종과 동기: assessments stale batch 행(/run·bulk DELETE·/reeval·/reset) 을 P5 deferred 로 표기 + 실제 shipped CRUD 4 정정 + contributions/summaries 8 endpoint 추가 + prefix 9->11. controller route 는 grep 으로 reality 검증 후 박제 (3종 모두 GET list / GET :id / POST 201 / DELETE 204, PATCH 부재). tasksCompleted 116->119 (코드 +2 머지 + doc +1). **운영**: harness phantom worktree (vigilant-boyd-707106, session #29/#30/#31 동일 — memory env_phantom_worktree). reviewer headless 라 integrator 가 ADR-0005 Path A verdict 대리 post. gh --body-file. 잔여 turn 5 (cap 10). 다음 turn = planner dispatch (nextTask=null) — P3 다음 bullet 또는 AuthGuard wiring (api.md auth tier 는 의도값, 실 guard 미적용) 후보."
   },
   "ci": {
     "lastRun": "2026-05-31T19:18:00+09:00",
@@ -28,7 +28,7 @@
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/121",
-    "note": "doc bookkeeping commit abd5182 (T-0119 DONE) push run completed success. 직전 PR-121 (T-0119) merge 25b767a + comment-triggered run 26709781472 success. gh --body-file 사용."
+    "note": "PR-121 (T-0119) merge 25b767a + comment-triggered run 26709781472 success. 직전 doc commit 9238519 (T-0120 queue) push run green. T-0120 doc-only direct commit 은 본 turn push 후 확인 (코드 변경 0, spec-presence 무영향)."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 118,
+    "tasksCompleted": 119,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
