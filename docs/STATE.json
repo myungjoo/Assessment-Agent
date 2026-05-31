@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0117",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T16:27:00+09:00",
+  "lastActivity": "2026-05-31T16:38:00+09:00",
   "lastCommit": "35dfae9",
   "mostRecentTasks": [
     "T-0116",
@@ -17,10 +17,10 @@
     "T-0112"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-05-31T14:59:00+09:00",
     "cap": 10,
-    "note": "/loop session #30 turn 7 (pr-mode 실행). T-0116 (SummaryService) PR-118 round 1 single-shot merge 35dfae9. **cron-vs-loop race 흡수 (T-0115)**: turn 6 이후 cron 이 16:21 KST 발화해 PR-117 (cron 이 T-0115 를 중복 실행한 duplicate, 본 loop 의 PR-116 이 선행 머지) 를 close + supersede 기록 (a2b9497, tasksSuperseded 2→3). 본 turn 진입 시 그 변경 동기 후 T-0116 진행 — counters 는 origin(tasksSuperseded=3) base read-modify-write. executor (impl+tester, architect=0) → 4 파일 staged (summary.service.ts +153 / spec +357 / summary.repository.ts 주석정정 -4 / user.module.ts +11, 936 tests, service 100% cov) → commit fb861ab → integrator (reviewer round 1 APPROVE 0 findings + 4-게이트 PASS, race 미발생). summary.repository.ts period 주석 결함 fold 완료. **ADR-0006 chain 6/6 완결** (schema T-0110 + repository T-0111~T-0113 + service T-0114~T-0116). 다음 turn 8 = planner dispatch."
+    "note": "/loop session #30 turn 8 (planner-only). turn 7 의 T-0116 (SummaryService) 머지 (PR-118 35dfae9) → ADR-0006 chain 6/6 완결 후 currentTask/nextTask 모두 null → planner dispatch. 진입 origin/main fetch stale guard — HEAD == af3f917, cron 추가 없음 (직전 cron 발화는 16:21 의 a2b9497 PR-117 supersede, 그 이후 quiet). planner 가 T-0117 (AssessmentController + CreateAssessmentDto — AssessmentService 위 /api/assessments REST 4 endpoint + e2e, 기존 controller mirror) 큐잉. §5 미발동 (plain controller, 신규 dep/schema/auth-model 변경 0, AuthGuard 미적용은 기존 패턴 mirror). HTTP-facing layer 첫 slice. cap 10 중 turn 8 — 다음 turn 9 execute T-0117, turn 10 planner (cap-reached resume seed)."
   },
   "ci": {
     "lastRun": "2026-05-31T16:25:00+09:00",
