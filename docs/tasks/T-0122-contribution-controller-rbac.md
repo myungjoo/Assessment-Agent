@@ -2,12 +2,16 @@
 id: T-0122
 title: ContributionController 에 RBAC guard 적용 (User+/Admin+ tier 강제)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-046, REQ-084, REQ-086]
 estimatedDiff: 270
 estimatedFiles: 3
 created: 2026-05-31
+completedAt: 2026-05-31T22:36:33+09:00
+mergedAs: 6779cf8b52bd58f71b1a6e466eb22b1d9cf93ea6
+prNumber: 124
+reviewRounds: 1
 sizeExempt: true
 exemptReason: "T-0121 precedent — controller RBAC 의 prod diff 는 ~+40 LOC trivial 이나, R-112 가 guard 적용 후 모든 e2e test 에 auth cookie threading 을 의무화해 e2e 전면 재작성 (~+300 LOC) 으로 총량이 300 LOC guideline 을 초과. split 시 guard 가 미검증 상태로 머지 (R-112 위반) 되므로 단일 task 유지. 3 파일 ≤ 5 cap 준수."
 plannerNote: "P3 Auth/RBAC bullet — ContributionController 에 의도 auth tier (GET=User+, POST/DELETE=Admin+) enforce. T-0121 AssessmentController RBAC 의 1:1 mirror, controller RBAC chain 2/3 (ADR-0008/T-0083 scaffold 적용, 신규 결정 0)."
