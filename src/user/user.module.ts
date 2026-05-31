@@ -53,6 +53,7 @@ import { PersonController } from "./person.controller";
 import { PersonRepository } from "./person.repository";
 import { PersonService } from "./person.service";
 import { ServiceIdentityRepository } from "./service-identity.repository";
+import { SummaryRepository } from "./summary.repository";
 import { UserController } from "./user.controller";
 import { UserRepository } from "./user.repository";
 import { UserService } from "./user.service";
@@ -99,6 +100,12 @@ import { UserService } from "./user.service";
     // 를 inject 하여 P2003 → BadRequestException / P2025 → NotFoundException
     // 변환 + 도메인 invariant (sourceType literal 검증 등) 강제 책임.
     ContributionRepository,
+    // SummaryRepository — T-0113 추가. ADR-0006 chain 의 Summary slice (Person N:1,
+    // 일·주·월 단위 요약 평가문, LLM 정성 narrative + 정규화 metricScore, 수집 원천
+    // raw 본문 0, REQ-029/032/034/035/038). 후속 SummaryService (별도 task) 가 본
+    // repository 를 inject 하여 P2003 → BadRequestException / P2025 →
+    // NotFoundException 변환 + 도메인 invariant (period literal 검증 등) 강제 책임.
+    SummaryRepository,
   ],
   exports: [
     PersonRepository,
@@ -121,6 +128,9 @@ import { UserService } from "./user.service";
     // AssessmentService 등이 다른 module 에서 본 repository 를 inject 가능
     // 하도록 노출.
     ContributionRepository,
+    // SummaryRepository export (T-0113) — 후속 SummaryService / AssessmentService
+    // 등이 다른 module 에서 본 repository 를 inject 가능하도록 노출.
+    SummaryRepository,
   ],
 })
 export class UserModule {}
