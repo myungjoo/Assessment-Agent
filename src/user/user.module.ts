@@ -57,6 +57,7 @@ import { PersonController } from "./person.controller";
 import { PersonRepository } from "./person.repository";
 import { PersonService } from "./person.service";
 import { ServiceIdentityRepository } from "./service-identity.repository";
+import { SummaryController } from "./summary.controller";
 import { SummaryRepository } from "./summary.repository";
 import { SummaryService } from "./summary.service";
 import { UserController } from "./user.controller";
@@ -90,6 +91,13 @@ import { UserService } from "./user.service";
     // (ADR-0006 §2) 이라 PATCH 부재 + `@@unique` 부재라 409 분기 없음. AuthGuard
     // 미적용 (기존 controller 동일 정책).
     ContributionController,
+    // SummaryController — T-0119 추가. controller mirror chain 의 3번째이자 마지막
+    // slice (AssessmentController / ContributionController 직후). `/api/summaries` 4
+    // endpoint 노출 (GET list?personId=&period= / GET :id / POST / DELETE :id).
+    // SummaryService 는 T-0116 에서 이미 providers/exports 등록 — providers 변경 0.
+    // Summary 는 immutable (ADR-0006 §3) 이라 PATCH 부재 + `@@unique` 부재라 409 분기
+    // 없음 (FK 위반 P2003 → 400). AuthGuard 미적용 (기존 controller 동일 정책).
+    SummaryController,
   ],
   providers: [
     PersonRepository,
