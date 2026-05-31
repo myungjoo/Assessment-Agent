@@ -40,6 +40,7 @@ import { forwardRef, Module } from "@nestjs/common";
 
 import { AuthModule } from "../auth/auth.module";
 
+import { AssessmentController } from "./assessment.controller";
 import { AssessmentRepository } from "./assessment.repository";
 import { AssessmentService } from "./assessment.service";
 import { ContributionRepository } from "./contribution.repository";
@@ -75,6 +76,12 @@ import { UserService } from "./user.service";
     PartController,
     GroupController,
     UserController,
+    // AssessmentController — T-0117 추가. ADR-0006 data-model chain (schema + repo +
+    // service) 완결 후 HTTP-facing 첫 slice. `/api/assessments` 4 endpoint 노출
+    // (GET list / GET :id / POST / DELETE :id). AssessmentService 는 T-0114 에서
+    // 이미 providers/exports 등록 — providers 변경 0. AuthGuard 미적용 (기존
+    // controller 동일 정책).
+    AssessmentController,
   ],
   providers: [
     PersonRepository,
