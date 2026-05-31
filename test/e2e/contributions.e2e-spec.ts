@@ -1,24 +1,40 @@
-// contributions.e2e-spec.ts — `/api/contributions` HTTP contract depth e2e (T-0118).
-// assessments.e2e-spec.ts (T-0117) 패턴 1:1 mirror — controller mirror chain 의 2번째
-// slice 의 contract anchor.
+// contributions.e2e-spec.ts — `/api/contributions` HTTP contract depth e2e (T-0118) +
+// RBAC tier enforce e2e (T-0122). assessments.e2e-spec.ts (T-0117/T-0121) 패턴 1:1
+// mirror — controller mirror chain 의 2번째 slice 의 contract anchor.
 //
 // 책임 (smoke vs e2e 책임 경계 — assessments.e2e-spec.ts 동일):
 //   - 본 spec 은 HTTP contract 정밀 검증 — status + content-type + body shape + 4xx
 //     envelope (statusCode / error / message) + service-layer HttpException → status
 //     mapping (literal 위반 → 400 / FK 위반 P2003 → 400 / null·P2025 → 404) 까지 cover.
+//   - T-0122 추가 — RBAC tier enforce 의 end-to-end round trip. api.md §4 의 의도 tier
+//     (GET = User+, POST/DELETE = Admin+) 가 실 guard stack (JwtAuthGuard + RolesGuard
+//     + @Roles) 으로 강제됨을 401 (cookie 부재 / invalid JWT) / 403 (tier 미달) /
+//     authed happy (적정 role token) 분기로 cover. assessments.e2e-spec.ts 의 RBAC
+//     패턴 1:1 mirror.
 //   - business logic (literal 검증 / null → 404 의 정확한 message 분기) 은
 //     contribution.service.spec.ts (T-0115) 의 unit 책임.
 //
 // 실 DB 전략 (ADR-0004 §Decision — assessments.e2e 동일):
-//   - mock override 없음 — createE2EApp() 가 AppModule 부트스트랩, PrismaService 가
-//     services.postgres 의 localhost:5432 로 실 connection 발화.
+//   - mock override 없음 — createAuthenticatedE2EApp() 가 AppModule 부트스트랩 +
+//     actor user seed + token 발급, PrismaService 가 services.postgres 의
+//     localhost:5432 로 실 connection 발화.
 //   - **FK 선행 seed 주의**: Contribution.assessmentId 는 Assessment N:1 FK →
 //     Assessment(그 FK 인 Person) row 를 먼저 seed 한 후 Contribution 생성.
 //     `prisma.person.create` → `prisma.assessment.create` → Contribution POST/seed.
+//   - actor (RBAC) seed 와 평가 대상 Person/Assessment 는 별개 — actor 는 User 테이블,
+//     평가 대상 chain 은 Person → Assessment → Contribution (도메인 분리).
 //   - `afterEach(truncateAll)` 가 ADR-0004 §Cleanup 정책 박제. truncateAll 의 `"Person"`
 //     TRUNCATE ... CASCADE 가 Assessment 의 onDelete: Cascade → Contribution 의
 //     onDelete: Cascade 를 통해 모든 하위 row 동반 정리 — 테이블 명시 추가 불요.
+//     actor user 도 truncate 되므로 actor 는 beforeAll 1 회 seed 후 token 으로만 사용
+//     (JWT 의 sub claim 은 DB lookup 불요 — ContributionController 는 actor user row
+//     를 조회하지 않음).
 //   - `afterAll(app.close + prisma.$disconnect)` 가 connection 누수 방지.
+//
+// JWT 발급 setup (login flow bypass — T-0091 helper):
+//   - createAuthenticatedE2EApp([{ role }]) 가 actor user seed + token 발급 atomic.
+//   - cookie 형식: helper 의 buildAuthCookie — AuthController 의 ACCESS_TOKEN_COOKIE 정합.
+//   - AUTH_JWT_SECRET 환경변수 박제는 auth-e2e-helper 의 module-load side-effect 가 담당.
 //
 // 실 DB 미가용 환경 (로컬 — DATABASE_URL 부재) 에서는 CI 에서만 실행 (assessments.e2e 동일).
 //
@@ -31,8 +47,12 @@ import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
 
 // Contribution DTO 필수 8 field — 모든 happy endpoint 응답이 동일하게 노출.
 const CONTRIBUTION_DTO_FIELDS = [
@@ -57,14 +77,29 @@ const expectDtoFields = (body: object): void => {
   CONTRIBUTION_DTO_FIELDS.forEach((f) => expect(body).toHaveProperty(f));
 };
 
-describe("E2E: /api/contributions HTTP contract", () => {
+describe("E2E: /api/contributions HTTP contract + RBAC tier enforce (T-0122)", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  // RBAC actor token — User (User+ tier 검증) / Admin (Admin+ tier 검증).
+  let userCookie: string;
+  let adminCookie: string;
 
   beforeAll(async () => {
-    const created = await createE2EApp();
-    app = created.app;
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    // actor 2 종 seed (User / Admin) — 모든 happy/error test 가 적정 role token 으로
+    // guard 통과. 평가 대상 Person/Assessment 는 각 test 가 별도 seed (도메인 분리).
+    ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "contribution-user-actor@e2e.test" },
+      { role: "Admin", email: "contribution-admin-actor@e2e.test" },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    userCookie = buildAuthCookie(
+      ctx.tokens["contribution-user-actor@e2e.test"],
+    );
+    adminCookie = buildAuthCookie(
+      ctx.tokens["contribution-admin-actor@e2e.test"],
+    );
   });
 
   afterAll(async () => {
@@ -74,6 +109,7 @@ describe("E2E: /api/contributions HTTP contract", () => {
 
   // 각 test 후 truncateAll — "Person" CASCADE 가 Assessment → Contribution 동반 정리
   // (schema 의 onDelete: Cascade chain). test 간 state leak 0 보장.
+  // actor user 도 truncate 되지만 JWT sub claim 은 DB lookup 불요 → token 재사용 OK.
   afterEach(async () => {
     await truncateAll(prisma);
   });
@@ -135,15 +171,137 @@ describe("E2E: /api/contributions HTTP contract", () => {
     return { assessment, contribution };
   }
 
-  // -- B. Happy path (4 endpoint × status + header + body shape) ----
+  // -- A. RBAC negative — 401 (cookie 부재) / 401 (invalid JWT) / 403 (tier 미달) --
+  // assessments.e2e-spec.ts 의 RBAC negative 패턴 1:1 mirror. api.md §4 의 의도 tier 가
+  // 실 guard stack 으로 강제됨을 검증.
 
-  // B.1 GET /api/contributions?assessmentId= — 200 + json + array + body[0] 가 DTO field.
-  it("GET /api/contributions?assessmentId= returns 200 with application/json array of Contribution DTOs", async () => {
-    const { assessment, contribution } = await seedContribution();
+  // A.1 GET (User+) — cookie 부재 시 401 (JwtAuthGuard reject).
+  it("GET /api/contributions — cookie 부재 시 401 (negative — 인증 부재, User+ tier)", async () => {
+    const { assessment } = await seedContribution();
 
     const response = await request(app.getHttpServer()).get(
       `/api/contributions?assessmentId=${assessment.id}`,
     );
+
+    expect(response.status).toBe(401);
+  });
+
+  // A.2 POST (Admin+) — cookie 부재 시 401 (JwtAuthGuard reject).
+  it("POST /api/contributions — cookie 부재 시 401 (negative — 인증 부재, Admin+ tier)", async () => {
+    const { assessment } = await seedAssessment();
+
+    const response = await request(app.getHttpServer())
+      .post("/api/contributions")
+      .send({
+        assessmentId: assessment.id,
+        sourceType: "commit",
+        sourceUrl: "https://github.com/org/repo/commit/abc123",
+        sourceRef: "abc123",
+        difficulty: "medium",
+        contributionScore: 0.5,
+        volume: 5,
+      });
+
+    expect(response.status).toBe(401);
+    // 인증 차단으로 Contribution row 0 — guard 가 controller 진입 전 reject.
+    expect(await prisma.contribution.count()).toBe(0);
+  });
+
+  // A.3 DELETE (Admin+) — cookie 부재 시 401.
+  it("DELETE /api/contributions/:id — cookie 부재 시 401 (negative — 인증 부재, Admin+ tier)", async () => {
+    const { contribution } = await seedContribution();
+
+    const response = await request(app.getHttpServer()).delete(
+      `/api/contributions/${contribution.id}`,
+    );
+
+    expect(response.status).toBe(401);
+    // 인증 차단으로 row 보존.
+    const stillThere = await prisma.contribution.findUnique({
+      where: { id: contribution.id },
+    });
+    expect(stillThere).not.toBeNull();
+  });
+
+  // A.4 GET — invalid JWT cookie 시 401 (JwtAuthGuard verify fail).
+  it("GET /api/contributions — invalid JWT cookie 시 401 (negative — JWT verify fail)", async () => {
+    const { assessment } = await seedContribution();
+
+    const response = await request(app.getHttpServer())
+      .get(`/api/contributions?assessmentId=${assessment.id}`)
+      .set("Cookie", buildAuthCookie("garbage.token.invalid"));
+
+    expect(response.status).toBe(401);
+  });
+
+  // A.5 POST — invalid JWT cookie 시 401.
+  it("POST /api/contributions — invalid JWT cookie 시 401 (negative — JWT verify fail)", async () => {
+    const { assessment } = await seedAssessment();
+
+    const response = await request(app.getHttpServer())
+      .post("/api/contributions")
+      .set("Cookie", buildAuthCookie("garbage.token.invalid"))
+      .send({
+        assessmentId: assessment.id,
+        sourceType: "commit",
+        sourceUrl: "https://github.com/org/repo/commit/abc123",
+        sourceRef: "abc123",
+        difficulty: "medium",
+        contributionScore: 0.5,
+        volume: 5,
+      });
+
+    expect(response.status).toBe(401);
+    expect(await prisma.contribution.count()).toBe(0);
+  });
+
+  // A.6 POST (Admin+) — User role token 시 403 (RolesGuard tier 미달 reject).
+  it("POST /api/contributions — User role token 시 403 (negative — Admin+ tier 미달, RolesGuard)", async () => {
+    const { assessment } = await seedAssessment();
+
+    const response = await request(app.getHttpServer())
+      .post("/api/contributions")
+      .set("Cookie", userCookie)
+      .send({
+        assessmentId: assessment.id,
+        sourceType: "commit",
+        sourceUrl: "https://github.com/org/repo/commit/abc123",
+        sourceRef: "abc123",
+        difficulty: "medium",
+        contributionScore: 0.5,
+        volume: 5,
+      });
+
+    expect(response.status).toBe(403);
+    // 권한 미달로 row 0 — RolesGuard 가 service 진입 전 reject.
+    expect(await prisma.contribution.count()).toBe(0);
+  });
+
+  // A.7 DELETE (Admin+) — User role token 시 403 (RolesGuard tier 미달 reject).
+  it("DELETE /api/contributions/:id — User role token 시 403 (negative — Admin+ tier 미달, RolesGuard)", async () => {
+    const { contribution } = await seedContribution();
+
+    const response = await request(app.getHttpServer())
+      .delete(`/api/contributions/${contribution.id}`)
+      .set("Cookie", userCookie);
+
+    expect(response.status).toBe(403);
+    // 권한 미달로 row 보존.
+    const stillThere = await prisma.contribution.findUnique({
+      where: { id: contribution.id },
+    });
+    expect(stillThere).not.toBeNull();
+  });
+
+  // -- B. Happy path (authed — 적정 role token 으로 guard 통과 후 contract 검증) ----
+
+  // B.1 GET /api/contributions?assessmentId= — User token 통과 → 200 + json + array.
+  it("GET /api/contributions?assessmentId= — User token 통과 시 200 with application/json array (authed happy — User+ tier)", async () => {
+    const { assessment, contribution } = await seedContribution();
+
+    const response = await request(app.getHttpServer())
+      .get(`/api/contributions?assessmentId=${assessment.id}`)
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -156,13 +314,13 @@ describe("E2E: /api/contributions HTTP contract", () => {
     expect(Number(response.body[0].contributionScore)).toBe(0.75);
   });
 
-  // B.2 GET /api/contributions/:id — 200 + json + 단일 object + field + 값 일치.
-  it("GET /api/contributions/:id returns 200 with application/json single Contribution DTO", async () => {
+  // B.2 GET /api/contributions/:id — User token 통과 → 200 + 단일 object.
+  it("GET /api/contributions/:id — User token 통과 시 200 with single Contribution DTO (authed happy — User+ tier)", async () => {
     const { assessment, contribution } = await seedContribution();
 
-    const response = await request(app.getHttpServer()).get(
-      `/api/contributions/${contribution.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .get(`/api/contributions/${contribution.id}`)
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -173,12 +331,13 @@ describe("E2E: /api/contributions HTTP contract", () => {
     expect(response.body.volume).toBe(10);
   });
 
-  // B.3 POST /api/contributions — 201 + json + 생성된 Contribution + 실 DB 재조회 검증.
-  it("POST /api/contributions returns 201 with created Contribution and persists to DB", async () => {
+  // B.3 POST /api/contributions — Admin token 통과 → 201 + 실 DB 재조회 검증.
+  it("POST /api/contributions — Admin token 통과 시 201 with created Contribution and persists to DB (authed happy — Admin+ tier)", async () => {
     const { assessment } = await seedAssessment();
 
     const response = await request(app.getHttpServer())
       .post("/api/contributions")
+      .set("Cookie", adminCookie)
       .send({
         assessmentId: assessment.id,
         sourceType: "pr",
@@ -205,13 +364,13 @@ describe("E2E: /api/contributions HTTP contract", () => {
     expect(created?.sourceRef).toBe("42");
   });
 
-  // B.4 DELETE /api/contributions/:id — 204 + body empty + 실 DB 에서 row 사라짐 검증.
-  it("DELETE /api/contributions/:id returns 204 with empty body", async () => {
+  // B.4 DELETE /api/contributions/:id — Admin token 통과 → 204 + 실 DB 에서 row 사라짐.
+  it("DELETE /api/contributions/:id — Admin token 통과 시 204 with empty body (authed happy — Admin+ tier)", async () => {
     const { contribution } = await seedContribution();
 
-    const response = await request(app.getHttpServer()).delete(
-      `/api/contributions/${contribution.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .delete(`/api/contributions/${contribution.id}`)
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(204);
     expect(response.body).toEqual({});
@@ -223,13 +382,52 @@ describe("E2E: /api/contributions HTTP contract", () => {
     expect(deleted).toBeNull();
   });
 
-  // -- C. 4xx error envelope (status + statusCode + message + error) ----
+  // B.5 escalation — SuperAdmin token 으로 GET (User+) 통과 (hierarchy descent).
+  it("GET /api/contributions — SuperAdmin token 으로 User+ tier 통과 (escalation hierarchy descent)", async () => {
+    // SuperAdmin actor 는 별도 seed (beforeAll 의 2 actor 외) — escalation 박제.
+    const superCtx = await createAuthenticatedE2EApp([
+      { role: "SuperAdmin", email: "contribution-super-actor@e2e.test" },
+    ]);
+    try {
+      const person = await superCtx.prisma.person.create({
+        data: { fullName: "super-get", email: "super-get-c@example.test" },
+      });
+      const assessment = await superCtx.prisma.assessment.create({
+        data: {
+          personId: person.id,
+          period: "week",
+          scope: "commit",
+          periodStart: new Date("2026-01-01T00:00:00.000Z"),
+          difficulty: "medium",
+          contributionScore: "0.75",
+          volume: 10,
+          narrative: "super-get 요약",
+        },
+      });
+      const superCookie = buildAuthCookie(
+        superCtx.tokens["contribution-super-actor@e2e.test"],
+      );
+
+      const response = await request(superCtx.app.getHttpServer())
+        .get(`/api/contributions?assessmentId=${assessment.id}`)
+        .set("Cookie", superCookie);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body)).toBe(true);
+    } finally {
+      await truncateAll(superCtx.prisma);
+      await superCtx.app.close();
+      await superCtx.prisma.$disconnect();
+    }
+  });
+
+  // -- C. 4xx error envelope (authed — guard 통과 후 service-layer / ValidationPipe) --
 
   // C.1 GET :id missing → 404 envelope. seed 없는 id → service NotFoundException.
-  it("GET /api/contributions/:id with missing id returns 404 with envelope", async () => {
-    const response = await request(app.getHttpServer()).get(
-      "/api/contributions/missing-id",
-    );
+  it("GET /api/contributions/:id with missing id returns 404 with envelope (authed)", async () => {
+    const response = await request(app.getHttpServer())
+      .get("/api/contributions/missing-id")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({
@@ -239,10 +437,11 @@ describe("E2E: /api/contributions HTTP contract", () => {
     expect(response.body.message).toBeTruthy();
   });
 
-  // C.2 POST {} → 400 envelope + validation message (필수 field 누락 사유).
-  it("POST /api/contributions with empty body returns 400 with envelope and validation message", async () => {
+  // C.2 POST {} → 400 envelope + validation message (필수 field 누락 사유). Admin token.
+  it("POST /api/contributions with empty body returns 400 with envelope and validation message (authed)", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/contributions")
+      .set("Cookie", adminCookie)
       .send({});
 
     expect(response.status).toBe(400);
@@ -258,12 +457,13 @@ describe("E2E: /api/contributions HTTP contract", () => {
 
   // C.3 POST with non-whitelisted raw field (rawBody) → 400 envelope + whitelist
   // message. R-59 raw 미저장 invariant 의 e2e 정합 — DTO 에 raw 키 부재 + whitelist
-  // reject.
-  it("POST /api/contributions with non-whitelisted raw field (rawBody) returns 400 with whitelist message (R-59)", async () => {
+  // reject. Admin token (guard 통과 후 ValidationPipe 도달).
+  it("POST /api/contributions with non-whitelisted raw field (rawBody) returns 400 with whitelist message (R-59, authed)", async () => {
     const { assessment } = await seedAssessment();
 
     const response = await request(app.getHttpServer())
       .post("/api/contributions")
+      .set("Cookie", adminCookie)
       .send({
         assessmentId: assessment.id,
         sourceType: "commit",
@@ -288,11 +488,11 @@ describe("E2E: /api/contributions HTTP contract", () => {
     expect(await prisma.contribution.count()).toBe(0);
   });
 
-  // C.4 GET list — assessmentId query 누락 → 400 (controller-layer 명시 검증).
-  it("GET /api/contributions without assessmentId query returns 400", async () => {
-    const response = await request(app.getHttpServer()).get(
-      "/api/contributions",
-    );
+  // C.4 GET list — assessmentId query 누락 → 400 (controller-layer 명시 검증). User token.
+  it("GET /api/contributions without assessmentId query returns 400 (authed)", async () => {
+    const response = await request(app.getHttpServer())
+      .get("/api/contributions")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({
@@ -301,15 +501,16 @@ describe("E2E: /api/contributions HTTP contract", () => {
     });
   });
 
-  // -- D. Branch (service-layer HttpException 변환 → status mapping + envelope) --
+  // -- D. Branch (service-layer HttpException 변환 → status mapping + envelope, authed) --
 
   // D.1 POST 잘못된 literal (sourceType="branch") → 400 envelope. service-layer literal
   // 검증 (ContributionService.assertValidSourceType) 이 BadRequestException 발화 → 400.
-  it("POST /api/contributions with invalid sourceType literal returns 400 with envelope (service literal 검증)", async () => {
+  it("POST /api/contributions with invalid sourceType literal returns 400 with envelope (service literal 검증, authed)", async () => {
     const { assessment } = await seedAssessment();
 
     const response = await request(app.getHttpServer())
       .post("/api/contributions")
+      .set("Cookie", adminCookie)
       .send({
         assessmentId: assessment.id,
         sourceType: "branch",
@@ -332,9 +533,10 @@ describe("E2E: /api/contributions HTTP contract", () => {
 
   // D.2 POST assessmentId FK 위반 (존재하지 않는 Assessment) → 400 envelope.
   // 실 PostgreSQL FK constraint 가 P2003 발화 → service BadRequestException 변환 → 400.
-  it("POST /api/contributions with non-existent assessmentId (P2003 FK) returns 400 with envelope", async () => {
+  it("POST /api/contributions with non-existent assessmentId (P2003 FK) returns 400 with envelope (authed)", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/contributions")
+      .set("Cookie", adminCookie)
       .send({
         assessmentId: "cuid-e2e-missing-fk",
         sourceType: "commit",
@@ -356,11 +558,11 @@ describe("E2E: /api/contributions HTTP contract", () => {
   });
 
   // D.3 DELETE missing id → 404 envelope. seed 없이 random id DELETE → 실 PostgreSQL
-  // delete 가 P2025 발화 → NotFoundException 변환 → 404.
-  it("DELETE /api/contributions/:id with missing id (P2025) returns 404 with envelope", async () => {
-    const response = await request(app.getHttpServer()).delete(
-      "/api/contributions/cuid-e2e-missing-delete",
-    );
+  // delete 가 P2025 발화 → NotFoundException 변환 → 404. Admin token.
+  it("DELETE /api/contributions/:id with missing id (P2025) returns 404 with envelope (authed)", async () => {
+    const response = await request(app.getHttpServer())
+      .delete("/api/contributions/cuid-e2e-missing-delete")
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({
