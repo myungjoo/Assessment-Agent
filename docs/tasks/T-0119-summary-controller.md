@@ -2,7 +2,7 @@
 id: T-0119
 title: SummaryController + CreateSummaryDto + /api/summaries endpoint
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-034, REQ-035, REQ-036, REQ-037, REQ-038]
 estimatedDiff: 480
@@ -12,6 +12,10 @@ sizeExempt: true
 exemptReason: "R-112 4-카테고리 HTTP backbone (controller + colocated controller spec + DTO + DTO spec + e2e) × 1.5 — T-0117/T-0118 actual ~1000+ LOC 1:1 mirror. 4 endpoint × (happy + error envelope + branch + negative 충분) unit spec + e2e spec 2 layer test mass. Summary 는 @@unique 부재 → P2002 sub-multiplier 미적용. estimatedDiff 480 cap 초과이나 indivisible controller+DTO+spec+e2e slice, T-0117/T-0118 precedent 정당화 (5 신규/수정 파일, cap 5 file 안)."
 plannerNote: "P3 controller mirror chain 3/3 종결 — Assessment(T-0117)/Contribution(T-0118) 직후 SummaryController. plain controller over 기존 SummaryService(T-0116), §5 미발동."
 dependsOn: [T-0116, T-0117, T-0118]
+completedAt: 2026-05-31T19:14:00+09:00
+mergedAs: 25b767a
+prNumber: 121
+reviewRounds: 1
 ---
 
 # T-0119 — SummaryController + CreateSummaryDto + /api/summaries endpoint

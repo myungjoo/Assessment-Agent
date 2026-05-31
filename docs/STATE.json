@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0119",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T18:54:00+09:00",
-  "lastCommit": "5a0ae0e",
+  "lastActivity": "2026-05-31T19:14:25+09:00",
+  "lastCommit": "25b767a",
   "mostRecentTasks": [
+    "T-0119",
     "T-0118",
     "T-0117",
     "T-0116",
-    "T-0115",
-    "T-0114"
+    "T-0115"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-05-31T18:25:00+09:00",
     "cap": 10,
-    "note": "/loop session #31 (KST 18:25~, 주간 window). turn 1: T-0118 (ContributionController+DTO) MERGED PR-120 round 1 single-shot (5a0ae0e). turn 2: planner 가 T-0119 (SummaryController + CreateSummaryDto + /api/summaries 4 endpoint, pr) queue — controller mirror chain 3/3 종결 slice (Assessment T-0117 / Contribution T-0118 / Summary T-0119, ADR-0006 trio HTTP-facing layer 완성), §5 全 미발동. turn 1 의 doc CI f471c37 success 확인. **운영**: harness phantom worktree (vigilant-boyd-707106 — 미등록/repo 파일 부재, session #29/#30 동일 quirk) 에서 발화 → 모든 sub-agent prompt 에 절대경로+inline-cd env note 주입 workaround. EnterWorktree/ExitWorktree 거부, in-chat cd 미반영 (harness cwd launch 시 고정). reviewer headless 라 integrator 가 ADR-0005 Path A 로 verdict 대리 post. gh --body-file. tasksCompleted 116->117. 잔여 turn 8 (cap 10). 다음 turn = driver 가 T-0119 executor dispatch."
+    "note": "/loop session #31 (KST 18:25~, 주간 window). t1: T-0118 (ContributionController) MERGED PR-120 round 1 (5a0ae0e). t2: planner queued T-0119. t3: T-0119 (SummaryController + CreateSummaryDto) MERGED PR-121 round 1 single-shot (25b767a) — **P3 controller mirror chain 3/3 완결** (Assessment T-0117 / Contribution T-0118 / Summary T-0119, ADR-0006 trio HTTP-facing layer 완성). tasksCompleted 116->118 (+2 머지). **운영**: harness phantom worktree (vigilant-boyd-707106, session #29/#30/#31 동일 quirk) — 모든 sub-agent 에 절대경로+inline-cd env note 주입 workaround (memory env_phantom_worktree 박제). reviewer headless 라 integrator 가 ADR-0005 Path A 로 verdict 대리 post. gh --body-file. reviewer-gate race 정상 흡수 (first run pull_request fail expected -> comment-triggered issue_comment second run green). **deferred follow-up**: api.md 의 /api/assessments·/api/contributions·/api/summaries row 추가 — T-0117/T-0118/T-0119 모두 defer (doc-only direct, planner 후보). 잔여 turn 7 (cap 10). 다음 turn = planner dispatch (nextTask=null)."
   },
   "ci": {
-    "lastRun": "2026-05-31T18:48:00+09:00",
+    "lastRun": "2026-05-31T19:12:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions",
-    "note": "doc bookkeeping commit f471c37 (T-0118 DONE) push run completed success (lint/build/test:cov/smoke/e2e/spec-presence — 코드 변경 0). 직전 PR-120 (T-0118) merge 5a0ae0e + comment-triggered second run 26709096270 19 step green. gh --body-file 사용."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/121",
+    "note": "PR-121 (T-0119 SummaryController) round 1 merge 25b767a. comment-triggered run 26709781472 (event=issue_comment) success — gate (d) 평가 근거. first run (pull_request) reviewer-gate step 단독 fail = race expected. 직전 doc commit bd35232 push run green. gh --body-file 사용."
   },
   "reviewRounds": {},
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
@@ -38,7 +38,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 117,
+    "tasksCompleted": 118,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
