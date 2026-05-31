@@ -2,13 +2,18 @@
 id: T-0121
 title: AssessmentController 에 RBAC guard 적용 (User+/Admin+ tier 강제)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-046, REQ-084, REQ-086]
 estimatedDiff: 270
 estimatedFiles: 3
 created: 2026-05-31
 plannerNote: "P3 Auth/RBAC bullet — api.md 의 의도된 auth tier 를 AssessmentController 에 실제 enforce (ADR-0008/T-0083 scaffold 적용, 신규 결정 0). controller mirror chain 의 RBAC slice 1/3."
+completedAt: 2026-05-31T19:58:00+09:00
+mergedAs: 929166d
+prNumber: 122
+reviewRounds: 1
+sizeNote: "실 diff +654/-61 (prod +43/-3 trivial, 나머지 R-112 RBAC test + e2e auth 전환). 300 LOC guideline 초과이나 3 파일 < 5 cap, reviewer 가 T-0117/118/119 precedent 와 정합으로 APPROVE — implicit sizeExempt."
 ---
 
 # T-0121 — AssessmentController 에 RBAC guard 적용 (User+/Admin+ tier 강제)
