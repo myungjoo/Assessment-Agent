@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0115",
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-05-31T15:48:00+09:00",
+  "lastActivity": "2026-05-31T15:56:00+09:00",
   "lastCommit": "6944662",
   "mostRecentTasks": [
     "T-0114",
@@ -17,10 +17,10 @@
     "T-0110"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-05-31T14:59:00+09:00",
     "cap": 10,
-    "note": "/loop session #30 turn 3 (pr-mode 실행). T-0114 (AssessmentService) PR-115 round 1 single-shot merge 6944662. 진입 시 origin/main fetch 로 stale guard — HEAD == ba7659b 로 cron 추가 없음. executor (implementer+tester, architect=0 — ADR-0006 + PersonService mirror) → 3 파일 staged (assessment.service.ts +150 / spec +356 / user.module.ts +9, 894 tests, service 100% cov) → commit 0d85669 → integrator (reviewer round 1 APPROVE 0 findings + 4-게이트 PASS). gh `--body-file` 사용으로 turn 1 의 `@-` stdin 버그 회피 — reviewer-gate first-run green (race 미발생, empty-commit 재발화 불요). ADR-0006 service half 진입. 다음 turn 4 = planner dispatch (currentTask/nextTask 모두 null)."
+    "note": "/loop session #30 turn 4 (planner-only). turn 3 의 T-0114 (AssessmentService) 머지 (PR-115 6944662) + bookkeeping (2334b95, main CI green) 후 currentTask/nextTask 모두 null → planner dispatch. 진입 origin/main fetch stale guard — HEAD == 2334b95, cron 추가 없음. planner 가 T-0115 (ContributionService — ContributionRepository 위 P2003→BadRequest / P2025·null→NotFound 변환 + sourceType/difficulty literal 검증, AssessmentService mirror, @@unique 부재라 P2002 분기 없음, pr-mode sizeExempt) 큐잉. ADR-0006 service half 2nd slice (도메인 chain Assessment→Contribution→Summary). 다음 turn 5 의 driver 가 currentTask=T-0115 transfer → executor dispatch."
   },
   "ci": {
     "lastRun": "2026-05-31T15:45:00+09:00",
