@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0141",
   "lock": {
     "holder": "loop",
-    "since": "2026-06-01T21:45:16+09:00"
+    "since": "2026-06-01T22:02:43+09:00"
   },
-  "lastActivity": "2026-06-01T21:56:17+09:00",
-  "lastCommit": "ace005f",
+  "lastActivity": "2026-06-01T22:03:30+09:00",
+  "lastCommit": "5cedc6d",
   "mostRecentTasks": [
     "T-0140",
     "T-0139",
@@ -17,18 +17,18 @@
     "T-0136"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-01T20:09:48+09:00",
     "cap": 10,
-    "note": "/loop session #36 (cap 10, dynamic) t7 — T-0140 (LlmProviderConfig GET 목록 endpoint + apiKey 비노출 service) **단일 turn end-to-end 완주**. lock CAS refresh(turnCount 7, since 21:45:16). nextTask T-0140 → feature branch claude/T-0140-llm-provider-config-list-endpoint → executor 1회 dispatch DONE(LlmProviderConfigService apiKey-redact view[allow-list pick] + LlmProviderConfigController GET /api/llm/providers Admin+ RBAC + module wiring + spec 2개; +613/-3 production~146 LOC, 신규 2 파일 100% cov, 전역 line 99.88%/func 100%, 1241 tests; apiKey 다중 row 비노출 service+HTTP 양쪽 assert; 외부 dep 0 HITL 미발화) → commit 2908316 → PR #136 → integrator round 1 reviewer APPROVE(apiKey allow-list redact + RBAC 401/403 검증, no findings, reviewer-gate race 무발생) → 4-게이트 PASS → squash merge ace005f branch 삭제. tasksCompleted 138→139. 세션 진척: 4 task merged(T-0137~T-0140). merge CI(26756216332) in_progress — 다음 turn 재확인. 다음 turn(t8): merge CI green 재확인 + planner. **누적 Follow-up(MINOR)**: api.md 에 difficulty-mapping(T-0139) + /api/llm/providers(T-0140) endpoint 박제(doc-only direct)."
+    "note": "/loop session #36 (cap 10, dynamic) t8 — T-0140 merge(ace005f) + bookkeeping(5cedc6d) push CI 둘 다 green 확인 + planner dispatch → **T-0141 큐잉**(api.md §5 LLM endpoint doc-sync: difficulty-mappings[T-0139] + providers apiKey-redaction[T-0140] reality 반영 + write-endpoint deferred 표기, commitMode direct, doc-only ~45 LOC, 누적 MINOR follow-up 해소, HITL 미발화). lock CAS refresh(turnCount 8, since 22:02:43). 세션 진척: 4 task merged(T-0137~T-0140 DifficultyMapping chain + LlmProviderConfig GET). nextTask=T-0141. **cap(10) 접근** — 다음 turn(t9): T-0141 direct doc 완주, t10: bookkeeping CI 확인 + 다음 task planner queue(cron momentum 보존) 후 §1[8](e) reschedule 중단 clean stop."
   },
   "ci": {
-    "lastRun": "2026-06-01T21:56:17+09:00",
-    "status": "running",
+    "lastRun": "2026-06-01T22:03:30+09:00",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26756216332",
-    "note": "T-0140 PR-136 round 1 reviewer APPROVE → 4-게이트 PASS → squash merge ace005f. PR CI green(reviewer-gate race 무발생). merge 후 main run 26756216332(ace005f) in_progress — 동일 squashed tree green 예상, 다음 turn 재확인."
+    "note": "T-0140 merge ace005f (run 26756216332) + bookkeeping 5cedc6d 둘 다 push/main/completed success. consecutiveFails 0. main green (session #36 t8 진입 시점)."
   },
   "reviewRounds": {
     "T-0138": 1,
