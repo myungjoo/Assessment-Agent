@@ -2,7 +2,7 @@
 id: T-0134
 title: P4-Entry — docs/architecture/p4-implementation-plan.md 신설 (P4 PLAN bullet ↔ task 시퀀스 매핑)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-033, REQ-034, REQ-096, REQ-097, REQ-099, REQ-100, REQ-101, REQ-102, REQ-103, REQ-020]
 estimatedDiff: 230
