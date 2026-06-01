@@ -73,6 +73,11 @@ jobs:
       - name: spec-presence 자체 test
         run: bash scripts/check-spec-presence.test.sh
 
+      - name: ref-CAS lock 검증
+        # ADR-0009 ref-CAS lock 의 --force-with-lease CAS 의미 executable spec.
+        # self-contained (로컬 bare repo + 2 clone) 이라 remote/네트워크 불요.
+        run: bash scripts/verify-ref-cas-lock.sh
+
       - name: pnpm 설치
         uses: pnpm/action-setup@v4
         with:
