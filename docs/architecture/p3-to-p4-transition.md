@@ -324,4 +324,41 @@ P3 잔여 backbone task 0 — 즉시 P4 진입, 잔여 work 가 P4 안에서 병
 - [docs/tasks/T-0069-part-update-dto-and-repository.md](../tasks/T-0069-part-update-dto-and-repository.md) + [docs/tasks/T-0071-part-service-update.md](../tasks/T-0071-part-service-update.md) + [docs/tasks/T-0075-part-controller-update.md](../tasks/T-0075-part-controller-update.md) — Part CRUD-U 4-layer 박제 task chain (session #20 + session #22).
 - [docs/architecture/estimate-model.md](estimate-model.md) §2.4 cap-bend 14 회차 milestone + §3.2.2 inline-amend × 0.4 sub-multiplier — 본 task 의 권장 강화 박제 기반.
 
-Refs: T-0076, T-0075, T-0074, T-0073, T-0072, T-0071, T-0070, T-0069, T-0068, T-0067, T-0066, T-0063, T-0062, T-0061, T-0060, T-0059, T-0058, T-0057, T-0056, T-0055, T-0054, T-0053, T-0052, T-0051, T-0050, T-0049, T-0048, T-0047, T-0046, T-0045, T-0044, T-0043, T-0042, T-0041, T-0040, T-0039, T-0038, T-0037, T-0036, T-0035, T-0034, T-0033, T-0032, ADR-0001, ADR-0002, ADR-0003, ADR-0004, REQ-051, REQ-057, REQ-058, REQ-028
+## 7. P3→P4 binding decision (T-0133)
+
+> **§2.1–§2.7 의 박제 freeze (session #19 turn 4 ~ T-0125 closure, entity 박제 layer-progress 5/11 → 9/11) 는 역사 invariant 로 유지 — 본문 수정 0, 본 §7 신설만.** §2.7 마지막 단락 + §4.1 마지막 단락이 "phase 전환 / binding-decision 의 실제 박제는 다음 planner dispatch 또는 humanQuestion 발화의 책임" 으로 명시 위임한 그 시점이 본 task (T-0133) 에서 도래했다. 본 §7 은 위임된 binding-decision 을 실제로 박제하고 STATE.phase 를 P4-in-progress 로 전환한다.
+
+### 7.1 binding decision — option (c) hybrid-parallel 채택
+
+**결정**: P4 진입 trigger 로 **option (c) hybrid-parallel 을 binding 으로 채택**한다. §3 옵션 (a) eager-transition / (b) strict-completion 은 비채택 — §4 + §4.1 의 누적 권장 (T-0063 권장 → T-0075 권장 강화) 을 binding 으로 확정.
+
+**채택 근거 (T-0125/T-0132 closure 시점 사실 누적)**:
+
+1. **entity 9/11 박제** — `prisma/schema.prisma` 9 model 대조 (Person / Group / Part / PersonGroupMembership / User / ServiceIdentity / Assessment / Contribution / Summary). 옵션 (c) 정의의 P3 안 핵심 backbone (User + Assessment + Contribution + Summary) 전부 박제 완성 (§2.7).
+2. **module 3/5 박제** — PersistenceModule / UserModule / AuthModule (ADR-0008 auth credential type ACCEPTED 동반). 외부 자격증명 처리의 prerequisite 인 보안 layer 박제 완성 (§2.7).
+3. **ADR 8 ACCEPTED** — ADR-0001~0005 + 0008 + 0009 + 0010. 옵션 (c) 권장 사유 2 (보안 layer 최소 박제) 의 ADR-0008 충족 (§2.7).
+4. **controller RBAC chain 3/3 완결** — Assessment / Contribution / Summary controller 의 `JwtAuthGuard` + `RolesGuard` + `@Roles` enforce (T-0121/T-0122/T-0123) + @CurrentUser decorator (T-0125). 평가 도메인 HTTP layer RBAC 보호 완성 (§2.7).
+5. **§4/§4.1 권장 강화 누적** — T-0063 권장 (c) + T-0075 권장 강화 (entity 73% 후 strategic value 한계점) → 본 task 가 binding 으로 확정.
+
+**전환 시점 사실**: T-0125 closure (PR-126 머지 7b2e1f3) + T-0132 closure (§2.7 refresh 박제) 로 P3 핵심 backbone 충분 박제. 본 task 머지 commit 이 STATE.phase P3-in-progress → P4-in-progress 전환을 박제.
+
+### 7.2 P4 와 병행 deferred 항목 (option (c) 정의)
+
+옵션 (c) hybrid-parallel 정의상 다음은 P3 안 미완성, P4 와 병행 진행:
+
+- **LlmProviderConfig entity** — LlmModule scope, P4 LLM gateway task 와 병행 박제.
+- **DifficultyMapping entity** — LlmModule scope, P4 와 병행.
+- **PermissionDeniedRecord entity** — audit log, ADR-0007 동반, P4 와 병행 (또는 P4 외부 통합의 권한 부족 감지 R-20/R-33 task 와 동반).
+- **ADR-0005 cross-cutting field policy ADR** — timezone / soft delete / createdBy audit-source schema-level 격상, P4 와 병행 (별도 doc-only direct task).
+- **ADR-0007 audit log schema ADR** — PermissionDeniedRecord schema 박제, P4 와 병행.
+- **AssessmentModule 추출** — 현 Assessment/Contribution/Summary 가 UserModule 안에 통합 wiring, 별도 pr-mode refactor task (P4 와 병행 가능).
+
+### 7.3 STATE.phase 전환
+
+본 task 머지 commit 으로 STATE.phase 를 `P3-in-progress` → `P4-in-progress` 로 전환 (driver 가 STATE single-writer 로 적용). P4 task breakdown (p4-implementation-plan.md 신설 등) 은 다음 planner dispatch 의 책임 — 본 task 는 phase 전환 binding 만.
+
+## 8. References
+
+- 본 doc §7 P3→P4 binding decision 머지 commit SHA — T-0133 머지 후 driver bookkeeping 단계에서 갱신 (placeholder).
+
+Refs: T-0133, T-0132, T-0125, T-0076, T-0075, T-0074, T-0073, T-0072, T-0071, T-0070, T-0069, T-0068, T-0067, T-0066, T-0063, T-0062, T-0061, T-0060, T-0059, T-0058, T-0057, T-0056, T-0055, T-0054, T-0053, T-0052, T-0051, T-0050, T-0049, T-0048, T-0047, T-0046, T-0045, T-0044, T-0043, T-0042, T-0041, T-0040, T-0039, T-0038, T-0037, T-0036, T-0035, T-0034, T-0033, T-0032, ADR-0001, ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0008, REQ-051, REQ-057, REQ-058, REQ-059, REQ-063, REQ-084, REQ-028
