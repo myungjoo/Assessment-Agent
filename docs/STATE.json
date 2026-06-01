@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0133",
   "lock": {
     "holder": "loop",
     "since": "2026-06-01T16:50:50+09:00"
   },
-  "lastActivity": "2026-06-01T16:51:00+09:00",
-  "lastCommit": "c1fb893",
+  "lastActivity": "2026-06-01T17:00:00+09:00",
+  "lastCommit": "cb21e6b",
   "mostRecentTasks": [
     "T-0132",
     "T-0131",
@@ -17,18 +17,18 @@
     "T-0128"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-01T16:50:50+09:00",
     "cap": 10,
-    "note": "/loop session #35 (cap 10, dynamic) t1: T-0132 (P3→P4 전이 doc §2.7 status refresh) 실행. 진입 시 local main 이 origin/main(8a95ac1 T-0132 queued) 보다 behind 1 → ff-only sync 후 진행. ref-CAS lock 신규 획득(refs/locks/driver 미존재 → atomic create, session loop@WIN-JQIPLSBL9QV-4ca7). executor dispatch → DONE(direct doc-only, +36/-1). commit c1fb893 → push main OK. CI 26742332751 queued(다음 turn 재확인). tasksCompleted 130→131. nextTask null → 다음 turn planner dispatch 필요."
+    "note": "/loop session #35 (cap 10, dynamic) t2: t1 의 T-0132 doc push CI 검증 = green 확인(run 26742332751 c1fb893 success + 26742403657 cb21e6b success). currentTask·nextTask 둘 다 null → planner dispatch → T-0133 큐잉(P3→P4 phase transition decision, commitMode direct — transition doc §2.7/§4.1 이 위임한 binding decision). nextTask=T-0133. 본 turn doc-only direct commit(T-0133 queued + ci green close-out). ci status running→green. 다음 turn T-0133 실행."
   },
   "ci": {
-    "lastRun": "2026-06-01T16:51:00+09:00",
-    "status": "running",
+    "lastRun": "2026-06-01T17:00:00+09:00",
+    "status": "green",
     "consecutiveFails": 0,
-    "lastConclusion": "pending",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26742332751",
-    "note": "T-0132 doc-only direct push(c1fb893) → CI run 26742332751 queued(event=push, headBranch=main). 직전 권위 green run = 26740432232(8a95ac1). 다음 turn [1]에서 26742332751 conclusion 재확인."
+    "lastConclusion": "success",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26742403657",
+    "note": "T-0132 doc push CI green 확인 — run 26742332751(c1fb893) success + 26742403657(cb21e6b bookkeeping) success. 둘 다 push/main/completed. consecutiveFails 0 유지."
   },
   "reviewRounds": {
     "T-0126": 1,
