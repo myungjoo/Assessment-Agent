@@ -2,36 +2,33 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0146",
+  "nextTask": null,
   "lock": {
-    "holder": "loop",
-    "session": "loop@AKIHA-135e",
-    "since": "2026-06-01T23:25:20+09:00",
-    "loopSessionStartedAt": "2026-06-01T22:29:40+09:00",
-    "loopSessionTurnCount": 4
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-01T23:39:38+09:00",
-  "lastCommit": "5222925",
+  "lastActivity": "2026-06-02T00:00:18+09:00",
+  "lastCommit": "cd98a69",
   "mostRecentTasks": [
+    "T-0146",
     "T-0145",
     "T-0144",
     "T-0143",
-    "T-0142",
-    "T-0141"
+    "T-0142"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-01T22:29:40+09:00",
     "cap": 10,
-    "note": "/loop session #37 (cap 10, dynamic) t4: 사용자 /loop 재진입(같은 conversation → session #37 연속). fetch 후 local==origin(dbd2ee5), lock 동일 session → CAS refresh turnCount 3→4(since 23:25:20). **t3 모든 main CI green 확인**(72784a4·dbd2ee5 success). nextTask T-0145 → currentTask(pr-mode 신규 ADR). **pr-mode 완주**: executor 1회 dispatch DONE(architect → ADR-0013 Confluence SPACE 탐색 정책 신설 3 축 결정[메커니즘=page List 기반(crawling·hierarchy 기각) / 다중 SPACE allowlist 순회 + (page,version) raw-transient 경계 / 4xx SPACE 단위 skip-and-continue] + modules.md ConfluenceModule 대조 + HITL 경계 명시 + INDEX.md row; doc-only 0 prod LOC, tester lint/build/test 1256 green). commit 8fe3693 → push. integrator dispatch → PR #139 open + reviewer APPROVE + 4-게이트 PASS → squash merge(5222925) + branch delete. tasksCompleted 143→144. planner dispatch(3번째 연속) → **T-0146 큐잉**(ADR-0014 LLM API key encryption-at-rest 정책, commitMode pr, doc-only·dependency-free·non-HITL — p4-plan §3 ADR 후보(c) mandated; config write CRUD[HITL] 선행 결정 doc; ADR-0008/0009 security-ADR-doc-only precedent). 머지 commit 5222925 main CI in_progress → t5 재확인. **다음 주요 milestone(§5 HITL BLOCKED 유지)**: GithubAdapter/ConfluenceAdapter(dep+credential) + LLM provider HTTP client(SDK+API key) + config write CRUD(apiKey secret body) — 사용자 승인 필요. 비-HITL ADR backlog(T-0144·T-0145·T-0146) 소진 진행 중 — T-0146 후 HITL 게이트 도달 가능성 ↑. lock 유지(dynamic)."
+    "note": "/loop session #37 (cap 10, dynamic) t5 — **NEEDS_HUMAN STOP (cap 미도달, §5 HITL 게이트)**. fetch 후 local==origin(f100417→cd98a69), lock 동일 session → CAS refresh turnCount 4→5(since 23:45:17). **t4 모든 main CI green 확인**. nextTask T-0146 → currentTask(pr-mode 신규 ADR). **pr-mode 완주**: executor 1회 dispatch DONE(architect → ADR-0014 LLM API key encryption-at-rest 정책: application-layer AES-256-GCM envelope[Node 내장 crypto, dependency-free] + LLM_APIKEY_ENC_KEY env 키 manual rotation + apiKey write-only never-read-back invariant + 평문→ciphertext migration; pgcrypto·KMS·평문유지 3 대안 기각; doc-only 0 prod LOC, tester lint/build/test 1256 green) + INDEX.md row. commit d106638 → push. integrator dispatch → PR #140 open + reviewer APPROVE + 4-게이트 PASS → squash merge(cd98a69) + branch delete. tasksCompleted 144→145. **planner dispatch #4 → NEEDS_HUMAN(needs-human-decision)**: 비-HITL dependency-free backlog 소진(ADR-0011/0012/0013/0014 4종 연속 merged) — 5번째 ADR 은 make-work 라 판단해 신규 task 미생성. **남은 P4 주요 milestone 3종 전부 §5 HITL 게이트**: (1) LLM provider HTTP client/LlmGateway(provider SDK pnpm add + LLM API key, de-risk ADR-0014), (2) config write CRUD POST/PATCH/DELETE(apiKey secret body, de-risk ADR-0014, dep 0=Node crypto), (3) GithubAdapter+ConfluenceAdapter(HTTP client dep + token, de-risk ADR-0013). humanQuestion Q-0013 raised. **§1[8](a) 미해결 humanQuestion → reschedule 중단 = loop 종료**. lock 해제(ref tombstone + STATE mirror empty)로 cron/다음 /loop unblock — 단 다음 driver turn 은 Q-0013 미해결인 한 §1[1] 에서 즉시 stand down. **session #37 성과: 5 task 완주(T-0142 endpoint + T-0143 doc-sync + T-0144/0145/0146 3 ADR), tasksCompleted 140→145(+5), CI 매 push green, blockers 0**. 사용자 결정 대기: Q-0013 의 milestone 승인(권장 순서 LLM client→config CRUD→GitHub→Confluence) → resolvedAt+decision 기입 후 새 /loop."
   },
   "ci": {
-    "lastRun": "2026-06-01T23:39:38+09:00",
+    "lastRun": "2026-06-02T00:00:18+09:00",
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26761639270",
-    "note": "T-0145 merge commit 5222925 main CI run(26761639270) in_progress — 다음 turn 재확인. PR #139 pre-merge checks green(integrator 게이트 4 success, 전 step 검증). t3 commits(72784a4·dbd2ee5) success 확인. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26762727647",
+    "note": "T-0146 merge commit cd98a69 main CI run(26762727647) in_progress — 다음 driver turn(Q-0013 해소 후) 재확인. PR #140 pre-merge checks green(integrator 게이트 4 success). t4 commit f100417 success 확인. session #37 모든 push green, consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -41,11 +38,31 @@
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
   "blockers": [],
-  "humanQuestions": [],
+  "humanQuestions": [
+    {
+      "id": "Q-0013",
+      "raisedAt": "2026-06-02T00:00:18+09:00",
+      "raisedBy": "loop@AKIHA-135e session #37 t5 (planner dispatch #4 → needs-human-decision)",
+      "reason": "needs-human-decision",
+      "status": "OPEN",
+      "summary": "비-HITL dependency-free 작업 backlog 가 소진됐다(ADR-0011/0012/0013/0014 4종 연속 merged). 남은 P4 주요 milestone 3종이 모두 §5 HITL 게이트(새 외부 dependency / 외부 자격증명 / secret·auth 변경)에 걸려 사용자 승인이 필요하다. 승인 없이는 loop 가 진행할 dependency-free 작업이 없다.",
+      "context": "session #37 5 turn 동안 T-0142(GET /api/llm/providers/:id endpoint) + T-0143(api.md doc-sync) + T-0144(ADR-0012 cross-cutting field policy) + T-0145(ADR-0013 Confluence SPACE 탐색 정책) + T-0146(ADR-0014 LLM API key encryption-at-rest) 를 완주했다. 이 4 ADR 이 아래 milestone 들의 핵심 설계 결정을 선행 박제(de-risk)했고, 이제 실제 구현만 남았는데 전부 HITL 게이트다. planner 가 dispatch #4 에서 추가 dependency-free 작업은 make-work 라 판단해 신규 task 를 만들지 않고 escalate 했다.",
+      "options": [
+        "milestone-1 (권장 1순위) — LLM provider HTTP client / LlmGateway: provider SDK 1종(예: @anthropic-ai/sdk 또는 선택 provider) pnpm add 승인 + LLM API key 자격증명 제공. de-risk: ADR-0014(암호화) + 기존 LlmProviderConfig read endpoints.",
+        "milestone-2 (권장 2순위, 가장 빠른 unblock) — config write CRUD (POST/PATCH/DELETE /api/llm/providers): apiKey 를 request body 로 받는 secret 처리 승인(ADR-0014 AES-256-GCM envelope 적용). 새 dependency 0(Node 내장 crypto)이라 자격증명 없이 승인만으로 진행 가능.",
+        "milestone-3 (권장 3·4순위) — GithubAdapter + ConfluenceAdapter: HTTP client dependency + GitHub/Confluence 자격증명(token) 승인. de-risk: ADR-0013(Confluence traversal).",
+        "대안 — 위 HITL 작업을 아직 승인하지 않고 다른 dependency-free 작업(기존 코드 test/observability hardening, OpenAPI/Swagger doc 등)을 원하면 그 방향을 지시. planner 는 그것을 현재 make-work 로 판단했으나 사용자 우선순위가 다르면 재지시 가능."
+      ],
+      "recommendation": "권장 구현 순서: (1) LLM provider HTTP client → (2) config write CRUD → (3) GithubAdapter → (4) ConfluenceAdapter. 승인 절차: 각 milestone 에 필요한 dependency/credential 을 명시 승인하면, loop 가 (필요 시 dependency-추가 ADR 작성 →) 구현 task 로 재개한다. 가장 빠른 unblock 은 config write CRUD(dependency 0).",
+      "resolutionHint": "이 항목을 해소하려면 docs/STATE.json 의 본 Q-0013 에 resolvedAt(ISO) + decision(승인한 milestone 과 dependency/credential 명시)을 기입하고 commit 한 뒤 새 /loop 를 시작한다. credential(API key/token)은 코드·STATE·journal 에 적지 말고 환경변수/secret store 로 주입한다(§9).",
+      "resolvedAt": null,
+      "decision": null
+    }
+  ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 144,
+    "tasksCompleted": 145,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

@@ -2,7 +2,11 @@
 id: T-0146
 title: ADR-0014 신설 — LLM API key encryption-at-rest 정책
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T23:58:30+09:00
+prNumber: 140
+mergedAs: cd98a69
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-052, REQ-053, REQ-054]
 estimatedDiff: 200
