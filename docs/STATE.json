@@ -4,10 +4,11 @@
   "currentTask": null,
   "nextTask": null,
   "lock": {
-    "holder": "",
-    "since": ""
+    "holder": "human",
+    "since": "2026-06-01T10:37:00+09:00",
+    "note": "강한 git-ref CAS lock 인프라 작업 부트스트랩 중 cron 일시정지 (B 방식). 큐잉 완료 후 해제 예정. 60분 경과 시 stale 탈취 가능 — 단기 보호용."
   },
-  "lastActivity": "2026-06-01T09:24:00+09:00",
+  "lastActivity": "2026-06-01T10:37:00+09:00",
   "lastCommit": "7b2e1f3",
   "mostRecentTasks": [
     "T-0125",
