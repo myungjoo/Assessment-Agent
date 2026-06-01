@@ -2,7 +2,7 @@
 id: T-0132
 title: "P3→P4 전이 doc status refresh — T-0125 closure (controller RBAC chain 3/3 + @CurrentUser decorator) 시점 반영"
 phase: P3
-status: PENDING
+status: DONE
 commitMode: direct
 hqOrigin: null
 coversReq: []

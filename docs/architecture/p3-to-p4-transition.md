@@ -131,6 +131,40 @@ P3 진행 중 service/controller-with-R-112-spec backbone 의 systematic underes
 
 **inline-amend × 0.4 sub-multiplier dogfood**: 본 task 는 T-0070 14 회차 milestone refinement + T-0073 inline-amend × 0.4 1 회차 박제 (estimate-model.md §3.2.2) 후 inline-amend dogfood 3 회차. T-0076 본 task 자체가 2 파일 envelope (transition doc + PLAN.md L70-74) 의 ~120 LOC estimate — inline-amend × 0.4 sub-multiplier 의 추가 dogfood 데이터 1 회차로 누적.
 
+### 2.7 T-0125 closure 시점 refresh (controller RBAC chain 3/3 + @CurrentUser decorator)
+
+> **§2.1–§2.6 의 박제 freeze (session #19 turn 4 ~ session #22 turn 1, T-0062 ~ T-0075 closure 시점, entity 박제 layer-progress 5/11 → 8/11) 는 역사 박제로 유지.** 본 subsection 은 T-0077 ~ T-0125 (User / Auth / Assessment / Contribution / Summary entity + service + controller + RBAC chain + @CurrentUser decorator) 의 P3 backbone 진척을 T-0125 closure (PR-126 머지 7b2e1f3) 시점 사실로 박제한다. T-0063 박제 invariant 와 충돌 0 — 추가 박제 layer 만 신설, STATE.phase 변경 0.
+
+**entity progress refresh — 8/11 → 9/11 (73% → 82%)** (`prisma/schema.prisma` 9 model 박제 대조):
+
+| 추가 박제 entity                                   | 박제 task chain                                | layer closure marker                                                                |
+| -------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------- |
+| User entity (AuthModule)                           | T-0077~ (User entity + repository + AuthModule)| entity + repository + service (AuthService) + controller (AuthController) 박제       |
+| Assessment / Contribution / Summary entity         | T-0110 schema + T-0111/T-0112/T-0113 repository| schema + repository chain 6/6 (ADR-0006 assessment data model 박제, raw 미저장 R-59) |
+
+`prisma/schema.prisma` 실 박제 model 9 개 (Person / Group / Part / PersonGroupMembership / User / ServiceIdentity / Assessment / Contribution / Summary). 미박제 2 entity (LlmProviderConfig / DifficultyMapping — LlmModule scope, P4 와 병행) + conceptual PermissionDeniedRecord (audit log, ADR-0007 deferred). **entity 박제 수 8/11 → 9/11** — User + Assessment + Contribution + Summary 4 entity 신설 (Group/Part 의 CRUD-U layer-progress marker 와 다른 실 entity 신설 박제).
+
+**module progress refresh — 2/5 → 3/5 (40% → 60%)** (`src/**/*.module.ts` 대조):
+
+박제 완료 3 module: PersistenceModule (T-0033) / UserModule (T-0034 → 누적 확장, Assessment/Contribution/Summary controller 통합 wiring 포함) / **AuthModule (T-0077~ User entity + JWT credential + RBAC SuperAdmin/Admin/User + JwtAuthGuard + RolesGuard, ADR-0008 auth credential type ACCEPTED 동반)**. 미박제 2 module: AssessmentModule (현 Assessment/Contribution/Summary service+controller 가 UserModule 안에 통합 wiring — 별도 module 추출은 후속 task) / LlmModule (P4 와 병행).
+
+**ADR progress refresh — 1/4 → 8 ACCEPTED** (`docs/decisions/` 인벤토리 대조):
+
+ACCEPTED 8 개 — ADR-0001 (stack) / ADR-0002 (db) / ADR-0003 (deployment) / ADR-0004 (smoke/e2e DB mode) / ADR-0005 (MCP tools) / **ADR-0008 (auth credential type — JWT, T-0079)** / ADR-0009 (strong ref-CAS lock) / ADR-0010 (cron GitHub MCP pr-mode). PROPOSED 1 개 — ADR-0006 (assessment data model). 미박제 — ADR-0007 (audit log schema, deferred). P3 핵심 backbone ADR (ADR-0008 auth credential + ADR-0005 cross-cutting 후보 + ADR-0006 assessment data model) 진척 — ADR 1/4 박제 카운터가 실 ACCEPTED 8 개로 갱신.
+
+**RBAC enforce milestone — controller RBAC chain 3/3 closure**:
+
+- **T-0121 / T-0122 / T-0123** — Assessment / Contribution / Summary controller 에 `JwtAuthGuard` + `RolesGuard` + `@Roles` 적용. 3 controller × 4 endpoint = **12 endpoint 에 RBAC enforce 박제** (`src/user/assessment.controller.ts` / `contribution.controller.ts` / `summary.controller.ts`).
+- **T-0120 + T-0124** — api.md §5 doc-sync (RBAC enforced 박제 15+ row).
+- **T-0125** — `@CurrentUser()` decorator 추출 (PR-126 머지 7b2e1f3) — controller 의 인증 사용자 주입 cross-cutting 패턴 박제.
+- Auth/RBAC bullet (PLAN.md L59 — SuperAdmin/Admin/User + R-84) 의 **enforce 완료 박제** — AuthModule 의 JWT credential + guard chain 위에서 평가 도메인 HTTP layer 가 RBAC 보호됨.
+
+**T-0125 closure 시점 잔여 estimate refresh**: §4.1 의 "잔여 P3 backbone task estimate ~5~6 task" 박제 (T-0076 session #22 freeze) 는 **수정하지 않음** — 본 §2.7 은 진척만 박제. T-0125 closure 시점 잔여 estimate refresh: AuthModule 박제 완료 + ADR-0008 ACCEPTED 후 잔여 = cross-cutting R-59 schema-level enforcement 강화 + AssessmentModule 추출 (선택) = 약 2~3 task 추가 (Group/Part/User read-only RBAC 확장 + LlmModule scaffold 별도).
+
+**STATE.phase 변경 0 명시**: 본 §2.7 refresh 머지 후에도 STATE.phase 는 **P3-in-progress 유지** — entity 9/11 + module 3/5 + RBAC enforce 완결이 P3 → P4 전환 자체를 트리거하지 않는다. 실 phase 전환 / binding-decision 박제는 다음 planner dispatch 또는 humanQuestion 발화의 책임 (T-0063 박제 invariant 유지). 본 §2.7 은 fact refresh only — 결정 신설 0.
+
+**T-0125 closure 시점 P3 backbone progress milestone — RBAC enforce 완결 + HTTP layer 박제 + User+Assessment 도메인 추가**
+
 ## 3. P4 진입 trigger 3 옵션
 
 ### 옵션 (a) eager-transition
@@ -285,6 +319,7 @@ P3 잔여 backbone task 0 — 즉시 P4 진입, 잔여 work 가 P4 안에서 병
 - [CLAUDE.md](../../CLAUDE.md) §3.1 (commitMode) / §5 (HITL 새 dependency BLOCKED) — 본 doc 가 doc-only direct 인 근거 source.
 - 본 doc 머지 commit SHA — T-0063 머지 후 driver bookkeeping 단계에서 갱신.
 - 본 doc §2.6 + §4.1 + §5 session #22 시점 refresh 머지 commit SHA — T-0076 머지 후 driver bookkeeping 단계에서 갱신.
+- 본 doc §2.7 T-0125 closure 시점 refresh 머지 commit SHA — T-0132 머지 후 driver bookkeeping 단계에서 갱신 (placeholder).
 - [docs/tasks/T-0066-group-update-dto-and-repository.md](../tasks/T-0066-group-update-dto-and-repository.md) ~ [docs/tasks/T-0068-group-controller-update.md](../tasks/T-0068-group-controller-update.md) — Group CRUD-U 4-layer 박제 task chain (session #20).
 - [docs/tasks/T-0069-part-update-dto-and-repository.md](../tasks/T-0069-part-update-dto-and-repository.md) + [docs/tasks/T-0071-part-service-update.md](../tasks/T-0071-part-service-update.md) + [docs/tasks/T-0075-part-controller-update.md](../tasks/T-0075-part-controller-update.md) — Part CRUD-U 4-layer 박제 task chain (session #20 + session #22).
 - [docs/architecture/estimate-model.md](estimate-model.md) §2.4 cap-bend 14 회차 milestone + §3.2.2 inline-amend × 0.4 sub-multiplier — 본 task 의 권장 강화 박제 기반.
