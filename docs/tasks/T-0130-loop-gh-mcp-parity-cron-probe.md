@@ -2,7 +2,9 @@
 id: T-0130
 title: "LOOP.md gh→MCP 도구 병기 + cron MCP probe/degradation 명세 (ADR-0010 반영)"
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T13:52:00+09:00
+actualFiles: 1
 commitMode: direct
 coversReq: []
 estimatedDiff: 60

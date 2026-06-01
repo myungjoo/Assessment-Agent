@@ -1,21 +1,20 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": "T-0130",
+  "currentTask": null,
   "nextTask": null,
   "lock": {
-    "holder": "loop",
-    "session": "loop@local-direct-607e296",
-    "since": "2026-06-01T13:48:00+09:00"
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-01T13:48:00+09:00",
-  "lastCommit": "607e296",
+  "lastActivity": "2026-06-01T13:52:00+09:00",
+  "lastCommit": "c2c702a",
   "mostRecentTasks": [
+    "T-0130",
     "T-0129",
     "T-0128",
     "T-0127",
-    "T-0126",
-    "T-0125"
+    "T-0126"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -42,7 +41,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 128,
+    "tasksCompleted": 129,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
