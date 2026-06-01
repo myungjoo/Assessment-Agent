@@ -2,36 +2,36 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0144",
+  "nextTask": "T-0145",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-135e",
-    "since": "2026-06-01T22:53:13+09:00",
+    "since": "2026-06-01T23:05:46+09:00",
     "loopSessionStartedAt": "2026-06-01T22:29:40+09:00",
-    "loopSessionTurnCount": 2
+    "loopSessionTurnCount": 3
   },
-  "lastActivity": "2026-06-01T22:58:41+09:00",
-  "lastCommit": "6ec115c",
+  "lastActivity": "2026-06-01T23:19:24+09:00",
+  "lastCommit": "72784a4",
   "mostRecentTasks": [
+    "T-0144",
     "T-0143",
     "T-0142",
     "T-0141",
-    "T-0140",
-    "T-0139"
+    "T-0140"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-01T22:29:40+09:00",
     "cap": 10,
-    "note": "/loop session #37 (cap 10, dynamic) t2: ScheduleWakeup(t1, 270s) 후 사용자 'continue' 로 재진입. fetch 후 local==origin(6ec115c), lock 동일 session → CAS refresh turnCount 1→2(since 22:53:13). **T-0142 merge commit 26c67db CI = success 확인**(t1 in_progress 였던 것 green). nextTask T-0143 → currentTask. **doc-only direct 완주**: executor 1회 dispatch DONE(api.md §5 L109 아래 GET /api/llm/providers/:id 단건 행 1줄 inline-amend — 404 변환 + sanitize apiKey redaction allow-list + T-0142/PR #137 박제; +1/-0, §12 준수, R-110 면제 doc-only). deliverable(api.md) + bookkeeping(STATE/task frontmatter/journal) + planner queue(T-0144 task file + nextTask) 단일 direct commit(§3.1 doc-only 결합, T-0141 precedent). tasksCompleted 141→142. planner dispatch → **T-0144 큐잉**(ADR-0012 cross-cutting field policy: timezone/soft-delete/createdBy/updatedAt 박제, commitMode pr 신규 ADR, dependency-free·non-HITL P4-parallel doc — data-model §5 가 P3 로 미룬 결정 박제). **다음 주요 milestone(§5 HITL BLOCKED 유지)**: provider HTTP client/gateway(provider SDK pnpm add + LLM API key) + config write CRUD(apiKey secret body) — 사용자 승인 필요. planner 예고: T-0144 후 다음 planner dispatch 는 위 HITL 게이트에 도달할 가능성 높음. lock 유지(dynamic). 관측(비차단): stale LOCAL claude/* branch 다수."
+    "note": "/loop session #37 (cap 10, dynamic) t3: 사용자 /loop 재진입(같은 conversation → session #37 연속, turnCount reset 안 함). fetch 후 local==origin(6166d9c), lock 동일 session → CAS refresh turnCount 2→3(since 23:05:46). **t1/t2 모든 main CI green 확인**(26c67db·6ec115c·6166d9c success). nextTask T-0144 → currentTask(pr-mode 신규 ADR). **pr-mode 완주**: executor 1회 dispatch DONE(architect → ADR-0012 cross-cutting field policy 신설 4 축 결정[UTC 저장/createdAt 전 entity+updatedAt mutable-only/soft=Person active only·나머지 hard/createdBy=AuditLog event-stream] + INDEX.md row; schema.prisma reality 0 모순 migration 불요; doc-only 0 prod LOC, tester lint/build/test 1256 green R-110 게이트). commit 9d52bfa → push claude/T-0144-adr-cross-cutting-field-policy. integrator dispatch → PR #138 open + reviewer APPROVE(§12/template/reality 대조 점검) + 4-게이트 PASS → squash merge(72784a4) + branch delete. tasksCompleted 142→143. planner dispatch → **T-0145 큐잉**(ADR-0013 Confluence SPACE 탐색 정책: crawling vs page List/Hierarchy 택일, PLAN L84/REQ-017 의무, commitMode pr, dependency-free·non-HITL — ConfluenceAdapter[HITL] 선행 ADR). 머지 commit 72784a4 main CI in_progress → 다음 turn(t4) 재확인. **다음 주요 milestone(§5 HITL BLOCKED 유지)**: GithubAdapter/ConfluenceAdapter(dep+credential) + LLM provider HTTP client(SDK+API key) + config write CRUD(apiKey secret body) — 사용자 승인 필요. planner 예고: 비-HITL ADR(T-0144·T-0145) 소진 후 다음 dispatch 는 HITL 게이트 도달 가능성. lock 유지(dynamic)."
   },
   "ci": {
-    "lastRun": "2026-06-01T22:58:41+09:00",
+    "lastRun": "2026-06-01T23:19:24+09:00",
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26759142112",
-    "note": "T-0142 merge commit 26c67db CI = success(green, t1 in_progress 였던 것 완료). bookkeeping 6ec115c CI in_progress. T-0143 deliverable direct commit push 시 새 main CI run 시작 → 다음 turn(t3) 재확인. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26760499928",
+    "note": "T-0144 merge commit 72784a4 main CI run(26760499928) in_progress — 다음 turn 재확인. PR #138 pre-merge checks green(integrator 게이트 4 success, reviewer agent approval 검증 step 포함). t1/t2 commits(26c67db·6ec115c·6166d9c) 전부 success 확인. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -45,7 +45,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 142,
+    "tasksCompleted": 143,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

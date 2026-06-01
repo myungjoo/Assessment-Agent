@@ -2,7 +2,11 @@
 id: T-0144
 title: ADR-0012 신설 — cross-cutting field policy (timezone / soft delete / createdBy / updatedAt)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T23:19:24+09:00
+prNumber: 138
+mergedAs: 72784a4
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-026, REQ-041, REQ-049]
 estimatedDiff: 175
