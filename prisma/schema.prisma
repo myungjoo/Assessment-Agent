@@ -315,9 +315,9 @@ model Summary {
 //
 // **다중 row 모델** — 각 provider 별 1+ row, custom 은 3 model 슬롯 모두 차지 가능
 // (REQ-051). GroupRepository 와 동일하게 `@unique` / `@@unique` **미정의** — unique
-// 제약 없음 (P2002 분기 부재). DifficultyMapping (T-0136) 1:N relation 의 역방향
-// 필드 placeholder 는 두지 않음 — DifficultyMapping model 신설 시 T-0136 이 양방향
-// relation 필드를 함께 추가 (Prisma 의 back-relation 요건 그 시점 충족).
+// 제약 없음 (P2002 분기 부재). DifficultyMapping (T-0137) 1:N relation 의 역방향
+// 필드 `difficultyMappings` 를 추가 — Prisma 의 back-relation 요건 충족
+// (DifficultyMapping 측이 `llmProviderConfigId` FK 보유, ADR-0011 §2 N:1).
 model LlmProviderConfig {
   id          String   @id @default(cuid())
   provider    String
@@ -326,4 +326,42 @@ model LlmProviderConfig {
   modelId     String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // 역방향 relation — 본 config 를 가리키는 DifficultyMapping 슬롯들 (N:1 의 1 측).
+  // custom provider 1 config 가 3 슬롯 모두 차지 가능 (REQ-051) → N row.
+  difficultyMappings DifficultyMapping[]
+}
+
+// DifficultyMapping — data-model.md §2 row "DifficultyMapping" + §3 관계 8 +
+// REQ-050/097. ADR-0011 이 확정한 3 결정 (§1 3 row 고정 cardinality / §2
+// `llmProviderConfigId` FK 참조 N:1 / §3 fail-fast) 의 entity layer (T-0137).
+// 3 난이도 슬롯 (easy / medium / hard) ↔ LlmProviderConfig 매핑.
+//
+// 컬럼 결정 (ADR-0011 §1·§2):
+//   - difficulty 는 enum-as-String literal 박제 (LlmProviderConfig.provider /
+//     User.role 정공법 정합 — Prisma enum 격상은 별도 ADR). 허용 집합의 single
+//     source 는 src/llm/difficulty.ts 의 Difficulty union (`easy`/`medium`/`hard`).
+//     `@@unique([difficulty])` 로 동일 난이도 슬롯 중복 row schema-level 차단
+//     (ADR-0011 §1 3 row 고정 — 3 슬롯 unique). 값 invariant / 3 row 초과 거부는
+//     후속 service (T-0138+) 책임.
+//   - llmProviderConfigId 는 nullable FK (String?) — ADR-0011 §3 의 fail-fast 가
+//     미설정 슬롯을 4xx 로 거부하므로 nullable 시작 안전 (seed 전 미설정 상태 허용,
+//     3 row seed 자동화는 Follow-up). 가리켜진 LlmProviderConfig 의 modelId 가
+//     매핑 대상 model 의 single source (denormalize 회피, ADR-0011 §2).
+//   - onDelete: Restrict — 매핑에 사용 중인 LlmProviderConfig 삭제 차단
+//     (ADR-0011 §2 RESTRICT 권장 — Admin 이 먼저 재지정 후 삭제). Person → Part
+//     의 default Restrict 패턴과 정합.
+//   - createdAt / updatedAt — 표준 timestamp 패턴 (mutable entity, 슬롯별 model
+//     재지정 시 updatedAt 갱신 — T-0139 endpoint).
+model DifficultyMapping {
+  id                  String  @id @default(cuid())
+  difficulty          String
+  llmProviderConfigId String?
+
+  llmProviderConfig LlmProviderConfig? @relation(fields: [llmProviderConfigId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([difficulty])
 }
