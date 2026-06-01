@@ -2,7 +2,10 @@
 id: T-0125
 title: "@CurrentUser() param decorator 신설 + UserController 2 callsite refactor (3-controller actor cast 중복 제거 first cut)"
 phase: P3
-status: IN_REVIEW
+status: DONE
+completedAt: 2026-06-01T09:13:47+09:00
+mergedAs: 7b2e1f33639755e260b3b32343425cfdaa7d8784
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-046, REQ-084]
 estimatedDiff: 230
