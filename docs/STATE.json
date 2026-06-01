@@ -7,7 +7,7 @@
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-06-01T09:15:00+09:00",
+  "lastActivity": "2026-06-01T09:24:00+09:00",
   "lastCommit": "7b2e1f3",
   "mostRecentTasks": [
     "T-0125",
@@ -17,10 +17,10 @@
     "T-0121"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-01T09:13:00+09:00",
     "cap": 5,
-    "note": "/loop session #34 (cap 5, KST 09:13~) t1 — 사용자 'turn cap 5' 진입. currentTask=T-0125 PR-126 (draft, human-review hold) resume. 본 worktree 에서 gh CLI 가용 (직전 cron 들은 부재로 진단 불가) → CI failure 직접 진단: red 원인이 4-gate(b) reviewer-approval step 뿐 (code defect 0, unit pass=8, lint/build/smoke/e2e green). 사용자에게 AskUserQuestion → 'Run standard flow now' 선택으로 human-review hold 해제. integrator dispatch → reviewer APPROVE round 1/7 → gh pr ready + approve comment → comment-triggered CI run 26728518469 green → 4-gate 통과 → squash merge 7b2e1f3, branch auto-delete. tasksCompleted 124. STATE cleanup 은 main worktree(D:/Assessment-Agent) 에서 수행 — 본 /loop 은 feature worktree 라 direct→main hard rule 충족 위해 canonical main wt 사용."
+    "note": "/loop session #34 (cap 5) STOOD DOWN at t2. t1: T-0125 PR-126 (draft, human-review hold) resume — 본 worktree gh CLI 로 CI red 직접 진단(원인=4-gate(b) reviewer-approval step 뿐, code defect 0) → 사용자 AskUserQuestion 'Run standard flow now' 선택으로 hold 해제 → integrator dispatch → reviewer APPROVE round 1/7 → ready+approve comment → comment-triggered CI 26728518469 green → squash merge 7b2e1f3, branch auto-delete. tasksCompleted 124. t2: doc-push CI(a9851d7) conclusion=success 확인 + clean-handoff 검증(open PR 0 / currentTask·nextTask null / blockers 0 / main green). **STAND DOWN 사유**: 세션 목적(parked PR-126 unstick) 달성+CI green = clean stopping point. 다음 task 의 planner dispatch 는 cron backbone(§10) — 본 /loop 은 stale feature worktree 라 fresh task cycle 구동 시 cross-worktree gymnastics 위험. #33 패턴 mirror. cap 은 ceiling(quota 아님). ScheduleWakeup 미호출 → loop 종료. lock 해제 상태 유지(cron unblock). 관측: stale remote claude/* branch 다수(T-0110/0111/0112/0115/0122 + nifty-knuth-*) auto-delete 누락 — 별도 cleanup task 후보."
   },
   "ci": {
     "lastRun": "2026-06-01T09:13:47+09:00",
