@@ -6,6 +6,8 @@
 //     export (후속 LlmProviderConfigService T-0139 / 다른 module 이 inject 가능하도록).
 //   - DifficultyMappingService provider 등록 + export (T-0138 추가 — ADR-0011 §2
 //     resolve + §3 fail-fast 의 service-level 강제. T-0139 Admin endpoint 의 backbone).
+//   - DifficultyMappingController 등록 (T-0139 추가 — Admin 난이도 모델 지정 endpoint:
+//     GET 슬롯 목록 / PATCH 슬롯별 model 재지정. DifficultyMappingService forward + RBAC).
 //   - LlmGateway interface + LlmProvider enum 은 llm-gateway.interface.ts 에 박제 —
 //     구현 class 0 이므로 본 module 에 gateway provider 등록 0 (후속 routing task 책임).
 //
@@ -21,11 +23,16 @@
 //     forward).
 import { Module } from "@nestjs/common";
 
+import { DifficultyMappingController } from "./difficulty-mapping.controller";
 import { DifficultyMappingRepository } from "./difficulty-mapping.repository";
 import { DifficultyMappingService } from "./difficulty-mapping.service";
 import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
 
 @Module({
+  // DifficultyMappingController (T-0139) — Admin 난이도 모델 지정 endpoint. service 는
+  // 이미 providers 에 등록됨 (controller 가 inject 만). LlmGateway 구현 controller 는
+  // 후속 routing task 책임 (본 module controllers 배열 신설).
+  controllers: [DifficultyMappingController],
   providers: [
     LlmProviderConfigRepository,
     DifficultyMappingRepository,
