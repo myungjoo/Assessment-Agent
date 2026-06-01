@@ -2,7 +2,9 @@
 id: T-0127
 title: "LOOP.md 에 ADR-0009 ref-CAS lock 프로토콜 반영 (§1[1] + §4)"
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T13:18:00+09:00
+actualFiles: 1
 commitMode: direct
 coversReq: []
 estimatedDiff: 120
