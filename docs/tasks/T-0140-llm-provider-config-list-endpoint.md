@@ -2,8 +2,12 @@
 id: T-0140
 title: LlmProviderConfigController — GET /api/llm/providers 목록 endpoint + apiKey 비노출 sanitize service (Admin+ RBAC)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 136
+mergedAs: ace005f
+reviewRounds: 1
+completedAt: 2026-06-01T21:56:17+09:00
 coversReq: [REQ-051, REQ-096, REQ-099, REQ-100, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 270
 estimatedFiles: 5
