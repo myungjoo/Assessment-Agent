@@ -52,6 +52,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   UseGuards,
   UsePipes,
@@ -63,6 +64,7 @@ import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
 import { CreateLlmProviderConfigDto } from "./dto/create-llm-provider-config.dto";
+import { UpdateLlmProviderConfigDto } from "./dto/update-llm-provider-config.dto";
 import {
   LlmProviderConfigService,
   type LlmProviderConfigView,
@@ -126,6 +128,28 @@ export class LlmProviderConfigController {
     @Body() dto: CreateLlmProviderConfigDto,
   ): Promise<LlmProviderConfigView> {
     return this.service.create(dto);
+  }
+
+  // PATCH /api/llm/providers/:id — 등록된 LLM provider config 부분 갱신 (REQ-051~055,
+  // T-0151). 200 OK + apiKey 제거된 view 반환. @Param("id") 로 path param 수신,
+  // @Body() 로 UpdateLlmProviderConfigDto (4 필드 전부 optional) 수신 — controller-scope
+  // ValidationPipe 가 형식 검증 (whitelist + forbidNonWhitelisted — allow-list 밖 키 /
+  // 명시 필드의 빈값·wrong type 시 400). service.update 가 (1) provider 명시 시
+  // isLlmProvider 검증 (미지원 → 400), (2) 명시 필드만 partial data 구성, (3) apiKey
+  // 명시 시 재암호화 / 부재 시 기존 ciphertext 유지 (never-read-back, ADR-0014 §3),
+  // (4) P2025→404 (id 부재) 변환, (5) apiKey 제거 view 반환. controller 자체 분기
+  // 없음 — service raw forward (service 가 4xx 변환).
+  //
+  // RBAC — Admin+ tier (GET/POST/DELETE 과 동일). @Roles("Admin") → Admin / SuperAdmin
+  // 통과 (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
+  @Patch(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async update(
+    @Param("id") id: string,
+    @Body() dto: UpdateLlmProviderConfigDto,
+  ): Promise<LlmProviderConfigView> {
+    return this.service.update(id, dto);
   }
 
   // DELETE /api/llm/providers/:id — 등록된 LLM provider config 삭제 (REQ-051~055,

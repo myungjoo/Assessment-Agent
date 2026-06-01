@@ -24,6 +24,7 @@ jest.mock("../persistence/prisma.service", () => ({
       findMany: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
       delete: jest.fn(),
     };
     onModuleInit = jest.fn().mockResolvedValue(undefined);
@@ -78,6 +79,7 @@ function buildServiceMock(): {
     findAll: jest.Mock;
     findById: jest.Mock;
     create: jest.Mock;
+    update: jest.Mock;
     delete: jest.Mock;
   };
 } {
@@ -85,6 +87,7 @@ function buildServiceMock(): {
     findAll: jest.fn(),
     findById: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
     delete: jest.fn(),
   };
   return {
@@ -216,6 +219,59 @@ describe("LlmProviderConfigController (unit)", () => {
   });
 
   // -----------------------------------------------------------------------
+  // update (PATCH /api/llm/providers/:id) — happy (path param + @Body dto forward) +
+  // error/negative (service throw propagate). controller 자체 분기 없음 — service
+  // 가 P2025→404 / 미지원 provider→400 변환, controller 는 raw forward.
+  // -----------------------------------------------------------------------
+  it("PATCH :id — service.update 를 path param id + @Body dto 로 호출 + 결과 반환 (happy — forward)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const fixture = buildViewFixture({ id: "cfg-upd" });
+    serviceMock.update.mockResolvedValueOnce(fixture);
+    const dto = { endpointUrl: "https://new.example.test" };
+
+    const controller = new LlmProviderConfigController(service);
+    const result = await controller.update("cfg-upd", dto as never);
+
+    // service.update 가 id + dto 로 정확히 1 회 호출됨 검증.
+    expect(serviceMock.update).toHaveBeenCalledTimes(1);
+    expect(serviceMock.update).toHaveBeenCalledWith("cfg-upd", dto);
+    expect(result).toBe(fixture);
+    // forward 한 view 에 apiKey 가 새어나가지 않음 (service redaction) 확인.
+    expect(result).not.toHaveProperty("apiKey");
+  });
+
+  it("PATCH :id — service 의 NotFoundException (P2025→404) 을 삼키지 않고 그대로 propagate (negative — 404 변환 분기)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const notFound = new NotFoundException("llm provider config not found: x");
+    serviceMock.update.mockRejectedValueOnce(notFound);
+
+    const controller = new LlmProviderConfigController(service);
+    await expect(controller.update("missing-id", {} as never)).rejects.toBe(
+      notFound,
+    );
+  });
+
+  it("PATCH :id — service 의 BadRequestException (미지원 provider) 을 삼키지 않고 그대로 propagate (negative 핵심 — provider 검증)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const badReq = new BadRequestException("unsupported llm provider: x");
+    serviceMock.update.mockRejectedValueOnce(badReq);
+
+    const controller = new LlmProviderConfigController(service);
+    await expect(controller.update("cfg-x", {} as never)).rejects.toBe(badReq);
+  });
+
+  it("PATCH :id — service 가 던진 raw Error (encrypt/DB fail) 를 삼키지 않고 그대로 propagate (error path)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const rawError = new Error("LLM_APIKEY_ENC_KEY 미설정");
+    serviceMock.update.mockRejectedValueOnce(rawError);
+
+    const controller = new LlmProviderConfigController(service);
+    await expect(controller.update("cfg-x", {} as never)).rejects.toBe(
+      rawError,
+    );
+  });
+
+  // -----------------------------------------------------------------------
   // delete (DELETE /api/llm/providers/:id) — happy (path param forward, void) +
   // error/negative (service throw propagate). controller 자체 분기 없음 — service
   // 가 P2025→404 / P2003→409 변환, controller 는 raw forward + throw propagation.
@@ -275,6 +331,7 @@ describe("LlmProviderConfigController (RBAC guard integration)", () => {
     findAll: jest.Mock;
     findById: jest.Mock;
     create: jest.Mock;
+    update: jest.Mock;
     delete: jest.Mock;
   };
 
@@ -302,6 +359,7 @@ describe("LlmProviderConfigController (RBAC guard integration)", () => {
       findAll: jest.fn(),
       findById: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
       delete: jest.fn(),
     };
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -609,6 +667,170 @@ describe("LlmProviderConfigController (RBAC guard integration)", () => {
       .expect(500);
   });
 
+  // == PATCH /api/llm/providers/:id — 부분 갱신 endpoint RBAC + ValidationPipe + 200 ==
+
+  // -- happy — Admin role 통과 시 200 + service.update(id, dto) 위임 + apiKey 미노출 --
+  it("PATCH :id — Admin role 통과 시 200 + service.update(id, dto) 위임 + 응답에 apiKey 미노출 (happy — Admin+ tier)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.update.mockResolvedValueOnce(buildViewFixture({ id: "cfg-u" }));
+    const body = { endpointUrl: "https://new.example.test" };
+
+    const res = await request(app.getHttpServer())
+      .patch("/api/llm/providers/cfg-u")
+      .send(body)
+      .expect(200);
+
+    expect(serviceMock.update).toHaveBeenCalledTimes(1);
+    expect(serviceMock.update).toHaveBeenCalledWith("cfg-u", body);
+    // 응답 본문에 apiKey 가 새어나가지 않음 (never-read-back invariant, ADR-0014 §3).
+    expect(res.body).not.toHaveProperty("apiKey");
+    expect(res.body.id).toBe("cfg-u");
+  });
+
+  // -- happy — 빈 body PATCH 도 200 + service.update(id, {}) 위임 (부분 갱신 no-op) --
+  it("PATCH :id — 빈 body 도 200 + service.update(id, {}) 위임 (happy — no-op 부분 갱신)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.update.mockResolvedValueOnce(buildViewFixture({ id: "cfg-u" }));
+
+    await request(app.getHttpServer())
+      .patch("/api/llm/providers/cfg-u")
+      .send({})
+      .expect(200);
+
+    expect(serviceMock.update).toHaveBeenCalledWith("cfg-u", {});
+  });
+
+  // -- negative — ValidationPipe: 정의되지 않은 extra body 키 → 400 + service 미호출 -
+  it("PATCH :id — 정의되지 않은 extra body 키 포함 시 400 + service 미호출 (negative — forbidNonWhitelisted)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .patch("/api/llm/providers/cfg-u")
+      .send({ endpointUrl: "https://x.test", unexpectedKey: "x" })
+      .expect(400);
+
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
+
+  // -- negative — ValidationPipe: 명시 필드 빈 문자열 → 400 + service 미호출 ---------
+  it("PATCH :id — 명시 필드 (endpointUrl) 빈 문자열 시 400 + service 미호출 (negative — isNotEmpty)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .patch("/api/llm/providers/cfg-u")
+      .send({ endpointUrl: "" })
+      .expect(400);
+
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
+
+  // -- negative — ValidationPipe: wrong type (number) → 400 + service 미호출 --------
+  it("PATCH :id — 명시 필드 wrong type (provider=number) 시 400 + service 미호출 (negative — type mismatch)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .patch("/api/llm/providers/cfg-u")
+      .send({ provider: 12345 })
+      .expect(400);
+
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
+
+  // -- negative (핵심) — service BadRequestException (미지원 provider) → 400 ---------
+  it("PATCH :id — service 가 BadRequestException (미지원 provider) throw 시 400 (negative 핵심 — provider 검증)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.update.mockRejectedValueOnce(
+      new BadRequestException("unsupported llm provider: foo"),
+    );
+
+    await request(app.getHttpServer())
+      .patch("/api/llm/providers/cfg-u")
+      .send({ provider: "foo" })
+      .expect(400);
+  });
+
+  // -- negative (핵심) — service NotFoundException (P2025) → 404 (id 부재) -----------
+  it("PATCH :id — service 가 NotFoundException (P2025) throw 시 404 (negative 핵심 — id 부재)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.update.mockRejectedValueOnce(
+      new NotFoundException("llm provider config not found: missing"),
+    );
+
+    await request(app.getHttpServer())
+      .patch("/api/llm/providers/missing")
+      .send({ modelId: "m" })
+      .expect(404);
+  });
+
+  // -- negative — 401 (JwtAuthGuard reject — 인증 부재) + service 미호출 -----------
+  it("PATCH :id — JwtAuthGuard reject 시 401 + service 미호출 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .patch("/api/llm/providers/cfg-u")
+      .send({ modelId: "m" })
+      .expect(401);
+
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
+
+  // -- negative — 403 (RolesGuard reject — Admin+ tier 미달, User actor) ----------
+  it("PATCH :id — RolesGuard reject 시 403 + service 미호출 (negative — User actor Admin+ 미달)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: { canActivate: () => false },
+    });
+
+    await request(app.getHttpServer())
+      .patch("/api/llm/providers/cfg-u")
+      .send({ modelId: "m" })
+      .expect(403);
+
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
+
+  // -- error path — service reject (encrypt/DB 장애) → 500 (raw propagate) ---------
+  it("PATCH :id — service reject (encrypt/DB 장애) 시 500 + raw propagate (error path)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.update.mockRejectedValueOnce(new Error("db-down"));
+
+    await request(app.getHttpServer())
+      .patch("/api/llm/providers/cfg-u")
+      .send({ modelId: "m" })
+      .expect(500);
+  });
+
   // == DELETE /api/llm/providers/:id — 삭제 endpoint RBAC + 204/404/409 HTTP-level ==
 
   // -- happy — Admin role 통과 시 204 No Content + service.delete(path param) 위임 --
@@ -719,6 +941,7 @@ describe("LlmProviderConfigController (real RolesGuard escalation 분기)", () =
     findAll: jest.Mock;
     findById: jest.Mock;
     create: jest.Mock;
+    update: jest.Mock;
     delete: jest.Mock;
   };
 
@@ -744,6 +967,7 @@ describe("LlmProviderConfigController (real RolesGuard escalation 분기)", () =
       findAll: jest.fn(),
       findById: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
       delete: jest.fn(),
     };
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -851,6 +1075,34 @@ describe("LlmProviderConfigController (real RolesGuard escalation 분기)", () =
         .expect(201);
 
       expect(serviceMock.create).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  // PATCH 도 동일 Admin+ tier — User actor 는 실 RolesGuard escalation 으로 403 차단.
+  it("PATCH :id — User actor 는 Admin+ tier 미달 → 403 (실 RolesGuard escalation)", async () => {
+    app = await buildAppWithRealRolesGuard("User");
+
+    await request(app.getHttpServer())
+      .patch("/api/llm/providers/cfg-x")
+      .send({ modelId: "m" })
+      .expect(403);
+
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
+
+  // PATCH — Admin / SuperAdmin actor 통과 (escalation hierarchy descent) → 200.
+  it.each(["Admin", "SuperAdmin"])(
+    "PATCH :id — %s actor 는 Admin+ tier 통과 (200, escalation hierarchy descent)",
+    async (role) => {
+      app = await buildAppWithRealRolesGuard(role);
+      serviceMock.update.mockResolvedValueOnce(buildViewFixture());
+
+      await request(app.getHttpServer())
+        .patch("/api/llm/providers/cfg-x")
+        .send({ modelId: "m" })
+        .expect(200);
+
+      expect(serviceMock.update).toHaveBeenCalledTimes(1);
     },
   );
 
