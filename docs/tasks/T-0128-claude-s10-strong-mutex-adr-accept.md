@@ -2,7 +2,9 @@
 id: T-0128
 title: "CLAUDE.md §10 multi-entry strong-mutex 모델 개정 + ADR-0009 ACCEPTED 전이"
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T13:25:00+09:00
+actualFiles: 2
 commitMode: direct
 coversReq: []
 estimatedDiff: 40

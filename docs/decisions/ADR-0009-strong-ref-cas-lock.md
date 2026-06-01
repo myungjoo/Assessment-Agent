@@ -2,13 +2,14 @@
 
 ## Status
 
-PROPOSED (2026-06-01)
+ACCEPTED (2026-06-01)
 
-> ACCEPTED 전이는 본 ADR 의 Decision 을 반영하는 후속 개정 task —
-> [docs/LOOP.md](../LOOP.md) §1 [1] · §4 개정 + [CLAUDE.md](../../CLAUDE.md) §10 개정
-> + STATE schema `session` 필수화 — 가 머지된 직후 별도 direct commit 으로 수행한다.
-> 그 전까지 driver loop 는 기존 약한 mutex (STATE.json 인메모리 lock) 로 동작하며,
-> 전환 기간의 동시-진입 보호는 **운영 규율(실행자 1개)** + 필요 시 human lock(B 방식)으로 대체한다.
+> PROPOSED → ACCEPTED 전이 완료. gate 였던 후속 개정 task 가 모두 머지됨:
+> [T-0127](../tasks/T-0127-loop-ref-cas-protocol.md) — [docs/LOOP.md](../LOOP.md) §1 [1] · §4 ref-CAS 프로토콜 반영,
+> [T-0128](../tasks/T-0128-claude-s10-strong-mutex-adr-accept.md) — [CLAUDE.md](../../CLAUDE.md) §10 strong-mutex 모델 갱신 + 본 전이.
+> `session` 필수는 LOOP.md §4 + 본 ADR Decision (3) 에 문서화됨.
+> 남은 항목 — **cron 환경 gh/MCP 복구**(결정 5 의 전제, 별도 pr-mode ADR) — 은 본 ADR 의 ACCEPTED 와
+> 독립적이다(lock 모델 자체는 완성, cron 의 pr-mode 완주 능력은 별도 인프라 결정).
 
 ## Context
 

@@ -327,15 +327,15 @@ dynamic mode 에서 driver prompt 가 매 turn 끝에 `ScheduleWakeup` 도구로
 
 ### 동시 실행 정책 (race 회피)
 
-본 시스템의 lock은 git push의 fast-forward 검사에 기대는 **약한 mutex**다. 진짜 동시 실행은 정책으로 회피한다.
+본 시스템의 lock은 [ADR-0009](docs/decisions/ADR-0009-strong-ref-cas-lock.md) 에 따라 **전용 ref `refs/locks/driver` 의 `git push --force-with-lease` CAS** 로 동작하는 **강한 mutex**다. ref push 는 서버 측 원자적 연산이라 N 개 기기·진입점이 동시에 push 해도 1개만 lock 을 획득한다 — **여러 기기의 `/loop` + cron 을 동시에 무장(armed)해도 안전**하다(어느 순간에도 활성 driver 는 정확히 1개). 단 아래 read-전-fetch 규율이 전제다. (과거에는 STATE.json 인메모리 lock 의 **약한 mutex** 였고 동시 실행을 정책으로 회피했다 — ADR-0009 가 이를 대체.)
 
-1. **`/loop` dynamic mode는 동시에 1개 세션만**. 두 conversation을 동시에 띄우지 않는다.
+1. **활성 driver 는 항상 1개** — 진입점(cron + 여러 기기 `/loop`)은 여럿 무장해도 되나, ref-CAS 가 직렬화해 한 순간 한 driver 만 작업한다. 나머지는 lock 점유를 보고 즉시 종료(no-op). **각 진입점은 lock 점검·STATE read 전 반드시 `git fetch`** 하고, driver loop 는 origin/main 추적 체크아웃에서만 실행한다(feature-worktree 금지 — LOOP.md §1[1]·§4).
 2. **`/schedule` cron 간격 ≥ 평균 task 소요시간 × 2**. 예: task 평균 15분이면 cron 간격 ≥ 30분. 처음엔 2시간 간격으로 시작해 안정화되면 조정.
 3. **`/loop` 사용 시간대와 cron 발화 시간대를 분리**. 예: 사용자 `/loop`은 09–18시 주간, cron은 23·02·14시 같은 야간/유휴 시간대.
 4. cron이 직전 invocation을 아직 끝내지 못한 상태에서 다음 cron 시점이 오면 — 새 invocation의 driver가 [1] STATE & LOCK 단계에서 holder=cron lock을 발견하고 (60분 이내라면) 즉시 종료한다. 이 동작은 LOOP.md §1·§4가 보장한다.
 5. **충돌은 graceful 종료로 흡수** (LOOP.md §4): commit 직전 fetch+rebase, push fail 시 reset+재시도 최대 3회, 그래도 실패하면 BLOCKED. 작업 결과는 working tree에 남으므로 사람이 검토 가능.
 
-이 5개 규칙이 지켜지면 single-operator 환경에서 race는 사실상 일어나지 않는다. 다운라이저/multi-operator 환경이 필요해지면 lock-acquire를 별도 atomic git commit으로 분리하는 강한 mutex(별도 ADR 필요)로 전환한다.
+규칙 2·3 (cron 간격·시간대 분리)은 **강한 mutex 도입 후에도 권장**이다 — 충돌이 안전하게 흡수되더라도, 무의미한 wake·즉시종료의 비용(LLM/CI)을 줄여준다. 규칙 4·5 의 충돌 흡수 동작은 ref-CAS 가 lock 취득 단계에서 1차 직렬화하고, 그래도 겹치는 콘텐츠 push 는 LOOP.md §4 graceful 종료가 2차로 흡수한다. ADR-0009 가 과거 "multi-operator 환경 필요 시 강한 mutex(별도 ADR)로 전환" 예고를 실제로 구현했다 — multi-machine `/loop` + cron 동시 무장이 본 ref-CAS 위에서 지원된다.
 
 ### Branch protection 정책 (자동 merge 보장)
 
