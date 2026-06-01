@@ -2,11 +2,17 @@
 id: T-0126
 title: "강한 git-ref CAS lock + multi-machine 동일역할 운영 모델 ADR (ADR-0009)"
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T13:05:00+09:00
+mergedAs: 19762c3
+reviewRounds: 1
+prNumber: 127
 commitMode: pr
 coversReq: []
 estimatedDiff: 200
 estimatedFiles: 1
+actualDiff: 107
+actualFiles: 1
 created: 2026-06-01
 dependsOn: []
 plannerNote: "사용자 결정 4건 박제 — (1) 강한 CAS lock, (2) lock 위치 = 전용 git ref refs/locks/driver, (3) cron·/loop 역할 분리 없음(동일 역할), (4) cron 환경 gh/MCP 복구는 별도 follow-up ADR. 본 task 는 lock 모델 ADR 1건만. LOOP.md/CLAUDE.md/driver-prompt 개정은 ADR ACCEPTED 후 후속 direct task."
