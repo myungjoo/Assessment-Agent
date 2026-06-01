@@ -40,6 +40,15 @@ export interface LlmProviderConfigCreateInput {
   modelId: string;
 }
 
+// 본 repository 의 update 메서드 input shape — create 와 달리 **변경할 필드만** 담는
+// partial shape (provider / endpointUrl / apiKey / modelId 의 부분 집합). 부재 키는
+// Prisma update 의 data 에 포함되지 않아 미변경된다 (PATCH 의 부분 갱신 시멘틱).
+// apiKey 가 명시된 경우 그 값은 service 가 LlmApiKeyCipher.encrypt 로 만든 ciphertext
+// (평문이 본 layer 에 닿지 않음 — encryption-at-rest, ADR-0014 §1). 본 layer 는 값
+// 검증 0 (raw forward) — provider 멤버십 / 형식 검증은 service / DTO 책임.
+export type LlmProviderConfigUpdateInput =
+  Partial<LlmProviderConfigCreateInput>;
+
 @Injectable()
 export class LlmProviderConfigRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -61,6 +70,19 @@ export class LlmProviderConfigRepository {
   // 필터는 후속 service / controller layer 책임 — 본 layer 는 raw forward.
   async findMany(): Promise<LlmProviderConfig[]> {
     return this.prisma.llmProviderConfig.findMany();
+  }
+
+  // update — 부분 갱신 (PATCH). data 에 담긴 필드만 교체하고 나머지는 미변경.
+  // id 부재 시 Prisma `update` 는 `P2025` (record not found) 를 throw — delete 와
+  // 동일하게 본 layer 는 catch 하지 않고 그대로 propagate (후속 service 가
+  // NotFoundException 404 변환 책임). data 는 변경할 필드만 담는 partial shape
+  // (raw forward — 값 검증 0). apiKey 가 포함된 경우 그 값은 service 가 미리
+  // encrypt 한 ciphertext (평문 미수신 — encryption-at-rest, ADR-0014 §1).
+  async update(
+    id: string,
+    data: LlmProviderConfigUpdateInput,
+  ): Promise<LlmProviderConfig> {
+    return this.prisma.llmProviderConfig.update({ where: { id }, data });
   }
 
   // delete — hard delete. id 부재 시 Prisma `P2025` throw — 본 layer catch X.

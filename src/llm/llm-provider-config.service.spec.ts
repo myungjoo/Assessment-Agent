@@ -20,6 +20,7 @@ import type { LlmProviderConfig } from "@prisma/client";
 import { buildPrismaError } from "../../test/helpers/prisma-mock";
 
 import type { CreateLlmProviderConfigDto } from "./dto/create-llm-provider-config.dto";
+import type { UpdateLlmProviderConfigDto } from "./dto/update-llm-provider-config.dto";
 import { LlmProviderConfigService } from "./llm-provider-config.service";
 
 // LlmProviderConfig fixture — schema.prisma 의 7 컬럼을 모두 채운 default row.
@@ -48,6 +49,7 @@ function buildService(): {
     findMany: jest.Mock;
     findById: jest.Mock;
     create: jest.Mock;
+    update: jest.Mock;
     delete: jest.Mock;
   };
   cipher: { encrypt: jest.Mock };
@@ -56,6 +58,7 @@ function buildService(): {
     findMany: jest.fn(),
     findById: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
     delete: jest.fn(),
   };
   // cipher 는 create 만 사용 (read path 미사용 — never-decrypt-and-return).
@@ -353,6 +356,232 @@ describe("LlmProviderConfigService", () => {
       await expect(service.create(dto)).rejects.toThrow("db-down");
       // encrypt 는 정상 호출됐음 (영속 단계에서 실패).
       expect(cipher.encrypt).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("update()", () => {
+    // ------------------------------------------------------------------
+    // Happy / branch (apiKey 부재) — endpointUrl 만 변경. encrypt 미호출 +
+    // repository.update 의 data 에 apiKey 키 부재 + 반환 view 에 apiKey 없음.
+    // ------------------------------------------------------------------
+    it("apiKey 부재 PATCH (endpointUrl 만) — encrypt 미호출 + data 에 apiKey 부재 + view 에 apiKey 없음 (happy — 부분 갱신)", async () => {
+      const { service, repo, cipher } = buildService();
+      const dto: UpdateLlmProviderConfigDto = {
+        endpointUrl: "https://new.example.test",
+      };
+      repo.update.mockResolvedValueOnce(
+        buildConfigFixture({
+          id: "cfg-upd",
+          endpointUrl: "https://new.example.test",
+        }),
+      );
+
+      const result = await service.update("cfg-upd", dto);
+
+      // apiKey 부재 → encrypt 미호출 (기존 ciphertext 유지, 재암호화 0).
+      expect(cipher.encrypt).not.toHaveBeenCalled();
+      // repository.update 가 id + endpointUrl 만 담은 data 로 호출 (apiKey 키 부재).
+      expect(repo.update).toHaveBeenCalledTimes(1);
+      const [calledId, calledData] = repo.update.mock.calls[0];
+      expect(calledId).toBe("cfg-upd");
+      expect(calledData).toEqual({ endpointUrl: "https://new.example.test" });
+      expect(calledData).not.toHaveProperty("apiKey");
+      // 반환 view 에 apiKey 부재.
+      expect(result).not.toHaveProperty("apiKey");
+      expect(result.endpointUrl).toBe("https://new.example.test");
+    });
+
+    // ------------------------------------------------------------------
+    // Happy / branch (apiKey 명시) — encrypt 1 회 호출 + data.apiKey 가 ciphertext
+    // (평문과 다른 값) + 반환 view 에 apiKey 없음.
+    // ------------------------------------------------------------------
+    it("apiKey 명시 PATCH — encrypt 1 회 + data.apiKey 가 ciphertext (평문 ≠) + view 에 apiKey 없음 (happy — 재암호화)", async () => {
+      const { service, repo, cipher } = buildService();
+      const dto: UpdateLlmProviderConfigDto = { apiKey: "sk-rotated-plain" };
+      cipher.encrypt.mockReturnValueOnce("NEW-CIPHER-envelope");
+      repo.update.mockResolvedValueOnce(
+        buildConfigFixture({ id: "cfg-upd", apiKey: "NEW-CIPHER-envelope" }),
+      );
+
+      const result = await service.update("cfg-upd", dto);
+
+      // encrypt 가 평문 apiKey 로 정확히 1 회 호출됨.
+      expect(cipher.encrypt).toHaveBeenCalledTimes(1);
+      expect(cipher.encrypt).toHaveBeenCalledWith("sk-rotated-plain");
+      // repository.update 의 data.apiKey 가 ciphertext (평문과 다른 값).
+      const [, calledData] = repo.update.mock.calls[0];
+      expect(calledData.apiKey).toBe("NEW-CIPHER-envelope");
+      expect(calledData.apiKey).not.toBe("sk-rotated-plain");
+      // 반환 view 에 apiKey 부재.
+      expect(result).not.toHaveProperty("apiKey");
+    });
+
+    // ------------------------------------------------------------------
+    // Branch (provider 명시-유효 + 다중 필드) — provider/endpointUrl/modelId 명시
+    // 가 모두 data 에 포함됨 (각 필드 명시 분기 cover).
+    // ------------------------------------------------------------------
+    it("provider 유효 + endpointUrl + modelId 명시 시 모두 data 에 포함 (branch — 다중 필드 명시)", async () => {
+      const { service, repo, cipher } = buildService();
+      const dto: UpdateLlmProviderConfigDto = {
+        provider: "anthropic",
+        endpointUrl: "https://anthropic.example.test",
+        modelId: "claude-x",
+      };
+      repo.update.mockResolvedValueOnce(
+        buildConfigFixture({ id: "cfg-upd", provider: "anthropic" }),
+      );
+
+      await service.update("cfg-upd", dto);
+
+      const [, calledData] = repo.update.mock.calls[0];
+      expect(calledData).toEqual({
+        provider: "anthropic",
+        endpointUrl: "https://anthropic.example.test",
+        modelId: "claude-x",
+      });
+      // apiKey 부재 → encrypt 미호출.
+      expect(cipher.encrypt).not.toHaveBeenCalled();
+    });
+
+    // ------------------------------------------------------------------
+    // Branch (빈 body) — 모든 필드 부재 시 빈 data 로 repository.update 호출 (no-op).
+    // encrypt 미호출 + data 에 어떤 키도 없음.
+    // ------------------------------------------------------------------
+    it("빈 body PATCH — 빈 data 로 repository.update 호출 + encrypt 미호출 (branch — no-op)", async () => {
+      const { service, repo, cipher } = buildService();
+      repo.update.mockResolvedValueOnce(buildConfigFixture({ id: "cfg-noop" }));
+
+      const result = await service.update("cfg-noop", {});
+
+      expect(repo.update).toHaveBeenCalledWith("cfg-noop", {});
+      expect(cipher.encrypt).not.toHaveBeenCalled();
+      expect(result).not.toHaveProperty("apiKey");
+    });
+
+    // ------------------------------------------------------------------
+    // never-read-back invariant regression (ADR-0014 §3) — apiKey 부재 경로에서
+    // encrypt 둘 다(여기선 encrypt) 미호출 (기존 ciphertext read-back 0) + 반환
+    // view 에 apiKey 부재 + 평문/ciphertext 어느 것도 직렬화 결과에 미포함.
+    // ------------------------------------------------------------------
+    it("apiKey 부재 PATCH 에서 encrypt 미호출 + view 에 평문/ciphertext 미노출 (negative 핵심 — never-read-back, ADR-0014 §3)", async () => {
+      const { service, repo, cipher } = buildService();
+      // repository 가 기존 ciphertext 를 가진 row 를 반환해도 view 에서 누락돼야 함.
+      repo.update.mockResolvedValueOnce(
+        buildConfigFixture({
+          id: "cfg-secret",
+          apiKey: "EXISTING-CIPHER-leak",
+        }),
+      );
+
+      const result = await service.update("cfg-secret", {
+        endpointUrl: "https://x.example.test",
+      });
+
+      // 기존 ciphertext 를 decrypt/encrypt 하지 않음 (read-back 0).
+      expect(cipher.encrypt).not.toHaveBeenCalled();
+      expect(result).not.toHaveProperty("apiKey");
+      expect(Object.keys(result)).not.toContain("apiKey");
+      // 기존 ciphertext 값이 view 직렬화에 새어나가지 않음.
+      expect(JSON.stringify(result)).not.toContain("EXISTING-CIPHER-leak");
+    });
+
+    // ------------------------------------------------------------------
+    // never-read-back invariant regression (ADR-0014 §3) — apiKey 명시 경로에서도
+    // 반환 view 에 평문 + 새 ciphertext 둘 다 미노출.
+    // ------------------------------------------------------------------
+    it("apiKey 명시 PATCH 반환 view 에 평문/새 ciphertext 미노출 (negative 핵심 — never-read-back, ADR-0014 §3)", async () => {
+      const { service, repo, cipher } = buildService();
+      cipher.encrypt.mockReturnValueOnce("NEW-CIPHER-leak");
+      repo.update.mockResolvedValueOnce(
+        buildConfigFixture({ id: "cfg-secret", apiKey: "NEW-CIPHER-leak" }),
+      );
+
+      const result = await service.update("cfg-secret", {
+        apiKey: "sk-leak-plaintext",
+      });
+
+      expect(result).not.toHaveProperty("apiKey");
+      const serialized = JSON.stringify(result);
+      expect(serialized).not.toContain("sk-leak-plaintext");
+      expect(serialized).not.toContain("NEW-CIPHER-leak");
+    });
+
+    // ------------------------------------------------------------------
+    // Error / branch (provider 명시-무효) — isLlmProvider false → BadRequestException.
+    // encrypt / repository.update 미호출 (단락).
+    // ------------------------------------------------------------------
+    it("미지원 provider 명시 시 BadRequestException + encrypt/update 미호출 (error/branch — provider 무효)", async () => {
+      const { service, repo, cipher } = buildService();
+      const dto: UpdateLlmProviderConfigDto = {
+        provider: "not-a-real-provider",
+      };
+
+      await expect(service.update("cfg-x", dto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(cipher.encrypt).not.toHaveBeenCalled();
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    // ------------------------------------------------------------------
+    // Error path / branch (P2025 — id 부재) → NotFoundException (404) 변환.
+    // ------------------------------------------------------------------
+    it("repository.update 가 P2025 reject 하면 NotFoundException (404) 으로 변환한다 (error/branch — id 부재)", async () => {
+      const { service, repo } = buildService();
+      repo.update.mockRejectedValue(
+        buildPrismaError("P2025", "Record to update does not exist"),
+      );
+
+      await expect(
+        service.update("missing-id", { modelId: "m" }),
+      ).rejects.toThrow(NotFoundException);
+      // 메시지에 id 포함 확인.
+      await expect(
+        service.update("missing-id", { modelId: "m" }),
+      ).rejects.toThrow("missing-id");
+    });
+
+    // ------------------------------------------------------------------
+    // Error path / branch (P2025 아닌 raw error — DB 장애) → 변환 없이 propagate.
+    // 404 로 잘못 변환하지 않음.
+    // ------------------------------------------------------------------
+    it("repository.update 가 P2025 아닌 raw error reject 하면 변환 없이 그대로 전파한다 (error/branch — raw propagate)", async () => {
+      const { service, repo } = buildService();
+      repo.update.mockRejectedValueOnce(new Error("db-down"));
+
+      await expect(service.update("any-id", { modelId: "m" })).rejects.toThrow(
+        "db-down",
+      );
+    });
+
+    // ------------------------------------------------------------------
+    // Negative — 무관 Prisma code (P2003) 도 404 로 잘못 변환하지 않고 raw propagate.
+    // ------------------------------------------------------------------
+    it("P2025 아닌 Prisma code (P2003) 는 변환 없이 그대로 전파한다 (negative — 무관 code raw propagate)", async () => {
+      const { service, repo } = buildService();
+      repo.update.mockRejectedValueOnce(
+        buildPrismaError("P2003", "Foreign key constraint failed"),
+      );
+
+      await expect(
+        service.update("any-id", { provider: "openai" }),
+      ).rejects.toMatchObject({ code: "P2003" });
+    });
+
+    // ------------------------------------------------------------------
+    // Error path — encrypt throw (env 키 부재 등) → swallow 없이 propagate.
+    // repository.update 는 호출되지 않음 (평문이 암호화 없이 영속되는 경로 차단).
+    // ------------------------------------------------------------------
+    it("encrypt 가 throw 하면 error 전파 + repository.update 미호출 (error path — 암호화 실패)", async () => {
+      const { service, repo, cipher } = buildService();
+      cipher.encrypt.mockImplementationOnce(() => {
+        throw new Error("LLM_APIKEY_ENC_KEY 환경변수가 설정되지 않았습니다");
+      });
+
+      await expect(
+        service.update("cfg-x", { apiKey: "sk-plain" }),
+      ).rejects.toThrow("LLM_APIKEY_ENC_KEY");
+      expect(repo.update).not.toHaveBeenCalled();
     });
   });
 

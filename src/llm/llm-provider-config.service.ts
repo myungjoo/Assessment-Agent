@@ -41,9 +41,13 @@ import {
 import type { LlmProviderConfig } from "@prisma/client";
 
 import type { CreateLlmProviderConfigDto } from "./dto/create-llm-provider-config.dto";
+import type { UpdateLlmProviderConfigDto } from "./dto/update-llm-provider-config.dto";
 import { LlmApiKeyCipher } from "./llm-apikey-cipher.service";
 import { isLlmProvider } from "./llm-gateway.interface";
-import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
+import {
+  LlmProviderConfigRepository,
+  type LlmProviderConfigUpdateInput,
+} from "./llm-provider-config.repository";
 
 // Prisma 의 error 식별 — `code` field 가 known request error 의 식별자.
 // DifficultyMappingService / GroupService / PersonService 의 동일 helper 와 동일
@@ -163,6 +167,73 @@ export class LlmProviderConfigService {
     });
 
     // (4) apiKey (ciphertext) 를 제거한 view 반환 — never-read-back invariant.
+    return this.sanitize(row);
+  }
+
+  // update — 등록된 LlmProviderConfig 를 id 로 **부분 갱신** 한 뒤 apiKey 제거 view
+  // 로 반환 (PATCH slice, T-0151). 처리 순서 (ADR-0014 §1·§3 박제):
+  //   (1) provider 검증 — dto.provider 가 명시됐고 isLlmProvider 가 false 면
+  //       BadRequestException (400). 부재면 검증 skip (create 의 isLlmProvider
+  //       검증을 명시 경우에만 mirror — PATCH 는 provider 미변경 허용).
+  //   (2) partial data 구성 — provider / endpointUrl / modelId 는 **명시된 것만**
+  //       data 에 포함 (부재 필드는 omit → repository.update 가 미변경). undefined
+  //       체크로 omit/include 분기.
+  //   (3) apiKey 분기 — dto.apiKey 가 명시되면 cipher.encrypt 로 새 ciphertext 를
+  //       만들어 data.apiKey 에 포함 (재암호화, POST encrypt 경로 재사용). 부재면
+  //       data 에 apiKey 키 자체를 넣지 않음 → 기존 ciphertext 유지 (재암호화 0 /
+  //       기존 secret 을 decrypt 해 read-back 하지 않음 — never-read-back, ADR-0014 §3).
+  //       encrypt throw (env 키 부재 등) 는 swallow 없이 propagate.
+  //   (4) repository.update(id, data) 를 try/catch 로 감싸 Prisma P2025 (id 부재)
+  //       catch 시 NotFoundException (404) 변환 (delete 의 P2025→404 패턴 mirror).
+  //       그 외 error (DB 장애 / 무관 Prisma code 등) 는 swallow 없이 propagate
+  //       (404 로 잘못 변환하지 않음). getPrismaErrorCode duck-typing 재사용.
+  //   (5) 반환 row 를 read path 와 동일 sanitize 로 redact 한 view 반환 — 응답에
+  //       apiKey (평문이든 ciphertext 든) 절대 미포함 (ADR-0014 §3 never-read-back).
+  //
+  // 분기: provider 명시-유효 / 명시-무효(400) / 부재(skip) · apiKey 명시(encrypt) /
+  //       부재(유지) · update 성공 / P2025(404) / 그 외(raw propagate).
+  async update(
+    id: string,
+    dto: UpdateLlmProviderConfigDto,
+  ): Promise<LlmProviderConfigView> {
+    // (1) provider 명시 시에만 허용 집합 검증 — 미지원 provider literal → 400.
+    if (dto.provider !== undefined && !isLlmProvider(dto.provider)) {
+      throw new BadRequestException(
+        `unsupported llm provider: ${dto.provider}`,
+      );
+    }
+
+    // (2) 변경할 필드만 담는 partial data — 부재 필드는 omit (미변경).
+    const data: LlmProviderConfigUpdateInput = {};
+    if (dto.provider !== undefined) {
+      data.provider = dto.provider;
+    }
+    if (dto.endpointUrl !== undefined) {
+      data.endpointUrl = dto.endpointUrl;
+    }
+    if (dto.modelId !== undefined) {
+      data.modelId = dto.modelId;
+    }
+
+    // (3) apiKey 분기 — 명시 시에만 재암호화 후 포함 (부재면 기존 ciphertext 유지,
+    //     decrypt/encrypt 둘 다 미호출 — never-read-back). encrypt throw 는 propagate.
+    if (dto.apiKey !== undefined) {
+      data.apiKey = this.cipher.encrypt(dto.apiKey);
+    }
+
+    // (4) 부분 갱신 — id 부재의 P2025 만 404 로 변환, 그 외는 raw propagate.
+    let row: LlmProviderConfig;
+    try {
+      row = await this.repository.update(id, data);
+    } catch (error) {
+      const code = getPrismaErrorCode(error);
+      if (code === "P2025") {
+        throw new NotFoundException(`llm provider config not found: ${id}`);
+      }
+      throw error;
+    }
+
+    // (5) apiKey 를 제거한 view 반환 — never-read-back invariant.
     return this.sanitize(row);
   }
 

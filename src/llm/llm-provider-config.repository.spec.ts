@@ -43,6 +43,7 @@ function buildPrismaMock(): {
     findMany: jest.Mock;
     findUnique: jest.Mock;
     create: jest.Mock;
+    update: jest.Mock;
     delete: jest.Mock;
   };
 } {
@@ -50,6 +51,7 @@ function buildPrismaMock(): {
     findMany: jest.fn(),
     findUnique: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
     delete: jest.fn(),
   };
   const prisma = {
@@ -234,6 +236,75 @@ describe("LlmProviderConfigRepository", () => {
 
       const repo = new LlmProviderConfigRepository(prisma);
       await expect(repo.findMany()).rejects.toThrow("db-down");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // update — happy (partial data forward) + error (P2025 propagate) + negative
+  // ------------------------------------------------------------------
+  describe("update()", () => {
+    // Happy path: id + partial data 를 PrismaService.update 의 where/data 로 전달.
+    it("id + partial data 를 PrismaService.update 의 where/data 로 전달한다 (happy)", async () => {
+      const { prisma, configMock } = buildPrismaMock();
+      const fixture = buildConfigFixture({
+        id: "c-upd",
+        endpointUrl: "https://new.example.test",
+      });
+      configMock.update.mockResolvedValueOnce(fixture);
+
+      const repo = new LlmProviderConfigRepository(prisma);
+      const data = { endpointUrl: "https://new.example.test" };
+      const result = await repo.update("c-upd", data);
+
+      expect(configMock.update).toHaveBeenCalledWith({
+        where: { id: "c-upd" },
+        data,
+      });
+      expect(result).toBe(fixture);
+    });
+
+    // Branch: 빈 partial data (no-op update) 도 그대로 forward — 값 검증 0.
+    it("빈 partial data 도 PrismaService 로 그대로 전달한다 (branch — no-op update)", async () => {
+      const { prisma, configMock } = buildPrismaMock();
+      configMock.update.mockResolvedValueOnce(buildConfigFixture());
+
+      const repo = new LlmProviderConfigRepository(prisma);
+      await repo.update("c-1", {});
+
+      expect(configMock.update).toHaveBeenCalledWith({
+        where: { id: "c-1" },
+        data: {},
+      });
+    });
+
+    // Error path: id 부재 시 Prisma P2025 그대로 throw (record not found) — 본 layer
+    // 는 catch 하지 않고 propagate (service 가 404 변환 책임).
+    it("id 부재 시 Prisma P2025 error 를 그대로 throw 한다 (error — propagate)", async () => {
+      const { prisma, configMock } = buildPrismaMock();
+      configMock.update.mockRejectedValueOnce(
+        Object.assign(new Error("Record to update not found"), {
+          code: "P2025",
+        }),
+      );
+
+      const repo = new LlmProviderConfigRepository(prisma);
+      await expect(
+        repo.update("missing-id", { endpointUrl: "u" }),
+      ).rejects.toMatchObject({ code: "P2025" });
+    });
+
+    // Negative: empty string id 도 raw forward (validation 은 service 책임).
+    it("id 가 빈 문자열이어도 PrismaService 로 그대로 전달한다 (negative)", async () => {
+      const { prisma, configMock } = buildPrismaMock();
+      configMock.update.mockResolvedValueOnce(buildConfigFixture());
+
+      const repo = new LlmProviderConfigRepository(prisma);
+      await repo.update("", { modelId: "m" });
+
+      expect(configMock.update).toHaveBeenCalledWith({
+        where: { id: "" },
+        data: { modelId: "m" },
+      });
     });
   });
 
