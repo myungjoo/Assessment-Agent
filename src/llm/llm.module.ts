@@ -11,6 +11,9 @@
 //   - LlmProviderConfigService + LlmProviderConfigController 등록 (T-0140 추가 — Admin
 //     LLM provider config 목록 조회 endpoint: GET /api/llm/providers, apiKey redact view.
 //     LlmProviderConfigRepository forward + RBAC. repository 는 이미 등록됨 — service inject 만).
+//   - LlmApiKeyCipher 등록 + export (T-0147 추가 — ADR-0014 §1·§2: apiKey 의
+//     AES-256-GCM envelope 암복호화 helper. 후속 config write CRUD service 가
+//     주입해 encrypt 후 영속. Node 내장 node:crypto 만 사용 — 새 dependency 0).
 //   - LlmGateway interface + LlmProvider enum 은 llm-gateway.interface.ts 에 박제 —
 //     구현 class 0 이므로 본 module 에 gateway provider 등록 0 (후속 routing task 책임).
 //
@@ -29,6 +32,7 @@ import { Module } from "@nestjs/common";
 import { DifficultyMappingController } from "./difficulty-mapping.controller";
 import { DifficultyMappingRepository } from "./difficulty-mapping.repository";
 import { DifficultyMappingService } from "./difficulty-mapping.service";
+import { LlmApiKeyCipher } from "./llm-apikey-cipher.service";
 import { LlmProviderConfigController } from "./llm-provider-config.controller";
 import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
 import { LlmProviderConfigService } from "./llm-provider-config.service";
@@ -44,12 +48,16 @@ import { LlmProviderConfigService } from "./llm-provider-config.service";
     LlmProviderConfigService,
     DifficultyMappingRepository,
     DifficultyMappingService,
+    // LlmApiKeyCipher (T-0147) — apiKey AES-256-GCM 암복호화 helper. 후속 config
+    // write CRUD service (Follow-up #2) 가 inject 해 encrypt 후 영속하므로 export.
+    LlmApiKeyCipher,
   ],
   exports: [
     LlmProviderConfigRepository,
     LlmProviderConfigService,
     DifficultyMappingRepository,
     DifficultyMappingService,
+    LlmApiKeyCipher,
   ],
 })
 export class LlmModule {}
