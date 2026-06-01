@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0142",
   "lock": {
-    "holder": "loop",
-    "since": "2026-06-01T22:08:45+09:00"
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-01T22:09:30+09:00",
-  "lastCommit": "38a86a5",
+  "lastActivity": "2026-06-01T22:19:13+09:00",
+  "lastCommit": "0635085",
   "mostRecentTasks": [
     "T-0141",
     "T-0140",
@@ -17,18 +17,18 @@
     "T-0137"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-01T20:09:48+09:00",
     "cap": 10,
-    "note": "/loop session #36 (cap 10, dynamic) t9 — T-0141 (api.md §5 LLM endpoint doc-sync) **완주**(doc-only direct). lock CAS refresh(turnCount 9, since 22:08:45). nextTask T-0141 → currentTask → executor 1회 dispatch DONE(api.md §5 LLM 6행 + §7 cross-ref 를 T-0139/T-0140 merged reality 로 정정: difficulty-mappings 복수 path + :difficulty + AssignDifficultyMappingDto + 4xx 400/404, GET providers apiKey-redaction note, POST/PATCH/DELETE providers deferred[HITL+ADR-0006]; +7/-7, R-110 면제 doc-only). deliverable+bookkeeping 단일 direct commit. tasksCompleted 139→140, 누적 MINOR follow-up(api.md endpoint doc) 해소. 세션 진척: **5 task 완주(T-0137~T-0141)**. nextTask null → 다음 turn(t10, cap): CI 확인 + planner queue(cron momentum) + §1[8](e) reschedule 중단 clean stop."
+    "note": "/loop session #36 (cap 10, dynamic) STOOD DOWN at t10 (§1[8](e) turn cap 10 도달 → reschedule 중단). **세션 성과: 5 task 완주 — T-0137(DifficultyMapping entity+repo, PR #133) → T-0138(DifficultyMappingService resolve+fail-fast, PR #134) → T-0139(DifficultyMappingController Admin endpoint, PR #135) → T-0140(LlmProviderConfig GET 목록 + apiKey 비노출, PR #136) → T-0141(api.md §5 LLM endpoint doc-sync, direct)**. tasksCompleted 135→140(+5), CI 매 push green, blockers 0, HITL 게이트 미발화(외부 dep 0). **ADR-0011 DifficultyMapping entity→repository→service→controller chain 완결** + LlmProviderConfig read endpoint + API doc sync. t10 에서 다음 task **T-0142 큐잉**(GET /api/llm/providers/:id 단건, pr, dependency-free)으로 momentum 보존. **다음 주요 milestone(§5 HITL BLOCKED)**: LLM provider HTTP client/gateway(provider SDK pnpm add + LLM API key 자격증명) + config write CRUD(apiKey secret body) — 사용자 승인 필요. 진입 시 cron(20:07 eca336d)이 lock 403+env 미비로 STAND DOWN — 강한 ref-CAS lock 라이브 검증. lock 해제(ref tombstone + STATE mirror empty). 사용자 안내: /compact 또는 /clear 후 새 /loop, 또는 KST 야간 cron 대기(단 cloud cron 은 ref-push 403 으로 lock 미획득 → 다음 local /loop 가 backbone). 관측(비차단): stale LOCAL claude/* branch 다수 — local cleanup 후보."
   },
   "ci": {
-    "lastRun": "2026-06-01T22:09:30+09:00",
-    "status": "running",
+    "lastRun": "2026-06-01T22:19:13+09:00",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26756216332",
-    "note": "T-0141 api.md doc-sync direct commit push — markdown-only(production code 0) 라 CI green 예상. 직전 T-0140 merge ace005f + bookkeeping 5cedc6d 둘 다 success. T-0141 commit CI conclusion 은 다음 turn(t10) 재확인."
+    "note": "T-0141 api.md doc-sync direct commit 0635085 CI green(completed/success). 세션 #36 모든 push(133·134·135·136 merge + 6 direct bookkeeping + T-0141 deliverable) CI green, consecutiveFails 0. clean stop 시점 main green."
   },
   "reviewRounds": {
     "T-0138": 1,
