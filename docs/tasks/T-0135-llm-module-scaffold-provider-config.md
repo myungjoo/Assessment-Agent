@@ -2,7 +2,7 @@
 id: T-0135
 title: LlmModule scaffold — LlmGateway interface + provider enum + LlmProviderConfig entity·repository
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-099, REQ-100, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 225
