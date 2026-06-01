@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0126",
   "lock": {
     "holder": "human",
     "since": "2026-06-01T10:37:00+09:00",
