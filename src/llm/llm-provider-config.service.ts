@@ -34,6 +34,7 @@
 // (ADR-0014 §3 write-only / never-read-back invariant).
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -43,6 +44,26 @@ import type { CreateLlmProviderConfigDto } from "./dto/create-llm-provider-confi
 import { LlmApiKeyCipher } from "./llm-apikey-cipher.service";
 import { isLlmProvider } from "./llm-gateway.interface";
 import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
+
+// Prisma 의 error 식별 — `code` field 가 known request error 의 식별자.
+// DifficultyMappingService / GroupService / PersonService 의 동일 helper 와 동일
+// duck typing 패턴 — `Prisma.PrismaClientKnownRequestError` 의 instanceof check
+// 대신 runtime 의존성 회피 차원 (repository spec 의
+// `Object.assign(new Error, { code })` 패턴 + test/helpers/prisma-mock.ts 의
+// `buildPrismaError` 와 정합). 본 helper 의 service 간 중복은 기존 §Follow-ups 의
+// shared util 외화 candidate — 본 task 는 mirror 우선, 신규 외화 없음 (task §Out
+// of Scope 박제).
+function getPrismaErrorCode(error: unknown): string | undefined {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof (error as { code: unknown }).code === "string"
+  ) {
+    return (error as { code: string }).code;
+  }
+  return undefined;
+}
 
 // LlmProviderConfigView — HTTP 응답으로 노출 가능한 LlmProviderConfig 의 view shape.
 // LlmProviderConfig 에서 **apiKey 만 제외** 한 6 필드 (id / provider / endpointUrl /
@@ -143,5 +164,43 @@ export class LlmProviderConfigService {
 
     // (4) apiKey (ciphertext) 를 제거한 view 반환 — never-read-back invariant.
     return this.sanitize(row);
+  }
+
+  // delete — 등록된 LlmProviderConfig 를 id 로 hard delete (DELETE slice, T-0150).
+  // repository.delete 를 try/catch 로 감싸 Prisma error code 를 4xx 로 변환한다
+  // (DifficultyMappingService 의 service-layer Prisma error mapping 관행 mirror —
+  // controller 가 아니라 service 가 4xx throw). 변환 분기:
+  //   - P2025 (record to delete not found — id 부재): NotFoundException (404).
+  //     repository.delete 가 부재 id 에 던지는 raw P2025 를 호출자 가시성 있는
+  //     404 로 표면화 (GroupRepository delete 의 P2025 propagate 정책 정합).
+  //   - P2003 (foreign key constraint failed — DifficultyMapping 슬롯이 본 config
+  //     를 사용 중): ConflictException (409). schema 의 `onDelete: Restrict`
+  //     (prisma/schema.prisma §DifficultyMapping FK, ADR-0011 §2) 가 in-use config
+  //     삭제를 차단해 던지는 P2003 을 409 로 변환 — Admin 이 먼저 슬롯을 재지정한
+  //     뒤 삭제하라는 운영 가시성 (자동 cascade nullify 안 함, task §Out of Scope).
+  //   - 그 외 error (DB 장애 / 알 수 없는 Prisma code 등): swallow 없이 그대로
+  //     propagate (404/409 로 잘못 변환하지 않음). getPrismaErrorCode 가 `code`
+  //     필드 없는 plain Error 에 undefined 를 반환 → 어떤 변환 분기에도 매칭되지
+  //     않아 raw propagate 로 떨어짐.
+  // error code 식별은 getPrismaErrorCode duck-typing 패턴 (instanceof 회피).
+  // 성공 시 void 반환 — 응답 body 0 (apiKey 든 어떤 config 필드든 직렬화 0,
+  // ADR-0014 §3 never-read-back: 삭제 경로에서도 secret 노출 표면 0).
+  //
+  // 분기: 성공 (변환 0) / P2025 (404) / P2003 (409) / 그 외 (raw propagate).
+  async delete(id: string): Promise<void> {
+    try {
+      await this.repository.delete(id);
+    } catch (error) {
+      const code = getPrismaErrorCode(error);
+      if (code === "P2025") {
+        throw new NotFoundException(`llm provider config not found: ${id}`);
+      }
+      if (code === "P2003") {
+        throw new ConflictException(
+          `llm provider config in-use: ${id} (먼저 DifficultyMapping 슬롯을 재지정한 뒤 삭제하세요)`,
+        );
+      }
+      throw error;
+    }
   }
 }

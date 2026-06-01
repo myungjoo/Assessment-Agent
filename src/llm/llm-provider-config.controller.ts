@@ -10,7 +10,10 @@
 //     T-0142, Follow-up #2 구현. service 가 null → NotFoundException 변환)
 //   - POST /api/llm/providers → service.create (201, apiKey encrypt 후 영속 + 제거 view
 //     — T-0149. apiKey 를 request body 로 받아 AES-256-GCM envelope 으로 암호화 영속,
-//     응답에는 apiKey 미노출. PATCH/DELETE slice 는 split Follow-up)
+//     응답에는 apiKey 미노출. PATCH slice 는 split Follow-up)
+//   - DELETE /api/llm/providers/:id → service.delete (204 No Content, body 없음
+//     — T-0150. service 가 P2025→404 (id 부재) / P2003→409 (DifficultyMapping 슬롯
+//     사용 중, onDelete:Restrict) 변환. PATCH slice 는 split Follow-up)
 //
 // ValidationPipe wire 결정 (DifficultyMappingController mirror):
 //   - Controller-scope `@UsePipes(new ValidationPipe({...}))` — DTO 입력 endpoint 신설
@@ -45,7 +48,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   Post,
   UseGuards,
@@ -121,5 +126,22 @@ export class LlmProviderConfigController {
     @Body() dto: CreateLlmProviderConfigDto,
   ): Promise<LlmProviderConfigView> {
     return this.service.create(dto);
+  }
+
+  // DELETE /api/llm/providers/:id — 등록된 LLM provider config 삭제 (REQ-051~055,
+  // T-0150). @HttpCode(204) 로 204 No Content (삭제 성공 body 없음 — apiKey 든 어떤
+  // config 필드든 직렬화 0, ADR-0014 §3 never-read-back). @Param("id") 로 path param
+  // 수신해 service.delete 로 raw forward. service 가 Prisma error 를 4xx 로 변환
+  // (P2025→404 id 부재 / P2003→409 in-use, onDelete:Restrict) — controller 자체 분기
+  // 없음, 그 throw 를 추가 변환 없이 raw propagate (NestJS 가 자동 status mapping).
+  //
+  // RBAC — Admin+ tier (GET/POST 과 동일). @Roles("Admin") → Admin / SuperAdmin
+  // 통과 (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
+  @Delete(":id")
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async delete(@Param("id") id: string): Promise<void> {
+    return this.service.delete(id);
   }
 }
