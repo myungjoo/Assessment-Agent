@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0137",
   "lock": {
-    "holder": "loop",
-    "since": "2026-06-01T18:10:00+09:00"
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-01T18:10:00+09:00",
-  "lastCommit": "2b249d0",
+  "lastActivity": "2026-06-01T18:24:00+09:00",
+  "lastCommit": "424b27c",
   "mostRecentTasks": [
     "T-0136",
     "T-0135",
@@ -17,18 +17,18 @@
     "T-0132"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-01T16:50:50+09:00",
     "cap": 10,
-    "note": "/loop session #35 (cap 10, dynamic) t9: T-0136 **PR flow** 완주 — feature branch → executor DONE(ADR-0011 신설 +189: 3-난이도 cardinality 3 row 고정 + 슬롯↔LlmProviderConfig.id FK 매핑 + 미설정 fail-fast, INDEX.md row; doc-only, R-110 lint/build/test green 99 suites/1832, 외부 dep 0) → commit → PR #132 → integrator round 1 **APPROVE**(reviewer no-findings, 4-게이트 all true) → **squash merge 2b249d0, branch 삭제**. tasksCompleted 134→135. nextTask null. **cap(10) 임박 — t10 은 bookkeeping CI 확인 + 다음 task planner queue(cron backbone momentum 보존) 후 reschedule 중단(§1[8](e)) 으로 clean stop 예정.**"
+    "note": "/loop session #35 (cap 10, dynamic) STOOD DOWN at t10 (§1[8](e) turn cap 10 도달 → reschedule 중단). 세션 성과: 5 task 완주 — T-0132(P3 doc refresh, direct) → T-0133(**P3→P4 phase 전환**, direct) → T-0134(p4-implementation-plan 신설, PR #130) → T-0135(LlmModule scaffold +entity/repo/migration, PR #131 2-round) → T-0136(ADR-0011 3-난이도 모델 할당 정책, PR #132). tasksCompleted 130→135(+5), CI 매 push green, blockers 0, HITL 게이트 미발화(외부 dep 0). t10 에서 다음 task **T-0137 큐잉**(DifficultyMapping entity+repo, pr, dependency-free)으로 cron backbone momentum 보존. lock 해제(cron/다음 /loop unblock). 사용자 안내: /compact 또는 /clear 후 새 /loop, 또는 KST 야간 cron 대기. 관측(비차단): stale LOCAL claude/* branch 다수 — local cleanup 후보."
   },
   "ci": {
-    "lastRun": "2026-06-01T18:10:00+09:00",
+    "lastRun": "2026-06-01T18:24:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/132",
-    "note": "T-0136 PR #132 merged round 1(squash 2b249d0) — head-SHA run 26745998973 all green incl spec-presence + reviewer-approval gate(race 없음). bookkeeping push CI 는 t10 [1]에서 재확인. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26746205826",
+    "note": "T-0136 bookkeeping push CI green — run 26746205826(424b27c) success + 26746135280(2b249d0 merge) success. 둘 다 push/main/completed. consecutiveFails 0. session #35 clean stop 시점 main green."
   },
   "reviewRounds": {
     "T-0134": 1,
