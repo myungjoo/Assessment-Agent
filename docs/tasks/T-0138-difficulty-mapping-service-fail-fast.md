@@ -2,8 +2,12 @@
 id: T-0138
 title: DifficultyMappingService — 난이도 resolve + fail-fast 거부 (ADR-0011 §3 service-level 강제)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 134
+mergedAs: 9fc6570
+reviewRounds: 1
+completedAt: 2026-06-01T20:57:51+09:00
 coversReq: [REQ-049, REQ-050, REQ-051, REQ-097]
 estimatedDiff: 240
 estimatedFiles: 3
