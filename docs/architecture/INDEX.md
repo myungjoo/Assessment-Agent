@@ -33,6 +33,7 @@
 | ADR-0003 Deployment (monolith vs worker, secret, scheduler, network) | deployment.md + components.md | ACCEPTED (T-0015) |
 | [ADR-0011](../decisions/ADR-0011-difficulty-model-assignment.md) 3 난이도 모델 할당 정책 (3 row 고정 + FK 참조 + fail-fast fallback) | data-model.md (DifficultyMapping) | ACCEPTED (T-0136) |
 | [ADR-0012](../decisions/ADR-0012-cross-cutting-field-policy.md) Cross-cutting field policy (UTC 저장 / mutable-only updatedAt / Person-only soft delete / createdBy = AuditLog event-stream) | data-model.md (§5 cross-cutting field) | ACCEPTED (T-0144) |
+| [ADR-0013](../decisions/ADR-0013-confluence-space-traversal-policy.md) Confluence SPACE 탐색 정책 (page List 기반 탐색 / SPACE allowlist 순회 + (page, version) raw-transient / 4xx skip-and-continue) | modules.md (ConfluenceModule) | ACCEPTED (T-0145) |
 
 ## MVA 원칙
 
