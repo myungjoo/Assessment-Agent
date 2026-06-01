@@ -10,6 +10,7 @@
 //   - negative cases 충분 cover — **secret redaction (핵심)**: 반환 view 에 apiKey 가
 //     존재하지 않음을 다중 row 모두에 대해 명시 assert. repository mock 이 apiKey 값을
 //     포함한 row 를 반환해도 view 에서 누락됨을 검증 (deny-by-default allow-list).
+import { NotFoundException } from "@nestjs/common";
 import type { LlmProviderConfig } from "@prisma/client";
 
 import { LlmProviderConfigService } from "./llm-provider-config.service";
@@ -32,15 +33,16 @@ function buildConfigFixture(
 }
 
 // repository mock factory — 각 test 마다 새 instance 를 만들어 호출 카운터가
-// 격리되도록 한다. service 가 사용하는 findMany 메서드만 mock 으로 정의.
+// 격리되도록 한다. service 가 사용하는 findMany / findById 메서드를 mock 으로 정의.
 function buildService(): {
   service: LlmProviderConfigService;
-  repo: { findMany: jest.Mock };
+  repo: { findMany: jest.Mock; findById: jest.Mock };
 } {
   const repo = {
     findMany: jest.fn(),
+    findById: jest.fn(),
   };
-  // service 는 repository 의 findMany 만 호출하므로 부분 mock 으로 충분.
+  // service 는 repository 의 findMany / findById 만 호출하므로 부분 mock 으로 충분.
   const service = new LlmProviderConfigService(repo as never);
   return { service, repo };
 }
@@ -139,6 +141,78 @@ describe("LlmProviderConfigService", () => {
       repo.findMany.mockRejectedValueOnce(new Error("db-down"));
 
       await expect(service.findAll()).rejects.toThrow("db-down");
+    });
+  });
+
+  describe("findById()", () => {
+    // ------------------------------------------------------------------
+    // Happy path / branch (비-null row) — apiKey 제거 view 변환 + 정확한 id 인자 호출
+    // ------------------------------------------------------------------
+    it("비-null row 를 apiKey 제거 view 로 변환해 반환한다 (happy — branch 비-null)", async () => {
+      const { service, repo } = buildService();
+      repo.findById.mockResolvedValueOnce(
+        buildConfigFixture({ id: "existing-id", provider: "anthropic" }),
+      );
+
+      const result = await service.findById("existing-id");
+
+      // repository.findById 가 정확한 id 인자로 1 회 호출됨 검증.
+      expect(repo.findById).toHaveBeenCalledTimes(1);
+      expect(repo.findById).toHaveBeenCalledWith("existing-id");
+      // apiKey 를 제외한 6 필드가 원본값 그대로 보존.
+      expect(result).toEqual({
+        id: "existing-id",
+        provider: "anthropic",
+        endpointUrl: "https://api.example.test",
+        modelId: "gpt-test",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      });
+    });
+
+    // ------------------------------------------------------------------
+    // Negative (핵심) — null → NotFoundException 변환 분기. 빈 결과를 200/undefined
+    // 로 반환하지 않고 404 로 표면화 (목록 endpoint 와 다른 단건의 핵심 분기).
+    // ------------------------------------------------------------------
+    it("repository.findById 가 null 이면 NotFoundException 을 throw 한다 (negative 핵심 — null→404 분기)", async () => {
+      const { service, repo } = buildService();
+      repo.findById.mockResolvedValueOnce(null);
+
+      // 빈 결과를 undefined/200 으로 반환하지 않고 404 로 변환함을 검증.
+      await expect(service.findById("missing-id")).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(repo.findById).toHaveBeenCalledWith("missing-id");
+    });
+
+    // ------------------------------------------------------------------
+    // Negative (핵심) — secret redaction: 반환 view 에 apiKey key 가 부재함을 명시
+    // assert. repository mock 이 apiKey 평문값을 포함한 row 를 반환해도 view 에서 누락.
+    // ------------------------------------------------------------------
+    it("반환 view 에 apiKey key 가 존재하지 않는다 (negative 핵심 — secret redaction)", async () => {
+      const { service, repo } = buildService();
+      repo.findById.mockResolvedValueOnce(
+        buildConfigFixture({ id: "cfg-solo", apiKey: "sk-leak-single" }),
+      );
+
+      const view = await service.findById("cfg-solo");
+
+      expect(view).not.toHaveProperty("apiKey");
+      expect(Object.keys(view)).not.toContain("apiKey");
+      // 평문 secret 값이 직렬화 결과에 새어나가지 않음 추가 확인.
+      expect(JSON.stringify(view)).not.toContain("sk-leak-single");
+    });
+
+    // ------------------------------------------------------------------
+    // Error path / negative — 의존성 실패: repository.findById reject (DB 장애)
+    // 를 swallow 하지 않고 그대로 propagate (null→404 분기와 별개 케이스).
+    // ------------------------------------------------------------------
+    it("repository.findById 가 reject 하면 error 를 그대로 전파한다 (error path — DB 장애)", async () => {
+      const { service, repo } = buildService();
+      repo.findById.mockRejectedValueOnce(new Error("db-down"));
+
+      // 의존성 reject 는 NotFoundException 변환 없이 raw propagate.
+      await expect(service.findById("any-id")).rejects.toThrow("db-down");
     });
   });
 });
