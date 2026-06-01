@@ -2,7 +2,11 @@
 id: T-0149
 title: POST /api/llm/providers — LLM provider config 생성 endpoint (apiKey AES-256-GCM encrypt-at-rest)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02
+mergedAs: 506bf9e
+prNumber: 142
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-052, REQ-053, REQ-054, REQ-055, REQ-051, REQ-043]
 estimatedDiff: 170
