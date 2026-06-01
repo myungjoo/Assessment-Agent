@@ -1,14 +1,15 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": null,
+  "currentTask": "T-0130",
   "nextTask": null,
   "lock": {
-    "holder": "",
-    "since": ""
+    "holder": "loop",
+    "session": "loop@local-direct-607e296",
+    "since": "2026-06-01T13:48:00+09:00"
   },
-  "lastActivity": "2026-06-01T13:42:00+09:00",
-  "lastCommit": "59cf753",
+  "lastActivity": "2026-06-01T13:48:00+09:00",
+  "lastCommit": "607e296",
   "mostRecentTasks": [
     "T-0129",
     "T-0128",
