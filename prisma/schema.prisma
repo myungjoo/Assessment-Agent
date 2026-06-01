@@ -297,3 +297,33 @@ model Summary {
   // 시계열 조회 (REQ-038) 용 index 후보 (ADR-0006 Decision §6).
   @@index([personId, period, periodStart])
 }
+
+// LlmProviderConfig — data-model.md §2 row "LlmProviderConfig" + §3 관계 8 +
+// REQ-049/051~055. T-0135 (P4 LLM provider 추상화 scaffold). 5 provider
+// (custom / Azure OpenAI / Anthropic / Google Gemini / OpenAI) 별 설정 row —
+// endpoint URL / API key / model 식별자.
+//
+// 컬럼 결정 (T-0135 acceptance §34):
+//   - provider 는 enum-as-String literal 박제 (User.role / ServiceIdentity.service /
+//     Assessment.period 정공법 정합 — Prisma enum 격상은 별도 ADR). 허용 집합의
+//     single source 는 src/llm/llm-gateway.interface.ts 의 LlmProvider enum.
+//     값 invariant 는 후속 service (T-0139) 책임.
+//   - apiKey 는 평문 String — encryption-at-rest 는 ADR-0006 follow-up 책임. 본
+//     task 는 secret 처리 코드 0, 암호화 0 (apiKey 컬럼은 평문 저장 placeholder).
+//   - createdAt / updatedAt — Person / Group / Part 와 동일한 표준 timestamp 패턴.
+//     LlmProviderConfig 는 mutable entity (data-model.md §5 — updatedAt 적용).
+//
+// **다중 row 모델** — 각 provider 별 1+ row, custom 은 3 model 슬롯 모두 차지 가능
+// (REQ-051). GroupRepository 와 동일하게 `@unique` / `@@unique` **미정의** — unique
+// 제약 없음 (P2002 분기 부재). DifficultyMapping (T-0136) 1:N relation 의 역방향
+// 필드 placeholder 는 두지 않음 — DifficultyMapping model 신설 시 T-0136 이 양방향
+// relation 필드를 함께 추가 (Prisma 의 back-relation 요건 그 시점 충족).
+model LlmProviderConfig {
+  id          String   @id @default(cuid())
+  provider    String
+  endpointUrl String
+  apiKey      String
+  modelId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
