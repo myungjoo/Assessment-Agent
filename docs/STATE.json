@@ -43,7 +43,7 @@
       "raisedAt": "2026-06-02T02:03:56+09:00",
       "raisedBy": "cron@web-3436 (Anthropic 클라우드 fresh checkout)",
       "reason": "credential",
-      "details": "ref-CAS lock 획득 push (HEAD:refs/locks/driver --force-with-lease=264b9aa) 가 HTTP 403 (RPC failed). 본 web execution env 는 refs/locks/* push 권한 부재 — driver loop 의 ADR-0009 ref-CAS mutex 가정과 mismatch. LOOP.md §1 [5] credential 처리: lock 부재로 STATE 수정 race 위험, T-0151 진행 보류. designated branch claude/nifty-knuth-pL3sX 로만 본 BLOCKED 기록을 push (env 권한 내). 다음 정상 cron / `/loop` (gh + ref push 권한 보유) 가 T-0151 픽업.",
+      "details": "ref-CAS lock 획득 push (HEAD:refs/locks/driver --force-with-lease=264b9aa) 가 HTTP 403 (RPC failed). 본 web execution env 는 refs/locks/* push 권한 부재 — driver loop 의 ADR-0009 ref-CAS mutex 가정과 mismatch. main 자체 push 는 권한 보유 확인 (본 BLOCKED bookkeeping commit c2273b2 push success). 단 ref-CAS lock 부재로 다른 driver 와의 상호배제 보장 없음 → T-0151(pr-mode code task, feature branch + PR via MCP + 4-게이트 + merge 필요) race 위험으로 진행 보류. gh CLI 미설치(`which gh` exit 1) 추가 제약 — MCP github tools 는 가용하나 정상 cron/loop 의 gh-friendly path 와 차이. LOOP.md §1 [5] credential 처리. 다음 정상 driver(gh + refs/locks/* 권한) 가 T-0151 픽업.",
       "status": "OPEN",
       "remediationHint": "본 BLOCKED 는 단일 invocation env 한계 — 정책 변경 불요. T-0151 은 nextTask 보존 상태로 다음 정상 발화가 픽업하면 unblock. 본 entry 는 다음 정상 driver turn 의 bookkeeping 에서 archive 처리 가능."
     }
