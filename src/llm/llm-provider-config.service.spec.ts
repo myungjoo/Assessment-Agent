@@ -10,9 +10,10 @@
 //   - negative cases 충분 cover — **secret redaction (핵심)**: 반환 view 에 apiKey 가
 //     존재하지 않음을 다중 row 모두에 대해 명시 assert. repository mock 이 apiKey 값을
 //     포함한 row 를 반환해도 view 에서 누락됨을 검증 (deny-by-default allow-list).
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import type { LlmProviderConfig } from "@prisma/client";
 
+import type { CreateLlmProviderConfigDto } from "./dto/create-llm-provider-config.dto";
 import { LlmProviderConfigService } from "./llm-provider-config.service";
 
 // LlmProviderConfig fixture — schema.prisma 의 7 컬럼을 모두 채운 default row.
@@ -32,19 +33,38 @@ function buildConfigFixture(
   };
 }
 
-// repository mock factory — 각 test 마다 새 instance 를 만들어 호출 카운터가
-// 격리되도록 한다. service 가 사용하는 findMany / findById 메서드를 mock 으로 정의.
+// repository / cipher mock factory — 각 test 마다 새 instance 를 만들어 호출
+// 카운터가 격리되도록 한다. service 가 사용하는 findMany / findById / create
+// (repository) + encrypt (cipher) 메서드를 mock 으로 정의.
 function buildService(): {
   service: LlmProviderConfigService;
-  repo: { findMany: jest.Mock; findById: jest.Mock };
+  repo: { findMany: jest.Mock; findById: jest.Mock; create: jest.Mock };
+  cipher: { encrypt: jest.Mock };
 } {
   const repo = {
     findMany: jest.fn(),
     findById: jest.fn(),
+    create: jest.fn(),
   };
-  // service 는 repository 의 findMany / findById 만 호출하므로 부분 mock 으로 충분.
-  const service = new LlmProviderConfigService(repo as never);
-  return { service, repo };
+  // cipher 는 create 만 사용 (read path 미사용 — never-decrypt-and-return).
+  const cipher = {
+    encrypt: jest.fn(),
+  };
+  const service = new LlmProviderConfigService(repo as never, cipher as never);
+  return { service, repo, cipher };
+}
+
+// CreateLlmProviderConfigDto fixture — 유효한 4 필드. negative case 는 1 필드만 변형.
+function buildCreateDto(
+  overrides: Partial<CreateLlmProviderConfigDto> = {},
+): CreateLlmProviderConfigDto {
+  return {
+    provider: "openai",
+    endpointUrl: "https://api.example.test",
+    apiKey: "sk-super-secret-plaintext",
+    modelId: "gpt-test",
+    ...overrides,
+  };
 }
 
 describe("LlmProviderConfigService", () => {
@@ -213,6 +233,114 @@ describe("LlmProviderConfigService", () => {
 
       // 의존성 reject 는 NotFoundException 변환 없이 raw propagate.
       await expect(service.findById("any-id")).rejects.toThrow("db-down");
+    });
+  });
+
+  describe("create()", () => {
+    // ------------------------------------------------------------------
+    // Happy path / branch (provider 유효) — encrypt 1 회 호출 + repository.create
+    // 가 ciphertext (평문 apiKey 와 다른 값) 로 호출됨 + 반환 view 에 apiKey 부재.
+    // ------------------------------------------------------------------
+    it("유효 입력 시 encrypt 후 ciphertext 로 repository.create 호출 + apiKey 제거 view 반환 (happy)", async () => {
+      const { service, repo, cipher } = buildService();
+      const dto = buildCreateDto({ apiKey: "sk-plain-123" });
+      cipher.encrypt.mockReturnValueOnce("ENVELOPE-CIPHERTEXT-base64");
+      repo.create.mockResolvedValueOnce(
+        buildConfigFixture({
+          id: "cfg-new",
+          provider: "openai",
+          apiKey: "ENVELOPE-CIPHERTEXT-base64",
+        }),
+      );
+
+      const result = await service.create(dto);
+
+      // encrypt 가 평문 apiKey 로 정확히 1 회 호출됨.
+      expect(cipher.encrypt).toHaveBeenCalledTimes(1);
+      expect(cipher.encrypt).toHaveBeenCalledWith("sk-plain-123");
+      // repository.create 가 ciphertext (평문과 다른 값) 로 호출됨.
+      expect(repo.create).toHaveBeenCalledTimes(1);
+      const createArg = repo.create.mock.calls[0][0];
+      expect(createArg.apiKey).toBe("ENVELOPE-CIPHERTEXT-base64");
+      expect(createArg.apiKey).not.toBe("sk-plain-123");
+      expect(createArg).toEqual({
+        provider: "openai",
+        endpointUrl: "https://api.example.test",
+        apiKey: "ENVELOPE-CIPHERTEXT-base64",
+        modelId: "gpt-test",
+      });
+      // 반환 view 에 apiKey 키가 부재 (id / provider 등 6 필드만).
+      expect(result).not.toHaveProperty("apiKey");
+      expect(result.id).toBe("cfg-new");
+    });
+
+    // ------------------------------------------------------------------
+    // never-read-back invariant regression (ADR-0014 §3) — 반환 view 에 apiKey
+    // 부재 (런타임) + 평문 apiKey 와 ciphertext 둘 다 직렬화 결과에 미포함.
+    // ------------------------------------------------------------------
+    it("반환 view 에 평문 apiKey / ciphertext 가 절대 새어나가지 않는다 (negative 핵심 — never-read-back, ADR-0014 §3)", async () => {
+      const { service, repo, cipher } = buildService();
+      const dto = buildCreateDto({ apiKey: "sk-leak-plaintext" });
+      cipher.encrypt.mockReturnValueOnce("CIPHER-leak-envelope");
+      repo.create.mockResolvedValueOnce(
+        buildConfigFixture({
+          id: "cfg-secret",
+          apiKey: "CIPHER-leak-envelope",
+        }),
+      );
+
+      const result = await service.create(dto);
+
+      expect(result).not.toHaveProperty("apiKey");
+      expect(Object.keys(result)).not.toContain("apiKey");
+      // 평문 + ciphertext 둘 다 직렬화 결과에 부재.
+      const serialized = JSON.stringify(result);
+      expect(serialized).not.toContain("sk-leak-plaintext");
+      expect(serialized).not.toContain("CIPHER-leak-envelope");
+    });
+
+    // ------------------------------------------------------------------
+    // Error / branch (provider 무효) — isLlmProvider false → BadRequestException.
+    // encrypt / repository.create 는 호출되지 않음 (단락).
+    // ------------------------------------------------------------------
+    it("미지원 provider 면 BadRequestException + encrypt/create 미호출 (error/branch — provider 무효)", async () => {
+      const { service, repo, cipher } = buildService();
+      const dto = buildCreateDto({ provider: "not-a-real-provider" });
+
+      await expect(service.create(dto)).rejects.toThrow(BadRequestException);
+      expect(cipher.encrypt).not.toHaveBeenCalled();
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    // ------------------------------------------------------------------
+    // Error path — encrypt throw (env 키 부재 등) → swallow 없이 propagate.
+    // repository.create 는 호출되지 않음 (평문이 암호화 없이 영속되는 경로 차단).
+    // ------------------------------------------------------------------
+    it("encrypt 가 throw 하면 error 를 전파 + repository.create 미호출 (error path — 암호화 실패)", async () => {
+      const { service, repo, cipher } = buildService();
+      const dto = buildCreateDto();
+      cipher.encrypt.mockImplementationOnce(() => {
+        throw new Error("LLM_APIKEY_ENC_KEY 환경변수가 설정되지 않았습니다");
+      });
+
+      await expect(service.create(dto)).rejects.toThrow("LLM_APIKEY_ENC_KEY");
+      // 암호화 실패 시 평문이 DB 에 영속되지 않음.
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    // ------------------------------------------------------------------
+    // Error path — repository.create reject (DB 장애) → swallow 없이 propagate.
+    // encrypt 는 정상 (ciphertext 생성) 후 영속 단계 실패 케이스.
+    // ------------------------------------------------------------------
+    it("repository.create 가 reject 하면 error 를 그대로 전파한다 (error path — DB 장애)", async () => {
+      const { service, repo, cipher } = buildService();
+      const dto = buildCreateDto();
+      cipher.encrypt.mockReturnValueOnce("CIPHER-ok");
+      repo.create.mockRejectedValueOnce(new Error("db-down"));
+
+      await expect(service.create(dto)).rejects.toThrow("db-down");
+      // encrypt 는 정상 호출됐음 (영속 단계에서 실패).
+      expect(cipher.encrypt).toHaveBeenCalledTimes(1);
     });
   });
 });

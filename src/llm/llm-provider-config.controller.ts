@@ -4,10 +4,13 @@
 // LlmProviderConfigService (T-0140) 위에 HTTP-facing layer 를 신설해 Admin 이 등록된
 // LLM provider config 목록을 조회 (REQ-096) 하는 read-only 경로를 노출한다.
 //
-// api.md / p4-impl-plan §2 정합 (read-only 조회 slice — config CRUD 는 Follow-up):
+// api.md / p4-impl-plan §2 정합 (read 조회 + create slice — PATCH/DELETE 는 Follow-up):
 //   - GET /api/llm/providers → service.findAll (200, 빈 배열도 정상 — apiKey 제거 view)
 //   - GET /api/llm/providers/:id → service.findById (200 단건 view / 부재 시 404 —
 //     T-0142, Follow-up #2 구현. service 가 null → NotFoundException 변환)
+//   - POST /api/llm/providers → service.create (201, apiKey encrypt 후 영속 + 제거 view
+//     — T-0149. apiKey 를 request body 로 받아 AES-256-GCM envelope 으로 암호화 영속,
+//     응답에는 apiKey 미노출. PATCH/DELETE slice 는 split Follow-up)
 //
 // ValidationPipe wire 결정 (DifficultyMappingController mirror):
 //   - Controller-scope `@UsePipes(new ValidationPipe({...}))` — DTO 입력 endpoint 신설
@@ -34,15 +37,17 @@
 //     escalation 매핑은 ADR-0008 / T-0083 박제값 그대로.
 //
 // 책임 경계 (Out of Scope — task §Out of Scope 박제):
-//   - POST/PATCH/DELETE config CRUD — Follow-up #1 (본 controller 는 GET 조회만).
-//   - apiKey encryption-at-rest — ADR-0006 책임 (본 task 는 응답 redact 만).
+//   - PATCH/DELETE config CRUD — split Follow-up (본 controller 는 GET 조회 + POST 생성).
+//   - apiKey encryption-at-rest — ADR-0014 (POST 시 service 가 encrypt, read 는 redact).
 //   - provider HTTP client / 실제 LLM API call — 후속 routing task (HITL 게이트).
 //   - 새 auth-flow / RBAC 정책 변경 0 — 기존 guard stack 적용만.
 //   - 응답 envelope (`{ data, meta }`) 표준화 / pagination / sort — view return 그대로.
 import {
+  Body,
   Controller,
   Get,
   Param,
+  Post,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -52,6 +57,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
+import { CreateLlmProviderConfigDto } from "./dto/create-llm-provider-config.dto";
 import {
   LlmProviderConfigService,
   type LlmProviderConfigView,
@@ -95,5 +101,25 @@ export class LlmProviderConfigController {
   @Roles("Admin")
   async findById(@Param("id") id: string): Promise<LlmProviderConfigView> {
     return this.service.findById(id);
+  }
+
+  // POST /api/llm/providers — 새 LLM provider config 생성 (REQ-051~055, T-0149).
+  // 201 Created + apiKey 제거된 view 반환 (NestJS POST 기본 201). @Body() 로 수신한
+  // CreateLlmProviderConfigDto 는 controller-scope ValidationPipe 가 형식 검증
+  // (whitelist + forbidNonWhitelisted — 4 필드 allow-list 밖 키 / 누락 / 빈값 / wrong
+  // type 시 400). service.create 가 (1) isLlmProvider 로 provider 허용 집합 검증
+  // (미지원 → BadRequestException 400), (2) LlmApiKeyCipher.encrypt 로 apiKey 암호화,
+  // (3) ciphertext 영속, (4) apiKey 제거 view 반환 (ADR-0014 §3 never-read-back).
+  // controller 자체 분기 없음 — service raw forward.
+  //
+  // RBAC — Admin+ tier (GET 과 동일). @Roles("Admin") → Admin / SuperAdmin 통과
+  // (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async create(
+    @Body() dto: CreateLlmProviderConfigDto,
+  ): Promise<LlmProviderConfigView> {
+    return this.service.create(dto);
   }
 }
