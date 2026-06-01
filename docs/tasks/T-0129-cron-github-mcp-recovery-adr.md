@@ -2,7 +2,11 @@
 id: T-0129
 title: "cron 환경 GitHub MCP 경로로 pr-mode 완주 보장 ADR (ADR-0010)"
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T13:42:00+09:00
+mergedAs: 59cf753
+reviewRounds: 1
+prNumber: 128
 commitMode: pr
 coversReq: []
 estimatedDiff: 130

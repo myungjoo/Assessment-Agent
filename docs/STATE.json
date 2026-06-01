@@ -1,21 +1,20 @@
 {
   "schemaVersion": 1,
   "phase": "P3-in-progress",
-  "currentTask": "T-0129",
+  "currentTask": null,
   "nextTask": null,
   "lock": {
-    "holder": "loop",
-    "session": "loop@local-direct-d1aa64f",
-    "since": "2026-06-01T13:30:00+09:00"
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-01T13:30:00+09:00",
-  "lastCommit": "d1aa64f",
+  "lastActivity": "2026-06-01T13:42:00+09:00",
+  "lastCommit": "59cf753",
   "mostRecentTasks": [
+    "T-0129",
     "T-0128",
     "T-0127",
     "T-0126",
-    "T-0125",
-    "T-0124"
+    "T-0125"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,7 +31,8 @@
     "note": "T-0125 PR-126 MERGED (squash 7b2e1f3). 권위 run = issue_comment-triggered 26728518469 (headBranch=main, conclusion=success, 14 steps green incl 'reviewer agent approval 검증' gate). 직전 pull_request run 26723469195 fail 은 approval comment 존재 이전에 실행된 reviewer-gate race artifact (code defect 아님 — unit pass=8, lint/build/smoke/e2e green; gate(b) 만 fail) 로 무시. consecutiveFails reset 0."
   },
   "reviewRounds": {
-    "T-0126": 1
+    "T-0126": 1,
+    "T-0129": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -41,7 +41,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 127,
+    "tasksCompleted": 128,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
