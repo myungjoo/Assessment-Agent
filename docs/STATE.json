@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0139",
   "lock": {
     "holder": "loop",
-    "since": "2026-06-01T20:47:19+09:00"
+    "since": "2026-06-01T21:04:23+09:00"
   },
-  "lastActivity": "2026-06-01T20:57:51+09:00",
-  "lastCommit": "9fc6570",
+  "lastActivity": "2026-06-01T21:05:30+09:00",
+  "lastCommit": "8a54054",
   "mostRecentTasks": [
     "T-0138",
     "T-0137",
@@ -17,18 +17,18 @@
     "T-0134"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-01T20:09:48+09:00",
     "cap": 10,
-    "note": "/loop session #36 (cap 10, dynamic) t3 — T-0138 (DifficultyMappingService resolve+fail-fast) **단일 turn end-to-end 완주**. lock CAS refresh(turnCount 3, since 20:47:19). nextTask T-0138 → feature branch claude/T-0138-difficulty-mapping-service-fail-fast → executor 1회 dispatch DONE(DifficultyMappingService resolveModel fail-fast 5분기 + findAllMappings + assignProviderConfig + llm.module 등록 + spec 20 test, +543/-8 production~216 LOC, service line 96.87%/func 100%/branch 100%, lint/build/test:cov green; 외부 dep 0 HITL 미발화) → commit 655c25b push → PR #134 open → integrator round 1 reviewer APPROVE(no findings, reviewer-gate race 무발생) → 4-게이트 PASS → squash merge 9fc6570 branch 삭제. tasksCompleted 136→137. 세션 진척: t1 T-0137 / t3 T-0138 (2 task merged). merge CI(26753421746) in_progress — 다음 turn 재확인. lock 유지. 다음 turn(t4): merge CI green 재확인 + planner(P4 다음 task)."
+    "note": "/loop session #36 (cap 10, dynamic) t4 — T-0138 merge(9fc6570) + bookkeeping(8a54054) push CI 둘 다 green 확인 + planner dispatch → **T-0139 큐잉**(DifficultyMappingController Admin endpoint: GET list + PATCH /api/llm/difficulty-mappings/:difficulty assign, Admin+ RBAC, commitMode pr, 외부 dep 0 / pnpm add 0 → HITL 게이트 미발화). lock CAS refresh(turnCount 4, since 21:04:23). 세션 진척: t1 T-0137(entity+repo) / t3 T-0138(service) merged (2 task), t4 T-0139(controller) queue — ADR-0011 DifficultyMapping entity→repo→service→controller chain. nextTask=T-0139. 다음 turn(t5): T-0139 PR flow(executor→feature branch push→integrator 4-게이트→squash merge)."
   },
   "ci": {
-    "lastRun": "2026-06-01T20:57:51+09:00",
-    "status": "running",
+    "lastRun": "2026-06-01T21:05:30+09:00",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26753421746",
-    "note": "T-0138 PR-134 round 1 reviewer APPROVE → 4-게이트 PASS → squash merge 9fc6570. merge 후 main run 26753421746(9fc6570) in_progress — PR head 동일 squashed tree 라 green 예상, 다음 turn 재확인. PR CI 는 4-게이트 green 으로 검증 완료(reviewer-gate race 무발생)."
+    "note": "T-0138 merge 9fc6570 (run 26753421746) + bookkeeping 8a54054 둘 다 push/main/completed success. consecutiveFails 0. main green (session #36 t4 진입 시점)."
   },
   "reviewRounds": {
     "T-0136": 1,
