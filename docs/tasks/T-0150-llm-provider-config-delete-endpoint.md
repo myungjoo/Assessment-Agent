@@ -2,7 +2,11 @@
 id: T-0150
 title: DELETE /api/llm/providers/:id — LLM provider config 삭제 endpoint (P2025 404 / P2003 in-use 409)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02
+mergedAs: 4656194
+prNumber: 143
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-096]
 estimatedDiff: 115
