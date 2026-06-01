@@ -76,14 +76,14 @@ import {
   Param,
   Patch,
   Post,
-  Req,
   UseGuards,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
 import type { User } from "@prisma/client";
-import type { Request } from "express";
 
+import type { JwtPayload } from "../auth/auth.service";
+import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
@@ -91,7 +91,6 @@ import { RolesGuard } from "../auth/roles.guard";
 import { AddUserDto } from "./dto/add-user.dto";
 import { ChangeRoleDto } from "./dto/change-role.dto";
 import { UserResponseDto } from "./dto/user-response.dto";
-import type { UserRole } from "./user.service";
 import { UserService } from "./user.service";
 
 @Controller("api/users")
@@ -124,11 +123,10 @@ export class UserController {
   async changeRole(
     @Param("id") id: string,
     @Body() dto: ChangeRoleDto,
-    @Req() req: Request,
+    @CurrentUser("sub") actorUserId: string,
   ): Promise<UserResponseDto> {
-    // req.user 는 JwtStrategy.validate 가 박제한 payload — type narrowing 으로 sub 추출.
-    // AuthController.refresh 의 cookies type narrowing 정공법 정합.
-    const actorUserId = (req.user as { sub: string }).sub;
+    // actorUserId 는 @CurrentUser("sub") param decorator 가 직접 JwtPayload.sub 으로
+    // 박제 — T-0125 refactor 박제 (이전: `(req.user as { sub: string }).sub` cast).
     // service-layer 는 도메인 entity (User row) 반환 — DTO 변환은 controller layer
     // 단일 책임. T-0095 박제 — hashedPassword 컬럼은 본 변환에서 자동 제외.
     const updated: User = await this.userService.changeRole(
@@ -256,11 +254,10 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   async detail(
     @Param("id") id: string,
-    @Req() req: Request,
+    @CurrentUser() actor: JwtPayload,
   ): Promise<UserResponseDto> {
-    // req.user 는 JwtStrategy.validate 가 박제한 payload — type narrowing 으로
-    // sub + role 추출. changeRole L129 의 cast 패턴 1:1 mirror.
-    const actor = req.user as { sub: string; role: UserRole };
+    // actor 는 @CurrentUser() param decorator 가 직접 JwtPayload 로 박제 — T-0125
+    // refactor 박제 (이전: `(req.user as { sub: string; role: UserRole })` cast).
     // 분기 1: self check — :id 가 actor 본인 ID 와 일치하면 통과 (User tier 의 본인
     // 조회 path, REQ-046).
     const isSelf = actor.sub === id;

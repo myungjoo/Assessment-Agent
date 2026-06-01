@@ -2,11 +2,17 @@
 // branch / negative + negative cases 충분 cover + ValidationPipe / RolesGuard
 // integration via supertest).
 //
+// T-0125 갱신 — `@CurrentUser()` param decorator 도입으로 changeRole / detail 의
+// actor 추출 path 가 `@Req() req` + cast 에서 직접 param 으로 변경. unit-level
+// test 는 actor (sub 또는 JwtPayload) 를 controller method 에 직접 전달.
+// Integration-level 은 NestJS 가 createParamDecorator 의 factory 를 실제 호출
+// — req.user 박제 path (overrideGuard 의 canActivate 에서 박제) 그대로 동작.
+//
 // 본 spec 은 두 부분으로 구성 (GroupController spec T-0055/T-0057/T-0068 1:1 mirror):
 //   1. Unit-level (controller-only with mocked UserService) — PATCH endpoint 의 routing /
-//      service 호출 인자 / 예외 propagation 검증. req.user.sub 의 propagate 검증 포함.
+//      service 호출 인자 / 예외 propagation 검증. actorUserId / actor 의 propagate 검증 포함.
 //   2. Integration-level (createNestApplication + ValidationPipe + Guard override) —
-//      ChangeRoleDto decorator 위반 negative case + Guard wire 검증.
+//      ChangeRoleDto decorator 위반 negative case + Guard wire + @CurrentUser 박제 검증.
 //
 // Guard override 전략 — JwtAuthGuard / RolesGuard 의 실 verify path 는 별도 layer 책임
 // (각각 본 system 의 spec 이 cover, T-0083). 본 spec 은 controller 단일 책임 + service
@@ -38,6 +44,7 @@ import type { User } from "@prisma/client";
 import type { Request } from "express";
 import request from "supertest";
 
+import type { JwtPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 
@@ -84,11 +91,16 @@ function buildUserServiceMock(): {
   };
 }
 
-// Request stub — req.user 박제 (JwtStrategy.validate 가 박제한 payload mirror).
-function buildReqWithUser(
-  user: { sub: string; role?: string } | undefined,
-): Request {
-  return { user } as unknown as Request;
+// JwtPayload fixture helper — T-0125 박제. controller method 가 직접 param decorator
+// 의 결과를 받게 변경 → spec 도 동일 shape 으로 직접 전달.
+function buildJwtPayload(
+  overrides: Partial<{ sub: string; role: string }> = {},
+): { sub: string; role: string } {
+  return {
+    sub: "actor-default",
+    role: "SuperAdmin",
+    ...overrides,
+  };
 }
 
 describe("UserController (unit)", () => {
@@ -101,11 +113,10 @@ describe("UserController (unit)", () => {
     serviceMock.changeRole.mockResolvedValueOnce(fixture);
 
     const controller = new UserController(userService);
-    const req = buildReqWithUser({ sub: "actor-super-1", role: "SuperAdmin" });
     const result = await controller.changeRole(
       "target-1",
       { role: "Admin" },
-      req,
+      "actor-super-1",
     );
 
     expect(serviceMock.changeRole).toHaveBeenCalledWith(
@@ -132,8 +143,7 @@ describe("UserController (unit)", () => {
     );
 
     const controller = new UserController(userService);
-    const req = buildReqWithUser({ sub: "actor-2", role: "SuperAdmin" });
-    await controller.changeRole("t-2", { role: "User" }, req);
+    await controller.changeRole("t-2", { role: "User" }, "actor-2");
 
     expect(serviceMock.changeRole).toHaveBeenCalledWith(
       "actor-2",
@@ -149,8 +159,7 @@ describe("UserController (unit)", () => {
     );
 
     const controller = new UserController(userService);
-    const req = buildReqWithUser({ sub: "actor-3", role: "SuperAdmin" });
-    await controller.changeRole("t-3", { role: "SuperAdmin" }, req);
+    await controller.changeRole("t-3", { role: "SuperAdmin" }, "actor-3");
 
     expect(serviceMock.changeRole).toHaveBeenCalledWith(
       "actor-3",
@@ -167,8 +176,11 @@ describe("UserController (unit)", () => {
     serviceMock.changeRole.mockResolvedValueOnce(buildUserFixture());
 
     const controller = new UserController(userService);
-    const req = buildReqWithUser({ sub: "uniq-actor-123", role: "SuperAdmin" });
-    await controller.changeRole("target-x", { role: "Admin" }, req);
+    await controller.changeRole(
+      "target-x",
+      { role: "Admin" },
+      "uniq-actor-123",
+    );
 
     // jest.fn.mock.calls[0][0] === expected sub
     expect(serviceMock.changeRole.mock.calls[0][0]).toBe("uniq-actor-123");
@@ -181,8 +193,7 @@ describe("UserController (unit)", () => {
     serviceMock.changeRole.mockResolvedValueOnce(buildUserFixture());
 
     const controller = new UserController(userService);
-    const req = buildReqWithUser({ sub: "actor-x", role: "SuperAdmin" });
-    await controller.changeRole("any-id-shape", { role: "User" }, req);
+    await controller.changeRole("any-id-shape", { role: "User" }, "actor-x");
 
     expect(serviceMock.changeRole).toHaveBeenCalledWith(
       "actor-x",
@@ -201,9 +212,8 @@ describe("UserController (unit)", () => {
     );
 
     const controller = new UserController(userService);
-    const req = buildReqWithUser({ sub: "ghost", role: "SuperAdmin" });
     await expect(
-      controller.changeRole("t", { role: "Admin" }, req),
+      controller.changeRole("t", { role: "Admin" }, "ghost"),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
@@ -214,9 +224,8 @@ describe("UserController (unit)", () => {
     );
 
     const controller = new UserController(userService);
-    const req = buildReqWithUser({ sub: "actor", role: "SuperAdmin" });
     await expect(
-      controller.changeRole("t", { role: "Admin" }, req),
+      controller.changeRole("t", { role: "Admin" }, "actor"),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -227,9 +236,8 @@ describe("UserController (unit)", () => {
     );
 
     const controller = new UserController(userService);
-    const req = buildReqWithUser({ sub: "self", role: "SuperAdmin" });
     await expect(
-      controller.changeRole("self", { role: "Admin" }, req),
+      controller.changeRole("self", { role: "Admin" }, "self"),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -240,9 +248,8 @@ describe("UserController (unit)", () => {
     );
 
     const controller = new UserController(userService);
-    const req = buildReqWithUser({ sub: "actor", role: "SuperAdmin" });
     await expect(
-      controller.changeRole("missing", { role: "Admin" }, req),
+      controller.changeRole("missing", { role: "Admin" }, "actor"),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -253,9 +260,8 @@ describe("UserController (unit)", () => {
     );
 
     const controller = new UserController(userService);
-    const req = buildReqWithUser({ sub: "actor", role: "SuperAdmin" });
     await expect(
-      controller.changeRole("t", { role: "Owner" }, req),
+      controller.changeRole("t", { role: "Owner" }, "actor"),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -265,10 +271,9 @@ describe("UserController (unit)", () => {
     serviceMock.changeRole.mockRejectedValueOnce(rawError);
 
     const controller = new UserController(userService);
-    const req = buildReqWithUser({ sub: "actor", role: "SuperAdmin" });
     // unit-level 은 raw Error 그대로 propagate — NestJS 500 변환은 e2e/integration 차원.
     await expect(
-      controller.changeRole("t", { role: "Admin" }, req),
+      controller.changeRole("t", { role: "Admin" }, "actor"),
     ).rejects.toBe(rawError);
   });
 
@@ -395,11 +400,10 @@ describe("UserController (unit)", () => {
       serviceMock.changeRole.mockResolvedValueOnce(updated);
 
       const controller = new UserController(userService);
-      const req = buildReqWithUser({ sub: "actor-95", role: "SuperAdmin" });
       const result = await controller.changeRole(
         "t-95",
         { role: "Admin" },
-        req,
+        "actor-95",
       );
 
       expect(result).toBeInstanceOf(UserResponseDto);
@@ -439,8 +443,11 @@ describe("UserController (unit)", () => {
       );
 
       const controller = new UserController(userService);
-      const req = buildReqWithUser({ sub: "actor", role: "SuperAdmin" });
-      const result = await controller.changeRole("t", { role: "User" }, req);
+      const result = await controller.changeRole(
+        "t",
+        { role: "User" },
+        "actor",
+      );
 
       expect(result).not.toHaveProperty("hashedPassword");
       expect(Object.keys(result).sort()).toEqual(
@@ -618,8 +625,8 @@ describe("UserController (unit)", () => {
       serviceMock.findById.mockResolvedValueOnce(fixture);
 
       const controller = new UserController(userService);
-      const req = buildReqWithUser({ sub: "user-self", role: "User" });
-      const result = await controller.detail("user-self", req);
+      const actor = buildJwtPayload({ sub: "user-self", role: "User" });
+      const result = await controller.detail("user-self", actor);
 
       expect(serviceMock.findById).toHaveBeenCalledWith("user-self");
       expect(serviceMock.findById).toHaveBeenCalledTimes(1);
@@ -643,8 +650,8 @@ describe("UserController (unit)", () => {
       serviceMock.findById.mockResolvedValueOnce(fixture);
 
       const controller = new UserController(userService);
-      const req = buildReqWithUser({ sub: "admin-self", role: "Admin" });
-      const result = await controller.detail("other-user", req);
+      const actor = buildJwtPayload({ sub: "admin-self", role: "Admin" });
+      const result = await controller.detail("other-user", actor);
 
       expect(serviceMock.findById).toHaveBeenCalledWith("other-user");
       expect(result).toBeInstanceOf(UserResponseDto);
@@ -660,8 +667,8 @@ describe("UserController (unit)", () => {
       serviceMock.findById.mockResolvedValueOnce(fixture);
 
       const controller = new UserController(userService);
-      const req = buildReqWithUser({ sub: "sa-self", role: "SuperAdmin" });
-      const result = await controller.detail("other-2", req);
+      const actor = buildJwtPayload({ sub: "sa-self", role: "SuperAdmin" });
+      const result = await controller.detail("other-2", actor);
 
       expect(serviceMock.findById).toHaveBeenCalledWith("other-2");
       expect(result).toBeInstanceOf(UserResponseDto);
@@ -676,8 +683,8 @@ describe("UserController (unit)", () => {
       serviceMock.findById.mockResolvedValueOnce(fixture);
 
       const controller = new UserController(userService);
-      const req = buildReqWithUser({ sub: "admin-self", role: "Admin" });
-      const result = await controller.detail("admin-self", req);
+      const actor = buildJwtPayload({ sub: "admin-self", role: "Admin" });
+      const result = await controller.detail("admin-self", actor);
 
       expect(serviceMock.findById).toHaveBeenCalledWith("admin-self");
       expect(result.id).toBe("admin-self");
@@ -688,10 +695,10 @@ describe("UserController (unit)", () => {
       const { userService, serviceMock } = buildUserServiceMock();
 
       const controller = new UserController(userService);
-      const req = buildReqWithUser({ sub: "user-self", role: "User" });
-      await expect(controller.detail("other-user", req)).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      const actor = buildJwtPayload({ sub: "user-self", role: "User" });
+      await expect(
+        controller.detail("other-user", actor),
+      ).rejects.toBeInstanceOf(ForbiddenException);
       // 분기 차단 검증 — service.findById 호출 0 (불필요 DB 조회 회피).
       expect(serviceMock.findById).not.toHaveBeenCalled();
     });
@@ -707,8 +714,8 @@ describe("UserController (unit)", () => {
       );
 
       const controller = new UserController(userService);
-      const req = buildReqWithUser({ sub: "u-leak", role: "User" });
-      const result = await controller.detail("u-leak", req);
+      const actor = buildJwtPayload({ sub: "u-leak", role: "User" });
+      const result = await controller.detail("u-leak", actor);
 
       expect(result).not.toHaveProperty("hashedPassword");
       expect(Object.keys(result).sort()).toEqual(
@@ -724,23 +731,25 @@ describe("UserController (unit)", () => {
       );
 
       const controller = new UserController(userService);
-      const req = buildReqWithUser({ sub: "admin-self", role: "Admin" });
+      const actor = buildJwtPayload({ sub: "admin-self", role: "Admin" });
       await expect(
-        controller.detail("non-existent", req),
+        controller.detail("non-existent", actor),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    // negative 4 — req.user undefined 시 graceful 처리 (TypeError 또는 ForbiddenException).
+    // negative 4 — actor undefined 시 graceful 처리 (TypeError 또는 ForbiddenException).
     // theoretical case — JwtAuthGuard 가 통상 401 차단하나 unit spec 의 mock 시점에
-    // req.user undefined 분기 안전성 박제. cast 가 undefined 의 property access 시 throw.
-    it("negative — req.user undefined 시 graceful 처리 (TypeError, 분기 안전성)", async () => {
+    // actor undefined 분기 안전성 박제. @CurrentUser() decorator 가 req.user 부재 시
+    // undefined 반환 → controller method 가 undefined.sub property access 시 throw.
+    it("negative — actor undefined 시 graceful 처리 (TypeError, 분기 안전성)", async () => {
       const { userService, serviceMock } = buildUserServiceMock();
 
       const controller = new UserController(userService);
-      // req.user 미박제 — JwtAuthGuard mock 의 통과 후 unit spec 의 theoretical case.
-      const req = buildReqWithUser(undefined);
+      // actor 미박제 — @CurrentUser() 가 undefined 반환한 가정. unit spec 의 theoretical case.
       // undefined.sub 의 property access 가 throw 발화 — 분기 안전성 박제.
-      await expect(controller.detail("any-id", req)).rejects.toThrow();
+      await expect(
+        controller.detail("any-id", undefined as unknown as JwtPayload),
+      ).rejects.toThrow();
       // 분기 차단 검증 — service.findById 호출 0.
       expect(serviceMock.findById).not.toHaveBeenCalled();
     });
@@ -752,8 +761,8 @@ describe("UserController (unit)", () => {
       serviceMock.findById.mockRejectedValueOnce(rawError);
 
       const controller = new UserController(userService);
-      const req = buildReqWithUser({ sub: "admin-self", role: "Admin" });
-      await expect(controller.detail("any-id", req)).rejects.toBe(rawError);
+      const actor = buildJwtPayload({ sub: "admin-self", role: "Admin" });
+      await expect(controller.detail("any-id", actor)).rejects.toBe(rawError);
     });
   });
 });
