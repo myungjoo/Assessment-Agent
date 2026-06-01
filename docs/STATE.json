@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0138",
   "lock": {
     "holder": "loop",
-    "since": "2026-06-01T20:09:48+09:00"
+    "since": "2026-06-01T20:40:52+09:00"
   },
-  "lastActivity": "2026-06-01T20:30:57+09:00",
-  "lastCommit": "98eb993",
+  "lastActivity": "2026-06-01T20:42:00+09:00",
+  "lastCommit": "65a4f63",
   "mostRecentTasks": [
     "T-0137",
     "T-0136",
@@ -17,18 +17,18 @@
     "T-0133"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-01T20:09:48+09:00",
     "cap": 10,
-    "note": "/loop session #36 (cap 10, dynamic) t1 — T-0137 (DifficultyMapping entity+repository, ADR-0011 구현) **단일 turn end-to-end 완주**. 진입 시 local main 44 commits behind origin → ff-only sync(LOOP §1[1] origin/main 추적 체크아웃 규율). ref-CAS lock `refs/locks/driver` 미존재 → atomic create push(blob 8e88ab0, session loop@AKIHA-7071, turnCount 1) 성공. 직후 cron(20:07 fire, eca336d)이 lock 403 + env 미비로 STAND DOWN(T-0137 유지) — 강한 lock 정상 작동(동시 진입 차단). nextTask T-0137 → feature branch claude/T-0137-difficulty-mapping-entity-repository → executor 1회 dispatch DONE(prisma DifficultyMapping model+migration + Difficulty union + DifficultyMappingRepository + llm.module 등록 + spec 2개, +656/-8 production~208 LOC, src/llm 100% line/function cov, lint/build/test:cov green) → commit 60f1cdb push → PR #133 open → integrator round 1 reviewer APPROVE → 4-게이트(reviewer APPROVE / PR comment 4592099762 / self-check / CI green) PASS → squash merge 98eb993 branch 삭제. tasksCompleted 135→136. lock 유지(continuing, since refresh 다음 turn). 다음 turn: 98eb993 merge CI green 재확인 + planner dispatch(P4 다음 task)."
+    "note": "/loop session #36 (cap 10, dynamic) t2 — turn 1 bookkeeping(65a4f63) push CI green 확인(completed/success) + planner dispatch → **T-0138 큐잉**(DifficultyMappingService, ADR-0011 §2/§3 resolve+fail-fast service slice over T-0137 repository, commitMode pr, 외부 dep 0 / pnpm add 0 → HITL 게이트 미발화). lock CAS refresh(blob 5b2bfe7, turnCount 2, since 20:40:52). 세션 진척: t1 T-0137 DONE(PR #133 merge 98eb993, tasksCompleted 136) → t2 T-0138 queue. nextTask=T-0138. 다음 turn(t3): T-0138 PR flow(executor→feature branch push→integrator 4-게이트→squash merge)."
   },
   "ci": {
-    "lastRun": "2026-06-01T20:30:57+09:00",
+    "lastRun": "2026-06-01T20:42:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26752138190",
-    "note": "T-0137 PR-133 merge CI green — run 26752138190(98eb993 squash merge) completed/success. PR round 1 에서 reviewer-gate timing race 1회(첫 pull_request run fail → comment-trigger run pass → rerun green) 후 4-게이트 PASS merge. main green."
+    "note": "turn 1 bookkeeping push 65a4f63 CI green — completed/success. 98eb993 merge + 65a4f63 bookkeeping 둘 다 push/main/completed success. consecutiveFails 0. main green (session #36 t2 진입 시점)."
   },
   "reviewRounds": {
     "T-0135": 2,
