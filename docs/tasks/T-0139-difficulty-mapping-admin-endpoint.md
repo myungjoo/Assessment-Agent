@@ -2,8 +2,12 @@
 id: T-0139
 title: DifficultyMappingController — Admin 난이도 모델 지정 endpoint (GET list + PATCH assign, Admin+ RBAC)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 135
+mergedAs: 1dff484
+reviewRounds: 1
+completedAt: 2026-06-01T21:33:14+09:00
 coversReq: [REQ-049, REQ-050, REQ-096, REQ-097]
 estimatedDiff: 290
 estimatedFiles: 5
