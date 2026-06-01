@@ -12,15 +12,17 @@
 // 과 동일 — PrismaService 생성자 주입은 global scope 에서 해결됨).
 //
 // 후속 task 확장 예정:
-//   - T-0136 — DifficultyMapping entity + repository (LlmProviderConfig 1:N).
-//   - T-0137 — provider 별 LlmGateway 구현 class (외부 dep HITL 게이트 발화).
-//   - T-0139 — LlmProviderConfigService + Controller (Admin LLM 지정 endpoint).
+//   - T-0138 — provider 별 LlmGateway 구현 class + difficulty routing (외부 dep
+//     HITL 게이트 발화) + DifficultyMappingService (fail-fast 강제 — ADR-0011 §3).
+//   - T-0139 — LlmProviderConfigService + Controller (Admin LLM 지정 endpoint) +
+//     DifficultyMapping 슬롯 재지정 endpoint.
 import { Module } from "@nestjs/common";
 
+import { DifficultyMappingRepository } from "./difficulty-mapping.repository";
 import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
 
 @Module({
-  providers: [LlmProviderConfigRepository],
-  exports: [LlmProviderConfigRepository],
+  providers: [LlmProviderConfigRepository, DifficultyMappingRepository],
+  exports: [LlmProviderConfigRepository, DifficultyMappingRepository],
 })
 export class LlmModule {}
