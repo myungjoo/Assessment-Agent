@@ -114,6 +114,13 @@ historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-00
 - **1 task = 1 commit** (README 109행). PR 사용 여부는 아래 commit mode를 따른다.
 - **Task 크기 상한**: diff ≤ 300 LOC, 변경 파일 ≤ 5개. 초과 예상 시 planner가 task를 split한다.
 - 한 task 작업 중 다른 주제(linter 의견, 보이는 버그 등)가 보여도 **즉시 고치지 않는다**. planner에게 follow-up task 생성을 요청하거나 task 파일의 `Follow-ups` 섹션에 적어둔다.
+- **Nit-in-PR closure 의무 (15-step §11 차용, T-0148 박제)** — 위 follow-up 룰의 예외: **reviewer 가 APPROVE 했어도 Nit / Low-priority finding 이 남아있고, cap (300 LOC / 5 파일) 안에서 처리 가능하면 본 PR 안에서 완결**. 다음 4 종 fix 가 해당:
+  1. Test case 추가 (R-112 충분 cover 부족 — reviewer 가 nit 으로 분류했어도).
+  2. Style fix (prettier / lint 자동 처리 안 된 사소한 정리).
+  3. Comment typo / 한국어 표현 자연화 (§12 정합).
+  4. spec 의 describe / it 문자열 명확화.
+
+  본 4 종은 follow-up task 생성 금지 — PR 의 다음 commit (round +1) 에서 처리. cap 초과 risk 시 (예: nit fix 가 ≥50 LOC 누적) 만 예외적으로 follow-up task 박제. ROI: follow-up task 양산 차단 + nit residual 의 main 진입 차단. integrator 의 4-게이트 (c) self-check 동반 (`.claude/agents/integrator.md` §5 CI fix re-review 의무 와 별도 — 본 룰은 reviewer 가 APPROVE 한 상태의 nit cleanup, 그 §5 는 CI fail 후 fix 의 reviewer 재호출).
 - Commit message: `<type>(<scope>): <subject> (T-NNNN)` — type 예: feat, fix, refactor, test, docs, chore, ci. **type/scope/괄호는 영어, subject는 한국어**. body도 한국어 (자세히는 §12).
 - PR 본문에는 반드시 task 파일 링크와 acceptance criteria 체크리스트를 포함한다. PR title·body 모두 한국어.
 

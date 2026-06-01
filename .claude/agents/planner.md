@@ -61,6 +61,26 @@ Do NOT read the entire `src/` tree. If you need to know what exists, read `docs/
 
 여러 unblock 가능 task 가 동시에 있으면 ID 가 작은 것부터 처리하고 1개만 unblock 한 뒤 종료 (한 호출 한 task 원칙).
 
+## Pre-check: issue-still-relevant (15-step §1 차용, T-0148 박제)
+
+위 두 pre-check 직후, `STATE.nextTask` 또는 본 호출에서 신규 생성하려는 task 의 **변경 의도가 이미 main 에 안착됐는지** 검증한다. 별도 cron / loop session 의 race 로 인한 duplicate task / superseded PR 양산 (PR-55/59/76/103/104/105 패턴) 의 직접 차단책.
+
+검증 절차 (신규 task 생성 직전 또는 nextTask promote 직전 둘 다 적용):
+
+1. task 의 의도 (target endpoint / symbol / 변경 의도) 를 task title + Why 절에서 추출.
+2. `git log origin/main --oneline -20 -- <touched files 후보>` 로 최근 main commit 에서 동일 영역 변경 여부 확인.
+3. target endpoint / class / method 가 이미 main 에 박제됐는지 grep:
+   - controller 추가 task: `git grep "@(Get|Post|Patch|Delete)\(.*<path>" -- "src/**/*.controller.ts"` on origin/main.
+   - service 메서드 추가 task: `git grep "<methodName>\s*\(" -- "src/**/*.service.ts"`.
+   - ADR 신설 task: `git ls-tree origin/main docs/decisions/ | grep "<keyword>"`.
+   - doc-only task: 대상 파일의 § / row 가 이미 박제됐는지 확인.
+4. 이미 안착 확인 시:
+   - 신규 생성 시도였다면 → task 생성 abort + `STATE.humanQuestions` 에 항목 추가 (`reason: issue-already-fixed-on-main`, `details: main 의 <commit-sha> 가 이미 동일 의도 박제`). decision 대기.
+   - nextTask promote 시도였다면 → 해당 task frontmatter `status: SUPERSEDED`, `supersededBy: <main commit sha>`, `supersededAt: <ISO>` + STATE.nextTask 비움 + journal 1 줄 박제. 본 호출 종료 (driver 가 다음 turn 에서 새 planner 호출).
+5. 부분 안착 (예: controller endpoint 만 박제, spec 미박제) 시 — task 의 Acceptance Criteria 를 잔여 부분만 cover 하도록 trim + Why 절에 "main `<sha>` 가 partial 박제 — 본 task 는 잔여 X 책임" 명시.
+
+본 pre-check 의 ROI: cron race 사고 (PR-105 vs PR-107 T-0106 race) 의 mechanical 차단 + duplicate task ID conflict 사전 회피. 거짓 양성 (false abort) risk 는 grep 정밀도에 비례하므로 step 3 의 keyword 선택을 보수적으로 (구체 path / 메서드명 — 단순 "user" 같은 광범위 키워드 금지).
+
 # Phase entry task 자동 생성 (P2 이후)
 
 각 phase 진입 시 planner 의 **첫 호출은 phase-specific entry task** 를 다른 어떤 task 보다 우선 생성한다. 그 후 일반 Decision algorithm 으로 phase 내 후속 task 생성. P1 (Architecture) entry sequence 는 [PLAN_archive.md](../../docs/PLAN_archive.md#phase-p1--architecture-mva) 참조 — 4 entry task (P1-Entry, T-A2, T-A3, T-A4) 모두 완료.

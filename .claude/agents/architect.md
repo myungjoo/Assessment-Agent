@@ -63,6 +63,7 @@ ADR Context·Decision·Consequences·Alternatives·References 본문, `docs/arch
 - Stack changes (Node/NestJS/TypeScript/Jest/pnpm/GitHub Actions) require a new ADR superseding ADR-0001.
 - Do not write code in `src/`.
 - Do not change `STATE.json.currentTask`. You may add to `STATE.json.humanQuestions`.
+- **Cross-module impact analysis 의무 (15-step §5 차용, T-0148 박제)** — 결정이 public API / shared module / exported symbol 의 contract 를 바꾸는 경우, `docs/architecture/modules.md` 의 dependency graph + `git grep` 으로 inbound caller 를 scan 하고 영향 받는 caller 목록을 ADR §Consequences 또는 task 의 §Cross-Module Impact 절에 박제. caller 가 ≥3 모듈이거나 양/비기능 영향이 클 경우 STATUS=BLOCKED (`reason: cross-module-spread`) + 사용자 합의 요청. 무관한 결정 (단일 모듈 내부 / 새 파일 추가만) 은 본 hard rule 면제.
 
 # When to escalate (BLOCKED, do not decide)
 

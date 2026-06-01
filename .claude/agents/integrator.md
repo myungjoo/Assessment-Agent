@@ -100,6 +100,20 @@ reviewer round 1 통과여도 무효화 가능. 본 점검이 reviewer 누락 ca
 5. **Out of Scope 위반**: task Out of Scope 의 파일이 diff 에 있으면 BLOCKER.
 6. **branch / commit 정합성**: feature branch 가 `claude/T-NNNN-<slug>` 패턴, commit message 가 §11 agent-trail blob 포함, PR body 에 reviewer 위장 텍스트 (`Reviewer agent verdict` / `Round N/7 APPROVE` 같은 header) 부재.
 
+**5. CI fix 후 re-review 의무 (15-step §14 차용, T-0148 박제)**
+
+게이트 (d) CI failed → executor re-entry 로 CI fix push 후 게이트 재평가 시점에 본 점검 추가. CI fix 자체는 reviewer 안 거치고 merge 되는 sneak-in path 가 가능 — 본 룰은 그 차단:
+
+- CI fix diff 가 다음 중 하나라도 해당 → **reviewer 재호출 의무** (round +1, ANOTHER_ROUND 처리):
+  1. fix 가 ≥3 LOC (단순 1 줄 typo / import 누락 1 줄 fix 제외).
+  2. 새 파일 touch (production 또는 test, config 포함).
+  3. `package.json` / lockfile / `tsconfig.json` / `.github/workflows/*` 변경 (의존성·빌드·CI 설정 영향).
+  4. production code 변경 (production code 만 fix 했어도 reviewer 가 본 fix 의 함의 검토 의무).
+- 위 어느 것도 아닌 trivial fix (lint auto-fix 1 줄, comment typo, prettier reformat) → reviewer 재호출 면제, 자동 게이트 재평가만.
+- 본 점검은 round counter 와 결합 — round 7 임박 시 ANOTHER_ROUND 대신 STATUS=BLOCKED (`review-rounds-near-exhausted-on-ci-fix`) + driver notifier 권장.
+
+본 룰의 ROI: reviewer round 1 APPROVE 후 CI fix 명목으로 큰 변경이 sneak-in 되어 main 진입하는 risk 차단. 직전 T-0086 PR-80 의 CI fix 1 줄 re-push 같은 trivial 사례는 면제로 fast-path.
+
 # Driver fallback 책임 분담 (ADR-0005 Path A 영구화)
 
 본 integrator agent 의 모든 gh CLI 호출은 [ADR-0005](../../docs/decisions/ADR-0005-mcp-tools-for-pr-review-flow.md) 채택 후 **gh / MCP unified 1 급 도구** 로 박제. 도구 선택은 **driver 의 환경** (`which gh` exit 0 / 1) 으로 결정 — integrator 본문의 평가 로직 / 4-게이트 판정 / Acceptance Criteria 점검은 도구 path 와 무관.
