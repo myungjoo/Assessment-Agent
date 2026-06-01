@@ -31,6 +31,7 @@
 | ADR-0001 stack (NestJS / TS / pnpm / Jest / GHA) | modules.md (NestJS choice 반영) | ACCEPTED (T-0002, 8c6defe) |
 | ADR-0002 DB (PostgreSQL + Prisma) | deployment.md + data-model.md | ACCEPTED (T-0014) |
 | ADR-0003 Deployment (monolith vs worker, secret, scheduler, network) | deployment.md + components.md | ACCEPTED (T-0015) |
+| [ADR-0011](../decisions/ADR-0011-difficulty-model-assignment.md) 3 난이도 모델 할당 정책 (3 row 고정 + FK 참조 + fail-fast fallback) | data-model.md (DifficultyMapping) | ACCEPTED (T-0136) |
 
 ## MVA 원칙
 

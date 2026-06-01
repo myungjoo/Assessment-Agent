@@ -2,7 +2,7 @@
 id: T-0136
 title: ADR-0011 신설 — 3 난이도 (easy/medium/hard) 모델 할당 정책 박제
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-050, REQ-097]
 estimatedDiff: 130
