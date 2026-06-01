@@ -2,7 +2,10 @@
 id: T-0142
 title: LlmProviderConfigController — GET /api/llm/providers/:id 단건 endpoint + 404 변환 + apiKey 비노출 sanitize 재사용 (Admin+ RBAC)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T22:49:21+09:00
+prNumber: 137
+mergedAs: 26c67db
 commitMode: pr
 coversReq: [REQ-051, REQ-096, REQ-099, REQ-100, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 200
