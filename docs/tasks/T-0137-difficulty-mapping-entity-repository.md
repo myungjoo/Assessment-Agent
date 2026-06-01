@@ -2,8 +2,12 @@
 id: T-0137
 title: DifficultyMapping entity + repository + Difficulty literal (ADR-0011 구현)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 133
+mergedAs: 98eb993
+reviewRounds: 1
+completedAt: 2026-06-01T20:30:57+09:00
 coversReq: [REQ-049, REQ-050, REQ-051, REQ-097]
 estimatedDiff: 216
 estimatedFiles: 5
