@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P3-in-progress",
   "currentTask": null,
-  "nextTask": "T-0132",
+  "nextTask": null,
   "lock": {
-    "holder": "",
-    "since": ""
+    "holder": "loop",
+    "since": "2026-06-01T16:50:50+09:00"
   },
-  "lastActivity": "2026-06-01T14:25:00+09:00",
-  "lastCommit": "0ace28d",
+  "lastActivity": "2026-06-01T16:51:00+09:00",
+  "lastCommit": "c1fb893",
   "mostRecentTasks": [
+    "T-0132",
     "T-0131",
     "T-0130",
     "T-0129",
-    "T-0128",
-    "T-0127"
+    "T-0128"
   ],
   "loopSession": {
-    "turnCount": 2,
-    "startedAt": "2026-06-01T09:13:00+09:00",
-    "cap": 5,
-    "note": "/loop session #34 (cap 5) STOOD DOWN at t2. t1: T-0125 PR-126 (draft, human-review hold) resume — 본 worktree gh CLI 로 CI red 직접 진단(원인=4-gate(b) reviewer-approval step 뿐, code defect 0) → 사용자 AskUserQuestion 'Run standard flow now' 선택으로 hold 해제 → integrator dispatch → reviewer APPROVE round 1/7 → ready+approve comment → comment-triggered CI 26728518469 green → squash merge 7b2e1f3, branch auto-delete. tasksCompleted 124. t2: doc-push CI(a9851d7) conclusion=success 확인 + clean-handoff 검증(open PR 0 / currentTask·nextTask null / blockers 0 / main green). **STAND DOWN 사유**: 세션 목적(parked PR-126 unstick) 달성+CI green = clean stopping point. 다음 task 의 planner dispatch 는 cron backbone(§10) — 본 /loop 은 stale feature worktree 라 fresh task cycle 구동 시 cross-worktree gymnastics 위험. #33 패턴 mirror. cap 은 ceiling(quota 아님). ScheduleWakeup 미호출 → loop 종료. lock 해제 상태 유지(cron unblock). 관측: stale remote claude/* branch 다수(T-0110/0111/0112/0115/0122 + nifty-knuth-*) auto-delete 누락 — 별도 cleanup task 후보."
+    "turnCount": 1,
+    "startedAt": "2026-06-01T16:50:50+09:00",
+    "cap": 10,
+    "note": "/loop session #35 (cap 10, dynamic) t1: T-0132 (P3→P4 전이 doc §2.7 status refresh) 실행. 진입 시 local main 이 origin/main(8a95ac1 T-0132 queued) 보다 behind 1 → ff-only sync 후 진행. ref-CAS lock 신규 획득(refs/locks/driver 미존재 → atomic create, session loop@WIN-JQIPLSBL9QV-4ca7). executor dispatch → DONE(direct doc-only, +36/-1). commit c1fb893 → push main OK. CI 26742332751 queued(다음 turn 재확인). tasksCompleted 130→131. nextTask null → 다음 turn planner dispatch 필요."
   },
   "ci": {
-    "lastRun": "2026-06-01T09:13:47+09:00",
-    "status": "green",
+    "lastRun": "2026-06-01T16:51:00+09:00",
+    "status": "running",
     "consecutiveFails": 0,
-    "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26728518469",
-    "note": "T-0125 PR-126 MERGED (squash 7b2e1f3). 권위 run = issue_comment-triggered 26728518469 (headBranch=main, conclusion=success, 14 steps green incl 'reviewer agent approval 검증' gate). 직전 pull_request run 26723469195 fail 은 approval comment 존재 이전에 실행된 reviewer-gate race artifact (code defect 아님 — unit pass=8, lint/build/smoke/e2e green; gate(b) 만 fail) 로 무시. consecutiveFails reset 0."
+    "lastConclusion": "pending",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26742332751",
+    "note": "T-0132 doc-only direct push(c1fb893) → CI run 26742332751 queued(event=push, headBranch=main). 직전 권위 green run = 26740432232(8a95ac1). 다음 turn [1]에서 26742332751 conclusion 재확인."
   },
   "reviewRounds": {
     "T-0126": 1,
@@ -42,7 +42,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 130,
+    "tasksCompleted": 131,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
