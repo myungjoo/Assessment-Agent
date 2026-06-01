@@ -2,7 +2,11 @@
 id: T-0147
 title: LlmApiKeyCipher — AES-256-GCM envelope encrypt/decrypt helper (ADR-0014)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02
+mergedAs: edd97c5
+prNumber: 141
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-043, REQ-052, REQ-053, REQ-054]
 estimatedDiff: 180

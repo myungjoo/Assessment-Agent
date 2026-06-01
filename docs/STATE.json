@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0147",
+  "nextTask": "T-0149",
   "lock": {
-    "holder": "",
-    "since": ""
+    "holder": "loop",
+    "since": "2026-06-02T00:48:00+09:00"
   },
-  "lastActivity": "2026-06-02T00:50:00+09:00",
-  "lastCommit": "c216966",
+  "lastActivity": "2026-06-02T00:48:00+09:00",
+  "lastCommit": "edd97c5",
   "mostRecentTasks": [
+    "T-0147",
     "T-0148",
     "T-0146",
     "T-0145",
-    "T-0144",
-    "T-0143"
+    "T-0144"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 8,
     "startedAt": "2026-06-01T22:29:40+09:00",
     "cap": 10,
-    "note": "/loop session #37 (cap 10, dynamic) t6 — **Q-0013 RESOLVED 후 resume** (t5 NEEDS_HUMAN STOP 에서 사용자가 milestone-2 승인). 사용자가 config write CRUD(milestone-2) 승인 → Q-0013 에 resolvedAt+decision 기입(status RESOLVED), lock 재획득(tombstone 264b9aa → turnCount 6, since 00:06:05, sha f24e74f). planner dispatch → **T-0147 큐잉**: LlmApiKeyCipher AES-256-GCM encrypt/decrypt helper(commitMode pr, src/llm, dep 0 = Node 내장 crypto, ADR-0014 §1·§2 구현, fail-fast env key). milestone-2 chain 1/4: helper → (schema/data migration 검토) → write CRUD endpoint+DTO → api.md doc-sync. nextTask=T-0147, t7 에서 실행. milestone-1(LLM client)·milestone-3(adapters) 미승인 유지 — 추후 별도 결정. **chain 후속 주의**: migration 단계가 §5 게이트 재발화 가능(planner 가 helper 는 migration 0 으로 확인, 후속 task 에서 재평가). lock 재유지(dynamic). **t6 직후 사용자 'stop' → MANUAL STOP(cap 10 미도달, t6 에서 종료)**: lock 해제(ref tombstone 264b9aa + STATE mirror empty), nextTask=T-0147 보존(milestone-2 chain 1/4 미실행). ScheduleWakeup 미호출. 재개: 새 /loop 시작 시 T-0147 즉시 가용. **session #37 최종 성과: 5 task merged(T-0142~T-0146: GET /:id endpoint + api.md doc-sync + ADR-0012/0013/0014) + Q-0013(config write CRUD) 사용자 승인, tasksCompleted 140→145(+5), CI 매 push green, blockers 0, 외부 dep 0**."
+    "note": "/loop session #37 (loop@AKIHA-135e, cap 10, dynamic) **t8 — interrupted T-0147 resume + merge**. t6 MANUAL STOP 후 t7 가 T-0147 구현을 시작했으나 commit 전 중단(main repo 가 feature branch claude/T-0147-llm-apikey-cipher@58b3cf3 + uncommitted cipher impl 에 parked, origin/main 은 7f64d2a T-0148 cron merge 로 선행). t8 driver: lock(loop@AKIHA-135e, since 00:15:48, <60min=본 session) 확인 → feature branch 를 origin/main 으로 rebase(llm.module.ts 동일=무충돌, work 보존) → executor 가 cipher helper 검증/완성(범위외 verifyEnvelopeShape 제거, cipher 100% cov, unit 2429 pass) → commit 371778c → push → integrator: **PR #141 round 1/7 4-게이트 PASS MERGED(edd97c5)**. planner: chain-2(migration 검토) **§5 미발화**(기존 apiKey TEXT 컬럼 reuse, plaintext row 0) → **T-0149 큐잉**(POST /api/llm/providers create endpoint, pr, ~170 LOC). milestone-2 chain: helper(done) → write CRUD POST(T-0149) → PATCH/DELETE/api.md doc-sync(split follow-up). tasksCompleted 146→147, CI 매 push green, blockers 0, dep 0. lock 재유지(dynamic reschedule). milestone-1(LLM client)·milestone-3(adapters) 미승인 유지."
   },
   "ci": {
-    "lastRun": "2026-06-02T00:09:07+09:00",
-    "status": "running",
+    "lastRun": "2026-06-02T00:48:00+09:00",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26762727647",
-    "note": "T-0146 merge cd98a69 + t5 bookkeeping c216966 (doc-only) main CI — 다음 turn(t7) [1] 에서 conclusion 재확인. session #37 t1~t4 모든 push green. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26765280823",
+    "note": "T-0147 PR #141 CI(run 26765018038, pull_request) success → squash-merge edd97c5. post-merge main CI(run 26765280823, push) success. reviewer approval gate(issue_comment run 26765110903) success. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -62,7 +62,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 146,
+    "tasksCompleted": 147,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
