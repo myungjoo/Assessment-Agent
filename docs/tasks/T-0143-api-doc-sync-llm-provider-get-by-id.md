@@ -2,7 +2,8 @@
 id: T-0143
 title: api.md §5 LLM endpoint doc-sync — GET /api/llm/providers/:id 단건 행 추가 (T-0142 merged reality 반영)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T22:58:41+09:00
 commitMode: direct
 coversReq: [REQ-051, REQ-096, REQ-099, REQ-100, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 20
