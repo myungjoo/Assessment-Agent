@@ -25,9 +25,23 @@
 // redaction 정책 공유). 단, 목록과 달리 row 부재 (null) 를 빈 결과로 두지 않고
 // NotFoundException (404) 로 변환한다 — DifficultyMappingService 의 service-layer
 // 4xx mapping 관행 mirror (controller 가 아니라 service 가 404 throw).
-import { Injectable, NotFoundException } from "@nestjs/common";
+//
+// 생성 (T-0149 — POST slice): create 는 (1) isLlmProvider 로 provider 값 허용 집합
+// 검증 (미지원 → BadRequestException 400), (2) LlmApiKeyCipher.encrypt 로 평문
+// apiKey 를 AES-256-GCM envelope ciphertext 로 변환 (ADR-0014 §1), (3) ciphertext 를
+// 담아 repository.create 호출, (4) 반환 row 를 기존 sanitize 로 redact 한 view 반환.
+// read path 와 동일 sanitize 를 재사용해 응답에 apiKey 가 절대 노출되지 않음을 보장
+// (ADR-0014 §3 write-only / never-read-back invariant).
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { LlmProviderConfig } from "@prisma/client";
 
+import type { CreateLlmProviderConfigDto } from "./dto/create-llm-provider-config.dto";
+import { LlmApiKeyCipher } from "./llm-apikey-cipher.service";
+import { isLlmProvider } from "./llm-gateway.interface";
 import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
 
 // LlmProviderConfigView — HTTP 응답으로 노출 가능한 LlmProviderConfig 의 view shape.
@@ -39,8 +53,12 @@ export type LlmProviderConfigView = Omit<LlmProviderConfig, "apiKey">;
 @Injectable()
 export class LlmProviderConfigService {
   constructor(
-    // read-only 목록 조회 source. findMany 만 호출 (다중 row 모델 전체 조회).
+    // 목록 / 단건 조회 + create 영속 source. findMany / findById / create 호출.
     private readonly repository: LlmProviderConfigRepository,
+    // apiKey AES-256-GCM 암호화 helper (T-0147 / ADR-0014 §1). create 가 평문
+    // apiKey 를 ciphertext envelope 으로 변환할 때만 사용 (read path 는 미사용 —
+    // never-decrypt-and-return, ADR-0014 §3).
+    private readonly cipher: LlmApiKeyCipher,
   ) {}
 
   // sanitize — 단일 raw row → apiKey 제거 view 변환. 명시적 field pick (allow-list)
@@ -83,6 +101,47 @@ export class LlmProviderConfigService {
     if (row === null) {
       throw new NotFoundException(`llm provider config not found: ${id}`);
     }
+    return this.sanitize(row);
+  }
+
+  // create — 새 LlmProviderConfig 를 영속한 뒤 apiKey 제거 view 로 반환 (POST slice,
+  // T-0149). 처리 순서 (ADR-0014 §1·§3 박제):
+  //   (1) provider 값 허용 집합 검증 — isLlmProvider 가 false 면 BadRequestException
+  //       (400). DTO 는 형식 (비어있지 않은 string) 만 검증하므로 미지원 provider
+  //       literal 의 거부는 service 책임 (DifficultyMappingService 의 isDifficulty
+  //       service-layer 검증 패턴 mirror).
+  //   (2) 평문 apiKey 를 LlmApiKeyCipher.encrypt 로 AES-256-GCM envelope ciphertext
+  //       로 변환 (ADR-0014 §1). encrypt 가 throw (env 키 부재 / 길이 미달 등) 하면
+  //       swallow 하지 않고 그대로 propagate — 평문이 암호화 없이 영속되는 경로 차단.
+  //   (3) ciphertext 를 apiKey 자리에 담아 repository.create 호출. repository.create
+  //       의 reject (DB 장애 등 의존성 실패) 도 swallow 없이 그대로 propagate.
+  //   (4) 반환 row 를 read path 와 동일 sanitize 로 redact 한 view 반환 — 응답에
+  //       apiKey (평문이든 ciphertext 든) 가 절대 포함되지 않음 (ADR-0014 §3
+  //       write-only / never-read-back invariant — GET 과 동일 allow-list 정책 공유).
+  //
+  // 분기: provider 유효 (통과) vs 무효 (BadRequestException) 각 1 분기.
+  async create(
+    dto: CreateLlmProviderConfigDto,
+  ): Promise<LlmProviderConfigView> {
+    // (1) provider 허용 집합 검증 — 미지원 provider literal → 400.
+    if (!isLlmProvider(dto.provider)) {
+      throw new BadRequestException(
+        `unsupported llm provider: ${dto.provider}`,
+      );
+    }
+
+    // (2) 평문 apiKey → AES-256-GCM envelope ciphertext. encrypt throw 는 propagate.
+    const ciphertext = this.cipher.encrypt(dto.apiKey);
+
+    // (3) ciphertext 를 영속 (평문 apiKey 는 DB 에 절대 닿지 않음 — encrypt-at-rest).
+    const row = await this.repository.create({
+      provider: dto.provider,
+      endpointUrl: dto.endpointUrl,
+      apiKey: ciphertext,
+      modelId: dto.modelId,
+    });
+
+    // (4) apiKey (ciphertext) 를 제거한 view 반환 — never-read-back invariant.
     return this.sanitize(row);
   }
 }
