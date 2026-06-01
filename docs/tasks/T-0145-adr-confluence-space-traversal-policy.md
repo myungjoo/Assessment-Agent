@@ -2,7 +2,11 @@
 id: T-0145
 title: ADR-0013 신설 — Confluence SPACE 탐색 정책 (crawling vs page List / Hierarchy)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T23:39:38+09:00
+prNumber: 139
+mergedAs: 5222925
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-015, REQ-017]
 estimatedDiff: 140
