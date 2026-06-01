@@ -2,7 +2,11 @@
 id: T-0131
 title: "ref-CAS lock 동작 검증 스크립트 + CI step (ADR-0009 executable spec)"
 phase: P3
-status: PENDING
+status: DONE
+completedAt: 2026-06-01T14:05:00+09:00
+mergedAs: fa8635a
+reviewRounds: 1
+prNumber: 129
 commitMode: pr
 coversReq: []
 estimatedDiff: 90
