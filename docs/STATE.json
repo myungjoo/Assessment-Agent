@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0141",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
-    "since": "2026-06-01T22:02:43+09:00"
+    "since": "2026-06-01T22:08:45+09:00"
   },
-  "lastActivity": "2026-06-01T22:03:30+09:00",
-  "lastCommit": "5cedc6d",
+  "lastActivity": "2026-06-01T22:09:30+09:00",
+  "lastCommit": "38a86a5",
   "mostRecentTasks": [
+    "T-0141",
     "T-0140",
     "T-0139",
     "T-0138",
-    "T-0137",
-    "T-0136"
+    "T-0137"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-01T20:09:48+09:00",
     "cap": 10,
-    "note": "/loop session #36 (cap 10, dynamic) t8 — T-0140 merge(ace005f) + bookkeeping(5cedc6d) push CI 둘 다 green 확인 + planner dispatch → **T-0141 큐잉**(api.md §5 LLM endpoint doc-sync: difficulty-mappings[T-0139] + providers apiKey-redaction[T-0140] reality 반영 + write-endpoint deferred 표기, commitMode direct, doc-only ~45 LOC, 누적 MINOR follow-up 해소, HITL 미발화). lock CAS refresh(turnCount 8, since 22:02:43). 세션 진척: 4 task merged(T-0137~T-0140 DifficultyMapping chain + LlmProviderConfig GET). nextTask=T-0141. **cap(10) 접근** — 다음 turn(t9): T-0141 direct doc 완주, t10: bookkeeping CI 확인 + 다음 task planner queue(cron momentum 보존) 후 §1[8](e) reschedule 중단 clean stop."
+    "note": "/loop session #36 (cap 10, dynamic) t9 — T-0141 (api.md §5 LLM endpoint doc-sync) **완주**(doc-only direct). lock CAS refresh(turnCount 9, since 22:08:45). nextTask T-0141 → currentTask → executor 1회 dispatch DONE(api.md §5 LLM 6행 + §7 cross-ref 를 T-0139/T-0140 merged reality 로 정정: difficulty-mappings 복수 path + :difficulty + AssignDifficultyMappingDto + 4xx 400/404, GET providers apiKey-redaction note, POST/PATCH/DELETE providers deferred[HITL+ADR-0006]; +7/-7, R-110 면제 doc-only). deliverable+bookkeeping 단일 direct commit. tasksCompleted 139→140, 누적 MINOR follow-up(api.md endpoint doc) 해소. 세션 진척: **5 task 완주(T-0137~T-0141)**. nextTask null → 다음 turn(t10, cap): CI 확인 + planner queue(cron momentum) + §1[8](e) reschedule 중단 clean stop."
   },
   "ci": {
-    "lastRun": "2026-06-01T22:03:30+09:00",
-    "status": "green",
+    "lastRun": "2026-06-01T22:09:30+09:00",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26756216332",
-    "note": "T-0140 merge ace005f (run 26756216332) + bookkeeping 5cedc6d 둘 다 push/main/completed success. consecutiveFails 0. main green (session #36 t8 진입 시점)."
+    "note": "T-0141 api.md doc-sync direct commit push — markdown-only(production code 0) 라 CI green 예상. 직전 T-0140 merge ace005f + bookkeeping 5cedc6d 둘 다 success. T-0141 commit CI conclusion 은 다음 turn(t10) 재확인."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -42,7 +42,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 139,
+    "tasksCompleted": 140,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

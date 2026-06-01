@@ -106,12 +106,12 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | POST | `/api/summaries` | UC-02 | 요약 생성 (201, `CreateSummaryDto` whitelist) — period literal·FK(P2003) 위반 400, 409 분기 없음. T-0119 박제. **T-0123 박제 (PR-125) — RBAC enforced (Admin+ via @Roles(ADMIN, SUPERADMIN))** | Admin+ |
 | DELETE | `/api/summaries/:id` | UC-06 | 단일 요약 삭제 (204, 404 if 부재). immutable 이라 PATCH 부재. T-0119 박제. **T-0123 박제 (PR-125) — RBAC enforced (Admin+)** | Admin+ |
 | **UC-05 LLM 설정 (`/api/llm`)** | | | | |
-| GET | `/api/llm/providers` | [UC-05 §5](../use-cases/UC-05-llm-config.md#5-main-flow-sequence-diagram) | 5 provider (custom / Azure OpenAI / Anthropic / Google Gemini / OpenAI) 설정 목록 — REQ-051~055 | Admin+ |
-| POST | `/api/llm/providers` | UC-05 §5 step 2 | provider 추가 (endpoint URL / API key / model 식별자) | Admin+ |
-| PATCH | `/api/llm/providers/:id` | UC-05 §5 step 2 | provider 수정 | Admin+ |
-| DELETE | `/api/llm/providers/:id` | UC-05 §5 step 2 | provider 삭제 (difficulty-mapping 의 reference 없을 때만) | Admin+ |
-| GET | `/api/llm/difficulty-mapping` | UC-05 | 3 난이도 ↔ provider/model 매핑 조회 (REQ-049, REQ-050) | Admin+ |
-| PATCH | `/api/llm/difficulty-mapping` | UC-05 §5 step 2 | 3 난이도 ↔ provider/model 매핑 갱신 | Admin+ |
+| GET | `/api/llm/providers` | [UC-05 §5](../use-cases/UC-05-llm-config.md#5-main-flow-sequence-diagram) | 등록된 LLM provider config 목록 조회 (REQ-051~055) — `LlmProviderConfigService.findAll()` 가 **apiKey (secret) 를 redact 한 sanitize view** 반환 (6 필드 id/provider/endpointUrl/modelId/createdAt/updatedAt — `apiKey` 응답 누출 차단, 명시 field pick allow-list). 다중 row / 빈 배열 (등록 0) 모두 정상. T-0140 박제 (PR-136). | Admin+ |
+| POST | `/api/llm/providers` | UC-05 §5 step 2 | provider 추가 (endpoint URL / API key / model 식별자) — **미구현** — config write 는 `apiKey` (secret) body 처리 → [CLAUDE.md §5](../../CLAUDE.md) "secret 처리" HITL 게이트 + encryption-at-rest (ADR-0006 deferred) ([p4-implementation-plan §4](p4-implementation-plan.md) inventory) | Admin+ |
+| PATCH | `/api/llm/providers/:id` | UC-05 §5 step 2 | provider 수정 — **미구현** — config write 는 `apiKey` (secret) body 처리 → [CLAUDE.md §5](../../CLAUDE.md) HITL 게이트 + encryption-at-rest (ADR-0006 deferred) (p4-impl-plan §4 inventory) | Admin+ |
+| DELETE | `/api/llm/providers/:id` | UC-05 §5 step 2 | provider 삭제 (difficulty-mapping 의 reference 없을 때만) — **미구현** — config write path 일부 → [CLAUDE.md §5](../../CLAUDE.md) HITL 게이트 + encryption-at-rest (ADR-0006 deferred) (p4-impl-plan §4 inventory) | Admin+ |
+| GET | `/api/llm/difficulty-mappings` | UC-05 | 3 난이도 슬롯 (easy/medium/hard) ↔ provider/model 매핑 배열 조회 (REQ-049, REQ-050) — `findAllMappings`, 빈 배열 (seed 전) 도 정상. T-0139 박제 (PR-135). | Admin+ |
+| PATCH | `/api/llm/difficulty-mappings/:difficulty` | UC-05 §5 step 2 | `:difficulty` slot 별 `AssignDifficultyMappingDto.llmProviderConfigId` 재지정 (REQ-049, REQ-050) — service 4xx mapping: 미지원 난이도 400 (`isDifficulty` false) / config 부재·슬롯 부재 P2025 404. T-0139 박제 (PR-135). | Admin+ |
 | **UC-07 Export / Import / Backup (`/api/admin`)** | | | | |
 | GET | `/api/admin/export` | [UC-07 §5](../use-cases/UC-07-export-import.md#5-main-flow-sequence-diagram) | 평가 자료 export (raw 미포함, REQ-032·REQ-030) — `scope` query | Admin+ |
 | POST | `/api/admin/import` | UC-07 §5 | 평가 자료 import (multipart file upload) | Admin+ |
@@ -153,7 +153,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | [UC-02](../use-cases/UC-02-evaluation-query.md#5-main-flow-sequence-diagram) | step 1 (WebUI→BackendAPI GET) | `GET /api/assessments`, `GET /api/assessments/:id` (+ `/api/contributions`·`/api/summaries` — P3 controller chain 으로 신설된 backing store, REQ-033/034/035, UC sequence 직접 호명 0) |
 | [UC-03](../use-cases/UC-03-person-crud.md#5-main-flow-sequence-diagram) | step 1 (WebUI→BackendAPI mutation) + group/part 분기 | `POST/GET/PATCH/DELETE /api/persons[/:id]`, `/api/groups`, `/api/parts` |
 | [UC-04](../use-cases/UC-04-account-auth.md#5-main-flow-sequence-diagram) | step 1 (login 또는 user mutation) | `/api/auth/login`, `/api/auth/me`, `POST /api/users`, `PATCH /api/users/:id/role`, `PATCH /api/users/:id/password` |
-| [UC-05](../use-cases/UC-05-llm-config.md#5-main-flow-sequence-diagram) | step 2 (provider · difficulty-mapping mutation) | `/api/llm/providers`, `/api/llm/difficulty-mapping` |
+| [UC-05](../use-cases/UC-05-llm-config.md#5-main-flow-sequence-diagram) | step 2 (provider · difficulty-mapping mutation) | `/api/llm/providers`, `/api/llm/difficulty-mappings[/:difficulty]` |
 | [UC-06](../use-cases/UC-06-evaluation-delete-reeval.md#5-main-flow-sequence-diagram) | step 1 (DELETE 또는 POST reeval/reset) | `DELETE /api/assessments`, `POST /api/assessments/reeval`, `POST /api/assessments/reset` |
 | [UC-07](../use-cases/UC-07-export-import.md#5-main-flow-sequence-diagram) | step 1 (Admin → export 또는 import) | `GET /api/admin/export`, `POST /api/admin/import`, `POST /api/admin/backup`, `POST /api/admin/restore` |
 | [UC-08](../use-cases/UC-08-permission-denied.md#5-main-flow-sequence-diagram) | step 1 (user / admin audience filter) | `GET /api/me/permission-denied`, `GET /api/admin/permission-denied` |

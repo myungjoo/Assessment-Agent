@@ -2,8 +2,9 @@
 id: T-0141
 title: api.md §5 LLM endpoint doc-sync — difficulty-mappings(T-0139) + providers apiKey-redaction(T-0140) reality 반영
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
+completedAt: 2026-06-01T22:09:30+09:00
 coversReq: [REQ-049, REQ-050, REQ-051, REQ-096, REQ-099, REQ-100, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 45
 estimatedFiles: 1
