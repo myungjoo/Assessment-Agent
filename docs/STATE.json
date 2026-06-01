@@ -4,13 +4,10 @@
   "currentTask": null,
   "nextTask": "T-0147",
   "lock": {
-    "holder": "loop",
-    "session": "loop@AKIHA-135e",
-    "since": "2026-06-02T00:06:05+09:00",
-    "loopSessionStartedAt": "2026-06-01T22:29:40+09:00",
-    "loopSessionTurnCount": 6
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-02T00:09:07+09:00",
+  "lastActivity": "2026-06-02T00:12:42+09:00",
   "lastCommit": "c216966",
   "mostRecentTasks": [
     "T-0146",
@@ -23,7 +20,7 @@
     "turnCount": 6,
     "startedAt": "2026-06-01T22:29:40+09:00",
     "cap": 10,
-    "note": "/loop session #37 (cap 10, dynamic) t6 — **Q-0013 RESOLVED 후 resume** (t5 NEEDS_HUMAN STOP 에서 사용자가 milestone-2 승인). 사용자가 config write CRUD(milestone-2) 승인 → Q-0013 에 resolvedAt+decision 기입(status RESOLVED), lock 재획득(tombstone 264b9aa → turnCount 6, since 00:06:05, sha f24e74f). planner dispatch → **T-0147 큐잉**: LlmApiKeyCipher AES-256-GCM encrypt/decrypt helper(commitMode pr, src/llm, dep 0 = Node 내장 crypto, ADR-0014 §1·§2 구현, fail-fast env key). milestone-2 chain 1/4: helper → (schema/data migration 검토) → write CRUD endpoint+DTO → api.md doc-sync. nextTask=T-0147, t7 에서 실행. milestone-1(LLM client)·milestone-3(adapters) 미승인 유지 — 추후 별도 결정. **chain 후속 주의**: migration 단계가 §5 게이트 재발화 가능(planner 가 helper 는 migration 0 으로 확인, 후속 task 에서 재평가). lock 재유지(dynamic). dynamic reschedule(60s — 신규 task 즉시 가용)."
+    "note": "/loop session #37 (cap 10, dynamic) t6 — **Q-0013 RESOLVED 후 resume** (t5 NEEDS_HUMAN STOP 에서 사용자가 milestone-2 승인). 사용자가 config write CRUD(milestone-2) 승인 → Q-0013 에 resolvedAt+decision 기입(status RESOLVED), lock 재획득(tombstone 264b9aa → turnCount 6, since 00:06:05, sha f24e74f). planner dispatch → **T-0147 큐잉**: LlmApiKeyCipher AES-256-GCM encrypt/decrypt helper(commitMode pr, src/llm, dep 0 = Node 내장 crypto, ADR-0014 §1·§2 구현, fail-fast env key). milestone-2 chain 1/4: helper → (schema/data migration 검토) → write CRUD endpoint+DTO → api.md doc-sync. nextTask=T-0147, t7 에서 실행. milestone-1(LLM client)·milestone-3(adapters) 미승인 유지 — 추후 별도 결정. **chain 후속 주의**: migration 단계가 §5 게이트 재발화 가능(planner 가 helper 는 migration 0 으로 확인, 후속 task 에서 재평가). lock 재유지(dynamic). **t6 직후 사용자 'stop' → MANUAL STOP(cap 10 미도달, t6 에서 종료)**: lock 해제(ref tombstone 264b9aa + STATE mirror empty), nextTask=T-0147 보존(milestone-2 chain 1/4 미실행). ScheduleWakeup 미호출. 재개: 새 /loop 시작 시 T-0147 즉시 가용. **session #37 최종 성과: 5 task merged(T-0142~T-0146: GET /:id endpoint + api.md doc-sync + ADR-0012/0013/0014) + Q-0013(config write CRUD) 사용자 승인, tasksCompleted 140→145(+5), CI 매 push green, blockers 0, 외부 dep 0**."
   },
   "ci": {
     "lastRun": "2026-06-02T00:09:07+09:00",
