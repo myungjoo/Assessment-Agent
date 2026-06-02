@@ -2,12 +2,16 @@
 id: T-0174
 title: GithubAdapter 순수 request-builder + 3 host variant base URL 라우팅 + auth header 조립
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008]
 estimatedDiff: 165
 estimatedFiles: 2
 created: 2026-06-02
+completedAt: 2026-06-02T23:23:52+09:00
+prNumber: 158
+mergeCommit: 5d43b37
+actualDiff: "373 LOC (prod 139 + R-112 spec 234) — sizeExempt"
 plannerNote: P4 milestone-3 GithubAdapter 첫 slice(ADR-0016 §2/§3 순수 builder). T-0157 mirror. dep 0/§5 미발화. R-112 backbone ×1.5.
 ---
 
