@@ -71,8 +71,10 @@ export function parseNextLink(linkHeader: string | null): string | null {
   while ((match = entryPattern.exec(linkHeader)) !== null) {
     const url = match[1].trim();
     const params = match[2];
-    // params 안에서 rel 토큰을 찾는다 — rel=next / rel="next" / rel='next' 모두 허용.
-    // 단어 경계로 next 를 매칭해 "nextpage" 같은 오탐을 막는다.
+    // params 안에서 rel 토큰을 찾는다 — rel=next / rel="next" / rel='next' 모두 허용
+    // (따옴표·공백 변형 관대). next 뒤 단어 경계는 강제하지 않으므로 가상의
+    // rel="nextpage" 는 prefix-match 된다. 단 GitHub 실 Link header 는 정확히
+    // rel="next" 만 쓰므로 실응답 영향 0 — 단어 경계 강화는 Follow-up 으로 추적.
     if (/rel\s*=\s*["']?\s*next\s*["']?/i.test(params) && url.length > 0) {
       return url;
     }
