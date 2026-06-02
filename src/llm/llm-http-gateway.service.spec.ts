@@ -6,8 +6,10 @@
 // dispatch(build/parse 각 지점)를 추가. T-0162 가 google_gemini dispatch(build/parse
 // 각 지점)를 추가 — 기존 azure / openai-compatible / anthropic test 회귀 보존,
 // 미지원은 이제 unknown(enum 밖 raw 값)만 잔존(google_gemini 미지원 목록에서 제거).
+import { BadRequestException } from "@nestjs/common";
 import type { LlmProviderConfig } from "@prisma/client";
 
+import { DifficultyMappingService } from "./difficulty-mapping.service";
 import { LlmApiKeyCipher } from "./llm-apikey-cipher.service";
 import { LlmGenerateOptions, LlmProvider } from "./llm-gateway.interface";
 import {
@@ -101,10 +103,13 @@ function validGeminiJson(text = "정성 평가문 본문") {
   return { candidates: [{ content: { parts: [{ text }] } }] };
 }
 
-// repository / cipher mock + 주입 fetch 로 gateway 를 조립하는 harness.
+// repository / cipher / difficultyMappingService mock + 주입 fetch 로 gateway 를
+// 조립하는 harness. resolveModel 은 difficulty 미사용 test 에서는 호출되지 않으므로
+// default 는 호출 시 throw(미예상 호출 가드) — difficulty test 만 명시 주입한다.
 function makeGateway(opts: {
   findById?: jest.Mock;
   decrypt?: jest.Mock;
+  resolveModel?: jest.Mock;
   fetchFn?: FetchLike;
 }) {
   const repository = {
@@ -113,6 +118,18 @@ function makeGateway(opts: {
   const cipher = {
     decrypt: opts.decrypt ?? jest.fn().mockReturnValue("plaintext-key"),
   } as unknown as LlmApiKeyCipher;
+  const resolveModel =
+    opts.resolveModel ??
+    jest
+      .fn()
+      .mockRejectedValue(
+        new Error(
+          "resolveModel 가 예상치 못하게 호출됨 (difficulty 미사용 경로)",
+        ),
+      );
+  const difficultyMappingService = {
+    resolveModel,
+  } as unknown as DifficultyMappingService;
   const fetchFn =
     opts.fetchFn ??
     (jest.fn().mockResolvedValue({
@@ -120,8 +137,20 @@ function makeGateway(opts: {
       status: 200,
       json: async () => validJson(),
     }) as unknown as FetchLike);
-  const gateway = new LlmHttpGateway(repository, cipher, fetchFn);
-  return { gateway, repository, cipher, fetchFn };
+  const gateway = new LlmHttpGateway(
+    repository,
+    cipher,
+    difficultyMappingService,
+    fetchFn,
+  );
+  return {
+    gateway,
+    repository,
+    cipher,
+    difficultyMappingService,
+    resolveModel,
+    fetchFn,
+  };
 }
 
 const OPTIONS: LlmGenerateOptions = { modelId: "cfg-azure-1" };
@@ -165,14 +194,22 @@ describe("LlmHttpGateway.generate", () => {
     });
   });
 
-  it("difficulty 옵션이 system message 로 body 에 반영된다 (branch: difficulty 명시)", async () => {
+  it("difficulty 옵션이 system message 로 body 에 반영된다 (branch: difficulty 명시 — gateway 가 options 손실 없이 forward)", async () => {
+    // difficulty 제공 시 resolveModel 이 config 를 routing 하고, options.difficulty
+    // 는 그대로 adapter 로 forward 돼 system message 로 반영되는지 검증(T-0165 routing
+    // 이후에도 difficulty forward 가 손실 없이 유지되는지).
+    const resolveModel = jest.fn().mockResolvedValue({
+      configId: "cfg-azure-1",
+      provider: LlmProvider.AzureOpenai,
+      modelId: "gpt-4o-deploy",
+    });
     const findById = jest.fn().mockResolvedValue(azureConfig());
     const fetchFn = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => validJson(),
     }) as unknown as FetchLike;
-    const { gateway } = makeGateway({ findById, fetchFn });
+    const { gateway } = makeGateway({ resolveModel, findById, fetchFn });
 
     await gateway.generate("프롬프트", {
       modelId: "cfg-azure-1",
@@ -290,8 +327,15 @@ describe("LlmHttpGateway.generate", () => {
       findById: jest.fn(),
     } as unknown as LlmProviderConfigRepository;
     const cipher = { decrypt: jest.fn() } as unknown as LlmApiKeyCipher;
+    const difficultyMappingService = {
+      resolveModel: jest.fn(),
+    } as unknown as DifficultyMappingService;
     // 생성자가 default fetch 로 인스턴스화되는지만 확인(실 호출 0).
-    const gateway = new LlmHttpGateway(repository, cipher);
+    const gateway = new LlmHttpGateway(
+      repository,
+      cipher,
+      difficultyMappingService,
+    );
     expect(gateway).toBeInstanceOf(LlmHttpGateway);
   });
 
@@ -457,14 +501,19 @@ describe("LlmHttpGateway.generate", () => {
       expect(parsedBody.system).toBeUndefined();
     });
 
-    it("difficulty 옵션이 anthropic body 의 system top-level 필드로 반영된다 (branch: difficulty 명시)", async () => {
+    it("difficulty 옵션이 anthropic body 의 system top-level 필드로 반영된다 (branch: difficulty 명시 — gateway 가 options 손실 없이 forward)", async () => {
+      const resolveModel = jest.fn().mockResolvedValue({
+        configId: "cfg-anthropic-1",
+        provider: LlmProvider.Anthropic,
+        modelId: "claude-3-5-sonnet",
+      });
       const findById = jest.fn().mockResolvedValue(anthropicConfig());
       const fetchFn = jest.fn().mockResolvedValue({
         ok: true,
         status: 200,
         json: async () => validAnthropicJson(),
       }) as unknown as FetchLike;
-      const { gateway } = makeGateway({ findById, fetchFn });
+      const { gateway } = makeGateway({ resolveModel, findById, fetchFn });
 
       await gateway.generate("프롬프트", {
         modelId: "cfg-anthropic-1",
@@ -608,13 +657,18 @@ describe("LlmHttpGateway.generate", () => {
     });
 
     it("difficulty 옵션이 gemini body 의 systemInstruction top-level 필드로 반영된다 (branch: difficulty 명시 — gateway 가 options 손실 없이 forward)", async () => {
+      const resolveModel = jest.fn().mockResolvedValue({
+        configId: "cfg-gemini-1",
+        provider: LlmProvider.GoogleGemini,
+        modelId: "gemini-1.5-pro",
+      });
       const findById = jest.fn().mockResolvedValue(geminiConfig());
       const fetchFn = jest.fn().mockResolvedValue({
         ok: true,
         status: 200,
         json: async () => validGeminiJson(),
       }) as unknown as FetchLike;
-      const { gateway } = makeGateway({ findById, fetchFn });
+      const { gateway } = makeGateway({ resolveModel, findById, fetchFn });
 
       await gateway.generate("프롬프트", {
         modelId: "cfg-gemini-1",
@@ -718,6 +772,142 @@ describe("LlmHttpGateway.generate", () => {
       await expect(
         gateway.generate("프롬프트", GEMINI_OPTIONS),
       ).rejects.toThrow("candidates");
+    });
+  });
+
+  // T-0165 추가 — difficulty 기반 config routing(REQ-097, ADR-0011 §3). gateway 가
+  // options.difficulty 가 주어지면 DifficultyMappingService.resolveModel 로 configId
+  // 를 얻어 그 id 로 config 를 조회하는지(난이도 → configId routing) / difficulty
+  // 미제공 시 종전 modelId 직접 경로가 그대로 유지되는지(회귀 보호) / resolveModel
+  // 의 throw 가 swallow 없이 전파되는지 / resolve 된 configId 의 config 가 부재할 때
+  // 기존 error 가 throw 되는지를 cover. R-112 happy/error/branch/negative.
+  describe("difficulty 기반 config routing (T-0165)", () => {
+    it("difficulty 제공 시 resolveModel 의 configId 로 config 를 조회하고 정상 result 반환 (happy: difficulty 경로)", async () => {
+      // resolveModel 은 hard 난이도 슬롯이 cfg-azure-1 을 가리킨다고 resolve.
+      const resolveModel = jest.fn().mockResolvedValue({
+        configId: "cfg-azure-1",
+        provider: LlmProvider.AzureOpenai,
+        modelId: "gpt-4o-deploy",
+      });
+      const findById = jest.fn().mockResolvedValue(azureConfig());
+      const decrypt = jest.fn().mockReturnValue("plaintext-key");
+      const fetchFn = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => validJson(),
+      }) as unknown as FetchLike;
+      const { gateway } = makeGateway({
+        resolveModel,
+        findById,
+        decrypt,
+        fetchFn,
+      });
+
+      // modelId 는 placeholder — difficulty 가 주어졌으므로 routing 이 우선한다.
+      const result = await gateway.generate("평가하라", {
+        modelId: "ignored-when-difficulty-set",
+        difficulty: "hard",
+      });
+
+      expect(result).toEqual({
+        narrative: "정성 평가문 본문",
+        provider: LlmProvider.AzureOpenai,
+        modelId: "gpt-4o-deploy",
+      });
+      // resolveModel 이 난이도로 호출되고, config 조회는 resolve 된 configId 로 수행.
+      expect(resolveModel).toHaveBeenCalledWith("hard");
+      expect(findById).toHaveBeenCalledWith("cfg-azure-1");
+      // options.modelId 가 아니라 resolve 된 configId 로 조회했는지 명시 확인.
+      expect(findById).not.toHaveBeenCalledWith("ignored-when-difficulty-set");
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("difficulty 미제공 시 종전 modelId 직접 경로가 유지되고 resolveModel 은 호출되지 않는다 (happy/regression: modelId 직접 경로)", async () => {
+      // resolveModel default 는 호출 시 throw — 호출되면 이 test 가 fail 해야 한다.
+      const findById = jest.fn().mockResolvedValue(azureConfig());
+      const fetchFn = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => validJson(),
+      }) as unknown as FetchLike;
+      const { gateway, resolveModel } = makeGateway({ findById, fetchFn });
+
+      const result = await gateway.generate("평가하라", OPTIONS);
+
+      expect(result).toEqual({
+        narrative: "정성 평가문 본문",
+        provider: LlmProvider.AzureOpenai,
+        modelId: "gpt-4o-deploy",
+      });
+      // difficulty 미제공이므로 resolveModel 미호출 + options.modelId 로 직접 조회.
+      expect(resolveModel).not.toHaveBeenCalled();
+      expect(findById).toHaveBeenCalledWith("cfg-azure-1");
+    });
+
+    it("resolveModel 이 throw(허용 밖 난이도/슬롯 미설정)하면 swallow 없이 전파한다 (negative: resolveModel throw)", async () => {
+      // resolveModel 이 fail-fast 4xx — gateway 가 이를 삼키지 않고 전파해야 한다.
+      const resolveModel = jest
+        .fn()
+        .mockRejectedValue(
+          new BadRequestException("difficulty model not configured: medium"),
+        );
+      const findById = jest.fn();
+      const fetchFn = jest.fn() as unknown as FetchLike;
+      const { gateway } = makeGateway({ resolveModel, findById, fetchFn });
+
+      await expect(
+        gateway.generate("프롬프트", {
+          modelId: "cfg-azure-1",
+          difficulty: "medium",
+        }),
+      ).rejects.toThrow("difficulty model not configured");
+      // resolve 가 실패하면 config 조회 / fetch 까지 진행하지 않는다.
+      expect(findById).not.toHaveBeenCalled();
+      expect(fetchFn).not.toHaveBeenCalled();
+    });
+
+    it("difficulty 가 허용 밖 빈 문자열이면 resolveModel 의 검증에 위임돼 throw 전파 (negative: 빈 문자열 difficulty)", async () => {
+      // 빈 문자열도 undefined 가 아니므로 difficulty 경로로 진입 — resolveModel 의
+      // isDifficulty 검증이 거부(허용 밖)하고 그 throw 가 전파된다.
+      const resolveModel = jest
+        .fn()
+        .mockRejectedValue(new BadRequestException("unsupported difficulty: "));
+      const findById = jest.fn();
+      const fetchFn = jest.fn() as unknown as FetchLike;
+      const { gateway } = makeGateway({ resolveModel, findById, fetchFn });
+
+      await expect(
+        gateway.generate("프롬프트", {
+          modelId: "cfg-azure-1",
+          difficulty: "",
+        }),
+      ).rejects.toThrow("unsupported difficulty");
+      // 빈 문자열도 difficulty 경로로 진입했는지(resolveModel 호출됨) 확인.
+      expect(resolveModel).toHaveBeenCalledWith("");
+      expect(findById).not.toHaveBeenCalled();
+    });
+
+    it("resolve 된 configId 의 config 가 repository 에 없으면(findById null) 기존 config 부재 Error throw (negative: resolve 된 config 부재)", async () => {
+      // resolveModel 은 성공했으나 그 사이 config 가 삭제된 race window —
+      // findById null 이면 기존 "config 를 찾을 수 없습니다" error 가 throw 돼야 한다.
+      const resolveModel = jest.fn().mockResolvedValue({
+        configId: "cfg-deleted",
+        provider: LlmProvider.AzureOpenai,
+        modelId: "gpt-4o-deploy",
+      });
+      const findById = jest.fn().mockResolvedValue(null);
+      const fetchFn = jest.fn() as unknown as FetchLike;
+      const { gateway } = makeGateway({ resolveModel, findById, fetchFn });
+
+      await expect(
+        gateway.generate("프롬프트", {
+          modelId: "cfg-azure-1",
+          difficulty: "easy",
+        }),
+      ).rejects.toThrow("config 를 찾을 수 없습니다");
+      // resolve 된 configId(cfg-deleted)로 조회를 시도했는지 확인.
+      expect(findById).toHaveBeenCalledWith("cfg-deleted");
+      expect(fetchFn).not.toHaveBeenCalled();
     });
   });
 });
