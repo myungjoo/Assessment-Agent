@@ -2,12 +2,15 @@
 id: T-0173
 title: ADR — GithubAdapter HTTP transport 계약(내장 fetch / 3 host variant 라우팅 / auth header / non-2xx 매핑 / pagination / adapter↔gateway 경계)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008]
 estimatedDiff: 230
 estimatedFiles: 3
 created: 2026-06-02
+completedAt: 2026-06-02T22:59:17+09:00
+prNumber: 157
+mergeCommit: ebccc5d
 plannerNote: P4 milestone-3 승인(Q-0017) 첫 slice — ADR-first. GithubAdapter transport 계약을 코드보다 먼저 박제(내장 fetch, dep 0). ADR-first split stage ×1.3.
 ---
 
@@ -79,3 +82,11 @@ plannerNote: P4 milestone-3 승인(Q-0017) 첫 slice — ADR-first. GithubAdapte
 - (예상) **p4-implementation-plan.md / modules.md doc-sync** — T-0140 row 의 '@octokit/rest dependency 게이트' 표기를 Q-0017 의 '내장 fetch, dep 0' 로 정합 (direct doc-only).
 - (예상, §5 게이트) **GitHub live-run** — 실 GitHub token (3 host variant) env/secret 주입 후 live smoke/e2e (실값은 §9 에 따라 파일 금지). milestone-1 Q-0016 optionA task 2 패턴 mirror.
 - (예상) **ConfluenceAdapter scaffold** — ADR-0013 (탐색) + 본 ADR 의 내장-fetch 공통 패턴 위에서 Confluence 측 adapter (별도 task).
+
+## Result (2026-06-02T22:59:17+09:00, DONE)
+
+- architect 가 [ADR-0016](../decisions/ADR-0016-github-adapter-http-transport-contract.md) (status PROPOSED) 신설 + [INDEX.md](../architecture/INDEX.md) row 추가. AC 11/11 충족 (6 Decision + HITL 경계 + 후속 chain 표 + Alternatives(octokit 기각) + INDEX row).
+- architect 의 modules.md pointer 편집은 task Out-of-Scope("기존 doc 수정 0")라 driver 가 revert — 별도 doc-sync follow-up 으로 분리.
+- tester R-110: `pnpm lint && pnpm build && pnpm test` green (139 suites / 2701 tests). production code 0 → R-112 신규 spec 면제.
+- PR [#157](https://github.com/myungjoo/Assessment-Agent/pull/157): reviewer APPROVE (round 1/7, 0 BLOCKER/MAJOR/MINOR, 2 INFO) + integrator 4-gate 전부 PASS → squash-merge `ebccc5d`. 새 external dependency 0 / 실 token 0 (§5 미발화).
+- INFO(비차단): INDEX.md 에 ADR-0015 row 부재 = main 선행 gap (후속 doc-sync 후보).

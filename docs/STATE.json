@@ -2,26 +2,26 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0173",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-9124",
-    "since": "2026-06-02T21:36:14+09:00"
+    "since": "2026-06-02T22:59:17+09:00"
   },
-  "lastActivity": "2026-06-02T22:32:04+09:00",
-  "lastCommit": "73e5a4b",
+  "lastActivity": "2026-06-02T22:59:17+09:00",
+  "lastCommit": "ebccc5d",
   "mostRecentTasks": [
+    "T-0173",
     "T-0172",
     "T-0171",
     "T-0170",
-    "T-0169",
-    "T-0168"
+    "T-0169"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-02T21:36:14+09:00",
     "cap": 10,
-    "note": "/loop session #42 (loop@AKIHA-9124, cap 10, dynamic) **t1 — milestone-3 승인 + T-0173 큐잉 (planner-queue turn, doc-only direct commit)**. [1] AKIHA 기기에서 fresh /loop 기동. cwd 는 미등록 phantom worktree(vigilant-boyd-707106)라 상대경로 file read 불가 — git 은 main checkout 으로 resolve, 절대경로(C:/Users/myung/Assessment-Agent)로 작업. fetch 후 local main 을 dc78a36→73e5a4b 로 FF(54 commit behind 였음). lock: stale loop@WIN-JQIPLSBL9QV-s41(since 18:11, ~3h22m 경과 >60min) ref-CAS 탈취 → loop@AKIHA-9124, turnCount reset=1. 미해결 humanQuestion 0 (Q-0013~0016 전부 RESOLVED). [2] currentTask/nextTask 둘 다 null → planner final survey: **NO_DEPFREE_WORK** 확정 — milestone-1 live scaffold(T-0171 ADR-0015 계약+env-gated live smoke, T-0172 ACCEPTED) main 박제, gating helper full branch cover, 최근 ~12 merged task 의 follow-up 전부 §5 credentialed-live-run 게이트로 수렴, PLAN 체크박스 정합. 사용자 present(dynamic /loop)라 비동기 humanQuestion 대신 interactive AskUserQuestion 으로 직접 질의 → 사용자가 **milestone-3(GitHub/Confluence adapter) 승인**. 제약 4종(Q-0017 verbatim 기록): 내장 fetch(새 dep 0) / mocked-fetch unit test / live token 통합은 §5 별도 후속 task 로 defer / milestone-1 Q-0016 optionA 패턴 재현. planner 2차 dispatch: Q-0017 기록 + 첫 slice **T-0173**(GithubAdapter HTTP transport 계약 ADR, ADR-0016 예정, commitMode pr, ~230 LOC/3 file, ADR-first) 큐잉. tasksCompleted 변동 없음(170, 큐잉만). CI: 73e5a4b green(consecutiveFails 0). 본 turn = doc-only direct commit(STATE Q-0017+nextTask + T-0173 task file + journal). **다음 turn t2: executor 가 T-0173 ADR 작성 — pr-mode(architect→ADR-0016 + reviewer/integrator 4-게이트 + tester R-110)**. reschedule 60s(다음 task 즉시 가용)."
+    "note": "/loop session #42 (loop@AKIHA-9124, cap 10, dynamic) **t2 — T-0173 DONE/MERGED (ADR-0016 GithubAdapter HTTP transport 계약, PR #157 squash ebccc5d)**. [1] fetch + lock heartbeat refresh(same session, turnCount 1→2), t1 doc CI(4cc3c44) success 확인, humanQuestion 0. [2] nextTask=T-0173→current(pr-mode). [3] sub-agent nesting 불가라 driver 가 역할별 직접 dispatch: architect→ADR-0016(PROPOSED — 내장 fetch injectable FetchLike·3 host variant base URL 라우팅(public api.github.com vs Enterprise /api/v3)·Authorization Bearer+Accept+X-GitHub-Api-Version·non-2xx 도메인 매핑(401/403→permission-denied+PermissionDeniedEvent·404 not-found·429 rate-limited·5xx upstream·fetch reject transport)·Link rel=next pagination·src/github builder↔주입 fetch 경계·ADR-0014 cipher JIT decrypt, ADR-0015 패턴 mirror) + INDEX.md row. architect 의 modules.md pointer 편집은 task Out-of-Scope(\"기존 doc 수정 0\")라 driver 가 revert(별도 doc-sync follow-up). tester R-110: lint/build/test green(139 suite/2701). [4] pr-mode: feature branch commit cc283ee push → PR #157 open. driver→reviewer 직접 dispatch: APPROVE(round 1/7, 0 BLOCKER/MAJOR/MINOR, 2 INFO) + gh pr comment 외부 post(gate-2). pull_request CI run 26824217533 은 approval-gate step 만 fail(reviewer comment 전 실행, 실 step=lint/build/test/cov/smoke/e2e 전부 green), reviewer comment 가 issue_comment run 26824412648 trigger→success(approval step 포함=gate-4). driver→integrator: 4-gate 독립 검증 전부 PASS(g1 APPROVE·g2 comment 외부·g3 self-check AC+OoS 준수·g4 issue_comment CI success)→DECISION MERGED. driver squash-merge ebccc5d --delete-branch. tasksCompleted 170→171. [6] 본 bookkeeping=doc-only direct commit(STATE+task DONE+journal). reviewRounds[T-0173]=1. **다음 turn t3: planner 가 milestone-3 차순위 — ADR-0016 계약 구현 GithubAdapter scaffold(service + 순수 request-builder + 주입 fetch dispatch + 4xx→PermissionDeniedEvent + Link pagination, mocked-fetch unit, 내장 fetch dep 0 → §5 미발화, dependency-free) 큐잉 예정**. reschedule 60s. (INFO: INDEX.md 에 ADR-0015 row 부재 = main 선행 gap, 비차단 — 후속 doc-sync 후보. jest 가 .claude/worktrees/angry-pasteur 중첩 worktree 픽업 = 별도 follow-up 후보.)"
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
@@ -34,7 +34,8 @@
   "reviewRounds": {
     "T-0138": 1,
     "T-0139": 1,
-    "T-0140": 1
+    "T-0140": 1,
+    "T-0173": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -147,7 +148,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 170,
+    "tasksCompleted": 171,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
