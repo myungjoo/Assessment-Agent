@@ -2,8 +2,9 @@
 id: T-0172
 title: ADR-0015 status PROPOSED→ACCEPTED 동기화 (live-integration test 계약 구현 완료 반영)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
+completed: 2026-06-02
 coversReq: [REQ-096, REQ-097]
 estimatedDiff: 6
 estimatedFiles: 1

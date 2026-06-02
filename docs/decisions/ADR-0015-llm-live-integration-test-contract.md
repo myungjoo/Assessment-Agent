@@ -1,13 +1,18 @@
 ---
 id: ADR-0015
 title: LLM live-integration TEST CONTRACT — env-gated skip-unless-credentialed live smoke 정책
-status: PROPOSED
+status: ACCEPTED (2026-06-02)
 date: 2026-06-02
 relatedTask: T-0171
 supersedes: null
 ---
 
 # ADR-0015 — LLM live-integration TEST CONTRACT 박제
+
+> PROPOSED → ACCEPTED 전이 완료 (2026-06-02). 본 ADR 의 live-test 계약이 [T-0171](../tasks/T-0171-llm-live-integration-test-contract.md) (PR-156, squash `28e5012`) 로 main 에 구현·머지됨:
+> Decision §1~§2 의 gating env (`LLM_LIVE_TEST`/`LLM_LIVE_BASE_URL`/`LLM_LIVE_API_KEY` + [ADR-0014](ADR-0014-llm-api-key-encryption-at-rest.md) 의 `LLM_APIKEY_ENC_KEY` 재사용) 와 순수 gating helper 가 [src/llm/llm-live-test-gating.ts](../../src/llm/llm-live-test-gating.ts) 로,
+> Decision §3 의 custom live wire shape + skip-in-CI gating (env 부재 → `describe.skip` → public CI green) 이 [test/smoke/llm-live.smoke-spec.ts](../../test/smoke/llm-live.smoke-spec.ts) 로 박제됨.
+> 잔여 credentialed live-run (실 네트워크 1 회 검증) 은 [§5](../../CLAUDE.md) 외부 자격증명 게이트로 deferred — 사용자 credential 주입 시점에 별도 task (아래 "후속 task chain" 참조).
 
 ## Context
 
@@ -99,7 +104,7 @@ live 호출은 기존 [src/llm/providers/openai-compatible.adapter.ts](../../src
 | **credentialed live-run** | 사용자가 `LLM_LIVE_TEST`/`LLM_LIVE_BASE_URL`/`LLM_LIVE_API_KEY`(+필요 시 `LLM_APIKEY_ENC_KEY`)를 env/secret 주입 후 gated live smoke 를 실 네트워크 1 회 실행 검증. 필요 시 전용 workflow(secret 주입 step) | 본 task 머지 후 + 사용자 credential 제공 | **있음 — [§5](../../CLAUDE.md) 외부 자격증명 게이트** |
 | **live timeout hardening** | `LlmHttpGateway` 에 AbortController 기반 명시 timeout 도입 + R-112 negative(timeout 발화) | 본 ADR 후 | 없음(Node 내장) |
 | **custom 외 provider live 확장** | azure/anthropic/gemini live 동형 확장(각 별도 task) | custom live 검증 후 | provider 별 credential 게이트 |
-| **ADR-0015 PROPOSED→ACCEPTED** | merge 후 status 한 줄 갱신(direct) | 본 task 머지 | 없음 |
+| **ADR-0015 PROPOSED→ACCEPTED** ✓ (본 T-0172 에서 완료) | merge 후 status 한 줄 갱신(direct) | 본 task 머지 | 없음 |
 
 ## Alternatives considered
 
