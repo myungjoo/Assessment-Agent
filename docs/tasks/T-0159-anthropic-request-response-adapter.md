@@ -2,7 +2,11 @@
 id: T-0159
 title: AnthropicAdapter — anthropic Messages API 요청/응답 shaping 순수 함수
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02T12:29:19+09:00
+mergedAs: f150a95
+prNumber: 149
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-099, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 240
