@@ -2,7 +2,11 @@
 id: T-0158
 title: LlmHttpGateway — provider routing dispatch (azure_openai vs custom/openai adapter 분기 연결)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02T12:14:11+09:00
+mergedAs: 55b24be
+prNumber: 148
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-099, REQ-100, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 180
