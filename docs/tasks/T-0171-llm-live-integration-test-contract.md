@@ -2,8 +2,12 @@
 id: T-0171
 title: LLM live-integration TEST CONTRACT ADR(0015) + env-gated live smoke scaffold
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 156
+mergedAs: 28e5012
+reviewRounds: 1
+completed: 2026-06-02
 coversReq: [REQ-096, REQ-097]
 estimatedDiff: 250
 estimatedFiles: 4

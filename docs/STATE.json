@@ -2,34 +2,34 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0171",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s41",
     "since": "2026-06-02T18:11:13+09:00"
   },
-  "lastActivity": "2026-06-02T18:13:00+09:00",
-  "lastCommit": "5e74480",
+  "lastActivity": "2026-06-02T18:45:00+09:00",
+  "lastCommit": "28e5012",
   "mostRecentTasks": [
+    "T-0171",
     "T-0170",
     "T-0169",
     "T-0168",
-    "T-0167",
-    "T-0166"
+    "T-0167"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-02T18:11:13+09:00",
     "cap": 10,
-    "note": "/loop session #41 (loop@WIN-JQIPLSBL9QV-s41, cap 10, dynamic) **t1 — milestone-1 live 통합 게이트 OPEN + planner-only turn**. [1] fetch(HEAD==origin/main==4c85bb2, tree clean) + ref-CAS lock 획득(tombstone 264b9aa→18dcd2b, force-with-lease 성공, 새 session 이라 turnCount=1·startedAt 재설정). humanQuestions Q-0013~0016 전원 RESOLVED(미답 0 → [1] 즉시종료 조건 미해당). currentTask/nextTask 둘 다 null. dependency-free backlog 는 session #40 에서 소진 확정 + main 무변경(4c85bb2) → planner 재survey 는 deterministic make-work 라 판단, 대신 사용자 standing 지시('결정 필요시 즉시 물어라')에 따라 **driver AskUserQuestion 으로 HITL 게이트 선택 질의**. 사용자 응답: **milestone-1 live 통합(Q-0016 option A) 선택**. driver 가 Q-0016.optionADecision 에 결정 박제 — §9(credential 파일 금지·env 주입) + R-113(live test 는 CI 에서 env-gated skip 필수, 실 네트워크는 public CI 불가)로 work 를 2 단계 분해: (1) dependency-free 선행 = ADR-0015 test 계약 + skip-unless-credentialed live smoke scaffold(실 credential 불요·즉시 착수), (2) credentialed live-run(후속 §5 게이트 — 사용자 credential 주입 시). **planner dispatch: T-0171 큐잉**(commitMode pr, ADR-0015 + env-gated live smoke scaffold, ~250 LOC/4 파일, §3 cap 내). planner pre-check: git grep origin/main 으로 LLM_LIVE_TEST/describe.skip live scaffold 부재 확인 — 기존 llm-gateway-roundtrip.smoke-spec.ts(T-0168 option-B local-stub)와 별개 concern, 미superseded. 본 turn 은 planner-only(LOOP §1[2]) → doc-only direct commit(STATE Q-0016 optionADecision + nextTask=T-0171 + 본 note + journal + T-0171 task 파일) 후 종료. 다음 turn(t2)에서 T-0171 executor 실행(pr-mode). 주의: credentialed live-run(2단계)은 사용자가 live endpoint base URL + provider API key + LLM_APIKEY_ENC_KEY 를 env/secret 로 주입해야 진입(실값 파일 금지 §9)."
+    "note": "/loop session #41 (loop@WIN-JQIPLSBL9QV-s41, cap 10, dynamic) **t2 — T-0171 DONE/MERGED(PR-156 round1, squash 28e5012)**. [1] fetch(HEAD==origin/main==d26879f) + lock 유지(same session s41, turnCount 1→2) + t1 doc CI(d26879f) in_progress(doc-only 비차단). nextTask=T-0171→current. executor(pr-mode): architect ADR-0015(PROPOSED, live-integration TEST CONTRACT — gating env LLM_LIVE_TEST/LLM_LIVE_BASE_URL/LLM_LIVE_API_KEY + ADR-0014 ENC_KEY 재사용·skip-in-CI·custom OpenAI-호환 wire shape·timeout/non-2xx 경계를 mocked unit/stub smoke/live 3 layer 로 정의) → implementer(순수 gating helper src/llm/llm-live-test-gating.ts + spec + env-gated test/smoke/llm-live.smoke-spec.ts, env 부재 시 describe.skip, 실값 process.env only §9, Node 내장만 dep 0) → tester(gating helper cov 100%, unit 2775 green, live suite env 부재→skip 직접 검증; 로컬 test:smoke 전체는 미migrate DB 로 globalSetup fail=환경한계, CI 는 migrate). diff +453(ADR 124+test 236+helper 93) 300 LOC guideline 초과하나 production surface 93 LOC·응집 단일 concern → reviewer no-split 판단. integrator: PR-156 open→reviewer APPROVE(0 finding)→4-게이트 전원 PASS(reviewer APPROVE / PR comment 외부존재 / self-check / CI green run 26811610455: reviewer-approval+smoke[live skip]+e2e+spec-presence 전부 success)→squash merge 28e5012 --delete-branch. tasksCompleted 168→169. milestone-1 live 통합의 dependency-free 선행 완결 — 잔여 = credentialed live-run(§5, 사용자 credential 주입 시 별도 task). 본 turn bookkeeping(direct doc commit) 후 종료. **이전 t1 note**: 사용자가 milestone-1 live(Q-0016 optionA) 선택 → 2단계 분해, planner T-0171 큐잉."
   },
   "ci": {
-    "lastRun": "2026-06-02T17:26:00+09:00",
+    "lastRun": "2026-06-02T18:44:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/155",
-    "note": "t8: t7 direct meta commit(5e74480) push CI in_progress(doc/meta-only 비차단, 다음 turn 재확인). 직전 확정 success 는 f72db88(t6). main green. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/156",
+    "note": "t2: PR-156(T-0171) CI run 26811610455 success — reviewer-approval+unit+smoke(live suite skip)+e2e+spec-presence 전부 green, squash 28e5012 merge. t1 doc commit(d26879f) CI 는 doc-only 비차단(별도 확인 불요). main green. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -127,7 +127,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 168,
+    "tasksCompleted": 169,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
