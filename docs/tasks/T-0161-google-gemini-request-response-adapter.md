@@ -2,7 +2,11 @@
 id: T-0161
 title: GoogleGeminiAdapter — google_gemini 요청/응답 shaping 순수 함수 (generateContent 포맷)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02T12:58:51+09:00
+mergedAs: e10033c
+prNumber: 151
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-099, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 240

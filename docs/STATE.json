@@ -2,26 +2,26 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0161",
+  "nextTask": "T-0162",
   "lock": {
     "holder": "loop",
     "since": "2026-06-02T11:00:24+09:00",
     "session": "loop@WIN-JQIPLSBL9QV-603"
   },
-  "lastActivity": "2026-06-02T12:45:14+09:00",
-  "lastCommit": "a61f192",
+  "lastActivity": "2026-06-02T12:58:51+09:00",
+  "lastCommit": "e10033c",
   "mostRecentTasks": [
+    "T-0161",
     "T-0160",
     "T-0159",
     "T-0158",
-    "T-0157",
-    "T-0156"
+    "T-0157"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-02T11:00:24+09:00",
     "cap": 10,
-    "note": "/loop session #39 (loop@WIN-JQIPLSBL9QV-603, cap 10, dynamic) **t7 — T-0160 MERGED (gateway anthropic dispatch 연결, milestone-1 chain 6/N)**. [1] fetch + lock turnCount 6→7(CAS e19ab4d→3b5af3e) + t6 doc CI(e5e2231) success 확인. nextTask=T-0160→current. executor(pr): src/llm/llm-http-gateway.service.ts(+62/-37 — provider==anthropic 시 buildAnthropicRequest/parseAnthropicResponse dispatch, 미지원 검사서 anthropic 제거, build/parse 3-way if/else 정리, azure/custom/openai 회귀 보존, google_gemini·unknown throw 유지) + spec 확장. gateway+adapter 100% cov, 139 suites/2714 tests green, dep0/credential0/migration0/auth0(§5 미발화). PR #150 → reviewer APPROVE(round 1/7, 0 finding clean, 회귀 검증) → CI green(run 26796914685, head af625b7) → 4-게이트 PASS(integrator 가 §9 준수, STATE 미편집) → squash-merge **a61f192** --delete-branch. tasksCompleted 157→158. planner → T-0161 큐잉. **session #39 누계(t2~t7): T-0155·T-0156·T-0157·T-0158·T-0159·T-0160 merged(6 tasks) — milestone-1: adapter×3(azure/openai-compat/anthropic) + gateway orchestration + provider routing dispatch + anthropic wiring. gateway 가 azure/custom/openai/anthropic 4-provider 라우팅. google_gemini 만 미연결**. CI 매 push green, blockers 0, dep 0. lock 유지(turnCount 7/cap 10). dynamic reschedule. [PREV t1~t6 + session #38 상세는 docs/progress/journal-2026-06-02.md 참조]"
+    "note": "/loop session #39 (loop@WIN-JQIPLSBL9QV-603, cap 10, dynamic) **t8 — T-0161 MERGED (google_gemini adapter, milestone-1 chain 7/N)**. [1] fetch + lock turnCount 7→8(CAS 3b5af3e→edb78ba) + t7 doc CI(03057aa) 비차단 확인. nextTask=T-0161→current. executor(pr): src/llm/providers/google-gemini.adapter.ts(buildGeminiRequest :generateContent·x-goog-api-key·contents[].parts[].text·difficulty→systemInstruction·generationConfig.maxOutputTokens + parseGeminiResponse candidates[0].content.parts[0].text→LlmGenerateResult) + colocated spec, 2파일 +416(prod 178 cap내 + R-112 spec exempt), 신규 100% cov, 140 suites/2749 tests green, dep0/credential0/fetch0(§5 미발화). PR #151 → reviewer APPROVE(round 1/7, 0 finding clean) → CI green(run 26797357413, head a25c2be) → 4-게이트 PASS(integrator §9 준수) → squash-merge **e10033c** --delete-branch. tasksCompleted 158→159. planner → T-0162 큐잉(gemini gateway dispatch wiring 예상). **session #39 누계(t2~t8): T-0155~T-0161 merged(7 tasks) — milestone-1: adapter×4(azure/openai-compat/anthropic/gemini) + gateway orchestration + provider routing(azure/custom/openai/anthropic 연결, gemini wiring 남음)**. CI 매 push green, blockers 0, dep 0. lock 유지(turnCount 8/cap 10 — t10 cap 근접). dynamic reschedule. [PREV t1~t7 + session #38 상세는 docs/progress/journal-2026-06-02.md 참조]"
   },
   "ci": {
     "lastRun": "2026-06-02T08:57:31+09:00",
@@ -83,7 +83,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 158,
+    "tasksCompleted": 159,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
