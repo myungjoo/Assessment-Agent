@@ -272,6 +272,9 @@ describe("GithubInstanceClient.requestForInstance", () => {
 });
 
 describe("GithubInstanceClient.requestAllPagesForInstance", () => {
+  // client 는 query 를 가공 없이(as-is) adapter.requestAllPages 로 위임한다 — per_page
+  // boundary 를 query 에 overlay 하는 건 GithubAdapter.requestAllPages 의 책임이라
+  // client unit scope 밖이다. 따라서 본 spec 은 위임 정합성만 검증하고 per_page 값은 assert 하지 않는다.
   it("adapter.requestAllPages 에 위임하고 flatten 된 배열을 그대로 반환한다 (happy)", async () => {
     const adapter = makeAdapterMock();
     const cipher = makeCipherMock();

@@ -8,7 +8,10 @@
 // PersistenceModule import 없이 GithubModule 단독으로 compile 된다.
 import { Test, type TestingModule } from "@nestjs/testing";
 
+import { LlmApiKeyCipher } from "../llm/llm-apikey-cipher.service";
+
 import { GithubAdapter } from "./github-adapter.service";
+import { GithubInstanceClient } from "./github-instance-client.service";
 import { GithubModule } from "./github.module";
 
 describe("GithubModule", () => {
@@ -39,6 +42,30 @@ describe("GithubModule", () => {
 
     const resolved = moduleRef.get(GithubAdapter);
     expect(resolved).toBe(sentinel);
+
+    await moduleRef.close();
+  });
+
+  // DI resolve regression guard (T-0180 round-2 [M1]). GithubInstanceClient 생성자는
+  // GithubAdapter + LlmApiKeyCipher + @Optional() NodeJS.ProcessEnv 를 inject 받는다.
+  // env 는 reflection 상 Object token 으로 흘러 NestJS 가 provider 를 못 찾는데,
+  // @Optional() 덕에 undefined 로 resolve 된다(서비스가 default process.env 로 fallback).
+  // 회귀 가드: 누군가 @Optional() 을 떼면(env DI resolve 실패) 또는
+  // GithubInstanceClient / LlmApiKeyCipher provider 등록을 빠뜨리면 본 test 가 fail 한다.
+  it("compile 시 GithubInstanceClient / LlmApiKeyCipher provider 가 DI 로 resolve 된다", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [GithubModule],
+    }).compile();
+
+    // GithubInstanceClient 가 @Optional() env 와 함께 정상 resolve 되어야 한다.
+    const client = moduleRef.get(GithubInstanceClient);
+    expect(client).toBeDefined();
+    expect(client).toBeInstanceOf(GithubInstanceClient);
+
+    // LlmApiKeyCipher provider 도 module 안에서 resolve 되어야 client 주입이 성립한다.
+    const cipher = moduleRef.get(LlmApiKeyCipher);
+    expect(cipher).toBeDefined();
+    expect(cipher).toBeInstanceOf(LlmApiKeyCipher);
 
     await moduleRef.close();
   });
