@@ -2,12 +2,17 @@
 id: T-0176
 title: GithubAdapter Link rel=next pagination — 다중 page 순회로 list endpoint 전 page 수집
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-059]
 estimatedDiff: 180
 estimatedFiles: 3
 created: 2026-06-02
+completedAt: 2026-06-03T00:18:55+09:00
+prNumber: 160
+mergeCommit: ff864d3
+reviewRounds: 2
+actualDiff: "code +581/-23 (prod +153/-23 + spec +428) — sizeExempt"
 plannerNote: P4 milestone-3 GithubAdapter 3차 slice(ADR-0016 §5). request() 위 순수 Link 파서 + paginate loop. dep 0/§5 미발화. R-112 backbone ×1.5. module·JIT decrypt defer.
 ---
 
@@ -69,4 +74,4 @@ P4 milestone-3 (GitHub adapter, [PLAN.md L81](../PLAN.md)) 의 **3차 vertical s
 
 ## Follow-ups
 
-(생성 시 비어있음 — sub-agent 가 관련 작업 발견 시 append)
+- (tester, 관찰) `parseNextLink` 정규식 `/rel\s*=\s*["']?\s*next\s*["']?/i` 은 `next` 뒤 단어 경계를 강제하지 않아 `rel="nextpage"` 의 prefix `next` 에 매칭한다 (spec 에 현행 동작으로 박제함). GitHub 실 응답은 `rel="next"` 정확값만 주므로 실사용 영향 0 이나, 향후 robust 화 시 closing 따옴표/단어 경계 강화 검토 (별도 nit task — 본 slice cap 내 처리 불요).
