@@ -1,6 +1,8 @@
-// LlmHttpGateway spec — T-0156. R-112 4 종(happy/error/branch/negative 충분 cover)
-// 검증. 실 네트워크 0 / 실 credential 0 — fetch 는 주입 mock, cipher / repository 는
-// Jest mock 으로 대체. config→decrypt→fetch→parse orchestration 의 각 분기를 cover.
+// LlmHttpGateway spec — T-0156 → T-0158. R-112 4 종(happy/error/branch/negative
+// 충분 cover) 검증. 실 네트워크 0 / 실 credential 0 — fetch 는 주입 mock, cipher /
+// repository 는 Jest mock 으로 대체. config→decrypt→build dispatch→fetch→parse
+// dispatch orchestration 의 각 분기를 cover. T-0158 이 provider 분기 dispatch
+// (azure_openai vs custom/openai vs 미지원)를 추가 — 기존 azure test 회귀 보존.
 import type { LlmProviderConfig } from "@prisma/client";
 
 import { LlmApiKeyCipher } from "./llm-apikey-cipher.service";
@@ -22,6 +24,24 @@ function azureConfig(
     endpointUrl: "https://my-res.openai.azure.com",
     apiKey: "ciphertext-envelope",
     modelId: "gpt-4o-deploy",
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    updatedAt: new Date("2026-01-01T00:00:00Z"),
+    ...overrides,
+  };
+}
+
+// custom / openai(OpenAI 호환) raw config row fixture. azure 와 달리 endpointUrl
+// 은 OpenAI 호환 base 이며 modelId 는 body 의 model 필드로 라우팅된다.
+function openaiCompatibleConfig(
+  provider: LlmProvider,
+  overrides: Partial<LlmProviderConfig> = {},
+): LlmProviderConfig {
+  return {
+    id: "cfg-oai-1",
+    provider,
+    endpointUrl: "https://api.openai.com/v1",
+    apiKey: "ciphertext-envelope",
+    modelId: "gpt-4o",
     createdAt: new Date("2026-01-01T00:00:00Z"),
     updatedAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,
@@ -130,21 +150,25 @@ describe("LlmHttpGateway.generate", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
-  it("azure_openai 가 아닌 provider 면 미지원 Error throw (branch/negative: 미지원 provider)", async () => {
-    const findById = jest
-      .fn()
-      .mockResolvedValue(azureConfig({ provider: LlmProvider.Anthropic }));
-    const decrypt = jest.fn();
-    const fetchFn = jest.fn() as unknown as FetchLike;
-    const { gateway } = makeGateway({ findById, decrypt, fetchFn });
+  it.each<[string, LlmProvider]>([
+    ["anthropic", LlmProvider.Anthropic],
+    ["google_gemini", LlmProvider.GoogleGemini],
+  ])(
+    "미지원 provider(%s)면 미지원 Error throw (branch/negative: 미지원 provider)",
+    async (_label, provider) => {
+      const findById = jest.fn().mockResolvedValue(azureConfig({ provider }));
+      const decrypt = jest.fn();
+      const fetchFn = jest.fn() as unknown as FetchLike;
+      const { gateway } = makeGateway({ findById, decrypt, fetchFn });
 
-    await expect(gateway.generate("프롬프트", OPTIONS)).rejects.toThrow(
-      "미지원 provider",
-    );
-    // 미지원이면 decrypt / fetch 진행하지 않는다.
-    expect(decrypt).not.toHaveBeenCalled();
-    expect(fetchFn).not.toHaveBeenCalled();
-  });
+      await expect(gateway.generate("프롬프트", OPTIONS)).rejects.toThrow(
+        "미지원 provider",
+      );
+      // 미지원이면 decrypt / fetch 진행하지 않는다.
+      expect(decrypt).not.toHaveBeenCalled();
+      expect(fetchFn).not.toHaveBeenCalled();
+    },
+  );
 
   it("decrypt 가 throw 하면 그대로 propagate (negative: decrypt 실패 — 변조/잘못된 키)", async () => {
     const findById = jest.fn().mockResolvedValue(azureConfig());
@@ -216,5 +240,116 @@ describe("LlmHttpGateway.generate", () => {
     // 생성자가 default fetch 로 인스턴스화되는지만 확인(실 호출 0).
     const gateway = new LlmHttpGateway(repository, cipher);
     expect(gateway).toBeInstanceOf(LlmHttpGateway);
+  });
+
+  // T-0158 추가 — openai-compatible(custom/openai) dispatch 경로. azure 경로와
+  // 동일 orchestration 이나 build/parse dispatch 가 openai-compatible adapter 로
+  // 분기하고 result.provider 에 실제 provider(custom/openai)가 채워지는지 검증.
+  describe.each<[string, LlmProvider]>([
+    ["custom", LlmProvider.Custom],
+    ["openai", LlmProvider.Openai],
+  ])("openai-compatible dispatch (provider=%s)", (_label, provider) => {
+    const OAI_OPTIONS: LlmGenerateOptions = { modelId: "cfg-oai-1" };
+
+    it("정상 흐름에서 openai-compatible 경로로 호출하고 provider 가 채워진 LlmGenerateResult 반환 (happy)", async () => {
+      const findById = jest
+        .fn()
+        .mockResolvedValue(openaiCompatibleConfig(provider));
+      const decrypt = jest.fn().mockReturnValue("plaintext-key");
+      const fetchFn = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => validJson(),
+      }) as unknown as FetchLike;
+      const { gateway } = makeGateway({ findById, decrypt, fetchFn });
+
+      const result = await gateway.generate("평가하라", OAI_OPTIONS);
+
+      // result.provider 에 정확히 custom/openai 가 채워진다(azure 하드코딩 아님).
+      expect(result).toEqual({
+        narrative: "정성 평가문 본문",
+        provider,
+        modelId: "gpt-4o",
+      });
+      expect(decrypt).toHaveBeenCalledWith("ciphertext-envelope");
+      // fetch 가 1회, OpenAI 호환 포맷 url(/chat/completions) / Bearer 헤더 / model
+      // 필드 포함 body 로 호출됐는지 검증.
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      const [url, init] = (fetchFn as unknown as jest.Mock).mock.calls[0];
+      expect(url).toBe("https://api.openai.com/v1/chat/completions");
+      expect(init.method).toBe("POST");
+      expect(init.headers).toEqual({
+        Authorization: "Bearer plaintext-key",
+        "Content-Type": "application/json",
+      });
+      expect(JSON.parse(init.body)).toEqual({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: "평가하라" }],
+      });
+    });
+
+    it("fetch 가 reject 하면 그대로 propagate (negative: 네트워크 오류)", async () => {
+      const findById = jest
+        .fn()
+        .mockResolvedValue(openaiCompatibleConfig(provider));
+      const fetchFn = jest
+        .fn()
+        .mockRejectedValue(
+          new Error("network unreachable"),
+        ) as unknown as FetchLike;
+      const { gateway } = makeGateway({ findById, fetchFn });
+
+      await expect(gateway.generate("프롬프트", OAI_OPTIONS)).rejects.toThrow(
+        "network unreachable",
+      );
+    });
+
+    it("HTTP non-2xx(500) 응답이면 status 를 포함한 Error throw (branch/negative: HTTP non-2xx)", async () => {
+      const findById = jest
+        .fn()
+        .mockResolvedValue(openaiCompatibleConfig(provider));
+      const fetchFn = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+      }) as unknown as FetchLike;
+      const { gateway } = makeGateway({ findById, fetchFn });
+
+      await expect(gateway.generate("프롬프트", OAI_OPTIONS)).rejects.toThrow(
+        "500",
+      );
+    });
+
+    it("응답 JSON 이 비정상(choices 빈 배열)이면 parse 가 Error throw (negative: 비정상 응답)", async () => {
+      const findById = jest
+        .fn()
+        .mockResolvedValue(openaiCompatibleConfig(provider));
+      const fetchFn = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [] }),
+      }) as unknown as FetchLike;
+      const { gateway } = makeGateway({ findById, fetchFn });
+
+      await expect(gateway.generate("프롬프트", OAI_OPTIONS)).rejects.toThrow(
+        "choices",
+      );
+    });
+
+    it("decrypt 가 throw 하면 그대로 propagate (negative: decrypt 실패)", async () => {
+      const findById = jest
+        .fn()
+        .mockResolvedValue(openaiCompatibleConfig(provider));
+      const decrypt = jest.fn().mockImplementation(() => {
+        throw new Error("Unsupported state or unable to authenticate data");
+      });
+      const fetchFn = jest.fn() as unknown as FetchLike;
+      const { gateway } = makeGateway({ findById, decrypt, fetchFn });
+
+      await expect(gateway.generate("프롬프트", OAI_OPTIONS)).rejects.toThrow(
+        "authenticate data",
+      );
+      expect(fetchFn).not.toHaveBeenCalled();
+    });
   });
 });
