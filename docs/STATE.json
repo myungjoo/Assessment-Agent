@@ -2,33 +2,36 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0151",
+  "nextTask": "T-0152",
   "lock": {
-    "holder": "",
-    "since": ""
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-1444",
+    "since": "2026-06-02T08:44:44+09:00",
+    "loopSessionStartedAt": "2026-06-02T08:44:44+09:00",
+    "loopSessionTurnCount": 1
   },
-  "lastActivity": "2026-06-02T08:02:13+09:00",
-  "lastCommit": "4656194",
+  "lastActivity": "2026-06-02T08:58:00+09:00",
+  "lastCommit": "004e705",
   "mostRecentTasks": [
+    "T-0151",
     "T-0150",
     "T-0149",
     "T-0147",
-    "T-0148",
-    "T-0146"
+    "T-0148"
   ],
   "loopSession": {
-    "turnCount": 10,
-    "startedAt": "2026-06-01T22:29:40+09:00",
-    "cap": 10,
-    "note": "/loop session #37 (loop@AKIHA-135e, cap 10, dynamic) **t10 — T-0150 DELETE endpoint merge + cap STOP**. [1] lock(본 session turnCount 9) + f5d3ecb doc-CI green 확인. nextTask=T-0150→current. feature branch claude/T-0150-llm-provider-config-delete-endpoint(base f5d3ecb) → executor: DELETE /api/llm/providers/:id(service.delete repo.delete try/catch P2025→404·P2003→409·그 외 raw propagate, @Delete(:id)+@HttpCode(204)+Admin RBAC; 변경 4파일 100% cov, unit 2486 pass). commit afdd0d3 → push. integrator: PR #143 open + gate-3 self-check PASS(reviewer 미dispatch). driver→reviewer 직접 dispatch: APPROVE(round 1/7, 0 BLOCKER/MAJOR, 2 info MINOR). 4-게이트 PASS(CI: pull_request run 26768590559 + issue_comment run 26768694274 둘 다 success — 이번엔 첫 run 도 race-win) → squash-merge 4656194 --delete-branch. planner: T-0151 큐잉(PATCH /api/llm/providers/:id, pr, ~170 LOC sizeExempt, milestone-2 마지막 코드 slice, §5 미발화). tasksCompleted 148→149. **turnCount 10 = cap 도달 → reschedule 안 함, lock 해제(ref tombstone + STATE mirror empty)** — 다음 새 /loop(필요 시 /compact·/clear 후) 또는 cron 이 T-0151 픽업. **session #37 resume 누적(t8~t10): T-0147/T-0149/T-0150 3 task merged, tasksCompleted 146→149, CI 매 push green, blockers 0, dep 0**. milestone-2 write CRUD: helper+POST+DELETE done, PATCH(T-0151)+api.md doc-sync 남음. milestone-1·3 미승인."
+    "turnCount": 1,
+    "startedAt": "2026-06-02T08:44:44+09:00",
+    "cap": 5,
+    "note": "/loop session #38 (loop@WIN-JQIPLSBL9QV-1444, cap 5, dynamic) **t1 — T-0151 PATCH endpoint merge + B-credential 해소**. 시작 시 cron@web 이 STAND DOWN ×7 (c2273b2~14442a5) 으로 refs/locks/* 403 + gh 부재라 T-0151 픽업 못 한 상태. 본 로컬 driver 는 gh 2.88.1 인증(repo scope) + refs/locks/* push 권한 보유 — ref-CAS lock 획득 success(264b9aa→b7b0ac2). 정상 driver 로서 B-credential-2026-06-02T02:03Z(env 한계 BLOCKED) 해소 + T-0151 픽업. nextTask=T-0151→current. feature branch claude/T-0151-llm-provider-config-update-endpoint(base 14442a5) → executor: PATCH /api/llm/providers/:id(UpdateLlmProviderConfigDto 4필드 @IsOptional, repository.update partial forward, service.update provider 검증+partial data+apiKey 명시=재암호화/부재=기존 ciphertext 유지+P2025→404, controller @Patch(:id) Admin+; ADR-0014 §3 never-read-back. 8파일 +866, 신규 4파일 100% cov, 1330 tests pass). commit e7d01be → push. integrator: PR #144 open + reviewer dispatch APPROVE(round 1/7, 0 BLOCKER/MAJOR, 1 MINOR=api.md doc-sync 추적 deferral). 4-게이트 PASS(PR CI: pull_request run e7d01be + issue_comment run 14442a5 둘 다 success) → squash-merge 004e705 --delete-branch. post-merge main CI(push, run 004e705) in_progress — 다음 turn 재확인. planner: T-0152 큐잉(api.md §5 write CRUD doc-sync POST/PATCH/DELETE, direct, ~28 LOC/1파일, milestone-2 chain 4/4 마무리). tasksCompleted 149→150. milestone-2 write CRUD: helper+POST+DELETE+PATCH done → 코드 slice 완료, 남은 건 T-0152 doc-sync. milestone-1·3 미승인(§5)."
   },
   "ci": {
-    "lastRun": "2026-06-02T01:51:00+09:00",
-    "status": "green",
+    "lastRun": "2026-06-02T08:57:31+09:00",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26768833357",
-    "note": "T-0150 PR #143 CI(pull_request run 26768590559 + issue_comment run 26768694274) 둘 다 success → squash-merge 4656194. post-merge main CI(run 26768833357, push) success. 이번엔 첫 pull_request run 도 reviewer comment race-win 으로 green. consecutiveFails 0."
+    "note": "T-0151 PR #144 CI(pull_request run e7d01be + issue_comment run 14442a5) 둘 다 success → squash-merge 004e705. post-merge main CI(push, headSha 004e705) in_progress — 다음 turn [1] 에서 conclusion 재확인. PR CI 가 이미 green 이라 merge gate-4 충족. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -37,17 +40,8 @@
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
-  "blockers": [
-    {
-      "id": "B-credential-2026-06-02T02:03Z",
-      "raisedAt": "2026-06-02T02:03:56+09:00",
-      "raisedBy": "cron@web-3436 (Anthropic 클라우드 fresh checkout)",
-      "reason": "credential",
-      "details": "ref-CAS lock 획득 push (HEAD:refs/locks/driver --force-with-lease=264b9aa) 가 HTTP 403 (RPC failed). 본 web execution env 는 refs/locks/* push 권한 부재 — driver loop 의 ADR-0009 ref-CAS mutex 가정과 mismatch. main 자체 push 는 권한 보유 확인 (본 BLOCKED bookkeeping commit c2273b2 push success). 단 ref-CAS lock 부재로 다른 driver 와의 상호배제 보장 없음 → T-0151(pr-mode code task, feature branch + PR via MCP + 4-게이트 + merge 필요) race 위험으로 진행 보류. gh CLI 미설치(`which gh` exit 1) 추가 제약 — MCP github tools 는 가용하나 정상 cron/loop 의 gh-friendly path 와 차이. LOOP.md §1 [5] credential 처리. 다음 정상 driver(gh + refs/locks/* 권한) 가 T-0151 픽업.",
-      "status": "OPEN",
-      "remediationHint": "본 BLOCKED 는 단일 invocation env 한계 — 정책 변경 불요. T-0151 은 nextTask 보존 상태로 다음 정상 발화가 픽업하면 unblock. 본 entry 는 다음 정상 driver turn 의 bookkeeping 에서 archive 처리 가능."
-    }
-  ],
+  "blockers": [],
+  "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지.",
   "humanQuestions": [
     {
       "id": "Q-0013",
@@ -72,7 +66,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 149,
+    "tasksCompleted": 150,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

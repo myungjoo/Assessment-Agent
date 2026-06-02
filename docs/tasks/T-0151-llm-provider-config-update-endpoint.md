@@ -2,8 +2,12 @@
 id: T-0151
 title: PATCH /api/llm/providers/:id — LLM provider config 부분 수정 endpoint (optional apiKey 재암호화 / never-read-back 유지)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 144
+mergedAs: 004e705
+reviewRounds: 1
+completedAt: 2026-06-02T08:57:00+09:00
 coversReq: [REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-043, REQ-096]
 estimatedDiff: 170
 estimatedFiles: 7
