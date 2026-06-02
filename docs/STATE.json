@@ -2,25 +2,25 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0181",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
-    "since": "2026-06-03T02:34:14+09:00"
+    "since": "2026-06-03T02:41:14+09:00"
   },
-  "lastActivity": "2026-06-03T02:34:14+09:00",
-  "lastCommit": "23bf78b",
+  "lastActivity": "2026-06-03T02:43:00+09:00",
+  "lastCommit": "2720168",
   "mostRecentTasks": [
+    "T-0181",
     "T-0180",
     "T-0179",
     "T-0178",
-    "T-0177",
-    "T-0176"
+    "T-0177"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-03T00:58:20+09:00",
     "cap": 10,
-    "note": "/loop session #43 (loop@AKIHA-93ae, cap 10, dynamic) **t7 — T-0181 큐잉 (ADR-0016 + ADR-0017 status PROPOSED→ACCEPTED 동기화, direct doc-sync)**. [1] fetch + lock heartbeat(turnCount 6→7), origin/main=92895b9 변동 0, humanQuestion 0. [2] currentTask/nextTask 둘 다 null → planner dispatch → T-0181(commitMode direct §3.1 rule 4, ADR-0016 transport 계약[T-0174~0176 merge]·ADR-0017 config source[T-0178~0180 merge] 구현 완료됐으나 frontmatter+INDEX status 가 PROPOSED stale → ACCEPTED 전이, ~14 LOC/3 file, dep0/§5 미발화, ADR-0015/T-0172 precedent) 큐잉, nextTask=T-0181. modules.md 는 이미 current(planner 확인). 본 turn=doc-only direct commit(queuing). **다음 t8: nextTask T-0181→current, driver 직접 실행(direct ADR status flip, PR 없음)**. reschedule 60s. milestone-3 dependency-free backlog 희박 — T-0181 후 잔여는 대부분 §5 게이트(PermissionDeniedRecord schema / live-run credential) 또는 P5 logic(REQ-014 Issue eval). t9~t10 에서 planner 가 추가 dep-free 후보 미식별 시 Q-0018 escalate 가능. milestone-1 live-run(Q-0016 optionA)·ConfluenceAdapter 도 잔여."
+    "note": "/loop session #43 (loop@AKIHA-93ae, cap 10, dynamic) **t8 — T-0181 DONE (ADR-0016 + ADR-0017 status PROPOSED→ACCEPTED 동기화, direct commit 2720168)**. [1] fetch + lock heartbeat(turnCount 7→8), origin/main=c152d88 변동 0, humanQuestion 0. [2] nextTask=T-0181→current(direct mode). [3] driver 직접 실행(direct doc-only, PR/tester 없음 — R-110/R-112 면제): ADR-0016 frontmatter+blockquote ACCEPTED 전이(transport 계약 T-0174~0176 박제) + ADR-0017 frontmatter+blockquote ACCEPTED 전이(config source T-0178~0180 박제, live-run §5 deferred 명시) + INDEX.md 2 row PROPOSED→ACCEPTED. 3 파일, 코드·modules.md 무변경. deliverable commit 2720168 + 본 bookkeeping commit. tasksCompleted 178→179. **다음 t9: planner dispatch — milestone-3 dependency-free backlog 희박(잔여 = §5 게이트 PermissionDeniedRecord schema/live-run credential, 또는 P5 logic REQ-014 Issue eval). genuine dep-free 미식별 시 Q-0018 escalate. cap 10 — t9 queue(or escalate)/t10 execute 후 STOP 예상**. reschedule 60s. milestone-3 잔여: PermissionDeniedRecord entity(§5 schema) + GitHub live-run(§5 credential). milestone-1 live-run(Q-0016 optionA)·ConfluenceAdapter 도 잔여."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
@@ -154,7 +154,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 178,
+    "tasksCompleted": 179,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

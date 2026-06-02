@@ -2,8 +2,10 @@
 id: T-0181
 title: ADR-0016 + ADR-0017 status PROPOSED→ACCEPTED 동기화 (GithubAdapter transport·config source 구현 완료 반영)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
+committedAs: 2720168
+completedAt: 2026-06-03T02:43:00+09:00
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008]
 estimatedDiff: 14
 estimatedFiles: 3
