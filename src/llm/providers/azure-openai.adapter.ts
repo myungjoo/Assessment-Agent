@@ -33,7 +33,8 @@ export interface AzureOpenaiRequestInput {
   // LLM 에 전달할 사용자 프롬프트 (chat messages 의 user content).
   prompt: string;
   // 공통 옵션 — modelId 는 input.modelId 가 deployment id 로 우선, difficulty 는
-  // body hint 로 싣지 않고(난이도 routing 은 Follow-up #3) shaping 분기에만 반영.
+  // 명시된 경우 system message 로 body 에 prepend 한다(난이도별 provider/model
+  // routing 은 본 slice 밖 — Follow-up #3).
   options: LlmGenerateOptions;
 }
 
