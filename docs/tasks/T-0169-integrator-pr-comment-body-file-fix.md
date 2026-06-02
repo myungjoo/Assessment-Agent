@@ -2,8 +2,9 @@
 id: T-0169
 title: integrator.md PR comment posting 을 --body-file 로 명문화 (@- heredoc 버그 차단)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
+completedAt: 2026-06-02T17:20:00+09:00
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 18
 estimatedFiles: 1
