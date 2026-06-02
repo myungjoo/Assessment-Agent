@@ -2,25 +2,25 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0182",
+  "nextTask": null,
   "lock": {
-    "holder": "loop",
-    "since": "2026-06-03T02:47:10+09:00"
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-03T02:47:10+09:00",
-  "lastCommit": "bfcf6d8",
+  "lastActivity": "2026-06-03T03:08:31+09:00",
+  "lastCommit": "edc37aa",
   "mostRecentTasks": [
+    "T-0182",
     "T-0181",
     "T-0180",
     "T-0179",
-    "T-0178",
-    "T-0177"
+    "T-0178"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-03T00:58:20+09:00",
     "cap": 10,
-    "note": "/loop session #43 (loop@AKIHA-93ae, cap 10, dynamic) **t9 — T-0182 큐잉 (GithubAdapter 실 fetch round-trip local stub smoke, T-0168 패턴 mirror)**. [1] fetch + lock heartbeat(turnCount 8→9), origin/main=bfcf6d8 변동 0, humanQuestion 0. [2] currentTask/nextTask 둘 다 null → planner dispatch(cap-aware: t9 queue/t10 LAST execute) → T-0182(commitMode pr, Node 내장 http.createServer 로 OpenAI-호환 아닌 GitHub REST stub 1개 띄우고 GithubInstanceClient/GithubAdapter 가 실 globalThis.fetch 로 round-trip[헤더 직렬화·base URL 조립·non-2xx·Link pagination 실수신] 검증, production code 무변경·smoke spec only, 새 dep0/credential0/§5 미발화, single-turn 완결) 큐잉, nextTask=T-0182. github roundtrip smoke 부재 확인(superseded 아님). 본 turn=doc-only direct commit(queuing). **다음 t10(LAST, cap 10): nextTask T-0182→current, driver 직접 dispatch(pr-mode: tester smoke→PR→reviewer→integrator) → merge → cap STOP(reschedule 안 함, /compact·/clear 후 새 /loop 또는 cron 안내). round 다수 spill 시 PR resume 으로 다음 session 이어받음**. reschedule 60s. session #43 누적(t1~t9): milestone-3 GitHub chain 5 완결(T-0178 wiring/T-0179 token decrypt/T-0180 client orchestrator/T-0181 ADR-0016·0017 ACCEPTED), tasksCompleted 175→179, CI 매 push green, blockers 0, dep 0, §5 미발화. milestone-3 잔여(다음 session/cron): PermissionDeniedRecord entity(§5 schema) + GitHub live-run(§5 credential) + ConfluenceAdapter. milestone-1 live-run(Q-0016 optionA) 도 잔여."
+    "note": "/loop session #43 (loop@AKIHA-93ae, cap 10, dynamic) **t10 — T-0182 DONE/MERGED (GithubAdapter 실 fetch round-trip stub smoke, PR #165 squash edc37aa) + cap 10 도달 STOP**. [1] fetch + lock heartbeat(turnCount 9→10), origin/main=5cdffbf 변동 0, humanQuestion 0. [2] nextTask=T-0182→current(pr-mode). [3] driver 직접 dispatch: tester→test/smoke/github-adapter-roundtrip.smoke-spec.ts(내장 http.createServer GitHub REST stub + 실 globalThis.fetch round-trip, 7 test: host URL/header 직렬화·2xx JSON·403/404/500/malformed→GithubDomainError 매핑+emit·Link rel=next 2-page·§9 token 비노출, production code 무변경). lint+build green, isolation 7/7 PASS. [4] PR #165: reviewer APPROVE round 1/7(0 B/MAJ/MIN, 2 INFO — scheme-rewrite wrapper·CI-only 전체실행 수용). **CI 타이밍: pull_request run 26838426217 가 approval step 을 comment 직전 평가→fail(코드 step 전부 green) → comment 존재 후 rerun→success(7fa1db1, 전체 test:smoke 포함).** integrator 4-gate 전부 PASS→MERGED squash edc37aa. tasksCompleted 179→180, reviewRounds[T-0182]=1. **[8](e) loopSessionTurnCount=10 = cap 도달 → reschedule 안 함, lock 해제(ref tombstone + STATE mirror empty). session #43 종료.** **session #43 누적(t1~t10): P4 milestone-3 GitHub chain 6 완결 — T-0178 GithubModule wiring + env config parser / T-0179 token JIT decrypt / T-0180 GithubInstanceClient orchestrator / T-0181 ADR-0016·0017 ACCEPTED / T-0182 round-trip stub smoke. tasksCompleted 175→180(+5 merge, T-0181 direct), reviewRounds: T-0178=1·T-0179=2·T-0180=2·T-0182=1, CI 매 push green, blockers 0, dep 0, 실 credential 0, §5 미발화 유지. 부수: t3 STATE.json JSON invalid(note tail dangling) t4 복구 + note-edit memory 박제.** milestone-3 잔여(다음 session/cron): PermissionDeniedRecord entity(§5 schema migration) + GitHub live-run(§5 credential, ADR-0017 chain row3) + ConfluenceAdapter(신규 dep-free 영역, ADR-0013 기반). milestone-1 live-run(Q-0016 optionA)·REQ-014 GitHub Issue eval(P5 logic) 도 잔여. 다음 pickup: /compact 또는 /clear 후 새 /loop, 또는 cron 발화."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
@@ -41,7 +41,8 @@
     "T-0177": 1,
     "T-0178": 1,
     "T-0179": 2,
-    "T-0180": 2
+    "T-0180": 2,
+    "T-0182": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -154,7 +155,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 179,
+    "tasksCompleted": 180,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

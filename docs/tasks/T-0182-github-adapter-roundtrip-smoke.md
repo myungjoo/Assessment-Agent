@@ -2,8 +2,12 @@
 id: T-0182
 title: GithubAdapter 실 fetch round-trip 을 local stub 서버 smoke 로 검증
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 165
+mergedAs: edc37aa
+completedAt: 2026-06-03T03:05:00+09:00
+reviewRounds: 1
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-044, REQ-059]
 estimatedDiff: 180
 estimatedFiles: 1
