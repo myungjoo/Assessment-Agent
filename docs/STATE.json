@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0170",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
-    "since": "2026-06-02T17:19:22+09:00"
+    "since": "2026-06-02T17:25:16+09:00"
   },
-  "lastActivity": "2026-06-02T17:20:00+09:00",
-  "lastCommit": "f72db88",
+  "lastActivity": "2026-06-02T17:26:00+09:00",
+  "lastCommit": "5e74480",
   "mostRecentTasks": [
+    "T-0170",
     "T-0169",
     "T-0168",
     "T-0167",
-    "T-0166",
-    "T-0165"
+    "T-0166"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-02T13:33:31+09:00",
     "cap": 10,
-    "note": "/loop session #40 (loop@WIN-JQIPLSBL9QV-s40, cap 10, dynamic) **t7 — T-0169 DONE(integrator.md --body-file 박제) + T-0170 큐잉**. [1] fetch(HEAD==origin/main==f72db88) + lock heartbeat(turnCount 6→7, since 17:19) + t6 doc CI(f72db88) success 확인. nextTask=T-0169→current. executor(direct meta): .claude/agents/integrator.md 의 reviewer comment post 2곳(게이트(c) self-finding + local /loop fallback)을 `gh pr comment --body-file <tempfile>`(또는 --body inline)로 명문화, `--body @-`/heredoc 금지 + post 직후 `gh pr view --json comments` 검증 step + PR-154 incident 사유 note + reviewer.md cross-ref +3/-1. tester 면제(R-110 direct meta-only). tasksCompleted 166→167. planner: dependency-free 최종 재탐색 — milestone-1 live 통합은 §5 credential 게이트(Q-0016 option A, deferred), milestone-3/T-0154 §5/cloud HITL, other-provider round-trip coverage-theater → **T-0170 큐잉**(modules.md L37 LlmModule 상태 문장이 '실 HTTP 미착수'로 T-0168 round-trip smoke 머지 후 stale → doc-only direct 1문장 정합, live endpoint 만 §5 deferred 로 명확화). **주의: T-0170 후 dependency-free backlog 사실상 소진 — 다음은 milestone-1 live 통합(Q-0016 option A, live endpoint+API key+LLM_APIKEY_ENC_KEY env 주입) HITL 재확인 예상.** 다음: T-0170(direct doc-only) 픽업."
+    "note": "/loop session #40 (loop@WIN-JQIPLSBL9QV-s40, cap 10, dynamic) **t8 — T-0170 DONE(modules.md transport 상태 정합) + dependency-free backlog 소진 확정 → live 통합 게이트 사용자 결정 대기**. [1] fetch(HEAD==origin/main==5e74480) + lock heartbeat(turnCount 7→8, since 17:25) + t7 doc CI(5e74480) in_progress(doc-only 비차단). nextTask=T-0170→current. executor(direct doc-only): modules.md L37 LlmModule 상태 문장을 'unit-level dispatch 까지 ... 실 HTTP 미착수'(stale)에서 '실 globalThis.fetch transport 배선 + 로컬 stub round-trip smoke(T-0168/PR-155) closeout 완료 — 잔여 = live endpoint+실 credential 만 §5 deferred(Q-0016 option A)'로 +1/-1 정합. tester 면제(R-110 direct doc-only). tasksCompleted 167→168. **planner dispatch: T-0170 을 SUPERSEDED(by ac19743)로 오판 → driver 가 origin/main:modules.md L37 직접 대조해 stale 문장이 여전히 committed 임을 확인, T-0170 legitimate DONE 으로 정정(planner 의 staged-vs-merged 재오독, t1 과 동일 패턴 — T-0163 은 T-0168 보다 앞서 머지돼 round-trip smoke 문서화 불가).** planner 의 broader 결론(dependency-free backlog 소진)은 유효 — 잔여 전부 §5/cloud HITL: milestone-1 live 통합(Q-0016 option A: live endpoint+provider API key+LLM_APIKEY_ENC_KEY env 주입) / milestone-3(GitHub·Confluence: 새 dep+token) / T-0154(cloud push 권한). **사용자 standing 지시('결정 필요시 즉시 물어라')에 따라 driver 가 AskUserQuestion 으로 직접 질의 — 새 humanQuestion 미생성(Q-0015/0016 중복 회피).** 다음: 사용자 결정에 따라."
   },
   "ci": {
-    "lastRun": "2026-06-02T17:20:00+09:00",
+    "lastRun": "2026-06-02T17:26:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/155",
-    "note": "t7: t6 bookkeeping doc commit(f72db88) push CI success 확인 → main green. T-0169 는 direct meta-only commit(.claude/agents/integrator.md) — push CI 만 trigger. consecutiveFails 0."
+    "note": "t8: t7 direct meta commit(5e74480) push CI in_progress(doc/meta-only 비차단, 다음 turn 재확인). 직전 확정 success 는 f72db88(t6). main green. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -124,7 +124,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 167,
+    "tasksCompleted": 168,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
