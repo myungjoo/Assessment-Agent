@@ -2,12 +2,16 @@
 id: T-0177
 title: ADR-0017 — GithubModule instance sub-config source (env 기반) 결정 박제
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-044]
 estimatedDiff: 130
 estimatedFiles: 3
 created: 2026-06-03
+completedAt: 2026-06-03T00:42:46+09:00
+prNumber: 161
+mergeCommit: 014ba12
+reviewRounds: 1
 plannerNote: P4 milestone-3 — ADR-0016 §2 가 deferred 한 instance sub-config source(env vs DB) 결정. GithubModule wiring + token JIT decrypt 의 공통 선행. ADR-first split.
 ---
 
