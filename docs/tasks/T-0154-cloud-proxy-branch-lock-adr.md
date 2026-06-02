@@ -13,6 +13,18 @@ plannerNote: P4 운영 infra (ADR-0009 후속, REQ 매핑 없음 — dependency-
 
 # T-0154 — ADR-0015 신설: cron@web 자율성 확보를 위한 claude/\* 브랜치 기반 driver lock
 
+## ⚠️ Premise 재검증 (선행 BLOCKING gate — ADR 작성 전 필수)
+
+**2026-06-02 사용자가 그동안 Claude web 이 요청해 온 GitHub 권한을 (Gmail inbox 에서 뒤늦게 발견하고) 부여했다.** 이 권한 변화가 본 task 의 전제(cron@web 의 `refs/locks/* 403`)를 바꿨을 수 있으므로, **ADR-0015 본문 작성에 착수하기 전에 다음을 반드시 경험적으로 재검증**한다:
+
+1. **cron@web 을 1회 실제 발화**(routine "Run now" 또는 `/schedule run`)시켜, driver 가 ref-CAS lock 획득 시 `git push <sha>:refs/locks/driver --force-with-lease` 가 **여전히 HTTP 403 인지** 관찰한다 (로컬 기기는 원래 권한 보유라 클라우드 거동을 재현 못 함 — 반드시 cloud fire 로 확인).
+2. **분기**:
+   - **여전히 403** → 본 task 그대로 진행 (proxy 의 비-`claude/*` ref push 제한이 GitHub App 권한과 무관한 별도 safety 층임이 확정). architect → ADR-0015 작성.
+   - **403 사라짐** (권한 부여만으로 lock push 성공) → **본 task 는 불필요해진 것** → status 를 SUPERSEDED/CANCELLED 로 doc-only 종료하고, 그 사실(권한 부여로 해소)을 journal + STATE 에 박제. ADR-0015 미작성. (대신 ADR-0009 ref-CAS 모델 유지가 클라우드에서도 성립함을 한 줄 기록 권장.)
+3. 판단 근거: 공식 문서상 `refs/locks/* 403` 은 sandbox credential **proxy 의 push 정책**(`claude/*` 제한 + "Allow unrestricted branch pushes" 토글)이 지배하며 이는 GitHub App scope 와 다른 층 — 따라서 **403 잔존 가능성이 높다**(branch-lock 재설계가 여전히 정답일 공산). 그러나 proxy 내부 동작이 권한 grant 로 바뀌었을 여지가 있어 맹목적 ADR 착수를 막기 위해 본 gate 를 둔다.
+
+이 gate 의 결과(403 잔존/해소)를 먼저 trail 에 남긴 뒤에야 아래 Acceptance Criteria 로 진행한다.
+
 ## Why
 
 사용자가 "cron/schedule 이 스스로 필요한 권한을 획득하게 하자"는 운영 목표를 제시했고, 그 근본 원인을 공식 문서로 규명했다.
