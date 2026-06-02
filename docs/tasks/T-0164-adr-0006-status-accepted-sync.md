@@ -2,8 +2,9 @@
 id: T-0164
 title: ADR-0006 status PROPOSED→ACCEPTED 동기화 (Assessment/Contribution/Summary 구현 완료 반영)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
+completedAt: 2026-06-02T13:35:00+09:00
 coversReq: [REQ-029, REQ-032, REQ-033, REQ-034, REQ-035, REQ-036]
 estimatedDiff: 14
 estimatedFiles: 1
@@ -25,10 +26,10 @@ plannerNote: P4 doc-sync — ADR-0006 결정이 schema/repo/controller 로 main 
 
 ## Acceptance Criteria
 
-- [ ] `docs/decisions/ADR-0006-assessment-data-model.md` frontmatter 의 `status: PROPOSED` 를 `status: ACCEPTED (2026-06-02)` 로 변경 (ADR-0009 의 `ACCEPTED (2026-06-01)` 형식 mirror).
-- [ ] ADR 본문 제목 (`# ADR-0006 — ...`) 바로 아래에 PROPOSED→ACCEPTED 전이 note 를 blockquote (`>`) 로 추가 — 구현 안착 증거 명시: schema (`prisma/schema.prisma` Assessment/Contribution/Summary 3 model, `@@unique([personId, period, scope, periodStart])` 포함) + repository/service/controller (`src/user/assessment.*`) 가 main 에 머지됨. ADR-0009 의 전이 note 형식 (gate 였던 후속 task 가 머지됐음을 1~3 줄로) 참조.
-- [ ] schema / 코드 파일은 **수정하지 않는다** — ADR 한 파일만 변경 (frontmatter status + 본문 note). 변경 LOC ≤ 20.
-- [ ] `git diff --stat` 로 변경 파일이 `docs/decisions/ADR-0006-assessment-data-model.md` 1 개뿐임을 확인.
+- [x] `docs/decisions/ADR-0006-assessment-data-model.md` frontmatter 의 `status: PROPOSED` 를 `status: ACCEPTED (2026-06-02)` 로 변경 (ADR-0009 의 `ACCEPTED (2026-06-01)` 형식 mirror).
+- [x] ADR 본문 제목 (`# ADR-0006 — ...`) 바로 아래에 PROPOSED→ACCEPTED 전이 note 를 blockquote (`>`) 로 추가 — 구현 안착 증거 명시: schema (`prisma/schema.prisma` Assessment/Contribution/Summary 3 model, `@@unique([personId, period, scope, periodStart])` 포함) + repository/service/controller (`src/user/assessment.*`) 가 main 에 머지됨. ADR-0009 의 전이 note 형식 (gate 였던 후속 task 가 머지됐음을 1~3 줄로) 참조.
+- [x] schema / 코드 파일은 **수정하지 않는다** — ADR 한 파일만 변경 (frontmatter status + 본문 note). 변경 LOC ≤ 20.
+- [x] `git diff --stat` 로 변경 파일이 `docs/decisions/ADR-0006-assessment-data-model.md` 1 개뿐임을 확인.
 
 ## Out of Scope
 

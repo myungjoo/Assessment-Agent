@@ -1,13 +1,18 @@
 ---
 id: ADR-0006
 title: Assessment / Contribution / Summary 데이터 모델 + raw 미저장 (R-59) schema-level 강제 결정
-status: PROPOSED
+status: ACCEPTED (2026-06-02)
 date: 2026-05-31
 relatedTask: T-0109
 supersedes: null
 ---
 
 # ADR-0006 — Assessment / Contribution / Summary 데이터 모델 + raw 미저장 (R-59) schema-level 강제
+
+> PROPOSED → ACCEPTED 전이 완료 (2026-06-02). `Consequences §후속 구현 task chain` 이 gate 로 예고한 후속 구현이 모두 main 에 머지됨:
+> schema ([prisma/schema.prisma](../../prisma/schema.prisma) 의 Assessment / Contribution / Summary 3 model — `@@unique([personId, period, scope, periodStart])` · cascade · raw 본문 컬럼 0 포함),
+> repository / service / controller ([src/user/assessment.*](../../src/user/assessment.repository.ts)) 가 본 ADR 의 Decision §1~§6 과 1:1 정합으로 안착.
+> 본 전이는 status 동기화만 — Decision / Consequences / Alternatives 결정 내용은 불변.
 
 ## Context
 
