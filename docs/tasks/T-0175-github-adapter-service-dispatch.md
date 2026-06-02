@@ -2,12 +2,16 @@
 id: T-0175
 title: GithubAdapter @Injectable service — 단일 요청 dispatch + non-2xx 도메인 error 매핑 (4xx→PermissionDeniedEvent emit)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-044]
 estimatedDiff: 165
 estimatedFiles: 4
 created: 2026-06-02
+completedAt: 2026-06-02T23:47:21+09:00
+prNumber: 159
+mergeCommit: 125f486
+actualDiff: "630 LOC (prod 219 + R-112 spec 411) — sizeExempt"
 plannerNote: P4 milestone-3 GithubAdapter 2차 slice(ADR-0016 §1/§4/§6). T-0158 mirror. dep 0/§5 미발화. R-112 backbone ×1.5. pagination·module·JIT decrypt defer.
 ---
 

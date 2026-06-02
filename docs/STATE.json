@@ -2,26 +2,26 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0175",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-9124",
-    "since": "2026-06-02T23:27:23+09:00"
+    "since": "2026-06-02T23:47:21+09:00"
   },
-  "lastActivity": "2026-06-02T23:30:18+09:00",
-  "lastCommit": "d0ba94a",
+  "lastActivity": "2026-06-02T23:47:21+09:00",
+  "lastCommit": "125f486",
   "mostRecentTasks": [
+    "T-0175",
     "T-0174",
     "T-0173",
     "T-0172",
-    "T-0171",
-    "T-0170"
+    "T-0171"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-06-02T21:36:14+09:00",
     "cap": 10,
-    "note": "/loop session #42 (loop@AKIHA-9124, cap 10, dynamic) **t5 — T-0175 큐잉 (GithubAdapter @Injectable service dispatch, planner-queue turn, doc-only direct commit)**. [1] fetch + lock heartbeat(same session turnCount 4→5), t4 CI green(5d43b37 request-builder merge + d0ba94a bookkeeping), humanQuestion 0. [2] currentTask/nextTask 둘 다 null → planner dispatch: milestone-3 GithubAdapter service 첫 sub-slice 큐잉. T-0175(GithubAdapter @Injectable service — 단일 요청 dispatch: T-0174 builder→주입 FetchLike→non-2xx 도메인 error 매핑(401/403→permission-denied+PermissionDeniedEvent emit·404 not-found·429 rate-limited·5xx upstream·fetch reject transport)→JSON parse, ADR-0016 §1/§4/§6, milestone-1 T-0158 mirror). commitMode pr, ~165 prod LOC, architect 불요(ADR-0016 계약 확정) → implementer→tester. token=이미 복호화된 plaintext 인자 수용(JIT decrypt 후속 defer). PermissionDeniedEvent=주입 emitter port(default no-op). deferred(Follow-up): §5 Link pagination + GithubModule wiring + token JIT decrypt + PermissionDeniedRecord persistence + skip-and-continue loop. R-112: non-2xx 분기마다 negative. §5 미발화(내장 fetch dep 0, 실 token 0, mocked fetch). issue-still-relevant: origin/main 에 service/PermissionDeniedEvent 부재 확인. 본 turn=doc-only direct commit. **다음 turn t6: implementer 가 T-0175 구현(pr-mode: implementer→tester→PR→reviewer→integrator 4-gate→merge)**. reschedule 60s."
+    "note": "/loop session #42 (loop@AKIHA-9124, cap 10, dynamic) **t6 — T-0175 DONE/MERGED (GithubAdapter @Injectable service dispatch, PR #159 squash 125f486)**. [1] fetch + lock heartbeat(turnCount 5→6), t5 doc CI(2354116) 확인, humanQuestion 0. [2] nextTask=T-0175→current(pr-mode). [3] driver 직접 dispatch: implementer→src/github/github-adapter.service.ts(+219, GithubAdapter @Injectable + 주입 FetchLike(default globalThis.fetch) + GithubDomainError(kind/status) + PermissionDeniedEvent/Emitter(default no-op): buildGithubRequest 소비→fetch GET→ADR-0016 §4 non-2xx 매핑(401/403→permission-denied+emit·404 not-found·429 rate-limited·5xx/else upstream·fetch reject transport·malformed JSON upstream)→2xx parse, token 평문 미노출). tester→spec(+411, R-112 19 case, 신규 100% cov, 141 suite/2752 green). [4] pr-mode: PR #159. reviewer APPROVE(round 1/7, 0 BLOCKER/MAJOR/MINOR, 3 INFO)+gh comment(gate-2). pull_request run 26827230972 approval-gate step 만 fail, issue_comment run 26827363737 success(gate-4). integrator 4-gate 전부 PASS(token 비노출 양 surface 검증, sizeExempt 정당: prod 219≤300, 초과분 R-112 spec 411)→DECISION MERGED. driver squash-merge 125f486 --delete-branch. tasksCompleted 172→173, reviewRounds[T-0175]=1. **size note: diff 630(prod 219 주석多 + spec 411) sizeExempt**. [6] doc-only direct commit. **다음 turn t7: planner 가 milestone-3 차순위 sub-slice(Link pagination / GithubModule wiring / token JIT decrypt 중 1개, dependency-free 내장 fetch) 큐잉 예정. cap 10 — t7 queue/t8 execute/t9 queue/t10 execute 후 cap STOP 예상**. reschedule 60s."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
@@ -36,7 +36,8 @@
     "T-0139": 1,
     "T-0140": 1,
     "T-0173": 1,
-    "T-0174": 1
+    "T-0174": 1,
+    "T-0175": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -149,7 +150,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 172,
+    "tasksCompleted": 173,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
