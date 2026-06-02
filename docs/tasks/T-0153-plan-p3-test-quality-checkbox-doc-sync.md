@@ -2,8 +2,9 @@
 id: T-0153
 title: PLAN.md P3 test-quality 체크박스 doc-sync — L63~66 stale [ ] → merged reality [x]
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
+completedAt: 2026-06-02T09:22:00+09:00
 coversReq: [R-112, R-113]
 estimatedDiff: 8
 estimatedFiles: 1
