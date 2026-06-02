@@ -242,7 +242,9 @@ describe("decryptGithubInstanceToken", () => {
         // 의 Error realm 과 달라 toBeInstanceOf(Error) 가 부정확하므로 (jest 의
         // toThrow 도 duck-typing 으로 판정) message 속성 존재로 throw 를 검증한다.
         expect(caught).toBeDefined();
-        const message = String((caught as { message?: unknown })?.message ?? "");
+        const message = String(
+          (caught as { message?: unknown })?.message ?? "",
+        );
         expect(message.length).toBeGreaterThan(0);
         // 핵심 — 평문 token 문자열이 error message 에 포함되지 않음 (never-read-back).
         expect(message).not.toContain(FAKE_TOKEN);
