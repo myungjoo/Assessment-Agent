@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0168",
   "lock": {
-    "holder": "",
-    "since": ""
+    "holder": "loop",
+    "since": "2026-06-02T16:52:56+09:00"
   },
-  "lastActivity": "2026-06-02T14:16:00+09:00",
+  "lastActivity": "2026-06-02T16:55:00+09:00",
   "lastCommit": "2e5d725",
   "mostRecentTasks": [
     "T-0167",
@@ -17,10 +17,10 @@
     "T-0163"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-02T13:33:31+09:00",
     "cap": 10,
-    "note": "/loop session #40 (loop@WIN-JQIPLSBL9QV-s40, cap 10, dynamic) **t4 — T-0167 MERGED(PR-154 round1, 2e5d725) + Q-0015 escalation → loop STOP(미해결 humanQuestion, [8](a))**. [1] fetch(HEAD==origin/main==c4f834c) + lock heartbeat(turnCount 3→4, since 14:11). nextTask=T-0167→current. executor(pr-mode comment-only): llm-gateway.interface.ts LlmGenerateOptions.difficulty JSDoc 의 'placeholder·매핑 로직 0' 제거 → resolveModel routing reality 정합 +4/-2, 시그니처 불변. tester: 140 suite/2763 pass, coverage 100%(comment-only 영향 0). integrator: PR-154 open→reviewer APPROVE→4-게이트 PASS→squash merge(2e5d725)+branch delete, round 1. **operational note: integrator 첫 reviewer comment 가 `gh pr comment --body @-` heredoc 미연결 버그로 literal '@-' post → approval-gate issue_comment CI(c4f834c) 1회 failure → `--body-file -` 재post + `gh run rerun` 자가치유 → 05:22 issue_comment CI success. main push CI(c4f834c)·merge CI(2e5d725) 둘 다 success — main green, consecutiveFails 0 유지(코드/build/test fail 아님, approval-gate transient).** tasksCompleted 164→165. planner final survey(t4): dependency-free backlog 진짜 소진 확정 — type-tightening(difficulty→union) 후보 검토했으나 gateway negative test compile-break 로 기각, doc/PLAN/ADR 전부 정합, gateway 5 provider wired. notifier: **Q-0015 OPEN 기록**(milestone-1 실 LLM HTTP 통합 / milestone-3 GitHub·Confluence adapters / T-0154 cloud-fire 전부 §5/cloud HITL 미승인, 권장순서 m1→m3→T-0154). **follow-up 후보(dependency-free, 차기 planner): .claude/agents/integrator.md 의 PR comment post 를 `--body-file -` 로 수정해 `@-` 버그 재발 차단.** loop STOP — lock 해제(ref tombstone + mirror empty). Q-0015 resolve(resolvedAt+decision 기입) 후 새 /loop 재개."
+    "note": "/loop session #40 (loop@WIN-JQIPLSBL9QV-s40, cap 10, dynamic) **t5 — Q-0015·Q-0016 RESOLVED(사용자 직접 결정) + T-0168 큐잉, loop 재개**. t4 에서 loop 가 Q-0015(dependency-free backlog 소진) 로 STOP 했으나 사용자가 '결정 필요하면 즉시 물어라' 지시 → driver 가 AskUserQuestion 3회로 milestone-1 scoping 확정. **Q-0015 RESOLVED**: milestone-1(실 LLM HTTP 통합) 승인 — HTTP transport=Node 내장 fetch(새 dep 0), 첫 provider=custom(OpenAI-호환), credential 범위=mocked-fetch 까지만(live key 미발화). lock tombstone→loop CAS 재획득(turnCount 4→5 동일 conversation 누적). planner dispatch #1: Q-0015 승인 scope(custom transport+mocked-fetch unit)가 **이미 main 박제**(T-0157 PR-147 adapter / T-0158 PR-148 gateway wiring, FetchLike default globalThis.fetch + non-2xx 매핑 + spec negative cover) 확인 → task abort + **Q-0016 raise**(issue-already-fixed-on-main). driver 가 gateway 소스 직접 대조로 planner 주장 검증 완료. **Q-0016 RESOLVED**: 사용자가 option (B) 선택 — 실 credential 0 으로 local stub HTTP 서버(Node 내장 http.createServer, OpenAI-호환 /chat/completions) round-trip smoke/e2e 로 실 globalThis.fetch transport 잔여 risk closeout. planner dispatch #2: issue-still-relevant pre-check(grep createServer/round-trip in test/ = 0 매치, 기존 spec 은 jest-mock fetch 라 실 fetch 미검증) → **T-0168 큐잉**(pr-mode, test/smoke, dep 0/credential 0/§5 미발화). 이 turn 은 task 완료 0(Q resolution + 큐잉만) → counters 불변(165 유지). **follow-up 잔존(차기 planner): integrator.md PR comment 를 --body-file 로 수정(@- 버그).** 다음: T-0168(pr-mode, gh 가용) 픽업."
   },
   "ci": {
     "lastRun": "2026-06-02T14:13:00+09:00",
@@ -83,7 +83,7 @@
       "raisedAt": "2026-06-02T14:15:00+09:00",
       "raisedBy": "loop@WIN-JQIPLSBL9QV-s40 session #40 t4 (planner final survey → needs-human-decision)",
       "reason": "needs-human-decision",
-      "status": "OPEN",
+      "status": "RESOLVED",
       "summary": "난이도 routing wiring chain (T-0160→T-0167) 과 그 doc/comment sync 가 모두 main 에 머지되면서, HITL 게이트에 걸리지 않는 dependency-free 작업 backlog 가 진짜로 소진됐다. LlmHttpGateway 는 5 provider (custom / azure_openai / anthropic / google_gemini / openai) 전부에 대해 unit 수준 dispatch + 난이도 기반 config routing 까지 in-process 로 완결됐고, ADR-0001~0014 는 전원 ACCEPTED, PLAN 체크박스도 정합 상태다. 남은 P4 주요 milestone 3종이 모두 CLAUDE.md §5 HITL 게이트 (새 외부 dependency / 외부 자격증명 / cloud push 권한) 에 걸려 있어 사용자 승인 없이는 loop 가 진행할 가치 있는 dependency-free 작업이 없다.",
       "context": "이번 세션 (#40) 에서 T-0164 (ADR-0006 status ACCEPTED sync) → T-0165 (LlmHttpGateway 난이도 routing wiring, PR-153) → T-0166 (modules.md 난이도 routing doc-sync) → T-0167 (llm-gateway.interface.ts difficulty JSDoc reality 정합, PR-154) 를 완주했다. genuine 최종 재탐색 (실 코드 대조): (1) unwired slice — gateway 5 provider 전부 wired, 잔여 Follow-up (apiVersion 영속 컬럼화=schema migration, 실 네트워크/credential 통합) 전부 §5 게이트. (2) type-tightening (difficulty?: string → Difficulty union) 검토했으나 gateway spec 의 빈 문자열/unsupported negative test 를 compile-break 시켜 기각 (deliberate raw-input boundary). (3) doc-sync — modules.md/api.md/interface JSDoc/ADR-0006 모두 정합. (4) PLAN checkbox — P3=T-0153 sync 완료, P4 milestone 은 §5 미완으로 정당하게 unchecked. (5) ADR status — 0001~0014 전원 ACCEPTED. 잔여 전부 §5/cloud HITL-gated.",
       "options": [
@@ -94,7 +94,31 @@
         "대안 (dependency-free) — genuine 재탐색 결과 현 시점 진짜 신규 dependency-free value 는 미식별. 사용자 우선순위가 다르면 재지시 가능하나 planner 는 현재 make-work 로 판단."
       ],
       "recommendation": "권장 구현 순서 — (1) milestone-1 실 LLM HTTP 통합 → (2) milestone-3 GitHub/Confluence adapters → (3) T-0154 cron@web cloud-fire. 가장 큰 가치 unblock 은 milestone-1 (P5 평가 파이프라인 선행 backbone).",
-      "resolutionHint": "docs/STATE.json 의 Q-0015 에 resolvedAt (ISO) + decision (승인한 milestone + 필요한 dependency/credential 명시) 을 기입하고 commit 한 뒤 새 /loop 를 시작한다. credential (LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY) 은 코드·STATE·journal 에 적지 말고 환경변수/secret store 로 주입한다 (CLAUDE.md §9). 새 외부 dependency 가 필요한 milestone 은 loop 가 dependency-추가 ADR 를 먼저 작성한 뒤 구현 task 로 재개한다."
+      "resolutionHint": "docs/STATE.json 의 Q-0015 에 resolvedAt (ISO) + decision (승인한 milestone + 필요한 dependency/credential 명시) 을 기입하고 commit 한 뒤 새 /loop 를 시작한다. credential (LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY) 은 코드·STATE·journal 에 적지 말고 환경변수/secret store 로 주입한다 (CLAUDE.md §9). 새 외부 dependency 가 필요한 milestone 은 loop 가 dependency-추가 ADR 를 먼저 작성한 뒤 구현 task 로 재개한다.",
+      "resolvedAt": "2026-06-02T16:53:00+09:00",
+      "decision": "milestone-1 (실 LLM provider HTTP 통합) 승인 — 사용자가 session #40 t5 AskUserQuestion 으로 3개 scoping 결정: (1) HTTP transport = Node 내장 fetch (새 외부 dependency 0 → §5 의존성 게이트 미발화, dependency-추가 ADR 불요). (2) 첫 연결 provider = custom (OpenAI-호환 generic, config base URL + /chat/completions). 나머지 4 provider (azure_openai/openai/anthropic/google_gemini) 는 동일 패턴 순차 확장. (3) credential 범위 = 이번엔 mocked-fetch 까지만 — transport 계층을 실 fetch 로 배선하되 unit test 는 fetch mock 으로 검증, live endpoint·live API key 불필요 (§5 자격증명 게이트 미발화). live smoke/e2e 는 별도 후속 task 로 분리하며, 그 task 진입 시 LLM_APIKEY_ENC_KEY + provider API key 를 env/secret 로 주입 (실값은 코드/STATE/journal 금지, §9). milestone-3(GitHub/Confluence)·T-0154(cloud-fire)·apiVersion 영속 컬럼화(schema migration)는 미승인 유지. loop 재개: planner 가 custom provider HTTP transport (built-in fetch + mocked-fetch unit test) task 를 큐잉 → 구현. 주의: transport 계층 설계(에러 처리·timeout·non-2xx 매핑·기존 adapter 와의 경계)가 ADR-worthy 면 architect 가 ADR 선행.",
+      "processedByPlanner": true,
+      "processedAt": "2026-06-02T17:05:00+09:00",
+      "followupNote": "planner issue-still-relevant pre-check 결과 — Q-0015 가 기술한 '첫 milestone-1 task (custom/OpenAI-호환 provider 의 실 HTTP transport 를 Node 내장 fetch 로 LlmHttpGateway 에 배선 + mocked-fetch unit test)' 는 이미 main 에 박제됨. 새 task 생성을 abort 하고 Q-0016 로 escalate. 근거: T-0157(PR-147, 55bd04d, openai-compatible adapter) + T-0158(PR-148, 55b24be, gateway routing dispatch — FetchLike default globalThis.fetch 주입 + custom/openai/azure 분기) 가 custom transport 를 in-process 로 완결했고, 후속 T-0160/T-0162 가 anthropic/gemini 까지 동형 확장. 잔여 milestone-1 work 는 Q-0015 가 명시적으로 분리·deferred 한 'live smoke/e2e + 실 credential 주입' task 뿐인데 그건 §5 자격증명 게이트(미승인)."
+    },
+    {
+      "id": "Q-0016",
+      "raisedAt": "2026-06-02T17:05:00+09:00",
+      "raisedBy": "loop@WIN-JQIPLSBL9QV-s40 session #40 t5 planner (Q-0015 처리 중 issue-still-relevant pre-check → issue-already-fixed-on-main)",
+      "reason": "issue-already-fixed-on-main",
+      "status": "RESOLVED",
+      "summary": "Q-0015 가 승인하며 기술한 '첫 milestone-1 task' — custom(OpenAI-호환) provider 의 실 HTTP transport 를 Node 내장 fetch 로 LlmHttpGateway 에 배선하고 injected-fetch mock 으로 unit test — 는 이미 main 에 전부 박제돼 있다. 동일 의도의 새 task(T-0168)를 만들면 redundant/superseded PR(cron-race 안티패턴)이 되므로 planner 가 task 생성을 abort 하고 escalate 한다. Q-0015 가 명시적으로 분리해 deferred 한 잔여 milestone-1 work(실 credential + live smoke/e2e)는 §5 자격증명 게이트라 미승인 상태 그대로다 — 사용자 결정 필요.",
+      "context": "main 코드 대조 결과: (1) src/llm/llm-http-gateway.service.ts 의 LlmHttpGateway.generate 는 이미 FetchLike(default globalThis.fetch = Node 내장 fetch)를 @Optional 생성자 주입으로 받아 custom/openai/azure_openai/anthropic/google_gemini 5 provider 를 build→fetch→non-2xx 매핑→parse 로 dispatch 한다(T-0158 PR-148 55b24be 가 custom/openai/azure wiring, T-0160 PR-150 anthropic, T-0162 PR-152 gemini). (2) src/llm/providers/openai-compatible.adapter.ts(T-0157 PR-147 55bd04d)는 custom/openai 의 {url,headers,body} 조립 + 응답 파싱 + assertNonEmpty(missing config field 방어)를 완결. (3) src/llm/llm-http-gateway.service.spec.ts(38KB, 140 suite 의 일부)는 Q-0015 가 요구한 negative case 를 이미 cover — non-2xx(500) 응답(line 404), fetch reject/네트워크 오류(277·388), malformed JSON(choices 누락·빈 배열, 311·420), config 부재(226), decrypt 실패(263·436), default globalThis.fetch 분기(325). 즉 'mocked-fetch transport layer' 는 이미 존재하고 검증됨. Q-0015 의 본문도 'live smoke/e2e 는 별도 후속 task 로 분리, 그 task 에서 LLM_APIKEY_ENC_KEY + provider API key 를 env 주입' 이라 명시 — 그 deferred task 만이 진짜 잔여 work 이며 §5 자격증명 게이트다.",
+      "options": [
+        "(A) live LLM 통합 task 승인 — milestone-1 의 진짜 잔여분. 실 endpoint(custom OpenAI-호환 base URL) + 실 provider API key + LLM_APIKEY_ENC_KEY 를 env/secret 로 주입(실값은 코드/STATE/journal 금지, §9). live smoke/e2e(test/smoke·test/e2e) 가 실 네트워크로 LlmHttpGateway.generate 를 1회 호출해 narrative 반환을 검증. §5 자격증명 게이트 발화 — 사용자가 credential 주입 경로를 명시 승인해야 진행.",
+        "(B) 실 credential 없이 검증 가능한 가짜-live 통합 task 승인 — 로컬 stub HTTP 서버(예: nock 대체로 내장 http.createServer 로 OpenAI-호환 /chat/completions echo 서버 1개)를 e2e/smoke 레벨에서 띄워 LlmHttpGateway 가 실 globalThis.fetch 로 그 stub 에 도달하는 end-to-end 경로를 검증. 새 외부 dependency 0(내장 http) / 실 credential 0. mocked-fetch unit 과 달리 실 fetch round-trip 을 통과시켜 transport 배선의 잔여 risk(헤더 직렬화·URL 조립·non-2xx 실수신)를 closeout.",
+        "(C) milestone-1 종결 선언 + 차순위로 전환 — custom transport 는 in-process 로 완결됐다고 보고 milestone-1 의 mocked 범위를 DONE 처리, milestone-3(GitHub/Confluence adapters, Q-0015 미승인) 또는 다른 우선순위로 재지시. 잔여 live 통합은 P5 평가 파이프라인 또는 배포 단계에서 일괄 처리.",
+        "(D) doc-only 정합 — LlmModule 의 milestone-1 현 상태(5 provider mocked transport 완결, live 미착수)를 modules.md/PLAN 에 명시적으로 박제하는 direct doc-sync 1건만 진행(§5 미발화). 그 후 위 A/B/C 중 하나 결정."
+      ],
+      "recommendation": "권장 (B) 또는 (D). (B)는 새 dependency·credential 0 으로 실 fetch round-trip 의 잔여 transport risk 를 closeout 하는 dependency-free 진척 — Q-0015 의 mocked-fetch 범위를 한 단계 확장하되 §5 미발화. (D)는 가장 빠른 정합이나 코드 진척 0. (A)는 가장 큰 가치이나 실 credential 주입(§5)이라 사용자 명시 승인 필요. planner 단독 판단으로는 Q-0015 의 '첫 task' 가 이미 박제된 사실만 확정 — 잔여 방향은 사용자 결정.",
+      "resolutionHint": "이 항목을 해소하려면 docs/STATE.json 의 Q-0016 에 resolvedAt(ISO) + decision(A/B/C/D 중 선택 + 필요한 credential/scope 명시)을 기입하고 commit 한 뒤 새 /loop 를 시작한다. (B) 선택 시 credential 불요라 즉시 재개 가능. (A) 선택 시 credential 은 env/secret 로 주입하고 코드·STATE·journal 에 실값을 적지 않는다(§9).",
+      "resolvedAt": "2026-06-02T16:54:00+09:00",
+      "decision": "(B) 승인 — 실 credential 없이 local stub round-trip smoke/e2e 로 transport 배선 closeout. 사용자가 session #40 t5 AskUserQuestion 으로 선택. 내용: 로컬 stub HTTP 서버(Node 내장 http.createServer 로 OpenAI-호환 /chat/completions echo/고정응답 1개)를 smoke 또는 e2e 레벨에서 띄우고, LlmHttpGateway 가 실 globalThis.fetch 로 그 stub(localhost base URL)에 도달하는 end-to-end 경로를 검증. mocked-fetch unit 과 달리 실 fetch round-trip(헤더 직렬화·URL 조립·non-2xx 실수신·JSON 파싱)을 통과시켜 transport 잔여 risk 를 닫는다. 새 외부 dependency 0(Node 내장 http) / 실 credential 0 / §5 미발화. provider = custom(OpenAI-호환) 우선. live 실 endpoint 통합(option A)은 여전히 deferred — 추후 credential 주입 시 별도 task. planner 가 본 task 를 큐잉(commitMode pr, src/llm + test/smoke 또는 test/e2e). 주의: stub 서버 생명주기(beforeAll listen / afterAll close)·포트 충돌 회피(0번 포트 ephemeral)·CI 격리 준수."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
