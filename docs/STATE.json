@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0168",
+  "nextTask": "T-0169",
   "lock": {
     "holder": "loop",
-    "since": "2026-06-02T16:52:56+09:00"
+    "since": "2026-06-02T17:04:16+09:00"
   },
-  "lastActivity": "2026-06-02T16:55:00+09:00",
-  "lastCommit": "2e5d725",
+  "lastActivity": "2026-06-02T17:08:00+09:00",
+  "lastCommit": "7c6aba5",
   "mostRecentTasks": [
+    "T-0168",
     "T-0167",
     "T-0166",
     "T-0165",
-    "T-0164",
-    "T-0163"
+    "T-0164"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-06-02T13:33:31+09:00",
     "cap": 10,
-    "note": "/loop session #40 (loop@WIN-JQIPLSBL9QV-s40, cap 10, dynamic) **t5 — Q-0015·Q-0016 RESOLVED(사용자 직접 결정) + T-0168 큐잉, loop 재개**. t4 에서 loop 가 Q-0015(dependency-free backlog 소진) 로 STOP 했으나 사용자가 '결정 필요하면 즉시 물어라' 지시 → driver 가 AskUserQuestion 3회로 milestone-1 scoping 확정. **Q-0015 RESOLVED**: milestone-1(실 LLM HTTP 통합) 승인 — HTTP transport=Node 내장 fetch(새 dep 0), 첫 provider=custom(OpenAI-호환), credential 범위=mocked-fetch 까지만(live key 미발화). lock tombstone→loop CAS 재획득(turnCount 4→5 동일 conversation 누적). planner dispatch #1: Q-0015 승인 scope(custom transport+mocked-fetch unit)가 **이미 main 박제**(T-0157 PR-147 adapter / T-0158 PR-148 gateway wiring, FetchLike default globalThis.fetch + non-2xx 매핑 + spec negative cover) 확인 → task abort + **Q-0016 raise**(issue-already-fixed-on-main). driver 가 gateway 소스 직접 대조로 planner 주장 검증 완료. **Q-0016 RESOLVED**: 사용자가 option (B) 선택 — 실 credential 0 으로 local stub HTTP 서버(Node 내장 http.createServer, OpenAI-호환 /chat/completions) round-trip smoke/e2e 로 실 globalThis.fetch transport 잔여 risk closeout. planner dispatch #2: issue-still-relevant pre-check(grep createServer/round-trip in test/ = 0 매치, 기존 spec 은 jest-mock fetch 라 실 fetch 미검증) → **T-0168 큐잉**(pr-mode, test/smoke, dep 0/credential 0/§5 미발화). 이 turn 은 task 완료 0(Q resolution + 큐잉만) → counters 불변(165 유지). **follow-up 잔존(차기 planner): integrator.md PR comment 를 --body-file 로 수정(@- 버그).** 다음: T-0168(pr-mode, gh 가용) 픽업."
+    "note": "/loop session #40 (loop@WIN-JQIPLSBL9QV-s40, cap 10, dynamic) **t6 — T-0168 MERGED(PR-155 round1, 7c6aba5) + T-0169 큐잉**. [1] fetch(HEAD==origin/main==3da248a) + lock heartbeat(turnCount 5→6, since 17:04) + t5 doc CI(3da248a) success 확인. nextTask=T-0168→current. executor(pr-mode): test/smoke/llm-gateway-roundtrip.smoke-spec.ts 신규 +171/-0 — Node 내장 http.createServer OpenAI-호환 stub(ephemeral port, beforeAll listen/afterAll close) + LlmHttpGateway 가 생성자 default globalThis.fetch(mock 아님)로 stub end-to-end 도달 검증(happy: URL/headers/body+narrative / negative: 실 wire 500→status Error). src production 변경 0. tester: lint/build/unit(2763) green, 신규 spec 2/2 격리 pass(로컬 postgres 부재로 smoke suite 전체는 CI 위임). integrator: PR-155 open→reviewer APPROVE(--body-file 로 comment post, @- 버그 회피)→**4-게이트 PASS(특히 CI smoke step 이 신규 spec 을 postgres-backed CI 에서 실제 실행·통과 — authoritative)**→squash merge(7c6aba5)+branch delete, round 1, nit 1(stub path-agnostic, 현 2케이스 충분). tasksCompleted 165→166. planner: dependency-free 잔여 — milestone-1 live 통합은 §5 credential 게이트(deferred), other-provider round-trip 은 transport 공유라 coverage-theater → **T-0169 큐잉**(integrator.md PR comment 를 --body-file 로 명문화해 @- heredoc 버그 영구 차단, PR-154 incident + PR-155 driver 수동개입 박제, direct meta, dependency-free). 다음: T-0169(direct meta) 픽업."
   },
   "ci": {
-    "lastRun": "2026-06-02T14:13:00+09:00",
+    "lastRun": "2026-06-02T17:08:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/154",
-    "note": "t4: t3 doc commit(c4f834c) push CI success. T-0167(PR-154) merge CI(2e5d725) success → main green. 주의: integrator 의 첫 reviewer comment heredoc 버그('@-' literal post)로 c4f834c issue_comment approval-gate CI 1회 failure 후, 재post+rerun 으로 05:22 success — 코드/build/test fail 아닌 approval-gate transient 라 consecutiveFails 0 유지."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/155",
+    "note": "t6: t5 doc commit(3da248a) push CI success. T-0168(PR-155) merge CI(7c6aba5) success → main green. CI smoke step 이 신규 llm-gateway-roundtrip.smoke-spec.ts 를 postgres-backed 환경에서 실제 실행·통과(5 suite/34 test), unit 1483 + e2e 156 pass. integrator 가 --body-file 로 comment post 해 PR-154 의 @- approval-gate race 재발 0. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -124,7 +124,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 165,
+    "tasksCompleted": 166,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

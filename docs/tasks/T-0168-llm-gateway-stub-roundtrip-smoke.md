@@ -2,8 +2,12 @@
 id: T-0168
 title: LlmHttpGateway 의 실 globalThis.fetch round-trip 을 로컬 stub 서버로 closeout 하는 smoke test 추가
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 155
+mergedAs: 7c6aba5
+reviewRounds: 1
+completedAt: 2026-06-02T17:08:00+09:00
 coversReq: [REQ-099, REQ-100, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 190
 estimatedFiles: 1
