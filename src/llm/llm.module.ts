@@ -33,6 +33,7 @@ import { DifficultyMappingController } from "./difficulty-mapping.controller";
 import { DifficultyMappingRepository } from "./difficulty-mapping.repository";
 import { DifficultyMappingService } from "./difficulty-mapping.service";
 import { LlmApiKeyCipher } from "./llm-apikey-cipher.service";
+import { LlmHttpGateway } from "./llm-http-gateway.service";
 import { LlmProviderConfigController } from "./llm-provider-config.controller";
 import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
 import { LlmProviderConfigService } from "./llm-provider-config.service";
@@ -51,6 +52,10 @@ import { LlmProviderConfigService } from "./llm-provider-config.service";
     // LlmApiKeyCipher (T-0147) — apiKey AES-256-GCM 암복호화 helper. 후속 config
     // write CRUD service (Follow-up #2) 가 inject 해 encrypt 후 영속하므로 export.
     LlmApiKeyCipher,
+    // LlmHttpGateway (T-0156) — azure_openai orchestration service. repository /
+    // cipher 를 inject 해 config→decrypt→fetch→parse 를 묶는다. 후속 평가 파이프라인
+    // (P5) 이 inject 해 LLM 호출하므로 export.
+    LlmHttpGateway,
   ],
   exports: [
     LlmProviderConfigRepository,
@@ -58,6 +63,7 @@ import { LlmProviderConfigService } from "./llm-provider-config.service";
     DifficultyMappingRepository,
     DifficultyMappingService,
     LlmApiKeyCipher,
+    LlmHttpGateway,
   ],
 })
 export class LlmModule {}
