@@ -1,7 +1,7 @@
 ---
 id: ADR-0016
 title: GithubAdapter HTTP transport 계약 — 내장 fetch transport / 3 host variant base URL 라우팅 / auth header shape / non-2xx 도메인 매핑 / Link pagination / adapter↔gateway 경계
-status: PROPOSED
+status: ACCEPTED (2026-06-03)
 date: 2026-06-02
 relatedTask: T-0173
 supersedes: null
@@ -9,7 +9,7 @@ supersedes: null
 
 # ADR-0016 — GithubAdapter HTTP transport 계약 박제
 
-> PROPOSED 상태. 본 ADR 의 transport 계약은 doc-only 박제이며, 실 `GithubAdapter` 코드가 main 에 머지되는 후속 task (아래 "후속 task chain") 에서 PROPOSED → ACCEPTED 전이된다 ([ADR-0015](ADR-0015-llm-live-integration-test-contract.md) 가 T-0171 머지로 ACCEPTED 전이된 패턴 mirror). 본 task 는 production code 0 LOC — ADR doc + INDEX row + modules.md 한 줄 pointer 만.
+> ACCEPTED (2026-06-03, T-0181 에서 status 전이). 본 ADR 의 transport 계약 — 내장 fetch + injectable `FetchLike` / 3 host variant base URL 라우팅 / `Authorization: Bearer` + `X-GitHub-Api-Version` / non-2xx→PermissionDeniedEvent 도메인 매핑 / Link rel=next pagination — 은 T-0174 (순수 request-builder) + T-0175 (service dispatch + non-2xx 매핑) + T-0176 (Link pagination, PR #160 squash ff864d3) 로 `src/github/github-adapter.service.ts` + `github-request.builder.ts` 에 main 박제 완료됐다. mocked-fetch unit + adapter cov 100% 동반. ([ADR-0015](ADR-0015-llm-live-integration-test-contract.md) 가 T-0171 머지로 ACCEPTED 전이된 패턴 mirror.)
 
 ## Context
 

@@ -1,7 +1,7 @@
 ---
 id: ADR-0017
 title: GithubModule instance sub-config source — process.env 기반 instance-keyed config (DB table / @nestjs/config 미채택) + token encrypted-at-rest 위상
-status: PROPOSED
+status: ACCEPTED (2026-06-03)
 date: 2026-06-03
 relatedTask: T-0177
 supersedes: null
@@ -9,7 +9,7 @@ supersedes: null
 
 # ADR-0017 — GithubModule instance sub-config source (env 기반) 박제
 
-> PROPOSED 상태. 본 ADR 의 config-source 결정은 doc-only 박제이며, 실 `GithubModule` wiring + env→config parser 코드가 main 에 머지되는 후속 task (아래 "후속 task chain") 에서 PROPOSED → ACCEPTED 전이된다 ([ADR-0015](ADR-0015-llm-live-integration-test-contract.md) 가 T-0171 머지로 ACCEPTED 전이된 패턴 mirror). 본 task 는 production code 0 LOC — ADR doc + INDEX row + modules.md 한 줄 pointer 만.
+> ACCEPTED (2026-06-03, T-0181 에서 status 전이). 본 ADR 의 config-source 결정 — `process.env` instance-keyed config (`GITHUB_INSTANCES` + per-key `_HOST`/`_ORG`/`_TOKEN_ENC`) / DB table·`@nestjs/config` 미채택 / token encrypted-at-rest + JIT decrypt / env→config 순수 함수 — 은 T-0178 (GithubModule wiring + `resolveGithubInstances` env parser, PR #162 squash 50fb704) + T-0179 (token JIT decrypt helper, ADR-0014 `LLM_APIKEY_ENC_KEY` 재사용, PR #163 squash 3e21c2d) + T-0180 (GithubInstanceClient orchestrator, PR #164 squash 23bf78b) 로 `src/github/{github.module.ts, github-instance-config.ts, github-token-decrypt.ts, github-instance-client.service.ts}` 에 main 박제 완료됐다. 잔여 GitHub live-run (실 token + 실 네트워크) 은 §5 외부 자격증명 게이트로 deferred (chain row 3). ([ADR-0015](ADR-0015-llm-live-integration-test-contract.md) 가 T-0171 머지로 ACCEPTED 전이된 패턴 mirror.)
 
 ## Context
 
