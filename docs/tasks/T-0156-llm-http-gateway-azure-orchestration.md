@@ -2,7 +2,11 @@
 id: T-0156
 title: LlmHttpGateway — azure_openai orchestration (config lookup → decrypt → fetch → parse, fetch 주입)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02T11:45:39+09:00
+mergedAs: efa81c7
+prNumber: 146
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-099, REQ-100, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 240
