@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0173",
   "lock": {
     "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-s41",
-    "since": "2026-06-02T18:11:13+09:00"
+    "session": "loop@AKIHA-9124",
+    "since": "2026-06-02T21:36:14+09:00"
   },
-  "lastActivity": "2026-06-02T18:59:00+09:00",
-  "lastCommit": "dc78a36",
+  "lastActivity": "2026-06-02T22:32:04+09:00",
+  "lastCommit": "73e5a4b",
   "mostRecentTasks": [
     "T-0172",
     "T-0171",
@@ -18,10 +18,10 @@
     "T-0168"
   ],
   "loopSession": {
-    "turnCount": 4,
-    "startedAt": "2026-06-02T18:11:13+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-06-02T21:36:14+09:00",
     "cap": 10,
-    "note": "/loop session #41 (loop@WIN-JQIPLSBL9QV-s41, cap 10, dynamic) **t4 — T-0172 DONE(ADR-0015 PROPOSED→ACCEPTED status sync, direct doc-only)**. [1] fetch(HEAD==origin/main==dc78a36) + lock 유지(same session s41, turnCount 3→4) + t3 doc CI(dc78a36) in_progress(doc-only 비차단). nextTask=T-0172→current. executor(direct doc-only): docs/decisions/ADR-0015 frontmatter status PROPOSED→ACCEPTED(2026-06-02) + 제목 아래 전이 note blockquote(T-0171/PR-156/squash 28e5012 구현 증거 + helper/spec 경로 + ENC_KEY 재사용 + §5 credentialed live-run deferred) + 후속 chain 표 행 done 표기. +5/-2 단일 파일. tester 면제(R-110 direct doc-only). tasksCompleted 169→170. **dependency-free backlog 진짜 소진 확정**: ADR-0001~0015 전원 ACCEPTED, milestone-1 live 통합의 dependency-free 부분(test 계약+scaffold+status sync) 완결. 잔여 전부 §5/cloud HITL: milestone-1 credentialed live-run(Q-0016 optionA, 사용자 LLM_LIVE_BASE_URL+LLM_LIVE_API_KEY+LLM_APIKEY_ENC_KEY env 주입 필요) / milestone-3(GitHub·Confluence: 새 dep+token, 미승인) / T-0154(cloud push 권한, 미승인). 본 turn bookkeeping(ADR edit+STATE+journal 1 direct commit) 후 종료. **다음 turn t5 는 planner 가 dependency-free 작업 없음 확인 → driver 가 credential 게이트 사용자 질의 예정**. **t3 요약**: planner T-0172 큐잉. **t2 요약**: T-0171 DONE/MERGED(PR-156, tasksCompleted 168→169)."
+    "note": "/loop session #42 (loop@AKIHA-9124, cap 10, dynamic) **t1 — milestone-3 승인 + T-0173 큐잉 (planner-queue turn, doc-only direct commit)**. [1] AKIHA 기기에서 fresh /loop 기동. cwd 는 미등록 phantom worktree(vigilant-boyd-707106)라 상대경로 file read 불가 — git 은 main checkout 으로 resolve, 절대경로(C:/Users/myung/Assessment-Agent)로 작업. fetch 후 local main 을 dc78a36→73e5a4b 로 FF(54 commit behind 였음). lock: stale loop@WIN-JQIPLSBL9QV-s41(since 18:11, ~3h22m 경과 >60min) ref-CAS 탈취 → loop@AKIHA-9124, turnCount reset=1. 미해결 humanQuestion 0 (Q-0013~0016 전부 RESOLVED). [2] currentTask/nextTask 둘 다 null → planner final survey: **NO_DEPFREE_WORK** 확정 — milestone-1 live scaffold(T-0171 ADR-0015 계약+env-gated live smoke, T-0172 ACCEPTED) main 박제, gating helper full branch cover, 최근 ~12 merged task 의 follow-up 전부 §5 credentialed-live-run 게이트로 수렴, PLAN 체크박스 정합. 사용자 present(dynamic /loop)라 비동기 humanQuestion 대신 interactive AskUserQuestion 으로 직접 질의 → 사용자가 **milestone-3(GitHub/Confluence adapter) 승인**. 제약 4종(Q-0017 verbatim 기록): 내장 fetch(새 dep 0) / mocked-fetch unit test / live token 통합은 §5 별도 후속 task 로 defer / milestone-1 Q-0016 optionA 패턴 재현. planner 2차 dispatch: Q-0017 기록 + 첫 slice **T-0173**(GithubAdapter HTTP transport 계약 ADR, ADR-0016 예정, commitMode pr, ~230 LOC/3 file, ADR-first) 큐잉. tasksCompleted 변동 없음(170, 큐잉만). CI: 73e5a4b green(consecutiveFails 0). 본 turn = doc-only direct commit(STATE Q-0017+nextTask + T-0173 task file + journal). **다음 turn t2: executor 가 T-0173 ADR 작성 — pr-mode(architect→ADR-0016 + reviewer/integrator 4-게이트 + tester R-110)**. reschedule 60s(다음 task 즉시 가용)."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
@@ -122,6 +122,26 @@
       "decision": "(B) 승인 — 실 credential 없이 local stub round-trip smoke/e2e 로 transport 배선 closeout. 사용자가 session #40 t5 AskUserQuestion 으로 선택. 내용: 로컬 stub HTTP 서버(Node 내장 http.createServer 로 OpenAI-호환 /chat/completions echo/고정응답 1개)를 smoke 또는 e2e 레벨에서 띄우고, LlmHttpGateway 가 실 globalThis.fetch 로 그 stub(localhost base URL)에 도달하는 end-to-end 경로를 검증. mocked-fetch unit 과 달리 실 fetch round-trip(헤더 직렬화·URL 조립·non-2xx 실수신·JSON 파싱)을 통과시켜 transport 잔여 risk 를 닫는다. 새 외부 dependency 0(Node 내장 http) / 실 credential 0 / §5 미발화. provider = custom(OpenAI-호환) 우선. live 실 endpoint 통합(option A)은 여전히 deferred — 추후 credential 주입 시 별도 task. planner 가 본 task 를 큐잉(commitMode pr, src/llm + test/smoke 또는 test/e2e). 주의: stub 서버 생명주기(beforeAll listen / afterAll close)·포트 충돌 회피(0번 포트 ephemeral)·CI 격리 준수.",
       "optionAApprovedAt": "2026-06-02T18:11:00+09:00",
       "optionADecision": "(A) 승인 — session #41 t1 AskUserQuestion 으로 사용자가 milestone-1 live 통합(option A)을 선택. 즉 LlmHttpGateway 의 custom(OpenAI-호환) provider 를 실 네트워크 + 실 credential 로 통합한다. 그러나 §9(credential 은 코드/STATE/journal 금지, env/secret 주입) + R-113(CI 는 smoke/e2e 수행 — 실 네트워크 live test 는 public CI 에서 비용/flaky/secret-leak 이라 env-gated skip-unless-credentialed 패턴 필수) 때문에 work 는 2 단계로 분해된다: (1) **dependency-free 선행 task** — architect 가 live-integration test 계약(credential env 변수 이름·skip-in-CI gating·custom live endpoint shape·timeout/non-2xx live 매핑 경계)을 ADR 로 박제 + implementer 가 env-gated live smoke/e2e spec(LLM_LIVE_TEST 등 env 부재 시 describe.skip → CI green 유지)을 추가 + tester 가 skip path 가 CI 에서 통과함을 검증. 실 credential 불요라 §5 미발화, 즉시 착수 가능. (2) **credentialed live run task(후속)** — 사용자가 live endpoint base URL + provider API key + LLM_APIKEY_ENC_KEY 를 env/secret 로 주입(실값은 §9 에 따라 파일 금지)한 뒤 gated live spec 을 실제 네트워크로 1회 실행해 narrative 반환을 검증. 이 단계는 §5 credential 게이트라 사용자 credential 제공 시 진입. planner 가 (1)을 next task 로 큐잉. milestone-3(GitHub/Confluence)·T-0154(cloud-fire)·apiVersion 영속 컬럼화는 미승인 유지."
+    },
+    {
+      "id": "Q-0017",
+      "raisedAt": "2026-06-02T21:40:00+09:00",
+      "raisedBy": "loop@AKIHA-9124 session #41 (사용자 AskUserQuestion 으로 milestone-3 승인 수집)",
+      "reason": "needs-human-decision",
+      "status": "RESOLVED",
+      "summary": "P4 milestone-3 (GitHub adapter + Confluence adapter, 외부 통합) 를 사용자가 승인했다. Q-0014/Q-0015/Q-0016 에서 줄곧 '미승인 유지' 였던 milestone-3 이 본 결정으로 OPEN 된다. 핵심 제약: HTTP transport 는 Node 내장 fetch(globalThis.fetch) 사용 → 새 외부 dependency 0(octokit/axios/node-fetch 추가 금지) → §5 의존성 게이트 미발화. test 는 mocked-fetch unit + (선택) 로컬 stub round-trip smoke 로 실 token 없이 CI green 유지. 실 token(GitHub/Confluence) live 통합은 milestone-1 패턴(Q-0016 optionA task 2)과 동형으로 별도 후속 task 로 deferred — §5 credential 게이트. de-risk: ADR-0013(Confluence SPACE 탐색) ACCEPTED, GitHub host variant(github.com / github.sec.samsung.net / github.ecodesamsung.com)는 Q-0014/Q-0015 에 명시.",
+      "context": "사용자가 session #41(/loop loop@AKIHA-9124, 2026-06-02 ~21:40 KST) AskUserQuestion 으로 milestone-3 을 EXACT 제약 4종과 함께 승인: (1) HTTP transport = Node 내장 fetch(globalThis.fetch), 새 외부 dependency 추가 금지(octokit/axios/node-fetch 금지) → §5 dependency 게이트 미발화. (2) test = mocked-fetch unit + (선택) T-0168 식 로컬 stub round-trip smoke, CI 는 실 token 없이 green 유지. (3) LIVE token 통합(실 GitHub/Confluence token + 실 네트워크)은 별도 후속 task 로 deferred(§5 credential 게이트) — milestone-1 live-run deferral(Q-0016 optionA task 2) 정확히 mirror. token 을 지금 요구하지 않고 token 으로 block 하지 않는다. (4) 본 패턴은 Q-0016 optionA(내장 fetch + mocked test, live credential defer) 의 재현. milestone-1 의 LlmHttpGateway(T-0157/T-0158, FetchLike default globalThis.fetch 주입 + 순수 {url,headers,body} builder adapter + non-2xx→throw 매핑 + injected-fetch mock unit) 가 그대로 mirror 할 reference 패턴. de-risk 현황: ADR-0013(Confluence SPACE 탐색=page List 기반 + SPACE allowlist 순회 + 4xx skip-and-continue) ACCEPTED, p4-implementation-plan §2 T-0140(GithubModule scaffold)/T-0142(ConfluenceModule scaffold) row 가 책임/dependency 사전 매핑(단 그 row 의 '@octokit/rest dependency 게이트' 표기는 본 결정의 '내장 fetch, dep 0' 로 대체됨).",
+      "options": [
+        "milestone-3 GitHub adapter 부터 — GithubAdapter HTTP transport 계약(3 host variant 라우팅 + auth header shape + non-2xx→PermissionDeniedEvent 매핑 + REST pagination + adapter↔gateway interface 경계)을 ADR 로 선행 박제 후 scaffold. 내장 fetch + mocked test.",
+        "milestone-3 Confluence adapter 부터 — ADR-0013(탐색 정책) 위에서 ConfluenceAdapter scaffold. GitHub 보다 탐색 정책 de-risk 가 더 진척돼 있음.",
+        "GitHub + Confluence 공통 HTTP transport 계약을 하나의 ADR 로 먼저 박제 후 두 adapter 를 그 위에서 구현."
+      ],
+      "recommendation": "ADR-first. milestone-3 은 3 GitHub host variant 라우팅 / auth header shape(Authorization: token <pat> vs Bearer) / non-2xx→PermissionDeniedEvent vs throw 매핑 / REST pagination(Link header) / adapter↔gateway interface 경계 등 ADR-0013 이 cover 하지 않는 cross-cutting transport 결정이 다수다. milestone-1 이 ADR-0014(key 암호화)+ADR-0015(test 계약)를 코드보다 먼저 박제한 것과 동형으로, GitHub adapter transport 계약 ADR 을 첫 task 로 박제(commitMode pr) 후 그 위에서 adapter scaffold 진행. ADR-0013(Confluence)는 이미 존재하므로 신규 ADR 은 GitHub 측 transport 계약 + 내장 fetch 공통 패턴에 집중.",
+      "resolutionHint": "본 항목은 RESOLVED — 사용자 승인 + 제약을 decision 에 verbatim 박제. planner 가 첫 milestone-3 slice(GitHub adapter HTTP transport 계약 ADR, dependency-free)를 next task 로 큐잉. credential(실 GitHub/Confluence token)은 본 chain 에서 다루지 않으며 후속 live-run task(§5 게이트)에서 env/secret 주입(실값은 §9 에 따라 파일 금지).",
+      "resolvedAt": "2026-06-02T21:40:00+09:00",
+      "decision": "milestone-3 (GitHub adapter + Confluence adapter) 승인 — 사용자가 session #41(/loop loop@AKIHA-9124) AskUserQuestion 으로 결정. EXACT 제약(미래 turn 이 반드시 honor): (1) HTTP transport = Node 내장 fetch(globalThis.fetch). 새 외부 dependency 추가 금지 — octokit/axios/node-fetch 등 pnpm add 0. → §5 의존성 게이트 미발화. (2) test = mocked-fetch unit test + (선택) 로컬 stub round-trip smoke(T-0168 LLM gateway 처럼 내장 http.createServer stub). CI 는 실 token 없이 green 유지. (3) LIVE token 통합(실 GitHub/Confluence token + 실 네트워크)은 별도 후속 task 로 deferred — §5 credential 게이트. milestone-1 live-run deferral(Q-0016 optionA task 2)과 정확히 동형. **지금 token 을 요구하지 않고, token 으로 block 하지 않는다.** (4) 본 패턴은 사용자가 Q-0016 optionA 에서 승인한 milestone-1 패턴(내장 fetch + mocked test, live credential defer)의 재현. de-risk: ADR-0013(Confluence SPACE 탐색) ACCEPTED. GitHub host variant = github.com / github.sec.samsung.net / github.ecodesamsung.com(Q-0014/Q-0015 명시). loop 재개: planner 가 ADR-first 로 첫 slice(GithubAdapter HTTP transport 계약 ADR — 3 host variant 라우팅 + auth header shape + non-2xx 매핑 + pagination + adapter↔gateway interface 경계, dependency-free pr-mode)를 큐잉. milestone-1 credentialed live-run(Q-0016 optionA task 2)·T-0154(cloud-fire)·apiVersion 영속 컬럼화는 별개 미승인/deferred 상태 유지. 주의: p4-implementation-plan §2 T-0140/T-0142 row 의 '@octokit/rest dependency 게이트' 표기는 본 결정의 '내장 fetch, dep 0' 로 대체 — 후속 doc-sync 시 정합.",
+      "processedByPlanner": true,
+      "processedAt": "2026-06-02T21:42:00+09:00"
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
