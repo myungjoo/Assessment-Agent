@@ -7,9 +7,11 @@
 // 각각 cover 한다. ADR-0016 §1/§4/§6.
 import {
   FetchLike,
+  GITHUB_MAX_PAGES,
   GithubAdapter,
   GithubDomainError,
   NO_OP_PERMISSION_DENIED_EMITTER,
+  parseNextLink,
   PermissionDeniedEmitter,
   PermissionDeniedEvent,
 } from "./github-adapter.service";
@@ -43,6 +45,33 @@ function okResponse(json: unknown) {
 }
 
 function nonOkResponse(status: number) {
+  return {
+    ok: false,
+    status,
+    headers: { get: () => null },
+    json: () => Promise.resolve({}),
+  };
+}
+
+// 2xx 응답 + Link header 를 돌려주는 fixture — pagination 순회 mock 용. linkHeader 가
+// null 이면 단일 page(next 없음), 문자열이면 그 값을 headers.get("link") 가 반환한다.
+// requestAllPages 가 parseNextLink 로 이 Link 를 읽어 다음 page URL 을 따라간다.
+function pagedResponse(json: unknown, linkHeader: string | null) {
+  return {
+    ok: true,
+    status: 200,
+    headers: {
+      // GitHub 은 header name 을 case-insensitive 로 다루지만 service 는 "link" 로
+      // 조회하므로 fixture 는 입력 name 과 무관하게 linkHeader 를 돌려준다.
+      get: () => linkHeader,
+    },
+    json: () => Promise.resolve(json),
+  };
+}
+
+// non-2xx + Link header fixture — page 2(next 따라간 요청)가 권한 거부 등으로 실패하는
+// 순회 중 error 분기 mock 용. status 만 의미를 가지며 Link 는 읽히지 않는다.
+function pagedNonOkResponse(status: number) {
   return {
     ok: false,
     status,
@@ -407,5 +436,404 @@ describe("GithubAdapter.request", () => {
         expect(emitter.emit).not.toHaveBeenCalled();
       }
     }
+  });
+});
+
+// parseNextLink — 순수 함수 단위 검증(부수효과 0 / 외부 의존 0). RFC-5988 Link header
+// 문자열에서 rel="next" 대상 URL 만 추출. 따옴표 유무 / 공백 변형 / 다중 rel 혼재 /
+// URL 내 콤마 / null·빈 입력 분기를 각각 cover 한다(T-0176 AC parseNextLink happy/branch).
+describe("parseNextLink", () => {
+  it('rel="next" 가 있으면 그 항목의 URL 을 추출한다 (happy)', () => {
+    const link =
+      '<https://api.github.com/repos/acme/widget/commits?page=2>; rel="next"';
+    expect(parseNextLink(link)).toBe(
+      "https://api.github.com/repos/acme/widget/commits?page=2",
+    );
+  });
+
+  it('last/prev 만 있고 rel="next" 가 없으면 null (마지막 page 분기)', () => {
+    const link =
+      '<https://api.github.com/x?page=1>; rel="prev", <https://api.github.com/x?page=9>; rel="last"';
+    expect(parseNextLink(link)).toBeNull();
+  });
+
+  it("다중 rel 혼재 시 next 항목의 URL 만 정확히 추출한다 (branch: 다중 rel)", () => {
+    // next / last / prev / first 가 섞여 있어도 rel="next" 만 골라야 한다.
+    const link =
+      '<https://api.github.com/x?page=2>; rel="next", ' +
+      '<https://api.github.com/x?page=50>; rel="last", ' +
+      '<https://api.github.com/x?page=1>; rel="prev", ' +
+      '<https://api.github.com/x?page=1>; rel="first"';
+    expect(parseNextLink(link)).toBe("https://api.github.com/x?page=2");
+  });
+
+  it("따옴표 없는 rel=next 도 추출한다 (branch: unquoted rel)", () => {
+    const link = "<https://api.github.com/x?page=2>; rel=next";
+    expect(parseNextLink(link)).toBe("https://api.github.com/x?page=2");
+  });
+
+  it("작은따옴표 rel='next' 도 추출한다 (branch: single-quoted rel)", () => {
+    const link = "<https://api.github.com/x?page=2>; rel='next'";
+    expect(parseNextLink(link)).toBe("https://api.github.com/x?page=2");
+  });
+
+  it("rel 토큰 주변 공백 변형(rel = next, < > 사이 공백)도 추출한다 (branch: whitespace 변형)", () => {
+    const link =
+      '<https://api.github.com/x?page=2>  ;   rel =  "next"  , <https://api.github.com/x?page=9>; rel="last"';
+    expect(parseNextLink(link)).toBe("https://api.github.com/x?page=2");
+  });
+
+  it("null 입력은 null 을 반환한다 (negative: null header)", () => {
+    expect(parseNextLink(null)).toBeNull();
+  });
+
+  it("빈 문자열 / 공백만 있는 문자열은 null 을 반환한다 (negative: empty/whitespace)", () => {
+    expect(parseNextLink("")).toBeNull();
+    expect(parseNextLink("   ")).toBeNull();
+    expect(parseNextLink("\t\n  ")).toBeNull();
+  });
+
+  it("next URL 안에 콤마가 들어가도 <...> 경계로 정확히 추출한다 (branch: URL 내 콤마)", () => {
+    // since=a,b 처럼 URL query 에 콤마가 있어도 단순 split(',') 로 깨지지 않고
+    // <...> 경계로 URL 전체를 잡아야 한다.
+    const link =
+      '<https://api.github.com/x?since=a,b&page=2>; rel="next", <https://api.github.com/x?page=9>; rel="last"';
+    expect(parseNextLink(link)).toBe(
+      "https://api.github.com/x?since=a,b&page=2",
+    );
+  });
+
+  it("rel 에 next 토큰이 전혀 없는 항목만 있으면 null 을 반환한다 (negative: next 부재)", () => {
+    // next 가 아닌 rel(first/last/prev)만 있을 때 매칭 0 → null(마지막 page 분기).
+    const link =
+      '<https://api.github.com/x?page=1>; rel="first", <https://api.github.com/x?page=9>; rel="last"';
+    expect(parseNextLink(link)).toBeNull();
+  });
+
+  it("항목에 URL(<...>) 이 없으면(params 만) 매칭하지 않고 null 을 반환한다 (negative: URL 부재)", () => {
+    // entryPattern 은 <...>; params 형태만 잡으므로 URL 없는 토큰은 무시된다.
+    const link = 'rel="next"';
+    expect(parseNextLink(link)).toBeNull();
+  });
+
+  it('rel="nextpage" 는 현행 구현상 next 의 prefix 매칭으로 추출된다 (현행 동작 박제)', () => {
+    // 현행 parseNextLink 정규식 /rel\s*=\s*["']?\s*next\s*["']?/i 는 next 뒤
+    // 단어 경계를 강제하지 않아 "nextpage" 의 prefix "next" 에 매칭한다. GitHub 실
+    // 응답은 rel="next" 정확값만 주므로 실사용 영향은 없으나, 본 test 는 현행 동작을
+    // 박제한다(향후 단어 경계 강화 시 본 assertion 이 회귀 신호가 된다 — Follow-up 참조).
+    const link = '<https://api.github.com/x?page=2>; rel="nextpage"';
+    expect(parseNextLink(link)).toBe("https://api.github.com/x?page=2");
+  });
+});
+
+// requestAllPages — Link rel=next opaque cursor 순회 메서드 검증. 모두 주입 FetchLike
+// mock(실 네트워크 0 / 실 token 0). happy 다중 page / 단일 page / MAX_PAGES cap /
+// 순회 중 non-2xx·reject·malformed error 분기 / emit 정확성 / token 비노출을 cover 한다
+// (T-0176 AC requestAllPages 전 항목).
+describe("GithubAdapter.requestAllPages", () => {
+  it("다중 page 를 순회해 두 page 항목을 flatten 반환하고 fetch 를 정확히 2회 호출한다 (happy multi-page)", async () => {
+    const page1 = [{ sha: "a" }, { sha: "b" }];
+    const page2 = [{ sha: "c" }];
+    // page1 의 next URL(opaque) — 두 번째 fetch 가 이 URL 을 그대로 써야 한다.
+    const nextUrl = "https://api.github.com/repos/acme/widget/commits?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(pagedResponse(page1, `<${nextUrl}>; rel="next"`))
+      .mockResolvedValueOnce(
+        pagedResponse(page2, null),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const result = await adapter.requestAllPages(input());
+
+    // 두 page 항목이 단일 배열로 flatten.
+    expect(result).toEqual([{ sha: "a" }, { sha: "b" }, { sha: "c" }]);
+    // fetch 가 정확히 2회 — page1 + next URL page2.
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    const calls = (fetchFn as unknown as jest.Mock).mock.calls;
+    // 첫 호출 url 에 per_page=100 query 가 실린다(round-trip 최소화).
+    expect(calls[0][0]).toContain("per_page=100");
+    expect(calls[0][0]).toBe(
+      "https://api.github.com/repos/acme/widget/commits?per_page=100",
+    );
+    // 두 번째 호출은 page1 이 준 opaque next URL 을 그대로 사용(page 번호 직접 증가 금지).
+    expect(calls[1][0]).toBe(nextUrl);
+    // 정상 순회에서는 emitter 미호출.
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("Link header 부재(get→null) 면 1회 fetch 후 단일 page 항목만 반환한다 (branch: 단일 page 종료)", async () => {
+    const page1 = [{ sha: "only" }];
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValue(pagedResponse(page1, null)) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const result = await adapter.requestAllPages(input());
+
+    expect(result).toEqual([{ sha: "only" }]);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("무한 next cursor 여도 MAX_PAGES(100) 회에서 throw 없이 멈추고 누적분을 반환한다 (negative/branch: MAX_PAGES cap)", async () => {
+    // 모든 응답이 rel="next" 를 주는 pathological cursor — 무한 loop 방어선이
+    // 정확히 GITHUB_MAX_PAGES 회에서 순회를 멈춰야 한다(throw 아님).
+    const nextUrl = "https://api.github.com/x?page=next";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValue(
+        pagedResponse([{ sha: "x" }], `<${nextUrl}>; rel="next"`),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const result = await adapter.requestAllPages(input());
+
+    // 정확히 MAX_PAGES 회 fetch 후 종료 — 무한 loop 아님.
+    expect(fetchFn).toHaveBeenCalledTimes(GITHUB_MAX_PAGES);
+    // page 당 1 항목 × MAX_PAGES = 누적 항목 수.
+    expect(result).toHaveLength(GITHUB_MAX_PAGES);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("순회 중 page2 가 403 이면 permission-denied(403) throw + emitter 1회 호출, 부분 수집분은 버린다 (error/branch: 순회 중 403)", async () => {
+    const nextUrl = "https://api.github.com/x?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${nextUrl}>; rel="next"`),
+      )
+      .mockResolvedValueOnce(pagedNonOkResponse(403)) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const err = await adapter.requestAllPages(input()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(GithubDomainError);
+    expect((err as GithubDomainError).kind).toBe("permission-denied");
+    expect((err as GithubDomainError).status).toBe(403);
+    // 순회 중 권한 거부 → emit 1회(식별 정보만, token 미포함).
+    expect(emitter.emit).toHaveBeenCalledTimes(1);
+    expect(emitter.emit).toHaveBeenCalledWith({
+      host: "github.com",
+      path: "/repos/acme/widget/commits",
+      status: 403,
+    });
+    // 두 page 모두 시도(page1 2xx + page2 403).
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("순회 중 page2 가 401 이면 permission-denied(401) throw + emitter 1회 호출 (error/branch: 순회 중 401)", async () => {
+    // 403 과 별도로 401 분기도 동일 shape(permission-denied + emit)인지 확인.
+    const nextUrl = "https://api.github.com/x?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${nextUrl}>; rel="next"`),
+      )
+      .mockResolvedValueOnce(pagedNonOkResponse(401)) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const err = await adapter.requestAllPages(input()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(GithubDomainError);
+    expect((err as GithubDomainError).kind).toBe("permission-denied");
+    expect((err as GithubDomainError).status).toBe(401);
+    expect(emitter.emit).toHaveBeenCalledTimes(1);
+    expect(emitter.emit).toHaveBeenCalledWith({
+      host: "github.com",
+      path: "/repos/acme/widget/commits",
+      status: 401,
+    });
+  });
+
+  it("첫 page 가 500 이면 upstream-error(500) throw + emitter 미호출 (error/branch: page1 5xx)", async () => {
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValue(pagedNonOkResponse(500)) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const err = await adapter.requestAllPages(input()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(GithubDomainError);
+    expect((err as GithubDomainError).kind).toBe("upstream-error");
+    expect((err as GithubDomainError).status).toBe(500);
+    expect(emitter.emit).not.toHaveBeenCalled();
+    // page1 에서 즉시 throw — 추가 fetch 없음.
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("순회 중 fetch 가 reject 하면 transport-error throw (error/branch: 순회 중 reject)", async () => {
+    const nextUrl = "https://api.github.com/x?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${nextUrl}>; rel="next"`),
+      )
+      .mockRejectedValueOnce(new Error("ECONNRESET")) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const err = await adapter.requestAllPages(input()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(GithubDomainError);
+    expect((err as GithubDomainError).kind).toBe("transport-error");
+    expect((err as GithubDomainError).status).toBeUndefined();
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("순회 중 page 의 JSON 파싱이 실패하면 upstream-error throw (error/branch: 순회 중 malformed JSON)", async () => {
+    const nextUrl = "https://api.github.com/x?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${nextUrl}>; rel="next"`),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: () => Promise.reject(new Error("Unexpected end of JSON input")),
+      }) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const err = await adapter.requestAllPages(input()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(GithubDomainError);
+    expect((err as GithubDomainError).kind).toBe("upstream-error");
+    expect((err as GithubDomainError).status).toBe(200);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("정상 다중-page 순회에서는 emitter 가 호출되지 않는다 (branch: 정상 경로 emit 무)", async () => {
+    // emit 은 401/403 에서만 — 정상 순회(2xx×2)에서는 미호출임을 재확인.
+    const nextUrl = "https://api.github.com/x?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${nextUrl}>; rel="next"`),
+      )
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "b" }], null),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    await adapter.requestAllPages(input());
+
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("순회 중 404/429/5xx 에서는 emitter 가 호출되지 않는다 (branch 종합: 순회 emit 정확성)", async () => {
+    // page1 2xx(next) + page2 가 404/429/500 인 각 경우에 throw 는 하되 emit 은
+    // 안 함을 한 표로 검증(401/403 만 emit).
+    const nonEmitStatuses = [404, 429, 500];
+    for (const status of nonEmitStatuses) {
+      const nextUrl = "https://api.github.com/x?page=2";
+      const fetchFn = jest
+        .fn()
+        .mockResolvedValueOnce(
+          pagedResponse([{ sha: "a" }], `<${nextUrl}>; rel="next"`),
+        )
+        .mockResolvedValueOnce(
+          pagedNonOkResponse(status),
+        ) as unknown as FetchLike;
+      const emitter = makeEmitter();
+      const adapter = new GithubAdapter(fetchFn, emitter);
+
+      await adapter.requestAllPages(input()).catch(() => undefined);
+
+      expect(emitter.emit).not.toHaveBeenCalled();
+    }
+  });
+
+  it("page body 가 array 가 아니면 단일 항목으로 push 한다 (branch: Array.isArray else)", async () => {
+    // list endpoint 가 비정상적으로 단일 객체를 줘도(방어적) 손실 없이 단일 항목으로
+    // 수집해야 한다 — Array.isArray(body) 의 else 분기 cover.
+    const singleObject = { total_count: 1, items: [{ sha: "a" }] };
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValue(
+        pagedResponse(singleObject, null),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const result = await adapter.requestAllPages(input());
+
+    // 객체 자체가 단일 항목으로 들어간다(flatten 아님).
+    expect(result).toEqual([singleObject]);
+    expect(result).toHaveLength(1);
+  });
+
+  it("순회 중 throw error.message 와 emit event 직렬화 어디에도 token 평문이 노출되지 않는다 (negative: token 비노출 §9)", async () => {
+    // page2 403 — throw + emit 둘 다 발생하는 순회 경로. 양쪽 surface 모두에서
+    // SECRET_TOKEN sentinel 이 새지 않아야 한다(CLAUDE.md §9 / ADR-0016 §3).
+    const nextUrl = "https://api.github.com/x?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${nextUrl}>; rel="next"`),
+      )
+      .mockResolvedValueOnce(pagedNonOkResponse(403)) as unknown as FetchLike;
+    let captured: PermissionDeniedEvent | undefined;
+    const emitter: PermissionDeniedEmitter = {
+      emit: (event) => {
+        captured = event;
+      },
+    };
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const err = (await adapter
+      .requestAllPages(input())
+      .catch((e: unknown) => e)) as GithubDomainError;
+
+    // throw error message 에 token 평문 미포함(host/path/status 식별 정보만).
+    expect(err.message).not.toContain(SECRET_TOKEN);
+    // emit event 직렬화에도 token 평문 미포함.
+    expect(captured).toBeDefined();
+    expect(JSON.stringify(captured)).not.toContain(SECRET_TOKEN);
+  });
+
+  it("호출처 query 가 있어도 per_page 최대화를 첫 page 요청에 덮어쓴다 (branch: 기존 query 병합)", async () => {
+    // input.query 에 다른 키가 있어도 per_page=100 이 함께 실려야 한다(round-trip
+    // 최소화) — query 병합 분기 cover.
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValue(
+        pagedResponse([{ sha: "a" }], null),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    await adapter.requestAllPages(input({ query: { state: "open" } }));
+
+    const firstUrl = (fetchFn as unknown as jest.Mock).mock.calls[0][0];
+    expect(firstUrl).toContain("per_page=100");
+    expect(firstUrl).toContain("state=open");
+  });
+
+  it("emitter 미주입(default no-op) 상태에서 순회 중 403 이어도 throw 만 하고 crash 하지 않는다 (branch: default no-op emitter)", async () => {
+    const nextUrl = "https://api.github.com/x?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${nextUrl}>; rel="next"`),
+      )
+      .mockResolvedValueOnce(pagedNonOkResponse(403)) as unknown as FetchLike;
+    // emitter 미주입 — NO_OP_PERMISSION_DENIED_EMITTER 가 emit 을 swallow.
+    const adapter = new GithubAdapter(fetchFn);
+
+    const err = await adapter.requestAllPages(input()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(GithubDomainError);
+    expect((err as GithubDomainError).kind).toBe("permission-denied");
+    expect((err as GithubDomainError).status).toBe(403);
   });
 });
