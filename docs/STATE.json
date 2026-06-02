@@ -4,14 +4,11 @@
   "currentTask": null,
   "nextTask": null,
   "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-1444",
-    "since": "2026-06-02T08:44:44+09:00",
-    "loopSessionStartedAt": "2026-06-02T08:44:44+09:00",
-    "loopSessionTurnCount": 2
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-02T09:06:00+09:00",
-  "lastCommit": "3475b8a",
+  "lastActivity": "2026-06-02T09:13:00+09:00",
+  "lastCommit": "2bce3f4",
   "mostRecentTasks": [
     "T-0152",
     "T-0151",
@@ -20,10 +17,10 @@
     "T-0147"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-02T08:44:44+09:00",
     "cap": 5,
-    "note": "/loop session #38 (loop@WIN-JQIPLSBL9QV-1444, cap 5, dynamic) **t2 — T-0152 api.md write-CRUD doc-sync(direct) DONE = milestone-2 chain 4/4 완결**. [1] fetch + lock(본 session turnCount 1→2) + t1 push CI(aebe703 doc + 004e705 code) 둘 다 completed success 확인. nextTask=T-0152→current. executor(direct doc-only): docs/architecture/api.md §5 POST/PATCH/DELETE /api/llm/providers 3 row 를 \"미구현/ADR-0006 deferred\" → merged reality(POST 201+sanitize/PATCH 200+부분갱신/DELETE 204/404/409-P2003 + T-0149/0151/0150·PR #142/#144/#143 박제)로 정합. +3/-3 1파일. §6 status code 표·합계·Auth 줄 변경 불요 확인. tester 없음(doc-only, R-110/R-112 비적용). tasksCompleted 150→151. planner dispatch: NO_NEW_TASK — milestone-2 가 본 T-0152 머지로 비로소 완결되므로 escalate(Q-0014)는 next turn(clean main 재평가)으로 정확히 보류, premature/duplicate 회피. **nextTask=null → t3 에서 planner 재호출 → 남은 P4(milestone-1 LLM client·milestone-3 adapters)는 전부 §5 HITL(새 dep+credential) → Q-0014 escalation 예상 → loop clean STOP at human gate**. milestone-1·3 미승인 유지. **t2 결산: milestone-2 write CRUD 완전 종료(helper+POST+PATCH+DELETE+api.md doc-sync 5/5)**. P3 잔여 test-quality bullet(PLAN L63~66)은 dependency-free 차순위 후보로 보존.\nPREV(t1): T-0151 PATCH endpoint merge(PR #144→004e705) + B-credential 해소(로컬 gh+refs/locks/* 권한으로 cron@web STAND DOWN ×7 대체 픽업). tasksCompleted 149→150." 시작 시 cron@web 이 STAND DOWN ×7 (c2273b2~14442a5) 으로 refs/locks/* 403 + gh 부재라 T-0151 픽업 못 한 상태. 본 로컬 driver 는 gh 2.88.1 인증(repo scope) + refs/locks/* push 권한 보유 — ref-CAS lock 획득 success(264b9aa→b7b0ac2). 정상 driver 로서 B-credential-2026-06-02T02:03Z(env 한계 BLOCKED) 해소 + T-0151 픽업. nextTask=T-0151→current. feature branch claude/T-0151-llm-provider-config-update-endpoint(base 14442a5) → executor: PATCH /api/llm/providers/:id(UpdateLlmProviderConfigDto 4필드 @IsOptional, repository.update partial forward, service.update provider 검증+partial data+apiKey 명시=재암호화/부재=기존 ciphertext 유지+P2025→404, controller @Patch(:id) Admin+; ADR-0014 §3 never-read-back. 8파일 +866, 신규 4파일 100% cov, 1330 tests pass). commit e7d01be → push. integrator: PR #144 open + reviewer dispatch APPROVE(round 1/7, 0 BLOCKER/MAJOR, 1 MINOR=api.md doc-sync 추적 deferral). 4-게이트 PASS(PR CI: pull_request run e7d01be + issue_comment run 14442a5 둘 다 success) → squash-merge 004e705 --delete-branch. post-merge main CI(push, run 004e705) in_progress — 다음 turn 재확인. planner: T-0152 큐잉(api.md §5 write CRUD doc-sync POST/PATCH/DELETE, direct, ~28 LOC/1파일, milestone-2 chain 4/4 마무리). tasksCompleted 149→150. milestone-2 write CRUD: helper+POST+DELETE+PATCH done → 코드 slice 완료, 남은 건 T-0152 doc-sync. milestone-1·3 미승인(§5)."
+    "note": "/loop session #38 (loop@WIN-JQIPLSBL9QV-1444, cap 5, dynamic) **t3 — Q-0014 escalate, loop STOP at human gate**. [1] fetch + lock turnCount 2→3 + t2 doc push CI(2bce3f4) completed success 확인. lastCommit 보정(3475b8a amend→2bce3f4). currentTask/nextTask 둘 다 null → planner dispatch. planner: P3 test-quality bullet 4종(PLAN L63~66 person.service P2002 branch·smoke/e2e domain·CI real PG)을 main 코드에 대조 검증한 결과 **전부 이미 merged**(stale 체크박스, 잔여 value 0) → 진짜 dependency-free 신규 작업 0. 남은 P4 milestone-1(LLM HTTP client: SDK dep+API key)·milestone-3(GitHub/Confluence adapters: HTTP dep+token)은 전부 §5 HITL → make-work 회피, **Q-0014 escalate**(needs-human-decision, OPEN). nextTask=null 유지. tasksCompleted 151 불변(escalation 은 task 완료 아님). **§1 [8](a) 미해결 humanQuestion 존재 → reschedule 안 함, loop clean STOP**. 사용자가 Q-0014 에 resolvedAt+decision(milestone-1/3 중 승인 + dependency/credential, 또는 대안2 PLAN doc-sync) 기입 후 새 /loop 로 재개. **session #38 결산(t1~t3): T-0151 PATCH merge + B-credential 해소 + T-0152 doc-sync = milestone-2 write CRUD 완전 종료(5/5), tasksCompleted 149→151, CI 매 push green, blockers 0**. milestone-1·3 미승인.\nPREV(t2): T-0152 api.md write-CRUD doc-sync(direct) DONE = milestone-2 chain 4/4 완결. [1] fetch + lock(본 session turnCount 1→2) + t1 push CI(aebe703 doc + 004e705 code) 둘 다 completed success 확인. nextTask=T-0152→current. executor(direct doc-only): docs/architecture/api.md §5 POST/PATCH/DELETE /api/llm/providers 3 row 를 \"미구현/ADR-0006 deferred\" → merged reality(POST 201+sanitize/PATCH 200+부분갱신/DELETE 204/404/409-P2003 + T-0149/0151/0150·PR #142/#144/#143 박제)로 정합. +3/-3 1파일. §6 status code 표·합계·Auth 줄 변경 불요 확인. tester 없음(doc-only, R-110/R-112 비적용). tasksCompleted 150→151. planner dispatch: NO_NEW_TASK — milestone-2 가 본 T-0152 머지로 비로소 완결되므로 escalate(Q-0014)는 next turn(clean main 재평가)으로 정확히 보류, premature/duplicate 회피. **nextTask=null → t3 에서 planner 재호출 → 남은 P4(milestone-1 LLM client·milestone-3 adapters)는 전부 §5 HITL(새 dep+credential) → Q-0014 escalation 예상 → loop clean STOP at human gate**. milestone-1·3 미승인 유지. **t2 결산: milestone-2 write CRUD 완전 종료(helper+POST+PATCH+DELETE+api.md doc-sync 5/5)**. P3 잔여 test-quality bullet(PLAN L63~66)은 dependency-free 차순위 후보로 보존.\nPREV(t1): T-0151 PATCH endpoint merge(PR #144→004e705) + B-credential 해소(로컬 gh+refs/locks/* 권한으로 cron@web STAND DOWN ×7 대체 픽업). tasksCompleted 149→150." 시작 시 cron@web 이 STAND DOWN ×7 (c2273b2~14442a5) 으로 refs/locks/* 403 + gh 부재라 T-0151 픽업 못 한 상태. 본 로컬 driver 는 gh 2.88.1 인증(repo scope) + refs/locks/* push 권한 보유 — ref-CAS lock 획득 success(264b9aa→b7b0ac2). 정상 driver 로서 B-credential-2026-06-02T02:03Z(env 한계 BLOCKED) 해소 + T-0151 픽업. nextTask=T-0151→current. feature branch claude/T-0151-llm-provider-config-update-endpoint(base 14442a5) → executor: PATCH /api/llm/providers/:id(UpdateLlmProviderConfigDto 4필드 @IsOptional, repository.update partial forward, service.update provider 검증+partial data+apiKey 명시=재암호화/부재=기존 ciphertext 유지+P2025→404, controller @Patch(:id) Admin+; ADR-0014 §3 never-read-back. 8파일 +866, 신규 4파일 100% cov, 1330 tests pass). commit e7d01be → push. integrator: PR #144 open + reviewer dispatch APPROVE(round 1/7, 0 BLOCKER/MAJOR, 1 MINOR=api.md doc-sync 추적 deferral). 4-게이트 PASS(PR CI: pull_request run e7d01be + issue_comment run 14442a5 둘 다 success) → squash-merge 004e705 --delete-branch. post-merge main CI(push, run 004e705) in_progress — 다음 turn 재확인. planner: T-0152 큐잉(api.md §5 write CRUD doc-sync POST/PATCH/DELETE, direct, ~28 LOC/1파일, milestone-2 chain 4/4 마무리). tasksCompleted 149→150. milestone-2 write CRUD: helper+POST+DELETE+PATCH done → 코드 slice 완료, 남은 건 T-0152 doc-sync. milestone-1·3 미승인(§5)."
   },
   "ci": {
     "lastRun": "2026-06-02T08:57:31+09:00",
@@ -61,6 +58,23 @@
       "resolutionHint": "이 항목을 해소하려면 docs/STATE.json 의 본 Q-0013 에 resolvedAt(ISO) + decision(승인한 milestone 과 dependency/credential 명시)을 기입하고 commit 한 뒤 새 /loop 를 시작한다. credential(API key/token)은 코드·STATE·journal 에 적지 말고 환경변수/secret store 로 주입한다(§9).",
       "resolvedAt": "2026-06-02T00:09:07+09:00",
       "decision": "milestone-2 (config write CRUD) 승인 — POST/PATCH/DELETE /api/llm/providers (Admin+ RBAC). apiKey 는 ADR-0014 AES-256-GCM envelope(Node 내장 crypto)로 encryption-at-rest, write-only never-read-back. 새 외부 dependency 0 / 외부 credential 0 (LLM_APIKEY_ENC_KEY 는 env 주입, test 는 test key fail-fast). milestone-1(LLM provider HTTP client)·milestone-3(GitHub/Confluence adapters)는 **미승인** — 추후 별도 결정. loop 재개: T-0147(LlmApiKeyCipher helper)부터 milestone-2 chain(helper→migration 검토→write CRUD→doc-sync) 진행. 주의: 후속 schema/data migration 단계는 §5 게이트 재발화 가능 — 그 task 진입 시 재확인."
+    },
+    {
+      "id": "Q-0014",
+      "raisedAt": "2026-06-02T09:12:00+09:00",
+      "raisedBy": "loop@WIN-JQIPLSBL9QV-1444 session #38 t3 (planner)",
+      "reason": "needs-human-decision",
+      "status": "OPEN",
+      "summary": "milestone-2 (LLM provider config write CRUD) 가 helper(T-0147)+POST(T-0149)+PATCH(T-0151)+DELETE(T-0150)+api.md doc-sync(T-0152) 5/5 로 완결 merged. Q-0013 이 승인한 유일한 milestone 이 소진됐다. 차순위 후보로 보존했던 P3 test-quality bullet 4종(PLAN L63~66)을 실제 main 코드에 대조 검증한 결과 이미 전부 merged 완료 — PLAN 의 [ ] 체크박스만 stale 이고 잔여 engineering value 0. 남은 P4 주요 milestone 2종은 모두 §5 HITL 게이트(새 외부 dependency + 외부 credential)라 사용자 승인 없이는 진행할 dependency-free 작업이 없다. make-work 회피 차원에서 escalate.",
+      "context": "P3 test-quality bullet 검증 결과: (L63) person.service.ts update() 의 P2002 + patch.email undefined fallback 분기는 src/user/person.service.spec.ts L407~428 에 dedicated test 존재(branch 100%). (L64) smoke domain 확장은 test/smoke/{persons,groups,parts}.smoke-spec.ts 존재(T-0043→T-0053 real DB cutover). (L65) e2e domain 확장은 test/e2e/ 에 9 spec 존재. (L66) CI real PostgreSQL 전환은 .github/workflows/ci.yml services.postgres + migrate deploy(ADR-0004, T-0052/T-0053)로 완료. → 4 bullet 모두 stale 체크박스(별도 PLAN doc-sync 정합 follow-up 만 가능, 이는 coverage-theater 아닌 단순 문서 정리). milestone-1/3 핵심 설계는 session #37 의 ADR-0011~0014 가 선행 de-risk, 이제 실제 구현(SDK 추가 + credential)만 남았는데 전부 HITL.",
+      "options": [
+        "milestone-1 (권장 1순위) — LLM provider HTTP client / LlmGateway: provider SDK 1종(예: @anthropic-ai/sdk 또는 선택 provider) pnpm add 승인 + LLM API key 자격증명 제공(env/secret 주입). de-risk: ADR-0014(apiKey encryption-at-rest) + milestone-2 완결된 read/write CRUD. 새 dependency 1+ / credential 1 필요.",
+        "milestone-3 (권장 2순위) — GithubAdapter + ConfluenceAdapter: HTTP client dependency(예: octokit / 내장 fetch) + GitHub(github.com / github.sec.samsung.net / github.ecodesamsung.com) 및 Confluence token 자격증명 승인. de-risk: ADR-0013(Confluence SPACE 탐색). 새 dependency 1+ / credential 다수 필요.",
+        "대안 — HITL 작업 미승인 상태로 dependency-free 다른 방향을 원하면 지시. 단 PLAN L63~66 잔여 후보는 검증 결과 모두 이미 merged 라 현 시점 진짜 신규 dependency-free value 는 미식별. 사용자 우선순위 있으면 재지시 (예: PLAN L63~66 stale 체크박스 doc-sync 정합 1건은 가능하나 우선순위 낮음).",
+        "대안2 (가장 빠름, dependency-free) — 위 milestone 미승인 상태로 PLAN.md L63~66 stale 체크박스를 merged 반영하는 direct doc-sync 1건만 진행 지시. 순수 문서 정합이라 §5 미발화."
+      ],
+      "recommendation": "권장 구현 순서: (1) milestone-1 LLM provider HTTP client → (2) milestone-3 GitHub/Confluence adapters. 가장 큰 가치 unblock 은 milestone-1 (P5 LLM 평가 파이프라인의 선행 backbone). 승인 절차: 각 milestone 에 필요한 dependency/credential 을 명시 승인하면 loop 가 (dependency-추가 ADR 작성 →) 구현 task 로 재개. 둘 다 승인 보류면 PLAN L63~66 stale 체크박스 doc-sync(대안2)만 가능하나 우선순위 낮음.",
+      "resolutionHint": "이 항목을 해소하려면 docs/STATE.json 의 본 Q-0014 에 resolvedAt(ISO) + decision(승인한 milestone 과 dependency/credential 명시)을 기입하고 commit 한 뒤 새 /loop 를 시작한다. credential(LLM API key / GitHub·Confluence token)은 코드·STATE·journal 에 적지 말고 환경변수/secret store 로 주입한다(§9). 승인 없이 PLAN 정리만 원하면 '대안2 — L63~66 stale 체크박스 doc-sync 만 진행' 으로 지시."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
