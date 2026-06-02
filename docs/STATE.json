@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0175",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-9124",
-    "since": "2026-06-02T23:23:52+09:00"
+    "since": "2026-06-02T23:27:23+09:00"
   },
-  "lastActivity": "2026-06-02T23:23:52+09:00",
-  "lastCommit": "5d43b37",
+  "lastActivity": "2026-06-02T23:30:18+09:00",
+  "lastCommit": "d0ba94a",
   "mostRecentTasks": [
     "T-0174",
     "T-0173",
@@ -18,10 +18,10 @@
     "T-0170"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-02T21:36:14+09:00",
     "cap": 10,
-    "note": "/loop session #42 (loop@AKIHA-9124, cap 10, dynamic) **t4 — T-0174 DONE/MERGED (GithubAdapter 순수 request-builder, PR #158 squash 5d43b37)**. [1] fetch + lock heartbeat(same session turnCount 3→4), t3 doc CI(553c19d) 확인, humanQuestion 0. [2] nextTask=T-0174→current(pr-mode). [3] driver 직접 dispatch(sub-agent nesting 불가): implementer→src/github/github-request.builder.ts(+139, ADR-0016 §2/§3 순수 builder: resolveGithubApiBaseUrl host 라우팅(public api.github.com vs Enterprise /api/v3, 대소문자·protocol·trailing-slash 정규화·빈 host throw) + buildGithubRequest {url,headers}+3 auth header(Bearer/Accept/X-GitHub-Api-Version=2022-11-28)·path 정규화·선택 query·빈 token/path throw, token 미노출). tester→github-request.builder.spec.ts(+234, R-112 30 case, 신규 파일 100% cov, 140 suite/2735 green). [4] pr-mode: feature branch commit→PR #158. reviewer APPROVE(round 1/7, 0 BLOCKER/MAJOR/MINOR, 2 INFO)+gh comment(gate-2). pull_request run 26825794095 은 approval-gate step 만 fail(실 step 전부 green=lint/build/cov/smoke/e2e), issue_comment run 26825925411 success(approval 포함=gate-4). integrator 4-gate 독립검증 전부 PASS(sizeExempt 정당: prod 139≤300, 초과분은 분리불가 R-112 colocated spec 234)→DECISION MERGED. driver squash-merge 5d43b37 --delete-branch. tasksCompleted 171→172, reviewRounds[T-0174]=1. **size note: diff 373 LOC(prod 139 + spec 234) sizeExempt — R-112 충분 cover spec**. [6] doc-only direct commit. **다음 turn t5: planner 가 milestone-3 차순위 — GithubAdapter @Injectable service slice(주입 FetchLike dispatch + ADR-0016 §4 non-2xx→PermissionDeniedEvent + §5 Link pagination + §6 token JIT decrypt + GithubModule wiring, mocked-fetch unit, 내장 fetch dep 0 → §5 미발화 dependency-free) 큐잉 예정**. reschedule 60s."
+    "note": "/loop session #42 (loop@AKIHA-9124, cap 10, dynamic) **t5 — T-0175 큐잉 (GithubAdapter @Injectable service dispatch, planner-queue turn, doc-only direct commit)**. [1] fetch + lock heartbeat(same session turnCount 4→5), t4 CI green(5d43b37 request-builder merge + d0ba94a bookkeeping), humanQuestion 0. [2] currentTask/nextTask 둘 다 null → planner dispatch: milestone-3 GithubAdapter service 첫 sub-slice 큐잉. T-0175(GithubAdapter @Injectable service — 단일 요청 dispatch: T-0174 builder→주입 FetchLike→non-2xx 도메인 error 매핑(401/403→permission-denied+PermissionDeniedEvent emit·404 not-found·429 rate-limited·5xx upstream·fetch reject transport)→JSON parse, ADR-0016 §1/§4/§6, milestone-1 T-0158 mirror). commitMode pr, ~165 prod LOC, architect 불요(ADR-0016 계약 확정) → implementer→tester. token=이미 복호화된 plaintext 인자 수용(JIT decrypt 후속 defer). PermissionDeniedEvent=주입 emitter port(default no-op). deferred(Follow-up): §5 Link pagination + GithubModule wiring + token JIT decrypt + PermissionDeniedRecord persistence + skip-and-continue loop. R-112: non-2xx 분기마다 negative. §5 미발화(내장 fetch dep 0, 실 token 0, mocked fetch). issue-still-relevant: origin/main 에 service/PermissionDeniedEvent 부재 확인. 본 turn=doc-only direct commit. **다음 turn t6: implementer 가 T-0175 구현(pr-mode: implementer→tester→PR→reviewer→integrator 4-gate→merge)**. reschedule 60s."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
