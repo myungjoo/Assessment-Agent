@@ -2,8 +2,9 @@
 id: T-0152
 title: api.md §5 LLM provider write CRUD doc-sync — POST/PATCH/DELETE /api/llm/providers merged reality 반영
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
+completedAt: 2026-06-02T09:06:00+09:00
 coversReq: [REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-043]
 estimatedDiff: 28
 estimatedFiles: 1
