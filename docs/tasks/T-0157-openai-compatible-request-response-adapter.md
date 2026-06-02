@@ -2,7 +2,11 @@
 id: T-0157
 title: OpenAI 호환(custom/openai) 요청/응답 shaping 순수 함수 adapter (buildOpenaiCompatibleRequest + parseOpenaiCompatibleResponse)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02T11:59:40+09:00
+mergedAs: 55bd04d
+prNumber: 147
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-099, REQ-100, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 300
