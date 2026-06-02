@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0174",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-9124",
-    "since": "2026-06-02T22:59:17+09:00"
+    "since": "2026-06-02T23:04:31+09:00"
   },
-  "lastActivity": "2026-06-02T22:59:17+09:00",
-  "lastCommit": "ebccc5d",
+  "lastActivity": "2026-06-02T23:07:30+09:00",
+  "lastCommit": "c098080",
   "mostRecentTasks": [
     "T-0173",
     "T-0172",
@@ -18,10 +18,10 @@
     "T-0169"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-02T21:36:14+09:00",
     "cap": 10,
-    "note": "/loop session #42 (loop@AKIHA-9124, cap 10, dynamic) **t2 — T-0173 DONE/MERGED (ADR-0016 GithubAdapter HTTP transport 계약, PR #157 squash ebccc5d)**. [1] fetch + lock heartbeat refresh(same session, turnCount 1→2), t1 doc CI(4cc3c44) success 확인, humanQuestion 0. [2] nextTask=T-0173→current(pr-mode). [3] sub-agent nesting 불가라 driver 가 역할별 직접 dispatch: architect→ADR-0016(PROPOSED — 내장 fetch injectable FetchLike·3 host variant base URL 라우팅(public api.github.com vs Enterprise /api/v3)·Authorization Bearer+Accept+X-GitHub-Api-Version·non-2xx 도메인 매핑(401/403→permission-denied+PermissionDeniedEvent·404 not-found·429 rate-limited·5xx upstream·fetch reject transport)·Link rel=next pagination·src/github builder↔주입 fetch 경계·ADR-0014 cipher JIT decrypt, ADR-0015 패턴 mirror) + INDEX.md row. architect 의 modules.md pointer 편집은 task Out-of-Scope(\"기존 doc 수정 0\")라 driver 가 revert(별도 doc-sync follow-up). tester R-110: lint/build/test green(139 suite/2701). [4] pr-mode: feature branch commit cc283ee push → PR #157 open. driver→reviewer 직접 dispatch: APPROVE(round 1/7, 0 BLOCKER/MAJOR/MINOR, 2 INFO) + gh pr comment 외부 post(gate-2). pull_request CI run 26824217533 은 approval-gate step 만 fail(reviewer comment 전 실행, 실 step=lint/build/test/cov/smoke/e2e 전부 green), reviewer comment 가 issue_comment run 26824412648 trigger→success(approval step 포함=gate-4). driver→integrator: 4-gate 독립 검증 전부 PASS(g1 APPROVE·g2 comment 외부·g3 self-check AC+OoS 준수·g4 issue_comment CI success)→DECISION MERGED. driver squash-merge ebccc5d --delete-branch. tasksCompleted 170→171. [6] 본 bookkeeping=doc-only direct commit(STATE+task DONE+journal). reviewRounds[T-0173]=1. **다음 turn t3: planner 가 milestone-3 차순위 — ADR-0016 계약 구현 GithubAdapter scaffold(service + 순수 request-builder + 주입 fetch dispatch + 4xx→PermissionDeniedEvent + Link pagination, mocked-fetch unit, 내장 fetch dep 0 → §5 미발화, dependency-free) 큐잉 예정**. reschedule 60s. (INFO: INDEX.md 에 ADR-0015 row 부재 = main 선행 gap, 비차단 — 후속 doc-sync 후보. jest 가 .claude/worktrees/angry-pasteur 중첩 worktree 픽업 = 별도 follow-up 후보.)"
+    "note": "/loop session #42 (loop@AKIHA-9124, cap 10, dynamic) **t3 — T-0174 큐잉 (GithubAdapter request-builder, planner-queue turn, doc-only direct commit)**. [1] fetch + lock heartbeat(same session, turnCount 2→3), t2 CI 전부 green(ebccc5d ADR-0016 merge + c098080 bookkeeping + 4cc3c44 issue_comment 모두 success), humanQuestion 0. [2] currentTask/nextTask 둘 다 null → planner dispatch: milestone-3 차순위 slice 큐잉. T-0174(GithubAdapter 순수 request-builder + 3 host variant base URL 라우팅(public api.github.com vs Enterprise /api/v3) + auth header — ADR-0016 §2/§3, commitMode pr, ~165 LOC/2파일). architect 불요(ADR-0016 이 transport 계약 확정) → implementer→tester. R-112 backbone ×1.5, §5 미발화(내장 fetch dep 0, 실 token 0, mocked-fetch unit). deferred slices(Follow-up): 주입 fetch dispatch·non-2xx→PermissionDeniedEvent·Link pagination·token JIT decrypt(ADR-0016 §4/§5/§6 service slice). issue-still-relevant: src/github/ origin/main 부재 확인(중복 0). 본 turn = doc-only direct commit(STATE nextTask + T-0174 task file + journal). **다음 turn t4: implementer 가 T-0174 구현(pr-mode: implementer→tester→PR→reviewer→integrator 4-gate→merge)**. reschedule 60s."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
