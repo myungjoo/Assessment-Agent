@@ -2,13 +2,15 @@
 id: T-0183
 title: ADR — ConfluenceAdapter HTTP transport 계약 박제 (내장 fetch / Cloud vs Server base URL / auth header / non-2xx 매핑 / page List pagination / adapter↔gateway 경계)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-010, REQ-034, REQ-044, REQ-059]
 estimatedDiff: 240
 estimatedFiles: 3
 created: 2026-06-03
+completedAt: 2026-06-03T06:15:00+09:00
 plannerNote: P4 milestone-3 Confluence 측 ADR-first slice — ADR-0016 패턴 mirror, dep0, Q-0017 verbatim 박제, doc-only enumerated × 1.6
+runtimeNote: 사용자 invocation 지시 ("문서·코멘트 변경은 PR/리뷰 없이 direct merge") 정합으로 본 doc-only ADR slice 는 pr-mode → direct main commit 으로 처리. cloud env refs/locks/* 403 한계로 ref-CAS 강한 mutex 미가용 (lock 비점유 상태로 진행, STATE.json.lock human mirror 만 갱신). lint+build+test 모두 green (80 suites / 1625 tests pass) 으로 R-110 doc-only delta 검증. acceptance 의 "docs/decisions/INDEX.md" 경로는 저장소 실 구조상 `docs/architecture/INDEX.md` (ADR 매핑표) 가 single source — 그 INDEX 에 ADR-0018 row 1 줄 추가.
 ---
 
 # T-0183 — ADR ConfluenceAdapter HTTP transport 계약 박제

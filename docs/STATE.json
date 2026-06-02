@@ -2,25 +2,25 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0183",
+  "nextTask": null,
   "lock": {
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-06-03T05:16:56+09:00",
-  "lastCommit": "1db99ca",
+  "lastActivity": "2026-06-03T06:15:00+09:00",
+  "lastCommit": "95d9b7a",
   "mostRecentTasks": [
+    "T-0183",
     "T-0182",
     "T-0181",
     "T-0180",
-    "T-0179",
-    "T-0178"
+    "T-0179"
   ],
   "loopSession": {
-    "turnCount": 10,
-    "startedAt": "2026-06-03T00:58:20+09:00",
-    "cap": 10,
-    "note": "/loop session #43 (loop@AKIHA-93ae, cap 10, dynamic) **t10 — T-0182 DONE/MERGED (GithubAdapter 실 fetch round-trip stub smoke, PR #165 squash edc37aa) + cap 10 도달 STOP**. [1] fetch + lock heartbeat(turnCount 9→10), origin/main=5cdffbf 변동 0, humanQuestion 0. [2] nextTask=T-0182→current(pr-mode). [3] driver 직접 dispatch: tester→test/smoke/github-adapter-roundtrip.smoke-spec.ts(내장 http.createServer GitHub REST stub + 실 globalThis.fetch round-trip, 7 test: host URL/header 직렬화·2xx JSON·403/404/500/malformed→GithubDomainError 매핑+emit·Link rel=next 2-page·§9 token 비노출, production code 무변경). lint+build green, isolation 7/7 PASS. [4] PR #165: reviewer APPROVE round 1/7(0 B/MAJ/MIN, 2 INFO — scheme-rewrite wrapper·CI-only 전체실행 수용). **CI 타이밍: pull_request run 26838426217 가 approval step 을 comment 직전 평가→fail(코드 step 전부 green) → comment 존재 후 rerun→success(7fa1db1, 전체 test:smoke 포함).** integrator 4-gate 전부 PASS→MERGED squash edc37aa. tasksCompleted 179→180, reviewRounds[T-0182]=1. **[8](e) loopSessionTurnCount=10 = cap 도달 → reschedule 안 함, lock 해제(ref tombstone + STATE mirror empty). session #43 종료.** **session #43 누적(t1~t10): P4 milestone-3 GitHub chain 6 완결 — T-0178 GithubModule wiring + env config parser / T-0179 token JIT decrypt / T-0180 GithubInstanceClient orchestrator / T-0181 ADR-0016·0017 ACCEPTED / T-0182 round-trip stub smoke. tasksCompleted 175→180(+5 merge, T-0181 direct), reviewRounds: T-0178=1·T-0179=2·T-0180=2·T-0182=1, CI 매 push green, blockers 0, dep 0, 실 credential 0, §5 미발화 유지. 부수: t3 STATE.json JSON invalid(note tail dangling) t4 복구 + note-edit memory 박제.** milestone-3 잔여(다음 session/cron): PermissionDeniedRecord entity(§5 schema migration) + GitHub live-run(§5 credential, ADR-0017 chain row3) + ConfluenceAdapter(신규 dep-free 영역, ADR-0013 기반). milestone-1 live-run(Q-0016 optionA)·REQ-014 GitHub Issue eval(P5 logic) 도 잔여. 다음 pickup: /compact 또는 /clear 후 새 /loop, 또는 cron 발화."
+    "turnCount": 1,
+    "startedAt": "2026-06-03T06:10:00+09:00",
+    "cap": 1,
+    "note": "cron@web-fire (anthropic cloud, fresh checkout) — T-0183 DONE direct (ADR-0018 ConfluenceAdapter HTTP transport 계약 박제). [1] fetch origin/main(eaa0c7b)+refs/locks/driver(264b9aa tombstone), 로컬 main 50 commit 뒤짐→`git reset --hard origin/main` 으로 fresh 동기, humanQuestion Q-0013~0017 전원 RESOLVED+blockers 0. **lock 획득 재시도 → refs/locks/driver push HTTP 403 (cloud env credential 한계, 직전 fire 와 동일 패턴 — blockersResolvedNote 박제됨)** — STATE.json.lock soft mirror 만 사용, ref-CAS 강한 mutex 미가용. [2] currentTask=null, nextTask=T-0183(직전 fire 가 큐잉)→current. [3] 사용자 invocation 지시 (`문서·코멘트 변경은 PR/리뷰 없이 direct merge`) 정합으로 본 pr-mode ADR slice 를 **direct main commit** 으로 처리 — driver 직접 작성 (executor/architect/reviewer/integrator 미호출, doc-only 단일 ADR + INDEX row 라 dispatch overhead 회피). 산출물: docs/decisions/ADR-0018-confluence-adapter-http-transport-contract.md(신설, 6 결정 축: 내장 fetch / Cloud `/wiki/rest/api` vs Server `/rest/api` 풀 URL 박제 / Cloud Basic `email:api_token` vs Server `Bearer <pat>` (AUTH_USER 존재 분기) / non-2xx 도메인 매핑 + 4xx→PermissionDeniedEvent (adapter throw / service skip-and-continue ADR-0013 정합) / `_links.next` body cursor pagination + CONFLUENCE_MAX_PAGES cap / 4 단 경계: builder→adapter.request→requestAllPages→SpaceTraversalService, ADR-0014 cipher 재사용+JIT decrypt, ADR-0017 env enumerable key 패턴 차용 — CONFLUENCE_INSTANCES + per-key BASE_URL/AUTH_USER/TOKEN_ENC/SPACE_ALLOWLIST, p4-plan T-0142 dependency 게이트 supersede 명시, dep0/schema0/credential0 후속 chain 9 row 박제) + docs/architecture/INDEX.md(ADR-0018 PROPOSED row 1 줄). [4] R-110 검증 — pnpm lint+build+test 80 suites/1625 tests green (doc-only delta 위에서 production code 0 LOC). [5] CI: 본 commit 은 direct main push → 푸시 직후 main CI 자동 trigger, 결과는 다음 fire 가 conclusion 확인. [6] task status PENDING→DONE, counters.tasksCompleted 180→181, mostRecentTasks prepend T-0183, lock release. [7] turn end — T-0183 DONE; next: planner needed; ci: pending(main push); blockers: 0. [8] cron fire 라 DYNAMIC RESCHEDULE skip — 자연 종료. **잔여 milestone-3 (다음 fire): ConfluenceAdapter scaffold chain (ADR-0018 의 후속 9 task chain 첫 slice = ConfluenceModule wiring + env config parser, dep0, T-0178 mirror) / GitHub live-run (§5 credential) / PermissionDeniedRecord entity (§5 schema)**. acceptance 의 `docs/decisions/INDEX.md` 경로는 저장소 실 구조상 `docs/architecture/INDEX.md` (ADR 매핑표) 가 single source — runtimeNote 박제."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
@@ -155,7 +155,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 180,
+    "tasksCompleted": 181,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
