@@ -2,7 +2,11 @@
 id: T-0160
 title: LlmHttpGateway — anthropic provider routing dispatch 연결 (anthropic adapter wiring)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02T12:45:14+09:00
+mergedAs: a61f192
+prNumber: 150
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-099, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 180
