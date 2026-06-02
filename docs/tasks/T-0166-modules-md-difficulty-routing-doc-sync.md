@@ -2,8 +2,9 @@
 id: T-0166
 title: modules.md LlmModule 행에 T-0165 난이도 기반 config routing 박제 doc-sync
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
+completedAt: 2026-06-02T14:05:00+09:00
 coversReq: [REQ-097]
 estimatedDiff: 6
 estimatedFiles: 1
