@@ -2,7 +2,11 @@
 id: T-0155
 title: AzureOpenaiAdapter — azure_openai 요청/응답 shaping 순수 함수 (generic HTTP gateway 1차 slice)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02T11:28:37+09:00
+mergedAs: 30467c2
+prNumber: 145
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-099, REQ-100, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 240
