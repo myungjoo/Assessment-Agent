@@ -2,8 +2,12 @@
 id: T-0179
 title: GitHub instance token JIT decrypt — _TOKEN_ENC envelope 를 호출 직전 평문화하는 helper 박제
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 163
+mergedAs: 3e21c2d
+completedAt: 2026-06-03T01:56:00+09:00
+reviewRounds: 2
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-044]
 estimatedDiff: 120
 estimatedFiles: 3
