@@ -2,8 +2,12 @@
 id: T-0165
 title: LlmHttpGateway 에 difficulty 기반 config routing 연결 (DifficultyMappingService.resolveModel 소비)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 153
+mergedAs: 78fa7e7
+reviewRounds: 1
+completedAt: 2026-06-02T13:55:00+09:00
 coversReq: [REQ-097]
 estimatedDiff: 85
 estimatedFiles: 2

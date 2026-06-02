@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0165",
+  "nextTask": "T-0166",
   "lock": {
     "holder": "loop",
-    "since": "2026-06-02T13:33:31+09:00"
+    "since": "2026-06-02T13:46:39+09:00"
   },
-  "lastActivity": "2026-06-02T13:35:00+09:00",
-  "lastCommit": "ac19743",
+  "lastActivity": "2026-06-02T13:55:00+09:00",
+  "lastCommit": "78fa7e7",
   "mostRecentTasks": [
+    "T-0165",
     "T-0164",
     "T-0163",
     "T-0162",
-    "T-0161",
-    "T-0160"
+    "T-0161"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-02T13:33:31+09:00",
     "cap": 10,
-    "note": "/loop session #40 (loop@WIN-JQIPLSBL9QV-s40, cap 10, dynamic) **t1 — T-0164 DONE(ADR-0006 status PROPOSED→ACCEPTED) + T-0165 큐잉**. [1] fetch(HEAD==origin/main==ac19743, stale-worktree 아님) + lock tombstone→loop CAS 획득(turnCount reset 1, 새 session) + humanQuestions Q-0013·Q-0014 모두 RESOLVED 확인. nextTask=T-0164→current. executor(direct doc-only): ADR-0006 frontmatter status PROPOSED→ACCEPTED(2026-06-02) + 제목 아래 전이 blockquote note(schema 3 model·@@unique·src/user/assessment.* 머지 증거) +6/-1. tester 면제(R-110 direct doc-only). tasksCompleted 161→162. planner: PLAN P4~P8 dep-free 재탐색 → **T-0165 큐잉**(LlmHttpGateway 가 options.difficulty 무시→DifficultyMappingService.resolveModel 연결로 REQ-097 난이도별 모델 라우팅 활성, 새 dep 0/credential 0/§5 미발화, pr-mode). 주의: planner 가 executor 의 staged ADR 변경을 'main 머지됨' 으로 오독했으나 실제 HEAD ac19743 의 ADR-0006 은 PROPOSED — staged-uncommitted 였음(driver 가 본 commit 으로 박제). 남은 milestone-1 실 LLM HTTP 통합·milestone-3·T-0154 는 전부 §5/cloud HITL. 다음: T-0165(pr-mode, gh 가용) 픽업."
+    "note": "/loop session #40 (loop@WIN-JQIPLSBL9QV-s40, cap 10, dynamic) **t2 — T-0165 MERGED(PR-153 round1, 78fa7e7) + T-0166 큐잉**. [1] fetch(HEAD==origin/main==d1b258b) + lock heartbeat(turnCount 1→2, since 13:46 갱신 — 60분 stale 보호) + t1 doc CI(d1b258b) success 확인. nextTask=T-0165→current. executor(pr-mode): LlmHttpGateway 생성자 DifficultyMappingService DI + generate() 분기(options.difficulty→resolveModel(difficulty).configId routing / 미제공→modelId 직접) +239/-24(2파일, 대부분 R-112 negative test). tester: gateway line/branch/func 100%, 전체 99.91%, 2763 pass. integrator: PR-153 open→reviewer APPROVE+comment 외부 post→4-게이트 PASS→squash merge(78fa7e7)+branch delete. round 1 clean, nit 0. tasksCompleted 162→163. planner: PLAN P4~P8 dep-free 재탐색 → **T-0166 큐잉**(modules.md L37 LlmModule 행에 T-0165 resolve hop + REQ-097 doc-sync, direct doc-only, §5 미발화). **주의: T-0166 머지 후 dependency-free backlog 소진 가능성 높음 — 다음 planner dispatch 는 §5 escalation(milestone-1 실 LLM HTTP 통합 / milestone-3 adapters / T-0154 cloud-fire 전부 HITL 미승인) 예상**. 다음: T-0166(direct doc-only) 픽업."
   },
   "ci": {
-    "lastRun": "2026-06-02T08:57:31+09:00",
+    "lastRun": "2026-06-02T13:55:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26768833357",
-    "note": "t2 [1] 에서 t1 push CI 둘 다 completed success 확인: post-merge main CI(004e705, T-0151 code) success + bookkeeping doc CI(aebe703) success. T-0152 는 direct doc-only commit — 별도 코드 CI 영향 없음(push CI 만 trigger). consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/153",
+    "note": "t2: t1 T-0164 doc commit(d1b258b) CI success 확인. T-0165(PR-153) CI green → integrator 4-게이트(2)(4) PASS 후 squash merge(78fa7e7). consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -82,7 +82,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 162,
+    "tasksCompleted": 163,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
