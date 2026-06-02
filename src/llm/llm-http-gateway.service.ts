@@ -1,17 +1,18 @@
 // LlmHttpGateway — multi-provider orchestration service (T-0156 → T-0158 →
-// T-0160, P4 milestone-1 2·4·6차 slice, REQ-099~103). config.provider 값에 따라
-// azure_openai adapter(buildAzureOpenaiRequest / parseAzureOpenaiResponse,
+// T-0160 → T-0162, P4 milestone-1 2·4·6·8차 slice, REQ-099~103). config.provider
+// 값에 따라 azure_openai adapter(buildAzureOpenaiRequest / parseAzureOpenaiResponse,
 // T-0155) / openai-compatible adapter(buildOpenaiCompatibleRequest /
 // parseOpenaiCompatibleResponse, T-0157) / anthropic adapter
-// (buildAnthropicRequest / parseAnthropicResponse, T-0159)를 선택 dispatch 해
+// (buildAnthropicRequest / parseAnthropicResponse, T-0159) / google_gemini adapter
+// (buildGeminiRequest / parseGeminiResponse, T-0161)를 선택 dispatch 해
 // `LlmGateway` 계약을 구현한다. 흐름: config 조회 → apiKey decrypt → provider 분기
 // dispatch(요청 조립) → (주입된) fetch → HTTP 상태 검사 → provider 분기 dispatch
 // (응답 파싱).
 //
 // 책임 경계:
-//   - 본 slice(T-0160)는 azure_openai / custom / openai / anthropic 4 provider 를
-//     처리한다. google_gemini 만 wire 포맷이 달라(adapter 순수 함수 미존재) 여전히
-//     "미지원" error throw — 연결은 Follow-up(adapter slice 선행).
+//   - 본 slice(T-0162)로 milestone-1 의 5 provider(azure_openai / custom / openai /
+//     anthropic / google_gemini)가 전부 unit 수준에서 동작한다 — adapter wiring 종결.
+//     알 수 없는(unknown) provider 값만 adapter 순수 함수 부재로 "미지원" throw.
 //   - apiVersion 영속 컬럼은 아직 없다(LlmProviderConfig 4 필드 = provider/
 //     endpointUrl/apiKey/modelId). azure 경로만 상수 default
 //     (AZURE_OPENAI_DEFAULT_API_VERSION)로 공급하고(openai-compatible 는 api-version
@@ -38,6 +39,10 @@ import {
   buildAzureOpenaiRequest,
   parseAzureOpenaiResponse,
 } from "./providers/azure-openai.adapter";
+import {
+  buildGeminiRequest,
+  parseGeminiResponse,
+} from "./providers/google-gemini.adapter";
 import {
   buildOpenaiCompatibleRequest,
   parseOpenaiCompatibleResponse,
@@ -93,18 +98,19 @@ export class LlmHttpGateway implements LlmGateway {
       );
     }
 
-    // (2) provider 검사 — 본 slice 는 azure_openai / custom / openai / anthropic 만
-    // 처리한다. google_gemini / 알 수 없는 값은 adapter 순수 함수가 아직 없어 미지원
-    // throw(provider 값 포함). google_gemini 연결은 Follow-up(adapter slice 선행).
+    // (2) provider 검사 — 본 slice(T-0162)로 milestone-1 의 5 provider(azure_openai /
+    // custom / openai / anthropic / google_gemini)가 전부 adapter 순수 함수에 연결된다.
+    // 그 외 알 수 없는(unknown) 값만 adapter 가 없어 미지원 throw(provider 값 포함).
     const provider = config.provider as LlmProvider;
     if (
       provider !== LlmProvider.AzureOpenai &&
       provider !== LlmProvider.Custom &&
       provider !== LlmProvider.Openai &&
-      provider !== LlmProvider.Anthropic
+      provider !== LlmProvider.Anthropic &&
+      provider !== LlmProvider.GoogleGemini
     ) {
       throw new Error(
-        `미지원 provider 입니다 — 본 slice 는 azure_openai / custom / openai / anthropic 만 처리합니다 (provider: ${config.provider})`,
+        `미지원 provider 입니다 — 지원 provider 는 azure_openai / custom / openai / anthropic / google_gemini 입니다 (provider: ${config.provider})`,
       );
     }
 
@@ -116,7 +122,10 @@ export class LlmHttpGateway implements LlmGateway {
     // 불요(custom / openai 는 동일 wire 포맷 — OpenAI Chat Completions 호환 공유),
     // anthropic 은 별도 wire 포맷(/v1/messages · x-api-key · anthropic-version ·
     // max_tokens · system top-level)이라 anthropic adapter 로 분기(apiVersion 불요).
-    // azure / openai-compatible / anthropic 3-way 라 가독성 위해 if/else 로 정리.
+    // google_gemini 도 별도 wire 포맷(URL path 에 model · x-goog-api-key ·
+    // contents[].parts[].text · systemInstruction)이라 gemini adapter 로 분기
+    // (anthropic 동형 — apiVersion 불요, adapter 가 provider 하드코딩). azure /
+    // openai-compatible / anthropic / gemini 4-way 라 가독성 위해 if/else 로 정리.
     let request: { url: string; headers: Record<string, string>; body: string };
     if (provider === LlmProvider.AzureOpenai) {
       request = buildAzureOpenaiRequest({
@@ -129,6 +138,14 @@ export class LlmHttpGateway implements LlmGateway {
       });
     } else if (provider === LlmProvider.Anthropic) {
       request = buildAnthropicRequest({
+        endpointUrl: config.endpointUrl,
+        modelId: config.modelId,
+        apiKey,
+        prompt,
+        options,
+      });
+    } else if (provider === LlmProvider.GoogleGemini) {
+      request = buildGeminiRequest({
         endpointUrl: config.endpointUrl,
         modelId: config.modelId,
         apiKey,
@@ -163,13 +180,16 @@ export class LlmHttpGateway implements LlmGateway {
     // LlmGenerateResult 로 변환(비정상 응답은 parse 가 throw). openai-compatible 은
     // provider 인자를 넘겨 result.provider 에 정확히 custom/openai 가 채워지도록 한다
     // (custom/openai 가 동일 wire 포맷을 공유하므로 호출처가 실제 provider 를 전달).
-    // azure / anthropic adapter 는 각자 provider 를 하드코딩하므로 인자 불요.
+    // azure / anthropic / gemini adapter 는 각자 provider 를 하드코딩하므로 인자 불요.
     const json = await response.json();
     if (provider === LlmProvider.AzureOpenai) {
       return parseAzureOpenaiResponse(json, config.modelId);
     }
     if (provider === LlmProvider.Anthropic) {
       return parseAnthropicResponse(json, config.modelId);
+    }
+    if (provider === LlmProvider.GoogleGemini) {
+      return parseGeminiResponse(json, config.modelId);
     }
     return parseOpenaiCompatibleResponse(json, config.modelId, provider);
   }
