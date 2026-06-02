@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0181",
   "lock": {
     "holder": "loop",
-    "since": "2026-06-03T02:08:08+09:00"
+    "since": "2026-06-03T02:34:14+09:00"
   },
-  "lastActivity": "2026-06-03T02:30:58+09:00",
+  "lastActivity": "2026-06-03T02:34:14+09:00",
   "lastCommit": "23bf78b",
   "mostRecentTasks": [
     "T-0180",
@@ -17,10 +17,10 @@
     "T-0176"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-06-03T00:58:20+09:00",
     "cap": 10,
-    "note": "/loop session #43 (loop@AKIHA-93ae, cap 10, dynamic) **t6 — T-0180 DONE/MERGED (GithubInstanceClient instance key orchestrator, PR #164 squash 23bf78b, 2 rounds)**. [1] fetch + lock heartbeat(turnCount 5→6), origin/main=b0540c9 변동 0, humanQuestion 0. [2] nextTask=T-0180→current(pr-mode). [3] driver 직접 dispatch: implementer→github-instance-client.service.ts(@Injectable orchestrator: key→resolveGithubInstances→decryptGithubInstanceConfigToken JIT→GithubAdapter.request/requestAllPages 위임, never-read-back)+github.module.ts(provider 등록·cipher 직접 provider), +162 prod LOC. **tester 가 PR 전 production bug catch: env 생성자 param @Optional 누락→NestJS DI module compile 실패(github.module.spec 2 fail)→implementer @Optional 추가 fix(round 0).** tester R-112 green. [4] PR #164: round1 reviewer REQUEST_CHANGES(1 MAJOR=module spec DI resolve 회귀 가드 부재 + 2 MINOR[PR body 문구·per_page 주석]) → §3 nit-in-PR closure round2: tester github.module.spec 에 GithubInstanceClient/LlmApiKeyCipher DI resolve+instanceof 가드 추가 + per_page 경계 주석 + driver PR body 정정(81d4237) → round2 reviewer APPROVE(0 finding). pull_request run 26836601696(81d4237) success. integrator 4-gate 전부 PASS→MERGED squash 23bf78b. tasksCompleted 177→178, reviewRounds[T-0180]=2. **다음 t7: planner 가 milestone-3 차순위 dependency-free slice 큐잉(GitHub Issue R-30 평가 / GithubModule↔AppModule 통합 smoke 등 후보; PermissionDeniedRecord entity·live-run 은 §5 게이트 제외)**. reschedule 60s. milestone-3 잔여: PermissionDeniedRecord entity(§5 schema) + GitHub Issue R-30 평가 + live-run(§5 credential). milestone-1 live-run(Q-0016 optionA)·ConfluenceAdapter 도 잔여."
+    "note": "/loop session #43 (loop@AKIHA-93ae, cap 10, dynamic) **t7 — T-0181 큐잉 (ADR-0016 + ADR-0017 status PROPOSED→ACCEPTED 동기화, direct doc-sync)**. [1] fetch + lock heartbeat(turnCount 6→7), origin/main=92895b9 변동 0, humanQuestion 0. [2] currentTask/nextTask 둘 다 null → planner dispatch → T-0181(commitMode direct §3.1 rule 4, ADR-0016 transport 계약[T-0174~0176 merge]·ADR-0017 config source[T-0178~0180 merge] 구현 완료됐으나 frontmatter+INDEX status 가 PROPOSED stale → ACCEPTED 전이, ~14 LOC/3 file, dep0/§5 미발화, ADR-0015/T-0172 precedent) 큐잉, nextTask=T-0181. modules.md 는 이미 current(planner 확인). 본 turn=doc-only direct commit(queuing). **다음 t8: nextTask T-0181→current, driver 직접 실행(direct ADR status flip, PR 없음)**. reschedule 60s. milestone-3 dependency-free backlog 희박 — T-0181 후 잔여는 대부분 §5 게이트(PermissionDeniedRecord schema / live-run credential) 또는 P5 logic(REQ-014 Issue eval). t9~t10 에서 planner 가 추가 dep-free 후보 미식별 시 Q-0018 escalate 가능. milestone-1 live-run(Q-0016 optionA)·ConfluenceAdapter 도 잔여."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
