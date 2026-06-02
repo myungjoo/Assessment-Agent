@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0172",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s41",
     "since": "2026-06-02T18:11:13+09:00"
   },
-  "lastActivity": "2026-06-02T18:45:00+09:00",
-  "lastCommit": "28e5012",
+  "lastActivity": "2026-06-02T18:53:00+09:00",
+  "lastCommit": "e800bf0",
   "mostRecentTasks": [
     "T-0171",
     "T-0170",
@@ -18,10 +18,10 @@
     "T-0167"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-02T18:11:13+09:00",
     "cap": 10,
-    "note": "/loop session #41 (loop@WIN-JQIPLSBL9QV-s41, cap 10, dynamic) **t2 — T-0171 DONE/MERGED(PR-156 round1, squash 28e5012)**. [1] fetch(HEAD==origin/main==d26879f) + lock 유지(same session s41, turnCount 1→2) + t1 doc CI(d26879f) in_progress(doc-only 비차단). nextTask=T-0171→current. executor(pr-mode): architect ADR-0015(PROPOSED, live-integration TEST CONTRACT — gating env LLM_LIVE_TEST/LLM_LIVE_BASE_URL/LLM_LIVE_API_KEY + ADR-0014 ENC_KEY 재사용·skip-in-CI·custom OpenAI-호환 wire shape·timeout/non-2xx 경계를 mocked unit/stub smoke/live 3 layer 로 정의) → implementer(순수 gating helper src/llm/llm-live-test-gating.ts + spec + env-gated test/smoke/llm-live.smoke-spec.ts, env 부재 시 describe.skip, 실값 process.env only §9, Node 내장만 dep 0) → tester(gating helper cov 100%, unit 2775 green, live suite env 부재→skip 직접 검증; 로컬 test:smoke 전체는 미migrate DB 로 globalSetup fail=환경한계, CI 는 migrate). diff +453(ADR 124+test 236+helper 93) 300 LOC guideline 초과하나 production surface 93 LOC·응집 단일 concern → reviewer no-split 판단. integrator: PR-156 open→reviewer APPROVE(0 finding)→4-게이트 전원 PASS(reviewer APPROVE / PR comment 외부존재 / self-check / CI green run 26811610455: reviewer-approval+smoke[live skip]+e2e+spec-presence 전부 success)→squash merge 28e5012 --delete-branch. tasksCompleted 168→169. milestone-1 live 통합의 dependency-free 선행 완결 — 잔여 = credentialed live-run(§5, 사용자 credential 주입 시 별도 task). 본 turn bookkeeping(direct doc commit) 후 종료. **이전 t1 note**: 사용자가 milestone-1 live(Q-0016 optionA) 선택 → 2단계 분해, planner T-0171 큐잉."
+    "note": "/loop session #41 (loop@WIN-JQIPLSBL9QV-s41, cap 10, dynamic) **t3 — planner-only: T-0172 큐잉(ADR-0015 PROPOSED→ACCEPTED status sync)**. [1] fetch(HEAD==origin/main==e800bf0) + lock 유지(same session s41, turnCount 2→3) + 최근 CI 3건(e800bf0/28e5012/d26879f) 전부 success=main green. humanQuestions 전원 RESOLVED. currentTask/nextTask 둘 다 null → planner dispatch. planner survey: T-0171(PR-156) merge 로 ADR-0015 live-test 계약이 main 박제됐으나 status 가 PROPOSED stale → ACCEPTED-on-implement 관례(ADR-0006/T-0164 precedent)대로 동기화하는 direct doc 1줄 task 큐잉(T-0172, ~6 LOC/1파일, §5 미발화). modules.md/PLAN drift 경로는 make-work 로 기각(modules.md L37 이미 'live=§5-deferred Q-0016 optionA' 정확). 잔여 milestone-1 = credentialed live-run(§5, 사용자 credential 주입 시) — Q-0016 에 이미 박제, 새 humanQuestion 미생성. 본 turn planner-only(LOOP §1[2]) → doc-only direct commit(STATE nextTask=T-0172 + 본 note + journal + T-0172 task 파일) 후 종료. 다음 turn t4 에서 T-0172 executor(direct doc-only, tester 면제 R-110) 실행. **t2 요약**: T-0171 DONE/MERGED(PR-156 round1 squash 28e5012, reviewer APPROVE 0 finding, 4-게이트 PASS, tasksCompleted 168→169) — milestone-1 live 통합 dependency-free 선행(ADR-0015 + env-gated live smoke scaffold) 완결."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
