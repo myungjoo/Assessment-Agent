@@ -2,26 +2,25 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0163",
+  "nextTask": "T-0164",
   "lock": {
-    "holder": "loop",
-    "since": "2026-06-02T11:00:24+09:00",
-    "session": "loop@WIN-JQIPLSBL9QV-603"
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-02T13:14:17+09:00",
-  "lastCommit": "d5666b8",
+  "lastActivity": "2026-06-02T13:21:00+09:00",
+  "lastCommit": "d647b70",
   "mostRecentTasks": [
+    "T-0163",
     "T-0162",
     "T-0161",
     "T-0160",
-    "T-0159",
-    "T-0158"
+    "T-0159"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-02T11:00:24+09:00",
     "cap": 10,
-    "note": "/loop session #39 (loop@WIN-JQIPLSBL9QV-603, cap 10, dynamic) **t9 — T-0162 MERGED (gemini gateway dispatch, milestone-1 adapter+routing 5-provider 종결)**. [1] fetch + lock turnCount 8→9 + t8 doc CI(5ef21ea) success. nextTask=T-0162→current. executor(pr): src/llm/llm-http-gateway.service.ts(+33/-13 — provider 검사 google_gemini 허용[unknown 만 throw] + build/parse gemini 분기 추가, azure/custom/openai/anthropic 회귀 보존) + spec 확장. gateway 100% cov, 140 suites/2758 tests green, dep0/credential0/migration0/auth0(§5 미발화). PR #152 → reviewer APPROVE(round 1/7, 0 finding clean, 4-provider 회귀 검증) → CI green(run 26797829521, head 69516a6) → 4-게이트 PASS → squash-merge **d5666b8** --delete-branch. tasksCompleted 159→160. **milestone-1 dependency-free 작업 종결**: gateway 가 5 provider(azure/custom/openai/anthropic/google_gemini) 전부 unit 레벨 dispatch. 남은 milestone-1 = 실 LLM 통합(실 endpoint·실 credential·env 주입·평가 파이프라인 연결)=§5 HITL 게이트 → planner escalation 예상. **session #39 누계(t2~t9): T-0155~T-0162 merged(8 tasks)**. CI 매 push green, blockers 0, dep 0. turnCount 9/cap 10 — t10 cap 임박. [PREV 상세 journal 참조]"
+    "note": "/loop session #39 (loop@WIN-JQIPLSBL9QV-603, cap 10, dynamic) **t10 — T-0163 DONE(modules.md LLM gateway doc-sync) + T-0164 큐잉 + cap(10) 도달 STOP**. [1] fetch + lock turnCount 9→10 + t9 doc CI(d647b70) success. nextTask=T-0163→current. executor(direct doc-only): docs/architecture/modules.md L37 LlmModule 행 + L174 매핑 행을 milestone-1 reality(LlmHttpGateway T-0156 / 5 adapter T-0155·0157·0159·0161 / interface T-0135 / routing T-0158·0160·0162 / LlmApiKeyCipher T-0147 / write CRUD T-0149·0151·0150 + §5 미통합 명시)로 doc-sync(+2/-2). tester 면제(doc-only). tasksCompleted 160→161. planner: 전체 PLAN(P4~P8) dep-free 탐색 → **T-0164 큐잉**(ADR-0006 status PROPOSED→ACCEPTED, 결정이 schema/repo/controller 로 main 전부 박제됐으나 status stale, §3.1 rule4 direct 한 줄, §5 미발화). **turnCount 10 = cap 도달 → reschedule 안 함, lock 해제(ref tombstone + mirror empty)**. **session #39 최종 결산(t1~t10): milestone-1 LLM gateway 착수 결정(T-0154 보류) + T-0155~T-0162 merged(8 pr-mode code tasks = 5 provider adapter + gateway orchestration + 5-provider routing dispatch) + T-0163 modules.md doc-sync, tasksCompleted 152→161(+9), CI 매 push green, blockers 0, 외부 dep 0, reviewer round 전부 1회 clean(T-0155 만 nit 1 in-PR closure)**. 남은 milestone-1 실 LLM 통합(실 endpoint·API key credential)·milestone-3(adapters)·T-0154(cron@web premise cloud-fire)는 전부 §5/cloud HITL. 다음 작업: T-0164(dep-free) → 이후 planner §5 escalation 예상. 새 /loop(/compact·/clear 후) 또는 cron 이 T-0164 픽업."
   },
   "ci": {
     "lastRun": "2026-06-02T08:57:31+09:00",
@@ -83,7 +82,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 160,
+    "tasksCompleted": 161,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

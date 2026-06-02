@@ -2,7 +2,8 @@
 id: T-0163
 title: modules.md LlmModule 행 milestone-1 gateway/adapter 구현 doc-sync (P4 milestone-1 backbone 박제)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02T13:21:00+09:00
 commitMode: direct
 coversReq: [REQ-099, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 18
