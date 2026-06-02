@@ -4,11 +4,11 @@
   "currentTask": null,
   "nextTask": "T-0184",
   "lock": {
-    "holder": "cron@web-planner",
-    "since": "2026-06-03T06:30:00+09:00"
+    "holder": "cron@web-heartbeat",
+    "since": "2026-06-03T06:45:00+09:00"
   },
-  "lastActivity": "2026-06-03T06:30:00+09:00",
-  "lastCommit": "95d9b7a",
+  "lastActivity": "2026-06-03T06:45:00+09:00",
+  "lastCommit": "110322a",
   "mostRecentTasks": [
     "T-0183",
     "T-0182",
@@ -18,10 +18,10 @@
   ],
   "loopSession": {
     "turnCount": 1,
-    "startedAt": "2026-06-03T06:30:00+09:00",
+    "startedAt": "2026-06-03T06:45:00+09:00",
     "cap": 1,
-    "holder": "cron@web-planner",
-    "note": "cron@web-fire (anthropic cloud, fresh checkout, KST 06:30 fire #3 of the night) — planner-only fire. [1] STATE read: currentTask=null/nextTask=null/blockers=0/humanQuestions 5종 전원 RESOLVED. **refs/locks/driver push 시도하지 않음 (직전 fire 박제된 HTTP 403 cloud env credential 한계 precedent — STATE.json.lock soft mirror 만 사용)**. [2] planner dispatch (cron@web 직접 호출, executor 미경유 — 1-task fire 의 doc-only direct bookkeeping). planner 가 ADR-0018 후속 chain row 1 = T-0178 mirror = ConfluenceModule wiring + env config parser 를 T-0184 로 큐잉. issue-still-relevant pre-check 통과: src/confluence 디렉토리 자체 부재 + ConfluenceModule/resolveConfluenceInstances/CONFLUENCE_INSTANCES 식별자 main grep 0 hit (superseded 아님). 산출물: docs/tasks/T-0184-confluence-module-wiring-env-config-parser.md (신설, frontmatter coversReq=REQ-009/010/015/016/044, dependsOn=T-0183, estimatedDiff=285 LOC / estimatedFiles=5, commitMode=pr, Required Reading 9건 박제 — ADR-0018·ADR-0017·github-instance-config.{ts,spec.ts}·github.module.{ts,spec.ts} 등 mirror reference, Acceptance Criteria R-112 4종 + flow 8 분기 + negative 8 종 cover 명시). 5 env 변수 박제: CONFLUENCE_INSTANCES + per-key BASE_URL/AUTH_USER/TOKEN_ENC/SPACE_ALLOWLIST (ADR-0018 Decision §2 verbatim). AUTH_USER non-empty → Cloud Basic / 빈 → Server Bearer normalize (ADR-0018 Decision §3 입력). [3] 본 fire = planner-only doc-only direct commit (사용자 invocation 지시 정합: 문서·코멘트 변경은 PR/리뷰 없이 direct merge). driver 가 본 turn 종료 후 docs/tasks/T-0184-*.md + STATE.json + journal-2026-06-03.md 3 파일을 단일 direct main commit 으로 push. [4] R-110 적용 N/A (doc-only). [5] CI: direct main push 후 doc-only delta 라 비차단, 다음 fire/loop pickup 시 conclusion 확인. [6] task PENDING (T-0184 신규), counters.tasksCompleted 변동 0, mostRecentTasks 변동 0 (T-0184 는 PENDING 큐만). [7] turn end — T-0184 queued; next: T-0184 → current (다음 fire 또는 /loop pickup, pr-mode executor dispatch); ci: 다음 fire 가 본 doc-only commit 의 main CI 확인; blockers: 0. [8] cron fire 라 DYNAMIC RESCHEDULE skip — 자연 종료. **다음 pickup (cron 또는 /loop): T-0184 → current, executor dispatch (pr-mode) → implementer (src/confluence/{confluence-instance-config.ts, confluence.module.ts} 신설 + src/app.module.ts imports 추가) → tester (R-112 4종 + flow 8 분기 + negative 8 cover) → PR open → reviewer → integrator → merge. milestone-3 잔여 후속 chain (ADR-0018 박제): row 2 token JIT decrypt / row 3 request-builder + service dispatch / row 4 pagination / row 5 SpaceTraversalService / row 6 roundtrip smoke / row 7 doc-sync / row 8 PermissionDeniedRecord entity (§5 schema) / row 9 live-run (§5 credential) / row 10 ADR ACCEPTED.**"
+    "holder": "cron@web-heartbeat",
+    "note": "cron@web-fire (anthropic cloud, fresh checkout, KST 06:45 heartbeat #4 of the night). [1] STATE read: currentTask=null, nextTask=T-0184 (직전 06:30 planner fire 큐잉, pr-mode ConfluenceModule wiring), humanQuestions Q-0013~0017 전원 RESOLVED, blockers=0. **refs/locks/driver push 시도하지 않음** (직전 3 fire precedent: cron@web HTTP 403 credential 한계 — STATE.json.lock soft mirror 만 사용). origin/main 110322a, 로컬 main 50 commit stale→`git reset --hard origin/main`. [2] nextTask=T-0184 promotion 보류 — T-0184 는 src/confluence/* 신설 + 5 파일 / 285 LOC 의 실 코드 pr-mode 작업이라 cron@web 환경에서 안전한 executor dispatch 불가 (적합한 feature branch + reviewer flow + push credential 미보장). 사용자 invocation 지시 정합: '문서·코멘트 변경에 대해서는 PR이나 리뷰 프로세스 없이 direct commit merge' — pr-mode 코드 작업은 본 fire 범위 밖. [3]~[4] 본 fire = heartbeat doc-only direct commit (executor 미경유). STATE.lastActivity + lock soft mirror 갱신 + journal entry 추가 만. [5] CI: direct main push 후 doc-only delta 라 비차단, 다음 fire/loop pickup 시 conclusion 확인. [6] task 상태 변동 0 (T-0184 nextTask 유지, counters 변동 0). [7] turn end — heartbeat; next: T-0184 (다음 적합 pickup 대기 — /loop 또는 권한 충분한 cron); ci: 다음 fire 가 본 doc-only commit 의 main CI 확인; blockers: 0. [8] cron fire 라 DYNAMIC RESCHEDULE skip — 자연 종료. **다음 pickup (cron 또는 /loop): T-0184 → current, executor dispatch (pr-mode, gh/MCP probe + feature branch 생성 + reviewer flow). milestone-3 잔여 후속 chain (ADR-0018 박제): row 1 = T-0184 (현재 큐) / row 2 token JIT decrypt / row 3 request-builder + service dispatch / row 4 pagination / row 5 SpaceTraversalService / row 6 roundtrip smoke / row 7 doc-sync / row 8 PermissionDeniedRecord entity (§5 schema) / row 9 live-run (§5 credential) / row 10 ADR ACCEPTED.**"
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
