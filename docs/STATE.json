@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0177",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-9124",
-    "since": "2026-06-03T00:18:55+09:00"
+    "since": "2026-06-03T00:23:35+09:00"
   },
-  "lastActivity": "2026-06-03T00:18:55+09:00",
-  "lastCommit": "ff864d3",
+  "lastActivity": "2026-06-03T00:26:44+09:00",
+  "lastCommit": "b395a0d",
   "mostRecentTasks": [
     "T-0176",
     "T-0175",
@@ -18,10 +18,10 @@
     "T-0172"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-02T21:36:14+09:00",
     "cap": 10,
-    "note": "/loop session #42 (loop@AKIHA-9124, cap 10, dynamic) **t8 — T-0176 DONE/MERGED (GithubAdapter Link pagination, PR #160 squash ff864d3, 2 rounds)**. [1] fetch + lock heartbeat(turnCount 7→8), t7 doc CI(b3bd32b) 확인, humanQuestion 0. [2] nextTask=T-0176→current(pr-mode). [3] driver 직접 dispatch: implementer→github-adapter.service.ts(+153/-23, parseNextLink(RFC-5988 rel=next 추출) + requestAllPages(per_page=100 다중 page 순회·flatten·GITHUB_MAX_PAGES=100 cap 부분수집) + 공통 private fetchAndMap(매핑·emit·parse 재사용), request() 불변), tester→spec(+428, parseNextLink 12 + requestAllPages 16 case, adapter 100% cov, 2778 green). [4] pr-mode: PR #160(c67277c). **round 1 reviewer APPROVE(0 BLOCKER/MAJOR, 1 MINOR: parseNextLink 주석↔regex 모순 \"단어경계 방어\" 거짓, 1 INFO nextpage deferral) → §3 nit-in-PR closure: implementer round 2 주석 정정(b306fcb, +4/-2 comment-only) → reviewer round 2 APPROVE(MINOR 해소). round-2 push b306fcb 의 pull_request run 26829141823 가 approval step 포함 전 step green(round-2 comment 선존재)=gate-4.** integrator round 2 4-gate 전부 PASS(comment-only delta, AC 충족, cov 100%, token 비노출)→DECISION MERGED. driver squash-merge ff864d3(c67277c+b306fcb). tester 가 task Follow-ups 에 nextpage robust 화 nit 기록(stash 보존→main 복원). tasksCompleted 173→174, reviewRounds[T-0176]=2. [6] doc-only direct commit(journal-2026-06-03.md 신규 — KST 자정 경과). **다음 turn t9: planner 가 milestone-3 차순위 sub-slice(GithubModule wiring / token JIT decrypt 중 1개, config/env 결정 동반 가능) 큐잉 예정. cap 10 — t9 queue/t10 execute 후 STOP 예상**. reschedule 60s."
+    "note": "/loop session #42 (loop@AKIHA-9124, cap 10, dynamic) **t9 — T-0177 큐잉 (ADR-0017 GithubModule config source, planner-queue turn, doc-only direct commit)**. [1] fetch + lock heartbeat(turnCount 8→9), t8 CI green(ff864d3 pagination merge + b395a0d bookkeeping), humanQuestion 0. [2] currentTask/nextTask 둘 다 null → planner dispatch: cap 근접(t10 = last execute)이라 1-turn 안정 완결 + dependency-free slice 선정. T-0177(ADR-0017 GithubModule instance sub-config source = env 기반 결정 — process.env 직접 read, @nestjs/config 미도입, DB schema 0). commitMode pr(새 ADR §3.1 rule 4), architect=y → architect→tester. ADR-0016 §2 가 deferred 한 config-source 결정을 단독 박제해 GithubModule wiring + token JIT decrypt code task 공통 선행 unblock. production code 0 LOC → 1 execute-turn 안정 완결(ADR-0016 패턴). §5 미발화(dep 0/실 token 0/live 0/schema 0). still-deferred: GithubModule wiring code / token JIT decrypt code / PermissionDeniedRecord entity(DB schema=§5) / GitHub Issue R-30 평가 / live-run(§5 credential). 본 turn=doc-only direct commit. **다음 turn t10(LAST, cap 10): architect 가 T-0177 ADR 작성(pr-mode: architect→tester→PR→reviewer→integrator 4-gate→merge) → 그 후 cap STOP(reschedule 안 함, 사용자에게 /compact·/clear 후 새 /loop 또는 cron 안내)**. reschedule 60s."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
