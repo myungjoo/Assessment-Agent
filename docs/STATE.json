@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0156",
   "lock": {
     "holder": "loop",
     "since": "2026-06-02T11:00:24+09:00",
