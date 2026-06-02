@@ -2,8 +2,12 @@
 id: T-0178
 title: GithubModule wiring + env→instance config 순수 함수 parser
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 162
+mergedAs: 50fb704
+completedAt: 2026-06-03T01:30:00+09:00
+reviewRounds: 1
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-044]
 estimatedDiff: 285
 estimatedFiles: 5

@@ -2,25 +2,25 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0178",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
-    "since": "2026-06-03T00:58:20+09:00"
+    "since": "2026-06-03T01:06:46+09:00"
   },
-  "lastActivity": "2026-06-03T00:58:20+09:00",
-  "lastCommit": "014ba12",
+  "lastActivity": "2026-06-03T01:30:00+09:00",
+  "lastCommit": "50fb704",
   "mostRecentTasks": [
+    "T-0178",
     "T-0177",
     "T-0176",
     "T-0175",
-    "T-0174",
-    "T-0173"
+    "T-0174"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-03T00:58:20+09:00",
     "cap": 10,
-    "note": "/loop session #43 (loop@AKIHA-93ae, cap 10, dynamic) **t1 — T-0178 큐잉 (GithubModule wiring + env→instance config 순수 함수 parser, ADR-0017 후속 chain row1)**. [1] fetch + lock 신규 획득(ref-CAS tombstone 264b9aa→efa3f7f, 새 session #43 이라 turnCount=1 reset, loopSessionStartedAt=now). humanQuestion Q-0013~0017 전원 RESOLVED, blockers 0. [2] currentTask/nextTask 둘 다 null → planner dispatch → T-0178(commitMode pr, dep0/schema0/§5 미발화, ~285 LOC/5 file) 큐잉, nextTask=T-0178. planner issue-still-relevant pre-check: github.module.ts/resolveGithubInstances/GITHUB_INSTANCES 미존재 확인(superseded 아님). 본 turn=doc-only direct commit. **다음 t2: nextTask T-0178→current, executor dispatch(pr-mode: architect 검토→implementer→tester→PR open→reviewer→integrator 4-gate)**. reschedule 60s. milestone-3 잔여: token JIT decrypt(ADR-0017 chain row2) + PermissionDeniedRecord entity(§5 schema) + GitHub Issue R-30 평가 + live-run(§5 credential). milestone-1 live-run(Q-0016 optionA)·ConfluenceAdapter 도 잔여."
+    "note": "/loop session #43 (loop@AKIHA-93ae, cap 10, dynamic) **t2 — T-0178 DONE/MERGED (GithubModule wiring + env→instance config 순수 함수 parser, PR #162 squash 50fb704)**. [1] fetch + lock heartbeat(turnCount 1→2), origin/main=cdfb4d4(t1) 변동 0, humanQuestion 0. [2] nextTask=T-0178→current(pr-mode). [3] driver 직접 dispatch(executor 무 Agent tool → 직접): implementer→github-instance-config.ts(resolveGithubInstances 순수 함수, env 인자, GITHUB_INSTANCES + per-key _HOST/_ORG/_TOKEN_ENC fail-fast)+github.module.ts(GithubAdapter provide/export)+app.module.ts(imports 등록), prod ~187 LOC/5 file, build/lint green. tester→colocated spec 2종+보강 2 case, lint/build/test/cov green(2802 tests, 신규 parser 100%, 전역 line 99.92%/func 100%/branch 100%, gate 80/80). [4] PR #162: reviewer APPROVE round 1/7(0 B/MAJ/MIN, 2 INFO)+gh comment(issuecomment-4604430174). **CI 타이밍: 최초 pull_request run 26832985194 가 approval step(16:21:16Z)을 comment post(16:21:39Z) 직전에 평가해 fail → comment 존재 후 rerun → success(headSha 1ca2ba4). issue_comment run 26833106910 success.** gate-4 green. integrator 4-gate 전부 PASS(AC 1:1, Out-of-Scope 준수[token JIT decrypt/PermissionDeniedRecord/dep 0], secret 0, §12 정합)→MERGED. driver squash-merge 50fb704. tasksCompleted 175→176, reviewRounds[T-0178]=1. **다음 t3: planner 가 milestone-3 차순위 dependency-free slice 큐잉(token JIT decrypt = ADR-0017 chain row2 후보 / GitHub Issue R-30 평가 등 — PermissionDeniedRecord entity·live-run 은 §5 게이트라 제외)**. reschedule 60s. milestone-3 잔여: token JIT decrypt(ADR-0017 chain row2) + PermissionDeniedRecord entity(§5 schema) + GitHub Issue R-30 평가 + live-run(§5 credential). milestone-1 live-run(Q-0016 optionA)·ConfluenceAdapter 도 잔여."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
@@ -38,7 +38,8 @@
     "T-0174": 1,
     "T-0175": 1,
     "T-0176": 2,
-    "T-0177": 1
+    "T-0177": 1,
+    "T-0178": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -151,7 +152,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 175,
+    "tasksCompleted": 176,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
