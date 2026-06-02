@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0182",
   "lock": {
     "holder": "loop",
-    "since": "2026-06-03T02:41:14+09:00"
+    "since": "2026-06-03T02:47:10+09:00"
   },
-  "lastActivity": "2026-06-03T02:43:00+09:00",
-  "lastCommit": "2720168",
+  "lastActivity": "2026-06-03T02:47:10+09:00",
+  "lastCommit": "bfcf6d8",
   "mostRecentTasks": [
     "T-0181",
     "T-0180",
@@ -17,10 +17,10 @@
     "T-0177"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-03T00:58:20+09:00",
     "cap": 10,
-    "note": "/loop session #43 (loop@AKIHA-93ae, cap 10, dynamic) **t8 — T-0181 DONE (ADR-0016 + ADR-0017 status PROPOSED→ACCEPTED 동기화, direct commit 2720168)**. [1] fetch + lock heartbeat(turnCount 7→8), origin/main=c152d88 변동 0, humanQuestion 0. [2] nextTask=T-0181→current(direct mode). [3] driver 직접 실행(direct doc-only, PR/tester 없음 — R-110/R-112 면제): ADR-0016 frontmatter+blockquote ACCEPTED 전이(transport 계약 T-0174~0176 박제) + ADR-0017 frontmatter+blockquote ACCEPTED 전이(config source T-0178~0180 박제, live-run §5 deferred 명시) + INDEX.md 2 row PROPOSED→ACCEPTED. 3 파일, 코드·modules.md 무변경. deliverable commit 2720168 + 본 bookkeeping commit. tasksCompleted 178→179. **다음 t9: planner dispatch — milestone-3 dependency-free backlog 희박(잔여 = §5 게이트 PermissionDeniedRecord schema/live-run credential, 또는 P5 logic REQ-014 Issue eval). genuine dep-free 미식별 시 Q-0018 escalate. cap 10 — t9 queue(or escalate)/t10 execute 후 STOP 예상**. reschedule 60s. milestone-3 잔여: PermissionDeniedRecord entity(§5 schema) + GitHub live-run(§5 credential). milestone-1 live-run(Q-0016 optionA)·ConfluenceAdapter 도 잔여."
+    "note": "/loop session #43 (loop@AKIHA-93ae, cap 10, dynamic) **t9 — T-0182 큐잉 (GithubAdapter 실 fetch round-trip local stub smoke, T-0168 패턴 mirror)**. [1] fetch + lock heartbeat(turnCount 8→9), origin/main=bfcf6d8 변동 0, humanQuestion 0. [2] currentTask/nextTask 둘 다 null → planner dispatch(cap-aware: t9 queue/t10 LAST execute) → T-0182(commitMode pr, Node 내장 http.createServer 로 OpenAI-호환 아닌 GitHub REST stub 1개 띄우고 GithubInstanceClient/GithubAdapter 가 실 globalThis.fetch 로 round-trip[헤더 직렬화·base URL 조립·non-2xx·Link pagination 실수신] 검증, production code 무변경·smoke spec only, 새 dep0/credential0/§5 미발화, single-turn 완결) 큐잉, nextTask=T-0182. github roundtrip smoke 부재 확인(superseded 아님). 본 turn=doc-only direct commit(queuing). **다음 t10(LAST, cap 10): nextTask T-0182→current, driver 직접 dispatch(pr-mode: tester smoke→PR→reviewer→integrator) → merge → cap STOP(reschedule 안 함, /compact·/clear 후 새 /loop 또는 cron 안내). round 다수 spill 시 PR resume 으로 다음 session 이어받음**. reschedule 60s. session #43 누적(t1~t9): milestone-3 GitHub chain 5 완결(T-0178 wiring/T-0179 token decrypt/T-0180 client orchestrator/T-0181 ADR-0016·0017 ACCEPTED), tasksCompleted 175→179, CI 매 push green, blockers 0, dep 0, §5 미발화. milestone-3 잔여(다음 session/cron): PermissionDeniedRecord entity(§5 schema) + GitHub live-run(§5 credential) + ConfluenceAdapter. milestone-1 live-run(Q-0016 optionA) 도 잔여."
   },
   "ci": {
     "lastRun": "2026-06-02T18:44:00+09:00",
