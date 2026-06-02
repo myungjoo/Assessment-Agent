@@ -47,8 +47,10 @@ export function isLlmProvider(value: string): value is LlmProvider {
 export interface LlmGenerateOptions {
   // 사용할 LlmProviderConfig.modelId — provider 내 model 식별자.
   modelId: string;
-  // 난이도 힌트 (easy / medium / hard) — DifficultyMapping (T-0136) 연동의
-  // placeholder. 본 task 는 매핑 로직 0, 옵션 shape 만 박제.
+  // 난이도 힌트 (easy / medium / hard) — active routing 입력(T-0165, REQ-097).
+  // 제공 시 gateway 구현(LlmHttpGateway)이 DifficultyMappingService.resolveModel
+  // (difficulty) 로 그 난이도 슬롯의 configId 를 해석해 해당 config 로 routing 하고,
+  // 미제공(undefined)이면 modelId 를 config id 로 직접 사용한다.
   difficulty?: string;
 }
 
