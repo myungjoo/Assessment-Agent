@@ -2,7 +2,11 @@
 id: T-0162
 title: LlmHttpGateway google_gemini provider routing dispatch 연결 (gemini adapter wiring)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-02T13:14:17+09:00
+mergedAs: d5666b8
+prNumber: 152
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-099, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 180
