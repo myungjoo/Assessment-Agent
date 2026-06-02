@@ -2,33 +2,33 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0167",
+  "nextTask": null,
   "lock": {
-    "holder": "loop",
-    "since": "2026-06-02T14:04:18+09:00"
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-02T14:05:00+09:00",
-  "lastCommit": "7cb38c5",
+  "lastActivity": "2026-06-02T14:16:00+09:00",
+  "lastCommit": "2e5d725",
   "mostRecentTasks": [
+    "T-0167",
     "T-0166",
     "T-0165",
     "T-0164",
-    "T-0163",
-    "T-0162"
+    "T-0163"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-02T13:33:31+09:00",
     "cap": 10,
-    "note": "/loop session #40 (loop@WIN-JQIPLSBL9QV-s40, cap 10, dynamic) **t3 — T-0166 DONE(modules.md 난이도 routing doc-sync) + T-0167 큐잉**. [1] fetch(HEAD==origin/main==7cb38c5) + lock heartbeat(turnCount 2→3, since 14:04) + t2 bookkeeping CI(7cb38c5) success 확인. nextTask=T-0166→current. executor(direct doc-only): modules.md L37 LlmModule 행에 난이도 routing resolve hop(options.difficulty→resolveModel→configId, 미제공→modelId, T-0165/PR-153) 1 절 + REQ-097 inline-amend +1/-1. tester 면제(R-110 direct doc-only). tasksCompleted 163→164. planner: PLAN P4~P8 dep-free 최종 재탐색 → **T-0167 큐잉**(llm-gateway.interface.ts L50-52 LlmGenerateOptions.difficulty JSDoc 가 'placeholder·매핑 로직 0' 로 stale — T-0165 머지로 difficulty 가 active routing 입력이 됐으나 contract comment 가 모순. comment-only, pr-mode, §5 미발화). **중요: planner 가 T-0167 머지 후 dependency-free backlog 진짜 소진 확정 — 다음 planner dispatch 는 NEEDS_HUMAN_DECISION 반환 예정(milestone-1 실 LLM HTTP 통합=live endpoint+API key credential / milestone-3 GitHub·Confluence adapters=새 HTTP dep+token / T-0154 cron@web cloud-fire=cloud-proxy push 권한, 권장순서 m1→m3→T-0154)**. 다음: T-0167(pr-mode, gh 가용) 픽업."
+    "note": "/loop session #40 (loop@WIN-JQIPLSBL9QV-s40, cap 10, dynamic) **t4 — T-0167 MERGED(PR-154 round1, 2e5d725) + Q-0015 escalation → loop STOP(미해결 humanQuestion, [8](a))**. [1] fetch(HEAD==origin/main==c4f834c) + lock heartbeat(turnCount 3→4, since 14:11). nextTask=T-0167→current. executor(pr-mode comment-only): llm-gateway.interface.ts LlmGenerateOptions.difficulty JSDoc 의 'placeholder·매핑 로직 0' 제거 → resolveModel routing reality 정합 +4/-2, 시그니처 불변. tester: 140 suite/2763 pass, coverage 100%(comment-only 영향 0). integrator: PR-154 open→reviewer APPROVE→4-게이트 PASS→squash merge(2e5d725)+branch delete, round 1. **operational note: integrator 첫 reviewer comment 가 `gh pr comment --body @-` heredoc 미연결 버그로 literal '@-' post → approval-gate issue_comment CI(c4f834c) 1회 failure → `--body-file -` 재post + `gh run rerun` 자가치유 → 05:22 issue_comment CI success. main push CI(c4f834c)·merge CI(2e5d725) 둘 다 success — main green, consecutiveFails 0 유지(코드/build/test fail 아님, approval-gate transient).** tasksCompleted 164→165. planner final survey(t4): dependency-free backlog 진짜 소진 확정 — type-tightening(difficulty→union) 후보 검토했으나 gateway negative test compile-break 로 기각, doc/PLAN/ADR 전부 정합, gateway 5 provider wired. notifier: **Q-0015 OPEN 기록**(milestone-1 실 LLM HTTP 통합 / milestone-3 GitHub·Confluence adapters / T-0154 cloud-fire 전부 §5/cloud HITL 미승인, 권장순서 m1→m3→T-0154). **follow-up 후보(dependency-free, 차기 planner): .claude/agents/integrator.md 의 PR comment post 를 `--body-file -` 로 수정해 `@-` 버그 재발 차단.** loop STOP — lock 해제(ref tombstone + mirror empty). Q-0015 resolve(resolvedAt+decision 기입) 후 새 /loop 재개."
   },
   "ci": {
-    "lastRun": "2026-06-02T13:55:00+09:00",
+    "lastRun": "2026-06-02T14:13:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/153",
-    "note": "t2: t1 T-0164 doc commit(d1b258b) CI success 확인. T-0165(PR-153) CI green → integrator 4-게이트(2)(4) PASS 후 squash merge(78fa7e7). consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/154",
+    "note": "t4: t3 doc commit(c4f834c) push CI success. T-0167(PR-154) merge CI(2e5d725) success → main green. 주의: integrator 의 첫 reviewer comment heredoc 버그('@-' literal post)로 c4f834c issue_comment approval-gate CI 1회 failure 후, 재post+rerun 으로 05:22 success — 코드/build/test fail 아닌 approval-gate transient 라 consecutiveFails 0 유지."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -77,12 +77,30 @@
       "resolutionHint": "이 항목을 해소하려면 docs/STATE.json 의 본 Q-0014 에 resolvedAt(ISO) + decision(승인한 milestone 과 dependency/credential 명시)을 기입하고 commit 한 뒤 새 /loop 를 시작한다. credential(LLM API key / GitHub·Confluence token)은 코드·STATE·journal 에 적지 말고 환경변수/secret store 로 주입한다(§9). 승인 없이 PLAN 정리만 원하면 '대안2 — L63~66 stale 체크박스 doc-sync 만 진행' 으로 지시.",
       "resolvedAt": "2026-06-02T09:20:00+09:00",
       "decision": "option 3/대안2 (dependency-free) 승인 — milestone-1(LLM HTTP client)·milestone-3(GitHub/Confluence adapters)는 **미승인 유지**(추후 별도 결정). 현 시점은 PLAN.md L63~66 의 stale test-quality 체크박스 4종을 merged reality 로 doc-sync 하는 것만 진행한다(순수 문서 정합, 새 dependency 0 / credential 0 / §5 미발화). loop 재개: T-0153(PLAN P3 test-quality 체크박스 doc-sync, direct) 1건 실행 후 dependency-free 작업 소진 — 이후 진척은 milestone-1/3 승인(Q-0014 recommendation 순서) 필요."
+    },
+    {
+      "id": "Q-0015",
+      "raisedAt": "2026-06-02T14:15:00+09:00",
+      "raisedBy": "loop@WIN-JQIPLSBL9QV-s40 session #40 t4 (planner final survey → needs-human-decision)",
+      "reason": "needs-human-decision",
+      "status": "OPEN",
+      "summary": "난이도 routing wiring chain (T-0160→T-0167) 과 그 doc/comment sync 가 모두 main 에 머지되면서, HITL 게이트에 걸리지 않는 dependency-free 작업 backlog 가 진짜로 소진됐다. LlmHttpGateway 는 5 provider (custom / azure_openai / anthropic / google_gemini / openai) 전부에 대해 unit 수준 dispatch + 난이도 기반 config routing 까지 in-process 로 완결됐고, ADR-0001~0014 는 전원 ACCEPTED, PLAN 체크박스도 정합 상태다. 남은 P4 주요 milestone 3종이 모두 CLAUDE.md §5 HITL 게이트 (새 외부 dependency / 외부 자격증명 / cloud push 권한) 에 걸려 있어 사용자 승인 없이는 loop 가 진행할 가치 있는 dependency-free 작업이 없다.",
+      "context": "이번 세션 (#40) 에서 T-0164 (ADR-0006 status ACCEPTED sync) → T-0165 (LlmHttpGateway 난이도 routing wiring, PR-153) → T-0166 (modules.md 난이도 routing doc-sync) → T-0167 (llm-gateway.interface.ts difficulty JSDoc reality 정합, PR-154) 를 완주했다. genuine 최종 재탐색 (실 코드 대조): (1) unwired slice — gateway 5 provider 전부 wired, 잔여 Follow-up (apiVersion 영속 컬럼화=schema migration, 실 네트워크/credential 통합) 전부 §5 게이트. (2) type-tightening (difficulty?: string → Difficulty union) 검토했으나 gateway spec 의 빈 문자열/unsupported negative test 를 compile-break 시켜 기각 (deliberate raw-input boundary). (3) doc-sync — modules.md/api.md/interface JSDoc/ADR-0006 모두 정합. (4) PLAN checkbox — P3=T-0153 sync 완료, P4 milestone 은 §5 미완으로 정당하게 unchecked. (5) ADR status — 0001~0014 전원 ACCEPTED. 잔여 전부 §5/cloud HITL-gated.",
+      "options": [
+        "milestone-1 (권장 1순위) — 실 LLM provider HTTP 통합: LlmHttpGateway 를 실 네트워크 + 실 credential 로 통합. 필요: live LLM endpoint + LLM API key (env/secret 주입, LLM_APIKEY_ENC_KEY + provider API key) + smoke/e2e. de-risk 완료: ADR-0014 + 5 provider adapter + 난이도 routing. provider SDK 추가 필요 시 dependency-추가 ADR 선행. 현재 미승인.",
+        "milestone-1 보조 — apiVersion 영속 컬럼화: azure_openai apiVersion 을 LlmProviderConfig 영속 컬럼으로. schema migration (§5 DB schema 게이트) 필요. 현재 미승인.",
+        "milestone-3 (권장 2순위) — GithubAdapter + ConfluenceAdapter: HTTP client dependency (octokit / 내장 fetch) + GitHub (github.com / github.sec.samsung.net / github.ecodesamsung.com) 및 Confluence token. de-risk: ADR-0013. 새 dependency 1+ / credential 다수. 현재 미승인.",
+        "T-0154 (권장 3순위) — cron@web cloud-fire: cloud-proxy 의 refs/locks/* + feature branch push 권한. 현재 미승인.",
+        "대안 (dependency-free) — genuine 재탐색 결과 현 시점 진짜 신규 dependency-free value 는 미식별. 사용자 우선순위가 다르면 재지시 가능하나 planner 는 현재 make-work 로 판단."
+      ],
+      "recommendation": "권장 구현 순서 — (1) milestone-1 실 LLM HTTP 통합 → (2) milestone-3 GitHub/Confluence adapters → (3) T-0154 cron@web cloud-fire. 가장 큰 가치 unblock 은 milestone-1 (P5 평가 파이프라인 선행 backbone).",
+      "resolutionHint": "docs/STATE.json 의 Q-0015 에 resolvedAt (ISO) + decision (승인한 milestone + 필요한 dependency/credential 명시) 을 기입하고 commit 한 뒤 새 /loop 를 시작한다. credential (LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY) 은 코드·STATE·journal 에 적지 말고 환경변수/secret store 로 주입한다 (CLAUDE.md §9). 새 외부 dependency 가 필요한 milestone 은 loop 가 dependency-추가 ADR 를 먼저 작성한 뒤 구현 task 로 재개한다."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 164,
+    "tasksCompleted": 165,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

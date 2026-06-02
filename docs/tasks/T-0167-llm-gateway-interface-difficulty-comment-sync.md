@@ -2,8 +2,12 @@
 id: T-0167
 title: LlmGenerateOptions.difficulty JSDoc 를 T-0165 난이도 routing wiring reality 로 정합
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 154
+mergedAs: 2e5d725
+reviewRounds: 1
+completedAt: 2026-06-02T14:15:00+09:00
 coversReq: [REQ-097]
 estimatedDiff: 8
 estimatedFiles: 1
