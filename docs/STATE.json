@@ -2,12 +2,13 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0171",
   "lock": {
-    "holder": "",
-    "since": ""
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-s41",
+    "since": "2026-06-02T18:11:13+09:00"
   },
-  "lastActivity": "2026-06-02T17:28:00+09:00",
+  "lastActivity": "2026-06-02T18:13:00+09:00",
   "lastCommit": "5e74480",
   "mostRecentTasks": [
     "T-0170",
@@ -17,10 +18,10 @@
     "T-0166"
   ],
   "loopSession": {
-    "turnCount": 8,
-    "startedAt": "2026-06-02T13:33:31+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-06-02T18:11:13+09:00",
     "cap": 10,
-    "note": "/loop session #40 (loop@WIN-JQIPLSBL9QV-s40, cap 10, dynamic) **t8 — T-0170 DONE(modules.md transport 상태 정합) + dependency-free backlog 소진 확정 → live 통합 게이트 사용자 결정 대기**. [1] fetch(HEAD==origin/main==5e74480) + lock heartbeat(turnCount 7→8, since 17:25) + t7 doc CI(5e74480) in_progress(doc-only 비차단). nextTask=T-0170→current. executor(direct doc-only): modules.md L37 LlmModule 상태 문장을 'unit-level dispatch 까지 ... 실 HTTP 미착수'(stale)에서 '실 globalThis.fetch transport 배선 + 로컬 stub round-trip smoke(T-0168/PR-155) closeout 완료 — 잔여 = live endpoint+실 credential 만 §5 deferred(Q-0016 option A)'로 +1/-1 정합. tester 면제(R-110 direct doc-only). tasksCompleted 167→168. **planner dispatch: T-0170 을 SUPERSEDED(by ac19743)로 오판 → driver 가 origin/main:modules.md L37 직접 대조해 stale 문장이 여전히 committed 임을 확인, T-0170 legitimate DONE 으로 정정(planner 의 staged-vs-merged 재오독, t1 과 동일 패턴 — T-0163 은 T-0168 보다 앞서 머지돼 round-trip smoke 문서화 불가).** planner 의 broader 결론(dependency-free backlog 소진)은 유효 — 잔여 전부 §5/cloud HITL: milestone-1 live 통합(Q-0016 option A: live endpoint+provider API key+LLM_APIKEY_ENC_KEY env 주입) / milestone-3(GitHub·Confluence: 새 dep+token) / T-0154(cloud push 권한). **사용자 standing 지시('결정 필요시 즉시 물어라')에 따라 driver 가 AskUserQuestion 으로 직접 질의 — 새 humanQuestion 미생성(Q-0015/0016 중복 회피). 사용자 응답: '여기서 멈추기'(권장) — dependency-free backlog 소진 + cap 근접의 자연스러운 정지점. loop STOP, lock 해제(ref tombstone + mirror empty). 새 humanQuestion 미기록(잔여 게이트는 Q-0015/0016 에 이미 박제 — milestone-1 live=option A / milestone-3 / T-0154).** 재개: 위 HITL 게이트 중 하나 + 필요 credential 준비 후 새 /loop(/compact·/clear 권장). session #40 결산(t1~t8): T-0164~T-0170 의 7 task 완주(tasksCompleted 161→168, +7) — milestone-1 LLM gateway 의 dependency-free 부분 전체 closeout(난이도 routing wiring T-0165 + 실 fetch round-trip smoke T-0168 + 전 doc-sync T-0166/0170 + interface 정합 T-0167 + ADR-0006 sync T-0164 + integrator process fix T-0169), PR-153/154/155 전부 round1 clean merge, CI 매 push green, blockers 0, 외부 dep 0, credential 0. Q-0015·Q-0016 RESOLVED(milestone-1 승인 scope=mocked/stub, live deferred)."
+    "note": "/loop session #41 (loop@WIN-JQIPLSBL9QV-s41, cap 10, dynamic) **t1 — milestone-1 live 통합 게이트 OPEN + planner-only turn**. [1] fetch(HEAD==origin/main==4c85bb2, tree clean) + ref-CAS lock 획득(tombstone 264b9aa→18dcd2b, force-with-lease 성공, 새 session 이라 turnCount=1·startedAt 재설정). humanQuestions Q-0013~0016 전원 RESOLVED(미답 0 → [1] 즉시종료 조건 미해당). currentTask/nextTask 둘 다 null. dependency-free backlog 는 session #40 에서 소진 확정 + main 무변경(4c85bb2) → planner 재survey 는 deterministic make-work 라 판단, 대신 사용자 standing 지시('결정 필요시 즉시 물어라')에 따라 **driver AskUserQuestion 으로 HITL 게이트 선택 질의**. 사용자 응답: **milestone-1 live 통합(Q-0016 option A) 선택**. driver 가 Q-0016.optionADecision 에 결정 박제 — §9(credential 파일 금지·env 주입) + R-113(live test 는 CI 에서 env-gated skip 필수, 실 네트워크는 public CI 불가)로 work 를 2 단계 분해: (1) dependency-free 선행 = ADR-0015 test 계약 + skip-unless-credentialed live smoke scaffold(실 credential 불요·즉시 착수), (2) credentialed live-run(후속 §5 게이트 — 사용자 credential 주입 시). **planner dispatch: T-0171 큐잉**(commitMode pr, ADR-0015 + env-gated live smoke scaffold, ~250 LOC/4 파일, §3 cap 내). planner pre-check: git grep origin/main 으로 LLM_LIVE_TEST/describe.skip live scaffold 부재 확인 — 기존 llm-gateway-roundtrip.smoke-spec.ts(T-0168 option-B local-stub)와 별개 concern, 미superseded. 본 turn 은 planner-only(LOOP §1[2]) → doc-only direct commit(STATE Q-0016 optionADecision + nextTask=T-0171 + 본 note + journal + T-0171 task 파일) 후 종료. 다음 turn(t2)에서 T-0171 executor 실행(pr-mode). 주의: credentialed live-run(2단계)은 사용자가 live endpoint base URL + provider API key + LLM_APIKEY_ENC_KEY 를 env/secret 로 주입해야 진입(실값 파일 금지 §9)."
   },
   "ci": {
     "lastRun": "2026-06-02T17:26:00+09:00",
@@ -118,7 +119,9 @@
       "recommendation": "권장 (B) 또는 (D). (B)는 새 dependency·credential 0 으로 실 fetch round-trip 의 잔여 transport risk 를 closeout 하는 dependency-free 진척 — Q-0015 의 mocked-fetch 범위를 한 단계 확장하되 §5 미발화. (D)는 가장 빠른 정합이나 코드 진척 0. (A)는 가장 큰 가치이나 실 credential 주입(§5)이라 사용자 명시 승인 필요. planner 단독 판단으로는 Q-0015 의 '첫 task' 가 이미 박제된 사실만 확정 — 잔여 방향은 사용자 결정.",
       "resolutionHint": "이 항목을 해소하려면 docs/STATE.json 의 Q-0016 에 resolvedAt(ISO) + decision(A/B/C/D 중 선택 + 필요한 credential/scope 명시)을 기입하고 commit 한 뒤 새 /loop 를 시작한다. (B) 선택 시 credential 불요라 즉시 재개 가능. (A) 선택 시 credential 은 env/secret 로 주입하고 코드·STATE·journal 에 실값을 적지 않는다(§9).",
       "resolvedAt": "2026-06-02T16:54:00+09:00",
-      "decision": "(B) 승인 — 실 credential 없이 local stub round-trip smoke/e2e 로 transport 배선 closeout. 사용자가 session #40 t5 AskUserQuestion 으로 선택. 내용: 로컬 stub HTTP 서버(Node 내장 http.createServer 로 OpenAI-호환 /chat/completions echo/고정응답 1개)를 smoke 또는 e2e 레벨에서 띄우고, LlmHttpGateway 가 실 globalThis.fetch 로 그 stub(localhost base URL)에 도달하는 end-to-end 경로를 검증. mocked-fetch unit 과 달리 실 fetch round-trip(헤더 직렬화·URL 조립·non-2xx 실수신·JSON 파싱)을 통과시켜 transport 잔여 risk 를 닫는다. 새 외부 dependency 0(Node 내장 http) / 실 credential 0 / §5 미발화. provider = custom(OpenAI-호환) 우선. live 실 endpoint 통합(option A)은 여전히 deferred — 추후 credential 주입 시 별도 task. planner 가 본 task 를 큐잉(commitMode pr, src/llm + test/smoke 또는 test/e2e). 주의: stub 서버 생명주기(beforeAll listen / afterAll close)·포트 충돌 회피(0번 포트 ephemeral)·CI 격리 준수."
+      "decision": "(B) 승인 — 실 credential 없이 local stub round-trip smoke/e2e 로 transport 배선 closeout. 사용자가 session #40 t5 AskUserQuestion 으로 선택. 내용: 로컬 stub HTTP 서버(Node 내장 http.createServer 로 OpenAI-호환 /chat/completions echo/고정응답 1개)를 smoke 또는 e2e 레벨에서 띄우고, LlmHttpGateway 가 실 globalThis.fetch 로 그 stub(localhost base URL)에 도달하는 end-to-end 경로를 검증. mocked-fetch unit 과 달리 실 fetch round-trip(헤더 직렬화·URL 조립·non-2xx 실수신·JSON 파싱)을 통과시켜 transport 잔여 risk 를 닫는다. 새 외부 dependency 0(Node 내장 http) / 실 credential 0 / §5 미발화. provider = custom(OpenAI-호환) 우선. live 실 endpoint 통합(option A)은 여전히 deferred — 추후 credential 주입 시 별도 task. planner 가 본 task 를 큐잉(commitMode pr, src/llm + test/smoke 또는 test/e2e). 주의: stub 서버 생명주기(beforeAll listen / afterAll close)·포트 충돌 회피(0번 포트 ephemeral)·CI 격리 준수.",
+      "optionAApprovedAt": "2026-06-02T18:11:00+09:00",
+      "optionADecision": "(A) 승인 — session #41 t1 AskUserQuestion 으로 사용자가 milestone-1 live 통합(option A)을 선택. 즉 LlmHttpGateway 의 custom(OpenAI-호환) provider 를 실 네트워크 + 실 credential 로 통합한다. 그러나 §9(credential 은 코드/STATE/journal 금지, env/secret 주입) + R-113(CI 는 smoke/e2e 수행 — 실 네트워크 live test 는 public CI 에서 비용/flaky/secret-leak 이라 env-gated skip-unless-credentialed 패턴 필수) 때문에 work 는 2 단계로 분해된다: (1) **dependency-free 선행 task** — architect 가 live-integration test 계약(credential env 변수 이름·skip-in-CI gating·custom live endpoint shape·timeout/non-2xx live 매핑 경계)을 ADR 로 박제 + implementer 가 env-gated live smoke/e2e spec(LLM_LIVE_TEST 등 env 부재 시 describe.skip → CI green 유지)을 추가 + tester 가 skip path 가 CI 에서 통과함을 검증. 실 credential 불요라 §5 미발화, 즉시 착수 가능. (2) **credentialed live run task(후속)** — 사용자가 live endpoint base URL + provider API key + LLM_APIKEY_ENC_KEY 를 env/secret 로 주입(실값은 §9 에 따라 파일 금지)한 뒤 gated live spec 을 실제 네트워크로 1회 실행해 narrative 반환을 검증. 이 단계는 §5 credential 게이트라 사용자 credential 제공 시 진입. planner 가 (1)을 next task 로 큐잉. milestone-3(GitHub/Confluence)·T-0154(cloud-fire)·apiVersion 영속 컬럼화는 미승인 유지."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
