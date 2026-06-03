@@ -95,6 +95,74 @@ export function parseNextCursor(body: unknown, baseUrl: string): string | null {
   }
 }
 
+// schemeDefaultPort — scheme(protocol) 별 default port 를 돌려주는 내부 helper.
+// Node `URL.port` 는 scheme-default port(https=443 / http=80)가 명시돼 있으면 빈
+// 문자열을 반환하는 비대칭이 있으므로, 빈 port 를 이 default 로 정규화해 `https://h/`
+// 와 `https://h:443/` 를 동일 port 로 취급한다(ADR-0019 §1 port 규칙). https/http 외
+// scheme 은 default 미정의(null) — 그 경우 빈 port 끼리만 동일로 보는 보수적 처리.
+// GitHub 측 github-adapter.service.ts 의 동명 helper 와 동일 규칙(ADR-0019 §1 mirror).
+function schemeDefaultPort(protocol: string): string | null {
+  if (protocol === "https:") {
+    return "443";
+  }
+  if (protocol === "http:") {
+    return "80";
+  }
+  return null;
+}
+
+// isSameHost — next page cursor URL 과 instance base URL(input.baseUrl)이 ADR-0019 §1
+// 의 "same host" 정의를 만족하는지 판정하는 순수 함수(부수효과 0 / 외부 의존 0 / Node
+// 내장 `URL` 만 사용, 새 dependency 0). GitHub 측 isSameHost(github-adapter.service.ts)
+// 와 동일 규칙이며, Confluence 의 base 인자가 host 가 아니라 풀 base URL(예:
+// https://acme.atlassian.net/wiki/rest/api) 인 점만 다르다 — `URL` 은 풀 URL 의
+// origin(scheme+host+port)만 비교에 쓰므로 path 잔여는 무시된다. 다음 3 요소를 모두
+// 만족할 때만 true 다:
+//   (a) scheme(`URL.protocol`) 정확 일치 — https↔http downgrade leak 차단.
+//   (b) host(`URL.hostname`) case-insensitive 일치 — 양쪽 `toLowerCase()` 후 비교
+//       (DNS host 는 대소문자 무관). IDN/punycode 는 `URL.hostname` 이 이미 정규화.
+//   (c) port — 빈 `URL.port`(scheme-default 명시)를 schemeDefaultPort 로 정규화 후
+//       일치. 비-default 명시 port(예: `:8443`)끼리는 정확 일치를 요구.
+// host 는 **strict equal**(글자 그대로 동일 hostname)만 same host — subdomain 불허
+// (예: base `acme.atlassian.net` 에 대해 `evil.acme.atlassian.net` 은 mismatch).
+// 한쪽이라도 `URL` 파싱 실패(malformed)면 fail-closed 로 false 를 돌려준다(의심스러우면
+// 차단). 본 함수는 부수효과가 없고 token 을 다루지 않는다 — host 식별 정보만 비교한다.
+// 주의: Confluence 의 relative `_links.next` 는 parseNextCursor 가 input.baseUrl origin
+// 으로 조립한 same-origin 절대 URL 이라 본 검사를 PASS 한다(정상 pagination 비파괴) —
+// 차단 대상은 `_links.next` 가 절대 cross-host URL 일 때뿐이다.
+export function isSameHost(cursorUrl: string, baseUrl: string): boolean {
+  let cursor: URL;
+  let base: URL;
+  try {
+    // 둘 중 하나라도 파싱 실패하면 fail-closed(false). new URL 은 절대 URL 만 허용
+    // 하므로 relative / 빈 문자열 / 깨진 cursor 는 여기서 throw → catch 로 차단된다.
+    cursor = new URL(cursorUrl);
+    base = new URL(baseUrl);
+  } catch {
+    return false;
+  }
+
+  // (a) scheme 정확 일치 — `URL.protocol` 은 이미 소문자 정규화(case 무관).
+  if (cursor.protocol !== base.protocol) {
+    return false;
+  }
+
+  // (b) host case-insensitive strict equal — 양쪽 hostname 을 소문자로 맞춰 비교.
+  // subdomain 은 글자가 다르므로 자연히 불일치(strict equal = subdomain 불허).
+  if (cursor.hostname.toLowerCase() !== base.hostname.toLowerCase()) {
+    return false;
+  }
+
+  // (c) port 정규화 후 일치 — 빈 port(=scheme-default)를 default 값으로 치환해 비교.
+  const cursorPort = cursor.port || (schemeDefaultPort(cursor.protocol) ?? "");
+  const basePort = base.port || (schemeDefaultPort(base.protocol) ?? "");
+  if (cursorPort !== basePort) {
+    return false;
+  }
+
+  return true;
+}
+
 // 주입 가능한 fetch 추상 — Node 내장 fetch 의 최소 surface. ADR-0018 §1 "GitHub 보다
 // 단순" 정합 — Confluence 의 pagination cursor 는 응답 body(`_links.next`)에 실리므로
 // (row4) GitHub 처럼 headers.get(Link) 접근이 불필요하다. 따라서 response surface 는
@@ -122,7 +190,8 @@ export type ConfluenceDomainErrorKind =
   | "not-found" // 404 — 대상 SPACE / page / version 부재 또는 권한상 비가시
   | "rate-limited" // 429 — Confluence rate limit
   | "transient" // 5xx / fetch reject(DNS/TLS/connection reset, status 부재)
-  | "domain-error"; // 2xx 인데 JSON parse 실패 / 비정형 응답(base fallback)
+  | "domain-error" // 2xx 인데 JSON parse 실패 / 비정형 응답(base fallback)
+  | "cross-host-cursor"; // next page cursor 의 host 가 base host 와 불일치 — Authorization leak 차단 위해 abort (ADR-0019 §2, status 부재)
 
 // ConfluenceDomainError — adapter 가 throw 하는 도메인 error. kind(도메인 분류)와
 // status(fetch reject 인 transient 는 status 가 없어 undefined)를 담는다. token 평문
@@ -303,7 +372,35 @@ export class ConfluenceAdapter {
       }
 
       // 다음 cursor 추출 — body 의 `_links.next` 를 절대 URL 로 정규화(부재 시 null).
-      nextUrl = parseNextCursor(body, input.baseUrl);
+      // parseNextCursor 는 순수 parser 로 host 판정을 하지 않는다(ADR-0019 §3) — relative
+      // `_links.next` 는 input.baseUrl origin 으로 조립된 same-origin 절대 URL 이 되고,
+      // 절대 `_links.next` 는 base 를 무시한 채 그대로(다른 host 여도) 산출된다.
+      const parsedNext = parseNextCursor(body, input.baseUrl);
+
+      // host-check 게이트(ADR-0019 §2) — 다음 page 의 cursor 를 fetch 하기 직전에 base
+      // host 와 same host 인지 검사한다. parsedNext 는 서버측 제어값(응답 body 의
+      // `_links.next` 에서 옴)이라, foreign host 를 가리키면 첫 page 의 headers(Cloud
+      // Basic / Server Bearer token 포함)가 그 host 로 leak 될 수 있다. mismatch /
+      // malformed 면 그 cursor 를 **fetch 하지 않고** cross-host-cursor 도메인 error 를
+      // throw 해 순회를 abort 한다(부분 수집분은 버린다 — ADR-0019 §2). 송신 0 —
+      // headers(평문 token 포함)는 cross-host 로 절대 fetch 에 쓰이지 않는다. relative
+      // same-origin cursor 는 isSameHost 를 PASS 하므로 정상 pagination 은 비파괴.
+      // message 에는 base host(origin) / cursor 의 foreign host(origin)만 담고 token
+      // 평문 / full cursor URL(query 포함)은 직렬화하지 않는다(ADR-0019 §4, CLAUDE.md §9).
+      if (parsedNext !== null && !isSameHost(parsedNext, input.baseUrl)) {
+        // cursor 의 식별 정보로 host(origin)만 추출해 message 에 담는다 — full cursor
+        // URL(query 포함) / token 평문은 직렬화하지 않는다. parsedNext 는
+        // parseNextCursor 가 이미 `new URL(...).toString()` 으로 검증·정규화한 절대 URL
+        // (non-null 분기)이라 여기서 다시 파싱해도 throw 하지 않는다(host 추출 안전).
+        const cursorHost = new URL(parsedNext).host;
+        throw new ConfluenceDomainError(
+          "cross-host-cursor",
+          undefined,
+          `confluence cross-host cursor 차단 (baseUrl: ${input.baseUrl}, cursorHost: ${cursorHost}, path: ${input.path})`,
+        );
+      }
+
+      nextUrl = parsedNext;
       page += 1;
     }
 

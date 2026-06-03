@@ -11,6 +11,7 @@ import {
   ConfluenceAdapter,
   ConfluenceDomainError,
   ConfluenceFetchLike,
+  isSameHost,
   NO_OP_PARTIAL_COLLECTION_EMITTER,
   NO_OP_PERMISSION_DENIED_EMITTER,
   parseNextCursor,
@@ -1081,6 +1082,342 @@ describe("ConfluenceAdapter.requestAllPages", () => {
     ).toString("base64");
     expect(JSON.stringify(result)).not.toContain(SECRET_TOKEN);
     expect(JSON.stringify(result)).not.toContain(basic);
+  });
+});
+
+// ── ADR-0019 same-host cursor 가드(cross-host Authorization leak 차단) ────────────
+// requestAllPages 가 next page cursor 를 fetch 하기 직전 host-check 게이트. relative /
+// 절대 same-host cursor 는 정상 순회, 절대 cross-host / malformed cursor 는 fetch 0 +
+// throw. base 는 input.baseUrl(풀 base URL) — origin(scheme+host+port)만 비교에 쓰인다.
+describe("ConfluenceAdapter same-host guard", () => {
+  it("relative same-origin `_links.next` 면 정상 순회·flatten 하고 cross-host throw 가 없다 (happy: relative cursor pagination)", async () => {
+    // Confluence 고유 분기 — relative `_links.next` 는 parseNextCursor 가 baseUrl origin
+    // 으로 조립한 same-origin 절대 URL 이라 host-check 를 PASS 해야 한다(정상 비파괴).
+    const page1 = [{ id: "a" }, { id: "b" }];
+    const page2 = [{ id: "c" }];
+    const relativeNext = "/wiki/rest/api/content?limit=100&start=100";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(pagedResponse(page1, relativeNext))
+      .mockResolvedValueOnce(
+        pagedResponse(page2, null),
+      ) as unknown as ConfluenceFetchLike;
+    const emitter = makeEmitter();
+    const adapter = new ConfluenceAdapter(fetchFn, emitter);
+
+    const result = await adapter.requestAllPages(cloudInput());
+
+    expect(result).toEqual([{ id: "a" }, { id: "b" }, { id: "c" }]);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    // 두 번째 fetch 는 baseUrl origin 으로 조립된 same-origin 절대 URL 을 그대로 사용.
+    expect((fetchFn as unknown as jest.Mock).mock.calls[1][0]).toBe(
+      "https://acme.atlassian.net/wiki/rest/api/content?limit=100&start=100",
+    );
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("절대 same-host `_links.next`(동일 scheme+host+port) 면 정상 순회·flatten 한다 (happy: 절대 same-host cursor pagination)", async () => {
+    const sameHostAbs =
+      "https://acme.atlassian.net/wiki/rest/api/content?cursor=opaque-2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(pagedResponse([{ id: "a" }], sameHostAbs))
+      .mockResolvedValueOnce(
+        pagedResponse([{ id: "b" }], null),
+      ) as unknown as ConfluenceFetchLike;
+    const emitter = makeEmitter();
+    const adapter = new ConfluenceAdapter(fetchFn, emitter);
+
+    const result = await adapter.requestAllPages(cloudInput());
+
+    expect(result).toEqual([{ id: "a" }, { id: "b" }]);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect((fetchFn as unknown as jest.Mock).mock.calls[1][0]).toBe(
+      sameHostAbs,
+    );
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("절대 cross-host(다른 hostname) cursor 면 cross-host-cursor throw + 순회 abort + permission/partial emitter 미호출 (error/abort + negative: 다른 host)", async () => {
+    // base host(acme.atlassian.net)와 다른 hostname 의 절대 cursor → leak vector.
+    // fetch 하지 않고 throw 해야 한다(부분 수집분 [{id:"a"}] 는 버려진다).
+    const foreignNext = "https://evil.example.com/steal?cursor=p2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(pagedResponse([{ id: "a" }], foreignNext))
+      .mockResolvedValueOnce(
+        pagedResponse([{ id: "b" }], null),
+      ) as unknown as ConfluenceFetchLike;
+    const permEmitter = makeEmitter();
+    const partialEmitter = makePartialEmitter();
+    const adapter = new ConfluenceAdapter(fetchFn, permEmitter, partialEmitter);
+
+    const err = await adapter
+      .requestAllPages(cloudInput())
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ConfluenceDomainError);
+    expect((err as ConfluenceDomainError).kind).toBe("cross-host-cursor");
+    // cross-host 는 status 없는 도메인 신호 — transient 와 동형으로 undefined.
+    expect((err as ConfluenceDomainError).status).toBeUndefined();
+    // 권한 부족(401/403)이 아니므로 PermissionDeniedEvent emit 안 함(ADR-0019 §2).
+    expect(permEmitter.emit).not.toHaveBeenCalled();
+    // cross-host 는 cap 도달 partial 도 아니므로 PartialCollectionEvent emit 안 함.
+    expect(partialEmitter.emit).not.toHaveBeenCalled();
+    // page1 만 fetch — cross-host cursor 는 fetch 되지 않는다(송신 0).
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("같은 host 다른 port(:8443) cursor 면 cross-host-cursor throw (negative/branch: port mismatch)", async () => {
+    // hostname 은 같지만 비-default port 를 단 cursor → port 정규화 비교에서 mismatch.
+    const portMismatchNext =
+      "https://acme.atlassian.net:8443/wiki/rest/api/content?cursor=p2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ id: "a" }], portMismatchNext),
+      ) as unknown as ConfluenceFetchLike;
+    const emitter = makeEmitter();
+    const adapter = new ConfluenceAdapter(fetchFn, emitter);
+
+    const err = await adapter
+      .requestAllPages(cloudInput())
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ConfluenceDomainError);
+    expect((err as ConfluenceDomainError).kind).toBe("cross-host-cursor");
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("같은 host 다른 scheme(https→http downgrade) cursor 면 cross-host-cursor throw (negative/branch: scheme mismatch)", async () => {
+    // scheme downgrade(https→http) → 평문 채널 leak vector. protocol 불일치로 차단.
+    const schemeMismatchNext =
+      "http://acme.atlassian.net/wiki/rest/api/content?cursor=p2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ id: "a" }], schemeMismatchNext),
+      ) as unknown as ConfluenceFetchLike;
+    const emitter = makeEmitter();
+    const adapter = new ConfluenceAdapter(fetchFn, emitter);
+
+    const err = await adapter
+      .requestAllPages(cloudInput())
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ConfluenceDomainError);
+    expect((err as ConfluenceDomainError).kind).toBe("cross-host-cursor");
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("subdomain(evil.<base-host>) cursor 면 cross-host-cursor throw (negative/branch: subdomain reject)", async () => {
+    // base hostname(acme.atlassian.net)의 하위 subdomain → strict equal host 위반.
+    const subdomainNext =
+      "https://evil.acme.atlassian.net/wiki/rest/api/content?cursor=p2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ id: "a" }], subdomainNext),
+      ) as unknown as ConfluenceFetchLike;
+    const emitter = makeEmitter();
+    const adapter = new ConfluenceAdapter(fetchFn, emitter);
+
+    const err = await adapter
+      .requestAllPages(cloudInput())
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ConfluenceDomainError);
+    expect((err as ConfluenceDomainError).kind).toBe("cross-host-cursor");
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("malformed cursor 는 게이트 도달 전 parseNextCursor 가 null 로 흡수해 순회 안전 종료한다 (negative/branch: malformed → fail-closed via null)", async () => {
+    // ADR-0019 §1 의 malformed → fail-closed 는 두 layer 로 봉합된다: (1) parseNextCursor
+    // 가 `new URL(next, baseUrl)` 조립 실패(깨진 절대 cursor / 깨진 base)를 null 로 흡수해
+    // 순회를 안전 종료(fetch 추가 0)하고, (2) 만약 cursor 가 non-null 로 게이트에 도달하면
+    // isSameHost 가 malformed 입력에 false 를 돌려 차단한다(아래 isSameHost 단위 block 에서
+    // 직접 cover). 여기선 layer (1) — 깨진 절대 cursor 가 parseNextCursor 단계에서 null 로
+    // 흡수돼 cross-host 송신 없이 첫 page 수집분만 안전 반환됨을 검증한다(leak 0).
+    const malformedAbs = "https://ho st:99 99/x"; // 절대 형태이나 host 토큰이 깨져 URL throw.
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ id: "a" }], malformedAbs),
+      ) as unknown as ConfluenceFetchLike;
+    const emitter = makeEmitter();
+    const adapter = new ConfluenceAdapter(fetchFn, emitter);
+
+    // parseNextCursor 가 null 로 흡수 → 추가 fetch 0, 첫 page 만 안전 반환(송신 0).
+    const result = await adapter.requestAllPages(cloudInput());
+
+    expect(result).toEqual([{ id: "a" }]);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("case-insensitive host 차이만 있는 절대 cursor 는 same host 로 정상 통과한다 (branch: case-insensitive host pass)", async () => {
+    // base hostname(acme.atlassian.net) 과 대소문자만 다른 cursor → toLowerCase 후 일치.
+    const upperHostNext =
+      "https://ACME.Atlassian.NET/wiki/rest/api/content?cursor=p2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(pagedResponse([{ id: "a" }], upperHostNext))
+      .mockResolvedValueOnce(
+        pagedResponse([{ id: "b" }], null),
+      ) as unknown as ConfluenceFetchLike;
+    const emitter = makeEmitter();
+    const adapter = new ConfluenceAdapter(fetchFn, emitter);
+
+    const result = await adapter.requestAllPages(cloudInput());
+
+    expect(result).toEqual([{ id: "a" }, { id: "b" }]);
+    // 정상 통과 → 두 번째 fetch 까지 호출됨.
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("port 정규화 일치(:443 명시 vs default) 절대 cursor 는 same host 로 정상 통과한다 (branch: port 정규화 pass)", async () => {
+    // base 는 https default port(:443 미명시), cursor 는 :443 명시 → 정규화 후 동일.
+    const explicitPortNext =
+      "https://acme.atlassian.net:443/wiki/rest/api/content?cursor=p2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(pagedResponse([{ id: "a" }], explicitPortNext))
+      .mockResolvedValueOnce(
+        pagedResponse([{ id: "b" }], null),
+      ) as unknown as ConfluenceFetchLike;
+    const emitter = makeEmitter();
+    const adapter = new ConfluenceAdapter(fetchFn, emitter);
+
+    const result = await adapter.requestAllPages(cloudInput());
+
+    expect(result).toEqual([{ id: "a" }, { id: "b" }]);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("cross-host error.message 에 token 평문(Bearer/Basic) / full cursor URL(query 포함) 이 노출되지 않는다 (negative: §4 비노출)", async () => {
+    // foreign cursor 의 query 에 민감해 보이는 sentinel 을 박아도 message 에 새지
+    // 않아야 한다(host origin 만 담음). token 평문(SECRET_TOKEN / Basic base64)도 미노출.
+    const querySentinel = "leak_marker_in_query_string";
+    const foreignNext = `https://evil.example.com/steal?secret=${querySentinel}`;
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ id: "a" }], foreignNext),
+      ) as unknown as ConfluenceFetchLike;
+    const adapter = new ConfluenceAdapter(fetchFn);
+
+    const err = (await adapter
+      .requestAllPages(cloudInput())
+      .catch((e: unknown) => e)) as ConfluenceDomainError;
+
+    expect(err.kind).toBe("cross-host-cursor");
+    // token 평문 / Basic base64 미노출(§9).
+    const basic = Buffer.from(
+      `user@acme.example:${SECRET_TOKEN}`,
+      "utf-8",
+    ).toString("base64");
+    expect(err.message).not.toContain(SECRET_TOKEN);
+    expect(err.message).not.toContain(basic);
+    // full cursor URL 의 query string 미노출(§4) — host(origin)만 담김.
+    expect(err.message).not.toContain(querySentinel);
+    // 식별 정보로 foreign host 는 담는다(디버깅용).
+    expect(err.message).toContain("evil.example.com");
+  });
+
+  it("[regression] cross-host cursor 를 만나면 주입 fetch 가 foreign host 로 절대 호출되지 않는다 (leak vector 봉합)", async () => {
+    // 본 결함(cross-host auth-leak) 재발 시 fail 하도록 — Authorization 을 실은 fetch 가
+    // foreign host 로 호출되는 순간을 직접 봉쇄한다. 첫 page 만 fetch 되고 cross-host
+    // URL 로는 호출 0 임을 mock call args 로 검증한다.
+    const foreignUrl = "https://attacker.evil.test/exfil?cursor=p2";
+    const calledUrls: string[] = [];
+    const fetchFn = ((url: string) => {
+      calledUrls.push(url);
+      return Promise.resolve(pagedResponse([{ id: "a" }], foreignUrl));
+    }) as unknown as ConfluenceFetchLike;
+    const adapter = new ConfluenceAdapter(fetchFn);
+
+    await adapter.requestAllPages(cloudInput()).catch(() => undefined);
+
+    // 어떤 fetch 호출 url 도 foreign host 를 향하지 않는다(송신 0).
+    expect(calledUrls.some((u) => u.includes("attacker.evil.test"))).toBe(
+      false,
+    );
+    // 첫 page(base host)만 fetch 됨.
+    expect(calledUrls).toHaveLength(1);
+    expect(calledUrls[0]).toContain("acme.atlassian.net");
+  });
+});
+
+// isSameHost 순수 함수 단위 검증(ADR-0019 §1) — 부수효과 0 / fetch 0 / token 0.
+// requestAllPages 게이트와 별개로 비교 규칙 각 분기를 직접 cover 한다. base 는 Confluence
+// 풀 base URL(path 포함) — origin(scheme+host+port)만 비교에 쓰임을 함께 확인한다.
+describe("isSameHost", () => {
+  const base = "https://acme.atlassian.net/wiki/rest/api";
+
+  it("scheme+host+port 가 모두 같으면(절대 same-host) true 다 (happy: 정확 일치)", () => {
+    expect(
+      isSameHost("https://acme.atlassian.net/wiki/rest/api/content?x=1", base),
+    ).toBe(true);
+  });
+
+  it("hostname 대소문자만 다르면 true 다 (branch: case-insensitive)", () => {
+    expect(isSameHost("https://ACME.Atlassian.NET/x", base)).toBe(true);
+  });
+
+  it("default port 와 명시 :443 은 정규화 후 동일하므로 true 다 (branch: port 정규화)", () => {
+    expect(isSameHost("https://acme.atlassian.net:443/x", base)).toBe(true);
+    // 반대 방향(base 가 :443 명시, cursor 가 default)도 동일.
+    expect(
+      isSameHost(
+        "https://acme.atlassian.net/x",
+        "https://acme.atlassian.net:443/wiki",
+      ),
+    ).toBe(true);
+  });
+
+  it("hostname 이 다르면 false 다 (negative: 다른 host)", () => {
+    expect(isSameHost("https://evil.example.com/x", base)).toBe(false);
+  });
+
+  it("비-default port 가 다르면 false 다 (negative: port mismatch)", () => {
+    expect(isSameHost("https://acme.atlassian.net:8443/x", base)).toBe(false);
+  });
+
+  it("scheme 이 다르면(https→http) false 다 (negative: scheme mismatch)", () => {
+    expect(isSameHost("http://acme.atlassian.net/x", base)).toBe(false);
+  });
+
+  it("subdomain(evil.<base>) 은 strict equal 위반으로 false 다 (negative: subdomain reject)", () => {
+    expect(isSameHost("https://evil.acme.atlassian.net/x", base)).toBe(false);
+  });
+
+  it("cursor 가 malformed(또는 relative)면 fail-closed 로 false 다 (negative: cursor 파싱 실패)", () => {
+    expect(isSameHost("ht!tp://not a url/::::", base)).toBe(false);
+    expect(isSameHost("not-a-url", base)).toBe(false);
+    expect(isSameHost("/wiki/rest/api/content?start=25", base)).toBe(false);
+    expect(isSameHost("", base)).toBe(false);
+  });
+
+  it("baseUrl 이 malformed 면 fail-closed 로 false 다 (negative: base 파싱 실패)", () => {
+    expect(isSameHost("https://acme.atlassian.net/x", "not-a-url")).toBe(false);
+  });
+
+  it("http scheme 양쪽이 default port(:80) 정규화로 일치하면 true 다 (branch: http default port)", () => {
+    // schemeDefaultPort 의 http(:80) 분기 cover — base/cursor 모두 http 이고 한쪽만
+    // :80 명시여도 정규화 후 동일 port 로 same host.
+    expect(isSameHost("http://h.local:80/x", "http://h.local/y")).toBe(true);
+  });
+
+  it("https/http 외 scheme(ftp) 끼리는 default port 미정의로 빈 port 끼리만 same host 다 (branch: non-http/https scheme)", () => {
+    // schemeDefaultPort 의 null(=비 http/https) 분기 cover — port 미명시 ftp 끼리는
+    // scheme+host 일치 시 same host, 명시 port 가 다르면 mismatch.
+    expect(isSameHost("ftp://h.local/x", "ftp://h.local/y")).toBe(true);
+    expect(isSameHost("ftp://h.local:2121/x", "ftp://h.local/y")).toBe(false);
   });
 });
 
