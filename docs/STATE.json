@@ -2,26 +2,26 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0187",
+  "nextTask": null,
   "lock": {
     "holder": "loop@myung-ea6127546",
     "since": "2026-06-03T10:31:13+09:00"
   },
-  "lastActivity": "2026-06-03T12:37:50+09:00",
-  "lastCommit": "314c699",
+  "lastActivity": "2026-06-03T12:52:51+09:00",
+  "lastCommit": "f8c7a5c",
   "mostRecentTasks": [
+    "T-0187",
     "T-0186",
     "T-0185",
     "T-0184",
-    "T-0183",
-    "T-0182"
+    "T-0183"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-06-03T10:31:13+09:00",
     "cap": 10,
     "holder": "loop@myung-ea6127546",
-    "note": "loop@myung-ea6127546 session #44 t6 (turnCount 6/10). [1] read 전 fetch — 권위 lock=내 session 연속 wake → turnCount 5→6. main cab3552 sync, Q-0013~0017 전원 RESOLVED, blockers 0, CI green. [2] currentTask·nextTask 둘 다 null → planner dispatch → T-0187(ADR-0018 chain row3b = ConfluenceAdapter 단일 page request() dispatch: token JIT decrypt(decryptConfluenceInstanceToken) + buildConfluenceRequest + injectable ConfluenceFetchLike(default globalThis.fetch) + non-2xx 도메인 매핑 + 4xx in-memory PermissionDeniedEvent emit(기존 port NO_OP default 재사용, persistence=row8 follow-up) + body parse + confluence.module.ts provider wiring, GitHub github-adapter.service.ts T-0175 mirror, commitMode pr, dep0/schema0/§5 미발화, ~3 file) 큐잉, STATE.nextTask=T-0187. planner issue-still-relevant pre-check PASS(main 에 confluence-adapter.service 부재, comment refs only). pagination=row4 / traversal=row5 / persistence=row8 / live-run=row9 OUT. [5][6] 본 turn = planner-only doc-only direct commit. [7] turn end — T-0187 큐잉; next: T-0187 → current(다음 turn executor pr-mode). [8] dynamic reschedule(turnCount 6<10). **milestone-3 잔여 chain(ADR-0018): row3b T-0187(현재 큐) / row4 pagination / row5 SpaceTraversalService / row6 roundtrip smoke / row7 doc-sync / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential) / row10 ADR ACCEPTED.**"
+    "note": "loop@myung-ea6127546 session #44 t7 (turnCount 7/10). [1] read 전 fetch — 권위 lock=내 session 연속 wake → turnCount 6→7. main 79aedc0 sync, Q-0013~0017 전원 RESOLVED, blockers 0, CI green. [2] nextTask=T-0187 → current(pr-mode). [3] feature branch + executor 1회 dispatch → src/confluence/confluence-adapter.service.ts(@Injectable ConfluenceAdapter.request: token JIT decrypt + buildConfluenceRequest + @Optional ConfluenceFetchLike(default globalThis.fetch) + non-2xx 도메인 매핑(401/403 permission-denied+in-memory PermissionDeniedEvent emit / 404 not-found / 429 rate-limited / 5xx·reject transient) + 2xx JSON parse) + module provide/export + 2 spec, GitHub github-adapter.service.ts T-0175 mirror. lint/build/test green(150 suites/2919 tests), adapter 100% cov, token never-read-back 검증. [4] commit e65467c push → PR #169 open → reviewer APPROVE round 1/7(NIT 1=catch cause 폐기 intentional, 0 BLOCKER/MAJOR/MINOR) comment post(gate2) → integrator 4-게이트 PASS(gate4=issue_comment run 26862533389 + pull_request run 26862470648 둘 다 success) → squash merge f8c7a5c, branch 삭제. [5] main green. [6] task DONE(prNumber 169/mergedAs f8c7a5c/reviewRounds 1), tasksCompleted 184→185, mostRecentTasks prepend T-0187, nextTask=null. [7] turn end — T-0187 DONE/MERGED; next: planner(milestone-3 chain row4 = pagination _links.next cursor). [8] dynamic reschedule(turnCount 7<10). **milestone-3 잔여 chain(ADR-0018): row4 pagination(requestAllPages + _links.next cursor + CONFLUENCE_MAX_PAGES) / row5 SpaceTraversalService / row6 roundtrip smoke / row7 doc-sync / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential) / row10 ADR ACCEPTED.**"
   },
   "ci": {
     "lastRun": "2026-06-03T10:48:00+09:00",
@@ -46,7 +46,8 @@
     "T-0182": 1,
     "T-0184": 1,
     "T-0185": 1,
-    "T-0186": 1
+    "T-0186": 1,
+    "T-0187": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -159,7 +160,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 184,
+    "tasksCompleted": 185,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

@@ -2,7 +2,7 @@
 id: T-0187
 title: ConfluenceAdapter 단일 page service dispatch + non-2xx 도메인 매핑 + 4xx PermissionDeniedEvent emit
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-010, REQ-015, REQ-016, REQ-044]
 dependsOn: [T-0183, T-0184, T-0185, T-0186]
@@ -10,6 +10,10 @@ estimatedDiff: 230
 estimatedFiles: 3
 created: 2026-06-03
 plannerNote: "P4 milestone-3 ADR-0018 chain row3b — ConfluenceAdapter.request 단일 dispatch + non-2xx 매핑 + 4xx in-memory emit. dep0/schema0/§5 미발화. pagination=row4 OUT."
+prNumber: 169
+mergedAs: f8c7a5c
+reviewRounds: 1
+completedAt: 2026-06-03T12:52:51+09:00
 ---
 
 # T-0187 — ConfluenceAdapter 단일 page service dispatch + non-2xx 도메인 매핑 + 4xx PermissionDeniedEvent emit
