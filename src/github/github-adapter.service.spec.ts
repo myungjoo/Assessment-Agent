@@ -10,6 +10,7 @@ import {
   GITHUB_MAX_PAGES,
   GithubAdapter,
   GithubDomainError,
+  isSameHost,
   NO_OP_PERMISSION_DENIED_EMITTER,
   parseNextLink,
   PermissionDeniedEmitter,
@@ -835,5 +836,300 @@ describe("GithubAdapter.requestAllPages", () => {
     expect(err).toBeInstanceOf(GithubDomainError);
     expect((err as GithubDomainError).kind).toBe("permission-denied");
     expect((err as GithubDomainError).status).toBe(403);
+  });
+
+  // ── ADR-0019 same-host cursor 가드(cross-host Authorization leak 차단) ──────────
+  // requestAllPages 가 next page opaque cursor 를 fetch 하기 직전 host-check 게이트.
+  // same-host cursor 는 정상 순회, cross-host / malformed cursor 는 fetch 0 + throw.
+
+  it("same-host next cursor 면 정상 순회·flatten 하고 cross-host throw 가 발생하지 않는다 (happy: same-host pagination)", async () => {
+    const page1 = [{ sha: "a" }, { sha: "b" }];
+    const page2 = [{ sha: "c" }];
+    // base(github.com → api.github.com)와 동일 host 의 절대 cursor — 정상 통과해야 함.
+    const sameHostNext =
+      "https://api.github.com/repos/acme/widget/commits?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse(page1, `<${sameHostNext}>; rel="next"`),
+      )
+      .mockResolvedValueOnce(
+        pagedResponse(page2, null),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const result = await adapter.requestAllPages(input());
+
+    expect(result).toEqual([{ sha: "a" }, { sha: "b" }, { sha: "c" }]);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    // 두 번째 fetch 는 same-host opaque cursor 를 그대로 사용.
+    expect((fetchFn as unknown as jest.Mock).mock.calls[1][0]).toBe(
+      sameHostNext,
+    );
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("cross-host(다른 hostname) cursor 면 cross-host-cursor throw + 순회 abort + emitter 미호출 (error/abort + negative: 다른 host)", async () => {
+    // base host(api.github.com)와 다른 hostname 의 절대 cursor → leak vector. fetch
+    // 하지 않고 throw 해야 한다(부분 수집분 [{sha:"a"}] 는 버려진다).
+    const foreignNext = "https://evil.example.com/steal?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${foreignNext}>; rel="next"`),
+      )
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "b" }], null),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const err = await adapter.requestAllPages(input()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(GithubDomainError);
+    expect((err as GithubDomainError).kind).toBe("cross-host-cursor");
+    // cross-host 는 status 없는 도메인 신호 — transport-error 와 동형으로 undefined.
+    expect((err as GithubDomainError).status).toBeUndefined();
+    // 권한 부족(401/403)이 아니므로 PermissionDeniedEvent emit 안 함(ADR-0019 §2).
+    expect(emitter.emit).not.toHaveBeenCalled();
+    // page1 만 fetch — cross-host cursor 는 fetch 되지 않는다(송신 0).
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("같은 host 다른 port(:8443) cursor 면 cross-host-cursor throw (negative/branch: port mismatch)", async () => {
+    // hostname 은 같지만 비-default port 를 단 cursor → port 정규화 비교에서 mismatch.
+    const portMismatchNext = "https://api.github.com:8443/x?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${portMismatchNext}>; rel="next"`),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const err = await adapter.requestAllPages(input()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(GithubDomainError);
+    expect((err as GithubDomainError).kind).toBe("cross-host-cursor");
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("같은 host 다른 scheme(https→http downgrade) cursor 면 cross-host-cursor throw (negative/branch: scheme mismatch)", async () => {
+    // scheme downgrade(https→http) → 평문 채널 leak vector. protocol 불일치로 차단.
+    const schemeMismatchNext = "http://api.github.com/x?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${schemeMismatchNext}>; rel="next"`),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const err = await adapter.requestAllPages(input()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(GithubDomainError);
+    expect((err as GithubDomainError).kind).toBe("cross-host-cursor");
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("subdomain(uploads.<base-host>) cursor 면 cross-host-cursor throw (negative/branch: subdomain reject)", async () => {
+    // base hostname(api.github.com)의 형제/하위 subdomain → strict equal host 위반.
+    const subdomainNext = "https://uploads.api.github.com/x?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${subdomainNext}>; rel="next"`),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const err = await adapter.requestAllPages(input()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(GithubDomainError);
+    expect((err as GithubDomainError).kind).toBe("cross-host-cursor");
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("malformed cursor(파싱 불가) 면 fail-closed 로 cross-host-cursor throw (negative/branch: malformed → fail-closed)", async () => {
+    // parseNextLink 는 cursor 문자열만 산출하므로(host 판정 안 함) 깨진 절대 URL 도
+    // 그대로 nextUrl 로 넘어온다. isSameHost 가 파싱 실패를 false 로 보아 차단해야 한다.
+    const malformedNext = "ht!tp://not a url/::::";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${malformedNext}>; rel="next"`),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const err = await adapter.requestAllPages(input()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(GithubDomainError);
+    expect((err as GithubDomainError).kind).toBe("cross-host-cursor");
+    // malformed cursor 의 host 는 message 에 "(malformed)" placeholder 로만 노출.
+    expect((err as GithubDomainError).message).toContain("(malformed)");
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("case-insensitive host 차이만 있는 cursor 는 same host 로 정상 통과한다 (branch: case-insensitive host pass)", async () => {
+    // base hostname(api.github.com) 과 대소문자만 다른 cursor → toLowerCase 후 일치.
+    const upperHostNext =
+      "https://API.GitHub.com/repos/acme/widget/commits?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${upperHostNext}>; rel="next"`),
+      )
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "b" }], null),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const result = await adapter.requestAllPages(input());
+
+    expect(result).toEqual([{ sha: "a" }, { sha: "b" }]);
+    // 정상 통과 → 두 번째 fetch 까지 호출됨.
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("port 정규화 일치(:443 명시 vs default) cursor 는 same host 로 정상 통과한다 (branch: port 정규화 pass)", async () => {
+    // base 는 https default port(:443 미명시), cursor 는 :443 명시 → 정규화 후 동일.
+    const explicitPortNext =
+      "https://api.github.com:443/repos/acme/widget/commits?page=2";
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${explicitPortNext}>; rel="next"`),
+      )
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "b" }], null),
+      ) as unknown as FetchLike;
+    const emitter = makeEmitter();
+    const adapter = new GithubAdapter(fetchFn, emitter);
+
+    const result = await adapter.requestAllPages(input());
+
+    expect(result).toEqual([{ sha: "a" }, { sha: "b" }]);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("cross-host error.message 에 token 평문 / full cursor URL(query 포함) 이 노출되지 않는다 (negative: §4 비노출)", async () => {
+    // foreign cursor 의 query 에 민감해 보이는 sentinel 을 박아도 message 에 새지
+    // 않아야 한다(host origin 만 담음). token 평문(SECRET_TOKEN)도 미노출.
+    const querySentinel = "leak_marker_in_query_string";
+    const foreignNext = `https://evil.example.com/steal?secret=${querySentinel}`;
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        pagedResponse([{ sha: "a" }], `<${foreignNext}>; rel="next"`),
+      ) as unknown as FetchLike;
+    const adapter = new GithubAdapter(fetchFn);
+
+    const err = (await adapter
+      .requestAllPages(input())
+      .catch((e: unknown) => e)) as GithubDomainError;
+
+    expect(err.kind).toBe("cross-host-cursor");
+    // token 평문 미노출(§9).
+    expect(err.message).not.toContain(SECRET_TOKEN);
+    // full cursor URL 의 query string 미노출(§4) — host(origin)만 담김.
+    expect(err.message).not.toContain(querySentinel);
+    // 식별 정보로 foreign host 는 담는다(디버깅용).
+    expect(err.message).toContain("evil.example.com");
+  });
+
+  it("[regression] cross-host cursor 를 만나면 주입 fetch 가 foreign host 로 절대 호출되지 않는다 (leak vector 봉합)", async () => {
+    // 본 결함(cross-host auth-leak) 재발 시 fail 하도록 — Authorization 을 실은
+    // fetch 가 foreign host 로 호출되는 순간을 직접 봉쇄한다.
+    const foreignUrl = "https://attacker.evil.test/exfil?page=2";
+    const calledUrls: string[] = [];
+    const fetchFn = ((url: string) => {
+      calledUrls.push(url);
+      return Promise.resolve(
+        pagedResponse([{ sha: "a" }], `<${foreignUrl}>; rel="next"`),
+      );
+    }) as unknown as FetchLike;
+    const adapter = new GithubAdapter(fetchFn);
+
+    await adapter.requestAllPages(input()).catch(() => undefined);
+
+    // 어떤 fetch 호출 url 도 foreign host 를 향하지 않는다(송신 0).
+    expect(calledUrls.some((u) => u.includes("attacker.evil.test"))).toBe(
+      false,
+    );
+    // 첫 page(base host)만 fetch 됨.
+    expect(calledUrls).toHaveLength(1);
+    expect(calledUrls[0]).toContain("api.github.com");
+  });
+});
+
+// isSameHost 순수 함수 단위 검증(ADR-0019 §1) — 부수효과 0 / fetch 0 / token 0.
+// requestAllPages 게이트와 별개로 비교 규칙 각 분기를 직접 cover 한다.
+describe("isSameHost", () => {
+  const base = "https://api.github.com";
+
+  it("scheme+host+port 가 모두 같으면 true 다 (happy: 정확 일치)", () => {
+    expect(isSameHost("https://api.github.com/repos/x?page=2", base)).toBe(
+      true,
+    );
+  });
+
+  it("hostname 대소문자만 다르면 true 다 (branch: case-insensitive)", () => {
+    expect(isSameHost("https://API.GITHUB.COM/x", base)).toBe(true);
+  });
+
+  it("default port 와 명시 :443 은 정규화 후 동일하므로 true 다 (branch: port 정규화)", () => {
+    expect(isSameHost("https://api.github.com:443/x", base)).toBe(true);
+    // 반대 방향(base 가 :443 명시, cursor 가 default)도 동일.
+    expect(
+      isSameHost("https://api.github.com/x", "https://api.github.com:443"),
+    ).toBe(true);
+  });
+
+  it("hostname 이 다르면 false 다 (negative: 다른 host)", () => {
+    expect(isSameHost("https://evil.example.com/x", base)).toBe(false);
+  });
+
+  it("비-default port 가 다르면 false 다 (negative: port mismatch)", () => {
+    expect(isSameHost("https://api.github.com:8443/x", base)).toBe(false);
+  });
+
+  it("scheme 이 다르면(https→http) false 다 (negative: scheme mismatch)", () => {
+    expect(isSameHost("http://api.github.com/x", base)).toBe(false);
+  });
+
+  it("subdomain(uploads.<base>) 은 strict equal 위반으로 false 다 (negative: subdomain reject)", () => {
+    expect(isSameHost("https://uploads.api.github.com/x", base)).toBe(false);
+  });
+
+  it("cursor 가 malformed 면 fail-closed 로 false 다 (negative: cursor 파싱 실패)", () => {
+    expect(isSameHost("ht!tp://not a url/::::", base)).toBe(false);
+    expect(isSameHost("not-a-url", base)).toBe(false);
+    expect(isSameHost("", base)).toBe(false);
+  });
+
+  it("baseUrl 이 malformed 면 fail-closed 로 false 다 (negative: base 파싱 실패)", () => {
+    expect(isSameHost("https://api.github.com/x", "not-a-url")).toBe(false);
+  });
+
+  it("http scheme 양쪽이 default port(:80) 정규화로 일치하면 true 다 (branch: http default port)", () => {
+    // schemeDefaultPort 의 http(:80) 분기 cover — base/cursor 모두 http 이고 한쪽만
+    // :80 명시여도 정규화 후 동일 port 로 same host.
+    expect(isSameHost("http://h.local:80/x", "http://h.local/y")).toBe(true);
+  });
+
+  it("https/http 외 scheme(ftp) 끼리는 default port 미정의로 빈 port 끼리만 same host 다 (branch: non-http/https scheme)", () => {
+    // schemeDefaultPort 의 null(=비 http/https) 분기 cover — port 미명시 ftp 끼리는
+    // scheme+host 일치 시 same host, 명시 port 가 다르면 mismatch.
+    expect(isSameHost("ftp://h.local/x", "ftp://h.local/y")).toBe(true);
+    expect(isSameHost("ftp://h.local:2121/x", "ftp://h.local/y")).toBe(false);
   });
 });
