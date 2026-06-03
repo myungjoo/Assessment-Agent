@@ -317,6 +317,12 @@ schedule 측은 lock holder를 `"cron"` 으로 잡는다. `/loop`("loop")과 cro
 
 cron / human / headless mode 의 lock 에는 본 두 필드 없음 — 매 발화 / 호출이 새 conversation 이라 누적 위험 없음.
 
+### STATE.json `flags` (lock blob 과 무관한 top-level 설정 필드)
+
+`docs/STATE.json` 에는 lock 과 별개로 top-level `flags` object 가 있다 (lock blob 이 아니라 main 에 커밋된 STATE.json 본문):
+
+- `flags.multiTaskFire` — **boolean, 기본값 `false`**. multi-task fire (한 cron fire 안에서 task 최대 N=2 chain) 의 활성 토글이다 ([CLAUDE.md §2.5](../CLAUDE.md), [ADR-0020](decisions/ADR-0020-multi-task-fire-cron-n2-activation.md)). `false` 인 동안 driver 는 현행 "1 fire = 1 task" 그대로 동작한다. `true` 로의 전환은 ADR-0020 롤아웃 **step 3** (§1 의 cron 전용 chain 분기 로직 추가) + **step 4** (cron 간격 재조정 + 토글) 가 먼저 완료된 뒤에만 가능하다 — 본 필드는 그 토글이 읽을 자리만 미리 박제한 것이며, 분기 로직이 없으면 토글을 켜도 효과가 없다.
+
 ### 획득 / 해제 (ref-CAS)
 
 - **fetch 먼저**: `git fetch origin +refs/locks/driver:refs/locks/origin-driver` (§1 [1] read 전 fetch 의무).

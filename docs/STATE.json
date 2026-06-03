@@ -1,27 +1,30 @@
 {
   "schemaVersion": 1,
   "phase": "P4-in-progress",
+  "flags": {
+    "multiTaskFire": false
+  },
   "currentTask": null,
-  "nextTask": "T-0198",
+  "nextTask": null,
   "lock": {
     "holder": "loop@myung-vb707106-s48",
-    "since": "2026-06-03T18:11:16+09:00"
+    "since": "2026-06-03T18:19:40+09:00"
   },
-  "lastActivity": "2026-06-03T18:11:16+09:00",
-  "lastCommit": "f21f13f",
+  "lastActivity": "2026-06-03T18:19:40+09:00",
+  "lastCommit": "72424d7",
   "mostRecentTasks": [
+    "T-0198",
     "T-0197",
     "T-0196",
     "T-0195",
-    "T-0194",
-    "T-0193"
+    "T-0194"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-03T17:51:50+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106-s48",
-    "note": "loop@myung-vb707106-s48 session #48 t2 (turnCount 2/10). [1] 같은 session 연속 wake → read 전 fetch, main d85164f sync, lock ref heartbeat(1638c17→08cd578, turnCount 1→2, since 18:11), Q 전원 RESOLVED, blockers 0, t1 doc CI(26875030524) still in_progress(비차단·다음 turn 재확인). [2] currentTask/nextTask 둘 다 null → planner dispatch. [3-7] planner T-0198 큐잉(ADR-0020 활성화 step2: STATE.json flags.multiTaskFire:false 필드 추가 + LOOP.md §4 schema 동기, direct, schema-only 토글 OFF 유지; pre-check ADR-0020 merged·flags 키 부재 확인, sync doc=LOOP.md §4 — data-model.md 부적합). STATE.nextTask=T-0198. 본 turn=doc-only direct commit. [8] dynamic reschedule(turnCount 2<10, blockers 0, Q 전원 RESOLVED). 다음 t3: executor 가 T-0198 실행(direct)."
+    "note": "loop@myung-vb707106-s48 session #48 t3 (turnCount 3/10). [1] 같은 session 연속 wake → read 전 fetch, main 72424d7 sync, lock ref heartbeat(08cd578→46b329b, turnCount 2→3, since 18:19), Q 전원 RESOLVED, blockers 0, t1 doc CI(26875030524) success(완료 확인). [2] nextTask=T-0198 → current(direct, schema-only). [3] driver-direct 실행(planner 가 sub-agent 불요로 설계, single-writer STATE.json): top-level flags.multiTaskFire:false 필드 추가(활성화 아님·토글 OFF) + LOOP.md §4 'Lock 형태' 에 flags 필드 설명(boolean/기본 false/§2.5 multi-task fire 토글/true 전환은 ADR-0020 step3·4 선행) 동기. JSON valid 검증 통과. [4/6] T-0198 status DONE, tasksCompleted 195→196, mostRecentTasks prepend T-0198, nextTask=null. [7] T-0198 DONE. [8] dynamic reschedule(turnCount 3<10, blockers 0, Q 전원 RESOLVED). 다음 t4: planner 가 ADR-0020 step3(LOOP.md §1 cron chain 분기, direct) 큐잉 예정."
   },
   "ci": {
     "lastRun": "2026-06-03T18:00:00+09:00",
@@ -167,7 +170,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 195,
+    "tasksCompleted": 196,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

@@ -2,12 +2,15 @@
 id: T-0198
 title: STATE.json 에 flags.multiTaskFire false 필드 추가 + LOOP.md schema 동기
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: []
 estimatedDiff: 25
 estimatedFiles: 2
+actualDiff: 15
+actualFiles: 2
 created: 2026-06-03
+completedAt: 2026-06-03T18:20:00+09:00
 dependsOn: []
 parents: []
 plannerNote: P4/ADR-0020 활성화 step2 — STATE.json flags.multiTaskFire:false 필드 추가 + LOOP.md schema 동기 (schema-only, 토글 OFF 유지)
