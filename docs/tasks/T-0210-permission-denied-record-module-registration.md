@@ -2,8 +2,12 @@
 id: T-0210
 title: PermissionDeniedRecordModule 등록 (repository+service DI wiring)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 184
+reviewRounds: 1
+mergedAs: e6a4852
+completedAt: 2026-06-04T02:03:00+09:00
 coversReq: [REQ-044, REQ-016, REQ-029, REQ-059]
 estimatedDiff: 120
 estimatedFiles: 3
