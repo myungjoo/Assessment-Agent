@@ -2,7 +2,7 @@
 id: T-0204
 title: GitHub live-test gating helper + colocated spec + env-gated github-live smoke 추가
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-016, REQ-044]
 origin: ADR-0021 후속 chain (Consequences 표 "T-0204 (GitHub)" row) — milestone-3 GitHub live-integration test layer 3 scaffold
@@ -10,6 +10,10 @@ estimatedDiff: 230
 estimatedFiles: 3
 created: 2026-06-03
 plannerNote: P4 milestone-3 — ADR-0021 §(i)~(v) GitHub 측 구현(gating helper + spec + env-gated live smoke). R-112 backbone × 1.5. in-flight chain 직속 후속.
+completedAt: 2026-06-03T21:51:34+09:00
+mergedAs: 14bb771c1f61c87df56bb6c2134ecc5aa348362f
+prNumber: 178
+reviewRounds: 1
 ---
 
 # T-0204 — GitHub live-test gating helper + colocated spec + env-gated github-live smoke 추가
