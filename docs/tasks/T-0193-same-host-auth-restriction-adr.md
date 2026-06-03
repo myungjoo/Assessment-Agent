@@ -2,12 +2,16 @@
 id: T-0193
 title: ADR-0019 박제 — pagination cursor 의 same-host Authorization 전송 제약 정책 (GitHub/Confluence adapter 공통)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-044, REQ-059]
 estimatedDiff: 130
 estimatedFiles: 2
 created: 2026-06-03
+completedAt: 2026-06-03T15:29:21+09:00
+prNumber: 173
+reviewRounds: 2
+mergedAs: 8ab3c6b
 plannerNote: P4 ms3 security hardening 1차 slice — T-0188 reviewer MINOR(cross-host auth-leak) 의 same-host 제약 정책 ADR. 가드 구현은 Follow-up.
 ---
 

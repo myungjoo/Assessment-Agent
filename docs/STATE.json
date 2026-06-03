@@ -2,37 +2,37 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0193",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@myung-vb707106",
     "since": "2026-06-03T13:49:34+09:00",
     "loopSessionStartedAt": "2026-06-03T13:49:34+09:00",
-    "loopSessionTurnCount": 8
+    "loopSessionTurnCount": 9
   },
-  "lastActivity": "2026-06-03T15:08:10+09:00",
-  "lastCommit": "7612c10",
+  "lastActivity": "2026-06-03T15:29:21+09:00",
+  "lastCommit": "8ab3c6b",
   "mostRecentTasks": [
+    "T-0193",
     "T-0192",
     "T-0191",
     "T-0190",
-    "T-0189",
-    "T-0188"
+    "T-0189"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-03T13:49:34+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106",
-    "note": "loop@myung-vb707106 session #45 t8 (turnCount 8/10). [1] 같은 session 연속 wake → read 전 fetch, lock heartbeat turnCount 7→8, main 537cba7 sync, Q 전원 RESOLVED, blockers 0, ci green(537cba7 push run success). [2] currentTask·nextTask 둘 다 null → planner dispatch. milestone-3 dependency-free chain 완결 후 유일 잔여 비-HITL value = cross-host auth-leak security hardening. planner §5 verdict=(A) auto-progressable(defensive bugfix, auth flow/secret/권한모델 불변, T-0188 reviewer pre-blessed → §5 'Security/auth 변경' BLOCKED 미해당). issue-still-relevant pre-check PASS(main 537cba7 두 adapter same-host check 없이 opaque cursor 를 Authorization 포함 동일 headers 로 fetch — leak vector 현존). full remedy(ADR+2 가드+test) cap 초과 → 1차 slice = T-0193(ADR-0019 same-host Authorization 전송 제약 정책, commitMode pr, ~130 LOC/2 file: ADR 신설 + INDEX row), adapter 가드 구현은 Follow-up. STATE.nextTask=T-0193. [6] 본 turn = planner-only doc-only direct commit. [7] T-0193 큐잉. [8] turnCount 8/10 < cap → reschedule(다음 turn = nextTask T-0193 → current, executor pr-mode: architect ADR → reviewer → merge). **t10=cap(10) 임박: t9 execute T-0193, t10 planner+STOP 예상. 잔여: T-0193 follow-up(adapter 가드 구현 GitHub+Confluence) / row8 entity(§5 schema) / row9 live-run(§5 credential).**"
+    "note": "loop@myung-vb707106 session #45 t9 (turnCount 9/10). [1] 같은 session 연속 wake → read 전 fetch, lock heartbeat turnCount 8→9, main 6a55231 sync, Q 전원 RESOLVED, blockers 0, ci green. [2] nextTask=T-0193 → current(pr-mode ADR). [3] feature branch claude/T-0193-same-host-auth-restriction-adr + architect 1회 dispatch(직접, executor 미경유) → docs/decisions/ADR-0019-same-host-auth-restriction-for-pagination.md 신설(PROPOSED) + INDEX.md row: §1 same host=scheme+host(ci)+port strict equal(subdomain 불허) / §2 mismatch=순회 abort+도메인 error throw / §3 GitHub·Confluence 양 adapter fetch-직전 게이트 수렴 / §4 token 비노출 invariant. architect 가 lint/build/test green 확인(2966 tests, doc-only build 영향 0, R-110). [4] commit e672ef2 push → PR #173 → reviewer round1 APPROVE(NIT 1=ADR L19 '§음 4' malformed 참조 cosmetic; 0 BLOCKER/MAJOR) → §3 Nit-closure(comment typo 4종 category) round2 정정(3bcbf3c, +1/-1) → reviewer round2 APPROVE(0/0/0). 4-게이트 PASS(APPROVE + comment 외부 + integrator self-check ADR-only + CI green: pull_request 3bcbf3c all-16-steps success incl reviewer-approval) → integrator squash merge 8ab3c6b, branch 삭제. tasksCompleted 190→191. [6] 본 bookkeeping doc-only direct commit. [7] T-0193 DONE. [8] turnCount 9/10 < cap → reschedule(다음 turn t10 = cap → planner dispatch 1건 후 STOP). **다음 t10(LAST, cap 10): planner 가 T-0193 follow-up(GitHub adapter same-host 가드 구현+full R-112) 큐잉 후 reschedule 안 함(STOP) + 사용자 cleanup(/compact·/clear 후 새 /loop, 또는 cron) 안내. 잔여: T-0193 follow-up(adapter 가드 GitHub+Confluence 각 1 task) / ADR-0019 ACCEPTED flip(구현 후) / row8 entity(§5 schema) / row9 live-run(§5 credential).**"
   },
   "ci": {
-    "lastRun": "2026-06-03T14:36:44+09:00",
+    "lastRun": "2026-06-03T15:29:21+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/172",
-    "note": "T-0190 PR-172: pull_request run(26865688673, head a0113f9) steps 1-15 success(smoke+e2e 포함), step16 reviewer-approval 단독 race-fail. reviewer APPROVE comment 후 issue_comment run(26865770214) success → gate4 PASS, squash merge 7612c10. main green, consecutiveFails 0. merge 후 main push run 다음 turn 재확인(비차단)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/173",
+    "note": "T-0193 PR-173: round2 pull_request run(26867627830, head 3bcbf3c) all-16-steps success(reviewer-approval step 포함) → gate4 PASS, squash merge 8ab3c6b. round1 pull_request(e672ef2)은 reviewer-approval step 단독 race-fail(나머지 success). main green, consecutiveFails 0. merge 후 main push run 다음 turn 재확인(비차단)."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -53,7 +53,8 @@
     "T-0187": 1,
     "T-0188": 1,
     "T-0189": 2,
-    "T-0190": 1
+    "T-0190": 1,
+    "T-0193": 2
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -166,7 +167,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 190,
+    "tasksCompleted": 191,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
