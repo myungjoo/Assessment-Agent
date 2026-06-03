@@ -34,6 +34,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import {
   GithubRequestInput,
   buildGithubRequest,
+  resolveGithubApiBaseUrl,
 } from "./github-request.builder";
 
 // per_page 최대화 값 — round-trip 횟수를 줄이기 위해 GitHub 허용 최대(현행 100)를
@@ -84,6 +85,66 @@ export function parseNextLink(linkHeader: string | null): string | null {
   return null;
 }
 
+// schemeDefaultPort — scheme(protocol) 별 default port 를 돌려주는 내부 helper.
+// Node `URL.port` 는 scheme-default port(https=443 / http=80)가 명시돼 있으면 빈
+// 문자열을 반환하는 비대칭이 있으므로, 빈 port 를 이 default 로 정규화해 `https://h/`
+// 와 `https://h:443/` 를 동일 port 로 취급한다(ADR-0019 §1 port 규칙). https/http 외
+// scheme 은 default 미정의(null) — 그 경우 빈 port 끼리만 동일로 보는 보수적 처리.
+function schemeDefaultPort(protocol: string): string | null {
+  if (protocol === "https:") {
+    return "443";
+  }
+  if (protocol === "http:") {
+    return "80";
+  }
+  return null;
+}
+
+// isSameHost — cursor URL 과 instance base URL 이 ADR-0019 §1 의 "same host" 정의를
+// 만족하는지 판정하는 순수 함수(부수효과 0 / 외부 의존 0 / Node 내장 `URL` 만 사용,
+// 새 dependency 0). 다음 3 요소를 모두 만족할 때만 true 다:
+//   (a) scheme(`URL.protocol`) 정확 일치 — https↔http downgrade leak 차단.
+//   (b) host(`URL.hostname`) case-insensitive 일치 — 양쪽 `toLowerCase()` 후 비교
+//       (DNS host 는 대소문자 무관). IDN/punycode 는 `URL.hostname` 이 이미 정규화.
+//   (c) port — 빈 `URL.port`(scheme-default 명시) 를 schemeDefaultPort 로 정규화 후
+//       일치. 비-default 명시 port(예: `:8443`)끼리는 정확 일치를 요구.
+// host 는 **strict equal**(글자 그대로 동일 hostname)만 same host — subdomain 불허
+// (예: base `api.github.com` 에 대해 `uploads.github.com` 은 mismatch). 한쪽이라도
+// `URL` 파싱 실패(malformed)면 fail-closed 로 false 를 돌려준다(의심스러우면 차단).
+// 본 함수는 부수효과가 없고 token 을 다루지 않는다 — host 식별 정보만 비교한다.
+export function isSameHost(cursorUrl: string, baseUrl: string): boolean {
+  let cursor: URL;
+  let base: URL;
+  try {
+    // 둘 중 하나라도 파싱 실패하면 fail-closed(false). new URL 은 절대 URL 만 허용
+    // 하므로 relative / 빈 문자열 / 깨진 cursor 는 여기서 throw → catch 로 차단된다.
+    cursor = new URL(cursorUrl);
+    base = new URL(baseUrl);
+  } catch {
+    return false;
+  }
+
+  // (a) scheme 정확 일치 — `URL.protocol` 은 이미 소문자 정규화(case 무관).
+  if (cursor.protocol !== base.protocol) {
+    return false;
+  }
+
+  // (b) host case-insensitive strict equal — 양쪽 hostname 을 소문자로 맞춰 비교.
+  // subdomain 은 글자가 다르므로 자연히 불일치(strict equal = subdomain 불허).
+  if (cursor.hostname.toLowerCase() !== base.hostname.toLowerCase()) {
+    return false;
+  }
+
+  // (c) port 정규화 후 일치 — 빈 port(=scheme-default)를 default 값으로 치환해 비교.
+  const cursorPort = cursor.port || (schemeDefaultPort(cursor.protocol) ?? "");
+  const basePort = base.port || (schemeDefaultPort(base.protocol) ?? "");
+  if (cursorPort !== basePort) {
+    return false;
+  }
+
+  return true;
+}
+
 // 주입 가능한 fetch 추상 — Node 내장 fetch 의 최소 surface. milestone-1 의 FetchLike
 // ({ ok, status, json })에 더해 headers 접근을 포함한다(ADR-0016 §1 "Link header 를
 // 읽을 수 있는 fetch surface"). 본 slice 는 단일 요청이라 Link 를 실제 순회하지 않지만,
@@ -113,7 +174,8 @@ export type GithubDomainErrorKind =
   | "not-found" // 404 — 대상 부재 또는 권한상 비가시
   | "rate-limited" // 429 — primary / secondary rate limit
   | "upstream-error" // 5xx — GitHub 측 장애 또는 malformed 응답
-  | "transport-error"; // fetch reject(DNS/TLS/connection reset, status 부재)
+  | "transport-error" // fetch reject(DNS/TLS/connection reset, status 부재)
+  | "cross-host-cursor"; // next page cursor 의 host 가 base host 와 불일치 — Authorization leak 차단 위해 abort (ADR-0019 §2, status 부재)
 
 // GithubDomainError — adapter 가 throw 하는 도메인 error. kind(도메인 분류)와 status
 // (status 없는 transport-error 는 undefined)를 담는다. token 평문은 절대 포함하지
@@ -222,6 +284,11 @@ export class GithubAdapter {
     let nextUrl: string | null = firstRequest.url;
     const headers = firstRequest.headers;
 
+    // base URL(scheme+host+port 비교 기준) — buildGithubRequest 의 url 산출과 동일하게
+    // input.host 로부터 도출한다(ADR-0019 §1 host-check 기준). 첫 page url 은 이 base 로
+    // 조립되므로 base 와 same host 가 보장 — host-check 는 next page(들)에만 적용한다.
+    const baseUrl = resolveGithubApiBaseUrl(input.host);
+
     const accumulated: unknown[] = [];
     let page = 0;
     // next 부재 시까지 순회하되, MAX_PAGES 를 넘기지 않는다(무한 cursor 방어선).
@@ -240,6 +307,30 @@ export class GithubAdapter {
         accumulated.push(...body);
       } else {
         accumulated.push(body);
+      }
+
+      // host-check 게이트(ADR-0019 §2) — 다음 page 의 opaque cursor 를 fetch 하기 직전에
+      // base host 와 same host 인지 검사한다. parsedNext 는 서버측 제어값(응답 Link
+      // header 에서 옴)이라, foreign host 를 가리키면 첫 page 의 headers(Bearer token)가
+      // 그 host 로 leak 될 수 있다. mismatch / malformed 면 그 cursor 를 **fetch 하지 않고**
+      // cross-host-cursor 도메인 error 를 throw 해 순회를 abort 한다(부분 수집분은 버린다).
+      // 송신 0 — headers(평문 token 포함)는 cross-host 로 절대 fetch 에 쓰이지 않는다.
+      // message 에는 base host / cursor 의 foreign host(origin) 만 담고 token 평문 /
+      // full cursor URL(query 포함)은 직렬화하지 않는다(ADR-0019 §4, CLAUDE.md §9).
+      if (parsedNext !== null && !isSameHost(parsedNext, baseUrl)) {
+        // cursor 의 식별 정보로 host(origin)만 추출한다 — 파싱 실패(malformed)면 노출할
+        // host 가 없으므로 "(malformed)" placeholder 를 쓴다(full URL / token 미노출).
+        let cursorHost: string;
+        try {
+          cursorHost = new URL(parsedNext).host;
+        } catch {
+          cursorHost = "(malformed)";
+        }
+        throw new GithubDomainError(
+          "cross-host-cursor",
+          undefined,
+          `github cross-host cursor 차단 (host: ${input.host}, cursorHost: ${cursorHost}, path: ${input.path})`,
+        );
       }
 
       nextUrl = parsedNext;
