@@ -2,29 +2,29 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0191",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@myung-vb707106",
     "since": "2026-06-03T13:49:34+09:00",
     "loopSessionStartedAt": "2026-06-03T13:49:34+09:00",
-    "loopSessionTurnCount": 4
+    "loopSessionTurnCount": 5
   },
-  "lastActivity": "2026-06-03T14:41:08+09:00",
+  "lastActivity": "2026-06-03T14:48:08+09:00",
   "lastCommit": "7612c10",
   "mostRecentTasks": [
+    "T-0191",
     "T-0190",
     "T-0189",
     "T-0188",
-    "T-0187",
-    "T-0186"
+    "T-0187"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-03T13:49:34+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106",
-    "note": "loop@myung-vb707106 session #45 t4 (turnCount 4/10). [1] 같은 session 연속 wake → read 전 fetch, lock heartbeat turnCount 3→4, main 7612c10 sync, Q 전원 RESOLVED, blockers 0, ci green(T-0190 merge 7612c10 + bookkeeping 96f5eb0 push run 둘 다 completed success). [2] currentTask·nextTask 둘 다 null → planner dispatch → T-0191(commitMode direct, 머지된 Confluence transport stack(T-0183~T-0190)을 architecture doc 에 반영 — modules.md ConfluenceModule row stale placeholder 갱신 + p4-implementation-plan.md §2 T-0142/T-0143 의 Q-0017-superseded 'SDK+token BLOCKED' 표기 정정, ~50 LOC/2 file) 큐잉, STATE.nextTask=T-0191. planner issue-still-relevant pre-check: 두 doc 모두 stale 확정(비-redundant). ADR-0018 status flip(PROPOSED→ACCEPTED)은 row10 별도 task(ADR-0018 §6 없음 stale 참조 정정 포함). [6] 본 turn = planner-only doc-only direct commit, executor 미경유. [7] T-0191 큐잉. [8] turnCount 4/10 < cap → reschedule(다음 turn = nextTask T-0191 → current, executor dispatch direct doc-sync). **잔여 P4 milestone-3 chain: row7 T-0191(현재 큐, direct) / row10 ADR-0018 ACCEPTED(direct, row7 후) / row8 PermissionDeniedRecord entity(§5 schema, DO NOT queue) / row9 live-run(§5 credential, DO NOT queue).** **SECURITY follow-up 후보(T-0188 reviewer MINOR, 미해결): cross-host auth-leak — GitHub+Confluence adapter 가 _links.next/Link rel=next 를 base host 무관 추종 시 Authorization 외부 host 유출. 별도 ADR(same-host 제약) + 양 adapter 가드 task 후보.**"
+    "note": "loop@myung-vb707106 session #45 t5 (turnCount 5/10). [1] 같은 session 연속 wake → read 전 fetch, lock heartbeat turnCount 4→5, main 6486d2d sync, Q 전원 RESOLVED, blockers 0, ci green. [2] currentTask null + nextTask=T-0191 → current(direct doc-sync). [3] executor 1회(implementer role, doc-only) → docs/architecture/modules.md ConfluenceModule row 를 milestone-3 박제(ConfluenceAdapter 내장 fetch dep0 + 4xx→PermissionDeniedEvent/404 no-emit/5xx transient/malformed→domain-error + ConfluenceRequestBuilder + ConfluenceSpaceTraversalService(_links.next cursor + 4xx skip-and-continue) + token-decrypt(ADR-0014) + instance-config(ADR-0017) + T-0190 smoke, 실 token live-run만 §5 잔류) + ADR-0013/0018 추가, docs/architecture/p4-implementation-plan.md T-0142(dependency 게이트 미발화 정정)/T-0143(ADR-0013 ACCEPTED+SpaceTraversalService)/line75 inventory/line85 미발화 list/References 정합. +7/-5, ADR-0018 §6 신규 미유입(grep exit1). [4] DONE + commitMode direct → deliverable(modules.md+p4-plan) + bookkeeping(STATE/task DONE/journal) 단일 direct commit→main. tasksCompleted 188→189. [6] 본 turn 자체가 doc-only direct. [7] T-0191 DONE. [8] turnCount 5/10 < cap → reschedule(다음 turn = nextTask null → planner dispatch row10 ADR-0018 ACCEPTED flip). **잔여 P4 milestone-3 chain: row10 ADR-0018 PROPOSED→ACCEPTED(direct, 다음) / row8 PermissionDeniedRecord entity(§5 schema, DO NOT queue) / row9 live-run(§5 credential, DO NOT queue). row10 후 dependency-free milestone-3 backlog 소진 — planner escalate 가능성.** **SECURITY follow-up 후보(T-0188 reviewer MINOR, 미해결): cross-host auth-leak — GitHub+Confluence adapter 가 _links.next/Link rel=next 를 base host 무관 추종 시 Authorization 외부 host 유출. 별도 ADR(same-host 제약) + 양 adapter 가드 task 후보.**"
   },
   "ci": {
     "lastRun": "2026-06-03T14:36:44+09:00",
@@ -166,7 +166,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 188,
+    "tasksCompleted": 189,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

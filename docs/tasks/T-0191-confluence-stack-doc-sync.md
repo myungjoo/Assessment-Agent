@@ -2,13 +2,14 @@
 id: T-0191
 title: Confluence transport stack 박제 반영 doc-sync (modules.md + p4-implementation-plan.md)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-015, REQ-016, REQ-017]
 dependsOn: []
 estimatedDiff: 50
 estimatedFiles: 2
 created: 2026-06-03
+completedAt: 2026-06-03T14:48:08+09:00
 plannerNote: P4 milestone-3 chain row7 — 머지된 Confluence transport stack(T-0183~T-0190)을 architecture doc 에 반영. 순수 docs → direct. doc-only inline-amend ×0.64.
 ---
 
