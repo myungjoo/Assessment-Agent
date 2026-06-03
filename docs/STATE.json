@@ -5,12 +5,12 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0212",
   "lock": {
     "holder": "loop",
-    "since": "2026-06-04T02:30:00+09:00"
+    "since": "2026-06-04T02:35:00+09:00"
   },
-  "lastActivity": "2026-06-04T02:30:00+09:00",
+  "lastActivity": "2026-06-04T02:35:00+09:00",
   "lastCommit": "79b94e0",
   "mostRecentTasks": [
     "T-0211",
@@ -20,11 +20,11 @@
     "T-0207"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-06-04T01:07:00+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106-s52",
-    "note": "loop@myung-vb707106-s52 session #52 t6 — [1] fetch: local==origin 61fcc74(t5 doc-commit CI in_progress, 비차단; 직전 main run 전부 green 확인). lock heartbeat turnCount 5→6, since 02:06→02:12(종료 시 02:30). [2] nextTask=T-0211→currentTask. [3] executor → PersistingPermissionDeniedEmitter 신설(GitHub {host,path,status}→record 정규화, fire-and-forget + .catch swallow §6.3) + adapter @Optional @Inject(PERMISSION_DENIED_EMITTER token, 미주입 no-op default regression 0) + GithubModule 이 PermissionDeniedRecordModule import+token provide(app.module 무변경) + colocated spec 2, 5 파일 production net 101 LOC(총 +421/-23, test 비중), lint/build/test:cov(3099) green. [4] pr-mode PR #185: reviewer r1 APPROVE(0/0/1 nit, nit 은 type-guaranteed non-gap §3 closure 불요) + size-cap 명시 판정 WITHIN CAP(production ~113 LOC, 5파일 at-cap, test-heavy). r1 head 18dd34f CI 26901300766 approval-검증 race-fail → approve comment 후 gh run rerun --failed 재실행 success(21 step green). integrator 4-gate 전부 PASS + size-cap concurrence → squash merge 79b94e0. [6] tasksCompleted 208→209, mostRecentTasks prepend T-0211, task DONE(mergedAs 79b94e0/prNumber 185/reviewRounds 1), nextTask null. **GitHub adapter emitter wiring 완결 — 권한 거부가 실제 DB 영속화됨**. 후속 dependency-free: Confluence adapter emitter wiring / 조회 endpoint / retention pruning. residual nit: db-truncate.spec.ts L7 docstring '5 테이블' stale(pre-existing). [next] t7 planner 가 Confluence emitter wiring 또는 조회 endpoint 큐잉."
+    "note": "loop@myung-vb707106-s52 session #52 t7 — [1] fetch: local==origin 00f894f(t6 bookkeeping + 79b94e0 merge CI 둘 다 success, main green). lock heartbeat turnCount 6→7, since 02:30→02:35. [2] currentTask·nextTask 공백 → planner dispatch. [2-planner] T-0212(Confluence adapter 권한거부 emitter wiring — ADR-0022 chain row3, T-0211 GitHub mirror, baseUrl→instanceRef + Confluence DI token 도입(positional→@Inject), architect 불요 ADR-0022 §1/§6 cover, pr-mode ~170 LOC/4파일) 큐잉 → nextTask=T-0212. 조회 endpoint 는 RBAC 미결정(§5 security 게이트)이라 미선택 — 사용자 결정 필요(향후). [6] doc-only direct commit. [next] t8 executor 가 T-0212 수행(pr-mode). turn cap(10) 까지 3 turn 잔여 — t8 exec, t9 planner, t10 exec 후 cap 도달 예상."
   },
   "ci": {
     "lastRun": "2026-06-04T02:30:00+09:00",
