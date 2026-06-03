@@ -2,13 +2,17 @@
 id: T-0205
 title: Confluence live-test gating helper + env-gated live smoke 추가 (milestone-3 live-test scaffold 완결)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-010, REQ-015]
 estimatedDiff: 150
 estimatedFiles: 3
 created: 2026-06-03
 plannerNote: P4 milestone-3 — T-0204(GitHub gating) 의 Confluence 대칭 mirror. ADR-0021 Decision §(i) Confluence row(Cloud Basic vs Server Bearer) 박제 helper + env-gated live smoke 로 live-test scaffold 완결.
+completedAt: 2026-06-03T22:32:33+09:00
+mergedAs: 537d53863b70d40ed10227de1c9230a32b852c1d
+prNumber: 179
+reviewRounds: 1
 ---
 
 # T-0205 — Confluence live-test gating helper + env-gated live smoke 추가

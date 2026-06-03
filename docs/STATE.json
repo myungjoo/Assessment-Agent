@@ -5,26 +5,26 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0205",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
-    "since": "2026-06-03T22:12:38+09:00"
+    "since": "2026-06-03T22:32:33+09:00"
   },
-  "lastActivity": "2026-06-03T22:12:38+09:00",
-  "lastCommit": "567521d",
+  "lastActivity": "2026-06-03T22:32:33+09:00",
+  "lastCommit": "537d538",
   "mostRecentTasks": [
+    "T-0205",
     "T-0204",
     "T-0203",
     "T-0202",
-    "T-0201",
-    "T-0200"
+    "T-0201"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-06-03T20:22:25+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106-s50",
-    "note": "loop@myung-vb707106-s50 session #50 t5 — T-0205 큐잉(planner; 사용자 'continue' 로 1200s 대기 없이 즉시 진행). [1] 같은 session 연속 wake → fetch, lock(s50) 유효 turnCount 4→5(since heartbeat 22:12), t4 merge 14bb771 + bookkeeping 567521d main CI 둘 다 success(R-114), main 새 user commit 없음, Q 전원 RESOLVED, blockers 0. [2] currentTask/nextTask null → planner. T-0205(Confluence live-test gating helper src/confluence/confluence-live-test-gating.ts + colocated spec + env-gated test/smoke/confluence-live.smoke-spec.ts, ADR-0021 Confluence 측: CONFLUENCE_LIVE_TEST + Cloud-token/Server-PAT, pr ~150 prod LOC/3 file) 선정 — T-0204 GitHub mirror, milestone-3 live-test scaffold 대칭 완결. pre-check: confluence-live-test-gating.ts + confluence-live.smoke-spec.ts 둘 다 main 부재. credential-prep (d)(LLM apiKey at-rest)는 prisma schema=§5 risk 로 미queue(future human checkpoint). STATE.nextTask=T-0205. [8] reschedule(60s, t6 가 T-0205 execute). 다음 pickup: t6 executor → T-0205 pr-mode. backlog 잔류: credential-prep CLI(c, dep-free) + at-rest(d, §5) + 실 token live RUN(§5)."
+    "note": "loop@myung-vb707106-s50 session #50 t6 — T-0205(Confluence live-test gating helper) MERGED via PR #179 = **milestone-3 live-test scaffold 완결**(GitHub T-0204 + Confluence T-0205). [1] 같은 session 연속 wake(사용자 'continue') → fetch, lock(s50) 유효 turnCount 5→6(since heartbeat 22:32), t5 bookkeeping 9992f60 doc CI in_progress(doc-only 비차단, t7 재확인), main 새 user commit 없음, Q 전원 RESOLVED, blockers 0. [2] nextTask=T-0205 → currentTask. [3] executor → claude/T-0205-... branch + src/confluence/confluence-live-test-gating.ts(135 prod) + colocated spec(254, unit 18) + env-gated test/smoke/confluence-live.smoke-spec.ts(105). CONFLUENCE_LIVE_TEST/_BASE_URL/_TOKEN trim-AND + AUTH_USER 로 Cloud-Basic/Server-Bearer scheme 분기. R-112 happy 양 scheme/error/branch/negative 충분, coverage helper 100%(≥80 AND ≥80), lint/build/test green(153 suite/3042). impl diff 135<300 cap. [4] driver commit d141595 + push + PR #179. reviewer driver-direct → APPROVE(0 B/M/m, live-timeout nit 는 ADR-0021 §(iv) deferred), comment. integrator 4-게이트 PASS — gate(d) first pull_request run 26887690663 reviewer-gate race(approval step만 fail, smoke/e2e green), issue_comment auto-rerun 미발화 → `gh run rerun` self-heal → success. squash merge 537d538, branch 삭제. [6] currentTask/nextTask null, tasksCompleted 202→203, mostRecentTasks prepend T-0205, task DONE(mergedAs 537d538/prNumber 179/reviewRounds 1). [8] reschedule(1200s). 다음 pickup: t7 planner 가 credential-prep CLI(c, 토큰 암호화 CLI, dep-free, 사용자 536e469) 큐잉 예상. 그 후 잔여는 전부 §5(at-rest schema migration / 실 token live RUN) — t8 이후 사용자 checkpoint 필요."
   },
   "ci": {
     "lastRun": "2026-06-03T18:00:00+09:00",
@@ -192,7 +192,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 202,
+    "tasksCompleted": 203,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
