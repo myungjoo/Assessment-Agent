@@ -2,7 +2,7 @@
 id: T-0186
 title: ConfluenceAdapter 순수 request-builder (buildConfluenceRequest — base URL concat + Cloud Basic/Server Bearer auth 분기)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-010, REQ-015, REQ-016, REQ-044]
 dependsOn: [T-0184, T-0185]
@@ -10,6 +10,10 @@ estimatedDiff: 150
 estimatedFiles: 2
 created: 2026-06-03
 plannerNote: ADR-0018 chain row3 1차 slice — 순수 buildConfluenceRequest (GitHub T-0174 mirror). dep0/schema0/credential0/§5 미발화. service-dispatch 는 row3b Follow-up.
+prNumber: 168
+mergedAs: 314c699
+reviewRounds: 1
+completedAt: 2026-06-03T12:31:50+09:00
 ---
 
 # T-0186 — ConfluenceAdapter 순수 request-builder (buildConfluenceRequest)
