@@ -2,11 +2,14 @@
 id: T-0201
 title: PLAN 운영 정책 backlog 의 multi-task fire 검토 bullet 을 ADR-0020 활성 완결 반영으로 doc-sync
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 6
 estimatedFiles: 1
+actualDiff: 2
+actualFiles: 1
+completedAt: 2026-06-03T19:04:00+09:00
 created: 2026-06-03
 plannerNote: P4 운영 backlog L143 stale — ADR-0020 가 multi-task fire 검토·활성 완결했는데 bullet 은 '검토 예정/ADR-NNNN' 인 채. direct doc-sync.
 ---
