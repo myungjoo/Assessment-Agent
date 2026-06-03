@@ -1,7 +1,7 @@
 ---
 id: ADR-0019
 title: pagination cursor 의 same-host Authorization 전송 제약 정책 — cursor URL 의 (scheme + host + port) 가 instance base URL 과 정확히 일치할 때만 Authorization 동반 fetch / 불일치 시 abort + 도메인 error throw / GitHub·Confluence 양쪽 adapter 공통 / token 비노출 invariant
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-03
 relatedTask: T-0193
 supersedes: null

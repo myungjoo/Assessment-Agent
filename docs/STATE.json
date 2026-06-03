@@ -7,14 +7,14 @@
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-06-03T16:48:27+09:00",
+  "lastActivity": "2026-06-03T16:56:00+09:00",
   "lastCommit": "b0e5279",
   "mostRecentTasks": [
+    "T-0196",
     "T-0195",
     "T-0194",
     "T-0193",
-    "T-0192",
-    "T-0191"
+    "T-0192"
   ],
   "loopSession": {
     "turnCount": 3,
@@ -166,7 +166,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 193,
+    "tasksCompleted": 194,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
