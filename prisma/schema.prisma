@@ -365,3 +365,76 @@ model DifficultyMapping {
 
   @@unique([difficulty])
 }
+
+// PermissionDeniedRecord — ADR-0022 §1·§3·§4·§5 의 schema 박제 (T-0208).
+// P4 GitHub / Confluence adapter 가 권한 거부 (401 / 403 / 권한 비가시 404) 시
+// emit 하는 PermissionDeniedEvent 의 영속화 측 entity. 권한 거부 1 건을 박제하는
+// append-only audit row — 한 번 기록되면 갱신되지 않는다 (immutable).
+//
+// 컬럼 결정 (ADR-0022 §1 필드 표 1:1):
+//   - id — 전 model 공통 cuid PK 컨벤션.
+//   - provider — 어느 adapter 의 이벤트인지 식별하는 enum-as-String literal
+//     ("github" / "confluence"). 두 adapter 의 동형 이벤트를 단일 record 로 수용하는
+//     discriminator. 값 invariant 는 service-layer 책임 (ServiceIdentity.service /
+//     User.role 의 String-literal 정공법 정합 — Prisma enum 격상은 별도 ADR).
+//   - instanceRef — 권한이 거부된 instance 식별자. GitHub 는 configured host
+//     (예: github.sec.samsung.net), Confluence 는 풀 REST API base URL
+//     (예: https://acme.atlassian.net/wiki/rest/api). 두 adapter 이벤트의 host /
+//     baseUrl 비대칭을 단일 컬럼으로 정규화 (provider 와 함께 읽으면 의미 명확).
+//     token / 자격증명을 base URL 에 절대 포함하지 않는다 (CLAUDE.md §9).
+//   - resourceRef — 권한이 거부된 대상 REST path (예: /repos/{owner}/{repo}/commits).
+//     이벤트의 path 를 그대로 수용. 외부 본문이 아닌 참조 식별자라 raw 미저장
+//     invariant 정합 (ADR-0006 Contribution.sourceRef 동형 위상).
+//   - principal — nullable. 권한 거부의 주체 (어느 ServiceIdentity / token 으로
+//     호출했는가). 현 이벤트 shape 에는 principal 정보가 없어 (host / path / status
+//     만) 현 단계에서는 항상 null. token 평문은 절대 저장 불가 (CLAUDE.md §9).
+//     이벤트 shape 확장 + ServiceIdentity relation 은 후속 task 책임 — nullable
+//     박제로 자리만 예약 (Person.partId nullable 패턴 정합).
+//   - httpStatus — 거부를 유발한 HTTP status (401 / 403 / 권한 비가시 404).
+//     status code 이름은 외부 표준이라 영어/숫자 그대로.
+//   - reason — nullable. 거부 분류의 사람-친화 reason (예: "permission-denied" /
+//     "not-found-or-hidden"). 이벤트 shape 에 reason 문자열이 없으므로 service-layer
+//     가 httpStatus 로부터 도출하거나 null. token 평문 / 응답 본문은 절대 미포함.
+//   - createdAt — 권한 거부 발생 (= emit) 시각. UTC 저장 (ADR-0012).
+//
+// updatedAt 미정의 (immutable, ADR-0022 §1) — audit row 는 한 번 기록되면 갱신되지
+//   않는다 (Assessment / Contribution / Summary 의 immutable 패턴 + ADR-0012
+//   mutable-only updatedAt 정합). 정정이 필요하면 새 row.
+//
+// @@unique 미정의 (append-only, ADR-0022 §3) — 동일
+//   (provider, instanceRef, resourceRef, httpStatus) 반복 거부는 매 emit 마다 새
+//   row 로 박제한다 (dedup 안 함). audit 는 발생 횟수·시점 자체가 신호이므로 중복
+//   row 를 의도적으로 허용 — unique 제약을 두면 P2002 발화로 이 신호를 잃는다
+//   (LlmProviderConfig 의 @@unique 미정의 = 다중 row 허용 패턴 정합).
+//
+// relation / FK 미정의 (standalone, ADR-0022 §5) — Person / User / ServiceIdentity
+//   등 기존 model 과 relation 을 맺지 않는다. 이벤트가 principal 식별자를 싣지
+//   않아 FK 도출 데이터가 0 이고, audit row 는 참조 대상 삭제와 무관하게 거부 이력이
+//   보존돼야 하므로 (cascade 가 audit 영구 보존과 충돌) standalone 으로 박제.
+//   다른 model 변경 0 — back-relation 필드 추가 0.
+//
+// token 평문·secret 미포함 invariant (CLAUDE.md §9) 를 schema 차원에서 박제 —
+//   record schema 는 token / Authorization header / 응답 본문 컬럼을 정의하지
+//   않는다. schema 에 자리가 없으면 저장 자체가 불가 (ADR-0006 raw 미저장
+//   schema-level 강제 동형 기법).
+//
+// @@index 2종 (ADR-0022 §4) — 운영자의 audit 조회 패턴 (필터 컬럼 + createdAt
+//   prefix, Assessment 의 시계열 @@index 동형):
+//   - [instanceRef, createdAt] — "이 instance 의 최근 거부 이력" (instance × 기간).
+//   - [provider, httpStatus, createdAt] — "github 의 403 거부를 기간별로"
+//     (provider × status × 기간, audit dashboard).
+//   @@index([createdAt]) 단독은 §4 상 후보일 뿐 — 위 2 composite index 의
+//   leading-edge 로 부분 cover 되므로 본 task 에서는 추가하지 않는다 (Out of Scope).
+model PermissionDeniedRecord {
+  id          String   @id @default(cuid())
+  provider    String
+  instanceRef String
+  resourceRef String
+  principal   String?
+  httpStatus  Int
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@index([instanceRef, createdAt])
+  @@index([provider, httpStatus, createdAt])
+}
