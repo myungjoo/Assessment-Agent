@@ -5,12 +5,12 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0211",
   "lock": {
     "holder": "loop",
-    "since": "2026-06-04T02:03:00+09:00"
+    "since": "2026-06-04T02:06:00+09:00"
   },
-  "lastActivity": "2026-06-04T02:03:00+09:00",
+  "lastActivity": "2026-06-04T02:06:00+09:00",
   "lastCommit": "e6a4852",
   "mostRecentTasks": [
     "T-0210",
@@ -20,11 +20,11 @@
     "T-0206"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-04T01:07:00+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106-s52",
-    "note": "loop@myung-vb707106-s52 session #52 t4 — [1] fetch: local==origin 96ef1a4(t3 doc-commit CI in_progress, 비차단). lock 동일 session heartbeat turnCount 3→4, since 01:44→01:50(종료 시 02:03). [2] nextTask=T-0210→currentTask. [3] executor → PermissionDeniedRecordModule 신설(repository+service providers+exports 양쪽, @Global PersistenceModule 의존이라 imports 불요, LlmModule mirror) + app.module.ts 1회 등록 + colocated module.spec(DI resolve + sentinel override 2 + Reflect paramtypes 정적 의존 2), 3 파일 +166/-1, lint/build/test:cov(3089) green. [4] pr-mode PR #184: reviewer r1 APPROVE(0/0/0 clean, nit 0). r1 head 6159f3f CI 26899915801 first-run 은 approval-검증 step race-fail(comment 전) → approve comment post 후 gh run rerun --failed 로 동일 run 재실행 → success(21 step green). issue_comment 재실행 run 은 main HEAD checkout 이라 PR head 게이트로 부적합 — rerun 이 결정적. integrator 4-gate 전부 PASS → squash merge e6a4852. [6] tasksCompleted 207→208, mostRecentTasks prepend T-0210, task DONE(mergedAs e6a4852/prNumber 184/reviewRounds 1), nextTask null. **PermissionDeniedRecordModule DI 등록 완결** — 후속 dependency-free: emitter wiring(adapter non-2xx→service.record) / adapter integration / endpoint. residual nit: db-truncate.spec.ts L7 docstring '5 테이블' stale(pre-existing). [next] t5 planner 가 emitter wiring slice 큐잉."
+    "note": "loop@myung-vb707106-s52 session #52 t5 — [1] fetch: local==origin 6b80221(t4 bookkeeping CI in_progress, 비차단; e6a4852 merge·이전 doc-commit 전부 green). lock 동일 session heartbeat turnCount 4→5, since 02:03→02:06. [2] currentTask·nextTask 공백 → planner dispatch. [2-planner] T-0211(GitHub adapter 권한거부 emitter wiring — ADR-0022 chain row3, GitHub 401/403 PermissionDeniedEvent→PermissionDeniedRecordService.record 영속화, host→instanceRef·provider=github, architect 불요 ADR-0022 §6 cover, pr-mode ≤5파일/~185 LOC) 큐잉 → nextTask=T-0211. Confluence(baseUrl 비대칭)는 cap 보호로 follow-up 분리. [6] doc-only direct commit. [next] t6 executor 가 T-0211 수행(pr-mode)."
   },
   "ci": {
     "lastRun": "2026-06-04T02:03:00+09:00",
