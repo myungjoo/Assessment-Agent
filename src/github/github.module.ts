@@ -20,24 +20,48 @@
 //   - env→instance config 의 module init 시점 binding(provider factory) —
 //     GithubInstanceClient 는 매 요청마다 resolveGithubInstances 를 호출한다(부수효과 0
 //     순수 함수). boot 시점 eager binding 은 별도 검증 layer 책임(ADR-0017 §3).
-//   - PermissionDeniedRecord entity 의 실 persistence(§5 게이트, 별도 task) —
-//     GithubInstanceClient 는 GithubAdapter 의 기존 emitter port 를 바꾸지 않는다.
 //   - live-run(실 GitHub token + 실 네트워크) — §5 credential 게이트.
 //   - ConfluenceModule wiring(별도 adapter, 별도 task).
+//
+// 권한 거부 영속화 emitter wiring(T-0211, ADR-0022 chain row 3): GithubModule 이
+// PermissionDeniedRecordModule(service export)을 imports 하고, PERMISSION_DENIED_EMITTER
+// token 에 PersistingPermissionDeniedEmitter(실 영속화 emitter)를 provide 한다. 그러면
+// GithubAdapter 의 @Optional @Inject(PERMISSION_DENIED_EMITTER) emitter param 이 no-op
+// 대신 실 emitter 로 resolve 되어 401/403 권한 거부가 record 로 영속화된다. adapter
+// 코드 변경 0(port 재사용, ADR-0022 §6.1) — module wiring 으로 자기충족(app.module 무변경).
 import { Module } from "@nestjs/common";
 
 import { LlmApiKeyCipher } from "../llm/llm-apikey-cipher.service";
+import { PermissionDeniedRecordModule } from "../permission-denied/permission-denied-record.module";
+import { PersistingPermissionDeniedEmitter } from "../permission-denied/persisting-permission-denied-emitter";
 
-import { GithubAdapter } from "./github-adapter.service";
+import {
+  GithubAdapter,
+  PERMISSION_DENIED_EMITTER,
+} from "./github-adapter.service";
 import { GithubInstanceClient } from "./github-instance-client.service";
 
 @Module({
-  // GithubAdapter + GithubInstanceClient + LlmApiKeyCipher 를 provide. client 와
-  // adapter 는 외부 transport leaf 라 HTTP endpoint 를 직접 노출하지 않는다(상위
-  // orchestrator / 평가 파이프라인이 inject 해 사용). LlmApiKeyCipher 는 GithubModule
-  // 내부 주입용으로만 등록(export 불요 — LlmModule 이 별도로 export). PersistenceModule
-  // import 불요(GithubAdapter / LlmApiKeyCipher 모두 Prisma dep 0).
-  providers: [GithubAdapter, GithubInstanceClient, LlmApiKeyCipher],
+  // PermissionDeniedRecordModule import — PersistingPermissionDeniedEmitter 가
+  // PermissionDeniedRecordService 를 inject 하려면 그 service 를 export 하는 module 을
+  // import 해야 한다(T-0210 이 service 를 exports 에 등록). PersistenceModule(@Global)이
+  // PrismaService 를 application-wide 로 export 하므로 그 추가 import 는 불요.
+  imports: [PermissionDeniedRecordModule],
+  // GithubAdapter + GithubInstanceClient + LlmApiKeyCipher + 실 영속화 emitter 를 provide.
+  // PERMISSION_DENIED_EMITTER token 에 PersistingPermissionDeniedEmitter 를 useClass 로
+  // 바인딩 — GithubAdapter 의 @Inject(PERMISSION_DENIED_EMITTER) 가 이를 주입받는다.
+  // client 와 adapter 는 외부 transport leaf 라 HTTP endpoint 를 직접 노출하지 않는다.
+  // LlmApiKeyCipher 는 GithubModule 내부 주입용으로만 등록(export 불요).
+  providers: [
+    GithubAdapter,
+    GithubInstanceClient,
+    LlmApiKeyCipher,
+    PersistingPermissionDeniedEmitter,
+    {
+      provide: PERMISSION_DENIED_EMITTER,
+      useClass: PersistingPermissionDeniedEmitter,
+    },
+  ],
   exports: [GithubAdapter, GithubInstanceClient],
 })
 export class GithubModule {}
