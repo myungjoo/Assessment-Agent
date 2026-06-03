@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0187",
   "lock": {
     "holder": "loop@myung-ea6127546",
     "since": "2026-06-03T10:31:13+09:00"
   },
-  "lastActivity": "2026-06-03T12:31:50+09:00",
+  "lastActivity": "2026-06-03T12:37:50+09:00",
   "lastCommit": "314c699",
   "mostRecentTasks": [
     "T-0186",
@@ -17,11 +17,11 @@
     "T-0182"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-06-03T10:31:13+09:00",
     "cap": 10,
     "holder": "loop@myung-ea6127546",
-    "note": "loop@myung-ea6127546 session #44 t5 (turnCount 5/10). [1] read 전 fetch — 권위 lock=내 session 연속 wake → turnCount 4→5. main 941f69c sync, Q-0013~0017 전원 RESOLVED, blockers 0, CI green. [2] nextTask=T-0186 → current(pr-mode). [3] feature branch claude/T-0186-confluence-request-builder + executor 1회 dispatch → src/confluence/confluence-request.builder.ts(순수 buildConfluenceRequest: base/path slash 정규화 + URLSearchParams query + authUser 존재로 Cloud Basic(base64 email:token)/Server Bearer auth 분기 + assertNonEmpty 방어, token 평문/base64 비노출, GitHub github-request.builder.ts T-0174 mirror) + colocated spec. lint/build/test green(149 suites/2899 tests), 신규 builder 100% cov. service-dispatch 는 row3b deferred. [4] commit aa71de8 push → PR #168 open → reviewer APPROVE round 1/7(1 MINOR=PR body wording, driver 가 gh pr edit 로 fix; 0 BLOCKER/MAJOR) comment post(gate2) → integrator 4-게이트 PASS(gate4=issue_comment run 26861894152 success) → squash merge 314c699, branch 삭제. [5] main green. [6] task DONE(prNumber 168/mergedAs 314c699/reviewRounds 1), tasksCompleted 183→184, mostRecentTasks prepend T-0186, nextTask=null. [7] turn end — T-0186 DONE/MERGED; next: planner(milestone-3 chain row3b = service dispatch + non-2xx 매핑). [8] dynamic reschedule(turnCount 5<10). **milestone-3 잔여 chain(ADR-0018): row3b service dispatch+non-2xx 매핑+emit / row4 pagination / row5 SpaceTraversalService / row6 roundtrip smoke / row7 doc-sync / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential) / row10 ADR ACCEPTED.**"
+    "note": "loop@myung-ea6127546 session #44 t6 (turnCount 6/10). [1] read 전 fetch — 권위 lock=내 session 연속 wake → turnCount 5→6. main cab3552 sync, Q-0013~0017 전원 RESOLVED, blockers 0, CI green. [2] currentTask·nextTask 둘 다 null → planner dispatch → T-0187(ADR-0018 chain row3b = ConfluenceAdapter 단일 page request() dispatch: token JIT decrypt(decryptConfluenceInstanceToken) + buildConfluenceRequest + injectable ConfluenceFetchLike(default globalThis.fetch) + non-2xx 도메인 매핑 + 4xx in-memory PermissionDeniedEvent emit(기존 port NO_OP default 재사용, persistence=row8 follow-up) + body parse + confluence.module.ts provider wiring, GitHub github-adapter.service.ts T-0175 mirror, commitMode pr, dep0/schema0/§5 미발화, ~3 file) 큐잉, STATE.nextTask=T-0187. planner issue-still-relevant pre-check PASS(main 에 confluence-adapter.service 부재, comment refs only). pagination=row4 / traversal=row5 / persistence=row8 / live-run=row9 OUT. [5][6] 본 turn = planner-only doc-only direct commit. [7] turn end — T-0187 큐잉; next: T-0187 → current(다음 turn executor pr-mode). [8] dynamic reschedule(turnCount 6<10). **milestone-3 잔여 chain(ADR-0018): row3b T-0187(현재 큐) / row4 pagination / row5 SpaceTraversalService / row6 roundtrip smoke / row7 doc-sync / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential) / row10 ADR ACCEPTED.**"
   },
   "ci": {
     "lastRun": "2026-06-03T10:48:00+09:00",
