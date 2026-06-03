@@ -2,26 +2,26 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0185",
+  "nextTask": null,
   "lock": {
     "holder": "loop@myung-ea6127546",
     "since": "2026-06-03T10:31:13+09:00"
   },
-  "lastActivity": "2026-06-03T10:55:16+09:00",
-  "lastCommit": "17e8bce",
+  "lastActivity": "2026-06-03T11:20:54+09:00",
+  "lastCommit": "575b4ff",
   "mostRecentTasks": [
+    "T-0185",
     "T-0184",
     "T-0183",
     "T-0182",
-    "T-0181",
-    "T-0180"
+    "T-0181"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-03T10:31:13+09:00",
     "cap": 10,
     "holder": "loop@myung-ea6127546",
-    "note": "loop@myung-ea6127546 session #44 t2 (turnCount 2/10). [1] read 전 fetch — 권위 refs/locks/driver=내 session(loop@myung-ea6127546, since 10:31) 연속 wake 확인 → turnCount 1→2. main a665467 sync(T-0184 bookkeeping, CI success). humanQuestions Q-0013~0017 전원 RESOLVED, blockers 0, CI green. [2] currentTask·nextTask 둘 다 null → planner dispatch → T-0185(Confluence instance token JIT decrypt helper, ADR-0018 chain row2, src/github token-decrypt T-0179 mirror, commitMode pr, dep0/schema0/credential0 §5 미발화, ~180 LOC/2 file: helper + colocated spec, ADR-0014 LlmApiKeyCipher·LLM_APIKEY_ENC_KEY 재사용·token 전용 키 미신설, 빈/공백 tokenEnc fail-fast never-read-back) 큐잉, STATE.nextTask=T-0185. planner issue-still-relevant pre-check PASS(src/confluence token-decrypt 심볼 origin/main 0). [5][6] 본 turn = planner-only doc-only direct commit(executor 미경유). [7] turn end — T-0185 큐잉; next: T-0185 → current(다음 turn executor dispatch pr-mode). [8] dynamic reschedule(turnCount 2<10). **milestone-3 잔여 chain(ADR-0018): row2 T-0185(현재 큐) / row3 request-builder+service dispatch / row4 pagination / row5 SpaceTraversalService / row6 roundtrip smoke / row7 doc-sync / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential) / row10 ADR ACCEPTED.**"
+    "note": "loop@myung-ea6127546 session #44 t3 (turnCount 3/10). [1] read 전 fetch — 권위 lock=내 session 연속 wake → turnCount 2→3. main bcbb7fc sync(CI success), Q-0013~0017 전원 RESOLVED, blockers 0, CI green. [2] currentTask null + nextTask=T-0185 → promote (pr-mode). [3] feature branch claude/T-0185-confluence-token-jit-decrypt + executor 1회 dispatch → src/confluence/confluence-token-decrypt.ts(decryptConfluenceInstanceToken + Config overload, ADR-0014 LlmApiKeyCipher·LLM_APIKEY_ENC_KEY 재사용·새 key 0, 빈/공백/undefined fail-fast, cipher throw 전파, never-read-back) + colocated spec, lint/build/test green(148 suites/2874 tests), 신규 helper 100% cov. [4] commit 05d8c9f push → PR #167 open → reviewer dispatch APPROVE round 1/7 comment post(gate2, 1 NIT only, 0 BLOCKER/MAJOR/MINOR) → integrator dispatch 4-게이트 PASS(gate4=issue_comment run 26859701497 success) → squash merge 575b4ff, branch 삭제. [5] main green. [6] task DONE(prNumber 167/mergedAs 575b4ff/reviewRounds 1), tasksCompleted 182→183, mostRecentTasks prepend T-0185, nextTask=null. [7] turn end — T-0185 DONE/MERGED; next: planner(milestone-3 chain row3 = request-builder + service dispatch). [8] dynamic reschedule(turnCount 3<10). **milestone-3 잔여 chain(ADR-0018): row3 request-builder+service dispatch / row4 pagination / row5 SpaceTraversalService / row6 roundtrip smoke / row7 doc-sync / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential) / row10 ADR ACCEPTED.**"
   },
   "ci": {
     "lastRun": "2026-06-03T10:48:00+09:00",
@@ -44,7 +44,8 @@
     "T-0179": 2,
     "T-0180": 2,
     "T-0182": 1,
-    "T-0184": 1
+    "T-0184": 1,
+    "T-0185": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -157,7 +158,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 182,
+    "tasksCompleted": 183,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

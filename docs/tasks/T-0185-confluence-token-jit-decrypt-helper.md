@@ -2,7 +2,7 @@
 id: T-0185
 title: Confluence instance token JIT decrypt helper 추가 (ADR-0018 chain row 2)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-010, REQ-015, REQ-016]
 dependsOn: [T-0184]
@@ -10,6 +10,10 @@ estimatedDiff: 180
 estimatedFiles: 2
 created: 2026-06-03
 plannerNote: P4 milestone-3 ADR-0018 chain row2 — Confluence token JIT decrypt helper(github-token-decrypt mirror), dep0/schema0/credential0/§5 미발화
+prNumber: 167
+mergedAs: 575b4ff
+reviewRounds: 1
+completedAt: 2026-06-03T11:20:54+09:00
 ---
 
 # T-0185 — Confluence instance token JIT decrypt helper 추가
