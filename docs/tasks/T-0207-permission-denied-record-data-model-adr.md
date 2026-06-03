@@ -2,7 +2,11 @@
 id: T-0207
 title: ADR-0022 박제 — PermissionDeniedRecord 데이터 모델·영속화 설계 (권한 거부 이벤트 영속화)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-04T00:31:00+09:00
+mergedAs: 7477cdb
+prNumber: 181
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-044]
 hqOrigin: Q-0019
