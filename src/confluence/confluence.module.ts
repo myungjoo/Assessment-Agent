@@ -13,25 +13,31 @@
 //     없이 process.env 만으로 자기충족한다(github-instance-config.ts mirror).
 //   - ConfluenceAdapter provider 등록 + export(T-0187, ADR-0018 §6 4단 경계 2번).
 //     fetch / emitter 가 @Optional 생성자 주입(default globalThis.fetch / no-op
-//     emitter)이라 추가 provider 없이 NestJS 가 0-인자로 인스턴스화한다 — 후속 row4/
-//     row5 가 이 adapter 를 inject 해 page 순회 / SPACE 순회를 조립한다.
+//     emitter)이라 추가 provider 없이 NestJS 가 0-인자로 인스턴스화한다 — row5
+//     SpaceTraversalService 가 이 adapter 를 inject 해 SPACE 순회를 조립한다.
+//   - ConfluenceSpaceTraversalService provider 등록 + export(T-0189, ADR-0018 §6
+//     4단 경계 4번). ConfluenceAdapter + LlmApiKeyCipher(JIT decrypt) 주입,
+//     PermissionDeniedEmitter 는 @Optional(no-op default). LlmApiKeyCipher 도
+//     self-contained provider 로 함께 등록한다.
 //   - PersistenceModule import 불요 — Confluence adapter 계층은 Prisma 미사용
 //     (ADR-0018 Decision §6 adapter leaf, modules.md ConfluenceModule row).
 //
 // 책임 경계(본 slice 밖 — 후속 task):
-//   - token JIT decrypt 의 실 wire(ADR-0018 chain row 2 helper 는 main 박제, 순회
-//     wiring 은 row4/row5) — 본 module 은 tokenEnc 암호문을 그대로 보관만 한다.
-//   - `_links.next` pagination(ADR-0018 chain row 4 = 별도 task) — 본 module 은
-//     단일 page ConfluenceAdapter 만 등록.
-//   - ConfluenceSpaceTraversalService(ADR-0018 chain row 5 = 별도 task).
+//   - 다중 instance 순회(resolveConfluenceInstances 결과 전체 loop) — 상위
+//     orchestrator 책임. 본 module 은 단일 instance traverse service 까지만 등록.
+//   - PermissionDeniedRecord entity 의 실 persistence(Prisma model + migration) —
+//     chain row8, §5 schema 게이트. 본 module 의 emit 은 in-memory port 까지만.
 //   - 실 token live-run(실 Confluence token + 실 네트워크) — §5 credential 게이트.
 import { Module } from "@nestjs/common";
+
+import { LlmApiKeyCipher } from "../llm/llm-apikey-cipher.service";
 
 import { ConfluenceAdapter } from "./confluence-adapter.service";
 import {
   type ConfluenceInstanceConfig,
   resolveConfluenceInstances,
 } from "./confluence-instance-config";
+import { ConfluenceSpaceTraversalService } from "./confluence-space-traversal.service";
 
 // 활성 Confluence instance config 배열을 module 경계에서 inject 받기 위한 DI token.
 // 후속 ConfluenceAdapter / SpaceTraversalService 가 @Inject(CONFLUENCE_INSTANCES) 로
@@ -51,7 +57,20 @@ export const CONFLUENCE_INSTANCES = "CONFLUENCE_INSTANCES";
         resolveConfluenceInstances(process.env).instances,
     },
     ConfluenceAdapter,
+    // LlmApiKeyCipher 는 ConfluenceSpaceTraversalService 의 token JIT decrypt 의존
+    // (ADR-0014 cipher 재사용). 자기충족 provider 로 등록해 module context 에서
+    // 주입 가능하게 한다 (PersistenceModule 등 추가 import 불요 — cipher 는 env 만
+    // 읽는 self-contained @Injectable).
+    LlmApiKeyCipher,
+    // ConfluenceSpaceTraversalService — SPACE allowlist 순회 + 4xx skip-and-continue
+    // (T-0189, ADR-0018 §6 4단 경계 4번). ConfluenceAdapter + LlmApiKeyCipher 주입,
+    // PermissionDeniedEmitter 는 @Optional (no-op default) 이라 추가 provider 불요.
+    ConfluenceSpaceTraversalService,
   ],
-  exports: [CONFLUENCE_INSTANCES, ConfluenceAdapter],
+  exports: [
+    CONFLUENCE_INSTANCES,
+    ConfluenceAdapter,
+    ConfluenceSpaceTraversalService,
+  ],
 })
 export class ConfluenceModule {}
