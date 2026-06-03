@@ -1,20 +1,26 @@
-// ConfluenceAdapter — @Injectable 단일 page dispatch service (T-0187, P4
-// milestone-3 Confluence adapter chain row 3b, REQ-009/010/015/016/044). ADR-0018
-// Decision §1(내장 fetch 를 injectable ConfluenceFetchLike 로 주입) + §4(non-2xx →
-// 도메인 error 매핑 + 4xx → PermissionDeniedEvent emit) + §6(buildConfluenceRequest
-// 순수 함수 위에 얹는 @Injectable 단일 page 경계) 를 구현한다. milestone-3 GitHub
-// 측 github-adapter.service.ts(T-0175) 의 request() 메서드를 직접 mirror 하되,
-// Confluence 도메인(Cloud Basic / Server Bearer, buildConfluenceRequest 사용,
-// baseUrl 식별)으로 reframe 한다.
+// ConfluenceAdapter — @Injectable dispatch service (T-0187 단일 page request +
+// T-0188 `_links.next` body cursor pagination 순회, P4 milestone-3 Confluence adapter
+// chain row 3b/row4, REQ-009/010/015/016/044/059). ADR-0018 Decision §1(내장 fetch 를
+// injectable ConfluenceFetchLike 로 주입) + §4(non-2xx → 도메인 error 매핑 + 4xx →
+// PermissionDeniedEvent emit) + §5(`_links.next` body cursor opaque 순회 + start/limit
+// 보강 + per-page 최대화 + CONFLUENCE_MAX_PAGES cap + partial-collection) + §6
+// (buildConfluenceRequest 순수 함수 위에 얹는 @Injectable 단일/다중 page 경계) 를
+// 구현한다. milestone-3 GitHub 측 github-adapter.service.ts(T-0175/T-0176) 의
+// request()/requestAllPages()/fetchAndMap() 구조를 직접 mirror 하되, Confluence
+// 도메인(Cloud Basic / Server Bearer, baseUrl 식별)으로 reframe 하고 cursor 를 응답
+// header 가 아니라 **body `_links.next`** 에서 읽는다(ADR-0018 §5 결정적 차이).
 //
-// 흐름(단일 request): buildConfluenceRequest 로 { url, headers } 조립 → 주입 fetch
-// 1 회 호출(GET) → 응답 status 분기 → non-2xx / fetch reject 면 도메인 error
-// throw(+ 4xx 면 PermissionDeniedEvent emit) → 2xx 면 JSON 파싱 후 반환.
+// 흐름(단일 request): buildConfluenceRequest 로 { url, headers } 조립 → fetchAndMap →
+// non-2xx / fetch reject 면 도메인 error throw(+ 4xx 면 PermissionDeniedEvent emit) →
+// 2xx 면 JSON 파싱 후 반환.
+//
+// 흐름(requestAllPages): 첫 page 는 start=0 + limit 최대화 query 로 조립 → fetchAndMap
+// → 응답 body 의 results[] 항목을 누적 → parseNextCursor 로 body `_links.next` 를 절대
+// URL 로 정규화 → next 가 있으면 그 opaque URL 을 그대로 fetch(start 직접 증가 금지) →
+// next 부재 또는 CONFLUENCE_MAX_PAGES 도달 시 종료. 전 page 의 results[] 를 단일
+// unknown[] 로 flatten 해 반환하며, cap 도달 시 PartialCollectionEvent 를 emit 한다.
 //
 // 책임 경계(본 slice 밖 — 후속 slice):
-//   - `_links.next` body cursor pagination(requestAllPages / parseNextCursor /
-//     CONFLUENCE_MAX_PAGES) — ADR-0018 §5, chain row4(별도 task). 본 slice 는 단일
-//     page request() 만 — GitHub mirror 의 pagination 부분은 복사하지 않는다.
 //   - ConfluenceSpaceTraversalService(SPACE allowlist 순회 + 4xx catch
 //     skip-and-continue) — ADR-0018 §6 4단 경계 4번, chain row5(별도 task). 본
 //     adapter 는 4xx 를 throw 까지만 — skip-and-continue 제어는 service layer 책임.
@@ -29,6 +35,65 @@ import {
   ConfluenceRequestInput,
   buildConfluenceRequest,
 } from "./confluence-request.builder";
+
+// per-page 최대화 limit — round-trip 횟수를 줄이기 위해 첫 page 요청 query 에 싣는
+// limit 값(ADR-0018 §5 "per-page 최대화"). Confluence list endpoint 의 통상 허용
+// 최대(100~250) 중 단일 default 로 100 을 택한다. 다음 page 는 Confluence 가 준
+// opaque next URL 을 그대로 따르므로(limit 이 next URL 에 이미 포함됨) 첫 요청에만
+// 적용한다. 문자열 — buildConfluenceRequest 의 query(Record<string,string>) 가 string
+// value 만 받기 때문(URLSearchParams 인코딩).
+export const CONFLUENCE_MAX_LIMIT = "100";
+
+// 순회 안전 상한 — `_links.next` 가 (서버 버그 / 무한 cursor / 비정상 large SPACE
+// 등으로) 끝나지 않는 pathological 응답에서 무한 loop 를 막는 hard cap 이다(ADR-0018
+// §5 safety cap). 정상 수집은 이 값에 닿기 전에 next 부재로 종료된다. 100 page ×
+// limit 100 = 항목 1 만 개 — 단일 list endpoint 의 합리적 상한. 상한 도달 시 그때까지
+// 수집분을 반환하고 순회를 멈춘다(throw 아님 — 부분 수집은 유효하며, PermissionDenied
+// 와 구분되는 partial-collection 정상 종료다).
+export const CONFLUENCE_MAX_PAGES = 100;
+
+// parseNextCursor — 파싱된 Confluence 응답 body 에서 `_links.next` cursor 를 추출해
+// 다음 page 의 **절대 URL** 로 정규화하는 순수 함수(부수효과 0 / 외부 의존 0 — Node
+// 내장 URL 만, ADR-0018 §5). GitHub 의 parseNextLink(RFC-5988 Link header) 와 동형의
+// 역할이되, cursor 가 header 가 아니라 응답 **body** 의 `_links.next` 에 실리는 점이
+// 다르다(ADR-0018 §5 "GitHub 의 Link header 와 달리 응답 body 안에 cursor").
+//   - body._links.next 가 절대 URL(`https://...`) → 그대로 반환.
+//   - body._links.next 가 relative path(`/rest/api/content?...&start=25`) → baseUrl 의
+//     origin 과 정합 조립한 절대 URL 반환.
+//   - `_links` 부재 / `_links.next` 부재 / null / 비-객체 body → null(순회 종료).
+//   - `_links` 가 객체가 아니거나(string/number/array) `_links.next` 가 비-string
+//     (객체/number 등)이거나 빈 문자열 → null(방어적 안전 종료, throw 0).
+// page 번호를 직접 증가시키지 않고 Confluence 가 준 opaque cursor 를 그대로 따른다.
+export function parseNextCursor(body: unknown, baseUrl: string): string | null {
+  // 비-객체 body(null / 배열 / primitive) → next 없음. typeof null === "object"
+  // 이므로 null 과 Array 를 별도로 거른다(`_links` 접근이 안전하도록).
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return null;
+  }
+
+  // `_links` 추출 — 객체가 아니면(string/number/array/null) next 없음.
+  const links = (body as Record<string, unknown>)._links;
+  if (typeof links !== "object" || links === null || Array.isArray(links)) {
+    return null;
+  }
+
+  // `_links.next` — 비-string(객체/number/undefined) 또는 빈(공백) 문자열이면 종료.
+  const next = (links as Record<string, unknown>).next;
+  if (typeof next !== "string" || next.trim().length === 0) {
+    return null;
+  }
+
+  // relative path 든 절대 URL 이든 Node 내장 URL constructor 의 두 번째 인자(base)로
+  // 정규화한다 — 절대 URL 은 base 를 무시하고 그대로, relative 는 base 의 origin/path
+  // 와 정합 조립된다. base 로는 instance 의 풀 base URL 을 쓴다(ADR-0018 §2 정합).
+  // 비정상 URL 형식이면 URL 이 throw — cursor 손상 시 순회를 멈추도록 null 로 흡수
+  // 한다(throw 전파 대신 안전 종료, 부분 수집분 유효).
+  try {
+    return new URL(next.trim(), baseUrl).toString();
+  } catch {
+    return null;
+  }
+}
 
 // 주입 가능한 fetch 추상 — Node 내장 fetch 의 최소 surface. ADR-0018 §1 "GitHub 보다
 // 단순" 정합 — Confluence 의 pagination cursor 는 응답 body(`_links.next`)에 실리므로
@@ -112,6 +177,37 @@ export const NO_OP_PERMISSION_DENIED_EMITTER: PermissionDeniedEmitter = {
   },
 };
 
+// PartialCollectionEvent — `_links.next` 순회가 CONFLUENCE_MAX_PAGES safety cap 에
+// 도달해 전 page 를 다 못 받고 부분 수집으로 종료될 때 emit 되는 신호다(ADR-0018 §5
+// "PermissionDeniedEvent 와 구분되는 별도 partial-collection event"). 권한 부족과는
+// 의미가 다르므로(권한은 PermissionDeniedEvent) 별도 port 로 둔다 — cap 도달은 error 가
+// 아니라 정상 종료이며, 부분 결과는 유효하다. 식별 정보(baseUrl/path/수집 page 수)만
+// 담고 token 평문 / 수집 항목 raw 는 포함하지 않는다(CLAUDE.md §9, raw 미저장 정합).
+export interface PartialCollectionEvent {
+  // 부분 수집이 발생한 instance 의 풀 REST API base URL.
+  baseUrl: string;
+  // 부분 수집 대상 REST path(예: /content).
+  path: string;
+  // cap 에 걸려 순회를 멈춘 page 수(= CONFLUENCE_MAX_PAGES). 이후 page 는 미수집.
+  pagesCollected: number;
+}
+
+// PartialCollectionEmitter — PartialCollectionEvent 를 외부(후속 persistence / audit)
+// 로 흘려보내는 port. PermissionDeniedEmitter 와 별도 port 로 둬 "권한 부족"과 "cap
+// 도달 부분 수집"의 의미를 섞지 않는다(ADR-0018 §5). default 는 no-op — 실 event
+// persistence(row8 §5 schema 게이트) 전까지 부수효과 없이 통과한다.
+export interface PartialCollectionEmitter {
+  emit(event: PartialCollectionEvent): void;
+}
+
+// default no-op partial-collection emitter — 미주입 시 사용. emit 을 swallow 하되
+// 부분 수집 결과 반환 흐름은 그대로 유지한다(cap 도달은 정상 종료이므로 throw 0).
+export const NO_OP_PARTIAL_COLLECTION_EMITTER: PartialCollectionEmitter = {
+  emit(): void {
+    // 의도적 no-op — 실 persistence 는 본 slice 밖(partial-collection event entity).
+  },
+};
+
 @Injectable()
 export class ConfluenceAdapter {
   // fetch / emitter 둘 다 @Optional 생성자 주입(milestone-1 LlmHttpGateway /
@@ -124,6 +220,10 @@ export class ConfluenceAdapter {
     private readonly fetchFn: ConfluenceFetchLike = globalThis.fetch as unknown as ConfluenceFetchLike,
     @Optional()
     private readonly permissionDeniedEmitter: PermissionDeniedEmitter = NO_OP_PERMISSION_DENIED_EMITTER,
+    // partial-collection(cap 도달) emitter — PermissionDeniedEmitter 와 별도 port.
+    // default no-op 이라 미주입 시에도 동작한다(unit 은 mock 으로 대체).
+    @Optional()
+    private readonly partialCollectionEmitter: PartialCollectionEmitter = NO_OP_PARTIAL_COLLECTION_EMITTER,
   ) {}
 
   // request — instance sub-config(풀 base URL / auth scheme 분기 입력 / 평문 token) +
@@ -134,8 +234,8 @@ export class ConfluenceAdapter {
   // fetch reject 는 ConfluenceDomainError 로 매핑해 throw 한다(4xx 는 emit 후 throw).
   // token 평문(Basic base64 / Bearer PAT)은 절대 로그 / error message 에 노출하지 않는다.
   //
-  // 단일 요청 1 회만 — `_links.next` cursor pagination 순회는 후속 requestAllPages(row4)
-  // 가 담당한다. 반환은 unknown 으로 둔다 — endpoint 별 응답 shape 의 typed parser 는
+  // 단일 요청 1 회만 — `_links.next` cursor pagination 순회는 requestAllPages 가
+  // 담당한다. 반환은 unknown 으로 둔다 — endpoint 별 응답 shape 의 typed parser 는
   // 도메인 task 책임이고, 본 transport slice 는 파싱된 JSON 을 그대로 흘려보낸다.
   async request(input: ConfluenceRequestInput): Promise<unknown> {
     // (1) 요청 조립 — 풀 base URL + relative path concat + auth 분기(Cloud Basic /
@@ -144,7 +244,96 @@ export class ConfluenceAdapter {
     // 않고 그대로 전파한다(fetch 까지 진행하지 않음).
     const { url, headers } = buildConfluenceRequest(input);
 
-    // (2) 주입 fetch 로 HTTP 호출(GET — list/메타 조회). fetch 자체가 reject(network/
+    // (2) 공통 fetch + status 매핑 helper 로 위임 — 파싱된 body 만 취한다(단일 요청은
+    // cursor 를 순회하지 않으므로 `_links.next` 추출은 호출처가 안 한다).
+    return this.fetchAndMap(url, headers, input);
+  }
+
+  // requestAllPages — Confluence REST list endpoint(`/content` 류)의 전 page 를
+  // `_links.next` body cursor 로 순회 수집한다(ADR-0018 §5). 첫 page 는 start=0 +
+  // limit=<CONFLUENCE_MAX_LIMIT> query 를 싣고 buildConfluenceRequest 로 조립해 fetch →
+  // 응답 body 의 results[] 항목을 누적 → parseNextCursor(body, baseUrl) 로 next 절대
+  // URL 추출 → next 가 있고 cap 미도달이면 그 opaque URL 을 그대로 fetch(start 직접
+  // 증가 금지 — cursor-opaque) → next 부재 시 종료한다. 전 page 의 results[] 항목을
+  // 단일 unknown[] 로 flatten 해 반환한다.
+  //
+  // non-2xx / fetch reject / malformed JSON 은 request() 와 동일한 fetchAndMap 매핑을
+  // 재사용한다 — 순회 중 어느 page 든 권한 거부(401/403)면 PermissionDeniedEvent emit
+  // 후 ConfluenceDomainError 를 throw 하며, 부분 수집분은 버린다(SPACE 단위
+  // skip-and-continue 는 상위 ConfluenceSpaceTraversalService 책임, row5).
+  //
+  // CONFLUENCE_MAX_PAGES 도달 시 throw 없이 그때까지 수집분을 반환하고, 권한 부족과
+  // 구분되는 PartialCollectionEvent 를 emit 한다(ADR-0018 §5 partial-collection).
+  async requestAllPages(input: ConfluenceRequestInput): Promise<unknown[]> {
+    // 첫 page — 호출처 query 위에 start=0 + limit 최대화를 덮어쓴다(round-trip 최소화).
+    // 이후 page 는 Confluence 가 준 next URL 에 start/limit 이 이미 박제돼 따로 안 싣는다.
+    const firstInput: ConfluenceRequestInput = {
+      ...input,
+      query: {
+        ...(input.query ?? {}),
+        start: "0",
+        limit: CONFLUENCE_MAX_LIMIT,
+      },
+    };
+    // 조립은 1 회만 — url(첫 page 진입점) + headers(전 page 공통, Authorization 포함).
+    // next page 들은 같은 headers 로 opaque next URL 을 fetch 한다.
+    const firstRequest = buildConfluenceRequest(firstInput);
+    let nextUrl: string | null = firstRequest.url;
+    const headers = firstRequest.headers;
+
+    const accumulated: unknown[] = [];
+    let page = 0;
+    // next 부재 시까지 순회하되, MAX_PAGES 를 넘기지 않는다(무한 cursor 방어선).
+    while (nextUrl !== null && page < CONFLUENCE_MAX_PAGES) {
+      // page 단위 fetch + status 매핑 — 어느 page 의 non-2xx 든 여기서 throw(+emit).
+      // error 식별 정보(baseUrl/path)는 원본 input 을 쓴다(next URL 에 token 미포함).
+      const body = await this.fetchAndMap(nextUrl, headers, input);
+
+      // page body 의 results[] 가 array 면 항목을 flatten 누적하고, 비-array(방어적)면
+      // body 자체를 단일 항목으로 push 해 손실 없이 수집한다(GitHub Array.isArray 분기
+      // mirror — 단 Confluence 는 body.results 를 본다).
+      const results =
+        typeof body === "object" && body !== null
+          ? (body as Record<string, unknown>).results
+          : undefined;
+      if (Array.isArray(results)) {
+        accumulated.push(...results);
+      } else {
+        accumulated.push(body);
+      }
+
+      // 다음 cursor 추출 — body 의 `_links.next` 를 절대 URL 로 정규화(부재 시 null).
+      nextUrl = parseNextCursor(body, input.baseUrl);
+      page += 1;
+    }
+
+    // cap 도달 종료 — next 가 아직 남아있는데 page 가 MAX 에 닿았다면 부분 수집이다.
+    // throw 가 아니라 PartialCollectionEvent 를 emit 하고 수집분을 반환한다(ADR-0018
+    // §5). 정상 종료(nextUrl === null)면 emit 하지 않는다 — 권한 부족과도 구분된다.
+    if (nextUrl !== null && page >= CONFLUENCE_MAX_PAGES) {
+      this.partialCollectionEmitter.emit({
+        baseUrl: input.baseUrl,
+        path: input.path,
+        pagesCollected: page,
+      });
+    }
+
+    return accumulated;
+  }
+
+  // fetchAndMap — 단일 page fetch + ADR-0018 §4 status 매핑 + 성공 시 JSON 파싱을 한
+  // 곳에 묶은 private helper. request() 와 requestAllPages() 가 공유해 non-2xx 매핑 /
+  // emit 분기 / JSON parse 를 중복 구현하지 않는다(ADR-0018 §6 재사용). cursor 가 body
+  // 에 있으므로(GitHub 처럼 header 에서 next 를 미리 뽑지 않고) 파싱된 body 를 그대로
+  // 반환하며, next cursor 추출은 호출처(requestAllPages)가 parseNextCursor 로 한다.
+  // url 은 첫 page(builder 조립) 든 next page(opaque next URL) 든 그대로 받는다.
+  // error 식별 정보(baseUrl/path)는 input 에서 취하며, token 평문은 어디에도 싣지 않는다.
+  private async fetchAndMap(
+    url: string,
+    headers: Record<string, string>,
+    input: ConfluenceRequestInput,
+  ): Promise<unknown> {
+    // (1) 주입 fetch 로 HTTP 호출(GET — list/메타 조회). fetch 자체가 reject(network/
     // DNS/TLS)하면 status 없는 transient 로 매핑한다. error message 에는 baseUrl/path
     // 만 담고 token 평문은 절대 포함하지 않는다(CLAUDE.md §9).
     let response: Awaited<ReturnType<ConfluenceFetchLike>>;
@@ -160,13 +349,13 @@ export class ConfluenceAdapter {
       );
     }
 
-    // (3) non-2xx 분기 — response.status 를 ADR-0018 §4 도메인 error 위상으로 매핑.
+    // (2) non-2xx 분기 — response.status 를 ADR-0018 §4 도메인 error 위상으로 매핑.
     // 401/403 은 emit 후 throw(아래 mapNon2xx 가 emit 부수효과 포함). 2xx 면 통과.
     if (!response.ok) {
       throw this.mapNon2xx(response.status, input);
     }
 
-    // (4) 성공(2xx) — JSON 파싱. json() 이 throw(malformed/빈 응답)하면 domain-error
+    // (3) 성공(2xx) — JSON 파싱. json() 이 throw(malformed/빈 응답)하면 domain-error
     // 로 매핑한다(swallow 금지 — ADR-0018 §4). status 는 성공 status.
     try {
       return await response.json();
