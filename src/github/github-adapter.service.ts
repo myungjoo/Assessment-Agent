@@ -29,7 +29,7 @@
 //     의 단일 list endpoint 전 page 수집 + 권한 거부 시 throw 까지만(상위 orchestrator
 //     책임).
 //   - since 증분 수집 — 본 slice 는 전 page full 순회만.
-import { Injectable, Optional } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 
 import {
   GithubRequestInput,
@@ -224,16 +224,28 @@ export const NO_OP_PERMISSION_DENIED_EMITTER: PermissionDeniedEmitter = {
   },
 };
 
+// PermissionDeniedEmitter 주입용 DI token (T-0211, ADR-0022 §6 emitter wiring).
+// PermissionDeniedEmitter 가 함수형 port interface 라 DI 가 reflection 으로 토큰을
+// 못 만든다 — string token 으로 module 이 실 영속화 emitter 를 override 가능하게 한다.
+// token 미주입(unit / 다른 module) 시 생성자 default(no-op)가 그대로 유지되어
+// regression 0 — adapter 는 본 token 으로 흘러올 구현체의 영속화 세부를 모른다(결합도 0,
+// ADR-0022 §6 adapter leaf 경계). 토큰 정의는 port 와 colocate 해 adapter 가 영속화
+// 모듈을 import 하지 않게 한다(역방향 의존 — 실 emitter 가 본 port/token 을 import).
+export const PERMISSION_DENIED_EMITTER = "PERMISSION_DENIED_EMITTER";
+
 @Injectable()
 export class GithubAdapter {
   // fetch / emitter 둘 다 @Optional 생성자 주입(milestone-1 LlmHttpGateway 패턴
   // mirror). FetchLike 는 함수 타입이라 DI token 이 없어 @Optional 로 skip 시켜야
-  // module compile 이 성공한다 — default globalThis.fetch. emitter 도 default 는
-  // no-op 이라 wiring slice 전까지 주입 없이 동작한다(unit 은 mock 으로 대체).
+  // module compile 이 성공한다 — default globalThis.fetch. emitter 는 PERMISSION_DENIED_
+  // EMITTER token 으로 주입받되(@Optional + @Inject) — GithubModule 이 실 영속화 emitter 를
+  // 그 token 에 provide 하면 DI 가 그것을 주입하고(T-0211 wiring), token 미provide(unit /
+  // 다른 module) 시 @Optional 이 default(no-op)로 fallback 시킨다(regression 0).
   constructor(
     @Optional()
     private readonly fetchFn: FetchLike = globalThis.fetch as unknown as FetchLike,
     @Optional()
+    @Inject(PERMISSION_DENIED_EMITTER)
     private readonly permissionDeniedEmitter: PermissionDeniedEmitter = NO_OP_PERMISSION_DENIED_EMITTER,
   ) {}
 
