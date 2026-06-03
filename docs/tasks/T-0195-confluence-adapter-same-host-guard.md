@@ -2,14 +2,18 @@
 id: T-0195
 title: ConfluenceAdapter same-host cursor 가드 구현 (cross-host Authorization leak 차단)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-044, REQ-059]
 dependsOn: [T-0193, T-0194]
 estimatedDiff: 210
 estimatedFiles: 2
 created: 2026-06-03
+prNumber: 175
+mergeCommit: b0e5279
+completedAt: 2026-06-03T16:42:00+09:00
 plannerNote: P4 milestone-3 — ADR-0019 chain 2행 Confluence 가드. requestAllPages parseNextCursor 결과 fetch 직전 host-check + cross-host kind + 상대-cursor same-host PASS. R-112 backbone ×1.5, Node URL dep0.
+result: DONE — PR #175 round 1/7 APPROVE → squash merge b0e5279. isSameHost 순수함수 + ConfluenceDomainErrorKind cross-host-cursor + requestAllPages host-check 게이트(relative same-origin PASS / 절대 cross-host throw+abort). confluence-adapter coverage 100%, 3009 tests pass, CI green(run 26870436809 전 16 step). nit=1(diff size = mandatory R-112 test, 의도된 trade-off·비차단·비-4종 closure).
 ---
 
 # T-0195 — ConfluenceAdapter same-host cursor 가드 구현 (cross-host Authorization leak 차단)

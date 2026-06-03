@@ -2,37 +2,37 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0195",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@myung-vb707106-s46",
-    "since": "2026-06-03T16:21:22+09:00",
+    "since": "2026-06-03T16:41:15+09:00",
     "loopSessionStartedAt": "2026-06-03T15:52:34+09:00",
-    "loopSessionTurnCount": 2
+    "loopSessionTurnCount": 3
   },
-  "lastActivity": "2026-06-03T16:21:22+09:00",
-  "lastCommit": "4c62edc",
+  "lastActivity": "2026-06-03T16:41:15+09:00",
+  "lastCommit": "b0e5279",
   "mostRecentTasks": [
+    "T-0195",
     "T-0194",
     "T-0193",
     "T-0192",
-    "T-0191",
-    "T-0190"
+    "T-0191"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-03T15:52:34+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106-s46",
-    "note": "loop@myung-vb707106-s46 session #46 t2 (turnCount 2/10). [1] 같은 session 연속 wake('continue') → read 전 fetch, lock ref heartbeat(turnCount 1→2, since 16:21), main 7cac593 sync, Q 전원 RESOLVED, blockers 0. R-114: t1 의 main CI 2 run 재확인 — 4c62edc(merge) + 7cac593(bookkeeping) 둘 다 success → ci green, consecutiveFails 0. [2] currentTask·nextTask 둘 다 null → planner dispatch. planner → T-0195(ConfluenceAdapter same-host 가드, ADR-0019 chain 2행) 큐잉, STATE.nextTask=T-0195. pre-check PASS(src/confluence 가드 grep 0, parseNextCursor 절대 cross-host URL leak vector 현존; relative cursor same-origin PASS / 절대 cross-host reject 박제, base=input.baseUrl). ~210 LOC/2 file, commitMode pr. [6] 본 turn = planner-only doc-only direct commit. [7] T-0195 큐잉. [8] dynamic reschedule(turnCount 2<10, blockers 0, Q 전원 RESOLVED). **다음 t3: executor 가 T-0195 구현(pr-mode) → PR + reviewer + integrator merge. 잔여: ADR-0019 PROPOSED→ACCEPTED flip(두 가드 머지 후) / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential).**"
+    "note": "loop@myung-vb707106-s46 session #46 t3 (turnCount 3/10). [1] 같은 session 연속 wake('continue') → read 전 fetch, lock ref heartbeat(turnCount 2→3, since 16:41), main fdf614b sync, Q 전원 RESOLVED, blockers 0. [2] nextTask=T-0195 → current(pr-mode). [3] executor 1회 dispatch → local commit e1661d1: isSameHost 순수함수(ADR-0019 §1) + schemeDefaultPort helper + ConfluenceDomainErrorKind cross-host-cursor + requestAllPages host-check 게이트(relative same-origin PASS / 절대 cross-host throw+abort, headers 폐기 송신 0) + parseNextCursor 무변경. confluence-adapter cov 100%, 3009 tests pass, lint/build green. [4] feature branch push + PR #175 open. reviewer dispatch → round 1/7 APPROVE(blocker/major/minor 0, nit=1=diff size mandatory R-112 trade-off 비차단). [5] CI: push-run(26870436809) reviewer-approval step 단독 race-fail(나머지 15 step success) → comment post 후 `gh run rerun --failed` → 전 16 step green → gate4 PASS. integrator dispatch → 4-게이트 모두 PASS → squash merge b0e5279 + branch 삭제. [6] bookkeeping: T-0195 status DONE, tasksCompleted 192→193, nextTask=null. [7] T-0195 DONE. [8] dynamic reschedule(turnCount 3<10, blockers 0, Q 전원 RESOLVED). **ADR-0019 chain 1·2행(GitHub T-0194 + Confluence T-0195 두 가드) 머지 완료 → 다음 t4: planner 가 chain 3행(ADR-0019 PROPOSED→ACCEPTED flip, direct task) 큐잉. 잔여: row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential).**"
   },
   "ci": {
-    "lastRun": "2026-06-03T16:05:00+09:00",
+    "lastRun": "2026-06-03T16:40:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26869010103",
-    "note": "T-0194 PR-174: push-run(26869010103, head 79cbb8d) reviewer-approval step 단독 race-fail(나머지 15 step success) → reviewer comment(issuecomment-4609885943, VERDICT APPROVE) post 후 `gh run rerun 26869010103 --failed` → 전 16 step success(reviewer-approval 포함) → gate4 PASS, squash merge 4c62edc. main green, consecutiveFails 0. merge commit 4c62edc + 본 bookkeeping push 의 main run 은 다음 turn 재확인(비차단)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26870436809",
+    "note": "T-0195 PR-175: push-run(26870436809, head e1661d1) reviewer-approval step 단독 race-fail(나머지 15 step success) → reviewer comment(issuecomment-4610099276, VERDICT APPROVE) post 후 `gh run rerun 26870436809 --failed` → 전 16 step success(reviewer-approval 포함) → gate4 PASS, squash merge b0e5279. main green, consecutiveFails 0. merge commit b0e5279 + 본 bookkeeping push 의 main run 은 다음 turn 재확인(비차단)."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -55,7 +55,8 @@
     "T-0189": 2,
     "T-0190": 1,
     "T-0193": 2,
-    "T-0194": 1
+    "T-0194": 1,
+    "T-0195": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -168,7 +169,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 192,
+    "tasksCompleted": 193,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
