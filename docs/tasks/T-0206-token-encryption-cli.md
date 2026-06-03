@@ -2,7 +2,7 @@
 id: T-0206
 title: 평문 토큰 → AES-256-GCM ciphertext 변환 CLI (LlmApiKeyCipher 재사용, _TOKEN_ENC 생성)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-043, REQ-044]
 origin: docs/PLAN.md P4 "자격증명 관리" credential-prep bullet (c) — 토큰 암호화 CLI (사용자 direct commit 536e469)
@@ -10,6 +10,10 @@ estimatedDiff: 240
 estimatedFiles: 4
 created: 2026-06-03
 plannerNote: P4 credential-prep (c) — 평문 토큰→_TOKEN_ENC CLI(LlmApiKeyCipher 재사용, dep 0). R-112 backbone ×1.5. pre-check PASS(CLI 부재).
+completedAt: 2026-06-03T23:20:51+09:00
+mergedAs: 25284d155995e2e6571e75b723c9e720dd122d6d
+prNumber: 180
+reviewRounds: 2
 ---
 
 # T-0206 — 평문 토큰 → AES-256-GCM ciphertext 변환 CLI (LlmApiKeyCipher 재사용)

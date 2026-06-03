@@ -5,26 +5,26 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0206",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
-    "since": "2026-06-03T22:58:18+09:00"
+    "since": "2026-06-03T23:20:51+09:00"
   },
-  "lastActivity": "2026-06-03T22:58:18+09:00",
-  "lastCommit": "01982e2",
+  "lastActivity": "2026-06-03T23:20:51+09:00",
+  "lastCommit": "25284d1",
   "mostRecentTasks": [
+    "T-0206",
     "T-0205",
     "T-0204",
     "T-0203",
-    "T-0202",
-    "T-0201"
+    "T-0202"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-03T20:22:25+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106-s50",
-    "note": "loop@myung-vb707106-s50 session #50 t7 — T-0206 큐잉(planner; 사용자 'continue' 로 즉시 진행). [1] 같은 session 연속 wake → fetch, lock(s50) 유효 turnCount 6→7(since heartbeat 22:58), t6 merge 537d538 + bookkeeping 01982e2 main CI 둘 다 success(R-114), main 새 user commit 없음, Q 전원 RESOLVED, blockers 0. [2] currentTask/nextTask null → planner. T-0206(token-encryption CLI — 평문→AES-256-GCM _TOKEN_ENC ciphertext, 기존 LlmApiKeyCipher.encrypt 재사용, 본체 src/llm/encrypt-token-cli.ts + entrypoint scripts/encrypt-token.ts, pr) 선정 = P4 credential-prep (c)(사용자 536e469) = 마지막 dependency-free item. crypto 재구현 0·새 dep 0·실 token/key 0(test key). R-112 happy/error/branch/negative(빈·공백 평문/키 부재/stdin·argv 둘 다 부재/§9 평문 미-echo) + round-trip(emit→decryptGithubInstanceToken 복원). pre-check: CLI 부재 확인. STATE.nextTask=T-0206. [8] reschedule(60s, t8 가 T-0206 execute). **다음 pickup: t8 executor → T-0206 pr-mode. 그 후 P4 잔여는 전부 §5 게이트(at-rest (d) prisma migration / 실 token live RUN) → t9 planner survey 가 사용자 checkpoint(AskUserQuestion/humanQuestion) escalate 예상.**"
+    "note": "loop@myung-vb707106-s50 session #50 t8 — T-0206(token-encryption CLI) MERGED via PR #180 (2 rounds). [1] 같은 session 연속 wake → fetch, lock(s50) turnCount 7→8(since heartbeat 23:20), t7 bookkeeping 81c5ea9 doc CI success(R-114), Q 전원 RESOLVED, blockers 0. [3-4] executor → claude/T-0206-... + src/llm/encrypt-token-cli.ts(117 prod) + scripts/encrypt-token.ts(50 entrypoint) + 2 spec; LlmApiKeyCipher.encrypt 재사용(crypto 재구현 0·dep 0), §9 평문/키 미노출 assert, round-trip(cipher+adapter), cov 100%/100%. driver commit cc87b2e. reviewer driver-direct r1 APPROVE+1 MINOR(require() nit) → §3 nit-in-PR closure: executor round2 require()→dynamic import() TEST-ONLY(+4/-3, commit 1060ad7) → reviewer r2 APPROVE. integrator 4-게이트 PASS(gate d run 26890754204 head 1060ad7 approval step post-comment success). squash merge 25284d1. [6] currentTask/nextTask null, tasksCompleted 203→204, mostRecentTasks prepend T-0206, reviewRounds[T-0206]=2(merge 시 정리 가능), task DONE(mergedAs 25284d1/prNumber 180). **=== dependency-free backlog 완전 소진 ===** milestone-3 live-test scaffold(T-0203 ADR-0021 + T-0204 GitHub gating + T-0205 Confluence gating) + credential-prep CLI(T-0206) 전부 merged. P4 잔여는 전부 §5 게이트: (1) 실 token live RUN(GitHub/Confluence/LLM token — 이제 T-0206 CLI 로 _TOKEN_ENC 생성 가능) (2) apiKey at-rest prisma schema migration(credential-prep d). [checkpoint] turnCount 8/10(cap 근접) + backlog 소진 → 사용자 AskUserQuestion checkpoint 후 reschedule/stop 결정."
   },
   "ci": {
     "lastRun": "2026-06-03T18:00:00+09:00",
@@ -192,7 +192,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 203,
+    "tasksCompleted": 204,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
