@@ -2,13 +2,17 @@
 id: T-0190
 title: ConfluenceAdapter 실 fetch round-trip 을 local stub 서버 smoke 로 검증
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-010, REQ-015, REQ-016, REQ-044, REQ-059]
 dependsOn: []
 estimatedDiff: 190
 estimatedFiles: 1
 created: 2026-06-03
+completedAt: 2026-06-03T14:36:44+09:00
+prNumber: 172
+reviewRounds: 1
+mergedAs: 7612c10
 plannerNote: P4 milestone-3 Confluence chain row6 — T-0182 GitHub smoke mirror, 내장 http stub 로 실 fetch transport+_links.next pagination 검증(dep0/credential0/§5 미발화)
 ---
 

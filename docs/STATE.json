@@ -2,37 +2,37 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0190",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@myung-vb707106",
     "since": "2026-06-03T13:49:34+09:00",
     "loopSessionStartedAt": "2026-06-03T13:49:34+09:00",
-    "loopSessionTurnCount": 2
+    "loopSessionTurnCount": 3
   },
-  "lastActivity": "2026-06-03T14:16:14+09:00",
-  "lastCommit": "f2090ef",
+  "lastActivity": "2026-06-03T14:36:44+09:00",
+  "lastCommit": "7612c10",
   "mostRecentTasks": [
+    "T-0190",
     "T-0189",
     "T-0188",
     "T-0187",
-    "T-0186",
-    "T-0185"
+    "T-0186"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-03T13:49:34+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106",
-    "note": "loop@myung-vb707106 session #45 t2 (turnCount 2/10). [1] 같은 session 연속 wake → read 전 fetch, lock heartbeat turnCount 1→2, main f2090ef sync, Q 전원 RESOLVED, blockers 0. T-0189 merge CI(26864980042, f2090ef) + bookkeeping CI(26865144042, 699b794) 둘 다 completed success → ci green. [2] currentTask·nextTask 둘 다 null → planner dispatch → T-0190(commitMode pr, ConfluenceAdapter 실 fetch round-trip 을 Node 내장 http.createServer stub smoke 로 검증, P4 milestone-3 chain row6, T-0182 GitHub smoke mirror but cursor=body _links.next, dep0/§5 미발화, ~190 LOC/1 file) 큐잉, STATE.nextTask=T-0190. planner issue-still-relevant pre-check 통과(confluence smoke spec main 미존재). [6] 본 turn = planner-only doc-only direct commit, executor 미경유. [7] T-0190 큐잉. [8] turnCount 2/10 < cap → reschedule(다음 turn = nextTask T-0190 → current, executor dispatch pr-mode). **잔여 P4 milestone-3 chain: row6 T-0190(현재 큐) / row7 doc-sync(direct) / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential) / row10 ADR ACCEPTED.** **SECURITY follow-up 후보(T-0188 reviewer MINOR, 미해결): cross-host auth-leak — GitHub+Confluence adapter 가 _links.next/Link rel=next 를 base host 무관 추종 시 Authorization 외부 host 유출. 별도 ADR(same-host 제약) + 양 adapter 가드 task 후보.**"
+    "note": "loop@myung-vb707106 session #45 t3 (turnCount 3/10). [1] 같은 session 연속 wake → read 전 fetch, lock heartbeat turnCount 2→3, main 7612c10 sync, Q 전원 RESOLVED, blockers 0, ci green. [2] currentTask null + nextTask=T-0190 → current(pr-mode). [3] feature branch claude/T-0190-confluence-adapter-roundtrip-smoke + executor 1회 → test/smoke/confluence-adapter-roundtrip.smoke-spec.ts(Node 내장 http stub ephemeral(0) + 실 globalThis.fetch round-trip 7 case: happy + 403 perm-denied+emit + 404 not-found no-emit + 500 transient + malformed→domain-error + body _links.next 2-page pagination + token never-read-back), production code 무변경. lint/build/test:cov green(line 99.93%/func 100%). [4] commit a0113f9 push → PR #172 → reviewer round1 APPROVE(MINOR 1=317 LOC cap+17, test-only T-0182 parity·blast 0 → §3 4종 fix 미해당이라 round2 불요; 0 BLOCKER/MAJOR) comment post(gate2). 4-게이트 PASS(APPROVE + comment 외부 + integrator self-check test-only + CI green: pull_request a0113f9 steps1-15 success incl smoke+e2e, step16 approval 단독 race-fail → issue_comment run 26865770214 success 로 approval gate 충족) → integrator squash merge 7612c10, branch 삭제. tasksCompleted 187→188. [5] merge CI 다음 turn 재확인. [6] 본 bookkeeping doc-only direct commit. [7] T-0190 DONE. [8] turnCount 3/10 < cap → reschedule(다음 turn = nextTask null → planner dispatch row7 doc-sync). **잔여 P4 milestone-3 chain: row7 doc-sync(direct, 다음) / row8 PermissionDeniedRecord entity(§5 schema, DO NOT queue) / row9 live-run(§5 credential, DO NOT queue) / row10 ADR-0018 ACCEPTED(row7 후).** **SECURITY follow-up 후보(T-0188 reviewer MINOR, 미해결): cross-host auth-leak — GitHub+Confluence adapter 가 _links.next/Link rel=next 를 base host 무관 추종 시 Authorization 외부 host 유출. 별도 ADR(same-host 제약) + 양 adapter 가드 task 후보.**"
   },
   "ci": {
-    "lastRun": "2026-06-03T14:16:14+09:00",
+    "lastRun": "2026-06-03T14:36:44+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/171",
-    "note": "T-0189 merge 후 main push run(26864980042, f2090ef) + bookkeeping push run(26865144042, 699b794) 둘 다 completed success → main green, consecutiveFails 0. 본 turn=planner-only doc-only direct commit(T-0190 큐잉), 비차단."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/172",
+    "note": "T-0190 PR-172: pull_request run(26865688673, head a0113f9) steps 1-15 success(smoke+e2e 포함), step16 reviewer-approval 단독 race-fail. reviewer APPROVE comment 후 issue_comment run(26865770214) success → gate4 PASS, squash merge 7612c10. main green, consecutiveFails 0. merge 후 main push run 다음 turn 재확인(비차단)."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -52,7 +52,8 @@
     "T-0186": 1,
     "T-0187": 1,
     "T-0188": 1,
-    "T-0189": 2
+    "T-0189": 2,
+    "T-0190": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -165,7 +166,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 187,
+    "tasksCompleted": 188,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
