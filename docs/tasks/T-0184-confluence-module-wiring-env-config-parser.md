@@ -2,7 +2,7 @@
 id: T-0184
 title: ConfluenceModule wiring + env→instance config 순수 함수 parser
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-010, REQ-015, REQ-016, REQ-044]
 dependsOn: [T-0183]
@@ -10,6 +10,10 @@ estimatedDiff: 285
 estimatedFiles: 5
 created: 2026-06-03
 plannerNote: P4 milestone-3 — ADR-0018 후속 chain row1 (ConfluenceModule wiring + env config parser, dep0/schema0/§5 미발화, T-0178 mirror)
+prNumber: 166
+mergedAs: 17e8bce
+reviewRounds: 1
+completedAt: 2026-06-03T10:48:21+09:00
 ---
 
 # T-0184 — ConfluenceModule wiring + env→instance config 순수 함수 parser
