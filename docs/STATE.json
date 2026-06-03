@@ -2,15 +2,12 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0194",
   "lock": {
-    "holder": "loop",
-    "session": "loop@myung-vb707106",
-    "since": "2026-06-03T13:49:34+09:00",
-    "loopSessionStartedAt": "2026-06-03T13:49:34+09:00",
-    "loopSessionTurnCount": 9
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-03T15:29:21+09:00",
+  "lastActivity": "2026-06-03T15:33:12+09:00",
   "lastCommit": "8ab3c6b",
   "mostRecentTasks": [
     "T-0193",
@@ -20,11 +17,11 @@
     "T-0189"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-03T13:49:34+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106",
-    "note": "loop@myung-vb707106 session #45 t9 (turnCount 9/10). [1] 같은 session 연속 wake → read 전 fetch, lock heartbeat turnCount 8→9, main 6a55231 sync, Q 전원 RESOLVED, blockers 0, ci green. [2] nextTask=T-0193 → current(pr-mode ADR). [3] feature branch claude/T-0193-same-host-auth-restriction-adr + architect 1회 dispatch(직접, executor 미경유) → docs/decisions/ADR-0019-same-host-auth-restriction-for-pagination.md 신설(PROPOSED) + INDEX.md row: §1 same host=scheme+host(ci)+port strict equal(subdomain 불허) / §2 mismatch=순회 abort+도메인 error throw / §3 GitHub·Confluence 양 adapter fetch-직전 게이트 수렴 / §4 token 비노출 invariant. architect 가 lint/build/test green 확인(2966 tests, doc-only build 영향 0, R-110). [4] commit e672ef2 push → PR #173 → reviewer round1 APPROVE(NIT 1=ADR L19 '§음 4' malformed 참조 cosmetic; 0 BLOCKER/MAJOR) → §3 Nit-closure(comment typo 4종 category) round2 정정(3bcbf3c, +1/-1) → reviewer round2 APPROVE(0/0/0). 4-게이트 PASS(APPROVE + comment 외부 + integrator self-check ADR-only + CI green: pull_request 3bcbf3c all-16-steps success incl reviewer-approval) → integrator squash merge 8ab3c6b, branch 삭제. tasksCompleted 190→191. [6] 본 bookkeeping doc-only direct commit. [7] T-0193 DONE. [8] turnCount 9/10 < cap → reschedule(다음 turn t10 = cap → planner dispatch 1건 후 STOP). **다음 t10(LAST, cap 10): planner 가 T-0193 follow-up(GitHub adapter same-host 가드 구현+full R-112) 큐잉 후 reschedule 안 함(STOP) + 사용자 cleanup(/compact·/clear 후 새 /loop, 또는 cron) 안내. 잔여: T-0193 follow-up(adapter 가드 GitHub+Confluence 각 1 task) / ADR-0019 ACCEPTED flip(구현 후) / row8 entity(§5 schema) / row9 live-run(§5 credential).**"
+    "note": "loop@myung-vb707106 session #45 t10 (turnCount 10/10 — CAP 도달, LAST turn). [1] 같은 session 연속 wake → read 전 fetch, lock heartbeat turnCount 9→10, main 8ab3c6b sync, Q 전원 RESOLVED, blockers 0, ci green(T-0193 merge; bookkeeping push run 6abc3c7 in_progress 비차단 — 다음 session 재확인). [2] currentTask·nextTask 둘 다 null → planner dispatch → T-0194(commitMode pr, GithubAdapter same-host cursor 가드 구현 — requestAllPages next-page fetch 직전 host-check 게이트(ADR-0019 §1 scheme+host(ci)+port strict, subdomain 불허, malformed fail-closed) + cross-host GithubDomainError throw(§2) + token 비노출(§4) + full R-112, ~210 LOC/2 file) 큐잉, STATE.nextTask=T-0194. planner pre-check PASS(src/github 가드 grep 0, leak vector 현존). [6] 본 turn = planner-only doc-only direct commit. [7] T-0194 큐잉. [8] **loopSessionTurnCount=10 = cap 도달 → reschedule 안 함(STOP). lock 해제(ref tombstone + STATE soft mirror empty). 사용자 cleanup 안내: (1) /compact 후 새 /loop, (2) /clear 후 새 /loop, (3) cron 발화 대기.** **session #45 누적(t1~t10): P4 milestone-3 Confluence chain dependency-free 부분 완결 — T-0189 SpaceTraversalService(f2090ef) / T-0190 roundtrip smoke(7612c10) / T-0191 doc-sync(7b4f06a) / T-0192 ADR-0018 ACCEPTED(537cba7) / T-0193 ADR-0019 same-host 정책(8ab3c6b). tasksCompleted 186→191(5 task), 매 PR APPROVE, CI 매 push green, blockers 0, dep 0, §5 미발화.** **잔여(다음 session/cron): T-0194(현재 큐 — GitHub 가드) / Confluence 가드 / ADR-0019 ACCEPTED flip / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential).**"
   },
   "ci": {
     "lastRun": "2026-06-03T15:29:21+09:00",
