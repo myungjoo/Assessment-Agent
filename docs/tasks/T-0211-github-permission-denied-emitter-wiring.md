@@ -2,8 +2,12 @@
 id: T-0211
 title: GitHub adapter 권한 거부 영속화 emitter wiring (ADR-0022 chain row 3, GitHub 측만)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 185
+reviewRounds: 1
+mergedAs: 79b94e0
+completedAt: 2026-06-04T02:30:00+09:00
 coversReq: [REQ-044, REQ-016, REQ-059]
 estimatedDiff: 185
 estimatedFiles: 5
