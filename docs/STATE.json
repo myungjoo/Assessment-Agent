@@ -7,11 +7,11 @@
   "currentTask": null,
   "nextTask": null,
   "lock": {
-    "holder": "loop@myung-vb707106-s48",
-    "since": "2026-06-03T19:03:21+09:00"
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-03T19:03:21+09:00",
-  "lastCommit": "c6ad81c",
+  "lastActivity": "2026-06-03T19:11:58+09:00",
+  "lastCommit": "1e49728",
   "mostRecentTasks": [
     "T-0201",
     "T-0200",
@@ -20,11 +20,11 @@
     "T-0197"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-03T17:51:50+09:00",
     "cap": 10,
-    "holder": "loop@myung-vb707106-s48",
-    "note": "loop@myung-vb707106-s48 session #48 t9 (turnCount 9/10). [1] 같은 session 연속 wake → read 전 fetch, main c6ad81c sync, lock ref heartbeat(09dd630→119666b, turnCount 8→9, since 19:03), Q 전원 RESOLVED, blockers 0, t8 doc CI(c6ad81c) success. [2] nextTask=T-0201 → current(direct). [3] driver-direct 실행(PLAN.md doc-only 1줄, sub-agent 불요): PLAN.md L143 운영 backlog 'cron 1-fire 1-task 완화 검토' bullet 을 [ ]→[x] flip + stale 'ADR-NNNN 검토 예정' → ADR-0020 활성 완결 반영(N=2 cron-fire 한정·flags.multiTaskFire:true·30일 dogfood·N≥3 금지). L144/L145 bullet·placeholder 불변(L145 ADR-NNNN 만 잔존, 의도). [4/6] T-0201 status DONE, tasksCompleted 198→199, mostRecentTasks prepend T-0201, nextTask=null. [7] T-0201 DONE. [8] dynamic reschedule(turnCount 9<10). 다음 t10=cap 마지막: planner survey(잔여 dependency-free=L144 길이 mitigation 판단 or escalate) 후 cap STOP(reschedule 안 함, /compact·/clear 안내)."
+    "holder": "",
+    "note": "loop@myung-vb707106-s48 session #48 t10 (turnCount 10/10 — CAP 도달, 세션 종료). [1] 같은 session 연속 wake → read 전 fetch, main 1e49728 sync, lock(turnCount 9) 유효, Q 전원 RESOLVED 였음, blockers 0, t9 doc CI(1e49728) success. [2] currentTask/nextTask 둘 다 null → planner final survey dispatch. [3-7] planner (B) escalate: dependency-free backlog 소진(ADR-0020 multi-task fire 롤아웃 T-0197~T-0201 5 task 완결, flag=true). 잔여=§5 HITL-gated milestone(live LLM / GitHub·Confluence / PermissionDeniedRecord) + L144 길이-mitigation 판단콜 → driver-direct 로 Q-0018(needs-human-decision) 기록. [8] **cap(10) 도달 → reschedule 안 함, lock ref tombstone 해제 + STATE mirror empty.** 세션 종료 — 사용자가 Q-0018 resolve 후 새 /loop(/compact·/clear 권장) 또는 다음 cron fire 픽업. session #48 누적(t1~t10): ADR-0020 multi-task fire cron N=2 활성화 4-step rollout(T-0197 ADR·PR-176 merged → T-0198 flag 필드 → T-0199 LOOP [7.5] 분기 → T-0200 §10+토글 활성화 → T-0201 PLAN doc-sync) + Q-0018 escalate. tasksCompleted 194→199(+5), CI 매 push green, blockers 0."
   },
   "ci": {
     "lastRun": "2026-06-03T18:00:00+09:00",
@@ -165,6 +165,24 @@
       "decision": "milestone-3 (GitHub adapter + Confluence adapter) 승인 — 사용자가 session #41(/loop loop@AKIHA-9124) AskUserQuestion 으로 결정. EXACT 제약(미래 turn 이 반드시 honor): (1) HTTP transport = Node 내장 fetch(globalThis.fetch). 새 외부 dependency 추가 금지 — octokit/axios/node-fetch 등 pnpm add 0. → §5 의존성 게이트 미발화. (2) test = mocked-fetch unit test + (선택) 로컬 stub round-trip smoke(T-0168 LLM gateway 처럼 내장 http.createServer stub). CI 는 실 token 없이 green 유지. (3) LIVE token 통합(실 GitHub/Confluence token + 실 네트워크)은 별도 후속 task 로 deferred — §5 credential 게이트. milestone-1 live-run deferral(Q-0016 optionA task 2)과 정확히 동형. **지금 token 을 요구하지 않고, token 으로 block 하지 않는다.** (4) 본 패턴은 사용자가 Q-0016 optionA 에서 승인한 milestone-1 패턴(내장 fetch + mocked test, live credential defer)의 재현. de-risk: ADR-0013(Confluence SPACE 탐색) ACCEPTED. GitHub host variant = github.com / github.sec.samsung.net / github.ecodesamsung.com(Q-0014/Q-0015 명시). loop 재개: planner 가 ADR-first 로 첫 slice(GithubAdapter HTTP transport 계약 ADR — 3 host variant 라우팅 + auth header shape + non-2xx 매핑 + pagination + adapter↔gateway interface 경계, dependency-free pr-mode)를 큐잉. milestone-1 credentialed live-run(Q-0016 optionA task 2)·T-0154(cloud-fire)·apiVersion 영속 컬럼화는 별개 미승인/deferred 상태 유지. 주의: p4-implementation-plan §2 T-0140/T-0142 row 의 '@octokit/rest dependency 게이트' 표기는 본 결정의 '내장 fetch, dep 0' 로 대체 — 후속 doc-sync 시 정합.",
       "processedByPlanner": true,
       "processedAt": "2026-06-02T21:42:00+09:00"
+    },
+    {
+      "id": "Q-0018",
+      "raisedAt": "2026-06-03T19:11:58+09:00",
+      "raisedBy": "loop@myung-vb707106-s48 session #48 t10 (planner final survey → needs-human-decision)",
+      "reason": "needs-human-decision",
+      "status": "OPEN",
+      "summary": "ADR-0020 multi-task fire 활성화 롤아웃이 완결됐다 (T-0197 ADR → T-0198 STATE flags.multiTaskFire 필드 → T-0199 LOOP.md §1 [7.5] cron chain 분기 → T-0200 §10 재조정 + 토글 → T-0201 PLAN backlog doc-sync). flags.multiTaskFire 는 이제 true (N=2 cron-fire 한정 활성), 30일 dogfood 관찰 window 진행 중. tasksCompleted=199. 이로써 HITL 게이트에 걸리지 않는 dependency-free 작업 backlog 가 진짜로 소진됐다. 남은 P4 주요 milestone 은 전부 CLAUDE.md §5 HITL 게이트(외부 credential / 새 외부 dependency / DB schema migration)에 걸려 사용자 승인이 필요하다.",
+      "context": "이번 세션(#48)에서 multi-task fire 활성화 4-step rollout + cleanup 1건(총 5 task)을 완주: T-0197(ADR-0020, PR-176 merged) / T-0198(STATE flags 필드 + LOOP.md schema 동기) / T-0199(LOOP.md §1 [7.5] cron chain 분기) / T-0200(CLAUDE §10 재조정 + flag=true 토글 활성화) / T-0201(PLAN.md L143 backlog bullet doc-sync). 최종 재탐색: 운영 backlog 3건 중 L143=완결, L145(PLAN 단계별 분리)=트리거 미달(155 LOC < 350), L144(CLAUDE/LOOP 길이 mitigation)=LOC 트리거 MET(905 ≥ 800)이나 candidate (a) §0.5 cheat sheet 이미 존재 + candidate (b) LOOP.md §1 → docs/DRIVER_PROMPT.md 분리는 refactor 가치 vs doc-drift risk 판단콜이라 auto-queue 부적절. Q-0013~Q-0017 전원 RESOLVED, blockers 0, CI green. P4 잔여 MAJOR 는 전부 §5: milestone-1 credentialed live LLM run / milestone-3 GitHub·Confluence live run / PermissionDeniedRecord DB migration.",
+      "options": [
+        "(1) milestone-1 credentialed live LLM run 승인 — Q-0016 optionA task 2(deferred). custom(OpenAI-호환) provider 의 env-gated live smoke/e2e 를 실 네트워크로 1회 실행. 필요: live endpoint base URL + provider API key + LLM_APIKEY_ENC_KEY 를 env/secret 주입(실값 §9 금지). §5 credential 게이트.",
+        "(2) milestone-3 GitHub/Confluence live run 승인 — Q-0017 mocked transport 위에서 실 token 통합. 필요: GitHub token(github.com / github.sec.samsung.net / github.ecodesamsung.com) + Confluence token env/secret 주입. 새 dependency 0(내장 fetch) 이나 실 credential 다수. §5 게이트.",
+        "(3) PermissionDeniedRecord entity 승인 — 권한 거부 이벤트 영속화 entity. prisma schema + data migration 필요. §5 DB schema migration 게이트.",
+        "(4) L144 길이-mitigation 판단콜 결정 — (b) LOOP.md §1 표준 prompt 를 docs/DRIVER_PROMPT.md 로 분리할지, 아니면 (a) §0.5 cheat sheet 로 충분하다 보고 L144 bullet 을 [x] resolve 처리할지 지시. §5 미발화 dependency-free 라 즉시 착수 가능.",
+        "(5) other direction — 위 외 다른 우선순위(observability/test hardening, OpenAPI/Swagger doc, P6 frontend 진입 검토 등) 지시. planner 는 현재 make-work 로 판단했으나 사용자 우선순위 다르면 재지시 가능."
+      ],
+      "recommendation": "가장 가벼운 즉시-진행 옵션은 (4) L144 판단콜 결정 — dependency-free 라 credential 없이 바로 착수, 활성화된 multi-task fire dogfood window 동안 운영 문서 정합 마무리. 가장 큰 가치 unblock 은 (1) milestone-1 live run(P5 평가 파이프라인 선행 backbone). 권장 순서: (4) → (1) → (2) → (3). (4)에서 (b) 분리 택 시 DRIVER_PROMPT.md ↔ LOOP.md §1 single-source 정합 doc-drift 가드 동반 박제 필요.",
+      "resolutionHint": "docs/STATE.json 의 본 Q-0018 에 resolvedAt(ISO) + decision(선택 옵션 번호 + 필요한 credential/migration scope 또는 L144 판단콜 결론)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY)은 코드·STATE·journal 에 실값 금지, env/secret 주입(§9). (4)만 결정하면 credential 불요 즉시 재개."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
