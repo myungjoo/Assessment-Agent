@@ -29,7 +29,7 @@
 //   - token JIT decrypt — buildConfluenceRequest 와 동일하게 이미 복호화된 평문
 //     token 을 담은 ConfluenceRequestInput 을 받는다(cipher 주입/호출 0). 실 decrypt
 //     wire 는 instance config 순회 wiring(row4/row5) 책임.
-import { Injectable, Optional } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 
 import {
   ConfluenceRequestInput,
@@ -246,6 +246,18 @@ export const NO_OP_PERMISSION_DENIED_EMITTER: PermissionDeniedEmitter = {
   },
 };
 
+// PermissionDeniedEmitter 주입용 DI token (T-0212, ADR-0022 §6 emitter wiring —
+// GitHub PERMISSION_DENIED_EMITTER 패턴 mirror). PermissionDeniedEmitter 가 함수형
+// port interface 라 DI 가 reflection 으로 토큰을 못 만든다 — string token 으로 module 이
+// 실 영속화 emitter 를 override 가능하게 한다. token 미주입(unit / 다른 module) 시
+// 생성자 default(no-op)가 그대로 유지되어 regression 0 — adapter 는 본 token 으로 흘러올
+// 구현체의 영속화 세부를 모른다(결합도 0, ADR-0022 §6.1 adapter leaf 경계). 토큰을 port
+// 와 colocate 해 adapter 가 영속화 모듈을 import 하지 않게 한다(역방향 의존 — 실 emitter
+// 가 본 port/token 을 import). GitHub token 과 별도 string 값으로 둬 module 별로 다른
+// 실 emitter(GitHub/Confluence)를 충돌 없이 바인딩한다.
+export const CONFLUENCE_PERMISSION_DENIED_EMITTER =
+  "CONFLUENCE_PERMISSION_DENIED_EMITTER";
+
 // PartialCollectionEvent — `_links.next` 순회가 CONFLUENCE_MAX_PAGES safety cap 에
 // 도달해 전 page 를 다 못 받고 부분 수집으로 종료될 때 emit 되는 신호다(ADR-0018 §5
 // "PermissionDeniedEvent 와 구분되는 별도 partial-collection event"). 권한 부족과는
@@ -282,12 +294,17 @@ export class ConfluenceAdapter {
   // fetch / emitter 둘 다 @Optional 생성자 주입(milestone-1 LlmHttpGateway /
   // milestone-3 GithubAdapter 패턴 mirror). ConfluenceFetchLike 는 함수 타입이라 DI
   // token 이 없어 @Optional 로 skip 시켜야 module compile 이 성공한다 — default
-  // globalThis.fetch. emitter 도 default 는 no-op 이라 wiring slice 전까지 주입 없이
-  // 동작한다(unit 은 mock 으로 대체).
+  // globalThis.fetch. emitter 는 CONFLUENCE_PERMISSION_DENIED_EMITTER token 으로
+  // 주입받되(@Optional + @Inject — GithubAdapter PERMISSION_DENIED_EMITTER 패턴 mirror),
+  // ConfluenceModule 이 그 token 에 실 영속화 emitter 를 provide 하면 DI 가 그것을
+  // 주입하고(T-0212 wiring), token 미provide(unit / 다른 module) 시 @Optional 이
+  // default(no-op)로 fallback 시킨다(regression 0). 직접 new 인스턴스화(unit spec)는
+  // @Inject 와 무관하게 positional 주입이 그대로 동작한다.
   constructor(
     @Optional()
     private readonly fetchFn: ConfluenceFetchLike = globalThis.fetch as unknown as ConfluenceFetchLike,
     @Optional()
+    @Inject(CONFLUENCE_PERMISSION_DENIED_EMITTER)
     private readonly permissionDeniedEmitter: PermissionDeniedEmitter = NO_OP_PERMISSION_DENIED_EMITTER,
     // partial-collection(cap 도달) emitter — PermissionDeniedEmitter 와 별도 port.
     // default no-op 이라 미주입 시에도 동작한다(unit 은 mock 으로 대체).

@@ -31,8 +31,13 @@
 import { Module } from "@nestjs/common";
 
 import { LlmApiKeyCipher } from "../llm/llm-apikey-cipher.service";
+import { PermissionDeniedRecordModule } from "../permission-denied/permission-denied-record.module";
+import { PersistingConfluencePermissionDeniedEmitter } from "../permission-denied/persisting-confluence-permission-denied-emitter";
 
-import { ConfluenceAdapter } from "./confluence-adapter.service";
+import {
+  ConfluenceAdapter,
+  CONFLUENCE_PERMISSION_DENIED_EMITTER,
+} from "./confluence-adapter.service";
 import {
   type ConfluenceInstanceConfig,
   resolveConfluenceInstances,
@@ -45,11 +50,18 @@ import { ConfluenceSpaceTraversalService } from "./confluence-space-traversal.se
 export const CONFLUENCE_INSTANCES = "CONFLUENCE_INSTANCES";
 
 @Module({
+  // PermissionDeniedRecordModule import — PersistingConfluencePermissionDeniedEmitter 가
+  // PermissionDeniedRecordService 를 inject 하려면 그 service 를 export 하는 module 을
+  // import 해야 한다(T-0210 이 service 를 exports 에 등록). PersistenceModule(@Global)이
+  // PrismaService 를 application-wide 로 export 하므로 그 추가 import 는 불요(github.module.ts mirror).
+  imports: [PermissionDeniedRecordModule],
   // CONFLUENCE_INSTANCES token 을 process.env 기반 useFactory 로 provide + export +
   // ConfluenceAdapter class provider 등록 + export. resolveConfluenceInstances 가
-  // 부수효과 0 순수 함수이고 ConfluenceAdapter 의 fetch/emitter 가 @Optional 주입
-  // (default 채움)이라 PersistenceModule import 없이 ConfluenceModule 단독으로
-  // compile 된다(adapter leaf, Prisma dep 0).
+  // 부수효과 0 순수 함수이고 ConfluenceAdapter 의 fetch 가 @Optional 주입(default 채움)
+  // 이라 compile 자기충족. emitter 는 CONFLUENCE_PERMISSION_DENIED_EMITTER token 에
+  // PersistingConfluencePermissionDeniedEmitter(실 영속화 emitter)를 바인딩해 401/403
+  // 권한 거부가 record 로 영속화되게 한다(github.module.ts mirror). adapter 코드는 port
+  // 만 알고 영속화 세부를 모른다(결합도 0, ADR-0022 §6.1) — AppModule 무변경 자기충족 wiring.
   providers: [
     {
       provide: CONFLUENCE_INSTANCES,
@@ -65,7 +77,16 @@ export const CONFLUENCE_INSTANCES = "CONFLUENCE_INSTANCES";
     // ConfluenceSpaceTraversalService — SPACE allowlist 순회 + 4xx skip-and-continue
     // (T-0189, ADR-0018 §6 4단 경계 4번). ConfluenceAdapter + LlmApiKeyCipher 주입,
     // PermissionDeniedEmitter 는 @Optional (no-op default) 이라 추가 provider 불요.
+    // 본 task 는 ConfluenceAdapter 의 emit source 만 실 영속화로 결선한다 — traversal
+    // service 의 emitter wiring 은 Out of Scope(별도 emit 경로, Follow-up).
     ConfluenceSpaceTraversalService,
+    // 실 영속화 emitter + token 바인딩(github.module.ts mirror). ConfluenceAdapter 의
+    // @Inject(CONFLUENCE_PERMISSION_DENIED_EMITTER) 가 이를 주입받는다.
+    PersistingConfluencePermissionDeniedEmitter,
+    {
+      provide: CONFLUENCE_PERMISSION_DENIED_EMITTER,
+      useClass: PersistingConfluencePermissionDeniedEmitter,
+    },
   ],
   exports: [
     CONFLUENCE_INSTANCES,
