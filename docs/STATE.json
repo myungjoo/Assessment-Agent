@@ -5,12 +5,12 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0207",
   "lock": {
     "holder": "loop",
-    "since": "2026-06-03T23:20:51+09:00"
+    "since": "2026-06-03T23:55:00+09:00"
   },
-  "lastActivity": "2026-06-03T23:20:51+09:00",
+  "lastActivity": "2026-06-03T23:55:00+09:00",
   "lastCommit": "25284d1",
   "mostRecentTasks": [
     "T-0206",
@@ -20,11 +20,11 @@
     "T-0202"
   ],
   "loopSession": {
-    "turnCount": 8,
-    "startedAt": "2026-06-03T20:22:25+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-06-03T23:55:00+09:00",
     "cap": 10,
-    "holder": "loop@myung-vb707106-s50",
-    "note": "loop@myung-vb707106-s50 session #50 t8 — T-0206(token-encryption CLI) MERGED via PR #180 (2 rounds). [1] 같은 session 연속 wake → fetch, lock(s50) turnCount 7→8(since heartbeat 23:20), t7 bookkeeping 81c5ea9 doc CI success(R-114), Q 전원 RESOLVED, blockers 0. [3-4] executor → claude/T-0206-... + src/llm/encrypt-token-cli.ts(117 prod) + scripts/encrypt-token.ts(50 entrypoint) + 2 spec; LlmApiKeyCipher.encrypt 재사용(crypto 재구현 0·dep 0), §9 평문/키 미노출 assert, round-trip(cipher+adapter), cov 100%/100%. driver commit cc87b2e. reviewer driver-direct r1 APPROVE+1 MINOR(require() nit) → §3 nit-in-PR closure: executor round2 require()→dynamic import() TEST-ONLY(+4/-3, commit 1060ad7) → reviewer r2 APPROVE. integrator 4-게이트 PASS(gate d run 26890754204 head 1060ad7 approval step post-comment success). squash merge 25284d1. [6] currentTask/nextTask null, tasksCompleted 203→204, mostRecentTasks prepend T-0206, reviewRounds[T-0206]=2(merge 시 정리 가능), task DONE(mergedAs 25284d1/prNumber 180). **=== dependency-free backlog 완전 소진 ===** milestone-3 live-test scaffold(T-0203 ADR-0021 + T-0204 GitHub gating + T-0205 Confluence gating) + credential-prep CLI(T-0206) 전부 merged. P4 잔여는 전부 §5 게이트: (1) 실 token live RUN(GitHub/Confluence/LLM token — 이제 T-0206 CLI 로 _TOKEN_ENC 생성 가능) (2) apiKey at-rest prisma schema migration(credential-prep d). [checkpoint] turnCount 8/10(cap 근접) + backlog 소진 → 사용자 AskUserQuestion checkpoint 후 reschedule/stop 결정."
+    "holder": "loop@myung-vb707106-s51",
+    "note": "loop@myung-vb707106-s51 session #51 t1 — 새 /loop(fresh conversation) cap 10. [1] fetch: local main == origin/main(824b4c5), tree clean, open PR 0, main CI 26891164659 success(R-114). lock(loop, #50 t8 since 23:20) ~34분(60분 내) → 동일 머신 loop 연속, heartbeat 23:55, #50→#51 핸드오프(fresh context, turnCount reset). [2] dependency-free backlog 소진 재확인(Q-0013~0018 RESOLVED, blockers 0). [3] driver AskUserQuestion checkpoint → 사용자가 PermissionDeniedRecord DB migration 승인(Q-0019 RESOLVED, §5 DB schema 게이트 OPEN, 외부 credential 0; milestone-1/3 live run 미승인 유지) → planner dispatch 로 T-0207(PermissionDeniedRecord 데이터 모델·영속화 ADR, ADR-first pr-mode) 큐잉. [next] 다음 wakeup 에서 T-0207 executor 실행."
   },
   "ci": {
     "lastRun": "2026-06-03T18:00:00+09:00",
@@ -187,6 +187,24 @@
       "decision": "option (4) → sub-decision (a) 승인 — 사용자가 session #49(/loop loop@myung-vb707106-s49) AskUserQuestion 2-step 으로 결정. (4) L144 길이-mitigation 판단콜 선택 후, (a) §0.5 cheat sheet 로 충분하다 보고 L144 bullet 을 resolve 처리(후보 (b) DRIVER_PROMPT.md 분리 미채택). 근거: LOC 트리거(CLAUDE 461 + LOOP 444 = 905 ≥ 800)는 MET 이나 '룰 누락 사고 1건 재발' 트리거는 §0.5 'Hard rule 인덱스' cheat sheet 도입 후 0 건 — cheat sheet 가 attention-drift 를 실효 차단 중. 후보 (b) LOOP.md §1 → docs/DRIVER_PROMPT.md 분리는 single-source doc-drift 유지비용 > 현 가치 + 백로그 framing 상 ADR 선행 필요라 미채택(사고 1건 재발 시 ADR 재검토, 재검토 트리거는 PLAN L144 에 살려둠). loop 재개: driver-direct 로 T-0202(PLAN.md L144 bullet [x] flip + 후보 a 채택 doc-sync, commitMode direct) 1건 실행. 잔여 P4 major milestone — (1) milestone-1 credentialed live LLM run / (2) milestone-3 GitHub·Confluence live run / (3) PermissionDeniedRecord DB migration — 은 전부 §5 HITL 게이트라 사용자가 옵션 (4)를 택함으로써 이번 세션에서 deferred 유지(미승인, 재escalate 불요 — 사용자 인지 상태). 이로써 dependency-free backlog 재소진 → T-0202 완료 후 session #49 STOP 예정.",
       "processedByPlanner": true,
       "processedAt": "2026-06-03T10:43:00+09:00"
+    },
+    {
+      "id": "Q-0019",
+      "raisedAt": "2026-06-03T23:55:00+09:00",
+      "raisedBy": "loop@myung-vb707106-s51 session #51 t1 (driver AskUserQuestion checkpoint — dependency-free backlog 소진)",
+      "reason": "needs-human-decision",
+      "status": "RESOLVED",
+      "summary": "dependency-free backlog 가 완전히 소진된 상태(T-0206 token CLI 가 마지막, PR #180 merged, main green, blockers 0, open PR 0)에서 driver 가 AskUserQuestion checkpoint 를 올렸고, 사용자가 PermissionDeniedRecord DB migration 을 승인했다. 이로써 §5 DB schema migration 게이트가 OPEN 된다 — 권한 거부 이벤트(GitHub/Confluence adapter 의 non-2xx→PermissionDeniedEvent 등)를 영속화하는 entity + prisma schema model + data migration 구현이 dependency-free 코드 작업으로 진행 가능.",
+      "context": "남은 P4 major milestone 3종 중 milestone-1(credentialed live LLM run)·milestone-3(GitHub/Confluence live token run)은 외부 credential(§5 자격증명 게이트)이 필요해 미승인 유지. PermissionDeniedRecord 는 외부 credential 불필요(CI 에 실 PostgreSQL service 이미 존재, ADR-0004) — DB schema 변경 승인만 필요했고 사용자가 승인. 따라서 이 milestone 은 ADR(데이터 모델·영속화 설계) → prisma schema + migration → repository/service → wiring → tests 로 자율 진행 가능.",
+      "options": [
+        "PermissionDeniedRecord DB migration 승인",
+        "milestone-1 live LLM 통합",
+        "milestone-3 GitHub/Confluence 통합",
+        "루프 정지"
+      ],
+      "recommendation": "ADR-first. PermissionDeniedRecord 데이터 모델 + 영속화 설계(언제 무엇을 기록·보존 기간·조회 경로·기존 adapter 이벤트 흐름과의 경계)를 ADR 로 선행 박제(milestone-3 의 ADR-first 패턴과 동형) 후 prisma schema + migration slice 진행. 각 slice ≤ 300 LOC / 5 파일.",
+      "resolvedAt": "2026-06-03T23:55:00+09:00",
+      "decision": "PermissionDeniedRecord DB migration 승인 — 사용자가 session #51 t1 AskUserQuestion 으로 선택. §5 DB schema migration 게이트 OPEN. 외부 credential 0(CI 실 PostgreSQL 사용, ADR-0004). milestone-1 live LLM run·milestone-3 live token run 은 미승인 유지(추후 별도 결정). loop 재개: planner 가 ADR-first 로 첫 slice(PermissionDeniedRecord 데이터 모델·영속화 ADR, dependency-free pr-mode) 큐잉. 주의: prisma schema 변경 후 migration 은 ADR-0004 migrate-deploy 패턴 준수, R-112 4종 + negative cases 충분 cover, regression test."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
