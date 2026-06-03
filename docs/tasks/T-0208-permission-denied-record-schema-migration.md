@@ -2,7 +2,11 @@
 id: T-0208
 title: PermissionDeniedRecord prisma model + migration (ADR-0022 §1·§3·§4·§5 구현)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-04T01:02:00+09:00
+mergedAs: 1039439
+prNumber: 182
+reviewRounds: 2
 commitMode: pr
 hqOrigin: Q-0019
 coversReq: [REQ-044, REQ-016, REQ-059, REQ-029]
