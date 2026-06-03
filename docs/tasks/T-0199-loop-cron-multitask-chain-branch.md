@@ -2,12 +2,15 @@
 id: T-0199
 title: LOOP.md §1 에 cron 전용 multi-task chain 분기 추가 (ADR-0020 활성화 step 3)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: []
 estimatedDiff: 55
 estimatedFiles: 1
+actualDiff: 43
+actualFiles: 1
 created: 2026-06-03
+completedAt: 2026-06-03T18:32:00+09:00
 dependsOn: [T-0197, T-0198]
 parents: []
 plannerNote: "P4 ADR-0020 롤아웃 step 3 — LOOP.md §1 cron-only N=2 chain 분기(이중 게이트·flag=false 라 dormant). doc-only direct."

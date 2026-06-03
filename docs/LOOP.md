@@ -136,6 +136,49 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
     "turn end — T-NNNN <STATUS>; next: <STATE.nextTask or 'planner needed'>;
      ci: <ok|fail|pending>; blockers: <count>"
 
+[7.5] CRON MULTI-TASK CHAIN (오직 cron fire + flags.multiTaskFire == true 일 때)
+- **이중 게이트** — 본 step 은 다음 두 조건이 **모두 참**일 때만 평가한다:
+    (G1) STATE.flags.multiTaskFire === true   AND
+    (G2) lock.holder == "cron"
+  둘 중 하나라도 거짓이면 본 step 을 **통째로 skip** 하고 현행 종료로 간다
+  (cron 인데 flag=false → 그냥 종료 / `/loop`·`human` holder → [8] 로).
+- **DORMANT 표기** — 현재 STATE.flags.multiTaskFire 는 `false`(T-0198) 이므로
+  본 분기는 **inert** 다 — ADR-0020 롤아웃 step 4 의 토글 ON 전까지 driver 동작은
+  전혀 바뀌지 않는다. 이 step 은 그때를 위한 forward-looking 명세다.
+  (활성 토글 위치 = §4 `flags.multiTaskFire` 설명 / ADR-0020 step 4.)
+- **cron-only** — lock.holder 가 "loop" 또는 "human" 이면 본 분기는 **절대 trigger
+  되지 않는다** (사용자 cron-only 결정 — ADR-0020 Decision (1)). `/loop` 의 [8]
+  DYNAMIC SELF-RESCHEDULE turn-cap(10) self-reschedule 동작은 본 step 과 독립이며
+  전혀 건드리지 않는다.
+- **§2.5 (a)~(e) 재평가** — 두 번째 task 진입 전에 [CLAUDE.md §2.5](../CLAUDE.md)
+  / [ADR-0020](decisions/ADR-0020-multi-task-fire-cron-n2-activation.md) Decision (2)
+  의 5조건을 **모두** 재평가한다. 하나라도 false → 진입 안 하고 현행 cron 종료(위 [7]):
+    (a) 직전 task 를 `executor` 1회 호출로 처리했고 driver 가 받은 게 ≤200 char
+        SUMMARY + 표준 trail blob 뿐 (raw output / 긴 log 를 driver context 로
+        끌고 왔으면 chain 차단 — CLAUDE.md §4·§11).
+    (b) N ≤ 2 — 본 fire 에서 아직 task 1개만 수행했을 때만(이미 두 번째면 더 진입 X).
+    (c) 직전 task 가 BLOCKED / CI fail / push contention / merge conflict 중
+        하나라도면 **즉시 종료(fail-fast)** — chain 안 함.
+    (d) STATE.lock.since 로부터 경과 시간 ≥ 45분이면 추가 진입 금지
+        (§2 60분 stale 임계 보호 — 두 번째 task 가 lock 점유를 60분 너머로
+        끌고 가는 시나리오 차단).
+    (e) 두 task 의 commitMode 가 같을 때만(direct+direct OR pr+pr) — 혼합
+        (direct+pr / pr+direct) 금지(§3.2 R-114 CI 검증 경계 모호).
+- **N≤2 hard cap** — 한 fire 당 추가 task 는 **최대 1개**(총 2개). 두 번째 task
+  완료 후에는 무조건 종료하며 **세 번째 task 진입 금지**(N≥3 은 ADR-0020 도 금지).
+- **두 번째 task 진입 경로** — 위 G1·G2 + (a)~(e) 가 **모두 통과**하면:
+    STATE.nextTask 가 비어있으면(planner 가 미리 큐잉한 다음 task 없음) → 종료.
+    STATE.nextTask 가 있으면 → currentTask=nextTask, nextTask=null 로 옮기고
+    [2]~[6] 를 **한 번 더** 수행한다(두 번째이자 마지막 task). 완료 후 [7] 종료.
+- **FIRE-BATCH marker** — chain 된 두 task 의 commit trail footer 에
+  `FIRE-BATCH: <task1>+<task2>` 형식(예: `FIRE-BATCH: T-0210+T-0211`)을 박는다
+  (ADR-0020 Decision (3)). marker 는 commit message footer 의 trail blob 인접
+  위치에 들어가 한 fire 가 2 task 를 묶었음을 외화한다 — reviewer / log 점검이
+  fire 구조를 인지하고 조건 미충족 chain 을 MINOR finding 으로 catch 하는 근거.
+- **§10 관계** — fire 자체는 매 발화 fresh conversation 이므로(CLAUDE.md §10),
+  격리 약화는 1 fire 내부(2 task 사이)에만 국한되고 fire 경계는 여전히 clean 하다
+  (CLAUDE.md §2.5 "본 § 와 §10 의 관계").
+
 [8] DYNAMIC SELF-RESCHEDULE (오직 /loop dynamic mode일 때)
 - ScheduleWakeup 도구가 가용한지 확인.
   - 없으면 (schedule cron 또는 headless 모드) 이 단계 skip. 그냥 종료.
