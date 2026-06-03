@@ -1,7 +1,7 @@
 ---
 id: ADR-0018
 title: ConfluenceAdapter HTTP transport 계약 — 내장 fetch transport / Cloud vs Server base URL 라우팅 / auth header shape / non-2xx 도메인 매핑 / `_links.next` cursor pagination / adapter↔service 경계
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-03
 relatedTask: T-0183
 supersedes: null

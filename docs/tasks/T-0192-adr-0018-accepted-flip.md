@@ -2,13 +2,14 @@
 id: T-0192
 title: ADR-0018 ConfluenceAdapter transport 계약 status PROPOSED→ACCEPTED flip
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-009, REQ-010, REQ-015, REQ-016, REQ-044, REQ-034, REQ-059]
 dependsOn: []
 estimatedDiff: 4
 estimatedFiles: 2
 created: 2026-06-03
+completedAt: 2026-06-03T15:03:10+09:00
 plannerNote: "P4 milestone-3 chain row10 — ADR-0018 scaffold(T-0183~T-0191) 전원 merged → status ACCEPTED flip(§3.1 rule4 direct). 이후 dependency-free backlog 소진."
 ---
 
