@@ -2,13 +2,17 @@
 id: T-0189
 title: ConfluenceSpaceTraversalService — SPACE allowlist 순회 + 4xx skip-and-continue
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-015, REQ-016, REQ-017, REQ-044]
 dependsOn: [T-0188, T-0185, T-0184]
 estimatedDiff: 180
 estimatedFiles: 3
 created: 2026-06-03
+completedAt: 2026-06-03T14:10:08+09:00
+prNumber: 171
+reviewRounds: 2
+mergedAs: f2090ef
 plannerNote: P4 milestone-3 Confluence chain row5(ADR-0018 §6 4단 경계 4번) — SPACE allowlist 순회 service. dep 없음(row5), schema 0(persistence=row8), §5 미발화.
 ---
 

@@ -2,34 +2,37 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0189",
+  "nextTask": null,
   "lock": {
-    "holder": "",
-    "since": ""
+    "holder": "loop",
+    "session": "loop@myung-vb707106",
+    "since": "2026-06-03T13:49:34+09:00",
+    "loopSessionStartedAt": "2026-06-03T13:49:34+09:00",
+    "loopSessionTurnCount": 1
   },
-  "lastActivity": "2026-06-03T13:24:19+09:00",
-  "lastCommit": "ba23370",
+  "lastActivity": "2026-06-03T14:10:08+09:00",
+  "lastCommit": "f2090ef",
   "mostRecentTasks": [
+    "T-0189",
     "T-0188",
     "T-0187",
     "T-0186",
-    "T-0185",
-    "T-0184"
+    "T-0185"
   ],
   "loopSession": {
-    "turnCount": 10,
-    "startedAt": "2026-06-03T10:31:13+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-06-03T13:49:34+09:00",
     "cap": 10,
-    "holder": "loop@myung-ea6127546",
-    "note": "loop@myung-ea6127546 session #44 t10 (turnCount 10/10 — CAP 도달, LAST turn). [1] read 전 fetch — 권위 lock=내 session 연속 wake → turnCount 9→10. main d531fda sync, Q-0013~0017 전원 RESOLVED, blockers 0, CI green. [2] currentTask·nextTask 둘 다 null → planner dispatch → T-0189(P4 milestone-3 ADR-0018 chain row5 = ConfluenceSpaceTraversalService: ConfluenceInstanceConfig.spaceAllowlist 순회 + SPACE 별 requestAllPages 수집 + ADR-0013 4xx skip-and-continue(permission-denied/not-found SPACE skip+emit+continue) + in-memory cross-SPACE aggregate, commitMode pr, dep0/schema0(persistence=row8 defer)/§5 미발화, ~3 file) 큐잉, STATE.nextTask=T-0189. planner issue-still-relevant pre-check PASS(main 에 ConfluenceSpaceTraversalService 미존재). [5][6] 본 turn = planner-only doc-only direct commit. [7] turn end — T-0189 큐잉. [8] **loopSessionTurnCount=10 = cap 도달 → reschedule 안 함(STOP). lock 해제(ref tombstone + STATE soft mirror empty). 사용자 cleanup 안내: (1) /compact 후 새 /loop, (2) /clear 후 새 /loop, (3) cron 발화 대기.** **session #44 누적(t1~t10): milestone-3 ConfluenceAdapter transport stack 5 merge — T-0184 module wiring(17e8bce) / T-0185 token JIT decrypt(575b4ff) / T-0186 request-builder(314c699) / T-0187 adapter dispatch+non-2xx 매핑+emit(f8c7a5c) / T-0188 _links.next pagination(ba23370). tasksCompleted 181→186, 매 PR 1-round APPROVE, CI 매 push green, blockers 0, dep 0, §5 미발화 유지.** **잔여 chain(다음 session/cron): row5 T-0189(현재 큐) / row6 roundtrip smoke / row7 doc-sync / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential) / row10 ADR ACCEPTED.** **SECURITY follow-up 후보(T-0188 reviewer MINOR): cross-host auth-leak — adapter 가 절대 _links.next/Link rel=next 를 instance base host 와 무관하게 따라가면 Authorization 외부 host 유출. GitHub+Confluence 공통 → 별도 ADR(same-host 제약) + 양 adapter 가드 task 후보.**"
+    "holder": "loop@myung-vb707106",
+    "note": "loop@myung-vb707106 session #45 t1 (turnCount 1/10). [1] fresh /loop session(직전 session #44 cap STOP) → read 전 fetch, ref-CAS lock 획득(264b9aa→20fc8c8), loopSessionTurnCount=1 reset. main f2090ef sync, Q-0013~0017 전원 RESOLVED, blockers 0. [2] currentTask null + nextTask=T-0189 → currentTask=T-0189(pr). [3] executor 1회 → ConfluenceSpaceTraversalService(SPACE allowlist 순회 + token JIT decrypt + SPACE-scoped requestAllPages aggregate + 4xx skip-and-continue + emit + never-read-back) + module wiring + spec 14 case, lint/build/test(2965)/cov 전부 green 신규 service 100%. [4] feature branch commit 71cb6db → push → PR #171. reviewer round1 APPROVE(MINOR: module spec DI-resolve assertion 누락) → §3 Nit-closure 의무로 round2 nit-fix(confluence.module.spec.ts +14, 689944a) → reviewer round2 APPROVE(0/0/0). 4-게이트 PASS(APPROVE + comment 외부 + integrator self-check + CI green: head 689944a pull_request all-16-steps success incl reviewer-approval) → integrator squash merge f2090ef, branch 삭제. tasksCompleted 186→187. [5] merge 후 main push CI(26864980042, f2090ef) in_progress — 다음 turn conclusion 재확인. [6] 본 bookkeeping doc-only direct commit. [7] T-0189 DONE. [8] turnCount 1/10 < cap → reschedule(turn 2 = nextTask null 이므로 planner dispatch). **잔여 P4 milestone-3 Confluence chain: row6 roundtrip smoke(dependency-free) / row7 doc-sync(direct) / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential) / row10 ADR ACCEPTED.** **SECURITY follow-up 후보(T-0188 reviewer MINOR, 미해결): cross-host auth-leak — GitHub+Confluence adapter 가 _links.next/Link rel=next 를 base host 무관 추종 시 Authorization 외부 host 유출. 별도 ADR(same-host 제약) + 양 adapter 가드 task 후보.**"
   },
   "ci": {
-    "lastRun": "2026-06-03T10:48:00+09:00",
-    "status": "green",
+    "lastRun": "2026-06-03T14:10:08+09:00",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/166",
-    "note": "T-0184 PR-166: pull_request run(26858571761) 은 reviewer-approval step 단독 fail(comment-pre race, 나머지 lint/build/test/smoke/e2e 전 step success). reviewer APPROVE comment 후 issue_comment run(26858637292) 전 step success → gate4 PASS, squash merge 17e8bce. main green, consecutiveFails 0. 본 bookkeeping doc-only commit 은 비차단."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/171",
+    "note": "T-0189 PR-171: round2 pull_request run(26864868912, head 689944a) all-16-steps success(reviewer-approval step 포함) → gate4 PASS, squash merge f2090ef. round1 pull_request(71cb6db)은 reviewer-approval step 단독 fail(comment-pre race, 나머지 lint/build/test/cov/smoke/e2e 전 step success). merge 후 main push run(26864980042, f2090ef) in_progress — 다음 turn conclusion 재확인. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -48,7 +51,8 @@
     "T-0185": 1,
     "T-0186": 1,
     "T-0187": 1,
-    "T-0188": 1
+    "T-0188": 1,
+    "T-0189": 2
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -161,7 +165,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 186,
+    "tasksCompleted": 187,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
