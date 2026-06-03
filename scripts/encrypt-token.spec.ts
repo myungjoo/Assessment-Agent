@@ -9,10 +9,11 @@
 import { runEncryptTokenCli } from "../src/llm/encrypt-token-cli";
 
 describe("scripts/encrypt-token entrypoint", () => {
-  it("import 만으로 process.exit 등 side effect 를 일으키지 않는다 (require.main 가드)", () => {
+  it("import 만으로 process.exit 등 side effect 를 일으키지 않는다 (require.main 가드)", async () => {
     // jest 환경에서 require.main !== module 이므로 main() 이 실행되지 않아야 한다.
-    // import 가 throw / exit 없이 완료되면 통과.
-    expect(() => require("./encrypt-token")).not.toThrow();
+    // import 가 throw / exit 없이 완료되면 통과. dynamic import() 로 모듈 로드를
+    // 콜백 안으로 지연시켜 require() (no-require-imports) 없이 ESM 스타일을 유지한다.
+    await expect(import("./encrypt-token")).resolves.toBeDefined();
   });
 
   it("entrypoint 가 위임하는 src 본체 runEncryptTokenCli 가 함수로 존재한다 (위임 계약)", () => {
