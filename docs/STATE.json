@@ -5,13 +5,13 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0203",
   "lock": {
-    "holder": "",
-    "since": ""
+    "holder": "loop",
+    "since": "2026-06-03T20:22:25+09:00"
   },
-  "lastActivity": "2026-06-03T10:43:00+09:00",
-  "lastCommit": "b193023",
+  "lastActivity": "2026-06-03T20:22:25+09:00",
+  "lastCommit": "62d2f23",
   "mostRecentTasks": [
     "T-0202",
     "T-0201",
@@ -21,10 +21,10 @@
   ],
   "loopSession": {
     "turnCount": 1,
-    "startedAt": "2026-06-03T10:42:20+09:00",
+    "startedAt": "2026-06-03T20:22:25+09:00",
     "cap": 10,
-    "holder": "",
-    "note": "loop@myung-vb707106-s49 session #49 t1 (turn cap 10; 시계 skew 주의 — machine clock 10:43 KST < #48 의 19:12, 무해: 본 turn 종료 시 lock 해제). [1] 새 /loop session(host 동일·새 session id) → fetch, main b193023 sync, lock ref 가 tombstone(264b9aa)였음 → ref-CAS 신규 획득(264b9aa→c1b8074, --force-with-lease), 새 session 이라 turnCount=1 reset. OPEN 이던 Q-0018 을 본 session 에서 사용자가 resolve. [2-6] 사용자 AskUserQuestion 2-step → Q-0018 option (4)+sub (a) 결정: L144 길이-mitigation 을 §0.5 cheat sheet 채택으로 resolve(후보 b DRIVER_PROMPT.md 분리 미채택). driver-direct 로 T-0202 실행(PLAN.md L144 bullet [ ]→[x] flip + 후보 a 채택 본문 + stale LOC 수치 905 정합, doc-only 1 파일). Q-0018 RESOLVED 기록. R-110 면제(direct doc-only). tasksCompleted 199→200, mostRecentTasks prepend T-0202. [7-8] dependency-free backlog 재소진 — 잔여 P4 major 는 전부 §5 HITL-gated(milestone-1 credentialed live LLM run / milestone-3 GitHub·Confluence live run / PermissionDeniedRecord DB migration), 사용자가 옵션 (4)를 택함으로써 deferred 유지(재escalate 불요, 사용자 인지 상태). **다음 autonomous 진척 없음(이벤트/시간 게이트가 아닌 human-credential 게이트) → reschedule 안 함, lock ref tombstone 해제 + STATE mirror empty. session #49 STOP(t1).** 다음 pickup: 사용자가 milestone-1/2/3 credential·migration 승인 후 새 /loop(/compact·/clear 권장) 또는 다음 cron fire."
+    "holder": "loop@myung-vb707106-s50",
+    "note": "loop@myung-vb707106-s50 session #50 t1 (turn cap 10; KST 20:22, 시계 정상화). [1] 새 /loop session(host myung-vb707106·새 id s50) → read 전 fetch, main 62d2f23 sync, lock ref tombstone(264b9aa) → ref-CAS 신규 획득(264b9aa→784713a, --force-with-lease), 새 session turnCount=1. humanQuestions 전원 RESOLVED(Q-0018 포함), blockers 0, CI green. [2] currentTask/nextTask 둘 다 null. Q-0018(10:43 resolved, '재escalate 불요·사용자 인지')이 backlog 소진 + 잔여 §5 HITL 게이트를 이미 박제했고 직후 commit 은 doc-only(T-0202)뿐이라 redundant planner full-survey 회피 → 사용자에게 직접 AskUserQuestion. 사용자가 milestone-3(GitHub+Confluence adapter) 승인. planner 2-pass: (1) pre-check — milestone-3 mocked transport 전량 이미 main 박제(ADR-0016~0019 + src/github + src/confluence + roundtrip smokes, T-0173~T-0196 DONE) → 신규 scaffold redundant. (2) env-gated live-spec 점검 — GitHub/Confluence live-integration TEST-CONTRACT ADR + env-gated live spec 둘 다 ABSENT(roundtrip smoke 는 localhost-stub 전용·fake token) → QUEUE genuine(milestone-1 Q-0016 optionA task1 analog). driver-direct 로 T-0203 큐잉(ADR-0021 only — GitHub+Confluence env-gated live-test 계약, commitMode pr; gating helper/live spec = T-0204/T-0205 chain), STATE.nextTask=T-0203. [8] 작업 가용 → reschedule(1200s, t2 가 T-0203 execute). 다음 pickup: t2 executor → T-0203 pr-mode(ADR-0021). 실 token live RUN(milestone-3 최종)은 여전히 §5(credential 미주입)."
   },
   "ci": {
     "lastRun": "2026-06-03T18:00:00+09:00",
