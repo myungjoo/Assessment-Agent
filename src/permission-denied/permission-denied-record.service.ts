@@ -75,10 +75,7 @@ export class PermissionDeniedRecordService {
   async record(
     event: RecordPermissionDeniedInput,
   ): Promise<PermissionDeniedRecord> {
-    const reason =
-      event.reason !== undefined && event.reason !== null && event.reason !== ""
-        ? event.reason
-        : deriveReason(event.httpStatus);
+    const reason = event.reason ? event.reason : deriveReason(event.httpStatus);
     return this.repository.create({
       provider: event.provider,
       instanceRef: event.instanceRef,

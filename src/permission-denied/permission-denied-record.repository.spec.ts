@@ -78,6 +78,14 @@ describe("PermissionDeniedRecordRepository", () => {
       const result = await repo.create(input);
 
       expect(recordMock.create).toHaveBeenCalledWith({ data: input });
+      // forwarded data 가 기대한 principal/reason 키를 싣는지 추가 검증 — bare data
+      // 동치성 (toHaveBeenCalledWith) 보다 tighter regression (키 drop / 오염 catch).
+      expect(recordMock.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          principal: null,
+          reason: "permission-denied",
+        }),
+      });
       expect(result).toBe(fixture);
     });
 
