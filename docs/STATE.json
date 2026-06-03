@@ -5,13 +5,13 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0204",
   "lock": {
     "holder": "loop",
-    "since": "2026-06-03T21:03:42+09:00"
+    "since": "2026-06-03T21:34:07+09:00"
   },
-  "lastActivity": "2026-06-03T21:03:42+09:00",
-  "lastCommit": "4542f1e",
+  "lastActivity": "2026-06-03T21:34:07+09:00",
+  "lastCommit": "536e469",
   "mostRecentTasks": [
     "T-0203",
     "T-0202",
@@ -20,11 +20,11 @@
     "T-0199"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-03T20:22:25+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106-s50",
-    "note": "loop@myung-vb707106-s50 session #50 t2 — T-0203(ADR-0021) MERGED. [1] 같은 session 연속 wake → fetch, main deb0f81 sync, lock(s50) 유효 turnCount 1→2(lock.since heartbeat 21:03 갱신), deb0f81 doc CI success(R-114 확인), Q 전원 RESOLVED, blockers 0. [2] nextTask=T-0203 → currentTask. [3] executor → claude/T-0203-... branch + ADR-0021 작성(GitHub+Confluence live-test 계약, ADR-0015 mirror, env-var 이름만·실 credential 0) + INDEX row, R-110 lint/build/test green(151 suite/3009), staged. [4] driver commit a84bb31 + push + PR #177. reviewer = driver-direct dispatch(sub-agent nested 불가) → APPROVE(0 BLOCKER/MAJOR/MINOR), comment post. integrator 4-게이트 PASS — (a)APPROVE (b)comment 외부 존재 (c)self-check(doc-only, R-112 N/A, Out-of-Scope 누출 0) (d)CI green: first pull_request run 은 reviewer-gate race 로 step16(approval 검증)만 fail(expected), issue_comment auto-rerun 미발화 → `gh run rerun` self-heal(close+reopen 아님) → success. squash merge 4542f1e, feature branch 삭제. [5] merge commit 4542f1e main CI in_progress(doc-only, t3 [1]에서 재확인). [6] currentTask/nextTask null, tasksCompleted 200→201, mostRecentTasks prepend T-0203, task frontmatter DONE(mergedAs 4542f1e, prNumber 177, reviewRounds 1, reviewRounds map 키 미추가=round1 merge 정합). [8] reschedule(1200s). 다음 pickup: t3 planner 가 T-0204(GitHub gating helper `src/github/github-live-test-gating.ts` + spec + env-gated `test/smoke/github-live.smoke-spec.ts`, ADR-0021 구현) 큐잉. 실 token live RUN(milestone-3 최종)은 여전히 §5(credential 미주입)."
+    "note": "loop@myung-vb707106-s50 session #50 t3 — T-0204 큐잉(planner). [1] 같은 session 연속 wake → fetch, lock(s50) 유효 turnCount 2→3(since heartbeat 21:34 갱신), t2 bookkeeping 3e0eb56 doc CI success(R-114), Q 전원 RESOLVED, blockers 0. **사용자 직접 commit 536e469 발견** — PLAN.md P4 '자격증명 관리' credential-prep 2 bullet 추가(토큰 암호화 CLI + LLM apiKey at-rest 완결, dep 0, STATE/lock 미접촉, task-ID 미선점, CI success). lock 여전히 s50 mine(사용자 human prerogative direct PLAN commit). [2] currentTask/nextTask null → planner. backlog 재평가(T-0203 follow-up GitHub/Confluence gating + 사용자 credential-prep 2건, 전부 dep-free) 후 T-0204(GitHub live-test gating helper + colocated spec + env-gated test/smoke/github-live.smoke-spec.ts, ADR-0021 §(i)~(v) GitHub, pr ~230 LOC/3 file) 선정 — in-flight milestone-3 직속 후속(최저 risk, ADR 명시 지목) > credential-prep((d) prisma schema=§5 risk 로 대기). pre-check: gating helper/live spec 둘 다 main 부재. STATE.nextTask=T-0204. [8] reschedule(1200s, t4 가 T-0204 execute). 다음 pickup: t4 executor → T-0204 pr-mode. backlog 잔류: T-0205(Confluence gating) + credential-prep CLI/at-rest(사용자 536e469). 실 token live RUN 은 §5(미주입)."
   },
   "ci": {
     "lastRun": "2026-06-03T18:00:00+09:00",
