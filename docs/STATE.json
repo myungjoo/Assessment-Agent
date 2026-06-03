@@ -2,15 +2,15 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0191",
   "lock": {
     "holder": "loop",
     "session": "loop@myung-vb707106",
     "since": "2026-06-03T13:49:34+09:00",
     "loopSessionStartedAt": "2026-06-03T13:49:34+09:00",
-    "loopSessionTurnCount": 3
+    "loopSessionTurnCount": 4
   },
-  "lastActivity": "2026-06-03T14:36:44+09:00",
+  "lastActivity": "2026-06-03T14:41:08+09:00",
   "lastCommit": "7612c10",
   "mostRecentTasks": [
     "T-0190",
@@ -20,11 +20,11 @@
     "T-0186"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-03T13:49:34+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106",
-    "note": "loop@myung-vb707106 session #45 t3 (turnCount 3/10). [1] 같은 session 연속 wake → read 전 fetch, lock heartbeat turnCount 2→3, main 7612c10 sync, Q 전원 RESOLVED, blockers 0, ci green. [2] currentTask null + nextTask=T-0190 → current(pr-mode). [3] feature branch claude/T-0190-confluence-adapter-roundtrip-smoke + executor 1회 → test/smoke/confluence-adapter-roundtrip.smoke-spec.ts(Node 내장 http stub ephemeral(0) + 실 globalThis.fetch round-trip 7 case: happy + 403 perm-denied+emit + 404 not-found no-emit + 500 transient + malformed→domain-error + body _links.next 2-page pagination + token never-read-back), production code 무변경. lint/build/test:cov green(line 99.93%/func 100%). [4] commit a0113f9 push → PR #172 → reviewer round1 APPROVE(MINOR 1=317 LOC cap+17, test-only T-0182 parity·blast 0 → §3 4종 fix 미해당이라 round2 불요; 0 BLOCKER/MAJOR) comment post(gate2). 4-게이트 PASS(APPROVE + comment 외부 + integrator self-check test-only + CI green: pull_request a0113f9 steps1-15 success incl smoke+e2e, step16 approval 단독 race-fail → issue_comment run 26865770214 success 로 approval gate 충족) → integrator squash merge 7612c10, branch 삭제. tasksCompleted 187→188. [5] merge CI 다음 turn 재확인. [6] 본 bookkeeping doc-only direct commit. [7] T-0190 DONE. [8] turnCount 3/10 < cap → reschedule(다음 turn = nextTask null → planner dispatch row7 doc-sync). **잔여 P4 milestone-3 chain: row7 doc-sync(direct, 다음) / row8 PermissionDeniedRecord entity(§5 schema, DO NOT queue) / row9 live-run(§5 credential, DO NOT queue) / row10 ADR-0018 ACCEPTED(row7 후).** **SECURITY follow-up 후보(T-0188 reviewer MINOR, 미해결): cross-host auth-leak — GitHub+Confluence adapter 가 _links.next/Link rel=next 를 base host 무관 추종 시 Authorization 외부 host 유출. 별도 ADR(same-host 제약) + 양 adapter 가드 task 후보.**"
+    "note": "loop@myung-vb707106 session #45 t4 (turnCount 4/10). [1] 같은 session 연속 wake → read 전 fetch, lock heartbeat turnCount 3→4, main 7612c10 sync, Q 전원 RESOLVED, blockers 0, ci green(T-0190 merge 7612c10 + bookkeeping 96f5eb0 push run 둘 다 completed success). [2] currentTask·nextTask 둘 다 null → planner dispatch → T-0191(commitMode direct, 머지된 Confluence transport stack(T-0183~T-0190)을 architecture doc 에 반영 — modules.md ConfluenceModule row stale placeholder 갱신 + p4-implementation-plan.md §2 T-0142/T-0143 의 Q-0017-superseded 'SDK+token BLOCKED' 표기 정정, ~50 LOC/2 file) 큐잉, STATE.nextTask=T-0191. planner issue-still-relevant pre-check: 두 doc 모두 stale 확정(비-redundant). ADR-0018 status flip(PROPOSED→ACCEPTED)은 row10 별도 task(ADR-0018 §6 없음 stale 참조 정정 포함). [6] 본 turn = planner-only doc-only direct commit, executor 미경유. [7] T-0191 큐잉. [8] turnCount 4/10 < cap → reschedule(다음 turn = nextTask T-0191 → current, executor dispatch direct doc-sync). **잔여 P4 milestone-3 chain: row7 T-0191(현재 큐, direct) / row10 ADR-0018 ACCEPTED(direct, row7 후) / row8 PermissionDeniedRecord entity(§5 schema, DO NOT queue) / row9 live-run(§5 credential, DO NOT queue).** **SECURITY follow-up 후보(T-0188 reviewer MINOR, 미해결): cross-host auth-leak — GitHub+Confluence adapter 가 _links.next/Link rel=next 를 base host 무관 추종 시 Authorization 외부 host 유출. 별도 ADR(same-host 제약) + 양 adapter 가드 task 후보.**"
   },
   "ci": {
     "lastRun": "2026-06-03T14:36:44+09:00",
