@@ -5,34 +5,34 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0212",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
-    "since": "2026-06-04T02:35:00+09:00"
+    "since": "2026-06-04T02:57:00+09:00"
   },
-  "lastActivity": "2026-06-04T02:35:00+09:00",
-  "lastCommit": "79b94e0",
+  "lastActivity": "2026-06-04T02:57:00+09:00",
+  "lastCommit": "0ff9bee",
   "mostRecentTasks": [
+    "T-0212",
     "T-0211",
     "T-0210",
     "T-0209",
-    "T-0208",
-    "T-0207"
+    "T-0208"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-04T01:07:00+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106-s52",
-    "note": "loop@myung-vb707106-s52 session #52 t7 — [1] fetch: local==origin 00f894f(t6 bookkeeping + 79b94e0 merge CI 둘 다 success, main green). lock heartbeat turnCount 6→7, since 02:30→02:35. [2] currentTask·nextTask 공백 → planner dispatch. [2-planner] T-0212(Confluence adapter 권한거부 emitter wiring — ADR-0022 chain row3, T-0211 GitHub mirror, baseUrl→instanceRef + Confluence DI token 도입(positional→@Inject), architect 불요 ADR-0022 §1/§6 cover, pr-mode ~170 LOC/4파일) 큐잉 → nextTask=T-0212. 조회 endpoint 는 RBAC 미결정(§5 security 게이트)이라 미선택 — 사용자 결정 필요(향후). [6] doc-only direct commit. [next] t8 executor 가 T-0212 수행(pr-mode). turn cap(10) 까지 3 turn 잔여 — t8 exec, t9 planner, t10 exec 후 cap 도달 예상."
+    "note": "loop@myung-vb707106-s52 session #52 t8 — [1] fetch: local==origin c313eb7(t7 doc-commit CI in_progress, 비차단; 00f894f green). lock heartbeat turnCount 7→8, since 02:35→02:41(종료 시 02:57). [2] nextTask=T-0212→currentTask. [3] executor → PersistingConfluencePermissionDeniedEmitter 신설(Confluence {baseUrl,path,status}→record 정규화 provider=confluence, fire-and-forget + warn swallow + 동기 throw 방어) + ConfluenceAdapter CONFLUENCE_PERMISSION_DENIED_EMITTER token(@Optional @Inject, 미주입 no-op default regression 0) + ConfluenceModule import + token 바인딩(AppModule 무변경) + colocated spec 2, 5 파일 production net 130 LOC(총 +499/-26 test 비중), lint/build/test:cov(3112) green. [4] pr-mode PR #186: reviewer r1 APPROVE(0/0/0 clean). r1 head ded2a96 CI 26902768235 approval-검증 race-fail → approve comment 후 gh run rerun --failed 재실행 success(전 step green). integrator 4-gate 전부 PASS + size concurrence → squash merge 0ff9bee. [6] tasksCompleted 209→210, mostRecentTasks prepend T-0212, task DONE(mergedAs 0ff9bee/prNumber 186/reviewRounds 1), nextTask null. **GitHub+Confluence 양 adapter emitter wiring 완결 — 권한 거부가 양쪽 다 실제 DB 영속화됨**. 잔여 dependency-free: retention pruning. 조회 endpoint 는 RBAC(§5 security 게이트) — 사용자 결정 필요. residual nit: db-truncate.spec.ts L7 docstring '5 테이블' stale(pre-existing). [next] t9 planner 가 retention pruning 큐잉 또는 dependency-free backlog 재평가(소진 시 §5 endpoint escalate). turn cap 까지 2 turn 잔여(t9 planner, t10 exec 후 cap)."
   },
   "ci": {
-    "lastRun": "2026-06-04T02:30:00+09:00",
+    "lastRun": "2026-06-04T02:57:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26901300766",
-    "note": "T-0211 PR-185 run 26901300766(head 18dd34f) success — first-run 은 approval-검증 step 만 race-fail(approve comment 전), approve comment 후 gh run rerun --failed 로 동일 pull_request run 재실행 → 21 step green(approval-verify + lint/build/test:cov + smoke + e2e). 4-gate PASS, squash merge 79b94e0. merge commit 79b94e0 main push CI 는 다음 turn 재확인(비차단). 패턴 확정: PR head approval-race 는 approve comment 후 pull_request run 의 gh run rerun --failed 가 결정적(issue_comment 재실행은 main HEAD checkout 이라 PR head 게이트 부적합)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26902768235",
+    "note": "T-0212 PR-186 run 26902768235(head ded2a96) success — first-run 은 approval-검증 step 만 race-fail(approve comment 전), approve comment 후 gh run rerun --failed 로 동일 pull_request run 재실행 → 전 step green(approval-verify + lint/build/test:cov + smoke + e2e). 4-gate PASS, squash merge 0ff9bee. merge commit 0ff9bee main push CI 는 다음 turn 재확인(비차단). approval-race rerun 패턴 3회 연속 확정(T-0210/0211/0212)."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -210,7 +210,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 209,
+    "tasksCompleted": 210,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

@@ -2,8 +2,12 @@
 id: T-0212
 title: Confluence adapter 권한 거부 영속화 emitter wiring (ADR-0022 chain row3, Confluence 측)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 186
+reviewRounds: 1
+mergedAs: 0ff9bee
+completedAt: 2026-06-04T02:57:00+09:00
 coversReq: [REQ-044, REQ-016, REQ-029]
 estimatedDiff: 170
 estimatedFiles: 4
