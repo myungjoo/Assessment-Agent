@@ -10,21 +10,21 @@
     "holder": "",
     "since": ""
   },
-  "lastActivity": "2026-06-03T19:11:58+09:00",
-  "lastCommit": "1e49728",
+  "lastActivity": "2026-06-03T10:43:00+09:00",
+  "lastCommit": "b193023",
   "mostRecentTasks": [
+    "T-0202",
     "T-0201",
     "T-0200",
     "T-0199",
-    "T-0198",
-    "T-0197"
+    "T-0198"
   ],
   "loopSession": {
-    "turnCount": 10,
-    "startedAt": "2026-06-03T17:51:50+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-06-03T10:42:20+09:00",
     "cap": 10,
     "holder": "",
-    "note": "loop@myung-vb707106-s48 session #48 t10 (turnCount 10/10 — CAP 도달, 세션 종료). [1] 같은 session 연속 wake → read 전 fetch, main 1e49728 sync, lock(turnCount 9) 유효, Q 전원 RESOLVED 였음, blockers 0, t9 doc CI(1e49728) success. [2] currentTask/nextTask 둘 다 null → planner final survey dispatch. [3-7] planner (B) escalate: dependency-free backlog 소진(ADR-0020 multi-task fire 롤아웃 T-0197~T-0201 5 task 완결, flag=true). 잔여=§5 HITL-gated milestone(live LLM / GitHub·Confluence / PermissionDeniedRecord) + L144 길이-mitigation 판단콜 → driver-direct 로 Q-0018(needs-human-decision) 기록. [8] **cap(10) 도달 → reschedule 안 함, lock ref tombstone 해제 + STATE mirror empty.** 세션 종료 — 사용자가 Q-0018 resolve 후 새 /loop(/compact·/clear 권장) 또는 다음 cron fire 픽업. session #48 누적(t1~t10): ADR-0020 multi-task fire cron N=2 활성화 4-step rollout(T-0197 ADR·PR-176 merged → T-0198 flag 필드 → T-0199 LOOP [7.5] 분기 → T-0200 §10+토글 활성화 → T-0201 PLAN doc-sync) + Q-0018 escalate. tasksCompleted 194→199(+5), CI 매 push green, blockers 0."
+    "note": "loop@myung-vb707106-s49 session #49 t1 (turn cap 10; 시계 skew 주의 — machine clock 10:43 KST < #48 의 19:12, 무해: 본 turn 종료 시 lock 해제). [1] 새 /loop session(host 동일·새 session id) → fetch, main b193023 sync, lock ref 가 tombstone(264b9aa)였음 → ref-CAS 신규 획득(264b9aa→c1b8074, --force-with-lease), 새 session 이라 turnCount=1 reset. OPEN 이던 Q-0018 을 본 session 에서 사용자가 resolve. [2-6] 사용자 AskUserQuestion 2-step → Q-0018 option (4)+sub (a) 결정: L144 길이-mitigation 을 §0.5 cheat sheet 채택으로 resolve(후보 b DRIVER_PROMPT.md 분리 미채택). driver-direct 로 T-0202 실행(PLAN.md L144 bullet [ ]→[x] flip + 후보 a 채택 본문 + stale LOC 수치 905 정합, doc-only 1 파일). Q-0018 RESOLVED 기록. R-110 면제(direct doc-only). tasksCompleted 199→200, mostRecentTasks prepend T-0202. [7-8] dependency-free backlog 재소진 — 잔여 P4 major 는 전부 §5 HITL-gated(milestone-1 credentialed live LLM run / milestone-3 GitHub·Confluence live run / PermissionDeniedRecord DB migration), 사용자가 옵션 (4)를 택함으로써 deferred 유지(재escalate 불요, 사용자 인지 상태). **다음 autonomous 진척 없음(이벤트/시간 게이트가 아닌 human-credential 게이트) → reschedule 안 함, lock ref tombstone 해제 + STATE mirror empty. session #49 STOP(t1).** 다음 pickup: 사용자가 milestone-1/2/3 credential·migration 승인 후 새 /loop(/compact·/clear 권장) 또는 다음 cron fire."
   },
   "ci": {
     "lastRun": "2026-06-03T18:00:00+09:00",
@@ -171,7 +171,7 @@
       "raisedAt": "2026-06-03T19:11:58+09:00",
       "raisedBy": "loop@myung-vb707106-s48 session #48 t10 (planner final survey → needs-human-decision)",
       "reason": "needs-human-decision",
-      "status": "OPEN",
+      "status": "RESOLVED",
       "summary": "ADR-0020 multi-task fire 활성화 롤아웃이 완결됐다 (T-0197 ADR → T-0198 STATE flags.multiTaskFire 필드 → T-0199 LOOP.md §1 [7.5] cron chain 분기 → T-0200 §10 재조정 + 토글 → T-0201 PLAN backlog doc-sync). flags.multiTaskFire 는 이제 true (N=2 cron-fire 한정 활성), 30일 dogfood 관찰 window 진행 중. tasksCompleted=199. 이로써 HITL 게이트에 걸리지 않는 dependency-free 작업 backlog 가 진짜로 소진됐다. 남은 P4 주요 milestone 은 전부 CLAUDE.md §5 HITL 게이트(외부 credential / 새 외부 dependency / DB schema migration)에 걸려 사용자 승인이 필요하다.",
       "context": "이번 세션(#48)에서 multi-task fire 활성화 4-step rollout + cleanup 1건(총 5 task)을 완주: T-0197(ADR-0020, PR-176 merged) / T-0198(STATE flags 필드 + LOOP.md schema 동기) / T-0199(LOOP.md §1 [7.5] cron chain 분기) / T-0200(CLAUDE §10 재조정 + flag=true 토글 활성화) / T-0201(PLAN.md L143 backlog bullet doc-sync). 최종 재탐색: 운영 backlog 3건 중 L143=완결, L145(PLAN 단계별 분리)=트리거 미달(155 LOC < 350), L144(CLAUDE/LOOP 길이 mitigation)=LOC 트리거 MET(905 ≥ 800)이나 candidate (a) §0.5 cheat sheet 이미 존재 + candidate (b) LOOP.md §1 → docs/DRIVER_PROMPT.md 분리는 refactor 가치 vs doc-drift risk 판단콜이라 auto-queue 부적절. Q-0013~Q-0017 전원 RESOLVED, blockers 0, CI green. P4 잔여 MAJOR 는 전부 §5: milestone-1 credentialed live LLM run / milestone-3 GitHub·Confluence live run / PermissionDeniedRecord DB migration.",
       "options": [
@@ -182,13 +182,17 @@
         "(5) other direction — 위 외 다른 우선순위(observability/test hardening, OpenAPI/Swagger doc, P6 frontend 진입 검토 등) 지시. planner 는 현재 make-work 로 판단했으나 사용자 우선순위 다르면 재지시 가능."
       ],
       "recommendation": "가장 가벼운 즉시-진행 옵션은 (4) L144 판단콜 결정 — dependency-free 라 credential 없이 바로 착수, 활성화된 multi-task fire dogfood window 동안 운영 문서 정합 마무리. 가장 큰 가치 unblock 은 (1) milestone-1 live run(P5 평가 파이프라인 선행 backbone). 권장 순서: (4) → (1) → (2) → (3). (4)에서 (b) 분리 택 시 DRIVER_PROMPT.md ↔ LOOP.md §1 single-source 정합 doc-drift 가드 동반 박제 필요.",
-      "resolutionHint": "docs/STATE.json 의 본 Q-0018 에 resolvedAt(ISO) + decision(선택 옵션 번호 + 필요한 credential/migration scope 또는 L144 판단콜 결론)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY)은 코드·STATE·journal 에 실값 금지, env/secret 주입(§9). (4)만 결정하면 credential 불요 즉시 재개."
+      "resolutionHint": "docs/STATE.json 의 본 Q-0018 에 resolvedAt(ISO) + decision(선택 옵션 번호 + 필요한 credential/migration scope 또는 L144 판단콜 결론)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY)은 코드·STATE·journal 에 실값 금지, env/secret 주입(§9). (4)만 결정하면 credential 불요 즉시 재개.",
+      "resolvedAt": "2026-06-03T10:43:00+09:00",
+      "decision": "option (4) → sub-decision (a) 승인 — 사용자가 session #49(/loop loop@myung-vb707106-s49) AskUserQuestion 2-step 으로 결정. (4) L144 길이-mitigation 판단콜 선택 후, (a) §0.5 cheat sheet 로 충분하다 보고 L144 bullet 을 resolve 처리(후보 (b) DRIVER_PROMPT.md 분리 미채택). 근거: LOC 트리거(CLAUDE 461 + LOOP 444 = 905 ≥ 800)는 MET 이나 '룰 누락 사고 1건 재발' 트리거는 §0.5 'Hard rule 인덱스' cheat sheet 도입 후 0 건 — cheat sheet 가 attention-drift 를 실효 차단 중. 후보 (b) LOOP.md §1 → docs/DRIVER_PROMPT.md 분리는 single-source doc-drift 유지비용 > 현 가치 + 백로그 framing 상 ADR 선행 필요라 미채택(사고 1건 재발 시 ADR 재검토, 재검토 트리거는 PLAN L144 에 살려둠). loop 재개: driver-direct 로 T-0202(PLAN.md L144 bullet [x] flip + 후보 a 채택 doc-sync, commitMode direct) 1건 실행. 잔여 P4 major milestone — (1) milestone-1 credentialed live LLM run / (2) milestone-3 GitHub·Confluence live run / (3) PermissionDeniedRecord DB migration — 은 전부 §5 HITL 게이트라 사용자가 옵션 (4)를 택함으로써 이번 세션에서 deferred 유지(미승인, 재escalate 불요 — 사용자 인지 상태). 이로써 dependency-free backlog 재소진 → T-0202 완료 후 session #49 STOP 예정.",
+      "processedByPlanner": true,
+      "processedAt": "2026-06-03T10:43:00+09:00"
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 199,
+    "tasksCompleted": 200,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
