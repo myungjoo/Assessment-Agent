@@ -2,14 +2,18 @@
 id: T-0194
 title: GithubAdapter same-host cursor 가드 구현 (cross-host Authorization leak 차단)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-044, REQ-059]
 dependsOn: [T-0193]
 estimatedDiff: 210
 estimatedFiles: 2
 created: 2026-06-03
+prNumber: 174
+mergeCommit: 4c62edc
+completedAt: 2026-06-03T16:05:00+09:00
 plannerNote: P4 milestone-3 — ADR-0019 GitHub 가드 구현(requestAllPages next-page fetch 직전 host-check + cross-host error 분류 + full R-112). R-112 backbone ×1.5, Node URL dep0.
+result: DONE — PR #174 round 1/7 APPROVE → squash merge 4c62edc. isSameHost 순수 함수 + cross-host-cursor error + requestAllPages host-check 게이트. adapter coverage 100%, 전체 2987 tests pass, CI green(run 26869010103 전 16 step). nit=1(message용 new URL 중복 파싱, 비차단·비-4종 closure) follow-up 불요.
 ---
 
 # T-0194 — GithubAdapter same-host cursor 가드 구현 (cross-host Authorization leak 차단)
