@@ -10,6 +10,7 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 
 import { ConfluenceAdapter } from "./confluence-adapter.service";
+import { ConfluenceSpaceTraversalService } from "./confluence-space-traversal.service";
 import { CONFLUENCE_INSTANCES, ConfluenceModule } from "./confluence.module";
 
 describe("ConfluenceModule", () => {
@@ -71,6 +72,21 @@ describe("ConfluenceModule", () => {
 
     const adapter = moduleRef.get(ConfluenceAdapter);
     expect(adapter).toBeInstanceOf(ConfluenceAdapter);
+
+    await moduleRef.close();
+  });
+
+  // T-0189 wiring: ConfluenceSpaceTraversalService provider 가 등록 + export 되어
+  // module 안에서 resolve 된다. ConfluenceAdapter + LlmApiKeyCipher 가 self-contained
+  // provider 로 함께 등록되고 PermissionDeniedEmitter 는 @Optional(no-op default) 이라
+  // 추가 provider 없이 인스턴스화된다 — provider 가 module 에서 누락되면 본 test 가 fail.
+  it("compile 시 ConfluenceSpaceTraversalService provider 가 resolve 된다(DI wiring)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [ConfluenceModule],
+    }).compile();
+
+    const traversal = moduleRef.get(ConfluenceSpaceTraversalService);
+    expect(traversal).toBeInstanceOf(ConfluenceSpaceTraversalService);
 
     await moduleRef.close();
   });
