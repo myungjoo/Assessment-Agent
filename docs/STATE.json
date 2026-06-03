@@ -4,13 +4,10 @@
   "currentTask": null,
   "nextTask": null,
   "lock": {
-    "holder": "loop",
-    "session": "loop@myung-vb707106-s46",
-    "since": "2026-06-03T16:41:15+09:00",
-    "loopSessionStartedAt": "2026-06-03T15:52:34+09:00",
-    "loopSessionTurnCount": 3
+    "holder": "",
+    "since": ""
   },
-  "lastActivity": "2026-06-03T16:41:15+09:00",
+  "lastActivity": "2026-06-03T16:48:27+09:00",
   "lastCommit": "b0e5279",
   "mostRecentTasks": [
     "T-0195",
@@ -24,7 +21,7 @@
     "startedAt": "2026-06-03T15:52:34+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106-s46",
-    "note": "loop@myung-vb707106-s46 session #46 t3 (turnCount 3/10). [1] 같은 session 연속 wake('continue') → read 전 fetch, lock ref heartbeat(turnCount 2→3, since 16:41), main fdf614b sync, Q 전원 RESOLVED, blockers 0. [2] nextTask=T-0195 → current(pr-mode). [3] executor 1회 dispatch → local commit e1661d1: isSameHost 순수함수(ADR-0019 §1) + schemeDefaultPort helper + ConfluenceDomainErrorKind cross-host-cursor + requestAllPages host-check 게이트(relative same-origin PASS / 절대 cross-host throw+abort, headers 폐기 송신 0) + parseNextCursor 무변경. confluence-adapter cov 100%, 3009 tests pass, lint/build green. [4] feature branch push + PR #175 open. reviewer dispatch → round 1/7 APPROVE(blocker/major/minor 0, nit=1=diff size mandatory R-112 trade-off 비차단). [5] CI: push-run(26870436809) reviewer-approval step 단독 race-fail(나머지 15 step success) → comment post 후 `gh run rerun --failed` → 전 16 step green → gate4 PASS. integrator dispatch → 4-게이트 모두 PASS → squash merge b0e5279 + branch 삭제. [6] bookkeeping: T-0195 status DONE, tasksCompleted 192→193, nextTask=null. [7] T-0195 DONE. [8] dynamic reschedule(turnCount 3<10, blockers 0, Q 전원 RESOLVED). **ADR-0019 chain 1·2행(GitHub T-0194 + Confluence T-0195 두 가드) 머지 완료 → 다음 t4: planner 가 chain 3행(ADR-0019 PROPOSED→ACCEPTED flip, direct task) 큐잉. 잔여: row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential).**"
+    "note": "loop@myung-vb707106-s46 session #46 t3 (turnCount 3/10). [1] 같은 session 연속 wake('continue') → read 전 fetch, lock ref heartbeat(turnCount 2→3, since 16:41), main fdf614b sync, Q 전원 RESOLVED, blockers 0. [2] nextTask=T-0195 → current(pr-mode). [3] executor 1회 dispatch → local commit e1661d1: isSameHost 순수함수(ADR-0019 §1) + schemeDefaultPort helper + ConfluenceDomainErrorKind cross-host-cursor + requestAllPages host-check 게이트(relative same-origin PASS / 절대 cross-host throw+abort, headers 폐기 송신 0) + parseNextCursor 무변경. confluence-adapter cov 100%, 3009 tests pass, lint/build green. [4] feature branch push + PR #175 open. reviewer dispatch → round 1/7 APPROVE(blocker/major/minor 0, nit=1=diff size mandatory R-112 trade-off 비차단). [5] CI: push-run(26870436809) reviewer-approval step 단독 race-fail(나머지 15 step success) → comment post 후 `gh run rerun --failed` → 전 16 step green → gate4 PASS. integrator dispatch → 4-게이트 모두 PASS → squash merge b0e5279 + branch 삭제. [6] bookkeeping: T-0195 status DONE, tasksCompleted 192→193, nextTask=null. [7] T-0195 DONE. [8] dynamic reschedule(turnCount 3<10, blockers 0, Q 전원 RESOLVED). **ADR-0019 chain 1·2행(GitHub T-0194 + Confluence T-0195 두 가드) 머지 완료 → 다음 t4: planner 가 chain 3행(ADR-0019 PROPOSED→ACCEPTED flip, direct task) 큐잉. 잔여: row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential).** [STOP] 사용자가 'stop' 지시로 session #46 을 t3(turnCount 3/10, cap 미도달)에서 정지. lock ref tombstone 해제 + STATE mirror empty, reschedule 안 함. 잔여 backlog(ADR-0019 ACCEPTED flip + row8/row9)는 다음 cron 발화 또는 새 /loop 가 픽업."
   },
   "ci": {
     "lastRun": "2026-06-03T16:40:00+09:00",
