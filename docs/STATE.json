@@ -5,13 +5,13 @@
     "multiTaskFire": false
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0200",
   "lock": {
     "holder": "loop@myung-vb707106-s48",
-    "since": "2026-06-03T18:31:30+09:00"
+    "since": "2026-06-03T18:41:13+09:00"
   },
-  "lastActivity": "2026-06-03T18:31:30+09:00",
-  "lastCommit": "fa96011",
+  "lastActivity": "2026-06-03T18:41:13+09:00",
+  "lastCommit": "a00d684",
   "mostRecentTasks": [
     "T-0199",
     "T-0198",
@@ -20,11 +20,11 @@
     "T-0195"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-06-03T17:51:50+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106-s48",
-    "note": "loop@myung-vb707106-s48 session #48 t5 (turnCount 5/10). [1] 같은 session 연속 wake → read 전 fetch, main fa96011 sync, lock ref heartbeat(2f05cd6→6db77a3, turnCount 4→5, since 18:31), Q 전원 RESOLVED, blockers 0, t2/t3 doc CI(72424d7/a5d6342) success·t4(fa96011) in_progress(비차단). [2] nextTask=T-0199 → current(direct). [3] executor 1회 dispatch → implementer LOOP.md §1 에 [7.5] CRON MULTI-TASK CHAIN step 추가(+43/-0): 이중 게이트(flags.multiTaskFire===true && holder=cron)·§2.5 (a)~(e) 재평가·N≤2·FIRE-BATCH marker·§10 관계·§4/ADR-0020 step4 cross-ref. flag=false 라 dormant — 동작 불변. [4/6] T-0199 status DONE, tasksCompleted 196→197, mostRecentTasks prepend T-0199, nextTask=null. [7] T-0199 DONE. [8] dynamic reschedule(turnCount 5<10). 다음 t6: planner 가 ADR-0020 step4(§10 cron 간격 재조정 + flags.multiTaskFire=true 토글=활성화, direct) 큐잉 예정."
+    "note": "loop@myung-vb707106-s48 session #48 t6 (turnCount 6/10). [1] 같은 session 연속 wake → read 전 fetch, main a00d684 sync, lock ref heartbeat(6db77a3→24f1dbf, turnCount 5→6, since 18:41), Q 전원 RESOLVED, blockers 0, t5 doc CI(26876351064/a00d684) success — t2~t5 전부 green. [2] currentTask/nextTask 둘 다 null → planner dispatch. [3-7] planner T-0200 큐잉(ADR-0020 rollout 최종 step4=활성화: CLAUDE.md §10 cron 간격 (2×평균)×2 재조정 + STATE flags.multiTaskFire false→true 토글; driver-direct=STATE single-writer; cron-only N≤2·/loop 불변; 30일 dogfood 시작). 사전점검 PASS(step2·3 done·flag 여전 false·§10 재조정 미존재). STATE.nextTask=T-0200. 본 turn=doc-only direct commit. [8] dynamic reschedule(turnCount 6<10). 다음 t7: driver-direct 가 T-0200 실행=활성화."
   },
   "ci": {
     "lastRun": "2026-06-03T18:00:00+09:00",
