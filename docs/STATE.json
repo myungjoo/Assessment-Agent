@@ -2,26 +2,26 @@
   "schemaVersion": 1,
   "phase": "P4-in-progress",
   "currentTask": null,
-  "nextTask": "T-0188",
+  "nextTask": null,
   "lock": {
     "holder": "loop@myung-ea6127546",
     "since": "2026-06-03T10:31:13+09:00"
   },
-  "lastActivity": "2026-06-03T12:59:26+09:00",
-  "lastCommit": "f8c7a5c",
+  "lastActivity": "2026-06-03T13:17:34+09:00",
+  "lastCommit": "ba23370",
   "mostRecentTasks": [
+    "T-0188",
     "T-0187",
     "T-0186",
     "T-0185",
-    "T-0184",
-    "T-0183"
+    "T-0184"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-03T10:31:13+09:00",
     "cap": 10,
     "holder": "loop@myung-ea6127546",
-    "note": "loop@myung-ea6127546 session #44 t8 (turnCount 8/10). [1] read 전 fetch — 권위 lock=내 session 연속 wake → turnCount 7→8. main ef5a0aa sync, Q-0013~0017 전원 RESOLVED, blockers 0, CI green(ef5a0aa+f8c7a5c success). [2] currentTask·nextTask 둘 다 null → planner dispatch → T-0188(ADR-0018 §5 chain row4 = ConfluenceAdapter _links.next body cursor pagination: request() 위 순회 + 상대 next-URL base 절대화 + start/limit + results[] flatten/accumulate + CONFLUENCE_MAX_PAGES partial-collection cap, GitHub github-adapter.service.ts T-0176 mirror but cursor 는 body `_links.next`(header 아님), commitMode pr, dep0/schema0/§5 미발화, ~2-3 file) 큐잉, STATE.nextTask=T-0188. planner issue-still-relevant pre-check PASS(main 에 requestAllPages/parseNextCursor 미구현, 주석만). SpaceTraversalService=row5/smoke=row6/persistence=row8 OUT. [5][6] 본 turn = planner-only doc-only direct commit. [7] turn end — T-0188 큐잉; next: T-0188 → current(다음 t9 executor pr-mode). [8] dynamic reschedule(turnCount 8<10). **milestone-3 잔여 chain(ADR-0018): row4 T-0188(현재 큐) / row5 SpaceTraversalService / row6 roundtrip smoke / row7 doc-sync / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential) / row10 ADR ACCEPTED.** 주의: t10 = cap(10) — t10 종료 시 reschedule 안 함, 사용자 cleanup(/compact·/clear) 안내."
+    "note": "loop@myung-ea6127546 session #44 t9 (turnCount 9/10). [1] read 전 fetch — 권위 lock=내 session 연속 wake → turnCount 8→9. main 1997aef sync, Q-0013~0017 전원 RESOLVED, blockers 0, CI green. [2] nextTask=T-0188 → current(pr-mode). [3] feature branch + executor 1회 dispatch → src/confluence/confluence-adapter.service.ts(parseNextCursor 순수 함수 + fetchAndMap helper 추출(request 시그니처 보존) + requestAllPages: _links.next body cursor 순회 + results flatten + CONFLUENCE_MAX_PAGES partial-collection cap → in-memory PartialCollectionEvent emit) + spec 확장, GitHub T-0176 구조 mirror but cursor 는 body. lint/build/test green(150 suites/2951 tests), adapter 100% cov, token never-read-back 검증. [4] commit 8a35596 push → PR #170 open → reviewer APPROVE round 1/7(MINOR 1=cross-host auth-leak via 절대 _links.next, ADR-0018 §5-blessed + 머지된 GitHub adapter 동일 설계라 신규 결함 아님·비차단·follow-up; 0 BLOCKER/MAJOR) comment post(gate2) → integrator 4-게이트 PASS(gate4=issue_comment run 26863278989 success) → squash merge ba23370, branch 삭제. [5] main green. [6] task DONE(prNumber 170/mergedAs ba23370/reviewRounds 1), tasksCompleted 185→186, mostRecentTasks prepend T-0188, nextTask=null. [7] turn end — T-0188 DONE/MERGED; next: planner(milestone-3 chain row5 = SpaceTraversalService). [8] **t10 = cap(10) 도달 예정 — t10 종료 시 reschedule 안 함, 사용자 cleanup(/compact·/clear 후 새 /loop, 또는 cron) 안내.** **milestone-3 잔여 chain(ADR-0018): row5 SpaceTraversalService / row6 roundtrip smoke / row7 doc-sync / row8 PermissionDeniedRecord entity(§5 schema) / row9 live-run(§5 credential) / row10 ADR ACCEPTED.** **SECURITY follow-up 후보(reviewer MINOR, T-0188 PR-170): cross-host auth-leak — adapter 가 절대 _links.next / Link rel=next 를 instance base host 와 무관하게 따라가면 Authorization 헤더가 외부 host 로 유출 가능. GitHub+Confluence 양 adapter 공통 → 별도 ADR(same-host 제약 박제) + 양 adapter 가드 task 후보. ADR-0018 §5 '절대 그대로 사용' 계약 재검토 필요.**"
   },
   "ci": {
     "lastRun": "2026-06-03T10:48:00+09:00",
@@ -47,7 +47,8 @@
     "T-0184": 1,
     "T-0185": 1,
     "T-0186": 1,
-    "T-0187": 1
+    "T-0187": 1,
+    "T-0188": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -160,7 +161,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 185,
+    "tasksCompleted": 186,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

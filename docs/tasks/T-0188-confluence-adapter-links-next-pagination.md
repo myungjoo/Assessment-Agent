@@ -2,7 +2,7 @@
 id: T-0188
 title: ConfluenceAdapter `_links.next` body cursor pagination — 다중 page 순회로 list endpoint 전 page 수집
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-010, REQ-015, REQ-016, REQ-044, REQ-059]
 dependsOn: [T-0187]
@@ -10,6 +10,10 @@ estimatedDiff: 270
 estimatedFiles: 2
 created: 2026-06-03
 plannerNote: P4 milestone-3 ConfluenceAdapter chain row4(ADR-0018 §5). request() 위 _links.next body cursor 순회 + CONFLUENCE_MAX_PAGES cap. dep0/schema0/credential0. R-112 backbone ×1.5.
+prNumber: 170
+mergedAs: ba23370
+reviewRounds: 1
+completedAt: 2026-06-03T13:17:34+09:00
 ---
 
 # T-0188 — ConfluenceAdapter `_links.next` body cursor pagination — 다중 page 순회로 list endpoint 전 page 수집
