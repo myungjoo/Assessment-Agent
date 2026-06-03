@@ -41,7 +41,7 @@ milestone-3 이 [ADR-0021](ADR-0021-github-confluence-live-integration-test-cont
 
 ### ADR cross-reference (번호 정합 박제)
 
-- **다음 free 번호 ADR-0022** — `docs/decisions/` 에 ADR-0001 ~ ADR-0021 점유(ADR-0007 / ADR-0020 미신설 — [ADR-0016 §ADR cross-reference](ADR-0016-github-adapter-http-transport-contract.md) / [ADR-0021 §ADR cross-reference](ADR-0021-github-confluence-live-integration-test-contract.md) 박제 history 정합). 본 ADR 은 다음 free 번호 ADR-0022 를 사용(T-0207 acceptance 의 번호 정합 명시).
+- **다음 free 번호 ADR-0022** — `docs/decisions/` 에 ADR-0001 ~ ADR-0021 점유(ADR-0007 만 미신설). ADR-0020(multi-task-fire) 은 본 ADR 작성 시점 이미 ACCEPTED 실재한다 — [ADR-0016 §ADR cross-reference](ADR-0016-github-adapter-http-transport-contract.md) / [ADR-0021 §ADR cross-reference](ADR-0021-github-confluence-live-integration-test-contract.md) 의 "ADR-0020 미신설" 표기는 그 ADR 작성 당시 history 로 현재는 stale. 본 ADR 은 다음 free 번호 ADR-0022 를 사용(T-0207 acceptance 의 번호 정합 명시).
 - **[ADR-0016](ADR-0016-github-adapter-http-transport-contract.md) / [ADR-0018](ADR-0018-confluence-adapter-http-transport-contract.md)** — 두 adapter 의 4xx → PermissionDeniedEvent emit 위상. 본 ADR 의 record 가 그 이벤트를 수용하는 영속화 측이다. 두 ADR 은 공히 후속 chain 에서 "PermissionDeniedRecord entity" 를 deferred 했고 본 ADR 이 그 entity 의 데이터 모델을 박제한다. 본 ADR 은 transport / emit 위상을 **재결정하지 않는다**(영속화 측 계약만 추가 박제).
 - **[ADR-0006](ADR-0006-assessment-data-model.md)** — raw 미저장 invariant + cascade 정책 source. record 의 메타-only 컬럼 + standalone 결정이 이 invariant 와 정합.
 - **[ADR-0004](ADR-0004-smoke-e2e-db-mode.md)** — CI 실 PostgreSQL + `prisma migrate deploy`. 후속 migration task 가 따를 절차 source(Decision §6).
