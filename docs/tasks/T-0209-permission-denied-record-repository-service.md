@@ -2,8 +2,12 @@
 id: T-0209
 title: PermissionDeniedRecord repository + service slice
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 183
+reviewRounds: 2
+mergedAs: 519ee53
+completedAt: 2026-06-04T01:40:00+09:00
 coversReq: [REQ-044, REQ-016, REQ-029, REQ-059]
 estimatedDiff: 270
 estimatedFiles: 4
