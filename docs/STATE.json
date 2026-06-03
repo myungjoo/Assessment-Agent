@@ -5,13 +5,13 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0201",
   "lock": {
     "holder": "loop@myung-vb707106-s48",
-    "since": "2026-06-03T18:48:11+09:00"
+    "since": "2026-06-03T18:56:12+09:00"
   },
-  "lastActivity": "2026-06-03T18:48:11+09:00",
-  "lastCommit": "719d6c1",
+  "lastActivity": "2026-06-03T18:56:12+09:00",
+  "lastCommit": "b3b88eb",
   "mostRecentTasks": [
     "T-0200",
     "T-0199",
@@ -20,11 +20,11 @@
     "T-0196"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-03T17:51:50+09:00",
     "cap": 10,
     "holder": "loop@myung-vb707106-s48",
-    "note": "loop@myung-vb707106-s48 session #48 t7 (turnCount 7/10). [1] 같은 session 연속 wake → read 전 fetch, main 719d6c1 sync, lock ref heartbeat(24f1dbf→20eacd4, turnCount 6→7, since 18:48), Q 전원 RESOLVED, blockers 0, t6 doc CI(719d6c1) in_progress(비차단). [2] nextTask=T-0200 → current(direct). [3] driver-direct 실행(STATE single-writer): CLAUDE.md §10 규칙2 에 multiTaskFire 활성 시 cron 간격 (2×평균)×2 재조정 추가(예 평균15분→60분, 근거 §2.5(d) lock 45/60분 보호, /loop 단일-task 가이드 유지) + STATE flags.multiTaskFire false→true 토글=활성화. JSON valid 검증. **ADR-0020 rollout 4-step 전부 완결.** cron fire 한정 활성(holder=cron && flag true 이중 게이트), /loop(holder=loop) 불변. 30일 dogfood window 시작. [4/6] T-0200 status DONE, tasksCompleted 197→198, mostRecentTasks prepend T-0200, nextTask=null. [7] T-0200 DONE. [8] dynamic reschedule(turnCount 7<10). 다음 t8: planner 가 다음 작업 탐색(rollout 완결 — 잔여 P4 backlog 는 §5 HITL-gated 가능)."
+    "note": "loop@myung-vb707106-s48 session #48 t8 (turnCount 8/10). [1] 같은 session 연속 wake → read 전 fetch, main b3b88eb sync, lock ref heartbeat(20eacd4→09dd630, turnCount 7→8, since 18:56), Q 전원 RESOLVED, blockers 0, t7 활성화 commit(b3b88eb) CI success — flags.multiTaskFire=true 검증 green. [2] currentTask/nextTask 둘 다 null → planner survey dispatch. [3-7] planner (A) T-0201 큐잉(PLAN.md L143 운영 backlog bullet doc-sync — ADR-0020 가 multi-task fire 검토·활성 완결했는데 bullet 은 '검토 예정/ADR-NNNN' stale; direct). 잔여 P4 major backlog(live LLM / GitHub·Confluence live-run / PermissionDeniedRecord schema)는 전부 §5 HITL-gated 라 미큐잉(Q-0013~0017 history 일관). STATE.nextTask=T-0201. 본 turn=doc-only direct commit. [8] dynamic reschedule(turnCount 8<10). 다음 t9: T-0201 실행(direct doc-sync). cap 임박 — t10 이 마지막 turn."
   },
   "ci": {
     "lastRun": "2026-06-03T18:00:00+09:00",
