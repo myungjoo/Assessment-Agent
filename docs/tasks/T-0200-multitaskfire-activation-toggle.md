@@ -2,12 +2,15 @@
 id: T-0200
 title: multi-task fire 활성화 — §10 cron 간격 재조정 + flags.multiTaskFire false→true 토글
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: []
 estimatedDiff: 15
 estimatedFiles: 2
+actualDiff: 6
+actualFiles: 2
 created: 2026-06-03
+completedAt: 2026-06-03T18:48:00+09:00
 dependsOn: [T-0197, T-0198, T-0199]
 parents: []
 plannerNote: "ADR-0020 rollout step 4(최종 활성화) — CLAUDE.md §10 cron 간격 (2×평균)×2 재조정 + STATE flags.multiTaskFire false→true 토글, driver-direct"
