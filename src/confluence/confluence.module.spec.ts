@@ -9,6 +9,7 @@
 // Prisma dep 0 → PersistenceModule import 불요).
 import { Test, type TestingModule } from "@nestjs/testing";
 
+import { ConfluenceAdapter } from "./confluence-adapter.service";
 import { CONFLUENCE_INSTANCES, ConfluenceModule } from "./confluence.module";
 
 describe("ConfluenceModule", () => {
@@ -56,6 +57,20 @@ describe("ConfluenceModule", () => {
     expect(instances[0].baseUrl).toBe(
       "https://acme.atlassian.net/wiki/rest/api",
     );
+
+    await moduleRef.close();
+  });
+
+  // T-0187 wiring: ConfluenceAdapter provider 가 등록 + export 되어 module 안에서
+  // resolve 된다. fetch/emitter 가 @Optional 주입(default 채움)이라 추가 provider
+  // 없이 0-인자로 인스턴스화된다 — 후속 row4/row5 가 inject 가능함의 직접 검증.
+  it("compile 시 ConfluenceAdapter provider 가 resolve 된다(@Optional default 주입)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [ConfluenceModule],
+    }).compile();
+
+    const adapter = moduleRef.get(ConfluenceAdapter);
+    expect(adapter).toBeInstanceOf(ConfluenceAdapter);
 
     await moduleRef.close();
   });
