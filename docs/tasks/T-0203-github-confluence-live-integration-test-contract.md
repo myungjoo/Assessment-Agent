@@ -2,7 +2,7 @@
 id: T-0203
 title: ADR-0021 박제 — GitHub·Confluence live-integration TEST CONTRACT (env-gated skip-unless-credentialed)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-015, REQ-016, REQ-044, REQ-059]
 hqOrigin: Q-0017
@@ -11,6 +11,10 @@ estimatedDiff: 290
 estimatedFiles: 2
 created: 2026-06-03
 plannerNote: P4 milestone-3 — ADR-0021 only (GitHub+Confluence live-test 계약). gating helper/live spec 은 T-0204/T-0205 chain. doc-only enumerated-section new-ADR.
+completedAt: 2026-06-03T21:03:42+09:00
+mergedAs: 4542f1ebdcd4b80f6b014e638cb6646ac18b774a
+prNumber: 177
+reviewRounds: 1
 ---
 
 # T-0203 — ADR-0021 박제: GitHub·Confluence live-integration TEST CONTRACT
