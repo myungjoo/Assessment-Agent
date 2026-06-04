@@ -2,13 +2,18 @@
 id: T-0227
 title: azure_openai live-test gating helper 확장 (LLM_LIVE_PROVIDER / LLM_LIVE_API_VERSION)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-096, REQ-097]
 estimatedDiff: 210
 estimatedFiles: 2
 created: 2026-06-04
+completedAt: 2026-06-04T15:32:00+09:00
+prNumber: 198
+mergedAs: ed8e369
+reviewRounds: 1
 plannerNote: P4 milestone-1 2a 잔여 — ADR-0025 Decision §1·§3 의 azure gating 을 helper 로 구현(split 1/2; smoke spec 은 T-0228 후보). R-112 backbone × 1.5.
+result: DONE — resolveLiveTestGating azure 분기(LLM_LIVE_PROVIDER/LLM_LIVE_API_VERSION, 5-field 완전성, apiVersion/provider 노출, deployment default 금지) + spec 19 case. custom 경로 불변. cov 100%, reviewer APPROVE r1 0 findings. CI reviewer-gate race 1회 → comment post 후 rerun --failed self-heal → green. 4-gate PASS, squash merge ed8e369. tasksCompleted 224→225. 후속=T-0228(azure live smoke spec).
 ---
 
 # T-0227 — azure_openai live-test gating helper 확장
