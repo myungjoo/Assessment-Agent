@@ -5,30 +5,30 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0229",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s55",
-    "since": "2026-06-04T13:59:38+09:00",
+    "since": "2026-06-04T16:40:10+09:00",
     "loopSessionStartedAt": "2026-06-04T13:59:38+09:00",
-    "loopSessionTurnCount": 7
+    "loopSessionTurnCount": 8
   },
-  "lastActivity": "2026-06-04T16:04:06+09:00",
-  "lastCommit": "c18cd77",
+  "lastActivity": "2026-06-04T16:40:10+09:00",
+  "lastCommit": "6ca755d",
   "mostRecentTasks": [
+    "T-0230",
+    "T-0229",
     "T-0228",
     "T-0227",
-    "T-0226",
-    "T-0225",
-    "T-0224"
+    "T-0226"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-04T13:59:38+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s55",
-    "notePrev": "s55 t6 — T-0227 DONE/MERGED(PR-198, ed8e369): resolveLiveTestGating azure 분기 확장(milestone-1 2a split 1/2). custom 경로 불변, cov 100%, reviewer APPROVE r1. CI reviewer-gate race 1회 → comment post 후 rerun --failed self-heal → green. tasksCompleted 224→225, T-0228 큐잉.",
-    "note": "loop@WIN-JQIPLSBL9QV-s55 session #55 t7 — T-0228 DONE/MERGED(PR-199, c18cd77): test/smoke/llm-live-azure.smoke-spec.ts 신설(custom mirror, azure wire shape, gating 'azure'→LlmProvider.AzureOpenai 매핑, describe.skip no-env CI green). milestone-1 2a split 2/2 = **2a 완결**. [1] fetch main 047894e, lock 동일 session#55 → turnCount 6→7(ref CAS 5fa8b1a). humanQuestion 0, blockers 0. [2] nextTask=T-0228 픽업. [3] executor DONE(113 LOC 1 file, 매핑·skip-clean 준수, 명시 경로 add). [4] feature branch d0386e8 push → PR-199 open. [reviewer 별도 dispatch] r1 APPROVE 0 findings(매핑·skip-clean·secret 확인) → comment post(이번엔 approval step 전 post 성공). [5] CI run 26935617343 green 1회(race 없음, 전 step). [integrator] 4-gate 전부 PASS → MERGED-READY → squash merge c18cd77. [6] tasksCompleted 225→226, T-0228 frontmatter DONE. [planner] T-0229 큐잉(ADR-0025 PROPOSED→ACCEPTED flip, direct §3.1 rule4). **[중요 — 다음 turn 후 backlog 고갈 경고]** planner 진단: T-0229(ADR flip) 후 autonomous dependency-free backlog 거의 소진. 잔여 P4 major 전부 §5 HITL-gated: milestone-1 2b(credentialed live run, secrets.env 필요+실 네트워크+billed), milestone-3 GitHub/Confluence live token(미승인), retention TTL(ADR-0022 §3 reverse + @nestjs/schedule 새 dep). [재개 보강] (a) 다음 turn T-0229(ADR flip, direct) 픽업. (b) **T-0229 완료 후 driver 는 AskUserQuestion checkpoint(새 Q-00xx) 올릴 것 — 2b 실행 승인(secrets.env 주입 가능 환경 필요) vs 루프 정지 vs 다른 우선순위. make-work 날조 금지.** (c) 2b 는 §5 credential gate — 로컬 secrets.env(azure_openai gpt-5.4, https://karina-east-us-2-api.openai.azure.com, 6/30 만료) + LLM_APIKEY_ENC_KEY 생성, billed 실 네트워크 1회. 자동 실행 부적합, operator checkpoint 필요. (d) reviewer-gate race 재발 시 `gh run rerun --failed` self-heal 표준."
+    "notePrev": "s55 t7 — T-0228 DONE/MERGED(PR-199, c18cd77): azure live smoke spec 신설(milestone-1 2a split 2/2 = 2a 완결). gating 'azure'→LlmProvider.AzureOpenai 매핑·describe.skip CI green, reviewer APPROVE r1, CI green 1회. tasksCompleted 225→226, T-0229 큐잉.",
+    "note": "loop@WIN-JQIPLSBL9QV-s55 session #55 t8 — 2 활동: T-0229(ADR-0025 PROPOSED→ACCEPTED flip, direct 6ca755d) + **milestone-1 2b live run(T-0230) PASS**. [1] fetch main f440e46, lock 동일 session#55 → turnCount 7→8. **lock since 13:59→16:40 heartbeat 갱신(중요 fix — 그간 since 미갱신으로 60min stale 판정돼 cron@cloud 16:04 fire 가 stale 탈취 시도, 아래 참조)**. humanQuestion 0. [2] nextTask=T-0229 픽업. [3] executor DONE(ADR status 1줄 flip). [6a] T-0229 direct commit 6ca755d, milestone-1 2a 종결. tasksCompleted 226→227. [checkpoint] backlog 소진 → AskUserQuestion(Q-0022) → 사용자 'milestone-1 2b 실행' 선택. [2b 실행] 로컬 secrets.env(AZURE_OPENAI_*) → gating LLM_LIVE_* 매핑(api-version=2024-02-15-preview) → azure live smoke(T-0228) 실행(local Postgres 부재 → 임시 DB-less jest config, azure 1 spec 한정, 실행 후 삭제). **결과 PASS — 실 azure_openai endpoint(gpt-5.4/karina-east-us-2) 1회 2632ms 실 round-trip, non-empty narrative, provider=AzureOpenai/modelId 일치. billed 1회(승인), API key redaction 누출 0(§9).** T-0230 DONE. tasksCompleted 227→228. **milestone-1 완결.** [push 경합] 본 t8 bookkeeping push 시 origin/main 이 cron@cloud d82127d(refs/locks/* 403 BLOCKED 기록)로 선행 advance → reject. §4 graceful: reset→cron base(d82127d) 위로 t8 재적용, cron 의 blockers[B-credential-16:04Z] 는 본 로컬 /loop 진행으로 auto-resolve(blockers[]→[], blockersResolvedNote 반영). [6b] nextTask=null. [재개 보강] (a) **다음 turn: backlog 재소진 — 잔여 P4 = milestone-3(미승인) + retention TTL(§5). driver AskUserQuestion checkpoint(milestone-3 vs 정지 vs 다른 우선순위). make-work 날조 금지.** (b) **lock since heartbeat: 매 turn since=now 갱신 필수(장기 /loop session 의 60min stale 오판 방지). 본 turn 부터 적용.** (c) cron@cloud 는 refs/locks/* push 403(env 한계) — 로컬 /loop 가 유일 정상 driver. (d) secrets.env 만료 2026-06-30. (e) Q-0022 RESOLVED(2b 실행)."
   },
   "ci": {
     "lastRun": "2026-06-04T15:46:00+09:00",
@@ -36,7 +36,7 @@
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/199",
-    "note": "s55 t7: T-0228 PR-199(c18cd77) merged — CI run 26935617343 green 1회 on d0386e8(reviewer agent approval 검증·spec-presence·test:cov·smoke·e2e 전부, Node20 deprecation non-failing). 이번엔 comment 가 approval step 전 post 돼 race 없음. main green, consecutiveFails 0."
+    "note": "s55 t8: T-0229(ADR flip)·T-0230(2b live run)은 doc-only/실행 — GitHub CI 미발생. milestone-1 2b 는 로컬 실 azure live smoke PASS(local 실 네트워크, secrets.env). 직전 코드 CI(T-0228 run 26935617343, c18cd77) green 유지. cron@cloud d82127d 는 doc-only(blocker 기록). main green, consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -65,18 +65,8 @@
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
-  "blockers": [
-    {
-      "id": "B-credential-2026-06-04T16:04Z",
-      "raisedAt": "2026-06-04T16:04:06+09:00",
-      "raisedBy": "cron@cloud-bc1cce (Anthropic cloud schedule fire — fresh container)",
-      "reason": "credential",
-      "summary": "Cloud cron fire 가 ref-CAS lock(refs/locks/driver) push 시 HTTP 403 reject — 클라우드 proxy 가 refs/locks/* 대상 push 권한을 부여하지 않는다(2026-06-02 B-credential-2026-06-02T02:03Z 와 동일 env 한계, 정책 변경 불요).",
-      "details": "현 lock holder=loop@WIN-JQIPLSBL9QV-s55 (since 2026-06-04T13:59:38+09:00, ≥60min stale). 본 cron fire 가 stale 탈취용 --force-with-lease push 시도(new=7759114, expected_old=11da019)에서 'HTTP 403 + send-pack disconnect' 로 reject. main 일반 push 는 dry-run OK 라 본 blocker 는 refs/locks/* 한정. T-0229(ADR-0025 ACCEPTED flip)는 main 6ca755d 로 이미 완결돼 있으나 STATE 의 tasksCompleted(226→227)/mostRecentTasks/nextTask null 정합은 다음 로컬 /loop 가 정상 lock 획득 후 정합 예정. 본 cron fire 는 lock 없이 코드/STATE 본문 변경을 추가로 만들지 않고 종료(single-writer 보호) — 본 blockers[] 1줄 추가만 사용자 인지용 기록.",
-      "remediation": "로컬 /loop (refs/locks/* push 권한 보유 driver) 가 자동으로 stale lock 탈취 후 T-0229 bookkeeping(STATE counter +1, journal 1줄, nextTask null) + planner survey(Q-0022 escalation 예상 — backlog HITL-gated) 진행. 사용자 추가 액션 불요 — 본 blocker 는 다음 로컬 /loop 가 자동 해소(blockersResolvedNote 로 이동)."
-    }
-  ],
-  "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지. B-credential-2026-06-04T16:04Z 는 동일 env 한계 재발화 — 로컬 /loop 정상 진행으로 자동 해소되며 tasksBlocked counter 는 increment 하지 않는다(반복 env 한계지 정책 실패 아님).",
+  "blockers": [],
+  "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지. B-credential-2026-06-04T16:04Z (cron@cloud-bc1cce 16:04 fire 의 refs/locks/* 403 stale-탈취 실패) 는 동일 env 한계 재발화 — **loop@WIN-JQIPLSBL9QV-s55 가 session #55 t8 에서 정상 진행하며 자동 해소**(cron 이 못 한 T-0229 bookkeeping·Q-0022 escalation·counter 정합을 본 로컬 driver 가 완료, cron d82127d 의 blocker 기록을 본 commit 에서 blockers[]→[] 로 close). tasksBlocked counter 는 increment 하지 않는다(반복 env 한계지 정책 실패 아님). **근본 원인 = lock since 미갱신으로 60min stale 오판 — 본 turn 부터 매 turn since=now heartbeat 적용해 재발 차단.**",
   "humanQuestions": [
     {
       "id": "Q-0013",
@@ -261,12 +251,30 @@
       "decision": "option (1) audit own-instance 필터 + option (2) milestone-1 credentialed live LLM run 승인 — 사용자가 session #54 t6 결정. **진행 순서: (1) 먼저, 그 다음 (2)**. (1) audit own-instance 필터: non-Admin 운영자가 자기 instance 범위 record 만 실제 조회하도록 결선(Q-0020 의 'Admin 전체 + 자기 instance' audience 차등 중 non-Admin 절반 완성 — 현재 항상 빈 배열인 ADR-0023 placeholder 를 실 필터로 대체). User↔instance binding 모델링은 ADR-first 로 architect 가 설계안(User entity 에 allowed-instance 를 어떻게 붙일지 + record 의 instanceRef[github host/confluence space] ↔ user identity 매핑 규칙 + Admin 우회)을 ADR 로 박제하고 사용자가 ADR PR 에서 검토(milestone-3 ADR-first 패턴 동형). §5 DB-schema 게이트는 본 승인으로 충족(prisma schema migration 허용, ADR-0004 migrate-deploy 준수), 새 외부 dependency 0(내장 prisma). R-112 4종 + negative cases(타 instance 차단·non-Admin Admin-route 차단·빈 결과·미인증·경계 식별자) + regression. (2) milestone-1 live LLM run: provider=azure_openai, deployment/model=gpt-5.4, endpoint=https://karina-east-us-2-api.openai.azure.com 의 **시험용** credential 을 사용자가 제공. **API key 실값은 STATE/journal/코드/git 에 절대 미기재(§9 + 사용자 명시 지시)** — repo 밖 로컬 파일 'C:/Users/MyungJoo Ham/.assessment-agent/secrets.env'(이 PC 또는 akiha PC 한정)에만 보관, **유효기간 2026-06-30**(이후 폐기). milestone-1 은 Q-0016 optionA 2단계 분해 준수: (2a) dependency-free 선행 — env-gated live test 계약 ADR + skip-unless-credentialed spec(env 부재 시 describe.skip → CI green 유지, R-113) → (2b) credentialed live run — 로컬 secrets.env 를 env 주입해 실 네트워크 1회 검증 + LLM_APIKEY_ENC_KEY(ADR-0014 at-rest) 생성. milestone-3(GitHub/Confluence live token)·retention TTL(옵션 4)은 미승인 유지. loop 재개: planner 가 (1) 첫 slice(User↔instance binding 데이터모델 ADR, pr-mode)부터 큐잉.",
       "processedByPlanner": true,
       "processedAt": "2026-06-04T13:05:00+09:00"
+    },
+    {
+      "id": "Q-0022",
+      "raisedAt": "2026-06-04T16:00:00+09:00",
+      "raisedBy": "loop@WIN-JQIPLSBL9QV-s55 session #55 t8 (driver AskUserQuestion checkpoint — milestone-1 2a 완료 후 dependency-free backlog 소진)",
+      "reason": "needs-human-decision",
+      "status": "RESOLVED",
+      "summary": "own-instance 필터 chain(Q-0021 option 1, T-0221~T-0225) + milestone-1 2a(azure env-gated live-test, T-0226~T-0229)가 모두 완료되며 dependency-free 자동 backlog 가 소진됐다. 잔여 P4 major 는 전부 §5 HITL 게이트(milestone-1 2b credentialed live run / milestone-3 GitHub·Confluence live token / retention TTL). driver 가 make-work 날조 대신 AskUserQuestion checkpoint 를 올렸다.",
+      "options": [
+        "milestone-1 2b 실행 — azure_openai 실 네트워크 live run 1회 검증(로컬 secrets.env 주입, billed). Q-0021 에서 원칙 승인됨.",
+        "milestone-3 승인/진행 — GitHub/Confluence live token 통합(미승인, credential 필요).",
+        "루프 정지 — backlog 소진, session #55 종료.",
+        "다른 우선순위 — observability/test hardening, OpenAPI/Swagger doc, P6 frontend 등."
+      ],
+      "resolvedAt": "2026-06-04T16:02:00+09:00",
+      "decision": "milestone-1 2b 실행 — 사용자가 session #55 t8 AskUserQuestion 으로 선택. 로컬 secrets.env(AZURE_OPENAI_ENDPOINT/API_KEY/DEPLOYMENT, repo 밖, 만료 2026-06-30)를 gating LLM_LIVE_* 로 매핑(api-version=2024-02-15-preview) 후 azure live smoke(T-0228 spec) 를 실 네트워크 1회 실행. local Postgres 부재로 임시 DB-less jest config(repo 밖, azure spec 1개 한정 — repo/cipher stub 라 DB 불요)로 실행. **결과 PASS — gpt-5.4/karina-east-us-2 endpoint 1회 호출 2632ms 실 round-trip, non-empty narrative, provider/model invariant 충족. 실 billed call 1회(승인분), API key redaction 누출 0(§9).** T-0230 으로 기록(direct doc). milestone-1 완결(custom mocked + azure gated + azure live). milestone-3·retention TTL 은 미승인 유지 — 다음 turn 재checkpoint 예정.",
+      "processedByDriver": true,
+      "processedAt": "2026-06-04T16:05:00+09:00"
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 226,
+    "tasksCompleted": 228,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

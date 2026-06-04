@@ -2,13 +2,16 @@
 id: T-0229
 title: ADR-0025 status PROPOSED→ACCEPTED flip — azure_openai live-test 계약 구현 slice(T-0227+T-0228) 머지 완료 반영
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-096, REQ-097]
 estimatedDiff: 4
 estimatedFiles: 1
 created: 2026-06-04
+completedAt: 2026-06-04T15:56:00+09:00
+committedAs: 6ca755d
 plannerNote: P4 milestone-1 2a 종결 — ADR-0025 구현 2 slice(T-0227 gating + T-0228 smoke spec) 머지됨, ADR status 한 줄 flip(§3.1 rule 4 direct)
+result: DONE — ADR-0025 status PROPOSED→ACCEPTED flip + 후속 chain 표 구현 slice 충족 부기(T-0227 ed8e369 + T-0228 c18cd77). direct commit 6ca755d. milestone-1 2a 종결. tasksCompleted 226→227.
 ---
 
 # T-0229 — ADR-0025 status PROPOSED→ACCEPTED flip
