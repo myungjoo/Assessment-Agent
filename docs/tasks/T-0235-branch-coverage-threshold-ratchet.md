@@ -2,12 +2,16 @@
 id: T-0235
 title: coverageThreshold.global branch/statement floor ratchet 상향 — ADR-0026 정책 박제 + package.json floor 측정-후-설정
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [TBD]
 estimatedDiff: 60
 estimatedFiles: 3
 created: 2026-06-04
+completedAt: 2026-06-04T20:15:13+09:00
+prNumber: 203
+mergedAs: 5f81e29
+reviewRounds: 1
 plannerNote: P4 audit backlog P4 (test-quality-coverage-audit-2026-06 §4 P4) — branch/statement floor 50→측정값 margin 아래로 ratchet 상향. ADR-first dependency-free pr-mode, ≤3 파일.
 ---
 

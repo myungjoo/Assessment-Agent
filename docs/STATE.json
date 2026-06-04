@@ -5,41 +5,41 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0235",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s57",
-    "since": "2026-06-04T20:01:17+09:00",
+    "since": "2026-06-04T20:06:22+09:00",
     "loopSessionStartedAt": "2026-06-04T19:40:58+09:00",
-    "loopSessionTurnCount": 3
+    "loopSessionTurnCount": 4
   },
-  "lastActivity": "2026-06-04T20:01:30+09:00",
-  "lastCommit": "d23fb98",
+  "lastActivity": "2026-06-04T20:15:13+09:00",
+  "lastCommit": "5f81e29",
   "mostRecentTasks": [
+    "T-0235",
     "T-0234",
     "T-0233",
     "T-0232",
-    "T-0231",
-    "T-0230"
+    "T-0231"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-04T19:40:58+09:00",
     "cap": 5,
     "holder": "loop@WIN-JQIPLSBL9QV-s57",
     "stoppedAt": null,
     "stopReason": null,
-    "notePrev": "s57 t2: T-0234 DONE/MERGED(PR-202, squash 4046829) — auth.module `?? \"\"` → resolveJwtSecret helper, coverage 100%. integrator 4-게이트 PASS, CI run 26947209785 success. tasksCompleted 231→232. audit P1·P2·P3 완결.",
-    "note": "loop@WIN-JQIPLSBL9QV-s57 session #57 t3 (사용자 turn cap 5) — planner dispatch turn. [1] fetch main d23fb98, lock s57 동일 session → turnCount 2→3 heartbeat(beae25e), since=now. humanQuestion 0, blockers 0, open PR 0. [2] currentTask·nextTask 둘 다 null → planner dispatch. [planner] audit backlog P4 검증: 현 package.json coverageThreshold.global = branches 50/statements 50(functions·lines 이미 80). P4 = branch/statement floor 를 측정값 margin 아래로 ratchet 상향(측정-후-설정 → CI green 유지). dependency-free·§5-safe(내부 CI 정책 ADR, 새 dep 0/credential 0/schema 0/auth 0 — 자율 결정 가능, P5 mutation testing 과 달리 HITL 불요) → genuine 판정. T-0235 큐잉(ADR-0026 + package.json floor ratchet, pr-mode, ≤3 파일). [6] STATE.nextTask=T-0235, lock mirror turnCount 3, direct doc commit. [정지조건] turnCount 3 < cap 5 → t4 에서 T-0235 실행(executor: 측정 → ADR-0026 박제 → package.json floor 상향 → tester test:cov 확인) 예정.",
-    "noteOld_s57t1": "s57 t1: planner T-0234 큐잉(audit P3, fab533e). (s56 t5 stop-note 잔여 backlog P4 branch threshold ADR / P5 mutation testing §5, secrets.env 만료 2026-06-30, cron@cloud refs/locks 403 — 로컬 /loop 유일 정상 driver — journal 보존.)"
+    "notePrev": "s57 t3: planner T-0235 큐잉(audit P4 branch threshold ratchet ADR-0026, 64ac491). 현 floor branches 50/statements 50 → 측정값 margin 아래로 상향 결정. dependency-free·§5-safe.",
+    "note": "loop@WIN-JQIPLSBL9QV-s57 session #57 t4 (사용자 turn cap 5) — T-0235 DONE/MERGED (PR-203, squash 5f81e29). [1] fetch main 64ac491, lock s57 동일 session → turnCount 3→4 heartbeat(25ef5d2), since=now. humanQuestion 0, blockers 0. [2] nextTask=T-0235 픽업(pr-mode). [3] feature branch claude/T-0235-branch-coverage-threshold-ratchet → executor DONE: pnpm test:cov 실측 All-files Branch/Statement/Function/Line 100%(166 suite/3285 test) 확인 후 package.json coverageThreshold.global branches/statements 50→90 ratchet 상향(functions/lines 80 유지, 측정-후-설정, floor 90 ≤ 실측 100 → CI green). ADR-0026 신규(ratchet-only 정책: 상향 자유/하향 ADR 필수). 2 files +93/-2, 새 dep 0. [4] commit b5e6439 → PR-203. [integrator] reviewer 별도 dispatch APPROVE r1/7 + comment 외화(gate 2, issue-4621610758), 4-게이트 전부 PASS, CI run 26948137415 success(test:cov 90 floor enforce + smoke + e2e + approval-gate 전 step success) → squash merge 5f81e29, branch deleted. [6] main ff 5f81e29, task DONE. tasksCompleted 232→233. nextTask=null, lock 유지. **audit backlog P1(T-0232)·P2(T-0233)·P3(T-0234)·P4(T-0235) 4종 전부 완결 — dependency-free 강화 backlog 소진.** [정지조건] turnCount 4 < cap 5 → t5(마지막) 에서 planner survey → 잔여는 P5 mutation testing(새 dep §5) 등 HITL 게이트뿐 → AskUserQuestion checkpoint(Q-0023) 후 cap 5 정지 예정.",
+    "noteOld_s57t1": "s57 t1: planner T-0234 큐잉(audit P3, fab533e); t2 T-0234 merged(4046829); t3 planner T-0235 큐잉(64ac491). (s56 t5 stop-note 잔여 P5 mutation testing §5, secrets.env 만료 2026-06-30, cron@cloud refs/locks 403 — 로컬 /loop 유일 정상 driver — journal 보존.)"
   },
   "ci": {
-    "lastRun": "2026-06-04T19:56:00+09:00",
+    "lastRun": "2026-06-04T20:13:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/202",
-    "note": "s57 t2: T-0234 PR-202 CI run 26947209785 success — resolve-jwt-secret helper coverage 100%, reviewer approval-gate step 통과(comment race 없음). squash merge 4046829. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/203",
+    "note": "s57 t4: T-0235 PR-203 CI run 26948137415 success — test:cov 90 floor enforce(실측 100) + smoke + e2e + approval-gate 전 step success. squash merge 5f81e29. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -277,7 +277,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 232,
+    "tasksCompleted": 233,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
