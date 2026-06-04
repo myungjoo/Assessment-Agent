@@ -2,13 +2,16 @@
 id: T-0218
 title: truncateAll 테이블 개수 주석 정합 (5→7, stale comment doc-sync)
 phase: P4
-status: IN_PROGRESS
+status: DONE
 commitMode: pr
 prNumber: 190
+mergedAs: f1f18ab
+reviewRounds: 1
 coversReq: [REQ-058]
 estimatedDiff: 6
 estimatedFiles: 5
 created: 2026-06-04
+completed: 2026-06-04
 plannerNote: P4 residual nit closeout — TRUNCATE_TABLES 가 7개인데 5 test 파일 주석은 "5 테이블"로 stale (T-0087 User + T-0208 PermissionDeniedRecord 미반영). comment-only doc-sync.
 ---
 

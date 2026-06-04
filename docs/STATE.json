@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0218",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s54",
     "since": "2026-06-04T11:32:55+09:00",
     "loopSessionStartedAt": "2026-06-04T11:32:55+09:00",
-    "loopSessionTurnCount": 1
+    "loopSessionTurnCount": 2
   },
-  "lastActivity": "2026-06-04T11:32:55+09:00",
-  "lastCommit": "d5c5860",
+  "lastActivity": "2026-06-04T11:53:22+09:00",
+  "lastCommit": "f1f18ab",
   "mostRecentTasks": [
+    "T-0218",
     "T-0217",
     "T-0216",
     "T-0215",
-    "T-0214",
-    "T-0213"
+    "T-0214"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-04T11:32:55+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s54",
-    "notePrev": "session #53 (STOP turn-cap): Q-0020 RESOLVE → audit-query milestone 5 task(T-0213~T-0217) 완결, dependency-free 전 범위 shipped. tasksCompleted 210→215. 잔여 = own-instance 실 필터(§5 binding-schema 미승인).",
-    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t1 — planner dispatch. [1] fetch: main d5c5860 == origin/main, lock ref 는 tombstone(empty blob) → ref-CAS 로 신규 session #54 lock 획득(turnCount=1). 미해결 humanQuestion 0(Q-0013~Q-0020 전원 RESOLVED), blockers 0, CI green. [2] currentTask·nextTask 둘 다 null → planner dispatch. [planner] make-work 차단 pre-check 통과: TRUNCATE_TABLES 가 7 entry(T-0087 User + T-0208 PermissionDeniedRecord)인데 5 test 파일(db-truncate.spec.ts·persons/groups/parts.smoke·persons.e2e) 주석은 ' 5 (도메인) 테이블'로 stale — main 검증된 실 staleness. Q-0020 가 nit-closure 흡수 권장했으나 audit milestone 전부 shipped 되어 흡수할 인접 PR 부재 → 단독 dependency-free task 로 정당. T-0218 큐잉(comment-only 5 파일, §5 미발화, pr-mode). [6] nextTask=T-0218 + bookkeeping 단일 direct commit. 다음 turn(t2) 에서 T-0218 executor(pr). reschedule: §1[8] dynamic (turnCount 1<10)."
+    "notePrev": "t1 — planner dispatch: T-0218 큐잉(truncateAll 주석 5→7 stale comment 정합, comment-only 5 파일, pr-mode). make-work pre-check 통과. direct doc commit b0cf337.",
+    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t2 — T-0218 DONE/MERGED(PR-190, f1f18ab). [1] fetch: main b0cf337+baef299 CI green, lock 본인 보유 → turnCount 1→2. humanQuestion 0, blockers 0. [2] nextTask=T-0218 → currentTask, commitMode pr, prNumber 없음 → 정상 executor. [3] executor(inline impl+test): 5 test 파일(db-truncate.spec.ts·persons/groups/parts.smoke·persons.e2e) stale 주석 '5 (도메인) 테이블'→'7' 정정(+5/-5), TRUNCATE_TABLES 배열/executable 무변경, git grep 잔여 0. lint+build+test green(163 suites/3210). [4] pr: feature branch claude/T-0218-… commit 7568367 push → PR #190 open. prNumber=190 bookkeeping direct(baef299). integrator(round 1): reviewer APPROVE(8-check+§12 전부 PASS, finding 0) → gh pr comment 외화 → CI green(첫 run reviewer-gate race step 단독 fail → gh run rerun --failed self-heal success) → 4-게이트 통과 → gh pr merge --squash --delete-branch(f1f18ab). [6] task DONE/mergedAs f1f18ab + tasksCompleted 215→216 + mostRecentTasks prepend + bookkeeping direct commit. reschedule: §1[8] dynamic (turnCount 2<10) — 다음 turn planner survey(dependency-free backlog 재소진 → escalate 예상)."
   },
   "ci": {
-    "lastRun": "2026-06-04T02:57:00+09:00",
+    "lastRun": "2026-06-04T11:53:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/e646fd7",
-    "note": "t10: T-0217 은 direct doc-only(modules.md) — CI 비차단. 직전 t9 commit e646fd7 + t8 merge d73245c 모두 CI success. main green, consecutiveFails 0. T-0217 direct commit 의 main push CI 는 doc-only 비차단."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/190",
+    "note": "t2: T-0218 PR-190(f1f18ab) merged — CI green. 첫 push run(event=pull_request)은 reviewer-gate 검증 step 단독 fail(race: reviewer comment 미post 시점에 CI 실행) → gh run rerun --failed self-heal 후 success. comment-only 변경이라 lint/build/unit/smoke/e2e+cov 전부 green. main green, consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -234,7 +234,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 215,
+    "tasksCompleted": 216,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
