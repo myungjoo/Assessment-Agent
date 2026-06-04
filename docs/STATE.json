@@ -5,15 +5,9 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
-  "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-s55",
-    "since": "2026-06-04T16:40:10+09:00",
-    "loopSessionStartedAt": "2026-06-04T13:59:38+09:00",
-    "loopSessionTurnCount": 8
-  },
-  "lastActivity": "2026-06-04T16:40:10+09:00",
+  "nextTask": "T-0231",
+  "lock": null,
+  "lastActivity": "2026-06-04T18:35:00+09:00",
   "lastCommit": "6ca755d",
   "mostRecentTasks": [
     "T-0230",
@@ -23,11 +17,13 @@
     "T-0226"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-04T13:59:38+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s55",
-    "notePrev": "s55 t7 — T-0228 DONE/MERGED(PR-199, c18cd77): azure live smoke spec 신설(milestone-1 2a split 2/2 = 2a 완결). gating 'azure'→LlmProvider.AzureOpenai 매핑·describe.skip CI green, reviewer APPROVE r1, CI green 1회. tasksCompleted 225→226, T-0229 큐잉.",
+    "stoppedAt": "2026-06-04T17:05:00+09:00",
+    "stopReason": "사용자 결정(Q-0023) — 루프 정지. milestone-1 end-to-end 완성 + dependency-free backlog 소진(잔여 P4 = milestone-3 / retention TTL, 둘 다 §5 HITL). turn cap(10) 도달 전 t9 에서 자연스러운 정리 지점에 정지. lock tombstone 해제. 재개 = 준비되면 새 /loop 또는 cron.",
+    "notePrev": "s55 t8 — T-0229(ADR-0025→ACCEPTED, 6ca755d, milestone-1 2a 종결) + Q-0022 → milestone-1 2b live run(T-0230) PASS(실 azure_openai gpt-5.4 1회 2632ms round-trip). cron@cloud d82127d push 경합 §4 정합 + lock since heartbeat fix. tasksCompleted 226→228. milestone-1 완결.",
     "note": "loop@WIN-JQIPLSBL9QV-s55 session #55 t8 — 2 활동: T-0229(ADR-0025 PROPOSED→ACCEPTED flip, direct 6ca755d) + **milestone-1 2b live run(T-0230) PASS**. [1] fetch main f440e46, lock 동일 session#55 → turnCount 7→8. **lock since 13:59→16:40 heartbeat 갱신(중요 fix — 그간 since 미갱신으로 60min stale 판정돼 cron@cloud 16:04 fire 가 stale 탈취 시도, 아래 참조)**. humanQuestion 0. [2] nextTask=T-0229 픽업. [3] executor DONE(ADR status 1줄 flip). [6a] T-0229 direct commit 6ca755d, milestone-1 2a 종결. tasksCompleted 226→227. [checkpoint] backlog 소진 → AskUserQuestion(Q-0022) → 사용자 'milestone-1 2b 실행' 선택. [2b 실행] 로컬 secrets.env(AZURE_OPENAI_*) → gating LLM_LIVE_* 매핑(api-version=2024-02-15-preview) → azure live smoke(T-0228) 실행(local Postgres 부재 → 임시 DB-less jest config, azure 1 spec 한정, 실행 후 삭제). **결과 PASS — 실 azure_openai endpoint(gpt-5.4/karina-east-us-2) 1회 2632ms 실 round-trip, non-empty narrative, provider=AzureOpenai/modelId 일치. billed 1회(승인), API key redaction 누출 0(§9).** T-0230 DONE. tasksCompleted 227→228. **milestone-1 완결.** [push 경합] 본 t8 bookkeeping push 시 origin/main 이 cron@cloud d82127d(refs/locks/* 403 BLOCKED 기록)로 선행 advance → reject. §4 graceful: reset→cron base(d82127d) 위로 t8 재적용, cron 의 blockers[B-credential-16:04Z] 는 본 로컬 /loop 진행으로 auto-resolve(blockers[]→[], blockersResolvedNote 반영). [6b] nextTask=null. [재개 보강] (a) **다음 turn: backlog 재소진 — 잔여 P4 = milestone-3(미승인) + retention TTL(§5). driver AskUserQuestion checkpoint(milestone-3 vs 정지 vs 다른 우선순위). make-work 날조 금지.** (b) **lock since heartbeat: 매 turn since=now 갱신 필수(장기 /loop session 의 60min stale 오판 방지). 본 turn 부터 적용.** (c) cron@cloud 는 refs/locks/* push 403(env 한계) — 로컬 /loop 가 유일 정상 driver. (d) secrets.env 만료 2026-06-30. (e) Q-0022 RESOLVED(2b 실행)."
   },
   "ci": {
