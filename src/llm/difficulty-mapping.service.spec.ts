@@ -322,6 +322,47 @@ describe("DifficultyMappingService", () => {
       ).rejects.toMatchObject({ code: "P9999" });
     });
 
+    // Negative (T-0233): updateProviderConfig 가 `code` 필드 없는 plain Error 를
+    // reject → getPrismaErrorCode 가 undefined 반환 (L50 분기) → P2025 변환이
+    // 일어나지 않고 원본 error 가 그대로 propagate 됨을 검증. 기존 P9999 test 는
+    // `code` 필드를 가져 L48 (return code) 만 cover 했으므로 L50 미커버였다.
+    it("code 필드 없는 plain Error reject 는 P2025 변환 없이 그대로 전파한다 (getPrismaErrorCode undefined 분기)", async () => {
+      const { service, mappingRepo, configRepo } = buildService();
+      configRepo.findById.mockResolvedValueOnce(buildConfigFixture());
+      const original = new Error("db-down");
+      mappingRepo.updateProviderConfig.mockRejectedValueOnce(original);
+
+      // 단일 reject 를 capture 해 두 단언을 동일 throw 에 적용한다.
+      const caught = await service.assignProviderConfig("easy", "cfg-1").then(
+        () => {
+          throw new Error("reject 되어야 하는데 resolve 됨");
+        },
+        (err: unknown) => err,
+      );
+
+      // 원본 error 가 그대로 propagate — 동일 instance 보존.
+      expect(caught).toBe(original);
+      expect((caught as Error).message).toBe("db-down");
+      // NotFoundException 으로 변환되지 않았음 (P2025 분기 미진입).
+      expect(caught).not.toBeInstanceOf(NotFoundException);
+    });
+
+    // Negative (T-0233, 비-객체 throw): updateProviderConfig 가 객체가 아닌 값
+    // (문자열) 을 reject → getPrismaErrorCode 의 `typeof error === "object"` false
+    // 경로로 undefined 반환 → raw propagate. 위 plain Error test 의 `"code" in error`
+    // false 경로와 다른 false 분기를 cover 해 L41~50 의 4 조건 중 둘 이상의 false
+    // 경로를 검증한다 (단일 negative 금지 — R-112).
+    it("비-객체(문자열) reject 도 P2025 변환 없이 그대로 전파한다 (typeof !== object 분기)", async () => {
+      const { service, mappingRepo, configRepo } = buildService();
+      configRepo.findById.mockResolvedValueOnce(buildConfigFixture());
+      mappingRepo.updateProviderConfig.mockRejectedValueOnce("db-down");
+
+      // 문자열이 reject 값 그대로 propagate — NotFound 로 변환되지 않음.
+      await expect(service.assignProviderConfig("hard", "cfg-1")).rejects.toBe(
+        "db-down",
+      );
+    });
+
     // Error path: config repository reject (DB 장애) 그대로 propagate.
     it("LlmProviderConfigRepository 가 reject 하면 error 를 그대로 전파한다 (DB 장애)", async () => {
       const { service, configRepo } = buildService();
