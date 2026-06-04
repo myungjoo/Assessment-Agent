@@ -128,4 +128,26 @@ export class UserInstanceAccessRepository {
       data: { userId: input.userId, instanceRef },
     });
   }
+
+  // deleteByUserIdAndInstanceRef — revoke 용 `@@unique([userId, instanceRef])` row
+  // delete (ADR-0027 Decision §2/§4). 호출자(service)는 이미 정규화된 instanceRef
+  // 를 넘긴다 — 본 메서드는 추가 정규화 0 (round-trip 정합은 service 가
+  // normalizeInstanceRef() 로 보장, 정규화 단일 source 유지).
+  //
+  // idempotency — Prisma `deleteMany` 채택 (delete + P2025 catch 대비). deleteMany
+  // 는 매칭 row 가 없으면 `{ count: 0 }` 를 반환하고 throw 하지 않으므로 부재
+  // binding revoke 가 자연히 idempotent no-op (ADR-0027 §4 revoke 204 semantic).
+  // delete 단건은 부재 시 P2025 throw 라 별도 catch 가 필요 — deleteMany 가 더 간결.
+  //
+  // 반환 — 삭제된 row count (호출자가 필요 시 활용; service 는 idempotent 라 count
+  // 무관하게 성공 처리). PrismaService reject (DB 장애)는 swallow 없이 propagate.
+  async deleteByUserIdAndInstanceRef(
+    userId: string,
+    instanceRef: string,
+  ): Promise<number> {
+    const result = await this.prisma.userInstanceAccess.deleteMany({
+      where: { userId, instanceRef },
+    });
+    return result.count;
+  }
 }

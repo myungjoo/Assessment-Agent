@@ -17,11 +17,15 @@
 import { Module } from "@nestjs/common";
 
 import { UserInstanceAccessRepository } from "./user-instance-access.repository";
+import { UserInstanceAccessService } from "./user-instance-access.service";
 
 @Module({
   // providers+exports 양쪽 등록 — 후속 service-결선 slice 가 repository 를 inject
   // 가능하도록 export (PermissionDeniedRecordModule 의 repository export 동형).
-  providers: [UserInstanceAccessRepository],
-  exports: [UserInstanceAccessRepository],
+  // UserInstanceAccessService 도 등록·export — 후속 controller slice (ADR-0027
+  // chain row (2)) 가 grant/revoke service 를 inject 가능하도록 (controller 0 인
+  // 현 slice 에서도 module DI 결선은 미리 박제).
+  providers: [UserInstanceAccessRepository, UserInstanceAccessService],
+  exports: [UserInstanceAccessRepository, UserInstanceAccessService],
 })
 export class UserInstanceAccessModule {}
