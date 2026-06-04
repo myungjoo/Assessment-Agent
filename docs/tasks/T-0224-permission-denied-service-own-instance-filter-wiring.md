@@ -2,13 +2,18 @@
 id: T-0224
 title: PermissionDeniedRecordService own-instance 필터 결선 (non-Admin placeholder → 실 allowlist 필터, ADR-0024 §3 split B)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 180
 estimatedFiles: 4
 created: 2026-06-04
+completedAt: 2026-06-04T14:55:00+09:00
+prNumber: 196
+mergedAs: 91cc490
+reviewRounds: 2
 plannerNote: P4 ADR-0024 chain row(3) split B — service non-Admin placeholder 를 allowlist lookup + instanceRefIn(split A) 실 필터로 결선. row(1)T-0221/row(2)T-0222/splitA T-0223 머지 완료.
+result: DONE — non-Admin own-instance audit 필터 완성. UserInstanceAccessRepository 주입 + findInstanceRefsByUserId allowlist→instanceRefIn 항상 주입 + query.instanceRef∩allowlist(정규화 parity). Admin bypass 무변경. reviewer 보안 boundary hard-scrutiny APPROVE r1(1 MINOR)+r2(0). MINOR=빈 role test 누락 → nit-closure round2 복원. round2 git add -A 가 harness lock 우발 commit → round3 untrack+gitignore. CI green b7a8bea, 4-gate PASS, squash merge 91cc490. tasksCompleted 221→222. Q-0021 option 1(own-instance 필터) 완결.
 ---
 
 # T-0224 — PermissionDeniedRecordService own-instance 필터 결선 (ADR-0024 §3 split B)
