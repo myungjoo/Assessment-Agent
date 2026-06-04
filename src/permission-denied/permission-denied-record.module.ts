@@ -23,11 +23,16 @@
 //     emitter port 교체. 본 task 는 service/repository 를 DI 로 가용화만 한다.
 import { Module } from "@nestjs/common";
 
+import { PermissionDeniedRecordController } from "./permission-denied-record.controller";
 import { PermissionDeniedRecordRepository } from "./permission-denied-record.repository";
 import { PermissionDeniedRecordService } from "./permission-denied-record.service";
 
 @Module({
-  // controllers 0 — audit 조회 REST + RBAC 는 ADR-0022 chain 후속 별도 slice.
+  // controllers — audit 조회 REST endpoint (T-0214, ADR-0023 §5). PermissionDeniedRecord
+  // Controller 가 `GET /api/permission-denied-records` 를 노출 (RBAC=@Roles("User") +
+  // service-layer audience 차등). service/repository 는 PersistenceModule (@Global) 의
+  // PrismaService 위에서 DI 해소 — imports 명시 불요 (LlmModule 동형).
+  controllers: [PermissionDeniedRecordController],
   // providers+exports 양쪽 등록: 후속 emitter 가 service 를, 또 다른 module 이
   // repository 를 inject 가능하도록 export (LlmModule 의 repository+service 동형 등록).
   providers: [PermissionDeniedRecordRepository, PermissionDeniedRecordService],
