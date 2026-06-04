@@ -13,7 +13,7 @@
     "loopSessionStartedAt": "2026-06-04T13:59:38+09:00",
     "loopSessionTurnCount": 7
   },
-  "lastActivity": "2026-06-04T15:48:00+09:00",
+  "lastActivity": "2026-06-04T16:04:06+09:00",
   "lastCommit": "c18cd77",
   "mostRecentTasks": [
     "T-0228",
@@ -65,8 +65,18 @@
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
-  "blockers": [],
-  "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지.",
+  "blockers": [
+    {
+      "id": "B-credential-2026-06-04T16:04Z",
+      "raisedAt": "2026-06-04T16:04:06+09:00",
+      "raisedBy": "cron@cloud-bc1cce (Anthropic cloud schedule fire — fresh container)",
+      "reason": "credential",
+      "summary": "Cloud cron fire 가 ref-CAS lock(refs/locks/driver) push 시 HTTP 403 reject — 클라우드 proxy 가 refs/locks/* 대상 push 권한을 부여하지 않는다(2026-06-02 B-credential-2026-06-02T02:03Z 와 동일 env 한계, 정책 변경 불요).",
+      "details": "현 lock holder=loop@WIN-JQIPLSBL9QV-s55 (since 2026-06-04T13:59:38+09:00, ≥60min stale). 본 cron fire 가 stale 탈취용 --force-with-lease push 시도(new=7759114, expected_old=11da019)에서 'HTTP 403 + send-pack disconnect' 로 reject. main 일반 push 는 dry-run OK 라 본 blocker 는 refs/locks/* 한정. T-0229(ADR-0025 ACCEPTED flip)는 main 6ca755d 로 이미 완결돼 있으나 STATE 의 tasksCompleted(226→227)/mostRecentTasks/nextTask null 정합은 다음 로컬 /loop 가 정상 lock 획득 후 정합 예정. 본 cron fire 는 lock 없이 코드/STATE 본문 변경을 추가로 만들지 않고 종료(single-writer 보호) — 본 blockers[] 1줄 추가만 사용자 인지용 기록.",
+      "remediation": "로컬 /loop (refs/locks/* push 권한 보유 driver) 가 자동으로 stale lock 탈취 후 T-0229 bookkeeping(STATE counter +1, journal 1줄, nextTask null) + planner survey(Q-0022 escalation 예상 — backlog HITL-gated) 진행. 사용자 추가 액션 불요 — 본 blocker 는 다음 로컬 /loop 가 자동 해소(blockersResolvedNote 로 이동)."
+    }
+  ],
+  "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지. B-credential-2026-06-04T16:04Z 는 동일 env 한계 재발화 — 로컬 /loop 정상 진행으로 자동 해소되며 tasksBlocked counter 는 increment 하지 않는다(반복 env 한계지 정책 실패 아님).",
   "humanQuestions": [
     {
       "id": "Q-0013",
