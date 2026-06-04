@@ -211,9 +211,14 @@ describe("PermissionDeniedRecordService", () => {
     });
   });
 
-  describe("list()", () => {
-    // Happy / branch (비-빈 배열): repository.findMany 결과를 그대로 반환.
-    it("repository.findMany 의 결과 (비-빈 배열) 를 그대로 반환한다 (happy — 비-빈 배열 분기)", async () => {
+  // list(actor, query?) — T-0214 (ADR-0023 §1/§3) actor-aware 확장. audience 차등
+  // (Admin bypass vs non-Admin binding-부재 fallback) 을 actor.role 로 분기. 본 slice
+  // 는 binding schema 부재 (ADR-0023 §2(b)) 라 non-Admin 은 항상 빈 배열.
+  describe("list(actor, query?)", () => {
+    // ----- Admin bypass 분기 (ADR-0023 §3) — repository.findMany 로 forward -----
+
+    // Happy: Admin actor → 필터 없이 findMany(query) forward, 전체 record 반환.
+    it("Admin actor 는 repository.findMany(query) 로 forward 하고 전체 record 를 반환한다 (happy — Admin bypass)", async () => {
       const { service, repo } = buildService();
       const fixture = [
         buildRecordFixture({ id: "r-1" }),
@@ -221,18 +226,33 @@ describe("PermissionDeniedRecordService", () => {
       ];
       repo.findMany.mockResolvedValueOnce(fixture);
 
-      const result = await service.list();
+      const result = await service.list({ sub: "admin-1", role: "Admin" });
 
       expect(repo.findMany).toHaveBeenCalledWith(undefined);
       expect(result).toBe(fixture);
     });
 
-    // Branch: 필터 query 를 repository.findMany 로 그대로 forward.
-    it("필터 query 를 repository.findMany 로 그대로 forward 한다 (branch — 필터 제공)", async () => {
+    // Happy: SuperAdmin actor → 동일 bypass (escalation tier 상위).
+    it("SuperAdmin actor 도 동일하게 bypass 해 findMany 로 forward 한다 (happy — SuperAdmin bypass)", async () => {
+      const { service, repo } = buildService();
+      const fixture = [buildRecordFixture()];
+      repo.findMany.mockResolvedValueOnce(fixture);
+
+      const result = await service.list({ sub: "su-1", role: "SuperAdmin" });
+
+      expect(repo.findMany).toHaveBeenCalledTimes(1);
+      expect(result).toBe(fixture);
+    });
+
+    // Branch: Admin actor 가 필터 query 를 주면 repository 로 그대로 forward.
+    it("Admin actor 의 필터 query 를 repository.findMany 로 그대로 forward 한다 (branch — Admin + 필터)", async () => {
       const { service, repo } = buildService();
       repo.findMany.mockResolvedValueOnce([buildRecordFixture()]);
 
-      await service.list({ provider: "github", httpStatus: 403 });
+      await service.list(
+        { sub: "admin-1", role: "Admin" },
+        { provider: "github", httpStatus: 403 },
+      );
 
       expect(repo.findMany).toHaveBeenCalledWith({
         provider: "github",
@@ -240,32 +260,83 @@ describe("PermissionDeniedRecordService", () => {
       });
     });
 
-    // Negative: 빈 배열 (등록 0) 도 404 변환 없이 빈 배열 그대로 반환.
-    it("repository 가 빈 배열을 반환하면 404 변환 없이 빈 배열을 반환한다 (negative — empty result)", async () => {
+    // Negative: Admin path 의 repository 가 빈 배열 → 404 변환 없이 빈 배열 그대로.
+    it("Admin path 에서 repository 가 빈 배열이면 404 변환 없이 빈 배열을 반환한다 (negative — empty result)", async () => {
       const { service, repo } = buildService();
       repo.findMany.mockResolvedValueOnce([]);
 
-      const result = await service.list();
+      const result = await service.list({ sub: "admin-1", role: "Admin" });
 
       expect(result).toEqual([]);
     });
 
-    // Negative: 빈 객체 filter 도 raw forward (비정상 filter 인자).
-    it("빈 객체 filter 도 repository 로 그대로 forward 한다 (negative — 빈 filter)", async () => {
-      const { service, repo } = buildService();
-      repo.findMany.mockResolvedValueOnce([]);
-
-      await service.list({});
-
-      expect(repo.findMany).toHaveBeenCalledWith({});
-    });
-
-    // Error path: repository.findMany reject (DB 장애) 를 swallow 없이 propagate.
-    it("repository.findMany reject 를 swallow 없이 그대로 전파한다 (error — 의존성 실패)", async () => {
+    // Error path: Admin path 의 repository.findMany reject (DB 장애) propagate.
+    it("Admin path 의 repository.findMany reject 를 swallow 없이 전파한다 (error — 의존성 실패)", async () => {
       const { service, repo } = buildService();
       repo.findMany.mockRejectedValueOnce(new Error("db-down"));
 
-      await expect(service.list()).rejects.toThrow("db-down");
+      await expect(
+        service.list({ sub: "admin-1", role: "Admin" }),
+      ).rejects.toThrow("db-down");
+    });
+
+    // ----- non-Admin fallback 분기 (ADR-0023 §1) — 빈 배열, repository 미호출 -----
+
+    // Branch: User actor → binding 부재 fallback (빈 배열), repository 미호출.
+    it("User actor 는 binding 부재 fallback 으로 빈 배열을 반환하고 repository 를 호출하지 않는다 (branch — non-Admin fallback)", async () => {
+      const { service, repo } = buildService();
+
+      const result = await service.list({ sub: "user-1", role: "User" });
+
+      expect(result).toEqual([]);
+      expect(repo.findMany).not.toHaveBeenCalled();
+    });
+
+    // Negative: non-Admin 이 타 instanceRef query param 을 줘도 bypass 유발 0 (빈 배열).
+    it("User actor 가 타 instanceRef query 를 지정해도 빈 배열을 반환한다 (negative — query param 이 bypass 유발 안 함, ADR-0023 §4)", async () => {
+      const { service, repo } = buildService();
+
+      const result = await service.list(
+        { sub: "user-1", role: "User" },
+        { instanceRef: "github.sec.samsung.net" },
+      );
+
+      expect(result).toEqual([]);
+      expect(repo.findMany).not.toHaveBeenCalled();
+    });
+
+    // Negative: actor undefined → non-Admin 취급 (빈 배열, throw 0).
+    it("actor 가 undefined 면 non-Admin 취급해 빈 배열을 반환한다 (negative — actor 부재, throw 0)", async () => {
+      const { service, repo } = buildService();
+
+      const result = await service.list(undefined);
+
+      expect(result).toEqual([]);
+      expect(repo.findMany).not.toHaveBeenCalled();
+    });
+
+    // Negative: role 누락 (sub 만) → non-Admin 취급 (빈 배열).
+    it("role 이 누락된 actor 는 non-Admin 취급해 빈 배열을 반환한다 (negative — role 누락)", async () => {
+      const { service, repo } = buildService();
+
+      const result = await service.list({ sub: "x" });
+
+      expect(result).toEqual([]);
+      expect(repo.findMany).not.toHaveBeenCalled();
+    });
+
+    // Negative: unknown / case-변형 role → non-Admin 취급 (빈 배열). exact 매칭 경계.
+    it("unknown role / case 변형 role (예: 'admin') 은 non-Admin 취급해 빈 배열을 반환한다 (negative — role 경계, exact 매칭)", async () => {
+      const { service, repo } = buildService();
+
+      const lowerCase = await service.list({ sub: "x", role: "admin" });
+      const unknown = await service.list({ sub: "y", role: "Auditor" });
+      const empty = await service.list({ sub: "z", role: "" });
+
+      expect(lowerCase).toEqual([]);
+      expect(unknown).toEqual([]);
+      expect(empty).toEqual([]);
+      expect(repo.findMany).not.toHaveBeenCalled();
     });
   });
 });

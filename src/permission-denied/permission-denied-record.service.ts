@@ -22,10 +22,35 @@
 import { Injectable } from "@nestjs/common";
 import type { PermissionDeniedRecord } from "@prisma/client";
 
+import { ROLE_HIERARCHY } from "../auth/roles.guard";
+
 import {
   PermissionDeniedRecordRepository,
   type PermissionDeniedRecordFilter,
 } from "./permission-denied-record.repository";
+
+// AuditQueryActor — list(actor, query?) 의 actor 입력 shape (ADR-0023 §3). audit
+// 조회의 audience 차등 (Admin bypass vs non-Admin binding-부재 fallback) 을 service
+// 가 actor.role 로 분기한다. JwtPayload (sub + role) 의 부분 view — 본 slice 는
+// role 만 사용 (sub 기반 own-instance lookup 은 Follow-up, ADR-0023 §2(b) DB-schema
+// 게이트). actor / role 누락에 방어적 (undefined → non-Admin 취급, throw 0).
+export interface AuditQueryActor {
+  sub?: string;
+  role?: string;
+}
+
+// isAdminBypass — actor 가 Admin escalation tier (Admin / SuperAdmin) 에 속하는지
+// 판별 (ADR-0023 §3 Admin bypass). RolesGuard 의 ROLE_HIERARCHY 단일 source 재사용
+// — Admin 의 escalation 목록 (`["Admin", "SuperAdmin"]`) 에 actor.role 이 있으면
+// bypass. role 이 undefined / 빈 문자열 / unknown / case-변형이면 목록에 없어
+// non-Admin 취급 (fallback). 신규 role 정의 0.
+function isAdminBypass(role: string | undefined): boolean {
+  if (role === undefined || role === "") {
+    return false;
+  }
+  const adminTier = ROLE_HIERARCHY.Admin;
+  return adminTier !== undefined && adminTier.includes(role);
+}
 
 // record(event) 의 입력 shape — 권한 거부 1 건의 메타. provider / instanceRef /
 // resourceRef / httpStatus 는 필수. principal 은 현 이벤트가 싣지 않아 nullable
@@ -86,15 +111,35 @@ export class PermissionDeniedRecordService {
     });
   }
 
-  // list — audit 조회 forward (repository.findMany). 빈 결과 (0 row) 는 빈 배열
-  // 그대로 반환 — 404 변환 안 함 (컬렉션 조회의 정상 결과, LlmProviderConfigService.
-  // findAll 정합). query 가 undefined 면 전체 조회 (repository 가 where 없이 전체).
-  // repository.findMany 의 reject (DB 장애 등) 는 swallow 없이 그대로 propagate.
+  // list — actor-aware audit 조회 (ADR-0023 §1/§3). audience 차등을 service 1 곳에서
+  // 강제 (단일 강제 지점 — controller 가 누락해도 service 가 강제, ADR-0023 §3 사유 1):
+  //   (i) actor 가 Admin escalation tier (Admin / SuperAdmin) → 필터 없이
+  //       repository.findMany(query) forward (Admin bypass — 전체 record 조회,
+  //       ADR-0023 §3). 운영 전반의 권한 거부 가시성 (REQ-044).
+  //   (ii) non-Admin authenticated (User / unknown / role 누락) → binding 부재
+  //       fallback 으로 **빈 배열** 반환 (ADR-0023 §1 — 허용 instance 집합이 비어
+  //       있으면 200 빈 배열, 403 아님). 본 slice 는 User↔instance binding schema 가
+  //       부재 (ADR-0023 §2(b) DB-schema 게이트, Q-0019 미승인) 라 non-Admin 의 허용
+  //       instance 집합이 항상 공집합 → 항상 빈 배열. own-instance 실 필터는 Follow-up.
   //
-  // 분기: 필터 제공 vs 미제공 (repository forward), 빈 배열 vs 비-빈 배열 (raw 반환).
+  // 빈 결과 (0 row) 는 404 변환 안 함 (컬렉션 조회의 정상 결과, ADR-0023 §4). actor
+  // 가 undefined / role 누락이어도 (ii) 분기로 안전 처리 (빈 배열, throw 0 — ADR-0023
+  // §4 authenticated 면 endpoint 접근 권한 있음, 403 변환 0). non-Admin 은 repository
+  // 를 호출하지 않으므로 (빈 배열 즉시 반환) 타 instance / 전체 record 비노출 (ADR-0023
+  // §4 빈-필터 — 사용자가 query param 으로 타 instanceRef 를 지정해도 bypass 유발 0).
+  // Admin path 의 repository.findMany reject (DB 장애) 는 swallow 없이 그대로 propagate.
+  //
+  // 분기: Admin bypass (필터 forward) vs non-Admin fallback (빈 배열).
   async list(
+    actor: AuditQueryActor | undefined,
     query?: PermissionDeniedRecordFilter,
   ): Promise<PermissionDeniedRecord[]> {
-    return this.repository.findMany(query);
+    if (isAdminBypass(actor?.role)) {
+      return this.repository.findMany(query);
+    }
+    // non-Admin (또는 actor/role 부재) — binding 부재 fallback (빈 배열). repository
+    // 미호출 (where 매칭 0 과 동형 — 허용 instance 공집합). own-instance 실 필터는
+    // Follow-up (ADR-0023 §2(b) User↔instance binding schema 선행 요구).
+    return [];
   }
 }
