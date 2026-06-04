@@ -174,6 +174,56 @@ model User {
   role           String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  // T-0221 (ADR-0024 Decision §2) — User ↔ instance binding back-relation.
+  // 1 User 는 0+ 개의 UserInstanceAccess (허용 instance binding) 를 가진다.
+  // Prisma 양방향 relation 요건 (UserInstanceAccess.user 의 back-field).
+  // User hard delete 시 UserInstanceAccess 의 `onDelete: Cascade` 가 binding row 를
+  // 동반 정리 (고아 binding 0). PersonGroupMembership Cascade 패턴 정합.
+  instanceAccess UserInstanceAccess[]
+}
+
+// UserInstanceAccess — ADR-0024 Decision §2 의 schema 박제 (T-0221).
+// non-Admin audit 조회의 User↔instance binding join entity. 한 사용자가 조회할 수
+// 있는 instance 집합 (allowlist) 을 영속한다 — 각 row 가 (userId, instanceRef) 한
+// 쌍을 박제. own-instance 필터의 `instanceRef in (SELECT instanceRef WHERE userId=?)`
+// allowlist lookup 의 source (Decision §3 결선은 후속 service slice 책임).
+//
+// 설계 결정 (ADR-0024 Decision §2 — PersonGroupMembership L131~141 join 패턴 mirror):
+//   - binding 대상 instanceRef 는 PermissionDeniedRecord.instanceRef 와 동일 식별자
+//     (GitHub configured host / Confluence 풀 REST base URL free-form 문자열,
+//     ADR-0022 §1). 신규 식별자 체계 도입 0 — 문자열을 그대로 binding 단위로 쓴다.
+//   - `@@unique([userId, instanceRef])` — 동일 (user, instance) 중복 binding 차단
+//     (PersonGroupMembership `@@unique([personId, groupId])` 정합). 정규화값 기준
+//     중복 강제 (정규화는 후속 repository slice 의 입력 경로 책임, ADR-0024 §4).
+//   - `@@index([userId])` — allowlist lookup (`WHERE userId = ?`) 의 조회 경로.
+//     `@@unique([userId, instanceRef])` leading-edge 로 부분 cover 되나 ADR-0024 §2
+//     채택 모델대로 명시 박제.
+//   - `onDelete: Cascade` — User hard delete 시 binding row 동반 정리 (고아 binding 0,
+//     PersonGroupMembership Cascade 정합). audit record (PermissionDeniedRecord) 는
+//     standalone (ADR-0022 §5) 이라 본 Cascade 와 무관 — binding 삭제는 record 미접촉.
+//   - createdAt 만 보유, updatedAt 미정의 — binding row 는 부여 시점 1 회 기록
+//     (immutable, PersonGroupMembership 동형 패턴). 재부여는 삭제 후 재생성.
+//
+// 본 slice 는 empty table 추가라 동작 변경 0 (binding 0 시작 = breaking change 0,
+// ADR-0024 §5). non-Admin 은 binding row 가 채워지기 전까지 여전히 빈 배열 placeholder.
+// repository / service 필터 결선 / endpoint 동작 변경은 ADR-0024 후속 slice 책임.
+//
+// token / secret 미포함 invariant (CLAUDE.md §9) — binding 은 (userId, instanceRef)
+// 식별자만 보유, token / 자격증명 컬럼을 정의하지 않는다 (schema 차원 강제).
+model UserInstanceAccess {
+  id          String   @id @default(cuid())
+  userId      String
+  instanceRef String
+  createdAt   DateTime @default(now())
+
+  // User 와 의 N:1 — User 의 hard delete 시 binding row 동반 cascade 삭제.
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 동일 (user, instance) 중복 binding 금지 (ADR-0024 Decision §2 invariant).
+  @@unique([userId, instanceRef])
+  // allowlist lookup (`WHERE userId = ?`) 조회 경로 (ADR-0024 Decision §2).
+  @@index([userId])
 }
 
 // ServiceIdentity — data-model.md §2 row 2 + §3 관계 1 + REQ-023 / REQ-024 cover.
