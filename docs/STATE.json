@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0237",
   "lock": {
     "holder": "loop",
-    "session": "loop@AKIHA-s58",
-    "since": "2026-06-05T00:54:00+09:00",
-    "loopSessionStartedAt": "2026-06-04T21:23:09+09:00",
-    "loopSessionTurnCount": 2
+    "session": "loop@WIN-JQIPLSBL9QV-s59",
+    "since": "2026-06-05T08:39:00+09:00",
+    "loopSessionStartedAt": "2026-06-05T08:39:00+09:00",
+    "loopSessionTurnCount": 1
   },
-  "lastActivity": "2026-06-05T00:54:00+09:00",
-  "lastCommit": "81c9af5",
+  "lastActivity": "2026-06-05T08:40:00+09:00",
+  "lastCommit": "3883b41",
   "mostRecentTasks": [
     "T-0236",
     "T-0235",
@@ -23,14 +23,14 @@
     "T-0232"
   ],
   "loopSession": {
-    "turnCount": 2,
-    "startedAt": "2026-06-04T21:23:09+09:00",
-    "cap": 10,
-    "holder": "loop@AKIHA-s58",
+    "turnCount": 1,
+    "startedAt": "2026-06-05T08:39:00+09:00",
+    "cap": 5,
+    "holder": "loop@WIN-JQIPLSBL9QV-s59",
     "stoppedAt": null,
     "stopReason": null,
-    "note": "loop@AKIHA-s58 session #58 t2 (turn cap 10, 기기=AKIHA) — [1] 로컬 main 51340f3→origin ff. lock 본인(loop@AKIHA-s58) 보유·non-stale → 계속, since 00:15→00:54 heartbeat, turnCount 1→2(동일 session 연속 wake). humanQuestion 전부 RESOLVED(Q-0023 포함), blockers 0, multiTaskFire=true 이나 holder=loop 라 cron chain [7.5] inert(단일 task). [2] nextTask=T-0236 픽업(pr-mode, ADR-first). [3] executor DONE — ADR-0027(UserInstanceAccess grant/revoke Admin-only RBAC 계약: POST/DELETE /api/users/{id}/instance-access @Roles(Admin), self-grant 금지, grant 409·revoke 204 idempotent, repo.create()·normalizeInstanceRef() 재사용, READ=ADR-0023/0024↔WRITE=ADR-0027 경계) + modules.md doc-sync. **주의: executor 파일변경이 phantom-worktree 격리로 main 체크아웃에 미persist → driver 가 git fsck unreachable blob(934df2 ADR, ac0e99 modules.md)에서 복구해 origin/main(51340f3) 위 clean 재배치**(내용 검증 완료, modules.md +1/-1 현행 main 기준 minimal). [4] commit 3b65395 → PR-204. [review] reviewer r1/7 APPROVE+nit2(ADR 번호 gap 서술/401 guard 링크 오타) → driver in-PR nit-closure b95921a(+2/-2, §3 의무) → reviewer r2/7 APPROVE(issue-4623820763). 4-게이트 전부 PASS, CI run 26962920086(head b95921a) success → squash merge 81c9af5, branch deleted. [6] main ff 81c9af5, T-0236 DONE. tasksCompleted 233→234, mostRecentTasks prepend. nextTask=null → t3 planner survey(Q-0023 후속 chain: DTO/service grant+revoke → controller @Roles → api.md → e2e, 각 ≤300 LOC). [8] turnCount 2<10 → ScheduleWakeup reschedule.",
-    "notePrev": "s58 t1: planner HIGH-bar survey → dependency-free backlog 소진 확정, 유일 material gap=UserInstanceAccess binding-grant 경로(ADR-0024 'safe but useless'). AskUserQuestion 2-step → Q-0023 RESOLVED(instance-access 부여 경로 + grant RBAC=Admin 전용 endpoint 승인). planner T-0236 큐잉(ADR-0027). stale lock 탈취 from WIN-JQIPLSBL9QV-s57. bookkeeping 961b7a0.",
+    "note": "loop@WIN-JQIPLSBL9QV-s59 session #59 t1 (사용자 turn cap 5, 기기=WIN-JQIPLSBL9QV) — [1] fetch main 294cb8d→3883b41 ff. lock = loop@AKIHA-s58 since 2026-06-05T00:54(elapsed ~464min ≥60min stale) → ref-CAS --force-with-lease 로 stale lock 탈취 성공(blob 9ca6023, old 80925ef). 새 session 이라 turnCount=1 reset, cap=5. humanQuestion 전부 RESOLVED(Q-0023 포함), blockers 0. **배경: AKIHA-s58 가 t2(T-0236 merge) 후 lock 미해제로 종료, 이후 cron@cloud 7회(02:02~08:04) refs/locks 403 no-op 만 박제 — Q-0023 grant chain 후속이 미진행 상태.** [2] currentTask·nextTask 둘 다 null → planner dispatch. planner: main 실코드 대조로 slice 1(grant/revoke service) 미구현 확인(redundant-PR 회피), T-0237 큐잉(GrantInstanceAccessDto + UserInstanceAccessService.grant/revoke, repo.create 재사용·P2002→409·P2003→404·revoke 정규화 idempotent delete, commitMode pr, R-112 backbone), STATE.nextTask=T-0237. [6] doc-only direct bookkeeping commit. [8] turnCount 1<5 → ScheduleWakeup reschedule, t2 에서 T-0237 executor 실행 예정.",
+    "notePrev": "loop@AKIHA-s58 session #58 t2 — T-0236 DONE/MERGED ADR-0027(UserInstanceAccess grant/revoke Admin-only RBAC 계약) PR-204 squash 81c9af5. reviewer r1 APPROVE+nit2 → in-PR nit-closure b95921a → r2 APPROVE, 4-게이트 PASS, CI green. tasksCompleted 234. nextTask=null → grant chain 후속(DTO/service → controller → api.md → e2e). 이후 s58 lock 미해제로 종료.",
     "noteOld_s57t4": "loop@WIN-JQIPLSBL9QV-s57 session #57 t4 (사용자 turn cap 5) — T-0235 DONE/MERGED (PR-203, squash 5f81e29). [1] fetch main 64ac491, lock s57 동일 session → turnCount 3→4 heartbeat(25ef5d2), since=now. humanQuestion 0, blockers 0. [2] nextTask=T-0235 픽업(pr-mode). [3] feature branch claude/T-0235-branch-coverage-threshold-ratchet → executor DONE: pnpm test:cov 실측 All-files Branch/Statement/Function/Line 100%(166 suite/3285 test) 확인 후 package.json coverageThreshold.global branches/statements 50→90 ratchet 상향(functions/lines 80 유지, 측정-후-설정, floor 90 ≤ 실측 100 → CI green). ADR-0026 신규(ratchet-only 정책: 상향 자유/하향 ADR 필수). 2 files +93/-2, 새 dep 0. [4] commit b5e6439 → PR-203. [integrator] reviewer 별도 dispatch APPROVE r1/7 + comment 외화(gate 2, issue-4621610758), 4-게이트 전부 PASS, CI run 26948137415 success(test:cov 90 floor enforce + smoke + e2e + approval-gate 전 step success) → squash merge 5f81e29, branch deleted. [6] main ff 5f81e29, task DONE. tasksCompleted 232→233. nextTask=null, lock 유지. **audit backlog P1(T-0232)·P2(T-0233)·P3(T-0234)·P4(T-0235) 4종 전부 완결 — dependency-free 강화 backlog 소진.** [정지조건] turnCount 4 < cap 5 → t5(마지막) 에서 planner survey → 잔여는 P5 mutation testing(새 dep §5) 등 HITL 게이트뿐 → AskUserQuestion checkpoint(Q-0023) 후 cap 5 정지 예정.",
     "noteOld_s57t1": "s57 t1: planner T-0234 큐잉(audit P3, fab533e); t2 T-0234 merged(4046829); t3 planner T-0235 큐잉(64ac491). (s56 t5 stop-note 잔여 P5 mutation testing §5, secrets.env 만료 2026-06-30, cron@cloud refs/locks 403 — 로컬 /loop 유일 정상 driver — journal 보존.)"
   },
