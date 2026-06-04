@@ -5,10 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
-  "lock": null,
-  "lastActivity": "2026-06-04T03:01:00+09:00",
-  "lastCommit": "0ff9bee",
+  "nextTask": "T-0213",
+  "lock": {
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-s53",
+    "since": "2026-06-04T09:56:50+09:00",
+    "loopSessionStartedAt": "2026-06-04T09:56:50+09:00",
+    "loopSessionTurnCount": 1
+  },
+  "lastActivity": "2026-06-04T09:58:00+09:00",
+  "lastCommit": "872cf67",
   "mostRecentTasks": [
     "T-0212",
     "T-0211",
@@ -17,13 +23,11 @@
     "T-0208"
   ],
   "loopSession": {
-    "turnCount": 9,
-    "startedAt": "2026-06-04T01:07:00+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-06-04T09:56:50+09:00",
     "cap": 10,
-    "holder": "loop@myung-vb707106-s52",
-    "stoppedAt": "2026-06-04T03:01:00+09:00",
-    "stopReason": "unresolved-humanQuestion(Q-0020)",
-    "note": "loop@myung-vb707106-s52 session #52 t9 (STOP) — [1] fetch: local==origin 7ebf463(t8 bookkeeping + 0ff9bee merge CI 둘 다 success, main green). lock heartbeat turnCount 8→9, since 02:57→03:01. [2] currentTask·nextTask 공백 → planner dispatch. [2-planner] ESCALATED — task 날조 대신 Q-0020(needs-human-decision, OPEN) 추가. 근거: PermissionDeniedRecord dependency-free 핵심 완결(T-0207~T-0212 6 slice 전부 merged, GitHub+Confluence 양 adapter 가 권한 거부를 실제 DB 영속화). 잔여 slice 는 전부 §5 게이트: (a) retention pruning 은 ADR-0022 §3 '영구 보존, TTL 미도입' 명시 채택과 모순 + cron trigger 는 @nestjs/schedule(new-dep), (b) 조회 endpoint 는 RBAC 미결정(§5 security). [6] Q-0020 + 본 bookkeeping doc-only direct commit, lock 해제(tombstone). [STOP] 미해결 humanQuestion(Q-0020) → §1[1]/[8](a) 에 의해 reschedule 안 함, 사람 결정 대기. session #52 는 9 turn(T-0209~T-0212 4 task merged + planner queue 4회 + 1 escalation)으로 종료 — cap(10) 도달 전 자연 종료. 재개: 사용자가 Q-0020 에 resolvedAt+decision 기입·commit 후 새 /loop."
+    "holder": "loop@WIN-JQIPLSBL9QV-s53",
+    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t1 — 새 /loop(dynamic, cap 10). [1] fetch: local 이 origin/main 보다 11 commit 뒤처져 있어 ff(73e5a4b→872cf67) — session #42~#52 의 milestone-3(GitHub/Confluence adapter) + live-test gating + token-encryption CLI + multi-task-fire 활성화 + PermissionDeniedRecord(T-0207~T-0212) 전부 로컬 반영. ref-CAS lock 획득(tombstone e69de29 → blob 5c149f5). 미해결 Q-0020(needs-human-decision) 발견 → 사람 결정 필요라 driver 가 AskUserQuestion 으로 escalate. 사용자가 option(1) audit 조회 endpoint + RBAC=Admin+자기 instance 선택 → Q-0020 RESOLVED + decision 기입. [2] currentTask·nextTask 공백 → planner dispatch → T-0213(ADR-0023 audit 조회 RBAC/audience + instance-scoping 계약, commitMode pr new-ADR) 큐잉, nextTask=T-0213. ADR-first 근거: JwtPayload 에 instance 바인딩 부재(sub+role 뿐)라 audience 모델·instanceRef 매핑·401/403-vs-empty 경계가 cross-cutting 계약. [6] 본 turn doc-only direct commit(Q-0020 resolution + nextTask + T-0213 task file + journal + lock mirror). 다음 turn t2: T-0213 executor 실행(pr-mode, gh 2.88.x 가용). ScheduleWakeup 60s(즉시 가용 task)."
   },
   "ci": {
     "lastRun": "2026-06-04T02:57:00+09:00",
@@ -210,7 +214,7 @@
       "raisedAt": "2026-06-04T03:05:00+09:00",
       "raisedBy": "loop@myung-vb707106-s52 session #52 t9 (planner final survey → needs-human-decision)",
       "reason": "needs-human-decision",
-      "status": "OPEN",
+      "status": "RESOLVED",
       "summary": "Q-0019 가 승인한 PermissionDeniedRecord DB-migration milestone 의 dependency-free 핵심이 완결됐다. ADR-0022(T-0207) → prisma schema+migration(T-0208) → repository+service(T-0209) → module DI(T-0210) → GitHub emitter wiring(T-0211) → Confluence emitter wiring(T-0212) 6 slice 가 모두 merged 됐고, GitHub/Confluence 양 adapter 의 권한 거부 이벤트가 실 PostgreSQL 에 end-to-end 영속화된다. 남은 후보 slice 는 전부 §5 HITL 게이트 또는 make-work 라 사용자 결정 없이 진행할 dependency-free 작업이 없다 — planner 가 task 날조 대신 escalate.",
       "context": "잔여 후보 3종 검토 결과: (1) retention pruning(오래된 record 삭제) — ADR-0022 Decision §3 가 '영구 보존(TTL 미도입)' 를 명시 채택하고 Alternatives (b) TTL/archival 을 명시 기각('영구 보존이 audit 정합')했다. permission-denied-record.service.ts L21 도 'retention / TTL job — 도입 안 함(ADR-0022 §3 영구 보존)' 을 Out of Scope 로 박제. 따라서 pruneOlderThan 메서드는 (i) 채택된 ADR Decision §3 을 정면 위배 → 별도 ADR 로 §3 reverse 선행 필요, (ii) trigger(스케줄러)는 @nestjs/schedule 새 외부 dependency(§5 게이트), (iii) trigger 없는 prune 메서드는 standalone value 낮은 untriggered method = make-work. (2) audit 조회 HTTP endpoint(GET) — REQ-016(권한 부족의 user/admin audience 분리) 상 '누가 audit 를 읽을 수 있는가' 가 RBAC/auth-model 결정(§5 security 게이트). (3) residual nit(db-truncate.spec.ts L7 docstring '5 테이블' stale) — pre-existing doc-only style, 단독 task 가치 미미(다음 인접 PR 의 nit-closure 로 흡수 권장). ADR-0001~0022 전원 ACCEPTED(0007 미신설), blockers 0, open PR 0, CI green(main 7ebf463), tasksCompleted=210.",
       "options": [
@@ -221,7 +225,9 @@
         "(5) 루프 정지 / other direction — 위 외 우선순위(observability/test hardening, OpenAPI/Swagger doc, P6 frontend 진입 검토 등) 지시 또는 정지. planner 는 현 시점 그 방향을 make-work 로 판단했으나 사용자 우선순위 다르면 재지시 가능."
       ],
       "recommendation": "가장 가벼운 즉시-진행 옵션은 (1) audit 조회 HTTP endpoint — RBAC scope(누가 읽는가) 1 개만 결정하면 새 dependency/credential 0 으로 dependency-free 진행 가능하고, REQ-044/REQ-016 의 '권한 거부 가시화' 를 운영자 조회 경로로 완성한다. (2) retention TTL 은 ADR-0022 §3 의 명시 채택을 reverse 해야 하고 audit 신호 소실 trade-off + 새 dependency 라 권장하지 않음. 가장 큰 가치 unblock 은 (3) milestone-1 live run(P5 평가 파이프라인 선행 backbone)이나 credential 필요. 권장 순서: (1) → (3) → (4). nit(db-truncate.spec.ts docstring)은 task 화하지 말고 다음 인접 PR nit-closure 로 흡수.",
-      "resolutionHint": "docs/STATE.json 의 본 Q-0020 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 RBAC scope='누가 audit 를 읽는가' 명시 / (3)(4) 선택 시 필요한 credential scope 명시)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY)은 코드·STATE·journal 에 실값 금지, env/secret 주입(§9). (1)만 결정하면 credential 불요 즉시 재개."
+      "resolutionHint": "docs/STATE.json 의 본 Q-0020 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 RBAC scope='누가 audit 를 읽는가' 명시 / (3)(4) 선택 시 필요한 credential scope 명시)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY)은 코드·STATE·journal 에 실값 금지, env/secret 주입(§9). (1)만 결정하면 credential 불요 즉시 재개.",
+      "resolvedAt": "2026-06-04T09:56:50+09:00",
+      "decision": "option (1) audit 조회 HTTP endpoint 승인 — 사용자가 session #53(/loop loop@WIN-JQIPLSBL9QV-s53) AskUserQuestion 으로 결정. GET /api/permission-denied-records(또는 동등) audit 조회 REST endpoint 를 추가한다. RBAC scope = **Admin + 자기 instance**: Admin role 은 전체 record 조회, 일반 운영자(non-Admin authenticated)는 자기 instance(GitHub host / Confluence space 등 record 의 source instance 식별자) 범위의 record 만 조회 — REQ-016 의 user/admin audience 분리를 audit 조회 경로에 매핑. 새 외부 dependency 0(기존 NestJS controller + @Roles/guard 패턴 재사용) / 외부 credential 0 → dependency-free 진행. §5 security(auth) 게이트는 본 RBAC scope 결정으로 충족. retention TTL(옵션 2, ADR-0022 §3 영구보존 reverse 필요)·milestone-1 credentialed live LLM run(옵션 3)·milestone-3 GitHub/Confluence live token run(옵션 4)은 미승인 유지. loop 재개: planner 가 ADR-first 로 첫 slice 를 큐잉(권장: audit 조회 endpoint 의 RBAC/audience 모델 + instance-scoping 필터 계약 ADR — '자기 instance' 판별을 record 의 host/space 필드와 사용자 identity 에 어떻게 매핑할지, Admin 우회 경로, 미인증/권한부족 응답(401/403) 경계를 박제). 주의: instance-scoping 필터는 R-112 4종 + negative cases 충분 cover(타 instance record 접근 차단·non-Admin Admin-route 차단·빈 결과·미인증·경계 instance 식별자). nit(db-truncate.spec.ts docstring stale)은 인접 PR nit-closure 로 흡수."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
