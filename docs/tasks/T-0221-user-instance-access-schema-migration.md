@@ -2,8 +2,9 @@
 id: T-0221
 title: UserInstanceAccess prisma model + migration 추가 (ADR-0024 §2 schema slice)
 phase: P4
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 193
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 120
 estimatedFiles: 4
