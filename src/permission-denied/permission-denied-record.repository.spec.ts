@@ -217,4 +217,141 @@ describe("PermissionDeniedRecordRepository", () => {
       await expect(repo.findMany()).rejects.toThrow("db-down");
     });
   });
+
+  // ------------------------------------------------------------------
+  // findMany — instanceRefIn set-membership 필터 (ADR-0024 §3 slice A, T-0223)
+  // happy / branch / negative / error 4 카테고리 + exact∩set 교집합(AND).
+  // ------------------------------------------------------------------
+  describe("findMany() — instanceRefIn set-membership (ADR-0024 §3)", () => {
+    // Happy / branch (a) — instanceRefIn 만 제공: where 에 instanceRef { in: [...] }.
+    it("instanceRefIn 제공 시 where 에 instanceRef { in: [...] } + createdAt desc 로 조회한다 (happy/branch — set only)", async () => {
+      const { prisma, recordMock } = buildPrismaMock();
+      const fixture = [buildRecordFixture({ id: "r-set" })];
+      recordMock.findMany.mockResolvedValueOnce(fixture);
+
+      const repo = new PermissionDeniedRecordRepository(prisma);
+      const result = await repo.findMany({ instanceRefIn: ["a", "b"] });
+
+      expect(recordMock.findMany).toHaveBeenCalledWith({
+        where: { instanceRef: { in: ["a", "b"] } },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(result).toBe(fixture);
+    });
+
+    // Branch (b) — 단일 exact 만 제공 (기존 동작 회귀 방어): where.instanceRef = 문자열.
+    // set 분기가 단일 exact 동작을 오염시키지 않음을 확인 (additive regression).
+    it("단일 instanceRef (exact) 만 제공 시 where.instanceRef = 문자열로 그대로 유지한다 (branch — exact only, 회귀 방어)", async () => {
+      const { prisma, recordMock } = buildPrismaMock();
+      recordMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new PermissionDeniedRecordRepository(prisma);
+      await repo.findMany({ instanceRef: "exact-host" });
+
+      expect(recordMock.findMany).toHaveBeenCalledWith({
+        where: { instanceRef: "exact-host" },
+        orderBy: { createdAt: "desc" },
+      });
+    });
+
+    // Branch (c) / negative #3 — 단일 exact 가 set 에 **있는** 경우: AND 절로 합성되어
+    // Prisma 가 교집합을 평가 (exact ∩ set → 그 단일로 좁힘, ADR-0024 §3).
+    it("exact + set 둘 다 제공 시 AND 절로 합성해 교집합으로 동작한다 (branch — exact ∩ set, exact 가 set 에 속함)", async () => {
+      const { prisma, recordMock } = buildPrismaMock();
+      recordMock.findMany.mockResolvedValueOnce([buildRecordFixture()]);
+
+      const repo = new PermissionDeniedRecordRepository(prisma);
+      await repo.findMany({
+        instanceRef: "a",
+        instanceRefIn: ["a", "b"],
+      });
+
+      expect(recordMock.findMany).toHaveBeenCalledWith({
+        where: {
+          AND: [{ instanceRef: "a" }, { instanceRef: { in: ["a", "b"] } }],
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    });
+
+    // Negative #2 — 단일 exact 가 set 에 **없는** 경우: 여전히 AND 절로 합성 (Prisma
+    // 가 매칭 0 평가 — 타 instance 비노출, ADR-0024 §3/§4). repository 는 set 계산을
+    // app-layer 에서 하지 않고 AND 를 그대로 forward (raw forward 경계 유지).
+    it("exact 가 set 에 없으면 AND 절을 그대로 forward 해 Prisma 가 매칭 0 평가한다 (negative — exact ∉ set, 타 instance 비노출)", async () => {
+      const { prisma, recordMock } = buildPrismaMock();
+      recordMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new PermissionDeniedRecordRepository(prisma);
+      const result = await repo.findMany({
+        instanceRef: "z",
+        instanceRefIn: ["a", "b"],
+      });
+
+      expect(recordMock.findMany).toHaveBeenCalledWith({
+        where: {
+          AND: [{ instanceRef: "z" }, { instanceRef: { in: ["a", "b"] } }],
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(result).toEqual([]);
+    });
+
+    // Negative #1 — 빈 배열 instanceRefIn (own-instance 공집합): where 에
+    // instanceRef { in: [] } 를 그대로 forward → Prisma 가 매칭 0 평가 (빈 allowlist
+    // = 빈 결과, ADR-0024 §4). repository 는 빈 배열도 raw forward (호출자 책임 경계).
+    it("instanceRefIn: [] (빈 배열) 도 where 에 { in: [] } 로 forward 해 매칭 0 의미를 보존한다 (negative — 빈 allowlist)", async () => {
+      const { prisma, recordMock } = buildPrismaMock();
+      recordMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new PermissionDeniedRecordRepository(prisma);
+      const result = await repo.findMany({ instanceRefIn: [] });
+
+      expect(recordMock.findMany).toHaveBeenCalledWith({
+        where: { instanceRef: { in: [] } },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(result).toEqual([]);
+    });
+
+    // Negative #4 — instanceRefIn undefined + 다른 필터 (provider) 만: set 필터 미적용
+    // (instanceRef 키 자체가 where 에 부재), provider 만 where 에 포함.
+    it("instanceRefIn undefined + provider 만 제공 시 set 필터 미적용하고 provider 만 where 에 포함한다 (negative — set 미적용)", async () => {
+      const { prisma, recordMock } = buildPrismaMock();
+      recordMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new PermissionDeniedRecordRepository(prisma);
+      await repo.findMany({ provider: "github" });
+
+      expect(recordMock.findMany).toHaveBeenCalledWith({
+        where: { provider: "github" },
+        orderBy: { createdAt: "desc" },
+      });
+    });
+
+    // Branch — set + 다른 필터 (httpStatus) 동시: set 과 다른 컬럼 필터가 공존.
+    it("instanceRefIn + httpStatus 동시 제공 시 둘 다 where 에 포함한다 (branch — set + 타 컬럼 공존)", async () => {
+      const { prisma, recordMock } = buildPrismaMock();
+      recordMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new PermissionDeniedRecordRepository(prisma);
+      await repo.findMany({ instanceRefIn: ["a"], httpStatus: 403 });
+
+      expect(recordMock.findMany).toHaveBeenCalledWith({
+        where: { instanceRef: { in: ["a"] }, httpStatus: 403 },
+        orderBy: { createdAt: "desc" },
+      });
+    });
+
+    // Error path — instanceRefIn 제공 상태에서 PrismaService reject 가 swallow 없이
+    // 그대로 propagate (의존성 실패, set 필터 분기에서도 error 경계 유지).
+    it("instanceRefIn 제공 상태에서 PrismaService 가 reject 하면 error 를 그대로 전파한다 (error — set 분기 의존성 실패)", async () => {
+      const { prisma, recordMock } = buildPrismaMock();
+      recordMock.findMany.mockRejectedValueOnce(new Error("db-down"));
+
+      const repo = new PermissionDeniedRecordRepository(prisma);
+      await expect(
+        repo.findMany({ instanceRefIn: ["a", "b"] }),
+      ).rejects.toThrow("db-down");
+    });
+  });
 });
