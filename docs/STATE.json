@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0215",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s53",
-    "since": "2026-06-04T10:34:00+09:00",
+    "since": "2026-06-04T10:44:00+09:00",
     "loopSessionStartedAt": "2026-06-04T09:56:50+09:00",
-    "loopSessionTurnCount": 4
+    "loopSessionTurnCount": 5
   },
-  "lastActivity": "2026-06-04T10:34:00+09:00",
-  "lastCommit": "5bf362d",
+  "lastActivity": "2026-06-04T10:44:00+09:00",
+  "lastCommit": "2f7d28b",
   "mostRecentTasks": [
     "T-0214",
     "T-0213",
@@ -23,12 +23,12 @@
     "T-0210"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-04T09:56:50+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s53",
-    "notePrev": "t3 — planner→T-0214 큐잉(audit 조회 controller slice, Admin-path-first). ADR-0023 후속 chain 분해: non-Admin own-instance 실 필터는 User↔instance binding schema(별도 미승인 §5 DB-schema 게이트, Q-0019 미포함)라 Follow-up defer. t2 — T-0213 DONE/MERGED(PR-187, ADR-0023 신설). t1 — Q-0020 RESOLVED(option1 audit endpoint, RBAC=Admin+자기 instance).",
-    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t4 — T-0214 DONE/MERGED(PR-188, squash 5bf362d). [1] fetch: t3 commit 875296e CI in_progress(doc-only 비차단), t2 d030188 success. lock 유지(turnCount 3→4). 미해결 humanQuestion 0. [2] nextTask=T-0214 → currentTask. [3] executor(pr-mode): implementer 가 GET /api/permission-denied-records 신설(JwtAuthGuard+RolesGuard+@Roles User, @CurrentUser actor raw forward) + service.list(actor,query?) actor-aware 확장(Admin/SuperAdmin ROLE_HIERARCHY bypass=findMany forward / non-Admin binding 부재 빈배열, repository 미호출) + module controller 등록. production +177/-7, 5 파일(spec 포함 +725/-26). own-instance 실 필터는 ADR-0023 §2(b) §5 binding 게이트라 defer. tester: controller spec 3-block(unit / RBAC 401·403 / real RolesGuard escalation), coverage controller·service 100%, global line 99.93%/func 100%, threshold green, lint/build/test green(3210). [4] PR-188 open → reviewer APPROVE r1(BLOCKER/MAJOR/MINOR 0, ADR-0023 §1/§3/§4 정합 + R-112 4종 100%) → 4-게이트 PASS(approval-race 없음, CI 1-run green) → squash merge 5bf362d, branch 삭제. [6] task DONE + counters 211→212 + mostRecentTasks prepend + 본 bookkeeping. **잔여: non-Admin own-instance 실 필터(User↔instance binding schema, §5 미승인 게이트) — 다음 planner survey 에서 escalate 후보**. 다음 turn t5: planner 가 잔여 dependency-free(api.md/modules.md doc-sync, smoke/e2e endpoint test 등) 식별 또는 binding-schema escalate. ScheduleWakeup 60s."
+    "notePrev": "t4 — T-0214 DONE/MERGED(PR-188, 5bf362d): GET /api/permission-denied-records 신설(@Roles User, Admin bypass / non-Admin 빈배열). t3 — planner→T-0214 큐잉. t2 — T-0213 DONE/MERGED(ADR-0023 신설). t1 — Q-0020 RESOLVED(audit endpoint, RBAC=Admin+자기 instance).",
+    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t5 — planner survey. [1] fetch: t4 merge 5bf362d CI success, t4 bookkeeping 2f7d28b CI in_progress(doc-only 비차단). lock 유지(turnCount 4→5). 미해결 humanQuestion 0. [2] currentTask·nextTask 공백 → planner dispatch. [2-planner] 3 후보 실 repo 대조 검증: (1) api.md §5 endpoint 표에 T-0214 의 GET /api/permission-denied-records 미박제(placeholder 2 row 만) → doc-sync 최고가치 dependency-free, T-0215 큐잉(commitMode direct). (2) modules.md MVA 8-module 표 확장은 judgment call, Follow-up. (3) e2e — 타 RBAC controller 는 *.e2e-spec.ts 보유하나 permission-denied 는 prisma-model smoke 만 → 실 gap 이나 pr-mode·차순위 Follow-up. §5 escalate 불요(genuine dependency-free 존재). nextTask=T-0215. [6] 본 turn doc-only direct commit. 다음 turn t6: T-0215 executor(direct doc-sync). ScheduleWakeup 60s."
   },
   "ci": {
     "lastRun": "2026-06-04T02:57:00+09:00",
