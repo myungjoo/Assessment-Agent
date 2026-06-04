@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0217",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s53",
-    "since": "2026-06-04T11:00:00+09:00",
+    "since": "2026-06-04T11:13:00+09:00",
     "loopSessionStartedAt": "2026-06-04T09:56:50+09:00",
-    "loopSessionTurnCount": 8
+    "loopSessionTurnCount": 9
   },
-  "lastActivity": "2026-06-04T11:00:00+09:00",
-  "lastCommit": "d73245c",
+  "lastActivity": "2026-06-04T11:13:00+09:00",
+  "lastCommit": "23473ea",
   "mostRecentTasks": [
     "T-0216",
     "T-0215",
@@ -23,12 +23,12 @@
     "T-0212"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-04T09:56:50+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s53",
-    "notePrev": "t7 — planner→T-0216 큐잉(audit endpoint RBAC e2e, pr): 9 RBAC controller 중 permission-denied 만 e2e 부재 확인. t6 — T-0215 DONE(api.md doc-sync). t5 — planner→T-0215. t4 — T-0214 DONE/MERGED(endpoint). t3 — planner→T-0214. t2 — T-0213 DONE(ADR-0023). t1 — Q-0020 RESOLVED.",
-    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t8 — T-0216 DONE/MERGED(PR-189, squash d73245c). [1] fetch: t7 commit 8caee45 CI in_progress(doc-only 비차단), t6 2caa9d9 success(main green). lock 유지(turnCount 7→8). 미해결 humanQuestion 0. [2] nextTask=T-0216 → currentTask. [3] executor(pr-mode): implementer 가 test/e2e/permission-denied-records.e2e-spec.ts 추가(summaries.e2e RBAC 패턴 1:1 mirror, ADR-0023 §1/§4 박제 동작만 assert: Admin/SuperAdmin bypass 200 / non-Admin 200 빈배열(403 아님) / 미인증 401(cookie 부재+invalid JWT) / query 필터 provider·instanceRef·httpStatus / parseHttpStatus non-numeric 경계, own-instance 필터 OUT). production 0, +343 단일 파일(약 129 줄 convention 주석). tester: lint·build·test:cov green(163 suite/3210, line·func ≥80% 유지), tsc --noEmit e2e green, test:e2e 는 CI services.postgres 에서 auto-pick 실행(R-113). [4] PR-189 open → reviewer APPROVE r1(8-check + R-112/R-113 정합, own-instance assertion leak 0, LOC 343 단일 test 파일 non-blocking MINOR) → 4-게이트 PASS(approval-race 없음, e2e step services.postgres green=R-113 실검증) → squash merge d73245c, branch 삭제. [6] task DONE + counters 213→214 + mostRecentTasks prepend + 본 bookkeeping. **잔여 dependency-free: modules.md 표 확장(judgment-call) 1건 정도. 그 후 milestone 핵심(non-Admin own-instance 실 필터)은 §5 User↔instance binding-schema 게이트(미승인) — 다음 planner survey 가 modules.md 큐잉 또는 binding-schema escalate**. 다음 turn t9: planner survey. ScheduleWakeup 60s."
+    "notePrev": "t8 — T-0216 DONE/MERGED(PR-189, e2e R-113). t7 — planner→T-0216. t6 — T-0215 DONE(api.md doc-sync). t5 — planner→T-0215. t4 — T-0214 DONE/MERGED(endpoint). t3 — planner→T-0214. t2 — T-0213 DONE(ADR-0023). t1 — Q-0020 RESOLVED(audit endpoint, RBAC=Admin+자기 instance).",
+    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t9 — planner final survey. [1] fetch: t8 commit 23473ea CI in_progress(doc-only 비차단), t8 merge d73245c success(main green). lock 유지(turnCount 8→9). 미해결 humanQuestion 0. [2] currentTask·nextTask 공백 → planner dispatch. [2-planner] OUTCOME 1 — T-0217 큐잉(modules.md 에 PermissionDeniedRecordModule 박제 + '8→9 module' 카운트 정합, commitMode direct). material staleness 확인(cosmetic 아님): app.module.ts 가 9 module register 하나 modules.md 는 'system = 8 module' 박제 + PermissionDeniedRecordModule(T-0210)이 module 표/mermaid/topology/components 어디에도 부재 → CLAUDE §7 canonical module index 신뢰성 결함. nextTask=T-0217. own-instance 실 필터/User↔instance binding-schema 서술은 §5 미승인이라 T-0217 Out of Scope — 그 escalation 은 T-0217 후 다음 survey. [6] 본 turn doc-only direct commit. **다음 turn t10: T-0217 executor(direct doc-sync) 실행 후 loopSessionTurnCount=10 → §1[8](e) cap 도달 STOP + 사용자 cleanup 안내 예정**. ScheduleWakeup 60s."
   },
   "ci": {
     "lastRun": "2026-06-04T02:57:00+09:00",
