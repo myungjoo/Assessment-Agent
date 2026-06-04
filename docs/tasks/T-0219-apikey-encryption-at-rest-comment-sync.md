@@ -2,8 +2,9 @@
 id: T-0219
 title: LlmProviderConfig.apiKey 평문 placeholder 주석 정합 (encryption-at-rest 완결 반영)
 phase: P4
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 191
 coversReq: [REQ-049, REQ-058]
 estimatedDiff: 6
 estimatedFiles: 1
