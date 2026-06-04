@@ -2,8 +2,12 @@
 id: T-0232
 title: encrypt-token-cli 비-Error throw 분기 negative-case test 강화
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 200
+mergedAs: d7bb198
+reviewRounds: 1
+completedAt: 2026-06-04T19:20:00+09:00
 coversReq: [REQ-112]
 estimatedDiff: 30
 estimatedFiles: 1
