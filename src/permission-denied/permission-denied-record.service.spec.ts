@@ -463,6 +463,22 @@ describe("PermissionDeniedRecordService", () => {
       expect(uiaRepo.findInstanceRefsByUserId).toHaveBeenCalledWith("y");
     });
 
+    // Negative: 빈 문자열 role → non-Admin 취급 (isAdminBypass("") === false).
+    // 경계 직접 cover — Admin bypass NOT 발생, actor.sub 로 allowlist lookup 이
+    // 실제로 호출되고 own-instance 필터 경로를 탄다 (간접이 아닌 직접 검증).
+    it("role 이 빈 문자열인 actor 는 non-Admin 취급해 findInstanceRefsByUserId 가 호출되고 own-instance 필터를 탄다 (negative — 빈 문자열 role 경계)", async () => {
+      const { service, repo, uiaRepo } = buildService();
+      uiaRepo.findInstanceRefsByUserId.mockResolvedValueOnce([]);
+
+      const result = await service.list({ sub: "z", role: "" });
+
+      // Admin bypass 미발생 → allowlist lookup 이 actor.sub 로 호출됨.
+      expect(uiaRepo.findInstanceRefsByUserId).toHaveBeenCalledWith("z");
+      // 빈 allowlist → 빈 배열, findMany 미호출 (own-instance 필터 경로).
+      expect(result).toEqual([]);
+      expect(repo.findMany).not.toHaveBeenCalled();
+    });
+
     // Error path: non-Admin path 에서 findInstanceRefsByUserId reject (DB 장애) 를
     // swallow 없이 propagate.
     it("non-Admin path 의 findInstanceRefsByUserId reject 를 swallow 없이 전파한다 (error — allowlist lookup 의존성 실패)", async () => {
