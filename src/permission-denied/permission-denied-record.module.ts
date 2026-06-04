@@ -17,17 +17,24 @@
 // UserModule 과 동형 — PermissionDeniedRecordRepository 의 PrismaService 생성자 주입은
 // global scope 에서 해결됨).
 //
-// 후속 task (ADR-0022 chain row 3):
-//   - 영속화 emitter wiring — 본 module 이 export 한 PermissionDeniedRecordService 를
-//     inject 하는 `PrismaPermissionDeniedEmitter`(또는 동등) 신설 + Github/Confluence
-//     emitter port 교체. 본 task 는 service/repository 를 DI 로 가용화만 한다.
+// 단, UserInstanceAccessModule 은 `@Global()` 이 아닌 일반 module 이라 (PersistenceModule
+// 과 달리 application-wide export 가 아님) 본 module 의 imports 에 **명시** 해야
+// PermissionDeniedRecordService 가 UserInstanceAccessRepository 를 DI 주입받을 수 있다
+// (ADR-0024 §3 split B — non-Admin own-instance allowlist lookup 결선).
 import { Module } from "@nestjs/common";
+
+import { UserInstanceAccessModule } from "../user-instance-access/user-instance-access.module";
 
 import { PermissionDeniedRecordController } from "./permission-denied-record.controller";
 import { PermissionDeniedRecordRepository } from "./permission-denied-record.repository";
 import { PermissionDeniedRecordService } from "./permission-denied-record.service";
 
 @Module({
+  // imports — UserInstanceAccessModule 은 일반 module (non-@Global) 이라 명시 import 로만
+  // UserInstanceAccessRepository export 가 본 module 의 DI scope 에 들어온다 (ADR-0024 §3
+  // split B). PermissionDeniedRecordService 의 non-Admin own-instance allowlist lookup
+  // 결선에 필요. (PrismaService 는 PersistenceModule @Global 이라 imports 불요.)
+  imports: [UserInstanceAccessModule],
   // controllers — audit 조회 REST endpoint (T-0214, ADR-0023 §5). PermissionDeniedRecord
   // Controller 가 `GET /api/permission-denied-records` 를 노출 (RBAC=@Roles("User") +
   // service-layer audience 차등). service/repository 는 PersistenceModule (@Global) 의
