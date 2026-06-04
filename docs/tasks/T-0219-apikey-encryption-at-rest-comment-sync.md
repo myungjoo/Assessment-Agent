@@ -2,13 +2,16 @@
 id: T-0219
 title: LlmProviderConfig.apiKey 평문 placeholder 주석 정합 (encryption-at-rest 완결 반영)
 phase: P4
-status: IN_PROGRESS
+status: DONE
 commitMode: pr
 prNumber: 191
+mergedAs: 83737ad
+reviewRounds: 1
 coversReq: [REQ-049, REQ-058]
 estimatedDiff: 6
 estimatedFiles: 1
 created: 2026-06-04
+completed: 2026-06-04
 plannerNote: P4 stale-comment 정합 — schema.prisma L311-312 가 apiKey '평문 placeholder/암호화 0' 라 주장하나 main 은 ADR-0014 AES-256-GCM write-encrypt+JIT-decrypt 완결. comment-only pr.
 ---
 
