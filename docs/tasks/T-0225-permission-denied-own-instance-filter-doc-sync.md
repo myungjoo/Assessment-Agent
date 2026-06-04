@@ -2,13 +2,16 @@
 id: T-0225
 title: api.md + modules.md 의 non-Admin audit 동작을 own-instance 필터 reality 로 doc-sync
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 12
 estimatedFiles: 2
 created: 2026-06-04
+completedAt: 2026-06-04T15:05:00+09:00
+committedAs: e13365e
 plannerNote: P4 — T-0221~T-0224 own-instance 필터 chain 머지로 api.md L124·modules.md L37 의 'binding 미박제/빈 배열 fallback' 서술이 stale, doc-vs-reality 정합
+result: DONE — api.md L124 + modules.md L37 non-Admin audit 동작을 UserInstanceAccess allowlist own-instance 필터 reality 로 정합 + ADR-0024 §3 참조 추가(direct, e13365e). tasksCompleted 222→223.
 ---
 
 # T-0225 — api.md + modules.md 의 non-Admin audit 동작을 own-instance 필터 reality 로 doc-sync
