@@ -5,16 +5,10 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
-  "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-s54",
-    "since": "2026-06-04T11:32:55+09:00",
-    "loopSessionStartedAt": "2026-06-04T11:32:55+09:00",
-    "loopSessionTurnCount": 9
-  },
-  "lastActivity": "2026-06-04T13:46:48+09:00",
-  "lastCommit": "0a0f639",
+  "nextTask": "T-0222",
+  "lock": null,
+  "lastActivity": "2026-06-04T13:53:13+09:00",
+  "lastCommit": "126071c",
   "mostRecentTasks": [
     "T-0221",
     "T-0220",
@@ -23,12 +17,14 @@
     "T-0217"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-04T11:32:55+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s54",
-    "notePrev": "t8 — planner → T-0221 큐잉(UserInstanceAccess prisma model + migration, ADR-0024 §2). direct doc commit a14bc53.",
-    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t9 — T-0221 DONE/MERGED(PR-193, 0a0f639). [1] fetch: main a14bc53+b278da9, lock 본인 보유 → turnCount 8→9. humanQuestion 0, blockers 0. [2] nextTask=T-0221 → currentTask, commitMode pr, prNumber 없음 → 정상 executor. [3] executor(inline impl+test): UserInstanceAccess prisma model({id,userId,instanceRef,createdAt} + @@unique([userId,instanceRef]) + @@index([userId]) + user @relation onDelete:Cascade) + User.instanceAccess back-relation + migration 20260604010000_user_instance_access(CreateTable+unique+index+FK Cascade, ADR-0004 migrate-deploy, prisma idiom 복제) + prisma-schema.spec.ts assertion. empty table·behavior 변경 0, src/ 미접촉. lint+build+test green(3217 pass, cov 99.94%/100%). [4] pr: branch claude/T-0221-… push → PR #193. prNumber=193 bookkeeping(b278da9). integrator(round 1): review APPROVE(model ADR-0024 §2 byte 일치, migration↔model drift 0, Out-of-Scope·§9·§12 준수) → gh pr comment → CI green(**migrate-deploy 처음부터 green** = 실 migration 검증 통과; reviewer-gate race step 만 rerun self-heal) → 4-게이트 → squash merge 0a0f639. **[process 관찰] integrator 가 sub-agent 내 Task tool 부재로 reviewer 별도 sub-agent dispatch 실패 → review 를 integrator inline 수행 후 PR comment 외화(gate 2 충족). reviewer↔committer 이중 actor 분리 약화 — 사용자 보고 + 후속 보강 검토 필요(driver→reviewer 분리 dispatch).** [6] task DONE/mergedAs 0a0f639 + tasksCompleted 218→219 + mostRecentTasks prepend + bookkeeping direct. reschedule: §1[8] (turnCount 9<10) — 다음 t10 에서 cap 도달 → STOP·cleanup 안내 예정."
+    "stoppedAt": "2026-06-04T13:53:13+09:00",
+    "stopReason": "turn-cap(10) 도달 — §1[8](e). nextTask=T-0222 큐잉 완료, 사용자 /compact|/clear 후 새 /loop 또는 cron 으로 재개.",
+    "notePrev": "t9 — T-0221 DONE/MERGED(PR-193, 0a0f639): UserInstanceAccess prisma model + migration(ADR-0024 §2). CI migrate-deploy 처음부터 green(실 PostgreSQL 검증). tasksCompleted 218→219.",
+    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t10 (STOP — turn-cap) — planner dispatch(option 1 chain row 2 큐잉) 후 cap STOP. [1] fetch: main 126071c, lock 본인 보유 → turnCount 9→10. humanQuestion 0, blockers 0. [2] currentTask·nextTask 둘 다 null → planner dispatch. [planner] T-0222 큐잉: UserInstanceAccessRepository(findInstanceRefsByUserId allowlist lookup + ADR-0024 §4 normalizeInstanceRef + 정규화 binding create + unit spec). repository slice 만 — service/controller 결선(non-Admin placeholder 대체 + PermissionDeniedRecordFilter set-membership 확장 + intersection)은 명시적 next Follow-up(2 module 혼합 회피, ADR-0024 chain row 2 vs 3 분리). R-112 4종+negative(타 instance 차단·빈 allowlist·query∩allowlist·정규화 경계). [6] nextTask=T-0222 + bookkeeping direct. [STOP] §1[8](e) turnCount=10 ≥ 10 → reschedule 안 함, lock 해제(tombstone, §4). **session #54 요약: 10 turn — T-0218(truncate 주석)·T-0219(apiKey 암호화 주석)·T-0220(ADR-0024 binding 설계)·T-0221(UserInstanceAccess schema+migration) 4 task merged(tasksCompleted 215→219) + Q-0021 RESOLVE(option 1 audit own-instance 필터 먼저 + option 2 milestone-1 azure_openai 시험 credential 승인, 로컬 secrets.env 6/30). option(1) 진행률: 설계+schema 완료, 잔여 = repository 필터(T-0222 큐잉됨)→service/controller 결선→tests. milestone-1(option 2)은 미착수(credential 로컬 보관됨).** [재개 시 보강] (a) /compact|/clear 후 새 /loop → T-0222 픽업. (b) **filter 로직 slice 부터는 driver→reviewer 별도 dispatch 로 reviewer↔committer 이중 actor 분리 복원**(t9 process 관찰 — integrator 가 sub-agent 내 reviewer dispatch 불가). (c) milestone-1 진입 시 로컬 secrets.env(azure_openai gpt-5.4, 6/30 만료) env 주입."
   },
   "ci": {
     "lastRun": "2026-06-04T13:45:00+09:00",
