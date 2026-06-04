@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0233",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s56",
-    "since": "2026-06-04T19:20:25+09:00",
+    "since": "2026-06-04T19:24:10+09:00",
     "loopSessionStartedAt": "2026-06-04T18:56:03+09:00",
-    "loopSessionTurnCount": 3
+    "loopSessionTurnCount": 4
   },
-  "lastActivity": "2026-06-04T19:20:25+09:00",
-  "lastCommit": "d7bb198",
+  "lastActivity": "2026-06-04T19:24:10+09:00",
+  "lastCommit": "017ba41",
   "mostRecentTasks": [
     "T-0232",
     "T-0231",
@@ -27,8 +27,8 @@
     "startedAt": "2026-06-04T18:56:03+09:00",
     "cap": 5,
     "holder": "loop@WIN-JQIPLSBL9QV-s56",
-    "notePrev": "s56 t1: T-0231(test-quality·coverage 감사, audit-only direct, 7e9f1af) — pnpm test:cov 1회, All files line 99.94/func 100/branch 99.83, 80% 턱걸이 0건, gap 3건(P1 encrypt-cli 비-Error throw / P2 difficulty non-Prisma / P3 auth.module fallback) 보고서 박제. t2: planner T-0232 큐잉(P1, a69fcf4). 둘 다 CI success.",
-    "note": "loop@WIN-JQIPLSBL9QV-s56 session #56 t3 (사용자 turn cap 5) — T-0232 DONE/MERGED (PR-200, squash d7bb198). [1] fetch main a69fcf4, lock s56 동일 session → turnCount 2→3 heartbeat. a69fcf4 doc-CI in_progress(non-blocking). humanQuestion 0. [2] nextTask=T-0232 픽업(pr-mode, fresh). [3] feature branch claude/T-0232-... 생성 → executor 1회 호출 DONE: encrypt-token-cli.spec.ts 에 비-Error throw negative test 2종(string/object, makeThrowingCipher stub) 추가, **encrypt-token-cli.ts %Branch 91.66→100** (Stmts/Funcs/Lines 100), production 무변경(test-only, +61 LOC). [4] commit 6657f2e → push feature branch → PR-200 open. [reviewer] 별도 dispatch(dual-actor) APPROVE r1/7 0 findings, PR comment 외화(gate 2). [CI] run 26945637467 success(gh run watch). [integrator] 별도 dispatch 4-게이트 PASS → gh pr merge --squash --delete-branch d7bb198. [6] main ff d7bb198, task DONE/mergedAs/prNumber. tasksCompleted 229→230. nextTask=null. [재개 보강] (a) **다음 turn(t4): planner 로 audit P2(difficulty.service L50 non-Prisma error 분기 negative test, pr-mode) 큐잉 권장 → t5 실행.** (b) P3(auth.module ?? fallback helper 분리)도 pr-mode 가능. P4(branch global threshold)·P5(mutation testing)은 정책/dependency 결정(ADR/§5). (c) lock since heartbeat 매 turn 갱신. (d) cron@cloud refs/locks/* 403 env 한계 유지 — 로컬 /loop 유일 정상 driver. (e) secrets.env 만료 2026-06-30. (f) turn cap 5(사용자) — turnCount≥5 시 reschedule 정지·cleanup 안내(현 t3, 잔여 2)."
+    "notePrev": "s56 t2: planner T-0232 큐잉(P1, a69fcf4). t3: T-0232 DONE/MERGED(PR-200, squash d7bb198) — encrypt-token-cli 비-Error throw 분기 negative test, %Branch 91.66→100, 4-게이트 PASS. tasksCompleted 229→230.",
+    "note": "loop@WIN-JQIPLSBL9QV-s56 session #56 t4 (사용자 turn cap 5) — planner T-0233 큐잉(audit P2). [1] fetch main 017ba41, lock s56 동일 session → turnCount 3→4 heartbeat. 017ba41 doc-CI in_progress(non-blocking), 직전 merge d7bb198 success. humanQuestion 0. [2] currentTask/nextTask 둘 다 null → planner dispatch. planner T-0233 큐잉 — difficulty-mapping.service.ts:50 getPrismaErrorCode return undefined 분기(code-less/non-object error 시) 미커버 negative test(test-only pr-mode, 1 파일). issue-still-relevant 확인(유일 call site assignProviderConfig catch, 기존 P2025/P9999 test 는 code 有 → L48 만 cover, L50 미커버; spec T-0138 9fc6570 이래 미변경). STATE.nextTask=T-0233. tasksCompleted 230 유지. [재개 보강] (a) **다음 turn(t5, cap 마지막): T-0233 실행(pr-mode, T-0232 mirror — executor→reviewer 별도 dispatch→CI watch→integrator 4-게이트→squash merge). 완료 후 turnCount=5=cap 도달 → reschedule 정지 + cleanup 안내.** (b) 잔여 audit backlog: P3(auth.module ?? fallback helper 분리, pr 가능) + P4(branch global threshold, 정책/ADR) + P5(mutation testing, new-dep/ADR) — 다음 /loop session 또는 cron 에서. (c) lock since heartbeat 매 turn 갱신. (d) cron@cloud refs/locks/* 403 env 한계 — 로컬 /loop 유일 정상 driver. (e) secrets.env 만료 2026-06-30."
   },
   "ci": {
     "lastRun": "2026-06-04T19:18:00+09:00",
