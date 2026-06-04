@@ -5,41 +5,41 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0234",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s57",
-    "since": "2026-06-04T19:40:58+09:00",
+    "since": "2026-06-04T19:56:44+09:00",
     "loopSessionStartedAt": "2026-06-04T19:40:58+09:00",
-    "loopSessionTurnCount": 1
+    "loopSessionTurnCount": 2
   },
-  "lastActivity": "2026-06-04T19:41:00+09:00",
-  "lastCommit": "138c7d2",
+  "lastActivity": "2026-06-04T19:56:44+09:00",
+  "lastCommit": "4046829",
   "mostRecentTasks": [
+    "T-0234",
     "T-0233",
     "T-0232",
     "T-0231",
-    "T-0230",
-    "T-0229"
+    "T-0230"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-04T19:40:58+09:00",
     "cap": 5,
     "holder": "loop@WIN-JQIPLSBL9QV-s57",
     "stoppedAt": null,
     "stopReason": null,
-    "notePrev": "s56 t5: T-0233 DONE/MERGED(PR-201, 138c7d2) — difficulty-mapping.service getPrismaErrorCode undefined 분기 negative test, %Branch→100. session #56 cap 5 정상 정지. tasksCompleted 230→231.",
-    "note": "loop@WIN-JQIPLSBL9QV-s57 session #57 t1 (사용자 turn cap 5) — [1] fetch main 09b79de, lock free(tombstone e69de29) → ref-CAS 획득(7dc01d3), 새 session turnCount=1. humanQuestion 0(Q-0013..Q-0022 전원 RESOLVED), blockers 0, open PR 0, CI green. [2] currentTask·nextTask 둘 다 null → planner dispatch. [planner] P3 audit backlog 검증 genuine(auth.module.ts:63 `?? \"\"` 분기 still inline, resolveJwtSecret helper 미존재, T-0106 이후 무변경, dependency-free) → T-0234 큐잉(pr-mode, ≤3 파일). [6] STATE.nextTask=T-0234, lock mirror s57, direct doc commit. [정지조건] turnCount 1 < cap 5 → 다음 turn 에서 T-0234 픽업 예정(ScheduleWakeup 60s).",
-    "noteOld_s56": "loop@WIN-JQIPLSBL9QV-s56 session #56 t5 (사용자 turn cap 5, 마지막 turn) — T-0233 DONE/MERGED (PR-201, squash 138c7d2) → **session 정상 정지(cap 도달)**. [1] fetch main 759d76e, lock s56 동일 session → turnCount 4→5 heartbeat. humanQuestion 0. [2] nextTask=T-0233 픽업(pr-mode, fresh). [3] feature branch claude/T-0233-... → executor DONE: difficulty-mapping.service.spec.ts 에 getPrismaErrorCode return undefined 분기 negative test 2종(plain Error code-less + 비-객체 문자열) 추가, **difficulty-mapping.service.ts 96.87→100%**, production 무변경(test-only +41 LOC). [4] commit 97929ec → PR-201. [reviewer] 별도 dispatch APPROVE r1/7 0 findings, comment 외화(gate 2). [CI] run 26946376906 success(2m11s, 3280 test). [integrator] 별도 dispatch 4-게이트 PASS → squash merge 138c7d2. [6] main ff 138c7d2, task DONE. tasksCompleted 230→231. nextTask=null, lock tombstone 해제. [정지] turnCount=5=cap(사용자 지정) → reschedule 안 함. [재개 보강] (a) **잔여 audit backlog: P3(auth.module ?? fallback — entrypoint helper 분리해 unit-testable 화, pr-mode) / P4(branch coverage global threshold 도입, 정책 결정 → ADR-first) / P5(mutation testing 도입, 새 dependency+ADR, §5).** P3 는 dependency-free pr-mode 라 다음 session planner 가 바로 큐잉 가능. P4/P5 는 ADR/§5 게이트. (b) 재개 = /compact 또는 /clear 후 새 /loop, 또는 cron 발화. (c) cron@cloud refs/locks/* 403 env 한계 — 로컬 /loop 유일 정상 driver. (d) secrets.env 만료 2026-06-30. (e) 본 session 5 turn 성과: T-0231 audit 보고서 + P1(T-0232)·P2(T-0233) 2 PR merged, 대상 파일 둘 다 branch 100% 달성, CI 전 회 green, blockers 0."
+    "notePrev": "s57 t1: planner T-0234 큐잉(audit P3, pr-mode dependency-free, fab533e). currentTask/nextTask 둘 다 null → planner dispatch path. turnCount 0→1.",
+    "note": "loop@WIN-JQIPLSBL9QV-s57 session #57 t2 (사용자 turn cap 5) — T-0234 DONE/MERGED (PR-202, squash 4046829). [1] fetch main fab533e, lock s57 동일 session → turnCount 1→2 heartbeat(78ea0f0), since=now. humanQuestion 0, blockers 0. [2] nextTask=T-0234 픽업(pr-mode). gh probe 정상(2.88.1 authed). [3] feature branch claude/T-0234-auth-module-jwt-secret-helper → executor DONE: resolveJwtSecret(env) helper 신규(src/auth/resolve-jwt-secret.ts) + colocated spec(R-112 4종 + negative env부재/undefined/빈문자/공백), auth.module.ts:63 inline `?? \"\"` 분기 helper 호출로 교체. helper coverage 100%(blind spot 해소). 3 files +77/-3, 새 dep 0. [4] commit 9e7f04d → PR-202. [integrator] reviewer 별도 dispatch APPROVE r1/7 0 findings + comment 외화(gate 2, issuecomment-4621460527), 4-게이트 전부 PASS, CI run 26947209785 success → squash merge 4046829, branch deleted. [6] main ff 4046829, task DONE. tasksCompleted 231→232. nextTask=null, lock 유지(turn 계속). [정지조건] turnCount 2 < cap 5 → 다음 turn 에서 audit backlog 잔여(P4 branch threshold ADR / P5 mutation testing §5) 검토 위해 planner dispatch 또는 AskUserQuestion checkpoint 예정.",
+    "noteOld_s57t1": "loop@WIN-JQIPLSBL9QV-s57 session #57 t1 — [1] fetch main 09b79de, lock free(tombstone e69de29) → ref-CAS 획득(7dc01d3). [2] currentTask·nextTask 둘 다 null → planner dispatch. [planner] P3 audit backlog genuine 검증 → T-0234 큐잉. [6] STATE.nextTask=T-0234, direct doc commit fab533e. (s56 t5 stop-note: 잔여 audit backlog P4 branch global threshold ADR / P5 mutation testing §5; secrets.env 만료 2026-06-30; cron@cloud refs/locks 403 env 한계 — 로컬 /loop 유일 정상 driver — 는 journal 보존.)"
   },
   "ci": {
-    "lastRun": "2026-06-04T19:34:00+09:00",
+    "lastRun": "2026-06-04T19:56:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/201",
-    "note": "s56 t5: T-0233 PR-201 CI run 26946376906 success(2m11s) — 3280 test green, difficulty-mapping.service %Branch→100. squash merge 138c7d2. consecutiveFails 0. (t3 T-0232 PR-200 d7bb198 도 success.)"
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/202",
+    "note": "s57 t2: T-0234 PR-202 CI run 26947209785 success — resolve-jwt-secret helper coverage 100%, reviewer approval-gate step 통과(comment race 없음). squash merge 4046829. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -277,7 +277,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 231,
+    "tasksCompleted": 232,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

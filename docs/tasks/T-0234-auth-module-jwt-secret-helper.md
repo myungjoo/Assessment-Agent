@@ -2,12 +2,16 @@
 id: T-0234
 title: auth.module JWT secret ?? fallback 을 resolveJwtSecret helper 로 분리해 coverage 측정 대상화
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [TBD]
 estimatedDiff: 50
 estimatedFiles: 3
 created: 2026-06-04
+completedAt: 2026-06-04T19:56:44+09:00
+prNumber: 202
+mergedAs: 4046829
+reviewRounds: 1
 plannerNote: P4 audit backlog P3 (test-quality-coverage-audit-2026-06 §4 T-cand-3) — auth.module ?? "" 분기를 testable helper 로 분리. dependency-free pr-mode, ≤3 파일.
 ---
 
