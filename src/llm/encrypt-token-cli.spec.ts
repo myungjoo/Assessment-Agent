@@ -309,4 +309,65 @@ describe("runEncryptTokenCli (CLI 실행 — exit code + §9 secret 미노출)",
     expect(code).toBe(1);
     expect(err.join("")).toContain("사용법");
   });
+
+  // ------------------------------------------------------------------
+  // Negative (비-Error throw 분기, T-0231 audit P1) — cipher.encrypt 가
+  // Error 인스턴스가 아닌 값 (string / object) 을 throw 했을 때, catch 의
+  // `error instanceof Error ? error.message : String(error)` 중 `: String(error)`
+  // 갈래가 실행된다 (encrypt-token-cli.ts:113). 기존 error-path test (위 264·281)
+  // 는 전부 Error 인스턴스를 throw 하므로 이 갈래는 미검증이었다 (branch 91.66).
+  // makeThrowingCipher — encrypt 가 주어진 비-Error 값을 throw 하는 stub cipher 를
+  // 만든다. decrypt 는 본 분기에서 호출되지 않으므로 호출 시 fail 하는 guard 만 둔다.
+  // ------------------------------------------------------------------
+  function makeThrowingCipher(thrown: unknown): LlmApiKeyCipher {
+    return {
+      encrypt: (): string => {
+        throw thrown;
+      },
+      decrypt: (): string => {
+        throw new Error(
+          "decrypt 는 본 negative test 에서 호출되지 않아야 한다",
+        );
+      },
+    } as unknown as LlmApiKeyCipher;
+  }
+
+  // 비-Error throw 대표 type 을 1종 초과로 cover (R-112 negative 충분 cover):
+  //   - string: 진단 메시지에 String(error) === 그 string 자체가 포함됨.
+  //   - object({}): String({}) === "[object Object]" 가 포함됨.
+  it.each([
+    {
+      label: "string 값",
+      thrown: "비-Error string 폭발",
+      expectedFragment: "비-Error string 폭발",
+    },
+    {
+      label: "object 값",
+      thrown: { reason: "non-error object" },
+      expectedFragment: "[object Object]",
+    },
+  ])(
+    "cipher.encrypt 가 $label 을 throw 하면 String(error) 분기로 비0 을 반환하고 평문을 노출하지 않는다 (negative — 비-Error throw, §9)",
+    ({ thrown, expectedFragment }) => {
+      const plaintext = "plain-secret-token-non-error";
+      const { io, out, err } = makeIo({
+        argv: ["node", "cli", plaintext],
+        cipher: makeThrowingCipher(thrown),
+      });
+
+      const code = runEncryptTokenCli(io);
+
+      // (a) 비0 exit — 암호화 실패가 표면화됨.
+      expect(code).toBe(1);
+      // (b) stdout 비어있음 — ciphertext 미출력.
+      expect(out).toHaveLength(0);
+      const diag = err.join("");
+      // (c) stderr 진단에 String(error) 결과가 포함됨 (: String(error) 갈래 실행 증거).
+      expect(diag).toContain(expectedFragment);
+      expect(diag).toContain("토큰 암호화 실패");
+      // (d) §9 — 평문 토큰이 stderr·stdout 어디에도 등장하지 않음.
+      expect(diag).not.toContain(plaintext);
+      expect(out.join("")).not.toContain(plaintext);
+    },
+  );
 });
