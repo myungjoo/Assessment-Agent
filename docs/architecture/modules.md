@@ -1,6 +1,6 @@
 # Module view
 
-> **본 문서는 P1 T-A4 의 산출물이다. [T-0017](../tasks/T-0017-t-a4-module-view.md) 가 NestJS 8 module 분해 + 의존성 acyclic 검증 + components ↔ modules N:N mapping 을 박제했다. 본 task 머지로 Phase P1 (Architecture / MVA) 가 전체 완료된다.**
+> **본 문서는 P1 T-A4 의 산출물이다. [T-0017](../tasks/T-0017-t-a4-module-view.md) 가 NestJS 8 module 분해 + 의존성 acyclic 검증 + components ↔ modules N:N mapping 을 박제했고, [T-0217](../tasks/T-0217-modules-md-permission-denied-module-sync.md) 가 9 번째 shipped module (PermissionDeniedRecordModule, T-0210/ADR-0022) 을 정합했다. 본 task 머지로 Phase P1 (Architecture / MVA) 가 전체 완료된다.**
 
 ## 개요
 
@@ -19,13 +19,13 @@
 
 ## Deployment 컨텍스트
 
-본 문서의 **모든 8 module 은 동일 NestJS process (단일 AppModule 의 imports) 에 등록된다** — [ADR-0003 §1 — Monolithic NestJS process](../decisions/ADR-0003-deployment.md) 가 박제한 결정이다. module 간 경계는 **DI container 내부의 provider visibility 경계** 이지 process 경계가 아니다. module 간 호출은 NestJS DI 가 주입한 service 의 in-process method call 이 default 이며, 외부 시스템 (GitHub / Confluence / LLM provider / DB) 만 HTTPS 또는 DB protocol 경계를 넘는다.
+본 문서의 **모든 9 module 은 동일 NestJS process (단일 AppModule 의 imports) 에 등록된다** — [ADR-0003 §1 — Monolithic NestJS process](../decisions/ADR-0003-deployment.md) 가 박제한 결정이다. module 간 경계는 **DI container 내부의 provider visibility 경계** 이지 process 경계가 아니다. module 간 호출은 NestJS DI 가 주입한 service 의 in-process method call 이 default 이며, 외부 시스템 (GitHub / Confluence / LLM provider / DB) 만 HTTPS 또는 DB protocol 경계를 넘는다.
 
 [ADR-0002 (PostgreSQL + Prisma)](../decisions/ADR-0002-db.md) 는 PersistenceModule 의 기술 선택을 박제했고, [ADR-0003 §3 (`@nestjs/schedule` in-process)](../decisions/ADR-0003-deployment.md) 는 SchedulerModule 의 메커니즘을 박제했다.
 
 ## Module 목록
 
-본 시스템은 다음 8 NestJS module 로 분해된다. 각 module 의 책임은 1~2 줄로 한정하며, 구체 service class / endpoint URL / Prisma model name 등은 P3+ 의 범위.
+본 시스템은 다음 9 NestJS module 로 분해된다. 각 module 의 책임은 1~2 줄로 한정하며, 구체 service class / endpoint URL / Prisma model name 등은 P3+ 의 범위.
 
 | module | 책임 | 주요 dependency (imports) | 관련 component (T-A3) | 관련 REQ | 관련 ADR |
 | --- | --- | --- | --- | --- | --- |
@@ -34,12 +34,13 @@
 | **UserModule** | 시스템 로그인 user 계정 + 등급 (SuperAdmin / Admin / User) 의 service / controller. UserRepository (T-0080 박제) + UserService.changeRole (T-0086 박제 — REQ-044 5 invariant) + UserService.signup (T-0092 박제 — countAll === 0 → SuperAdmin 자동 / bcrypt 10 rounds / P2002 → 409 4 invariant) + UserController PATCH /api/users/:id/role (T-0087 박제 — RBAC 첫 production 사용 사례) + UserController POST /api/users (T-0092 박제 — Public tier signup endpoint + REQ-044 후반 첫 로긴 SuperAdmin backbone) + UserResponseDto (T-0095 박제 — 응답 shape whitelist DTO, private constructor + `fromEntity` static factory + 5 readonly 필드 `id` / `email` / `role` / `createdAt` / `updatedAt` — POST signup + PATCH changeRole 두 endpoint 응답 매핑 동일 박제, `hashedPassword` 응답 누출 차단 application-layer last-mile). AuthService inject via forwardRef (T-0092 박제 — AuthModule↔UserModule circular 해결). 평가 대상 인원 (Person / Group / Part) 은 별도 PersonModule / GroupModule / PartModule 책임 (모듈 분리 박제 — T-0035 + T-0039 chain). password reset / list / fromEntities 배열 helper (GET /api/users list endpoint 박제 시점) / ClassSerializerInterceptor 도입 ADR 등 후속 endpoint chain 은 follow-up task. | PersistenceModule, AuthModule | Backend API (user 부분) | REQ-043 (ID/Password), REQ-044 (3 등급 + SuperAdmin 만 Admin→User + self-demote 금지), REQ-045 (mutation Admin+), REQ-046 (read User+) | ADR-0001 (NestJS), ADR-0008 (Auth credential — JWT cookie) |
 | **GithubModule** | 3 GitHub instance (github.com / github.sec.samsung.net / github.ecodesamsung.com) 의 통합 adapter — 단일 `GithubAdapter` service + instance key sub-config 로 라우팅 ([components.md](components.md) "GitHub Adapter — 3 instance 묶음 결정" 참조). instance sub-config (host / org / encrypted token) 의 설정 source = env 기반 (`process.env` instance-keyed: `GITHUB_INSTANCES` + per-key `GITHUB_<KEY>_HOST`/`_ORG`/`_TOKEN_ENC`, token 은 encrypted-at-rest + JIT decrypt) — [ADR-0017](../decisions/ADR-0017-github-instance-config-source.md). 4xx catch → PermissionDeniedEvent emit. | (없음 — adapter leaf, 외부 GitHub HTTPS 만) | GitHub Adapter | REQ-005 (github.com), REQ-006 (github.sec), REQ-007 (github.ecode), REQ-008 (권한 통지), REQ-014 (Issue) | ADR-0003 §4 (direct egress), [ADR-0016](../decisions/ADR-0016-github-adapter-http-transport-contract.md) (transport 계약), [ADR-0017](../decisions/ADR-0017-github-instance-config-source.md) (config source = env) |
 | **ConfluenceModule** | Confluence 사내 인스턴스의 SPACE list / page list / page version 조회 adapter. **milestone-3 구현 박제** (T-0183~T-0190): 단일 `ConfluenceAdapter` service (주입 `ConfluenceFetchLike` = Node 내장 `globalThis.fetch`, **새 외부 dependency 0** — [ADR-0018 Decision §1](../decisions/ADR-0018-confluence-adapter-http-transport-contract.md), GitHub adapter 와 동형 `FetchLike` `@Optional()` 주입 패턴) + non-2xx → 도메인 error 매핑 (401/403 → `ConfluencePermissionDeniedError` → **PermissionDeniedEvent emit** / 404 → `ConfluenceNotFoundError` no-emit / 429 → `ConfluenceRateLimitedError` / 5xx·network reject → `ConfluenceTransientError` / 비정형 응답 → `ConfluenceDomainError` malformed). 구성 service/helper: `ConfluenceRequestBuilder` (풀 base URL + relative path concat — Cloud `/wiki/rest/api` vs Server `/rest/api` 비대칭은 instance config 의 풀 URL 로 흡수, Cloud Basic vs Server Bearer auth header 분기) + `ConfluenceSpaceTraversalService` (SPACE allowlist 순회 + `_links.next` body cursor pagination flatten + 4xx skip-and-continue) + `confluence-token-decrypt` ([ADR-0014](../decisions/ADR-0014-llm-api-key-encryption-at-rest.md) cipher JIT 복호화, never-read-back) + `confluence-instance-config` ([ADR-0017](../decisions/ADR-0017-github-instance-config-source.md) 동형 enumerable instance-keyed env shape `CONFLUENCE_INSTANCES` + per-key `_BASE_URL`/`_AUTH_USER`/`_TOKEN_ENC`/`_SPACE_ALLOWLIST`). 현 상태는 실 `globalThis.fetch` transport 배선 + 로컬 stub HTTP round-trip smoke (`test/smoke/confluence-adapter-roundtrip.smoke-spec.ts`, T-0190 — URL 조립·header 직렬화·non-2xx 실수신을 end-to-end closeout) 까지 완료 — **잔여 = 실 Confluence token (Cloud API token / Server PAT) + live endpoint 통합 만 §5 HITL 게이트로 deferred** (Q-0017). | (없음 — adapter leaf, 외부 Confluence HTTPS 만) | Confluence Adapter | REQ-015 (Confluence 지정 SPACE), REQ-016 (권한 통지), REQ-017 (crawling vs hierarchy) | ADR-0003 §4, [ADR-0013](../decisions/ADR-0013-confluence-space-traversal-policy.md) (SPACE 탐색 정책), [ADR-0018](../decisions/ADR-0018-confluence-adapter-http-transport-contract.md) (transport 계약) |
+| **PermissionDeniedRecordModule** | GitHub / Confluence adapter 의 권한 거부 이벤트 (4xx → PermissionDeniedEvent) 를 영속화하는 repository + service (T-0210, ADR-0022) + audit 조회 controller (`GET /api/permission-denied-records`, T-0214, ADR-0023 §5 — RBAC=@Roles("User") + service-layer audience 차등: Admin 은 bypass 로 전체, non-Admin 은 binding-부재 빈 배열 fallback). repository / service 를 providers + exports 양쪽에 등록해 후속 emitter port (ADR-0022 §6) 가 inject 가능하게 export. 다른 internal module 을 import 하지 않는 leaf 성격 — PersistenceModule 의 PrismaService 는 `@Global()` 주입으로 해소되어 imports 명시 불요 (LlmModule / UserModule 과 동형). | (없음 — @Global PrismaService 주입, internal import 0) | Backend API (audit 부분), DB Persistence | REQ-016 (권한 통지 user/admin audience), REQ-044 (권한 거부 가시화) | [ADR-0022](../decisions/ADR-0022-permission-denied-record-data-model.md) (data model + emitter port), [ADR-0023](../decisions/ADR-0023-permission-denied-audit-query-rbac-contract.md) (audit query RBAC 계약) |
 | **LlmModule** | 5 provider (custom / Azure OpenAI / Anthropic / Google Gemini / OpenAI) 의 단일 추상화 gateway. Admin 이 지정한 model 식별자를 provider 별 HTTP client 로 라우팅. 평가 파이프라인은 본 module 만 호출 — provider API 차이 은닉. **milestone-1 구현 박제**: `LlmGateway` interface + `LlmProvider` enum 5 값 (azure_openai / custom / openai / anthropic / google_gemini, T-0135) + `LlmHttpGateway` orchestration service (`implements LlmGateway`, T-0156 — config lookup → `LlmApiKeyCipher` decrypt → provider 별 adapter build/parse dispatch → 주입 fetch → `LlmGenerateResult`; config id 는 난이도 기반 routing 으로 결정 — `options.difficulty` 제공 시 `DifficultyMappingService.resolveModel(difficulty)` 로 난이도 슬롯의 `configId` 를 해석해 그 config 를 조회하고, 미제공 시 종전대로 `options.modelId` 직접 사용, T-0165 / PR-153) + 5 provider adapter 순수 함수 (`src/llm/providers/{azure-openai,openai-compatible,anthropic,google-gemini}.adapter.ts`, T-0155 / T-0157 / T-0159 / T-0161) + routing dispatch (T-0158 azure·custom·openai / T-0160 anthropic / T-0162 google_gemini) + `LlmApiKeyCipher` (AES-256-GCM envelope encrypt-at-rest, T-0147) + write CRUD controller (`LlmProviderConfigController` POST / PATCH / DELETE `/api/llm/providers`, Admin+ RBAC, T-0149 / T-0151 / T-0150). 현 상태는 실 `globalThis.fetch` transport 배선 + 로컬 stub HTTP round-trip smoke (`test/smoke/llm-gateway-roundtrip.smoke-spec.ts`, T-0168 / PR-155 — 헤더 직렬화·URL 조립·non-2xx 실수신을 end-to-end closeout) 까지 완료 — **잔여 = live endpoint + 실 credential (`LLM_APIKEY_ENC_KEY` + provider API key env 주입) 통합 만 §5 HITL 게이트로 deferred** (Q-0016 option A). | (없음 — gateway leaf, 외부 LLM HTTPS 만) | LLM Gateway | REQ-049 (Admin 모델 지정), REQ-051~055 (5 provider), REQ-097 (난이도별 모델 라우팅) | ADR-0003 §4 |
 | **AssessmentModule** | 평가 orchestration — commit / 문서 / Confluence page 평가 파이프라인 service + 결과 조회·sort·filter·시계열 controller. Worker 책임을 본 module 의 service layer 로 흡수 (monolithic 결정). manual trigger endpoint 도 본 module 이 제공. | PersistenceModule, AuthModule, GithubModule, ConfluenceModule, LlmModule | Backend API (assessment 부분), Worker | REQ-038 (조회/sort/filter/시계열), REQ-040 (manual trigger), REQ-049 (LLM 사용) | ADR-0003 §1 (monolithic) |
 | **SchedulerModule** | `@nestjs/schedule` 기반 in-process cron + dynamic registry. Admin 이 설정한 cron 표현식을 DB 에서 load 하여 SchedulerRegistry 에 등록, 시각 도달 시 AssessmentModule 의 평가 service 메서드를 호출. manual trigger 는 AssessmentModule 의 controller 가 동일 메서드 호출 — duplication 0. | PersistenceModule (cron 설정 load), AssessmentModule (trigger 대상) | Scheduler | REQ-039 (Admin cron 주기), REQ-040 (manual trigger) | ADR-0003 §3 (`@nestjs/schedule`) |
 | **WebModule** | Frontend SPA 정적 자산 serve + (선택적) backend-side rendering 진입점. SPA 자체의 framework (React / Vue / Vite) 선택은 P6 ADR. 본 module 은 정적 파일 hosting 만 책임 — Web UI component 의 backend-side proxy. frontend 가 별도 패키지 (`web/`) 로 분리되면 본 module 은 제거되거나 reverse-proxy 역할만 유지. | AuthModule (정적 자산 접근 권한 — 필요 시) | Web UI | REQ-038 (UI), REQ-044 (3 등급 로그인 UI), REQ-049 (Admin LLM 설정 UI) | ADR-0001 |
 
-위 8 module 은 `AppModule` (root) 의 `imports: [...]` 에 등록되며, AppModule 자체는 root composition 외에 책임을 갖지 않는다.
+위 9 module 은 `AppModule` (root) 의 `imports: [...]` 에 등록되며, AppModule 자체는 root composition 외에 책임을 갖지 않는다.
 
 ## 의존성 그래프 (mermaid)
 
@@ -66,6 +67,9 @@ graph TB
     confluence["ConfluenceModule"]
     llm["LlmModule"]
 
+    %% Permission-denied audit persistence (leaf, @Global PrismaService only)
+    permissionDenied["PermissionDeniedRecordModule"]
+
     %% Persistence (leaf, only external PostgreSQL TCP)
     persistence["PersistenceModule"]
 
@@ -78,6 +82,7 @@ graph TB
     app --> github
     app --> confluence
     app --> llm
+    app --> permissionDenied
     app --> persistence
 
     %% Web → Auth (정적 자산 접근 권한)
@@ -104,14 +109,14 @@ graph TB
     %% Styling — leaf 외부 adapter / persistence 강조
     classDef leaf fill:#dbeafe,stroke:#1d4ed8
     classDef root fill:#fef3c7,stroke:#a16207
-    class github,confluence,llm,persistence leaf
+    class github,confluence,llm,permissionDenied,persistence leaf
     class app root
 ```
 
 다이어그램 표기:
 
-- **노란 박스 (`AppModule`)** — root composition. 직접적 책임은 없고 8 module 을 `imports` 로 묶기만 함.
-- **파란 박스 (leaf modules)** — `PersistenceModule` / `GithubModule` / `ConfluenceModule` / `LlmModule`. 내부 module 을 import 하지 않는다. 외부 시스템 (PostgreSQL / GitHub / Confluence / LLM provider) 만 호출.
+- **노란 박스 (`AppModule`)** — root composition. 직접적 책임은 없고 9 module 을 `imports` 로 묶기만 함.
+- **파란 박스 (leaf modules)** — `PersistenceModule` / `GithubModule` / `ConfluenceModule` / `LlmModule` / `PermissionDeniedRecordModule`. 내부 module 을 import 하지 않는다. 외부 시스템 (PostgreSQL / GitHub / Confluence / LLM provider) 만 호출하거나 (`PermissionDeniedRecordModule` 의 경우) `@Global` PrismaService 만 주입받는다.
 - **회색 박스 (domain modules)** — `AssessmentModule` / `UserModule` / `AuthModule` / `SchedulerModule` / `WebModule`. 다른 module 의 provider 를 사용.
 - 화살표 방향 = `imports` 방향. cycle 0 (아래 acyclic 검증 참조).
 
@@ -124,11 +129,12 @@ graph TB
 ```
 PersistenceModule
   → AuthModule
-  → GithubModule, ConfluenceModule, LlmModule   (서로 독립, parallel)
+  → GithubModule, ConfluenceModule, LlmModule, PermissionDeniedRecordModule
+                                                (서로 독립, parallel — 모두 leaf)
   → UserModule, WebModule                       (Persistence + Auth 만 의존)
   → AssessmentModule                            (Persistence + Auth + 3 adapter)
   → SchedulerModule                             (Persistence + Assessment)
-  → AppModule                                   (위 8 module 모두 imports)
+  → AppModule                                   (위 9 module 모두 imports)
 ```
 
 위 순서가 존재한다는 사실 자체가 **dependency graph 가 DAG (cycle 0)** 임을 의미한다.
@@ -143,6 +149,7 @@ cycle 회피의 핵심 제약 — 다음 import 방향은 **금지**:
 | `GithubModule → *` (다른 internal module) | adapter leaf. domain logic 모름. |
 | `ConfluenceModule → *` (다른 internal module) | adapter leaf. domain logic 모름. |
 | `LlmModule → *` (다른 internal module) | adapter leaf. domain logic 모름. |
+| `PermissionDeniedRecordModule → *` (다른 internal module) | audit 영속화 leaf. @Global PrismaService 만 주입, domain logic 모름. |
 | `AuthModule → UserModule` | Auth 는 사용자 데이터 read 만 (PersistenceModule 경유). UserModule 의 CRUD service 를 호출하면 cycle (User → Auth → User). |
 | `AuthModule → AssessmentModule` | Auth 는 평가 결과를 모름. AssessmentModule 이 guard 를 사용하는 단방향만. |
 | `AssessmentModule → SchedulerModule` | Scheduler 는 trigger 측. Assessment 는 호출당하는 측. 반대 방향 (Scheduler → Assessment) 만 허용. |
@@ -163,20 +170,20 @@ cycle 회피의 핵심 제약 — 다음 import 방향은 **금지**:
 
 ## Components ↔ Modules mapping
 
-[T-0016](../tasks/T-0016-t-a3-component-view.md) 의 8 component 와 본 task 의 8 module 의 N:N mapping. 1 component 가 여러 module 에 분산되거나 여러 component 가 1 module 에 집약되는 경우를 모두 명시.
+[T-0016](../tasks/T-0016-t-a3-component-view.md) 의 8 component 와 본 문서의 9 module 의 N:N mapping. 1 component 가 여러 module 에 분산되거나 여러 component 가 1 module 에 집약되는 경우를 모두 명시.
 
 | component (T-A3) | mapping module (T-A4) | 비고 |
 | --- | --- | --- |
 | **Web UI** | WebModule | 1:1. WebModule 이 정적 자산 hosting / 진입점. SPA framework 자체는 P6 ADR. frontend 가 별도 `web/` 패키지로 분리되면 WebModule 은 reverse-proxy 역할만 남거나 제거 가능. |
-| **Backend API** | AssessmentModule + UserModule + AuthModule | 1:N. 단일 component 가 3 module 로 분할 — controller 책임이 domain (assessment / user / auth) 별로 분산되기 때문. 각 module 의 controller 가 자신의 endpoint 를 노출하며, AppModule 이 모두 묶어 단일 HTTP server 로 동작. |
+| **Backend API** | AssessmentModule + UserModule + AuthModule + PermissionDeniedRecordModule | 1:N. 단일 component 가 4 module 로 분할 — controller 책임이 domain (assessment / user / auth / permission-denied audit) 별로 분산되기 때문. PermissionDeniedRecordModule 은 audit 조회 부분 (`GET /api/permission-denied-records`) 을 담당. 각 module 의 controller 가 자신의 endpoint 를 노출하며, AppModule 이 모두 묶어 단일 HTTP server 로 동작. |
 | **Worker** (평가 파이프라인) | AssessmentModule (의 service layer) | N:1. ADR-0003 §1 monolithic 결정에 따라 Worker 는 별도 module 이 아니라 AssessmentModule 의 service layer 로 흡수. 향후 worker 가 별도 process 로 분리되면 (별도 ADR) 본 mapping 갱신. |
-| **DB Persistence** | PersistenceModule | 1:1. PersistenceModule 이 PrismaService 를 global provider 로 export — 모든 domain module 이 본 module 만 import 하면 PrismaService 주입 가능. 별도 module 채택 근거 아래 sub-section 참조. |
+| **DB Persistence** | PersistenceModule (+ PermissionDeniedRecordModule 의 영속화 slice) | 1:N (주). PersistenceModule 이 PrismaService 를 global provider 로 export — 모든 domain module 이 본 module 만 import 하면 PrismaService 주입 가능. PermissionDeniedRecordModule 은 권한 거부 record 의 영속화 repository 를 보유해 DB Persistence 책임의 audit 부분에 걸친다. 별도 module 채택 근거 아래 sub-section 참조. |
 | **LLM Gateway** | LlmModule | 1:1. 5 provider 추상화 service 1 개 — `LlmHttpGateway` (`implements LlmGateway`, T-0156, milestone-1 박제). |
 | **GitHub Adapter** | GithubModule | 1:1. components.md 의 "GitHub Adapter — 3 instance 묶음 결정" 에 따라 단일 module + instance sub-config. |
 | **Confluence Adapter** | ConfluenceModule | 1:1. |
 | **Scheduler** | SchedulerModule | 1:1. `@nestjs/schedule` + dynamic registry. |
 
-총 8 component → 8 module 의 N:N mapping. Backend API component 의 1:3 분할이 유일한 분기점이며, 나머지 7 component 는 1:1 mapping.
+총 8 component → 9 module 의 N:N mapping. Backend API component 의 1:4 분할 (assessment / user / auth / permission-denied audit) 과 PermissionDeniedRecordModule 이 Backend API (audit) + DB Persistence (영속화) 에 걸치는 N:N 이 분기점이며, 나머지 component 는 1:1 mapping.
 
 ### DB Persistence 의 module 분리 결정 (인라인 박제)
 
@@ -214,7 +221,7 @@ ADR 신설 불필요 — module 분해 수준의 결정이고 외부 dependency 
 
 - [ADR-0001 — Backend / language / package manager / test / CI 스택](../decisions/ADR-0001-stack.md) — NestJS `@Module` decorator + DI container 가 본 module 분할의 기반.
 - [ADR-0002 — Persistence DB / ORM 선택](../decisions/ADR-0002-db.md) — PersistenceModule 의 기술 선택 (PostgreSQL + Prisma).
-- [ADR-0003 — Deployment 토폴로지 4 결정](../decisions/ADR-0003-deployment.md) — 8 module 의 단일 process 결합 (§1) / SchedulerModule 의 `@nestjs/schedule` 메커니즘 (§3) / 외부 adapter module 의 direct egress (§4).
+- [ADR-0003 — Deployment 토폴로지 4 결정](../decisions/ADR-0003-deployment.md) — 9 module 의 단일 process 결합 (§1) / SchedulerModule 의 `@nestjs/schedule` 메커니즘 (§3) / 외부 adapter module 의 direct egress (§4).
 - [docs/architecture/components.md](components.md) — T-A3 산출물. 본 문서의 mapping 출처.
 - [docs/architecture/deployment.md](deployment.md) — T-A2 산출물. 본 module 들이 동작하는 운영 토폴로지.
 - [docs/architecture/INDEX.md](INDEX.md) — architecture document 인덱스 + MVA 원칙.

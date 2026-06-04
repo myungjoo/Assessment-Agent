@@ -2,12 +2,13 @@
 id: T-0217
 title: modules.md 에 PermissionDeniedRecordModule 박제 + 9-module 카운트 정합 (doc-sync)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 35
 estimatedFiles: 1
 created: 2026-06-04
+completedAt: 2026-06-04T11:19:00+09:00
 plannerNote: P4 — Q-0020 audit-endpoint milestone 완결 후 modules.md 가 9번째 shipped module(PermissionDeniedRecordModule) 누락 + "8 module" 카운트 오류라 실제 코드와 모순 → 정합.
 ---
 

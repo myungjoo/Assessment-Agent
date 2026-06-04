@@ -5,38 +5,34 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0217",
-  "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-s53",
-    "since": "2026-06-04T11:13:00+09:00",
-    "loopSessionStartedAt": "2026-06-04T09:56:50+09:00",
-    "loopSessionTurnCount": 9
-  },
-  "lastActivity": "2026-06-04T11:13:00+09:00",
-  "lastCommit": "23473ea",
+  "nextTask": null,
+  "lock": null,
+  "lastActivity": "2026-06-04T11:19:00+09:00",
+  "lastCommit": "e646fd7",
   "mostRecentTasks": [
+    "T-0217",
     "T-0216",
     "T-0215",
     "T-0214",
-    "T-0213",
-    "T-0212"
+    "T-0213"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-04T09:56:50+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s53",
-    "notePrev": "t8 — T-0216 DONE/MERGED(PR-189, e2e R-113). t7 — planner→T-0216. t6 — T-0215 DONE(api.md doc-sync). t5 — planner→T-0215. t4 — T-0214 DONE/MERGED(endpoint). t3 — planner→T-0214. t2 — T-0213 DONE(ADR-0023). t1 — Q-0020 RESOLVED(audit endpoint, RBAC=Admin+자기 instance).",
-    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t9 — planner final survey. [1] fetch: t8 commit 23473ea CI in_progress(doc-only 비차단), t8 merge d73245c success(main green). lock 유지(turnCount 8→9). 미해결 humanQuestion 0. [2] currentTask·nextTask 공백 → planner dispatch. [2-planner] OUTCOME 1 — T-0217 큐잉(modules.md 에 PermissionDeniedRecordModule 박제 + '8→9 module' 카운트 정합, commitMode direct). material staleness 확인(cosmetic 아님): app.module.ts 가 9 module register 하나 modules.md 는 'system = 8 module' 박제 + PermissionDeniedRecordModule(T-0210)이 module 표/mermaid/topology/components 어디에도 부재 → CLAUDE §7 canonical module index 신뢰성 결함. nextTask=T-0217. own-instance 실 필터/User↔instance binding-schema 서술은 §5 미승인이라 T-0217 Out of Scope — 그 escalation 은 T-0217 후 다음 survey. [6] 본 turn doc-only direct commit. **다음 turn t10: T-0217 executor(direct doc-sync) 실행 후 loopSessionTurnCount=10 → §1[8](e) cap 도달 STOP + 사용자 cleanup 안내 예정**. ScheduleWakeup 60s."
+    "stoppedAt": "2026-06-04T11:19:00+09:00",
+    "stopReason": "turn-cap(10) 도달 — §1[8](e)",
+    "notePrev": "t9 — planner→T-0217 큐잉(modules.md 9-module 정합, OUTCOME 1 material staleness). t8 — T-0216 DONE/MERGED(e2e R-113). t7 — planner→T-0216. t6 — T-0215 DONE(api.md). t5 — planner→T-0215. t4 — T-0214 DONE/MERGED(endpoint). t3 — planner→T-0214. t2 — T-0213 DONE(ADR-0023). t1 — Q-0020 RESOLVED.",
+    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t10 (STOP — turn-cap) — T-0217 DONE(modules.md 9-module 정합, direct). [1] fetch: t9 commit e646fd7 + t8 merge d73245c 모두 CI success(main green). lock 유지(turnCount 9→10). 미해결 humanQuestion 0. [2] nextTask=T-0217 → currentTask. [3] executor(direct doc-only): implementer 가 modules.md 에 PermissionDeniedRecordModule(T-0210/ADR-0022·0023) 를 module 표·mermaid 노드/edge/legend·topological order·forbidden-direction·Components↔Modules mapping 에 추가, 'system=8 module'/'8 NestJS module' 전부 9 로 정합(T-A3 '8 component' 카운트는 불변 유지, line 3 T-0017 원 분해 historical 문장은 보존+reconcile clause). +21/-14 단일 파일. tester 면제(R-110 direct doc-only). [6] task DONE + counters 214→215 + mostRecentTasks prepend + modules.md+bookkeeping 단일 direct commit(1 task=1 commit). [STOP] loopSessionTurnCount=10 → §1[8](e) cap 도달, reschedule 안 함, lock 해제(tombstone). **session #53 요약: t1 Q-0020 RESOLVE(사용자 audit endpoint+RBAC 승인) → T-0213(ADR-0023 계약)·T-0214(controller endpoint)·T-0215(api.md)·T-0216(RBAC e2e R-113)·T-0217(modules.md 정합) 5 task 완결, audit-query milestone 의 dependency-free 전 범위 shipped. tasksCompleted 210→215. 잔여 = non-Admin own-instance 실 필터(§5 User↔instance binding-schema 게이트, 미승인) — 다음 survey 가 escalate 예정.** 재개: /compact 또는 /clear 후 새 /loop, 또는 cron 발화 대기."
   },
   "ci": {
     "lastRun": "2026-06-04T02:57:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/189",
-    "note": "t8: T-0216 PR-189(e2e) — reviewer APPROVE r1 후 4-게이트 PASS, e2e step services.postgres green(R-113 실검증), squash merge d73245c(approval-race 없음). 직전 t7 doc commit 8caee45(main) CI in_progress(doc-only 비차단). main green, consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/e646fd7",
+    "note": "t10: T-0217 은 direct doc-only(modules.md) — CI 비차단. 직전 t9 commit e646fd7 + t8 merge d73245c 모두 CI success. main green, consecutiveFails 0. T-0217 direct commit 의 main push CI 는 doc-only 비차단."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -234,7 +230,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 214,
+    "tasksCompleted": 215,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
