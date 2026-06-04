@@ -1,7 +1,7 @@
 ---
 id: ADR-0025
 title: azure_openai live-integration TEST CONTRACT — Q-0021 승인 target(gpt-5.4 / karina-east-us-2)의 env-gated live smoke 계약 확장
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-04
 relatedTask: T-0226
 supersedes: null
@@ -139,7 +139,7 @@ azure live smoke 는 custom live smoke 와 **동형**으로 실 `LLM_APIKEY_ENC_
 | **azure gating + live smoke 구현**(T-0227 후보) | `src/llm/llm-live-test-gating.ts` 의 azure 확장(`LLM_LIVE_PROVIDER`/`LLM_LIVE_API_VERSION` 처리 + azure 완전성 검사) + `test/smoke/llm-live-azure.smoke-spec.ts` 신설(custom mirror) + R-112 helper unit test | 본 ADR 머지 후 | 없음(Node 내장, credential 0 — skip path 만 검증) |
 | **(2b) credentialed live run** | 로컬 secrets.env(`LLM_LIVE_PROVIDER=azure_openai`/`LLM_LIVE_BASE_URL`/`LLM_LIVE_API_KEY`/`LLM_LIVE_API_VERSION`/`LLM_LIVE_MODEL=gpt-5.4` + `LLM_APIKEY_ENC_KEY`)를 env 주입해 gated azure live smoke 를 실 네트워크 1회 실행 검증 | 위 구현 slice 머지 후 + 사용자 credential 제공(이미 secrets.env 보관, 만료 2026-06-30) | **있음 — [§5](../../CLAUDE.md) 외부 자격증명 게이트** |
 | **live timeout hardening**(ADR-0015 chain 공유) | `LlmHttpGateway` AbortController 기반 명시 timeout(azure/custom 공통) | 본 ADR 후 | 없음(Node 내장) |
-| **ADR-0025 PROPOSED→ACCEPTED** | 구현 slice 머지 후 status 한 줄 갱신(direct) | 위 구현 slice 머지 | 없음 |
+| **ADR-0025 PROPOSED→ACCEPTED** | 구현 slice 머지 후 status 한 줄 갱신(direct) | 위 구현 slice 머지 | 없음 — 완료(T-0227 `ed8e369` + T-0228 `c18cd77` 머지로 본 task T-0229 처리; 잔여는 §5 credential-gate 인 (2b) live run 뿐) |
 
 ## Alternatives considered
 
