@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0219",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s54",
     "since": "2026-06-04T11:32:55+09:00",
     "loopSessionStartedAt": "2026-06-04T11:32:55+09:00",
-    "loopSessionTurnCount": 2
+    "loopSessionTurnCount": 3
   },
-  "lastActivity": "2026-06-04T11:53:22+09:00",
-  "lastCommit": "f1f18ab",
+  "lastActivity": "2026-06-04T12:01:09+09:00",
+  "lastCommit": "972528f",
   "mostRecentTasks": [
     "T-0218",
     "T-0217",
@@ -23,12 +23,12 @@
     "T-0214"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-04T11:32:55+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s54",
-    "notePrev": "t1 — planner dispatch: T-0218 큐잉(truncateAll 주석 5→7 stale comment 정합, comment-only 5 파일, pr-mode). make-work pre-check 통과. direct doc commit b0cf337.",
-    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t2 — T-0218 DONE/MERGED(PR-190, f1f18ab). [1] fetch: main b0cf337+baef299 CI green, lock 본인 보유 → turnCount 1→2. humanQuestion 0, blockers 0. [2] nextTask=T-0218 → currentTask, commitMode pr, prNumber 없음 → 정상 executor. [3] executor(inline impl+test): 5 test 파일(db-truncate.spec.ts·persons/groups/parts.smoke·persons.e2e) stale 주석 '5 (도메인) 테이블'→'7' 정정(+5/-5), TRUNCATE_TABLES 배열/executable 무변경, git grep 잔여 0. lint+build+test green(163 suites/3210). [4] pr: feature branch claude/T-0218-… commit 7568367 push → PR #190 open. prNumber=190 bookkeeping direct(baef299). integrator(round 1): reviewer APPROVE(8-check+§12 전부 PASS, finding 0) → gh pr comment 외화 → CI green(첫 run reviewer-gate race step 단독 fail → gh run rerun --failed self-heal success) → 4-게이트 통과 → gh pr merge --squash --delete-branch(f1f18ab). [6] task DONE/mergedAs f1f18ab + tasksCompleted 215→216 + mostRecentTasks prepend + bookkeeping direct commit. reschedule: §1[8] dynamic (turnCount 2<10) — 다음 turn planner survey(dependency-free backlog 재소진 → escalate 예상)."
+    "notePrev": "t2 — T-0218 DONE/MERGED(PR-190, f1f18ab): truncateAll 주석 5→7 정합, reviewer APPROVE finding 0, 4-게이트 통과, CI green(reviewer-gate race → rerun self-heal). tasksCompleted 215→216.",
+    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t3 — planner survey dispatch. [1] fetch: main 972528f == origin/main CI green, lock 본인 보유 → turnCount 2→3. humanQuestion 0, blockers 0. [2] currentTask·nextTask 둘 다 null → planner dispatch. [planner] GENUINE survey(make-work 차단): T-0218 이 db-truncate nit 해소 후 재탐색 → schema.prisma L311-312 가 apiKey '평문 String/암호화 0/평문 저장 placeholder' 라 주장하나 main 은 ADR-0014 AES-256-GCM write-encrypt(llm-provider-config.service.ts L159·221)+JIT-decrypt(llm-http-gateway.service.ts L143)+never-read-back(sanitize Omit) 완결 — security-misleading 역방향 false 주석(cosmetic 아님). issue-still-relevant pre-check 통과(T-0135 scaffold 이후 미수정). comment-only(컬럼 type 무변경→migration 0), §5 미발화, pr-mode(prisma/schema.prisma 는 production 파일). T-0219 큐잉. [6] nextTask=T-0219 + bookkeeping 단일 direct commit. 다음 turn(t4) 에서 T-0219 executor(pr). reschedule: §1[8] dynamic (turnCount 3<10)."
   },
   "ci": {
     "lastRun": "2026-06-04T11:53:00+09:00",
