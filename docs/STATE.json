@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0221",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s54",
     "since": "2026-06-04T11:32:55+09:00",
     "loopSessionStartedAt": "2026-06-04T11:32:55+09:00",
-    "loopSessionTurnCount": 7
+    "loopSessionTurnCount": 8
   },
-  "lastActivity": "2026-06-04T13:26:06+09:00",
-  "lastCommit": "31ca89b",
+  "lastActivity": "2026-06-04T13:31:49+09:00",
+  "lastCommit": "a0fa3c4",
   "mostRecentTasks": [
     "T-0220",
     "T-0219",
@@ -23,12 +23,12 @@
     "T-0216"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-04T11:32:55+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s54",
-    "notePrev": "t6 (RESUME) — 사용자 Q-0021 RESOLVE 처리(option 1 먼저 + option 2 milestone-1 승인, azure_openai 시험 credential 을 repo 밖 로컬 secrets.env 에만 저장·git 0 hit 검증) + planner → T-0220(binding ADR) 큐잉.",
-    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t7 — T-0220 DONE/MERGED(PR-192, 31ca89b). [1] fetch: main 3f9870c+958ab47, lock 본인 보유 → turnCount 6→7. humanQuestion 0(Q-0021 RESOLVED), blockers 0. [2] nextTask=T-0220 → currentTask, commitMode pr(new-ADR), prNumber 없음 → 정상 실행. [3] architect 직접 dispatch(ADR-writing task): ADR-0024(User↔instance binding 데이터모델+own-instance 필터 계약) 작성 — binding=UserInstanceAccess join table {userId,instanceRef}(@@unique+Cascade, PersonGroupMembership 패턴; array/group-파생 기각), 필터=actor.sub→allowlist→instanceRef in(allowlist)+query∩allowlist 교집합, 경계(401·빈배열·Admin bypass·host 정규화), binding 0 시작 breaking-change 0 migration. main 검증(instanceRef schema L435·User L170~177·non-Admin placeholder service L137~144). INDEX.md +1. lint+build+test green(163 suites/3210). [4] pr: branch claude/T-0220-… push → PR #192. prNumber=192 bookkeeping direct(958ab47). integrator(round 1): reviewer 설계 실질 APPROVE(join table sound·대안 공정·필터 계약 완결·경계 cover·gap 0) → gh pr comment → CI green(reviewer-gate race c5d8f16 → rerun self-heal) → 4-게이트 통과 → squash merge 31ca89b. [6] task DONE/mergedAs 31ca89b + tasksCompleted 217→218 + mostRecentTasks prepend + bookkeeping direct. reschedule: §1[8] dynamic (turnCount 7<10) — 다음 turn planner → option(1) 후속 slice(UserInstanceAccess prisma schema+migration)."
+    "notePrev": "t7 — T-0220 DONE/MERGED(PR-192, 31ca89b): ADR-0024(User↔instance binding 데이터모델+필터 계약) architect 작성, reviewer 설계 실질 APPROVE gap 0, 4-게이트 통과. tasksCompleted 217→218.",
+    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t8 — planner dispatch(option 1 chain slice 1). [1] fetch: main a0fa3c4 == origin/main(t7 bookkeeping doc-only CI in_progress 비차단), lock 본인 보유 → turnCount 7→8. humanQuestion 0, blockers 0. [2] currentTask·nextTask 둘 다 null → planner dispatch. [planner] ADR-0024 §2 검증 → UserInstanceAccess join table 가 아직 main 에 없음 확인 → T-0221 큐잉: UserInstanceAccess prisma model({userId,instanceRef}, @@unique, Cascade, PersonGroupMembership 패턴) + ADR-0004 migrate-deploy migration. **empty table·behavior 변경 0**(repo 필터·controller wiring·non-Admin placeholder 대체는 후속 slice = Out of Scope). §5 DB-schema(Q-0021 승인). prisma db push 금지. pr-mode ~120 LOC 4 파일. [6] nextTask=T-0221 + bookkeeping direct commit. 다음 turn(t9) executor → T-0221. reschedule: §1[8] dynamic (turnCount 8<10) — **t10 에서 turn-cap 도달 예정 → option 1 schema 완료 후 STOP·cleanup 안내**."
   },
   "ci": {
     "lastRun": "2026-06-04T13:25:00+09:00",
