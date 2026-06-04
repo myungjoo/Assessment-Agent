@@ -2,8 +2,12 @@
 id: T-0233
 title: difficulty-mapping.service non-Prisma error 분기 negative test 추가
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 201
+mergedAs: 138c7d2
+reviewRounds: 1
+completedAt: 2026-06-04T19:36:00+09:00
 coversReq: [REQ-049]
 estimatedDiff: 25
 estimatedFiles: 1
