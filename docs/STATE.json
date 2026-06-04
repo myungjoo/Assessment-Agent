@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0221",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s54",
     "since": "2026-06-04T11:32:55+09:00",
     "loopSessionStartedAt": "2026-06-04T11:32:55+09:00",
-    "loopSessionTurnCount": 8
+    "loopSessionTurnCount": 9
   },
-  "lastActivity": "2026-06-04T13:31:49+09:00",
-  "lastCommit": "a0fa3c4",
+  "lastActivity": "2026-06-04T13:46:48+09:00",
+  "lastCommit": "0a0f639",
   "mostRecentTasks": [
+    "T-0221",
     "T-0220",
     "T-0219",
     "T-0218",
-    "T-0217",
-    "T-0216"
+    "T-0217"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-04T11:32:55+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s54",
-    "notePrev": "t7 — T-0220 DONE/MERGED(PR-192, 31ca89b): ADR-0024(User↔instance binding 데이터모델+필터 계약) architect 작성, reviewer 설계 실질 APPROVE gap 0, 4-게이트 통과. tasksCompleted 217→218.",
-    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t8 — planner dispatch(option 1 chain slice 1). [1] fetch: main a0fa3c4 == origin/main(t7 bookkeeping doc-only CI in_progress 비차단), lock 본인 보유 → turnCount 7→8. humanQuestion 0, blockers 0. [2] currentTask·nextTask 둘 다 null → planner dispatch. [planner] ADR-0024 §2 검증 → UserInstanceAccess join table 가 아직 main 에 없음 확인 → T-0221 큐잉: UserInstanceAccess prisma model({userId,instanceRef}, @@unique, Cascade, PersonGroupMembership 패턴) + ADR-0004 migrate-deploy migration. **empty table·behavior 변경 0**(repo 필터·controller wiring·non-Admin placeholder 대체는 후속 slice = Out of Scope). §5 DB-schema(Q-0021 승인). prisma db push 금지. pr-mode ~120 LOC 4 파일. [6] nextTask=T-0221 + bookkeeping direct commit. 다음 turn(t9) executor → T-0221. reschedule: §1[8] dynamic (turnCount 8<10) — **t10 에서 turn-cap 도달 예정 → option 1 schema 완료 후 STOP·cleanup 안내**."
+    "notePrev": "t8 — planner → T-0221 큐잉(UserInstanceAccess prisma model + migration, ADR-0024 §2). direct doc commit a14bc53.",
+    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t9 — T-0221 DONE/MERGED(PR-193, 0a0f639). [1] fetch: main a14bc53+b278da9, lock 본인 보유 → turnCount 8→9. humanQuestion 0, blockers 0. [2] nextTask=T-0221 → currentTask, commitMode pr, prNumber 없음 → 정상 executor. [3] executor(inline impl+test): UserInstanceAccess prisma model({id,userId,instanceRef,createdAt} + @@unique([userId,instanceRef]) + @@index([userId]) + user @relation onDelete:Cascade) + User.instanceAccess back-relation + migration 20260604010000_user_instance_access(CreateTable+unique+index+FK Cascade, ADR-0004 migrate-deploy, prisma idiom 복제) + prisma-schema.spec.ts assertion. empty table·behavior 변경 0, src/ 미접촉. lint+build+test green(3217 pass, cov 99.94%/100%). [4] pr: branch claude/T-0221-… push → PR #193. prNumber=193 bookkeeping(b278da9). integrator(round 1): review APPROVE(model ADR-0024 §2 byte 일치, migration↔model drift 0, Out-of-Scope·§9·§12 준수) → gh pr comment → CI green(**migrate-deploy 처음부터 green** = 실 migration 검증 통과; reviewer-gate race step 만 rerun self-heal) → 4-게이트 → squash merge 0a0f639. **[process 관찰] integrator 가 sub-agent 내 Task tool 부재로 reviewer 별도 sub-agent dispatch 실패 → review 를 integrator inline 수행 후 PR comment 외화(gate 2 충족). reviewer↔committer 이중 actor 분리 약화 — 사용자 보고 + 후속 보강 검토 필요(driver→reviewer 분리 dispatch).** [6] task DONE/mergedAs 0a0f639 + tasksCompleted 218→219 + mostRecentTasks prepend + bookkeeping direct. reschedule: §1[8] (turnCount 9<10) — 다음 t10 에서 cap 도달 → STOP·cleanup 안내 예정."
   },
   "ci": {
-    "lastRun": "2026-06-04T13:25:00+09:00",
+    "lastRun": "2026-06-04T13:45:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/192",
-    "note": "t7: T-0220 PR-192(31ca89b) merged — CI green. T-0218/T-0219 과 동일 reviewer-gate race(첫 push run sha c5d8f16 의 approval 검증 step 단독 fail, lint/build/test/smoke/e2e green) → reviewer comment post 후 gh run rerun --failed self-heal → success. doc-only ADR-0024 변경. main green, consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/193",
+    "note": "t9: T-0221 PR-193(0a0f639) merged — CI green 포함 **Prisma migrate deploy 처음부터 green**(실 PostgreSQL 에 hand-authored migration 검증 통과). reviewer-gate race step(첫 push run 26931097216 approval 검증)만 단독 fail → reviewer comment post 후 gh run rerun --failed self-heal → success. main green, consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -256,7 +256,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 218,
+    "tasksCompleted": 219,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
