@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0216",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s53",
-    "since": "2026-06-04T10:50:00+09:00",
+    "since": "2026-06-04T10:55:00+09:00",
     "loopSessionStartedAt": "2026-06-04T09:56:50+09:00",
-    "loopSessionTurnCount": 6
+    "loopSessionTurnCount": 7
   },
-  "lastActivity": "2026-06-04T10:50:00+09:00",
-  "lastCommit": "4993db1",
+  "lastActivity": "2026-06-04T10:55:00+09:00",
+  "lastCommit": "2caa9d9",
   "mostRecentTasks": [
     "T-0215",
     "T-0214",
@@ -23,12 +23,12 @@
     "T-0211"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-06-04T09:56:50+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s53",
-    "notePrev": "t5 — planner→T-0215 큐잉(api.md §5 doc-sync, direct): T-0214 shipped endpoint 가 api.md 표에 미박제 확인. t4 — T-0214 DONE/MERGED(GET /api/permission-denied-records). t3 — planner→T-0214. t2 — T-0213 DONE(ADR-0023). t1 — Q-0020 RESOLVED.",
-    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t6 — T-0215 DONE(api.md doc-sync, direct). [1] fetch: t5 commit 4993db1 + t4 모두 CI success(main green). lock 유지(turnCount 5→6). 미해결 humanQuestion 0. [2] nextTask=T-0215 → currentTask. [3] executor(direct doc-only): implementer 가 api.md §5 endpoint 표에 GET /api/permission-denied-records row 1 추가(@Roles User RBAC + Admin bypass/non-Admin 빈배열 + query instanceRef/provider/httpStatus + 401/200 + T-0214/ADR-0023 참조), 기존 placeholder 2 row 는 'conceptual placeholder(미구현)' 로 인접 명확화(삭제 안 함), §5 합계 46→47 endpoint·11→12 prefix 재집계. +4/-3 단일 파일. tester 면제(R-110 direct doc-only). [6] task DONE + counters 212→213 + mostRecentTasks prepend + api.md+bookkeeping 단일 direct commit(1 task=1 commit). 잔여 dependency-free: modules.md 표 확장 / endpoint e2e(pr-mode) Follow-up — 다음 planner survey 에서 식별 또는 §5 binding-schema escalate. 다음 turn t7: planner survey. ScheduleWakeup 60s."
+    "notePrev": "t6 — T-0215 DONE(api.md §5 endpoint doc-sync, direct). t5 — planner→T-0215 큐잉. t4 — T-0214 DONE/MERGED(GET /api/permission-denied-records). t3 — planner→T-0214. t2 — T-0213 DONE(ADR-0023). t1 — Q-0020 RESOLVED(audit endpoint, RBAC=Admin+자기 instance).",
+    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t7 — planner survey. [1] fetch: t6 commit 2caa9d9 CI in_progress(doc-only 비차단), t5 4993db1 success(main green). lock 유지(turnCount 6→7). 미해결 humanQuestion 0. [2] currentTask·nextTask 공백 → planner dispatch. [2-planner] T-0216 큐잉(GET /api/permission-denied-records RBAC e2e, commitMode pr). 검증: 9 RBAC controller(auth/users/assessments/contributions/summaries 등) 모두 *.e2e-spec.ts 보유하나 permission-denied 는 prisma-model smoke 만(HTTP/RBAC 미exercise) → R-113 실 gap. summaries.e2e mirror, ADR-0023 §1/§4 박제 동작만 assert(Admin bypass / non-Admin 200 빈배열 / 401 / query 필터), own-instance 실 필터는 §5 binding-schema 게이트로 deferred 유지. modules.md(B)·§5 게이트 미escalate. nextTask=T-0216. [6] 본 turn doc-only direct commit. 다음 turn t8: T-0216 executor(pr-mode e2e). ScheduleWakeup 60s."
   },
   "ci": {
     "lastRun": "2026-06-04T02:57:00+09:00",
