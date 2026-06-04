@@ -2,12 +2,16 @@
 id: T-0216
 title: GET /api/permission-denied-records audit endpoint RBAC e2e 추가 (R-113)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 190
 estimatedFiles: 1
 created: 2026-06-04
+prNumber: 189
+mergedAs: d73245c
+reviewRounds: 1
+completedAt: 2026-06-04T11:00:00+09:00
 plannerNote: P4 audit-query milestone hardening — T-0214 endpoint 에 HTTP/RBAC e2e 부재(9 RBAC controller 중 유일). R-113 실 gap closeout.
 ---
 
