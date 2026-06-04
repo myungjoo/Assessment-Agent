@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0214",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s53",
-    "since": "2026-06-04T10:12:00+09:00",
+    "since": "2026-06-04T10:22:00+09:00",
     "loopSessionStartedAt": "2026-06-04T09:56:50+09:00",
-    "loopSessionTurnCount": 2
+    "loopSessionTurnCount": 3
   },
-  "lastActivity": "2026-06-04T10:12:00+09:00",
-  "lastCommit": "b5bae25",
+  "lastActivity": "2026-06-04T10:22:00+09:00",
+  "lastCommit": "d030188",
   "mostRecentTasks": [
     "T-0213",
     "T-0212",
@@ -23,11 +23,12 @@
     "T-0209"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-04T09:56:50+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s53",
-    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t2 — T-0213 DONE/MERGED(PR-187, squash b5bae25). [1] fetch: t1 commit 9f63a77 CI success(main green). lock 유지(same session, turnCount 1→2). 미해결 humanQuestion 0(Q-0020 t1 resolved). [2] nextTask=T-0213 → currentTask. [3] executor(pr-mode): architect 가 ADR-0023(audit 조회 RBAC/audience 계약) 신설 — §1 audience 3-tier(미인증 401 / Admin·SuperAdmin 전체 bypass / non-Admin 자기 instance, binding 부재 시 빈결과) §2 자기-instance=User entity allowed-instance server-side lookup(JwtPayload 비확장, exact-match) §3 Admin bypass=ROLE_HIERARCHY 재사용 + own-instance 필터=service-layer actor-aware(신규 guard 미신설) §4 타 instance=빈필터(403 아님) §5 GET /api/permission-denied-records(@Roles User, dep 0). INDEX.md row 1. tester: lint/build/test green(162 suite/3186). [4] PR-187 open → reviewer APPROVE r1(8-check 통과, Nit 0) → 4-게이트 PASS(approval-race rerun 포함) → squash merge b5bae25, branch 삭제. [6] task DONE frontmatter + counters 210→211 + mostRecentTasks prepend + 본 bookkeeping direct commit. 다음 turn t3: planner 가 후속 controller slice(GET endpoint + RBAC + service own-instance 필터 + R-112 4종+negative tests) 큐잉 예정. ScheduleWakeup 60s."
+    "noteT2": "loop@WIN-JQIPLSBL9QV-s53 session #53 t2 — T-0213 DONE/MERGED(PR-187, squash b5bae25). [1] fetch: t1 commit 9f63a77 CI success(main green). lock 유지(same session, turnCount 1→2). 미해결 humanQuestion 0(Q-0020 t1 resolved). [2] nextTask=T-0213 → currentTask. [3] executor(pr-mode): architect 가 ADR-0023(audit 조회 RBAC/audience 계약) 신설 — §1 audience 3-tier(미인증 401 / Admin·SuperAdmin 전체 bypass / non-Admin 자기 instance, binding 부재 시 빈결과) §2 자기-instance=User entity allowed-instance server-side lookup(JwtPayload 비확장, exact-match) §3 Admin bypass=ROLE_HIERARCHY 재사용 + own-instance 필터=service-layer actor-aware(신규 guard 미신설) §4 타 instance=빈필터(403 아님) §5 GET /api/permission-denied-records(@Roles User, dep 0). INDEX.md row 1. tester: lint/build/test green(162 suite/3186). [4] PR-187 open → reviewer APPROVE r1(8-check 통과, Nit 0) → 4-게이트 PASS(approval-race rerun 포함) → squash merge b5bae25, branch 삭제. [6] task DONE frontmatter + counters 210→211 + mostRecentTasks prepend + 본 bookkeeping direct commit. 다음 turn t3: planner 가 후속 controller slice(GET endpoint + RBAC + service own-instance 필터 + R-112 4종+negative tests) 큐잉 예정. ScheduleWakeup 60s.",
+    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t3 — planner queue. [1] fetch: t2 commit d030188 CI success(main green). lock 유지(turnCount 2→3). 미해결 humanQuestion 0. [2] currentTask·nextTask 공백 → planner dispatch. [2-planner] T-0214 큐잉(audit 조회 controller slice, Admin-path-first, commitMode pr). ADR-0023 후속 chain 을 분해: Q-0019 는 PermissionDeniedRecord migration 만 승인했고 non-Admin own-instance 실 필터가 요구하는 User↔instance binding schema 는 별도 미승인 §5 DB-schema 게이트(ADR-0023 §2). 따라서 T-0214 는 ADR 이 허용한 dependency-free 부분(Admin·SuperAdmin 전체 bypass + non-Admin 은 binding 부재로 빈배열 fallback + GET /api/permission-denied-records + RBAC stack + R-112 4종+negative)까지만 구현, own-instance 실 필터는 Follow-up 으로 escalate-defer(binding schema 승인 시). nextTask=T-0214. [6] 본 turn doc-only direct commit(nextTask + T-0214 task file + journal + lock mirror). 다음 turn t4: T-0214 executor 실행(pr-mode). ScheduleWakeup 60s."
   },
   "ci": {
     "lastRun": "2026-06-04T02:57:00+09:00",
