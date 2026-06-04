@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0235",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s57",
-    "since": "2026-06-04T19:56:44+09:00",
+    "since": "2026-06-04T20:01:17+09:00",
     "loopSessionStartedAt": "2026-06-04T19:40:58+09:00",
-    "loopSessionTurnCount": 2
+    "loopSessionTurnCount": 3
   },
-  "lastActivity": "2026-06-04T19:56:44+09:00",
-  "lastCommit": "4046829",
+  "lastActivity": "2026-06-04T20:01:30+09:00",
+  "lastCommit": "d23fb98",
   "mostRecentTasks": [
     "T-0234",
     "T-0233",
@@ -23,15 +23,15 @@
     "T-0230"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-04T19:40:58+09:00",
     "cap": 5,
     "holder": "loop@WIN-JQIPLSBL9QV-s57",
     "stoppedAt": null,
     "stopReason": null,
-    "notePrev": "s57 t1: planner T-0234 큐잉(audit P3, pr-mode dependency-free, fab533e). currentTask/nextTask 둘 다 null → planner dispatch path. turnCount 0→1.",
-    "note": "loop@WIN-JQIPLSBL9QV-s57 session #57 t2 (사용자 turn cap 5) — T-0234 DONE/MERGED (PR-202, squash 4046829). [1] fetch main fab533e, lock s57 동일 session → turnCount 1→2 heartbeat(78ea0f0), since=now. humanQuestion 0, blockers 0. [2] nextTask=T-0234 픽업(pr-mode). gh probe 정상(2.88.1 authed). [3] feature branch claude/T-0234-auth-module-jwt-secret-helper → executor DONE: resolveJwtSecret(env) helper 신규(src/auth/resolve-jwt-secret.ts) + colocated spec(R-112 4종 + negative env부재/undefined/빈문자/공백), auth.module.ts:63 inline `?? \"\"` 분기 helper 호출로 교체. helper coverage 100%(blind spot 해소). 3 files +77/-3, 새 dep 0. [4] commit 9e7f04d → PR-202. [integrator] reviewer 별도 dispatch APPROVE r1/7 0 findings + comment 외화(gate 2, issuecomment-4621460527), 4-게이트 전부 PASS, CI run 26947209785 success → squash merge 4046829, branch deleted. [6] main ff 4046829, task DONE. tasksCompleted 231→232. nextTask=null, lock 유지(turn 계속). [정지조건] turnCount 2 < cap 5 → 다음 turn 에서 audit backlog 잔여(P4 branch threshold ADR / P5 mutation testing §5) 검토 위해 planner dispatch 또는 AskUserQuestion checkpoint 예정.",
-    "noteOld_s57t1": "loop@WIN-JQIPLSBL9QV-s57 session #57 t1 — [1] fetch main 09b79de, lock free(tombstone e69de29) → ref-CAS 획득(7dc01d3). [2] currentTask·nextTask 둘 다 null → planner dispatch. [planner] P3 audit backlog genuine 검증 → T-0234 큐잉. [6] STATE.nextTask=T-0234, direct doc commit fab533e. (s56 t5 stop-note: 잔여 audit backlog P4 branch global threshold ADR / P5 mutation testing §5; secrets.env 만료 2026-06-30; cron@cloud refs/locks 403 env 한계 — 로컬 /loop 유일 정상 driver — 는 journal 보존.)"
+    "notePrev": "s57 t2: T-0234 DONE/MERGED(PR-202, squash 4046829) — auth.module `?? \"\"` → resolveJwtSecret helper, coverage 100%. integrator 4-게이트 PASS, CI run 26947209785 success. tasksCompleted 231→232. audit P1·P2·P3 완결.",
+    "note": "loop@WIN-JQIPLSBL9QV-s57 session #57 t3 (사용자 turn cap 5) — planner dispatch turn. [1] fetch main d23fb98, lock s57 동일 session → turnCount 2→3 heartbeat(beae25e), since=now. humanQuestion 0, blockers 0, open PR 0. [2] currentTask·nextTask 둘 다 null → planner dispatch. [planner] audit backlog P4 검증: 현 package.json coverageThreshold.global = branches 50/statements 50(functions·lines 이미 80). P4 = branch/statement floor 를 측정값 margin 아래로 ratchet 상향(측정-후-설정 → CI green 유지). dependency-free·§5-safe(내부 CI 정책 ADR, 새 dep 0/credential 0/schema 0/auth 0 — 자율 결정 가능, P5 mutation testing 과 달리 HITL 불요) → genuine 판정. T-0235 큐잉(ADR-0026 + package.json floor ratchet, pr-mode, ≤3 파일). [6] STATE.nextTask=T-0235, lock mirror turnCount 3, direct doc commit. [정지조건] turnCount 3 < cap 5 → t4 에서 T-0235 실행(executor: 측정 → ADR-0026 박제 → package.json floor 상향 → tester test:cov 확인) 예정.",
+    "noteOld_s57t1": "s57 t1: planner T-0234 큐잉(audit P3, fab533e). (s56 t5 stop-note 잔여 backlog P4 branch threshold ADR / P5 mutation testing §5, secrets.env 만료 2026-06-30, cron@cloud refs/locks 403 — 로컬 /loop 유일 정상 driver — journal 보존.)"
   },
   "ci": {
     "lastRun": "2026-06-04T19:56:00+09:00",
