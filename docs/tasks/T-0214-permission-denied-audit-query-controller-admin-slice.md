@@ -2,12 +2,16 @@
 id: T-0214
 title: PermissionDeniedRecord audit 조회 controller slice (Admin-path-first, dependency-free)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 210
 estimatedFiles: 5
 created: 2026-06-04
+prNumber: 188
+mergedAs: 5bf362d
+reviewRounds: 1
+completedAt: 2026-06-04T10:34:00+09:00
 plannerNote: P4 ADR-0023 후속 chain row2의 dependency-free Admin-path 분해 — endpoint+RBAC+service actor-aware bypass/empty-fallback. non-Admin own-instance 필터는 §5 binding 게이트라 Follow-up defer.
 ---
 
