@@ -308,8 +308,12 @@ model Summary {
 //     Assessment.period 정공법 정합 — Prisma enum 격상은 별도 ADR). 허용 집합의
 //     single source 는 src/llm/llm-gateway.interface.ts 의 LlmProvider enum.
 //     값 invariant 는 후속 service (T-0139) 책임.
-//   - apiKey 는 평문 String — encryption-at-rest 는 ADR-0006 follow-up 책임. 본
-//     task 는 secret 처리 코드 0, 암호화 0 (apiKey 컬럼은 평문 저장 placeholder).
+//   - apiKey 는 ADR-0014 AES-256-GCM envelope 로 encryption-at-rest 저장 — 컬럼은
+//     평문이 아니라 암호문(ciphertext) String 을 보관한다. write 경로
+//     (LlmProviderConfigService.create/update) 가 LlmApiKeyCipher.encrypt 로 암호화
+//     후 영속하고, read 경로는 sanitize(Omit apiKey)로 never-read-back, gateway
+//     (LlmHttpGatewayService) 가 LLM 호출 시점에만 JIT decrypt 한다. ciphertext 도
+//     문자열이라 String 타입은 정합.
 //   - createdAt / updatedAt — Person / Group / Part 와 동일한 표준 timestamp 패턴.
 //     LlmProviderConfig 는 mutable entity (data-model.md §5 — updatedAt 적용).
 //
