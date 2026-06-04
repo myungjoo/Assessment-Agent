@@ -60,7 +60,7 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
     await prisma.$disconnect();
   });
 
-  // ADR-0004 §Cleanup 정책 박제 — 각 test 후 5 도메인 테이블 TRUNCATE ... RESTART
+  // ADR-0004 §Cleanup 정책 박제 — 각 test 후 7 도메인 테이블 TRUNCATE ... RESTART
   // IDENTITY CASCADE 로 초기화. test 간 state leak 0 보장.
   afterEach(async () => {
     await truncateAll(prisma);
