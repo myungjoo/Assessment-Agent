@@ -2,8 +2,12 @@
 id: T-0213
 title: ADR-0023 박제 — PermissionDeniedRecord audit 조회 RBAC/audience 모델 + instance-scoping 필터 계약
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 187
+mergedAs: b5bae25
+reviewRounds: 1
+completedAt: 2026-06-04T10:12:00+09:00
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 200
 estimatedFiles: 2

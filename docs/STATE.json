@@ -5,37 +5,37 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0213",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s53",
-    "since": "2026-06-04T09:56:50+09:00",
+    "since": "2026-06-04T10:12:00+09:00",
     "loopSessionStartedAt": "2026-06-04T09:56:50+09:00",
-    "loopSessionTurnCount": 1
+    "loopSessionTurnCount": 2
   },
-  "lastActivity": "2026-06-04T09:58:00+09:00",
-  "lastCommit": "872cf67",
+  "lastActivity": "2026-06-04T10:12:00+09:00",
+  "lastCommit": "b5bae25",
   "mostRecentTasks": [
+    "T-0213",
     "T-0212",
     "T-0211",
     "T-0210",
-    "T-0209",
-    "T-0208"
+    "T-0209"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-04T09:56:50+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s53",
-    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t1 — 새 /loop(dynamic, cap 10). [1] fetch: local 이 origin/main 보다 11 commit 뒤처져 있어 ff(73e5a4b→872cf67) — session #42~#52 의 milestone-3(GitHub/Confluence adapter) + live-test gating + token-encryption CLI + multi-task-fire 활성화 + PermissionDeniedRecord(T-0207~T-0212) 전부 로컬 반영. ref-CAS lock 획득(tombstone e69de29 → blob 5c149f5). 미해결 Q-0020(needs-human-decision) 발견 → 사람 결정 필요라 driver 가 AskUserQuestion 으로 escalate. 사용자가 option(1) audit 조회 endpoint + RBAC=Admin+자기 instance 선택 → Q-0020 RESOLVED + decision 기입. [2] currentTask·nextTask 공백 → planner dispatch → T-0213(ADR-0023 audit 조회 RBAC/audience + instance-scoping 계약, commitMode pr new-ADR) 큐잉, nextTask=T-0213. ADR-first 근거: JwtPayload 에 instance 바인딩 부재(sub+role 뿐)라 audience 모델·instanceRef 매핑·401/403-vs-empty 경계가 cross-cutting 계약. [6] 본 turn doc-only direct commit(Q-0020 resolution + nextTask + T-0213 task file + journal + lock mirror). 다음 turn t2: T-0213 executor 실행(pr-mode, gh 2.88.x 가용). ScheduleWakeup 60s(즉시 가용 task)."
+    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t2 — T-0213 DONE/MERGED(PR-187, squash b5bae25). [1] fetch: t1 commit 9f63a77 CI success(main green). lock 유지(same session, turnCount 1→2). 미해결 humanQuestion 0(Q-0020 t1 resolved). [2] nextTask=T-0213 → currentTask. [3] executor(pr-mode): architect 가 ADR-0023(audit 조회 RBAC/audience 계약) 신설 — §1 audience 3-tier(미인증 401 / Admin·SuperAdmin 전체 bypass / non-Admin 자기 instance, binding 부재 시 빈결과) §2 자기-instance=User entity allowed-instance server-side lookup(JwtPayload 비확장, exact-match) §3 Admin bypass=ROLE_HIERARCHY 재사용 + own-instance 필터=service-layer actor-aware(신규 guard 미신설) §4 타 instance=빈필터(403 아님) §5 GET /api/permission-denied-records(@Roles User, dep 0). INDEX.md row 1. tester: lint/build/test green(162 suite/3186). [4] PR-187 open → reviewer APPROVE r1(8-check 통과, Nit 0) → 4-게이트 PASS(approval-race rerun 포함) → squash merge b5bae25, branch 삭제. [6] task DONE frontmatter + counters 210→211 + mostRecentTasks prepend + 본 bookkeeping direct commit. 다음 turn t3: planner 가 후속 controller slice(GET endpoint + RBAC + service own-instance 필터 + R-112 4종+negative tests) 큐잉 예정. ScheduleWakeup 60s."
   },
   "ci": {
     "lastRun": "2026-06-04T02:57:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/26902768235",
-    "note": "T-0212 PR-186 run 26902768235(head ded2a96) success — first-run 은 approval-검증 step 만 race-fail(approve comment 전), approve comment 후 gh run rerun --failed 로 동일 pull_request run 재실행 → 전 step green(approval-verify + lint/build/test:cov + smoke + e2e). 4-gate PASS, squash merge 0ff9bee. merge commit 0ff9bee main push CI 는 다음 turn 재확인(비차단). approval-race rerun 패턴 3회 연속 확정(T-0210/0211/0212)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/187",
+    "note": "t2: T-0213 PR-187(doc-only ADR-0023) — reviewer APPROVE r1 후 4-게이트 PASS(approval-race rerun 포함), squash merge b5bae25. 직전 t1 direct commit 9f63a77(main) CI success. main green, consecutiveFails 0. merge commit b5bae25 main push CI 는 다음 turn 비차단 재확인(doc-only)."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -233,7 +233,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 210,
+    "tasksCompleted": 211,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
