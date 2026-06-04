@@ -5,42 +5,42 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0236",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s58",
-    "since": "2026-06-05T00:15:37+09:00",
+    "since": "2026-06-05T00:54:00+09:00",
     "loopSessionStartedAt": "2026-06-04T21:23:09+09:00",
-    "loopSessionTurnCount": 1
+    "loopSessionTurnCount": 2
   },
-  "lastActivity": "2026-06-05T00:15:37+09:00",
-  "lastCommit": "204500e",
+  "lastActivity": "2026-06-05T00:54:00+09:00",
+  "lastCommit": "81c9af5",
   "mostRecentTasks": [
+    "T-0236",
     "T-0235",
     "T-0234",
     "T-0233",
-    "T-0232",
-    "T-0231"
+    "T-0232"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-04T21:23:09+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s58",
     "stoppedAt": null,
     "stopReason": null,
-    "note": "loop@AKIHA-s58 session #58 t1 (사용자 turn cap 10, 기기=AKIHA) — [1] 로컬 main 872cf67(s52 STOP) → origin ff. lock 은 WIN-JQIPLSBL9QV-s57 가 stale(since 20:17:54) 보유: 첫 wake(20:52) stand-down+reschedule, 둘째 wake(21:23) stale 탈취(stole stale lock from loop@WIN-JQIPLSBL9QV-s57). session 다름 → turnCount=1. [2] currentTask·nextTask 공백 → planner HIGH-bar survey: dependency-free backlog 소진 확정, 유일 material gap = UserInstanceAccess binding-grant 경로(ADR-0024 'safe but useless' flag, non-Admin 항상 빈 결과) but grant RBAC 미결 → escalate. [의사결정] 사용자 AskUserQuestion 2-step → Q-0023: (1) instance-access 부여 경로 + grant RBAC=Admin 전용 endpoint 승인. [3] planner 재dispatch → T-0236 큐잉(ADR-0027 grant/revoke Admin-only RBAC 계약, ADR-first, dependency-free pr), nextTask=T-0236. [중간] AskUserQuestion 응답 지연 → lock since 21:23→00:15 재heartbeat(여전히 본인 보유; cron@cloud 204500e 는 refs/locks 403 no-op 만 기록). cron journal(06-04) rebase 무충돌. [6] Q-0023 기록 + 본 bookkeeping direct commit. t2 에서 T-0236 executor 실행 예정.",
-    "notePrev": "s57 t4: T-0235 DONE/MERGED(PR-203, 5f81e29) — audit P1~P4(T-0232~T-0235) 완결, dependency-free 강화 backlog 소진. cap 5 도달 t5 escalation 예정이었으나 lock 미해제 stale 종료(Q-0023 미커밋 → s58 가 stale 탈취 후 동일 escalation 재수행).",
+    "note": "loop@AKIHA-s58 session #58 t2 (turn cap 10, 기기=AKIHA) — [1] 로컬 main 51340f3→origin ff. lock 본인(loop@AKIHA-s58) 보유·non-stale → 계속, since 00:15→00:54 heartbeat, turnCount 1→2(동일 session 연속 wake). humanQuestion 전부 RESOLVED(Q-0023 포함), blockers 0, multiTaskFire=true 이나 holder=loop 라 cron chain [7.5] inert(단일 task). [2] nextTask=T-0236 픽업(pr-mode, ADR-first). [3] executor DONE — ADR-0027(UserInstanceAccess grant/revoke Admin-only RBAC 계약: POST/DELETE /api/users/{id}/instance-access @Roles(Admin), self-grant 금지, grant 409·revoke 204 idempotent, repo.create()·normalizeInstanceRef() 재사용, READ=ADR-0023/0024↔WRITE=ADR-0027 경계) + modules.md doc-sync. **주의: executor 파일변경이 phantom-worktree 격리로 main 체크아웃에 미persist → driver 가 git fsck unreachable blob(934df2 ADR, ac0e99 modules.md)에서 복구해 origin/main(51340f3) 위 clean 재배치**(내용 검증 완료, modules.md +1/-1 현행 main 기준 minimal). [4] commit 3b65395 → PR-204. [review] reviewer r1/7 APPROVE+nit2(ADR 번호 gap 서술/401 guard 링크 오타) → driver in-PR nit-closure b95921a(+2/-2, §3 의무) → reviewer r2/7 APPROVE(issue-4623820763). 4-게이트 전부 PASS, CI run 26962920086(head b95921a) success → squash merge 81c9af5, branch deleted. [6] main ff 81c9af5, T-0236 DONE. tasksCompleted 233→234, mostRecentTasks prepend. nextTask=null → t3 planner survey(Q-0023 후속 chain: DTO/service grant+revoke → controller @Roles → api.md → e2e, 각 ≤300 LOC). [8] turnCount 2<10 → ScheduleWakeup reschedule.",
+    "notePrev": "s58 t1: planner HIGH-bar survey → dependency-free backlog 소진 확정, 유일 material gap=UserInstanceAccess binding-grant 경로(ADR-0024 'safe but useless'). AskUserQuestion 2-step → Q-0023 RESOLVED(instance-access 부여 경로 + grant RBAC=Admin 전용 endpoint 승인). planner T-0236 큐잉(ADR-0027). stale lock 탈취 from WIN-JQIPLSBL9QV-s57. bookkeeping 961b7a0.",
     "noteOld_s57t4": "loop@WIN-JQIPLSBL9QV-s57 session #57 t4 (사용자 turn cap 5) — T-0235 DONE/MERGED (PR-203, squash 5f81e29). [1] fetch main 64ac491, lock s57 동일 session → turnCount 3→4 heartbeat(25ef5d2), since=now. humanQuestion 0, blockers 0. [2] nextTask=T-0235 픽업(pr-mode). [3] feature branch claude/T-0235-branch-coverage-threshold-ratchet → executor DONE: pnpm test:cov 실측 All-files Branch/Statement/Function/Line 100%(166 suite/3285 test) 확인 후 package.json coverageThreshold.global branches/statements 50→90 ratchet 상향(functions/lines 80 유지, 측정-후-설정, floor 90 ≤ 실측 100 → CI green). ADR-0026 신규(ratchet-only 정책: 상향 자유/하향 ADR 필수). 2 files +93/-2, 새 dep 0. [4] commit b5e6439 → PR-203. [integrator] reviewer 별도 dispatch APPROVE r1/7 + comment 외화(gate 2, issue-4621610758), 4-게이트 전부 PASS, CI run 26948137415 success(test:cov 90 floor enforce + smoke + e2e + approval-gate 전 step success) → squash merge 5f81e29, branch deleted. [6] main ff 5f81e29, task DONE. tasksCompleted 232→233. nextTask=null, lock 유지. **audit backlog P1(T-0232)·P2(T-0233)·P3(T-0234)·P4(T-0235) 4종 전부 완결 — dependency-free 강화 backlog 소진.** [정지조건] turnCount 4 < cap 5 → t5(마지막) 에서 planner survey → 잔여는 P5 mutation testing(새 dep §5) 등 HITL 게이트뿐 → AskUserQuestion checkpoint(Q-0023) 후 cap 5 정지 예정.",
     "noteOld_s57t1": "s57 t1: planner T-0234 큐잉(audit P3, fab533e); t2 T-0234 merged(4046829); t3 planner T-0235 큐잉(64ac491). (s56 t5 stop-note 잔여 P5 mutation testing §5, secrets.env 만료 2026-06-30, cron@cloud refs/locks 403 — 로컬 /loop 유일 정상 driver — journal 보존.)"
   },
   "ci": {
-    "lastRun": "2026-06-04T20:13:00+09:00",
+    "lastRun": "2026-06-05T00:54:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/203",
-    "note": "s57 t4: T-0235 PR-203 CI run 26948137415 success — test:cov 90 floor enforce(실측 100) + smoke + e2e + approval-gate 전 step success. squash merge 5f81e29. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/204",
+    "note": "s58 t2: T-0236 PR-204 CI run 26962920086(head b95921a) success — lint/build/migrate/test+cov(80 floor)/smoke/e2e + reviewer approval 검증 전 step green. round-1 head 3b65395 run 은 approve comment 전 실행이라 approval-gate fail, round-2 head 는 comment 후 실행이라 first-try green. squash merge 81c9af5. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -298,7 +298,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 233,
+    "tasksCompleted": 234,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

@@ -2,7 +2,11 @@
 id: T-0236
 title: ADR-0027 — UserInstanceAccess grant/revoke Admin-only RBAC 계약 박제
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-05T00:54:00+09:00
+mergedAs: 81c9af5
+prNumber: 204
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 130
