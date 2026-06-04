@@ -2,8 +2,9 @@
 id: T-0218
 title: truncateAll 테이블 개수 주석 정합 (5→7, stale comment doc-sync)
 phase: P4
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 190
 coversReq: [REQ-058]
 estimatedDiff: 6
 estimatedFiles: 5
