@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0226",
+  "nextTask": "T-0227",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s55",
     "since": "2026-06-04T13:59:38+09:00",
     "loopSessionStartedAt": "2026-06-04T13:59:38+09:00",
-    "loopSessionTurnCount": 4
+    "loopSessionTurnCount": 5
   },
-  "lastActivity": "2026-06-04T15:05:00+09:00",
-  "lastCommit": "e13365e",
+  "lastActivity": "2026-06-04T15:18:00+09:00",
+  "lastCommit": "7103cbc",
   "mostRecentTasks": [
+    "T-0226",
     "T-0225",
     "T-0224",
     "T-0223",
-    "T-0222",
-    "T-0221"
+    "T-0222"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-04T13:59:38+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s55",
-    "notePrev": "s55 t3 — T-0224 DONE/MERGED(PR-196, 91cc490): PermissionDeniedRecordService non-Admin own-instance 필터 결선(ADR-0024 §3 split B). own-instance 필터 chain(T-0221~T-0224) 완결 = Q-0021 option 1 done. reviewer 보안 boundary APPROVE r1(1 MINOR)+r2(0), nit-closure round2; round2 git add -A harness lock 우발 commit → round3 untrack+gitignore. 4-gate PASS. tasksCompleted 221→222, T-0225 큐잉.",
-    "note": "loop@WIN-JQIPLSBL9QV-s55 session #55 t4 — T-0225 DONE(direct, e13365e): api.md L124 + modules.md L37 non-Admin audit 동작을 own-instance 필터 reality 로 doc-sync(ADR-0024 §3 참조 추가). [1] fetch main 3295ccb, lock 동일 session#55 → turnCount 3→4(ref CAS cdfdce0). humanQuestion 0, blockers 0. main CI(91cc490 T-0224) success 확인. [2] nextTask=T-0225 픽업. [3] executor DONE(doc-only direct, +3/-3, tester 면제). [4] direct main commit e13365e push(doc-only). [6] tasksCompleted 222→223, T-0225 frontmatter DONE. [planner] T-0226 큐잉(milestone-1 2a 잔여 — azure_openai live-test 계약 ADR=ADR-0025 신설, commitMode pr; planner 가 generic 2a(ADR-0015+gating helper+custom live smoke)는 이미 main 박제 확인, azure_openai wire shape[/openai/deployments/<model>/chat/completions?api-version=, api-key header]만 잔여로 split). 후속 slice 후보 T-0227 = gating azure 확장 + test/smoke/llm-live-azure.smoke-spec.ts). [재개 보강] (a) 다음 turn T-0226 픽업(ADR-0025 pr, ADR-first). (b) ADR/code slice 도 driver→reviewer 별도 dispatch 유지. (c) milestone-1 2b(credentialed live run)는 로컬 secrets.env(azure_openai gpt-5.4, https://karina-east-us-2-api.openai.azure.com, 6/30 만료) env 주입 — §5 credential gate, deferred. (d) git add -A 대신 명시적 path add(harness lock 재발 방지)."
+    "notePrev": "s55 t4 — T-0225 DONE(direct, e13365e): api.md L124 + modules.md L37 non-Admin audit 동작을 own-instance 필터 reality 로 doc-sync. own-instance 필터 chain(T-0221~T-0225) doc closeout. tasksCompleted 222→223, T-0226 큐잉.",
+    "note": "loop@WIN-JQIPLSBL9QV-s55 session #55 t5 — T-0226 DONE/MERGED(PR-197, 7103cbc): ADR-0025(PROPOSED) 신설 — azure_openai live-test 계약(ADR-0015 custom 확장). milestone-1 2a ADR slice. [1] fetch main 5ee963e, lock 동일 session#55 → turnCount 4→5(ref CAS 0612ad6). humanQuestion 0, blockers 0. main CI doc commit(e13365e·3295ccb) success 확인(doc-only break 0). [2] nextTask=T-0226 픽업. [3] executor DONE(ADR-first, architect ADR-0025 164L doc-only, 실 secret 0, lint/build/test green). [4] feature branch e5e9449 push → PR-197 open. [reviewer 별도 dispatch] r1 APPROVE 0 findings — ADR 계약을 azure-openai.adapter/gating helper/non-2xx 매핑과 코드 대조 정합 확인, 실 api key literal 0 → comment post. [5] CI run 26934355652 green on e5e9449(전 step). [integrator] 4-gate 전부 PASS → MERGED-READY → squash merge 7103cbc. [6] tasksCompleted 223→224, T-0226 frontmatter DONE. [planner] T-0227 큐잉(milestone-1 2a 구현 split 1/2 — llm-live-test-gating.ts azure 확장[LLM_LIVE_PROVIDER/LLM_LIVE_API_VERSION] + colocated spec, pr; smoke spec=T-0228 후보, helper 의존). [재개 보강] (a) 다음 turn T-0227 픽업. (b) ADR-0025 PROPOSED→ACCEPTED flip 은 gating(T-0227)+smoke(T-0228) 둘 다 landing 후 별도 direct 1-line(부분구현 ACCEPTED 시기상조, repo convention=구현 후 flip). (c) milestone-1 2b(credentialed live run)는 로컬 secrets.env(azure_openai gpt-5.4, https://karina-east-us-2-api.openai.azure.com, 6/30 만료) env 주입 — §5 credential gate, deferred. (d) git add -A 대신 명시적 path add."
   },
   "ci": {
-    "lastRun": "2026-06-04T14:52:00+09:00",
+    "lastRun": "2026-06-04T15:15:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/196",
-    "note": "s55 t4: T-0225 는 direct doc-only commit(e13365e, api.md+modules.md) — code 변경 0 이라 break risk 없음. 직전 코드 merge(T-0224 PR-196 91cc490) CI run 26933473828 green 유지. main green, consecutiveFails 0. (t3 bookkeeping 3295ccb·t4 doc e13365e 의 main CI 는 doc-only — 다음 turn [1] 에서 conclusion 재확인.)"
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/197",
+    "note": "s55 t5: T-0226 PR-197(7103cbc) merged — CI run 26934355652 green on e5e9449(reviewer agent approval 검증·spec-presence·test:cov·smoke·e2e 전부, Node20 deprecation annotation non-failing). ADR-only 변경. main green, consecutiveFails 0. (t4 doc e13365e·t5 bookkeeping main CI 는 doc-only — 다음 turn [1] 재확인.)"
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -256,7 +256,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 223,
+    "tasksCompleted": 224,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

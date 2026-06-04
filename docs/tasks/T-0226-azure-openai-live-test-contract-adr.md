@@ -2,13 +2,18 @@
 id: T-0226
 title: azure_openai live-test 계약 ADR — Q-0021 승인 target(gpt-5.4 / karina-east-us-2) 의 env-gated live smoke 계약 확장
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-096, REQ-097]
 estimatedDiff: 85
 estimatedFiles: 1
 created: 2026-06-04
+completedAt: 2026-06-04T15:18:00+09:00
+prNumber: 197
+mergedAs: 7103cbc
+reviewRounds: 1
 plannerNote: P4 milestone-1 2a 잔여 — ADR-0015 는 custom-only 박제됨, Q-0021 승인 azure_openai live target 의 계약 확장 ADR(코드 전 박제, pr)
+result: DONE — ADR-0025(PROPOSED) 신설: azure_openai live-test 계약(wire shape /openai/deployments/<dep>/chat/completions?api-version= + api-key 헤더 + apiVersion 필수, gating env 변수명만, skip-unless-credentialed R-113, timeout+non-2xx 경계, cipher stub 우회). reviewer 코드 대조 APPROVE r1 0 findings, 실 secret 0, 4-gate PASS, squash merge 7103cbc. tasksCompleted 223→224. 후속=T-0227(gating azure 확장 + azure live smoke spec).
 ---
 
 # T-0226 — azure_openai live-test 계약 ADR 박제
