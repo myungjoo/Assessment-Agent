@@ -2,13 +2,18 @@
 id: T-0228
 title: azure_openai live-test smoke spec 신설 (test/smoke/llm-live-azure.smoke-spec.ts)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-096, REQ-097]
 estimatedDiff: 120
 estimatedFiles: 1
 created: 2026-06-04
+completedAt: 2026-06-04T15:48:00+09:00
+prNumber: 199
+mergedAs: c18cd77
+reviewRounds: 1
 plannerNote: P4 milestone-1 2a split 2/2 — ADR-0025 Decision §2·§3·§5·§6 의 azure live smoke spec(custom mirror). T-0227 gating helper 의존. single-spec × 1.0.
+result: DONE — test/smoke/llm-live-azure.smoke-spec.ts 신설(custom mirror, azure wire shape, gating "azure"→LlmProvider.AzureOpenai 매핑, describe.skip no-env CI green). reviewer APPROVE r1 0 findings(매핑·skip-clean·secret 확인). CI green 1회(race 없음), 4-gate PASS, squash merge c18cd77. milestone-1 2a 완결. tasksCompleted 225→226. 후속=T-0229(ADR-0025 PROPOSED→ACCEPTED flip, direct).
 ---
 
 # T-0228 — azure_openai live-test smoke spec 신설
