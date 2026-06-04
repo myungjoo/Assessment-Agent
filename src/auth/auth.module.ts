@@ -23,10 +23,13 @@
 //   - RefreshToken DB rotation — T-0088 candidate.
 //
 // secret 미설정 시 fallback 정책:
-//   - useFactory 가 `process.env.AUTH_JWT_SECRET ?? ""` 로 빈 secret fallback.
+//   - useFactory 가 resolveJwtSecret(process.env) 로 빈 secret fallback 처리.
+//     `?? ""` nullish 분기 로직 + 정책 박제는 testable helper
+//     (resolve-jwt-secret.ts) 로 이전됨 (T-0234) — `*.module.ts` 가 coverage
+//     측정 제외라 보안 핵심 분기가 blind spot 이던 것을 측정 대상화하기 위함.
 //     실 환경에서는 boot 단계에서 env 검증 layer (ConfigModule + Joi schema 등) 가
 //     reject 의무 — T-0087 candidate. 본 module 은 ADR-0008 Decision §5 의 환경변수
-//     이름 contract 만 박제.
+//     이름 contract 만 (helper 경유로) 박제.
 import { forwardRef, Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
@@ -37,6 +40,7 @@ import { AuthController } from "./auth.controller";
 import { ACCESS_TOKEN_TTL, AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { JwtStrategy } from "./jwt.strategy";
+import { resolveJwtSecret } from "./resolve-jwt-secret";
 import { RolesGuard } from "./roles.guard";
 
 @Module({
@@ -60,7 +64,8 @@ import { RolesGuard } from "./roles.guard";
     JwtModule.registerAsync({
       useFactory: () => ({
         // ADR-0008 Decision §5 — access token signing secret.
-        secret: process.env.AUTH_JWT_SECRET ?? "",
+        // nullish-fallback 분기는 resolveJwtSecret helper 로 분리 (T-0234).
+        secret: resolveJwtSecret(process.env),
         signOptions: {
           // ADR-0008 Decision §4 — HS256 (HMAC SHA-256) 명시.
           algorithm: "HS256",
