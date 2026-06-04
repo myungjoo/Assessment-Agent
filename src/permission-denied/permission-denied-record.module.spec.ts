@@ -11,11 +11,17 @@
 // 은 module compile + provider resolve + exports 등록 정합성만 검증.
 
 // PrismaService 를 mock — PrismaClient extends 의 부작용 (adapter 생성 / connect) 을
-// 회피. PermissionDeniedRecordRepository 의 생성자 dep 으로 PrismaService 가 inject
-// 되나, 본 spec 은 instance 동작이 아닌 module compile 만 검증.
+// 회피. PermissionDeniedRecordRepository / UserInstanceAccessRepository 의 생성자 dep
+// 으로 PrismaService 가 inject 되나, 본 spec 은 instance 동작이 아닌 module compile 만
+// 검증. UserInstanceAccessModule import (ADR-0024 §3 split B) 결선으로 인해
+// userInstanceAccess delegate 도 mock 에 포함한다.
 jest.mock("../persistence/prisma.service", () => ({
   PrismaService: class MockPrismaService {
     permissionDeniedRecord = {
+      create: jest.fn(),
+      findMany: jest.fn(),
+    };
+    userInstanceAccess = {
       create: jest.fn(),
       findMany: jest.fn(),
     };
@@ -29,6 +35,8 @@ import { Test, type TestingModule } from "@nestjs/testing";
 
 // eslint-disable-next-line import/first
 import { PersistenceModule } from "../persistence/persistence.module";
+// eslint-disable-next-line import/first
+import { UserInstanceAccessRepository } from "../user-instance-access/user-instance-access.repository";
 
 // eslint-disable-next-line import/first
 import { PermissionDeniedRecordModule } from "./permission-denied-record.module";
@@ -52,6 +60,25 @@ describe("PermissionDeniedRecordModule", () => {
     const repo = moduleRef.get(PermissionDeniedRecordRepository);
     expect(repo).toBeDefined();
     expect(repo).toBeInstanceOf(PermissionDeniedRecordRepository);
+
+    await moduleRef.close();
+  });
+
+  // ADR-0024 §3 split B: UserInstanceAccessModule import 후
+  // PermissionDeniedRecordService 가 UserInstanceAccessRepository 주입과 함께 정상
+  // 해소되는지 검증 (DI 결선). UserInstanceAccessModule (non-@Global) 의 명시 import
+  // 가 없으면 service 의 두 번째 생성자 dep 이 해소되지 않아 compile fail.
+  it("UserInstanceAccessModule import 후 PermissionDeniedRecordService 가 UserInstanceAccessRepository 주입과 함께 resolve 된다 (ADR-0024 §3 split B DI 결선)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, PermissionDeniedRecordModule],
+    }).compile();
+
+    const service = moduleRef.get(PermissionDeniedRecordService);
+    expect(service).toBeInstanceOf(PermissionDeniedRecordService);
+
+    const uiaRepo = moduleRef.get(UserInstanceAccessRepository);
+    expect(uiaRepo).toBeDefined();
+    expect(uiaRepo).toBeInstanceOf(UserInstanceAccessRepository);
 
     await moduleRef.close();
   });
@@ -103,8 +130,10 @@ describe("PermissionDeniedRecordModule", () => {
     ) as Array<{ name?: string }> | undefined;
 
     expect(paramTypes).toBeDefined();
-    expect(paramTypes?.length).toBeGreaterThanOrEqual(1);
+    expect(paramTypes?.length).toBeGreaterThanOrEqual(2);
     expect(paramTypes?.[0]?.name).toMatch(/PermissionDeniedRecordRepository/);
+    // ADR-0024 §3 split B: 두 번째 생성자 dep 으로 UserInstanceAccessRepository 요구.
+    expect(paramTypes?.[1]?.name).toMatch(/UserInstanceAccessRepository/);
   });
 
   // Negative / dependency 검증 (2): PermissionDeniedRecordRepository 가 PrismaService

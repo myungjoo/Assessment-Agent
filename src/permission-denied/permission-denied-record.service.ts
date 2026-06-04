@@ -23,17 +23,23 @@ import { Injectable } from "@nestjs/common";
 import type { PermissionDeniedRecord } from "@prisma/client";
 
 import { ROLE_HIERARCHY } from "../auth/roles.guard";
+import {
+  UserInstanceAccessRepository,
+  normalizeInstanceRef,
+} from "../user-instance-access/user-instance-access.repository";
 
 import {
   PermissionDeniedRecordRepository,
   type PermissionDeniedRecordFilter,
 } from "./permission-denied-record.repository";
 
-// AuditQueryActor — list(actor, query?) 의 actor 입력 shape (ADR-0023 §3). audit
-// 조회의 audience 차등 (Admin bypass vs non-Admin binding-부재 fallback) 을 service
-// 가 actor.role 로 분기한다. JwtPayload (sub + role) 의 부분 view — 본 slice 는
-// role 만 사용 (sub 기반 own-instance lookup 은 Follow-up, ADR-0023 §2(b) DB-schema
-// 게이트). actor / role 누락에 방어적 (undefined → non-Admin 취급, throw 0).
+// AuditQueryActor — list(actor, query?) 의 actor 입력 shape (ADR-0023 §3 / ADR-0024
+// §3). audit 조회의 audience 차등 (Admin bypass vs non-Admin own-instance 필터) 을
+// service 가 actor.role + actor.sub 로 분기한다. JwtPayload (sub + role) 의 부분 view:
+//   - role — Admin escalation tier 판별 (bypass vs non-Admin).
+//   - sub — non-Admin own-instance allowlist lookup 의 userId (ADR-0024 §3 split B
+//     결선). actor / sub / role 누락에 방어적 (undefined → non-Admin 취급 + 빈
+//     allowlist → 빈 배열, throw 0).
 export interface AuditQueryActor {
   sub?: string;
   role?: string;
@@ -87,6 +93,9 @@ export class PermissionDeniedRecordService {
   constructor(
     // 영속 (create) + audit 조회 (findMany) source.
     private readonly repository: PermissionDeniedRecordRepository,
+    // non-Admin own-instance allowlist lookup source (ADR-0024 §3 split B). actor.sub
+    // 로 허용 instanceRef 집합을 조회해 list 의 non-Admin 분기 필터에 강제 주입한다.
+    private readonly userInstanceAccessRepository: UserInstanceAccessRepository,
   ) {}
 
   // record — 권한 거부 1 건을 영속 (repository.create forward, append-only).
@@ -111,25 +120,42 @@ export class PermissionDeniedRecordService {
     });
   }
 
-  // list — actor-aware audit 조회 (ADR-0023 §1/§3). audience 차등을 service 1 곳에서
-  // 강제 (단일 강제 지점 — controller 가 누락해도 service 가 강제, ADR-0023 §3 사유 1):
+  // list — actor-aware audit 조회 (ADR-0023 §1/§3 + ADR-0024 §3). audience 차등을
+  // service 1 곳에서 강제 (단일 강제 지점 — controller 가 누락해도 service 가 강제,
+  // ADR-0023 §3 사유 1):
   //   (i) actor 가 Admin escalation tier (Admin / SuperAdmin) → 필터 없이
   //       repository.findMany(query) forward (Admin bypass — 전체 record 조회,
-  //       ADR-0023 §3). 운영 전반의 권한 거부 가시성 (REQ-044).
-  //   (ii) non-Admin authenticated (User / unknown / role 누락) → binding 부재
-  //       fallback 으로 **빈 배열** 반환 (ADR-0023 §1 — 허용 instance 집합이 비어
-  //       있으면 200 빈 배열, 403 아님). 본 slice 는 User↔instance binding schema 가
-  //       부재 (ADR-0023 §2(b) DB-schema 게이트, Q-0019 미승인) 라 non-Admin 의 허용
-  //       instance 집합이 항상 공집합 → 항상 빈 배열. own-instance 실 필터는 Follow-up.
+  //       ADR-0023 §3 / ADR-0024 §3). 운영 전반의 권한 거부 가시성 (REQ-044). allowlist
+  //       lookup 무시.
+  //   (ii) non-Admin authenticated (User / unknown / role 누락 / actor 부재) →
+  //       own-instance 필터 (ADR-0024 §3 split B 결선). actor.sub 로 allowlist 를
+  //       조회해 자기 instance 의 record 만 노출. allowlist 가 공집합이면 빈 배열
+  //       (ADR-0024 §4 binding 0 fallback — 200 빈 배열, 403 아님).
+  //
+  // non-Admin own-instance 필터 흐름 (ADR-0024 §3):
+  //   1. actor.sub 로 findInstanceRefsByUserId → allowlist (정규화 저장값). sub 부재면
+  //      repository 가 빈 배열 반환 (service 도 actor?.sub undefined 방어).
+  //   2. allowlist 공집합 → 빈 배열 즉시 반환 (findMany 미호출, binding 0 fallback).
+  //   3. allowlist 비어있지 않으면 instanceRefIn=allowlist 를 findMany 에 강제 주입해
+  //      own-instance 범위를 상한으로 고정 (사용자가 query param 으로 넓힐 수 없음).
+  //
+  // query.instanceRef (사용자 제공 단일 exact) ∩ allowlist 교집합 (ADR-0024 §3/§4):
+  //   - query.instanceRef 부재 → instanceRefIn=allowlist 만 (allowlist 전체).
+  //   - query.instanceRef 가 정규화 후 allowlist 에 속함 → 그 단일로 좁힘
+  //     (instanceRef + instanceRefIn 둘 다 전달 — repository AND 합성이 교집합 처리).
+  //   - query.instanceRef 가 allowlist 에 없음 → 빈 결과 (타 instance 비노출,
+  //     ADR-0024 §4 빈-필터). findMany 미호출.
+  //   비교는 normalizeInstanceRef 로 query.instanceRef 를 정규화한 뒤 allowlist (이미
+  //   정규화 저장값) membership 판정 (ADR-0024 §4 round-trip 일관).
   //
   // 빈 결과 (0 row) 는 404 변환 안 함 (컬렉션 조회의 정상 결과, ADR-0023 §4). actor
-  // 가 undefined / role 누락이어도 (ii) 분기로 안전 처리 (빈 배열, throw 0 — ADR-0023
-  // §4 authenticated 면 endpoint 접근 권한 있음, 403 변환 0). non-Admin 은 repository
-  // 를 호출하지 않으므로 (빈 배열 즉시 반환) 타 instance / 전체 record 비노출 (ADR-0023
-  // §4 빈-필터 — 사용자가 query param 으로 타 instanceRef 를 지정해도 bypass 유발 0).
-  // Admin path 의 repository.findMany reject (DB 장애) 는 swallow 없이 그대로 propagate.
+  // 가 undefined / role 누락이어도 (ii) 분기로 안전 처리 (throw 0). provider /
+  // httpStatus 등 기타 필터는 own-instance 필터와 함께 forward (덮어쓰지 않음).
+  // Admin path 및 non-Admin path 의 repository reject (DB 장애 — findInstanceRefsByUserId
+  // / findMany) 는 swallow 없이 그대로 propagate.
   //
-  // 분기: Admin bypass (필터 forward) vs non-Admin fallback (빈 배열).
+  // 분기: Admin bypass (필터 forward) vs non-Admin own-instance 필터 (allowlist 공집합
+  // / query.instanceRef 부재 / in-allowlist / out-of-allowlist 4 분기).
   async list(
     actor: AuditQueryActor | undefined,
     query?: PermissionDeniedRecordFilter,
@@ -137,9 +163,37 @@ export class PermissionDeniedRecordService {
     if (isAdminBypass(actor?.role)) {
       return this.repository.findMany(query);
     }
-    // non-Admin (또는 actor/role 부재) — binding 부재 fallback (빈 배열). repository
-    // 미호출 (where 매칭 0 과 동형 — 허용 instance 공집합). own-instance 실 필터는
-    // Follow-up (ADR-0023 §2(b) User↔instance binding schema 선행 요구).
-    return [];
+
+    // non-Admin (또는 actor/role 부재) — own-instance allowlist 필터 (ADR-0024 §3).
+    // actor?.sub 부재면 빈 문자열로 — repository 가 빈 userId 를 빈 allowlist 로 처리.
+    const allowlist =
+      await this.userInstanceAccessRepository.findInstanceRefsByUserId(
+        actor?.sub ?? "",
+      );
+
+    // allowlist 공집합 → binding 0 fallback (빈 배열, findMany 미호출, ADR-0024 §4).
+    if (allowlist.length === 0) {
+      return [];
+    }
+
+    // query.instanceRef (사용자 제공 raw exact) ∩ allowlist 교집합 처리 (ADR-0024 §3/§4).
+    if (query?.instanceRef !== undefined) {
+      const normalized = normalizeInstanceRef(query.instanceRef);
+      if (!allowlist.includes(normalized)) {
+        // allowlist 밖 instanceRef 요청 → 타 instance 비노출 (빈 결과, findMany 미호출).
+        return [];
+      }
+      // allowlist 에 속함 → 그 단일로 좁힘. instanceRef(정규화값) + instanceRefIn 을
+      // 둘 다 전달해 repository AND 합성이 교집합을 처리하게 한다 (ADR-0024 §3).
+      return this.repository.findMany({
+        ...query,
+        instanceRef: normalized,
+        instanceRefIn: allowlist,
+      });
+    }
+
+    // query.instanceRef 부재 → allowlist 전체를 instanceRefIn 으로 강제 주입.
+    // provider / httpStatus 등 기타 query 필터는 함께 forward (덮어쓰지 않음).
+    return this.repository.findMany({ ...query, instanceRefIn: allowlist });
   }
 }

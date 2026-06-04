@@ -29,3 +29,6 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Claude Code harness 로컬 lock (세션별 생성, 커밋 금지)
+.claude/scheduled_tasks.lock
