@@ -2,13 +2,18 @@
 id: T-0223
 title: PermissionDeniedRecordFilter 에 instanceRefIn set-membership 필터 추가 (ADR-0024 §3 chain row 3 slice A)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 105
 estimatedFiles: 2
 created: 2026-06-04
+completedAt: 2026-06-04T14:35:00+09:00
+prNumber: 195
+mergedAs: e2cb7cd
+reviewRounds: 1
 plannerNote: P4 ADR-0024 own-instance 필터 결선 chain row(3) split A — repository set-membership 필터만(service 결선은 row B). R-112 backbone ×1.5.
+result: DONE — PermissionDeniedRecordFilter 에 additive instanceRefIn?: string[] set-membership 필터 + findMany exact∩set AND 교집합. 신규 9 spec(빈 배열 in:[] 보안 케이스 포함). CI 1회 green, reviewer APPROVE r1 0 findings, 4-gate PASS, squash merge e2cb7cd. tasksCompleted 220→221.
 ---
 
 # T-0223 — PermissionDeniedRecordFilter 에 instanceRefIn set-membership 필터 추가

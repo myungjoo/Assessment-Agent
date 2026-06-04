@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0223",
+  "nextTask": "T-0224",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s55",
     "since": "2026-06-04T13:59:38+09:00",
     "loopSessionStartedAt": "2026-06-04T13:59:38+09:00",
-    "loopSessionTurnCount": 1
+    "loopSessionTurnCount": 2
   },
-  "lastActivity": "2026-06-04T14:18:11+09:00",
-  "lastCommit": "6bb94e9",
+  "lastActivity": "2026-06-04T14:40:00+09:00",
+  "lastCommit": "e2cb7cd",
   "mostRecentTasks": [
+    "T-0223",
     "T-0222",
     "T-0221",
     "T-0220",
-    "T-0219",
-    "T-0218"
+    "T-0219"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-04T13:59:38+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s55",
-    "notePrev": "session #54 t10 (STOP — turn-cap): planner dispatch(option 1 chain row 2 큐잉) 후 cap STOP. T-0218·T-0219·T-0220·T-0221 4 task merged(tasksCompleted 215→219) + Q-0021 RESOLVE(option 1 audit own-instance 필터 먼저 + option 2 milestone-1 azure_openai 시험 credential 승인, 로컬 secrets.env 6/30).",
-    "note": "loop@WIN-JQIPLSBL9QV-s55 session #55 t1 — T-0222 DONE/MERGED(PR-194, 6bb94e9): UserInstanceAccessRepository(findInstanceRefsByUserId allowlist lookup + ADR-0024 §4 normalizeInstanceRef + 정규화 binding create + repository/module spec). [1] fetch main 0b086e7, lock free(tombstone) → 새 session #55 lock 획득, turnCount=1. humanQuestion 0(Q-0021 resolvedAt 있음, status 토큰만 stale → 본 commit 에서 OPEN→RESOLVED 정합), blockers 0. [2] nextTask=T-0222 픽업. [3] executor DONE(prod 158 LOC/3 file, cov 100%). [4] feature branch commit 33d2de9 push → PR-194 open. [reviewer 별도 dispatch, §54(b) dual-actor 복원] r1 APPROVE 0 findings → comment post. [5] CI round1 FAIL — check-spec-presence(user-instance-access.module.ts 동반 spec 부재, executor 'spec-presence green' 오보). executor 재dispatch → module spec 추가(9d21462) → 로컬 4-gate green. push → CI run 26932158509 green(spec-presence·reviewer-gate·test:cov·smoke·e2e 전부). reviewer r2 re-review(CI-fix delta, integrator §5) APPROVE 0 findings → comment post. [integrator] 4-gate 전부 PASS → MERGED-READY → driver squash merge 6bb94e9 + branch delete. [6] tasksCompleted 219→220, T-0222 frontmatter DONE. [planner] T-0223 큐잉(ADR-0024 row 3 split A — PermissionDeniedRecordFilter instanceRefIn set-membership 필터+spec, pr-mode; service 결선=row3 split B). [재개 보강] (a) 다음 turn T-0223 픽업. (b) filter/service slice 도 driver→reviewer 별도 dispatch 유지. (c) milestone-1(option 2) 진입 시 로컬 secrets.env(azure_openai gpt-5.4, 6/30 만료) env 주입 — 미착수."
+    "notePrev": "s55 t1 — T-0222 DONE/MERGED(PR-194, 6bb94e9): UserInstanceAccessRepository(allowlist lookup + normalizeInstanceRef + 정규화 binding). CI round1 spec-presence fail(module.spec 누락) → self-heal(9d21462). reviewer dual-actor r1+r2 APPROVE, 4-gate PASS. tasksCompleted 219→220, T-0223 큐잉.",
+    "note": "loop@WIN-JQIPLSBL9QV-s55 session #55 t2 — T-0223 DONE/MERGED(PR-195, e2cb7cd): PermissionDeniedRecordFilter 에 additive instanceRefIn?: string[] set-membership 필터 + findMany exact∩set AND 교집합(ADR-0024 §3 split A). [1] fetch main 2387f85, lock 동일 session#55 → turnCount 1→2(ref CAS e79b452). humanQuestion 0, blockers 0. main CI(2387f85 t1 bookkeeping doc-only) in_progress 확인(break risk 0). [2] nextTask=T-0223 픽업. [3] executor DONE(prod +34/-7, 기존 파일 수정이라 신규 spec gap 없음, spec-presence 실행 OK, cov 100%, 신규 9 spec). [4] feature branch commit 9c338e7 push → PR-195 open. [reviewer 별도 dispatch] r1 APPROVE 0 findings(빈 배열 in:[] 보안 케이스 확인) → comment post. [5] CI run 26932701768 green 1회(reviewer-gate·spec-presence·test:cov·smoke·e2e 전부, head 이후 commit 0 → re-review 불요). [integrator] 4-gate 전부 PASS → MERGED-READY → driver squash merge e2cb7cd + branch delete. [6] tasksCompleted 220→221, T-0223 frontmatter DONE. [planner] T-0224 큐잉(ADR-0024 §3 split B — PermissionDeniedRecordService non-Admin placeholder 를 allowlist lookup + instanceRefIn 실 필터 + query.instanceRef∩allowlist 로 결선, pr-mode ~180 LOC/4 파일). [재개 보강] (a) 다음 turn T-0224 픽업(split B = own-instance 필터 완성). (b) service slice 도 driver→reviewer 별도 dispatch 유지. (c) split B 후 milestone-1(option 2, azure_openai live) 잔여 — secrets.env(6/30 만료) env 주입."
   },
   "ci": {
-    "lastRun": "2026-06-04T14:14:00+09:00",
+    "lastRun": "2026-06-04T14:38:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/194",
-    "note": "s55 t1: T-0222 PR-194(6bb94e9) merged. round1 CI fail = check-spec-presence(module.spec 누락) — reviewer-gate race 아님, 실 결함. module spec 추가(9d21462) self-heal → run 26932158509 green(spec-presence·reviewer agent approval 검증·test:cov·smoke·e2e 전부 pass, Node20 deprecation annotation 은 non-failing). main green, consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/195",
+    "note": "s55 t2: T-0223 PR-195(e2cb7cd) merged — CI run 26932701768 green 1회(reviewer agent approval 검증·spec-presence·test:cov·smoke·e2e 전부 pass, Node20 deprecation annotation 은 non-failing). 신규 파일 0(기존 repository 수정)이라 spec-presence gap 없음. main green, consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -256,7 +256,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 220,
+    "tasksCompleted": 221,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
