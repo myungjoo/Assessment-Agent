@@ -201,3 +201,85 @@ describe("prisma schema — Assessment / Contribution / Summary (T-0110, ADR-000
     });
   });
 });
+
+// T-0221 (ADR-0024 Decision §2) — UserInstanceAccess join table schema-validation.
+//
+// 본 slice 는 prisma/schema.prisma 에 UserInstanceAccess model 1 개 + User back-relation
+// 1 줄을 선언만 한다 (repository/service/controller 결선은 ADR-0024 후속 slice Out of
+// Scope). 따라서 production 분기 로직이 0 LOC — branch/error-path test 항목은
+// "schema 선언만, 분기 없음 — 생략" (R-112, 위 L4~5 기존 패턴 정합). coverage-theater
+// (인위적 logic 추가로 cover 율 맞추기) 금지 — happy-path 신규 model 단언 + negative
+// 안전망 (unique/cascade/index 선언 + secret 컬럼 부재) 만으로 schema-structure 검증.
+describe("prisma schema — UserInstanceAccess (T-0221, ADR-0024 §2)", () => {
+  // (a) happy-path — PrismaClient delegate + DMMF model/field 노출.
+  describe("(a) happy-path — model / delegate / field 노출", () => {
+    it("DMMF datamodel 이 UserInstanceAccess model 을 포함하고 PrismaClient 가 delegate 를 노출한다", () => {
+      const models = Prisma.dmmf.datamodel.models.map((m) => m.name);
+      expect(models).toContain("UserInstanceAccess");
+      const proto = PrismaClient.prototype as unknown as Record<string, unknown>;
+      const hasDelegate =
+        "userInstanceAccess" in proto ||
+        Object.getOwnPropertyDescriptor(proto, "userInstanceAccess") !==
+          undefined ||
+        Prisma.dmmf.datamodel.models.some(
+          (m) => m.name.toLowerCase() === "userinstanceaccess",
+        );
+      expect(hasDelegate).toBe(true);
+    });
+
+    it("UserInstanceAccess 가 ADR-0024 Decision §2 의 컬럼 + relation 을 갖는다", () => {
+      const fields = fieldNamesOf("UserInstanceAccess");
+      expect(fields).toEqual(
+        expect.arrayContaining([
+          "id",
+          "userId",
+          "instanceRef",
+          "createdAt",
+          "user",
+        ]),
+      );
+      // immutable binding — updatedAt 미정의 (PersonGroupMembership 동형 패턴).
+      expect(fields).not.toContain("updatedAt");
+    });
+
+    it("User model 에 instanceAccess back-relation (kind object) 이 존재한다", () => {
+      const relOf = (model: string, field: string): boolean =>
+        Prisma.dmmf.datamodel.models
+          .find((m) => m.name === model)!
+          .fields.some((f) => f.name === field && f.kind === "object");
+      // 양방향 relation 요건 — UserInstanceAccess.user + User.instanceAccess.
+      expect(relOf("UserInstanceAccess", "user")).toBe(true);
+      expect(relOf("User", "instanceAccess")).toBe(true);
+    });
+  });
+
+  // (b) negative 안전망 — schema 원문의 @@unique / @@index / cascade 선언 검증.
+  // runtime DMMF 가 carry 하지 않는 constraint 는 schema 파일 원문을 truth 로 단언.
+  describe("(b) negative 안전망 — @@unique / @@index / cascade 선언", () => {
+    const schemaPath = join(__dirname, "prisma", "schema.prisma");
+    const schema = readFileSync(schemaPath, "utf8");
+
+    it("@@unique([userId, instanceRef]) 가 schema 에 선언돼 있다", () => {
+      expect(schema).toMatch(/@@unique\(\[userId,\s*instanceRef\]\)/);
+    });
+
+    it("@@index([userId]) 가 schema 에 선언돼 있다", () => {
+      expect(schema).toMatch(/@@index\(\[userId\]\)/);
+    });
+
+    it("UserInstanceAccess.user relation 이 User 로 onDelete: Cascade 다", () => {
+      // user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+      expect(schema).toMatch(
+        /user\s+User\s+@relation\(fields:\s*\[userId\],\s*references:\s*\[id\],\s*onDelete:\s*Cascade\)/,
+      );
+    });
+
+    it("UserInstanceAccess 에 secret/token 컬럼이 없다 (CLAUDE.md §9 schema-level 강제)", () => {
+      // binding 은 (userId, instanceRef) 식별자만 — token/자격증명 미보유.
+      const fields = fieldNamesOf("UserInstanceAccess");
+      for (const forbidden of ["token", "apiKey", "password", "secret"]) {
+        expect(fields).not.toContain(forbidden);
+      }
+    });
+  });
+});
