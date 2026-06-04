@@ -2,13 +2,18 @@
 id: T-0222
 title: UserInstanceAccess repository — allowlist lookup + 정규화 binding create
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 210
 estimatedFiles: 3
 created: 2026-06-04
+completedAt: 2026-06-04T14:35:00+09:00
+prNumber: 194
+mergedAs: 6bb94e9
+reviewRounds: 2
 plannerNote: P4 Q-0021 option(1) chain row(2) — ADR-0024 §3 allowlist lookup + §4 정규화 binding repository. service 결선은 다음 slice.
+result: DONE — UserInstanceAccessRepository(findInstanceRefsByUserId allowlist lookup + normalizeInstanceRef + 정규화 binding create) + repository/module spec. CI round 1 spec-presence fail(module.spec 누락) → round 2 module spec 추가로 self-heal. reviewer APPROVE r1+r2, 4-gate PASS, squash merge 6bb94e9. tasksCompleted 219→220.
 ---
 
 # T-0222 — UserInstanceAccess repository (allowlist lookup + 정규화 binding create)
