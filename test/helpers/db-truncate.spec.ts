@@ -4,7 +4,7 @@
 // 실 DB 의존성 0 — $executeRawUnsafe 를 jest.fn() spy 로 검증.
 //
 // R-112 cover (CLAUDE.md §3.2):
-//   - Happy path 2 (호출 회수 + SQL 형태 / 5 테이블 substring 검증)
+//   - Happy path 2 (호출 회수 + SQL 형태 / 7 테이블 substring 검증)
 //   - Error path 2 ($executeRawUnsafe reject / prisma null)
 //   - Branch: 본 helper 는 단일 await — 분기 없음 (생략 명시)
 //   - Negative cases 3+ (Error path 2 + 빈 객체 + 비함수 $executeRawUnsafe)
