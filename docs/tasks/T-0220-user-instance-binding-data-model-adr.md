@@ -2,10 +2,13 @@
 id: T-0220
 title: ADR-0024 박제 — User↔instance binding 데이터 모델 + own-instance 필터 계약 (audit 조회 non-Admin 실 필터)
 phase: P4
-status: IN_PROGRESS
+status: DONE
 commitMode: pr
 prNumber: 192
+mergedAs: 31ca89b
+reviewRounds: 1
 coversReq: [REQ-016, REQ-044]
+completed: 2026-06-04
 estimatedDiff: 210
 estimatedFiles: 2
 created: 2026-06-04
