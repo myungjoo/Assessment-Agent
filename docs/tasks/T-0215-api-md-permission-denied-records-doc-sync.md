@@ -2,12 +2,13 @@
 id: T-0215
 title: api.md §5 에 GET /api/permission-denied-records audit 조회 endpoint row 박제 (doc-sync)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 20
 estimatedFiles: 1
 created: 2026-06-04
+completedAt: 2026-06-04T10:50:00+09:00
 plannerNote: P4 — T-0214 가 shipped 한 GET /api/permission-denied-records 가 api.md §5 endpoint 표에 미박제. REQ-016/044 가시화 doc-sync (direct).
 ---
 

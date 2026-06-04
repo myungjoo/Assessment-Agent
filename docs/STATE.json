@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0215",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s53",
-    "since": "2026-06-04T10:44:00+09:00",
+    "since": "2026-06-04T10:50:00+09:00",
     "loopSessionStartedAt": "2026-06-04T09:56:50+09:00",
-    "loopSessionTurnCount": 5
+    "loopSessionTurnCount": 6
   },
-  "lastActivity": "2026-06-04T10:44:00+09:00",
-  "lastCommit": "2f7d28b",
+  "lastActivity": "2026-06-04T10:50:00+09:00",
+  "lastCommit": "4993db1",
   "mostRecentTasks": [
+    "T-0215",
     "T-0214",
     "T-0213",
     "T-0212",
-    "T-0211",
-    "T-0210"
+    "T-0211"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-06-04T09:56:50+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s53",
-    "notePrev": "t4 — T-0214 DONE/MERGED(PR-188, 5bf362d): GET /api/permission-denied-records 신설(@Roles User, Admin bypass / non-Admin 빈배열). t3 — planner→T-0214 큐잉. t2 — T-0213 DONE/MERGED(ADR-0023 신설). t1 — Q-0020 RESOLVED(audit endpoint, RBAC=Admin+자기 instance).",
-    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t5 — planner survey. [1] fetch: t4 merge 5bf362d CI success, t4 bookkeeping 2f7d28b CI in_progress(doc-only 비차단). lock 유지(turnCount 4→5). 미해결 humanQuestion 0. [2] currentTask·nextTask 공백 → planner dispatch. [2-planner] 3 후보 실 repo 대조 검증: (1) api.md §5 endpoint 표에 T-0214 의 GET /api/permission-denied-records 미박제(placeholder 2 row 만) → doc-sync 최고가치 dependency-free, T-0215 큐잉(commitMode direct). (2) modules.md MVA 8-module 표 확장은 judgment call, Follow-up. (3) e2e — 타 RBAC controller 는 *.e2e-spec.ts 보유하나 permission-denied 는 prisma-model smoke 만 → 실 gap 이나 pr-mode·차순위 Follow-up. §5 escalate 불요(genuine dependency-free 존재). nextTask=T-0215. [6] 본 turn doc-only direct commit. 다음 turn t6: T-0215 executor(direct doc-sync). ScheduleWakeup 60s."
+    "notePrev": "t5 — planner→T-0215 큐잉(api.md §5 doc-sync, direct): T-0214 shipped endpoint 가 api.md 표에 미박제 확인. t4 — T-0214 DONE/MERGED(GET /api/permission-denied-records). t3 — planner→T-0214. t2 — T-0213 DONE(ADR-0023). t1 — Q-0020 RESOLVED.",
+    "note": "loop@WIN-JQIPLSBL9QV-s53 session #53 t6 — T-0215 DONE(api.md doc-sync, direct). [1] fetch: t5 commit 4993db1 + t4 모두 CI success(main green). lock 유지(turnCount 5→6). 미해결 humanQuestion 0. [2] nextTask=T-0215 → currentTask. [3] executor(direct doc-only): implementer 가 api.md §5 endpoint 표에 GET /api/permission-denied-records row 1 추가(@Roles User RBAC + Admin bypass/non-Admin 빈배열 + query instanceRef/provider/httpStatus + 401/200 + T-0214/ADR-0023 참조), 기존 placeholder 2 row 는 'conceptual placeholder(미구현)' 로 인접 명확화(삭제 안 함), §5 합계 46→47 endpoint·11→12 prefix 재집계. +4/-3 단일 파일. tester 면제(R-110 direct doc-only). [6] task DONE + counters 212→213 + mostRecentTasks prepend + api.md+bookkeeping 단일 direct commit(1 task=1 commit). 잔여 dependency-free: modules.md 표 확장 / endpoint e2e(pr-mode) Follow-up — 다음 planner survey 에서 식별 또는 §5 binding-schema escalate. 다음 turn t7: planner survey. ScheduleWakeup 60s."
   },
   "ci": {
     "lastRun": "2026-06-04T02:57:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/188",
-    "note": "t4: T-0214 PR-188(controller slice) — reviewer APPROVE r1 후 4-게이트 PASS(approval-race 없음, CI 1-run green), squash merge 5bf362d. 직전 t3 doc commit 875296e(main) CI in_progress(doc-only 비차단). main green, consecutiveFails 0. merge commit 5bf362d main push CI 는 다음 turn 비차단 재확인."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/4993db1",
+    "note": "t6: T-0215 는 direct doc-only(api.md) — CI 비차단. 직전 t5 doc commit 4993db1 + t4 merge 5bf362d 모두 CI success. main green, consecutiveFails 0. T-0215 direct commit 의 main push CI 는 다음 turn 비차단 재확인(doc-only)."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -234,7 +234,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 212,
+    "tasksCompleted": 213,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1
