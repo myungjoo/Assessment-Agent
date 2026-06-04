@@ -49,7 +49,7 @@ supersedes: null
 
 ### ADR cross-reference
 
-- **다음 free 번호 ADR-0027** — `docs/decisions/` 에 ADR-0001 ~ ADR-0026 점유(ADR-0007·ADR-0009·ADR-0010·ADR-0015 만 미신설). 본 ADR 은 다음 free 번호 ADR-0027 을 사용.
+- **다음 free 번호 ADR-0027** — `docs/decisions/` 에 ADR-0001 ~ ADR-0026 점유(ADR-0007 만 미신설 — 번호 gap). 본 ADR 은 다음 free 번호 ADR-0027 을 사용.
 - **[ADR-0024](ADR-0024-user-instance-binding-data-model.md)** — 본 ADR 의 직속 선행. binding 데이터 모델(`UserInstanceAccess` join, exact-match, host case·trailing-slash 정규화) + own-instance **READ 필터** 는 **재결정 0**. 본 ADR 은 그 §5 가 deferred 한 binding **WRITE 경로**(grant/revoke)만 추가 박제한다. 데이터 모델 변경 0 / migration 0.
 - **[ADR-0023](ADR-0023-permission-denied-audit-query-rbac-contract.md)** — audit 조회(READ) RBAC/audience 계약 source. 본 ADR 은 그 READ 계약을 재결정하지 않고 **WRITE 측 책임 경계**(본 ADR=binding WRITE, ADR-0023/0024=binding READ 필터)를 명시 박제한다(Decision §4).
 - **[ADR-0021](ADR-0021-github-confluence-live-integration-test-contract.md)/[ADR-0022](ADR-0022-permission-denied-record-data-model.md)** — ADR-first TEMPLATE(Decision enumerated section / Consequences positive·negative / Alternatives 채택·기각 표 / 후속 task chain 구조 mirror).
@@ -101,7 +101,7 @@ grant/revoke 의 HTTP status 경계를 박제한다([llm-provider-config](../../
 | --- | --- | --- | --- |
 | **grant 성공** | **201 Created** | grant | binding row 1 개 생성 — collection 에 resource 추가의 REST 정합. |
 | **revoke 성공** | **204 No Content** | revoke | binding row 삭제 — 응답 본문 불요(택1 박제, 200+body 대비 204 채택, 아래). |
-| **미인증 (JWT 부재/무효)** | **401** | grant·revoke | [`JwtAuthGuard`](../../src/auth/roles.guard.ts) 차단 — RBAC·self-grant 판별 도달 전. |
+| **미인증 (JWT 부재/무효)** | **401** | grant·revoke | [`JwtAuthGuard`](../../src/auth/jwt-auth.guard.ts) 차단 — RBAC·self-grant 판별 도달 전. |
 | **non-Admin actor** | **403** | grant·revoke | [`RolesGuard`](../../src/auth/roles.guard.ts) `@Roles("Admin")` 게이트 — non-Admin escalation 미충족(자기 자신/타 instance 무관 우선 차단). |
 | **self-grant/self-revoke (`actor.sub === {id}`)** | **403** | grant·revoke | Decision §3 — privilege 자가 확장 차단. role 게이트 통과 후 self ≠ target 판별에서 거부. |
 | **invalid instanceRef (정규화 후 빈 문자열 / DTO validation 실패)** | **400 Bad Request** | grant·revoke | DTO `@IsNotEmpty()` 실패 또는 `normalizeInstanceRef()` 후 빈 문자열([repository.create()](../../src/user-instance-access/user-instance-access.repository.ts) Error, ADR-0024 §4(iv)) → service 가 400 으로 매핑. |
