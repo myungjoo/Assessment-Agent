@@ -6,15 +6,9 @@
   },
   "currentTask": null,
   "nextTask": null,
-  "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-s54",
-    "since": "2026-06-04T11:32:55+09:00",
-    "loopSessionStartedAt": "2026-06-04T11:32:55+09:00",
-    "loopSessionTurnCount": 4
-  },
-  "lastActivity": "2026-06-04T12:17:02+09:00",
-  "lastCommit": "83737ad",
+  "lock": null,
+  "lastActivity": "2026-06-04T12:23:28+09:00",
+  "lastCommit": "19ab92a",
   "mostRecentTasks": [
     "T-0219",
     "T-0218",
@@ -23,12 +17,14 @@
     "T-0215"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-04T11:32:55+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s54",
-    "notePrev": "t3 — planner survey: T-0219 큐잉(schema.prisma apiKey 평문 placeholder 주석을 ADR-0014 encryption-at-rest reality 로 정정, security-misleading 역방향 false 주석, comment-only pr). direct doc commit c79dbd8.",
-    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t4 — T-0219 DONE/MERGED(PR-191, 83737ad). [1] fetch: main c79dbd8+8061ec6 CI green, lock 본인 보유 → turnCount 3→4. humanQuestion 0, blockers 0. [2] nextTask=T-0219 → currentTask, commitMode pr, prNumber 없음 → 정상 executor. [3] executor(inline impl+test): prisma/schema.prisma apiKey 결정 주석을 '평문 placeholder/ADR-0006 follow-up' 오기에서 ADR-0014 AES-256-GCM envelope encryption-at-rest(write-encrypt + never-read-back sanitize + gateway JIT decrypt) reality 로 정정(+6/-2). apiKey String type 유지(ciphertext 문자열), 컬럼/schema/migration 변경 0. lint+build+test green(163 suites/3210, prisma-schema.spec.ts 포함). [4] pr: feature branch claude/T-0219-… commit 4ea3d24 push → PR #191 open. prNumber=191 bookkeeping direct(8061ec6). integrator(round 1): reviewer APPROVE(8-check+§12 PASS, 인용 4 경로 main 존재 확인, finding 0) → gh pr comment 외화 → CI green(첫 push run reviewer-gate step 단독 fail race → gh run rerun --failed self-heal success) → 4-게이트 통과 → gh pr merge --squash --delete-branch(83737ad). [6] task DONE/mergedAs 83737ad + tasksCompleted 216→217 + mostRecentTasks prepend + bookkeeping direct commit. reschedule: §1[8] dynamic (turnCount 4<10) — 다음 turn planner survey."
+    "stoppedAt": "2026-06-04T12:23:28+09:00",
+    "stopReason": "humanQuestion OPEN (Q-0021) — dependency-free backlog 소진, §1[8](a) reschedule 차단",
+    "notePrev": "t4 — T-0219 DONE/MERGED(PR-191, 83737ad): schema.prisma apiKey 주석을 ADR-0014 encryption-at-rest 로 정정, reviewer APPROVE finding 0, 4-게이트 통과, CI green(rate self-heal). tasksCompleted 216→217.",
+    "note": "loop@WIN-JQIPLSBL9QV-s54 session #54 t5 (STOP — humanQuestion) — planner final survey → Q-0021 escalate. [1] fetch: main 19ab92a == origin/main(t4 bookkeeping doc-only CI in_progress 비차단), lock 본인 보유 → turnCount 4→5. humanQuestion 0, blockers 0. [2] currentTask·nextTask 둘 다 null → planner dispatch. [planner] HIGH 바(escalation bias) final survey — T-0218(5→7 count)+T-0219(apiKey encryption-at-rest) 2 fix 후 main 19ab92a 대조 재탐색: audit endpoint chain 내부 정합(non-Admin 빈 배열 = ADR-0023 deliberate, doc-vs-reality 모순 0), T-0218/T-0219 fix 정확, prune 메서드 부재 정합(ADR-0022 §3 영구보존), 추가 stale-count/false-comment sweep hit 0 → 신규 material 결함 미식별. task 날조 대신 Q-0021(needs-human-decision) escalate(nextTask=null). 남은 P4 major 4종 전부 §5 게이트((1)audit own-instance 필터=binding-schema, (2)milestone-1 live LLM, (3)milestone-3 GitHub/Confluence live, (4)retention TTL). [6] Q-0021 + bookkeeping 단일 direct commit. [STOP] §1[8](a) humanQuestion OPEN → reschedule 안 함, lock 해제(tombstone, §4 정상 종료 규약 — 다음 진입점은 fetch 후 Q-0021 OPEN 보고 [1]에서 즉시 종료). **session #54 요약: T-0218+T-0219 dependency-free 2 fix 완결(tasksCompleted 215→217), 5 turn(t1 큐잉·t2 merge·t3 큐잉·t4 merge·t5 escalate). 잔여 = §5-gated major 4종, 사용자 결정 대기.** 재개: STATE.Q-0021 에 resolvedAt+decision 기입·commit 후 새 /loop 또는 cron."
   },
   "ci": {
     "lastRun": "2026-06-04T12:16:00+09:00",
@@ -229,6 +225,24 @@
       "resolutionHint": "docs/STATE.json 의 본 Q-0020 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 RBAC scope='누가 audit 를 읽는가' 명시 / (3)(4) 선택 시 필요한 credential scope 명시)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY)은 코드·STATE·journal 에 실값 금지, env/secret 주입(§9). (1)만 결정하면 credential 불요 즉시 재개.",
       "resolvedAt": "2026-06-04T09:56:50+09:00",
       "decision": "option (1) audit 조회 HTTP endpoint 승인 — 사용자가 session #53(/loop loop@WIN-JQIPLSBL9QV-s53) AskUserQuestion 으로 결정. GET /api/permission-denied-records(또는 동등) audit 조회 REST endpoint 를 추가한다. RBAC scope = **Admin + 자기 instance**: Admin role 은 전체 record 조회, 일반 운영자(non-Admin authenticated)는 자기 instance(GitHub host / Confluence space 등 record 의 source instance 식별자) 범위의 record 만 조회 — REQ-016 의 user/admin audience 분리를 audit 조회 경로에 매핑. 새 외부 dependency 0(기존 NestJS controller + @Roles/guard 패턴 재사용) / 외부 credential 0 → dependency-free 진행. §5 security(auth) 게이트는 본 RBAC scope 결정으로 충족. retention TTL(옵션 2, ADR-0022 §3 영구보존 reverse 필요)·milestone-1 credentialed live LLM run(옵션 3)·milestone-3 GitHub/Confluence live token run(옵션 4)은 미승인 유지. loop 재개: planner 가 ADR-first 로 첫 slice 를 큐잉(권장: audit 조회 endpoint 의 RBAC/audience 모델 + instance-scoping 필터 계약 ADR — '자기 instance' 판별을 record 의 host/space 필드와 사용자 identity 에 어떻게 매핑할지, Admin 우회 경로, 미인증/권한부족 응답(401/403) 경계를 박제). 주의: instance-scoping 필터는 R-112 4종 + negative cases 충분 cover(타 instance record 접근 차단·non-Admin Admin-route 차단·빈 결과·미인증·경계 instance 식별자). nit(db-truncate.spec.ts docstring stale)은 인접 PR nit-closure 로 흡수."
+    },
+    {
+      "id": "Q-0021",
+      "raisedAt": "2026-06-04T12:20:00+09:00",
+      "raisedBy": "loop@WIN-JQIPLSBL9QV-s54 session #54 t5 (planner final survey → needs-human-decision)",
+      "reason": "needs-human-decision",
+      "status": "OPEN",
+      "summary": "session #54 가 dependency-free 잔여 결함 2건을 back-to-back 으로 마무리했다 — T-0218(db-truncate.ts truncateAll 테이블 개수 주석 5→7 정합, PR-190) + T-0219(prisma/schema.prisma apiKey 평문 placeholder 주석을 ADR-0014 encryption-at-rest reality 로 정정, security-misleading 역방향 false 주석, PR-191). 이로써 HITL 게이트에 걸리지 않는 dependency-free 작업 backlog 가 진짜로 소진됐다. HIGH 바(make-work 회피) 적용 후 main 실코드 대조 재탐색 결과 신규 material 결함 미식별 — task 날조 대신 escalate. 남은 P4 major 4종은 전부 CLAUDE.md §5 HITL 게이트(외부 credential / DB-schema·auth-model 결정 / 새 외부 dependency)라 사용자 승인 없이 진행할 가치 있는 dependency-free 작업이 없다.",
+      "context": "session #54 재탐색(main 19ab92a 대조): (1) audit 조회 endpoint chain(T-0213 ADR-0023 → T-0214 controller → T-0215 api.md → T-0216 e2e)은 내부 정합 확인 — permission-denied-record.controller.ts/service.ts 의 non-Admin '항상 빈 배열' fallback 은 ADR-0023 §2(b)/§5 가 명시 채택한 deliberate design 이고 api.md L124 가 reality 그대로 박제(redaction 불요·200 빈 배열·401 미인증)라 doc-vs-reality 모순 0. own-instance 실 필터는 User↔instance binding schema(§5 DB-schema+auth-model 게이트, 미승인) 선행 요구 → 정당한 Follow-up, 결함 아님. (2) T-0218 의 '7 테이블' 은 TRUNCATE_TABLES 실 entry 7 개와 일치(정확), T-0219 apiKey 는 ADR-0014 AES-256-GCM 암호화 reality(정확). (3) retention/prune — permission-denied source 에 prune/TTL 메서드 부재 확인(untriggered make-work method 미생성, Q-0020 분석 정합), pruneOlderThan 도입은 ADR-0022 §3 '영구 보존' 명시 채택을 reverse + @nestjs/schedule 새 dependency 동반(§5). ADR-0001~0023 전원 ACCEPTED, blockers 0, open PR 0, CI green(main 19ab92a), tasksCompleted=217. 추가 stale-count/false-comment sweep 도 hit 0.",
+      "options": [
+        "(1) audit own-instance 실 필터 승인(가장 가벼운 unblock) — non-Admin 운영자가 자기 instance 범위 record 를 실제로 조회하도록 own-instance 필터를 결선. 선행 결정 필요: User↔instance binding 을 어떻게 모델링할지(User entity 에 allowed instance 집합 컬럼/관계 추가 = prisma schema migration §5 게이트 + '자기 instance' 식별자를 record 의 instanceRef[github host/confluence space]와 어떻게 매핑할지 auth-model 결정). 새 외부 dependency 0(내장 prisma) 이나 DB-schema + auth-model 양쪽 §5 게이트. de-risk: ADR-0023 §2(b) 가 server-side lookup 방향 이미 박제.",
+        "(2) milestone-1 credentialed live LLM run 승인(가장 큰 가치) — Q-0016 optionA task 2(deferred). custom(OpenAI-호환) provider 의 env-gated live smoke/e2e 를 실 네트워크로 1회 실행. 필요: live endpoint base URL + provider API key + LLM_APIKEY_ENC_KEY env/secret 주입(실값 §9 금지). §5 credential 게이트. de-risk: 5 provider mocked transport + 난이도 routing 완결.",
+        "(3) milestone-3 GitHub/Confluence live token run 승인 — Q-0017 mocked transport 위에서 실 token 통합. GitHub token(github.com / github.sec.samsung.net / github.ecodesamsung.com) + Confluence token env/secret 주입. 새 dependency 0(내장 fetch) 이나 실 credential 다수. §5 credential 게이트.",
+        "(4) retention TTL pruning 승인 — ADR-0022 Decision §3 '영구 보존' 을 reverse 하는 신규 ADR 작성 후 pruneOlderThan + 스케줄 trigger(@nestjs/schedule 새 외부 dependency §5 의존성 게이트, 또는 외부 cron 호출 endpoint). 권장하지 않음 — audit 장기추적 신호 소실 trade-off(ADR-0022 §3 negative) + 새 dependency.",
+        "(5) 루프 정지 / other direction — 위 외 우선순위(observability/test hardening, OpenAPI/Swagger doc, P6 frontend 진입 검토 등) 지시 또는 정지. planner 는 현 시점 그 방향을 make-work 로 판단했으나 사용자 우선순위 다르면 재지시 가능."
+      ],
+      "recommendation": "가장 가벼운 unblock 은 (1) audit own-instance 실 필터 — ADR-0023 §2(b) 가 이미 server-side lookup 방향을 박제해 둬 binding-schema 결정 1개(User entity 에 instance allowlist 를 어떻게 붙일지)만 내리면 dependency-free(내장 prisma)로 chain 진행 가능하고, 사용자가 Q-0020 에서 명시 승인한 'Admin + 자기 instance' audience 차등의 잔여 절반(non-Admin 실 조회)을 완성한다. 가장 큰 가치 unblock 은 (2) milestone-1 live LLM run(P5 평가 파이프라인 선행 backbone)이나 credential 필요. 권장 순서: (1) → (2) → (3). (4) retention TTL 은 채택된 ADR-0022 §3 reverse + 새 dependency 라 비권장.",
+      "resolutionHint": "docs/STATE.json 의 본 Q-0021 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 User↔instance binding 모델링 방향[User entity 컬럼/관계 + instanceRef 매핑 규칙] 명시 / (2)(3) 선택 시 필요한 credential scope 명시)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY)은 코드·STATE·journal 에 실값 금지, env/secret 주입(§9). (1) 선택 시 binding-schema 는 §5 DB-schema 게이트라 schema 변경 승인이 함께 필요."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
