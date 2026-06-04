@@ -5,26 +5,30 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0231",
-  "lock": null,
-  "lastActivity": "2026-06-04T18:35:00+09:00",
-  "lastCommit": "6ca755d",
+  "nextTask": null,
+  "lock": {
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-s56",
+    "since": "2026-06-04T18:56:03+09:00",
+    "loopSessionStartedAt": "2026-06-04T18:56:03+09:00",
+    "loopSessionTurnCount": 1
+  },
+  "lastActivity": "2026-06-04T18:56:03+09:00",
+  "lastCommit": "cee2e5a",
   "mostRecentTasks": [
+    "T-0231",
     "T-0230",
     "T-0229",
     "T-0228",
-    "T-0227",
-    "T-0226"
+    "T-0227"
   ],
   "loopSession": {
-    "turnCount": 9,
-    "startedAt": "2026-06-04T13:59:38+09:00",
-    "cap": 10,
-    "holder": "loop@WIN-JQIPLSBL9QV-s55",
-    "stoppedAt": "2026-06-04T17:05:00+09:00",
-    "stopReason": "사용자 결정(Q-0023) — 루프 정지. milestone-1 end-to-end 완성 + dependency-free backlog 소진(잔여 P4 = milestone-3 / retention TTL, 둘 다 §5 HITL). turn cap(10) 도달 전 t9 에서 자연스러운 정리 지점에 정지. lock tombstone 해제. 재개 = 준비되면 새 /loop 또는 cron.",
-    "notePrev": "s55 t8 — T-0229(ADR-0025→ACCEPTED, 6ca755d, milestone-1 2a 종결) + Q-0022 → milestone-1 2b live run(T-0230) PASS(실 azure_openai gpt-5.4 1회 2632ms round-trip). cron@cloud d82127d push 경합 §4 정합 + lock since heartbeat fix. tasksCompleted 226→228. milestone-1 완결.",
-    "note": "loop@WIN-JQIPLSBL9QV-s55 session #55 t8 — 2 활동: T-0229(ADR-0025 PROPOSED→ACCEPTED flip, direct 6ca755d) + **milestone-1 2b live run(T-0230) PASS**. [1] fetch main f440e46, lock 동일 session#55 → turnCount 7→8. **lock since 13:59→16:40 heartbeat 갱신(중요 fix — 그간 since 미갱신으로 60min stale 판정돼 cron@cloud 16:04 fire 가 stale 탈취 시도, 아래 참조)**. humanQuestion 0. [2] nextTask=T-0229 픽업. [3] executor DONE(ADR status 1줄 flip). [6a] T-0229 direct commit 6ca755d, milestone-1 2a 종결. tasksCompleted 226→227. [checkpoint] backlog 소진 → AskUserQuestion(Q-0022) → 사용자 'milestone-1 2b 실행' 선택. [2b 실행] 로컬 secrets.env(AZURE_OPENAI_*) → gating LLM_LIVE_* 매핑(api-version=2024-02-15-preview) → azure live smoke(T-0228) 실행(local Postgres 부재 → 임시 DB-less jest config, azure 1 spec 한정, 실행 후 삭제). **결과 PASS — 실 azure_openai endpoint(gpt-5.4/karina-east-us-2) 1회 2632ms 실 round-trip, non-empty narrative, provider=AzureOpenai/modelId 일치. billed 1회(승인), API key redaction 누출 0(§9).** T-0230 DONE. tasksCompleted 227→228. **milestone-1 완결.** [push 경합] 본 t8 bookkeeping push 시 origin/main 이 cron@cloud d82127d(refs/locks/* 403 BLOCKED 기록)로 선행 advance → reject. §4 graceful: reset→cron base(d82127d) 위로 t8 재적용, cron 의 blockers[B-credential-16:04Z] 는 본 로컬 /loop 진행으로 auto-resolve(blockers[]→[], blockersResolvedNote 반영). [6b] nextTask=null. [재개 보강] (a) **다음 turn: backlog 재소진 — 잔여 P4 = milestone-3(미승인) + retention TTL(§5). driver AskUserQuestion checkpoint(milestone-3 vs 정지 vs 다른 우선순위). make-work 날조 금지.** (b) **lock since heartbeat: 매 turn since=now 갱신 필수(장기 /loop session 의 60min stale 오판 방지). 본 turn 부터 적용.** (c) cron@cloud 는 refs/locks/* push 403(env 한계) — 로컬 /loop 가 유일 정상 driver. (d) secrets.env 만료 2026-06-30. (e) Q-0022 RESOLVED(2b 실행)."
+    "turnCount": 1,
+    "startedAt": "2026-06-04T18:56:03+09:00",
+    "cap": 5,
+    "holder": "loop@WIN-JQIPLSBL9QV-s56",
+    "notePrev": "session #55 (s55) 종료 — milestone-1 end-to-end 완결(T-0226~T-0230: azure_openai live-test 계약 ADR-0025 + gating + smoke + 2b live run PASS). Q-0023 사용자 결정으로 정지. 이후 manual conversation 이 사용자 지시('CI test case 품질·coverage 감사·강화')로 T-0231(audit-only, direct) 큐잉(cee2e5a).",
+    "note": "loop@WIN-JQIPLSBL9QV-s56 session #56 t1 (사용자 turn cap 5) — T-0231 DONE(test-quality·coverage 감사, audit-only direct). [1] fetch main cee2e5a, lock ref 가 s55 stale blob(since 17:04 ≥60min) 보유·STATE.lock=null 불일치 → ref-CAS force-with-lease 로 stale lock 탈취(s56), turnCount=1. humanQuestion 0(전건 RESOLVED). [2] nextTask=T-0231 픽업. [3] executor 1회 호출 DONE — pnpm test:cov 1회 실행(165 suite/3276 test pass, ~15s). **결과: All files stmt 99.94 / branch 99.83 / func 100 / line 99.94 — threshold(line/func 80, stmt/branch floor 50) 압도, 80% 턱걸이 0건.** gap 3건 식별: P1 encrypt-cli L113 비-Error throw branch(security negative 누락), P2 difficulty.service L50 non-Prisma error 분기, P3 auth.module L63 ?? fallback(coveragePathIgnore blind-spot, spec 은 존재). + P4 branch floor 상향(정책/ADR), P5 mutation testing(new-dep/ADR). 보고서 docs/progress/test-quality-coverage-audit-2026-06.md(+135 LOC) 박제. [6] T-0231 direct commit(main). tasksCompleted 228→229. nextTask=null. [재개 보강] (a) **다음 turn: 보고서가 낳은 P1~P3 강화 follow-up 을 planner 로 pr-mode task 화(각 ≤300 LOC/5파일) — P1(encrypt-cli 비-Error throw negative test, security 우선) 권장 첫 slice.** (b) P4(branch coverage global threshold 도입)·P5(mutation testing 도입)는 정책/dependency 결정 동반 → ADR-first 또는 §5 checkpoint. (c) lock since heartbeat: 매 turn since=now 갱신. (d) cron@cloud 는 여전히 refs/locks/* 403(env 한계) — 로컬 /loop 가 유일 정상 driver. (e) secrets.env 만료 2026-06-30. (f) turn cap 5(사용자 지정) — turnCount≥5 시 reschedule 정지·cleanup 안내."
   },
   "ci": {
     "lastRun": "2026-06-04T15:46:00+09:00",
@@ -270,7 +274,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 228,
+    "tasksCompleted": 229,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

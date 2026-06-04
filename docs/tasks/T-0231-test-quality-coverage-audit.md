@@ -2,7 +2,9 @@
 id: T-0231
 title: CI 테스트 스위트 품질·coverage 감사 + 강화 backlog 박제 (audit-only entry task)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-04T18:56:00+09:00
+result: "pnpm test:cov 1회 — 165 suite / 3276 test pass. All files stmt 99.94 / branch 99.83 / func 100 / line 99.94 (threshold 50/80 압도, 80% 턱걸이 0건). gap 3건(encrypt-cli 비-Error throw P1 / difficulty non-Prisma error 분기 P2 / auth.module ?? fallback blind-spot P3) + P4 branch floor 상향·P5 mutation testing backlog. 보고서: docs/progress/test-quality-coverage-audit-2026-06.md. 실제 강화는 pr-mode follow-up."
 commitMode: direct
 coversReq: []
 estimatedDiff: 220
