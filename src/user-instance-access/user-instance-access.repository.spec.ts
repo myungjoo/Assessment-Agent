@@ -48,11 +48,13 @@ function buildPrismaMock(): {
   accessMock: {
     findMany: jest.Mock;
     create: jest.Mock;
+    deleteMany: jest.Mock;
   };
 } {
   const accessMock = {
     findMany: jest.fn(),
     create: jest.fn(),
+    deleteMany: jest.fn(),
   };
   const prisma = {
     userInstanceAccess: accessMock,
@@ -262,6 +264,54 @@ describe("UserInstanceAccessRepository", () => {
           userId: "user-1",
           instanceRef: "github.sec.samsung.net",
         }),
+      ).rejects.toThrow("db-down");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // deleteByUserIdAndInstanceRef — revoke row delete (ADR-0027 §2/§4)
+  // ------------------------------------------------------------------
+  describe("deleteByUserIdAndInstanceRef()", () => {
+    // Happy path: 정규화된 (userId, instanceRef) 로 deleteMany 호출 + count 반환.
+    it("정규화된 (userId, instanceRef) 로 deleteMany 를 호출하고 count 를 반환한다 (happy)", async () => {
+      const { prisma, accessMock } = buildPrismaMock();
+      accessMock.deleteMany.mockResolvedValueOnce({ count: 1 });
+
+      const repo = new UserInstanceAccessRepository(prisma);
+      const result = await repo.deleteByUserIdAndInstanceRef(
+        "user-1",
+        "github.sec.samsung.net",
+      );
+
+      expect(accessMock.deleteMany).toHaveBeenCalledWith({
+        where: { userId: "user-1", instanceRef: "github.sec.samsung.net" },
+      });
+      expect(result).toBe(1);
+    });
+
+    // Negative (부재 binding): 매칭 row 0개면 count 0 을 반환하고 throw 하지 않는다
+    // (idempotent no-op — ADR-0027 §4 revoke 204 semantic 의 repository 토대).
+    it("부재 binding 은 count 0 을 반환하고 throw 하지 않는다 (idempotent no-op)", async () => {
+      const { prisma, accessMock } = buildPrismaMock();
+      accessMock.deleteMany.mockResolvedValueOnce({ count: 0 });
+
+      const repo = new UserInstanceAccessRepository(prisma);
+      const result = await repo.deleteByUserIdAndInstanceRef(
+        "user-1",
+        "nonexistent.host",
+      );
+
+      expect(result).toBe(0);
+    });
+
+    // Error path: PrismaService reject (DB 장애 등) 는 swallow 없이 propagate.
+    it("PrismaService 가 reject 하면 error 를 그대로 전파한다 (의존성 실패)", async () => {
+      const { prisma, accessMock } = buildPrismaMock();
+      accessMock.deleteMany.mockRejectedValueOnce(new Error("db-down"));
+
+      const repo = new UserInstanceAccessRepository(prisma);
+      await expect(
+        repo.deleteByUserIdAndInstanceRef("user-1", "github.sec.samsung.net"),
       ).rejects.toThrow("db-down");
     });
   });
