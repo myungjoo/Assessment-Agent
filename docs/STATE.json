@@ -4,11 +4,17 @@
   "flags": {
     "multiTaskFire": true
   },
-  "currentTask": null,
+  "currentTask": "T-0245",
   "nextTask": null,
-  "lock": null,
-  "lastActivity": "2026-06-05T16:07:55+09:00",
-  "lastCommit": "ce90e3e",
+  "lock": {
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-s63",
+    "since": "2026-06-05T17:33:46+09:00",
+    "loopSessionStartedAt": "2026-06-05T17:33:46+09:00",
+    "loopSessionTurnCount": 1
+  },
+  "lastActivity": "2026-06-05T17:33:46+09:00",
+  "lastCommit": "8195047",
   "mostRecentTasks": [
     "T-0244",
     "T-0243",
@@ -18,13 +24,11 @@
   ],
   "loopSession": {
     "turnCount": 1,
-    "startedAt": "2026-06-05T16:07:55+09:00",
-    "cap": 1,
-    "holder": "cron@vm-454c",
-    "stoppedAt": "2026-06-05T16:08:30+09:00",
-    "stopReason": "cron-1-fire-1-task-done",
-    "note": "cron@vm-454c (cron@cloud fire post-ADR-0028 cutover) — **ADR-0028 Follow-up §3 운영 관찰 실증 완료**: stale 된 loop@WIN-JQIPLSBL9QV-s62 lock(ff4bc2e since 05:51:16Z, ~76min 경과) 을 `claude/lock-driver` 브랜치 위 `--force-with-lease=ff4bc2e` CAS push 로 credential 0 자율 탈취(0472be7). 옛 `refs/locks/*` 9 회 403 패턴(02:02~08:04) 종결 — `claude/*` namespace 가 cloud proxy 허용 prefix 라 cron@cloud 가 PAT 주입/UI 토글 없이 lock CAS 가능함을 실증. [2] currentTask·nextTask null + Q-0024 RESOLVED(직전 s62 t1, 사용자 차기 결정 대기 상태) → 직전 fire 의 planner survey(s62 t1 14:51, 15 min 전)와 state 미변경이라 planner 재dispatch 생략(중복 ABORT 회피). 본 fire 의 실제 외화 사실 = ADR-0028 §3 status 메모 flip + 본 journal 박제. [6] direct main doc-only commit + ADR-0028 status note 갱신 + STATE.lock 해제. [종료] lock ref tombstone 해제. session(1 task fire): ADR-0028 §3 운영 관찰 외화. tasksCompleted unchanged(coordination-only fire). humanQuestions: Q-0024 RESOLVED(차기 결정 사용자 대기 유지).",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s62 session #62 t1 — Q-0024 RESOLVED(opt 1a), 1(a) 이미 main 박제 정정. lock s62 ff4bc2e 획득(tombstone c5e4f23 CAS). planner ABORT(중복 ADR-0029 회피). nextTask 미설정 → 사용자 차기 결정 대기."
+    "startedAt": "2026-06-05T17:33:46+09:00",
+    "cap": 10,
+    "holder": "loop@WIN-JQIPLSBL9QV-s63",
+    "note": "loop@WIN-JQIPLSBL9QV-s63 — 사용자 대면 /loop resume(turn cap 10). Q-0024 = option 1(b) milestone-3 credentialed live run 진행 중. **lock 재획득 경위**: 직전 s62 가 사용자 token 준비 대기로 lock since 05:51:16Z 가 ~76min 경과 stale 되어, KST 16:08 cron@vm-454c fire 가 정당하게 자율 탈취·release(ADR-0028 §3 실증, 8195047 — Q-0024 option 2 도 부수 충족). cron 작업은 doc-only(충돌 0), main ce90e3e→8195047 ff. s63 가 free(tombstone 2a32097) lock 을 CAS 재획득(ae1ee89). **live run 1차 결과**: github.com PAT 로 GitHub live spec 실행 → gating sanity PASS, 실 api.github.com 도달 확인(인증 단일 GET 200, 0.76s)이나 happy `it` 가 30s timeout FAIL — 원인 = github-live/confluence-live spec 이 unbounded `/repositories`·`/content` 에 requestAllPages → Link rel=next 100 page 순회. transport/auth 정상, spec 설계 결함. → T-0245(single bounded request() 교정, pr) 진행 후 credentialed re-run 예정.",
+    "notePrev": "cron@vm-454c (KST 16:08) — ADR-0028 §3 첫 cron@cloud 자율 lock 획득 실증(s62 stale 탈취·release, 8195047). coordination-only fire, tasksCompleted unchanged."
   },
   "ci": {
     "lastRun": "2026-06-05T13:55:04+09:00",
