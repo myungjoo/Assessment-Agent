@@ -10,6 +10,10 @@ ACCEPTED (2026-06-01)
 > `session` 필수는 LOOP.md §4 + 본 ADR Decision (3) 에 문서화됨.
 > 남은 항목 — **cron 환경 gh/MCP 복구**(결정 5 의 전제, 별도 pr-mode ADR) — 은 본 ADR 의 ACCEPTED 와
 > 독립적이다(lock 모델 자체는 완성, cron 의 pr-mode 완주 능력은 별도 인프라 결정).
+>
+> **저장소 메커니즘 한정 supersede**: [ADR-0028](ADR-0028-cloud-proxy-branch-lock.md) 가 lock 저장소를
+> `refs/locks/driver`(blob ref) → `claude/*` namespace 브랜치(`refs/heads/claude/lock-driver`, commit ref)로 이전한다
+> (cloud proxy 가 `claude/*` 만 허용해 본 ADR 의 `refs/locks/*` push 가 cron@cloud 에서 403). **CAS 원자성·강한 mutex·동일역할·read 전 fetch 의무 결정은 본 ADR 그대로 유지** — 저장 위치만 ADR-0028 로 revise.
 
 ## Context
 
