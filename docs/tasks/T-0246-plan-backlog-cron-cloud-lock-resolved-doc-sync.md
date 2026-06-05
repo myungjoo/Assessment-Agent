@@ -2,7 +2,8 @@
 id: T-0246
 title: PLAN backlog cron@cloud refs/locks 403 자율성 해소 bullet 완결 doc-sync
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-05T21:36:00+09:00
 commitMode: direct
 coversReq: [REQ-058]
 estimatedDiff: 8
@@ -65,4 +66,8 @@ cron fire 의 사용자 instruction "문서/코멘트 변경 direct commit merge
 
 ## Follow-ups
 
-(빈칸 — implementer 가 발견 시 append)
+(없음 — backlog bullet 1 개 정합으로 완결, 잔여 follow-up 미발생)
+
+## Result
+
+DONE (2026-06-05T21:36 KST, loop@AKIHA-s64 t1, driver-direct). `docs/PLAN.md` L147 운영 정책 backlog bullet 을 `- [ ] 🔴 ...` → `- [x] ... 완결(2026-06-05)` 로 flip(🔴 우선처리 flag 제거), T-0154 reference 를 `현 SUPERSEDED` 로 정합, 본문 끝에 **해소 결과** 1 줄(ADR-0028 c5926fd PROPOSED → 414a6e2 ACCEPTED / 첫 cron@cloud 자율 lock = cron@vm-454c 8195047 tip 0472be7 / T-0154 SUPERSEDED T-0244 22dd70f / Follow-up §3 검증 완료) append. historical context(proxy 제한층·403 잔존 실증·대안 기각) 보존, L148·타 라인 불변. R-110 direct doc-only 면제, markdown 구조 시각 확인 1 회 통과. +1/-1 LOC, 1 파일. tasksCompleted 243→244.
