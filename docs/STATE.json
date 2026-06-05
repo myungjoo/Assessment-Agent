@@ -6,15 +6,9 @@
   },
   "currentTask": null,
   "nextTask": null,
-  "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-s61",
-    "since": "2026-06-05T13:55:04+09:00",
-    "loopSessionStartedAt": "2026-06-05T13:55:04+09:00",
-    "loopSessionTurnCount": 1
-  },
-  "lastActivity": "2026-06-05T13:55:04+09:00",
-  "lastCommit": "22dd70f",
+  "lock": null,
+  "lastActivity": "2026-06-05T14:05:00+09:00",
+  "lastCommit": "3be8260",
   "mostRecentTasks": [
     "T-0244",
     "T-0243",
@@ -23,12 +17,14 @@
     "T-0240"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-05T13:55:04+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s61",
-    "note": "loop@WIN-JQIPLSBL9QV-s61 session #61 t1 — fresh /loop(사용자 turn cap 10). **ADR-0028 claude/lock-driver 브랜치-lock 프로토콜의 첫 운영 진입점**: session #60 이 옛 refs/locks/driver 를 tombstone 으로 끝내, 본 session 이 새 claude/lock-driver 브랜치를 zero-sha CAS 로 생성(d0fda72)하며 lock 획득. [1] fetch main 22dd70f, 브랜치 미존재=free 확인 후 본인 lock.json commit push 성공. humanQuestion 0(전원 RESOLVED), blockers 0, CI green. [2] nextTask=T-0244 픽업. [3] executor 1회 — T-0244 DONE(T-0154 frontmatter status PENDING→SUPERSEDED + supersededBy:[ADR-0028,T-0242,T-0243]+supersededAt+상단 SUPERSEDED 박스, historical 본문 보존, direct doc-only 1파일 +7/-1). [4][6] direct main commit + STATE/journal bookkeeping. tasksCompleted 241→242, tasksSuperseded 3→4(T-0154). nextTask=null → t2 planner survey. turnCount 1<10 → reschedule.",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t10(마지막): 5 task 완주(T-0239~T-0243), ADR-0027 instance-access grant chain end-to-end 종결 + ADR-0028 cloud-proxy branch-lock PROPOSED→ACCEPTED. cap 10 도달 종료, refs/locks/driver tombstone."
+    "stoppedAt": "2026-06-05T14:05:00+09:00",
+    "stopReason": "humanQuestion-Q-0024-open",
+    "note": "loop@WIN-JQIPLSBL9QV-s61 session #61 t2 — planner survey + 세션 종료(Q-0024 escalate). [1] fetch main 3be8260, T-0244 CI re-verify = success(green). lock 본인 s61 ref heartbeat turnCount 1→2 since 05:04Z(598879e). humanQuestion 0(직전 전원 RESOLVED), blockers 0. [2] currentTask·nextTask null → planner HIGH make-work-bar survey. main 실코드 대조 결과 dependency-free backlog 진짜 소진(ADR-0027 grant chain·ADR-0028 branch-lock·T-0154 SUPERSEDED 전부 종결, ADR-0028 cron-관찰 Follow-up 은 cron fire 후만 actionable) → task 날조 대신 Q-0024 escalate(남은 P4 major 전부 §5 게이트: milestone-3 live token / Stryker / retention TTL[비권장]). [6] doc-only direct bookkeeping. [종료] Q-0024 OPEN(미해결 humanQuestion) → [8](a) reschedule 안 함, lock ref tombstone 해제. **session #61 성과(1 task): T-0244 T-0154 SUPERSEDED + ADR-0028 claude/lock-driver 브랜치-lock 첫 운영 진입점(zero-sha CAS 자율 생성·획득 실증). tasksCompleted 241→242.**",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s61 session #61 t1 — T-0244 DONE(T-0154 SUPERSEDED). claude/lock-driver 브랜치-lock 첫 진입점, zero-sha CAS 생성. tasksCompleted 241→242, tasksSuperseded 3→4."
   },
   "ci": {
     "lastRun": "2026-06-05T13:55:04+09:00",
@@ -294,6 +290,23 @@
       "decision": "option (1) instance-access binding-grant 경로 승인 + grant RBAC scope = Admin 전용 endpoint — 사용자가 session #58 t1 AskUserQuestion 2-step 으로 결정. POST/DELETE /api/users/{id}/instance-access 를 @Roles(Admin) 로 제한, 런타임 동적 grant/revoke, self-grant 금지. ADR-first(ADR-0023→controller 패턴 mirror). 새 외부 dependency 0 / 외부 credential 0 → §5 auth-model 게이트는 본 RBAC scope 결정으로 충족. milestone-3 live token·retention TTL·mutation testing 은 미승인 유지. loop 재개: planner 가 T-0236(ADR-0027 grant/revoke Admin-only RBAC 계약, commitMode pr) 큐잉 → 후속 체인 DTO/service grant+revoke → controller @Roles → api.md doc-sync → e2e, 각 slice ≤300 LOC. 주의: R-112 4종 + negative cases(타 instance·non-Admin·중복 바인딩·미인증·잘못된 instanceRef) + regression.",
       "processedByPlanner": true,
       "processedAt": "2026-06-05T00:14:00+09:00"
+    },
+    {
+      "id": "Q-0024",
+      "raisedAt": "2026-06-05T14:05:00+09:00",
+      "raisedBy": "loop@WIN-JQIPLSBL9QV-s61 session #61 t2 planner survey",
+      "reason": "needs-human-decision",
+      "status": "OPEN",
+      "summary": "session #60~61 이 ADR-0027 instance-access grant chain(T-0237~T-0241, 4 slice + grant→audit 가시성 cross-chain round-trip)을 end-to-end 종결하고 ADR-0024 'safe but useless' gap 을 닫았으며, ADR-0028 cloud-proxy branch-lock(T-0242 ADR PROPOSED→T-0243 LOOP/CLAUDE 동기 ACCEPTED→T-0244 T-0154 SUPERSEDED)으로 cron@cloud refs/locks 403 자율성 blocker 의 영구 해소 경로를 박제·머지했다. 이로써 HITL 게이트에 걸리지 않는 dependency-free 작업 backlog 가 진짜로 소진됐다(main 3be8260, blockers 0, open PR 0, CI green, tasksCompleted=242). HIGH make-work-bar survey 로 main 실코드 대조 재탐색했으나 신규 material 결함·gap 미식별 — planner 가 task 날조 대신 escalate. 남은 P4 major 는 전부 §5 HITL 게이트(외부 credential / 새 외부 dependency / 채택 ADR reverse)다.",
+      "context": "main 실코드 대조 survey(3be8260): (1) ADR-0027 grant chain — Follow-up (1)~(4) 전부 merged: GrantInstanceAccessDto+service grant/revoke(T-0237 PR-205), controller @Roles(Admin) POST 201/DELETE 204(T-0238 PR-206), api.md doc-sync(T-0239), e2e + grant→READ 필터 cross-chain round-trip(T-0240 PR-207, T-0241 PR-208). ADR-0024 'safe but useless'(non-Admin 영구 빈 결과) 실 가시화 전환 완료. (2) ADR-0028 branch-lock — ADR 머지(T-0242), LOOP.md §1[1]·§4 + CLAUDE.md §10 lock 명령이 claude/lock-driver 브랜치-lock 으로 동기 완료(T-0243, 실측 확인), ADR-0009 상단 저장소-한정 supersede pointer 존재(L14~16), lock 브랜치 claude/lock-driver 이번 session #61 t1 에 zero-sha CAS 로 실 생성됨(tip 598879e — 첫 branch-lock 자율 획득 발생). T-0154 SUPERSEDED bookkeeping 완료(T-0244). ADR-0028 Follow-up (3)='첫 cron@cloud fire 가 claude/lock-driver 자율 획득(403 미재발) 검증' 은 운영 관찰 항목이라 실 cron fire 발생 후에만 actionable — 현 진입점은 holder=loop 라 관찰할 fire 가 없고, ADR 가 이미 그 status 를 자체 기록 중이므로 '관찰 대기' doc task 는 make-work. (3) 인접 잔여 점검 — 최근 nit(db-truncate docstring·apiKey placeholder 주석)은 T-0218/T-0219 로 closed, stale-count/false-comment sweep hit 0. 부수적 cosmetic(머지된 origin/claude/T-01xx feature 브랜치 미삭제 다수)은 README 요구 미연계 git hygiene 이라 task 부적합. ADR-0001~0028 전원 ACCEPTED(0007 미신설), Q-0013~Q-0023 전원 RESOLVED.",
+      "options": [
+        "(1) milestone-3 GitHub/Confluence live token run 승인(가장 큰 가치) — Q-0017 mocked transport(내장 fetch + mocked unit) 위에서 실 token 통합. GitHub token(github.com / github.sec.samsung.net / github.ecodesamsung.com) + Confluence token 을 env/secret 주입(실값은 §9 에 따라 코드·STATE·journal·git 금지, repo 밖 로컬 secrets.env). milestone-1 azure live-run(Q-0022) 패턴 동형: (a) dependency-free env-gated live spec(LLM_LIVE_* mirror, env 부재 시 describe.skip → CI green 유지) → (b) credentialed live run 1회. 새 외부 dependency 0(내장 fetch) 이나 실 credential 다수 → §5 credential 게이트.",
+        "(2) ADR-0028 첫 cron@cloud 자율 lock 운영 검증 트리거 — cron@cloud fire 를 한 번 발생시켜 새 claude/lock-driver 브랜치-lock 을 credential 0 으로 자율 획득(403 미재발)하는지 실증. 사용자가 cron schedule 을 무장(arm)하거나 cloud fire 를 트리거하면, 그 fire 의 driver 가 결과를 journal 에 박제하고 ADR-0028 Follow-up (3) status 를 검증 완료로 flip. planner 단독으로는 트리거 불가(진입점 환경 결정).",
+        "(3) mutation testing(Stryker) 도입 검토 — 현 line/function ≥80% coverage 위 test 효과성(killed-mutant) 측정. 새 외부 dependency(@stryker-mutator/*) + 별도 ADR 필요 → §5 의존성 게이트.",
+        "(4) 다른 우선순위 / 루프 정지 — observability·test hardening, OpenAPI/Swagger doc 자동화, P6 frontend 진입 검토 등 지시 또는 정지. (retention TTL pruning 은 ADR-0022 §3 '영구 보존' 명시 채택 reverse + @nestjs/schedule 새 dep 라 비권장 — 옵션 제외.)"
+      ],
+      "recommendation": "가장 큰 가치 unblock 은 (1) milestone-3 GitHub/Confluence live token run — milestone-1 azure live-run(Q-0022 PASS)과 정확히 동형으로 mocked transport 가 이미 완결돼 있어 (a) env-gated dependency-free 선행 slice 는 credential 없이 즉시 착수 가능하고, (b) credentialed run 만 token 주입 시 진입한다. (2) cron@cloud 자율 lock 검증은 가치 있으나 planner 가 트리거할 수 없고 진입점 환경 결정이라 사용자 arm 필요. 권장 순서: (1)(a 선행은 credential 없이 가능) → (2) → (3). retention TTL 회피. dependency-free 즉시 진행을 원하면 (1)(a) env-gated live spec 만 먼저 큐잉 가능(§5 미발화).",
+      "resolutionHint": "docs/STATE.json 의 본 Q-0024 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 필요한 token credential scope[GitHub host 별 + Confluence] 및 secrets.env 경로·만료 명시 / (2) 선택 시 cron arm 방식 / (1)(a) dependency-free 선행 slice 만 원하면 그 명시)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 진입점 대기. credential(GitHub·Confluence token)은 코드·STATE·journal·git 에 실값 금지, env/secret 주입(§9). (1)(a) env-gated 선행 slice 만 택하면 credential 불요 즉시 재개. ADR-0028 Follow-up (3) cron 관찰은 실 cron@cloud fire 발생 시 자동 충족되므로 별도 task 불요 — 다음 cron fire 의 journal 에 박제될 예정."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
