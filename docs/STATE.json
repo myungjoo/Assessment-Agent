@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0241",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s60",
-    "since": "2026-06-05T10:17:36+09:00",
+    "since": "2026-06-05T10:21:10+09:00",
     "loopSessionStartedAt": "2026-06-05T09:50:07+09:00",
-    "loopSessionTurnCount": 3
+    "loopSessionTurnCount": 4
   },
-  "lastActivity": "2026-06-05T10:17:36+09:00",
-  "lastCommit": "94708b9",
+  "lastActivity": "2026-06-05T10:21:10+09:00",
+  "lastCommit": "dc15293",
   "mostRecentTasks": [
     "T-0240",
     "T-0239",
@@ -23,12 +23,12 @@
     "T-0236"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-05T09:50:07+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s60",
-    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t3 (사용자 turn cap 10) — T-0240 DONE/MERGED (PR-207, squash 94708b9). ADR-0027 grant chain slice 4(e2e): test/e2e/user-instance-access.e2e-spec.ts 신설(+331, happy 3[grant 201+DB / revoke 204+DB / SuperAdmin 201] + negative 11[non-Admin 403·self 403·dup 409·revoke-absent 멱등 204·404·invalid 400×3·401×2], test-only 0 production LOC). reviewer r1/7 APPROVE(0 BLOCKER/0 MAJOR/0 MINOR), CI green(approval-gate race 미발생 — reviewer comment 가 pull_request run approval step 전 도달), 4-게이트 PASS → squash merge. [1] fetch main f9a7c59, f9a7c59 CI(t2 bookkeeping) in_progress→무관(docs-only). lock 본인 s60 heartbeat ref blob turnCount 1→3 since 10:05/10:17. tasksCompleted 237→238, reviewRounds[T-0240]=1. **ADR-0027 grant chain 4 slice(T-0237 service→T-0238 controller→T-0239 api.md→T-0240 e2e) 전부 종결 — ADR-0024 'safe but useless' gap 종료. dependency-free backlog 소진 가능성 — t4 planner survey 필요.**",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t2 — planner dispatch, T-0240 큐잉(grant/revoke e2e, pr). T-0239 CI green 확정. tasksCompleted 237."
+    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t4 (사용자 turn cap 10) — planner dispatch turn. [1] fetch main dc15293, 직전 bookkeeping dc15293 CI in_progress(docs-only 무관), merge 94708b9 CI success. lock 본인 s60 heartbeat ref turnCount 3→4 since 10:21, humanQuestion 0, blockers 0. [2] currentTask·nextTask null → planner dispatch. planner HIGH make-work bar survey: grant chain 종결 후에도 **genuine dependency-free 결함 식별** — ADR-0027 §Consequences L156 이 명시 defer 한 'grant→READ 필터 round-trip e2e'(Follow-up 4). 기존 audit e2e(permission-denied-records.e2e L21-22)는 binding write-path 부재로 non-Admin **빈 배열 fallback** 만 검증; T-0240 e2e 는 grant/revoke 를 **격리** 검증할 뿐 grant→audit-visibility 연쇄 미검증. grant write-path 가 이번 세션 머지로 deferred precondition 충족 → T-0241 큐잉(cross-chain e2e: Admin grant instance → non-Admin 이 그 instance audit 조회 가능, commitMode pr, test-only sizeExempt ~180 LOC). STATE.nextTask=T-0241. [6] doc-only direct bookkeeping. turnCount 4<10 → reschedule, t5 에서 T-0241 executor(pr-mode). **grant chain 의 실 목적(부여→가시성)을 e2e 로 closeout — 진짜 마지막 Follow-up.**",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t3 — T-0240 DONE/MERGED(PR-207, 94708b9). ADR-0027 grant chain 4 slice 전부 종결, ADR-0024 'safe but useless' gap 종료. tasksCompleted 237→238."
   },
   "ci": {
     "lastRun": "2026-06-05T10:11:00+09:00",
