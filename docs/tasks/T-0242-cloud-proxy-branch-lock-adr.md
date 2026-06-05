@@ -2,8 +2,12 @@
 id: T-0242
 title: ADR-0028 신설 — cron@cloud 자율성 확보를 위한 claude/* 브랜치 기반 driver lock (cloud proxy 호환)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-05T10:57:17+09:00
+mergedAs: c5926fd
+prNumber: 209
+reviewRounds: 1
 coversReq: []
 estimatedDiff: 200
 estimatedFiles: 2
