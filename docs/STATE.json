@@ -5,26 +5,30 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0239",
-  "lock": null,
-  "lastActivity": "2026-06-05T09:32:00+09:00",
+  "nextTask": null,
+  "lock": {
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-s60",
+    "since": "2026-06-05T09:50:07+09:00",
+    "loopSessionStartedAt": "2026-06-05T09:50:07+09:00",
+    "loopSessionTurnCount": 1
+  },
+  "lastActivity": "2026-06-05T09:50:07+09:00",
   "lastCommit": "620a4f2",
   "mostRecentTasks": [
+    "T-0239",
     "T-0238",
     "T-0237",
     "T-0236",
-    "T-0235",
-    "T-0234"
+    "T-0235"
   ],
   "loopSession": {
-    "turnCount": 5,
-    "startedAt": "2026-06-05T08:39:00+09:00",
-    "cap": 5,
-    "holder": "loop@WIN-JQIPLSBL9QV-s59",
-    "stoppedAt": "2026-06-05T09:32:00+09:00",
-    "stopReason": "user-cap-5-reached",
-    "note": "loop@WIN-JQIPLSBL9QV-s59 session #59 t5 (사용자 turn cap 5, 마지막 turn) — planner dispatch turn + 세션 종료. [1] fetch main d01cc12(t4 CI success), lock 본인 s59 → turnCount 4→5. humanQuestion 0, blockers 0. [2] currentTask·nextTask 둘 다 null → planner dispatch. planner: main 대조로 grant/revoke endpoint 가 api.md 미기재 확인(redundant 회피), T-0239 큐잉(api.md 에 POST/DELETE /api/users/{id}/instance-access 2 row doc-sync, commitMode **direct** — 기존 docs/architecture/* 편집은 §3.1 direct, T-0143/T-0152/T-0166 precedent). STATE.nextTask=T-0239. [6] doc-only direct bookkeeping. [종료] turnCount 5 = 사용자 cap 5 도달 → ScheduleWakeup 미호출(세션 종료), lock ref tombstone 해제(다음 /loop·cron 이 T-0239 즉시 픽업, stale-wait 불요). **세션 성과: T-0237(service)·T-0238(controller) 2 PR merged, ADR-0027 grant chain slice 1·2 완결. 잔여: slice 3(T-0239 api.md doc-sync, 큐잉됨) → slice 4(e2e, Follow-up) 끝나면 grant chain 종결 + ADR-0024 'safe but useless' gap 종료.**",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s59 session #59 t4 — T-0238 DONE/MERGED (PR-206, squash 620a4f2). ADR-0027 grant chain slice 2: UserInstanceAccessController grant POST @Roles(Admin) 201 / revoke DELETE 204(thin raw-forward, 분기 0) + module wire. 3 files +120/-7, 신규 controller cov 100%. reviewer r1/7 APPROVE, issue_comment run 26987671017 success, 4-게이트 PASS. tasksCompleted 236, reviewRounds[T-0238]=1. (t2: T-0237 service slice merged fd5ae94.)"
+    "turnCount": 1,
+    "startedAt": "2026-06-05T09:50:07+09:00",
+    "cap": 10,
+    "holder": "loop@WIN-JQIPLSBL9QV-s60",
+    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t1 (사용자 turn cap 10) — T-0239 DONE (api.md grant/revoke doc-sync, direct). [1] fetch main 3700acb, lock tombstone(s59 released) → 본인 s60 획득, turnCount=1, humanQuestion 0(Q-0023 RESOLVED), blockers 0. [2] nextTask=T-0239 → currentTask. [3] executor 1회: api.md UC-08 표에 POST/instance-access grant(201, Admin-only, self 403/409 dup/404/400/401) + DELETE revoke(204 멱등, self 403/404/401, body instanceRef) 2 row + 합계 47→49ep/12→13prefix. ADR-0027 §1/§4·머지된 controller 와 1:1 대조 drift 0. [4] direct main commit(api.md +4/-1 + bookkeeping). tasksCompleted 236→237. **ADR-0027 grant chain slice 3(api.md doc-sync) 완결 — 잔여 slice 4(e2e, Follow-up). slice 4 끝나면 grant chain 종결 + ADR-0024 'safe but useless' gap 종료.**",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s59 session #59 t5 — planner dispatch + 세션 종료(cap 5). T-0239 큐잉(api.md grant/revoke doc-sync, direct). 세션 성과: T-0237(service)·T-0238(controller) 2 PR merged, ADR-0027 grant chain slice 1·2 완결."
   },
   "ci": {
     "lastRun": "2026-06-05T08:58:00+09:00",
@@ -292,7 +296,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 236,
+    "tasksCompleted": 237,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

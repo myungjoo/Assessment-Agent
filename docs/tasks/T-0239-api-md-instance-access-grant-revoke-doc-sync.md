@@ -2,8 +2,9 @@
 id: T-0239
 title: api.md 에 instance-access grant/revoke endpoint 2 row doc-sync
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
+completedAt: 2026-06-05T09:50:07+09:00
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 20
 estimatedFiles: 1
