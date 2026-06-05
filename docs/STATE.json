@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0243",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s60",
-    "since": "2026-06-05T10:57:17+09:00",
+    "since": "2026-06-05T11:00:05+09:00",
     "loopSessionStartedAt": "2026-06-05T09:50:07+09:00",
-    "loopSessionTurnCount": 7
+    "loopSessionTurnCount": 8
   },
-  "lastActivity": "2026-06-05T10:57:17+09:00",
-  "lastCommit": "c5926fd",
+  "lastActivity": "2026-06-05T11:00:05+09:00",
+  "lastCommit": "442ece3",
   "mostRecentTasks": [
     "T-0242",
     "T-0241",
@@ -23,12 +23,12 @@
     "T-0238"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-05T09:50:07+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s60",
-    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t7 (사용자 turn cap 10) — T-0242 DONE/MERGED (PR-209, squash c5926fd). ADR-0028 cloud-proxy branch-lock 신설(PROPOSED): lock 저장소 refs/locks/driver(blob)→claude/lock-driver(commit ref) 이전으로 cron@cloud refs/locks 403 해소, ref-CAS 강한 mutex·60분 stale 불변 보존, 새 dependency·credential 0 + ADR-0009 supersede pointer. doc-only(+99, ADR-0028 신설 + ADR-0009 1줄). reviewer r1/7 APPROVE(0/0/1 MINOR non-blocking — tombstone vs branch-delete hedge), CI green, 4-게이트 PASS → squash merge. [1] fetch main e552d43, lock 본인 s60 heartbeat ref turnCount 6→7 since 10:48/10:57. tasksCompleted 239→240, reviewRounds[T-0242]=1. **잔여 dependency-free follow-up 2건(ACCEPTED gate): (1) LOOP.md §1[1]·§4 + CLAUDE.md §10 의 claude/lock-driver lock 프로토콜 동기(direct), (2) T-0154 SUPERSEDED bookkeeping. t8 planner 가 큐잉 예정.**",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t6 — planner dispatch, T-0242 큐잉(ADR-0028 cloud-proxy branch-lock, 🔴 사용자 우선). tasksCompleted 239."
+    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t8 (사용자 turn cap 10) — planner dispatch turn. [1] fetch main 442ece3, merge c5926fd CI success. lock 본인 s60 heartbeat ref turnCount 7→8 since 11:00, humanQuestion 0, blockers 0. [2] currentTask·nextTask null → planner. ADR-0028 follow-up 2건 중 higher-value ACCEPTED gate 큐잉: T-0243(LOOP §1[1]·§4 + CLAUDE §10 lock 을 claude/lock-driver 브랜치 lock 으로 동기, direct). **cutover 안전: 새 프로토콜 효력 = 다음 fresh session/fire 부터, in-flight session #60 은 refs/locks/driver blob 그대로 유지(무중단) — §10 단일-활성-driver 보장으로 split-brain window 없음.** STATE.nextTask=T-0243. T-0154 SUPERSEDED 는 deferred(차순위). [6] doc-only direct bookkeeping. turnCount 8<10 → reschedule, t9 에서 T-0243 executor(direct doc-sync). **주의(본 세션 잔여 turn): T-0243 merge 후에도 session #60 driver 는 refs/locks/driver heartbeat 계속 — claude/lock-driver 전환은 다음 fresh session 부터.**",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t7 — T-0242 DONE/MERGED(PR-209, c5926fd). ADR-0028 cloud-proxy branch-lock(PROPOSED) 신설. tasksCompleted 239→240."
   },
   "ci": {
     "lastRun": "2026-06-05T10:54:00+09:00",
