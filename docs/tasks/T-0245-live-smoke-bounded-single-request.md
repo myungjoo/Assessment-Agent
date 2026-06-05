@@ -2,14 +2,18 @@
 id: T-0245
 title: live smoke spec 을 unbounded requestAllPages 에서 단일 bounded request 로 교정
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 210
+mergedCommit: 85793cf
+doneAt: 2026-06-05
 coversReq: [REQ-059]
 estimatedDiff: 60
 estimatedFiles: 2
 created: 2026-06-05
 hqOrigin: Q-0024
 plannerNote: "P4 milestone-3 patch — Q-0024(1b). live smoke 가 unbounded /repositories·/content 에 requestAllPages → 30s timeout fail. single request() 로 bounded round-trip 교정 (test-only)."
+result: "DONE/MERGED PR-210(squash 85793cf, reviewer APPROVE r1/7 0 findings, 4-게이트 PASS, CI green). credentialed live re-run(github.com PAT, repo 밖 secrets.env §9): github-live happy PASS — 실 api.github.com round-trip 885ms, repo 식별 메타 verified. milestone-3 GitHub public live VERIFIED. Confluence·Enterprise(sec/ecode) host 는 token 미제공으로 skip(미검증, 추후 token 제공 시 동일 spec 재실행)."
 ---
 
 # T-0245 — live smoke spec 을 unbounded requestAllPages 에서 단일 bounded request 로 교정
