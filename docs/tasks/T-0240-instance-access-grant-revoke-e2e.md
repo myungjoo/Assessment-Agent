@@ -2,8 +2,12 @@
 id: T-0240
 title: UserInstanceAccess grant/revoke controller e2e spec (ADR-0027 grant chain slice 4)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-05T10:17:36+09:00
+mergedAs: 94708b9
+prNumber: 207
+reviewRounds: 1
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 330
 estimatedFiles: 1
