@@ -2,8 +2,12 @@
 id: T-0237
 title: GrantInstanceAccessDto + UserInstanceAccessService grant/revoke 메서드 (ADR-0027 slice 1)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 205
+reviewRounds: 1
+mergedAs: fd5ae94
+completedAt: 2026-06-05T08:58:00+09:00
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 200
 estimatedFiles: 5
