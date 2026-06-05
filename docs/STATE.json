@@ -6,15 +6,9 @@
   },
   "currentTask": null,
   "nextTask": null,
-  "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-s62",
-    "since": "2026-06-05T14:51:16+09:00",
-    "loopSessionStartedAt": "2026-06-05T14:51:16+09:00",
-    "loopSessionTurnCount": 1
-  },
-  "lastActivity": "2026-06-05T14:51:16+09:00",
-  "lastCommit": "2076f3b",
+  "lock": null,
+  "lastActivity": "2026-06-05T16:07:55+09:00",
+  "lastCommit": "ce90e3e",
   "mostRecentTasks": [
     "T-0244",
     "T-0243",
@@ -23,14 +17,14 @@
     "T-0240"
   ],
   "loopSession": {
-    "turnCount": 2,
-    "startedAt": "2026-06-05T13:55:04+09:00",
-    "cap": 10,
-    "holder": "loop@WIN-JQIPLSBL9QV-s61",
-    "stoppedAt": "2026-06-05T14:05:00+09:00",
-    "stopReason": "humanQuestion-Q-0024-open",
-    "note": "loop@WIN-JQIPLSBL9QV-s61 session #61 t2 — planner survey + 세션 종료(Q-0024 escalate). [1] fetch main 3be8260, T-0244 CI re-verify = success(green). lock 본인 s61 ref heartbeat turnCount 1→2 since 05:04Z(598879e). humanQuestion 0(직전 전원 RESOLVED), blockers 0. [2] currentTask·nextTask null → planner HIGH make-work-bar survey. main 실코드 대조 결과 dependency-free backlog 진짜 소진(ADR-0027 grant chain·ADR-0028 branch-lock·T-0154 SUPERSEDED 전부 종결, ADR-0028 cron-관찰 Follow-up 은 cron fire 후만 actionable) → task 날조 대신 Q-0024 escalate(남은 P4 major 전부 §5 게이트: milestone-3 live token / Stryker / retention TTL[비권장]). [6] doc-only direct bookkeeping. [종료] Q-0024 OPEN(미해결 humanQuestion) → [8](a) reschedule 안 함, lock ref tombstone 해제. **session #61 성과(1 task): T-0244 T-0154 SUPERSEDED + ADR-0028 claude/lock-driver 브랜치-lock 첫 운영 진입점(zero-sha CAS 자율 생성·획득 실증). tasksCompleted 241→242.**",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s61 session #61 t1 — T-0244 DONE(T-0154 SUPERSEDED). claude/lock-driver 브랜치-lock 첫 진입점, zero-sha CAS 생성. tasksCompleted 241→242, tasksSuperseded 3→4."
+    "turnCount": 1,
+    "startedAt": "2026-06-05T16:07:55+09:00",
+    "cap": 1,
+    "holder": "cron@vm-454c",
+    "stoppedAt": "2026-06-05T16:08:30+09:00",
+    "stopReason": "cron-1-fire-1-task-done",
+    "note": "cron@vm-454c (cron@cloud fire post-ADR-0028 cutover) — **ADR-0028 Follow-up §3 운영 관찰 실증 완료**: stale 된 loop@WIN-JQIPLSBL9QV-s62 lock(ff4bc2e since 05:51:16Z, ~76min 경과) 을 `claude/lock-driver` 브랜치 위 `--force-with-lease=ff4bc2e` CAS push 로 credential 0 자율 탈취(0472be7). 옛 `refs/locks/*` 9 회 403 패턴(02:02~08:04) 종결 — `claude/*` namespace 가 cloud proxy 허용 prefix 라 cron@cloud 가 PAT 주입/UI 토글 없이 lock CAS 가능함을 실증. [2] currentTask·nextTask null + Q-0024 RESOLVED(직전 s62 t1, 사용자 차기 결정 대기 상태) → 직전 fire 의 planner survey(s62 t1 14:51, 15 min 전)와 state 미변경이라 planner 재dispatch 생략(중복 ABORT 회피). 본 fire 의 실제 외화 사실 = ADR-0028 §3 status 메모 flip + 본 journal 박제. [6] direct main doc-only commit + ADR-0028 status note 갱신 + STATE.lock 해제. [종료] lock ref tombstone 해제. session(1 task fire): ADR-0028 §3 운영 관찰 외화. tasksCompleted unchanged(coordination-only fire). humanQuestions: Q-0024 RESOLVED(차기 결정 사용자 대기 유지).",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s62 session #62 t1 — Q-0024 RESOLVED(opt 1a), 1(a) 이미 main 박제 정정. lock s62 ff4bc2e 획득(tombstone c5e4f23 CAS). planner ABORT(중복 ADR-0029 회피). nextTask 미설정 → 사용자 차기 결정 대기."
   },
   "ci": {
     "lastRun": "2026-06-05T13:55:04+09:00",

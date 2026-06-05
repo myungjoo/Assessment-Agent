@@ -4,7 +4,7 @@
 
 ACCEPTED (2026-06-05)
 
-> doc-sync 완료 — 첫 cron@cloud 자율 lock 획득(403 미재발) 검증은 운영 관찰 대기(Follow-up §3).
+> doc-sync 완료 — Follow-up §3(첫 cron@cloud 자율 lock 획득, 403 미재발) **검증 완료 2026-06-05T07:07:55Z**: cron@vm-454c fire 가 stale 된 s62 lock(ff4bc2e, since 05:51:16Z, 76min 경과)을 `claude/lock-driver` 브랜치 위 `--force-with-lease` CAS push 로 자율 탈취(0472be7) — PAT 주입·UI 토글 없이 credential 0 으로 lock CAS 성공. 옛 `refs/locks/*` 9 회 403 패턴 종결, cron 자율 long-horizon 진입점 실제 작동 확인.
 >
 > 본 ADR 은 [ADR-0009](ADR-0009-strong-ref-cas-lock.md) 의 lock **저장소 메커니즘만** revise 한다 — CAS 원자성·강한 mutex·동일역할·read 전 fetch 의무 결정은 그대로 유지한다.
 > ACCEPTED 전이 gate (ADR-0009 의 T-0127/T-0128 패턴 mirror) 충족: direct-mode 동기가 [T-0243](../tasks/T-0243-loop-claude-branch-lock-sync.md) 한 task 안에서 둘 다 완료됐다 —
