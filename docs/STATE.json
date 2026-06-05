@@ -5,15 +5,15 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0238",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s59",
-    "since": "2026-06-05T08:58:00+09:00",
+    "since": "2026-06-05T09:09:00+09:00",
     "loopSessionStartedAt": "2026-06-05T08:39:00+09:00",
-    "loopSessionTurnCount": 2
+    "loopSessionTurnCount": 3
   },
-  "lastActivity": "2026-06-05T08:58:00+09:00",
+  "lastActivity": "2026-06-05T09:09:00+09:00",
   "lastCommit": "fd5ae94",
   "mostRecentTasks": [
     "T-0237",
@@ -23,14 +23,14 @@
     "T-0233"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-05T08:39:00+09:00",
     "cap": 5,
     "holder": "loop@WIN-JQIPLSBL9QV-s59",
     "stoppedAt": null,
     "stopReason": null,
-    "note": "loop@WIN-JQIPLSBL9QV-s59 session #59 t2 (사용자 turn cap 5) — T-0237 DONE/MERGED (PR-205, squash fd5ae94). [1] fetch main 854d30c(t1 CI success), lock 본인 s59 동일 session → turnCount 1→2 heartbeat(since 08:58). humanQuestion 0, blockers 0. [2] nextTask=T-0237 픽업(pr-mode), feature branch claude/T-0237-instance-access-grant-revoke-service 생성. [3] executor DONE — GrantInstanceAccessDto(@IsString/@IsNotEmpty/@MaxLength 2048) + UserInstanceAccessService.grant/revoke(repo.create 재사용·P2002→409·P2003→404·self-grant 403·revoke 정규화 idempotent no-op) + repository.deleteByUserIdAndInstanceRef(deleteMany) + module DI. 7 files(production 4 + spec 3, 5-file soft cap 초과하나 production↔spec 페어·+173/-4 응집 slice 라 PR 유지), 168 suites/3307 test pass, 신규 파일 cov 100%, 새 dep 0. [4] commit c9fc4da → PR-205. [review] reviewer r1/7 APPROVE(0 BLOCKER/0 MAJOR/1 MINOR file-cap justified/1 NIT, comment issue-4626970226). pull_request run 26986752711 은 approve comment 전 실행이라 approval-gate fail(예상 race), issue_comment run 26986834751(comment 후) success → 4-게이트 전부 PASS → squash merge fd5ae94, branch deleted. [6] main ff fd5ae94, T-0237 DONE. tasksCompleted 234→235, reviewRounds[T-0237]=1. nextTask=null → t3 planner survey(grant chain slice 2: controller @Roles 엔드포인트). [8] turnCount 2<5 → ScheduleWakeup reschedule.",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s59 session #59 t1 — stale lock 탈취 from AKIHA-s58(~464min). currentTask·nextTask null → planner dispatch → T-0237 큐잉(ADR-0027 grant chain slice 1: GrantInstanceAccessDto + service grant/revoke). doc-only direct bookkeeping 854d30c. 배경: AKIHA-s58 t2(T-0236 merge) 후 lock 미해제 종료, cron@cloud 7회 refs/locks 403 no-op.",
+    "note": "loop@WIN-JQIPLSBL9QV-s59 session #59 t3 (사용자 turn cap 5) — planner dispatch turn. [1] fetch main e04fa2a(t2 bookkeeping CI success), lock 본인 s59 → turnCount 2→3 heartbeat(since 09:09). humanQuestion 0, blockers 0. [2] currentTask·nextTask 둘 다 null → planner dispatch. planner: main 실코드 대조로 slice 2(controller) 미존재 확인(src/user-instance-access 에 *.controller.ts 없음, redundant-PR 회피), T-0238 큐잉(UserInstanceAccess grant/revoke controller @Roles(Admin) POST 201/DELETE 204 — T-0237 service 위 thin HTTP RBAC layer, self-grant 403·409·revoke idempotent 는 service 가 처리, controller 는 raw forward, commitMode pr, R-112 backbone). STATE.nextTask=T-0238. [6] doc-only direct bookkeeping. [8] turnCount 3<5 → ScheduleWakeup reschedule, t4 에서 T-0238 executor 실행 예정.",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s59 session #59 t2 — T-0237 DONE/MERGED (PR-205, squash fd5ae94). ADR-0027 grant chain slice 1: GrantInstanceAccessDto + UserInstanceAccessService.grant/revoke(P2002→409·P2003→404·self-grant 403·revoke idempotent) + repository.deleteByUserIdAndInstanceRef + module DI. 7 files +173/-4, 신규 cov 100%. reviewer r1/7 APPROVE, issue_comment run 26986834751 success(pull_request run 은 approval-gate race fail), 4-게이트 PASS. tasksCompleted 235, reviewRounds[T-0237]=1.",
     "noteOld_s57t4": "loop@WIN-JQIPLSBL9QV-s57 session #57 t4 (사용자 turn cap 5) — T-0235 DONE/MERGED (PR-203, squash 5f81e29). [1] fetch main 64ac491, lock s57 동일 session → turnCount 3→4 heartbeat(25ef5d2), since=now. humanQuestion 0, blockers 0. [2] nextTask=T-0235 픽업(pr-mode). [3] feature branch claude/T-0235-branch-coverage-threshold-ratchet → executor DONE: pnpm test:cov 실측 All-files Branch/Statement/Function/Line 100%(166 suite/3285 test) 확인 후 package.json coverageThreshold.global branches/statements 50→90 ratchet 상향(functions/lines 80 유지, 측정-후-설정, floor 90 ≤ 실측 100 → CI green). ADR-0026 신규(ratchet-only 정책: 상향 자유/하향 ADR 필수). 2 files +93/-2, 새 dep 0. [4] commit b5e6439 → PR-203. [integrator] reviewer 별도 dispatch APPROVE r1/7 + comment 외화(gate 2, issue-4621610758), 4-게이트 전부 PASS, CI run 26948137415 success(test:cov 90 floor enforce + smoke + e2e + approval-gate 전 step success) → squash merge 5f81e29, branch deleted. [6] main ff 5f81e29, task DONE. tasksCompleted 232→233. nextTask=null, lock 유지. **audit backlog P1(T-0232)·P2(T-0233)·P3(T-0234)·P4(T-0235) 4종 전부 완결 — dependency-free 강화 backlog 소진.** [정지조건] turnCount 4 < cap 5 → t5(마지막) 에서 planner survey → 잔여는 P5 mutation testing(새 dep §5) 등 HITL 게이트뿐 → AskUserQuestion checkpoint(Q-0023) 후 cap 5 정지 예정.",
     "noteOld_s57t1": "s57 t1: planner T-0234 큐잉(audit P3, fab533e); t2 T-0234 merged(4046829); t3 planner T-0235 큐잉(64ac491). (s56 t5 stop-note 잔여 P5 mutation testing §5, secrets.env 만료 2026-06-30, cron@cloud refs/locks 403 — 로컬 /loop 유일 정상 driver — journal 보존.)"
   },
