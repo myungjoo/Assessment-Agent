@@ -53,8 +53,7 @@ describeLive(
 
       // content list endpoint — gating 이 푼 baseUrl + auth scheme(Cloud Basic 의
       // authUser / Server Bearer 의 null) + token(env 출처, 코드에 실값 기재 0, §9).
-      // per_page 대신 Confluence 의 limit 은 requestAllPages 가 start=0+limit 으로
-      // 덮어쓰므로 query 는 비워 둔다.
+      // 단일 page 만 받으면 충분하므로 query 는 비워 둔다(Confluence 기본 limit).
       const input: ConfluenceRequestInput = {
         baseUrl: gating.baseUrl as string,
         authUser: gating.authUser,
@@ -62,13 +61,22 @@ describeLive(
         path: "/content",
       };
 
-      // requestAllPages 로 body `_links.next` cursor 가 있으면 실 cursor pagination 1
-      // round-trip 까지 검증(ADR-0021 §(iii)). MAX_PAGES 안전 상한 + limit 으로 제한.
-      const pages = await adapter.requestAllPages(input);
+      // 단일 bounded round-trip — request() 로 단 1 회만 호출한다(T-0245).
+      // 과거에는 requestAllPages 를 썼으나 /content 같은 unbounded list 는 항상
+      // body `_links.next` cursor 를 실어줘 MAX_PAGES 까지 순차 추종 → 30s timeout
+      // fail 했다. live SMOKE 는 실 transport/auth/URL/headers/parse 를 1 회만
+      // 증명하면 충분하고, 다중 page cursor 추종은 layer-2 stub spec 이 cover
+      // 한다(ADR-0021 §(iv) live=happy round-trip only, §(v) 3-layer 표 layer-2).
+      const body = await adapter.request(input);
 
       // 검증 invariant(§(iii)) — 비결정 본문(page 제목/본문)은 assert 하지 않고,
-      // 응답이 array 로 정상 파싱되고 비어있지 않은 메타 1+ 가 존재함만 assert.
-      expect(Array.isArray(pages)).toBe(true);
+      // 응답이 도메인 매핑으로 정상 round-trip 되어 비어있지 않은 메타 1+ 가 존재함만
+      // assert. Confluence /content 는 단일 page 응답이 { results: [...] } 객체.
+      expect(typeof body).toBe("object");
+      expect(body).not.toBeNull();
+      const results = (body as { results?: unknown }).results;
+      expect(Array.isArray(results)).toBe(true);
+      const pages = results as unknown[];
       expect(pages.length).toBeGreaterThan(0);
       // 첫 항목이 content 식별 메타(id 또는 title/type 등 1+)를 가진 객체인지 — 도메인
       // 매핑 합치(raw 미저장 invariant 정합, REQ-059). 값 자체는 환경별 비결정.

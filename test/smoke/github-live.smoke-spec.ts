@@ -64,13 +64,19 @@ describeLive("Smoke(live): GithubAdapter 실 외부 endpoint round-trip", () => 
         query: { per_page: "1" },
       };
 
-      // requestAllPages 로 Link rel=next 가 있으면 실 pagination 1 round-trip 까지
-      // 검증(ADR-0021 §(iii)). MAX_PAGES 안전 상한 + per_page=1 로 1~2 page 만 수신.
-      const pages = await adapter.requestAllPages(input);
+      // 단일 bounded round-trip — request() 로 단 1 회만 호출한다(T-0245).
+      // 과거에는 requestAllPages 를 썼으나 /repositories 같은 unbounded list 는
+      // 항상 Link rel=next 를 실어줘 MAX_PAGES=100 까지 순차 추종 → 30s timeout
+      // fail 했다. live SMOKE 는 실 transport/auth/URL/headers/parse 를 1 회만
+      // 증명하면 충분하고, 다중 page cursor 추종은 layer-2 stub spec 이 cover
+      // 한다(ADR-0021 §(iv) live=happy round-trip only, §(v) 3-layer 표 layer-2).
+      const body = await adapter.request(input);
 
       // 검증 invariant(§(iii)) — 비결정 본문(repo 이름/소유자)은 assert 하지 않고,
       // 응답이 array 로 정상 파싱되고 비어있지 않은 메타 1+ 가 존재함만 assert.
-      expect(Array.isArray(pages)).toBe(true);
+      // GitHub /repositories 는 단일 page 응답이 top-level array.
+      expect(Array.isArray(body)).toBe(true);
+      const pages = body as unknown[];
       expect(pages.length).toBeGreaterThan(0);
       // 첫 항목이 repo 식별 메타(id 또는 full_name 등 1+)를 가진 객체인지 — 도메인
       // 매핑 합치(raw 미저장 invariant 정합, REQ-059). 값 자체는 환경별 비결정.
