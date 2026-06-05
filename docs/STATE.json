@@ -5,42 +5,40 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0238",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s59",
-    "since": "2026-06-05T09:09:00+09:00",
+    "since": "2026-06-05T09:24:00+09:00",
     "loopSessionStartedAt": "2026-06-05T08:39:00+09:00",
-    "loopSessionTurnCount": 3
+    "loopSessionTurnCount": 4
   },
-  "lastActivity": "2026-06-05T09:09:00+09:00",
-  "lastCommit": "fd5ae94",
+  "lastActivity": "2026-06-05T09:24:00+09:00",
+  "lastCommit": "620a4f2",
   "mostRecentTasks": [
+    "T-0238",
     "T-0237",
     "T-0236",
     "T-0235",
-    "T-0234",
-    "T-0233"
+    "T-0234"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-05T08:39:00+09:00",
     "cap": 5,
     "holder": "loop@WIN-JQIPLSBL9QV-s59",
     "stoppedAt": null,
     "stopReason": null,
-    "note": "loop@WIN-JQIPLSBL9QV-s59 session #59 t3 (사용자 turn cap 5) — planner dispatch turn. [1] fetch main e04fa2a(t2 bookkeeping CI success), lock 본인 s59 → turnCount 2→3 heartbeat(since 09:09). humanQuestion 0, blockers 0. [2] currentTask·nextTask 둘 다 null → planner dispatch. planner: main 실코드 대조로 slice 2(controller) 미존재 확인(src/user-instance-access 에 *.controller.ts 없음, redundant-PR 회피), T-0238 큐잉(UserInstanceAccess grant/revoke controller @Roles(Admin) POST 201/DELETE 204 — T-0237 service 위 thin HTTP RBAC layer, self-grant 403·409·revoke idempotent 는 service 가 처리, controller 는 raw forward, commitMode pr, R-112 backbone). STATE.nextTask=T-0238. [6] doc-only direct bookkeeping. [8] turnCount 3<5 → ScheduleWakeup reschedule, t4 에서 T-0238 executor 실행 예정.",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s59 session #59 t2 — T-0237 DONE/MERGED (PR-205, squash fd5ae94). ADR-0027 grant chain slice 1: GrantInstanceAccessDto + UserInstanceAccessService.grant/revoke(P2002→409·P2003→404·self-grant 403·revoke idempotent) + repository.deleteByUserIdAndInstanceRef + module DI. 7 files +173/-4, 신규 cov 100%. reviewer r1/7 APPROVE, issue_comment run 26986834751 success(pull_request run 은 approval-gate race fail), 4-게이트 PASS. tasksCompleted 235, reviewRounds[T-0237]=1.",
-    "noteOld_s57t4": "loop@WIN-JQIPLSBL9QV-s57 session #57 t4 (사용자 turn cap 5) — T-0235 DONE/MERGED (PR-203, squash 5f81e29). [1] fetch main 64ac491, lock s57 동일 session → turnCount 3→4 heartbeat(25ef5d2), since=now. humanQuestion 0, blockers 0. [2] nextTask=T-0235 픽업(pr-mode). [3] feature branch claude/T-0235-branch-coverage-threshold-ratchet → executor DONE: pnpm test:cov 실측 All-files Branch/Statement/Function/Line 100%(166 suite/3285 test) 확인 후 package.json coverageThreshold.global branches/statements 50→90 ratchet 상향(functions/lines 80 유지, 측정-후-설정, floor 90 ≤ 실측 100 → CI green). ADR-0026 신규(ratchet-only 정책: 상향 자유/하향 ADR 필수). 2 files +93/-2, 새 dep 0. [4] commit b5e6439 → PR-203. [integrator] reviewer 별도 dispatch APPROVE r1/7 + comment 외화(gate 2, issue-4621610758), 4-게이트 전부 PASS, CI run 26948137415 success(test:cov 90 floor enforce + smoke + e2e + approval-gate 전 step success) → squash merge 5f81e29, branch deleted. [6] main ff 5f81e29, task DONE. tasksCompleted 232→233. nextTask=null, lock 유지. **audit backlog P1(T-0232)·P2(T-0233)·P3(T-0234)·P4(T-0235) 4종 전부 완결 — dependency-free 강화 backlog 소진.** [정지조건] turnCount 4 < cap 5 → t5(마지막) 에서 planner survey → 잔여는 P5 mutation testing(새 dep §5) 등 HITL 게이트뿐 → AskUserQuestion checkpoint(Q-0023) 후 cap 5 정지 예정.",
-    "noteOld_s57t1": "s57 t1: planner T-0234 큐잉(audit P3, fab533e); t2 T-0234 merged(4046829); t3 planner T-0235 큐잉(64ac491). (s56 t5 stop-note 잔여 P5 mutation testing §5, secrets.env 만료 2026-06-30, cron@cloud refs/locks 403 — 로컬 /loop 유일 정상 driver — journal 보존.)"
+    "note": "loop@WIN-JQIPLSBL9QV-s59 session #59 t4 (사용자 turn cap 5) — T-0238 DONE/MERGED (PR-206, squash 620a4f2). [1] fetch main 848cd20(t3 CI success), lock 본인 s59 → turnCount 3→4 heartbeat(since 09:24). humanQuestion 0, blockers 0. [2] nextTask=T-0238 픽업(pr-mode), feature branch claude/T-0238-instance-access-grant-revoke-controller. [3] executor DONE — UserInstanceAccessController 신설(POST grant @Roles(Admin) 201 / DELETE revoke @HttpCode 204, actor.sub+id+dto.instanceRef 를 service.grant/revoke 로 raw forward, controller 분기 0) + module 에 controller 등록 + AuthModule import. 3 files +120/-7(spec 739L 포함 총 ~869 ins — production diff ~130 LOC, 5-file cap 안), 169 suite/3345 test pass, 신규 controller cov 100%, 새 dep 0. [4] commit 791f798 → PR-206. [review] reviewer r1/7 APPROVE(0 BLOCKER/0 MAJOR/1 MINOR spec-size justified/1 NIT __guards__ key, comment issue-4627082214). pull_request run 26987593062 approval-gate race fail(예상), issue_comment run 26987671017 success → 4-게이트 전부 PASS → squash merge 620a4f2, branch deleted. [6] main ff 620a4f2, T-0238 DONE. tasksCompleted 235→236, reviewRounds[T-0238]=1. nextTask=null → t5(마지막) planner survey(grant chain slice 3: api.md doc-sync + slice 4 e2e 잔여). [8] turnCount 4<5 → reschedule, t5 가 cap 마지막.",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s59 session #59 t3 — planner dispatch turn. currentTask·nextTask null → planner T-0238 큐잉(ADR-0027 grant chain slice 2: grant/revoke controller @Roles(Admin), main 대조로 controller 미존재 확인). doc-only direct bookkeeping 848cd20. (t2: T-0237 service slice merged fd5ae94, tasksCompleted 235.)"
   },
   "ci": {
     "lastRun": "2026-06-05T08:58:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/205",
-    "note": "s59 t2: T-0237 PR-205 issue_comment run 26986834751(approve comment 후) success — lint/build/migrate/test+cov(90 floor)/smoke/e2e + reviewer approval 검증 전 step green. pull_request run 26986752711(comment 전)은 approval-gate race 로 fail(예상, 코드 결함 아님). squash merge fd5ae94. consecutiveFails 0. 직전 t1 direct commit 854d30c CI 도 success."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/206",
+    "note": "s59 t4: T-0238 PR-206 issue_comment run 26987671017(approve comment 후) success — lint/build/migrate/test+cov(90 floor)/smoke/e2e + reviewer approval 검증 전 step green. pull_request run 26987593062(comment 전)은 approval-gate race 로 fail(예상, 코드 결함 아님). squash merge 620a4f2. consecutiveFails 0. (t3 bookkeeping 848cd20 CI 도 success.)"
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -66,7 +64,8 @@
     "T-0194": 1,
     "T-0195": 1,
     "T-0197": 1,
-    "T-0237": 1
+    "T-0237": 1,
+    "T-0238": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -299,7 +298,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 235,
+    "tasksCompleted": 236,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

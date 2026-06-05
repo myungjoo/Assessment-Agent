@@ -2,8 +2,12 @@
 id: T-0238
 title: UserInstanceAccess grant/revoke controller (@Roles Admin POST 201 / DELETE 204)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 206
+reviewRounds: 1
+mergedAs: 620a4f2
+completedAt: 2026-06-05T09:24:00+09:00
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 230
 estimatedFiles: 4
