@@ -2,8 +2,9 @@
 id: T-0243
 title: LOOP.md §1[1]·§4 + CLAUDE.md §10 의 lock 프로토콜을 claude/lock-driver 브랜치 lock 으로 동기 (ADR-0028 ACCEPTED gate)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
+completedAt: 2026-06-05T11:06:11+09:00
 coversReq: [TBD]
 estimatedDiff: 130
 estimatedFiles: 4

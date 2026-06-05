@@ -5,30 +5,30 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0243",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s60",
-    "since": "2026-06-05T11:00:05+09:00",
+    "since": "2026-06-05T11:06:11+09:00",
     "loopSessionStartedAt": "2026-06-05T09:50:07+09:00",
-    "loopSessionTurnCount": 8
+    "loopSessionTurnCount": 9
   },
-  "lastActivity": "2026-06-05T11:00:05+09:00",
-  "lastCommit": "442ece3",
+  "lastActivity": "2026-06-05T11:06:11+09:00",
+  "lastCommit": "9268f31",
   "mostRecentTasks": [
+    "T-0243",
     "T-0242",
     "T-0241",
     "T-0240",
-    "T-0239",
-    "T-0238"
+    "T-0239"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-05T09:50:07+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s60",
-    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t8 (사용자 turn cap 10) — planner dispatch turn. [1] fetch main 442ece3, merge c5926fd CI success. lock 본인 s60 heartbeat ref turnCount 7→8 since 11:00, humanQuestion 0, blockers 0. [2] currentTask·nextTask null → planner. ADR-0028 follow-up 2건 중 higher-value ACCEPTED gate 큐잉: T-0243(LOOP §1[1]·§4 + CLAUDE §10 lock 을 claude/lock-driver 브랜치 lock 으로 동기, direct). **cutover 안전: 새 프로토콜 효력 = 다음 fresh session/fire 부터, in-flight session #60 은 refs/locks/driver blob 그대로 유지(무중단) — §10 단일-활성-driver 보장으로 split-brain window 없음.** STATE.nextTask=T-0243. T-0154 SUPERSEDED 는 deferred(차순위). [6] doc-only direct bookkeeping. turnCount 8<10 → reschedule, t9 에서 T-0243 executor(direct doc-sync). **주의(본 세션 잔여 turn): T-0243 merge 후에도 session #60 driver 는 refs/locks/driver heartbeat 계속 — claude/lock-driver 전환은 다음 fresh session 부터.**",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t7 — T-0242 DONE/MERGED(PR-209, c5926fd). ADR-0028 cloud-proxy branch-lock(PROPOSED) 신설. tasksCompleted 239→240."
+    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t9 (사용자 turn cap 10) — T-0243 DONE (LOOP/CLAUDE lock 프로토콜 claude/lock-driver 동기, direct). [1] fetch main 9268f31, 직전 bookkeeping CI in_progress(docs-only 무관). lock 본인 s60 heartbeat ref turnCount 8→9 since 11:06. [2] nextTask=T-0243 → currentTask. [3] executor: LOOP §1[1]·§4 + CLAUDE §10 의 lock 권위 표기를 refs/locks/driver(blob)→refs/heads/claude/lock-driver(commit tip lock.json) CAS 로 동기 + fetch/획득(zero-sha CAS)/해제(tombstone, 브랜치 delete 금지)/worktree 오삭제 가드 + cutover 메모. **ADR-0028 status PROPOSED→ACCEPTED(2026-06-05) flip — ACCEPTED gate 충족.** 3 files +29/-22. [4] direct main commit. tasksCompleted 240→241. **cutover 무중단 검증: 새 프로토콜 효력=다음 fresh session/fire, session #60 은 refs/locks/driver 계속(잔여 t10 + session-end tombstone 동일). split-brain 부재.** 잔여 follow-up: T-0154 SUPERSEDED(차순위) + ADR-0028 첫 cron@cloud 자율 획득 운영 관찰.",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t8 — planner dispatch, T-0243 큐잉(LOOP/CLAUDE claude/lock-driver 동기, ADR-0028 ACCEPTED gate). tasksCompleted 240."
   },
   "ci": {
     "lastRun": "2026-06-05T10:54:00+09:00",
@@ -299,7 +299,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 240,
+    "tasksCompleted": 241,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

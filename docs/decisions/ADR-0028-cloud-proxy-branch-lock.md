@@ -2,13 +2,15 @@
 
 ## Status
 
-PROPOSED (2026-06-05)
+ACCEPTED (2026-06-05)
 
+> doc-sync 완료 — 첫 cron@cloud 자율 lock 획득(403 미재발) 검증은 운영 관찰 대기(Follow-up §3).
+>
 > 본 ADR 은 [ADR-0009](ADR-0009-strong-ref-cas-lock.md) 의 lock **저장소 메커니즘만** revise 한다 — CAS 원자성·강한 mutex·동일역할·read 전 fetch 의무 결정은 그대로 유지한다.
-> ACCEPTED 전이 gate (ADR-0009 의 T-0127/T-0128 패턴 mirror): 후속 direct-mode task 2 개가 머지돼야 한다 —
-> (1) [docs/LOOP.md](../LOOP.md) §1 [1] · §4 의 ref-CAS 획득/해제/fetch 명령을 본 ADR 의 `claude/*` 브랜치 lock 프로토콜로 반영,
+> ACCEPTED 전이 gate (ADR-0009 의 T-0127/T-0128 패턴 mirror) 충족: direct-mode 동기가 [T-0243](../tasks/T-0243-loop-claude-branch-lock-sync.md) 한 task 안에서 둘 다 완료됐다 —
+> (1) [docs/LOOP.md](../LOOP.md) §1 [1] · §4 의 ref-CAS 획득/해제/fetch 명령을 본 ADR 의 `claude/lock-driver` 브랜치 lock 프로토콜로 반영,
 > (2) [CLAUDE.md](../../CLAUDE.md) §10 "동시 실행 정책" 의 strong-mutex 설명을 브랜치 lock 기반으로 동기.
-> 두 동기 task 머지 + 첫 cron@cloud 자율 lock 획득 검증 후 ACCEPTED 로 전이한다.
+> 두 동기 머지 완료로 ACCEPTED — Follow-up §3 운영 검증은 status 메모로 추적.
 
 ## Context
 
