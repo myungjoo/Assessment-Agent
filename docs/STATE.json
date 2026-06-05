@@ -5,34 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0244",
-  "lock": null,
-  "lastActivity": "2026-06-05T11:14:18+09:00",
-  "lastCommit": "414a6e2",
+  "nextTask": null,
+  "lock": {
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-s61",
+    "since": "2026-06-05T13:55:04+09:00",
+    "loopSessionStartedAt": "2026-06-05T13:55:04+09:00",
+    "loopSessionTurnCount": 1
+  },
+  "lastActivity": "2026-06-05T13:55:04+09:00",
+  "lastCommit": "22dd70f",
   "mostRecentTasks": [
+    "T-0244",
     "T-0243",
     "T-0242",
     "T-0241",
-    "T-0240",
-    "T-0239"
+    "T-0240"
   ],
   "loopSession": {
-    "turnCount": 10,
-    "startedAt": "2026-06-05T09:50:07+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-06-05T13:55:04+09:00",
     "cap": 10,
-    "holder": "loop@WIN-JQIPLSBL9QV-s60",
-    "stoppedAt": "2026-06-05T11:14:18+09:00",
-    "stopReason": "user-cap-10-reached",
-    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t10 (사용자 turn cap 10, 마지막 turn) — planner dispatch + 세션 종료. [1] fetch main 414a6e2, T-0243 CI re-verify = **success**(green, ADR-0028 ACCEPTED 박제 확정). lock 본인 s60 heartbeat ref turnCount 9→10 since 11:14, humanQuestion 0, blockers 0. [2] currentTask·nextTask null → planner. T-0154 main 대조 여전히 PENDING 확인 → T-0244 큐잉(T-0154 SUPERSEDED bookkeeping — ADR-0028/T-0242/T-0243 으로 실현·완결, frontmatter status SUPERSEDED + supersededBy pointer, direct doc-only). STATE.nextTask=T-0244. [종료] turnCount 10 = 사용자 cap 10 도달 → ScheduleWakeup 미호출(세션 종료), lock ref tombstone 해제. **cutover: session #60 은 옛 refs/locks/driver 로 시작했고 옛 ref 를 tombstone 으로 해제 — 다음 fresh /loop·cron 진입점은 새 claude/lock-driver 프로토콜(T-0243 동기)로 T-0244 픽업. 단일-활성-driver 보장으로 split-brain 부재.** **세션 #60 성과(5 task): T-0239 api.md doc-sync + T-0240 grant/revoke e2e + T-0241 grant→audit cross-chain e2e → ADR-0027 instance-access grant chain end-to-end 종결(ADR-0024 'safe but useless' gap 종료) + T-0242 ADR-0028 cloud-proxy branch-lock(PROPOSED) + T-0243 LOOP/CLAUDE 동기(ADR-0028 ACCEPTED — cron@cloud 자율성 unblock). tasksCompleted 236→241.**",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t9 — T-0243 DONE(LOOP/CLAUDE claude/lock-driver 동기, ADR-0028 PROPOSED→ACCEPTED flip). cutover 무중단. tasksCompleted 240→241."
+    "holder": "loop@WIN-JQIPLSBL9QV-s61",
+    "note": "loop@WIN-JQIPLSBL9QV-s61 session #61 t1 — fresh /loop(사용자 turn cap 10). **ADR-0028 claude/lock-driver 브랜치-lock 프로토콜의 첫 운영 진입점**: session #60 이 옛 refs/locks/driver 를 tombstone 으로 끝내, 본 session 이 새 claude/lock-driver 브랜치를 zero-sha CAS 로 생성(d0fda72)하며 lock 획득. [1] fetch main 22dd70f, 브랜치 미존재=free 확인 후 본인 lock.json commit push 성공. humanQuestion 0(전원 RESOLVED), blockers 0, CI green. [2] nextTask=T-0244 픽업. [3] executor 1회 — T-0244 DONE(T-0154 frontmatter status PENDING→SUPERSEDED + supersededBy:[ADR-0028,T-0242,T-0243]+supersededAt+상단 SUPERSEDED 박스, historical 본문 보존, direct doc-only 1파일 +7/-1). [4][6] direct main commit + STATE/journal bookkeeping. tasksCompleted 241→242, tasksSuperseded 3→4(T-0154). nextTask=null → t2 planner survey. turnCount 1<10 → reschedule.",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t10(마지막): 5 task 완주(T-0239~T-0243), ADR-0027 instance-access grant chain end-to-end 종결 + ADR-0028 cloud-proxy branch-lock PROPOSED→ACCEPTED. cap 10 도달 종료, refs/locks/driver tombstone."
   },
   "ci": {
-    "lastRun": "2026-06-05T11:10:00+09:00",
+    "lastRun": "2026-06-05T13:55:04+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/414a6e2",
-    "note": "s60 t9: T-0243 direct commit 414a6e2 CI = success(green) — doc-only(LOOP/CLAUDE/ADR-0028) 변경, lint/build/test 전 step pass. t10 에서 re-verify 확인. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/22dd70f",
+    "note": "s61 t1: T-0244 direct doc-only(T-0154 SUPERSEDED frontmatter) commit — main CI 는 push 후 [5] gh run 으로 conclusion 확인(doc-only 라 lint/build/test 변경 0). 직전 green 유지, consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -295,9 +299,9 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 241,
+    "tasksCompleted": 242,
     "tasksBlocked": 7,
-    "tasksSuperseded": 3,
+    "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
   }
 }

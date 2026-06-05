@@ -2,7 +2,9 @@
 id: T-0154
 title: ADR-0015 신설 — cron@web 자율성 확보를 위한 claude/* 브랜치 기반 driver lock (cloud proxy 호환)
 phase: P4
-status: PENDING
+status: SUPERSEDED
+supersededBy: [ADR-0028, T-0242, T-0243]
+supersededAt: 2026-06-05
 commitMode: pr
 coversReq: []
 estimatedDiff: 190
@@ -12,6 +14,10 @@ plannerNote: P4 운영 infra (ADR-0009 후속, REQ 매핑 없음 — dependency-
 ---
 
 # T-0154 — ADR-0015 신설: cron@web 자율성 확보를 위한 claude/\* 브랜치 기반 driver lock
+
+> **🚫 SUPERSEDED (2026-06-05)** — 본 task 는 ADR-0028(T-0242, PR-209) + T-0243 LOOP/CLAUDE 동기 chain 으로 실현·완결됨.
+> ADR-0015 번호는 미선점되어 ADR-0028 로 재배정됐다. 본 task 는 더 이상 실행되지 않는다.
+> 아래 본문(Premise gate / Why / Acceptance Criteria / Out of Scope 등)은 historical 증거로 그대로 보존한다.
 
 ## ⚠️ Premise 재검증 (선행 BLOCKING gate — ADR 작성 전 필수)
 
