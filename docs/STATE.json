@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0241",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-s60",
-    "since": "2026-06-05T10:21:10+09:00",
+    "since": "2026-06-05T10:38:34+09:00",
     "loopSessionStartedAt": "2026-06-05T09:50:07+09:00",
-    "loopSessionTurnCount": 4
+    "loopSessionTurnCount": 5
   },
-  "lastActivity": "2026-06-05T10:21:10+09:00",
-  "lastCommit": "dc15293",
+  "lastActivity": "2026-06-05T10:38:34+09:00",
+  "lastCommit": "cd5f8f9",
   "mostRecentTasks": [
+    "T-0241",
     "T-0240",
     "T-0239",
     "T-0238",
-    "T-0237",
-    "T-0236"
+    "T-0237"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-05T09:50:07+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s60",
-    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t4 (사용자 turn cap 10) — planner dispatch turn. [1] fetch main dc15293, 직전 bookkeeping dc15293 CI in_progress(docs-only 무관), merge 94708b9 CI success. lock 본인 s60 heartbeat ref turnCount 3→4 since 10:21, humanQuestion 0, blockers 0. [2] currentTask·nextTask null → planner dispatch. planner HIGH make-work bar survey: grant chain 종결 후에도 **genuine dependency-free 결함 식별** — ADR-0027 §Consequences L156 이 명시 defer 한 'grant→READ 필터 round-trip e2e'(Follow-up 4). 기존 audit e2e(permission-denied-records.e2e L21-22)는 binding write-path 부재로 non-Admin **빈 배열 fallback** 만 검증; T-0240 e2e 는 grant/revoke 를 **격리** 검증할 뿐 grant→audit-visibility 연쇄 미검증. grant write-path 가 이번 세션 머지로 deferred precondition 충족 → T-0241 큐잉(cross-chain e2e: Admin grant instance → non-Admin 이 그 instance audit 조회 가능, commitMode pr, test-only sizeExempt ~180 LOC). STATE.nextTask=T-0241. [6] doc-only direct bookkeeping. turnCount 4<10 → reschedule, t5 에서 T-0241 executor(pr-mode). **grant chain 의 실 목적(부여→가시성)을 e2e 로 closeout — 진짜 마지막 Follow-up.**",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t3 — T-0240 DONE/MERGED(PR-207, 94708b9). ADR-0027 grant chain 4 slice 전부 종결, ADR-0024 'safe but useless' gap 종료. tasksCompleted 237→238."
+    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t5 (사용자 turn cap 10) — T-0241 DONE/MERGED (PR-208, squash cd5f8f9). ADR-0027 Follow-up(4) cross-chain e2e: test/e2e/user-instance-access-audit-roundtrip.e2e-spec.ts 신설(+297, test-only 0 prod LOC). grant→audit 가시성 round-trip(Admin grant instance X → non-Admin 이 X 의 audit record 노출[부여 전 빈 배열] → revoke 후 다시 빈 배열) + 타-instance 격리 + 정규화 매칭 + Admin bypass 불변 + 미인증 401. reviewer r1/7 APPROVE(0/0/0), CI green(실 PostgreSQL e2e), 4-게이트 PASS → squash merge. [1] fetch main 496f15e, 직전 bookkeeping CI in_progress(docs-only 무관). lock 본인 s60 heartbeat ref turnCount 4→5 since 10:27/10:38. tasksCompleted 238→239, reviewRounds[T-0241]=1. **ADR-0027 grant chain + Follow-up(4) 전부 종결 — grant 의 실 목적(부여→가시성)까지 e2e 검증 완료. dependency-free backlog 재소진 — t6 planner survey 필요(이번엔 escalate 가능성 높음).**",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t4 — planner dispatch, T-0241 큐잉(grant→audit READ 필터 round-trip e2e, ADR-0027 Follow-up 4). grant chain 4 slice 종결 후 genuine 결함 식별. tasksCompleted 238."
   },
   "ci": {
-    "lastRun": "2026-06-05T10:11:00+09:00",
+    "lastRun": "2026-06-05T10:35:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/207",
-    "note": "s60 t3: T-0240 PR-207 CI = success(green) — lint/build/migrate/test+cov/smoke/e2e(실 PostgreSQL grant/revoke round-trip) + reviewer approval 검증 step green. approval-gate race 미발생(reviewer comment 가 approval step 전 도달). squash merge 94708b9. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/208",
+    "note": "s60 t5: T-0241 PR-208 CI = success(green) — lint/build/migrate/test+cov/smoke/e2e(실 PostgreSQL grant→audit round-trip) + reviewer approval 검증 step green. 4-게이트 PASS. squash merge cd5f8f9. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -64,7 +64,8 @@
     "T-0197": 1,
     "T-0237": 1,
     "T-0238": 1,
-    "T-0240": 1
+    "T-0240": 1,
+    "T-0241": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -297,7 +298,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 238,
+    "tasksCompleted": 239,
     "tasksBlocked": 7,
     "tasksSuperseded": 3,
     "tasksAccidentalMerge": 1

@@ -2,8 +2,12 @@
 id: T-0241
 title: grant→own-instance audit READ 필터 round-trip e2e (ADR-0027 Follow-up 4)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-05T10:38:34+09:00
+mergedAs: cd5f8f9
+prNumber: 208
+reviewRounds: 1
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 180
 estimatedFiles: 1
