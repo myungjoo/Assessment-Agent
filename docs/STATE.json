@@ -5,16 +5,10 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
-  "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-s60",
-    "since": "2026-06-05T11:06:11+09:00",
-    "loopSessionStartedAt": "2026-06-05T09:50:07+09:00",
-    "loopSessionTurnCount": 9
-  },
-  "lastActivity": "2026-06-05T11:06:11+09:00",
-  "lastCommit": "9268f31",
+  "nextTask": "T-0244",
+  "lock": null,
+  "lastActivity": "2026-06-05T11:14:18+09:00",
+  "lastCommit": "414a6e2",
   "mostRecentTasks": [
     "T-0243",
     "T-0242",
@@ -23,20 +17,22 @@
     "T-0239"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-05T09:50:07+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s60",
-    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t9 (사용자 turn cap 10) — T-0243 DONE (LOOP/CLAUDE lock 프로토콜 claude/lock-driver 동기, direct). [1] fetch main 9268f31, 직전 bookkeeping CI in_progress(docs-only 무관). lock 본인 s60 heartbeat ref turnCount 8→9 since 11:06. [2] nextTask=T-0243 → currentTask. [3] executor: LOOP §1[1]·§4 + CLAUDE §10 의 lock 권위 표기를 refs/locks/driver(blob)→refs/heads/claude/lock-driver(commit tip lock.json) CAS 로 동기 + fetch/획득(zero-sha CAS)/해제(tombstone, 브랜치 delete 금지)/worktree 오삭제 가드 + cutover 메모. **ADR-0028 status PROPOSED→ACCEPTED(2026-06-05) flip — ACCEPTED gate 충족.** 3 files +29/-22. [4] direct main commit. tasksCompleted 240→241. **cutover 무중단 검증: 새 프로토콜 효력=다음 fresh session/fire, session #60 은 refs/locks/driver 계속(잔여 t10 + session-end tombstone 동일). split-brain 부재.** 잔여 follow-up: T-0154 SUPERSEDED(차순위) + ADR-0028 첫 cron@cloud 자율 획득 운영 관찰.",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t8 — planner dispatch, T-0243 큐잉(LOOP/CLAUDE claude/lock-driver 동기, ADR-0028 ACCEPTED gate). tasksCompleted 240."
+    "stoppedAt": "2026-06-05T11:14:18+09:00",
+    "stopReason": "user-cap-10-reached",
+    "note": "loop@WIN-JQIPLSBL9QV-s60 session #60 t10 (사용자 turn cap 10, 마지막 turn) — planner dispatch + 세션 종료. [1] fetch main 414a6e2, T-0243 CI re-verify = **success**(green, ADR-0028 ACCEPTED 박제 확정). lock 본인 s60 heartbeat ref turnCount 9→10 since 11:14, humanQuestion 0, blockers 0. [2] currentTask·nextTask null → planner. T-0154 main 대조 여전히 PENDING 확인 → T-0244 큐잉(T-0154 SUPERSEDED bookkeeping — ADR-0028/T-0242/T-0243 으로 실현·완결, frontmatter status SUPERSEDED + supersededBy pointer, direct doc-only). STATE.nextTask=T-0244. [종료] turnCount 10 = 사용자 cap 10 도달 → ScheduleWakeup 미호출(세션 종료), lock ref tombstone 해제. **cutover: session #60 은 옛 refs/locks/driver 로 시작했고 옛 ref 를 tombstone 으로 해제 — 다음 fresh /loop·cron 진입점은 새 claude/lock-driver 프로토콜(T-0243 동기)로 T-0244 픽업. 단일-활성-driver 보장으로 split-brain 부재.** **세션 #60 성과(5 task): T-0239 api.md doc-sync + T-0240 grant/revoke e2e + T-0241 grant→audit cross-chain e2e → ADR-0027 instance-access grant chain end-to-end 종결(ADR-0024 'safe but useless' gap 종료) + T-0242 ADR-0028 cloud-proxy branch-lock(PROPOSED) + T-0243 LOOP/CLAUDE 동기(ADR-0028 ACCEPTED — cron@cloud 자율성 unblock). tasksCompleted 236→241.**",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s60 session #60 t9 — T-0243 DONE(LOOP/CLAUDE claude/lock-driver 동기, ADR-0028 PROPOSED→ACCEPTED flip). cutover 무중단. tasksCompleted 240→241."
   },
   "ci": {
-    "lastRun": "2026-06-05T10:54:00+09:00",
+    "lastRun": "2026-06-05T11:10:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/209",
-    "note": "s60 t7: T-0242 PR-209 CI = success(green) — doc-only ADR 변경(lint/build/test 169 suites/3345 + reviewer approval 검증 step green). 4-게이트 PASS. squash merge c5926fd. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/414a6e2",
+    "note": "s60 t9: T-0243 direct commit 414a6e2 CI = success(green) — doc-only(LOOP/CLAUDE/ADR-0028) 변경, lint/build/test 전 step pass. t10 에서 re-verify 확인. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
