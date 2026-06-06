@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0256",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s67",
-    "since": "2026-06-06T16:46:00+09:00",
+    "since": "2026-06-06T16:58:38+09:00",
     "loopSessionStartedAt": "2026-06-06T15:38:39+09:00",
-    "loopSessionTurnCount": 5
+    "loopSessionTurnCount": 6
   },
-  "lastActivity": "2026-06-06T16:50:00+09:00",
-  "lastCommit": "f766837",
+  "lastActivity": "2026-06-06T17:00:00+09:00",
+  "lastCommit": "3c37f58",
   "mostRecentTasks": [
     "T-0255",
     "T-0254",
@@ -23,20 +23,20 @@
     "T-0251"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-06-06T15:38:39+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s67",
-    "note": "loop@AKIHA-s67 (KST 06-06 16:50) turn 5 — T-0255(ADR-0029 slice vii doc-sync) DONE. [1] fetch 0d5f13f(0/0) + 직전 planner CI 0d5f13f=success(R-114). lock heartbeat 68632eb→d023451(turnCount 4→5, since 16:46). [2] nextTask=T-0255 픽업(direct doc). [3~4] driver 직접 수행(sub-agent 0): modules.md 9→10 module reconcile = AssessmentCollectionModule row 추가 + AssessmentModule row 수집(P4)/평가(P5) 분리 + mermaid 노드/edge(collection→github/confluence/user) + topological order + acyclic 금지 행 + components mapping(Worker 1:2) + 카운트 일관 + ADR-0029 L37 import 토폴로지 collection→persistence→collection→user 정정(T-0254 reviewer MINOR-1 closeout). 코드 변경 0(R-110 doc-only 면제), content commit f766837(+25/-15, 2 파일). tasksCompleted 252→253. [6] bookkeeping 별도 commit. [8] turnCount 5<10 → ScheduleWakeup 재예약, lock 유지.",
-    "notePrev": "loop@AKIHA-s67 (KST 06-06 16:39) turn 4 — planner-only turn, T-0255(slice vii doc-sync) 큐잉. v-b2 enumerate 는 ServiceIdentity org/repo 부재로 ADR-first 후순위. lock heartbeat 68632eb(turnCount 4)."
+    "note": "loop@AKIHA-s67 (KST 06-06 17:00) turn 6 — planner-only turn. [1] fetch 3c37f58(0/0 sync) + 직전 T-0255 doc CI 3c37f58=success(R-114, t5 ci.status running→green 확정). lock heartbeat d023451→a98b547(turnCount 5→6, since 16:58:38). [2] currentTask·nextTask null → planner sub-agent dispatch(decision-only, driver write). planner survey: ADR-0029 collection mock-unit slice 완결(매퍼/orchestrator/영속화/module/doc 머지). 남은 v-b2 enumerate 의 org/repo source 결정 = README L16-18 이 '지정 org 전체 Repository 혹은 지정 Repository' 두 모드를 product 요구로 박제 → ambiguity 아닌 dependency-free 설계 결정(env allowlist + 기존 requestAllPagesForInstance wrapper, DB allowlist 는 §5 게이트라 기각). ESCALATE 아닌 ADR-first → **T-0256 큐잉**(collection enumerate 설계 ADR = ADR-0030 예정: repo source 정책 + Person→instance 매핑 + Confluence enumerate + since 경계 + collectForPerson 계약, pr-mode architect→tester, impl 0 LOC ~230). [6] doc-only direct bookkeeping. [8] turnCount 6<10 → ScheduleWakeup 재예약, lock 유지.",
+    "notePrev": "loop@AKIHA-s67 (KST 06-06 16:50) turn 5 — T-0255(ADR-0029 slice vii doc-sync) DONE(direct content f766837 + bookkeeping 3c37f58). modules.md 9→10 module reconcile + ADR-0029 L37 collection→user 정정(reviewer MINOR-1 closeout). tasksCompleted 252→253. lock heartbeat d023451(turnCount 5)."
   },
   "ci": {
-    "lastRun": "2026-06-06T16:50:00+09:00",
-    "status": "running",
+    "lastRun": "2026-06-06T16:58:00+09:00",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/f766837",
-    "note": "s67 t5: T-0255 direct doc-sync(modules.md + ADR-0029) content f766837 + bookkeeping commit 을 main push — main CI 진행 중(doc-only, 다음 turn [1] 에서 conclusion 재확인). 직전 T-0254 PR-218 CI green. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/3c37f58",
+    "note": "s67 t6: T-0255 main doc CI(3c37f58) = success 확정(t5 의 running 해소). 직전 T-0254 PR-218 green. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
