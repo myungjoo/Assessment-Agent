@@ -2,7 +2,10 @@
 id: T-0269
 title: modules.md AssessmentCollectionModule row 를 SinceDerivationService 배선(slice vi)으로 doc-sync
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-07T00:10:00+09:00
+mergeCommit: 9635b7d
+result: "modules.md AssessmentCollectionModule row 를 9-service 배선(SinceDerivationService slice vi 추가)으로 정합 + stale 'since pass-through'→slice vi 완료 정정 + line3 머리말 T-0269 이력. direct doc-only(content 9635b7d), reviewer/PR/tester 불요(R-110 면제). +2/-2 1파일."
 commitMode: direct
 coversReq: [REQ-031, REQ-005, REQ-006, REQ-007, REQ-008, REQ-015]
 estimatedDiff: 12
