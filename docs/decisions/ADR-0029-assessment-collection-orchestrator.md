@@ -26,7 +26,7 @@ GitHub adapter (`src/github/`) + Confluence adapter (`src/confluence/`) 는 tran
 - **REQ-005 / REQ-006 / REQ-007 / REQ-008**([docs/requirements.md](../requirements.md)) — GitHub 3 instance(com / sec / ecode) 활동(commit / PR / Issue) 수집 + 권한 부족 통지. 본 ADR 의 orchestration 계약이 그 enumerate 구조를 박제.
 - **REQ-009 / REQ-010 / REQ-015**([docs/requirements.md](../requirements.md)) — Fork/Rebase/Meld 중복 제거 + 시간적 중복(earlier date 우선) + Confluence 지정 SPACE 문서 활동. 본 ADR 의 dedup 결정이 cover.
 - **REQ-031**([docs/requirements.md](../requirements.md) L58) — 재수집 중복 방지 + 최근 1주 재수집 OK. dedup + incremental since 결정이 backbone.
-- **REQ-032 / REQ-059 (raw-not-stored invariant)**([data-model.md §4](../architecture/data-model.md), README L59) — raw commit 본문 / 문서 본문 미저장. mapper 경계 결정(raw `unknown` → typed `Activity` → 영속화는 typed 필드만)이 본 invariant 를 application-layer 에서 보존.
+- **REQ-032 (raw-not-stored invariant)**([data-model.md §4](../architecture/data-model.md)) — raw commit 본문 / 문서 본문 미저장. mapper 경계 결정(raw `unknown` → typed `Activity` → 영속화는 typed 필드만)이 본 invariant 를 application-layer 에서 보존.
 
 ## Decision
 
@@ -46,7 +46,7 @@ GitHub adapter (`src/github/`) + Confluence adapter (`src/confluence/`) 는 tran
 - `GithubActivity` extends: `repoRef`(org/repo) / `kind`(`"commit" | "pr" | "issue"`).
 - `ConfluenceActivity` extends: `spaceRef`(SPACE key) / `version`(page version number).
 - **mapper 경계**: raw `unknown[]`(adapter 반환) → `Activity[]` 변환은 **별도 mapper 함수 layer**(`github-activity.mapper` / `confluence-activity.mapper`, 순수 함수)가 단독 책임. orchestrator service 는 mapper 를 호출만 하고 raw shape 를 직접 parse 하지 않는다(SRP + unit-testable 경계).
-- **REQ-032 / REQ-059 raw-not-stored 보존**: mapper 는 raw 응답에서 **typed 필드만 추출**하고 raw body(commit message 전문 / page 본문 HTML 등)는 `Activity` 에 싣지 않는다 — raw `unknown` 객체는 매핑 직후 폐기(in-memory transient). 영속화 대상은 `Activity` 의 typed 필드를 거쳐 `Contribution` 의 참조 식별자(URL / SHA / version)만이며, raw 본문 컬럼은 schema 차원에 부재([data-model.md §4](../architecture/data-model.md)). `metadata` 는 raw 본문이 아닌 typed 보조값(예: PR title 길이 · 변경 파일 수 같은 평가 입력 메타)만 — raw quote 금지.
+- **REQ-032 raw-not-stored 보존**: mapper 는 raw 응답에서 **typed 필드만 추출**하고 raw body(commit message 전문 / page 본문 HTML 등)는 `Activity` 에 싣지 않는다 — raw `unknown` 객체는 매핑 직후 폐기(in-memory transient). 영속화 대상은 `Activity` 의 typed 필드를 거쳐 `Contribution` 의 참조 식별자(URL / SHA / version)만이며, raw 본문 컬럼은 schema 차원에 부재([data-model.md §4](../architecture/data-model.md)). `metadata` 는 raw 본문이 아닌 typed 보조값(예: PR title 길이 · 변경 파일 수 같은 평가 입력 메타)만 — raw quote 금지.
 
 ### (3) Orchestration 계약 — instance × org × repo / instance × SPACE loop + skip-and-continue 재사용
 
@@ -109,7 +109,7 @@ GitHub adapter (`src/github/`) + Confluence adapter (`src/confluence/`) 는 tran
 ## Alternatives
 
 - **(a) 기존 `AssessmentModule` 확장(수집+평가 동일 module)** — 미채택. 수집(P4)과 평가(P5)의 phase · 책임 · test · 의존성(LLM import 여부) 경계가 달라 한 module 이 비대해지고, scheduler(P7) trigger 시 책임 혼선. (1) 의 분리가 응집도 우위.
-- **(b) raw 응답을 그대로 영속화 후 후처리** — 미채택. REQ-032 / REQ-059 raw-not-stored invariant 정면 위반(별도 ADR 없이 raw column 금지, [data-model.md §4](../architecture/data-model.md) / [CLAUDE.md §5](../../CLAUDE.md)). mapper 가 typed 필드만 추출하는 (2) 가 invariant 보존.
+- **(b) raw 응답을 그대로 영속화 후 후처리** — 미채택. REQ-032 raw-not-stored invariant 정면 위반(별도 ADR 없이 raw column 금지, [data-model.md §4](../architecture/data-model.md) / [CLAUDE.md §5](../../CLAUDE.md)). mapper 가 typed 필드만 추출하는 (2) 가 invariant 보존.
 - **(c) orchestrator 가 adapter 를 직접 호출(wrapper service bypass)** — 미채택. `GithubInstanceClient` / `ConfluenceSpaceTraversalService` 가 token JIT decrypt · SPACE 순회 · skip-and-continue 를 이미 캡슐화하므로 bypass 는 그 로직을 중복 구현. (3) 의 wrapper 재사용이 DRY + 보안 invariant(never-read-back) 보존.
 - **(d) dedup 을 DB unique constraint 에만 위임** — 미채택. Fork/Rebase/Meld 의 earliest-timestamp wins(REQ-009)는 "어느 row 를 살릴지" 의 application 의미 결정이라 schema unique 만으로 표현 불가. (4) 의 pre-persistence in-memory dedup 이 필요.
 - **(e) live 수집 e2e 를 본 effort 에 포함** — 미채택. 사용자 Q-0025 결정 + UI 부재로 검증 surface 가 없어 flaky/무의미. (7) 의 deferred 가 사용자 결정 정합.
