@@ -12,15 +12,59 @@
 // 회피한다(github.module.spec.ts 동일 패턴).
 
 // PrismaService 를 mock — PrismaClient extends 의 부작용(adapter 생성 / connect)을
-// 회피. PermissionDeniedRecordRepository 가 permissionDeniedRecord delegate 를 쓰므로
-// 그 delegate 와 lifecycle hook 을 stub 한다. 본 spec 은 instance 동작이 아닌 module
-// compile + wiring 만 검증.
+// 회피. PermissionDeniedRecordRepository 가 permissionDeniedRecord delegate 를,
+// (T-0254 UserModule import 추가로) UserModule 의 repository 들이 person/group/part/
+// personGroupMembership/assessment/contribution delegate 를 inject 하므로 그 delegate 들과
+// lifecycle hook 을 stub 한다(user.module.spec.ts mock mirror). 본 spec 은 instance 동작이
+// 아닌 module compile + wiring 만 검증한다.
 jest.mock("../persistence/prisma.service", () => ({
   PrismaService: class MockPrismaService {
     permissionDeniedRecord = {
       create: jest.fn(),
       findMany: jest.fn(),
     };
+    person = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    };
+    group = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    part = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    personGroupMembership = {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    assessment = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    contribution = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    summary = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    user = { findUnique: jest.fn(), update: jest.fn() };
     onModuleInit = jest.fn().mockResolvedValue(undefined);
     enableShutdownHooks = jest.fn();
   },
@@ -36,6 +80,8 @@ import { PersistenceModule } from "../persistence/persistence.module";
 import { AssessmentCollectionModule } from "./assessment-collection.module";
 // eslint-disable-next-line import/first
 import { CollectionOrchestratorService } from "./collection-orchestrator.service";
+// eslint-disable-next-line import/first
+import { CollectionPersistenceService } from "./collection-persistence.service";
 // eslint-disable-next-line import/first
 import { ConfluenceCollectionService } from "./confluence-collection.service";
 // eslint-disable-next-line import/first
@@ -64,6 +110,29 @@ describe("AssessmentCollectionModule", () => {
     const orchestrator = moduleRef.get(CollectionOrchestratorService);
     expect(orchestrator).toBeDefined();
     expect(orchestrator).toBeInstanceOf(CollectionOrchestratorService);
+
+    // 영속화 service(slice v-c)도 orchestrator + UserModule 의 ContributionService
+    // 주입으로 resolve 됨(UserModule import 정합 + 새 provider 등록 증명).
+    const persistence = moduleRef.get(CollectionPersistenceService);
+    expect(persistence).toBeDefined();
+    expect(persistence).toBeInstanceOf(CollectionPersistenceService);
+
+    await moduleRef.close();
+  });
+
+  // Negative / exports 정합(4): CollectionPersistenceService 도 sentinel override →
+  // resolve 검증. 영속화 service 의 exports 등록을 독립 cover(후속 enumerate slice 가 inject).
+  it("CollectionPersistenceService provider 가 sentinel 로 override 되어도 compile 한다 (exports 등록 정합)", async () => {
+    const sentinel = { __sentinel: "collection-persistence-override" };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, AssessmentCollectionModule],
+    })
+      .overrideProvider(CollectionPersistenceService)
+      .useValue(sentinel)
+      .compile();
+
+    const resolved = moduleRef.get(CollectionPersistenceService);
+    expect(resolved).toBe(sentinel);
 
     await moduleRef.close();
   });
@@ -135,6 +204,7 @@ describe("AssessmentCollectionModule", () => {
     expect(() => moduleRef.get(GithubCollectionService)).toThrow();
     expect(() => moduleRef.get(ConfluenceCollectionService)).toThrow();
     expect(() => moduleRef.get(CollectionOrchestratorService)).toThrow();
+    expect(() => moduleRef.get(CollectionPersistenceService)).toThrow();
 
     await moduleRef.close();
   });
