@@ -5,15 +5,9 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
-  "lock": {
-    "holder": "loop",
-    "session": "loop@AKIHA-s67",
-    "since": "2026-06-06T17:33:25+09:00",
-    "loopSessionStartedAt": "2026-06-06T15:38:39+09:00",
-    "loopSessionTurnCount": 9
-  },
-  "lastActivity": "2026-06-06T17:42:00+09:00",
+  "nextTask": "T-0258",
+  "lock": null,
+  "lastActivity": "2026-06-06T17:51:00+09:00",
   "lastCommit": "d445db5",
   "mostRecentTasks": [
     "T-0257",
@@ -23,12 +17,14 @@
     "T-0253"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-06T15:38:39+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s67",
-    "note": "loop@AKIHA-s67 (KST 06-06 17:42) turn 9 — T-0257(ADR-0030 §5 collection enumerate slice i) DONE/MERGED. [1] fetch f283be8(0/0) + 직전 planner CI f283be8=success(R-114). lock heartbeat d91b6f6→379714c(turnCount 8→9, since 17:33:25). [2] nextTask=T-0257 픽업. [3~4] driver 직접 구현(env 제약): GithubInstanceConfig 에 repos: string[] 필드 + GITHUB_REPOS_SUFFIX('_REPOS') + resolveGithubInstances 가 _REPOS 를 /[\\s,]+/ split·trim·빈토큰제거(빈/부재=빈 배열). 기존 _HOST/_ORG/_TOKEN_ENC 불변, github-token-decrypt.spec literal 에 repos:[] 추가(consumer 회귀 방지). spec +11 _REPOS test(happy/negative7/branch). lint/build/test(178 suite 3427 pass)/cov(github-instance-config 100%) 통과. PR-220 push, reviewer → APPROVE(0 findings clean). approve comment → 첫 pull_request run approval race fail → rerun --failed → green. 4-게이트 PASS → squash merge d445db5. tasksCompleted 254→255. [6] doc-only direct bookkeeping. [8] turnCount 9<10 → ScheduleWakeup 재예약(turn 10 = 마지막), lock 유지.",
-    "notePrev": "loop@AKIHA-s67 (KST 06-06 17:27) turn 8 — planner-only turn, T-0257(ADR-0030 §5 collection enumerate slice i = _REPOS env parser) 큐잉. lock heartbeat d91b6f6(turnCount 8)."
+    "stoppedAt": "2026-06-06T17:51:00+09:00",
+    "stopReason": "10-turn-cap-reached-clean-stop-T-0258-queued",
+    "note": "loop@AKIHA-s67 (KST 06-06 17:51) turn 10 (FINAL, 10-turn cap) — planner-only turn. [1] fetch 8371015(0/0 sync) + 직전 T-0257 bookkeeping CI 8371015=success(R-114). lock 점유 확인(turnCount 9). [2] currentTask·nextTask null → planner dispatch(decision-only) → **T-0258 큐잉**(ADR-0030 §5 cap-split slice ii-a = Person→GitHub instance 매칭 + mode B allowlist repo source 산출 순수 함수, client 호출 0; mode A async org enumerate + 전체 buildCollectionSpec 은 ii-b 로 분리; domain/github-repo-source.ts + spec, pr ~280 LOC/2 파일). **§1[8](e) 10-turn cap 도달 → ScheduleWakeup 재예약 안 함, 본 session #67 STOP + lock tombstone 해제.** 사용자에게 cleanup(/compact 또는 /clear 후 새 /loop, 또는 cron 대기) 안내. [session #67 요약] 10 turn 에 ADR-0029 collection pipeline 5 머지 + 다음 slice 큐잉: T-0253(orchestrator aggregate)·T-0254(영속화)·T-0255(modules.md doc-sync)·T-0256(ADR-0030 enumerate 설계)·T-0257(_REPOS env parser) → tasksCompleted 250→255, blockers 0, CI green 유지. 운영: launch worktree stale(bd9d371)라 origin/main FF main checkout 에서 실행, env 제약(phantom-worktree sub-agent write 격리)으로 driver 직접 구현·reviewer/planner 만 sub-agent.",
+    "notePrev": "loop@AKIHA-s67 (KST 06-06 17:42) turn 9 — T-0257(ADR-0030 §5 collection enumerate slice i = _REPOS env parser) DONE/MERGED(PR-220 squash d445db5, reviewer APPROVE 0 findings, 4-게이트 PASS). tasksCompleted 254→255. lock heartbeat 379714c(turnCount 9)."
   },
   "ci": {
     "lastRun": "2026-06-06T17:41:00+09:00",
