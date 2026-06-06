@@ -2,7 +2,7 @@
 id: T-0258
 title: ADR-0030 §5 enumerate slice ii-a — Person→GitHub instance 매칭 + mode B allowlist repo source 산출(순수 함수)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-024]
 estimatedDiff: 280
@@ -56,4 +56,12 @@ ADR-0030 §5 의 cap-split 3 slice(i: `_REPOS` env parser=T-0257 머지, ii: `bu
 
 ## Follow-ups
 
-(작성 시 비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
+- slice ii-b1 (T-0259): mode A(빈 allowlist) org→repo async enumerate — `orgEnumerateTargets` 소비.
+- slice ii-b2: 전체 `buildCollectionSpec(person, since?)` 조립 (GitHub A+B + Confluence + since).
+- slice iii: `collectForPerson` 진입 + 영속화 결선 + author 필터.
+- (reviewer nit, 비-차단) mode B token-level dedup 부재 — downstream SHA dedup 이 흡수, 필요 시 ii-b 통합 시 자연 해소.
+
+## 완료 기록
+
+- DONE 2026-06-06 (loop@AKIHA-s68). PR-221 squash-merge `3987155`, reviewer APPROVE round 1/7 (0 BLOCKER/0 MAJOR/1 MINOR[LOC overage 비-차단]/1 nit[비-차단]), 4-게이트 PASS, CI green (approval-gate race → approve comment + rerun).
+- 산출: `src/assessment-collection/domain/github-repo-source.ts` (`resolveGithubRepoSources` 순수 함수) + colocated spec (15 case, 신규 파일 cov 100%). +388 LOC/2 파일.

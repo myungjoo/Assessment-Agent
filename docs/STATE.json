@@ -5,34 +5,32 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0258",
+  "nextTask": "T-0259",
   "lock": null,
-  "lastActivity": "2026-06-06T17:51:00+09:00",
-  "lastCommit": "d445db5",
+  "lastActivity": "2026-06-06T19:35:00+09:00",
+  "lastCommit": "3987155",
   "mostRecentTasks": [
+    "T-0258",
     "T-0257",
     "T-0256",
     "T-0255",
-    "T-0254",
-    "T-0253"
+    "T-0254"
   ],
   "loopSession": {
-    "turnCount": 10,
-    "startedAt": "2026-06-06T15:38:39+09:00",
+    "turnCount": 2,
+    "startedAt": "2026-06-06T19:12:08+09:00",
     "cap": 10,
-    "holder": "loop@AKIHA-s67",
-    "stoppedAt": "2026-06-06T17:51:00+09:00",
-    "stopReason": "10-turn-cap-reached-clean-stop-T-0258-queued",
-    "note": "loop@AKIHA-s67 (KST 06-06 17:51) turn 10 (FINAL, 10-turn cap) — planner-only turn. [1] fetch 8371015(0/0 sync) + 직전 T-0257 bookkeeping CI 8371015=success(R-114). lock 점유 확인(turnCount 9). [2] currentTask·nextTask null → planner dispatch(decision-only) → **T-0258 큐잉**(ADR-0030 §5 cap-split slice ii-a = Person→GitHub instance 매칭 + mode B allowlist repo source 산출 순수 함수, client 호출 0; mode A async org enumerate + 전체 buildCollectionSpec 은 ii-b 로 분리; domain/github-repo-source.ts + spec, pr ~280 LOC/2 파일). **§1[8](e) 10-turn cap 도달 → ScheduleWakeup 재예약 안 함, 본 session #67 STOP + lock tombstone 해제.** 사용자에게 cleanup(/compact 또는 /clear 후 새 /loop, 또는 cron 대기) 안내. [session #67 요약] 10 turn 에 ADR-0029 collection pipeline 5 머지 + 다음 slice 큐잉: T-0253(orchestrator aggregate)·T-0254(영속화)·T-0255(modules.md doc-sync)·T-0256(ADR-0030 enumerate 설계)·T-0257(_REPOS env parser) → tasksCompleted 250→255, blockers 0, CI green 유지. 운영: launch worktree stale(bd9d371)라 origin/main FF main checkout 에서 실행, env 제약(phantom-worktree sub-agent write 격리)으로 driver 직접 구현·reviewer/planner 만 sub-agent.",
-    "notePrev": "loop@AKIHA-s67 (KST 06-06 17:42) turn 9 — T-0257(ADR-0030 §5 collection enumerate slice i = _REPOS env parser) DONE/MERGED(PR-220 squash d445db5, reviewer APPROVE 0 findings, 4-게이트 PASS). tasksCompleted 254→255. lock heartbeat 379714c(turnCount 9)."
+    "holder": "loop@AKIHA-s68",
+    "note": "loop@AKIHA-s68 (KST 06-06 19:35) turn 2 — T-0258 DONE/MERGED(PR-221 squash 3987155, reviewer APPROVE r1: 0 BLOCKER/0 MAJOR/1 MINOR[388 LOC>cap300, R-112 spec 247 LOC 주도 비-차단]/1 nit[mode B token dedup, downstream SHA dedup 흡수 비-차단], 4-게이트 PASS, CI approval-gate race→approve comment+`gh run rerun --failed` green). ADR-0030 §5 enumerate slice ii-a: src/assessment-collection/domain/github-repo-source.ts 의 resolveGithubRepoSources 순수·동기 함수(normalizeKey trim+대문자 service↔instance.key 매칭·매칭부재 skip, mode B org/repo split + bare repo×orgs cross-product, mode A=orgEnumerateTargets 노출 client 0, since pass-through), colocated spec 15 case 신규파일 cov 100%, unit 3441 pass, lint/build/smoke/e2e green. driver 직접 구현(env phantom-worktree write 격리), reviewer/planner 만 sub-agent. tasksCompleted 255→256, reviewRounds[T-0258]=1, mostRecentTasks prepend T-0258. [turn 1=lock 획득+implement+PR-221 open / turn 2=reviewer dispatch+CI rerun+merge+planner T-0259 큐잉]. planner T-0259 큐잉(ADR-0030 §1 slice ii-b1 = mode A org→repo async enumerate, pr ~270 LOC/4파일; 전체 ii-b cap 초과라 enumerate 단독 split, buildCollectionSpec 조립은 ii-b2). 운영: 새 session #68, TZ='Asia/Seoul' git-bash 버그(+9h offset) 확인 → plain date(local KST) 사용, lock since 10:12→19:34 정정. lock heartbeat cb93fd3→3b6c6c6(turnCount 2/10). [다음] turn 3 = T-0259 executor(implementer→tester)→reviewer→merge. ci: green; blockers: 0; humanQuestions: 0.",
+    "notePrev": "loop@AKIHA-s67 (KST 06-06 17:51) turn 10 FINAL — 10-turn cap clean STOP. session #67 은 10 turn 에 ADR-0029 collection pipeline 5 PR 머지(T-0253~T-0257) + T-0258 큐잉. tasksCompleted 250→255, blockers 0, CI green 유지."
   },
   "ci": {
-    "lastRun": "2026-06-06T17:41:00+09:00",
+    "lastRun": "2026-06-06T19:29:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/220",
-    "note": "s67 t9: T-0257 PR-220 — 첫 pull_request run 27057654750 의 'reviewer agent approval 검증' step 만 race fail(나머지 success), approve comment 후 rerun --failed 로 동일 run green. merge squash d445db5. 직전 planner CI f283be8 green. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/221",
+    "note": "s68 t2: T-0258 PR-221 — pull_request run 27059705264 의 'reviewer agent approval 검증' step 만 race fail(lint/build/test/cov/smoke/e2e 전부 success), approve comment 후 `gh run rerun --failed` 로 동일 run green. merge squash 3987155. consecutiveFails 0. 본 bookkeeping direct commit 의 main CI 는 push 후 확인 예정(R-114)."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -73,7 +71,8 @@
     "T-0253": 1,
     "T-0254": 1,
     "T-0256": 1,
-    "T-0257": 1
+    "T-0257": 1,
+    "T-0258": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -346,7 +345,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 255,
+    "tasksCompleted": 256,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
