@@ -5,9 +5,9 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0252",
   "lock": null,
-  "lastActivity": "2026-06-06T13:16:00+09:00",
+  "lastActivity": "2026-06-06T13:23:00+09:00",
   "lastCommit": "4755418",
   "mostRecentTasks": [
     "T-0251",
@@ -17,14 +17,14 @@
     "T-0247"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-06T11:49:00+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s66",
     "stoppedAt": null,
     "stopReason": null,
-    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 13:16) turn 7 — free lock CAS 획득 s66(5402ead→9c6a3da). T-0251(ADR-0029 collection slice (iv) AssessmentCollectionModule 배선 + app.module 등록) executor 완수(3 파일/+180, 순수 DI 분기 0, module spec 4 test) 후 driver commit/push. integrator NEEDS_REVIEW(reviewer dispatch 불가, fallback 지시대로) → driver 가 reviewer 직접 dispatch APPROVE r1 0 findings(comment issuecomment-4637349614). **T-0251 DONE/MERGED(PR-215 squash 4755418)**: 4-게이트 PASS — pull_request run 27052312423 success(comment 가 run in_progress 중 post 돼 approval step 직접 통과, race fail 없음). GithubCollectionService/ConfluenceCollectionService 가 app DI graph 에 편입됨. tasksCompleted 248→249, reviewRounds[T-0251]=1. [다음] nextTask 없음 — turn 8 planner 가 slice (v) orchestrator entry + Contribution 영속화 큐잉 예정. live UI 이후 defer, 새 dep/credential 0. [dynamic] turnCount 7/10 — ScheduleWakeup 재예약.",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 6 (KST 13:05) — planner-only: T-0251 큐잉(ADR-0029 collection slice (iv) AssessmentCollectionModule 배선). T-0250 doc CI success 확인."
+    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 13:23) turn 8 — planner-only turn. free lock CAS 획득 s66(2206769→bde6b92). nextTask 비어 planner dispatch → **T-0252 큐잉**(ADR-0029 slice (v) SPLIT — orchestrator entry+영속화가 colocated spec 포함 시 cap 초과라 dependency-first 순수 매퍼만 큐잉: Activity → ContributionCreateInput, 나머지 entry+영속화+since 는 Follow-ups). planner 가 ADR-0029 §6 'github:commit' 예시 literal 이 ContributionService.VALID_SOURCE_TYPES(commit/pr/document) validation 에 fail 함을 발견 → 매퍼가 valid literal 만 emit(issue→pr, confluence→document) + placeholder evaluation 필드(P5 채움)로 task 에 박제. T-0251 merge 의 doc-only CI(be9f2fd) success 확인. [다음] turn 9 가 T-0252 executor→integrator 실행. live UI 이후 defer, 새 dep/credential 0. [dynamic] turnCount 8/10 — ScheduleWakeup 재예약(턴 10 cap 근접).",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 7 (KST 13:16) — T-0251 DONE/MERGED(PR-215 squash 4755418, ADR-0029 slice (iv) module 배선). integrator NEEDS_REVIEW → driver fallback(ADR-0005) reviewer+게이트+merge. tasksCompleted 248→249."
   },
   "ci": {
     "lastRun": "2026-06-06T13:16:00+09:00",
@@ -332,7 +332,10 @@
       "recommendation": "상황은 Q-0024 대비 본질적으로 unchanged — 그때 식별된 유일 dependency-free 잔여(L147 PLAN drift)가 T-0246 으로 닫혔고, 그 외 남은 P4 major 는 전부 §5 게이트다. 가장 큰 가치 unblock 은 (1) milestone-3 잔여 host live run — spec 이 이미 머지돼 있어 token 주입만으로 즉시 검증 가능하나 §5 credential 게이트라 사용자 token 제공 필요(GitHub PUBLIC 은 이미 VERIFIED). token 제공 의사가 없으면 (2) Stryker(새 dep+ADR) 또는 (3) other/정지. planner 단독으로 진행 가능한 dependency-free 작업은 없음 — make-work 날조 회피 차원에서 escalate.",
       "resolutionHint": "docs/STATE.json 의 본 Q-0025 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 token credential scope[Confluence base URL/token + Enterprise GitHub host 별 token] 및 secrets.env 경로·만료 명시 / (2) 선택 시 Stryker ADR 진행 승인 / (3) 선택 시 우선순위 또는 정지)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(GitHub·Confluence token)은 코드·STATE·journal·git 에 실값 금지, env/secret 주입(§9). (1) 의 live smoke spec 은 이미 origin/main 에 존재하므로 token 만 주입하면 신규 코드 없이 검증 진입 가능.",
       "resolvedAt": "2026-06-06T11:05:00+09:00",
-      "decision": "option (3) 방향 재지시 — 사용자가 milestone-3 의 **Assessment collection orchestrator service 구현**을 지시(planner 의 'make-work' 판단을 사용자 우선순위로 override — 이는 README REQ-005~010/015/031 의 핵심 backend 이지 make-work 아님). 배경: GitHub(com/sec/ecode 3 host 전부) + Confluence 의 adapter/transport/instance-config/token-decrypt/permission-denied emit 은 이미 머지·단위테스트 완료이나 **자기 test 외 caller 0** — 이들을 실제 호출해 활동(commit/PR/issue/page)을 수집·매핑·dedup·Contribution 영속화하는 orchestrator layer 가 공백(modules.md row 9 AssessmentModule 미구현·app.module.ts 미배선). 사용자 명시 제약: (a) **구현은 진행**(Confluence + GitHub Enterprise 포함 — 기존 adapter 가 이미 3 host/Cloud·Server 지원하므로 orchestrator 가 그 위에 얹힘), (b) **live/credentialed 테스트는 UI 준비 이후로 defer**(token 불요 — §5 credential 게이트 미발화), (c) **mocked-adapter unit test 는 R-112 대로 필수**(coverage line/function ≥80% 유지). ADR-first 진행: T-0247(ADR-0029 수집 설계 — module 배치/Activity 도메인모델+mapper/orchestration 계약/dedup[commit SHA, page id+version]/incremental since/Contribution 매핑/테스트 posture 7 결정, impl 0 LOC, commitMode pr) 큐잉 후 구현 slice(Activity 모델+mapper → GitHub 수집 service → Confluence 수집 service → AssessmentCollectionModule 배선 → orchestrator entry+영속화 → incremental since) 순차. 각 slice ≤300 LOC/≤5 파일, mocked unit test 동반, live e2e 는 UI 이후. 잔여 옵션 (1) 잔여 host live token run·(2) Stryker 는 미진행(defer). 새 외부 dependency 0(내장 fetch)·새 credential 0 → §5 미발화."
+      "decision": "option (3) 방향 재지시 — 사용자가 milestone-3 의 **Assessment collection orchestrator service 구현**을 지시(planner 의 'make-work' 판단을 사용자 우선순위로 override — 이는 README REQ-005~010/015/031 의 핵심 backend 이지 make-work 아님). 배경: GitHub(com/sec/ecode 3 host 전부) + Confluence 의 adapter/transport/instance-config/token-decrypt/permission-denied emit 은 이미 머지·단위테스트 완료이나 **자기 test 외 caller 0** — 이들을 실제 호출해 활동(commit/PR/issue/page)을 수집·매핑·dedup·Contribution 영속화하는 orchestrator layer 가 공백(modules.md row 9 AssessmentModule 미구현·app.module.ts 미배선). 사용자 명시 제약: (a) **구현은 진행**(Confluence + GitHub Enterprise 포함 — 기존 adapter 가 이미 3 host/Cloud·Server 지원하므로 orchestrator 가 그 위에 얹힘), (b) **live/credentialed 테스트는 UI 준비 이후로 defer**(token 불요 — §5 credential 게이트 미발화), (c) **mocked-adapter unit test 는 R-112 대로 필수**(coverage line/function ≥80% 유지). ADR-first 진행: T-0247(ADR-0029 수집 설계 — module 배치/Activity 도메인모델+mapper/orchestration 계약/dedup[commit SHA, page id+version]/incremental since/Contribution 매핑/테스트 posture 7 결정, impl 0 LOC, commitMode pr) 큐잉 후 구현 slice(Activity 모델+mapper → GitHub 수집 service → Confluence 수집 service → AssessmentCollectionModule 배선 → orchestrator entry+영속화 → incremental since) 순차. 각 slice ≤300 LOC/≤5 파일, mocked unit test 동반, live e2e 는 UI 이후. 잔여 옵션 (1) 잔여 host live token run·(2) Stryker 는 미진행(defer). 새 외부 dependency 0(내장 fetch)·새 credential 0 → §5 미발화.",
+      "processedByPlanner": true,
+      "processedAt": "2026-06-06T13:30:00+09:00",
+      "followupNote": "slice (i)~(iv) 머지 완료(T-0248~T-0251). planner 가 slice (v) orchestrator entry+영속화를 큐잉 시도했으나 colocated spec 포함 시 ≤300 LOC/≤5 파일 cap 초과 — dependency-first 순수 매퍼(Activity→ContributionCreateInput)만 T-0252 로 split, 나머지(entry·영속화·since)는 T-0252 §Follow-ups(v-b/v-c/vi/vii)로 박제."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
