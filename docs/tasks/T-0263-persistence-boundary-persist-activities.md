@@ -2,7 +2,7 @@
 id: T-0263
 title: ADR-0030 §5 slice iii-b1 — CollectionPersistenceService 영속화 경계 분리(persistActivities)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-031, REQ-032]
 estimatedDiff: 140
@@ -65,6 +65,11 @@ ADR-0030 §5 cap-split 의 slice ii(`buildCollectionSpec`, T-0261) + slice iii-a
 
 (작성 시 비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
 
-- slice iii-b2: `collectForPerson(person, since?, assessmentId): Promise<Contribution[]>` 진입 service 신설 — `buildCollectionSpec`(T-0261) → `orchestrator.collectActivities` → `filterActivitiesByAuthor`(T-0262) → `persistActivities`(본 task) 조립. `CollectionSpecService` provider 배선 동반(또는 선행 micro-slice). `assessmentId` 주입 경계(scheduler/manual trigger) 결정 포함.
+- slice iii-b2a (T-0264): `collectForPerson(person, since?, assessmentId): Promise<Contribution[]>` 진입 service 신설 — `buildCollectionSpec`(T-0261) → `orchestrator.collectActivities` → `filterActivitiesByAuthor`(T-0262) → `persistActivities`(본 task) 조립.
+- slice iii-b2b: `CollectionSpecService`(+ 신설 collectForPerson service)를 `AssessmentCollectionModule` provider/export 로 배선.
 - slice vi: since 도출(직전 Assessment → since) — GitHub/Confluence 양쪽 pass-through.
-- module 배선: `CollectionSpecService`(+ 신설 `collectForPerson` service)를 `AssessmentCollectionModule` provider/export 로 등록.
+
+## 완료 기록
+
+- DONE 2026-06-06 (loop@AKIHA-s68 turn 7). PR-226 squash-merge `2c018d7`, reviewer APPROVE round 1/7 (0 BLOCKER/0 MAJOR/0 MINOR clean, 회귀 0), 4-게이트 PASS, CI green (race 미발생).
+- 산출: `CollectionPersistenceService.persistActivities(activities, assessmentId)` public 경계 추출 + `collectAndPersist` 위임 재구성(공개 계약 불변) + spec +4 case. +94/-3, 2 파일 (cap 이내). collect↔persist hook 으로 author 필터 삽입 경로 준비.

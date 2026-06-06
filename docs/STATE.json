@@ -5,32 +5,32 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0263",
+  "nextTask": "T-0264",
   "lock": null,
-  "lastActivity": "2026-06-06T20:54:00+09:00",
-  "lastCommit": "5013934",
+  "lastActivity": "2026-06-06T21:12:00+09:00",
+  "lastCommit": "2c018d7",
   "mostRecentTasks": [
+    "T-0263",
     "T-0262",
     "T-0261",
     "T-0260",
-    "T-0259",
-    "T-0258"
+    "T-0259"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-06-06T19:12:08+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s68",
-    "note": "loop@AKIHA-s68 (KST 06-06 20:54) turn 6 — T-0262 DONE/MERGED(PR-225 squash 5013934, reviewer APPROVE r1 0 BLOCKER/0 MAJOR/0 MINOR clean[1 INFO=instanceKey↔service 설계 endorsed], 4-게이트 PASS, CI green race 미발생). ADR-0030 §2/§3 enumerate slice iii-a = author 귀속 필터: domain/author-filter.ts 의 filterActivitiesByAuthor(activities, serviceIdentities) 순수 함수 — normalizeKey(service)별 externalId Set map 구성 후 활동의 (instanceKey, author)가 매칭되는 활동만 보존(입력 순서·미변형, 부수효과 0). instance 별 독립 매칭(ADR §2) = instanceKey↔service(분리 namespace) 로 source-type-aware cross-source false-match 방지. isPrimary 미read(Pick<service|externalId>). colocated spec 10 case 신규파일 cov 100%, unit 3488 pass, lint/build/smoke/e2e green. driver 직접 구현(env phantom-worktree write 격리), reviewer/planner 만 sub-agent. tasksCompleted 259→260, reviewRounds[T-0262]=1, mostRecentTasks prepend T-0262. planner T-0263 큐잉(ADR-0030 §5 slice iii-b1 = CollectionPersistenceService 영속화 경계 분리 persistActivities(activities, assessmentId) — collect→persist 결합 끊어 author 필터 hook 가능하게; collectForPerson 진입 iii-b2 가 소비; pr ~140 LOC/2파일, 기존 파일 수정). lock heartbeat 852f2b0→9b940da(turnCount 6/10). [다음] turn 7 = T-0263 executor(implementer→tester)→reviewer→merge. ci: green; blockers: 0; humanQuestions: 0.",
-    "notePrev": "loop@AKIHA-s68 (KST 06-06 20:35) turn 5 — T-0261 DONE/MERGED(PR-224 squash e73355d, reviewer APPROVE r1). ADR-0030 §5 slice ii-b2b 전체 buildCollectionSpec 조립(GitHub+Confluence → CollectionSpec) 완성. tasksCompleted 258→259."
+    "note": "loop@AKIHA-s68 (KST 06-06 21:12) turn 7 — T-0263 DONE/MERGED(PR-226 squash 2c018d7, reviewer APPROVE r1 clean 0 BLOCKER/0 MAJOR/0 MINOR 회귀0, 4-게이트 PASS, CI green race 미발생). ADR-0030 §5 enumerate slice iii-b1 = 영속화 경계 분리: CollectionPersistenceService 의 collect→persist 결합을 persistActivities(activities, assessmentId) public 메서드로 추출(map→create 순차 영속화, orchestrator 미호출, 순서·fail-fast·빈배열 보존), collectAndPersist 는 collectActivities→persistActivities 위임으로 재구성(공개 계약 불변, 기존 11 test 회귀0). collect↔persist hook 으로 author 필터 삽입 경로 준비. spec +4 case(persistActivities 직접 경로). 파일 cov 100%, unit 3492 pass, lint/build/smoke/e2e green. **운영 특이**: reviewer sub-agent 가 review 중 working tree 를 main 으로 switch(phantom-worktree 비격리) — 그러나 T-0263 변경은 feature branch commit e42102b 에 안전 박제(CI success 확인), merge 정상. driver 직접 구현, reviewer/planner 만 sub-agent. tasksCompleted 260→261, reviewRounds[T-0263]=1, mostRecentTasks prepend T-0263. planner T-0264 큐잉(ADR-0030 §5 slice iii-b2a = collectForPerson(person, since?, assessmentId) 진입 service 신설: buildCollectionSpec→collectActivities→filterActivitiesByAuthor→persistActivities 4단계 조립; module 배선은 iii-b2b split; pr ~200 LOC/2파일). lock heartbeat 9b940da→f49fcb3(turnCount 7/10). [다음] turn 8 = T-0264 executor(implementer→tester)→reviewer→merge. ci: green; blockers: 0; humanQuestions: 0.",
+    "notePrev": "loop@AKIHA-s68 (KST 06-06 20:54) turn 6 — T-0262 DONE/MERGED(PR-225 squash 5013934, reviewer APPROVE r1 clean). ADR-0030 §2/§3 slice iii-a author 귀속 필터 filterActivitiesByAuthor. tasksCompleted 259→260."
   },
   "ci": {
-    "lastRun": "2026-06-06T20:52:00+09:00",
+    "lastRun": "2026-06-06T21:10:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/225",
-    "note": "s68 t6: T-0262 PR-225 — pull_request run 27061469082 first run 부터 success(approval-gate race 미발생). merge squash 5013934. consecutiveFails 0. 본 bookkeeping direct commit 의 main CI 는 push 후 확인(R-114)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/226",
+    "note": "s68 t7: T-0263 PR-226 — pull_request run 27061825201 first run 부터 success(approval-gate race 미발생). merge squash 2c018d7. consecutiveFails 0. 본 bookkeeping direct commit 의 main CI 는 push 후 확인(R-114)."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -76,7 +76,8 @@
     "T-0259": 1,
     "T-0260": 1,
     "T-0261": 1,
-    "T-0262": 1
+    "T-0262": 1,
+    "T-0263": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -349,7 +350,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 260,
+    "tasksCompleted": 261,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
