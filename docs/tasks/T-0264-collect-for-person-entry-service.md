@@ -2,7 +2,7 @@
 id: T-0264
 title: ADR-0030 §5 slice iii-b2a — collectForPerson 진입 service 신설(4단계 조립)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-024, REQ-031, REQ-032]
 estimatedDiff: 200
@@ -69,6 +69,12 @@ ADR-0030 §5 의 진입 계약은 `collectForPerson(person, since?): Promise<Con
 
 (작성 시 비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
 
-- slice iii-b2b: `CollectionSpecService` + 신설 `CollectionEntryService` 를 `AssessmentCollectionModule` provider/export 로 배선 + `assessment-collection.module.spec.ts` 회귀(provider resolve 검증).
+- slice iii-b2b (T-0265): collection chain 4 service(`CollectionEntryService` + `CollectionSpecService` + `GithubCollectionSpecService` + `GithubOrgEnumerateService`)를 `AssessmentCollectionModule` provider/export 로 배선 + `assessment-collection.module.spec.ts` 회귀(provider resolve 검증). GithubInstanceClient 는 기존 GithubModule export 로 닫힘.
+- modules.md doc-sync(direct, 별도): AssessmentCollectionModule row 에 enumerate chain 반영.
 - slice vi: since 도출(직전 Assessment → since) service — collectForPerson 의 since 인자 소비처.
-- 호출처 결선: scheduler/manual trigger(P5 평가 진입)가 `collectForPerson(person, since?, assessmentId)` 를 호출하며 assessmentId 를 주입하는 진입점 wiring.
+- 호출처 결선: scheduler/manual trigger(P5 평가 진입)가 `collectForPerson(person, since, assessmentId)` 를 호출하며 assessmentId 를 주입하는 진입점 wiring.
+
+## 완료 기록
+
+- DONE 2026-06-06 (loop@AKIHA-s68 turn 8). PR-227 squash-merge `0557a7d`, reviewer APPROVE round 1/7 (0 BLOCKER/0 MAJOR/1 MINOR[327 LOC>cap300 spec-driven 비-차단]), 4-게이트 PASS, CI green (approval-gate race → rerun --failed green).
+- 산출: `collection-entry.service.ts`(`CollectionEntryService.collectForPerson` — buildCollectionSpec→collectActivities→filterActivitiesByAuthor→persistActivities 4단계 조립) + colocated spec (9 case, 신규 파일 cov 100%). +327 LOC/2 파일. **collection 체인 backbone 진입점 완성** — module 배선(iii-b2b)만 남음.
