@@ -2,7 +2,7 @@
 id: T-0260
 title: ADR-0030 §5 enumerate slice ii-b2a — buildGithubCollectionSpec(person, since?) 조립(mode B + mode A → GithubCollectionSpec)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-024]
 estimatedDiff: 250
@@ -62,6 +62,11 @@ ADR-0030 §5 cap-split 의 slice ii(`buildCollectionSpec`)는 (i) `_REPOS` env p
 
 (작성 시 비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
 
-- slice ii-b2b: Confluence instance enumerate(`resolveConfluenceInstances`) + 전체 `buildCollectionSpec(person, since?)` 조립(`CollectionSpec { github, confluence }`).
+- slice ii-b2b (T-0261): Confluence instance enumerate(`resolveConfluenceInstances`) + 전체 `buildCollectionSpec(person, since?)` 조립(`CollectionSpec { github, confluence }`).
 - slice iii: `collectForPerson` 진입 + 영속화 결선(`collectAndPersist`) + author 필터.
 - slice vi: since 도출(직전 Assessment → since).
+
+## 완료 기록
+
+- DONE 2026-06-06 (loop@AKIHA-s68 turn 4). PR-223 squash-merge `048d01f`, reviewer APPROVE round 1/7 (0 BLOCKER/0 MAJOR/0 MINOR clean), 4-게이트 PASS, CI green (이번엔 approval-gate race 미발생 — approve comment 가 approval step 전 도달).
+- 산출: `github-collection-spec.service.ts`(`GithubCollectionSpecService.buildGithubCollectionSpec` mode B+A 결합) + colocated spec (9 case, 신규 파일 cov 100%). +276 LOC/2 파일 (cap 이내).
