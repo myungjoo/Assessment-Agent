@@ -2,7 +2,11 @@
 id: T-0250
 title: Confluence 수집 service + page-id/version latest-wins dedup 구현 (collection slice iii)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-06T13:01:00+09:00
+mergedAs: 19cdde2
+prNumber: 214
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-015, REQ-010, REQ-031]
 estimatedDiff: 225
