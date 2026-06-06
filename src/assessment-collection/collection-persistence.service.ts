@@ -7,10 +7,15 @@
 //
 // 흐름: collectAndPersist(spec, assessmentId)
 //   (1) `orchestrator.collectActivities(spec)` 로 두 source 를 모은 `Activity[]` aggregate.
-//   (2) 각 `Activity` 를 `mapActivityToContribution(activity, assessmentId)` 로
-//       `ContributionCreateInput` 변환(순수 함수 — 평가 필드는 placeholder, ADR-0029 §6).
-//   (3) 각 input 을 `contributionService.create(input)` 로 영속화해 `Contribution[]` 반환.
+//   (2) `persistActivities(activities, assessmentId)` 로 위임 — 각 `Activity` 를
+//       `mapActivityToContribution` 로 `ContributionCreateInput` 변환(순수, 평가 필드
+//       placeholder, ADR-0029 §6) 후 `contributionService.create` 로 순차 영속화.
 //   입력 `Activity[]` 순서(orchestrator 의 GitHub→Confluence)를 그대로 보존한다(결정론).
+//
+// collect/persist 경계 분리(ADR-0030 §5 slice iii-b1): 영속화 단계를 `persistActivities`
+// (이미 수집된 `Activity[]` 를 받아 영속화)로 추출한다. 이는 후속 `collectForPerson`
+// (slice iii-b2)가 collect 와 persist 사이에 author 필터(`filterActivitiesByAuthor`, T-0262)
+// 를 끼울 수 있는 hook 이다 — `collectAndPersist` 의 공개 동작·시그니처는 불변(내부 분리만).
 //
 // per-activity 오류 방침(ADR-0029 §6 + task §AC): 본 영속화는 transactional all-or-nothing
 // 도, per-activity skip 도 아닌 **fail-fast 전파**다. assessmentId 는 호출 단위로 동일하므로
@@ -35,6 +40,7 @@ import {
   CollectionOrchestratorService,
   CollectionSpec,
 } from "./collection-orchestrator.service";
+import { Activity } from "./domain/activity";
 import { mapActivityToContribution } from "./domain/activity-contribution.mapper";
 
 @Injectable()
@@ -54,7 +60,20 @@ export class CollectionPersistenceService {
     assessmentId: string,
   ): Promise<Contribution[]> {
     const activities = await this.orchestrator.collectActivities(spec);
+    return this.persistActivities(activities, assessmentId);
+  }
 
+  // persistActivities — 이미 수집된 `Activity[]` 를 매퍼로 `ContributionCreateInput` 으로
+  // 변환한 뒤 `ContributionService.create` 로 순차 영속화해 `Contribution[]` 를 반환한다.
+  // orchestrator 를 호출하지 않는다(이미 수집된 활동을 받는다) — 이것이 collect 와 persist
+  // 사이에 author 필터를 끼우는 hook(slice iii-b2 가 소비). 반환 순서는 입력 순서와 일치.
+  // create 가 throw(예: assessmentId FK 위반 → BadRequestException)하면 잡지 않고 그대로
+  // 전파한다(fail-fast — 첫 오류에서 중단, 이후 create 미호출). 빈 입력이면 create 0회 +
+  // 빈 배열(throw 0).
+  async persistActivities(
+    activities: Activity[],
+    assessmentId: string,
+  ): Promise<Contribution[]> {
     const persisted: Contribution[] = [];
     for (const activity of activities) {
       // 매퍼는 순수 변환(검증 0) — assessmentId 유효성은 ContributionService 가 책임.
