@@ -5,9 +5,9 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0249",
   "lock": null,
-  "lastActivity": "2026-06-06T12:03:00+09:00",
+  "lastActivity": "2026-06-06T12:13:00+09:00",
   "lastCommit": "4df23ec",
   "mostRecentTasks": [
     "T-0248",
@@ -17,14 +17,14 @@
     "T-0244"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-06T11:49:00+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s66",
     "stoppedAt": null,
     "stopReason": null,
-    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 11:49) turn 1 — Q-0025 collection orchestrator chain 2번째 slice. free lock CAS 획득 s66(cc90b55→9b62761). T-0248(Activity 도메인모델 discriminated union + GitHub/Confluence 순수 mapper 2종, ADR-0029 §2) executor 완수 후 driver commit/push→integrator. **T-0248 DONE/MERGED(PR-212 squash 4df23ec)**: reviewer APPROVE r1 0 findings, 4-게이트 PASS, CI green(run 27050732364). REQ-032 raw-not-stored 준수. cap 예외(6 파일/+934 — prod 3 파일 code-ish 230<300, spec 3 파일 spec-presence gate 강제분; planner 사전 scoping + 단일 ADR-0029 §2 concern → driver+reviewer acceptable 판정, CAP-NOTE 박제). tasksCompleted 245→246, reviewRounds[T-0248]=1. [다음] nextTask 없음 — 다음 turn planner 가 ADR-0029 §3+ 후속 구현 slice(GitHub 수집 service 등) 큐잉. live 테스트 UI 이후 defer, mocked unit R-112 필수, 새 dep/credential 0. [dynamic] turnCount 1/10 — ScheduleWakeup 재예약(다음 turn planner).",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s65 (KST 06-06) — Q-0025 RESOLVE 후 첫 slice: T-0247 DONE/MERGED(PR-211 88a3482, ADR-0029 Assessment collection orchestrator 7 결정 박제), planner T-0248 큐잉 후 §10 context 보호 위해 handoff."
+    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 12:13) turn 2 — planner-only turn. free lock CAS 획득 s66(5a41e69→ccfbbc0). nextTask 비어 planner dispatch → **T-0249 큐잉**(ADR-0029 collection slice (ii) = GitHub 수집 service: GithubInstanceClient 위 instance×org×repo 수집 + SHA earliest-wins dedup + skip-and-continue, mocked unit R-112, pr ~270 LOC/4 파일). T-0248 merge 의 doc-only CI(a109559) success 확인(R-114 충족, consecutiveFails 0). [다음] turn 3 가 T-0249 executor→integrator 실행. live 테스트 UI 이후 defer, mocked unit R-112 필수, 새 dep/credential 0. [dynamic] turnCount 2/10 — ScheduleWakeup 재예약.",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 1 (KST 11:49) — T-0248 DONE/MERGED(PR-212 squash 4df23ec, ADR-0029 §2 Activity 도메인모델+GitHub/Confluence mapper, reviewer APPROVE r1 0 findings, 4-게이트 PASS, CI green). tasksCompleted 245→246, reviewRounds[T-0248]=1."
   },
   "ci": {
     "lastRun": "2026-06-06T12:03:00+09:00",
