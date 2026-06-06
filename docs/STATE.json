@@ -5,34 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0253",
-  "lock": null,
-  "lastActivity": "2026-06-06T13:47:00+09:00",
-  "lastCommit": "fe2d36d",
+  "nextTask": null,
+  "lock": {
+    "holder": "loop",
+    "session": "loop@AKIHA-s67",
+    "since": "2026-06-06T15:38:39+09:00",
+    "loopSessionStartedAt": "2026-06-06T15:38:39+09:00",
+    "loopSessionTurnCount": 1
+  },
+  "lastActivity": "2026-06-06T15:54:00+09:00",
+  "lastCommit": "0e72bb6",
   "mostRecentTasks": [
+    "T-0253",
     "T-0252",
     "T-0251",
     "T-0250",
-    "T-0249",
-    "T-0248"
+    "T-0249"
   ],
   "loopSession": {
-    "turnCount": 10,
-    "startedAt": "2026-06-06T11:49:00+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-06-06T15:38:39+09:00",
     "cap": 10,
-    "holder": "loop@WIN-JQIPLSBL9QV-s66",
-    "stoppedAt": "2026-06-06T13:47:00+09:00",
-    "stopReason": "10-turn-cap-reached-clean-stop-T-0253-queued",
-    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 13:47) turn 10 (FINAL, 10-turn cap) — planner-only turn. free lock CAS 획득 s66(fe260cd→368ffee). nextTask 비어 planner dispatch → **T-0253 큐잉**(ADR-0029 slice (v-b) = 수집 orchestrator service: 두 collection service 호출→Activity[] aggregate. Person enumerate·영속화는 cap 초과로 v-c/Follow-ups split, ~165 LOC/3 파일, pr). **§1[8](e) 10-turn cap 도달 → ScheduleWakeup 재예약 안 함, 본 session #66 STOP.** 사용자에게 cleanup(/compact 또는 /clear 후 새 /loop, 또는 cron 대기) 안내. [session 요약] s66 10 turn 에 ADR-0029 collection orchestrator 구현 slice 5 개 머지: T-0248(Activity 모델+mapper)·T-0249(GitHub 수집 service)·T-0250(Confluence 수집 service)·T-0251(module 배선)·T-0252(Activity→Contribution 매퍼). tasksCompleted 245→250. 잔여: T-0253(orchestrator aggregate, 큐잉됨)·v-c(영속화+Person enumerate)·vi(incremental since)·vii(doc-sync). 운영 발견: integrator sub-agent reviewer-dispatch 불가 → driver fallback(ADR-0005) 패턴 확립([[integrator-cannot-dispatch-reviewer]] memory). live 테스트 UI 이후 defer 유지, 새 dep/credential 0.",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 9 (KST 13:35) — T-0252 DONE/MERGED(PR-216 squash fe2d36d, ADR-0029 slice (v-a) Activity→Contribution 매퍼). integrator NEEDS_REVIEW → driver fallback reviewer+게이트+merge. tasksCompleted 249→250."
+    "holder": "loop@AKIHA-s67",
+    "note": "loop@AKIHA-s67 (KST 06-06 15:54) turn 1 — 사용자 대면 /loop turn cap 10 dynamic. [1] origin/main cb93968→ff. 로컬 main checkout 을 origin/main 추적 용도로 사용(launch worktree 는 stale bd9d371 = assessment-collection deps 부재라 driver loop 부적합 — LOOP §4 worktree 정책). free lock CAS 획득 s67(ac6e636→4ccdbcb). nextTask=T-0253 픽업. [3~5] T-0253(ADR-0029 slice v-b orchestrator aggregate, pr): env 제약(phantom-worktree sub-agent write 격리 + sub-agent nested dispatch 불가)으로 driver 가 직접 구현+test — CollectionOrchestratorService(두 collection service inject, collectActivities 가 독립 try/catch 로 부분 가용성 흡수 + GitHub→Confluence concat) + spec 11 test + module providers/exports. lint/build/test(177 suite 3405 pass)/cov(orchestrator 100%, global line/func 100%) 통과. PR-217 push, reviewer sub-agent → APPROVE(0 BLOCKER/0 MAJOR/1 MINOR=LOC 403>300 justified). approve comment post(gate2) → 첫 pull_request run approval-step race fail → rerun --failed → green. 4-게이트 PASS → squash merge 0e72bb6 branch delete. tasksCompleted 250→251. [6] doc-only direct bookkeeping. [8] turnCount 1<10 → ScheduleWakeup 재예약, lock 유지.",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 13:47) turn 10 (FINAL, 10-turn cap) — planner-only turn, T-0253 큐잉 후 session #66 STOP. s66 10 turn 에 ADR-0029 collection slice 5 개(T-0248~T-0252) 머지."
   },
   "ci": {
-    "lastRun": "2026-06-06T13:35:00+09:00",
+    "lastRun": "2026-06-06T15:53:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/216",
-    "note": "s66: T-0252 PR-216 — pull_request run 27052763825 approval step 만 race fail(나머지 build/test/smoke/e2e success), issue_comment run 27052810834 success 로 approval 게이트 충족. merge squash fe2d36d. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/217",
+    "note": "s67 t1: T-0253 PR-217 — 첫 pull_request run 27055379906 의 'reviewer agent approval 검증' step 만 race fail(build/test/smoke/e2e success), approve comment post 후 gh run rerun --failed 로 동일 run green. merge squash 0e72bb6. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -69,7 +73,8 @@
     "T-0249": 1,
     "T-0250": 1,
     "T-0251": 1,
-    "T-0252": 1
+    "T-0252": 1,
+    "T-0253": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -342,7 +347,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 250,
+    "tasksCompleted": 251,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

@@ -8,6 +8,11 @@ coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-031]
 estimatedDiff: 165
 estimatedFiles: 3
 created: 2026-06-06
+status: DONE
+completedAt: 2026-06-06T15:54:00+09:00
+prNumber: 217
+mergeCommit: 0e72bb6
+result: PR-217 squash merge 0e72bb6 (loop@AKIHA-s67 t1). CollectionOrchestratorService + spec(11 test) + module 배선. reviewer APPROVE(1 MINOR=LOC justified), CI green, 4-게이트 PASS. 실제 diff +403/-13 (4 파일) — spec/주석 dominated, 핵심 logic ≈30 LOC. orchestrator coverage 100%.
 plannerNote: P4 ADR-0029 slice (v-b) — orchestrator aggregate(영속화·Person enumerate 제외)만 큐잉; v-c 영속화/vi since 는 Follow-ups. R-112 backbone ×1.5, @unique 무관 P2002 미적용
 ---
 
