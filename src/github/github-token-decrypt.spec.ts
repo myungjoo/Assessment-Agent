@@ -91,6 +91,7 @@ describe("decryptGithubInstanceToken", () => {
           key: "public",
           host: "github.com",
           orgs: ["acme"],
+          repos: [],
           tokenEnc: cipher.encrypt(FAKE_TOKEN),
         };
         return decryptGithubInstanceConfigToken(cipher, instance);

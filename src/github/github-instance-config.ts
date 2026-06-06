@@ -25,6 +25,9 @@ export const GITHUB_INSTANCES_ENV = "GITHUB_INSTANCES";
 export const GITHUB_HOST_SUFFIX = "_HOST";
 export const GITHUB_ORG_SUFFIX = "_ORG";
 export const GITHUB_TOKEN_ENC_SUFFIX = "_TOKEN_ENC";
+// _REPOS suffix(ADR-0030 §1 모드 B) — 지정 repo allowlist. 미설정 시 빈 배열 →
+// 모드 A(org 전체 enumerate) fallback 대상. comma/space 둘 다 구분자.
+export const GITHUB_REPOS_SUFFIX = "_REPOS";
 
 // resolveGithubInstances 의 반환 원소 — 한 instance 의 sub-config.
 export interface GithubInstanceConfig {
@@ -38,6 +41,11 @@ export interface GithubInstanceConfig {
   // _HOST / _TOKEN_ENC 만 필수). 상위 orchestrator 가 org 0 개를 어떻게 다룰지는
   // 후속 slice 책임이며, 본 parser 는 org 부재를 reject 사유로 삼지 않는다.
   orgs: string[];
+  // 해당 instance 의 지정 repo allowlist(ADR-0030 §1 모드 B). 빈 배열 = `_REPOS`
+  // 미설정 → 모드 A(org 전체 enumerate) fallback 대상. comma/space-separated 토큰을
+  // split + trim 한 배열로, `org/repo` 또는 `repo` 형식 문자열을 그대로 보관한다
+  // (토큰 의미 해석·검증은 enumerate slice ii 책임 — 본 parser 는 보관만 한다).
+  repos: string[];
   // 해당 instance 의 encrypted-at-rest token envelope 문자열(ADR-0014 AES-256-GCM
   // base64). 본 task 는 decrypt 안 함 — 암호문 그대로 보관(JIT decrypt 는 chain row 2).
   tokenEnc: string;
@@ -108,6 +116,7 @@ export function resolveGithubInstances(
     const hostRaw = env[githubEnvName(key, GITHUB_HOST_SUFFIX)];
     const tokenEncRaw = env[githubEnvName(key, GITHUB_TOKEN_ENC_SUFFIX)];
     const orgRaw = env[githubEnvName(key, GITHUB_ORG_SUFFIX)];
+    const reposRaw = env[githubEnvName(key, GITHUB_REPOS_SUFFIX)];
 
     // 필수 변수(_HOST·_TOKEN_ENC) 부재/빈/공백 → 해당 instance reject(fail-fast).
     // 어느 env 가 부재했는지 이름만 진단에 박제한다(실값 금지, §9). isPresent type
@@ -133,11 +142,23 @@ export function resolveGithubInstances(
           .filter((o) => o.length > 0)
       : [];
 
+    // _REPOS 도 필수 아님(ADR-0030 §1 모드 B) — 부재/빈/공백이면 빈 배열(모드 A
+    // org 전체 enumerate fallback 대상). present 하면 comma/space 둘 다 구분자로
+    // split + trim + 빈 토큰 제거(GITHUB_INSTANCES key 파싱과 동형). 토큰
+    // (`org/repo` 또는 `repo`)은 의미 해석 없이 그대로 보관(검증은 slice ii 책임).
+    const repos = isPresent(reposRaw)
+      ? reposRaw
+          .split(/[\s,]+/)
+          .map((r) => r.trim())
+          .filter((r) => r.length > 0)
+      : [];
+
     instances.push({
       key,
       // isPresent type guard 가 hostRaw / tokenEncRaw 를 string 으로 narrowing.
       host: hostRaw.trim(),
       orgs,
+      repos,
       tokenEnc: tokenEncRaw.trim(),
     });
   }
