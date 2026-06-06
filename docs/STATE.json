@@ -5,15 +5,15 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0255",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s67",
-    "since": "2026-06-06T16:14:51+09:00",
+    "since": "2026-06-06T16:38:26+09:00",
     "loopSessionStartedAt": "2026-06-06T15:38:39+09:00",
-    "loopSessionTurnCount": 3
+    "loopSessionTurnCount": 4
   },
-  "lastActivity": "2026-06-06T16:24:00+09:00",
+  "lastActivity": "2026-06-06T16:39:00+09:00",
   "lastCommit": "259bdd5",
   "mostRecentTasks": [
     "T-0254",
@@ -23,12 +23,12 @@
     "T-0250"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-06T15:38:39+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s67",
-    "note": "loop@AKIHA-s67 (KST 06-06 16:24) turn 3 — T-0254(ADR-0029 slice v-c 수집 영속화) DONE/MERGED. [1] fetch 09a2a88(0/0) + 직전 doc CI 09a2a88=success(R-114). lock heartbeat 085d9f7→281a5e5(turnCount 2→3, since 16:14:51). [2] nextTask=T-0254 픽업. [3~4] driver 직접 구현(env 제약): CollectionPersistenceService(orchestrator+ContributionService inject, collectAndPersist 가 collectActivities→mapActivityToContribution→create 순차 영속화 + fail-fast 전파 + 결정론 순서) + spec 12 test + module 에 UserModule import + provider/export. module spec 은 UserModule 전이 그래프(AuthModule forwardRef 포함) compile 위해 PrismaService mock delegate 확장. lint/build/test(178 suite 3417 pass)/cov(persistence 100%) 통과. PR-218 push, reviewer sub-agent → APPROVE(2 MINOR=ADR-0029 L37 import 표기 drift·LOC 423 + 1 NIT=orchestrator-reject dead path, 전부 비차단). approve comment(gate2) → 첫 pull_request run approval-step race fail → rerun --failed → green. 4-게이트 PASS → squash merge 259bdd5. tasksCompleted 251→252. ADR-0029 L37 reconcile 은 slice vii doc-sync 로 deferred(Follow-up). [6] doc-only direct bookkeeping. [8] turnCount 3<10 → ScheduleWakeup 재예약, lock 유지.",
-    "notePrev": "loop@AKIHA-s67 (KST 06-06 16:06) turn 2 — planner-only turn, T-0254(slice v-c 영속화) 큐잉. v-b2 enumerate 는 ServiceIdentity org/repo 미보유로 ADR 미정의라 후순위. lock heartbeat 4ccdbcb→085d9f7(turnCount 2)."
+    "note": "loop@AKIHA-s67 (KST 06-06 16:39) turn 4 — planner-only turn. [1] fetch 133e5bb(0/0 sync) + 직전 bookkeeping CI 133e5bb=success(R-114). lock heartbeat 281a5e5→68632eb(turnCount 3→4, since 16:38:26). [2] currentTask·nextTask null → planner sub-agent dispatch(decision-only, driver write). planner survey: slice v-b2 enumerate 는 ServiceIdentity(service+externalId 만, org/repo 부재 — prisma L237-254)라 GithubRepoSource org/repo source 가 ADR-0029 미정의 → ADR-first 후순위. 가장 dependency-free 한 **slice vii doc-sync 선택 → T-0255 큐잉**(direct): modules.md 에 10번째 module AssessmentCollectionModule 박제(목록/mermaid/acyclic/mapping) + row 9 수집/평가 분리 reconcile + ADR-0029 L37 import 토폴로지 collection→user 정정(reviewer MINOR-1 closeout). app.module L39 이미 배선됐으나 modules.md 는 9 module 로 stale = 실재 drift. ~70 LOC/2 파일. [6] doc-only direct bookkeeping. [8] turnCount 4<10 → ScheduleWakeup 재예약, lock 유지.",
+    "notePrev": "loop@AKIHA-s67 (KST 06-06 16:24) turn 3 — T-0254(ADR-0029 slice v-c 수집 영속화) DONE/MERGED(PR-218 squash 259bdd5, reviewer APPROVE 2 MINOR+1 NIT 비차단, 4-게이트 PASS). driver 직접 구현+test, reviewer 만 sub-agent. tasksCompleted 251→252. lock heartbeat 281a5e5(turnCount 3)."
   },
   "ci": {
     "lastRun": "2026-06-06T16:23:00+09:00",
