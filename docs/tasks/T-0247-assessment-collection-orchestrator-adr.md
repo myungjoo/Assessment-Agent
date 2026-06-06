@@ -2,13 +2,17 @@
 id: T-0247
 title: Assessment collection orchestrator 설계 ADR (ADR-0029)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 211
+mergedCommit: 88a3482
+doneAt: 2026-06-06
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-015, REQ-031, REQ-032, REQ-059]
 estimatedDiff: 220
 estimatedFiles: 2
 created: 2026-06-06
 plannerNote: P4 collection orchestrator multi-task effort 의 첫 slice — Q-0025 승인 후 수집 설계 ADR 결정 (impl 0 LOC)
+result: "DONE/MERGED PR-211(squash 88a3482, reviewer APPROVE r1→r2/7, 4-게이트 PASS, CI green). ADR-0029(Assessment collection orchestrator) 7 결정 박제 + INDEX row. r1 MINOR(REQ-059→REQ-032 인용) r2 정정. 다음 구현 slice = T-0248(Activity 도메인모델+mapper)."
 ---
 
 # T-0247 — Assessment collection orchestrator 설계 ADR (ADR-0029)

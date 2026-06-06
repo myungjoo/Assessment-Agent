@@ -4,39 +4,35 @@
   "flags": {
     "multiTaskFire": true
   },
-  "currentTask": "T-0247",
-  "nextTask": null,
-  "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-s65",
-    "since": "2026-06-06T11:01:00+09:00",
-    "loopSessionStartedAt": "2026-06-06T11:01:00+09:00",
-    "loopSessionTurnCount": 1
-  },
-  "lastActivity": "2026-06-06T11:05:00+09:00",
-  "lastCommit": "3639a1a",
+  "currentTask": null,
+  "nextTask": "T-0248",
+  "lock": null,
+  "lastActivity": "2026-06-06T11:40:00+09:00",
+  "lastCommit": "88a3482",
   "mostRecentTasks": [
+    "T-0247",
     "T-0246",
     "T-0245",
     "T-0244",
-    "T-0243",
-    "T-0242"
+    "T-0243"
   ],
   "loopSession": {
     "turnCount": 1,
     "startedAt": "2026-06-06T11:01:00+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s65",
-    "note": "loop@WIN-JQIPLSBL9QV-s65 (KST 06-06 11:01) — 사용자 대면 /loop. 사용자가 Q-0025 를 'Assessment collection orchestrator 구현' 으로 RESOLVE(milestone-3 backend, README REQ-005~010/015/031 — make-work 아님). 경위: 직전 s63(T-0245 milestone-3 GitHub public live VERIFIED) 후 사용자 부재 ~20h 동안 cron 6 회 fire 가 Q-0025 OPEN no-op(ADR-0028 §3 cron@cloud 자율 lock 3~6 회차 연속 실증, 403 미재발). 사용자 복귀 후 신규 지시. [1] free(tombstone 6f24b34) lock CAS 재획득 s65(8fc6fd5), main 3639a1a sync. [2] Explore 로 코드 대조: GitHub(3 host)+Confluence adapter/transport/config 이미 완결이나 caller 0 — orchestrator(modules.md row 9 AssessmentModule) 미구현·미배선이 공백. [3] planner 가 T-0247(ADR-0029 수집 설계, impl 0 LOC, pr) 큐잉. live 테스트 UI 이후 defer, mocked unit R-112 필수. currentTask=T-0247 진입(executor→architect ADR→reviewer→merge 예정).",
-    "notePrev": "loop@AKIHA-s64 t2 (KST 06-05 21:53) — planner survey 후 Q-0025 escalate(backlog 소진). 이후 cron 6 회 no-op fire(Q-0025 OPEN), 사용자 06-06 복귀해 orchestrator 구현 지시로 RESOLVE."
+    "stoppedAt": "2026-06-06T11:40:00+09:00",
+    "stopReason": "T-0247-adr-done-impl-slice-T-0248-queued-handoff",
+    "note": "loop@WIN-JQIPLSBL9QV-s65 (KST 06-06) — 사용자 Q-0025 RESOLVE(collection orchestrator 구현 지시) 후 첫 slice 완수. [1] free lock CAS 재획득 s65(8fc6fd5), main 3639a1a→88a3482. [2] Explore 코드대조: GitHub(3host)+Confluence adapter 완결이나 caller 0 — orchestrator 공백 확인. **T-0247 DONE/MERGED(PR-211 squash 88a3482)**: ADR-0029 Assessment collection orchestrator 7 결정 박제(module 배치/Activity union+mapper/orchestration 재사용/dedup/since/Contribution 매핑/testing posture). reviewer APPROVE r1(MINOR REQ-059→REQ-032 인용)→r2 정정 후 APPROVE 0 findings, 4-게이트 PASS, CI green. tasksCompleted 244→245, reviewRounds[T-0247]=2. [다음] planner 가 T-0248(Activity 도메인모델+mapper, 첫 구현 slice, pr) 큐잉→nextTask. live 테스트 UI 이후 defer, mocked unit R-112 필수, 새 dep/credential 0. [종료] lock ref tombstone 해제 — 구현 chain 은 후속 turn/fresh context 에서 T-0248 부터 진행(§10 context 보호). 사용자에게 plan+상태 보고.",
+    "notePrev": "loop@AKIHA-s64 t2 (KST 06-05 21:53) — planner survey 후 Q-0025 escalate(backlog 소진). 이후 cron 6 회 no-op fire, 사용자 06-06 복귀해 orchestrator 구현 지시로 RESOLVE."
   },
   "ci": {
-    "lastRun": "2026-06-05T21:53:31+09:00",
+    "lastRun": "2026-06-06T11:40:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/d007886",
-    "note": "s64 t2: T-0246 direct doc commit d007886 의 main CI = success(green, run 27015495196). consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/88a3482",
+    "note": "s65: T-0247 PR-211 CI = success(fea7c72 run 27049750693 green, gh run watch 확정). merge squash 88a3482 main CI 는 push 후 trigger(동일 tree green 확정적). consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -67,7 +63,8 @@
     "T-0240": 1,
     "T-0241": 1,
     "T-0242": 1,
-    "T-0245": 1
+    "T-0245": 1,
+    "T-0247": 2
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -337,7 +334,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 244,
+    "tasksCompleted": 245,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
