@@ -2,7 +2,7 @@
 id: T-0266
 title: modules.md AssessmentCollectionModule row 를 enumerate chain wiring 으로 doc-sync
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008]
 estimatedDiff: 12
@@ -47,4 +47,9 @@ T-0264(collectForPerson 진입 service, PR-227) + T-0265(enumerate chain 4 servi
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+- slice vi (T-0267): 직전 Assessment → since 도출 service (collectForPerson 의 since 인자 소비처).
+- 호출처 결선: scheduler/manual trigger(P5 평가 진입)가 collectForPerson 을 호출하며 assessmentId 주입 — P5/P7 경계 + Assessment row 생성 주체 결정 필요(ADR-worthy, defer).
+
+## 완료 기록
+
+- DONE 2026-06-06 (loop@AKIHA-s68 turn 10 FINAL). direct doc-sync content commit `770a314`(modules.md row40 8-service 배선 + collectForPerson 진입 계약 + line3 머리말 정합). reviewer/PR 불요(direct doc-only, R-110 tester 면제). +2/-2, 1 파일.
