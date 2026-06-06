@@ -94,6 +94,8 @@ import { GithubCollectionSpecService } from "./github-collection-spec.service";
 import { GithubCollectionService } from "./github-collection.service";
 // eslint-disable-next-line import/first
 import { GithubOrgEnumerateService } from "./github-org-repo-enumerate.service";
+// eslint-disable-next-line import/first
+import { SinceDerivationService } from "./since-derivation.service";
 
 describe("AssessmentCollectionModule", () => {
   // Happy path: PersistenceModule(@Global, mocked PrismaService) 와 함께 imports 하면
@@ -143,6 +145,12 @@ describe("AssessmentCollectionModule", () => {
       GithubOrgEnumerateService,
     );
 
+    // slice vi(T-0268): SinceDerivationService 가 resolve 되면 그 생성자 의존
+    // AssessmentService 가 UserModule import 의 export 로 닫혔음의 증명(새 import 0).
+    const since = moduleRef.get(SinceDerivationService);
+    expect(since).toBeDefined();
+    expect(since).toBeInstanceOf(SinceDerivationService);
+
     await moduleRef.close();
   });
 
@@ -175,6 +183,23 @@ describe("AssessmentCollectionModule", () => {
       .compile();
 
     const resolved = moduleRef.get(CollectionEntryService);
+    expect(resolved).toBe(sentinel);
+
+    await moduleRef.close();
+  });
+
+  // Negative / exports 정합(6): SinceDerivationService(slice vi) 도 sentinel override →
+  // resolve 검증. since 도출 service 의 exports 등록을 독립 cover(후속 호출처가 inject).
+  it("SinceDerivationService provider 가 sentinel 로 override 되어도 compile 한다 (exports 등록 정합)", async () => {
+    const sentinel = { __sentinel: "since-derivation-override" };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, AssessmentCollectionModule],
+    })
+      .overrideProvider(SinceDerivationService)
+      .useValue(sentinel)
+      .compile();
+
+    const resolved = moduleRef.get(SinceDerivationService);
     expect(resolved).toBe(sentinel);
 
     await moduleRef.close();
@@ -253,6 +278,8 @@ describe("AssessmentCollectionModule", () => {
     expect(() => moduleRef.get(CollectionSpecService)).toThrow();
     expect(() => moduleRef.get(GithubCollectionSpecService)).toThrow();
     expect(() => moduleRef.get(GithubOrgEnumerateService)).toThrow();
+    // slice vi(T-0268): SinceDerivationService 도 본 module 없이는 미등록.
+    expect(() => moduleRef.get(SinceDerivationService)).toThrow();
 
     await moduleRef.close();
   });
