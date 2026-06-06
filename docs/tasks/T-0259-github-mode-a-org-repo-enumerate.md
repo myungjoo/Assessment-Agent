@@ -2,7 +2,7 @@
 id: T-0259
 title: ADR-0030 §1 enumerate slice ii-b1 — mode A org→repo async enumerate(orgEnumerateTargets → GithubRepoSource[])
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008]
 estimatedDiff: 270
@@ -57,4 +57,12 @@ ADR-0030 §5 cap-split 의 slice ii(`buildCollectionSpec`)는 (i) `_REPOS` env p
 
 ## Follow-ups
 
-(작성 시 비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
+- slice ii-b2a (T-0260): GitHub-only `buildGithubCollectionSpec` — mode B(`resolveGithubRepoSources`) + mode A(`GithubOrgEnumerateService`) 결합 → `GithubCollectionSpec`.
+- slice ii-b2b: Confluence `resolveConfluenceInstances` + 전체 `CollectionSpec { github, confluence }` 조립.
+- slice iii: `collectForPerson` 진입 + 영속화 결선 + author 필터.
+- (reviewer nit, 비-차단) `isRecord`/`readString` type-guard 가 github-activity.mapper 와 github-repo-list.mapper 에 mirror 복제 — 3번째 복제 발생 시 공유 모듈 추출 follow-up 권고.
+
+## 완료 기록
+
+- DONE 2026-06-06 (loop@AKIHA-s68 turn 3). PR-222 squash-merge `314238e`, reviewer APPROVE round 1/7 (0 BLOCKER/0 MAJOR/1 MINOR[363 LOC overage spec-driven 비-차단]/1 nit[type-guard mirror 비-차단]), 4-게이트 PASS, CI green (approval-gate race → approve comment + rerun).
+- 산출: `domain/github-repo-list.mapper.ts`(`mapRepoName`) + `github-org-repo-enumerate.service.ts`(`GithubOrgEnumerateService`) + colocated specs (20 case, 신규 2파일 cov 100%). +363 LOC/4 파일.
