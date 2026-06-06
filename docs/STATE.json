@@ -7,13 +7,11 @@
   "currentTask": null,
   "nextTask": null,
   "lock": {
-    "holder": "loop",
-    "session": "loop@AKIHA-s69",
-    "since": "2026-06-07T00:10:00+09:00",
-    "loopSessionStartedAt": "2026-06-06T23:23:17+09:00",
-    "loopSessionTurnCount": 3
+    "holder": "cron",
+    "session": "cron@cloud-eLCQE",
+    "since": "2026-06-07T02:03:00+09:00"
   },
-  "lastActivity": "2026-06-07T00:10:00+09:00",
+  "lastActivity": "2026-06-07T02:10:00+09:00",
   "lastCommit": "9635b7d",
   "mostRecentTasks": [
     "T-0269",
@@ -354,7 +352,25 @@
       "decision": "option (3) 방향 재지시 — 사용자가 milestone-3 의 **Assessment collection orchestrator service 구현**을 지시(planner 의 'make-work' 판단을 사용자 우선순위로 override — 이는 README REQ-005~010/015/031 의 핵심 backend 이지 make-work 아님). 배경: GitHub(com/sec/ecode 3 host 전부) + Confluence 의 adapter/transport/instance-config/token-decrypt/permission-denied emit 은 이미 머지·단위테스트 완료이나 **자기 test 외 caller 0** — 이들을 실제 호출해 활동(commit/PR/issue/page)을 수집·매핑·dedup·Contribution 영속화하는 orchestrator layer 가 공백(modules.md row 9 AssessmentModule 미구현·app.module.ts 미배선). 사용자 명시 제약: (a) **구현은 진행**(Confluence + GitHub Enterprise 포함 — 기존 adapter 가 이미 3 host/Cloud·Server 지원하므로 orchestrator 가 그 위에 얹힘), (b) **live/credentialed 테스트는 UI 준비 이후로 defer**(token 불요 — §5 credential 게이트 미발화), (c) **mocked-adapter unit test 는 R-112 대로 필수**(coverage line/function ≥80% 유지). ADR-first 진행: T-0247(ADR-0029 수집 설계 — module 배치/Activity 도메인모델+mapper/orchestration 계약/dedup[commit SHA, page id+version]/incremental since/Contribution 매핑/테스트 posture 7 결정, impl 0 LOC, commitMode pr) 큐잉 후 구현 slice(Activity 모델+mapper → GitHub 수집 service → Confluence 수집 service → AssessmentCollectionModule 배선 → orchestrator entry+영속화 → incremental since) 순차. 각 slice ≤300 LOC/≤5 파일, mocked unit test 동반, live e2e 는 UI 이후. 잔여 옵션 (1) 잔여 host live token run·(2) Stryker 는 미진행(defer). 새 외부 dependency 0(내장 fetch)·새 credential 0 → §5 미발화.",
       "processedByPlanner": true,
       "processedAt": "2026-06-06T13:30:00+09:00",
-      "followupNote": "slice (i)~(iv) 머지 완료(T-0248~T-0251). planner 가 slice (v) orchestrator entry+영속화를 큐잉 시도했으나 colocated spec 포함 시 ≤300 LOC/≤5 파일 cap 초과 — dependency-first 순수 매퍼(Activity→ContributionCreateInput)만 T-0252 로 split, 나머지(entry·영속화·since)는 T-0252 §Follow-ups(v-b/v-c/vi/vii)로 박제."
+      "followupNote": "slice (i)~(iv) 머지 완료(T-0248~T-0251). planner 가 slice (v) orchestrator entry+영속화를 큐잉 시도했으나 colocated spec 포함 시 ≤300 LOC/≤5 파일 cap 초과 — dependency-first 순수 매퍼(Activity→ContributionCreateInput)만 T-0252 로 split, 나머지(entry·영속화·since)는 T-0252 §Follow-ups(v-b/v-c/vi/vii)로 박제. **[s69 update 2026-06-07]:** slice 전부 완결 — v-a(T-0252 mapper), v-b(T-0253 orchestrator aggregate / T-0264 collectForPerson entry), v-c(T-0254/T-0263 persistActivities boundary), v-b enumerate sub-chain(T-0256~T-0265 enumerate ADR-0030/repo source/mode-A/spec assemble/author filter/module wiring), vi(T-0267 SinceDerivationService 신설+T-0268 module 배선, 직전 Assessment 최신 periodStart→ISO since 도출), vii(T-0255 modules.md row 신설 + T-0266 enumerate chain doc-sync + T-0269 slice vi doc-sync) 모두 머지. AssessmentCollectionModule 9-service 배선 완결 + AppModule import 완료(tasksCompleted=267). 잔여 deferred 는 Q-0025 decision 명시 그대로 — 호출처(scheduler/manual trigger) 결선 = P5/P7 (AssessmentModule manual trigger / SchedulerModule, ADR-worthy phase 경계), 1주 재수집 window/timezone = REQ-058 P5/P7, live/credentialed 수집 = UI 이후. dependency-free 잔여 0 — Q-0026 으로 escalate."
+    },
+    {
+      "id": "Q-0026",
+      "raisedAt": "2026-06-07T00:25:00+09:00",
+      "raisedBy": "cron@cloud-eLCQE planner survey (stale lock 탈취 후 HIGH make-work-bar)",
+      "reason": "needs-human-decision",
+      "status": "PENDING",
+      "summary": "Q-0025 가 지시한 Assessment collection orchestrator backbone 이 in-module 으로 완결됐다(slice i~vi 전부 머지, AssessmentCollectionModule 9-service 배선 + AppModule import 완료, mocked unit R-112 통과). 잔여는 전부 Q-0025 decision 이 명시 deferred 한 (a) 호출처(scheduler/manual trigger) 결선 — ADR-worthy + P5/P7 phase 경계, (b) 1 주 재수집 window/timezone 보정 — REQ-058 P5/P7, (c) live/credentialed 수집 — UI 이후, 그리고 Q-0024/Q-0025 이전부터 deferred 였던 (d) Confluence/Enterprise GitHub live token run — §5 credential 게이트, (e) mutation testing(Stryker) — 새 외부 dependency §5 게이트 다. HIGH make-work-bar survey 결과 진짜 dependency-free 잔여 0 — task 날조 회피 차원에서 escalate. blockers 0, open PR 0, CI green, tasksCompleted=267, ADR-0001~0030 전원 ACCEPTED, Q-0013~Q-0025 전원 RESOLVED.",
+      "context": "main 실코드 대조(origin/main b705626, 9635b7d T-0269 직후): (1) AssessmentCollectionModule 9-service 배선 완료 — providers/exports 에 GithubCollectionService / ConfluenceCollectionService / CollectionOrchestratorService / CollectionPersistenceService / GithubOrgEnumerateService / GithubCollectionSpecService / CollectionSpecService / CollectionEntryService / SinceDerivationService(T-0267 신설/T-0268 배선) 전부 등록. (2) CollectionEntryService.collectForPerson(person, since|undefined, assessmentId) 4단계 조립(buildCollectionSpec → orchestrator aggregate → filterActivitiesByAuthor → persistActivities) 완성, mocked unit R-112 통과(140 suite/3512 test green). (3) SinceDerivationService.deriveSince(personId) = 직전 Assessment 최신 periodStart → ISO since(빈 배열 → undefined=full collection), unit R-112 통과. (4) modules.md row 9 AssessmentCollectionModule 표기 + 9-service 배선 + slice vi 완료 정합(T-0269 9635b7d). (5) AppModule.imports 에 AssessmentCollectionModule 등록(app.module.ts L39, T-0251). 즉 collection in-module 책임은 **end-to-end 완결**. 잔여 진짜 actionable 은 외부 호출 — collectForPerson 을 누가 언제 어떤 assessmentId 로 트리거하는가 + Assessment row 를 누가 생성하는가, 그리고 1 주 보정·실 token live 검증 + 평가 파이프라인(P5 LLM scoring) — 모두 본 phase 경계 밖이거나 Q-0024/Q-0025 deferred. cosmetic sweep: stale-count/false-comment hit 0, nit residual 0, BLOCKED task 0.",
+      "options": [
+        "(1) 호출처 결선 진입(가장 큰 가치, P5/P7 phase 경계 진입 + ADR-worthy) — Assessment row 생성 주체 결정 + AssessmentModule manual trigger endpoint(POST /api/assessments/{personId}/collect 식) 또는 SchedulerModule cron handler 가 SinceDerivationService.deriveSince → CollectionEntryService.collectForPerson 을 호출하는 진입점 구축. ADR 선행 필수(누가 Assessment row 를 만드는가 / 동시 호출/idempotency / scheduler 와 manual trigger 책임 분리 / RBAC). 새 외부 dependency 0(SchedulerModule 은 ADR-0003 §3 @nestjs/schedule 이미 박제) / 외부 credential 0(mocked). UI 부재 가시화는 별 문제 아님 — DB row + log 로 검증 가능.",
+        "(2) 1 주 재수집 window / timezone 보정(REQ-058, P5/P7) — SinceDerivationService 가 직전 periodStart 에서 1 주를 빼는 보정 로직 추가 + timezone(Asia/Seoul vs UTC) 결정. ADR 검토 필요. 새 dep 0 / credential 0. (1) 보다 작지만 (1) 진입 후가 정합 — (1) 의 phase 진입 결정과 함께 묶는 게 자연스러움.",
+        "(3) Confluence / Enterprise GitHub host live token run(Q-0024/Q-0025 deferred) — 실 Confluence token 또는 github.sec/github.ecode token 을 repo 밖 secrets.env 로 env 주입한 뒤 이미 머지된 env-gated live smoke spec 을 1 회 실행. 새 dep 0 / 실 credential 다수 — §5 credential 게이트.",
+        "(4) Mutation testing(Stryker) 도입(Q-0024/Q-0025 deferred) — 현 line/function ≥80% coverage 위 test 효과성 측정. @stryker-mutator/* 새 외부 dependency + ADR — §5 의존성 게이트.",
+        "(5) 다른 우선순위 / 루프 정지 — 위 외 방향(observability·OpenAPI/Swagger doc 자동화·P6 frontend 진입 검토 등) 지시 또는 정지. retention TTL 은 ADR-0022 §3 영구 보존 reverse + 새 dep 비권장(옵션 제외)."
+      ],
+      "recommendation": "가장 큰 가치 unblock 은 (1) 호출처 결선 — 이미 머지된 collection backbone(9-service + collectForPerson + deriveSince)이 caller 0 상태이고, (1) 이 그 운영 가치를 실제로 활성화한다(현 상태는 'safe but useless' 와 유사 — 코드는 있으나 누구도 부르지 않음). (1) 은 ADR-worthy phase 경계(P4 수집 → P5 평가 / P7 scheduler)라 사용자 phase 진입 결정 필요. 권장 순서: (1)(+2 함께) → (3) → (4). (3) 은 token 제공 가능 시 즉시, (4) 는 새 dep ADR 선행. planner 단독으로 phase 진입은 결정 권한 밖이라 escalate — 사용자가 (1) 진입 승인 시 ADR-first 로 첫 slice(호출처 결선 설계 ADR — Assessment row 생성 주체·manual trigger vs scheduler 책임·idempotency·RBAC) 큐잉.",
+      "resolutionHint": "docs/STATE.json 의 본 Q-0026 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 호출처 진입 scope[scheduler-only / manual-trigger-only / both] 및 Assessment row 생성 주체 가이드 / (2) 함께 진행 여부 / (3) 선택 시 token credential scope + secrets.env 경로·만료 / (4) 선택 시 Stryker ADR 진행 승인)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token)은 코드·STATE·journal·git 에 실값 금지, env/secret 주입(§9)."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
