@@ -5,9 +5,9 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0250",
   "lock": null,
-  "lastActivity": "2026-06-06T12:33:00+09:00",
+  "lastActivity": "2026-06-06T12:39:00+09:00",
   "lastCommit": "69b4f8f",
   "mostRecentTasks": [
     "T-0249",
@@ -17,14 +17,14 @@
     "T-0245"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-06T11:49:00+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s66",
     "stoppedAt": null,
     "stopReason": null,
-    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 12:33) turn 3 — free lock CAS 획득 s66(65ac54d→6032ce0). T-0249(ADR-0029 collection slice (ii) GitHub 수집 service + SHA earliest-wins commit dedup) executor 완수(4 파일/+595, prod 199<300 cap 내) 후 driver commit/push→integrator. **T-0249 DONE/MERGED(PR-213 squash 69b4f8f)**: reviewer APPROVE r1 0 findings, 4-게이트 PASS, CI green(run 27051282597). mocked GithubInstanceClient unit R-112(신규 2 파일 line/func 100%). endpoint 단위 skip-and-continue, since 는 query pass-through(도출 slice vi). tasksCompleted 246→247, reviewRounds[T-0249]=1. [다음] nextTask 없음 — turn 4 planner 가 slice (iii) Confluence 수집 service 큐잉 예정. live UI 이후 defer, 새 dep/credential 0. [dynamic] turnCount 3/10 — ScheduleWakeup 재예약.",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 2 (KST 12:13) — planner-only: T-0249 큐잉(ADR-0029 collection slice (ii) GitHub 수집 service). T-0248 doc CI success 확인."
+    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 12:39) turn 4 — planner-only turn. free lock CAS 획득 s66(ee21dca→3b4f68a). nextTask 비어 planner dispatch → **T-0250 큐잉**(ADR-0029 collection slice (iii) = Confluence 수집 service: ConfluenceSpaceTraversalService 위 instance×SPACE 수집 + (page-id,version) latest-wins dedup, mocked unit R-112, pr ~225 LOC/4 파일). T-0249 merge 의 doc-only CI(4d08af4) success 확인. [다음] turn 5 가 T-0250 executor→integrator 실행. live UI 이후 defer, 새 dep/credential 0. [dynamic] turnCount 4/10 — ScheduleWakeup 재예약.",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 3 (KST 12:33) — T-0249 DONE/MERGED(PR-213 squash 69b4f8f, ADR-0029 slice (ii) GitHub 수집 service + SHA earliest-wins dedup, reviewer APPROVE r1, 4-게이트 PASS, CI green). tasksCompleted 246→247, reviewRounds[T-0249]=1."
   },
   "ci": {
     "lastRun": "2026-06-06T12:33:00+09:00",
