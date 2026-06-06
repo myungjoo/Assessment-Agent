@@ -253,4 +253,76 @@ describe("CollectionPersistenceService", () => {
       ).toEqual(["a", "b@1", "c"]);
     });
   });
+
+  describe("persistActivities 직접 경로 (slice iii-b1)", () => {
+    it("이미 수집된 Activity[] 를 매퍼 거쳐 create 순서대로 호출하고 Contribution[] 반환 (orchestrator 미호출)", async () => {
+      const { service, collectSpy, createSpy } = makeService(async () => []);
+
+      const result = await service.persistActivities(
+        [ghActivity("sha-1", "commit"), cfActivity("page-1", 2)],
+        "assess-1",
+      );
+
+      // persistActivities 는 orchestrator 를 호출하지 않는다(이미 수집된 활동을 받음).
+      expect(collectSpy).not.toHaveBeenCalled();
+      expect(createSpy).toHaveBeenCalledTimes(2);
+      expect(createSpy.mock.calls.map((c) => c[0].sourceRef)).toEqual([
+        "sha-1",
+        "page-1@2",
+      ]);
+      expect(result.map((c) => c.id)).toEqual(["c-sha-1", "c-page-1@2"]);
+    });
+
+    it("(a) create 가 첫 활동에서 reject → 전파하고 이후 create 미호출 (fail-fast)", async () => {
+      const { service, createSpy } = makeService(
+        async () => [],
+        async () => {
+          throw new BadRequestException("첫 활동 실패");
+        },
+      );
+
+      await expect(
+        service.persistActivities(
+          [ghActivity("sha-1"), ghActivity("sha-2")],
+          "assess-1",
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(createSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("(b) create 가 중간 활동에서 reject → 그 시점까지만 호출되고 전파 (부분 영속 후 fail-fast)", async () => {
+      let n = 0;
+      const { service, createSpy } = makeService(
+        async () => [],
+        async (input: ContributionCreateInput): Promise<Contribution> => {
+          n += 1;
+          if (n === 2) {
+            throw new Error("두번째 활동 실패");
+          }
+          return {
+            id: `c-${input.sourceRef}`,
+            ...input,
+          } as unknown as Contribution;
+        },
+      );
+
+      await expect(
+        service.persistActivities(
+          [ghActivity("a"), ghActivity("b"), ghActivity("c")],
+          "assess-1",
+        ),
+      ).rejects.toThrow("두번째 활동 실패");
+      // 2번째에서 중단 — 3번째 create 는 호출되지 않음.
+      expect(createSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("(c) 빈 activities → create 0회 + 빈 배열 (throw 0)", async () => {
+      const { service, createSpy } = makeService(async () => []);
+
+      const result = await service.persistActivities([], "assess-1");
+
+      expect(result).toEqual([]);
+      expect(createSpy).not.toHaveBeenCalled();
+    });
+  });
 });
