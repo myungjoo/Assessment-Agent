@@ -5,34 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0267",
-  "lock": null,
-  "lastActivity": "2026-06-06T22:01:00+09:00",
-  "lastCommit": "770a314",
+  "nextTask": null,
+  "lock": {
+    "holder": "loop",
+    "session": "loop@AKIHA-s69",
+    "since": "2026-06-06T23:23:17+09:00",
+    "loopSessionStartedAt": "2026-06-06T23:23:17+09:00",
+    "loopSessionTurnCount": 1
+  },
+  "lastActivity": "2026-06-06T23:45:00+09:00",
+  "lastCommit": "1a5a890",
   "mostRecentTasks": [
+    "T-0267",
     "T-0266",
     "T-0265",
     "T-0264",
-    "T-0263",
-    "T-0262"
+    "T-0263"
   ],
   "loopSession": {
-    "turnCount": 10,
-    "startedAt": "2026-06-06T19:12:08+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-06-06T23:23:17+09:00",
     "cap": 10,
-    "holder": "loop@AKIHA-s68",
-    "stoppedAt": "2026-06-06T22:02:00+09:00",
-    "stopReason": "10-turn-cap-reached-clean-stop-T-0267-queued",
-    "note": "loop@AKIHA-s68 (KST 06-06 22:02) turn 10 (FINAL, 10-turn cap) — T-0266 DONE(direct doc-sync content 770a314): docs/architecture/modules.md AssessmentCollectionModule row 를 머지된 8-service 배선 + collectForPerson 진입 계약(4단계)으로 정합 + stale 'enumerate 후속 slice' → enumerate 완료 정정 + line3 머리말 T-0266 이력. reviewer/PR 불요(direct doc-only, R-110 tester 면제). +2/-2 1 파일. **§1[8](e) 10-turn cap 도달 → ScheduleWakeup 재예약 안 함, session #68 STOP + lock tombstone 해제.** 사용자에게 cleanup(/compact 또는 /clear 후 새 /loop, 또는 cron 발화 대기) 안내. [session #68 요약] 10 turn 에 ADR-0030 collection enumerate/collect 체인을 end-to-end 완성: T-0258(mode B allowlist 매칭)·T-0259(mode A org→repo enumerate)·T-0260(GitHub buildGithubCollectionSpec)·T-0261(전체 buildCollectionSpec)·T-0262(author 필터)·T-0263(persistActivities 경계)·T-0264(collectForPerson 진입)·T-0265(module DI 배선)·T-0266(modules.md doc-sync) 9 task 머지. tasksCompleted 255→264, reviewRounds 8건(T-0258~T-0265), blockers 0, CI green 유지(approval-gate race 패턴 → approve comment + rerun --failed 또는 race 미발생). collectForPerson 이 enumerate→collect→author필터→persist 를 DI 로 조립·inject 가능. 운영: 새 session #68 첫 turn 에 TZ='Asia/Seoul' git-bash 버그(+9h offset) 발견 → plain date(local KST) 사용. T-0263 reviewer 가 worktree main switch(이후 reviewer 에 no-branch-switch 지시로 재발 차단). driver 직접 구현(env phantom-worktree write 격리), reviewer/planner 만 sub-agent. 다음 nextTask=T-0267(slice vi since 도출, dependency-free pr). lock heartbeat dee620c→3b84bb1(turnCount 10/10).",
-    "notePrev": "loop@AKIHA-s68 (KST 06-06 21:48) turn 9 — T-0265 DONE/MERGED(PR-228 squash 0356fc0). ADR-0030 §5 slice iii-b2b module DI 배선 완료 — collection 체인 inject 가능. tasksCompleted 262→263."
+    "holder": "loop@AKIHA-s69",
+    "note": "loop@AKIHA-s69 (KST 06-06 23:45) turn 1 — T-0267 DONE/MERGED(PR-229 squash 1a5a890). ADR-0030 §4 slice vi: SinceDerivationService.deriveSince(personId) 신설 — AssessmentService.findByPerson 결과를 reduce 로 최신 periodStart 선택→toISOString, 빈 배열이면 undefined(full collection, 신규 인원). 도출 기준 periodStart(createdAt 아님), throw 0(의존성 reject 만 전파). collectForPerson 의 since 인자 소비처 확보. reviewer 2 round APPROVE: round1 MINOR(spec header 가 ADR-0029 §5 미래 timestamp 경계 cover 주장하나 전용 test 부재) → CLAUDE.md §3 Nit-in-PR closure 로 negative case (g) 추가(round2, test-only). CI green(approval-gate race 미발생 — round1 head run 도 success), since-derivation.service.ts 100% line/branch/func/stmt, 전체 186 suite/3510 test green. driver 직접 구현(env phantom-worktree sub-agent write 격리), reviewer 만 sub-agent. tasksCompleted 264→265. 다음 micro-slice = SinceDerivationService 의 AssessmentCollectionModule provider 배선(planner 큐잉 예정).",
+    "notePrev": "loop@AKIHA-s68 (KST 06-06 22:02) turn 10 (FINAL, 10-turn cap STOP) — T-0266 DONE(modules.md enumerate chain doc-sync 770a314). session #68 10 turn 에 collection enumerate/collect 체인 T-0258~T-0266 end-to-end 완성(tasksCompleted 255→264). nextTask=T-0267 큐잉 후 cap STOP."
   },
   "ci": {
-    "lastRun": "2026-06-06T22:02:00+09:00",
+    "lastRun": "2026-06-06T23:43:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/0356fc0",
-    "note": "s68 t10 FINAL: T-0266 은 direct doc-only(modules.md, content 770a314) + bookkeeping commit — main push 후 CI 확인(R-114, doc-only 라 green 예상; 직전 코드 commit 0356fc0 already success). T-0265 PR-228 run 27062628187 success. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27065035082",
+    "note": "s69 t1: T-0267 PR-229 round2 head(770a930) run 27065035082 success — 테스트+커버리지/스모크/e2e/reviewer approval 검증 전부 green. round1 head(1785a94) run 27064949434 도 success(approval-gate race 미발생). squash merge 1a5a890. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -81,7 +85,8 @@
     "T-0262": 1,
     "T-0263": 1,
     "T-0264": 1,
-    "T-0265": 1
+    "T-0265": 1,
+    "T-0267": 2
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -354,7 +359,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 264,
+    "tasksCompleted": 265,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

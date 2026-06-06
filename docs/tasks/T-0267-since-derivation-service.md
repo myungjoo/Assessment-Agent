@@ -2,7 +2,11 @@
 id: T-0267
 title: ADR-0030 §4 slice vi — 직전 Assessment → since 도출 service 신설
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-06T23:45:00+09:00
+prNumber: 229
+mergeCommit: 1a5a890
+result: "SinceDerivationService.deriveSince(personId) 신설 — 직전 Assessment 최신 periodStart→ISO since, 빈 배열 undefined. PR-229 squash 1a5a890, reviewer 2 round APPROVE(round1 MINOR 미래 timestamp 경계 test nit-closure), CI green, since-derivation.service.ts 100% cov."
 commitMode: pr
 coversReq: [REQ-031, REQ-005, REQ-006, REQ-007, REQ-008, REQ-015]
 estimatedDiff: 135
