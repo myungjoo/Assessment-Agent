@@ -5,32 +5,32 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0261",
+  "nextTask": "T-0262",
   "lock": null,
-  "lastActivity": "2026-06-06T20:18:00+09:00",
-  "lastCommit": "048d01f",
+  "lastActivity": "2026-06-06T20:35:00+09:00",
+  "lastCommit": "e73355d",
   "mostRecentTasks": [
+    "T-0261",
     "T-0260",
     "T-0259",
     "T-0258",
-    "T-0257",
-    "T-0256"
+    "T-0257"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-06T19:12:08+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s68",
-    "note": "loop@AKIHA-s68 (KST 06-06 20:18) turn 4 — T-0260 DONE/MERGED(PR-223 squash 048d01f, reviewer APPROVE r1 clean 0 BLOCKER/0 MAJOR/0 MINOR, 4-게이트 PASS, CI green — 이번엔 approval-gate race 미발생, approve comment 가 approval step 전 도달해 first run success). ADR-0030 §5 enumerate slice ii-b2a = GitHub buildGithubCollectionSpec: github-collection-spec.service.ts 의 GithubCollectionSpecService.buildGithubCollectionSpec(async, @Optional env=process.env) — resolveGithubInstances(env).instances → resolveGithubRepoSources(mode B sources + mode A targets) → 빈 targets early-skip vs enumerateRepoSources(await, throw→빈 mode A 흡수해 mode B 보존) → [...B,...A] 결정론 결합. 순수함수(T-0257/T-0258)는 실제 통과+enumerate(T-0259)만 mock. colocated spec 9 case 신규파일 cov 100%, unit 3470 pass, lint/build/smoke/e2e green. driver 직접 구현(env phantom-worktree write 격리), reviewer/planner 만 sub-agent. tasksCompleted 257→258, reviewRounds[T-0260]=1, mostRecentTasks prepend T-0260. planner T-0261 큐잉(ADR-0030 §5 slice ii-b2b = 전체 buildCollectionSpec 조립: T-0260 GithubCollectionSpec + 기존 resolveConfluenceInstances → CollectionSpec{github,confluence}; resolveConfluenceInstances 는 src/confluence 에 이미 존재 확인, 호출만; pr ~265 LOC/2파일). lock heartbeat 020cb0f→a60d474(turnCount 4/10). [다음] turn 5 = T-0261 executor(implementer→tester)→reviewer→merge. ci: green; blockers: 0; humanQuestions: 0.",
-    "notePrev": "loop@AKIHA-s68 (KST 06-06 19:58) turn 3 — T-0259 DONE/MERGED(PR-222 squash 314238e, reviewer APPROVE r1 4-게이트 PASS). ADR-0030 §1 slice ii-b1 mode A enumerate(mapRepoName + GithubOrgEnumerateService). tasksCompleted 256→257."
+    "note": "loop@AKIHA-s68 (KST 06-06 20:35) turn 5 — T-0261 DONE/MERGED(PR-224 squash e73355d, reviewer APPROVE r1 0 BLOCKER/0 MAJOR/1 MINOR[spec literal 하드코딩 비-차단], 4-게이트 PASS, CI green race 미발생). ADR-0030 §5 enumerate slice ii-b2b = 전체 buildCollectionSpec 조립: collection-spec.service.ts 의 CollectionSpecService.buildCollectionSpec(async, @Optional env) — await githubSpecService.buildGithubCollectionSpec(person, since)[T-0260 위임] + resolveConfluenceInstances(env).instances[기존 함수 호출만] → {github, confluence:{instances}}. GitHub throw 전파(fail-fast). colocated spec 8 case 신규파일 cov 100%, unit 3478 pass, lint/build/smoke/e2e green. **이로써 ADR-0030 enumerate buildCollectionSpec 전체 조립(slice i~ii-b2b) 완성.** driver 직접 구현(env phantom-worktree write 격리), reviewer/planner 만 sub-agent. tasksCompleted 258→259, reviewRounds[T-0261]=1, mostRecentTasks prepend T-0261. planner T-0262 큐잉(ADR-0030 §2/§3 slice iii-a = author 귀속 필터 순수 함수 filterActivitiesByAuthor[Activity.author===externalId, source-type-aware]; collectForPerson 진입 iii-b 가 소비; pr ~200 LOC/2파일). lock heartbeat a60d474→852f2b0(turnCount 5/10). [다음] turn 6 = T-0262 executor(implementer→tester)→reviewer→merge. ci: green; blockers: 0; humanQuestions: 0.",
+    "notePrev": "loop@AKIHA-s68 (KST 06-06 20:18) turn 4 — T-0260 DONE/MERGED(PR-223 squash 048d01f, reviewer APPROVE r1 clean). ADR-0030 §5 slice ii-b2a GitHub buildGithubCollectionSpec(mode B+A 결합). tasksCompleted 257→258."
   },
   "ci": {
-    "lastRun": "2026-06-06T20:15:00+09:00",
+    "lastRun": "2026-06-06T20:33:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/223",
-    "note": "s68 t4: T-0260 PR-223 — pull_request run 27060742973 first run 부터 success(approval-gate race 미발생, approve comment 가 approval step 전 도달). merge squash 048d01f. consecutiveFails 0. 본 bookkeeping direct commit 의 main CI 는 push 후 확인(R-114)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/224",
+    "note": "s68 t5: T-0261 PR-224 — pull_request run 27061081041 first run 부터 success(approval-gate race 미발생). merge squash e73355d. consecutiveFails 0. 본 bookkeeping direct commit 의 main CI 는 push 후 확인(R-114)."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -74,7 +74,8 @@
     "T-0257": 1,
     "T-0258": 1,
     "T-0259": 1,
-    "T-0260": 1
+    "T-0260": 1,
+    "T-0261": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -347,7 +348,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 258,
+    "tasksCompleted": 259,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
