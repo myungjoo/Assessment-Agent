@@ -2,7 +2,11 @@
 id: T-0252
 title: Activity → ContributionCreateInput 순수 매퍼 추가 (ADR-0029 slice v-a)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-06T13:35:00+09:00
+mergedAs: fe2d36d
+prNumber: 216
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-033, REQ-009, REQ-015, REQ-031]
 estimatedDiff: 240

@@ -5,34 +5,34 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0252",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-06-06T13:23:00+09:00",
-  "lastCommit": "4755418",
+  "lastActivity": "2026-06-06T13:35:00+09:00",
+  "lastCommit": "fe2d36d",
   "mostRecentTasks": [
+    "T-0252",
     "T-0251",
     "T-0250",
     "T-0249",
-    "T-0248",
-    "T-0247"
+    "T-0248"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-06T11:49:00+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s66",
     "stoppedAt": null,
     "stopReason": null,
-    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 13:23) turn 8 — planner-only turn. free lock CAS 획득 s66(2206769→bde6b92). nextTask 비어 planner dispatch → **T-0252 큐잉**(ADR-0029 slice (v) SPLIT — orchestrator entry+영속화가 colocated spec 포함 시 cap 초과라 dependency-first 순수 매퍼만 큐잉: Activity → ContributionCreateInput, 나머지 entry+영속화+since 는 Follow-ups). planner 가 ADR-0029 §6 'github:commit' 예시 literal 이 ContributionService.VALID_SOURCE_TYPES(commit/pr/document) validation 에 fail 함을 발견 → 매퍼가 valid literal 만 emit(issue→pr, confluence→document) + placeholder evaluation 필드(P5 채움)로 task 에 박제. T-0251 merge 의 doc-only CI(be9f2fd) success 확인. [다음] turn 9 가 T-0252 executor→integrator 실행. live UI 이후 defer, 새 dep/credential 0. [dynamic] turnCount 8/10 — ScheduleWakeup 재예약(턴 10 cap 근접).",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 7 (KST 13:16) — T-0251 DONE/MERGED(PR-215 squash 4755418, ADR-0029 slice (iv) module 배선). integrator NEEDS_REVIEW → driver fallback(ADR-0005) reviewer+게이트+merge. tasksCompleted 248→249."
+    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 13:35) turn 9 — free lock CAS 획득 s66(6359c18→413ce41). T-0252(ADR-0029 slice (v) split — Activity→ContributionCreateInput 순수 매퍼) executor 완수(2 파일/+322, prod 100<300, spec 222 R-112 강제분 CAP-NOTE T-0248 선례) 후 driver commit/push. integrator NEEDS_REVIEW(reviewer dispatch 불가) → driver 가 reviewer 직접 dispatch APPROVE r1 0 findings(comment issuecomment-4637404135, reviewer 가 VALID_SOURCE_TYPES main 직접 대조). **T-0252 DONE/MERGED(PR-216 squash fe2d36d)**: 4-게이트 PASS — pull_request run 27052763825 은 approval step 만 race fail(나머지 success), issue_comment run 27052810834 success 로 approval 충족. sourceType commit/pr/document 만(issue→pr 흡수), 평가필드 placeholder(P5). tasksCompleted 249→250, reviewRounds[T-0252]=1. [다음] nextTask 없음 — turn 10(cap) planner 가 slice (v) 잔여(orchestrator entry+영속화) 또는 (vi) since 큐잉 후 §1[8](e) 10-turn cap 도달로 STOP+cleanup 안내. live UI 이후 defer, 새 dep/credential 0. [dynamic] turnCount 9/10 — ScheduleWakeup 재예약(마지막).",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 8 (KST 13:23) — planner-only: T-0252 큐잉(ADR-0029 slice (v) split, Activity→Contribution 매퍼). planner 가 ADR §6 'github:commit' vs VALID_SOURCE_TYPES 불일치 발견·해소. T-0251 doc CI success 확인."
   },
   "ci": {
-    "lastRun": "2026-06-06T13:16:00+09:00",
+    "lastRun": "2026-06-06T13:35:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/215",
-    "note": "s66: T-0251 PR-215 — pull_request run 27052312423 success(전 step 통과, reviewer comment 가 run in_progress 중 post 돼 approval step race 없이 통과). merge squash 4755418. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/216",
+    "note": "s66: T-0252 PR-216 — pull_request run 27052763825 approval step 만 race fail(나머지 build/test/smoke/e2e success), issue_comment run 27052810834 success 로 approval 게이트 충족. merge squash fe2d36d. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -68,7 +68,8 @@
     "T-0248": 1,
     "T-0249": 1,
     "T-0250": 1,
-    "T-0251": 1
+    "T-0251": 1,
+    "T-0252": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -341,7 +342,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 249,
+    "tasksCompleted": 250,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
