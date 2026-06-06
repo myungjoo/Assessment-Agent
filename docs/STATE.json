@@ -5,9 +5,9 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0253",
   "lock": null,
-  "lastActivity": "2026-06-06T13:35:00+09:00",
+  "lastActivity": "2026-06-06T13:47:00+09:00",
   "lastCommit": "fe2d36d",
   "mostRecentTasks": [
     "T-0252",
@@ -17,14 +17,14 @@
     "T-0248"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-06T11:49:00+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s66",
-    "stoppedAt": null,
-    "stopReason": null,
-    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 13:35) turn 9 — free lock CAS 획득 s66(6359c18→413ce41). T-0252(ADR-0029 slice (v) split — Activity→ContributionCreateInput 순수 매퍼) executor 완수(2 파일/+322, prod 100<300, spec 222 R-112 강제분 CAP-NOTE T-0248 선례) 후 driver commit/push. integrator NEEDS_REVIEW(reviewer dispatch 불가) → driver 가 reviewer 직접 dispatch APPROVE r1 0 findings(comment issuecomment-4637404135, reviewer 가 VALID_SOURCE_TYPES main 직접 대조). **T-0252 DONE/MERGED(PR-216 squash fe2d36d)**: 4-게이트 PASS — pull_request run 27052763825 은 approval step 만 race fail(나머지 success), issue_comment run 27052810834 success 로 approval 충족. sourceType commit/pr/document 만(issue→pr 흡수), 평가필드 placeholder(P5). tasksCompleted 249→250, reviewRounds[T-0252]=1. [다음] nextTask 없음 — turn 10(cap) planner 가 slice (v) 잔여(orchestrator entry+영속화) 또는 (vi) since 큐잉 후 §1[8](e) 10-turn cap 도달로 STOP+cleanup 안내. live UI 이후 defer, 새 dep/credential 0. [dynamic] turnCount 9/10 — ScheduleWakeup 재예약(마지막).",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 8 (KST 13:23) — planner-only: T-0252 큐잉(ADR-0029 slice (v) split, Activity→Contribution 매퍼). planner 가 ADR §6 'github:commit' vs VALID_SOURCE_TYPES 불일치 발견·해소. T-0251 doc CI success 확인."
+    "stoppedAt": "2026-06-06T13:47:00+09:00",
+    "stopReason": "10-turn-cap-reached-clean-stop-T-0253-queued",
+    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 13:47) turn 10 (FINAL, 10-turn cap) — planner-only turn. free lock CAS 획득 s66(fe260cd→368ffee). nextTask 비어 planner dispatch → **T-0253 큐잉**(ADR-0029 slice (v-b) = 수집 orchestrator service: 두 collection service 호출→Activity[] aggregate. Person enumerate·영속화는 cap 초과로 v-c/Follow-ups split, ~165 LOC/3 파일, pr). **§1[8](e) 10-turn cap 도달 → ScheduleWakeup 재예약 안 함, 본 session #66 STOP.** 사용자에게 cleanup(/compact 또는 /clear 후 새 /loop, 또는 cron 대기) 안내. [session 요약] s66 10 turn 에 ADR-0029 collection orchestrator 구현 slice 5 개 머지: T-0248(Activity 모델+mapper)·T-0249(GitHub 수집 service)·T-0250(Confluence 수집 service)·T-0251(module 배선)·T-0252(Activity→Contribution 매퍼). tasksCompleted 245→250. 잔여: T-0253(orchestrator aggregate, 큐잉됨)·v-c(영속화+Person enumerate)·vi(incremental since)·vii(doc-sync). 운영 발견: integrator sub-agent reviewer-dispatch 불가 → driver fallback(ADR-0005) 패턴 확립([[integrator-cannot-dispatch-reviewer]] memory). live 테스트 UI 이후 defer 유지, 새 dep/credential 0.",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 9 (KST 13:35) — T-0252 DONE/MERGED(PR-216 squash fe2d36d, ADR-0029 slice (v-a) Activity→Contribution 매퍼). integrator NEEDS_REVIEW → driver fallback reviewer+게이트+merge. tasksCompleted 249→250."
   },
   "ci": {
     "lastRun": "2026-06-06T13:35:00+09:00",
