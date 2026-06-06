@@ -5,16 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0254",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s67",
-    "since": "2026-06-06T15:38:39+09:00",
+    "since": "2026-06-06T16:05:22+09:00",
     "loopSessionStartedAt": "2026-06-06T15:38:39+09:00",
-    "loopSessionTurnCount": 1
+    "loopSessionTurnCount": 2
   },
-  "lastActivity": "2026-06-06T15:54:00+09:00",
-  "lastCommit": "0e72bb6",
+  "lastActivity": "2026-06-06T16:06:00+09:00",
+  "lastCommit": "6d1c0d7",
   "mostRecentTasks": [
     "T-0253",
     "T-0252",
@@ -23,12 +23,12 @@
     "T-0249"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-06T15:38:39+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s67",
-    "note": "loop@AKIHA-s67 (KST 06-06 15:54) turn 1 — 사용자 대면 /loop turn cap 10 dynamic. [1] origin/main cb93968→ff. 로컬 main checkout 을 origin/main 추적 용도로 사용(launch worktree 는 stale bd9d371 = assessment-collection deps 부재라 driver loop 부적합 — LOOP §4 worktree 정책). free lock CAS 획득 s67(ac6e636→4ccdbcb). nextTask=T-0253 픽업. [3~5] T-0253(ADR-0029 slice v-b orchestrator aggregate, pr): env 제약(phantom-worktree sub-agent write 격리 + sub-agent nested dispatch 불가)으로 driver 가 직접 구현+test — CollectionOrchestratorService(두 collection service inject, collectActivities 가 독립 try/catch 로 부분 가용성 흡수 + GitHub→Confluence concat) + spec 11 test + module providers/exports. lint/build/test(177 suite 3405 pass)/cov(orchestrator 100%, global line/func 100%) 통과. PR-217 push, reviewer sub-agent → APPROVE(0 BLOCKER/0 MAJOR/1 MINOR=LOC 403>300 justified). approve comment post(gate2) → 첫 pull_request run approval-step race fail → rerun --failed → green. 4-게이트 PASS → squash merge 0e72bb6 branch delete. tasksCompleted 250→251. [6] doc-only direct bookkeeping. [8] turnCount 1<10 → ScheduleWakeup 재예약, lock 유지.",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 13:47) turn 10 (FINAL, 10-turn cap) — planner-only turn, T-0253 큐잉 후 session #66 STOP. s66 10 turn 에 ADR-0029 collection slice 5 개(T-0248~T-0252) 머지."
+    "note": "loop@AKIHA-s67 (KST 06-06 16:06) turn 2 — planner-only turn. [1] fetch main 6d1c0d7(0/0 sync, cron stood down) + 직전 bookkeeping CI 6d1c0d7=success 확인(R-114). lock heartbeat CAS 4ccdbcb→085d9f7(turnCount 1→2, since 16:05:22). [2] currentTask·nextTask null → planner sub-agent dispatch(decision-only, driver 가 파일 직접 write — sub-agent write 격리 회피). planner survey: T-0253 §Follow-ups 의 dependency-first 단위 = slice v-c(영속화) 선택, v-b2 enumerate 는 ServiceIdentity 가 org/repo 미보유라 GithubRepoSource org/repo source 가 ADR-0029 미정의 → ADR-first 후속. **T-0254 큐잉**(영속화 service: orchestrator aggregate Activity[] → mapActivityToContribution → ContributionService.create, UserModule import, pr ~145 LOC/4 파일). issue-still-relevant pre-check 통과(영속화 service main 부재). [6] doc-only direct bookkeeping. [8] turnCount 2<10 → ScheduleWakeup 재예약, lock 유지.",
+    "notePrev": "loop@AKIHA-s67 (KST 06-06 15:54) turn 1 — T-0253(ADR-0029 slice v-b orchestrator aggregate) DONE/MERGED(PR-217 squash 0e72bb6, reviewer APPROVE 1 MINOR=LOC justified, 4-게이트 PASS). driver 직접 구현+test(env 제약), reviewer 만 sub-agent. tasksCompleted 250→251. 신규 /loop session #67 시작, free lock CAS ac6e636→4ccdbcb."
   },
   "ci": {
     "lastRun": "2026-06-06T15:53:00+09:00",
