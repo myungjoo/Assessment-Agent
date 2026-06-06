@@ -2,7 +2,11 @@
 id: T-0248
 title: Activity 도메인 모델 + raw→typed mapper 구현 (collection slice i)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-06T12:03:00+09:00
+mergedAs: 4df23ec
+prNumber: 212
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-032, REQ-059]
 estimatedDiff: 225

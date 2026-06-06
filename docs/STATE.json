@@ -5,34 +5,34 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0248",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-06-06T11:40:00+09:00",
-  "lastCommit": "88a3482",
+  "lastActivity": "2026-06-06T12:03:00+09:00",
+  "lastCommit": "4df23ec",
   "mostRecentTasks": [
+    "T-0248",
     "T-0247",
     "T-0246",
     "T-0245",
-    "T-0244",
-    "T-0243"
+    "T-0244"
   ],
   "loopSession": {
     "turnCount": 1,
-    "startedAt": "2026-06-06T11:01:00+09:00",
+    "startedAt": "2026-06-06T11:49:00+09:00",
     "cap": 10,
-    "holder": "loop@WIN-JQIPLSBL9QV-s65",
-    "stoppedAt": "2026-06-06T11:40:00+09:00",
-    "stopReason": "T-0247-adr-done-impl-slice-T-0248-queued-handoff",
-    "note": "loop@WIN-JQIPLSBL9QV-s65 (KST 06-06) — 사용자 Q-0025 RESOLVE(collection orchestrator 구현 지시) 후 첫 slice 완수. [1] free lock CAS 재획득 s65(8fc6fd5), main 3639a1a→88a3482. [2] Explore 코드대조: GitHub(3host)+Confluence adapter 완결이나 caller 0 — orchestrator 공백 확인. **T-0247 DONE/MERGED(PR-211 squash 88a3482)**: ADR-0029 Assessment collection orchestrator 7 결정 박제(module 배치/Activity union+mapper/orchestration 재사용/dedup/since/Contribution 매핑/testing posture). reviewer APPROVE r1(MINOR REQ-059→REQ-032 인용)→r2 정정 후 APPROVE 0 findings, 4-게이트 PASS, CI green. tasksCompleted 244→245, reviewRounds[T-0247]=2. [다음] planner 가 T-0248(Activity 도메인모델+mapper, 첫 구현 slice, pr) 큐잉→nextTask. live 테스트 UI 이후 defer, mocked unit R-112 필수, 새 dep/credential 0. [종료] lock ref tombstone 해제 — 구현 chain 은 후속 turn/fresh context 에서 T-0248 부터 진행(§10 context 보호). 사용자에게 plan+상태 보고.",
-    "notePrev": "loop@AKIHA-s64 t2 (KST 06-05 21:53) — planner survey 후 Q-0025 escalate(backlog 소진). 이후 cron 6 회 no-op fire, 사용자 06-06 복귀해 orchestrator 구현 지시로 RESOLVE."
+    "holder": "loop@WIN-JQIPLSBL9QV-s66",
+    "stoppedAt": null,
+    "stopReason": null,
+    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 11:49) turn 1 — Q-0025 collection orchestrator chain 2번째 slice. free lock CAS 획득 s66(cc90b55→9b62761). T-0248(Activity 도메인모델 discriminated union + GitHub/Confluence 순수 mapper 2종, ADR-0029 §2) executor 완수 후 driver commit/push→integrator. **T-0248 DONE/MERGED(PR-212 squash 4df23ec)**: reviewer APPROVE r1 0 findings, 4-게이트 PASS, CI green(run 27050732364). REQ-032 raw-not-stored 준수. cap 예외(6 파일/+934 — prod 3 파일 code-ish 230<300, spec 3 파일 spec-presence gate 강제분; planner 사전 scoping + 단일 ADR-0029 §2 concern → driver+reviewer acceptable 판정, CAP-NOTE 박제). tasksCompleted 245→246, reviewRounds[T-0248]=1. [다음] nextTask 없음 — 다음 turn planner 가 ADR-0029 §3+ 후속 구현 slice(GitHub 수집 service 등) 큐잉. live 테스트 UI 이후 defer, mocked unit R-112 필수, 새 dep/credential 0. [dynamic] turnCount 1/10 — ScheduleWakeup 재예약(다음 turn planner).",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s65 (KST 06-06) — Q-0025 RESOLVE 후 첫 slice: T-0247 DONE/MERGED(PR-211 88a3482, ADR-0029 Assessment collection orchestrator 7 결정 박제), planner T-0248 큐잉 후 §10 context 보호 위해 handoff."
   },
   "ci": {
-    "lastRun": "2026-06-06T11:40:00+09:00",
+    "lastRun": "2026-06-06T12:03:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/88a3482",
-    "note": "s65: T-0247 PR-211 CI = success(fea7c72 run 27049750693 green, gh run watch 확정). merge squash 88a3482 main CI 는 push 후 trigger(동일 tree green 확정적). consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/212",
+    "note": "s66: T-0248 PR-212 CI = success(run 27050732364 green, integrator 확정). merge squash 4df23ec main 으로 진입. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -64,7 +64,8 @@
     "T-0241": 1,
     "T-0242": 1,
     "T-0245": 1,
-    "T-0247": 2
+    "T-0247": 2,
+    "T-0248": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -334,7 +335,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 245,
+    "tasksCompleted": 246,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
