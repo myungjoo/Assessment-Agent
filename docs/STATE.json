@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0256",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s67",
-    "since": "2026-06-06T16:58:38+09:00",
+    "since": "2026-06-06T17:06:48+09:00",
     "loopSessionStartedAt": "2026-06-06T15:38:39+09:00",
-    "loopSessionTurnCount": 6
+    "loopSessionTurnCount": 7
   },
-  "lastActivity": "2026-06-06T17:00:00+09:00",
-  "lastCommit": "3c37f58",
+  "lastActivity": "2026-06-06T17:13:00+09:00",
+  "lastCommit": "9907ac8",
   "mostRecentTasks": [
+    "T-0256",
     "T-0255",
     "T-0254",
     "T-0253",
-    "T-0252",
-    "T-0251"
+    "T-0252"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-06-06T15:38:39+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s67",
-    "note": "loop@AKIHA-s67 (KST 06-06 17:00) turn 6 — planner-only turn. [1] fetch 3c37f58(0/0 sync) + 직전 T-0255 doc CI 3c37f58=success(R-114, t5 ci.status running→green 확정). lock heartbeat d023451→a98b547(turnCount 5→6, since 16:58:38). [2] currentTask·nextTask null → planner sub-agent dispatch(decision-only, driver write). planner survey: ADR-0029 collection mock-unit slice 완결(매퍼/orchestrator/영속화/module/doc 머지). 남은 v-b2 enumerate 의 org/repo source 결정 = README L16-18 이 '지정 org 전체 Repository 혹은 지정 Repository' 두 모드를 product 요구로 박제 → ambiguity 아닌 dependency-free 설계 결정(env allowlist + 기존 requestAllPagesForInstance wrapper, DB allowlist 는 §5 게이트라 기각). ESCALATE 아닌 ADR-first → **T-0256 큐잉**(collection enumerate 설계 ADR = ADR-0030 예정: repo source 정책 + Person→instance 매핑 + Confluence enumerate + since 경계 + collectForPerson 계약, pr-mode architect→tester, impl 0 LOC ~230). [6] doc-only direct bookkeeping. [8] turnCount 6<10 → ScheduleWakeup 재예약, lock 유지.",
-    "notePrev": "loop@AKIHA-s67 (KST 06-06 16:50) turn 5 — T-0255(ADR-0029 slice vii doc-sync) DONE(direct content f766837 + bookkeeping 3c37f58). modules.md 9→10 module reconcile + ADR-0029 L37 collection→user 정정(reviewer MINOR-1 closeout). tasksCompleted 252→253. lock heartbeat d023451(turnCount 5)."
+    "note": "loop@AKIHA-s67 (KST 06-06 17:13) turn 7 — T-0256(ADR-0029 collection slice v-b2 enumerate 설계 ADR) DONE/MERGED. [1] fetch 629112f(0/0) + 직전 planner CI 629112f=success(R-114). lock heartbeat a98b547→f169c6e(turnCount 6→7, since 17:06:48). [2] nextTask=T-0256 픽업. [3~4] driver 직접 작성(env 제약): ADR-0030 collection enumerate 6 결정 = repo source(모드 B env allowlist GITHUB_<KEY>_REPOS 우선 + 모드 A org 전체 requestAllPagesForInstance enumerate fallback, DB allowlist §5 게이트 기각) + Person→instance 매핑(ServiceIdentity.service↔GITHUB_INSTANCES key) + author 귀속(Activity.author===externalId post-collection 필터, collection service 시그니처 불변) + since 주입 경계(slice vi) + collectForPerson 계약 + mocked R-112 testing(live Q-0025 deferred). INDEX row 추가. status ACCEPTED(repo convention, task AC 의 PROPOSED 대신). 코드 0(R-112 해당 없음), lint/build green. PR-219 push, reviewer → APPROVE(1 MINOR=status ACCEPTED vs PROPOSED, 변경 불요). approve comment → 첫 pull_request run approval race fail → rerun --failed → green. 4-게이트 PASS → squash merge 9907ac8. tasksCompleted 253→254. [6] doc-only direct bookkeeping. [8] turnCount 7<10 → ScheduleWakeup 재예약, lock 유지.",
+    "notePrev": "loop@AKIHA-s67 (KST 06-06 17:00) turn 6 — planner-only turn, T-0256(collection enumerate 설계 ADR) 큐잉. ADR-0029 mock-unit backbone 완결, v-b2 enumerate 는 README 두 모드 박제라 dependency-free ADR-first. lock heartbeat a98b547(turnCount 6)."
   },
   "ci": {
-    "lastRun": "2026-06-06T16:58:00+09:00",
+    "lastRun": "2026-06-06T17:12:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/3c37f58",
-    "note": "s67 t6: T-0255 main doc CI(3c37f58) = success 확정(t5 의 running 해소). 직전 T-0254 PR-218 green. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/219",
+    "note": "s67 t7: T-0256 PR-219 — 첫 pull_request run 27057140849 의 'reviewer agent approval 검증' step 만 race fail(나머지 success), approve comment 후 rerun --failed 로 동일 run green. merge squash 9907ac8. 직전 planner CI 629112f green. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -75,7 +75,8 @@
     "T-0251": 1,
     "T-0252": 1,
     "T-0253": 1,
-    "T-0254": 1
+    "T-0254": 1,
+    "T-0256": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -348,7 +349,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 253,
+    "tasksCompleted": 254,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

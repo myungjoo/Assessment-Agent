@@ -8,6 +8,12 @@ coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-024, REQ-031]
 estimatedDiff: 230
 estimatedFiles: 2
 created: 2026-06-06
+status: DONE
+completedAt: 2026-06-06T17:13:00+09:00
+prNumber: 219
+mergeCommit: 9907ac8
+adr: ADR-0030
+result: PR-219 squash merge 9907ac8 (loop@AKIHA-s67 t7). ADR-0030 collection enumerate 6 결정(repo source env allowlist+org API, DB 기각 / Person→instance 매핑 + author 귀속 post-collection / Confluence enumerate / since=slice vi 주입 / collectForPerson 계약 / mocked R-112) + INDEX row. reviewer APPROVE(1 MINOR=status ACCEPTED vs AC PROPOSED, 변경 불요), CI green, 4-게이트 PASS. +97/2 파일, 코드 0.
 plannerNote: P4 ADR-0029 collection slice v-b2(enumerate) ADR-first stage — Person→CollectionSpec 산출 + repo source(org전체 API / 지정 repo allowlist) 결정, impl 0 LOC. 다음 free ADR 번호 = ADR-0030
 ---
 
