@@ -40,8 +40,14 @@
 //     instance×org×repo·SPACE enumerate(slice v-b2)는 본 module 밖. orchestrator/영속화
 //     service 는 산출된 `CollectionSpec`(+ assessmentId)을 입력으로 받으며, enumerate
 //     service 의 배선은 해당 slice 진입 시 추가된다.
-//   - incremental since 도출(slice vi) — 직전 Assessment → since 계산 service 의 배선.
 //   - modules.md row 9 reconcile doc-sync(slice vii) — 별도 direct doc-sync task.
+//
+// slice vi 배선 완료(T-0268): incremental since 도출 service `SinceDerivationService`
+// (T-0267 — 직전 Assessment 최신 periodStart → ISO since, 빈 배열 → undefined)를 provider/
+// export 로 등록한다. 그 유일한 생성자 의존 `AssessmentService` 는 기존 UserModule import
+// 의 export(user.module.ts L174)로 이미 닫혀 새 import 0. 후속 호출처(scheduler/manual
+// trigger)가 본 service 를 inject 받아 deriveSince(personId)로 since 를 산출해
+// CollectionEntryService.collectForPerson 에 주입한다(호출처 결선은 P5/P7, 본 module 밖).
 import { Module } from "@nestjs/common";
 
 import { ConfluenceModule } from "../confluence/confluence.module";
@@ -56,6 +62,7 @@ import { ConfluenceCollectionService } from "./confluence-collection.service";
 import { GithubCollectionSpecService } from "./github-collection-spec.service";
 import { GithubCollectionService } from "./github-collection.service";
 import { GithubOrgEnumerateService } from "./github-org-repo-enumerate.service";
+import { SinceDerivationService } from "./since-derivation.service";
 
 @Module({
   // GithubModule / ConfluenceModule import — 두 adapter module 이 export 하는
@@ -88,6 +95,9 @@ import { GithubOrgEnumerateService } from "./github-org-repo-enumerate.service";
     GithubCollectionSpecService,
     CollectionSpecService,
     CollectionEntryService,
+    // slice vi(T-0268): since 도출 service. 생성자 의존 AssessmentService 는 UserModule
+    // import 로 공급됨(새 import 0). 호출처가 deriveSince → collectForPerson 으로 잇는다.
+    SinceDerivationService,
   ],
   // 두 collection service / orchestrator / 영속화 service 는 후속 slice / 외부가 inject.
   // enumerate chain 은 외부 진입점 CollectionEntryService 만 export 한다 — 중간 chain
@@ -99,6 +109,9 @@ import { GithubOrgEnumerateService } from "./github-org-repo-enumerate.service";
     CollectionOrchestratorService,
     CollectionPersistenceService,
     CollectionEntryService,
+    // slice vi(T-0268): 후속 호출처(scheduler/manual trigger, 별도 module)가 inject 받아
+    // since 를 산출하기 위해 export.
+    SinceDerivationService,
   ],
 })
 export class AssessmentCollectionModule {}
