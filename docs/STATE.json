@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0268",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s69",
-    "since": "2026-06-06T23:23:17+09:00",
+    "since": "2026-06-07T00:00:00+09:00",
     "loopSessionStartedAt": "2026-06-06T23:23:17+09:00",
-    "loopSessionTurnCount": 1
+    "loopSessionTurnCount": 2
   },
-  "lastActivity": "2026-06-06T23:45:00+09:00",
-  "lastCommit": "1a5a890",
+  "lastActivity": "2026-06-07T00:00:00+09:00",
+  "lastCommit": "5e79ec9",
   "mostRecentTasks": [
+    "T-0268",
     "T-0267",
     "T-0266",
     "T-0265",
-    "T-0264",
-    "T-0263"
+    "T-0264"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-06T23:23:17+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s69",
-    "note": "loop@AKIHA-s69 (KST 06-06 23:45) turn 1 — T-0267 DONE/MERGED(PR-229 squash 1a5a890). ADR-0030 §4 slice vi: SinceDerivationService.deriveSince(personId) 신설 — AssessmentService.findByPerson 결과를 reduce 로 최신 periodStart 선택→toISOString, 빈 배열이면 undefined(full collection, 신규 인원). 도출 기준 periodStart(createdAt 아님), throw 0(의존성 reject 만 전파). collectForPerson 의 since 인자 소비처 확보. reviewer 2 round APPROVE: round1 MINOR(spec header 가 ADR-0029 §5 미래 timestamp 경계 cover 주장하나 전용 test 부재) → CLAUDE.md §3 Nit-in-PR closure 로 negative case (g) 추가(round2, test-only). CI green(approval-gate race 미발생 — round1 head run 도 success), since-derivation.service.ts 100% line/branch/func/stmt, 전체 186 suite/3510 test green. driver 직접 구현(env phantom-worktree sub-agent write 격리), reviewer 만 sub-agent. tasksCompleted 264→265. 다음 micro-slice = SinceDerivationService 의 AssessmentCollectionModule provider 배선(planner 큐잉 예정).",
-    "notePrev": "loop@AKIHA-s68 (KST 06-06 22:02) turn 10 (FINAL, 10-turn cap STOP) — T-0266 DONE(modules.md enumerate chain doc-sync 770a314). session #68 10 turn 에 collection enumerate/collect 체인 T-0258~T-0266 end-to-end 완성(tasksCompleted 255→264). nextTask=T-0267 큐잉 후 cap STOP."
+    "note": "loop@AKIHA-s69 (KST 06-07 00:00) turn 2 — T-0268 DONE/MERGED(PR-230 squash 5e79ec9). ADR-0029 §5 slice vi-wiring: SinceDerivationService 를 AssessmentCollectionModule 의 providers/exports 에 배선 + import 1줄 + slice vi 배선완료 주석 정합. 생성자 의존 AssessmentService 는 기존 UserModule import 의 export(user.module.ts L174)로 닫혀 새 import/dependency/schema/credential 0(§5 미발화) — module compile/resolve test 로 증명. module.spec 에 resolve(happy)/sentinel override(exports 정합)/미등록 throw(negative) 3 패턴 동형 추가. reviewer r1 APPROVE 0/0/0(nit 없음), CI green(approval-gate race 미발생), 전체 186 suite/3512 test green, +41/-1 2파일. driver 직접 구현(env phantom-worktree sub-agent write 격리), reviewer 만 sub-agent. tasksCompleted 265→266. SinceDerivationService 가 DI inject 가능 — 후속 호출처(scheduler/manual trigger, P5/P7)가 deriveSince→collectForPerson 으로 since 를 잇는다. 다음 = planner 큐잉(modules.md doc-sync 또는 다음 collection slice).",
+    "notePrev": "loop@AKIHA-s69 (KST 06-06 23:45) turn 1 — T-0267 DONE/MERGED(PR-229 squash 1a5a890). ADR-0030 §4 slice vi: SinceDerivationService.deriveSince(personId) 신설(직전 Assessment 최신 periodStart→ISO since, 빈 배열 undefined). reviewer 2 round APPROVE(round1 MINOR 미래 timestamp 경계 test nit-closure). 100% cov. tasksCompleted 264→265. T-0268 큐잉."
   },
   "ci": {
-    "lastRun": "2026-06-06T23:43:00+09:00",
+    "lastRun": "2026-06-06T23:58:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27065035082",
-    "note": "s69 t1: T-0267 PR-229 round2 head(770a930) run 27065035082 success — 테스트+커버리지/스모크/e2e/reviewer approval 검증 전부 green. round1 head(1785a94) run 27064949434 도 success(approval-gate race 미발생). squash merge 1a5a890. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27065440063",
+    "note": "s69 t2: T-0268 PR-230 head(3be8562) run 27065440063 success — build/migrate/테스트+커버리지/스모크/e2e/reviewer approval 검증 전부 green(approval-gate race 미발생). squash merge 5e79ec9. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -86,7 +86,8 @@
     "T-0263": 1,
     "T-0264": 1,
     "T-0265": 1,
-    "T-0267": 2
+    "T-0267": 2,
+    "T-0268": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -359,7 +360,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 265,
+    "tasksCompleted": 266,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

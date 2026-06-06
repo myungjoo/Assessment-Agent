@@ -2,7 +2,11 @@
 id: T-0268
 title: ADR-0029 §5 slice vi-wiring — SinceDerivationService 를 AssessmentCollectionModule 에 배선
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-07T00:00:00+09:00
+prNumber: 230
+mergeCommit: 5e79ec9
+result: "SinceDerivationService 를 AssessmentCollectionModule provider/export 로 배선 — 후속 호출처가 DI inject 가능. AssessmentService 는 기존 UserModule import 로 닫힘(새 import 0). PR-230 squash 5e79ec9, reviewer r1 APPROVE 0/0/0, CI green, 전체 186 suite/3512 test green."
 commitMode: pr
 coversReq: [REQ-031, REQ-005, REQ-006, REQ-007, REQ-008, REQ-015]
 estimatedDiff: 70
