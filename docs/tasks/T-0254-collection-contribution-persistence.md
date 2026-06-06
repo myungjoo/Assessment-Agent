@@ -8,6 +8,11 @@ coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-031, REQ-032, REQ-0
 estimatedDiff: 145
 estimatedFiles: 4
 created: 2026-06-06
+status: DONE
+completedAt: 2026-06-06T16:24:00+09:00
+prNumber: 218
+mergeCommit: 259bdd5
+result: PR-218 squash merge 259bdd5 (loop@AKIHA-s67 t3). CollectionPersistenceService + spec(12 test) + module(UserModule import). reviewer APPROVE(2 MINOR=ADR-0029 L37 import 표기 drift·LOC 423 + 1 NIT, 비차단), CI green, 4-게이트 PASS. 실 diff +423/-18 (4 파일) — spec/mock boilerplate/주석 dominated, 핵심 logic ≈30 LOC. persistence coverage 100%.
 plannerNote: P4 ADR-0029 slice v-c — orchestrator aggregate Activity[] → mapper → ContributionService.create 영속화만 큐잉(enumerate/since 제외). R-112 backbone ×1.5, Contribution @@unique 부재라 P2002 미적용
 ---
 
@@ -64,5 +69,5 @@ slice (v) 전체(orchestrator entry + Person enumerate + 두 collection service 
 
 - (slice v-b2/enumerate) `collectForPerson(person, since?)` 진입점 — Person 의 ServiceIdentity 별 GitHub instance×org×repo / Confluence instance 를 `CollectionSpec` 으로 enumerate 한 뒤 본 영속화 service 의 `collectAndPersist` 를 호출. **주의: ServiceIdentity 는 `service`+`externalId` 만 보유하고 org/repo 정보가 없음 — GithubRepoSource `{instanceKey, org, repo}` 의 org/repo source(어디서 repo 목록을 얻는가)가 ADR-0029 미정의라 ADR-first 설계 결정 선행 필요**(Person 별 repo allowlist config? GitHub API 로 user 의 repo enumerate? — 별도 ADR slice).
 - (slice vi) incremental since 도출 — 직전 Assessment → `since` 계산 + 경계값(동일 timestamp·미래·빈 결과) negative cover.
-- (slice vii) modules.md row 9 `AssessmentModule` 수집/평가 분리 reconcile doc-sync(direct).
+- (slice vii) modules.md row 9 `AssessmentModule` 수집/평가 분리 reconcile doc-sync(direct). **+ ADR-0029 L37 import 토폴로지 표기 정정** — L37 은 "collection → persistence" 로 박제됐으나 실 edge 는 "collection → user"(ContributionService 가 UserModule export 라 DI-정확). T-0254 reviewer MINOR-1 catch — 본 doc-sync 에서 함께 정정.
 - (app 배선) enumerate entry 가 실 caller 를 갖추면 AssessmentCollectionModule 을 app.module.ts imports 에 추가.

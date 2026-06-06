@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0254",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s67",
-    "since": "2026-06-06T16:05:22+09:00",
+    "since": "2026-06-06T16:14:51+09:00",
     "loopSessionStartedAt": "2026-06-06T15:38:39+09:00",
-    "loopSessionTurnCount": 2
+    "loopSessionTurnCount": 3
   },
-  "lastActivity": "2026-06-06T16:06:00+09:00",
-  "lastCommit": "6d1c0d7",
+  "lastActivity": "2026-06-06T16:24:00+09:00",
+  "lastCommit": "259bdd5",
   "mostRecentTasks": [
+    "T-0254",
     "T-0253",
     "T-0252",
     "T-0251",
-    "T-0250",
-    "T-0249"
+    "T-0250"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-06T15:38:39+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s67",
-    "note": "loop@AKIHA-s67 (KST 06-06 16:06) turn 2 — planner-only turn. [1] fetch main 6d1c0d7(0/0 sync, cron stood down) + 직전 bookkeeping CI 6d1c0d7=success 확인(R-114). lock heartbeat CAS 4ccdbcb→085d9f7(turnCount 1→2, since 16:05:22). [2] currentTask·nextTask null → planner sub-agent dispatch(decision-only, driver 가 파일 직접 write — sub-agent write 격리 회피). planner survey: T-0253 §Follow-ups 의 dependency-first 단위 = slice v-c(영속화) 선택, v-b2 enumerate 는 ServiceIdentity 가 org/repo 미보유라 GithubRepoSource org/repo source 가 ADR-0029 미정의 → ADR-first 후속. **T-0254 큐잉**(영속화 service: orchestrator aggregate Activity[] → mapActivityToContribution → ContributionService.create, UserModule import, pr ~145 LOC/4 파일). issue-still-relevant pre-check 통과(영속화 service main 부재). [6] doc-only direct bookkeeping. [8] turnCount 2<10 → ScheduleWakeup 재예약, lock 유지.",
-    "notePrev": "loop@AKIHA-s67 (KST 06-06 15:54) turn 1 — T-0253(ADR-0029 slice v-b orchestrator aggregate) DONE/MERGED(PR-217 squash 0e72bb6, reviewer APPROVE 1 MINOR=LOC justified, 4-게이트 PASS). driver 직접 구현+test(env 제약), reviewer 만 sub-agent. tasksCompleted 250→251. 신규 /loop session #67 시작, free lock CAS ac6e636→4ccdbcb."
+    "note": "loop@AKIHA-s67 (KST 06-06 16:24) turn 3 — T-0254(ADR-0029 slice v-c 수집 영속화) DONE/MERGED. [1] fetch 09a2a88(0/0) + 직전 doc CI 09a2a88=success(R-114). lock heartbeat 085d9f7→281a5e5(turnCount 2→3, since 16:14:51). [2] nextTask=T-0254 픽업. [3~4] driver 직접 구현(env 제약): CollectionPersistenceService(orchestrator+ContributionService inject, collectAndPersist 가 collectActivities→mapActivityToContribution→create 순차 영속화 + fail-fast 전파 + 결정론 순서) + spec 12 test + module 에 UserModule import + provider/export. module spec 은 UserModule 전이 그래프(AuthModule forwardRef 포함) compile 위해 PrismaService mock delegate 확장. lint/build/test(178 suite 3417 pass)/cov(persistence 100%) 통과. PR-218 push, reviewer sub-agent → APPROVE(2 MINOR=ADR-0029 L37 import 표기 drift·LOC 423 + 1 NIT=orchestrator-reject dead path, 전부 비차단). approve comment(gate2) → 첫 pull_request run approval-step race fail → rerun --failed → green. 4-게이트 PASS → squash merge 259bdd5. tasksCompleted 251→252. ADR-0029 L37 reconcile 은 slice vii doc-sync 로 deferred(Follow-up). [6] doc-only direct bookkeeping. [8] turnCount 3<10 → ScheduleWakeup 재예약, lock 유지.",
+    "notePrev": "loop@AKIHA-s67 (KST 06-06 16:06) turn 2 — planner-only turn, T-0254(slice v-c 영속화) 큐잉. v-b2 enumerate 는 ServiceIdentity org/repo 미보유로 ADR 미정의라 후순위. lock heartbeat 4ccdbcb→085d9f7(turnCount 2)."
   },
   "ci": {
-    "lastRun": "2026-06-06T15:53:00+09:00",
+    "lastRun": "2026-06-06T16:23:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/217",
-    "note": "s67 t1: T-0253 PR-217 — 첫 pull_request run 27055379906 의 'reviewer agent approval 검증' step 만 race fail(build/test/smoke/e2e success), approve comment post 후 gh run rerun --failed 로 동일 run green. merge squash 0e72bb6. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/218",
+    "note": "s67 t3: T-0254 PR-218 — 첫 pull_request run 27056122787 의 'reviewer agent approval 검증' step 만 race fail(build/test/smoke/e2e success), approve comment post 후 gh run rerun --failed 로 동일 run green. merge squash 259bdd5. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -74,7 +74,8 @@
     "T-0250": 1,
     "T-0251": 1,
     "T-0252": 1,
-    "T-0253": 1
+    "T-0253": 1,
+    "T-0254": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -347,7 +348,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 251,
+    "tasksCompleted": 252,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
