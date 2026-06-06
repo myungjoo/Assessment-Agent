@@ -2,7 +2,11 @@
 id: T-0251
 title: AssessmentCollectionModule 배선 + app.module.ts 등록 (collection slice iv)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-06T13:16:00+09:00
+mergedAs: 4755418
+prNumber: 215
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-031]
 estimatedDiff: 95

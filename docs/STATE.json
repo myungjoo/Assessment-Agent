@@ -5,34 +5,34 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0251",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-06-06T13:05:00+09:00",
-  "lastCommit": "19cdde2",
+  "lastActivity": "2026-06-06T13:16:00+09:00",
+  "lastCommit": "4755418",
   "mostRecentTasks": [
+    "T-0251",
     "T-0250",
     "T-0249",
     "T-0248",
-    "T-0247",
-    "T-0246"
+    "T-0247"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-06-06T11:49:00+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-s66",
     "stoppedAt": null,
     "stopReason": null,
-    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 13:05) turn 6 — planner-only turn. free lock CAS 획득 s66(e46aa1c→cd35f6c). nextTask 비어 planner dispatch → **T-0251 큐잉**(ADR-0029 collection slice (iv) = AssessmentCollectionModule 배선: GithubModule/ConfluenceModule import + GithubCollectionService/ConfluenceCollectionService provider·export + app.module.ts 등록, 순수 DI 분기 0, module compile spec, pr ~95 LOC/3 파일). T-0250 merge 의 doc-only CI(706c888) success 확인. [다음] turn 7 가 T-0251 executor→integrator 실행. live UI 이후 defer, 새 dep/credential 0. [dynamic] turnCount 6/10 — ScheduleWakeup 재예약.",
-    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 5 (KST 13:01) — T-0250 DONE/MERGED(PR-214 squash 19cdde2, ADR-0029 slice (iii) Confluence 수집 service). integrator reviewer-dispatch 불가 → driver fallback(ADR-0005) reviewer dispatch+게이트+merge. tasksCompleted 247→248."
+    "note": "loop@WIN-JQIPLSBL9QV-s66 (KST 06-06 13:16) turn 7 — free lock CAS 획득 s66(5402ead→9c6a3da). T-0251(ADR-0029 collection slice (iv) AssessmentCollectionModule 배선 + app.module 등록) executor 완수(3 파일/+180, 순수 DI 분기 0, module spec 4 test) 후 driver commit/push. integrator NEEDS_REVIEW(reviewer dispatch 불가, fallback 지시대로) → driver 가 reviewer 직접 dispatch APPROVE r1 0 findings(comment issuecomment-4637349614). **T-0251 DONE/MERGED(PR-215 squash 4755418)**: 4-게이트 PASS — pull_request run 27052312423 success(comment 가 run in_progress 중 post 돼 approval step 직접 통과, race fail 없음). GithubCollectionService/ConfluenceCollectionService 가 app DI graph 에 편입됨. tasksCompleted 248→249, reviewRounds[T-0251]=1. [다음] nextTask 없음 — turn 8 planner 가 slice (v) orchestrator entry + Contribution 영속화 큐잉 예정. live UI 이후 defer, 새 dep/credential 0. [dynamic] turnCount 7/10 — ScheduleWakeup 재예약.",
+    "notePrev": "loop@WIN-JQIPLSBL9QV-s66 turn 6 (KST 13:05) — planner-only: T-0251 큐잉(ADR-0029 collection slice (iv) AssessmentCollectionModule 배선). T-0250 doc CI success 확인."
   },
   "ci": {
-    "lastRun": "2026-06-06T13:01:00+09:00",
+    "lastRun": "2026-06-06T13:16:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/214",
-    "note": "s66: T-0250 PR-214 — pull_request run 27051828486 build/test/smoke/e2e/coverage 전부 success(reviewer-approval step 만 pre-comment race fail). issue_comment run 27051911681 success 로 approval 게이트 충족. merge squash 19cdde2. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/215",
+    "note": "s66: T-0251 PR-215 — pull_request run 27052312423 success(전 step 통과, reviewer comment 가 run in_progress 중 post 돼 approval step race 없이 통과). merge squash 4755418. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -67,7 +67,8 @@
     "T-0247": 2,
     "T-0248": 1,
     "T-0249": 1,
-    "T-0250": 1
+    "T-0250": 1,
+    "T-0251": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -337,7 +338,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 248,
+    "tasksCompleted": 249,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
