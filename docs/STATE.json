@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0255",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s67",
-    "since": "2026-06-06T16:38:26+09:00",
+    "since": "2026-06-06T16:46:00+09:00",
     "loopSessionStartedAt": "2026-06-06T15:38:39+09:00",
-    "loopSessionTurnCount": 4
+    "loopSessionTurnCount": 5
   },
-  "lastActivity": "2026-06-06T16:39:00+09:00",
-  "lastCommit": "259bdd5",
+  "lastActivity": "2026-06-06T16:50:00+09:00",
+  "lastCommit": "f766837",
   "mostRecentTasks": [
+    "T-0255",
     "T-0254",
     "T-0253",
     "T-0252",
-    "T-0251",
-    "T-0250"
+    "T-0251"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-06T15:38:39+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s67",
-    "note": "loop@AKIHA-s67 (KST 06-06 16:39) turn 4 — planner-only turn. [1] fetch 133e5bb(0/0 sync) + 직전 bookkeeping CI 133e5bb=success(R-114). lock heartbeat 281a5e5→68632eb(turnCount 3→4, since 16:38:26). [2] currentTask·nextTask null → planner sub-agent dispatch(decision-only, driver write). planner survey: slice v-b2 enumerate 는 ServiceIdentity(service+externalId 만, org/repo 부재 — prisma L237-254)라 GithubRepoSource org/repo source 가 ADR-0029 미정의 → ADR-first 후순위. 가장 dependency-free 한 **slice vii doc-sync 선택 → T-0255 큐잉**(direct): modules.md 에 10번째 module AssessmentCollectionModule 박제(목록/mermaid/acyclic/mapping) + row 9 수집/평가 분리 reconcile + ADR-0029 L37 import 토폴로지 collection→user 정정(reviewer MINOR-1 closeout). app.module L39 이미 배선됐으나 modules.md 는 9 module 로 stale = 실재 drift. ~70 LOC/2 파일. [6] doc-only direct bookkeeping. [8] turnCount 4<10 → ScheduleWakeup 재예약, lock 유지.",
-    "notePrev": "loop@AKIHA-s67 (KST 06-06 16:24) turn 3 — T-0254(ADR-0029 slice v-c 수집 영속화) DONE/MERGED(PR-218 squash 259bdd5, reviewer APPROVE 2 MINOR+1 NIT 비차단, 4-게이트 PASS). driver 직접 구현+test, reviewer 만 sub-agent. tasksCompleted 251→252. lock heartbeat 281a5e5(turnCount 3)."
+    "note": "loop@AKIHA-s67 (KST 06-06 16:50) turn 5 — T-0255(ADR-0029 slice vii doc-sync) DONE. [1] fetch 0d5f13f(0/0) + 직전 planner CI 0d5f13f=success(R-114). lock heartbeat 68632eb→d023451(turnCount 4→5, since 16:46). [2] nextTask=T-0255 픽업(direct doc). [3~4] driver 직접 수행(sub-agent 0): modules.md 9→10 module reconcile = AssessmentCollectionModule row 추가 + AssessmentModule row 수집(P4)/평가(P5) 분리 + mermaid 노드/edge(collection→github/confluence/user) + topological order + acyclic 금지 행 + components mapping(Worker 1:2) + 카운트 일관 + ADR-0029 L37 import 토폴로지 collection→persistence→collection→user 정정(T-0254 reviewer MINOR-1 closeout). 코드 변경 0(R-110 doc-only 면제), content commit f766837(+25/-15, 2 파일). tasksCompleted 252→253. [6] bookkeeping 별도 commit. [8] turnCount 5<10 → ScheduleWakeup 재예약, lock 유지.",
+    "notePrev": "loop@AKIHA-s67 (KST 06-06 16:39) turn 4 — planner-only turn, T-0255(slice vii doc-sync) 큐잉. v-b2 enumerate 는 ServiceIdentity org/repo 부재로 ADR-first 후순위. lock heartbeat 68632eb(turnCount 4)."
   },
   "ci": {
-    "lastRun": "2026-06-06T16:23:00+09:00",
-    "status": "green",
+    "lastRun": "2026-06-06T16:50:00+09:00",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/218",
-    "note": "s67 t3: T-0254 PR-218 — 첫 pull_request run 27056122787 의 'reviewer agent approval 검증' step 만 race fail(build/test/smoke/e2e success), approve comment post 후 gh run rerun --failed 로 동일 run green. merge squash 259bdd5. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/f766837",
+    "note": "s67 t5: T-0255 direct doc-sync(modules.md + ADR-0029) content f766837 + bookkeeping commit 을 main push — main CI 진행 중(doc-only, 다음 turn [1] 에서 conclusion 재확인). 직전 T-0254 PR-218 CI green. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -348,7 +348,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 252,
+    "tasksCompleted": 253,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

@@ -8,6 +8,10 @@ coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-031, REQ-033]
 estimatedDiff: 70
 estimatedFiles: 2
 created: 2026-06-06
+status: DONE
+completedAt: 2026-06-06T16:50:00+09:00
+commit: f766837
+result: direct doc-sync f766837 (loop@AKIHA-s67 t5). modules.md 9→10 module reconcile(AssessmentCollectionModule row + AssessmentModule 수집/평가 분리 + mermaid 노드·edge + topological order + acyclic 금지 행 + components mapping Worker 1:2 + 카운트) + ADR-0029 L37 import 토폴로지 collection→user 정정(T-0254 reviewer MINOR-1 closeout). +25/-15, 2 파일, 코드 변경 0(R-110 면제).
 plannerNote: P4 ADR-0029 slice vii doc-sync(direct) — modules.md 10번째 module(AssessmentCollectionModule) 박제 + row 9 수집/평가 분리 reconcile + ADR-0029 L37 collection→user 정정(reviewer MINOR-1 closeout). doc-only inline-amend ×0.64
 ---
 
