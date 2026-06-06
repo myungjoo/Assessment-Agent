@@ -131,5 +131,18 @@ describe("SinceDerivationService", () => {
       // round-trip: 파싱 후 다시 ISO 로 변환해도 동일 → 유효 ISO-8601.
       expect(new Date(since as string).toISOString()).toBe(since);
     });
+
+    it("(g) periodStart 가 미래 timestamp 여도(시계 오차/선예약 등) 시간 상대 로직 없이 그대로 최신으로 선택·반환한다", async () => {
+      // ADR-0029 §5 가 명시한 '미래 timestamp' 경계 — deriveSince 는 now 대비 비교가
+      // 없는 순수 max-selection 이므로 미래 periodStart 도 일반 timestamp 처럼 선택된다.
+      const { service } = makeService(async () => [
+        assessment("2026-06-01T00:00:00.000Z"),
+        assessment("2099-12-31T00:00:00.000Z"),
+      ]);
+
+      await expect(service.deriveSince("p")).resolves.toBe(
+        "2099-12-31T00:00:00.000Z",
+      );
+    });
   });
 });
