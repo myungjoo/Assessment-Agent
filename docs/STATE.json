@@ -4,11 +4,17 @@
   "flags": {
     "multiTaskFire": true
   },
-  "currentTask": null,
+  "currentTask": "T-0247",
   "nextTask": null,
-  "lock": null,
-  "lastActivity": "2026-06-06T10:03:43+09:00",
-  "lastCommit": "66622f4",
+  "lock": {
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-s65",
+    "since": "2026-06-06T11:01:00+09:00",
+    "loopSessionStartedAt": "2026-06-06T11:01:00+09:00",
+    "loopSessionTurnCount": 1
+  },
+  "lastActivity": "2026-06-06T11:05:00+09:00",
+  "lastCommit": "3639a1a",
   "mostRecentTasks": [
     "T-0246",
     "T-0245",
@@ -17,14 +23,12 @@
     "T-0242"
   ],
   "loopSession": {
-    "turnCount": 2,
-    "startedAt": "2026-06-05T21:34:41+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-06-06T11:01:00+09:00",
     "cap": 10,
-    "holder": "loop@AKIHA-s64",
-    "note": "loop@AKIHA-s64 t2 (KST 21:53) — [1] fetch main d007886(0/0 sync, cron push 없음), lock tip 3ca8731 본인 점유 확인 → heartbeat 2510f78(turnCount 1→2, since 21:49:39). [5] T-0246 CI(d007886) = success(green, run 27015495196) 확정. [2] currentTask·nextTask null → planner sub-agent dispatch(HIGH make-work bar). planner survey(main d007886 실코드 대조) 결과 신규 material gap 0 — T-0246 이 Q-0024 가 식별한 마지막 dependency-free 잔여(L147 PLAN drift)를 닫았고 남은 P4 major 전부 §5-gated(milestone-3 Confluence·Enterprise host live token / Stryker 새 dep / other·정지). task 날조 대신 Q-0025 escalate(OPEN). [6] doc-only direct bookkeeping. [종료] Q-0025 OPEN → [8](a) reschedule 안 함, lock ref tombstone 해제. tasksCompleted unchanged(coordination/escalation turn). session #64(1 task: T-0246) 종료.",
-    "notePrev": "loop@AKIHA-s64 (KST 21:34) — 사용자 대면 /loop turn cap 10 dynamic mode. origin/main a7e95a9 FF(local main 35 commits behind cron 진행분 동기). claude/lock-driver tip b666078(tombstone holder=null) → branch-CAS 자율 획득 3ca8731(holder=loop, session=loop@AKIHA-s64, since 21:34:41+09:00, turnCount 1). humanQuestions Q-0013~Q-0024 전량 RESOLVED + blockers 0 → [2] nextTask=T-0246 픽업(cron@vm-f509 queue-only fire 가 남긴 task). T-0246(direct doc-only, PLAN.md L147 1 파일, driver-direct — task §Suggested 지시): 운영 backlog cron@cloud refs/locks 403 자율성 해소 bullet 을 [ ]→[x] 완결 flip + 🔴 우선처리 flag 제거 + T-0154 SUPERSEDED 정합 + 해소 결과 1 줄(ADR-0028 c5926fd→414a6e2 ACCEPTED, cron@vm-454c 8195047 0472be7 첫 cron@cloud 자율 lock, T-0244 22dd70f) 박제. R-110 doc-only 면제, markdown 시각 확인 통과. tasksCompleted 243→244. [8] turnCount 1<10 → ScheduleWakeup reschedule, lock 유지(heartbeat 다음 turn).",
-    "stoppedAt": "2026-06-05T21:53:31+09:00",
-    "stopReason": "Q-0025-open-dependency-free-backlog-exhausted-all-p4-majors-s5-gated"
+    "holder": "loop@WIN-JQIPLSBL9QV-s65",
+    "note": "loop@WIN-JQIPLSBL9QV-s65 (KST 06-06 11:01) — 사용자 대면 /loop. 사용자가 Q-0025 를 'Assessment collection orchestrator 구현' 으로 RESOLVE(milestone-3 backend, README REQ-005~010/015/031 — make-work 아님). 경위: 직전 s63(T-0245 milestone-3 GitHub public live VERIFIED) 후 사용자 부재 ~20h 동안 cron 6 회 fire 가 Q-0025 OPEN no-op(ADR-0028 §3 cron@cloud 자율 lock 3~6 회차 연속 실증, 403 미재발). 사용자 복귀 후 신규 지시. [1] free(tombstone 6f24b34) lock CAS 재획득 s65(8fc6fd5), main 3639a1a sync. [2] Explore 로 코드 대조: GitHub(3 host)+Confluence adapter/transport/config 이미 완결이나 caller 0 — orchestrator(modules.md row 9 AssessmentModule) 미구현·미배선이 공백. [3] planner 가 T-0247(ADR-0029 수집 설계, impl 0 LOC, pr) 큐잉. live 테스트 UI 이후 defer, mocked unit R-112 필수. currentTask=T-0247 진입(executor→architect ADR→reviewer→merge 예정).",
+    "notePrev": "loop@AKIHA-s64 t2 (KST 06-05 21:53) — planner survey 후 Q-0025 escalate(backlog 소진). 이후 cron 6 회 no-op fire(Q-0025 OPEN), 사용자 06-06 복귀해 orchestrator 구현 지시로 RESOLVE."
   },
   "ci": {
     "lastRun": "2026-06-05T21:53:31+09:00",
@@ -316,7 +320,7 @@
       "raisedAt": "2026-06-05T21:53:00+09:00",
       "raisedBy": "loop@AKIHA-s64 session #64 t2 (planner survey)",
       "reason": "needs-human-decision",
-      "status": "OPEN",
+      "status": "RESOLVED",
       "summary": "T-0246(PLAN L147 'cron@cloud refs/locks 403 자율성 해소' backlog 완결 doc-sync)이 머지되며, Q-0024 가 식별했던 유일한 dependency-free 잔여분(L147 PLAN drift)까지 닫혔다. HIGH make-work-bar survey 로 main 실코드(origin/main d007886) 대조 재탐색했으나 신규 material 결함·gap 미식별 — planner 가 task 날조 대신 escalate. 상황은 Q-0024 대비 본질적으로 unchanged: 남은 P4 major 는 전부 CLAUDE.md §5 HITL 게이트(외부 credential / 새 외부 dependency / 채택 ADR reverse)다. blockers 0, open PR 0, CI green, ADR-0001~0028 전원 ACCEPTED, Q-0013~Q-0024 전원 RESOLVED, tasksCompleted=244.",
       "context": "main 실코드 대조 survey(d007886): (1) milestone-3 test layer — ADR-0021 의 3-layer 계약(layer1 mocked-fetch unit / layer2 localhost-stub round-trip smoke / layer3 live-gated smoke)이 github·confluence 양측 전부 머지 완결(src/{github,confluence}/*-live-test-gating.ts(+spec) + test/smoke/{github,confluence}-live.smoke-spec.ts + {github,confluence}-adapter-roundtrip.smoke-spec.ts). ADR-0021 Decision §(iv)가 live 를 happy round-trip only 로 명시 채택(실패 재현은 layer2 stub 위임)하므로 별도 e2e layer 부재는 결함 아닌 의도된 설계 — 추가할 dependency-free layer 없음. (2) milestone-3 live RUN — GitHub PUBLIC(github.com)은 T-0245(PR-210 85793cf)로 실 api.github.com round-trip VERIFIED. Confluence + Enterprise(github.sec.samsung.net / github.ecodesamsung.com) host live 는 token 미제공 skip(미검증) — §5 credential 게이트. (3) ADR-0028 cron@cloud 자율 lock — Follow-up §3 운영 관찰은 cron@vm-454c(8195047) + cron@vm-f509(50be131) 두 차례 자율 lock CAS 성공으로 이미 충족(403 미재발 실증). (4) PLAN backlog — L145(multi-task fire)·L146(길이 mitigation)·L147(cron@cloud lock) 전부 [x] 완결, L148(PLAN 단계별 분리)은 트리거-게이트('phase별 평균 LOC≥30 또는 PLAN 합계 LOC≥350 도달 시'이며 현재 미달 → '현 구조 유지' 명시). (5) 인접 sweep — BLOCKED task 0, stale-count/false-comment hit 0, nit residual 0. P3~P8 phase 잔여 task 는 전부 위 §5-gated live 통합의 downstream 이거나 그것을 전제로 함.",
       "options": [
@@ -325,7 +329,9 @@
         "(3) 다른 우선순위 / 루프 정지 — observability·test hardening, OpenAPI/Swagger doc 자동화, P6 frontend 진입 검토 등 지시 또는 정지. planner 는 현 시점 이를 make-work 로 판단(README 요구와 직접 연계되는 dependency-free 신규 가치 미식별)했으나 사용자 우선순위가 다르면 재지시 가능. (retention TTL pruning 은 ADR-0022 §3 '영구 보존' 명시 채택 reverse + @nestjs/schedule 새 dep 라 비권장 — 옵션 제외.)"
       ],
       "recommendation": "상황은 Q-0024 대비 본질적으로 unchanged — 그때 식별된 유일 dependency-free 잔여(L147 PLAN drift)가 T-0246 으로 닫혔고, 그 외 남은 P4 major 는 전부 §5 게이트다. 가장 큰 가치 unblock 은 (1) milestone-3 잔여 host live run — spec 이 이미 머지돼 있어 token 주입만으로 즉시 검증 가능하나 §5 credential 게이트라 사용자 token 제공 필요(GitHub PUBLIC 은 이미 VERIFIED). token 제공 의사가 없으면 (2) Stryker(새 dep+ADR) 또는 (3) other/정지. planner 단독으로 진행 가능한 dependency-free 작업은 없음 — make-work 날조 회피 차원에서 escalate.",
-      "resolutionHint": "docs/STATE.json 의 본 Q-0025 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 token credential scope[Confluence base URL/token + Enterprise GitHub host 별 token] 및 secrets.env 경로·만료 명시 / (2) 선택 시 Stryker ADR 진행 승인 / (3) 선택 시 우선순위 또는 정지)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(GitHub·Confluence token)은 코드·STATE·journal·git 에 실값 금지, env/secret 주입(§9). (1) 의 live smoke spec 은 이미 origin/main 에 존재하므로 token 만 주입하면 신규 코드 없이 검증 진입 가능."
+      "resolutionHint": "docs/STATE.json 의 본 Q-0025 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 token credential scope[Confluence base URL/token + Enterprise GitHub host 별 token] 및 secrets.env 경로·만료 명시 / (2) 선택 시 Stryker ADR 진행 승인 / (3) 선택 시 우선순위 또는 정지)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(GitHub·Confluence token)은 코드·STATE·journal·git 에 실값 금지, env/secret 주입(§9). (1) 의 live smoke spec 은 이미 origin/main 에 존재하므로 token 만 주입하면 신규 코드 없이 검증 진입 가능.",
+      "resolvedAt": "2026-06-06T11:05:00+09:00",
+      "decision": "option (3) 방향 재지시 — 사용자가 milestone-3 의 **Assessment collection orchestrator service 구현**을 지시(planner 의 'make-work' 판단을 사용자 우선순위로 override — 이는 README REQ-005~010/015/031 의 핵심 backend 이지 make-work 아님). 배경: GitHub(com/sec/ecode 3 host 전부) + Confluence 의 adapter/transport/instance-config/token-decrypt/permission-denied emit 은 이미 머지·단위테스트 완료이나 **자기 test 외 caller 0** — 이들을 실제 호출해 활동(commit/PR/issue/page)을 수집·매핑·dedup·Contribution 영속화하는 orchestrator layer 가 공백(modules.md row 9 AssessmentModule 미구현·app.module.ts 미배선). 사용자 명시 제약: (a) **구현은 진행**(Confluence + GitHub Enterprise 포함 — 기존 adapter 가 이미 3 host/Cloud·Server 지원하므로 orchestrator 가 그 위에 얹힘), (b) **live/credentialed 테스트는 UI 준비 이후로 defer**(token 불요 — §5 credential 게이트 미발화), (c) **mocked-adapter unit test 는 R-112 대로 필수**(coverage line/function ≥80% 유지). ADR-first 진행: T-0247(ADR-0029 수집 설계 — module 배치/Activity 도메인모델+mapper/orchestration 계약/dedup[commit SHA, page id+version]/incremental since/Contribution 매핑/테스트 posture 7 결정, impl 0 LOC, commitMode pr) 큐잉 후 구현 slice(Activity 모델+mapper → GitHub 수집 service → Confluence 수집 service → AssessmentCollectionModule 배선 → orchestrator entry+영속화 → incremental since) 순차. 각 slice ≤300 LOC/≤5 파일, mocked unit test 동반, live e2e 는 UI 이후. 잔여 옵션 (1) 잔여 host live token run·(2) Stryker 는 미진행(defer). 새 외부 dependency 0(내장 fetch)·새 credential 0 → §5 미발화."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
