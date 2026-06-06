@@ -79,13 +79,21 @@ import { PersistenceModule } from "../persistence/persistence.module";
 // eslint-disable-next-line import/first
 import { AssessmentCollectionModule } from "./assessment-collection.module";
 // eslint-disable-next-line import/first
+import { CollectionEntryService } from "./collection-entry.service";
+// eslint-disable-next-line import/first
 import { CollectionOrchestratorService } from "./collection-orchestrator.service";
 // eslint-disable-next-line import/first
 import { CollectionPersistenceService } from "./collection-persistence.service";
 // eslint-disable-next-line import/first
+import { CollectionSpecService } from "./collection-spec.service";
+// eslint-disable-next-line import/first
 import { ConfluenceCollectionService } from "./confluence-collection.service";
 // eslint-disable-next-line import/first
+import { GithubCollectionSpecService } from "./github-collection-spec.service";
+// eslint-disable-next-line import/first
 import { GithubCollectionService } from "./github-collection.service";
+// eslint-disable-next-line import/first
+import { GithubOrgEnumerateService } from "./github-org-repo-enumerate.service";
 
 describe("AssessmentCollectionModule", () => {
   // Happy path: PersistenceModule(@Global, mocked PrismaService) 와 함께 imports 하면
@@ -117,6 +125,24 @@ describe("AssessmentCollectionModule", () => {
     expect(persistence).toBeDefined();
     expect(persistence).toBeInstanceOf(CollectionPersistenceService);
 
+    // enumerate chain(ADR-0030 §5, slice iii-b2b) 진입점 CollectionEntryService 가
+    // resolve 되면 전체 의존 chain(CollectionSpecService → GithubCollectionSpecService →
+    // GithubOrgEnumerateService → GithubInstanceClient)이 DI 로 닫힘의 증명.
+    const entry = moduleRef.get(CollectionEntryService);
+    expect(entry).toBeDefined();
+    expect(entry).toBeInstanceOf(CollectionEntryService);
+
+    // chain 중간 service 도 같은 module 안에서 resolve 됨(provider 등록 증명).
+    expect(moduleRef.get(CollectionSpecService)).toBeInstanceOf(
+      CollectionSpecService,
+    );
+    expect(moduleRef.get(GithubCollectionSpecService)).toBeInstanceOf(
+      GithubCollectionSpecService,
+    );
+    expect(moduleRef.get(GithubOrgEnumerateService)).toBeInstanceOf(
+      GithubOrgEnumerateService,
+    );
+
     await moduleRef.close();
   });
 
@@ -132,6 +158,23 @@ describe("AssessmentCollectionModule", () => {
       .compile();
 
     const resolved = moduleRef.get(CollectionPersistenceService);
+    expect(resolved).toBe(sentinel);
+
+    await moduleRef.close();
+  });
+
+  // Negative / exports 정합(5): CollectionEntryService(enumerate chain 진입점) 도 sentinel
+  // override → resolve 검증. 외부(scheduler/manual trigger)가 inject 할 유일한 export 진입점.
+  it("CollectionEntryService provider 가 sentinel 로 override 되어도 compile 한다 (exports 등록 정합)", async () => {
+    const sentinel = { __sentinel: "collection-entry-override" };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, AssessmentCollectionModule],
+    })
+      .overrideProvider(CollectionEntryService)
+      .useValue(sentinel)
+      .compile();
+
+    const resolved = moduleRef.get(CollectionEntryService);
     expect(resolved).toBe(sentinel);
 
     await moduleRef.close();
@@ -205,6 +248,11 @@ describe("AssessmentCollectionModule", () => {
     expect(() => moduleRef.get(ConfluenceCollectionService)).toThrow();
     expect(() => moduleRef.get(CollectionOrchestratorService)).toThrow();
     expect(() => moduleRef.get(CollectionPersistenceService)).toThrow();
+    // enumerate chain 4 service 도 본 module 없이는 미등록(누군가 배선을 빠뜨리면 fail).
+    expect(() => moduleRef.get(CollectionEntryService)).toThrow();
+    expect(() => moduleRef.get(CollectionSpecService)).toThrow();
+    expect(() => moduleRef.get(GithubCollectionSpecService)).toThrow();
+    expect(() => moduleRef.get(GithubOrgEnumerateService)).toThrow();
 
     await moduleRef.close();
   });
