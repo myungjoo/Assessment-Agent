@@ -2,7 +2,11 @@
 id: T-0249
 title: GitHub 수집 service + SHA earliest-wins dedup 구현 (collection slice ii)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-06T12:33:00+09:00
+mergedAs: 69b4f8f
+prNumber: 213
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-031]
 estimatedDiff: 270
