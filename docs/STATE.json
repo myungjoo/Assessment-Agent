@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0257",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s67",
-    "since": "2026-06-06T17:26:36+09:00",
+    "since": "2026-06-06T17:33:25+09:00",
     "loopSessionStartedAt": "2026-06-06T15:38:39+09:00",
-    "loopSessionTurnCount": 8
+    "loopSessionTurnCount": 9
   },
-  "lastActivity": "2026-06-06T17:27:00+09:00",
-  "lastCommit": "9907ac8",
+  "lastActivity": "2026-06-06T17:42:00+09:00",
+  "lastCommit": "d445db5",
   "mostRecentTasks": [
+    "T-0257",
     "T-0256",
     "T-0255",
     "T-0254",
-    "T-0253",
-    "T-0252"
+    "T-0253"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-06T15:38:39+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s67",
-    "note": "loop@AKIHA-s67 (KST 06-06 17:27) turn 8 — planner-only turn. [1] fetch d71b30d(0/0 sync) + 직전 T-0256 bookkeeping CI d71b30d=success(R-114). lock heartbeat f169c6e→d91b6f6(turnCount 7→8, since 17:26:36). [2] currentTask·nextTask null → planner dispatch(decision-only, driver write). planner: ADR-0030 이 v-b2 길을 열어 Decision §5 cap-split 의 dependency-first 첫 slice 큐잉 → **T-0257 큐잉**(pr): GithubInstanceConfig 에 repos: string[] 필드 + GITHUB_REPOS_SUFFIX('_REPOS') + resolveGithubInstances 가 _REPOS 를 comma/space split 파싱(빈=미설정). 기존 _HOST/_ORG/_TOKEN_ENC 동작 불변, R-112 negative 충분(부재/빈/comma/space/혼합/빈토큰/reject). 컴파일 경계: github-token-decrypt.spec.ts L90 literal 에 repos:[] 추가. ~90 LOC/3 파일, 순수 함수 확장. buildCollectionSpec(slice ii)·collectForPerson(slice iii)·실 enumerate·author 필터는 Out of Scope. [6] doc-only direct bookkeeping. [8] turnCount 8<10 → ScheduleWakeup 재예약, lock 유지.",
-    "notePrev": "loop@AKIHA-s67 (KST 06-06 17:13) turn 7 — T-0256(collection enumerate 설계 ADR-0030) DONE/MERGED(PR-219 squash 9907ac8, reviewer APPROVE 1 MINOR 비차단, 4-게이트 PASS). 6 결정 박제, status ACCEPTED. tasksCompleted 253→254. lock heartbeat f169c6e(turnCount 7)."
+    "note": "loop@AKIHA-s67 (KST 06-06 17:42) turn 9 — T-0257(ADR-0030 §5 collection enumerate slice i) DONE/MERGED. [1] fetch f283be8(0/0) + 직전 planner CI f283be8=success(R-114). lock heartbeat d91b6f6→379714c(turnCount 8→9, since 17:33:25). [2] nextTask=T-0257 픽업. [3~4] driver 직접 구현(env 제약): GithubInstanceConfig 에 repos: string[] 필드 + GITHUB_REPOS_SUFFIX('_REPOS') + resolveGithubInstances 가 _REPOS 를 /[\\s,]+/ split·trim·빈토큰제거(빈/부재=빈 배열). 기존 _HOST/_ORG/_TOKEN_ENC 불변, github-token-decrypt.spec literal 에 repos:[] 추가(consumer 회귀 방지). spec +11 _REPOS test(happy/negative7/branch). lint/build/test(178 suite 3427 pass)/cov(github-instance-config 100%) 통과. PR-220 push, reviewer → APPROVE(0 findings clean). approve comment → 첫 pull_request run approval race fail → rerun --failed → green. 4-게이트 PASS → squash merge d445db5. tasksCompleted 254→255. [6] doc-only direct bookkeeping. [8] turnCount 9<10 → ScheduleWakeup 재예약(turn 10 = 마지막), lock 유지.",
+    "notePrev": "loop@AKIHA-s67 (KST 06-06 17:27) turn 8 — planner-only turn, T-0257(ADR-0030 §5 collection enumerate slice i = _REPOS env parser) 큐잉. lock heartbeat d91b6f6(turnCount 8)."
   },
   "ci": {
-    "lastRun": "2026-06-06T17:12:00+09:00",
+    "lastRun": "2026-06-06T17:41:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/219",
-    "note": "s67 t7: T-0256 PR-219 — 첫 pull_request run 27057140849 의 'reviewer agent approval 검증' step 만 race fail(나머지 success), approve comment 후 rerun --failed 로 동일 run green. merge squash 9907ac8. 직전 planner CI 629112f green. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/220",
+    "note": "s67 t9: T-0257 PR-220 — 첫 pull_request run 27057654750 의 'reviewer agent approval 검증' step 만 race fail(나머지 success), approve comment 후 rerun --failed 로 동일 run green. merge squash d445db5. 직전 planner CI f283be8 green. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -76,7 +76,8 @@
     "T-0252": 1,
     "T-0253": 1,
     "T-0254": 1,
-    "T-0256": 1
+    "T-0256": 1,
+    "T-0257": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -349,7 +350,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 254,
+    "tasksCompleted": 255,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

@@ -8,6 +8,11 @@ coversReq: [REQ-005, REQ-006, REQ-007, REQ-008]
 estimatedDiff: 90
 estimatedFiles: 3
 created: 2026-06-06
+status: DONE
+completedAt: 2026-06-06T17:42:00+09:00
+prNumber: 220
+mergeCommit: d445db5
+result: PR-220 squash merge d445db5 (loop@AKIHA-s67 t9). GithubInstanceConfig.repos 필드 + GITHUB_REPOS_SUFFIX + resolveGithubInstances 의 _REPOS comma/space parser + spec +11 _REPOS test + token-decrypt spec literal repos:[]. reviewer APPROVE(0 findings), CI green, 4-게이트 PASS. +172/-1 (3 파일), github-instance-config.ts coverage 100%.
 plannerNote: P4 collection enumerate(ADR-0030 §5 cap-split slice i) — _REPOS env parser + repos 필드. 순수 함수 확장, dependency-first 첫 slice. R-112 backbone ×1.5.
 ---
 
