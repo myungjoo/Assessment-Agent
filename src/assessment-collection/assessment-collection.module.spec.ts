@@ -35,6 +35,8 @@ import { PersistenceModule } from "../persistence/persistence.module";
 // eslint-disable-next-line import/first
 import { AssessmentCollectionModule } from "./assessment-collection.module";
 // eslint-disable-next-line import/first
+import { CollectionOrchestratorService } from "./collection-orchestrator.service";
+// eslint-disable-next-line import/first
 import { ConfluenceCollectionService } from "./confluence-collection.service";
 // eslint-disable-next-line import/first
 import { GithubCollectionService } from "./github-collection.service";
@@ -57,6 +59,28 @@ describe("AssessmentCollectionModule", () => {
     const confluence = moduleRef.get(ConfluenceCollectionService);
     expect(confluence).toBeDefined();
     expect(confluence).toBeInstanceOf(ConfluenceCollectionService);
+
+    // orchestrator(slice v-b)도 같은 module 의 두 collection service 주입으로 resolve 됨.
+    const orchestrator = moduleRef.get(CollectionOrchestratorService);
+    expect(orchestrator).toBeDefined();
+    expect(orchestrator).toBeInstanceOf(CollectionOrchestratorService);
+
+    await moduleRef.close();
+  });
+
+  // Negative / exports 정합(3): CollectionOrchestratorService 도 sentinel override →
+  // resolve 검증. orchestrator 의 exports 등록을 독립 cover(후속 영속화 slice 가 inject).
+  it("CollectionOrchestratorService provider 가 sentinel 로 override 되어도 compile 한다 (exports 등록 정합)", async () => {
+    const sentinel = { __sentinel: "collection-orchestrator-override" };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, AssessmentCollectionModule],
+    })
+      .overrideProvider(CollectionOrchestratorService)
+      .useValue(sentinel)
+      .compile();
+
+    const resolved = moduleRef.get(CollectionOrchestratorService);
+    expect(resolved).toBe(sentinel);
 
     await moduleRef.close();
   });
@@ -110,6 +134,7 @@ describe("AssessmentCollectionModule", () => {
 
     expect(() => moduleRef.get(GithubCollectionService)).toThrow();
     expect(() => moduleRef.get(ConfluenceCollectionService)).toThrow();
+    expect(() => moduleRef.get(CollectionOrchestratorService)).toThrow();
 
     await moduleRef.close();
   });
