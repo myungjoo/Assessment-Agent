@@ -5,32 +5,32 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0265",
+  "nextTask": "T-0266",
   "lock": null,
-  "lastActivity": "2026-06-06T21:31:00+09:00",
-  "lastCommit": "0557a7d",
+  "lastActivity": "2026-06-06T21:48:00+09:00",
+  "lastCommit": "0356fc0",
   "mostRecentTasks": [
+    "T-0265",
     "T-0264",
     "T-0263",
     "T-0262",
-    "T-0261",
-    "T-0260"
+    "T-0261"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-06T19:12:08+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s68",
-    "note": "loop@AKIHA-s68 (KST 06-06 21:31) turn 8 — T-0264 DONE/MERGED(PR-227 squash 0557a7d, reviewer APPROVE r1 0 BLOCKER/0 MAJOR/1 MINOR[327 LOC>cap300 spec-driven 비-차단], 4-게이트 PASS, CI green — approval-gate race → rerun --failed green). ADR-0030 §5 enumerate slice iii-b2a = collectForPerson 진입 service: collection-entry.service.ts 의 CollectionEntryService.collectForPerson(person, since, assessmentId) — buildCollectionSpec(T-0261)→collectActivities(T-0253)→filterActivitiesByAuthor(T-0262, person.serviceIdentities)→persistActivities(T-0263, assessmentId) 4단계 조립. person 입력 = serviceIdentities(service+externalId 둘 다). since 는 TS optional-앞-required 불가라 string|undefined. 4 building block 호출/import 만(재구현 0). colocated spec 9 case 신규파일 cov 100%, unit 3501 pass, lint/build/smoke/e2e green. **collection 체인 backbone 진입점 완성 — module 배선(iii-b2b)만 남음.** reviewer 에 no-branch-switch 지시 → 이번엔 worktree 안정. driver 직접 구현, reviewer/planner 만 sub-agent. tasksCompleted 261→262, reviewRounds[T-0264]=1, mostRecentTasks prepend T-0264. planner T-0265 큐잉(ADR-0030 §5 slice iii-b2b = collection chain 4 service[CollectionEntryService+CollectionSpecService+GithubCollectionSpecService+GithubOrgEnumerateService]를 AssessmentCollectionModule provider/export 배선 + module.spec 회귀; GithubInstanceClient 는 기존 GithubModule export 로 닫힘 ADR 불요; modules.md doc-sync 는 별도 direct Follow-up; pr ~120 LOC/2파일). lock heartbeat f49fcb3→4f3560a(turnCount 8/10). [다음] turn 9 = T-0265 executor(implementer→tester)→reviewer→merge. **turn 10 cap 임박 — turn 9~10 후 §1[8](e) clean STOP + cleanup 안내 예정.** ci: green; blockers: 0; humanQuestions: 0.",
-    "notePrev": "loop@AKIHA-s68 (KST 06-06 21:12) turn 7 — T-0263 DONE/MERGED(PR-226 squash 2c018d7, reviewer APPROVE r1 clean). ADR-0030 §5 slice iii-b1 영속화 경계 분리 persistActivities. tasksCompleted 260→261."
+    "note": "loop@AKIHA-s68 (KST 06-06 21:48) turn 9 — T-0265 DONE/MERGED(PR-228 squash 0356fc0, reviewer APPROVE r1 clean 0 BLOCKER/0 MAJOR/0 MINOR, 4-게이트 PASS, CI green race 미발생). ADR-0030 §5 enumerate slice iii-b2b = module 배선: assessment-collection.module.ts providers 에 enumerate chain 4 service(GithubOrgEnumerateService/GithubCollectionSpecService/CollectionSpecService/CollectionEntryService) 추가 + exports 에 진입점 CollectionEntryService 만(중간 chain 미export). imports 불변 — GithubInstanceClient 는 기존 GithubModule export 로 닫힘. module.spec: CollectionEntryService resolve(전체 DI chain 닫힘 증명) + 미등록 가드 4 service + sentinel. **ADR-0030 collection 체인 DI 완전 배선 완료 — collectForPerson inject 가능.** +69/-3, unit 3502 pass, lint/build/smoke/e2e green. driver 직접 구현, reviewer/planner 만 sub-agent. tasksCompleted 262→263, reviewRounds[T-0265]=1, mostRecentTasks prepend T-0265. planner T-0266 큐잉(modules.md AssessmentCollectionModule row enumerate chain doc-sync, commitMode direct, ~12 LOC/1파일). lock heartbeat 4f3560a→dee620c(turnCount 9/10). [다음] turn 10(FINAL, cap) = T-0266 direct doc-sync 실행 후 §1[8](e) 10-turn cap STOP + cleanup 안내(/compact 또는 /clear 후 새 /loop, 또는 cron 대기) + lock tombstone 해제. ci: green; blockers: 0; humanQuestions: 0.",
+    "notePrev": "loop@AKIHA-s68 (KST 06-06 21:31) turn 8 — T-0264 DONE/MERGED(PR-227 squash 0557a7d, reviewer APPROVE r1). ADR-0030 §5 slice iii-b2a collectForPerson 진입 service(4단계 조립). tasksCompleted 261→262."
   },
   "ci": {
-    "lastRun": "2026-06-06T21:28:00+09:00",
+    "lastRun": "2026-06-06T21:46:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/227",
-    "note": "s68 t8: T-0264 PR-227 — pull_request run 27062189746 의 'reviewer agent approval 검증' step 만 race fail(나머지 success), approve comment 후 `gh run rerun --failed` 로 동일 run green. merge squash 0557a7d. consecutiveFails 0. 본 bookkeeping direct commit 의 main CI 는 push 후 확인(R-114)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/228",
+    "note": "s68 t9: T-0265 PR-228 — pull_request run 27062628187 first run 부터 success(approval-gate race 미발생). merge squash 0356fc0. consecutiveFails 0. 본 bookkeeping direct commit 의 main CI 는 push 후 확인(R-114)."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -78,7 +78,8 @@
     "T-0261": 1,
     "T-0262": 1,
     "T-0263": 1,
-    "T-0264": 1
+    "T-0264": 1,
+    "T-0265": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -351,7 +352,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 262,
+    "tasksCompleted": 263,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

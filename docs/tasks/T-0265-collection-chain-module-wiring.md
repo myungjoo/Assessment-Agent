@@ -2,7 +2,7 @@
 id: T-0265
 title: ADR-0030 §5 slice iii-b2b — collection enumerate chain service 들을 AssessmentCollectionModule 에 배선
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-024, REQ-031, REQ-032]
 estimatedDiff: 120
@@ -74,6 +74,11 @@ ADR-0030 §5 cap-split 의 building block 이 전부 머지됐다 — `buildColl
 
 (작성 시 비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
 
-- modules.md row 40 doc-sync(direct): AssessmentCollectionModule 구성 목록에 enumerate chain(`CollectionEntryService` 진입 + `CollectionSpecService`/`GithubCollectionSpecService`/`GithubOrgEnumerateService`) 을 반영 + collectForPerson 진입 계약 한 줄.
+- modules.md row 40 doc-sync(direct, T-0266): AssessmentCollectionModule 구성 목록에 enumerate chain(`CollectionEntryService` 진입 + `CollectionSpecService`/`GithubCollectionSpecService`/`GithubOrgEnumerateService`) 을 반영 + collectForPerson 진입 계약 한 줄.
+
+## 완료 기록
+
+- DONE 2026-06-06 (loop@AKIHA-s68 turn 9). PR-228 squash-merge `0356fc0`, reviewer APPROVE round 1/7 (0 BLOCKER/0 MAJOR/0 MINOR clean), 4-게이트 PASS, CI green (race 미발생).
+- 산출: `assessment-collection.module.ts` providers 에 enumerate chain 4 service 추가 + exports 에 `CollectionEntryService` + module.spec 회귀(전체 DI chain resolve 검증). +69/-3, 2 파일. **ADR-0030 collection 체인 DI 완전 배선 — collectForPerson inject 가능.**
 - slice vi: since 도출(직전 Assessment → since) service — collectForPerson 의 since 인자 소비처.
 - 호출처 결선: scheduler/manual trigger(P5 평가 진입)가 `CollectionEntryService.collectForPerson(person, since?, assessmentId)` 를 호출하며 assessmentId 를 주입하는 진입점 wiring.
