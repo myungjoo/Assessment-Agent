@@ -8,22 +8,28 @@ import {
   GITHUB_HOST_SUFFIX,
   GITHUB_INSTANCES_ENV,
   GITHUB_ORG_SUFFIX,
+  GITHUB_REPOS_SUFFIX,
   GITHUB_TOKEN_ENC_SUFFIX,
   githubEnvName,
   resolveGithubInstances,
 } from "./github-instance-config";
 
-// 단일 instance(key) 의 3 변수를 env 에 set 하는 helper — 실값 0(fixture 만, §9).
+// 단일 instance(key) 의 3 필수 변수(+ 선택 _REPOS)를 env 에 set 하는 helper —
+// 실값 0(fixture 만, §9). repos 인자가 주어지면 _REPOS 도 set(미지정 시 미설정).
 function setInstance(
   env: NodeJS.ProcessEnv,
   key: string,
   host: string,
   org: string,
   tokenEnc: string,
+  repos?: string,
 ): void {
   env[githubEnvName(key, GITHUB_HOST_SUFFIX)] = host;
   env[githubEnvName(key, GITHUB_ORG_SUFFIX)] = org;
   env[githubEnvName(key, GITHUB_TOKEN_ENC_SUFFIX)] = tokenEnc;
+  if (repos !== undefined) {
+    env[githubEnvName(key, GITHUB_REPOS_SUFFIX)] = repos;
+  }
 }
 
 describe("resolveGithubInstances — env→instance config 순수 helper", () => {
@@ -62,6 +68,7 @@ describe("resolveGithubInstances — env→instance config 순수 helper", () =>
         key: "public",
         host: "github.com",
         orgs: ["octo-org"],
+        repos: [],
         tokenEnc: "enc-public-fixture",
       });
       expect(instances[1].host).toBe("github.sec.samsung.net");
@@ -311,6 +318,148 @@ describe("resolveGithubInstances — env→instance config 순수 helper", () =>
       const { rejected } = resolveGithubInstances(env);
 
       expect(rejected[0]).not.toContain("secret-enc-value-should-not-leak");
+    });
+  });
+
+  describe("_REPOS(ADR-0030 §1 모드 B) — repo allowlist 파싱", () => {
+    it("happy: _REPOS 설정 시 토큰이 repos 배열로 매핑된다(org/repo + repo 형식)", () => {
+      const env: NodeJS.ProcessEnv = { [GITHUB_INSTANCES_ENV]: "public" };
+      setInstance(
+        env,
+        "public",
+        "github.com",
+        "octo-org",
+        "enc-fixture",
+        "octo-org/repo-a, repo-b",
+      );
+
+      const { instances } = resolveGithubInstances(env);
+
+      expect(instances[0].repos).toEqual(["octo-org/repo-a", "repo-b"]);
+      // repos 추가가 host/orgs/tokenEnc 회귀를 일으키지 않음(다른 필드 보존).
+      expect(instances[0].orgs).toEqual(["octo-org"]);
+      expect(instances[0].host).toBe("github.com");
+    });
+
+    it("단일 토큰은 원소 1 개 배열로 매핑된다", () => {
+      const env: NodeJS.ProcessEnv = { [GITHUB_INSTANCES_ENV]: "public" };
+      setInstance(
+        env,
+        "public",
+        "github.com",
+        "octo-org",
+        "enc-fixture",
+        "solo/repo",
+      );
+      expect(resolveGithubInstances(env).instances[0].repos).toEqual([
+        "solo/repo",
+      ]);
+    });
+
+    it("(a) _REPOS 부재 → repos 빈 배열(모드 A org 전체 fallback 대상)", () => {
+      const env: NodeJS.ProcessEnv = { [GITHUB_INSTANCES_ENV]: "public" };
+      setInstance(env, "public", "github.com", "octo-org", "enc-fixture");
+      expect(resolveGithubInstances(env).instances[0].repos).toEqual([]);
+    });
+
+    it("(b) _REPOS 빈 문자열 → repos 빈 배열", () => {
+      const env: NodeJS.ProcessEnv = { [GITHUB_INSTANCES_ENV]: "public" };
+      setInstance(env, "public", "github.com", "octo-org", "enc-fixture", "");
+      expect(resolveGithubInstances(env).instances[0].repos).toEqual([]);
+    });
+
+    it("(b) _REPOS 공백-only → repos 빈 배열", () => {
+      const env: NodeJS.ProcessEnv = { [GITHUB_INSTANCES_ENV]: "public" };
+      setInstance(
+        env,
+        "public",
+        "github.com",
+        "octo-org",
+        "enc-fixture",
+        "   ",
+      );
+      expect(resolveGithubInstances(env).instances[0].repos).toEqual([]);
+    });
+
+    it("(c) comma-separated 토큰 split + trim", () => {
+      const env: NodeJS.ProcessEnv = { [GITHUB_INSTANCES_ENV]: "public" };
+      setInstance(
+        env,
+        "public",
+        "github.com",
+        "octo-org",
+        "enc-fixture",
+        "a/x, b/y ,c/z",
+      );
+      expect(resolveGithubInstances(env).instances[0].repos).toEqual([
+        "a/x",
+        "b/y",
+        "c/z",
+      ]);
+    });
+
+    it("(d) space-separated 토큰도 split 된다", () => {
+      const env: NodeJS.ProcessEnv = { [GITHUB_INSTANCES_ENV]: "public" };
+      setInstance(
+        env,
+        "public",
+        "github.com",
+        "octo-org",
+        "enc-fixture",
+        "a/x b/y c/z",
+      );
+      expect(resolveGithubInstances(env).instances[0].repos).toEqual([
+        "a/x",
+        "b/y",
+        "c/z",
+      ]);
+    });
+
+    it("(e) comma+space 혼합 구분자도 split 된다", () => {
+      const env: NodeJS.ProcessEnv = { [GITHUB_INSTANCES_ENV]: "public" };
+      setInstance(
+        env,
+        "public",
+        "github.com",
+        "octo-org",
+        "enc-fixture",
+        " a/x,  b/y ,, c/z ",
+      );
+      expect(resolveGithubInstances(env).instances[0].repos).toEqual([
+        "a/x",
+        "b/y",
+        "c/z",
+      ]);
+    });
+
+    it("(f) trailing/연속 구분자/빈 토큰은 무시된다(빈 문자열 미생성)", () => {
+      const env: NodeJS.ProcessEnv = { [GITHUB_INSTANCES_ENV]: "public" };
+      setInstance(
+        env,
+        "public",
+        "github.com",
+        "octo-org",
+        "enc-fixture",
+        "a/x,,, ,b/y,",
+      );
+      expect(resolveGithubInstances(env).instances[0].repos).toEqual([
+        "a/x",
+        "b/y",
+      ]);
+    });
+
+    it("(g) _REPOS 설정됐어도 필수 env(_TOKEN_ENC) 부재면 instance reject(repos 가 reject 를 막지 않음)", () => {
+      const env: NodeJS.ProcessEnv = { [GITHUB_INSTANCES_ENV]: "public" };
+      env[githubEnvName("public", GITHUB_HOST_SUFFIX)] = "github.com";
+      env[githubEnvName("public", GITHUB_REPOS_SUFFIX)] = "octo-org/repo-a";
+      // _TOKEN_ENC 미설정.
+
+      const { instances, rejected } = resolveGithubInstances(env);
+
+      expect(instances).toEqual([]);
+      expect(rejected[0]).toContain(
+        githubEnvName("public", GITHUB_TOKEN_ENC_SUFFIX),
+      );
     });
   });
 
