@@ -147,6 +147,69 @@ describe("PersonRepository", () => {
   });
 
   // ------------------------------------------------------------------
+  // findByIdWithIdentities — sibling of findById (serviceIdentities include).
+  // T-0272 / ADR-0031 §3 #2.
+  // ------------------------------------------------------------------
+  describe("findByIdWithIdentities()", () => {
+    // Happy: row(serviceIdentities 포함) 존재 시 findUnique 결과를 그대로 반환 +
+    // include 인자 정합성 검증.
+    it("row 존재 시 serviceIdentities-include findUnique 결과를 반환한다 (happy)", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      const fixture = {
+        ...buildPersonFixture({ id: "abc" }),
+        serviceIdentities: [
+          {
+            id: "si-1",
+            personId: "abc",
+            service: "github",
+            externalId: "gildong",
+            isPrimary: true,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          },
+        ],
+      };
+      personMock.findUnique.mockResolvedValueOnce(fixture);
+
+      const repo = new PersonRepository(prisma);
+      const result = await repo.findByIdWithIdentities("abc");
+
+      expect(personMock.findUnique).toHaveBeenCalledWith({
+        where: { id: "abc" },
+        include: { serviceIdentities: true },
+      });
+      expect(result).toBe(fixture);
+    });
+
+    // Error path: row 부재 시 null 반환 (throw 안 함 — null-safe API).
+    it("row 부재 시 null 을 반환한다 (throw 하지 않음)", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      personMock.findUnique.mockResolvedValueOnce(null);
+
+      const repo = new PersonRepository(prisma);
+      const result = await repo.findByIdWithIdentities("missing-id");
+
+      expect(result).toBeNull();
+    });
+
+    // Negative: serviceIdentities 가 빈 배열인 row 도 그대로 반환 (빈 relation 도 유효 —
+    // T-0273 의 contributionCount=0 경로 선결).
+    it("serviceIdentities 가 빈 배열인 row 도 그대로 반환한다 (negative)", async () => {
+      const { prisma, personMock } = buildPrismaMock();
+      const fixture = {
+        ...buildPersonFixture({ id: "no-si" }),
+        serviceIdentities: [],
+      };
+      personMock.findUnique.mockResolvedValueOnce(fixture);
+
+      const repo = new PersonRepository(prisma);
+      const result = await repo.findByIdWithIdentities("no-si");
+
+      expect(result).toBe(fixture);
+    });
+  });
+
+  // ------------------------------------------------------------------
   // create — happy + error (P2002 unique constraint) + negative
   // ------------------------------------------------------------------
   describe("create()", () => {

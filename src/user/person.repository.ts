@@ -23,9 +23,16 @@
 //   - create 가 email unique constraint 위반 시 Prisma 의 `P2002` error 가 그대로
 //     propagate — 호출자 (PersonService) 가 BadRequest 등으로 변환할 책임.
 import { Injectable } from "@nestjs/common";
-import type { Person } from "@prisma/client";
+import type { Person, Prisma } from "@prisma/client";
 
 import { PrismaService } from "../persistence/prisma.service";
+
+// PersonWithIdentities — findByIdWithIdentities 의 반환 타입. serviceIdentities relation
+// 을 include 한 Person row (ADR-0031 §3 #2 — 수집 호출처가 외부 service 식별자를 함께
+// 확보). 후속 service/orchestration (T-0273) 이 import 해 CollectForPersonInput 매핑에 사용.
+export type PersonWithIdentities = Prisma.PersonGetPayload<{
+  include: { serviceIdentities: true };
+}>;
 
 // 본 repository 가 노출하는 6 메서드 의 input shape 들을 1 곳에 모아 두어
 // 후속 service / controller layer 에서 직접 import 가능하도록 한다.
@@ -64,6 +71,20 @@ export class PersonRepository {
   // findUnique 의 row 부재 분기는 null 반환 — Prisma 의 native 동작과 일치.
   async findById(id: string): Promise<Person | null> {
     return this.prisma.person.findUnique({ where: { id } });
+  }
+
+  // findByIdWithIdentities — findById 의 sibling (add-only, 기존 findById 시그니처 불변).
+  // serviceIdentities relation 을 include 해 한 round-trip 으로 Person + 외부 service
+  // 식별자를 함께 반환한다 (ADR-0031 §3 #2 — 수집 호출처가 CollectForPersonInput.
+  // serviceIdentities 를 확보하기 위함). findById 와 동일하게 row 부재 시 null 반환
+  // (null-safe API 유지, throw 안 함 — 404 변환은 service 책임).
+  async findByIdWithIdentities(
+    id: string,
+  ): Promise<PersonWithIdentities | null> {
+    return this.prisma.person.findUnique({
+      where: { id },
+      include: { serviceIdentities: true },
+    });
   }
 
   // create — active default true 는 schema.prisma 의 `@default(true)` 가 cover.

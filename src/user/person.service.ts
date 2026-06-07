@@ -31,7 +31,10 @@ import { PrismaService } from "../persistence/prisma.service";
 
 import type { CreatePersonDto } from "./dto/create-person.dto";
 import type { UpdatePersonDto } from "./dto/update-person.dto";
-import { PersonRepository } from "./person.repository";
+import {
+  PersonRepository,
+  type PersonWithIdentities,
+} from "./person.repository";
 
 // Prisma 의 error 식별 — `code` field 가 known request error 의 식별자.
 // `Prisma.PrismaClientKnownRequestError` 의 instanceof check 도 가능하나, runtime 의존성
@@ -87,6 +90,18 @@ export class PersonService {
   // findById — null 반환 분기 를 NotFoundException 으로 변환 (HTTP 404 자동 mapping).
   async findById(id: string): Promise<Person> {
     const found = await this.repository.findById(id);
+    if (found === null) {
+      throw new NotFoundException(`person not found: ${id}`);
+    }
+    return found;
+  }
+
+  // findByIdWithIdentities — findById 의 sibling. serviceIdentities relation 을 포함해 한
+  // round-trip 으로 Person + 외부 service 식별자를 반환한다 (ADR-0031 §3 #2 — 수집 호출처
+  // (T-0273 CollectionTriggerService) 가 CollectForPersonInput.serviceIdentities 를 확보).
+  // null → NotFoundException 변환은 findById 와 동형 (404 분기 재사용). 기존 findById 불변.
+  async findByIdWithIdentities(id: string): Promise<PersonWithIdentities> {
+    const found = await this.repository.findByIdWithIdentities(id);
     if (found === null) {
       throw new NotFoundException(`person not found: ${id}`);
     }
