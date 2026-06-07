@@ -2,7 +2,11 @@
 id: T-0270
 title: ADR-0031 — collection manual-trigger HTTP endpoint 계약 박제
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-07T20:55:00+09:00
+prNumber: 231
+mergeCommit: 12e9e2e
+result: "ADR-0031(collection manual-trigger HTTP endpoint 계약) PROPOSED 신설 — 5 Decision(Assessment row 주체=endpoint 생성/endpoint 계약 POST /api/assessment-collection/collect Admin/orchestration 6단계/module 배치/test posture) + Alternatives + impl Follow-up 5 slice. PR-231 squash 12e9e2e, reviewer 2 round APPROVE(round1 N-1 §4 AuthModule wording nit-closure), CI green, impl 0 LOC."
 commitMode: pr
 coversReq: [REQ-029, REQ-031, REQ-038, TBD]
 estimatedDiff: 170
@@ -60,4 +64,10 @@ collection 체인(`src/assessment-collection/`)은 end-to-end 완성됐으나 pr
 
 ## Follow-ups
 
-(생성 시 비어있음 — architect 가 ADR-0031 의 impl slice 분할을 여기에 박제: DTO slice → orchestration service slice → controller slice → e2e slice 순.)
+ADR-0031 §Follow-ups 의 impl slice (dependency-first, 각 ≤300 LOC / ≤5 파일):
+
+1. **DTO slice**(pr) — `CollectTriggerDto`(personId/period/scope/periodStart?) + class-validator(@IsString/@IsOptional/@IsISO8601) + colocated spec(검증 happy/negative).
+2. **orchestration service slice**(pr) — `CollectionTriggerService`(ADR-0031 §3 6단계) + `PersonService.findByIdWithIdentities`(serviceIdentities include read 추가) + colocated spec(R-112 §5 a~f: Person 404 / 빈 serviceIdentities / deriveSince undefined / P2002 409 / collectForPerson reject / 의존성 reject). UserModule export 확인.
+3. **controller slice**(pr) — `AssessmentCollectionController`(POST /api/assessment-collection/collect, @Roles("Admin"), ValidationPipe) + `AuthModule` import 배선(circular 실측, 단방향이라 forwardRef 불요 기대) + module.spec 회귀 + colocated spec.
+4. **e2e slice**(pr) — `test/e2e/assessment-collection-trigger.e2e-spec.ts`(201/401/403/404/400, mocked adapter).
+5. **doc-sync slice**(direct) — modules.md(AssessmentCollectionModule row 에 controller/trigger 추가) + api.md(POST /api/assessment-collection/collect 계약). + ADR-0031 status PROPOSED→ACCEPTED.

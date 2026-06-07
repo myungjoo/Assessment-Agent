@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0270",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s69",
-    "since": "2026-06-07T20:28:32+09:00",
+    "since": "2026-06-07T20:55:00+09:00",
     "loopSessionStartedAt": "2026-06-06T23:23:17+09:00",
-    "loopSessionTurnCount": 3
+    "loopSessionTurnCount": 4
   },
-  "lastActivity": "2026-06-07T20:28:32+09:00",
-  "lastCommit": "9eb6838",
+  "lastActivity": "2026-06-07T20:55:00+09:00",
+  "lastCommit": "12e9e2e",
   "mostRecentTasks": [
+    "T-0270",
     "T-0269",
     "T-0268",
     "T-0267",
-    "T-0266",
-    "T-0265"
+    "T-0266"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-06T23:23:17+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s69",
-    "note": "loop@AKIHA-s69 (KST 06-07 20:28) turn 3 (resume) — T-0269 DONE(direct doc-sync 9635b7d, modules.md 9-service 배선 정합) 후 planner HIGH-bar survey 결과 dependency-free backlog 소진 → driver AskUserQuestion checkpoint. **사용자 결정: (1) 호출처 결선 + (2) manual HTTP endpoint 트리거(dependency-free, §5 미발화). cron 자동화는 추후 미승인.** [동시성 사건] turn 3 AskUserQuestion 이 ~20h 대기하는 동안 lock since(00:04)가 stale(>60min)化 → cron@cloud-eLCQE fire(KST 02:14)가 stale-takeover, 동일 결론(dependency-free 소진)으로 Q-0026 raise + BLOCKED 종료 + lock tombstone 해제(origin/main 9eb6838). 사용자 답변 수신 후 driver 가 origin 으로 reset(stale-base planner STATE/journal edit 폐기, T-0270 untracked 보존) → free lock 재획득(d5986e3→1baece2, loop@AKIHA-s69 turnCount 3) → **Q-0026 을 사용자 결정으로 RESOLVED 처리** → nextTask=T-0270(ADR-0031 manual-trigger 계약). T-0269 content/bookkeeping(9635b7d/b705626)은 cron 9eb6838 의 ancestor 로 origin 에 안전. tasksCompleted 267 불변(T-0270 미완). [다음] turn 4 = T-0270 ADR-0031 작성(pr, impl 0 LOC).",
-    "notePrev": "loop@AKIHA-s69 (KST 06-07 00:00) turn 2 — T-0268 DONE/MERGED(PR-230 squash 5e79ec9). ADR-0029 §5 slice vi-wiring: SinceDerivationService 를 AssessmentCollectionModule providers/exports 에 배선(DI inject 가능). reviewer r1 APPROVE 0/0/0. 186 suite/3512 test green. tasksCompleted 265→266. T-0269 큐잉."
+    "note": "loop@AKIHA-s69 (KST 06-07 20:55) turn 4 — T-0270 DONE/MERGED(PR-231 squash 12e9e2e). ADR-0031(collection manual-trigger HTTP endpoint 계약) PROPOSED 신설 — 호출처 결선 milestone 의 ADR-first 첫 slice. 5 Decision: §1 Assessment row 생성 주체=endpoint(periodStart=수집 경계, 평가필드 placeholder, ADR-0006 immutability+ADR-0029 §1 수집/평가 분리 정합, P2002 동일경계→409) / §2 endpoint 계약(POST /api/assessment-collection/collect, @Roles Admin, CollectTriggerDto, 201 summary) / §3 orchestration 6단계(Person resolve→serviceIdentities(PersonService.findByIdWithIdentities 추가)→deriveSince→Assessment 생성→collectForPerson→summary) / §4 module 배치(AssessmentCollectionModule+AuthModule import) / §5 test posture(mocked unit R-112+e2e, live deferred Q-0025). Alternatives(cron 미승인/caller-assessmentId/route) + impl Follow-up 5 slice(DTO→service→controller→e2e→doc-sync). impl 0 LOC, 새 dependency 0. reviewer 2 round APPROVE(round1 N-1 §4 AuthModule wording nit-closure→정밀화, N-2 §2/§5(c) 이미 cover). CI green, 186 suite/3512 test green. driver 직접 ADR 작성(env phantom-worktree write 격리), reviewer 만 sub-agent. tasksCompleted 267→268. [다음] planner 가 Follow-up #1 DTO slice(T-0271, pr) 큐잉.",
+    "notePrev": "loop@AKIHA-s69 (KST 06-07 20:28) turn 3 (resume) — T-0269 DONE(modules.md 9-service doc-sync 9635b7d) + planner HIGH-bar survey 소진 → AskUserQuestion(호출처 결선+manual endpoint). [동시성] ~20h AskUserQuestion 대기 중 cron@cloud-eLCQE 가 stale-lock 탈취·Q-0026 raise·BLOCKED → 답변 후 origin reset + free lock 재획득 + Q-0026 사용자 결정으로 RESOLVED + nextTask=T-0270. tasksCompleted 267."
   },
   "ci": {
-    "lastRun": "2026-06-07T00:10:00+09:00",
+    "lastRun": "2026-06-07T20:53:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/9635b7d",
-    "note": "s69 t3: T-0269 direct doc-only(modules.md, content 9635b7d) main push — CI 확인(R-114, doc-only 라 green 예상; 직전 코드 commit 5e79ec9 PR-230 run 27065440063 already success). consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27091573232",
+    "note": "s69 t4: T-0270 PR-231 round2 head(648cd92) run 27091573232 success — 전 step green(doc-only ADR, approval-gate race 미발생). round1 head(3a0a049) run 27091496331 도 success. squash merge 12e9e2e. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -87,7 +87,8 @@
     "T-0264": 1,
     "T-0265": 1,
     "T-0267": 2,
-    "T-0268": 1
+    "T-0268": 1,
+    "T-0270": 2
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -381,7 +382,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 267,
+    "tasksCompleted": 268,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
