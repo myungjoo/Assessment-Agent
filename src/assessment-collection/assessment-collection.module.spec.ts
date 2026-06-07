@@ -77,6 +77,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import { PersistenceModule } from "../persistence/persistence.module";
 
 // eslint-disable-next-line import/first
+import { AssessmentCollectionController } from "./assessment-collection.controller";
 import { AssessmentCollectionModule } from "./assessment-collection.module";
 // eslint-disable-next-line import/first
 import { CollectionEntryService } from "./collection-entry.service";
@@ -87,6 +88,7 @@ import { CollectionPersistenceService } from "./collection-persistence.service";
 // eslint-disable-next-line import/first
 import { CollectionSpecService } from "./collection-spec.service";
 // eslint-disable-next-line import/first
+import { CollectionTriggerService } from "./collection-trigger.service";
 import { ConfluenceCollectionService } from "./confluence-collection.service";
 // eslint-disable-next-line import/first
 import { GithubCollectionSpecService } from "./github-collection-spec.service";
@@ -150,6 +152,18 @@ describe("AssessmentCollectionModule", () => {
     const since = moduleRef.get(SinceDerivationService);
     expect(since).toBeDefined();
     expect(since).toBeInstanceOf(SinceDerivationService);
+
+    // #2b orchestration(T-0273): CollectionTriggerService provider 가 resolve 되면 그
+    // 4 의존(PersonService/AssessmentService[UserModule export] + SinceDerivationService/
+    // CollectionEntryService[같은 module])이 DI 로 닫힘의 증명.
+    const trigger = moduleRef.get(CollectionTriggerService);
+    expect(trigger).toBeInstanceOf(CollectionTriggerService);
+
+    // #3 controller(T-0274): AssessmentCollectionController 가 resolve 되면 controller
+    // 등록 + 그 guard(JwtAuthGuard/RolesGuard)의 AuthModule import 가 circular 없이 닫힘의
+    // 증명(compile 자체가 circular 회귀 가드를 겸한다).
+    const controller = moduleRef.get(AssessmentCollectionController);
+    expect(controller).toBeInstanceOf(AssessmentCollectionController);
 
     await moduleRef.close();
   });
@@ -280,6 +294,9 @@ describe("AssessmentCollectionModule", () => {
     expect(() => moduleRef.get(GithubOrgEnumerateService)).toThrow();
     // slice vi(T-0268): SinceDerivationService 도 본 module 없이는 미등록.
     expect(() => moduleRef.get(SinceDerivationService)).toThrow();
+    // #2b/#3(T-0273/T-0274): CollectionTriggerService / controller 도 본 module 없이는 미등록.
+    expect(() => moduleRef.get(CollectionTriggerService)).toThrow();
+    expect(() => moduleRef.get(AssessmentCollectionController)).toThrow();
 
     await moduleRef.close();
   });
