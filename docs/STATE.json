@@ -5,34 +5,34 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0278",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-06-08T02:04:00+09:00",
-  "lastCommit": "8c0a689",
+  "lastActivity": "2026-06-08T03:05:00+09:00",
+  "lastCommit": "0e2e1cf",
   "mostRecentTasks": [
+    "T-0278",
     "T-0277",
     "T-0276",
     "T-0275",
-    "T-0274",
-    "T-0273"
+    "T-0274"
   ],
   "loopSession": {
     "turnCount": 1,
-    "startedAt": "2026-06-08T01:04:28+09:00",
+    "startedAt": "2026-06-08T03:03:41+09:00",
     "cap": 10,
-    "holder": "cron@cloud-RMdnn-8268",
-    "stoppedAt": "2026-06-08T01:05:00+09:00",
-    "stopReason": "cron-fire-1task-done-T-0277-direct-doc-only",
-    "note": "cron@cloud-RMdnn-8268 (KST 06-08 01:05) fire #1 — T-0277 DONE(direct doc-only content 50bacd8). modules.md L241 Refs footer 에 T-0266/T-0269/T-0276 + ADR-0030/ADR-0031 + REQ-040 추가 + T 그룹 ascending 재정렬. 본문 박제 grep 누락 0(T-0266×2/T-0269×2/T-0276×2/ADR-0030×3/ADR-0031×5/REQ-040×4). reviewer/PR/tester 호출 0 (R-110 면제, 분기 없음 — R-112 명시 면제). +1/-1 1파일. tasksCompleted 274→275, STATE.nextTask=null. multiTaskFire=true 이나 본 fire 직전 task 직후 nextTask 비어있음 → §1[7.5] chain entry skip(planner dispatch 는 다음 fire 가 fresh conversation 으로 처리하는 게 driver context 격리 정합). lock branch tip 본 commit push 후 tombstone CAS 해제. ci: green; blockers: 0; humanQuestions: 0 (Q-0013~Q-0026 전원 RESOLVED). 다음 cron fire 는 planner survey — Q-0027 escalate 가능성(collection chain 후 차기 phase 우선순위: P5 평가 진입 / scheduler 자동화 / live token / Stryker / 정지).",
-    "notePrev": "loop@AKIHA-s69 (KST 06-07 22:30) turn 10 (FINAL, 10-turn cap) — T-0276 DONE(direct doc-sync content 798b052). collection manual-trigger doc-sync(modules.md row+머리말+api.md POST endpoint+ADR-0031 ACCEPTED). §1[8](e) 10-turn cap 도달 → ScheduleWakeup 재예약 안 함, session #69 STOP. session #69 10 turn: ADR-0030 slice vi(T-0267~T-0269) + ADR-0031 manual-trigger chain end-to-end(T-0270~T-0276) 완성, tasksCompleted 264→274, Q-0026 RESOLVED(호출처 결선+manual endpoint). collection backbone 이 HTTP(POST /api/assessment-collection/collect, Admin) 로 호출 가능 — caller 0 해소."
+    "holder": "cron@cloud-vm-86f7111e",
+    "stoppedAt": "2026-06-08T03:05:00+09:00",
+    "stopReason": "cron-fire-1task-done-T-0278-direct-doc-only-nextTask-null-chain-skip",
+    "note": "cron@cloud-vm-86f7111e (KST 06-08 03:03~03:05) fire #3 — T-0278 DONE(direct doc-only content 0e2e1cf). PLAN.md L85·L86·L87 LLM provider 3 bullet stale [ ]→[x] flip + reality-evidence 인용(L85=T-0157/0158/0160/0162, L86=ADR-0011 ACCEPTED+T-0165/0166/0167, L87=backend CRUD T-0140~0152 완결+UI=P6 잔여 qualifier). 1 파일 +3/-3. reviewer/PR/tester 호출 0 (R-110 면제, 분기 없음 — R-112 명시 면제). tasksCompleted 275→276, STATE.nextTask=null. multiTaskFire=true 이나 본 fire 직전 task 직후 nextTask 비어있음 → §1[7.5] chain entry skip(planner survey 는 다음 fresh fire 가 처리하는 게 driver context 격리 정합). lock branch tip(961cc16→265c55e acquire→tombstone CAS 해제) 본 commit push 후 release. ci: green; blockers: 0; humanQuestions: 0 (Q-0013~Q-0026 전원 RESOLVED). 다음 cron fire 는 planner survey — Group B/C 잔여 doc-sync 6 bullet(L81~L84 GitHub/Confluence + L88~L90 credential) 큐잉 후보 또는 Q-0027 escalate(차기 phase 우선순위: P5 평가 진입 / scheduler 자동화 / live token / Stryker / 정지).",
+    "notePrev": "cron@cloud-RMdnn-8268 (KST 06-08 01:05) fire #1 — T-0277 DONE(direct doc-only content 50bacd8). modules.md L241 Refs footer 에 T-0266/T-0269/T-0276 + ADR-0030/ADR-0031 + REQ-040 추가 + T 그룹 ascending 재정렬. 본문 박제 grep 누락 0(T-0266×2/T-0269×2/T-0276×2/ADR-0030×3/ADR-0031×5/REQ-040×4). reviewer/PR/tester 호출 0 (R-110 면제, 분기 없음 — R-112 명시 면제). +1/-1 1파일. tasksCompleted 274→275, STATE.nextTask=null. multiTaskFire=true 이나 본 fire 직전 task 직후 nextTask 비어있음 → §1[7.5] chain entry skip(planner dispatch 는 다음 fire 가 fresh conversation 으로 처리하는 게 driver context 격리 정합). lock branch tip 본 commit push 후 tombstone CAS 해제. ci: green; blockers: 0; humanQuestions: 0 (Q-0013~Q-0026 전원 RESOLVED). 다음 cron fire 는 planner survey — Q-0027 escalate 가능성(collection chain 후 차기 phase 우선순위: P5 평가 진입 / scheduler 자동화 / live token / Stryker / 정지)."
   },
   "ci": {
-    "lastRun": "2026-06-08T01:05:00+09:00",
+    "lastRun": "2026-06-08T03:05:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/50bacd8",
-    "note": "cron@cloud-RMdnn-8268 fire #1: T-0277 은 direct doc-only(modules.md L241 footer 1줄, content 50bacd8) + bookkeeping — main push 후 CI 확인(R-114, doc-only 라 green 예상; 직전 doc commit 798b052 run 이미 success). consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/0e2e1cf",
+    "note": "cron@cloud-vm-86f7111e fire #3: T-0278 은 direct doc-only(PLAN.md L85·L86·L87 [ ]→[x] flip+인용, content 0e2e1cf) + bookkeeping — main push 후 CI 확인(R-114, doc-only 라 green 예상; 직전 doc commit ff754a3 run 이미 success). consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -383,7 +383,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 275,
+    "tasksCompleted": 276,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

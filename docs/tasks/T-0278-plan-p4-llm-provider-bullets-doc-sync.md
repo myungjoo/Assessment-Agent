@@ -2,7 +2,9 @@
 id: T-0278
 title: PLAN P4 LLM provider 3 bullet doc-sync (L85+L86+L87)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-08T03:05:00+09:00
+contentCommit: 0e2e1cf
 commitMode: direct
 coversReq: [REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-096, REQ-097]
 estimatedDiff: 12
@@ -33,13 +35,18 @@ main 실코드 박제 증거:
 
 ## Acceptance Criteria
 
-- [ ] [docs/PLAN.md](../PLAN.md) L85 의 `[ ]` 를 `[x]` 로 flip + 본문 끝에 "**(완료)** — 5 provider adapter (openai-compatible/azure_openai/anthropic/google_gemini) + LlmHttpGateway dispatch 머지. T-0157 (custom/openai) / T-0158 (routing) / T-0160 (anthropic) / T-0162 (gemini)." 한 줄 인용 추가.
-- [ ] L86 의 `[ ]` 를 `[x]` 로 flip + 본문 끝에 "**(완료)** — ADR-0011 (3 난이도 모델 할당) ACCEPTED + T-0165 PR-153 LlmHttpGateway 난이도 routing wiring + T-0166/T-0167 doc-sync." 한 줄 인용 추가.
-- [ ] L87 의 `[ ]` 를 `[x]` 로flip + 본문 끝에 "**(backend 완결, UI 는 P6)** — GET /api/llm/providers (T-0140~T-0142) + POST/PATCH/DELETE (T-0149/T-0151/T-0150) + api.md (T-0152). UI 는 P6 frontend phase 잔여." 한 줄 인용 추가.
-- [ ] `pnpm` 실행 불요 (doc-only, 코드 변경 0). lint/build/test 미실행.
-- [ ] PLAN.md 외 다른 파일 수정 0.
-- [ ] direct commit (driver 가 main 에 push). PR 미생성 (commitMode direct).
-- [ ] commit subject 한국어 한 줄 — 예: `docs(plan): P4 LLM provider 3 bullet [x] 정합 (T-0278)`.
+- [x] [docs/PLAN.md](../PLAN.md) L85 의 `[ ]` 를 `[x]` 로 flip + 본문 끝에 "**(완료)** — 5 provider adapter (openai-compatible/azure_openai/anthropic/google_gemini) + LlmHttpGateway dispatch 머지. T-0157 (custom/openai) / T-0158 (routing) / T-0160 (anthropic) / T-0162 (gemini)." 한 줄 인용 추가.
+- [x] L86 의 `[ ]` 를 `[x]` 로 flip + 본문 끝에 "**(완료)** — ADR-0011 (3 난이도 모델 할당) ACCEPTED + T-0165 PR-153 LlmHttpGateway 난이도 routing wiring + T-0166/T-0167 doc-sync." 한 줄 인용 추가.
+- [x] L87 의 `[ ]` 를 `[x]` 로flip + 본문 끝에 "**(backend 완결, UI 는 P6)** — GET /api/llm/providers (T-0140~T-0142) + POST/PATCH/DELETE (T-0149/T-0151/T-0150) + api.md (T-0152). UI 는 P6 frontend phase 잔여." 한 줄 인용 추가.
+- [x] `pnpm` 실행 불요 (doc-only, 코드 변경 0). lint/build/test 미실행.
+- [x] PLAN.md 외 다른 파일 수정 0.
+- [x] direct commit (driver 가 main 에 push). PR 미생성 (commitMode direct).
+- [x] commit subject 한국어 한 줄 — 예: `docs(plan): P4 LLM provider 3 bullet [x] 정합 (T-0278)`.
+
+## Completion
+
+content commit: `0e2e1cf` (docs(plan): PLAN P4 LLM provider 3 bullet doc-sync (T-0278)).
+PLAN.md L85·L86·L87 stale `[ ]` → `[x]` flip 완료, 각 bullet 본문에 reality-evidence 인용 추가 (L87 backend/UI=P6 qualifier 포함). 1 파일 +3/-3. R-110 면제 (doc-only direct, 분기 없음 → tester 호출 0). reviewer/PR 0.
 
 ## Out of Scope
 
