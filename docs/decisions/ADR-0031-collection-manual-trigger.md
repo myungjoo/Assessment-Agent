@@ -59,7 +59,7 @@ manual-trigger endpoint 의 orchestration service 가 `collectForPerson` 호출 
 `CollectTriggerDto` + `CollectionTriggerService` + `AssessmentCollectionController` 를 **`AssessmentCollectionModule`** 에 둔다(ADR-0029 §1 — 수집 trigger 는 collection 책임). DI 경계:
 
 - `CollectionTriggerService` 의 의존 `CollectionEntryService` / `SinceDerivationService` 는 **같은 module 의 provider**(이미 등록). `PersonService` / `AssessmentService` 는 **기존 `UserModule` import 의 export**(user.module.ts — 둘 다 export)로 닫힘 → 새 module import 0.
-- controller 의 guard(`JwtAuthGuard` / `RolesGuard`)는 `AuthModule` 의 의존(JwtService 등)을 요구하므로 `AssessmentCollectionModule.imports` 에 **`AuthModule` 추가**(AssessmentModule 이 AuthModule 을 import 하는 패턴 mirror — 이는 새 외부 dependency 가 아니라 기존 internal module import). controller 는 providers 에, DTO 는 일반 class.
+- controller 의 guard(`JwtAuthGuard` / `RolesGuard`)는 `AuthModule` 의 의존(JwtService 등)을 요구하므로 `AssessmentCollectionModule.imports` 에 **`AuthModule` 추가**(새 외부 dependency 가 아니라 기존 internal module import). 의존 방향은 collection → auth 단방향이라 circular 우려가 낮으나, controller slice 에서 실제 배선 시 circular dependency 발생 여부를 실측하고 필요 시 `forwardRef` 를 적용한다(UserModule↔AuthModule 가 forwardRef 로 연결된 선례 참고 — collection 측은 단방향이라 forwardRef 불요가 기대값). controller 는 `controllers` 배열에, `CollectionTriggerService` 는 providers 에, DTO 는 일반 class.
 
 ### §5 — test posture
 
