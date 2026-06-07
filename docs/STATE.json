@@ -8,7 +8,7 @@
   "nextTask": null,
   "lock": null,
   "lastActivity": "2026-06-08T05:04:24+09:00",
-  "lastCommit": "pending-T-0279-direct",
+  "lastCommit": "782ea0f",
   "mostRecentTasks": [
     "T-0279",
     "T-0278",
@@ -25,15 +25,14 @@
     "stopReason": "cron-fire-T-0279-DONE-direct-doc-only-no-chain",
     "note": "cron@cloud-77102f1f (KST 06-08 05:04~) fire #5 — T-0279 DONE (PLAN P4 L81 GitHub 3 instance 통합 bullet [ ]→[x] flip + GithubModule reality 박제 한 줄 인용 추가). 1 파일 +1/-1 (PLAN.md). reviewer/PR/tester 호출 0 (R-110 면제, 분기 없음 — R-112 명시 면제, commitMode=direct doc-only). driver 직접 Edit (Suggested Sub-agents 0) — task frontmatter status PENDING→DONE, STATE bookkeeping(counters.tasksCompleted 276→277, mostRecentTasks shift, nextTask clear), journal-2026-06-08.md append. multiTaskFire=true 이나 본 fire 직전 task 직후 nextTask 비어있음 → §1[7.5] chain entry skip(planner survey 는 다음 fresh fire 가 처리하는 게 driver context 격리 정합 — T-0278/T-0276 패턴 동형). lock branch tip(3d844d2→12ce32c acquire→tombstone CAS 해제) 본 commit push 후 release. ci: green 예상 (doc-only, R-114). blockers: 0; humanQuestions: 0 (Q-0013~Q-0026 전원 RESOLVED). 다음 cron fire 는 planner survey — Group B 잔여 (L83 Confluence 통합 / L84 Confluence SPACE 탐색 정책) + Group C (L88~L90 credential 3 bullet) doc-sync 큐잉 또는 L82 (self-follow-up 제외 정책 진짜 미구현 backlog) escalate 검토.",
     "notePrev": "cron@cloud-3bb7729b (KST 06-08 04:04~04:12) fire #4 — planner-only turn. currentTask·nextTask 둘 다 null 상태로 깨어남(직전 fire #3 T-0278 DONE 직후) → LOOP.md §1[2] 표준 path 로 planner sub-agent 1회 dispatch. planner HIGH make-work-bar survey 결과 Group B(L81~L84 GitHub/Confluence) + Group C(L88~L90 credential) 6 bullet 후보를 main reality 박제 grep 으로 검증: L81 ✓(GithubModule + ADR-0016/0017 + 3 host variant), L82 ✗(self-follow-up 제외 정책 grep 0 = 진짜 미구현 backlog, doc-sync 부적합), L83 ✓, L84 ✓, L88 ✓, L89 ✓, L90 ✓. 한 task 1 bullet 룰 따라 가장 가벼운 L81(GitHub 3 instance 통합) 부터 큐잉 → T-0279(commitMode=direct, ~3 LOC/1파일, T-0278 동형). 본 turn 은 task 수행 0(planner-only) — STATE.nextTask=T-0279 set + journal-2026-06-08.md 신설 1 줄 + task 파일 신설. multiTaskFire=true 이나 본 fire 의 1차 phase 는 planner-only 라 §1[7.5] chain entry 보수적 skip. lock branch tip(bc4b21f→12be8e8 acquire→tombstone CAS 해제) 본 commit push 후 release. ci: green; blockers: 0; humanQuestions: 0."
-    "notePrev": "cron@cloud-vm-86f7111e (KST 06-08 03:03~03:05) fire #3 — T-0278 DONE(direct doc-only content 0e2e1cf). PLAN.md L85·L86·L87 LLM provider 3 bullet stale [ ]→[x] flip + reality-evidence 인용(L85=T-0157/0158/0160/0162, L86=ADR-0011 ACCEPTED+T-0165/0166/0167, L87=backend CRUD T-0140~0152 완결+UI=P6 잔여 qualifier). 1 파일 +3/-3. reviewer/PR/tester 호출 0 (R-110 면제, 분기 없음 — R-112 명시 면제). tasksCompleted 275→276, STATE.nextTask=null. multiTaskFire=true 이나 본 fire 직전 task 직후 nextTask 비어있음 → §1[7.5] chain entry skip(planner survey 는 다음 fresh fire 가 처리하는 게 driver context 격리 정합). lock branch tip(961cc16→265c55e acquire→tombstone CAS 해제) 본 commit push 후 release. ci: green; blockers: 0; humanQuestions: 0 (Q-0013~Q-0026 전원 RESOLVED). 다음 cron fire 는 planner survey — Group B/C 잔여 doc-sync 6 bullet(L81~L84 GitHub/Confluence + L88~L90 credential) 큐잉 후보 또는 Q-0027 escalate(차기 phase 우선순위: P5 평가 진입 / scheduler 자동화 / live token / Stryker / 정지)."
   },
   "ci": {
     "lastRun": "2026-06-08T05:04:24+09:00",
-    "status": "green",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/pending-T-0279-direct",
-    "note": "cron@cloud-77102f1f fire #5: T-0279 DONE(direct doc-only PLAN.md L81 flip + reality 박제 한 줄 인용 추가, 1 파일 +1/-1). main push 후 CI 확인(R-114, doc-only 라 green 예상; 직전 doc commit 11796ff run success). consecutiveFails 0. gh CLI 부재 환경 — CI conclusion 확인은 다음 turn 으로 위임(LOOP.md §1[5])."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27103406362",
+    "note": "cron@cloud-77102f1f fire #5: T-0279 DONE(direct doc-only PLAN.md L81 flip + reality 박제 한 줄 인용 추가, 1 파일 +1/-1) + 본 fix-up commit(JSON 문법 오류 — STATE.json 중복 notePrev key 정리 + lastCommit/lastRunUrl 실 SHA 박제). main push 후 CI run id=27103406362 in_progress(commit 782ea0f) 확인 — 다음 fire 의 §1[1] 단계가 conclusion 재확인. consecutiveFails 0. 직전 doc commit 11796ff run success 박제. mcp__github__actions_list 가용 환경(MCP github 서버 connect)."
   },
   "reviewRounds": {
     "T-0138": 1,
