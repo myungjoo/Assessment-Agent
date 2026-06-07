@@ -2,7 +2,11 @@
 id: T-0274
 title: AssessmentCollectionController(POST /collect) + AuthModule 배선 slice
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-07T21:55:00+09:00
+prNumber: 235
+mergeCommit: f6cc24d
+result: "AssessmentCollectionController(POST /api/assessment-collection/collect, Admin RBAC, ValidationPipe, 201 summary) → CollectionTriggerService 위임 + module 배선(controllers/CollectionTriggerService provider/AuthModule import, forwardRef 불요 circular 부재 compile 실측). PR-235 squash f6cc24d, reviewer r1 APPROVE 0/0/0, CI green(race 미발생), controller 100% cov, 189 suite/3541 test green. collection backbone 이제 HTTP 호출 가능."
 commitMode: pr
 coversReq: [REQ-040, REQ-029, REQ-045]
 estimatedDiff: 190
