@@ -2,13 +2,15 @@
 id: T-0280
 title: PLAN P4 Confluence 통합 bullet doc-sync (L83)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-033, REQ-034]
 estimatedDiff: 3
 estimatedFiles: 1
 created: 2026-06-08
+completedAt: 2026-06-08T07:10:00+09:00
 plannerNote: PLAN L83 (Confluence 통합 — 지정 SPACE 다중 관리) stale [ ] — ConfluenceModule + ADR-0018/0019 reality 박제 완결 정합 doc-sync (T-0279 동형 Group B slice 2).
+result: DONE — PLAN.md L83 `[ ]`→`[x]` flip + ConfluenceModule reality 한 줄 인용 추가 (ADR-0018 transport 계약 + ADR-0019 same-host auth restriction + per-instance `_SPACE_ALLOWLIST` env + SpaceTraversalService allowlist 순회 + token JIT decrypt + 4xx → PermissionDeniedEvent emit). 1 파일 +1/-1, direct commit (PR 없음). reviewer/PR/tester 0 호출 (commitMode=direct doc-only).
 ---
 
 # T-0280 — PLAN P4 Confluence 통합 bullet doc-sync (L83)
@@ -33,11 +35,11 @@ main 실코드 박제 증거:
 
 ## Acceptance Criteria
 
-- [ ] [docs/PLAN.md](../PLAN.md) L83 의 `[ ]` 를 `[x]` 로 flip + 본문 끝에 한 줄 reality 인용 추가 — 예: "**(완료)** — ConfluenceModule 단일 ConfluenceAdapter + instance-keyed config (`CONFLUENCE_INSTANCES` + per-key `_BASE_URL` / `_AUTH_USER` / `_TOKEN_ENC` / `_SPACE_ALLOWLIST`) 박제 (ADR-0018 transport 계약 + ADR-0019 same-host auth restriction). 지정 SPACE 다중 관리는 per-instance allowlist env + ConfluenceSpaceTraversalService 의 allowlist 순회 로 박제 + token JIT decrypt (ADR-0014) + 4xx → PermissionDeniedEvent emit."
-- [ ] `pnpm` 실행 불요 (doc-only, 코드 변경 0). lint/build/test 미실행.
-- [ ] PLAN.md 외 다른 파일 수정 0 (task 파일 / STATE.json / journal 은 driver bookkeeping).
-- [ ] direct commit (driver 가 main 에 push). PR 미생성 (commitMode direct).
-- [ ] commit subject 한국어 한 줄 — 예: `docs(plan): P4 Confluence 통합 bullet [x] 정합 (T-0280)`.
+- [x] [docs/PLAN.md](../PLAN.md) L83 의 `[ ]` 를 `[x]` 로 flip + 본문 끝에 한 줄 reality 인용 추가 — 예: "**(완료)** — ConfluenceModule 단일 ConfluenceAdapter + instance-keyed config (`CONFLUENCE_INSTANCES` + per-key `_BASE_URL` / `_AUTH_USER` / `_TOKEN_ENC` / `_SPACE_ALLOWLIST`) 박제 (ADR-0018 transport 계약 + ADR-0019 same-host auth restriction). 지정 SPACE 다중 관리는 per-instance allowlist env + ConfluenceSpaceTraversalService 의 allowlist 순회 로 박제 + token JIT decrypt (ADR-0014) + 4xx → PermissionDeniedEvent emit."
+- [x] `pnpm` 실행 불요 (doc-only, 코드 변경 0). lint/build/test 미실행.
+- [x] PLAN.md 외 다른 파일 수정 0 (task 파일 / STATE.json / journal 은 driver bookkeeping).
+- [x] direct commit (driver 가 main 에 push). PR 미생성 (commitMode direct).
+- [x] commit subject 한국어 한 줄 — 예: `docs(plan): P4 Confluence 통합 bullet [x] 정합 (T-0280)`.
 
 ## Out of Scope
 
