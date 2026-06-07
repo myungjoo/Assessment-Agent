@@ -2,7 +2,11 @@
 id: T-0271
 title: CollectTriggerDto 신설 — collection manual-trigger endpoint request body 계약
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-07T21:05:00+09:00
+prNumber: 232
+mergeCommit: 55a466a
+result: "CollectTriggerDto 신설(personId/period/scope @IsString @IsNotEmpty + periodStart? @IsOptional @IsISO8601 string) — ADR-0031 §2 계약 1:1, impl slice #1/5. PR-232 squash 55a466a, reviewer r1 APPROVE 0/0/0, CI green, collect-trigger.dto.ts 100% cov, 187 suite/3523 test green."
 commitMode: pr
 coversReq: [REQ-040, REQ-029, REQ-031]
 estimatedDiff: 165

@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0271",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s69",
-    "since": "2026-06-07T20:55:00+09:00",
+    "since": "2026-06-07T21:05:00+09:00",
     "loopSessionStartedAt": "2026-06-06T23:23:17+09:00",
-    "loopSessionTurnCount": 4
+    "loopSessionTurnCount": 5
   },
-  "lastActivity": "2026-06-07T20:55:00+09:00",
-  "lastCommit": "12e9e2e",
+  "lastActivity": "2026-06-07T21:05:00+09:00",
+  "lastCommit": "55a466a",
   "mostRecentTasks": [
+    "T-0271",
     "T-0270",
     "T-0269",
     "T-0268",
-    "T-0267",
-    "T-0266"
+    "T-0267"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-06T23:23:17+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s69",
-    "note": "loop@AKIHA-s69 (KST 06-07 20:55) turn 4 — T-0270 DONE/MERGED(PR-231 squash 12e9e2e). ADR-0031(collection manual-trigger HTTP endpoint 계약) PROPOSED 신설 — 호출처 결선 milestone 의 ADR-first 첫 slice. 5 Decision: §1 Assessment row 생성 주체=endpoint(periodStart=수집 경계, 평가필드 placeholder, ADR-0006 immutability+ADR-0029 §1 수집/평가 분리 정합, P2002 동일경계→409) / §2 endpoint 계약(POST /api/assessment-collection/collect, @Roles Admin, CollectTriggerDto, 201 summary) / §3 orchestration 6단계(Person resolve→serviceIdentities(PersonService.findByIdWithIdentities 추가)→deriveSince→Assessment 생성→collectForPerson→summary) / §4 module 배치(AssessmentCollectionModule+AuthModule import) / §5 test posture(mocked unit R-112+e2e, live deferred Q-0025). Alternatives(cron 미승인/caller-assessmentId/route) + impl Follow-up 5 slice(DTO→service→controller→e2e→doc-sync). impl 0 LOC, 새 dependency 0. reviewer 2 round APPROVE(round1 N-1 §4 AuthModule wording nit-closure→정밀화, N-2 §2/§5(c) 이미 cover). CI green, 186 suite/3512 test green. driver 직접 ADR 작성(env phantom-worktree write 격리), reviewer 만 sub-agent. tasksCompleted 267→268. [다음] planner 가 Follow-up #1 DTO slice(T-0271, pr) 큐잉.",
-    "notePrev": "loop@AKIHA-s69 (KST 06-07 20:28) turn 3 (resume) — T-0269 DONE(modules.md 9-service doc-sync 9635b7d) + planner HIGH-bar survey 소진 → AskUserQuestion(호출처 결선+manual endpoint). [동시성] ~20h AskUserQuestion 대기 중 cron@cloud-eLCQE 가 stale-lock 탈취·Q-0026 raise·BLOCKED → 답변 후 origin reset + free lock 재획득 + Q-0026 사용자 결정으로 RESOLVED + nextTask=T-0270. tasksCompleted 267."
+    "note": "loop@AKIHA-s69 (KST 06-07 21:05) turn 5 — T-0271 DONE/MERGED(PR-232 squash 55a466a). ADR-0031 호출처 결선 impl slice #1/5(DTO): src/assessment-collection/dto/collect-trigger.dto.ts 의 CollectTriggerDto 신설 — personId/period/scope(@IsString @IsNotEmpty) + periodStart?(@IsOptional @IsISO8601 string, ADR-0031 §2 verbatim). literal(period/scope) 값 검증은 service 책임(@IsIn 미적용), now() fallback 은 orchestration slice 책임 — DTO 는 형식만. create-assessment.dto.ts 패턴 mirror(단 periodStart 는 ISO string 유지, @Type Date 와 차이). spec 11 test(happy/optional 분기/negative: 빈 personId·누락·잘못된 ISO·2026-13-99·type mismatch·forbidNonWhitelisted). reviewer r1 APPROVE 0/0/0. CI green, collect-trigger.dto.ts 100% cov, 187 suite/3523 test green, +182/2파일. driver 직접 구현, reviewer 만 sub-agent. tasksCompleted 268→269. [다음] planner 가 Follow-up #2 orchestration service slice(CollectionTriggerService + PersonService.findByIdWithIdentities, T-0272 pr) 큐잉.",
+    "notePrev": "loop@AKIHA-s69 (KST 06-07 20:55) turn 4 — T-0270 DONE/MERGED(PR-231 squash 12e9e2e). ADR-0031(collection manual-trigger HTTP endpoint 계약) PROPOSED 신설 — 5 Decision + Alternatives + impl Follow-up 5 slice. reviewer 2 round APPROVE(round1 N-1 nit-closure). tasksCompleted 268. T-0271 큐잉."
   },
   "ci": {
-    "lastRun": "2026-06-07T20:53:00+09:00",
+    "lastRun": "2026-06-07T21:03:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27091573232",
-    "note": "s69 t4: T-0270 PR-231 round2 head(648cd92) run 27091573232 success — 전 step green(doc-only ADR, approval-gate race 미발생). round1 head(3a0a049) run 27091496331 도 success. squash merge 12e9e2e. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27091902727",
+    "note": "s69 t5: T-0271 PR-232 head(06fc7bf) run 27091902727 success — 전 step green(approval-gate race 미발생). squash merge 55a466a. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -88,7 +88,8 @@
     "T-0265": 1,
     "T-0267": 2,
     "T-0268": 1,
-    "T-0270": 2
+    "T-0270": 2,
+    "T-0271": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -382,7 +383,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 268,
+    "tasksCompleted": 269,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
