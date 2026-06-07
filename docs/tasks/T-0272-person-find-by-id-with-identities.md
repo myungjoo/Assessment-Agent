@@ -2,7 +2,11 @@
 id: T-0272
 title: PersonService.findByIdWithIdentities 신설 — serviceIdentities include read 경로 추가
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-07T21:20:00+09:00
+prNumber: 233
+mergeCommit: 293b20f
+result: "PersonService/Repository.findByIdWithIdentities 신설(serviceIdentities include read, null-safe→404, PersonWithIdentities 타입 export) — ADR-0031 §3 #2, 기존 findById 불변. impl slice #2a. PR-233 squash 293b20f, reviewer r1 APPROVE 0/0/0, CI green, person.repository/service.ts 100% cov, 187 suite/3529 test green."
 commitMode: pr
 coversReq: [REQ-040, REQ-029, REQ-023]
 estimatedDiff: 130

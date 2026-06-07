@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0272",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s69",
-    "since": "2026-06-07T21:05:00+09:00",
+    "since": "2026-06-07T21:20:00+09:00",
     "loopSessionStartedAt": "2026-06-06T23:23:17+09:00",
-    "loopSessionTurnCount": 5
+    "loopSessionTurnCount": 6
   },
-  "lastActivity": "2026-06-07T21:05:00+09:00",
-  "lastCommit": "55a466a",
+  "lastActivity": "2026-06-07T21:20:00+09:00",
+  "lastCommit": "293b20f",
   "mostRecentTasks": [
+    "T-0272",
     "T-0271",
     "T-0270",
     "T-0269",
-    "T-0268",
-    "T-0267"
+    "T-0268"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-06-06T23:23:17+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s69",
-    "note": "loop@AKIHA-s69 (KST 06-07 21:05) turn 5 — T-0271 DONE/MERGED(PR-232 squash 55a466a). ADR-0031 호출처 결선 impl slice #1/5(DTO): src/assessment-collection/dto/collect-trigger.dto.ts 의 CollectTriggerDto 신설 — personId/period/scope(@IsString @IsNotEmpty) + periodStart?(@IsOptional @IsISO8601 string, ADR-0031 §2 verbatim). literal(period/scope) 값 검증은 service 책임(@IsIn 미적용), now() fallback 은 orchestration slice 책임 — DTO 는 형식만. create-assessment.dto.ts 패턴 mirror(단 periodStart 는 ISO string 유지, @Type Date 와 차이). spec 11 test(happy/optional 분기/negative: 빈 personId·누락·잘못된 ISO·2026-13-99·type mismatch·forbidNonWhitelisted). reviewer r1 APPROVE 0/0/0. CI green, collect-trigger.dto.ts 100% cov, 187 suite/3523 test green, +182/2파일. driver 직접 구현, reviewer 만 sub-agent. tasksCompleted 268→269. [다음] planner 가 Follow-up #2 orchestration service slice(CollectionTriggerService + PersonService.findByIdWithIdentities, T-0272 pr) 큐잉.",
-    "notePrev": "loop@AKIHA-s69 (KST 06-07 20:55) turn 4 — T-0270 DONE/MERGED(PR-231 squash 12e9e2e). ADR-0031(collection manual-trigger HTTP endpoint 계약) PROPOSED 신설 — 5 Decision + Alternatives + impl Follow-up 5 slice. reviewer 2 round APPROVE(round1 N-1 nit-closure). tasksCompleted 268. T-0271 큐잉."
+    "note": "loop@AKIHA-s69 (KST 06-07 21:20) turn 6 — T-0272 DONE/MERGED(PR-233 squash 293b20f). ADR-0031 호출처 결선 impl slice #2a(Follow-up #2 split 선행): PersonService/Repository.findByIdWithIdentities 신설 — serviceIdentities relation 을 include 한 read 경로(person.repository: findUnique include serviceIdentities, null-safe + PersonWithIdentities=Prisma.PersonGetPayload 타입 export / person.service: null→NotFoundException 404, findById 분기 동형). 기존 findById 시그니처 불변(add-only sibling). T-0273 CollectionTriggerService 가 소비. spec 6 test(repo·service 각 happy/null/빈 serviceIdentities). reviewer r1 APPROVE 0/0/0. CI green(approval-gate race 미발생), person.repository/service.ts 100% cov, 187 suite/3529 test green, +153/4파일. driver 직접 구현, reviewer 만 sub-agent. tasksCompleted 269→270. [다음] planner 가 Follow-up #2 후속 T-0273(CollectionTriggerService orchestration 6단계, pr) 큐잉.",
+    "notePrev": "loop@AKIHA-s69 (KST 06-07 21:05) turn 5 — T-0271 DONE/MERGED(PR-232 squash 55a466a). ADR-0031 impl slice #1/5(DTO): CollectTriggerDto 신설(personId/period/scope + periodStart? @IsOptional @IsISO8601). reviewer r1 APPROVE 0/0/0. 100% cov. tasksCompleted 269. T-0272 큐잉."
   },
   "ci": {
-    "lastRun": "2026-06-07T21:03:00+09:00",
+    "lastRun": "2026-06-07T21:18:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27091902727",
-    "note": "s69 t5: T-0271 PR-232 head(06fc7bf) run 27091902727 success — 전 step green(approval-gate race 미발생). squash merge 55a466a. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27092302677",
+    "note": "s69 t6: T-0272 PR-233 head(57cc12a) run 27092302677 success — 전 step green(approval-gate race 미발생). squash merge 293b20f. consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -89,7 +89,8 @@
     "T-0267": 2,
     "T-0268": 1,
     "T-0270": 2,
-    "T-0271": 1
+    "T-0271": 1,
+    "T-0272": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -383,7 +384,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 269,
+    "tasksCompleted": 270,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
