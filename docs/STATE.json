@@ -5,38 +5,38 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0273",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-s69",
-    "since": "2026-06-07T21:20:00+09:00",
+    "since": "2026-06-07T21:38:00+09:00",
     "loopSessionStartedAt": "2026-06-06T23:23:17+09:00",
-    "loopSessionTurnCount": 6
+    "loopSessionTurnCount": 7
   },
-  "lastActivity": "2026-06-07T21:20:00+09:00",
-  "lastCommit": "293b20f",
+  "lastActivity": "2026-06-07T21:38:00+09:00",
+  "lastCommit": "4eec185",
   "mostRecentTasks": [
+    "T-0273",
     "T-0272",
     "T-0271",
     "T-0270",
-    "T-0269",
-    "T-0268"
+    "T-0269"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-06-06T23:23:17+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s69",
-    "note": "loop@AKIHA-s69 (KST 06-07 21:20) turn 6 — T-0272 DONE/MERGED(PR-233 squash 293b20f). ADR-0031 호출처 결선 impl slice #2a(Follow-up #2 split 선행): PersonService/Repository.findByIdWithIdentities 신설 — serviceIdentities relation 을 include 한 read 경로(person.repository: findUnique include serviceIdentities, null-safe + PersonWithIdentities=Prisma.PersonGetPayload 타입 export / person.service: null→NotFoundException 404, findById 분기 동형). 기존 findById 시그니처 불변(add-only sibling). T-0273 CollectionTriggerService 가 소비. spec 6 test(repo·service 각 happy/null/빈 serviceIdentities). reviewer r1 APPROVE 0/0/0. CI green(approval-gate race 미발생), person.repository/service.ts 100% cov, 187 suite/3529 test green, +153/4파일. driver 직접 구현, reviewer 만 sub-agent. tasksCompleted 269→270. [다음] planner 가 Follow-up #2 후속 T-0273(CollectionTriggerService orchestration 6단계, pr) 큐잉.",
-    "notePrev": "loop@AKIHA-s69 (KST 06-07 21:05) turn 5 — T-0271 DONE/MERGED(PR-232 squash 55a466a). ADR-0031 impl slice #1/5(DTO): CollectTriggerDto 신설(personId/period/scope + periodStart? @IsOptional @IsISO8601). reviewer r1 APPROVE 0/0/0. 100% cov. tasksCompleted 269. T-0272 큐잉."
+    "note": "loop@AKIHA-s69 (KST 06-07 21:38) turn 7 — T-0273 DONE/MERGED(PR-234 squash 4eec185). ADR-0031 호출처 결선 impl slice #2b: CollectionTriggerService.triggerCollection §3 6단계 orchestration 신설 — findByIdWithIdentities(404 전파)→serviceIdentities map(service/externalId)→deriveSince→AssessmentService.create(placeholder medium/0/0/'', periodStart ISO→Date, P2002→409 전파)→collectForPerson(input, since, assessmentId)→summary 반환 + CollectionTriggerSummary export. periodStart 미제공 시 서버 now(). 4 building block 호출만(재구현 0), throw fail-fast 전파. module 배선은 #3. spec 9 test(happy + a~f + now 2분기). reviewer r1 APPROVE 0 BLOCKER/0 MAJOR/1 MINOR(diff 348>300 cap — 초과분 전량 spec 248, production 100, colocated spec 분리 불가 → acceptable, 변경요청 아님). CI: approval-gate race 로 reviewer-approval step 1회 fail → gh run rerun --failed 후 success. collection-trigger.service.ts 100% cov, 188 suite/3538 test green, +348/2파일. driver 직접 구현, reviewer 만 sub-agent. tasksCompleted 270→271. [다음] planner 가 Follow-up #3 controller slice(AssessmentCollectionController POST /collect + RBAC + module 배선 + AuthModule import, T-0274 pr) 큐잉.",
+    "notePrev": "loop@AKIHA-s69 (KST 06-07 21:20) turn 6 — T-0272 DONE/MERGED(PR-233 squash 293b20f). ADR-0031 impl slice #2a: PersonService/Repository.findByIdWithIdentities 신설(serviceIdentities include read, null-safe→404, 기존 findById 불변). reviewer r1 APPROVE 0/0/0. 100% cov. tasksCompleted 270. T-0273 큐잉."
   },
   "ci": {
-    "lastRun": "2026-06-07T21:18:00+09:00",
+    "lastRun": "2026-06-07T21:36:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27092302677",
-    "note": "s69 t6: T-0272 PR-233 head(57cc12a) run 27092302677 success — 전 step green(approval-gate race 미발생). squash merge 293b20f. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27092645895",
+    "note": "s69 t7: T-0273 PR-234 head(a0bf90a) run 27092645895 — reviewer-approval step 가 approval-gate race 로 1회 fail(approve comment 가 run 시작 후 post) → gh run rerun --failed 후 success(build/test/smoke/e2e 는 처음부터 green). squash merge 4eec185. consecutiveFails 0(race 는 환경 타이밍, 실패 아님)."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -90,7 +90,8 @@
     "T-0268": 1,
     "T-0270": 2,
     "T-0271": 1,
-    "T-0272": 1
+    "T-0272": 1,
+    "T-0273": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -384,7 +385,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 270,
+    "tasksCompleted": 271,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

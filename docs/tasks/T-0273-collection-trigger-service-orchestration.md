@@ -2,7 +2,11 @@
 id: T-0273
 title: CollectionTriggerService orchestration 6단계 합성 (ADR-0031 §3) + colocated spec
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-07T21:38:00+09:00
+prNumber: 234
+mergeCommit: 4eec185
+result: "CollectionTriggerService.triggerCollection §3 6단계 orchestration 신설(findByIdWithIdentities→serviceIdentities map→deriveSince→create[placeholder, ISO→Date, P2002→409]→collectForPerson→summary) + CollectionTriggerSummary export. PR-234 squash 4eec185, reviewer r1 APPROVE 0/0/1 MINOR(cap 348>300 spec-driven, acceptable), CI green(approval-gate race → rerun --failed), collection-trigger.service.ts 100% cov, 188 suite/3538 test green."
 commitMode: pr
 coversReq: [REQ-029, REQ-031, REQ-040]
 estimatedDiff: 230
