@@ -2,7 +2,10 @@
 id: T-0276
 title: collection manual-trigger doc-sync (modules.md + api.md + ADR-0031 ACCEPTED)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-07T22:30:00+09:00
+mergeCommit: 798b052
+result: "collection manual-trigger doc-sync(content 798b052): modules.md AssessmentCollectionModule row(controller 1+10 service, manual trigger 완료, Backend API mapping 1:5) + 머리말 T-0276 + api.md POST /api/assessment-collection/collect 계약 row + ADR-0031 status PROPOSED→ACCEPTED. ADR-0031 호출처 결선 chain(#1~#5) 종결. direct doc-only, reviewer/PR/tester 불요(R-110 면제). +7/-5 3파일."
 commitMode: direct
 coversReq: [REQ-040]
 estimatedDiff: 40

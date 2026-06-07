@@ -5,38 +5,34 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0276",
-  "lock": {
-    "holder": "loop",
-    "session": "loop@AKIHA-s69",
-    "since": "2026-06-07T22:15:00+09:00",
-    "loopSessionStartedAt": "2026-06-06T23:23:17+09:00",
-    "loopSessionTurnCount": 9
-  },
-  "lastActivity": "2026-06-07T22:15:00+09:00",
-  "lastCommit": "7895603",
+  "nextTask": null,
+  "lock": null,
+  "lastActivity": "2026-06-07T22:30:00+09:00",
+  "lastCommit": "798b052",
   "mostRecentTasks": [
+    "T-0276",
     "T-0275",
     "T-0274",
     "T-0273",
-    "T-0272",
-    "T-0271"
+    "T-0272"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-06T23:23:17+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s69",
-    "note": "loop@AKIHA-s69 (KST 06-07 22:15) turn 9 — T-0275 DONE/MERGED(PR-236 squash 7895603). ADR-0031 호출처 결선 impl slice #4(e2e): test/e2e/assessment-collection-trigger.e2e-spec.ts 신설 — POST /api/assessment-collection/collect 의 8 e2e(201 happy[빈 serviceIdentities no-network, summary 7키, contributionCount 0, since null, Assessment 영속 narrative ''] + periodStart branch + 401×2[cookie 부재/invalid JWT] + 403[User tier] + 404[envelope] + 400×2[필수 누락/raw 필드], 각 negative Assessment 미생성). no-network 전략(빈 serviceIdentities + 4xx collectForPerson 도달 전 throw, adapter override 0). 기존 e2e helper(createAuthenticatedE2EApp/buildAuthCookie/truncateAll) 재사용. reviewer r1 APPROVE 0/0/0(no-network·CI-only acceptable). CI test:e2e(postgres) green — no-network 경로 end-to-end 실증, approval-gate race 미발생. lint/build/unit 189 suite/3541 green + tsc --noEmit clean(로컬 DB 부재). +234/1파일. driver 직접 구현, reviewer 만 sub-agent. tasksCompleted 272→273. [다음] turn 10(FINAL, cap) = Follow-up #5 doc-sync(modules.md+api.md, direct) 후 §1[8](e) 10-turn cap STOP.",
-    "notePrev": "loop@AKIHA-s69 (KST 06-07 21:55) turn 8 — T-0274 DONE/MERGED(PR-235 squash f6cc24d). ADR-0031 impl slice #3: AssessmentCollectionController(POST /collect, Admin RBAC, ValidationPipe) + module 배선(AuthModule import, circular 부재 실측). collection backbone HTTP 호출 가능. reviewer r1 APPROVE 0/0/0. 100% cov. tasksCompleted 272. T-0275 큐잉."
+    "stoppedAt": "2026-06-07T22:30:00+09:00",
+    "stopReason": "10-turn-cap-reached-clean-stop-ADR-0031-chain-complete",
+    "note": "loop@AKIHA-s69 (KST 06-07 22:30) turn 10 (FINAL, 10-turn cap) — T-0276 DONE(direct doc-sync content 798b052): modules.md AssessmentCollectionModule row(controller 1+10 service, manual trigger 호출처 결선 완료, Backend API mapping 1:5) + 머리말 + api.md POST /api/assessment-collection/collect 계약 row + ADR-0031 status PROPOSED→ACCEPTED. reviewer/PR 불요(direct doc-only, R-110 면제). +7/-5 3파일. **§1[8](e) 10-turn cap 도달 → ScheduleWakeup 재예약 안 함, session #69 STOP + lock tombstone 해제.** 사용자에게 cleanup(/compact 또는 /clear 후 새 /loop, 또는 cron 발화 대기) 안내. [session #69 요약] 10 turn 에 ADR-0030 collection enumerate slice vi(since 도출 T-0267/배선 T-0268/doc-sync T-0269) + ADR-0031 manual-trigger 호출처 결선 chain end-to-end(T-0270 ADR → T-0271 DTO → T-0272 read → T-0273 orchestration → T-0274 controller → T-0275 e2e → T-0276 doc-sync) 완성. tasksCompleted 264→274(10건), Q-0026 사용자 결정으로 RESOLVED(호출처 결선+manual endpoint). 동시성 사건 1건(t3 ~20h AskUserQuestion 대기 중 cron@cloud-eLCQE stale-lock 탈취 → origin reset + free lock 재획득 graceful 복구). blockers 0, CI green 유지(approval-gate race 1회 t7 → rerun --failed). collection backbone 이 HTTP(POST /api/assessment-collection/collect, Admin) 로 호출 가능 — caller 0 해소. 다음 session: planner survey(collection 완결 후 차기 우선순위 — P5 평가 진입/scheduler 자동화/live token 등은 §5 게이트 재확인 필요).",
+    "notePrev": "loop@AKIHA-s69 (KST 06-07 22:15) turn 9 — T-0275 DONE/MERGED(PR-236 squash 7895603). ADR-0031 impl slice #4(e2e): assessment-collection-trigger.e2e-spec.ts 8 e2e(201/401×2/403/404/400×2, no-network 빈 serviceIdentities). CI test:e2e(postgres) green. reviewer r1 APPROVE 0/0/0. tasksCompleted 273. T-0276 큐잉."
   },
   "ci": {
-    "lastRun": "2026-06-07T22:13:00+09:00",
+    "lastRun": "2026-06-07T22:30:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27093506913",
-    "note": "s69 t9: T-0275 PR-236 head(2f06be8) run 27093506913 success — test:e2e(postgres) 가 신규 collection-trigger e2e 8 test 를 실 DB round-trip 으로 통과(no-network 경로 실증). 전 step green(approval-gate race 미발생). squash merge 7895603. consecutiveFails 0."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/798b052",
+    "note": "s69 t10 FINAL: T-0276 은 direct doc-only(modules.md/api.md/ADR-0031, content 798b052) + bookkeeping — main push 후 CI 확인(R-114, doc-only 라 green 예상; 직전 코드 commit 7895603 PR-236 run 27093506913 already success). consecutiveFails 0."
   },
   "reviewRounds": {
     "T-0138": 1,
@@ -387,7 +383,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 273,
+    "tasksCompleted": 274,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
