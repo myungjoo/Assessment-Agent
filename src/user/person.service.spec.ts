@@ -41,6 +41,7 @@ function buildRepositoryMock(): {
   repoMock: {
     findMany: jest.Mock;
     findById: jest.Mock;
+    findByIdWithIdentities: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
     softDelete: jest.Mock;
@@ -50,6 +51,7 @@ function buildRepositoryMock(): {
   const repoMock = {
     findMany: jest.fn(),
     findById: jest.fn(),
+    findByIdWithIdentities: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     softDelete: jest.fn(),
@@ -209,6 +211,56 @@ describe("PersonService", () => {
         NotFoundException,
       );
       expect(repoMock.findById).toHaveBeenCalledWith("");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // findByIdWithIdentities — happy / null → NotFoundException / 빈 relation
+  // (T-0272 / ADR-0031 §3 #2 — findById 404 분기 재사용)
+  // -----------------------------------------------------------------------
+  describe("findByIdWithIdentities()", () => {
+    it("serviceIdentities 포함 row 존재 시 그대로 반환한다 (happy)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      const fixture = {
+        ...buildPersonFixture({ id: "abc" }),
+        serviceIdentities: [
+          { id: "si-1", service: "github", externalId: "gildong" },
+        ],
+      };
+      repoMock.findByIdWithIdentities.mockResolvedValueOnce(fixture);
+
+      const service = new PersonService(repository, prisma);
+      const result = await service.findByIdWithIdentities("abc");
+
+      expect(repoMock.findByIdWithIdentities).toHaveBeenCalledWith("abc");
+      expect(result).toBe(fixture);
+    });
+
+    it("null 반환 시 NotFoundException 으로 변환한다 (error/404 분기)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      repoMock.findByIdWithIdentities.mockResolvedValueOnce(null);
+
+      const service = new PersonService(repository, prisma);
+      await expect(
+        service.findByIdWithIdentities("missing"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("serviceIdentities 빈 배열 row 도 정상 반환한다 (negative — 빈 relation 유효)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const { prisma } = buildPrismaMock();
+      const fixture = {
+        ...buildPersonFixture({ id: "no-si" }),
+        serviceIdentities: [],
+      };
+      repoMock.findByIdWithIdentities.mockResolvedValueOnce(fixture);
+
+      const service = new PersonService(repository, prisma);
+      const result = await service.findByIdWithIdentities("no-si");
+
+      expect(result).toBe(fixture);
     });
   });
 
