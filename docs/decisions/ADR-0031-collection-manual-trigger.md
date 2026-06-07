@@ -1,6 +1,6 @@
 # ADR-0031 — Collection manual-trigger HTTP endpoint 계약 — 호출처 결선(manual)
 
-- Status: PROPOSED (T-0270)
+- Status: ACCEPTED (T-0276)
 - Date: 2026-06-07
 - 관련 ADR: [ADR-0029](ADR-0029-assessment-collection-orchestrator.md)(collection orchestrator — 수집/평가 분리 §1, 본 ADR 이 그 §3 이 deferred 한 "호출처" 를 manual trigger 로 resolve), [ADR-0030](ADR-0030-assessment-collection-enumerate.md)(enumerate — §5 line 59 가 `assessmentId` 주입 경계를 "호출처(scheduler/manual trigger)" 로 deferred, 본 ADR 이 그 호출처를 박제), [ADR-0006](ADR-0006-assessment-data-model.md)(Assessment immutable + `@@unique`), [ADR-0008](ADR-0008-rbac-role-hierarchy.md)(RBAC tier)
 - 관련 REQ: REQ-029(평가 자료 영속), REQ-031~033(재수집 dedup/영속화), REQ-038(조회), REQ-040(manual trigger)
