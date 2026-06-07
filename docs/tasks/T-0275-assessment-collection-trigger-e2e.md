@@ -2,7 +2,11 @@
 id: T-0275
 title: assessment-collection-trigger e2e slice (201/401/403/404/400, mocked adapter)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-07T22:15:00+09:00
+prNumber: 236
+mergeCommit: 7895603
+result: "assessment-collection-trigger.e2e-spec.ts 신설(8 e2e: 201 happy 빈 serviceIdentities no-network + periodStart branch + 401×2 + 403 + 404 envelope + 400×2). 기존 e2e helper 재사용. PR-236 squash 7895603, reviewer r1 APPROVE 0/0/0, CI test:e2e(postgres) green — no-network 경로 end-to-end 실증. 로컬 DB 부재라 tsc --noEmit clean 으로 typecheck."
 commitMode: pr
 coversReq: [REQ-040, REQ-029, REQ-045]
 estimatedDiff: 250
