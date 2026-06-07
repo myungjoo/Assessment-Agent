@@ -5,14 +5,16 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0270",
   "lock": {
-    "holder": "cron",
-    "session": "cron@cloud-eLCQE",
-    "since": "2026-06-07T02:03:00+09:00"
+    "holder": "loop",
+    "session": "loop@AKIHA-s69",
+    "since": "2026-06-07T20:28:32+09:00",
+    "loopSessionStartedAt": "2026-06-06T23:23:17+09:00",
+    "loopSessionTurnCount": 3
   },
-  "lastActivity": "2026-06-07T02:10:00+09:00",
-  "lastCommit": "9635b7d",
+  "lastActivity": "2026-06-07T20:28:32+09:00",
+  "lastCommit": "9eb6838",
   "mostRecentTasks": [
     "T-0269",
     "T-0268",
@@ -25,7 +27,7 @@
     "startedAt": "2026-06-06T23:23:17+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-s69",
-    "note": "loop@AKIHA-s69 (KST 06-07 00:10) turn 3 — T-0269 DONE(direct doc-sync content 9635b7d). docs/architecture/modules.md AssessmentCollectionModule row 를 머지된 9-service 배선으로 정합: 기존 8 service 에 SinceDerivationService(slice vi, 직전 Assessment 최신 periodStart→ISO since 도출, 빈 배열→undefined=full collection; T-0267 신설/T-0268 배선) 추가 + provider/export 출처 T-0265→T-0265/T-0268 + stale 'since pass-through'→slice vi 완료 정정 + line3 머리말 T-0269 이력. module-level 위상(mermaid/의존성/component mapping) 불변. reviewer/PR/tester 불요(direct doc-only, R-110 면제), 표 구조(6컬럼) 불변. driver 직접 Edit(sub-agent 0), +2/-2 1파일. tasksCompleted 266→267, mostRecentTasks prepend T-0269(reviewRounds entry 없음 — direct 무review). [다음] collection 체인의 dependency-free doc/wiring slice 소진 근접 — 남은 후속(호출처 결선·1주 window/timezone)은 ADR-worthy+P5/P7 phase 경계. planner 가 다음 survey 시 escalate 가능.",
+    "note": "loop@AKIHA-s69 (KST 06-07 20:28) turn 3 (resume) — T-0269 DONE(direct doc-sync 9635b7d, modules.md 9-service 배선 정합) 후 planner HIGH-bar survey 결과 dependency-free backlog 소진 → driver AskUserQuestion checkpoint. **사용자 결정: (1) 호출처 결선 + (2) manual HTTP endpoint 트리거(dependency-free, §5 미발화). cron 자동화는 추후 미승인.** [동시성 사건] turn 3 AskUserQuestion 이 ~20h 대기하는 동안 lock since(00:04)가 stale(>60min)化 → cron@cloud-eLCQE fire(KST 02:14)가 stale-takeover, 동일 결론(dependency-free 소진)으로 Q-0026 raise + BLOCKED 종료 + lock tombstone 해제(origin/main 9eb6838). 사용자 답변 수신 후 driver 가 origin 으로 reset(stale-base planner STATE/journal edit 폐기, T-0270 untracked 보존) → free lock 재획득(d5986e3→1baece2, loop@AKIHA-s69 turnCount 3) → **Q-0026 을 사용자 결정으로 RESOLVED 처리** → nextTask=T-0270(ADR-0031 manual-trigger 계약). T-0269 content/bookkeeping(9635b7d/b705626)은 cron 9eb6838 의 ancestor 로 origin 에 안전. tasksCompleted 267 불변(T-0270 미완). [다음] turn 4 = T-0270 ADR-0031 작성(pr, impl 0 LOC).",
     "notePrev": "loop@AKIHA-s69 (KST 06-07 00:00) turn 2 — T-0268 DONE/MERGED(PR-230 squash 5e79ec9). ADR-0029 §5 slice vi-wiring: SinceDerivationService 를 AssessmentCollectionModule providers/exports 에 배선(DI inject 가능). reviewer r1 APPROVE 0/0/0. 186 suite/3512 test green. tasksCompleted 265→266. T-0269 큐잉."
   },
   "ci": {
@@ -359,7 +361,7 @@
       "raisedAt": "2026-06-07T00:25:00+09:00",
       "raisedBy": "cron@cloud-eLCQE planner survey (stale lock 탈취 후 HIGH make-work-bar)",
       "reason": "needs-human-decision",
-      "status": "PENDING",
+      "status": "RESOLVED",
       "summary": "Q-0025 가 지시한 Assessment collection orchestrator backbone 이 in-module 으로 완결됐다(slice i~vi 전부 머지, AssessmentCollectionModule 9-service 배선 + AppModule import 완료, mocked unit R-112 통과). 잔여는 전부 Q-0025 decision 이 명시 deferred 한 (a) 호출처(scheduler/manual trigger) 결선 — ADR-worthy + P5/P7 phase 경계, (b) 1 주 재수집 window/timezone 보정 — REQ-058 P5/P7, (c) live/credentialed 수집 — UI 이후, 그리고 Q-0024/Q-0025 이전부터 deferred 였던 (d) Confluence/Enterprise GitHub live token run — §5 credential 게이트, (e) mutation testing(Stryker) — 새 외부 dependency §5 게이트 다. HIGH make-work-bar survey 결과 진짜 dependency-free 잔여 0 — task 날조 회피 차원에서 escalate. blockers 0, open PR 0, CI green, tasksCompleted=267, ADR-0001~0030 전원 ACCEPTED, Q-0013~Q-0025 전원 RESOLVED.",
       "context": "main 실코드 대조(origin/main b705626, 9635b7d T-0269 직후): (1) AssessmentCollectionModule 9-service 배선 완료 — providers/exports 에 GithubCollectionService / ConfluenceCollectionService / CollectionOrchestratorService / CollectionPersistenceService / GithubOrgEnumerateService / GithubCollectionSpecService / CollectionSpecService / CollectionEntryService / SinceDerivationService(T-0267 신설/T-0268 배선) 전부 등록. (2) CollectionEntryService.collectForPerson(person, since|undefined, assessmentId) 4단계 조립(buildCollectionSpec → orchestrator aggregate → filterActivitiesByAuthor → persistActivities) 완성, mocked unit R-112 통과(140 suite/3512 test green). (3) SinceDerivationService.deriveSince(personId) = 직전 Assessment 최신 periodStart → ISO since(빈 배열 → undefined=full collection), unit R-112 통과. (4) modules.md row 9 AssessmentCollectionModule 표기 + 9-service 배선 + slice vi 완료 정합(T-0269 9635b7d). (5) AppModule.imports 에 AssessmentCollectionModule 등록(app.module.ts L39, T-0251). 즉 collection in-module 책임은 **end-to-end 완결**. 잔여 진짜 actionable 은 외부 호출 — collectForPerson 을 누가 언제 어떤 assessmentId 로 트리거하는가 + Assessment row 를 누가 생성하는가, 그리고 1 주 보정·실 token live 검증 + 평가 파이프라인(P5 LLM scoring) — 모두 본 phase 경계 밖이거나 Q-0024/Q-0025 deferred. cosmetic sweep: stale-count/false-comment hit 0, nit residual 0, BLOCKED task 0.",
       "options": [
@@ -370,7 +372,10 @@
         "(5) 다른 우선순위 / 루프 정지 — 위 외 방향(observability·OpenAPI/Swagger doc 자동화·P6 frontend 진입 검토 등) 지시 또는 정지. retention TTL 은 ADR-0022 §3 영구 보존 reverse + 새 dep 비권장(옵션 제외)."
       ],
       "recommendation": "가장 큰 가치 unblock 은 (1) 호출처 결선 — 이미 머지된 collection backbone(9-service + collectForPerson + deriveSince)이 caller 0 상태이고, (1) 이 그 운영 가치를 실제로 활성화한다(현 상태는 'safe but useless' 와 유사 — 코드는 있으나 누구도 부르지 않음). (1) 은 ADR-worthy phase 경계(P4 수집 → P5 평가 / P7 scheduler)라 사용자 phase 진입 결정 필요. 권장 순서: (1)(+2 함께) → (3) → (4). (3) 은 token 제공 가능 시 즉시, (4) 는 새 dep ADR 선행. planner 단독으로 phase 진입은 결정 권한 밖이라 escalate — 사용자가 (1) 진입 승인 시 ADR-first 로 첫 slice(호출처 결선 설계 ADR — Assessment row 생성 주체·manual trigger vs scheduler 책임·idempotency·RBAC) 큐잉.",
-      "resolutionHint": "docs/STATE.json 의 본 Q-0026 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 호출처 진입 scope[scheduler-only / manual-trigger-only / both] 및 Assessment row 생성 주체 가이드 / (2) 함께 진행 여부 / (3) 선택 시 token credential scope + secrets.env 경로·만료 / (4) 선택 시 Stryker ADR 진행 승인)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token)은 코드·STATE·journal·git 에 실값 금지, env/secret 주입(§9)."
+      "resolutionHint": "docs/STATE.json 의 본 Q-0026 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 호출처 진입 scope[scheduler-only / manual-trigger-only / both] 및 Assessment row 생성 주체 가이드 / (2) 함께 진행 여부 / (3) 선택 시 token credential scope + secrets.env 경로·만료 / (4) 선택 시 Stryker ADR 진행 승인)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token)은 코드·STATE·journal·git 에 실값 금지, env/secret 주입(§9).",
+      "resolvedAt": "2026-06-07T20:28:32+09:00",
+      "decision": "option (1) 호출처 결선 진입 승인 + 트리거 형태 = manual HTTP endpoint — 사용자가 loop@AKIHA-s69 session #69 t3 AskUserQuestion 2-step 으로 결정. (1) 호출처 결선: 이미 머지된 collection backbone(9-service + collectForPerson + deriveSince, caller 0)의 운영 가치를 실현하는 외부 진입점을 박제한다. (2) 트리거 형태 = **manual HTTP POST endpoint** — 새 외부 dependency 0 → §5 미발화, dependency-free 즉시 착수. **cron/scheduler 자동화(@nestjs/schedule)는 추후 미승인**(필요 시 별도 §5 의존성 게이트 결정). ADR-first: Assessment row 생성 주체 + endpoint 계약(route/RBAC/request·response shape) + orchestration 합성(PersonService resolve → deriveSince → collectForPerson) + module 배치 + test posture(mocked unit R-112 + e2e, live 는 Q-0025 deferred)를 architect 가 ADR-0031 로 박제하고 사용자가 ADR PR 에서 검토. 옵션 (2) 1주 재수집 window/timezone(REQ-058)·(3) Confluence/Enterprise GitHub live token run·(4) Stryker mutation testing 은 미승인/deferred 유지. loop 재개: planner 가 T-0270(ADR-0031 manual-trigger 계약, commitMode pr, impl 0 LOC) 큐잉 → 후속 구현 slice(DTO/orchestration service/controller/e2e) 순차. [메타] 본 Q-0026 은 cron@cloud-eLCQE 가 stale-lock 탈취 후 raise(BLOCKED)했으나, 같은 escalation 을 loop@AKIHA-s69 가 사용자 AskUserQuestion 으로 동시 수집·해소 — driver 가 origin 9eb6838 위에서 RESOLVED 처리.",
+      "processedByDriver": true
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
