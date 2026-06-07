@@ -2,12 +2,14 @@
 id: T-0277
 title: modules.md Refs footer 를 본문 박제 (ADR-0030/0031, T-0255~T-0276, REQ-040) 로 정합
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-040, REQ-057]
 estimatedDiff: 3
 estimatedFiles: 1
 created: 2026-06-07
+completedAt: 2026-06-08T01:05:00+09:00
+resultSummary: modules.md L241 Refs footer 에 T-0266/T-0269/T-0276 + ADR-0030/ADR-0031 + REQ-040 추가 + T 그룹 ascending 재정렬 (+1/-1, 1 file). 본문 박제 grep 누락 0. content commit 50bacd8.
 plannerNote: P4 doc-sync — modules.md L241 Refs footer 가 본문 박제된 ADR-0030/0031, T-0255/T-0266/T-0269/T-0276, REQ-040 미추적 (catalogue drift)
 ---
 
