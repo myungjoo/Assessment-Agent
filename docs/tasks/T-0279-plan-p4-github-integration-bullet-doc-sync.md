@@ -2,7 +2,8 @@
 id: T-0279
 title: PLAN P4 GitHub 3 instance 통합 bullet doc-sync (L81)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-08T05:04:24+09:00
 commitMode: direct
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008]
 estimatedDiff: 3
@@ -33,11 +34,11 @@ main 실코드 박제 증거:
 
 ## Acceptance Criteria
 
-- [ ] [docs/PLAN.md](../PLAN.md) L81 의 `[ ]` 를 `[x]` 로 flip + 본문 끝에 "**(완료)** — GithubModule 단일 GithubAdapter + instance-keyed config (`GITHUB_INSTANCES` + per-key `_HOST` / `_ORG` / `_TOKEN_ENC`) 박제 (ADR-0016 transport 계약 + ADR-0017 config source). 3 host variant (github.com / github.sec.samsung.net / github.ecodesamsung.com) 분리 + token JIT decrypt (ADR-0014) + 4xx → PermissionDeniedEvent emit." 한 줄 인용 추가.
-- [ ] `pnpm` 실행 불요 (doc-only, 코드 변경 0). lint/build/test 미실행.
-- [ ] PLAN.md 외 다른 파일 수정 0.
-- [ ] direct commit (driver 가 main 에 push). PR 미생성 (commitMode direct).
-- [ ] commit subject 한국어 한 줄 — 예: `docs(plan): P4 GitHub 3 instance 통합 bullet [x] 정합 (T-0279)`.
+- [x] [docs/PLAN.md](../PLAN.md) L81 의 `[ ]` 를 `[x]` 로 flip + 본문 끝에 "**(완료)** — GithubModule 단일 GithubAdapter + instance-keyed config (`GITHUB_INSTANCES` + per-key `_HOST` / `_ORG` / `_TOKEN_ENC`) 박제 (ADR-0016 transport 계약 + ADR-0017 config source). 3 host variant (github.com / github.sec.samsung.net / github.ecodesamsung.com) 분리 + token JIT decrypt (ADR-0014) + 4xx → PermissionDeniedEvent emit." 한 줄 인용 추가.
+- [x] `pnpm` 실행 불요 (doc-only, 코드 변경 0). lint/build/test 미실행.
+- [x] PLAN.md 외 다른 파일 수정 0 (task 파일 / STATE.json / journal 은 driver bookkeeping).
+- [x] direct commit (driver 가 main 에 push). PR 미생성 (commitMode direct).
+- [x] commit subject 한국어 한 줄 — 예: `docs(plan): P4 GitHub 3 instance 통합 bullet [x] 정합 (T-0279)`.
 
 ## Out of Scope
 
