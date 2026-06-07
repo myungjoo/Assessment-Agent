@@ -50,14 +50,17 @@
 // CollectionEntryService.collectForPerson 에 주입한다(호출처 결선은 P5/P7, 본 module 밖).
 import { Module } from "@nestjs/common";
 
+import { AuthModule } from "../auth/auth.module";
 import { ConfluenceModule } from "../confluence/confluence.module";
 import { GithubModule } from "../github/github.module";
 import { UserModule } from "../user/user.module";
 
+import { AssessmentCollectionController } from "./assessment-collection.controller";
 import { CollectionEntryService } from "./collection-entry.service";
 import { CollectionOrchestratorService } from "./collection-orchestrator.service";
 import { CollectionPersistenceService } from "./collection-persistence.service";
 import { CollectionSpecService } from "./collection-spec.service";
+import { CollectionTriggerService } from "./collection-trigger.service";
 import { ConfluenceCollectionService } from "./confluence-collection.service";
 import { GithubCollectionSpecService } from "./github-collection-spec.service";
 import { GithubCollectionService } from "./github-collection.service";
@@ -71,7 +74,14 @@ import { SinceDerivationService } from "./since-derivation.service";
   // UserModule import — `ContributionService` 를 export(user.module.ts L181)하므로
   // CollectionPersistenceService 의 생성자 주입(영속화 진입점)이 DI 로 resolve 된다
   // (collection → user 단방향, ADR-0029 §1).
-  imports: [GithubModule, ConfluenceModule, UserModule],
+  // AuthModule import — AssessmentCollectionController 의 @UseGuards(JwtAuthGuard,
+  // RolesGuard)가 AuthModule export(JwtAuthGuard/RolesGuard, auth.module.ts L81)로 닫힌다.
+  // collection → auth 단방향(auth 는 collection 미참조)이라 forwardRef 불요(ADR-0031 §4 —
+  // module.spec compile 로 circular 부재 실측). 기존 imports 불변.
+  imports: [GithubModule, ConfluenceModule, UserModule, AuthModule],
+  // #3 controller(T-0274): manual-trigger HTTP 진입점(POST /api/assessment-collection/
+  // collect, Admin RBAC)을 등록. CollectionTriggerService 위임(ADR-0031 §2/§4).
+  controllers: [AssessmentCollectionController],
   // 두 collection service + orchestrator(v-b) + 영속화 service(v-c)를 provider 로 등록.
   // GithubCollectionService 는 GithubInstanceClient 를, ConfluenceCollectionService 는
   // ConfluenceSpaceTraversalService 를 생성자 주입받으며, 위 imports 가 그 token 들을
@@ -98,6 +108,10 @@ import { SinceDerivationService } from "./since-derivation.service";
     // slice vi(T-0268): since 도출 service. 생성자 의존 AssessmentService 는 UserModule
     // import 로 공급됨(새 import 0). 호출처가 deriveSince → collectForPerson 으로 잇는다.
     SinceDerivationService,
+    // #2b orchestration(T-0273): CollectionTriggerService 는 PersonService/AssessmentService
+    // (UserModule export) + SinceDerivationService/CollectionEntryService(같은 module)를
+    // 주입받아 manual-trigger 6단계를 합성한다. AssessmentCollectionController(#3)가 호출.
+    CollectionTriggerService,
   ],
   // 두 collection service / orchestrator / 영속화 service 는 후속 slice / 외부가 inject.
   // enumerate chain 은 외부 진입점 CollectionEntryService 만 export 한다 — 중간 chain
