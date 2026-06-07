@@ -5,10 +5,10 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0277",
   "lock": null,
-  "lastActivity": "2026-06-07T22:30:00+09:00",
-  "lastCommit": "798b052",
+  "lastActivity": "2026-06-07T22:40:00+09:00",
+  "lastCommit": "360e90b",
   "mostRecentTasks": [
     "T-0276",
     "T-0275",
