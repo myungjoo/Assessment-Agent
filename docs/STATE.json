@@ -5,12 +5,12 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0287",
   "lock": {
     "holder": "loop",
     "session": "loop@cloud-82SQk",
     "since": "2026-06-08T19:25:00+09:00",
-    "note": "비권위 human mirror — authoritative lock(claude/lock-driver tip)=free(tombstone holder:null). 본 /loop web session(fresh /clear 후 재개)은 분산 CAS 재취득 skip(무contention: 다음 cron KST 02:00 + harness branch 제약). T-0286(ADR-0032) DONE, nextTask 비움 → 다음 turn planner 가 P5 impl slice 큐잉."
+    "note": "비권위 human mirror — authoritative lock(claude/lock-driver tip) 은 driver loop[6] 단계에서 갱신. cron@cloud-focused-goodall-Q4tx5 fire(2026-06-08 KST 20:09) planner-only turn — Q-0027 resolve + T-0286(ADR-0032 ACCEPTED) 머지(3940d56) 후 P5 첫 impl slice 큐잉. T-0287(평가 입력 매퍼 Activity→EvaluationInput, ADR-0032 Follow-up §1, commitMode pr, ~225 LOC/3파일, dependency 0, mocked LLM 무관 — 순수 함수). 사용자 task description '문서/코멘트 direct merge' 는 doc-only 면제 — T-0287 은 src/ 신규 코드라 정상 pr-mode."
   },
   "lastActivity": "2026-06-08T19:25:00+09:00",
   "lastCommit": "3805eb2",
