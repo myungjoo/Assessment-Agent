@@ -34,9 +34,26 @@ const DEFAULT_CONTRIBUTION: ContributionLevel = "low";
 
 // classifyNarrative 가 prompt 출력 측에서 인식하는 구조적 marker 의 key 토큰.
 // case-insensitive 매칭(아래 정규식의 `i` flag). buildEvaluationPrompt 의 출력
-// 형식과 의도적으로 정합 — 후속 prompt 가 LLM 에게 이 marker 형식을 요청한다.
-const DIFFICULTY_MARKER = /(?:^|\n)\s*difficulty\s*:\s*([^\s\n]+)/i;
-const CONTRIBUTION_MARKER = /(?:^|\n)\s*contribution\s*:\s*([^\s\n]+)/i;
+// 형식과 의도적으로 정합 — prompt 는 단일 line comma 형식
+// (`difficulty: <...>, contribution: <...>`)을 LLM 에게 요청한다.
+//
+// marker 는 `\b` 단어 경계로만 anchor 하므로 (1) line-separated 형식
+// (`difficulty: hard\ncontribution: high`) 과 (2) inline comma 형식
+// (`difficulty: hard, contribution: high`) 을 **모두** 매칭한다 — line 시작
+// anchor(`^|\n`)를 쓰면 inline 형식의 두 번째 marker(`, contribution:`)가
+// 매칭되지 않아 prompt↔parser 가 compose 되지 않는 결함이 발생했다(round 1 MAJOR).
+// 캡처 토큰은 비공백/비콤마 시퀀스이며, extractMarker 가 추가로 둘러싼 구두점을
+// 벗긴다(trailing comma / period 등).
+// 콜론 뒤 공백은 수평 공백([^\S\n])만 허용 — newline 을 넘어 다음 line 의 다른
+// key(`contribution:`)를 difficulty 값으로 잘못 캡처하지 않게 한다(빈 marker 값
+// 방어). 캡처 토큰은 비공백/비콤마 시퀀스.
+const DIFFICULTY_MARKER = /\bdifficulty[^\S\n]*:[^\S\n]*([^\s,\n]+)/i;
+const CONTRIBUTION_MARKER = /\bcontribution[^\S\n]*:[^\S\n]*([^\s,\n]+)/i;
+
+// 캡처 토큰에서 벗겨낼 둘러싼 구두점(앞뒤 콤마 / 마침표 / 세미콜론 / 콜론 /
+// 괄호 / 따옴표 등). isDifficulty / isContributionLevel 좁히기 전에 적용해
+// `hard,` / `high.` 같은 토큰이 허용 집합 매칭에서 누락되지 않게 한다(round 1 NIT).
+const SURROUNDING_PUNCTUATION = /^[\s,.;:'"()[\]]+|[\s,.;:'"()[\]]+$/g;
 
 // REQ-032 방어 메모: metadata 에서 prompt 에 넣을 때 raw 본문 인용으로 오인될 수
 // 있는 키(`body` / `html` / `message` / `diff` / `content` 등)의 **값 전문**은
@@ -96,13 +113,16 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
 }
 
 // extractMarker — narrative 에서 주어진 marker 정규식으로 값 토큰을 추출하고
-// 소문자로 정규화한다. marker 부재면 undefined.
+// 둘러싼 구두점(콤마 / 마침표 등)을 벗긴 뒤 소문자로 정규화한다. marker 부재
+// 또는 구두점 제거 후 빈 토큰이면 undefined(round 1 NIT — trailing 구두점이
+// isDifficulty / isContributionLevel 좁히기를 깨지 않게 한다).
 function extractMarker(narrative: string, marker: RegExp): string | undefined {
   const match = marker.exec(narrative);
   if (match === null) {
     return undefined;
   }
-  return match[1].toLowerCase();
+  const token = match[1].replace(SURROUNDING_PUNCTUATION, "").toLowerCase();
+  return token.length > 0 ? token : undefined;
 }
 
 /**
@@ -111,10 +131,12 @@ function extractMarker(narrative: string, marker: RegExp): string | undefined {
  *
  * 파싱 휴리스틱(v1 — marker 기반):
  *   - narrative 안의 구조적 marker(`difficulty: <값>` / `contribution: <값>`
- *     형식의 key:value, case-insensitive, line 시작 또는 문자열 시작 위치)를
- *     우선 추출한다.
- *   - 추출한 값을 `isDifficulty` / `isContributionLevel` 로 좁힌다 — 허용 집합
- *     멤버면 채택, 아니면 default 로 fallback.
+ *     형식의 key:value, case-insensitive)를 우선 추출한다. 단어 경계(`\b`)로만
+ *     anchor 하므로 line-separated(`difficulty: hard\ncontribution: high`)와
+ *     inline comma(`difficulty: hard, contribution: high`) 형식을 모두 매칭한다
+ *     — buildEvaluationPrompt 가 요청하는 단일 line comma 형식과 정합(round 1).
+ *   - 추출한 값에서 둘러싼 구두점(콤마 / 마침표 등)을 벗기고 `isDifficulty` /
+ *     `isContributionLevel` 로 좁힌다 — 허용 집합 멤버면 채택, 아니면 fallback.
  *   - marker 부재(자유 산문 / 빈 문자열) / 미인식 값(`difficulty: trivial`,
  *     `contribution: amazing`) → 안전 default(`difficulty: "medium"`,
  *     `contribution: "low"`)로 fallback(throw 0).

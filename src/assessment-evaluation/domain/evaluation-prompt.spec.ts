@@ -262,6 +262,15 @@ describe("classifyNarrative", () => {
         contribution: "low",
       });
     });
+
+    it("구두점만 있는 marker 값(difficulty: ...) → strip 후 빈 토큰이라 default", () => {
+      // 토큰('...')은 정규식엔 매칭되나 구두점 strip 후 빈 문자열이 되어
+      // undefined 처리 → default 로 fallback(extractMarker 빈 토큰 분기).
+      expect(classifyNarrative("difficulty: ...\ncontribution: ;;;")).toEqual({
+        difficulty: "medium",
+        contribution: "low",
+      });
+    });
   });
 
   describe("type-level — 반환이 허용 집합 멤버 (R-112)", () => {
@@ -278,6 +287,83 @@ describe("classifyNarrative", () => {
         expect(CONTRIBUTION_LEVELS).toContain(result.contribution);
       },
     );
+  });
+
+  describe("inline comma 형식 + 구두점 strip (round 1 MAJOR/NIT 회귀 방어)", () => {
+    it("inline comma 형식(difficulty: hard, contribution: high)을 둘 다 추출한다", () => {
+      // round 1 결함 repro: comma 형식에서 difficulty 토큰이 'hard,' 로 잡혀
+      // isDifficulty false → default 로 새던 버그. 이제 comma 를 벗기고 둘 다 인식.
+      expect(classifyNarrative("difficulty: hard, contribution: high")).toEqual(
+        { difficulty: "hard", contribution: "high" },
+      );
+    });
+
+    it("inline comma + mixed case + 잉여 공백도 추출한다", () => {
+      expect(
+        classifyNarrative("Difficulty:  EASY ,  Contribution:   ZERO"),
+      ).toEqual({ difficulty: "easy", contribution: "zero" });
+    });
+
+    it("trailing 마침표(high.)를 벗기고 인식한다 (NIT — 구두점 strip)", () => {
+      expect(classifyNarrative("contribution: high.").contribution).toBe(
+        "high",
+      );
+    });
+
+    it("산문 prefix 가 붙은 inline 형식도 추출한다 (단어 경계 anchor)", () => {
+      expect(
+        classifyNarrative(
+          "평가: difficulty: medium, contribution: low 입니다.",
+        ),
+      ).toEqual({ difficulty: "medium", contribution: "low" });
+    });
+  });
+
+  describe("compose / round-trip — buildEvaluationPrompt ↔ classifyNarrative (round 1 MAJOR)", () => {
+    // prompt 가 LLM 에게 요청하는 형식 그대로의 응답이 parser 로 올바로 환원됨을
+    // 검증한다. 이 compose 검증 누락이 round 1 결함이 슬립한 이유다.
+    it("prompt 가 요청하는 단일 line comma 형식 응답이 정확히 분류된다", () => {
+      const prompt = buildEvaluationPrompt(makeInput());
+      // prompt instruction line 이 단일 line comma 형식을 요청하는지 확인.
+      expect(prompt).toContain(
+        "difficulty: <easy|medium|hard>, contribution: <zero|low|medium|high>",
+      );
+      // LLM 이 그 형식 그대로 답한 대표 응답.
+      const llmResponse = "difficulty: hard, contribution: high";
+      expect(classifyNarrative(llmResponse)).toEqual({
+        difficulty: "hard",
+        contribution: "high",
+      });
+    });
+
+    it("line-separated 형식 응답도 동일하게 분류된다 (parser 양형식 수용)", () => {
+      const llmResponse = "difficulty: easy\ncontribution: medium";
+      expect(classifyNarrative(llmResponse)).toEqual({
+        difficulty: "easy",
+        contribution: "medium",
+      });
+    });
+
+    it("산문이 앞뒤로 둘러싼 inline comma 응답도 분류된다", () => {
+      const llmResponse =
+        "종합 평가입니다. difficulty: medium, contribution: low. 이상.";
+      expect(classifyNarrative(llmResponse)).toEqual({
+        difficulty: "medium",
+        contribution: "low",
+      });
+    });
+
+    it("compose: 진짜 부재 marker 응답만 default fallback (오인식 0)", () => {
+      // marker 가 진짜 없는 자유 산문은 default 로 fallback 해야 한다.
+      expect(classifyNarrative("좋은 기여였습니다.")).toEqual({
+        difficulty: "medium",
+        contribution: "low",
+      });
+      // 미인식 값(comma 형식)도 해당 축만 default.
+      expect(
+        classifyNarrative("difficulty: trivial, contribution: amazing"),
+      ).toEqual({ difficulty: "medium", contribution: "low" });
+    });
   });
 
   describe("determinism (LLM 의존 0, R-112-2)", () => {
