@@ -10,10 +10,10 @@
     "holder": null,
     "session": null,
     "since": null,
-    "note": "비권위 human mirror — planner-only fire (cron@cloud post-T-0293) 가 T-0294 (api.md POST /api/assessment-evaluation/evaluate row 박제, direct doc-only, 1파일/약 30 LOC, T-0276 collection-trigger doc-sync 패턴 mirror) 를 nextTask 로 큐잉. issue-still-relevant pre-check 통과 — `git grep \"assessment-evaluation\" docs/architecture/api.md` = 0 (main 박제 0건). modules.md AssessmentEvaluationModule 박제 + ADR-0032 PROPOSED→ACCEPTED status flip 은 별도 task (T-0295/T-0296 후보) 로 분리해 cap·concern 격리. authoritative claude/lock-driver tip 은 driver 가 별도 관리 (본 planner fire 는 lock 미보유 — task 큐잉 + STATE direct write 만)."
+    "note": "비권위 human mirror — 본 cron fire(cron@cloud-focused-goodall) 가 ci 27161109030 = 2nd 연속 infra-fail bookkeeping direct commit 후 lock tombstone release. authoritative claude/lock-driver tip = tombstone."
   },
-  "lastActivity": "2026-06-09T04:15:00+09:00",
-  "lastCommit": "79db0c9",
+  "lastActivity": "2026-06-09T05:00:00+09:00",
+  "lastCommit": "pending",
   "mostRecentTasks": [
     "T-0293",
     "T-0292",
@@ -31,12 +31,12 @@
     "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업, executor 작성 fec4eee push, 첫 CI run 이 check-spec-presence step 에서 fail(DTO 콜로케이트 spec 부재). implementer 가 evaluate-activities.dto.spec.ts (383 LOC, collect-trigger.dto.spec.ts 패턴 mirror) 추가 → 6dcefbd push → 새 CI run green. reviewer round 1 APPROVE(8-check pass, NIT 4종 비차단). 4-게이트 통과 → squash merge 2ecbc64. branch 삭제는 proxy disconnect 로 server-side noop(non-blocking — follow-up cleanup). tasksCompleted 289→290."
   },
   "ci": {
-    "lastRun": "2026-06-09T04:14:09+09:00",
-    "status": "infra-fail",
-    "consecutiveFails": 1,
+    "lastRun": "2026-06-09T05:00:00+09:00",
+    "status": "infra-fail-confirmed",
+    "consecutiveFails": 2,
     "lastConclusion": "failure",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27160808599",
-    "note": "main 79db0c9(T-0294 큐잉 direct doc-only) push 후 CI run 27160808599 = failure. attempt 1 created 19:11:31Z completed 19:11:34Z (3s), attempt 2 created 19:14:07Z completed 19:14:08Z (1s) — job started_at == created_at 이고 runner_id=0 / runner_name='' 라 **runner 미할당** 상태에서 fail 처리됨. 즉 lint/build/test 자체 실행은 0번이었고 GitHub Actions 인프라 layer 에서 runner 가 픽업 못 함(GH Actions minutes 소진 / quota / org-level restriction 후보). doc-only direct commit 의 변경 내용은 무관 — 코드/스크립트/workflow 모두 미수정. CLAUDE.md §11 'direct-mode commit이 main의 CI를 깨면 즉시 다음 turn BLOCKED' 룰은 정상 적용 시 다음 turn BLOCKED 이지만, 본 failure 는 코드 회귀 아니고 infra 픽업 실패라 사람 검토 필요(GH Actions 잔여 minutes / billing 점검). 다음 turn 의 §1[5] 가 conclusion 재확인 — 그 시점에 여전히 runner 픽업 실패면 BLOCKED(ci-infra) 처리 권장. 참고: Node.js 20 deprecation 경고(2026-06-16 강제 전환)는 별건. PushNotification 으로 사용자 알림 전송."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27161109030",
+    "note": "main 21a3925 (T-0294 큐잉 직후 infra-fail bookkeeping direct commit) push 후 CI run 27161109030 = failure. job 80176489637 attempt 1: created/started=19:16:57Z completed=19:16:59Z (2s), runner_id=0 runner_name=''. 직전 run 27160808599(79db0c9, T-0294 큐잉) 와 동일 패턴 — runner 미할당 fail. 2 연속 infra-fail 확인. 코드/workflow/script 변경 0 → GH Actions infra layer 픽업 실패가 지속. 후보: (a) Actions minutes 소진, (b) account-level quota/billing 일시 정지, (c) org/repo-level Actions 비활성, (d) GH Actions 지역 outage. 사람 검토 필요: https://github.com/myungjoo/Assessment-Agent/settings/actions 및 billing 확인. STATE.ci.consecutiveFails 1→2 (§1[5] threshold=3 미달이라 강한 BLOCKED 처리는 보류, 다음 발화 시 또 실패면 BLOCKED ci-infra). nextTask=T-0294 큐잉은 유지 — CI infra 복구 후 정상 픽업 가능. PushNotification 재발송."
   },
   "reviewRounds": {
     "T-0293": 1,
