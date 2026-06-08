@@ -12,22 +12,22 @@
     "since": "2026-06-08T16:45:00+09:00",
     "note": "비권위 human mirror — authoritative lock(claude/lock-driver tip)=free(tombstone holder:null). 본 /loop web session 은 분산 CAS 재취득 skip(무contention: 다음 cron KST 02:00 ~9h 후 + harness branch 제약)."
   },
-  "lastActivity": "2026-06-08T17:20:00+09:00",
-  "lastCommit": "47910c3",
+  "lastActivity": "2026-06-08T17:35:00+09:00",
+  "lastCommit": "edb9f82",
   "mostRecentTasks": [
+    "T-0285",
     "T-0283",
     "T-0282",
     "T-0281",
-    "T-0280",
-    "T-0279"
+    "T-0280"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 4,
     "startedAt": "2026-06-08T16:45:00+09:00",
     "cap": 10,
     "holder": "loop@cloud-82SQk",
-    "note": "loop@cloud-82SQk (/loop turn cap 10) session t2 — T-0283 DONE: PLAN P4 L90 LLM apiKey encryption-at-rest bullet [ ]→[x] flip + reality 인용(write LlmProviderConfigService.create/update cipher.encrypt line 159/221 + read LlmProviderConfigView Omit apiKey sanitize never-read-back + LlmHttpGatewayService cipher.decrypt line 143 JIT + schema.prisma apiKey ciphertext 주석 line 361~366) — main 코드 grep 검증 후 박제, 허위 인용 0. 1 파일 +1/-1(PLAN.md). commitMode=direct doc-only(R-110/R-112 면제, 분기 0), driver 직접 Edit(sub-agent 0). counters.tasksCompleted 280→281, mostRecentTasks prepend T-0283(T-0278 drop), nextTask=null(다음 planner survey 가 L88 doc-sync 또는 L82 escalate 결정). t1~t2 사이 user-directed T-0284(CI doc-only approval-gate 면제, PR #237) 처리됨 — PR #237 미머지(사용자 리뷰 대기). 본 t2 변경도 같은 branch claude/loop-turn-cap-10-82SQk 누적(harness 제약, PR #237). 분산 lock 무contention skip 유지. blockers 0, humanQuestions 전원 RESOLVED.",
-    "notePrev": "loop@cloud-82SQk t1 — planner-only, T-0283 큐잉(PLAN P4 L90 doc-sync). authoritative lock free, 분산 CAS skip. harness branch+PR 라우팅. + t1~t2 사이 user-directed T-0284(CI approval-gate doc-only 면제) 구현·push(PR #237, 미머지). [이전 cron fire #11: T-0282 DONE, counters 279→280, lock tombstone tip 24f1115.]"
+    "note": "loop@cloud-82SQk (/loop turn cap 10) session t3(planner)+t4(execute) — T-0285 DONE: PLAN P4 L88 자격증명 관리+권한 부족 감지·통지 bullet [ ]→[x] flip + main reality 인용(src/permission-denied/ PermissionDeniedRecord chain controller/service/repository/module + GitHub·Confluence persisting emitter, adapter 4xx→PermissionDeniedEvent→영속→GET /api/permission-denied-records @Roles(User), audience 차등 Admin전체/non-Admin binding-scoped; src/user-instance-access/ UserInstanceAccess binding + instance-keyed _TOKEN_ENC JIT decrypt; ADR-0022~0024/0027/0014) — main 코드 grep 검증(@Roles line 100, controller route, user-instance-access dir) 후 박제, 허위 인용 0. 1 파일 +1/-1(PLAN.md). commitMode=direct doc-only(R-110/R-112 면제), driver 직접 Edit, planner sub-agent 만 dispatch(T-0285 큐잉). counters.tasksCompleted 281→282, mostRecentTasks prepend T-0285(T-0279 drop), nextTask=null. P4 PLAN 잔여 미완 bullet 은 L82(GitHub Issue 평가 + self-follow-up 제외)뿐 — grep 0 진짜 미구현 backlog 라 doc-sync 부적합(다음 planner survey 가 escalate 또는 다른 phase work 결정). 누적: 본 session 이 PR #237 에 t1 bookkeeping + T-0284(CI 면제) + T-0283 + T-0285 4 commit 쌓음(미머지, 사용자 리뷰 대기). 분산 lock 무contention skip 유지. blockers 0, humanQuestions 전원 RESOLVED.",
+    "notePrev": "loop@cloud-82SQk t2 — T-0283 DONE(PLAN P4 L90 LLM apiKey at-rest doc-sync, counters 280→281). t1 planner-queue + t1~t2 user-directed T-0284(CI approval-gate doc-only 면제). PR #237 미머지."
   },
   "ci": {
     "lastRun": "2026-06-08T09:06:57+09:00",
@@ -386,7 +386,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 281,
+    "tasksCompleted": 282,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
