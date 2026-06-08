@@ -5,39 +5,40 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0289",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-22e7",
-    "since": "2026-06-09T01:05:00+09:00",
-    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t2 active, authoritative claude/lock-driver tip=58a8ebf (turnCount 2). t2 는 planner-only turn: T-0288 MERGED 후 nextTask=null 에서 planner dispatch → T-0289(P5 평가-side dedup, ADR-0032 §3, pr-mode) 큐잉. 다음 turn 이 T-0289 픽업·실행."
+    "since": "2026-06-09T01:15:00+09:00",
+    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t3 active, authoritative claude/lock-driver tip=17138ab (turnCount 3). t3 는 T-0289(P5 평가-side dedup, ADR-0032 §3, pr-mode) 실행: executor → PR #241 round 1 APPROVE → CI green(approval-gate 첫 run green) → integrator 4-게이트 PASS → squash merge 5f14420. nextTask=null — 다음 turn 이 planner dispatch."
   },
-  "lastActivity": "2026-06-09T01:05:00+09:00",
-  "lastCommit": "ffab1a6",
+  "lastActivity": "2026-06-09T01:15:00+09:00",
+  "lastCommit": "5f14420",
   "mostRecentTasks": [
+    "T-0289",
     "T-0288",
     "T-0287",
     "T-0286",
-    "T-0285",
-    "T-0283"
+    "T-0285"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-09T01:00:00+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-22e7",
-    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t2 — planner-only turn. b2e20e1 main CI = success 확인(R-114) 후 currentTask/nextTask 모두 null 에서 planner dispatch. planner 가 ADR-0032 Follow-up §3(평가-side dedup) 를 가장 작은 dependency-free slice 로 분해 → T-0289(시간적 중복 earlier-date 우선 R-21 + self-follow-up 제외 R-30 순수 함수 2종, commitMode pr, dep 0/LLM 무관) 큐잉. issue-still-relevant grep 0건. 다음 turn 이 T-0289 실행.",
-    "notePrev": "/loop t1 — cron 이 큐잉한 T-0288(P5 EvaluationResult 타입 + deterministic volume 순수 함수) pickup → PR #240 round 1 APPROVE → CI green(approval-gate race rerun 해소) → squash merge ffab1a6. tasksCompleted 284→285."
+    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t3 — T-0289 실행. 67fa7c2 main CI in_progress 확인(doc-only, 비차단) 후 nextTask=T-0289 pickup. executor 1회로 evaluation-dedup.ts 순수 함수 2종(dedupTemporalDuplicates R-21 + excludeSelfFollowUps R-30, dep 0) + spec 박제(prod 165 LOC/test 491 LOC, 2파일). PR #241 → reviewer round 1/7 APPROVE(0 blocker/major/minor, NIT 2 optional·기능영향0) → CI run 27150628980 success(approval-gate 첫 run green, race 미발생) → integrator 4-게이트 PASS → squash merge 5f14420. tasksCompleted 285→286.",
+    "notePrev": "/loop t2 — planner-only turn. ADR-0032 §3 평가-side dedup slice 를 T-0289 로 큐잉(commitMode pr, dep 0). issue-still-relevant grep 0건."
   },
   "ci": {
-    "lastRun": "2026-06-09T00:45:00+09:00",
+    "lastRun": "2026-06-09T01:12:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27148522085",
-    "note": "PR #240(T-0288) head(94b30af) CI run 27148522085 = success. approval-gate race(첫 run 은 reviewer approve comment 부재로 '기본 검사' job 의 approval 검증 step 만 fail) 를 reviewer APPROVE comment 후 `gh run rerun 27148522085 --failed` 로 해소 — 전 step green. squash merge SHA on main = ffab1a6. 본 bookkeeping direct push 후 post-merge main CI trigger 예상 — 다음 turn §1[1] 가 conclusion 재확인. 참고: Node.js 20 deprecation 경고 annotation 존재(2026-06-16 강제 전환 예정) — CI action 버전 bump follow-up 후보(비차단)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27150628980",
+    "note": "PR #241(T-0289) head(11ffd84) CI run 27150628980 = success(전 step green; approval-gate 가 reviewer comment 이후 실행돼 첫 run 부터 통과 — race 미발생, rerun 불요). squash merge SHA on main = 5f14420. 직전 doc-only direct b2e20e1·67fa7c2 main CI 도 success. 본 bookkeeping direct push 후 post-merge main CI trigger 예상 — 다음 turn §1[1] 가 conclusion 재확인. 참고: Node.js 20 deprecation 경고 annotation 지속(2026-06-16 강제 전환) — CI action 버전 bump follow-up 후보(비차단)."
   },
   "reviewRounds": {
+    "T-0289": 1,
     "T-0288": 1,
     "T-0287": 2,
     "T-0286": 1,
@@ -409,7 +410,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 285,
+    "tasksCompleted": 286,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

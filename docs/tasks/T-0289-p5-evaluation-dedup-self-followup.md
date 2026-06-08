@@ -2,7 +2,11 @@
 id: T-0289
 title: P5 평가-side dedup — 시간적 중복(R-21) earlier-date 우선 + self-follow-up(R-30) 제외 순수 도메인 함수
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-09T01:15:00+09:00
+prNumber: 241
+mergedAs: 5f14420
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-021, REQ-030, TBD]
 estimatedDiff: 130
