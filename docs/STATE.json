@@ -5,14 +5,14 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0289",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-22e7",
-    "since": "2026-06-09T01:00:00+09:00",
-    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) 가 authoritative claude/lock-driver tip(a31bf39) 을 ref-CAS 로 획득해 active. T-0288 (P5 EvaluationResult 타입 + deterministic volume 순수 함수, pr-mode) PR #240 round 1 APPROVE → CI green → squash merge ffab1a6. nextTask=null — 다음 turn 이 planner dispatch."
+    "since": "2026-06-09T01:05:00+09:00",
+    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t2 active, authoritative claude/lock-driver tip=58a8ebf (turnCount 2). t2 는 planner-only turn: T-0288 MERGED 후 nextTask=null 에서 planner dispatch → T-0289(P5 평가-side dedup, ADR-0032 §3, pr-mode) 큐잉. 다음 turn 이 T-0289 픽업·실행."
   },
-  "lastActivity": "2026-06-09T00:50:00+09:00",
+  "lastActivity": "2026-06-09T01:05:00+09:00",
   "lastCommit": "ffab1a6",
   "mostRecentTasks": [
     "T-0288",
@@ -22,12 +22,12 @@
     "T-0283"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-09T01:00:00+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-22e7",
-    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t1 — origin/main(af52bba) 동기 후 authoritative lock ref-CAS 획득. cron 이 큐잉한 nextTask=T-0288 픽업: executor 1회 호출로 EvaluationResult 타입(5필드)+ContributionLevel union/guard + calculateEvaluationVolume 순수 함수(titleLength baseline) 박제(prod 113 LOC/2파일, test 428 LOC/2파일, dep 0). PR #240 → reviewer round 1/7 APPROVE(0 blocker/major/minor, NIT 1 merge-irrelevant) → CI approval-gate race 는 pull_request run 27148522085 rerun--failed 로 green → integrator 4-게이트 PASS → squash merge ffab1a6. tasksCompleted 284→285.",
-    "notePrev": "cron fire(KST 2026-06-09 00:05) — planner-only direct. T-0287 MERGED 직후 P5 후속 slice survey 로 ADR-0032 Follow-ups §2/§3 중 dependency-free slice(EvaluationResult 타입 + volume 순수 함수)를 T-0288 로 큐잉."
+    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t2 — planner-only turn. b2e20e1 main CI = success 확인(R-114) 후 currentTask/nextTask 모두 null 에서 planner dispatch. planner 가 ADR-0032 Follow-up §3(평가-side dedup) 를 가장 작은 dependency-free slice 로 분해 → T-0289(시간적 중복 earlier-date 우선 R-21 + self-follow-up 제외 R-30 순수 함수 2종, commitMode pr, dep 0/LLM 무관) 큐잉. issue-still-relevant grep 0건. 다음 turn 이 T-0289 실행.",
+    "notePrev": "/loop t1 — cron 이 큐잉한 T-0288(P5 EvaluationResult 타입 + deterministic volume 순수 함수) pickup → PR #240 round 1 APPROVE → CI green(approval-gate race rerun 해소) → squash merge ffab1a6. tasksCompleted 284→285."
   },
   "ci": {
     "lastRun": "2026-06-09T00:45:00+09:00",
