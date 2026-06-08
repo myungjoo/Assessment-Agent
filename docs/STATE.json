@@ -5,14 +5,14 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0291",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-22e7",
-    "since": "2026-06-09T01:40:00+09:00",
-    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t5 active, authoritative claude/lock-driver tip=1fd8b25 (turnCount 5). t5 는 T-0290(P5 평가 prompt 조립 + narrative 분류 파싱, pr-mode) 실행: executor → PR #242 round 1 REQUEST_CHANGES(MAJOR prompt↔parser compose 불가) → executor re-entry round 2 fix → reviewer round 2 APPROVE → CI green → integrator 4-게이트 PASS → squash merge ef139e2. nextTask=null — 다음 turn 이 planner dispatch."
+    "since": "2026-06-09T01:50:00+09:00",
+    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t6 active, authoritative claude/lock-driver tip=09aed80 (turnCount 6). t6 는 planner-only turn: T-0290 MERGED 후 nextTask=null 에서 planner dispatch → T-0291(P5 평가 scoring service @Injectable, ADR-0032 §2 service 부분, 기존 순수 함수 4종 + LlmGateway.generate test mock compose, pr-mode) 큐잉. 다음 turn 이 T-0291 픽업·실행."
   },
-  "lastActivity": "2026-06-09T01:40:00+09:00",
+  "lastActivity": "2026-06-09T01:50:00+09:00",
   "lastCommit": "ef139e2",
   "mostRecentTasks": [
     "T-0290",
@@ -22,12 +22,12 @@
     "T-0286"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-06-09T01:00:00+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-22e7",
-    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t5 — T-0290 실행(2-round). executor 1회로 evaluation-prompt.ts 순수 함수 2종(buildEvaluationPrompt + classifyNarrative) 박제 → PR #242. reviewer round 1 REQUEST_CHANGES(MAJOR: buildEvaluationPrompt 단일 line comma 형식과 classifyNarrative regex 가 compose 불가) → executor re-entry round 2 가 marker 정규식 \\b 단어경계+수평공백 한정+구두점 strip 으로 양형식 매칭 + round-trip/compose test 추가 → reviewer round 2 APPROVE → CI run 27152560313 success → integrator 4-게이트 PASS → squash merge ef139e2. tasksCompleted 286→287. reviewRounds[T-0290]=2.",
-    "notePrev": "/loop t4 — planner-only turn. ADR-0032 §2 LLM scoring 의 dependency-free 선행 piece(prompt 조립 + narrative 분류 파서)를 T-0290 으로 큐잉."
+    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t6 — planner-only turn. 68105b8 main CI = success 확인(R-114) 후 currentTask/nextTask 모두 null 에서 planner dispatch. planner 가 ADR-0032 Follow-up §2 의 service 부분을 분해 → T-0291(평가 scoring service @Injectable + module — EvaluationInput → buildEvaluationPrompt → LlmGateway.generate(test mock) → classifyNarrative + calculateEvaluationVolume → EvaluationResult 조립; 기존 순수 함수 4종 compose, dep 0/live call 0, est 110 LOC/3파일) 큐잉. controller/DTO·영속화·dedup 적용은 deferred. issue-still-relevant grep 0건. 다음 turn 이 T-0291 실행.",
+    "notePrev": "/loop t5 — T-0290(P5 평가 prompt/classify) 2-round 실행 → reviewer round 1 MAJOR(compose 불가) fix round 2 → APPROVE → squash merge ef139e2. tasksCompleted 286→287."
   },
   "ci": {
     "lastRun": "2026-06-09T01:38:00+09:00",
