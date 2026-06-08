@@ -5,39 +5,40 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0287",
+  "nextTask": null,
   "lock": {
     "holder": null,
     "session": null,
     "since": null,
-    "note": "비권위 human mirror — released by cron@cloud-focused-goodall-Q4tx5 (KST 20:09 fire) after planner-only turn. authoritative lock(claude/lock-driver tip)도 동일 fire 의 [6] 단계에서 tombstone CAS 로 release. T-0287 queued(P5 평가 입력 매퍼, commitMode pr) — 다음 cron/loop turn 이 pickup."
+    "note": "비권위 human mirror — released by cron@cloud-focused-goodall-B474T (KST 22:35 fire) after T-0287 MERGED bookkeeping. authoritative lock(claude/lock-driver tip)도 본 fire 의 bookkeeping push 후 tombstone CAS 로 release. T-0287 DONE(P5 평가 입력 매퍼, PR #239 merged 3332972 squash) — 다음 cron/loop turn 이 planner dispatch (P5 후속 slice: scoring service / dedup / controller — ADR-0032 Follow-up §2~§5)."
   },
-  "lastActivity": "2026-06-08T20:10:00+09:00",
-  "lastCommit": "f40b0fe",
+  "lastActivity": "2026-06-08T22:35:00+09:00",
+  "lastCommit": "3332972",
   "mostRecentTasks": [
+    "T-0287",
     "T-0286",
     "T-0285",
     "T-0283",
-    "T-0282",
-    "T-0281"
+    "T-0282"
   ],
   "loopSession": {
     "turnCount": 1,
-    "startedAt": "2026-06-08T19:20:00+09:00",
+    "startedAt": "2026-06-08T22:04:15+09:00",
     "cap": 10,
-    "holder": "loop@cloud-82SQk",
-    "note": "fresh /clear 후 새 /loop(turn cap 10) conversation t1 — T-0286(ADR-0032 P5 평가 계약, design-only, pr-mode) DONE. executor→architect ADR-0032 PROPOSED 신설(+117 LOC, src/ 0), tester 124 suites/2335 tests green. reviewer round 1/7 APPROVE(NIT 2건 in-PR closure: 외력 절 REQ-NN→R-NN 표기 정합 + R-9→R-21 dedup 행, commit 3805eb2). PR #238 에 ADR commit append → doc-only 면제 무효화로 approval-gate(4-게이트 b) fail(예상된 절차 fail — unit/smoke/e2e 는 전부 green). driver 가 reviewer APPROVE comment MCP post(issue-4647886061)로 게이트 충족 + CI 재trigger(issue_comment 이벤트). 머지는 사용자 위임(#237 패턴). tasksCompleted 282→283. nextTask=null → 다음 turn planner.",
-    "notePrev": "loop@cloud-82SQk t1-t5 (이전 conversation, /clear 전) — Q-0027 escalate→resolve(P5 진입, 사용자 option 2) + T-0286 큐잉, PR #237 머지(0d44570), PR #238 bookkeeping(doc-only). 상세는 git log 및 journal 참조."
+    "holder": "cron@cloud-focused-goodall-B474T",
+    "note": "cron@cloud-focused-goodall-B474T fire (KST 22:04) — T-0287(P5 평가 입력 매퍼, pr-mode) DONE 완주. executor→implementer(evaluation-input.ts + evaluation-input.mapper.ts +151 LOC) + tester(mapper.spec +366 LOC, R-112 4종 41 test). PR #239 round 1 reviewer APPROVE(NIT 1: spec LOC cap 회색지대) → CI fail(spec-presence: evaluation-input.ts sibling spec 부재) → round 2 executor 가 evaluation-input.spec.ts 분리 신설 + R-112 cover 확장(negative 10→15, type-level shape group) → reviewer round 2 APPROVE(0 finding) → CI green 17/17(unit+smoke+e2e+approval-gate) → integrator 4-게이트 모두 충족 → squash merge 3332972. tasksCompleted 283→284. nextTask=null → 다음 turn planner survey(P5 후속 ADR-0032 Follow-up §2 scoring service).",
+    "notePrev": "loop@cloud-82SQk(이전 conversation, /clear 전) — T-0286(ADR-0032 P5 평가 계약) MERGED + planner T-0287 큐잉. cron@cloud-focused-goodall-Q4tx5(직전 fire) — T-0287 bookkeeping(planner-only). 상세는 git log 및 journal 참조."
   },
   "ci": {
-    "lastRun": "2026-06-08T20:10:00+09:00",
+    "lastRun": "2026-06-08T22:35:00+09:00",
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": null,
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27133682277",
-    "note": "main head(f40b0fe) run 27133682277 'CI' = in_progress (cron@cloud-focused-goodall-Q4tx5 fire 의 planner bookkeeping direct push 직후). doc-only direct commit(planner output: T-0287 task 파일+STATE+journal) — T-0284 doc-only 면제로 approval-gate step skip 예상. 다음 turn §1[1] 이 최종 conclusion 재확인. 직전 main run(3940d56) = success."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27140974084",
+    "note": "PR #239 merge 직후. PR head(421d9ec) CI run 27140974084 = success(17/17 steps green: spec-presence + lint + build + Prisma migrate + test:cov + smoke + e2e + approval-gate). squash merge SHA on main = 3332972 (post-merge main CI run 본 bookkeeping direct push 후 trigger 예상 — 다음 turn §1[1] 가 conclusion 재확인). 직전 main run 27133682277(f40b0fe) = success."
   },
   "reviewRounds": {
+    "T-0287": 2,
     "T-0286": 1,
     "T-0138": 1,
     "T-0139": 1,
@@ -407,7 +408,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 283,
+    "tasksCompleted": 284,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

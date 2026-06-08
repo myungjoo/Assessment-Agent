@@ -2,12 +2,16 @@
 id: T-0287
 title: P5 평가 입력 매퍼 — Activity → EvaluationInput 순수 함수 + colocated spec
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, TBD]
 estimatedDiff: 225
 estimatedFiles: 3
 created: 2026-06-08
+completedAt: 2026-06-08T22:35:00+09:00
+prNumber: 239
+mergeSha: 3332972
+reviewRounds: 2
 plannerNote: P5 첫 impl slice — ADR-0032 Follow-up §1 매퍼 분해. dependency 0, mocked LLM 무관(순수 함수), R-112 4종 cover.
 ---
 
