@@ -5,14 +5,14 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0293",
   "lock": {
-    "holder": "loop",
-    "session": "loop@AKIHA-22e7",
-    "since": "2026-06-09T02:40:00+09:00",
-    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t9 active, authoritative claude/lock-driver tip=583f723 (turnCount 9). t9 는 T-0292(P5 평가 orchestrator, pr-mode) 실행: executor → PR #244 round 1 APPROVE(NIT 2 test-label, 비차단) → CI approval-gate race rerun green → integrator 4-게이트 PASS → squash merge 5923943. nextTask=null. cap 임박: turn 10(planner, T-0293 큐잉) 종료 시 §1[8](e) 로 자체 STOP. follow-up: ADR-0032 ACCEPTED 시 difficulty 문구 doc-sync(direct)."
+    "holder": null,
+    "session": null,
+    "since": null,
+    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) 가 t10 에서 10-turn cap 도달로 정상 종료, authoritative claude/lock-driver tip 을 tombstone(holder:null) 으로 release. 본 session 은 T-0288~T-0292 5개 P5 slice 를 머지(tasksCompleted 284→289)했고 t10 planner 가 T-0293(평가 controller/DTO, pr-mode) 을 nextTask 로 큐잉. 다음 cron fire 또는 새 /loop 가 lock 획득 후 T-0293 픽업·실행. follow-up: ADR-0032 ACCEPTED 시 §2/§3 difficulty 문구 doc-sync(direct)."
   },
-  "lastActivity": "2026-06-09T02:40:00+09:00",
+  "lastActivity": "2026-06-09T02:50:00+09:00",
   "lastCommit": "5923943",
   "mostRecentTasks": [
     "T-0292",
@@ -22,12 +22,12 @@
     "T-0288"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "startedAt": "2026-06-09T01:00:00+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-22e7",
-    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t9 — T-0292 실행. executor 1회로 EvaluationOrchestratorService(@Injectable) 박제(4파일, prod ~118 LOC) — Activity[]→mapActivityToEvaluationInput→dedupTemporalDuplicates→excludeSelfFollowUps→scoreUnit(주입) 순차→EvaluationResult[]. PR #244 → reviewer round 1 APPROVE(0 blocker/major, NIT 2 test-label 비차단) → CI approval-gate race rerun(27155598377) green → integrator 4-게이트 PASS → squash merge 5923943. tasksCompleted 288→289. 다음 turn(10, 마지막)=planner T-0293 큐잉 후 cap STOP.",
-    "notePrev": "/loop t8 — planner-only turn. 평가 orchestrator 를 T-0292 로 큐잉(thin @Injectable compose, dep 0)."
+    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t10 — 마지막 turn(planner-only). 25d3860 main CI = success 확인(R-114) 후 currentTask/nextTask 모두 null 에서 planner dispatch → T-0293(P5 평가 controller/DTO: POST /api/assessment-evaluation/evaluate → orchestrator 위임, AssessmentCollectionController 패턴 mirror, orchestrator mock, dep 0, est 220 LOC/5파일) 큐잉. issue-still-relevant grep 0건. turnCount=10 → §1[8](e) cap 도달 → reschedule 안 함, 정상 STOP + authoritative lock tombstone release. 본 session 5 task(T-0288~T-0292) 머지 완주, tasksCompleted 284→289.",
+    "notePrev": "/loop t9 — T-0292(P5 평가 orchestrator) 실행 → PR #244 round 1 APPROVE → CI green → squash merge 5923943. tasksCompleted 288→289."
   },
   "ci": {
     "lastRun": "2026-06-09T02:38:00+09:00",
