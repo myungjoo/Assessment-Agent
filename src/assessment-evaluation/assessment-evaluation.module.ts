@@ -23,18 +23,20 @@
 //     매퍼 → 평가-side dedup → scoreUnit → EvaluationResult[] 의 상위 compose layer.
 //     EvaluationScoringService 를 같은 module 내 DI 로 주입받으므로 추가 import 0.
 //     후속 controller / orchestrator-상위 slice 가 inject 받는다.
+//   - AssessmentEvaluationController 등록(T-0293) — orchestrator 의 HTTP 진입점
+//     (POST /api/assessment-evaluation/evaluate). EvaluationOrchestratorService 가
+//     이미 provider 라 추가 provider 0(같은 module 내 DI resolve).
 //
 // 책임 경계(본 module 밖 — 후속 slice):
-//   - controller 등록 0 — 평가 HTTP endpoint(R-9 사용자 지정 기간 포함)는 후속 slice.
-//   - AppModule 등록 0 — 본 module 의 외부 배선은 호출처(orchestrator) slice 가
-//     진입할 때 추가한다(의존성 표면 최소화). 본 module 자체는 LlmModule import 만으로
-//     compile 자기충족(module.spec 의 compile test 로 검증).
+//   - period/personId → 수집 bridge endpoint 는 본 module 밖(별도 후속 slice).
+//   - 평가 결과 영속화 / Prisma migration — §5 schema 게이트 deferred.
 import { Module } from "@nestjs/common";
 
 import { LLM_GATEWAY } from "../llm/llm-gateway.interface";
 import { LlmHttpGateway } from "../llm/llm-http-gateway.service";
 import { LlmModule } from "../llm/llm.module";
 
+import { AssessmentEvaluationController } from "./assessment-evaluation.controller";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import { EvaluationScoringService } from "./evaluation-scoring.service";
 
@@ -43,6 +45,9 @@ import { EvaluationScoringService } from "./evaluation-scoring.service";
   // token 바인딩을 닫는다(평가 → llm 단방향). PersistenceModule 등 추가 import 불요 —
   // LlmModule 이 (전이로) 자기 의존을 모두 닫는다.
   imports: [LlmModule],
+  // T-0293: AssessmentEvaluationController 등록 — POST /api/assessment-evaluation/
+  // evaluate 의 HTTP route 가 본 module import 로 NestJS 런타임에 살아난다.
+  controllers: [AssessmentEvaluationController],
   providers: [
     EvaluationScoringService,
     // EvaluationOrchestratorService — EvaluationScoringService 를 생성자 주입받는

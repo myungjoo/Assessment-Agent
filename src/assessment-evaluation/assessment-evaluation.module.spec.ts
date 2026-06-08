@@ -41,6 +41,8 @@ import { LlmHttpGateway } from "../llm/llm-http-gateway.service";
 import { PersistenceModule } from "../persistence/persistence.module";
 
 // eslint-disable-next-line import/first
+import { AssessmentEvaluationController } from "./assessment-evaluation.controller";
+// eslint-disable-next-line import/first
 import { AssessmentEvaluationModule } from "./assessment-evaluation.module";
 // eslint-disable-next-line import/first
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
@@ -64,6 +66,12 @@ describe("AssessmentEvaluationModule", () => {
     const orchestrator = moduleRef.get(EvaluationOrchestratorService);
     expect(orchestrator).toBeDefined();
     expect(orchestrator).toBeInstanceOf(EvaluationOrchestratorService);
+
+    // AssessmentEvaluationController(T-0293)도 controllers 등록을 통해 resolve 되며
+    // EvaluationOrchestratorService 를 같은 module 내 DI 로 주입받는다.
+    const controller = moduleRef.get(AssessmentEvaluationController);
+    expect(controller).toBeDefined();
+    expect(controller).toBeInstanceOf(AssessmentEvaluationController);
 
     await moduleRef.close();
   });
