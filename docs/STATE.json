@@ -5,14 +5,14 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0292",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-22e7",
-    "since": "2026-06-09T02:10:00+09:00",
-    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t7 active, authoritative claude/lock-driver tip=17f555e (turnCount 7). t7 는 T-0291(P5 평가 scoring service, pr-mode) 실행: executor → PR #243 round 1 APPROVE(MINOR=ADR doc-sync follow-up, NIT=cosmetic) → CI approval-gate race rerun green → integrator 4-게이트 PASS → squash merge 9c1ce57. nextTask=null — 다음 turn 이 planner dispatch. follow-up: ADR-0032 PROPOSED→ACCEPTED 시 §2/§3 difficulty 주입 문구 doc-sync(direct)."
+    "since": "2026-06-09T02:20:00+09:00",
+    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t8 active, authoritative claude/lock-driver tip=f105025 (turnCount 8). t8 는 planner-only turn: T-0291 MERGED 후 nextTask=null 에서 planner dispatch → T-0292(P5 평가 orchestrator: Activity[]→매퍼→dedup→scoreUnit→EvaluationResult[], thin @Injectable compose, pr-mode, dep 0) 큐잉. 다음 turn 이 T-0292 픽업·실행. cap 임박(turn 8/10) — turn 10 종료 시 자체 STOP 예정. follow-up: ADR-0032 ACCEPTED 시 difficulty 문구 doc-sync(direct)."
   },
-  "lastActivity": "2026-06-09T02:10:00+09:00",
+  "lastActivity": "2026-06-09T02:20:00+09:00",
   "lastCommit": "9c1ce57",
   "mostRecentTasks": [
     "T-0291",
@@ -22,12 +22,12 @@
     "T-0287"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "startedAt": "2026-06-09T01:00:00+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-22e7",
-    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t7 — T-0291 실행. executor 1회로 EvaluationScoringService(@Injectable) + assessment-evaluation.module + LLM_GATEWAY DI token 박제(5파일, prod 183 LOC). input→buildEvaluationPrompt→LlmGateway.generate(mock)→classifyNarrative+calculateEvaluationVolume→EvaluationResult compose. PR #243 → reviewer round 1 APPROVE(0 blocker/major, MINOR 1=ADR-0032 difficulty 주입 문구 doc-sync 권고, NIT 1=cosmetic) → CI approval-gate race rerun(27154041545) green → integrator 4-게이트 PASS → squash merge 9c1ce57. tasksCompleted 287→288.",
-    "notePrev": "/loop t6 — planner-only turn. ADR-0032 §2 scoring service 부분을 T-0291 로 큐잉(@Injectable compose, dep 0)."
+    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t8 — planner-only turn. 6b6e88e main CI = success 확인(R-114) 후 currentTask/nextTask 모두 null 에서 planner dispatch. planner 가 단위 부품(T-0287 매퍼·T-0289 dedup·T-0291 scoreUnit)을 처음으로 end-to-end 배선하는 평가 orchestrator 를 분해 → T-0292(Activity[]→mapActivityToEvaluationInput→평가-side dedup 2종→scoreUnit→EvaluationResult[], thin @Injectable compose, dep 0/scoring service mock, est 165 LOC/3파일) 큐잉. controller/DTO·영속화·일주월 집계는 deferred. issue-still-relevant grep 0건. 다음 turn 이 T-0292 실행. cap 임박: turn 10 종료 시 §1[8](e) 로 자체 STOP.",
+    "notePrev": "/loop t7 — T-0291(P5 평가 scoring service @Injectable) 실행 → PR #243 round 1 APPROVE → CI green → squash merge 9c1ce57. tasksCompleted 287→288."
   },
   "ci": {
     "lastRun": "2026-06-09T02:08:00+09:00",
