@@ -21,7 +21,7 @@ P4 수집(collection) layer 는 [ADR-0029](ADR-0029-assessment-collection-orches
 
 - **[CLAUDE.md §5](../../CLAUDE.md)** — 새 외부 dependency / DB schema migration / live credential 은 BLOCKED. 본 평가 설계는 Node 내장 fetch(`LlmHttpGateway` backbone, 이미 머지) + 기존 `Activity` 도메인만 재사용하므로 새 dep · 새 credential · 새 migration 0(평가 결과 영속화 schema 는 후속 task §5 schema 게이트 재확인으로 deferred).
 - **[Q-0027 decision](../STATE.json)** — 본 ADR 의 입력 제약 4 종(a/b/c/d). 특히 (a) 통합 평가 계약 · (b) self-follow-up 제외=평가-side dedup 는 본 ADR 의 §1·§4 가 직접 cover.
-- **REQ-030 / REQ-009 / REQ-021 / REQ-037 / REQ-038 / REQ-097**([docs/requirements.md](../requirements.md)) — Issue 문서 기여 평가(R-30) + Fork/Rebase/Meld 중복 제거(R-9) + 시간적 중복 earlier-date 우선(R-21) + 품질 분류 zero/high contribution(R-37·38) + 3 난이도 모델 routing(R-97). 본 ADR 의 평가 계약이 이 enumerate 를 cover.
+- **R-30 / R-21 / R-37 / R-38 / R-97**(README 행 번호 표기 — ADR-0011 의 `R-NN = README line` 관행 준수. 숫자는 [README.md](../../README.md) 행이며 canonical [docs/requirements.md](../requirements.md) 의 `REQ-NNN` ID 와 무관) — Issue 문서 기여 평가(R-30) + Fork/Rebase/Meld·시간적 중복 earlier-date 우선 제거(R-21) + 품질 분류 zero/high contribution(R-37·38) + 3 난이도 모델 routing(R-97). 본 ADR 의 평가 계약이 이 enumerate 를 cover.
 - **REQ-032 (raw-not-stored invariant)**([data-model.md §4](../architecture/data-model.md)) — 평가 입력에 raw 본문(commit message 전문 / page 본문 HTML / issue body) 미포함. `Activity` 가 이미 typed 필드 + `metadata`(scalar only)만 보유하므로, 평가 입력은 그 typed surface 위에서만 구성된다 — 본 invariant 를 application-layer 에서 보존.
 
 ## Decision
@@ -42,7 +42,7 @@ P4 수집(collection) layer 는 [ADR-0029](ADR-0029-assessment-collection-orches
 
 **채택: 평가 단위 1 건당 `LlmGateway.generate(prompt, options)` 1 회 호출 + prompt 는 `EvaluationInput` 의 typed 필드로만 조립(raw 본문 0)**.
 
-- `LlmHttpGateway` 의 기존 [generate 시그니처](../../src/llm/llm-gateway.interface.ts)(`generate(prompt: string, options: LlmGenerateOptions): Promise<LlmGenerateResult>`)를 **변경 없이 재사용**한다 — 평가 layer 는 prompt 문자열을 조립하는 책임만 추가한다(gateway 확장 0). 호환/확장 경계: `LlmGenerateOptions.difficulty`(선택)에 (3)의 난이도 분류 결과를 넣어 난이도 routing(REQ-097, ADR-0011)을 그대로 활용한다. `modelId` 는 difficulty 미제공 fallback 경로용.
+- `LlmHttpGateway` 의 기존 [generate 시그니처](../../src/llm/llm-gateway.interface.ts)(`generate(prompt: string, options: LlmGenerateOptions): Promise<LlmGenerateResult>`)를 **변경 없이 재사용**한다 — 평가 layer 는 prompt 문자열을 조립하는 책임만 추가한다(gateway 확장 0). 호환/확장 경계: `LlmGenerateOptions.difficulty`(선택)에 (3)의 난이도 분류 결과를 넣어 난이도 routing(R-97, ADR-0011)을 그대로 활용한다. `modelId` 는 difficulty 미제공 fallback 경로용.
 - **prompt 입력 typed 필드(raw 본문 미포함, REQ-032)**: `contributionKind`(code/document) + `sourceType` + `metadata` 의 scalar 신호(예: titleLength) + `timestamp` 만. **commit message 전문 / issue body / page 본문 HTML 은 prompt 에 절대 포함하지 않는다** — `Activity`/`EvaluationInput` 이 애초에 raw 본문 필드를 보유하지 않으므로(REQ-032 schema-level 부재) 구조적으로 불가능. 정성 평가의 source 텍스트가 필요하면 그 확장은 raw-not-stored invariant 와 충돌하므로 **별도 ADR 필수**(본 ADR 은 typed-metadata-only 전제).
 - **batch 경계**: 본 계약은 평가 단위 1 건당 generate 1 회를 default 로 박제한다(단순·결정적·실패 격리). 일/주/월 aggregate 평가(PLAN P5 L97)의 batch prompting 은 본 단위 평가의 상위 layer 책임으로 후속 slice 에서 별도 설계(본 ADR 범위 밖).
 
@@ -52,7 +52,7 @@ P4 수집(collection) layer 는 [ADR-0029](ADR-0029-assessment-collection-orches
 
 - output 타입 `EvaluationResult`(후속 slice) 핵심 필드:
   - `narrative: string` — `LlmGenerateResult.narrative`(LLM 정성 평가문) 그대로. raw 아님(생성 결과물, REQ-032 적용 외).
-  - `difficulty: string` — 난이도 분류 결과(easy/medium/hard, [llm/difficulty.ts](../../src/llm/difficulty.ts) `DIFFICULTIES` 정합). **이 값이 generate 호출 전 `options.difficulty` 로 주입**되어 난이도 모델 routing(REQ-097, ADR-0011)을 driving 한다 — 즉 난이도는 scoring **입력이자 output** 양쪽에 나타난다(분류 → routing → 결과 기록).
+  - `difficulty: string` — 난이도 분류 결과(easy/medium/hard, [llm/difficulty.ts](../../src/llm/difficulty.ts) `DIFFICULTIES` 정합). **이 값이 generate 호출 전 `options.difficulty` 로 주입**되어 난이도 모델 routing(R-97, ADR-0011)을 driving 한다 — 즉 난이도는 scoring **입력이자 output** 양쪽에 나타난다(분류 → routing → 결과 기록).
   - `contribution` — 기여도(품질 분류, R-37·38). zero-contribution(단순 보고/copy-paste) ~ high-contribution(새 알고리즘/외부 연구 도입)의 정성 판정. LLM narrative 에서 도출하거나 별도 structured 출력 — 구체 산출 방식(narrative 파싱 vs 별도 prompt)은 후속 impl slice 결정(본 ADR 은 output 필드 존재만 박제).
   - `volume` — 양(quantitative metric). `metadata` 의 scalar 신호(변경 파일 수 / titleLength 등)에서 산출하는 **deterministic 수치**(LLM 무관 — abusing 방지 metric R-26/40 의 기반). LLM 정성과 분리해 결정적으로 계산.
 - **결합 원칙**: `difficulty`·`contribution` 은 LLM 정성 출력 + 분류 routing 산물, `volume` 은 metadata 기반 deterministic 수치. 셋을 한 `EvaluationResult` 로 묶어 평가 단위 1 건의 결과를 구성한다. 영속화 매핑(`EvaluationResult` → `Assessment`/`Contribution` row, [data-model.md](../architecture/data-model.md))은 schema migration 동반 가능성이 있어 **후속 task §5 schema 게이트 재확인으로 deferred**(본 ADR 에서 `prisma/schema.prisma` 변경 0).
