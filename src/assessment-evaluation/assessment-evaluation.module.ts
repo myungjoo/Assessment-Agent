@@ -17,8 +17,12 @@
 //     useClass 바인딩 패턴 mirror — 단 LlmHttpGateway 는 LlmModule 이 이미 등록한
 //     singleton 이라 useClass(새 인스턴스) 대신 useExisting(동일 singleton 재사용)으로
 //     바인딩해 중복 생성을 피한다.
-//   - EvaluationScoringService provider 등록 + export — 후속 orchestrator slice 가
+//   - EvaluationScoringService provider 등록 + export — orchestrator slice 가
 //     inject 받아 단위 평가를 조립한다.
+//   - EvaluationOrchestratorService provider 등록 + export(T-0292) — Activity[] →
+//     매퍼 → 평가-side dedup → scoreUnit → EvaluationResult[] 의 상위 compose layer.
+//     EvaluationScoringService 를 같은 module 내 DI 로 주입받으므로 추가 import 0.
+//     후속 controller / orchestrator-상위 slice 가 inject 받는다.
 //
 // 책임 경계(본 module 밖 — 후속 slice):
 //   - controller 등록 0 — 평가 HTTP endpoint(R-9 사용자 지정 기간 포함)는 후속 slice.
@@ -31,6 +35,7 @@ import { LLM_GATEWAY } from "../llm/llm-gateway.interface";
 import { LlmHttpGateway } from "../llm/llm-http-gateway.service";
 import { LlmModule } from "../llm/llm.module";
 
+import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import { EvaluationScoringService } from "./evaluation-scoring.service";
 
 @Module({
@@ -40,6 +45,9 @@ import { EvaluationScoringService } from "./evaluation-scoring.service";
   imports: [LlmModule],
   providers: [
     EvaluationScoringService,
+    // EvaluationOrchestratorService — EvaluationScoringService 를 생성자 주입받는
+    // 상위 compose service(T-0292). 같은 module 내 class provider 라 추가 token 0.
+    EvaluationOrchestratorService,
     // LLM_GATEWAY → LlmHttpGateway useExisting 바인딩. LlmModule 이 등록·export 한
     // LlmHttpGateway singleton 을 그대로 재사용하므로 새 인스턴스 생성 0. interface
     // 가 runtime 소거라 string token 으로 주입을 닫는다.
@@ -48,7 +56,7 @@ import { EvaluationScoringService } from "./evaluation-scoring.service";
       useExisting: LlmHttpGateway,
     },
   ],
-  // 후속 orchestrator slice 가 EvaluationScoringService 를 inject 받기 위해 export.
-  exports: [EvaluationScoringService],
+  // 후속 controller / orchestrator-상위 slice 가 inject 받기 위해 두 service 모두 export.
+  exports: [EvaluationScoringService, EvaluationOrchestratorService],
 })
 export class AssessmentEvaluationModule {}

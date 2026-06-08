@@ -43,6 +43,8 @@ import { PersistenceModule } from "../persistence/persistence.module";
 // eslint-disable-next-line import/first
 import { AssessmentEvaluationModule } from "./assessment-evaluation.module";
 // eslint-disable-next-line import/first
+import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
+// eslint-disable-next-line import/first
 import { EvaluationScoringService } from "./evaluation-scoring.service";
 
 describe("AssessmentEvaluationModule", () => {
@@ -56,6 +58,12 @@ describe("AssessmentEvaluationModule", () => {
     const service = moduleRef.get(EvaluationScoringService);
     expect(service).toBeDefined();
     expect(service).toBeInstanceOf(EvaluationScoringService);
+
+    // EvaluationOrchestratorService(T-0292)도 같은 module 에서 resolve 되며
+    // EvaluationScoringService 를 DI 로 주입받는다.
+    const orchestrator = moduleRef.get(EvaluationOrchestratorService);
+    expect(orchestrator).toBeDefined();
+    expect(orchestrator).toBeInstanceOf(EvaluationOrchestratorService);
 
     await moduleRef.close();
   });
