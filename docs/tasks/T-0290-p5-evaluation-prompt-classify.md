@@ -2,7 +2,11 @@
 id: T-0290
 title: P5 평가 prompt 조립 + LLM narrative → 분류(difficulty/contribution) 파싱 순수 함수
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-09T01:40:00+09:00
+prNumber: 242
+mergedAs: ef139e2
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-009, REQ-025, REQ-037, REQ-038, REQ-097, REQ-032, TBD]
 estimatedDiff: 170
