@@ -2,7 +2,8 @@
 id: T-0281
 title: PLAN P4 Confluence SPACE 탐색 정책 bullet doc-sync (L84)
 phase: P4
-status: PENDING
+status: DONE
+completedAt: 2026-06-08T09:04:15+09:00
 commitMode: direct
 coversReq: [REQ-017, REQ-034]
 estimatedDiff: 3
@@ -35,11 +36,11 @@ T-0280 가 L83 (Confluence 통합 박제 인프라) 을 `[x]` 정합했으므로
 
 ## Acceptance Criteria
 
-- [ ] [docs/PLAN.md](../PLAN.md) L84 의 `[ ]` 를 `[x]` 로 flip + 본문 끝에 한 줄 reality 인용 추가 — 예: "**(완료)** — ADR-0013 ACCEPTED 가 셋 (crawling / page List / Hierarchy) 중 **page List 기반 allowlist 순회** 를 default 로 박제 (Crawling 미선택). multi-SPACE 경계 + 4xx skip-and-continue 정책 동반. ConfluenceSpaceTraversalService 가 per-instance `_SPACE_ALLOWLIST` env 의 allowlist 를 순회 + 4xx → PermissionDeniedEvent emit + 다음 SPACE 진행 으로 in-code 박제."
-- [ ] `pnpm` 실행 불요 (doc-only, 코드 변경 0). lint/build/test 미실행.
-- [ ] PLAN.md 외 다른 파일 수정 0 (task 파일 / STATE.json / journal 은 driver bookkeeping).
-- [ ] direct commit (driver 가 main 에 push). PR 미생성 (commitMode direct).
-- [ ] commit subject 한국어 한 줄 — 예: `docs(plan): P4 Confluence SPACE 탐색 정책 bullet [x] 정합 (T-0281)`.
+- [x] [docs/PLAN.md](../PLAN.md) L84 의 `[ ]` 를 `[x]` 로 flip + 본문 끝에 한 줄 reality 인용 추가 — 예: "**(완료)** — ADR-0013 ACCEPTED 가 셋 (crawling / page List / Hierarchy) 중 **page List 기반 allowlist 순회** 를 default 로 박제 (Crawling 미선택). multi-SPACE 경계 + 4xx skip-and-continue 정책 동반. ConfluenceSpaceTraversalService 가 per-instance `_SPACE_ALLOWLIST` env 의 allowlist 를 순회 + 4xx → PermissionDeniedEvent emit + 다음 SPACE 진행 으로 in-code 박제."
+- [x] `pnpm` 실행 불요 (doc-only, 코드 변경 0). lint/build/test 미실행.
+- [x] PLAN.md 외 다른 파일 수정 0 (task 파일 / STATE.json / journal 은 driver bookkeeping).
+- [x] direct commit (driver 가 main 에 push). PR 미생성 (commitMode direct).
+- [x] commit subject 한국어 한 줄 — 예: `docs(plan): P4 Confluence SPACE 탐색 정책 bullet [x] 정합 (T-0281)`.
 
 ## Out of Scope
 
