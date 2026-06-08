@@ -2,12 +2,13 @@
 id: T-0283
 title: PLAN P4 LLM apiKey encryption-at-rest bullet (L90) doc-sync
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-040]
 estimatedDiff: 3
 estimatedFiles: 1
 created: 2026-06-08
+completedAt: 2026-06-08T17:20:00+09:00
 plannerNote: P4 doc-sync Group C slice — L90 LLM apiKey at-rest bullet [ ]→[x] flip; main reality(cipher.encrypt write + sanitize read + JIT decrypt) 박제 검증 완료, doc-only inline-amend ×0.64
 ---
 
