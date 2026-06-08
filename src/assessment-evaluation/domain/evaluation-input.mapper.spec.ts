@@ -2,18 +2,17 @@
 // branch / negative cases 충분 cover + contributionKind 정규화 정합 + raw-not-
 // stored 단언). evaluation slice 첫 impl, ADR-0032 Decision §1. dependency 0 /
 // LLM 호출 0 / mocked 입력만(순수 함수).
+//
+// 범위 분리 (T-0287 round 2): type-guard `isContributionKind` / const
+// `CONTRIBUTION_KINDS` / `EvaluationInput` shape 의 type-level 단언은
+// evaluation-input.spec.ts 가 cover — 본 spec 은 매퍼 동작에 집중.
 
 import type {
   ConfluenceActivity,
   GithubActivity,
 } from "../../assessment-collection/domain/activity";
 
-import {
-  CONTRIBUTION_KINDS,
-  type ContributionKind,
-  type EvaluationInput,
-  isContributionKind,
-} from "./evaluation-input";
+import { CONTRIBUTION_KINDS, type EvaluationInput } from "./evaluation-input";
 import { mapActivityToEvaluationInput } from "./evaluation-input.mapper";
 
 // EvaluationInput 의 정확한 7 키 — raw 본문 키 부재 단언의 기준.
@@ -310,57 +309,5 @@ describe("mapActivityToEvaluationInput", () => {
         mapActivityToEvaluationInput(confluenceActivity()),
       ).not.toThrow();
     });
-  });
-});
-
-describe("isContributionKind", () => {
-  describe("truthy 분기 (R-112-1)", () => {
-    it.each(CONTRIBUTION_KINDS)(
-      "허용 멤버 '%s' 에 대해 true 를 반환한다",
-      (member) => {
-        expect(isContributionKind(member)).toBe(true);
-      },
-    );
-  });
-
-  describe("falsy 분기 (R-112-2 negative)", () => {
-    it.each([
-      "",
-      "CODE",
-      "Document",
-      "github",
-      "confluence",
-      "commit",
-      "pr",
-      "issue",
-      "unknown",
-      "code ", // trailing space — 정규화 0, 엄격 매칭
-    ])("허용 외 값 '%s' 에 대해 false 를 반환한다", (value) => {
-      expect(isContributionKind(value)).toBe(false);
-    });
-  });
-
-  describe("type narrowing (R-112-3)", () => {
-    it("true 가지면 ContributionKind 로 좁혀 사용 가능하다", () => {
-      const raw: string = "code";
-      if (isContributionKind(raw)) {
-        // 좁혀진 후 ContributionKind 변수에 할당 가능해야 한다.
-        const narrowed: ContributionKind = raw;
-        expect(narrowed).toBe("code");
-      } else {
-        throw new Error("isContributionKind('code') 는 true 여야 한다");
-      }
-    });
-  });
-});
-
-describe("CONTRIBUTION_KINDS const (R-112-3)", () => {
-  it("정확히 'code' / 'document' 2 종을 포함한다", () => {
-    expect(CONTRIBUTION_KINDS).toEqual(["code", "document"]);
-  });
-
-  it("readonly tuple 이라 mutation 이 compile-time 차단된다", () => {
-    // 런타임 assertion 은 length 비교만 — mutation 차단은 type-level.
-    expect(CONTRIBUTION_KINDS.length).toBe(2);
   });
 });
