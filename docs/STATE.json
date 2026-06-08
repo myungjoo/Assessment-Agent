@@ -30,12 +30,12 @@
     "notePrev": "loop@cloud-82SQk t1-t5 (이전 conversation, /clear 전) — Q-0027 escalate→resolve(P5 진입, 사용자 option 2) + T-0286 큐잉, PR #237 머지(0d44570), PR #238 bookkeeping(doc-only). 상세는 git log 및 journal 참조."
   },
   "ci": {
-    "lastRun": "2026-06-08T19:16:00+09:00",
-    "status": "running",
+    "lastRun": "2026-06-08T19:26:25+09:00",
+    "status": "green",
     "consecutiveFails": 0,
-    "lastConclusion": "pending",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27130837734",
-    "note": "PR #238 에 ADR-0032(non-doc-only) commit append 직후 run 27130837734 의 '기본 검사' job: unit(124 suites/2335)·smoke(8 pass/4 skip)·e2e(15 suites/196 pass) 전부 green, 마지막 step '4-게이트 (b) reviewer-approval' 만 fail — doc-only 면제(T-0284) 가 ADR 포함으로 무효화돼 approval comment 필요했으나 당시 미존재(예상된 절차 fail, 실 test 결함 아님). driver 가 reviewer APPROVE comment(issue-4647886061) post → issue_comment 이벤트로 게이트 workflow 재run → approve 어휘 매칭 1+ 로 (b) 통과 → green 예상. 추가로 nit-closure commit 3805eb2 도 동일 게이트 재평가. 다음 turn §1[1] 가 최종 conclusion 재확인. consecutiveFails=0(절차 게이트 fail, 진짜 repeat breakage 아님)."
+    "lastConclusion": "success",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27131353329",
+    "note": "PR #238 head(5d2cf45) run 27131353329 '기본 검사' = success(10:26:25 UTC 완료). 직전 run 27130837734 는 ADR-0032(non-doc-only) append 로 doc-only 면제(T-0284) 무효화 → '4-게이트 (b) reviewer-approval' step 만 fail(예상 절차 fail, unit/smoke/e2e 는 green). driver 가 reviewer APPROVE comment(issue-4647886061) post → issue_comment 이벤트로 게이트 재평가 → approve 어휘 매칭 1+ 로 (b) 통과, 전체 green 확인. T-0286 4-게이트 충족(reviewer APPROVE + PR comment 외부 존재 + integrator self-check + CI green). 머지는 사용자 위임(#237 패턴). consecutiveFails=0."
   },
   "reviewRounds": {
     "T-0286": 1,
