@@ -2,7 +2,11 @@
 id: T-0292
 title: P5 평가 orchestrator — Activity[] → 매퍼 → 평가-side dedup → scoreUnit → EvaluationResult[]
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-09T02:40:00+09:00
+prNumber: 244
+mergedAs: 5923943
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-021, REQ-030, REQ-025, REQ-037, REQ-038, REQ-097, REQ-032, TBD]
 estimatedDiff: 165

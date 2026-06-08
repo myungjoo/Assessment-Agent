@@ -5,39 +5,40 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0292",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-22e7",
-    "since": "2026-06-09T02:20:00+09:00",
-    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t8 active, authoritative claude/lock-driver tip=f105025 (turnCount 8). t8 는 planner-only turn: T-0291 MERGED 후 nextTask=null 에서 planner dispatch → T-0292(P5 평가 orchestrator: Activity[]→매퍼→dedup→scoreUnit→EvaluationResult[], thin @Injectable compose, pr-mode, dep 0) 큐잉. 다음 turn 이 T-0292 픽업·실행. cap 임박(turn 8/10) — turn 10 종료 시 자체 STOP 예정. follow-up: ADR-0032 ACCEPTED 시 difficulty 문구 doc-sync(direct)."
+    "since": "2026-06-09T02:40:00+09:00",
+    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t9 active, authoritative claude/lock-driver tip=583f723 (turnCount 9). t9 는 T-0292(P5 평가 orchestrator, pr-mode) 실행: executor → PR #244 round 1 APPROVE(NIT 2 test-label, 비차단) → CI approval-gate race rerun green → integrator 4-게이트 PASS → squash merge 5923943. nextTask=null. cap 임박: turn 10(planner, T-0293 큐잉) 종료 시 §1[8](e) 로 자체 STOP. follow-up: ADR-0032 ACCEPTED 시 difficulty 문구 doc-sync(direct)."
   },
-  "lastActivity": "2026-06-09T02:20:00+09:00",
-  "lastCommit": "9c1ce57",
+  "lastActivity": "2026-06-09T02:40:00+09:00",
+  "lastCommit": "5923943",
   "mostRecentTasks": [
+    "T-0292",
     "T-0291",
     "T-0290",
     "T-0289",
-    "T-0288",
-    "T-0287"
+    "T-0288"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "startedAt": "2026-06-09T01:00:00+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-22e7",
-    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t8 — planner-only turn. 6b6e88e main CI = success 확인(R-114) 후 currentTask/nextTask 모두 null 에서 planner dispatch. planner 가 단위 부품(T-0287 매퍼·T-0289 dedup·T-0291 scoreUnit)을 처음으로 end-to-end 배선하는 평가 orchestrator 를 분해 → T-0292(Activity[]→mapActivityToEvaluationInput→평가-side dedup 2종→scoreUnit→EvaluationResult[], thin @Injectable compose, dep 0/scoring service mock, est 165 LOC/3파일) 큐잉. controller/DTO·영속화·일주월 집계는 deferred. issue-still-relevant grep 0건. 다음 turn 이 T-0292 실행. cap 임박: turn 10 종료 시 §1[8](e) 로 자체 STOP.",
-    "notePrev": "/loop t7 — T-0291(P5 평가 scoring service @Injectable) 실행 → PR #243 round 1 APPROVE → CI green → squash merge 9c1ce57. tasksCompleted 287→288."
+    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t9 — T-0292 실행. executor 1회로 EvaluationOrchestratorService(@Injectable) 박제(4파일, prod ~118 LOC) — Activity[]→mapActivityToEvaluationInput→dedupTemporalDuplicates→excludeSelfFollowUps→scoreUnit(주입) 순차→EvaluationResult[]. PR #244 → reviewer round 1 APPROVE(0 blocker/major, NIT 2 test-label 비차단) → CI approval-gate race rerun(27155598377) green → integrator 4-게이트 PASS → squash merge 5923943. tasksCompleted 288→289. 다음 turn(10, 마지막)=planner T-0293 큐잉 후 cap STOP.",
+    "notePrev": "/loop t8 — planner-only turn. 평가 orchestrator 를 T-0292 로 큐잉(thin @Injectable compose, dep 0)."
   },
   "ci": {
-    "lastRun": "2026-06-09T02:08:00+09:00",
+    "lastRun": "2026-06-09T02:38:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27154041545",
-    "note": "PR #243(T-0291) head(cd65b68) CI run 27154041545 = success. approval-gate race(첫 run 은 reviewer approve comment 부재로 approval 검증 step 만 fail) 를 reviewer APPROVE comment 후 `gh run rerun 27154041545 --failed` 로 해소 — 전 step green. squash merge SHA on main = 9c1ce57. 본 bookkeeping direct push 후 post-merge main CI trigger 예상 — 다음 turn §1[1] 가 conclusion 재확인. 참고: Node.js 20 deprecation 경고 annotation 지속(2026-06-16 강제 전환) — CI action 버전 bump follow-up 후보(비차단)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27155598377",
+    "note": "PR #244(T-0292) head(61427a5) CI run 27155598377 = success. approval-gate race(첫 run 은 reviewer approve comment 부재로 approval 검증 step 만 fail) 를 reviewer APPROVE comment 후 `gh run rerun 27155598377 --failed` 로 해소 — 전 step green. squash merge SHA on main = 5923943. 본 bookkeeping direct push 후 post-merge main CI trigger 예상 — 다음 turn §1[1] 가 conclusion 재확인. 참고: Node.js 20 deprecation 경고 annotation 지속(2026-06-16 강제 전환) — CI action 버전 bump follow-up 후보(비차단)."
   },
   "reviewRounds": {
+    "T-0292": 1,
     "T-0291": 1,
     "T-0290": 2,
     "T-0289": 1,
@@ -412,7 +413,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 288,
+    "tasksCompleted": 289,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
