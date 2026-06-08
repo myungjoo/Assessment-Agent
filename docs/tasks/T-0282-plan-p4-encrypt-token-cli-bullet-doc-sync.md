@@ -2,13 +2,15 @@
 id: T-0282
 title: PLAN P4 토큰 암호화 CLI bullet doc-sync (L89)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-020, REQ-033]
 estimatedDiff: 3
 estimatedFiles: 1
 created: 2026-06-08
+completedAt: 2026-06-08T16:05:00+09:00
 plannerNote: PLAN L89 (토큰 암호화 CLI) stale [ ] — scripts/encrypt-token.ts 박제 완결 (T-0206) 정합 doc-sync (T-0281 동형 Group C slice 1).
+completionNote: PLAN.md L89 `[ ]`→`[x]` flip + scripts/encrypt-token.ts (T-0206) 박제 reality 한 줄 인용 추가. 1 파일 +1/-1.
 ---
 
 # T-0282 — PLAN P4 토큰 암호화 CLI bullet doc-sync (L89)
