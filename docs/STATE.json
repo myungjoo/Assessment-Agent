@@ -5,14 +5,14 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0288",
   "lock": {
     "holder": null,
     "session": null,
     "since": null,
-    "note": "비권위 human mirror — released by cron@cloud-focused-goodall-B474T (KST 22:35 fire) after T-0287 MERGED bookkeeping. authoritative lock(claude/lock-driver tip)도 본 fire 의 bookkeeping push 후 tombstone CAS 로 release. T-0287 DONE(P5 평가 입력 매퍼, PR #239 merged 3332972 squash) — 다음 cron/loop turn 이 planner dispatch (P5 후속 slice: scoring service / dedup / controller — ADR-0032 Follow-up §2~§5)."
+    "note": "비권위 human mirror — released by cron@cloud-focused-goodall-B474T (KST 22:35 fire) after T-0287 MERGED bookkeeping. authoritative lock(claude/lock-driver tip)은 본 cron 다음 fire 의 planner-only direct 가 갱신. nextTask=T-0288(P5 두번째 impl slice: ADR-0032 Follow-up §2/§3 split — EvaluationResult 타입 + deterministic volume 산출 순수 함수, pr-mode, dependency 0 / LLM mock 무관). 다음 cron/loop turn 이 T-0288 픽업."
   },
-  "lastActivity": "2026-06-08T22:35:00+09:00",
+  "lastActivity": "2026-06-09T00:05:00+09:00",
   "lastCommit": "3332972",
   "mostRecentTasks": [
     "T-0287",
@@ -23,11 +23,11 @@
   ],
   "loopSession": {
     "turnCount": 1,
-    "startedAt": "2026-06-08T22:04:15+09:00",
+    "startedAt": "2026-06-09T00:05:00+09:00",
     "cap": 10,
-    "holder": "cron@cloud-focused-goodall-B474T",
-    "note": "cron@cloud-focused-goodall-B474T fire (KST 22:04) — T-0287(P5 평가 입력 매퍼, pr-mode) DONE 완주. executor→implementer(evaluation-input.ts + evaluation-input.mapper.ts +151 LOC) + tester(mapper.spec +366 LOC, R-112 4종 41 test). PR #239 round 1 reviewer APPROVE(NIT 1: spec LOC cap 회색지대) → CI fail(spec-presence: evaluation-input.ts sibling spec 부재) → round 2 executor 가 evaluation-input.spec.ts 분리 신설 + R-112 cover 확장(negative 10→15, type-level shape group) → reviewer round 2 APPROVE(0 finding) → CI green 17/17(unit+smoke+e2e+approval-gate) → integrator 4-게이트 모두 충족 → squash merge 3332972. tasksCompleted 283→284. nextTask=null → 다음 turn planner survey(P5 후속 ADR-0032 Follow-up §2 scoring service).",
-    "notePrev": "loop@cloud-82SQk(이전 conversation, /clear 전) — T-0286(ADR-0032 P5 평가 계약) MERGED + planner T-0287 큐잉. cron@cloud-focused-goodall-Q4tx5(직전 fire) — T-0287 bookkeeping(planner-only). 상세는 git log 및 journal 참조."
+    "holder": "cron@planner-2026-06-09T0005",
+    "note": "cron fire(KST 2026-06-09 00:05) — planner-only direct. T-0287 MERGED 직후 nextTask=null 상태에서 깨어나 P5 후속 slice survey. ADR-0032 Follow-ups §2(scoring service) + §3(dedup) 중 가장 작은 dependency-free slice 를 분해 — EvaluationResult 타입(5 필드) + deterministic volume 산출 순수 함수(titleLength baseline)를 T-0288 로 큐잉(commitMode pr, dependency 0 / NestJS @Injectable 0 / LLM mock 무관 / R-112 4종 cover). scoring service slice 의 LLM 정성 부분(narrative/difficulty/contribution 채움)은 본 task 출력 타입 위에서 별도 후속. issue-still-relevant pre-check 통과 — EvaluationResult/volume 심볼 main 부재(grep 0).",
+    "notePrev": "cron@cloud-focused-goodall-B474T(직전 fire, KST 22:04) — T-0287(P5 평가 입력 매퍼, pr-mode) DONE 완주. PR #239 round 2 APPROVE → CI green 17/17 → squash merge 3332972. tasksCompleted 283→284. 상세는 git log 및 journal 참조."
   },
   "ci": {
     "lastRun": "2026-06-08T22:35:00+09:00",
