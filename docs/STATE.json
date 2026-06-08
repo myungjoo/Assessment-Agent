@@ -5,14 +5,14 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0294",
   "lock": {
     "holder": null,
     "session": null,
     "since": null,
-    "note": "비권위 human mirror — cron@cloud-32814 fire 가 T-0293 (P5 평가 controller/DTO, pr-mode) 을 완주(branch fec4eee 첫 push 후 check-spec-presence CI fail → DTO 콜로케이트 spec 추가 6dcefbd → CI green → reviewer round 1 APPROVE → 4-게이트 통과 → squash merge 2ecbc64). tasksCompleted 289→290. multi-task chain skip 사유 = STATE.nextTask 비어있음(LOOP.md §1 [7.5] 종료 분기) + 다음 task 미큐잉. authoritative claude/lock-driver tip 을 tombstone(holder:null) 으로 release. 다음 fire 의 planner 가 nextTask 큐잉."
+    "note": "비권위 human mirror — planner-only fire (cron@cloud post-T-0293) 가 T-0294 (api.md POST /api/assessment-evaluation/evaluate row 박제, direct doc-only, 1파일/약 30 LOC, T-0276 collection-trigger doc-sync 패턴 mirror) 를 nextTask 로 큐잉. issue-still-relevant pre-check 통과 — `git grep \"assessment-evaluation\" docs/architecture/api.md` = 0 (main 박제 0건). modules.md AssessmentEvaluationModule 박제 + ADR-0032 PROPOSED→ACCEPTED status flip 은 별도 task (T-0295/T-0296 후보) 로 분리해 cap·concern 격리. authoritative claude/lock-driver tip 은 driver 가 별도 관리 (본 planner fire 는 lock 미보유 — task 큐잉 + STATE direct write 만)."
   },
-  "lastActivity": "2026-06-08T18:35:00+09:00",
+  "lastActivity": "2026-06-09T04:10:00+09:00",
   "lastCommit": "2ecbc64",
   "mostRecentTasks": [
     "T-0293",
