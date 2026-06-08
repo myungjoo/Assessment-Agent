@@ -2,8 +2,12 @@
 id: T-0293
 title: P5 평가 controller/DTO — POST /api/assessment-evaluation/evaluate → orchestrator 위임
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 245
+mergedAt: 2026-06-08T18:33:00+09:00
+mergeSha: 2ecbc64
+completedSummary: "PR #245 round 1 APPROVE → CI fix(DTO 콜로케이트 spec) → CI green → squash merge 2ecbc64. controller 89 LOC thin delegate + DTO 125 LOC + 콜로케이트 spec 383 LOC + module/AppModule 배선. 134 suite / 2586 test green, controller+DTO 100% coverage."
 coversReq: [REQ-009, REQ-045, REQ-021, REQ-030, REQ-097, REQ-032, TBD]
 estimatedDiff: 220
 estimatedFiles: 5

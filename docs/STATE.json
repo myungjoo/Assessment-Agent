@@ -5,21 +5,21 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0293",
+  "nextTask": null,
   "lock": {
     "holder": null,
     "session": null,
     "since": null,
-    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) 가 t10 에서 10-turn cap 도달로 정상 종료, authoritative claude/lock-driver tip 을 tombstone(holder:null) 으로 release. 본 session 은 T-0288~T-0292 5개 P5 slice 를 머지(tasksCompleted 284→289)했고 t10 planner 가 T-0293(평가 controller/DTO, pr-mode) 을 nextTask 로 큐잉. 다음 cron fire 또는 새 /loop 가 lock 획득 후 T-0293 픽업·실행. follow-up: ADR-0032 ACCEPTED 시 §2/§3 difficulty 문구 doc-sync(direct)."
+    "note": "비권위 human mirror — cron@cloud-32814 fire 가 T-0293 (P5 평가 controller/DTO, pr-mode) 을 완주(branch fec4eee 첫 push 후 check-spec-presence CI fail → DTO 콜로케이트 spec 추가 6dcefbd → CI green → reviewer round 1 APPROVE → 4-게이트 통과 → squash merge 2ecbc64). tasksCompleted 289→290. multi-task chain skip 사유 = STATE.nextTask 비어있음(LOOP.md §1 [7.5] 종료 분기) + 다음 task 미큐잉. authoritative claude/lock-driver tip 을 tombstone(holder:null) 으로 release. 다음 fire 의 planner 가 nextTask 큐잉."
   },
-  "lastActivity": "2026-06-09T02:50:00+09:00",
-  "lastCommit": "5923943",
+  "lastActivity": "2026-06-08T18:35:00+09:00",
+  "lastCommit": "2ecbc64",
   "mostRecentTasks": [
+    "T-0293",
     "T-0292",
     "T-0291",
     "T-0290",
-    "T-0289",
-    "T-0288"
+    "T-0289"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -27,17 +27,19 @@
     "cap": 10,
     "holder": "loop@AKIHA-22e7",
     "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t10 — 마지막 turn(planner-only). 25d3860 main CI = success 확인(R-114) 후 currentTask/nextTask 모두 null 에서 planner dispatch → T-0293(P5 평가 controller/DTO: POST /api/assessment-evaluation/evaluate → orchestrator 위임, AssessmentCollectionController 패턴 mirror, orchestrator mock, dep 0, est 220 LOC/5파일) 큐잉. issue-still-relevant grep 0건. turnCount=10 → §1[8](e) cap 도달 → reschedule 안 함, 정상 STOP + authoritative lock tombstone release. 본 session 5 task(T-0288~T-0292) 머지 완주, tasksCompleted 284→289.",
-    "notePrev": "/loop t9 — T-0292(P5 평가 orchestrator) 실행 → PR #244 round 1 APPROVE → CI green → squash merge 5923943. tasksCompleted 288→289."
+    "notePrev": "/loop t9 — T-0292(P5 평가 orchestrator) 실행 → PR #244 round 1 APPROVE → CI green → squash merge 5923943. tasksCompleted 288→289.",
+    "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업, executor 작성 fec4eee push, 첫 CI run 이 check-spec-presence step 에서 fail(DTO 콜로케이트 spec 부재). implementer 가 evaluate-activities.dto.spec.ts (383 LOC, collect-trigger.dto.spec.ts 패턴 mirror) 추가 → 6dcefbd push → 새 CI run green. reviewer round 1 APPROVE(8-check pass, NIT 4종 비차단). 4-게이트 통과 → squash merge 2ecbc64. branch 삭제는 proxy disconnect 로 server-side noop(non-blocking — follow-up cleanup). tasksCompleted 289→290."
   },
   "ci": {
-    "lastRun": "2026-06-09T02:38:00+09:00",
+    "lastRun": "2026-06-08T18:31:41+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27155598377",
-    "note": "PR #244(T-0292) head(61427a5) CI run 27155598377 = success. approval-gate race(첫 run 은 reviewer approve comment 부재로 approval 검증 step 만 fail) 를 reviewer APPROVE comment 후 `gh run rerun 27155598377 --failed` 로 해소 — 전 step green. squash merge SHA on main = 5923943. 본 bookkeeping direct push 후 post-merge main CI trigger 예상 — 다음 turn §1[1] 가 conclusion 재확인. 참고: Node.js 20 deprecation 경고 annotation 지속(2026-06-16 강제 전환) — CI action 버전 bump follow-up 후보(비차단)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27158512978",
+    "note": "PR #245(T-0293) head(6dcefbd) CI run 27158512978 = success. 첫 run(27157957781, fec4eee) 은 check-spec-presence step fail — DTO 콜로케이트 spec 부재(controller spec 안의 ValidationPipe negative block 만 존재). implementer 가 evaluate-activities.dto.spec.ts(383 LOC, collect-trigger.dto.spec.ts 패턴 mirror, plainToInstance+validate 직접 호출) 추가 → 6dcefbd push → 새 run green. squash merge SHA on main = 2ecbc64. 본 bookkeeping direct push 후 post-merge main CI trigger 예상 — 다음 turn §1[1] 가 conclusion 재확인. 참고: Node.js 20 deprecation 경고 annotation 지속(2026-06-16 강제 전환) — CI action 버전 bump follow-up 후보(비차단)."
   },
   "reviewRounds": {
+    "T-0293": 1,
     "T-0292": 1,
     "T-0291": 1,
     "T-0290": 2,
@@ -413,7 +415,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 289,
+    "tasksCompleted": 290,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
