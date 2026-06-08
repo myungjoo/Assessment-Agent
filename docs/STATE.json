@@ -5,14 +5,14 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0290",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-22e7",
-    "since": "2026-06-09T01:15:00+09:00",
-    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t3 active, authoritative claude/lock-driver tip=17138ab (turnCount 3). t3 는 T-0289(P5 평가-side dedup, ADR-0032 §3, pr-mode) 실행: executor → PR #241 round 1 APPROVE → CI green(approval-gate 첫 run green) → integrator 4-게이트 PASS → squash merge 5f14420. nextTask=null — 다음 turn 이 planner dispatch."
+    "since": "2026-06-09T01:25:00+09:00",
+    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t4 active, authoritative claude/lock-driver tip=766415b (turnCount 4). t4 는 planner-only turn: T-0289 MERGED 후 nextTask=null 에서 planner dispatch → T-0290(P5 평가 prompt 조립 + narrative 분류 파싱 순수 함수, ADR-0032 §2 LLM-무관 선행, pr-mode) 큐잉. 다음 turn 이 T-0290 픽업·실행."
   },
-  "lastActivity": "2026-06-09T01:15:00+09:00",
+  "lastActivity": "2026-06-09T01:25:00+09:00",
   "lastCommit": "5f14420",
   "mostRecentTasks": [
     "T-0289",
@@ -22,12 +22,12 @@
     "T-0285"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-09T01:00:00+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-22e7",
-    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t3 — T-0289 실행. 67fa7c2 main CI in_progress 확인(doc-only, 비차단) 후 nextTask=T-0289 pickup. executor 1회로 evaluation-dedup.ts 순수 함수 2종(dedupTemporalDuplicates R-21 + excludeSelfFollowUps R-30, dep 0) + spec 박제(prod 165 LOC/test 491 LOC, 2파일). PR #241 → reviewer round 1/7 APPROVE(0 blocker/major/minor, NIT 2 optional·기능영향0) → CI run 27150628980 success(approval-gate 첫 run green, race 미발생) → integrator 4-게이트 PASS → squash merge 5f14420. tasksCompleted 285→286.",
-    "notePrev": "/loop t2 — planner-only turn. ADR-0032 §3 평가-side dedup slice 를 T-0289 로 큐잉(commitMode pr, dep 0). issue-still-relevant grep 0건."
+    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t4 — planner-only turn. d5b0114 main CI = success 확인(R-114) 후 currentTask/nextTask 모두 null 에서 planner dispatch. planner 가 ADR-0032 Follow-up §2(LLM scoring service) 의 dependency-free 선행 piece 를 분해 → T-0290(평가 prompt 조립 buildEvaluationPrompt + narrative→difficulty/contribution 분류 파싱 순수 함수 2종, commitMode pr, dep 0/LLM mock 0; generate 호출·DI 는 후속 service slice) 큐잉. issue-still-relevant grep 0건. 다음 turn 이 T-0290 실행.",
+    "notePrev": "/loop t3 — T-0289(P5 평가-side dedup, ADR-0032 §3) 실행 → PR #241 round 1 APPROVE → CI green → squash merge 5f14420. tasksCompleted 285→286."
   },
   "ci": {
     "lastRun": "2026-06-09T01:12:00+09:00",
