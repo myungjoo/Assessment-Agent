@@ -7,13 +7,13 @@
   "currentTask": null,
   "nextTask": "T-0287",
   "lock": {
-    "holder": "loop",
-    "session": "loop@cloud-82SQk",
-    "since": "2026-06-08T19:25:00+09:00",
-    "note": "비권위 human mirror — authoritative lock(claude/lock-driver tip) 은 driver loop[6] 단계에서 갱신. cron@cloud-focused-goodall-Q4tx5 fire(2026-06-08 KST 20:09) planner-only turn — Q-0027 resolve + T-0286(ADR-0032 ACCEPTED) 머지(3940d56) 후 P5 첫 impl slice 큐잉. T-0287(평가 입력 매퍼 Activity→EvaluationInput, ADR-0032 Follow-up §1, commitMode pr, ~225 LOC/3파일, dependency 0, mocked LLM 무관 — 순수 함수). 사용자 task description '문서/코멘트 direct merge' 는 doc-only 면제 — T-0287 은 src/ 신규 코드라 정상 pr-mode."
+    "holder": null,
+    "session": null,
+    "since": null,
+    "note": "비권위 human mirror — released by cron@cloud-focused-goodall-Q4tx5 (KST 20:09 fire) after planner-only turn. authoritative lock(claude/lock-driver tip)도 동일 fire 의 [6] 단계에서 tombstone CAS 로 release. T-0287 queued(P5 평가 입력 매퍼, commitMode pr) — 다음 cron/loop turn 이 pickup."
   },
-  "lastActivity": "2026-06-08T19:25:00+09:00",
-  "lastCommit": "3805eb2",
+  "lastActivity": "2026-06-08T20:10:00+09:00",
+  "lastCommit": "f40b0fe",
   "mostRecentTasks": [
     "T-0286",
     "T-0285",
@@ -30,12 +30,12 @@
     "notePrev": "loop@cloud-82SQk t1-t5 (이전 conversation, /clear 전) — Q-0027 escalate→resolve(P5 진입, 사용자 option 2) + T-0286 큐잉, PR #237 머지(0d44570), PR #238 bookkeeping(doc-only). 상세는 git log 및 journal 참조."
   },
   "ci": {
-    "lastRun": "2026-06-08T19:26:25+09:00",
-    "status": "green",
+    "lastRun": "2026-06-08T20:10:00+09:00",
+    "status": "running",
     "consecutiveFails": 0,
-    "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27131353329",
-    "note": "PR #238 head(5d2cf45) run 27131353329 '기본 검사' = success(10:26:25 UTC 완료). 직전 run 27130837734 는 ADR-0032(non-doc-only) append 로 doc-only 면제(T-0284) 무효화 → '4-게이트 (b) reviewer-approval' step 만 fail(예상 절차 fail, unit/smoke/e2e 는 green). driver 가 reviewer APPROVE comment(issue-4647886061) post → issue_comment 이벤트로 게이트 재평가 → approve 어휘 매칭 1+ 로 (b) 통과, 전체 green 확인. T-0286 4-게이트 충족(reviewer APPROVE + PR comment 외부 존재 + integrator self-check + CI green). 머지는 사용자 위임(#237 패턴). consecutiveFails=0."
+    "lastConclusion": null,
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27133682277",
+    "note": "main head(f40b0fe) run 27133682277 'CI' = in_progress (cron@cloud-focused-goodall-Q4tx5 fire 의 planner bookkeeping direct push 직후). doc-only direct commit(planner output: T-0287 task 파일+STATE+journal) — T-0284 doc-only 면제로 approval-gate step skip 예상. 다음 turn §1[1] 이 최종 conclusion 재확인. 직전 main run(3940d56) = success."
   },
   "reviewRounds": {
     "T-0286": 1,
