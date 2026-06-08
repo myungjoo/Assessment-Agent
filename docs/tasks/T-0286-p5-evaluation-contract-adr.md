@@ -2,7 +2,8 @@
 id: T-0286
 title: Write ADR-0032 — P5 단위 평가 계약 (commit/document/issue 통합 + 평가-side dedup)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 238
 commitMode: pr
 coversReq: [REQ-030, REQ-009, REQ-021, REQ-037, REQ-038, REQ-097]
 estimatedDiff: 130
