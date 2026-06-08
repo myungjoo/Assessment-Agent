@@ -76,3 +76,14 @@ export interface LlmGateway {
     options: LlmGenerateOptions,
   ): Promise<LlmGenerateResult>;
 }
+
+// LLM_GATEWAY — LlmGateway interface 주입용 NestJS DI token (T-0291, ADR-0032
+// Follow-up §2 scoring service slice). TypeScript interface 는 runtime 에 소거돼
+// DI token 으로 직접 쓸 수 없으므로(class token 과 달리 reflect metadata 부재),
+// confluence-adapter.service.ts 의 CONFLUENCE_PERMISSION_DENIED_EMITTER 패턴을
+// mirror 해 string token 을 별도로 박제한다. 평가 layer 의 EvaluationScoringService
+// 가 @Inject(LLM_GATEWAY) 로 LlmGateway 를 주입받고, assessment-evaluation.module.ts
+// 가 이 token 에 LlmModule 이 export 하는 LlmHttpGateway(LlmGateway 구현체)를
+// useExisting 으로 바인딩한다 — 구현체 직접 import 의존 대신 interface/token 의존이라
+// test 에서 mock gateway 주입이 용이하다(실 LLM 호출 0 / 새 외부 dependency 0).
+export const LLM_GATEWAY = "LLM_GATEWAY";
