@@ -5,39 +5,40 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0291",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-22e7",
-    "since": "2026-06-09T01:50:00+09:00",
-    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t6 active, authoritative claude/lock-driver tip=09aed80 (turnCount 6). t6 는 planner-only turn: T-0290 MERGED 후 nextTask=null 에서 planner dispatch → T-0291(P5 평가 scoring service @Injectable, ADR-0032 §2 service 부분, 기존 순수 함수 4종 + LlmGateway.generate test mock compose, pr-mode) 큐잉. 다음 turn 이 T-0291 픽업·실행."
+    "since": "2026-06-09T02:10:00+09:00",
+    "note": "비권위 human mirror — /loop session loop@AKIHA-22e7 (turn cap 10) t7 active, authoritative claude/lock-driver tip=17f555e (turnCount 7). t7 는 T-0291(P5 평가 scoring service, pr-mode) 실행: executor → PR #243 round 1 APPROVE(MINOR=ADR doc-sync follow-up, NIT=cosmetic) → CI approval-gate race rerun green → integrator 4-게이트 PASS → squash merge 9c1ce57. nextTask=null — 다음 turn 이 planner dispatch. follow-up: ADR-0032 PROPOSED→ACCEPTED 시 §2/§3 difficulty 주입 문구 doc-sync(direct)."
   },
-  "lastActivity": "2026-06-09T01:50:00+09:00",
-  "lastCommit": "ef139e2",
+  "lastActivity": "2026-06-09T02:10:00+09:00",
+  "lastCommit": "9c1ce57",
   "mostRecentTasks": [
+    "T-0291",
     "T-0290",
     "T-0289",
     "T-0288",
-    "T-0287",
-    "T-0286"
+    "T-0287"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-06-09T01:00:00+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-22e7",
-    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t6 — planner-only turn. 68105b8 main CI = success 확인(R-114) 후 currentTask/nextTask 모두 null 에서 planner dispatch. planner 가 ADR-0032 Follow-up §2 의 service 부분을 분해 → T-0291(평가 scoring service @Injectable + module — EvaluationInput → buildEvaluationPrompt → LlmGateway.generate(test mock) → classifyNarrative + calculateEvaluationVolume → EvaluationResult 조립; 기존 순수 함수 4종 compose, dep 0/live call 0, est 110 LOC/3파일) 큐잉. controller/DTO·영속화·dedup 적용은 deferred. issue-still-relevant grep 0건. 다음 turn 이 T-0291 실행.",
-    "notePrev": "/loop t5 — T-0290(P5 평가 prompt/classify) 2-round 실행 → reviewer round 1 MAJOR(compose 불가) fix round 2 → APPROVE → squash merge ef139e2. tasksCompleted 286→287."
+    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t7 — T-0291 실행. executor 1회로 EvaluationScoringService(@Injectable) + assessment-evaluation.module + LLM_GATEWAY DI token 박제(5파일, prod 183 LOC). input→buildEvaluationPrompt→LlmGateway.generate(mock)→classifyNarrative+calculateEvaluationVolume→EvaluationResult compose. PR #243 → reviewer round 1 APPROVE(0 blocker/major, MINOR 1=ADR-0032 difficulty 주입 문구 doc-sync 권고, NIT 1=cosmetic) → CI approval-gate race rerun(27154041545) green → integrator 4-게이트 PASS → squash merge 9c1ce57. tasksCompleted 287→288.",
+    "notePrev": "/loop t6 — planner-only turn. ADR-0032 §2 scoring service 부분을 T-0291 로 큐잉(@Injectable compose, dep 0)."
   },
   "ci": {
-    "lastRun": "2026-06-09T01:38:00+09:00",
+    "lastRun": "2026-06-09T02:08:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27152560313",
-    "note": "PR #242(T-0290) round 2 head(8e3724c) CI run 27152560313 = success(전 step green; approval-gate 도 round-2 head pull_request run 에서 통과 — race 미발생). round 1 head(d315c6c) run 27152028193 = failure(buggy regex + round-1 approval-gate 부재로 superseded, 무관). squash merge SHA on main = ef139e2. 본 bookkeeping direct push 후 post-merge main CI trigger 예상 — 다음 turn §1[1] 가 conclusion 재확인. 참고: Node.js 20 deprecation 경고 annotation 지속(2026-06-16 강제 전환) — CI action 버전 bump follow-up 후보(비차단)."
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27154041545",
+    "note": "PR #243(T-0291) head(cd65b68) CI run 27154041545 = success. approval-gate race(첫 run 은 reviewer approve comment 부재로 approval 검증 step 만 fail) 를 reviewer APPROVE comment 후 `gh run rerun 27154041545 --failed` 로 해소 — 전 step green. squash merge SHA on main = 9c1ce57. 본 bookkeeping direct push 후 post-merge main CI trigger 예상 — 다음 turn §1[1] 가 conclusion 재확인. 참고: Node.js 20 deprecation 경고 annotation 지속(2026-06-16 강제 전환) — CI action 버전 bump follow-up 후보(비차단)."
   },
   "reviewRounds": {
+    "T-0291": 1,
     "T-0290": 2,
     "T-0289": 1,
     "T-0288": 1,
@@ -411,7 +412,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 287,
+    "tasksCompleted": 288,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

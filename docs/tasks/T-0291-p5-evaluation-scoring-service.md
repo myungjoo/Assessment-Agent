@@ -2,7 +2,11 @@
 id: T-0291
 title: P5 평가 scoring service — EvaluationInput → prompt → generate(mock) → EvaluationResult 조립
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-09T02:10:00+09:00
+prNumber: 243
+mergedAs: 9c1ce57
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-025, REQ-037, REQ-038, REQ-097, REQ-032, TBD]
 estimatedDiff: 110
