@@ -2,7 +2,11 @@
 id: T-0288
 title: P5 평가 결과 타입 + volume 산출 — EvaluationResult + 결정적 volume 계산 순수 함수
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-09T00:50:00+09:00
+prNumber: 240
+mergedAs: ffab1a6
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-026, REQ-037, REQ-038, REQ-040, REQ-097, TBD]
 estimatedDiff: 225
