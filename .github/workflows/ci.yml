@@ -73,6 +73,11 @@ jobs:
       - name: spec-presence 자체 test
         run: bash scripts/check-spec-presence.test.sh
 
+      - name: doc-only 판정 script 자체 test
+        # reviewer-approval 게이트의 doc-only 면제 logic(scripts/check-doc-only-pr.sh)
+        # 의 executable spec. spec-presence 자체 test 와 동형의 self-test layer.
+        run: bash scripts/check-doc-only-pr.test.sh
+
       - name: ref-CAS lock 검증
         # ADR-0009 ref-CAS lock 의 --force-with-lease CAS 의미 executable spec.
         # self-contained (로컬 bare repo + 2 clone) 이라 remote/네트워크 불요.
@@ -136,6 +141,18 @@ jobs:
         run: |
           PR_NUM="${{ github.event.pull_request.number || github.event.issue.number }}"
           if [ -z "$PR_NUM" ]; then echo "::error::PR 번호 추출 실패"; exit 1; fi
+
+          # (0) doc-only 면제 (CLAUDE.md §3.1) — 변경이 전부 direct-mode 문서면 게이트 skip.
+          # gh API 로 변경 파일 목록 취득 (event-independent — issue_comment 재실행은
+          # default branch checkout 라 local git diff 로는 PR 변경을 못 본다).
+          # scripts/check-doc-only-pr.sh 가 없거나(예: 본 helper 도입 전 PR 의 재실행)
+          # 판정이 doc-only 가 아니면 아래 (a)/(b) reviewer-approval 검사로 진행.
+          if [ -f scripts/check-doc-only-pr.sh ] \
+            && gh pr view "$PR_NUM" --json files --jq '.files[].path' \
+               | bash scripts/check-doc-only-pr.sh; then
+            echo "✅ doc-only PR — reviewer-approval 게이트 면제 (CLAUDE.md §3.1 direct-mode 경계)"
+            exit 0
+          fi
 
           # (a) GitHub formal review APPROVED 1+
           FORMAL=$(gh pr view "$PR_NUM" --json reviews \
