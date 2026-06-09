@@ -2,7 +2,11 @@
 id: T-0308
 title: ADR-0036 fine-grained concurrency (critical-section-only lock + claim 기반 task 소유, ADR-0009 supersede 검토)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T01:08:00+09:00
+prNumber: 258
+mergedAs: d6e02dc
+reviewRounds: 1
 commitMode: pr
 coversReq: []
 estimatedDiff: 250
