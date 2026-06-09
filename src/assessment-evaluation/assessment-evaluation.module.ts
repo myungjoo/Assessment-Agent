@@ -40,6 +40,7 @@ import { AssessmentEvaluationController } from "./assessment-evaluation.controll
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import { EvaluationResultPersistService } from "./evaluation-result-persist.service";
 import { EvaluationScoringService } from "./evaluation-scoring.service";
+import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
 import { SummaryNarrativeService } from "./summary-narrative.service";
 import { SummaryPersistService } from "./summary-persist.service";
 
@@ -72,6 +73,12 @@ import { SummaryPersistService } from "./summary-persist.service";
     // reset-and-recreate 영속화한다. 추가 import 0. 후속 orchestrator/controller slice
     // 가 inject 받는다.
     SummaryPersistService,
+    // SummaryAggregateOrchestratorService — P5 aggregate 평가 상위 compose service
+    // (T-0310, ADR-0035 §Follow-ups orchestrator slice). SummaryPersistService(같은
+    // module)를 생성자 주입받아 isPeriodEvaluable 시점 게이트 → persistSummary 위임을
+    // compose 한다. 추가 import 0(같은 module 내 DI resolve). 후속 controller slice 가
+    // inject 받는다.
+    SummaryAggregateOrchestratorService,
     // LLM_GATEWAY → LlmHttpGateway useExisting 바인딩. LlmModule 이 등록·export 한
     // LlmHttpGateway singleton 을 그대로 재사용하므로 새 인스턴스 생성 0. interface
     // 가 runtime 소거라 string token 으로 주입을 닫는다.
@@ -89,6 +96,8 @@ import { SummaryPersistService } from "./summary-persist.service";
     SummaryNarrativeService,
     // 후속 orchestrator/controller slice 가 aggregate 평가를 영속화하기 위해 inject 받도록 export.
     SummaryPersistService,
+    // 후속 controller slice 가 aggregate 평가 orchestrator 를 inject 받도록 export(T-0310).
+    SummaryAggregateOrchestratorService,
   ],
 })
 export class AssessmentEvaluationModule {}
