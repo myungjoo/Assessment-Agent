@@ -2,7 +2,8 @@
 id: T-0295
 title: modules.md 에 11번째 shipped module AssessmentEvaluationModule 정합 (P5 평가 backbone doc-sync)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-09T02:55:00Z
 commitMode: direct
 coversReq: [REQ-038, REQ-049]
 estimatedDiff: 65

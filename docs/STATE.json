@@ -5,28 +5,29 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0295",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-ci0028",
-    "since": "2026-06-09T02:33:55Z",
-    "note": "비권위 human mirror. authoritative claude/lock-driver tip = 9cdc1d2 (acquire by loop@AKIHA-ci0028). CI-infra 복구(빌링 spending limit 상향) 확인 후 Q-0028 close + T-0294 resume 진행 중."
+    "since": "2026-06-09T02:55:30Z",
+    "note": "비권위 human mirror. authoritative claude/lock-driver tip = 9cdc1d2 (acquire by loop@AKIHA-ci0028). t2 heartbeat — T-0295 머지 후. (branch lock since 는 turn 종료 시 heartbeat push 로 동기.)"
   },
-  "lastActivity": "2026-06-09T11:33:55+09:00",
+  "lastActivity": "2026-06-09T11:55:30+09:00",
   "lastCommit": "pending",
   "mostRecentTasks": [
+    "T-0295",
     "T-0294",
     "T-0293",
     "T-0292",
-    "T-0291",
-    "T-0290"
+    "T-0291"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-09T11:33:55+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-ci0028",
-    "note": "/loop session loop@AKIHA-ci0028 (turn cap 10) t1 — 사용자가 GitHub billing spending limit 상향(private repo Actions minutes overage 차단 해제) 후 CI-infra 복구 검증: run 27167117992 rerun → runner 정상 할당 → 전체 green(migrate/test+cov/smoke/e2e ✓, exit 0). Q-0028 RESOLVED + B-ci-infra close + ci.consecutiveFails 3→0 reset (본 direct bookkeeping commit). 이어 nextTask T-0294(api.md 평가 endpoint doc-sync) 픽업.",
+    "note": "/loop session loop@AKIHA-ci0028 (turn cap 10) t2 — T-0295 DONE: modules.md 11번째 shipped module AssessmentEvaluationModule 박제(+24/-15, row+mermaid 노드+edge+legend+acyclic topo+Worker mapping+머리말 chain), legacy AssessmentModule 을 미shipped placeholder 로 정정, '10 module'→'11 module' 전 site. 직전 turn(t1) push 1ab3e15 CI run 27180700116 = success 확인(R-114). tasksCompleted 291→292. nextTask=null → planner dispatch 예정.",
+    "notePrevT1": "/loop t1 — CI-infra 복구(billing spending limit 상향) + Q-0028 RESOLVED + B-ci-infra close + T-0294(api.md 평가 endpoint) DONE 머지(8afc210) + T-0295 큐잉. CI 복구 후 3 연속 green.",
     "notePrev": "직전 session loop@AKIHA-22e7 t10 cap 도달 정상 종료 — T-0288~T-0292 5 task 머지, tasksCompleted 284→289. 이후 cron fire 가 T-0293 머지(290) + T-0294 큐잉 직후 GH Actions runner 미할당 infra-fail 3연속 → BLOCKED(Q-0028). 원인은 private repo Actions spending limit $0.",
     "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
   },
@@ -438,7 +439,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 291,
+    "tasksCompleted": 292,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
