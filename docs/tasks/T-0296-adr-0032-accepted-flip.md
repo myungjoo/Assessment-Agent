@@ -2,7 +2,8 @@
 id: T-0296
 title: ADR-0032 status PROPOSED → ACCEPTED flip + relatedTask/relatedPR 백참조 박제
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-09T03:10:00Z
 commitMode: direct
 coversReq: [TBD]
 estimatedDiff: 12

@@ -1,9 +1,10 @@
 ---
 id: ADR-0032
 title: P5 단위 평가 계약 — commit/document/issue 통합 평가 입력 + LLM scoring + 난이도·기여도·양 산출 + 평가-side dedup/self-follow-up 제외
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-08
-relatedTask: T-0286
+relatedTask: [T-0286, T-0287, T-0288, T-0289, T-0290, T-0291, T-0292, T-0293]
+relatedPR: [239, 240, 241, 242, 243, 244, 245]
 supersedes: null
 ---
 
@@ -88,7 +89,7 @@ P4 수집(collection) layer 는 [ADR-0029](ADR-0029-assessment-collection-orches
 
 ### 구현 분리(design-only 박제)
 
-본 ADR 은 **design only** — production code(`src/`) 변경 0 다. 평가 입력 매퍼 / scoring service / dedup·self-follow-up 제외 로직 / controller / DTO / spec 은 전부 본 task 밖이며 아래 Follow-ups 로 분해된다. 각 slice 는 ≤300 LOC / ≤5 파일 + mocked LLM unit test(R-112 4 종 + negative cases 충분 cover)로 강제한다. live LLM run 은 §5 credential 게이트로 deferred(별도 후속 task — 실 endpoint/API key 주입 시 진입). 본 ADR status 는 PROPOSED — reviewer/사용자 검토 후 ACCEPTED 전환은 별도(status 한 줄 수정 direct).
+본 ADR 은 **design only** — production code(`src/`) 변경 0 다. 평가 입력 매퍼 / scoring service / dedup·self-follow-up 제외 로직 / controller / DTO / spec 은 전부 본 task 밖이며 아래 Follow-ups 로 분해된다. 각 slice 는 ≤300 LOC / ≤5 파일 + mocked LLM unit test(R-112 4 종 + negative cases 충분 cover)로 강제한다. live LLM run 은 §5 credential 게이트로 deferred(별도 후속 task — 실 endpoint/API key 주입 시 진입). 본 ADR status 는 **ACCEPTED**(T-0296 flip) — 구현 chain(T-0287~T-0293, PR #239~#245)이 4 결정을 전부 main 에 박제 완료. live LLM run 만 §5 credential 게이트로 deferred.
 
 ## Alternatives
 
