@@ -2,8 +2,11 @@
 id: T-0301
 title: 평가 evaluate flow 에 persist hook 배선 + assessmentId 반환 (ADR-0033 slice 4)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 253
+completedAt: 2026-06-09T19:10:00+09:00
+result: DONE — PR #253 squash 628ceb5 머지. reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart malformed-date + 2 MINOR) → round2 fix(@IsISO8601/@IsIn + negative 4건) → APPROVE → 4-게이트 PASS + CI green(run 27198314930). controller persist 배선 + {assessmentId,contributionCount,results} 반환 + DTO context 4-tuple/mode. reviewRounds=2. tasksCompleted 297→298. ADR-0033 구현 chain 완결, slice 5 doc-sync 만 남음.
 coversReq: [REQ-029, REQ-037, REQ-041]
 estimatedDiff: 255
 estimatedFiles: 5
