@@ -2,8 +2,10 @@
 id: T-0302
 title: 평가 결과 영속화 reality 를 architecture 문서에 doc-sync (ADR-0033 slice 5)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
+completedAt: 2026-06-09T19:35:00+09:00
+result: DONE — direct e6ce338 push. data-model/modules/api 3 architecture doc 에 영속화 reality doc-sync (EvaluateResponse 응답 shape / context 4-tuple+mode DTO / @@unique·reset-and-recreate / persist service shipped / 409). 코드·schema·ADR status 변경 0. tasksCompleted 298→299. ADR-0033 영속화 chain(T-0298~T-0302) 완전 종결.
 coversReq: [REQ-029, REQ-032, REQ-037]
 estimatedDiff: 70
 estimatedFiles: 3

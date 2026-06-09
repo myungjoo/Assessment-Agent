@@ -5,35 +5,35 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0302",
+  "nextTask": "T-0303",
   "lock": null,
-  "lastActivity": "2026-06-09T19:10:00+09:00",
+  "lastActivity": "2026-06-09T19:35:00+09:00",
   "lastCommit": "pending",
   "mostRecentTasks": [
+    "T-0302",
     "T-0301",
     "T-0300",
     "T-0299",
-    "T-0298",
-    "T-0297"
+    "T-0298"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-06-09T15:00:00+09:00",
     "cap": 10,
     "holder": "loop@cloud-turn-cap-10-n6hs91",
-    "note": "/loop session loop@cloud-turn-cap-10-n6hs91 (turn cap 10) t5 — T-0301 DONE 머지(PR #253 squash 628ceb5): evaluate flow persist-return 배선 (ADR-0033 §Follow-ups slice 4). controller 에 EvaluationResultPersistService 주입 + {assessmentId,contributionCount,results} 반환, DTO context 4-tuple + mode. orchestrator pure 계약(ADR-0032) 보존. reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart malformed-date 미검증 + 2 MINOR) → round2 fix(@IsISO8601/@IsIn + negative 4건) → APPROVE → 4-게이트 PASS + CI green(run 27198314930). reviewRounds[T-0301]=2. tasksCompleted 297→298. **ADR-0033 영속화 구현 chain(schema→mapper→service→wiring) 완결 — slice 5 doc-sync 만 남음.** next: planner T-0302 큐잉(slice 5 — data-model/modules/api doc-sync, direct doc-only). 별건 pending: ADR-0033 PROPOSED→ACCEPTED flip — 별도 pr task 권장(docs/decisions/* CI 게이트로 reviewer PR 필요, 4 결정 전부 구현·머지돼 정당).",
-    "notePrevT2": "/loop t4 — T-0300 DONE 머지(PR #252 squash 2bb1443): EvaluationResult 영속화 write service (ADR-0033 slice 3). $transaction reset-and-recreate + fill + resetByPeriod + P2002→ConflictException. T-0299 NIT 2건 박제. reviewer round1 APPROVE(1 NIT, tx atomicity+P2002 scoping PASS) + 4-게이트 PASS + CI green(27196919552). tasksCompleted 296→297. planner T-0301 큐잉.",
-    "notePrevT1": "/loop t3 — T-0299 DONE 머지(PR #251 squash 416b1bb): EvaluationResult→Assessment/Contribution 영속화 순수 매퍼 + R-112 spec (ADR-0033 slice 2). reviewer round1 APPROVE(4 NIT) + 4-게이트 PASS + CI green(27196033718). mapper 100% cov. tasksCompleted 295→296. planner T-0300 큐잉.",
+    "note": "/loop session loop@cloud-turn-cap-10-n6hs91 (turn cap 10) t6 — T-0302 DONE 머지(direct e6ce338): 평가 결과 영속화 reality 를 data-model/modules/api 3 architecture doc 에 doc-sync (ADR-0033 §Follow-ups slice 5, direct doc-only). api.md POST /evaluate 행 EvaluateResponse{assessmentId,contributionCount,results}+context 4-tuple(@IsISO8601)+mode(@IsIn)+409, data-model §3/§6/§7 @@unique·reset-and-recreate·REQ-031 shipped 정정, modules AssessmentEvaluationModule 영속화 shipped 정정. tasksCompleted 298→299. **ADR-0033 영속화 chain(schema→mapper→service→wiring→doc-sync, T-0298~T-0302) 완전 종결.** next: planner T-0303 큐잉(ADR-0033 PROPOSED→ACCEPTED flip, pr-mode — docs/decisions/* 는 check-doc-only-pr.sh allowlist 제외라 reviewer PR 필요). **planner 경고: T-0303 후 dependency-free backlog near-exhausted** — 잔여 ADR-0033 §Follow-up(Summary 영속화)는 batch/aggregate evaluation(ADR-0032 §2 deferred)·§5 게이트 brush, 다음 planner turn 은 batch-evaluation ADR 작성 또는 Q-NNNN escalation 예상.",
+    "notePrevT2": "/loop t5 — T-0301 DONE 머지(PR #253 squash 628ceb5): evaluate flow persist-return 배선 (ADR-0033 slice 4). controller persist 배선 + {assessmentId,contributionCount,results} 반환 + DTO context 4-tuple/mode. reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart + 2 MINOR) → round2 fix(@IsISO8601/@IsIn) → APPROVE. reviewRounds=2. tasksCompleted 297→298. planner T-0302 큐잉.",
+    "notePrevT1": "/loop t4 — T-0300 DONE 머지(PR #252 squash 2bb1443): EvaluationResult 영속화 write service (ADR-0033 slice 3). $transaction reset-and-recreate + fill + resetByPeriod + P2002→ConflictException. reviewer round1 APPROVE(1 NIT, tx atomicity+P2002 scoping PASS) + 4-게이트 PASS + CI green. tasksCompleted 296→297. planner T-0301 큐잉.",
     "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
     "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
   },
   "ci": {
-    "lastRun": "2026-06-09T19:10:00+09:00",
+    "lastRun": "2026-06-09T19:35:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27198314930",
-    "verifiedGreen": "T-0301 PR #253 round2(cb732e8) run 27198314930 green: unit+커버리지 / 스모크 / e2e / reviewer-approval step 전부 ✓. round1(a5fcbe6) run 은 reviewer-approval step fail(round1 REQUEST_CHANGES — approve comment 부재)로 expected fail, round2 head 가 superseded. 머지커밋 2bb1443(T-0300) main-CI 도 success 확인. 연속 green 유지.",
+    "verifiedGreen": "T-0301 PR #253 round2(cb732e8) run 27198314930 green (전 step ✓). T-0302 doc-sync direct e6ce338 + t5 closeout 24f1aad main-CI 는 doc-only push — t7 에서 conclusion 재확인(R-114, 비차단). 직전 머지커밋 2bb1443/628ceb5 main-CI success. 연속 green 유지.",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
@@ -460,7 +460,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 298,
+    "tasksCompleted": 299,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
