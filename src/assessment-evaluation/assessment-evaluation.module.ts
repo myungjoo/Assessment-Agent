@@ -38,6 +38,7 @@ import { LlmModule } from "../llm/llm.module";
 
 import { AssessmentEvaluationController } from "./assessment-evaluation.controller";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
+import { EvaluationResultPersistService } from "./evaluation-result-persist.service";
 import { EvaluationScoringService } from "./evaluation-scoring.service";
 
 @Module({
@@ -53,6 +54,11 @@ import { EvaluationScoringService } from "./evaluation-scoring.service";
     // EvaluationOrchestratorService — EvaluationScoringService 를 생성자 주입받는
     // 상위 compose service(T-0292). 같은 module 내 class provider 라 추가 token 0.
     EvaluationOrchestratorService,
+    // EvaluationResultPersistService — ADR-0033 §Follow-ups 3 (write service).
+    // PrismaService(@Global PersistenceModule provider)를 생성자 주입받아 평가 결과를
+    // 영속화한다. 추가 import 0 (PrismaService 가 @Global 이라 DI resolve). 후속
+    // orchestrator/controller persist-return slice(§Follow-ups 4)가 inject 받는다.
+    EvaluationResultPersistService,
     // LLM_GATEWAY → LlmHttpGateway useExisting 바인딩. LlmModule 이 등록·export 한
     // LlmHttpGateway singleton 을 그대로 재사용하므로 새 인스턴스 생성 0. interface
     // 가 runtime 소거라 string token 으로 주입을 닫는다.
@@ -61,7 +67,11 @@ import { EvaluationScoringService } from "./evaluation-scoring.service";
       useExisting: LlmHttpGateway,
     },
   ],
-  // 후속 controller / orchestrator-상위 slice 가 inject 받기 위해 두 service 모두 export.
-  exports: [EvaluationScoringService, EvaluationOrchestratorService],
+  // 후속 controller / orchestrator-상위 slice 가 inject 받기 위해 service 들을 export.
+  exports: [
+    EvaluationScoringService,
+    EvaluationOrchestratorService,
+    EvaluationResultPersistService,
+  ],
 })
 export class AssessmentEvaluationModule {}
