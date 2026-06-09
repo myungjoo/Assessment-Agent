@@ -4,15 +4,15 @@
   "flags": {
     "multiTaskFire": true
   },
-  "currentTask": "T-0297",
+  "currentTask": null,
   "nextTask": null,
   "lock": {
     "holder": "loop",
-    "session": "loop@cloud-turn-cap-5",
-    "since": "2026-06-09T12:55:00+09:00",
-    "note": "비권위 human mirror. cloud /loop(turn cap 5) 세션 — gh 부재 + main 직접 push 불가 제약이라 작업을 feature branch + draft PR 로 외화. authoritative claude/lock-driver tip 은 미변경(AKIHA 세션과 분리). Q-0029 RESOLVED(opt-1) → T-0297 ADR-first 진행."
+    "session": "loop@cloud-turn-cap-10-n6hs91",
+    "since": "2026-06-09T15:00:00+09:00",
+    "note": "비권위 human mirror. cloud /loop(turn cap 10) 세션 이어받음 — gh 부재 + main 직접 push 불가라 작업을 feature branch + PR 로 외화. authoritative claude/lock-driver tip(AKIHA-ci0028, 166min stale)은 cloud 권한 부재로 미변경. PR #246 은 #247 로 superseded(closed) — T-0297 ADR-0033 머지(#247) 확인 후 closeout 진행."
   },
-  "lastActivity": "2026-06-09T13:05:00+09:00",
+  "lastActivity": "2026-06-09T15:00:00+09:00",
   "lastCommit": "pending",
   "mostRecentTasks": [
     "T-0297",
@@ -23,11 +23,11 @@
   ],
   "loopSession": {
     "turnCount": 1,
-    "startedAt": "2026-06-09T12:55:00+09:00",
-    "cap": 5,
-    "holder": "loop@cloud-turn-cap-5",
-    "note": "/loop session loop@cloud-turn-cap-5 (turn cap 5) t1 — Q-0029 RESOLVED(opt-1 P5 평가 영속화, 사용자 확정) unblock 후 ADR-first 첫 slice T-0297(ADR-0033 평가 결과 영속화 데이터 모델) 진입. architect 가 ADR-0033 작성, pr-mode draft PR 로 외화(cloud env: gh 부재 + main 직접 push 불가). 원 Q-0029 결정 기록은 PR #246. tasksCompleted 293 유지(T-0297 미머지). next: reviewer 검토 → merge → 후속 prisma schema chain.",
-    "notePrevSession": "/loop session loop@AKIHA-ci0028 (turn cap 10) t3 — T-0296 DONE: ADR-0032 status flip + 백참조. dependency-free P5 doc-sync backlog 소진 → Q-0029 escalation(이후 사용자 opt-1 승인).",
+    "startedAt": "2026-06-09T15:00:00+09:00",
+    "cap": 10,
+    "holder": "loop@cloud-turn-cap-10-n6hs91",
+    "note": "/loop session loop@cloud-turn-cap-10-n6hs91 (turn cap 10) — 사용자 확인 후 turn-cap-5 세션 작업 이어받음. T-0297(ADR-0033 평가 결과 영속화) PR #247 이 reviewer round2 APPROVE + 사용자 머지(92309d7) 완료됐으나 task closeout 미반영(currentTask=T-0297, counter 293 정체) 상태를 발견. 본 turn = merged-PR cleanup(LOOP §1[2]b): T-0297 DONE + tasksCompleted 293→294 + reviewRounds[T-0297]=2(PR #248 doc-only). ADR-0033 PROPOSED→ACCEPTED flip 은 CI doc-only 게이트(docs/decisions/* 는 reviewer 검토 강제 — check-doc-only-pr.sh)에 걸려 본 PR 에서 분리, gh-equipped 세션의 direct-to-main push 또는 별도 reviewer-approved PR 로 follow-up(ADR-0033 자체는 #247 round2 에서 이미 reviewer APPROVE). PR #246(원 Q-0029 기록)은 #247 로 superseded(closed). next: planner 가 후속 dependency-free chain 첫 slice(prisma Contribution @@unique migration) 큐잉.",
+    "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
     "notePrevT2": "/loop t2 — T-0295 DONE(modules.md 11번째 module 박제) + T-0296 큐잉. CI green.",
     "notePrevT1": "/loop t1 — CI-infra 복구(billing spending limit 상향) + Q-0028 RESOLVED + B-ci-infra close + T-0294(api.md 평가 endpoint) DONE 머지(8afc210) + T-0295 큐잉. CI 복구 후 3 연속 green.",
     "notePrev": "직전 session loop@AKIHA-22e7 t10 cap 도달 정상 종료 — T-0288~T-0292 5 task 머지, tasksCompleted 284→289. 이후 cron fire 가 T-0293 머지(290) + T-0294 큐잉 직후 GH Actions runner 미할당 infra-fail 3연속 → BLOCKED(Q-0028). 원인은 private repo Actions spending limit $0.",
@@ -43,6 +43,7 @@
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
+    "T-0297": 2,
     "T-0293": 1,
     "T-0292": 1,
     "T-0291": 1,
@@ -461,7 +462,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 293,
+    "tasksCompleted": 294,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
