@@ -1,16 +1,17 @@
 ---
 id: ADR-0035
 title: batch/aggregate 평가 — 단위 EvaluationResult → 일·주·월 Summary 집계(deterministic metric + LLM 정성 narrative) + Summary 영속화 매핑 + R-61 시점 경계 + 재집계 reset-and-recreate + person-period batch prompt 경계
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-09
-relatedTask: T-0304
+relatedTask: [T-0304, T-0305, T-0306, T-0307, T-0309, T-0310, T-0311]
+relatedPR: [256, 257, 259, 260, 261]
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-064]
 supersedes: null
 ---
 
 # ADR-0035 — batch/aggregate 평가 + Summary 영속화 (EvaluationResult[] → Summary)
 
-> 본 ADR 은 P5 "batch/aggregate 평가 + Summary 영속화" milestone (사용자가 [Q-0030](../STATE.json) 를 option (1) 로 승인) 의 **ADR-first 첫 slice** 다. [ADR-0033](ADR-0033-evaluation-result-persistence.md) 이 단위 평가 영속화 (`EvaluationResult[]` → `Assessment`/`Contribution`) 를 end-to-end 로 닫은 위에서, 그 산출물을 **일·주·월 요약 평가 (`Summary`)** 로 집계·영속화하는 설계만 decide 하며 production code · prisma model · migration SQL · service · controller 배선 0 LOC 다. 구현 (prisma `Summary` 갱신 → migration → aggregate 평가 service → orchestrator/controller batch endpoint 배선 → doc-sync) 은 §Follow-ups 의 dependency-free chain 으로 분해되며 각 slice 는 ≤300 LOC / ≤5 파일 + R-112 4 종 (+ negative cases 충분 cover) 으로 강제한다. **status `PROPOSED`** — ACCEPTED flip 은 reviewer 통과 후 별도 1 줄 direct task ([CLAUDE.md §3.1](../../CLAUDE.md) rule 4).
+> 본 ADR 은 P5 "batch/aggregate 평가 + Summary 영속화" milestone (사용자가 [Q-0030](../STATE.json) 를 option (1) 로 승인) 의 **ADR-first 첫 slice** 다. [ADR-0033](ADR-0033-evaluation-result-persistence.md) 이 단위 평가 영속화 (`EvaluationResult[]` → `Assessment`/`Contribution`) 를 end-to-end 로 닫은 위에서, 그 산출물을 **일·주·월 요약 평가 (`Summary`)** 로 집계·영속화하는 설계만 decide 하며 production code · prisma model · migration SQL · service · controller 배선 0 LOC 다. 구현 (prisma `Summary` 갱신 → migration → aggregate 평가 service → orchestrator/controller batch endpoint 배선 → doc-sync) 은 §Follow-ups 의 dependency-free chain 으로 분해되며 각 slice 는 ≤300 LOC / ≤5 파일 + R-112 4 종 (+ negative cases 충분 cover) 으로 강제한다. **status `ACCEPTED`** — dependency-free 구현 chain T-0305~T-0311 (PR #256/#257/#259/#260/#261 + doc-sync direct) 머지·reviewer-APPROVE·CI-green 완료로 전환 ([CLAUDE.md §3.1](../../CLAUDE.md) rule 4, T-0312).
 
 ## Context
 
@@ -182,14 +183,14 @@ aggregate 평가가 항상 단위 평가를 재실행해 그 in-memory 산출만
 
 ## Follow-ups
 
-(ADR ACCEPTED 후 planner 가 dependency-free chain 으로 분해 — 각 ≤300 LOC / ≤5 파일 + R-112. 본 ADR 은 PROPOSED 이므로 첫 follow-up 이 ACCEPTED flip.)
+(ADR ACCEPTED 후 planner 가 dependency-free chain 으로 분해 — 각 ≤300 LOC / ≤5 파일 + R-112. dependency-free chain (ACCEPTED flip 포함) 은 모두 완료·CI-green; HITL/게이트 의존 항목 [timezone Q-0026 / scheduler P7 새 dep / live-LLM §5 credential] 만 미착수.)
 
-- [ ] **ADR-0035 ACCEPTED flip** — reviewer 통과 후 1 줄 status 전환 (`commitMode: direct`).
-- [ ] **prisma `Summary` `@@unique` 추가 + migration slice** — `Summary` 에 `@@unique([personId, period, periodStart])` 추가 + migration `<ts>_summary_person_period_start_unique` 생성 (`commitMode: pr`, ADR-0004 migrate-deploy 자동 적용).
-- [ ] **aggregate 매핑 + 시점 판정 함수 slice** — `(Contribution[]/EvaluationResult[], context) → SummaryCreateInput` deterministic 집계 순수 함수 (다신호 → metricScore Decimal 축약) + `isPeriodEvaluable(period, periodStart, now)` 순수 함수 + colocated spec (R-112 4 종 + negative: 빈 묶음 / 알 수 없는 enum / 진행 중 구간 미평가).
-- [ ] **aggregate 평가 write service slice** — Summary reset-and-recreate (`$transaction` delete-if-exists → create) + fill/reeval 모드 + partial-reset (`personId`+`period` prefix delete) + batch LLM narrative (mocked-LLM unit). `EvaluationResultPersistService` 패턴 mirror.
-- [ ] **orchestrator/controller batch 평가 endpoint 배선 slice** — aggregate 평가 trigger endpoint (manual trigger + `isPeriodEvaluable` 게이트) + DTO (personId/period/periodStart/mode).
-- [ ] **doc-sync slice** (`commitMode: direct`) — [data-model.md](../architecture/data-model.md) §3 관계 6 + §6 에 Summary 영속화 매핑·`@@unique`·집계 규칙 반영. modules.md / api.md 동기.
+- [x] **ADR-0035 ACCEPTED flip** — reviewer 통과 후 1 줄 status 전환. 완료(T-0312, `commitMode: pr` — `docs/decisions/` 는 doc-only allowlist 제외).
+- [x] **prisma `Summary` `@@unique` 추가 + migration slice** — `Summary` 에 `@@unique([personId, period, periodStart])` 추가 + migration `<ts>_summary_person_period_start_unique` 생성 (`commitMode: pr`, ADR-0004 migrate-deploy 자동 적용). 완료(T-0305, PR #256).
+- [x] **aggregate 매핑 + 시점 판정 함수 slice** — `(Contribution[]/EvaluationResult[], context) → SummaryCreateInput` deterministic 집계 순수 함수 (다신호 → metricScore Decimal 축약) + `isPeriodEvaluable(period, periodStart, now)` 순수 함수 + colocated spec (R-112 4 종 + negative: 빈 묶음 / 알 수 없는 enum / 진행 중 구간 미평가). 완료(T-0306, PR #257).
+- [x] **aggregate 평가 write service slice** — Summary reset-and-recreate (`$transaction` delete-if-exists → create) + fill/reeval 모드 + partial-reset (`personId`+`period` prefix delete) + batch LLM narrative (mocked-LLM unit). `EvaluationResultPersistService` 패턴 mirror. 완료(T-0307 narrative + T-0309 persist, PR #259/#260).
+- [x] **orchestrator/controller batch 평가 endpoint 배선 slice** — aggregate 평가 trigger endpoint (manual trigger + `isPeriodEvaluable` 게이트) + DTO (personId/period/periodStart/mode). 완료(T-0310 orchestrator, PR #261; controller/endpoint 배선 부분은 Q-0030 ADR-gate 로 OUT).
+- [x] **doc-sync slice** (`commitMode: direct`) — [data-model.md](../architecture/data-model.md) §3 관계 6 + §6 에 Summary 영속화 매핑·`@@unique`·집계 규칙 반영. modules.md / api.md 동기. 완료(T-0311, direct).
 - [ ] **(Q-0026 동행) timezone 확정** — `isPeriodEvaluable` 의 자정/주/월 경계 timezone (Asia/Seoul 권장) 을 SinceDerivation 보정과 묶어 단일 결정으로 확정.
 - [ ] **(P7 / 새 dep) scheduler 자동화** — @nestjs/schedule 으로 KST 02:00 미평가 구간 자동 평가 (README L72) — 별도 ADR + 사용자 승인 (§5 dep 게이트).
 - [ ] **(§5 credential) live LLM batch run** — 실 endpoint/key 주입 후 batch prompt 1 회 실제 호출로 narrative 품질 검증 (deferred).
