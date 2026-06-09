@@ -352,6 +352,12 @@ model Summary {
 
   // 시계열 조회 (REQ-038) 용 index 후보 (ADR-0006 Decision §6).
   @@index([personId, period, periodStart])
+
+  // 한 person 의 한 granularity·구간 요약은 정확히 1 row (ADR-0035 §Decision 4).
+  // (personId, period, periodStart) 좌표가 aggregate 재집계 reset-and-recreate 의
+  // idempotency key — 같은 좌표 Summary 중복을 schema-level 로 차단해 application-layer
+  // aggregate write service 의 schema backbone 을 박제한다.
+  @@unique([personId, period, periodStart])
 }
 
 // LlmProviderConfig — data-model.md §2 row "LlmProviderConfig" + §3 관계 8 +

@@ -166,6 +166,186 @@ describe("SummaryRepository", () => {
   });
 
   // ------------------------------------------------------------------
+  // create — Summary `@@unique([personId, period, periodStart])` (T-0305,
+  // ADR-0035 §Decision 4) 의 P2002 propagation 정책 검증.
+  //
+  // 본 unique constraint 는 DB-level 강제이므로 repository 의 mock 테스트는 실제
+  // 충돌을 재현하지 못한다. 따라서:
+  //   - happy / negative (a)~(c): 서로 다른 좌표 input 은 P2002 없이 통과함을 mock
+  //     pass 로 검증 (분기 자체가 DB-level 강제이므로 mock 패스만인 항목 — 명시).
+  //   - error / negative (d): 같은 좌표 재집계 충돌은 Prisma P2002 를 던지는 mock
+  //     시나리오에서 repository.create 가 catch 없이 그대로 throw 함을 검증 (기존
+  //     propagation 정책 유지 — P2002 → ConflictException 변환은 본 layer 책임 외).
+  // ------------------------------------------------------------------
+  describe("create() — @@unique(personId, period, periodStart) propagation", () => {
+    // P2002 unique constraint error 를 흉내내는 helper — Prisma 의 known request
+    // error 는 `code` field 로 식별 (summary.service.ts 의 getPrismaErrorCode 정합).
+    // meta.target 에 위반된 컬럼 집합을 담아 실제 Prisma payload 형태에 근접.
+    function buildP2002(): Error & {
+      code: string;
+      meta: { target: string[] };
+    } {
+      return Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["personId", "period", "periodStart"] },
+      });
+    }
+
+    // Happy path: 정상 좌표 input 은 P2002 없이 통과 — mock create 가 정상 row 반환.
+    it("정상 unique 입력(서로 다른 좌표)은 P2002 없이 통과한다", async () => {
+      const { prisma, summaryMock } = buildPrismaMock();
+      const fixture = buildSummaryFixture({ id: "cuid-unique-ok" });
+      summaryMock.create.mockResolvedValueOnce(fixture);
+
+      const repo = new SummaryRepository(prisma);
+      const result = await repo.create({
+        personId: "person-1",
+        period: "day",
+        periodStart: new Date("2026-06-01T00:00:00.000Z"),
+        narrative: "일간 요약",
+        metricScore: 0.5,
+      });
+
+      expect(summaryMock.create).toHaveBeenCalledTimes(1);
+      expect(result).toBe(fixture);
+    });
+
+    // Error path / negative (d): 동일 (personId, period, periodStart) 재집계 충돌 —
+    // mock create 가 P2002 throw → repository.create 가 catch 없이 그대로 throw.
+    // reset-and-recreate 전 단계의 raw insert 충돌 시뮬레이션.
+    it("duplicate (personId, period, periodStart) 의 P2002 를 catch 없이 그대로 throw 한다", async () => {
+      const { prisma, summaryMock } = buildPrismaMock();
+      summaryMock.create.mockRejectedValueOnce(buildP2002());
+
+      const repo = new SummaryRepository(prisma);
+      await expect(
+        repo.create({
+          personId: "person-1",
+          period: "day",
+          periodStart: new Date("2026-06-01T00:00:00.000Z"),
+          narrative: "같은 좌표 재집계",
+          metricScore: 0.5,
+        }),
+      ).rejects.toMatchObject({
+        code: "P2002",
+        meta: { target: ["personId", "period", "periodStart"] },
+      });
+    });
+
+    // Negative (a): 동일 period+periodStart 지만 personId 가 다른 두 Summary 는 unique
+    // 위반 아님 — 좌표의 첫 컬럼이 다르므로 둘 다 정상 create. (분기는 DB-level 강제 —
+    // mock 패스로만 검증.)
+    it("동일 period+periodStart 라도 personId 가 다르면 위반이 아니다 (둘 다 통과)", async () => {
+      const { prisma, summaryMock } = buildPrismaMock();
+      summaryMock.create
+        .mockResolvedValueOnce(
+          buildSummaryFixture({ id: "s-a1", personId: "person-1" }),
+        )
+        .mockResolvedValueOnce(
+          buildSummaryFixture({ id: "s-a2", personId: "person-2" }),
+        );
+
+      const repo = new SummaryRepository(prisma);
+      const periodStart = new Date("2026-06-01T00:00:00.000Z");
+      const first = await repo.create({
+        personId: "person-1",
+        period: "day",
+        periodStart,
+        narrative: "p1 일간",
+        metricScore: 0.3,
+      });
+      const second = await repo.create({
+        personId: "person-2",
+        period: "day",
+        periodStart,
+        narrative: "p2 일간",
+        metricScore: 0.4,
+      });
+
+      expect(summaryMock.create).toHaveBeenCalledTimes(2);
+      expect(first.personId).toBe("person-1");
+      expect(second.personId).toBe("person-2");
+    });
+
+    // Negative (b): 동일 personId 지만 period 가 다른(day vs week) 두 Summary 는 위반
+    // 아님 — 좌표의 두 번째 컬럼이 다르므로 둘 다 정상 create.
+    it("동일 personId 라도 period 가 다르면(day vs week) 위반이 아니다 (둘 다 통과)", async () => {
+      const { prisma, summaryMock } = buildPrismaMock();
+      summaryMock.create
+        .mockResolvedValueOnce(
+          buildSummaryFixture({ id: "s-b1", period: "day" }),
+        )
+        .mockResolvedValueOnce(
+          buildSummaryFixture({ id: "s-b2", period: "week" }),
+        );
+
+      const repo = new SummaryRepository(prisma);
+      const periodStart = new Date("2026-06-01T00:00:00.000Z");
+      const dayRow = await repo.create({
+        personId: "person-1",
+        period: "day",
+        periodStart,
+        narrative: "일간",
+        metricScore: 0.3,
+      });
+      const weekRow = await repo.create({
+        personId: "person-1",
+        period: "week",
+        periodStart,
+        narrative: "주간",
+        metricScore: 0.6,
+      });
+
+      expect(summaryMock.create).toHaveBeenCalledTimes(2);
+      expect(dayRow.period).toBe("day");
+      expect(weekRow.period).toBe("week");
+    });
+
+    // Negative (c): 동일 personId+period 지만 periodStart 가 다른 두 Summary 는 위반
+    // 아님 — 좌표의 세 번째 컬럼이 다르므로 둘 다 정상 create.
+    it("동일 personId+period 라도 periodStart 가 다르면 위반이 아니다 (둘 다 통과)", async () => {
+      const { prisma, summaryMock } = buildPrismaMock();
+      summaryMock.create
+        .mockResolvedValueOnce(
+          buildSummaryFixture({
+            id: "s-c1",
+            periodStart: new Date("2026-06-01T00:00:00.000Z"),
+          }),
+        )
+        .mockResolvedValueOnce(
+          buildSummaryFixture({
+            id: "s-c2",
+            periodStart: new Date("2026-06-02T00:00:00.000Z"),
+          }),
+        );
+
+      const repo = new SummaryRepository(prisma);
+      const firstDay = await repo.create({
+        personId: "person-1",
+        period: "day",
+        periodStart: new Date("2026-06-01T00:00:00.000Z"),
+        narrative: "6/1 일간",
+        metricScore: 0.3,
+      });
+      const secondDay = await repo.create({
+        personId: "person-1",
+        period: "day",
+        periodStart: new Date("2026-06-02T00:00:00.000Z"),
+        narrative: "6/2 일간",
+        metricScore: 0.4,
+      });
+
+      expect(summaryMock.create).toHaveBeenCalledTimes(2);
+      expect(firstDay.periodStart).toEqual(
+        new Date("2026-06-01T00:00:00.000Z"),
+      );
+      expect(secondDay.periodStart).toEqual(
+        new Date("2026-06-02T00:00:00.000Z"),
+      );
+    });
+  });
+
+  // ------------------------------------------------------------------
   // findById — happy + negative (row 부재 → null) path
   // ------------------------------------------------------------------
   describe("findById()", () => {
