@@ -171,6 +171,149 @@ describe("AssessmentRepository", () => {
   });
 
   // ------------------------------------------------------------------
+  // Contribution @@unique([assessmentId, sourceRef]) — ADR-0033 §4 / T-0298.
+  // schema-level unique 강제는 DB layer 책임이므로 repository unit 단에서는 PrismaService
+  // mock 으로 P2002 propagation 정책 (catch X — AssessmentService 가 ConflictException
+  // 변환) 이 Contribution-level 충돌에서도 동일하게 유지됨을 검증한다. nested Contribution[]
+  // 입력은 후속 write service slice 가 사용할 shape 의 선행 contract 박제다.
+  // ------------------------------------------------------------------
+  describe("Contribution @@unique([assessmentId, sourceRef]) P2002 정책", () => {
+    // nested Contribution[] 를 포함한 create payload helper — Prisma 의 nested write
+    // shape (`contributions: { create: [...] }`) mirror. mock 단이라 실제 nested write
+    // 는 일어나지 않고 호출 인자 / error propagation 만 검증한다.
+    function buildNestedCreatePayload(
+      contributions: Array<{ assessmentId?: string; sourceRef: string }>,
+    ): Record<string, unknown> {
+      return {
+        personId: "person-1",
+        period: "week",
+        scope: "commit",
+        periodStart: new Date("2026-05-25T00:00:00.000Z"),
+        difficulty: "medium",
+        contributionScore: 0.5,
+        volume: contributions.length,
+        narrative: "재평가 reset-and-recreate batch",
+        contributions: { create: contributions },
+      };
+    }
+
+    // Happy path: 정상 unique (assessmentId, sourceRef) 입력은 P2002 없이 통과.
+    it("정상 unique (assessmentId, sourceRef) 입력은 P2002 없이 통과한다", async () => {
+      const { prisma, assessmentMock } = buildPrismaMock();
+      assessmentMock.create.mockResolvedValueOnce(buildAssessmentFixture());
+
+      const repo = new AssessmentRepository(prisma);
+      const payload = buildNestedCreatePayload([
+        { sourceRef: "sha-aaa" },
+        { sourceRef: "sha-bbb" },
+      ]) as unknown as Parameters<typeof repo.create>[0];
+
+      await expect(repo.create(payload)).resolves.toBeDefined();
+      expect(assessmentMock.create).toHaveBeenCalledTimes(1);
+    });
+
+    // Error path (P2002 propagate): 동일 (assessmentId, sourceRef) 중복 시 Prisma 가
+    // P2002 throw → repository catch X, 그대로 전파 (AssessmentService 책임).
+    it("duplicate (assessmentId, sourceRef) 가 P2002 로 그대로 propagate 된다 (catch X)", async () => {
+      const { prisma, assessmentMock } = buildPrismaMock();
+      const p2002 = Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["assessmentId", "sourceRef"] },
+      });
+      assessmentMock.create.mockRejectedValueOnce(p2002);
+
+      const repo = new AssessmentRepository(prisma);
+      const payload = buildNestedCreatePayload([
+        { sourceRef: "sha-dup" },
+        { sourceRef: "sha-dup" },
+      ]) as unknown as Parameters<typeof repo.create>[0];
+
+      await expect(repo.create(payload)).rejects.toMatchObject({
+        code: "P2002",
+        meta: { target: ["assessmentId", "sourceRef"] },
+      });
+    });
+
+    // Error path (a): 빈 Contribution[] 입력 — 충돌 표면 0 이므로 P2002 미발생.
+    it("빈 Contribution[] 입력은 P2002 없이 통과한다 (충돌 표면 0)", async () => {
+      const { prisma, assessmentMock } = buildPrismaMock();
+      assessmentMock.create.mockResolvedValueOnce(buildAssessmentFixture());
+
+      const repo = new AssessmentRepository(prisma);
+      const payload = buildNestedCreatePayload([]) as unknown as Parameters<
+        typeof repo.create
+      >[0];
+
+      await expect(repo.create(payload)).resolves.toBeDefined();
+      expect(assessmentMock.create).toHaveBeenCalledTimes(1);
+    });
+
+    // Error path (b): 동일 sourceRef + 다른 assessmentId 는 unique 위반 아님 — 다른
+    // Assessment 의 동일 unitId 는 정상. 두 번의 별개 create 호출 모두 P2002 미발생.
+    it("동일 sourceRef + 다른 assessmentId 두 Contribution 은 unique 위반이 아니다", async () => {
+      const { prisma, assessmentMock } = buildPrismaMock();
+      assessmentMock.create
+        .mockResolvedValueOnce(buildAssessmentFixture({ id: "assess-1" }))
+        .mockResolvedValueOnce(buildAssessmentFixture({ id: "assess-2" }));
+
+      const repo = new AssessmentRepository(prisma);
+      const first = buildNestedCreatePayload([
+        { assessmentId: "assess-1", sourceRef: "sha-same" },
+      ]) as unknown as Parameters<typeof repo.create>[0];
+      const second = buildNestedCreatePayload([
+        { assessmentId: "assess-2", sourceRef: "sha-same" },
+      ]) as unknown as Parameters<typeof repo.create>[0];
+
+      await expect(repo.create(first)).resolves.toBeDefined();
+      await expect(repo.create(second)).resolves.toBeDefined();
+      expect(assessmentMock.create).toHaveBeenCalledTimes(2);
+    });
+
+    // Negative (c): 동일 (assessmentId, sourceRef) 가 1 batch 안에서 2번 등장 →
+    // DB 가 P2002 throw 하는 시나리오 시뮬레이션. repository 는 그대로 전파.
+    it("1 batch 안 동일 (assessmentId, sourceRef) 2회 등장은 P2002 로 전파된다", async () => {
+      const { prisma, assessmentMock } = buildPrismaMock();
+      const p2002 = Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["assessmentId", "sourceRef"] },
+      });
+      assessmentMock.create.mockRejectedValueOnce(p2002);
+
+      const repo = new AssessmentRepository(prisma);
+      const payload = buildNestedCreatePayload([
+        { assessmentId: "assess-x", sourceRef: "sha-batch-dup" },
+        { assessmentId: "assess-x", sourceRef: "sha-batch-dup" },
+      ]) as unknown as Parameters<typeof repo.create>[0];
+
+      await expect(repo.create(payload)).rejects.toMatchObject({
+        code: "P2002",
+      });
+    });
+
+    // Negative (d): sourceRef 가 빈 문자열인 두 Contribution 동시 입력 — schema 는
+    // String NOT NULL 만 강제하므로 빈 문자열 2 개도 동일 값으로 간주되어 unique 충돌.
+    // 운영 시 placeholder 빈 문자열 사용 risk 박제 (후속 write service sanitize 책임 hint).
+    it("빈 문자열 sourceRef 두 Contribution 동시 입력은 unique 충돌 (P2002) 로 전파된다", async () => {
+      const { prisma, assessmentMock } = buildPrismaMock();
+      const p2002 = Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["assessmentId", "sourceRef"] },
+      });
+      assessmentMock.create.mockRejectedValueOnce(p2002);
+
+      const repo = new AssessmentRepository(prisma);
+      const payload = buildNestedCreatePayload([
+        { assessmentId: "assess-y", sourceRef: "" },
+        { assessmentId: "assess-y", sourceRef: "" },
+      ]) as unknown as Parameters<typeof repo.create>[0];
+
+      await expect(repo.create(payload)).rejects.toMatchObject({
+        code: "P2002",
+      });
+    });
+  });
+
+  // ------------------------------------------------------------------
   // findById — happy + negative (row 부재 → null) path
   // ------------------------------------------------------------------
   describe("findById()", () => {

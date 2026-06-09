@@ -320,6 +320,12 @@ model Contribution {
   // Assessment N:1 — Assessment 의 hard delete (REQ-041 Admin manual delete) 시
   // component Contribution 동반 cascade 삭제 (ADR-0006 Decision §6).
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  // 동일 Assessment 안에서 동일 unitId (= sourceRef) 의 Contribution 중복 차단 →
+  // REQ-031 재수집 중복 방지의 Contribution-level mirror (Assessment-level idempotency
+  // `@@unique([personId, period, scope, periodStart])` 와 짝). application-layer dedup
+  // (후속 write service slice 의 reset-and-recreate) 의 schema backbone (ADR-0033 §4).
+  @@unique([assessmentId, sourceRef])
 }
 
 // Summary — ADR-0006 Decision §3 + data-model.md §3 관계 6 (Person↔Summary).
