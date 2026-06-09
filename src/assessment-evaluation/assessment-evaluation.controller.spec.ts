@@ -11,7 +11,7 @@
 //      nested 필수 필드 누락 / 정의 외 추가 필드 / wrong type 6 종.
 //   3. RBAC metadata 단언 — Reflector 로 @Roles("Admin") + @UseGuards(JwtAuthGuard,
 //      RolesGuard) 부착 검증.
-import { ValidationPipe } from "@nestjs/common";
+import { ConflictException, ValidationPipe } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -25,22 +25,52 @@ import {
   ActivityItemDto,
 } from "./dto/evaluate-activities.dto";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
+import {
+  EvaluationResultPersistService,
+  type PersistResult,
+} from "./evaluation-result-persist.service";
 
-// makeController — orchestrator mock 주입 헬퍼. evaluateActivities 의 jest.fn 을 함께
-// 반환해 호출 인자 / 횟수 / 반환 forward 검증을 enable.
+// context 4-tuple(ADR-0033 §51) — 모든 evaluate dto fixture 의 base. persist 호출
+// 인자 검증의 기준.
+const baseContext = {
+  personId: "person-1",
+  period: "week",
+  scope: "commit",
+  periodStart: "2026-06-01T00:00:00.000Z",
+};
+
+// 기본 persist mock 반환 — 박제된 식별자.
+const defaultPersistResult: PersistResult = {
+  assessmentId: "assessment-1",
+  contributionCount: 2,
+};
+
+// makeController — orchestrator + persist mock 주입 헬퍼. 두 jest.fn 을 함께 반환해
+// 호출 인자 / 횟수 / 반환 forward 검증을 enable. persistImpl 미지정 시 defaultPersist
+// Result 를 resolve.
 function makeController(
   evaluateImpl: (...args: unknown[]) => Promise<EvaluationResult[]>,
+  persistImpl?: (...args: unknown[]) => Promise<PersistResult>,
 ): {
   controller: AssessmentEvaluationController;
   evaluateSpy: jest.Mock;
+  persistSpy: jest.Mock;
 } {
   const evaluateSpy = jest.fn(evaluateImpl);
+  const persistSpy = jest.fn(persistImpl ?? (async () => defaultPersistResult));
   const orchestrator = {
     evaluateActivities: evaluateSpy,
   } as unknown as EvaluationOrchestratorService;
+  const persistService = {
+    persist: persistSpy,
+  } as unknown as EvaluationResultPersistService;
   return {
-    controller: new AssessmentEvaluationController(orchestrator),
+    controller: new AssessmentEvaluationController(
+      orchestrator,
+      persistService,
+    ),
     evaluateSpy,
+    persistSpy,
   };
 }
 
@@ -81,89 +111,161 @@ function makeEvaluationResult(
   };
 }
 
-describe("AssessmentEvaluationController (unit — delegation)", () => {
-  // happy: 유효한 DTO 입력 시 orchestrator.evaluateActivities 가 정확히 1 회 호출되고
-  // 반환이 그대로 forward.
-  it("evaluate() 가 orchestrator.evaluateActivities 에 위임하고 반환을 그대로 forward 한다 (happy)", async () => {
+// makeDto — context 4-tuple 을 포함한 evaluate DTO fixture 빌더. overrides 로 modelId /
+// activities / mode 등을 변형한다.
+function makeDto(
+  overrides: Partial<EvaluateActivitiesDto> = {},
+): EvaluateActivitiesDto {
+  return {
+    modelId: "gpt-4o-mini",
+    ...baseContext,
+    activities: [githubActivity as unknown as ActivityItemDto],
+    ...overrides,
+  };
+}
+
+describe("AssessmentEvaluationController (unit — delegation + persist wiring)", () => {
+  // happy: 유효한 DTO 입력 시 orchestrator → persist 순서로 호출되고, 박제 식별자 +
+  // in-memory 결과를 함께 반환.
+  it("evaluate() 가 orchestrator 위임 후 persist 를 호출하고 { assessmentId, contributionCount, results } 를 반환한다 (happy)", async () => {
     const expected = [makeEvaluationResult()];
-    const { controller, evaluateSpy } = makeController(async () => expected);
+    const { controller, evaluateSpy, persistSpy } = makeController(
+      async () => expected,
+    );
 
-    const dto: EvaluateActivitiesDto = {
-      modelId: "gpt-4o-mini",
-      activities: [githubActivity as unknown as ActivityItemDto],
-    };
-
+    const dto = makeDto();
     const result = await controller.evaluate(dto);
 
     expect(evaluateSpy).toHaveBeenCalledTimes(1);
     expect(evaluateSpy).toHaveBeenCalledWith(dto.activities, {
       modelId: "gpt-4o-mini",
     });
-    expect(result).toBe(expected);
+    // persist 가 orchestrator 결과 + 조립된 context + mode 로 호출됨.
+    expect(persistSpy).toHaveBeenCalledTimes(1);
+    expect(persistSpy).toHaveBeenCalledWith(
+      {
+        personId: "person-1",
+        period: "week",
+        scope: "commit",
+        periodStart: new Date("2026-06-01T00:00:00.000Z"),
+      },
+      expected,
+      "fill",
+    );
+    // 반환 shape — 영속 식별자 + in-memory 결과 동시.
+    expect(result).toEqual({
+      assessmentId: "assessment-1",
+      contributionCount: 2,
+      results: expected,
+    });
+    // results 는 orchestrator 반환 reference 그대로(가공 0).
+    expect(result.results).toBe(expected);
   });
 
-  // 위임 검증: controller 가 orchestrator 반환을 가공하지 않고 그대로 통과시킴.
-  it("orchestrator 반환을 가공하지 않고 그대로 forward 한다 (delegation purity)", async () => {
-    const expected = [
-      makeEvaluationResult("github:com:abc123"),
-      makeEvaluationResult("confluence:wiki-eng:page-42"),
-    ];
-    const { controller } = makeController(async () => expected);
-    const dto: EvaluateActivitiesDto = {
-      modelId: "claude-haiku",
-      activities: [
-        githubActivity as unknown as ActivityItemDto,
-        confluenceActivity as unknown as ActivityItemDto,
-      ],
-    };
+  // periodStart 가 string → Date 로 파싱돼 persist context 에 전달.
+  it("periodStart string 을 Date 로 파싱해 persist context 에 전달한다 (parsing branch)", async () => {
+    const expected = [makeEvaluationResult()];
+    const { controller, persistSpy } = makeController(async () => expected);
 
-    const result = await controller.evaluate(dto);
+    await controller.evaluate(
+      makeDto({ periodStart: "2026-01-15T09:30:00.000Z" }),
+    );
 
-    // 동일 reference — 객체 복사 0, 배열 reordering 0.
-    expect(result).toBe(expected);
-    expect(result.length).toBe(2);
-    expect(result[0].unitId).toBe("github:com:abc123");
-    expect(result[1].unitId).toBe("confluence:wiki-eng:page-42");
+    const passedContext = persistSpy.mock.calls[0][0] as { periodStart: Date };
+    expect(passedContext.periodStart).toBeInstanceOf(Date);
+    expect(passedContext.periodStart.toISOString()).toBe(
+      "2026-01-15T09:30:00.000Z",
+    );
   });
 
-  // error path: orchestrator reject 시 controller 가 swallow 하지 않고 그대로 전파.
-  it("orchestrator.evaluateActivities reject 시 error 를 그대로 전파한다 (error path, swallow 0)", async () => {
+  // branch — mode='fill' 명시 시 persist 에 'fill' 전달.
+  it("mode='fill' 명시 시 persist 에 'fill' 을 전달한다 (branch — fill)", async () => {
+    const { controller, persistSpy } = makeController(async () => [
+      makeEvaluationResult(),
+    ]);
+
+    await controller.evaluate(makeDto({ mode: "fill" }));
+
+    expect(persistSpy.mock.calls[0][2]).toBe("fill");
+  });
+
+  // branch — mode='reeval' 명시 시 persist 에 'reeval' 전달.
+  it("mode='reeval' 명시 시 persist 에 'reeval' 을 전달한다 (branch — reeval)", async () => {
+    const { controller, persistSpy } = makeController(async () => [
+      makeEvaluationResult(),
+    ]);
+
+    await controller.evaluate(makeDto({ mode: "reeval" }));
+
+    expect(persistSpy.mock.calls[0][2]).toBe("reeval");
+  });
+
+  // branch — mode 미지정 시 기본값 'fill'.
+  it("mode 미지정 시 기본값 'fill' 을 persist 에 전달한다 (branch — default fill)", async () => {
+    const { controller, persistSpy } = makeController(async () => [
+      makeEvaluationResult(),
+    ]);
+
+    await controller.evaluate(makeDto({ mode: undefined }));
+
+    expect(persistSpy.mock.calls[0][2]).toBe("fill");
+  });
+
+  // branch — 허용 외 mode 값은 'fill' 로 안전 fallback(reeval 오인 방지).
+  it("허용 외 mode('bogus') 는 'fill' 로 안전 fallback 한다 (branch — unknown mode)", async () => {
+    const { controller, persistSpy } = makeController(async () => [
+      makeEvaluationResult(),
+    ]);
+
+    await controller.evaluate(makeDto({ mode: "bogus" }));
+
+    expect(persistSpy.mock.calls[0][2]).toBe("fill");
+  });
+
+  // error path: orchestrator reject 시 persist 미호출 + error 전파(swallow 0).
+  it("orchestrator reject 시 persist 미호출 + error 를 그대로 전파한다 (error path — orchestrator)", async () => {
     const rawError = new Error("scoreUnit failed: model timeout");
-    const { controller } = makeController(async () => {
+    const { controller, persistSpy } = makeController(async () => {
       throw rawError;
     });
-    const dto: EvaluateActivitiesDto = {
-      modelId: "gpt-4o-mini",
-      activities: [githubActivity as unknown as ActivityItemDto],
-    };
 
-    await expect(controller.evaluate(dto)).rejects.toBe(rawError);
+    await expect(controller.evaluate(makeDto())).rejects.toBe(rawError);
+    expect(persistSpy).not.toHaveBeenCalled();
   });
 
-  // branch — github only input.
-  it("github activity 만 입력 시 orchestrator 에 그대로 forward 한다 (branch — github only)", async () => {
-    const expected = [makeEvaluationResult()];
-    const { controller, evaluateSpy } = makeController(async () => expected);
-    const dto: EvaluateActivitiesDto = {
-      modelId: "gpt-4o-mini",
-      activities: [githubActivity as unknown as ActivityItemDto],
-    };
+  // error path: persist reject(ConflictException) 시 controller 가 raw 전파(swallow 0).
+  it("persist 가 ConflictException reject 시 controller 가 raw 전파한다 (error path — persist, 409 surfacing)", async () => {
+    const conflict = new ConflictException("평가 결과가 이미 존재한다");
+    const { controller } = makeController(
+      async () => [makeEvaluationResult()],
+      async () => {
+        throw conflict;
+      },
+    );
 
-    await controller.evaluate(dto);
-
-    expect(evaluateSpy).toHaveBeenCalledWith([githubActivity], {
-      modelId: "gpt-4o-mini",
-    });
+    await expect(controller.evaluate(makeDto())).rejects.toBe(conflict);
   });
 
-  // branch — confluence only input.
+  // error path: persist 가 일반 error reject 시에도 raw 전파.
+  it("persist 가 일반 error reject 시에도 raw 전파한다 (error path — persist generic)", async () => {
+    const rawError = new Error("DB connection lost");
+    const { controller } = makeController(
+      async () => [makeEvaluationResult()],
+      async () => {
+        throw rawError;
+      },
+    );
+
+    await expect(controller.evaluate(makeDto())).rejects.toBe(rawError);
+  });
+
+  // branch — confluence only input 도 그대로 forward.
   it("confluence activity 만 입력 시 orchestrator 에 그대로 forward 한다 (branch — confluence only)", async () => {
     const expected = [makeEvaluationResult("confluence:wiki-eng:page-42")];
     const { controller, evaluateSpy } = makeController(async () => expected);
-    const dto: EvaluateActivitiesDto = {
-      modelId: "gpt-4o-mini",
+    const dto = makeDto({
       activities: [confluenceActivity as unknown as ActivityItemDto],
-    };
+    });
 
     await controller.evaluate(dto);
 
@@ -179,62 +281,47 @@ describe("AssessmentEvaluationController (unit — delegation)", () => {
       makeEvaluationResult("confluence:wiki-eng:page-42"),
     ];
     const { controller, evaluateSpy } = makeController(async () => expected);
-    const dto: EvaluateActivitiesDto = {
-      modelId: "gpt-4o-mini",
+    const dto = makeDto({
       activities: [
         githubActivity as unknown as ActivityItemDto,
         confluenceActivity as unknown as ActivityItemDto,
       ],
-    };
+    });
 
-    await controller.evaluate(dto);
+    const result = await controller.evaluate(dto);
 
     expect(evaluateSpy).toHaveBeenCalledWith(
       [githubActivity, confluenceActivity],
       { modelId: "gpt-4o-mini" },
     );
+    expect(result.results).toBe(expected);
   });
 
-  // branch — orchestrator 가 빈 결과 반환 시 controller 도 빈 배열 forward.
-  it("orchestrator 가 빈 EvaluationResult[] 반환 시 controller 도 빈 배열을 forward 한다 (branch — empty result)", async () => {
+  // branch — orchestrator 가 빈 결과 반환 시에도 persist 호출 + 빈 결과 반환.
+  it("orchestrator 가 빈 EvaluationResult[] 반환 시에도 persist 호출 후 빈 results 를 반환한다 (branch — empty result)", async () => {
     const empty: EvaluationResult[] = [];
-    const { controller } = makeController(async () => empty);
-    const dto: EvaluateActivitiesDto = {
-      modelId: "gpt-4o-mini",
-      activities: [githubActivity as unknown as ActivityItemDto],
-    };
+    const { controller, persistSpy } = makeController(
+      async () => empty,
+      async () => ({
+        assessmentId: "assessment-empty",
+        contributionCount: 0,
+      }),
+    );
+    const result = await controller.evaluate(makeDto());
 
-    const result = await controller.evaluate(dto);
-
-    expect(result).toBe(empty);
-    expect(result.length).toBe(0);
-  });
-
-  // determinism: 동일 입력 + 동일 mock 응답 → 동일 응답 2 회.
-  it("동일 입력 + 동일 mock 응답 → 2 회 호출도 동일 응답 (determinism)", async () => {
-    const expected = [makeEvaluationResult()];
-    const { controller, evaluateSpy } = makeController(async () => expected);
-    const dto: EvaluateActivitiesDto = {
-      modelId: "gpt-4o-mini",
-      activities: [githubActivity as unknown as ActivityItemDto],
-    };
-
-    const r1 = await controller.evaluate(dto);
-    const r2 = await controller.evaluate(dto);
-
-    expect(r1).toBe(expected);
-    expect(r2).toBe(expected);
-    expect(evaluateSpy).toHaveBeenCalledTimes(2);
+    expect(persistSpy).toHaveBeenCalledWith(expect.anything(), empty, "fill");
+    expect(result.results).toBe(empty);
+    expect(result.results.length).toBe(0);
+    expect(result.contributionCount).toBe(0);
   });
 
   // 입력 비변형: controller 가 dto 객체를 수정하지 않음.
   it("controller 는 입력 dto 의 modelId / activities 를 변형하지 않는다 (input immutability)", async () => {
     const expected = [makeEvaluationResult()];
     const { controller } = makeController(async () => expected);
-    const dto: EvaluateActivitiesDto = {
-      modelId: "gpt-4o-mini",
+    const dto = makeDto({
       activities: [{ ...githubActivity } as unknown as ActivityItemDto],
-    };
+    });
     const snapshotModelId = dto.modelId;
     const snapshotActivities = [...dto.activities];
     const snapshotItem = { ...dto.activities[0] };
@@ -265,19 +352,36 @@ describe("EvaluateActivitiesDto (ValidationPipe negative cases)", () => {
   };
 
   // 정상 case 가 통과하는지부터 확인 — pipe 자체 동작 sanity check.
-  it("유효한 DTO 는 통과한다 (sanity — happy)", async () => {
+  it("유효한 DTO(context 4-tuple 포함)는 통과한다 (sanity — happy)", async () => {
     const pipe = makePipe();
     const transformed = await pipe.transform(
       {
         modelId: "gpt-4o-mini",
+        ...baseContext,
         activities: [{ ...githubActivity }],
       },
       meta,
     );
     expect(transformed).toBeInstanceOf(EvaluateActivitiesDto);
     expect(transformed.modelId).toBe("gpt-4o-mini");
+    expect(transformed.personId).toBe("person-1");
     expect(transformed.activities[0]).toBeInstanceOf(ActivityItemDto);
   });
+
+  // context 4-tuple 누락 → 거부(각 필드 required).
+  it.each(["personId", "period", "scope", "periodStart"] as const)(
+    "context 필드 %s 누락 시 ValidationPipe 가 거부한다 (negative — required context field)",
+    async (field) => {
+      const pipe = makePipe();
+      const payload: Record<string, unknown> = {
+        modelId: "gpt-4o-mini",
+        ...baseContext,
+        activities: [{ ...githubActivity }],
+      };
+      delete payload[field];
+      await expect(pipe.transform(payload, meta)).rejects.toThrow();
+    },
+  );
 
   // (i) modelId 누락 → 거부.
   it("modelId 누락 시 ValidationPipe 가 거부한다 (negative — required field missing)", async () => {

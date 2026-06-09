@@ -106,6 +106,11 @@ export class ActivityItemDto {
   version?: number;
 }
 
+// PersistMode literal — ADR-0033 §3 fill / reeval(REQ-037/REQ-041). DTO 단계는 형식만
+// 받고(@IsOptional 기본 "fill"), 허용 literal 값 검증은 persist service 책임(기존 DTO
+// 관행 정합 — @IsIn 미적용). controller 가 union 으로 좁혀 persist 에 전달한다.
+export type EvaluatePersistMode = "fill" | "reeval";
+
 export class EvaluateActivitiesDto {
   // modelId — `ScoringOptions.modelId` source. `EvaluationScoringService.scoreUnit`
   // 가 gateway.generate 의 modelId 로 그대로 전달한다(ADR-0032 §2). 형식: 비어있지 않은
@@ -122,4 +127,43 @@ export class EvaluateActivitiesDto {
   @ValidateNested({ each: true })
   @Type(() => ActivityItemDto)
   activities!: ActivityItemDto[];
+
+  // --- context 4-tuple(ADR-0033 §51) — 영속화 진입의 식별 축. `EvaluationResult` 에
+  // 없으므로 HTTP request body 에서 받아 controller 가 persist context 로 조립한다.
+  // 허용 literal 값(period 의 day/week/month, scope 의 commit/document/aggregate) 검증은
+  // persist service 책임(@IsIn 미적용 — 기존 collection DTO 관행 정합). 형식 검증
+  // decorator 만 박제. ---
+
+  // personId — 평가 대상 person 의 식별자. idempotency key(ADR-0033 §3)의 leading 축.
+  @IsString()
+  @IsNotEmpty()
+  personId!: string;
+
+  // period — 평가 기간 종류(day/week/month). 형식만 검증, 허용 literal 값은 persist
+  // service 책임(VALID_PERIODS single source 재사용).
+  @IsString()
+  @IsNotEmpty()
+  period!: string;
+
+  // scope — 평가 scope(commit/document/aggregate). 형식만 검증, 허용 literal 값은
+  // persist service 책임(VALID_SCOPES single source 재사용).
+  @IsString()
+  @IsNotEmpty()
+  scope!: string;
+
+  // periodStart — 기간 시작 시각(ISO-8601 string). controller 가 `new Date(...)` 로
+  // 파싱해 persist context 의 `periodStart: Date` 로 변환한다. 형식만 검증(파싱은
+  // controller 책임 — DTO 는 string surface 만).
+  @IsString()
+  @IsNotEmpty()
+  periodStart!: string;
+
+  // mode — 영속화 모드(ADR-0033 §3). 미지정 시 controller 가 기본값 "fill" 적용.
+  // 형식만 검증(@IsOptional + @IsString), 허용 literal 값(fill/reeval)은 persist
+  // service 책임(@IsIn 미적용 — 기존 DTO 관행 정합). 허용 외 값은 service 가 reset-
+  // and-recreate 분기에서 fill 외 = reeval 로 취급하지 않고 union 으로만 좁힌다.
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  mode?: string;
 }
