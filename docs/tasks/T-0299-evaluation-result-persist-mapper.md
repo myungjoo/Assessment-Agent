@@ -2,8 +2,11 @@
 id: T-0299
 title: EvaluationResult → AssessmentCreateInput/ContributionCreateInput 매핑 순수 함수 (ADR-0033 §Follow-ups 2번째 slice)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 251
+completedAt: 2026-06-09T18:20:00+09:00
+result: DONE — PR #251 squash 416b1bb 머지. reviewer round1 APPROVE(0 BLOCKER/0 MAJOR/4 NIT) + 4-게이트 PASS + CI green(run 27196033718). 순수 매퍼 + R-112 spec, mapper 100% cov. tasksCompleted 295→296. reviewer NIT 2건(difficulty unknown 정책 / Decimal 정밀도)은 T-0300(slice 3)에 fold-in.
 coversReq: [REQ-029, REQ-032, REQ-036]
 estimatedDiff: 160
 estimatedFiles: 2
