@@ -51,6 +51,8 @@ import { EvaluationResultPersistService } from "./evaluation-result-persist.serv
 // eslint-disable-next-line import/first
 import { EvaluationScoringService } from "./evaluation-scoring.service";
 // eslint-disable-next-line import/first
+import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
+// eslint-disable-next-line import/first
 import { SummaryNarrativeService } from "./summary-narrative.service";
 // eslint-disable-next-line import/first
 import { SummaryPersistService } from "./summary-persist.service";
@@ -98,6 +100,17 @@ describe("AssessmentEvaluationModule", () => {
     const summaryPersist = moduleRef.get(SummaryPersistService);
     expect(summaryPersist).toBeDefined();
     expect(summaryPersist).toBeInstanceOf(SummaryPersistService);
+
+    // SummaryAggregateOrchestratorService(T-0310, ADR-0035 §Follow-ups)도 같은 module
+    // 에서 resolve 되며 SummaryPersistService(같은 module)를 DI 로 주입받는다(provider
+    // 등록 누락 시 본 resolve 가 fail — 배선 게이트, T-0307 round2 MAJOR 학습).
+    const summaryOrchestrator = moduleRef.get(
+      SummaryAggregateOrchestratorService,
+    );
+    expect(summaryOrchestrator).toBeDefined();
+    expect(summaryOrchestrator).toBeInstanceOf(
+      SummaryAggregateOrchestratorService,
+    );
 
     await moduleRef.close();
   });
