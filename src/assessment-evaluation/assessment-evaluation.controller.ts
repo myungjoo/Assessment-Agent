@@ -25,8 +25,12 @@
 //   - period/personId → 수집 → `Activity[]` 변환 bridge 는 본 controller 밖. 본 endpoint
 //     는 "이미 수집된 `Activity[]` 직접 수신" 계약만(R-9 사용자 지정 기간의 full 계약은
 //     후속 bridge slice).
-//   - 평가 결과 영속화 / Prisma migration / `EvaluationResult` → Assessment·Contribution
-//     row 매핑 — §5 schema 게이트 deferred. 본 controller 는 in-memory 결과 반환만.
+//   - 평가 결과 영속화 — T-0301(ADR-0033 §Follow-ups slice 4)이 본 controller 에
+//     persist hook 을 배선했다. orchestrator 호출(in-memory 순수 compose, ADR-0032
+//     계약 보존) 후 그 결과를 `EvaluationResultPersistService.persist` 에 넘겨 영속화
+//     하고, 박제된 식별자(assessmentId / contributionCount)와 in-memory 결과를 함께
+//     반환한다. context 4-tuple(personId/period/scope/periodStart, ADR-0033 §51)은
+//     HTTP request body 가 소유하므로 controller 가 persist 진입의 조립 책임을 가진다.
 //   - 일/주/월 aggregate 평가 / batch prompting — orchestrator 가 per-unit 만 cover.
 //     집계 endpoint 는 후속 slice(ADR-0032 §2 batch 경계).
 //   - e2e HTTP 통합 spec(supertest 실 부팅 + RBAC/Validation 통합 검증) — 후속 slice.
@@ -47,8 +51,23 @@ import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
 import type { EvaluationResult } from "./domain/evaluation-result";
+import type { EvaluationPersistContext } from "./domain/evaluation-result.persist.mapper";
 import { EvaluateActivitiesDto } from "./dto/evaluate-activities.dto";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
+import {
+  EvaluationResultPersistService,
+  type PersistMode,
+} from "./evaluation-result-persist.service";
+
+// EvaluateResponse — POST /evaluate 반환 shape(ADR-0033 §Follow-ups slice 4 — "persists
+// the result and returns the assessmentId / persisted identifiers"). 영속 식별자
+// (assessmentId / contributionCount)와 in-memory 평가 결과(results)를 동시에 반환해
+// caller 가 영속 row 참조와 즉시 결과 활용을 모두 할 수 있게 한다.
+export interface EvaluateResponse {
+  assessmentId: string;
+  contributionCount: number;
+  results: EvaluationResult[];
+}
 
 @Controller("api/assessment-evaluation")
 @UsePipes(
@@ -59,31 +78,62 @@ import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service
   }),
 )
 export class AssessmentEvaluationController {
-  // EvaluationOrchestratorService 를 생성자 주입 — 같은 module 내 class provider 라
-  // 추가 token 0. test 는 jest mock { evaluateActivities } 를 주입해 실 LLM 호출 0 /
-  // 실 네트워크 0 / live credential 0 으로 위임 정합만 검증한다.
-  constructor(private readonly orchestrator: EvaluationOrchestratorService) {}
+  // EvaluationOrchestratorService + EvaluationResultPersistService 를 생성자 주입 —
+  // 둘 다 같은 module(assessment-evaluation.module.ts)의 기존 provider 라 추가 token /
+  // module 배선 변경 0. test 는 jest mock { evaluateActivities } / { persist } 를 주입해
+  // 실 LLM 호출 0 / 실 DB write 0 / 실 네트워크 0 / live credential 0 으로 배선 정합만
+  // 검증한다.
+  constructor(
+    private readonly orchestrator: EvaluationOrchestratorService,
+    private readonly persistService: EvaluationResultPersistService,
+  ) {}
 
-  // POST /api/assessment-evaluation/evaluate — 평가 manual trigger.
-  //   - 200 OK + EvaluationResult[](orchestrator 반환 그대로 forward, 가공 0).
+  // POST /api/assessment-evaluation/evaluate — 평가 manual trigger + persist.
+  //   - 200 OK + { assessmentId, contributionCount, results }(영속 식별자 + in-memory
+  //     결과 동시 반환 — ADR-0033 §Follow-ups slice 4).
   //   - controller-scope ValidationPipe + class-transformer 가 dto 를 인스턴스화하며
   //     nested `activities` 항목도 ActivityItemDto 로 transform 된다. orchestrator 는
   //     `Activity[]` 형식만 요구하므로 검증된 DTO 를 그대로 cast 해 위임한다.
-  //   - service-layer error(예: scoreUnit reject) 는 raw 전파(controller 추가 변환 0).
+  //   - 배선 순서: orchestrator(in-memory 순수 compose, ADR-0032 계약 보존) → persist
+  //     (영속화). orchestrator reject 시 persist 미호출 + error 그대로 전파. persist
+  //     reject(예: P2002 → ConflictException) 시에도 raw 전파(swallow 0) — NestJS 가
+  //     ConflictException 을 409 로 매핑하게 둔다.
   @Post("evaluate")
   @HttpCode(200)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("Admin")
   async evaluate(
     @Body() dto: EvaluateActivitiesDto,
-  ): Promise<EvaluationResult[]> {
+  ): Promise<EvaluateResponse> {
     // dto.activities 는 nested DTO 인스턴스 배열(class-transformer 결과)이지만 형식상
     // Activity union 의 필드 집합과 정합한다(externalId/sourceType/instanceKey/author/
     // timestamp/metadata + source-별 옵션 필드). orchestrator 는 `Activity[]` 시그니처를
     // 요구하므로 unknown 을 거쳐 cast(런타임 변환 0 — 동일 객체 forward).
     const activities = dto.activities as unknown as Activity[];
-    return this.orchestrator.evaluateActivities(activities, {
+    const results = await this.orchestrator.evaluateActivities(activities, {
       modelId: dto.modelId,
     });
+
+    // context 4-tuple 조립(ADR-0033 §51) — periodStart 만 string → Date 파싱, 나머지
+    // 3 종은 그대로 전사. 허용 literal 값 검증은 persist service 책임(DTO 는 형식만).
+    const context: EvaluationPersistContext = {
+      personId: dto.personId,
+      period: dto.period,
+      scope: dto.scope,
+      periodStart: new Date(dto.periodStart),
+    };
+
+    // mode 정규화(ADR-0033 §3) — DTO 는 string surface 라 union 으로 좁힌다. 명시적
+    // "reeval" 만 reeval, 그 외(미지정 포함)는 기본값 "fill". 허용 외 값을 reeval 로
+    // 오인하지 않도록 "fill" 쪽으로 안전 fallback 한다.
+    const mode: PersistMode = dto.mode === "reeval" ? "reeval" : "fill";
+
+    const persisted = await this.persistService.persist(context, results, mode);
+
+    return {
+      assessmentId: persisted.assessmentId,
+      contributionCount: persisted.contributionCount,
+      results,
+    };
   }
 }

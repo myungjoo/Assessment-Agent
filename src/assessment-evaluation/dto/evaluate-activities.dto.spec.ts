@@ -47,8 +47,18 @@ const validConfluenceActivity = {
   version: 3,
 };
 
+// context 4-tuple(ADR-0033 §51) — 모든 happy payload 의 base. 개별 negative 는 여기서
+// 한 field 만 변형/삭제한다.
+const validContext = {
+  personId: "person-1",
+  period: "week",
+  scope: "commit",
+  periodStart: "2026-06-01T00:00:00.000Z",
+};
+
 const validEvaluatePayload = {
   modelId: "gpt-4o-mini",
+  ...validContext,
   activities: [validGithubActivity],
 };
 
@@ -94,6 +104,7 @@ describe("EvaluateActivitiesDto", () => {
   it("confluence activity 1 건도 errors 빈 배열을 반환한다 (happy — branch confluence)", async () => {
     const errors = await validateEvaluatePlain({
       modelId: "claude-haiku",
+      ...validContext,
       activities: [validConfluenceActivity],
     });
     expect(errors).toEqual([]);
@@ -102,7 +113,29 @@ describe("EvaluateActivitiesDto", () => {
   it("github + confluence 혼합 activities 도 errors 빈 배열을 반환한다 (happy — branch mixed)", async () => {
     const errors = await validateEvaluatePlain({
       modelId: "gpt-4o-mini",
+      ...validContext,
       activities: [validGithubActivity, validConfluenceActivity],
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it("mode 미지정도 errors 빈 배열을 반환한다 (happy — @IsOptional mode)", async () => {
+    const errors = await validateEvaluatePlain(validEvaluatePayload);
+    expect(errors).toEqual([]);
+  });
+
+  it("mode='reeval' 명시도 errors 빈 배열을 반환한다 (happy — branch mode reeval)", async () => {
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      mode: "reeval",
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it("mode='fill' 명시도 errors 빈 배열을 반환한다 (happy — branch mode fill)", async () => {
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      mode: "fill",
     });
     expect(errors).toEqual([]);
   });
@@ -112,6 +145,7 @@ describe("EvaluateActivitiesDto", () => {
   // --------------------------------------------------------------------------
   it("modelId 누락 시 isNotEmpty / isString 위반 (negative — required field missing)", async () => {
     const errors = await validateEvaluatePlain({
+      ...validContext,
       activities: [validGithubActivity],
     });
     expect(errors).toEqual(expect.arrayContaining(["isNotEmpty"]));
@@ -137,16 +171,105 @@ describe("EvaluateActivitiesDto", () => {
   // negative: activities 결함.
   // --------------------------------------------------------------------------
   it("activities 누락 시 isArray 위반 (negative — required array missing)", async () => {
-    const errors = await validateEvaluatePlain({ modelId: "gpt-4o-mini" });
+    const errors = await validateEvaluatePlain({
+      modelId: "gpt-4o-mini",
+      ...validContext,
+    });
     expect(errors).toEqual(expect.arrayContaining(["isArray"]));
   });
 
   it("activities 가 string 시 isArray 위반 (negative — wrong type, not array)", async () => {
     const errors = await validateEvaluatePlain({
       modelId: "gpt-4o-mini",
+      ...validContext,
       activities: "not-an-array",
     });
     expect(errors).toEqual(expect.arrayContaining(["isArray"]));
+  });
+
+  // --------------------------------------------------------------------------
+  // negative (R-112 #2/#4): context 4-tuple(personId/period/scope/periodStart) +
+  // mode 결함 — ADR-0033 §51. 각 누락 / wrong type 1+ (예외 분기마다 cover).
+  // --------------------------------------------------------------------------
+  it.each(["personId", "period", "scope", "periodStart"] as const)(
+    "context 필수 필드 %s 누락 시 isNotEmpty 위반 (negative — required context field missing)",
+    async (field) => {
+      const broken: Record<string, unknown> = { ...validEvaluatePayload };
+      delete broken[field];
+      const errors = await validateEvaluatePlain(broken);
+      expect(errors).toEqual(expect.arrayContaining(["isNotEmpty"]));
+    },
+  );
+
+  it.each(["personId", "period", "scope", "periodStart"] as const)(
+    "context 필드 %s 가 number 시 isString 위반 (negative — context wrong type)",
+    async (field) => {
+      const errors = await validateEvaluatePlain({
+        ...validEvaluatePayload,
+        [field]: 123,
+      });
+      expect(errors).toEqual(expect.arrayContaining(["isString"]));
+    },
+  );
+
+  it("personId 빈 문자열 시 isNotEmpty 위반 (negative — empty string)", async () => {
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      personId: "",
+    });
+    expect(errors).toEqual(expect.arrayContaining(["isNotEmpty"]));
+  });
+
+  it("mode 가 number 시 isString 위반 (negative — @IsOptional 이지만 제공 시 형식 검증)", async () => {
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      mode: 123,
+    });
+    expect(errors).toEqual(expect.arrayContaining(["isString"]));
+  });
+
+  it("mode 빈 문자열 시 isNotEmpty 위반 (negative — 제공 시 비어있으면 거부)", async () => {
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      mode: "",
+    });
+    expect(errors).toEqual(expect.arrayContaining(["isNotEmpty"]));
+  });
+
+  it("mode 가 허용 외 literal('reevaluate') 이면 isIn 위반 (negative — @IsIn 으로 silent no-op 흡수 차단)", async () => {
+    // @IsIn(["fill","reeval"]) 적용 — 알 수 없는 literal 은 'fill' no-op 으로 silent
+    // 흡수되지 않고 400 으로 거부된다(ADR-0033 §3 fill/reeval intent 보존).
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      mode: "reevaluate",
+    });
+    expect(errors).toEqual(expect.arrayContaining(["isIn"]));
+  });
+
+  it("mode 가 허용 외 string('bogus') 이면 isIn 위반 (negative — @IsIn unknown literal 거부)", async () => {
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      mode: "bogus",
+    });
+    expect(errors).toEqual(expect.arrayContaining(["isIn"]));
+  });
+
+  it("periodStart 가 malformed ISO 문자열('2026-13-99') 이면 isIso8601 위반 (negative — @IsISO8601 boundary, opaque 500 차단)", async () => {
+    // 비-ISO 문자열은 boundary 에서 400 으로 거부 — controller 의 new Date(...) 가 Invalid
+    // Date 를 만들어 persist 로 흘러들어가는 opaque Prisma 500 을 차단한다.
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      periodStart: "2026-13-99",
+    });
+    expect(errors).toEqual(expect.arrayContaining(["isIso8601"]));
+  });
+
+  it("periodStart 가 임의 비-날짜 문자열('not-a-date') 이면 isIso8601 위반 (negative — @IsISO8601)", async () => {
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      periodStart: "not-a-date",
+    });
+    expect(errors).toEqual(expect.arrayContaining(["isIso8601"]));
   });
 
   // --------------------------------------------------------------------------
@@ -155,6 +278,7 @@ describe("EvaluateActivitiesDto", () => {
   it("activities 빈 배열 시 arrayMinSize 위반 (negative — @ArrayMinSize(1) boundary 0)", async () => {
     const errors = await validateEvaluatePlain({
       modelId: "gpt-4o-mini",
+      ...validContext,
       activities: [],
     });
     expect(errors).toEqual(expect.arrayContaining(["arrayMinSize"]));
@@ -163,6 +287,7 @@ describe("EvaluateActivitiesDto", () => {
   it("activities 1 건은 통과한다 (boundary 1 — @ArrayMinSize 경계 통과)", async () => {
     const errors = await validateEvaluatePlain({
       modelId: "gpt-4o-mini",
+      ...validContext,
       activities: [validGithubActivity],
     });
     expect(errors).toEqual([]);
@@ -171,6 +296,7 @@ describe("EvaluateActivitiesDto", () => {
   it("activities 5 건도 통과한다 (boundary 다건)", async () => {
     const errors = await validateEvaluatePlain({
       modelId: "gpt-4o-mini",
+      ...validContext,
       activities: [
         validGithubActivity,
         validGithubActivity,
@@ -190,6 +316,7 @@ describe("EvaluateActivitiesDto", () => {
     delete broken.externalId;
     const errors = await validateEvaluatePlain({
       modelId: "gpt-4o-mini",
+      ...validContext,
       activities: [broken],
     });
     expect(errors).toEqual(expect.arrayContaining(["isNotEmpty"]));
@@ -199,6 +326,7 @@ describe("EvaluateActivitiesDto", () => {
     const broken = { ...validGithubActivity, timestamp: 1717200000 };
     const errors = await validateEvaluatePlain({
       modelId: "gpt-4o-mini",
+      ...validContext,
       activities: [broken],
     });
     expect(errors).toEqual(expect.arrayContaining(["isString"]));
@@ -219,9 +347,20 @@ describe("EvaluateActivitiesDto", () => {
   // --------------------------------------------------------------------------
   // DTO contract: 정의된 2 키만 선언됨(정의 외 키는 contract 일부 아님).
   // --------------------------------------------------------------------------
-  it("DTO 는 modelId / activities 2 키만 contract 로 가진다", () => {
-    const dto = plainToInstance(EvaluateActivitiesDto, validEvaluatePayload);
-    expect(Object.keys(dto).sort()).toEqual(["activities", "modelId"]);
+  it("DTO 는 modelId / activities / context 4-tuple / mode 를 contract 로 가진다", () => {
+    const dto = plainToInstance(EvaluateActivitiesDto, {
+      ...validEvaluatePayload,
+      mode: "fill",
+    });
+    expect(Object.keys(dto).sort()).toEqual([
+      "activities",
+      "mode",
+      "modelId",
+      "period",
+      "periodStart",
+      "personId",
+      "scope",
+    ]);
   });
 });
 

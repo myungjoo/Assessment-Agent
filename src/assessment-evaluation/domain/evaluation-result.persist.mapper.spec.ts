@@ -14,6 +14,7 @@ import {
 import {
   contributionLevelToScore,
   type EvaluationPersistContext,
+  type MappedAssessment,
   mapEvaluationResultsToAssessment,
   resolveSourceType,
 } from "./evaluation-result.persist.mapper";
@@ -331,5 +332,61 @@ describe("mapEvaluationResultsToAssessment", () => {
       mapEvaluationResultsToAssessment(context(), results);
       expect(JSON.stringify(results)).toBe(snapshot);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// NIT fold-in (T-0300 reviewer) — 매퍼 contributionScore fixity lock.
+// EvaluationResultPersistService 가 `c.contributionScore as number` cast 로 매퍼
+// 출력의 contributionScore 를 round 한 뒤 Prisma Decimal 입력으로 흘려보낸다(persist
+// service `normalizeScores` L216/L222). `MappedAssessment` 의 contributionScore 정적
+// 타입은 Prisma Decimal 컬럼 union(`string | number | Decimal`, AssessmentCreate
+// Input/ContributionCreateInput 재사용 결과)이라 컴파일 차원에서는 number 로 좁혀지지
+// 않는다 — 그래서 service 가 `as number` 로 narrowing 한다. 그 cast 의 안전 근거는
+// "매퍼가 런타임에 항상 number 를 emit" 이다(score 는 `contributionLevelToScore` 반환
+// number + 산술 평균에서 온다). 본 블록은 그 근거를 두 축으로 lock 한다:
+//   (1) compile-time — 값의 source 인 `contributionLevelToScore` 반환이 number 임을
+//       명시 number 변수 할당으로 박제. 향후 Decimal/string 반환으로 바뀌면 컴파일 실패.
+//   (2) runtime — 매퍼가 실제로 emit 하는 모든 contributionScore 가 typeof "number"
+//       임을 단언. 매퍼가 향후 Decimal 인스턴스/string 을 emit 하면 이 단언이 깨져
+//       service 의 `as number` cast 가 silent NaN 으로 무너지기 전에 잡는다.
+// ---------------------------------------------------------------------------
+describe("contributionScore fixity (NIT — persist `as number` cast 안전성)", () => {
+  // assertRuntimeNumber — 매퍼 emit 값이 런타임 number 임을 단언. Decimal 인스턴스나
+  // string 이면 typeof 가 "object"/"string" 이라 깨진다.
+  function assertRuntimeNumber(value: unknown): void {
+    expect(typeof value).toBe("number");
+    expect(Number.isNaN(value as number)).toBe(false);
+  }
+
+  it("(1) compile-time: contributionLevelToScore 반환은 number 로 고정돼 있다", () => {
+    // 명시 number 변수 할당 — `contributionLevelToScore` 반환 타입이 number 를 벗어나면
+    // (예: Decimal/string) 컴파일 실패(tsc → CI build red). 매퍼가 contributionScore 를
+    // 채우는 값의 source 가 바로 이 함수다.
+    const score: number = contributionLevelToScore("high");
+    expect(score).toBe(3);
+  });
+
+  it("(2) runtime: 매퍼가 emit 하는 모든 contributionScore 가 number 다 (cast 안전 근거)", () => {
+    const mapped: MappedAssessment = mapEvaluationResultsToAssessment(
+      context(),
+      [
+        evalResult({ contribution: "high", volume: 2 }),
+        evalResult({ contribution: "low", volume: 4 }),
+        evalResult({ contribution: "zero", volume: 1 }),
+      ],
+    );
+
+    for (const c of mapped.contributions) {
+      assertRuntimeNumber(c.contributionScore);
+    }
+    // aggregate Assessment 의 contributionScore(평균)도 런타임 number.
+    assertRuntimeNumber(mapped.assessment.contributionScore);
+  });
+
+  it("(2) runtime: 빈 입력에서도 aggregate contributionScore 는 number 0 이다 (div-by-zero 방어가 number 유지)", () => {
+    const mapped = mapEvaluationResultsToAssessment(context(), []);
+    assertRuntimeNumber(mapped.assessment.contributionScore);
+    expect(mapped.assessment.contributionScore).toBe(0);
   });
 });
