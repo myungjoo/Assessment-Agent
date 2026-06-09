@@ -2,7 +2,8 @@
 id: T-0294
 title: api.md POST /api/assessment-evaluation/evaluate endpoint doc-sync
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-09T02:35:00Z
 commitMode: direct
 coversReq: [REQ-009, REQ-040]
 estimatedDiff: 30
@@ -63,3 +64,4 @@ doc-only task — R-110 (코드 검토) / R-112 (test 작성) 은 코드 변경 
 - modules.md `AssessmentEvaluationModule` 박제 doc-sync (T-0295 후보) — controller 1 + 3 service (`EvaluationOrchestratorService` / `EvaluationScoringService` / 순수 함수 4 종은 service 아님) + dependencies (`LlmModule` import + `LLM_GATEWAY` useExisting) + Worker mapping (line 189) 의 P5 evaluation 측 module 갱신 + 머리말 chain 이력 append.
 - ADR-0032 status PROPOSED → ACCEPTED flip (T-0296 후보) — line 5 한 줄 수정 + relatedTask 에 T-0287~T-0293 chain 추가 (T-0291 trail follow-up 박제).
 - ADR-0032 Follow-ups 의 잔여 chain — issue comment thread 수집 확장 (필요 판정 시) / 평가 결과 영속화 schema (§5 DB schema 게이트) / live LLM run (§5 credential 게이트) — 전부 별도 task chain.
+- (T-0294 처리 결과) §7 UC-01 cross-reference row (line 159) 변경 불요 판정 — §7 표는 UC §5 sequence 의 literal step 이 호출하는 endpoint group 만 박제한다. UC-01 §5 manual-trigger alt block 은 `POST /api/assessments/run`(Admin→AssessmentModule batch entrypoint) 을 호출하며, 신규 `/api/assessment-evaluation/evaluate` 는 이미 수집된 `Activity[]` 를 직접 받는 evaluation-stage 내부 진입점으로 UC-01 §5 sequence 에 literal 호명 0. §7 에 추가하면 sequence 매핑을 왜곡한다. 신규 endpoint 의 UC linkage 는 §5 endpoint row 의 `[UC-01]` cell(본 task Edit)로 이미 박제됨 → §7 변경 0.
