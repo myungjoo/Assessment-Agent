@@ -4,29 +4,30 @@
   "flags": {
     "multiTaskFire": true
   },
-  "currentTask": null,
+  "currentTask": "T-0297",
   "nextTask": null,
   "lock": {
     "holder": "loop",
-    "session": "loop@AKIHA-ci0028",
-    "since": "2026-06-09T03:10:00Z",
-    "note": "비권위 human mirror. authoritative claude/lock-driver tip 은 branch heartbeat push 로 동기. t3 — T-0296 머지 후."
+    "session": "loop@cloud-turn-cap-5",
+    "since": "2026-06-09T12:55:00+09:00",
+    "note": "비권위 human mirror. cloud /loop(turn cap 5) 세션 — gh 부재 + main 직접 push 불가 제약이라 작업을 feature branch + draft PR 로 외화. authoritative claude/lock-driver tip 은 미변경(AKIHA 세션과 분리). Q-0029 RESOLVED(opt-1) → T-0297 ADR-first 진행."
   },
-  "lastActivity": "2026-06-09T12:35:00+09:00",
+  "lastActivity": "2026-06-09T13:05:00+09:00",
   "lastCommit": "pending",
   "mostRecentTasks": [
+    "T-0297",
     "T-0296",
     "T-0295",
     "T-0294",
-    "T-0293",
-    "T-0292"
+    "T-0293"
   ],
   "loopSession": {
-    "turnCount": 3,
-    "startedAt": "2026-06-09T11:33:55+09:00",
-    "cap": 10,
-    "holder": "loop@AKIHA-ci0028",
-    "note": "/loop session loop@AKIHA-ci0028 (turn cap 10) t3 — T-0296 DONE: ADR-0032 status PROPOSED→ACCEPTED flip + relatedTask[T-0286~T-0293]/relatedPR[239~245] 백참조 + 본문 status 문장 정합(+4/-3). 직전 t2 push e5b8ac8 run 27181052201 + 5f6485d run 27181172345 = 둘 다 success(R-114). tasksCompleted 292→293. **dependency-free P5 doc-sync backlog 소진** — nextTask=null → planner 가 HITL escalation 여부 판정.",
+    "turnCount": 1,
+    "startedAt": "2026-06-09T12:55:00+09:00",
+    "cap": 5,
+    "holder": "loop@cloud-turn-cap-5",
+    "note": "/loop session loop@cloud-turn-cap-5 (turn cap 5) t1 — Q-0029 RESOLVED(opt-1 P5 평가 영속화, 사용자 확정) unblock 후 ADR-first 첫 slice T-0297(ADR-0033 평가 결과 영속화 데이터 모델) 진입. architect 가 ADR-0033 작성, pr-mode draft PR 로 외화(cloud env: gh 부재 + main 직접 push 불가). 원 Q-0029 결정 기록은 PR #246. tasksCompleted 293 유지(T-0297 미머지). next: reviewer 검토 → merge → 후속 prisma schema chain.",
+    "notePrevSession": "/loop session loop@AKIHA-ci0028 (turn cap 10) t3 — T-0296 DONE: ADR-0032 status flip + 백참조. dependency-free P5 doc-sync backlog 소진 → Q-0029 escalation(이후 사용자 opt-1 승인).",
     "notePrevT2": "/loop t2 — T-0295 DONE(modules.md 11번째 module 박제) + T-0296 큐잉. CI green.",
     "notePrevT1": "/loop t1 — CI-infra 복구(billing spending limit 상향) + Q-0028 RESOLVED + B-ci-infra close + T-0294(api.md 평가 endpoint) DONE 머지(8afc210) + T-0295 큐잉. CI 복구 후 3 연속 green.",
     "notePrev": "직전 session loop@AKIHA-22e7 t10 cap 도달 정상 종료 — T-0288~T-0292 5 task 머지, tasksCompleted 284→289. 이후 cron fire 가 T-0293 머지(290) + T-0294 큐잉 직후 GH Actions runner 미할당 infra-fail 3연속 → BLOCKED(Q-0028). 원인은 private repo Actions spending limit $0.",
@@ -453,7 +454,8 @@
       "recommendation": "가장 큰 backbone 가치는 (1) P5 평가 영속화 — 현재 평가 파이프라인이 in-memory 반환에서 끊겨 있어(orchestrator/controller 가 DB write 0), 영속화 없이는 일·주·월 요약·재실행·부분 reset·저성과자 식별 등 거의 모든 P5 잔여 bullet 이 진입 불가다. (1) 은 §5 DB schema migration 게이트라 사용자 승인 필요(PermissionDeniedRecord migration Q-0019 처럼 ADR-first 로 안전 진행 가능, 외부 credential 불요 — CI 실 PostgreSQL ADR-0004 사용). (2) 실 LLM live run 은 가치 있으나 scoring 경로 1회 검증에 그치고 backbone 을 확장하지 않으며 credential 필요. (3) bridge 는 (1) 영속화 결정과 묶여야 정합. 권장 순서: (1) → (3 함께) → (2). credential 불요 즉시-진행을 원하면 (1) 의 ADR-first 첫 slice(평가 결과 영속화 데이터 모델 ADR)부터 — schema 변경 승인만 내리면 dependency-free 로 chain 진행 가능. planner 단독으로 phase 경계(§5 schema)·credential 결정은 권한 밖이라 escalate — make-work 날조보다 정직한 정지가 옳다.",
       "resolutionHint": "docs/STATE.json 의 본 Q-0029 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 평가 결과 영속화 scope[EvaluationResult ↔ Assessment/Contribution/Summary 매핑 방향 + 재실행·부분 reset semantics] 및 schema 변경 승인 / (2) 선택 시 LLM credential scope·secrets.env 경로·만료 / (3) 선택 시 bridge RBAC[Admin only vs Admin+User R-9] 및 영속/in-memory 결정 / (4) 선택 시 우선순위 또는 정지)을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY)은 코드·STATE·journal·git 에 실값 금지, env/secret 주입(§9). (1) 은 §5 DB schema migration 게이트라 schema 변경 승인이 함께 필요(외부 credential 은 불요 — CI 실 PostgreSQL ADR-0004). 미해소 상태로 두면 loop 는 dependency-free 작업 부재로 정지(정상).",
       "resolvedAt": "2026-06-09T12:35:00+09:00",
-      "decision": "옵션 (1) P5 평가 영속화 승인 — 사용자가 /loop(loop@cloud-n6hs91) AskUserQuestion 으로 결정. EvaluationResult(+ 일·주·월 aggregate)를 Assessment/Contribution/Summary entity 로 영속화하는 데이터 모델 + Prisma schema migration 을 승인한다(§5 DB schema 게이트 통과). **외부 credential 불요** — CI 실 PostgreSQL(ADR-0004 migrate-deploy) 사용, PermissionDeniedRecord migration(Q-0019) 패턴 동형. 진행 방식 = ADR-first: planner 가 첫 slice 로 '평가 결과 영속화 데이터 모델 ADR'(EvaluationResult ↔ Assessment/Contribution/Summary 매핑 방향 + raw 미저장 R-59 정합 + 재실행·부분 reset semantics + Prisma migration 전략) 를 큐잉 → architect ADR → 이후 dependency-free chain(prisma schema/migration → repository write 배선 → orchestrator/controller 영속 반환 전환 → doc-sync). 옵션 (3) 기간 평가 bridge(R-9, L98)는 (1) 영속화 결정 확정 후 동일 chain 에서 함께 진행 가능. 옵션 (2) 실 LLM live run·옵션 (4) 기타는 미승인 유지(추후 별도 결정). 새 외부 dependency 0. loop 재개: 다음 turn 에서 planner 가 ADR-first 첫 task 큐잉."
+      "decision": "옵션 (1) P5 평가 영속화 승인 — 사용자가 /loop AskUserQuestion 으로 결정. EvaluationResult(+ 일·주·월 aggregate)를 Assessment/Contribution/Summary entity 로 영속화하는 데이터 모델 + Prisma schema migration 을 승인한다(§5 DB schema 게이트 통과). **외부 credential 불요** — CI 실 PostgreSQL(ADR-0004 migrate-deploy) 사용, PermissionDeniedRecord migration(Q-0019) 패턴 동형. 진행 방식 = ADR-first: planner 가 첫 slice 로 '평가 결과 영속화 데이터 모델 ADR'(EvaluationResult ↔ Assessment/Contribution/Summary 매핑 방향 + raw 미저장 R-59 정합 + 재실행·부분 reset semantics + Prisma migration 전략) 를 큐잉 → architect ADR → 이후 dependency-free chain(prisma schema/migration → repository write 배선 → orchestrator/controller 영속 반환 전환 → doc-sync). 옵션 (3) 기간 평가 bridge(R-9, L98)는 (1) 영속화 결정 확정 후 동일 chain 에서 함께 진행 가능. 옵션 (2) 실 LLM live run·옵션 (4) 기타는 미승인 유지(추후 별도 결정). 새 외부 dependency 0.",
+      "processedNote": "loop@cloud(turn-cap-5) 가 본 결정의 ADR-first 첫 slice 를 T-0297(ADR-0033 평가 결과 영속화 데이터 모델) 로 큐잉·실행 — architect 가 ADR-0033 작성, pr-mode draft PR 로 외화. 원 결정 기록은 PR #246(claude/loop-turn-cap-10-n6hs91)."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
