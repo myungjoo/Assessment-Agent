@@ -2,7 +2,11 @@
 id: T-0309
 title: Summary aggregate write service (narrative+metricScore 결합 → reset-and-recreate persist)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T02:18:00+09:00
+prNumber: 260
+mergedAs: 1f7a028
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-064]
 estimatedDiff: 270
