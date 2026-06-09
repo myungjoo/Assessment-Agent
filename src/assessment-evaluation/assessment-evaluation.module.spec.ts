@@ -50,6 +50,8 @@ import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service
 import { EvaluationResultPersistService } from "./evaluation-result-persist.service";
 // eslint-disable-next-line import/first
 import { EvaluationScoringService } from "./evaluation-scoring.service";
+// eslint-disable-next-line import/first
+import { SummaryNarrativeService } from "./summary-narrative.service";
 
 describe("AssessmentEvaluationModule", () => {
   // Happy path: PersistenceModule(@Global, mocked PrismaService)와 함께 imports 하면
@@ -80,6 +82,13 @@ describe("AssessmentEvaluationModule", () => {
     const persist = moduleRef.get(EvaluationResultPersistService);
     expect(persist).toBeDefined();
     expect(persist).toBeInstanceOf(EvaluationResultPersistService);
+
+    // SummaryNarrativeService(T-0307, ADR-0035 §Decision 1/5)도 같은 module 에서
+    // resolve 되며 @Inject(LLM_GATEWAY) 생성자 주입이 LLM_GATEWAY useExisting 바인딩
+    // 으로 닫힌다(provider 등록 누락 시 본 resolve 가 fail — 배선 게이트).
+    const narrative = moduleRef.get(SummaryNarrativeService);
+    expect(narrative).toBeDefined();
+    expect(narrative).toBeInstanceOf(SummaryNarrativeService);
 
     await moduleRef.close();
   });

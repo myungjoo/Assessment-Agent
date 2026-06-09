@@ -40,6 +40,7 @@ import { AssessmentEvaluationController } from "./assessment-evaluation.controll
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import { EvaluationResultPersistService } from "./evaluation-result-persist.service";
 import { EvaluationScoringService } from "./evaluation-scoring.service";
+import { SummaryNarrativeService } from "./summary-narrative.service";
 
 @Module({
   // LlmModule import — LlmHttpGateway(LlmGateway 구현체) export 를 끌어와 LLM_GATEWAY
@@ -59,6 +60,11 @@ import { EvaluationScoringService } from "./evaluation-scoring.service";
     // 영속화한다. 추가 import 0 (PrismaService 가 @Global 이라 DI resolve). 후속
     // orchestrator/controller persist-return slice(§Follow-ups 4)가 inject 받는다.
     EvaluationResultPersistService,
+    // SummaryNarrativeService — P5 aggregate(batch) 평가의 thin narrative service
+    // (T-0307, ADR-0035 §Decision 1/5). @Inject(LLM_GATEWAY) 생성자 주입을 본 module
+    // 의 LLM_GATEWAY useExisting 바인딩으로 닫는다(추가 import 0). 후속 T-0308 write
+    // service slice 가 같은 module 내 DI 또는 export 로 inject 받는다.
+    SummaryNarrativeService,
     // LLM_GATEWAY → LlmHttpGateway useExisting 바인딩. LlmModule 이 등록·export 한
     // LlmHttpGateway singleton 을 그대로 재사용하므로 새 인스턴스 생성 0. interface
     // 가 runtime 소거라 string token 으로 주입을 닫는다.
@@ -72,6 +78,8 @@ import { EvaluationScoringService } from "./evaluation-scoring.service";
     EvaluationScoringService,
     EvaluationOrchestratorService,
     EvaluationResultPersistService,
+    // T-0308 write service slice 가 본 narrative service 를 inject 받을 수 있도록 export.
+    SummaryNarrativeService,
   ],
 })
 export class AssessmentEvaluationModule {}
