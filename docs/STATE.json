@@ -5,14 +5,9 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
-  "lock": {
-    "holder": "loop",
-    "session": "loop@cloud-turn-cap-10-n6hs91",
-    "since": "2026-06-09T15:00:00+09:00",
-    "note": "비권위 human mirror. cloud /loop(turn cap 10) 세션 이어받음 — gh 부재 + main 직접 push 불가라 작업을 feature branch + PR 로 외화. authoritative claude/lock-driver tip(AKIHA-ci0028, 166min stale)은 cloud 권한 부재로 미변경. PR #246 은 #247 로 superseded(closed) — T-0297 ADR-0033 머지(#247) 확인 후 closeout 진행."
-  },
-  "lastActivity": "2026-06-09T15:00:00+09:00",
+  "nextTask": "T-0298",
+  "lock": null,
+  "lastActivity": "2026-06-09T15:30:00+09:00",
   "lastCommit": "pending",
   "mostRecentTasks": [
     "T-0297",
