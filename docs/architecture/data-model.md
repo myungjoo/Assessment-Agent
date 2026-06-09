@@ -65,7 +65,10 @@ erDiagram
    - **재평가 = Assessment 단위 reset-and-recreate**: 같은 idempotency key `(personId, period, scope, periodStart)` 로 재평가가 들어오면 기존 Assessment row 를 `delete` (component Contribution 은 `onDelete: Cascade` 동반 삭제) → 새 Assessment+Contribution 를 `create`. 이 delete→create 는 단일 `prisma.$transaction` 으로 묶어 atomicity 보장 (ADR-0033 §3). in-place update 아님 — Assessment 는 immutable (ADR-0006).
    - **fill / reeval 두 모드**: `fill` = 같은 key 존재 시 no-op (기존 보존, 재실행 idempotent), `reeval` = 존재 시 reset-and-recreate. partial-reset 은 key prefix (`personId`+`period`) 부분 일치 delete 로 다른 period/scope 를 보존 (REQ-037 정합).
    - **idempotency key 재사용**: Assessment-level 식별 축은 새 key 발명 없이 기존 `Assessment.@@unique([personId, period, scope, periodStart])` 를 그대로 재사용 (ADR-0033 §3, ADR-0006 정합).
-6. **Person ↔ Summary (1:N)** — 일·주·월 요약은 Person 단위 default. Group/Part aggregate Summary 는 view-time 계산 (별도 entity 아님) — 본 결정은 P3 에서 별도 entity 도입 가능성 (e.g. `GroupSummary`) 으로 갱신될 수 있다.
+6. **Person ↔ Summary (1:N)** — 일·주·월 요약은 Person 단위 default. Group/Part aggregate Summary 는 view-time 계산 (별도 entity 아님, § 7 GroupSummary note 와 정합). **aggregate 평가 영속화 reality ([ADR-0035](../decisions/ADR-0035-aggregate-summary-evaluation.md), T-0305~T-0310 shipped)**:
+   - **schema-level idempotency**: `Summary` 에 `@@unique([personId, period, periodStart])` 가 박제됨 ([T-0305](../tasks/T-0305-summary-unique-migration.md) — 한 person 의 한 granularity·구간 (`period` ∈ `["day","week","month"]`) 요약은 정확히 1 row, 같은 좌표 Summary 중복을 schema 차원 차단). Assessment idempotency key `@@unique([personId, period, scope, periodStart])` 의 Summary-level mirror (`scope` 없음 — 요약은 period 단위 rollup 이라 3-tuple).
+   - **재집계 = Summary 단위 reset-and-recreate**: 같은 idempotency key `(personId, period, periodStart)` 로 재집계가 들어오면 기존 `Summary` row 를 `delete` → 새 `Summary` 를 `create`. 이 delete→create 는 단일 `prisma.$transaction` 으로 묶어 atomicity 보장 (`SummaryPersistService`, T-0309). in-place update 아님 — Summary 는 immutable (ADR-0006). `fill` (존재 시 no-op) / `reeval` (존재 시 reset-and-recreate) 두 모드 + partial-reset (`personId`+`period` prefix delete `resetByPeriod`) 는 ADR-0033 단위 영속화 패턴 mirror (ADR-0035 §Decision 4).
+   - **집계 규칙 = field-level 분리**: deterministic `metricScore` (LLM 무관 결정적 순수 함수 `aggregateMetricScore`, T-0306) + LLM 정성 `narrative` (한 (person, period, periodStart) 좌표의 단위 묶음 1 = batch prompt 1 호출, `SummaryNarrativeService`, T-0307) 의 두 축 분리. 두 축을 결합해 한 Summary row 로 write (`SummaryPersistService`, T-0309), 시점 게이트 (`isPeriodEvaluable`, T-0306) → persist 위임은 `SummaryAggregateOrchestratorService` (T-0310) 가 compose. README L63 "LLM 정성 평가 + Metric 수치 함께 보유" 의 schema-level 표현 (ADR-0035 §Decision 1).
 7. **User ↔ Person (0..1:0..1)** — 선택적 매핑. SuperAdmin / Admin 등급 User 가 본인 Person 을 가지지 않는 경우도 가능 (외부 관리자). User 등급 User 가 본인 Person 과 매핑되어 본인 평가 결과 조회 (UC-08 user audience). **자동 매핑 정책** (예: 첫 로긴 시 동명 Person 자동 link) 은 P3 AuthModule 책임 — 본 문서는 관계만 박제.
 8. **LlmProviderConfig ↔ DifficultyMapping (1:N)** — 3 난이도 슬롯 (easy / medium / hard) 이 각각 어느 provider 의 어느 model 을 사용할지 매핑. DifficultyMapping row 3 개 고정.
 9. **ServiceIdentity ↔ PermissionDeniedRecord (1:N)** — 외부 4xx 가 발생한 ServiceIdentity 단위 (예: 특정 GitHub instance + 특정 user ID 의 권한 부족). audience 분기 (UC-08 user / admin) 는 record 의 `audience` 필드로.
@@ -137,10 +140,10 @@ erDiagram
 
 - REQ-008 / REQ-016 (권한 부족 통지) — PermissionDeniedRecord (§ 2).
 - REQ-029 (non-volatile 저장) — 모든 entity 가 PostgreSQL row 로 영속 (ADR-0002).
-- REQ-031 (재수집 중복 방지) — Contribution / Assessment 의 unique constraint. **shipped — [ADR-0033](../decisions/ADR-0033-evaluation-result-persistence.md) / [T-0298](../tasks/T-0298-contribution-source-ref-unique-migration.md)**: `Assessment.@@unique([personId, period, scope, periodStart])` (ADR-0006) + `Contribution.@@unique([assessmentId, sourceRef])` (ADR-0033 §4) 로 schema-level idempotency 박제 완료.
+- REQ-031 (재수집 중복 방지) — Contribution / Assessment / Summary 의 unique constraint. **shipped — [ADR-0033](../decisions/ADR-0033-evaluation-result-persistence.md) / [T-0298](../tasks/T-0298-contribution-source-ref-unique-migration.md) + [ADR-0035](../decisions/ADR-0035-aggregate-summary-evaluation.md) / [T-0305](../tasks/T-0305-summary-unique-migration.md)**: `Assessment.@@unique([personId, period, scope, periodStart])` (ADR-0006) + `Contribution.@@unique([assessmentId, sourceRef])` (ADR-0033 §4) + `Summary.@@unique([personId, period, periodStart])` (ADR-0035 §Decision 4) 로 schema-level idempotency 박제 완료.
 - REQ-033 (commit/문서 단위) — Contribution entity.
-- REQ-034 / REQ-035 (일·주·월 요약) — Summary entity.
-- REQ-036 (상대 비교 + LLM + Metric) — Assessment, Summary.
+- REQ-034 / REQ-035 (일·주·월 요약) — Summary entity. **aggregate 평가로 영속화 shipped** ([ADR-0035](../decisions/ADR-0035-aggregate-summary-evaluation.md), T-0306~T-0310 — deterministic `metricScore` + LLM 정성 `narrative` 를 `(personId, period, periodStart)` 좌표 1 row 로 reset-and-recreate write, § 3 관계 6 참조).
+- REQ-036 (상대 비교 + LLM + Metric) — Assessment, Summary. Summary 의 "LLM 정성 + Metric 수치 함께 보유" (README L63) 가 ADR-0035 의 `narrative` + `metricScore` field-level 분리로 충족.
 
 ## 7. Out of scope
 
