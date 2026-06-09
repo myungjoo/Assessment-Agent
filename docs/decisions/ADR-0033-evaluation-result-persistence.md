@@ -1,9 +1,10 @@
 ---
 id: ADR-0033
 title: 평가 결과 영속화 — in-memory EvaluationResult → 기존 Assessment/Contribution/Summary 매핑 + 재평가 upsert/partial-reset semantics + Contribution idempotency 1 migration
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-09
 relatedTask: T-0297
+relatedPR: 247
 supersedes: null
 ---
 
