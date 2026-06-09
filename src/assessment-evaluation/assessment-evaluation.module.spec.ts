@@ -47,6 +47,8 @@ import { AssessmentEvaluationModule } from "./assessment-evaluation.module";
 // eslint-disable-next-line import/first
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 // eslint-disable-next-line import/first
+import { EvaluationResultPersistService } from "./evaluation-result-persist.service";
+// eslint-disable-next-line import/first
 import { EvaluationScoringService } from "./evaluation-scoring.service";
 
 describe("AssessmentEvaluationModule", () => {
@@ -72,6 +74,12 @@ describe("AssessmentEvaluationModule", () => {
     const controller = moduleRef.get(AssessmentEvaluationController);
     expect(controller).toBeDefined();
     expect(controller).toBeInstanceOf(AssessmentEvaluationController);
+
+    // EvaluationResultPersistService(T-0300, ADR-0033 §Follow-ups 3)도 같은 module
+    // 에서 resolve 되며 PrismaService(@Global, mocked)를 DI 로 주입받는다.
+    const persist = moduleRef.get(EvaluationResultPersistService);
+    expect(persist).toBeDefined();
+    expect(persist).toBeInstanceOf(EvaluationResultPersistService);
 
     await moduleRef.close();
   });
