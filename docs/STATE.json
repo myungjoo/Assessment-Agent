@@ -456,6 +456,8 @@
       "resolvedAt": "2026-06-09T12:35:00+09:00",
       "decision": "옵션 (1) P5 평가 영속화 승인 — 사용자가 /loop AskUserQuestion 으로 결정. EvaluationResult(+ 일·주·월 aggregate)를 Assessment/Contribution/Summary entity 로 영속화하는 데이터 모델 + Prisma schema migration 을 승인한다(§5 DB schema 게이트 통과). **외부 credential 불요** — CI 실 PostgreSQL(ADR-0004 migrate-deploy) 사용, PermissionDeniedRecord migration(Q-0019) 패턴 동형. 진행 방식 = ADR-first: planner 가 첫 slice 로 '평가 결과 영속화 데이터 모델 ADR'(EvaluationResult ↔ Assessment/Contribution/Summary 매핑 방향 + raw 미저장 R-59 정합 + 재실행·부분 reset semantics + Prisma migration 전략) 를 큐잉 → architect ADR → 이후 dependency-free chain(prisma schema/migration → repository write 배선 → orchestrator/controller 영속 반환 전환 → doc-sync). 옵션 (3) 기간 평가 bridge(R-9, L98)는 (1) 영속화 결정 확정 후 동일 chain 에서 함께 진행 가능. 옵션 (2) 실 LLM live run·옵션 (4) 기타는 미승인 유지(추후 별도 결정). 새 외부 dependency 0.",
       "processedNote": "loop@cloud(turn-cap-5) 가 본 결정의 ADR-first 첫 slice 를 T-0297(ADR-0033 평가 결과 영속화 데이터 모델) 로 큐잉·실행 — architect 가 ADR-0033 작성, pr-mode draft PR 로 외화. 원 결정 기록은 PR #246(claude/loop-turn-cap-10-n6hs91)."
+    }
+  ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
