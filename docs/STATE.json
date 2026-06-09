@@ -5,38 +5,39 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0300",
+  "nextTask": "T-0301",
   "lock": null,
-  "lastActivity": "2026-06-09T18:20:00+09:00",
+  "lastActivity": "2026-06-09T18:45:00+09:00",
   "lastCommit": "pending",
   "mostRecentTasks": [
+    "T-0300",
     "T-0299",
     "T-0298",
     "T-0297",
-    "T-0296",
-    "T-0295"
+    "T-0296"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-09T15:00:00+09:00",
     "cap": 10,
     "holder": "loop@cloud-turn-cap-10-n6hs91",
-    "note": "/loop session loop@cloud-turn-cap-10-n6hs91 (turn cap 10) t3 — T-0299 DONE 머지(PR #251 squash 416b1bb): EvaluationResult→Assessment/Contribution 영속화 순수 매퍼 + R-112 spec (ADR-0033 §Follow-ups slice 2). reviewer round1 APPROVE(0 BLOCKER/0 MAJOR/4 NIT) + 4-게이트 PASS + CI green(run 27196033718). mapper 100% cov. tasksCompleted 295→296. next: planner 가 T-0300 큐잉(slice 3 — EvaluationResult 영속화 write service, reset-and-recreate + P2002→ConflictException, pr-mode, dep0/credential0). T-0299 reviewer NIT 2건(aggregateDifficulty unknown silent-skip 비대칭 / 평균 score float→Decimal 정밀도 정책)을 T-0300 AC/Follow-up 에 fold-in. 참고: ADR-0033 header 아직 status: PROPOSED — ACCEPTED flip 별도 pending.",
-    "notePrevT2": "/loop t2 — T-0298 DONE 머지(PR #250 squash 149907b): Contribution @@unique([assessmentId, sourceRef]) + migration (ADR-0033 §4 첫 slice). reviewer round1 APPROVE(2 NIT-cosmetic) + 4-게이트 PASS + CI green(27195152523). tasksCompleted 294→295. planner T-0299 큐잉.",
-    "notePrevT1": "/loop t1(turn-cap-10 세션 첫 turn) — T-0297(ADR-0033 평가 결과 영속화 데이터 모델) PR #247 reviewer round2 APPROVE + 머지(92309d7), merged-PR cleanup(LOOP §1[2]b): T-0297 DONE + tasksCompleted 293→294. PR #246(원 Q-0029)은 #247 로 superseded. planner T-0298 큐잉.",
+    "note": "/loop session loop@cloud-turn-cap-10-n6hs91 (turn cap 10) t4 — T-0300 DONE 머지(PR #252 squash 2bb1443): EvaluationResult 영속화 write service (ADR-0033 §Follow-ups slice 3). Prisma $transaction reset-and-recreate(reeval) + fill(idempotent) + resetByPeriod partial-reset + P2002→ConflictException. T-0299 reviewer NIT 2건(difficulty unknown 비대칭 / Decimal 정밀도) 정책 박제. reviewer round1 APPROVE(0 BLOCKER/0 MAJOR/1 NIT, tx atomicity+P2002 scoping PASS) + 4-게이트 PASS + CI green(run 27196919552). service 100% cov. tasksCompleted 296→297. next: planner T-0301 큐잉(slice 4 — evaluate flow persist-return wiring, controller 에 persist hook + assessmentId 반환, pr-mode, dep0/credential0). T-0300 reviewer NIT(contributionScore as number cast fixity)을 T-0301 에 fold-in. 참고: ADR-0033 header 아직 status: PROPOSED — ACCEPTED flip 별도 direct doc follow-up pending(docs/decisions/* CI 게이트로 PR 경유 필요, gh 세션에서 처리 가능).",
+    "notePrevT2": "/loop t3 — T-0299 DONE 머지(PR #251 squash 416b1bb): EvaluationResult→Assessment/Contribution 영속화 순수 매퍼 + R-112 spec (ADR-0033 slice 2). reviewer round1 APPROVE(4 NIT) + 4-게이트 PASS + CI green(27196033718). mapper 100% cov. tasksCompleted 295→296. NIT 2건 T-0300 fold-in. planner T-0300 큐잉.",
+    "notePrevT1": "/loop t2 — T-0298 DONE 머지(PR #250 squash 149907b): Contribution @@unique([assessmentId, sourceRef]) + migration (ADR-0033 §4 첫 slice). reviewer round1 APPROVE(2 NIT-cosmetic) + 4-게이트 PASS + CI green(27195152523). tasksCompleted 294→295. planner T-0299 큐잉.",
     "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
     "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
   },
   "ci": {
-    "lastRun": "2026-06-09T18:20:00+09:00",
+    "lastRun": "2026-06-09T18:45:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27196033718",
-    "verifiedGreen": "T-0299 PR #251 run 27196033718 green: unit+커버리지 / 스모크 / e2e / reviewer-approval step 전부 ✓ (순수 매퍼 추가). 직전 T-0298 27195152523 + doc-closeout c9c1d40 도 green — 연속 green 유지.",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27196919552",
+    "verifiedGreen": "T-0300 PR #252 run 27196919552 green: unit+커버리지 / 스모크 / e2e / reviewer-approval step 전부 ✓ (write service 추가). 직전 T-0299 27196033718 + doc-closeout ec53e38 도 green — 연속 green 유지. 머지커밋 2bb1443 main-CI 는 t5 에서 재확인.",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
+    "T-0300": 1,
     "T-0299": 1,
     "T-0298": 1,
     "T-0297": 2,
@@ -458,7 +459,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 296,
+    "tasksCompleted": 297,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

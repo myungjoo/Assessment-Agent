@@ -2,8 +2,11 @@
 id: T-0300
 title: EvaluationResult 영속화 write service (reset-and-recreate + fill/reeval 모드 + P2002→ConflictException)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 252
+completedAt: 2026-06-09T18:45:00+09:00
+result: DONE — PR #252 squash 2bb1443 머지. reviewer round1 APPROVE(0 BLOCKER/0 MAJOR/1 NIT, tx atomicity+P2002 scoping PASS) + 4-게이트 PASS + CI green(run 27196919552). write service(reset-and-recreate + fill + resetByPeriod + P2002→Conflict), service 100% cov. T-0299 NIT 2건 정책 박제. tasksCompleted 296→297. T-0300 NIT(as number cast fixity)은 T-0301 fold-in.
 coversReq: [REQ-029, REQ-037, REQ-041, REQ-032]
 estimatedDiff: 230
 estimatedFiles: 4
