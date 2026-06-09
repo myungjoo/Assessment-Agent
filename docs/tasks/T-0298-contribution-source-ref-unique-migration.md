@@ -2,8 +2,11 @@
 id: T-0298
 title: Contribution `@@unique([assessmentId, sourceRef])` schema + migration (ADR-0033 §4 첫 구현 slice)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 250
+completedAt: 2026-06-09T18:02:00+09:00
+result: DONE — PR #250 squash 149907b 머지. reviewer round1 APPROVE(0 BLOCKER/0 MAJOR/2 NIT-cosmetic) + 4-게이트 PASS + CI green(run 27195152523). @@unique([assessmentId, sourceRef]) + migration + R-112 test 7개. tasksCompleted 294→295.
 coversReq: [REQ-029, REQ-031, REQ-032, REQ-064]
 estimatedDiff: 90
 estimatedFiles: 4

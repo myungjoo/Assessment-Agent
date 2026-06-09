@@ -5,23 +5,24 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0298",
+  "nextTask": "T-0299",
   "lock": null,
-  "lastActivity": "2026-06-09T15:30:00+09:00",
+  "lastActivity": "2026-06-09T18:02:00+09:00",
   "lastCommit": "pending",
   "mostRecentTasks": [
+    "T-0298",
     "T-0297",
     "T-0296",
     "T-0295",
-    "T-0294",
-    "T-0293"
+    "T-0294"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-09T15:00:00+09:00",
     "cap": 10,
     "holder": "loop@cloud-turn-cap-10-n6hs91",
-    "note": "/loop session loop@cloud-turn-cap-10-n6hs91 (turn cap 10) — 사용자 확인 후 turn-cap-5 세션 작업 이어받음. T-0297(ADR-0033 평가 결과 영속화) PR #247 이 reviewer round2 APPROVE + 사용자 머지(92309d7) 완료됐으나 task closeout 미반영(currentTask=T-0297, counter 293 정체) 상태를 발견. 본 turn = merged-PR cleanup(LOOP §1[2]b): T-0297 DONE + tasksCompleted 293→294 + reviewRounds[T-0297]=2(PR #248 doc-only). ADR-0033 PROPOSED→ACCEPTED flip 은 CI doc-only 게이트(docs/decisions/* 는 reviewer 검토 강제 — check-doc-only-pr.sh)에 걸려 본 PR 에서 분리, gh-equipped 세션의 direct-to-main push 또는 별도 reviewer-approved PR 로 follow-up(ADR-0033 자체는 #247 round2 에서 이미 reviewer APPROVE). PR #246(원 Q-0029 기록)은 #247 로 superseded(closed). next: planner 가 후속 dependency-free chain 첫 slice(prisma Contribution @@unique migration) 큐잉.",
+    "note": "/loop session loop@cloud-turn-cap-10-n6hs91 (turn cap 10) t2 — T-0298 DONE 머지(PR #250 squash 149907b): Contribution @@unique([assessmentId, sourceRef]) + migration 20260609000000 (ADR-0033 §4 첫 구현 slice). reviewer round1 APPROVE(0 BLOCKER/0 MAJOR/2 NIT-cosmetic) + 4-게이트 PASS + CI green(run 27195152523: migrate-deploy/unit/smoke/e2e + reviewer-approval step 전부 ✓). tasksCompleted 294→295. next: planner 가 T-0299 큐잉(ADR-0033 §Follow-ups 2번째 slice — EvaluationResult→Assessment/Contribution CreateInput 매핑 순수 함수, pr-mode, dep0/credential0). 참고: ADR-0033 header 가 origin/main 에서 아직 status: PROPOSED — ACCEPTED flip 은 별도 direct doc follow-up 으로 pending(T-0297 closeout 에서 분리, #247 round2 에서 이미 reviewer APPROVE).",
+    "notePrevT1": "/loop t1(직전 turn-cap-10 세션) — T-0297(ADR-0033 평가 결과 영속화) PR #247 reviewer round2 APPROVE + 머지(92309d7), merged-PR cleanup(LOOP §1[2]b): T-0297 DONE + tasksCompleted 293→294. PR #246(원 Q-0029)은 #247 로 superseded. planner T-0298 큐잉.",
     "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
     "notePrevT2": "/loop t2 — T-0295 DONE(modules.md 11번째 module 박제) + T-0296 큐잉. CI green.",
     "notePrevT1": "/loop t1 — CI-infra 복구(billing spending limit 상향) + Q-0028 RESOLVED + B-ci-infra close + T-0294(api.md 평가 endpoint) DONE 머지(8afc210) + T-0295 큐잉. CI 복구 후 3 연속 green.",
@@ -29,15 +30,16 @@
     "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
   },
   "ci": {
-    "lastRun": "2026-06-09T11:33:55+09:00",
+    "lastRun": "2026-06-09T18:02:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27180457424",
-    "verifiedGreen": "복구 후 3 연속 run green: 27167117992(cbef4c1 복구검증) / 27180305177(efec6fd unblock bookkeeping) / 27180457424(8afc210 T-0294 deliverable) — 전부 success, runner 정상 할당.",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27195152523",
+    "verifiedGreen": "T-0298 PR #250 run 27195152523 green: migrate-deploy(신규 migration 20260609000000 자동 적용) / 테스트+커버리지 / 스모크 / e2e / reviewer-approval step 전부 ✓ (exit 0). 직전 복구 후 연속 green 유지.",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
+    "T-0298": 1,
     "T-0297": 2,
     "T-0293": 1,
     "T-0292": 1,
@@ -457,7 +459,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 294,
+    "tasksCompleted": 295,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
