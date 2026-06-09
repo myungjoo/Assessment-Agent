@@ -2,8 +2,11 @@
 id: T-0304
 title: ADR-0035 batch/aggregate 평가 + Summary 영속화 데이터 모델·설계 (Q-0030 옵션 1 ADR-first 첫 slice)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 255
+completedAt: 2026-06-09T23:21:00+09:00
+result: DONE — PR #255 squash da8089e 머지. architect 가 ADR-0035 작성(195 LOC, status PROPOSED), 5 결정 1:1 cover. 핵심 발견 — Summary model 은 이미 존재(ADR-0006, prisma L341-355)라 새 table 0, period granularity 도 VALID_PERIODS 재사용. reviewer round1 APPROVE(0 BLOCKER/0 MAJOR/0 MINOR/2 NIT — frontmatter relatedTask scalar 등 cosmetic, reviewer 가 appropriate 판정) + 4-게이트 PASS + CI green(run 27212245686, approval-gate race rerun 후 success). reviewRounds[T-0304]=1. tasksCompleted 300→301. 새 외부 dependency 0 / credential 0.
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-064]
 estimatedDiff: 210
 estimatedFiles: 2
