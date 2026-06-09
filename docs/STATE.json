@@ -5,38 +5,39 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0306",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-06-09T23:50:00+09:00",
+  "lastActivity": "2026-06-10T00:24:00+09:00",
   "lastCommit": "pending",
   "mostRecentTasks": [
+    "T-0306",
     "T-0305",
     "T-0304",
     "T-0303",
-    "T-0302",
-    "T-0301"
+    "T-0302"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "startedAt": "2026-06-09T18:42:00+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-707106",
-    "note": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t6 — T-0305 DONE 머지(PR #256 squash fbca1e1): Summary @@unique([personId,period,periodStart]) + migration 20260609000001 + R-112 5 테스트(ADR-0035 §Decision 4 첫 구현 slice). implementer→tester(architect 불요). summary.repository.ts 100% cov, migrate-deploy+smoke+e2e green(run 27213998521, approval-gate race rerun 후). reviewer round1 APPROVE(1 NIT inline P2002 mock-idiom 정합) + 4-게이트 PASS. reviewRounds[T-0305]=1. tasksCompleted 301→302. **시점 정정 유지**: 로컬 클럭 정상화돼 실시간 ~23:5x KST 사용. next: planner 가 ADR-0035 구현 chain 두 번째 slice T-0306 큐잉(aggregate metricScore 집계 + isPeriodEvaluable 순수 함수, §Decision 1·3, pr-mode, dep0/credential0, narrative·DB·배선은 후속). FYI orphan PR #249(ADR-0034) 여전히 미처리.",
-    "notePrevT2": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t5 — planner: ADR-0035 구현 chain 첫 slice T-0305 큐잉 (Summary @@unique([personId,period,periodStart]) + migration 20260609000001_summary_person_period_start_unique, pr-mode, dep0/credential0). T-0298(Contribution @@unique) 동형. 조사 결과 Summary 는 이미 write path 존재(SummaryRepository.create / SummaryController POST /api/summaries / CreateSummaryDto, T-0113)라 R-112 P2002 propagation 을 summary.repository.spec.ts 에 colocate 가능. architect 불요(ADR-0035 §Decision 4 가 SQL·migration명·idempotency key 박제) → implementer→tester. nextTask=T-0305. 다음 turn executor 픽업. (사용자 continue 로 t5 즉시 진행, scheduled wake 대기 안 함.) FYI orphan PR #249(ADR-0034) 여전히 미처리.",
+    "note": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t7 — T-0306 DONE 머지(PR #257 squash 97b253e): aggregateMetricScore(avg 난이도+avg 기여도+log1p(Σvolume) 6자리 round, REQ-036 보존) + isPeriodEvaluable(now≥periodEnd day/week/month, unknown throw) 순수 함수 2개 + 56 R-112 테스트(신규 2파일 100% cov) + mapper DIFFICULTY_ORDER export (ADR-0035 §Decision 1·3 구현 slice). reviewer round1 APPROVE(2 NIT 비차단) + 4-게이트 PASS + CI green(run 27215304186). **CI 주의**: 첫 pull_request run 이 approve-comment 의 issue_comment 동시성 그룹에서 cancel→rerun 으로 green(향후 동일 패턴 시 rerun). reviewRounds[T-0306]=1. tasksCompleted 302→303. **사용자 피드백 박제**: 긴 CI/verify idle 중 lock 비점유 권장(claim 박제 후 release+resume) — 전면 fine-grained(N 동시 driver)는 ADR-0009 supersede ADR 필요(memory lock-only-critical-sections). next: planner 가 ADR-0035 구현 chain 세 번째 slice T-0307 큐잉(aggregate write service = Summary reset-and-recreate + batch LLM narrative + fill/reeval/partial-reset, T-0300 EvaluationResultPersistService 동형, 복잡도 높아 전용 planner turn). FYI orphan PR #249(ADR-0034) 미처리.",
+    "notePrevT2": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t6 — T-0305 DONE 머지(PR #256 squash fbca1e1): Summary @@unique([personId,period,periodStart]) + migration 20260609000001 + R-112 5 테스트(ADR-0035 §Decision 4 첫 구현 slice). implementer→tester(architect 불요). summary.repository.ts 100% cov, migrate-deploy+smoke+e2e green(run 27213998521, approval-gate race rerun 후). reviewer round1 APPROVE(1 NIT inline P2002 mock-idiom 정합) + 4-게이트 PASS. reviewRounds[T-0305]=1. tasksCompleted 301→302. **시점 정정 유지**: 로컬 클럭 정상화돼 실시간 ~23:5x KST 사용. next: planner 가 ADR-0035 구현 chain 두 번째 slice T-0306 큐잉(aggregate metricScore 집계 + isPeriodEvaluable 순수 함수, §Decision 1·3, pr-mode, dep0/credential0, narrative·DB·배선은 후속). FYI orphan PR #249(ADR-0034) 여전히 미처리.",
     "notePrevT1": "/loop t5 — T-0301 DONE 머지(PR #253 628ceb5): evaluate flow persist-return 배선 (ADR-0033 slice 4). reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart + 2 MINOR) → round2 fix(@IsISO8601/@IsIn) → APPROVE. reviewRounds=2. tasksCompleted 297→298. planner T-0302 큐잉.",
     "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
     "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
   },
   "ci": {
-    "lastRun": "2026-06-09T23:50:00+09:00",
+    "lastRun": "2026-06-10T00:24:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27213998521",
-    "verifiedGreen": "T-0305 PR #256 run 27213998521 green: lint/build/test+cov / migrate-deploy(Summary @@unique migration 자동 적용) / smoke / e2e / reviewer-approval 전부 success — 첫 run 은 approval-gate race(reviewer-approval step만 fail), approve comment 후 rerun --failed success. summary.repository.ts 100% cov. 머지 fbca1e1 main-CI 는 다음 fresh 진입점 재확인(R-114).",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27215304186",
+    "verifiedGreen": "T-0306 PR #257 run 27215304186 green: lint/build/test+cov / 신규 순수함수 2파일 100% cov / smoke / e2e / reviewer-approval 전부 success. **주의**: 첫 pull_request run 은 approve-comment 의 issue_comment 이벤트가 동일 concurrency 그룹에서 cancel(failure 표기지만 cancelled) → gh run rerun 으로 clean green. 머지 97b253e main-CI 는 다음 fresh 진입점 재확인(R-114).",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
+    "T-0306": 1,
     "T-0305": 1,
     "T-0304": 1,
     "T-0303": 1,
@@ -483,7 +484,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 302,
+    "tasksCompleted": 303,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

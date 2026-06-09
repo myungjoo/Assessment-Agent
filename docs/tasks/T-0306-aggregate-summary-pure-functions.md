@@ -2,8 +2,11 @@
 id: T-0306
 title: aggregate Summary 집계 매퍼 + isPeriodEvaluable 시점 판정 (순수 함수, ADR-0035 §Decision 1·3 구현 slice)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 257
+completedAt: 2026-06-10T00:22:00+09:00
+result: DONE — PR #257 squash 97b253e 머지. aggregateMetricScore(avg 난이도 ordinal + avg 기여도 ordinal + log1p(Σvolume), 6자리 round, REQ-036 보존) + isPeriodEvaluable(now≥periodEnd, day/week/month, unknown throw) 순수 함수 2개 + 56 R-112 테스트(신규 2파일 100% cov) + mapper DIFFICULTY_ORDER export. implementer→tester(architect 불요). reviewer round1 APPROVE(2 NIT — month 계약 의존·unknown 비대칭, 둘 다 비차단) + 4-게이트 PASS + CI green(run 27215304186). 주의: 첫 pull_request run 은 approve-comment 의 issue_comment 동시성 그룹이 cancel → rerun 으로 green. reviewRounds[T-0306]=1. tasksCompleted 302→303. 새 외부 dependency 0 / credential 0. production ~204 LOC(cap 내) + test ~417, 5 파일=cap.
 coversReq: [REQ-034, REQ-035, REQ-036]
 estimatedDiff: 220
 estimatedFiles: 4
