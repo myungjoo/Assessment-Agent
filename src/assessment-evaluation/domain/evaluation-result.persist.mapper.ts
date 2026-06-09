@@ -89,7 +89,9 @@ const KNOWN_SOURCE_TYPES = ["commit", "pr", "issue", "document"] as const;
 // ordinal. ADR-0033 §50 의 "최빈/최대" 중 **최대**를 채택한다 — 한 기간의 대표
 // 난이도는 가장 높은 기여의 난이도가 평가 의미상 보수적으로 적합(최빈은 동률 시
 // tie-break 규칙이 추가로 필요해 결정성이 약화). 동률/단일/혼합 모두 결정적.
-const DIFFICULTY_ORDER: Record<Difficulty, number> = {
+// `summary-aggregate.ts`(ADR-0035 §Decision 1 metricScore 집계)가 난이도 평균 산출에
+// 동일 ordinal 을 재사용하므로 export 한다(단위↔요약 난이도 척도 single source).
+export const DIFFICULTY_ORDER: Record<Difficulty, number> = {
   easy: 0,
   medium: 1,
   hard: 2,
