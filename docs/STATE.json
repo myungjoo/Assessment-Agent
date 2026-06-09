@@ -5,38 +5,39 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0312",
+  "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-06-10T02:55:00+09:00",
-  "lastCommit": "5f06941",
+  "lastActivity": "2026-06-10T03:18:00+09:00",
+  "lastCommit": "e578146",
   "mostRecentTasks": [
+    "T-0312",
     "T-0311",
     "T-0310",
     "T-0309",
-    "T-0307",
-    "T-0308"
+    "T-0307"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 6,
     "startedAt": "2026-06-10T00:43:00+09:00",
     "cap": 8,
     "holder": "loop@AKIHA-vb707106",
-    "note": "/loop session loop@AKIHA-vb707106 (turn cap 8, 로컬 AKIHA) t5 — T-0311(Summary 평가 chain doc-sync, direct) 완료: docs(architecture) 5f06941. data-model.md §3관계6/§6 + modules.md AssessmentEvaluationModule 에 ADR-0035 Summary chain(T-0305~T-0310) reality 박제(+8/-5, api.md 무변경 — controller Q-0030 ADR-gate). doc-only direct(tester 면제 §3.2). tasksCompleted 307→308. planner 가 T-0312(ADR-0035 PROPOSED→ACCEPTED flip, pr — 구현 chain T-0305~T-0311 전원 머지로 ADR §Follow-up #1 잔여, T-0303 ADR-0033 flip mirror) 큐잉 — dependency-free 잔여 1건. loop 계속(다음 turn T-0312 execute). cron 02:00 stand-down 확인. **orphan PR #249(ADR-0034) 미처리 — 사용자 close 결정 대기**. T-0312 머지 후엔 dependency-free 소진 → 다음 planner 호출이 Q-0031 escalate 예정(controller/bridge=Q-0030 ADR / live-LLM=§5 credential / timezone=Q-0026). **세션 성과 t1~t5: T-0308/T-0307/T-0309/T-0310/T-0311 머지 — ADR-0035 Summary 평가 chain 완결 + ADR-0036 concurrency 설계, tasksCompleted 303→308**.",
+    "note": "/loop session loop@AKIHA-vb707106 (turn cap 8, 로컬 AKIHA) t6 — T-0312(ADR-0035 PROPOSED→ACCEPTED flip) 완료·머지: PR #262 squash e578146. reviewer round1 APPROVE(BLOCKER/MAJOR/MINOR 0, NIT 2 비차단 — PR-body prose mislabel·rule-4 tension), 4-게이트 충족, CI green(run 27226445587 head 157a37b). ADR-0035 status ACCEPTED + relatedTask/relatedPR backref + §Follow-ups 머지 6항목 [x]. **ADR-0035 dependency-free 구현 chain(T-0304~T-0312) 전원 완결**. reviewRounds[T-0312]=1. tasksCompleted 308→309. **dependency-free P5 소진** → planner Q-0031 escalate 예정(남은 P5: controller/endpoint+period→collection bridge=Q-0030 ADR-gate / live-LLM=§5 credential / timezone=Q-0026 — 전부 human/ADR 결정). loop 정지(unresolved HQ). **orphan PR #249(ADR-0034) 미처리 — 사용자 close 결정 대기**. 재개: 사용자 Q-0031 + #249 결정 후 새 /loop. **세션 t1~t6 성과: T-0308(ADR-0036)·T-0307·T-0309·T-0310·T-0311·T-0312 머지 — ADR-0035 Summary 평가 chain 완결+ACCEPTED, tasksCompleted 303→309**.",
     "notePrevT2": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t8 — planner: ADR-0035 write service slice 를 cap 초과 회피 2 분할, 첫 조각 T-0307 큐잉(Summary batch 정성 narrative 생성 — 한 person-period unit 묶음 → typed surface batch prompt → LlmHttpGateway.generate 1회 mocked-LLM → narrative string, §Decision 5; cross-person 금지·raw 0). 단위평가 chain prompt+classify(T-0290) 분리 동형. DB write·metricScore 결합·reset-and-recreate 는 다음 slice T-0308. architect 불요(ADR §Decision 5 박제)→implementer→tester, dep0/credential0. nextTask=T-0307. **cap 근접**: turnCount=8/10 — T-0307 execute(t9, implementer+reviewer+CI+merge) 후 t10 closeout 즈음 cap 도달 예정, 그때 /compact·/clear 안내. 사용자 lock 피드백: 긴 CI/verify idle 중 release+resume 적용(§1[5] 준수). FYI orphan PR #249(ADR-0034) 미처리.",
     "notePrevT1": "/loop t5 — T-0301 DONE 머지(PR #253 628ceb5): evaluate flow persist-return 배선 (ADR-0033 slice 4). reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart + 2 MINOR) → round2 fix(@IsISO8601/@IsIn) → APPROVE. reviewRounds=2. tasksCompleted 297→298. planner T-0302 큐잉.",
     "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
     "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
   },
   "ci": {
-    "lastRun": "2026-06-10T02:42:00+09:00",
+    "lastRun": "2026-06-10T03:18:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27224371172",
-    "verifiedGreen": "T-0310 PR #261 run 27224371172(head 2f2525d) success: lint/build/test+cov/smoke/e2e/reviewer-approval 전부 green(round1 clean). main merge f2830de push-CI 는 in_progress → 다음 turn 재확인(R-114). 직전 T-0309 main merge 1f7a028 push-CI success 확인. Node.js 20→24 deprecation 경고는 non-blocking(2026-06-16).",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27226445587",
+    "verifiedGreen": "T-0312 PR #262 run 27226445587(head 157a37b) success: lint/build/test+reviewer-approval green(round1). main merge e578146 push-CI 는 in_progress → 재개 session 첫 진입점이 재확인(R-114). 직전 T-0310 f2830de·T-0311 5f06941 main push-CI success 확인. Node.js 20→24 deprecation 경고 non-blocking(2026-06-16).",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
+    "T-0312": 1,
     "T-0310": 1,
     "T-0309": 2,
     "T-0307": 2,
@@ -120,6 +121,25 @@
   "blockersResolvedNote2": "B-ci-infra-2026-06-08T21:07Z (3+ 연속 main CI runner 미할당 infra-fail) 는 2026-06-09T02:33Z 해소. 원인 = private repo 의 GitHub Actions spending limit $0 (결제수단만 추가로는 overage 미허용 — 무료 minutes 소진 후 runner 미할당). 사용자가 spending limit 상향 후 run 27167117992 rerun 이 runner 정상 할당 + 전체 green. ci-infra 는 코드 회귀가 아니므로 tasksBlocked counter increment 안 함(7 유지). Q-0028 RESOLVED 동반.",
   "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지. B-credential-2026-06-04T16:04Z (cron@cloud-bc1cce 16:04 fire 의 refs/locks/* 403 stale-탈취 실패) 는 동일 env 한계 재발화 — **loop@WIN-JQIPLSBL9QV-s55 가 session #55 t8 에서 정상 진행하며 자동 해소**(cron 이 못 한 T-0229 bookkeeping·Q-0022 escalation·counter 정합을 본 로컬 driver 가 완료, cron d82127d 의 blocker 기록을 본 commit 에서 blockers[]→[] 로 close). tasksBlocked counter 는 increment 하지 않는다(반복 env 한계지 정책 실패 아님). **근본 원인 = lock since 미갱신으로 60min stale 오판 — 본 turn 부터 매 turn since=now heartbeat 적용해 재발 차단.**",
   "humanQuestions": [
+    {
+      "id": "Q-0031",
+      "raisedAt": "2026-06-10T03:18:00+09:00",
+      "raisedBy": "loop@AKIHA-vb707106 t6 planner (post-T-0312 final survey → needs-human-decision)",
+      "reason": "needs-human-decision",
+      "status": "PENDING",
+      "summary": "Q-0030 가 승인한 P5 'batch/aggregate 평가 + Summary 영속화' (ADR-0035) 가 end-to-end 로 완결됐다 — ADR-0035 작성(T-0304) / Summary @@unique+migration(T-0305) / aggregateMetricScore·isPeriodEvaluable 순수 함수(T-0306) / Summary batch narrative 서비스(T-0307) / Summary write service(T-0309) / Summary aggregate orchestrator(T-0310) / data-model·modules doc-sync(T-0311) / ADR-0035 PROPOSED→ACCEPTED flip(T-0312) 이 전부 머지·reviewer-APPROVE·CI-green. SummaryAggregateOrchestratorService 가 이제 (personId,period,periodStart)+in-memory EvaluationResult[] → isPeriodEvaluable 시점 게이트 → reset-and-recreate Summary DB write(metricScore deterministic + LLM narrative) 를 수행한다. HIGH make-work-bar 로 origin/main(e578146) 실코드를 대조 재탐색했으나 신규 material dependency-free 가치는 미식별 — task 날조 회피 차원에서 escalate. 남은 P5 방향은 전부 새 human-confirmed ADR(controller endpoint·period→collection bridge = Q-0030 ADR-gate) 또는 CLAUDE.md §5 HITL 게이트(실 LLM credential·timezone) 또는 staged-adoption 결정(ADR-0036)이다. blockers 0, CI green, ADR-0001~0035 전원 ACCEPTED(ADR-0036 은 PROPOSED 유지가 정상 — staged-adoption), Q-0013~Q-0030 전원 RESOLVED, tasksCompleted=309. **orphan PR #249(ADR-0034) 미처리 — 사용자 disposition 결정 필요**.",
+      "context": "main 실코드 대조 survey(e578146): (1) ADR-0035 Summary 평가 chain(T-0304~T-0312) 완결 — Summary.@@unique([personId,period,periodStart])+migration, aggregateMetricScore/isPeriodEvaluable 순수 함수(line/func/branch 100% cov), SummaryNarrativeService(batch prompt 1좌표=1호출·cross-person 불가·raw 0), SummaryPersistService($transaction reset-and-recreate + resetByPeriod partial-reset + P2002→ConflictException, 100% cov), SummaryAggregateOrchestratorService(시점 게이트+위임), data-model.md §3관계6/§6 + modules.md doc-sync, ADR-0035 status ACCEPTED + relatedTask/relatedPR backref 전부 머지. (2) ADR-0035 §Follow-ups 잔여 = controller/endpoint 노출(EvaluationResult[] source-of + RBAC)·timezone(Q-0026)·live-LLM·scheduler 3 게이트 항목 [ ] — 전부 dependency-free 아님. (3) Summary evaluation controller/endpoint: 머지된 SummaryAggregateOrchestratorService 를 HTTP 로 노출하려면 (a) EvaluationResult[] 의 source(in-memory caller vs 영속 Contribution[] read vs period→collection bridge) 결정 + (b) period RBAC(Admin only vs Admin+User R-9) = Q-0030 ADR-gate 의 cross-module/RBAC 결정에 묶임 → thin wire 아님. (4) period→collection→evaluate bridge(Q-0030 옵션2/R-9/PLAN L98): period/personId → collectForPerson → Activity[] → evaluate end-to-end. (a) period RBAC (b) 동시 호출 idempotency (c) collection-side(자체 FK Contribution persist)와 evaluation-side(EvaluationResultPersistService) double-write 경계 = 2+ module spread 의 ADR-worthy 결정. (5) live-LLM 검증: 머지된 mocked-only 평가/Summary chain 을 실 네트워크 LLM 로 1회 round-trip(§5 credential, Q-0022 시험 credential 만료 2026-06-30). (6) ADR-0036(fine-grained concurrency): PROPOSED — 본 ADR 자신의 §Status 가 '설계 박제하되 즉시 채택 강제 X, flags 토글 기반 단계 rollout, 독립 task 공급 미실증 시 토글 OFF 유지가 정당' 명시. 채택=새 rollout work+flag 토글 = staged human decision, dependency-free flip 아님(ACCEPTED 로 임의 전환 금지). (7) 인접 sweep — 새 Summary service 3종 colocated spec 전원 존재(99.94% line/100% func cov, coverage-theater 여지 0), stale ADR status flip 0(ADR-0009~0035 ACCEPTED·ADR-0036 PROPOSED 정상), BLOCKED task 0, false-comment/nit residual 0. (8) 장기 deferred — timezone(Q-0026)·Confluence/Enterprise GitHub live token(§5 credential, Q-0024/25)·scheduler 자동화(@nestjs/schedule 새 dep, P7)·Stryker mutation testing(새 dep)·P6 frontend·observability/OpenAPI 전부 미승인/phase 경계/새 dep. (9) **orphan PR #249(ADR-0034 cloud 진입점 lock CAS 의무화) 미처리** — stale/origin-main 비조상 diverged/mixed-mode(direct STATE+CLAUDE+LOOP 9h stale 동봉)/CI-red, merge 시 STATE 회귀 위험. ADR-0036 §Decision1 이 'ADR-0034 는 subsume 안 됨·complementary, lock-bypass 봉쇄는 fine-grained 에서도 필요 → #249 rebase/CI-fix 단독 머지 또는 핵심 규율 흡수 후 close' 권고.",
+      "options": [
+        "(1) period→collection→evaluate bridge ADR + impl(권장 1순위, R-9/PLAN L98 — cross-module ADR, Q-0030 옵션2) — period/personId → AssessmentCollectionModule(collectForPerson) → Activity[] → evaluate end-to-end bridge. 수집·평가·Summary backbone 이 모두 머지돼 있으나 (a) period RBAC(Admin only vs Admin+User R-9) (b) 동시 호출 idempotency (c) collection-side 가 이미 Contribution 을 자체 FK 로 persist 하는데 evaluation-side persist 와의 double-write/책임 경계 = ADR-worthy. ADR-first 로 경계 박제 후 dependency-free impl. 새 dep 0 / credential 0(mocked). 이것이 (2) controller/endpoint 의 EvaluationResult[] source 도 함께 확정해 재작업을 막는다.",
+        "(2) Summary evaluation controller/endpoint ADR + impl(권장 2순위) — 머지된 SummaryAggregateOrchestratorService 를 HTTP endpoint(예: POST /api/assessment-evaluation/summary)로 노출. (1) 의 EvaluationResult[] source-of(in-memory caller vs 영속 Contribution[] read vs bridge) 결정 + period RBAC(Q-0030 ADR-gate)에 의존 → (1) 후 또는 동시 진행. 새 dep 0 / credential 0(mocked).",
+        "(3) 실 LLM 평가/Summary live run 승인(§5 credential 게이트) — 머지된 mocked-only 평가·Summary narrative chain 을 실 네트워크 LLM(azure_openai 등, Q-0022 검증 시험 credential, 만료 2026-06-30)로 1회 실행해 batch prompt·scoring round-trip 검증. env-gated live spec(env 부재 시 skip→CI green) + repo 밖 secrets.env 주입. 새 외부 dependency 0(내장 fetch) / 실 credential 1 → §5 게이트. 가치 있으나 backbone 확장 아닌 1회 검증.",
+        "(4) ADR-0036 fine-grained concurrency 채택(staged human decision) — 현 ADR-0036 은 PROPOSED 로 설계만 박제하고 동작 변화 0(coarse mutex 존속). 채택 = flags.fineGrainedConcurrency 토글 + 5-stage rollout(claim registry 구현·LOOP/CLAUDE 동기·검증) = 새 rollout work. ADR 자신이 '독립 task 공급 미실증 시 토글 OFF 유지가 정당' 명시 → 사용자가 multi-machine/cron 병렬 throughput 가치를 확신할 때만 진입. 이때 planner 의 독립-stream 분해 정책도 동반 필요.",
+        "(5) 다른 우선순위 / 루프 정지 — timezone(Q-0026 SinceDerivation Asia/Seoul vs UTC)·Confluence/Enterprise GitHub live token run(§5 credential, Q-0024/25)·scheduler 자동화(@nestjs/schedule 새 dep, P7)·Stryker mutation testing(새 dep)·P6 frontend 진입 검토·observability/OpenAPI doc 등 지시, 또는 정지. planner 는 현 시점 위 외 dependency-free 신규 가치를 미식별(make-work 날조 회피)."
+      ],
+      "recommendation": "권장 (1) period→collection→evaluate bridge ADR 진입 — ADR-0035 가 Summary 평가 backbone 을 닫았으므로 이제 P5 의 자연스러운 다음 backbone 은 '수집된 자료 → 평가 → Summary' 의 end-to-end bridge(R-9/PLAN L98)다. 이는 (2) controller/endpoint 의 EvaluationResult[] source-of 결정을 함께 확정해 재작업을 막는다. (1)/(2) 모두 새 외부 dependency·외부 credential 불요(내장 Prisma + 기존 LlmHttpGateway mocked-LLM unit, CI 실 PostgreSQL ADR-0004)이나 'cross-module double-write 경계 + period RBAC(Admin vs Admin+User R-9)' 가 새 design 결정이라 planner 단독 권한 밖 → human 확인 필요. (3) live run 은 backbone 확장이 아닌 1회 검증이고 credential 필요. (4) ADR-0036 채택은 ADR 자신이 staged human decision 으로 명시 — 임의 flip 금지(make-work 회피). 권장 순서: (1 bridge ADR) → (2 controller/endpoint 함께/직후) → (3 live 검증). 또한 **orphan PR #249(ADR-0034) disposition 결정 필요** — 권고: rebase/CI-fix 해 lock-bypass 봉쇄 규율을 단독 먼저 머지하거나, conflict 비용이 크면 ADR-0034 핵심 규율을 후속 LOOP/CLAUDE 동기 task 에 흡수하며 #249 close(ADR-0036 §Decision1 권고). planner 단독으로 새 ADR design 결정·§5 credential·staged-adoption·PR disposition 은 권한 밖이라 escalate — make-work 날조보다 정직한 정지가 옳다.",
+      "resolutionHint": "docs/STATE.json 의 본 Q-0031 에 resolvedAt(ISO) + decision(선택 옵션 번호 + (1) 선택 시 bridge RBAC[Admin only vs Admin+User R-9] + double-write 경계 + EvaluationResult[] source-of 결정 및 새 ADR 승인 / (2) 선택 시 endpoint path·RBAC·source 결정 / (3) 선택 시 LLM credential scope·secrets.env 경로·만료 / (4) 선택 시 ADR-0036 ACCEPTED flip + flags.fineGrainedConcurrency rollout stage 승인 + 독립-stream 분해 정책 / (5) 선택 시 우선순위 또는 정지) + **PR #249 disposition(rebase 후 단독 머지 vs 규율 흡수 후 close)** 을 기입하고 commit 한 뒤 새 /loop 시작 또는 다음 cron fire 대기. credential(LLM API key / GitHub·Confluence token / LLM_APIKEY_ENC_KEY)은 코드·STATE·journal·git 에 실값 금지, env/secret 주입(§9). (1)/(2) 는 새 외부 credential 불요(CI 실 PostgreSQL ADR-0004 + mocked-LLM unit)이나 새 ADR 의 design 결정이라 human 확인 필요. ADR-0036 은 staged-adoption 이라 PROPOSED 유지가 기본 정상 — 임의 ACCEPTED flip 금지. 미해소 상태로 두면 loop 는 dependency-free 작업 부재로 정지(정상).",
+      "raisedThisTurn": true
+    },
     {
       "id": "Q-0030",
       "raisedAt": "2026-06-09T20:00:00+09:00",
@@ -488,7 +508,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 308,
+    "tasksCompleted": 309,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

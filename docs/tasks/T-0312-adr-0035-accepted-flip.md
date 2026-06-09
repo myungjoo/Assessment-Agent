@@ -2,7 +2,11 @@
 id: T-0312
 title: ADR-0035 status PROPOSED→ACCEPTED flip + relatedTask/relatedPR backreferences
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T03:18:00+09:00
+prNumber: 262
+mergedAs: e578146
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-064]
 estimatedDiff: 10
