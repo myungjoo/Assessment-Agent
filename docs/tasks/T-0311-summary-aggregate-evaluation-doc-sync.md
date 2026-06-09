@@ -2,7 +2,9 @@
 id: T-0311
 title: Summary aggregate 평가 chain doc-sync (ADR-0035 reality 반영)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T02:55:00+09:00
+mergedAs: 5f06941
 commitMode: direct
 coversReq: [REQ-034, REQ-035, REQ-036, REQ-064]
 estimatedDiff: 55

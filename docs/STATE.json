@@ -5,23 +5,23 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0311",
+  "nextTask": "T-0312",
   "lock": null,
-  "lastActivity": "2026-06-10T02:42:00+09:00",
-  "lastCommit": "f2830de",
+  "lastActivity": "2026-06-10T02:55:00+09:00",
+  "lastCommit": "5f06941",
   "mostRecentTasks": [
+    "T-0311",
     "T-0310",
     "T-0309",
     "T-0307",
-    "T-0308",
-    "T-0306"
+    "T-0308"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-10T00:43:00+09:00",
     "cap": 8,
     "holder": "loop@AKIHA-vb707106",
-    "note": "/loop session loop@AKIHA-vb707106 (turn cap 8, 로컬 AKIHA) t4 — T-0310(Summary aggregate orchestrator) 완료·머지: PR #261 squash f2830de. reviewer round1 APPROVE(BLOCKER/MAJOR/MINOR/finding 0, clean), 4-게이트 충족, CI green(run 27224371172 head 2f2525d). SummaryAggregateOrchestratorService.evaluateAndPersist — (personId,period,periodStart) + in-memory EvaluationResult[] → isPeriodEvaluable(T-0306) 시점 게이트 → SummaryPersistService.persistSummary(T-0309) 위임, SummaryAggregateResult { evaluated; result? }. EvaluationOrchestratorService(T-0292) thin compose. module 등록(선제). **Summary 평가 chain(aggregate→narrative→persist→orchestrator) 내부 완결**. 새 dep/migration/credential 0. reviewRounds[T-0310]=1. tasksCompleted 306→307. nextTask=<planner — 남은 P5 dependency-free slice 평가 또는 escalate>. **orphan PR #249 미처리**. 남은 P5: controller/endpoint·period→collection bridge·live-LLM 은 Q-0030 ADR/§5 게이트 가능.",
+    "note": "/loop session loop@AKIHA-vb707106 (turn cap 8, 로컬 AKIHA) t5 — T-0311(Summary 평가 chain doc-sync, direct) 완료: docs(architecture) 5f06941. data-model.md §3관계6/§6 + modules.md AssessmentEvaluationModule 에 ADR-0035 Summary chain(T-0305~T-0310) reality 박제(+8/-5, api.md 무변경 — controller Q-0030 ADR-gate). doc-only direct(tester 면제 §3.2). tasksCompleted 307→308. planner 가 T-0312(ADR-0035 PROPOSED→ACCEPTED flip, pr — 구현 chain T-0305~T-0311 전원 머지로 ADR §Follow-up #1 잔여, T-0303 ADR-0033 flip mirror) 큐잉 — dependency-free 잔여 1건. loop 계속(다음 turn T-0312 execute). cron 02:00 stand-down 확인. **orphan PR #249(ADR-0034) 미처리 — 사용자 close 결정 대기**. T-0312 머지 후엔 dependency-free 소진 → 다음 planner 호출이 Q-0031 escalate 예정(controller/bridge=Q-0030 ADR / live-LLM=§5 credential / timezone=Q-0026). **세션 성과 t1~t5: T-0308/T-0307/T-0309/T-0310/T-0311 머지 — ADR-0035 Summary 평가 chain 완결 + ADR-0036 concurrency 설계, tasksCompleted 303→308**.",
     "notePrevT2": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t8 — planner: ADR-0035 write service slice 를 cap 초과 회피 2 분할, 첫 조각 T-0307 큐잉(Summary batch 정성 narrative 생성 — 한 person-period unit 묶음 → typed surface batch prompt → LlmHttpGateway.generate 1회 mocked-LLM → narrative string, §Decision 5; cross-person 금지·raw 0). 단위평가 chain prompt+classify(T-0290) 분리 동형. DB write·metricScore 결합·reset-and-recreate 는 다음 slice T-0308. architect 불요(ADR §Decision 5 박제)→implementer→tester, dep0/credential0. nextTask=T-0307. **cap 근접**: turnCount=8/10 — T-0307 execute(t9, implementer+reviewer+CI+merge) 후 t10 closeout 즈음 cap 도달 예정, 그때 /compact·/clear 안내. 사용자 lock 피드백: 긴 CI/verify idle 중 release+resume 적용(§1[5] 준수). FYI orphan PR #249(ADR-0034) 미처리.",
     "notePrevT1": "/loop t5 — T-0301 DONE 머지(PR #253 628ceb5): evaluate flow persist-return 배선 (ADR-0033 slice 4). reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart + 2 MINOR) → round2 fix(@IsISO8601/@IsIn) → APPROVE. reviewRounds=2. tasksCompleted 297→298. planner T-0302 큐잉.",
     "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
@@ -488,7 +488,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 307,
+    "tasksCompleted": 308,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
