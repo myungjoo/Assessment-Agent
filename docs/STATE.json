@@ -5,7 +5,7 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0295",
   "lock": {
     "holder": "loop",
     "session": "loop@AKIHA-ci0028",
@@ -35,7 +35,8 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27167117992",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27180457424",
+    "verifiedGreen": "복구 후 3 연속 run green: 27167117992(cbef4c1 복구검증) / 27180305177(efec6fd unblock bookkeeping) / 27180457424(8afc210 T-0294 deliverable) — 전부 success, runner 정상 할당.",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
