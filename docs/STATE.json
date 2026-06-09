@@ -5,38 +5,39 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0310",
+  "nextTask": "T-0311",
   "lock": null,
-  "lastActivity": "2026-06-10T02:18:00+09:00",
-  "lastCommit": "1f7a028",
+  "lastActivity": "2026-06-10T02:42:00+09:00",
+  "lastCommit": "f2830de",
   "mostRecentTasks": [
+    "T-0310",
     "T-0309",
     "T-0307",
     "T-0308",
-    "T-0306",
-    "T-0305"
+    "T-0306"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "startedAt": "2026-06-10T00:43:00+09:00",
     "cap": 8,
     "holder": "loop@AKIHA-vb707106",
-    "note": "/loop session loop@AKIHA-vb707106 (turn cap 8, 로컬 AKIHA) t3 — T-0309(Summary write service) 완료·머지: PR #260 squash 1f7a028. reviewer round1 APPROVE+NIT(metricScore-flow 미단언)→round2 test 추가→APPROVE(NIT closed), 4-게이트 충족, CI green(run 27223101960 head 7dca6dd). SummaryPersistService — aggregateMetricScore(T-0306)+SummaryNarrativeService(T-0307) 결합 → 단일 $transaction reset-and-recreate(fill/reeval, key personId_period_periodStart, P2002→Conflict) + resetByPeriod partial-reset. module providers+exports 등록(executor 가 T-0307 MAJOR 학습해 선제). EvaluationResultPersistService(T-0300) 패턴. **ADR-0035 Summary 평가 backbone(narrative T-0307 + persist T-0309) 완결**. 새 migration/dep/credential 0. reviewRounds[T-0309]=2. tasksCompleted 305→306. nextTask=<planner>. cron 02:00 fire 는 본 turn lock 점유로 stand-down. **orphan PR #249 미처리**. 남은 P5: orchestrator/controller 배선·period→collection bridge(Q-0030 cross-module/RBAC ADR-worthy)·live-LLM 은 HITL/ADR 게이트 가능 — planner 판단.",
+    "note": "/loop session loop@AKIHA-vb707106 (turn cap 8, 로컬 AKIHA) t4 — T-0310(Summary aggregate orchestrator) 완료·머지: PR #261 squash f2830de. reviewer round1 APPROVE(BLOCKER/MAJOR/MINOR/finding 0, clean), 4-게이트 충족, CI green(run 27224371172 head 2f2525d). SummaryAggregateOrchestratorService.evaluateAndPersist — (personId,period,periodStart) + in-memory EvaluationResult[] → isPeriodEvaluable(T-0306) 시점 게이트 → SummaryPersistService.persistSummary(T-0309) 위임, SummaryAggregateResult { evaluated; result? }. EvaluationOrchestratorService(T-0292) thin compose. module 등록(선제). **Summary 평가 chain(aggregate→narrative→persist→orchestrator) 내부 완결**. 새 dep/migration/credential 0. reviewRounds[T-0310]=1. tasksCompleted 306→307. nextTask=<planner — 남은 P5 dependency-free slice 평가 또는 escalate>. **orphan PR #249 미처리**. 남은 P5: controller/endpoint·period→collection bridge·live-LLM 은 Q-0030 ADR/§5 게이트 가능.",
     "notePrevT2": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t8 — planner: ADR-0035 write service slice 를 cap 초과 회피 2 분할, 첫 조각 T-0307 큐잉(Summary batch 정성 narrative 생성 — 한 person-period unit 묶음 → typed surface batch prompt → LlmHttpGateway.generate 1회 mocked-LLM → narrative string, §Decision 5; cross-person 금지·raw 0). 단위평가 chain prompt+classify(T-0290) 분리 동형. DB write·metricScore 결합·reset-and-recreate 는 다음 slice T-0308. architect 불요(ADR §Decision 5 박제)→implementer→tester, dep0/credential0. nextTask=T-0307. **cap 근접**: turnCount=8/10 — T-0307 execute(t9, implementer+reviewer+CI+merge) 후 t10 closeout 즈음 cap 도달 예정, 그때 /compact·/clear 안내. 사용자 lock 피드백: 긴 CI/verify idle 중 release+resume 적용(§1[5] 준수). FYI orphan PR #249(ADR-0034) 미처리.",
     "notePrevT1": "/loop t5 — T-0301 DONE 머지(PR #253 628ceb5): evaluate flow persist-return 배선 (ADR-0033 slice 4). reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart + 2 MINOR) → round2 fix(@IsISO8601/@IsIn) → APPROVE. reviewRounds=2. tasksCompleted 297→298. planner T-0302 큐잉.",
     "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
     "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
   },
   "ci": {
-    "lastRun": "2026-06-10T02:18:00+09:00",
+    "lastRun": "2026-06-10T02:42:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27223101960",
-    "verifiedGreen": "T-0309 PR #260 run 27223101960(head 7dca6dd) success: lint/build/test+cov/smoke/e2e/reviewer-approval 전부 green(round2). main merge 1f7a028 push-CI 는 in_progress → 다음 turn 재확인(R-114). 직전 T-0307 main merge 7017581 push-CI success 확인. round1 pull_request 도 이번엔 approval-gate race 없이 진행. Node.js 20→24 deprecation 경고는 non-blocking(2026-06-16).",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27224371172",
+    "verifiedGreen": "T-0310 PR #261 run 27224371172(head 2f2525d) success: lint/build/test+cov/smoke/e2e/reviewer-approval 전부 green(round1 clean). main merge f2830de push-CI 는 in_progress → 다음 turn 재확인(R-114). 직전 T-0309 main merge 1f7a028 push-CI success 확인. Node.js 20→24 deprecation 경고는 non-blocking(2026-06-16).",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
+    "T-0310": 1,
     "T-0309": 2,
     "T-0307": 2,
     "T-0308": 1,
@@ -487,7 +488,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 306,
+    "tasksCompleted": 307,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

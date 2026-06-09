@@ -2,7 +2,11 @@
 id: T-0310
 title: Summary aggregate 평가 orchestrator service 배선 (isPeriodEvaluable 게이트 + SummaryPersistService 결합)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T02:42:00+09:00
+prNumber: 261
+mergedAs: f2830de
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-034, REQ-035, REQ-036, REQ-064]
 estimatedDiff: 180
