@@ -5,7 +5,7 @@ phase: P5
 status: DONE
 completedAt: 2026-06-09T15:00:00+09:00
 prNumber: 247
-result: ADR-0033 작성 완료. reviewer round1 REQUEST_CHANGES(STATE.json invalid JSON 회귀) → ed5f413 수정 → round2 APPROVE → 사용자 머지(squash 92309d7, PR #247). ADR status PROPOSED→ACCEPTED flip 은 본 closeout turn 에서 동반. 후속 dependency-free chain(prisma Contribution @@unique migration → repository write → orchestrator/controller 영속 반환 → doc-sync)은 planner 가 차순위로 큐잉.
+result: ADR-0033 작성 완료. reviewer round1 REQUEST_CHANGES(STATE.json invalid JSON 회귀) → ed5f413 수정 → round2 APPROVE → 사용자 머지(squash 92309d7, PR #247). closeout(status DONE/currentTask→null/tasksCompleted++)은 PR #248. ADR status PROPOSED→ACCEPTED flip 은 CI doc-only 게이트(docs/decisions/* reviewer 검토 강제)에 걸려 #248 에서 분리 — gh 세션 direct-to-main 또는 별도 reviewer PR 로 follow-up(ADR 자체는 #247 round2 reviewer APPROVE 완료). 후속 dependency-free chain(prisma Contribution @@unique migration → repository write → orchestrator/controller 영속 반환 → doc-sync)은 planner 가 차순위로 큐잉.
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-064]
 estimatedDiff: 180
