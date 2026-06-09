@@ -2,8 +2,11 @@
 id: T-0305
 title: Summary `@@unique([personId, period, periodStart])` schema + migration (ADR-0035 §Decision 4 첫 구현 slice)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 256
+completedAt: 2026-06-09T23:47:00+09:00
+result: DONE — PR #256 squash fbca1e1 머지. Summary @@unique([personId, period, periodStart]) 1줄 + migration 20260609000001 + R-112 5 테스트(happy/P2002 rethrow/negative personId·period·periodStart 독립). implementer→tester(architect 불요). summary.repository.ts 100% cov. reviewer round1 APPROVE(1 NIT inline P2002 mock — idiom 정합, 비차단) + 4-게이트 PASS + CI green(run 27213998521, migrate-deploy+smoke+e2e 포함, approval-gate race rerun 후 success). reviewRounds[T-0305]=1. tasksCompleted 301→302. 새 외부 dependency 0 / credential 0.
 coversReq: [REQ-034, REQ-035, REQ-036, REQ-064]
 estimatedDiff: 95
 estimatedFiles: 4
