@@ -5,9 +5,9 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0305",
   "lock": null,
-  "lastActivity": "2026-06-09T23:25:00+09:00",
+  "lastActivity": "2026-06-09T23:30:00+09:00",
   "lastCommit": "pending",
   "mostRecentTasks": [
     "T-0304",
@@ -17,12 +17,12 @@
     "T-0300"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "startedAt": "2026-06-09T18:42:00+09:00",
     "cap": 10,
     "holder": "loop@AKIHA-707106",
-    "note": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t4 — T-0304 DONE 머지(PR #255 squash da8089e): ADR-0035 batch/aggregate 평가 + Summary 영속화 설계(Q-0030 옵션1 ADR-first 첫 slice). architect 가 ADR 195 LOC 작성, 5 결정(집계규칙 deterministic metricScore+person-period batch LLM narrative / 기존 Summary entity 재사용 새 table 0 + @@unique 1줄 / R-61 isPeriodEvaluable 시점 게이트 scheduler OUT / reset-and-recreate fill·reeval / batch prompt 경계). 핵심 발견: Summary model 이미 존재(ADR-0006 prisma L341-355)라 새 table 불요. reviewer round1 APPROVE(0 BLOCKER/MAJOR/MINOR, 2 NIT cosmetic-reviewer 가 appropriate 판정) + 4-게이트 PASS + CI green(run 27212245686, approval-gate race 로 첫 run reviewer-approval step fail→approve comment 후 rerun --failed success). reviewRounds[T-0304]=1. tasksCompleted 300→301. **시점 정정**: t3 STATE 시각(20:05)은 로컬 클럭이 ~3h 뒤처진 값(t3 turn 중 클럭이 forward 점프), 실시간은 서버 run createdAt 대조로 ~23:xx KST 확인 — t4 부터 정확 시각. next: planner 가 ADR-0035 구현 chain 첫 slice 큐잉(prisma Summary @@unique+migration 또는 aggregate pure-function mapper/isPeriodEvaluable — Summary write-path 유무 확인 후 scope 결정, T-0298 mirror). FYI orphan PR #249(ADR-0034 lock-CAS doc, CI red) 여전히 미처리 — disposition 필요.",
-    "notePrevT2": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t3 — 직전 2 turn 은 cloud session loop@cloud-turn-cap-10-n6hs91 가 lock 점유 중이라 no-op stand-down. cloud 가 t5~t7 로 T-0301/0302/0303 머지 후 dependency-free P5 backlog 소진 → Q-0030 escalation 하고 정지(lock free). 본 turn: lock 획득(branch-ref CAS 552643b→e70b261) + 사용자가 /loop AskUserQuestion 으로 Q-0030 옵션(1) 승인(batch/aggregate 평가 + Summary 영속화 ADR) → Q-0030 RESOLVED + nextTask=T-0304 큐잉(ADR-0035 Summary 평가 설계, pr-mode, dep0/credential0, ADR-first 첫 slice). 다음 turn: executor 가 T-0304 픽업 → architect ADR-0035 작성. FYI: orphan PR #249(claude/loop-turn-cap-5-a9786f, ADR-0034 lock-CAS doc + 이미 머지된 commit 혼재, CI red) 미처리 — disposition 필요(close 후 ADR-0034 clean 재큐 권장). ADR 번호 충돌 회피로 본 task 는 ADR-0035 채택.",
+    "note": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t5 — planner: ADR-0035 구현 chain 첫 slice T-0305 큐잉 (Summary @@unique([personId,period,periodStart]) + migration 20260609000001_summary_person_period_start_unique, pr-mode, dep0/credential0). T-0298(Contribution @@unique) 동형. 조사 결과 Summary 는 이미 write path 존재(SummaryRepository.create / SummaryController POST /api/summaries / CreateSummaryDto, T-0113)라 R-112 P2002 propagation 을 summary.repository.spec.ts 에 colocate 가능. architect 불요(ADR-0035 §Decision 4 가 SQL·migration명·idempotency key 박제) → implementer→tester. nextTask=T-0305. 다음 turn executor 픽업. (사용자 continue 로 t5 즉시 진행, scheduled wake 대기 안 함.) FYI orphan PR #249(ADR-0034) 여전히 미처리.",
+    "notePrevT2": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t4 — T-0304 DONE 머지(PR #255 squash da8089e): ADR-0035 batch/aggregate 평가 + Summary 영속화 설계(Q-0030 옵션1 ADR-first 첫 slice). architect 가 ADR 195 LOC 작성, 5 결정(집계규칙 deterministic metricScore+person-period batch LLM narrative / 기존 Summary entity 재사용 새 table 0 + @@unique 1줄 / R-61 isPeriodEvaluable 시점 게이트 scheduler OUT / reset-and-recreate fill·reeval / batch prompt 경계). 핵심 발견: Summary model 이미 존재(ADR-0006 prisma L341-355)라 새 table 불요. reviewer round1 APPROVE(0 BLOCKER/MAJOR/MINOR, 2 NIT cosmetic-reviewer 가 appropriate 판정) + 4-게이트 PASS + CI green(run 27212245686, approval-gate race 로 첫 run reviewer-approval step fail→approve comment 후 rerun --failed success). reviewRounds[T-0304]=1. tasksCompleted 300→301. **시점 정정**: t3 STATE 시각(20:05)은 로컬 클럭이 ~3h 뒤처진 값(t3 turn 중 클럭이 forward 점프), 실시간은 서버 run createdAt 대조로 ~23:xx KST 확인 — t4 부터 정확 시각. next: planner 가 ADR-0035 구현 chain 첫 slice 큐잉(prisma Summary @@unique+migration 또는 aggregate pure-function mapper/isPeriodEvaluable — Summary write-path 유무 확인 후 scope 결정, T-0298 mirror). FYI orphan PR #249(ADR-0034 lock-CAS doc, CI red) 여전히 미처리 — disposition 필요.",
     "notePrevT1": "/loop t5 — T-0301 DONE 머지(PR #253 628ceb5): evaluate flow persist-return 배선 (ADR-0033 slice 4). reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart + 2 MINOR) → round2 fix(@IsISO8601/@IsIn) → APPROVE. reviewRounds=2. tasksCompleted 297→298. planner T-0302 큐잉.",
     "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
     "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
