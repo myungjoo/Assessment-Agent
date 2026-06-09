@@ -7,12 +7,12 @@
   "currentTask": null,
   "nextTask": "T-0294",
   "lock": {
-    "holder": "cron",
-    "session": "cron@cloud-focused-goodall-92aaf6",
-    "since": "2026-06-08T21:06:55Z",
-    "note": "비권위 human mirror — cron@cloud-focused-goodall-92aaf6 가 §1[5] 3 연속 infra-fail BLOCKED bookkeeping direct commit 중. authoritative claude/lock-driver tip = c8afd50 (acquire). commit 후 tombstone release 예정."
+    "holder": "loop",
+    "session": "loop@AKIHA-ci0028",
+    "since": "2026-06-09T02:33:55Z",
+    "note": "비권위 human mirror. authoritative claude/lock-driver tip = 9cdc1d2 (acquire by loop@AKIHA-ci0028). CI-infra 복구(빌링 spending limit 상향) 확인 후 Q-0028 close + T-0294 resume 진행 중."
   },
-  "lastActivity": "2026-06-09T06:07:17+09:00",
+  "lastActivity": "2026-06-09T11:33:55+09:00",
   "lastCommit": "pending",
   "mostRecentTasks": [
     "T-0293",
@@ -22,21 +22,21 @@
     "T-0289"
   ],
   "loopSession": {
-    "turnCount": 10,
-    "startedAt": "2026-06-09T01:00:00+09:00",
+    "turnCount": 1,
+    "startedAt": "2026-06-09T11:33:55+09:00",
     "cap": 10,
-    "holder": "loop@AKIHA-22e7",
-    "note": "/loop session loop@AKIHA-22e7 (turn cap 10) t10 — 마지막 turn(planner-only). 25d3860 main CI = success 확인(R-114) 후 currentTask/nextTask 모두 null 에서 planner dispatch → T-0293(P5 평가 controller/DTO: POST /api/assessment-evaluation/evaluate → orchestrator 위임, AssessmentCollectionController 패턴 mirror, orchestrator mock, dep 0, est 220 LOC/5파일) 큐잉. issue-still-relevant grep 0건. turnCount=10 → §1[8](e) cap 도달 → reschedule 안 함, 정상 STOP + authoritative lock tombstone release. 본 session 5 task(T-0288~T-0292) 머지 완주, tasksCompleted 284→289.",
-    "notePrev": "/loop t9 — T-0292(P5 평가 orchestrator) 실행 → PR #244 round 1 APPROVE → CI green → squash merge 5923943. tasksCompleted 288→289.",
-    "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업, executor 작성 fec4eee push, 첫 CI run 이 check-spec-presence step 에서 fail(DTO 콜로케이트 spec 부재). implementer 가 evaluate-activities.dto.spec.ts (383 LOC, collect-trigger.dto.spec.ts 패턴 mirror) 추가 → 6dcefbd push → 새 CI run green. reviewer round 1 APPROVE(8-check pass, NIT 4종 비차단). 4-게이트 통과 → squash merge 2ecbc64. branch 삭제는 proxy disconnect 로 server-side noop(non-blocking — follow-up cleanup). tasksCompleted 289→290."
+    "holder": "loop@AKIHA-ci0028",
+    "note": "/loop session loop@AKIHA-ci0028 (turn cap 10) t1 — 사용자가 GitHub billing spending limit 상향(private repo Actions minutes overage 차단 해제) 후 CI-infra 복구 검증: run 27167117992 rerun → runner 정상 할당 → 전체 green(migrate/test+cov/smoke/e2e ✓, exit 0). Q-0028 RESOLVED + B-ci-infra close + ci.consecutiveFails 3→0 reset (본 direct bookkeeping commit). 이어 nextTask T-0294(api.md 평가 endpoint doc-sync) 픽업.",
+    "notePrev": "직전 session loop@AKIHA-22e7 t10 cap 도달 정상 종료 — T-0288~T-0292 5 task 머지, tasksCompleted 284→289. 이후 cron fire 가 T-0293 머지(290) + T-0294 큐잉 직후 GH Actions runner 미할당 infra-fail 3연속 → BLOCKED(Q-0028). 원인은 private repo Actions spending limit $0.",
+    "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
   },
   "ci": {
-    "lastRun": "2026-06-09T06:07:17+09:00",
-    "status": "blocked-ci-infra",
-    "consecutiveFails": 3,
-    "lastConclusion": "failure",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27163838073",
-    "note": "main 8753750 (직전 cron fire 의 2nd 연속 infra-fail bookkeeping direct commit) push 후 CI run 27163838073 = failure. job 80185814800 attempt 1: created/started=20:07:41Z completed=20:07:42Z (1s), runner_id=0 runner_name=''. 직전 2 run(27160808599 79db0c9, 27161109030 21a3925)과 동일 패턴 — runner 미할당 fail. **3 연속 infra-fail 확인 → §1[5] threshold 도달, BLOCKED(ci-infra) 처리.** 코드/workflow/script 변경 0 — GH Actions infra layer 픽업 실패가 21:11Z 부터 약 1시간 지속. 후보 그대로: (a) Actions minutes 소진, (b) account-level quota/billing 일시 정지, (c) org/repo-level Actions 비활성, (d) GH Actions 지역 outage. 사람 검토 필수: https://github.com/myungjoo/Assessment-Agent/settings/actions 및 billing/usage. 다음 cron fire 는 본 BLOCKED 상태 + Q-0028 미해소를 보고 §1[1] 마지막 단계에서 즉시 종료(no-op). nextTask=T-0294 큐잉은 유지 — CI infra 복구 + Q-0028 해소 시 자동 픽업 가능."
+    "lastRun": "2026-06-09T11:33:55+09:00",
+    "status": "green",
+    "consecutiveFails": 0,
+    "lastConclusion": "success",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27167117992",
+    "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
     "T-0293": 1,
@@ -105,15 +105,8 @@
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
-  "blockers": [
-    {
-      "id": "B-ci-infra-2026-06-08T21:07Z",
-      "raisedAt": "2026-06-08T21:07:17Z",
-      "raisedBy": "cron@cloud-focused-goodall-92aaf6 (driver §1[5] threshold)",
-      "reason": "ci-infra",
-      "summary": "3 연속 main CI run 이 runner 미할당으로 1~3초 만에 fail (27160808599 79db0c9, 27161109030 21a3925, 27163838073 8753750). 코드/workflow 변경 0 인데도 runner_id=0/name='' 패턴이 약 1시간 지속. §1[5] threshold(3) 도달 → BLOCKED. 사용자가 https://github.com/myungjoo/Assessment-Agent/settings/actions + billing/usage 페이지를 확인해 Actions 활성 여부·quota·minutes 소진·outage 여부를 점검해야 한다. T-0294 nextTask 큐잉은 유지(코드 회귀 아니므로 CI infra 복구 시 자동 픽업 가능). 본 blocker 는 Q-0028 humanQuestion 으로 escalate."
-    }
-  ],
+  "blockers": [],
+  "blockersResolvedNote2": "B-ci-infra-2026-06-08T21:07Z (3+ 연속 main CI runner 미할당 infra-fail) 는 2026-06-09T02:33Z 해소. 원인 = private repo 의 GitHub Actions spending limit $0 (결제수단만 추가로는 overage 미허용 — 무료 minutes 소진 후 runner 미할당). 사용자가 spending limit 상향 후 run 27167117992 rerun 이 runner 정상 할당 + 전체 green. ci-infra 는 코드 회귀가 아니므로 tasksBlocked counter increment 안 함(7 유지). Q-0028 RESOLVED 동반.",
   "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지. B-credential-2026-06-04T16:04Z (cron@cloud-bc1cce 16:04 fire 의 refs/locks/* 403 stale-탈취 실패) 는 동일 env 한계 재발화 — **loop@WIN-JQIPLSBL9QV-s55 가 session #55 t8 에서 정상 진행하며 자동 해소**(cron 이 못 한 T-0229 bookkeeping·Q-0022 escalation·counter 정합을 본 로컬 driver 가 완료, cron d82127d 의 blocker 기록을 본 commit 에서 blockers[]→[] 로 close). tasksBlocked counter 는 increment 하지 않는다(반복 env 한계지 정책 실패 아님). **근본 원인 = lock since 미갱신으로 60min stale 오판 — 본 turn 부터 매 turn since=now heartbeat 적용해 재발 차단.**",
   "humanQuestions": [
     {
@@ -424,7 +417,7 @@
       "raisedAt": "2026-06-08T21:07:17Z",
       "raisedBy": "cron@cloud-focused-goodall-92aaf6 (driver §1[5] 3 연속 infra-fail → BLOCKED)",
       "reason": "ci-infra-outage",
-      "status": "OPEN",
+      "status": "RESOLVED",
       "summary": "GitHub Actions 가 main push 트리거 후 runner 를 약 1시간째 할당하지 못한다. 3 연속 main CI run 이 runner_id=0 / runner_name='' 로 1~3초 만에 fail (27160808599 79db0c9 19:11Z, 27161109030 21a3925 19:16Z, 27163838073 8753750 20:07Z). 코드·workflow·script 변경 0 이라 회귀 아님 — GH Actions infra layer 픽업 실패가 지속 중. §1[5] threshold(3) 도달로 driver BLOCKED. 추가 cron fire 가 본 BLOCKED + 본 Q-0028 미해소를 보고 즉시 종료(no-op) 한다. 사용자가 Actions infra 상태를 점검·복구해야 driver 가 T-0294 picking 으로 자율 재개한다.",
       "context": "T-0293 (P5 평가 controller/DTO, PR-245 squash 2ecbc64) 까지는 정상 머지·CI green 이었고, 그 직후 planner 가 T-0294 (api.md 평가 endpoint doc-sync, direct doc-only) 를 큐잉했다 (79db0c9, 2026-06-08 19:11Z). 이 push 의 CI run 27160808599 가 첫 infra-fail — job 80175... attempt 1·2 모두 runner_id=0/name='' 로 1~3초 만에 fail. 이후 cron fire 가 STATE.ci consecutiveFails 0→1 bookkeeping direct commit (21a3925, 19:16Z) 했고 그 push 의 CI run 27161109030 도 동일 패턴 fail (job 80176489637, 19:16:57→19:16:59Z, 2s). 다시 다음 cron fire 가 1→2 bookkeeping (8753750, 20:07Z) 했고 27163838073 도 동일 패턴 fail (job 80185814800, 20:07:41→20:07:42Z, 1s). 본 cron fire (cron@cloud-focused-goodall-92aaf6) 가 §1[5] threshold 도달을 확인하고 BLOCKED 처리.",
       "options": [
@@ -435,7 +428,10 @@
         "(E) 추가 대기 — 단순 지역 outage 추정 시 1~2시간 더 기다린 뒤 main push 1 회 (또는 워크플로 manual dispatch) 로 재시도. 동일 패턴이면 (A)~(D) 로 escalate."
       ],
       "recommendation": "(A) → (B) → (C) 순으로 빠르게 점검. (A) 와 (B) 가 가장 흔한 원인 (Actions 비활성 토글 / minutes 소진). (C) 가 일시 outage 면 단순 대기 만으로 자율 복구. 복구 확인 방법: main 에 빈 commit 1회 push 또는 'Run workflow' manual dispatch 후 run 의 runner_id != 0 / runner_name != '' 확인.",
-      "resolutionHint": "docs/STATE.json 의 본 Q-0028 에 resolvedAt(ISO) + decision(점검 결과 + 적용한 조치 명시 — 예: 'Actions minutes 결제 한도 상향', 'org Actions 재활성', '일시 outage 종결 확인')을 기입 + STATE.ci.consecutiveFails=0 / status='green'(또는 'pending-recheck') 으로 직접 reset + blockers[] 의 B-ci-infra entry 를 resolvedNote 로 close 한 뒤 commit. 그 뒤 다음 cron fire 또는 새 /loop 가 자동 재개 (nextTask=T-0294 픽업)."
+      "resolutionHint": "docs/STATE.json 의 본 Q-0028 에 resolvedAt(ISO) + decision(점검 결과 + 적용한 조치 명시 — 예: 'Actions minutes 결제 한도 상향', 'org Actions 재활성', '일시 outage 종결 확인')을 기입 + STATE.ci.consecutiveFails=0 / status='green'(또는 'pending-recheck') 으로 직접 reset + blockers[] 의 B-ci-infra entry 를 resolvedNote 로 close 한 뒤 commit. 그 뒤 다음 cron fire 또는 새 /loop 가 자동 재개 (nextTask=T-0294 픽업).",
+      "resolvedAt": "2026-06-09T02:33:55Z",
+      "resolvedBy": "loop@AKIHA-ci0028 session t1 (사용자 billing 조치 + driver CI 복구 검증)",
+      "decision": "복구 완료 — 원인은 option (B) GitHub billing: private repo 의 Actions spending limit 이 $0 으로, 무료 포함 minutes 소진 후 runner 미할당을 차단하고 있었다(결제수단 추가만으로는 overage 미허용, spending limit 명시 상향이 필요). 사용자가 spending limit 을 상향한 뒤 driver 가 run 27167117992(HEAD cbef4c1)를 rerun 하니 runner 정상 할당 + 전체 step green(Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e, exit 0). repo Actions permissions(enabled / allowed_actions=all / workflow active)는 처음부터 정상이라 option (A)(C)(D) 비해당. ci.consecutiveFails 3→0 reset, status='green', B-ci-infra blocker close. driver 가 nextTask T-0294 부터 자율 재개. 잔여 follow-up(non-blocking): Node.js 20 → 24 action 버전 업(actions/checkout@v4·setup-node@v4·pnpm/action-setup@v4, 2026-06-16 deprecation)."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
