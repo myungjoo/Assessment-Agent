@@ -138,6 +138,32 @@ describe("SummaryPersistService", () => {
       expect(result).toEqual({ summaryId: "summary-1", created: true });
     });
 
+    // Happy + value-flow: deterministic aggregateMetricScore 의 **non-zero** 출력이
+    // 실제로 create data.metricScore 로 흘러드는지 명시 검증 (T-0309 round-2 NIT).
+    // 위 happy-path 는 `aggregateMetricScore(results)` 와의 equality 만 보므로 둘 다
+    // 0 이어도 통과 — 본 it 은 non-empty 묶음의 산출값이 0 이 아님을 pin 해 "값이
+    // 실제로 결합돼 영속된다" 를 외부 사실로 박제한다 (narrative 동반 검증).
+    it("non-empty 묶음의 non-zero metricScore 가 create data 로 흘러든다", async () => {
+      const { service, tx } = buildHarness();
+      tx.summary.findUnique.mockResolvedValue(null);
+      tx.summary.create.mockResolvedValue({ id: "summary-nz" });
+
+      const results = [buildResult(), buildResult({ unitId: "commit:c:2" })];
+      const expectedScore = aggregateMetricScore(results);
+      // 가드: fixture 가 우연히 0 을 내면 본 검증이 무의미해지므로 사전 차단.
+      expect(expectedScore).toBeGreaterThan(0);
+
+      await service.persistSummary(buildContext(), results, "fill", {
+        modelId: MODEL_ID,
+      });
+
+      const data = tx.summary.create.mock.calls[0][0].data;
+      // deterministic non-zero metricScore + narrative 가 정확히 결합돼 create 됨.
+      expect(data.metricScore).toBe(expectedScore);
+      expect(data.metricScore).toBeGreaterThan(0);
+      expect(data.narrative).toBe(MOCK_NARRATIVE);
+    });
+
     // Branch: 동일 좌표 존재 → no-op (create/delete 모두 호출 안 됨, 기존 보존).
     it("존재 시 no-op (기존 보존, create 0)", async () => {
       const { service, tx } = buildHarness();
