@@ -2,8 +2,11 @@
 id: T-0303
 title: ADR-0033 status PROPOSED→ACCEPTED flip + relatedTask/relatedPR backreferences
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 254
+completedAt: 2026-06-09T20:00:00+09:00
+result: DONE — PR #254 squash db674d9 머지. reviewer round1 APPROVE(0 finding) + 4-게이트 PASS + CI green(run 27199384570). ADR-0033 status PROPOSED→ACCEPTED + relatedTask[T-0297~T-0302]/relatedPR[250~253] + 본문 status 문장 reality-sync. tasksCompleted 299→300. ADR-0033 평가 영속화 feature 완전 종결. 이후 planner final survey → dependency-free backlog 소진 → Q-0030 escalation.
 coversReq: [REQ-029]
 estimatedDiff: 8
 estimatedFiles: 1
