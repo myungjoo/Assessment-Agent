@@ -23,6 +23,8 @@ import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
+  IsIn,
+  IsISO8601,
   IsNotEmpty,
   IsObject,
   IsOptional,
@@ -106,9 +108,9 @@ export class ActivityItemDto {
   version?: number;
 }
 
-// PersistMode literal — ADR-0033 §3 fill / reeval(REQ-037/REQ-041). DTO 단계는 형식만
-// 받고(@IsOptional 기본 "fill"), 허용 literal 값 검증은 persist service 책임(기존 DTO
-// 관행 정합 — @IsIn 미적용). controller 가 union 으로 좁혀 persist 에 전달한다.
+// PersistMode literal — ADR-0033 §3 fill / reeval(REQ-037/REQ-041). DTO 단계에서
+// `@IsOptional` + `@IsIn(["fill","reeval"])` 로 미지정 또는 허용 literal 만 통과시키고
+// (허용 외 값은 400 거부), controller 가 union 으로 좁혀 persist 에 전달한다.
 export type EvaluatePersistMode = "fill" | "reeval";
 
 export class EvaluateActivitiesDto {
@@ -131,8 +133,9 @@ export class EvaluateActivitiesDto {
   // --- context 4-tuple(ADR-0033 §51) — 영속화 진입의 식별 축. `EvaluationResult` 에
   // 없으므로 HTTP request body 에서 받아 controller 가 persist context 로 조립한다.
   // 허용 literal 값(period 의 day/week/month, scope 의 commit/document/aggregate) 검증은
-  // persist service 책임(@IsIn 미적용 — 기존 collection DTO 관행 정합). 형식 검증
-  // decorator 만 박제. ---
+  // persist service 책임(@IsIn 미적용 — 기존 collection DTO 관행 정합). periodStart 만
+  // ISO-8601 형식을 boundary 에서 강제(@IsISO8601 — malformed date 의 opaque 500 차단).
+  // 나머지는 형식 검증 decorator 만 박제. ---
 
   // personId — 평가 대상 person 의 식별자. idempotency key(ADR-0033 §3)의 leading 축.
   @IsString()
@@ -152,18 +155,21 @@ export class EvaluateActivitiesDto {
   scope!: string;
 
   // periodStart — 기간 시작 시각(ISO-8601 string). controller 가 `new Date(...)` 로
-  // 파싱해 persist context 의 `periodStart: Date` 로 변환한다. 형식만 검증(파싱은
-  // controller 책임 — DTO 는 string surface 만).
+  // 파싱해 persist context 의 `periodStart: Date` 로 변환한다. `@IsISO8601()` 로 형식을
+  // boundary 에서 강제 — 비-ISO 문자열(예: "2026-13-99")은 400 으로 거부되어 controller 의
+  // `new Date(...)` 가 Invalid Date 를 만들어 persist 로 흘러들어가는 opaque 500 을 차단한다.
   @IsString()
   @IsNotEmpty()
+  @IsISO8601()
   periodStart!: string;
 
-  // mode — 영속화 모드(ADR-0033 §3). 미지정 시 controller 가 기본값 "fill" 적용.
-  // 형식만 검증(@IsOptional + @IsString), 허용 literal 값(fill/reeval)은 persist
-  // service 책임(@IsIn 미적용 — 기존 DTO 관행 정합). 허용 외 값은 service 가 reset-
-  // and-recreate 분기에서 fill 외 = reeval 로 취급하지 않고 union 으로만 좁힌다.
+  // mode — 영속화 모드(ADR-0033 §3). 선택적이되 제공 시 반드시 허용 literal("fill" |
+  // "reeval") 중 하나여야 한다(@IsOptional + @IsIn). 미지정/undefined 는 controller 가
+  // 기본값 "fill" 로 idempotent 처리하고, 알 수 없는 literal(예: "reevaluate")은 'fill'
+  // no-op 으로 silent 흡수되지 않도록 400 으로 거부한다(ADR-0033 §3 fill/reeval intent 보존).
   @IsOptional()
   @IsString()
   @IsNotEmpty()
+  @IsIn(["fill", "reeval"])
   mode?: string;
 }

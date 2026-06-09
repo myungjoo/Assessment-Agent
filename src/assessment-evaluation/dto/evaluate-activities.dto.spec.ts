@@ -236,14 +236,40 @@ describe("EvaluateActivitiesDto", () => {
     expect(errors).toEqual(expect.arrayContaining(["isNotEmpty"]));
   });
 
-  it("mode 가 허용 외 string('bogus') 이어도 DTO 형식 검증은 통과한다 (literal 값 검증은 service 책임)", async () => {
-    // @IsIn 미적용 — 기존 DTO 관행 정합. 허용 외 mode 값의 처리는 controller/service
-    // 책임(controller 가 'reeval' 외 전부 'fill' 로 안전 fallback).
+  it("mode 가 허용 외 literal('reevaluate') 이면 isIn 위반 (negative — @IsIn 으로 silent no-op 흡수 차단)", async () => {
+    // @IsIn(["fill","reeval"]) 적용 — 알 수 없는 literal 은 'fill' no-op 으로 silent
+    // 흡수되지 않고 400 으로 거부된다(ADR-0033 §3 fill/reeval intent 보존).
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      mode: "reevaluate",
+    });
+    expect(errors).toEqual(expect.arrayContaining(["isIn"]));
+  });
+
+  it("mode 가 허용 외 string('bogus') 이면 isIn 위반 (negative — @IsIn unknown literal 거부)", async () => {
     const errors = await validateEvaluatePlain({
       ...validEvaluatePayload,
       mode: "bogus",
     });
-    expect(errors).toEqual([]);
+    expect(errors).toEqual(expect.arrayContaining(["isIn"]));
+  });
+
+  it("periodStart 가 malformed ISO 문자열('2026-13-99') 이면 isIso8601 위반 (negative — @IsISO8601 boundary, opaque 500 차단)", async () => {
+    // 비-ISO 문자열은 boundary 에서 400 으로 거부 — controller 의 new Date(...) 가 Invalid
+    // Date 를 만들어 persist 로 흘러들어가는 opaque Prisma 500 을 차단한다.
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      periodStart: "2026-13-99",
+    });
+    expect(errors).toEqual(expect.arrayContaining(["isIso8601"]));
+  });
+
+  it("periodStart 가 임의 비-날짜 문자열('not-a-date') 이면 isIso8601 위반 (negative — @IsISO8601)", async () => {
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      periodStart: "not-a-date",
+    });
+    expect(errors).toEqual(expect.arrayContaining(["isIso8601"]));
   });
 
   // --------------------------------------------------------------------------
