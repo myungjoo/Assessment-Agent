@@ -60,7 +60,11 @@ erDiagram
 2. **Person ↔ Group (N:M via PersonGroupMembership)** — REQ-028 "다중 임의 group 소속 가능". **PersonGroupMembership join entity 가 [T-0039](../tasks/T-0039-group-part-entity-and-repository.md) (mergeCommit c25a5de) 시점에 박제 완료. [prisma/schema.prisma](../../prisma/schema.prisma) 참조** — `@@unique([personId, groupId])` 로 중복 membership schema-level 차단.
 3. **Person ↔ Part (N:1, mandatory)** — REQ-028 "조직도 파트는 정확히 1 개". Person row 가 Part 없이 존재 불가 (invariant). Part 삭제 시 소속 Person 0 일 때만 허용.
 4. **Person ↔ Assessment (1:N)** — 평가 결과는 Person 단위. 한 Person 이 시간 흐름에 따라 N 개 Assessment 누적.
-5. **Assessment ↔ Contribution (1:N)** — Contribution (개별 commit/문서) 이 모여 Assessment (일·주·월 또는 commit/document scope) 를 구성. raw 본문 미저장 (REQ-032) invariant 가 양 entity 에 적용 (§ 4).
+5. **Assessment ↔ Contribution (1:N)** — Contribution (개별 commit/문서) 이 모여 Assessment (일·주·월 또는 commit/document scope) 를 구성. raw 본문 미저장 (REQ-032) invariant 가 양 entity 에 적용 (§ 4). **평가 결과 영속화 reality ([ADR-0033](../decisions/ADR-0033-evaluation-result-persistence.md), T-0298~T-0301 shipped)**:
+   - **schema-level idempotency**: `Contribution` 에 `@@unique([assessmentId, sourceRef])` 가 박제됨 ([T-0298](../tasks/T-0298-contribution-source-ref-unique-migration.md) — 한 Assessment 안에서 동일 `sourceRef`(= `EvaluationResult.unitId`) Contribution 중복을 schema 차원 차단). Assessment-level idempotency key 인 `@@unique([personId, period, scope, periodStart])` 의 Contribution-level mirror.
+   - **재평가 = Assessment 단위 reset-and-recreate**: 같은 idempotency key `(personId, period, scope, periodStart)` 로 재평가가 들어오면 기존 Assessment row 를 `delete` (component Contribution 은 `onDelete: Cascade` 동반 삭제) → 새 Assessment+Contribution 를 `create`. 이 delete→create 는 단일 `prisma.$transaction` 으로 묶어 atomicity 보장 (ADR-0033 §3). in-place update 아님 — Assessment 는 immutable (ADR-0006).
+   - **fill / reeval 두 모드**: `fill` = 같은 key 존재 시 no-op (기존 보존, 재실행 idempotent), `reeval` = 존재 시 reset-and-recreate. partial-reset 은 key prefix (`personId`+`period`) 부분 일치 delete 로 다른 period/scope 를 보존 (REQ-037 정합).
+   - **idempotency key 재사용**: Assessment-level 식별 축은 새 key 발명 없이 기존 `Assessment.@@unique([personId, period, scope, periodStart])` 를 그대로 재사용 (ADR-0033 §3, ADR-0006 정합).
 6. **Person ↔ Summary (1:N)** — 일·주·월 요약은 Person 단위 default. Group/Part aggregate Summary 는 view-time 계산 (별도 entity 아님) — 본 결정은 P3 에서 별도 entity 도입 가능성 (e.g. `GroupSummary`) 으로 갱신될 수 있다.
 7. **User ↔ Person (0..1:0..1)** — 선택적 매핑. SuperAdmin / Admin 등급 User 가 본인 Person 을 가지지 않는 경우도 가능 (외부 관리자). User 등급 User 가 본인 Person 과 매핑되어 본인 평가 결과 조회 (UC-08 user audience). **자동 매핑 정책** (예: 첫 로긴 시 동명 Person 자동 link) 은 P3 AuthModule 책임 — 본 문서는 관계만 박제.
 8. **LlmProviderConfig ↔ DifficultyMapping (1:N)** — 3 난이도 슬롯 (easy / medium / hard) 이 각각 어느 provider 의 어느 model 을 사용할지 매핑. DifficultyMapping row 3 개 고정.
@@ -83,6 +87,7 @@ erDiagram
 
 - [components.md](components.md) "DB Persistence" component 의 책임 단락 — "raw text 컬럼 미정의 (REQ-032 schema-level 강제)" — P3 의 `schema.prisma` 가 본 invariant 를 schema 차원에서 보장 (즉 raw body column 자체를 만들지 않음).
 - 본 invariant 위반은 **ADR 신설 필수** — 별도 ADR 없이 raw column 추가 금지 (CLAUDE.md §5 — 기존 ADR 충돌은 BLOCKED).
+- **평가 결과 영속화 path 재확인 ([ADR-0033](../decisions/ADR-0033-evaluation-result-persistence.md) §2)**: in-memory `EvaluationResult` → `Assessment`/`Contribution` 매핑은 평가-파생 데이터 (난이도·기여도 수치·양·LLM narrative·참조 식별자 `sourceRef`) 만 저장하고 새 컬럼을 추가하지 않으므로 raw 가 끼어들 표면을 만들지 않는다 — 본 invariant 의 새 위반 0.
 
 **Export 시 처리**: UC-07 의 Export 산출물도 raw 미포함 (REQ-030, REQ-032) — `/api/admin/export` 의 응답 schema 가 본 invariant 를 준수.
 
@@ -132,7 +137,7 @@ erDiagram
 
 - REQ-008 / REQ-016 (권한 부족 통지) — PermissionDeniedRecord (§ 2).
 - REQ-029 (non-volatile 저장) — 모든 entity 가 PostgreSQL row 로 영속 (ADR-0002).
-- REQ-031 (재수집 중복 방지) — Contribution / Assessment 의 unique constraint (구체는 P3).
+- REQ-031 (재수집 중복 방지) — Contribution / Assessment 의 unique constraint. **shipped — [ADR-0033](../decisions/ADR-0033-evaluation-result-persistence.md) / [T-0298](../tasks/T-0298-contribution-source-ref-unique-migration.md)**: `Assessment.@@unique([personId, period, scope, periodStart])` (ADR-0006) + `Contribution.@@unique([assessmentId, sourceRef])` (ADR-0033 §4) 로 schema-level idempotency 박제 완료.
 - REQ-033 (commit/문서 단위) — Contribution entity.
 - REQ-034 / REQ-035 (일·주·월 요약) — Summary entity.
 - REQ-036 (상대 비교 + LLM + Metric) — Assessment, Summary.
@@ -142,7 +147,7 @@ erDiagram
 본 문서는 **하지 않는다** — 다음 항목은 후속 phase / 별도 ADR 의 책임:
 
 - **구체 컬럼 type** (예: `CHAR(50)` / `TEXT` / `TIMESTAMPTZ` / `JSONB` / `DECIMAL(10,2)` 등 specific type) — P3 의 `prisma/schema.prisma`.
-- **Index / unique constraint specifics** (예: `@@index([personId, createdAt])` / `@@unique([personId, period, scope])`) — P3.
+- **Index specifics** (예: `@@index([personId, createdAt])`) — P3. (단 평가 영속화 unique constraint 는 더 이상 out-of-scope 아님 — `Assessment.@@unique([personId, period, scope, periodStart])` + `Contribution.@@unique([assessmentId, sourceRef])` 가 [ADR-0033](../decisions/ADR-0033-evaluation-result-persistence.md) / T-0298 로 shipped, § 3 관계 5 / § 6 REQ-031 참조.)
 - **Cascade policy** (ON DELETE CASCADE / RESTRICT / SET NULL — 예: Person 삭제 시 Assessment cascade vs Part 삭제 차단) — P3 결정. 본 문서는 관계 자체만 박제.
 - **Prisma schema 코드 작성** — P3 책임. 본 문서의 entity / 관계는 그 source 만 제공.
 - **Migration SQL / migration 정책** (`prisma migrate dev` 흐름 등) — P3.
