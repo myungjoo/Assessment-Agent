@@ -52,6 +52,8 @@ import { EvaluationResultPersistService } from "./evaluation-result-persist.serv
 import { EvaluationScoringService } from "./evaluation-scoring.service";
 // eslint-disable-next-line import/first
 import { SummaryNarrativeService } from "./summary-narrative.service";
+// eslint-disable-next-line import/first
+import { SummaryPersistService } from "./summary-persist.service";
 
 describe("AssessmentEvaluationModule", () => {
   // Happy path: PersistenceModule(@Global, mocked PrismaService)와 함께 imports 하면
@@ -89,6 +91,13 @@ describe("AssessmentEvaluationModule", () => {
     const narrative = moduleRef.get(SummaryNarrativeService);
     expect(narrative).toBeDefined();
     expect(narrative).toBeInstanceOf(SummaryNarrativeService);
+
+    // SummaryPersistService(T-0309, ADR-0035 §Decision 1/4)도 같은 module 에서 resolve
+    // 되며 PrismaService(@Global, mocked) + SummaryNarrativeService(같은 module)를 DI 로
+    // 주입받는다(provider 등록 누락 시 본 resolve 가 fail — 배선 게이트).
+    const summaryPersist = moduleRef.get(SummaryPersistService);
+    expect(summaryPersist).toBeDefined();
+    expect(summaryPersist).toBeInstanceOf(SummaryPersistService);
 
     await moduleRef.close();
   });
