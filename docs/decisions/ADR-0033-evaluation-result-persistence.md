@@ -1,15 +1,16 @@
 ---
 id: ADR-0033
 title: 평가 결과 영속화 — in-memory EvaluationResult → 기존 Assessment/Contribution/Summary 매핑 + 재평가 upsert/partial-reset semantics + Contribution idempotency 1 migration
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-09
-relatedTask: T-0297
+relatedTask: [T-0297, T-0298, T-0299, T-0300, T-0301, T-0302]
+relatedPR: [250, 251, 252, 253]
 supersedes: null
 ---
 
 # ADR-0033 — 평가 결과 영속화 (EvaluationResult → Assessment/Contribution/Summary)
 
-> 본 ADR 은 P5 "평가 결과 영속화" milestone (사용자가 [Q-0029](../STATE.json) 를 option (1) 로 승인) 의 **ADR-first 첫 slice** 다. [ADR-0032](ADR-0032-p5-evaluation-contract.md) 가 박제하고 후속 chain (T-0287~T-0293) 이 머지한 **in-memory 평가 파이프라인** (`EvaluationOrchestratorService.evaluateActivities` → `EvaluationResult[]` 반환, DB write 0) 을 **PostgreSQL 영속화로 닫는** 설계만 decide 하며 production code · migration SQL 0 LOC 다. 구현 (Prisma schema 1 줄 변경 → migration → repository write path → orchestrator/controller persist-return → doc-sync) 은 §Follow-ups 의 dependency-free chain 으로 분해되며 각 slice 는 ≤300 LOC / ≤5 파일 + R-112 4 종 (+ negative cases 충분 cover) 으로 강제한다. **status `PROPOSED`** — 별도 direct one-line edit 으로 ACCEPTED 전이 ([CLAUDE.md §3.1](../../CLAUDE.md) rule 4).
+> 본 ADR 은 P5 "평가 결과 영속화" milestone (사용자가 [Q-0029](../STATE.json) 를 option (1) 로 승인) 의 **ADR-first 첫 slice** 다. [ADR-0032](ADR-0032-p5-evaluation-contract.md) 가 박제하고 후속 chain (T-0287~T-0293) 이 머지한 **in-memory 평가 파이프라인** (`EvaluationOrchestratorService.evaluateActivities` → `EvaluationResult[]` 반환, DB write 0) 을 **PostgreSQL 영속화로 닫는** 설계만 decide 하며 production code · migration SQL 0 LOC 다. 구현 (Prisma schema 1 줄 변경 → migration → repository write path → orchestrator/controller persist-return → doc-sync) 은 §Follow-ups 의 dependency-free chain 으로 분해되며 각 slice 는 ≤300 LOC / ≤5 파일 + R-112 4 종 (+ negative cases 충분 cover) 으로 강제한다. **status `ACCEPTED`** — 구현 chain T-0298~T-0302 (PR #250~#253 + doc-sync direct e6ce338) 머지·CI-green 완료로 전환 ([CLAUDE.md §3.1](../../CLAUDE.md) rule 4, T-0303).
 
 ## Context
 
@@ -146,11 +147,11 @@ ADR-0032 §4 평가-side dedup 이 이미 중복을 제거하므로 schema uniqu
 
 ## Follow-ups
 
-(ADR PROPOSED→ACCEPTED 전이 후 planner 가 dependency-free chain 으로 분해 — 각 ≤300 LOC / ≤5 파일 + R-112)
+(ADR ACCEPTED 후 planner 가 dependency-free chain 으로 분해 — 각 ≤300 LOC / ≤5 파일 + R-112. dependency-free 5 slice 는 모두 완료·CI-green; deferred Summary slice 만 미착수.)
 
-- **Prisma schema 1 줄 변경 + migration slice** — `Contribution` 에 `@@unique([assessmentId, sourceRef])` 추가 + migration `<ts>_contribution_source_ref_unique` 생성 (`commitMode: pr`, ADR-0004 migrate-deploy 자동 적용).
-- **매핑 함수 slice** — `(EvaluationResult, context) → AssessmentCreateInput` / `ContributionCreateInput` 순수 함수 (enum `ContributionLevel`→`Decimal` 변환 + Contribution[]→Assessment 집계 규칙) + colocated spec (R-112 4 종 + negative: 빈 결과 / 알 수 없는 enum / unitId prefix 부재).
-- **영속화 write service slice** — reset-and-recreate (`$transaction` delete-if-exists → create) + fill/reeval 모드 분기 + partial-reset (`personId`+`period` prefix delete). 기존 `AssessmentRepository` 재사용 + transaction wrapper. mock unit + (가능 시) real-DB smoke.
-- **orchestrator/controller persist-return slice** — `evaluateActivities` 결과 반환 직전 persist hook 호출 (context 4-tuple 수신 경로 포함). controller DTO 에 personId/period/scope/periodStart 추가.
-- **doc-sync slice** (`commitMode: direct`) — [data-model.md](../architecture/data-model.md) 에 본 ADR 의 영속화 매핑·Contribution unique 를 반영 (§3 관계 5 / §5 갱신).
-- **(deferred) Summary 영속화 slice** — aggregate 평가 (일/주/월 요약) 의 Summary write — 별도 milestone (ADR-0032 §2 batch 경계).
+- [x] **Prisma schema 1 줄 변경 + migration slice** — `Contribution` 에 `@@unique([assessmentId, sourceRef])` 추가 + migration `<ts>_contribution_source_ref_unique` 생성 (`commitMode: pr`, ADR-0004 migrate-deploy 자동 적용). 완료(T-0298, PR #250).
+- [x] **매핑 함수 slice** — `(EvaluationResult, context) → AssessmentCreateInput` / `ContributionCreateInput` 순수 함수 (enum `ContributionLevel`→`Decimal` 변환 + Contribution[]→Assessment 집계 규칙) + colocated spec (R-112 4 종 + negative: 빈 결과 / 알 수 없는 enum / unitId prefix 부재). 완료(T-0299, PR #251).
+- [x] **영속화 write service slice** — reset-and-recreate (`$transaction` delete-if-exists → create) + fill/reeval 모드 분기 + partial-reset (`personId`+`period` prefix delete). 기존 `AssessmentRepository` 재사용 + transaction wrapper. mock unit + (가능 시) real-DB smoke. 완료(T-0300, PR #252).
+- [x] **orchestrator/controller persist-return slice** — `evaluateActivities` 결과 반환 직전 persist hook 호출 (context 4-tuple 수신 경로 포함). controller DTO 에 personId/period/scope/periodStart 추가. 완료(T-0301, PR #253).
+- [x] **doc-sync slice** (`commitMode: direct`) — [data-model.md](../architecture/data-model.md) 에 본 ADR 의 영속화 매핑·Contribution unique 를 반영 (§3 관계 5 / §5 갱신). 완료(T-0302, direct e6ce338).
+- [ ] **(deferred) Summary 영속화 slice** — aggregate 평가 (일/주/월 요약) 의 Summary write — 별도 milestone (ADR-0032 §2 batch 경계). 미착수(deferred).
