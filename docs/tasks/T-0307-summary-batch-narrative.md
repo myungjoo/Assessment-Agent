@@ -2,7 +2,11 @@
 id: T-0307
 title: Summary batch 정성 narrative 생성 서비스 (한 person-period unit 묶음 → 1 LLM 호출, ADR-0035 §Decision 5 구현 slice)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T01:31:00+09:00
+prNumber: 259
+mergedAs: 7017581
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-034, REQ-035, REQ-036]
 estimatedDiff: 200
