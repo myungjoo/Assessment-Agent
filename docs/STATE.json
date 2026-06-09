@@ -7,8 +7,8 @@
   "currentTask": null,
   "nextTask": null,
   "lock": null,
-  "lastActivity": "2026-06-10T03:18:00+09:00",
-  "lastCommit": "e578146",
+  "lastActivity": "2026-06-10T05:38:00+09:00",
+  "lastCommit": "b1d0ade",
   "mostRecentTasks": [
     "T-0312",
     "T-0311",
@@ -28,12 +28,12 @@
     "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
   },
   "ci": {
-    "lastRun": "2026-06-10T03:18:00+09:00",
+    "lastRun": "2026-06-10T05:38:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27226445587",
-    "verifiedGreen": "T-0312 PR #262 run 27226445587(head 157a37b) success: lint/build/test+reviewer-approval green(round1). main merge e578146 push-CI 는 in_progress → 재개 session 첫 진입점이 재확인(R-114). 직전 T-0310 f2830de·T-0311 5f06941 main push-CI success 확인. Node.js 20→24 deprecation 경고 non-blocking(2026-06-16).",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27227012793",
+    "verifiedGreen": "cron@cloud-b1d0 fire(2026-06-09T20:38Z) R-114 재확인 완료 — T-0312 PR merge e578146 run 27226672355 success + main HEAD b1d0ade(T-0312 closeout) run 27227012793 success(lint/build/test+coverage+smoke+e2e green). 직전 session 이 in_progress 로 남긴 main push-CI 가 green 으로 확정. T-0312 PR #262 run 27226445587(head 157a37b)도 success(round1). Node.js 20→24 deprecation 경고 non-blocking(2026-06-16).",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
