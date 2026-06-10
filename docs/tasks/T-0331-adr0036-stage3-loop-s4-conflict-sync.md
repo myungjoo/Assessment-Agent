@@ -2,7 +2,8 @@
 id: T-0331
 title: LOOP.md §4 충돌 흡수·push 매칭에 ADR-0036 토글-gated claim/N-driver 경계 동기 (stage3 slice3)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T19:15:12+09:00
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 45

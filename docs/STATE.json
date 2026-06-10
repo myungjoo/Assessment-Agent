@@ -6,39 +6,39 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": "T-0331",
-  "backlogNote": "T-0330 DONE(loop@WIN-JQIPLSBL9QV-c10a t3, direct doc-only): CLAUDE §10 규칙1에 ADR-0036 토글-gated N-driver 경로 종속 서술 추가(claim registry + critical-section-only lock 기반 N-driver = task 진행 driver N개·lock 보유 1개; 토글 OFF=현 기본값 coarse '활성 driver 1개' 그대로). LOOP §1[2]·ADR-0036/0028/0009·concurrency.md cross-ref, 규칙1~5+권장문단 보존. forward-looking(driver 동작 불변). adr0036Rollout.stage3 slice1(T-0329)+slice2(T-0330) DONE. **stage3 잔여**: slice3(LOOP §4 코드-충돌 흡수 경계 N-driver sync, direct doc, dependency-free). stage4(per-PR CI concurrency group, pr)·stage5(토글 ON, 30일 dogfood)는 후속. 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 은 human PROPOSED→ACCEPTED flip gating(dependency-free 아님 — escalate 대상). t4 planner-only turn: T-0331 큐잉(stage3 slice3 — LOOP §4 충돌 흡수·push source/target 매칭에 토글-gated claim/N-driver 경계 sync, direct doc-only, ~45 LOC, dependsOn T-0330). 다음 진입점: nextTask=T-0331 → currentTask 승격 후 execute(doc-only direct commit) → stage3 완료. 이후 stage4(per-PR CI concurrency group, pr-mode) 또는 잔여 escalation.",
+  "nextTask": null,
+  "backlogNote": "T-0331 DONE(loop@WIN-JQIPLSBL9QV-c10a t5, direct doc-only): LOOP §4 충돌 흡수·push source/target 매칭에 ADR-0036 토글-gated claim/N-driver 경계 2문단 추가(bookkeeping=lock 직렬화 안전·코드 충돌=disjoint 큐잉 1차+merge-conflict-code 흡수·step1~4 graceful 종료 재사용; push hard rule 1~3 진입점별 불변). 토글 OFF inert·forward-looking(driver 동작 불변). **ADR-0036 stage3 완료**(slice1 T-0329 LOOP §1[2] + slice2 T-0330 CLAUDE §10 + slice3 T-0331 LOOP §4). adr0036Rollout.stage3=DONE. **남은 ADR-0036 rollout**: stage4(per-PR CI concurrency group — ci.yml `concurrency:` key, commitMode pr, buildThrough·non-escalate·dependency-free) + stage5(flags.fineGrainedConcurrency 토글 ON, direct, 30일 dogfood 합의 후 — 실측 gating). 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 은 human PROPOSED→ACCEPTED flip gating(dependency-free 아님 — escalate 대상). 다음 진입점: currentTask·nextTask 둘 다 null → planner dispatch(stage4 pr-mode 큐잉 예상).",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-c10a",
-    "since": "2026-06-10T19:10:11+09:00",
+    "since": "2026-06-10T19:15:12+09:00",
     "loopSessionStartedAt": "2026-06-10T18:45:45+09:00",
-    "loopSessionTurnCount": 4,
-    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t4 — planner-only turn(currentTask·nextTask 둘 다 null → planner dispatch, T-0331 큐잉: LOOP §4 충돌 흡수·push 매칭 N-driver sync). 권위 lock heartbeat e2af22f→fc7b8e5(since=19:10). 본 필드는 non-authoritative human mirror. 세션 종료(cap 도달/BLOCKED/work 소진) 시 tombstone release."
+    "loopSessionTurnCount": 5,
+    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t5 — T-0331 DONE(direct doc-only: LOOP §4 충돌 흡수·push 매칭 N-driver sync) → ADR-0036 stage3 완료. 권위 lock heartbeat fc7b8e5→7119458(since=19:15). 본 필드는 non-authoritative human mirror. 세션 종료(cap 도달/BLOCKED/work 소진) 시 tombstone release."
   },
-  "lastActivity": "2026-06-10T19:10:11+09:00",
+  "lastActivity": "2026-06-10T19:15:12+09:00",
   "lastCommit": "c496457",
   "mostRecentTasks": [
+    "T-0331",
     "T-0330",
     "T-0329",
     "T-0328",
-    "T-0327",
-    "T-0325"
+    "T-0327"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-c10a",
     "startedAt": "2026-06-10T18:45:45+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t4 — planner-only turn: currentTask·nextTask 둘 다 null → planner dispatch, T-0331 큐잉(ADR-0036 stage3 slice3: LOOP §4 충돌 흡수·push source/target 매칭에 토글-gated claim/N-driver 경계 sync, direct doc-only, ~45 LOC). pre-check 통과(§4 claim/N-driver 언급 0건). counter 불변(planner-only). 다음 t5: T-0331 execute → stage3 완료."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t5 — T-0331 DONE(direct doc-only): LOOP §4 충돌 흡수·push source/target 매칭에 ADR-0036 토글-gated claim/N-driver 경계 2문단 추가(토글 OFF inert, forward-looking). t4 push 433ab9f CI green 확인. **ADR-0036 stage3 완료**(slice1~3). tasksCompleted 327→328. adr0036Rollout.stage3=DONE. 다음 t6: planner dispatch(stage4 per-PR CI concurrency group, pr-mode 큐잉 예상)."
   },
   "ci": {
-    "lastRun": "2026-06-10T18:51:41+09:00",
+    "lastRun": "2026-06-10T19:10:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27268086563",
-    "noteT0329": "T-0329(0a1fde9, direct doc-only) push run 27268086563 = success — doc-only 변경(LOOP.md+STATE+journal+task) 전 step green. prior push 4a9b2cf 도 success.",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27268973529",
+    "noteStage3DocPushes": "ADR-0036 stage3 doc-only direct push 전부 CI green: 0a1fde9(T-0329) run 27268086563 success / be28b99(T-0330 queue) run 27268575074 success / 433ab9f(T-0330) run 27268973529 success. 2eb0553(T-0331 queue) run 27269231740 in_progress→다음 turn 재확인. 7119458 lock-branch heartbeat 는 main CI 무관. doc-only push 라 lint/build/test 전 step trivially green.",
     "noteT0325": "PR #272(T-0325 ADR-0038) pull_request-event run 27262031787 = success 전 step green(Lint/Build/Prisma/test+cov/smoke/e2e + reviewer approval 검증). reviewer approve comment 가 approval-step 실행 전 landing → first-run green, rerun 불요. 06ae245 squash merge.",
     "benignRedNote": "**반복 패턴 — approval-검증 step 의 ordering fail (consecutiveFails 미증가)**: ci.yml job '기본 검사' 의 'reviewer agent approval 검증' step 은 §3.3 gate2(PR 에 reviewer approve comment/review 존재) 를 검증한다. (A) PR-open 시점 pull_request-event run 은 reviewer comment 가 아직 없어 이 step 이 fail → reviewer approve comment post 후 `gh run rerun <id> --failed` 로 재실행하면 green(T-0321/PR #269 run 27254966044 가 이 케이스 — rerun 후 전 step green, merge). (B) issue_comment-event run 은 main ref 기준으로 돌아 매칭 PR 없으면 fail(예: head 7414f4d). 둘 다 **실코드 회귀 아님** — 실 step(lint/build/prisma/test+cov/smoke/e2e)은 통과. **gate4 평가 = 해당 PR head 의 pull_request-event run 이 (필요시 rerun 후) success 인지**. 잠재 follow-up: approval 검증 step 을 PR state==open 또는 comment 존재 조건으로 가드(우선순위 낮음).",
     "verifiedGreen": "loop@WIN-JQIPLSBL9QV-0363 t1~t5 main push-CI green: 7414f4d·52ab7a7·af9a41d·a0e96b9·6b24533·5186385(T-0322 merge)·926377b(T-0322 closeout) 전부 push run success. ad966d0(T-0323 merge) push run 진행중→다음 turn 재확인. PR #268 run 27254153650 pass / #269 27254966044 rerun pass / #270 27256092195 rerun pass / #271 27256906675 첫-pass(reviewer comment 가 approval-step 전 도착, rerun 불요). approval-step ordering 은 PR-open 타이밍에 따라 fail→rerun 또는 첫-pass. Node.js 20→24 deprecation non-blocking(2026-06-16). benignRedNote 참조.",
@@ -575,7 +575,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 327,
+    "tasksCompleted": 328,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -589,6 +589,7 @@
     "stage1": "DONE (T-0326, flags.fineGrainedConcurrency 자리 + planner 독립-stream 분해 정책)",
     "note": "사용자 2026-06-10 결정: ADR-0036 ACCEPTED. driver 공급 측 break-even(두 번째 driver 존재)은 cron+multi-loop 상시 진입점으로 이미 충족 — stage 1→2 의 '독립 task ≥2 실증' 게이트는 stage 2-5 인프라 구축을 막지 않는다(build-through). planner 는 ADR-0036 §rollout stage 2(claim registry select+claim)→3(loop 재작성+CLAUDE§10/LOOP§4 동기)→4(per-PR concurrency group)→5(토글) 를 dependency chain 으로 큐잉하되, ACCEPTED 재확인 차 escalate 하지 말 것. 각 stage 정확성 게이트(이중 claim 0·orphan 회수·충돌 없음)는 강제. toggle ON(stage5)만 실측 gating. 기존 nextTask=T-0325(ADR-0038)는 유효 — ADR-0036 stage 2 와 독립이면 어느 순서든 가능(둘이 첫 실증 독립-stream 쌍 후보).",
     "stage2": "DONE — slice1(T-0327 select+claim CAS) + slice2(T-0328 orphan 60분 회수 + PR-resume) 머지. 다음 stage3: §1 loop 재작성(critical-section lock + claim pickup) + CLAUDE§10/LOOP§4 동기.",
-    "stage3": "IN_PROGRESS — slice1(T-0329) + slice2(T-0330) DONE. slice1: LOOP §1[2]에 토글-gated claim-pickup 분기((a) lock-하 reclaim+select-claim, (b) claim 박제 즉시 lock release, (c) lock-free executor, (d) claimable 부재 no-op) + reclaim server-time now 주입 계약(RECLAIM_NOW=server-time, 미주입=fail-closed 회수 보류, RESUME→[2] PR Resume 분기) 박제. slice2: CLAUDE §10 규칙1에 토글-gated N-driver 경로 종속 서술 추가(claim registry + critical-section-only lock = task 진행 driver N개·lock 보유 1개, 토글 OFF=coarse '활성 driver 1개' 현 기본값). 토글 OFF(flags.fineGrainedConcurrency=false)면 inert — driver 동작 불변. 잔여: slice3(LOOP §4 코드-충돌 흡수 경계 N-driver sync, direct). stage4(per-PR CI concurrency group, pr)·stage5(토글 ON, 30일 dogfood)는 후속."
+    "stage3": "DONE — slice1(T-0329 LOOP §1[2] 토글-gated claim-pickup 분기 + reclaim server-time now 주입 계약) + slice2(T-0330 CLAUDE §10 규칙1 토글-gated N-driver 경로 서술) + slice3(T-0331 LOOP §4 충돌 흡수·push source/target 매칭 N-driver 경계) 전부 머지. driver loop 통합 spec(critical-section lock + claim pickup + N-driver 충돌 흡수)이 LOOP §1[2]/§4 + CLAUDE §10 에 박제됨. 전부 토글-gated forward-looking — flags.fineGrainedConcurrency=false(현 기본값)면 inert, driver 동작 불변. 다음 stage4: per-PR CI concurrency group(ci.yml `concurrency:` key, commitMode pr).",
+    "stage4": "PENDING — per-PR CI concurrency group(ci.yml 에 `concurrency: { group: ..., cancel-in-progress }` 추가해 동일 PR 의 중복 run 취소·병렬 PR run 격리). commitMode pr(ci.yml 변경 = 동작 변경). buildThrough·non-escalate·dependency-free. stage5(토글 ON)는 stage1~4 + 30일 dogfood 합의 후.",
   }
 }
