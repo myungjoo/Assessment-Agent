@@ -5,14 +5,14 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0313",
   "lock": {
     "holder": "cron",
-    "session": "cron@cloud-focused-goodall-lx3f7k",
-    "since": "2026-06-10T09:10:18+09:00"
+    "session": "cron@AKIHA-15-32380",
+    "since": "2026-06-10T10:06:17+09:00"
   },
-  "lastActivity": "2026-06-10T09:10:18+09:00",
-  "lastCommit": "5972dd2",
+  "lastActivity": "2026-06-10T10:06:17+09:00",
+  "lastCommit": "a125dad",
   "mostRecentTasks": [
     "T-0312",
     "T-0311",
@@ -29,7 +29,7 @@
     "notePrevT2": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t8 — planner: ADR-0035 write service slice 를 cap 초과 회피 2 분할, 첫 조각 T-0307 큐잉(Summary batch 정성 narrative 생성 — 한 person-period unit 묶음 → typed surface batch prompt → LlmHttpGateway.generate 1회 mocked-LLM → narrative string, §Decision 5; cross-person 금지·raw 0). 단위평가 chain prompt+classify(T-0290) 분리 동형. DB write·metricScore 결합·reset-and-recreate 는 다음 slice T-0308. architect 불요(ADR §Decision 5 박제)→implementer→tester, dep0/credential0. nextTask=T-0307. **cap 근접**: turnCount=8/10 — T-0307 execute(t9, implementer+reviewer+CI+merge) 후 t10 closeout 즈음 cap 도달 예정, 그때 /compact·/clear 안내. 사용자 lock 피드백: 긴 CI/verify idle 중 release+resume 적용(§1[5] 준수). FYI orphan PR #249(ADR-0034) 미처리.",
     "notePrevT1": "/loop t5 — T-0301 DONE 머지(PR #253 628ceb5): evaluate flow persist-return 배선 (ADR-0033 slice 4). reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart + 2 MINOR) → round2 fix(@IsISO8601/@IsIn) → APPROVE. reviewRounds=2. tasksCompleted 297→298. planner T-0302 큐잉.",
     "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
-    "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
+    "noteCronFire": "cron@AKIHA-15-32380 fire(2026-06-10T10:06 KST, 매시 15분 trigger) — **Q-0031 RESOLVED 후 첫 productive fire**. lock 자유 확인(branch tip tombstone `{\"holder\":null}` at 372c730)→branch-CAS 획득(cf21474). currentTask/nextTask 둘 다 null + unresolved HQ 0 → planner dispatch. **planner T-0313 큐잉**(ADR-0037 period→collection→evaluate bridge 설계, commitMode pr, design-only): Q-0031 옵션(1) 승인 반영 — RBAC[Admin full collect→evaluate→persist / User self-only ephemeral DB write 0]·double-write 경계·idempotency·EvaluationResult[] source-of(bridge fresh collect) 박제, impl slice(DTO/orchestration/controller/RBAC guard/e2e)는 Follow-ups. 새 dep/credential 0. nextTask=T-0313, tasksCompleted 309 유지(planner-only turn). 별건 followUp(B) ADR-0034 흡수+#249 close 는 후속 task. 재개: 다음 /loop·cron fire 가 T-0313 execute(architect ADR-0037 → 사용자 ADR PR 검토). lock 해제(tombstone)."
   },
   "ci": {
     "lastRun": "2026-06-10T09:10:18+09:00",
