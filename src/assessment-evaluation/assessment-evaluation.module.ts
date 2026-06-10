@@ -36,6 +36,7 @@ import { AssessmentCollectionModule } from "../assessment-collection/assessment-
 import { LLM_GATEWAY } from "../llm/llm-gateway.interface";
 import { LlmHttpGateway } from "../llm/llm-http-gateway.service";
 import { LlmModule } from "../llm/llm.module";
+import { UserModule } from "../user/user.module";
 
 import { AssessmentEvaluationController } from "./assessment-evaluation.controller";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
@@ -56,7 +57,12 @@ import { SummaryPersistService } from "./summary-persist.service";
   // (evaluation → collection 단방향, collection 은 evaluation 미참조 — circular 부재).
   // persist service / collectForPerson 은 import 해도 본 ephemeral service 가 주입하지
   // 않으므로 도달 경로 0(구조적 write-0 보존).
-  imports: [LlmModule, AssessmentCollectionModule],
+  // UserModule import — T-0317(ADR-0037 slice 3). POST /period 가 personId →
+  // resolved person 변환에 재사용하는 Person.findByIdWithIdentities 의 PersonService
+  // 가 UserModule export 라 DI resolve 된다(controller → user 단방향). UserModule 은
+  // AuthModule(forwardRef)만 import 하므로 circular 부재(AssessmentCollectionModule 도
+  // 이미 UserModule 을 import 중 — 동일 singleton 재사용).
+  imports: [LlmModule, AssessmentCollectionModule, UserModule],
   // T-0293: AssessmentEvaluationController 등록 — POST /api/assessment-evaluation/
   // evaluate 의 HTTP route 가 본 module import 로 NestJS 런타임에 살아난다.
   controllers: [AssessmentEvaluationController],

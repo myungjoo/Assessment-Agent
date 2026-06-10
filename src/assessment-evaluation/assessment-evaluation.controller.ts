@@ -38,6 +38,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   HttpCode,
   Post,
   UseGuards,
@@ -46,18 +47,22 @@ import {
 } from "@nestjs/common";
 
 import type { Activity } from "../assessment-collection/domain/activity";
+import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import { PersonService } from "../user/person.service";
 
 import type { EvaluationResult } from "./domain/evaluation-result";
 import type { EvaluationPersistContext } from "./domain/evaluation-result.persist.mapper";
 import { EvaluateActivitiesDto } from "./dto/evaluate-activities.dto";
+import { PeriodBridgeDto } from "./dto/period-bridge.dto";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import {
   EvaluationResultPersistService,
   type PersistMode,
 } from "./evaluation-result-persist.service";
+import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
 
 // EvaluateResponse — POST /evaluate 반환 shape(ADR-0033 §Follow-ups slice 4 — "persists
 // the result and returns the assessmentId / persisted identifiers"). 영속 식별자
@@ -86,6 +91,16 @@ export class AssessmentEvaluationController {
   constructor(
     private readonly orchestrator: EvaluationOrchestratorService,
     private readonly persistService: EvaluationResultPersistService,
+    // PeriodBridgeEphemeralService — POST /period 의 위임 대상(T-0317, ADR-0037
+    // §Decision1 User self-only ephemeral). 같은 module(assessment-evaluation.
+    // module.ts)이 이미 provider/export 등록(T-0316)이라 추가 token 0. test 는
+    // jest mock { generateEphemeral } 를 주입해 실 LLM/DB/네트워크 0 으로 위임 정합만 검증.
+    private readonly ephemeralBridge: PeriodBridgeEphemeralService,
+    // PersonService — personId → resolved person(serviceIdentities) 변환 재사용
+    // (T-0317, UserModule export). findByIdWithIdentities 가 row 부재 시
+    // NotFoundException(404)을 전파하므로 controller 의 존재 검증 분기 0. test 는
+    // mock { findByIdWithIdentities } 주입.
+    private readonly personService: PersonService,
   ) {}
 
   // POST /api/assessment-evaluation/evaluate — 평가 manual trigger + persist.
@@ -135,5 +150,73 @@ export class AssessmentEvaluationController {
       contributionCount: persisted.contributionCount,
       results,
     };
+  }
+
+  // POST /api/assessment-evaluation/period — User self-only ephemeral 평가
+  // (T-0317, ADR-0037 §Decision1 User self-only ephemeral + §Decision4 fresh
+  // in-memory collect). 인증된 User 가 **자기 자신**의 임의 기간 평가문을 요청하면
+  // PeriodBridgeEphemeralService.generateEphemeral 에 위임해 EvaluationResult[] 를
+  // **DB write 0**(persist 호출 0)로 200 응답한다(README R-9 / PLAN P5 L98 User 경로).
+  //
+  // 본 endpoint 의 범위(ADR-0037 §Decision1/4 FIRM 부분만):
+  //   - Admin full-persist 경로(§Decision2 double-write / §Decision3 idempotency)는
+  //     PROPOSE 상태라 본 endpoint 가 일절 baking 하지 않는다 — persist 호출·영속 식별자
+  //     반환·mode 분기 0. dto.mode 는 ephemeral 이므로 무시한다.
+  //   - smoke/e2e(실 PostgreSQL round-trip + User ephemeral DB-write-0 검증)는
+  //     ADR-0037 slice 5 후속.
+  //
+  // RBAC + self-only(fail-closed):
+  //   - @UseGuards(JwtAuthGuard, RolesGuard) + @Roles("User") — User+ escalation
+  //     (User/Admin/SuperAdmin 통과, 인증 부재 → 401, tier 미달은 없음). 기존 auth
+  //     infra 재사용만(새 guard/decorator/role 의미 변경 0, task §Out of Scope).
+  //   - self-only 강제: @CurrentUser("sub") 의 principal userId 가 dto.personId 와
+  //     **일치할 때만** 진행. principal sub 이 undefined/null 이거나 personId 와
+  //     불일치하면 ForbiddenException(403) — 타인 평가문 요청 차단(fail-closed deny).
+  //     이 분기에서는 generateEphemeral 위임 미수행(이른 차단).
+  //
+  // 위임 배선:
+  //   - personId → resolved person 변환은 PersonService.findByIdWithIdentities 재사용
+  //     (row 부재 시 그 service 가 NotFoundException(404) 전파 — controller 추가 분기 0).
+  //   - resolved person 의 serviceIdentities 를 { serviceIdentities } 로 조립해
+  //     generateEphemeral(person, { since }, options) 에 위임하고 반환 EvaluationResult[]
+  //     를 가공 0 으로 그대로 200 응답한다(persist 호출 0).
+  //   - since 는 dto.periodStart pass-through(도출 0 — SinceDerivationService 도출은
+  //     Admin/collection 책임, task §Out of Scope). options.modelId 는 본 ephemeral
+  //     slice 가 model 선택 입력을 받지 않으므로 미지정(undefined) 으로 전달 — 평가
+  //     정책 차원의 modelId 배선은 후속 slice. service-layer error 는 raw 전파(swallow 0).
+  @Post("period")
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
+  async period(
+    @Body() dto: PeriodBridgeDto,
+    @CurrentUser("sub") principalUserId: string | undefined,
+  ): Promise<EvaluationResult[]> {
+    // self-only 강제(fail-closed) — principal sub 이 부재(undefined/null)거나
+    // dto.personId 와 불일치하면 진행 전 차단(타인 평가문 요청 거부). generateEphemeral
+    // 위임은 이 검사 통과 후에만 수행된다.
+    if (
+      principalUserId === undefined ||
+      principalUserId === null ||
+      principalUserId !== dto.personId
+    ) {
+      throw new ForbiddenException(
+        "self-only: 본인(personId == principal sub)의 평가만 요청할 수 있다",
+      );
+    }
+
+    // personId → resolved person 변환 재사용 — row 부재 시 PersonService 가
+    // NotFoundException(404)을 전파한다(controller 추가 분기 0).
+    const person = await this.personService.findByIdWithIdentities(
+      dto.personId,
+    );
+
+    // resolved person 의 serviceIdentities 만 조립해 ephemeral bridge 에 위임.
+    // periodStart 는 since 로 pass-through(도출 0). modelId 는 본 slice 미지정.
+    return this.ephemeralBridge.generateEphemeral(
+      { serviceIdentities: person.serviceIdentities },
+      { since: dto.periodStart },
+      { modelId: undefined as unknown as string },
+    );
   }
 }
