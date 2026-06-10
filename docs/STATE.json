@@ -6,16 +6,16 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "T-0339 DONE·merge(loop@WIN-JQIPLSBL9QV-tc10b t3, pr-mode, PR #282 squash 0361ba7): live-LLM 검증 slice 1/2 — env-gated period-bridge live smoke spec(skip-green CI 실측, §9 실값 0, 1회 bound). reviewer round1 APPROVE findings 0. **다음 = slice 2/2(실 credential run)**: 사용자가 secrets.env(Q-0022 경로, 만료 6/30) 주입한 환경에서 본 spec 1회 실 round-trip 실행 + 결과(평가문 품질·scoring·narrative) 박제 — **사용자 협조 필요**(secrets.env 준비 + 실행 시점). driver 단독 실행 불가(§5 credential — env 는 repo 밖). 실행 절차: 사용자 secrets.env 주입 → driver 또는 사용자가 spec 단독 격리 실행(reviewer note: full test:smoke 는 DATABASE_URL+postgres 요구 — 단독 config 권장) → 결과 journal/details 박제. 기타 후보: timezone KST ADR(dependency-free) / PR #277 disposition(사용자) / makeLiveGateway 공용 helper 추출(3번째 live spec 시).",
+  "nextTask": "T-0340",
+  "backlogNote": "T-0339 DONE·merge(loop@WIN-JQIPLSBL9QV-tc10b t3, PR #282 squash 0361ba7): live-LLM slice 1/2 완결. **다음 = T-0340(timezone KST ADR, dependency-free)** — 본 cron fire(cron@cloud-9b3a9cd2)가 stale loop@WIN-JQIPLSBL9QV-tc10b lock(≈97분 stale) 탈취 후 planner promote(T-0340 은 직전 turn t10 cap 종료 후 cron 이 이미 생성해뒀던 PENDING task). 근거: PLAN L109 사용자 결정(2026-06-11, timezone=KST Asia/Seoul) 의 ADR-first 의무를 design-only 단일 ADR(ADR-0039) 신설로 박제(src 변경 0, dependency 0, credential 0). ADR-0012 §1(UTC 저장)은 보존, boundary 계산·표시만 Asia/Seoul. 잔여 후보(전부 user/credential 게이트): live-LLM slice 2/2(secrets.env 만료 6/30 — 6/25 격상) / PR #277 disposition(사용자) / makeLiveGateway helper(3번째 live spec 시) / T-0340 ACCEPTED flip 후 impl chain.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-60d923824",
-    "since": "2026-06-11T02:37:30+09:00",
-    "note": "cron@cloud-60d923824 fire (fresh origin/main HEAD=60d984d) — planner-dispatch turn. currentTask·nextTask 둘 다 null 이라 planner 1회 dispatch → T-0338(ADR-0038 chain doc-sync, commitMode direct) 큐잉. LOOP §1[2] 에 따라 planner-dispatch turn 은 queuing 후 doc-only direct commit 으로 종료(execute 안 함 — 다음 fire 가 T-0338 pickup). 권위 lock 은 본 commit push 후 claude/lock-driver tip tombstone({\"holder\":null}) 으로 release. 본 STATE.lock mirror 도 release 반영(holder=null). 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json."
+    "session": "cron@cloud-9b3a9cd2",
+    "since": "2026-06-11T05:06:23+09:00",
+    "note": "cron@cloud-9b3a9cd2 fire (fresh origin/main HEAD=22f1c24) — planner-dispatch turn. 직전 loop@WIN-JQIPLSBL9QV-tc10b lock(since 2026-06-11T03:28+09:00, ≈97분 stale) 권위 탈취(claude/lock-driver tip 4c779a3→85178f2 zero-sha 아님 CAS). currentTask·nextTask 둘 다 null 이라 planner 1회 dispatch → T-0340(timezone KST ADR-0039, commitMode pr) promote(직전 cron fire 가 task 파일만 만들고 STATE.nextTask 반영 누락 → 본 fire 가 promote). LOOP §1[2] 에 따라 planner-dispatch turn 은 queuing 후 doc-only direct commit 으로 종료(execute 안 함 — 다음 fire 가 T-0340 pickup). 권위 lock 은 본 commit push 후 claude/lock-driver tip tombstone({\"holder\":null}) 으로 release. 본 STATE.lock mirror 도 release 반영(holder=null). 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-11T03:46:00+09:00",
-  "lastCommit": "0361ba7",
+  "lastActivity": "2026-06-11T05:10:00+09:00",
+  "lastCommit": "22f1c24",
   "mostRecentTasks": [
     "T-0339",
     "T-0338",
