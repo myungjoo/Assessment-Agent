@@ -2,7 +2,11 @@
 id: T-0317
 title: period bridge ephemeral controller endpoint (User self-only, persist 0) 추가
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T11:46:00+09:00
+mergedAs: e01a4d5
+prNumber: 266
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-045]
 estimatedDiff: 135

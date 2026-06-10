@@ -5,30 +5,30 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0317",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-3e8b",
-    "since": "2026-06-10T11:12:00+09:00",
+    "since": "2026-06-10T11:34:00+09:00",
     "loopSessionStartedAt": "2026-06-10T10:14:00+09:00",
-    "loopSessionTurnCount": 4
+    "loopSessionTurnCount": 5
   },
-  "lastActivity": "2026-06-10T11:24:00+09:00",
-  "lastCommit": "154d7a4",
+  "lastActivity": "2026-06-10T11:46:00+09:00",
+  "lastCommit": "e01a4d5",
   "mostRecentTasks": [
+    "T-0317",
     "T-0316",
     "T-0315",
     "T-0314",
-    "T-0313",
-    "T-0312"
+    "T-0313"
   ],
   "loopSession": {
     "turnCount": 4,
     "startedAt": "2026-06-10T10:14:00+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-3e8b",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-3e8b (turn cap 10, 로컬 WIN-JQIPLSBL9QV) t4 — **T-0316 DONE·머지: ADR-0037 impl slice 2 (period bridge ephemeral orchestration)**. lock heartbeat(7142c47→e1b33cd, since=11:12 turnCount=4). executor(implementer PeriodBridgeEphemeralService 3-collaborator 주입·persist symbol 0 구조적 write-0 + tester 100% cov, src 5파일 production ~148 LOC)→PR #265→reviewer round1 APPROVE(BLOCKER/MAJOR/MINOR 0, NIT 1 비차단 — determinism test 잉여)→4-게이트(reviewer comment issuecomment-4665872997·CI run 27248767409 green head 37784b0)→integrator MERGED(squash 154d7a4, 브랜치 삭제). User self-only ephemeral 경로(collect→evaluate→in-memory 반환, persist 0)만 박제·§Decision2/3 PROPOSE 미baking. reviewRounds[T-0316]=1, tasksCompleted 312→313. 다음 t5: planner survey — 남은 slice(controller endpoint·RBAC guard·e2e)가 ephemeral 경로만 노출하면 dependency-free 가능하나, Admin full-persist 경로는 §Decision2/3 PROPOSE 의존. planner 가 controller(ephemeral-only) slice 큐잉 가능 여부 판정 → 불가/저가치면 escalate(Q-0032 ADR-0037 PROPOSE 검토 요청).",
-    "notePrevT3Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t3 — T-0315 DONE·머지(ADR-0037 slice1 입력 DTO PeriodBridgeDto, PR #264 squash 3f39e03). reviewer round1 APPROVE(NIT 1), 4-게이트, CI green. tasksCompleted 311→312. planner T-0316 큐잉.",
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-3e8b (turn cap 10, 로컬 WIN-JQIPLSBL9QV) t5 — **T-0317 DONE·머지: ADR-0037 impl slice 3 (period bridge ephemeral controller endpoint)**. lock heartbeat(e1b33cd→4a516dd, since=11:34 turnCount=5). executor(POST /api/assessment-evaluation/period — @Roles(User)+JwtAuthGuard/RolesGuard, @CurrentUser(sub) self-only fail-closed 불일치/부재 403, PersonService.findByIdWithIdentities 404 전파 재사용 후 generateEphemeral 위임 persist 0 + tester controller+service 100% cov, src 3파일 production ~91 LOC)→PR #266→reviewer round1 APPROVE(BLOCKER/MAJOR/MINOR 0, NIT 2 비차단 — modelId cast·redundant null check)→4-게이트(reviewer comment issuecomment-4665960584·CI run 27249469438 green head 47c10d7)→integrator MERGED(squash e01a4d5, 브랜치 삭제). 기존 auth infra 1:1 재사용·새 권한모델 0(§5 미발화), Admin full-persist·§Decision2/3 PROPOSE 미baking. reviewRounds[T-0317]=1, tasksCompleted 313→314. **ADR-0037 ephemeral 경로 backbone(DTO→service→controller) 완결**. 다음 t6: planner survey — 남은 dependency-free slice = e2e(slice5, 실 PostgreSQL ephemeral endpoint round-trip + DB-write-0 검증). 그 後 Admin full-persist 는 §Decision2/3 PROPOSE 의존 → 사용자 ADR-0037 검토 escalate(Q-0032).",
+    "notePrevT4Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t4 — T-0316 DONE·머지(ADR-0037 slice2 ephemeral orchestration PeriodBridgeEphemeralService 구조적 write-0, PR #265 squash 154d7a4). reviewer round1 APPROVE(NIT 1), 4-게이트, CI green. tasksCompleted 312→313. planner T-0317 큐잉.",
     "notePrevT2Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t2 — T-0314 DONE(direct, ADR-0034 lock-bypass 규율을 LOOP.md+CLAUDE.md §10 흡수 c056f8e) + orphan PR #249 close. Q-0031 두 followUp 전원 완결. planner T-0315 큐잉. tasksCompleted 310→311. #249 close-comment 의 issue_comment CI red 는 benign(STATE.ci.benignRedNote).",
     "notePrevT1Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t1 — T-0313 머지(ADR-0037 bridge 설계 PROPOSED, PR #263 squash 6813e9c, design-only). reviewer round1 APPROVE(NIT 2 비차단), 4-게이트 충족, CI green. tasksCompleted 309→310. planner T-0314 큐잉.",
     "notePrevSessionAKIHA": "/loop session loop@AKIHA-vb707106 (turn cap 8, 로컬 AKIHA) t6 — T-0312(ADR-0035 PROPOSED→ACCEPTED flip) 머지 PR #262 squash e578146. ADR-0035 dependency-free 구현 chain(T-0304~T-0312) 전원 완결. tasksCompleted 308→309. dependency-free P5 소진 → planner Q-0031 escalate. 세션 t1~t6: T-0307~T-0312 머지(ADR-0035 Summary 평가 chain 완결+ACCEPTED).",
@@ -48,6 +48,7 @@
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
+    "T-0317": 1,
     "T-0316": 1,
     "T-0315": 1,
     "T-0313": 1,
@@ -529,7 +530,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 313,
+    "tasksCompleted": 314,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
