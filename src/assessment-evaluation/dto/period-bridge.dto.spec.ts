@@ -153,16 +153,86 @@ describe("PeriodBridgeDto", () => {
   });
 
   // --------------------------------------------------------------------------
-  // DTO contract: mode 제공 시 5 키만 선언됨(영속화/동시성 semantics baking 0 — 입력 형식
-  // 만). §Decision2/§Decision3 PROPOSE 미의존 확인.
+  // reevaluate (ADR-0038 §Decision1, T-0333 slice 1) — happy/branch (R-112 #1·#3):
+  // true / false / 미지정 각각 0 error. default false(first-write-wins) 적용은
+  // orchestration slice 2 책임 — 본 spec 은 입력 형식 계약만 검증.
   // --------------------------------------------------------------------------
-  it("DTO 는 personId/period/scope/periodStart/mode 5 키만 contract 로 가진다", () => {
+  it("reevaluate=true 명시 payload 는 errors 빈 배열을 반환한다 (happy)", async () => {
+    const errors = await validatePlain({ ...validPayload, reevaluate: true });
+    expect(errors).toEqual([]);
+  });
+
+  it("reevaluate=false 명시 payload 도 errors 빈 배열을 반환한다 (happy/branch)", async () => {
+    const errors = await validatePlain({ ...validPayload, reevaluate: false });
+    expect(errors).toEqual([]);
+  });
+
+  it("reevaluate 미지정 payload 는 errors 빈 배열 — default false 는 orchestration 책임 (branch)", async () => {
+    const errors = await validatePlain({ ...validPayload });
+    expect(errors).toEqual([]);
+  });
+
+  // --------------------------------------------------------------------------
+  // reevaluate — error/negative (R-112 #2·#4): 제공 시 boolean 형식 강제. 비-boolean
+  // (string/"yes" string/number/null) 예외 분기마다 각 1+ cover — 단일 negative 금지.
+  // --------------------------------------------------------------------------
+  it("reevaluate 가 string 'true' 시 isBoolean 위반 (negative/wrong-type)", async () => {
+    const errors = await validatePlain({ ...validPayload, reevaluate: "true" });
+    expect(errors).toEqual(expect.arrayContaining(["isBoolean"]));
+  });
+
+  it("reevaluate 가 string 'yes' 시 isBoolean 위반 (negative/wrong-type)", async () => {
+    const errors = await validatePlain({ ...validPayload, reevaluate: "yes" });
+    expect(errors).toEqual(expect.arrayContaining(["isBoolean"]));
+  });
+
+  it("reevaluate 가 number 1 시 isBoolean 위반 (negative/wrong-type)", async () => {
+    const errors = await validatePlain({ ...validPayload, reevaluate: 1 });
+    expect(errors).toEqual(expect.arrayContaining(["isBoolean"]));
+  });
+
+  // null 은 @IsOptional(class-validator CONDITIONAL_VALIDATION)이 undefined 와 동일하게
+  // 흡수한다 — 미지정과 같은 취급이라 validation error 0. orchestration(slice 2)의
+  // `reevaluate === true` 분기에서 null 은 false 로 degrade → default first-write-wins
+  // 보존(파괴적 reeval 미발화 — 안전). 본 test 는 이 흡수 동작을 contract 로 박제한다.
+  it("reevaluate 가 null 시 @IsOptional 이 미지정과 동일하게 흡수한다 (negative — 안전 degrade)", async () => {
+    const errors = await validatePlain({ ...validPayload, reevaluate: null });
+    expect(errors).toEqual([]);
+  });
+
+  // reevaluate 제공 시 boolean 값이 그대로 instance 에 전사되고, 영속화/동시성 semantics
+  // 키는 baking 되지 않는다(ADR-0038 §Decision2~5 는 slice 2~4 책임 — 입력 형식만).
+  it("reevaluate=true 제공 시 instance 에 boolean 그대로 전사된다 (semantics baking 0)", () => {
+    const dto = plainToInstance(PeriodBridgeDto, {
+      ...validPayload,
+      reevaluate: true,
+    });
+    expect(dto.reevaluate).toBe(true);
+    expect(Object.keys(dto)).toContain("reevaluate");
+    expect(dto).not.toHaveProperty("persistMode");
+    expect(dto).not.toHaveProperty("assessmentId");
+  });
+
+  // --------------------------------------------------------------------------
+  // DTO contract: 6 키만 선언됨(영속화/동시성 semantics baking 0 — 입력 형식만).
+  // §Decision2/§Decision3 PROPOSE 미의존 확인. T-0333 이 reevaluate 키를 contract 에
+  // 추가(ADR-0038 §Decision1)해 기존 5 키 → 6 키로 갱신 — 선언 field 는 own property 로
+  // 항상 노출되므로(useDefineForClassFields) 본 test 의 키 목록은 선언 contract 와 동치.
+  // --------------------------------------------------------------------------
+  it("DTO 는 personId/period/scope/periodStart/mode/reevaluate 6 키만 contract 로 가진다", () => {
     const dto = plainToInstance(PeriodBridgeDto, {
       ...validPayload,
       mode: "fill",
     });
     expect(Object.keys(dto).sort()).toEqual(
-      ["mode", "period", "periodStart", "personId", "scope"].sort(),
+      [
+        "mode",
+        "period",
+        "periodStart",
+        "personId",
+        "reevaluate",
+        "scope",
+      ].sort(),
     );
     // 영속화/동시성 관련 키가 baking 되지 않았음(slice 2/5 책임).
     expect(dto).not.toHaveProperty("activities");

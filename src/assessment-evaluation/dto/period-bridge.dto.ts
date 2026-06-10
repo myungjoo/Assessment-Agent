@@ -26,6 +26,7 @@
 // 새 외부 dependency 0 — class-validator 는 이미 의존(collect-trigger.dto.ts /
 // evaluate-activities.dto.ts 가 사용 중, package.json 박제, ADR-0037 §Decision5).
 import {
+  IsBoolean,
   IsIn,
   IsISO8601,
   IsNotEmpty,
@@ -81,4 +82,19 @@ export class PeriodBridgeDto {
   @IsNotEmpty()
   @IsIn(["fill", "reeval"])
   mode?: string;
+
+  // reevaluate — 이미 영속화된 평가문의 재평가(overwrite) 요청 flag(ADR-0038 §Decision1,
+  // T-0333 slice 1). default false = first-write-wins 보존(ADR-0037 §Decision3 동작 회귀 0,
+  // ADR-0038 §Decision3) — reeval opt-out 의 request 계약이며, true 일 때만 bridge 가
+  // reset-and-recreate(`mode: "reeval"`)로 영속화한다. 미지정 시 undefined — orchestration
+  // 이 default false(first-write-wins)로 처리한다(slice 2 책임).
+  //
+  // 본 DTO 는 형식 검증만(@IsOptional + @IsBoolean — 제공 시 boolean 강제, "true"/"yes"
+  // string·1 number 같은 비-boolean 은 400) — reeval 영속화/persist 분기 = orchestration
+  // slice 2, Admin RBAC + User reevaluate fail-closed reject = controller slice 3,
+  // idempotency/동시성 e2e = slice 4 책임(전부 본 DTO 밖, ADR-0038 §Decision2~5 미baking).
+  // vestigial mode(period bridge unwired) reconcile = slice 2 (ADR-0038 amend).
+  @IsOptional()
+  @IsBoolean()
+  reevaluate?: boolean;
 }
