@@ -2,7 +2,8 @@
 id: T-0338
 title: ADR-0038 chain doc-sync — api.md L102 reevaluate 동기 + ADR-0038 slice 5→4 표기 정정
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-11T02:55:00+09:00
 commitMode: direct
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 25
