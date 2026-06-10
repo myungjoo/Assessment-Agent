@@ -6,15 +6,15 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "T-0337 DONE·merge(loop@WIN-JQIPLSBL9QV-tc10 t10, pr-mode, PR #281 squash bfdb898): ADR-0038 slice 4 — reevaluate e2e 9건(실 PG, CI green 실측) + §Decision5 동시성 수렴 amendment. **ADR-0038 overwrite/재평가 impl chain 완결**(slice 1 T-0333 DTO → 2a T-0334 vestigial mode 제거 → 2b T-0335 service 분기 → 3 T-0336 controller+RBAC → 4 T-0337 e2e — 전부 round1 APPROVE·CI green·머지). **다음 후보**: (1) doc-sync task — api.md L102(mode 절 제거+reevaluate 추가, T-0334 Follow-ups) + ADR-0038 L107/L136 slice 5→4 표기 정정(T-0337 reviewer MINOR pre-existing) 한 task 로 묶음 권장(direct 또는 pr — architecture doc 은 §3.1 상 pr). (2) live-LLM 검증(사용자 승인, 만료 6/30 — **6/25 전 미착수 시 격상**). (3) timezone KST ADR(사용자 확정, ADR-first). (4) **외부 PR #277**(ADR-0036 stage5 기본-ON 안전장치 amend) — 사용자 disposition 대기 중(reviewer 플로우로 처리/직접 검토/close 중 택1 질문 박제, t4 부터 미응답). 세션 tc10 종료(턴캡 10 도달) — 본 backlogNote 가 다음 진입점(cron/새 /loop)의 planner 입력.",
+  "nextTask": "T-0338",
+  "backlogNote": "T-0338 큐잉(cron@fresh-main HEAD=60d984d planner) — ADR-0038 chain doc-sync. HIGH make-work-bar 로 두 stale 문서 실재 검증(파일 직접 read): (a) api.md L102 `/period` 행이 T-0334 가 제거한 vestigial `mode?` 를 여전히 서술 + `reevaluate?` 미기재 — T-0334 §Follow-ups reviewer MINOR-1 박제, (b) ADR-0038 L107·L137 이 동시성 실측 책임을 'impl slice 5 e2e' 로 표기하나 실제 e2e=slice 4(T-0337, L108 amendment 가 이미 slice 4 박제) — 둘 다 실재 불일치 확정. 한 task 로 묶어 큐잉(commitMode: direct — 순수 문서 정정·동작 변경 0, 본 cron 운영 지시상 문서/코멘트는 PR/리뷰 없이 direct). 변경 정확히 2 파일(api.md L102 + ADR-0038 L107/L137), src/·test/ 무변경. **선행 context(T-0337 DONE·merge bfdb898)**: ADR-0038 overwrite/재평가 impl chain 완결(slice 1 T-0333 DTO → 2a T-0334 vestigial mode 제거 → 2b T-0335 service 분기 → 3 T-0336 controller+RBAC → 4 T-0337 e2e — 전부 round1 APPROVE·CI green·머지). **T-0338 후 잔여 후보(전부 NON-dependency-free, planner 권한 밖)**: (1) live-LLM 검증(사용자 승인, 만료 6/30 — **6/25 전 미착수 시 격상**). (2) timezone KST ADR(사용자 확정, ADR-first). (3) 외부 PR #277(ADR-0036 stage5 기본-ON 안전장치 amend) — 사용자 disposition 대기 중. T-0338 머지 후 다음 fire 의 planner 는 dependency-free P5 소진 → escalate(Q-0035 류) 전망.",
   "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-tc10",
-    "since": "2026-06-10T23:46:49+09:00",
-    "note": "loop@WIN-JQIPLSBL9QV-tc10 /loop 세션(turn cap 10) t1 — Q-0034 RESOLVED(옵션 1)로 unblock. 권위 lock = claude/lock-driver tip b116046(holder=loop, since 동기). 본 STATE.lock 은 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json. ADR-0038 ACCEPTED + slice 1 T-0333 큐잉. t2 부터 T-0333 executor(pr-mode) 진행."
+    "holder": null,
+    "session": "cron@cloud-60d923824",
+    "since": "2026-06-11T02:37:30+09:00",
+    "note": "cron@cloud-60d923824 fire (fresh origin/main HEAD=60d984d) — planner-dispatch turn. currentTask·nextTask 둘 다 null 이라 planner 1회 dispatch → T-0338(ADR-0038 chain doc-sync, commitMode direct) 큐잉. LOOP §1[2] 에 따라 planner-dispatch turn 은 queuing 후 doc-only direct commit 으로 종료(execute 안 함 — 다음 fire 가 T-0338 pickup). 권위 lock 은 본 commit push 후 claude/lock-driver tip tombstone({\"holder\":null}) 으로 release. 본 STATE.lock mirror 도 release 반영(holder=null). 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-11T03:52:00+09:00",
+  "lastActivity": "2026-06-11T02:38:30+09:00",
   "lastCommit": "bfdb898",
   "mostRecentTasks": [
     "T-0337",
