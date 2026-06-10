@@ -2,9 +2,11 @@
 id: T-0332
 title: ci.yml 에 per-PR concurrency group 추가 (ADR-0036 stage 4)
 phase: P5
-status: IN_PROGRESS
+status: DONE
+completedAt: 2026-06-10T19:41:50+09:00
 commitMode: pr
 prNumber: 275
+mergeCommit: aedd7be
 coversReq: [REQ-058]
 estimatedDiff: 12
 estimatedFiles: 1

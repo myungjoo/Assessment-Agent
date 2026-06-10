@@ -5,46 +5,48 @@
     "multiTaskFire": true,
     "fineGrainedConcurrency": false
   },
-  "currentTask": "T-0332",
+  "currentTask": null,
   "nextTask": null,
-  "backlogNote": "T-0331 DONE(loop@WIN-JQIPLSBL9QV-c10a t5, direct doc-only): LOOP §4 충돌 흡수·push source/target 매칭에 ADR-0036 토글-gated claim/N-driver 경계 2문단 추가(bookkeeping=lock 직렬화 안전·코드 충돌=disjoint 큐잉 1차+merge-conflict-code 흡수·step1~4 graceful 종료 재사용; push hard rule 1~3 진입점별 불변). 토글 OFF inert·forward-looking(driver 동작 불변). **ADR-0036 stage3 완료**(slice1 T-0329 LOOP §1[2] + slice2 T-0330 CLAUDE §10 + slice3 T-0331 LOOP §4). adr0036Rollout.stage3=DONE. **남은 ADR-0036 rollout**: stage4(per-PR CI concurrency group — ci.yml `concurrency:` key, commitMode pr, buildThrough·non-escalate·dependency-free) + stage5(flags.fineGrainedConcurrency 토글 ON, direct, 30일 dogfood 합의 후 — 실측 gating). 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 은 human PROPOSED→ACCEPTED flip gating(dependency-free 아님 — escalate 대상). t6 planner-only turn: T-0332 큐잉(stage4 — ci.yml per-PR concurrency group: 같은 PR 중복 run 취소 + 서로 다른 PR/main push 격리, §Decision6, commitMode pr, dependency-free, est 12 LOC). pre-check 통과(ci.yml concurrency key 0건). 다음 진입점: nextTask=T-0332 → currentTask 승격 후 execute(첫 pr-mode — PR open + reviewer + 4-게이트 + integrator merge). 이후 stage5(토글 ON)는 30일 dogfood 합의 gating.",
+  "backlogNote": "T-0332 DONE·merge(loop@WIN-JQIPLSBL9QV-c10a t7~t8, pr-mode, PR #275 squash aedd7be): ci.yml 에 workflow-level concurrency key 추가(group=ci-<PR#>||ref, cancel-in-progress=pull_request event 한정 → 같은 PR 연속 push 만 직전 run cancel, main push·issue_comment·pull_request_review 비-cancel = R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE(MINOR-1 주석 nit → 후속 commit 정정, nit-in-PR closure), 4-게이트 PASS, CI green(2469a8a run 27270290374 success). **ADR-0036 stage4 완료 → adr0036Rollout.stage4=DONE**. **남은 ADR-0036**: stage5(flags.fineGrainedConcurrency 토글 ON)뿐 — stage1~4 머지 + 30일 dogfood + 실측(throughput 이득 > coordination 비용) 합의 후 결정 = **human/측정 gating, dependency-free 아님(escalate)**. 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 도 human PROPOSED→ACCEPTED flip gating(escalate). 다음 진입점: currentTask·nextTask 둘 다 null → planner dispatch. **dependency-free P5 work 소진 가능성 높음**(ADR-0036 buildThrough chain stage1~4 전부 shipped) → planner 가 HIGH make-work-bar survey 후 신규 dependency-free 가치 미식별 시 escalate 예상.",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-c10a",
-    "since": "2026-06-10T19:35:24+09:00",
+    "since": "2026-06-10T19:41:15+09:00",
     "loopSessionStartedAt": "2026-06-10T18:45:45+09:00",
-    "loopSessionTurnCount": 7,
-    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t7 — T-0332 pr-mode 진행 중: PR #275 open(claude/T-0332-ci-concurrency-group, head 2469a8a). executor ci.yml concurrency key 구현+test green → push → PR open → reviewer round1 APPROVE(MINOR-1 nit 후속 commit 2469a8a 정정) → PR comment post. CI(2469a8a run 27270290374) in_progress — green+approval-gate 확인 후 merge 예정(다음 turn). 권위 lock heartbeat 07a3e33→c7cb98b(since=19:35, hold — in-flight PR 소유 중 다른 driver 차단). 세션 종료 시 tombstone release."
+    "loopSessionTurnCount": 8,
+    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t8 — T-0332 DONE·merge(PR #275 squash aedd7be): CI(2469a8a run 27270290374) success 확인 → 4-게이트 PASS → gh squash merge + branch delete. ADR-0036 stage4 완료. 권위 lock heartbeat c7cb98b→(t8 heartbeat, since=19:41). 본 필드는 non-authoritative human mirror. 세션 종료 시 tombstone release."
   },
-  "lastActivity": "2026-06-10T19:35:24+09:00",
-  "lastCommit": "c496457",
+  "lastActivity": "2026-06-10T19:41:15+09:00",
+  "lastCommit": "aedd7be",
   "mostRecentTasks": [
+    "T-0332",
     "T-0331",
     "T-0330",
     "T-0329",
-    "T-0328",
-    "T-0327"
+    "T-0328"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 8,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-c10a",
     "startedAt": "2026-06-10T18:45:45+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t7 — T-0332 pr-mode 진행: executor ci.yml per-PR concurrency key 구현(+9 LOC, group=ci-<PR#>||ref, cancel-in-progress=pull_request event 한정) + lint/build/test 7008/7008 green → feature branch claude/T-0332-ci-concurrency-group push → PR #275 open → reviewer round1 APPROVE(MINOR-1: 주석 issue_comment group 폴백 부정확 → nit-in-PR closure 후속 commit 2469a8a 정정) → reviewer comment PR post. CI(head 2469a8a) in_progress. currentTask=T-0332(prNumber 275 frontmatter) 박제 — 세션 死 시 resume(LOOP §1[2]). 다음 t8: CI green+approval-gate(필요시 rerun --failed) 확인 → 4-게이트 → merge."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t8 — T-0332 DONE·merge(PR #275 squash aedd7be, ADR-0036 stage4 ci.yml per-PR concurrency group). CI(2469a8a run 27270290374) success → 4-게이트 PASS → gh squash merge + branch delete. reviewRounds[T-0332]=1. tasksCompleted 328→329. **ADR-0036 rollout: stage1~4 전부 shipped, stage5(토글 ON)만 남음 = dogfood/실측 human gating**. 다음 t9: planner dispatch — dependency-free P5 work 소진 가능성 높아 HIGH make-work-bar survey 후 escalate 예상. turn cap(10) 근접 — t9~t10 후 /compact 안내."
   },
   "ci": {
-    "lastRun": "2026-06-10T19:10:00+09:00",
+    "lastRun": "2026-06-10T19:41:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27268973529",
-    "noteStage3DocPushes": "ADR-0036 stage3 doc-only direct push 전부 CI green: 0a1fde9(T-0329) run 27268086563 success / be28b99(T-0330 queue) run 27268575074 success / 433ab9f(T-0330) run 27268973529 success. 2eb0553(T-0331 queue) run 27269231740 in_progress→다음 turn 재확인. 7119458 lock-branch heartbeat 는 main CI 무관. doc-only push 라 lint/build/test 전 step trivially green.",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27270290374",
+    "noteT0332": "PR #275(T-0332 ADR-0036 stage4 ci.yml per-PR concurrency group) head 2469a8a run 27270290374 = success 전 step green(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer comment 가 approval-step 실행 전 landing 해 first-run green, rerun 불요). 직전 07cd107 run 27270130798 은 PR-open 시점 approval-gate ordering(benignRedNote case A)으로 failure(실 step 무관). aedd7be squash merge. **본 PR 부터 concurrency key 활성** — 이후 같은 PR 연속 push 는 직전 run cancel.",
+    "noteStage3DocPushes": "ADR-0036 stage3 doc-only direct push 전부 CI green: 0a1fde9(T-0329) run 27268086563 success / be28b99 run 27268575074 / 433ab9f run 27268973529 / 2eb0553 run 27269231740 / 27045bd / d56d54a 전부 success. doc-only push 라 trivially green.",
     "noteT0325": "PR #272(T-0325 ADR-0038) pull_request-event run 27262031787 = success 전 step green(Lint/Build/Prisma/test+cov/smoke/e2e + reviewer approval 검증). reviewer approve comment 가 approval-step 실행 전 landing → first-run green, rerun 불요. 06ae245 squash merge.",
     "benignRedNote": "**반복 패턴 — approval-검증 step 의 ordering fail (consecutiveFails 미증가)**: ci.yml job '기본 검사' 의 'reviewer agent approval 검증' step 은 §3.3 gate2(PR 에 reviewer approve comment/review 존재) 를 검증한다. (A) PR-open 시점 pull_request-event run 은 reviewer comment 가 아직 없어 이 step 이 fail → reviewer approve comment post 후 `gh run rerun <id> --failed` 로 재실행하면 green(T-0321/PR #269 run 27254966044 가 이 케이스 — rerun 후 전 step green, merge). (B) issue_comment-event run 은 main ref 기준으로 돌아 매칭 PR 없으면 fail(예: head 7414f4d). 둘 다 **실코드 회귀 아님** — 실 step(lint/build/prisma/test+cov/smoke/e2e)은 통과. **gate4 평가 = 해당 PR head 의 pull_request-event run 이 (필요시 rerun 후) success 인지**. 잠재 follow-up: approval 검증 step 을 PR state==open 또는 comment 존재 조건으로 가드(우선순위 낮음).",
     "verifiedGreen": "loop@WIN-JQIPLSBL9QV-0363 t1~t5 main push-CI green: 7414f4d·52ab7a7·af9a41d·a0e96b9·6b24533·5186385(T-0322 merge)·926377b(T-0322 closeout) 전부 push run success. ad966d0(T-0323 merge) push run 진행중→다음 turn 재확인. PR #268 run 27254153650 pass / #269 27254966044 rerun pass / #270 27256092195 rerun pass / #271 27256906675 첫-pass(reviewer comment 가 approval-step 전 도착, rerun 불요). approval-step ordering 은 PR-open 타이밍에 따라 fail→rerun 또는 첫-pass. Node.js 20→24 deprecation non-blocking(2026-06-16). benignRedNote 참조.",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
+    "T-0332": 1,
     "T-0325": 1,
     "T-0323": 1,
     "T-0322": 1,
@@ -575,7 +577,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 328,
+    "tasksCompleted": 329,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -590,6 +592,7 @@
     "note": "사용자 2026-06-10 결정: ADR-0036 ACCEPTED. driver 공급 측 break-even(두 번째 driver 존재)은 cron+multi-loop 상시 진입점으로 이미 충족 — stage 1→2 의 '독립 task ≥2 실증' 게이트는 stage 2-5 인프라 구축을 막지 않는다(build-through). planner 는 ADR-0036 §rollout stage 2(claim registry select+claim)→3(loop 재작성+CLAUDE§10/LOOP§4 동기)→4(per-PR concurrency group)→5(토글) 를 dependency chain 으로 큐잉하되, ACCEPTED 재확인 차 escalate 하지 말 것. 각 stage 정확성 게이트(이중 claim 0·orphan 회수·충돌 없음)는 강제. toggle ON(stage5)만 실측 gating. 기존 nextTask=T-0325(ADR-0038)는 유효 — ADR-0036 stage 2 와 독립이면 어느 순서든 가능(둘이 첫 실증 독립-stream 쌍 후보).",
     "stage2": "DONE — slice1(T-0327 select+claim CAS) + slice2(T-0328 orphan 60분 회수 + PR-resume) 머지. 다음 stage3: §1 loop 재작성(critical-section lock + claim pickup) + CLAUDE§10/LOOP§4 동기.",
     "stage3": "DONE — slice1(T-0329 LOOP §1[2] 토글-gated claim-pickup 분기 + reclaim server-time now 주입 계약) + slice2(T-0330 CLAUDE §10 규칙1 토글-gated N-driver 경로 서술) + slice3(T-0331 LOOP §4 충돌 흡수·push source/target 매칭 N-driver 경계) 전부 머지. driver loop 통합 spec(critical-section lock + claim pickup + N-driver 충돌 흡수)이 LOOP §1[2]/§4 + CLAUDE §10 에 박제됨. 전부 토글-gated forward-looking — flags.fineGrainedConcurrency=false(현 기본값)면 inert, driver 동작 불변. 다음 stage4: per-PR CI concurrency group(ci.yml `concurrency:` key, commitMode pr).",
-    "stage4": "PENDING — per-PR CI concurrency group(ci.yml 에 `concurrency: { group: ..., cancel-in-progress }` 추가해 동일 PR 의 중복 run 취소·병렬 PR run 격리). commitMode pr(ci.yml 변경 = 동작 변경). buildThrough·non-escalate·dependency-free. stage5(토글 ON)는 stage1~4 + 30일 dogfood 합의 후.",
+    "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
+    "stage5": "PENDING(human/측정 gating — dependency-free 아님) — flags.fineGrainedConcurrency 토글 ON(direct 1줄). stage1~4 전부 shipped(인프라 완비: claim registry select+claim CAS + orphan 60분 회수 + PR-resume + LOOP/CLAUDE driver-loop 통합 spec + per-PR CI concurrency group). 토글 ON 은 30일 dogfood + 실측(throughput 이득 > coordination 비용) 합의 후 user 결정 — ADR-0036 §rollout stage5·toggleGate. planner 단독 진입 금지(escalate 대상)."
   }
 }
