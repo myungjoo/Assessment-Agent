@@ -6,17 +6,17 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "T-0330 DONE(loop@WIN-JQIPLSBL9QV-c10a t3, direct doc-only): CLAUDE §10 규칙1에 ADR-0036 토글-gated N-driver 경로 종속 서술 추가(claim registry + critical-section-only lock 기반 N-driver = task 진행 driver N개·lock 보유 1개; 토글 OFF=현 기본값 coarse '활성 driver 1개' 그대로). LOOP §1[2]·ADR-0036/0028/0009·concurrency.md cross-ref, 규칙1~5+권장문단 보존. forward-looking(driver 동작 불변). adr0036Rollout.stage3 slice1(T-0329)+slice2(T-0330) DONE. **stage3 잔여**: slice3(LOOP §4 코드-충돌 흡수 경계 N-driver sync, direct doc, dependency-free). stage4(per-PR CI concurrency group, pr)·stage5(토글 ON, 30일 dogfood)는 후속. 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 은 human PROPOSED→ACCEPTED flip gating(dependency-free 아님 — escalate 대상). 다음 진입점: currentTask·nextTask 둘 다 null → planner dispatch(stage3 slice3 큐잉 예상).",
+  "nextTask": "T-0331",
+  "backlogNote": "T-0330 DONE(loop@WIN-JQIPLSBL9QV-c10a t3, direct doc-only): CLAUDE §10 규칙1에 ADR-0036 토글-gated N-driver 경로 종속 서술 추가(claim registry + critical-section-only lock 기반 N-driver = task 진행 driver N개·lock 보유 1개; 토글 OFF=현 기본값 coarse '활성 driver 1개' 그대로). LOOP §1[2]·ADR-0036/0028/0009·concurrency.md cross-ref, 규칙1~5+권장문단 보존. forward-looking(driver 동작 불변). adr0036Rollout.stage3 slice1(T-0329)+slice2(T-0330) DONE. **stage3 잔여**: slice3(LOOP §4 코드-충돌 흡수 경계 N-driver sync, direct doc, dependency-free). stage4(per-PR CI concurrency group, pr)·stage5(토글 ON, 30일 dogfood)는 후속. 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 은 human PROPOSED→ACCEPTED flip gating(dependency-free 아님 — escalate 대상). t4 planner-only turn: T-0331 큐잉(stage3 slice3 — LOOP §4 충돌 흡수·push source/target 매칭에 토글-gated claim/N-driver 경계 sync, direct doc-only, ~45 LOC, dependsOn T-0330). 다음 진입점: nextTask=T-0331 → currentTask 승격 후 execute(doc-only direct commit) → stage3 완료. 이후 stage4(per-PR CI concurrency group, pr-mode) 또는 잔여 escalation.",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-c10a",
-    "since": "2026-06-10T19:02:10+09:00",
+    "since": "2026-06-10T19:10:11+09:00",
     "loopSessionStartedAt": "2026-06-10T18:45:45+09:00",
-    "loopSessionTurnCount": 3,
-    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t3 — T-0330 DONE(direct doc-only: CLAUDE §10 N-driver 서술 sync). 권위 lock heartbeat 4c4b4b6→e2af22f(since=19:02). 본 필드는 non-authoritative human mirror. 세션 종료(cap 도달/BLOCKED/work 소진) 시 tombstone release."
+    "loopSessionTurnCount": 4,
+    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t4 — planner-only turn(currentTask·nextTask 둘 다 null → planner dispatch, T-0331 큐잉: LOOP §4 충돌 흡수·push 매칭 N-driver sync). 권위 lock heartbeat e2af22f→fc7b8e5(since=19:10). 본 필드는 non-authoritative human mirror. 세션 종료(cap 도달/BLOCKED/work 소진) 시 tombstone release."
   },
-  "lastActivity": "2026-06-10T19:06:34+09:00",
+  "lastActivity": "2026-06-10T19:10:11+09:00",
   "lastCommit": "c496457",
   "mostRecentTasks": [
     "T-0330",
@@ -26,11 +26,11 @@
     "T-0325"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-c10a",
     "startedAt": "2026-06-10T18:45:45+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t3 — T-0330 DONE(direct doc-only): CLAUDE §10 규칙1에 ADR-0036 토글-gated N-driver 경로 종속 서술 추가(claim registry + critical-section-only lock, 토글 OFF=coarse '활성 driver 1개' 현 기본값 보존). forward-looking(driver 동작 불변). tasksCompleted 326→327. adr0036Rollout.stage3 slice1+slice2 DONE. 다음 t4: planner dispatch(stage3 slice3 LOOP §4 sync 큐잉 예상)."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t4 — planner-only turn: currentTask·nextTask 둘 다 null → planner dispatch, T-0331 큐잉(ADR-0036 stage3 slice3: LOOP §4 충돌 흡수·push source/target 매칭에 토글-gated claim/N-driver 경계 sync, direct doc-only, ~45 LOC). pre-check 통과(§4 claim/N-driver 언급 0건). counter 불변(planner-only). 다음 t5: T-0331 execute → stage3 완료."
   },
   "ci": {
     "lastRun": "2026-06-10T18:51:41+09:00",
