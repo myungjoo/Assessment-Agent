@@ -2,7 +2,11 @@
 id: T-0316
 title: period→collect→evaluate ephemeral orchestration bridge service (User self-only FIRM 경로만)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T11:24:00+09:00
+mergedAs: 154d7a4
+prNumber: 265
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 240
