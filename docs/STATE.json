@@ -6,30 +6,29 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": "T-0338",
-  "backlogNote": "T-0338 큐잉(cron@fresh-main HEAD=60d984d planner) — ADR-0038 chain doc-sync. HIGH make-work-bar 로 두 stale 문서 실재 검증(파일 직접 read): (a) api.md L102 `/period` 행이 T-0334 가 제거한 vestigial `mode?` 를 여전히 서술 + `reevaluate?` 미기재 — T-0334 §Follow-ups reviewer MINOR-1 박제, (b) ADR-0038 L107·L137 이 동시성 실측 책임을 'impl slice 5 e2e' 로 표기하나 실제 e2e=slice 4(T-0337, L108 amendment 가 이미 slice 4 박제) — 둘 다 실재 불일치 확정. 한 task 로 묶어 큐잉(commitMode: direct — 순수 문서 정정·동작 변경 0, 본 cron 운영 지시상 문서/코멘트는 PR/리뷰 없이 direct). 변경 정확히 2 파일(api.md L102 + ADR-0038 L107/L137), src/·test/ 무변경. **선행 context(T-0337 DONE·merge bfdb898)**: ADR-0038 overwrite/재평가 impl chain 완결(slice 1 T-0333 DTO → 2a T-0334 vestigial mode 제거 → 2b T-0335 service 분기 → 3 T-0336 controller+RBAC → 4 T-0337 e2e — 전부 round1 APPROVE·CI green·머지). **T-0338 후 잔여 후보(전부 NON-dependency-free, planner 권한 밖)**: (1) live-LLM 검증(사용자 승인, 만료 6/30 — **6/25 전 미착수 시 격상**). (2) timezone KST ADR(사용자 확정, ADR-first). (3) 외부 PR #277(ADR-0036 stage5 기본-ON 안전장치 amend) — 사용자 disposition 대기 중. T-0338 머지 후 다음 fire 의 planner 는 dependency-free P5 소진 → escalate(Q-0035 류) 전망.",
+  "nextTask": null,
+  "backlogNote": "T-0338 DONE(loop@WIN-JQIPLSBL9QV-tc10b t1, direct doc-sync 3bc9ec1): api.md /period 행 — vestigial mode? 서술 제거 + reevaluate?: boolean 계약 반영 + overwrite DEFERRED→shipped(T-0333~T-0337 cross-ref) + User fail-closed 403 error 동기. ADR-0038 slice 5→4 표기 정정(grep slice5=0). **ADR-0038 chain + doc-sync 완전 종결**. 남은 후보: (1) live-LLM 검증 — 사용자 승인 완료(c40177a PLAN 박제), 만료 6/30·6/25 격상 트리거. env-gated live spec 설계/구현 task 가 다음 dependency-free 후보(secrets.env 경로 Q-0022 재사용, env 부재 시 skip→CI green). (2) timezone KST ADR — 사용자 확정(c40177a), ADR-first, dependency-free. (3) 외부 PR #277 disposition — 사용자 미응답(reviewer 플로우/직접 검토/close 택1). (4) ADR-0036 stage5 토글 — 30일 dogfood human 게이트 유지. 운영 주의: 직전 tc10 세션 t10 타임스탬프(03:50~03:52+09:00)는 server-time 대비 ~1h future-stamp 오기(실제 02:4x) — 기록 정정 불요(순서 일관), driver 는 매 turn server-time 파생 의무.",
   "lock": {
     "holder": null,
     "session": "cron@cloud-60d923824",
     "since": "2026-06-11T02:37:30+09:00",
     "note": "cron@cloud-60d923824 fire (fresh origin/main HEAD=60d984d) — planner-dispatch turn. currentTask·nextTask 둘 다 null 이라 planner 1회 dispatch → T-0338(ADR-0038 chain doc-sync, commitMode direct) 큐잉. LOOP §1[2] 에 따라 planner-dispatch turn 은 queuing 후 doc-only direct commit 으로 종료(execute 안 함 — 다음 fire 가 T-0338 pickup). 권위 lock 은 본 commit push 후 claude/lock-driver tip tombstone({\"holder\":null}) 으로 release. 본 STATE.lock mirror 도 release 반영(holder=null). 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-11T02:38:30+09:00",
-  "lastCommit": "bfdb898",
+  "lastActivity": "2026-06-11T02:58:00+09:00",
+  "lastCommit": "3bc9ec1",
   "mostRecentTasks": [
+    "T-0338",
     "T-0337",
     "T-0336",
     "T-0335",
-    "T-0334",
-    "T-0333"
+    "T-0334"
   ],
   "loopSession": {
-    "turnCount": 10,
+    "turnCount": 1,
     "cap": 10,
-    "holder": "loop@WIN-JQIPLSBL9QV-tc10",
-    "startedAt": "2026-06-10T23:46:49+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) **세션 종료(cap 도달)** — t1: Q-0034 RESOLVED(옵션1)+ADR-0038 ACCEPTED flip. t2: T-0333(DTO reevaluate flag, PR #276). t3: plan. t4: T-0334(vestigial mode 제거+amend, PR #278)+외부 PR #277 발견. t5: plan(+gh 재로그인 지원). t6: T-0335(service reeval opt-out, PR #279, nit-in-PR closure). t7: plan. t8: T-0336(controller dispatch+User 403, PR #280). t9: plan. t10: T-0337(e2e+§D5 실측, PR #281). **성과: ADR-0038 impl chain 5 slice 전부 머지(전 PR round1 APPROVE), tasksCompleted 329→334(+5)**. gh 간헐 401 → retry-loop 표준+memory 박제. 잔여: doc-sync/live-LLM(6→30)/timezone/PR #277 disposition. 권위 lock tombstone release 완료. 다음 진입점은 backlogNote 기반 planner.",
-    "endedAt": "2026-06-11T03:52:00+09:00"
+    "holder": "loop@WIN-JQIPLSBL9QV-tc10b",
+    "startedAt": "2026-06-11T02:49:00+09:00",
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10b (dynamic, turn cap 10) t1 — T-0338(ADR-0038 chain doc-sync, direct, 2파일 +3/-3) driver 직접 수행(task 명시 사항). cron 큐잉 task pickup. lock acquire 의 since=09:05 future-stamp 오기를 02:49 server-time 으로 즉시 정정 CAS(스스로 catch). 직전 commit 3bc9ec1 에서 inline node 스크립트 quoting 오류로 STATE/journal 이 누락 — 본 commit 으로 보완(driver 오류, 내용 영향 0). 다음 t2: planner — live-LLM env-gated 설계 vs timezone KST ADR."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
@@ -602,7 +601,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 334,
+    "tasksCompleted": 335,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
