@@ -146,7 +146,7 @@ function makeService(
 }
 
 describe("PeriodBridgeAdminPersistService", () => {
-  describe("happy-path — collect→filter→evaluate→persist(fill)→read-back (좌표 부재 create)", () => {
+  describe("happy-path — collect→filter→evaluate→persist(fill | reeval opt-out)→read-back (좌표 부재 create)", () => {
     it("5 단계를 순서대로 호출하고 persist('fill') 1 회 + 영속 Assessment 를 반환한다", async () => {
       const mocks = makeMocks();
       const person = personMatching();
@@ -291,7 +291,7 @@ describe("PeriodBridgeAdminPersistService", () => {
     });
   });
 
-  describe("branch / flow — first-write-wins read-through 3 분기 + since pass-through", () => {
+  describe("branch / flow — first-write-wins read-through + reevaluate opt-out 3 분기 + since pass-through", () => {
     it("(i) 좌표 부재 — create 후 read-back, created=true (위 happy-path 와 합쳐 cover)", async () => {
       const mocks = makeMocks();
       mocks.persist.persist.mockResolvedValue({
