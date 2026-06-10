@@ -2,8 +2,9 @@
 id: T-0334
 title: vestigial PeriodBridgeDto.mode 제거 + ADR-0038 amend reconcile (slice 2a)
 phase: P5
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 278
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 180
 estimatedFiles: 4

@@ -5,8 +5,8 @@
     "multiTaskFire": true,
     "fineGrainedConcurrency": false
   },
-  "currentTask": null,
-  "nextTask": "T-0334",
+  "currentTask": "T-0334",
+  "nextTask": null,
   "backlogNote": "T-0333 DONE·merge(loop@WIN-JQIPLSBL9QV-tc10 t2, pr-mode, PR #276 squash f1e47e5): ADR-0038 slice 1 — PeriodBridgeDto 에 reevaluate?: boolean(@IsOptional+@IsBoolean) request 계약 추가(+90/-4, 29 test, cov 100%/100%). reviewer round1 APPROVE(NIT-1: null 은 @IsOptional 흡수=truthful 박제 판단, 조치 불요), 4-게이트 PASS, CI green(5b213ee run 27286073473 rerun success). **다음 작업 후보(전부 dependency-free)**: (1) ADR-0038 slice 2 — orchestration reeval opt-out 분기 + vestigial PeriodBridgeDto.mode reconcile(architect, ADR-0038 amend — T-0333 발견 박제 참조). (2) slice 3 controller wiring + User reevaluate fail-closed reject. (3) slice 4 e2e. (4) **사용자 결정 2건(c40177a PLAN 박제)**: live-LLM bridge 검증 승인(Q-0022 secrets.env 재사용, 만료 2026-06-30 전 실행 필수 — 시한 있음) + timezone KST 확정(구현 진입 시 ADR-first). planner 는 slice 2(의존 chain 순서) vs live-LLM(만료 시한) 우선순위를 비교 — 만료까지 19일 여유 있으므로 ADR-0038 chain 먼저 권장, 단 6/25 전 live-LLM 미착수면 우선순위 격상.",
   "lock": {
     "holder": "loop",
@@ -14,7 +14,7 @@
     "since": "2026-06-10T23:46:49+09:00",
     "note": "loop@WIN-JQIPLSBL9QV-tc10 /loop 세션(turn cap 10) t1 — Q-0034 RESOLVED(옵션 1)로 unblock. 권위 lock = claude/lock-driver tip b116046(holder=loop, since 동기). 본 STATE.lock 은 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json. ADR-0038 ACCEPTED + slice 1 T-0333 큐잉. t2 부터 T-0333 executor(pr-mode) 진행."
   },
-  "lastActivity": "2026-06-11T00:32:00+09:00",
+  "lastActivity": "2026-06-11T00:48:00+09:00",
   "lastCommit": "f1e47e5",
   "mostRecentTasks": [
     "T-0333",
@@ -24,11 +24,11 @@
     "T-0329"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-tc10",
     "startedAt": "2026-06-10T23:46:49+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t3 — planner-only turn. t2 머지 f1e47e5 main CI green 확인(R-114), closeout 96ef6c9 run in_progress(다음 turn 재확인). planner: ADR-0038 slice2 를 cap 기준 2a/2b split — T-0334=slice 2a(ADR-0038 amend + vestigial PeriodBridgeDto.mode 제거 + dto/controller spec 동기, pr-mode, 4파일 est 180 LOC) 큐잉. slice 2b(orchestration reeval 분기)는 2a 머지 후. live-LLM(만료 6/30)은 6/25 전 미착수 시 격상 트리거. 다음 t4: T-0334 execute."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t4 — T-0334 pr-mode 진행: executor 구현(vestigial mode 제거+ADR-0038 amend, 4파일 +73/-105, 6828 test pass) → branch claude/T-0334-vestigial-mode-removal(30f9303) push → PR #278 open(gh graphql 401 → REST fallback). currentTask=T-0334·prNumber=278 박제. 다음: reviewer dispatch → 4-게이트 → merge."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
