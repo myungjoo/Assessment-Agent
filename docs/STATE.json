@@ -6,7 +6,7 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0339",
   "backlogNote": "T-0338 DONE(loop@WIN-JQIPLSBL9QV-tc10b t1, direct doc-sync 3bc9ec1): api.md /period 행 — vestigial mode? 서술 제거 + reevaluate?: boolean 계약 반영 + overwrite DEFERRED→shipped(T-0333~T-0337 cross-ref) + User fail-closed 403 error 동기. ADR-0038 slice 5→4 표기 정정(grep slice5=0). **ADR-0038 chain + doc-sync 완전 종결**. 남은 후보: (1) live-LLM 검증 — 사용자 승인 완료(c40177a PLAN 박제), 만료 6/30·6/25 격상 트리거. env-gated live spec 설계/구현 task 가 다음 dependency-free 후보(secrets.env 경로 Q-0022 재사용, env 부재 시 skip→CI green). (2) timezone KST ADR — 사용자 확정(c40177a), ADR-first, dependency-free. (3) 외부 PR #277 disposition — 사용자 미응답(reviewer 플로우/직접 검토/close 택1). (4) ADR-0036 stage5 토글 — 30일 dogfood human 게이트 유지. 운영 주의: 직전 tc10 세션 t10 타임스탬프(03:50~03:52+09:00)는 server-time 대비 ~1h future-stamp 오기(실제 02:4x) — 기록 정정 불요(순서 일관), driver 는 매 turn server-time 파생 의무.",
   "lock": {
     "holder": null,
@@ -14,7 +14,7 @@
     "since": "2026-06-11T02:37:30+09:00",
     "note": "cron@cloud-60d923824 fire (fresh origin/main HEAD=60d984d) — planner-dispatch turn. currentTask·nextTask 둘 다 null 이라 planner 1회 dispatch → T-0338(ADR-0038 chain doc-sync, commitMode direct) 큐잉. LOOP §1[2] 에 따라 planner-dispatch turn 은 queuing 후 doc-only direct commit 으로 종료(execute 안 함 — 다음 fire 가 T-0338 pickup). 권위 lock 은 본 commit push 후 claude/lock-driver tip tombstone({\"holder\":null}) 으로 release. 본 STATE.lock mirror 도 release 반영(holder=null). 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-11T02:58:00+09:00",
+  "lastActivity": "2026-06-11T03:05:00+09:00",
   "lastCommit": "3bc9ec1",
   "mostRecentTasks": [
     "T-0338",
@@ -24,11 +24,11 @@
     "T-0334"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-tc10b",
     "startedAt": "2026-06-11T02:49:00+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10b (dynamic, turn cap 10) t1 — T-0338(ADR-0038 chain doc-sync, direct, 2파일 +3/-3) driver 직접 수행(task 명시 사항). cron 큐잉 task pickup. lock acquire 의 since=09:05 future-stamp 오기를 02:49 server-time 으로 즉시 정정 CAS(스스로 catch). 직전 commit 3bc9ec1 에서 inline node 스크립트 quoting 오류로 STATE/journal 이 누락 — 본 commit 으로 보완(driver 오류, 내용 영향 0). 다음 t2: planner — live-LLM env-gated 설계 vs timezone KST ADR."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10b (dynamic, turn cap 10) t2 — planner-only turn. queued T-0339(live-LLM 검증 slice 1/2: period-bridge env-gated live smoke spec — resolveLiveTestGating+makeLiveGateway 패턴 재사용, env 부재 skip→CI green, synthetic Activity 1건으로 실 호출 1회 bound, production 0 변경, pr-mode ~190 LOC 1파일). 선택 근거: 만료 6/30 hard deadline(격상 6/25) > timezone(시한 없음, Follow-ups deferred). slice 2/2(실 credential run)는 merge 직후 후속. t1 3bc9ec1 CI green 확인. 다음 t3: T-0339 execute."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
