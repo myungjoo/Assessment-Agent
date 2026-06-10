@@ -5,18 +5,18 @@
     "multiTaskFire": true,
     "fineGrainedConcurrency": false
   },
-  "currentTask": null,
-  "nextTask": "T-0332",
+  "currentTask": "T-0332",
+  "nextTask": null,
   "backlogNote": "T-0331 DONE(loop@WIN-JQIPLSBL9QV-c10a t5, direct doc-only): LOOP §4 충돌 흡수·push source/target 매칭에 ADR-0036 토글-gated claim/N-driver 경계 2문단 추가(bookkeeping=lock 직렬화 안전·코드 충돌=disjoint 큐잉 1차+merge-conflict-code 흡수·step1~4 graceful 종료 재사용; push hard rule 1~3 진입점별 불변). 토글 OFF inert·forward-looking(driver 동작 불변). **ADR-0036 stage3 완료**(slice1 T-0329 LOOP §1[2] + slice2 T-0330 CLAUDE §10 + slice3 T-0331 LOOP §4). adr0036Rollout.stage3=DONE. **남은 ADR-0036 rollout**: stage4(per-PR CI concurrency group — ci.yml `concurrency:` key, commitMode pr, buildThrough·non-escalate·dependency-free) + stage5(flags.fineGrainedConcurrency 토글 ON, direct, 30일 dogfood 합의 후 — 실측 gating). 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 은 human PROPOSED→ACCEPTED flip gating(dependency-free 아님 — escalate 대상). t6 planner-only turn: T-0332 큐잉(stage4 — ci.yml per-PR concurrency group: 같은 PR 중복 run 취소 + 서로 다른 PR/main push 격리, §Decision6, commitMode pr, dependency-free, est 12 LOC). pre-check 통과(ci.yml concurrency key 0건). 다음 진입점: nextTask=T-0332 → currentTask 승격 후 execute(첫 pr-mode — PR open + reviewer + 4-게이트 + integrator merge). 이후 stage5(토글 ON)는 30일 dogfood 합의 gating.",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-c10a",
-    "since": "2026-06-10T19:22:13+09:00",
+    "since": "2026-06-10T19:35:24+09:00",
     "loopSessionStartedAt": "2026-06-10T18:45:45+09:00",
-    "loopSessionTurnCount": 6,
-    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t6 — planner-only turn(currentTask·nextTask 둘 다 null → planner dispatch, T-0332 큐잉: ci.yml per-PR concurrency group, pr-mode). 권위 lock heartbeat 7119458→07a3e33(since=19:22). 본 필드는 non-authoritative human mirror. 세션 종료(cap 도달/BLOCKED/work 소진) 시 tombstone release."
+    "loopSessionTurnCount": 7,
+    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t7 — T-0332 pr-mode 진행 중: PR #275 open(claude/T-0332-ci-concurrency-group, head 2469a8a). executor ci.yml concurrency key 구현+test green → push → PR open → reviewer round1 APPROVE(MINOR-1 nit 후속 commit 2469a8a 정정) → PR comment post. CI(2469a8a run 27270290374) in_progress — green+approval-gate 확인 후 merge 예정(다음 turn). 권위 lock heartbeat 07a3e33→c7cb98b(since=19:35, hold — in-flight PR 소유 중 다른 driver 차단). 세션 종료 시 tombstone release."
   },
-  "lastActivity": "2026-06-10T19:22:13+09:00",
+  "lastActivity": "2026-06-10T19:35:24+09:00",
   "lastCommit": "c496457",
   "mostRecentTasks": [
     "T-0331",
@@ -30,7 +30,7 @@
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-c10a",
     "startedAt": "2026-06-10T18:45:45+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t6 — planner-only turn: currentTask·nextTask 둘 다 null → planner dispatch, T-0332 큐잉(ADR-0036 stage4: ci.yml per-PR concurrency group — 같은 PR 중복 run 취소 + 서로 다른 PR/main push 격리, §Decision6, commitMode pr). pre-check 통과(ci.yml concurrency key 0건). t5 push 27045bd CI(2eb0553 green 확인). counter 불변(planner-only). **첫 pr-mode task(t1~t5 전부 direct doc)** — 다음 t7: T-0332 execute(PR open + reviewer + 4-게이트 + integrator merge). pr 사이클이 cap(10) 내 여러 turn 소요 가능."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t7 — T-0332 pr-mode 진행: executor ci.yml per-PR concurrency key 구현(+9 LOC, group=ci-<PR#>||ref, cancel-in-progress=pull_request event 한정) + lint/build/test 7008/7008 green → feature branch claude/T-0332-ci-concurrency-group push → PR #275 open → reviewer round1 APPROVE(MINOR-1: 주석 issue_comment group 폴백 부정확 → nit-in-PR closure 후속 commit 2469a8a 정정) → reviewer comment PR post. CI(head 2469a8a) in_progress. currentTask=T-0332(prNumber 275 frontmatter) 박제 — 세션 死 시 resume(LOOP §1[2]). 다음 t8: CI green+approval-gate(필요시 rerun --failed) 확인 → 4-게이트 → merge."
   },
   "ci": {
     "lastRun": "2026-06-10T19:10:00+09:00",
