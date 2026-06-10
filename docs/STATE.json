@@ -6,13 +6,15 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "T-0332 DONE·merge(loop@WIN-JQIPLSBL9QV-c10a t7~t8, pr-mode, PR #275 squash aedd7be): ci.yml 에 workflow-level concurrency key 추가(group=ci-<PR#>||ref, cancel-in-progress=pull_request event 한정 → 같은 PR 연속 push 만 직전 run cancel, main push·issue_comment·pull_request_review 비-cancel = R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE(MINOR-1 주석 nit → 후속 commit 정정, nit-in-PR closure), 4-게이트 PASS, CI green(2469a8a run 27270290374 success). **ADR-0036 stage4 완료 → adr0036Rollout.stage4=DONE**. **남은 ADR-0036**: stage5(flags.fineGrainedConcurrency 토글 ON)뿐 — stage1~4 머지 + 30일 dogfood + 실측(throughput 이득 > coordination 비용) 합의 후 결정 = **human/측정 gating, dependency-free 아님(escalate)**. 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 도 human PROPOSED→ACCEPTED flip gating(escalate). 다음 진입점: currentTask·nextTask 둘 다 null → planner dispatch. **dependency-free P5 work 소진 가능성 높음**(ADR-0036 buildThrough chain stage1~4 전부 shipped) → planner 가 HIGH make-work-bar survey 후 신규 dependency-free 가치 미식별 시 escalate 예상.",
+  "nextTask": "T-0333",
+  "backlogNote": "Q-0034 RESOLVED(옵션 1, 사용자 /loop 현장 승인 = Q-0033 'ADR 작성 후 사용자 ADR PR 검토' 게이트 충족) → ADR-0038(overwrite/재평가) ACCEPTED flip + impl chain 진입. slice 1 = T-0333(period bridge DTO 에 reevaluate?: boolean 추가, commitMode pr) nextTask 큐잉. impl chain slice 2~4(orchestration reeval opt-out 분기 / controller+RBAC + User reevaluate fail-closed reject / e2e)는 dependency-free(새 dep·schema·credential 0, ADR-0038 §Decision6). **발견 박제**: PeriodBridgeDto 에 T-0315 가 speculatively 추가한 vestigial mode?: 'fill'|'reeval' 가 이미 존재(period bridge 분기는 ignore — controller.spec L980~990 'no-bake' 테스트). ADR-0038 §Decision1 이 이를 미언급 = gap → slice 1 은 reevaluate flag 만 추가(faithful), vestigial mode reconcile(제거 vs deprecate + ADR-0038 amend)는 slice 2 architect. 남은 별건: ADR-0036 stage5 토글 ON(human/측정 break-even gate), live-LLM(§5 credential) — Q-0034 context 참조.",
   "lock": {
-    "holder": null,
-    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t9 — planner survey 가 dependency-free P5 work 소진 판정 → Q-0034 escalate. 미해결 humanQuestion 존재 → 세션 종료(no reschedule, LOOP §1[8](a)). 권위 lock 은 turn 종료 시 claude/lock-driver tip tombstone({\"holder\":null})으로 release — 다음 진입점(cron/loop)이 free 확인 후 Q-0034 미해결이면 [1] 에서 즉시 no-op 종료(사람이 답할 때까지 대기). Q-0034 RESOLVED 후 재진입이 unblock task pickup."
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-tc10",
+    "since": "2026-06-10T23:46:49+09:00",
+    "note": "loop@WIN-JQIPLSBL9QV-tc10 /loop 세션(turn cap 10) t1 — Q-0034 RESOLVED(옵션 1)로 unblock. 권위 lock = claude/lock-driver tip b116046(holder=loop, since 동기). 본 STATE.lock 은 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json. ADR-0038 ACCEPTED + slice 1 T-0333 큐잉. t2 부터 T-0333 executor(pr-mode) 진행."
   },
-  "lastActivity": "2026-06-10T19:47:10+09:00",
+  "lastActivity": "2026-06-10T23:46:49+09:00",
   "lastCommit": "aedd7be",
   "mostRecentTasks": [
     "T-0332",
@@ -22,12 +24,11 @@
     "T-0328"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 1,
     "cap": 10,
-    "holder": "loop@WIN-JQIPLSBL9QV-c10a",
-    "startedAt": "2026-06-10T18:45:45+09:00",
-    "endedAt": "2026-06-10T19:47:10+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t9 — **세션 종료**(Q-0034 escalate, 미해결 humanQuestion → LOOP §1[8](a) no reschedule). planner HIGH make-work-bar survey: ADR-0036 buildThrough chain(stage1~4) 전부 shipped, open PR 0·BLOCKED 0·CI green, 신규 dependency-free 가치 미식별. 남은 4 방향(stage5 토글 ON·ADR-0038 PROPOSED→ACCEPTED flip·live-LLM credential·기타)은 전부 human/측정/credential 게이트. **세션 성과(t1~t9)**: T-0329(LOOP §1[2] claim-pickup)+T-0330(CLAUDE §10 N-driver)+T-0331(LOOP §4 충돌 흡수)=ADR-0036 stage3 완료, T-0332(ci.yml per-PR concurrency, PR #275)=stage4 완료. tasksCompleted 325→329(+4). 권위 lock tombstone release. 다음 진입점은 Q-0034 RESOLVED 까지 no-op."
+    "holder": "loop@WIN-JQIPLSBL9QV-tc10",
+    "startedAt": "2026-06-10T23:46:49+09:00",
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t1 — Q-0034 RESOLVED(옵션 1, 사용자 현장 'continue' 승인)로 ADR-0038 overwrite/재평가 impl chain 진입. 직전 세션(c10a)의 escalate 를 사용자 결정으로 해소. t1 성과: 권위 lock 획득(b116046) + ADR-0038 PROPOSED→ACCEPTED flip(direct §3.1 rule4) + slice 1 T-0333(reevaluate?: boolean DTO) 큐잉 + 발견(vestigial PeriodBridgeDto.mode → slice 2 reconcile flag). t2 부터 T-0333 pr-mode executor."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
@@ -145,7 +146,7 @@
       "raisedAt": "2026-06-10",
       "raisedBy": "loop@WIN-JQIPLSBL9QV-c10a t9 planner",
       "reason": "needs-human-decision",
-      "status": "OPEN",
+      "status": "RESOLVED",
       "summary": "ADR-0036 fine-grained concurrency 의 buildThrough chain(stage1~4)이 전부 shipped 됐다 — stage1(claims.json schema + lock-하 atomic select+claim CAS primitive, T-0327) / stage2(orphan claim 60분 staleness 회수 + PR-resume primitive, T-0328) / stage3(driver loop 통합 spec: LOOP §1[2] 토글-gated claim-pickup T-0329 + CLAUDE §10 N-driver 서술 T-0330 + LOOP §4 충돌 흡수 경계 T-0331) / stage4(ci.yml per-PR concurrency group, T-0332 PR #275 squash aedd7be) 가 전부 머지·reviewer-APPROVE·CI-green 이며 토글(flags.fineGrainedConcurrency)은 OFF 유지 = driver 동작 불변(forward-looking spec). HIGH make-work-bar 로 origin/main(cdecb14) 실코드를 대조 survey 했으나 신규 material dependency-free 가치는 미식별 — dependency-free P5 작업 소진. open PR 0, BLOCKED task 0(T-0001/T-0154 는 SUPERSEDED), 0 unresolved humanQuestions, blockers 0, CI green, tasksCompleted=329. 남은 모든 방향은 human/측정/credential 게이트라 planner 단독 권한 밖 — task 날조 회피 차원에서 정직하게 escalate.",
       "context": "main 실코드 대조 survey(cdecb14): (1) **shipped** — ADR-0036 rollout stage1~4 전원 머지(adr0036Rollout.stage1~4=DONE). claim registry(claims.json) + select-claim CAS + orphan 회수 + PR-resume primitive(scripts/) + driver-loop 통합 spec(LOOP §1[2]/§4 + CLAUDE §10) + per-PR CI concurrency group(ci.yml). 토글 OFF 라 driver 동작 불변(stage1~4 는 spec/primitive only). (2) **남은 것(전부 NON-dependency-free)**: (a) **ADR-0036 stage5(토글 ON)** — flags.fineGrainedConcurrency=false→true flip 으로 N-driver fine-grained 동시성 활성. ADR-0036 §Status/§rollout stage5 가 명시: stage1~4 머지 + **30일 dogfood + throughput 이득 > coordination 비용 실측 합의** 후 결정 + '한 시점 독립 task ≥ 2 실증 전 stage5 보류'(break-even gate). = human/측정 gating, dependency-free flip 아님. (b) **ADR-0038(overwrite/재평가) impl chain** — ADR-0038 PROPOSED(Q-0033 옵션1 로 T-0325 에서 작성). impl chain 은 human PROPOSED→ACCEPTED flip gating(Q-0033 결정이 'ADR 작성 후 사용자 ADR PR 검토' 명시) = NON-dependency-free. (c) **live-LLM bridge 검증** — ADR-0037 §Decision5, 머지된 mocked-only bridge 를 실 네트워크 LLM 1회 round-trip. Q-0022 시험 credential 만료 2026-06-30 = §5 credential 게이트. (3) **인접 sweep**: open PR 0(gh pr list=[]) / BLOCKED task 0(grep 매칭 T-0001·T-0154 는 SUPERSEDED, 활성 BLOCKED 0) / stale ADR status flip 0(ADR-0036 PROPOSED·ADR-0038 PROPOSED 는 그 §Status 가 명시한 staged/검토대기 = 정상, 임의 flip 금지) / nit residual·false-comment 0(T-0332 round1 APPROVE MINOR-1 은 nit-in-PR closure 로 후속 commit 2469a8a 정정 완료, 최근 review 전원 round1~2 APPROVE) / architecture doc stale 0(T-0319+T-0324 가 api.md+modules.md 동기) / CI green(cdecb14, benignRedNote 의 approval-step ordering 만 — 실 step 통과). (4) **Node 20→24 deprecation(2026-06-16)** — ci.yml setup-node@v4 node-version:'20'. 검토 결과 HIGH bar 미달: GitHub Actions runtime 의 action-host Node 경고지 프로젝트 runtime 강제 아님(non-blocking, CI green). node-version 을 brand-new major(24)로 bump 하면 Prisma/NestJS 회귀 위험 + driving need 0 = 투기적 churn → make-work 로 판정, 날조 회피 차원에서 큐잉 안 함(필요 시 별도 human 우선순위 지시). (5) **기타 deferred(비-dependency-free)**: timezone(Q-0026 Asia/Seoul vs UTC) / P6 frontend(React+Vite ADR) / scheduler·observability(@nestjs/schedule 새 dep, P7).",
       "options": [
@@ -156,7 +157,10 @@
       ],
       "recommendation": "정직한 verdict — ADR-0036 buildThrough chain(stage1~4)이 전부 shipped 됐고, planner 는 HIGH make-work-bar 로 dependency-free 신규 material 가치를 미식별했다. 남은 4 방향은 모두 human/측정/credential 게이트다: (1) stage5 토글 ON 은 ADR-0036 break-even gate(독립 task ≥ 2 실증)가 미충족 가능성이 높아 측정상 신중 필요 = human 측정-결정, (2) ADR-0038 flip 은 design 승인 = human ADR-PR 검토, (3) live 검증은 §5 credential, (4) 기타는 phase 경계/새 dep/투기적. planner 단독으로 토글 ON·ADR 승인·§5 credential·phase 진입은 권한 밖이라 escalate — make-work 를 날조하기보다 정직하게 정지해 사용자 우선순위 확인을 요청한다.",
       "resolutionHint": "docs/STATE.json 의 본 Q-0034 에 resolvedAt(ISO) + decision(선택 옵션 번호)을 기입하고 commit 한다. (1) 선택 시: 독립 task ≥ 2 공급 가능성 + 30일 dogfood 의도 확인 후 flags.fineGrainedConcurrency=true flip(별도 direct commit) — 단 ADR-0036 break-even gate 미충족이면 보류 권장. (2) 선택 시: docs/decisions/ADR-0038-*.md frontmatter status PROPOSED→ACCEPTED flip(direct doc, §3.1 rule4) → 다음 fire planner 가 overwrite/reeval impl chain 큐잉. (3) 선택 시: LLM credential scope·secrets.env 경로·만료 명시(실값은 코드·STATE·journal·git 금지 §9, env/secret 주입). (4) 선택 시: 우선순위 또는 정지. 미해소 상태로 두면 loop 는 dependency-free 작업 부재로 정지(정상).",
-      "raisedThisTurn": true
+      "raisedThisTurn": false,
+      "resolvedAt": "2026-06-10T23:46:49+09:00",
+      "resolvedBy": "user (/loop turn cap 10 현장, loop@WIN-JQIPLSBL9QV-tc10 t1)",
+      "decision": "옵션 1 — ADR-0038 overwrite/재평가 impl chain 진행. 사용자가 /loop 현장에서 진행 지시 → Q-0033 의 'ADR 작성 후 사용자 ADR PR 검토' 게이트 충족(설계 승인). ADR-0038 PROPOSED→ACCEPTED flip(direct §3.1 rule4) + slice 1 = T-0333(reevaluate?: boolean DTO field) nextTask 큐잉. impl chain slice 2~4(orchestration reeval 분기 / controller+RBAC / e2e)는 dependency-free(§Decision6). 발견: vestigial PeriodBridgeDto.mode reconcile 는 slice 2 architect(ADR-0038 amend)."
     },
     {
       "id": "Q-0033",

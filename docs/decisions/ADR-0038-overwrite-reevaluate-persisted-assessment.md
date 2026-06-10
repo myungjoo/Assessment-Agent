@@ -1,9 +1,9 @@
 ---
 id: ADR-0038
 title: overwrite / 이미 영속화된 평가문 재평가(re-evaluate) 설계 — Admin 명시적 재평가 요청 contract(period bridge DTO mode/flag) + ADR-0033 reeval(reset-and-recreate) 재사용 + ADR-0037 §Decision3 first-write-wins 의 명시적 opt-out + RBAC Admin + idempotency/safety 경계
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-10
-relatedTask: [T-0325]
+relatedTask: [T-0325, T-0333]
 relatedPR: []
 coversReq: [REQ-009, REQ-040, REQ-045]
 supersedes: null
@@ -15,6 +15,7 @@ supersedes: null
 
 ## Status
 
+- **ACCEPTED** (2026-06-10) — [Q-0034](../STATE.json) 옵션 1(사용자 /loop 현장 승인)로 flip. Q-0033 이 명시한 "ADR 작성 후 사용자 ADR PR 검토" 게이트를 사용자가 현장에서 충족(설계 진입 + impl chain 진행 승인) → §Status 의 PROPOSED→ACCEPTED flip 경로 (b)(첫 slice gating) 로 처리. 다음 fire 부터 §Follow-ups impl chain(slice 1 = [T-0333](../tasks/T-0333-reevaluate-flag-dto.md)) 진행.
 - **PROPOSED** (2026-06-10) — architect 가 본 ADR 을 PROPOSE, reviewer 가 ADR PR 을 검토한다([Q-0033](../STATE.json) 승인 하에 설계 진입). [ADR-0037](ADR-0037-period-collection-evaluate-bridge.md) 이 §Decision2/3 를 PROPOSE → 사용자 ADR PR 검토 → [Q-0032](../STATE.json) resolve 로 ACCEPTED flip 한 방식을 mirror.
 - **PROPOSED→ACCEPTED flip 경로**: 본 ADR 의 §Decision 1~5 가 reviewer ADR PR 검토에서 일관성·Q-0033 정합·ADR-0033/0037/0006 cross-ref 정확성·§5 경계로 확인되면, flip 은 (a) 본 ADR PR 머지 + reviewer APPROVE 시점, 또는 (b) §Follow-ups impl chain 의 첫 slice gating 으로 처리한다(ADR-0037 §Status mirror — 별도 한 줄 status 갱신 direct commit, [CLAUDE.md §3.1](../../CLAUDE.md) rule 4 "ADR status 한 줄 수정은 direct").
 
