@@ -6,13 +6,13 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "planner 가 T-0327 큐잉(ADR-0036 stage2 slice1: claim registry schema + lock-하 atomic select+claim CAS primitive + executable spec, commitMode pr). 결정: 후보 (A)ADR-0036 stage2 vs (B)ADR-0038 impl chain 중 (A) 선택 — (B)는 ADR-0038 status=PROPOSED 이고 §Status/§Follow-ups 가 impl chain 을 'PROPOSED→ACCEPTED flip 후' 로 gating(ADR-0037 T-0313→Q-0032 precedent 동형) → human flip 선행 필요라 dependency-free 아님(escalate 대상). (A)는 adr0036Rollout.buildThrough=true·ACCEPTED·'escalate 금지' 명시 → dependency-free·non-escalate. stage2 전체(schema+atomic claim+staleness 회수+PR-resume)는 cap 초과라 slice1(schema+atomic claim+이중-claim-0 spec)만 본 task, staleness 회수+PR-resume 는 slice2 Follow-up. verify-ref-cas-lock.sh + check-doc-only-pr.sh executable-spec 선례 mirror(scripts/ tooling, src 0). 토글 OFF 유지. ADR-0038 impl chain 진입은 human PROPOSED→ACCEPTED flip 후 별도 큐잉. 다음 진입점: nextTask=T-0327 → currentTask 승격 후 execute(implementer→tester→reviewer→CI→merge).",
+  "nextTask": "T-0328",
+  "backlogNote": "planner 가 T-0328 큐잉(ADR-0036 stage2 slice2: orphan claim staleness 회수[60분 server-time 임계] + PR-resume primitive + executable spec, commitMode pr). slice1(T-0327, PR #273 0e5a817)이 'select+claim CAS + 이중-claim-0 spec'(이중 claim 0 절반)을 닫았고, slice2 가 §rollout 2 break-even 의 나머지 절반 'orphan 회수 정상 동작 검증'을 닫는다 — scripts/reclaim-stale-claim.sh(claims.json orphan 60분 server-time 회수, prNumber null→제거/non-null→PR-resume 신호+owner 교체) + colocated .test.sh + ci.yml step + concurrency.md §5 amend. dependsOn=[T-0327](머지됨, claim 후보 풀림). select-claim.sh/verify-ref-cas-lock.sh executable-spec 선례 mirror(bare-repo+2clone self-contained, scripts/ tooling, src 0). dependency-free·non-escalate(adr0036Rollout.buildThrough=true·ACCEPTED·escalate 금지). issue-still-relevant pre-check 통과: scripts/reclaim*.sh 미존재(origin/main HEAD 12f56ea)·신규. server-time 실 fetch·driver loop 통합(stage3)·per-PR CI group(stage4)·토글 ON(stage5)은 Out of Scope/Follow-ups. 토글 OFF 유지(driver 동작 불변). 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 진입은 human PROPOSED→ACCEPTED flip 후 별도 큐잉(dependency-free 아님). 다음 진입점: nextTask=T-0328 → currentTask 승격 후 execute(implementer→tester→reviewer→CI→merge).",
   "lock": {
     "holder": null,
-    "note": "loop loop@WIN-JQIPLSBL9QV-63e9 t1 가 T-0327(ADR-0036 stage2 slice1) merge(PR #273 squash 0e5a817) 후 권위 lock tombstone release. 다음 진입점 free 재획득 — planner 가 stage2 slice2(staleness 회수·PR-resume) 큐잉 예정."
+    "note": "cron(cron@WIN-JQIPLSBL9QV-7e89, 매시 15분 local schedule aa-local-15) planner-only turn — currentTask·nextTask 둘 다 null 이라 planner dispatch 후 T-0328(ADR-0036 stage2 slice2: orphan claim staleness 회수+PR-resume primitive, commitMode pr) 큐잉. doc-only direct commit 으로 마무리 후 권위 lock tombstone release. 다음 진입점이 T-0328 을 currentTask 승격해 execute."
   },
-  "lastActivity": "2026-06-10T18:01:08+09:00",
+  "lastActivity": "2026-06-10T18:05:00+09:00",
   "lastCommit": "0e5a817",
   "mostRecentTasks": [
     "T-0327",
