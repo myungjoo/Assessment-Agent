@@ -2,7 +2,9 @@
 id: T-0320
 title: ADR-0037 §Decision3 idempotency 를 first-write-wins read-through 로 design-amend + §Decision2 as-proposed 확정 + status ACCEPTED (Q-0032 결정 반영)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T12:40:00+09:00
+result: 머지 — PR #268 squash 52ab7a7. ADR-0037 §Decision3 first-write-wins read-through 확정(409 폐기, P2002→read fall-through)·§Decision2 ACCEPTED as-proposed·status PROPOSED→ACCEPTED·overwrite DEFERRED follow-up. reviewer round1 APPROVE(NIT 1 비차단), 4-게이트 충족, CI 기본검사 pass. src 0(ADR markdown only).
 commitMode: pr
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 90
