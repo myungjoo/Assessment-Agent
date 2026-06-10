@@ -221,7 +221,7 @@ function userActor(sub: string | undefined): JwtPayload {
 }
 
 // makePeriodDto — PeriodBridgeDto fixture 빌더(self-only base: personId == 요청
-// principal). overrides 로 personId / periodStart / mode 등을 변형한다.
+// principal). overrides 로 personId / periodStart / reevaluate 등을 변형한다.
 function makePeriodDto(
   overrides: Partial<PeriodBridgeDto> = {},
 ): PeriodBridgeDto {
@@ -787,21 +787,9 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
     ).rejects.toBe(rawError);
   });
 
-  // branch: dto.mode 는 ephemeral 이므로 무시 — mode 가 있어도 위임/반환 불변.
-  it("dto.mode 가 있어도 무시하고 정상 위임한다 (branch — mode ignored, persist 0)", async () => {
-    const expected = [makeEvaluationResult()];
-    const { controller, generateSpy } = makePeriodController({
-      generateImpl: async () => expected,
-    });
-
-    const result = await controller.period(
-      makePeriodDto({ mode: "reeval" }),
-      userActor("person-1"),
-    );
-
-    expect(generateSpy).toHaveBeenCalledTimes(1);
-    expect(result).toBe(expected);
-  });
+  // (구 "dto.mode 무시" branch 테스트는 T-0334 에서 제거 — vestigial mode field 자체가
+  // ADR-0038 §Decision1 amendment 로 DTO 에서 제거돼 boundary 진입이 불가능해졌다. mode
+  // 제공 payload 의 거부는 아래 "PeriodBridgeDto (ValidationPipe negative cases)" 가 cover.)
 
   // branch: serviceIdentities 가 빈 배열인 person 도 그대로 조립해 위임.
   it("serviceIdentities 가 빈 배열인 person 도 { serviceIdentities: [] } 로 위임한다 (branch — empty identities)", async () => {
@@ -975,13 +963,16 @@ describe("AssessmentEvaluationController.period (unit — Admin full-persist bra
     );
   });
 
-  // branch: dto.mode 는 Admin 분기에서 reeval 로 baking 되지 않는다 — context 에
-  // mode 가 흘러들지 않고(4-tuple 만), generateAndPersist 가 항상 "fill" 정책.
-  it("dto.mode='reeval' 이어도 context 에 mode 를 baking 하지 않는다 (branch — mode no-bake, always fill)", async () => {
+  // branch: Admin 분기의 context 는 4-tuple 만 — persist mode 류의 키가 baking 되지
+  // 않는다(generateAndPersist 가 항상 "fill" 정책 — reeval opt-out 분기는 slice 2b).
+  // 구 vestigial dto.mode 는 T-0334 에서 제거(ADR-0038 §Decision1 amendment) — mode
+  // 제공 payload 는 boundary 의 ValidationPipe 가 정의 외 필드로 400 거부한다(아래
+  // ValidationPipe negative cases cover).
+  it("Admin 분기 context 는 4-tuple 만이며 mode 키를 baking 하지 않는다 (branch — mode no-bake, always fill)", async () => {
     const { controller, adminSpy } = makePeriodController({});
 
     await controller.period(
-      makePeriodDto({ personId: "target-person", mode: "reeval" }),
+      makePeriodDto({ personId: "target-person" }),
       adminActor,
     );
 
@@ -1065,13 +1056,19 @@ describe("PeriodBridgeDto (ValidationPipe negative cases)", () => {
     ).rejects.toThrow();
   });
 
-  // mode 허용 외 literal → 거부(@IsIn(["fill","reeval"])).
-  it("mode 가 허용 외 literal('reevaluate') 이면 ValidationPipe 가 거부한다 (negative — @IsIn)", async () => {
-    const pipe = makePipe();
-    await expect(
-      pipe.transform({ ...validPayload, mode: "reevaluate" }, meta),
-    ).rejects.toThrow();
-  });
+  // 구 vestigial mode field(T-0334 제거, ADR-0038 §Decision1 amendment) — 제공 시
+  // 더 이상 @IsIn 검증이 아니라 **정의 외 필드**로 forbidNonWhitelisted 가 400 거부
+  // (구 @IsIn 거부 테스트의 대체). 구 허용 literal 포함 어떤 값이든 거부 — 예외 분기마다
+  // cover(단일 negative 금지).
+  it.each(["fill", "reeval", "reevaluate"])(
+    "제거된 mode field 에 '%s' 제공 시 ValidationPipe 가 정의 외 필드로 거부한다 (negative — vestigial mode 거부)",
+    async (modeValue) => {
+      const pipe = makePipe();
+      await expect(
+        pipe.transform({ ...validPayload, mode: modeValue }, meta),
+      ).rejects.toThrow();
+    },
+  );
 });
 
 // -----------------------------------------------------------------------

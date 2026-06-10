@@ -3,7 +3,7 @@ id: ADR-0038
 title: overwrite / 이미 영속화된 평가문 재평가(re-evaluate) 설계 — Admin 명시적 재평가 요청 contract(period bridge DTO mode/flag) + ADR-0033 reeval(reset-and-recreate) 재사용 + ADR-0037 §Decision3 first-write-wins 의 명시적 opt-out + RBAC Admin + idempotency/safety 경계
 status: ACCEPTED
 date: 2026-06-10
-relatedTask: [T-0325, T-0333]
+relatedTask: [T-0325, T-0333, T-0334]
 relatedPR: []
 coversReq: [REQ-009, REQ-040, REQ-045]
 supersedes: null
@@ -57,6 +57,14 @@ contract 박제:
 - **semantics**: `reevaluate === true` (Admin 경로) → bridge 가 reset-and-recreate(`mode: "reeval"`)로 영속화. `reevaluate === false`/미지정 → 기존 first-write-wins read-through(`mode: "fill"`, create-if-absent-else-read) 보존(§Decision3).
 - **enum 안과의 관계**: `mode: "first-write-wins" | "reevaluate"` 라는 enum field 안도 가능하나, v1 은 두 모드뿐이라 `boolean reevaluate` 가 더 단순하고 default 표현(`false`)이 명확하다. 3+ 모드가 향후 필요해지면(예: partial-reset trigger) enum 으로 격상한다(§Follow-ups). **본 v1 은 `reevaluate?: boolean (default false)`** 를 박제.
 - **채택 근거(별도 endpoint 회피)**: (a) 기존 controller dispatch([AssessmentEvaluationController](../../src/assessment-evaluation/assessment-evaluation.controller.ts) period 분기, ADR-0037 slice 3)를 그대로 재사용 — 새 route/guard/wiring 0. (b) 재평가는 first-write-wins 와 **같은 collect→evaluate→persist 흐름**이고 단지 persist mode 만 다르므로, 별도 endpoint 는 collect/evaluate 로직을 중복시키거나 공유 service 를 재호출하는 추가 분기 비용만 낳는다. (c) Admin RBAC guard(ADR-0037 §Decision1)가 endpoint 단위로 이미 걸려 있어 같은 endpoint 의 flag 분기가 RBAC 재사용에 정합한다. (d) DTO field 추가는 cap(≤300 LOC/≤5 파일) 안에서 slice 분해가 자연스럽다(§Follow-ups).
+
+#### Amendment (2026-06-11, T-0334) — vestigial `PeriodBridgeDto.mode` reconcile: **제거 채택**
+
+본 §Decision1 이 `reevaluate?: boolean` 을 채택할 당시 [PeriodBridgeDto](../../src/assessment-evaluation/dto/period-bridge.dto.ts) 에 이미 존재하던 `mode` field 를 미언급한 설계 gap 을 본 amendment 가 reconcile 한다.
+
+- **(i) 사실관계**: T-0315 가 ADR-0037 slice 1 당시 speculatively `mode?: string`(`"fill" | "reeval"` `@IsOptional` + `@IsIn`) field 를 PeriodBridgeDto 에 추가했으나, **period bridge 의 어느 분기도 이를 소비하지 않았다**(Admin 분기는 항상 `"fill"` — [admin-persist-service L159~163](../../src/assessment-evaluation/period-bridge-admin-persist.service.ts), User ephemeral 은 persist 0). [T-0333](../tasks/T-0333-reevaluate-flag-dto.md)(slice 1)이 이 vestigial(unwired) 사실을 발견·박제했고([controller.spec.ts](../../src/assessment-evaluation/assessment-evaluation.controller.spec.ts) 의 "no-bake" 테스트가 ignore 를 명시 검증했었다), vestigial 정리 결정을 slice 2 architect 의 본 amendment 로 위임했다. (혼동 주의: 별도 [EvaluateActivitiesDto](../../src/assessment-evaluation/dto/evaluate-activities.dto.ts) 의 `mode` 는 evaluate endpoint 에서 `persist(..., mode)` 로 **wired — 정상이며 본 amendment 대상이 아니다**.)
+- **(ii) 결정 — 제거 채택**: vestigial `mode` field(+ DTO-local `BridgePersistMode` type alias, 외부 미사용)를 PeriodBridgeDto 에서 **제거** 한다. 근거 — (a) §Decision1 의 진짜 request 계약은 `reevaluate?: boolean` 단일 flag 다(period bridge contract = `personId/period/scope/periodStart/reevaluate` **5 키**). (b) §Alternatives B 가 period 계약의 enum mode field 를 이미 미채택했다 — vestigial enum-string 을 deprecated 로 유지하는 안은 그 미채택 결정과 모순되는 dual-contract(boolean flag + enum mode 공존)를 남겨 drift risk 만 낳는다(caller 가 `mode: "reeval"` 을 보내고 재평가를 기대하나 unwired 라 아무 일도 일어나지 않는 silent 혼란). deprecate 유지 안은 이 근거로 **미채택**. (c) persist-service 의 `PersistMode = "fill" | "reeval"`(ADR-0033 §3)은 orchestration 내부 계약으로 **불변** — 제거 대상은 period bridge 의 request surface 뿐이다.
+- **(iii) caller 가시 효과**: 제거 후 `mode` 를 제공하는 payload 는 controller-scope ValidationPipe(`whitelist` + `forbidNonWhitelisted`)의 **정의 외 필드로 400 거부** 된다 — 종전(`@IsIn` 통과 후 silent ignore)보다 의도가 명확하다(§Decision4 fail-closed 정신과 동형: "요청했으나 무시됨" 의 silent 혼란 차단). 기존에 `mode` 를 보내던 caller 는 없으므로(unwired + 미문서화 speculative field) 호환성 파괴 표면은 사실상 0 이다.
 
 ### Decision §2 — persistence semantics: ADR-0033 `reeval` PersistMode(reset-and-recreate) 재사용, in-place mutation 아님, 새 primitive 0
 

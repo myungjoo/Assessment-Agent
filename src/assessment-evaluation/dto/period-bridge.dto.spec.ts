@@ -40,22 +40,10 @@ async function validatePlain(
 
 describe("PeriodBridgeDto", () => {
   // --------------------------------------------------------------------------
-  // happy (R-112 #1): 4 좌표 필드 모두 정상(mode 미지정) → errors 빈 배열.
+  // happy (R-112 #1): 4 좌표 필드 모두 정상(optional 미지정) → errors 빈 배열.
   // --------------------------------------------------------------------------
-  it("정상 payload(mode 미지정)는 errors 빈 배열을 반환한다 (happy)", async () => {
+  it("정상 payload(optional 미지정)는 errors 빈 배열을 반환한다 (happy)", async () => {
     const errors = await validatePlain(validPayload);
-    expect(errors).toEqual([]);
-  });
-
-  // happy/branch (R-112 #3): mode="fill" 명시도 통과.
-  it("mode='fill' 명시 payload 도 errors 빈 배열을 반환한다 (@IsIn 통과)", async () => {
-    const errors = await validatePlain({ ...validPayload, mode: "fill" });
-    expect(errors).toEqual([]);
-  });
-
-  // happy/branch (R-112 #3): mode="reeval" 명시도 통과.
-  it("mode='reeval' 명시 payload 도 errors 빈 배열을 반환한다 (@IsIn 통과)", async () => {
-    const errors = await validatePlain({ ...validPayload, mode: "reeval" });
     expect(errors).toEqual([]);
   });
 
@@ -120,27 +108,6 @@ describe("PeriodBridgeDto", () => {
   });
 
   // --------------------------------------------------------------------------
-  // flow/branch (R-112 #3): mode 분기 — 정의 외 literal → isIn / 미지정 → 통과.
-  // --------------------------------------------------------------------------
-  it("mode 가 정의 외 literal('reevaluate') 시 isIn 위반 (negative/branch)", async () => {
-    const errors = await validatePlain({
-      ...validPayload,
-      mode: "reevaluate",
-    });
-    expect(errors).toEqual(expect.arrayContaining(["isIn"]));
-  });
-
-  it("mode 가 빈 문자열 시 isNotEmpty 위반 (negative/branch)", async () => {
-    const errors = await validatePlain({ ...validPayload, mode: "" });
-    expect(errors).toEqual(expect.arrayContaining(["isNotEmpty"]));
-  });
-
-  it("mode 가 number 시 isString 위반 (negative/wrong-type)", async () => {
-    const errors = await validatePlain({ ...validPayload, mode: 1 });
-    expect(errors).toEqual(expect.arrayContaining(["isString"]));
-  });
-
-  // --------------------------------------------------------------------------
   // negative (forbidNonWhitelisted): 정의 외 필드 → whitelistValidation.
   // ValidationPipe 의 whitelist+forbidNonWhitelisted 동작을 spec 레벨에서 직접 검증.
   // --------------------------------------------------------------------------
@@ -151,6 +118,24 @@ describe("PeriodBridgeDto", () => {
     );
     expect(errors).toEqual(expect.arrayContaining(["whitelistValidation"]));
   });
+
+  // --------------------------------------------------------------------------
+  // negative (R-112 #2·#4): 구 vestigial `mode` field — ADR-0038 §Decision1
+  // amendment(T-0334)로 제거됨. 제공 시 더 이상 @IsIn 통과/거부가 아니라 **정의 외
+  // 필드**로 whitelist+forbidNonWhitelisted 가 거부한다(구 @IsIn 거부 테스트의 대체 —
+  // silent ignore 차단, fail-closed 동형). 구 허용 literal("fill"/"reeval")·임의
+  // string 각 1+ cover — 단일 negative 금지.
+  // --------------------------------------------------------------------------
+  it.each(["fill", "reeval", "legacy-arbitrary"])(
+    "제거된 mode field 에 '%s' 제공 시 정의 외 필드로 whitelistValidation 위반 (negative — vestigial mode 거부)",
+    async (modeValue) => {
+      const errors = await validatePlain(
+        { ...validPayload, mode: modeValue },
+        { whitelist: true, forbidNonWhitelisted: true },
+      );
+      expect(errors).toEqual(expect.arrayContaining(["whitelistValidation"]));
+    },
+  );
 
   // --------------------------------------------------------------------------
   // reevaluate (ADR-0038 §Decision1, T-0333 slice 1) — happy/branch (R-112 #1·#3):
@@ -214,27 +199,20 @@ describe("PeriodBridgeDto", () => {
   });
 
   // --------------------------------------------------------------------------
-  // DTO contract: 6 키만 선언됨(영속화/동시성 semantics baking 0 — 입력 형식만).
-  // §Decision2/§Decision3 PROPOSE 미의존 확인. T-0333 이 reevaluate 키를 contract 에
-  // 추가(ADR-0038 §Decision1)해 기존 5 키 → 6 키로 갱신 — 선언 field 는 own property 로
-  // 항상 노출되므로(useDefineForClassFields) 본 test 의 키 목록은 선언 contract 와 동치.
+  // DTO contract: 5 키만 선언됨(영속화/동시성 semantics baking 0 — 입력 형식만).
+  // T-0334 가 vestigial `mode` 를 제거(ADR-0038 §Decision1 amendment)해 6 키 → 5 키로
+  // 갱신 — `reevaluate?: boolean` 이 §Decision1 의 단일 request 계약. 선언 field 는
+  // own property 로 항상 노출되므로(useDefineForClassFields) 본 test 의 키 목록은
+  // 선언 contract 와 동치.
   // --------------------------------------------------------------------------
-  it("DTO 는 personId/period/scope/periodStart/mode/reevaluate 6 키만 contract 로 가진다", () => {
-    const dto = plainToInstance(PeriodBridgeDto, {
-      ...validPayload,
-      mode: "fill",
-    });
+  it("DTO 는 personId/period/scope/periodStart/reevaluate 5 키만 contract 로 가진다", () => {
+    const dto = plainToInstance(PeriodBridgeDto, { ...validPayload });
     expect(Object.keys(dto).sort()).toEqual(
-      [
-        "mode",
-        "period",
-        "periodStart",
-        "personId",
-        "reevaluate",
-        "scope",
-      ].sort(),
+      ["period", "periodStart", "personId", "reevaluate", "scope"].sort(),
     );
-    // 영속화/동시성 관련 키가 baking 되지 않았음(slice 2/5 책임).
+    // 영속화/동시성 관련 키가 baking 되지 않았음(slice 2b/4 책임) + 제거된 vestigial
+    // mode 키 부재(ADR-0038 §Decision1 amendment, T-0334).
+    expect(dto).not.toHaveProperty("mode");
     expect(dto).not.toHaveProperty("activities");
     expect(dto).not.toHaveProperty("assessmentId");
   });
