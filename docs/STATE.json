@@ -6,43 +6,26 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": "T-0327",
+  "nextTask": null,
   "backlogNote": "planner 가 T-0327 큐잉(ADR-0036 stage2 slice1: claim registry schema + lock-하 atomic select+claim CAS primitive + executable spec, commitMode pr). 결정: 후보 (A)ADR-0036 stage2 vs (B)ADR-0038 impl chain 중 (A) 선택 — (B)는 ADR-0038 status=PROPOSED 이고 §Status/§Follow-ups 가 impl chain 을 'PROPOSED→ACCEPTED flip 후' 로 gating(ADR-0037 T-0313→Q-0032 precedent 동형) → human flip 선행 필요라 dependency-free 아님(escalate 대상). (A)는 adr0036Rollout.buildThrough=true·ACCEPTED·'escalate 금지' 명시 → dependency-free·non-escalate. stage2 전체(schema+atomic claim+staleness 회수+PR-resume)는 cap 초과라 slice1(schema+atomic claim+이중-claim-0 spec)만 본 task, staleness 회수+PR-resume 는 slice2 Follow-up. verify-ref-cas-lock.sh + check-doc-only-pr.sh executable-spec 선례 mirror(scripts/ tooling, src 0). 토글 OFF 유지. ADR-0038 impl chain 진입은 human PROPOSED→ACCEPTED flip 후 별도 큐잉. 다음 진입점: nextTask=T-0327 → currentTask 승격 후 execute(implementer→tester→reviewer→CI→merge).",
   "lock": {
     "holder": null,
-    "note": "비권위 mirror. /loop session loop@WIN-JQIPLSBL9QV-2c2 (turn cap 2) t2(planner) 완료 후 권위 lock(claude/lock-driver) tombstone release. 다음 진입점(cron/loop) free 재획득 → nextTask=T-0327 픽업."
+    "note": "loop loop@WIN-JQIPLSBL9QV-63e9 t1 가 T-0327(ADR-0036 stage2 slice1) merge(PR #273 squash 0e5a817) 후 권위 lock tombstone release. 다음 진입점 free 재획득 — planner 가 stage2 slice2(staleness 회수·PR-resume) 큐잉 예정."
   },
-  "lastActivity": "2026-06-10T17:10:00+09:00",
-  "lastCommit": "66584f5",
+  "lastActivity": "2026-06-10T18:01:08+09:00",
+  "lastCommit": "0e5a817",
   "mostRecentTasks": [
+    "T-0327",
     "T-0325",
     "T-0326",
     "T-0324",
-    "T-0323",
-    "T-0322"
+    "T-0323"
   ],
   "loopSession": {
-    "turnCount": 2,
-    "endedNote": "t2(final, cap 2) planner-only turn — currentTask/nextTask 둘 다 null → planner dispatch → T-0327 큐잉(ADR-0036 stage2 slice1, pr). turn cap(2) 도달 → reschedule 안 함, lock release. 다음 진입점이 T-0327 execute.",
-    "startedAt": "2026-06-10T16:52:08+09:00",
+    "turnCount": 1,
     "cap": 2,
-    "holder": "loop@WIN-JQIPLSBL9QV-2c2",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-2c2 (turn cap 2, 로컬 WIN-JQIPLSBL9QV) t1 — **T-0325 DONE·머지(ADR-0038 overwrite/재평가 design ADR, PR #272 squash 06ae245, design-only src 0)**. lock CAS 획득(37c8822→3ac4a82, since=16:52). executor→architect(ADR-0038 PROPOSED: Admin re-evaluate contract[period bridge DTO reevaluate flag, 별도 endpoint 아님] + ADR-0033 reeval reset-and-recreate 재사용 + ADR-0037 §Decision3 first-write-wins 명시적 opt-out + RBAC Admin + 파괴적 교체 v1 acceptable/audit follow-up, +185 LOC 1파일)→tester(R-110 sanity green: 146 suites/2904 pass, src 0). reviewer round1 APPROVE findings 0, 4-게이트 PASS, CI run 27262031787 green(approval-step first-run green, rerun 불요). reviewRounds[T-0325]=1, tasksCompleted 322→323. 다음 t2: currentTask/nextTask 둘 다 null → planner dispatch(backlogNote (A)ADR-0036 stage2 / (B)ADR-0038 impl 중 택). t2 가 cap(2) 마지막 turn.",
-    "notePrevT6_0363": "/loop session loop@WIN-JQIPLSBL9QV-0363 (turn cap 10) t6 — T-0324 DONE(direct doc-sync: ADR-0037 Admin persist endpoint architecture doc-sync). tasksCompleted 320→321. ADR-0037 dependency-free work 전부 소진 → t6 planner Q-0033 escalate(overwrite/재평가 진입 여부) → 사용자 옵션(1) RESOLVED → 본 2c2 세션 t1 이 그 결정의 design ADR(T-0325/ADR-0038) 수행.",
-    "notePrevT5_0363": "loop@WIN-JQIPLSBL9QV-0363 t5 — T-0323 DONE·머지(ADR-0037 slice5 Admin full-persist e2e, PR #271 squash ad966d0). first-write-wins idempotency 실 PostgreSQL 검증. ADR-0037 ephemeral+Admin 전 chain 완결 → R-9 backbone 닫힘. reviewRounds[T-0323]=1, tasksCompleted 319→320.",
-    "notePrevT4_0363": "loop@WIN-JQIPLSBL9QV-0363 t4 — T-0322 DONE·머지(ADR-0037 slice3 controller Admin role 분기, PR #270 squash 5186385). executor 1차 socket error → driver partial 정리(branch -D) 후 fresh 재dispatch. reviewer APPROVE(MINOR 1). CI ordering rerun green. reviewRounds[T-0322]=1, tasksCompleted 318→319. planner: slice4 RBAC 는 T-0317+T-0322 흡수 → slice5 e2e(T-0323) 큐잉.",
-    "notePrevT3_0363": "loop@WIN-JQIPLSBL9QV-0363 t3 — T-0321 DONE·머지(ADR-0037 slice2 Admin full-persist orchestration PeriodBridgeAdminPersistService first-write-wins read-through, PR #269 squash a0e96b9). reviewer round1 APPROVE(NIT 2). CI PR-open approval-step ordering fail → rerun green. reviewRounds[T-0321]=1, tasksCompleted 317→318.",
-    "notePrevT2_0363": "loop@WIN-JQIPLSBL9QV-0363 t2 — T-0320 DONE·머지(ADR-0037 §Decision3 first-write-wins read-through design-amend, PR #268 squash 52ab7a7, ADR-0037 ACCEPTED). t1 에서 사용자 Q-0032 옵션(2) RESOLVED(§2 as-proposed·§3 409→first-write-wins·overwrite DEFERRED). reviewRounds[T-0320]=1, tasksCompleted 316→317.",
-    "notePrevWin3e8bT7": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t7 — T-0319 DONE(direct doc-sync: ADR-0037 ephemeral endpoint architecture doc-sync, commit d3d8c89). tasksCompleted 315→316. ephemeral dependency-free work 소진 → t8 planner Q-0032 escalate(사용자 §Decision2/3 검토 요청) → loop 정지(unresolved HQ). 그 Q-0032 를 본 0363 세션 t1 이 RESOLVED.",
-    "notePrevT6Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t6 — T-0318 DONE·머지(ADR-0037 slice5 ephemeral e2e, DB-write-0 실 PostgreSQL 검증, PR #267 squash 55c0d77). reviewer round1 APPROVE, 4-게이트, CI e2e PASS. tasksCompleted 314→315. ADR-0037 ephemeral end-to-end 완결. planner T-0319 doc-sync 큐잉.",
-    "notePrevT4Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t4 — T-0316 DONE·머지(ADR-0037 slice2 ephemeral orchestration PeriodBridgeEphemeralService 구조적 write-0, PR #265 squash 154d7a4). reviewer round1 APPROVE(NIT 1), 4-게이트, CI green. tasksCompleted 312→313. planner T-0317 큐잉.",
-    "notePrevT2Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t2 — T-0314 DONE(direct, ADR-0034 lock-bypass 규율을 LOOP.md+CLAUDE.md §10 흡수 c056f8e) + orphan PR #249 close. Q-0031 두 followUp 전원 완결. planner T-0315 큐잉. tasksCompleted 310→311. #249 close-comment 의 issue_comment CI red 는 benign(STATE.ci.benignRedNote).",
-    "notePrevT1Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t1 — T-0313 머지(ADR-0037 bridge 설계 PROPOSED, PR #263 squash 6813e9c, design-only). reviewer round1 APPROVE(NIT 2 비차단), 4-게이트 충족, CI green. tasksCompleted 309→310. planner T-0314 큐잉.",
-    "notePrevSessionAKIHA": "/loop session loop@AKIHA-vb707106 (turn cap 8, 로컬 AKIHA) t6 — T-0312(ADR-0035 PROPOSED→ACCEPTED flip) 머지 PR #262 squash e578146. ADR-0035 dependency-free 구현 chain(T-0304~T-0312) 전원 완결. tasksCompleted 308→309. dependency-free P5 소진 → planner Q-0031 escalate. 세션 t1~t6: T-0307~T-0312 머지(ADR-0035 Summary 평가 chain 완결+ACCEPTED).",
-    "notePrevT2": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t8 — planner: ADR-0035 write service slice 를 cap 초과 회피 2 분할, 첫 조각 T-0307 큐잉(Summary batch 정성 narrative 생성 — 한 person-period unit 묶음 → typed surface batch prompt → LlmHttpGateway.generate 1회 mocked-LLM → narrative string, §Decision 5; cross-person 금지·raw 0). 단위평가 chain prompt+classify(T-0290) 분리 동형. DB write·metricScore 결합·reset-and-recreate 는 다음 slice T-0308. architect 불요(ADR §Decision 5 박제)→implementer→tester, dep0/credential0. nextTask=T-0307. **cap 근접**: turnCount=8/10 — T-0307 execute(t9, implementer+reviewer+CI+merge) 후 t10 closeout 즈음 cap 도달 예정, 그때 /compact·/clear 안내. 사용자 lock 피드백: 긴 CI/verify idle 중 release+resume 적용(§1[5] 준수). FYI orphan PR #249(ADR-0034) 미처리.",
-    "notePrevT1": "/loop t5 — T-0301 DONE 머지(PR #253 628ceb5): evaluate flow persist-return 배선 (ADR-0033 slice 4). reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart + 2 MINOR) → round2 fix(@IsISO8601/@IsIn) → APPROVE. reviewRounds=2. tasksCompleted 297→298. planner T-0302 큐잉.",
-    "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
-    "noteCronFire": "cron@AKIHA-15-32380 fire(2026-06-10T10:06 KST, 매시 15분 trigger) — **Q-0031 RESOLVED 후 첫 productive fire**. lock 자유 확인(branch tip tombstone `{\"holder\":null}` at 372c730)→branch-CAS 획득(cf21474). currentTask/nextTask 둘 다 null + unresolved HQ 0 → planner dispatch. **planner T-0313 큐잉**(ADR-0037 period→collection→evaluate bridge 설계, commitMode pr, design-only): Q-0031 옵션(1) 승인 반영 — RBAC[Admin full collect→evaluate→persist / User self-only ephemeral DB write 0]·double-write 경계·idempotency·EvaluationResult[] source-of(bridge fresh collect) 박제, impl slice(DTO/orchestration/controller/RBAC guard/e2e)는 Follow-ups. 새 dep/credential 0. nextTask=T-0313, tasksCompleted 309 유지(planner-only turn). 별건 followUp(B) ADR-0034 흡수+#249 close 는 후속 task. 재개: 다음 /loop·cron fire 가 T-0313 execute(architect ADR-0037 → 사용자 ADR PR 검토). lock 해제(tombstone)."
+    "holder": "loop@WIN-JQIPLSBL9QV-63e9",
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-63e9 (turn cap 2, autonomous dynamic) t1 — T-0327 DONE·merge(ADR-0036 fine-grained concurrency stage2 slice1: claims.json schema + lock-하 atomic select+claim CAS primitive + 이중 claim0 executable spec, PR #273 squash 0e5a817). reviewer round1 REQUEST_CHANGES(CI red: commit-tree empty ident name) → round2 fix(commit-tree identity self-provide) → APPROVE, 4-게이트, CI green. tasksCompleted 323→324. ADR-0036 ACCEPTED buildThrough 진행 중 — 다음 planner turn 이 stage2 slice2(staleness 회수 60분 임계·PR-resume) 큐잉."
   },
   "ci": {
     "lastRun": "2026-06-10T16:58:00+09:00",
@@ -142,7 +125,8 @@
     "T-0272": 1,
     "T-0273": 1,
     "T-0274": 1,
-    "T-0275": 1
+    "T-0275": 1,
+    "T-0327": 2
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -584,7 +568,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 323,
+    "tasksCompleted": 324,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

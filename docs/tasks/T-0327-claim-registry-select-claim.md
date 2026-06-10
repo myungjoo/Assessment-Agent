@@ -2,7 +2,10 @@
 id: T-0327
 title: ADR-0036 fine-grained concurrency stage 2 (slice 1) — claim registry schema + lock-하 atomic select+claim CAS primitive + executable spec
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 0e5a817
+prNumber: 273
+reviewRounds: 2
 commitMode: pr
 coversReq: [TBD]
 estimatedDiff: 250
