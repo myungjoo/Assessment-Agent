@@ -2,7 +2,8 @@
 id: T-0330
 title: CLAUDE.md §10 동시실행 정책에 ADR-0036 토글-gated N-driver 서술 동기 (stage3 slice2)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T19:06:34+09:00
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 30
