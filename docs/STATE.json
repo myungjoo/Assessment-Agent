@@ -5,7 +5,7 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0319",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-3e8b",
