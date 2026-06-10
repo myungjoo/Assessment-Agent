@@ -2,7 +2,11 @@
 id: T-0325
 title: overwrite / 이미 영속화된 평가문 재평가(re-evaluate) capability 설계 ADR (ADR-0038) — Admin 명시적 재평가 요청 contract + ADR-0033 reeval(reset-and-recreate) 재사용 + ADR-0037 §Decision3 first-write-wins 의 명시적 opt-out + RBAC Admin + idempotency/safety 경계
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 06ae245
+prNumber: 272
+reviewRounds: 1
+completedAt: 2026-06-10T16:58:00+09:00
 commitMode: pr
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 200
