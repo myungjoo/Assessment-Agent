@@ -5,29 +5,30 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0319",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-3e8b",
-    "since": "2026-06-10T11:56:00+09:00",
+    "since": "2026-06-10T12:14:00+09:00",
     "loopSessionStartedAt": "2026-06-10T10:14:00+09:00",
-    "loopSessionTurnCount": 6
+    "loopSessionTurnCount": 7
   },
-  "lastActivity": "2026-06-10T12:06:00+09:00",
-  "lastCommit": "55c0d77",
+  "lastActivity": "2026-06-10T12:16:00+09:00",
+  "lastCommit": "d3d8c89",
   "mostRecentTasks": [
+    "T-0319",
     "T-0318",
     "T-0317",
     "T-0316",
-    "T-0315",
-    "T-0314"
+    "T-0315"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 7,
     "startedAt": "2026-06-10T10:14:00+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-3e8b",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-3e8b (turn cap 10, 로컬 WIN-JQIPLSBL9QV) t6 — **T-0318 DONE·머지: ADR-0037 slice 5 ephemeral e2e**. lock heartbeat(4a516dd→f94ea0f, since=11:56 turnCount=6). executor(test/e2e/period-bridge-ephemeral.e2e-spec.ts — User self-only happy 200+빈 EvaluationResult[]·**DB-write-0**(assessment/contribution/summary count 0)·403/401×2/404/400×2 각 DB-write-0 동반, Person.id==seed User.id nuance 처리, src 0)→PR #267→reviewer round1 APPROVE(BLOCKER/MAJOR/MINOR 0, NIT 1 informational)→4-게이트(reviewer comment issuecomment-4666052311·CI run 27250140267 green head 18eb00d, **e2e step PASS 실 PostgreSQL 확인**)→integrator MERGED(squash 55c0d77, 브랜치 삭제). reviewRounds[T-0318]=1, tasksCompleted 314→315. **ADR-0037 ephemeral 경로 end-to-end 완결(DTO→service→controller→e2e, 5 task T-0315~T-0318+설계 T-0313)**. 다음 t7: planner survey — 남은 ADR-0037 work = Admin full-persist 경로(§Decision2 double-write·§Decision3 idempotency PROPOSE 의존) → dependency-free 작업 소진 예상 → **escalate Q-0032(사용자 ADR-0037 §Decision2/3 검토·ACCEPTED flip 요청)**. 그러면 loop 정지(unresolved HQ).",
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-3e8b (turn cap 10, 로컬 WIN-JQIPLSBL9QV) t7 — **T-0319 DONE(direct doc-sync): ADR-0037 ephemeral endpoint architecture doc-sync**. lock heartbeat(f94ea0f→70bafc6, since=12:14 turnCount=7). executor(api.md 평가 표에 POST /api/assessment-evaluation/period row 추가[User self-only ephemeral·self-only fail-closed 403·PeriodBridgeDto·DB-write-0 200·400/401/403/404] + 합계 49→50, modules.md L41 stale 'period bridge 여전히 deferred' 정정[ephemeral shipped/Admin full-persist §Decision2/3 PROPOSE 미shipped] + Backend API component row 두 번째 endpoint, +4/-3, tester R-110 면제). driver commit d3d8c89. tasksCompleted 315→316. **ADR-0037 ephemeral 경로 dependency-free work 전부 소진(설계 T-0313 + impl T-0315~T-0318 + doc-sync T-0319)**. 다음 t8: planner — Admin full-persist 가 유일 잔여(§Decision2/3 PROPOSE 의존) → **Q-0032 escalate(사용자 ADR-0037 §Decision2 double-write·§Decision3 idempotency 검토/ACCEPTED flip 요청)** → loop 정지(unresolved HQ).",
+    "notePrevT6Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t6 — T-0318 DONE·머지(ADR-0037 slice5 ephemeral e2e, DB-write-0 실 PostgreSQL 검증, PR #267 squash 55c0d77). reviewer round1 APPROVE, 4-게이트, CI e2e PASS. tasksCompleted 314→315. ADR-0037 ephemeral end-to-end 완결. planner T-0319 doc-sync 큐잉.",
     "notePrevT4Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t4 — T-0316 DONE·머지(ADR-0037 slice2 ephemeral orchestration PeriodBridgeEphemeralService 구조적 write-0, PR #265 squash 154d7a4). reviewer round1 APPROVE(NIT 1), 4-게이트, CI green. tasksCompleted 312→313. planner T-0317 큐잉.",
     "notePrevT2Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t2 — T-0314 DONE(direct, ADR-0034 lock-bypass 규율을 LOOP.md+CLAUDE.md §10 흡수 c056f8e) + orphan PR #249 close. Q-0031 두 followUp 전원 완결. planner T-0315 큐잉. tasksCompleted 310→311. #249 close-comment 의 issue_comment CI red 는 benign(STATE.ci.benignRedNote).",
     "notePrevT1Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t1 — T-0313 머지(ADR-0037 bridge 설계 PROPOSED, PR #263 squash 6813e9c, design-only). reviewer round1 APPROVE(NIT 2 비차단), 4-게이트 충족, CI green. tasksCompleted 309→310. planner T-0314 큐잉.",
@@ -531,7 +532,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 315,
+    "tasksCompleted": 316,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

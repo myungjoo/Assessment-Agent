@@ -2,7 +2,9 @@
 id: T-0319
 title: period bridge ephemeral endpoint(POST /period) doc-sync — api.md + modules.md 정합
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T12:16:00+09:00
+mergedAs: d3d8c89
 commitMode: direct
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 60
