@@ -2,7 +2,8 @@
   "schemaVersion": 1,
   "phase": "P4-complete / P5-in-progress",
   "flags": {
-    "multiTaskFire": true
+    "multiTaskFire": true,
+    "fineGrainedConcurrency": false
   },
   "currentTask": null,
   "nextTask": "T-0326",

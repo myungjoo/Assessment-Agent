@@ -104,6 +104,32 @@ planner 가 **모든** task 를 생성할 때 frontmatter 에 `coversReq: [REQ-N
 - 부트스트랩 / infra task (T-0001~T-0010) 는 `coversReq: [REQ-057, REQ-058, ...]` 같이 정책 REQ 를 가리킨다.
 - REQ ID 가 docs/requirements.md 에 없는 경우 P1 entry task 끝나기 전에는 임의 ID 만들지 말고 `coversReq: [TBD]` 로 두고 follow-up.
 
+# 독립-stream 분해 정책 (ADR-0036 stage 1)
+
+[ADR-0036](../../docs/decisions/ADR-0036-fine-grained-concurrency.md) (fine-grained concurrency: critical-section-only lock + claim 기반 task 소유) 의 §rollout stage 1 이 박제하는 **forward-looking 정책**. 본 정책은 planner 가 task 를 큐잉하는 단계에서 **동시 claimable 한 독립 task 를 frontmatter 로 사전 인코딩**해, 런타임 충돌 탐지 대신 큐잉 시점에 동시성 안전을 확보하기 위한 것이다.
+
+## frontmatter 3 필드
+
+planner 는 task 생성 시 다음 3 필드를 frontmatter 에 박제한다 (현 단계에서는 인코딩만 — driver 동작은 바뀌지 않는다, 토글 OFF):
+
+- `independentStream: <id>` — 이 task 가 속한 독립 작업 stream 식별자. 같은 stream 의 task 들은 순차 의존, 다른 stream 끼리는 동시 claimable 후보.
+- `dependsOn: [T-...]` — 이 task 가 머지 상태를 전제하는 선행 task 목록 (없으면 `[]`).
+- `touchesFiles: [...]` — 이 task 가 변경하는 파일 경로 목록 (특히 `src/`). 동시 claim 안전성의 핵심 판정 입력.
+
+## 동시 claimable 조건
+
+두 task 가 동시에 claim 가능하려면 다음 3 조건을 **모두** 충족해야 한다 (ADR-0036 §Decision 0):
+
+- (a) **파일-disjoint** — 두 task 의 `touchesFiles` 가 겹치지 않는다 (특히 `src/`). 같은 파일을 건드리면 코드 충돌 위험이라 동시 claim 금지.
+- (b) **의존성 없음** — 한 task 의 `dependsOn` 에 든 모든 task 가 이미 머지돼 있다. 미머지 선행 task 에 의존하면 stale main 위 빌드로 깨지므로 claim 후보에서 제외.
+- (c) **같은 `commitMode` 권장** — direct + direct 또는 pr + pr. CI 검증 경계 모호 회피 (§2.5 mixed chain 금지와 동형 근거).
+
+위 셋을 모두 충족한 task 만 동시 claim 을 허용한다. planner 는 task 생성 시 위 3 필드를 박제해 동시성 안전을 **큐잉 단계에서 사전 인코딩**한다 (런타임 충돌 탐지 대신 큐잉 단계 회피).
+
+## break-even gate
+
+본 stage 1 은 `flags.fineGrainedConcurrency` 를 **켜지 않으며 driver 동작을 바꾸지 않는다** (forward-looking spec only). **한 시점 독립 task ≥ 2 가 실증되기 전까지 stage 2(claim registry 구현) 진입을 보류**한다 (ADR-0036 §Status / §Decision 0 그대로 — 독립 task 공급이 없으면 N driver 여도 throughput 이득 0 이라 멈춤이 정당한 결론). 토글 ON 은 stage 5 — stage 1~4 머지 + 30일 dogfood 합의 후. 현 단계 planner 는 위 3 필드를 박제하되, 그 자체로 동시 진행이 트리거되지는 않는다.
+
 # Decision algorithm
 
 1. Determine current phase from `STATE.json.phase`.
