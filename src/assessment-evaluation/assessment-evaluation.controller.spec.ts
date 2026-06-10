@@ -19,6 +19,7 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 
+import type { JwtPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
@@ -37,6 +38,10 @@ import {
   EvaluationResultPersistService,
   type PersistResult,
 } from "./evaluation-result-persist.service";
+import type {
+  PeriodBridgeAdminPersistResult,
+  PeriodBridgeAdminPersistService,
+} from "./period-bridge-admin-persist.service";
 import type { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
 
 // context 4-tuple(ADR-0033 §51) — 모든 evaluate dto fixture 의 base. persist 호출
@@ -81,6 +86,11 @@ function makeController(
       throw new Error("evaluate() 는 ephemeralBridge 를 호출하면 안 된다");
     }),
   } as unknown as PeriodBridgeEphemeralService;
+  const adminBridge = {
+    generateAndPersist: jest.fn(() => {
+      throw new Error("evaluate() 는 adminBridge 를 호출하면 안 된다");
+    }),
+  } as unknown as PeriodBridgeAdminPersistService;
   const personService = {
     findByIdWithIdentities: jest.fn(() => {
       throw new Error("evaluate() 는 personService 를 호출하면 안 된다");
@@ -91,6 +101,7 @@ function makeController(
       orchestrator,
       persistService,
       ephemeralBridge,
+      adminBridge,
       personService,
     ),
     evaluateSpy,
@@ -98,20 +109,26 @@ function makeController(
   };
 }
 
-// makePeriodController — POST /period 전용 controller 빌더. ephemeralBridge +
-// personService 를 jest mock 으로 주입하고(실 LLM/DB/네트워크 0), evaluate 경로의
-// orchestrator/persist 는 throw mock 으로 두어 period() 가 실수로 호출하면 catch 한다.
-// generateSpy / findPersonSpy 를 함께 반환해 위임 인자/횟수 검증을 enable 한다.
+// makePeriodController — POST /period 전용 controller 빌더. ephemeralBridge /
+// adminBridge / personService 를 jest mock 으로 주입하고(실 LLM/DB/네트워크 0),
+// evaluate 경로의 orchestrator/persist 는 throw mock 으로 두어 period() 가 실수로
+// 호출하면 catch 한다. generateSpy(ephemeral 위임) / adminSpy(Admin 위임) /
+// findPersonSpy(person resolve)를 함께 반환해 위임 인자/횟수 검증을 enable 한다.
 function makePeriodController(opts: {
   generateImpl?: (...args: unknown[]) => Promise<EvaluationResult[]>;
+  adminImpl?: (...args: unknown[]) => Promise<PeriodBridgeAdminPersistResult>;
   findPersonImpl?: (...args: unknown[]) => Promise<PersonWithIdentities>;
 }): {
   controller: AssessmentEvaluationController;
   generateSpy: jest.Mock;
+  adminSpy: jest.Mock;
   findPersonSpy: jest.Mock;
 } {
   const generateSpy = jest.fn(
     opts.generateImpl ?? (async () => [] as EvaluationResult[]),
+  );
+  const adminSpy = jest.fn(
+    opts.adminImpl ?? (async () => makeAdminPersistResult()),
   );
   const findPersonSpy = jest.fn(
     opts.findPersonImpl ??
@@ -124,6 +141,9 @@ function makePeriodController(opts: {
   const ephemeralBridge = {
     generateEphemeral: generateSpy,
   } as unknown as PeriodBridgeEphemeralService;
+  const adminBridge = {
+    generateAndPersist: adminSpy,
+  } as unknown as PeriodBridgeAdminPersistService;
   const personService = {
     findByIdWithIdentities: findPersonSpy,
   } as unknown as PersonService;
@@ -143,11 +163,61 @@ function makePeriodController(opts: {
       orchestrator,
       persistService,
       ephemeralBridge,
+      adminBridge,
       personService,
     ),
     generateSpy,
+    adminSpy,
     findPersonSpy,
   };
+}
+
+// makeAdminPersistResult — Admin generateAndPersist mock 반환 fixture. 영속
+// Assessment(read-back 결과) + created 플래그. controller 가 응답 shape 로 매핑하는
+// 기준값. periodStart 는 Date(영속 컬럼) — controller 가 ISO string 으로 직렬화.
+function makeAdminPersistResult(
+  overrides: Partial<{
+    id: string;
+    personId: string;
+    period: string;
+    scope: string;
+    periodStart: Date;
+    created: boolean;
+  }> = {},
+): PeriodBridgeAdminPersistResult {
+  const {
+    id = "assessment-admin-1",
+    personId = "target-person",
+    period = "week",
+    scope = "commit",
+    periodStart = new Date("2026-06-01T00:00:00.000Z"),
+    created = true,
+  } = overrides;
+  return {
+    assessment: {
+      id,
+      personId,
+      period,
+      scope,
+      periodStart,
+      difficulty: "medium",
+      contributionScore: 0,
+      volume: 0,
+      narrative: "",
+      createdAt: new Date("2026-06-02T00:00:00.000Z"),
+    } as unknown as PeriodBridgeAdminPersistResult["assessment"],
+    created,
+  };
+}
+
+// adminActor — Admin tier principal payload. dispatch source(JwtPayload.role)가
+// Admin 이면 controller 가 full-persist 분기로 dispatch.
+const adminActor: JwtPayload = { sub: "admin-1", role: "Admin" };
+// userActor — User tier principal payload. sub 으로 self-only 동등성을 판별.
+// sub 부재(undefined/null) negative 분기 검증을 위해 string|undefined 를 받아
+// JwtPayload 로 cast 한다(실 runtime 의 비정상 principal 형태를 단위로 재현).
+function userActor(sub: string | undefined): JwtPayload {
+  return { sub, role: "User" } as unknown as JwtPayload;
 }
 
 // makePeriodDto — PeriodBridgeDto fixture 빌더(self-only base: personId == 요청
@@ -601,17 +671,18 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
   // 호출하면 throw 로 즉시 실패).
   it("self == personId 시 person resolve 후 generateEphemeral 에 1 회 위임하고 결과를 그대로 반환한다 (happy)", async () => {
     const expected = [makeEvaluationResult("github:com:abc123")];
-    const { controller, generateSpy, findPersonSpy } = makePeriodController({
-      generateImpl: async () => expected,
-      findPersonImpl: async () =>
-        ({
-          id: "person-1",
-          serviceIdentities: [{ service: "github", externalId: "octocat" }],
-        }) as unknown as PersonWithIdentities,
-    });
+    const { controller, generateSpy, adminSpy, findPersonSpy } =
+      makePeriodController({
+        generateImpl: async () => expected,
+        findPersonImpl: async () =>
+          ({
+            id: "person-1",
+            serviceIdentities: [{ service: "github", externalId: "octocat" }],
+          }) as unknown as PersonWithIdentities,
+      });
 
     const dto = makePeriodDto();
-    const result = await controller.period(dto, "person-1");
+    const result = await controller.period(dto, userActor("person-1"));
 
     // person 변환은 dto.personId 로 1 회.
     expect(findPersonSpy).toHaveBeenCalledTimes(1);
@@ -624,6 +695,8 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
       { since: "2026-06-01T00:00:00.000Z" },
       { modelId: undefined },
     );
+    // User 분기는 Admin full-persist 위임을 호출하지 않는다(role dispatch 분리).
+    expect(adminSpy).not.toHaveBeenCalled();
     // 반환은 generateEphemeral 결과 reference 그대로(가공 0 — persist 0).
     expect(result).toBe(expected);
   });
@@ -634,7 +707,10 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
 
     // principal sub 은 "attacker", dto.personId 는 "person-1"(타인).
     await expect(
-      controller.period(makePeriodDto({ personId: "person-1" }), "attacker"),
+      controller.period(
+        makePeriodDto({ personId: "person-1" }),
+        userActor("attacker"),
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(generateSpy).not.toHaveBeenCalled();
@@ -647,7 +723,7 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
     const { controller, generateSpy, findPersonSpy } = makePeriodController({});
 
     await expect(
-      controller.period(makePeriodDto(), undefined),
+      controller.period(makePeriodDto(), userActor(undefined)),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(generateSpy).not.toHaveBeenCalled();
@@ -659,9 +735,25 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
     const { controller, generateSpy } = makePeriodController({});
 
     await expect(
-      controller.period(makePeriodDto(), null as unknown as string | undefined),
+      controller.period(
+        makePeriodDto(),
+        userActor(null as unknown as string | undefined),
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // flow / 분기: actor 자체가 undefined(인증 부재의 방어 분기)여도 User 분기로
+  // fall-through 해 self-only fail-closed deny(403). isAdminRole(undefined)=false 라
+  // Admin 분기로 새지 않는다(fail-closed dispatch).
+  it("actor 가 undefined 면 User 분기 self-only deny(403) (flow — actor 부재, Admin 미진입)", async () => {
+    const { controller, generateSpy, adminSpy } = makePeriodController({});
+
+    await expect(
+      controller.period(makePeriodDto(), undefined),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(adminSpy).not.toHaveBeenCalled();
   });
 
   // flow / 분기: person 미존재 → PersonService 의 NotFoundException(404) 전파.
@@ -674,9 +766,9 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
       },
     });
 
-    await expect(controller.period(makePeriodDto(), "person-1")).rejects.toBe(
-      notFound,
-    );
+    await expect(
+      controller.period(makePeriodDto(), userActor("person-1")),
+    ).rejects.toBe(notFound);
     // person resolve 가 throw 하면 위임 단계 도달 0.
     expect(generateSpy).not.toHaveBeenCalled();
   });
@@ -690,9 +782,9 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
       },
     });
 
-    await expect(controller.period(makePeriodDto(), "person-1")).rejects.toBe(
-      rawError,
-    );
+    await expect(
+      controller.period(makePeriodDto(), userActor("person-1")),
+    ).rejects.toBe(rawError);
   });
 
   // branch: dto.mode 는 ephemeral 이므로 무시 — mode 가 있어도 위임/반환 불변.
@@ -704,7 +796,7 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
 
     const result = await controller.period(
       makePeriodDto({ mode: "reeval" }),
-      "person-1",
+      userActor("person-1"),
     );
 
     expect(generateSpy).toHaveBeenCalledTimes(1);
@@ -723,7 +815,10 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
         }) as unknown as PersonWithIdentities,
     });
 
-    const result = await controller.period(makePeriodDto(), "person-1");
+    const result = await controller.period(
+      makePeriodDto(),
+      userActor("person-1"),
+    );
 
     expect(generateSpy).toHaveBeenCalledWith(
       { serviceIdentities: [] },
@@ -731,6 +826,174 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
       { modelId: undefined },
     );
     expect(result).toBe(expected);
+  });
+});
+
+// =======================================================================
+// POST /api/assessment-evaluation/period — Admin full-persist 분기
+// (T-0322, ADR-0037 slice 3, §Decision1 Admin full-persist + amended
+// §Decision3 first-write-wins read-through). R-112 4 종 + role dispatch
+// 분기 cover + negative. dispatch source 는 principal role(Admin tier 이상).
+// =======================================================================
+describe("AssessmentEvaluationController.period (unit — Admin full-persist branch)", () => {
+  // happy: Admin role 호출 → person resolve → generateAndPersist 1 회 위임 +
+  // 반환 영속 Assessment 식별자/좌표가 응답에 박제. ephemeral 위임 미호출(분리).
+  it("Admin role 호출 시 person resolve 후 generateAndPersist 에 1 회 위임하고 영속 Assessment 식별자/좌표를 응답한다 (happy — Admin persist)", async () => {
+    const { controller, adminSpy, generateSpy, findPersonSpy } =
+      makePeriodController({
+        adminImpl: async () =>
+          makeAdminPersistResult({
+            id: "assessment-admin-1",
+            personId: "target-person",
+            created: true,
+          }),
+        findPersonImpl: async () =>
+          ({
+            id: "target-person",
+            serviceIdentities: [{ service: "github", externalId: "octocat" }],
+          }) as unknown as PersonWithIdentities,
+      });
+
+    // Admin 은 임의 personId(자기 sub 과 다름)를 target — self-only 우회.
+    const dto = makePeriodDto({ personId: "target-person" });
+    const result = await controller.period(dto, adminActor);
+
+    // person 변환은 임의 personId(target-person)로 1 회(self-only 동등성 검사 0).
+    expect(findPersonSpy).toHaveBeenCalledTimes(1);
+    expect(findPersonSpy).toHaveBeenCalledWith("target-person");
+    // generateAndPersist 위임 — resolved serviceIdentities + since(pass-through) +
+    // modelId 미지정 + context 4-tuple(periodStart Date 파싱).
+    expect(adminSpy).toHaveBeenCalledTimes(1);
+    expect(adminSpy).toHaveBeenCalledWith(
+      { serviceIdentities: [{ service: "github", externalId: "octocat" }] },
+      { since: "2026-06-01T00:00:00.000Z" },
+      { modelId: undefined },
+      {
+        personId: "target-person",
+        period: "week",
+        scope: "commit",
+        periodStart: new Date("2026-06-01T00:00:00.000Z"),
+      },
+    );
+    // 응답 shape — 영속 식별자 + 좌표 + created. periodStart 는 ISO string 직렬화.
+    expect(result).toEqual({
+      assessmentId: "assessment-admin-1",
+      personId: "target-person",
+      period: "week",
+      scope: "commit",
+      periodStart: "2026-06-01T00:00:00.000Z",
+      created: true,
+    });
+    // Admin 분기는 ephemeral 위임을 호출하지 않는다(role dispatch 분리).
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // branch: created=false(first-write-wins read-through — 기존 저장본 반환)도
+  // 그대로 응답에 박제(409 전파 0, amended §Decision3).
+  it("created=false(read-through 기존 저장본) 도 그대로 응답에 박제한다 (branch — read-through, 409 전파 0)", async () => {
+    const { controller } = makePeriodController({
+      adminImpl: async () =>
+        makeAdminPersistResult({ id: "assessment-existing", created: false }),
+    });
+
+    const result = (await controller.period(
+      makePeriodDto({ personId: "target-person" }),
+      adminActor,
+    )) as { assessmentId: string; created: boolean };
+
+    expect(result.assessmentId).toBe("assessment-existing");
+    expect(result.created).toBe(false);
+  });
+
+  // SuperAdmin(Admin escalation)도 Admin 분기로 dispatch — ROLE_HIERARCHY 재사용.
+  it("SuperAdmin role 도 Admin 분기로 dispatch 한다 (branch — escalation, SuperAdmin)", async () => {
+    const { controller, adminSpy, generateSpy } = makePeriodController({});
+
+    await controller.period(makePeriodDto({ personId: "target-person" }), {
+      sub: "super-1",
+      role: "SuperAdmin",
+    });
+
+    expect(adminSpy).toHaveBeenCalledTimes(1);
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // error path: Admin 분기에서 generateAndPersist reject(예: evaluateActivities
+  // throw / persist 비-Conflict error) 시 controller 가 raw 전파(swallow 0).
+  it("Admin 분기 generateAndPersist reject 시 controller 가 error 를 raw 전파한다 (error path — admin bridge reject)", async () => {
+    const rawError = new Error("evaluateActivities failed: model timeout");
+    const { controller } = makePeriodController({
+      adminImpl: async () => {
+        throw rawError;
+      },
+    });
+
+    await expect(
+      controller.period(
+        makePeriodDto({ personId: "target-person" }),
+        adminActor,
+      ),
+    ).rejects.toBe(rawError);
+  });
+
+  // flow / 분기: Admin 분기에서도 person 미존재 → PersonService 의
+  // NotFoundException(404) 전파(generateAndPersist 미호출).
+  it("Admin 분기 person 미존재 시 PersonService 의 NotFoundException(404)을 전파한다 (flow — person not found, persist 미호출)", async () => {
+    const notFound = new NotFoundException("person not found: target-person");
+    const { controller, adminSpy } = makePeriodController({
+      findPersonImpl: async () => {
+        throw notFound;
+      },
+    });
+
+    await expect(
+      controller.period(
+        makePeriodDto({ personId: "target-person" }),
+        adminActor,
+      ),
+    ).rejects.toBe(notFound);
+    // person resolve 가 throw 하면 persist 위임 단계 도달 0.
+    expect(adminSpy).not.toHaveBeenCalled();
+  });
+
+  // branch: periodStart 가 string → Date 로 파싱돼 context 에 전달.
+  it("periodStart string 을 Date 로 파싱해 context 에 전달한다 (branch — periodStart 파싱)", async () => {
+    const { controller, adminSpy } = makePeriodController({});
+
+    await controller.period(
+      makePeriodDto({
+        personId: "target-person",
+        periodStart: "2026-01-15T09:30:00.000Z",
+      }),
+      adminActor,
+    );
+
+    const passedContext = adminSpy.mock.calls[0][3] as { periodStart: Date };
+    expect(passedContext.periodStart).toBeInstanceOf(Date);
+    expect(passedContext.periodStart.toISOString()).toBe(
+      "2026-01-15T09:30:00.000Z",
+    );
+  });
+
+  // branch: dto.mode 는 Admin 분기에서 reeval 로 baking 되지 않는다 — context 에
+  // mode 가 흘러들지 않고(4-tuple 만), generateAndPersist 가 항상 "fill" 정책.
+  it("dto.mode='reeval' 이어도 context 에 mode 를 baking 하지 않는다 (branch — mode no-bake, always fill)", async () => {
+    const { controller, adminSpy } = makePeriodController({});
+
+    await controller.period(
+      makePeriodDto({ personId: "target-person", mode: "reeval" }),
+      adminActor,
+    );
+
+    const passedContext = adminSpy.mock.calls[0][3] as Record<string, unknown>;
+    // context 4-tuple 에 mode 키 부재(reeval baking 0).
+    expect(passedContext).not.toHaveProperty("mode");
+    expect(Object.keys(passedContext).sort()).toEqual([
+      "period",
+      "periodStart",
+      "personId",
+      "scope",
+    ]);
   });
 });
 
