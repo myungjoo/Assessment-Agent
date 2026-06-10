@@ -92,7 +92,8 @@ fi
 LOSE_BLOB="$(printf '[{"taskId":"T-3001","owner":"loopB@h-2","claimedAt":"2026-06-10T00:00:00Z","status":"CLAIMED","prNumber":null}]' \
   | git -C B hash-object -w --stdin)"
 LOSE_TREE="$(printf '100644 blob %s\tclaims.json\n' "$LOSE_BLOB" | git -C B mktree)"
-LOSE_COMMIT="$(git -C B commit-tree "$LOSE_TREE" ${STALE_OLD:+-p "$STALE_OLD"} -m lose)"
+LOSE_COMMIT="$(git -C B -c user.name='claim-spec' -c user.email='claim-spec@localhost' \
+  commit-tree "$LOSE_TREE" ${STALE_OLD:+-p "$STALE_OLD"} -m lose)"
 if git -C B push "$WORK/origin.git" "$LOSE_COMMIT:$REF" \
      --force-with-lease="$REF:$STALE_OLD" >/dev/null 2>&1; then
   fail "패자 B 의 stale-lease claim 이 통과됨 — 이중 claim 발생(CAS 위반)"
@@ -146,7 +147,8 @@ git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
 STALE_BLOB="$(printf '[{"taskId":"T-9999","owner":"evil","claimedAt":"t","status":"CLAIMED","prNumber":null}]' \
   | git -C A hash-object -w --stdin)"
 STALE_TREE="$(printf '100644 blob %s\tclaims.json\n' "$STALE_BLOB" | git -C A mktree)"
-STALE_COMMIT="$(git -C A commit-tree "$STALE_TREE" -p "$CUR" -m evil)"
+STALE_COMMIT="$(git -C A -c user.name='claim-spec' -c user.email='claim-spec@localhost' \
+  commit-tree "$STALE_TREE" -p "$CUR" -m evil)"
 # 일부러 틀린(빈) lease 로 push — 현재 ref 는 CUR 이므로 expect-absent 는 stale.
 if git -C A push "$WORK/origin.git" "$STALE_COMMIT:$REF" \
      --force-with-lease="$REF:" >/dev/null 2>&1; then

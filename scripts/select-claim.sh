@@ -127,10 +127,16 @@ attempt() {
   tree="$(cat /tmp/.sc_tree)"
   rm -f /tmp/.sc_tree
 
+  # CI ubuntu runner 는 ambient git identity 가 0 이라 `git commit-tree` 가
+  # `fatal: empty ident name` 으로 실패한다(claims.json 미생성 → spec 연쇄 fail).
+  # 선례 verify-ref-cas-lock.sh 가 ambient git config 에 의존하지 않는 것과 동형으로,
+  # identity 를 호출 지점에서 self-provide 해 self-contained 계약을 지킨다.
   if [ -n "$old_sha" ]; then
-    commit="$(git commit-tree "$tree" -p "$old_sha" -m "claim ${task} by ${OWNER}" 2>/dev/null)"
+    commit="$(git -c user.name='claim-spec' -c user.email='claim-spec@localhost' \
+      commit-tree "$tree" -p "$old_sha" -m "claim ${task} by ${OWNER}" 2>/dev/null)"
   else
-    commit="$(git commit-tree "$tree" -m "claim ${task} by ${OWNER}" 2>/dev/null)"
+    commit="$(git -c user.name='claim-spec' -c user.email='claim-spec@localhost' \
+      commit-tree "$tree" -m "claim ${task} by ${OWNER}" 2>/dev/null)"
   fi
 
   # CAS push: lease=old-sha(빈 문자열이면 expect-absent). 성공 시 이중 claim 불가.
