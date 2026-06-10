@@ -5,30 +5,31 @@
     "multiTaskFire": true,
     "fineGrainedConcurrency": false
   },
-  "currentTask": "T-0337",
+  "currentTask": null,
   "nextTask": null,
-  "backlogNote": "T-0336 DONE·merge(loop@WIN-JQIPLSBL9QV-tc10 t8, pr-mode, PR #280 squash a2672db): ADR-0038 slice 3 — controller reevaluate dispatch(Admin pass-through) + User fail-closed 403(§Decision4 (ii)). reviewer round1 APPROVE findings 0. **reevaluate 기능이 endpoint 까지 배선 완료** — Admin 은 POST /api/assessment-evaluation/period 에 reevaluate:true 로 재평가 가능(DTO T-0333 → service T-0335 → controller T-0336). **ADR-0038 chain 잔여**: slice 4(e2e: replace 실측 row stable+content NEW / default first-write-wins 보존 / 동시 reevaluate 수렴 semantics §Decision5 실측 박제 / User+reevaluate 영속 0) → chain 후 doc-sync(api.md L102 mode 절 제거+reevaluate 추가 — T-0334 Follow-ups). 병행 후보: live-LLM(만료 6/30, 6/25 격상), timezone KST ADR. **외부 PR #277** 사용자 disposition 대기. gh 간헐 401 은 retry-loop 표준(memory 박제, workflow scope 부재 주의).",
+  "backlogNote": "T-0337 DONE·merge(loop@WIN-JQIPLSBL9QV-tc10 t10, pr-mode, PR #281 squash bfdb898): ADR-0038 slice 4 — reevaluate e2e 9건(실 PG, CI green 실측) + §Decision5 동시성 수렴 amendment. **ADR-0038 overwrite/재평가 impl chain 완결**(slice 1 T-0333 DTO → 2a T-0334 vestigial mode 제거 → 2b T-0335 service 분기 → 3 T-0336 controller+RBAC → 4 T-0337 e2e — 전부 round1 APPROVE·CI green·머지). **다음 후보**: (1) doc-sync task — api.md L102(mode 절 제거+reevaluate 추가, T-0334 Follow-ups) + ADR-0038 L107/L136 slice 5→4 표기 정정(T-0337 reviewer MINOR pre-existing) 한 task 로 묶음 권장(direct 또는 pr — architecture doc 은 §3.1 상 pr). (2) live-LLM 검증(사용자 승인, 만료 6/30 — **6/25 전 미착수 시 격상**). (3) timezone KST ADR(사용자 확정, ADR-first). (4) **외부 PR #277**(ADR-0036 stage5 기본-ON 안전장치 amend) — 사용자 disposition 대기 중(reviewer 플로우로 처리/직접 검토/close 중 택1 질문 박제, t4 부터 미응답). 세션 tc10 종료(턴캡 10 도달) — 본 backlogNote 가 다음 진입점(cron/새 /loop)의 planner 입력.",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-tc10",
     "since": "2026-06-10T23:46:49+09:00",
     "note": "loop@WIN-JQIPLSBL9QV-tc10 /loop 세션(turn cap 10) t1 — Q-0034 RESOLVED(옵션 1)로 unblock. 권위 lock = claude/lock-driver tip b116046(holder=loop, since 동기). 본 STATE.lock 은 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json. ADR-0038 ACCEPTED + slice 1 T-0333 큐잉. t2 부터 T-0333 executor(pr-mode) 진행."
   },
-  "lastActivity": "2026-06-11T03:20:00+09:00",
-  "lastCommit": "a2672db",
+  "lastActivity": "2026-06-11T03:52:00+09:00",
+  "lastCommit": "bfdb898",
   "mostRecentTasks": [
+    "T-0337",
     "T-0336",
     "T-0335",
     "T-0334",
-    "T-0333",
-    "T-0332"
+    "T-0333"
   ],
   "loopSession": {
     "turnCount": 10,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-tc10",
     "startedAt": "2026-06-10T23:46:49+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t10(cap 마지막) — T-0337 pr-mode: executor 구현(reevaluate e2e 9건+ADR §D5 amendment, +299/-0) → branch(1f6e028) push → PR #281 open. currentTask=T-0337·prNumber=281 박제 — **본 turn 에서 merge 미완 시 LOOP §1[2] PR Resume 판정이 다음 진입점(cron/새 loop)에서 이어받는다**. e2e 는 CI 실 PG 가 검증 authority(로컬 PG 부재)."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) **세션 종료(cap 도달)** — t1: Q-0034 RESOLVED(옵션1)+ADR-0038 ACCEPTED flip. t2: T-0333(DTO reevaluate flag, PR #276). t3: plan. t4: T-0334(vestigial mode 제거+amend, PR #278)+외부 PR #277 발견. t5: plan(+gh 재로그인 지원). t6: T-0335(service reeval opt-out, PR #279, nit-in-PR closure). t7: plan. t8: T-0336(controller dispatch+User 403, PR #280). t9: plan. t10: T-0337(e2e+§D5 실측, PR #281). **성과: ADR-0038 impl chain 5 slice 전부 머지(전 PR round1 APPROVE), tasksCompleted 329→334(+5)**. gh 간헐 401 → retry-loop 표준+memory 박제. 잔여: doc-sync/live-LLM(6→30)/timezone/PR #277 disposition. 권위 lock tombstone release 완료. 다음 진입점은 backlogNote 기반 planner.",
+    "endedAt": "2026-06-11T03:52:00+09:00"
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
@@ -137,7 +138,8 @@
     "T-0333": 1,
     "T-0334": 1,
     "T-0335": 1,
-    "T-0336": 1
+    "T-0336": 1,
+    "T-0337": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -600,7 +602,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 333,
+    "tasksCompleted": 334,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
