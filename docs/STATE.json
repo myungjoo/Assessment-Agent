@@ -5,30 +5,30 @@
     "multiTaskFire": true,
     "fineGrainedConcurrency": false
   },
-  "currentTask": "T-0336",
+  "currentTask": null,
   "nextTask": null,
-  "backlogNote": "T-0335 DONE·merge(loop@WIN-JQIPLSBL9QV-tc10 t6, pr-mode, PR #279 squash ca6d074): ADR-0038 slice 2b — admin-persist 에 reevaluate strict-true opt-out 분기(reeval reset-and-recreate·Conflict 전파·created 항상 true, default fill 회귀 0). reviewer round1 APPROVE + MINOR-1(describe 헤더) nit-in-PR closure(bcceae0). **ADR-0038 chain 잔여**: slice 3(controller wiring — PeriodBridgeDto.reevaluate 를 admin 분기에서 generateAndPersist 5번째 인자로 dispatch + User+reevaluate fail-closed reject §Decision4(ii) + controller stale 주석 L246/spec L967 동기) → slice 4(e2e: replace 실측/default 보존/동시 reevaluate 수렴 §Decision5/User 영속 0) → chain 후 doc-sync(api.md L102 — T-0334 Follow-ups 박제). 병행 후보: live-LLM 검증(만료 6/30, 6/25 격상), timezone KST ADR. **외부 PR #277**(ADR-0036 stage5 amend) 사용자 disposition 대기 중. gh 간헐 401: 재로그인 후 완화(graphql 5/5 ok)됐으나 merge attempt1 fail 재현 — retry-loop 표준 유지(memory 박제). 새 token workflow scope 부재 — ci.yml task 전 gh auth refresh -s workflow 필요.",
+  "backlogNote": "T-0336 DONE·merge(loop@WIN-JQIPLSBL9QV-tc10 t8, pr-mode, PR #280 squash a2672db): ADR-0038 slice 3 — controller reevaluate dispatch(Admin pass-through) + User fail-closed 403(§Decision4 (ii)). reviewer round1 APPROVE findings 0. **reevaluate 기능이 endpoint 까지 배선 완료** — Admin 은 POST /api/assessment-evaluation/period 에 reevaluate:true 로 재평가 가능(DTO T-0333 → service T-0335 → controller T-0336). **ADR-0038 chain 잔여**: slice 4(e2e: replace 실측 row stable+content NEW / default first-write-wins 보존 / 동시 reevaluate 수렴 semantics §Decision5 실측 박제 / User+reevaluate 영속 0) → chain 후 doc-sync(api.md L102 mode 절 제거+reevaluate 추가 — T-0334 Follow-ups). 병행 후보: live-LLM(만료 6/30, 6/25 격상), timezone KST ADR. **외부 PR #277** 사용자 disposition 대기. gh 간헐 401 은 retry-loop 표준(memory 박제, workflow scope 부재 주의).",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-tc10",
     "since": "2026-06-10T23:46:49+09:00",
     "note": "loop@WIN-JQIPLSBL9QV-tc10 /loop 세션(turn cap 10) t1 — Q-0034 RESOLVED(옵션 1)로 unblock. 권위 lock = claude/lock-driver tip b116046(holder=loop, since 동기). 본 STATE.lock 은 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json. ADR-0038 ACCEPTED + slice 1 T-0333 큐잉. t2 부터 T-0333 executor(pr-mode) 진행."
   },
-  "lastActivity": "2026-06-11T02:25:00+09:00",
-  "lastCommit": "ca6d074",
+  "lastActivity": "2026-06-11T02:46:00+09:00",
+  "lastCommit": "a2672db",
   "mostRecentTasks": [
+    "T-0336",
     "T-0335",
     "T-0334",
     "T-0333",
-    "T-0332",
-    "T-0331"
+    "T-0332"
   ],
   "loopSession": {
     "turnCount": 8,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-tc10",
     "startedAt": "2026-06-10T23:46:49+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t8 — T-0336 pr-mode: executor 구현(controller reevaluate dispatch+User 403, 2파일 +220/-14, 6844 test) → branch(1a0964c) push → PR #280 open. currentTask=T-0336·prNumber=280 박제. 다음: reviewer → 4-게이트 → merge. turn cap 잔여 2."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t8 — T-0336 DONE·merge(PR #280 squash a2672db, attempt1). reviewer round1 APPROVE findings 0, approval-gate rerun green, 4-게이트 PASS. ADR-0038 slice 1→2a→2b→3 완료, reevaluate 가 endpoint 까지 배선. 잔여 slice 4(e2e)+doc-sync. tasksCompleted 332→333. 다음 t9: planner(slice 4 큐잉) — turn cap 잔여 2(t9 planner + t10 마무리 또는 t9 에서 세션 wrap 판단)."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
@@ -136,7 +136,8 @@
     "T-0328": 1,
     "T-0333": 1,
     "T-0334": 1,
-    "T-0335": 1
+    "T-0335": 1,
+    "T-0336": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -599,7 +600,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 332,
+    "tasksCompleted": 333,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

@@ -2,7 +2,10 @@
 id: T-0336
 title: controller period 분기 reevaluate dispatch + User fail-closed reject (ADR-0038 slice 3)
 phase: P5
-status: IN_PROGRESS
+status: DONE
+completedAt: 2026-06-11T02:45:00+09:00
+mergedAs: a2672db
+reviewRounds: 1
 commitMode: pr
 prNumber: 280
 coversReq: [REQ-009, REQ-040, REQ-045]
