@@ -21,6 +21,19 @@ permissions:
   contents: read
   pull-requests: read
 
+# ADR-0036 §Decision 6 / §rollout stage 4 — per-PR concurrency group.
+# group 식별자: pull_request push 와 pull_request_review 는 PR 번호로 ci-<PR#> 그룹에 묶이고,
+# main push 는 github.ref(=refs/heads/main)로 ci-refs/heads/main 그룹이 된다. issue_comment 는
+# github.event.pull_request 가 null(PR data 는 event.issue.pull_request 아래)이라 github.ref 로
+# 폴백돼 ci-refs/heads/main 그룹에 합류한다(STATE.json benignRedNote case B 와 일치). 서로 다른
+# PR 과 main push 는 별개 그룹이라 서로 cancel 하지 않는다(비용이 동시 driver 수 N 선형 안에 머묾).
+# cancel-in-progress 는 pull_request event 일 때만 true — 그래서 같은 PR 의 연속 push 만 직전 run 을
+# cancel 하고, main push·issue_comment·pull_request_review 의 연속 run 은 cancel 하지 않아
+# main-push CI green 게이트(CLAUDE.md §11 / R-114)와 approval-gate rerun(§3.3 gate-2) 무결성을 보호한다.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ci:
     name: 기본 검사
