@@ -850,7 +850,8 @@ describe("AssessmentEvaluationController.period (unit — Admin full-persist bra
     expect(findPersonSpy).toHaveBeenCalledTimes(1);
     expect(findPersonSpy).toHaveBeenCalledWith("target-person");
     // generateAndPersist 위임 — resolved serviceIdentities + since(pass-through) +
-    // modelId 미지정 + context 4-tuple(periodStart Date 파싱).
+    // modelId 미지정 + context 4-tuple(periodStart Date 파싱) + reevaluate 미지정
+    // 은 5번째 인자 undefined 그대로 pass-through(T-0336, ADR-0038 §Decision1).
     expect(adminSpy).toHaveBeenCalledTimes(1);
     expect(adminSpy).toHaveBeenCalledWith(
       { serviceIdentities: [{ service: "github", externalId: "octocat" }] },
@@ -862,6 +863,7 @@ describe("AssessmentEvaluationController.period (unit — Admin full-persist bra
         scope: "commit",
         periodStart: new Date("2026-06-01T00:00:00.000Z"),
       },
+      undefined,
     );
     // 응답 shape — 영속 식별자 + 좌표 + created. periodStart 는 ISO string 직렬화.
     expect(result).toEqual({
@@ -963,12 +965,13 @@ describe("AssessmentEvaluationController.period (unit — Admin full-persist bra
     );
   });
 
-  // branch: Admin 분기의 context 는 4-tuple 만 — persist mode 류의 키가 baking 되지
-  // 않는다(generateAndPersist 가 항상 "fill" 정책 — reeval opt-out 분기는 slice 2b).
-  // 구 vestigial dto.mode 는 T-0334 에서 제거(ADR-0038 §Decision1 amendment) — mode
-  // 제공 payload 는 boundary 의 ValidationPipe 가 정의 외 필드로 400 거부한다(아래
-  // ValidationPipe negative cases cover).
-  it("Admin 분기 context 는 4-tuple 만이며 mode 키를 baking 하지 않는다 (branch — mode no-bake, always fill)", async () => {
+  // negative: reevaluate 미지정 시 Admin 분기는 reeval 로 baking 하지 않는다 —
+  // 5번째 인자가 undefined 그대로 pass-through 돼(가공·정규화 0) first-write-wins
+  // default 가 보존된다(ADR-0038 §Decision3 — strict-true 판정은 service 책임).
+  // context 4-tuple 에도 mode 류 키를 baking 하지 않는다(구 vestigial dto.mode 는
+  // T-0334 제거 — mode 제공 payload 는 ValidationPipe 가 정의 외 필드로 400 거부,
+  // 아래 ValidationPipe negative cases cover).
+  it("reevaluate 미지정 시 Admin 분기는 reeval 로 baking 하지 않는다 (negative — 5번째 인자 undefined, default first-write-wins 보존)", async () => {
     const { controller, adminSpy } = makePeriodController({});
 
     await controller.period(
@@ -976,6 +979,9 @@ describe("AssessmentEvaluationController.period (unit — Admin full-persist bra
       adminActor,
     );
 
+    // 5번째 인자는 명시적 undefined pass-through(reeval 오인 baking 0).
+    expect(adminSpy.mock.calls[0].length).toBe(5);
+    expect(adminSpy.mock.calls[0][4]).toBeUndefined();
     const passedContext = adminSpy.mock.calls[0][3] as Record<string, unknown>;
     // context 4-tuple 에 mode 키 부재(reeval baking 0).
     expect(passedContext).not.toHaveProperty("mode");
@@ -985,6 +991,186 @@ describe("AssessmentEvaluationController.period (unit — Admin full-persist bra
       "personId",
       "scope",
     ]);
+  });
+});
+
+// =======================================================================
+// POST /api/assessment-evaluation/period — reevaluate dispatch
+// (T-0336, ADR-0038 slice 3, §Decision1 flag dispatch + §Decision4 (ii)
+// User fail-closed reject). Admin true/false 분기 + User true/false 분기 +
+// negative(타인 personId 조합 선행 결정성) cover. Admin/User 의 "미지정" 분기는
+// 위 두 describe 의 기존 happy + 재정의된 5번째-인자-undefined negative 가 cover.
+// wrong-type reevaluate 거부는 DTO ValidationPipe 책임(T-0333 기 커버) — controller
+// 단은 boolean 전제.
+// =======================================================================
+describe("AssessmentEvaluationController.period (unit — reevaluate dispatch, ADR-0038 slice 3)", () => {
+  // happy: Admin + reevaluate: true → person resolve 후 generateAndPersist 1 회
+  // 위임 + **5번째 인자 true** 가공 없이 pass-through + 영속 식별자/좌표 응답 보존.
+  it("Admin + reevaluate: true 시 generateAndPersist 5번째 인자로 true 를 pass-through 한다 (happy — reeval dispatch)", async () => {
+    const { controller, adminSpy, generateSpy } = makePeriodController({
+      adminImpl: async () =>
+        makeAdminPersistResult({
+          id: "assessment-reeval-1",
+          personId: "target-person",
+          created: true,
+        }),
+      findPersonImpl: async () =>
+        ({
+          id: "target-person",
+          serviceIdentities: [{ service: "github", externalId: "octocat" }],
+        }) as unknown as PersonWithIdentities,
+    });
+
+    const result = await controller.period(
+      makePeriodDto({ personId: "target-person", reevaluate: true }),
+      adminActor,
+    );
+
+    expect(adminSpy).toHaveBeenCalledTimes(1);
+    expect(adminSpy).toHaveBeenCalledWith(
+      { serviceIdentities: [{ service: "github", externalId: "octocat" }] },
+      { since: "2026-06-01T00:00:00.000Z" },
+      { modelId: undefined },
+      {
+        personId: "target-person",
+        period: "week",
+        scope: "commit",
+        periodStart: new Date("2026-06-01T00:00:00.000Z"),
+      },
+      true,
+    );
+    // 영속 식별자/좌표 응답 shape 보존(reevaluate 분기가 응답 가공을 바꾸지 않는다).
+    expect(result).toEqual({
+      assessmentId: "assessment-reeval-1",
+      personId: "target-person",
+      period: "week",
+      scope: "commit",
+      periodStart: "2026-06-01T00:00:00.000Z",
+      created: true,
+    });
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // branch: Admin + reevaluate: false → 5번째 인자 false 그대로(정규화 0 —
+  // strict-true 판정은 service 책임, first-write-wins 보존).
+  it("Admin + reevaluate: false 시 5번째 인자로 false 를 그대로 pass-through 한다 (branch — explicit false, fill 보존)", async () => {
+    const { controller, adminSpy } = makePeriodController({});
+
+    await controller.period(
+      makePeriodDto({ personId: "target-person", reevaluate: false }),
+      adminActor,
+    );
+
+    expect(adminSpy).toHaveBeenCalledTimes(1);
+    expect(adminSpy.mock.calls[0][4]).toBe(false);
+  });
+
+  // error path: Admin + reevaluate: true 분기에서 generateAndPersist 가
+  // ConflictException reject(T-0335 reeval 경로 Conflict 전파 계약) 시 controller
+  // 가 raw 전파한다(swallow 0 — NestJS 가 409 로 매핑).
+  it("Admin + reevaluate: true 분기에서 generateAndPersist 의 ConflictException 을 raw 전파한다 (error path — reeval Conflict 전파)", async () => {
+    const conflict = new ConflictException("동시 재평가 경합");
+    const { controller } = makePeriodController({
+      adminImpl: async () => {
+        throw conflict;
+      },
+    });
+
+    await expect(
+      controller.period(
+        makePeriodDto({ personId: "target-person", reevaluate: true }),
+        adminActor,
+      ),
+    ).rejects.toBe(conflict);
+  });
+
+  // error path: User + reevaluate: true → 403 ForbiddenException(재평가는 Admin
+  // 전용, ADR-0038 §Decision4 (ii)) + self-only 검사·person resolve·ephemeral
+  // 위임·admin 위임 **전부 미호출**(선행 차단).
+  it("User + reevaluate: true 시 403(ForbiddenException) + 위임/resolve 전부 미호출 — 재평가는 Admin 전용 (error path — fail-closed reject)", async () => {
+    const { controller, generateSpy, adminSpy, findPersonSpy } =
+      makePeriodController({});
+
+    let caught: unknown;
+    try {
+      await controller.period(
+        makePeriodDto({ reevaluate: true }),
+        userActor("person-1"),
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ForbiddenException);
+    // 메시지에 재평가/Admin 전용 의미 명시(한국어, §Decision4 silent 혼란 차단).
+    expect((caught as ForbiddenException).message).toContain("재평가");
+    expect((caught as ForbiddenException).message).toContain("Admin");
+    // 차단이 모든 위임/resolve 보다 선행 — 전부 미호출.
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(findPersonSpy).not.toHaveBeenCalled();
+    expect(adminSpy).not.toHaveBeenCalled();
+  });
+
+  // negative: User + reevaluate: true + 타인 personId 조합 — 재평가 거부가
+  // self-only 위반 검사보다 **선행**해 거부 사유가 결정적(403, 사유 = 재평가 거부).
+  it("User + reevaluate: true + 타인 personId 조합도 재평가 거부(403)가 self-only 위반보다 선행한다 (negative — 거부 사유 결정성)", async () => {
+    const { controller, generateSpy, findPersonSpy } = makePeriodController({});
+
+    let caught: unknown;
+    try {
+      await controller.period(
+        makePeriodDto({ personId: "person-1", reevaluate: true }),
+        userActor("attacker"),
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ForbiddenException);
+    // 거부 사유가 self-only 가 아니라 재평가 거부로 결정적이다(선행 차단).
+    expect((caught as ForbiddenException).message).toContain("재평가");
+    expect((caught as ForbiddenException).message).not.toContain("self-only");
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(findPersonSpy).not.toHaveBeenCalled();
+  });
+
+  // flow: User + reevaluate: false → 기존 self-only ephemeral 동작 그대로(회귀 0).
+  // 미지정 분기는 위 self-only describe 의 기존 happy(makePeriodDto() 기본값)가 cover.
+  it("User + reevaluate: false 시 기존 self-only ephemeral 동작 그대로 위임한다 (flow — explicit false, 회귀 0)", async () => {
+    const expected = [makeEvaluationResult()];
+    const { controller, generateSpy, adminSpy } = makePeriodController({
+      generateImpl: async () => expected,
+    });
+
+    const result = await controller.period(
+      makePeriodDto({ reevaluate: false }),
+      userActor("person-1"),
+    );
+
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+    expect(adminSpy).not.toHaveBeenCalled();
+    expect(result).toBe(expected);
+  });
+
+  // flow: User + reevaluate: false 에서도 self-only 위반(타인 personId)은 기존
+  // fail-closed deny 그대로(재평가 차단이 false 분기 동작을 바꾸지 않는다).
+  it("User + reevaluate: false + 타인 personId 는 기존 self-only deny(403) 그대로다 (flow — false 분기 self-only 보존)", async () => {
+    const { controller, generateSpy } = makePeriodController({});
+
+    let caught: unknown;
+    try {
+      await controller.period(
+        makePeriodDto({ personId: "person-1", reevaluate: false }),
+        userActor("attacker"),
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ForbiddenException);
+    // 사유는 기존 self-only(재평가 거부 아님) — false 분기는 회귀 0.
+    expect((caught as ForbiddenException).message).toContain("self-only");
+    expect(generateSpy).not.toHaveBeenCalled();
   });
 });
 

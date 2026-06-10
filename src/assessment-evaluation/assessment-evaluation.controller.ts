@@ -242,8 +242,11 @@ export class AssessmentEvaluationController {
   //     (row 부재 시 그 service 가 NotFoundException(404) 전파 — controller 추가 분기 0).
   //   - since 는 dto.periodStart pass-through(도출 0 — task §Out of Scope). modelId 는
   //     본 slice 가 model 선택 입력을 받지 않으므로 미지정(undefined). service-layer
-  //     error 는 raw 전파(swallow 0). dto.mode 는 Admin 분기에서 reeval 로 baking 하지
-  //     않는다 — generateAndPersist 가 항상 "fill"(amended §Decision3, overwrite DEFERRED).
+  //     error 는 raw 전파(swallow 0). dto.reevaluate 는 Admin 분기에서 generateAndPersist
+  //     의 5번째 인자로 가공 없이 pass-through 된다(ADR-0038 §Decision1 — strict-true
+  //     판정은 service 책임, false/미지정은 first-write-wins default 보존 §Decision3).
+  //     비-Admin(User)이 reevaluate: true 를 명시하면 fail-closed reject(403, ADR-0038
+  //     §Decision4 (ii)) — "요청했으나 무시됨" silent 혼란 차단.
   @Post("period")
   @HttpCode(200)
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -260,13 +263,26 @@ export class AssessmentEvaluationController {
     return this.ephemeralForUser(dto, actor?.sub);
   }
 
-  // ephemeralForUser — User 분기(self-only ephemeral, T-0317 기존 동작 보존).
-  // principal sub 이 dto.personId 와 일치할 때만 진행하고, ephemeral bridge 에 위임해
+  // ephemeralForUser — User 분기(self-only ephemeral, T-0317 기존 동작 보존 +
+  // ADR-0038 §Decision4 (ii) reevaluate fail-closed reject). principal sub 이
+  // dto.personId 와 일치할 때만 진행하고, ephemeral bridge 에 위임해
   // `EvaluationResult[]` 를 persist 호출 0(DB write 0)으로 반환한다.
   private async ephemeralForUser(
     dto: PeriodBridgeDto,
     principalUserId: string | undefined,
   ): Promise<EvaluationResult[]> {
+    // 재평가 fail-closed reject(ADR-0038 §Decision4 (ii)) — 비-Admin 이
+    // reevaluate === true 를 명시하면 self-only 검사·person resolve·generateEphemeral
+    // 위임보다 **선행** 차단한다(전부 미호출 — 타인 personId 조합에서도 거부 사유가
+    // 재평가 거부로 결정적). User ephemeral 경로는 영속본이 없어 재평가 대상이 N/A 며,
+    // "요청했으나 무시됨" silent 혼란 대신 명시적 403 으로 의도를 드러낸다.
+    // false/미지정은 기존 self-only ephemeral 그대로(영속 write 0 구조 불변, 회귀 0).
+    if (dto.reevaluate === true) {
+      throw new ForbiddenException(
+        "재평가(reevaluate)는 Admin 전용이다 — User 경로는 영속본이 없어 재평가할 수 없다",
+      );
+    }
+
     // self-only 강제(fail-closed) — principal sub 이 부재(undefined/null)거나
     // dto.personId 와 불일치하면 진행 전 차단(타인 평가문 요청 거부). generateEphemeral
     // 위임은 이 검사 통과 후에만 수행된다.
@@ -298,7 +314,8 @@ export class AssessmentEvaluationController {
   // persistForAdmin — Admin 분기(full-persist, ADR-0037 §Decision1). self-only 우회
   // (임의 personId 허용). personId 를 resolve 한 뒤 context 4-tuple 을 조립해
   // generateAndPersist 에 위임하고, 영속 Assessment 식별자/좌표(`PeriodBridgeAdminResponse`)
-  // 를 반환한다. dto.mode 는 reeval 로 baking 하지 않는다(service 가 항상 "fill").
+  // 를 반환한다. dto.reevaluate 는 5번째 인자로 가공 없이 pass-through 한다(ADR-0038
+  // §Decision1 — strict-true 만 "reeval" 판정은 service 책임, baking·정규화 0).
   private async persistForAdmin(
     dto: PeriodBridgeDto,
   ): Promise<PeriodBridgeAdminResponse> {
@@ -320,13 +337,16 @@ export class AssessmentEvaluationController {
     };
 
     // Admin full-persist 위임 — resolved serviceIdentities + since(periodStart
-    // pass-through, 도출 0) + modelId 미지정 + context 4-tuple. service-layer error
-    // (evaluateActivities throw / persist 비-Conflict error 등)는 raw 전파(swallow 0).
+    // pass-through, 도출 0) + modelId 미지정 + context 4-tuple + reevaluate flag
+    // (5번째 인자, ADR-0038 §Decision1 — true/false/undefined 그대로 전달, 가공 0).
+    // service-layer error(evaluateActivities throw / persist error — reeval 경로의
+    // ConflictException 포함, T-0335 전파 계약)는 raw 전파(swallow 0).
     const { assessment, created } = await this.adminBridge.generateAndPersist(
       { serviceIdentities: person.serviceIdentities },
       { since: dto.periodStart },
       { modelId: undefined as unknown as string },
       context,
+      dto.reevaluate,
     );
 
     // 영속 Assessment 식별자/좌표를 응답 shape 로 박제(이후 조회의 source).
