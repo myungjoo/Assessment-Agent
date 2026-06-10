@@ -2,7 +2,9 @@
 id: T-0322
 title: period bridge controller Admin-role 분기 + 영속 Assessment 식별자 응답 추가
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T13:00:00+09:00
+result: 머지 — PR #270 squash 5186385. POST /period role dispatch(Admin/SuperAdmin→generateAndPersist 영속 식별자 응답 / User→ephemeral self-only 보존, isAdminRole(undefined)===false fail-closed). reviewer round1 APPROVE(MINOR 1 비차단 modelId double-cast), 4-게이트(CI ordering rerun green), controller 100% cov. (executor 1차 socket error → driver partial 정리 후 fresh 재dispatch.)
 commitMode: pr
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 170
