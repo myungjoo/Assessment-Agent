@@ -17,6 +17,7 @@
 | [p3-to-p4-transition.md](p3-to-p4-transition.md) | P3 → P4 전이 checkpoint — 진척 status quo (entity 5/11 / module 2/5 / ADR 1/4 / test-quality 4/4 9-cell closure) + 3 trigger option (eager / strict / hybrid) + 권장 hybrid-parallel | T-0063 (P3 → P4 transition) | 완료 (T-0063) |
 | [estimate-model.md](estimate-model.md) | planner estimate calibration — 7 회차 cap-bend case study (T-0055/56/57/58/61/62/63) + 4 카테고리 multiplier (× 1.5 / × 1.6 / × 1.3 / × 1.0) + planner 적용 절차 | T-0064 (estimate model 박제) | 완료 (T-0064) |
 | [race-patterns.md](race-patterns.md) | race pattern 7+7=14 회차 누적 박제 — gh pr merge worktree race (T-0048~T-0062) + reviewer-gate race-fix (T-0036~T-0047 + T-0061 `gh run rerun` SUCCESS) + integrator race-aware 평가 절차 cross-ref | T-0065 (race lessons doc) | 완료 (T-0065) |
+| [concurrency.md](concurrency.md) | fine-grained driver concurrency 운영 view — claim registry 저장 위치(단일 CAS 평면) + claims.json schema + select+claim 원자성(이중 claim 0 정확성 게이트) + 동시 claimable 조건 + staleness/PR-resume(slice 2+ forward-looking) | T-0327 (ADR-0036 stage 2 slice 1) | 부분 (slice 1 — schema + select+claim primitive) |
 
 ## 갱신 룰
 
