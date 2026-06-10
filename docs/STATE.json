@@ -6,26 +6,31 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": "T-0329",
-  "backlogNote": "planner 가 T-0329 큐잉(ADR-0036 §rollout stage3 slice1: LOOP §1[2] claim-pickup 분기 + reclaim primitive server-time now 주입 계약, commitMode direct doc-only). stage2 완료(T-0327 select+claim CAS PR #273 0e5a817 + T-0328 orphan 60분 회수+PR-resume PR #274 c496457) — primitive(scripts/select-claim.sh·reclaim-stale-claim.sh)는 박제됐으나 driver loop 가 언제 호출하는지 미통합(concurrency.md §5 'driver loop 통합 stage3' 명시). 본 slice 는 LOOP §1[2]에 토글-gated claim-pickup 분기(flags.fineGrainedConcurrency ON 시 lock-하 select+claim→release→lock-free 진행, OFF 시 기존 단일-task 경로 그대로) + reclaim server-time now 주입 계약(RECLAIM_NOW 주입, 미주입=회수 보류, RESUME 신호→PR-resume) 박제. 토글 OFF 유지(driver 동작 불변, forward-looking spec). dependency-free·non-escalate(adr0036Rollout.buildThrough=true·ACCEPTED·escalate 금지). **issue-still-relevant pre-check 통과**: origin/main HEAD c496457 의 LOOP.md §1[2]에 claim-pickup 분기 부재 확인(L102 'claim 취소'는 기존 pr-mode stand-down lock 해제 wording 이지 stage3 통합 아님) — 신규. doc-only(LOOP.md+STATE.json) → R-110 tester 면제. estimate: doc-only enumerated-section ×1.6 × inline-amend ×0.4 = ×0.64 ≈ 70 LOC/2파일(cap 내, T-0070/T-0073/T-0076 precedent). stage3 잔여: slice2(CLAUDE §10 N-driver 서술 sync, direct) + slice3(LOOP §4 코드-충돌 흡수 경계 sync, direct). stage4(per-PR CI group, pr)·stage5(토글 ON, direct, 30일 dogfood)는 Out of Scope. 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 진입은 human PROPOSED→ACCEPTED flip 후 별도 큐잉(dependency-free 아님). 다음 진입점: nextTask=T-0329 → currentTask 승격 후 execute(doc-only direct commit).",
+  "nextTask": null,
+  "backlogNote": "T-0329 DONE(loop@WIN-JQIPLSBL9QV-c10a t1, direct doc-only): LOOP §1[2]에 토글-gated claim-pickup 분기(flags.fineGrainedConcurrency ON 시 lock-하 reclaim+select-claim→claim 박제 즉시 release→lock-free executor, claimable 부재 no-op; OFF=기존 단일-task 경로 1:1 보존) + reclaim primitive server-time now 주입 계약(RECLAIM_NOW=server-time, 미주입=fail-closed 회수 보류, RESUME→[2] PR Resume 분기) 박제. 토글 OFF 유지(driver 동작 불변, forward-looking spec). adr0036Rollout.stage3=IN_PROGRESS. **stage3 잔여(전부 dependency-free direct doc, buildThrough·non-escalate)**: slice2(CLAUDE §10 동시실행 정책 N-driver 서술 sync) + slice3(LOOP §4 코드-충돌 흡수 경계 N-driver sync). stage4(per-PR CI concurrency group, pr)·stage5(토글 ON, 30일 dogfood)는 후속. 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 은 human PROPOSED→ACCEPTED flip gating(dependency-free 아님 — escalate 대상). 다음 진입점: currentTask·nextTask 둘 다 null → planner dispatch(stage3 slice2 큐잉 예상).",
   "lock": {
-    "holder": null,
-    "note": "cron@cloud-aa3s1 fire(2026-06-10T18:37 KST, schedule) — free tombstone(3acaa04) 확인 후 branch-CAS 획득(b0faadb). currentTask/nextTask 둘 다 null + unresolved HQ 0 + blockers 0 → planner-only turn: planner 가 T-0329(ADR-0036 stage3 slice1, direct doc-only) 큐잉·nextTask 승격. 본 필드는 non-authoritative human mirror — turn 종료 시 권위 claude/lock-driver tip tombstone({\"holder\":null})으로 release. 다음 진입점이 free 확인 후 재획득해 T-0329 execute."
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-c10a",
+    "since": "2026-06-10T18:45:45+09:00",
+    "loopSessionStartedAt": "2026-06-10T18:45:45+09:00",
+    "loopSessionTurnCount": 1,
+    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t1 — free tombstone(18de8ec) 확인 후 branch-CAS 획득(636c628). T-0329 DONE(direct doc-only). 권위 lock 은 branch claude/lock-driver tip 636c628 에서 보유(세션 동안 hold, turn 시작마다 since heartbeat) — 본 필드는 non-authoritative human mirror. 세션 종료(cap 도달/BLOCKED/work 소진) 시 tombstone release."
   },
-  "lastActivity": "2026-06-10T18:38:00+09:00",
+  "lastActivity": "2026-06-10T18:48:00+09:00",
   "lastCommit": "c496457",
   "mostRecentTasks": [
+    "T-0329",
     "T-0328",
     "T-0327",
     "T-0325",
-    "T-0326",
-    "T-0324"
+    "T-0326"
   ],
   "loopSession": {
-    "turnCount": 2,
-    "cap": 2,
-    "holder": "loop@WIN-JQIPLSBL9QV-7a5c",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-7a5c (autonomous dynamic, turn cap 2) t2 — T-0328 DONE·merge(ADR-0036 stage2 slice2: orphan claim 60분 staleness 회수 + PR-resume primitive, PR #274 squash c496457). reviewer round1 APPROVE(identity self-provide 처음부터 적용해 CI 1-pass), 4-게이트, CI green. tasksCompleted 324→325. stage2 완료(slice1 T-0327 + slice2 T-0328). 다음: stage3 driver loop 통합. turn cap 2 도달 — 다음 fire 는 새 진입점."
+    "turnCount": 1,
+    "cap": 10,
+    "holder": "loop@WIN-JQIPLSBL9QV-c10a",
+    "startedAt": "2026-06-10T18:45:45+09:00",
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t1 — T-0329 DONE(direct doc-only): ADR-0036 stage3 slice1 LOOP §1[2] 토글-gated claim-pickup 분기 + reclaim server-time now 주입 계약 박제. 토글 OFF 유지(driver 동작 불변). tasksCompleted 325→326. 다음 t2: currentTask·nextTask 둘 다 null → planner dispatch(stage3 slice2 CLAUDE §10 N-driver sync 큐잉 예상)."
   },
   "ci": {
     "lastRun": "2026-06-10T16:58:00+09:00",
@@ -569,7 +574,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 325,
+    "tasksCompleted": 326,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -582,6 +587,7 @@
     "toggleGate": "stage 5 — flags.fineGrainedConcurrency ON 은 실측(throughput 이득 > coordination 비용) 후 결정",
     "stage1": "DONE (T-0326, flags.fineGrainedConcurrency 자리 + planner 독립-stream 분해 정책)",
     "note": "사용자 2026-06-10 결정: ADR-0036 ACCEPTED. driver 공급 측 break-even(두 번째 driver 존재)은 cron+multi-loop 상시 진입점으로 이미 충족 — stage 1→2 의 '독립 task ≥2 실증' 게이트는 stage 2-5 인프라 구축을 막지 않는다(build-through). planner 는 ADR-0036 §rollout stage 2(claim registry select+claim)→3(loop 재작성+CLAUDE§10/LOOP§4 동기)→4(per-PR concurrency group)→5(토글) 를 dependency chain 으로 큐잉하되, ACCEPTED 재확인 차 escalate 하지 말 것. 각 stage 정확성 게이트(이중 claim 0·orphan 회수·충돌 없음)는 강제. toggle ON(stage5)만 실측 gating. 기존 nextTask=T-0325(ADR-0038)는 유효 — ADR-0036 stage 2 와 독립이면 어느 순서든 가능(둘이 첫 실증 독립-stream 쌍 후보).",
-    "stage2": "DONE — slice1(T-0327 select+claim CAS) + slice2(T-0328 orphan 60분 회수 + PR-resume) 머지. 다음 stage3: §1 loop 재작성(critical-section lock + claim pickup) + CLAUDE§10/LOOP§4 동기."
+    "stage2": "DONE — slice1(T-0327 select+claim CAS) + slice2(T-0328 orphan 60분 회수 + PR-resume) 머지. 다음 stage3: §1 loop 재작성(critical-section lock + claim pickup) + CLAUDE§10/LOOP§4 동기.",
+    "stage3": "IN_PROGRESS — slice1(T-0329) DONE: LOOP §1[2]에 토글-gated claim-pickup 분기((a) lock-하 reclaim+select-claim, (b) claim 박제 즉시 lock release, (c) lock-free executor, (d) claimable 부재 no-op) + reclaim server-time now 주입 계약(RECLAIM_NOW=server-time, 미주입=fail-closed 회수 보류, RESUME→[2] PR Resume 분기) 박제. 토글 OFF(flags.fineGrainedConcurrency=false)면 inert — driver 동작 불변. 잔여: slice2(CLAUDE §10 동시실행 정책 N-driver 서술 sync, direct) + slice3(LOOP §4 코드-충돌 흡수 경계 N-driver sync, direct). stage4(per-PR CI concurrency group, pr)·stage5(토글 ON, 30일 dogfood)는 후속."
   }
 }

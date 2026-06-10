@@ -44,6 +44,41 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
   (사람이 답할 때까지 대기). turn end summary에 그 사실 표기.
 
 [2] 작업 선정 + (PR 미완료) Resume 판정
+- **claim-pickup 분기 (오직 flags.fineGrainedConcurrency == true 일 때 — ADR-0036 stage3)**:
+    STATE.flags.fineGrainedConcurrency 가 `true` 면 단일-task pickup 대신
+    claim 기반 N-driver pickup 으로 분기한다(이중 게이트: flag true 가 아니면
+    본 sub-step 통째 skip 후 아래 단일-task 경로로). 절차:
+    (a) [1] 에서 잡은 lock(critical section) 보유 상태에서 회수 우선 점검:
+        server-time(GitHub API `Date` 헤더 / `gh run` UTC)을 확보해
+        `RECLAIM_NOW=<server-time> scripts/reclaim-stale-claim.sh <self-session>`
+        를 호출, orphan claim 회수 + PR-resume 신호를 받는다(server-time now
+        주입 계약 — 아래 별도 단락). `RESUME prNumber=<n> taskId=<T-X>` stdout
+        신호가 있으면 그 task 를 currentTask 로 삼고 **새 PR 생성 대신 본 [2]
+        의 PR Resume 판정**(아래 a~f 재사용)으로 분기한다.
+    (b) 회수 후 `scripts/select-claim.sh <self-session> <claimable 후보…>` 로
+        **첫 claimable task 1개를 select+claim** 한다 — claim append + lock
+        tombstone CAS push 가 **같은 commit** 이라 claim 박제 즉시 lock release
+        (critical section 종료). claim 성공 = 그 taskId 를 currentTask 로 삼는다.
+    (c) claim 박제 후에는 **lock-free 로** [3] EXECUTOR 호출 → implement/test 를
+        진행한다(lock 점유 0 — 다른 driver 가 disjoint task 를 동시 claim 가능).
+    (d) select-claim 이 non-zero(claimable 부재 — 후보 전부 이미 claimed)면
+        **no-op 종료**(다른 driver 가 가용 task 를 모두 소유 중 — 이번 fire 는 진행 없음).
+    **토글 OFF(현 상태, flags.fineGrainedConcurrency=false — T-0326)면 본 분기는
+    inert** 다. 아래 단일-task pickup(currentTask/nextTask/planner dispatch) 경로가
+    그대로 현행 동작이며, claim-pickup 은 토글 ON(stage5) 일 때만 진입한다 —
+    forward-looking spec(driver 동작 변경 0). ADR-0036 §Decision 1/§rollout stage3.
+- **reclaim primitive server-time now 주입 계약 (ADR-0036 §Decision 5 — clock-skew 오회수 차단)**:
+    위 (a) 의 reclaim 호출 시 회수 판정의 now 는 **server-time 기준으로 주입**한다
+    (`RECLAIM_NOW` env 또는 인자 2). driver 는 server-time 을 GitHub API 응답의
+    `Date` 헤더 또는 `gh run` 의 UTC 시각으로 확보한다 — **로컬 `date` 를 회수
+    임계 판정에 쓰지 않는다**(기기 간 clock-skew 가 살아있는 claim 을 오회수할 위험).
+    **server-time 확보 불가 시 RECLAIM_NOW 를 주입하지 않는다** — primitive 가
+    회수를 보류(변경 0, 오회수 0)하므로 미주입 자체가 안전한 fail-closed 계약이다
+    (concurrency.md §5 / reclaim-stale-claim.sh 헤더 "now 미주입 — 회수 보류" mirror).
+    `RESUME prNumber=<n> taskId=<T-X>` stdout 신호를 받으면 **새 PR 생성 대신**
+    본 [2] 의 PR Resume 판정(a~f)으로 분기해 그 PR 을 이어 진행한다(중복 PR 방지 —
+    ADR-0034 사고 메커니즘 직접 차단). 실제 server-time fetch·PR checkout 명령은
+    driver 책임(새 스크립트 도입 0 — LOOP 텍스트 계약만).
 - state.currentTask가 있으면 그것을 그대로 사용한다.
   - **추가**: task.commitMode == "pr" 이고 task 파일 frontmatter 에 `prNumber: N`
     이 있으면 **이전 turn 의 PR 진행이 도중 종료된 상태로 본 turn 에서 resume**.

@@ -2,7 +2,8 @@
 id: T-0329
 title: ADR-0036 stage3 slice1 — LOOP §1 claim-pickup 분기 + server-time now 주입 계약 (토글-gated)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T18:48:00+09:00
 commitMode: direct
 coversReq: [TBD]
 estimatedDiff: 70
