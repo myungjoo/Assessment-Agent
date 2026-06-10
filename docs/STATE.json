@@ -9,14 +9,10 @@
   "nextTask": null,
   "backlogNote": "T-0332 DONE·merge(loop@WIN-JQIPLSBL9QV-c10a t7~t8, pr-mode, PR #275 squash aedd7be): ci.yml 에 workflow-level concurrency key 추가(group=ci-<PR#>||ref, cancel-in-progress=pull_request event 한정 → 같은 PR 연속 push 만 직전 run cancel, main push·issue_comment·pull_request_review 비-cancel = R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE(MINOR-1 주석 nit → 후속 commit 정정, nit-in-PR closure), 4-게이트 PASS, CI green(2469a8a run 27270290374 success). **ADR-0036 stage4 완료 → adr0036Rollout.stage4=DONE**. **남은 ADR-0036**: stage5(flags.fineGrainedConcurrency 토글 ON)뿐 — stage1~4 머지 + 30일 dogfood + 실측(throughput 이득 > coordination 비용) 합의 후 결정 = **human/측정 gating, dependency-free 아님(escalate)**. 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 도 human PROPOSED→ACCEPTED flip gating(escalate). 다음 진입점: currentTask·nextTask 둘 다 null → planner dispatch. **dependency-free P5 work 소진 가능성 높음**(ADR-0036 buildThrough chain stage1~4 전부 shipped) → planner 가 HIGH make-work-bar survey 후 신규 dependency-free 가치 미식별 시 escalate 예상.",
   "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-c10a",
-    "since": "2026-06-10T19:41:15+09:00",
-    "loopSessionStartedAt": "2026-06-10T18:45:45+09:00",
-    "loopSessionTurnCount": 8,
-    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t8 — T-0332 DONE·merge(PR #275 squash aedd7be): CI(2469a8a run 27270290374) success 확인 → 4-게이트 PASS → gh squash merge + branch delete. ADR-0036 stage4 완료. 권위 lock heartbeat c7cb98b→(t8 heartbeat, since=19:41). 본 필드는 non-authoritative human mirror. 세션 종료 시 tombstone release."
+    "holder": null,
+    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t9 — planner survey 가 dependency-free P5 work 소진 판정 → Q-0034 escalate. 미해결 humanQuestion 존재 → 세션 종료(no reschedule, LOOP §1[8](a)). 권위 lock 은 turn 종료 시 claude/lock-driver tip tombstone({\"holder\":null})으로 release — 다음 진입점(cron/loop)이 free 확인 후 Q-0034 미해결이면 [1] 에서 즉시 no-op 종료(사람이 답할 때까지 대기). Q-0034 RESOLVED 후 재진입이 unblock task pickup."
   },
-  "lastActivity": "2026-06-10T19:41:15+09:00",
+  "lastActivity": "2026-06-10T19:47:10+09:00",
   "lastCommit": "aedd7be",
   "mostRecentTasks": [
     "T-0332",
@@ -26,11 +22,12 @@
     "T-0328"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-c10a",
     "startedAt": "2026-06-10T18:45:45+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t8 — T-0332 DONE·merge(PR #275 squash aedd7be, ADR-0036 stage4 ci.yml per-PR concurrency group). CI(2469a8a run 27270290374) success → 4-게이트 PASS → gh squash merge + branch delete. reviewRounds[T-0332]=1. tasksCompleted 328→329. **ADR-0036 rollout: stage1~4 전부 shipped, stage5(토글 ON)만 남음 = dogfood/실측 human gating**. 다음 t9: planner dispatch — dependency-free P5 work 소진 가능성 높아 HIGH make-work-bar survey 후 escalate 예상. turn cap(10) 근접 — t9~t10 후 /compact 안내."
+    "endedAt": "2026-06-10T19:47:10+09:00",
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t9 — **세션 종료**(Q-0034 escalate, 미해결 humanQuestion → LOOP §1[8](a) no reschedule). planner HIGH make-work-bar survey: ADR-0036 buildThrough chain(stage1~4) 전부 shipped, open PR 0·BLOCKED 0·CI green, 신규 dependency-free 가치 미식별. 남은 4 방향(stage5 토글 ON·ADR-0038 PROPOSED→ACCEPTED flip·live-LLM credential·기타)은 전부 human/측정/credential 게이트. **세션 성과(t1~t9)**: T-0329(LOOP §1[2] claim-pickup)+T-0330(CLAUDE §10 N-driver)+T-0331(LOOP §4 충돌 흡수)=ADR-0036 stage3 완료, T-0332(ci.yml per-PR concurrency, PR #275)=stage4 완료. tasksCompleted 325→329(+4). 권위 lock tombstone release. 다음 진입점은 Q-0034 RESOLVED 까지 no-op."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
@@ -143,6 +140,24 @@
   "blockersResolvedNote2": "B-ci-infra-2026-06-08T21:07Z (3+ 연속 main CI runner 미할당 infra-fail) 는 2026-06-09T02:33Z 해소. 원인 = private repo 의 GitHub Actions spending limit $0 (결제수단만 추가로는 overage 미허용 — 무료 minutes 소진 후 runner 미할당). 사용자가 spending limit 상향 후 run 27167117992 rerun 이 runner 정상 할당 + 전체 green. ci-infra 는 코드 회귀가 아니므로 tasksBlocked counter increment 안 함(7 유지). Q-0028 RESOLVED 동반.",
   "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지. B-credential-2026-06-04T16:04Z (cron@cloud-bc1cce 16:04 fire 의 refs/locks/* 403 stale-탈취 실패) 는 동일 env 한계 재발화 — **loop@WIN-JQIPLSBL9QV-s55 가 session #55 t8 에서 정상 진행하며 자동 해소**(cron 이 못 한 T-0229 bookkeeping·Q-0022 escalation·counter 정합을 본 로컬 driver 가 완료, cron d82127d 의 blocker 기록을 본 commit 에서 blockers[]→[] 로 close). tasksBlocked counter 는 increment 하지 않는다(반복 env 한계지 정책 실패 아님). **근본 원인 = lock since 미갱신으로 60min stale 오판 — 본 turn 부터 매 turn since=now heartbeat 적용해 재발 차단.**",
   "humanQuestions": [
+    {
+      "id": "Q-0034",
+      "raisedAt": "2026-06-10",
+      "raisedBy": "loop@WIN-JQIPLSBL9QV-c10a t9 planner",
+      "reason": "needs-human-decision",
+      "status": "OPEN",
+      "summary": "ADR-0036 fine-grained concurrency 의 buildThrough chain(stage1~4)이 전부 shipped 됐다 — stage1(claims.json schema + lock-하 atomic select+claim CAS primitive, T-0327) / stage2(orphan claim 60분 staleness 회수 + PR-resume primitive, T-0328) / stage3(driver loop 통합 spec: LOOP §1[2] 토글-gated claim-pickup T-0329 + CLAUDE §10 N-driver 서술 T-0330 + LOOP §4 충돌 흡수 경계 T-0331) / stage4(ci.yml per-PR concurrency group, T-0332 PR #275 squash aedd7be) 가 전부 머지·reviewer-APPROVE·CI-green 이며 토글(flags.fineGrainedConcurrency)은 OFF 유지 = driver 동작 불변(forward-looking spec). HIGH make-work-bar 로 origin/main(cdecb14) 실코드를 대조 survey 했으나 신규 material dependency-free 가치는 미식별 — dependency-free P5 작업 소진. open PR 0, BLOCKED task 0(T-0001/T-0154 는 SUPERSEDED), 0 unresolved humanQuestions, blockers 0, CI green, tasksCompleted=329. 남은 모든 방향은 human/측정/credential 게이트라 planner 단독 권한 밖 — task 날조 회피 차원에서 정직하게 escalate.",
+      "context": "main 실코드 대조 survey(cdecb14): (1) **shipped** — ADR-0036 rollout stage1~4 전원 머지(adr0036Rollout.stage1~4=DONE). claim registry(claims.json) + select-claim CAS + orphan 회수 + PR-resume primitive(scripts/) + driver-loop 통합 spec(LOOP §1[2]/§4 + CLAUDE §10) + per-PR CI concurrency group(ci.yml). 토글 OFF 라 driver 동작 불변(stage1~4 는 spec/primitive only). (2) **남은 것(전부 NON-dependency-free)**: (a) **ADR-0036 stage5(토글 ON)** — flags.fineGrainedConcurrency=false→true flip 으로 N-driver fine-grained 동시성 활성. ADR-0036 §Status/§rollout stage5 가 명시: stage1~4 머지 + **30일 dogfood + throughput 이득 > coordination 비용 실측 합의** 후 결정 + '한 시점 독립 task ≥ 2 실증 전 stage5 보류'(break-even gate). = human/측정 gating, dependency-free flip 아님. (b) **ADR-0038(overwrite/재평가) impl chain** — ADR-0038 PROPOSED(Q-0033 옵션1 로 T-0325 에서 작성). impl chain 은 human PROPOSED→ACCEPTED flip gating(Q-0033 결정이 'ADR 작성 후 사용자 ADR PR 검토' 명시) = NON-dependency-free. (c) **live-LLM bridge 검증** — ADR-0037 §Decision5, 머지된 mocked-only bridge 를 실 네트워크 LLM 1회 round-trip. Q-0022 시험 credential 만료 2026-06-30 = §5 credential 게이트. (3) **인접 sweep**: open PR 0(gh pr list=[]) / BLOCKED task 0(grep 매칭 T-0001·T-0154 는 SUPERSEDED, 활성 BLOCKED 0) / stale ADR status flip 0(ADR-0036 PROPOSED·ADR-0038 PROPOSED 는 그 §Status 가 명시한 staged/검토대기 = 정상, 임의 flip 금지) / nit residual·false-comment 0(T-0332 round1 APPROVE MINOR-1 은 nit-in-PR closure 로 후속 commit 2469a8a 정정 완료, 최근 review 전원 round1~2 APPROVE) / architecture doc stale 0(T-0319+T-0324 가 api.md+modules.md 동기) / CI green(cdecb14, benignRedNote 의 approval-step ordering 만 — 실 step 통과). (4) **Node 20→24 deprecation(2026-06-16)** — ci.yml setup-node@v4 node-version:'20'. 검토 결과 HIGH bar 미달: GitHub Actions runtime 의 action-host Node 경고지 프로젝트 runtime 강제 아님(non-blocking, CI green). node-version 을 brand-new major(24)로 bump 하면 Prisma/NestJS 회귀 위험 + driving need 0 = 투기적 churn → make-work 로 판정, 날조 회피 차원에서 큐잉 안 함(필요 시 별도 human 우선순위 지시). (5) **기타 deferred(비-dependency-free)**: timezone(Q-0026 Asia/Seoul vs UTC) / P6 frontend(React+Vite ADR) / scheduler·observability(@nestjs/schedule 새 dep, P7).",
+      "options": [
+        "(1) ADR-0036 stage5 진입 — flags.fineGrainedConcurrency=false→true 토글 ON 으로 30일 dogfood 시작. 단 ADR-0036 §rollout 의 break-even gate('한 시점 독립 task ≥ 2 실증 전 stage5 보류 — 독립 task 공급 0 이면 N driver 여도 throughput 이득 0')를 충족하는지 먼저 확인 필요. 현재 P5 backbone 이 대부분 single-chain 의존이라 동시 독립 task ≥ 2 공급이 실증되지 않았으므로 토글 ON 이 측정상 무의미할 수 있음 — 사용자가 multi-machine/cron 병렬 throughput 가치를 확신하고 30일 dogfood 를 의도할 때만 권장.",
+        "(2) ADR-0038 PROPOSED→ACCEPTED flip — overwrite/재평가(이미 first-write-wins persist 된 평가문을 Admin 이 명시적으로 재평가/교체) capability 의 design ADR(T-0325 작성)을 사용자가 ADR PR 검토 후 승인. flip(direct doc commit, ADR status 한 줄 — §3.1 rule4 예외) 하면 다음 fire 의 planner 가 overwrite/reeval impl chain(mode DTO / orchestration force-reeval 분기 / controller / e2e)을 dependency chain 으로 분해. 새 외부 dependency 0(기존 EvaluationResultPersistService reeval 경로 + CI 실 PostgreSQL ADR-0004) / credential 0 — design 결정만 human 확인.",
+        "(3) live-LLM bridge 검증 승인(§5 credential 게이트) — ADR-0037 §Decision5. 머지된 mocked-only bridge(POST /period)를 실 네트워크 LLM(azure_openai 등, Q-0022 시험 credential 만료 2026-06-30)으로 1회 round-trip 해 평가문 품질·scoring·narrative 경로 검증. env-gated live spec(env 부재 시 skip→CI green) + repo 밖 secrets.env 주입. 새 외부 dependency 0(내장 fetch) / 실 credential 1. backbone 확장 아닌 1회 검증.",
+        "(4) 다른 우선순위 또는 정지 — 위 외에 (a) timezone(Q-0026 Asia/Seoul vs UTC) 결정 / (b) P6 frontend phase 진입(React+Vite ADR + UI) / (c) scheduler·observability(@nestjs/schedule 새 dep, P7) / (d) Node 20→24 bump(투기적, 현재 make-work 판정) 중 하나 지시, 또는 루프 정지. planner 는 현 시점 위 외 dependency-free 신규 material 가치를 미식별(make-work 날조 회피)."
+      ],
+      "recommendation": "정직한 verdict — ADR-0036 buildThrough chain(stage1~4)이 전부 shipped 됐고, planner 는 HIGH make-work-bar 로 dependency-free 신규 material 가치를 미식별했다. 남은 4 방향은 모두 human/측정/credential 게이트다: (1) stage5 토글 ON 은 ADR-0036 break-even gate(독립 task ≥ 2 실증)가 미충족 가능성이 높아 측정상 신중 필요 = human 측정-결정, (2) ADR-0038 flip 은 design 승인 = human ADR-PR 검토, (3) live 검증은 §5 credential, (4) 기타는 phase 경계/새 dep/투기적. planner 단독으로 토글 ON·ADR 승인·§5 credential·phase 진입은 권한 밖이라 escalate — make-work 를 날조하기보다 정직하게 정지해 사용자 우선순위 확인을 요청한다.",
+      "resolutionHint": "docs/STATE.json 의 본 Q-0034 에 resolvedAt(ISO) + decision(선택 옵션 번호)을 기입하고 commit 한다. (1) 선택 시: 독립 task ≥ 2 공급 가능성 + 30일 dogfood 의도 확인 후 flags.fineGrainedConcurrency=true flip(별도 direct commit) — 단 ADR-0036 break-even gate 미충족이면 보류 권장. (2) 선택 시: docs/decisions/ADR-0038-*.md frontmatter status PROPOSED→ACCEPTED flip(direct doc, §3.1 rule4) → 다음 fire planner 가 overwrite/reeval impl chain 큐잉. (3) 선택 시: LLM credential scope·secrets.env 경로·만료 명시(실값은 코드·STATE·journal·git 금지 §9, env/secret 주입). (4) 선택 시: 우선순위 또는 정지. 미해소 상태로 두면 loop 는 dependency-free 작업 부재로 정지(정상).",
+      "raisedThisTurn": true
+    },
     {
       "id": "Q-0033",
       "raisedAt": "2026-06-10T13:20:00+09:00",
