@@ -2,7 +2,9 @@
 id: T-0323
 title: period bridge Admin full-persist e2e (실 PostgreSQL round-trip + first-write-wins read-through idempotency)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T13:10:00+09:00
+result: 머지 — PR #271 squash ad966d0. test/e2e/period-bridge-admin-persist.e2e-spec.ts(+267 LOC, production symbol 0) — Admin full-persist round-trip(assessment.count 0→1 + findUnique read-back) + first-write-wins read-through idempotency(2번째 호출 not-409·row 불변·동일 id) + negative 5종. 동시성은 flaky 회피 순차 idempotency 대체. reviewer round1 APPROVE(NIT 2 비차단: created-always-false v1 한계·동시성 생략), 4-게이트(e2e CI 실 PostgreSQL green, PR-open run 첫-pass). **ADR-0037 Admin full-persist chain end-to-end 완결 — R-9 backbone 닫힘.**
 commitMode: pr
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 200
