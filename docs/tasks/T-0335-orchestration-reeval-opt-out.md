@@ -2,7 +2,10 @@
 id: T-0335
 title: PeriodBridgeAdminPersistService reevaluate opt-out 분기 (ADR-0038 slice 2b)
 phase: P5
-status: IN_PROGRESS
+status: DONE
+completedAt: 2026-06-11T01:55:00+09:00
+mergedAs: ca6d074
+reviewRounds: 1
 commitMode: pr
 prNumber: 279
 coversReq: [REQ-009, REQ-040, REQ-045]
