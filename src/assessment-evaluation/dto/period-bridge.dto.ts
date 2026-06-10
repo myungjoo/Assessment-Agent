@@ -27,20 +27,11 @@
 // evaluate-activities.dto.ts 가 사용 중, package.json 박제, ADR-0037 §Decision5).
 import {
   IsBoolean,
-  IsIn,
   IsISO8601,
   IsNotEmpty,
   IsOptional,
   IsString,
 } from "class-validator";
-
-// BridgePersistMode literal — ADR-0033 §3 fill / reeval 을 그대로 재사용(새 enum 0,
-// ADR-0037 §Decision3). 본 DTO 단계에서는 `@IsOptional` + `@IsIn(["fill","reeval"])` 로
-// 미지정 또는 허용 literal 만 통과시킨다(허용 외 값은 400 거부). 실제 persist 분기(Admin
-// 영속화)·idempotency 직렬화는 orchestration slice 2/5 책임 — 본 DTO 는 mode 입력 형식만
-// 검증하고 어떤 영속화/동시성 semantics 도 baking 하지 않는다(§Decision2/§Decision3 PROPOSE
-// 미의존). evaluate-activities.dto 의 mode 패턴 mirror.
-export type BridgePersistMode = "fill" | "reeval";
 
 export class PeriodBridgeDto {
   // personId — 평가 대상 person 의 식별자(§Decision1 RBAC 입력 축 / §Decision4 좌표의
@@ -72,28 +63,22 @@ export class PeriodBridgeDto {
   @IsISO8601()
   periodStart!: string;
 
-  // mode — 영속화 모드(ADR-0033 §3, ADR-0037 §Decision3 재사용). 선택적이되 제공 시 반드시
-  // 허용 literal("fill" | "reeval") 중 하나여야 한다(@IsOptional + @IsIn). 미지정/undefined
-  // 는 orchestration 이 기본값으로 처리하고, 알 수 없는 literal(예: "reevaluate")은 400 으로
-  // 거부한다(fill/reeval intent 보존). 실제 persist 분기·idempotency 는 slice 2/5 책임 — 본
-  // DTO 는 mode 입력 형식만 검증한다.
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @IsIn(["fill", "reeval"])
-  mode?: string;
-
   // reevaluate — 이미 영속화된 평가문의 재평가(overwrite) 요청 flag(ADR-0038 §Decision1,
   // T-0333 slice 1). default false = first-write-wins 보존(ADR-0037 §Decision3 동작 회귀 0,
   // ADR-0038 §Decision3) — reeval opt-out 의 request 계약이며, true 일 때만 bridge 가
-  // reset-and-recreate(`mode: "reeval"`)로 영속화한다. 미지정 시 undefined — orchestration
-  // 이 default false(first-write-wins)로 처리한다(slice 2 책임).
+  // reset-and-recreate(persist-service 의 PersistMode `"reeval"`, ADR-0033 §3)로 영속화한다.
+  // 미지정 시 undefined — orchestration 이 default false(first-write-wins)로 처리한다
+  // (slice 2b 책임).
   //
   // 본 DTO 는 형식 검증만(@IsOptional + @IsBoolean — 제공 시 boolean 강제, "true"/"yes"
   // string·1 number 같은 비-boolean 은 400) — reeval 영속화/persist 분기 = orchestration
-  // slice 2, Admin RBAC + User reevaluate fail-closed reject = controller slice 3,
+  // slice 2b, Admin RBAC + User reevaluate fail-closed reject = controller slice 3,
   // idempotency/동시성 e2e = slice 4 책임(전부 본 DTO 밖, ADR-0038 §Decision2~5 미baking).
-  // vestigial mode(period bridge unwired) reconcile = slice 2 (ADR-0038 amend).
+  //
+  // 참고: T-0315 가 speculatively 추가했던 vestigial `mode` field(period bridge unwired)는
+  // ADR-0038 §Decision1 amendment(T-0334)로 제거됐다 — contract 는 본 5 키
+  // (personId/period/scope/periodStart/reevaluate)뿐이며, `mode` 제공 payload 는 controller
+  // 의 ValidationPipe(whitelist + forbidNonWhitelisted)가 정의 외 필드로 400 거부한다.
   @IsOptional()
   @IsBoolean()
   reevaluate?: boolean;
