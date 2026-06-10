@@ -345,6 +345,56 @@ describe("AssessmentRepository", () => {
   });
 
   // ------------------------------------------------------------------
+  // findByCoordinate — happy + negative (좌표 부재 → null) path. T-0321, ADR-0037
+  // §Decision3 first-write-wins read-through 의 P2002 race loser read-back 경로.
+  // ------------------------------------------------------------------
+  describe("findByCoordinate()", () => {
+    // Happy path: 좌표 존재 시 `@@unique` compound key 로 findUnique 결과를 반환.
+    it("4-tuple 좌표로 compound unique key findUnique 를 호출하고 결과를 반환한다", async () => {
+      const { prisma, assessmentMock } = buildPrismaMock();
+      const fixture = buildAssessmentFixture({ id: "asmt-coord" });
+      assessmentMock.findUnique.mockResolvedValueOnce(fixture);
+
+      const repo = new AssessmentRepository(prisma);
+      const periodStart = new Date("2026-06-01T00:00:00.000Z");
+      const result = await repo.findByCoordinate({
+        personId: "person-1",
+        period: "week",
+        scope: "commit",
+        periodStart,
+      });
+
+      expect(assessmentMock.findUnique).toHaveBeenCalledWith({
+        where: {
+          personId_period_scope_periodStart: {
+            personId: "person-1",
+            period: "week",
+            scope: "commit",
+            periodStart,
+          },
+        },
+      });
+      expect(result).toBe(fixture);
+    });
+
+    // Negative: 좌표 부재 시 null 반환 (throw 안 함) — findById null-safe API 정합.
+    it("좌표가 부재하면 null 을 반환한다 (throw 하지 않음)", async () => {
+      const { prisma, assessmentMock } = buildPrismaMock();
+      assessmentMock.findUnique.mockResolvedValueOnce(null);
+
+      const repo = new AssessmentRepository(prisma);
+      const result = await repo.findByCoordinate({
+        personId: "person-missing",
+        period: "month",
+        scope: "aggregate",
+        periodStart: new Date("2026-05-01T00:00:00.000Z"),
+      });
+
+      expect(result).toBeNull();
+    });
+  });
+
+  // ------------------------------------------------------------------
   // findByPerson — happy + branch (period 지정 vs 미지정) + error + negative
   // ------------------------------------------------------------------
   describe("findByPerson()", () => {

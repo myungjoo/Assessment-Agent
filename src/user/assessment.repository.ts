@@ -62,6 +62,18 @@ export interface AssessmentCreateInput {
   narrative: string;
 }
 
+// AssessmentCoordinate — `@@unique([personId, period, scope, periodStart])` 의 4-tuple
+// (T-0321). findByCoordinate 가 좌표 1 건을 findUnique 로 조회하는 입력 shape. 평가
+// 영속화 진입의 `EvaluationPersistContext` 와 동형이나 (assessment-evaluation 도메인),
+// 본 repository 는 user module 소속이라 의존 방향 보존을 위해 동일 4-tuple 을 자체 type
+// 으로 둔다 (역방향 import 회피 — 평가 도메인 type 을 repository 가 import 하지 않는다).
+export interface AssessmentCoordinate {
+  personId: string;
+  period: string;
+  scope: string;
+  periodStart: Date;
+}
+
 // findByPerson 의 분기 옵션 — period 가 주어지면 `where: { personId, period }`,
 // 아니면 `where: { personId }` 의 2 분기. 시계열 조회 (REQ-038) 의 query 단순화.
 export interface AssessmentFindByPersonOptions {
@@ -86,6 +98,28 @@ export class AssessmentRepository {
   // PersonRepository.findById 의 null-safe API 정공법 mirror.
   async findById(id: string): Promise<Assessment | null> {
     return this.prisma.assessment.findUnique({ where: { id } });
+  }
+
+  // findByCoordinate — `@@unique([personId, period, scope, periodStart])` 좌표 1 건을
+  // findUnique 로 조회한다 (T-0321, ADR-0037 §Decision3 first-write-wins read-through).
+  // Admin full-persist bridge 가 P2002 race loser 경로에서 winner 가 방금 영속화한 동일
+  // 좌표 저장본을 read 해 반환하기 위해 사용한다 (좌표는 알지만 winner 의 assessmentId
+  // 는 모르는 상황 — id 가 아니라 4-tuple 로 read-back). row 부재 시 null 반환 (findById
+  // 의 null-safe API 정공법 정합). 본 메서드는 1:1 forwarding 만 — 좌표 검증 / Conflict
+  // 변환은 호출자 책임.
+  async findByCoordinate(
+    coordinate: AssessmentCoordinate,
+  ): Promise<Assessment | null> {
+    return this.prisma.assessment.findUnique({
+      where: {
+        personId_period_scope_periodStart: {
+          personId: coordinate.personId,
+          period: coordinate.period,
+          scope: coordinate.scope,
+          periodStart: coordinate.periodStart,
+        },
+      },
+    });
   }
 
   // findByPerson — REQ-038 시계열 조회. `@@index([personId, period, periodStart])`

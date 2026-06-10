@@ -42,6 +42,7 @@ import { AssessmentEvaluationController } from "./assessment-evaluation.controll
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import { EvaluationResultPersistService } from "./evaluation-result-persist.service";
 import { EvaluationScoringService } from "./evaluation-scoring.service";
+import { PeriodBridgeAdminPersistService } from "./period-bridge-admin-persist.service";
 import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
 import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
 import { SummaryNarrativeService } from "./summary-narrative.service";
@@ -100,6 +101,19 @@ import { SummaryPersistService } from "./summary-persist.service";
     // DB write 0 로 compose 한다(persist service 미주입 — 구조적 write-0). 후속 controller
     // slice(slice 3)가 같은 module 내 DI 로 inject 받는다.
     PeriodBridgeEphemeralService,
+    // PeriodBridgeAdminPersistService — T-0321(ADR-0037 slice 2, §Decision1 Admin full
+    // path + §Decision2 evaluation-side single-writer + amended §Decision3 first-write-
+    // wins read-through + §Decision4 fresh collect). PeriodBridgeEphemeralService 의
+    // sibling — 같은 persist-free compose 3 종(CollectionSpecService /
+    // CollectionOrchestratorService(AssessmentCollectionModule export) /
+    // EvaluationOrchestratorService(같은 module))에 더해 Admin 한정 persist 도달 경로 2 종
+    // (EvaluationResultPersistService(같은 module provider) / AssessmentRepository
+    // (UserModule export, 이미 import 중))을 주입받아 collect→filter→evaluate→
+    // first-write-wins persist 를 compose 한다. ephemeral service 가 persist 를 주입조차
+    // 안 함으로써 구조적으로 보장하는 write-0 은 sibling 분리로 그대로 유지되고, persist
+    // 도달 가능성은 본 Admin service 에 국소화된다. 추가 module import 0. 후속 controller
+    // slice(slice 3)가 같은 module 내 DI 로 inject 받는다.
+    PeriodBridgeAdminPersistService,
     // LLM_GATEWAY → LlmHttpGateway useExisting 바인딩. LlmModule 이 등록·export 한
     // LlmHttpGateway singleton 을 그대로 재사용하므로 새 인스턴스 생성 0. interface
     // 가 runtime 소거라 string token 으로 주입을 닫는다.
@@ -122,6 +136,9 @@ import { SummaryPersistService } from "./summary-persist.service";
     // 후속 controller slice(slice 3, POST /api/assessment-evaluation/period)가 ephemeral
     // bridge service 를 inject 받도록 export(T-0316).
     PeriodBridgeEphemeralService,
+    // 후속 controller slice(slice 3, POST /api/assessment-evaluation/period Admin 분기)가
+    // Admin full-persist bridge service 를 inject 받도록 export(T-0321).
+    PeriodBridgeAdminPersistService,
   ],
 })
 export class AssessmentEvaluationModule {}
