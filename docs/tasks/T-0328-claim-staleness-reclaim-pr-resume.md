@@ -2,7 +2,10 @@
 id: T-0328
 title: ADR-0036 fine-grained concurrency stage 2 (slice 2) — orphan claim staleness 회수(60분 server-time 임계) + PR-resume primitive + executable spec
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: c496457
+prNumber: 274
+reviewRounds: 1
 commitMode: pr
 coversReq: [TBD]
 estimatedDiff: 250

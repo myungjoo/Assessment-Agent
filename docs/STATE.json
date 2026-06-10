@@ -6,26 +6,26 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": "T-0328",
+  "nextTask": null,
   "backlogNote": "planner 가 T-0328 큐잉(ADR-0036 stage2 slice2: orphan claim staleness 회수[60분 server-time 임계] + PR-resume primitive + executable spec, commitMode pr). slice1(T-0327, PR #273 0e5a817)이 'select+claim CAS + 이중-claim-0 spec'(이중 claim 0 절반)을 닫았고, slice2 가 §rollout 2 break-even 의 나머지 절반 'orphan 회수 정상 동작 검증'을 닫는다 — scripts/reclaim-stale-claim.sh(claims.json orphan 60분 server-time 회수, prNumber null→제거/non-null→PR-resume 신호+owner 교체) + colocated .test.sh + ci.yml step + concurrency.md §5 amend. dependsOn=[T-0327](머지됨, claim 후보 풀림). select-claim.sh/verify-ref-cas-lock.sh executable-spec 선례 mirror(bare-repo+2clone self-contained, scripts/ tooling, src 0). dependency-free·non-escalate(adr0036Rollout.buildThrough=true·ACCEPTED·escalate 금지). issue-still-relevant pre-check 통과: scripts/reclaim*.sh 미존재(origin/main HEAD 12f56ea)·신규. server-time 실 fetch·driver loop 통합(stage3)·per-PR CI group(stage4)·토글 ON(stage5)은 Out of Scope/Follow-ups. 토글 OFF 유지(driver 동작 불변). 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 진입은 human PROPOSED→ACCEPTED flip 후 별도 큐잉(dependency-free 아님). 다음 진입점: nextTask=T-0328 → currentTask 승격 후 execute(implementer→tester→reviewer→CI→merge).",
   "lock": {
     "holder": null,
-    "note": "cron(cron@WIN-JQIPLSBL9QV-7e89, 매시 15분 local schedule aa-local-15) planner-only turn — currentTask·nextTask 둘 다 null 이라 planner dispatch 후 T-0328(ADR-0036 stage2 slice2: orphan claim staleness 회수+PR-resume primitive, commitMode pr) 큐잉. doc-only direct commit 으로 마무리 후 권위 lock tombstone release. 다음 진입점이 T-0328 을 currentTask 승격해 execute."
+    "note": "loop loop@WIN-JQIPLSBL9QV-7a5c t2 가 T-0328(ADR-0036 stage2 slice2) merge(PR #274 squash c496457) 후 tombstone release. 다음 planner turn 이 stage3(driver loop critical-section 통합) 큐잉 예정."
   },
-  "lastActivity": "2026-06-10T18:05:00+09:00",
-  "lastCommit": "0e5a817",
+  "lastActivity": "2026-06-10T18:32:06+09:00",
+  "lastCommit": "c496457",
   "mostRecentTasks": [
+    "T-0328",
     "T-0327",
     "T-0325",
     "T-0326",
-    "T-0324",
-    "T-0323"
+    "T-0324"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "cap": 2,
-    "holder": "loop@WIN-JQIPLSBL9QV-63e9",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-63e9 (turn cap 2, autonomous dynamic) t1 — T-0327 DONE·merge(ADR-0036 fine-grained concurrency stage2 slice1: claims.json schema + lock-하 atomic select+claim CAS primitive + 이중 claim0 executable spec, PR #273 squash 0e5a817). reviewer round1 REQUEST_CHANGES(CI red: commit-tree empty ident name) → round2 fix(commit-tree identity self-provide) → APPROVE, 4-게이트, CI green. tasksCompleted 323→324. ADR-0036 ACCEPTED buildThrough 진행 중 — 다음 planner turn 이 stage2 slice2(staleness 회수 60분 임계·PR-resume) 큐잉."
+    "holder": "loop@WIN-JQIPLSBL9QV-7a5c",
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-7a5c (autonomous dynamic, turn cap 2) t2 — T-0328 DONE·merge(ADR-0036 stage2 slice2: orphan claim 60분 staleness 회수 + PR-resume primitive, PR #274 squash c496457). reviewer round1 APPROVE(identity self-provide 처음부터 적용해 CI 1-pass), 4-게이트, CI green. tasksCompleted 324→325. stage2 완료(slice1 T-0327 + slice2 T-0328). 다음: stage3 driver loop 통합. turn cap 2 도달 — 다음 fire 는 새 진입점."
   },
   "ci": {
     "lastRun": "2026-06-10T16:58:00+09:00",
@@ -126,7 +126,8 @@
     "T-0273": 1,
     "T-0274": 1,
     "T-0275": 1,
-    "T-0327": 2
+    "T-0327": 2,
+    "T-0328": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -568,7 +569,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 324,
+    "tasksCompleted": 325,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -580,6 +581,7 @@
     "buildThrough": true,
     "toggleGate": "stage 5 — flags.fineGrainedConcurrency ON 은 실측(throughput 이득 > coordination 비용) 후 결정",
     "stage1": "DONE (T-0326, flags.fineGrainedConcurrency 자리 + planner 독립-stream 분해 정책)",
-    "note": "사용자 2026-06-10 결정: ADR-0036 ACCEPTED. driver 공급 측 break-even(두 번째 driver 존재)은 cron+multi-loop 상시 진입점으로 이미 충족 — stage 1→2 의 '독립 task ≥2 실증' 게이트는 stage 2-5 인프라 구축을 막지 않는다(build-through). planner 는 ADR-0036 §rollout stage 2(claim registry select+claim)→3(loop 재작성+CLAUDE§10/LOOP§4 동기)→4(per-PR concurrency group)→5(토글) 를 dependency chain 으로 큐잉하되, ACCEPTED 재확인 차 escalate 하지 말 것. 각 stage 정확성 게이트(이중 claim 0·orphan 회수·충돌 없음)는 강제. toggle ON(stage5)만 실측 gating. 기존 nextTask=T-0325(ADR-0038)는 유효 — ADR-0036 stage 2 와 독립이면 어느 순서든 가능(둘이 첫 실증 독립-stream 쌍 후보)."
+    "note": "사용자 2026-06-10 결정: ADR-0036 ACCEPTED. driver 공급 측 break-even(두 번째 driver 존재)은 cron+multi-loop 상시 진입점으로 이미 충족 — stage 1→2 의 '독립 task ≥2 실증' 게이트는 stage 2-5 인프라 구축을 막지 않는다(build-through). planner 는 ADR-0036 §rollout stage 2(claim registry select+claim)→3(loop 재작성+CLAUDE§10/LOOP§4 동기)→4(per-PR concurrency group)→5(토글) 를 dependency chain 으로 큐잉하되, ACCEPTED 재확인 차 escalate 하지 말 것. 각 stage 정확성 게이트(이중 claim 0·orphan 회수·충돌 없음)는 강제. toggle ON(stage5)만 실측 gating. 기존 nextTask=T-0325(ADR-0038)는 유효 — ADR-0036 stage 2 와 독립이면 어느 순서든 가능(둘이 첫 실증 독립-stream 쌍 후보).",
+    "stage2": "DONE — slice1(T-0327 select+claim CAS) + slice2(T-0328 orphan 60분 회수 + PR-resume) 머지. 다음 stage3: §1 loop 재작성(critical-section lock + claim pickup) + CLAUDE§10/LOOP§4 동기."
   }
 }
