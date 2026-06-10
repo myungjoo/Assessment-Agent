@@ -2,7 +2,9 @@
 id: T-0324
 title: period bridge Admin full-persist(POST /period Admin 분기) doc-sync — api.md + modules.md 정합
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T13:20:00+09:00
+result: 완료(direct doc-sync) — api.md /period row 2 경로(User ephemeral + Admin full-persist PeriodBridgeAdminResponse first-write-wins) + 합계 line stale 'Admin PROPOSE 미shipped' 제거, modules.md AssessmentEvaluationModule row(Admin shipped, 잔여 DEFERRED=overwrite만) + Backend API row /period Admin 분기. +4/-4, controller 실코드 대조. R-110 면제(doc-only direct).
 commitMode: direct
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 55
