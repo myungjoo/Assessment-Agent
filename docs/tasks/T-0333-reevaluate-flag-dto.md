@@ -2,7 +2,10 @@
 id: T-0333
 title: period bridge DTO 에 reevaluate flag 추가 (ADR-0038 slice 1)
 phase: P5
-status: IN_PROGRESS
+status: DONE
+completedAt: 2026-06-11T00:21:11+09:00
+mergedAs: f1e47e5
+reviewRounds: 1
 commitMode: pr
 prNumber: 276
 coversReq: [REQ-009, REQ-040, REQ-045]
