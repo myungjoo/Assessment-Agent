@@ -6,16 +6,14 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "T-0325(ADR-0038 overwrite/재평가 design ADR) DONE·머지(PR #272 squash 06ae245, design-only src 0, reviewer round1 APPROVE findings 0). ADR-0038 status=PROPOSED — §Follow-ups impl chain(DTO→orchestration reeval 분기→controller→e2e) 박제됨. 다음 진입점: currentTask/nextTask 둘 다 null → planner dispatch. dependency-free 후보 2 갈래: (A) ADR-0036 stage 2(claim registry select+claim) — adr0036Rollout build-through 승인(escalate 금지), (B) ADR-0038 impl chain — 단 ADR-0037 precedent(Q-0032)처럼 PROPOSED→ACCEPTED human flip 선행 여부를 planner 가 판단(필요 시 escalate). planner 가 (A)/(B) 중 dependency-free·non-escalate 우선으로 1 task 큐잉.",
+  "nextTask": "T-0327",
+  "backlogNote": "planner 가 T-0327 큐잉(ADR-0036 stage2 slice1: claim registry schema + lock-하 atomic select+claim CAS primitive + executable spec, commitMode pr). 결정: 후보 (A)ADR-0036 stage2 vs (B)ADR-0038 impl chain 중 (A) 선택 — (B)는 ADR-0038 status=PROPOSED 이고 §Status/§Follow-ups 가 impl chain 을 'PROPOSED→ACCEPTED flip 후' 로 gating(ADR-0037 T-0313→Q-0032 precedent 동형) → human flip 선행 필요라 dependency-free 아님(escalate 대상). (A)는 adr0036Rollout.buildThrough=true·ACCEPTED·'escalate 금지' 명시 → dependency-free·non-escalate. stage2 전체(schema+atomic claim+staleness 회수+PR-resume)는 cap 초과라 slice1(schema+atomic claim+이중-claim-0 spec)만 본 task, staleness 회수+PR-resume 는 slice2 Follow-up. verify-ref-cas-lock.sh + check-doc-only-pr.sh executable-spec 선례 mirror(scripts/ tooling, src 0). 토글 OFF 유지. ADR-0038 impl chain 진입은 human PROPOSED→ACCEPTED flip 후 별도 큐잉. 다음 진입점: nextTask=T-0327 → currentTask 승격 후 execute(implementer→tester→reviewer→CI→merge).",
   "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-2c2",
-    "since": "2026-06-10T16:52:08+09:00",
-    "note": "비권위 mirror — 권위는 claude/lock-driver 브랜치 tip lock.json. /loop session loop@WIN-JQIPLSBL9QV-2c2 (turn cap 2) t1 가 보유 중. t2(planner) 후 release 예정."
+    "holder": null,
+    "note": "비권위 mirror. /loop session loop@WIN-JQIPLSBL9QV-2c2 (turn cap 2) t2(planner) 완료 후 권위 lock(claude/lock-driver) tombstone release. 다음 진입점(cron/loop) free 재획득 → nextTask=T-0327 픽업."
   },
-  "lastActivity": "2026-06-10T16:58:00+09:00",
-  "lastCommit": "06ae245",
+  "lastActivity": "2026-06-10T17:10:00+09:00",
+  "lastCommit": "66584f5",
   "mostRecentTasks": [
     "T-0325",
     "T-0326",
@@ -24,7 +22,8 @@
     "T-0322"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
+    "endedNote": "t2(final, cap 2) planner-only turn — currentTask/nextTask 둘 다 null → planner dispatch → T-0327 큐잉(ADR-0036 stage2 slice1, pr). turn cap(2) 도달 → reschedule 안 함, lock release. 다음 진입점이 T-0327 execute.",
     "startedAt": "2026-06-10T16:52:08+09:00",
     "cap": 2,
     "holder": "loop@WIN-JQIPLSBL9QV-2c2",
