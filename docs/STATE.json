@@ -8,11 +8,11 @@
   "nextTask": null,
   "lock": {
     "holder": "cron",
-    "session": "cron@cloud-focused-goodall-tf1tj4",
-    "since": "2026-06-10T08:10:30+09:00"
+    "session": "cron@cloud-focused-goodall-lx3f7k",
+    "since": "2026-06-10T09:10:18+09:00"
   },
-  "lastActivity": "2026-06-10T08:10:30+09:00",
-  "lastCommit": "e652175",
+  "lastActivity": "2026-06-10T09:10:18+09:00",
+  "lastCommit": "5972dd2",
   "mostRecentTasks": [
     "T-0312",
     "T-0311",
@@ -32,12 +32,12 @@
     "noteCronFire": "cron@cloud-32814 (2026-06-08 18:05~18:35 UTC) — T-0293 픽업·머지(squash 2ecbc64), tasksCompleted 289→290. 이후 T-0294 큐잉 push 의 CI 부터 runner 미할당 infra-fail 시작."
   },
   "ci": {
-    "lastRun": "2026-06-10T08:10:30+09:00",
+    "lastRun": "2026-06-10T09:10:18+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27234418872",
-    "verifiedGreen": "cron@cloud-focused-goodall fire(2026-06-09T23:10Z) R-114 재확인 — 직전 cron fire(e652175) 의 자체 main push-CI 가 green 확정: run 27234418872 head e652175 success(20:42:24Z, 직전 fire 종료 4분 후 완결, lint/build/test+coverage+smoke+e2e). 누적: e578146 run 27226672355·b1d0ade run 27227012793·e652175 run 27234418872 = 직전 P5 chain 머지 후 main 3 commit 전부 green. Node.js 20→24 deprecation 경고 non-blocking(2026-06-16). 본 fire 는 새 task 시작 안 함 — Q-0031 PENDING(§1[1] unresolved HQ 정지) + dependency-free P5 소진(직전 planner survey).",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27241861863",
+    "verifiedGreen": "cron@cloud-focused-goodall-lx3f7k fire(2026-06-10T00:10Z) R-114 재확인 — 직전 cron fire(5972dd2) 의 자체 main push-CI green 확정: run 27241861863 head 5972dd2 success(23:12:51Z trigger→완결, lint/build/test+coverage+smoke+e2e). 누적: e652175 run 27234418872·5972dd2 run 27241861863 = 최근 cron 2 fire 전부 green. Node.js 20→24 deprecation 경고 non-blocking(2026-06-16). 본 fire 는 새 task 시작 안 함 — Q-0031 PENDING(§1[1] unresolved HQ 정지) + dependency-free P5 소진(직전 planner survey).",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
