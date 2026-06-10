@@ -2,7 +2,7 @@
 id: T-0326
 title: ADR-0036 fine-grained concurrency rollout stage 1 — flags 자리 박제 + planner 독립-stream 분해 정책
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [TBD]
 estimatedDiff: 90

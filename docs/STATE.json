@@ -6,20 +6,20 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": "T-0326",
-  "backlogNote": "T-0325(ADR-0038 overwrite/재평가 design ADR, Q-0033 RESOLVED 옵션1 기반, PENDING)는 보존 — T-0326(ADR-0036 fine-grained concurrency stage 1, 사용자 2026-06-10 rollout 승인) 우선 큐잉으로 임시 후순위. T-0326 완료 후 다음 planner turn 이 PENDING 상태의 T-0325 를 자연 재발견·재픽업한다. T-0325 task 파일/상태는 변경 금지.",
+  "nextTask": "T-0325",
+  "backlogNote": "T-0326(ADR-0036 fine-grained concurrency stage 1, direct) 완료(commit 9e33d11) → planner 가 backlogNote 의 계획대로 보존돼 있던 PENDING T-0325(ADR-0038 overwrite/재평가 design ADR, Q-0033 옵션1)를 자연 재발견·nextTask 로 승격. issue-still-relevant pre-check 통과: origin/main 에 ADR-0038 미존재 + T-0325 미DONE(8d18372 가 task 파일만 큐잉, 미실행) → 비-duplicate 확정. T-0325 는 design-only pr(src 0, architect)이며 ADR-0037 chain 완결·T-0326 클리어로 dependency-free. R-9 backbone 의 자연스러운 다음 확장.",
   "lock": {
     "holder": null,
-    "note": "cron lock cron@WIN-JQIPLSBL9QV-4123(since 2026-06-10T16:28:33+09:00) 가 stale loop@WIN-JQIPLSBL9QV-0363 lock(t6 heartbeat 15:22 이후 60분+ 미갱신) 탈취 → ADR-0036 fine-grained concurrency stage1(T-0326) 큐잉 후 권위 claude/lock-driver tip tombstone({\"holder\":null})으로 release. 사용자 2026-06-10 rollout 승인 지시(5분 polling 후 stale 시점 큐잉). 다음 진입점이 free 확인 후 재획득."
+    "note": "cron@cloud-aa3s1 fire(2026-06-10T16:37 KST, schedule) — free tombstone(e22fdb6) 확인 후 branch-CAS 획득(a8fbc2b). T-0326(ADR-0036 fine-grained concurrency stage1, direct) DONE·push(9e33d11) + planner 가 보존 PENDING T-0325 nextTask 승격. 본 필드는 non-authoritative human mirror — turn 종료 시 권위 claude/lock-driver tip tombstone({\"holder\":null})으로 release. 다음 진입점이 free 확인 후 재획득."
   },
-  "lastActivity": "2026-06-10T16:31:56+09:00",
-  "lastCommit": "ad966d0",
+  "lastActivity": "2026-06-10T16:42:00+09:00",
+  "lastCommit": "9e33d11",
   "mostRecentTasks": [
+    "T-0326",
     "T-0324",
     "T-0323",
     "T-0322",
-    "T-0321",
-    "T-0320"
+    "T-0321"
   ],
   "loopSession": {
     "turnCount": 6,
@@ -43,11 +43,12 @@
     "noteCronFire": "cron@AKIHA-15-32380 fire(2026-06-10T10:06 KST, 매시 15분 trigger) — **Q-0031 RESOLVED 후 첫 productive fire**. lock 자유 확인(branch tip tombstone `{\"holder\":null}` at 372c730)→branch-CAS 획득(cf21474). currentTask/nextTask 둘 다 null + unresolved HQ 0 → planner dispatch. **planner T-0313 큐잉**(ADR-0037 period→collection→evaluate bridge 설계, commitMode pr, design-only): Q-0031 옵션(1) 승인 반영 — RBAC[Admin full collect→evaluate→persist / User self-only ephemeral DB write 0]·double-write 경계·idempotency·EvaluationResult[] source-of(bridge fresh collect) 박제, impl slice(DTO/orchestration/controller/RBAC guard/e2e)는 Follow-ups. 새 dep/credential 0. nextTask=T-0313, tasksCompleted 309 유지(planner-only turn). 별건 followUp(B) ADR-0034 흡수+#249 close 는 후속 task. 재개: 다음 /loop·cron fire 가 T-0313 execute(architect ADR-0037 → 사용자 ADR PR 검토). lock 해제(tombstone)."
   },
   "ci": {
-    "lastRun": "2026-06-10T13:10:00+09:00",
+    "lastRun": "2026-06-10T16:42:00+09:00",
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27256906675",
+    "noteCron_aa3s1": "cron@cloud-aa3s1 fire: T-0326 direct doc push(9e33d11) push-event CI in_progress(doc-only, lint/build/test 불변이라 green 예상). 다음 fire [1] 에서 conclusion 재확인.",
     "benignRedNote": "**반복 패턴 — approval-검증 step 의 ordering fail (consecutiveFails 미증가)**: ci.yml job '기본 검사' 의 'reviewer agent approval 검증' step 은 §3.3 gate2(PR 에 reviewer approve comment/review 존재) 를 검증한다. (A) PR-open 시점 pull_request-event run 은 reviewer comment 가 아직 없어 이 step 이 fail → reviewer approve comment post 후 `gh run rerun <id> --failed` 로 재실행하면 green(T-0321/PR #269 run 27254966044 가 이 케이스 — rerun 후 전 step green, merge). (B) issue_comment-event run 은 main ref 기준으로 돌아 매칭 PR 없으면 fail(예: head 7414f4d). 둘 다 **실코드 회귀 아님** — 실 step(lint/build/prisma/test+cov/smoke/e2e)은 통과. **gate4 평가 = 해당 PR head 의 pull_request-event run 이 (필요시 rerun 후) success 인지**. 잠재 follow-up: approval 검증 step 을 PR state==open 또는 comment 존재 조건으로 가드(우선순위 낮음).",
     "verifiedGreen": "loop@WIN-JQIPLSBL9QV-0363 t1~t5 main push-CI green: 7414f4d·52ab7a7·af9a41d·a0e96b9·6b24533·5186385(T-0322 merge)·926377b(T-0322 closeout) 전부 push run success. ad966d0(T-0323 merge) push run 진행중→다음 turn 재확인. PR #268 run 27254153650 pass / #269 27254966044 rerun pass / #270 27256092195 rerun pass / #271 27256906675 첫-pass(reviewer comment 가 approval-step 전 도착, rerun 불요). approval-step ordering 은 PR-open 타이밍에 따라 fail→rerun 또는 첫-pass. Node.js 20→24 deprecation non-blocking(2026-06-16). benignRedNote 참조.",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
@@ -580,7 +581,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 321,
+    "tasksCompleted": 322,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
