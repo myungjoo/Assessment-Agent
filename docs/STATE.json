@@ -36,12 +36,13 @@
     "noteCronFire": "cron@AKIHA-15-32380 fire(2026-06-10T10:06 KST, 매시 15분 trigger) — **Q-0031 RESOLVED 후 첫 productive fire**. lock 자유 확인(branch tip tombstone `{\"holder\":null}` at 372c730)→branch-CAS 획득(cf21474). currentTask/nextTask 둘 다 null + unresolved HQ 0 → planner dispatch. **planner T-0313 큐잉**(ADR-0037 period→collection→evaluate bridge 설계, commitMode pr, design-only): Q-0031 옵션(1) 승인 반영 — RBAC[Admin full collect→evaluate→persist / User self-only ephemeral DB write 0]·double-write 경계·idempotency·EvaluationResult[] source-of(bridge fresh collect) 박제, impl slice(DTO/orchestration/controller/RBAC guard/e2e)는 Follow-ups. 새 dep/credential 0. nextTask=T-0313, tasksCompleted 309 유지(planner-only turn). 별건 followUp(B) ADR-0034 흡수+#249 close 는 후속 task. 재개: 다음 /loop·cron fire 가 T-0313 execute(architect ADR-0037 → 사용자 ADR PR 검토). lock 해제(tombstone)."
   },
   "ci": {
-    "lastRun": "2026-06-10T09:10:18+09:00",
+    "lastRun": "2026-06-10T10:42:00+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27241861863",
-    "verifiedGreen": "cron@cloud-focused-goodall-lx3f7k fire(2026-06-10T00:10Z) R-114 재확인 — 직전 cron fire(5972dd2) 의 자체 main push-CI green 확정: run 27241861863 head 5972dd2 success(23:12:51Z trigger→완결, lint/build/test+coverage+smoke+e2e). 누적: e652175 run 27234418872·5972dd2 run 27241861863 = 최근 cron 2 fire 전부 green. Node.js 20→24 deprecation 경고 non-blocking(2026-06-16). 본 fire 는 새 task 시작 안 함 — Q-0031 PENDING(§1[1] unresolved HQ 정지) + dependency-free P5 소진(직전 planner survey).",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27247428094",
+    "benignRedNote": "**무시 가능한 red run 1건 (consecutiveFails 미증가)**: run 27247453022 (event=issue_comment, head c056f8e, job '기본 검사' step 'reviewer agent approval 검증' failure) 은 **push-CI 가 아니라 PR #249 close-comment 가 trigger 한 issue_comment run** 이다. displayTitle 이 PR #249 제목('docs(lock)...ADR-0034')인 데서 확인 — 본 step 은 §3.3 gate2(PR 에 reviewer approve comment 존재) 검증인데 #249 는 approve 없이 close 된 PR 이라 정상적으로 fail. main push-CI 는 영향 없음(c056f8e push run 27247428094 success). 0 open PR. **다음 turn [5] CI 점검 시 issue_comment run 을 main 회귀로 오판 말 것** — push-event run 만 gate. 잠재 follow-up: ci.yml 의 approval-검증 step 을 PR state==open 일 때만 돌리도록 가드(우선순위 낮음, 동작 정상 범위).",
+    "verifiedGreen": "loop@WIN-JQIPLSBL9QV-3e8b t1·t2 main push-CI 전부 green: 6813e9c(T-0313 squash) run success / f9d74cd·51b4a17(t1 bookkeeping) success / c056f8e(T-0314) push run 27247428094 success / 21ca04d(T-0314 closeout) success / 89e2cd1(T-0315 큐잉) push 진행중. 직전 cron 2 fire(e652175·5972dd2)도 green. Node.js 20→24 deprecation 경고 non-blocking(2026-06-16). 위 benignRedNote 의 issue_comment red 1건은 무시.",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
