@@ -1,10 +1,10 @@
 # ADR-0036 — fine-grained concurrency: critical-section-only lock + claim 기반 task 소유 (ADR-0009 "활성 driver 1개" supersede 검토)
 
-## Status
+ACCEPTED (2026-06-10)
 
-PROPOSED (2026-06-10)
-
-> 본 ADR 은 **설계를 박제하되 즉시 채택을 강제하지 않는다.** ADR-0009(강한 ref-CAS coarse mutex) / ADR-0028(lock 저장소를 `claude/lock-driver` 브랜치로 이전)의 "활성 driver 항상 1개" 모델은 본 ADR 이 ACCEPTED + 별도 구현 chain 머지 + `flags` 토글 ON 으로 명시 전환되기 전까지 **그대로 유효**하다. 본 ADR 자체는 코드/STATE schema/§1 loop/CLAUDE §10/LOOP §4 본문을 **변경하지 않는다**(전부 Follow-ups). `supersedes: ADR-0009`(부분 — 아래 §Decision 0 의 invariant 한정) · `amends: ADR-0028` · `relates: ADR-0034, ADR-0020`.
+> **2026-06-10 사용자 결정 (ACCEPTED — 옵션 1)**: ADR-0009/0028 의 "활성 driver 항상 1개" 모델을 본 ADR 의 critical-section lock + claim 기반 N-driver 모델로 전환한다. 근거 — §Decision 0 가 ROI 변수로 본 **"두 번째 driver 의 존재"는 cron + multi-machine `/loop` 상시 진입점으로 이미 충족**돼 있다(실제로 cron@cloud / cron@local fire 가 연속적으로 깨어나 lock 을 잡고 task 를 집어가는 것이 관측됨 — 2026-06-10 stage 1 T-0326 자체가 cron@cloud-aa3s1 fire 로 완료). 따라서 §rollout 의 stage 1→2 게이트 **"한 시점 독립 task ≥ 2 실증"은 stage 2-5 인프라 구축(claim registry · select+claim · loop 재작성 · per-PR CI group)을 막는 사유가 아니다 — build-through 승인**. 단 **stage 5 의 `flags.fineGrainedConcurrency` 토글 ON(런타임 활성)은 실측(throughput 이득 > coordination 비용) 후 결정**으로 유지한다(독립 task 공급은 토글 시점 ROI 변수로 남음). 각 stage 의 **정확성 게이트**(이중 claim 0 · orphan 회수 정상 동작 · 동시 무장 시 충돌 없음)는 그대로 강제하며, §Decision 0 / §Consequences 의 ROI 분석 본문은 분석으로서 유효하다(adoption 만 ACCEPTED 로 갱신).
+>
+> 채택은 ACCEPTED 이나 **런타임 활성은 토글이 ON 되는 stage 5 부터**다 — 그 전까지 코드/loop 동작은 stage 별 머지로 점진 도입되되 토글 OFF 동안 forward-looking spec 으로 기능한다(ADR-0009 모델은 토글 ON 전까지 사실상 동작 유지). `supersedes: ADR-0009`(부분 — §Decision 0 invariant 한정) · `amends: ADR-0028` · `relates: ADR-0034, ADR-0020`.
 
 ## Context
 

@@ -10,9 +10,9 @@
   "backlogNote": "T-0326(ADR-0036 fine-grained concurrency stage 1, direct) 완료(commit 9e33d11) → planner 가 backlogNote 의 계획대로 보존돼 있던 PENDING T-0325(ADR-0038 overwrite/재평가 design ADR, Q-0033 옵션1)를 자연 재발견·nextTask 로 승격. issue-still-relevant pre-check 통과: origin/main 에 ADR-0038 미존재 + T-0325 미DONE(8d18372 가 task 파일만 큐잉, 미실행) → 비-duplicate 확정. T-0325 는 design-only pr(src 0, architect)이며 ADR-0037 chain 완결·T-0326 클리어로 dependency-free. R-9 backbone 의 자연스러운 다음 확장.",
   "lock": {
     "holder": null,
-    "note": "cron@cloud-aa3s1 fire(2026-06-10T16:37 KST, schedule) — free tombstone(e22fdb6) 확인 후 branch-CAS 획득(a8fbc2b). T-0326(ADR-0036 fine-grained concurrency stage1, direct) DONE·push(9e33d11) + planner 가 보존 PENDING T-0325 nextTask 승격. 본 필드는 non-authoritative human mirror — turn 종료 시 권위 claude/lock-driver tip tombstone({\"holder\":null})으로 release. 다음 진입점이 free 확인 후 재획득."
+    "note": "cron lock cron@WIN-JQIPLSBL9QV-0b5f 가 ADR-0036 ACCEPTED 결정(사용자 옵션1) 박제 후 권위 lock tombstone release. 다음 진입점 free 재획득."
   },
-  "lastActivity": "2026-06-10T16:42:00+09:00",
+  "lastActivity": "2026-06-10T16:46:46+09:00",
   "lastCommit": "9e33d11",
   "mostRecentTasks": [
     "T-0326",
@@ -585,5 +585,14 @@
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
+  },
+  "adr0036Rollout": {
+    "status": "ACCEPTED",
+    "decidedAt": "2026-06-10",
+    "decidedBy": "user (옵션 1)",
+    "buildThrough": true,
+    "toggleGate": "stage 5 — flags.fineGrainedConcurrency ON 은 실측(throughput 이득 > coordination 비용) 후 결정",
+    "stage1": "DONE (T-0326, flags.fineGrainedConcurrency 자리 + planner 독립-stream 분해 정책)",
+    "note": "사용자 2026-06-10 결정: ADR-0036 ACCEPTED. driver 공급 측 break-even(두 번째 driver 존재)은 cron+multi-loop 상시 진입점으로 이미 충족 — stage 1→2 의 '독립 task ≥2 실증' 게이트는 stage 2-5 인프라 구축을 막지 않는다(build-through). planner 는 ADR-0036 §rollout stage 2(claim registry select+claim)→3(loop 재작성+CLAUDE§10/LOOP§4 동기)→4(per-PR concurrency group)→5(토글) 를 dependency chain 으로 큐잉하되, ACCEPTED 재확인 차 escalate 하지 말 것. 각 stage 정확성 게이트(이중 claim 0·orphan 회수·충돌 없음)는 강제. toggle ON(stage5)만 실측 gating. 기존 nextTask=T-0325(ADR-0038)는 유효 — ADR-0036 stage 2 와 독립이면 어느 순서든 가능(둘이 첫 실증 독립-stream 쌍 후보)."
   }
 }
