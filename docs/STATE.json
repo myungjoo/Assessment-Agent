@@ -5,29 +5,30 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0314",
+  "nextTask": null,
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-3e8b",
-    "since": "2026-06-10T10:14:00+09:00",
+    "since": "2026-06-10T10:39:00+09:00",
     "loopSessionStartedAt": "2026-06-10T10:14:00+09:00",
-    "loopSessionTurnCount": 1
+    "loopSessionTurnCount": 2
   },
-  "lastActivity": "2026-06-10T10:31:00+09:00",
-  "lastCommit": "6813e9c",
+  "lastActivity": "2026-06-10T10:42:00+09:00",
+  "lastCommit": "c056f8e",
   "mostRecentTasks": [
+    "T-0314",
     "T-0313",
     "T-0312",
     "T-0311",
-    "T-0310",
-    "T-0309"
+    "T-0310"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "startedAt": "2026-06-10T10:14:00+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-3e8b",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-3e8b (turn cap 10, 로컬 WIN-JQIPLSBL9QV) t1 — Q-0031 RESOLVED 후 첫 /loop fire. 진입 시 local main behind 1(cron dc03e8b — T-0313 큐잉)→ff. lock 자유(branch tip tombstone 3458a8f)→branch-CAS 획득(033dfa1). **T-0313 execute·머지**: ADR-0037(period→collection→evaluate bridge 설계, PROPOSED) design-only, PR #263 squash 6813e9c. executor(architect ADR + tester lint/build/test green 353스위트/6928테스트, src 0)→driver commit f750d46→PR #263→reviewer round1 APPROVE(BLOCKER/MAJOR/MINOR 0, NIT 2 비차단 — coversReq id 정렬·Follow-up slice granularity, 후속 direct doc 이연)→4-게이트 충족(reviewer comment issuecomment-4665614465·CI run 27246763891 green head f750d46)→integrator MERGED. reviewRounds[T-0313]=1. tasksCompleted 309→310. ADR-0037 §Decision2/3(double-write 경계·idempotency)는 PROPOSE 상태 — 사용자 ADR 검토 흐름 유효. 다음: planner 가 followUp(B ADR-0034 흡수+#249 close = direct doc, 또는 bridge impl slice) 큐잉. orphan PR #249 여전히 미처리.",
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-3e8b (turn cap 10, 로컬 WIN-JQIPLSBL9QV) t2 — **T-0314 DONE(direct) + orphan PR #249 close = Q-0031 followUp(B) 완결**. lock heartbeat(033dfa1→3f2e2f7, since=10:39 turnCount=2). 직전 t1 의 51b4a17 CI green 확인. executor: ADR-0034 lock-bypass 봉쇄 규율을 LOOP.md §1[1](모든 진입점 lock CAS 무조건 선행 + gh부재/main-push-불가는 skip 근거 아님)·§4(lock 미획득=stand-down, 격리 병렬 금지 #246/#247) + CLAUDE.md §10 규칙1 에 흡수(direct, 2파일 +10/-1, tester R-110 면제). driver commit c056f8e push. 흡수 머지 後 **PR #249 close + 브랜치 claude/loop-turn-cap-5-a9786f 삭제**(흡수 後 close 순서, ADR-0036 §Decision1). open PR 0. tasksCompleted 310→311. **Q-0031 두 followUp(bridge ADR T-0313 + ADR-0034 흡수/​#249 close T-0314) 전원 완결**. 남은 P5 backbone: ADR-0037 §Decision2/3 PROPOSE 사용자 검토 → bridge impl slice(followUp1, 검토 後), live-LLM=§5 credential, timezone=Q-0026. 다음 t3: planner survey — bridge impl 이 ADR-0037 PROPOSE 검토 대기인지 판정 → 대기면 escalate, 아니면 dependency-free slice 큐잉.",
+    "notePrevT1Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t1 — T-0313 머지(ADR-0037 bridge 설계 PROPOSED, PR #263 squash 6813e9c, design-only). reviewer round1 APPROVE(NIT 2 비차단), 4-게이트 충족, CI green. tasksCompleted 309→310. planner T-0314 큐잉.",
     "notePrevSessionAKIHA": "/loop session loop@AKIHA-vb707106 (turn cap 8, 로컬 AKIHA) t6 — T-0312(ADR-0035 PROPOSED→ACCEPTED flip) 머지 PR #262 squash e578146. ADR-0035 dependency-free 구현 chain(T-0304~T-0312) 전원 완결. tasksCompleted 308→309. dependency-free P5 소진 → planner Q-0031 escalate. 세션 t1~t6: T-0307~T-0312 머지(ADR-0035 Summary 평가 chain 완결+ACCEPTED).",
     "notePrevT2": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t8 — planner: ADR-0035 write service slice 를 cap 초과 회피 2 분할, 첫 조각 T-0307 큐잉(Summary batch 정성 narrative 생성 — 한 person-period unit 묶음 → typed surface batch prompt → LlmHttpGateway.generate 1회 mocked-LLM → narrative string, §Decision 5; cross-person 금지·raw 0). 단위평가 chain prompt+classify(T-0290) 분리 동형. DB write·metricScore 결합·reset-and-recreate 는 다음 slice T-0308. architect 불요(ADR §Decision 5 박제)→implementer→tester, dep0/credential0. nextTask=T-0307. **cap 근접**: turnCount=8/10 — T-0307 execute(t9, implementer+reviewer+CI+merge) 후 t10 closeout 즈음 cap 도달 예정, 그때 /compact·/clear 안내. 사용자 lock 피드백: 긴 CI/verify idle 중 release+resume 적용(§1[5] 준수). FYI orphan PR #249(ADR-0034) 미처리.",
     "notePrevT1": "/loop t5 — T-0301 DONE 머지(PR #253 628ceb5): evaluate flow persist-return 배선 (ADR-0033 slice 4). reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart + 2 MINOR) → round2 fix(@IsISO8601/@IsIn) → APPROVE. reviewRounds=2. tasksCompleted 297→298. planner T-0302 큐잉.",
@@ -523,7 +524,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 310,
+    "tasksCompleted": 311,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

@@ -2,7 +2,9 @@
 id: T-0314
 title: ADR-0034 lock-bypass 봉쇄 규율을 LOOP.md + CLAUDE.md §10 에 흡수
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T10:42:00+09:00
+mergedAs: c056f8e
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 40
