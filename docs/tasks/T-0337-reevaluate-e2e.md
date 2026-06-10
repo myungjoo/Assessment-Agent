@@ -2,8 +2,9 @@
 id: T-0337
 title: reevaluate replace·동시성 수렴 e2e + ADR-0038 §Decision5 실측 박제 (slice 4)
 phase: P5
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 281
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 260
 estimatedFiles: 2

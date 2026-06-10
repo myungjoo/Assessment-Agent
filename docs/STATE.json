@@ -5,8 +5,8 @@
     "multiTaskFire": true,
     "fineGrainedConcurrency": false
   },
-  "currentTask": null,
-  "nextTask": "T-0337",
+  "currentTask": "T-0337",
+  "nextTask": null,
   "backlogNote": "T-0336 DONE·merge(loop@WIN-JQIPLSBL9QV-tc10 t8, pr-mode, PR #280 squash a2672db): ADR-0038 slice 3 — controller reevaluate dispatch(Admin pass-through) + User fail-closed 403(§Decision4 (ii)). reviewer round1 APPROVE findings 0. **reevaluate 기능이 endpoint 까지 배선 완료** — Admin 은 POST /api/assessment-evaluation/period 에 reevaluate:true 로 재평가 가능(DTO T-0333 → service T-0335 → controller T-0336). **ADR-0038 chain 잔여**: slice 4(e2e: replace 실측 row stable+content NEW / default first-write-wins 보존 / 동시 reevaluate 수렴 semantics §Decision5 실측 박제 / User+reevaluate 영속 0) → chain 후 doc-sync(api.md L102 mode 절 제거+reevaluate 추가 — T-0334 Follow-ups). 병행 후보: live-LLM(만료 6/30, 6/25 격상), timezone KST ADR. **외부 PR #277** 사용자 disposition 대기. gh 간헐 401 은 retry-loop 표준(memory 박제, workflow scope 부재 주의).",
   "lock": {
     "holder": "loop",
@@ -14,7 +14,7 @@
     "since": "2026-06-10T23:46:49+09:00",
     "note": "loop@WIN-JQIPLSBL9QV-tc10 /loop 세션(turn cap 10) t1 — Q-0034 RESOLVED(옵션 1)로 unblock. 권위 lock = claude/lock-driver tip b116046(holder=loop, since 동기). 본 STATE.lock 은 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json. ADR-0038 ACCEPTED + slice 1 T-0333 큐잉. t2 부터 T-0333 executor(pr-mode) 진행."
   },
-  "lastActivity": "2026-06-11T02:55:00+09:00",
+  "lastActivity": "2026-06-11T03:20:00+09:00",
   "lastCommit": "a2672db",
   "mostRecentTasks": [
     "T-0336",
@@ -24,11 +24,11 @@
     "T-0332"
   ],
   "loopSession": {
-    "turnCount": 9,
+    "turnCount": 10,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-tc10",
     "startedAt": "2026-06-10T23:46:49+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t9 — planner-only turn. queued T-0337(ADR-0038 slice 4: reevaluate replace+동시성 수렴 e2e 실 PostgreSQL + §Decision5 실측 amendment, 2파일 est 260, pr-mode, dependsOn T-0336). api.md doc-sync 는 별도 후속(T-0334 Follow-ups 유지). t8 머지 a2672db CI green 확인. 다음 t10(cap 마지막): T-0337 execute — 완료 시 ADR-0038 chain 의 e2e 까지 완결, 미완 시 prNumber resume 박제로 다음 세션 인계."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t10(cap 마지막) — T-0337 pr-mode: executor 구현(reevaluate e2e 9건+ADR §D5 amendment, +299/-0) → branch(1f6e028) push → PR #281 open. currentTask=T-0337·prNumber=281 박제 — **본 turn 에서 merge 미완 시 LOOP §1[2] PR Resume 판정이 다음 진입점(cron/새 loop)에서 이어받는다**. e2e 는 CI 실 PG 가 검증 authority(로컬 PG 부재)."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
