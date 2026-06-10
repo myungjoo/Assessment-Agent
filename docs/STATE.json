@@ -5,30 +5,31 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0321",
+  "nextTask": "T-0322",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-0363",
-    "since": "2026-06-10T12:40:00+09:00",
+    "since": "2026-06-10T12:50:00+09:00",
     "loopSessionStartedAt": "2026-06-10T12:30:00+09:00",
-    "loopSessionTurnCount": 2,
-    "note": "loop@WIN-JQIPLSBL9QV-0363 /loop 세션 t2 — T-0320(ADR-0037 §Decision3 first-write-wins read-through design-amend) DONE·머지(PR #268 squash 52ab7a7). ADR-0037 status ACCEPTED. 권위 lock 은 branch claude/lock-driver tip 20c2884(heartbeat t2)에서 보유 — 본 필드는 non-authoritative human mirror."
+    "loopSessionTurnCount": 3,
+    "note": "loop@WIN-JQIPLSBL9QV-0363 /loop 세션 t3 — T-0321(ADR-0037 slice2 Admin full-persist orchestration, first-write-wins read-through) DONE·머지(PR #269 squash a0e96b9). 권위 lock 은 branch claude/lock-driver tip 63e6302(heartbeat t3)에서 보유 — 본 필드는 non-authoritative human mirror."
   },
-  "lastActivity": "2026-06-10T12:40:00+09:00",
-  "lastCommit": "52ab7a7",
+  "lastActivity": "2026-06-10T12:50:00+09:00",
+  "lastCommit": "a0e96b9",
   "mostRecentTasks": [
+    "T-0321",
     "T-0320",
     "T-0319",
     "T-0318",
-    "T-0317",
-    "T-0316"
+    "T-0317"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "startedAt": "2026-06-10T12:30:00+09:00",
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-0363",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-0363 (turn cap 10, 로컬 WIN-JQIPLSBL9QV) t2 — **T-0320 DONE·머지: ADR-0037 §Decision3 idempotency first-write-wins read-through 확정(PR #268 squash 52ab7a7)**. lock heartbeat(52c918a→20c2884, t2 since=12:40). t1 에서 사용자가 Q-0032 를 옵션(2) 경계수정으로 RESOLVED(§Decision2 as-proposed·§Decision3 409→first-write-wins read-through·overwrite DEFERRED) → planner T-0320 큐잉. t2 executor(architect ADR-0037 amend +28/-23, src 0; tester R-110 lint/build/test green) → PR #268 → reviewer round1 APPROVE(NIT 1 비차단, slice5 위임) → 4-게이트(comment issuecomment-4666680064·CI 기본검사 pass) → integrator MERGED(squash 52ab7a7, 브랜치 삭제). ADR-0037 PROPOSED→ACCEPTED. reviewRounds[T-0320]=1, tasksCompleted 316→317. **ADR-0037 두 PROPOSE 결정 모두 해소 → Admin full-persist impl chain unblock**. 다음 t3: planner 가 slice 2(orchestration Admin first-write-wins persist 분기, create-if-absent-else-read) 큐잉.",
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-0363 (turn cap 10, 로컬 WIN-JQIPLSBL9QV) t3 — **T-0321 DONE·머지: ADR-0037 slice2 Admin full-persist orchestration(first-write-wins read-through)(PR #269 squash a0e96b9)**. lock heartbeat(20c2884→63e6302, t3 since=12:50). executor(PeriodBridgeAdminPersistService — collect persist-free→filter→evaluate→persist 'fill', P2002 catch→AssessmentRepository.findByCoordinate read-back, create-if-absent-else-read; ephemeral service 무변경 sibling, reeval 미사용; +265 LOC 3 prod+2 spec, 신규 2파일 100% cov) → PR #269 → reviewer round1 APPROVE(BLOCKER/MAJOR/MINOR 0, NIT 2 비차단: created flag 한계 slice5 defer·partial-failure test tautological) → 4-게이트. **CI 주의**: PR-open pull_request run 이 'reviewer approval 검증' step 만 fail(open 시점 reviewer comment 부재 ordering) → reviewer approve comment(issuecomment-4666823736) post 후 driver 가 run 27254966044 --failed rerun → 전 step green(lint/build/prisma/test+cov/smoke/e2e) → gate4 충족 → integrator MERGED(squash a0e96b9, 브랜치 삭제). reviewRounds[T-0321]=1, tasksCompleted 317→318. 다음 t4: planner slice 3(controller Admin role 분기 endpoint + 영속 Assessment 식별자 응답) 큐잉.",
+    "notePrevT2_0363": "loop@WIN-JQIPLSBL9QV-0363 t2 — T-0320 DONE·머지(ADR-0037 §Decision3 first-write-wins read-through design-amend, PR #268 squash 52ab7a7, ADR-0037 ACCEPTED). t1 에서 사용자 Q-0032 옵션(2) RESOLVED(§2 as-proposed·§3 409→first-write-wins·overwrite DEFERRED). reviewRounds[T-0320]=1, tasksCompleted 316→317.",
     "notePrevWin3e8bT7": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t7 — T-0319 DONE(direct doc-sync: ADR-0037 ephemeral endpoint architecture doc-sync, commit d3d8c89). tasksCompleted 315→316. ephemeral dependency-free work 소진 → t8 planner Q-0032 escalate(사용자 §Decision2/3 검토 요청) → loop 정지(unresolved HQ). 그 Q-0032 를 본 0363 세션 t1 이 RESOLVED.",
     "notePrevT6Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t6 — T-0318 DONE·머지(ADR-0037 slice5 ephemeral e2e, DB-write-0 실 PostgreSQL 검증, PR #267 squash 55c0d77). reviewer round1 APPROVE, 4-게이트, CI e2e PASS. tasksCompleted 314→315. ADR-0037 ephemeral end-to-end 완결. planner T-0319 doc-sync 큐잉.",
     "notePrevT4Win": "/loop session loop@WIN-JQIPLSBL9QV-3e8b t4 — T-0316 DONE·머지(ADR-0037 slice2 ephemeral orchestration PeriodBridgeEphemeralService 구조적 write-0, PR #265 squash 154d7a4). reviewer round1 APPROVE(NIT 1), 4-게이트, CI green. tasksCompleted 312→313. planner T-0317 큐잉.",
@@ -41,16 +42,17 @@
     "noteCronFire": "cron@AKIHA-15-32380 fire(2026-06-10T10:06 KST, 매시 15분 trigger) — **Q-0031 RESOLVED 후 첫 productive fire**. lock 자유 확인(branch tip tombstone `{\"holder\":null}` at 372c730)→branch-CAS 획득(cf21474). currentTask/nextTask 둘 다 null + unresolved HQ 0 → planner dispatch. **planner T-0313 큐잉**(ADR-0037 period→collection→evaluate bridge 설계, commitMode pr, design-only): Q-0031 옵션(1) 승인 반영 — RBAC[Admin full collect→evaluate→persist / User self-only ephemeral DB write 0]·double-write 경계·idempotency·EvaluationResult[] source-of(bridge fresh collect) 박제, impl slice(DTO/orchestration/controller/RBAC guard/e2e)는 Follow-ups. 새 dep/credential 0. nextTask=T-0313, tasksCompleted 309 유지(planner-only turn). 별건 followUp(B) ADR-0034 흡수+#249 close 는 후속 task. 재개: 다음 /loop·cron fire 가 T-0313 execute(architect ADR-0037 → 사용자 ADR PR 검토). lock 해제(tombstone)."
   },
   "ci": {
-    "lastRun": "2026-06-10T12:40:00+09:00",
+    "lastRun": "2026-06-10T12:50:00+09:00",
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27254153650",
-    "benignRedNote": "**반복 패턴 — 무시 가능한 issue_comment red (consecutiveFails 미증가, push-CI 무관)**: reviewer/close comment 가 PR 에 post 되면 event=issue_comment run 이 main 기준으로 돌며 job '기본 검사' step 'reviewer agent approval 검증' 가 fail 할 수 있다(해당 ref 에 approve 된 open PR 가 매칭 안 될 때 정상 fail). 최신 인스턴스: head 7414f4d(event=issue_comment, PR #268 reviewer comment 가 trigger) failure — 그러나 PR #268 자체의 push/PR-event '기본 검사' 는 pass 했고(d00d5d8) merge 됨. **push-event run 만 gate** — issue_comment run 을 main 회귀로 오판 금지. 잠재 follow-up: ci.yml 의 approval-검증 step 을 PR state==open push/PR event 에서만 돌리도록 가드(우선순위 낮음).",
-    "verifiedGreen": "loop@WIN-JQIPLSBL9QV-0363 t1·t2: 7414f4d(Q-0032 resolve direct) push run·52ab7a7(T-0320 squash merge) push run 은 진행중→다음 turn 재확인. PR #268 '기본 검사' pass(run 27254153650). 직전 세션 3e8b 의 main push-CI 전부 green. Node.js 20→24 deprecation 경고 non-blocking(2026-06-16). benignRedNote 의 issue_comment red 는 무시.",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27254966044",
+    "benignRedNote": "**반복 패턴 — approval-검증 step 의 ordering fail (consecutiveFails 미증가)**: ci.yml job '기본 검사' 의 'reviewer agent approval 검증' step 은 §3.3 gate2(PR 에 reviewer approve comment/review 존재) 를 검증한다. (A) PR-open 시점 pull_request-event run 은 reviewer comment 가 아직 없어 이 step 이 fail → reviewer approve comment post 후 `gh run rerun <id> --failed` 로 재실행하면 green(T-0321/PR #269 run 27254966044 가 이 케이스 — rerun 후 전 step green, merge). (B) issue_comment-event run 은 main ref 기준으로 돌아 매칭 PR 없으면 fail(예: head 7414f4d). 둘 다 **실코드 회귀 아님** — 실 step(lint/build/prisma/test+cov/smoke/e2e)은 통과. **gate4 평가 = 해당 PR head 의 pull_request-event run 이 (필요시 rerun 후) success 인지**. 잠재 follow-up: approval 검증 step 을 PR state==open 또는 comment 존재 조건으로 가드(우선순위 낮음).",
+    "verifiedGreen": "loop@WIN-JQIPLSBL9QV-0363 t1~t3 main push-CI green: 7414f4d(Q-0032 resolve)·52ab7a7(T-0320 merge)·af9a41d(T-0320 closeout) 전부 push run success. a0e96b9(T-0321 merge) push run 진행중→다음 turn 재확인. PR #268 run 27254153650 pass / PR #269 run 27254966044 rerun 후 pass. Node.js 20→24 deprecation 경고 non-blocking(2026-06-16). benignRedNote 참조.",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
+    "T-0321": 1,
     "T-0320": 1,
     "T-0318": 1,
     "T-0317": 1,
@@ -556,7 +558,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 317,
+    "tasksCompleted": 318,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

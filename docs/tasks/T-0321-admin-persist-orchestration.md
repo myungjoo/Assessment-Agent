@@ -2,7 +2,9 @@
 id: T-0321
 title: period→collect→evaluate Admin full-persist orchestration bridge service (first-write-wins read-through)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T12:50:00+09:00
+result: 머지 — PR #269 squash a0e96b9. PeriodBridgeAdminPersistService(collect persist-free→filter→evaluate→persist 'fill', P2002 catch→AssessmentRepository.findByCoordinate read-back, first-write-wins create-if-absent-else-read) + module 배선. ephemeral service 무변경(sibling, write-0 보존), reeval 미사용. reviewer round1 APPROVE(NIT 2 비차단), 4-게이트(PR-open approval-step ordering fail → rerun 후 전 step green), 신규 2파일 100% cov.
 commitMode: pr
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 270
