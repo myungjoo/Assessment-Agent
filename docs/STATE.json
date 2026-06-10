@@ -6,17 +6,17 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "T-0329 DONE(loop@WIN-JQIPLSBL9QV-c10a t1, direct doc-only): LOOP §1[2]에 토글-gated claim-pickup 분기(flags.fineGrainedConcurrency ON 시 lock-하 reclaim+select-claim→claim 박제 즉시 release→lock-free executor, claimable 부재 no-op; OFF=기존 단일-task 경로 1:1 보존) + reclaim primitive server-time now 주입 계약(RECLAIM_NOW=server-time, 미주입=fail-closed 회수 보류, RESUME→[2] PR Resume 분기) 박제. 토글 OFF 유지(driver 동작 불변, forward-looking spec). adr0036Rollout.stage3=IN_PROGRESS. **stage3 잔여(전부 dependency-free direct doc, buildThrough·non-escalate)**: slice2(CLAUDE §10 동시실행 정책 N-driver 서술 sync) + slice3(LOOP §4 코드-충돌 흡수 경계 N-driver sync). stage4(per-PR CI concurrency group, pr)·stage5(토글 ON, 30일 dogfood)는 후속. 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 은 human PROPOSED→ACCEPTED flip gating(dependency-free 아님 — escalate 대상). 다음 진입점: currentTask·nextTask 둘 다 null → planner dispatch(stage3 slice2 큐잉 예상).",
+  "nextTask": "T-0330",
+  "backlogNote": "T-0329 DONE(loop@WIN-JQIPLSBL9QV-c10a t1, direct doc-only): LOOP §1[2]에 토글-gated claim-pickup 분기(flags.fineGrainedConcurrency ON 시 lock-하 reclaim+select-claim→claim 박제 즉시 release→lock-free executor, claimable 부재 no-op; OFF=기존 단일-task 경로 1:1 보존) + reclaim primitive server-time now 주입 계약(RECLAIM_NOW=server-time, 미주입=fail-closed 회수 보류, RESUME→[2] PR Resume 분기) 박제. 토글 OFF 유지(driver 동작 불변, forward-looking spec). adr0036Rollout.stage3=IN_PROGRESS. **stage3 잔여(전부 dependency-free direct doc, buildThrough·non-escalate)**: slice2(CLAUDE §10 동시실행 정책 N-driver 서술 sync) + slice3(LOOP §4 코드-충돌 흡수 경계 N-driver sync). stage4(per-PR CI concurrency group, pr)·stage5(토글 ON, 30일 dogfood)는 후속. 별건 ADR-0038(overwrite/재평가, PROPOSED) impl chain 은 human PROPOSED→ACCEPTED flip gating(dependency-free 아님 — escalate 대상). t2 planner-only turn: T-0330 큐잉(stage3 slice2 — CLAUDE §10 동시실행 정책 토글-gated N-driver 서술 sync, direct doc-only, ~30 LOC, dependsOn T-0329). 다음 진입점: nextTask=T-0330 → currentTask 승격 후 execute(doc-only direct commit). 잔여 slice3(LOOP §4 N-driver 충돌 흡수 경계 sync).",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-c10a",
-    "since": "2026-06-10T18:45:45+09:00",
+    "since": "2026-06-10T18:57:24+09:00",
     "loopSessionStartedAt": "2026-06-10T18:45:45+09:00",
-    "loopSessionTurnCount": 1,
-    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t1 — free tombstone(18de8ec) 확인 후 branch-CAS 획득(636c628). T-0329 DONE(direct doc-only). 권위 lock 은 branch claude/lock-driver tip 636c628 에서 보유(세션 동안 hold, turn 시작마다 since heartbeat) — 본 필드는 non-authoritative human mirror. 세션 종료(cap 도달/BLOCKED/work 소진) 시 tombstone release."
+    "loopSessionTurnCount": 2,
+    "note": "loop@WIN-JQIPLSBL9QV-c10a /loop 세션(turn cap 10) t2 — t1 T-0329 DONE·CI green(0a1fde9 run 27268086563 success) 확인. t2 = planner-only turn(currentTask·nextTask 둘 다 null → planner dispatch, T-0330 큐잉). 권위 lock heartbeat 636c628→4c4b4b6(since=18:57). 본 필드는 non-authoritative human mirror. 세션 종료(cap 도달/BLOCKED/work 소진) 시 tombstone release."
   },
-  "lastActivity": "2026-06-10T18:48:00+09:00",
+  "lastActivity": "2026-06-10T18:57:24+09:00",
   "lastCommit": "c496457",
   "mostRecentTasks": [
     "T-0329",
@@ -26,18 +26,19 @@
     "T-0326"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-c10a",
     "startedAt": "2026-06-10T18:45:45+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t1 — T-0329 DONE(direct doc-only): ADR-0036 stage3 slice1 LOOP §1[2] 토글-gated claim-pickup 분기 + reclaim server-time now 주입 계약 박제. 토글 OFF 유지(driver 동작 불변). tasksCompleted 325→326. 다음 t2: currentTask·nextTask 둘 다 null → planner dispatch(stage3 slice2 CLAUDE §10 N-driver sync 큐잉 예상)."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10a (dynamic, turn cap 10) t2 — planner-only turn: currentTask·nextTask 둘 다 null → planner dispatch, T-0330 큐잉(ADR-0036 stage3 slice2: CLAUDE §10 동시실행 정책 토글-gated N-driver 서술 sync, direct doc-only, ~30 LOC). pre-check 통과(§10 ADR-0036 언급 0건). t1 T-0329 CI green 확인(0a1fde9 success). counter 불변(planner-only). 다음 t3: T-0330 execute(direct doc commit)."
   },
   "ci": {
-    "lastRun": "2026-06-10T16:58:00+09:00",
+    "lastRun": "2026-06-10T18:51:41+09:00",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27262031787",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27268086563",
+    "noteT0329": "T-0329(0a1fde9, direct doc-only) push run 27268086563 = success — doc-only 변경(LOOP.md+STATE+journal+task) 전 step green. prior push 4a9b2cf 도 success.",
     "noteT0325": "PR #272(T-0325 ADR-0038) pull_request-event run 27262031787 = success 전 step green(Lint/Build/Prisma/test+cov/smoke/e2e + reviewer approval 검증). reviewer approve comment 가 approval-step 실행 전 landing → first-run green, rerun 불요. 06ae245 squash merge.",
     "benignRedNote": "**반복 패턴 — approval-검증 step 의 ordering fail (consecutiveFails 미증가)**: ci.yml job '기본 검사' 의 'reviewer agent approval 검증' step 은 §3.3 gate2(PR 에 reviewer approve comment/review 존재) 를 검증한다. (A) PR-open 시점 pull_request-event run 은 reviewer comment 가 아직 없어 이 step 이 fail → reviewer approve comment post 후 `gh run rerun <id> --failed` 로 재실행하면 green(T-0321/PR #269 run 27254966044 가 이 케이스 — rerun 후 전 step green, merge). (B) issue_comment-event run 은 main ref 기준으로 돌아 매칭 PR 없으면 fail(예: head 7414f4d). 둘 다 **실코드 회귀 아님** — 실 step(lint/build/prisma/test+cov/smoke/e2e)은 통과. **gate4 평가 = 해당 PR head 의 pull_request-event run 이 (필요시 rerun 후) success 인지**. 잠재 follow-up: approval 검증 step 을 PR state==open 또는 comment 존재 조건으로 가드(우선순위 낮음).",
     "verifiedGreen": "loop@WIN-JQIPLSBL9QV-0363 t1~t5 main push-CI green: 7414f4d·52ab7a7·af9a41d·a0e96b9·6b24533·5186385(T-0322 merge)·926377b(T-0322 closeout) 전부 push run success. ad966d0(T-0323 merge) push run 진행중→다음 turn 재확인. PR #268 run 27254153650 pass / #269 27254966044 rerun pass / #270 27256092195 rerun pass / #271 27256906675 첫-pass(reviewer comment 가 approval-step 전 도착, rerun 불요). approval-step ordering 은 PR-open 타이밍에 따라 fail→rerun 또는 첫-pass. Node.js 20→24 deprecation non-blocking(2026-06-16). benignRedNote 참조.",
