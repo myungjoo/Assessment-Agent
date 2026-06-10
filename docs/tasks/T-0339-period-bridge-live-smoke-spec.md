@@ -2,7 +2,10 @@
 id: T-0339
 title: period-bridge live-LLM 검증 smoke spec 신설 (env-gated, ADR-0037 §Decision5)
 phase: P5
-status: IN_PROGRESS
+status: DONE
+completedAt: 2026-06-11T03:45:00+09:00
+mergedAs: 0361ba7
+reviewRounds: 1
 commitMode: pr
 prNumber: 282
 coversReq: [REQ-009, REQ-096, REQ-097]
