@@ -2,7 +2,11 @@
 id: T-0318
 title: period bridge ephemeral endpoint e2e (User self-only round-trip + DB-write-0) 추가
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T12:06:00+09:00
+mergedAs: 55c0d77
+prNumber: 267
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-045]
 estimatedDiff: 190
