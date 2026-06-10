@@ -2,7 +2,11 @@
 id: T-0315
 title: period→collection→evaluate bridge 입력 DTO 추가 (ADR-0037 slice 1)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T11:06:00+09:00
+mergedAs: 3f39e03
+prNumber: 264
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-040, REQ-045]
 estimatedDiff: 90
