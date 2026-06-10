@@ -32,6 +32,7 @@
 //   - 평가 결과 영속화 / Prisma migration — §5 schema 게이트 deferred.
 import { Module } from "@nestjs/common";
 
+import { AssessmentCollectionModule } from "../assessment-collection/assessment-collection.module";
 import { LLM_GATEWAY } from "../llm/llm-gateway.interface";
 import { LlmHttpGateway } from "../llm/llm-http-gateway.service";
 import { LlmModule } from "../llm/llm.module";
@@ -40,6 +41,7 @@ import { AssessmentEvaluationController } from "./assessment-evaluation.controll
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import { EvaluationResultPersistService } from "./evaluation-result-persist.service";
 import { EvaluationScoringService } from "./evaluation-scoring.service";
+import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
 import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
 import { SummaryNarrativeService } from "./summary-narrative.service";
 import { SummaryPersistService } from "./summary-persist.service";
@@ -48,7 +50,13 @@ import { SummaryPersistService } from "./summary-persist.service";
   // LlmModule import — LlmHttpGateway(LlmGateway 구현체) export 를 끌어와 LLM_GATEWAY
   // token 바인딩을 닫는다(평가 → llm 단방향). PersistenceModule 등 추가 import 불요 —
   // LlmModule 이 (전이로) 자기 의존을 모두 닫는다.
-  imports: [LlmModule],
+  // AssessmentCollectionModule import — T-0316(ADR-0037 §Decision1 ephemeral bridge).
+  // PeriodBridgeEphemeralService 의 생성자 의존 CollectionSpecService /
+  // CollectionOrchestratorService 가 collection module export 로 DI resolve 된다
+  // (evaluation → collection 단방향, collection 은 evaluation 미참조 — circular 부재).
+  // persist service / collectForPerson 은 import 해도 본 ephemeral service 가 주입하지
+  // 않으므로 도달 경로 0(구조적 write-0 보존).
+  imports: [LlmModule, AssessmentCollectionModule],
   // T-0293: AssessmentEvaluationController 등록 — POST /api/assessment-evaluation/
   // evaluate 의 HTTP route 가 본 module import 로 NestJS 런타임에 살아난다.
   controllers: [AssessmentEvaluationController],
@@ -79,6 +87,13 @@ import { SummaryPersistService } from "./summary-persist.service";
     // compose 한다. 추가 import 0(같은 module 내 DI resolve). 후속 controller slice 가
     // inject 받는다.
     SummaryAggregateOrchestratorService,
+    // PeriodBridgeEphemeralService — T-0316(ADR-0037 §Decision1 User self-only ephemeral
+    // + §Decision4 fresh in-memory collect). CollectionSpecService /
+    // CollectionOrchestratorService(AssessmentCollectionModule export) +
+    // EvaluationOrchestratorService(같은 module)를 주입받아 collect→filter→evaluate 를
+    // DB write 0 로 compose 한다(persist service 미주입 — 구조적 write-0). 후속 controller
+    // slice(slice 3)가 같은 module 내 DI 로 inject 받는다.
+    PeriodBridgeEphemeralService,
     // LLM_GATEWAY → LlmHttpGateway useExisting 바인딩. LlmModule 이 등록·export 한
     // LlmHttpGateway singleton 을 그대로 재사용하므로 새 인스턴스 생성 0. interface
     // 가 runtime 소거라 string token 으로 주입을 닫는다.
@@ -98,6 +113,9 @@ import { SummaryPersistService } from "./summary-persist.service";
     SummaryPersistService,
     // 후속 controller slice 가 aggregate 평가 orchestrator 를 inject 받도록 export(T-0310).
     SummaryAggregateOrchestratorService,
+    // 후속 controller slice(slice 3, POST /api/assessment-evaluation/period)가 ephemeral
+    // bridge service 를 inject 받도록 export(T-0316).
+    PeriodBridgeEphemeralService,
   ],
 })
 export class AssessmentEvaluationModule {}
