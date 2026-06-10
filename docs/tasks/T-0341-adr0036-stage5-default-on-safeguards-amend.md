@@ -1,5 +1,5 @@
 ---
-id: T-0334
+id: T-0341
 title: ADR-0036 amend — stage 5 기본-ON 안전장치 §Decision 8 박제 + rollout 5 세분 (5a/5b/5c)
 phase: P5
 status: IN_PROGRESS
@@ -10,12 +10,12 @@ estimatedFiles: 2
 created: 2026-06-10
 independentStream: stage5-default-on-safeguards
 dependsOn: []
-touchesFiles: [docs/decisions/ADR-0036-fine-grained-concurrency.md, docs/tasks/T-0334-adr0036-stage5-default-on-safeguards-amend.md]
+touchesFiles: [docs/decisions/ADR-0036-fine-grained-concurrency.md, docs/tasks/T-0341-adr0036-stage5-default-on-safeguards-amend.md]
 hqOrigin: "사용자 대면 세션 2026-06-10 — '기본 ON이 되면서도 안정성을 해치지 않도록 하려면?' 논의 후 '권한대로 해봐' 지시 (loop 외 user-directed)"
 plannerNote: "loop planner 가 아닌 사용자 대면 세션에서 직접 큐잉·실행. stage 1~4(T-0326~T-0332) 완료 후 남은 빈칸 — 회로 차단기·claim 재검증 의무·merge-전 rebase·ON 3단계 이행 — 을 ADR 에 설계 박제. 구현은 Follow-ups."
 ---
 
-# T-0334 — ADR-0036 amend: stage 5 기본-ON 안전장치 박제
+# T-0341 — ADR-0036 amend: stage 5 기본-ON 안전장치 박제
 
 ## Why
 
@@ -34,7 +34,7 @@ ADR-0036 은 ACCEPTED + stage 1~4 구현 완료(T-0326~T-0332) 상태이나, sta
 
 - [x] ADR-0036 에 **§Decision 8 "stage 5 기본-ON 안전장치"** 를 신설하고 5종을 박제한다: (a) fail-safe 강등(판정 불확실 시 후보 제외/단일-task fallback — reclaim fail-closed 계약의 확장), (b) claim 시점 런타임 재검증(`touchesFiles` 교집합 실검사 + `dependsOn` 머지 확인을 driver 의무로 확정), (c) integrator merge 직전 rebase + CI green 재확인 의무, (d) `concurrencyIncidents` 회로 차단기(같은 유형 2회 → lock 하 자동 토글 OFF + notifier, 재활성은 사람 결정만), (e) ON 3단계 이행(5a `maxConcurrentClaims=1` → 5b direct-only → 5c 전면 + 30일 dogfood).
 - [x] §rollout stage 5 를 (e) 의 5a/5b/5c 구조로 갱신하고, §Decision 8 (a)~(d) 구현 선행을 명시한다. 각 단계 break-even 게이트 포함.
-- [x] Status blockquote 에 amend 이력(2026-06-10, T-0334, 사용자 지시) 1 단락을 추가한다. ACCEPTED status 와 "토글 OFF — 동작 변화 0" 불변 명시.
+- [x] Status blockquote 에 amend 이력(2026-06-10, T-0341, 사용자 지시) 1 단락을 추가한다. ACCEPTED status 와 "토글 OFF — 동작 변화 0" 불변 명시.
 - [x] N=2 상한·cron@cloud direct-only·server-time 의무·lock-하 atomic claim 등 기존 §Decision 불변식과의 정합을 §Decision 8 말미에 명시한다.
 - [ ] (CI) doc-only PR — `pnpm lint && pnpm build && pnpm test` green (R-110, CI 에서 검증).
 

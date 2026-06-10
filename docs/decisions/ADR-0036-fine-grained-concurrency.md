@@ -6,7 +6,7 @@ ACCEPTED (2026-06-10)
 >
 > 채택은 ACCEPTED 이나 **런타임 활성은 토글이 ON 되는 stage 5 부터**다 — 그 전까지 코드/loop 동작은 stage 별 머지로 점진 도입되되 토글 OFF 동안 forward-looking spec 으로 기능한다(ADR-0009 모델은 토글 ON 전까지 사실상 동작 유지). `supersedes: ADR-0009`(부분 — §Decision 0 invariant 한정) · `amends: ADR-0028` · `relates: ADR-0034, ADR-0020`.
 >
-> **2026-06-10 amend (T-0334, 사용자 지시)**: stage 5 기본-ON 전환이 안정성을 해치지 않도록 안전장치 5종을 [§Decision 8](#8-stage-5-기본-on-안전장치-2026-06-10-amend--t-0334) 로 박제하고, §rollout stage 5 를 5a/5b/5c 3단계 이행으로 세분한다. 본 amend 는 설계 박제만으로 동작 변화 0(토글 여전히 OFF) — 안전장치 구현은 T-0334 Follow-ups 의 후속 task chain.
+> **2026-06-10 amend (T-0341, 사용자 지시)**: stage 5 기본-ON 전환이 안정성을 해치지 않도록 안전장치 5종을 [§Decision 8](#8-stage-5-기본-on-안전장치-2026-06-10-amend--t-0341) 로 박제하고, §rollout stage 5 를 5a/5b/5c 3단계 이행으로 세분한다. 본 amend 는 설계 박제만으로 동작 변화 0(토글 여전히 OFF) — 안전장치 구현은 T-0341 Follow-ups 의 후속 task chain.
 
 ## Context
 
@@ -95,7 +95,7 @@ journal 인터리브 + 다중 claim 의 추론 난이도 완화:
 - 모든 journal entry 에 **진입점 session-id 박제**(`driver(/loop loop@host-rand tN)` 형태 — 이미 부분 적용 중, 의무화).
 - claim registry 조회 수단: `git show refs/heads/claude/lock-driver:claims.json` 로 현 소유 일람(사람은 `git ls-remote` 후 직독, driver 는 fetch 후 파싱). lock.json 과 같은 commit 에 있어 단일 조회로 lock + 모든 claim 을 본다.
 
-### 8. stage 5 기본-ON 안전장치 (2026-06-10 amend — T-0334)
+### 8. stage 5 기본-ON 안전장치 (2026-06-10 amend — T-0341)
 
 핵심 원칙: **기본 ON 이 안전하려면 최악의 경우의 동작이 coarse 단일-driver(ADR-0009)와 정확히 같아야 한다.** 토글 ON 은 "무조건 병렬"이 아니라 "조건 충족 시에만 기회적 병렬 + 불확실하면 자동 직렬화 강등"이다. 안전장치 5종:
 
@@ -115,7 +115,7 @@ ADR-0020 multiTaskFire 토글 선례를 mirror 한 `flags.fineGrainedConcurrency
 2. **(pr) claim registry schema + select+claim critical-section 구현** — claims.json + lock 하 atomic claim + staleness 회수 + PR-resume. **break-even**: 이중 claim 0 · orphan 회수 정상 동작 검증.
 3. **(direct) §1 loop 재작성 + CLAUDE §10 / LOOP §4 동기** — critical-section lock + claim pickup 분기. ADR-0034 규율 흡수/정합. **break-even**: 두 driver 동시 무장 시 서로 다른 독립 task 진행 실증 + 충돌 없음.
 4. **(pr) `.github` per-PR concurrency group** (§Decision 6). **break-even**: 동시 PR CI 가 서로 cancel 안 하고 비용이 N 선형 안에 머묾.
-5. **(direct+pr) `flags.fineGrainedConcurrency = true` 기본-ON — §Decision 8 안전장치 선행 + 3단계 이행** (2026-06-10 T-0334 amend) — 위 1~4 머지 후, **먼저 §Decision 8 (a)~(d) 를 구현**(STATE `concurrencyIncidents` schema + select/pickup 런타임 재검증 + integrator merge-전 rebase 의무 + 회로 차단기 강등 분기 — LOOP §1[2]/CLAUDE §10/concurrency.md 동기 포함). 그 후 **5a → 5b → 5c 순 이행**: 5a `maxConcurrentClaims=1`(새 경로만 활성, 병렬 0) · 5b direct-only 병렬 · 5c 전면 병렬 + 30일 dogfood. **break-even**: 5a 메커니즘 무사고 · 5b 이중 claim 0 + bookkeeping 충돌 0 · 5c 실측 throughput 이득 > coordination 비용(중복/회수/충돌 흡수 오버헤드). 어느 단계든 §Decision 8 (d) 회로 차단기 임계 도달 시 자동 OFF 강등.
+5. **(direct+pr) `flags.fineGrainedConcurrency = true` 기본-ON — §Decision 8 안전장치 선행 + 3단계 이행** (2026-06-10 T-0341 amend) — 위 1~4 머지 후, **먼저 §Decision 8 (a)~(d) 를 구현**(STATE `concurrencyIncidents` schema + select/pickup 런타임 재검증 + integrator merge-전 rebase 의무 + 회로 차단기 강등 분기 — LOOP §1[2]/CLAUDE §10/concurrency.md 동기 포함). 그 후 **5a → 5b → 5c 순 이행**: 5a `maxConcurrentClaims=1`(새 경로만 활성, 병렬 0) · 5b direct-only 병렬 · 5c 전면 병렬 + 30일 dogfood. **break-even**: 5a 메커니즘 무사고 · 5b 이중 claim 0 + bookkeeping 충돌 0 · 5c 실측 throughput 이득 > coordination 비용(중복/회수/충돌 흡수 오버헤드). 어느 단계든 §Decision 8 (d) 회로 차단기 임계 도달 시 자동 OFF 강등.
 
 각 stage ≤ 300 LOC / ≤ 5 파일. 어느 stage 든 break-even 미달이면 진행 보류(채택 강제 없음 — §Status).
 
