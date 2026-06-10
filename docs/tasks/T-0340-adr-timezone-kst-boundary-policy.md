@@ -2,13 +2,15 @@
 id: T-0340
 title: ADR — timezone KST(Asia/Seoul) boundary 정책 박제 (사용자 결정 2026-06-11)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-004, REQ-034]
 estimatedDiff: 220
 estimatedFiles: 1
 created: 2026-06-10
+completedAt: 2026-06-10T23:08:00Z
 plannerNote: P5 사용자 결정(2026-06-11) timezone=KST 확정 박제 — PLAN L109 ADR-first 의무, design-only ADR-0039 PROPOSED, dependency 0
+completionNote: cron@cloud-4dc06469 fire — ADR-0039 PROPOSED 신설(128 LOC < 220 est). 사용자 turn 지시 "문서/코멘트 변경은 PR 우회 direct merge" 에 따라 commitMode pr 분류이나 direct commit 으로 진행. pnpm lint + build green 검증. 모든 Acceptance Criteria 11 항목 충족. ACCEPTED flip 은 사용자 검토 후 별도 후속 direct task.
 independentStream: timezone-kst
 dependsOn: []
 touchesFiles: [docs/decisions/ADR-0039-timezone-kst-boundary-policy.md]
