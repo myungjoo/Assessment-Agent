@@ -5,8 +5,8 @@
     "multiTaskFire": true,
     "fineGrainedConcurrency": false
   },
-  "currentTask": null,
-  "nextTask": "T-0333",
+  "currentTask": "T-0333",
+  "nextTask": null,
   "backlogNote": "Q-0034 RESOLVED(옵션 1, 사용자 /loop 현장 승인 = Q-0033 'ADR 작성 후 사용자 ADR PR 검토' 게이트 충족) → ADR-0038(overwrite/재평가) ACCEPTED flip + impl chain 진입. slice 1 = T-0333(period bridge DTO 에 reevaluate?: boolean 추가, commitMode pr) nextTask 큐잉. impl chain slice 2~4(orchestration reeval opt-out 분기 / controller+RBAC + User reevaluate fail-closed reject / e2e)는 dependency-free(새 dep·schema·credential 0, ADR-0038 §Decision6). **발견 박제**: PeriodBridgeDto 에 T-0315 가 speculatively 추가한 vestigial mode?: 'fill'|'reeval' 가 이미 존재(period bridge 분기는 ignore — controller.spec L980~990 'no-bake' 테스트). ADR-0038 §Decision1 이 이를 미언급 = gap → slice 1 은 reevaluate flag 만 추가(faithful), vestigial mode reconcile(제거 vs deprecate + ADR-0038 amend)는 slice 2 architect. 남은 별건: ADR-0036 stage5 토글 ON(human/측정 break-even gate), live-LLM(§5 credential) — Q-0034 context 참조.",
   "lock": {
     "holder": "loop",
@@ -14,7 +14,7 @@
     "since": "2026-06-10T23:46:49+09:00",
     "note": "loop@WIN-JQIPLSBL9QV-tc10 /loop 세션(turn cap 10) t1 — Q-0034 RESOLVED(옵션 1)로 unblock. 권위 lock = claude/lock-driver tip b116046(holder=loop, since 동기). 본 STATE.lock 은 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json. ADR-0038 ACCEPTED + slice 1 T-0333 큐잉. t2 부터 T-0333 executor(pr-mode) 진행."
   },
-  "lastActivity": "2026-06-10T23:46:49+09:00",
+  "lastActivity": "2026-06-11T00:15:00+09:00",
   "lastCommit": "aedd7be",
   "mostRecentTasks": [
     "T-0332",
@@ -24,11 +24,11 @@
     "T-0328"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-tc10",
     "startedAt": "2026-06-10T23:46:49+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t1 — Q-0034 RESOLVED(옵션 1, 사용자 현장 'continue' 승인)로 ADR-0038 overwrite/재평가 impl chain 진입. 직전 세션(c10a)의 escalate 를 사용자 결정으로 해소. t1 성과: 권위 lock 획득(b116046) + ADR-0038 PROPOSED→ACCEPTED flip(direct §3.1 rule4) + slice 1 T-0333(reevaluate?: boolean DTO) 큐잉 + 발견(vestigial PeriodBridgeDto.mode → slice 2 reconcile flag). t2 부터 T-0333 pr-mode executor."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t2 — T-0333 pr-mode 진행: executor 구현(reevaluate?: boolean DTO field +90/-4, 29 test pass, cov 100%/100%) → feature branch claude/T-0333-reevaluate-flag-dto(5b213ee) push → PR #276 open. currentTask=T-0333·prNumber=276 박제(resume 대비). 다음: reviewer dispatch → comment post → 4-게이트 → merge."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
