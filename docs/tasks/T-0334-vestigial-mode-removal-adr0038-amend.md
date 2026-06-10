@@ -2,7 +2,10 @@
 id: T-0334
 title: vestigial PeriodBridgeDto.mode 제거 + ADR-0038 amend reconcile (slice 2a)
 phase: P5
-status: IN_PROGRESS
+status: DONE
+completedAt: 2026-06-11T01:05:00+09:00
+mergedAs: dc92553
+reviewRounds: 1
 commitMode: pr
 prNumber: 278
 coversReq: [REQ-009, REQ-040, REQ-045]
@@ -61,3 +64,5 @@ plannerNote: "P5 ADR-0038 slice2 를 cap 으로 2a/2b split — 2a=ADR amend+ves
 
 - (planner) **slice 2b — orchestration reeval opt-out 분기** 큐잉: 본 task 머지 후 [PeriodBridgeAdminPersistService](../../src/assessment-evaluation/period-bridge-admin-persist.service.ts) 의 `persistAndReadThrough` 에 default `"fill"` / `reevaluate === true` 시 `"reeval"` 분기 + mocked unit(R-112: flag 분기 / 좌표 부재 create degrade / 좌표 존재 reset-and-recreate / reeval 경로 P2002 semantics). 파일-disjoint(service + spec 2 파일).
 - (planner) live-LLM bridge 검증(PLAN P5, 만료 2026-06-30) — 2026-06-25 전 미착수 시 우선순위 격상(backlogNote 트리거 유지).
+
+- [ ] (reviewer MINOR-1, round1) docs/architecture/api.md L102 — period endpoint 서술이 제거된 `mode?` 를 여전히 포함(머지 후 사실 불일치: 이제 400 거부) + `reevaluate?` 미기재(T-0333 부터). ADR-0038 chain 완료 후 doc-sync task 에 포함할 것 (T-0319/T-0324 precedent).

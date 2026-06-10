@@ -5,30 +5,30 @@
     "multiTaskFire": true,
     "fineGrainedConcurrency": false
   },
-  "currentTask": "T-0334",
+  "currentTask": null,
   "nextTask": null,
-  "backlogNote": "T-0333 DONE·merge(loop@WIN-JQIPLSBL9QV-tc10 t2, pr-mode, PR #276 squash f1e47e5): ADR-0038 slice 1 — PeriodBridgeDto 에 reevaluate?: boolean(@IsOptional+@IsBoolean) request 계약 추가(+90/-4, 29 test, cov 100%/100%). reviewer round1 APPROVE(NIT-1: null 은 @IsOptional 흡수=truthful 박제 판단, 조치 불요), 4-게이트 PASS, CI green(5b213ee run 27286073473 rerun success). **다음 작업 후보(전부 dependency-free)**: (1) ADR-0038 slice 2 — orchestration reeval opt-out 분기 + vestigial PeriodBridgeDto.mode reconcile(architect, ADR-0038 amend — T-0333 발견 박제 참조). (2) slice 3 controller wiring + User reevaluate fail-closed reject. (3) slice 4 e2e. (4) **사용자 결정 2건(c40177a PLAN 박제)**: live-LLM bridge 검증 승인(Q-0022 secrets.env 재사용, 만료 2026-06-30 전 실행 필수 — 시한 있음) + timezone KST 확정(구현 진입 시 ADR-first). planner 는 slice 2(의존 chain 순서) vs live-LLM(만료 시한) 우선순위를 비교 — 만료까지 19일 여유 있으므로 ADR-0038 chain 먼저 권장, 단 6/25 전 live-LLM 미착수면 우선순위 격상.",
+  "backlogNote": "T-0334 DONE·merge(loop@WIN-JQIPLSBL9QV-tc10 t4, pr-mode, PR #278 squash dc92553): ADR-0038 slice 2a — vestigial PeriodBridgeDto.mode 제거 + §Decision1 amendment(4파일 +73/-105 순감소). reviewer round1 APPROVE(MINOR-1: api.md L102 doc-sync → T-0334 Follow-ups 박제 완료). **다음 후보**: (1) ADR-0038 slice 2b — orchestration reeval opt-out 분기(PeriodBridgeAdminPersistService 에 reevaluate===true → mode reeval + R-112 mocked unit) — 깨끗해진 계약 위 진행, 권장 다음 task. (2) slice 3 controller wiring + User reevaluate fail-closed reject. (3) slice 4 e2e. (4) live-LLM 검증(만료 6/30, 6/25 격상 트리거). (5) timezone KST ADR(구현 진입 시). **주의 — 외부 PR #277 존재**(claude/multi-session-loop-concurrency-0en1pb, ADR-0036 amend stage5 기본-ON 안전장치 §Decision 8): 본 driver 세션 밖에서 open 된 PR(브랜치 naming 이 cloud session 형식, T-NNNN 없음). driver 는 무단 merge/close 하지 않음 — 사용자 disposition 대기(t4 종료 시 사용자에게 surface 됨). ADR-0036 stage5 관련이므로 사용자가 직접 검토 중일 가능성.",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-tc10",
     "since": "2026-06-10T23:46:49+09:00",
     "note": "loop@WIN-JQIPLSBL9QV-tc10 /loop 세션(turn cap 10) t1 — Q-0034 RESOLVED(옵션 1)로 unblock. 권위 lock = claude/lock-driver tip b116046(holder=loop, since 동기). 본 STATE.lock 은 비권위 mirror(ADR-0009/0028) — 상호배제 권위는 branch tip lock.json. ADR-0038 ACCEPTED + slice 1 T-0333 큐잉. t2 부터 T-0333 executor(pr-mode) 진행."
   },
-  "lastActivity": "2026-06-11T00:48:00+09:00",
-  "lastCommit": "f1e47e5",
+  "lastActivity": "2026-06-11T01:07:00+09:00",
+  "lastCommit": "dc92553",
   "mostRecentTasks": [
+    "T-0334",
     "T-0333",
     "T-0332",
     "T-0331",
-    "T-0330",
-    "T-0329"
+    "T-0330"
   ],
   "loopSession": {
     "turnCount": 4,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-tc10",
     "startedAt": "2026-06-10T23:46:49+09:00",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t4 — T-0334 pr-mode 진행: executor 구현(vestigial mode 제거+ADR-0038 amend, 4파일 +73/-105, 6828 test pass) → branch claude/T-0334-vestigial-mode-removal(30f9303) push → PR #278 open(gh graphql 401 → REST fallback). currentTask=T-0334·prNumber=278 박제. 다음: reviewer dispatch → 4-게이트 → merge."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-tc10 (dynamic, turn cap 10) t4 — T-0334 DONE·merge(PR #278 squash dc92553). executor 4파일 +73/-105 → PR open(graphql 401 → REST fallback) → reviewer round1 APPROVE(MINOR-1 api.md → Follow-ups 박제) → approval-gate rerun green → 4-게이트 PASS → REST merge(merge 도 401 → REST 재시도 성공). gh 간헐 401 지속(키링 read 이슈 추정, gh auth status 는 정상 — 사용자 gh auth login 재실행 중). 외부 PR #277 발견(ADR-0036 stage5 amend, 세션 밖) — 사용자 surface. tasksCompleted 330→331. 다음 t5: planner(slice 2b 큐잉 예상)."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
@@ -134,7 +134,8 @@
     "T-0275": 1,
     "T-0327": 2,
     "T-0328": 1,
-    "T-0333": 1
+    "T-0333": 1,
+    "T-0334": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -597,7 +598,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 330,
+    "tasksCompleted": 331,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
