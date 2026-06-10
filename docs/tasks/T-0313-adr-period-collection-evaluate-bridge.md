@@ -2,7 +2,11 @@
 id: T-0313
 title: ADR-0037 period→collection→evaluate bridge 설계 (RBAC[Admin full / User ephemeral]·double-write 경계·idempotency·source-of)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-10T10:31:00+09:00
+mergedAs: 6813e9c
+prNumber: 263
+reviewRounds: 1
 commitMode: pr
 coversReq: [TBD]
 estimatedDiff: 240

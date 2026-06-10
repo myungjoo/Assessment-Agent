@@ -5,27 +5,30 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0313",
+  "nextTask": null,
   "lock": {
-    "holder": "cron",
-    "session": "cron@AKIHA-15-32380",
-    "since": "2026-06-10T10:06:17+09:00"
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-3e8b",
+    "since": "2026-06-10T10:14:00+09:00",
+    "loopSessionStartedAt": "2026-06-10T10:14:00+09:00",
+    "loopSessionTurnCount": 1
   },
-  "lastActivity": "2026-06-10T10:06:17+09:00",
-  "lastCommit": "a125dad",
+  "lastActivity": "2026-06-10T10:31:00+09:00",
+  "lastCommit": "6813e9c",
   "mostRecentTasks": [
+    "T-0313",
     "T-0312",
     "T-0311",
     "T-0310",
-    "T-0309",
-    "T-0307"
+    "T-0309"
   ],
   "loopSession": {
-    "turnCount": 6,
-    "startedAt": "2026-06-10T00:43:00+09:00",
-    "cap": 8,
-    "holder": "loop@AKIHA-vb707106",
-    "note": "/loop session loop@AKIHA-vb707106 (turn cap 8, 로컬 AKIHA) t6 — T-0312(ADR-0035 PROPOSED→ACCEPTED flip) 완료·머지: PR #262 squash e578146. reviewer round1 APPROVE(BLOCKER/MAJOR/MINOR 0, NIT 2 비차단 — PR-body prose mislabel·rule-4 tension), 4-게이트 충족, CI green(run 27226445587 head 157a37b). ADR-0035 status ACCEPTED + relatedTask/relatedPR backref + §Follow-ups 머지 6항목 [x]. **ADR-0035 dependency-free 구현 chain(T-0304~T-0312) 전원 완결**. reviewRounds[T-0312]=1. tasksCompleted 308→309. **dependency-free P5 소진** → planner Q-0031 escalate 예정(남은 P5: controller/endpoint+period→collection bridge=Q-0030 ADR-gate / live-LLM=§5 credential / timezone=Q-0026 — 전부 human/ADR 결정). loop 정지(unresolved HQ). **orphan PR #249(ADR-0034) 미처리 — 사용자 close 결정 대기**. 재개: 사용자 Q-0031 + #249 결정 후 새 /loop. **세션 t1~t6 성과: T-0308(ADR-0036)·T-0307·T-0309·T-0310·T-0311·T-0312 머지 — ADR-0035 Summary 평가 chain 완결+ACCEPTED, tasksCompleted 303→309**.",
+    "turnCount": 1,
+    "startedAt": "2026-06-10T10:14:00+09:00",
+    "cap": 10,
+    "holder": "loop@WIN-JQIPLSBL9QV-3e8b",
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-3e8b (turn cap 10, 로컬 WIN-JQIPLSBL9QV) t1 — Q-0031 RESOLVED 후 첫 /loop fire. 진입 시 local main behind 1(cron dc03e8b — T-0313 큐잉)→ff. lock 자유(branch tip tombstone 3458a8f)→branch-CAS 획득(033dfa1). **T-0313 execute·머지**: ADR-0037(period→collection→evaluate bridge 설계, PROPOSED) design-only, PR #263 squash 6813e9c. executor(architect ADR + tester lint/build/test green 353스위트/6928테스트, src 0)→driver commit f750d46→PR #263→reviewer round1 APPROVE(BLOCKER/MAJOR/MINOR 0, NIT 2 비차단 — coversReq id 정렬·Follow-up slice granularity, 후속 direct doc 이연)→4-게이트 충족(reviewer comment issuecomment-4665614465·CI run 27246763891 green head f750d46)→integrator MERGED. reviewRounds[T-0313]=1. tasksCompleted 309→310. ADR-0037 §Decision2/3(double-write 경계·idempotency)는 PROPOSE 상태 — 사용자 ADR 검토 흐름 유효. 다음: planner 가 followUp(B ADR-0034 흡수+#249 close = direct doc, 또는 bridge impl slice) 큐잉. orphan PR #249 여전히 미처리.",
+    "notePrevSessionAKIHA": "/loop session loop@AKIHA-vb707106 (turn cap 8, 로컬 AKIHA) t6 — T-0312(ADR-0035 PROPOSED→ACCEPTED flip) 머지 PR #262 squash e578146. ADR-0035 dependency-free 구현 chain(T-0304~T-0312) 전원 완결. tasksCompleted 308→309. dependency-free P5 소진 → planner Q-0031 escalate. 세션 t1~t6: T-0307~T-0312 머지(ADR-0035 Summary 평가 chain 완결+ACCEPTED).",
     "notePrevT2": "/loop session loop@AKIHA-707106 (turn cap 10, 로컬 AKIHA) t8 — planner: ADR-0035 write service slice 를 cap 초과 회피 2 분할, 첫 조각 T-0307 큐잉(Summary batch 정성 narrative 생성 — 한 person-period unit 묶음 → typed surface batch prompt → LlmHttpGateway.generate 1회 mocked-LLM → narrative string, §Decision 5; cross-person 금지·raw 0). 단위평가 chain prompt+classify(T-0290) 분리 동형. DB write·metricScore 결합·reset-and-recreate 는 다음 slice T-0308. architect 불요(ADR §Decision 5 박제)→implementer→tester, dep0/credential0. nextTask=T-0307. **cap 근접**: turnCount=8/10 — T-0307 execute(t9, implementer+reviewer+CI+merge) 후 t10 closeout 즈음 cap 도달 예정, 그때 /compact·/clear 안내. 사용자 lock 피드백: 긴 CI/verify idle 중 release+resume 적용(§1[5] 준수). FYI orphan PR #249(ADR-0034) 미처리.",
     "notePrevT1": "/loop t5 — T-0301 DONE 머지(PR #253 628ceb5): evaluate flow persist-return 배선 (ADR-0033 slice 4). reviewer round1 REQUEST_CHANGES(1 MAJOR periodStart + 2 MINOR) → round2 fix(@IsISO8601/@IsIn) → APPROVE. reviewRounds=2. tasksCompleted 297→298. planner T-0302 큐잉.",
     "notePrevSession": "/loop session loop@cloud-turn-cap-5 t1 — Q-0029 opt-1 unblock + ADR-0033/T-0297 작성 PR #247 머지. 직전 loop@AKIHA-ci0028 t3 가 Q-0029 escalation.",
@@ -41,6 +44,7 @@
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고)."
   },
   "reviewRounds": {
+    "T-0313": 1,
     "T-0312": 1,
     "T-0310": 1,
     "T-0309": 2,
@@ -519,7 +523,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 309,
+    "tasksCompleted": 310,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
