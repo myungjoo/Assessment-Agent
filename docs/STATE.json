@@ -7,14 +7,11 @@
   "currentTask": null,
   "nextTask": null,
   "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-3e8b",
-    "since": "2026-06-10T12:14:00+09:00",
-    "loopSessionStartedAt": "2026-06-10T10:14:00+09:00",
-    "loopSessionTurnCount": 7
+    "holder": null,
+    "note": "loop@WIN-JQIPLSBL9QV-3e8b 가 t7(turnCount 7) 후 Q-0032 escalate 로 정지하며 권위 lock(claude/lock-driver tip)을 tombstone(6495e4d)으로 release. 본 mirror 도 동기. 다음 진입점(새 /loop 또는 cron fire)이 free 확인 후 재획득."
   },
-  "lastActivity": "2026-06-10T12:16:00+09:00",
-  "lastCommit": "d3d8c89",
+  "lastActivity": "2026-06-10T12:18:00+09:00",
+  "lastCommit": "e1f7785",
   "mostRecentTasks": [
     "T-0319",
     "T-0318",
