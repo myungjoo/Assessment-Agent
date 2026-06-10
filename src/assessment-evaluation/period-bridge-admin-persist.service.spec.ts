@@ -1,14 +1,16 @@
 // PeriodBridgeAdminPersistService spec — T-0321, ADR-0037 slice 2(§Decision1 Admin
 // full path + §Decision2 evaluation-side single-writer + amended §Decision3 first-write-
-// wins read-through + §Decision4 fresh collect). R-112 4 종(happy / error / branch /
-// negative 충분 cover, CLAUDE.md §3.2) 검증. 5 개 collaborator(CollectionSpecService.
-// buildCollectionSpec / CollectionOrchestratorService.collectActivities /
-// EvaluationOrchestratorService.evaluateActivities / EvaluationResultPersistService.
-// persist / AssessmentRepository.{findById,findByCoordinate})를 전부 mock 주입 — 실 LLM
-// / 실 DB / 실 네트워크 0. 본 spec 은 compose 정합(5 단계 순서·인자 pass-through →
-// since 분기 → error 전파 → 빈 수집 흡수 → first-write-wins 3 분기[좌표 부재 create /
-// 좌표 존재 read-through / P2002 race catch→read fall-through] → reeval 미호출 →
-// ephemeral write-0 sibling 구조 보존)을 cover 한다.
+// wins read-through + §Decision4 fresh collect) + T-0335, ADR-0038 slice 2b(§Decision3
+// explicit reevaluate opt-out). R-112 4 종(happy / error / branch / negative 충분 cover,
+// CLAUDE.md §3.2) 검증. 5 개 collaborator(CollectionSpecService.buildCollectionSpec /
+// CollectionOrchestratorService.collectActivities / EvaluationOrchestratorService.
+// evaluateActivities / EvaluationResultPersistService.persist / AssessmentRepository.
+// {findById,findByCoordinate})를 전부 mock 주입 — 실 LLM / 실 DB / 실 네트워크 0.
+// 본 spec 은 compose 정합(5 단계 순서·인자 pass-through → since 분기 → error 전파 →
+// 빈 수집 흡수 → first-write-wins 3 분기[좌표 부재 create / 좌표 존재 read-through /
+// P2002 race catch→read fall-through] → reevaluate flag 분기[true→"reeval" / false·
+// 미지정→"fill"] → reeval 경로 semantics[좌표 부재 create degrade / ConflictException
+// 전파 / created 항상 true] → ephemeral write-0 sibling 구조 보존)을 cover 한다.
 import { ConflictException } from "@nestjs/common";
 import type { Assessment, ServiceIdentity } from "@prisma/client";
 
@@ -230,6 +232,63 @@ describe("PeriodBridgeAdminPersistService", () => {
         "read-back",
       ]);
     });
+
+    it("reevaluate=true + 좌표 존재 — persist('reeval') 정확히 1 회 + read-back 영속본 + created=true", async () => {
+      const mocks = makeMocks();
+      const context = buildContext();
+      const activities = [
+        githubActivity({ externalId: "c9", author: "octocat" }),
+      ];
+      mocks.orchestrator.collectActivities.mockResolvedValue(activities);
+      const evaluated = [resultFor("github:com:c9")];
+      mocks.evaluation.evaluateActivities.mockResolvedValue(evaluated);
+      // 좌표 존재 → reeval 이 reset-and-recreate 로 fresh row 를 만들고 새 id 반환.
+      mocks.persist.persist.mockResolvedValue({
+        assessmentId: "asmt-fresh",
+        contributionCount: 1,
+      });
+      mocks.repo.findById.mockResolvedValue(assessmentRow("asmt-fresh"));
+      const service = makeService(mocks);
+
+      const result = await service.generateAndPersist(
+        personMatching(),
+        {},
+        OPTIONS,
+        context,
+        true,
+      );
+
+      // persist 는 정확히 1 회 + "reeval" 모드(reset-and-recreate).
+      expect(mocks.persist.persist).toHaveBeenCalledTimes(1);
+      expect(mocks.persist.persist).toHaveBeenCalledWith(
+        context,
+        evaluated,
+        "reeval",
+      );
+      // read-back: 반환 assessmentId 로 findById(좌표 read fall-back 경로 아님).
+      expect(mocks.repo.findById).toHaveBeenCalledWith("asmt-fresh");
+      expect(result.created).toBe(true);
+      expect(result.assessment.id).toBe("asmt-fresh");
+    });
+
+    it("reevaluate=false 명시 — 기존 first-write-wins 경로 그대로 persist('fill')", async () => {
+      const mocks = makeMocks();
+      const context = buildContext();
+      const service = makeService(mocks);
+
+      const result = await service.generateAndPersist(
+        personMatching(),
+        {},
+        OPTIONS,
+        context,
+        false,
+      );
+
+      // false 는 default 와 동일 — "fill" 모드 + create 분기(contributionCount 3).
+      expect(mocks.persist.persist).toHaveBeenCalledWith(context, [], "fill");
+      expect(result.created).toBe(true);
+      expect(result.assessment.id).toBe("asmt-1");
+    });
   });
 
   describe("branch / flow — first-write-wins read-through 3 분기 + since pass-through", () => {
@@ -342,6 +401,96 @@ describe("PeriodBridgeAdminPersistService", () => {
         undefined,
       );
     });
+
+    it("reevaluate 3 분기 — true → 'reeval', false → 'fill', 미지정 → 'fill'(mode 선택)", async () => {
+      const mocks = makeMocks();
+      const context = buildContext();
+      const service = makeService(mocks);
+
+      await service.generateAndPersist(
+        personMatching(),
+        {},
+        OPTIONS,
+        context,
+        true,
+      );
+      await service.generateAndPersist(
+        personMatching(),
+        {},
+        OPTIONS,
+        context,
+        false,
+      );
+      await service.generateAndPersist(personMatching(), {}, OPTIONS, context);
+
+      const modes = mocks.persist.persist.mock.calls.map((c) => c[2]);
+      expect(modes).toEqual(["reeval", "fill", "fill"]);
+    });
+
+    it("좌표 부재 + reevaluate=true — create degrade: 'reeval' 그대로 호출 + read-back 수렴 + created=true", async () => {
+      const mocks = makeMocks();
+      const context = buildContext();
+      const activities = [
+        githubActivity({ externalId: "c7", author: "octocat" }),
+      ];
+      mocks.orchestrator.collectActivities.mockResolvedValue(activities);
+      const evaluated = [resultFor("github:com:c7")];
+      mocks.evaluation.evaluateActivities.mockResolvedValue(evaluated);
+      // 좌표 부재 → persist 의 existing===null 분기가 일반 create 로 fall-through 한
+      // 결과를 mock(reevaluate 는 부재 좌표를 거부하지 않는다 — §Decision3 degrade).
+      mocks.persist.persist.mockResolvedValue({
+        assessmentId: "asmt-degrade",
+        contributionCount: 1,
+      });
+      mocks.repo.findById.mockResolvedValue(assessmentRow("asmt-degrade"));
+      const service = makeService(mocks);
+
+      const result = await service.generateAndPersist(
+        personMatching(),
+        {},
+        OPTIONS,
+        context,
+        true,
+      );
+
+      // 부재 좌표여도 service 는 "reeval" 을 그대로 호출(분기 책임은 persist 내부).
+      expect(mocks.persist.persist).toHaveBeenCalledWith(
+        context,
+        evaluated,
+        "reeval",
+      );
+      expect(result.created).toBe(true);
+      expect(result.assessment.id).toBe("asmt-degrade");
+      // fill 전용 좌표 read fall-back 미발동.
+      expect(mocks.repo.findByCoordinate).not.toHaveBeenCalled();
+    });
+
+    it("빈 EvaluationResult[] + reevaluate=true — persist(context, [], 'reeval') throw 0 + created=true(heuristic 미사용)", async () => {
+      const mocks = makeMocks();
+      const context = buildContext();
+      mocks.orchestrator.collectActivities.mockResolvedValue([]);
+      mocks.evaluation.evaluateActivities.mockResolvedValue([]);
+      // 빈 결과 create — contributionCount 0. fill 의 heuristic 이라면 created=false
+      // 로 오판될 값이지만 reeval 경로는 항상 true(fresh row 항상 생성).
+      mocks.persist.persist.mockResolvedValue({
+        assessmentId: "asmt-empty-reeval",
+        contributionCount: 0,
+      });
+      mocks.repo.findById.mockResolvedValue(assessmentRow("asmt-empty-reeval"));
+      const service = makeService(mocks);
+
+      const result = await service.generateAndPersist(
+        personMatching(),
+        {},
+        OPTIONS,
+        context,
+        true,
+      );
+
+      expect(mocks.persist.persist).toHaveBeenCalledWith(context, [], "reeval");
+      expect(result.created).toBe(true);
+      expect(result.assessment.id).toBe("asmt-empty-reeval");
+    });
   });
 
   describe("error path — 실패 전파(swallow 0, fail-fast)", () => {
@@ -437,6 +586,62 @@ describe("PeriodBridgeAdminPersistService", () => {
         ),
       ).rejects.toThrow("좌표 read-back 실패");
     });
+
+    it("(reeval-a) reevaluate=true + persist ConflictException → caller 전파 + 좌표 read fall-back 미적용", async () => {
+      const mocks = makeMocks();
+      mocks.persist.persist.mockRejectedValue(
+        new ConflictException("동시 reevaluate 경합"),
+      );
+      const service = makeService(mocks);
+
+      // fill 과 달리 P2002→ConflictException 을 catch 하지 않고 그대로 전파한다
+      // (silent 유실 방지 — ADR-0038 §Decision3/5).
+      await expect(
+        service.generateAndPersist(
+          personMatching(),
+          {},
+          OPTIONS,
+          buildContext(),
+          true,
+        ),
+      ).rejects.toThrow(ConflictException);
+      // fill 전용 read-through fall-back(readBackByCoordinate) 미발동 + read-back 0.
+      expect(mocks.repo.findByCoordinate).not.toHaveBeenCalled();
+      expect(mocks.repo.findById).not.toHaveBeenCalled();
+    });
+
+    it("(reeval-b) reevaluate=true + persist 일반 error → 전파(swallow 0)", async () => {
+      const mocks = makeMocks();
+      mocks.persist.persist.mockRejectedValue(new Error("DB 연결 끊김"));
+      const service = makeService(mocks);
+
+      await expect(
+        service.generateAndPersist(
+          personMatching(),
+          {},
+          OPTIONS,
+          buildContext(),
+          true,
+        ),
+      ).rejects.toThrow("DB 연결 끊김");
+      expect(mocks.repo.findByCoordinate).not.toHaveBeenCalled();
+    });
+
+    it("(reeval-c) reevaluate=true + read-back(findById) null → 명시적 throw(영속화 직후 부재 비정상)", async () => {
+      const mocks = makeMocks();
+      mocks.repo.findById.mockResolvedValue(null);
+      const service = makeService(mocks);
+
+      await expect(
+        service.generateAndPersist(
+          personMatching(),
+          {},
+          OPTIONS,
+          buildContext(),
+          true,
+        ),
+      ).rejects.toThrow("Assessment read-back 실패");
+    });
   });
 
   describe("negative cases — 예외 상황 분기마다 충분 cover", () => {
@@ -478,7 +683,31 @@ describe("PeriodBridgeAdminPersistService", () => {
       ).toBe(true);
     });
 
-    it("reeval 모드 미호출 — 본 service 는 persist 를 항상 'fill' 로만 호출(overwrite DEFERRED 가드)", async () => {
+    it("default(false/미지정) 경로는 여전히 'reeval' 을 호출하지 않는다 — opt-out 은 strict true 만(ADR-0038 §Decision3 가드)", async () => {
+      const mocks = makeMocks();
+      const service = makeService(mocks);
+
+      // 미지정(기존 4 인자 호출 비파괴) + 명시적 false — 둘 다 "fill" 만.
+      await service.generateAndPersist(
+        personMatching(),
+        {},
+        OPTIONS,
+        buildContext(),
+      );
+      await service.generateAndPersist(
+        personMatching(),
+        {},
+        OPTIONS,
+        buildContext(),
+        false,
+      );
+
+      const modes = mocks.persist.persist.mock.calls.map((c) => c[2]);
+      expect(modes).toEqual(["fill", "fill"]);
+      expect(modes).not.toContain("reeval");
+    });
+
+    it("reevaluate=true 경로는 'fill' 을 호출하지 않는다 — mode 혼선 0", async () => {
       const mocks = makeMocks();
       const service = makeService(mocks);
 
@@ -487,11 +716,14 @@ describe("PeriodBridgeAdminPersistService", () => {
         {},
         OPTIONS,
         buildContext(),
+        true,
       );
 
+      // persist 1 회 — "reeval" 만(read-through 용 "fill" 선행/후행 호출 0).
+      expect(mocks.persist.persist).toHaveBeenCalledTimes(1);
       const modes = mocks.persist.persist.mock.calls.map((c) => c[2]);
-      expect(modes).toContain("fill");
-      expect(modes).not.toContain("reeval");
+      expect(modes).toEqual(["reeval"]);
+      expect(modes).not.toContain("fill");
     });
 
     it("빈 수집 흡수 — collectActivities 빈 배열 → evaluateActivities([]) → persist 빈 입력 경로(throw 0)", async () => {
