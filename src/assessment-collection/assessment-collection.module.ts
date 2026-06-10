@@ -121,6 +121,12 @@ import { SinceDerivationService } from "./since-derivation.service";
     GithubCollectionService,
     ConfluenceCollectionService,
     CollectionOrchestratorService,
+    // T-0316(ADR-0037 §Decision1 ephemeral bridge): period-bridge ephemeral service 가
+    // buildCollectionSpec 을 DI resolve 하기 위해 CollectionSpecService 를 export 한다.
+    // 기존엔 enumerate chain 중간 service 라 미export 였으나(의존성 표면 최소화), ephemeral
+    // bridge 가 collectForPerson(persist 포함)을 우회해 spec 조립만 재사용하므로 직접
+    // inject 명분이 생긴다 — collection module 동작 변경 0(export 추가만).
+    CollectionSpecService,
     CollectionPersistenceService,
     CollectionEntryService,
     // slice vi(T-0268): 후속 호출처(scheduler/manual trigger, 별도 module)가 inject 받아

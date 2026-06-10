@@ -11,7 +11,10 @@
 
 // PrismaService 를 mock — PrismaClient extends 의 부작용(adapter 생성 / connect)을
 // 회피. LlmModule 전이 의존(LlmProviderConfigRepository 등)이 PrismaService 를 inject
-// 하나, 본 spec 은 module compile + provider resolve 만 검증한다.
+// 하며, T-0316 으로 추가된 AssessmentCollectionModule import 가 전이로 User/Github/
+// Confluence repository(person/group/part/assessment/contribution/permissionDeniedRecord
+// delegate 등)를 끌어오므로 그 delegate 들도 stub 한다(assessment-collection.module.spec.ts
+// mock mirror). 본 spec 은 instance 동작이 아닌 module compile + provider resolve 만 검증한다.
 jest.mock("../persistence/prisma.service", () => ({
   PrismaService: class MockPrismaService {
     llmProviderConfig = {
@@ -25,6 +28,54 @@ jest.mock("../persistence/prisma.service", () => ({
       findUnique: jest.fn(),
       upsert: jest.fn(),
     };
+    // T-0316: AssessmentCollectionModule 전이 의존(User/collection repository)이 요구하는
+    // delegate 들을 stub. assessment-collection.module.spec.ts 의 mock 과 동형.
+    permissionDeniedRecord = {
+      create: jest.fn(),
+      findMany: jest.fn(),
+    };
+    person = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    };
+    group = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    part = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    personGroupMembership = {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    assessment = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    contribution = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    summary = {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    user = { findUnique: jest.fn(), update: jest.fn() };
     onModuleInit = jest.fn().mockResolvedValue(undefined);
     enableShutdownHooks = jest.fn();
   },
@@ -50,6 +101,8 @@ import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service
 import { EvaluationResultPersistService } from "./evaluation-result-persist.service";
 // eslint-disable-next-line import/first
 import { EvaluationScoringService } from "./evaluation-scoring.service";
+// eslint-disable-next-line import/first
+import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
 // eslint-disable-next-line import/first
 import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
 // eslint-disable-next-line import/first
@@ -111,6 +164,14 @@ describe("AssessmentEvaluationModule", () => {
     expect(summaryOrchestrator).toBeInstanceOf(
       SummaryAggregateOrchestratorService,
     );
+
+    // PeriodBridgeEphemeralService(T-0316, ADR-0037 §Decision1 ephemeral bridge)도 같은
+    // module 에서 resolve 되며 CollectionSpecService / CollectionOrchestratorService
+    // (AssessmentCollectionModule export) + EvaluationOrchestratorService(같은 module)를
+    // DI 로 주입받는다(import/export 등록 누락 시 본 resolve 가 fail — 배선 게이트).
+    const periodBridge = moduleRef.get(PeriodBridgeEphemeralService);
+    expect(periodBridge).toBeDefined();
+    expect(periodBridge).toBeInstanceOf(PeriodBridgeEphemeralService);
 
     await moduleRef.close();
   });
