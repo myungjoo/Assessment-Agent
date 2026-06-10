@@ -90,6 +90,14 @@ jobs:
         # 동형으로 self-contained(로컬 bare repo + 2 clone)라 네트워크/credential 불요.
         run: bash scripts/select-claim.test.sh
 
+      - name: reclaim-stale-claim 검증
+        # ADR-0036 fine-grained concurrency stage 2 slice 2 — lock-하 orphan
+        # claim staleness 회수(60분 server-time 임계) + PR-resume primitive
+        # (scripts/reclaim-stale-claim.sh)의 executable spec. 정확성 게이트
+        # "orphan 회수 정상 동작 검증"(§rollout 2) 박제. select-claim CAS 검증과
+        # 동형으로 self-contained(로컬 bare repo + 2 clone)라 네트워크/credential 불요.
+        run: bash scripts/reclaim-stale-claim.test.sh
+
       - name: pnpm 설치
         uses: pnpm/action-setup@v4
         with:
