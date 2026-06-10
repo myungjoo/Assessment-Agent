@@ -5,16 +5,13 @@
     "multiTaskFire": true
   },
   "currentTask": null,
-  "nextTask": "T-0325",
+  "nextTask": "T-0326",
+  "backlogNote": "T-0325(ADR-0038 overwrite/재평가 design ADR, Q-0033 RESOLVED 옵션1 기반, PENDING)는 보존 — T-0326(ADR-0036 fine-grained concurrency stage 1, 사용자 2026-06-10 rollout 승인) 우선 큐잉으로 임시 후순위. T-0326 완료 후 다음 planner turn 이 PENDING 상태의 T-0325 를 자연 재발견·재픽업한다. T-0325 task 파일/상태는 변경 금지.",
   "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-0363",
-    "since": "2026-06-10T13:20:00+09:00",
-    "loopSessionStartedAt": "2026-06-10T12:30:00+09:00",
-    "loopSessionTurnCount": 6,
-    "note": "loop@WIN-JQIPLSBL9QV-0363 /loop 세션 t6 — T-0324(ADR-0037 Admin persist endpoint doc-sync, direct) DONE. 권위 lock 은 branch claude/lock-driver tip f689247(heartbeat t6)에서 보유 — 본 필드는 non-authoritative human mirror."
+    "holder": null,
+    "note": "cron lock cron@WIN-JQIPLSBL9QV-4123(since 2026-06-10T16:28:33+09:00) 가 stale loop@WIN-JQIPLSBL9QV-0363 lock(t6 heartbeat 15:22 이후 60분+ 미갱신) 탈취 → ADR-0036 fine-grained concurrency stage1(T-0326) 큐잉 후 권위 claude/lock-driver tip tombstone({\"holder\":null})으로 release. 사용자 2026-06-10 rollout 승인 지시(5분 polling 후 stale 시점 큐잉). 다음 진입점이 free 확인 후 재획득."
   },
-  "lastActivity": "2026-06-10T13:20:00+09:00",
+  "lastActivity": "2026-06-10T16:31:56+09:00",
   "lastCommit": "ad966d0",
   "mostRecentTasks": [
     "T-0324",
