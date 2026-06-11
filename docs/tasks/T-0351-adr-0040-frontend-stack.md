@@ -2,7 +2,7 @@
 id: T-0351
 title: ADR-0040 frontend stack 결정 (React+Vite vs 대안, NestJS 경계, web/ 구조)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-038, REQ-042, REQ-048]
 estimatedDiff: 225
