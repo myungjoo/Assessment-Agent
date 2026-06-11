@@ -6,16 +6,16 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0344",
   "backlogNote": "**loop@WIN-JQIPLSBL9QV-c10b t2 (2026-06-11)**: T-0343 DONE·direct — ADR-0036 §Decision 8 (d) STATE concurrencyIncidents 카운터 schema 자리(4 슬러그 double-claim/merge-conflict-code/reclaim-misfire/ci-cost-overrun 0 초기화 + note) + concurrency.md §7.1 운영 view 박제. 토글(flags.fineGrainedConcurrency)=false 불변·driver 동작 변화 0(forward-looking). 회로 차단기 (d) 1/2 완료(자리). **stage5 §Decision 8 구현 chain 잔여(전부 dependency-free, user stage5 지시로 unblock됨)**: (1) 회로 차단기 강등 분기 — LOOP §1[2] 에 '같은 유형 2회 → lock-하 flags.fineGrainedConcurrency=false 자동 강등 + notifier' (d) 2/2, direct / (2) §Decision 8 (c) integrator.md merge-전 rebase 의무, direct / (3) §Decision 8 (a)(b) select-pickup 런타임 재검증, pr / (4) 그 후 5a 진입(maxConcurrentClaims=1 필드 + 토글 ON 첫 단계, direct). t1: 사용자 AskUserQuestion 'ADR-0036 stage5 진입' 지시 → stage5 의사결정 게이트 충족. 이전 backlog: T-0342 DONE·direct(cron@cloud-f81891ed): ADR-0036 §Decision 8 doc-sync — CLAUDE.md §10(+1 line), docs/LOOP.md §1[2]+§4(+15 lines), docs/architecture/concurrency.md §7 신설(+34 lines) 총 +50/-0. 5종 안전장치(fail-safe 강등 / 런타임 재검증 / merge-전 rebase / concurrencyIncidents 회로 차단기 / 5a-5b-5c) + 5a/5b/5c 3단계 이행 인지 박제 — cross-ref 만, ADR-0036 권위 본문 불변. 토글 OFF 유지(`flags.fineGrainedConcurrency=false`) — driver 동작 변화 0. 사용자 turn 지시 'doc=direct merge' 정합. 직전 T-0341(사용자 직접 commit 9fde830): ADR-0036 §Decision 8 박제. 잔여 후보(전부 user/credential/측정 게이트): T-0341 Follow-ups 의 STATE concurrencyIncidents schema(direct) / integrator.md rebase 의무(direct) / select-claim 재검증(pr) / 5a 진입(direct, stage5 의사결정 후) / ADR-0039 ACCEPTED flip(사용자 검토 후) → impl chain 5단계 / live-LLM slice 2/2(secrets.env 만료 6/30 — 6/25 격상) / PR #277 disposition(사용자).",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-c10b",
-    "since": "2026-06-11T04:40:00Z",
-    "note": "loop@WIN-JQIPLSBL9QV-c10b /loop 세션(dynamic, turn cap 10) t2 — 권위 lock 993b4c8 CAS 획득 후 T-0343 실행(§Decision 8 (d) concurrencyIncidents schema). STATE.json single-writer(§9)라 driver 가 직접 편집(executor 위임 시 single-writer 위반) — 작은 doc-only direct task 라 context 누적 0. 본 closeout commit push 후 권위 lock tombstone({\"holder\":null}) release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "since": "2026-06-11T04:52:00Z",
+    "note": "loop@WIN-JQIPLSBL9QV-c10b /loop 세션(dynamic, turn cap 10) t3 — planner-only turn. 권위 lock dccdde7 CAS 획득 후 planner dispatch → §Decision 8 (d) 2/2 회로 차단기 강등 분기 slice T-0344 큐잉(nextTask). 본 doc-direct commit push 후 권위 lock tombstone({\"holder\":null}) release — T-0344 는 다음 turn 실행. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-11T04:40:00Z",
-  "lastCommit": "af947fd",
+  "lastActivity": "2026-06-11T04:52:00Z",
+  "lastCommit": "88c1024",
   "mostRecentTasks": [
     "T-0343",
     "T-0342",
@@ -24,11 +24,11 @@
     "T-0338"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-c10b",
     "startedAt": "2026-06-11T04:31:46Z",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10b (dynamic, turn cap 10) t2 — T-0343 DONE·direct(ADR-0036 §Decision 8 (d) concurrencyIncidents schema 자리 + concurrency.md §7.1 운영 view, STATE.json+concurrency.md 2파일). 토글 OFF 불변·동작 변화 0. STATE single-writer(§9)라 driver 직접 편집. t1 af947fd CI green 확인. tasksCompleted 338→339. nextTask null → 다음 t3 planner dispatch(§Decision 8 후속: 회로 차단기 강등 분기 LOOP slice / (c) integrator rebase / (a)(b) select-pickup 재검증)."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10b (dynamic, turn cap 10) t3 — planner-only turn. T-0343 88c1024 CI green 확인. planner queued T-0344(§Decision 8 (d) 2/2 LOOP §1[2] 회로 차단기 강등 분기, direct, dependsOn T-0343). tasksCompleted 339 불변(planner-only). nextTask=T-0344 → 다음 t4 execute. 세션 진행: t1(stage5 user 지시+T-0343 큐잉)→t2(T-0343 schema DONE)→t3(T-0344 큐잉). cap 잔여 7."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
