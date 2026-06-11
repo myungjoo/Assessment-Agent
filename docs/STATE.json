@@ -6,16 +6,16 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0347",
   "backlogNote": "**loop@WIN-JQIPLSBL9QV-c10b t8 (2026-06-11)**: T-0346 DONE·merge(PR #283 squash 89d9f51) — ADR-0036 §Decision 8 (a)(b) claim 후보 런타임 재검증 + fail-safe 강등 primitive(scripts/validate-claim-candidate.sh, read-only: touchesFiles 교집합 0·dependsOn 머지 재검증·uncertain→DEMOTE, lock/STATE write 0 §9). reviewer round1 APPROVE(0 blocker/0 major/2 minor 비차단), 4-게이트 PASS, CI first-pass green. **§Decision 8 (a)~(d) 안전장치 ALL 완결**(T-0343 (d)schema + T-0344 (d)강등분기 + T-0345 (c)integrator rebase + T-0346 (a)(b)재검증). **남은 stage5(전부 dependency-free)**: (1) incrementing 로직 — driver 가 언제 어느 concurrencyIncidents 유형 +1 하는지 LOOP/scripts 박제(double-claim 탐지·merge-conflict-code BLOCKED·reclaim-misfire·ci-cost-overrun) / (2) 5a 진입 — maxConcurrentClaims=1 필드 + flags.fineGrainedConcurrency 토글 ON 첫 단계(direct). **follow-up(credential 게이트, dependency-free 아님)**: validate-claim-candidate.test.sh CI step 등록(gh token workflow scope 부재 — ci.yml 터치 불가, 사용자 gh auth refresh -s workflow 또는 cron@cloud 필요). 이전 backlog: T-0345 DONE·direct — ADR-0036 §Decision 8 (c): .claude/agents/integrator.md '3. Merge 수행' 절에 squash 직전 merge-전 rebase + CI green 재확인 의무 박제(BEHIND 판정 → gh pr update-branch ↔ MCP → CI conclusion success 재확인 후에만 squash, red→ci-repeat-fail/conflict→merge-conflict-code BLOCKED LOOP §4 정합, 토글 OFF noop·ON semantic-conflict 마지막 그물, force-push 금지 정합). 1파일, 동작 변화 0(절차 박제). **stage5 §Decision 8 구현 chain 잔여(전부 dependency-free)**: (a)(b) select-pickup 런타임 재검증(pr, scripts/ — touchesFiles 교집합 0·dependsOn 머지 재검증·fail-safe 강등 + R-112 4종) / 그 후 incrementing 로직(언제 어느 유형 +1 — double-claim 탐지·merge-conflict-code BLOCKED·reclaim-misfire·ci-cost-overrun) + 5a 진입(maxConcurrentClaims=1 + 토글 ON 첫 단계, direct). **진행 현황**: (d) 완결(T-0343 schema + T-0344 강등 분기), (c) 완결(T-0345). 남은 안전장치 = (a)(b) pr-slice 만(그 후 incrementing + 5a). t1: 사용자 'ADR-0036 stage5 진입' 지시. 이전 backlog: T-0342 DONE·direct(cron@cloud-f81891ed): ADR-0036 §Decision 8 doc-sync — CLAUDE.md §10(+1 line), docs/LOOP.md §1[2]+§4(+15 lines), docs/architecture/concurrency.md §7 신설(+34 lines) 총 +50/-0. 5종 안전장치(fail-safe 강등 / 런타임 재검증 / merge-전 rebase / concurrencyIncidents 회로 차단기 / 5a-5b-5c) + 5a/5b/5c 3단계 이행 인지 박제 — cross-ref 만, ADR-0036 권위 본문 불변. 토글 OFF 유지(`flags.fineGrainedConcurrency=false`) — driver 동작 변화 0. 사용자 turn 지시 'doc=direct merge' 정합. 직전 T-0341(사용자 직접 commit 9fde830): ADR-0036 §Decision 8 박제. 잔여 후보(전부 user/credential/측정 게이트): T-0341 Follow-ups 의 STATE concurrencyIncidents schema(direct) / integrator.md rebase 의무(direct) / select-claim 재검증(pr) / 5a 진입(direct, stage5 의사결정 후) / ADR-0039 ACCEPTED flip(사용자 검토 후) → impl chain 5단계 / live-LLM slice 2/2(secrets.env 만료 6/30 — 6/25 격상) / PR #277 disposition(사용자).",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-c10b",
-    "since": "2026-06-11T05:42:00Z",
-    "note": "loop@WIN-JQIPLSBL9QV-c10b /loop 세션(dynamic, turn cap 10) t8 — 권위 lock cb228a7 CAS 획득 후 T-0346 pr-cycle 실행(executor architect/impl/test → driver branch/commit/push/PR #283 → reviewer round1 APPROVE → integrator 4-게이트 PASS → merge 89d9f51). 본 closeout doc-direct commit push 후 권위 lock tombstone({\"holder\":null}) release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "since": "2026-06-11T05:54:00Z",
+    "note": "loop@WIN-JQIPLSBL9QV-c10b /loop 세션(dynamic, turn cap 10) t9 — planner-only turn. 권위 lock 62431e7 CAS 획득 후 planner dispatch → stage5 incrementing 로직 slice T-0347 큐잉(nextTask, direct). 본 doc-direct commit push 후 권위 lock tombstone({\"holder\":null}) release — T-0347 는 다음 turn(t10, cap) 실행. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-11T05:42:00Z",
-  "lastCommit": "89d9f51",
+  "lastActivity": "2026-06-11T05:54:00Z",
+  "lastCommit": "ff5b474",
   "mostRecentTasks": [
     "T-0346",
     "T-0345",
@@ -24,11 +24,11 @@
     "T-0342"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-c10b",
     "startedAt": "2026-06-11T04:31:46Z",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10b (dynamic, turn cap 10) t8 — T-0346 DONE·merge(PR #283 squash 89d9f51, +150 production LOC). reviewer round1 APPROVE(0 blocker/0 major/2 minor 비차단), 4-게이트 PASS, CI first-pass green(run 27326415053). §Decision 8 (a)(b) claim 후보 런타임 재검증 + fail-safe 강등 primitive. **§Decision 8 (a)~(d) 안전장치 ALL 완결** — 남은 stage5 = incrementing 로직 + 5a 진입(maxConcurrentClaims=1 + 토글 ON 첫 단계). tasksCompleted 341→342. follow-up: MINOR2 .test.sh CI step 등록(gh workflow scope 부재 — credential 게이트). nextTask null → 다음 t9 planner. 세션 진행: t1~t8(T-0343/4/5/6). cap 잔여 2."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10b (dynamic, turn cap 10) t9 — planner-only turn. T-0346 ff5b474 CI green 확인. planner queued T-0347(ADR-0036 §Decision 8 (d) concurrencyIncidents incrementing 시점 LOOP 박제, direct ~60 LOC/1파일). tasksCompleted 342 불변(planner-only). nextTask=T-0347 → 다음 t10(cap) execute 후 세션 종료. **cap 10 도달 예정** — t10 후 사용자에게 /compact·새 /loop 안내(CLAUDE §10). 남은 5a 진입(토글 ON)은 fresh 세션 신중 진행. 세션 진행: t1~t9. cap 잔여 1."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
