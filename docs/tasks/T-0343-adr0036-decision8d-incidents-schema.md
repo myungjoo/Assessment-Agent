@@ -2,12 +2,14 @@
 id: T-0343
 title: ADR-0036 §Decision 8 (d) — STATE concurrencyIncidents 카운터 schema 자리 박제 (회로 차단기 1/2)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [TBD]
 estimatedDiff: 60
 estimatedFiles: 2
 created: 2026-06-11
+status_done: 2026-06-11T04:40Z
+result: "DONE — STATE.json 에 concurrencyIncidents object(4 슬러그 0 초기화 + note) 신설 + concurrency.md §7.1 운영 view 박제. flags.fineGrainedConcurrency=false 불변, JSON valid, 코드/동작 변화 0. 회로 차단기 (d) schema 자리 완료 — incrementing·강등 분기는 후속 LOOP slice."
 independentStream: stage5-default-on-safeguards
 dependsOn: []
 touchesFiles: [docs/STATE.json, docs/architecture/concurrency.md]
