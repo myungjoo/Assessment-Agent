@@ -4,10 +4,10 @@
   "flags": {
     "multiTaskFire": true,
     "fineGrainedConcurrency": true,
-    "maxConcurrentClaims": 1
+    "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0350",
+  "nextTask": null,
   "backlogNote": "**loop@WIN-JQIPLSBL9QV-c10b t10 (cap, 2026-06-11) — 세션 종료**: T-0347 DONE·direct — ADR-0036 §Decision 8 (d) concurrencyIncidents incrementing 4 탐지 시점 LOOP §1[2] 박제(i double-claim / ii merge-conflict-code §4(iii) / iii reclaim-misfire / iv ci-cost-overrun, 각 lock-하 driver write origin+1, 강등 분기가 읽는 카운터 채움). 토글 OFF inert·동작 변화 0. **🎉 ADR-0036 §Decision 8 (a)~(d) 안전장치 + incrementing 전부 완결**(T-0343/4/5/6/7). **남은 stage5 = 5a 진입뿐**: maxConcurrentClaims=1 필드 + flags.fineGrainedConcurrency 토글 ON 첫 단계(direct) — **토글 ON(런타임 활성)이라 fresh 세션 신중 진행 권장**(5a→5b→5c + dogfood, ADR-0036 §rollout). **follow-up(credential 게이트)**: validate-claim-candidate.test.sh CI step 등록(gh token workflow scope 부재). **세션 c10b 성과(t1~t10)**: 사용자 stage5 진입 지시 → §Decision 8 안전장치 5 slice 완결(T-0343 schema/T-0344 강등/T-0345 integrator rebase/T-0346 (a)(b)재검증 PR #283/T-0347 incrementing), tasksCompleted 338→343(+5), 토글 시종 OFF(driver 동작 변화 0, forward-looking spec). 이전 backlog: T-0345 DONE·direct — ADR-0036 §Decision 8 (c): .claude/agents/integrator.md '3. Merge 수행' 절에 squash 직전 merge-전 rebase + CI green 재확인 의무 박제(BEHIND 판정 → gh pr update-branch ↔ MCP → CI conclusion success 재확인 후에만 squash, red→ci-repeat-fail/conflict→merge-conflict-code BLOCKED LOOP §4 정합, 토글 OFF noop·ON semantic-conflict 마지막 그물, force-push 금지 정합). 1파일, 동작 변화 0(절차 박제). **stage5 §Decision 8 구현 chain 잔여(전부 dependency-free)**: (a)(b) select-pickup 런타임 재검증(pr, scripts/ — touchesFiles 교집합 0·dependsOn 머지 재검증·fail-safe 강등 + R-112 4종) / 그 후 incrementing 로직(언제 어느 유형 +1 — double-claim 탐지·merge-conflict-code BLOCKED·reclaim-misfire·ci-cost-overrun) + 5a 진입(maxConcurrentClaims=1 + 토글 ON 첫 단계, direct). **진행 현황**: (d) 완결(T-0343 schema + T-0344 강등 분기), (c) 완결(T-0345). 남은 안전장치 = (a)(b) pr-slice 만(그 후 incrementing + 5a). t1: 사용자 'ADR-0036 stage5 진입' 지시. 이전 backlog: T-0342 DONE·direct(cron@cloud-f81891ed): ADR-0036 §Decision 8 doc-sync — CLAUDE.md §10(+1 line), docs/LOOP.md §1[2]+§4(+15 lines), docs/architecture/concurrency.md §7 신설(+34 lines) 총 +50/-0. 5종 안전장치(fail-safe 강등 / 런타임 재검증 / merge-전 rebase / concurrencyIncidents 회로 차단기 / 5a-5b-5c) + 5a/5b/5c 3단계 이행 인지 박제 — cross-ref 만, ADR-0036 권위 본문 불변. 토글 OFF 유지(`flags.fineGrainedConcurrency=false`) — driver 동작 변화 0. 사용자 turn 지시 'doc=direct merge' 정합. 직전 T-0341(사용자 직접 commit 9fde830): ADR-0036 §Decision 8 박제. 잔여 후보(전부 user/credential/측정 게이트): T-0341 Follow-ups 의 STATE concurrencyIncidents schema(direct) / integrator.md rebase 의무(direct) / select-claim 재검증(pr) / 5a 진입(direct, stage5 의사결정 후) / ADR-0039 ACCEPTED flip(사용자 검토 후) → impl chain 5단계 / live-LLM slice 2/2(secrets.env 만료 6/30 — 6/25 격상) / PR #277 disposition(사용자).",
   "lock": {
     "holder": null,
@@ -15,14 +15,14 @@
     "since": "2026-06-11T06:03:00Z",
     "note": "loop@WIN-JQIPLSBL9QV-c10b /loop 세션(dynamic, turn cap 10) t10(cap) — 권위 lock 2fb4f24 CAS 획득 후 T-0347 실행(§Decision 8 (d) incrementing 시점 LOOP 박제, direct). **세션 종료(cap 10 도달)** — 본 closeout commit push 후 권위 lock tombstone({\"holder\":null}) release, no reschedule. 다음 진입점(cron/새 /loop)이 자유 lock 확인 후 진행. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-11T07:10:32Z",
+  "lastActivity": "2026-06-11T07:30:43Z",
   "lastCommit": "c737f8f",
   "mostRecentTasks": [
+    "T-0350",
     "T-0349",
     "T-0348",
     "T-0347",
-    "T-0346",
-    "T-0345"
+    "T-0346"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -605,7 +605,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 345,
+    "tasksCompleted": 346,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -628,6 +628,6 @@
     "stage2": "DONE — slice1(T-0327 select+claim CAS) + slice2(T-0328 orphan 60분 회수 + PR-resume) 머지. 다음 stage3: §1 loop 재작성(critical-section lock + claim pickup) + CLAUDE§10/LOOP§4 동기.",
     "stage3": "DONE — slice1(T-0329 LOOP §1[2] 토글-gated claim-pickup 분기 + reclaim server-time now 주입 계약) + slice2(T-0330 CLAUDE §10 규칙1 토글-gated N-driver 경로 서술) + slice3(T-0331 LOOP §4 충돌 흡수·push source/target 매칭 N-driver 경계) 전부 머지. driver loop 통합 spec(critical-section lock + claim pickup + N-driver 충돌 흡수)이 LOOP §1[2]/§4 + CLAUDE §10 에 박제됨. 전부 토글-gated forward-looking — flags.fineGrainedConcurrency=false(현 기본값)면 inert, driver 동작 불변. 다음 stage4: per-PR CI concurrency group(ci.yml `concurrency:` key, commitMode pr).",
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
-    "stage5": "IN_PROGRESS — 5a ACTIVE (T-0348: flags.fineGrainedConcurrency=true + maxConcurrentClaims=1, claim 경로만 활성·병렬 0). 5a→5b 게이트 = 실사용 fire 에서 claim 박제/release 정상 + concurrencyIncidents 4유형 전부 0 유지 관측(concurrency.md §7) — 5b/5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
+    "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   }
 }

@@ -55,14 +55,21 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
         주입 계약 — 아래 별도 단락). `RESUME prNumber=<n> taskId=<T-X>` stdout
         신호가 있으면 그 task 를 currentTask 로 삼고 **새 PR 생성 대신 본 [2]
         의 PR Resume 판정**(아래 a~f 재사용)으로 분기한다.
-    (a2) **maxConcurrentClaims 게이트 (stage 5a — T-0348)**: (b) select+claim
+    (a2) **maxConcurrentClaims 게이트 (stage 5a — T-0348 / 5b — T-0350)**: (b) select+claim
         **직전**, [1] lock(critical section) 보유 상태에서 (a) reclaim 후의
         claims.json 을 직독해 활성 claim(status 가 DONE 이 아닌 entry) 수를 센다.
         활성 claim 수가 `STATE.flags.maxConcurrentClaims` **이상**이면 추가 claim
         없이 **no-op 종료**한다(병렬 상한 도달). **필드 부재·파싱 불확실 시 1 로
-        간주**(가장 보수적 — §D8 (a) fail-safe 강등 계약 정합). 5a 현재값 = 1:
-        활성 claim 이 1개라도 있으면 새 claim 을 잡지 않아 병렬 0 — 최악 동작이
-        coarse 단일-driver(ADR-0009)와 동일하다.
+        간주**(가장 보수적 — §D8 (a) fail-safe 강등 계약 정합). 5b 현재값 = 2
+        (T-0350). **5b direct-only 조건** (ADR-0036 §D8 (e)): 활성 claim ≥ 1
+        존재 상태에서의 추가 claim 은 (i) 기존 활성 claim 의 task 와 후보 task 가
+        **모두 `commitMode: direct`** (각 task 파일 frontmatter 직독 판정 — script
+        변경 없이 LOOP 절차 계약) 이고 (ii) `scripts/validate-claim-candidate.sh`
+        의 (a)(b) 재검증(touchesFiles 교집합 0 + dependsOn 머지됨) PASS 일 때만
+        허용한다. **후보 또는 기존 claim task 의 commitMode 판독이 불확실하면
+        no-op**(모르면-직렬화 fail-safe — §D8 (a) 정합). **pr-mode task 는 활성
+        claim 0 일 때만 단독 claim** — 동시 claim 은 충돌해도 코드가 아닌 문서인
+        direct 끼리만 (위험 표면 최소).
     (b) 회수 후 `scripts/select-claim.sh <self-session> <claimable 후보…>` 로
         **첫 claimable task 1개를 select+claim** 한다 — claim append + lock
         tombstone CAS push 가 **같은 commit** 이라 claim 박제 즉시 lock release
@@ -71,13 +78,14 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
         진행한다(lock 점유 0 — 다른 driver 가 disjoint task 를 동시 claim 가능).
     (d) select-claim 이 non-zero(claimable 부재 — 후보 전부 이미 claimed)면
         **no-op 종료**(다른 driver 가 가용 task 를 모두 소유 중 — 이번 fire 는 진행 없음).
-    **토글 ON(현 상태 — stage 5a, T-0348: flags.fineGrainedConcurrency=true +
-    maxConcurrentClaims=1)이라 본 분기는 런타임 활성**이다. 단 5a 에서는 위 (a2)
-    게이트가 동시 claim 을 1개로 제한해 병렬 0 — claim 메커니즘(reclaim →
-    select+claim → lock-free 진행 → release) 자체를 무사고 검증하는 단계다.
+    **토글 ON(현 상태 — stage 5b, T-0350: flags.fineGrainedConcurrency=true +
+    maxConcurrentClaims=2)이라 본 분기는 런타임 활성**이다. 5a(T-0348, 병렬 0)가
+    claim 메커니즘(reclaim → select+claim → lock-free 진행 → release)을 실사용
+    fire(T-0349)에서 무사고 검증했고, 5b 에서는 위 (a2) direct-only 조건 하에
+    direct task 2개까지만 동시 claim 가능하다(pr-mode 는 여전히 단독).
     §D8 (d) 회로 차단기 강등(같은 유형 2회 누적) 시 flags 가 false 로 자동 복귀
     하고 본 분기는 다시 inert — 그때는 아래 단일-task pickup(currentTask/nextTask/
-    planner dispatch) 경로가 동작한다. ADR-0036 §Decision 1/§rollout stage5a.
+    planner dispatch) 경로가 동작한다. ADR-0036 §Decision 1/§rollout stage5.
 - **토글 ON 시 driver 의 stage5 안전장치 의무 (ADR-0036 §Decision 8 — 5a ON(T-0348)으로 활성, 강등 시 inert 복귀)**:
     위 (b) 의 select+claim 직전에 driver 는 후보 task 의 `touchesFiles` 가 활성
     claim 보유 task 들의 `touchesFiles` 와 교집합 0 인지, `dependsOn` 전원이

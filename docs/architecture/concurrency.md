@@ -177,12 +177,23 @@ incrementing 4 탐지 시점(T-0347), (c) integrator merge-전 rebase(T-0345), (
 단일-driver(ADR-0009)와 동일하다. §7 (d) 회로 차단기 강등 시 토글은 OFF 로 자동
 복귀한다(재활성은 사람 결정).
 
-**5a→5b 정확성 게이트**: 5b(`commitMode: direct` task 동시 claim 허용 +
-`maxConcurrentClaims` 상향) 진입은 claim 경로 **실사용 fire** 에서 (i) claim
-박제·release 가 정상 동작하고 (ii) `concurrencyIncidents` 4 유형(`double-claim` /
-`merge-conflict-code` / `reclaim-misfire` / `ci-cost-overrun`)이 **전부 0 유지**됨을
-관측한 후에만 — 별도 task 로 진행한다. 5c(전면 병렬 + 30일 dogfood)도 동형으로 5b
-게이트 통과 후 별도 task.
+**5a→5b 정확성 게이트 — 충족 실측 → 5b shipped(T-0350)**: 5b(`commitMode: direct`
+task 동시 claim 허용 + `maxConcurrentClaims` 상향) 진입은 claim 경로 **실사용
+fire** 에서 (i) claim 박제·release 가 정상 동작하고 (ii) `concurrencyIncidents`
+4 유형(`double-claim` / `merge-conflict-code` / `reclaim-misfire` /
+`ci-cost-overrun`)이 **전부 0 유지**됨을 관측한 후에만 — **충족 근거**: T-0349
+실사용 fire(journal 2026-06-11 07:10Z t4)가 select+claim 원자 박제 → lock-free
+실행 → closeout release 를 이중 claim 0·incident 0 으로 완주했고, STATE
+`concurrencyIncidents` 4종 모두 0 유지 관측. 이에 따라 **5b 진입 shipped
+(T-0350)**: `flags.maxConcurrentClaims = 2` + [LOOP.md §1[2]](../LOOP.md) (a2)
+direct-only 조건(기존 활성 claim 과 후보 task 가 모두 `commitMode: direct` +
+validate-claim-candidate (a)(b) PASS 시에만 동시 claim, commitMode 판독 불확실
+시 no-op, pr-mode 는 활성 claim 0 일 때만 단독).
+
+**5b→5c 정확성 게이트**: 5c(pr-mode 포함 전면 병렬 + 30일 dogfood) 진입은
+direct-only 동시 claim **실사용**에서 (i) 이중 claim 0 + (ii) bookkeeping
+(STATE/journal/counters) 충돌 0 을 관측한 후에만 — 별도 task 로 진행한다
+(ADR-0036 §rollout stage 5 break-even 동형, 측정 게이트).
 
 ## §7.1 `concurrencyIncidents` schema 운영 view (shipped: T-0343 — 회로 차단기 (d) 1/2)
 
