@@ -15,7 +15,7 @@
     "since": "2026-06-11T06:03:00Z",
     "note": "loop@WIN-JQIPLSBL9QV-c10b /loop 세션(dynamic, turn cap 10) t10(cap) — 권위 lock 2fb4f24 CAS 획득 후 T-0347 실행(§Decision 8 (d) incrementing 시점 LOOP 박제, direct). **세션 종료(cap 10 도달)** — 본 closeout commit push 후 권위 lock tombstone({\"holder\":null}) release, no reschedule. 다음 진입점(cron/새 /loop)이 자유 lock 확인 후 진행. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-11T07:30:43Z",
+  "lastActivity": "2026-06-11T07:38:01Z",
   "lastCommit": "c737f8f",
   "mostRecentTasks": [
     "T-0350",
@@ -600,6 +600,22 @@
       "resolvedAt": "2026-06-09T12:35:00+09:00",
       "decision": "옵션 (1) P5 평가 영속화 승인 — 사용자가 /loop AskUserQuestion 으로 결정. EvaluationResult(+ 일·주·월 aggregate)를 Assessment/Contribution/Summary entity 로 영속화하는 데이터 모델 + Prisma schema migration 을 승인한다(§5 DB schema 게이트 통과). **외부 credential 불요** — CI 실 PostgreSQL(ADR-0004 migrate-deploy) 사용, PermissionDeniedRecord migration(Q-0019) 패턴 동형. 진행 방식 = ADR-first: planner 가 첫 slice 로 '평가 결과 영속화 데이터 모델 ADR'(EvaluationResult ↔ Assessment/Contribution/Summary 매핑 방향 + raw 미저장 R-59 정합 + 재실행·부분 reset semantics + Prisma migration 전략) 를 큐잉 → architect ADR → 이후 dependency-free chain(prisma schema/migration → repository write 배선 → orchestrator/controller 영속 반환 전환 → doc-sync). 옵션 (3) 기간 평가 bridge(R-9, L98)는 (1) 영속화 결정 확정 후 동일 chain 에서 함께 진행 가능. 옵션 (2) 실 LLM live run·옵션 (4) 기타는 미승인 유지(추후 별도 결정). 새 외부 dependency 0.",
       "processedNote": "loop@cloud(turn-cap-5) 가 본 결정의 ADR-first 첫 slice 를 T-0297(ADR-0033 평가 결과 영속화 데이터 모델) 로 큐잉·실행 — architect 가 ADR-0033 작성, pr-mode draft PR 로 외화. 원 결정 기록은 PR #246(claude/loop-turn-cap-10-n6hs91)."
+    },
+    {
+      "id": "Q-0035",
+      "raisedAt": "2026-06-11",
+      "raisedBy": "loop@cloud-0en1pb t7 planner",
+      "reason": "needs-human-decision",
+      "status": "OPEN",
+      "summary": "T-0350 (stage 5b ACTIVE — direct-only 병렬, maxConcurrentClaims=2) 완료 후 dependency-free task 소진 재확인. T-0350 Follow-ups 잔여 = 5c 진입 1건 (측정 게이트 — 다른 driver 와 실제 동시 claim 겹침 관측 필요, 단독 세션 불가). PLAN.md 잔여 bullet 전수 점검 결과 신규 dependency-free 작업 0 — 전부 user/credential/측정 게이트. 사용자 방향 결정 요청.",
+      "context": "잔여 방향 전부 게이트: (a) ADR-0039 (timezone KST) PROPOSED — 사용자 검토 후 ACCEPTED flip 게이트, impl chain 전체가 이 flip 에 의존. (b) live-LLM bridge slice 2/2 — credential 게이트 (6/25 격상 미도래, secrets 만료 6/30). (c) 5b→5c 게이트 — 'direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측' 은 cron 또는 다른 기기 driver 가 본 세션과 실제 겹쳐야 관측 가능. (d) P6 frontend — ADR (React+Vite 후보) + 사용자 방향 게이트 (Q-0034 에서 미선택). (e) P7 scheduler — @nestjs/schedule 새 dep = §5 BLOCKED 게이트. 세션 현황: main a19243e CI green 5연속, open PR 0, blockers 0, incidents 4종 0.",
+      "options": [
+        "(1) ADR-0039 (timezone KST) 검토 후 ACCEPTED flip — flip 즉시 다음 fire 의 planner 가 timezone impl chain 분해 가능 (새 외부 dep 0).",
+        "(2) live-LLM credential 제공 / 격상 일정 확인 — slice 2/2 실 네트워크 round-trip 검증 진행 (현 secrets 만료 2026-06-30, 6/25 격상 예정 유지 여부 확인).",
+        "(3) 5b dogfood — cron 또는 다른 기기 /loop 동시 무장으로 direct-only 동시 claim 실사용 관측 수집 (이중 claim 0 + bookkeeping 충돌 0 확인 시 5c 진입 task 큐잉).",
+        "(4) P6 frontend 진입 지시 — React+Vite ADR 작성부터 (pr-mode, 새 runtime dep 는 ADR 승인 후 별도 절차).",
+        "(5) 기타 사용자 지시 — 위 외 우선순위 지정."
+      ]
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
