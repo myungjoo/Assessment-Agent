@@ -6,16 +6,16 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0346",
   "backlogNote": "**loop@WIN-JQIPLSBL9QV-c10b t6 (2026-06-11)**: T-0345 DONE·direct — ADR-0036 §Decision 8 (c): .claude/agents/integrator.md '3. Merge 수행' 절에 squash 직전 merge-전 rebase + CI green 재확인 의무 박제(BEHIND 판정 → gh pr update-branch ↔ MCP → CI conclusion success 재확인 후에만 squash, red→ci-repeat-fail/conflict→merge-conflict-code BLOCKED LOOP §4 정합, 토글 OFF noop·ON semantic-conflict 마지막 그물, force-push 금지 정합). 1파일, 동작 변화 0(절차 박제). **stage5 §Decision 8 구현 chain 잔여(전부 dependency-free)**: (a)(b) select-pickup 런타임 재검증(pr, scripts/ — touchesFiles 교집합 0·dependsOn 머지 재검증·fail-safe 강등 + R-112 4종) / 그 후 incrementing 로직(언제 어느 유형 +1 — double-claim 탐지·merge-conflict-code BLOCKED·reclaim-misfire·ci-cost-overrun) + 5a 진입(maxConcurrentClaims=1 + 토글 ON 첫 단계, direct). **진행 현황**: (d) 완결(T-0343 schema + T-0344 강등 분기), (c) 완결(T-0345). 남은 안전장치 = (a)(b) pr-slice 만(그 후 incrementing + 5a). t1: 사용자 'ADR-0036 stage5 진입' 지시. 이전 backlog: T-0342 DONE·direct(cron@cloud-f81891ed): ADR-0036 §Decision 8 doc-sync — CLAUDE.md §10(+1 line), docs/LOOP.md §1[2]+§4(+15 lines), docs/architecture/concurrency.md §7 신설(+34 lines) 총 +50/-0. 5종 안전장치(fail-safe 강등 / 런타임 재검증 / merge-전 rebase / concurrencyIncidents 회로 차단기 / 5a-5b-5c) + 5a/5b/5c 3단계 이행 인지 박제 — cross-ref 만, ADR-0036 권위 본문 불변. 토글 OFF 유지(`flags.fineGrainedConcurrency=false`) — driver 동작 변화 0. 사용자 turn 지시 'doc=direct merge' 정합. 직전 T-0341(사용자 직접 commit 9fde830): ADR-0036 §Decision 8 박제. 잔여 후보(전부 user/credential/측정 게이트): T-0341 Follow-ups 의 STATE concurrencyIncidents schema(direct) / integrator.md rebase 의무(direct) / select-claim 재검증(pr) / 5a 진입(direct, stage5 의사결정 후) / ADR-0039 ACCEPTED flip(사용자 검토 후) → impl chain 5단계 / live-LLM slice 2/2(secrets.env 만료 6/30 — 6/25 격상) / PR #277 disposition(사용자).",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-c10b",
-    "since": "2026-06-11T05:18:00Z",
-    "note": "loop@WIN-JQIPLSBL9QV-c10b /loop 세션(dynamic, turn cap 10) t6 — 권위 lock 15a22d6 CAS 획득 후 T-0345 실행(§Decision 8 (c) integrator merge-전 rebase 의무, .claude/agents/integrator.md). doc-only direct(.claude/ 메타), driver 직접 편집. 본 closeout commit push 후 권위 lock tombstone({\"holder\":null}) release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "since": "2026-06-11T05:25:00Z",
+    "note": "loop@WIN-JQIPLSBL9QV-c10b /loop 세션(dynamic, turn cap 10) t7 — planner-only turn. 권위 lock 96f6dfe CAS 획득 후 planner dispatch → §Decision 8 (a)(b) select-pickup 런타임 재검증 + fail-safe 강등 primitive slice T-0346 큐잉(nextTask, pr-mode, architect 포함). 본 doc-direct commit push 후 권위 lock tombstone({\"holder\":null}) release — T-0346 는 다음 turn 실행. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-11T05:18:00Z",
-  "lastCommit": "ee2027c",
+  "lastActivity": "2026-06-11T05:25:00Z",
+  "lastCommit": "2900513",
   "mostRecentTasks": [
     "T-0345",
     "T-0344",
@@ -24,11 +24,11 @@
     "T-0340"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-c10b",
     "startedAt": "2026-06-11T04:31:46Z",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10b (dynamic, turn cap 10) t6 — T-0345 DONE·direct(§Decision 8 (c) integrator merge-전 rebase + CI green 재확인 의무, .claude/agents/integrator.md 1파일). 토글 OFF 불변·동작 변화 0(절차 박제). t5 ee2027c CI green 확인. tasksCompleted 340→341. **(c)·(d) 안전장치 완결**(T-0343/T-0344 (d) + T-0345 (c)). 남은 §D8 = (a)(b) select-pickup 재검증 pr-slice. nextTask null → 다음 t7 planner((a)(b)). 세션 진행: t1→t2(T-0343)→t3→t4(T-0344)→t5→t6(T-0345). cap 잔여 4."
+    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10b (dynamic, turn cap 10) t7 — planner-only turn. T-0345 2900513 CI green 확인. planner queued T-0346(§Decision 8 (a)(b) select-pickup 런타임 재검증 + fail-safe 강등 primitive, scripts/validate-claim-candidate.sh, **pr-mode**, R-112 4종, architect 포함). tasksCompleted 341 불변(planner-only). nextTask=T-0346 → 다음 t8 execute(pr-cycle: architect→impl→test→PR→reviewer→integrator). **남은 §D8 마지막 안전장치** — 머지 후 incrementing+5a 만 남음. 세션 진행: t1→t2→t3→t4→t5→t6→t7. cap 잔여 3(pr-cycle 가 t8~t10 소요 예상)."
   },
   "ci": {
     "lastRun": "2026-06-10T19:41:00+09:00",
