@@ -15,22 +15,22 @@
     "since": "2026-06-11T06:03:00Z",
     "note": "loop@WIN-JQIPLSBL9QV-c10b /loop 세션(dynamic, turn cap 10) t10(cap) — 권위 lock 2fb4f24 CAS 획득 후 T-0347 실행(§Decision 8 (d) incrementing 시점 LOOP 박제, direct). **세션 종료(cap 10 도달)** — 본 closeout commit push 후 권위 lock tombstone({\"holder\":null}) release, no reschedule. 다음 진입점(cron/새 /loop)이 자유 lock 확인 후 진행. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-11T08:31:38Z",
+  "lastActivity": "2026-06-11T08:54:22Z",
   "lastCommit": "60ad2e8",
   "mostRecentTasks": [
+    "T-0352",
     "T-0351",
     "T-0350",
     "T-0349",
-    "T-0348",
-    "T-0347"
+    "T-0348"
   ],
   "loopSession": {
-    "turnCount": 10,
+    "turnCount": 1,
     "cap": 10,
-    "holder": "loop@WIN-JQIPLSBL9QV-c10b",
-    "startedAt": "2026-06-11T04:31:46Z",
-    "endedAt": "2026-06-11T06:03:00Z",
-    "note": "/loop session loop@WIN-JQIPLSBL9QV-c10b (dynamic, turn cap 10) t10(cap) — **세션 종료(cap 10 도달, CLAUDE §10)**. T-0347 DONE·direct(§Decision 8 (d) incrementing 4 탐지 시점 LOOP 박제). t9 c737f8f CI green 확인. tasksCompleted 342→343. **세션 성과: 사용자 stage5 진입 지시 → §Decision 8 안전장치+incrementing 5 slice 완결**(T-0343 schema / T-0344 강등 분기 / T-0345 integrator rebase / T-0346 (a)(b)재검증 PR #283 merge / T-0347 incrementing), tasksCompleted 338→343(+5), 토글 시종 OFF(driver 동작 변화 0). **남은 stage5=5a 진입(토글 ON)** — fresh 세션 신중 진행. 사용자에게 /compact·새 /loop 안내. no reschedule."
+    "holder": "loop@web-pmqggi",
+    "startedAt": "2026-06-11T08:54:22Z",
+    "endedAt": "2026-06-11T08:54:22Z",
+    "note": "/loop session loop@web-pmqggi (dynamic, turn cap 10) t1 — web session(harness 가 branch claude/loop-turn-cap-10-pmqggi 고정, main push 불가). 사용자 선택 'dependency-free prep' 수행: T-0352 DONE — P6 frontend↔backend API 소비 계약 prep doc(docs/architecture/frontend-api-contract.md). ADR-0040(stack) PROPOSED·사용자 검토 대기 중 stack-flip 비의존 prep(새 dep 0·backend 변경 0). 변경은 branch push + draft PR 로 사용자 머지 위임(loop@cloud-82SQk/#237 선례). **no reschedule** — 잔여 P6 작업은 human 게이트(ADR-0040 PROPOSED→ACCEPTED flip + React/Vite 새 dep 승인, §5). 사용자가 ADR-0040 검토 후 새 /loop 또는 cron 으로 재개. counters 347→348."
   },
   "ci": {
     "lastRun": "2026-06-11T08:31:38Z",
@@ -624,7 +624,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 347,
+    "tasksCompleted": 348,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
