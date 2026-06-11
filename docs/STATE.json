@@ -15,7 +15,7 @@
     "since": "2026-06-11T06:03:00Z",
     "note": "loop@WIN-JQIPLSBL9QV-c10b /loop 세션(dynamic, turn cap 10) t10(cap) — 권위 lock 2fb4f24 CAS 획득 후 T-0347 실행(§Decision 8 (d) incrementing 시점 LOOP 박제, direct). **세션 종료(cap 10 도달)** — 본 closeout commit push 후 권위 lock tombstone({\"holder\":null}) release, no reschedule. 다음 진입점(cron/새 /loop)이 자유 lock 확인 후 진행. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-11T07:38:01Z",
+  "lastActivity": "2026-06-11T08:09:13Z",
   "lastCommit": "c737f8f",
   "mostRecentTasks": [
     "T-0350",
@@ -606,7 +606,7 @@
       "raisedAt": "2026-06-11",
       "raisedBy": "loop@cloud-0en1pb t7 planner",
       "reason": "needs-human-decision",
-      "status": "OPEN",
+      "status": "RESOLVED",
       "summary": "T-0350 (stage 5b ACTIVE — direct-only 병렬, maxConcurrentClaims=2) 완료 후 dependency-free task 소진 재확인. T-0350 Follow-ups 잔여 = 5c 진입 1건 (측정 게이트 — 다른 driver 와 실제 동시 claim 겹침 관측 필요, 단독 세션 불가). PLAN.md 잔여 bullet 전수 점검 결과 신규 dependency-free 작업 0 — 전부 user/credential/측정 게이트. 사용자 방향 결정 요청.",
       "context": "잔여 방향 전부 게이트: (a) ADR-0039 (timezone KST) PROPOSED — 사용자 검토 후 ACCEPTED flip 게이트, impl chain 전체가 이 flip 에 의존. (b) live-LLM bridge slice 2/2 — credential 게이트 (6/25 격상 미도래, secrets 만료 6/30). (c) 5b→5c 게이트 — 'direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측' 은 cron 또는 다른 기기 driver 가 본 세션과 실제 겹쳐야 관측 가능. (d) P6 frontend — ADR (React+Vite 후보) + 사용자 방향 게이트 (Q-0034 에서 미선택). (e) P7 scheduler — @nestjs/schedule 새 dep = §5 BLOCKED 게이트. 세션 현황: main a19243e CI green 5연속, open PR 0, blockers 0, incidents 4종 0.",
       "options": [
@@ -615,7 +615,9 @@
         "(3) 5b dogfood — cron 또는 다른 기기 /loop 동시 무장으로 direct-only 동시 claim 실사용 관측 수집 (이중 claim 0 + bookkeeping 충돌 0 확인 시 5c 진입 task 큐잉).",
         "(4) P6 frontend 진입 지시 — React+Vite ADR 작성부터 (pr-mode, 새 runtime dep 는 ADR 승인 후 별도 절차).",
         "(5) 기타 사용자 지시 — 위 외 우선순위 지정."
-      ]
+      ],
+      "resolvedAt": "2026-06-11T08:09:13Z",
+      "resolution": "사용자 2026-06-11 채팅 응답: 옵션 (4) P6 frontend 진입 선택 — React+Vite ADR 작성부터 시작. 옵션 (1) ADR-0039 flip / (2) live-LLM credential / (3) 5b dogfood 는 보류(나중에 선택)."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
