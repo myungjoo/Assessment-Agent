@@ -2,12 +2,17 @@
 id: T-0346
 title: select-pickup claim 후보 런타임 재검증 + fail-safe 강등 primitive 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 270
 estimatedFiles: 3
 created: 2026-06-11
+mergedAs: 89d9f51
+prNumber: 283
+reviewRounds: 1
+status_done: 2026-06-11T05:42Z
+result: "DONE·merge(PR #283 squash 89d9f51) — scripts/validate-claim-candidate.sh read-only primitive(touchesFiles 교집합 0·dependsOn 머지 재검증·uncertain→DEMOTE, lock/STATE write 0 §9) + .test.sh 9 case + select-claim 헤더 cross-ref + ADR-0036 §D8 (a)(b) amend. reviewer round1 APPROVE(0 blocker/0 major/2 minor 비차단), 4-게이트 PASS, CI first-pass green. §Decision 8 (a)~(d) 안전장치 ALL 완결. Follow-up: .test.sh CI step 등록(workflow scope 게이트)."
 independentStream: stage5-default-on-safeguards
 dependsOn: [T-0343, T-0344, T-0345]
 touchesFiles: [scripts/validate-claim-candidate.sh, scripts/validate-claim-candidate.test.sh, docs/decisions/ADR-0036-fine-grained-concurrency.md]
