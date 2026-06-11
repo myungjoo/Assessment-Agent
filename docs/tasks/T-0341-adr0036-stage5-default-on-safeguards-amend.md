@@ -2,7 +2,8 @@
 id: T-0341
 title: ADR-0036 amend — stage 5 기본-ON 안전장치 §Decision 8 박제 + rollout 5 세분 (5a/5b/5c)
 phase: P5
-status: IN_PROGRESS
+status: DONE
+completed: 2026-06-10
 commitMode: pr
 coversReq: [TBD]
 estimatedDiff: 140
@@ -50,3 +51,8 @@ ADR-0036 은 ACCEPTED + stage 1~4 구현 완료(T-0326~T-0332) 상태이나, sta
 - (direct) §Decision 8 (d) 구현 — STATE.json schema 에 `concurrencyIncidents` 필드 + LOOP §1[2] 에 회로 차단기 강등 분기 + CLAUDE §10/concurrency.md 동기.
 - (direct) §Decision 8 (c) 구현 — .claude/agents/integrator.md 에 merge-전 rebase + CI 재확인 의무 추가.
 - (direct) 5a 진입 — `maxConcurrentClaims` 필드 도입 + 토글 ON(5a 모드). 이후 5b/5c 는 각각 별도 task.
+
+## Result (2026-06-10, 사용자 직접 commit)
+
+- 사용자 직접 commit 9fde830 (2026-06-10) 으로 ADR-0036 §Decision 8 amend 본문 박제 완료. 후속 구현 chain T-0342~T-0348 전부 머지 (5a 진입까지 완결).
+- 마지막 AC (CI 항목) 는 direct 진행으로 무의미 — flip 은 T-0349 bookkeeping 으로 처리.

@@ -2,7 +2,7 @@
 id: T-0349
 title: T-0341 frontmatter status stale 정정 — IN_PROGRESS → DONE flip bookkeeping
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [TBD]
 estimatedDiff: 8
