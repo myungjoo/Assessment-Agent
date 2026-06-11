@@ -2,12 +2,14 @@
 id: T-0345
 title: integrator merge-전 rebase + CI green 재확인 의무 박제 (ADR-0036 §Decision 8 (c))
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 40
 estimatedFiles: 1
 created: 2026-06-11
+status_done: 2026-06-11T05:18Z
+result: "DONE — .claude/agents/integrator.md '3. Merge 수행' 절에 squash 직전 merge-전 rebase + CI green 재확인 의무 박제(ADR-0036 §Decision 8 (c)): BEHIND 판정 → gh pr update-branch ↔ MCP → CI conclusion success 재확인 후에만 squash. red→ci-repeat-fail/conflict→merge-conflict-code BLOCKED LOOP §4 정합. 토글 OFF noop·ON semantic-conflict 마지막 그물. force-push 금지 정합. 1파일, 동작 변화 0(절차 박제)."
 independentStream: stage5-default-on-safeguards
 dependsOn: []
 touchesFiles: [.claude/agents/integrator.md]

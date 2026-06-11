@@ -75,6 +75,11 @@ implementer/tester 재호출은 executor 의 re-entry mode (`executor.md` "Re-en
 
 **3. Merge 수행** (4-게이트 통과 시)
 
+- **(squash 직전) merge-전 rebase + CI green 재확인 의무 (ADR-0036 §Decision 8 (c))** — 4-게이트가 모두 true 여도 `--squash` 호출 **직전에** PR head 가 최신 origin/main 을 포함하는지 확인한다: `gh pr view <num> --json mergeStateStatus,headRefOid` ↔ `mcp__github__get_pull_request(pull_number)` 의 `mergeable` / `mergeStateStatus` (`BEHIND` 여부), 또는 head_sha 가 현 origin/main 을 ancestor 로 포함하는지 비교.
+  - **최신 포함(noop)** → 바로 아래 squash 진행.
+  - **behind(뒤처짐)** → `gh pr update-branch <num>` ↔ `mcp__github__update_pull_request_branch(pull_number)` 로 update/rebase 한 뒤, CI 재시작을 기다려 `gh pr checks <num>` ↔ `mcp__github__list_check_runs(ref=<새 head_sha>)` 의 conclusion == success 를 **재확인한 뒤에만** squash 한다. **재확인 전 squash 금지.**
+  - update 후 CI red → squash 안 함, 게이트 (d) 분기로 흡수 (CI fail → ANOTHER_ROUND / `ci-repeat-fail`). update 가 conflict 로 실패 → `merge-conflict-code` BLOCKED. 둘 다 [LOOP.md §4](../../docs/LOOP.md) graceful 종료와 정합.
+  - 본 단계는 파일-disjoint 인코딩이 틀렸거나 의미가 충돌(semantic conflict)하는 경우를 main 진입 직전 CI 로 잡는 **마지막 그물**이다. `flags.fineGrainedConcurrency` OFF(현 기본값)에서도 무해 — 단일-driver 환경에선 PR head 가 이미 최신이라 noop — 이고, ON 시 N-driver semantic-conflict 의 마지막 그물로 기능한다(토글-gated 가치). update-branch/rebase 는 GitHub update-branch API 또는 정상 rebase 이고 `git push --force` 가 아니다(§Hard rules "Never force-push" 정합).
 - `gh pr merge <num> --squash --delete-branch` ↔ `mcp__github__merge_pull_request(pull_number, merge_method="squash")` + `mcp__github__delete_branch(ref="claude/T-NNNN-...")` — Path A (cron env) 는 driver 가 MCP 호출, local /loop 는 integrator 자체 gh 호출 (§Driver fallback 책임 분담 참조).
 - § C STATE cleanup 수행. STATUS=MERGED. journal 에 한 줄 append: `integrator: merged T-NNNN — <pr-url>`.
 
