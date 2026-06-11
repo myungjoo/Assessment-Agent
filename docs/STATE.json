@@ -8,14 +8,14 @@
   },
   "currentTask": null,
   "nextTask": null,
-  "backlogNote": "**cron@cloud-aa15-7f0e6e (2026-06-11T15:05Z) — planner SKIP (3연속)**: 권위 lock CAS 획득(7f0e6ee→9a310ea, free tombstone, holder-빈값 게이트 확인). main b946d8b ff. claims.json 활성 claim 0(T-0352 DONE). planner 독립 재검증 → SKIP 재확인: P6 dependency-free prep 은 T-0352(frontend-api-contract.md)로 완결돼 소진. frontend-api-contract §5 gaps(UC-06 batch bulk delete/reeval/reset·R-78 run-status endpoint)는 P5/P7 deferred backend 또는 design-ADR-worthy — dependency-free thin wire 아님. 인접 sweep clean(open PR 0·BLOCKED 0·HQ 0·활성 claim 0·CI green). make-work 회피 정직 정지. **잔여 게이트 (전부 user/credential/측정)**: (a) ADR-0040 PROPOSED→ACCEPTED flip=사용자 — flip 시 P6 scaffold chain(pnpm-workspace+vite+@nestjs/serve-static, 새 dep §5 게이트) 분해 가능, 입력 prep(frontend-api-contract.md)은 완비 / (b) ADR-0039(timezone KST) flip=사용자 / (c) live-LLM slice 2/2=credential(secrets 만료 6/30, 6/25 격상) / (d) 5b→5c=direct-only 동시 claim 실사용 관측 / (e) R-78 평가 실행 상태 endpoint=design ADR-worthy. **직전 fire**: cron@cloud-74920890(14:39Z) SKIP — ADR-0038(reeval/overwrite) impl chain 4 slice(T-0333/0335/0336/0337) + T-0338 doc-sync 전부 완결 추적 확인, ADR-0038 방향 소진. **직전 task**: T-0352 DONE·merge(loop vb71 t3) — 고아 PR #285(cloud web pmqggi draft, lock/claim 미박제 ADR-0034 패턴) 5b claim 경로 resume: stale lock 탈취→select-claim→충돌 해소(855a10c)→tester pass(146 suites/2927)→reviewer round1 APPROVE→approval rerun green(run 27352988688)→squash a312bcf. tasksCompleted 347→348. 교훈: gh pr list 는 draft 포함 — 고아 PR 점검 시 draft 필수 점검. 상세는 journal 2026-06-11 참조.",
+  "backlogNote": "**Q-0036 OPEN (2026-06-11 15:11Z, vb71 t6)** — dependency-free 소진 공식화: cron planner SKIP 4연속 + T-0352 고아 PR resume 완결. 잔여 전부 user 게이트(상세 Q-0036 context): (a) ADR-0040 flip(1순위) / (b) ADR-0039 flip / (c) live-LLM 2/2(만료 6/30·6/25 격상) / (d) 5b→5c 관측 / (e) R-78 상태 endpoint ADR. **resolve 전까지 모든 진입점 즉시 no-op(LOOP §1[1])**. 직전 backlog 핵심: T-0352 resume 완결 상세는 journal 2026-06-11 15:11Z 항목 + 직전 backlogNote(786103d) 참조.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa15-7f0e6e",
-    "since": "2026-06-11T15:05:19Z",
-    "note": "cron@cloud-aa15-7f0e6e (Anthropic cloud cron fire, 2026-06-11, 매시 15분 trigger) — 권위 lock 9a310ea CAS 획득(7f0e6ee→9a310ea, free tombstone, holder-빈값 게이트 확인 후). planner SKIP 재확인(3연속, dependency-free P6 prep 소진). backlogNote+journal heartbeat 갱신 commit 후 권위 lock tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "session": "loop@WIN-JQIPLSBL9QV-vb71",
+    "since": "2026-06-11T15:11:43Z",
+    "note": "vb71 t6 — Q-0036 박제 후 권위 lock tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-11T15:05:19Z",
+  "lastActivity": "2026-06-11T15:11:43Z",
   "lastCommit": "b946d8b",
   "mostRecentTasks": [
     "T-0352",
@@ -25,12 +25,12 @@
     "T-0348"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 6,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-vb71",
     "startedAt": "2026-06-11T13:06:00Z",
-    "endedAt": null,
-    "note": "/loop session vb71 (dynamic, turn cap 10) t3 — T-0352 DONE·merge(고아 PR #285 resume, squash a312bcf). t1 사고: lock CAS 체인 holder 미검사로 살아있는 cron@cloud-47fa4760 lock 30초 오탈취 즉시 원복(이후 cron release 실패 정황 → t2 no-op, 60분 stale 대기 비용). t3: stale-steal(62분)→claim 박제→main 머지 충돌 해소→tester 146 suites green→reviewer round1 APPROVE(0/0/2)→approval-gate rerun green→4-게이트 PASS→merge. 다음 t4: a312bcf+closeout push CI 확인 → planner 또는 사용자 ADR-0040 flip 지시 반영."
+    "endedAt": "2026-06-11T15:11:43Z",
+    "note": "/loop session vb71 (dynamic, turn cap 10) t6 — **세션 종료(목적 소진, cap 10 중 6)**. 성과: t3 T-0352 DONE·merge(고아 PR #285 발굴·resume, squash a312bcf, tasksCompleted 347→348) + t6 Q-0036 OPEN 박제. t1 사고(살아있는 cron lock 30초 오탈취 즉시 원복, journal 박제)·t2/t5 lock 경합 no-op. 다음 진입점: Q-0036 resolve 후 cron 또는 새 /loop."
   },
   "ci": {
     "lastRun": "2026-06-11T14:25:35Z",
@@ -621,6 +621,23 @@
       ],
       "resolvedAt": "2026-06-11T08:09:13Z",
       "resolution": "사용자 2026-06-11 채팅 응답: 옵션 (4) P6 frontend 진입 선택 — React+Vite ADR 작성부터 시작. 옵션 (1) ADR-0039 flip / (2) live-LLM credential / (3) 5b dogfood 는 보류(나중에 선택)."
+    },
+    {
+      "id": "Q-0036",
+      "raisedAt": "2026-06-11",
+      "raisedBy": "loop@WIN-JQIPLSBL9QV-vb71 t6 driver",
+      "reason": "needs-human-decision",
+      "status": "OPEN",
+      "summary": "dependency-free 작업 공식 소진 — cron planner SKIP 4연속 fire(a98debc8/47fa4760/74920890/aa15) + 본 세션의 T-0352 고아 PR #285 resume·merge 완결(squash a312bcf, tasksCompleted 348). 잔여 방향 전부 사용자 게이트라 다음 진행을 위해 사용자 결정 요청. 본 HQ resolve 전까지 모든 driver 진입점(cron 포함)은 LOOP §1[1] 에 따라 즉시 no-op — planner skip fire 토큰 낭비 차단 목적 포함(Q-0035 선례 동형).",
+      "context": "잔여 게이트 전부: (a) ADR-0040(frontend stack, React+Vite SPA) PROPOSED — 사용자 검토 후 ACCEPTED flip 게이트. flip 시 P6 scaffold chain(pnpm-workspace + vite + @nestjs/serve-static, 새 runtime dep 는 §5 승인 동반) 을 planner 가 분해 가능. 입력 prep 은 frontend-api-contract.md(T-0352) 로 완비. (b) ADR-0039(timezone KST boundary) PROPOSED — 검토 후 ACCEPTED flip 게이트, flip 시 helper/SinceDerivation/PeriodBridge/R-9 DTO/view-layer impl chain. (c) live-LLM bridge slice 2/2 — credential 게이트(secrets.env 만료 2026-06-30, 6/25 격상 예정). (d) ADR-0036 stage 5b→5c — direct-only 동시 claim 실사용 관측 필요(cron + 다른 driver 실제 겹침). (e) R-78 평가 실행 상태 조회 endpoint — 신설 시 design 결정(RBAC·polling·response shape) 동반 ADR-worthy. 세션 현황: main 8100678 CI green, open PR 0, blockers 0, incidents 4종 0, claims 활성 0(T-0352 DONE).",
+      "options": [
+        "(1) ADR-0040 검토 → ACCEPTED flip — P6 frontend scaffold chain 진행 개시(React/Vite 새 dep §5 승인 포함 여부 명시 요망).",
+        "(2) ADR-0039 검토 → ACCEPTED flip — timezone KST impl chain 진행.",
+        "(3) live-LLM credential 협조 — slice 2/2 실 네트워크 round-trip(만료 6/30 전).",
+        "(4) 5b dogfood 계속 — cron+loop 동시 무장 유지로 5c 게이트 관측 수집(신규 task 없이 대기).",
+        "(5) 기타 우선순위 지시."
+      ],
+      "resolutionHint": "docs/STATE.json 본 항목에 resolvedAt(ISO) + decision 기입 후 commit, 또는 /loop 세션 채팅 응답(Q-0035 동형 — driver 가 대신 박제). resolve 후 새 /loop 시작 또는 다음 cron fire 가 자동 진행."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
