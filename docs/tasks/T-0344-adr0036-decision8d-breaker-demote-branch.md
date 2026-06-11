@@ -2,12 +2,14 @@
 id: T-0344
 title: ADR-0036 §Decision 8 (d) — LOOP §1[2] 회로 차단기 강등 분기 박제 (회로 차단기 2/2)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [TBD]
 estimatedDiff: 50
 estimatedFiles: 1
 created: 2026-06-11
+status_done: 2026-06-11T05:02Z
+result: "DONE — LOOP §1[2] 의 inline 회로 차단기 언급을 명시적 3단계 sub-step(2회 임계 판정 → lock-하 flags.fineGrainedConcurrency=false 자동 OFF 강등 → notifier HQ + 재활성=사람 결정)으로 승격. incrementing out-of-scope 1줄 + inert/forward-looking + ADR §D8(d) cross-ref. LOOP.md 외 파일 변경 0, 토글 OFF 불변, 동작 변화 0. 회로 차단기 (d) 2/2 완료."
 independentStream: stage5-default-on-safeguards
 dependsOn: [T-0343]
 touchesFiles: [docs/LOOP.md]

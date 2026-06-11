@@ -74,12 +74,27 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
     (claims.json 파싱 실패·schema 불일치·후보 frontmatter 누락·server-time 미확보)
     그 후보를 병렬 후보에서 제외하거나 단일-task 경로로 **fail-safe 강등**한다
     (§D8 (a) — 모르면 직렬화, reclaim 의 fail-closed 계약을 select 면으로 확장).
-    incident 누적 모니터링: STATE `concurrencyIncidents` 카운터의 같은 유형(`double-claim`
-    / `merge-conflict-code` / `reclaim-misfire` / `ci-cost-overrun`) 2회 누적 시
-    driver 는 lock(critical section) 하에서 `flags.fineGrainedConcurrency = false`
-    로 **자동 OFF 강등 + notifier 보고**(§D8 (d) 회로 차단기 — 재활성은 사람 결정).
-    본 의무는 토글 OFF(현 기본값) 동안 inert — STATE schema/select-claim.sh 재검증
-    로직/회로 차단기 분기의 실제 구현은 별도 task chain(T-0341 Follow-ups).
+- **회로 차단기 강등 분기 (ADR-0036 §Decision 8 (d) — `concurrencyIncidents` 2회 임계 → 자동 OFF, forward-looking·토글 OFF 동안 inert)**:
+    위 fail-safe 강등·런타임 재검증과 별개로, driver 는 [1] 의 lock(critical section)
+    보유 상태에서 STATE `concurrencyIncidents` 회로 차단기를 다음 3 단계로 평가한다
+    (T-0343 의 schema 자리 + concurrency.md §7.1 강등 계약을 절차로 구현):
+    (1) **2회 임계 판정** — 4 유형 슬러그(`double-claim` / `merge-conflict-code` /
+        `reclaim-misfire` / `ci-cost-overrun`) 중 **어느 하나라도** 카운터가 `>= 2`
+        인지 검사한다.
+    (2) **lock-하 자동 OFF 강등** — 충족 시 lock(critical section) 보유 상태에서
+        `flags.fineGrainedConcurrency = false` 로 write 한다(STATE single-writer §9
+        정합 — driver write, lock release 직전 critical section 안에서 박제). "CI
+        3연속 fail → BLOCKED" 와 동형 self-healing 으로, 기본-ON 을 one-way door 로
+        만들지 않는 보험이다.
+    (3) **notifier 보고** — 강등 사유(어느 유형이 2회 누적인지)를 담은 humanQuestion(HQ)
+        을 notifier 로 생성하고, **재활성(토글 재-ON)은 사람 결정**(HQ 응답)임을 명시한다.
+        자동 재-ON 금지 — 회로 차단기는 자동 강등만 하고 자동 복구는 하지 않는다.
+    **incrementing 로직(언제 어느 유형을 +1 하는가 = double-claim 탐지 / merge-conflict-code
+    BLOCKED / reclaim-misfire / ci-cost-overrun)은 본 분기 범위 밖 — 후속 slice 책임.**
+    본 회로 차단기 분기는 토글 OFF(현 기본값) 동안 **inert** 다(`flags.fineGrainedConcurrency
+    == true` 일 때만 incrementing/판정이 의미) — 현 stage 에서 driver 동작 변화 0
+    (forward-looking spec). 단일 권위 = ADR-0036 §Decision 8 (d) / concurrency.md §7.1.
+    select-claim.sh 런타임 재검증 로직의 실제 구현은 별도 task chain(T-0341 Follow-ups).
 - **reclaim primitive server-time now 주입 계약 (ADR-0036 §Decision 5 — clock-skew 오회수 차단)**:
     위 (a) 의 reclaim 호출 시 회수 판정의 now 는 **server-time 기준으로 주입**한다
     (`RECLAIM_NOW` env 또는 인자 2). driver 는 server-time 을 GitHub API 응답의
