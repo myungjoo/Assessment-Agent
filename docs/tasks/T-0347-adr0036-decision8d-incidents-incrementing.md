@@ -2,12 +2,14 @@
 id: T-0347
 title: ADR-0036 §Decision 8 (d) — concurrencyIncidents incrementing 시점 LOOP 박제 (회로 차단기 incrementing)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [TBD]
 estimatedDiff: 60
 estimatedFiles: 1
 created: 2026-06-11
+status_done: 2026-06-11T06:03Z
+result: "DONE — LOOP §1[2] 회로 차단기 분기에 concurrencyIncidents incrementing 4 탐지 시점(i double-claim / ii merge-conflict-code / iii reclaim-misfire / iv ci-cost-overrun) 박제 + §4(iii) cross-ref marker. 각 lock-하 driver write(origin+1 read-modify-write, §9), 강등 분기가 읽는 카운터 채움(없으면 영영 inert) cross-ref, 토글 OFF inert/forward-looking. LOOP.md 1파일, 코드/동작 변화 0. §Decision 8 (d) incrementing 완결 — 남은 stage5=5a 진입(토글 ON)."
 independentStream: stage5-default-on-safeguards
 dependsOn: []
 touchesFiles: [docs/LOOP.md]

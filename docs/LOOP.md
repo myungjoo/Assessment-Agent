@@ -89,8 +89,20 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
     (3) **notifier 보고** — 강등 사유(어느 유형이 2회 누적인지)를 담은 humanQuestion(HQ)
         을 notifier 로 생성하고, **재활성(토글 재-ON)은 사람 결정**(HQ 응답)임을 명시한다.
         자동 재-ON 금지 — 회로 차단기는 자동 강등만 하고 자동 복구는 하지 않는다.
-    **incrementing 로직(언제 어느 유형을 +1 하는가 = double-claim 탐지 / merge-conflict-code
-    BLOCKED / reclaim-misfire / ci-cost-overrun)은 본 분기 범위 밖 — 후속 slice 책임.**
+    **incrementing 시점 (ADR-0036 §Decision 8 (d) — 위 (1) 2회 임계 판정이 읽는 카운터를
+    채운다; incrementing 없으면 4 유형 카운터가 0 고정 → 회로 차단기가 영영 inert)**: driver
+    는 아래 4 탐지 시점에서 lock(critical section)-하에 `concurrencyIncidents.<type>` 를
+    **origin 최신값 +1 read-modify-write**(STATE single-writer §9 — driver write, counters
+    절대값 덮어쓰기 금지) 한다. 실 write 는 driver 가 절차를 따라 STATE.json 에 직접 수행한다
+    (자동화 스크립트 도입 없음 — LOOP 절차 계약):
+      (i)   `double-claim` — 위 (b) select+claim 직후 claims.json 재확인 시 같은 taskId 가
+            2개 이상 claim 으로 박힌 정황 탐지 시(이론상 lock-하 atomic select+claim 으로 0).
+      (ii)  `merge-conflict-code` — §4 (iii) 코드 영역(`src/`·`web/`·`test/`) rebase 충돌로
+            `BLOCKED, reason=merge-conflict-code` 분기 진입 시(파일-disjoint 인코딩 오류·semantic conflict).
+      (iii) `reclaim-misfire` — 위 (a) reclaim 으로 회수한 orphan claim 이 사후 실제로는
+            살아있었다고 판명된 시점(server-time fail-closed 를 뚫은 오회수 관측).
+      (iv)  `ci-cost-overrun` — §5/동시 PR CI 관측에서 동시에 도는 PR CI run 수가 N 선형
+            비용 상한을 초과함을 관측한 시점(§Decision 6 per-PR concurrency group 1차 방어).
     본 회로 차단기 분기는 토글 OFF(현 기본값) 동안 **inert** 다(`flags.fineGrainedConcurrency
     == true` 일 때만 incrementing/판정이 의미) — 현 stage 에서 driver 동작 변화 0
     (forward-looking spec). 단일 권위 = ADR-0036 §Decision 8 (d) / concurrency.md §7.1.
@@ -152,6 +164,7 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
         - STATE/journal text conflict → driver가 base를 origin 값으로 채택하고
           자기 변경(특히 counters: origin+1)을 재적용 후 commit. (iv)
         - 코드 영역 conflict (src/, web/, test/) → BLOCKED, reason=merge-conflict-code
+          (토글 ON 시 §1[2] 회로 차단기 incrementing (ii): `concurrencyIncidents.merge-conflict-code += 1`, lock-하 driver write)
   (iv)  git push origin HEAD:<target>
         - 성공 → 종료, [5] CI 검증으로
         - reject (다른 driver가 그 사이 push) → 재시도 카운터 +1, (ii)로 돌아감
