@@ -28,6 +28,9 @@
 #
 # 경계: claimed-set 제외만 구현. `dependsOn` 미머지 등 런타임 의존성 평가는
 #   호출측 책임(§Decision 3, slice 2+). staleness 회수·PR-resume 도 slice 2.
+#   런타임 재검증(touchesFiles 교집합·dependsOn 머지) + fail-safe 강등은
+#   별도 read-only primitive scripts/validate-claim-candidate.sh 가 담당하며
+#   본 CAS 경로 밖에서 select 직전 호출된다(ADR-0036 §Decision 8 (a)(b), T-0346).
 #
 # 계약: $1=owner session id, $2..=후보 task id(공백 구분).
 #   env: CLAIM_REMOTE(기본 origin) / CLAIM_REF(기본 lock-driver ref) /
