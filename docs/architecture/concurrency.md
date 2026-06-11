@@ -139,3 +139,37 @@ ADR-0036 은 "활성 driver 항상 1개" invariant 만 깬다(lock 보유 driver
 - counters origin+1 read-modify-write
 
 lock 은 사라지지 않고 **범위만 critical section 으로 좁아진다**.
+
+## §7 stage 5 기본-ON 안전장치 5종 + 3단계 이행 (ADR-0036 §Decision 8, 2026-06-10 T-0341 amend — 인지 박제)
+
+stage 5 의 `flags.fineGrainedConcurrency = true` 기본-ON 전환은 "최악 동작이 coarse
+단일-driver(ADR-0009) 와 정확히 같다"는 원칙 위에서만 안전하다. ADR-0036 §Decision 8
+은 그 원칙을 다음 5종 안전장치로 박제하며, §rollout stage 5 를 5a/5b/5c 로 세분한다.
+본 §7 은 **인지 박제만** — 결정 본문은 ADR-0036 §Decision 8 권위, 현 stage blockquote
+(stage 2 slice 2 = 현 shipped, stage 3~5 미shipped)는 그대로 유지된다.
+
+- **(a) fail-safe 강등** — claim-pickup 분기에서 판정 불확실(claims.json 파싱 실패·
+  schema 불일치·후보 frontmatter 누락·server-time 미확보) 시 단일-task 경로로 fallback
+  (§5 reclaim 의 fail-closed 계약을 select 면으로 확장). driver 책임 — [LOOP.md §1[2]](../LOOP.md) 박제.
+- **(b) claim 시점 런타임 재검증** — driver 가 후보의 `touchesFiles` 가 활성 claim 의
+  `touchesFiles` 와 교집합 0 인지, `dependsOn` 전원이 origin/main 머지됐는지 select
+  단계에서 검사. §4 의 "런타임 의존성 평가는 호출측 책임" 유보가 본 (b) 로 driver
+  의무로 확정된다(planner 큐잉 사전 인코딩의 2차 방어).
+- **(c) integrator merge 직전 rebase + CI green 재확인** — 파일-disjoint 라도 semantic
+  conflict 가능 → 4-게이트(CLAUDE.md §3.3) 통과 후 squash 직전 PR head 의 main 포함
+  확인, 뒤처졌으면 update-branch/rebase 후 CI 재확인. [LOOP.md §4](../LOOP.md) 박제,
+  실 구현은 `.claude/agents/integrator.md` 후속 task.
+- **(d) `concurrencyIncidents` 회로 차단기** — STATE 카운터의 같은 유형
+  (`double-claim` / `merge-conflict-code` / `reclaim-misfire` / `ci-cost-overrun`) 2회
+  누적 시 driver 가 lock-하 `flags.fineGrainedConcurrency = false` 로 자동 강등 +
+  notifier. CI 3연속 fail BLOCKED 와 동형 self-healing — 재활성은 사람 결정. STATE
+  schema 박제는 별도 task.
+- **(e) 3단계 이행** — §rollout stage 5 = **5a** `maxConcurrentClaims=1`(메커니즘만
+  활성, 병렬 0) → **5b** `commitMode: direct` task 만 동시 claim 허용(코드 충돌 0) →
+  **5c** pr-mode 포함 전면 병렬 + 30일 dogfood. 각 단계 정확성 게이트 통과 후 다음 진입.
+
+본 §7 은 forward-looking spec(driver 동작 변화 0 — 토글 여전히 OFF). STATE
+`concurrencyIncidents` schema · select-claim.sh 재검증 로직 · integrator rebase 의무 ·
+회로 차단기 분기의 실제 구현은 별도 task chain(T-0341 Follow-ups). 5a 진입(=
+`maxConcurrentClaims` 필드 + 토글 ON 첫 단계)은 §Decision 8 (a)~(d) 의 구현 완료
+후 별도 direct commit.

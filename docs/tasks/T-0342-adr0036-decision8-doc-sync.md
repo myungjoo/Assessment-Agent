@@ -2,7 +2,8 @@
 id: T-0342
 title: ADR-0036 §Decision 8 doc-sync — CLAUDE.md / LOOP.md / concurrency.md 가 stage5 안전장치 5종 + 5a/5b/5c 인지
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-11T10:08:00+09:00
 commitMode: direct
 coversReq: [TBD]
 estimatedDiff: 60

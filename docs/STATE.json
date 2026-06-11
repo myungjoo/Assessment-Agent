@@ -6,22 +6,22 @@
     "fineGrainedConcurrency": false
   },
   "currentTask": null,
-  "nextTask": "T-0342",
-  "backlogNote": "T-0341 사용자 직접 commit(9fde830, 2026-06-10): ADR-0036 §Decision 8(stage5 기본-ON 안전장치 5종 — fail-safe 강등/런타임 재검증/merge-전 rebase/concurrencyIncidents 회로 차단기/5a-5b-5c) + §rollout stage5 세분 박제 — 토글 OFF 유지 동작 변화 0(설계만). cron(fresh-main HEAD=9fde830) planner: T-0342 큐잉 — §Decision 8 doc-sync(CLAUDE §10 + LOOP §1[2]·§4 + concurrency.md 3 파일 inline-amend, est 60 LOC, direct doc-only — 사용자 turn 지시 'doc=direct merge' 정합). T-0341 Follow-ups 의 첫 분해(인지 박제만 — 구현은 후속). 잔여 후보(전부 user/credential/측정 게이트): T-0341 Follow-ups 의 STATE concurrencyIncidents schema(direct) / integrator.md rebase 의무(direct) / select-claim 재검증(pr) / 5a 진입(direct, stage5 의사결정 후) / ADR-0039 ACCEPTED flip(사용자 검토 후) → impl chain 5단계 / live-LLM slice 2/2(secrets.env 만료 6/30 — 6/25 격상) / PR #277 disposition(사용자). 직전 T-0340(cron@cloud-4dc06469): ADR-0039 PROPOSED 신설(timezone KST/Asia/Seoul, 128 LOC<220 est, design-only).",
+  "nextTask": null,
+  "backlogNote": "T-0342 DONE·direct(cron@cloud-f81891ed): ADR-0036 §Decision 8 doc-sync — CLAUDE.md §10(+1 line), docs/LOOP.md §1[2]+§4(+15 lines), docs/architecture/concurrency.md §7 신설(+34 lines) 총 +50/-0. 5종 안전장치(fail-safe 강등 / 런타임 재검증 / merge-전 rebase / concurrencyIncidents 회로 차단기 / 5a-5b-5c) + 5a/5b/5c 3단계 이행 인지 박제 — cross-ref 만, ADR-0036 권위 본문 불변. 토글 OFF 유지(`flags.fineGrainedConcurrency=false`) — driver 동작 변화 0. 사용자 turn 지시 'doc=direct merge' 정합. 직전 T-0341(사용자 직접 commit 9fde830): ADR-0036 §Decision 8 박제. 잔여 후보(전부 user/credential/측정 게이트): T-0341 Follow-ups 의 STATE concurrencyIncidents schema(direct) / integrator.md rebase 의무(direct) / select-claim 재검증(pr) / 5a 진입(direct, stage5 의사결정 후) / ADR-0039 ACCEPTED flip(사용자 검토 후) → impl chain 5단계 / live-LLM slice 2/2(secrets.env 만료 6/30 — 6/25 격상) / PR #277 disposition(사용자).",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-da933483",
-    "since": "2026-06-11T09:08:00+09:00",
-    "note": "cron@cloud-da933483 fire (fresh origin/main HEAD=9fde830) — planner-dispatch turn. 직전 cron@cloud-4dc06469 가 T-0340 DONE 후 tombstone release(claude/lock-driver tip 5e61e0f). 본 fire 가 zero→b56ae2f 가 아니라 5e61e0f→b56ae2f CAS 로 lock 획득. currentTask/nextTask 둘 다 null 이라 planner sub-agent dispatch → T-0342 큐잉(ADR-0036 §Decision 8 doc-sync, direct, 3 파일 inline-amend). 본 planner-dispatch commit push 후 권위 lock 을 tombstone({\"holder\":null}) 으로 release. STATE.lock mirror 도 release 반영. 비권위 mirror(ADR-0009/0028). 사용자 turn 지시 'doc/comment 변경 PR/리뷰 우회 direct merge' — 본 fire 의 planner-dispatch direct commit 정합."
+    "session": "cron@cloud-f81891ed",
+    "since": "2026-06-11T10:06:50+09:00",
+    "note": "cron@cloud-f81891ed fire (fresh origin/main HEAD=9e0e1b5) — T-0342 직접 실행 turn. 직전 cron@cloud-da933483 가 T-0342 큐잉 후 tombstone release(claude/lock-driver tip 823f1c0). 본 fire 가 823f1c0→c8a6aed CAS 로 lock 획득(권위), nextTask=T-0342 → currentTask 승계 → executor dispatch → 3 doc inline-amend(+50/-0) → main direct push. 본 closeout commit push 후 권위 lock 을 tombstone({\"holder\":null}) 으로 release. STATE.lock mirror 도 release 반영. 비권위 mirror(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-11T00:08:00Z",
-  "lastCommit": "9fde830",
+  "lastActivity": "2026-06-11T01:08:00Z",
+  "lastCommit": "9e0e1b5",
   "mostRecentTasks": [
+    "T-0342",
     "T-0340",
     "T-0339",
     "T-0338",
-    "T-0337",
-    "T-0336"
+    "T-0337"
   ],
   "loopSession": {
     "turnCount": 3,
@@ -602,7 +602,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 337,
+    "tasksCompleted": 338,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
