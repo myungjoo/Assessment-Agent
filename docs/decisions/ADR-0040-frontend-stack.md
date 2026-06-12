@@ -1,7 +1,7 @@
 ---
 id: ADR-0040
 title: Frontend stack 결정 (React + Vite, NestJS 경계, build/serve 통합, web/ 구조)
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-11
 relatedTask: T-0351
 supersedes: null

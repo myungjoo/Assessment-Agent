@@ -1,7 +1,7 @@
 ---
 id: ADR-0039
 title: timezone — boundary 계산·표시 timezone = Asia/Seoul (KST) 박제 (저장 UTC 보존)
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-10
 relatedTask: T-0340
 supersedes: null
@@ -102,7 +102,7 @@ supersedes: null
 
 ## Status
 
-**PROPOSED** — 사용자 ADR PR 검토 후 ACCEPTED flip 은 **별도 후속 direct task** (§3.1 rule 4 예외 — ADR status 1 줄 수정은 direct).
+**ACCEPTED** (2026-06-12) — Q-0036 사용자 결정(/loop 채팅 응답)으로 flip. frontmatter status 동기 갱신 (§3.1 rule 4 예외 — ADR status 수정은 direct).
 
 본 ADR ACCEPTED flip 후 **impl chain 분해** 는 planner 의 후속 책임이며 다음 컴포넌트 단위 task chain 예상:
 
