@@ -687,12 +687,13 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
     // person 변환은 dto.personId 로 1 회.
     expect(findPersonSpy).toHaveBeenCalledTimes(1);
     expect(findPersonSpy).toHaveBeenCalledWith("person-1");
-    // generateEphemeral 위임 — resolved serviceIdentities + since(periodStart
-    // pass-through) + modelId 미지정(undefined).
+    // generateEphemeral 위임 — resolved serviceIdentities + since(periodStart 를 KST
+    // week boundary 로 snap: KST 2026-06-01(월) 00:00 = 2026-05-31T15:00:00.000Z) +
+    // modelId 미지정(undefined). raw "2026-06-01T00:00:00.000Z" 직접 전달 아님(T-0358).
     expect(generateSpy).toHaveBeenCalledTimes(1);
     expect(generateSpy).toHaveBeenCalledWith(
       { serviceIdentities: [{ service: "github", externalId: "octocat" }] },
-      { since: "2026-06-01T00:00:00.000Z" },
+      { since: "2026-05-31T15:00:00.000Z" },
       { modelId: undefined },
     );
     // User 분기는 Admin full-persist 위임을 호출하지 않는다(role dispatch 분리).
@@ -810,7 +811,7 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
 
     expect(generateSpy).toHaveBeenCalledWith(
       { serviceIdentities: [] },
-      { since: "2026-06-01T00:00:00.000Z" },
+      { since: "2026-05-31T15:00:00.000Z" },
       { modelId: undefined },
     );
     expect(result).toBe(expected);
@@ -852,16 +853,18 @@ describe("AssessmentEvaluationController.period (unit — Admin full-persist bra
     // generateAndPersist 위임 — resolved serviceIdentities + since(pass-through) +
     // modelId 미지정 + context 4-tuple(periodStart Date 파싱) + reevaluate 미지정
     // 은 5번째 인자 undefined 그대로 pass-through(T-0336, ADR-0038 §Decision1).
+    // since + context.periodStart 둘 다 KST week boundary 로 snap(KST 2026-06-01 월
+    // 00:00 = 2026-05-31T15:00:00.000Z). 같은 source 에서 도출(중복 산술 0, §Decision5).
     expect(adminSpy).toHaveBeenCalledTimes(1);
     expect(adminSpy).toHaveBeenCalledWith(
       { serviceIdentities: [{ service: "github", externalId: "octocat" }] },
-      { since: "2026-06-01T00:00:00.000Z" },
+      { since: "2026-05-31T15:00:00.000Z" },
       { modelId: undefined },
       {
         personId: "target-person",
         period: "week",
         scope: "commit",
-        periodStart: new Date("2026-06-01T00:00:00.000Z"),
+        periodStart: new Date("2026-05-31T15:00:00.000Z"),
       },
       undefined,
     );
@@ -946,8 +949,10 @@ describe("AssessmentEvaluationController.period (unit — Admin full-persist bra
     expect(adminSpy).not.toHaveBeenCalled();
   });
 
-  // branch: periodStart 가 string → Date 로 파싱돼 context 에 전달.
-  it("periodStart string 을 Date 로 파싱해 context 에 전달한다 (branch — periodStart 파싱)", async () => {
+  // branch: periodStart string → Date 파싱 후 KST week boundary 로 snap 돼 context 에
+  // 전달. KST 2026-01-15(목) 18:30 → 그 주 월요일 KST 2026-01-12 00:00 =
+  // 2026-01-11T15:00:00.000Z. raw 입력이 context 좌표로 직접 흐르지 않음을 박제.
+  it("periodStart string 을 Date 로 파싱·snap 해 context 에 전달한다 (branch — periodStart 파싱 + snap)", async () => {
     const { controller, adminSpy } = makePeriodController({});
 
     await controller.period(
@@ -961,7 +966,7 @@ describe("AssessmentEvaluationController.period (unit — Admin full-persist bra
     const passedContext = adminSpy.mock.calls[0][3] as { periodStart: Date };
     expect(passedContext.periodStart).toBeInstanceOf(Date);
     expect(passedContext.periodStart.toISOString()).toBe(
-      "2026-01-15T09:30:00.000Z",
+      "2026-01-11T15:00:00.000Z",
     );
   });
 
@@ -991,6 +996,127 @@ describe("AssessmentEvaluationController.period (unit — Admin full-persist bra
       "personId",
       "scope",
     ]);
+  });
+});
+
+// =======================================================================
+// POST /api/assessment-evaluation/period — KST boundary snap 배선
+// (T-0358, ADR-0039 §Decision3 (a)~(c) + §Decision5). controller `period()`
+// 가 raw `dto.periodStart` 를 요청 granularity 의 canonical KST period boundary
+// 로 snap 해 좌표/since 로 쓴다. R-112 4 종 + negative cases 충분 cover.
+// =======================================================================
+describe("AssessmentEvaluationController.period (unit — KST boundary snap, ADR-0039)", () => {
+  // helper — Admin 분기로 호출하고 generateAndPersist 의 since(인자0) / context.periodStart
+  // (인자3) 를 추출. snap 좌표 단언의 공통 진입.
+  async function snapAdmin(periodStart: string, period: string = "week") {
+    const { controller, adminSpy } = makePeriodController({});
+    await controller.period(
+      makePeriodDto({ personId: "target-person", periodStart, period }),
+      adminActor,
+    );
+    const since = (adminSpy.mock.calls[0][1] as { since: string }).since;
+    const ctx = adminSpy.mock.calls[0][3] as { periodStart: Date };
+    return { since, periodStart: ctx.periodStart };
+  }
+
+  // happy(Admin): 같은 KST 일 안의 서로 다른 입력 instant 2 개가 동일 canonical
+  // periodStart 좌표 + since 로 snap 된다 (day granularity, AC 핵심).
+  it("같은 KST 일 안의 서로 다른 instant 2 개가 동일 day 좌표/since 로 snap 된다 (happy — day 수렴)", async () => {
+    // KST 2026-06-11 00:00(=2026-06-10T15:00Z) 와 KST 2026-06-11 23:00(=2026-06-11T14:00Z).
+    const a = await snapAdmin("2026-06-10T15:00:00.000Z", "day");
+    const b = await snapAdmin("2026-06-11T14:00:00.000Z", "day");
+    expect(a.periodStart.toISOString()).toBe("2026-06-10T15:00:00.000Z");
+    expect(b.periodStart.toISOString()).toBe("2026-06-10T15:00:00.000Z");
+    expect(a.since).toBe(b.since);
+    expect(a.since).toBe("2026-06-10T15:00:00.000Z");
+  });
+
+  // branch: week granularity — KST 임의 요일 입력이 그 주 월요일 KST 00:00 으로 snap.
+  it("week granularity 입력이 그 주 KST 월요일 00:00 좌표로 snap 된다 (branch — week)", async () => {
+    // KST 2026-06-11(목) → 그 주 월요일 KST 2026-06-08 00:00 = 2026-06-07T15:00Z.
+    const r = await snapAdmin("2026-06-11T03:00:00.000Z", "week");
+    expect(r.periodStart.toISOString()).toBe("2026-06-07T15:00:00.000Z");
+    expect(r.since).toBe("2026-06-07T15:00:00.000Z");
+  });
+
+  // branch: month granularity — 월 중 입력이 그 달 1 일 KST 00:00 으로 snap.
+  it("month granularity 입력이 그 달 KST 1 일 00:00 좌표로 snap 된다 (branch — month)", async () => {
+    // KST 2026-06-15 → 6 월 월초 KST 2026-06-01 00:00 = 2026-05-31T15:00Z.
+    const r = await snapAdmin("2026-06-15T03:00:00.000Z", "month");
+    expect(r.periodStart.toISOString()).toBe("2026-05-31T15:00:00.000Z");
+  });
+
+  // negative: KST 자정 직전/직후 경계가 서로 다른 KST 일로 snap (day, 9 시간 drift).
+  it("KST 자정 직전/직후 경계가 서로 다른 KST 일 좌표로 snap 된다 (negative — 경계값)", async () => {
+    // 2026-06-10T14:59:59.999Z = KST 6/10 23:59:59.999 → KST 6/10 자정(2026-06-09T15:00Z).
+    const before = await snapAdmin("2026-06-10T14:59:59.999Z", "day");
+    // 2026-06-10T15:00:00.000Z = KST 6/11 00:00 → KST 6/11 자정(2026-06-10T15:00Z).
+    const after = await snapAdmin("2026-06-10T15:00:00.000Z", "day");
+    expect(before.periodStart.toISOString()).toBe("2026-06-09T15:00:00.000Z");
+    expect(after.periodStart.toISOString()).toBe("2026-06-10T15:00:00.000Z");
+    expect(before.periodStart.toISOString()).not.toBe(
+      after.periodStart.toISOString(),
+    );
+  });
+
+  // negative: 월말 입력(KST 6/1 자정 = 5/31 15:00Z)이 6 월 월초 좌표로 snap (T-0357
+  // overflow 결함 인접 — 한 달 +1 일 drift 가 없음을 박제).
+  it("월말 입력(KST 6/1 자정)이 6 월 월초 좌표로 snap 된다 (negative — month overflow 인접)", async () => {
+    const r = await snapAdmin("2026-05-31T15:00:00.000Z", "month");
+    expect(r.periodStart.toISOString()).toBe("2026-05-31T15:00:00.000Z");
+  });
+
+  // error path: 알 수 없는 period(snap 도달 전 RangeError) → Admin 위임 미호출.
+  it("알 수 없는 period('year') 는 snap reject(RangeError) + generateAndPersist 미호출 (error path — Admin)", async () => {
+    const { controller, adminSpy } = makePeriodController({});
+    await expect(
+      controller.period(
+        makePeriodDto({ personId: "target-person", period: "year" }),
+        adminActor,
+      ),
+    ).rejects.toThrow(RangeError);
+    expect(adminSpy).not.toHaveBeenCalled();
+  });
+
+  // error path: 알 수 없는 period → User 분기에서도 snap reject + ephemeral 위임 미호출.
+  it("알 수 없는 period('year') 는 User 분기에서도 snap reject + generateEphemeral 미호출 (error path — User)", async () => {
+    const { controller, generateSpy } = makePeriodController({});
+    await expect(
+      controller.period(
+        makePeriodDto({ period: "year" }),
+        userActor("person-1"),
+      ),
+    ).rejects.toThrow(RangeError);
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // negative: DTO 통과 후 Invalid Date 인 periodStart → helper TypeError 전파(Admin
+  // 위임 미호출). `@IsISO8601` 우회 가정한 type-mismatch edge.
+  it("DTO 통과했으나 Invalid Date 인 periodStart 는 helper TypeError 전파 + 위임 미호출 (negative — Invalid Date)", async () => {
+    const { controller, adminSpy } = makePeriodController({});
+    await expect(
+      controller.period(
+        makePeriodDto({
+          personId: "target-person",
+          periodStart: "not-a-real-date",
+        }),
+        adminActor,
+      ),
+    ).rejects.toThrow(TypeError);
+    expect(adminSpy).not.toHaveBeenCalled();
+  });
+
+  // flow: User reevaluate fail-closed reject 는 snap 보다 선행(기존 차단 우선 회귀 0) —
+  // 알 수 없는 period 라도 재평가 거부(403)가 snap RangeError 보다 먼저 발생.
+  it("User + reevaluate: true 는 snap 도달 전 403(재평가 거부)으로 선행 차단된다 (flow — fail-closed 우선, 회귀 0)", async () => {
+    const { controller, generateSpy } = makePeriodController({});
+    await expect(
+      controller.period(
+        makePeriodDto({ period: "year", reevaluate: true }),
+        userActor("person-1"),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(generateSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -1029,13 +1155,13 @@ describe("AssessmentEvaluationController.period (unit — reevaluate dispatch, A
     expect(adminSpy).toHaveBeenCalledTimes(1);
     expect(adminSpy).toHaveBeenCalledWith(
       { serviceIdentities: [{ service: "github", externalId: "octocat" }] },
-      { since: "2026-06-01T00:00:00.000Z" },
+      { since: "2026-05-31T15:00:00.000Z" },
       { modelId: undefined },
       {
         personId: "target-person",
         period: "week",
         scope: "commit",
-        periodStart: new Date("2026-06-01T00:00:00.000Z"),
+        periodStart: new Date("2026-05-31T15:00:00.000Z"),
       },
       true,
     );

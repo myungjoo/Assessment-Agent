@@ -52,6 +52,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { ROLE_HIERARCHY, RolesGuard } from "../auth/roles.guard";
+import { getKstPeriodRangeByPeriod } from "../common/period-boundary";
 import { PersonService } from "../user/person.service";
 
 import type { EvaluationResult } from "./domain/evaluation-result";
@@ -197,6 +198,23 @@ export class AssessmentEvaluationController {
     };
   }
 
+  // normalizeKstPeriodStart — raw `dto.periodStart`(ISO string)이 가리키는 instant 를
+  // 요청 `period` granularity 의 canonical KST period boundary 로 snap 한 UTC Date 를
+  // 산출한다(ADR-0039 §Decision3 (a)~(c) + §Decision5 — boundary 계산은 helper 1 점
+  // 집중, controller 는 진입점 배선만). 두 분기(Admin 좌표 / 양 분기 since)가 본 helper
+  // 1 곳을 공유해 중복 산술을 금지한다. 효과:
+  //   - 같은 KST 일/주/월 안의 서로 다른 입력 instant 가 동일 canonical boundary 로
+  //     수렴 → persist 좌표(personId/period/scope/periodStart)의 idempotency 안정화
+  //     (ADR-0037 §Decision4 / ADR-0038 first-write-wins 좌표가 KST 자정/주초/월초 정렬).
+  //   - granularity 매핑은 helper 의 single source(`getKstPeriodRangeByPeriod`)를 재사용
+  //     해 controller 에 별도 매핑을 박제하지 않는다(§Decision5 drift 차단).
+  // 알 수 없는 `period` 는 helper 가 RangeError 로 reject(snap 전 명시 차단 — silent
+  // Invalid coordinate 금지). DTO `@IsISO8601` 통과했으나 `new Date` Invalid 인 edge 는
+  // helper 의 assertValidDate TypeError 가 전파된다(R-112 negative 분기).
+  private normalizeKstPeriodStart(period: string, periodStart: string): Date {
+    return getKstPeriodRangeByPeriod(period, new Date(periodStart)).start;
+  }
+
   // POST /api/assessment-evaluation/period — period bridge HTTP 진입점.
   // **role-branching**(ADR-0037 slice 3, §Decision1 Admin full-persist / User
   // self-only ephemeral + §Decision4 fresh in-memory collect). 같은 endpoint 가
@@ -302,11 +320,22 @@ export class AssessmentEvaluationController {
       dto.personId,
     );
 
+    // periodStart 를 요청 period granularity 의 canonical KST boundary 로 snap 한 뒤
+    // since(ISO string)로 흘려보낸다(ADR-0039 §Decision3 — raw `dto.periodStart` 직접
+    // 전달 금지). snap 은 self-only/재평가 fail-closed 검사 **이후**에만 도달하므로
+    // 기존 차단 우선순위는 불변(회귀 0). 알 수 없는 period / Invalid Date 는 helper 가
+    // reject(전파).
+    const sinceBoundary = this.normalizeKstPeriodStart(
+      dto.period,
+      dto.periodStart,
+    );
+
     // resolved person 의 serviceIdentities 만 조립해 ephemeral bridge 에 위임.
-    // periodStart 는 since 로 pass-through(도출 0). modelId 는 본 slice 미지정.
+    // since 는 KST boundary 로 snap 된 좌표(도출은 controller orchestration). modelId 는
+    // 본 slice 미지정.
     return this.ephemeralBridge.generateEphemeral(
       { serviceIdentities: person.serviceIdentities },
-      { since: dto.periodStart },
+      { since: sinceBoundary.toISOString() },
       { modelId: undefined as unknown as string },
     );
   }
@@ -326,24 +355,33 @@ export class AssessmentEvaluationController {
       dto.personId,
     );
 
+    // periodStart 를 요청 period granularity 의 canonical KST boundary 로 snap(ADR-0039
+    // §Decision3). 같은 KST 일/주/월 안의 서로 다른 입력 instant 가 동일 좌표로 수렴해
+    // persist idempotency(ADR-0037/0038 first-write-wins)가 KST 자정/주초/월초로 정렬된다.
+    // 알 수 없는 period / Invalid Date 는 helper 가 reject(전파) — silent Invalid 좌표 금지.
+    const periodStartBoundary = this.normalizeKstPeriodStart(
+      dto.period,
+      dto.periodStart,
+    );
+
     // context 4-tuple(ADR-0037 §Decision4 좌표) 조립 — personId/period/scope 전사 +
-    // periodStart string → Date 파싱(기존 evaluate() 패턴 mirror). 허용 literal 값
+    // periodStart 는 raw 가 아니라 snap 된 canonical KST boundary. 허용 literal 값
     // 검증은 persist service 책임(DTO 는 형식만).
     const context: EvaluationPersistContext = {
       personId: dto.personId,
       period: dto.period,
       scope: dto.scope,
-      periodStart: new Date(dto.periodStart),
+      periodStart: periodStartBoundary,
     };
 
-    // Admin full-persist 위임 — resolved serviceIdentities + since(periodStart
-    // pass-through, 도출 0) + modelId 미지정 + context 4-tuple + reevaluate flag
-    // (5번째 인자, ADR-0038 §Decision1 — true/false/undefined 그대로 전달, 가공 0).
+    // Admin full-persist 위임 — resolved serviceIdentities + since(snap 된 KST boundary
+    // ISO string, 좌표와 동일 source) + modelId 미지정 + context 4-tuple + reevaluate
+    // flag(5번째 인자, ADR-0038 §Decision1 — true/false/undefined 그대로 전달, 가공 0).
     // service-layer error(evaluateActivities throw / persist error — reeval 경로의
     // ConflictException 포함, T-0335 전파 계약)는 raw 전파(swallow 0).
     const { assessment, created } = await this.adminBridge.generateAndPersist(
       { serviceIdentities: person.serviceIdentities },
-      { since: dto.periodStart },
+      { since: periodStartBoundary.toISOString() },
       { modelId: undefined as unknown as string },
       context,
       dto.reevaluate,

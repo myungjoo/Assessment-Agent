@@ -123,6 +123,35 @@ export function getKstPeriodRange(
   return { start, end };
 }
 
+// domain period(`day`/`week`/`month`, ADR-0006 enum-as-String DB 저장값 — rename 금지) →
+// helper granularity(`daily`/`weekly`/`monthly`) 매핑. 이 매핑의 single source 는 본
+// helper 1 곳이다(ADR-0039 §Decision5 — boundary 계산/매핑 중복 금지). period-evaluable
+// 의 시점 게이트와 controller 의 좌표 snap 배선이 둘 다 본 상수를 재사용해 drift 를
+// 구조적으로 차단한다(둘 중 어느 쪽에도 별도 매핑을 박제하지 않는다).
+export const PERIOD_TO_GRANULARITY: Record<string, PeriodGranularity> = {
+  day: "daily",
+  week: "weekly",
+  month: "monthly",
+};
+
+// getKstPeriodRangeByPeriod — domain period 라벨(`day`/`week`/`month`)을 받아 그에 대응
+// 하는 granularity 로 `getKstPeriodRange` 를 호출하는 wrapper. 알 수 없는 period 는
+// snap 전 명시적 RangeError 로 거부해 silent Invalid coordinate 를 만들지 않는다
+// (controller 배선이 raw `new Date(periodStart)` 대신 본 wrapper 로 좌표를 정규화).
+// instant 가 Invalid Date 면 내부 `getKstPeriodRange` 의 assertValidDate TypeError 전파.
+export function getKstPeriodRangeByPeriod(
+  period: string,
+  instant: Date,
+): PeriodRange {
+  // Object.hasOwn — prototype 상속 키("constructor" 등)의 우회 진입 차단.
+  if (!Object.hasOwn(PERIOD_TO_GRANULARITY, period)) {
+    throw new RangeError(
+      `getKstPeriodRangeByPeriod: 미지원 period "${period}"`,
+    );
+  }
+  return getKstPeriodRange(PERIOD_TO_GRANULARITY[period], instant);
+}
+
 // R-9 입력 ISO-8601 extended 패턴 — 날짜 필수 + 시각 선택 + offset(Z / ±hh:mm) 선택.
 // offset 은 범위까지 강제 (시 00~23 / 분 00~59) — "+09:60" 류가 Date 에 닿기 전에 거부.
 const ISO_INPUT_PATTERN =

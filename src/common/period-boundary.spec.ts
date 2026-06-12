@@ -2,9 +2,11 @@
 // 기대값은 전부 UTC instant — KST(+09:00) 9시간 drift 경계를 명시 검증한다.
 import {
   getKstPeriodRange,
+  getKstPeriodRangeByPeriod,
   KST_TIMEZONE,
   parseKstPeriodInput,
   PERIOD_GRANULARITIES,
+  PERIOD_TO_GRANULARITY,
   PeriodGranularity,
   startOfKstDay,
   startOfKstMonth,
@@ -136,4 +138,68 @@ describe("parseKstPeriodInput — §Decision3 (d) R-9 입력 해석", () => {
   it.each(badInputs)("type mismatch 입력 %p 는 TypeError", (bad) => {
     expect(() => parseKstPeriodInput(bad as string)).toThrow(TypeError);
   });
+});
+
+// T-0358 — domain period 라벨 → granularity single source 매핑 + wrapper.
+describe("PERIOD_TO_GRANULARITY — domain period → granularity single source (§Decision5)", () => {
+  it("day/week/month 가 daily/weekly/monthly 로 매핑된다 (매핑 1 곳 박제)", () => {
+    expect(PERIOD_TO_GRANULARITY).toEqual({
+      day: "daily",
+      week: "weekly",
+      month: "monthly",
+    });
+  });
+});
+
+describe("getKstPeriodRangeByPeriod — domain period 경유 KST boundary snap", () => {
+  // happy: day/week/month 각 1+ — period 라벨이 대응 granularity 로 위임돼 같은 range.
+  it.each([
+    ["day", "daily"],
+    ["week", "weekly"],
+    ["month", "monthly"],
+  ] as const)(
+    "period %s 는 granularity %s 의 getKstPeriodRange 와 동일 range 를 반환한다 (happy)",
+    (period, granularity) => {
+      expect(getKstPeriodRangeByPeriod(period, t0)).toEqual(
+        getKstPeriodRange(granularity, t0),
+      );
+    },
+  );
+
+  // branch: 같은 KST 일 안의 서로 다른 입력 instant 가 동일 canonical start 로 snap.
+  it("같은 KST 일 안의 서로 다른 instant 2 개가 동일 day start 좌표로 snap 된다 (branch — 수렴)", () => {
+    const morning = d("2026-06-10T15:00:00Z"); // KST 6/11 00:00
+    const night = d("2026-06-11T14:00:00Z"); // KST 6/11 23:00
+    expect(getKstPeriodRangeByPeriod("day", morning).start).toEqual(
+      getKstPeriodRangeByPeriod("day", night).start,
+    );
+    expect(getKstPeriodRangeByPeriod("day", morning).start).toEqual(
+      d("2026-06-10T15:00Z"),
+    );
+  });
+
+  // negative: 월말 입력(KST 6/1 자정)이 6 월 월초 좌표로 snap (T-0357 overflow 인접).
+  it("KST 6/1 자정 instant(=5/31 15:00Z)의 month start 는 6 월 월초다 (negative — 월말 overflow 인접)", () => {
+    expect(
+      getKstPeriodRangeByPeriod("month", d("2026-05-31T15:00:00Z")).start,
+    ).toEqual(d("2026-05-31T15:00Z"));
+  });
+
+  // error path: 알 수 없는 period 는 snap 전 RangeError(prototype 키 우회 차단 포함).
+  it.each(["year", "", "daily", "constructor", "DAY", undefined])(
+    "알 수 없는 period %p 는 RangeError 로 reject 한다 (error path — silent Invalid 좌표 금지)",
+    (bad) => {
+      expect(() =>
+        getKstPeriodRangeByPeriod(bad as unknown as string, t0),
+      ).toThrow(RangeError);
+    },
+  );
+
+  // negative: Invalid Date instant 는 helper assertValidDate TypeError 전파.
+  it.each(badDates)(
+    "period day + Invalid Date instant %p 는 TypeError 전파 (negative — DTO 통과 후 Invalid edge)",
+    (bad) => {
+      expect(() => getKstPeriodRangeByPeriod("day", bad)).toThrow(TypeError);
+    },
+  );
 });
