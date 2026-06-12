@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0356",
-  "backlogNote": "**ADR-0039 KST impl chain 1번째 큐잉 (T-0356, src/common/period-boundary.ts helper 신설)** — Q-0036 결정 (2) 후속, chain 2~5 = SinceDerivation / PeriodBridge / R-9 DTO / view-layer formatter (helper 경유 refactor, ADR-0039 §Status). **T-0355 (scaffold slice 3, ci.yml) 는 credential 보류** — 2026-06-12 16:25Z probe push 실측: push 자격증명(GCM)에 workflow scope 부재(remote rejected). 사용자 액션: `gh auth refresh -s workflow` 후 `gh auth setup-git`, 또는 GCM 재인증(push 자격증명에 workflow scope 필요). T-0356 touchesFiles 는 T-0355 와 교집합 0 — 보류 중 동시 진행 안전. 보류: T-0355 credential(상기) / live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측(2026-06-12 cron no-op fire 1건 — claim 존중 실증) / R-78 endpoint ADR / web vitest coverage threshold(provider dep §5 게이트, T-0355 Follow-up).",
+  "nextTask": null,
+  "backlogNote": "**ADR-0039 KST impl chain 1/5 DONE (T-0356, PR #288 squash d656595, owner=vb707, round 2 APPROVE)** — Q-0036 결정 (2) 후속, 다음 chain 2~5 = SinceDerivation / PeriodBridge / R-9 DTO / view-layer formatter (helper 경유 refactor, ADR-0039 §Status) 는 planner 가 큐잉 예정. **T-0355 (scaffold slice 3, ci.yml) 는 credential 보류** — 2026-06-12 16:25Z probe push 실측: push 자격증명(GCM)에 workflow scope 부재(remote rejected). 사용자 액션: `gh auth refresh -s workflow` 후 `gh auth setup-git`, 또는 GCM 재인증(push 자격증명에 workflow scope 필요). 보류: T-0355 credential(상기) / live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측(2026-06-12 cron no-op fire 3건 — claim 존중 실증) / R-78 endpoint ADR / web vitest coverage threshold(provider dep §5 게이트, T-0355 Follow-up).",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-4dc927",
-    "since": "2026-06-12T17:06:00Z",
-    "note": "cron@cloud-4dc927 no-op fire(:15 슬롯) — T-0356 활성 claim(vb707, 16:32:18Z, age ~33분 < 60분 stale, live) 존중. PR #288 round1 REQUEST_CHANGES 진행 중. 추가 claim 0(5b pr-mode 단독 규율 + claimable 부재). lock CAS 획득(9e164c6)→pending CI 재확인→journal/STATE 박제→tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "session": "cron@cloud-a41cd9",
+    "since": "2026-06-12T17:14:00Z",
+    "note": "cron@cloud-a41cd9 fire — T-0356 PR-resume closeout(LOOP §1[2](a) PR state==MERGED → integrator §C cleanup). vb707 active claim 의 PR #288 이 17:10:56Z squash merge(d656595, round 2 APPROVE + CI green) 완료됐으나 owner 가 closeout 미수행 → cron 이 cleanup 수행: task frontmatter status=DONE, counters.tasksCompleted 350→351, mostRecentTasks prepend, claims.json T-0356 entry 제거, lock tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-12T17:06:00Z",
-  "lastCommit": "92a87f2",
+  "lastActivity": "2026-06-12T17:14:00Z",
+  "lastCommit": "d656595",
   "mostRecentTasks": [
+    "T-0356",
     "T-0354",
     "T-0353",
     "T-0352",
-    "T-0351",
-    "T-0350"
+    "T-0351"
   ],
   "loopSession": {
     "turnCount": 5,
@@ -648,7 +648,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 350,
+    "tasksCompleted": 351,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

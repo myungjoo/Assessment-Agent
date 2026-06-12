@@ -2,7 +2,7 @@
 id: T-0356
 title: ADR-0039 KST impl chain 1/5 — src/common/period-boundary.ts boundary helper 신설 (R-112 4종)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-004, REQ-034]
 estimatedDiff: 280
@@ -13,6 +13,10 @@ touchesFiles:
   - src/common/period-boundary.ts
   - src/common/period-boundary.spec.ts
 created: 2026-06-13
+completedAt: 2026-06-12T17:10:56Z
+mergedAs: d656595
+prNumber: 288
+reviewRounds: 2
 plannerNote: "ADR-0039 KST chain 1/5 — boundary helper 신설 (single-helper × 1.0 ≈ 280 LOC·2파일); T-0355 credential 보류와 touchesFiles 교집합 0"
 ---
 
