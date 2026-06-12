@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**ADR-0039 KST chain 2/5 DONE (T-0357, PR #289 squash 30486c3, 2026-06-12 17:49Z)** — period-evaluable helper 경유 refactor + setUTCMonth 월말 overflow 실결함 fix. chain 1/5 = T-0356 DONE(d656595). 다음: planner 가 chain 3/5 분해 = PeriodBridge 배선 (+ T-0357 Follow-up: orchestrator jsdoc TypeError 전파 1줄 동기), 이후 4/5 R-9 DTO · 5/5 view-layer formatter (ADR-0039 §Status). **T-0355 (scaffold slice 3, ci.yml) 는 credential 보류** — 2026-06-12 16:25Z probe push 실측: push 자격증명(GCM)에 workflow scope 부재(remote rejected). 사용자 액션: `gh auth refresh -s workflow` 후 `gh auth setup-git`, 또는 GCM 재인증. 보류: T-0355 credential(상기) / live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측(2026-06-12 cron no-op fire 3건 + closeout 대행 1건 — claim 존중 실증) / R-78 endpoint ADR / web vitest coverage threshold(provider dep §5 게이트, T-0355 Follow-up).",
+  "nextTask": "T-0358",
+  "backlogNote": "**ADR-0039 KST chain 3/5 QUEUED (T-0358, pr-mode, est 190 LOC·4파일)** — PeriodBridge 배선: controller period() 가 dto.periodStart 를 getKstPeriodRange(...).start 로 KST canonical boundary snap 해 persist 좌표/since 로 사용 (좌표 idempotency 안정화 §Decision5) + T-0357 Follow-up(orchestrator jsdoc TypeError 전파 1줄) 동시 closure. chain 1/5 = T-0356 DONE(d656595) · 2/5 = T-0357 DONE(30486c3). 이후 4/5 R-9 DTO(parseKstPeriodInput 소비) · 5/5 view-layer formatter (ADR-0039 §Status). **T-0355 (scaffold slice 3, ci.yml) 는 credential 보류** — 2026-06-12 16:25Z probe push 실측: push 자격증명(GCM)에 workflow scope 부재(remote rejected). 사용자 액션: `gh auth refresh -s workflow` 후 `gh auth setup-git`, 또는 GCM 재인증. 보류: T-0355 credential(상기) / live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측(2026-06-12 cron no-op fire 3건 + closeout 대행 1건 — claim 존중 실증) / R-78 endpoint ADR / web vitest coverage threshold(provider dep §5 게이트, T-0355 Follow-up).",
   "lock": {
     "holder": null,
-    "session": "loop@WIN-JQIPLSBL9QV-vb707",
-    "since": "2026-06-12T17:49:32Z",
-    "note": "vb707 t10 (cap 마지막) — T-0357 closeout 박제 후 권위 lock tombstone release + claim 제거, 세션 종료. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "session": "cron@WIN-JQIPLSBL9QV-aa15-24fc83",
+    "since": "2026-06-12T18:04:11Z",
+    "note": "aa-local-15 :15 cron fire — currentTask/nextTask 둘 다 null 이라 planner dispatch 로 T-0358(KST chain 3/5 PeriodBridge 배선) 큐잉. doc-only direct commit 후 권위 lock tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-12T17:49:32Z",
+  "lastActivity": "2026-06-12T18:04:11Z",
   "lastCommit": "30486c3",
   "mostRecentTasks": [
     "T-0357",
