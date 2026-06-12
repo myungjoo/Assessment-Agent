@@ -3,6 +3,8 @@ id: T-0355
 title: P6 frontend scaffold slice 3 — ci.yml web build/test step + spec-presence·coverage 정책 + dist-존재 통합 검증 + directory.md 동기
 phase: P6
 status: PENDING
+onHold: credential-workflow-scope
+holdNote: "2026-06-12 16:25Z probe push 실측 — git push 자격증명(GCM manager)에 workflow scope 부재로 .github/workflows/ci.yml 변경 push 가 remote rejected. 사용자 액션 필요: gh auth refresh -s workflow 후 gh auth setup-git, 또는 GCM 재인증(workflow scope 포함). 해소 후 본 task 그대로 실행 가능 — 내용 변경 불요."
 commitMode: pr
 coversReq: [REQ-038, REQ-048]
 estimatedDiff: 250

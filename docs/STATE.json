@@ -7,8 +7,8 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0355",
-  "backlogNote": "**P6 scaffold slice 3 큐잉 (T-0355, chain 마지막)** — ci.yml web build/test step + check-spec-presence web 정책 + coverage 예외(m2) + dist-존재 통합 검증(M1) + directory.md 동기(m3 cwd 가정 + web coverage 보류 정책 박제). T-0353/T-0354 Follow-ups 7건 입력, 6파일 sizeExempt pre-justified. **T-0355 완료 = scaffold chain 끝 → 다음 백로그 = ADR-0039 KST impl chain 1번째 task** (Q-0036 결정 2 후속). 보류: live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측(2026-06-12 cron no-op fire 1건 — claim 존중 실증) / R-78 endpoint ADR / web vitest coverage threshold(provider dep §5 게이트, T-0355 Follow-up).",
+  "nextTask": "T-0356",
+  "backlogNote": "**ADR-0039 KST impl chain 1번째 큐잉 (T-0356, src/common/period-boundary.ts helper 신설)** — Q-0036 결정 (2) 후속, chain 2~5 = SinceDerivation / PeriodBridge / R-9 DTO / view-layer formatter (helper 경유 refactor, ADR-0039 §Status). **T-0355 (scaffold slice 3, ci.yml) 는 credential 보류** — 2026-06-12 16:25Z probe push 실측: push 자격증명(GCM)에 workflow scope 부재(remote rejected). 사용자 액션: `gh auth refresh -s workflow` 후 `gh auth setup-git`, 또는 GCM 재인증(push 자격증명에 workflow scope 필요). T-0356 touchesFiles 는 T-0355 와 교집합 0 — 보류 중 동시 진행 안전. 보류: T-0355 credential(상기) / live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측(2026-06-12 cron no-op fire 1건 — claim 존중 실증) / R-78 endpoint ADR / web vitest coverage threshold(provider dep §5 게이트, T-0355 Follow-up).",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-vb707",
