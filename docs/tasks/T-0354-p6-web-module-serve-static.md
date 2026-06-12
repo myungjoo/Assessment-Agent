@@ -2,7 +2,11 @@
 id: T-0354
 title: P6 frontend scaffold slice 2 — @nestjs/serve-static + src/web/ WebModule (운영 static serve + SPA fallback)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-06-12T16:12:02Z
+prNumber: 287
+mergedAs: a437d79
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-038, REQ-048]
 estimatedDiff: 150
@@ -72,4 +76,12 @@ T-0353 (slice 1: pnpm workspace + `web/` Vite React SPA, PR #286 squash `2ec3bdd
 
 ## Follow-ups
 
-(생성 시 비어 있음)
+- (reviewer M1 — 박제 의무) dist-존재 분기의 실 HTTP serve/fallback/exclude 동작 persisted test 부재 — 임시 NestFactory 부팅 spec 검증 후 폐기됨. slice 3 의 CI web build 도입 시 dist-존재 통합 검증 1+ 추가가 자연 위치 (serve-static v4→v5 / path-to-regexp 구문 변경 회귀 가드).
+- (reviewer m2) `coveragePathIgnorePatterns` 의 `\.module\.ts$` 가 web.module.ts 를 coverage 측정에서 제외 — 분기 helper 가 threshold enforcement 밖. slice 3 에서 본 파일 ignore 예외 검토.
+- (reviewer m3) `process.cwd()` 기준 WEB_DIST_PATH 가정 미문서화 — slice 3 doc 갱신(directory.md)에 cwd 가정 포함 + production dist 부재 시 boot log 1줄 추가 검토 (silent degradation 방지).
+- (executor) serve-static loader 는 TestingModule.compile() 경로에서 NoopLoader — TestingModule 기반 smoke/e2e 로는 실 serve 검증 불가, 실 부팅(NestFactory.create) 경로 필요 (M1 과 동일 맥락).
+- (executor) vite 8.0.16 peer warning: `@types/node ^20.19.0+` 요구 vs root `20.16.10` (T-0353 잔존, non-blocking).
+
+## Result
+
+DONE (2026-06-12 16:12Z) — PR #287 squash `a437d79`, reviewer round 1/7 APPROVE (blockers 0 / major 1 / minor 3). m1(stale 주석)은 nit-in-PR closure 로 afd7df4 에서 정정 (§3 3번 유형, T-0335 선례 동형 — reviewer 재호출 불요). 8파일 +220/-12 (lockfile 제외 ~190 LOC). head afd7df4 pull_request run 27427592813 first-pass green (approve comment 선재). 전역 coverage 100/99.75/100/100. 동시성 관측: cron@cloud-e86f43 16:08Z fire 가 활성 claim(PR_OPEN #287) 존중 no-op — 5b direct-only 규율 실증.
