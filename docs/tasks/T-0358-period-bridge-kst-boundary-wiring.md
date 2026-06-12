@@ -2,8 +2,11 @@
 id: T-0358
 title: ADR-0039 KST impl chain 3/5 — PeriodBridge 배선이 periodStart 를 KST period boundary 로 정규화 (helper 경유)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 290
+mergedAs: e10a747
+reviewRounds: 2
 coversReq: [REQ-004, REQ-034]
 estimatedDiff: 190
 estimatedFiles: 4
