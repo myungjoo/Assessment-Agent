@@ -1090,9 +1090,12 @@ describe("AssessmentEvaluationController.period (unit — KST boundary snap, ADR
     expect(generateSpy).not.toHaveBeenCalled();
   });
 
-  // negative: DTO 통과 후 Invalid Date 인 periodStart → helper TypeError 전파(Admin
-  // 위임 미호출). `@IsISO8601` 우회 가정한 type-mismatch edge.
-  it("DTO 통과했으나 Invalid Date 인 periodStart 는 helper TypeError 전파 + 위임 미호출 (negative — Invalid Date)", async () => {
+  // negative: DTO 통과 후 형식 위반(`not-a-real-date`)인 periodStart → `parseKstPeriodInput`
+  // 의 RangeError 전파(Admin 위임 미호출). `@IsISO8601` 우회 가정한 edge — T-0359 가
+  // raw `new Date` 의 silent Invalid Date(이전엔 helper assertValidDate TypeError 였음)를
+  // parser 의 명시적 형식 위반 RangeError 로 교체한다(silent NaN 진입 차단, ADR-0039
+  // §Decision3 (d)). 비문자열/빈 입력의 TypeError 경로는 아래 R-9 describe 가 cover.
+  it("DTO 통과했으나 형식 위반인 periodStart 는 parseKstPeriodInput RangeError 전파 + 위임 미호출 (negative — 형식 위반)", async () => {
     const { controller, adminSpy } = makePeriodController({});
     await expect(
       controller.period(
@@ -1102,7 +1105,7 @@ describe("AssessmentEvaluationController.period (unit — KST boundary snap, ADR
         }),
         adminActor,
       ),
-    ).rejects.toThrow(TypeError);
+    ).rejects.toThrow(RangeError);
     expect(adminSpy).not.toHaveBeenCalled();
   });
 
@@ -1117,6 +1120,179 @@ describe("AssessmentEvaluationController.period (unit — KST boundary snap, ADR
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(generateSpy).not.toHaveBeenCalled();
+  });
+});
+
+// =======================================================================
+// R-9 입력 parseKstPeriodInput 경유 (T-0359, ADR-0039 §Decision3 (d) +
+// §Decision5). controller 가 raw `new Date(periodStart)` 대신 helper 로
+// R-9 입력을 해석 — offset 미명시 입력이 Asia/Seoul default 로 해석돼야 한다
+// (예 `2026-06-10T15:00` → KST 15시 = `2026-06-10T06:00:00Z`). period()
+// (Admin/User 양 분기) + evaluate() 양 경로 cover. R-112 4 종 + negative
+// cases 충분 cover(자정 경계 / UTC-drift 회귀 차단 / malformed / type mismatch).
+// =======================================================================
+describe("AssessmentEvaluationController (unit — R-9 입력 parseKstPeriodInput 경유, ADR-0039 §Decision3 (d))", () => {
+  // helper — Admin 분기로 호출하고 generateAndPersist 의 since(인자0) / context.periodStart
+  // (인자3) 를 추출. KST-default 해석 단언의 공통 진입(snap 까지 흐른 좌표).
+  async function snapAdmin(periodStart: string, period: string = "day") {
+    const { controller, adminSpy } = makePeriodController({});
+    await controller.period(
+      makePeriodDto({ personId: "target-person", periodStart, period }),
+      adminActor,
+    );
+    const since = (adminSpy.mock.calls[0][1] as { since: string }).since;
+    const ctx = adminSpy.mock.calls[0][3] as { periodStart: Date };
+    return { since, periodStart: ctx.periodStart };
+  }
+
+  // happy: offset 미명시 입력(`2026-06-10T15:00`)이 Asia/Seoul KST 15시로 해석돼
+  // (= `2026-06-10T06:00:00Z`) 그 KST 일(6/10) 자정(2026-06-09T15:00Z)으로 snap 된다.
+  // raw `new Date("2026-06-10T15:00")` 였다면 JS 엔진 default(UTC/locale, KST 아님)로
+  // 해석돼 다른 좌표가 됐을 것 — KST-default 해석을 박제.
+  it("offset 미명시 입력(`2026-06-10T15:00`)이 Asia/Seoul 로 해석돼 KST 일 좌표로 흐른다 (happy — KST-default 해석)", async () => {
+    const r = await snapAdmin("2026-06-10T15:00", "day");
+    // KST 6/10 15시 = 2026-06-10T06:00:00Z → 그 KST 일(6/10) 자정 = 2026-06-09T15:00:00Z.
+    expect(r.periodStart.toISOString()).toBe("2026-06-09T15:00:00.000Z");
+    expect(r.since).toBe("2026-06-09T15:00:00.000Z");
+  });
+
+  // branch: offset 명시 입력(`...Z`)은 그대로 해석된다(KST 재해석 0).
+  it("offset 명시 입력(`...Z`)은 그대로 해석된다 (branch — offset 명시 그대로)", async () => {
+    // 2026-06-10T15:00:00Z = KST 6/11 00:00 → 그 KST 일(6/11) 자정 = 2026-06-10T15:00:00Z.
+    const r = await snapAdmin("2026-06-10T15:00:00.000Z", "day");
+    expect(r.periodStart.toISOString()).toBe("2026-06-10T15:00:00.000Z");
+  });
+
+  // branch: offset 명시 입력(`+09:00`)도 그대로 해석(KST 명시이므로 Asia/Seoul 해석과 동일).
+  it("offset 명시 입력(`+09:00`)은 그대로 해석된다 (branch — explicit +09:00)", async () => {
+    // 2026-06-10T15:00:00+09:00 = 2026-06-10T06:00:00Z → KST 6/10 → 6/10 자정 = 2026-06-09T15:00Z.
+    const r = await snapAdmin("2026-06-10T15:00:00+09:00", "day");
+    expect(r.periodStart.toISOString()).toBe("2026-06-09T15:00:00.000Z");
+  });
+
+  // negative: 날짜만(offset/시각 미명시) 입력(`2026-06-10`)은 KST 자정으로 해석된다 —
+  // UTC 자정(`2026-06-10T00:00:00Z`)이 아니라 KST 자정(`2026-06-09T15:00:00Z`).
+  // UTC-drift 회귀 차단(9 시간 drift 가 없음을 박제).
+  it("날짜만 입력(`2026-06-10`)은 KST 자정으로 해석된다 — UTC 자정 아님 (negative — UTC-drift 회귀 차단)", async () => {
+    const r = await snapAdmin("2026-06-10", "day");
+    // KST 6/10 자정 = 2026-06-09T15:00:00Z. (UTC 해석이었다면 2026-06-10T00:00:00Z.)
+    expect(r.periodStart.toISOString()).toBe("2026-06-09T15:00:00.000Z");
+    expect(r.periodStart.toISOString()).not.toBe("2026-06-10T00:00:00.000Z");
+  });
+
+  // negative: offset 미명시 KST 자정 경계 입력(`2026-06-10T00:00`)은 KST 6/10 자정으로
+  // 해석(= 2026-06-09T15:00:00Z) — 미명시가 UTC 가 아니라 KST 로 묶임을 경계값에서 재확인.
+  it("offset 미명시 자정 경계(`2026-06-10T00:00`)는 KST 자정으로 해석된다 (negative — 자정 경계 KST 묶임)", async () => {
+    const r = await snapAdmin("2026-06-10T00:00", "day");
+    expect(r.periodStart.toISOString()).toBe("2026-06-09T15:00:00.000Z");
+  });
+
+  // 분기: period() User 분기도 동일하게 KST-default 해석된 좌표로 since 를 흘려보낸다.
+  it("User 분기도 offset 미명시 입력을 Asia/Seoul 로 해석해 since 로 흘려보낸다 (branch — User dispatch KST-default)", async () => {
+    const { controller, generateSpy } = makePeriodController({
+      generateImpl: async () => [],
+    });
+    await controller.period(
+      makePeriodDto({ periodStart: "2026-06-10T15:00", period: "day" }),
+      userActor("person-1"),
+    );
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+    expect((generateSpy.mock.calls[0][1] as { since: string }).since).toBe(
+      "2026-06-09T15:00:00.000Z",
+    );
+  });
+
+  // 분기: evaluate() 경로의 context periodStart 도 KST-default 해석된다(snap 0, 좌표 해석만).
+  it("evaluate() 의 context periodStart 도 offset 미명시 입력을 Asia/Seoul 로 해석한다 (branch — evaluate KST-default)", async () => {
+    const { controller, persistSpy } = makeController(async () => [
+      makeEvaluationResult(),
+    ]);
+    await controller.evaluate(makeDto({ periodStart: "2026-06-10T15:00" }));
+    const ctx = persistSpy.mock.calls[0][0] as { periodStart: Date };
+    expect(ctx.periodStart).toBeInstanceOf(Date);
+    // KST 6/10 15시 = 2026-06-10T06:00:00Z (evaluate 는 snap 0 — 좌표 해석만).
+    expect(ctx.periodStart.toISOString()).toBe("2026-06-10T06:00:00.000Z");
+  });
+
+  // 분기: evaluate() 에서 offset 명시 입력(`...Z`)은 그대로 해석(KST 재해석 0).
+  it("evaluate() 에서 offset 명시 입력(`...Z`)은 그대로 해석된다 (branch — evaluate offset 명시)", async () => {
+    const { controller, persistSpy } = makeController(async () => [
+      makeEvaluationResult(),
+    ]);
+    await controller.evaluate(
+      makeDto({ periodStart: "2026-01-15T09:30:00.000Z" }),
+    );
+    const ctx = persistSpy.mock.calls[0][0] as { periodStart: Date };
+    expect(ctx.periodStart.toISOString()).toBe("2026-01-15T09:30:00.000Z");
+  });
+
+  // error path: malformed periodStart(달력 불가능 값)는 helper 의 RangeError 로 전파 +
+  // Admin 위임 미호출(@IsISO8601 우회 가정한 edge — helper 가 silent Invalid Date 차단).
+  it("malformed periodStart(달력 불가능 `2026-02-30`)는 helper RangeError 전파 + 위임 미호출 (error path — RangeError)", async () => {
+    const { controller, adminSpy } = makePeriodController({});
+    await expect(
+      controller.period(
+        makePeriodDto({ personId: "target-person", periodStart: "2026-02-30" }),
+        adminActor,
+      ),
+    ).rejects.toThrow(RangeError);
+    expect(adminSpy).not.toHaveBeenCalled();
+  });
+
+  // error path: 범위 외 offset(`+09:99`)은 helper 의 RangeError(형식 위반)로 전파.
+  it("범위 외 offset(`+09:99`)은 helper RangeError 전파 + 위임 미호출 (error path — 범위 외 offset)", async () => {
+    const { controller, adminSpy } = makePeriodController({});
+    await expect(
+      controller.period(
+        makePeriodDto({
+          personId: "target-person",
+          periodStart: "2026-06-10T15:00:00+09:99",
+        }),
+        adminActor,
+      ),
+    ).rejects.toThrow(RangeError);
+    expect(adminSpy).not.toHaveBeenCalled();
+  });
+
+  // error path: 형식 위반(비-ISO 류 `not-a-real-date`)은 helper RangeError 전파.
+  // (@IsISO8601 우회 가정 — `new Date` 의 silent Invalid Date 대신 명시적 error.)
+  it("형식 위반 입력(`not-a-real-date`)은 helper RangeError 전파 + 위임 미호출 (error path — 형식 위반)", async () => {
+    const { controller, adminSpy } = makePeriodController({});
+    await expect(
+      controller.period(
+        makePeriodDto({
+          personId: "target-person",
+          periodStart: "not-a-real-date",
+        }),
+        adminActor,
+      ),
+    ).rejects.toThrow(RangeError);
+    expect(adminSpy).not.toHaveBeenCalled();
+  });
+
+  // negative(type mismatch): 빈 문자열 입력은 helper TypeError 전파(비문자열/빈 입력).
+  it("빈 문자열 periodStart 는 helper TypeError 전파 + 위임 미호출 (negative — type mismatch/빈 입력)", async () => {
+    const { controller, adminSpy } = makePeriodController({});
+    await expect(
+      controller.period(
+        makePeriodDto({ personId: "target-person", periodStart: "   " }),
+        adminActor,
+      ),
+    ).rejects.toThrow(TypeError);
+    expect(adminSpy).not.toHaveBeenCalled();
+  });
+
+  // negative(type mismatch): 비문자열(number cast) 입력도 helper TypeError 전파 —
+  // evaluate() 경로에서도 raw `new Date` 의 silent NaN 대신 명시적 error.
+  it("evaluate() 에서 비문자열 periodStart 는 helper TypeError 전파 (negative — evaluate type mismatch)", async () => {
+    const { controller, persistSpy } = makeController(async () => [
+      makeEvaluationResult(),
+    ]);
+    await expect(
+      controller.evaluate(makeDto({ periodStart: 12345 as unknown as string })),
+    ).rejects.toThrow(TypeError);
+    // 해석 단계가 throw 하면 persist 미호출(swallow 0).
+    expect(persistSpy).not.toHaveBeenCalled();
   });
 });
 
