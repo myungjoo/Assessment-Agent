@@ -2,7 +2,11 @@
 id: T-0360
 title: ADR-0039 KST impl chain 5/5 — view-layer formatter (저장 UTC instant → Asia/Seoul 표시 포맷) helper 박제
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 491c28f
+prNumber: 292
+reviewRounds: 1
+completedAt: 2026-06-12T20:04:52Z
 commitMode: pr
 coversReq: [REQ-004, REQ-034, REQ-038]
 estimatedDiff: 165
