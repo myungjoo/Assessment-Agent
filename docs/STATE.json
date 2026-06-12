@@ -7,8 +7,8 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**ADR-0039 KST impl chain 1/5 DONE (T-0356, PR #288 squash d656595, owner=vb707, round 2 APPROVE)** — Q-0036 결정 (2) 후속, 다음 chain 2~5 = SinceDerivation / PeriodBridge / R-9 DTO / view-layer formatter (helper 경유 refactor, ADR-0039 §Status) 는 planner 가 큐잉 예정. **T-0355 (scaffold slice 3, ci.yml) 는 credential 보류** — 2026-06-12 16:25Z probe push 실측: push 자격증명(GCM)에 workflow scope 부재(remote rejected). 사용자 액션: `gh auth refresh -s workflow` 후 `gh auth setup-git`, 또는 GCM 재인증(push 자격증명에 workflow scope 필요). 보류: T-0355 credential(상기) / live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측(2026-06-12 cron no-op fire 3건 — claim 존중 실증) / R-78 endpoint ADR / web vitest coverage threshold(provider dep §5 게이트, T-0355 Follow-up).",
+  "nextTask": "T-0357",
+  "backlogNote": "**ADR-0039 KST impl chain 2/5 큐잉 (T-0357)** — 실코드 확인 결과 SinceDerivationService 는 boundary 산술 0 (periodStart echo only) 이라 chain 2 의 실대상은 period-evaluable.ts (ADR-0035 §Decision3 의 isPeriodEvaluable 자정 경계, computePeriodEnd 의 setUTCMonth KST 월초 overflow 실결함 포함) → helper 경유 refactor. 잔여 chain 3~5 = PeriodBridge / R-9 DTO / view-layer formatter (ADR-0039 §Status). chain 1/5 은 T-0356 DONE (PR #288 squash d656595). **T-0355 (scaffold slice 3, ci.yml) 는 credential 보류** — 2026-06-12 16:25Z probe push 실측: push 자격증명(GCM)에 workflow scope 부재(remote rejected). 사용자 액션: `gh auth refresh -s workflow` 후 `gh auth setup-git`, 또는 GCM 재인증(push 자격증명에 workflow scope 필요). 보류: T-0355 credential(상기) / live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측(2026-06-12 cron no-op fire 3건 — claim 존중 실증) / R-78 endpoint ADR / web vitest coverage threshold(provider dep §5 게이트, T-0355 Follow-up).",
   "lock": {
     "holder": null,
     "session": "cron@cloud-a41cd9",
