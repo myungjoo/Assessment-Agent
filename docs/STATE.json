@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0359",
-  "backlogNote": "**ADR-0039 KST chain 3/5 DONE (T-0358, PR #290 squash e10a747, round 2/7)** — PeriodBridge 배선 머지: controller period() 가 dto.periodStart 를 normalizeKstPeriodStart(getKstPeriodRangeByPeriod) 로 KST canonical boundary snap 해 persist 좌표/since 로 사용(좌표 idempotency 안정화 §Decision5) + granularity 매핑 single-source(period-evaluable 재사용) + T-0357 Follow-up(orchestrator jsdoc TypeError 전파) closure. round 1 에서 integrator 4-게이트가 e2e regression(admin-persist e2e 가 raw pass-through periodStart 단언) catch → round 2 에서 snap 좌표(2026-04-26T15:00Z) 정정 + R-112 주-수렴 round-trip 보강 후 merge. chain 1/5=T-0356(d656595)·2/5=T-0357(30486c3)·3/5=T-0358(e10a747). **다음: chain 4/5 R-9 DTO(parseKstPeriodInput 소비) · 5/5 view-layer formatter (ADR-0039 §Status)** — planner 가 다음 fire 에서 분해. **T-0355 (scaffold slice 3, ci.yml) 는 credential 보류** — push 자격증명(GCM)에 workflow scope 부재. 사용자 액션: `gh auth refresh -s workflow` 후 `gh auth setup-git`. 보류: T-0355 credential / live-LLM 2/2(만료 6/30·6/25) / R-78 endpoint ADR / web vitest coverage threshold(T-0355 Follow-up).",
+  "nextTask": "T-0360",
+  "backlogNote": "**ADR-0039 KST chain 4/5 DONE (T-0359, PR #291 squash b68822c, round 1/7 first-pass green)** — controller R-9 입력이 parseKstPeriodInput 경유: normalizeKstPeriodStart + evaluate() context 조립의 raw new Date(periodStart) 2곳을 parseKstPeriodInput 으로 교체해 offset 미명시 사용자 입력이 §Decision3(d) Asia/Seoul default 로 해석(UTC drift 차단), helper 1점집중(§Decision5)을 R-9 입력 surface 까지 완결. chain 1/5=T-0356(d656595)·2/5=T-0357(30486c3)·3/5=T-0358(e10a747)·4/5=T-0359(b68822c). **다음: chain 5/5 큐잉 (T-0360, pr) — view-layer formatter: helper(period-boundary.ts)에 저장 UTC instant → Asia/Seoul 가독 표시 formatter 신설(§Decision4/§Decision5 comp(iv) 완결, R-112, 2파일 est 165). read endpoint/P6 Web UI 배선은 P6 frontend(ADR-0040) 책임으로 Out of Scope. 본 task 머지 시 ADR-0039 impl chain 전부 완결.** **T-0355 (scaffold slice 3, ci.yml) 는 credential 보류** — push 자격증명(GCM)에 workflow scope 부재. 사용자 액션: gh auth refresh -s workflow 후 gh auth setup-git. 보류: T-0355 credential / live-LLM 2/2(만료 6/30·6/25) / R-78 endpoint ADR / web vitest coverage threshold(T-0355 Follow-up).",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa30f1",
-    "since": "2026-06-12T18:37:11Z",
-    "note": "cron@cloud-aa30f1 fire — fineGrainedConcurrency ON(5b) claim-pickup 로 T-0358(KST chain 3/5) select+claim → pr-mode 수행. PR #290 round 1 integrator 4-게이트가 e2e regression catch → round 2 fix 후 4-게이트 all PASS, squash e10a747 merge. 본 bookkeeping(STATE/journal/task DONE + counters 352→353 + claim 제거) 후 lock tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "session": "cron@cloud-5e5cca",
+    "since": "2026-06-12T19:50:00Z",
+    "note": "cron@cloud-5e5cca fire 종료 — T-0359(ADR-0039 KST chain 4/5) select+claim(5b, claims 0→1) → pr-mode 수행, PR #291 round 1/7 first-pass green 4-게이트 PASS, squash b68822c merge. closeout(STATE/journal/task DONE + counters 353→354 + claim 제거) + planner T-0360(chain 5/5 view-layer formatter) 큐잉 후 tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-12T18:37:11Z",
-  "lastCommit": "e10a747",
+  "lastActivity": "2026-06-12T19:50:00Z",
+  "lastCommit": "b68822c",
   "mostRecentTasks": [
+    "T-0359",
     "T-0358",
     "T-0357",
     "T-0356",
-    "T-0354",
-    "T-0353"
+    "T-0354"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -33,11 +33,11 @@
     "note": "/loop session vb707 (dynamic, turn cap 10) t10 — **세션 종료(cap 10 도달)**. 성과: t1 Q-0036 RESOLVE(ADR-0040·0039 flip) / t3 T-0353(P6 scaffold 1/3) / t5 T-0354(2/3) / t7 T-0355 credential 보류+우회 / t8 T-0356(KST 1/5, r1 BLOCKER catch→r2) / t10 T-0357(KST 2/5, overflow 실결함 fix). tasksCompleted 348→352(+4 task + Q 1건). 사고 1건(t8 cron lock 오탈취 ~80초 즉시 원복). 동시성: cron no-op 3회 + closeout 대행 1회 — 5b 실증 데이터 5건. 다음 진입점: cron 또는 새 /loop — planner 가 KST chain 3/5(PeriodBridge) 분해 예상. T-0355 는 사용자 credential 갱신 대기."
   },
   "ci": {
-    "lastRun": "2026-06-12T18:37:11Z",
-    "status": "green",
+    "lastRun": "2026-06-12T19:50:00Z",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27436755377",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27439004157",
     "noteT0358": "PR #290(T-0358) round 2 head 978171a pull_request run 27436755377 = 전 step green(lint/build/prisma/test+cov/smoke/e2e + approval-gate — reviewer comment 가 approval-step 실행 전 landing, first-pass green, rerun 불요). round 1 head c4cc913 는 e2e regression(admin-persist e2e 가 raw periodStart 단언)으로 실 e2e step fail → benign 아닌 실회귀, round 2 978171a 에서 snap 좌표 정정 후 green. squash e10a747 main push run 은 다음 fire 재확인(doc-only/squash trivially green 예상).",
     "noteT0357": "PR #289(T-0357) head c340600 pull_request run 27432466745 = approval-gate 단독 fail(case A) rerun 후 전 step success. squash 30486c3 main push run + t8 사고박제 1714366 + t9 ff71d5d + t10 closeout push run 은 다음 driver 진입점에서 재확인.",
     "noteT0354": "PR #287(T-0354) head afd7df4(m1 nit fix) pull_request run 27427592813 = first-pass green(approve comment 선재 — rerun 불요). 첫 head fd75711 run 27427247021 은 approval-gate ordering fail(case A) superseded. **17:06Z cron 재확인 완료**: squash a437d79 + closeout 20094ff + t4 cba97f3 + planner dd722ea + b89e1a1 + 92a87f2 main push run 전부 completed/success(`gh run list --branch main`). 모든 pending main CI green — 미확인 run 0.",
@@ -48,7 +48,8 @@
     "benignRedNote": "**반복 패턴 — approval-검증 step 의 ordering fail (consecutiveFails 미증가)**: ci.yml job '기본 검사' 의 'reviewer agent approval 검증' step 은 §3.3 gate2(PR 에 reviewer approve comment/review 존재) 를 검증한다. (A) PR-open 시점 pull_request-event run 은 reviewer comment 가 아직 없어 이 step 이 fail → reviewer approve comment post 후 `gh run rerun <id> --failed` 로 재실행하면 green(T-0321/PR #269 run 27254966044 가 이 케이스 — rerun 후 전 step green, merge). (B) issue_comment-event run 은 main ref 기준으로 돌아 매칭 PR 없으면 fail(예: head 7414f4d). 둘 다 **실코드 회귀 아님** — 실 step(lint/build/prisma/test+cov/smoke/e2e)은 통과. **gate4 평가 = 해당 PR head 의 pull_request-event run 이 (필요시 rerun 후) success 인지**. 잠재 follow-up: approval 검증 step 을 PR state==open 또는 comment 존재 조건으로 가드(우선순위 낮음).",
     "verifiedGreen": "loop@WIN-JQIPLSBL9QV-0363 t1~t5 main push-CI green: 7414f4d·52ab7a7·af9a41d·a0e96b9·6b24533·5186385(T-0322 merge)·926377b(T-0322 closeout) 전부 push run success. ad966d0(T-0323 merge) push run 진행중→다음 turn 재확인. PR #268 run 27254153650 pass / #269 27254966044 rerun pass / #270 27256092195 rerun pass / #271 27256906675 첫-pass(reviewer comment 가 approval-step 전 도착, rerun 불요). approval-step ordering 은 PR-open 타이밍에 따라 fail→rerun 또는 첫-pass. Node.js 20→24 deprecation non-blocking(2026-06-16). benignRedNote 참조.",
     "note": "CI-infra 복구 확인. 원인은 private repo 의 GitHub Actions spending limit $0 — 무료 minutes 소진 후 runner 미할당을 차단하고 있었다 (결제수단 추가만으로는 overage 미허용, spending limit 명시 상향 필요). 사용자가 spending limit 상향 후 run 27167117992(HEAD cbef4c1) rerun → runner 정상 할당, 02:30~ 전체 step green: Prisma migrate deploy / 테스트+커버리지 / 스모크 / e2e ✓ (exit 0). 직전 4 연속 fail(runner_id=0/name='')은 동일 원인. Actions enabled/all-allowed/workflow active 는 처음부터 정상이었다. 잔여 follow-up: Node.js 20 → 24 action 버전 업(2026-06-16 deprecation, non-blocking 경고).",
-    "noteT0352": "PR #285(T-0352) head 855a10c pull_request run 27352988688 = approval-gate ordering(benignRedNote case A) rerun 후 success 전 step green. squash a312bcf push run + closeout push run 은 다음 turn 재확인."
+    "noteT0352": "PR #285(T-0352) head 855a10c pull_request run 27352988688 = approval-gate ordering(benignRedNote case A) rerun 후 success 전 step green. squash a312bcf push run + closeout push run 은 다음 turn 재확인.",
+    "noteT0359": "PR #291(T-0359) head 45df1bd pull_request run 27439004157 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요, benignRedNote case A 미해당). 전 step green(lint/build/prisma/test+cov 3042 pass cov 99.96%/100% + smoke/e2e + approval-gate). squash b68822c main push run(19:48:29Z in_progress)은 다음 fire 재확인(squash trivially green 예상)."
   },
   "reviewRounds": {
     "T-0358": 2,
@@ -153,7 +154,8 @@
     "T-0337": 1,
     "T-0339": 1,
     "T-0351": 1,
-    "T-0352": 1
+    "T-0352": 1,
+    "T-0359": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -653,7 +655,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 353,
+    "tasksCompleted": 354,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

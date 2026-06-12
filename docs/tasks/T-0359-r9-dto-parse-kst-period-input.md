@@ -2,7 +2,10 @@
 id: T-0359
 title: ADR-0039 KST impl chain 4/5 — R-9 사용자 지정 기간 입력이 parseKstPeriodInput 경유 (offset 미명시 → Asia/Seoul default)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: b68822c
+prNumber: 291
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-004, REQ-034]
 estimatedDiff: 150
