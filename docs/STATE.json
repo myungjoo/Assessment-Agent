@@ -11,11 +11,11 @@
   "backlogNote": "**ADR-0039 KST impl chain 전부 완결 (5/5 T-0360, PR #292 squash 491c28f, round 1/7 first-pass green)** — view-layer formatter: helper(period-boundary.ts)에 저장 UTC instant → Asia/Seoul 가독 표시 formatKstDisplay + 보조 formatKstIso(+09:00 명시) 신설(§Decision4/§Decision5 comp(iv) 완결, R-112, 저장값 불변). chain 1/5=T-0356(d656595)·2/5=T-0357(30486c3)·3/5=T-0358(e10a747)·4/5=T-0359(b68822c)·5/5=T-0360(491c28f). **Q-0037 OPEN (needs-human-direction)** — KST chain 완결 후 HIGH-bar survey 결과 dependency-free P5 work 소진, planner nextTask=null escalate. 남은 backlog 전부 게이트: T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) / live-LLM(Q-0022 만료 6/30) / ADR-0038 PROPOSED→ACCEPTED human flip / ADR-0036 stage5c 30일 dogfood+측정 / Q-0026 timezone(SinceDerivation routing 은 boundary math 부재라 cosmetic) / web vitest threshold(T-0355 뒤) / P6 frontend·P7 scheduler. 다음 fire 는 Q-0037 미해결이면 즉시 no-op 종료.",
   "lock": {
     "holder": null,
-    "session": "cron@WIN-JQIPLSBL9QV-aa15-996db7",
-    "since": "2026-06-12T20:04:52Z",
-    "note": "aa-local-15 :15 cron fire 종료 — T-0360(ADR-0039 KST chain 5/5 view-layer formatter) select+claim(5b, claims 0→1, pr-mode 단독) → pr-mode 수행, PR #292 round 1/7 first-pass green 4-게이트 PASS, squash 491c28f merge. closeout(STATE/journal/task DONE + counters 354→355 + claim 제거) + planner nextTask=null escalate(Q-0037) 후 tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "session": "cron@cloud-noop-22070",
+    "since": "2026-06-12T22:07:03Z",
+    "note": "cron@cloud 22:07Z fire no-op 종료 — Q-0037 OPEN(needs-human-direction) 미해결 상태 그대로 발견(직전 aa-local-15 fire 의 escalation), LOOP.md §1[1] 미해결 humanQuestion 즉시 종료 rule 적용. 권위 lock 미획득(no-op 이라 critical section 없음), claims.json·branch tip lock.json 변경 0. nextTask=null 유지. 다음 fire 도 Q-0037 미해결이면 동일 즉시 no-op 종료(heartbeat 1줄만). STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-12T20:04:52Z",
+  "lastActivity": "2026-06-12T22:07:03Z",
   "lastCommit": "491c28f",
   "mostRecentTasks": [
     "T-0360",
