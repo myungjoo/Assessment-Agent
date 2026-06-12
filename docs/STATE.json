@@ -7,8 +7,8 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**Q-0036 RESOLVED (2026-06-12 14:53Z, vb707 t1)** — 사용자 결정 (1)+(2): ADR-0040·ADR-0039 모두 ACCEPTED flip 완료(frontmatter direct flip, §3.1 rule 4). 1순위 = **P6 frontend scaffold chain**(planner 분해 대기 — pnpm-workspace + vite + @nestjs/serve-static, 새 runtime dep §5 승인 포함 결정됨, prep = docs/architecture/frontend-api-contract.md), 후속 = ADR-0039 KST impl chain(helper/SinceDerivation/PeriodBridge/R-9 DTO/view-layer). 보류: live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측 / R-78 endpoint ADR. 다음 turn: planner dispatch — scaffold chain 첫 task 분해.",
+  "nextTask": "T-0353",
+  "backlogNote": "**P6 scaffold chain 개시 (Q-0036 결정1)** — planner 가 T-0353(slice 1/3: pnpm-workspace + web/ Vite React TS 최소 SPA, pr-mode, sizeExempt pre-justified) 큐잉. 후속 chain: slice 2 = @nestjs/serve-static + src/web/ WebModule(SPA fallback), slice 3 = ci.yml web step + directory.md 동기. 그 후 = ADR-0039 KST impl chain(helper/SinceDerivation/PeriodBridge/R-9 DTO/view-layer). 보류: live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측 / R-78 endpoint ADR.",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-vb707",
