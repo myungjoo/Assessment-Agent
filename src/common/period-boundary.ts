@@ -60,6 +60,8 @@ function kstOffsetMs(instant: Date): number {
 
 // Asia/Seoul wall-clock → UTC instant (t = [hour, minute, second, ms] 선택).
 // guess-and-correct 2 회 수렴 — DST 류 rule 변경 경계까지 일반 대응 (표준 기법).
+// Date.UTC 의 0~99년 → 1900+y 매핑은 미방어 — parse 경로는 round-trip 이 거부하고, Intl 산출
+// wall-clock 은 도메인(현대 연도)상 0~99 도달 불가 (본 파일 모든 Date.UTC 달력 산술 공통).
 function kstToUtc(y: number, mo: number, d: number, t: number[] = []): Date {
   const [h = 0, mi = 0, s = 0, ms = 0] = t;
   const candidate = Date.UTC(y, mo - 1, d, h, mi, s, ms);
@@ -122,8 +124,9 @@ export function getKstPeriodRange(
 }
 
 // R-9 입력 ISO-8601 extended 패턴 — 날짜 필수 + 시각 선택 + offset(Z / ±hh:mm) 선택.
+// offset 은 범위까지 강제 (시 00~23 / 분 00~59) — "+09:60" 류가 Date 에 닿기 전에 거부.
 const ISO_INPUT_PATTERN =
-  /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-]\d{2}:\d{2})?)?$/;
+  /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?)?$/;
 
 // R-9 사용자 지정 기간 입력 해석 (§Decision3 (d)). offset 명시 (Z / +09:00) → 그대로.
 // 미명시 → Asia/Seoul 해석 (예: "2026-06-10T15:00" → 2026-06-10T06:00:00Z). 날짜만 → KST 자정.
@@ -150,7 +153,14 @@ export function parseKstPeriodInput(input: string): Date {
   if (!rt.toISOString().startsWith(wall)) {
     throw new RangeError(`parseKstPeriodInput: 불가능한 시각 "${input}"`);
   }
-  // offset 명시 → JS 표준 ISO parser 위임 (값 검증은 위 round-trip 이 완료).
-  if (offset !== undefined) return new Date(input.trim().replace(" ", "T"));
+  // offset 명시 → JS 표준 ISO parser 위임. 달력 값은 round-trip, offset 범위는 regex 가
+  // 검증. 아래 guard 는 방어 깊이 — engine 별 거부 입력의 Invalid Date silent 반환 차단.
+  if (offset !== undefined) {
+    const result = new Date(input.trim().replace(" ", "T"));
+    if (Number.isNaN(result.getTime())) {
+      throw new RangeError(`parseKstPeriodInput: 불가능한 offset "${input}"`);
+    }
+    return result;
+  }
   return kstToUtc(year, month, day, [hour, minute, second, milli]);
 }

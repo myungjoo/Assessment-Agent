@@ -125,6 +125,9 @@ describe("parseKstPeriodInput — §Decision3 (d) R-9 입력 해석", () => {
     "2026-06-10T15:00:99", // 불가능한 초
     "2026-06-10Z", // 시각 없는 offset (ISO 위반)
     "2026-06-10T15:00:00+0900", // 콜론 없는 offset 표기 거부
+    "2026-06-10T15:00:00+09:60", // 범위 외 offset 분 — Invalid Date silent 반환 거부
+    "2026-06-10T15:00:00+24:00", // 범위 외 offset 시 — Invalid Date silent 반환 거부
+    "2026-06-10T15:00:00+99:99", // 범위 외 offset 시·분 동시 (reviewer 재현 입력)
   ])("malformed 입력 %p 는 명시적 error", (bad) => {
     expect(() => parseKstPeriodInput(bad)).toThrow(/parseKstPeriodInput/);
   });
