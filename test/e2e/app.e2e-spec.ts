@@ -26,11 +26,12 @@ describe("E2E: AppModule HTTP contract", () => {
     await app.close();
   });
 
-  // Happy-path: GET / 가 status 200 + content-type text/html (Nest default) +
+  // Happy-path: GET /api 가 status 200 + content-type text/html (Nest default) +
   // body 가 정확히 APP_STATUS_MESSAGE 임을 모두 검증. smoke 보다 한 단계 더 깊이
   // 응답 contract 를 묶어 둔다 (3 가지 assertion).
-  it("GET / returns 200 with text/html and exact body", async () => {
-    const response = await request(app.getHttpServer()).get("/");
+  // T-0354: ADR-0040 §2 경계에 따라 GET / → GET /api 로 이전 (path 동기).
+  it("GET /api returns 200 with text/html and exact body", async () => {
+    const response = await request(app.getHttpServer()).get("/api");
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/text\/html/);
     expect(response.text).toBe(APP_STATUS_MESSAGE);
@@ -38,6 +39,7 @@ describe("E2E: AppModule HTTP contract", () => {
 
   // Error path: 존재하지 않는 endpoint 는 Nest 기본 404 핸들러가 JSON 응답을 돌려준다.
   // status + body 의 `statusCode: 404` 필드 둘 다 검증해 contract 회귀를 잡는다.
+  // (CI/dev 는 web/dist 부재 → WebModule 등록 0 — SPA fallback 없이 404 유지, T-0354)
   it("GET /__not_exists_e2e__ returns 404 with json error body", async () => {
     const response = await request(app.getHttpServer()).get(
       "/__not_exists_e2e__",

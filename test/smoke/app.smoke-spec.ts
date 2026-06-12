@@ -28,16 +28,18 @@ describe("Smoke: AppModule bootstrap", () => {
     await app.close();
   });
 
-  // Happy-path: 루트 endpoint 가 200 + AppService.getStatus() 결과 (APP_STATUS_MESSAGE) 반환.
+  // Happy-path: sanity endpoint 가 200 + AppService.getStatus() 결과 (APP_STATUS_MESSAGE) 반환.
+  // T-0354: ADR-0040 §2 경계에 따라 GET / → GET /api 로 이전 (path 동기).
   // anchor 로 src 의 export 상수를 직접 import — 향후 message 변경 시 본 spec 이 자동 동기화.
-  it("GET / returns 200 with expected body", async () => {
-    const response = await request(app.getHttpServer()).get("/");
+  it("GET /api returns 200 with expected body", async () => {
+    const response = await request(app.getHttpServer()).get("/api");
     expect(response.status).toBe(200);
     expect(response.text).toBe(APP_STATUS_MESSAGE);
   });
 
   // Error path: 존재하지 않는 endpoint 는 404 — Nest 의 기본 not-found 핸들러 동작 확인.
   // smoke 인프라가 "fail 도 정상적으로 잡는다" 의 sanity 가 됨.
+  // (CI/dev 는 web/dist 부재 → WebModule 등록 0 — SPA fallback 없이 404 유지, T-0354)
   it("GET /__not_exists__ returns 404", async () => {
     const response = await request(app.getHttpServer()).get("/__not_exists__");
     expect(response.status).toBe(404);
