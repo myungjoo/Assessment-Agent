@@ -1,6 +1,8 @@
 // ADR-0039 §Decision3 semantics 박제 spec — R-112 4종 (happy / error / branch / negative).
 // 기대값은 전부 UTC instant — KST(+09:00) 9시간 drift 경계를 명시 검증한다.
 import {
+  formatKstDisplay,
+  formatKstIso,
   getKstPeriodRange,
   getKstPeriodRangeByPeriod,
   KST_TIMEZONE,
@@ -200,6 +202,72 @@ describe("getKstPeriodRangeByPeriod — domain period 경유 KST boundary snap",
     "period day + Invalid Date instant %p 는 TypeError 전파 (negative — DTO 통과 후 Invalid edge)",
     (bad) => {
       expect(() => getKstPeriodRangeByPeriod("day", bad)).toThrow(TypeError);
+    },
+  );
+});
+
+// T-0360 — ADR-0039 §Decision4/§Decision5 (iv) view-layer formatter (저장 UTC → KST 표시).
+describe("formatKstDisplay — 저장 UTC instant → Asia/Seoul 가독 표시 string", () => {
+  // happy: 서로 다른 시각대(자정/정오/저녁) 각 1+ — UTC+9 가 정확히 적용됨.
+  it.each([
+    ["2026-06-09T15:00:00Z", "2026-06-10 00:00:00"], // 자정 — KST 6/10 00:00 (h23: "00")
+    ["2026-06-10T03:00:00Z", "2026-06-10 12:00:00"], // 정오 — KST 6/10 12:00
+    ["2026-06-10T11:30:45Z", "2026-06-10 20:30:45"], // 저녁 — KST 6/10 20:30:45
+    ["2026-06-10T06:00:00Z", "2026-06-10 15:00:00"], // AC 예시 — UTC 한낮 → KST 오후
+  ])("instant %s 의 KST 표시 = %s (UTC+9 적용)", (input, expected) => {
+    expect(formatKstDisplay(d(input))).toBe(expected);
+  });
+
+  // negative: UTC 자정 경계가 KST 로 표시됨 — UTC "...Z" 그대로 노출 회귀 차단.
+  it("KST 자정 경계가 '24' 아닌 '00' 으로 표시된다 (h23 정합 — negative)", () => {
+    // UTC 6/9 15:00 = KST 6/10 00:00 — 자정이 24:00 으로 새지 않음.
+    expect(formatKstDisplay(d("2026-06-09T15:00:00Z"))).toBe(
+      "2026-06-10 00:00:00",
+    );
+  });
+  it("UTC 가 아니라 KST 로 표시된다 — UTC '...Z' 그대로 노출 회귀 차단 (negative)", () => {
+    const out = formatKstDisplay(d("2026-06-10T06:00:00Z"));
+    expect(out).not.toContain("Z"); // UTC 직렬화가 아님
+    expect(out).toBe("2026-06-10 15:00:00"); // +9 적용된 KST wall-clock
+  });
+
+  // error path / type mismatch: Invalid Date / 비-Date 입력은 TypeError (silent string 금지).
+  it.each(badDates)(
+    "Invalid Date / 비-Date %p 는 TypeError (silent 반환 금지)",
+    (bad) => {
+      expect(() => formatKstDisplay(bad)).toThrow(TypeError);
+    },
+  );
+});
+
+describe("formatKstIso — 저장 UTC instant → Asia/Seoul offset 명시 ISO-8601", () => {
+  // happy: +09:00 offset 명시 + 서로 다른 시각대.
+  it.each([
+    ["2026-06-10T06:00:00Z", "2026-06-10T15:00:00+09:00"], // AC 예시
+    ["2026-06-09T15:00:00Z", "2026-06-10T00:00:00+09:00"], // 자정 경계
+    ["2026-06-10T11:30:45Z", "2026-06-10T20:30:45+09:00"], // 저녁
+  ])("instant %s → %s (+09:00 명시)", (input, expected) => {
+    expect(formatKstIso(d(input))).toBe(expected);
+  });
+
+  // round-trip: 산출 string 을 다시 파싱 시 원 instant 와 동등 (동일 instant 보존 — AC).
+  it.each([
+    "2026-06-10T06:00:00Z",
+    "2026-06-09T15:00:00Z",
+    "2026-06-10T11:30:45Z",
+  ])("round-trip — formatKstIso(%s) 재파싱 시 원 instant 동등", (input) => {
+    const instant = d(input);
+    const iso = formatKstIso(instant);
+    expect(iso).toContain("+09:00"); // offset 명시 확인 (branch)
+    expect(new Date(iso).getTime()).toBe(instant.getTime()); // new Date round-trip
+    expect(parseKstPeriodInput(iso).getTime()).toBe(instant.getTime()); // helper round-trip
+  });
+
+  // error path / type mismatch.
+  it.each(badDates)(
+    "Invalid Date / 비-Date %p 는 TypeError (silent 반환 금지)",
+    (bad) => {
+      expect(() => formatKstIso(bad)).toThrow(TypeError);
     },
   );
 });
