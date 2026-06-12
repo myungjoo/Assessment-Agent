@@ -1,0 +1,4 @@
+# ADR-0040 §4 — 단일 lockfile pnpm workspace.
+# root package.json (backend) 은 현행 유지, frontend 는 web/ 별도 패키지.
+packages:
+  - web

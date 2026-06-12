@@ -1,0 +1,22 @@
+{
+  // web/ 단일 tsconfig — 파일 수 최소화 (T-0353): src + vite config 를 함께
+  // type-check 한다 (emit 은 vite/esbuild 책임, tsc 는 noEmit 검사 전용).
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src", "vite.config.mts"]
+}
