@@ -152,6 +152,54 @@ export function getKstPeriodRangeByPeriod(
   return getKstPeriodRange(PERIOD_TO_GRANULARITY[period], instant);
 }
 
+// ── ADR-0039 §Decision4/§Decision5 (iv) view-layer formatter ──────────────────
+// 저장 UTC instant → Asia/Seoul 기준 사람-가독 표시 string. §Decision4 "조회 endpoint
+// 응답 / Web UI 표시 default = Asia/Seoul". §Decision2/ADR-0012 §1 저장값(UTC) 불변 —
+// formatter 는 입력 Date 를 변형하지 않고 string 만 산출한다. 기존 kstFormatter /
+// toKstWallClock / kstOffsetMs / KST_TIMEZONE 재사용 (새 Intl 인스턴스 중복 생성 0 /
+// hardcoded +09:00 산술 0 — §Decision5 drift 차단 backbone, §Decision1 IANA single source).
+
+// 2 자리 zero-pad — wall-clock 구성요소 표시용.
+const pad2 = (v: number) => String(v).padStart(2, "0");
+
+// 저장 UTC instant → Asia/Seoul wall-clock 표시 string "YYYY-MM-DD HH:mm:ss"
+// (예: 2026-06-10T06:00:00Z → "2026-06-10 15:00:00"). h23 hourCycle 정합으로 자정은
+// "24" 아닌 "00" 으로 표시된다. Invalid Date / 비-Date → 명시 TypeError (R-112 negative).
+export function formatKstDisplay(instant: Date): string {
+  assertValidDate(instant, "formatKstDisplay");
+  const w = toKstWallClock(instant);
+  return (
+    `${w.year}-${pad2(w.month)}-${pad2(w.day)} ` +
+    `${pad2(w.hour)}:${pad2(w.minute)}:${pad2(w.second)}`
+  );
+}
+
+// instant 시점의 Asia/Seoul offset(ms) → "+09:00" 류 ISO offset 표기로 직렬화.
+// kstOffsetMs 재사용 — hardcoded +09:00 산술 0 (IANA rule 변경 자동 대응).
+// sign 분기는 방어 깊이 — Asia/Seoul 은 도메인상 항상 +offset (음수 도달 불가) 이나,
+// 미래 IANA rule / 타 zone 재사용 시 부호를 올바르게 산출하도록 일반식으로 둔다
+// (음수 분기는 본 zone 에서 unreachable — coverage 미도달은 설계상 정상).
+function kstOffsetLabel(instant: Date): string {
+  const offMin = Math.round(kstOffsetMs(instant) / 60000);
+  const sign = offMin < 0 ? "-" : "+";
+  const abs = Math.abs(offMin);
+  return `${sign}${pad2(Math.floor(abs / 60))}:${pad2(abs % 60)}`;
+}
+
+// 저장 UTC instant → Asia/Seoul offset 명시 ISO-8601 string
+// (예: 2026-06-10T06:00:00Z → "2026-06-10T15:00:00+09:00"). §Decision4 가 응답 JSON 의
+// 시각 필드로 "...Z" 또는 "+09:00" 어느 쪽이든 허용 — view-layer 가 offset-명시 JSON 을
+// 선택할 때 사용. 산출 string 은 동일 instant 를 보존한다 (new Date / parseKstPeriodInput
+// round-trip 시 원 instant 와 동등 — R-112 round-trip 검증). Invalid Date / 비-Date →
+// 명시 TypeError. 보조 formatter (§Decision4 offset-명시 허용 경로).
+export function formatKstIso(instant: Date): string {
+  assertValidDate(instant, "formatKstIso");
+  const w = toKstWallClock(instant);
+  const date = `${w.year}-${pad2(w.month)}-${pad2(w.day)}`;
+  const time = `${pad2(w.hour)}:${pad2(w.minute)}:${pad2(w.second)}`;
+  return `${date}T${time}${kstOffsetLabel(instant)}`;
+}
+
 // R-9 입력 ISO-8601 extended 패턴 — 날짜 필수 + 시각 선택 + offset(Z / ±hh:mm) 선택.
 // offset 은 범위까지 강제 (시 00~23 / 분 00~59) — "+09:60" 류가 Date 에 닿기 전에 거부.
 const ISO_INPUT_PATTERN =
