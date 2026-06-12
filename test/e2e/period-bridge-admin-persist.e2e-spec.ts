@@ -63,6 +63,14 @@ const validBody = (personId: string) => ({
   periodStart: "2026-05-01T00:00:00.000Z",
 });
 
+// ADR-0039 KST boundary snap 의 canonical 좌표 — controller 의 normalizeKstPeriodStart
+// 가 raw 입력 instant 를 요청 period(week) granularity 의 KST period start(KST 월요일
+// 00:00)로 snap 한다. 입력 "2026-05-01T00:00:00.000Z" = KST 2026-05-01 09:00(금) →
+// 그 주의 KST 월요일 = 2026-04-27 00:00 KST = "2026-04-26T15:00:00.000Z"(UTC). 영속/
+// 응답 periodStart 는 raw pass-through 가 아니라 이 snap 좌표여야 한다(period-boundary.ts
+// getKstPeriodRangeByPeriod 실코드로 산출 — 본 e2e 가 그 배선의 외부 round-trip 검증).
+const SNAPPED_WEEK_PERIOD_START = "2026-04-26T15:00:00.000Z";
+
 // Admin persist 가 실 row 를 0 건 만들었음을 검증 — negative case 의 회귀 차단.
 // "Person" CASCADE truncate 가 셋을 모두 정리하므로 매 case 직후 0 이어야 한다.
 async function expectNoPersistedRows(prisma: PrismaService): Promise<void> {
@@ -137,7 +145,9 @@ describe("E2E: POST /api/assessment-evaluation/period — Admin full-persist (T-
     expect(response.body.personId).toBe(personId);
     expect(response.body.period).toBe("week");
     expect(response.body.scope).toBe("commit");
-    expect(response.body.periodStart).toBe("2026-05-01T00:00:00.000Z");
+    // periodStart 는 raw 입력이 아니라 KST week boundary 로 snap 된 canonical 좌표
+    // (ADR-0039 §Decision3 — getKstPeriodRangeByPeriod 경유). raw pass-through 회귀 차단.
+    expect(response.body.periodStart).toBe(SNAPPED_WEEK_PERIOD_START);
     // no-network(빈 serviceIdentities) → 빈 수집 → contributionCount 0 → created=false
     // (genuine 첫 create 라도; service v1 한계 — authoritative 첫-create 신호는 아래 count 0→1).
     expect(response.body.created).toBe(false);
@@ -152,8 +162,55 @@ describe("E2E: POST /api/assessment-evaluation/period — Admin full-persist (T-
     expect(persisted?.personId).toBe(personId);
     expect(persisted?.period).toBe("week");
     expect(persisted?.scope).toBe("commit");
+    // 영속 좌표 periodStart 도 KST snap 된 canonical 값(응답과 동일 source).
+    expect(persisted?.periodStart.toISOString()).toBe(
+      SNAPPED_WEEK_PERIOD_START,
+    );
     // 빈 수집 → component Contribution 0 건(빈 평가 결과).
     expect(await prisma.contribution.count()).toBe(0);
+  });
+
+  // -- R-112 reinforcement: KST snap round-trip 수렴 (regression layer) --
+  //    이번 회귀(raw pass-through 가 e2e 를 통과해 버린)를 사전에 잡았을 layer:
+  //    같은 KST 주의 서로 다른 요일/시각 입력 2개가 endpoint 를 통해 **동일 persist 좌표**
+  //    (personId/period/scope/periodStart)로 수렴함을 실 DB round-trip 으로 실증한다.
+  //    raw pass-through 라면 두 입력이 서로 다른 좌표로 갈려 두 row(count 2)가 생겨 fail.
+
+  it("같은 KST 주 안의 서로 다른 요일/시각 입력 2개가 동일 persist 좌표로 수렴 + count 1 (KST snap round-trip 수렴, R-112)", async () => {
+    const personId = await seedTargetPerson();
+
+    // 입력 A — KST 월요일 2026-04-27 00:00(주 시작 자체). UTC 로는 2026-04-26T15:00Z.
+    const inputMon = {
+      ...validBody(personId),
+      periodStart: "2026-04-27T00:00:00+09:00",
+    };
+    // 입력 B — 같은 KST 주의 금요일 2026-05-01 23:00(요일/시각 모두 다름).
+    const inputFri = {
+      ...validBody(personId),
+      periodStart: "2026-05-01T23:00:00+09:00",
+    };
+
+    const first = await request(app.getHttpServer())
+      .post(PERIOD)
+      .set("Cookie", adminCookie)
+      .send(inputMon);
+    expect(first.status).toBe(200);
+    // snap 좌표는 KST 주 시작(월요일 00:00 KST = 2026-04-26T15:00:00.000Z).
+    expect(first.body.periodStart).toBe(SNAPPED_WEEK_PERIOD_START);
+    expect(await prisma.assessment.count()).toBe(1);
+    const firstId = first.body.assessmentId;
+
+    const second = await request(app.getHttpServer())
+      .post(PERIOD)
+      .set("Cookie", adminCookie)
+      .send(inputFri);
+    expect(second.status).toBe(200);
+    // 다른 요일/시각 입력이지만 같은 KST 주 → 동일 snap 좌표로 수렴.
+    expect(second.body.periodStart).toBe(SNAPPED_WEEK_PERIOD_START);
+    // **수렴의 authoritative 신호**: 두 입력이 같은 좌표 → first-write-wins read-through
+    // → 동일 assessmentId + row 증가 0(여전히 1). raw pass-through 면 count 2 로 fail.
+    expect(second.body.assessmentId).toBe(firstId);
+    expect(await prisma.assessment.count()).toBe(1);
   });
 
   // -- first-write-wins read-through idempotency (§Decision3 핵심) --

@@ -19,27 +19,17 @@
 // 전제하며, 비정규 입력은 helper 가 ADR-0039 §Decision 3 boundary 로 snap 한다(아래
 // computePeriodEnd 주석 참조).
 
-import {
-  getKstPeriodRange,
-  type PeriodGranularity as BoundaryGranularity,
-} from "../../common/period-boundary";
+import { getKstPeriodRangeByPeriod } from "../../common/period-boundary";
 import { VALID_PERIODS } from "../../user/assessment.service";
 
 // PeriodGranularity — day/week/month 의 literal union. `VALID_PERIODS` single source
 // (assessment.service.ts L40, ADR-0035 §Decision 2 granularity 재사용)에서 파생한다.
 export type PeriodGranularity = (typeof VALID_PERIODS)[number];
 
-// domain granularity → helper granularity 매핑. domain 의 "day"/"week"/"month" 는
-// ADR-0006 enum-as-String DB 저장값이라 rename 금지 — helper 의 "daily"/"weekly"/
-// "monthly" 와 식별자가 달라 본 매핑 상수로 변환한다(매핑 책임은 domain 쪽, T-0357).
-const PERIOD_TO_BOUNDARY_GRANULARITY: Record<
-  PeriodGranularity,
-  BoundaryGranularity
-> = {
-  day: "daily",
-  week: "weekly",
-  month: "monthly",
-};
+// domain period → helper granularity 매핑은 `period-boundary.ts` 의 single source
+// (`PERIOD_TO_GRANULARITY`)로 lift 됐다(ADR-0039 §Decision5 — 매핑 중복 금지, T-0358).
+// 본 파일은 그 매핑을 재구현하지 않고 `getKstPeriodRangeByPeriod` wrapper 만 호출한다 —
+// controller 의 좌표 snap 배선과 같은 single source 를 공유해 drift 를 구조적으로 차단.
 
 // isValidPeriod — 임의 string 이 허용 granularity 집합 멤버인지 판정하는 순수
 // type-guard. 알 수 없는 period 의 조기 reject(throw) 근거.
@@ -64,8 +54,7 @@ export function computePeriodEnd(period: string, periodStart: Date): Date {
       `알 수 없는 period: "${period}" (허용: ${VALID_PERIODS.join("/")})`,
     );
   }
-  return getKstPeriodRange(PERIOD_TO_BOUNDARY_GRANULARITY[period], periodStart)
-    .end;
+  return getKstPeriodRangeByPeriod(period, periodStart).end;
 }
 
 // isPeriodEvaluable — 평가 대상 구간이 완전히 종료됐는지(`now ≥ periodEnd`) 판정하는

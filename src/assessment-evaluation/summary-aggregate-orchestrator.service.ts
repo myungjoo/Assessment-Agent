@@ -89,6 +89,9 @@ export class SummaryAggregateOrchestratorService {
    *   - `persistSummary` reject 시 그 error 를 전파(throw, swallow 0 — 실패 격리).
    *   - 알 수 없는 period(`VALID_PERIODS` 밖) → `isPeriodEvaluable` 내부 throw 전파,
    *     persist 미호출(게이트 우선).
+   *   - Invalid Date `context.periodStart`(parse 불가 instant) → 게이트가 경유하는
+   *     boundary helper(`getKstPeriodRangeByPeriod`)의 TypeError 전파, persist 미호출
+   *     (T-0357 Follow-up — KST boundary 정규화 계약 박제, T-0358 동기).
    *   - 게이트 함수 / persist service 재구현 0 — 기존 import 호출만(compose + 순서 결정만).
    *
    * @param context  요약 좌표(personId / period / periodStart).
