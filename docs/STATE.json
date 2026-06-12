@@ -11,12 +11,12 @@
   "backlogNote": "**ADR-0039 KST impl chain 1번째 큐잉 (T-0356, src/common/period-boundary.ts helper 신설)** — Q-0036 결정 (2) 후속, chain 2~5 = SinceDerivation / PeriodBridge / R-9 DTO / view-layer formatter (helper 경유 refactor, ADR-0039 §Status). **T-0355 (scaffold slice 3, ci.yml) 는 credential 보류** — 2026-06-12 16:25Z probe push 실측: push 자격증명(GCM)에 workflow scope 부재(remote rejected). 사용자 액션: `gh auth refresh -s workflow` 후 `gh auth setup-git`, 또는 GCM 재인증(push 자격증명에 workflow scope 필요). T-0356 touchesFiles 는 T-0355 와 교집합 0 — 보류 중 동시 진행 안전. 보류: T-0355 credential(상기) / live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측(2026-06-12 cron no-op fire 1건 — claim 존중 실증) / R-78 endpoint ADR / web vitest coverage threshold(provider dep §5 게이트, T-0355 Follow-up).",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aas1f7",
-    "since": "2026-06-12T16:38:30Z",
-    "note": "cron@cloud-aas1f7 no-op fire — T-0356 활성 claim(vb707, 16:32:18Z, live) 존중, 추가 claim 0(5b pr-mode 단독 규율). lock CAS 획득→journal 박제→tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "session": "cron@cloud-4dc927",
+    "since": "2026-06-12T17:06:00Z",
+    "note": "cron@cloud-4dc927 no-op fire(:15 슬롯) — T-0356 활성 claim(vb707, 16:32:18Z, age ~33분 < 60분 stale, live) 존중. PR #288 round1 REQUEST_CHANGES 진행 중. 추가 claim 0(5b pr-mode 단독 규율 + claimable 부재). lock CAS 획득(9e164c6)→pending CI 재확인→journal/STATE 박제→tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-12T16:38:30Z",
-  "lastCommit": "17b2c51",
+  "lastActivity": "2026-06-12T17:06:00Z",
+  "lastCommit": "92a87f2",
   "mostRecentTasks": [
     "T-0354",
     "T-0353",
@@ -32,12 +32,12 @@
     "note": "/loop session vb707 (dynamic, turn cap 10) t5 — T-0354 DONE·merge(P6 scaffold slice 2 serve-static WebModule, PR #287 squash a437d79, round 1 APPROVE + m1 nit-in-PR closure afd7df4). 동시성 관측: cron@cloud-e86f43 16:08Z fire 가 활성 claim 존중 no-op(5b 실증). 누적: t1 Q-0036 resolve / t3 T-0353 / t5 T-0354. 다음 t6: planner — slice 3(ci.yml web step + doc 동기) 분해."
   },
   "ci": {
-    "lastRun": "2026-06-12T16:05:00Z",
+    "lastRun": "2026-06-12T16:41:38Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27427592813",
-    "noteT0354": "PR #287(T-0354) head afd7df4(m1 nit fix) pull_request run 27427592813 = first-pass green(approve comment 선재 — rerun 불요). 첫 head fd75711 run 27427247021 은 approval-gate ordering fail(case A) — cron@cloud-e86f43 가 rerun 큐잉했으나 머지로 superseded. squash a437d79 main push run + t5 closeout push run 은 다음 turn 재확인. t4 push cba97f3 run 도 다음 turn 재확인.",
+    "noteT0354": "PR #287(T-0354) head afd7df4(m1 nit fix) pull_request run 27427592813 = first-pass green(approve comment 선재 — rerun 불요). 첫 head fd75711 run 27427247021 은 approval-gate ordering fail(case A) superseded. **17:06Z cron 재확인 완료**: squash a437d79 + closeout 20094ff + t4 cba97f3 + planner dd722ea + b89e1a1 + 92a87f2 main push run 전부 completed/success(`gh run list --branch main`). 모든 pending main CI green — 미확인 run 0.",
     "noteT0353": "PR #286(T-0353) head d1a70fe pull_request run 27424985776 = approval-gate ordering(benignRedNote case A) rerun 후 success 전 step green(frozen-lockfile install 포함 — workspace 화 lockfile 정합 실증). t1 push 669c09c run 27423547982 success / t2 push 8fd7037 run 27424225745 success / squash 2ec3bdd main push run success / t3 closeout a3be887 push run success.",
     "noteT0332": "PR #275(T-0332 ADR-0036 stage4 ci.yml per-PR concurrency group) head 2469a8a run 27270290374 = success 전 step green(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer comment 가 approval-step 실행 전 landing 해 first-run green, rerun 불요). 직전 07cd107 run 27270130798 은 PR-open 시점 approval-gate ordering(benignRedNote case A)으로 failure(실 step 무관). aedd7be squash merge. **본 PR 부터 concurrency key 활성** — 이후 같은 PR 연속 push 는 직전 run cancel.",
     "noteStage3DocPushes": "ADR-0036 stage3 doc-only direct push 전부 CI green: 0a1fde9(T-0329) run 27268086563 success / be28b99 run 27268575074 / 433ab9f run 27268973529 / 2eb0553 run 27269231740 / 27045bd / d56d54a 전부 success. doc-only push 라 trivially green.",
