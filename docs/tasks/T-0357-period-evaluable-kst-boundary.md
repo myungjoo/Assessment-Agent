@@ -2,7 +2,11 @@
 id: T-0357
 title: ADR-0039 KST impl chain 2/5 — period-evaluable 의 boundary 산술을 period-boundary helper 경유로 refactor
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-12T17:49:32Z
+prNumber: 289
+mergedAs: 30486c3
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-034, REQ-035]
 estimatedDiff: 210
@@ -66,4 +70,9 @@ implementer → tester
 
 ## Follow-ups
 
-(생성 시점 비어 있음)
+- (reviewer MINOR) `summary-aggregate-orchestrator.service.ts` L90 부근 jsdoc error 계약 서술에 Invalid Date periodStart 의 helper TypeError 전파 미언급 — chain 3/5 (PeriodBridge 배선) task 에서 jsdoc 한 줄 동기.
+- (executor, local 한정) `pnpm test` 가 `.claude/worktrees/*` 잔존 worktree 의 repo 사본 spec 까지 수집해 suite 중복 inflate — jest roots/ignore 패턴 검토 후보 (CI 무영향, T-0354 executor 도 동일 관찰).
+
+## Result
+
+DONE (2026-06-12 17:49Z) — PR #289 squash `30486c3`, reviewer round 1/7 APPROVE (blockers 0 / major 0 / minor 1 — Out-of-Scope jsdoc, chain 3/5 위임). 3파일 +218/-112. computePeriodEnd 의 setUTCMonth 월말 overflow 실결함 fix + regression 박제 (month, 2026-05-31T15:00Z → 06-30, not-07-01 이중 단언). 의미 변화 3건 (UTC→KST fixture / week 월요일 anchor / Invalid Date TypeError 전파) reviewer 가 ADR-0039 정합 + production 파급 0 실증. run 27432466745 approval-gate rerun 후 전 step green. period-evaluable.ts 100% coverage.
