@@ -2,7 +2,11 @@
 id: T-0353
 title: P6 frontend scaffold slice 1 — pnpm workspace + Vite React TS 최소 SPA (web/)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-06-12T15:30:12Z
+prNumber: 286
+mergedAs: 2ec3bdd
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-038, REQ-048]
 estimatedDiff: 160
@@ -69,4 +73,9 @@ Q-0036 사용자 결정 (1): ADR-0040 (frontend stack — React + Vite SPA) ACCE
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 발견 시 append)
+- (executor 발견) slice 3 에서 `scripts/check-spec-presence.sh` 의 web/ 정책 결정 필요 — web 테스트는 vitest `.test.ts(x)` 명명이라 현 `.spec.ts` 대응 규칙이 web/ 의 신규 `.ts` 유틸에 안 맞음 (본 slice 는 `.tsx`/`.mts` 만이라 미발화).
+- (reviewer MINOR) web vitest 가 CI 미실행 transient gap — slice 3 (ci.yml web step) 을 chain 에서 지체 없이 진행 + web 측 coverage 정책 (vitest threshold 여부) 함께 결정.
+
+## Result
+
+DONE (2026-06-12 15:30Z) — PR #286 squash `2ec3bdd`, reviewer round 1/7 APPROVE (blockers 0 / major 0 / minor 2 — 전부 slice 3 위임·정보성). 10 파일 +927/-53 (lockfile 제외 ~129 LOC). deviation 2건 정당 판정: `web/vite.config.mts` (spec-presence 게이트 충돌 해소), `tsconfig.build.json` exclude "web" (+1 파일, backend 불변 AC 필수 수단). pull_request run 27424985776 rerun 후 전 step green — frozen-lockfile install 로 workspace 화 lockfile 정합 실증. backend 6844 tests + cov threshold 그대로 green.

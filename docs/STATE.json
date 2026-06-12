@@ -7,36 +7,37 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0353",
-  "backlogNote": "**P6 scaffold chain 개시 (Q-0036 결정1)** — planner 가 T-0353(slice 1/3: pnpm-workspace + web/ Vite React TS 최소 SPA, pr-mode, sizeExempt pre-justified) 큐잉. 후속 chain: slice 2 = @nestjs/serve-static + src/web/ WebModule(SPA fallback), slice 3 = ci.yml web step + directory.md 동기. 그 후 = ADR-0039 KST impl chain(helper/SinceDerivation/PeriodBridge/R-9 DTO/view-layer). 보류: live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측 / R-78 endpoint ADR.",
+  "nextTask": null,
+  "backlogNote": "**P6 scaffold slice 1 DONE (T-0353, PR #286 squash 2ec3bdd, 2026-06-12 15:30Z)** — pnpm-workspace + web/ Vite React TS SPA 박제. 다음: planner 가 slice 2 = @nestjs/serve-static + src/web/ WebModule(SPA fallback, ADR-0040 §3) 분해, 이어 slice 3 = ci.yml web step + directory.md 동기(+check-spec-presence web 정책 + web coverage 정책 — T-0353 Follow-ups·reviewer MINOR: slice 3 지체 금지). 그 후 = ADR-0039 KST impl chain. 보류: live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측 / R-78 endpoint ADR.",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-vb707",
-    "since": "2026-06-12T14:53:00Z",
-    "note": "vb707 t1 — Q-0036 resolve 박제 commit 직후 권위 lock tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "since": "2026-06-12T15:30:12Z",
+    "note": "vb707 t3 — T-0353 closeout 박제 후 권위 lock tombstone release + claim 제거. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-12T14:53:00Z",
-  "lastCommit": "cf22aa4",
+  "lastActivity": "2026-06-12T15:30:12Z",
+  "lastCommit": "2ec3bdd",
   "mostRecentTasks": [
+    "T-0353",
     "T-0352",
     "T-0351",
     "T-0350",
-    "T-0349",
-    "T-0348"
+    "T-0349"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 3,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-vb707",
     "startedAt": "2026-06-12T14:50:57Z",
-    "note": "/loop session vb707 (dynamic, turn cap 10) t1 — Q-0036 RESOLVED 박제(사용자 채팅 결정 (1)+(2): ADR-0040·0039 ACCEPTED flip, frontend scaffold 1순위·새 runtime dep §5 승인 포함). 다음 t2: planner dispatch — P6 frontend scaffold chain 첫 task 분해."
+    "note": "/loop session vb707 (dynamic, turn cap 10) t3 — T-0353 DONE·merge(P6 scaffold slice 1, PR #286 squash 2ec3bdd, round 1 APPROVE, claim 경로: select+claim→PR_OPEN→DONE). t1 Q-0036 resolve, t2 planner T-0353 큐잉. 다음 t4: planner dispatch — slice 2(serve-static WebModule) 분해."
   },
   "ci": {
-    "lastRun": "2026-06-11T14:25:35Z",
+    "lastRun": "2026-06-12T15:28:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27352988688",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27424985776",
+    "noteT0353": "PR #286(T-0353) head d1a70fe pull_request run 27424985776 = approval-gate ordering(benignRedNote case A) rerun 후 success 전 step green(frozen-lockfile install 포함 — workspace 화 lockfile 정합 실증). t1 push 669c09c run 27423547982 success / t2 push 8fd7037 run 27424225745 다음 turn 재확인. squash 2ec3bdd main push run + closeout push run 도 다음 turn 재확인.",
     "noteT0332": "PR #275(T-0332 ADR-0036 stage4 ci.yml per-PR concurrency group) head 2469a8a run 27270290374 = success 전 step green(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer comment 가 approval-step 실행 전 landing 해 first-run green, rerun 불요). 직전 07cd107 run 27270130798 은 PR-open 시점 approval-gate ordering(benignRedNote case A)으로 failure(실 step 무관). aedd7be squash merge. **본 PR 부터 concurrency key 활성** — 이후 같은 PR 연속 push 는 직전 run cancel.",
     "noteStage3DocPushes": "ADR-0036 stage3 doc-only direct push 전부 CI green: 0a1fde9(T-0329) run 27268086563 success / be28b99 run 27268575074 / 433ab9f run 27268973529 / 2eb0553 run 27269231740 / 27045bd / d56d54a 전부 success. doc-only push 라 trivially green.",
     "noteT0325": "PR #272(T-0325 ADR-0038) pull_request-event run 27262031787 = success 전 step green(Lint/Build/Prisma/test+cov/smoke/e2e + reviewer approval 검증). reviewer approve comment 가 approval-step 실행 전 landing → first-run green, rerun 불요. 06ae245 squash merge.",
@@ -46,6 +47,7 @@
     "noteT0352": "PR #285(T-0352) head 855a10c pull_request run 27352988688 = approval-gate ordering(benignRedNote case A) rerun 후 success 전 step green. squash a312bcf push run + closeout push run 은 다음 turn 재확인."
   },
   "reviewRounds": {
+    "T-0353": 1,
     "T-0346": 1,
     "T-0332": 1,
     "T-0325": 1,
@@ -644,7 +646,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 348,
+    "tasksCompleted": 349,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
