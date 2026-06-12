@@ -3,7 +3,8 @@
 // GithubModule (T-0178, ADR-0017) + ConfluenceModule (T-0184, ADR-0018) +
 // PermissionDeniedRecordModule (T-0210, ADR-0022) +
 // AssessmentCollectionModule (T-0251, ADR-0029 — collection service DI 가용화) +
-// AssessmentEvaluationModule (T-0293, ADR-0032 — 평가 controller / orchestrator 가용화) 을 등록한다.
+// AssessmentEvaluationModule (T-0293, ADR-0032 — 평가 controller / orchestrator 가용화) +
+// WebModule (T-0354, ADR-0040 §3 — web/dist static serve + SPA fallback) 을 등록한다.
 // AssessmentModule 등 추가 도메인 module 은 후속 task 책임.
 import { Module } from "@nestjs/common";
 
@@ -18,6 +19,7 @@ import { LlmModule } from "./llm/llm.module";
 import { PermissionDeniedRecordModule } from "./permission-denied/permission-denied-record.module";
 import { PersistenceModule } from "./persistence/persistence.module";
 import { UserModule } from "./user/user.module";
+import { WebModule } from "./web/web.module";
 
 @Module({
   // LlmModule (T-0135 추가) — LlmProviderConfigRepository scaffold. P4 LLM provider
@@ -34,6 +36,8 @@ import { UserModule } from "./user/user.module";
   // slice. EvaluationOrchestratorService 의 HTTP 진입점(POST /api/assessment-evaluation/
   // evaluate) 을 NestJS 런타임에 살린다. LlmModule 을 전이 import 하므로 본 module import
   // 만으로 LLM_GATEWAY 바인딩이 닫힌다(외부 dep 0).
+  // WebModule (T-0354 추가) — ADR-0040 §3 운영 static serve. web/dist 존재 시에만
+  // ServeStatic 등록 (CI/dev 의 dist 부재 환경은 등록 0 으로 부팅 무변경).
   imports: [
     PersistenceModule,
     UserModule,
@@ -44,6 +48,7 @@ import { UserModule } from "./user/user.module";
     PermissionDeniedRecordModule,
     AssessmentCollectionModule,
     AssessmentEvaluationModule,
+    WebModule,
   ],
   controllers: [AppController],
   providers: [AppService],
