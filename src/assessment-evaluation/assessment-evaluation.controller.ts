@@ -52,7 +52,10 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { ROLE_HIERARCHY, RolesGuard } from "../auth/roles.guard";
-import { getKstPeriodRangeByPeriod } from "../common/period-boundary";
+import {
+  getKstPeriodRangeByPeriod,
+  parseKstPeriodInput,
+} from "../common/period-boundary";
 import { PersonService } from "../user/person.service";
 
 import type { EvaluationResult } from "./domain/evaluation-result";
@@ -176,12 +179,17 @@ export class AssessmentEvaluationController {
     });
 
     // context 4-tuple 조립(ADR-0033 §51) — periodStart 만 string → Date 파싱, 나머지
-    // 3 종은 그대로 전사. 허용 literal 값 검증은 persist service 책임(DTO 는 형식만).
+    // 3 종은 그대로 전사. R-9 입력 string → Date 변환은 raw `new Date(...)` 가 아니라
+    // `parseKstPeriodInput` 1 곳 경유다(ADR-0039 §Decision3 (d)/§Decision5) — offset
+    // 미명시 입력은 Asia/Seoul default 로 해석돼(예 `2026-06-10T15:00` → KST 15시 =
+    // `2026-06-10T06:00:00Z`) period() 경로의 좌표 해석과 정합한다. malformed 입력은
+    // helper 의 RangeError/TypeError 로 명시 거부(silent Invalid Date 진입 차단).
+    // 허용 literal 값 검증은 persist service 책임(DTO 는 형식만).
     const context: EvaluationPersistContext = {
       personId: dto.personId,
       period: dto.period,
       scope: dto.scope,
-      periodStart: new Date(dto.periodStart),
+      periodStart: parseKstPeriodInput(dto.periodStart),
     };
 
     // mode 정규화(ADR-0033 §3) — DTO 는 string surface 라 union 으로 좁힌다. 명시적
@@ -198,21 +206,26 @@ export class AssessmentEvaluationController {
     };
   }
 
-  // normalizeKstPeriodStart — raw `dto.periodStart`(ISO string)이 가리키는 instant 를
-  // 요청 `period` granularity 의 canonical KST period boundary 로 snap 한 UTC Date 를
-  // 산출한다(ADR-0039 §Decision3 (a)~(c) + §Decision5 — boundary 계산은 helper 1 점
-  // 집중, controller 는 진입점 배선만). 두 분기(Admin 좌표 / 양 분기 since)가 본 helper
-  // 1 곳을 공유해 중복 산술을 금지한다. 효과:
+  // normalizeKstPeriodStart — `dto.periodStart`(ISO string)을 `parseKstPeriodInput`
+  // 으로 §Decision3 (d) Asia/Seoul-default 해석한 instant 를 요청 `period` granularity
+  // 의 canonical KST period boundary 로 snap 한 UTC Date 를 산출한다(ADR-0039 §Decision3
+  // (a)~(d) + §Decision5 — 입력 해석·boundary 계산은 helper 1 점 집중, controller 는
+  // 진입점 배선만). 입력 string → Date 변환은 raw `new Date(...)` 가 아니라 helper 경유라
+  // offset 미명시 입력이 Asia/Seoul 로 해석된다(예 `2026-06-10T15:00` → KST 15시).
+  // 두 분기(Admin 좌표 / 양 분기 since)가 본 helper 1 곳을 공유해 중복 산술을 금지한다.
+  // 효과:
   //   - 같은 KST 일/주/월 안의 서로 다른 입력 instant 가 동일 canonical boundary 로
   //     수렴 → persist 좌표(personId/period/scope/periodStart)의 idempotency 안정화
   //     (ADR-0037 §Decision4 / ADR-0038 first-write-wins 좌표가 KST 자정/주초/월초 정렬).
   //   - granularity 매핑은 helper 의 single source(`getKstPeriodRangeByPeriod`)를 재사용
   //     해 controller 에 별도 매핑을 박제하지 않는다(§Decision5 drift 차단).
   // 알 수 없는 `period` 는 helper 가 RangeError 로 reject(snap 전 명시 차단 — silent
-  // Invalid coordinate 금지). DTO `@IsISO8601` 통과했으나 `new Date` Invalid 인 edge 는
-  // helper 의 assertValidDate TypeError 가 전파된다(R-112 negative 분기).
+  // Invalid coordinate 금지). DTO `@IsISO8601` 통과했으나 형식 위반/달력 불가능/범위 외
+  // offset 인 edge 는 `parseKstPeriodInput` 의 RangeError, 비문자열/빈 입력은 TypeError
+  // 가 전파된다(R-112 negative 분기 — silent Invalid Date 대신 명시적 error).
   private normalizeKstPeriodStart(period: string, periodStart: string): Date {
-    return getKstPeriodRangeByPeriod(period, new Date(periodStart)).start;
+    return getKstPeriodRangeByPeriod(period, parseKstPeriodInput(periodStart))
+      .start;
   }
 
   // POST /api/assessment-evaluation/period — period bridge HTTP 진입점.
