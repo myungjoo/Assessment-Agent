@@ -11,11 +11,11 @@
   "backlogNote": "**ADR-0039 KST impl chain 1번째 큐잉 (T-0356, src/common/period-boundary.ts helper 신설)** — Q-0036 결정 (2) 후속, chain 2~5 = SinceDerivation / PeriodBridge / R-9 DTO / view-layer formatter (helper 경유 refactor, ADR-0039 §Status). **T-0355 (scaffold slice 3, ci.yml) 는 credential 보류** — 2026-06-12 16:25Z probe push 실측: push 자격증명(GCM)에 workflow scope 부재(remote rejected). 사용자 액션: `gh auth refresh -s workflow` 후 `gh auth setup-git`, 또는 GCM 재인증(push 자격증명에 workflow scope 필요). T-0356 touchesFiles 는 T-0355 와 교집합 0 — 보류 중 동시 진행 안전. 보류: T-0355 credential(상기) / live-LLM 2/2(만료 6/30·6/25 격상) / 5b→5c 관측(2026-06-12 cron no-op fire 1건 — claim 존중 실증) / R-78 endpoint ADR / web vitest coverage threshold(provider dep §5 게이트, T-0355 Follow-up).",
   "lock": {
     "holder": null,
-    "session": "loop@WIN-JQIPLSBL9QV-vb707",
-    "since": "2026-06-12T16:12:02Z",
-    "note": "vb707 t5 — T-0354 closeout 박제 후 권위 lock tombstone release + claim 제거. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "session": "cron@cloud-aas1f7",
+    "since": "2026-06-12T16:38:30Z",
+    "note": "cron@cloud-aas1f7 no-op fire — T-0356 활성 claim(vb707, 16:32:18Z, live) 존중, 추가 claim 0(5b pr-mode 단독 규율). lock CAS 획득→journal 박제→tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-12T16:12:02Z",
+  "lastActivity": "2026-06-12T16:38:30Z",
   "lastCommit": "17b2c51",
   "mostRecentTasks": [
     "T-0354",
