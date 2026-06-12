@@ -25,11 +25,11 @@
     "T-0351"
   ],
   "loopSession": {
-    "turnCount": 5,
+    "turnCount": 8,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-vb707",
     "startedAt": "2026-06-12T14:50:57Z",
-    "note": "/loop session vb707 (dynamic, turn cap 10) t5 — T-0354 DONE·merge(P6 scaffold slice 2 serve-static WebModule, PR #287 squash a437d79, round 1 APPROVE + m1 nit-in-PR closure afd7df4). 동시성 관측: cron@cloud-e86f43 16:08Z fire 가 활성 claim 존중 no-op(5b 실증). 누적: t1 Q-0036 resolve / t3 T-0353 / t5 T-0354. 다음 t6: planner — slice 3(ci.yml web step + doc 동기) 분해."
+    "note": "/loop session vb707 (dynamic, turn cap 10) t8 — T-0356 DONE·merge(KST chain 1/5, PR #288 d656595, round 2: r1 BLOCKER fix b87de39). closeout 은 cron@cloud-a41cd9 가 PR-resume cleanup 으로 대행(이중화 실증). 사고 1건: t8 closeout 진입 시 살아있는 cron lock 오탈취(17:11:55Z, ~80초) 즉시 원복 — vb71 t1 동형, journal 박제. 누적: t1 Q-0036 / t3 T-0353 / t5 T-0354 / t7 T-0355 보류·T-0356 큐잉 / t8 T-0356. 다음 t9: planner — KST chain 2/5 분해."
   },
   "ci": {
     "lastRun": "2026-06-12T16:41:38Z",
