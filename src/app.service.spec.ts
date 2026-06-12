@@ -52,7 +52,7 @@ describe("AppController", () => {
     service = moduleRef.get<AppService>(AppService);
   });
 
-  // happy-path: GET / 가 service 결과를 그대로 반환
+  // happy-path: GET /api 가 service 결과를 그대로 반환 (T-0354 에서 / → /api 이전)
   it("getRoot() 는 AppService.getStatus() 결과와 동일한 값을 반환한다", () => {
     expect(controller.getRoot()).toBe(service.getStatus());
   });
