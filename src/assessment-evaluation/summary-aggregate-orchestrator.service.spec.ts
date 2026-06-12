@@ -20,14 +20,16 @@ import {
 } from "./summary-persist.service";
 
 // SummaryBatchContext fixture — period / periodStart override 로 시점 게이트 분기를
-// 구성한다. periodStart 는 UTC 월초/주초/일초 자정으로 둔다(period-evaluable 계약 정합).
+// 구성한다. periodStart 는 KST 월초/주초/일초 자정(= 전일 15:00:00Z, ADR-0039 §Decision
+// 3 boundary)으로 둔다(period-evaluable KST 계약 정합 — 2026-05-31T15:00Z = KST 06-01
+// 00:00, 2026-06-01 은 KST 월요일이라 day/week/month 공통 시작 경계).
 function context(
   overrides: Partial<SummaryBatchContext> = {},
 ): SummaryBatchContext {
   return {
     personId: "person-1",
     period: "day",
-    periodStart: new Date("2026-06-01T00:00:00Z"),
+    periodStart: new Date("2026-05-31T15:00:00Z"),
     ...overrides,
   };
 }
@@ -81,10 +83,10 @@ describe("SummaryAggregateOrchestratorService", () => {
       const orchestrator = makeOrchestrator(persist);
       const ctx = context({
         period: "day",
-        periodStart: new Date("2026-06-01T00:00:00Z"),
+        periodStart: new Date("2026-05-31T15:00:00Z"),
       });
       const results = [resultFor("u-1")];
-      // periodEnd = 2026-06-02T00:00:00Z. now = 그 이후 → 평가 가능.
+      // periodEnd = 2026-06-01T15:00:00Z (KST 06-02 자정). now = 그 이후 → 평가 가능.
       const now = new Date("2026-06-02T00:00:00Z");
 
       const outcome = await orchestrator.evaluateAndPersist(
@@ -105,10 +107,10 @@ describe("SummaryAggregateOrchestratorService", () => {
       const orchestrator = makeOrchestrator(persist);
       const ctx = context({
         period: "week",
-        periodStart: new Date("2026-06-01T00:00:00Z"),
+        periodStart: new Date("2026-05-31T15:00:00Z"),
       });
       const results = [resultFor("u-a"), resultFor("u-b")];
-      // periodEnd(week) = 2026-06-08T00:00:00Z → now 그 이후.
+      // periodEnd(week) = 2026-06-07T15:00:00Z (KST 06-08 월요일 자정) → now 그 이후.
       const now = new Date("2026-06-09T00:00:00Z");
 
       await orchestrator.evaluateAndPersist(
@@ -136,9 +138,10 @@ describe("SummaryAggregateOrchestratorService", () => {
 
   describe("시점 게이트 분기 1 — 미평가(now < periodEnd) → persist 미호출 + evaluated:false", () => {
     it.each([
-      ["day", "2026-06-01T00:00:00Z", "2026-06-01T23:59:59Z"],
-      ["week", "2026-06-01T00:00:00Z", "2026-06-07T23:59:59Z"],
-      ["month", "2026-06-01T00:00:00Z", "2026-06-30T23:59:59Z"],
+      // periodStart = KST 경계(전일 15:00Z), now = periodEnd 직전(KST 23:59:59).
+      ["day", "2026-05-31T15:00:00Z", "2026-06-01T14:59:59Z"],
+      ["week", "2026-05-31T15:00:00Z", "2026-06-07T14:59:59Z"],
+      ["month", "2026-05-31T15:00:00Z", "2026-06-30T14:59:59Z"],
     ])(
       "%s 진행 중 구간(now < periodEnd) 이면 persistSummary 호출 0, evaluated:false",
       async (period, periodStart, now) => {
@@ -162,10 +165,10 @@ describe("SummaryAggregateOrchestratorService", () => {
 
   describe("시점 게이트 분기 2 — 평가 가능(now ≥ periodEnd, 경계 포함) → persist 위임", () => {
     it.each([
-      // 종료 직후(now == periodEnd) 부터 평가 가능(반열림 [start, end) 경계 포함).
-      ["day", "2026-06-01T00:00:00Z", "2026-06-02T00:00:00Z"],
-      ["week", "2026-06-01T00:00:00Z", "2026-06-08T00:00:00Z"],
-      ["month", "2026-06-01T00:00:00Z", "2026-07-01T00:00:00Z"],
+      // 종료 직후(now == periodEnd, KST 다음 경계 자정) 부터 평가 가능(반열림 경계 포함).
+      ["day", "2026-05-31T15:00:00Z", "2026-06-01T15:00:00Z"],
+      ["week", "2026-05-31T15:00:00Z", "2026-06-07T15:00:00Z"],
+      ["month", "2026-05-31T15:00:00Z", "2026-06-30T15:00:00Z"],
     ])(
       "%s 종료 직후(now == periodEnd) 이면 persistSummary 위임 + evaluated:true",
       async (period, periodStart, now) => {
@@ -192,7 +195,7 @@ describe("SummaryAggregateOrchestratorService", () => {
       async (mode) => {
         const persist = makePersistService();
         const orchestrator = makeOrchestrator(persist);
-        // periodEnd(day) = 2026-06-02T00:00:00Z 이후 → 평가 가능.
+        // periodEnd(day) = 2026-06-01T15:00:00Z 이후 → 평가 가능.
         await orchestrator.evaluateAndPersist(
           context({ period: "day" }),
           [resultFor("u-1")],
@@ -312,7 +315,7 @@ describe("SummaryAggregateOrchestratorService", () => {
         [],
         "fill",
         OPTIONS,
-        // periodEnd(day) = 2026-06-02T00:00:00Z 이전 → 미평가.
+        // periodEnd(day) = 2026-06-01T15:00:00Z (KST 06-02 자정) 이전 → 미평가.
         new Date("2026-06-01T12:00:00Z"),
       );
 

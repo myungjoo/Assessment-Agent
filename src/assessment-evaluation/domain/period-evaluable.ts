@@ -9,21 +9,37 @@
 // 3 — scheduler 자동화 OUT, 새 dep / P7). manual trigger + 본 게이트만으로 aggregate
 // 평가 layer 는 dependency-free 로 완결된다.
 //
-// timezone(Q-0026 의존): "자정" / "다음 주 시작" / "다음 달 시작" 경계는 timezone 에
-// 의존한다(Asia/Seoul 자정 vs UTC 자정은 9 시간 차). 본 함수는 periodStart / now 를
-// **동일 시간 기준(UTC `Date` epoch)** 위에서 산술하며, timezone-aware 경계의 확정은
-// [Q-0026 deferred SinceDerivation](docs/STATE.json)의 timezone 보정 결정과 묶어
-// 진행한다(ADR-0035 §Decision 3 — SinceDerivation 의 period 경계 + 본 자정 경계에 단일
-// timezone 결정을 일관 적용해야 drift 가 없다). 그 전까지 호출자는 periodStart 를
-// 운영 timezone 의 구간 시작 시각으로 정규화해 넘긴다는 계약을 전제한다(default:
-// periodStart 가 이미 올바른 경계 시각으로 주어짐 — 본 함수는 그 위에 +1 granularity
-// 산술만 결정적으로 수행). month 의 가변 일수는 UTC 달력 기준으로 계산한다.
+// timezone(ADR-0039 확정): "자정" / "다음 주 시작" / "다음 달 시작" 경계는 **Asia/Seoul
+// (KST) 기준**이다(ADR-0039 §Decision 3 — (a) 일별 = KST 자정, (b) 주간 = KST 월요일
+// 00:00, (c) 월간 = KST 매월 1 일 00:00, 모두 반열림 `[start, end)`). 입출력 Date 는
+// 전부 UTC instant 그대로 보존한다(ADR-0012 §1 저장 UTC — KST 는 boundary 계산 내부에만
+// 존재). boundary 산술은 본 파일이 직접 수행하지 않고 `src/common/period-boundary.ts`
+// helper 1 곳을 경유한다(ADR-0039 §Decision 5 — boundary 계산 중복 금지, drift 차단).
+// 호출자는 periodStart 를 KST boundary 시각으로 정규화해 넘긴다는 계약(정상 경로)을
+// 전제하며, 비정규 입력은 helper 가 ADR-0039 §Decision 3 boundary 로 snap 한다(아래
+// computePeriodEnd 주석 참조).
 
+import {
+  getKstPeriodRange,
+  type PeriodGranularity as BoundaryGranularity,
+} from "../../common/period-boundary";
 import { VALID_PERIODS } from "../../user/assessment.service";
 
 // PeriodGranularity — day/week/month 의 literal union. `VALID_PERIODS` single source
 // (assessment.service.ts L40, ADR-0035 §Decision 2 granularity 재사용)에서 파생한다.
 export type PeriodGranularity = (typeof VALID_PERIODS)[number];
+
+// domain granularity → helper granularity 매핑. domain 의 "day"/"week"/"month" 는
+// ADR-0006 enum-as-String DB 저장값이라 rename 금지 — helper 의 "daily"/"weekly"/
+// "monthly" 와 식별자가 달라 본 매핑 상수로 변환한다(매핑 책임은 domain 쪽, T-0357).
+const PERIOD_TO_BOUNDARY_GRANULARITY: Record<
+  PeriodGranularity,
+  BoundaryGranularity
+> = {
+  day: "daily",
+  week: "weekly",
+  month: "monthly",
+};
 
 // isValidPeriod — 임의 string 이 허용 granularity 집합 멤버인지 판정하는 순수
 // type-guard. 알 수 없는 period 의 조기 reject(throw) 근거.
@@ -31,39 +47,25 @@ export function isValidPeriod(value: string): value is PeriodGranularity {
   return (VALID_PERIODS as readonly string[]).includes(value);
 }
 
-// computePeriodEnd — periodStart 에 1 granularity 를 더한 구간 종료 시각(반열림
-// `[start, end)` 의 end)을 결정적으로 산출하는 순수 함수(ADR-0035 §Decision 3).
-//   - day   = periodStart + 1 일(= 다음 날 자정)
-//   - week  = periodStart + 7 일(= 다음 주 동일 요일 시각)
-//   - month = periodStart + 1 달력 month(28~31 일 가변)
-// month 는 `setUTCMonth` 로 달력 기준 더하기를 수행한다 — 1/31 + 1month 같은 day
-// overflow 시 JS Date 가 자동 정규화하므로(2/31 부재 → 3/2/3) 그 동작에 의존하지 않게
-// **연·월만 증가시키고 일은 1 일로 정규화**하지 않는다. periodStart 는 구간 시작
-// 경계(예: 월초 자정)로 주어진다는 계약 전제하에 setUTCMonth 가 정확히 다음 달 동일
-// 일·시각을 가리킨다(월초 → 다음 월초). 알 수 없는 period 는 throw.
+// computePeriodEnd — periodStart 가 **속한** KST period 의 종료 시각(반열림
+// `[start, end)` 의 end)을 `getKstPeriodRange` 위임으로 산출한다(ADR-0039 §Decision 3).
+//   - day   = periodStart 가 속한 KST 달력일의 다음 KST 자정
+//   - week  = periodStart 가 속한 KST 주(월요일 anchor)의 다음 KST 월요일 자정
+//   - month = periodStart 가 속한 KST 월의 다음 월 1 일 KST 자정(28~31 일 가변)
+// KST boundary 로 정규화된 입력(계약상 정상 경로)에는 기존 +1 granularity 와 동치이고,
+// 비정규 입력은 §Decision 3 boundary 로 snap 된다(week 의 옛 "임의 요일 +7 일" 의미는
+// ADR 위반이라 폐기). 자체 setUTCDate/setUTCMonth 달력 산술은 제거 — 특히 옛
+// setUTCMonth(+1) 은 KST 월초 입력(= 직전 UTC 월 말일 15:00Z)에서 day overflow 로
+// 한 달 +1 일 drift 를 내던 실결함이었다(T-0357 regression test 박제). 알 수 없는
+// period 는 throw, Invalid Date 는 helper 의 명시적 TypeError 가 전파된다.
 export function computePeriodEnd(period: string, periodStart: Date): Date {
   if (!isValidPeriod(period)) {
     throw new Error(
       `알 수 없는 period: "${period}" (허용: ${VALID_PERIODS.join("/")})`,
     );
   }
-  // periodStart 를 mutate 하지 않도록 복제(입력 invariance, 순수성 보존).
-  const end = new Date(periodStart.getTime());
-  switch (period) {
-    case "day":
-      end.setUTCDate(end.getUTCDate() + 1);
-      break;
-    case "week":
-      end.setUTCDate(end.getUTCDate() + 7);
-      break;
-    case "month":
-      // 달력 month 더하기 — 가변 일수(28~31)는 setUTCMonth 가 달력 기준으로 처리.
-      // 예: 1/1 → 2/1, 1/31 → (2/31 부재) JS 정규화로 3/3 이 아니라 월초 입력 계약상
-      // 월초 → 다음 월초로만 쓰이므로 day overflow 가 발생하지 않는다.
-      end.setUTCMonth(end.getUTCMonth() + 1);
-      break;
-  }
-  return end;
+  return getKstPeriodRange(PERIOD_TO_BOUNDARY_GRANULARITY[period], periodStart)
+    .end;
 }
 
 // isPeriodEvaluable — 평가 대상 구간이 완전히 종료됐는지(`now ≥ periodEnd`) 판정하는
@@ -74,7 +76,7 @@ export function computePeriodEnd(period: string, periodStart: Date): Date {
 // 알 수 없는 period 는 computePeriodEnd 가 throw(R-112 error path).
 //
 // @param period      "day" / "week" / "month" granularity.
-// @param periodStart 구간 시작 시각(운영 timezone 경계로 정규화돼 주어짐 — 위 timezone
+// @param periodStart 구간 시작 시각(KST boundary 로 정규화돼 주어짐 — 위 timezone
 //                    주석 참조).
 // @param now         판정 기준 현재 시각(주입 — 테스트 가능성·결정성).
 // @returns now ≥ periodEnd 면 true.
