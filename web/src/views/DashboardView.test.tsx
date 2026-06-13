@@ -740,6 +740,107 @@ describe('DashboardView — 페이지네이션 배선 (③b-3)', () => {
   });
 });
 
+// R-78 평가 진행 중 경고 배너 식별 토큰 — EvaluationGuardBanner 의 DEFAULT_MESSAGE 와 정합.
+// 컨테이너 배선만 검증하므로 배너 단독 동작(EvaluationGuardBanner.test.tsx)을 중복하지 않고,
+// "active 가 evaluationActive props 로 controlled lift-up 되어 상단에 노출되는가"만 단언한다.
+const GUARD_DEFAULT_TOKEN = '평가가 진행 중';
+
+describe('DashboardView — R-78 평가 진행 중 경고 배너 배선 (⑤)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — personId 주입 + evaluationActive=true 면 자료 영역 위에 경고 배너
+  // (role="alert" + 기본 문구)가 노출된다(controlled lift-up).
+  it('personId 선택 + active=true 면 경고 배너(role="alert"/기본 문구)를 상단에 렌더한다 (happy-path)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" evaluationActive={true} />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain(GUARD_DEFAULT_TOKEN);
+    // 배너가 자료 영역(요약 카드)보다 앞(최상단)에 위치한다 — markup 순서로 단언.
+    expect(html.indexOf('role="alert"')).toBeLessThan(html.indexOf('평가 건수'));
+    // 평가 진행 중이어도 기존 자료는 그대로 노출(자료를 가리지 않음).
+    expect(html).toContain('김철수');
+  });
+
+  // error/negative — evaluationActive 미주입(기본 false)이면 배너 미노출(자료 화면 미차단).
+  it('active 미주입(기본 false)이면 경고 배너를 렌더하지 않는다 (negative — 자료 미차단)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    // 배너 미노출 — role="alert" 는 데이터 alert 가 없는 한 등장하지 않는다(여기선 정상 데이터).
+    expect(html).not.toContain('role="alert"');
+    expect(html).not.toContain(GUARD_DEFAULT_TOKEN);
+    // 자료는 정상 노출.
+    expect(html).toContain('김철수');
+  });
+
+  // negative — evaluationActive=false 명시 + message 동시 주입이어도 배너 미노출(active 우선).
+  it('active=false + message 주입이어도 배너를 렌더하지 않는다 (negative — active 우선)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(
+      <DashboardView
+        personId="p1"
+        evaluationActive={false}
+        evaluationMessage="무시되어야 할 문구"
+      />,
+    );
+    expect(html).not.toContain('role="alert"');
+    expect(html).not.toContain('무시되어야 할 문구');
+  });
+
+  // branch (1) — personId 선택 + active=true 에서 배너 상단 노출(위 happy-path 와 별개로
+  // custom message override 가 그대로 내려가는 controlled lift-up 도 함께 확인).
+  it('personId 선택 + active=true + custom message 면 custom 문구가 상단에 내려간다 (branch — 선택 분기)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined });
+    const custom = '시스템 점검으로 일부 자료가 지연됩니다.';
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" evaluationActive={true} evaluationMessage={custom} />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain(custom);
+    expect(html).not.toContain(GUARD_DEFAULT_TOKEN); // custom 이 기본 문구를 대체.
+    expect(html.indexOf('role="alert"')).toBeLessThan(html.indexOf('평가 건수'));
+  });
+
+  // branch (2) — personId 미선택 + active=true 에서도 배너가 상단에 노출된다(평가 진행 중이면
+  // 대상 미선택이어도 경고가 보여야 한다 — 미선택 분기 배선 검증).
+  it('personId 미선택 + active=true 면 안내 문구 위에 경고 배너를 노출한다 (branch — 미선택 분기)', () => {
+    setResource({ data: undefined, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView evaluationActive={true} />);
+    expect(html).toContain('role="alert"');
+    expect(html).toContain(GUARD_DEFAULT_TOKEN);
+    // 안내 문구(NO_PERSON_TEXT)는 여전히 노출되고, 배너가 그보다 앞(상단)에 위치한다.
+    expect(html).toContain('평가 대상을 선택하면');
+    expect(html.indexOf('role="alert"')).toBeLessThan(
+      html.indexOf('평가 대상을 선택하면'),
+    );
+  });
+
+  // negative — active=true + 빈 message 면 컴포넌트가 기본 문구로 fallback 한다(빈 배너 방지).
+  it('active=true + 빈 message 면 기본 문구로 fallback 한다 (negative — 경계값)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" evaluationActive={true} evaluationMessage="" />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain(GUARD_DEFAULT_TOKEN);
+  });
+
+  // negative — personId 미선택 + active=false 면 안내 문구만, 배너 부재(미선택 분기 배너 가드).
+  it('personId 미선택 + active=false 면 안내 문구만 렌더하고 배너는 부재한다 (negative — 미선택+비활성)', () => {
+    setResource({ data: undefined, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView />);
+    expect(html).toContain('평가 대상을 선택하면');
+    expect(html).not.toContain('role="alert"');
+    expect(html).not.toContain(GUARD_DEFAULT_TOKEN);
+  });
+});
+
 describe('DashboardView — pageRows 파생 (순수 함수)', () => {
   const ROWS = Array.from({ length: 12 }, (_, i) => ({ id: i + 1 }));
 

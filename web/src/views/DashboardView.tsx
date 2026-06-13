@@ -29,6 +29,7 @@ import EvaluationDetailPanel from '../components/EvaluationDetailPanel';
 import type { EvaluationMetricItem } from '../components/EvaluationDetailPanel';
 import DashboardPaginationControl from '../components/DashboardPaginationControl';
 import type { DashboardPaginationControlProps } from '../components/DashboardPaginationControl';
+import EvaluationGuardBanner from '../components/EvaluationGuardBanner';
 
 // 정렬 가능 컬럼 옵션 — EvaluationResultTable/DashboardFilterBar 의 컬럼 키와 정합.
 const SORT_OPTIONS: SortOption[] = [
@@ -71,6 +72,13 @@ interface DashboardViewProps {
   // 렌더로 페이지 slice/clamp 분기를 검증할 수 있도록 주입 허용한다(③b-3 페이지네이션).
   initialPage?: number;
   initialPageSize?: number;
+  // R-78 평가 진행 중 시각화 보호(⑤, ADR-0041 controlled lift-up) — 평가 진행 상태를
+  // 컨테이너가 직접 파생하지 않고 props 로 주입받아 EvaluationGuardBanner 의 active/message
+  // 로 그대로 내려보낸다. evaluationActive 기본 false(평소엔 배너 미노출). backend 실행-상태
+  // 계약 미shipped 라 자동 polling 파생은 Out of Scope(Follow-up). evaluationMessage 미주입/
+  // 빈 문자열이면 배너가 기본 문구로 fallback 한다.
+  evaluationActive?: boolean;
+  evaluationMessage?: string;
 }
 
 // personId/period → 조회 path 파생(순수 함수). personId 가 falsy 면 null 반환(조회
@@ -324,6 +332,8 @@ function DashboardView({
   initialSelectedId = '',
   initialPage = 1,
   initialPageSize = DEFAULT_PAGE_SIZE,
+  evaluationActive = false,
+  evaluationMessage,
 }: DashboardViewProps) {
   // 정렬/필터/검색 상태 — controlled lift-up(컨테이너 소유).
   const [sortKey, setSortKey] = useState<SortKey>(initialSortKey);
@@ -467,10 +477,16 @@ function DashboardView({
     setCurrentPage(1);
   };
 
-  // personId 미선택 분기 — 조회 미수행 안내만 렌더한다(api.md 400 회피 가드).
+  // personId 미선택 분기 — 조회 미수행 안내만 렌더한다(api.md 400 회피 가드). R-78 배너는
+  // 자료 영역 위 최상단에 노출한다 — 평가 진행 중이면 대상 미선택이어도 경고가 보여야 한다
+  // (controlled lift-up: active 는 evaluationActive props 에서 주입, 컨테이너 미파생).
   if (!personId) {
     return (
       <section aria-label="대시보드">
+        <EvaluationGuardBanner
+          active={evaluationActive}
+          message={evaluationMessage}
+        />
         <p>{NO_PERSON_TEXT}</p>
       </section>
     );
@@ -478,6 +494,14 @@ function DashboardView({
 
   return (
     <section aria-label="대시보드">
+      {/* R-78 평가 진행 중 경고 배너 — section 최상단(자료 영역 위, MetricSummaryCards 보다
+          앞)에 렌더해 기존 자료를 가리지 않고 상단에 경고만 띄운다(ADR-0041 controlled
+          lift-up). active/message 는 컨테이너가 파생하지 않고 props 를 그대로 내려보낸다 —
+          EvaluationGuardBanner 자체 수정 0(배선만). active=false 면 컴포넌트가 null 반환. */}
+      <EvaluationGuardBanner
+        active={evaluationActive}
+        message={evaluationMessage}
+      />
       {/* 상단 요약 지표 — 파생 metrics/loading/error 를 props 로만 내려보낸다. */}
       <MetricSummaryCards metrics={metrics} loading={loading} error={error} />
       {/* 필터/정렬 툴바 — 검색/정렬 상태와 콜백을 props 로 배선한다. */}
