@@ -2,8 +2,11 @@
 id: T-0363
 title: P6 frontend UI slice 3 — 평가 결과 조회 테이블 presentational 컴포넌트 (web/src/components/EvaluationResultTable.tsx)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 295
+completedAt: 2026-06-13T07:24:00Z
+mergeCommit: 7fff5c9
 coversReq: [REQ-038, REQ-046]
 estimatedDiff: 150
 estimatedFiles: 2
