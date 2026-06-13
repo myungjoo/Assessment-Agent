@@ -2,7 +2,10 @@
 id: T-0376
 title: P6 frontend composition-wiring 전환 ADR — App.tsx 조립·라우팅·data-fetch 경계·non-parallel claim shape 박제 (ADR-0041)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-06-13T13:20:00Z
+prNumber: 308
+mergedCommit: 8827c09
 commitMode: pr
 coversReq: [REQ-038, REQ-042, REQ-048]
 estimatedDiff: 240

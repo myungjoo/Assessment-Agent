@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0376",
-  "backlogNote": "**[INFLECTION] presentational 분해 완료 — T-0376(ADR-0041) QUEUED (pr-mode, ~2파일 doc, 코드 0 LOC)**. P6 frontend UI stream 이 15개 순수 presentational 컴포넌트(T-0361~T-0375: Banner/LoginForm/ResultTable/ModelSelector/SetupForm/MemberList/ReEvalPanel/ImportExportPanel/SchedulePanel/DashboardFilterBar/TrendTimeSeriesPanel/PaginationControl/MetricSummaryCards/ScoreDistributionChart/EvaluationDetailPanel)로 P6 PLAN 4 bullet 의 props 표면 전부 박제 완료. planner OPTION B 판정: 추가 standalone presentational fragment(stepper/dialog/toast)는 genuine REQ backing 0 → contrived 라 강행 금지. **다음 단계 = App.tsx composition wiring(컴포넌트 조립·라우팅·layout·data-fetch 경계) — 이는 shared-file·non-parallel stream 이라 ADR-0036 §Decision0 file-disjoint claim 조건을 깨므로(claim shape 변경) deliberate ADR-0041 선행 필요.** T-0376 = ADR-0041 작성(조립 전략·라우팅 접근·data-fetch 경계·non-parallel claim shape 명문화). **주의: composition wiring 구현은 router 등 새 dep 가능성 → 그 단계는 §5 new-dep BLOCKED gate 대상(사용자 승인). ADR-0041 자체는 결정 제안이라 autonomous 가능.** **다음 fire: T-0376 execute(pr-mode, architect ADR-0041).** **게이트된 backlog**: T-0355 ci.yml workflow-scope credential + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
+  "nextTask": null,
+  "backlogNote": "**[INFLECTION 완결] presentational 분해 → composition-wiring 전환 ADR 박제 완료**. T-0376 (ADR-0041 PROPOSED, pr-mode PR #308 squash 8827c09) — App.tsx 조립(AppShell→인증게이트→화면컨테이너→presentational controlled lift-up) · 무라우터 state-view 라우팅(react-router deferred §5-gated 제안) · native fetch hook data-fetch 경계(JWT cookie 자동 + 401→refresh + loading/error props) · R-78 보호 배선(전역 evaluationInProgress + EvaluationGuardBanner 토글) · concurrency claim shape 전환(file-disjoint 불성립 → single-claim 순차 stream) 5 결정 박제. PLAN P6 5번째 bullet 로 wiring 진입점 한 줄 박제. 본 closeout 은 cron@cloud-T0376a 가 race 후 직전 PR-308 merge 를 인지해 closeout-only direct commit 으로 마무리. **다음 단계 = planner 가 (a) ADR-0041 ACCEPTED flip 별도 direct 한 줄 task → (b) wiring task chain 큐잉(AppShell · 라우팅+AuthGate · LoginScreen/SuperAdminSetupScreen · DashboardScreen · AdminScreen · EvaluationStatusProvider — 직렬 dependsOn) 진행.** **게이트된 backlog (불변)**: T-0355 ci.yml workflow-scope credential + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-13T12:59:38Z",
-    "note": "loop vb707106 t7 — free lock(claims []·tombstone) → validate-claim-candidate T-0375 PASS → select-claim T-0375(EvaluationDetailPanel pr-mode, server-time 12:47:27Z) → lock-free execute(web vitest 27신규/260 green, tsc strict+build green) → claim prNumber=307 PR_OPEN → PR #307 reviewer APPROVE r1/7(MINOR 1 머지무관) → CI first-pass green(run 27467287993) → integrator 4-게이트 PASS(mergeStateStatus CLEAN) → squash d24c54c --delete-branch. closeout 후 claims.json T-0375 제거. **planner OPTION B 판정: presentational 분해 소진(15 컴포넌트) → T-0376(ADR-0041 composition-wiring 전환) 큐잉.** STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-T0376a",
+    "since": "2026-06-13T13:20:00Z",
+    "note": "cron@cloud-T0376a — free lock(claims []·tombstone) 획득 후 T-0376 execute 시도 → main rebase 단계에서 직전 PR-308(8827c09) merge 감지(다른 driver 진입점이 같은 task 를 pr-mode 로 완결). race 인지 후 my work reset → closeout-only direct commit(STATE/task/journal 만 갱신)으로 적용. ADR-0041 본문은 origin/main 의 다른 driver 버전(125 LOC, no-router + native fetch)이 권위 — 본 cron@cloud-T0376a 의 별도 draft(190 LOC, react-router 제안 + ADR-0036 stage5b 더 자세 함축)는 후속 ACCEPTED flip 또는 보강 task 가 필요하면 참조용으로 git reflog 에 남아있음. STATE.lock mirror 비권위 — 권위는 claude/lock-driver branch tip lock.json."
   },
-  "lastActivity": "2026-06-13T12:59:38Z",
-  "lastCommit": "d24c54c",
+  "lastActivity": "2026-06-13T13:20:00Z",
+  "lastCommit": "8827c09",
   "mostRecentTasks": [
+    "T-0376",
     "T-0375",
     "T-0374",
     "T-0373",
-    "T-0372",
-    "T-0371"
+    "T-0372"
   ],
   "loopSession": {
     "turnCount": 7,
@@ -704,7 +704,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 370,
+    "tasksCompleted": 371,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
