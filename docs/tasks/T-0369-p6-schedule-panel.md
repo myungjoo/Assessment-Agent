@@ -2,7 +2,11 @@
 id: T-0369
 title: P6 frontend UI slice 9 — 스케줄 설정 패널 presentational 컴포넌트 (web/src/components/SchedulePanel.tsx)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-06-13T10:53:06Z
+mergedAs: 45957e3
+prNumber: 301
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-072, REQ-073]
 estimatedDiff: 165
