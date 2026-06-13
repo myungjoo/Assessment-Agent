@@ -2,8 +2,11 @@
 id: T-0365
 title: P6 SuperAdmin 초기 셋업 폼 presentational 컴포넌트
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 297
+completedAt: 2026-06-13T08:28:00Z
+mergeCommit: 4c23f94
 coversReq: [REQ-084]
 estimatedDiff: 150
 estimatedFiles: 2
