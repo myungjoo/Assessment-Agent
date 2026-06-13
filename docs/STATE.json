@@ -7,37 +7,38 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0361",
-  "backlogNote": "**Q-0037 RESOLVED (2026-06-13, user /loop vb707106 t1 — 옵션 2: P6 frontend 진입)** — 사용자가 dependency-free P5 소진 후 다음 방향으로 P6 frontend UI 작업을 지시. planner 가 첫 UI slice T-0361(R-78 평가 진행 중 경고 배너 EvaluationGuardBanner.tsx, pr-mode, est 110 LOC·2파일) 큐잉 — scaffold(T-0353 workspace+Vite SPA / T-0354 serve-static WebModule) 후 첫 UI 컴포넌트. dependency-free(dependsOn T-0353), 새 dep 0, .github/workflows 무관(BLOCKED T-0355 credential 회피), spec-presence `*.ts` gate 밖(.tsx). 다음 fire 는 T-0361 execute(pr-mode). **여전히 게이트된 backlog**(P6 진행과 병행 대기): T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 30일 dogfood+측정 / Q-0026 timezone(boundary math 부재라 cosmetic) / web vitest threshold(T-0355 뒤) / P7 scheduler.",
+  "nextTask": null,
+  "backlogNote": "**T-0361 DONE (P6 frontend UI slice 1, PR #293 squash cdea958, round 1/7 first-pass green)** — R-78 평가 진행 중 경고 배너 EvaluationGuardBanner.tsx 신설(props active/message, active=false→null, 빈 message→기본문구 fallback, role=alert). 순수 presentational, 새 dep 0, web vitest 5 test(R-112). Q-0037(user: P6 frontend) 후 첫 UI 컴포넌트. **다음 fire: planner** 가 다음 P6 UI slice 분해(예: 실행 상태 표시 / App.tsx wiring / 평가 결과 view 등 — dependency-free·ci.yml 무관 우선). **여전히 게이트된 backlog**(P6 UI 와 병행 대기): T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 30일 dogfood+측정 / Q-0026 timezone(boundary math 부재라 cosmetic) / P7 scheduler.",
   "lock": {
     "holder": "loop",
     "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-13T06:03:00Z",
-    "note": "/loop vb707106 t1 — 사용자 현장(turn cap 10). Q-0037 RESOLVE(옵션 2: P6 frontend) + planner T-0361 큐잉 critical section. 권위 lock CAS 획득(claude/lock-driver 4a1bb18→b225b90, holder=loop). rebase 중 cron 06:04Z heartbeat(b5e1a83) 와 lock-mirror 충돌 → 본 loop 권위 holder 우선(cron mirror 는 stale no-op, Q-0037 OPEN 으로 오판). STATE.lock mirror 는 비권위(ADR-0009/0028) — 권위는 branch tip lock.json(holder=loop)."
+    "since": "2026-06-13T06:31:00Z",
+    "note": "/loop vb707106 t2 — T-0361 PR #293 MERGED(squash cdea958) 후 bookkeeping critical section. claim+release 모델: t2 시작 시 select-claim 으로 T-0361 claim(lock tombstone release) → lock-free implement/test/PR/CI → merge 후 본 critical section 재획득(3533401). 본 commit push 후 tombstone release + claim 제거 예정. STATE.lock mirror 는 비권위(ADR-0009/0028) — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-13T06:03:00Z",
-  "lastCommit": "b5e1a83",
+  "lastActivity": "2026-06-13T06:31:00Z",
+  "lastCommit": "cdea958",
   "mostRecentTasks": [
+    "T-0361",
     "T-0360",
     "T-0359",
     "T-0358",
-    "T-0357",
-    "T-0356"
+    "T-0357"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-vb707106",
     "startedAt": "2026-06-13T06:03:00Z",
     "endedAt": null,
-    "note": "/loop session vb707106 (dynamic, turn cap 10) t1 — 사용자 현장. Q-0037(needs-human-direction, dependency-free P5 소진 escalate)을 AskUserQuestion 으로 사용자에게 제시 → 사용자 '옵션 2: P6 frontend 진입' 선택. Q-0037 RESOLVED + planner 가 첫 P6 UI slice T-0361(EvaluationGuardBanner.tsx) 큐잉. 다음 t2 는 T-0361 execute(pr-mode). 직전 vb707 session 은 cap 10 종료(KST chain 1~2/5)."
+    "note": "/loop session vb707106 (dynamic, turn cap 10) t2 — T-0361 실행 완결. t1: Q-0037 RESOLVE(user: P6 frontend) + planner T-0361 큐잉. t2: claim T-0361(lock-free) → implementer(EvaluationGuardBanner.tsx) → tester(5 test, root 6977 pass) → PR #293 → reviewer APPROVE round 1/7 → CI first-pass green(run 27459041794) → integrator 4-gate PASS → squash merge cdea958. tasksCompleted 355→356. 사고 0. 다음 t3: planner 가 다음 P6 UI slice 분해."
   },
   "ci": {
-    "lastRun": "2026-06-12T20:04:52Z",
+    "lastRun": "2026-06-13T06:26:22Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27440293446",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27459041794",
+    "noteT0361": "PR #293(T-0361) head 7c07fa0 pull_request run 27459041794 = first-pass green 전 step(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer approve comment 가 approval-step 실행 전 landing, rerun 불요, benignRedNote case A 미해당). web vitest 는 아직 ci.yml 미배선(T-0355 Follow-up) — 본 PR 의 web .test.tsx 5건은 로컬 tester 실행으로만 검증, CI gate 미진입(reviewer NOTE). squash cdea958 main push run 은 다음 fire 재확인(web-only/squash trivially green 예상).",
     "noteT0360": "PR #292(T-0360) head 614f2c5 pull_request run 27440293446 = 전 step green(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer comment 가 approval-step 실행 전 landing, first-pass green, rerun 불요). squash 491c28f main push run 은 다음 fire 재확인(formatter pure-function, doc/squash trivially green 예상).",
     "noteT0358": "PR #290(T-0358) round 2 head 978171a pull_request run 27436755377 = 전 step green(lint/build/prisma/test+cov/smoke/e2e + approval-gate — reviewer comment 가 approval-step 실행 전 landing, first-pass green, rerun 불요). round 1 head c4cc913 는 e2e regression(admin-persist e2e 가 raw periodStart 단언)으로 실 e2e step fail → benign 아닌 실회귀, round 2 978171a 에서 snap 좌표 정정 후 green. squash e10a747 main push run 은 다음 fire 재확인(doc-only/squash trivially green 예상).",
     "noteT0357": "PR #289(T-0357) head c340600 pull_request run 27432466745 = approval-gate 단독 fail(case A) rerun 후 전 step success. squash 30486c3 main push run + t8 사고박제 1714366 + t9 ff71d5d + t10 closeout push run 은 다음 driver 진입점에서 재확인.",
@@ -53,6 +54,7 @@
     "noteT0359": "PR #291(T-0359) head 45df1bd pull_request run 27439004157 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요, benignRedNote case A 미해당). 전 step green(lint/build/prisma/test+cov 3042 pass cov 99.96%/100% + smoke/e2e + approval-gate). squash b68822c main push run(19:48:29Z in_progress)은 다음 fire 재확인(squash trivially green 예상)."
   },
   "reviewRounds": {
+    "T-0361": 1,
     "T-0360": 1,
     "T-0358": 2,
     "T-0357": 1,
@@ -675,7 +677,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 355,
+    "tasksCompleted": 356,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

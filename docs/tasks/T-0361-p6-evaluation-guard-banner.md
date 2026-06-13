@@ -2,8 +2,11 @@
 id: T-0361
 title: P6 frontend UI slice 1 — R-78 평가 진행 중 경고 배너 컴포넌트 (web/src/components/EvaluationGuardBanner.tsx)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 293
+completedAt: 2026-06-13T06:31:03Z
+mergeCommit: cdea958
 coversReq: [REQ-042, REQ-038]
 estimatedDiff: 110
 estimatedFiles: 2
