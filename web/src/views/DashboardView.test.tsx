@@ -25,6 +25,7 @@ import DashboardView, {
   deriveScoreBuckets,
   buildContributionsPath,
   deriveContributionMetrics,
+  pageRows,
 } from './DashboardView';
 import type { SummaryRow, ContributionRow } from './DashboardView';
 import type { EvaluationResultRow } from '../components/EvaluationResultTable';
@@ -569,5 +570,218 @@ describe('DashboardView — 평가 상세 파생 (순수 함수)', () => {
     expect(metrics[0]).toMatchObject({ id: 'x', label: '지표 미상', score: 0 });
     expect(metrics[1]).toMatchObject({ id: 'y', label: '협업', score: 0 });
     expect(metrics[2]).toMatchObject({ id: 'z', label: '지표 미상', score: 5 });
+  });
+});
+
+// 페이지네이션 검증용 12 건 샘플 — pageSize 10 기본에서 2 페이지로 나뉘도록 한다.
+// score 를 12..1 로 내림차순 부여해 기본 정렬(score desc)에서 id 순서가 예측 가능하다.
+const PAGED_SAMPLE: EvaluationResultRow[] = Array.from({ length: 12 }, (_, i) => ({
+  id: `r${i + 1}`,
+  subjectName: `대상${i + 1}`,
+  metricLabel: '협업',
+  score: 12 - i,
+}));
+
+describe('DashboardView — 페이지네이션 배선 (③b-3)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — visibleRows 가 pageSize 초과 시 현재 페이지 row 만 테이블에 렌더되고
+  // 페이지네이션 컨트롤이 현재/전체 페이지 표식 + 전체 항목 수를 정확히 표시한다.
+  it('pageSize 초과 시 현재 페이지 row 만 렌더하고 페이지 표식/전체 건수를 표시한다 (happy-path)', () => {
+    setResources3({
+      assessments: { data: PAGED_SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: IDLE,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    // 기본 pageSize 10 → 1페이지에 score 12..3(대상1..대상10) 만, 대상11/대상12 는 다음 페이지.
+    // 결과 테이블 셀(<td>대상N</td>)만 검사한다 — 선택 <select> 옵션은 전체 visibleRows 를
+    // 노출하므로(설계상 의도) 전체 HTML substring 으로는 페이지 slice 를 검증할 수 없다.
+    expect(html).toContain('<td>대상1</td>');
+    expect(html).toContain('<td>대상10</td>');
+    expect(html).not.toContain('<td>대상11</td>');
+    expect(html).not.toContain('<td>대상12</td>');
+    // 현재/전체 페이지 표식 "1 / 2 페이지" + 전체 항목 수(12건, slice 전 visibleRows.length).
+    expect(html).toContain('1 / 2 페이지');
+    expect(html).toContain('12건');
+  });
+
+  // error path — assessments loading 중 페이지네이션 컨트롤이 진행 표시(컨트롤 미렌더).
+  it('assessments loading 이면 페이지네이션 컨트롤이 진행 표시를 렌더한다 (error path — loading)', () => {
+    setResources3({
+      assessments: { data: undefined, loading: true, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: IDLE,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('불러오는 중…');
+    expect(html).toContain('role="status"');
+    // 진행 중이면 이전/다음 버튼(페이지 컨트롤)은 미렌더 — 조작 중복 차단.
+    expect(html).not.toContain('aria-label="이전 페이지"');
+  });
+
+  // error path/empty — 빈 결과(visibleRows 0건)면 페이지네이션이 totalPages 1·빈 테이블로 안전.
+  it('빈 결과면 totalPages 1 + 빈 테이블로 안전 표시한다 (error path — empty)', () => {
+    setResources3({
+      assessments: { data: [], loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: IDLE,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    // 결과 테이블은 빈 상태 문구(평가 결과 row 0건) — 결과 테이블 셀(<td>대상…) 미렌더.
+    expect(html).toContain('표시할 평가 결과가 없습니다');
+    expect(html).not.toContain('<td>대상');
+    // 빈 결과여도 totalPages 는 최소 1 — "1 / 1 페이지" + 0건.
+    expect(html).toContain('1 / 1 페이지');
+    expect(html).toContain('0건');
+  });
+
+  // flow/branch — initialPage=2 면 두 번째 페이지 row slice 가 렌더된다.
+  it('initialPage=2 면 두 번째 페이지 row 가 렌더된다 (branch — page 2)', () => {
+    setResources3({
+      assessments: { data: PAGED_SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: IDLE,
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" initialPage={2} />,
+    );
+    // 2페이지(pageSize 10) → 대상11/대상12 만, 대상1 은 1페이지라 결과 테이블에 미렌더.
+    expect(html).toContain('<td>대상11</td>');
+    expect(html).toContain('<td>대상12</td>');
+    expect(html).not.toContain('<td>대상1</td>'); // 1페이지 row 는 셀에 미렌더.
+    expect(html).toContain('2 / 2 페이지');
+  });
+
+  // flow/branch — initialPageSize 가 다르면 slice 폭이 달라진다(pageSize 5 → 3페이지).
+  it('initialPageSize 가 다르면 slice 폭/전체 페이지 수가 달라진다 (branch — pageSize)', () => {
+    setResources3({
+      assessments: { data: PAGED_SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: IDLE,
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" initialPageSize={5} />,
+    );
+    // pageSize 5 → 1페이지 대상1..대상5 만, 대상6 은 다음 페이지. 전체 12/5 → 3페이지.
+    expect(html).toContain('<td>대상5</td>');
+    expect(html).not.toContain('<td>대상6</td>');
+    expect(html).toContain('1 / 3 페이지');
+  });
+
+  // flow/branch — currentPage 가 totalPages 초과 시 마지막 페이지로 clamp(빈 페이지 미표시).
+  it('currentPage 가 totalPages 초과면 마지막 페이지로 clamp 한다 (branch — clamp)', () => {
+    setResources3({
+      assessments: { data: PAGED_SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: IDLE,
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" initialPage={99} />,
+    );
+    // page 99 는 totalPages(2)로 clamp → 마지막 페이지 row(대상11/대상12) 렌더 + "2 / 2 페이지".
+    expect(html).toContain('2 / 2 페이지');
+    expect(html).toContain('<td>대상11</td>');
+    expect(html).not.toContain('표시할 평가 결과가 없습니다'); // 빈 페이지 아님.
+  });
+
+  // negative — 페이지네이션 slice 가 정렬/필터/시계열/분포/상세 배선을 깨지 않는다.
+  it('페이지 slicing 이 시계열/분포/상세 패널 배선을 깨지 않는다 (negative — 오염 차단)', () => {
+    setResources3({
+      assessments: { data: PAGED_SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: { data: CONTRIBUTION_SAMPLE, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" period="2026년 6월" initialSelectedId="r1" />,
+    );
+    // 시계열/분포/상세 패널이 페이지네이션 추가 후에도 정상 렌더.
+    expect(html).toContain('점수 추이');
+    expect(html).toContain('점수 분포');
+    expect(html).toContain('평가 상세');
+    expect(html).toContain('코드 품질');
+    expect(html).toContain('1 / 2 페이지');
+  });
+
+  // negative — selectedId 가 현재 페이지 밖이어도 상세 패널이 깨지지 않는다(select 는 전체
+  // visibleRows 노출, selectedRow 조회도 visibleRows 기준). r12 는 2페이지지만 1페이지 표시.
+  it('selectedId 가 현재 페이지 밖이어도 상세 패널이 정상 동작한다 (negative — 선택 일관성)', () => {
+    setResources3({
+      assessments: { data: PAGED_SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: { data: CONTRIBUTION_SAMPLE, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" initialPage={1} initialSelectedId="r12" />,
+    );
+    // 1페이지엔 대상12(r12) 가 없지만, select 옵션은 전체 visibleRows 라 r12 옵션 노출 +
+    // 상세 패널은 visibleRows 기준 selectedRow(대상12) 헤더로 정상 렌더(깨지지 않음).
+    expect(html).toContain('대상12');
+    expect(html).toContain('평가 상세');
+    expect(html).toContain('코드 품질');
+  });
+
+  // personId 미선택 분기 — 페이지네이션 컨트롤·테이블 미렌더(NO_PERSON_TEXT 만).
+  it('personId 미선택 시 페이지네이션 컨트롤도 미렌더한다 (조건부 조회)', () => {
+    setResources3({
+      assessments: IDLE,
+      summaries: IDLE,
+      contributions: IDLE,
+    });
+    const html = renderToStaticMarkup(<DashboardView />);
+    expect(html).toContain('평가 대상을 선택하면');
+    expect(html).not.toContain('페이지');
+    expect(html).not.toContain('aria-label="이전 페이지"');
+  });
+});
+
+describe('DashboardView — pageRows 파생 (순수 함수)', () => {
+  const ROWS = Array.from({ length: 12 }, (_, i) => ({ id: i + 1 }));
+
+  // happy-path — page/pageSize 정상 입력이면 해당 slice 를 반환한다.
+  it('정상 입력이면 (page, pageSize) slice 를 반환한다 (happy-path)', () => {
+    expect(pageRows(ROWS, 1, 10).map((r) => r.id)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    ]);
+    // 2페이지 → 나머지 2건.
+    expect(pageRows(ROWS, 2, 10).map((r) => r.id)).toEqual([11, 12]);
+    // pageSize 5 → 1페이지 5건.
+    expect(pageRows(ROWS, 1, 5).map((r) => r.id)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  // flow/branch — 범위 밖(존재하지 않는 페이지)은 빈 slice 를 반환한다(throw 없이).
+  it('범위 밖 페이지는 빈 slice 를 반환한다 (branch — out of range)', () => {
+    expect(pageRows(ROWS, 5, 10)).toEqual([]); // 페이지 5 는 데이터 없음.
+  });
+
+  // negative — page/pageSize 비정상(0·음수·NaN·정수 아님)은 안전 fallback(throw/NaN 인덱스 없음).
+  it('비정상 page/pageSize 를 안전 fallback 한다 (negative — 0/음수/NaN)', () => {
+    // page 0/음수/NaN → 첫 페이지로 fallback.
+    expect(pageRows(ROWS, 0, 10).map((r) => r.id)).toEqual(
+      pageRows(ROWS, 1, 10).map((r) => r.id),
+    );
+    expect(pageRows(ROWS, -3, 10).map((r) => r.id)).toEqual(
+      pageRows(ROWS, 1, 10).map((r) => r.id),
+    );
+    expect(pageRows(ROWS, Number.NaN, 10).map((r) => r.id)).toEqual(
+      pageRows(ROWS, 1, 10).map((r) => r.id),
+    );
+    // pageSize 0/음수/NaN → DEFAULT_PAGE_SIZE(10) 로 fallback(첫 페이지 10건).
+    expect(pageRows(ROWS, 1, 0)).toHaveLength(10);
+    expect(pageRows(ROWS, 1, -5)).toHaveLength(10);
+    expect(pageRows(ROWS, 1, Number.NaN)).toHaveLength(10);
+    // 정수 아닌 입력(소수)도 fallback — NaN 인덱스 회피.
+    expect(pageRows(ROWS, 1.5, 2.7)).toHaveLength(10);
+  });
+
+  // negative — rows 가 배열이 아니거나 빈 배열이면 빈 slice(throw 없이).
+  it('rows 가 비배열/빈 배열이면 빈 slice 를 반환한다 (negative — 비정상 rows)', () => {
+    expect(pageRows([], 1, 10)).toEqual([]);
+    expect(pageRows(undefined as unknown as { id: number }[], 1, 10)).toEqual([]);
   });
 });
