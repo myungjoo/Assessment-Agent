@@ -36,6 +36,16 @@ import type { DataImportExportPanelProps } from '../components/DataImportExportP
 // path 파생 helper 규약과 정합하게 상수로 둔다(조건부 가드 불요 — null 분기 없음).
 const GROUPS_PATH = '/api/groups';
 
+// 현재 사용자 등급 조회 path — 고정 endpoint(GET /api/auth/me, api.md 71 User+, JwtAuthGuard
+// 단독). 응답 5 필드 `{ id, email, role, createdAt, updatedAt }` 중 본 slice 는 role 만
+// 소비한다(④h). User+ 라 인증된 사용자는 403 없이 자기 등급을 받는다(미인증은 AuthGate 가
+// 이미 차단). 본 slice 가 추가하는 네 번째 useApiResource 호출의 path.
+const AUTH_ME_PATH = '/api/auth/me';
+
+// 권한 부족 안내 문구(④h) — 비-Admin(또는 등급 불명/조회 중) 사용자에게 Admin 전용 패널 대신
+// 보여줄 사람-친화 한국어 한 줄. role="status" 로 렌더해 보조기술이 상태로 인식하게 한다.
+const NOT_ADMIN_NOTICE_TEXT = 'Admin 권한이 필요한 기능입니다 (현재 등급으로는 표시되지 않습니다)';
+
 // LLM provider 목록 조회 path — 고정 endpoint(GET /api/llm/providers, api.md 114 Admin+,
 // sanitize view 6 필드 id/provider/endpointUrl/modelId/createdAt/updatedAt). Admin+ 라
 // User 등급은 403 — 그 403 은 LLM_ERROR_FALLBACK 경로로 error props 안전 표시(throw 없음).
@@ -198,10 +208,28 @@ interface DifficultyMappingRow {
   llmProviderConfigId?: string | null;
 }
 
+// GET /api/auth/me 응답의 frontend-local 최소 타입(④h) — api.md 71 의 5 필드 중 본 slice 가
+// 등급 파생에 쓰는 role 후보만 보수적으로 매핑한다. role 을 선택적으로 두어 누락/비정상 응답
+// (role 없음/null)도 throw 없이 수용한다(③a~④g 의 frontend-local 최소 타입 convention 정합 —
+// id/email/createdAt/updatedAt 등 잔여 필드는 무시). 등급 파생은 isAdminRole 이 책임진다.
+interface MeRow {
+  role?: string | null;
+}
+
 interface AdminViewProps {
   // 초기 선택 그룹 id(선택) — renderToStaticMarkup 정적 검증을 위해 초기값 주입을 허용한다
   // (③a~③b-3 의 initial* 주입 패턴 정합). 미주입 시 그룹 미선택(빈 멤버 안내) 으로 시작한다.
   initialSelectedGroupId?: string;
+}
+
+// 등급 문자열 → Admin+ 여부 파생(순수 helper, ④h). backend role enum(api.md 71 —
+// "SuperAdmin"/"Admin"/"User")과 정확히 대소문자까지 매칭한다. role === 'Admin' ||
+// role === 'SuperAdmin' 이면 true, 그 외("User")/undefined/null/빈값/조회 전/소문자 같은
+// enum 불일치는 모두 false 다(fail-closed — 등급이 불명확하면 Admin 권한을 부여하지 않는다).
+// 조회 실패·응답 누락·loading 중에도 role 이 Admin/SuperAdmin 으로 확정되지 않으므로 false 로
+// 안전하게 떨어진다(비-Admin 에게 Admin 패널을 노출하지 않는 안전 기본값).
+function isAdminRole(role: string | null | undefined): boolean {
+  return role === 'Admin' || role === 'SuperAdmin';
 }
 
 // 그룹 row 배열에서 id 로 선택 그룹을 찾는다(순수 helper). rows 가 배열이 아니거나 미발견
@@ -561,6 +589,23 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
   // 컨테이너가 받아 GroupMemberList 의 loading/error props 로 그대로 내려보낸다(Decision 1).
   const { data, loading, error } = useApiResource<GroupRow[]>(GROUPS_PATH);
 
+  // 현재 사용자 등급 조회(④h) — useApiResource 네 번째 호출(GET /api/auth/me, User+). 응답
+  // role 만 소비해 Admin+ 여부를 파생한다. 조회 실패/loading/응답 누락은 모두 isAdmin=false
+  // 로 fail-closed 처리되므로(아래 useMemo), error 를 별도 표시하지 않고 gating 안내로 흡수한다
+  // — Admin 패널 의존 endpoint 가 Admin+(403)라 비-Admin 에게는 패널 자체를 숨기면 충분하다.
+  const { data: meData, loading: meLoading } =
+    useApiResource<MeRow>(AUTH_ME_PATH);
+
+  // Admin+ 여부 파생(④h) — me 응답의 role 을 isAdminRole 로 판정한다. role 이 Admin/SuperAdmin
+  // 으로 확정될 때만 true 이고, 조회 전(meData undefined)/loading/실패/role 누락/비-Admin 은 모두
+  // false 다(fail-closed). loading 중에도 false 라 등급 확정 전에는 Admin 패널이 노출되지 않는다
+  // (깜빡임 최소 — 안정화 후 노출). meLoading 은 의존성에 포함하되 false 분기를 바꾸지 않는다
+  // (loading→확정 전이 시 재계산 트리거 — stale-Admin 노출 방지).
+  const isAdmin = useMemo(
+    () => !meLoading && isAdminRole(meData?.role),
+    [meData, meLoading],
+  );
+
   // 표시용 그룹 목록 — data 미도착이면 빈 배열로 간주한다(<select> 옵션·파생의 안전 기준).
   const groups = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
@@ -805,41 +850,56 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
         error={error}
         emptyMessage={emptyMessage}
       />
-      {/* LLM 모델 지정(두 번째 패널) — provider 목록·난이도 매핑을 파생해 props 로만 내려보낸다
-          (ADR-0041 Decision 1 — 패널은 fetch/PATCH 를 모른다). llmLoading/llmError 는 두 LLM 읽기
-          조회 + mutation(assigning/assignError)의 loading/error 합성(④c — mutation 우선). onAssign 은
-          실 PATCH(/api/llm/difficulty-mappings/:difficulty) async 핸들러(④c) — 성공 시 재조회 +
-          낙관 반영, 실패 시 error props 안전 표시(throw 없음). 컴포넌트 수정 0. */}
-      <DifficultyModelSelector
-        providers={providers}
-        mapping={difficultyMapping}
-        onAssign={handleAssign}
-        loading={llmLoading}
-        error={llmError}
-      />
-      {/* export scope 선택 컨트롤(④g) — 컨테이너가 직접 렌더한다(그룹 선택 <select> 동형 —
-          presentational DataImportExportPanel 은 scope 를 모른다, ADR-0041 Decision 1). 선택값은
-          handleExport 가 buildExportPath 로 GET /api/admin/export?scope= query 에 부착하고, 빈
-          선택(전체) 시에는 query 없이 호출한다(④f 동작 유지). scope 후보는 frontend-local 보수
-          목록(EXPORT_SCOPE_OPTIONS) — backend 확정 enum 정합은 후속. */}
-      <select
-        aria-label="export 범위 선택"
-        value={selectedScope}
-        onChange={handleScopeChange}
-      >
-        {EXPORT_SCOPE_OPTIONS.map((option) => (
-          <option key={option.value || '__all__'} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      {/* 데이터 import/export(세 번째 패널, ④d export + ④e import) — export·import 콜백·진행·
-          결과·실패를 컨테이너가 소유하고 패널은 onExport/onImportFile 콜백 + busy/error/message
-          props 만 소비한다(ADR-0041 Decision 1 — 패널은 fetch/FormData 를 모른다). onImportFile
-          배선으로 파일 입력이 활성화된다(④d 가 비활성화했던 입력 활성). import 는 POST
-          /api/admin/import 로 multipart FormData 전송(④e). scope query 부착은 컨테이너 책임 —
-          패널 props 계약 불변(④g). 컴포넌트 수정 0. */}
-      <DataImportExportPanel {...importExportPanelProps} />
+      {/* Admin+ RBAC gating(④h) — Admin/SuperAdmin 등급(isAdmin === true)에게만 Admin 전용 패널
+          (DifficultyModelSelector + scope <select> + DataImportExportPanel)을 렌더한다. 세 패널은
+          모두 Admin+ endpoint(GET /api/llm/providers·/difficulty-mappings·/admin/export·/admin/import,
+          api.md 114·119·122·123)에 의존하므로, 비-Admin(또는 등급 불명/조회 중)에게는 패널을 아예
+          마운트하지 않고(403 노이즈 차단) 권한 부족 안내 한 줄만 보여준다(fail-closed). gating
+          판정·등급 파생은 컨테이너 책임이고 패널 props 계약은 불변이다(ADR-0041 Decision 1 — 패널은
+          gating 을 모른다). GroupMemberList + 그룹 선택 <select> 는 GET /api/groups 가 User+ 라
+          gating 대상이 아니며 위에서 등급 무관 렌더된다. */}
+      {isAdmin ? (
+        <>
+          {/* LLM 모델 지정(두 번째 패널) — provider 목록·난이도 매핑을 파생해 props 로만 내려보낸다
+              (ADR-0041 Decision 1 — 패널은 fetch/PATCH 를 모른다). llmLoading/llmError 는 두 LLM 읽기
+              조회 + mutation(assigning/assignError)의 loading/error 합성(④c — mutation 우선). onAssign 은
+              실 PATCH(/api/llm/difficulty-mappings/:difficulty) async 핸들러(④c) — 성공 시 재조회 +
+              낙관 반영, 실패 시 error props 안전 표시(throw 없음). 컴포넌트 수정 0. */}
+          <DifficultyModelSelector
+            providers={providers}
+            mapping={difficultyMapping}
+            onAssign={handleAssign}
+            loading={llmLoading}
+            error={llmError}
+          />
+          {/* export scope 선택 컨트롤(④g) — 컨테이너가 직접 렌더한다(그룹 선택 <select> 동형 —
+              presentational DataImportExportPanel 은 scope 를 모른다, ADR-0041 Decision 1). 선택값은
+              handleExport 가 buildExportPath 로 GET /api/admin/export?scope= query 에 부착하고, 빈
+              선택(전체) 시에는 query 없이 호출한다(④f 동작 유지). scope 후보는 frontend-local 보수
+              목록(EXPORT_SCOPE_OPTIONS) — backend 확정 enum 정합은 후속. */}
+          <select
+            aria-label="export 범위 선택"
+            value={selectedScope}
+            onChange={handleScopeChange}
+          >
+            {EXPORT_SCOPE_OPTIONS.map((option) => (
+              <option key={option.value || '__all__'} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {/* 데이터 import/export(세 번째 패널, ④d export + ④e import) — export·import 콜백·진행·
+              결과·실패를 컨테이너가 소유하고 패널은 onExport/onImportFile 콜백 + busy/error/message
+              props 만 소비한다(ADR-0041 Decision 1 — 패널은 fetch/FormData 를 모른다). onImportFile
+              배선으로 파일 입력이 활성화된다(④d 가 비활성화했던 입력 활성). import 는 POST
+              /api/admin/import 로 multipart FormData 전송(④e). scope query 부착은 컨테이너 책임 —
+              패널 props 계약 불변(④g). 컴포넌트 수정 0. */}
+          <DataImportExportPanel {...importExportPanelProps} />
+        </>
+      ) : (
+        // 비-Admin(또는 등급 불명/조회 중) — Admin 전용 패널 대신 권한 부족 안내 한 줄(fail-closed).
+        <p role="status">{NOT_ADMIN_NOTICE_TEXT}</p>
+      )}
     </section>
   );
 }
@@ -857,6 +917,7 @@ export {
   runAssign,
   runExport,
   runImport,
+  isAdminRole,
 };
 export type {
   AdminViewProps,
@@ -864,6 +925,7 @@ export type {
   GroupMemberRow,
   LlmProviderRow,
   DifficultyMappingRow,
+  MeRow,
   AssignDeps,
   DownloadDeps,
   ExportDeps,

@@ -66,6 +66,7 @@ import AdminView, {
   runAssign,
   runExport,
   runImport,
+  isAdminRole,
 } from './AdminView';
 import type {
   GroupRow,
@@ -85,19 +86,39 @@ const EMPTY_OK: ApiResourceState<unknown> = {
   error: undefined,
 };
 
+// ④h — GET /api/auth/me 의 기본 응답(Admin 등급). ④a~④g 의 기존 test 는 전부 Admin 등급 가정
+// 하에 Admin 패널(LLM·export·import)을 단언하므로, auth/me path 의 default 를 Admin 으로 둬
+// (isAdmin=true 경로) 기존 test 가 회귀 없이 통과하게 한다. gating(비-Admin) test 는 auth/me
+// path 응답을 명시 주입해 분기를 통제한다.
+const ADMIN_ME_OK: ApiResourceState<unknown> = {
+  data: { role: 'Admin' },
+  loading: false,
+  error: undefined,
+};
+
+const AUTH_ME = '/api/auth/me';
+
 // 그룹 path 만 주입하는 단순 setter — 기존 그룹 패널 test 호환용. 그룹 path 는 주어진 state 를,
-// 나머지 LLM 두 path 는 EMPTY_OK(빈 성공) 를 반환한다.
+// auth/me path 는 ADMIN_ME_OK(Admin 등급 default — ④h gating 회귀 0), 나머지 LLM 두 path 는
+// EMPTY_OK(빈 성공) 를 반환한다.
 function setResource<T>(state: ApiResourceState<T>) {
-  useApiResourceMock.mockImplementation((path: string) =>
-    path === '/api/groups' ? state : EMPTY_OK,
-  );
+  useApiResourceMock.mockImplementation((path: string) => {
+    if (path === '/api/groups') {
+      return state;
+    }
+    if (path === AUTH_ME) {
+      return ADMIN_ME_OK;
+    }
+    return EMPTY_OK;
+  });
 }
 
 // path 별 응답을 한 번에 주입하는 라우터 setter — LLM 패널 test 용. 명시 안 된 path 는
-// EMPTY_OK 로 fallback.
+// auth/me 면 ADMIN_ME_OK(Admin default — ④h gating 회귀 0), 그 외는 EMPTY_OK 로 fallback.
 function setRoutes(routes: Record<string, ApiResourceState<unknown>>) {
   useApiResourceMock.mockImplementation(
-    (path: string) => routes[path] ?? EMPTY_OK,
+    (path: string) =>
+      routes[path] ?? (path === AUTH_ME ? ADMIN_ME_OK : EMPTY_OK),
   );
 }
 
@@ -1567,5 +1588,179 @@ describe('AdminView — ④d export 패널 배선 (정적 렌더)', () => {
     expect(html).not.toContain('내보내기 완료');
     // 단 export 버튼(내보내기)은 정상 렌더(정상 분기).
     expect(html).toContain('내보내기');
+  });
+});
+
+// R-112 — ④h isAdminRole 순수 helper 검증(role 문자열 → Admin+ 여부). backend enum
+// ("SuperAdmin"/"Admin"/"User", api.md 71)과 정확히 대소문자까지 매칭하고, 그 외/누락/빈값/
+// 소문자(enum 불일치)는 모두 false(fail-closed)다. happy/negative 분기 각 1+ cover(jsdom 불요).
+describe('AdminView — isAdminRole (순수 함수, ④h)', () => {
+  // happy — backend Admin+ enum 두 값은 true.
+  it('Admin/SuperAdmin 등급은 true 를 반환한다 (happy)', () => {
+    expect(isAdminRole('Admin')).toBe(true);
+    expect(isAdminRole('SuperAdmin')).toBe(true);
+  });
+
+  // negative — User 등급은 Admin+ 아님(false).
+  it('User 등급은 false 를 반환한다 (negative — 비-Admin)', () => {
+    expect(isAdminRole('User')).toBe(false);
+  });
+
+  // negative — 누락/null/빈값(조회 전·응답 누락)은 fail-closed 로 false.
+  it('undefined/null/빈 문자열(등급 불명)은 fail-closed 로 false 를 반환한다 (negative — 등급 불명)', () => {
+    expect(isAdminRole(undefined)).toBe(false);
+    expect(isAdminRole(null)).toBe(false);
+    expect(isAdminRole('')).toBe(false);
+  });
+
+  // negative — 대소문자/오타 enum 불일치(소문자 admin 등)는 false(엄격 매칭 — 권한 오인 방지).
+  it('소문자/오타 등 enum 불일치는 false 를 반환한다 (negative — 대소문자 엄격 매칭)', () => {
+    expect(isAdminRole('admin')).toBe(false);
+    expect(isAdminRole('superadmin')).toBe(false);
+    expect(isAdminRole('ADMIN')).toBe(false);
+    expect(isAdminRole('Administrator')).toBe(false);
+    expect(isAdminRole('Userr')).toBe(false);
+  });
+});
+
+// R-112 — ④h Admin+ RBAC gating UI 정적 렌더 검증. useApiResource mock 의 auth/me path 응답을
+// 등급별로 주입해(Admin/SuperAdmin/User/누락/error/loading) 비-Admin 에게는 Admin 전용 패널
+// (DifficultyModelSelector·scope <select>·DataImportExportPanel)이 숨겨지고 권한 부족 안내 한 줄
+// (NOT_ADMIN_NOTICE)이 노출되며, Admin 에게는 ④a~④g 패널이 그대로 노출됨을 단언한다. GroupMemberList
+// + 그룹 <select> 는 등급 무관 유지(User+ 조회 — gating 대상 아님)를 함께 확인한다.
+// happy/error/branch/negative 예외 분기마다 각 1+ cover.
+describe('AdminView — Admin+ RBAC gating (④h 정적 렌더)', () => {
+  // gating test 의 공통 라우터 — 그룹/LLM/매핑은 데이터 채워두고 auth/me 만 등급별로 주입한다.
+  // 이렇게 하면 등급에 따라 Admin 패널 노출/숨김 분기만 격리 검증된다(읽기 배선은 공통 고정).
+  function setMe(me: ApiResourceState<unknown>) {
+    setRoutes({
+      [GROUPS]: { data: SAMPLE, loading: false, error: undefined },
+      [PROVIDERS]: { data: PROVIDER_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: MAPPING_ROWS, loading: false, error: undefined },
+      [AUTH_ME]: me,
+    });
+  }
+
+  const NOTICE = 'Admin 권한이 필요한 기능입니다';
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — Admin 등급이면 Admin 전용 패널(슬롯 select·scope select·import/export)이 모두
+  // 노출되고 권한 부족 안내는 미렌더된다(④a~④g 그대로).
+  it('Admin 등급이면 Admin 전용 패널(LLM·scope·import/export)이 모두 노출된다 (happy-path)', () => {
+    setMe({ data: { role: 'Admin' }, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // Admin 전용 패널 노출 — 슬롯 select + scope select + export 버튼 + 파일 입력.
+    expect(html).toContain('name="easy"');
+    expect(html).toContain('aria-label="export 범위 선택"');
+    expect(html).toContain('<button type="button">내보내기</button>');
+    expect(html).toContain('<input type="file"');
+    // 권한 부족 안내는 미렌더(Admin 분기).
+    expect(html).not.toContain(NOTICE);
+    // GroupMemberList + 그룹 select 는 등급 무관 노출.
+    expect(html).toContain('김철수');
+    expect(html).toContain('aria-label="그룹 선택"');
+  });
+
+  // happy-path — SuperAdmin 등급도 Admin+ 라 동일하게 패널 노출(enum 두 값 모두 cover).
+  it('SuperAdmin 등급도 Admin 전용 패널이 노출된다 (happy-path — SuperAdmin)', () => {
+    setMe({ data: { role: 'SuperAdmin' }, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    expect(html).toContain('name="easy"');
+    expect(html).toContain('aria-label="export 범위 선택"');
+    expect(html).not.toContain(NOTICE);
+  });
+
+  // flow/branch — User 등급이면 Admin 전용 패널이 숨겨지고 권한 부족 안내 한 줄이 노출된다.
+  it('User 등급이면 Admin 전용 패널이 숨겨지고 권한 부족 안내가 노출된다 (flow/branch — 비-Admin 숨김)', () => {
+    setMe({ data: { role: 'User' }, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // Admin 전용 패널 전부 미렌더(마운트 0).
+    expect(html).not.toContain('name="easy"');
+    expect(html).not.toContain('aria-label="export 범위 선택"');
+    expect(html).not.toContain('<button type="button">내보내기</button>');
+    expect(html).not.toContain('<input type="file"');
+    // 권한 부족 안내 한 줄(role="status") 노출.
+    expect(html).toContain(NOTICE);
+    expect(html).toContain('role="status"');
+    // GroupMemberList + 그룹 select 는 User+ 조회라 등급 무관 유지(gating 대상 아님).
+    expect(html).toContain('김철수');
+    expect(html).toContain('aria-label="그룹 선택"');
+  });
+
+  // error path — auth/me 조회 실패(error) 시 isAdmin=false fail-closed → Admin 패널 숨김 +
+  // 안내(throw 없음). 등급 source 가 끊겨도 안전하게 비-Admin 으로 떨어진다.
+  it('auth/me 조회 error 시 fail-closed 로 Admin 패널을 숨기고 안내한다 (error path — 조회 실패)', () => {
+    setMe({ data: undefined, loading: false, error: 'HTTP 500: me boom' });
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // fail-closed — Admin 패널 숨김 + 안내, throw 없이 안전 렌더.
+    expect(html).not.toContain('name="easy"');
+    expect(html).toContain(NOTICE);
+    // 그룹 패널은 등급 무관 유지.
+    expect(html).toContain('김철수');
+  });
+
+  // error path — role 필드 누락/비정상 응답(role 없음·null)도 fail-closed 로 false 처리.
+  it('role 필드 누락/null 응답도 fail-closed 로 Admin 패널을 숨긴다 (error path — 응답 누락)', () => {
+    // role 키 자체 누락.
+    setMe({ data: {}, loading: false, error: undefined });
+    expect(
+      renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />),
+    ).toContain(NOTICE);
+    // role null.
+    setMe({ data: { role: null }, loading: false, error: undefined });
+    const htmlNull = renderToStaticMarkup(
+      <AdminView initialSelectedGroupId="g1" />,
+    );
+    expect(htmlNull).toContain(NOTICE);
+    expect(htmlNull).not.toContain('name="easy"');
+  });
+
+  // flow/branch(loading) — 등급 조회 중(meLoading=true)에는 fail-closed 로 Admin 패널 숨김
+  // (안정화 후 노출 — 깜빡임 최소). 등급 미확정이라 stale-Admin 노출 없음.
+  it('등급 조회 중(loading)에는 fail-closed 로 Admin 패널을 숨긴다 (flow/branch — loading 숨김)', () => {
+    setMe({ data: undefined, loading: true, error: undefined });
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // loading 중 Admin 패널 미렌더 + 안내 표시(fail-closed).
+    expect(html).not.toContain('name="easy"');
+    expect(html).not.toContain('aria-label="export 범위 선택"');
+    expect(html).toContain(NOTICE);
+  });
+
+  // negative — loading 중 응답이 Admin 으로 도착하더라도 loading=true 이면 미노출(stale-Admin
+  // 노출 방지). loading 완료 후 같은 Admin 응답이면 노출되는 전이를 두 렌더로 확인한다.
+  it('loading=true 중에는 Admin 응답이 와도 미노출, loading 완료 후 노출된다 (negative — loading→확정 전이)', () => {
+    // loading 중 — data 에 Admin 이 실려 있어도 meLoading=true 라 fail-closed 로 숨김.
+    setMe({ data: { role: 'Admin' }, loading: true, error: undefined });
+    const loadingHtml = renderToStaticMarkup(
+      <AdminView initialSelectedGroupId="g1" />,
+    );
+    expect(loadingHtml).not.toContain('name="easy"');
+    expect(loadingHtml).toContain(NOTICE);
+    // loading 완료(false) + 같은 Admin 응답 — 이제 Admin 패널 노출(안정화 후 노출).
+    setMe({ data: { role: 'Admin' }, loading: false, error: undefined });
+    const settledHtml = renderToStaticMarkup(
+      <AdminView initialSelectedGroupId="g1" />,
+    );
+    expect(settledHtml).toContain('name="easy"');
+    expect(settledHtml).not.toContain(NOTICE);
+  });
+
+  // negative — 비-Admin(User) 에서도 GroupMemberList + 그룹 select 는 노출 유지(User+ 조회 —
+  // gating 대상 아님). 그룹 멤버/select 가 등급과 무관함을 명시 단언한다.
+  it('비-Admin 에서도 GroupMemberList + 그룹 select 는 노출 유지된다 (negative — User+ 조회 비-gating)', () => {
+    setMe({ data: { role: 'User' }, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g2" />);
+    // g2(프론트팀)의 멤버 + 그룹 select 는 등급 무관 노출(Admin 패널만 숨김).
+    expect(html).toContain('박민수');
+    expect(html).toContain('aria-label="그룹 선택"');
+    expect(html).toContain('프론트팀');
+    // Admin 전용 패널은 숨김.
+    expect(html).not.toContain('aria-label="export 범위 선택"');
   });
 });
