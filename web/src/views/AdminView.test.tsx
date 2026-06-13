@@ -57,12 +57,14 @@ import AdminView, {
   buildMappingsPath,
   mergeMapping,
   runAssign,
+  runExport,
 } from './AdminView';
 import type {
   GroupRow,
   LlmProviderRow,
   DifficultyMappingRow,
   AssignDeps,
+  ExportDeps,
 } from './AdminView';
 
 // LLM 조회 두 path 의 기본 성공(빈 데이터) 상태 — 그룹 전용 test 가 LLM path 응답을 명시하지
@@ -726,5 +728,218 @@ describe('AdminView — ④c 배선 회귀 (정적 렌더)', () => {
     expect(html).toContain('name="easy"');
     expect(html).toContain('name="medium"');
     expect(html).toContain('name="hard"');
+  });
+});
+
+// R-112 — ④d onExport 실 GET export 본체(runExport) 검증. jsdom/렌더러 없이 export 본체를
+// 직접 호출하고(④c runAssign 과 동일 convention), apiClient.request mock 으로 method/path 를
+// 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백 호출로 관찰한다.
+// happy/error/branch/negative 예외 분기마다 각 1+ cover.
+describe('AdminView — onExport 실 GET export (④d runExport)', () => {
+  // 상태 전이를 기록하는 deps harness — exporting 초기값과 request mock 을 주입받아
+  // setExporting/setExportError/setExportMessage 호출을 모두 순서대로 캡처한다.
+  function makeExportDeps(exporting: boolean) {
+    const calls = {
+      exporting: [] as boolean[],
+      error: [] as (string | undefined)[],
+      message: [] as (string | undefined)[],
+    };
+    const deps: ExportDeps = {
+      get: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      exporting,
+      setExporting: (next) => calls.exporting.push(next),
+      setExportError: (next) => calls.error.push(next),
+      setExportMessage: (next) => calls.message.push(next),
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — export 트리거 시 request 가 GET /api/admin/export 로 정확히 호출되고, 성공
+  // 후 완료 message 가 설정되며 진행 표시(busy)가 on→off 로 해제된다.
+  it('GET /api/admin/export 를 정확히 호출하고 성공 시 완료 message 를 설정한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue({ ok: true });
+    const { deps, calls } = makeExportDeps(false);
+    await runExport(deps);
+    // request 가 export path 로 1 회 호출(옵션 생략 = 기본 GET, scope query 미부착).
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock).toHaveBeenCalledWith('/api/admin/export');
+    // 성공 → 완료 안내 message 표면화(직전 비움 undefined 후 완료 문구).
+    expect(calls.message).toEqual([undefined, '내보내기 완료']);
+    // 진행 표시 on→off + error 는 시작 시 비움만(실패 문구 미설정).
+    expect(calls.exporting).toEqual([true, false]);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // error path — export 403(Admin+ 미만) 실패 시 error 문구가 표면화되고 throw 없이 처리되며
+  // 완료 message 는 설정되지 않는다(시작 비움만).
+  it('export 403(Admin+ 미만) 실패 시 error 문구를 표면화하고 throw 하지 않는다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeExportDeps(false);
+    await expect(runExport(deps)).resolves.toBeUndefined();
+    // 사람-친화 문구 표면화(시작 비움 → HTTP 403) + 완료 message 미설정(시작 비움만).
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.message).toEqual([undefined]);
+    // 진행 표시는 성공·실패 공통으로 off.
+    expect(calls.exporting).toEqual([true, false]);
+  });
+
+  // error path — 404(자원 부재) 도 동일 안전 경로로 문구 표면화(throw 없음).
+  it('export 404 실패 시 안전 문구를 표면화한다 (error path — 404)', async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeExportDeps(false);
+    await expect(runExport(deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('export 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeExportDeps(false);
+    await expect(runExport(deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+  });
+
+  // flow/branch — export in-flight 동안 진행 표시(exporting) on, 성공/실패 어느 경우든 finally
+  // 로 해제(off)됨을 확인한다.
+  it('성공·실패 어느 경우든 진행 표시(exporting)가 finally 로 해제된다 (flow/branch — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce({ ok: true });
+    const ok = makeExportDeps(false);
+    await runExport(ok.deps);
+    expect(ok.calls.exporting).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeExportDeps(false);
+    await runExport(fail.deps);
+    expect(fail.calls.exporting).toEqual([true, false]);
+  });
+
+  // flow/branch(낙관 비움) — export 발사 직후 진행 표시 on + 직전 error·message 즉시 비움을
+  // 지연 resolve 로 캡처한다(실패 후 재시도 시 직전 error/완료 안내가 진행 중 남지 않음).
+  it('발사 직후 진행 표시 on + 직전 error·message 를 즉시 비운다 (flow/branch — 시작 정리)', async () => {
+    let resolveGet: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveGet = resolve;
+        }),
+    );
+    const { deps, calls } = makeExportDeps(false);
+    const pending = runExport(deps);
+    // 발사 직후(해소 전) — 진행 on + error/message 모두 시작 비움(undefined).
+    expect(calls.exporting).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.message).toEqual([undefined]);
+    // 해소 후 — 완료 message 설정 + 진행 off.
+    resolveGet();
+    await pending;
+    expect(calls.message).toEqual([undefined, '내보내기 완료']);
+    expect(calls.exporting).toEqual([true, false]);
+  });
+
+  // negative — export in-flight 중 재클릭(exporting=true)은 GET 미발사·state 불변(이중 호출·
+  // state 깨짐 차단 — ④c assigning 가드 동형).
+  it('이전 export 미완(exporting=true) 중 재호출은 GET 을 발사하지 않는다 (negative — 동시 재호출)', async () => {
+    const { deps, calls } = makeExportDeps(true); // 이미 in-flight.
+    await runExport(deps);
+    // request 미호출 + 어떤 state 전이도 없음(이중 호출·state 깨짐 차단).
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.exporting).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.message).toEqual([]);
+  });
+
+  // negative — 비정상/빈 응답(undefined·null·빈 문자열)도 throw 없이 완료로 안전 처리한다
+  // (본 slice 는 export 응답 body 를 소비하지 않음 — 실 파일 저장은 후속). 성공 사실만 표면화.
+  it('비정상/빈 응답(undefined)도 throw 없이 완료로 안전 처리한다 (negative — 빈/비정상 응답)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps, calls } = makeExportDeps(false);
+    await expect(runExport(deps)).resolves.toBeUndefined();
+    // 빈 응답이어도 성공 분기 — 완료 message 표면화 + error 미설정.
+    expect(calls.message).toEqual([undefined, '내보내기 완료']);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // negative — 실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다(시작 비움 →
+  // 성공 message). 첫 호출 실패 → 두 번째 호출 성공의 두 deps 흐름으로 확인.
+  it('실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다 (negative — 실패 후 재시도)', async () => {
+    // 1차 — 실패(error 설정).
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const first = makeExportDeps(false);
+    await runExport(first.deps);
+    expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(first.calls.message).toEqual([undefined]);
+
+    // 2차(재시도) — 성공. 시작 시 직전 error 를 비우고(undefined) 완료 message 설정.
+    requestMock.mockResolvedValueOnce({ ok: true });
+    const second = makeExportDeps(false);
+    await runExport(second.deps);
+    // 재시도 시작 시 error 비움(undefined) → 성공이라 추가 error 없음.
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.message).toEqual([undefined, '내보내기 완료']);
+  });
+});
+
+// ④d 배선 회귀 — 컨테이너가 DataImportExportPanel 을 세 번째 패널로 배선(onExport/busy/error/
+// message props)하고, 기존 읽기 배선(그룹·provider·매핑) + DifficultyModelSelector(④c)가
+// 불변임을 정적 렌더로 확인(회귀 0). DataImportExportPanel 의 busy/error/message 렌더 분기를
+// 컨테이너 초기 state(미발화 — exporting=false, error/message=undefined) 기준으로 단언한다.
+describe('AdminView — ④d export 패널 배선 (정적 렌더)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('세 번째 패널 DataImportExportPanel(내보내기 버튼)이 렌더되고 기존 패널은 회귀 0 이다 (배선 회귀)', () => {
+    setRoutes({
+      [GROUPS]: { data: SAMPLE, loading: false, error: undefined },
+      [PROVIDERS]: { data: PROVIDER_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: MAPPING_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // 세 번째 패널 — export 버튼(내보내기)이 onExport 배선으로 활성 렌더(disabled 아님).
+    // export 버튼 자체는 disabled 속성 없이 렌더된다(onExport 주입 → 활성). 정확히 비활성 아닌
+    // export 버튼 markup 을 단언한다(import input 은 별도로 disabled 라 전역 disabled 단언 회피).
+    expect(html).toContain('<button type="button">내보내기</button>');
+    // import 파일 입력은 onImportFile 미전달이라 비활성(가져오기 라벨은 렌더되되 input disabled).
+    expect(html).toContain('가져오기');
+    expect(html).toContain('<input type="file" disabled=""');
+    // 기존 배선 회귀 0 — 그룹 멤버 + provider 옵션 + 매핑 selected + 슬롯 select 그대로.
+    expect(html).toContain('김철수');
+    expect(html).toContain('gpt-4o (openai)');
+    expect(html).toContain('value="cfg1" selected');
+    expect(html).toContain('aria-label="그룹 선택"');
+    expect(html).toContain('name="easy"');
+  });
+
+  it('export 미발화 초기 상태에서는 진행 표시(처리 중)·error·완료 message 가 없다 (배선 — 초기 state)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: [], loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // exporting=false 라 busy 진행 문구 미렌더, error/message undefined 라 완료 안내·error 미렌더.
+    expect(html).not.toContain('처리 중…');
+    expect(html).not.toContain('내보내기 완료');
+    // 단 export 버튼(내보내기)은 정상 렌더(정상 분기).
+    expect(html).toContain('내보내기');
   });
 });

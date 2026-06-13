@@ -26,6 +26,10 @@ import type {
   ProviderOption,
   Difficulty,
 } from '../components/DifficultyModelSelector';
+// P6 wiring ④d (T-0388) — 세 번째 패널 DataImportExportPanel export 배선. presentational
+// 컴포넌트는 수정 0 으로 named import 만(ADR-0041 Decision 1 — 패널은 fetch 를 모른다).
+import DataImportExportPanel from '../components/DataImportExportPanel';
+import type { DataImportExportPanelProps } from '../components/DataImportExportPanel';
 
 // 그룹 목록 조회 path — 고정 endpoint(GET /api/groups, api.md 81 User+). personId 같은
 // 필수 query 가 없어 무조건 조회한다(미인증은 AuthGate 가 이미 차단). DashboardView 의
@@ -39,6 +43,18 @@ const LLM_PROVIDERS_PATH = '/api/llm/providers';
 // 난이도 슬롯 매핑 조회 path — 고정 endpoint(GET /api/llm/difficulty-mappings, api.md 119
 // Admin+, 3 난이도 슬롯 배열, 빈 배열 seed 전 정상). Admin+ 라 User 등급은 403.
 const LLM_MAPPINGS_PATH = '/api/llm/difficulty-mappings';
+
+// 평가 자료 export path — 고정 endpoint(GET /api/admin/export, api.md 122 Admin+, raw 미포함
+// REQ-032·REQ-030). scope query 는 본 slice 미부착 — api.md 가 scope 를 선택 필터로만 기술하고
+// 기본값을 명시하지 않으므로, scope 선택 UI(드롭다운/필터) 가 도입되는 후속 slice 전까지는
+// query 없이 전체 scope 로 export 한다(scope 미부착 = backend 기본 scope 위임). Admin+ 라 User
+// 등급은 403 — 그 403 은 runExport 의 catch 가 error props 로 안전 표시(throw 없음).
+const ADMIN_EXPORT_PATH = '/api/admin/export';
+
+// export 성공 시 DataImportExportPanel 의 message props 로 내려보낼 사람-친화 완료 안내.
+// 실 파일 저장 트리거(Blob→다운로드) 는 후속 slice 라(Out of Scope), 본 slice 는 export 호출
+// 성공 사실만 표면화한다(데이터 건수/scope 요약은 응답 형태 미확정이라 단순 완료 문구로 둔다).
+const EXPORT_DONE_TEXT = '내보내기 완료';
 
 // 그룹 미선택 시 멤버 패널에 노출할 안내 문구 — 그룹을 고르면 그 멤버가 표시됨을 안내한다.
 const NO_GROUP_SELECTED_TEXT = '그룹을 선택하면 인원이 표시됩니다';
@@ -274,6 +290,51 @@ async function runAssign(
   }
 }
 
+// onExport 의 GET + state-전이 로직을 캡슐화한 순수 async 러너(④d — ④c runAssign 캡슐화 패턴
+// 차용. jsdom/렌더러 없이 export 본체를 직접 검증한다 — AssignDeps 와 동형의 ExportDeps 주입).
+// 컨테이너의 handleExport 는 이 러너에 현재 in-flight 여부(exporting)와 상태 setter 들을 주입해
+// 호출만 한다. 동작:
+//  - exporting(이전 export 미완) → 미발사(이중 GET·state 경합 차단 — runAssign 의 assigning 가드 동형).
+//  - 발사 시 진행 on + 이전 error·message 비움 → GET /api/admin/export → 성공(완료 message 설정) /
+//    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
+interface ExportDeps {
+  // export GET 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  get: (path: string, options?: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 export in-flight 여부 — true 면 미발사(동시 재호출 가드).
+  exporting: boolean;
+  setExporting: (next: boolean) => void;
+  setExportError: (next: string | undefined) => void;
+  setExportMessage: (next: string | undefined) => void;
+}
+
+async function runExport(deps: ExportDeps): Promise<void> {
+  // 동시 재호출 가드 — 이전 export 미완 중이면 미발사(이중 GET·state 경합 차단).
+  if (deps.exporting) {
+    return;
+  }
+  deps.setExporting(true);
+  // 재발화 시작 시 직전 error·message 를 비운다(실패 후 재시도 시 직전 error 정리 + 직전 완료
+  // 안내 정리 — 새 export 의 진행 표시만 남도록).
+  deps.setExportError(undefined);
+  deps.setExportMessage(undefined);
+  try {
+    // GET /api/admin/export — 옵션 생략(apiClient.request 기본 GET). scope query 미부착(전체
+    // scope, scope 선택 UI 는 후속). 응답 body 형태(JSON/text/빈 body)는 본 slice 가 소비하지
+    // 않으므로(실 파일 저장 트리거는 후속) 성공 사실만 확인한다 — 비정상/빈 응답도 throw 없이 완료.
+    await deps.get(ADMIN_EXPORT_PATH);
+    // 성공 — 사람-친화 완료 안내를 message 로 표면화(DataImportExportPanel 의 정상 message 분기).
+    deps.setExportMessage(EXPORT_DONE_TEXT);
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 404 /
+    // 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
+    deps.setExportError(deps.describeError(e));
+  } finally {
+    deps.setExporting(false);
+  }
+}
+
 // Admin 화면 컨테이너. useApiResource 로 GET /api/groups 결과를 소유하고, 선택 그룹 상태를
 // useState 로 보유해 선택 그룹의 멤버를 client-side 파생 후 GroupMemberList 에 props 로
 // 내려보낸다(controlled lift-up — GroupMemberList 는 fetch 를 모른다, ADR-0041 Decision 1).
@@ -384,6 +445,55 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
     [assigning],
   );
 
+  // export in-flight 플래그(④d) — export GET 진행 중 true. 진행 표시(busy)와 동시 재호출 가드
+  // (이전 export 미완 중 재호출 차단)에 함께 쓴다(④c assigning 동형).
+  const [exporting, setExporting] = useState<boolean>(false);
+
+  // export 완료 안내 문구(④d) — export 성공 시 사람-친화 완료 안내를 보관해 message props 로
+  // 표시한다. 재발화 시작·실패 시 비운다.
+  const [exportMessage, setExportMessage] = useState<string | undefined>(
+    undefined,
+  );
+
+  // export 실패 문구(④d) — export 실패 시 사람-친화 문구(toErrorMessage 파생)를 보관해 error
+  // props 로 안전 표시한다(throw 없음). 재발화 시작 시 비운다.
+  const [exportError, setExportError] = useState<string | undefined>(undefined);
+
+  // onExport 실 핸들러(④d) — export GET(/api/admin/export) 을 컨테이너 내부 async 로 발사한다
+  // (신규 fetch hook 미작성 — ④c runAssign 정합, useApiResource 는 read-on-mount 라 클릭 발화에
+  // 부적합). 동작:
+  //  1) 이전 export 미완(exporting) 중 재호출이면 미발사(이중 호출·state 깨짐 차단).
+  //  2) 진행 표시 on + 직전 error·message 비움(실패 후 재시도 시 직전 error 정리).
+  //  3) GET 성공 → 완료 안내(message) 표면화.
+  //  4) GET 실패 → toErrorMessage 문구를 error props 로 안전 표시(403/404/비-2xx/네트워크 0 모두, throw 없음).
+  //  5) 마지막에 진행 표시 off(성공·실패 공통).
+  const handleExport = useCallback(
+    () =>
+      runExport({
+        get: request,
+        describeError: toErrorMessage,
+        exporting,
+        setExporting,
+        setExportError,
+        setExportMessage,
+      }),
+    [exporting],
+  );
+
+  // DataImportExportPanel 의 busy/error/message props — busy 우선 → error → message 순으로
+  // 패널이 렌더 분기하므로(컴포넌트 박제), 컨테이너는 exporting/exportError/exportMessage 를
+  // 그대로 내려보낸다(③a~④c controlled props 경계 정합). 타입은 패널 props 에서 파생해 시그니처
+  // 정합을 강제한다(컴포넌트 props 재정의 금지).
+  const exportPanelProps: Pick<
+    DataImportExportPanelProps,
+    'onExport' | 'busy' | 'error' | 'message'
+  > = {
+    onExport: handleExport,
+    busy: exporting,
+    error: exportError,
+    message: exportMessage,
+  };
+
   // 그룹 선택 변경 — <select> 가 선택 그룹 id 를 컨테이너 상태로 올린다(빈 값 선택 시 미선택
   // 으로 되돌려 멤버 빈 상태로 표시). GroupMemberList 는 선택 상호작용을 모른다(Decision 1).
   const handleSelectChange = (event: { target: { value: string } }) => {
@@ -434,6 +544,12 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
         loading={llmLoading}
         error={llmError}
       />
+      {/* 데이터 import/export(세 번째 패널, ④d) — export 콜백·진행·결과·실패를 컨테이너가
+          소유하고 패널은 onExport 콜백 + busy/error/message props 만 소비한다(ADR-0041 Decision
+          1 — 패널은 fetch 를 모른다). onImportFile 미전달 — import(POST /api/admin/import
+          multipart) 배선은 후속 slice(④e Out of Scope)라 파일 입력은 비활성(컴포넌트가 콜백
+          미전달 시 비활성 렌더). 컴포넌트 수정 0. */}
+      <DataImportExportPanel {...exportPanelProps} />
     </section>
   );
 }
@@ -446,6 +562,7 @@ export {
   buildMappingsPath,
   mergeMapping,
   runAssign,
+  runExport,
 };
 export type {
   AdminViewProps,
@@ -454,5 +571,6 @@ export type {
   LlmProviderRow,
   DifficultyMappingRow,
   AssignDeps,
+  ExportDeps,
 };
 export default AdminView;
