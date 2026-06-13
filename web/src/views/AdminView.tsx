@@ -17,7 +17,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useApiResource, toErrorMessage } from '../api/useApiResource';
-import { request } from '../api/apiClient';
+import { request, requestRaw } from '../api/apiClient';
 import type { RequestOptions } from '../api/apiClient';
 import GroupMemberList from '../components/GroupMemberList';
 import type { Member } from '../components/GroupMemberList';
@@ -52,9 +52,47 @@ const LLM_MAPPINGS_PATH = '/api/llm/difficulty-mappings';
 const ADMIN_EXPORT_PATH = '/api/admin/export';
 
 // export 성공 시 DataImportExportPanel 의 message props 로 내려보낼 사람-친화 완료 안내.
-// 실 파일 저장 트리거(Blob→다운로드) 는 후속 slice 라(Out of Scope), 본 slice 는 export 호출
-// 성공 사실만 표면화한다(데이터 건수/scope 요약은 응답 형태 미확정이라 단순 완료 문구로 둔다).
+// ④f(T-0390)부터 응답 Blob 을 실제 파일로 저장(다운로드 트리거)하므로 message 의 의미가
+// "호출 성공"에서 "파일 저장 완료"로 강화된다(데이터 건수/scope 요약은 응답 형태 미확정이라
+// 단순 완료 문구로 둔다 — 다운로드 자체는 부수효과 deps 가 수행).
 const EXPORT_DONE_TEXT = '내보내기 완료';
+
+// export 응답에 Content-Disposition filename 이 없을 때 쓸 기본 파일명(④f). backend 가
+// Content-Disposition 헤더를 내려주면 그 filename 을 우선하고, 없으면 본 fallback 을 쓴다.
+// api.md 122 가 export 형식을 명시하지 않으므로(형식은 backend 가 Content-Type 으로 결정)
+// 확장자는 가장 보편적인 .json 으로 둔다 — 형식 협상/확장자 결정은 후속 slice(Out of Scope).
+const DEFAULT_EXPORT_FILENAME = 'export.json';
+
+// Content-Disposition 헤더에서 filename 을 추출하는 순수 helper(④f). RFC 6266 의 두 형태를
+// 보수적으로 받는다: (1) filename*=UTF-8''<percent-encoded>(우선 — 비-ASCII 안전), (2) 일반
+// filename="..." 또는 filename=.... 따옴표·앞뒤 공백을 벗기고, 빈/누락이면 undefined 를 낸다
+// (호출측이 DEFAULT_EXPORT_FILENAME 로 fallback). header 가 null/빈 문자열이어도 throw 없이
+// undefined 를 반환한다(안전 파싱 — 비정상 헤더에 다운로드가 깨지지 않도록).
+function parseFilename(disposition: string | null): string | undefined {
+  if (!disposition) {
+    return undefined;
+  }
+  // (1) filename*=UTF-8''... (RFC 5987 ext-value) 우선 — percent-decode 시도.
+  const extMatch = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(disposition);
+  if (extMatch && extMatch[1]) {
+    const raw = extMatch[1].trim();
+    try {
+      const decoded = decodeURIComponent(raw);
+      if (decoded) {
+        return decoded;
+      }
+    } catch {
+      // 잘못된 percent-encoding — 일반 filename 분기로 fallthrough(throw 없이).
+    }
+  }
+  // (2) 일반 filename="..." 또는 filename=... — 따옴표/공백 제거.
+  const match = /filename=("?)([^";]+)\1/i.exec(disposition);
+  if (match && match[2]) {
+    const name = match[2].trim();
+    return name || undefined;
+  }
+  return undefined;
+}
 
 // 평가 자료 import path — 고정 endpoint(POST /api/admin/import, api.md 123 Admin+, multipart
 // file upload). Admin+ 라 User 등급은 403 — 그 403 은 runImport 의 catch 가 error props 로 안전
@@ -306,16 +344,51 @@ async function runAssign(
   }
 }
 
-// onExport 의 GET + state-전이 로직을 캡슐화한 순수 async 러너(④d — ④c runAssign 캡슐화 패턴
-// 차용. jsdom/렌더러 없이 export 본체를 직접 검증한다 — AssignDeps 와 동형의 ExportDeps 주입).
-// 컨테이너의 handleExport 는 이 러너에 현재 in-flight 여부(exporting)와 상태 setter 들을 주입해
-// 호출만 한다. 동작:
-//  - exporting(이전 export 미완) → 미발사(이중 GET·state 경합 차단 — runAssign 의 assigning 가드 동형).
-//  - 발사 시 진행 on + 이전 error·message 비움 → GET /api/admin/export → 성공(완료 message 설정) /
+// 가상 <a download> 클릭으로 실제 파일 저장을 수행하는 부수효과 추상화(④f). DOM/URL primitive
+// (createObjectURL/revokeObjectURL/anchor 생성·클릭)을 주입 가능한 한 객체로 묶어 jsdom 없이
+// 직접 검증한다(④c~④e 의 *Deps 주입 convention 정합 — 테스트는 mock 주입, 런타임은 기본
+// 브라우저 구현 주입). triggerDownload 는 blob → objectURL → anchor click → revokeObjectURL
+// 정리까지 한 단위로 수행하되, click 도중 예외가 나도 revokeObjectURL 정리가 누락되지 않도록
+// finally 로 자원을 회수한다(자원 누수 방지).
+interface DownloadDeps {
+  // Blob → object URL 생성(런타임 기본: URL.createObjectURL). 다운로드 anchor 의 href.
+  createObjectURL: (blob: Blob) => string;
+  // object URL 해제(런타임 기본: URL.revokeObjectURL). 다운로드 트리거 후 자원 회수.
+  revokeObjectURL: (url: string) => void;
+  // anchor 생성·download 속성 설정·DOM 부착·click·제거를 수행하는 부수효과(런타임 기본:
+  // document.createElement('a') + body append/click/remove). 테스트는 호출만 단언한다.
+  clickAnchor: (url: string, filename: string) => void;
+}
+
+// blob 을 가상 <a download> 클릭으로 저장하는 순수 부수효과 러너(④f). createObjectURL 로
+// object URL 을 만들고 clickAnchor 로 다운로드를 트리거한 뒤, 성공·예외 어느 경우든 finally 로
+// revokeObjectURL 정리를 보장한다(createObjectURL 후 click 예외 시에도 URL 누수 없음).
+function triggerDownload(
+  blob: Blob,
+  filename: string,
+  deps: DownloadDeps,
+): void {
+  const url = deps.createObjectURL(blob);
+  try {
+    deps.clickAnchor(url, filename);
+  } finally {
+    // click 성공·실패 무관하게 object URL 정리(자원 누수 방지).
+    deps.revokeObjectURL(url);
+  }
+}
+
+// onExport 의 GET + Blob 다운로드 + state-전이 로직을 캡슐화한 순수 async 러너(④f — ④d 의
+// runExport 를 확장. jsdom/렌더러 없이 export·다운로드 본체를 직접 검증한다 — *Deps 주입).
+// 컨테이너의 handleExport 는 이 러너에 현재 in-flight 여부(exporting)와 상태 setter·부수효과
+// deps 를 주입해 호출만 한다. 동작:
+//  - exporting(이전 export 미완) → 미발사(이중 GET·중복 다운로드 차단 — runAssign assigning 가드 동형).
+//  - 발사 시 진행 on + 이전 error·message 비움 → GET /api/admin/export(raw) → 성공 시 response.blob()
+//    → Content-Disposition filename(없으면 기본명) → triggerDownload(파일 저장) + 완료 message 설정 /
 //    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
-interface ExportDeps {
-  // export GET 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
-  get: (path: string, options?: RequestOptions) => Promise<unknown>;
+interface ExportDeps extends DownloadDeps {
+  // export GET 발사 primitive — apiClient.requestRaw 를 주입한다(raw Response 반환 — body
+  // 미소비라 blob() 가능). 테스트는 mock 주입.
+  getRaw: (path: string, options?: RequestOptions) => Promise<Response>;
   // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
   describeError: (e: unknown) => string;
   // 현재 export in-flight 여부 — true 면 미발사(동시 재호출 가드).
@@ -326,7 +399,7 @@ interface ExportDeps {
 }
 
 async function runExport(deps: ExportDeps): Promise<void> {
-  // 동시 재호출 가드 — 이전 export 미완 중이면 미발사(이중 GET·state 경합 차단).
+  // 동시 재호출 가드 — 이전 export 미완 중이면 미발사(이중 GET·중복 다운로드 차단).
   if (deps.exporting) {
     return;
   }
@@ -336,20 +409,47 @@ async function runExport(deps: ExportDeps): Promise<void> {
   deps.setExportError(undefined);
   deps.setExportMessage(undefined);
   try {
-    // GET /api/admin/export — 옵션 생략(apiClient.request 기본 GET). scope query 미부착(전체
-    // scope, scope 선택 UI 는 후속). 응답 body 형태(JSON/text/빈 body)는 본 slice 가 소비하지
-    // 않으므로(실 파일 저장 트리거는 후속) 성공 사실만 확인한다 — 비정상/빈 응답도 throw 없이 완료.
-    await deps.get(ADMIN_EXPORT_PATH);
-    // 성공 — 사람-친화 완료 안내를 message 로 표면화(DataImportExportPanel 의 정상 message 분기).
+    // GET /api/admin/export — raw Response 수신(옵션 생략 = 기본 GET, scope query 미부착, 전체
+    // scope). raw 반환이라 body 를 미소비 → response.blob() 으로 이진/임의 형식을 그대로 받는다.
+    const response = await deps.getRaw(ADMIN_EXPORT_PATH);
+    // 응답 본문을 Blob 으로 — 형식(Content-Type)은 backend 결정, 빈/0-byte body 도 빈 Blob 으로
+    // 안전 수용(throw 없이). 파일명은 Content-Disposition 의 filename 우선, 없으면 기본명 fallback.
+    const blob = await response.blob();
+    const filename =
+      parseFilename(response.headers.get('content-disposition')) ??
+      DEFAULT_EXPORT_FILENAME;
+    // 실제 파일 저장 — createObjectURL → 가상 <a download> 클릭 → revokeObjectURL 정리.
+    triggerDownload(blob, filename, deps);
+    // 성공 — 파일 저장 완료 안내를 message 로 표면화(DataImportExportPanel 의 정상 message 분기).
     deps.setExportMessage(EXPORT_DONE_TEXT);
   } catch (e) {
     // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 404 /
-    // 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
+    // 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화. 다운로드 부수효과
+    // 는 try 블록의 GET 성공 후에만 진입하므로 실패 시 createObjectURL 등은 호출되지 않는다.
     deps.setExportError(deps.describeError(e));
   } finally {
     deps.setExporting(false);
   }
 }
+
+// 런타임 기본 DownloadDeps — 브라우저 표준 URL/DOM API 로 구현(④f). 컨테이너 handleExport 가
+// 주입한다. createObjectURL/revokeObjectURL 는 URL 정적 메서드, clickAnchor 는 document 로
+// 가상 <a download> 를 만들어 클릭·정리한다(브라우저 표준 — file-saver 등 새 dependency 0).
+const browserDownloadDeps: DownloadDeps = {
+  createObjectURL: (blob) => URL.createObjectURL(blob),
+  revokeObjectURL: (url) => URL.revokeObjectURL(url),
+  clickAnchor: (url, filename) => {
+    // 가상 <a download> 생성 — href 에 object URL, download 속성에 파일명을 실어 클릭하면
+    // 브라우저가 파일을 저장한다. 일부 브라우저는 anchor 가 DOM 에 부착돼야 click 이 동작하므로
+    // body 에 append 후 click, 즉시 remove 한다(보이지 않게 — 즉시 제거).
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+  },
+};
 
 // onImportFile 의 POST(multipart) + state-전이 로직을 캡슐화한 순수 async 러너(④e — ④d
 // runExport 캡슐화 패턴 차용. jsdom/렌더러 없이 import 본체를 직접 검증한다 — ExportDeps 와
@@ -535,18 +635,21 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
   // 부적합). 동작:
   //  1) 이전 export 미완(exporting) 중 재호출이면 미발사(이중 호출·state 깨짐 차단).
   //  2) 진행 표시 on + 직전 error·message 비움(실패 후 재시도 시 직전 error 정리).
-  //  3) GET 성공 → 완료 안내(message) 표면화.
+  //  3) GET 성공 → response.blob() → Content-Disposition filename(없으면 기본명) → 가상 <a download>
+  //     클릭으로 실제 파일 저장(createObjectURL/revokeObjectURL/anchor 부수효과 deps 주입) → 완료 message.
   //  4) GET 실패 → toErrorMessage 문구를 error props 로 안전 표시(403/404/비-2xx/네트워크 0 모두, throw 없음).
   //  5) 마지막에 진행 표시 off(성공·실패 공통).
   const handleExport = useCallback(
     () =>
       runExport({
-        get: request,
+        getRaw: requestRaw,
         describeError: toErrorMessage,
         exporting,
         setExporting,
         setExportError,
         setExportMessage,
+        // 브라우저 표준 URL/DOM 부수효과 — 런타임 기본 구현 주입(테스트는 mock 주입).
+        ...browserDownloadDeps,
       }),
     [exporting],
   );
@@ -674,6 +777,8 @@ export {
   deriveDifficultyMapping,
   buildMappingsPath,
   mergeMapping,
+  parseFilename,
+  triggerDownload,
   runAssign,
   runExport,
   runImport,
@@ -685,6 +790,7 @@ export type {
   LlmProviderRow,
   DifficultyMappingRow,
   AssignDeps,
+  DownloadDeps,
   ExportDeps,
   ImportDeps,
 };
