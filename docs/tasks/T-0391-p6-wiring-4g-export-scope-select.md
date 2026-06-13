@@ -2,7 +2,10 @@
 id: T-0391
 title: P6 composition wiring ④g AdminView export scope 선택 UI(컨테이너 <select> → GET /api/admin/export?scope= query 부착)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 797197e
+prNumber: 322
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 150
