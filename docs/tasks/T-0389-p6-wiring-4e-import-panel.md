@@ -2,7 +2,7 @@
 id: T-0389
 title: P6 composition wiring ④e AdminView 에 DataImportExportPanel import 배선(onImportFile → POST /api/admin/import multipart)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-046, REQ-047]
 estimatedDiff: 200
