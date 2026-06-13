@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**T-0363 DONE (P6 frontend UI slice 3, PR #295 squash 7fff5c9, round 1/7 first-pass green)** — 평가 결과 조회 테이블 EvaluationResultTable.tsx 신설(props rows/sortKey/sortDirection/loading/emptyMessage, loading>empty>table 분기, aria-sort 접근성). 순수 presentational, 새 dep 0, web vitest 13 test(R-112). **P6 UI 진척: slice 1=T-0361(EvaluationGuardBanner)·2=T-0362(LoginForm)·3=T-0363(EvaluationResultTable) 전부 merge** — 모두 props 기반 순수 컴포넌트, 아직 App.tsx wiring/fetch/전역 상태 미배선. **다음 fire: planner** 가 다음 P6 UI slice 분해(후보: 모델 선택 UI R-96 / SuperAdmin 셋업 폼 / App.tsx composition wiring — dependency-free·ci.yml 무관 우선). **여전히 게이트된 backlog**: T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0364",
+  "backlogNote": "**T-0364 QUEUED (P6 frontend UI slice 4, planner)** — 난이도별 LLM 모델 선택 presentational 컴포넌트 DifficultyModelSelector.tsx (R-96 'Admin 이 LLM 모델 지정 UI' backend 완결 → UI; props providers/mapping/onAssign/loading/error, 3 슬롯 easy/medium/hard select, loading>empty>form 분기, role=alert/status). 순수 presentational(controlled), 새 dep 0, ci.yml 무관, .test.tsx 명명, dependsOn T-0353, independentStream p6-frontend-ui — LoginForm/EvaluationResultTable 패턴 차용. coversReq REQ-049/050/051. est 165 LOC·2파일, pr-mode. **P6 UI 진척: slice 1=T-0361(EvaluationGuardBanner)·2=T-0362(LoginForm)·3=T-0363(EvaluationResultTable) merge, 4=T-0364 QUEUED** — 전부 props 기반 순수 컴포넌트, 아직 App.tsx wiring/fetch/전역 상태 미배선(후속 composition slice). **여전히 게이트된 backlog**: T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-13T07:24:00Z",
-    "note": "/loop vb707106 t6 — T-0363 PR #295 MERGED(squash 7fff5c9) 후 bookkeeping critical section 완료, tombstone release. claim+release 모델: select-claim T-0363 → lock-free implement/test/PR → CI watch(gh run watch, run 27460151180 success) → merge 후 재획득(e183192) → 본 commit 후 release + claim 제거. STATE.lock mirror 는 비권위(ADR-0009/0028) — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-scheduled-755376c",
+    "since": "2026-06-13T07:37:54Z",
+    "note": "aa-local-scheduled cron fire 07:37Z — planner-only turn. fresh checkout 가 ef3620c 였으나 origin/main 이 755376c 로 선행(동시 /loop vb707106 가 T-0362/T-0363 머지)해 ff 갱신 후 진행. currentTask/nextTask 둘 다 null, 미해결 humanQuestion 0(Q-0037 RESOLVED P6 frontend) → 권위 lock CAS 획득(e12a203→8cb40c8, holder=cron) 후 planner dispatch 로 T-0364(P6 난이도 모델 선택 UI) 큐잉. 본 doc-only direct commit push 후 tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028) — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-13T07:24:00Z",
+  "lastActivity": "2026-06-13T07:37:54Z",
   "lastCommit": "7fff5c9",
   "mostRecentTasks": [
     "T-0363",
