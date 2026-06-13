@@ -2,8 +2,12 @@
 id: T-0367
 title: P6 재평가(N일 재수집) 트리거 패널 presentational 컴포넌트 분해
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-13T09:47:08Z
+mergedAs: c91ad17
+prNumber: 299
+reviewRounds: 1
 coversReq: [REQ-041]
 estimatedDiff: 165
 estimatedFiles: 2
