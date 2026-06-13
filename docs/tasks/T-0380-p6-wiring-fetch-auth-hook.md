@@ -2,7 +2,11 @@
 id: T-0380
 title: P6 composition wiring ②b 인증 fetch hook + 401→refresh→retry + AuthGate onLogin 주입
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-06-13T16:55:00Z
+mergedAs: 6e88321
+prNumber: 311
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-038, REQ-042]
 estimatedDiff: 200
