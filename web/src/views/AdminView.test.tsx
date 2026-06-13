@@ -59,6 +59,7 @@ import AdminView, {
   deriveProviders,
   deriveDifficultyMapping,
   buildMappingsPath,
+  buildExportPath,
   mergeMapping,
   parseFilename,
   triggerDownload,
@@ -848,6 +849,9 @@ describe('AdminView — triggerDownload (부수효과 러너, ④f)', () => {
 // export·다운로드 본체를 직접 호출하고(④c runAssign 과 동일 convention), getRaw mock 으로
 // raw Response 시나리오를 주입하며 createObjectURL/revokeObjectURL/clickAnchor 호출을 mock 으로
 // 단언한다. 상태 전이는 record harness 의 콜백 호출로 관찰한다. happy/error/branch/negative 각 1+.
+// ④g: runExport 시그니처가 (path, deps) 로 확장돼 path 를 명시 주입한다(기존 test 는 scope
+// 미선택 경로 = ADMIN_EXPORT_PATH 상수값 '/api/admin/export' 를 주입해 ④f 동작 유지를 단언).
+const EXPORT_PATH = '/api/admin/export';
 describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExport)', () => {
   // raw Response mock 헬퍼 — blob()/headers.get(content-disposition) 만 제공(runExport 가 쓰는
   // 최소 표면). disposition 인자로 Content-Disposition 유무 분기를 통제한다.
@@ -912,8 +916,8 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
       mockRawResponse('payload', 'attachment; filename="export.json"'),
     );
     const { deps, calls } = makeExportDeps(false);
-    await runExport(deps);
-    // getRaw 가 export path 로 1 회 호출(옵션 생략 = 기본 GET, scope query 미부착).
+    await runExport(EXPORT_PATH, deps);
+    // getRaw 가 주입된 export path 로 1 회 호출(옵션 생략 = 기본 GET, scope 미선택 = query 미부착).
     expect(requestRawMock).toHaveBeenCalledTimes(1);
     expect(requestRawMock).toHaveBeenCalledWith('/api/admin/export');
     // 다운로드 부수효과 — createObjectURL(payload=7byte) + click(filename=export.json) + revoke.
@@ -930,7 +934,7 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
   it('Content-Disposition 이 없으면 기본 파일명으로 fallback 한다 (flow/branch — filename fallback)', async () => {
     requestRawMock.mockResolvedValue(mockRawResponse('x', null));
     const { deps, calls } = makeExportDeps(false);
-    await runExport(deps);
+    await runExport(EXPORT_PATH, deps);
     // filename 헤더 부재 → DEFAULT_EXPORT_FILENAME(export.json).
     expect(calls.clicked).toEqual([{ url: 'blob:mock-url', filename: 'export.json' }]);
     expect(calls.message).toEqual([undefined, '내보내기 완료']);
@@ -942,7 +946,7 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
       mockRawResponse('x', 'attachment; filename="assessments-2026.csv"'),
     );
     const { deps, calls } = makeExportDeps(false);
-    await runExport(deps);
+    await runExport(EXPORT_PATH, deps);
     expect(calls.clicked[0].filename).toBe('assessments-2026.csv');
   });
 
@@ -950,7 +954,7 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
   it('export 403(Admin+ 미만) 실패 시 error 문구 표면화 + 다운로드 미호출 (error path — 403)', async () => {
     requestRawMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
     const { deps, calls } = makeExportDeps(false);
-    await expect(runExport(deps)).resolves.toBeUndefined();
+    await expect(runExport(EXPORT_PATH, deps)).resolves.toBeUndefined();
     // 사람-친화 문구 표면화 + 완료 message 미설정(시작 비움만) + 진행 off.
     expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
     expect(calls.message).toEqual([undefined]);
@@ -965,7 +969,7 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
   it('export 404 실패 시 안전 문구 표면화 + 다운로드 미호출 (error path — 404)', async () => {
     requestRawMock.mockRejectedValue(new ApiError(404, 'Not Found'));
     const { deps, calls } = makeExportDeps(false);
-    await expect(runExport(deps)).resolves.toBeUndefined();
+    await expect(runExport(EXPORT_PATH, deps)).resolves.toBeUndefined();
     expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
     expect(calls.created).toEqual([]);
   });
@@ -974,7 +978,7 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
   it('export 네트워크 실패(ApiError 0) 시 네트워크 오류 문구 + 다운로드 미호출 (error path — 네트워크)', async () => {
     requestRawMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
     const { deps, calls } = makeExportDeps(false);
-    await expect(runExport(deps)).resolves.toBeUndefined();
+    await expect(runExport(EXPORT_PATH, deps)).resolves.toBeUndefined();
     expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
     expect(calls.created).toEqual([]);
   });
@@ -983,12 +987,12 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
   it('성공·실패 어느 경우든 진행 표시(exporting)가 finally 로 해제된다 (flow/branch — 진행 해제)', async () => {
     requestRawMock.mockResolvedValueOnce(mockRawResponse('a', null));
     const ok = makeExportDeps(false);
-    await runExport(ok.deps);
+    await runExport(EXPORT_PATH, ok.deps);
     expect(ok.calls.exporting).toEqual([true, false]);
 
     requestRawMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
     const fail = makeExportDeps(false);
-    await runExport(fail.deps);
+    await runExport(EXPORT_PATH, fail.deps);
     expect(fail.calls.exporting).toEqual([true, false]);
   });
 
@@ -1002,7 +1006,7 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
         }),
     );
     const { deps, calls } = makeExportDeps(false);
-    const pending = runExport(deps);
+    const pending = runExport(EXPORT_PATH, deps);
     // 발사 직후(해소 전) — 진행 on + error/message 모두 시작 비움(undefined) + 다운로드 미발생.
     expect(calls.exporting).toEqual([true]);
     expect(calls.error).toEqual([undefined]);
@@ -1019,7 +1023,7 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
   // negative — export in-flight 중 재클릭(exporting=true)은 GET 미발사·중복 다운로드 없음.
   it('이전 export 미완(exporting=true) 중 재호출은 GET·다운로드를 발사하지 않는다 (negative — 동시 재호출)', async () => {
     const { deps, calls } = makeExportDeps(true); // 이미 in-flight.
-    await runExport(deps);
+    await runExport(EXPORT_PATH, deps);
     // getRaw 미호출 + 어떤 state 전이·다운로드도 없음(이중 호출·중복 다운로드 차단).
     expect(requestRawMock).not.toHaveBeenCalled();
     expect(calls.exporting).toEqual([]);
@@ -1033,7 +1037,7 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
   it('빈/0-byte blob 응답도 throw 없이 다운로드 + 완료 처리한다 (negative — 빈 blob)', async () => {
     requestRawMock.mockResolvedValue(mockRawResponse('', null));
     const { deps, calls } = makeExportDeps(false);
-    await expect(runExport(deps)).resolves.toBeUndefined();
+    await expect(runExport(EXPORT_PATH, deps)).resolves.toBeUndefined();
     // 0-byte Blob 이어도 createObjectURL(size 0) + click + revoke + 완료 message.
     expect(calls.created).toEqual([0]);
     expect(calls.clicked).toHaveLength(1);
@@ -1047,7 +1051,7 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
     // 1차 — 실패(error 설정 + 다운로드 미발생).
     requestRawMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
     const first = makeExportDeps(false);
-    await runExport(first.deps);
+    await runExport(EXPORT_PATH, first.deps);
     expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
     expect(first.calls.message).toEqual([undefined]);
     expect(first.calls.created).toEqual([]);
@@ -1055,7 +1059,7 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
     // 2차(재시도) — 성공. 시작 시 직전 error 를 비우고(undefined) 다운로드 + 완료 message.
     requestRawMock.mockResolvedValueOnce(mockRawResponse('ok', null));
     const second = makeExportDeps(false);
-    await runExport(second.deps);
+    await runExport(EXPORT_PATH, second.deps);
     expect(second.calls.error).toEqual([undefined]);
     expect(second.calls.message).toEqual([undefined, '내보내기 완료']);
     expect(second.calls.clicked).toHaveLength(1);
@@ -1085,13 +1089,230 @@ describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExp
         throw new Error('click failed');
       },
     };
-    await expect(runExport(deps)).resolves.toBeUndefined();
+    await expect(runExport(EXPORT_PATH, deps)).resolves.toBeUndefined();
     // click 예외 → triggerDownload finally 가 revoke 정리(누수 없음) → runExport catch 가
     // error 문구 표면화(throw 없이) + 완료 message 미설정 + 진행 off.
     expect(calls.revoked).toEqual(['blob:y']);
     expect(calls.error).toEqual([undefined, 'click failed']);
     expect(calls.message).toEqual([undefined]);
     expect(calls.exporting).toEqual([true, false]);
+  });
+});
+
+// R-112 — ④g buildExportPath 순수 helper 검증(scope 선택값 → export 호출 path). scope truthy
+// 면 `?scope=` query 부착, 빈/falsy 면 query 없는 ADMIN_EXPORT_PATH 그대로. encodeURIComponent
+// 로 공백/특수문자 안전 인코딩. happy/branch/negative 분기 각 1+ cover(jsdom 없이 직접 검증).
+describe('AdminView — buildExportPath (순수 함수, ④g)', () => {
+  it('scope 가 truthy 면 ?scope= query 를 부착한다 (happy)', () => {
+    expect(buildExportPath('assessments')).toBe(
+      '/api/admin/export?scope=assessments',
+    );
+    expect(buildExportPath('persons')).toBe('/api/admin/export?scope=persons');
+  });
+
+  it('빈 문자열(전체 선택) 이면 query 없는 ADMIN_EXPORT_PATH 그대로 반환한다 (branch — 미선택 = ④f 동작 유지)', () => {
+    expect(buildExportPath('')).toBe('/api/admin/export');
+  });
+
+  it('undefined scope 도 query 없는 path 그대로 반환한다 (branch — falsy)', () => {
+    expect(buildExportPath(undefined)).toBe('/api/admin/export');
+  });
+
+  it('scope 값의 공백/특수문자를 encodeURIComponent 로 안전 인코딩한다 (negative — 비정상 문자)', () => {
+    // 공백·& 등은 query 를 깨므로 percent-encoding 으로 안전(query 깨짐 없음).
+    expect(buildExportPath('a b')).toBe('/api/admin/export?scope=a%20b');
+    expect(buildExportPath('x&y=z')).toBe(
+      '/api/admin/export?scope=x%26y%3Dz',
+    );
+    // 한국어 scope 값도 안전 인코딩.
+    expect(buildExportPath('평가')).toBe(
+      `/api/admin/export?scope=${encodeURIComponent('평가')}`,
+    );
+  });
+});
+
+// R-112 — ④g scope 선택 → runExport 의 path 주입(scope query 부착/미부착)이 buildExportPath
+// 와 정합함을 runExport(path, deps) 직접 호출로 검증한다. happy(선택값 부착) / branch(미선택
+// 미부착) / negative(특수문자 인코딩·scope 변경 반영·실패 후 재시도)를 각 1+ cover. 다운로드
+// 부수효과(blob → createObjectURL + click + revoke)는 ④f 동작이 scope 부착 path 에서도 그대로
+// 호출됨을 함께 단언한다(다운로드 동작 회귀 0).
+describe('AdminView — scope query 부착 export (④g runExport path 주입)', () => {
+  function mockRawResponse(blobBytes: string, disposition: string | null) {
+    return {
+      blob: async () => new Blob([blobBytes]),
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === 'content-disposition' ? disposition : null,
+      },
+    } as unknown as Response;
+  }
+
+  function makeExportDeps(exporting: boolean) {
+    const calls = {
+      exporting: [] as boolean[],
+      error: [] as (string | undefined)[],
+      message: [] as (string | undefined)[],
+      created: [] as number[],
+      clicked: [] as { url: string; filename: string }[],
+      revoked: [] as string[],
+    };
+    const deps: ExportDeps = {
+      getRaw: (...args: unknown[]) => requestRawMock(...args),
+      describeError: (e: unknown) => {
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      exporting,
+      setExporting: (next) => calls.exporting.push(next),
+      setExportError: (next) => calls.error.push(next),
+      setExportMessage: (next) => calls.message.push(next),
+      createObjectURL: (blob) => {
+        calls.created.push(blob.size);
+        return 'blob:mock-url';
+      },
+      revokeObjectURL: (url) => calls.revoked.push(url),
+      clickAnchor: (url, filename) => calls.clicked.push({ url, filename }),
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestRawMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — scope 선택값이 truthy 일 때 buildExportPath 결과 path 로 getRaw 가 호출되고
+  // (?scope= 부착), 성공 응답 blob 으로 ④f 다운로드 부수효과가 그대로 호출된다.
+  it('scope 선택값이 있으면 ?scope= 부착 path 로 getRaw 호출 + blob 다운로드 부수효과 (happy-path)', async () => {
+    requestRawMock.mockResolvedValue(mockRawResponse('payload', null));
+    const { deps, calls } = makeExportDeps(false);
+    // 컨테이너 handleExport 와 동일 경로 — buildExportPath(scope) 를 runExport 에 주입.
+    await runExport(buildExportPath('assessments'), deps);
+    // scope query 가 부착된 path 로 1 회 호출.
+    expect(requestRawMock).toHaveBeenCalledTimes(1);
+    expect(requestRawMock).toHaveBeenCalledWith(
+      '/api/admin/export?scope=assessments',
+    );
+    // ④f 다운로드 동작 회귀 0 — createObjectURL + click + revoke + 완료 message.
+    expect(calls.created).toEqual([7]);
+    expect(calls.clicked).toEqual([
+      { url: 'blob:mock-url', filename: 'export.json' },
+    ]);
+    expect(calls.revoked).toEqual(['blob:mock-url']);
+    expect(calls.message).toEqual([undefined, '내보내기 완료']);
+  });
+
+  // flow/branch — scope 미선택(빈값) 시 query 없는 path 로 호출(④f 동작 유지).
+  it('scope 미선택(빈값) 이면 query 없는 path 로 getRaw 호출 (flow/branch — 미선택)', async () => {
+    requestRawMock.mockResolvedValue(mockRawResponse('x', null));
+    const { deps } = makeExportDeps(false);
+    await runExport(buildExportPath(''), deps);
+    expect(requestRawMock).toHaveBeenCalledWith('/api/admin/export');
+  });
+
+  // negative — scope 에 공백/특수문자가 들어가도 인코딩된 path 로 안전 호출(query 깨짐 없음).
+  it('scope 값에 공백/특수문자가 있어도 인코딩된 path 로 안전 호출한다 (negative — 비정상 문자)', async () => {
+    requestRawMock.mockResolvedValue(mockRawResponse('x', null));
+    const { deps } = makeExportDeps(false);
+    await runExport(buildExportPath('a b&c'), deps);
+    expect(requestRawMock).toHaveBeenCalledWith(
+      '/api/admin/export?scope=a%20b%26c',
+    );
+  });
+
+  // negative — scope 변경 후 export 시 변경된 scope 가 반영된 path 로 호출(stale scope 미사용).
+  // 두 번 연속 발화에서 각각 그 시점 scope 가 path 에 반영됨을 단언한다.
+  it('scope 변경 후 export 는 변경된 scope 가 반영된 path 로 호출한다 (negative — stale scope 미사용)', async () => {
+    requestRawMock.mockResolvedValue(mockRawResponse('x', null));
+    // 1차 — persons scope.
+    const first = makeExportDeps(false);
+    await runExport(buildExportPath('persons'), first.deps);
+    expect(requestRawMock).toHaveBeenLastCalledWith(
+      '/api/admin/export?scope=persons',
+    );
+    // 2차 — questions 로 변경. 직전 persons 가 아니라 새 scope 가 반영된다.
+    const second = makeExportDeps(false);
+    await runExport(buildExportPath('questions'), second.deps);
+    expect(requestRawMock).toHaveBeenLastCalledWith(
+      '/api/admin/export?scope=questions',
+    );
+  });
+
+  // negative — scope 부착 export 실패(403) 시 error 문구 표면화 + 다운로드 미호출(throw 없음).
+  it('scope 부착 export 403 실패 시 error 문구 표면화 + 다운로드 미호출 (error path — 403)', async () => {
+    requestRawMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeExportDeps(false);
+    await expect(
+      runExport(buildExportPath('assessments'), deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.created).toEqual([]);
+    expect(calls.clicked).toEqual([]);
+  });
+
+  // negative — scope in-flight 중 재트리거(exporting=true)는 GET·중복 다운로드 미발사(가드).
+  it('scope export in-flight 중 재트리거는 GET·중복 다운로드를 발사하지 않는다 (negative — 동시 재호출 가드)', async () => {
+    const { deps, calls } = makeExportDeps(true); // 이미 in-flight.
+    await runExport(buildExportPath('persons'), deps);
+    expect(requestRawMock).not.toHaveBeenCalled();
+    expect(calls.created).toEqual([]);
+  });
+
+  // negative — 실패 후 scope 그대로 재시도 시 직전 error 를 비우고 정상 재발화 + 다운로드.
+  it('실패 후 scope 그대로 재시도는 직전 error 를 비우고 정상 재발화 + 다운로드 (negative — 실패 후 재시도)', async () => {
+    // 1차 — 실패.
+    requestRawMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const first = makeExportDeps(false);
+    await runExport(buildExportPath('questions'), first.deps);
+    expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(first.calls.created).toEqual([]);
+    // 2차 — 같은 scope 재시도, 성공. 시작 시 직전 error 비움 + 다운로드.
+    requestRawMock.mockResolvedValueOnce(mockRawResponse('ok', null));
+    const second = makeExportDeps(false);
+    await runExport(buildExportPath('questions'), second.deps);
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.message).toEqual([undefined, '내보내기 완료']);
+    expect(second.calls.clicked).toHaveLength(1);
+  });
+});
+
+// R-112 — ④g scope 선택 <select> 정적 렌더 회귀. 컨테이너가 scope <select>(aria-label="export
+// 범위 선택")를 직접 렌더하고(presentational 패널은 scope 를 모른다, Decision 1), 모든 scope
+// 옵션 라벨을 노출하며 기존 패널 배선(그룹·LLM·export 버튼)이 회귀 0 임을 단언한다.
+describe('AdminView — ④g scope 선택 select 배선 (정적 렌더)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('scope 선택 select 가 모든 scope 옵션과 함께 렌더되고 기존 패널은 회귀 0 이다 (배선 회귀)', () => {
+    setRoutes({
+      [GROUPS]: { data: SAMPLE, loading: false, error: undefined },
+      [PROVIDERS]: { data: PROVIDER_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: MAPPING_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // scope <select> 가 aria-label 과 함께 렌더 + 보수 후보 라벨 노출.
+    expect(html).toContain('aria-label="export 범위 선택"');
+    expect(html).toContain('전체');
+    expect(html).toContain('평가 결과');
+    expect(html).toContain('문항');
+    expect(html).toContain('인원');
+    // 초기 선택값은 빈 문자열(전체) — 첫 옵션이 selected.
+    expect(html).toContain('value="" selected');
+    // 기존 배선 회귀 0 — 그룹 멤버 + provider 옵션 + export 버튼 + 그룹 select 그대로.
+    expect(html).toContain('김철수');
+    expect(html).toContain('gpt-4o (openai)');
+    expect(html).toContain('<button type="button">내보내기</button>');
+    expect(html).toContain('aria-label="그룹 선택"');
   });
 });
 
