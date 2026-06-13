@@ -2,8 +2,12 @@
 id: T-0384
 title: P6 composition wiring ③b-3 대시보드 페이지네이션(DashboardPaginationControl client-side 페이지 상태 + row slicing) 조립
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-13T19:14:00Z
+mergedAs: 5615f50
+prNumber: 315
+reviewRounds: 1
 coversReq: [REQ-038, REQ-046, REQ-092]
 estimatedDiff: 215
 estimatedFiles: 2

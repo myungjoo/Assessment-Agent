@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0384",
-  "backlogNote": "**T-0384 큐잉 (P6 composition wiring ③b-3 페이지네이션, pr-mode, dependsOn T-0383)** — DashboardView 에 client-side currentPage/pageSize useState + visibleRows slicing(pageRows helper) + DashboardPaginationControl 배선(totalItems=slice 전 visibleRows.length, onPageChange/onPageSizeChange clamp). presentational·AppShell 수정 0, 신규 조회 0(client-side 파생), zero-new-dep(ADR-0040 §5). est ~215 LOC·2파일(DashboardView.tsx + .test.tsx). 본 ③b-3 가 wiring ③ chain 마지막. **다음 task: ④Admin 화면 조립(view==='admin' 분기 + GET /api/persons·groups·parts·llm·admin mutation + GroupMemberList·DifficultyModelSelector·ReEvaluationTriggerPanel·DataImportExportPanel·SchedulePanel 배선) — planner 미생성, T-0384 머지 후 큐잉**. **[stream]: ①(T-0378)→②(T-0379)→②b(T-0380)→③a(T-0381)→③b-1(T-0382)→③b-2(T-0383 DONE)→③b-3 페이지네이션(T-0384 다음)→④Admin→⑤R-78 polling. 다음 후속: 세션만료→view전환 / GET /api/auth/me 부트 hydration / personId 선택 GET /api/persons.** **게이트된 backlog**: T-0355 web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0385",
+  "backlogNote": "**T-0384 DONE (P6 composition wiring ③b-3 대시보드 페이지네이션, PR#315 squash merge 5615f50)** — DashboardView 에 client-side 페이지네이션(currentPage/pageSize state + 순수 helper pageRows slice + DashboardPaginationControl 배선) 조립. wiring ③ chain(③a~③b-3) 완료 — 대시보드 컨테이너는 요약/필터/테이블/시계열/분포/상세/페이지네이션 모두 갖춤. web test 357 pass, 2파일 +103/-6(prod), zero-new-dep, reviewer APPROVE r1/7. **다음 task: ④ Admin 화면 조립(AppShell view==='admin' 분기에 Admin 컨테이너 — GET /api/persons·/api/groups·/api/parts·/api/llm + Admin+ RBAC + GroupMemberList·DifficultyModelSelector·ReEvaluationTriggerPanel·DataImportExportPanel·SchedulePanel 배선) — planner 미생성, 다음 fire 가 큐잉**. **[stream]: ①(T-0378)→②(T-0379)→②b(T-0380)→③a(T-0381)→③b-1(T-0382)→③b-2(T-0383)→③b-3(T-0384 DONE)→④Admin(다음)→⑤R-78 polling. 다음 후속: 세션만료→view전환 / GET /api/auth/me 부트 hydration / personId 선택 GET /api/persons.** **게이트된 backlog**: T-0355 web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-sched-45e826",
-    "since": "2026-06-13T18:38:15Z",
-    "note": "cron@cloud-aa-local-sched-45e826 fire(scheduled task, 매시 30분 trigger 충돌 회피) — fresh checkout 94713a7 였으나 origin/main e0efba2(T-0383 closeout PR#314)로 reset. free lock(cba722a tip, holder='') + claims=[]. fineGrainedConcurrency=true: lock acquire CAS(cba722a→e9a5dd8). currentTask·nextTask 둘 다 null + 큐잉/claimable task 0(③b-3 페이지네이션 task 파일 미존재) → planner dispatch turn(claim 머시너리 noop — 후보 task 0). planner 가 T-0384(P6 wiring③b-3 페이지네이션, pr-mode, dependsOn T-0383, ~215 LOC·2파일) 생성 + STATE.nextTask='T-0384' + backlogNote 갱신 + journal append. doc-only direct commit → main push → lock tombstone release. 다음 fire 가 T-0384 claim+execute. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-local-15-dded88",
+    "since": "2026-06-13T19:18:50Z",
+    "note": "cron@cloud-aa-local-15-dded88 fire(scheduled task aa-local-15, 매시 15분 trigger). fresh checkout → origin/main cef43fc(T-0384 planner 큐잉)로 ff. free lock(2a67b6d tip, holder=null)+claims=[]. fineGrainedConcurrency=true: lock acquire CAS(2a67b6d→6ebe2a4, since fix→0edcb56 직전) → reclaim(server-time) 회수 0 → 활성 claim 0<2 게이트 통과(pr-mode 단독) → validate-claim-candidate T-0384 PASS(touchesFiles disjoint·dependsOn T-0383 머지됨) → select-claim T-0384(pr) lock-하 atomic claim+tombstone release. lock-free execute: executor → implementer/tester(DashboardView 에 client-side 페이지네이션 — currentPage/pageSize useState + 순수 helper pageRows slice + DashboardPaginationControl 배선, presentational·AppShell 수정 0, web vitest 357 pass, build/lint green, 2파일 +103/-6 prod, zero-new-dep) → commit 377ea91 push claude/T-0384-... → PR #315 open → 클레임 prNumber=315 PR_OPEN CAS 갱신(resume 안전, #246/#247 차단) → integrator reviewer APPROVE r1/7(comment 외부 post, finding 0) → 4-게이트 PASS(approval-gate first-run green — reviewer comment 가 approval step 전 landing, rerun 불요) → squash merge 5615f50 --delete-branch. closeout 후 claims.json T-0384 제거. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-13T18:38:15Z",
-  "lastCommit": "0a05a7e",
+  "lastActivity": "2026-06-13T19:18:50Z",
+  "lastCommit": "5615f50",
   "mostRecentTasks": [
+    "T-0384",
     "T-0383",
     "T-0382",
     "T-0381",
-    "T-0380",
-    "T-0379"
+    "T-0380"
   ],
   "loopSession": {
     "turnCount": 8,
@@ -33,11 +33,11 @@
     "endedAt": "2026-06-13T13:22:00Z"
   },
   "ci": {
-    "lastRun": "2026-06-13T18:21:56Z",
-    "status": "running",
+    "lastRun": "2026-06-13T19:18:50Z",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/314",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/315",
     "noteT0383": "PR #314(T-0383 P6 wiring③b-2 평가 상세) head f288f56 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate benignRedNote case A: reviewer approve comment 가 approval-gate step 후 landing → 단독 fail, comment 선post 후 `gh run rerun --failed` 후 전 step green: lint/build/prisma/test+cov/smoke/e2e + approval; mergeStateStatus CLEAN noop). DashboardView 에 contributions 3rd useApiResource(GET /api/contributions, assessmentId 가드)+deriveContributionMetrics + native <select> 행 선택(initialSelectedId)→선택 assessmentId→재조회→EvaluationDetailPanel 배선. EvaluationResultTable row-select prop 부재로 컨테이너 내부 select 컨트롤 표현(컴포넌트 수정 0), AppShell 수정 0. web vitest 344 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). squash 0a05a7e --delete-branch. 0a05a7e main push run(18:21:56Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0382": "PR #313(T-0382 P6 wiring③b-1 시계열+분포) head dbd7ddc = integrator 4-게이트 PASS(reviewer APPROVE r1/7 comment 외부 post + approval-gate first-pass green — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요, 24/24 step green: lint/build/prisma/test+cov/smoke/e2e + approval). DashboardView 에 summaries 2nd useApiResource(GET /api/summaries, personId 가드)+deriveTrendPoints+client-side deriveScoreBuckets(5구간 반열린+만점 포함) 배선, TrendTimeSeriesPanel·ScoreDistributionChart props 재사용(수정 0), AppShell 수정 0. web vitest 333 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). reviewer MINOR×1 비차단. squash 5724332 --delete-branch. 5724332 main push run 27474328022(17:47:21Z pending) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0381": "PR #312(T-0381 P6 wiring③a 대시보드 컨테이너) head e10af0a = integrator 4-게이트 PASS(reviewer APPROVE r1/7 comment 외부 post + approval-gate ordering benignRedNote case A 로 `gh run rerun 27473497861 --failed` 후 전 step green: lint/build/prisma/test+cov/smoke/e2e + approval; mergeStateStatus CLEAN noop). DashboardView 컨테이너(controlled lift-up) + useApiResource thin fetch hook(GET /api/assessments) + AppShell dashboard 분기 교체, presentational 3종 수정0 재사용. web vitest 320 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). squash 06c9a53 --delete-branch. **gh GraphQL transient retry 로 빈 commit afa2cf4(파일변경 0) 1개 추가 — main push run 27473xxxxx(17:25:35Z in_progress) 다음 fire 재확인(empty/web-only squash trivially green 예상)**. Node20 deprecation annotation non-blocking(2026-06-16).",
@@ -72,7 +72,8 @@
     "noteT0371": "PR #303(T-0371 P6 TrendTimeSeriesPanel) head 3213329 pull_request run 27465669500 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요, benignRedNote case A 미해당). 전 step green(lint/build/prisma/test+cov/smoke/e2e + approval-gate). web vitest 16신규/171 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash d104d45 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0372": "PR #304(T-0372 P6 DashboardPaginationControl) head 953d8b3 pull_request run 27466031462 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요, benignRedNote case A 미해당). 전 step green. web vitest 20신규/191 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash 3465e09 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0374": "PR #306(T-0374 P6 ScoreDistributionChart) head 68282d1 pull_request run 27466895613 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요, benignRedNote case A 미해당). 전 step green. web vitest 19신규/233 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). reviewer MINOR 2(M1 총계 표시 직접 단언 권고-coverage 충분이라 비필수, M2 web vitest CI 미배선=기존 tracked gap) 머지 무관. squash a16f5c6. Node20 deprecation annotation non-blocking(2026-06-16).",
-    "noteT0375": "PR #307(T-0375 P6 EvaluationDetailPanel) head a1474a3 pull_request run 27467287993 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요). 전 step green. web vitest 27신규/260 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). reviewer MINOR 1(scoreText 주석 표현 느슨-동작 정확·follow-up 불요) 머지 무관. squash d24c54c. Node20 deprecation annotation non-blocking(2026-06-16)."
+    "noteT0375": "PR #307(T-0375 P6 EvaluationDetailPanel) head a1474a3 pull_request run 27467287993 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요). 전 step green. web vitest 27신규/260 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). reviewer MINOR 1(scoreText 주석 표현 느슨-동작 정확·follow-up 불요) 머지 무관. squash d24c54c. Node20 deprecation annotation non-blocking(2026-06-16).",
+    "noteT0384": "PR #315(T-0384 P6 wiring③b-3 대시보드 페이지네이션) head 377ea91 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-run green — reviewer approve comment 가 approval 검증 step 실행 전 landing, run 27476389242, rerun 불요; mergeStateStatus CLEAN noop). DashboardView 에 client-side 페이지네이션(currentPage/pageSize useState + initialPage/initialPageSize 주입 + 순수 helper pageRows slice + DashboardPaginationControl 배선, totalItems=visibleRows.length slice전, loading=assessments only, select 옵션 전체 visibleRows 유지·selectedRow 조회 visibleRows 기준). presentational/AppShell/useApiResource 수정 0, zero-new-dep. web vitest 357 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). squash 5615f50 --delete-branch. 5615f50 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
     "T-0383": 1,
@@ -198,7 +199,8 @@
     "T-0371": 1,
     "T-0372": 1,
     "T-0374": 1,
-    "T-0375": 1
+    "T-0375": 1,
+    "T-0384": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -222,7 +224,9 @@
       "raisedThisTurn": false,
       "resolvedAt": "2026-06-13T06:03:00Z",
       "resolvedBy": "user (/loop turn cap 10 현장, loop@WIN-JQIPLSBL9QV-vb707106 t1, AskUserQuestion)",
-      "decision": "옵션 2 — P6 frontend 진입. 사용자가 /loop 현장에서 AskUserQuestion 4지선다 중 'Push into P6 frontend' 선택 → 게이트된 backlog(workflow-scope credential / live-LLM credential / stage5c 측정 / idle) 대신 P6 frontend UI 작업을 다음 방향으로 지시. ADR-0040(React+Vite frontend stack) 이미 ACCEPTED, scaffold slice 1~2(T-0353 workspace+Vite SPA / T-0354 serve-static WebModule) 완료. planner 가 첫 dependency-free UI slice T-0361(R-78 평가 진행 중 경고 배너 EvaluationGuardBanner.tsx, pr-mode, est 110 LOC·2파일, dependsOn T-0353 only, 새 dep 0, .github/workflows 무관) 큐잉 → nextTask=T-0361. 발견: Q-0037 survey 의 'ADR-0038 PROPOSED→ACCEPTED flip 대기' 항목은 stale — ADR-0038 은 이미 Q-0034(2026-06-10)로 ACCEPTED flip 됐고 overwrite/reeval impl chain(T-0333/T-0334) shipped. CI 슬라이스 T-0355 는 여전히 workflow-scope credential 대기(P6 UI 와 병행 가능)."
+      "decision": "옵션 2 — P6 frontend 진입. 사용자가 /loop 현장에서 AskUserQuestion 4지선다 중 'Push into P6 frontend' 선택 → 게이트된 backlog(workflow-scope credential / live-LLM credential / stage5c 측정 / idle) 대신 P6 frontend UI 작업을 다음 방향으로 지시. ADR-0040(React+Vite frontend stack) 이미 ACCEPTED, scaffold slice 1~2(T-0353 workspace+Vite SPA / T-0354 serve-static WebModule) 완료. planner 가 첫 dependency-free UI slice T-0361(R-78 평가 진행 중 경고 배너 EvaluationGuardBanner.tsx, pr-mode, est 110 LOC·2파일, dependsOn T-0353 only, 새 dep 0, .github/workflows 무관) 큐잉 → nextTask=T-0361. 발견: Q-0037 survey 의 'ADR-0038 PROPOSED→ACCEPTED flip 대기' 항목은 stale — ADR-0038 은 이미 Q-0034(2026-06-10)로 ACCEPTED flip 됐고 overwrite/reeval impl chain(T-0333/T-0334) shipped. CI 슬라이스 T-0355 는 여전히 workflow-scope credential 대기(P6 UI 와 병행 가능).",
+      "processedByPlanner": true,
+      "processedAt": "2026-06-14T00:00:00Z"
     },
     {
       "id": "Q-0034",
@@ -716,7 +720,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 378,
+    "tasksCompleted": 379,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
