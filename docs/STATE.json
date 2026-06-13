@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0377",
-  "backlogNote": "**T-0377 QUEUED (ADR-0041 PROPOSED→ACCEPTED flip, commitMode DIRECT, 1 LOC·1파일)** — ADR-0041(composition-wiring 전환)이 reviewer-APPROVED + merge(PR #308) 됐으므로 CLAUDE.md §3.1 규칙4 에 따라 status 한 줄 direct flip. 이것이 composition-wiring 코드 stream 의 게이트. **flip 후 다음 = wiring ① AppShell(pr, dependsOn T-0377, independentStream p6-frontend-composition, 단일-claim 순차).** **[stream 전환 박제]: P6 presentational 분해 완료(15 컴포넌트 T-0361~T-0375) → ADR-0041(merged) 가 composition-wiring 전략 결정(controlled lift-up·무라우터 state-view·native fetch hook·R-78 배선·non-parallel single-claim shape) → 후속 wiring ①~⑤(AppShell→인증게이트+라우팅→대시보드 조립→Admin 조립→R-78 배선)는 App.tsx 공유수정이라 file-disjoint 불성립=단일-claim 순차 stream(병렬 claim 후보 제외). 이 stream 은 fresh-context 가 유리해 cron(§10 long-horizon backbone)이 이어가기 적합.** **게이트된 backlog**: T-0355 ci.yml workflow-scope credential + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0378",
+  "backlogNote": "**T-0378 QUEUED (P6 composition wiring ① AppShell, commitMode PR, est ~165 LOC·4파일)** — ADR-0041(ACCEPTED, T-0377 flip 머지 4625ed1) wiring chain 의 첫 slice. AppShell 전역 레이아웃 골격 + 무라우터 view enum 상태 + R-78 배너 슬롯(EvaluationGuardBanner props 배선). 골격만 — 인증/fetch/화면 컨테이너는 후속 ②~⑤. zero-new-dep(react/react-dom only). dependsOn [] · independentStream p6-frontend-composition. **[stream 상태]: P6 presentational 분해 완료(15 컴포넌트 T-0361~T-0375) → ADR-0041 ACCEPTED(T-0377) → wiring chain ①~⑤(AppShell→인증게이트+view전환→대시보드 조립→Admin 조립→R-78 배선) 시작. App.tsx 공유수정이라 file-disjoint 불성립=단일-claim 순차 stream(병렬 claim 후보 제외) — pr-mode 단독 claim(maxConcurrentClaims gate: pr 은 활성 0 일 때만). fresh-context 가 유리해 cron(§10 backbone)이 이어가기 적합.** **게이트된 backlog**: T-0355 ci.yml workflow-scope credential + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-13T13:19:13Z",
-    "note": "loop vb707106 t8 — free lock → validate-claim-candidate T-0376 PASS → select-claim T-0376(ADR-0041 doc-only pr-mode, server-time 13:06:50Z) → lock-free execute(architect: ADR-0041 PROPOSED 작성 controlled lift-up·무라우터·native fetch·R-78 배선·single-claim shape + PLAN 1줄, 코드 0 LOC) → claim prNumber=308 PR_OPEN → PR #308 reviewer APPROVE r1/7(ADR-0040/0036/0008 정합 실측, MINOR 1 머지무관) → CI first-pass green(run 27467752528) → integrator 4-게이트 PASS → squash 8827c09 --delete-branch. closeout 후 claims.json T-0376 제거. planner OPTION 1 로 T-0377(ADR-0041 ACCEPTED flip, direct) 큐잉. STATE.lock mirror 비권위."
+    "session": "cron@cloud-aa-local-0377",
+    "since": "2026-06-13T13:37:31Z",
+    "note": "cron@cloud-aa-local-0377 fire(매시 30분 trigger 충돌 회피) — fresh checkout 9462ff65 였으나 origin/main 0510989(loop vb707106 t8 종료)로 선행 reset. free lock(a405c81 tip, holder='') → branch-ref CAS 획득(a405c81→418302e). claims [] → maxConcurrentClaims gate(활성 0 < 2) → T-0377(ADR-0041 ACCEPTED flip, direct doc-only, trivial) lock-하 직접 execute(driver Edit: frontmatter status PROPOSED→ACCEPTED 한 줄 + task DONE) → direct commit 4625ed1 main push(0510989→4625ed1, contention 0). CI run(4625ed1) in_progress(doc-only trivially green 예상, 다음 fire 재확인). planner T-0378(wiring ① AppShell, pr) 큐잉. lock tombstone release. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-13T13:20:00Z",
-  "lastCommit": "8827c09",
+  "lastActivity": "2026-06-13T13:40:00Z",
+  "lastCommit": "4625ed1",
   "mostRecentTasks": [
+    "T-0377",
     "T-0376",
     "T-0375",
     "T-0374",
-    "T-0373",
-    "T-0372"
+    "T-0373"
   ],
   "loopSession": {
     "turnCount": 8,
@@ -33,11 +33,12 @@
     "endedAt": "2026-06-13T13:22:00Z"
   },
   "ci": {
-    "lastRun": "2026-06-13T12:59:38Z",
-    "status": "green",
+    "lastRun": "2026-06-13T13:40:00Z",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/307",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/commit/4625ed1",
+    "noteT0377": "T-0377(ADR-0041 ACCEPTED flip, direct doc-only) main push 4625ed1 CI run 13:39:14Z in_progress — doc-only(ADR frontmatter 한 줄 + task status flip)이라 trivially green 예상. 다음 fire [1]/[5] 에서 conclusion 재확인. 이전 main push 0510989·d510b04 run 전부 success 확인.",
     "noteT0373": "PR #305(T-0373 P6 MetricSummaryCards) head 37297d4 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 findings 0 + approval-gate 포함 first-pass CI green, rerun 불요, mergeStateStatus CLEAN). web vitest 26신규/214 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash 10f55c3 main push run(12:12:44Z pending)은 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0369": "PR #301(T-0369 P6 SchedulePanel) head 59b1e1d pull_request run 27464471930 = approval-gate ordering(benignRedNote case A — run 10:42:09Z 시작, reviewer approve comment 10:45:15Z landing) 단독 fail, `gh run rerun --failed` 후 전 step success(lint/build/prisma/test+cov/smoke/e2e + approval-gate). web vitest 131(신규 21) 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash 45957e3 main push run 다음 fire 재확인(web-only/squash trivially green 예상).",
     "noteT0368": "PR #300(T-0368 P6 DataImportExportPanel) head 14fffb2 pull_request run 27463789116 = first-pass green 전 step(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요, mergeStateStatus CLEAN 이라 rebase noop). web vitest 110/110(신규 18) 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash f9c50fd main push run 다음 fire 재확인(web-only/squash trivially green 예상).",
@@ -705,7 +706,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 371,
+    "tasksCompleted": 372,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
