@@ -56,6 +56,22 @@ const ADMIN_EXPORT_PATH = '/api/admin/export';
 // 성공 사실만 표면화한다(데이터 건수/scope 요약은 응답 형태 미확정이라 단순 완료 문구로 둔다).
 const EXPORT_DONE_TEXT = '내보내기 완료';
 
+// 평가 자료 import path — 고정 endpoint(POST /api/admin/import, api.md 123 Admin+, multipart
+// file upload). Admin+ 라 User 등급은 403 — 그 403 은 runImport 의 catch 가 error props 로 안전
+// 표시(throw 없음). backup/restore(api.md 124·125) 는 본 slice Out of Scope(import 만).
+const ADMIN_IMPORT_PATH = '/api/admin/import';
+
+// import multipart FormData 의 file field 이름 — api.md 123 이 multipart field 키를 명시하지
+// 않으므로 가장 표준적인 'file' 을 쓴다(NestJS FileInterceptor 의 기본 field 명 관례 정합).
+// backend import controller 가 다른 키를 요구하면 후속 정정한다(현 src/ 에 미구현 — ④d export
+// 와 동일하게 api.md 계약 기준 선배선). 컴포넌트/apiClient 수정 0 — native FormData body.
+const IMPORT_FILE_FIELD = 'file';
+
+// import 성공 시 DataImportExportPanel 의 message props 로 내려보낼 사람-친화 완료 안내.
+// import 결과 상세(건수/충돌/검증 리포트) 는 후속 slice 라(Out of Scope), 본 slice 는 import
+// 호출 성공 사실만 표면화한다(응답 형태 미확정이라 단순 완료 문구로 둔다 — EXPORT_DONE_TEXT 동형).
+const IMPORT_DONE_TEXT = '가져오기 완료';
+
 // 그룹 미선택 시 멤버 패널에 노출할 안내 문구 — 그룹을 고르면 그 멤버가 표시됨을 안내한다.
 const NO_GROUP_SELECTED_TEXT = '그룹을 선택하면 인원이 표시됩니다';
 // 그룹 선택 <select> 의 빈 선택지 라벨 — selectedGroupId 미선택 시 첫 옵션으로 노출한다.
@@ -335,6 +351,61 @@ async function runExport(deps: ExportDeps): Promise<void> {
   }
 }
 
+// onImportFile 의 POST(multipart) + state-전이 로직을 캡슐화한 순수 async 러너(④e — ④d
+// runExport 캡슐화 패턴 차용. jsdom/렌더러 없이 import 본체를 직접 검증한다 — ExportDeps 와
+// 동형의 ImportDeps 주입). 컨테이너의 handleImport 는 이 러너에 현재 in-flight 여부(importing)와
+// 상태 setter 들을 주입해 호출만 한다. 동작:
+//  - 빈/falsy file → 미발사(빈 선택 방어 — DataImportExportPanel.handleFileChange 도 falsy file
+//    시 미호출이나 러너 자체도 방어해 직접 호출/비정상 입력에 안전).
+//  - importing(이전 import 미완) → 미발사(이중 POST·state 경합 차단 — runExport 의 exporting 가드 동형).
+//  - 발사 시 진행 on + 이전 error·message 비움 → FormData 에 file append → POST /api/admin/import →
+//    성공(완료 message 설정) / 실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
+interface ImportDeps {
+  // import POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  post: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 import in-flight 여부 — true 면 미발사(동시 재호출 가드).
+  importing: boolean;
+  setImporting: (next: boolean) => void;
+  setImportError: (next: string | undefined) => void;
+  setImportMessage: (next: string | undefined) => void;
+}
+
+async function runImport(file: File, deps: ImportDeps): Promise<void> {
+  // 비정상 호출 가드 — 빈/falsy file 은 POST 미발사(빈 선택 방어 — 잘못된 body 회피).
+  if (!file) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 import 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.importing) {
+    return;
+  }
+  deps.setImporting(true);
+  // 재발화 시작 시 직전 error·message 를 비운다(실패 후 재시도 시 직전 error 정리 + 직전 완료
+  // 안내 정리 — 새 import 의 진행 표시만 남도록, runExport 의 시작 정리 동형).
+  deps.setImportError(undefined);
+  deps.setImportMessage(undefined);
+  try {
+    // 선택 File 을 multipart FormData 로 동봉 — body 가 FormData 면 브라우저가 multipart
+    // Content-Type boundary 를 자동 설정하므로 수동 헤더 미지정(boundary 누락 방지). apiClient
+    // .request 가 RequestInit.body 를 native 수용 → apiClient.ts 수정 0.
+    const formData = new FormData();
+    formData.append(IMPORT_FILE_FIELD, file);
+    // POST /api/admin/import — multipart body. 응답 body 형태(건수/리포트)는 본 slice 가
+    // 소비하지 않으므로(import 결과 상세 표시는 후속) 성공 사실만 확인한다.
+    await deps.post(ADMIN_IMPORT_PATH, { method: 'POST', body: formData });
+    // 성공 — 사람-친화 완료 안내를 message 로 표면화(DataImportExportPanel 의 정상 message 분기).
+    deps.setImportMessage(IMPORT_DONE_TEXT);
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 400 잘못된
+    // 파일 / 404 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
+    deps.setImportError(deps.describeError(e));
+  } finally {
+    deps.setImporting(false);
+  }
+}
+
 // Admin 화면 컨테이너. useApiResource 로 GET /api/groups 결과를 소유하고, 선택 그룹 상태를
 // useState 로 보유해 선택 그룹의 멤버를 client-side 파생 후 GroupMemberList 에 props 로
 // 내려보낸다(controlled lift-up — GroupMemberList 는 fetch 를 모른다, ADR-0041 Decision 1).
@@ -480,18 +551,60 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
     [exporting],
   );
 
+  // import in-flight 플래그(④e) — import POST 진행 중 true. 진행 표시(busy)와 동시 재호출 가드
+  // (이전 import 미완 중 재호출 차단)에 함께 쓴다(④d exporting 동형).
+  const [importing, setImporting] = useState<boolean>(false);
+
+  // import 완료 안내 문구(④e) — import 성공 시 사람-친화 완료 안내를 보관해 message props 로
+  // 표시한다. 재발화 시작·실패 시 비운다(④d exportMessage 동형).
+  const [importMessage, setImportMessage] = useState<string | undefined>(
+    undefined,
+  );
+
+  // import 실패 문구(④e) — import 실패 시 사람-친화 문구(toErrorMessage 파생)를 보관해 error
+  // props 로 안전 표시한다(throw 없음). 재발화 시작 시 비운다(④d exportError 동형).
+  const [importError, setImportError] = useState<string | undefined>(undefined);
+
+  // onImportFile 실 핸들러(④e) — import POST(/api/admin/import, multipart) 를 컨테이너 내부
+  // async 로 발사한다(신규 fetch hook 미작성 — ④d runExport 정합, useApiResource 는 read-on-mount
+  // 라 파일 선택 발화에 부적합). 동작:
+  //  1) 빈/falsy file 또는 이전 import 미완(importing) 중 재호출이면 미발사(빈 선택 방어 +
+  //     이중 호출·state 깨짐 차단).
+  //  2) 진행 표시 on + 직전 error·message 비움(실패 후 재시도 시 직전 error 정리).
+  //  3) FormData 에 file append → POST 성공 → 완료 안내(message) 표면화.
+  //  4) POST 실패 → toErrorMessage 문구를 error props 로 안전 표시(403/400/404/비-2xx/네트워크 0 모두, throw 없음).
+  //  5) 마지막에 진행 표시 off(성공·실패 공통).
+  const handleImport = useCallback(
+    (file: File) =>
+      runImport(file, {
+        post: request,
+        describeError: toErrorMessage,
+        importing,
+        setImporting,
+        setImportError,
+        setImportMessage,
+      }),
+    [importing],
+  );
+
   // DataImportExportPanel 의 busy/error/message props — busy 우선 → error → message 순으로
-  // 패널이 렌더 분기하므로(컴포넌트 박제), 컨테이너는 exporting/exportError/exportMessage 를
-  // 그대로 내려보낸다(③a~④c controlled props 경계 정합). 타입은 패널 props 에서 파생해 시그니처
-  // 정합을 강제한다(컴포넌트 props 재정의 금지).
-  const exportPanelProps: Pick<
+  // 패널이 렌더 분기하므로(컴포넌트 박제), 컨테이너는 export·import 두 작업의 진행/실패/완료
+  // 상태를 단일 패널 props 로 합성한다(④e 결정 근거): DataImportExportPanel 이 export·import 를
+  // 한 패널로 표현하므로(버튼+파일입력 + 단일 busy/error/message 슬롯), 컨테이너도 작업별 state 를
+  // 분리 보유(exporting/importing 등 — 가드·전이는 독립)하되 패널로는 단일 슬롯으로 OR 합성해
+  // 내려보낸다. 우선순위는 패널 렌더 분기 정합으로 busy(둘 중 하나라도 진행) → error(export
+  // error 우선, 없으면 import error) → message(export message 우선, 없으면 import message). 동시
+  // 발화는 각 가드가 차단하므로 한 시점에 한 작업만 진행한다(우선순위 충돌 표면 최소). 타입은 패널
+  // props 에서 파생해 시그니처 정합을 강제한다(컴포넌트 props 재정의 금지).
+  const importExportPanelProps: Pick<
     DataImportExportPanelProps,
-    'onExport' | 'busy' | 'error' | 'message'
+    'onExport' | 'onImportFile' | 'busy' | 'error' | 'message'
   > = {
     onExport: handleExport,
-    busy: exporting,
-    error: exportError,
-    message: exportMessage,
+    onImportFile: handleImport,
+    busy: exporting || importing,
+    error: exportError ?? importError,
+    message: exportMessage ?? importMessage,
   };
 
   // 그룹 선택 변경 — <select> 가 선택 그룹 id 를 컨테이너 상태로 올린다(빈 값 선택 시 미선택
@@ -544,12 +657,12 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
         loading={llmLoading}
         error={llmError}
       />
-      {/* 데이터 import/export(세 번째 패널, ④d) — export 콜백·진행·결과·실패를 컨테이너가
-          소유하고 패널은 onExport 콜백 + busy/error/message props 만 소비한다(ADR-0041 Decision
-          1 — 패널은 fetch 를 모른다). onImportFile 미전달 — import(POST /api/admin/import
-          multipart) 배선은 후속 slice(④e Out of Scope)라 파일 입력은 비활성(컴포넌트가 콜백
-          미전달 시 비활성 렌더). 컴포넌트 수정 0. */}
-      <DataImportExportPanel {...exportPanelProps} />
+      {/* 데이터 import/export(세 번째 패널, ④d export + ④e import) — export·import 콜백·진행·
+          결과·실패를 컨테이너가 소유하고 패널은 onExport/onImportFile 콜백 + busy/error/message
+          props 만 소비한다(ADR-0041 Decision 1 — 패널은 fetch/FormData 를 모른다). onImportFile
+          배선으로 파일 입력이 활성화된다(④d 가 비활성화했던 입력 활성). import 는 POST
+          /api/admin/import 로 multipart FormData 전송(④e). 컴포넌트 수정 0. */}
+      <DataImportExportPanel {...importExportPanelProps} />
     </section>
   );
 }
@@ -563,6 +676,7 @@ export {
   mergeMapping,
   runAssign,
   runExport,
+  runImport,
 };
 export type {
   AdminViewProps,
@@ -572,5 +686,6 @@ export type {
   DifficultyMappingRow,
   AssignDeps,
   ExportDeps,
+  ImportDeps,
 };
 export default AdminView;

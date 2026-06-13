@@ -58,6 +58,7 @@ import AdminView, {
   mergeMapping,
   runAssign,
   runExport,
+  runImport,
 } from './AdminView';
 import type {
   GroupRow,
@@ -65,6 +66,7 @@ import type {
   DifficultyMappingRow,
   AssignDeps,
   ExportDeps,
+  ImportDeps,
 } from './AdminView';
 
 // LLM 조회 두 path 의 기본 성공(빈 데이터) 상태 — 그룹 전용 test 가 LLM path 응답을 명시하지
@@ -895,6 +897,210 @@ describe('AdminView — onExport 실 GET export (④d runExport)', () => {
   });
 });
 
+// R-112 — ④e onImportFile 실 POST import 본체(runImport) 검증. jsdom/렌더러 없이 import
+// 본체를 직접 호출하고(④d runExport 와 동일 convention), apiClient.request mock 으로
+// method/path/body(FormData) 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record
+// harness 의 콜백 호출로 관찰한다. happy/error/branch/negative 예외 분기마다 각 1+ cover.
+describe('AdminView — onImportFile 실 POST import (④e runImport)', () => {
+  // 상태 전이를 기록하는 deps harness — importing 초기값과 request mock 을 주입받아
+  // setImporting/setImportError/setImportMessage 호출을 모두 순서대로 캡처한다(④d 동형).
+  function makeImportDeps(importing: boolean) {
+    const calls = {
+      importing: [] as boolean[],
+      error: [] as (string | undefined)[],
+      message: [] as (string | undefined)[],
+    };
+    const deps: ImportDeps = {
+      post: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      importing,
+      setImporting: (next) => calls.importing.push(next),
+      setImportError: (next) => calls.error.push(next),
+      setImportMessage: (next) => calls.message.push(next),
+    };
+    return { deps, calls };
+  }
+
+  // 테스트용 File 샘플 — node(undici) 전역 File 로 평가 자료 파일 1 건을 만든다(jsdom 불요).
+  function sampleFile(name = 'assessments.json') {
+    return new File(['{"k":1}'], name, { type: 'application/json' });
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — import 트리거(파일 선택) 시 request 가 POST /api/admin/import 로 body 가
+  // FormData(선택 File 동봉)인 인자로 정확히 호출되고, 성공 후 완료 message 가 설정되며 진행
+  // 표시(busy)가 on→off 로 해제된다.
+  it('POST /api/admin/import 를 FormData(선택 File 동봉) body 로 정확히 호출하고 성공 시 완료 message 를 설정한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue({ imported: 3 });
+    const { deps, calls } = makeImportDeps(false);
+    const file = sampleFile();
+    await runImport(file, deps);
+    // request 가 import path 로 1 회 호출(method POST + body 는 FormData).
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string; body: unknown },
+    ];
+    expect(path).toBe('/api/admin/import');
+    expect(options.method).toBe('POST');
+    // body 는 FormData 인스턴스이고 'file' field 에 선택 File 이 동봉된다(multipart 계약).
+    expect(options.body).toBeInstanceOf(FormData);
+    const sent = (options.body as FormData).get('file');
+    expect(sent).toBeInstanceOf(File);
+    expect((sent as File).name).toBe('assessments.json');
+    // 수동 Content-Type 미지정(boundary 자동 — multipart 보장).
+    expect(options).not.toHaveProperty('headers');
+    // 성공 → 완료 안내 message 표면화(직전 비움 undefined 후 완료 문구).
+    expect(calls.message).toEqual([undefined, '가져오기 완료']);
+    // 진행 표시 on→off + error 는 시작 시 비움만(실패 문구 미설정).
+    expect(calls.importing).toEqual([true, false]);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // error path — import 403(Admin+ 미만) 실패 시 error 문구가 표면화되고 throw 없이 처리되며
+  // 완료 message 는 설정되지 않는다(시작 비움만).
+  it('import 403(Admin+ 미만) 실패 시 error 문구를 표면화하고 throw 하지 않는다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeImportDeps(false);
+    await expect(runImport(sampleFile(), deps)).resolves.toBeUndefined();
+    // 사람-친화 문구 표면화(시작 비움 → HTTP 403) + 완료 message 미설정(시작 비움만).
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.message).toEqual([undefined]);
+    // 진행 표시는 성공·실패 공통으로 off.
+    expect(calls.importing).toEqual([true, false]);
+  });
+
+  // error path — 400(잘못된 파일) 도 동일 안전 경로로 문구 표면화(throw 없음).
+  it('import 400(잘못된 파일) 실패 시 안전 문구를 표면화한다 (error path — 400)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'invalid file'));
+    const { deps, calls } = makeImportDeps(false);
+    await expect(runImport(sampleFile(), deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 400: invalid file']);
+    expect(calls.message).toEqual([undefined]);
+  });
+
+  // error path — 404 도 동일 안전 경로로 문구 표면화(throw 없음).
+  it('import 404 실패 시 안전 문구를 표면화한다 (error path — 404)', async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeImportDeps(false);
+    await expect(runImport(sampleFile(), deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('import 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeImportDeps(false);
+    await expect(runImport(sampleFile(), deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+  });
+
+  // flow/branch — import in-flight 동안 진행 표시(importing) on, 성공/실패 어느 경우든 finally
+  // 로 해제(off)됨을 확인한다.
+  it('성공·실패 어느 경우든 진행 표시(importing)가 finally 로 해제된다 (flow/branch — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce({ ok: true });
+    const ok = makeImportDeps(false);
+    await runImport(sampleFile(), ok.deps);
+    expect(ok.calls.importing).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeImportDeps(false);
+    await runImport(sampleFile(), fail.deps);
+    expect(fail.calls.importing).toEqual([true, false]);
+  });
+
+  // flow/branch(시작 정리) — import 발사 직후 진행 표시 on + 직전 error·message 즉시 비움을
+  // 지연 resolve 로 캡처한다(실패 후 재시도 시 직전 error/완료 안내가 진행 중 남지 않음).
+  it('발사 직후 진행 표시 on + 직전 error·message 를 즉시 비운다 (flow/branch — 시작 정리)', async () => {
+    let resolvePost: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePost = resolve;
+        }),
+    );
+    const { deps, calls } = makeImportDeps(false);
+    const pending = runImport(sampleFile(), deps);
+    // 발사 직후(해소 전) — 진행 on + error/message 모두 시작 비움(undefined).
+    expect(calls.importing).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.message).toEqual([undefined]);
+    // 해소 후 — 완료 message 설정 + 진행 off.
+    resolvePost();
+    await pending;
+    expect(calls.message).toEqual([undefined, '가져오기 완료']);
+    expect(calls.importing).toEqual([true, false]);
+  });
+
+  // negative — import in-flight 중 재선택(importing=true)은 POST 미발사·state 불변(이중 호출·
+  // state 깨짐 차단 — ④d exporting 가드 동형).
+  it('이전 import 미완(importing=true) 중 재선택은 POST 를 발사하지 않는다 (negative — 동시 재호출)', async () => {
+    const { deps, calls } = makeImportDeps(true); // 이미 in-flight.
+    await runImport(sampleFile(), deps);
+    // request 미호출 + 어떤 state 전이도 없음(이중 호출·state 깨짐 차단).
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.importing).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.message).toEqual([]);
+  });
+
+  // negative — 빈/falsy file(파일 없는 change 이벤트 등) 은 POST 미발사·state 불변·throw 없음
+  // (DataImportExportPanel.handleFileChange 가 falsy file 시 미호출이나 러너 자체 방어도 확인).
+  it('빈/falsy file 이면 POST 를 발사하지 않고 throw 하지 않는다 (negative — 빈 선택)', async () => {
+    const { deps, calls } = makeImportDeps(false);
+    await expect(
+      runImport(undefined as unknown as File, deps),
+    ).resolves.toBeUndefined();
+    // request 미호출 + 어떤 state 전이도 없음(빈 선택 방어).
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.importing).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.message).toEqual([]);
+  });
+
+  // negative — 비정상/빈 응답(undefined·null)도 throw 없이 완료로 안전 처리한다(본 slice 는
+  // import 응답 body 를 소비하지 않음 — 결과 상세 표시는 후속). 성공 사실만 표면화.
+  it('비정상/빈 응답(undefined)도 throw 없이 완료로 안전 처리한다 (negative — 빈/비정상 응답)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps, calls } = makeImportDeps(false);
+    await expect(runImport(sampleFile(), deps)).resolves.toBeUndefined();
+    expect(calls.message).toEqual([undefined, '가져오기 완료']);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // negative — 실패 후 재시도(재선택)는 직전 error 를 비우고 정상 재발화한다(시작 비움 →
+  // 성공 message). 첫 호출 실패 → 두 번째 호출 성공의 두 deps 흐름으로 확인.
+  it('실패 후 재시도(재선택)는 직전 error 를 비우고 정상 재발화한다 (negative — 실패 후 재시도)', async () => {
+    // 1차 — 실패(error 설정).
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const first = makeImportDeps(false);
+    await runImport(sampleFile(), first.deps);
+    expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(first.calls.message).toEqual([undefined]);
+
+    // 2차(재시도) — 성공. 시작 시 직전 error 를 비우고(undefined) 완료 message 설정.
+    requestMock.mockResolvedValueOnce({ ok: true });
+    const second = makeImportDeps(false);
+    await runImport(sampleFile(), second.deps);
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.message).toEqual([undefined, '가져오기 완료']);
+  });
+});
+
 // ④d 배선 회귀 — 컨테이너가 DataImportExportPanel 을 세 번째 패널로 배선(onExport/busy/error/
 // message props)하고, 기존 읽기 배선(그룹·provider·매핑) + DifficultyModelSelector(④c)가
 // 불변임을 정적 렌더로 확인(회귀 0). DataImportExportPanel 의 busy/error/message 렌더 분기를
@@ -915,12 +1121,13 @@ describe('AdminView — ④d export 패널 배선 (정적 렌더)', () => {
     });
     const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
     // 세 번째 패널 — export 버튼(내보내기)이 onExport 배선으로 활성 렌더(disabled 아님).
-    // export 버튼 자체는 disabled 속성 없이 렌더된다(onExport 주입 → 활성). 정확히 비활성 아닌
-    // export 버튼 markup 을 단언한다(import input 은 별도로 disabled 라 전역 disabled 단언 회피).
+    // export 버튼 자체는 disabled 속성 없이 렌더된다(onExport 주입 → 활성).
     expect(html).toContain('<button type="button">내보내기</button>');
-    // import 파일 입력은 onImportFile 미전달이라 비활성(가져오기 라벨은 렌더되되 input disabled).
+    // import 파일 입력은 ④e onImportFile 배선으로 활성(disabled 아님 — 가져오기 라벨 렌더 +
+    // input 비-disabled). ④d 의 비활성(disabled) 단언을 ④e 활성으로 갱신한다(import 배선 회귀).
     expect(html).toContain('가져오기');
-    expect(html).toContain('<input type="file" disabled=""');
+    expect(html).toContain('<input type="file"');
+    expect(html).not.toContain('<input type="file" disabled=""');
     // 기존 배선 회귀 0 — 그룹 멤버 + provider 옵션 + 매핑 selected + 슬롯 select 그대로.
     expect(html).toContain('김철수');
     expect(html).toContain('gpt-4o (openai)');
