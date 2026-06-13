@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0392",
-  "backlogNote": "**T-0391 DONE (P6 composition wiring ④g AdminView export scope 선택 UI, PR#322 squash merge 797197e)** — buildExportPath(scope) 순수 helper(scope truthy→?scope=+encodeURIComponent, 빈값→④f 동작 보존) + selectedScope state + scope <select> 컨테이너 렌더 + runExport(path,deps) 인자화 → handleExport 가 buildExportPath(selectedScope) 주입. GET /api/admin/export?scope= shipped(api.md 122). zero-new-dep, DataImportExportPanel/apiClient/useApiResource 수정 0. reviewer APPROVE r1/7(finding 0, NOTE=web vitest ci.yml 미배선). **다음 task: T-0392 = ④h (Admin+ RBAC gating UI — shipped GET /api/auth/me role 필드 파생 isAdmin → 비-Admin 에 Admin 패널 숨김+안내, api.md 71) — planner 큐잉 완료(nextTask=T-0392)**. 잔여 stream(전부 backend 계약 미shipped=defer): import 결과 상세(POST /api/admin/import 응답 body shape 미명세) / GroupMember add/remove mutation(member-level link endpoint 부재) / SchedulePanel(scheduler endpoint 미존재 P7) / ReEvaluationTriggerPanel(api.md 94-97 deferred) → ⑤ R-78 polling. **[stream]: ①(T-0378)→②(T-0379)→②b(T-0380)→③a~③b-3(T-0381~T-0384)→④a~④g(T-0385~T-0391 DONE)→④h(T-0392 다음, Admin+ RBAC gating)+나머지→⑤R-78 polling.** **게이트된 backlog**: T-0355 web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0393",
+  "backlogNote": "**T-0392 DONE (P6 composition wiring ④h AdminView Admin+ RBAC gating UI, PR#323 squash merge 9a66bc6)** — GET /api/auth/me useApiResource 4번째 호출 + isAdminRole 순수 helper(Admin/SuperAdmin 정확 매칭, 그 외/누락/loading=false fail-closed) + isAdmin useMemo. isAdmin 시에만 DifficultyModelSelector·scope select·DataImportExportPanel 렌더, 아니면 권한 부족 안내 한 줄(role=status). GroupMemberList·그룹 select 등급 무관 유지(User+). zero-new-dep, 패널/apiClient/useApiResource 수정 0. reviewer APPROVE r1/7(finding 0). **다음 task: T-0393 = ⑤ R-78 (DashboardView 상단 EvaluationGuardBanner 배선 — controlled lift-up evaluationActive prop 주입; status polling 은 backend status 계약 미shipped 라 defer) — planner 큐잉 완료(nextTask=T-0393)**. 잔여 stream(전부 backend 계약 미shipped=defer): import 결과 상세 / GroupMember add/remove mutation / SchedulePanel(P7) / ReEvaluationTriggerPanel(api.md 94-97 deferred) / R-78 auto-polling(assessments rows status 필드 부재). **[stream]: ①(T-0378)→②(T-0379)→②b(T-0380)→③a~③b-3(T-0381~T-0384)→④a~④h(T-0385~T-0392 DONE)→⑤R-78 guard banner(T-0393 다음).** **게이트된 backlog**: T-0355 web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-sched-d019655",
-    "since": "2026-06-13T22:37:46Z",
-    "note": "cron@cloud-aa-local-sched-d019655 fire(scheduled task aa-local-scheduled, 매시 30분 trigger 충돌 회피). fresh checkout 2f0baee → origin/main d019655(T-0390 closeout, nextTask=T-0391)로 reset. free lock(f4fbd9e tip, holder=\"\")+claims=[]. fineGrainedConcurrency=true(stage5b): lock acquire CAS(f4fbd9e→66060e1, server-time 2026-06-13T22:37:46Z) → reclaim(server-time 주입) 회수 0 → 활성 claim 0<2 게이트 통과(pr-mode 단독) → validate-claim-candidate T-0391 PASS(touchesFiles disjoint·dependsOn T-0390 머지됨) → select-claim T-0391(pr) lock-하 atomic claim+tombstone release(75683ed). lock-free execute: executor → implementer/tester(AdminView export scope 선택 UI — buildExportPath(scope) 순수 helper + selectedScope state + scope <select> + runExport(path,deps) 인자화, web vitest 445 pass, web build+root lint/build green, 2파일 +324/-28(prod +88/-13), zero-new-dep, DataImportExportPanel/apiClient/useApiResource 수정 0) → commit 93cb6bd push claude/T-0391-admin-export-scope-ui → PR #322 open → 클레임 prNumber=322 PR_OPEN CAS 갱신(9e94aa3, resume 안전) → reviewer APPROVE r1/7(comment 외부 post #issuecomment-4700026295, finding 0, NOTE=web vitest 미배선) → integrator 4-게이트 PASS(approval-gate run 27481378124 rerun --failed 후 green, head CLEAN noop) → squash merge 797197e --delete-branch. closeout: claims.json T-0391 제거 + planner T-0392(④h Admin+ RBAC gating) 큐잉. STATE.lock mirror 비권위 — 권위는 branch tip lock.json(tombstone/free)."
+    "session": "cron@cloud-aa-local-15-5727d20",
+    "since": "2026-06-13T23:21:37Z",
+    "note": "cron@cloud-aa-local-15-5727d20 fire(scheduled task aa-local-15, 매시 15분 trigger 충돌 회피). fresh checkout d019655 → origin/main 5727d20(T-0391 closeout, nextTask=T-0392)로 reset. free lock(6d30f22 tip)+claims=[]. fineGrainedConcurrency=true(stage5b): lock acquire CAS(6d30f22→ed63ccc, server-time 2026-06-13T23:04:30Z) → reclaim(server-time 주입) 회수 0 → 활성 claim 0<2 게이트 통과(pr-mode 단독) → validate-claim-candidate T-0392 PASS(touchesFiles disjoint·dependsOn T-0391 머지됨) → select-claim T-0392(pr) lock-하 atomic claim+tombstone release. lock-free execute: executor → implementer/tester(AdminView Admin+ RBAC gating UI — GET /api/auth/me useApiResource 4번째 호출 + isAdminRole 순수 helper(Admin/SuperAdmin 정확 매칭, 그 외/누락/loading=false fail-closed) + isAdmin useMemo, isAdmin 시에만 DifficultyModelSelector·scope select·DataImportExportPanel 렌더, 아니면 권한 부족 안내 한 줄(role=status), GroupMemberList·그룹 select 등급 무관 유지, web vitest 457 pass, web build+root lint/build green, 2파일 +298/-41(prod +97/-29), zero-new-dep, 패널·apiClient·useApiResource 수정 0) → commit 87e881a push claude/T-0392-admin-rbac-gating → PR #323 open → 클레임 prNumber=323 PR_OPEN CAS 갱신(resume 안전) → integrator reviewer APPROVE r1/7(comment 외부 post finding 0, NOTE=web vitest ci.yml 미배선) → 4-게이트 PASS(approval-gate run 27481911120 first-pass green, head CLEAN noop) → squash merge 9a66bc6 --delete-branch. **사고+복구**: claim prNumber CAS 갱신 step 에서 python temp-file write 경로 오류로 빈 변수→delete refspec 가 되어 claude/lock-driver 브랜치 오삭제 → 즉시 zero-sha CAS 로 재생성(lock free + T-0392 claim prNumber=323 복원). 이후 CAS 명령에 empty-var abort guard 추가. claims.json closeout 후 [] + planner T-0393(⑤ R-78 guard banner wiring) 큐잉. **counters catch-up**: T-0391 closeout(5727d20)이 tasksCompleted 증가·mostRecentTasks prepend 누락 → 385 고정. 본 closeout 이 T-0391(+1)+T-0392(+1) = 387 로 정정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json(tombstone/free)."
   },
-  "lastActivity": "2026-06-13T22:58:54Z",
-  "lastCommit": "797197e",
+  "lastActivity": "2026-06-13T23:21:37Z",
+  "lastCommit": "9a66bc6",
   "mostRecentTasks": [
+    "T-0392",
+    "T-0391",
     "T-0390",
     "T-0389",
-    "T-0388",
-    "T-0387",
-    "T-0386"
+    "T-0388"
   ],
   "loopSession": {
     "turnCount": 8,
@@ -33,11 +33,11 @@
     "endedAt": "2026-06-13T13:22:00Z"
   },
   "ci": {
-    "lastRun": "2026-06-13T22:58:54Z",
+    "lastRun": "2026-06-13T23:21:37Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/322",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/323",
     "noteT0391": "PR #322(T-0391 P6 wiring④g AdminView export scope 선택 UI) head 93cb6bd = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post #issuecomment-4700026295 + approval-gate run 27481378124 benignRedNote case A: 실 step lint/build/prisma/test+cov/smoke/e2e 전부 green, approval 검증 step 단독 fail → reviewer approve comment landing 후 `gh run rerun 27481378124 --failed` 로 green; PR head CLEAN/not-behind=rebase noop). buildExportPath(scope) 순수 helper(scope truthy→?scope=+encodeURIComponent, 빈값→④f 동작 보존) + selectedScope state + scope <select>(aria-label) 컨테이너 렌더 + runExport(path,deps) 인자화 → handleExport 가 buildExportPath(selectedScope) 주입. GET /api/admin/export?scope= shipped(api.md 122). Blob 다운로드/import/LLM/group 회귀 0. DataImportExportPanel/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 445 전체(+17 신규 ④g) 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +324/-28(prod +88/-13). squash 797197e --delete-branch. 797197e main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0390": "PR #321(T-0390 P6 wiring④f AdminView export 실 파일 저장 UX — Blob 다운로드) head 9f7576c→update-branch 44b2fc2 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + CI green run 27480744123 approval-gate 포함; benignRedNote 미발생 — approve comment 가 approval 검증 step 전 landing). main 이 review 중 f0da0ca 로 진행(peer cron NO-OP stand-down — T-0390 이미 claim) → gh pr update-branch(head 44b2fc2) → ADR-0036 §D8(c) head 가 origin/main 포함 + CI green 재확인 후 squash. apiClient requestRaw 추가(공통 fetchWithRefresh 추출, request 시그니처/동작 불변) + runExport 를 raw Response→blob→createObjectURL→주입형 <a download> 클릭→revoke 정리로 확장, filename(Content-Disposition/export.json fallback), DownloadDeps 주입(jsdom 불요). busy/error/message 안전 표시 보존(403/404/비-2xx/네트워크0 throw 없음). DataImportExportPanel/useApiResource 수정 0, zero-new-dep. web vitest 433 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 4파일 +565/-90(prod +161/-26). squash 7462acd --delete-branch. 7462acd main push run(22:04Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0389": "PR #320(T-0389 P6 wiring④e AdminView DataImportExportPanel import 배선) head 731189b = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green, rerun 불요). AdminView onImportFile 실 배선 — runImport 순수 async 러너(ImportDeps 주입, ④d runExport 패턴) + FormData('file') multipart POST /api/admin/import(api.md 123 shipped, Admin+) + importing/importMessage/importError state. 성공 message, 실패(403/400/404/네트워크0) error 안전 표시(throw 없음). 패널 props 합성(busy→error→message, export 우선). presentational/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 412 전체(AdminView 55) 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +129/-14(prod)·test +211/-4. squash ff98a5a --delete-branch. ff98a5a main push run(21:38Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
@@ -80,7 +80,8 @@
     "noteT0374": "PR #306(T-0374 P6 ScoreDistributionChart) head 68282d1 pull_request run 27466895613 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요, benignRedNote case A 미해당). 전 step green. web vitest 19신규/233 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). reviewer MINOR 2(M1 총계 표시 직접 단언 권고-coverage 충분이라 비필수, M2 web vitest CI 미배선=기존 tracked gap) 머지 무관. squash a16f5c6. Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0375": "PR #307(T-0375 P6 EvaluationDetailPanel) head a1474a3 pull_request run 27467287993 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요). 전 step green. web vitest 27신규/260 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). reviewer MINOR 1(scoreText 주석 표현 느슨-동작 정확·follow-up 불요) 머지 무관. squash d24c54c. Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0384": "PR #315(T-0384 P6 wiring③b-3 대시보드 페이지네이션) head 377ea91 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-run green — reviewer approve comment 가 approval 검증 step 실행 전 landing, run 27476389242, rerun 불요; mergeStateStatus CLEAN noop). DashboardView 에 client-side 페이지네이션(currentPage/pageSize useState + initialPage/initialPageSize 주입 + 순수 helper pageRows slice + DashboardPaginationControl 배선, totalItems=visibleRows.length slice전, loading=assessments only, select 옵션 전체 visibleRows 유지·selectedRow 조회 visibleRows 기준). presentational/AppShell/useApiResource 수정 0, zero-new-dep. web vitest 357 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). squash 5615f50 --delete-branch. 5615f50 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
-    "noteT0386": "PR #317(T-0386 P6 wiring④b AdminView DifficultyModelSelector 패널 배선) head 9bb8beb = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green — reviewer approve comment 가 approval 검증 step 실행 전 landing, CI run 27477783712 전 24 step success, rerun 불요; mergeStateStatus CLEAN noop). AdminView 에 useApiResource 두 번 추가 호출(/api/llm/providers·/api/llm/difficulty-mappings)+순수 helper deriveProviders/deriveDifficultyMapping + DifficultyModelSelector 패널 배선(onAssign no-op, PATCH 는 ④c). presentational/기존 그룹 패널/AppShell 수정 0, zero-new-dep. web vitest 377 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +139/-2(prod)·test +236/-4. squash cec35b7 --delete-branch. cec35b7 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16)."
+    "noteT0386": "PR #317(T-0386 P6 wiring④b AdminView DifficultyModelSelector 패널 배선) head 9bb8beb = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green — reviewer approve comment 가 approval 검증 step 실행 전 landing, CI run 27477783712 전 24 step success, rerun 불요; mergeStateStatus CLEAN noop). AdminView 에 useApiResource 두 번 추가 호출(/api/llm/providers·/api/llm/difficulty-mappings)+순수 helper deriveProviders/deriveDifficultyMapping + DifficultyModelSelector 패널 배선(onAssign no-op, PATCH 는 ④c). presentational/기존 그룹 패널/AppShell 수정 0, zero-new-dep. web vitest 377 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +139/-2(prod)·test +236/-4. squash cec35b7 --delete-branch. cec35b7 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
+    "noteT0392": "PR #323(T-0392 P6 wiring④h AdminView Admin+ RBAC gating UI) head 87e881a = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green: pull_request run 27481911120 전 step success(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증) — reviewer approve comment 가 approval 검증 step 실행 전 landing, rerun 불요; mergeStateStatus CLEAN noop, head 가 origin/main 5727d20 포함 rebase noop). GET /api/auth/me useApiResource 4번째 호출 + isAdminRole 순수 helper(Admin/SuperAdmin 정확 매칭, 그 외/누락/loading=false fail-closed) + isAdmin useMemo. isAdmin 시에만 DifficultyModelSelector·scope select·DataImportExportPanel 렌더, 아니면 권한 부족 안내 한 줄(role=status). GroupMemberList·그룹 select 등급 무관 유지(User+ 조회 가능). presentational/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 457 전체(isAdminRole 5종+gating 8종 신규) 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +298/-41(prod +97/-29). squash 9a66bc6 --delete-branch. 9a66bc6 main push run(23:21Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
     "T-0390": 1,
@@ -211,7 +212,8 @@
     "T-0372": 1,
     "T-0374": 1,
     "T-0375": 1,
-    "T-0384": 1
+    "T-0384": 1,
+    "T-0392": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -731,7 +733,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 385,
+    "tasksCompleted": 387,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

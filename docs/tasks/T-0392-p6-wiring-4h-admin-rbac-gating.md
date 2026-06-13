@@ -2,8 +2,11 @@
 id: T-0392
 title: P6 composition wiring ④h AdminView Admin+ RBAC gating UI(GET /api/auth/me role 파생 → 비-Admin 에게 Admin 패널 숨김/안내)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 9a66bc6
+prNumber: 323
+reviewRounds: 1
 coversReq: [REQ-046, REQ-047, REQ-008]
 estimatedDiff: 190
 estimatedFiles: 2
