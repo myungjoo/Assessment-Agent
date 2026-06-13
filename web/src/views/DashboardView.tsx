@@ -5,8 +5,9 @@
 // — 세 컴포넌트 수정 0 (ADR-0041 Decision 1 경계). 새 dependency 0 — react hooks +
 // apiClient(fetch) 경유만 (ADR-0040 §5 게이트).
 //
-// 책임 경계(③a): 요약 카드 + 필터 바 + 결과 테이블의 핵심 조회 표면까지. 시계열/점수
-// 분포/상세/페이지네이션 조립과 /api/summaries·/api/contributions 배선은 ③b follow-up.
+// 책임 경계(③a→③b-1→③b-2): 요약 카드 + 필터 바 + 결과 테이블 + 시계열(③b-1) + 점수
+// 분포(③b-1) + 평가 상세(③b-2, GET /api/contributions, row 선택 연동)까지. 페이지네이션
+// 조립은 ③b-3 follow-up(dependsOn T-0383). /api/contributions 배선이 본 ③b-2 추가분.
 // 서버 측 정렬/필터/페이지네이션은 api.md 89행 기준 backend 가 plain CRUD 라 본 slice 는
 // client-side 정렬/필터만 수행한다(Out of Scope: 서버 정렬). personId 미선택 시 path=null
 // 로 조회 미수행(api.md: personId 누락 시 400 회피).
@@ -23,6 +24,8 @@ import TrendTimeSeriesPanel from '../components/TrendTimeSeriesPanel';
 import type { TrendPoint } from '../components/TrendTimeSeriesPanel';
 import ScoreDistributionChart from '../components/ScoreDistributionChart';
 import type { ScoreDistributionBucket } from '../components/ScoreDistributionChart';
+import EvaluationDetailPanel from '../components/EvaluationDetailPanel';
+import type { EvaluationMetricItem } from '../components/EvaluationDetailPanel';
 
 // 정렬 가능 컬럼 옵션 — EvaluationResultTable/DashboardFilterBar 의 컬럼 키와 정합.
 const SORT_OPTIONS: SortOption[] = [
@@ -33,6 +36,13 @@ const SORT_OPTIONS: SortOption[] = [
 
 // personId 미선택 시 본문에 노출할 안내 문구(api.md: personId 누락 시 400 회피).
 const NO_PERSON_TEXT = '평가 대상을 선택하면 결과가 표시됩니다';
+
+// row 선택 컨트롤(③b-2) 의 빈 선택지 라벨 — selectedId 미선택 시 첫 옵션으로 노출한다.
+// EvaluationResultTable 은 row 선택 콜백 prop 이 없어(컴포넌트 수정 0 경계) 컨테이너가
+// 별도 <select> 선택 컨트롤로 선택 상호작용을 표현한다(ADR-0041 Decision 1 controlled).
+const NO_SELECTION_LABEL = '평가 결과를 선택하세요';
+// 상세 패널의 빈 상태 라벨 — row 선택이 없으면(조회 미수행) 이 안내를 노출한다.
+const DETAIL_EMPTY_LABEL = '평가 결과를 선택하면 상세가 표시됩니다';
 
 // 정렬 키 — EvaluationResultRow 의 표시 컬럼 키(id 제외)로 제한한다.
 type SortKey = 'subjectName' | 'metricLabel' | 'score';
@@ -47,6 +57,9 @@ interface DashboardViewProps {
   initialSortKey?: SortKey;
   initialSortDirection?: 'asc' | 'desc';
   initialSearchTerm?: string;
+  // 초기 선택 row id(선택 assessmentId) — ③a/③b-1 의 initial* 주입 패턴 정합. 정적
+  // 렌더로 상세 패널/contributions 조회 분기를 검증할 수 있도록 주입 허용한다.
+  initialSelectedId?: string;
 }
 
 // personId/period → 조회 path 파생(순수 함수). personId 가 falsy 면 null 반환(조회
@@ -106,6 +119,67 @@ function buildSummariesPath(
     params.set('period', period);
   }
   return `/api/summaries?${params.toString()}`;
+}
+
+// 기여 row 의 frontend-local 최소 타입 — backend DTO 전수 공유는 Out of Scope(후속 별도
+// 결정). 본 slice 는 지표 라벨 + 점수 + 만점(선택) + 정성 근거(선택) 필드만 보수적으로
+// 매핑한다. 모든 필드를 선택적으로 두어 누락/비정상 row 도 throw 없이 받는다(api.md 104:
+// GET /api/contributions 응답 = assessment 별 기여 row 배열).
+interface ContributionRow {
+  // 기여 식별자 후보 — id 우선, 없으면 파생 helper 가 index 기반 key 를 합성한다.
+  id?: string;
+  // 지표 라벨 후보 — metricLabel 우선, 없으면 label 을 라벨로 쓴다(둘 다 누락이면 fallback).
+  metricLabel?: string;
+  label?: string;
+  // 점수 후보 — score 우선, 없으면 contribution 을 점수로 매핑한다(둘 다 누락/NaN 이면 0).
+  score?: number;
+  contribution?: number;
+  // 만점(선택) — 있으면 패널이 "score/maxScore"·비율 막대 분모로 쓴다.
+  maxScore?: number;
+  // LLM 정성 근거 후보 — rationale 우선, 없으면 narrative 를 근거로 쓴다(plain text).
+  rationale?: string;
+  narrative?: string;
+}
+
+// 라벨 누락 시 패널 항목에 노출할 fallback 라벨 — 의미 없는 빈 라벨 방지(파생 단계 보수).
+const FALLBACK_METRIC_LABEL = '지표 미상';
+
+// 선택된 assessmentId → GET /api/contributions?assessmentId= 조회 path 파생(순수 함수).
+// assessmentId 가 falsy 면 null 반환(조회 미수행 — api.md 104 의 assessmentId 누락 400
+// 회피). assessments/summaries path 와 동일한 조건부 조회 가드 규약을 따른다.
+function buildContributionsPath(assessmentId: string | undefined): string | null {
+  if (!assessmentId) {
+    return null;
+  }
+  const params = new URLSearchParams({ assessmentId });
+  return `/api/contributions?${params.toString()}`;
+}
+
+// contribution row 배열 → EvaluationMetricItem[] 파생(순수 함수). data 미도착(undefined)
+// 이면 빈 배열로 간주한다(패널이 빈 상태 fallback). 라벨은 metricLabel → label 순으로 첫
+// truthy 값을, 점수는 score → contribution 순으로 첫 유한수를 취한다(누락/NaN 이면 0 으로
+// fallback — EvaluationDetailPanel 의 safeScore 가 추가로 막지만 컨테이너 파생도 보수적으로).
+// id 누락 row 도 index 기반 합성 key 로 안정 렌더한다.
+function deriveContributionMetrics(
+  rows: ContributionRow[] | undefined,
+): EvaluationMetricItem[] {
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+  return rows.map((row, index) => {
+    const label = row.metricLabel ?? row.label ?? FALLBACK_METRIC_LABEL;
+    const rawScore = row.score ?? row.contribution;
+    const score =
+      typeof rawScore === 'number' && Number.isFinite(rawScore) ? rawScore : 0;
+    const rationale = row.rationale ?? row.narrative;
+    return {
+      id: row.id ?? `c${index + 1}`,
+      label: label || FALLBACK_METRIC_LABEL,
+      score,
+      maxScore: row.maxScore,
+      rationale,
+    };
+  });
 }
 
 // summary row 배열 → TrendPoint[] 파생(순수 함수). data 미도착(undefined)이면 빈 배열로
@@ -218,12 +292,16 @@ function DashboardView({
   initialSortKey = 'score',
   initialSortDirection = 'desc',
   initialSearchTerm = '',
+  initialSelectedId = '',
 }: DashboardViewProps) {
   // 정렬/필터/검색 상태 — controlled lift-up(컨테이너 소유).
   const [sortKey, setSortKey] = useState<SortKey>(initialSortKey);
   const [sortDirection, setSortDirection] =
     useState<'asc' | 'desc'>(initialSortDirection);
   const [searchTerm, setSearchTerm] = useState<string>(initialSearchTerm);
+  // 선택 row id(선택 assessmentId) — row 선택 상호작용으로 갱신된다. 비어 있으면
+  // contributions 조회 path=null(미수행) + 상세 패널은 빈/안내 상태(controlled lift-up).
+  const [selectedId, setSelectedId] = useState<string>(initialSelectedId);
 
   // assessments 조회 path — personId 미선택이면 null(조회 미수행). path 변경이 곧 재조회.
   const path = buildAssessmentsPath(personId, period);
@@ -238,6 +316,17 @@ function DashboardView({
     loading: trendLoading,
     error: trendError,
   } = useApiResource<SummaryRow[]>(summariesPath);
+
+  // contributions(평가 상세) 조회 path — 선택 row 가 없으면 null(조회 미수행, api.md 104
+  // 의 assessmentId 누락 400 회피). selectedId 변경이 곧 path 변경 → 재조회. 세 번째
+  // useApiResource 호출로 컨테이너가 상세 상태를 소유한다. 변수명에 contribution prefix 를
+  // 붙여 assessments/summaries 의 loading/error 와 섞이지 않게 분리한다(상태 오염 차단).
+  const contributionsPath = buildContributionsPath(selectedId || undefined);
+  const {
+    data: contributionData,
+    loading: contributionLoading,
+    error: contributionError,
+  } = useApiResource<ContributionRow[]>(contributionsPath);
 
   // 표시 직전 client-side 필터 → 정렬. data 미도착이면 빈 배열로 간주한다.
   const visibleRows = useMemo(() => {
@@ -256,6 +345,20 @@ function DashboardView({
   const scoreBuckets = useMemo(
     () => deriveScoreBuckets(visibleRows),
     [visibleRows],
+  );
+
+  // 평가 상세 metric 파생 — contributions 조회 결과(contributionData) 를
+  // EvaluationMetricItem[] 로 매핑한다(data 미도착이면 빈 배열).
+  const contributionMetrics = useMemo(
+    () => deriveContributionMetrics(contributionData),
+    [contributionData],
+  );
+
+  // 선택 row 메타 — visibleRows 에서 선택된 row 를 찾아 상세 패널 헤더(subjectName/period)
+  // 로 표시한다(선택 row 메타 표시). 미선택/미발견이면 undefined → 패널이 라벨 fallback.
+  const selectedRow = useMemo(
+    () => visibleRows.find((row) => row.id === selectedId),
+    [visibleRows, selectedId],
   );
 
   // 정렬 컬럼 변경 — DashboardFilterBar/EvaluationResultTable 의 콜백이 컨테이너 상태를
@@ -280,6 +383,12 @@ function DashboardView({
   // 초기화 — 검색어를 비운다(정렬은 유지).
   const handleReset = () => {
     setSearchTerm('');
+  };
+  // row 선택 — 선택 컨트롤이 선택 id 를 컨테이너 상태로 올린다(빈 값 선택 시 미선택으로
+  // 되돌려 contributions 조회를 미수행으로 만든다). EvaluationResultTable 은 선택 콜백
+  // prop 이 없어(컴포넌트 수정 0 경계) 별도 <select> 컨트롤로 선택 상호작용을 표현한다.
+  const handleSelectChange = (event: { target: { value: string } }) => {
+    setSelectedId(event.target.value);
   };
 
   // personId 미선택 분기 — 조회 미수행 안내만 렌더한다(api.md 400 회피 가드).
@@ -334,6 +443,35 @@ function DashboardView({
         loading={loading}
         error={error}
       />
+      {/* 평가 상세 선택 컨트롤 — EvaluationResultTable 이 row 선택 콜백 prop 을 갖지 않아
+          (컴포넌트 수정 0 경계, ADR-0041 Decision 1) 컨테이너가 별도 <select> 로 선택
+          상호작용을 표현한다. 표시 row(visibleRows) 를 옵션으로 노출하고, 선택 시 그
+          row.id 를 selectedId 로 올려 contributions path 를 변경(재조회)한다. */}
+      <select
+        aria-label="평가 결과 선택"
+        value={selectedId}
+        onChange={handleSelectChange}
+      >
+        <option value="">{NO_SELECTION_LABEL}</option>
+        {visibleRows.map((row) => (
+          <option key={row.id} value={row.id}>
+            {row.subjectName} · {row.metricLabel}
+          </option>
+        ))}
+      </select>
+      {/* 평가 상세 패널 — contributions 조회의 loading/error 와 파생 metrics 를 props 로만
+          내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 다른 조회(테이블·시계열·
+          분포)의 상태와 섞이지 않도록 contribution* 상태를 분리해 전달한다. 선택 row 의
+          subjectName/period 를 헤더로 표시하고, 미선택이면 빈 안내(DETAIL_EMPTY_LABEL)를
+          렌더한다. 컴포넌트 수정 0. */}
+      <EvaluationDetailPanel
+        subjectName={selectedRow?.subjectName}
+        periodLabel={period}
+        metrics={contributionMetrics}
+        loading={contributionLoading}
+        error={contributionError}
+        emptyLabel={DETAIL_EMPTY_LABEL}
+      />
     </section>
   );
 }
@@ -346,6 +484,8 @@ export {
   buildSummariesPath,
   deriveTrendPoints,
   deriveScoreBuckets,
+  buildContributionsPath,
+  deriveContributionMetrics,
 };
-export type { DashboardViewProps, SortKey, SummaryRow };
+export type { DashboardViewProps, SortKey, SummaryRow, ContributionRow };
 export default DashboardView;
