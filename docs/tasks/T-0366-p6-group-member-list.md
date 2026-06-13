@@ -2,12 +2,16 @@
 id: T-0366
 title: P6 frontend UI slice 6 — 그룹 인원 목록 presentational 컴포넌트 (web/src/components/GroupMemberList.tsx)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-046, REQ-047]
 estimatedDiff: 150
 estimatedFiles: 2
 created: 2026-06-13
+completedAt: 2026-06-13T09:04:48Z
+prNumber: 298
+mergedAs: 3b6f9b1
+reviewRounds: 1
 independentStream: p6-frontend-ui
 dependsOn: []
 touchesFiles:
