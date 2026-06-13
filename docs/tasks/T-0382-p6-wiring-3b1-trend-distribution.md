@@ -2,7 +2,7 @@
 id: T-0382
 title: P6 composition wiring ③b-1 대시보드 시계열(TrendTimeSeriesPanel/GET /api/summaries) + 점수 분포(ScoreDistributionChart 파생) 조립
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-038, REQ-034, REQ-035]
 estimatedDiff: 215
@@ -13,6 +13,9 @@ dependsOn: [T-0381]
 touchesFiles: [web/src/views/DashboardView.tsx, web/src/views/DashboardView.test.tsx]
 plannerNote: "P6 wiring③b-1; ADR-0041 Decision1·3; DashboardView 에 TrendTimeSeriesPanel(useApiResource GET /api/summaries) 추가 + ScoreDistributionChart(assessments row 클라이언트 파생) 조립; 상세/페이지네이션은 ③b-2 split"
 sizeExempt: false
+prNumber: 313
+mergedAs: 5724332
+reviewRounds: 1
 ---
 
 # T-0382 — P6 composition wiring ③b-1 대시보드 시계열(TrendTimeSeriesPanel/GET /api/summaries) + 점수 분포(ScoreDistributionChart 파생) 조립
