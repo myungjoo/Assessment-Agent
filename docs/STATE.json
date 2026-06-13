@@ -7,13 +7,13 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**[INFLECTION 완결] presentational 분해 → composition-wiring 전환 ADR 박제 완료**. T-0376 (ADR-0041 PROPOSED, pr-mode PR #308 squash 8827c09) — App.tsx 조립(AppShell→인증게이트→화면컨테이너→presentational controlled lift-up) · 무라우터 state-view 라우팅(react-router deferred §5-gated 제안) · native fetch hook data-fetch 경계(JWT cookie 자동 + 401→refresh + loading/error props) · R-78 보호 배선(전역 evaluationInProgress + EvaluationGuardBanner 토글) · concurrency claim shape 전환(file-disjoint 불성립 → single-claim 순차 stream) 5 결정 박제. PLAN P6 5번째 bullet 로 wiring 진입점 한 줄 박제. 본 closeout 은 cron@cloud-T0376a 가 race 후 직전 PR-308 merge 를 인지해 closeout-only direct commit 으로 마무리. **다음 단계 = planner 가 (a) ADR-0041 ACCEPTED flip 별도 direct 한 줄 task → (b) wiring task chain 큐잉(AppShell · 라우팅+AuthGate · LoginScreen/SuperAdminSetupScreen · DashboardScreen · AdminScreen · EvaluationStatusProvider — 직렬 dependsOn) 진행.** **게이트된 backlog (불변)**: T-0355 ci.yml workflow-scope credential + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0377",
+  "backlogNote": "**T-0377 QUEUED (ADR-0041 PROPOSED→ACCEPTED flip, commitMode DIRECT, 1 LOC·1파일)** — ADR-0041(composition-wiring 전환)이 reviewer-APPROVED + merge(PR #308) 됐으므로 CLAUDE.md §3.1 규칙4 에 따라 status 한 줄 direct flip. 이것이 composition-wiring 코드 stream 의 게이트. **flip 후 다음 = wiring ① AppShell(pr, dependsOn T-0377, independentStream p6-frontend-composition, 단일-claim 순차).** **[stream 전환 박제]: P6 presentational 분해 완료(15 컴포넌트 T-0361~T-0375) → ADR-0041(merged) 가 composition-wiring 전략 결정(controlled lift-up·무라우터 state-view·native fetch hook·R-78 배선·non-parallel single-claim shape) → 후속 wiring ①~⑤(AppShell→인증게이트+라우팅→대시보드 조립→Admin 조립→R-78 배선)는 App.tsx 공유수정이라 file-disjoint 불성립=단일-claim 순차 stream(병렬 claim 후보 제외). 이 stream 은 fresh-context 가 유리해 cron(§10 long-horizon backbone)이 이어가기 적합.** **게이트된 backlog**: T-0355 ci.yml workflow-scope credential + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-T0376a",
-    "since": "2026-06-13T13:20:00Z",
-    "note": "cron@cloud-T0376a — free lock(claims []·tombstone) 획득 후 T-0376 execute 시도 → main rebase 단계에서 직전 PR-308(8827c09) merge 감지(다른 driver 진입점이 같은 task 를 pr-mode 로 완결). race 인지 후 my work reset → closeout-only direct commit(STATE/task/journal 만 갱신)으로 적용. ADR-0041 본문은 origin/main 의 다른 driver 버전(125 LOC, no-router + native fetch)이 권위 — 본 cron@cloud-T0376a 의 별도 draft(190 LOC, react-router 제안 + ADR-0036 stage5b 더 자세 함축)는 후속 ACCEPTED flip 또는 보강 task 가 필요하면 참조용으로 git reflog 에 남아있음. STATE.lock mirror 비권위 — 권위는 claude/lock-driver branch tip lock.json."
+    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
+    "since": "2026-06-13T13:19:13Z",
+    "note": "loop vb707106 t8 — free lock → validate-claim-candidate T-0376 PASS → select-claim T-0376(ADR-0041 doc-only pr-mode, server-time 13:06:50Z) → lock-free execute(architect: ADR-0041 PROPOSED 작성 controlled lift-up·무라우터·native fetch·R-78 배선·single-claim shape + PLAN 1줄, 코드 0 LOC) → claim prNumber=308 PR_OPEN → PR #308 reviewer APPROVE r1/7(ADR-0040/0036/0008 정합 실측, MINOR 1 머지무관) → CI first-pass green(run 27467752528) → integrator 4-게이트 PASS → squash 8827c09 --delete-branch. closeout 후 claims.json T-0376 제거. planner OPTION 1 로 T-0377(ADR-0041 ACCEPTED flip, direct) 큐잉. STATE.lock mirror 비권위."
   },
   "lastActivity": "2026-06-13T13:20:00Z",
   "lastCommit": "8827c09",
@@ -25,11 +25,11 @@
     "T-0372"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-vb707106",
     "startedAt": "2026-06-13T10:39:00Z",
-    "note": "/loop session vb707106 (dynamic, turn cap 10). t1 no-op·t2 T-0370·t3 T-0371·t4 T-0372·t5 no-op(cron T-0373)·t6 T-0374·t7 T-0375. loop 가 P6 컴포넌트 5개 merge(T-0370/71/72/74/75) + cron T-0373, tasksCompleted 364→370, 사고 0. **t7 에서 presentational 분해 완료 inflection — planner OPTION B 로 T-0376(ADR-0041 composition-wiring) 큐잉.** cron+loop 협업 무사고. turn 7/10."
+    "note": "/loop session vb707106 (dynamic, turn cap 10). t1 no-op·t2 T-0370·t3 T-0371·t4 T-0372·t5 no-op(cron T-0373)·t6 T-0374·t7 T-0375·t8 T-0376(ADR-0041). loop 가 P6 컴포넌트 5개 + ADR-0041 merge(6 substantive task), cron T-0373, tasksCompleted 364→371, 사고 0. **t8 에서 presentational 분해 완료 + composition 전략(ADR-0041) 박제 — 깨끗한 아키텍처 milestone.** 다음 wiring stream 은 fresh-context 유리(cron). t9 에서 T-0377(trivial ACCEPTED flip) 처리 후 wind-down 예정. turn 8/10."
   },
   "ci": {
     "lastRun": "2026-06-13T12:59:38Z",
