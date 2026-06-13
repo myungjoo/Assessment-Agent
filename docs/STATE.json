@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0381",
-  "backlogNote": "**T-0381 QUEUED (P6 composition wiring ③a 대시보드 컨테이너, commitMode PR, est ~240 LOC·5파일)** — ADR-0041 Decision 1·3 wiring chain ③ (③a/③b split). T-0380(②b 인증 fetch hook, 머지 6e88321 PR#311)가 apiClient.request+auth.login/refresh+401→refresh→retry 를 완결하고 AppShell onLogin 주입까지 끝낸 위에, 인증 후 `view==dashboard` placeholder 를 실 컨테이너로 교체: `web/src/views/DashboardView.tsx`(controlled lift-up — 데이터 소유) + `web/src/api/useApiResource.ts`(apiClient.request 소비 thin fetch hook, loading/error/data 상태) 신설 + `GET /api/assessments?personId=&period=` 배선 + 기박제 MetricSummaryCards·DashboardFilterBar·EvaluationResultTable 수정0 props 재사용 + AppShell dashboard 분기 교체. zero-new-dep(react hooks + native fetch via apiClient, ADR-0040 §5). dependsOn [T-0380] · independentStream p6-frontend-composition(single-claim 순차 — AppShell 공유수정 file-disjoint 불성립, pr-mode 단독 claim). **③ split**: ③a=요약카드+필터바+결과테이블+useApiResource(GET /api/assessments), ③b=시계열(TrendTimeSeriesPanel/GET summaries)+분포(ScoreDistributionChart)+상세(EvaluationDetailPanel/GET contributions)+페이지네이션(follow-up, dependsOn T-0381). **[stream]: 분해완료(T-0361~0375)→ADR-0041 ACCEPTED→①(T-0378 DONE)→②(T-0379 DONE)→②b(T-0380 DONE)→③a(T-0381 QUEUED)→③b 대시보드 잔여→④Admin→⑤R-78 polling. 다음 후속: 세션만료→view전환 / GET /api/auth/me 부트 hydration / personId 선택 GET /api/persons.** **게이트된 backlog**: T-0355 web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0382",
+  "backlogNote": "**T-0382 QUEUED (P6 composition wiring ③b-1 시계열+분포, commitMode PR, est ~215 LOC·2파일)** — ADR-0041 Decision1·3 wiring chain ③b (③a/③b split 후 ③b 재split ③b-1/③b-2). T-0381(③a 대시보드 컨테이너+useApiResource+GET /api/assessments, 머지 06c9a53 PR#312) 위에 DashboardView 내부만 갱신: TrendTimeSeriesPanel(두 번째 useApiResource GET /api/summaries?personId=&period=, summary row→TrendPoint[] 파생) + ScoreDistributionChart(이미 fetch 한 assessments row 를 client-side bucket 집계, 새 endpoint 0) 조립. AppShell 수정 0(③a 가 마운트 완료). zero-new-dep(react hooks+기존 useApiResource, ADR-0040 §5). dependsOn [T-0381] · independentStream p6-frontend-composition(single-claim 순차 — DashboardView.tsx 공유수정 file-disjoint 불성립, pr-mode 단독). **③b split**: ③b-1=시계열+분포(GET summaries), ③b-2=상세(EvaluationDetailPanel/GET contributions)+페이지네이션(DashboardPaginationControl, follow-up dependsOn T-0382). **[stream]: ①(T-0378)→②(T-0379)→②b(T-0380)→③a(T-0381 DONE)→③b-1(T-0382 QUEUED)→③b-2 상세+페이지네이션→④Admin→⑤R-78 polling. 다음 후속: 세션만료→view전환 / GET /api/auth/me 부트 hydration / personId 선택 GET /api/persons.** **게이트된 backlog**: T-0355 web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-T0381-2fd260",
-    "since": "2026-06-13T17:05:26Z",
-    "note": "cron@cloud-aa-T0381-2fd260 fire — fresh checkout 6c7a130(=origin/main, branch claude/focused-goodall-r1ow0q SDK 세션 라벨)이라 별도 reset 불요, `git checkout -B main origin/main` 으로 driver loop 의 main-tracking 체크아웃 정합화. fetch origin claude/lock-driver tip ef6837dd: free lock(holder='') + claims=[T-0381 owner=cron@cloud-aa-local-15-d4f1a9 claimedAt=17:04:11Z status=CLAIMED prNumber=null]. select-claim T-0381 → claimable 부재(이미 peer claimed) → exit 1. **NO-OP stand-down (LOOP §1[2](d))**: 유일 nextTask T-0381 이 peer 점유 + pr-mode 단독(활성 0 일 때만, stage-5b §D8(e)) + claim 경과 ≈1분 (orphan 임계 60분 미만, fail-closed 회수 보류). 본 fire 무변경(claims/lock 권위 미mutate), bookkeeping commit 만 main 직접. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-local-15-d4f1a9",
+    "since": "2026-06-13T17:04:11Z",
+    "note": "cron@cloud-aa-local-15-d4f1a9 fire(매시 15분 trigger 충돌 회피) — fresh checkout 5834062 였으나 origin/main 6c7a130(T-0380 closeout PR#311)로 선행 reset. free lock(ef6837d tip, holder='') + claims=[]. fineGrainedConcurrency=true: validate-claim-candidate T-0381 PASS(touchesFiles disjoint·dependsOn T-0380 머지됨) → select-claim T-0381(pr, 활성 0<2 단독 OK) lock-하 atomic claim+tombstone release. lock-free execute: executor → implementer/tester(DashboardView 컨테이너 controlled lift-up + useApiResource thin fetch hook + AppShell dashboard 분기, web vitest 320 pass, build/lint green, 5파일 +654/-7, zero-new-dep) → commit e10af0a push claude/T-0381-... → PR #312 open → 클레임 prNumber=312 PR_OPEN CAS 갱신(resume 안전) → integrator reviewer APPROVE r1/7(comment 외부 post, MINOR 비차단) → approval-gate rerun green(benignRedNote case A) → 4-게이트 PASS → squash merge 06c9a53 --delete-branch. **gh GraphQL transient 오류 retry 로 빈 commit afa2cf4 가 06c9a53 위 동일메시지로 1개 추가(파일변경 0 — 무해, main 콘텐츠 정합)**. closeout 후 claims.json T-0381 제거. planner T-0382(③b-1 시계열+분포, pr) 큐잉. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-13T17:05:26Z",
-  "lastCommit": "6e88321",
+  "lastActivity": "2026-06-13T17:27:00Z",
+  "lastCommit": "afa2cf4",
   "mostRecentTasks": [
+    "T-0381",
     "T-0380",
     "T-0379",
     "T-0378",
-    "T-0377",
-    "T-0376"
+    "T-0377"
   ],
   "loopSession": {
     "turnCount": 8,
@@ -33,11 +33,12 @@
     "endedAt": "2026-06-13T13:22:00Z"
   },
   "ci": {
-    "lastRun": "2026-06-13T16:55:00Z",
-    "status": "green",
+    "lastRun": "2026-06-13T17:25:35Z",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/311",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/312",
+    "noteT0381": "PR #312(T-0381 P6 wiring③a 대시보드 컨테이너) head e10af0a = integrator 4-게이트 PASS(reviewer APPROVE r1/7 comment 외부 post + approval-gate ordering benignRedNote case A 로 `gh run rerun 27473497861 --failed` 후 전 step green: lint/build/prisma/test+cov/smoke/e2e + approval; mergeStateStatus CLEAN noop). DashboardView 컨테이너(controlled lift-up) + useApiResource thin fetch hook(GET /api/assessments) + AppShell dashboard 분기 교체, presentational 3종 수정0 재사용. web vitest 320 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). squash 06c9a53 --delete-branch. **gh GraphQL transient retry 로 빈 commit afa2cf4(파일변경 0) 1개 추가 — main push run 27473xxxxx(17:25:35Z in_progress) 다음 fire 재확인(empty/web-only squash trivially green 예상)**. Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0380": "PR #311(T-0380 P6 wiring②b 인증 fetch hook) head 54d3443 = PR-resume(직전 fire 가 reviewer dispatch 전 사망 — reviews/comments 0). CI run 27470790719 = 실 step 전부 green(spec-presence/lock·select·reclaim self-test/lint/build/prisma/test+cov/smoke/e2e) + 'reviewer agent approval 검증' 단독 fail = benignRedNote case A. integrator dispatch → reviewer APPROVE r1/7(comment 외부 post, MINOR×2: 파일 6>5 cap=coupled spec-presence script+test 정당 / auth.refresh 추가 round-trip=무한루프 아님, 둘 다 비차단) → approval-gate rerun green → 4-게이트 PASS → squash merge 6e88321 --delete-branch. apiClient.ts(native fetch+credentials+401→refresh→retry 1회) + auth.ts(login/refresh helper) 신설, AppShell onLogin 주입, zero-new-dep. web vitest 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). squash 6e88321 main push run 27472885606 in_progress — 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0379": "PR #310(T-0379 P6 인증 게이트 wiring②) head 67e626a = integrator 4-게이트 PASS(reviewer APPROVE r1/7 comment 외부 post + approval-gate ordering benignRedNote case A 로 rerun 후 전 step green: lint/build/prisma/test+cov/smoke/e2e + approval). web vitest 274 전체(AuthGate 신규 + AppShell 갱신) 로컬 검증(ci.yml 미배선, T-0355 Follow-up gap). coverage AC pending: @vitest/coverage-v8 미설치(ADR-0040 §5 zero-new-dep) — 4 신규 public symbol 분기는 spec 구성적 cover. squash 0298db7 --delete-branch, push run 14:50:35Z conclusion success 확인. Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0378": "PR #309(T-0378 P6 AppShell wiring①) head fb86419 pull_request run 27469054514 = first-pass green 전 step(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요). web vitest 264 전체(AppShell 4 신규) 로컬 검증(ci.yml 미배선, T-0355 Follow-up). reviewer APPROVE r1/7. squash 200f670 --delete-branch. squash 200f670 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
@@ -712,7 +713,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 375,
+    "tasksCompleted": 376,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

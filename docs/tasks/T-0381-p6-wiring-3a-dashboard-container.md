@@ -2,7 +2,11 @@
 id: T-0381
 title: P6 composition wiring ③a 대시보드 컨테이너 조립 + useApiResource fetch hook + GET /api/assessments 배선
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-06-13T17:26:00Z
+mergedAs: 06c9a53
+prNumber: 312
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-038, REQ-048]
 estimatedDiff: 240
