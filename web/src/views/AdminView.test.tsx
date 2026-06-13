@@ -35,15 +35,19 @@ vi.mock('../api/useApiResource', () => ({
   },
 }));
 
-// apiClient mock — ④c onAssign 이 apiClient.request 로 PATCH 를 발사하므로 request 를 mock 해
-// method/path/body 를 단언하고 성공/실패 응답을 주입한다. ApiError 는 실제 클래스를 그대로 써
-// status 기반 문구 파생을 검증한다(toErrorMessage stub 과 정합).
+// apiClient mock — ④c onAssign 이 apiClient.request 로 PATCH 를, ④f handleExport 가
+// apiClient.requestRaw 로 GET(raw Response)을 발사하므로 둘 다 mock 해 method/path/body 를
+// 단언하고 성공/실패 응답을 주입한다. ApiError 는 실제 클래스를 그대로 써 status 기반 문구 파생을
+// 검증한다(toErrorMessage stub 과 정합). 단 본 task 의 runExport 단위 검증은 makeExportDeps
+// harness 로 getRaw mock 을 직접 주입하므로 requestRawMock 은 정적 렌더 회귀에서만 안전 fallback.
 const requestMock = vi.fn();
+const requestRawMock = vi.fn();
 vi.mock('../api/apiClient', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/apiClient')>();
   return {
     ...actual,
     request: (...args: unknown[]) => requestMock(...args),
+    requestRaw: (...args: unknown[]) => requestRawMock(...args),
   };
 });
 
@@ -56,6 +60,8 @@ import AdminView, {
   deriveDifficultyMapping,
   buildMappingsPath,
   mergeMapping,
+  parseFilename,
+  triggerDownload,
   runAssign,
   runExport,
   runImport,
@@ -65,6 +71,7 @@ import type {
   LlmProviderRow,
   DifficultyMappingRow,
   AssignDeps,
+  DownloadDeps,
   ExportDeps,
   ImportDeps,
 } from './AdminView';
@@ -733,21 +740,141 @@ describe('AdminView — ④c 배선 회귀 (정적 렌더)', () => {
   });
 });
 
-// R-112 — ④d onExport 실 GET export 본체(runExport) 검증. jsdom/렌더러 없이 export 본체를
-// 직접 호출하고(④c runAssign 과 동일 convention), apiClient.request mock 으로 method/path 를
-// 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백 호출로 관찰한다.
-// happy/error/branch/negative 예외 분기마다 각 1+ cover.
-describe('AdminView — onExport 실 GET export (④d runExport)', () => {
-  // 상태 전이를 기록하는 deps harness — exporting 초기값과 request mock 을 주입받아
-  // setExporting/setExportError/setExportMessage 호출을 모두 순서대로 캡처한다.
+// R-112 — ④f parseFilename 순수 helper 검증(Content-Disposition filename 추출). RFC 5987
+// ext-value(filename*=) 우선·일반 filename="..."·따옴표/공백 제거·누락/비정상 헤더 undefined
+// fallback 등 분기를 각 1+ cover.
+describe('AdminView — parseFilename (순수 함수, ④f)', () => {
+  it('일반 filename="..." 을 따옴표 제거해 추출한다 (happy)', () => {
+    expect(parseFilename('attachment; filename="export.json"')).toBe(
+      'export.json',
+    );
+  });
+
+  it('따옴표 없는 filename=... 도 추출한다 (happy — 따옴표 생략)', () => {
+    expect(parseFilename('attachment; filename=data.csv')).toBe('data.csv');
+  });
+
+  it('filename*=UTF-8\'\'<percent-encoded> 을 우선 디코딩해 추출한다 (branch — RFC 5987 우선)', () => {
+    // 비-ASCII 파일명(평가.json)을 percent-encoding 한 ext-value 우선 적용.
+    const encoded = encodeURIComponent('평가.json');
+    expect(
+      parseFilename(`attachment; filename="fallback.json"; filename*=UTF-8''${encoded}`),
+    ).toBe('평가.json');
+  });
+
+  it('null/빈 헤더면 undefined 를 반환한다 (negative — 누락)', () => {
+    expect(parseFilename(null)).toBeUndefined();
+    expect(parseFilename('')).toBeUndefined();
+  });
+
+  it('filename 토큰이 없으면 undefined 를 반환한다 (negative — 비정상 헤더)', () => {
+    expect(parseFilename('attachment')).toBeUndefined();
+    expect(parseFilename('inline; size=10')).toBeUndefined();
+  });
+
+  it('잘못된 percent-encoding 의 ext-value 는 일반 filename 으로 안전 fallback 한다 (negative — 깨진 인코딩)', () => {
+    // filename*=UTF-8''%E0%A4%A 는 불완전 — decodeURIComponent throw → 일반 filename fallback.
+    expect(
+      parseFilename("attachment; filename=\"ok.json\"; filename*=UTF-8''%E0%A4%A"),
+    ).toBe('ok.json');
+  });
+});
+
+// R-112 — ④f triggerDownload 순수 부수효과 러너 검증. createObjectURL → clickAnchor →
+// revokeObjectURL 순서·인자·예외 시에도 revokeObjectURL 정리 보장(자원 누수 방지)을 mock
+// 으로 단언한다(jsdom 없이 — DownloadDeps 직접 주입).
+describe('AdminView — triggerDownload (부수효과 러너, ④f)', () => {
+  function makeDownloadDeps() {
+    const order: string[] = [];
+    const deps: DownloadDeps = {
+      createObjectURL: (blob: Blob) => {
+        order.push(`create:${blob.size}`);
+        return 'blob:mock-url';
+      },
+      revokeObjectURL: (url: string) => {
+        order.push(`revoke:${url}`);
+      },
+      clickAnchor: (url: string, filename: string) => {
+        order.push(`click:${url}:${filename}`);
+      },
+    };
+    return { deps, order };
+  }
+
+  it('createObjectURL → clickAnchor → revokeObjectURL 순서로 호출한다 (happy)', () => {
+    const { deps, order } = makeDownloadDeps();
+    triggerDownload(new Blob(['ab']), 'export.json', deps);
+    expect(order).toEqual([
+      'create:2',
+      'click:blob:mock-url:export.json',
+      'revoke:blob:mock-url',
+    ]);
+  });
+
+  it('clickAnchor 예외 시에도 revokeObjectURL 로 정리한다 (negative — 자원 누수 방지)', () => {
+    const order: string[] = [];
+    const deps: DownloadDeps = {
+      createObjectURL: () => {
+        order.push('create');
+        return 'blob:x';
+      },
+      revokeObjectURL: () => {
+        order.push('revoke');
+      },
+      clickAnchor: () => {
+        order.push('click');
+        throw new Error('click boom');
+      },
+    };
+    // 예외는 호출측으로 전파되나(runExport 의 catch 가 안전 처리), revoke 는 finally 로 보장.
+    expect(() => triggerDownload(new Blob(['x']), 'f.json', deps)).toThrow(
+      'click boom',
+    );
+    expect(order).toEqual(['create', 'click', 'revoke']);
+  });
+
+  it('빈/0-byte Blob 도 throw 없이 다운로드를 트리거한다 (negative — 빈 blob)', () => {
+    const { deps, order } = makeDownloadDeps();
+    triggerDownload(new Blob([]), 'empty.json', deps);
+    expect(order).toEqual([
+      'create:0',
+      'click:blob:mock-url:empty.json',
+      'revoke:blob:mock-url',
+    ]);
+  });
+});
+
+// R-112 — ④f onExport 실 GET export + Blob 다운로드 본체(runExport) 검증. jsdom/렌더러 없이
+// export·다운로드 본체를 직접 호출하고(④c runAssign 과 동일 convention), getRaw mock 으로
+// raw Response 시나리오를 주입하며 createObjectURL/revokeObjectURL/clickAnchor 호출을 mock 으로
+// 단언한다. 상태 전이는 record harness 의 콜백 호출로 관찰한다. happy/error/branch/negative 각 1+.
+describe('AdminView — onExport 실 GET export + Blob 다운로드 (④f runExport)', () => {
+  // raw Response mock 헬퍼 — blob()/headers.get(content-disposition) 만 제공(runExport 가 쓰는
+  // 최소 표면). disposition 인자로 Content-Disposition 유무 분기를 통제한다.
+  function mockRawResponse(blobBytes: string, disposition: string | null) {
+    return {
+      blob: async () => new Blob([blobBytes]),
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === 'content-disposition' ? disposition : null,
+      },
+    } as unknown as Response;
+  }
+
+  // 상태 전이 + 다운로드 부수효과를 기록하는 deps harness — exporting 초기값과 getRaw mock 을
+  // 주입받아 setExporting/setExportError/setExportMessage 호출과 다운로드 deps 호출을 캡처한다.
   function makeExportDeps(exporting: boolean) {
     const calls = {
       exporting: [] as boolean[],
       error: [] as (string | undefined)[],
       message: [] as (string | undefined)[],
+      // 다운로드 부수효과 관찰 — createObjectURL/clickAnchor/revokeObjectURL 호출 인자 캡처.
+      created: [] as number[],
+      clicked: [] as { url: string; filename: string }[],
+      revoked: [] as string[],
     };
     const deps: ExportDeps = {
-      get: (...args: unknown[]) => requestMock(...args),
+      getRaw: (...args: unknown[]) => requestRawMock(...args),
       describeError: (e: unknown) => {
         // toErrorMessage stub 과 정합 — ApiError.status → 문구.
         if (e instanceof ApiError) {
@@ -761,139 +888,210 @@ describe('AdminView — onExport 실 GET export (④d runExport)', () => {
       setExporting: (next) => calls.exporting.push(next),
       setExportError: (next) => calls.error.push(next),
       setExportMessage: (next) => calls.message.push(next),
+      createObjectURL: (blob) => {
+        calls.created.push(blob.size);
+        return 'blob:mock-url';
+      },
+      revokeObjectURL: (url) => calls.revoked.push(url),
+      clickAnchor: (url, filename) => calls.clicked.push({ url, filename }),
     };
     return { deps, calls };
   }
 
   beforeEach(() => {
-    requestMock.mockReset();
+    requestRawMock.mockReset();
   });
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  // happy-path — export 트리거 시 request 가 GET /api/admin/export 로 정확히 호출되고, 성공
-  // 후 완료 message 가 설정되며 진행 표시(busy)가 on→off 로 해제된다.
-  it('GET /api/admin/export 를 정확히 호출하고 성공 시 완료 message 를 설정한다 (happy-path)', async () => {
-    requestMock.mockResolvedValue({ ok: true });
+  // happy-path — export 트리거 시 getRaw 가 GET /api/admin/export 로 호출되고, 성공 응답의 blob
+  // 으로 createObjectURL + anchor click + revokeObjectURL 이 호출되며 완료 message + busy 해제.
+  it('GET /api/admin/export 를 호출하고 성공 시 blob → createObjectURL + click + revokeObjectURL + 완료 message (happy-path)', async () => {
+    requestRawMock.mockResolvedValue(
+      mockRawResponse('payload', 'attachment; filename="export.json"'),
+    );
     const { deps, calls } = makeExportDeps(false);
     await runExport(deps);
-    // request 가 export path 로 1 회 호출(옵션 생략 = 기본 GET, scope query 미부착).
-    expect(requestMock).toHaveBeenCalledTimes(1);
-    expect(requestMock).toHaveBeenCalledWith('/api/admin/export');
-    // 성공 → 완료 안내 message 표면화(직전 비움 undefined 후 완료 문구).
+    // getRaw 가 export path 로 1 회 호출(옵션 생략 = 기본 GET, scope query 미부착).
+    expect(requestRawMock).toHaveBeenCalledTimes(1);
+    expect(requestRawMock).toHaveBeenCalledWith('/api/admin/export');
+    // 다운로드 부수효과 — createObjectURL(payload=7byte) + click(filename=export.json) + revoke.
+    expect(calls.created).toEqual([7]);
+    expect(calls.clicked).toEqual([{ url: 'blob:mock-url', filename: 'export.json' }]);
+    expect(calls.revoked).toEqual(['blob:mock-url']);
+    // 성공 → 완료 안내 message + 진행 on→off + 시작 시 error 비움.
     expect(calls.message).toEqual([undefined, '내보내기 완료']);
-    // 진행 표시 on→off + error 는 시작 시 비움만(실패 문구 미설정).
     expect(calls.exporting).toEqual([true, false]);
     expect(calls.error).toEqual([undefined]);
   });
 
-  // error path — export 403(Admin+ 미만) 실패 시 error 문구가 표면화되고 throw 없이 처리되며
-  // 완료 message 는 설정되지 않는다(시작 비움만).
-  it('export 403(Admin+ 미만) 실패 시 error 문구를 표면화하고 throw 하지 않는다 (error path — 403)', async () => {
-    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+  // flow/branch — Content-Disposition 이 없으면 기본 파일명(export.json)으로 fallback 한다.
+  it('Content-Disposition 이 없으면 기본 파일명으로 fallback 한다 (flow/branch — filename fallback)', async () => {
+    requestRawMock.mockResolvedValue(mockRawResponse('x', null));
     const { deps, calls } = makeExportDeps(false);
-    await expect(runExport(deps)).resolves.toBeUndefined();
-    // 사람-친화 문구 표면화(시작 비움 → HTTP 403) + 완료 message 미설정(시작 비움만).
-    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
-    expect(calls.message).toEqual([undefined]);
-    // 진행 표시는 성공·실패 공통으로 off.
-    expect(calls.exporting).toEqual([true, false]);
+    await runExport(deps);
+    // filename 헤더 부재 → DEFAULT_EXPORT_FILENAME(export.json).
+    expect(calls.clicked).toEqual([{ url: 'blob:mock-url', filename: 'export.json' }]);
+    expect(calls.message).toEqual([undefined, '내보내기 완료']);
   });
 
-  // error path — 404(자원 부재) 도 동일 안전 경로로 문구 표면화(throw 없음).
-  it('export 404 실패 시 안전 문구를 표면화한다 (error path — 404)', async () => {
-    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+  // flow/branch — Content-Disposition filename 이 있으면 그것을 파일명으로 쓴다.
+  it('Content-Disposition filename 이 있으면 그 파일명을 쓴다 (flow/branch — filename 헤더 우선)', async () => {
+    requestRawMock.mockResolvedValue(
+      mockRawResponse('x', 'attachment; filename="assessments-2026.csv"'),
+    );
+    const { deps, calls } = makeExportDeps(false);
+    await runExport(deps);
+    expect(calls.clicked[0].filename).toBe('assessments-2026.csv');
+  });
+
+  // error path — export 403(Admin+ 미만) 실패 시 error 문구 표면화 + 다운로드 부수효과 미호출.
+  it('export 403(Admin+ 미만) 실패 시 error 문구 표면화 + 다운로드 미호출 (error path — 403)', async () => {
+    requestRawMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeExportDeps(false);
+    await expect(runExport(deps)).resolves.toBeUndefined();
+    // 사람-친화 문구 표면화 + 완료 message 미설정(시작 비움만) + 진행 off.
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.message).toEqual([undefined]);
+    expect(calls.exporting).toEqual([true, false]);
+    // GET 실패라 다운로드 부수효과는 일절 호출되지 않음(createObjectURL 등).
+    expect(calls.created).toEqual([]);
+    expect(calls.clicked).toEqual([]);
+    expect(calls.revoked).toEqual([]);
+  });
+
+  // error path — 404(자원 부재) 도 동일 안전 경로 + 다운로드 미호출(throw 없음).
+  it('export 404 실패 시 안전 문구 표면화 + 다운로드 미호출 (error path — 404)', async () => {
+    requestRawMock.mockRejectedValue(new ApiError(404, 'Not Found'));
     const { deps, calls } = makeExportDeps(false);
     await expect(runExport(deps)).resolves.toBeUndefined();
     expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+    expect(calls.created).toEqual([]);
   });
 
-  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
-  it('export 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
-    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구 + 다운로드 미호출(throw 없음).
+  it('export 네트워크 실패(ApiError 0) 시 네트워크 오류 문구 + 다운로드 미호출 (error path — 네트워크)', async () => {
+    requestRawMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
     const { deps, calls } = makeExportDeps(false);
     await expect(runExport(deps)).resolves.toBeUndefined();
     expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.created).toEqual([]);
   });
 
-  // flow/branch — export in-flight 동안 진행 표시(exporting) on, 성공/실패 어느 경우든 finally
-  // 로 해제(off)됨을 확인한다.
+  // flow/branch — export in-flight 동안 진행 표시 on, 성공/실패 어느 경우든 finally 로 해제.
   it('성공·실패 어느 경우든 진행 표시(exporting)가 finally 로 해제된다 (flow/branch — 진행 해제)', async () => {
-    requestMock.mockResolvedValueOnce({ ok: true });
+    requestRawMock.mockResolvedValueOnce(mockRawResponse('a', null));
     const ok = makeExportDeps(false);
     await runExport(ok.deps);
     expect(ok.calls.exporting).toEqual([true, false]);
 
-    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    requestRawMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
     const fail = makeExportDeps(false);
     await runExport(fail.deps);
     expect(fail.calls.exporting).toEqual([true, false]);
   });
 
-  // flow/branch(낙관 비움) — export 발사 직후 진행 표시 on + 직전 error·message 즉시 비움을
-  // 지연 resolve 로 캡처한다(실패 후 재시도 시 직전 error/완료 안내가 진행 중 남지 않음).
+  // flow/branch(시작 정리) — export 발사 직후 진행 표시 on + 직전 error·message 즉시 비움.
   it('발사 직후 진행 표시 on + 직전 error·message 를 즉시 비운다 (flow/branch — 시작 정리)', async () => {
-    let resolveGet: () => void = () => {};
-    requestMock.mockImplementation(
+    let resolveGet: (r: Response) => void = () => {};
+    requestRawMock.mockImplementation(
       () =>
-        new Promise<void>((resolve) => {
+        new Promise<Response>((resolve) => {
           resolveGet = resolve;
         }),
     );
     const { deps, calls } = makeExportDeps(false);
     const pending = runExport(deps);
-    // 발사 직후(해소 전) — 진행 on + error/message 모두 시작 비움(undefined).
+    // 발사 직후(해소 전) — 진행 on + error/message 모두 시작 비움(undefined) + 다운로드 미발생.
     expect(calls.exporting).toEqual([true]);
     expect(calls.error).toEqual([undefined]);
     expect(calls.message).toEqual([undefined]);
-    // 해소 후 — 완료 message 설정 + 진행 off.
-    resolveGet();
+    expect(calls.created).toEqual([]);
+    // 해소 후 — blob 다운로드 + 완료 message 설정 + 진행 off.
+    resolveGet(mockRawResponse('done', null));
     await pending;
     expect(calls.message).toEqual([undefined, '내보내기 완료']);
     expect(calls.exporting).toEqual([true, false]);
+    expect(calls.clicked).toHaveLength(1);
   });
 
-  // negative — export in-flight 중 재클릭(exporting=true)은 GET 미발사·state 불변(이중 호출·
-  // state 깨짐 차단 — ④c assigning 가드 동형).
-  it('이전 export 미완(exporting=true) 중 재호출은 GET 을 발사하지 않는다 (negative — 동시 재호출)', async () => {
+  // negative — export in-flight 중 재클릭(exporting=true)은 GET 미발사·중복 다운로드 없음.
+  it('이전 export 미완(exporting=true) 중 재호출은 GET·다운로드를 발사하지 않는다 (negative — 동시 재호출)', async () => {
     const { deps, calls } = makeExportDeps(true); // 이미 in-flight.
     await runExport(deps);
-    // request 미호출 + 어떤 state 전이도 없음(이중 호출·state 깨짐 차단).
-    expect(requestMock).not.toHaveBeenCalled();
+    // getRaw 미호출 + 어떤 state 전이·다운로드도 없음(이중 호출·중복 다운로드 차단).
+    expect(requestRawMock).not.toHaveBeenCalled();
     expect(calls.exporting).toEqual([]);
     expect(calls.error).toEqual([]);
     expect(calls.message).toEqual([]);
+    expect(calls.created).toEqual([]);
+    expect(calls.clicked).toEqual([]);
   });
 
-  // negative — 비정상/빈 응답(undefined·null·빈 문자열)도 throw 없이 완료로 안전 처리한다
-  // (본 slice 는 export 응답 body 를 소비하지 않음 — 실 파일 저장은 후속). 성공 사실만 표면화.
-  it('비정상/빈 응답(undefined)도 throw 없이 완료로 안전 처리한다 (negative — 빈/비정상 응답)', async () => {
-    requestMock.mockResolvedValue(undefined);
+  // negative — 빈/0-byte blob 응답도 throw 없이 다운로드를 트리거하고 완료 처리한다.
+  it('빈/0-byte blob 응답도 throw 없이 다운로드 + 완료 처리한다 (negative — 빈 blob)', async () => {
+    requestRawMock.mockResolvedValue(mockRawResponse('', null));
     const { deps, calls } = makeExportDeps(false);
     await expect(runExport(deps)).resolves.toBeUndefined();
-    // 빈 응답이어도 성공 분기 — 완료 message 표면화 + error 미설정.
+    // 0-byte Blob 이어도 createObjectURL(size 0) + click + revoke + 완료 message.
+    expect(calls.created).toEqual([0]);
+    expect(calls.clicked).toHaveLength(1);
+    expect(calls.revoked).toEqual(['blob:mock-url']);
     expect(calls.message).toEqual([undefined, '내보내기 완료']);
     expect(calls.error).toEqual([undefined]);
   });
 
-  // negative — 실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다(시작 비움 →
-  // 성공 message). 첫 호출 실패 → 두 번째 호출 성공의 두 deps 흐름으로 확인.
-  it('실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다 (negative — 실패 후 재시도)', async () => {
-    // 1차 — 실패(error 설정).
-    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+  // negative — 실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화 + 다운로드.
+  it('실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화 + 다운로드 (negative — 실패 후 재시도)', async () => {
+    // 1차 — 실패(error 설정 + 다운로드 미발생).
+    requestRawMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
     const first = makeExportDeps(false);
     await runExport(first.deps);
     expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
     expect(first.calls.message).toEqual([undefined]);
+    expect(first.calls.created).toEqual([]);
 
-    // 2차(재시도) — 성공. 시작 시 직전 error 를 비우고(undefined) 완료 message 설정.
-    requestMock.mockResolvedValueOnce({ ok: true });
+    // 2차(재시도) — 성공. 시작 시 직전 error 를 비우고(undefined) 다운로드 + 완료 message.
+    requestRawMock.mockResolvedValueOnce(mockRawResponse('ok', null));
     const second = makeExportDeps(false);
     await runExport(second.deps);
-    // 재시도 시작 시 error 비움(undefined) → 성공이라 추가 error 없음.
     expect(second.calls.error).toEqual([undefined]);
     expect(second.calls.message).toEqual([undefined, '내보내기 완료']);
+    expect(second.calls.clicked).toHaveLength(1);
+  });
+
+  // negative — createObjectURL 후 clickAnchor 예외 발생 시에도 revokeObjectURL 정리 누락 없음
+  // (자원 누수 방지). runExport 의 catch 가 예외를 안전 처리해 error 문구로 표면화한다.
+  it('createObjectURL 후 click 예외 시에도 revokeObjectURL 정리 + 안전 처리 (negative — 다운로드 중 예외)', async () => {
+    requestRawMock.mockResolvedValue(mockRawResponse('x', null));
+    const calls = {
+      exporting: [] as boolean[],
+      error: [] as (string | undefined)[],
+      message: [] as (string | undefined)[],
+      revoked: [] as string[],
+    };
+    const deps: ExportDeps = {
+      getRaw: (...args: unknown[]) => requestRawMock(...args),
+      describeError: (e: unknown) =>
+        e instanceof Error ? e.message : '알 수 없는 오류',
+      exporting: false,
+      setExporting: (next) => calls.exporting.push(next),
+      setExportError: (next) => calls.error.push(next),
+      setExportMessage: (next) => calls.message.push(next),
+      createObjectURL: () => 'blob:y',
+      revokeObjectURL: (url) => calls.revoked.push(url),
+      clickAnchor: () => {
+        throw new Error('click failed');
+      },
+    };
+    await expect(runExport(deps)).resolves.toBeUndefined();
+    // click 예외 → triggerDownload finally 가 revoke 정리(누수 없음) → runExport catch 가
+    // error 문구 표면화(throw 없이) + 완료 message 미설정 + 진행 off.
+    expect(calls.revoked).toEqual(['blob:y']);
+    expect(calls.error).toEqual([undefined, 'click failed']);
+    expect(calls.message).toEqual([undefined]);
+    expect(calls.exporting).toEqual([true, false]);
   });
 });
 

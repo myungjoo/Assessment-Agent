@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, request } from './apiClient';
+import { ApiError, request, requestRaw } from './apiClient';
 
 // R-112 — P6 composition wiring ②b apiClient(T-0380, ADR-0041 Decision 3) 검증.
 // jsdom/@testing-library 미사용 — 전역 fetch 를 vi.fn 으로 mock 해 호출 시나리오 단언.
@@ -198,6 +198,148 @@ describe('apiClient.request', () => {
     expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
     expect(init.body).toBe('{"a":1}');
     expect(init.credentials).toBe('same-origin');
+  });
+});
+
+// R-112 — T-0390 ④f raw Response 반환 helper(requestRaw) 검증. request 와 동일한 fetch
+// mock convention(전역 fetch stub)을 재사용하고, request 와 정책(credentials·401→refresh→
+// retry·비-2xx → ApiError·네트워크 → ApiError(0))을 공유하되 body 를 파싱하지 않고 raw
+// Response(여기선 FetchResult mock)를 반환하는 동작을 단언한다. happy/error/flow/negative 각 1+.
+describe('apiClient.requestRaw', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // happy-path — 2xx 응답 시 raw Response(본문 미파싱)를 그대로 반환하고 credentials 동반.
+  it('2xx 응답 시 raw Response 를 본문 미파싱으로 반환하고 credentials=same-origin 으로 호출한다 (happy-path)', async () => {
+    const raw = mockResponse(200, { blob: 'data' });
+    fetchSpy.mockResolvedValueOnce(raw);
+    const result = await requestRaw('/api/admin/export');
+    // request 와 달리 파싱하지 않고 raw Response(mock) 자체를 반환한다(참조 동일).
+    expect(result).toBe(raw);
+    // body 파싱 메서드(json/text)는 helper 내부에서 호출되지 않음(호출측이 직접 소비).
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const firstCall = fetchSpy.mock.calls[0];
+    expect(firstCall[0]).toBe('/api/admin/export');
+    expect(firstCall[1]).toMatchObject({ credentials: 'same-origin' });
+  });
+
+  // error path — 비-2xx (403/404/500) 응답 시 ApiError(status) throw.
+  it('비-2xx (403) 응답 시 ApiError(403) 를 throw 한다 (error path — 비-2xx)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(403, 'forbidden', 'text/plain'));
+    try {
+      await requestRaw('/api/admin/export');
+      expect.fail('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError);
+      expect((e as ApiError).status).toBe(403);
+    }
+    // 403 은 refresh 트리거 안 함(1 회 호출).
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // error path — 404 도 동일 ApiError 변환.
+  it('비-2xx (404) 응답 시 ApiError(404) 를 throw 한다 (error path — 404)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(404, 'not found', 'text/plain'));
+    await expect(requestRaw('/api/admin/export')).rejects.toThrow(ApiError);
+  });
+
+  // error path — fetch 가 throw(네트워크 실패) 시 ApiError(0) 표면화.
+  it('fetch 가 throw(네트워크 실패) 시 ApiError(0) 로 표면화한다 (error path — 네트워크)', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('offline'));
+    try {
+      await requestRaw('/api/admin/export');
+      expect.fail('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError);
+      expect((e as ApiError).status).toBe(0);
+      expect((e as ApiError).message).toBe('offline');
+    }
+  });
+
+  // flow/branch — 401 → refresh 200 → 원 요청 재시도 성공 → raw Response 반환.
+  it('401 → refresh 200 → 원 요청 재시도 성공 → raw Response 반환 (branch — refresh 성공 재시도)', async () => {
+    const retried = mockResponse(200, { ok: true });
+    fetchSpy
+      .mockResolvedValueOnce(mockResponse(401, 'unauthorized', 'text/plain'))
+      .mockResolvedValueOnce(mockResponse(200, { userId: 'u1' })) // refresh
+      .mockResolvedValueOnce(retried); // 재시도된 원 요청
+    const result = await requestRaw('/api/admin/export');
+    // 재시도된 raw Response(mock) 자체를 반환한다.
+    expect(result).toBe(retried);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/admin/export');
+    expect(fetchSpy.mock.calls[1][0]).toBe('/api/auth/refresh');
+    expect(fetchSpy.mock.calls[1][1]).toMatchObject({
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+    expect(fetchSpy.mock.calls[2][0]).toBe('/api/admin/export');
+  });
+
+  // flow/branch — 401 → refresh 401 → 원 401(ApiError(401)) 전파.
+  it('401 → refresh 401 → ApiError(401) 전파 (branch — refresh 실패 전파)', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(mockResponse(401, 'unauthorized', 'text/plain'))
+      .mockResolvedValueOnce(mockResponse(401, 'unauthorized', 'text/plain'));
+    try {
+      await requestRaw('/api/admin/export');
+      expect.fail('should have thrown');
+    } catch (e) {
+      expect((e as ApiError).status).toBe(401);
+    }
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  // negative — refresh 후 재시도가 다시 401 이어도 refresh 를 재호출하지 않는다(무한 루프 방지).
+  it('refresh 후 재시도가 다시 401 이어도 refresh 를 재호출하지 않고 401 전파 (negative — 재시도 1 회 정책)', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(mockResponse(401, 'unauthorized', 'text/plain'))
+      .mockResolvedValueOnce(mockResponse(200, { userId: 'u1' })) // refresh
+      .mockResolvedValueOnce(mockResponse(401, 'unauthorized', 'text/plain')); // 재-401
+    try {
+      await requestRaw('/api/admin/export');
+      expect.fail('should have thrown');
+    } catch (e) {
+      expect((e as ApiError).status).toBe(401);
+    }
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    const refreshCalls = fetchSpy.mock.calls.filter(
+      (c) => c[0] === '/api/auth/refresh',
+    );
+    expect(refreshCalls).toHaveLength(1);
+  });
+
+  // negative — 401 외 비-2xx(403)는 refresh 를 트리거하지 않는다(앞 error 케이스가 1 회 호출로
+  // 이미 단언하나, request 와의 정책 정합을 명시적으로 한 번 더 cover — negative 충분).
+  it('401 외 비-2xx(500)는 refresh 를 트리거하지 않고 곧장 ApiError(500) (negative — 401 외 status)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(500, 'boom', 'text/plain'));
+    try {
+      await requestRaw('/api/admin/export');
+      expect.fail('should have thrown');
+    } catch (e) {
+      expect((e as ApiError).status).toBe(500);
+    }
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // negative — _internalSkipRefresh=true 호출은 401 시 refresh 미진입(refresh 자체 재시도 제외).
+  it('_internalSkipRefresh=true 호출은 401 시 refresh 를 트리거하지 않는다 (negative — refresh 자체 재시도 제외)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(401, 'unauthorized', 'text/plain'));
+    try {
+      await requestRaw('/api/internal', { _internalSkipRefresh: true });
+      expect.fail('should have thrown');
+    } catch (e) {
+      expect((e as ApiError).status).toBe(401);
+    }
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });
 
