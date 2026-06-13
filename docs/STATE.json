@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0368",
-  "backlogNote": "**T-0368 QUEUED (P6 frontend UI slice 8, pr-mode, est ~165 LOC·2파일)** — 데이터 import/export 패널 DataImportExportPanel.tsx 분해(PLAN P6 bullet3 Admin 패널 import/export fragment). 순수 presentational controlled 컴포넌트, 새 dep 0, ci.yml 무관, .test.tsx 명명, dependsOn []·T-0361~T-0367 file-disjoint → 병렬 claimable. issue-still-relevant pre-check(planner): origin/main components/ 에 DataImportExportPanel/ImportExport 부재 확인. **P6 UI 진척: 7개 컴포넌트 merge(T-0361 EvaluationGuardBanner·T-0362 LoginForm·T-0363 EvaluationResultTable·T-0364 DifficultyModelSelector·T-0365 SuperAdminSetupForm·T-0366 GroupMemberList·T-0367 ReEvaluationTriggerPanel) + T-0368 큐잉** — 전부 props 기반 순수 컴포넌트, 아직 App.tsx composition wiring/fetch/전역 상태/라우팅 미배선(fetch 배선은 backend API 연동이라 scope 주의). 남은 P6 Admin fragment: import/export(T-0368 진행 예정)·스케줄. **다음 fire: T-0368 execute(pr-mode)**. **여전히 게이트된 backlog**: T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0369",
+  "backlogNote": "**T-0369 QUEUED (P6 frontend UI slice 9, pr-mode, est ~165 LOC·2파일)** — 스케줄 설정 패널 SchedulePanel.tsx 분해(PLAN P6 bullet3 Admin 패널 마지막 fragment '스케줄'). 순수 presentational controlled 컴포넌트(cron 입력·적용·manual trigger 버튼·busy/error/message 분기), 새 dep 0, ci.yml 무관, .test.tsx 명명, dependsOn []·T-0361~T-0368 file-disjoint → 병렬 claimable. issue-still-relevant pre-check(planner): origin/main components/ 에 SchedulePanel/schedule 부재 확인(8개 컴포넌트만 존재). cron 주기 R-72/manual trigger R-73 은 P7 기능이나 P6 Admin bullet 이 '스케줄' 을 frontend fragment 로 명시 — 본 컴포넌트는 UI 표면만 박제, backend 배선은 P7. **P6 UI 진척: 8개 컴포넌트 merge(T-0361 EvaluationGuardBanner·T-0362 LoginForm·T-0363 EvaluationResultTable·T-0364 DifficultyModelSelector·T-0365 SuperAdminSetupForm·T-0366 GroupMemberList·T-0367 ReEvaluationTriggerPanel·T-0368 DataImportExportPanel) + T-0369 큐잉** — 전부 props 기반 순수 컴포넌트, 아직 App.tsx composition wiring/fetch/전역 상태/라우팅 미배선(fetch 배선은 backend API 연동이라 scope 주의). T-0369 머지 시 P6 Admin 패널 5 fragment(인원·그룹·재평가·import/export·스케줄) 전부 presentational 분해 완료 → 다음은 App.tsx composition wiring 또는 대시보드 슬라이스. **다음 fire: T-0369 execute(pr-mode)**. **여전히 게이트된 backlog**: T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aaS1sched-b56c53e",
-    "since": "2026-06-13T09:38:37Z",
-    "note": "aa-local-scheduled cron fire 09:38Z — fresh checkout cb42e93 였으나 origin/main 이 b56c53e(aa15 가 T-0366 머지+T-0367 큐잉)로 선행해 reset 갱신. claims [] → reclaim no-op → select-claim T-0367(ReEvaluationTriggerPanel pr-mode) CAS → lock-free execute(executor: 컴포넌트+test, web vitest 92 pass) → PR #299 reviewer APPROVE r1/7 → CI green → integrator 4-게이트 PASS → squash c91ad17. closeout 후 claims.json T-0367 제거 + tombstone(5432326 CAS). planner 가 T-0368 큐잉. STATE.lock mirror 비권위(ADR-0009/0028) — 권위는 branch tip lock.json."
+    "session": "cron@aa15local-5432326",
+    "since": "2026-06-13T10:05:26Z",
+    "note": "aa-local-15 cron fire 10:05Z — fresh checkout b56c53e 였으나 origin/main 이 2db4ec1(aaS1sched 가 T-0367 머지+T-0368 큐잉)로 선행해 reset 갱신. free lock 획득(6960d8a CAS) → reclaim no-op(claims []) → select-claim T-0368(DataImportExportPanel pr-mode, 701ef1d CAS) → lock-free execute(executor: 컴포넌트+test, web vitest 110/110 green) → claim prNumber=300 PR_OPEN 갱신(9f0ab6d) → PR #300 reviewer APPROVE r1/7 → CI green(run 27463789116) → integrator 4-게이트 PASS → squash f9c50fd --delete-branch. closeout 후 claims.json T-0368 제거 + tombstone. planner 가 T-0369 큐잉. STATE.lock mirror 비권위(ADR-0009/0028) — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-13T09:38:37Z",
-  "lastCommit": "c91ad17",
+  "lastActivity": "2026-06-13T10:13:28Z",
+  "lastCommit": "f9c50fd",
   "mostRecentTasks": [
+    "T-0368",
     "T-0367",
     "T-0366",
     "T-0365",
-    "T-0364",
-    "T-0363"
+    "T-0364"
   ],
   "loopSession": {
     "turnCount": 8,
@@ -33,11 +33,12 @@
     "note": "/loop session vb707106 (dynamic, turn cap 10) **세션 종료(t8 wind-down, cap 10 중 8 turn — context 보호 + cron 자율 이어감 판단)**. 성과: t1 Q-0037 RESOLVE(user: P6 frontend 진입) / t2 T-0361(EvaluationGuardBanner) / t3 no-op(cron lock) / t4 T-0362(LoginForm) / t5 planner T-0363 / t6 T-0363(EvaluationResultTable) / t7 T-0364(DifficultyModelSelector) / t8 T-0365(SuperAdminSetupForm). **5 P6 frontend 컴포넌트 merge 전부 round 1/7 first-pass green, tasksCompleted 355→360, 사고 0.** 동시성: cron+loop 협업(cron planner dispatch ×2 + loop execute) 무사고 실증. 다음 진입점: cron 이 planner 로 P6 이어감(App.tsx wiring 등) 또는 사용자 새 /loop."
   },
   "ci": {
-    "lastRun": "2026-06-13T09:47:08Z",
+    "lastRun": "2026-06-13T10:13:28Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/299",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/300",
+    "noteT0368": "PR #300(T-0368 P6 DataImportExportPanel) head 14fffb2 pull_request run 27463789116 = first-pass green 전 step(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요, mergeStateStatus CLEAN 이라 rebase noop). web vitest 110/110(신규 18) 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash f9c50fd main push run 다음 fire 재확인(web-only/squash trivially green 예상).",
     "noteT0367": "PR #299(T-0367 P6 ReEvaluationTriggerPanel) head 4722583 — integrator 4-게이트 PASS(reviewer APPROVE r1/7 + approval-gate 포함 CI green) → squash c91ad17 --delete-branch. web vitest 16+ case 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash c91ad17 main push run 다음 fire 재확인(web-only/squash trivially green 예상).",
     "noteT0366": "PR #298(T-0366 P6 GroupMemberList) head ebd0da7 pull_request run 27462512150 = first-pass green 전 step(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요, mergeStateStatus CLEAN 이라 rebase noop). web vitest 16 case 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash 3b6f9b1 main push run 다음 fire 재확인(web-only/squash trivially green 예상).",
     "noteT0365": "PR #297(T-0365 P6 SuperAdminSetupForm) head cabe11f pull_request run 27461536730 = first-pass green 전 step(reviewer approve comment 가 approval-gate step 전/중 landing, rerun 불요). web vitest 14 case 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash 4c23f94 main push run 다음 fire 재확인(web-only/squash trivially green 예상).",
@@ -60,6 +61,7 @@
     "noteT0359": "PR #291(T-0359) head 45df1bd pull_request run 27439004157 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요, benignRedNote case A 미해당). 전 step green(lint/build/prisma/test+cov 3042 pass cov 99.96%/100% + smoke/e2e + approval-gate). squash b68822c main push run(19:48:29Z in_progress)은 다음 fire 재확인(squash trivially green 예상)."
   },
   "reviewRounds": {
+    "T-0368": 1,
     "T-0367": 1,
     "T-0366": 1,
     "T-0365": 1,
@@ -690,7 +692,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 362,
+    "tasksCompleted": 363,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

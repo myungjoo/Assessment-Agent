@@ -2,7 +2,11 @@
 id: T-0368
 title: P6 frontend UI slice 8 — 데이터 import/export 패널 presentational 컴포넌트 (web/src/components/DataImportExportPanel.tsx)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-06-13T10:13:28Z
+mergedAs: f9c50fd
+prNumber: 300
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-046, REQ-047]
 estimatedDiff: 165
