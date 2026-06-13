@@ -32,9 +32,15 @@ for f in "${added[@]}"; do
       continue
     fi
   fi
-  # 대응 spec 후보: foo.ts → foo.spec.ts (same dir).
+  # 대응 spec 후보: foo.ts → foo.spec.ts (same dir, root jest 관행)
+  # 또는 foo.ts → foo.test.ts (web/ vitest 관행 — root jest testRegex 와 충돌
+  # 회피 위해 .test.ts 를 사용; ADR-0041 Decision 3 / T-0380 박제).
   spec="${f%.ts}.spec.ts"
   if [ -f "$spec" ]; then
+    continue
+  fi
+  test_spec="${f%.ts}.test.ts"
+  if [ -f "$test_spec" ]; then
     continue
   fi
   missing+=("$f")
