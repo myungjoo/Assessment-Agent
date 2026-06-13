@@ -2,7 +2,10 @@
 id: T-0388
 title: P6 composition wiring ④d AdminView 에 DataImportExportPanel export 배선(onExport → GET /api/admin/export)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: b3efa92
+prNumber: 319
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-046, REQ-047]
 estimatedDiff: 200
