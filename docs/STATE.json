@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0362",
   "backlogNote": "**T-0361 DONE (P6 frontend UI slice 1, PR #293 squash cdea958, round 1/7 first-pass green)** — R-78 평가 진행 중 경고 배너 EvaluationGuardBanner.tsx 신설(props active/message, active=false→null, 빈 message→기본문구 fallback, role=alert). 순수 presentational, 새 dep 0, web vitest 5 test(R-112). Q-0037(user: P6 frontend) 후 첫 UI 컴포넌트. **다음 fire: planner** 가 다음 P6 UI slice 분해(예: 실행 상태 표시 / App.tsx wiring / 평가 결과 view 등 — dependency-free·ci.yml 무관 우선). **여전히 게이트된 backlog**(P6 UI 와 병행 대기): T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 30일 dogfood+측정 / Q-0026 timezone(boundary math 부재라 cosmetic) / P7 scheduler.",
   "lock": {
-    "holder": "loop",
-    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-13T06:31:00Z",
-    "note": "/loop vb707106 t2 — T-0361 PR #293 MERGED(squash cdea958) 후 bookkeeping critical section. claim+release 모델: t2 시작 시 select-claim 으로 T-0361 claim(lock tombstone release) → lock-free implement/test/PR/CI → merge 후 본 critical section 재획득(3533401). 본 commit push 후 tombstone release + claim 제거 예정. STATE.lock mirror 는 비권위(ADR-0009/0028) — 권위는 branch tip lock.json."
+    "holder": null,
+    "session": "cron@cloud-aa-scheduled-2bac540",
+    "since": "2026-06-13T06:38:09Z",
+    "note": "aa-local-scheduled fire 06:38Z — planner-only turn. Q-0037 RESOLVED(user 옵션2 P6 frontend) 확인, currentTask/nextTask 둘 다 null, 미해결 humanQuestion 0, 활성 claim 0 → planner dispatch 로 T-0362(P6 LoginForm.tsx) 큐잉. 권위 lock CAS 획득(35a15fa→938979d, holder=cron) 후 doc-only direct commit, 본 commit push 후 tombstone release 예정. STATE.lock mirror 는 비권위(ADR-0009/0028) — 권위는 branch tip lock.json. 다음 fire: T-0362 execute(pr-mode, gh/MCP probe 후)."
   },
-  "lastActivity": "2026-06-13T06:31:00Z",
+  "lastActivity": "2026-06-13T06:38:09Z",
   "lastCommit": "cdea958",
   "mostRecentTasks": [
     "T-0361",
