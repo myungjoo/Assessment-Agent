@@ -2,8 +2,11 @@
 id: T-0362
 title: P6 frontend UI slice 2 — 로그인 폼 입력 presentational 컴포넌트 (web/src/components/LoginForm.tsx)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 294
+completedAt: 2026-06-13T06:50:00Z
+mergeCommit: 41465ec
 coversReq: [REQ-040, REQ-084]
 estimatedDiff: 140
 estimatedFiles: 2
