@@ -11,11 +11,11 @@
   "backlogNote": "**ADR-0039 KST impl chain 전부 완결 (5/5 T-0360, PR #292 squash 491c28f, round 1/7 first-pass green)** — view-layer formatter: helper(period-boundary.ts)에 저장 UTC instant → Asia/Seoul 가독 표시 formatKstDisplay + 보조 formatKstIso(+09:00 명시) 신설(§Decision4/§Decision5 comp(iv) 완결, R-112, 저장값 불변). chain 1/5=T-0356(d656595)·2/5=T-0357(30486c3)·3/5=T-0358(e10a747)·4/5=T-0359(b68822c)·5/5=T-0360(491c28f). **Q-0037 OPEN (needs-human-direction)** — KST chain 완결 후 HIGH-bar survey 결과 dependency-free P5 work 소진, planner nextTask=null escalate. 남은 backlog 전부 게이트: T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) / live-LLM(Q-0022 만료 6/30) / ADR-0038 PROPOSED→ACCEPTED human flip / ADR-0036 stage5c 30일 dogfood+측정 / Q-0026 timezone(SinceDerivation routing 은 boundary math 부재라 cosmetic) / web vitest threshold(T-0355 뒤) / P6 frontend·P7 scheduler. 다음 fire 는 Q-0037 미해결이면 즉시 no-op 종료.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-noop-0104Z",
-    "since": "2026-06-13T01:04:19Z",
-    "note": "cloud-scheduled 01:04Z fire no-op 종료 — Q-0037 OPEN(needs-human-direction) 여전히 미해결(직전 aa-local-15 01:03Z·cloud 00:37Z 와 동일 조건, race rebase 흡수: origin/main 이 본 fire push 직전 ab850ab 로 +1 → §4 graceful rebase 후 본 mirror 가 newer 이므로 채택), LOOP.md §1[1] '미해결 humanQuestion 있으면 즉시 종료' rule 적용. gh 부재(cron@cloud) → MCP 로 인접 sweep 재확인: open PR 0, main CI green(run 27451140278 success/completed), BLOCKED task 0, blockers 0, currentTask/nextTask=null, tasksCompleted=355 유지. 권위 lock CAS 미시도(critical section 없음·STATE write 1줄 외), claims.json·branch tip lock.json 변경 0. STATE.lock mirror 1줄 + journal 1줄만 direct doc commit. 다음 fire 도 Q-0037 미해결이면 동일 no-op heartbeat. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "session": "cron@WIN-JQIPLSBL9QV-aa15-noop-0204Z",
+    "since": "2026-06-13T02:04:06Z",
+    "note": "aa-local-15 02:04Z fire no-op 종료 — Q-0037 OPEN(needs-human-direction) 여전히 미해결(직전 cloud 01:04Z no-op 과 동일 조건, aa-local-15 :15 cron fire), LOOP.md §1[1] '미해결 humanQuestion 있으면 즉시 종료' rule 적용. 인접 sweep 재확인(gh auth 정상): origin/main 74676b2 로 ff-sync, open PR 0, BLOCKED task 0, blockers 0, main CI green(74676b2 run success), currentTask/nextTask=null, tasksCompleted=355 유지, lock tip tombstone(free). 권위 lock CAS 미시도(critical section 없음·STATE write 1줄 외), claims.json·branch tip lock.json 변경 0. STATE.lock mirror 1줄 + journal 1줄만 direct doc commit. 다음 fire 도 Q-0037 미해결이면 동일 no-op heartbeat. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-13T01:04:19Z",
+  "lastActivity": "2026-06-13T02:04:06Z",
   "lastCommit": "491c28f",
   "mostRecentTasks": [
     "T-0360",
