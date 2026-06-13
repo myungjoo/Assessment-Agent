@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0373",
-  "backlogNote": "**T-0373 QUEUED (P6 frontend UI slice 13, pr-mode, est ~180 LOC·2파일)** — 대시보드 요약 지표(KPI) 카드 행 MetricSummaryCards.tsx 분해(PLAN P6 bullet2 시각화 대시보드 잔여 fragment, REQ-038/036 상단 요약 지표 표시). props 기반 순수 presentational(카드 목록·값/라벨/증감·loading/error 분기), 새 dep 0, ci.yml 무관, .test.tsx 명명, dependsOn 빈배열·T-0361~T-0372 file-disjoint → 병렬 claimable. **P6 UI 진척: 13개 컴포넌트 merge(T-0361~T-0372) + T-0373 큐잉** — bullet2 대시보드(필터/정렬·결과표·시계열·페이지네이션·요약카드 큐잉) presentational 표면 거의 완비. App.tsx composition wiring/fetch/전역 상태/라우팅 미배선(presentational fragment 소진 시 wiring task 로 전환 — file-disjoint 병렬성·scope 주의). **다음 fire: T-0373 execute(pr-mode)**. **게이트된 backlog**: T-0355 ci.yml workflow-scope credential + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0374",
+  "backlogNote": "**T-0374 QUEUED (P6 frontend UI slice 14, pr-mode, est ~190 LOC·2파일)** — 점수 분포 막대 차트 ScoreDistributionChart.tsx 분해(PLAN P6 bullet2 시각화 대시보드 잔여 fragment, REQ-038/036 분포 시각화). chart lib 없이 div + inline style percent 막대(max count 대비 비율), props 기반 순수 presentational(bucket label/count·loading/error/빈상태 분기·0 나눗셈 방지·비정상 count clamp), 새 dep 0, ci.yml 무관, .test.tsx 명명, dependsOn 빈배열·T-0361~T-0373 file-disjoint → 병렬 claimable. T-0373 Out of Scope 에 박제된 'div 막대 분포 시각화' 후보를 실현. **P6 UI 진척: 14개 컴포넌트 merge(T-0361~T-0373) + T-0374 큐잉** — bullet2 대시보드(필터/정렬·결과표·시계열·페이지네이션·요약카드·분포차트 큐잉) presentational 표면 거의 완비. App.tsx composition wiring/fetch/전역 상태/라우팅 미배선(presentational fragment 소진 시 wiring task 로 전환 — file-disjoint 병렬성·scope 주의). **다음 fire: T-0374 execute(pr-mode)**. **게이트된 backlog**: T-0355 ci.yml workflow-scope credential + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-13T12:00:46Z",
-    "note": "loop vb707106 t4 — free lock(claims 빈배열·tombstone) → validate-claim-candidate T-0372 PASS → select-claim T-0372(DashboardPaginationControl pr-mode, server-time 11:50:29Z) → lock-free execute(web vitest 20신규/191 green, tsc strict+build green) → claim prNumber=304 PR_OPEN → PR #304 reviewer APPROVE r1/7(findings 0, 경계 계산 검증) → CI first-pass green(run 27466031462) → integrator 4-게이트 PASS(mergeStateStatus CLEAN) → squash 3465e09 --delete-branch. closeout 후 claims.json T-0372 제거. planner 가 T-0373 큐잉. STATE.lock mirror 비권위 — 권위는 branch tip lock.json. note: shared checkout 이 merge 후 local branch 를 main 으로 자동 전환(phantom-worktree quirk), 원격 feature branch/PR head 무영향."
+    "session": "cron@aa-local-15-0e4c98a",
+    "since": "2026-06-13T12:04:34Z",
+    "note": "cron aa-local-15 fire(매시 15분 trigger, 충돌 회피) — fresh checkout 9f5dbbf 였으나 origin/main 이 0e4c98a(loop 이 T-0372 머지+T-0373 큐잉)로 선행해 reset 갱신. free lock(16255e2 CAS, f1d2991) → reclaim no-op(claims []) → maxConcurrentClaims gate(활성 0 < 2, pr-mode 단독 OK) → validate-claim-candidate T-0373 PASS → select-claim T-0373(MetricSummaryCards pr-mode, server-time 12:05:52Z, lock tombstone 동반 CAS) → lock-free execute(executor: 컴포넌트 146 LOC+test 26 case, web vitest 214 green, tsc strict+build green) → claim prNumber=305 PR_OPEN 갱신 → PR #305 reviewer APPROVE r1/7(findings 0) → integrator 4-게이트 PASS(first-pass CI green, mergeStateStatus CLEAN) → squash 10f55c3 --delete-branch. closeout 후 claims.json T-0373 제거(빈 배열). planner 가 T-0374 큐잉. STATE.lock mirror 비권위(ADR-0009/0028) — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-13T12:00:46Z",
-  "lastCommit": "3465e09",
+  "lastActivity": "2026-06-13T12:14:00Z",
+  "lastCommit": "10f55c3",
   "mostRecentTasks": [
+    "T-0373",
     "T-0372",
     "T-0371",
     "T-0370",
-    "T-0369",
-    "T-0368"
+    "T-0369"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,11 +32,12 @@
     "note": "/loop session vb707106 (dynamic, turn cap 10). t1 no-op(cron active claim). t2 T-0370·t3 T-0371·t4 T-0372 P6 컴포넌트 3 연속 merge(PR #302/#303/#304, t3·t4 first-pass green, t2 approval-gate rerun). tasksCompleted 364→367, 사고 0. cron 미발화(loop 단독 진행). planner 가 T-0373 큐잉. turn 4/10."
   },
   "ci": {
-    "lastRun": "2026-06-13T12:00:46Z",
+    "lastRun": "2026-06-13T12:14:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/304",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/305",
+    "noteT0373": "PR #305(T-0373 P6 MetricSummaryCards) head 37297d4 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 findings 0 + approval-gate 포함 first-pass CI green, rerun 불요, mergeStateStatus CLEAN). web vitest 26신규/214 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash 10f55c3 main push run(12:12:44Z pending)은 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0369": "PR #301(T-0369 P6 SchedulePanel) head 59b1e1d pull_request run 27464471930 = approval-gate ordering(benignRedNote case A — run 10:42:09Z 시작, reviewer approve comment 10:45:15Z landing) 단독 fail, `gh run rerun --failed` 후 전 step success(lint/build/prisma/test+cov/smoke/e2e + approval-gate). web vitest 131(신규 21) 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash 45957e3 main push run 다음 fire 재확인(web-only/squash trivially green 예상).",
     "noteT0368": "PR #300(T-0368 P6 DataImportExportPanel) head 14fffb2 pull_request run 27463789116 = first-pass green 전 step(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요, mergeStateStatus CLEAN 이라 rebase noop). web vitest 110/110(신규 18) 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash f9c50fd main push run 다음 fire 재확인(web-only/squash trivially green 예상).",
     "noteT0367": "PR #299(T-0367 P6 ReEvaluationTriggerPanel) head 4722583 — integrator 4-게이트 PASS(reviewer APPROVE r1/7 + approval-gate 포함 CI green) → squash c91ad17 --delete-branch. web vitest 16+ case 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash c91ad17 main push run 다음 fire 재확인(web-only/squash trivially green 예상).",
@@ -64,6 +65,7 @@
     "noteT0372": "PR #304(T-0372 P6 DashboardPaginationControl) head 953d8b3 pull_request run 27466031462 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요, benignRedNote case A 미해당). 전 step green. web vitest 20신규/191 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash 3465e09 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
+    "T-0373": 1,
     "T-0369": 1,
     "T-0368": 1,
     "T-0367": 1,
@@ -698,7 +700,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 367,
+    "tasksCompleted": 368,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

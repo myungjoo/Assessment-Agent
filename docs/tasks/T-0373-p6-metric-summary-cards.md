@@ -2,7 +2,7 @@
 id: T-0373
 title: P6 frontend UI slice 13 — 대시보드 요약 지표 카드 행 presentational 컴포넌트 (web/src/components/MetricSummaryCards.tsx)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-038, REQ-036]
 estimatedDiff: 180
@@ -77,3 +77,13 @@ PLAN [Phase P6](../PLAN.md) bullet2 "시각화 대시보드 (정렬·필터·시
 ## Follow-ups
 
 (생성 시 비어있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+---
+
+## 완료 기록
+
+- **Status: DONE** (2026-06-13T12:14Z, cron@aa-local-15)
+- PR [#305](https://github.com/myungjoo/Assessment-Agent/pull/305) → squash merge `10f55c3` (`--delete-branch`).
+- reviewer APPROVE round 1/7 (findings 0), integrator 4-게이트 PASS, CI first-pass green.
+- MetricSummaryCards.tsx(+146) + MetricSummaryCards.test.tsx(+231, 26 spec) — web vitest 214 pass, tsc strict+build green. 새 dep 0, backend 불변.
+- R-114: squash 10f55c3 main push run 은 다음 fire 재확인(web-only/squash trivially green 예상).
