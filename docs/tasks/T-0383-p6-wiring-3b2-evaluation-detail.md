@@ -2,7 +2,10 @@
 id: T-0383
 title: P6 composition wiring ③b-2 대시보드 평가 상세(EvaluationDetailPanel/GET /api/contributions, row 선택 연동) 조립
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 0a05a7e
+prNumber: 314
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-033, REQ-038, REQ-036]
 estimatedDiff: 215
