@@ -15,8 +15,10 @@
 // 없으면 빈 배열(빈 상태) 로 안전 표시한다 — 별도 GET /api/groups/:id/members 신규 fetch 는
 // ④b Out of Scope(본 컨테이너는 useApiResource 를 그룹 목록 조회에 단 한 번만 호출한다).
 
-import { useMemo, useState } from 'react';
-import { useApiResource } from '../api/useApiResource';
+import { useCallback, useMemo, useState } from 'react';
+import { useApiResource, toErrorMessage } from '../api/useApiResource';
+import { request } from '../api/apiClient';
+import type { RequestOptions } from '../api/apiClient';
 import GroupMemberList from '../components/GroupMemberList';
 import type { Member } from '../components/GroupMemberList';
 import DifficultyModelSelector from '../components/DifficultyModelSelector';
@@ -182,6 +184,96 @@ function deriveDifficultyMapping(
   return mapping;
 }
 
+// 난이도 슬롯 매핑 조회 path 빌더(순수 helper) — ④c PATCH 성공 시 GET 재조회를 유발하기 위해
+// 컨테이너의 refreshNonce 를 cache-busting query(`_r`)로 실어 path 문자열을 변화시킨다.
+// useApiResource 는 path 변경 시에만 재조회하므로(수정 0 — read-only hook), nonce 증가가 곧
+// 재조회 트리거다. nonce 0(초기 조회)이면 query 없는 깨끗한 path 를 그대로 쓴다(불필요 query
+// 회피). `_r` 은 backend GET 핸들러가 @Query 를 받지 않아 무시한다(api.md 119 — 부수효과 0).
+function buildMappingsPath(refreshNonce: number): string {
+  if (refreshNonce <= 0) {
+    return LLM_MAPPINGS_PATH;
+  }
+  return `${LLM_MAPPINGS_PATH}?_r=${refreshNonce}`;
+}
+
+// 서버 파생 매핑 위에 낙관적 override 를 덮는 순수 helper — ④c PATCH 발사 직후 재조회 도착
+// 전까지 재지정한 슬롯이 즉시 새 provider 를 반영하도록 한다. override 의 각 슬롯값이 정의돼
+// 있으면(undefined 가 아니면) base 를 덮고, undefined 슬롯은 base 를 유지한다(부분 override).
+// override 가 비거나(아무 슬롯도 없음) 모두 undefined 면 base 와 동일한 새 객체를 반환한다.
+function mergeMapping(
+  base: Record<Difficulty, string | null>,
+  override: Partial<Record<Difficulty, string | null>>,
+): Record<Difficulty, string | null> {
+  const merged: Record<Difficulty, string | null> = { ...base };
+  for (const key of DIFFICULTY_KEYS) {
+    const value = override[key];
+    if (value !== undefined) {
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
+
+// onAssign 의 PATCH + state-전이 로직을 캡슐화한 순수 async 러너(④c, 테스트 가능성 —
+// jsdom/렌더러 없이 mutation 본체를 직접 검증한다. useApiResource 의 runFetch 가 effect
+// 본체를 분리해 jsdom 없이 검증한 convention 정합). 컨테이너의 handleAssign 은 이 러너에
+// 현재 in-flight 여부(assigning)와 상태 setter 들을 주입해 호출만 한다. 동작:
+//  - 빈/falsy providerId → 미발사(잘못된 body 회피).
+//  - assigning(이전 mutation 미완) → 미발사(이중 PATCH·state 경합 차단).
+//  - 발사 시 낙관 반영 + 진행 on + error 비움 → PATCH → 성공(재조회 트리거 + override 비움) /
+//    실패(override 롤백 + 문구 표면화) → 진행 off(공통).
+interface AssignDeps {
+  // PATCH 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  patch: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 mutation in-flight 여부 — true 면 미발사(동시 재호출 가드).
+  assigning: boolean;
+  setAssigning: (next: boolean) => void;
+  setAssignError: (next: string | undefined) => void;
+  setOptimistic: (
+    updater: (
+      prev: Partial<Record<Difficulty, string | null>>,
+    ) => Partial<Record<Difficulty, string | null>>,
+  ) => void;
+  // 권위 재조회 트리거 — refreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+}
+
+async function runAssign(
+  difficulty: Difficulty,
+  providerId: string,
+  deps: AssignDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/falsy providerId 는 PATCH 미발사(잘못된 body 회피).
+  if (!providerId) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 mutation 미완 중이면 미발사(이중 PATCH·state 경합 차단).
+  if (deps.assigning) {
+    return;
+  }
+  deps.setAssigning(true);
+  deps.setAssignError(undefined);
+  deps.setOptimistic((prev) => ({ ...prev, [difficulty]: providerId }));
+  try {
+    await deps.patch(`${LLM_MAPPINGS_PATH}/${difficulty}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ llmProviderConfigId: providerId }),
+    });
+    // 성공 — 권위 재조회 트리거 + 낙관 override 비움(서버 데이터로 대체).
+    deps.setOptimistic(() => ({}));
+    deps.bumpRefresh();
+  } catch (e) {
+    // 실패 — 낙관 override 롤백 + 사람-친화 문구 표면화(throw 없이 error props 로).
+    deps.setOptimistic(() => ({}));
+    deps.setAssignError(deps.describeError(e));
+  } finally {
+    deps.setAssigning(false);
+  }
+}
+
 // Admin 화면 컨테이너. useApiResource 로 GET /api/groups 결과를 소유하고, 선택 그룹 상태를
 // useState 로 보유해 선택 그룹의 멤버를 client-side 파생 후 GroupMemberList 에 props 로
 // 내려보낸다(controlled lift-up — GroupMemberList 는 fetch 를 모른다, ADR-0041 Decision 1).
@@ -214,12 +306,35 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
     error: providersError,
   } = useApiResource<LlmProviderRow[]>(LLM_PROVIDERS_PATH);
 
-  // 난이도 슬롯 매핑 조회(④b) — provider 와 같은 thin fetch hook 으로 추가 조회한다.
+  // 재조회 nonce(④c) — DifficultyModelSelector.onAssign PATCH 성공 시 이 값을 +1 해
+  // mappings path 를 변화시켜 useApiResource 재조회를 유발한다(read-only hook 수정 0 경로).
+  const [refreshNonce, setRefreshNonce] = useState<number>(0);
+
+  // 낙관적 override(④c) — PATCH 발사 직후 재조회 도착 전까지 재지정 슬롯을 즉시 반영한다.
+  // 성공 후 재조회 트리거와 함께 비우고(권위 데이터로 대체), 실패 시 롤백(비움)한다.
+  const [optimisticMapping, setOptimisticMapping] = useState<
+    Partial<Record<Difficulty, string | null>>
+  >({});
+
+  // mutation in-flight 플래그(④c) — PATCH 진행 중 true. 진행 표시(loading 우선)와 동시 재호출
+  // 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다.
+  const [assigning, setAssigning] = useState<boolean>(false);
+
+  // mutation 실패 문구(④c) — PATCH 실패 시 사람-친화 문구(toErrorMessage 파생)를 보관해
+  // error props 로 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
+  const [assignError, setAssignError] = useState<string | undefined>(undefined);
+
+  // 난이도 슬롯 매핑 조회(④b) — provider 와 같은 thin fetch hook 으로 추가 조회한다. path 는
+  // refreshNonce 를 cache-busting query 로 실어(④c) PATCH 성공 시 nonce 증가가 재조회를 낸다.
+  const mappingsPath = useMemo(
+    () => buildMappingsPath(refreshNonce),
+    [refreshNonce],
+  );
   const {
     data: mappingData,
     loading: mappingsLoading,
     error: mappingsError,
-  } = useApiResource<DifficultyMappingRow[]>(LLM_MAPPINGS_PATH);
+  } = useApiResource<DifficultyMappingRow[]>(mappingsPath);
 
   // provider 응답 → ProviderOption[] 파생(순수 helper). data 미도착이면 빈 배열(빈 상태).
   const providers = useMemo(
@@ -227,27 +342,47 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
     [providerData],
   );
 
-  // 난이도 매핑 응답 → Record<Difficulty, string | null> 파생. 세 슬롯을 키로 기본 null.
+  // 난이도 매핑 응답 → Record<Difficulty, string | null> 파생 + 낙관적 override 병합(④c).
+  // 서버 권위 매핑 위에 진행 중인 재지정 슬롯을 즉시 덮어, 재조회 도착 전에도 새 provider 가
+  // DifficultyModelSelector 의 mapping props 로 내려가도록 한다(낙관 반영). override 가 비면
+  // 서버 매핑 그대로다(merge 결과는 base 와 동일한 새 객체).
   const difficultyMapping = useMemo(
-    () => deriveDifficultyMapping(mappingData),
-    [mappingData],
+    () => mergeMapping(deriveDifficultyMapping(mappingData), optimisticMapping),
+    [mappingData, optimisticMapping],
   );
 
-  // loading 합성 — 두 LLM 조회 중 하나라도 진행 중이면 true(loading 우선 정책에 맞춰 패널이
-  // 부분 데이터로 깜빡이지 않게 둘 다 끝날 때까지 로딩 표시한다, ADR-0041 Decision 1 경계).
-  const llmLoading = providersLoading || mappingsLoading;
+  // loading 합성 — 두 LLM 읽기 조회 또는 mutation(assigning) 중 하나라도 진행 중이면 true.
+  // mutation in-flight 도 loading 우선으로 표시해(④c) 패널이 진행 중을 노출한다(ADR-0041
+  // Decision 1 경계 — 읽기 loading 과 mutation loading 을 패널 단일 loading props 로 합성).
+  const llmLoading = providersLoading || mappingsLoading || assigning;
 
-  // error 합성 — provider 조회 error 를 우선 노출하고, 없으면 mapping 조회 error 를 쓴다
-  // (provider 가 없으면 슬롯 폼 자체가 의미 없으므로 provider error 가 더 근본적). 둘 다
-  // 없으면 undefined. Admin+ 미만 403 도 이 경로로 error props 안전 표시(throw 없음).
-  const llmError = providersError ?? mappingsError;
+  // error 합성 — mutation 실패(assignError)를 최우선 노출한다(④c — 방금 사용자가 한 재지정의
+  // 실패가 가장 최신·근본적 피드백). 없으면 provider 조회 error, 없으면 mapping 조회 error.
+  // 둘 다 없으면 undefined. Admin+ 미만 403 도 이 경로로 error props 안전 표시(throw 없음).
+  const llmError = assignError ?? providersError ?? mappingsError;
 
-  // onAssign no-op — 슬롯 재지정 PATCH(/api/llm/difficulty-mappings/:difficulty) mutation 은
-  // ④c Out of Scope. 본 slice 는 읽기 표시까지라 required onAssign 에 빈 콜백을 전달한다
-  // (실 PATCH·낙관적 업데이트·토스트는 ④c). 컴포넌트 수정 0 유지(controlled props 소비).
-  const handleAssignNoop = (_difficulty: Difficulty, _providerId: string) => {
-    // mutation 은 ④c — 본 slice 는 no-op.
-  };
+  // onAssign 실 mutation 핸들러(④c) — 슬롯 재지정 PATCH(/api/llm/difficulty-mappings/:difficulty)
+  // 를 컨테이너 내부 async 로 발사한다(신규 mutation hook 미작성 — cap·범위 정합). 동작:
+  //  1) 빈/비정상 providerId 면 미발사(잘못된 body 전송 회피).
+  //  2) 이전 mutation 미완(assigning) 중 재호출이면 미발사(이중 호출·state 깨짐 차단).
+  //  3) 낙관 반영(슬롯 즉시 새 provider) + 진행 표시 on + 이전 error 비움.
+  //  4) PATCH 성공 → refreshNonce +1(권위 재조회 트리거) + 낙관 override 비움(권위 데이터로 대체).
+  //  5) PATCH 실패 → 낙관 override 롤백(비움) + toErrorMessage 문구를 error props 로 안전 표시
+  //     (throw 없음 — 미지원 난이도 400 / config·슬롯 부재 404 / Admin+ 미만 403 / 네트워크 0 모두).
+  //  6) 마지막에 진행 표시 off(성공·실패 공통).
+  const handleAssign = useCallback(
+    (difficulty: Difficulty, providerId: string) =>
+      runAssign(difficulty, providerId, {
+        patch: request,
+        describeError: toErrorMessage,
+        assigning,
+        setAssigning,
+        setAssignError,
+        setOptimistic: setOptimisticMapping,
+        bumpRefresh: () => setRefreshNonce((n) => n + 1),
+      }),
+    [assigning],
+  );
 
   // 그룹 선택 변경 — <select> 가 선택 그룹 id 를 컨테이너 상태로 올린다(빈 값 선택 시 미선택
   // 으로 되돌려 멤버 빈 상태로 표시). GroupMemberList 는 선택 상호작용을 모른다(Decision 1).
@@ -288,13 +423,14 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
         emptyMessage={emptyMessage}
       />
       {/* LLM 모델 지정(두 번째 패널) — provider 목록·난이도 매핑을 파생해 props 로만 내려보낸다
-          (ADR-0041 Decision 1 — 패널은 fetch 를 모른다). llmLoading/llmError 는 두 LLM 조회의
-          loading/error 합성. onAssign 은 no-op(슬롯 재지정 PATCH mutation 은 ④c Out of Scope).
-          Admin+ 미만 사용자의 403 도 llmError 로 안전 표시(throw 없음). 컴포넌트 수정 0. */}
+          (ADR-0041 Decision 1 — 패널은 fetch/PATCH 를 모른다). llmLoading/llmError 는 두 LLM 읽기
+          조회 + mutation(assigning/assignError)의 loading/error 합성(④c — mutation 우선). onAssign 은
+          실 PATCH(/api/llm/difficulty-mappings/:difficulty) async 핸들러(④c) — 성공 시 재조회 +
+          낙관 반영, 실패 시 error props 안전 표시(throw 없음). 컴포넌트 수정 0. */}
       <DifficultyModelSelector
         providers={providers}
         mapping={difficultyMapping}
-        onAssign={handleAssignNoop}
+        onAssign={handleAssign}
         loading={llmLoading}
         error={llmError}
       />
@@ -302,12 +438,21 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
   );
 }
 
-export { findGroup, deriveMembers, deriveProviders, deriveDifficultyMapping };
+export {
+  findGroup,
+  deriveMembers,
+  deriveProviders,
+  deriveDifficultyMapping,
+  buildMappingsPath,
+  mergeMapping,
+  runAssign,
+};
 export type {
   AdminViewProps,
   GroupRow,
   GroupMemberRow,
   LlmProviderRow,
   DifficultyMappingRow,
+  AssignDeps,
 };
 export default AdminView;

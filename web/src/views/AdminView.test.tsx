@@ -15,20 +15,54 @@ import type { ApiResourceState } from '../api/useApiResource';
 // (그룹 path 만 set 하면 LLM path 는 빈 성공 응답으로 안전 fallback), LLM 패널 test 는 path
 // 별 응답을 명시 주입한다.
 const useApiResourceMock = vi.fn();
+// useApiResource 모듈 mock — AdminView 는 useApiResource(읽기 hook) 와 toErrorMessage(④c
+// mutation 실패 문구 파생)를 같은 모듈에서 import 한다. toErrorMessage 는 실제 동작과 정합한
+// 경량 stub 으로 둬(ApiError.status → "HTTP <status>: <msg>" / status 0 → 네트워크 오류) ④c
+// 실패 분기의 사람-친화 문구 표면화를 검증 가능하게 한다.
 vi.mock('../api/useApiResource', () => ({
   useApiResource: (...args: unknown[]) => useApiResourceMock(...args),
+  toErrorMessage: (e: unknown) => {
+    if (e instanceof ApiError) {
+      if (e.status === 0) {
+        return `네트워크 오류: ${e.message}`;
+      }
+      return `HTTP ${e.status}: ${e.message}`;
+    }
+    if (e instanceof Error) {
+      return e.message;
+    }
+    return '알 수 없는 오류';
+  },
 }));
+
+// apiClient mock — ④c onAssign 이 apiClient.request 로 PATCH 를 발사하므로 request 를 mock 해
+// method/path/body 를 단언하고 성공/실패 응답을 주입한다. ApiError 는 실제 클래스를 그대로 써
+// status 기반 문구 파생을 검증한다(toErrorMessage stub 과 정합).
+const requestMock = vi.fn();
+vi.mock('../api/apiClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/apiClient')>();
+  return {
+    ...actual,
+    request: (...args: unknown[]) => requestMock(...args),
+  };
+});
+
+import { ApiError } from '../api/apiClient';
 
 import AdminView, {
   findGroup,
   deriveMembers,
   deriveProviders,
   deriveDifficultyMapping,
+  buildMappingsPath,
+  mergeMapping,
+  runAssign,
 } from './AdminView';
 import type {
   GroupRow,
   LlmProviderRow,
   DifficultyMappingRow,
+  AssignDeps,
 } from './AdminView';
 
 // LLM 조회 두 path 의 기본 성공(빈 데이터) 상태 — 그룹 전용 test 가 LLM path 응답을 명시하지
@@ -443,5 +477,254 @@ describe('AdminView — LLM provider/매핑 파생 (순수 함수)', () => {
     expect(html).toContain('name="easy"');
     // stale id 는 option 에 없으니 selected 표시 없이 placeholder 로 안전 렌더.
     expect(html).not.toContain('value="ghost"');
+  });
+});
+
+// R-112 — ④c onAssign 실 PATCH mutation 본체(runAssign) 검증. jsdom/렌더러 없이 mutation
+// 본체를 직접 호출하고(useApiResource.runFetch 와 동일 convention), apiClient.request mock 으로
+// method/path/body 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의
+// 콜백 호출로 관찰한다. happy/error/branch/negative 예외 분기마다 각 1+ cover.
+describe('AdminView — onAssign 실 PATCH mutation (④c runAssign)', () => {
+  // 상태 전이를 기록하는 deps harness — assigning 초기값과 request mock 을 주입받아
+  // setAssigning/setAssignError/setOptimistic/bumpRefresh 호출을 모두 캡처한다.
+  function makeDeps(assigning: boolean) {
+    const calls = {
+      assigning: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      // optimistic 의 최종 상태(updater 누적 적용 결과).
+      optimistic: {} as Partial<Record<string, string | null>>,
+    };
+    const deps: AssignDeps = {
+      patch: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      assigning,
+      setAssigning: (next) => calls.assigning.push(next),
+      setAssignError: (next) => calls.error.push(next),
+      setOptimistic: (updater) => {
+        calls.optimistic = updater(calls.optimistic) as Partial<
+          Record<string, string | null>
+        >;
+      },
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — onAssign('medium', 'cfg2') 호출 시 request 가 PATCH /api/.../medium +
+  // body {llmProviderConfigId:'cfg2'} 로 정확히 호출되고, 성공 후 재조회(bump)가 트리거되며
+  // 낙관 override 가 비워진다(서버 데이터로 대체).
+  it("PATCH /api/llm/difficulty-mappings/medium 을 정확한 body 로 호출하고 성공 시 재조회를 트리거한다 (happy-path)", async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps, calls } = makeDeps(false);
+    await runAssign('medium', 'cfg2', deps);
+    // request 가 method PATCH + JSON Content-Type + 정확한 path/body 로 1 회 호출.
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock).toHaveBeenCalledWith(
+      '/api/llm/difficulty-mappings/medium',
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ llmProviderConfigId: 'cfg2' }),
+      },
+    );
+    // 성공 → 재조회 트리거 1 회 + 낙관 override 비움(서버 데이터로 대체).
+    expect(calls.bump).toBe(1);
+    expect(calls.optimistic).toEqual({});
+    // 진행 표시 on → off 순서 + error 비움(실패 문구 미설정).
+    expect(calls.assigning).toEqual([true, false]);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // happy-path(낙관 반영) — PATCH 성공 전(발사 직후) 낙관 override 가 재지정 슬롯을 즉시
+  // 반영함을 mergeMapping 합성으로 확인(컨테이너 difficultyMapping 파생과 동일 경로).
+  it("발사 직후 낙관 override 가 재지정 슬롯을 즉시 반영하고 성공 후 서버 매핑으로 대체된다 (happy-path — 낙관)", async () => {
+    // request 가 해소되기 전 낙관 상태를 캡처하기 위해 지연 resolve 를 쓴다.
+    let resolvePatch: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePatch = resolve;
+        }),
+    );
+    const { deps, calls } = makeDeps(false);
+    const pending = runAssign('hard', 'cfg2', deps);
+    // 발사 직후(해소 전) — 낙관 override 에 hard→cfg2 반영, 합성 매핑에 즉시 내려간다.
+    expect(calls.optimistic).toEqual({ hard: 'cfg2' });
+    expect(
+      mergeMapping({ easy: null, medium: null, hard: null }, calls.optimistic),
+    ).toEqual({ easy: null, medium: null, hard: 'cfg2' });
+    // 해소 후 — 낙관 비움 + 재조회 트리거.
+    resolvePatch();
+    await pending;
+    expect(calls.optimistic).toEqual({});
+    expect(calls.bump).toBe(1);
+  });
+
+  // error path — PATCH 404(config·슬롯 부재) 시 error 문구가 표면화되고 throw 없이 처리되며
+  // 낙관 override 가 롤백되고 재조회는 트리거되지 않는다.
+  it("PATCH 404 실패 시 error 문구를 표면화하고 낙관을 롤백한다 (error path — 404)", async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeDeps(false);
+    // throw 없이 resolve 되어야 한다(안전 처리).
+    await expect(runAssign('easy', 'cfg1', deps)).resolves.toBeUndefined();
+    // 사람-친화 문구 표면화(HTTP 404) + 재조회 미트리거 + 낙관 롤백.
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+    expect(calls.bump).toBe(0);
+    expect(calls.optimistic).toEqual({});
+    // 진행 표시는 성공·실패 공통으로 off.
+    expect(calls.assigning).toEqual([true, false]);
+  });
+
+  // error path — 403(Admin+ 미만) 도 동일 안전 경로로 문구 표면화(throw 없음).
+  it("PATCH 403(Admin+ 미만) 실패 시 안전 문구를 표면화한다 (error path — 403)", async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeDeps(false);
+    await expect(runAssign('hard', 'cfg2', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it("PATCH 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)", async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeDeps(false);
+    await expect(runAssign('medium', 'cfg1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+  });
+
+  // flow/branch — mutation 완료 후 진행 표시가 반드시 해제됨(성공·실패 finally 보장).
+  it("성공·실패 어느 경우든 진행 표시(assigning)가 finally 로 해제된다 (flow/branch — 진행 해제)", async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeDeps(false);
+    await runAssign('easy', 'cfg1', ok.deps);
+    expect(ok.calls.assigning).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(400, 'bad'));
+    const fail = makeDeps(false);
+    await runAssign('easy', 'cfg1', fail.deps);
+    expect(fail.calls.assigning).toEqual([true, false]);
+  });
+
+  // negative — 미지원 난이도 400 응답도 throw 없이 안전 문구 표시(예외 분기 cover).
+  it("미지원 난이도 400 응답 시 안전 문구를 표시하고 throw 하지 않는다 (negative — 400)", async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'unsupported difficulty'));
+    const { deps, calls } = makeDeps(false);
+    await expect(runAssign('easy', 'cfg1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 400: unsupported difficulty']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // negative — 동시 재호출 가드(이전 mutation 미완 중 재호출)는 PATCH 미발사·state 불변.
+  it("이전 mutation 미완(assigning=true) 중 재호출은 PATCH 를 발사하지 않는다 (negative — 동시 재호출)", async () => {
+    const { deps, calls } = makeDeps(true); // 이미 in-flight.
+    await runAssign('medium', 'cfg2', deps);
+    // request 미호출 + 어떤 state 전이도 없음(이중 호출·state 깨짐 차단).
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.assigning).toEqual([]);
+    expect(calls.bump).toBe(0);
+    expect(calls.optimistic).toEqual({});
+  });
+
+  // negative — 빈/undefined providerId 비정상 호출은 PATCH 미발사(잘못된 body 회피).
+  it("빈 문자열/undefined providerId 면 PATCH 를 발사하지 않는다 (negative — 비정상 providerId)", async () => {
+    const empty = makeDeps(false);
+    await runAssign('easy', '', empty.deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(empty.calls.assigning).toEqual([]);
+
+    const undef = makeDeps(false);
+    await runAssign('easy', undefined as unknown as string, undef.deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(undef.calls.assigning).toEqual([]);
+  });
+
+  // negative — 재조회(권위 GET) 자체 실패는 useApiResource 가 error props 로 흡수하고
+  // (mappingsError), 직전 낙관 매핑은 비워진 상태라 서버 직전값을 유지한다. mutation 성공
+  // 후 재조회 트리거만 책임지므로 본 러너는 GET 실패를 알지 못함을 확인(관심사 분리).
+  it("PATCH 성공 후 재조회 트리거까지만 책임지고 GET 결과는 알지 못한다 (negative — 재조회 실패 분리)", async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps, calls } = makeDeps(false);
+    await runAssign('easy', 'cfg1', deps);
+    // 러너는 bump(재조회 트리거)만 — GET 성공/실패는 useApiResource 책임(error props 흡수).
+    expect(calls.bump).toBe(1);
+    expect(calls.error).toEqual([undefined]); // mutation 자체 error 는 없음.
+  });
+});
+
+// R-112 — ④c 신규 순수 helper(buildMappingsPath/mergeMapping) 검증. negative 분기 각 1+.
+describe('AdminView — ④c 재조회 path/낙관 병합 helper (순수 함수)', () => {
+  // buildMappingsPath — nonce 0 은 깨끗한 path, 1+ 는 cache-busting query 부착.
+  it('buildMappingsPath 가 nonce 0 은 깨끗한 path, 1+ 는 _r query 를 부착한다 (helper)', () => {
+    expect(buildMappingsPath(0)).toBe('/api/llm/difficulty-mappings');
+    expect(buildMappingsPath(1)).toBe('/api/llm/difficulty-mappings?_r=1');
+    expect(buildMappingsPath(5)).toBe('/api/llm/difficulty-mappings?_r=5');
+    // negative — 음수 nonce 도 깨끗한 path(0 이하 가드).
+    expect(buildMappingsPath(-1)).toBe('/api/llm/difficulty-mappings');
+  });
+
+  // mergeMapping — override 슬롯만 base 위에 덮고, undefined/빈 override 는 base 유지.
+  it('mergeMapping 이 override 슬롯만 base 위에 덮고 빈 override 는 base 를 유지한다 (helper)', () => {
+    const base = { easy: 'cfg1', medium: null, hard: 'cfg2' } as const;
+    // 부분 override — medium 만 덮는다.
+    expect(mergeMapping(base, { medium: 'cfg2' })).toEqual({
+      easy: 'cfg1',
+      medium: 'cfg2',
+      hard: 'cfg2',
+    });
+    // negative — 빈 override 는 base 와 동일(단 새 객체).
+    const same = mergeMapping(base, {});
+    expect(same).toEqual(base);
+    expect(same).not.toBe(base);
+    // negative — undefined 슬롯값은 base 유지(덮지 않음), null override 는 명시적 미할당으로 덮음.
+    expect(
+      mergeMapping(base, { easy: undefined, hard: null }),
+    ).toEqual({ easy: 'cfg1', medium: null, hard: null });
+  });
+});
+
+// ④c 회귀 — 컨테이너가 onAssign/loading/error 를 DifficultyModelSelector 에 props 로 배선하고
+// 읽기 배선(그룹·provider·매핑)이 불변임을 정적 렌더로 확인(읽기 회귀 0).
+describe('AdminView — ④c 배선 회귀 (정적 렌더)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('④c 배선 후에도 슬롯 select·provider 옵션·그룹 패널이 그대로 렌더된다 (읽기 회귀 0)', () => {
+    setRoutes({
+      [GROUPS]: { data: SAMPLE, loading: false, error: undefined },
+      [PROVIDERS]: { data: PROVIDER_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: MAPPING_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // 읽기 배선 불변 — 그룹 멤버 + provider 옵션 + 매핑 selected 가 ④b 와 동일하게 렌더.
+    expect(html).toContain('김철수');
+    expect(html).toContain('gpt-4o (openai)');
+    expect(html).toContain('value="cfg1" selected');
+    expect(html).toContain('aria-label="그룹 선택"');
+    // 슬롯 select 가 모두 렌더(onAssign 배선이 렌더를 깨지 않음).
+    expect(html).toContain('name="easy"');
+    expect(html).toContain('name="medium"');
+    expect(html).toContain('name="hard"');
   });
 });
