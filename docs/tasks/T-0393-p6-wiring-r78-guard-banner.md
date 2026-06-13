@@ -2,7 +2,7 @@
 id: T-0393
 title: P6 wiring⑤ DashboardView 에 EvaluationGuardBanner(R-78) 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [R-78]
 estimatedDiff: 180
