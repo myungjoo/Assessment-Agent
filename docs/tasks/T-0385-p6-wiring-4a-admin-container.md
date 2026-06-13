@@ -2,7 +2,11 @@
 id: T-0385
 title: P6 composition wiring ④a Admin 화면 컨테이너 shell(AdminView + GET /api/groups + GroupMemberList 첫 패널 배선)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-06-13T19:48:44Z
+mergedAs: 0b054ec
+prNumber: 316
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-028, REQ-046, REQ-047]
 estimatedDiff: 230
