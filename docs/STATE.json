@@ -7,16 +7,16 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0363",
   "backlogNote": "**T-0362 DONE (P6 frontend UI slice 2, PR #294 squash 41465ec, round 1/7 first-pass green)** — 로그인 폼 LoginForm.tsx 신설(props controlled, error→role=alert, loading→disabled+\"로그인 중…\", 빈입력→disabled, loading 우선). 순수 presentational, 새 dep 0, web vitest 12 test(R-112). P6 UI slice 1=T-0361(EvaluationGuardBanner cdea958)·2=T-0362(LoginForm 41465ec). **다음 fire: planner** 가 다음 P6 UI slice 분해(예: 실행 상태 표시 / 평가 결과 view / App.tsx wiring — dependency-free·ci.yml 무관 우선). **여전히 게이트된 backlog**(P6 UI 와 병행 대기): T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 30일 dogfood+측정 / Q-0026 timezone(boundary math 부재라 cosmetic) / P7 scheduler.",
   "lock": {
-    "holder": "loop",
+    "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-13T06:50:00Z",
-    "note": "/loop vb707106 t4 — T-0362 PR #294 MERGED(squash 41465ec) 후 bookkeeping critical section. claim+release 모델: select-claim T-0362 → lock-free implement/test/PR/CI → merge 후 재획득(ef7f5fc). 본 commit push 후 tombstone release + claim 제거 예정. STATE.lock mirror 는 비권위(ADR-0009/0028) — 권위는 branch tip lock.json."
+    "since": "2026-06-13T07:03:00Z",
+    "note": "/loop vb707106 t5 — planner dispatch 완료(nextTask=T-0363 P6 EvaluationResultTable). 07:04Z cron 선점 방지 위해 선제 lock 획득(39046ee) 후 planner 호출, 본 commit push 후 tombstone release. 다음 fire(loop t6 또는 cron): T-0363 execute(pr-mode). STATE.lock mirror 는 비권위(ADR-0009/0028) — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-13T06:50:00Z",
-  "lastCommit": "41465ec",
+  "lastActivity": "2026-06-13T07:03:00Z",
+  "lastCommit": "1f32bcb",
   "mostRecentTasks": [
     "T-0362",
     "T-0361",
@@ -25,12 +25,12 @@
     "T-0358"
   ],
   "loopSession": {
-    "turnCount": 4,
+    "turnCount": 5,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-vb707106",
     "startedAt": "2026-06-13T06:03:00Z",
     "endedAt": null,
-    "note": "/loop session vb707106 (dynamic, turn cap 10) t4 — T-0362 실행 완결. t1: Q-0037 RESOLVE(user: P6 frontend)+planner T-0361. t2: T-0361(EvaluationGuardBanner) merge cdea958. t3: no-op stand-down(cron 06:38Z 가 lock 점유·planner dispatch 중 → 즉시 종료, mutex 정상). t4: cron 이 큐잉한 T-0362(LoginForm) claim→implement→test(12 case, web 19 pass)→PR #294→reviewer APPROVE r1/7→CI first-pass green(run 27459548185)→integrator 4-gate PASS→squash 41465ec. tasksCompleted 356→357. 사고 0. 다음 t5: planner 가 다음 P6 UI slice 분해. 동시성: cron+loop 협업(cron 이 planner, loop 가 execute)."
+    "note": "/loop session vb707106 (dynamic, turn cap 10) t5 — planner dispatch. t1: Q-0037 RESOLVE(user: P6 frontend). t2: T-0361(EvaluationGuardBanner) merge cdea958. t3: no-op(cron lock 점유). t4: T-0362(LoginForm) merge 41465ec. t5: 선제 lock 획득(07:04Z cron 선점 방지) 후 planner → T-0363(P6 평가 결과 조회 테이블 EvaluationResultTable) 큐잉, nextTask=T-0363. 누적 tasksCompleted 357(2 P6 컴포넌트 merge). 사고 0. 다음 t6: T-0363 execute(pr-mode). 남은 turn 5개(cap 10)."
   },
   "ci": {
     "lastRun": "2026-06-13T06:47:00Z",
