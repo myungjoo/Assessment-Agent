@@ -6,8 +6,9 @@
 // apiClient(fetch) 경유만 (ADR-0040 §5 게이트).
 //
 // 책임 경계(③a→③b-1→③b-2): 요약 카드 + 필터 바 + 결과 테이블 + 시계열(③b-1) + 점수
-// 분포(③b-1) + 평가 상세(③b-2, GET /api/contributions, row 선택 연동)까지. 페이지네이션
-// 조립은 ③b-3 follow-up(dependsOn T-0383). /api/contributions 배선이 본 ③b-2 추가분.
+// 분포(③b-1) + 평가 상세(③b-2, GET /api/contributions, row 선택 연동) + 페이지네이션
+// (③b-3, T-0384, client-side page/pageSize state + visibleRows slicing)까지. 페이지네이션은
+// 신규 fetch 0 — 이미 받은 visibleRows 를 client-side 로 slice 한다(서버 페이지네이션 부재).
 // 서버 측 정렬/필터/페이지네이션은 api.md 89행 기준 backend 가 plain CRUD 라 본 slice 는
 // client-side 정렬/필터만 수행한다(Out of Scope: 서버 정렬). personId 미선택 시 path=null
 // 로 조회 미수행(api.md: personId 누락 시 400 회피).
@@ -26,6 +27,8 @@ import ScoreDistributionChart from '../components/ScoreDistributionChart';
 import type { ScoreDistributionBucket } from '../components/ScoreDistributionChart';
 import EvaluationDetailPanel from '../components/EvaluationDetailPanel';
 import type { EvaluationMetricItem } from '../components/EvaluationDetailPanel';
+import DashboardPaginationControl from '../components/DashboardPaginationControl';
+import type { DashboardPaginationControlProps } from '../components/DashboardPaginationControl';
 
 // 정렬 가능 컬럼 옵션 — EvaluationResultTable/DashboardFilterBar 의 컬럼 키와 정합.
 const SORT_OPTIONS: SortOption[] = [
@@ -44,6 +47,10 @@ const NO_SELECTION_LABEL = '평가 결과를 선택하세요';
 // 상세 패널의 빈 상태 라벨 — row 선택이 없으면(조회 미수행) 이 안내를 노출한다.
 const DETAIL_EMPTY_LABEL = '평가 결과를 선택하면 상세가 표시됩니다';
 
+// 기본 페이지 크기 — DashboardPaginationControl 의 기본 옵션([10, 20, 50]) 첫 값과 정합.
+// initialPageSize 미주입 시 페이지 slice 의 기본 폭으로 쓴다(③b-3 페이지네이션).
+const DEFAULT_PAGE_SIZE = 10;
+
 // 정렬 키 — EvaluationResultRow 의 표시 컬럼 키(id 제외)로 제한한다.
 type SortKey = 'subjectName' | 'metricLabel' | 'score';
 
@@ -60,6 +67,10 @@ interface DashboardViewProps {
   // 초기 선택 row id(선택 assessmentId) — ③a/③b-1 의 initial* 주입 패턴 정합. 정적
   // 렌더로 상세 패널/contributions 조회 분기를 검증할 수 있도록 주입 허용한다.
   initialSelectedId?: string;
+  // 초기 현재 페이지(1-base)/페이지 크기 — ③a~③b-2 의 initial* 주입 패턴 정합. 정적
+  // 렌더로 페이지 slice/clamp 분기를 검증할 수 있도록 주입 허용한다(③b-3 페이지네이션).
+  initialPage?: number;
+  initialPageSize?: number;
 }
 
 // personId/period → 조회 path 파생(순수 함수). personId 가 falsy 면 null 반환(조회
@@ -283,6 +294,24 @@ function deriveMetrics(rows: EvaluationResultRow[]): MetricSummaryItem[] {
   ];
 }
 
+// 필터·정렬된 row 를 (page, pageSize) 로 slicing 하는 순수 helper(③b-3 페이지네이션).
+// rows.slice((page-1)*pageSize, page*pageSize) 의미 — 현재 페이지 row 만 반환한다.
+// page/pageSize 비정상 입력(0 이하·음수·NaN·정수 아님)은 안전 fallback(page→1, pageSize→
+// DEFAULT_PAGE_SIZE)으로 보정해 throw/NaN 인덱스를 피한다(컴포넌트의 computeTotalPages 와
+// 동형의 보수 정책). rows 가 배열이 아니면 빈 배열을 반환한다.
+function pageRows<T>(rows: T[], page: number, pageSize: number): T[] {
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+  // pageSize 비정상(0 이하·NaN·정수 아님) → 기본 폭으로 안전 fallback.
+  const safeSize =
+    Number.isInteger(pageSize) && pageSize > 0 ? pageSize : DEFAULT_PAGE_SIZE;
+  // page 비정상(0 이하·NaN·정수 아님) → 첫 페이지로 안전 fallback(빈 slice/NaN 인덱스 회피).
+  const safePage = Number.isInteger(page) && page > 0 ? page : 1;
+  const start = (safePage - 1) * safeSize;
+  return rows.slice(start, start + safeSize);
+}
+
 // 대시보드 화면 컨테이너. useApiResource 로 GET /api/assessments 결과를 소유하고,
 // 정렬/필터/검색 상태를 useState 로 보유해 client-side 정렬/필터 후 presentational 에
 // props 로 내려보낸다.
@@ -293,6 +322,8 @@ function DashboardView({
   initialSortDirection = 'desc',
   initialSearchTerm = '',
   initialSelectedId = '',
+  initialPage = 1,
+  initialPageSize = DEFAULT_PAGE_SIZE,
 }: DashboardViewProps) {
   // 정렬/필터/검색 상태 — controlled lift-up(컨테이너 소유).
   const [sortKey, setSortKey] = useState<SortKey>(initialSortKey);
@@ -302,6 +333,10 @@ function DashboardView({
   // 선택 row id(선택 assessmentId) — row 선택 상호작용으로 갱신된다. 비어 있으면
   // contributions 조회 path=null(미수행) + 상세 패널은 빈/안내 상태(controlled lift-up).
   const [selectedId, setSelectedId] = useState<string>(initialSelectedId);
+  // 페이지 상태 — 현재 페이지(1-base)/페이지 크기를 컨테이너가 소유한다(controlled lift-up).
+  // DashboardPaginationControl 은 page/pageSize state 를 모르고 props 로만 소비한다.
+  const [currentPage, setCurrentPage] = useState<number>(initialPage);
+  const [pageSize, setPageSize] = useState<number>(initialPageSize);
 
   // assessments 조회 path — personId 미선택이면 null(조회 미수행). path 변경이 곧 재조회.
   const path = buildAssessmentsPath(personId, period);
@@ -336,6 +371,29 @@ function DashboardView({
 
   // 요약 지표 파생 — 표시 row(필터/정렬 후) 기준 집계.
   const metrics = useMemo(() => deriveMetrics(visibleRows), [visibleRows]);
+
+  // 유효 페이지 파생 — 필터/검색 변경으로 visibleRows 가 줄어 currentPage 가 전체 페이지
+  // 수를 넘으면(예: 3페이지에 있던 중 검색으로 1페이지 분량만 남음) 마지막 페이지로 보수적
+  // clamp 해 빈 페이지 표시를 피한다(렌더 중 setState 금지 — 파생값으로만 보정). pageSize
+  // 비정상 입력은 안전 폭으로 fallback. totalItems(=visibleRows.length, slice 전 전체 건수)
+  // 기준으로 totalPages 를 계산한다(slice 후 pagedRows.length 가 아님 — off-by-one 회피).
+  const effectivePageSize =
+    Number.isInteger(pageSize) && pageSize > 0 ? pageSize : DEFAULT_PAGE_SIZE;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(visibleRows.length / effectivePageSize),
+  );
+  const effectivePage = Math.min(
+    Math.max(1, Number.isInteger(currentPage) ? currentPage : 1),
+    totalPages,
+  );
+
+  // 현재 페이지 row slice — 필터/정렬된 visibleRows 를 (effectivePage, pageSize) 로 자른다.
+  // 이 결과(pagedRows)만 EvaluationResultTable 의 rows 로 내려보낸다(컴포넌트 수정 0).
+  const pagedRows = useMemo(
+    () => pageRows(visibleRows, effectivePage, effectivePageSize),
+    [visibleRows, effectivePage, effectivePageSize],
+  );
 
   // 시계열 포인트 파생 — summaries 조회 결과(trendData) 를 TrendPoint[] 로 매핑한다.
   const trendPoints = useMemo(() => deriveTrendPoints(trendData), [trendData]);
@@ -390,6 +448,24 @@ function DashboardView({
   const handleSelectChange = (event: { target: { value: string } }) => {
     setSelectedId(event.target.value);
   };
+  // 페이지 변경 — DashboardPaginationControl 의 이전/다음 클릭이 올린 페이지로 전환한다.
+  // 컴포넌트가 경계(첫/마지막)에서 범위 밖 호출을 막지만, 컨테이너도 1 이상으로 보수적
+  // clamp 한다(범위 상한은 effectivePage 파생이 다시 보정 — 렌더 중 빈 페이지 미표시).
+  // 콜백 타입은 DashboardPaginationControlProps 의 onPageChange 와 정합(frontend-local
+  // 재정의 금지 — named import 한 props 타입을 그대로 쓴다, T-0384 Acceptance Criteria).
+  const handlePageChange: NonNullable<
+    DashboardPaginationControlProps['onPageChange']
+  > = (page) => {
+    setCurrentPage(Math.max(1, Number.isInteger(page) ? page : 1));
+  };
+  // 페이지 크기 변경 — 새 페이지 크기로 전환하고 현재 페이지를 1 로 재설정한다(페이지 크기가
+  // 바뀌면 기존 page 인덱스가 빈 페이지를 가리킬 수 있으므로 첫 페이지로 되돌려 안전 표시).
+  const handlePageSizeChange: NonNullable<
+    DashboardPaginationControlProps['onPageSizeChange']
+  > = (size) => {
+    setPageSize(Number.isInteger(size) && size > 0 ? size : DEFAULT_PAGE_SIZE);
+    setCurrentPage(1);
+  };
 
   // personId 미선택 분기 — 조회 미수행 안내만 렌더한다(api.md 400 회피 가드).
   if (!personId) {
@@ -417,12 +493,27 @@ function DashboardView({
         loading={loading}
         error={error}
       />
-      {/* 결과 테이블 — 필터/정렬된 row 와 정렬 상태를 props 로 내려보낸다. */}
+      {/* 결과 테이블 — 현재 페이지 row(pagedRows)만 내려보낸다(③b-3 페이지네이션, 컴포넌트
+          수정 0). 정렬/필터된 전체는 visibleRows 지만 표는 한 페이지 분량만 렌더한다. */}
       <EvaluationResultTable
-        rows={visibleRows}
+        rows={pagedRows}
         sortKey={sortKey}
         sortDirection={sortDirection}
         onSortChange={handleHeaderSort}
+        loading={loading}
+      />
+      {/* 페이지네이션 컨트롤 — currentPage/pageSize state 와 콜백을 배선한다(컴포넌트 수정 0).
+          totalItems 는 slice 후 pagedRows.length 가 아니라 slice 전 visibleRows.length 여야
+          totalPages 가 정확하다(off-by-one 회피). loading 은 assessments 조회 loading 만 받아
+          진행 중 컨트롤을 미렌더(조작 중복 차단) — 다른 조회(summaries/contributions) 상태와
+          섞지 않는다(ADR-0041 Decision 1 — 컨트롤은 fetch 를 모른다). currentPage 는 clamp 된
+          effectivePage 를 전달해 빈 페이지 표식을 피한다. */}
+      <DashboardPaginationControl
+        currentPage={effectivePage}
+        totalItems={visibleRows.length}
+        pageSize={pageSize}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
         loading={loading}
       />
       {/* 시계열 추이 — summaries 조회의 loading/error 와 파생 points 만 내려보낸다.
@@ -445,8 +536,13 @@ function DashboardView({
       />
       {/* 평가 상세 선택 컨트롤 — EvaluationResultTable 이 row 선택 콜백 prop 을 갖지 않아
           (컴포넌트 수정 0 경계, ADR-0041 Decision 1) 컨테이너가 별도 <select> 로 선택
-          상호작용을 표현한다. 표시 row(visibleRows) 를 옵션으로 노출하고, 선택 시 그
-          row.id 를 selectedId 로 올려 contributions path 를 변경(재조회)한다. */}
+          상호작용을 표현한다. 선택 시 그 row.id 를 selectedId 로 올려 contributions path 를
+          변경(재조회)한다.
+          [옵션 row 집합 결정] 페이지 slice(pagedRows)가 아니라 전체 visibleRows 를 옵션으로
+          노출한다 — 근거: 페이지네이션은 표 탐색용 표시 분량 제한일 뿐 선택 가능 집합을
+          좁히는 의미가 아니며, pagedRows 로 좁히면 다른 페이지의 row 를 상세 조회하려면 먼저
+          그 페이지로 이동해야 해 UX 가 나빠진다. 또한 selectedRow 조회(아래)도 visibleRows
+          기준이라 selectedId 가 현재 페이지 밖이어도 상세 패널이 깨지지 않는다(일관성). */}
       <select
         aria-label="평가 결과 선택"
         value={selectedId}
@@ -486,6 +582,7 @@ export {
   deriveScoreBuckets,
   buildContributionsPath,
   deriveContributionMetrics,
+  pageRows,
 };
 export type { DashboardViewProps, SortKey, SummaryRow, ContributionRow };
 export default DashboardView;
