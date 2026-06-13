@@ -2,8 +2,11 @@
 id: T-0364
 title: P6 frontend UI slice 4 — 난이도별 LLM 모델 선택 presentational 컴포넌트 (web/src/components/DifficultyModelSelector.tsx)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 296
+completedAt: 2026-06-13T07:56:00Z
+mergeCommit: adf0d49
 coversReq: [REQ-049, REQ-050, REQ-051]
 estimatedDiff: 165
 estimatedFiles: 2

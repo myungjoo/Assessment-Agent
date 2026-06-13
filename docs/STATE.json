@@ -7,37 +7,38 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0364",
-  "backlogNote": "**T-0364 QUEUED (P6 frontend UI slice 4, planner)** — 난이도별 LLM 모델 선택 presentational 컴포넌트 DifficultyModelSelector.tsx (R-96 'Admin 이 LLM 모델 지정 UI' backend 완결 → UI; props providers/mapping/onAssign/loading/error, 3 슬롯 easy/medium/hard select, loading>empty>form 분기, role=alert/status). 순수 presentational(controlled), 새 dep 0, ci.yml 무관, .test.tsx 명명, dependsOn T-0353, independentStream p6-frontend-ui — LoginForm/EvaluationResultTable 패턴 차용. coversReq REQ-049/050/051. est 165 LOC·2파일, pr-mode. **P6 UI 진척: slice 1=T-0361(EvaluationGuardBanner)·2=T-0362(LoginForm)·3=T-0363(EvaluationResultTable) merge, 4=T-0364 QUEUED** — 전부 props 기반 순수 컴포넌트, 아직 App.tsx wiring/fetch/전역 상태 미배선(후속 composition slice). **여전히 게이트된 backlog**: T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
+  "nextTask": null,
+  "backlogNote": "**T-0364 DONE (P6 frontend UI slice 4, PR #296 squash adf0d49, round 1/7 first-pass green)** — 난이도별 LLM 모델 선택 DifficultyModelSelector.tsx 신설(R-96; props providers/mapping/onAssign/loading/error, 3 슬롯 controlled select, loading>empty>form 분기, role=status/alert, 미지 매핑 id fallback-safe). 순수 presentational, 새 dep 0, web vitest 14 test(R-112). **P6 UI 진척: 4개 컴포넌트 merge — slice1 T-0361(EvaluationGuardBanner)·2 T-0362(LoginForm)·3 T-0363(EvaluationResultTable)·4 T-0364(DifficultyModelSelector)** — 전부 props 기반 순수 컴포넌트, 아직 App.tsx wiring/fetch/전역 상태 미배선. **다음 fire: planner** 가 다음 P6 UI slice 분해(후보: App.tsx composition wiring / SuperAdmin 셋업 폼 / 평가 상태 진행 표시 — dependency-free·ci.yml 무관 우선). **여전히 게이트된 backlog**: T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-scheduled-755376c",
-    "since": "2026-06-13T07:37:54Z",
-    "note": "aa-local-scheduled cron fire 07:37Z — planner-only turn. fresh checkout 가 ef3620c 였으나 origin/main 이 755376c 로 선행(동시 /loop vb707106 가 T-0362/T-0363 머지)해 ff 갱신 후 진행. currentTask/nextTask 둘 다 null, 미해결 humanQuestion 0(Q-0037 RESOLVED P6 frontend) → 권위 lock CAS 획득(e12a203→8cb40c8, holder=cron) 후 planner dispatch 로 T-0364(P6 난이도 모델 선택 UI) 큐잉. 본 doc-only direct commit push 후 tombstone release. STATE.lock mirror 는 비권위(ADR-0009/0028) — 권위는 branch tip lock.json."
+    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
+    "since": "2026-06-13T07:56:00Z",
+    "note": "/loop vb707106 t7 — T-0364 PR #296 MERGED(squash adf0d49) 후 bookkeeping critical section 완료, tombstone release. claim+release 모델: cron(07:37Z fire)이 planner 로 T-0364 큐잉 → loop 가 select-claim→lock-free implement/test/PR→CI first-pass green(run 27460787676)→merge→재획득(f2c0eb0)→본 commit 후 release+claim 제거. STATE.lock mirror 는 비권위(ADR-0009/0028)."
   },
-  "lastActivity": "2026-06-13T07:37:54Z",
-  "lastCommit": "7fff5c9",
+  "lastActivity": "2026-06-13T07:56:00Z",
+  "lastCommit": "adf0d49",
   "mostRecentTasks": [
+    "T-0364",
     "T-0363",
     "T-0362",
     "T-0361",
-    "T-0360",
-    "T-0359"
+    "T-0360"
   ],
   "loopSession": {
-    "turnCount": 6,
+    "turnCount": 7,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-vb707106",
     "startedAt": "2026-06-13T06:03:00Z",
     "endedAt": null,
-    "note": "/loop session vb707106 (dynamic, turn cap 10) t6 — T-0363 실행 완결. t1: Q-0037 RESOLVE(user: P6 frontend). t2: T-0361(EvaluationGuardBanner) merge cdea958. t3: no-op(cron lock). t4: T-0362(LoginForm) merge 41465ec. t5: planner → T-0363 큐잉. t6: T-0363(EvaluationResultTable) claim→implement→test(13 case, web 32 pass)→PR #295→reviewer APPROVE r1/7→CI watch first-pass green(run 27460151180)→integrator 4-gate PASS→squash 7fff5c9. 누적 tasksCompleted 358(3 P6 컴포넌트 merge: Banner/LoginForm/ResultTable). 사고 0. 다음 t7: planner 가 다음 P6 UI slice 분해. 남은 turn 4개(cap 10)."
+    "note": "/loop session vb707106 (dynamic, turn cap 10) t7 — T-0364 실행 완결. t1: Q-0037 RESOLVE(user: P6 frontend). t2: T-0361 merge. t3: no-op(cron lock). t4: T-0362 merge. t5: planner→T-0363. t6: T-0363 merge. t7: cron(07:37Z)이 큐잉한 T-0364(DifficultyModelSelector) claim→implement→test(14 case, web 46 pass)→PR #296→reviewer APPROVE r1/7→CI first-pass green(run 27460787676)→integrator 4-gate PASS→squash adf0d49. 누적 tasksCompleted 359(4 P6 컴포넌트 merge: Banner/LoginForm/ResultTable/ModelSelector). 사고 0. 동시성: cron+loop 협업. 남은 turn 3개(cap 10)."
   },
   "ci": {
-    "lastRun": "2026-06-13T07:21:00Z",
+    "lastRun": "2026-06-13T07:52:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27460151180",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27460787676",
+    "noteT0364": "PR #296(T-0364 P6 DifficultyModelSelector) head 26e2f3f pull_request run 27460787676 = first-pass green 전 step(reviewer approve comment 가 approval-gate step 전/중 landing, rerun 불요). web vitest 14 case 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash adf0d49 main push run 다음 fire 재확인(web-only/squash trivially green 예상).",
     "noteT0363": "PR #295(T-0363 P6 EvaluationResultTable) head cc61e02 pull_request run 27460151180 = first-pass green 전 step(reviewer comment 07:20:16Z 가 CI 진행 중(07:18:35–07:21:13Z) landing → approval-gate step 이 같은 run 에서 comment 읽고 pass, rerun 불요). driver gh run watch 로 conclusion=success 확인. web vitest 13 case 로컬 검증(ci.yml 미배선, T-0355 Follow-up). Node20 deprecation annotation 은 non-blocking(2026-06-16). squash 7fff5c9 main push run 다음 fire 재확인.",
     "noteT0362": "PR #294(T-0362 P6 LoginForm) head 2326040 pull_request run 27459548185 = first-pass green 전 step(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer approve comment 가 approval-step 실행 전 landing, rerun 불요). web vitest 12 case 는 로컬 tester 실행으로만 검증(ci.yml 미배선, T-0355 Follow-up). squash 41465ec main push run 은 다음 fire 재확인(web-only/squash trivially green 예상).",
     "noteT0361": "PR #293(T-0361) head 7c07fa0 pull_request run 27459041794 = first-pass green 전 step(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer approve comment 가 approval-step 실행 전 landing, rerun 불요, benignRedNote case A 미해당). web vitest 는 아직 ci.yml 미배선(T-0355 Follow-up) — 본 PR 의 web .test.tsx 5건은 로컬 tester 실행으로만 검증, CI gate 미진입(reviewer NOTE). squash cdea958 main push run 은 다음 fire 재확인(web-only/squash trivially green 예상).",
@@ -56,6 +57,7 @@
     "noteT0359": "PR #291(T-0359) head 45df1bd pull_request run 27439004157 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요, benignRedNote case A 미해당). 전 step green(lint/build/prisma/test+cov 3042 pass cov 99.96%/100% + smoke/e2e + approval-gate). squash b68822c main push run(19:48:29Z in_progress)은 다음 fire 재확인(squash trivially green 예상)."
   },
   "reviewRounds": {
+    "T-0364": 1,
     "T-0363": 1,
     "T-0362": 1,
     "T-0361": 1,
@@ -681,7 +683,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 358,
+    "tasksCompleted": 359,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
