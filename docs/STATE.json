@@ -7,16 +7,16 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**ADR-0039 KST impl chain 전부 완결 (5/5 T-0360, PR #292 squash 491c28f, round 1/7 first-pass green)** — view-layer formatter: helper(period-boundary.ts)에 저장 UTC instant → Asia/Seoul 가독 표시 formatKstDisplay + 보조 formatKstIso(+09:00 명시) 신설(§Decision4/§Decision5 comp(iv) 완결, R-112, 저장값 불변). chain 1/5=T-0356(d656595)·2/5=T-0357(30486c3)·3/5=T-0358(e10a747)·4/5=T-0359(b68822c)·5/5=T-0360(491c28f). **Q-0037 OPEN (needs-human-direction)** — KST chain 완결 후 HIGH-bar survey 결과 dependency-free P5 work 소진, planner nextTask=null escalate. 남은 backlog 전부 게이트: T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) / live-LLM(Q-0022 만료 6/30) / ADR-0038 PROPOSED→ACCEPTED human flip / ADR-0036 stage5c 30일 dogfood+측정 / Q-0026 timezone(SinceDerivation routing 은 boundary math 부재라 cosmetic) / web vitest threshold(T-0355 뒤) / P6 frontend·P7 scheduler. 다음 fire 는 Q-0037 미해결이면 즉시 no-op 종료.",
+  "nextTask": "T-0361",
+  "backlogNote": "**Q-0037 RESOLVED (2026-06-13, user /loop vb707106 t1 — 옵션 2: P6 frontend 진입)** — 사용자가 dependency-free P5 소진 후 다음 방향으로 P6 frontend UI 작업을 지시. planner 가 첫 UI slice T-0361(R-78 평가 진행 중 경고 배너 EvaluationGuardBanner.tsx, pr-mode, est 110 LOC·2파일) 큐잉 — scaffold(T-0353 workspace+Vite SPA / T-0354 serve-static WebModule) 후 첫 UI 컴포넌트. dependency-free(dependsOn T-0353), 새 dep 0, .github/workflows 무관(BLOCKED T-0355 credential 회피), spec-presence `*.ts` gate 밖(.tsx). 다음 fire 는 T-0361 execute(pr-mode). **여전히 게이트된 backlog**(P6 진행과 병행 대기): T-0355 ci.yml workflow-scope credential(gh auth refresh -s workflow) / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 30일 dogfood+측정 / Q-0026 timezone(boundary math 부재라 cosmetic) / web vitest threshold(T-0355 뒤) / P7 scheduler.",
   "lock": {
-    "holder": null,
-    "session": "cron@WIN-JQIPLSBL9QV-aa15-noop-0604Z",
-    "since": "2026-06-13T06:04:00Z",
-    "note": "aa-local-15 :15 fire 06:04Z no-op 종료 — Q-0037 OPEN(needs-human-direction) 여전히 미해결(직전 aa-local-15 05:04Z·aa-local-scheduled 04:37Z no-op 과 동일 조건), LOOP.md §1[1] '미해결 humanQuestion 있으면 즉시 종료' rule 적용. 인접 sweep 재확인(gh auth myungjoo 정상): origin/main 0bceb6e(aa-local-15 05:04Z no-op)로 in-sync, open PR 0, BLOCKED task 0, blockers 0, main CI green(0bceb6e run 27457328365 success), currentTask/nextTask=null, tasksCompleted=355 유지, lock holder=null(free). 권위 lock CAS 미시도(critical section 없음·STATE write 1줄 외), claims.json·branch tip lock.json 변경 0. STATE.lock mirror 1줄 + journal 1줄만 direct doc commit. 다음 fire 도 Q-0037 미해결이면 동일 no-op heartbeat. STATE.lock mirror 는 비권위(ADR-0009/0028)."
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
+    "since": "2026-06-13T06:03:00Z",
+    "note": "/loop vb707106 t1 — 사용자 현장(turn cap 10). Q-0037 RESOLVE(옵션 2: P6 frontend) + planner T-0361 큐잉 critical section. 권위 lock CAS 획득(claude/lock-driver 4a1bb18→b225b90, holder=loop). rebase 중 cron 06:04Z heartbeat(b5e1a83) 와 lock-mirror 충돌 → 본 loop 권위 holder 우선(cron mirror 는 stale no-op, Q-0037 OPEN 으로 오판). STATE.lock mirror 는 비권위(ADR-0009/0028) — 권위는 branch tip lock.json(holder=loop)."
   },
-  "lastActivity": "2026-06-13T06:04:00Z",
-  "lastCommit": "0bceb6e",
+  "lastActivity": "2026-06-13T06:03:00Z",
+  "lastCommit": "b5e1a83",
   "mostRecentTasks": [
     "T-0360",
     "T-0359",
@@ -25,12 +25,12 @@
     "T-0356"
   ],
   "loopSession": {
-    "turnCount": 10,
+    "turnCount": 1,
     "cap": 10,
-    "holder": "loop@WIN-JQIPLSBL9QV-vb707",
-    "startedAt": "2026-06-12T14:50:57Z",
-    "endedAt": "2026-06-12T17:50:00Z",
-    "note": "/loop session vb707 (dynamic, turn cap 10) t10 — **세션 종료(cap 10 도달)**. 성과: t1 Q-0036 RESOLVE(ADR-0040·0039 flip) / t3 T-0353(P6 scaffold 1/3) / t5 T-0354(2/3) / t7 T-0355 credential 보류+우회 / t8 T-0356(KST 1/5, r1 BLOCKER catch→r2) / t10 T-0357(KST 2/5, overflow 실결함 fix). tasksCompleted 348→352(+4 task + Q 1건). 사고 1건(t8 cron lock 오탈취 ~80초 즉시 원복). 동시성: cron no-op 3회 + closeout 대행 1회 — 5b 실증 데이터 5건. 다음 진입점: cron 또는 새 /loop — planner 가 KST chain 3/5(PeriodBridge) 분해 예상. T-0355 는 사용자 credential 갱신 대기."
+    "holder": "loop@WIN-JQIPLSBL9QV-vb707106",
+    "startedAt": "2026-06-13T06:03:00Z",
+    "endedAt": null,
+    "note": "/loop session vb707106 (dynamic, turn cap 10) t1 — 사용자 현장. Q-0037(needs-human-direction, dependency-free P5 소진 escalate)을 AskUserQuestion 으로 사용자에게 제시 → 사용자 '옵션 2: P6 frontend 진입' 선택. Q-0037 RESOLVED + planner 가 첫 P6 UI slice T-0361(EvaluationGuardBanner.tsx) 큐잉. 다음 t2 는 T-0361 execute(pr-mode). 직전 vb707 session 은 cap 10 종료(KST chain 1~2/5)."
   },
   "ci": {
     "lastRun": "2026-06-12T20:04:52Z",
@@ -170,7 +170,7 @@
       "raisedAt": "2026-06-13",
       "raisedBy": "cron@WIN-JQIPLSBL9QV-aa15 planner",
       "reason": "needs-human-direction",
-      "status": "OPEN",
+      "status": "RESOLVED",
       "summary": "ADR-0039 KST timezone impl chain(T-0356 1/5 … T-0360 5/5, 전원 머지 — PR #292 squash 491c28f)이 최종 slice 까지 완결됐다. HIGH make-work-bar 로 origin/main 을 survey 했으나 genuine dependency-free P5 작업이 남아있지 않다(nextTask=null). 이는 직전 Q-0034 소진의 재발이다(Q-0034 는 사용자가 Q-0036 으로 ADR-0039/0040 timezone flip 을 지시하면서 RESOLVED 됐고 — 그 작업이 지금 완료됨). 남은 backlog 는 전부 human/측정/credential 게이트라 planner 단독 권한 밖 — task 를 날조하기보다 정직하게 no-queue 로 escalate 한다.",
       "context": "남은 backlog 는 전부 게이트됨: (1) **ADR-0036 stage5c**(full-parallel fine-grained concurrency) — 30일 dogfood + throughput-vs-coordination 비용 실측 합의 필요. (2) **ADR-0038(overwrite/재평가) impl chain** — human PROPOSED→ACCEPTED flip 대기(blocked). (3) **live-LLM bridge 검증** — credential 게이트(Q-0022 시험 credential, 만료 2026-06-30). (4) **T-0355**(P6 scaffold slice 3, ci.yml) — push credential 에 `workflow` scope 부재(사용자가 `gh auth refresh -s workflow` 필요). (5) **web vitest coverage threshold** — T-0355 뒤에 blocked. (6) **ADR-0039 §Decision5 SinceDerivation (i) helper-routing** — Q-0026 timezone boundary math 뒤로 deferred(아직 boundary 산술이 존재하지 않음 → 지금 routing = cosmetic make-work). (7) **Q-0026**(재수집 window 의 Asia/Seoul vs UTC), **P6 frontend**(React+Vite ADR), **P7 scheduler/observability** — 전부 human/dep 결정 필요. 인접 sweep: open PR 0, BLOCKED task 0, blockers 0, CI green, tasksCompleted=355(본 closeout 후).",
       "options": [
@@ -178,7 +178,10 @@
         "(2) 새 feature/phase 우선순위 지시 — 위 게이트 외에 사용자가 의도하는 신규 기능 또는 phase(예: P6 frontend React+Vite ADR 진입, Q-0026 timezone boundary 결정 등) 우선순위를 지정하면 다음 fire 의 planner 가 dependency chain 으로 분해.",
         "(3) idle 수용 — 사용자가 방향을 제공할 때까지 cron 정지. dependency-free 작업 부재로 loop 가 정지하는 것은 정상이며, make-work 날조보다 정직한 no-op 이 우선이다."
       ],
-      "raisedThisTurn": true
+      "raisedThisTurn": false,
+      "resolvedAt": "2026-06-13T06:03:00Z",
+      "resolvedBy": "user (/loop turn cap 10 현장, loop@WIN-JQIPLSBL9QV-vb707106 t1, AskUserQuestion)",
+      "decision": "옵션 2 — P6 frontend 진입. 사용자가 /loop 현장에서 AskUserQuestion 4지선다 중 'Push into P6 frontend' 선택 → 게이트된 backlog(workflow-scope credential / live-LLM credential / stage5c 측정 / idle) 대신 P6 frontend UI 작업을 다음 방향으로 지시. ADR-0040(React+Vite frontend stack) 이미 ACCEPTED, scaffold slice 1~2(T-0353 workspace+Vite SPA / T-0354 serve-static WebModule) 완료. planner 가 첫 dependency-free UI slice T-0361(R-78 평가 진행 중 경고 배너 EvaluationGuardBanner.tsx, pr-mode, est 110 LOC·2파일, dependsOn T-0353 only, 새 dep 0, .github/workflows 무관) 큐잉 → nextTask=T-0361. 발견: Q-0037 survey 의 'ADR-0038 PROPOSED→ACCEPTED flip 대기' 항목은 stale — ADR-0038 은 이미 Q-0034(2026-06-10)로 ACCEPTED flip 됐고 overwrite/reeval impl chain(T-0333/T-0334) shipped. CI 슬라이스 T-0355 는 여전히 workflow-scope credential 대기(P6 UI 와 병행 가능)."
     },
     {
       "id": "Q-0034",
