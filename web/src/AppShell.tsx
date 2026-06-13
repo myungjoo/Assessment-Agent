@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import EvaluationGuardBanner from './components/EvaluationGuardBanner';
 import AuthGate from './AuthGate';
+import DashboardView from './views/DashboardView';
 import { login as authLogin } from './api/auth';
 
 // 무라우터 view 전환 (ADR-0041 Decision 2) — view enum 으로 추상화해 두면
@@ -22,10 +23,9 @@ type View = 'login' | 'dashboard' | 'admin' | 'superadmin-setup';
 const DEFAULT_AUTHED_VIEW: View = 'dashboard';
 
 // view 별 본문 식별 문구 — 후속 slice 가 실 화면 컨테이너로 교체한다.
-// 본 slice 는 인증 후 view 분기 cover 를 위한 placeholder 텍스트만 둔다.
-// 'login' 은 이제 AuthGate(LoginForm)로 대체되므로 placeholder 를 두지 않는다.
-const AUTHED_VIEW_LABEL: Record<Exclude<View, 'login'>, string> = {
-  dashboard: '대시보드 화면 (후속 slice 에서 조립)',
+// wiring ③a(T-0381)는 'dashboard' 를 실 컨테이너(DashboardView)로 교체했고,
+// admin/superadmin-setup 은 wiring ④ 까지 placeholder 를 유지한다.
+const AUTHED_VIEW_LABEL: Record<Exclude<View, 'login' | 'dashboard'>, string> = {
   admin: 'Admin 화면 (후속 slice 에서 조립)',
   'superadmin-setup': 'SuperAdmin 셋업 화면 (후속 slice 에서 조립)',
 };
@@ -66,9 +66,14 @@ function AppShell() {
           미인증: LoginForm(AuthGate 경유) 렌더. 인증: 현재 view 별 placeholder 렌더. */}
       <main className="app-shell-main">
         <AuthGate onLogin={onLogin} onAuthenticated={handleAuthenticated}>
-          {/* 인증 후 슬롯 — 'login' 이 아닌 현재 view 의 placeholder 를 렌더한다.
-              실 화면 컨테이너 조립은 후속 wiring ③~④ 의 책임이다. */}
-          <p>{view === 'login' ? '' : AUTHED_VIEW_LABEL[view]}</p>
+          {/* 인증 후 슬롯 — view 분기. 'dashboard' 는 실 컨테이너(DashboardView,
+              wiring ③a)를 렌더하고, admin/superadmin-setup 은 wiring ④ 까지
+              placeholder 를 유지한다('login' 은 AuthGate 가 LoginForm 으로 처리). */}
+          {view === 'dashboard' ? (
+            <DashboardView />
+          ) : view === 'login' ? null : (
+            <p>{AUTHED_VIEW_LABEL[view]}</p>
+          )}
         </AuthGate>
       </main>
     </div>
