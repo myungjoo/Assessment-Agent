@@ -2,7 +2,7 @@
 id: T-0390
 title: P6 composition wiring ④f AdminView export 실 파일 저장 UX(GET /api/admin/export 응답 Blob → 다운로드 트리거)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 210
