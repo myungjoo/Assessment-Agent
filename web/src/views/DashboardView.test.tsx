@@ -23,8 +23,10 @@ import DashboardView, {
   buildSummariesPath,
   deriveTrendPoints,
   deriveScoreBuckets,
+  buildContributionsPath,
+  deriveContributionMetrics,
 } from './DashboardView';
-import type { SummaryRow } from './DashboardView';
+import type { SummaryRow, ContributionRow } from './DashboardView';
 import type { EvaluationResultRow } from '../components/EvaluationResultTable';
 
 function setResource<T>(state: ApiResourceState<T>) {
@@ -45,6 +47,41 @@ function setResources(opts: {
     return opts.assessments;
   });
 }
+
+// 세 조회(assessments/summaries/contributions)에 서로 다른 상태를 주입한다. path 의
+// prefix 로 분기해 세 조회의 loading/error 가 섞이지 않음을 검증한다(상태 오염 차단).
+// path === null(미선택) 이면 idle 상태로 처리해 조건부 조회 가드를 그대로 통과시킨다.
+function setResources3(opts: {
+  assessments: ApiResourceState<unknown>;
+  summaries: ApiResourceState<unknown>;
+  contributions: ApiResourceState<unknown>;
+}) {
+  useApiResourceMock.mockImplementation((path: string | null) => {
+    // path === null(조건부 조회 미수행) 이면 실제 hook 처럼 idle 을 반환한다 — 미선택
+    // contributions 조회가 assessments 상태로 오염되지 않도록 분기보다 먼저 처리한다.
+    if (typeof path !== 'string' || path === '') {
+      return IDLE;
+    }
+    if (path.startsWith('/api/contributions')) {
+      return opts.contributions;
+    }
+    if (path.startsWith('/api/summaries')) {
+      return opts.summaries;
+    }
+    return opts.assessments;
+  });
+}
+
+const IDLE: ApiResourceState<unknown> = {
+  data: undefined,
+  loading: false,
+  error: undefined,
+};
+
+const CONTRIBUTION_SAMPLE: ContributionRow[] = [
+  { id: 'm1', metricLabel: '코드 품질', score: 8, maxScore: 10, rationale: '명확한 구조' },
+  { id: 'm2', metricLabel: '협업', score: 7, maxScore: 10, rationale: '리뷰 활발' },
+];
 
 const TREND_SAMPLE: SummaryRow[] = [
   { period: '2026-06-01', value: 70 },
@@ -351,5 +388,186 @@ describe('DashboardView — 시계열/분포 파생 (순수 함수)', () => {
     );
     expect(byId.b0).toBe(2); // -5, NaN → 0.
     expect(byId.b80).toBe(1); // 150 → 100.
+  });
+});
+
+describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — row 선택(initialSelectedId) 후 contributions 성공 시 기여 metric 이
+  // EvaluationDetailPanel 로 렌더되고 선택 row 의 subjectName/period 도 헤더에 표시된다.
+  it('row 선택 후 contributions 성공 시 상세 metric 과 선택 row 메타를 렌더한다 (happy-path)', () => {
+    setResources3({
+      assessments: { data: SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: { data: CONTRIBUTION_SAMPLE, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" period="2026년 6월" initialSelectedId="1" />,
+    );
+    // 상세 패널 제목 + 기여 metric 라벨/근거가 렌더된다.
+    expect(html).toContain('평가 상세');
+    expect(html).toContain('코드 품질');
+    expect(html).toContain('명확한 구조');
+    // 선택 row(id=1, 김철수)의 subjectName + period 가 헤더에 표시된다.
+    expect(html).toContain('김철수');
+    expect(html).toContain('2026년 6월');
+  });
+
+  // error path — contributions 실패 시 상세 패널이 에러 표시 + 기여 항목 미렌더.
+  it('contributions 실패 시 상세 패널이 에러를 표시한다 (error path — 상태 분리)', () => {
+    setResources3({
+      assessments: { data: SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: { data: undefined, loading: false, error: 'HTTP 500: detail boom' },
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" initialSelectedId="1" />,
+    );
+    expect(html).toContain('HTTP 500: detail boom');
+    // 기여 metric 라벨은 미렌더(에러 분기는 항목 목록을 렌더하지 않음).
+    expect(html).not.toContain('코드 품질');
+    // 다른 조회(분포·시계열)는 오염 없이 정상 — 상태 분리 확인.
+    expect(html).toContain('점수 분포');
+    expect(html).toContain('점수 추이');
+  });
+
+  // error path/조건부 조회 — row 선택이 없으면 상세 조회 미수행 + 패널 빈 상태.
+  it('row 미선택 시 상세 조회 미수행 + 패널 빈 안내를 렌더한다 (조건부 조회)', () => {
+    setResources3({
+      assessments: { data: SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: IDLE,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    // 선택이 없으면 contributions path=null → idle → 패널 빈 안내(DETAIL_EMPTY_LABEL).
+    expect(html).toContain('평가 결과를 선택하면 상세가 표시됩니다');
+    // 빈 선택 컨트롤은 노출되지만 기여 metric 은 미렌더.
+    expect(html).toContain('평가 결과를 선택하세요');
+    expect(html).not.toContain('코드 품질');
+  });
+
+  // flow/branch — contributions loading 진행 표시(상세만 진행, 다른 패널은 정상).
+  it('contributions loading 이면 상세 패널이 진행 표시를 렌더한다 (branch — detail loading)', () => {
+    setResources3({
+      assessments: { data: SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: { data: undefined, loading: true, error: undefined },
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" initialSelectedId="1" />,
+    );
+    expect(html).toContain('불러오는 중…');
+    // 분포(assessments 정상)는 진행 표시에 오염되지 않고 정상 렌더.
+    expect(html).toContain('점수 분포');
+  });
+
+  // flow/branch — contributions empty(기여 0 건, api.md 104 매칭 0 → 빈 배열) 빈 상태.
+  it('contributions 빈 배열이면 상세 패널이 빈 상태를 렌더한다 (branch — detail empty)', () => {
+    setResources3({
+      assessments: { data: SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" initialSelectedId="1" />,
+    );
+    expect(html).toContain('평가 결과를 선택하면 상세가 표시됩니다');
+    expect(html).not.toContain('코드 품질');
+  });
+
+  // negative — 비정상/누락 필드(점수 누락·라벨 누락) 도 안전 fallback 으로 렌더된다.
+  it('비정상/누락 필드 contribution row 도 안전 fallback 으로 렌더한다 (negative — 누락 필드)', () => {
+    setResources3({
+      assessments: { data: SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: {
+        data: [{ contribution: Number.NaN }], // id/label/score 누락 + NaN.
+        loading: false,
+        error: undefined,
+      },
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" initialSelectedId="1" />,
+    );
+    // 라벨 누락 → fallback 라벨, 점수 NaN → 0 으로 안전 렌더(throw 없이).
+    expect(html).toContain('지표 미상');
+    expect(html).toContain('평가 상세');
+  });
+
+  // negative — 상세 실패 시 다른 조회는 정상(상태 오염 차단의 역방향 확인).
+  it('contributions 만 실패해도 분포·시계열·테이블은 정상 렌더한다 (negative — 오염 차단)', () => {
+    setResources3({
+      assessments: { data: SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: { data: undefined, loading: false, error: 'HTTP 503: detail down' },
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" initialSelectedId="1" />,
+    );
+    expect(html).toContain('HTTP 503: detail down');
+    // 테이블 row + 시계열 + 분포는 정상.
+    expect(html).toContain('<table>');
+    expect(html).toContain('2026-06-01');
+    expect(html).toContain('80–100');
+  });
+});
+
+describe('DashboardView — 평가 상세 파생 (순수 함수)', () => {
+  // buildContributionsPath — assessmentId 있으면 조회 path, 없으면 null(조건부 조회 가드).
+  it('assessmentId 있으면 contributions path, 없으면 null 을 반환한다 (path 파생)', () => {
+    expect(buildContributionsPath('a1')).toBe('/api/contributions?assessmentId=a1');
+    // negative — assessmentId falsy(undefined/빈 문자열) 시 null(400 회피 가드).
+    expect(buildContributionsPath(undefined)).toBeNull();
+    expect(buildContributionsPath('')).toBeNull();
+  });
+
+  // deriveContributionMetrics — metricLabel/score/rationale 매핑 + 미도착 시 빈 배열.
+  it('contribution row 를 EvaluationMetricItem 으로 매핑하고 미도착이면 빈 배열을 낸다 (상세 파생)', () => {
+    const metrics = deriveContributionMetrics(CONTRIBUTION_SAMPLE);
+    expect(metrics).toHaveLength(2);
+    expect(metrics[0]).toEqual({
+      id: 'm1',
+      label: '코드 품질',
+      score: 8,
+      maxScore: 10,
+      rationale: '명확한 구조',
+    });
+    // data 미도착(undefined) → 빈 배열(패널 빈 상태 위임).
+    expect(deriveContributionMetrics(undefined)).toEqual([]);
+    expect(deriveContributionMetrics([])).toEqual([]);
+  });
+
+  // negative — 대체 필드(label/contribution/narrative) fallback + id 누락 합성 key.
+  it('대체 필드로 fallback 하고 id 누락 시 합성 key 를 만든다 (negative — 대체 필드)', () => {
+    const rows: ContributionRow[] = [
+      { label: '문서화', contribution: 6, narrative: '근거 텍스트' }, // metricLabel/score/rationale 없음.
+    ];
+    const metrics = deriveContributionMetrics(rows);
+    expect(metrics[0]).toEqual({
+      id: 'c1', // id 누락 → 합성 key.
+      label: '문서화', // label fallback.
+      score: 6, // contribution fallback.
+      maxScore: undefined,
+      rationale: '근거 텍스트', // narrative fallback.
+    });
+  });
+
+  // negative — 점수 누락/NaN → 0, 라벨 누락 → fallback 라벨(off-by-one/NaN 회피).
+  it('점수 누락/NaN 은 0, 라벨 누락은 fallback 라벨로 보수 파생한다 (negative — 비정상 필드)', () => {
+    const rows: ContributionRow[] = [
+      { id: 'x' }, // score/label 전부 누락.
+      { id: 'y', metricLabel: '협업', score: Number.NaN }, // NaN → 0.
+      { id: 'z', metricLabel: '', score: 5 }, // 빈 라벨 → fallback.
+    ];
+    const metrics = deriveContributionMetrics(rows);
+    expect(metrics[0]).toMatchObject({ id: 'x', label: '지표 미상', score: 0 });
+    expect(metrics[1]).toMatchObject({ id: 'y', label: '협업', score: 0 });
+    expect(metrics[2]).toMatchObject({ id: 'z', label: '지표 미상', score: 5 });
   });
 });
