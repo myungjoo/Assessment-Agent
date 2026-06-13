@@ -2,7 +2,9 @@
 id: T-0379
 title: P6 composition wiring ② 인증 게이트 + 무라우터 view 전환 + LoginForm controlled 배선
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-06-13T14:53:00Z
+result: "DONE — AuthGate 신설(controlled lift-up + onLogin 콜백 위임 + authenticated 분기) + AppShell view 전환 배선(onAuthenticated→dashboard). web vitest 274 green, build/lint pass, 4파일 +278/-23, zero-new-dep. PR #310 reviewer APPROVE r1/7 → 4-게이트 PASS → squash merge 0298db7. coverage AC pending(@vitest/coverage-v8 미설치 zero-new-dep 제약, T-0355 Follow-up gap)."
 commitMode: pr
 coversReq: [REQ-038, REQ-042]
 estimatedDiff: 175

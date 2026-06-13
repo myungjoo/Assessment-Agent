@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0379",
-  "backlogNote": "**T-0379 QUEUED (P6 composition wiring ② 인증 게이트, commitMode PR, est ~175 LOC·4파일)** — ADR-0041 wiring chain ②. AuthGate(인증 상태 lift-up + LoginForm controlled 배선 + 로그인 성공 시 view 전환) + AppShell setView 활성화. 실 /api/auth fetch·401→refresh→retry 는 onLogin 콜백 위임(후속 ②b). zero-new-dep(react/react-dom only). dependsOn [T-0378] · independentStream p6-frontend-composition(single-claim 순차). T-0378(wiring ① AppShell) 머지됨(PR #309 squash 200f670). **[stream 상태]: P6 presentational 분해 완료(15 컴포넌트 T-0361~T-0375) → ADR-0041 ACCEPTED(T-0377) → wiring chain ①(T-0378 AppShell 골격 머지)→②(T-0379 인증 게이트 QUEUED)→②b(fetch hook 401→refresh→retry)→③대시보드 조립→④Admin 조립→⑤R-78 배선. AppShell.tsx/App.tsx 공유수정이라 file-disjoint 불성립=단일-claim 순차 stream(병렬 claim 후보 제외) — pr-mode 단독 claim(maxConcurrentClaims gate: pr 은 활성 0 일 때만). fresh-context 가 유리해 cron(§10 backbone)이 이어가기 적합.** **게이트된 backlog**: T-0355 ci.yml workflow-scope credential + web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c 측정 / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0380",
+  "backlogNote": "**T-0380 QUEUED (P6 composition wiring ②b 인증 fetch hook, commitMode PR, est ~200 LOC·5파일)** — ADR-0041 Decision 3 wiring chain ②b. T-0379(②, 인증 게이트+view 전환, 머지 0298db7 PR#310)가 deferred 한 실 `POST /api/auth/login`·`/api/auth/refresh` fetch + 401→refresh→retry 1회 정책을 구현: `web/src/api/apiClient.ts`(native fetch 래퍼, credentials 동반, 401→refresh→retry) + `auth.ts`(login/refresh helper) 신설 + AppShell 이 AuthGate.onLogin 에 주입. zero-new-dep(react/react-dom + 표준 fetch only, ADR-0040 §5). dependsOn [T-0379] · independentStream p6-frontend-composition(single-claim 순차 — App/AppShell 공유수정 file-disjoint 불성립, pr-mode 단독 claim). **[stream]: 분해완료(T-0361~0375)→ADR-0041 ACCEPTED→①(T-0378)→②(T-0379)→②b(T-0380 QUEUED)→③대시보드 조립→④Admin→⑤R-78 polling. 다음 후속: 세션만료→view전환 / GET /api/auth/me 부트 hydration.** **게이트된 backlog**: T-0355 web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-15-bd61d3",
-    "since": "2026-06-13T14:04:53Z",
-    "note": "cron@cloud-aa-local-15 fire(매시 15분 trigger 충돌 회피) — fresh checkout 1b39c8c 였으나 origin/main bd61d31(T-0377 closeout)로 선행 reset. free lock(7a6eee0 tip, holder=null tombstone) → branch-ref CAS 획득(7a6eee0→6a71676). reclaim no-op(claims []) → maxConcurrentClaims gate(활성 0 < 2, pr-mode 단독 OK) → select-claim T-0378(pr) lock-하 atomic(claim append + tombstone release 동일 commit). lock-free execute: executor → implementer/tester(AppShell.tsx 신설+view enum+R-78 배너 슬롯, App.tsx thin wrapper, web vitest 264 pass, build/lint green, 4파일 +115/-18, no-new-dep) → commit fb86419 push claude/T-0378-p6-wiring-appshell → integrator PR #309 open → reviewer APPROVE r1/7(comment 외부 post) → CI run 27469054514 first-pass green(approval-gate rerun 불요) → 4-게이트 PASS → squash merge 200f670 --delete-branch. closeout 후 claims.json T-0378 제거. planner T-0379(wiring ② 인증 게이트, pr) 큐잉. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-local-0379",
+    "since": "2026-06-13T14:37:57Z",
+    "note": "cron@cloud-aa-local-0379 fire(매시 30분 trigger 충돌 회피) — fresh checkout bd61d31 였으나 origin/main 0839e3f(T-0378 closeout)로 선행 reset. free lock(f39418b tip, holder='') → branch-ref CAS 획득(f39418b→2b8c23d). reclaim no-op(claims []) → maxConcurrentClaims gate(활성 0 < 2, pr-mode 단독 OK) → select-claim T-0379(pr) lock-하 atomic(claim append + tombstone release 동일 commit a614e54). lock-free execute: executor → implementer/tester(AuthGate.tsx 신설 controlled lift-up+onLogin 위임, AppShell view 전환 배선+onAuthenticated→dashboard, web vitest 274 pass, build/lint green, 4파일 +278/-23, zero-new-dep) → commit 67e626a push claude/T-0379-p6-wiring-auth-gate → integrator PR #310 open → reviewer APPROVE r1/7(comment 외부 post) → CI green(approval-gate rerun, benignRedNote case A) → 4-게이트 PASS → squash merge 0298db7 --delete-branch. closeout 후 claims.json T-0379 제거(dcbc3fc). planner T-0380(wiring ②b 인증 fetch hook, pr) 큐잉. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-13T14:11:00Z",
-  "lastCommit": "200f670",
+  "lastActivity": "2026-06-13T14:53:00Z",
+  "lastCommit": "0298db7",
   "mostRecentTasks": [
+    "T-0379",
     "T-0378",
     "T-0377",
     "T-0376",
-    "T-0375",
-    "T-0374"
+    "T-0375"
   ],
   "loopSession": {
     "turnCount": 8,
@@ -33,11 +33,12 @@
     "endedAt": "2026-06-13T13:22:00Z"
   },
   "ci": {
-    "lastRun": "2026-06-13T14:09:00Z",
+    "lastRun": "2026-06-13T14:53:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/309",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/310",
+    "noteT0379": "PR #310(T-0379 P6 인증 게이트 wiring②) head 67e626a = integrator 4-게이트 PASS(reviewer APPROVE r1/7 comment 외부 post + approval-gate ordering benignRedNote case A 로 rerun 후 전 step green: lint/build/prisma/test+cov/smoke/e2e + approval). web vitest 274 전체(AuthGate 신규 + AppShell 갱신) 로컬 검증(ci.yml 미배선, T-0355 Follow-up gap). coverage AC pending: @vitest/coverage-v8 미설치(ADR-0040 §5 zero-new-dep) — 4 신규 public symbol 분기는 spec 구성적 cover. squash 0298db7 --delete-branch, push run 14:50:35Z conclusion success 확인. Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0378": "PR #309(T-0378 P6 AppShell wiring①) head fb86419 pull_request run 27469054514 = first-pass green 전 step(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요). web vitest 264 전체(AppShell 4 신규) 로컬 검증(ci.yml 미배선, T-0355 Follow-up). reviewer APPROVE r1/7. squash 200f670 --delete-branch. squash 200f670 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0377": "T-0377(ADR-0041 ACCEPTED flip, direct doc-only) main push 4625ed1 CI run 13:39:14Z in_progress — doc-only(ADR frontmatter 한 줄 + task status flip)이라 trivially green 예상. T-0378 머지(200f670)가 4625ed1 를 부모로 포함하며 PR CI green 이므로 base 정합 확인. 이전 main push 0510989·d510b04 run 전부 success 확인.",
     "noteT0373": "PR #305(T-0373 P6 MetricSummaryCards) head 37297d4 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 findings 0 + approval-gate 포함 first-pass CI green, rerun 불요, mergeStateStatus CLEAN). web vitest 26신규/214 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). squash 10f55c3 main push run(12:12:44Z pending)은 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
@@ -70,6 +71,7 @@
     "noteT0375": "PR #307(T-0375 P6 EvaluationDetailPanel) head a1474a3 pull_request run 27467287993 = first-pass green(reviewer approve comment 가 approval-gate step 실행 전 landing — rerun 불요). 전 step green. web vitest 27신규/260 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up). reviewer MINOR 1(scoreText 주석 표현 느슨-동작 정확·follow-up 불요) 머지 무관. squash d24c54c. Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
+    "T-0379": 1,
     "T-0378": 1,
     "T-0373": 1,
     "T-0369": 1,
@@ -708,7 +710,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 373,
+    "tasksCompleted": 374,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
