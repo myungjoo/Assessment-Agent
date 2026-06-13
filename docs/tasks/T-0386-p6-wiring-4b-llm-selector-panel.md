@@ -2,7 +2,11 @@
 id: T-0386
 title: P6 composition wiring ④b AdminView 에 DifficultyModelSelector 패널 배선(GET /api/llm/providers + /api/llm/difficulty-mappings 읽기)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 317
+mergedAs: cec35b7
+reviewRounds: 1
+completedAt: 2026-06-13T20:04:56Z
 commitMode: pr
 coversReq: [REQ-049, REQ-050, REQ-051]
 estimatedDiff: 200
