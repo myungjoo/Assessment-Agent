@@ -45,11 +45,33 @@ const LLM_PROVIDERS_PATH = '/api/llm/providers';
 const LLM_MAPPINGS_PATH = '/api/llm/difficulty-mappings';
 
 // 평가 자료 export path — 고정 endpoint(GET /api/admin/export, api.md 122 Admin+, raw 미포함
-// REQ-032·REQ-030). scope query 는 본 slice 미부착 — api.md 가 scope 를 선택 필터로만 기술하고
-// 기본값을 명시하지 않으므로, scope 선택 UI(드롭다운/필터) 가 도입되는 후속 slice 전까지는
-// query 없이 전체 scope 로 export 한다(scope 미부착 = backend 기본 scope 위임). Admin+ 라 User
-// 등급은 403 — 그 403 은 runExport 의 catch 가 error props 로 안전 표시(throw 없음).
+// REQ-032·REQ-030). ④g(T-0391)부터 scope 선택 UI 의 선택값을 buildExportPath 로 `?scope=`
+// query 에 부착한다 — 빈 선택(전체) 시에는 query 없이 본 상수 그대로 호출(④f 동작 유지 =
+// backend 기본 scope 위임). Admin+ 라 User 등급은 403 — 그 403 은 runExport 의 catch 가 error
+// props 로 안전 표시(throw 없음).
 const ADMIN_EXPORT_PATH = '/api/admin/export';
+
+// export scope 선택 query 키(api.md 122 의 `scope` query). buildExportPath 가 선택값을 이
+// 키로 부착한다(`?scope=<선택값>`). backend 가 다른 키를 요구하면 후속 정정(api.md 122 명시 키).
+const EXPORT_SCOPE_QUERY_KEY = 'scope';
+
+// export scope 선택 옵션 — frontend-local 보수 후보 목록(④g). api.md 122 가 scope 의 enum
+// 값/기본값을 명시하지 않으므로, 빈 선택(전체 = query 미부착, ④f 동작 유지) + 의미 있는 보편
+// 후보(평가 자료 export 의 자연스러운 범위 분할 — 평가 결과/문항/인원)를 둔다. backend 가
+// 지원하는 확정 scope enum 정합(또는 동적 scope 목록 fetch)은 후속(Out of Scope — backend
+// export controller 계약 확인 후). value 는 backend query 값, label 은 사람-친화 한국어.
+interface ScopeOption {
+  // backend 에 부착할 scope query 값. 빈 문자열이면 query 미부착(전체).
+  value: string;
+  // <select> 옵션에 노출할 사람-친화 한국어 라벨.
+  label: string;
+}
+const EXPORT_SCOPE_OPTIONS: ScopeOption[] = [
+  { value: '', label: '전체' },
+  { value: 'assessments', label: '평가 결과' },
+  { value: 'questions', label: '문항' },
+  { value: 'persons', label: '인원' },
+];
 
 // export 성공 시 DataImportExportPanel 의 message props 로 내려보낼 사람-친화 완료 안내.
 // ④f(T-0390)부터 응답 Blob 을 실제 파일로 저장(다운로드 트리거)하므로 message 의 의미가
@@ -62,6 +84,19 @@ const EXPORT_DONE_TEXT = '내보내기 완료';
 // api.md 122 가 export 형식을 명시하지 않으므로(형식은 backend 가 Content-Type 으로 결정)
 // 확장자는 가장 보편적인 .json 으로 둔다 — 형식 협상/확장자 결정은 후속 slice(Out of Scope).
 const DEFAULT_EXPORT_FILENAME = 'export.json';
+
+// export scope 선택값 → export 호출 path 빌더(순수 helper, ④g). scope 가 truthy 면
+// `${ADMIN_EXPORT_PATH}?scope=${encodeURIComponent(scope)}` 로 query 를 부착하고, 빈/falsy
+// scope(전체 선택) 면 query 없는 ADMIN_EXPORT_PATH 상수를 그대로 반환한다(④f 동작 유지 —
+// backend 기본 scope 위임). buildMappingsPath 의 순수 path-빌더 convention 정합(jsdom 없이
+// 직접 검증). encodeURIComponent 로 공백/특수문자가 든 scope 값도 query 가 깨지지 않게 안전
+// 인코딩한다(비정상 문자 방어). runExport 가 이 helper 결과를 getRaw 에 넘긴다.
+function buildExportPath(scope: string | undefined): string {
+  if (!scope) {
+    return ADMIN_EXPORT_PATH;
+  }
+  return `${ADMIN_EXPORT_PATH}?${EXPORT_SCOPE_QUERY_KEY}=${encodeURIComponent(scope)}`;
+}
 
 // Content-Disposition 헤더에서 filename 을 추출하는 순수 helper(④f). RFC 6266 의 두 형태를
 // 보수적으로 받는다: (1) filename*=UTF-8''<percent-encoded>(우선 — 비-ASCII 안전), (2) 일반
@@ -382,9 +417,15 @@ function triggerDownload(
 // 컨테이너의 handleExport 는 이 러너에 현재 in-flight 여부(exporting)와 상태 setter·부수효과
 // deps 를 주입해 호출만 한다. 동작:
 //  - exporting(이전 export 미완) → 미발사(이중 GET·중복 다운로드 차단 — runAssign assigning 가드 동형).
-//  - 발사 시 진행 on + 이전 error·message 비움 → GET /api/admin/export(raw) → 성공 시 response.blob()
+//  - 발사 시 진행 on + 이전 error·message 비움 → GET <path>(raw) → 성공 시 response.blob()
 //    → Content-Disposition filename(없으면 기본명) → triggerDownload(파일 저장) + 완료 message 설정 /
 //    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
+// ④g: 호출 path 를 인자(path)로 주입받도록 확장한다(고정 ADMIN_EXPORT_PATH 상수 직접 참조 제거).
+// 이유: scope 선택값을 컨테이너가 buildExportPath 로 path 에 반영해 주입하므로, 러너는 어느
+// scope 든 무관하게 주어진 path 로 GET 만 발사한다(scope 결정 책임은 컨테이너 — 관심사 분리).
+// path 를 ExportDeps 에 두지 않고 별도 인자로 둔 이유: deps 는 setter/부수효과(불변 의존)이고
+// path 는 호출마다 달라지는 입력값이라(runAssign(difficulty, providerId, deps) 의 입력 인자
+// 분리 convention 정합) 인자화가 회귀·가독성 면에서 적다.
 interface ExportDeps extends DownloadDeps {
   // export GET 발사 primitive — apiClient.requestRaw 를 주입한다(raw Response 반환 — body
   // 미소비라 blob() 가능). 테스트는 mock 주입.
@@ -398,7 +439,7 @@ interface ExportDeps extends DownloadDeps {
   setExportMessage: (next: string | undefined) => void;
 }
 
-async function runExport(deps: ExportDeps): Promise<void> {
+async function runExport(path: string, deps: ExportDeps): Promise<void> {
   // 동시 재호출 가드 — 이전 export 미완 중이면 미발사(이중 GET·중복 다운로드 차단).
   if (deps.exporting) {
     return;
@@ -409,9 +450,10 @@ async function runExport(deps: ExportDeps): Promise<void> {
   deps.setExportError(undefined);
   deps.setExportMessage(undefined);
   try {
-    // GET /api/admin/export — raw Response 수신(옵션 생략 = 기본 GET, scope query 미부착, 전체
-    // scope). raw 반환이라 body 를 미소비 → response.blob() 으로 이진/임의 형식을 그대로 받는다.
-    const response = await deps.getRaw(ADMIN_EXPORT_PATH);
+    // GET <path> — raw Response 수신(옵션 생략 = 기본 GET). path 는 컨테이너가 buildExportPath
+    // 로 scope 를 반영해 주입한다(scope 미선택 시 ADMIN_EXPORT_PATH 그대로 = ④f 동작). raw
+    // 반환이라 body 를 미소비 → response.blob() 으로 이진/임의 형식을 그대로 받는다.
+    const response = await deps.getRaw(path);
     // 응답 본문을 Blob 으로 — 형식(Content-Type)은 backend 결정, 빈/0-byte body 도 빈 Blob 으로
     // 안전 수용(throw 없이). 파일명은 Content-Disposition 의 filename 우선, 없으면 기본명 fallback.
     const blob = await response.blob();
@@ -630,7 +672,13 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
   // props 로 안전 표시한다(throw 없음). 재발화 시작 시 비운다.
   const [exportError, setExportError] = useState<string | undefined>(undefined);
 
-  // onExport 실 핸들러(④d) — export GET(/api/admin/export) 을 컨테이너 내부 async 로 발사한다
+  // export scope 선택 상태(④g) — controlled lift-up(컨테이너 소유). 컨테이너가 직접 렌더하는
+  // scope <select> 가 이 값을 갱신하고, handleExport 가 buildExportPath 로 path 에 반영한다.
+  // 빈 문자열(전체) 이 초기값 = scope query 미부착(④f 동작 유지). DataImportExportPanel 은 scope
+  // 를 모른다(ADR-0041 Decision 1 — scope 선택은 컨테이너 책임, 패널 props 계약 불변).
+  const [selectedScope, setSelectedScope] = useState<string>('');
+
+  // onExport 실 핸들러(④d, ④g 확장) — export GET 을 컨테이너 내부 async 로 발사한다
   // (신규 fetch hook 미작성 — ④c runAssign 정합, useApiResource 는 read-on-mount 라 클릭 발화에
   // 부적합). 동작:
   //  1) 이전 export 미완(exporting) 중 재호출이면 미발사(이중 호출·state 깨짐 차단).
@@ -639,9 +687,12 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
   //     클릭으로 실제 파일 저장(createObjectURL/revokeObjectURL/anchor 부수효과 deps 주입) → 완료 message.
   //  4) GET 실패 → toErrorMessage 문구를 error props 로 안전 표시(403/404/비-2xx/네트워크 0 모두, throw 없음).
   //  5) 마지막에 진행 표시 off(성공·실패 공통).
+  // ④g: buildExportPath(selectedScope) 로 현재 scope 선택값을 path 에 반영해 주입한다(scope
+  // 미선택 시 ADMIN_EXPORT_PATH 그대로 = ④f 동작). selectedScope 를 deps 의존성에 포함해 변경된
+  // scope 가 stale 없이 반영되도록 한다(이전 선택값 캡처 방지).
   const handleExport = useCallback(
     () =>
-      runExport({
+      runExport(buildExportPath(selectedScope), {
         getRaw: requestRaw,
         describeError: toErrorMessage,
         exporting,
@@ -651,8 +702,14 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
         // 브라우저 표준 URL/DOM 부수효과 — 런타임 기본 구현 주입(테스트는 mock 주입).
         ...browserDownloadDeps,
       }),
-    [exporting],
+    [exporting, selectedScope],
   );
+
+  // scope 선택 변경(④g) — scope <select> 가 선택값을 컨테이너 상태로 올린다(빈 값 = 전체 =
+  // query 미부착). 그룹 선택 handleSelectChange 동형. DataImportExportPanel 은 모른다(Decision 1).
+  const handleScopeChange = (event: { target: { value: string } }) => {
+    setSelectedScope(event.target.value);
+  };
 
   // import in-flight 플래그(④e) — import POST 진행 중 true. 진행 표시(busy)와 동시 재호출 가드
   // (이전 import 미완 중 재호출 차단)에 함께 쓴다(④d exporting 동형).
@@ -760,11 +817,28 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
         loading={llmLoading}
         error={llmError}
       />
+      {/* export scope 선택 컨트롤(④g) — 컨테이너가 직접 렌더한다(그룹 선택 <select> 동형 —
+          presentational DataImportExportPanel 은 scope 를 모른다, ADR-0041 Decision 1). 선택값은
+          handleExport 가 buildExportPath 로 GET /api/admin/export?scope= query 에 부착하고, 빈
+          선택(전체) 시에는 query 없이 호출한다(④f 동작 유지). scope 후보는 frontend-local 보수
+          목록(EXPORT_SCOPE_OPTIONS) — backend 확정 enum 정합은 후속. */}
+      <select
+        aria-label="export 범위 선택"
+        value={selectedScope}
+        onChange={handleScopeChange}
+      >
+        {EXPORT_SCOPE_OPTIONS.map((option) => (
+          <option key={option.value || '__all__'} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
       {/* 데이터 import/export(세 번째 패널, ④d export + ④e import) — export·import 콜백·진행·
           결과·실패를 컨테이너가 소유하고 패널은 onExport/onImportFile 콜백 + busy/error/message
           props 만 소비한다(ADR-0041 Decision 1 — 패널은 fetch/FormData 를 모른다). onImportFile
           배선으로 파일 입력이 활성화된다(④d 가 비활성화했던 입력 활성). import 는 POST
-          /api/admin/import 로 multipart FormData 전송(④e). 컴포넌트 수정 0. */}
+          /api/admin/import 로 multipart FormData 전송(④e). scope query 부착은 컨테이너 책임 —
+          패널 props 계약 불변(④g). 컴포넌트 수정 0. */}
       <DataImportExportPanel {...importExportPanelProps} />
     </section>
   );
@@ -776,6 +850,7 @@ export {
   deriveProviders,
   deriveDifficultyMapping,
   buildMappingsPath,
+  buildExportPath,
   mergeMapping,
   parseFilename,
   triggerDownload,
