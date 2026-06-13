@@ -2,7 +2,10 @@
 id: T-0387
 title: P6 composition wiring ④c AdminView 의 DifficultyModelSelector onAssign 실 PATCH mutation 배선(PATCH /api/llm/difficulty-mappings/:difficulty)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: dcb75af
+prNumber: 318
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-049, REQ-050]
 estimatedDiff: 210

@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0387",
-  "backlogNote": "**T-0386 DONE (P6 composition wiring ④b AdminView DifficultyModelSelector 패널 배선, PR#317 squash merge cec35b7)** — AdminView 에 useApiResource 두 번 추가(/api/llm/providers·/api/llm/difficulty-mappings) + 파생 helper 2개 + DifficultyModelSelector 패널 배선(onAssign no-op, PATCH 는 ④c). web test 377 pass, 2파일 +139/-2(prod), zero-new-dep, presentational 수정 0, reviewer APPROVE r1/7. **다음 task: T-0387 = ④c (DifficultyModelSelector.onAssign 실 PATCH mutation /api/llm/difficulty-mappings/:difficulty 배선 + 성공 재조회/실패 안전표시) — planner 큐잉 완료(nextTask=T-0387)**. **[stream]: ①(T-0378)→②(T-0379)→②b(T-0380)→③a~③b-3(T-0381~T-0384)→④a(T-0385)→④b(T-0386 DONE)→④c(T-0387 다음)→나머지 3패널(ReEval/DataIO/Schedule)+Admin+ RBAC gating→⑤R-78 polling.** **게이트된 backlog**: T-0355 web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0388",
+  "backlogNote": "**T-0387 DONE (P6 composition wiring ④c AdminView DifficultyModelSelector onAssign 실 PATCH mutation, PR#318 squash merge dcb75af)** — onAssign 실 PATCH(/api/llm/difficulty-mappings/:difficulty {llmProviderConfigId}) + 성공 재조회(refreshNonce bump)/낙관 override/실패 안전표시. runAssign 순수 async 러너 캡슐화. zero-new-dep, presentational 수정 0. **다음 task: T-0388 = ④d (DataImportExportPanel export 배선 — onExport→GET /api/admin/export, busy/error/message props + runExport 순수 async 러너; import multipart·실 파일저장 UX·RBAC gating 은 후속) — planner 큐잉 완료(nextTask=T-0388)**. ※ ReEvaluationTriggerPanel 은 backend reeval/delete/run 미구현(api.md 94-97 deferred)이라 shipped GET /api/admin/export 부터 잇는다. **[stream]: ①(T-0378)→②(T-0379)→②b(T-0380)→③a~③b-3(T-0381~T-0384)→④a(T-0385)→④b(T-0386)→④c(T-0387 DONE)→④d(T-0388 다음, export)→④e(import/파일저장)+Schedule/ReEval(backend완결후)+RBAC gating→⑤R-78 polling.** **게이트된 backlog**: T-0355 web vitest CI 배선 / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-15-a6f52d",
-    "since": "2026-06-13T20:04:56Z",
-    "note": "cron@cloud-aa-local-15-a6f52d fire(scheduled task aa-local-15, 매시 15분 trigger). fresh checkout 65ae951 → origin/main a6f52df(T-0385 closeout, nextTask=T-0386)로 ff. free lock(594e3eb tip, holder=\"\")+claims=[]. fineGrainedConcurrency=true: lock acquire CAS(594e3eb→998e5f5) → reclaim(server-time 2026-06-13T20:04:56Z) 회수 0 → 활성 claim 0<2 게이트 통과(pr-mode 단독) → validate-claim-candidate T-0386 PASS(touchesFiles disjoint·dependsOn T-0385 머지됨) → select-claim T-0386(pr) lock-하 atomic claim+tombstone release(02ee153). lock-free execute: executor → implementer/tester(AdminView 에 DifficultyModelSelector 패널 배선, web vitest 377 pass, build/lint green, 2파일 +139/-2 prod, zero-new-dep) → commit 9bb8beb push claude/T-0386-... → PR #317 open → 클레임 prNumber=317 PR_OPEN CAS 갱신(d649c3f, resume 안전) → integrator reviewer APPROVE r1/7(comment 외부 post, finding 0) → 4-게이트 PASS(approval-gate first-run green) → squash merge cec35b7 --delete-branch. closeout 후 claims.json T-0386 제거(a9347c2). STATE.lock mirror 비권위 — 권위는 branch tip lock.json(tombstone/free)."
+    "session": "cron@cloud-aa-local-sched-4b7ffbd",
+    "since": "2026-06-13T20:37:11Z",
+    "note": "cron@cloud-aa-local-sched-4b7ffbd fire(scheduled task aa-local-scheduled, 매시 30분 trigger 충돌 회피). fresh checkout a6f52df → origin/main 4b7ffbd(T-0386 closeout, nextTask=T-0387)로 reset. free lock(a9347c2 tip, holder=\"\")+claims=[]. fineGrainedConcurrency=true: lock acquire CAS(a9347c2→ae6a984) → reclaim(server-time 2026-06-13T20:37:11Z) 회수 0 → 활성 claim 0<2 게이트 통과(pr-mode 단독) → validate-claim-candidate T-0387 PASS(touchesFiles disjoint·dependsOn T-0386 머지됨) → select-claim T-0387(pr) lock-하 atomic claim+tombstone release(8d0a05f). lock-free execute: executor → implementer/tester(AdminView DifficultyModelSelector onAssign 실 PATCH mutation 배선 — runAssign 순수 async 러너 + buildMappingsPath/mergeMapping helper, web vitest 390 pass, build/lint green, 2파일 +170/-25 prod, zero-new-dep, 컴포넌트/apiClient/useApiResource 수정 0) → commit 86b3af7 push claude/T-0387-... → PR #318 open → 클레임 prNumber=318 PR_OPEN CAS 갱신(ae46858, resume 안전) → integrator reviewer APPROVE r1/7(comment 외부 post, finding 0) → 4-게이트 PASS(approval-gate benignRedNote case A: 첫 run 27478622598 approval step 단독 fail, issue_comment auto-trigger run 27478701117 success — rerun 불요) → squash merge dcb75af --delete-branch. closeout 후 claims.json T-0387 제거(69cf5a8) + planner T-0388(④d export) 큐잉. STATE.lock mirror 비권위 — 권위는 branch tip lock.json(tombstone/free)."
   },
-  "lastActivity": "2026-06-13T20:04:56Z",
-  "lastCommit": "cec35b7",
+  "lastActivity": "2026-06-13T20:37:11Z",
+  "lastCommit": "dcb75af",
   "mostRecentTasks": [
+    "T-0387",
     "T-0386",
     "T-0385",
     "T-0384",
-    "T-0383",
-    "T-0382"
+    "T-0383"
   ],
   "loopSession": {
     "turnCount": 8,
@@ -33,11 +33,12 @@
     "endedAt": "2026-06-13T13:22:00Z"
   },
   "ci": {
-    "lastRun": "2026-06-13T20:04:56Z",
+    "lastRun": "2026-06-13T20:37:11Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/317",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/318",
+    "noteT0387": "PR #318(T-0387 P6 wiring④c DifficultyModelSelector onAssign 실 PATCH mutation) head 86b3af7 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate benignRedNote case A: 첫 pull_request run 27478622598 은 'reviewer agent approval 검증' step 단독 fail(실 step lint/build/prisma/test+cov/smoke/e2e 전부 green) → reviewer approve comment 가 issue_comment auto-trigger run 27478701117 success(approval step success, rerun 불요)). AdminView onAssign no-op→실 PATCH(/api/llm/difficulty-mappings/:difficulty {llmProviderConfigId}) + 성공 재조회(refreshNonce)/낙관 override(mergeMapping)/실패 안전표시(400/404/403/네트워크 throw 없이), runAssign 순수 async 러너. presentational/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 390 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). squash dcb75af --delete-branch. dcb75af main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0385": "PR #316(T-0385 P6 wiring④a Admin 컨테이너 shell) head 8897a83 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-run green — reviewer approve comment 가 approval step 전 landing, rerun 불요). AdminView 컨테이너 shell 신설(controlled lift-up — useApiResource GET /api/groups 1회 + 그룹 select + deriveMembers 순수 helper → GroupMemberList 첫 패널 배선) + AppShell view==='admin' 분기 실 마운트 교체 + AUTHED_VIEW_LABEL admin 키 제거, presentational 수정 0. web vitest 369 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). squash 0b054ec --delete-branch. 0b054ec main push run(19:48:44Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0383": "PR #314(T-0383 P6 wiring③b-2 평가 상세) head f288f56 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate benignRedNote case A: reviewer approve comment 가 approval-gate step 후 landing → 단독 fail, comment 선post 후 `gh run rerun --failed` 후 전 step green: lint/build/prisma/test+cov/smoke/e2e + approval; mergeStateStatus CLEAN noop). DashboardView 에 contributions 3rd useApiResource(GET /api/contributions, assessmentId 가드)+deriveContributionMetrics + native <select> 행 선택(initialSelectedId)→선택 assessmentId→재조회→EvaluationDetailPanel 배선. EvaluationResultTable row-select prop 부재로 컨테이너 내부 select 컨트롤 표현(컴포넌트 수정 0), AppShell 수정 0. web vitest 344 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). squash 0a05a7e --delete-branch. 0a05a7e main push run(18:21:56Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0382": "PR #313(T-0382 P6 wiring③b-1 시계열+분포) head dbd7ddc = integrator 4-게이트 PASS(reviewer APPROVE r1/7 comment 외부 post + approval-gate first-pass green — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요, 24/24 step green: lint/build/prisma/test+cov/smoke/e2e + approval). DashboardView 에 summaries 2nd useApiResource(GET /api/summaries, personId 가드)+deriveTrendPoints+client-side deriveScoreBuckets(5구간 반열린+만점 포함) 배선, TrendTimeSeriesPanel·ScoreDistributionChart props 재사용(수정 0), AppShell 수정 0. web vitest 333 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). reviewer MINOR×1 비차단. squash 5724332 --delete-branch. 5724332 main push run 27474328022(17:47:21Z pending) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
@@ -78,6 +79,7 @@
     "noteT0386": "PR #317(T-0386 P6 wiring④b AdminView DifficultyModelSelector 패널 배선) head 9bb8beb = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green — reviewer approve comment 가 approval 검증 step 실행 전 landing, CI run 27477783712 전 24 step success, rerun 불요; mergeStateStatus CLEAN noop). AdminView 에 useApiResource 두 번 추가 호출(/api/llm/providers·/api/llm/difficulty-mappings)+순수 helper deriveProviders/deriveDifficultyMapping + DifficultyModelSelector 패널 배선(onAssign no-op, PATCH 는 ④c). presentational/기존 그룹 패널/AppShell 수정 0, zero-new-dep. web vitest 377 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +139/-2(prod)·test +236/-4. squash cec35b7 --delete-branch. cec35b7 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
+    "T-0387": 1,
     "T-0383": 1,
     "T-0380": 1,
     "T-0379": 1,
@@ -722,7 +724,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 381,
+    "tasksCompleted": 382,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
