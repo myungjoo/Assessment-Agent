@@ -2,7 +2,11 @@
 id: T-0378
 title: P6 composition wiring ① AppShell 레이아웃 골격 + view enum 상태 + R-78 배너 슬롯
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-06-13T14:10:00Z
+mergedAs: 200f670
+prNumber: 309
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-038, REQ-042]
 estimatedDiff: 165
