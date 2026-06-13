@@ -2,7 +2,7 @@
 id: T-0377
 title: ADR-0041 status PROPOSED → ACCEPTED flip (composition-wiring 전환 게이트)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-038, REQ-042, REQ-048]
 estimatedDiff: 1

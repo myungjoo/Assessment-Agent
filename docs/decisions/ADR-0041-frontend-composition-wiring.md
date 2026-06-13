@@ -1,7 +1,7 @@
 ---
 id: ADR-0041
 title: Frontend composition-wiring 전환 (App.tsx 조립 구조·무라우터 view 전환·fetch hook 경계·R-78 보호 배선·non-parallel single-claim stream)
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-13
 relatedTask: T-0376
 supersedes: null
