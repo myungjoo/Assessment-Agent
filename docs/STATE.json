@@ -29,7 +29,8 @@
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-vb707106",
     "startedAt": "2026-06-13T10:39:00Z",
-    "note": "/loop session vb707106 (dynamic, turn cap 10). t1 no-op·t2 T-0370·t3 T-0371·t4 T-0372·t5 no-op(cron T-0373)·t6 T-0374·t7 T-0375·t8 T-0376(ADR-0041). loop 가 P6 컴포넌트 5개 + ADR-0041 merge(6 substantive task), cron T-0373, tasksCompleted 364→371, 사고 0. **t8 에서 presentational 분해 완료 + composition 전략(ADR-0041) 박제 — 깨끗한 아키텍처 milestone.** 다음 wiring stream 은 fresh-context 유리(cron). t9 에서 T-0377(trivial ACCEPTED flip) 처리 후 wind-down 예정. turn 8/10."
+    "note": "/loop session vb707106 (dynamic, turn cap 10) **세션 종료(t8 wind-down — 깨끗한 아키텍처 milestone + cron 이 같은 stream active driving + 다음 wiring 은 non-parallel single-claim 이라 cron 단독이 적합)**. 성과: t1 no-op(cron T-0369 claim) / t2 T-0370(DashboardFilterBar) / t3 T-0371(TrendTimeSeriesPanel) / t4 T-0372(DashboardPaginationControl) / t5 no-op(cron T-0373) / t6 T-0374(ScoreDistributionChart) / t7 T-0375(EvaluationDetailPanel) / t8 T-0376(ADR-0041 composition-wiring). **loop 가 P6 컴포넌트 5개 + ADR-0041 merge(6 substantive task, 전부 round 1/7), cron 이 T-0373 merge. tasksCompleted 364→371, 사고 0.** t8 에 presentational 분해 완료(15 컴포넌트) + composition 전략(ADR-0041) 박제 — 깨끗한 milestone. t8 closeout 에서 cron 과 T-0376 closeout race 발생했으나 §4 graceful 흡수(371 이중카운트 0). 다음 진입점: cron 이 T-0377(ADR-0041 ACCEPTED flip) → wiring chain(①~⑤ non-parallel single-claim)을 fresh-context 로 이어감(§10 backbone), 또는 사용자 /compact 후 새 /loop. 동시성: cron+loop 협업 무사고 실증.",
+    "endedAt": "2026-06-13T13:22:00Z"
   },
   "ci": {
     "lastRun": "2026-06-13T12:59:38Z",
