@@ -2,8 +2,11 @@
 id: T-0409
 title: check-spec-presence — web .d.ts 제외 분기 + .test.sh web 정책 self-test 케이스 (T-0355 잔여 (b))
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 330
+completedAt: 2026-06-14T16:14:30Z
+completedCommit: 57ecda8
 coversReq: [REQ-038, REQ-048]
 estimatedDiff: 45
 estimatedFiles: 2
