@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0408",
   "backlogNote": "**T-0407 DONE (P5 robustness — reeval 동시 delete 경합 P2025→409 변환, pr-mode, PR #328 squash merge 192346a).** evaluation-result-persist.service.ts 의 reeval delete 호출만 try/catch 로 감싸 Prisma P2025(record 부재, 경합 loser)를 ConflictException(409) 로 국소 변환(+24/-3, ADR-0038 §Decision5 수렴) — create-side·일반 P2025 는 propagate 유지. 기존 P2025-propagate spec 재범위(P2003+create-side) + regression test. reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → merge. CI run 27503394566 first-pass green(**e2e period-bridge-reevaluate 포함 — 직전 turn flaky 500 누수 안정화 실증**), approval first-pass(rerun 불요). tasksCompleted 398→399. **T-0355 잔여 남은 2건: (a) web.module.ts coverage 포함, (b) check-spec-presence.test.sh web self-test** = 다음 planner slice 후보(dependency-free, ci.yml 미변경이라 workflow scope 불요). 그 외 잔여 stream 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone.",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-14T15:30:00Z",
-    "note": "/loop vb707106 turn 4 closeout: T-0407 claim(claim-pickup, prNumber=328)→execute→PR #328 squash merge 192346a→bookkeeping. 권위 lock CAS f937caa→df74fb0(closeout critical section), 본 commit 후 claims clear([]) + tombstone release. counters 398→399. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "since": "2026-06-14T15:34:30Z",
+    "note": "/loop vb707106 turn 5: currentTask·nextTask null → planner dispatch. 권위 lock CAS(1183834→b7a3b33). planner 가 T-0355 잔여(a) 큐잉: T-0408(pr, package.json coveragePathIgnorePatterns 조정으로 src/web/web.module.ts coverage 포함 — spec 은 이미 R-112 cover, 패턴 제외만 잔존). 잔여(b) self-test 는 Follow-up. nextTask=T-0408. doc-only direct commit 후 lock tombstone release. 다음 turn execute. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T15:30:00Z",
+  "lastActivity": "2026-06-14T15:34:30Z",
   "lastCommit": "192346a",
   "mostRecentTasks": [
     "T-0407",
