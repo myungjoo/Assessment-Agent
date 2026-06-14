@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0394",
-  "backlogNote": "**T-0393 DONE (P6 composition wiring ⑤ R-78 DashboardView EvaluationGuardBanner 배선, PR#324 squash merge e17263f)** — EvaluationGuardBanner 를 DashboardView section[aria-label=대시보드] 최상단(자료 영역 위)에 controlled lift-up 으로 배선. DashboardViewProps 에 evaluationActive?(기본 false)/evaluationMessage? 추가 → active/message 그대로 주입, personId 선택/미선택 두 분기 모두 상단 노출. 자동 polling 파생은 backend 실행-상태 계약 미shipped 라 Follow-up defer. zero-new-dep, presentational/apiClient/useApiResource 수정 0. reviewer APPROVE r1/7(finding 0). **다음 task: T-0394 = ⑥ AppShell 에 SuperAdminSetupForm 배선(POST /api/users 첫-user→SuperAdmin signup helper, api.md 72 shipped; setup↔login 토글 controlled lift-up) — planner 큐잉 완료(nextTask=T-0394)**. 잔여 stream(전부 backend 계약 미shipped=defer): import 결과 상세 / GroupMember add/remove mutation / SchedulePanel(P7) / ReEvaluationTriggerPanel(api.md 94-97 deferred) / R-78 auto-polling(assessments rows status 필드 부재). **[stream]: ①(T-0378)→②(T-0379)→②b(T-0380)→③a~③b-3(T-0381~T-0384)→④a~④h(T-0385~T-0392)→⑤R-78(T-0393 DONE)→⑥ SuperAdminSetupForm(T-0394 다음).** **게이트된 backlog**: T-0355 web vitest CI 배선(onHold credential-workflow-scope) / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0395",
+  "backlogNote": "**T-0394 DONE (P6 composition wiring ⑥ AppShell 에 SuperAdminSetupForm 배선, PR#325 squash merge b152181)** — auth.ts signup(username,password) helper(2xx→role / 409·400→null / 그외→throw, login·refresh 수정 0) + AppShell setup 분기를 AuthGate 와 상호배타 렌더(controlled lift-up: setup 입력/loading/error + initialView/initialSetupError 주입) + placeholder/AUTHED_VIEW_LABEL 소거. SuperAdminSetupForm/apiClient/AuthGate 수정 0, zero-new-dep, 4파일 +277/-39, web vitest 476 pass. reviewer APPROVE r1/7(MINOR×1 비차단: auth.test mockResolvedValueOnce stub redundancy). **다음 task: T-0395 = modules.md WebModule doc-sync(ADR-0040/0041 ACCEPTED + web/ 조립 완료 현실 반영, direct doc-only) — planner 큐잉 완료(nextTask=T-0395)**. 잔여 stream(전부 backend 계약 미shipped=defer): import 결과 상세 / GroupMember add/remove mutation / SchedulePanel(P7) / ReEvaluationTriggerPanel(api.md 94-97 deferred) / R-78 auto-polling(assessments rows status 필드 부재). **[stream]: ①(T-0378)→②(T-0379)→②b(T-0380)→③a~③b-3(T-0381~T-0384)→④a~④h(T-0385~T-0392)→⑤R-78(T-0393)→⑥ SuperAdminSetupForm(T-0394 DONE) — P6 컴포지션 wiring chain 완결.** **게이트된 backlog**: T-0355 web vitest CI 배선(onHold credential-workflow-scope) / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-sched-ee6aaf7",
-    "since": "2026-06-13T23:37:04Z",
-    "note": "cron@cloud-aa-local-sched-ee6aaf7 fire(scheduled task aa-local-scheduled, 매시 30분 trigger 충돌 회피). fresh checkout 5727d20 → origin/main ee6aaf7(T-0392 closeout, nextTask=T-0393)로 reset. free lock(9c62c01 tip)+claims=[]. fineGrainedConcurrency=true(stage5b): lock acquire CAS(9c62c01→3825868, server-time 2026-06-13T23:37:04Z) → reclaim(server-time 주입) 회수 0 → 활성 claim 0<2 게이트 통과(pr-mode 단독) → validate-claim-candidate T-0393 PASS(touchesFiles disjoint·dependsOn T-0384 머지됨) → select-claim T-0393(pr) lock-하 atomic claim+tombstone release. lock-free execute: executor → implementer/tester(DashboardView R-78 EvaluationGuardBanner 배선 — EvaluationGuardBanner import + DashboardViewProps evaluationActive?(기본 false)/evaluationMessage? 추가, section 최상단 controlled lift-up 주입, personId 선택/미선택 두 분기 모두 노출, web vitest 464 pass(+8 신규), root lint/build green, 2파일 +126/-1, zero-new-dep, presentational/apiClient/useApiResource 수정 0) → commit 35eb9a6 push claude/T-0393-p6-wiring-r78-guard-banner → PR #324 open → 클레임 prNumber=324 PR_OPEN CAS 갱신(9f2b266→62396e5, resume 안전) → integrator reviewer APPROVE r1/7(comment 외부 post #issuecomment-4700130517 finding 0, NOTE=web vitest ci.yml 미배선) → 4-게이트 PASS(approval-gate run 27482549157 first-pass green, head CLEAN noop) → squash merge e17263f --delete-branch. closeout: claims.json T-0393 제거 + planner T-0394(⑥ SuperAdminSetupForm wiring) 큐잉. tasksCompleted 387→388. STATE.lock mirror 비권위 — 권위는 branch tip lock.json(tombstone/free)."
+    "session": "cron@cloud-aa15-71f47b1",
+    "since": "2026-06-14T00:05:00Z",
+    "note": "cron@cloud-aa15-71f47b1 fire(scheduled task aa-local-15, 매시 15분 trigger 충돌 회피). fresh checkout ee6aaf7 → origin/main 71f47b1(T-0393 closeout, nextTask=T-0394)로 reset. free lock(0754435 tip)+claims=[]. fineGrainedConcurrency=true(stage5b): lock acquire CAS(0754435→9e5b170) → reclaim(claims 빈 배열, no-op) → 활성 claim 0<2 게이트 통과(pr-mode 단독) → validate-claim-candidate T-0394 PASS(touchesFiles disjoint·dependsOn T-0380/T-0393 머지됨) → select-claim T-0394(pr) lock-하 atomic claim+tombstone release. lock-free execute: executor → implementer/tester(AppShell SuperAdminSetupForm 배선 — auth.ts signup helper(2xx→role/409·400→null/그외 throw) + AppShell setup↔AuthGate 상호배타 controlled lift-up(initialView/initialSetupError 주입) + placeholder/AUTHED_VIEW_LABEL 소거, SuperAdminSetupForm/apiClient/AuthGate 수정 0, web vitest 476 pass, root lint/build green, 4파일 +277/-39, zero-new-dep) → commit f7d90f0 push claude/T-0394-superadmin-setup-wiring → PR #325 open → 클레임 prNumber=325 PR_OPEN CAS 갱신(49be2ad→62a14f6, resume 안전) → integrator reviewer APPROVE r1/7(comment 외부 post #issuecomment-4700188074 MINOR×1 비차단) → 4-게이트 PASS(approval-gate run 27483138591 first-pass green, head CLEAN/up-to-date noop) → squash merge b152181 --delete-branch. closeout: claims.json T-0394 제거 + planner T-0395(modules.md WebModule doc-sync) 큐잉. tasksCompleted 388→389. b152181 main push run pending — 다음 fire 재확인(web-only/squash trivially green 예상). STATE.lock mirror 비권위 — 권위는 branch tip lock.json(tombstone/free)."
   },
-  "lastActivity": "2026-06-13T23:42:00Z",
-  "lastCommit": "e17263f",
+  "lastActivity": "2026-06-14T00:12:00Z",
+  "lastCommit": "b152181",
   "mostRecentTasks": [
+    "T-0394",
     "T-0393",
     "T-0392",
     "T-0391",
-    "T-0390",
-    "T-0389"
+    "T-0390"
   ],
   "loopSession": {
     "turnCount": 8,
@@ -215,7 +215,8 @@
     "T-0374": 1,
     "T-0375": 1,
     "T-0384": 1,
-    "T-0392": 1
+    "T-0392": 1,
+    "T-0394": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -735,7 +736,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 388,
+    "tasksCompleted": 389,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

@@ -2,7 +2,10 @@
 id: T-0394
 title: P6 wiring⑥ AppShell 에 SuperAdminSetupForm 배선(POST /api/users 첫-user→SuperAdmin)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: b152181
+prNumber: 325
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-044, REQ-043]
 estimatedDiff: 200
