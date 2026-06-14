@@ -11,12 +11,12 @@
   "backlogNote": "**T-0404 DONE (single-status stale 3건 frontmatter status 정합 — T-0037/T-0244/T-0284, direct doc-only main e3f956f)**. T-0403 Follow-up 이 지목한 잔여 single-status stale 3건을 한 fire 로 묶어 정합: T-0037(PR-36 f63f94e 머지+driver DONE 87c1bd6, PENDING→DONE) / T-0244(3be8260 가 T-0154 SUPERSEDED bookkeeping 실행, PENDING→DONE) / T-0284(PR-237 0d44570 머지, IN_PROGRESS→DONE). 각 파일 완료기록 1줄 + T-0404 task 신설. tasksCompleted 불변(396 — 이미 머지 반영된 bookkeeping 정정, T-0402/T-0403 선례). **이로써 T-0402 Follow-up 의 stale-status 후보 9건 전부 판정 완료: collection slice 5건(T-0403)+single-status 3건(T-0404)+T-0355(의도적 onHold 보류, 유지).** **여전히 dependency-free 신규 backlog 없음 → WIND-DOWN 유지: nextTask=null**. 잔여 stream 전부 게이트(make-work 아님): live-LLM credential(Q-0022, 만료 6/30) / P7 scheduler(@nestjs/schedule 새 dep, §5) / ADR-0036 stage5c(측정 게이트) / backend-contract defer / overwrite re-eval(Q-0032 DEFERRED) / T-0355 web vitest CI(onHold credential-workflow-scope) / Q-0026 timezone. 게이트 해소(credential·P7 승인·dogfood 관측) 시 재개. cron 은 매시 15분 cadence 유지(정각 충돌 회피).",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-sched-c1b6925",
-    "since": "2026-06-14T10:15:00Z",
-    "note": "cron@cloud-aa-local-sched-c1b6925 fire(매시 ~30/40분 trigger — 정각·:15 충돌 회피) = NO-OP wind-down 재확인 후 free release. fresh cloud checkout(HEAD 62ba3a5→sync origin/main c1b6925) 진입 → free lock(95068b2 tip tombstone)+claims=[](claims.json 미존재) CAS 획득(95068b2→1c0d19e). flags.fineGrainedConcurrency=true·maxConcurrentClaims=2 이나 활성 claim 0(cap 미달)+claimable 후보 0 → claim-pickup 무대상. currentTask·nextTask 둘 다 null → planner read-only 재검증 dispatch = WIND-DOWN 재확인(open PR 0, humanQuestions open 0(25 전부 resolved), blockers 0, non-DONE task=T-0001/T-0154 SUPERSEDED·T-0355 onHold-gated 뿐, dependency-free·non-gated 신규 task 0, stale-status/doc sweep T-0395~T-0404 소진, CI main 전부 green: c1b6925 run success 미확인 run 0). 잔여 stream 전부 게이트(live-LLM Q-0022 만료 6/30 / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / T-0355 onHold / Q-0026 timezone). make-work 회피 위해 task 미생성·nextTask=null 유지. tasksCompleted 불변(396). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-focused-25550e",
+    "since": "2026-06-14T11:04:23Z",
+    "note": "cron@cloud-aa-focused-25550e fire(매시 cron 진입점) = NO-OP wind-down 재확인 후 free release. fresh cloud checkout(HEAD=origin/main 9c9fecc) 진입 → free lock(accc4f4 tip tombstone)+claims=[](claims.json 미존재) CAS 획득(accc4f4→557f8f3, orphan empty-tree commit). flags.fineGrainedConcurrency=true·maxConcurrentClaims=2 이나 활성 claim 0(cap 미달)+claimable 후보 0 → claim-pickup 무대상. currentTask·nextTask 둘 다 null → driver 인라인 read-only 재검증 = WIND-DOWN 재확인(open PR 0 [list_pull_requests=[]], humanQuestions open 0(25 전부 resolved), blockers 0, non-DONE task=T-0001/T-0154 SUPERSEDED·T-0355 onHold-gated 뿐, dependency-free·non-gated 신규 task 0, stale-status/doc sweep T-0395~T-0404 소진, CI main 전부 green: 9c9fecc/c1b6925/62ba3a5/30aabfa/1992c1f 직전 5 run 전부 completed/success 확인). 잔여 stream 전부 게이트(live-LLM Q-0022 만료 6/30 / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / T-0355 onHold / Q-0026 timezone). make-work 회피 위해 task 미생성·nextTask=null 유지. tasksCompleted 불변(396). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T10:16:00Z",
-  "lastCommit": "c1b6925",
+  "lastActivity": "2026-06-14T11:06:00Z",
+  "lastCommit": "9c9fecc",
   "mostRecentTasks": [
     "T-0404",
     "T-0403",
@@ -33,7 +33,7 @@
     "note": "/loop session vb707106 (dynamic, turn cap 10) **WIND-DOWN 종료 (t2, dependency-free backlog 소진)**. t1: ff-only sync(cron 야간 T-0380~T-0399 P6 wiring ①~⑥ + closure doc-sync 완결) → T-0400(INDEX.md ADR 매핑 doc-sync) 머지 a2744dd. t2: T-0401(requirements.md P6 REQ 상태 doc-sync) 머지 eae6900. **2 task 전부 round n/a(direct doc-only), tasksCompleted 394→396, 사고 0.** t2 closeout planner 가 WIND-DOWN 판정 — 2연속 doc-sync 로 obvious stale-doc backlog 소진, 잔여 stream 전부 게이트(live-LLM credential / P7 새-dep / ADR-0036 5c 측정 / backend-contract defer)라 make-work 회피 위해 nextTask=null + /loop 정지. 재개 트리거: 게이트 해소(credential·P7 승인·dogfood 관측) 시 새 /loop 또는 cron. 동시성: cron 야간 backbone 무사고, loop 가 P6-closure doc-sync 잔무(T-0400/T-0401) 흡수 후 깨끗이 정지."
   },
   "ci": {
-    "lastRun": "2026-06-14T05:12:36Z",
+    "lastRun": "2026-06-14T10:41:24Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
