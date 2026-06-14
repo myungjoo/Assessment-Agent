@@ -2,7 +2,6 @@
 id: T-0256
 title: Assessment collection enumerate(v-b2) 설계 ADR — Person → CollectionSpec 산출 + repo source 정책
 phase: P4
-status: PENDING
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-024, REQ-031]
 estimatedDiff: 230

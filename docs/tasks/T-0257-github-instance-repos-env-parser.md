@@ -2,7 +2,6 @@
 id: T-0257
 title: GithubInstanceConfig 에 repos 필드 + _REPOS env parser 확장
 phase: P4
-status: PENDING
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008]
 estimatedDiff: 90

@@ -2,7 +2,6 @@
 id: T-0253
 title: Assessment 수집 orchestrator service — 두 collection service 호출 → Activity[] aggregate (ADR-0029 slice v-b)
 phase: P4
-status: PENDING
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-031]
 estimatedDiff: 165

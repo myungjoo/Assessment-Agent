@@ -2,7 +2,6 @@
 id: T-0255
 title: modules.md row 9 수집/평가 분리 reconcile + AssessmentCollectionModule(10번째 module) 박제 + ADR-0029 L37 import 토폴로지 정정 (ADR-0029 slice vii)
 phase: P4
-status: PENDING
 commitMode: direct
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-031, REQ-033]
 estimatedDiff: 70

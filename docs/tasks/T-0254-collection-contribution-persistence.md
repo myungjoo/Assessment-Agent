@@ -2,7 +2,6 @@
 id: T-0254
 title: Assessment 수집 영속화 service — aggregate Activity[] → mapper → ContributionService.create (ADR-0029 slice v-c)
 phase: P4
-status: PENDING
 commitMode: pr
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-031, REQ-032, REQ-033]
 estimatedDiff: 145
