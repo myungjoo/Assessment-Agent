@@ -2,8 +2,8 @@
 id: T-0405
 title: P6 ci.yml web build + vitest test step 배선 (R-111/R-113, T-0355 CI slice)
 phase: P6
-status: BLOCKED
-blockedReason: credential-workflow-scope
+status: DONE
+completedAt: 2026-06-14T14:13Z
 commitMode: pr
 coversReq: [REQ-038, REQ-048]
 estimatedDiff: 15
@@ -48,6 +48,13 @@ driver 가 T-0355 staleness 를 확인했다: check-spec-presence.sh 의 `.test.
 
 `implementer`(ci.yml only) → `tester`(로컬 verify). architect 불요(ADR-0040 + T-0353~T-0355 가 결정 완료, 본 task 는 CI step 배선만).
 
-## Status note (2026-06-14, cron@cloud-aa-local-scheduled)
+## Result (DONE — 2026-06-14, loop@WIN-JQIPLSBL9QV-vb707106)
 
-본 task 는 `.github/workflows/ci.yml` 만 변경하는 pr-mode task 라 push 에 GitHub `workflow` OAuth scope 가 필요하다. cron@cloud-aa-local-scheduled fire 의 토큰은 `gist, read:org, repo` 만 보유(`workflow` 부재) → workflow 파일 push 불가로 **BLOCKED(credential-workflow-scope)**. T-0355 onHold 와 동일 게이트(STATE.blockers B-credential-2026-06-14T12:41Z). **해소: 사용자가 `gh auth refresh -s workflow` 로 scope 추가 후 workflow-scoped 환경(로컬 `/loop`)에서 resume.** AC 자체는 변경 없음(로컬 검증상 web build/test trivially green 예상).
+사용자가 `gh auth refresh -s workflow` 로 credential 게이트(workflow scope)를 해소한 뒤 로컬 `/loop`(workflow-scoped)가 resume 하여 완료.
+
+- **구현**: `.github/workflows/ci.yml` 에 root "Build" step 직후 / "Prisma migrate deploy" 이전에 2 step 추가 — "Web 빌드"(`pnpm --filter web build`) + "Web 단위 test"(`pnpm --filter web test`). 한국어 주석 동반. +10/-0 LOC, 단일 파일.
+- **검증**: 로컬 web test 476 pass / 23 파일, web build(tsc --noEmit + vite build) green. PR CI run 27501403767 = first-pass success — 신규 'Web 빌드'·'Web 단위 test' 2 step 모두 success 확인(vitest 가 CI 에서 실제 실행 = R-111/R-113 정합 실증).
+- **머지**: PR #326 → reviewer APPROVE r1/7(finding 0) → 4-게이트 PASS → squash merge `4566f7c` --delete-branch.
+- **동시성 사고 기록**: 로컬 시계 skew(~2.5h 뒤)로 cron@cloud 가 driver lock 을 stale 로 탈취 + 본 task 를 BLOCKED(credential) 로 오판했으나, merge 는 lock 무관하게 성공. 본 closeout 에서 status BLOCKED→DONE 정정 + STATE.blockers B-credential-2026-06-14T12:41Z close + tasksCompleted 396→397.
+
+이전 cron 의 BLOCKED Status note(2026-06-14 aa-local-scheduled)는 본 완료로 supersede.
