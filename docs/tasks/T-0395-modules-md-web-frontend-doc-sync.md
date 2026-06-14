@@ -2,7 +2,7 @@
 id: T-0395
 title: modules.md WebModule 서술을 shipped web/ frontend 현실로 doc-sync
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-038, REQ-044, REQ-049]
 estimatedDiff: 40
