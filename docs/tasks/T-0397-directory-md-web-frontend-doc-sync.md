@@ -2,7 +2,7 @@
 id: T-0397
 title: directory.md frontend(web/) 섹션을 repo-root web/ 패키지 shipped 현실로 doc-sync
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-002, REQ-038]
 estimatedDiff: 45
