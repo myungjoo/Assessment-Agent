@@ -2,8 +2,11 @@
 id: T-0407
 title: reevaluate 동시 delete 경합 시 Prisma P2025 를 409 로 변환 (flaky e2e 500 누수 차단)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 328
+completedAt: 2026-06-14T15:30:00Z
+completedCommit: 192346a
 coversReq: [REQ-036]
 estimatedDiff: 70
 estimatedFiles: 2

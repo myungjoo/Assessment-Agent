@@ -7,30 +7,31 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0407",
-  "backlogNote": "**T-0406 DONE (P6 T-0355 잔여① — web-static serve-static 통합 smoke spec, pr-mode, PR #327 squash merge 15a33b4).** test/smoke/web-static.smoke-spec.ts 신설(+124, test-only, production code 변경 0) — NestFactory.create(AppModule) 실부팅으로 serve-static 실 serve 검증(compile() NoopLoader 회피, T-0354 M1 회귀 가드), dist 존재/부재 2 분기 명시 guard, happy(GET /)/flow(GET /dashboard SPA fallback)/sanity(GET /api 우선)/negative(GET /api/__none__ 404+non-index 이중) cover(R-113). reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → squash merge. CI run 27502505435 실 step 전부 green(스모크 테스트 신규 spec CI 첫 실행 success — web build 선행 dist 존재 분기 실 실행), approval-gate benignRedNote case A(approve comment 후 rerun → green). tasksCompleted 397→398. **T-0355 잔여 남은 2건: (a) web.module.ts coverage 포함, (b) check-spec-presence.test.sh web self-test** (directory.md=T-0397 이미 sync, smoke=본 T-0406 완료) — 다음 planner slice 후보(dependency-free, ci.yml 미변경이라 workflow scope 불요). 그 외 잔여 stream 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone.",
+  "nextTask": null,
+  "backlogNote": "**T-0407 DONE (P5 robustness — reeval 동시 delete 경합 P2025→409 변환, pr-mode, PR #328 squash merge 192346a).** evaluation-result-persist.service.ts 의 reeval delete 호출만 try/catch 로 감싸 Prisma P2025(record 부재, 경합 loser)를 ConflictException(409) 로 국소 변환(+24/-3, ADR-0038 §Decision5 수렴) — create-side·일반 P2025 는 propagate 유지. 기존 P2025-propagate spec 재범위(P2003+create-side) + regression test. reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → merge. CI run 27503394566 first-pass green(**e2e period-bridge-reevaluate 포함 — 직전 turn flaky 500 누수 안정화 실증**), approval first-pass(rerun 불요). tasksCompleted 398→399. **T-0355 잔여 남은 2건: (a) web.module.ts coverage 포함, (b) check-spec-presence.test.sh web self-test** = 다음 planner slice 후보(dependency-free, ci.yml 미변경이라 workflow scope 불요). 그 외 잔여 stream 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone.",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-14T15:14:30Z",
-    "note": "/loop vb707106 turn 3: currentTask·nextTask null → planner dispatch. 권위 lock CAS 획득(faacd03→1014e52). planner 가 reevaluate-replace flaky e2e(15a33b4 fail) 를 root-cause 해 T-0407(pr, evaluation-result-persist.service P2025→409 변환, ~70 LOC 2파일) 큐잉(nextTask=T-0407, T-0355 잔여보다 우선 — root-caused·소형·CI 신뢰도 高). doc-only direct commit 후 lock tombstone release. 다음 turn 에서 T-0407 claim+execute. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "since": "2026-06-14T15:30:00Z",
+    "note": "/loop vb707106 turn 4 closeout: T-0407 claim(claim-pickup, prNumber=328)→execute→PR #328 squash merge 192346a→bookkeeping. 권위 lock CAS f937caa→df74fb0(closeout critical section), 본 commit 후 claims clear([]) + tombstone release. counters 398→399. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T15:14:30Z",
-  "lastCommit": "15a33b4",
+  "lastActivity": "2026-06-14T15:30:00Z",
+  "lastCommit": "192346a",
   "mostRecentTasks": [
+    "T-0407",
     "T-0406",
     "T-0405",
     "T-0404",
-    "T-0403",
-    "T-0402"
+    "T-0403"
   ],
-  "loopSession": {"turnCount":2,"cap":10,"holder":"loop@WIN-JQIPLSBL9QV-vb707106","startedAt":"2026-06-14T14:33:00Z","note":"/loop vb707106 (dynamic, turn cap 10). turn 1: planner dispatch → T-0406 큐잉(doc-only bf0dfd8). turn 2: T-0406 claim(fineGrainedConcurrency claim-pickup, prNumber=327)→executor implement(web-static serve-static 통합 smoke spec, +124 test-only)→PR #327→reviewer APPROVE r1/7 finding 0→CI green(approve comment 후 rerun, benign approval-gate case A)→squash merge 15a33b4→closeout. counters 397→398. 동시성 무사고(lock free 진입, claim 격리, 시계 skew 없음)."},
+  "loopSession": {"turnCount":4,"cap":10,"holder":"loop@WIN-JQIPLSBL9QV-vb707106","startedAt":"2026-06-14T14:33:00Z","note":"/loop vb707106 (dynamic, turn cap 10). t1: planner→T-0406 큐잉. t2: T-0406(web-static smoke spec) claim→PR #327→merge 15a33b4. t3: planner→T-0407 큐잉(flaky e2e root-cause). t4: T-0407(reeval P2025→409) claim(prNumber=328)→PR #328→reviewer APPROVE r1/7 finding 0→CI first-pass green(e2e 안정화 실증)→squash merge 192346a→closeout. counters 397→399(+2). 동시성 무사고."},
   "ci": {
-    "lastRun": "2026-06-14T15:00:00Z",
+    "lastRun": "2026-06-14T15:29:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27502505435",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27503394566",
+    "noteT0407": "PR #328(T-0407 reeval 동시 delete P2025→409) head 9eae838 pull_request run 27503394566 = first-pass green 전 step(spec-presence/CAS self-test 3종/lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크/**e2e**/reviewer approval 검증 — reviewer approve comment #issuecomment-4702197172 가 approval-gate step 실행 전 landing, rerun 불요). **e2e period-bridge-reevaluate 가 본 PR 에서 green** — 직전 turn 의 flaky 500 누수(P2025 uncaught)가 본 fix 로 안정화됨을 CI 실증. squash 192346a --delete-branch. 192346a main push run 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0406": "PR #327(T-0406 web-static serve-static 통합 smoke spec) head e138945 pull_request run 27502505435 = 실 step 전부 green(spec-presence/CAS self-test 3종/lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크 테스트/e2e) + 'reviewer agent approval 검증' 단독 fail = benignRedNote case A(approve comment #issuecomment-4702109458 가 14:53Z run 후 landing). approve comment post 후 `gh run rerun 27502505435 --failed` → 전 step green(approval 포함). **신규 smoke spec 이 CI 에서 첫 실행 success** — web build(T-0405) 선행으로 web/dist/index.html 존재 → dist-존재 분기 실 검증(no-op 아님, jest-smoke passWithNoTests:false). squash 15a33b4 main push run 다음 fire 재확인(test-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0403": "T-0403(collection slice 5건 frontmatter 중복 stale status 정합, direct doc-only) main push 154b78f(content)+ba7eab5(closeout) CI run 27489152733 = completed/success(본 fire gh run watch 확인). doc-only(docs/tasks/T-0253~T-0257 각 -1 line + T-0403 신설)이라 trivially green. 미확인 main run 0.",
     "noteT0401": "T-0401(requirements.md P6 frontend REQ 상태 doc-sync, direct doc-only) main push eae6900 CI run 03:17:59Z = completed/success 확인. doc-only 단일파일(docs/requirements.md +7/-7)이라 trivially green. closeout 4a12487(T-0400 closeout) 도 completed/success. /loop wind-down 시점 미확인 main run 0.",
@@ -86,6 +87,7 @@
     "noteT0392": "PR #323(T-0392 P6 wiring④h AdminView Admin+ RBAC gating UI) head 87e881a = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green: pull_request run 27481911120 전 step success(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증) — reviewer approve comment 가 approval 검증 step 실행 전 landing, rerun 불요; mergeStateStatus CLEAN noop, head 가 origin/main 5727d20 포함 rebase noop). GET /api/auth/me useApiResource 4번째 호출 + isAdminRole 순수 helper(Admin/SuperAdmin 정확 매칭, 그 외/누락/loading=false fail-closed) + isAdmin useMemo. isAdmin 시에만 DifficultyModelSelector·scope select·DataImportExportPanel 렌더, 아니면 권한 부족 안내 한 줄(role=status). GroupMemberList·그룹 select 등급 무관 유지(User+ 조회 가능). presentational/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 457 전체(isAdminRole 5종+gating 8종 신규) 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +298/-41(prod +97/-29). squash 9a66bc6 --delete-branch. 9a66bc6 main push run(23:21Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
+    "T-0407": 1,
     "T-0406": 1,
     "T-0393": 1,
     "T-0390": 1,
@@ -739,7 +741,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 398,
+    "tasksCompleted": 399,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
