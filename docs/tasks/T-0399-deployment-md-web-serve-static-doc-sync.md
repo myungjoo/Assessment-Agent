@@ -2,7 +2,7 @@
 id: T-0399
 title: deployment.md 배포 토폴로지에 web/ SPA serve-static 책임 doc-sync
 phase: P4-complete / P5-in-progress
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048, REQ-002]
 estimatedDiff: 30
@@ -49,4 +49,8 @@ PLAN.md P6 composition-wiring 스트림(T-0353~T-0394) 이 완결되고 [ADR-004
 
 ## Follow-ups
 
-(없음 — 생성 시점)
+(없음)
+
+## 완료 기록
+
+- **DONE 2026-06-14** — deployment.md doc-sync. 단일 NestJS process 책임 범위에 "Web UI 정적 serve"(@nestjs/serve-static src/web WebModule, web/dist/ mount, 비-/api/* SPA fallback, ADR-0040 §3, T-0354 shipped) 항목 추가 + frontend 빌드 분리 한 줄 + worker 시점 monolith static serve trade-off 한 줄 + 상단 References ADR-0040/0041/T-0399 링크 추가. direct doc-only 1파일 +7/-2, tester 면제(§3.2). commit e7de0f6 direct push main.
