@@ -8,21 +8,21 @@
   },
   "currentTask": null,
   "nextTask": null,
-  "backlogNote": "**T-0401 DONE (requirements.md P6 frontend REQ 7행 상태 doc-sync — REQ-038/042/044/046/049 PLANNED→DONE, REQ-045/002→IN_PROGRESS, direct doc-only main eae6900)**. P6 wiring ①~⑥(T-0378~T-0394) + closure doc-sync 가족(T-0395 modules.md ~ T-0401 requirements.md) 전부 DONE — **2연속 doc-sync 턴으로 obvious stale-doc backlog 소진**. **dependency-free 작업 공식 소진 → WIND-DOWN: nextTask=null, /loop 정지(loop@vb707106 t2)**. 잔여 stream 전부 게이트(make-work 아님): live-LLM credential(Q-0022, 만료 6/30) / P7 scheduler(@nestjs/schedule 새 dep, §5) / ADR-0036 stage5c(측정 게이트, 단독 세션 불가) / backend-contract defer(ReEval·Schedule 미마운트·auto-polling·GroupMember mutation·import 상세) / overwrite re-eval(Q-0032 DEFERRED) / T-0355 web vitest CI(onHold credential-workflow-scope) / Q-0026 timezone. 게이트 해소(credential 제공·P7 새-dep 승인·multi-driver dogfood 관측) 시 재개 — 기존 Q-0036(resolved 2026-06-12)이 standing 사용자 방향 요청으로 유효(ADR-0040/0039 flip 옵션은 이미 소진, live-LLM·5c 만 잔여). cron 은 자체 cadence 유지(다음 fire 도 동일 wind-down 판정 예상).",
+  "backlogNote": "**T-0402 DONE (머지 완료된 P6 presentational task 5건 frontmatter stale status doc-sync — T-0370/T-0371/T-0372/T-0374/T-0375 의 `status: PENDING`→`DONE` + `## 완료 기록` 추가, direct doc-only)**. wind-down 직후 cron fire 가 발견한 진짜 stale-doc 잔무: 이 5건은 전부 squash merge(7db0039/d104d45/3465e09/a16f5c6/d24c54c)됐으나 머지 closeout 이 STATE noteT* 만 갱신하고 개별 task 파일 frontmatter 를 PENDING 으로 잔류시켰다 — `git log`·task status 로 진행 재구성 시 사실과 다른 상태 노출. tasksCompleted 불변(396 — 이미 머지 반영된 task 의 bookkeeping 정정). **여전히 dependency-free 신규 backlog 없음 → WIND-DOWN 유지: nextTask=null**. 잔여 stream 전부 게이트(make-work 아님): live-LLM credential(Q-0022, 만료 6/30) / P7 scheduler(@nestjs/schedule 새 dep, §5) / ADR-0036 stage5c(측정 게이트) / backend-contract defer / overwrite re-eval(Q-0032 DEFERRED) / T-0355 web vitest CI(onHold credential-workflow-scope) / Q-0026 timezone. **T-0402 Follow-up: 다른 stale-status 후보(T-0037/T-0244/T-0253~T-0257/T-0284/T-0355) frontmatter 정합 별도 sweep 필요 — 머지/supersede/abandon/onHold 판정 불명확이라 본 fire 에서 미처리.** 게이트 해소(credential·P7 승인·dogfood 관측) 시 재개. cron 은 자체 cadence 유지.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-sched-b79e8f5",
-    "since": "2026-06-14T03:14:40Z",
-    "note": "cron@cloud-aa-local-sched-b79e8f5 fire = NO-OP wind-down 확인 후 free release. b79e8f5 checkout 진입 → free lock(8f1aa8d tip tombstone)+claims=[] 획득 CAS(8f1aa8d→0ce66b7) → §D8(a) 직렬화로 stale nextTask=T-0400 진행 시도. push 시 non-fast-forward: 동시 /loop session vb707106 이 이미 T-0400(a2744dd)·T-0401(eae6900) 완료 + WIND-DOWN(nextTask=null), origin/main=cc9848a. 내 T-0400 산출물은 origin 과 동일 중복 → §4 graceful 흡수(commit 폐기, ff-only sync cc9848a). origin/main currentTask=null·nextTask=null, dependency-free 작업 공식 소진 — 잔여 stream 전부 게이트(live-LLM Q-0022 / P7 새-dep / ADR-0036 5c 측정 / backend-contract defer / T-0355 onHold). make-work 회피 위해 planner dispatch 안 함. tasksCompleted 불변(396). peer /loop 와 race 무사고 흡수 실증. lock tombstone release CAS. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-local-sched-f14b9c0539",
+    "since": "2026-06-14T04:41:00Z",
+    "note": "cron@cloud-aa-local-sched-f14b9c0539 fire = T-0402 doc-sync 후 free release. fresh cloud checkout(HEAD f14b9c7=origin/main) 진입 → free lock(7fe1c99 tip tombstone)+claims=[] CAS 획득(7fe1c99→5d781ff). wind-down 직후이나 HIGH make-work-bar sweep 에서 진짜 stale-doc 발견: P6 presentational 5건(T-0370/0371/0372/0374/0375)이 머지됐는데 frontmatter status=PENDING 잔류 → T-0402 direct doc-only 로 DONE 정정 + 완료기록 추가. 신규 dependency-free backlog 는 여전히 없음(WIND-DOWN 유지). tasksCompleted 불변(396). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T03:34:00Z",
+  "lastActivity": "2026-06-14T04:42:00Z",
   "lastCommit": "eae6900",
   "mostRecentTasks": [
+    "T-0402",
     "T-0401",
     "T-0400",
     "T-0399",
-    "T-0398",
-    "T-0397"
+    "T-0398"
   ],
   "loopSession": {
     "turnCount": 2,

@@ -2,7 +2,7 @@
 id: T-0375
 title: P6 frontend UI slice 15 — 단일 평가 결과 상세 패널 presentational 컴포넌트 (web/src/components/EvaluationDetailPanel.tsx)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-036, REQ-038]
 estimatedDiff: 195
@@ -81,3 +81,13 @@ PLAN [Phase P6](../PLAN.md) bullet2 "시각화 대시보드 (정렬·필터·시
 ## Follow-ups
 
 (생성 시 비어있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+---
+
+## 완료 기록
+
+- **Status: DONE** (2026-06-13T12:55Z, cron@cloud-aa-local-sched)
+- PR [#307](https://github.com/myungjoo/Assessment-Agent/pull/307) → squash merge `d24c54c` (`--delete-branch`).
+- reviewer APPROVE round 1/7 (MINOR×1 비차단: scoreText 주석 표현 — 동작 정확, follow-up 불요), integrator 4-게이트 PASS, CI first-pass green.
+- EvaluationDetailPanel presentational 컴포넌트 + spec(web vitest 27 신규/260 전체) — 새 dep 0, backend 불변.
+- frontmatter status 가 머지 시 closeout 에서 PENDING 으로 잔류 → 본 doc-sync 로 DONE 정정 (T-0402).

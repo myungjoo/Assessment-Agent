@@ -2,7 +2,7 @@
 id: T-0372
 title: P6 frontend UI slice 12 — 대시보드 페이지네이션 컨트롤 presentational 컴포넌트 (web/src/components/DashboardPaginationControl.tsx)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-046, REQ-092]
 estimatedDiff: 180
@@ -75,3 +75,13 @@ PLAN [Phase P6](../PLAN.md) bullet2 "시각화 대시보드 (정렬·필터·시
 ## Follow-ups
 
 (생성 시 비어있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+---
+
+## 완료 기록
+
+- **Status: DONE** (2026-06-13T11:57Z, cron@cloud-aa-local-sched)
+- PR [#304](https://github.com/myungjoo/Assessment-Agent/pull/304) → squash merge `3465e09` (`--delete-branch`).
+- reviewer APPROVE round 1/7, integrator 4-게이트 PASS, CI first-pass green.
+- DashboardPaginationControl presentational 컴포넌트 + spec(web vitest 20 신규/191 전체) — 새 dep 0, backend 불변.
+- frontmatter status 가 머지 시 closeout 에서 PENDING 으로 잔류 → 본 doc-sync 로 DONE 정정 (T-0402).

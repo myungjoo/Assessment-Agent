@@ -2,7 +2,7 @@
 id: T-0374
 title: P6 frontend UI slice 14 — 점수 분포 막대 차트 presentational 컴포넌트 (web/src/components/ScoreDistributionChart.tsx)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-038, REQ-036]
 estimatedDiff: 190
@@ -78,3 +78,13 @@ PLAN [Phase P6](../PLAN.md) bullet2 "시각화 대시보드 (정렬·필터·시
 ## Follow-ups
 
 (생성 시 비어있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+---
+
+## 완료 기록
+
+- **Status: DONE** (2026-06-13T12:37Z, cron@cloud-aa-local-sched)
+- PR [#306](https://github.com/myungjoo/Assessment-Agent/pull/306) → squash merge `a16f5c6` (`--delete-branch`).
+- reviewer APPROVE round 1/7 (MINOR×2 비차단: 총계 표시 직접 단언 권고 / web vitest CI 미배선 = T-0355 tracked gap), integrator 4-게이트 PASS, CI first-pass green.
+- ScoreDistributionChart presentational 컴포넌트 + spec(web vitest 19 신규/233 전체) — 새 dep 0, backend 불변.
+- frontmatter status 가 머지 시 closeout 에서 PENDING 으로 잔류 → 본 doc-sync 로 DONE 정정 (T-0402).
