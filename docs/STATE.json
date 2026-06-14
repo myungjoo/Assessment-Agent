@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0396",
-  "backlogNote": "**T-0395 DONE (modules.md WebModule doc-sync, direct doc-only main 119c537)** — WebModule row 의 'framework 미결정' 서술을 ADR-0040(React+Vite 별도 web/)·serve-static(T-0354) shipped 현실로 정정 + ADR 링크, '향후 분리 가능성' 섹션을 옵션1 결정·composition-wiring 스트림(T-0353~T-0394, 15컴포넌트+AppShell+2view) 박제로 갱신, backend 미shipped 잔여 defer 박제, Refs footer 갱신. doc-only 단일파일 +9/-7, tester 면제(§3.2). **다음 task: T-0396 = PLAN.md P6 섹션 doc-sync(composition-wiring chain ①~⑥ 완결 반영 + ADR-0041 status PROPOSED→ACCEPTED 정정 + backend-게이트 잔여 deferred 박제, direct doc-only) — planner 큐잉 완료(nextTask=T-0396)**. 잔여 stream(전부 backend 계약 미shipped=defer): import 결과 상세 / GroupMember add/remove mutation / SchedulePanel(P7) / ReEvaluationTriggerPanel(api.md 94-97 deferred) / R-78 auto-polling(assessments rows status 필드 부재). **[stream]: ①(T-0378)→…→⑥ SuperAdminSetupForm(T-0394) — P6 컴포지션 wiring chain 완결; 문서 정합 후속 T-0395(modules.md DONE)·T-0396(PLAN.md).** **게이트된 backlog**: T-0355 web vitest CI 배선(onHold credential-workflow-scope) / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0397",
+  "backlogNote": "**T-0396 DONE (PLAN.md P6 섹션 doc-sync, direct doc-only main 5bf95db)** — P6 4 bullet 을 [x] shipped 현실로 정합(로그인/SuperAdmin 셋업=AuthGate T-0379+SuperAdminSetupForm T-0394 / 대시보드=DashboardView T-0381~T-0384 / Admin 패널=AdminView T-0385~T-0392 부분완료(ReEval·Schedule defer) / R-78=EvaluationGuardBanner T-0393 배선) + ADR-0041 (PROPOSED)→(ACCEPTED, T-0377 flip) 정정 + wiring chain ①~⑥(T-0378~T-0394) 완결 과거형 + backend-게이트 deferred 잔여/T-0355 게이트 sub-bullet 박제. doc-only 단일파일 +7/-5, tester 면제(§3.2). **다음 task: T-0397 = directory.md frontend(web/) 섹션 doc-sync(ADR-0040 옵션1 확정·web/ tree shipped 현실 정합, T-0395/T-0396 와 동형 architecture-doc 형제, direct doc-only) — planner 큐잉 완료(nextTask=T-0397)**. 잔여 stream(전부 backend 계약 미shipped=defer): import 결과 상세 / GroupMember add/remove mutation / SchedulePanel(P7) / ReEvaluationTriggerPanel(api.md 94-97 deferred) / R-78 auto-polling(assessments rows status 필드 부재). **[stream]: ①(T-0378)→…→⑥ SuperAdminSetupForm(T-0394) — P6 컴포지션 wiring chain 완결; 문서 정합 후속 T-0395(modules.md DONE)·T-0396(PLAN.md DONE)·T-0397(directory.md).** **게이트된 backlog**: T-0355 web vitest CI 배선(onHold credential-workflow-scope) / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-sched-c84f8f5",
-    "since": "2026-06-14T00:20:00Z",
-    "note": "cron@cloud-aa-local-sched-c84f8f5 fire(scheduled task aa-local-scheduled, 매시 30분 trigger 충돌 회피). fresh checkout 71f47b1 → origin/main c84f8f5(T-0394 closeout, nextTask=T-0395)로 reset. free lock(9bf98fc tip)+claims=[]. fineGrainedConcurrency=true(stage5b)이나 단일 direct doc-only task + claims=[] 이라 §D8(a) fail-safe 직렬화 경로 채택: lock acquire CAS(9bf98fc→3223ceb, coarse hold) → executor → implementer(modules.md WebModule row 의 'framework 미결정' 서술을 ADR-0040(React+Vite 별도 web/)·serve-static(T-0354) shipped 현실로 정정 + ADR 링크, '향후 분리 가능성' 섹션을 옵션1 결정·composition-wiring 스트림(T-0353~T-0394) 박제로 갱신, backend 미shipped 잔여 defer 박제, Refs footer 갱신; doc-only 단일파일 +9/-7) → tester 면제(§3.2 direct doc-only) → commit 119c537 direct push main(up-to-date, rebase noop). closeout: planner T-0396(PLAN.md P6 composition-wiring closure doc-sync) 큐잉. tasksCompleted 389→390. 119c537 main push run pending — 다음 fire 재확인(doc-only trivially green 예상). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json(tombstone/free)."
+    "session": "cron@cloud-aa15-9ebec8e",
+    "since": "2026-06-14T01:04:23Z",
+    "note": "cron@cloud-aa15-9ebec8e fire(scheduled task aa-local-15, 매시 15분 trigger 충돌 회피). fresh checkout c84f8f5 → origin/main 9ebec8e(T-0395 closeout, nextTask=T-0396)로 reset. free lock(2cc925a tip, tombstone)+claims=[]. fineGrainedConcurrency=true(stage5b)이나 단일 direct doc-only task + claims=[] 이라 §D8(a) fail-safe 직렬화 경로 채택: lock acquire CAS(2cc925a→d3c80f9, coarse hold) → executor → implementer(PLAN.md P6 4 bullet 을 [x] shipped 현실로 정합 + ADR-0041 (PROPOSED)→(ACCEPTED, T-0377 flip) + wiring chain ①~⑥(T-0378~T-0394) 완결 과거형 + backend-게이트 deferred 잔여/T-0355 게이트 sub-bullet 박제; doc-only 단일파일 +7/-5, diff 를 P6 섹션 국한) → tester 면제(§3.2 direct doc-only) → commit 5bf95db direct push main(up-to-date, rebase noop). closeout: planner T-0397(directory.md frontend doc-sync) 큐잉. tasksCompleted 390→391. 5bf95db main push run 27484299661 in_progress — 다음 fire 재확인(doc-only trivially green 예상). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json(tombstone/free)."
   },
-  "lastActivity": "2026-06-14T00:22:00Z",
-  "lastCommit": "119c537",
+  "lastActivity": "2026-06-14T01:08:00Z",
+  "lastCommit": "5bf95db",
   "mostRecentTasks": [
+    "T-0396",
     "T-0395",
     "T-0394",
     "T-0393",
-    "T-0392",
-    "T-0391"
+    "T-0392"
   ],
   "loopSession": {
     "turnCount": 8,
@@ -33,11 +33,12 @@
     "endedAt": "2026-06-13T13:22:00Z"
   },
   "ci": {
-    "lastRun": "2026-06-13T23:42:00Z",
-    "status": "green",
+    "lastRun": "2026-06-14T01:07:09Z",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/pull/324",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27484299661",
+    "noteT0396": "T-0396(PLAN.md P6 doc-sync, direct doc-only) main push 5bf95db CI run 27484299661 = in_progress(01:07Z). doc-only 단일파일(docs/PLAN.md +7/-5)이라 trivially green 예상 — 다음 fire 재확인. 직전 main run 9ebec8e(T-0395 closeout)·119c537(T-0395 doc) 전부 success 확인.",
     "noteT0393": "PR #324(T-0393 P6 wiring⑤ DashboardView EvaluationGuardBanner R-78 배선) head 35eb9a6 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post #issuecomment-4700130517 + approval-gate run 27482549157 first-pass green — reviewer approve comment 가 approval 검증 step 실행 전 landing, rerun 불요; mergeStateStatus CLEAN noop). EvaluationGuardBanner import + DashboardViewProps 에 evaluationActive?(기본 false)/evaluationMessage? 추가 → section[aria-label=대시보드] 최상단(자료 영역 위)에 active/message controlled lift-up 주입, personId 선택/미선택 두 분기 모두 노출. 자동 polling 파생 defer(backend status 계약 미shipped). presentational/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 464 전체(+8 신규 ⑤) 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +126/-1. squash e17263f --delete-branch. e17263f main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0391": "PR #322(T-0391 P6 wiring④g AdminView export scope 선택 UI) head 93cb6bd = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post #issuecomment-4700026295 + approval-gate run 27481378124 benignRedNote case A: 실 step lint/build/prisma/test+cov/smoke/e2e 전부 green, approval 검증 step 단독 fail → reviewer approve comment landing 후 `gh run rerun 27481378124 --failed` 로 green; PR head CLEAN/not-behind=rebase noop). buildExportPath(scope) 순수 helper(scope truthy→?scope=+encodeURIComponent, 빈값→④f 동작 보존) + selectedScope state + scope <select>(aria-label) 컨테이너 렌더 + runExport(path,deps) 인자화 → handleExport 가 buildExportPath(selectedScope) 주입. GET /api/admin/export?scope= shipped(api.md 122). Blob 다운로드/import/LLM/group 회귀 0. DataImportExportPanel/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 445 전체(+17 신규 ④g) 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +324/-28(prod +88/-13). squash 797197e --delete-branch. 797197e main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0390": "PR #321(T-0390 P6 wiring④f AdminView export 실 파일 저장 UX — Blob 다운로드) head 9f7576c→update-branch 44b2fc2 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + CI green run 27480744123 approval-gate 포함; benignRedNote 미발생 — approve comment 가 approval 검증 step 전 landing). main 이 review 중 f0da0ca 로 진행(peer cron NO-OP stand-down — T-0390 이미 claim) → gh pr update-branch(head 44b2fc2) → ADR-0036 §D8(c) head 가 origin/main 포함 + CI green 재확인 후 squash. apiClient requestRaw 추가(공통 fetchWithRefresh 추출, request 시그니처/동작 불변) + runExport 를 raw Response→blob→createObjectURL→주입형 <a download> 클릭→revoke 정리로 확장, filename(Content-Disposition/export.json fallback), DownloadDeps 주입(jsdom 불요). busy/error/message 안전 표시 보존(403/404/비-2xx/네트워크0 throw 없음). DataImportExportPanel/useApiResource 수정 0, zero-new-dep. web vitest 433 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 4파일 +565/-90(prod +161/-26). squash 7462acd --delete-branch. 7462acd main push run(22:04Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
@@ -736,7 +737,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 390,
+    "tasksCompleted": 391,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

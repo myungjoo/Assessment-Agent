@@ -2,7 +2,7 @@
 id: T-0396
 title: PLAN.md P6 섹션을 composition-wiring chain 완결 현실로 doc-sync
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-038, REQ-044, REQ-049, REQ-078]
 estimatedDiff: 40
