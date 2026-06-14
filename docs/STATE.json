@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0406",
   "backlogNote": "**T-0405 DONE (P6 ci.yml web build+vitest test step 배선 — pr-mode, PR #326 squash merge 4566f7c).** web/ Vite SPA 의 vitest 스위트(로컬 476 test/23 파일)+빌드를 ci.yml 에 배선해 CI 자동 실행(R-111/R-113)에 편입 — T-0353 reviewer MINOR(web vitest CI 미실행 gap) 해소. T-0355(scaffold slice 3)의 CI-wiring AC 만 분리한 focused slice(driver 가 T-0355 staleness 확인 후 split — check-spec-presence.sh 의 .test.ts 처리는 T-0380 에서 이미 반영). reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → merge. CI run 27501403767 first-pass green(신규 Web 빌드·Web 단위 test 2 step 실 success — vitest 가 CI 에서 실제 실행). credential 게이트(workflow scope)는 사용자 gh auth refresh -s workflow 재인증으로 해소. tasksCompleted 396→397. **이제 T-0355 잔여(smoke web-static spec / web.module.ts coverage 포함 / check-spec-presence.test.sh web self-test / directory.md 동기)는 credential 게이트 해소로 dependency-free** — workflow scope 불요(ci.yml 미변경)라 다음 /loop 또는 cron 에서 재개 가능(단 smoke spec 의 NestFactory boot + coverage threshold 상호작용은 신중). 그 외 잔여 stream 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-15-bab83b5",
-    "since": "2026-06-14T14:05:07Z",
-    "note": "cron@cloud-aa-local-15-bab83b5 fire(매시 :15 trigger — 정각·:30/:40 충돌 회피) = NO-OP wind-down heartbeat 재확인 후 free release. fresh cloud checkout(HEAD 9639dd0→ff-only sync origin/main bab83b5) 진입 → 권위 lock branch tip free(50a4e01 holder=null, aa-local-scheduled 13:39Z release)+claims.json 미존재 확인 → force-with-lease CAS 획득(50a4e01→fdcdc54). flags.fineGrainedConcurrency=true·maxConcurrentClaims=2 이나 활성 claim 0(cap 미달)+claimable 후보 0(claims.json 미존재) → claim-pickup 무대상. currentTask·nextTask 둘 다 null → read-only 재검증 = WIND-DOWN 재확인: open PR 0(gh pr list=[]), 미해결 humanQuestion 0, non-DONE task = T-0001/T-0154(SUPERSEDED 정상)·T-0355(PENDING onHold credential-workflow-scope)·T-0405(BLOCKED credential-workflow-scope) 뿐(둘 다 .github/workflows/ci.yml pr-mode — 본 토큰 workflow scope 부재라 resume 불가), dependency-free·non-gated 신규 task 0, CI main green(bab83b5 run success, 미확인 run 0). 잔여 stream 전부 게이트(live-LLM Q-0022 만료 6/30 / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / T-0355·T-0405 credential-workflow-scope / Q-0026 timezone). T-0355/T-0405 해소 = 사용자 `gh auth refresh -s workflow` 후 workflow-scoped env(로컬 /loop) resume. make-work 회피 위해 task 미생성·nextTask=null 유지. tasksCompleted 불변(396). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
+    "since": "2026-06-14T14:33:00Z",
+    "note": "/loop vb707106 re-entry(dynamic, turn cap 10, fresh conversation) turn 1: 권위 lock branch tip free(4c28dc4 holder=null, 직전 vb707106 session 14:26Z tombstone release) 확인 → force-with-lease CAS 획득(4c28dc4→0194a1c). claims.json 미존재(활성 claim 0). currentTask·nextTask 둘 다 null → planner dispatch: T-0355 onHold 해소(e071ee7)·잔여 dependency-free 확인 후 다음 focused slice T-0406(pr, web-static serve-static 통합 smoke spec — NestFactory 실부팅+dist guard+negative GET /api/* 404, R-113/T-0354 M1 회귀가드) 큐잉(nextTask=T-0406). doc-only direct commit 후 lock tombstone release. 다음 turn 에서 T-0406 claim+execute. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T14:16:00Z",
+  "lastActivity": "2026-06-14T14:33:00Z",
   "lastCommit": "4566f7c",
   "mostRecentTasks": [
     "T-0405",
