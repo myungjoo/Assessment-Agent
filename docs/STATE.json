@@ -8,21 +8,21 @@
   },
   "currentTask": null,
   "nextTask": null,
-  "backlogNote": "**T-0402 DONE (머지 완료된 P6 presentational task 5건 frontmatter stale status doc-sync — T-0370/T-0371/T-0372/T-0374/T-0375 의 `status: PENDING`→`DONE` + `## 완료 기록` 추가, direct doc-only)**. wind-down 직후 cron fire 가 발견한 진짜 stale-doc 잔무: 이 5건은 전부 squash merge(7db0039/d104d45/3465e09/a16f5c6/d24c54c)됐으나 머지 closeout 이 STATE noteT* 만 갱신하고 개별 task 파일 frontmatter 를 PENDING 으로 잔류시켰다 — `git log`·task status 로 진행 재구성 시 사실과 다른 상태 노출. tasksCompleted 불변(396 — 이미 머지 반영된 task 의 bookkeeping 정정). **여전히 dependency-free 신규 backlog 없음 → WIND-DOWN 유지: nextTask=null**. 잔여 stream 전부 게이트(make-work 아님): live-LLM credential(Q-0022, 만료 6/30) / P7 scheduler(@nestjs/schedule 새 dep, §5) / ADR-0036 stage5c(측정 게이트) / backend-contract defer / overwrite re-eval(Q-0032 DEFERRED) / T-0355 web vitest CI(onHold credential-workflow-scope) / Q-0026 timezone. **T-0402 Follow-up: 다른 stale-status 후보(T-0037/T-0244/T-0253~T-0257/T-0284/T-0355) frontmatter 정합 별도 sweep 필요 — 머지/supersede/abandon/onHold 판정 불명확이라 본 fire 에서 미처리.** 게이트 해소(credential·P7 승인·dogfood 관측) 시 재개. cron 은 자체 cadence 유지.",
+  "backlogNote": "**T-0403 DONE (머지된 collection slice 5건 frontmatter 중복 stale status 정합 — T-0253~T-0257 의 line5 stale `status: PENDING` 제거→단일 `status: DONE`, direct doc-only)**. T-0402 가 남긴 stale-status 후보 9건을 planner 가 조사: 명확히 stale 한 8건 중 가장 응집도 높은 collection slice 5건(전부 머지 PR-217/218/219/220 + direct f766837, 그러나 큐잉 시점 PENDING 과 완료 DONE 이 frontmatter 에 중복)을 이번 fire 정합. tasksCompleted 불변(396 — 이미 머지 반영된 task 의 bookkeeping 정정, T-0402 선례). **여전히 dependency-free 신규 backlog 없음 → WIND-DOWN 유지: nextTask=null**. 잔여 stream 전부 게이트(make-work 아님): live-LLM credential(Q-0022, 만료 6/30) / P7 scheduler(@nestjs/schedule 새 dep, §5) / ADR-0036 stage5c(측정 게이트) / backend-contract defer / overwrite re-eval(Q-0032 DEFERRED) / T-0355 web vitest CI(onHold credential-workflow-scope) / Q-0026 timezone. **T-0403 Follow-up(다음 planner fire): 잔여 stale-status 3건(T-0037 PR-36 머지·PENDING / T-0244 산출물 안착·PENDING / T-0284 PR-237 머지·IN_PROGRESS) 단일-라인 status 교체 묶음 sweep. T-0355 는 onHold 의도적 보류라 stale 아님(미접촉).** 게이트 해소(credential·P7 승인·dogfood 관측) 시 재개. cron 은 매시 15분 cadence 유지(정각 충돌 회피).",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-sched-f14b9c0539",
-    "since": "2026-06-14T04:41:00Z",
-    "note": "cron@cloud-aa-local-sched-f14b9c0539 fire = T-0402 doc-sync 후 free release. fresh cloud checkout(HEAD f14b9c7=origin/main) 진입 → free lock(7fe1c99 tip tombstone)+claims=[] CAS 획득(7fe1c99→5d781ff). wind-down 직후이나 HIGH make-work-bar sweep 에서 진짜 stale-doc 발견: P6 presentational 5건(T-0370/0371/0372/0374/0375)이 머지됐는데 frontmatter status=PENDING 잔류 → T-0402 direct doc-only 로 DONE 정정 + 완료기록 추가. 신규 dependency-free backlog 는 여전히 없음(WIND-DOWN 유지). tasksCompleted 불변(396). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-local-15-599e2df5f3e",
+    "since": "2026-06-14T05:04:12Z",
+    "note": "cron@cloud-aa-local-15-599e2df5f3e fire(매시 15분 trigger — 정각 충돌 회피) = T-0403 doc-sync 후 free release. fresh cloud checkout(HEAD f14b9c7→sync origin/main 599e2df) 진입 → free lock(6f90140 tip tombstone)+claims=[] CAS 획득(6f90140→d9dac1d). currentTask·nextTask 둘 다 null → planner dispatch → T-0402 가 남긴 Follow-up(stale-status 후보 9건) 조사 → 명확히 stale 한 collection slice 5건(T-0253~T-0257: frontmatter line5 stale `status: PENDING` + line11 `status: DONE` 중복) 정합 task T-0403 생성 → 같은 fire 에서 executor 로 실행(T-0402 cron 선례: 발견+수정 same-fire). tasksCompleted 불변(396 — 이미 머지된 task 의 bookkeeping 정정). 신규 dependency-free backlog 없음 → WIND-DOWN 유지(nextTask=null). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T04:42:00Z",
-  "lastCommit": "eae6900",
+  "lastActivity": "2026-06-14T05:06:00Z",
+  "lastCommit": "154b78f",
   "mostRecentTasks": [
+    "T-0403",
     "T-0402",
     "T-0401",
     "T-0400",
-    "T-0399",
-    "T-0398"
+    "T-0399"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -38,6 +38,7 @@
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27486183744",
+    "noteT0403": "T-0403(collection slice 5건 frontmatter 중복 stale status 정합, direct doc-only) main push 154b78f(content) + closeout. doc-only(docs/tasks/T-0253~T-0257 각 -1 line + T-0403 신설)이라 trivially green 예상. push 후 gh run 으로 conclusion 확인 — in_progress 면 다음 fire 재확인.",
     "noteT0401": "T-0401(requirements.md P6 frontend REQ 상태 doc-sync, direct doc-only) main push eae6900 CI run 03:17:59Z = completed/success 확인. doc-only 단일파일(docs/requirements.md +7/-7)이라 trivially green. closeout 4a12487(T-0400 closeout) 도 completed/success. /loop wind-down 시점 미확인 main run 0.",
     "noteT0400": "T-0400(architecture INDEX.md ADR 매핑 표 doc-sync, direct doc-only) main push a2744dd CI run 03:02:29Z = completed/success 확인(t2 재확인 완료). doc-only 단일파일(docs/architecture/INDEX.md +2/-1)이라 trivially green. 직전 main run b79e8f5·e7de0f6 전부 success.",
     "noteT0399": "T-0399(deployment.md web/ SPA serve-static 책임 doc-sync, direct doc-only) main push e7de0f6 CI run 27486183744 = completed/success(본 fire 확인). doc-only 단일파일(docs/architecture/deployment.md +7/-2)이라 trivially green. 직전 main run 4efadb3(T-0398 closeout)·e67b9ec(T-0398 doc) 전부 completed/success 확인.",
