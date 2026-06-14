@@ -11,11 +11,11 @@
   "backlogNote": "**T-0409 DONE (P6 T-0355 잔여(b) — check-spec-presence web .d.ts 위양성 수정 + self-test, pr-mode, PR #330 squash merge 57ecda8) → T-0355 종결.** check-spec-presence.sh 에 `*.d.ts) continue ;;` 제외 1줄(gate narrowing) + self-test 4 web 케이스. reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → merge. CI run 27504589537 first-pass green. tasksCompleted 400→401(T-0409 만; T-0355 closure 는 administrative — 슬라이스 T-0405/06/08/09·T-0397 이미 카운트). **T-0355(P6 scaffold parent) 완료: ci-wiring=T-0405·smoke=T-0406·coverage=T-0408·self-test=T-0409·directory=T-0397 전부 머지.** **현재 non-DONE task 0 — WIND-DOWN.** 잔여 stream 전부 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5(BLOCKED — 승인 필요) / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone. dependency-free non-gated 신규 task 0 → make-work 회피, cron 이 게이트 해소 시 재개.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-93741",
-    "since": "2026-06-14T19:37:38Z",
-    "note": "cron fire NO-OP (8차 연속): WIND-DOWN 재확인(권위 lock CAS 2ddd182→713b3c8 획득[claims.json [] 보존], planner dispatch→NO_TASK, tombstone release). 전 task DONE/SUPERSEDED·claims=[]·활성 claim 0(maxConcurrentClaims=2)·open PR 0·HQ 미해결 0·blockers 0·concurrencyIncidents 0·CI main green. 6 잔여 stream 전부 게이트 그대로(live-LLM Q-0022 6/30 / P7 @nestjs/schedule 새 dep §5 BLOCKED / ADR-0036 5c 측정데이터 부재 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone). planner 독립검증: non-DONE task 0(frontmatter 409건 DONE/SUPERSEDED)·open PR 0(gh)·blockers/incidents 0·미해결 actionable HQ 0(Q-0035/Q-0036 은 사람 direction 대기=게이트 자체). 비게이트 dependency-free 유용 task 0 → CLAUDE.md §3 진척용 task 금지 준수 (make-work 회피, STATE counters 401 유지). STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-local15-62325",
+    "since": "2026-06-14T20:05:00Z",
+    "note": "cron fire NO-OP (9차 연속): WIND-DOWN 재확인(권위 lock CAS c418cf0→972c30a 획득[claims.json [] 보존], planner dispatch→NO_TASK, tombstone release). 전 task DONE/SUPERSEDED(non-terminal 0)·claims=[]·활성 claim 0(maxConcurrentClaims=2)·open PR 0·HQ 미해결·actionable 0·blockers 0·concurrencyIncidents 0·CI main green. 6 잔여 stream 전부 게이트 그대로(live-LLM Q-0022 6/30 / P7 @nestjs/schedule 새 dep §5 BLOCKED / ADR-0036 5c 측정데이터 부재 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone). planner 독립검증: grep -rL + per-file status scan 409건 전부 DONE/SUPERSEDED·open PR 0(gh)·blockers/incidents 0·Q-0034 옵션1=ADR-0038 chain 이미 shipped(flip 시 기능변화 0 stale artifact). 비게이트 dependency-free 유용 task 0 → CLAUDE.md §3 진척용 task 금지 준수 (make-work 회피, STATE counters 401 유지). STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T19:37:38Z",
+  "lastActivity": "2026-06-14T20:05:00Z",
   "lastCommit": "57ecda8",
   "mostRecentTasks": [
     "T-0409",
