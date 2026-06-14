@@ -18,7 +18,7 @@
 | REQ | README 행 | 요약 | kind | 구현 위치 (phase/task) | 검증 위치 | 상태 |
 | --- | --- | --- | --- | --- | --- | --- |
 | REQ-001 | 1 | 본 문서는 Use Case 문서의 기본 | Constraint | P2 | policy | PLANNED |
-| REQ-002 | 6 | Web Interface 를 제공하는 Agent System | FR | P6 / P3 | smoke + e2e | PLANNED |
+| REQ-002 | 6 | Web Interface 를 제공하는 Agent System | FR | P6 / P3 | smoke + e2e | IN_PROGRESS |
 | REQ-003 | 7 | 개발자 기여 양·질 평가 / 저장 / 표시 | FR | P3 + P5 + P6 | unit + smoke | PLANNED |
 | REQ-004 | 9 | 수치 지표 + LLM 평가 코멘트 (사용자 지정 기간) | FR | P5 | unit + e2e | PLANNED |
 | REQ-005 | 16 | github.com 평가 | FR | P4 | unit (provider) + e2e | PLANNED |
@@ -54,18 +54,18 @@
 | REQ-035 | 62 | 주간/월간 요약 평가문 (다음주/다음달 시작 시) | FR | P5 | unit | PLANNED |
 | REQ-036 | 63 | 상대 비교 가능 + LLM 정성 + Metric 수치 | FR | P3 + P5 | unit | PLANNED |
 | REQ-037 | 64 | 평가 없는 부분 일괄 평가 + Reset & Reeval | FR | P5 | e2e | PLANNED |
-| REQ-038 | 68-71 | UI 조회 / sort / filter / 시계열 | FR | P6 | smoke + e2e | PLANNED |
+| REQ-038 | 68-71 | UI 조회 / sort / filter / 시계열 | FR | P6 | smoke + e2e | DONE |
 | REQ-039 | 72 | Admin cron 주기 지정 | FR | P7 | unit + e2e | PLANNED |
 | REQ-040 | 73 | Admin manual trigger | FR | P7 | e2e | PLANNED |
 | REQ-041 | 74 | Admin 최근 N일 결과 manual delete → 재수집 | FR | P7 | unit + e2e | PLANNED |
-| REQ-042 | 78 | 평가 진행 중 시각화 보호 (기존 자료 + 경고 배너) | FR | P6 | smoke + e2e | PLANNED |
+| REQ-042 | 78 | 평가 진행 중 시각화 보호 (기존 자료 + 경고 배너) | FR | P6 | smoke + e2e | DONE (배선 완료, 자동 polling defer) |
 | REQ-043 | 83 | 모든 기능 ID/Password 보호 | NFR | P3 + P6 | e2e | PLANNED |
-| REQ-044 | 84 | 첫 로그인 SuperAdmin / 3 등급 / 승급 / SuperAdmin 만 Admin→User | FR | P3 + P6 | unit + e2e | PLANNED |
-| REQ-045 | 85 | Admin 권한 (재작성/Reset/Import/Export/인원편집/Group편집) | FR | P6 | e2e | PLANNED |
-| REQ-046 | 86 | User read-only (조회/sort/filter) | FR | P6 | e2e | PLANNED |
+| REQ-044 | 84 | 첫 로그인 SuperAdmin / 3 등급 / 승급 / SuperAdmin 만 Admin→User | FR | P3 + P6 | unit + e2e | DONE |
+| REQ-045 | 85 | Admin 권한 (재작성/Reset/Import/Export/인원편집/Group편집) | FR | P6 | e2e | IN_PROGRESS |
+| REQ-046 | 86 | User read-only (조회/sort/filter) | FR | P6 | e2e | DONE |
 | REQ-047 | 91 | 100~200명 / 50~100 repo / ~1000 confluence / 1h 이내 | NFR | P7 | manual + perf test | PLANNED |
 | REQ-048 | 92 | 조회·시각화 3초 이내 | NFR | P6 + P7 | perf test | PLANNED |
-| REQ-049 | 96 | Admin 이 LLM 모델 지정 | FR | P4 + P6 | e2e | PLANNED |
+| REQ-049 | 96 | Admin 이 LLM 모델 지정 | FR | P4 + P6 | e2e | DONE |
 | REQ-050 | 97 | 3가지 난이도 모델 + 어떤 항목이 어떤 난이도인지 결정 | Constraint | P4 (ADR 필수) | policy + unit | PLANNED |
 | REQ-051 | 99 | custom LLM (OpenAI 호환, 내부 서버, proxy, 3 model 슬롯) | FR | P4 | unit | PLANNED |
 | REQ-052 | 100 | Azure OpenAI provider | FR | P4 | unit | PLANNED |
