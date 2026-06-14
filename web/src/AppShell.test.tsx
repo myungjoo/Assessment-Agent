@@ -16,6 +16,9 @@ import AppShell from './AppShell';
 // R-78 평가 진행 중 경고 배너의 식별 토큰 (EvaluationGuardBanner DEFAULT_MESSAGE 와 정합).
 const BANNER_TOKEN = '평가가 진행 중';
 
+// SuperAdminSetupForm 의 셋업 제목 식별 토큰 (SuperAdminSetupForm <h2> 와 정합).
+const SETUP_TITLE = 'SuperAdmin 초기 셋업';
+
 describe('AppShell', () => {
   // happy-path — 레이아웃 골격 (전역 제목 식별 토큰) 을 포함하고 빈 출력이 아니다.
   it('레이아웃 골격과 전역 제목 식별 토큰을 렌더한다 (happy-path)', () => {
@@ -53,5 +56,46 @@ describe('AppShell', () => {
     const html = renderToStaticMarkup(<AppShell />);
     expect(html).not.toContain(BANNER_TOKEN);
     expect(html).not.toContain('role="alert"');
+  });
+
+  // wiring ⑥ flow/branch — initialView='superadmin-setup' 주입 시 setup 분기에서
+  // SuperAdminSetupForm(셋업 제목 + 셋업 입력/버튼)이 배선되어 렌더된다.
+  it("initialView='superadmin-setup' 주입 시 SuperAdminSetupForm 을 본문에 배선해 렌더한다 (flow/branch — setup 분기)", () => {
+    const html = renderToStaticMarkup(<AppShell initialView="superadmin-setup" />);
+    expect(html).toContain(SETUP_TITLE);
+    expect(html).toContain('name="username"');
+    expect(html).toContain('type="password"');
+    expect(html).toContain('SuperAdmin 지정');
+  });
+
+  // wiring ⑥ negative — setup 모드와 login 모드 동시 렌더 금지. setup 화면에는
+  // LoginForm 의 로그인 버튼·setup 진입 트리거가 없어야 한다(상호배타).
+  it('setup 모드에서 LoginForm(로그인 버튼)·setup 진입 트리거를 동시 렌더하지 않는다 (negative — setup↔login 상호배타)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="superadmin-setup" />);
+    expect(html).toContain(SETUP_TITLE);
+    // 로그인 분기(AuthGate→LoginForm)의 식별 토큰 부재 — LoginForm 미렌더.
+    expect(html).not.toContain('로그인');
+    // setup 진입 트리거(초기 셋업 버튼)도 setup 모드에서는 노출 안 함(중복 진입 방지).
+    expect(html).not.toContain('enter-setup');
+  });
+
+  // wiring ⑥ negative — login 모드에서는 셋업 폼 제목이 부재하고, 대신 setup 진입
+  // 트리거가 노출된다(상호배타의 반대 방향).
+  it('login 모드에서 셋업 폼 제목은 부재하고 setup 진입 트리거만 노출한다 (negative — login↔setup 상호배타)', () => {
+    const html = renderToStaticMarkup(<AppShell />);
+    expect(html).not.toContain(SETUP_TITLE);
+    // 미인증 로그인 화면에는 setup 진입 트리거가 노출된다.
+    expect(html).toContain('enter-setup');
+    expect(html).toContain('초기 셋업');
+  });
+
+  // wiring ⑥ negative — setup error 가 주입되면 SuperAdminSetupForm 의 error props
+  // 로 안전 표시된다(role="alert", throw 없음).
+  it('initialSetupError 주입 시 setup 폼이 alert 영역으로 안전 표시한다 (negative — setup error 안전 표시)', () => {
+    const html = renderToStaticMarkup(
+      <AppShell initialView="superadmin-setup" initialSetupError="셋업 실패" />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('셋업 실패');
   });
 });

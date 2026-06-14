@@ -18,6 +18,7 @@ import { ApiError, request } from './apiClient';
 
 const LOGIN_PATH = '/api/auth/login';
 const REFRESH_PATH = '/api/auth/refresh';
+const SIGNUP_PATH = '/api/users';
 
 // AuthGate.onLogin prop signature 와 정합 — username/password 를 받아 성공 여부를
 // boolean 으로 반환한다. 본 helper 가 ApiError(401) 를 false 로 흡수한다.
@@ -56,4 +57,44 @@ async function refresh(): Promise<boolean> {
   }
 }
 
-export { login, refresh };
+// SuperAdmin 초기 셋업 / 신규 user 가입 helper — P6 composition wiring ⑥
+// (T-0394, ADR-0041 Decision 1 / ADR-0040 §2). `POST /api/users`(architecture/api.md
+// 72) 를 호출한다. backend 는 첫 user(`countAll === 0`)를 자동으로 role="SuperAdmin"
+// 으로, 그 외에는 role="User" 로 생성하고 201 응답 body `{ id, email, role, ... }` 를
+// 준다. 본 helper 는 응답 body 의 `role` 문자열을 반환해 호출측이 첫-user 여부를
+// `role === 'SuperAdmin'` 로 판정할 수 있게 한다.
+//
+// 정책:
+//  - 성공(2xx): 응답 body 의 `role` 이 문자열이면 그 값을, 누락/비문자열이면 null 을
+//    반환한다(throw 없이 안전 분기 — 호출측이 단순 null 체크로 처리).
+//  - 409(email 중복) / 400(`AddUserDto` 위반 — `@IsEmail`/`@MinLength(8)` 등):
+//    null 반환. 중복/검증 실패를 enumeration-safe 한 단일 null 분기로 흡수한다.
+//  - 그 외 에러(네트워크/5xx): ApiError 를 그대로 throw 해 호출측 catch 가 '셋업 중
+//    오류' 등으로 표면화하도록 전파한다(흡수 안 함).
+async function signup(
+  username: string,
+  password: string,
+): Promise<string | null> {
+  try {
+    // login 과 동일하게 username→email 매핑. backend AddUserDto 는 email 을 기대한다.
+    const body = await request<{ role?: unknown }>(SIGNUP_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: username, password }),
+    });
+    // 응답 body 의 role 이 문자열일 때만 반환 — 누락/비문자열은 안전하게 null.
+    if (body && typeof body.role === 'string') {
+      return body.role;
+    }
+    return null;
+  } catch (e) {
+    // 409(중복) / 400(검증 실패) 는 null 로 흡수 — 호출측이 단일 분기로 처리한다.
+    if (e instanceof ApiError && (e.status === 409 || e.status === 400)) {
+      return null;
+    }
+    // 그 외(네트워크/5xx)는 전파 — 호출측 catch 가 표면 에러로 외화한다.
+    throw e;
+  }
+}
+
+export { login, refresh, signup };
