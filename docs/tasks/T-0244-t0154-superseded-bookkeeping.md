@@ -2,7 +2,7 @@
 id: T-0244
 title: T-0154 task 파일 status SUPERSEDED 처리 (ADR-0028/T-0242/T-0243 로 대체)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: []
 estimatedDiff: 12
@@ -45,3 +45,7 @@ T-0154 (cron@web 자율성 확보를 위한 claude/* 브랜치 기반 driver loc
 ## Follow-ups
 
 - (운영, 현재 미actionable) ADR-0028 의 첫 cron@cloud 자율 lock 획득 검증 — claude/lock-driver 브랜치 lock 을 cron@cloud 가 PAT/UI 토글 없이 자율 획득해 STAND DOWN 재발 없이 task 를 픽업하는지 관찰. **실 cron@cloud fire 가 발생한 뒤에야 actionable** 하므로 지금 task 로 큐잉하면 block 됨 — fire 발생 후 planner 가 OBSERVATION task 로 큐잉. (lock 프로토콜 cutover 효력 = 다음 fresh session/fire — session #60 이후 첫 cron@cloud fire 가 검증 시점.)
+
+## 완료 기록
+
+- **DONE (doc-sync 정합, T-0404)** — 본 task 산출물(T-0154 frontmatter `status: SUPERSEDED` 처리)은 `3be8260 docs(driver): /loop #61 t1 — T-0154 SUPERSEDED bookkeeping (T-0244)` 로 main 안착했고 T-0154 frontmatter = `SUPERSEDED` 확인됨. 자기 frontmatter `status:` 만 `PENDING` 으로 누락 잔류했던 것을 T-0404 direct doc-only fire 가 `DONE` 으로 정합.

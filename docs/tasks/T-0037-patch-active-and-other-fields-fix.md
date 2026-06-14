@@ -2,7 +2,7 @@
 id: T-0037
 title: P3 patch — PATCH /api/persons/:id 의 active+other 동시 처리 semantics fix (T-0036 MAJOR-2)
 phase: P3
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-026, REQ-027]
 estimatedDiff: 140
@@ -184,3 +184,7 @@ cap 검산: 실측 production LOC > 300 또는 production 파일 > 5 면 archite
 - **T-0036.6 후보 — global ValidationPipe wire + validation e2e** — `src/main.ts` 의 `app.useGlobalPipes` + `test/e2e/person-validation.e2e-spec.ts` (supertest negative 5 종 + global pipe 가 다른 controller cover sanity-check). 2 파일 / ~60 LOC. T-0036 Follow-ups 의 T-0036.5 원안 1 절반 (다른 절반 = 본 task).
 - **dedicated `POST /:id/deactivate` / `/reactivate` endpoint 신설 검토** — api.md 박제 외이나 Admin UI 의 button click 직관성 측면에서 별도 endpoint 가 자연스러울 수 있음. 별도 ADR (REST resource action endpoint 정책) + task 후보.
 - **Group + Part entity task** — p3-implementation-plan.md §2 의 원안 T-0035 (현 T-0037 진입으로 인해 T-0038 로 shift). REQ-028 Group 정책 + Person↔Group N:M + Person↔Part N:1 mandatory invariant.
+
+## 완료 기록
+
+- **DONE (doc-sync 정합, T-0404)** — 본 patch 는 PR #36(`f63f94e fix(user): PATCH active+other 동시 처리 active forward (T-0037)`)으로 round 1 single-shot 머지됐고 driver journal 에 DONE 박제(`87c1bd6`)됐으나 task 파일 frontmatter `status:` 가 `PENDING` 으로 잔류했었다. T-0403 Follow-up 이 지목한 single-status stale 3건 중 하나로, T-0404 direct doc-only fire 가 `PENDING` → `DONE` 정합. tasksCompleted 불변(이미 머지 반영된 task 의 bookkeeping 정정).

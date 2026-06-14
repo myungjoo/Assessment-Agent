@@ -2,7 +2,7 @@
 id: T-0284
 title: CI reviewer-approval 게이트 doc-only PR 면제
 phase: P4
-status: IN_PROGRESS
+status: DONE
 commitMode: pr
 coversReq: []
 origin: user-directed (loop@cloud-82SQk session, PR #237 CI-fail 대응 AskUserQuestion option 3)
@@ -41,3 +41,7 @@ created: 2026-06-08
 
 - (선택) 본 면제를 ADR 로 박제 — §3.3 게이트 예외를 historical record 화.
 - (선택) STATE bookkeeping(counters.tasksCompleted++, mostRecentTasks)은 PR merge 후 driver turn 에서 정합.
+
+## 완료 기록
+
+- **DONE (doc-sync 정합, T-0404)** — 본 task 의 CI 변경(doc-only PR 를 reviewer-approval 게이트에서 면제, `47910c3 ci(approval-gate)`)은 PR #237(`0d44570 Merge PR #237: doc-only approval-gate 면제(T-0284)`)로 머지됐으나 frontmatter `status:` 가 `IN_PROGRESS` 로 잔류했었다. T-0404 direct doc-only fire 가 `IN_PROGRESS` → `DONE` 정합.
