@@ -11,12 +11,12 @@
   "backlogNote": "**T-0404 DONE (single-status stale 3건 frontmatter status 정합 — T-0037/T-0244/T-0284, direct doc-only main e3f956f)**. T-0403 Follow-up 이 지목한 잔여 single-status stale 3건을 한 fire 로 묶어 정합: T-0037(PR-36 f63f94e 머지+driver DONE 87c1bd6, PENDING→DONE) / T-0244(3be8260 가 T-0154 SUPERSEDED bookkeeping 실행, PENDING→DONE) / T-0284(PR-237 0d44570 머지, IN_PROGRESS→DONE). 각 파일 완료기록 1줄 + T-0404 task 신설. tasksCompleted 불변(396 — 이미 머지 반영된 bookkeeping 정정, T-0402/T-0403 선례). **이로써 T-0402 Follow-up 의 stale-status 후보 9건 전부 판정 완료: collection slice 5건(T-0403)+single-status 3건(T-0404)+T-0355(의도적 onHold 보류, 유지).** **여전히 dependency-free 신규 backlog 없음 → WIND-DOWN 유지: nextTask=null**. 잔여 stream 전부 게이트(make-work 아님): live-LLM credential(Q-0022, 만료 6/30) / P7 scheduler(@nestjs/schedule 새 dep, §5) / ADR-0036 stage5c(측정 게이트) / backend-contract defer / overwrite re-eval(Q-0032 DEFERRED) / T-0355 web vitest CI(onHold credential-workflow-scope) / Q-0026 timezone. 게이트 해소(credential·P7 승인·dogfood 관측) 시 재개. cron 은 매시 15분 cadence 유지(정각 충돌 회피).",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-15-b62974c",
-    "since": "2026-06-14T05:37:05Z",
-    "note": "cron@cloud-aa-local-15-b62974c fire(매시 15분 trigger — 정각 충돌 회피) = T-0404 doc-sync 후 free release. fresh cloud checkout(HEAD 599e2df→sync origin/main b62974c) 진입 → free lock(6a077b8 tip tombstone)+claims=[] CAS 획득(6a077b8→c660897). currentTask·nextTask 둘 다 null → T-0403 Follow-up 의 single-status stale 3건(T-0037/T-0244/T-0284) read-only 조사 후 머지/실행 사실 git log 교차검증 → T-0404 task 생성 + 같은 fire executor 로 frontmatter status 정합(direct doc-only content e3f956f). tasksCompleted 불변(396 — 이미 머지된 task 의 bookkeeping 정정). 신규 dependency-free backlog 없음 → WIND-DOWN 유지(nextTask=null). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-local-15-b223714",
+    "since": "2026-06-14T06:07:26Z",
+    "note": "cron@cloud-aa-local-15-b223714 fire(매시 15분 trigger — 정각 충돌 회피) = NO-OP wind-down 확인 후 free release. fresh cloud checkout(HEAD b62974c→sync origin/main b223714) 진입 → free lock(19eb8af tip tombstone)+claims=[] CAS 획득(19eb8af→992c8d5). currentTask·nextTask 둘 다 null → planner read-only 재검증 dispatch → WIND-DOWN 재확인(dependency-free·non-gated 신규 task 0, stale-doc 0, CI main 전부 green). T-0402 Follow-up stale-status 후보 9건 전부 판정 완료(T-0403+T-0404). make-work 회피 위해 task 미생성·nextTask=null 유지. tasksCompleted 불변(396). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T05:42:00Z",
-  "lastCommit": "e3f956f",
+  "lastActivity": "2026-06-14T06:08:00Z",
+  "lastCommit": "b223714",
   "mostRecentTasks": [
     "T-0404",
     "T-0403",
