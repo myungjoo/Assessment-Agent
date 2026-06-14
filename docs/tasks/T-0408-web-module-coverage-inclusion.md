@@ -2,8 +2,11 @@
 id: T-0408
 title: T-0355 잔여(m2) — src/web/web.module.ts 를 coverage 측정에 포함 (다른 *.module.ts 는 ignore 유지)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 329
+completedAt: 2026-06-14T15:54:00Z
+completedCommit: a2a4970
 coversReq: [REQ-038, REQ-048]
 estimatedDiff: 40
 estimatedFiles: 2

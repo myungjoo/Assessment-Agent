@@ -7,30 +7,31 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0408",
-  "backlogNote": "**T-0407 DONE (P5 robustness — reeval 동시 delete 경합 P2025→409 변환, pr-mode, PR #328 squash merge 192346a).** evaluation-result-persist.service.ts 의 reeval delete 호출만 try/catch 로 감싸 Prisma P2025(record 부재, 경합 loser)를 ConflictException(409) 로 국소 변환(+24/-3, ADR-0038 §Decision5 수렴) — create-side·일반 P2025 는 propagate 유지. 기존 P2025-propagate spec 재범위(P2003+create-side) + regression test. reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → merge. CI run 27503394566 first-pass green(**e2e period-bridge-reevaluate 포함 — 직전 turn flaky 500 누수 안정화 실증**), approval first-pass(rerun 불요). tasksCompleted 398→399. **T-0355 잔여 남은 2건: (a) web.module.ts coverage 포함, (b) check-spec-presence.test.sh web self-test** = 다음 planner slice 후보(dependency-free, ci.yml 미변경이라 workflow scope 불요). 그 외 잔여 stream 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone.",
+  "nextTask": null,
+  "backlogNote": "**T-0408 DONE (P6 T-0355 잔여(a) — web.module.ts 를 jest coverage enforcement 에 포함, pr-mode, PR #329 squash merge a2a4970).** package.json coveragePathIgnorePatterns 의 \".module.ts$\" 를 음수 lookbehind 로 교체 → src/web/web.module.ts 만 coverage 측정 포함(다른 10개 *.module.ts ignore 유지, +1/-1). 기존 web.module.spec 이 100% cover 라 spec 변경 불요. reviewer APPROVE r1/7 NIT 1(regex 가독성 — JSON 주석 불가로 비차단·follow-up 불요) → 4-게이트 PASS → merge. CI run 27503936447 실 step 전부 green(web.module.ts 100%/global 99.96% threshold 통과), approval-gate benign case A(rerun 후 green). tasksCompleted 399→400. **T-0355 잔여 남은 1건: (b) check-spec-presence.test.sh web self-test = Follow-up(main script .tsx/*.d.ts 확장 risk — planner deferred, 우선순위 낮음)**. (smoke=T-0406·coverage=T-0408 완료, directory.md=T-0397). 그 외 잔여 stream 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone. **다음 turn: dependency-free non-gated 신규 task 후보 점검 — 없으면 WIND-DOWN 고려**.",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-14T15:34:30Z",
-    "note": "/loop vb707106 turn 5: currentTask·nextTask null → planner dispatch. 권위 lock CAS(1183834→b7a3b33). planner 가 T-0355 잔여(a) 큐잉: T-0408(pr, package.json coveragePathIgnorePatterns 조정으로 src/web/web.module.ts coverage 포함 — spec 은 이미 R-112 cover, 패턴 제외만 잔존). 잔여(b) self-test 는 Follow-up. nextTask=T-0408. doc-only direct commit 후 lock tombstone release. 다음 turn execute. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "since": "2026-06-14T15:54:00Z",
+    "note": "/loop vb707106 turn 6 closeout: T-0408 claim(claim-pickup, prNumber=329)→execute→PR #329 squash merge a2a4970→bookkeeping. 권위 lock CAS 7f46aff→0c4604d(closeout critical section), 본 commit 후 claims clear([]) + tombstone release. counters 399→400. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T15:34:30Z",
-  "lastCommit": "192346a",
+  "lastActivity": "2026-06-14T15:54:00Z",
+  "lastCommit": "a2a4970",
   "mostRecentTasks": [
+    "T-0408",
     "T-0407",
     "T-0406",
     "T-0405",
-    "T-0404",
-    "T-0403"
+    "T-0404"
   ],
-  "loopSession": {"turnCount":4,"cap":10,"holder":"loop@WIN-JQIPLSBL9QV-vb707106","startedAt":"2026-06-14T14:33:00Z","note":"/loop vb707106 (dynamic, turn cap 10). t1: planner→T-0406 큐잉. t2: T-0406(web-static smoke spec) claim→PR #327→merge 15a33b4. t3: planner→T-0407 큐잉(flaky e2e root-cause). t4: T-0407(reeval P2025→409) claim(prNumber=328)→PR #328→reviewer APPROVE r1/7 finding 0→CI first-pass green(e2e 안정화 실증)→squash merge 192346a→closeout. counters 397→399(+2). 동시성 무사고."},
+  "loopSession": {"turnCount":6,"cap":10,"holder":"loop@WIN-JQIPLSBL9QV-vb707106","startedAt":"2026-06-14T14:33:00Z","note":"/loop vb707106 (dynamic, turn cap 10). t1:planner→T-0406. t2:T-0406(web-static smoke spec)→merge 15a33b4. t3:planner→T-0407(flaky e2e root-cause). t4:T-0407(reeval P2025→409)→merge 192346a. t5:planner→T-0408. t6:T-0408(web.module.ts coverage 포함)→PR #329→reviewer APPROVE r1/7 NIT1→CI green(rerun)→squash merge a2a4970→closeout. counters 397→400(+3). 동시성 무사고. T-0355 잔여 (b) self-test 만 Follow-up 으로 남음."},
   "ci": {
-    "lastRun": "2026-06-14T15:29:00Z",
+    "lastRun": "2026-06-14T15:52:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27503394566",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27503936447",
+    "noteT0408": "PR #329(T-0408 web.module.ts coverage 포함) head fa26d23 pull_request run 27503936447 = 실 step 전부 green(lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크/e2e — web.module.ts 100%/global 99.96% threshold 통과) + 'reviewer agent approval 검증' 단독 fail = benignRedNote case A(approve comment #issuecomment-4702257768 가 15:46Z run 후 landing). approve comment post 후 `gh run rerun 27503936447 --failed` → 전 step green. squash a2a4970 --delete-branch. a2a4970 main push run 다음 fire 재확인(package.json 1줄/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0407": "PR #328(T-0407 reeval 동시 delete P2025→409) head 9eae838 pull_request run 27503394566 = first-pass green 전 step(spec-presence/CAS self-test 3종/lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크/**e2e**/reviewer approval 검증 — reviewer approve comment #issuecomment-4702197172 가 approval-gate step 실행 전 landing, rerun 불요). **e2e period-bridge-reevaluate 가 본 PR 에서 green** — 직전 turn 의 flaky 500 누수(P2025 uncaught)가 본 fix 로 안정화됨을 CI 실증. squash 192346a --delete-branch. 192346a main push run 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0406": "PR #327(T-0406 web-static serve-static 통합 smoke spec) head e138945 pull_request run 27502505435 = 실 step 전부 green(spec-presence/CAS self-test 3종/lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크 테스트/e2e) + 'reviewer agent approval 검증' 단독 fail = benignRedNote case A(approve comment #issuecomment-4702109458 가 14:53Z run 후 landing). approve comment post 후 `gh run rerun 27502505435 --failed` → 전 step green(approval 포함). **신규 smoke spec 이 CI 에서 첫 실행 success** — web build(T-0405) 선행으로 web/dist/index.html 존재 → dist-존재 분기 실 검증(no-op 아님, jest-smoke passWithNoTests:false). squash 15a33b4 main push run 다음 fire 재확인(test-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0403": "T-0403(collection slice 5건 frontmatter 중복 stale status 정합, direct doc-only) main push 154b78f(content)+ba7eab5(closeout) CI run 27489152733 = completed/success(본 fire gh run watch 확인). doc-only(docs/tasks/T-0253~T-0257 각 -1 line + T-0403 신설)이라 trivially green. 미확인 main run 0.",
@@ -87,6 +88,7 @@
     "noteT0392": "PR #323(T-0392 P6 wiring④h AdminView Admin+ RBAC gating UI) head 87e881a = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green: pull_request run 27481911120 전 step success(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증) — reviewer approve comment 가 approval 검증 step 실행 전 landing, rerun 불요; mergeStateStatus CLEAN noop, head 가 origin/main 5727d20 포함 rebase noop). GET /api/auth/me useApiResource 4번째 호출 + isAdminRole 순수 helper(Admin/SuperAdmin 정확 매칭, 그 외/누락/loading=false fail-closed) + isAdmin useMemo. isAdmin 시에만 DifficultyModelSelector·scope select·DataImportExportPanel 렌더, 아니면 권한 부족 안내 한 줄(role=status). GroupMemberList·그룹 select 등급 무관 유지(User+ 조회 가능). presentational/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 457 전체(isAdminRole 5종+gating 8종 신규) 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +298/-41(prod +97/-29). squash 9a66bc6 --delete-branch. 9a66bc6 main push run(23:21Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
+    "T-0408": 1,
     "T-0407": 1,
     "T-0406": 1,
     "T-0393": 1,
@@ -741,7 +743,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 399,
+    "tasksCompleted": 400,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
