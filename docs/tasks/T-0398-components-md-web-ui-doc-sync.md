@@ -2,7 +2,7 @@
 id: T-0398
 title: components.md Web UI 컴포넌트 row 를 ADR-0040 React+Vite 확정·shipped 현실로 doc-sync
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-038, REQ-044, REQ-026]
 estimatedDiff: 25
