@@ -2,7 +2,7 @@
 id: T-0400
 title: architecture INDEX.md ADR 매핑 표 doc-sync (ADR-0040 PROPOSED→ACCEPTED + ADR-0041 신규 row)
 phase: P4-complete / P5-in-progress
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-038]
 estimatedDiff: 18
@@ -48,3 +48,7 @@ P6 composition-wiring 스트림(T-0353~T-0394)이 완결되고 ADR-0040(React+Vi
 ## Follow-ups
 
 (없음 — 생성 시점)
+
+## 결과 (DONE 2026-06-14)
+
+direct doc-only, main `a2744dd` (loop@vb707106 t1). INDEX.md ADR 매핑 표 +2/-1: ADR-0040 row `PROPOSED (T-0351)`→`ACCEPTED (T-0377 flip)` + 영향 view 문서에 `modules.md`·`components.md` 추가, ADR-0041 신규 row(composition-wiring, view=modules/components/directory, `ACCEPTED (T-0376/T-0377)`) 를 ADR-0040 바로 아래 삽입. ADR frontmatter 실측으로 양쪽 ACCEPTED 확인. grep `PROPOSED` 가 ADR-0040 row 0 match. (선택) 문서 목록 표는 genuine stale 부재라 미변경(over-edit 회피). tester 면제(§3.2 direct doc-only). CI run a2744dd in_progress(doc-only trivially green 예상, 다음 turn 재확인).

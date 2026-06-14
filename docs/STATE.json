@@ -7,37 +7,37 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0400",
-  "backlogNote": "**T-0399 DONE (deployment.md web/ SPA serve-static 책임 doc-sync, direct doc-only main e7de0f6)** — '### process 1 개의 책임 범위'(P1 T-0016 갱신)에 누락돼 있던 'Web UI 정적 serve' 책임 항목(@nestjs/serve-static src/web WebModule, web/dist/ mount, 비-/api/* SPA fallback, ADR-0040 §3, T-0354 shipped) 추가 + frontend 빌드 분리(web/ vs src/, pnpm build NestJS tsc 불변) 한 줄 + worker 시점 monolith static serve trade-off(frontend 배포가 backend 재시작과 묶임, single-operator 수용, ADR-0040 Consequences) 한 줄 + 상단 References ADR-0040/0041/T-0399 링크. doc-only 단일파일 +7/-2, tester 면제(§3.2). **P6-closure doc-sync 가족 완결**: T-0395(modules.md)·T-0396(PLAN.md)·T-0397(directory.md)·T-0398(components.md)·T-0399(deployment.md) 전부 DONE. **다음 task: T-0400 = architecture INDEX.md ADR 매핑 표 doc-sync(ADR-0040 PROPOSED→ACCEPTED 정정 + ADR-0041 누락 row 추가 — genuine stale, direct doc-only 1파일) — planner 큐잉 완료(nextTask=T-0400)**. 잔여 stream(전부 backend 계약 미shipped=defer): import 결과 상세 / GroupMember add/remove mutation / SchedulePanel(P7) / ReEvaluationTriggerPanel(api.md 94-97 deferred) / R-78 auto-polling(assessments rows status 필드 부재). **[stream]: ①(T-0378)→…→⑥ SuperAdminSetupForm(T-0394) — P6 컴포지션 wiring chain 완결.** **게이트된 backlog**: T-0355 web vitest CI 배선(onHold credential-workflow-scope) / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
+  "nextTask": "T-0401",
+  "backlogNote": "**T-0400 DONE (architecture INDEX.md ADR 매핑 표 doc-sync — ADR-0040 PROPOSED→ACCEPTED 정정 + ADR-0041 row 추가, direct doc-only main a2744dd)**. P6-closure 아키텍처 doc-sync 가족(T-0395 modules.md / T-0396 PLAN.md / T-0397 directory.md / T-0398 components.md / T-0399 deployment.md / T-0400 INDEX.md) 전부 DONE. **다음 task: T-0401 = requirements.md P6 frontend REQ 상태 컬럼 doc-sync(REQ-038/042/044/046/049 PLANNED→DONE, REQ-045/002 PLANNED→IN_PROGRESS — P6 wiring ①~⑥ 완결 반영, 마지막 갱신 06504fe=genuine stale; direct doc-only 1파일, dependsOn []) — planner 큐잉 완료(nextTask=T-0401)**. 잔여 stream 전부 backend 계약 미shipped=defer(import 결과 상세 / GroupMember add/remove mutation / ReEvaluationTriggerPanel·SchedulePanel(P7) / R-78 auto-polling). **게이트된 backlog**: T-0355 web vitest CI 배선(onHold credential-workflow-scope) / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-sched-4efadb3",
-    "since": "2026-06-14T02:38:18Z",
-    "note": "cron@cloud-aa-local-sched-4efadb3 fire(scheduled task aa-local-scheduled, 매시 30분 trigger 충돌 회피). fresh checkout 8837dbe → origin/main 4efadb3(T-0398 closeout 4efadb3 + doc e67b9ec, nextTask=T-0399)로 reset. free lock(45c226b tip, tombstone)+claims=[]. fineGrainedConcurrency=true(stage5b)이나 단일 direct doc-only task + claims=[] 이라 §D8(a) fail-safe 직렬화 경로 채택: lock acquire CAS(45c226b→e412a81, coarse hold) → executor → implementer(deployment.md '### process 1 개의 책임 범위'에 'Web UI 정적 serve' 항목(@nestjs/serve-static src/web WebModule, web/dist/ mount, 비-/api/* SPA fallback, ADR-0040 §3, T-0354 shipped) 추가 + frontend 빌드 분리 한 줄 + worker 시점 monolith static serve trade-off 한 줄 + 상단 References ADR-0040/0041/T-0399 링크; doc-only 단일파일 +7/-2) → tester 면제(§3.2 direct doc-only) → commit e7de0f6 direct push main(4efadb3 fast-forward, rebase noop). closeout: planner T-0400(architecture INDEX.md ADR 매핑 doc-sync) 큐잉. tasksCompleted 393→394. e7de0f6 main push run — 다음 fire 재확인(doc-only trivially green 예상). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json(tombstone/free)."
+    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
+    "since": "2026-06-14T02:59:16Z",
+    "note": "loop@vb707106 새 /loop session(dynamic, turn cap 10) t1. 진입 시 main checkout 가 origin/main 보다 47 커밋 뒤짐(cron 야간 T-0380~T-0399 wiring chain 완결) → ff-only sync b79e8f5. 권위 lock free(c1d2887 tip tombstone)+claims=[]. fineGrainedConcurrency=true(stage5b)이나 단일 direct doc-only task + claims=[] 이라 §D8(a) fail-safe 직렬화: lock acquire CAS(c1d2887→581fe02, coarse hold) → executor → implementer(INDEX.md ADR 매핑 표 ADR-0040 PROPOSED→ACCEPTED(T-0377 flip)+view 문서 보강, ADR-0041 신규 row; doc-only +2/-1, 메인 checkout staged 검증) → tester 면제(§3.2) → commit a2744dd direct push main(b79e8f5 ff). closeout: planner T-0401(requirements.md P6 REQ 상태 doc-sync) 큐잉, tasksCompleted 394→395. a2744dd main push run in_progress(doc-only trivially green 예상, 다음 turn 재확인). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T02:42:00Z",
-  "lastCommit": "e7de0f6",
+  "lastActivity": "2026-06-14T03:06:00Z",
+  "lastCommit": "a2744dd",
   "mostRecentTasks": [
+    "T-0400",
     "T-0399",
     "T-0398",
     "T-0397",
-    "T-0396",
-    "T-0395"
+    "T-0396"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 1,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "startedAt": "2026-06-13T10:39:00Z",
-    "note": "/loop session vb707106 (dynamic, turn cap 10) **세션 종료(t8 wind-down — 깨끗한 아키텍처 milestone + cron 이 같은 stream active driving + 다음 wiring 은 non-parallel single-claim 이라 cron 단독이 적합)**. 성과: t1 no-op(cron T-0369 claim) / t2 T-0370(DashboardFilterBar) / t3 T-0371(TrendTimeSeriesPanel) / t4 T-0372(DashboardPaginationControl) / t5 no-op(cron T-0373) / t6 T-0374(ScoreDistributionChart) / t7 T-0375(EvaluationDetailPanel) / t8 T-0376(ADR-0041 composition-wiring). **loop 가 P6 컴포넌트 5개 + ADR-0041 merge(6 substantive task, 전부 round 1/7), cron 이 T-0373 merge. tasksCompleted 364→371, 사고 0.** t8 에 presentational 분해 완료(15 컴포넌트) + composition 전략(ADR-0041) 박제 — 깨끗한 milestone. t8 closeout 에서 cron 과 T-0376 closeout race 발생했으나 §4 graceful 흡수(371 이중카운트 0). 다음 진입점: cron 이 T-0377(ADR-0041 ACCEPTED flip) → wiring chain(①~⑤ non-parallel single-claim)을 fresh-context 로 이어감(§10 backbone), 또는 사용자 /compact 후 새 /loop. 동시성: cron+loop 협업 무사고 실증.",
-    "endedAt": "2026-06-13T13:22:00Z"
+    "startedAt": "2026-06-14T02:59:16Z",
+    "note": "/loop session vb707106 (dynamic, turn cap 10) 신규 session. t1: 진입 시 main checkout 가 origin/main 보다 47 커밋 뒤짐(cron 이 야간 02:38Z 까지 T-0380~T-0399 P6 wiring chain ①~⑥ + closure doc-sync 가족 전부 완결·머지) → ff-only sync. free lock 획득(c1d2887→581fe02 CAS) → T-0400(architecture INDEX.md ADR 매핑 doc-sync, direct doc-only) executor → 머지 a2744dd → planner T-0401(requirements.md P6 REQ 상태 doc-sync) 큐잉. tasksCompleted 394→395, 사고 0, round n/a(direct). 동시성: cron 야간 backbone 무사고 실증, loop 가 잔여 doc-sync 잔무 흡수. 다음 t2: T-0401 또는 cron 협업."
   },
   "ci": {
-    "lastRun": "2026-06-14T02:40:25Z",
-    "status": "green",
+    "lastRun": "2026-06-14T03:02:29Z",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27486183744",
+    "noteT0400": "T-0400(architecture INDEX.md ADR 매핑 표 doc-sync, direct doc-only) main push a2744dd CI run 03:02:29Z in_progress — doc-only 단일파일(docs/architecture/INDEX.md +2/-1)이라 trivially green 예상, 다음 turn 재확인. 직전 main run b79e8f5(T-0399 closeout)·e7de0f6(T-0399 doc) 전부 completed/success 확인.",
     "noteT0399": "T-0399(deployment.md web/ SPA serve-static 책임 doc-sync, direct doc-only) main push e7de0f6 CI run 27486183744 = completed/success(본 fire 확인). doc-only 단일파일(docs/architecture/deployment.md +7/-2)이라 trivially green. 직전 main run 4efadb3(T-0398 closeout)·e67b9ec(T-0398 doc) 전부 completed/success 확인.",
     "noteT0398": "T-0398(components.md Web UI row doc-sync, direct doc-only) main push e67b9ec CI run 27485506484 = completed/success(본 fire 확인). doc-only 단일파일(docs/architecture/components.md)이라 trivially green. 직전 main run 57ff461(T-0397 doc)·8837dbe(T-0397 closeout) 전부 completed/success 확인(gh run list).",
     "noteT0397": "T-0397(directory.md frontend doc-sync, direct doc-only) main push 57ff461 CI run 27484959675 = completed/success 확인. closeout 8837dbe run 27485039977 도 success.",
@@ -740,7 +740,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 394,
+    "tasksCompleted": 395,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
