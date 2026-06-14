@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0407",
   "backlogNote": "**T-0406 DONE (P6 T-0355 잔여① — web-static serve-static 통합 smoke spec, pr-mode, PR #327 squash merge 15a33b4).** test/smoke/web-static.smoke-spec.ts 신설(+124, test-only, production code 변경 0) — NestFactory.create(AppModule) 실부팅으로 serve-static 실 serve 검증(compile() NoopLoader 회피, T-0354 M1 회귀 가드), dist 존재/부재 2 분기 명시 guard, happy(GET /)/flow(GET /dashboard SPA fallback)/sanity(GET /api 우선)/negative(GET /api/__none__ 404+non-index 이중) cover(R-113). reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → squash merge. CI run 27502505435 실 step 전부 green(스모크 테스트 신규 spec CI 첫 실행 success — web build 선행 dist 존재 분기 실 실행), approval-gate benignRedNote case A(approve comment 후 rerun → green). tasksCompleted 397→398. **T-0355 잔여 남은 2건: (a) web.module.ts coverage 포함, (b) check-spec-presence.test.sh web self-test** (directory.md=T-0397 이미 sync, smoke=본 T-0406 완료) — 다음 planner slice 후보(dependency-free, ci.yml 미변경이라 workflow scope 불요). 그 외 잔여 stream 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone.",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-14T15:03:30Z",
-    "note": "/loop vb707106 turn 2 closeout: T-0406 claim(fineGrained claim-pickup, prNumber=327)→execute→PR #327 squash merge 15a33b4→bookkeeping. 권위 lock CAS 60b80ee→b9527c7(closeout critical section), 본 bookkeeping commit 후 claims clear([]) + tombstone release. counters 397→398. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "since": "2026-06-14T15:14:30Z",
+    "note": "/loop vb707106 turn 3: currentTask·nextTask null → planner dispatch. 권위 lock CAS 획득(faacd03→1014e52). planner 가 reevaluate-replace flaky e2e(15a33b4 fail) 를 root-cause 해 T-0407(pr, evaluation-result-persist.service P2025→409 변환, ~70 LOC 2파일) 큐잉(nextTask=T-0407, T-0355 잔여보다 우선 — root-caused·소형·CI 신뢰도 高). doc-only direct commit 후 lock tombstone release. 다음 turn 에서 T-0407 claim+execute. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T15:03:30Z",
+  "lastActivity": "2026-06-14T15:14:30Z",
   "lastCommit": "15a33b4",
   "mostRecentTasks": [
     "T-0406",
