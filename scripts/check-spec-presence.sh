@@ -22,6 +22,8 @@ for f in "${added[@]}"; do
   # 제외: spec / test 파일 그 자체
   case "$f" in
     *.spec.ts|*.test.ts|*.e2e-spec.ts|*.smoke-spec.ts) continue ;;
+    # 제외: type-declaration 파일 (web/src/*.d.ts 등) — runtime 코드가 없어 spec 대상 아님.
+    *.d.ts) continue ;;
     test/*|*/test/*|*/__tests__/*) continue ;;
     src/main.ts) continue ;;
   esac

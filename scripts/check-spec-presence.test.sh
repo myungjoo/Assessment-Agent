@@ -48,16 +48,28 @@ setup_smoke_suffix() { mkdir -p test/smoke; echo 't' >test/smoke/app.smoke-spec.
 setup_test_leading() { mkdir -p test/e2e; echo 'export const e=1;' >test/e2e/util.ts; }
 # T-0012 추가 negative: 잘못된 suffix (.notspec.ts) 는 spec 으로 잘못 통과되면 안 됨.
 setup_bad_suffix() { mkdir -p src; echo 'export const d=1;' >src/d.ts; echo 't' >src/d.notspec.ts; }
+# T-0409 happy: web .ts + colocated .test.ts (vitest 관행) → pass.
+setup_web_test() { mkdir -p web/src; echo 'export const a=1;' >web/src/a.ts; echo 't' >web/src/a.test.ts; }
+# T-0409 error/negative: web .ts 단독 (대응 spec/test 없음) → fail.
+setup_web_missing() { mkdir -p web/src; echo 'export const b=1;' >web/src/b.ts; }
+# T-0409 분기 가드: web .d.ts 단독 → pass (제외 분기). main-script 제외 없으면 fail = regression.
+setup_web_dts() { mkdir -p web/src; echo 'export interface T { id: number }' >web/src/types.d.ts; }
+# T-0409 추가 negative: web 경로 잘못된 suffix (.notspec.ts) 는 spec 으로 오통과 금지.
+setup_web_bad_suffix() { mkdir -p web/src; echo 'export const e=1;' >web/src/e.ts; echo 't' >web/src/e.notspec.ts; }
 
 echo "[test] check-spec-presence.sh 자체 검증"
-case_run happy         0 setup_happy
-case_run error         1 setup_error
-case_run branch        0 setup_branch
-case_run negative      0 setup_negative
-case_run regression    1 setup_regression
-case_run smoke_suffix  0 setup_smoke_suffix
-case_run test_leading  0 setup_test_leading
-case_run bad_suffix    1 setup_bad_suffix
+case_run happy           0 setup_happy
+case_run error           1 setup_error
+case_run branch          0 setup_branch
+case_run negative        0 setup_negative
+case_run regression      1 setup_regression
+case_run smoke_suffix    0 setup_smoke_suffix
+case_run test_leading    0 setup_test_leading
+case_run bad_suffix      1 setup_bad_suffix
+case_run web_test        0 setup_web_test
+case_run web_missing     1 setup_web_missing
+case_run web_dts         0 setup_web_dts
+case_run web_bad_suffix  1 setup_web_bad_suffix
 
 read -r p f <"$COUNTERS"; rm -f "$COUNTERS"
 echo "[test] pass=$p fail=$f"
