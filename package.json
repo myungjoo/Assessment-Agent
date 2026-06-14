@@ -89,7 +89,7 @@
     "coveragePathIgnorePatterns": [
       "/node_modules/",
       "src/main.ts",
-      "\\.module\\.ts$"
+      "(?<![\\\\/]web[\\\\/]web)\\.module\\.ts$"
     ],
     "coverageDirectory": "./coverage",
     "coverageThreshold": {
