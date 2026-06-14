@@ -6,23 +6,23 @@
     "fineGrainedConcurrency": true,
     "maxConcurrentClaims": 2
   },
-  "currentTask": "T-0405",
+  "currentTask": null,
   "nextTask": null,
-  "backlogNote": "**T-0404 DONE (single-status stale 3건 frontmatter status 정합 — T-0037/T-0244/T-0284, direct doc-only main e3f956f)**. T-0403 Follow-up 이 지목한 잔여 single-status stale 3건을 한 fire 로 묶어 정합: T-0037(PR-36 f63f94e 머지+driver DONE 87c1bd6, PENDING→DONE) / T-0244(3be8260 가 T-0154 SUPERSEDED bookkeeping 실행, PENDING→DONE) / T-0284(PR-237 0d44570 머지, IN_PROGRESS→DONE). 각 파일 완료기록 1줄 + T-0404 task 신설. tasksCompleted 불변(396 — 이미 머지 반영된 bookkeeping 정정, T-0402/T-0403 선례). **이로써 T-0402 Follow-up 의 stale-status 후보 9건 전부 판정 완료: collection slice 5건(T-0403)+single-status 3건(T-0404)+T-0355(의도적 onHold 보류, 유지).** **여전히 dependency-free 신규 backlog 없음 → WIND-DOWN 유지: nextTask=null**. 잔여 stream 전부 게이트(make-work 아님): live-LLM credential(Q-0022, 만료 6/30) / P7 scheduler(@nestjs/schedule 새 dep, §5) / ADR-0036 stage5c(측정 게이트) / backend-contract defer / overwrite re-eval(Q-0032 DEFERRED) / T-0355 web vitest CI(onHold credential-workflow-scope) / Q-0026 timezone. 게이트 해소(credential·P7 승인·dogfood 관측) 시 재개. cron 은 매시 15분 cadence 유지(정각 충돌 회피).",
+  "backlogNote": "**cron@cloud-aa-local-scheduled fire: T-0405 credential-workflow-scope 게이트 확인 → WIND-DOWN 복귀(currentTask=null).** 11:28Z 로컬 loop(loop@WIN-JQIPLSBL9QV-vb707106)가 WIND-DOWN 중 T-0405(P6 ci.yml web build+vitest step 배선, commitMode:pr) 신설+lock 획득했으나 ef766be(~11:33Z) 이후 무진행 → 본 fire(12:41Z)가 GitHub server time 기준 70min stale lock 탈취(203a16a→db6a70e). T-0405 는 `.github/workflows/ci.yml` 만 변경하는 pr-mode task 인데 본 cloud-cron 토큰은 `workflow` scope 부재(scopes=gist,read:org,repo) → GitHub 가 workflow 파일 push 거부 → 이 환경에서 실행 불가(T-0355 onHold 와 동일 credential-workflow-scope 게이트). blockers[] 에 B-credential-2026-06-14T12:41Z 기록, T-0405 frontmatter status→BLOCKED. **해소: 사용자가 `gh auth refresh -s workflow` 후 workflow-scoped env(로컬 /loop)에서 T-0405 resume.** 그 전까지 WIND-DOWN 유지(nextTask=null). 잔여 stream 전부 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / T-0355 onHold / Q-0026 timezone. tasksCompleted 불변(396).",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-focused-25550e",
-    "since": "2026-06-14T11:04:23Z",
-    "note": "cron@cloud-aa-focused-25550e fire(매시 cron 진입점) = NO-OP wind-down 재확인 후 free release. fresh cloud checkout(HEAD=origin/main 9c9fecc) 진입 → free lock(accc4f4 tip tombstone)+claims=[](claims.json 미존재) CAS 획득(accc4f4→557f8f3, orphan empty-tree commit). flags.fineGrainedConcurrency=true·maxConcurrentClaims=2 이나 활성 claim 0(cap 미달)+claimable 후보 0 → claim-pickup 무대상. currentTask·nextTask 둘 다 null → driver 인라인 read-only 재검증 = WIND-DOWN 재확인(open PR 0 [list_pull_requests=[]], humanQuestions open 0(25 전부 resolved), blockers 0, non-DONE task=T-0001/T-0154 SUPERSEDED·T-0355 onHold-gated 뿐, dependency-free·non-gated 신규 task 0, stale-status/doc sweep T-0395~T-0404 소진, CI main 전부 green: 9c9fecc/c1b6925/62ba3a5/30aabfa/1992c1f 직전 5 run 전부 completed/success 확인). 잔여 stream 전부 게이트(live-LLM Q-0022 만료 6/30 / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / T-0355 onHold / Q-0026 timezone). make-work 회피 위해 task 미생성·nextTask=null 유지. tasksCompleted 불변(396). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-local-scheduled-ef766be",
+    "since": "2026-06-14T12:41:39Z",
+    "note": "cron@cloud-aa-local-scheduled-ef766be fire = stale-lock cleanup + T-0405 credential-workflow-scope 게이트 기록 후 WIND-DOWN 복귀, free release. fresh cloud checkout(HEAD=origin/main ef766be) 진입 → 권위 lock branch tip 가 holder=loop(loop@WIN-JQIPLSBL9QV-vb707106, since 11:28:01Z) 점유 발견, GitHub server time(12:38:04Z, curl Date 헤더 교차검증) 기준 70min ≥ 60min stale → force-with-lease CAS 탈취(203a16a→db6a70e). 로컬 loop 가 WIND-DOWN 중 T-0405 신설+lock 획득했으나 ef766be(~11:33Z CI green) 이후 무진행(feature branch·PR 0 — gh pr list=[]). T-0405 는 pr-mode(`.github/workflows/ci.yml` only)인데 본 cloud-cron 토큰 workflow scope 부재(gist,read:org,repo) → GitHub workflow 파일 push 거부 → 실행 불가 → blockers[] 기록 + currentTask=null WIND-DOWN 복귀. lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T11:06:00Z",
-  "lastCommit": "9c9fecc",
+  "lastActivity": "2026-06-14T12:42:00Z",
+  "lastCommit": "ef766be",
   "mostRecentTasks": [
+    "T-0405",
     "T-0404",
     "T-0403",
     "T-0402",
-    "T-0401",
-    "T-0400"
+    "T-0401"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -227,7 +227,15 @@
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
-  "blockers": [],
+  "blockers": [
+    {
+      "id": "B-credential-2026-06-14T12:41Z",
+      "task": "T-0405",
+      "reason": "credential-workflow-scope",
+      "raisedBy": "cron@cloud-aa-local-scheduled-ef766be",
+      "details": "T-0405(P6 ci.yml web build+vitest step 배선)는 `.github/workflows/ci.yml` 만 변경하는 pr-mode task. 본 cloud-cron gh 토큰 scope=gist,read:org,repo 로 `workflow` scope 부재 → GitHub 가 workflow 파일 push 거부(feature branch·main 무관). T-0355 onHold 와 동일 게이트. 해소: 사용자가 `gh auth refresh -s workflow` 후 workflow-scoped env(로컬 /loop)에서 T-0405 resume. tasksBlocked counter 는 env 한계라 increment 안 함(historical 7 유지, 2026-06-02·06-04 B-credential 선례)."
+    }
+  ],
   "blockersResolvedNote2": "B-ci-infra-2026-06-08T21:07Z (3+ 연속 main CI runner 미할당 infra-fail) 는 2026-06-09T02:33Z 해소. 원인 = private repo 의 GitHub Actions spending limit $0 (결제수단만 추가로는 overage 미허용 — 무료 minutes 소진 후 runner 미할당). 사용자가 spending limit 상향 후 run 27167117992 rerun 이 runner 정상 할당 + 전체 green. ci-infra 는 코드 회귀가 아니므로 tasksBlocked counter increment 안 함(7 유지). Q-0028 RESOLVED 동반.",
   "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지. B-credential-2026-06-04T16:04Z (cron@cloud-bc1cce 16:04 fire 의 refs/locks/* 403 stale-탈취 실패) 는 동일 env 한계 재발화 — **loop@WIN-JQIPLSBL9QV-s55 가 session #55 t8 에서 정상 진행하며 자동 해소**(cron 이 못 한 T-0229 bookkeeping·Q-0022 escalation·counter 정합을 본 로컬 driver 가 완료, cron d82127d 의 blocker 기록을 본 commit 에서 blockers[]→[] 로 close). tasksBlocked counter 는 increment 하지 않는다(반복 env 한계지 정책 실패 아님). **근본 원인 = lock since 미갱신으로 60min stale 오판 — 본 turn 부터 매 turn since=now heartbeat 적용해 재발 차단.**",
   "humanQuestions": [

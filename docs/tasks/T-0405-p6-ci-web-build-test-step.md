@@ -2,7 +2,8 @@
 id: T-0405
 title: P6 ci.yml web build + vitest test step 배선 (R-111/R-113, T-0355 CI slice)
 phase: P6
-status: IN_PROGRESS
+status: BLOCKED
+blockedReason: credential-workflow-scope
 commitMode: pr
 coversReq: [REQ-038, REQ-048]
 estimatedDiff: 15
@@ -46,3 +47,7 @@ driver 가 T-0355 staleness 를 확인했다: check-spec-presence.sh 의 `.test.
 ## Suggested Sub-agents
 
 `implementer`(ci.yml only) → `tester`(로컬 verify). architect 불요(ADR-0040 + T-0353~T-0355 가 결정 완료, 본 task 는 CI step 배선만).
+
+## Status note (2026-06-14, cron@cloud-aa-local-scheduled)
+
+본 task 는 `.github/workflows/ci.yml` 만 변경하는 pr-mode task 라 push 에 GitHub `workflow` OAuth scope 가 필요하다. cron@cloud-aa-local-scheduled fire 의 토큰은 `gist, read:org, repo` 만 보유(`workflow` 부재) → workflow 파일 push 불가로 **BLOCKED(credential-workflow-scope)**. T-0355 onHold 와 동일 게이트(STATE.blockers B-credential-2026-06-14T12:41Z). **해소: 사용자가 `gh auth refresh -s workflow` 로 scope 추가 후 workflow-scoped 환경(로컬 `/loop`)에서 resume.** AC 자체는 변경 없음(로컬 검증상 web build/test trivially green 예상).
