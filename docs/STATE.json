@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0409",
   "backlogNote": "**T-0408 DONE (P6 T-0355 잔여(a) — web.module.ts 를 jest coverage enforcement 에 포함, pr-mode, PR #329 squash merge a2a4970).** package.json coveragePathIgnorePatterns 의 \".module.ts$\" 를 음수 lookbehind 로 교체 → src/web/web.module.ts 만 coverage 측정 포함(다른 10개 *.module.ts ignore 유지, +1/-1). 기존 web.module.spec 이 100% cover 라 spec 변경 불요. reviewer APPROVE r1/7 NIT 1(regex 가독성 — JSON 주석 불가로 비차단·follow-up 불요) → 4-게이트 PASS → merge. CI run 27503936447 실 step 전부 green(web.module.ts 100%/global 99.96% threshold 통과), approval-gate benign case A(rerun 후 green). tasksCompleted 399→400. **T-0355 잔여 남은 1건: (b) check-spec-presence.test.sh web self-test = Follow-up(main script .tsx/*.d.ts 확장 risk — planner deferred, 우선순위 낮음)**. (smoke=T-0406·coverage=T-0408 완료, directory.md=T-0397). 그 외 잔여 stream 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone. **다음 turn: dependency-free non-gated 신규 task 후보 점검 — 없으면 WIND-DOWN 고려**.",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-14T15:54:00Z",
-    "note": "/loop vb707106 turn 6 closeout: T-0408 claim(claim-pickup, prNumber=329)→execute→PR #329 squash merge a2a4970→bookkeeping. 권위 lock CAS 7f46aff→0c4604d(closeout critical section), 본 commit 후 claims clear([]) + tombstone release. counters 399→400. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "since": "2026-06-14T15:58:30Z",
+    "note": "/loop vb707106 turn 7: T-0355 resolution planner dispatch(Route A). 권위 lock CAS(c7667a2→7bfc0a8). planner 조사로 잔여(b) 우려(.tsx/pathspec risk) 무근 판명 — 실 gap 은 web .d.ts 위양성 1줄. T-0409(pr, check-spec-presence.sh .d.ts 제외 분기 + .test.sh web self-test, ~45 LOC 2파일) 큐잉(nextTask=T-0409). 머지 후 driver 가 T-0355 DONE 처리. doc-only direct commit 후 lock release. 다음 turn execute. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T15:54:00Z",
+  "lastActivity": "2026-06-14T15:58:30Z",
   "lastCommit": "a2a4970",
   "mostRecentTasks": [
     "T-0408",
@@ -24,7 +24,13 @@
     "T-0405",
     "T-0404"
   ],
-  "loopSession": {"turnCount":6,"cap":10,"holder":"loop@WIN-JQIPLSBL9QV-vb707106","startedAt":"2026-06-14T14:33:00Z","note":"/loop vb707106 (dynamic, turn cap 10). t1:planner→T-0406. t2:T-0406(web-static smoke spec)→merge 15a33b4. t3:planner→T-0407(flaky e2e root-cause). t4:T-0407(reeval P2025→409)→merge 192346a. t5:planner→T-0408. t6:T-0408(web.module.ts coverage 포함)→PR #329→reviewer APPROVE r1/7 NIT1→CI green(rerun)→squash merge a2a4970→closeout. counters 397→400(+3). 동시성 무사고. T-0355 잔여 (b) self-test 만 Follow-up 으로 남음."},
+  "loopSession": {
+    "turnCount": 6,
+    "cap": 10,
+    "holder": "loop@WIN-JQIPLSBL9QV-vb707106",
+    "startedAt": "2026-06-14T14:33:00Z",
+    "note": "/loop vb707106 (dynamic, turn cap 10). t1:planner→T-0406. t2:T-0406(web-static smoke spec)→merge 15a33b4. t3:planner→T-0407(flaky e2e root-cause). t4:T-0407(reeval P2025→409)→merge 192346a. t5:planner→T-0408. t6:T-0408(web.module.ts coverage 포함)→PR #329→reviewer APPROVE r1/7 NIT1→CI green(rerun)→squash merge a2a4970→closeout. counters 397→400(+3). 동시성 무사고. T-0355 잔여 (b) self-test 만 Follow-up 으로 남음."
+  },
   "ci": {
     "lastRun": "2026-06-14T15:52:00Z",
     "status": "green",
