@@ -31,7 +31,7 @@ repo root 의 상위 디렉토리 + `src/` 직접 하위만 (깊이 2 단). 본 
 │   ├── llm/                    ← LlmModule (5 provider gateway)
 │   ├── assessment/             ← AssessmentModule (평가 orchestration + Worker)
 │   ├── scheduler/              ← SchedulerModule (@nestjs/schedule)
-│   ├── web/                    ← WebModule (정적 자산 serve, P6 옵션 1 시 제거)
+│   ├── web/                    ← WebModule (@nestjs/serve-static, web/dist SPA serve — ADR-0040 옵션 1 shipped)
 │   ├── common/                 ← shared decorators / filters / interceptors / pipes / dto
 │   └── config/                 ← @nestjs/config 의 configuration loader + validation
 ├── prisma/                     ← Prisma 표준 위치 (ADR-0002)
@@ -42,6 +42,7 @@ repo root 의 상위 디렉토리 + `src/` 직접 하위만 (깊이 2 단). 본 
 │   ├── e2e/                    ← *.e2e-spec.ts (T-0010)
 │   ├── jest-smoke.json         ← smoke 전용 Jest config
 │   └── jest-e2e.json           ← e2e 전용 Jest config
+├── web/                        ← frontend SPA 패키지 (React+Vite, ADR-0040 옵션 1 shipped — 아래 "Frontend" 단락)
 ├── docs/                       ← architecture / decisions / tasks / use-cases / progress
 ├── .github/workflows/          ← CI (T-0005)
 ├── package.json                ← pnpm workspace root (ADR-0001 §3)
@@ -91,7 +92,7 @@ PersistenceModule 의 특수 sub-structure:
 | **LlmModule** | `src/llm/` | `dto/`, `providers/` | providers/ 안에 5 provider 별 adapter (`custom.provider.ts` / `azure-openai.provider.ts` / `anthropic.provider.ts` / `google-gemini.provider.ts` / `openai.provider.ts`). `llm.service.ts` 가 Admin 지정 modelId 로 라우팅. |
 | **AssessmentModule** | `src/assessment/` | `dto/`, `entities/`, `repositories/` | 평가 orchestration service + 조회 controller (sort / filter / 시계열). [components.md](components.md) 의 Worker 책임을 본 module 의 service layer 로 흡수. |
 | **SchedulerModule** | `src/scheduler/` | `dto/` | `@nestjs/schedule` SchedulerRegistry. controller 는 manual trigger endpoint 만 (또는 AssessmentModule 가 trigger endpoint 보유 — [deployment.md](deployment.md) §Scheduler). |
-| **WebModule** | `src/web/` | (옵션) `public/` 또는 (옵션) 제거 | 정적 자산 serve. 자세히는 아래 "Frontend (web/) 의 위치" 단락. |
+| **WebModule** | `src/web/` | (controller only) | `@nestjs/serve-static` 으로 repo-root `web/dist/` 를 mount + 비-`/api/*` SPA fallback (ADR-0040 옵션 1 shipped). SPA 소스는 repo-root `web/`. 자세히는 아래 "Frontend (web/) 의 위치" 단락. |
 
 [modules.md](modules.md) 의 dependency graph 방향 (예: AssessmentModule → GithubModule import) 은 본 디렉토리 구조에 직접 영향 없음 — 디렉토리 위치는 각 module 의 독립이며, import 방향은 각 `.module.ts` 의 `imports: [...]` 선언에서만 결정.
 
@@ -147,12 +148,20 @@ unit test 의 co-location 은 NestJS 표준 — `src/auth/auth.service.spec.ts` 
 
 ## Frontend (web/) 의 위치
 
-[modules.md](modules.md) "WebModule 의 향후 분리 가능성" 단락이 박제한 옵션 2 가지 — 본 task 시점의 default 와 미래 옵션 위치:
+종전 본 단락은 옵션 2 (NestJS 내부 정적 자산 serve) 를 default 로, 옵션 1 (별도 `web/` 패키지) 의 SPA framework 결정을 "P6 의 별도 ADR" 미래로 두었으나, 이 서술은 이제 stale 이다 — [ADR-0040](../decisions/ADR-0040-frontend-stack.md) (ACCEPTED) 이 **옵션 1 (별도 `web/` 패키지) 의 소스 위치 + 옵션 2 의 serve 방식을 결합 채택** 했고 shipped 됐다 ([modules.md](modules.md) "WebModule 의 frontend 분리" 단락과 동일 현실). `src/web/` 과 repo-root `web/` 의 역할은 다음과 같이 분리된다:
 
-1. **Default (옵션 2 — NestJS 내부 정적 자산 serve)**: `src/web/` 안에 `web.module.ts` + `web.controller.ts` (정적 자산 서빙) + (선택) `src/web/public/dist/` (frontend build 산출물 위치). `@nestjs/serve-static` 사용.
-2. **옵션 1 (별도 web/ 패키지)**: repo root 의 별도 `web/` 디렉토리 — Vite/Next.js project root. NestJS 는 API only 가 되고 `src/web/` 은 제거되거나 reverse-proxy 역할만 유지. SPA framework 결정 (React / Vue / Vite) 은 **P6 (Web UI) phase 의 별도 ADR** 책임.
+- **repo-root `web/`** — frontend SPA **소스** 패키지 (pnpm workspace). React + Vite (TypeScript), 소스 `web/src/`, build 산출물 `web/dist/`. backend `src/` 와 빌드 분리.
+- **`src/web/`** — NestJS WebModule. `@nestjs/serve-static` 으로 `web/dist/` 빌드 **산출물을 serve** + 비-`/api/*` 경로를 SPA `index.html` 로 fallback (T-0354 shipped). 즉 `web/` = SPA 소스, `src/web/` = 그 빌드 산출물 serve 진입점.
 
-본 task 는 옵션 2 를 default 로 두되, 옵션 1 전환 가능성을 명시. 실제 frontend 코드 도입은 P6 의 별도 task — 본 directory.md 는 backend-side 위치 (`src/web/`) 와 옵션 1 의 분기 가능성만 박제.
+repo-root `web/src/` 의 실제 구조 (디렉토리 단위 — composition-wiring 스트림 T-0353~T-0394, [ADR-0041](../decisions/ADR-0041-frontend-composition-wiring.md) 이 조립·배선 완료):
+
+- `web/src/components/` — 15 presentational 컴포넌트 (대시보드 시각화 · Admin 패널 · 인증 폼 등, props 소비 stateless).
+- `web/src/views/` — 2 view 컨테이너 (`DashboardView` · `AdminView`, controlled lift-up 으로 상태 소유).
+- `web/src/api/` — thin fetch hook (`apiClient` · `useApiResource` · `auth`, JWT cookie 자동 동반).
+- `web/src/AppShell.tsx` — 전역 레이아웃 + 무라우터 view enum 전환 + R-78 배너 슬롯.
+- `web/src/AuthGate.tsx` — 인증 게이트, `web/src/main.tsx` — Vite 진입점.
+
+backend endpoint 미shipped 로 의도적 defer 된 잔여 (`ReEvaluationTriggerPanel` · `SchedulePanel` 미마운트, auto-polling, `GroupMember` mutation, import 결과 상세) 는 [modules.md](modules.md) "WebModule 의 frontend 분리" 단락이 이미 박제 — 본 directory.md 범위 밖이라 중복 박제하지 않는다.
 
 ## References
 
@@ -164,6 +173,9 @@ unit test 의 co-location 은 NestJS 표준 — `src/auth/auth.service.spec.ts` 
 - [ADR-0002](../decisions/ADR-0002-db.md) — PostgreSQL + Prisma. `prisma/` 디렉토리 위치 결정의 source.
 - [ADR-0003](../decisions/ADR-0003-deployment.md) — Monolithic process / secret env-only / `@nestjs/schedule` / direct egress 결정이 본 디렉토리 구조의 4 단락 (top-level / config / prisma / scheduler) 의 source.
 - [README.md](../../README.md) L7-22 (REQ-005~007 GitHub 3 instance), L96-103 (REQ-049 / REQ-051~055 LLM 5 provider — `llm/providers/<name>.provider.ts` sub-dir 결정의 source).
+- [ADR-0040](../decisions/ADR-0040-frontend-stack.md) — frontend 스택 결정. 옵션 1 (별도 `web/` React+Vite 패키지) + 옵션 2 serve 방식 결합 채택의 source.
+- [ADR-0041](../decisions/ADR-0041-frontend-composition-wiring.md) — frontend composition-wiring 결정. `web/src/` 의 컴포넌트 ↔ view ↔ api 배선 구조의 source.
 - [T-0021](../tasks/T-0021-p2-directory-structure.md) — 본 문서 신설 task.
+- [T-0397](../tasks/T-0397-directory-md-web-frontend-doc-sync.md) — frontend(web/) 섹션 P6 closure doc-sync (ADR-0040 옵션 1 shipped 반영).
 
-Refs: T-0021, T-0017, T-0016, ADR-0001, ADR-0002, ADR-0003, REQ-005, REQ-006, REQ-007, REQ-015, REQ-026, REQ-032, REQ-038, REQ-044, REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055
+Refs: T-0021, T-0017, T-0016, T-0397, ADR-0001, ADR-0002, ADR-0003, ADR-0040, ADR-0041, REQ-002, REQ-005, REQ-006, REQ-007, REQ-015, REQ-026, REQ-032, REQ-038, REQ-044, REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055
