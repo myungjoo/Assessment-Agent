@@ -2,7 +2,7 @@
 id: T-0401
 title: requirements.md P6 frontend REQ 상태 컬럼 doc-sync (PLANNED → DONE/IN_PROGRESS)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-038, REQ-042, REQ-044, REQ-045, REQ-046, REQ-049, REQ-002]
 estimatedDiff: 12
@@ -55,3 +55,7 @@ plannerNote: "P6 — requirements.md 추적표가 P6 wiring(①~⑥, T-0378~T-03
 ## Follow-ups
 
 (없음 — 생성 시점)
+
+## 결과 (DONE 2026-06-14)
+
+direct doc-only, main `eae6900` (loop@vb707106 t2). requirements.md 추적표 P6 frontend REQ 7행 상태 동기(+7/-7): REQ-038/044/046/049 → DONE, REQ-042 → DONE(배너 배선 완료, 자동 polling defer 부기), REQ-045/002 → IN_PROGRESS(부분 완료). executor 가 코드/PR/ADR 증거(AppShell/AdminView/DashboardView wiring + ADR-0040/0041 ACCEPTED + PR #309~#325)로 실 shipped 상태를 독립 검증 — task 제안 매핑과 현실 100% 일치(불일치 0). P5/P7/P4-backend REQ 행 불변, 표 컬럼 포맷 보존. tester 면제(§3.2). 메인 checkout staged 검증. **이 task 로 P6-closure doc-sync 가족(T-0395~T-0401) 완결 + dependency-free 작업 소진 → /loop wind-down.**

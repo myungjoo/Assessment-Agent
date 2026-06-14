@@ -7,37 +7,39 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0401",
-  "backlogNote": "**T-0400 DONE (architecture INDEX.md ADR 매핑 표 doc-sync — ADR-0040 PROPOSED→ACCEPTED 정정 + ADR-0041 row 추가, direct doc-only main a2744dd)**. P6-closure 아키텍처 doc-sync 가족(T-0395 modules.md / T-0396 PLAN.md / T-0397 directory.md / T-0398 components.md / T-0399 deployment.md / T-0400 INDEX.md) 전부 DONE. **다음 task: T-0401 = requirements.md P6 frontend REQ 상태 컬럼 doc-sync(REQ-038/042/044/046/049 PLANNED→DONE, REQ-045/002 PLANNED→IN_PROGRESS — P6 wiring ①~⑥ 완결 반영, 마지막 갱신 06504fe=genuine stale; direct doc-only 1파일, dependsOn []) — planner 큐잉 완료(nextTask=T-0401)**. 잔여 stream 전부 backend 계약 미shipped=defer(import 결과 상세 / GroupMember add/remove mutation / ReEvaluationTriggerPanel·SchedulePanel(P7) / R-78 auto-polling). **게이트된 backlog**: T-0355 web vitest CI 배선(onHold credential-workflow-scope) / live-LLM(Q-0022 만료 6/30) / ADR-0036 stage5c / Q-0026 timezone / P7 scheduler.",
+  "nextTask": null,
+  "backlogNote": "**T-0401 DONE (requirements.md P6 frontend REQ 7행 상태 doc-sync — REQ-038/042/044/046/049 PLANNED→DONE, REQ-045/002→IN_PROGRESS, direct doc-only main eae6900)**. P6 wiring ①~⑥(T-0378~T-0394) + closure doc-sync 가족(T-0395 modules.md ~ T-0401 requirements.md) 전부 DONE — **2연속 doc-sync 턴으로 obvious stale-doc backlog 소진**. **dependency-free 작업 공식 소진 → WIND-DOWN: nextTask=null, /loop 정지(loop@vb707106 t2)**. 잔여 stream 전부 게이트(make-work 아님): live-LLM credential(Q-0022, 만료 6/30) / P7 scheduler(@nestjs/schedule 새 dep, §5) / ADR-0036 stage5c(측정 게이트, 단독 세션 불가) / backend-contract defer(ReEval·Schedule 미마운트·auto-polling·GroupMember mutation·import 상세) / overwrite re-eval(Q-0032 DEFERRED) / T-0355 web vitest CI(onHold credential-workflow-scope) / Q-0026 timezone. 게이트 해소(credential 제공·P7 새-dep 승인·multi-driver dogfood 관측) 시 재개 — 기존 Q-0036(resolved 2026-06-12)이 standing 사용자 방향 요청으로 유효(ADR-0040/0039 flip 옵션은 이미 소진, live-LLM·5c 만 잔여). cron 은 자체 cadence 유지(다음 fire 도 동일 wind-down 판정 예상).",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-14T02:59:16Z",
-    "note": "loop@vb707106 새 /loop session(dynamic, turn cap 10) t1. 진입 시 main checkout 가 origin/main 보다 47 커밋 뒤짐(cron 야간 T-0380~T-0399 wiring chain 완결) → ff-only sync b79e8f5. 권위 lock free(c1d2887 tip tombstone)+claims=[]. fineGrainedConcurrency=true(stage5b)이나 단일 direct doc-only task + claims=[] 이라 §D8(a) fail-safe 직렬화: lock acquire CAS(c1d2887→581fe02, coarse hold) → executor → implementer(INDEX.md ADR 매핑 표 ADR-0040 PROPOSED→ACCEPTED(T-0377 flip)+view 문서 보강, ADR-0041 신규 row; doc-only +2/-1, 메인 checkout staged 검증) → tester 면제(§3.2) → commit a2744dd direct push main(b79e8f5 ff). closeout: planner T-0401(requirements.md P6 REQ 상태 doc-sync) 큐잉, tasksCompleted 394→395. a2744dd main push run in_progress(doc-only trivially green 예상, 다음 turn 재확인). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "since": "2026-06-14T03:14:40Z",
+    "note": "loop@vb707106 /loop session t2 (turn cap 10). free lock(2d4bb8e tip tombstone)+claims=[] → acquire CAS(2d4bb8e→99c8775, coarse hold). §D8(a) fail-safe 직렬화(단일 direct doc-only, claims=[]): executor → implementer(requirements.md P6 frontend REQ 7행 PLANNED→DONE/IN_PROGRESS, 코드/PR/ADR 증거 독립 검증·task 매핑 현실 일치; doc-only +7/-7, 메인 checkout staged 검증) → tester 면제(§3.2) → commit eae6900 direct push main(4a12487 ff). a2744dd(t1 T-0400) CI completed/success 확인. closeout: planner WIND-DOWN 판정(dependency-free 작업 소진, 잔여 전부 게이트) → nextTask=null, tasksCompleted 395→396. eae6900 main push run in_progress(doc-only trivially green 예상). lock tombstone release CAS 후 /loop 정지(reschedule 안 함). STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T03:06:00Z",
-  "lastCommit": "a2744dd",
+  "lastActivity": "2026-06-14T03:20:00Z",
+  "lastCommit": "eae6900",
   "mostRecentTasks": [
+    "T-0401",
     "T-0400",
     "T-0399",
     "T-0398",
-    "T-0397",
-    "T-0396"
+    "T-0397"
   ],
   "loopSession": {
-    "turnCount": 1,
+    "turnCount": 2,
     "cap": 10,
     "holder": "loop@WIN-JQIPLSBL9QV-vb707106",
     "startedAt": "2026-06-14T02:59:16Z",
-    "note": "/loop session vb707106 (dynamic, turn cap 10) 신규 session. t1: 진입 시 main checkout 가 origin/main 보다 47 커밋 뒤짐(cron 이 야간 02:38Z 까지 T-0380~T-0399 P6 wiring chain ①~⑥ + closure doc-sync 가족 전부 완결·머지) → ff-only sync. free lock 획득(c1d2887→581fe02 CAS) → T-0400(architecture INDEX.md ADR 매핑 doc-sync, direct doc-only) executor → 머지 a2744dd → planner T-0401(requirements.md P6 REQ 상태 doc-sync) 큐잉. tasksCompleted 394→395, 사고 0, round n/a(direct). 동시성: cron 야간 backbone 무사고 실증, loop 가 잔여 doc-sync 잔무 흡수. 다음 t2: T-0401 또는 cron 협업."
+    "endedAt": "2026-06-14T03:20:00Z",
+    "note": "/loop session vb707106 (dynamic, turn cap 10) **WIND-DOWN 종료 (t2, dependency-free backlog 소진)**. t1: ff-only sync(cron 야간 T-0380~T-0399 P6 wiring ①~⑥ + closure doc-sync 완결) → T-0400(INDEX.md ADR 매핑 doc-sync) 머지 a2744dd. t2: T-0401(requirements.md P6 REQ 상태 doc-sync) 머지 eae6900. **2 task 전부 round n/a(direct doc-only), tasksCompleted 394→396, 사고 0.** t2 closeout planner 가 WIND-DOWN 판정 — 2연속 doc-sync 로 obvious stale-doc backlog 소진, 잔여 stream 전부 게이트(live-LLM credential / P7 새-dep / ADR-0036 5c 측정 / backend-contract defer)라 make-work 회피 위해 nextTask=null + /loop 정지. 재개 트리거: 게이트 해소(credential·P7 승인·dogfood 관측) 시 새 /loop 또는 cron. 동시성: cron 야간 backbone 무사고, loop 가 P6-closure doc-sync 잔무(T-0400/T-0401) 흡수 후 깨끗이 정지."
   },
   "ci": {
-    "lastRun": "2026-06-14T03:02:29Z",
-    "status": "running",
+    "lastRun": "2026-06-14T03:17:59Z",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
     "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27486183744",
-    "noteT0400": "T-0400(architecture INDEX.md ADR 매핑 표 doc-sync, direct doc-only) main push a2744dd CI run 03:02:29Z in_progress — doc-only 단일파일(docs/architecture/INDEX.md +2/-1)이라 trivially green 예상, 다음 turn 재확인. 직전 main run b79e8f5(T-0399 closeout)·e7de0f6(T-0399 doc) 전부 completed/success 확인.",
+    "noteT0401": "T-0401(requirements.md P6 frontend REQ 상태 doc-sync, direct doc-only) main push eae6900 CI run 03:17:59Z = completed/success 확인. doc-only 단일파일(docs/requirements.md +7/-7)이라 trivially green. closeout 4a12487(T-0400 closeout) 도 completed/success. /loop wind-down 시점 미확인 main run 0.",
+    "noteT0400": "T-0400(architecture INDEX.md ADR 매핑 표 doc-sync, direct doc-only) main push a2744dd CI run 03:02:29Z = completed/success 확인(t2 재확인 완료). doc-only 단일파일(docs/architecture/INDEX.md +2/-1)이라 trivially green. 직전 main run b79e8f5·e7de0f6 전부 success.",
     "noteT0399": "T-0399(deployment.md web/ SPA serve-static 책임 doc-sync, direct doc-only) main push e7de0f6 CI run 27486183744 = completed/success(본 fire 확인). doc-only 단일파일(docs/architecture/deployment.md +7/-2)이라 trivially green. 직전 main run 4efadb3(T-0398 closeout)·e67b9ec(T-0398 doc) 전부 completed/success 확인.",
     "noteT0398": "T-0398(components.md Web UI row doc-sync, direct doc-only) main push e67b9ec CI run 27485506484 = completed/success(본 fire 확인). doc-only 단일파일(docs/architecture/components.md)이라 trivially green. 직전 main run 57ff461(T-0397 doc)·8837dbe(T-0397 closeout) 전부 completed/success 확인(gh run list).",
     "noteT0397": "T-0397(directory.md frontend doc-sync, direct doc-only) main push 57ff461 CI run 27484959675 = completed/success 확인. closeout 8837dbe run 27485039977 도 success.",
@@ -740,7 +742,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 395,
+    "tasksCompleted": 396,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
