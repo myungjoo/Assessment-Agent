@@ -1,6 +1,6 @@
 # Deployment view
 
-> **본 문서는 P1 T-A2 의 산출물이다. [T-0014](../tasks/T-0014-adr-0002-db-selection.md) 가 DB 단락을 채우고 ([ADR-0002](../decisions/ADR-0002-db.md)), [T-0015](../tasks/T-0015-adr-0003-deployment-rest.md) 가 나머지 4 단락 (Monolithic / Secret / Scheduler / Network) 을 채워 ([ADR-0003](../decisions/ADR-0003-deployment.md)) T-A2 가 완성됐다.**
+> **본 문서는 P1 T-A2 의 산출물이다. [T-0014](../tasks/T-0014-adr-0002-db-selection.md) 가 DB 단락을 채우고 ([ADR-0002](../decisions/ADR-0002-db.md)), [T-0015](../tasks/T-0015-adr-0003-deployment-rest.md) 가 나머지 4 단락 (Monolithic / Secret / Scheduler / Network) 을 채워 ([ADR-0003](../decisions/ADR-0003-deployment.md)) T-A2 가 완성됐다. [T-0399](../tasks/T-0399-deployment-md-web-serve-static-doc-sync.md) 가 P6 frontend 진입 ([ADR-0040](../decisions/ADR-0040-frontend-stack.md) · [ADR-0041](../decisions/ADR-0041-frontend-composition-wiring.md)) 에 따라 단일 process 의 Web UI 정적 serve 책임을 `### process 1 개의 책임 범위` 에 doc-sync 했다.**
 
 ## 개요
 
@@ -49,7 +49,9 @@ Schema 컬럼 설계 / 인덱스 정책 / migration 도구 실제 도입 (`prism
 
 본 단락의 결정은 [ADR-0003 §1 — Monolithic NestJS process](../decisions/ADR-0003-deployment.md) 에서 박제했다.
 
-**채택: 단일 NestJS process (monolithic)**. HTTP API / scheduler / 평가 파이프라인 / LLM gateway / GitHub & Confluence adapter 가 동일 process 안에서 동작한다. 별도 worker process / 외부 큐 broker 는 도입하지 않는다.
+**채택: 단일 NestJS process (monolithic)**. HTTP API / scheduler / 평가 파이프라인 / LLM gateway / GitHub & Confluence adapter / Web UI 정적 serve 가 동일 process 안에서 동작한다. 별도 worker process / 외부 큐 broker 는 도입하지 않는다.
+
+frontend `web/` 빌드는 backend `src/` 와 분리된다 — 기존 `pnpm build` (NestJS tsc) 는 불변이고, frontend 는 `pnpm --filter web build` 류의 분리 스크립트로 `web/dist/` 를 산출한다 ([ADR-0040 §3/§6](../decisions/ADR-0040-frontend-stack.md)). 운영 process 는 그 `web/dist/` 산출물을 정적 serve 한다 (아래 책임 범위 참조).
 
 ### process 1 개의 책임 범위
 
@@ -58,6 +60,7 @@ Schema 컬럼 설계 / 인덱스 정책 / migration 도구 실제 도입 (`prism
 - **평가 파이프라인** — commit / 문서 / Confluence page 의 평가 (난이도 / 기여도 / 양 / LLM 정성 + Metric) 처리. service layer 의 동기 호출 또는 `Promise.all` + concurrency limit 으로 운영.
 - **LLM gateway** — 5 provider (custom / Azure OpenAI / Anthropic / Google / OpenAI) 의 단일 추상화 service.
 - **GitHub / Confluence adapter** — 3 GitHub instance + Confluence 의 외부 HTTPS 호출. adapter service 로 분리되어 있으나 동일 process.
+- **Web UI 정적 serve** — 동일 NestJS process 가 `@nestjs/serve-static` (`src/web` WebModule) 으로 `web/dist/` SPA build 산출물을 mount 하고, 비-`/api/*` 경로의 SPA fallback (`index.html`) 을 처리한다 ([ADR-0040 §3](../decisions/ADR-0040-frontend-stack.md), T-0354 serve-static shipped). browser 관점 same-origin 이라 별도 정적 호스팅 / CORS 표면이 없다.
 
 ### REQ-047 (1 h 처리) 충족 시나리오
 
@@ -66,6 +69,8 @@ Schema 컬럼 설계 / 인덱스 정책 / migration 도구 실제 도입 (`prism
 ### worker 분리 전환 시점
 
 다음 중 하나 발생 시 [ADR-0003](../decisions/ADR-0003-deployment.md) 를 SUPERSEDE 하는 별도 ADR 에서 worker + 외부 큐 (Redis + BullMQ) 도입 검토 — (a) 실측 REQ-047 미충족, (b) 사용자 / 대상 규모 300+ 명, (c) HA 가 요구사항화, (d) durable retry 가 운영 요구. 본 단락의 구체 도입은 **P5 phase 이후의 별도 task 책임**.
+
+monolith 정적 serve 의 trade-off: frontend 배포가 backend process 재시작과 묶인다 — 현 single-operator 규모에서는 process 1 개 유지가 배포·secret·TLS 표면을 최소화하므로 수용하며, 별도 정적 호스팅 (nginx / CDN) 분리가 필요해지면 별도 ADR 로 전환한다 ([ADR-0040 Consequences](../decisions/ADR-0040-frontend-stack.md)).
 
 ## Secret / 자격증명 저장
 
