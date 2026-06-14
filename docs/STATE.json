@@ -33,12 +33,12 @@
     "note": "/loop session vb707106 (dynamic, turn cap 10) **WIND-DOWN 종료 (t2, dependency-free backlog 소진)**. t1: ff-only sync(cron 야간 T-0380~T-0399 P6 wiring ①~⑥ + closure doc-sync 완결) → T-0400(INDEX.md ADR 매핑 doc-sync) 머지 a2744dd. t2: T-0401(requirements.md P6 REQ 상태 doc-sync) 머지 eae6900. **2 task 전부 round n/a(direct doc-only), tasksCompleted 394→396, 사고 0.** t2 closeout planner 가 WIND-DOWN 판정 — 2연속 doc-sync 로 obvious stale-doc backlog 소진, 잔여 stream 전부 게이트(live-LLM credential / P7 새-dep / ADR-0036 5c 측정 / backend-contract defer)라 make-work 회피 위해 nextTask=null + /loop 정지. 재개 트리거: 게이트 해소(credential·P7 승인·dogfood 관측) 시 새 /loop 또는 cron. 동시성: cron 야간 backbone 무사고, loop 가 P6-closure doc-sync 잔무(T-0400/T-0401) 흡수 후 깨끗이 정지."
   },
   "ci": {
-    "lastRun": "2026-06-14T03:17:59Z",
+    "lastRun": "2026-06-14T05:12:36Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27486183744",
-    "noteT0403": "T-0403(collection slice 5건 frontmatter 중복 stale status 정합, direct doc-only) main push 154b78f(content) + closeout. doc-only(docs/tasks/T-0253~T-0257 각 -1 line + T-0403 신설)이라 trivially green 예상. push 후 gh run 으로 conclusion 확인 — in_progress 면 다음 fire 재확인.",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27489152733",
+    "noteT0403": "T-0403(collection slice 5건 frontmatter 중복 stale status 정합, direct doc-only) main push 154b78f(content)+ba7eab5(closeout) CI run 27489152733 = completed/success(본 fire gh run watch 확인). doc-only(docs/tasks/T-0253~T-0257 각 -1 line + T-0403 신설)이라 trivially green. 미확인 main run 0.",
     "noteT0401": "T-0401(requirements.md P6 frontend REQ 상태 doc-sync, direct doc-only) main push eae6900 CI run 03:17:59Z = completed/success 확인. doc-only 단일파일(docs/requirements.md +7/-7)이라 trivially green. closeout 4a12487(T-0400 closeout) 도 completed/success. /loop wind-down 시점 미확인 main run 0.",
     "noteT0400": "T-0400(architecture INDEX.md ADR 매핑 표 doc-sync, direct doc-only) main push a2744dd CI run 03:02:29Z = completed/success 확인(t2 재확인 완료). doc-only 단일파일(docs/architecture/INDEX.md +2/-1)이라 trivially green. 직전 main run b79e8f5·e7de0f6 전부 success.",
     "noteT0399": "T-0399(deployment.md web/ SPA serve-static 책임 doc-sync, direct doc-only) main push e7de0f6 CI run 27486183744 = completed/success(본 fire 확인). doc-only 단일파일(docs/architecture/deployment.md +7/-2)이라 trivially green. 직전 main run 4efadb3(T-0398 closeout)·e67b9ec(T-0398 doc) 전부 completed/success 확인.",
