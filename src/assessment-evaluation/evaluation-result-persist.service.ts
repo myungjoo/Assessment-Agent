@@ -125,7 +125,10 @@ export class EvaluationResultPersistService {
       });
     } catch (error) {
       // P2002 (`@@unique` 위반 — reset-and-recreate 경합 등) 만 ConflictException 으로
-      // 변환. 그 외 Prisma error (P2025 / P2003 / unknown) 는 잘못 삼키지 않고 propagate.
+      // 변환. 그 외 Prisma error (P2003 / unknown / 변환 범위 밖의 P2025) 는 잘못 삼키지
+      // 않고 propagate. (reeval delete 경합의 P2025 → ConflictException 변환은
+      // persistInTransaction 의 delete 호출에 국소화돼 있고, 그 ConflictException 은
+      // P2002 가 아니므로 아래 분기를 그대로 통과해 caller 로 전파된다.)
       if (getPrismaErrorCode(error) === "P2002") {
         throw new ConflictException(
           `평가 결과가 이미 존재한다: personId=${context.personId} period=${context.period} scope=${context.scope}`,
@@ -176,7 +179,24 @@ export class EvaluationResultPersistService {
       }
       // reeval 모드: 기존 Assessment 를 delete (component Contribution 은 cascade
       // 동반 삭제) — 이후 아래에서 새로 create.
-      await tx.assessment.delete({ where: { id: existing.id } });
+      //
+      // 동시 reevaluate 경합 (ADR-0038 §Decision5): 같은 좌표에 reevaluate 2건이
+      // 동시에 들어오면 두 트랜잭션이 모두 위 findUnique 로 같은 existing row 를 본 뒤
+      // 둘 다 이 delete 를 시도한다. 먼저 commit 한 winner 가 row 를 삭제하므로 loser 의
+      // delete 는 Prisma P2025 ("No record found for a delete") 를 던진다. 이는 P2002 와
+      // 동형인 "경합 loser 의 정상 수렴" 이므로 ConflictException(409) 으로 변환한다.
+      // 변환을 이 delete 호출에 **국소화**해 (catch 블록 광역 변환 대신) reeval delete
+      // 경합 외의 P2025 (create-side·일반 update/delete 부재 등) 는 무차별 삼키지 않는다.
+      try {
+        await tx.assessment.delete({ where: { id: existing.id } });
+      } catch (error) {
+        if (getPrismaErrorCode(error) === "P2025") {
+          throw new ConflictException(
+            `평가 결과가 동시 재평가 경합으로 이미 교체되었다: personId=${context.personId} period=${context.period} scope=${context.scope}`,
+          );
+        }
+        throw error;
+      }
     }
 
     return this.createAssessment(tx, mapped);
