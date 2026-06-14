@@ -8,7 +8,8 @@
 // 정합성을 검증한다 (task Required Reading test/helpers/prisma-mock.ts 의 `$transaction`
 // 즉시 실행 stub 의도 정합). 검증 포인트:
 //   - persist (fill / reeval × 존재/부재 4 분기) + resetByPeriod 의 happy path.
-//   - P2002 → ConflictException 변환 / P2002 외 error 는 그대로 propagate.
+//   - P2002 → ConflictException 변환 / reeval delete 경합 loser 의 P2025 → 409 변환
+//     (T-0407) / 변환 범위 밖 error (P2003, create-side P2025) 는 그대로 propagate.
 //   - NIT(a) — 알 수 없는 difficulty aggregate → 명시적 throw (매퍼 silent skip 비대칭 닫기).
 //   - NIT(b) — Decimal 소수 2 자리 round 정책 (1/3 류 무한소수 경계값).
 //   - negative: 빈 results[] (Assessment 1 + Contribution 0) / 트랜잭션 중단 시 propagate.
@@ -288,15 +289,49 @@ describe("EvaluationResultPersistService", () => {
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
-    // Negative: P2002 외 Prisma error (P2025) 는 그대로 propagate (잘못 삼키지 않음).
-    it("P2002 외 Prisma error 는 그대로 propagate 한다", async () => {
+    // Negative: 변환 대상이 아닌 Prisma error (P2003 FK 위반) 는 그대로 propagate
+    // (잘못 삼키지 않음). P2002 / reeval-race P2025 외의 모든 코드는 전파 의도 보존.
+    it("변환 대상이 아닌 Prisma error (P2003) 는 그대로 propagate 한다", async () => {
       const { service, tx } = buildPrismaMock();
+      tx.assessment.findUnique.mockResolvedValue(null);
+      tx.assessment.create.mockRejectedValue(buildPrismaError("P2003"));
+
+      await expect(
+        service.persist(buildContext(), [buildResult()], "reeval"),
+      ).rejects.toMatchObject({ code: "P2003" });
+    });
+
+    // Negative: create-side(reeval delete 경로 밖)의 P2025 는 그대로 propagate — P2025
+    // 변환은 reeval delete 경합에 국소화돼 있으므로, delete 가 호출되지 않는 부재 경로의
+    // create reject 는 무차별 삼키지 않는다 (변환 범위가 좁음을 실증, AC "예기치 못한
+    // error 무차별 삼킴 0").
+    it("reeval delete 경로 밖의 P2025 (create reject) 는 그대로 propagate 한다", async () => {
+      const { service, tx } = buildPrismaMock();
+      // 좌표 부재 → delete 미호출 → create 가 P2025 reject.
       tx.assessment.findUnique.mockResolvedValue(null);
       tx.assessment.create.mockRejectedValue(buildPrismaError("P2025"));
 
       await expect(
         service.persist(buildContext(), [buildResult()], "reeval"),
       ).rejects.toMatchObject({ code: "P2025" });
+      expect(tx.assessment.delete).not.toHaveBeenCalled();
+    });
+
+    // Regression (T-0407, R-112 patch 룰): 동시 reevaluate delete 경합 시 loser 의 delete
+    // 가 P2025 ("No record found for a delete") 를 던지면 ConflictException(409) 으로
+    // 변환된다. winner 가 row 를 먼저 삭제한 race 의 정상 수렴 — 결함 (P2025 → 500 누수)
+    // 이 재발하면 이 test 가 fail 한다. P2025 → 409.
+    it("동시 reevaluate delete 경합 시 loser 의 P2025 를 ConflictException(409) 으로 변환한다", async () => {
+      const { service, tx } = buildPrismaMock();
+      // 좌표 존재 → reeval delete 진입, 그러나 winner 가 먼저 삭제 → delete 가 P2025 reject.
+      tx.assessment.findUnique.mockResolvedValue({ id: "assess-raced" });
+      tx.assessment.delete.mockRejectedValue(buildPrismaError("P2025"));
+
+      await expect(
+        service.persist(buildContext(), [buildResult()], "reeval"),
+      ).rejects.toBeInstanceOf(ConflictException);
+      // delete 가 P2025 로 중단 → create 는 호출되지 않는다 (loser 는 영속화 0, winner 보존).
+      expect(tx.assessment.create).not.toHaveBeenCalled();
     });
 
     // Negative: 트랜잭션 중단 (delete 실패) 시 error propagate — 이전 데이터 보존
