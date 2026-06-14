@@ -3,8 +3,7 @@ id: T-0355
 title: P6 frontend scaffold slice 3 — ci.yml web build/test step + spec-presence·coverage 정책 + dist-존재 통합 검증 + directory.md 동기
 phase: P6
 status: PENDING
-onHold: credential-workflow-scope
-holdNote: "2026-06-12 16:25Z probe push 실측 — git push 자격증명(GCM manager)에 workflow scope 부재로 .github/workflows/ci.yml 변경 push 가 remote rejected. 사용자 액션 필요: gh auth refresh -s workflow 후 gh auth setup-git, 또는 GCM 재인증(workflow scope 포함). 해소 후 본 task 그대로 실행 가능 — 내용 변경 불요."
+rescopeNote: "2026-06-14 onHold(credential-workflow-scope) 해소 — 사용자가 gh auth refresh -s workflow 재인증. ci.yml web build/test step AC(본 task 의 첫 2 AC)는 T-0405(PR #326, squash merge 4566f7c)로 분리·완료. **잔여 AC = workflow scope 불요(ci.yml 미변경)라 dependency-free**: (1) web-static smoke spec(test/smoke/web-static.smoke-spec.ts, NestFactory boot + dist-존재 통합 검증) / (2) package.json coveragePathIgnorePatterns 로 src/web/web.module.ts coverage 포함 / (3) scripts/check-spec-presence.test.sh web self-test 케이스 / (4) docs/architecture/directory.md 동기. planner 가 다음 pickup 시 첫 2 AC(ci.yml web build/test step)는 T-0405 완료로 skip 하고 잔여 4 AC 만 구현. staleness 주의: check-spec-presence.sh 의 .test.ts 처리는 T-0380 에서 이미 반영됨(AC 의 일부 선반영)."
 commitMode: pr
 coversReq: [REQ-038, REQ-048]
 estimatedDiff: 250
