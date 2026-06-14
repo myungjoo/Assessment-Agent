@@ -11,12 +11,12 @@
   "backlogNote": "**cron@cloud-aa-local-scheduled fire: T-0405 credential-workflow-scope 게이트 확인 → WIND-DOWN 복귀(currentTask=null).** 11:28Z 로컬 loop(loop@WIN-JQIPLSBL9QV-vb707106)가 WIND-DOWN 중 T-0405(P6 ci.yml web build+vitest step 배선, commitMode:pr) 신설+lock 획득했으나 ef766be(~11:33Z) 이후 무진행 → 본 fire(12:41Z)가 GitHub server time 기준 70min stale lock 탈취(203a16a→db6a70e). T-0405 는 `.github/workflows/ci.yml` 만 변경하는 pr-mode task 인데 본 cloud-cron 토큰은 `workflow` scope 부재(scopes=gist,read:org,repo) → GitHub 가 workflow 파일 push 거부 → 이 환경에서 실행 불가(T-0355 onHold 와 동일 credential-workflow-scope 게이트). blockers[] 에 B-credential-2026-06-14T12:41Z 기록, T-0405 frontmatter status→BLOCKED. **해소: 사용자가 `gh auth refresh -s workflow` 후 workflow-scoped env(로컬 /loop)에서 T-0405 resume.** 그 전까지 WIND-DOWN 유지(nextTask=null). 잔여 stream 전부 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / T-0355 onHold / Q-0026 timezone. tasksCompleted 불변(396).",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-local-scheduled-ef766be",
-    "since": "2026-06-14T12:41:39Z",
-    "note": "cron@cloud-aa-local-scheduled-ef766be fire = stale-lock cleanup + T-0405 credential-workflow-scope 게이트 기록 후 WIND-DOWN 복귀, free release. fresh cloud checkout(HEAD=origin/main ef766be) 진입 → 권위 lock branch tip 가 holder=loop(loop@WIN-JQIPLSBL9QV-vb707106, since 11:28:01Z) 점유 발견, GitHub server time(12:38:04Z, curl Date 헤더 교차검증) 기준 70min ≥ 60min stale → force-with-lease CAS 탈취(203a16a→db6a70e). 로컬 loop 가 WIND-DOWN 중 T-0405 신설+lock 획득했으나 ef766be(~11:33Z CI green) 이후 무진행(feature branch·PR 0 — gh pr list=[]). T-0405 는 pr-mode(`.github/workflows/ci.yml` only)인데 본 cloud-cron 토큰 workflow scope 부재(gist,read:org,repo) → GitHub workflow 파일 push 거부 → 실행 불가 → blockers[] 기록 + currentTask=null WIND-DOWN 복귀. lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-local-15-af97e5d",
+    "since": "2026-06-14T13:04:30Z",
+    "note": "cron@cloud-aa-local-15-af97e5d fire(매시 :15 trigger — 정각 충돌 회피) = NO-OP wind-down heartbeat 재확인 후 free release. fresh cloud checkout(HEAD 9c9fecc→ff-only sync origin/main af97e5d) 진입 → 권위 lock branch tip free(3d1088e, holder=null, 직전 12:41Z ef766be fire 가 tombstone release) + claims.json 미존재 확인 → force-with-lease CAS 획득(3d1088e→19ac782). flags.fineGrainedConcurrency=true·maxConcurrentClaims=2 이나 활성 claim 0(cap 미달)+claimable 후보 0 → claim-pickup 무대상. currentTask·nextTask 둘 다 null → read-only 재검증 = WIND-DOWN 재확인: open PR 0(gh pr list=[]), non-DONE task = T-0001/T-0154(SUPERSEDED 정상)·T-0355(onHold credential-workflow-scope)·T-0405(BLOCKED credential-workflow-scope, 본 cloud-cron 토큰 scope=gist,read:org,repo 로 workflow scope 부재 — 같은 게이트라 resume 불가) 뿐, dependency-free·non-gated 신규 task 0, stale-status/doc sweep(T-0395~T-0404) 소진, CI main 전부 green(af97e5d run success, 미확인 run 0). 잔여 stream 전부 게이트(live-LLM Q-0022 만료 6/30 / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / T-0355·T-0405 credential-workflow-scope / Q-0026 timezone). T-0405 해소 = 사용자가 `gh auth refresh -s workflow` 후 workflow-scoped env(로컬 /loop)에서 resume. make-work 회피 위해 task 미생성·nextTask=null 유지. tasksCompleted 불변(396). lock tombstone release CAS 예정. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T12:42:00Z",
-  "lastCommit": "ef766be",
+  "lastActivity": "2026-06-14T13:05:00Z",
+  "lastCommit": "af97e5d",
   "mostRecentTasks": [
     "T-0405",
     "T-0404",
