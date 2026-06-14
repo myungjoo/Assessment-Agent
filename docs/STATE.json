@@ -7,30 +7,31 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0406",
-  "backlogNote": "**T-0405 DONE (P6 ci.yml web build+vitest test step 배선 — pr-mode, PR #326 squash merge 4566f7c).** web/ Vite SPA 의 vitest 스위트(로컬 476 test/23 파일)+빌드를 ci.yml 에 배선해 CI 자동 실행(R-111/R-113)에 편입 — T-0353 reviewer MINOR(web vitest CI 미실행 gap) 해소. T-0355(scaffold slice 3)의 CI-wiring AC 만 분리한 focused slice(driver 가 T-0355 staleness 확인 후 split — check-spec-presence.sh 의 .test.ts 처리는 T-0380 에서 이미 반영). reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → merge. CI run 27501403767 first-pass green(신규 Web 빌드·Web 단위 test 2 step 실 success — vitest 가 CI 에서 실제 실행). credential 게이트(workflow scope)는 사용자 gh auth refresh -s workflow 재인증으로 해소. tasksCompleted 396→397. **이제 T-0355 잔여(smoke web-static spec / web.module.ts coverage 포함 / check-spec-presence.test.sh web self-test / directory.md 동기)는 credential 게이트 해소로 dependency-free** — workflow scope 불요(ci.yml 미변경)라 다음 /loop 또는 cron 에서 재개 가능(단 smoke spec 의 NestFactory boot + coverage threshold 상호작용은 신중). 그 외 잔여 stream 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone.",
+  "nextTask": null,
+  "backlogNote": "**T-0406 DONE (P6 T-0355 잔여① — web-static serve-static 통합 smoke spec, pr-mode, PR #327 squash merge 15a33b4).** test/smoke/web-static.smoke-spec.ts 신설(+124, test-only, production code 변경 0) — NestFactory.create(AppModule) 실부팅으로 serve-static 실 serve 검증(compile() NoopLoader 회피, T-0354 M1 회귀 가드), dist 존재/부재 2 분기 명시 guard, happy(GET /)/flow(GET /dashboard SPA fallback)/sanity(GET /api 우선)/negative(GET /api/__none__ 404+non-index 이중) cover(R-113). reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → squash merge. CI run 27502505435 실 step 전부 green(스모크 테스트 신규 spec CI 첫 실행 success — web build 선행 dist 존재 분기 실 실행), approval-gate benignRedNote case A(approve comment 후 rerun → green). tasksCompleted 397→398. **T-0355 잔여 남은 2건: (a) web.module.ts coverage 포함, (b) check-spec-presence.test.sh web self-test** (directory.md=T-0397 이미 sync, smoke=본 T-0406 완료) — 다음 planner slice 후보(dependency-free, ci.yml 미변경이라 workflow scope 불요). 그 외 잔여 stream 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5 / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone.",
   "lock": {
     "holder": null,
     "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-14T14:33:00Z",
-    "note": "/loop vb707106 re-entry(dynamic, turn cap 10, fresh conversation) turn 1: 권위 lock branch tip free(4c28dc4 holder=null, 직전 vb707106 session 14:26Z tombstone release) 확인 → force-with-lease CAS 획득(4c28dc4→0194a1c). claims.json 미존재(활성 claim 0). currentTask·nextTask 둘 다 null → planner dispatch: T-0355 onHold 해소(e071ee7)·잔여 dependency-free 확인 후 다음 focused slice T-0406(pr, web-static serve-static 통합 smoke spec — NestFactory 실부팅+dist guard+negative GET /api/* 404, R-113/T-0354 M1 회귀가드) 큐잉(nextTask=T-0406). doc-only direct commit 후 lock tombstone release. 다음 turn 에서 T-0406 claim+execute. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "since": "2026-06-14T15:03:30Z",
+    "note": "/loop vb707106 turn 2 closeout: T-0406 claim(fineGrained claim-pickup, prNumber=327)→execute→PR #327 squash merge 15a33b4→bookkeeping. 권위 lock CAS 60b80ee→b9527c7(closeout critical section), 본 bookkeeping commit 후 claims clear([]) + tombstone release. counters 397→398. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-14T14:33:00Z",
-  "lastCommit": "4566f7c",
+  "lastActivity": "2026-06-14T15:03:30Z",
+  "lastCommit": "15a33b4",
   "mostRecentTasks": [
+    "T-0406",
     "T-0405",
     "T-0404",
     "T-0403",
-    "T-0402",
-    "T-0401"
+    "T-0402"
   ],
-  "loopSession": {"turnCount":1,"cap":10,"holder":"loop@WIN-JQIPLSBL9QV-vb707106","startedAt":"2026-06-14T13:55:00Z","endedAt":"2026-06-14T14:18:00Z","note":"/loop session vb707106 (dynamic, turn cap 10) 재개 — 사용자가 WIND-DOWN 상태에서 CI/T-0355 언블록 선택. 사용자가 gh auth refresh -s workflow 재인증으로 credential 게이트 해소 → T-0405(T-0355 CI-wiring slice 분리) 1건 완수: ci.yml web build+test step 배선, PR #326 squash 4566f7c, reviewer APPROVE r1/7, CI first-pass green(신규 web 2 step 실 success — vitest CI 실행 실증). 동시성 사고: 로컬 시계 skew(~2.5h 뒤)로 cron 이 내 lock 을 stale 탈취 + T-0405 BLOCKED 오판했으나 merge 는 lock 무관하게 성공, 본 closeout 에서 BLOCKED→DONE 정정 + blocker close + counter 396→397. T-0355 잔여(smoke/coverage/self-test/doc)는 이제 dependency-free."},
+  "loopSession": {"turnCount":2,"cap":10,"holder":"loop@WIN-JQIPLSBL9QV-vb707106","startedAt":"2026-06-14T14:33:00Z","note":"/loop vb707106 (dynamic, turn cap 10). turn 1: planner dispatch → T-0406 큐잉(doc-only bf0dfd8). turn 2: T-0406 claim(fineGrainedConcurrency claim-pickup, prNumber=327)→executor implement(web-static serve-static 통합 smoke spec, +124 test-only)→PR #327→reviewer APPROVE r1/7 finding 0→CI green(approve comment 후 rerun, benign approval-gate case A)→squash merge 15a33b4→closeout. counters 397→398. 동시성 무사고(lock free 진입, claim 격리, 시계 skew 없음)."},
   "ci": {
-    "lastRun": "2026-06-14T10:41:24Z",
+    "lastRun": "2026-06-14T15:00:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27489152733",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27502505435",
+    "noteT0406": "PR #327(T-0406 web-static serve-static 통합 smoke spec) head e138945 pull_request run 27502505435 = 실 step 전부 green(spec-presence/CAS self-test 3종/lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크 테스트/e2e) + 'reviewer agent approval 검증' 단독 fail = benignRedNote case A(approve comment #issuecomment-4702109458 가 14:53Z run 후 landing). approve comment post 후 `gh run rerun 27502505435 --failed` → 전 step green(approval 포함). **신규 smoke spec 이 CI 에서 첫 실행 success** — web build(T-0405) 선행으로 web/dist/index.html 존재 → dist-존재 분기 실 검증(no-op 아님, jest-smoke passWithNoTests:false). squash 15a33b4 main push run 다음 fire 재확인(test-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0403": "T-0403(collection slice 5건 frontmatter 중복 stale status 정합, direct doc-only) main push 154b78f(content)+ba7eab5(closeout) CI run 27489152733 = completed/success(본 fire gh run watch 확인). doc-only(docs/tasks/T-0253~T-0257 각 -1 line + T-0403 신설)이라 trivially green. 미확인 main run 0.",
     "noteT0401": "T-0401(requirements.md P6 frontend REQ 상태 doc-sync, direct doc-only) main push eae6900 CI run 03:17:59Z = completed/success 확인. doc-only 단일파일(docs/requirements.md +7/-7)이라 trivially green. closeout 4a12487(T-0400 closeout) 도 completed/success. /loop wind-down 시점 미확인 main run 0.",
     "noteT0400": "T-0400(architecture INDEX.md ADR 매핑 표 doc-sync, direct doc-only) main push a2744dd CI run 03:02:29Z = completed/success 확인(t2 재확인 완료). doc-only 단일파일(docs/architecture/INDEX.md +2/-1)이라 trivially green. 직전 main run b79e8f5·e7de0f6 전부 success.",
@@ -85,6 +86,7 @@
     "noteT0392": "PR #323(T-0392 P6 wiring④h AdminView Admin+ RBAC gating UI) head 87e881a = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green: pull_request run 27481911120 전 step success(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증) — reviewer approve comment 가 approval 검증 step 실행 전 landing, rerun 불요; mergeStateStatus CLEAN noop, head 가 origin/main 5727d20 포함 rebase noop). GET /api/auth/me useApiResource 4번째 호출 + isAdminRole 순수 helper(Admin/SuperAdmin 정확 매칭, 그 외/누락/loading=false fail-closed) + isAdmin useMemo. isAdmin 시에만 DifficultyModelSelector·scope select·DataImportExportPanel 렌더, 아니면 권한 부족 안내 한 줄(role=status). GroupMemberList·그룹 select 등급 무관 유지(User+ 조회 가능). presentational/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 457 전체(isAdminRole 5종+gating 8종 신규) 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +298/-41(prod +97/-29). squash 9a66bc6 --delete-branch. 9a66bc6 main push run(23:21Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
+    "T-0406": 1,
     "T-0393": 1,
     "T-0390": 1,
     "T-0389": 1,
@@ -737,7 +739,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 397,
+    "tasksCompleted": 398,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

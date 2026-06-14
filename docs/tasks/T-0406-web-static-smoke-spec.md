@@ -2,8 +2,11 @@
 id: T-0406
 title: web-static serve-static 통합 smoke spec 신설 (T-0355 잔여 ① — T-0354 M1 회귀 가드)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 327
+completedAt: 2026-06-14T15:03:30Z
+completedCommit: 15a33b4
 coversReq: [REQ-038, REQ-048]
 estimatedDiff: 90
 estimatedFiles: 1
