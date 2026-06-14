@@ -131,6 +131,16 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Web 빌드
+        # ADR-0040 §3 — web/ Vite React SPA 빌드(tsc --noEmit 타입검사 + vite build → web/dist).
+        # 향후 R-113 통합 검증(web-static smoke)의 전제이자 SPA 타입/빌드 회귀 가드. T-0405(T-0355 CI slice).
+        run: pnpm --filter web build
+
+      - name: Web 단위 test
+        # CLAUDE.md §3.2 R-111/R-113 — web/ vitest 스위트를 CI 에서 자동 실행한다
+        # (기존엔 로컬 tester 만 실행 = T-0353 reviewer MINOR gap). T-0405.
+        run: pnpm --filter web test
+
       - name: Prisma migrate deploy
         # ADR-0004 §Migration 의무 #3 박제 — services.postgres 의 assessment_test
         # DB 에 prisma/migrations/ 의 3 migration (init / service_identity /
