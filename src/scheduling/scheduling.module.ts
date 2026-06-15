@@ -17,6 +17,7 @@ import {
   ALREADY_BACKFILLED_CHECKER,
   BackfillRunnerService,
 } from "./backfill-runner.service";
+import { BackfillController } from "./backfill.controller";
 import {
   CRON_TICK_HANDLER,
   CronScheduleController,
@@ -47,7 +48,11 @@ const defaultCronTickHandlerProvider = {
   // scheduling → collection 단방향(collection 은 scheduling 미참조)이라 forwardRef 불요.
   // ScheduleModule.forRoot()(전역, app.module.ts)는 그대로 재import 하지 않는다.
   imports: [AssessmentCollectionModule],
-  controllers: [CronScheduleController],
+  // BackfillController(T-0421, P7 ⑤ slice 2 후속 b) — manual backfill REST 진입점.
+  // 이미 providers/exports 에 있는 BackfillRunnerService 를 inject 받아 runBackfill 을
+  // 호출한다(새 provider 0 — controller 등록만). cron endpoint 와 별도 controller 로
+  // 분리해 단일 책임 유지(같은 prefix `api/schedules`, 클래스만 분리).
+  controllers: [CronScheduleController, BackfillController],
   // BackfillRunnerService(T-0419, P7 ⑤ slice 2) — 신규 인원 1년치 backfill 실행 runner.
   // CollectionTriggerService 를 주입받아 buildBackfillPlan 출력의 각 주 window 를 순차
   // 소비한다. idempotency 판정자(ALREADY_BACKFILLED_CHECKER)는 T-0420 에서 실 provider
