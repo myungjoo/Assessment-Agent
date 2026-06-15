@@ -2,7 +2,7 @@
 id: T-0416
 title: api.md 에 /api/schedules cron 관리 endpoint 3종 doc-sync
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-039]
 dependsOn: [T-0414, T-0415]
@@ -57,3 +57,9 @@ direct doc-only 이므로 sub-agent 없이 driver 가 직접 Edit 처리 (planne
 ## Follow-ups
 
 (없음 — 생성 시점)
+
+## Result (DONE 2026-06-15T11:08Z)
+
+- direct doc-only commit fdeb3d6 (main fast-forward, PR/리뷰 없음 — commitMode direct).
+- api.md §4 prefix 표 +1행 / §5 cron 주기 관리 그룹 +3 endpoint / §7 L171 단서 보강 / 합계 줄 prefix 13→14 (headline+chain). 코드·테스트 0 LOC.
+- CI run 27542100921 (fdeb3d6, doc-only) in_progress → 다음 fire 재확인 (trivially green 예상).
