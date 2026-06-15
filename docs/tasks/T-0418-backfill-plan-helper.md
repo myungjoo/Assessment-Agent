@@ -2,7 +2,10 @@
 id: T-0418
 title: 신규 인원 1년치 backfill plan 산출 순수 helper (P7 ⑤ slice 1)
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: bae0ace
+prNumber: 337
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-027]
 estimatedDiff: 150
