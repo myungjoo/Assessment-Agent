@@ -32,11 +32,12 @@
     "note": "/loop vb707106 (dynamic, turn cap 10). t1:planner→T-0406. t2:T-0406(web-static smoke spec)→merge 15a33b4. t3:planner→T-0407(flaky e2e root-cause). t4:T-0407(reeval P2025→409)→merge 192346a. t5:planner→T-0408. t6:T-0408(web.module.ts coverage)→merge a2a4970. t7:planner→T-0409(T-0355 resolution Route A). t8:T-0409(check-spec-presence .d.ts 위양성 fix)→PR #330→merge 57ecda8→T-0355 종결. counters 397→401(+4). non-DONE task 0 → WIND-DOWN. 동시성 무사고."
   },
   "ci": {
-    "lastRun": "2026-06-15T03:18:00Z",
+    "lastRun": "2026-06-15T04:10:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27504589537",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27523365574",
+    "noteT0411": "T-0411(ADR-0042 PROPOSED→ACCEPTED flip, direct doc-only) main push be4e664 CI run 27523365574 = completed/success(본 fire gh run watch --exit-status 0 확인, 기본 검사 2m43s). doc-only(ADR status 1줄 + 본 fire bookkeeping)이라 trivially green. Node20 deprecation annotation non-blocking(2026-06-16, June16 forced). 미확인 main run 0.",
     "noteT0410": "PR #331(T-0410 ADR-0042 @nestjs/schedule 도입 결정, doc-only ADR) head e5a8479 pull_request run = first-pass green 전 step(lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크/e2e + reviewer approval 검증 — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요). doc-only ADR(0-LOC 코드)이라 trivially green. squash e6a6638 --delete-branch. e6a6638 main push run 다음 fire 재확인(doc-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0409": "PR #330(T-0409 check-spec-presence web .d.ts 위양성 fix + self-test) head bd76817 pull_request run 27504589537 = first-pass green 전 step(spec-presence/CAS self-test 3종/lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크/e2e + reviewer approval 검증 — approve comment #issuecomment-4702320105 가 approval-gate step 실행 전 landing, rerun 불요). self-test web 4 케이스 CI 첫 실행 green. squash 57ecda8 --delete-branch → T-0355 종결. 57ecda8 main push run 다음 fire 재확인(scripts 2파일/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0408": "PR #329(T-0408 web.module.ts coverage 포함) head fa26d23 pull_request run 27503936447 = 실 step 전부 green(lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크/e2e — web.module.ts 100%/global 99.96% threshold 통과) + 'reviewer agent approval 검증' 단독 fail = benignRedNote case A(approve comment #issuecomment-4702257768 가 15:46Z run 후 landing). approve comment post 후 `gh run rerun 27503936447 --failed` → 전 step green. squash a2a4970 --delete-branch. a2a4970 main push run 다음 fire 재확인(package.json 1줄/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
