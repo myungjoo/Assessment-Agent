@@ -2,8 +2,10 @@
 id: T-0426
 title: 최근 N일 manual delete 대상 산출 순수 조립 helper (buildRecentDeletionPlan)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-15T21:08:00Z
+result: "PR #343 squash 474fa82 머지(reviewer round1 APPROVE, 4-게이트 PASS, CI green). buildRecentDeletionPlan(reference, days, instants): RecentDeletionPlan{window,toDelete,toKeep} 순수 조립 helper — buildRecentDeletionWindow + selectInDeletionWindow 두 helper 호출만(재구현 0), non-mutating, 인자 검증 위임/전파. 신규 helper 100% line/branch/func cov. src/scheduling/recent-deletion-plan.ts +spec(+203 LOC)."
 coversReq: [REQ-041]
 estimatedDiff: 120
 estimatedFiles: 2

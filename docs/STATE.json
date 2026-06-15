@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0426",
-  "backlogNote": "**T-0425(P7 ⑤/R-74 REQ-041 slice 1b — 삭제 window [start,end) 내 평가 결과 선별 순수 helper, selectInDeletionWindow) 완료(pr, PR #342 squash 9455809, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** buildRecentDeletionWindow(T-0424) 출력 PeriodRange 를 인자로 소비해 instant 들을 in/out-of-window 반열림([start,end)) 분류(start 포함·end 배타), window 검증 TypeError(비-Date/Invalid)·RangeError(start>=end)·instants 검증 TypeError(비-배열·원소 Invalid Date index 포함)·빈 배열 정상·non-mutating·순서 보존. 신규 helper 100% cov(line/branch/func), schema/cycle/배선 0(src/scheduling/deletion-window-select.ts +spec). T-0418 buildBackfillPlan→T-0419 runner 분리와 동형(helper 먼저, 실행 후속). **이후 우선순위(planner 미큐잉, 다음 fire dispatch): REQ-041 slice 2(buildRecentDeletionWindow + selectInDeletionWindow 두 helper 조립 실 삭제 runner + 재수집 trigger 배선, pr — module-cycle architect 사전 점검 필요) 또는 slice 1/1b 의 REST/doc-sync 후속.** **여전히 게이트된 우선순위: slice 2 후속 a-2(PersonService hook, module 순환 architect 게이트) → slice 3(backfill 영속화 표식, schema 게이트).** **T-0424 완료 유지(recent-deletion-window.ts, PR #341 4d3345c). T-0423/T-0422/T-0421/T-0420/T-0419 완료 유지. T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=417. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": null,
+  "backlogNote": "**T-0426(P7 ⑤/R-74 REQ-041 slice 1c — 최근 N일 manual delete 대상 산출 순수 조립 helper, buildRecentDeletionPlan) 완료(pr, PR #343 squash 474fa82, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** buildRecentDeletionWindow(T-0424) + selectInDeletionWindow(T-0425) 두 helper 를 순수 조립해 단일 진입점(reference + days + 후보 instant → RecentDeletionPlan{window,toDelete,toKeep})으로 최종 삭제/보존 대상 산출. 재구현 0(building block 호출만), 인자 검증 위임/전파(RangeError/TypeError), non-mutating. 신규 helper 100% cov(line/branch/func), schema/cycle/배선 0(src/scheduling/recent-deletion-plan.ts +spec). T-0418 buildBackfillPlan→T-0419 runner 분리와 동형(plan 먼저, 실행 후속) — REQ-041 의 순수-helper 3 slice(1/1b/1c) 완결, runner 게이트 전 마지막 ungated 단추 완료. **이후 우선순위(planner 미큐잉, 다음 fire dispatch): REQ-041 slice 2(세 helper(window+select+plan) 조립 실 삭제 runner + 재수집 trigger 배선, pr — module-cycle architect 사전 점검 필요) 또는 slice 1/1b/1c 의 REST/doc-sync 후속.** **여전히 게이트된 우선순위: slice 2 후속 a-2(PersonService hook, module 순환 architect 게이트) → slice 3(backfill 영속화 표식, schema 게이트).** **T-0425/T-0424 완료 유지(deletion-window-select.ts PR #342, recent-deletion-window.ts PR #341). T-0423/T-0422/T-0421/T-0420/T-0419 완료 유지. T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=418. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-6ccabee",
-    "since": "2026-06-15T20:37:35Z",
-    "note": "planner-only fire(cron@cloud-aa, :30 근방 trigger). 진입 시 로컬 main 6c15f4e→origin/main 6ccabee ff 동기(직전 fire T-0425 closeout 머지 반영 — T-0425 이미 DONE). currentTask/nextTask 둘 다 null·claims []·claimable PENDING 0 → LOOP [2] planner dispatch(fineGrainedConcurrency=true 이나 claimable 부재라 claim 경로 no-op → planner). server-time 20:37:35Z(GitHub Date header). 권위 lock CAS 획득(e216008, prev tip f0bb830 free tombstone)→planner→nextTask=T-0426(P7 ⑤/R-74 REQ-041 slice 1c — buildRecentDeletionPlan 순수 조립 helper, pr, 게이트 없음, dependsOn []) 큐잉. 코드 0 LOC(doc-only direct commit). 종료 시 tombstone CAS release. STATE.lock 은 비권위 mirror. T-0426 실행은 다음 fire(claim 경로)."
+    "session": "cron@cloud-aa15-5b45459",
+    "since": "2026-06-15T21:04:12Z",
+    "note": "T-0426 DONE(pr, PR #343 squash 474fa82) fire(cron@cloud-aa15, :15 trigger, stage 5b claim 경로). 진입 시 로컬 main 6ccabee→origin/main 5b45459 동기(직전 planner fire T-0426 큐잉 반영, nextTask=T-0426 발견). server-time 21:04:12Z(GitHub Date header). 권위 lock CAS 획득(1b7bad2, prev tip 60c8202 free tombstone)→reclaim no-op(claims [])→active claim 0<2 + T-0426 pr→활성 claim 0 조건 충족 단독 claim→validate-claim-candidate PASS(touchesFiles 교집합 0, dependsOn [])→select-claim T-0426(claim append+lock tombstone 동일 commit CAS, claimedAt 21:04:12Z, lock release)→lock-free executor(recent-deletion-plan.ts +spec, 신규 helper 100% cov)→feature branch push→integrator(PR #343 open→reviewer round1 APPROVE→4-게이트 PASS→squash merge 474fa82 + branch delete). closeout 시 claims.json 빈 배열 release. 권위 lock = branch tip lock.json(tombstone), STATE.lock 은 비권위 mirror."
   },
-  "lastActivity": "2026-06-15T20:37:35Z",
-  "lastCommit": "9455809",
+  "lastActivity": "2026-06-15T21:10:00Z",
+  "lastCommit": "474fa82",
   "mostRecentTasks": [
+    "T-0426",
     "T-0425",
     "T-0424",
     "T-0423",
-    "T-0422",
-    "T-0421"
+    "T-0422"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,13 +32,14 @@
     "note": "/loop vb707106 (dynamic, turn cap 5). t1(~11:11Z): origin/main e2461bf 동기, lock=cron@cloud-6d38 점유(non-stale, since 11:06:11Z)→no-op stand-down. t2(11:36Z): lock free(tombstone 8f19e18)→CAS 획득(6e202ae)→planner dispatch→T-0417(P7 ④ manual trigger endpoint POST /api/schedules/trigger, pr) 큐잉→direct doc commit→lock tombstone release. 다음 turn T-0417 execute."
   },
   "ci": {
-    "lastRun": "2026-06-15T20:10:00Z",
+    "lastRun": "2026-06-15T21:08:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0425 PR #342 CI success(기본 검사 pass + reviewer agent approval 검증 step success — gate-2/gate-4 둘 다 충족). squash merge 9455809. 본 closeout(direct doc-only STATE/journal/task) main push CI 는 다음 fire 재확인 — trivially green 예상. Node20 deprecation annotation non-blocking(2026-06-16)."
+    "note": "T-0426 PR #343 CI success(기본 검사 pass + reviewer agent approval 검증 step success — gate-2/gate-4 둘 다 충족). squash merge 474fa82. 머지 후 main push CI run(474fa82)은 in_progress — 다음 fire [1]에서 conclusion 재확인(PR CI 가 이미 green 이라 trivially green 예상). 본 closeout(direct doc-only STATE/journal/task) main push CI 도 다음 fire 재확인. Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
+    "T-0426": 1,
     "T-0425": 1,
     "T-0424": 1,
     "T-0419": 1,
@@ -725,7 +726,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 417,
+    "tasksCompleted": 418,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
