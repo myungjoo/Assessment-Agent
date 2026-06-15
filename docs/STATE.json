@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**T-0413(P7 ③ slice 1 — SchedulerRegistry 기반 동적 cron 등록 service CronScheduleService + SchedulingModule 골격) 머지 완료(PR #333 squash cc9ff4b, round 2/7).** Q-0038(cron@3.2.1 직접 dep 선언) 사용자 승인(option a)으로 unblock 후 재진입. round 1 reviewer APPROVE 였으나 CI 테스트 step 이 leaked CronJob 실타이머로 hang → round 2 에서 spec 의 cron CronJob mock(test-only)으로 해소. P7 후속(planner 미큐잉 — 다음 fire 가 dispatch): ③ slice 2 cron 지정 엔드포인트(controller/엔드포인트·평가 callback 배선) → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=405. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": "T-0414",
+  "backlogNote": "**T-0414(P7 ③ slice 2 — cron 지정 엔드포인트 controller/DTO + 평가 tick callback 배선, pr, dependsOn T-0413) 큐잉.** T-0413(③ slice 1 CronScheduleService + SchedulingModule 골격) 머지 완료(PR #333 squash cc9ff4b). T-0414 = T-0413 의 4 primitive(registerOrReplace/remove/list/exists) 위 Admin+ RESTful endpoint(GET/PUT /api/schedules + DELETE /api/schedules/:name, JwtAuthGuard+RolesGuard @Roles(Admin)) + 주입형 CRON_TICK_HANDLER 추상(실 평가 결선은 ④/⑤ defer). P7 후속: ③ slice 2(T-0414 진행 중) → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027) + api.md /api/schedules doc-sync(direct 후속). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=405. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "loop@WIN-JQIPLSBL9QV-q0038resume",
-    "since": "2026-06-15T06:55:26Z",
-    "note": "T-0413 DONE(PR #333 cc9ff4b) closeout 후 tombstone release. Q-0038 RESOLVED→재진입→2 round(round 2 cron mock test-fix 로 CI hang 해소)→squash merge. nextTask=null(다음 fire planner 가 ③ slice 2 큐잉). 권위 lock release 는 driver 가 tombstone CAS 로 수행."
+    "session": "cron@cloud-50ec",
+    "since": "2026-06-15T08:47:16Z",
+    "note": "cron fire — planner dispatch only. nextTask=T-0414(P7 ③ slice 2) 큐잉 후 tombstone release. T-0414 실행은 다음 fire(gh/MCP 가용 진입점)가 claim. 권위 lock release 는 driver 가 tombstone CAS 로 수행."
   },
-  "lastActivity": "2026-06-15T06:58:00Z",
+  "lastActivity": "2026-06-15T08:47:16Z",
   "lastCommit": "cc9ff4b",
   "mostRecentTasks": [
     "T-0413",
