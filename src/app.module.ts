@@ -5,7 +5,8 @@
 // AssessmentCollectionModule (T-0251, ADR-0029 — collection service DI 가용화) +
 // AssessmentEvaluationModule (T-0293, ADR-0032 — 평가 controller / orchestrator 가용화) +
 // WebModule (T-0354, ADR-0040 §3 — web/dist static serve + SPA fallback) +
-// ScheduleModule (T-0412, ADR-0042 §Decision 2 — SchedulerRegistry 전역 주입 활성화) 을 등록한다.
+// ScheduleModule (T-0412, ADR-0042 §Decision 2 — SchedulerRegistry 전역 주입 활성화) +
+// SchedulingModule (T-0415, ADR-0042 §Decision 2 — /api/schedules 동적 cron 엔드포인트 런타임 활성화) 을 등록한다.
 // AssessmentModule 등 추가 도메인 module 은 후속 task 책임.
 import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -20,6 +21,7 @@ import { GithubModule } from "./github/github.module";
 import { LlmModule } from "./llm/llm.module";
 import { PermissionDeniedRecordModule } from "./permission-denied/permission-denied-record.module";
 import { PersistenceModule } from "./persistence/persistence.module";
+import { SchedulingModule } from "./scheduling/scheduling.module";
 import { UserModule } from "./user/user.module";
 import { WebModule } from "./web/web.module";
 
@@ -43,6 +45,10 @@ import { WebModule } from "./web/web.module";
   // ScheduleModule.forRoot() (T-0412 추가) — ADR-0042 §Decision 2. 1회 root import 로
   // SchedulerRegistry 가 전역 주입 가능해지고 declarative 스케줄 데코레이터가 활성화된다.
   // 현 단계는 동적 registry 활성화만 — 정적 @Cron job 정의 0 (후속 ③ scheduler service 책임).
+  // SchedulingModule (T-0415 추가) — ADR-0042 §Decision 2 동적 cron service/controller slice.
+  // CronScheduleController(/api/schedules) + CRON_TICK_HANDLER provider + CronScheduleService 를
+  // root DI 그래프에 노출해 Admin 런타임 cron 지정 진입점을 활성화한다. ScheduleModule.forRoot()
+  // 는 위 1회 등록을 그대로 재사용(SchedulingModule 은 forRoot 재import 없이 전역 SchedulerRegistry 주입).
   imports: [
     PersistenceModule,
     UserModule,
@@ -55,6 +61,7 @@ import { WebModule } from "./web/web.module";
     AssessmentEvaluationModule,
     WebModule,
     ScheduleModule.forRoot(),
+    SchedulingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
