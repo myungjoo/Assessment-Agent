@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**P7 stream 개시 — T-0410(ADR-0042 @nestjs/schedule 도입 결정, status PROPOSED) 머지(PR #331 squash e6a6638, reviewer APPROVE r1/7 4-게이트 PASS, CI first-pass green).** P7 entry ADR 완료. 다음 P7 후속 task(planner 가 다음 fire 에서 큐잉): ① ADR-0042 PROPOSED→ACCEPTED flip(direct 1줄 — 사용자 6/15 dep 승인 이미 확보) → ② package.json `@nestjs/schedule` dep 실 추가 + ScheduleModule import(pr) → ③ SchedulerRegistry 기반 cron 주기 지정 service/endpoint(R-72 REQ-039) → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). nextTask=null → 다음 fire planner dispatch. **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=402. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": "T-0411",
+  "backlogNote": "**P7 stream ① 큐잉 — T-0411(ADR-0042 PROPOSED→ACCEPTED flip, direct doc-only 1줄, dependsOn T-0410).** T-0410(ADR-0042 @nestjs/schedule 도입 결정, status PROPOSED) 머지(PR #331 squash e6a6638, reviewer APPROVE r1/7 4-게이트 PASS) 후 §3.1 규칙4 = ADR status flip 은 direct. T-0411 머지 후 planner 가 큐잉할 P7 후속: ② package.json `@nestjs/schedule` dep 실 추가 + ScheduleModule.forRoot() import(pr, dependsOn T-0411) → ③ SchedulerRegistry 기반 cron 주기 지정 service/endpoint(R-72 REQ-039) → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=402. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@local-aa-local-15-t0410",
-    "since": "2026-06-15T03:06:06Z",
-    "note": "local-15 cron fire — T-0410(ADR-0042 @nestjs/schedule 도입 결정, pr-mode) 실행·머지 완료. fineGrainedConcurrency ON claim 경로: 권위 lock CAS 613b868→2619779 획득 → select-claim.sh 로 T-0410 claim(lock tombstone release, claims.json=[T-0410 CLAIMED]) → lock-free executor(architect ADR-0042 신설, 0-LOC 결정 전용) → feature branch claude/T-0410 push e5a8479 → integrator PR #331 open → reviewer APPROVE r1/7(finding 0, comment 외부 post) → 4-게이트 PASS(CI first-pass green) → squash merge e6a6638 --delete-branch. closeout 후 claims.json=[] 정리 + tombstone release. counters 401→402. STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@local-aa-local-30-t0411",
+    "since": "2026-06-15T03:30:00Z",
+    "note": "cron fire — WIND-DOWN(20 cycle) 종료. T-0410(ADR-0042 @nestjs/schedule PROPOSED) 머지로 P7 stream unblock. 권위 lock CAS 2bfbad3→7bab798 획득 → currentTask/nextTask null·claims=[]·open PR 0·비-terminal task 0·unresolved HQ 0 확인 → planner dispatch → T-0411(ADR-0042 PROPOSED→ACCEPTED flip, direct doc-only 1줄) 큐잉, nextTask=T-0411. 본 fire 는 planner 산출물 doc-only direct commit 으로 마무리(LOOP.md §1[2]→[6]). 다음 fire 가 T-0411 실행. counters 402 불변. STATE.lock mirror 비권위 — 권위는 branch tip lock.json(턴 종료 시 tombstone release)."
   },
-  "lastActivity": "2026-06-15T03:20:00Z",
+  "lastActivity": "2026-06-15T03:30:00Z",
   "lastCommit": "e6a6638",
   "mostRecentTasks": [
     "T-0410",
