@@ -1,12 +1,13 @@
-# Local development PostgreSQL skeleton — T-0033.
-# ADR-0002 (PostgreSQL + Prisma ACCEPTED) 의 local dev DB.
+# Assessment-Agent — 운영/로컬 통합 docker-compose.
+# (구) 본 파일은 로컬 dev PostgreSQL skeleton 만 담았으나, 운영 배포용 app 서비스를
+# 합쳐 `docker compose up -d --build` 한 번으로 postgres + NestJS app(web 정적 serve
+# 포함, ADR-0003 monolith)을 함께 띄우도록 확장했다. 자세한 절차는 deploy/README.md.
 #
 # 주의:
-#   - 본 compose 는 개발 / 테스트용 skeleton 만. production 의 replica / health check
-#     / network policy 는 P7 phase 의 별도 ops task 책임 (Out of Scope).
-#   - POSTGRES_PASSWORD 는 placeholder 'change_me_in_env' — 실제 password 는
-#     `.env` 파일에 두고 절대 commit 하지 않는다 (CLAUDE.md §9).
-#   - DATABASE_URL 의 자세한 형태는 `.env.example` 참조.
+#   - 모든 secret/자격(POSTGRES_PASSWORD / DATABASE_URL / AUTH_JWT_SECRET)은 같은
+#     디렉토리의 `.env` 파일에 두고 절대 commit 하지 않는다 (CLAUDE.md §9).
+#     template 은 deploy/env.prod.example.
+#   - dev 에서 DB 만 필요하면 `docker compose up -d postgres` 로 postgres 만 띄울 수 있다.
 
 services:
   postgres:
@@ -21,6 +22,34 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # app 서비스가 DB ready 이후에만 기동하도록 — depends_on.condition 의 기준.
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-assessment_agent} -d ${POSTGRES_DB:-assessment_agent}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: assessment-agent:latest
+    container_name: assessment-agent-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # DATABASE_URL / AUTH_JWT_SECRET / PORT 등은 .env 에서 주입.
+    env_file:
+      - .env
+    environment:
+      PORT: ${PORT:-3000}
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
 
 volumes:
   postgres-data:

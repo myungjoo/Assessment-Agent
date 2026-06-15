@@ -212,3 +212,81 @@ jobs:
           echo "::error::4-게이트 (b) 위반 — formal review APPROVED 0건 + comment approve 어휘 매칭 0건."
           echo "::error::reviewer agent 가 PR 에 review comment 를 post 했는지 확인. CLAUDE.md §3.3 / reviewer.md Post 의무 참조."
           exit 1
+
+  # T-0429 — 배포 산출물(Dockerfile / deploy 스크립트) 검증 job.
+  # 기본 ci job 과 독립 병렬 실행. Docker 빌드 실패 / 스크립트 문법 오류가 PR 을
+  # red 로 만들어 merge 를 차단한다 (R-111/R-114). 사용자 요구 "CI 에서 docker
+  # 만드는 것까지 시험" 의 구현체.
+  deploy-artifacts:
+    name: 배포 산출물 검증 (Docker 빌드 + 런타임 smoke)
+    runs-on: ubuntu-latest
+    # PR 코드(pull_request)와 머지된 main(push)에서만 빌드/smoke 한다. issue_comment
+    # /pull_request_review 재실행은 main 을 checkout 하므로 배포 산출물 빌드가 무의미하고
+    # (매 reviewer comment 마다 docker build 낭비) merge 전엔 main 에 Dockerfile 이 없어
+    # 실패한다 — 그래서 본 job 은 그 두 event 만 트리거한다. (ci job 의 approval-gate
+    # 재실행용 issue_comment trigger 와는 무관 — 본 job 은 게이트 평가에 관여 안 함.)
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    # 런타임 smoke 가 붙을 실 PostgreSQL — 빌드한 이미지를 띄워 entrypoint 의
+    # `prisma migrate deploy` 가 실제 DB 에 발화하는지까지 검증한다 (T-0429 round 2,
+    # reviewer MAJOR: 빌드 성공 ≠ 배포 부팅 성공).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: assessment_agent
+          POSTGRES_PASSWORD: ci_smoke
+          POSTGRES_DB: assessment_agent
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U assessment_agent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: 저장소 checkout
+        uses: actions/checkout@v4
+
+      - name: 배포 스크립트 문법 검사
+        # entrypoint(POSIX sh) / redeploy(bash) 의 문법 오류를 실행 없이 catch.
+        run: |
+          sh -n deploy/docker-entrypoint.sh
+          bash -n deploy/redeploy.sh
+
+      - name: Docker 이미지 빌드 (배포 산출물 검증, push 없음)
+        # Dockerfile 전체(pnpm install → backend build → web build → prune → runtime)
+        # 를 end-to-end 빌드해 배포 가능 상태를 검증. 레지스트리 push 는 하지 않는다.
+        run: docker build -t assessment-agent:ci .
+
+      - name: 컨테이너 런타임 smoke (entrypoint migrate deploy + 부팅 + HTTP 응답)
+        # 빌드한 prod-only 이미지를 실제 기동한다. --network host 로 services.postgres
+        # 가 매핑된 runner localhost:5432 에 도달. 검증 대상:
+        #   1) pnpm prune --prod 로 typescript/ts-node 가 제거된 이미지에서 prisma CLI
+        #      번들 로더가 prisma.config.ts 를 읽어 `prisma migrate deploy` 가 성공하는가.
+        #   2) NestJS 가 부팅돼 GET / 가 200 을 응답하는가(web/dist 정적 serve 포함).
+        # 컨테이너가 crash 하거나 60s 내 응답이 없으면 로그를 찍고 fail → PR red.
+        run: |
+          docker run -d --name aa-smoke --network host \
+            -e DATABASE_URL="postgresql://assessment_agent:ci_smoke@localhost:5432/assessment_agent?schema=public" \
+            -e AUTH_JWT_SECRET=ci_smoke_secret \
+            -e PORT=3000 \
+            assessment-agent:ci
+
+          ok=""
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/ >/dev/null 2>&1; then
+              ok=1; echo "✅ 컨테이너 부팅 + GET / 200 확인 (${i}회 polling)"; break
+            fi
+            if [ -z "$(docker ps -q --filter name=aa-smoke --filter status=running)" ]; then
+              echo "::error::컨테이너가 비정상 종료(crash). 아래 로그 참조."
+              docker logs aa-smoke; exit 1
+            fi
+            sleep 2
+          done
+
+          echo "--- 컨테이너 로그 (prisma migrate deploy 발화 확인) ---"
+          docker logs aa-smoke
+          if [ -z "$ok" ]; then
+            echo "::error::60s 내 HTTP 응답 없음 — 부팅 실패."; exit 1
+          fi
+          docker rm -f aa-smoke

@@ -1,0 +1,16 @@
+[Unit]
+Description=Assessment-Agent 야간 재배포 (main 기준)
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+# 배포 체크아웃 경로 — 설치 환경에 맞게 수정.
+Environment=REPO_DIR=/opt/assessment-agent
+WorkingDirectory=/opt/assessment-agent
+ExecStart=/opt/assessment-agent/deploy/redeploy.sh
+# docker 명령 권한이 있는 사용자로 실행. 기본은 root — git reset --hard + docker
+# 빌드/재기동을 추가 권한 설정 없이 수행하기 위함. 보안 표면을 줄이려면 docker 그룹
+# 소속 비루트 사용자로 바꾸고(README §5 cron 대안과 동일 권한 모델) REPO_DIR 의
+# 소유권도 그 사용자에 맞춘다.
+User=root
