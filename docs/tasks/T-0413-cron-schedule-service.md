@@ -2,7 +2,7 @@
 id: T-0413
 title: "SchedulerRegistry 기반 동적 cron 등록 service + SchedulingModule (P7 ③ slice 1)"
 phase: P7
-status: PENDING
+status: BLOCKED
 commitMode: pr
 coversReq: [REQ-039]
 estimatedDiff: 195
@@ -62,6 +62,10 @@ T-0412 가 `ScheduleModule.forRoot()` 를 AppModule 에 import 해 `SchedulerReg
 - 등록 cron 영속화(DB 저장 후 부팅 재등록) · timezone(KST) 처리 — ADR-0042 §Consequences, 후속/별도 ADR.
 - R-73 manual trigger(REQ-040) · R-50 신규 인원 1년치 backfill(REQ-027) — 각 후속 ④⑤.
 - 외부 cron 라이브러리 검증을 위한 새 dependency 추가 — `@nestjs/schedule`(=`cron`)이 이미 제공하는 범위 내에서 처리. 새 dep 필요 판단 시 BLOCKED(§5).
+
+## Blocker
+
+- **BLOCKED(new-dep, 2026-06-15T14:45Z, HITL Q-0038)** — 구현(register/replace/remove/list + cron 식 검증 helper + SchedulingModule 골격)은 작성·lint 통과했으나 `import { CronJob, CronTime } from "cron"` 가 `pnpm build`(tsc TS2307)에서 실패. `@nestjs/schedule`(ADR-0042 ACCEPTED·머지 완료)는 `CronJob`/`CronTime` 을 re-export 하지 않고 `SchedulerRegistry.addCronJob` 은 `CronJob` 값을 요구하나, `cron@3.2.1`(이미 lockfile 에 transitive dep 으로 존재, ADR-0042 §Decision1 이 cron 엔진으로 명시)을 pnpm strict 모드가 직접 import 차단. `package.json` `dependencies` 에 `cron@3.2.1` 직접 선언 1줄 필요 — §5/§9 new-dependency HITL 게이트라 정지. 사람 결정 후 dep 게이트 해소 시 작성 코드 재사용 재진입(rework 0). executor 의 미완 pr-mode work(`src/scheduling/`)는 unstaged 로 남김.
 
 ## Suggested Sub-agents
 
