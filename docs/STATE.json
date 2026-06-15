@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0412",
-  "backlogNote": "**P7 stream ② 큐잉 완료 — T-0412(@nestjs/schedule dep 추가 + ScheduleModule.forRoot() AppModule import, pr, dependsOn T-0411) nextTask 박제.** ADR-0042(@nestjs/schedule 도입) ACCEPTED 확정 + dep 사용자 승인 완료(commit 8931ef9)라 new-dep 미차단. T-0412 머지 후 P7 후속(다음 fire planner dispatch): ③ SchedulerRegistry 기반 cron 주기 지정 service/endpoint(R-72 REQ-039) → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=403. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": "T-0413",
+  "backlogNote": "**P7 stream ③ slice 1 큐잉 완료 — T-0413(SchedulerRegistry 기반 동적 cron 등록 service CronScheduleService + SchedulingModule 골격, pr, dependsOn T-0412, R-72 REQ-039) nextTask 박제.** T-0412(@nestjs/schedule dep + ScheduleModule.forRoot() AppModule import) 머지 완료(SchedulerRegistry 전역 주입 활성). T-0413 은 ③ 코어(register/replace/remove/list 동적 cron job + cron 식 검증 helper; controller/엔드포인트·평가 callback 배선은 Follow-up slice 2 로 분리, cap 보호). T-0413 머지 후 P7 후속: ③ slice 2 cron 지정 엔드포인트 → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=404. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@local-aa-local-30-ea3673a",
-    "since": "2026-06-15T04:38:01Z",
-    "note": "local-30 cron fire — currentTask/nextTask null 진입, 권위 lock CAS 743e1c1->a15bbd7 획득 → planner dispatch → T-0412(P7 ② @nestjs/schedule dep+ScheduleModule.forRoot import, pr) 큐잉, nextTask=T-0412. 본 fire 는 planner 산출물 doc-only direct commit 으로 마무리. 다음 fire 가 T-0412 실행. counters 403 불변. 턴 종료 시 tombstone release."
+    "session": "cron@local-aa-local-15-3ecea71",
+    "since": "2026-06-15T05:04:52Z",
+    "note": "local-15 cron fire — nextTask=T-0412 진입, 권위 lock CAS 8dbfdb6->028d95f 획득(coarse single-driver, claims.json 부재 §D8(a) fail-safe) → executor(T-0412 pr) → feature branch claude/T-0412-nestjs-schedule-dep 3ced778 push → integrator 4-게이트 PASS(reviewer APPROVE r1/7, CI green run 27525401579, no race) → squash merge PR #332 046e5a5 → planner dispatch T-0413(P7 ③ slice 1, pr) 큐잉. doc-only closeout direct commit. counters 403->404. 턴 종료 시 tombstone release."
   },
-  "lastActivity": "2026-06-15T04:38:01Z",
-  "lastCommit": "e6a6638",
+  "lastActivity": "2026-06-15T05:18:00Z",
+  "lastCommit": "046e5a5",
   "mostRecentTasks": [
+    "T-0412",
     "T-0411",
     "T-0410",
     "T-0409",
-    "T-0408",
-    "T-0407"
+    "T-0408"
   ],
   "loopSession": {
     "turnCount": 8,
@@ -32,11 +32,12 @@
     "note": "/loop vb707106 (dynamic, turn cap 10). t1:planner→T-0406. t2:T-0406(web-static smoke spec)→merge 15a33b4. t3:planner→T-0407(flaky e2e root-cause). t4:T-0407(reeval P2025→409)→merge 192346a. t5:planner→T-0408. t6:T-0408(web.module.ts coverage)→merge a2a4970. t7:planner→T-0409(T-0355 resolution Route A). t8:T-0409(check-spec-presence .d.ts 위양성 fix)→PR #330→merge 57ecda8→T-0355 종결. counters 397→401(+4). non-DONE task 0 → WIND-DOWN. 동시성 무사고."
   },
   "ci": {
-    "lastRun": "2026-06-15T04:10:00Z",
+    "lastRun": "2026-06-15T05:18:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27523365574",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27525401579",
+    "noteT0412": "PR #332(T-0412 P7 ② @nestjs/schedule dep+ScheduleModule.forRoot() AppModule import) head 3ced778 pull_request run 27525401579 = first-pass green 전 step(lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크/e2e + reviewer agent approval 검증 — reviewer approve comment #issuecomment-4704764227 가 approval-gate step 실행 전 landing, rerun 불요, no race). 신규 dep(@nestjs/schedule@^4.1.2, ADR-0042 사전승인)이라 lockfile 동기 후 install·build green, app.module.spec.ts 4 test green(cov line 99.96%/func 100%). integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 + comment 외부 post + self-check + CI green). squash 046e5a5 --delete-branch. 046e5a5 main push run 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0411": "T-0411(ADR-0042 PROPOSED→ACCEPTED flip, direct doc-only) main push be4e664 CI run 27523365574 = completed/success(본 fire gh run watch --exit-status 0 확인, 기본 검사 2m43s). doc-only(ADR status 1줄 + 본 fire bookkeeping)이라 trivially green. Node20 deprecation annotation non-blocking(2026-06-16, June16 forced). 미확인 main run 0.",
     "noteT0410": "PR #331(T-0410 ADR-0042 @nestjs/schedule 도입 결정, doc-only ADR) head e5a8479 pull_request run = first-pass green 전 step(lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크/e2e + reviewer approval 검증 — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요). doc-only ADR(0-LOC 코드)이라 trivially green. squash e6a6638 --delete-branch. e6a6638 main push run 다음 fire 재확인(doc-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0409": "PR #330(T-0409 check-spec-presence web .d.ts 위양성 fix + self-test) head bd76817 pull_request run 27504589537 = first-pass green 전 step(spec-presence/CAS self-test 3종/lint/build/Web 빌드/Web 단위 test/prisma/test+cov/스모크/e2e + reviewer approval 검증 — approve comment #issuecomment-4702320105 가 approval-gate step 실행 전 landing, rerun 불요). self-test web 4 케이스 CI 첫 실행 green. squash 57ecda8 --delete-branch → T-0355 종결. 57ecda8 main push run 다음 fire 재확인(scripts 2파일/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
@@ -97,6 +98,7 @@
     "noteT0392": "PR #323(T-0392 P6 wiring④h AdminView Admin+ RBAC gating UI) head 87e881a = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green: pull_request run 27481911120 전 step success(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증) — reviewer approve comment 가 approval 검증 step 실행 전 landing, rerun 불요; mergeStateStatus CLEAN noop, head 가 origin/main 5727d20 포함 rebase noop). GET /api/auth/me useApiResource 4번째 호출 + isAdminRole 순수 helper(Admin/SuperAdmin 정확 매칭, 그 외/누락/loading=false fail-closed) + isAdmin useMemo. isAdmin 시에만 DifficultyModelSelector·scope select·DataImportExportPanel 렌더, 아니면 권한 부족 안내 한 줄(role=status). GroupMemberList·그룹 select 등급 무관 유지(User+ 조회 가능). presentational/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 457 전체(isAdminRole 5종+gating 8종 신규) 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +298/-41(prod +97/-29). squash 9a66bc6 --delete-branch. 9a66bc6 main push run(23:21Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
+    "T-0412": 1,
     "T-0410": 1,
     "T-0409": 1,
     "T-0408": 1,
@@ -754,7 +756,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 403,
+    "tasksCompleted": 404,
     "tasksBlocked": 7,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

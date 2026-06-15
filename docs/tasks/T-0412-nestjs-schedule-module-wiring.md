@@ -2,8 +2,12 @@
 id: T-0412
 title: "@nestjs/schedule dep 추가 + ScheduleModule.forRoot() AppModule import (P7 ②)"
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 332
+reviewRounds: 1
+mergedAs: 046e5a5
+completedAt: 2026-06-15T05:18:00Z
 coversReq: [REQ-039, REQ-040, REQ-027]
 estimatedDiff: 60
 estimatedFiles: 4
