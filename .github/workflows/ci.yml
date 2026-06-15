@@ -212,3 +212,27 @@ jobs:
           echo "::error::4-게이트 (b) 위반 — formal review APPROVED 0건 + comment approve 어휘 매칭 0건."
           echo "::error::reviewer agent 가 PR 에 review comment 를 post 했는지 확인. CLAUDE.md §3.3 / reviewer.md Post 의무 참조."
           exit 1
+
+  # T-0429 — 배포 산출물(Dockerfile / deploy 스크립트) 검증 job.
+  # 기본 ci job 과 독립 병렬 실행. Docker 빌드 실패 / 스크립트 문법 오류가 PR 을
+  # red 로 만들어 merge 를 차단한다 (R-111/R-114). 사용자 요구 "CI 에서 docker
+  # 만드는 것까지 시험" 의 구현체.
+  deploy-artifacts:
+    name: 배포 산출물 검증 (Docker 빌드 + 스크립트 문법)
+    runs-on: ubuntu-latest
+    # issue_comment(approval-gate 재실행) event 시엔 PR 일 때만 — 무의미한 빌드 회피.
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request != null
+    steps:
+      - name: 저장소 checkout
+        uses: actions/checkout@v4
+
+      - name: 배포 스크립트 문법 검사
+        # entrypoint(POSIX sh) / redeploy(bash) 의 문법 오류를 실행 없이 catch.
+        run: |
+          sh -n deploy/docker-entrypoint.sh
+          bash -n deploy/redeploy.sh
+
+      - name: Docker 이미지 빌드 (배포 산출물 검증, push 없음)
+        # Dockerfile 전체(pnpm install → backend build → web build → prune → runtime)
+        # 를 end-to-end 빌드해 배포 가능 상태를 검증. 레지스트리 push 는 하지 않는다.
+        run: docker build -t assessment-agent:ci .
