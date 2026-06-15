@@ -11,12 +11,12 @@
   "backlogNote": "**T-0409 DONE (P6 T-0355 잔여(b) — check-spec-presence web .d.ts 위양성 수정 + self-test, pr-mode, PR #330 squash merge 57ecda8) → T-0355 종결.** check-spec-presence.sh 에 `*.d.ts) continue ;;` 제외 1줄(gate narrowing) + self-test 4 web 케이스. reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → merge. CI run 27504589537 first-pass green. tasksCompleted 400→401(T-0409 만; T-0355 closure 는 administrative — 슬라이스 T-0405/06/08/09·T-0397 이미 카운트). **T-0355(P6 scaffold parent) 완료: ci-wiring=T-0405·smoke=T-0406·coverage=T-0408·self-test=T-0409·directory=T-0397 전부 머지.** **현재 non-DONE task 0 — WIND-DOWN.** 잔여 stream 전부 게이트: live-LLM Q-0022(만료 6/30) / P7 @nestjs/schedule 새 dep §5(BLOCKED — 승인 필요) / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone. dependency-free non-gated 신규 task 0 → make-work 회피, cron 이 게이트 해소 시 재개.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-local15-windown17",
-    "since": "2026-06-15T00:05:20Z",
-    "note": "cron local-15 fire NO-OP (17차 연속, 직전 16차는 cloud cron cbd02a0): WIND-DOWN 재확인(권위 lock CAS 3d26fb1→d43c53e 획득[lock.json 단독 tree, claims.json 부재=[] 보존], tombstone release). fetch 후 origin/main cbd02a0(직전 16차 NO-OP closeout) ff, currentTask·nextTask null. 독립검증(게이트 해소 이벤트 0): per-file frontmatter status histogram 재검증 406 DONE + 1 DONE-WITH-CAVEAT + 2 SUPERSEDED = 409 전부 terminal·non-terminal 0·claims 활성 0(maxConcurrentClaims=2)·open PR 0(gh pr list 빈)·HQ unresolved 0·blockers []·concurrencyIncidents 4유형 전부 0·counters tasksCompleted=401 불변. 6 잔여 stream 전부 게이트 그대로(live-LLM Q-0022 6/30 미도래·today 6/15 / P7 @nestjs/schedule 새 dep §5 BLOCKED·승인 필요 / ADR-0036 5c 측정데이터 부재 / backend reeval-endpoint defer·api.md 미구현 / Q-0032 DEFERRED / Q-0026 timezone chain shipped). 잔존 branch claude/focused-goodall-lpjlt6 는 과거 NO-OP 작업 브랜치(de1968c WIND-DOWN 7차)로 actionable 아님·open PR 미연결. 게이트 해소 이벤트 0 → dependency-free·non-gated 유용 task 0 → CLAUDE.md §3 진척용 task 금지 준수(make-work 회피, counters 401 유지). STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-windown18",
+    "since": "2026-06-15T00:30:00Z",
+    "note": "cron fire NO-OP (18차 연속, 직전 17차는 local-15 cron 9d81ca8): WIND-DOWN 재확인(권위 lock CAS 5a7e852→c425266 획득[lock.json 단독 tree, claims.json 부재=[] 보존], tombstone release). fetch 후 origin/main 9d81ca8(직전 17차 NO-OP closeout) ff, currentTask·nextTask null. 독립검증(게이트 해소 이벤트 0): per-file frontmatter status histogram 재검증 406 DONE + 1 DONE-WITH-CAVEAT + 2 SUPERSEDED = 409 전부 terminal·non-terminal 0·claims 활성 0(maxConcurrentClaims=2)·open PR 0(gh pr list 빈)·HQ unresolved 0·blockers []·concurrencyIncidents 4유형 전부 0·counters tasksCompleted=401 불변. 6 잔여 stream 전부 게이트 그대로(live-LLM Q-0022 6/30 미도래·today 6/15 / P7 @nestjs/schedule 새 dep §5 BLOCKED·승인 필요 / ADR-0036 5c 측정데이터 부재 / backend reeval-endpoint defer·api.md 미구현 / Q-0032 DEFERRED / Q-0026 timezone chain shipped). 게이트 해소 이벤트 0 → dependency-free·non-gated 유용 task 0 → CLAUDE.md §3 진척용 task 금지 준수(make-work 회피, counters 401 유지). STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-15T00:05:20Z",
-  "lastCommit": "cbd02a0",
+  "lastActivity": "2026-06-15T00:30:00Z",
+  "lastCommit": "9d81ca8",
   "mostRecentTasks": [
     "T-0409",
     "T-0408",
