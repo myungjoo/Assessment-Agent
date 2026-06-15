@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**T-0415(P7 ③ slice 2 Out-of-Scope follow-up #1 — AppModule 에 SchedulingModule import) 머지 완료(PR #335 squash cc2eeff, round 1/7 reviewer APPROVE 0-finding, CI first-pass green).** SchedulingModule 을 AppModule.imports 에 추가해 /api/schedules 엔드포인트를 런타임에 활성화(REQ-039/R-72) — ScheduleModule.forRoot() 등록 무변경(전역 SchedulerRegistry 재사용 계약 유지), 부팅 직후 declarative cron job 0개 회귀 단언 동반. 신규 dep 0. 본 fire(cron@local-aa15, :15 trigger)는 stage 5b claim 경로로 T-0415 select+claim(lock-free 진행)→executor 구현·테스트→integrator 4-게이트 PASS squash merge. P7 후속 우선순위(planner 미큐잉 — 다음 fire dispatch): ③ slice 2 follow-up #1b(api.md /api/schedules doc-sync, commitMode direct) → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=407. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": "T-0416",
+  "backlogNote": "**planner queued T-0416(P7 ③ slice 2 follow-up #1b — api.md /api/schedules doc-sync, commitMode direct, dependsOn T-0414/T-0415).** T-0414(PR #334)/T-0415(PR #335)가 shipped 한 /api/schedules 3 REST endpoint(GET list / PUT registerOrReplace / DELETE :name remove, Admin+ RBAC, REQ-039/R-72)를 docs/architecture/api.md §4 prefix 표 + §5 endpoint 표에 doc-sync 하고, §7 line 171 의 'cron trigger 는 in-process @Cron only' 단서를 런타임 관리 surface 추가로 정정 + §5 합계 줄 갱신. 단일 파일(api.md) 변경, 코드 0 LOC → direct doc-only(R-112 비적용). issue-still-relevant pre-check: origin/main api.md 에 /api/schedules row 부재 확인(미박제, doc-sync 필요 genuine). 본 doc-sync 후 P7 잔여 우선순위(planner 미큐잉 — 후속 fire dispatch): ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=407. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@local-aa15",
-    "since": "2026-06-15T10:05:32Z",
-    "note": "T-0415 DONE(PR #335 cc2eeff) closeout. 본 fire(cron@local-aa15, :15 trigger)는 stage 5b claim 경로로 nextTask=T-0415 를 select+claim(server-time 2026-06-15T10:05:32Z 주입 reclaim no-op → maxConcurrentClaims=2 게이트 활성claim 0<2 → validate-claim-candidate PASS → select-claim CAS)하고 lock-free 진행 → executor(implementer+tester) → integrator 4-게이트 PASS squash merge cc2eeff. 권위 lock 은 select-claim 시점 tombstone 으로 이미 release 됨. claims.json 의 T-0415 claim 은 본 fire 종료 시 CAS 로 정리(빈 배열 복원)."
+    "session": "cron@local-sched-32c4",
+    "since": "2026-06-15T10:38:05Z",
+    "note": "currentTask·nextTask 둘 다 null + claims.json 빈 배열([]) 이라 planner dispatch only fire(cron@local-sched-32c4, :38 trigger). 권위 lock(claude/lock-driver) branch-ref CAS 획득(730533b, old bab08ee) → planner 가 T-0416(P7 ③ slice 2 follow-up #1b — api.md /api/schedules doc-sync, direct) 큐잉 → doc-only direct commit → tombstone CAS 로 release. T-0416 실행은 다음 fire 가 claim/pickup. claims.json 빈 상태 유지(orphan 0)."
   },
-  "lastActivity": "2026-06-15T10:18:00Z",
+  "lastActivity": "2026-06-15T10:40:00Z",
   "lastCommit": "cc2eeff",
   "mostRecentTasks": [
     "T-0415",
