@@ -2,7 +2,11 @@
 id: T-0413
 title: "SchedulerRegistry 기반 동적 cron 등록 service + SchedulingModule (P7 ③ slice 1)"
 phase: P7
-status: BLOCKED
+status: DONE
+completedAt: 2026-06-15T06:58:00Z
+mergedAs: cc9ff4b
+prNumber: 333
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-039]
 estimatedDiff: 195
