@@ -10,12 +10,12 @@
   "nextTask": "T-0413",
   "backlogNote": "**P7 stream ③ slice 1 큐잉 완료 — T-0413(SchedulerRegistry 기반 동적 cron 등록 service CronScheduleService + SchedulingModule 골격, pr, dependsOn T-0412, R-72 REQ-039) nextTask 박제.** T-0412(@nestjs/schedule dep + ScheduleModule.forRoot() AppModule import) 머지 완료(SchedulerRegistry 전역 주입 활성). T-0413 은 ③ 코어(register/replace/remove/list 동적 cron job + cron 식 검증 helper; controller/엔드포인트·평가 callback 배선은 Follow-up slice 2 로 분리, cap 보호). T-0413 머지 후 P7 후속: ③ slice 2 cron 지정 엔드포인트 → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=404. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
-    "holder": null,
-    "session": "cron@local-aa-local-15-3ecea71",
-    "since": "2026-06-15T05:04:52Z",
-    "note": "local-15 cron fire(14:00) — nextTask=T-0413(P7 ③ slice 1, pr) 진입, executor 가 STATUS=BLOCKED(reason=new-dep) 반환: 구현·lint 통과했으나 pnpm build 가 `import { CronJob } from \"cron\"` 에서 TS2307 실패 → package.json 에 cron@3.2.1 직접 dep 선언 1줄 필요(§5/§9 HITL 게이트). notifier 가 HITL Q-0038 박제 + blockers[] B-new-dep + T-0413 status BLOCKED + counters.tasksBlocked 7->8(origin+1). nextTask=T-0413 유지(dep 게이트 해소 후 재진입), currentTask=null. executor 미완 pr-mode work(src/scheduling/) 는 unstaged — commit 안 함. doc-only direct commit(notifier). 권위 lock CAS 는 driver 가 별도 수행(본 mirror 만 기록). 턴 종료 시 tombstone release."
+    "holder": "loop",
+    "session": "loop@WIN-JQIPLSBL9QV-q0038resume",
+    "since": "2026-06-15T06:55:26Z",
+    "note": "사용자 대면 resume — Q-0038 RESOLVED(option a, cron@3.2.1 직접 dep 승인) 후 nextTask=T-0413(P7 ③ slice 1, pr) 재진입. 권위 lock CAS 획득(f5fd0fe..f2f6c96). 단일 task."
   },
-  "lastActivity": "2026-06-15T14:45:23Z",
+  "lastActivity": "2026-06-15T06:55:26Z",
   "lastCommit": "8b2b695",
   "mostRecentTasks": [
     "T-0412",
@@ -239,16 +239,8 @@
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
-  "blockers": [
-    {
-      "id": "B-new-dep-2026-06-15T14:45Z",
-      "reason": "new-dep",
-      "taskId": "T-0413",
-      "raisedAt": "2026-06-15T14:45:23Z",
-      "hqId": "Q-0038",
-      "details": "T-0413(P7 ③ slice 1, pr) 구현은 작성·lint 통과했으나 `import { CronJob, CronTime } from \"cron\"` 가 `pnpm build`(tsc TS2307)에서 실패. @nestjs/schedule(ADR-0042 ACCEPTED·머지)는 CronJob/CronTime 을 re-export 하지 않고 SchedulerRegistry.addCronJob 은 CronJob 값을 요구. cron@3.2.1 은 이미 lockfile 에 transitive dep 으로 존재(ADR-0042 §Decision1 이 cron 엔진 명시)하나 pnpm strict 모드가 직접 import 차단 → package.json dependencies 에 cron@3.2.1 직접 선언 1줄 필요. package.json 패키지 추가는 §5/§9 new-dependency HITL 게이트라 driver 자율 진행 정지. 사람 결정 후 dep 게이트 해소 시 T-0413 재진입(작성 코드 재사용, rework 0). executor 미완 pr-mode work(src/scheduling/) 는 unstaged 로 남김(commit 안 함)."
-    }
-  ],
+  "blockers": [],
+  "blockersResolvedNote4": "B-new-dep-2026-06-15T14:45Z (T-0413 P7 ③ slice 1 의 cron@3.2.1 직접 dep 선언 게이트, Q-0038) 는 2026-06-15T06:55Z 사용자 승인(option a — '권고대로')으로 해소. cron@3.2.1 직접 선언 승인(공급망 delta 0 — 이미 lockfile transitive dep, ADR-0042 §Decision1 named). T-0413 재진입 — implementer 가 package.json 에 cron 직접 선언 추가 + 작성한 src/scheduling/ 코드 재사용, rework 0. tasksBlocked counter 는 historical fact 로 8 유지(new-dep 은 정책상 정상 HITL 게이트 — 정책 실패 아님).",
   "blockersResolvedNote3": "B-credential-2026-06-14T12:41Z (cron@cloud-aa-local-scheduled 이 T-0405 의 `.github/workflows/ci.yml` push 를 workflow scope 부재로 BLOCKED 표기) 는 loop@WIN-JQIPLSBL9QV-vb707106 session 에서 해소 — 사용자가 `gh auth refresh -s workflow` 재인증 후 로컬 /loop(workflow-scoped)가 T-0405 resume: branch push → PR #326 → reviewer APPROVE r1/7(finding 0) → 4-게이트 PASS → squash merge 4566f7c --delete-branch. web build/test step 이 main CI 에 실 green 안착(run 27501403767 first-pass success, 신규 'Web 빌드'·'Web 단위 test' 2 step 모두 success 확인 — vitest 가 CI 에서 실제 실행됨, R-111/R-113 정합). cron 의 stale-lock 오판 원인 = 로컬 시계 skew(driver lock since 가 ~2.5h 과거로 보여 cron 이 stale 탈취 후 BLOCKED 오판). tasksBlocked counter 는 env/credential 한계라 increment 안 함(7 유지).",
   "blockersResolvedNote2": "B-ci-infra-2026-06-08T21:07Z (3+ 연속 main CI runner 미할당 infra-fail) 는 2026-06-09T02:33Z 해소. 원인 = private repo 의 GitHub Actions spending limit $0 (결제수단만 추가로는 overage 미허용 — 무료 minutes 소진 후 runner 미할당). 사용자가 spending limit 상향 후 run 27167117992 rerun 이 runner 정상 할당 + 전체 green. ci-infra 는 코드 회귀가 아니므로 tasksBlocked counter increment 안 함(7 유지). Q-0028 RESOLVED 동반.",
   "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지. B-credential-2026-06-04T16:04Z (cron@cloud-bc1cce 16:04 fire 의 refs/locks/* 403 stale-탈취 실패) 는 동일 env 한계 재발화 — **loop@WIN-JQIPLSBL9QV-s55 가 session #55 t8 에서 정상 진행하며 자동 해소**(cron 이 못 한 T-0229 bookkeeping·Q-0022 escalation·counter 정합을 본 로컬 driver 가 완료, cron d82127d 의 blocker 기록을 본 commit 에서 blockers[]→[] 로 close). tasksBlocked counter 는 increment 하지 않는다(반복 env 한계지 정책 실패 아님). **근본 원인 = lock since 미갱신으로 60min stale 오판 — 본 turn 부터 매 turn since=now heartbeat 적용해 재발 차단.**",
@@ -259,7 +251,9 @@
       "raisedBy": "cron@local-aa-local-15 notifier",
       "task": "T-0413",
       "reason": "new-dep",
-      "status": "OPEN",
+      "status": "RESOLVED",
+      "resolvedAt": "2026-06-15T06:55:26Z",
+      "resolution": "(a) 승인 — 사용자가 cron@3.2.1 을 package.json dependencies 에 직접 선언하는 것을 승인('권고대로'). 공급망 delta 0(이미 lockfile transitive dep, ADR-0042 §Decision1 이 cron 엔진으로 named). T-0413 재진입: implementer 가 package.json 에 cron@3.2.1 직접 선언 추가 + 작성한 src/scheduling/ 코드 재사용. resolve 후 B-new-dep blocker close, nextTask=T-0413 진행.",
       "summary": "T-0413(P7 ③ slice 1 동적 cron service) 구현·lint 는 통과했으나 `pnpm build` 가 `import { CronJob } from \"cron\"` 에서 TS2307 실패 — package.json dependencies 에 `cron@3.2.1` 직접 선언 1줄이 필요. cron 직접 dependency 선언을 승인할지 사용자 결정 요청(공급망 delta 0 — ADR-0042 §Decision1 이 이미 cron 엔진으로 named).",
       "context": "원인: @nestjs/schedule(ADR-0042 ACCEPTED·머지 완료, T-0412)는 CronJob/CronTime 을 re-export 하지 않고, SchedulerRegistry.addCronJob 은 CronJob 인스턴스(값)를 요구한다. cron@3.2.1 은 이미 lockfile/node_modules 에 @nestjs/schedule 의 transitive dep 으로 존재하며 ADR-0042 §Decision1 이 cron 엔진으로 명시했으나, pnpm strict 모드가 transitive 패키지의 직접 import 를 차단한다. lockfile-only 실험 결과 공급망/버전 변화 0(동일 cron@3.2.1, specifier 참조 라인만 추가). 그러나 package.json 패키지 항목 추가는 §5/§9 new-dependency HITL 게이트라 driver 가 자율 진행하지 않고 정지. 권고: (a) — ADR-0042 가 이미 cron 엔진을 결정했고 버전·공급망 변화가 없어 가장 단순(결정 시 ADR-0042 §Decision1 1줄 보강 또는 짧은 follow-up 노트로 박제 권장).",
       "options": [
