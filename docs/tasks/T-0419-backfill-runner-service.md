@@ -2,7 +2,7 @@
 id: T-0419
 title: 신규 인원 backfill 실행 runner service (P7 ⑤ slice 2)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-027]
 estimatedDiff: 230
@@ -67,6 +67,10 @@ slice 2 전체(PersonService create-hook 배선 + manual backfill REST endpoint 
 ## Suggested Sub-agents
 
 `implementer → tester`
+
+## Status
+
+DONE — 2026-06-15T14:27:55Z. PR #338 squash merge `0e61198`. BackfillRunnerService 신설(buildBackfillPlan 출력을 CollectionTriggerService 로 시간순 순차 소비, period="week"/scope="aggregate", 주입형 idempotency 판정자, fail-fast). backfill-runner.service.ts 100% cov, 전체 3184 pass. reviewer APPROVE r1/7(0 BLOCKER/MAJOR, 1 MINOR=cap 예외 수용). 4-게이트 PASS. cap 주: +517 LOC(production+wiring +160/-2 內, 초과분 357 LOC 전량 R-112 spec + import-graph mandated mock fixture — split 불요로 reviewer 확인). 신규 dep 0.
 
 ## Follow-ups
 
