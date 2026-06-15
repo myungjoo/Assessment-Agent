@@ -10,6 +10,9 @@
 // (T-0414 §Out of Scope — AppModule import).
 import { Logger, Module } from "@nestjs/common";
 
+import { AssessmentCollectionModule } from "../assessment-collection/assessment-collection.module";
+
+import { BackfillRunnerService } from "./backfill-runner.service";
 import {
   CRON_TICK_HANDLER,
   CronScheduleController,
@@ -35,8 +38,23 @@ const defaultCronTickHandlerProvider = {
 };
 
 @Module({
+  // AssessmentCollectionModule import — BackfillRunnerService 의 생성자 의존
+  // CollectionTriggerService 를 DI 로 resolve 한다(해당 module 이 export, T-0419).
+  // scheduling → collection 단방향(collection 은 scheduling 미참조)이라 forwardRef 불요.
+  // ScheduleModule.forRoot()(전역, app.module.ts)는 그대로 재import 하지 않는다.
+  imports: [AssessmentCollectionModule],
   controllers: [CronScheduleController],
-  providers: [CronScheduleService, defaultCronTickHandlerProvider],
-  exports: [CronScheduleService],
+  // BackfillRunnerService(T-0419, P7 ⑤ slice 2) — 신규 인원 1년치 backfill 실행 runner.
+  // CollectionTriggerService 를 주입받아 buildBackfillPlan 출력의 각 주 window 를 순차
+  // 소비한다. idempotency 판정자(ALREADY_BACKFILLED_CHECKER)는 @Optional — 미주입 시
+  // 기본 "skip 안 함", 실 영속 판정 배선은 Follow-up sub-slice.
+  providers: [
+    CronScheduleService,
+    defaultCronTickHandlerProvider,
+    BackfillRunnerService,
+  ],
+  // CronScheduleService 외에 BackfillRunnerService 도 export — 후속 sub-slice(PersonService
+  // create hook / manual backfill controller)가 inject 받아 runBackfill 을 호출한다.
+  exports: [CronScheduleService, BackfillRunnerService],
 })
 export class SchedulingModule {}
