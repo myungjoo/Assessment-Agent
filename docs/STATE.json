@@ -7,16 +7,16 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**T-0424(P7 ⑤/R-74 REQ-041 slice 1 — 최근 N일 결과 manual delete 대상 window 산출 순수 helper) 완료(pr, PR #341 squash 4d3345c, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** buildRecentDeletionWindow(reference, days)=reference 가 속한 KST 일의 다음 자정을 end, days 일 전 KST 자정을 start 로 하는 반열림 [start,end) PeriodRange 산출. 경계 snap 전부 period-boundary.ts KST helper(getKstPeriodRange daily/startOfKstDay) 위임, T-0418 buildBackfillPlan 순수-helper 패턴 mirror. DEFAULT_DAYS=1/MAX_DAYS=366, days RangeError(정수·1↑·≤366)·reference TypeError 전파. 신규 helper 100% cov, schema/cycle/배선 0(src/scheduling/recent-deletion-window.ts +spec). **P7 ⑤ 후속 우선순위(planner 미큐잉, 다음 fire dispatch): REQ-041 slice 2(본 window 출력 소비 — 실 삭제 runner + 재수집 trigger 배선, pr — 단 module-cycle 여부 architect 사전 점검) 또는 slice 1 의 REST/doc-sync 후속.** **여전히 게이트된 우선순위: slice 2 후속 a-2(PersonService hook, module 순환 architect 게이트) → slice 3(backfill 영속화 표식, schema 게이트).** **T-0423 완료 유지(api.md trigger doc-sync, 71aba8d). T-0422/T-0421/T-0420/T-0419 완료 유지. T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=416. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": "T-0425",
+  "backlogNote": "**T-0424(P7 ⑤/R-74 REQ-041 slice 1 — 최근 N일 결과 manual delete 대상 window 산출 순수 helper) 완료(pr, PR #341 squash 4d3345c, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** buildRecentDeletionWindow(reference, days)=reference 가 속한 KST 일의 다음 자정을 end, days 일 전 KST 자정을 start 로 하는 반열림 [start,end) PeriodRange 산출. 경계 snap 전부 period-boundary.ts KST helper(getKstPeriodRange daily/startOfKstDay) 위임, T-0418 buildBackfillPlan 순수-helper 패턴 mirror. DEFAULT_DAYS=1/MAX_DAYS=366, days RangeError(정수·1↑·≤366)·reference TypeError 전파. 신규 helper 100% cov, schema/cycle/배선 0(src/scheduling/recent-deletion-window.ts +spec). **T-0425(P7 ⑤/R-74 REQ-041 slice 1b — 삭제 window [start,end) 내 평가 결과 선별 순수 helper, selectInDeletionWindow) 큐잉(pr, dependsOn [], 게이트 없음 — schema/cycle/배선 0).** buildRecentDeletionWindow(T-0424) 출력 PeriodRange 를 인자로 소비해 instant 들을 in/out-of-window 반열림([start,end)) 분류(start 포함·end 배타), 입력 검증(TypeError/RangeError) 전파·non-mutating. T-0418 buildBackfillPlan→T-0419 runner 분리와 동형(helper 먼저, 실행 후속). 실행은 다음 fire claim 경로. **이후 우선순위: REQ-041 slice 2(두 helper 조립 실 삭제 runner + 재수집 trigger 배선, pr — module-cycle architect 사전 점검 필요) 또는 slice 1 의 REST/doc-sync 후속.** **여전히 게이트된 우선순위: slice 2 후속 a-2(PersonService hook, module 순환 architect 게이트) → slice 3(backfill 영속화 표식, schema 게이트).** **T-0423 완료 유지(api.md trigger doc-sync, 71aba8d). T-0422/T-0421/T-0420/T-0419 완료 유지. T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=416. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@local-aa15-a58916",
-    "since": "2026-06-15T19:04:07Z",
-    "note": "T-0424 DONE(pr, PR #341 squash 4d3345c) closeout. 본 fire(cron@local-aa15-a58916, :15 trigger, stage 5b claim 경로)는 진입 시 로컬 main 043df92→origin/main a58916f ff 동기(직전 planner fire T-0424 큐잉 반영). server-time 19:04:07Z(GitHub Date header). 권위 lock CAS 획득(66f1346, prev tip 7ad8432 free tombstone)→reclaim no-op(claims [])→active claim 0<2 + T-0424 pr→활성 claim 0 조건 충족 단독 claim→select-claim T-0424(claim append+lock tombstone 동일 commit CAS, lock release)→lock-free executor(recent-deletion-window.ts +spec)→feature branch push→integrator(PR #341 open→reviewer round1 APPROVE→4-게이트 PASS→squash merge 4d3345c + branch delete). closeout 시 claims.json 빈 배열 release. 권위 lock = branch tip lock.json(tombstone), STATE.lock 은 비권위 mirror."
+    "session": "cron@cloud-aa16-896a003",
+    "since": "2026-06-15T19:37:29Z",
+    "note": "planner-only fire(cron@cloud-aa16-896a003, :30 근방 trigger). 진입 시 로컬 main a58916f→origin/main 896a003 ff 동기(직전 fire T-0424 closeout 머지 반영 — T-0424 이미 DONE). currentTask/nextTask 둘 다 null·claims []·claimable PENDING 0 → LOOP [2] planner dispatch. server-time 19:37:29Z(GitHub Date header). 권위 lock CAS 획득(2426f51, prev tip 448a1f8 free tombstone)→reclaim no-op→active claim 0<2 → claimable 부재라 planner→nextTask=T-0425(P7 ⑤/R-74 REQ-041 slice 1b — 삭제 window [start,end) 내 결과 선별 순수 helper, pr, 게이트 없음, dependsOn []) 큐잉. 코드 0 LOC(doc-only direct commit). 종료 시 tombstone CAS release. STATE.lock 은 비권위 mirror. T-0425 실행은 다음 fire(claim 경로)."
   },
-  "lastActivity": "2026-06-15T19:10:00Z",
-  "lastCommit": "4d3345c",
+  "lastActivity": "2026-06-15T19:37:29Z",
+  "lastCommit": "896a003",
   "mostRecentTasks": [
     "T-0424",
     "T-0423",
