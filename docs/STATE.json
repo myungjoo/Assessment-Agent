@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**T-0416(P7 ③ slice 2 follow-up #1b — api.md /api/schedules doc-sync) 완료(direct doc-only commit fdeb3d6, main fast-forward).** T-0414/T-0415 가 shipped 한 /api/schedules 3 REST endpoint(GET list / PUT registerOrReplace / DELETE :name remove, Admin+ RBAC)를 docs/architecture/api.md §4 prefix 표(+1행) + §5 endpoint 표(cron 주기 관리 그룹 +3행)에 doc-sync, §7 L171 in-process @Cron 단서 보강, 합계 줄 prefix 13→14(headline+chain) 정합. 코드 0 LOC. 본 fire(cron@local-aa15, :15 trigger)는 stage 5b claim 경로로 T-0416 select+claim(claims.json owner=cron@local-aa15-b7c1, lock-free 진행)→executor 구현→direct push fdeb3d6→claim 정리(빈 배열 복원). 신규 dep 0. P7 후속 우선순위(planner 미큐잉 — 다음 fire dispatch): ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=408. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": "T-0417",
+  "backlogNote": "**T-0417(P7 ④ manual trigger endpoint, POST /api/schedules/trigger, R-73/REQ-040) 큐잉(planner, pr-mode, nextTask).** 기존 CronScheduleController(T-0414)에 주입형 CRON_TICK_HANDLER 즉시 1회 호출 경로 + Admin+ RBAC + 202 Accepted 추가, 실 평가 pipeline 결선은 T-0414 와 동일 Out of Scope. 2파일(controller+colocated spec)/~150 LOC, dependsOn T-0414. 본 fire(/loop vb707106 t2)는 lock free 창에서 CAS 획득→planner dispatch→큐잉→direct doc commit→lock release. 다음 driver turn/fire 가 execute. P7 후속: ⑤ 신규 인원 1년치 1회 backfill(R-50/REQ-027). T-0355(P6 scaffold parent) 완료 유지. tasksCompleted=408. 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 유지.",
   "lock": {
     "holder": null,
-    "session": "cron@local-aa15-b7c1",
-    "since": "2026-06-15T11:05:17Z",
-    "note": "T-0416 DONE(direct doc-only fdeb3d6) closeout. 본 fire(cron@local-aa15, :15 trigger)는 stage 5b claim 경로로 nextTask=T-0416 을 select+claim(server-time 2026-06-15T11:05:17Z, validate-claim-candidate PASS, 활성 claim 0<2 게이트 통과)하고 lock-free 진행 → executor(api.md 단일 doc-sync) → direct push fdeb3d6. 권위 lock 은 select-claim 시점 tombstone 으로 이미 release. claims.json 의 T-0416 claim 은 본 fire 종료 시 CAS 로 빈 배열 복원."
+    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
+    "since": "2026-06-15T11:36:28Z",
+    "note": "t2 planner-dispatch closeout: 권위 lock CAS 8f19e18→6e202ae(획득)→본 commit push 후 tombstone release. nextTask=T-0417 큐잉(P7 ④ manual trigger, pr-mode). STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-15T11:08:00Z",
+  "lastActivity": "2026-06-15T11:36:28Z",
   "lastCommit": "fdeb3d6",
   "mostRecentTasks": [
     "T-0416",
@@ -25,11 +25,11 @@
     "T-0412"
   ],
   "loopSession": {
-    "turnCount": 8,
-    "cap": 10,
+    "turnCount": 2,
+    "cap": 5,
     "holder": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "startedAt": "2026-06-14T14:33:00Z",
-    "note": "/loop vb707106 (dynamic, turn cap 10). t1:planner→T-0406. t2:T-0406(web-static smoke spec)→merge 15a33b4. t3:planner→T-0407(flaky e2e root-cause). t4:T-0407(reeval P2025→409)→merge 192346a. t5:planner→T-0408. t6:T-0408(web.module.ts coverage)→merge a2a4970. t7:planner→T-0409(T-0355 resolution Route A). t8:T-0409(check-spec-presence .d.ts 위양성 fix)→PR #330→merge 57ecda8→T-0355 종결. counters 397→401(+4). non-DONE task 0 → WIND-DOWN. 동시성 무사고."
+    "startedAt": "2026-06-15T11:11:00Z",
+    "note": "/loop vb707106 (dynamic, turn cap 5). t1(~11:11Z): origin/main e2461bf 동기, lock=cron@cloud-6d38 점유(non-stale, since 11:06:11Z)→no-op stand-down. t2(11:36Z): lock free(tombstone 8f19e18)→CAS 획득(6e202ae)→planner dispatch→T-0417(P7 ④ manual trigger endpoint POST /api/schedules/trigger, pr) 큐잉→direct doc commit→lock tombstone release. 다음 turn T-0417 execute."
   },
   "ci": {
     "lastRun": "2026-06-15T11:08:00Z",
