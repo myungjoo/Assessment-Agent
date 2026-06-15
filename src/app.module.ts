@@ -4,9 +4,11 @@
 // PermissionDeniedRecordModule (T-0210, ADR-0022) +
 // AssessmentCollectionModule (T-0251, ADR-0029 — collection service DI 가용화) +
 // AssessmentEvaluationModule (T-0293, ADR-0032 — 평가 controller / orchestrator 가용화) +
-// WebModule (T-0354, ADR-0040 §3 — web/dist static serve + SPA fallback) 을 등록한다.
+// WebModule (T-0354, ADR-0040 §3 — web/dist static serve + SPA fallback) +
+// ScheduleModule (T-0412, ADR-0042 §Decision 2 — SchedulerRegistry 전역 주입 활성화) 을 등록한다.
 // AssessmentModule 등 추가 도메인 module 은 후속 task 책임.
 import { Module } from "@nestjs/common";
+import { ScheduleModule } from "@nestjs/schedule";
 
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
@@ -38,6 +40,9 @@ import { WebModule } from "./web/web.module";
   // 만으로 LLM_GATEWAY 바인딩이 닫힌다(외부 dep 0).
   // WebModule (T-0354 추가) — ADR-0040 §3 운영 static serve. web/dist 존재 시에만
   // ServeStatic 등록 (CI/dev 의 dist 부재 환경은 등록 0 으로 부팅 무변경).
+  // ScheduleModule.forRoot() (T-0412 추가) — ADR-0042 §Decision 2. 1회 root import 로
+  // SchedulerRegistry 가 전역 주입 가능해지고 declarative 스케줄 데코레이터가 활성화된다.
+  // 현 단계는 동적 registry 활성화만 — 정적 @Cron job 정의 0 (후속 ③ scheduler service 책임).
   imports: [
     PersistenceModule,
     UserModule,
@@ -49,6 +54,7 @@ import { WebModule } from "./web/web.module";
     AssessmentCollectionModule,
     AssessmentEvaluationModule,
     WebModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [AppService],
