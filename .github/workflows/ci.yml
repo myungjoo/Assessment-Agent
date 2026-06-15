@@ -220,8 +220,12 @@ jobs:
   deploy-artifacts:
     name: 배포 산출물 검증 (Docker 빌드 + 런타임 smoke)
     runs-on: ubuntu-latest
-    # issue_comment(approval-gate 재실행) event 시엔 PR 일 때만 — 무의미한 빌드 회피.
-    if: github.event_name != 'issue_comment' || github.event.issue.pull_request != null
+    # PR 코드(pull_request)와 머지된 main(push)에서만 빌드/smoke 한다. issue_comment
+    # /pull_request_review 재실행은 main 을 checkout 하므로 배포 산출물 빌드가 무의미하고
+    # (매 reviewer comment 마다 docker build 낭비) merge 전엔 main 에 Dockerfile 이 없어
+    # 실패한다 — 그래서 본 job 은 그 두 event 만 트리거한다. (ci job 의 approval-gate
+    # 재실행용 issue_comment trigger 와는 무관 — 본 job 은 게이트 평가에 관여 안 함.)
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     # 런타임 smoke 가 붙을 실 PostgreSQL — 빌드한 이미지를 띄워 entrypoint 의
     # `prisma migrate deploy` 가 실제 DB 에 발화하는지까지 검증한다 (T-0429 round 2,
     # reviewer MAJOR: 빌드 성공 ≠ 배포 부팅 성공).
