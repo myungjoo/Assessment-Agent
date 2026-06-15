@@ -2,7 +2,7 @@
 id: T-0422
 title: api.md 에 POST /api/schedules/backfill/:personId manual backfill endpoint doc-sync
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-027]
 dependsOn: [T-0421]
@@ -54,5 +54,8 @@ direct doc-only 이므로 sub-agent 없이 driver 가 직접 Edit 처리 (planne
 
 ## Follow-ups
 
-(없음 — 생성 시점)
 - (slice 4 잔여) T-0417 `/api/schedules/trigger` manual cron trigger endpoint api.md doc-sync (본 task 와 별개 — 다음 doc-sync fire 후보).
+
+---
+
+**Status: DONE** (2026-06-15T17:05Z, cron@local-aa15-43bc00bc). api.md §5 cron 주기 관리 그룹 DELETE 행 다음에 `POST /api/schedules/backfill/:personId` 행 1개 append + 합계 줄 53→54 endpoint 갱신 (prefix 14 불변, PR #340 박제). 단일 파일 +2/-1, direct doc-only main commit. 코드/테스트 변경 0.
