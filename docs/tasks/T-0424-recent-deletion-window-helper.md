@@ -2,12 +2,16 @@
 id: T-0424
 title: 최근 N일 결과 manual delete 대상 window 산출 순수 helper
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 341
+mergedAs: 4d3345c
+reviewRounds: 1
 coversReq: [REQ-041]
 estimatedDiff: 95
 estimatedFiles: 2
 created: 2026-06-16
+completed: 2026-06-16
 independentStream: p7-reeval
 dependsOn: []
 touchesFiles:

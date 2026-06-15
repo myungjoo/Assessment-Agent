@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0424",
-  "backlogNote": "**T-0424(P7 ⑤/R-74 REQ-041 slice 1 — 최근 N일 결과 manual delete 대상 window 산출 순수 helper) 큐잉(pr, dependsOn []).** 직전 backlogNote 두 우선순위(slice 2 후속 a-2 PersonService hook = module 순환 UserModule→SchedulingModule→AssessmentCollectionModule→UserModule architect/ADR 게이트 / slice 3 = DB schema 게이트, §5 BLOCKED)가 모두 게이트라 즉시 진행 불가 → 게이트 없는 REQ-041(R-74 최근 N일 delete→재수집, PLANNED) stream 의 첫 단추로 전환. buildRecentDeletionWindow(reference, days)=최근 N일(1/7/30 예) 삭제 대상 [cutoff,end) PeriodRange 산출, period-boundary KST helper(startOfKstDay/getKstPeriodRange daily) 위임, T-0418 buildBackfillPlan 순수-helper 패턴 mirror. schema/cycle/배선 0(src/scheduling/recent-deletion-window.ts + colocated spec 2파일, est ~95 LOC). 실 삭제 runner·재수집 trigger·REST endpoint·doc-sync 는 후속 slice. **여전히 게이트된 우선순위(미큐잉): P7 ⑤ slice 2 후속 a-2(PersonService hook, module 순환 architect 게이트) → slice 3(backfill 영속화 표식, schema 게이트).** **T-0423 완료 유지(api.md trigger doc-sync, 71aba8d — P7 slice 4 doc-sync 완결). T-0422/T-0421/T-0420/T-0419 완료 유지. T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=415. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": null,
+  "backlogNote": "**T-0424(P7 ⑤/R-74 REQ-041 slice 1 — 최근 N일 결과 manual delete 대상 window 산출 순수 helper) 완료(pr, PR #341 squash 4d3345c, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** buildRecentDeletionWindow(reference, days)=reference 가 속한 KST 일의 다음 자정을 end, days 일 전 KST 자정을 start 로 하는 반열림 [start,end) PeriodRange 산출. 경계 snap 전부 period-boundary.ts KST helper(getKstPeriodRange daily/startOfKstDay) 위임, T-0418 buildBackfillPlan 순수-helper 패턴 mirror. DEFAULT_DAYS=1/MAX_DAYS=366, days RangeError(정수·1↑·≤366)·reference TypeError 전파. 신규 helper 100% cov, schema/cycle/배선 0(src/scheduling/recent-deletion-window.ts +spec). **P7 ⑤ 후속 우선순위(planner 미큐잉, 다음 fire dispatch): REQ-041 slice 2(본 window 출력 소비 — 실 삭제 runner + 재수집 trigger 배선, pr — 단 module-cycle 여부 architect 사전 점검) 또는 slice 1 의 REST/doc-sync 후속.** **여전히 게이트된 우선순위: slice 2 후속 a-2(PersonService hook, module 순환 architect 게이트) → slice 3(backfill 영속화 표식, schema 게이트).** **T-0423 완료 유지(api.md trigger doc-sync, 71aba8d). T-0422/T-0421/T-0420/T-0419 완료 유지. T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=416. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa17-86b6ed",
-    "since": "2026-06-15T18:38:23Z",
-    "note": "planner-only fire(cron@cloud-aa17-86b6ed, :38 trigger). 진입 시 로컬 main 71aba8d→origin/main 043df92 ff 동기(직전 fire T-0423 doc-sync 머지 반영 — T-0423 이미 DONE). currentTask/nextTask 둘 다 null·claims []·claimable PENDING 0 → LOOP [2] planner dispatch. server-time 18:38:23Z(GitHub Date header). 권위 lock CAS 획득(4e9f0ec, prev tip 86b6ed5 free tombstone)→reclaim no-op→active claim 0<2→planner→nextTask=T-0424(P7 ⑤/R-74 REQ-041 slice 1 — 최근 N일 manual delete window 순수 helper, pr, 게이트 없음, dependsOn []) 큐잉. 코드 0 LOC(doc-only direct commit). 종료 시 tombstone CAS release. STATE.lock 은 비권위 mirror. T-0424 실행은 다음 fire(claim 경로)."
+    "session": "cron@local-aa15-a58916",
+    "since": "2026-06-15T19:04:07Z",
+    "note": "T-0424 DONE(pr, PR #341 squash 4d3345c) closeout. 본 fire(cron@local-aa15-a58916, :15 trigger, stage 5b claim 경로)는 진입 시 로컬 main 043df92→origin/main a58916f ff 동기(직전 planner fire T-0424 큐잉 반영). server-time 19:04:07Z(GitHub Date header). 권위 lock CAS 획득(66f1346, prev tip 7ad8432 free tombstone)→reclaim no-op(claims [])→active claim 0<2 + T-0424 pr→활성 claim 0 조건 충족 단독 claim→select-claim T-0424(claim append+lock tombstone 동일 commit CAS, lock release)→lock-free executor(recent-deletion-window.ts +spec)→feature branch push→integrator(PR #341 open→reviewer round1 APPROVE→4-게이트 PASS→squash merge 4d3345c + branch delete). closeout 시 claims.json 빈 배열 release. 권위 lock = branch tip lock.json(tombstone), STATE.lock 은 비권위 mirror."
   },
-  "lastActivity": "2026-06-15T18:38:23Z",
-  "lastCommit": "71aba8d",
+  "lastActivity": "2026-06-15T19:10:00Z",
+  "lastCommit": "4d3345c",
   "mostRecentTasks": [
+    "T-0424",
     "T-0423",
     "T-0422",
     "T-0421",
-    "T-0420",
-    "T-0419"
+    "T-0420"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,13 +32,14 @@
     "note": "/loop vb707106 (dynamic, turn cap 5). t1(~11:11Z): origin/main e2461bf 동기, lock=cron@cloud-6d38 점유(non-stale, since 11:06:11Z)→no-op stand-down. t2(11:36Z): lock free(tombstone 8f19e18)→CAS 획득(6e202ae)→planner dispatch→T-0417(P7 ④ manual trigger endpoint POST /api/schedules/trigger, pr) 큐잉→direct doc commit→lock tombstone release. 다음 turn T-0417 execute."
   },
   "ci": {
-    "lastRun": "2026-06-15T18:10:52Z",
+    "lastRun": "2026-06-15T19:08:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0423(043df92, direct doc-only api.md §5 trigger endpoint doc-sync) main push CI success 확인(gh run list, headSha 043df92). 직전 T-0422 e4dae80 + planner 71aba8d 도 success 유지. 본 planner-only fire(T-0424 큐잉) doc-only direct commit CI 는 다음 fire 재확인 — STATE/journal/task 파일만이라 trivially green 예상. Node20 deprecation annotation non-blocking(2026-06-16)."
+    "note": "T-0424 PR #341 CI success(run 27569986435, 기본 검사 pass + reviewer agent approval 검증 step success — comment 가 approval step 도달 전 post 되어 gate-2 race 없음). squash merge 4d3345c. 본 closeout(direct doc-only STATE/journal/task) main push CI 는 다음 fire 재확인 — trivially green 예상. Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
+    "T-0424": 1,
     "T-0419": 1,
     "T-0418": 1,
     "T-0417": 1,
@@ -723,7 +724,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 415,
+    "tasksCompleted": 416,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
