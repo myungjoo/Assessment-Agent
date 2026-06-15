@@ -2,7 +2,7 @@
 id: T-0420
 title: backfill idempotency 판정자 실 구현 (P7 ⑤ slice 2 후속 a-1)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-027]
 estimatedDiff: 200
@@ -72,3 +72,8 @@ backlogNote 의 "slice 2 후속 a(PersonService create hook 자동 호출 배선
 - (slice 2 후속 b) manual backfill REST endpoint(예: POST /api/schedules/backfill/:personId, Admin+ RBAC) — `runBackfill` 노출, T-0417 controller 패턴 mirror.
 - (slice 3) backfill 1회 완료 영속화 표식(flag/row, 예: `Person.backfilledAt`) + 일반 주기와의 분리 표식 — schema 게이트(Prisma migration §5 BLOCKED) 재확인. 본 task 의 proxy 판정을 전용 표식으로 정교화.
 - (slice 4) api.md / data-model.md doc-sync.
+
+## Status
+
+**DONE** — 2026-06-15T15:18Z (cron@local-aa15-79a6f4839 fire, stage 5b claim 경로).
+PR #339 squash merge `60fb264`. `AssessmentBackfillChecker` 신설(`SinceDerivationService.deriveSince` 재사용으로 Assessment 0건⟺신규 인원 판정, schema 0) + `scheduling.module` 에 `ALREADY_BACKFILLED_CHECKER` useExisting 바인딩. 신규 파일 line/branch/func 100%, unit 3192 test + smoke + e2e CI green, 신규 dep 0. +64/-3, 3 파일. integrator 4-게이트 PASS(reviewer APPROVE r1/7 + comment 외부 post + self-check + CI green).
