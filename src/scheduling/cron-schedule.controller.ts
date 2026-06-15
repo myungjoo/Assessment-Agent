@@ -6,9 +6,10 @@
 //
 // endpoint ↔ service primitive 대응 (CronScheduleService 의 4 primitive 중 3 노출 —
 // exists 는 내부 분기용이라 미노출, registerOrReplace 내부에서 교체 판정에 사용):
-//   - GET    /api/schedules        → list              (200, 빈 배열도 정상)
-//   - PUT    /api/schedules        → registerOrReplace (200, 유효하지 않은 cron 식/빈 name 400 raw forward)
-//   - DELETE /api/schedules/:name  → remove            (204, 부재 시 404 raw forward)
+//   - GET    /api/schedules         → list              (200, 빈 배열도 정상)
+//   - PUT    /api/schedules         → registerOrReplace (200, 유효하지 않은 cron 식/빈 name 400 raw forward)
+//   - DELETE /api/schedules/:name   → remove            (204, 부재 시 404 raw forward)
+//   - POST   /api/schedules/trigger → 주입 tickHandler 즉시 1회 호출 (202, ④ manual trigger, R-73)
 //
 // ValidationPipe wire 결정 (DifficultyMappingController mirror):
 //   - Controller-scope `@UsePipes(new ValidationPipe({...}))` — 본 controller 한정.
@@ -33,7 +34,7 @@
 //
 // 책임 경계 (Out of Scope — task §Out of Scope 박제):
 //   - cron tick callback 의 실 평가 pipeline 결선 (EvaluationOrchestrator 실 호출) — ④/⑤ 후속.
-//   - ④ manual trigger / ⑤ backfill endpoint — 별도 task.
+//   - ⑤ backfill endpoint — 별도 task.
 //   - 등록 cron job 영속화 / timezone(KST) 처리 — ADR-0042 §Consequences 별도 ADR.
 //   - 새 auth-flow / RBAC 정책 변경 0 — 기존 guard stack 적용만.
 import {
@@ -44,6 +45,7 @@ import {
   HttpCode,
   Inject,
   Param,
+  Post,
   Put,
   UseGuards,
   UsePipes,
@@ -121,5 +123,25 @@ export class CronScheduleController {
   @Roles("Admin")
   remove(@Param("name") name: string): void {
     this.service.remove(name);
+  }
+
+  // POST /api/schedules/trigger — Admin 이 cron 주기와 무관하게 즉시 1회 평가를 발화하는
+  // manual trigger (R-73 / REQ-040, ADR-0042 §Decision 2). 주입된 tickHandler 를 service 를
+  // 거치지 않고 직접 1회 호출한다 — cron tick callback 과 동일한 실행 추상을 공유해 중복
+  // 구동 로직을 방지한다(③ cron 등록 · ④ manual 즉시 · ⑤ backfill 3 진입 수렴). 요청 본문
+  // 없는 fire-and-forget trigger 이므로 DTO 불요, 수락 즉시 202 Accepted 를 반환한다.
+  //
+  // handler 는 `() => void | Promise<void>` — 동기 void 반환과 Promise 반환 양쪽을 처리한다.
+  // await 가 sync void 도 안전히 통과하므로 단일 await 로 두 분기를 모두 cover하며, handler
+  // 가 throw / reject 하면 그 에러를 삼키지 않고 그대로 propagate (500 으로 표면화).
+  //
+  // RBAC — Admin+ tier (기존 3 endpoint 1:1 동형). @Roles("Admin") → Admin / SuperAdmin
+  // 통과, User actor 403, 인증 부재 401.
+  @Post("trigger")
+  @HttpCode(202)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async trigger(): Promise<void> {
+    await this.tickHandler();
   }
 }
