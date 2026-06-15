@@ -158,6 +158,60 @@ describe("CronScheduleController (unit)", () => {
     const controller = new CronScheduleController(service, tickHandler);
     expect(() => controller.remove("ghost")).toThrow(NotFoundException);
   });
+
+  // -----------------------------------------------------------------------
+  // trigger (POST /trigger) — happy + branch (sync void / async Promise) + error
+  // (sync throw / async reject propagate). 주입된 tickHandler 를 service 무경유 직접 호출.
+  // -----------------------------------------------------------------------
+  it("POST trigger — 주입 tickHandler 를 정확히 1회 호출하고 resolve (happy — sync void 반환 분기)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    // sync void 반환 handler — await 가 void 를 통과하는 분기 (a).
+    const localHandler = jest.fn<void, []>(() => undefined);
+
+    const controller = new CronScheduleController(service, localHandler);
+    await expect(controller.trigger()).resolves.toBeUndefined();
+
+    expect(localHandler).toHaveBeenCalledTimes(1);
+    // service 의 어떤 메서드도 거치지 않는다 (handler 직접 호출 경로).
+    expect(serviceMock.list).not.toHaveBeenCalled();
+    expect(serviceMock.registerOrReplace).not.toHaveBeenCalled();
+    expect(serviceMock.remove).not.toHaveBeenCalled();
+  });
+
+  it("POST trigger — Promise 반환 handler 를 await 한다 (branch — async Promise 분기)", async () => {
+    const { service } = buildServiceMock();
+    // Promise<void> 반환 handler — await 분기 (b).
+    const localHandler = jest.fn<Promise<void>, []>(() => Promise.resolve());
+
+    const controller = new CronScheduleController(service, localHandler);
+    await expect(controller.trigger()).resolves.toBeUndefined();
+
+    expect(localHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it("POST trigger — handler 의 sync throw 를 삼키지 않고 그대로 propagate (error / negative — sync throw)", async () => {
+    const { service } = buildServiceMock();
+    const rawError = new Error("tick handler sync 실패");
+    const localHandler = jest.fn<void, []>(() => {
+      throw rawError;
+    });
+
+    const controller = new CronScheduleController(service, localHandler);
+    await expect(controller.trigger()).rejects.toThrow(rawError);
+    expect(localHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it("POST trigger — handler 의 async reject 를 삼키지 않고 그대로 propagate (error / negative — async reject)", async () => {
+    const { service } = buildServiceMock();
+    const rawError = new Error("tick handler async 실패");
+    const localHandler = jest.fn<Promise<void>, []>(() =>
+      Promise.reject(rawError),
+    );
+
+    const controller = new CronScheduleController(service, localHandler);
+    await expect(controller.trigger()).rejects.toThrow(rawError);
+    expect(localHandler).toHaveBeenCalledTimes(1);
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -173,6 +227,8 @@ describe("CronScheduleController (ValidationPipe integration)", () => {
     registerOrReplace: jest.Mock;
     remove: jest.Mock;
   };
+  // 주입 tickHandler mock — trigger 가 이 handler 에 위임하는지 supertest 로 검증.
+  let tickHandlerMock: jest.Mock;
 
   const validUpsertBody = { name: "daily", cronExpression: VALID_CRON };
 
@@ -182,12 +238,13 @@ describe("CronScheduleController (ValidationPipe integration)", () => {
       registerOrReplace: jest.fn(),
       remove: jest.fn(),
     };
+    tickHandlerMock = jest.fn();
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [CronScheduleController],
       providers: [
         { provide: CronScheduleService, useValue: serviceMock },
-        { provide: CRON_TICK_HANDLER, useValue: jest.fn() },
+        { provide: CRON_TICK_HANDLER, useValue: tickHandlerMock },
       ],
     })
       // RBAC guard 는 통과 mock 으로 override — 본 block 은 ValidationPipe 분기가 책임.
@@ -308,6 +365,29 @@ describe("CronScheduleController (ValidationPipe integration)", () => {
     expect(serviceMock.list).toHaveBeenCalledTimes(1);
     expect(Array.isArray(res.body)).toBe(true);
   });
+
+  // POST trigger happy — 202 Accepted + 주입 tickHandler 위임 (supertest wire 검증).
+  // guard override 통과 mock 하에서 status code wire + handler 호출 1회 확인.
+  it("POST trigger 정상 시 202 + tickHandler 위임 (status code wire)", async () => {
+    tickHandlerMock.mockResolvedValueOnce(undefined);
+
+    await request(app.getHttpServer())
+      .post("/api/schedules/trigger")
+      .expect(202);
+
+    expect(tickHandlerMock).toHaveBeenCalledTimes(1);
+  });
+
+  // POST trigger error path — handler reject 시 500 으로 표면화 (삼키지 않음, negative).
+  it("POST trigger — tickHandler reject 시 500 으로 표면화 (negative — handler 실패 propagate)", async () => {
+    tickHandlerMock.mockRejectedValueOnce(new Error("tick 실패"));
+
+    await request(app.getHttpServer())
+      .post("/api/schedules/trigger")
+      .expect(500);
+
+    expect(tickHandlerMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -321,6 +401,7 @@ describe("CronScheduleController (RBAC guard integration)", () => {
     registerOrReplace: jest.Mock;
     remove: jest.Mock;
   };
+  let tickHandlerMock: jest.Mock;
 
   const validUpsertBody = { name: "daily", cronExpression: VALID_CRON };
 
@@ -349,11 +430,12 @@ describe("CronScheduleController (RBAC guard integration)", () => {
       registerOrReplace: jest.fn(),
       remove: jest.fn(),
     };
+    tickHandlerMock = jest.fn();
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [CronScheduleController],
       providers: [
         { provide: CronScheduleService, useValue: serviceMock },
-        { provide: CRON_TICK_HANDLER, useValue: jest.fn() },
+        { provide: CRON_TICK_HANDLER, useValue: tickHandlerMock },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -410,6 +492,19 @@ describe("CronScheduleController (RBAC guard integration)", () => {
     expect(serviceMock.remove).toHaveBeenCalledWith("daily");
   });
 
+  it("POST trigger — Admin role 통과 시 202 + tickHandler 위임 (happy)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    tickHandlerMock.mockResolvedValueOnce(undefined);
+
+    await request(app.getHttpServer())
+      .post("/api/schedules/trigger")
+      .expect(202);
+    expect(tickHandlerMock).toHaveBeenCalledTimes(1);
+  });
+
   // -- negative — 401 (JwtAuthGuard reject — 인증 부재) ----------------------
   it("GET — JwtAuthGuard reject 시 401 + service 미호출 (negative — 인증 부재)", async () => {
     app = await buildApp({
@@ -442,6 +537,22 @@ describe("CronScheduleController (RBAC guard integration)", () => {
     expect(serviceMock.registerOrReplace).not.toHaveBeenCalled();
   });
 
+  it("POST trigger — JwtAuthGuard reject 시 401 + tickHandler 미호출 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/schedules/trigger")
+      .expect(401);
+    expect(tickHandlerMock).not.toHaveBeenCalled();
+  });
+
   // -- negative — 403 (RolesGuard reject — Admin+ tier 미달, User actor) ------
   it("DELETE — RolesGuard reject 시 403 + service 미호출 (negative — User actor 미달)", async () => {
     app = await buildApp({
@@ -453,6 +564,18 @@ describe("CronScheduleController (RBAC guard integration)", () => {
       .delete("/api/schedules/daily")
       .expect(403);
     expect(serviceMock.remove).not.toHaveBeenCalled();
+  });
+
+  it("POST trigger — RolesGuard reject 시 403 + tickHandler 미호출 (negative — User actor 미달)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: { canActivate: () => false },
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/schedules/trigger")
+      .expect(403);
+    expect(tickHandlerMock).not.toHaveBeenCalled();
   });
 });
 
@@ -468,6 +591,7 @@ describe("CronScheduleController (real RolesGuard escalation 분기)", () => {
     registerOrReplace: jest.Mock;
     remove: jest.Mock;
   };
+  let tickHandlerMock: jest.Mock;
 
   function makeAllowingJwtGuard(sub: string, role: string) {
     return {
@@ -490,11 +614,12 @@ describe("CronScheduleController (real RolesGuard escalation 분기)", () => {
       registerOrReplace: jest.fn(),
       remove: jest.fn(),
     };
+    tickHandlerMock = jest.fn();
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [CronScheduleController],
       providers: [
         { provide: CronScheduleService, useValue: serviceMock },
-        { provide: CRON_TICK_HANDLER, useValue: jest.fn() },
+        { provide: CRON_TICK_HANDLER, useValue: tickHandlerMock },
         RolesGuard,
       ],
     })
@@ -543,4 +668,28 @@ describe("CronScheduleController (real RolesGuard escalation 분기)", () => {
       .expect(403);
     expect(serviceMock.registerOrReplace).not.toHaveBeenCalled();
   });
+
+  // POST trigger — User actor 는 Admin+ tier 미달 → 403 (실 RolesGuard escalation).
+  it("POST trigger — User actor 는 Admin+ tier 미달 → 403 (실 RolesGuard)", async () => {
+    app = await buildAppWithRealRolesGuard("User");
+
+    await request(app.getHttpServer())
+      .post("/api/schedules/trigger")
+      .expect(403);
+    expect(tickHandlerMock).not.toHaveBeenCalled();
+  });
+
+  // POST trigger — Admin / SuperAdmin actor 통과 (202, escalation hierarchy descent).
+  it.each(["Admin", "SuperAdmin"])(
+    "POST trigger — %s actor 는 Admin+ tier 통과 (202, escalation hierarchy descent)",
+    async (role) => {
+      app = await buildAppWithRealRolesGuard(role);
+      tickHandlerMock.mockResolvedValueOnce(undefined);
+
+      await request(app.getHttpServer())
+        .post("/api/schedules/trigger")
+        .expect(202);
+      expect(tickHandlerMock).toHaveBeenCalledTimes(1);
+    },
+  );
 });
