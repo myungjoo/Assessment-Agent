@@ -7,8 +7,8 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**T-0409 DONE (P6 T-0355 잔여(b) — check-spec-presence web .d.ts 위양성 수정 + self-test, pr-mode, PR #330 squash merge 57ecda8) → T-0355 종결.** check-spec-presence.sh 에 `*.d.ts) continue ;;` 제외 1줄(gate narrowing) + self-test 4 web 케이스. reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → merge. CI run 27504589537 first-pass green. tasksCompleted 400→401(T-0409 만; T-0355 closure 는 administrative — 슬라이스 T-0405/06/08/09·T-0397 이미 카운트). **T-0355(P6 scaffold parent) 완료: ci-wiring=T-0405·smoke=T-0406·coverage=T-0408·self-test=T-0409·directory=T-0397 전부 머지.** **현재 non-DONE task 0 — WIND-DOWN (21차 연속).** 잔여 stream 전부 게이트: live-LLM Q-0022(만료 6/30, today 6/15) / P7 @nestjs/schedule 새 dep §5(BLOCKED — 승인 필요) / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone. dependency-free non-gated 신규 task 0 → make-work 회피, cron 이 게이트 해소 시 재개.",
+  "nextTask": "T-0410",
+  "backlogNote": "**WIND-DOWN 종료 (직전 21차 연속 NO-OP) — 사용자가 2026-06-15 P7 새 dep `@nestjs/schedule` 도입을 명시적 승인(CLAUDE.md §5 BLOCKED 게이트 해소). P7 stream 재개.** 다음 task = T-0410 (@nestjs/schedule 도입 ADR-0042 작성, pr-mode). §3.1 규칙 4 + §9 '코드보다 ADR 먼저' → 첫 task 는 도입 ADR(status PROPOSED 로 시작). 실 package.json dep 추가·ScheduleModule wiring·스케줄러 서비스/엔드포인트(R-72 cron 주기 REQ-039 / R-73 manual trigger REQ-040 / R-50 신규 인원 1년치 REQ-027)는 본 ADR ACCEPTED 후 후속 task(T-0410 Follow-ups ②~⑤). **T-0355(P6 scaffold parent) 완료 유지: ci-wiring=T-0405·smoke=T-0406·coverage=T-0408·self-test=T-0409·directory=T-0397 전부 머지.** tasksCompleted=401 불변(T-0410 아직 미완료 — counters·flags 미변경). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
     "session": "cron@local-aa-local-15-windown21",
