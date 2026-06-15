@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**T-0414(P7 ③ slice 2 — cron 지정 REST endpoint CronScheduleController(GET/PUT/DELETE /api/schedules, Admin+ RBAC, UpsertCronScheduleDto) + CRON_TICK_HANDLER 주입형 tick callback 배선) 머지 완료(PR #334 squash 275d6e6, round 1/7 reviewer APPROVE 0-finding, CI first-pass green).** T-0413 의 CronScheduleService 4 primitive(registerOrReplace/remove/list/exists) 위 controller layer 노출(REQ-039/R-72). 실 평가 pipeline 결선은 Out of Scope — CRON_TICK_HANDLER 추상 경계만 박제(④/⑤ 공유). P7 후속(planner 미큐잉 — 다음 fire 가 dispatch): ③ slice 2 Out-of-Scope follow-up(AppModule 에 SchedulingModule import micro-task + api.md /api/schedules doc-sync direct) → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=406. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": "T-0415",
+  "backlogNote": "**T-0415 큐잉(planner) — P7 ③ slice 2 Out-of-Scope follow-up #1: AppModule 에 SchedulingModule import(commitMode pr, src/app.module.ts + app.module.spec.ts 2파일).** T-0414 가 머지한 SchedulingModule(CronScheduleController + CRON_TICK_HANDLER + CronScheduleService)은 self-contained 이나 AppModule 미import 라 /api/schedules 엔드포인트가 런타임 미활성 — T-0415 가 단일 import 줄 추가로 활성화(REQ-039/R-72). dependsOn=T-0414(DONE). **선행 T-0414(PR #334 squash 275d6e6, round 1/7 APPROVE 0-finding) 머지 완료.** P7 후속 우선순위(planner 미큐잉 — 다음 fire dispatch): ③ slice 2 follow-up #1b(api.md /api/schedules doc-sync, commitMode direct) → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=406. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa15",
-    "since": "2026-06-15T09:04:49Z",
-    "note": "T-0414 DONE(PR #334 275d6e6) closeout. 본 fire(cron@cloud-aa15, :15 trigger)는 stage 5b claim 경로로 T-0414 select+claim(lock-free 진행)→executor 구현·테스트→integrator 4-게이트 PASS squash merge. 권위 lock 은 select-claim 시점 tombstone 으로 이미 release 됨. claims.json 의 T-0414 claim 은 본 fire 종료 시 정리."
+    "session": "cron@cloud-9e45",
+    "since": "2026-06-15T09:38:01Z",
+    "note": "currentTask·nextTask 둘 다 null 이라 planner dispatch only fire(cron@cloud-9e45, :38 trigger). 권위 lock(claude/lock-driver) branch-ref CAS 획득(36c79b9) → planner 가 T-0415(P7 ③ slice 2 AppModule SchedulingModule import, pr) 큐잉 → doc-only direct commit → tombstone CAS 로 release. T-0415 실행은 다음 fire 가 claim/pickup. claims.json 빈 상태 유지(orphan 0)."
   },
-  "lastActivity": "2026-06-15T09:10:00Z",
+  "lastActivity": "2026-06-15T09:40:00Z",
   "lastCommit": "275d6e6",
   "mostRecentTasks": [
     "T-0414",
