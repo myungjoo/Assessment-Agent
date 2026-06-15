@@ -2,7 +2,11 @@
 id: T-0427
 title: 최근 N일 결과 manual delete 실행 runner service (P7 ⑤ slice 2)
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-15T22:12:00Z
+mergedAs: af9006e
+prNumber: 344
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 230

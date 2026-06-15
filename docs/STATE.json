@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0427",
-  "backlogNote": "**T-0427(P7 ⑤/R-74 REQ-041 slice 2 — 최근 N일 결과 manual delete 실행 runner service, pr, dependsOn [T-0426]) 큐잉.** 순수-helper 3 slice(1/1b/1c — buildRecentDeletionWindow+selectInDeletionWindow+buildRecentDeletionPlan, 모두 머지)가 산출하는 {window,toDelete,toKeep} plan 을 실제로 실행하는 runner — toDelete 를 주입형 RecentDeletionDeleter 로 삭제 후 CollectionTriggerService 로 같은 기간 재수집(REQ-041 'delete→재수집'). **module-cycle architect 게이트 회피책: T-0419 backfill runner 패턴 mirror** — 실 deleter/repository/schema/PersonService 배선을 주입형 인터페이스(RECENT_DELETION_DELETER token, @Optional 기본 no-op)로 분리해 본 task 는 runner 조립·순회·재수집·분기만 단위테스트 cover(schema/순환 0). fail-fast error, 검증 위임 전파, non-mutating. est ~230 LOC/3파일(recent-deletion-runner.service.ts +spec + scheduling.module provider 등록). issue-still-relevant pre-check: origin/main src/scheduling/ 에 RecentDeletionRunner 부재 확인, 순수-helper 3종 모두 머지(T-0424~T-0426). **이후 게이트된 후속: slice 2 후속 a(실 RecentDeletionDeleter Prisma provider, schema/repository 게이트) / 후속 b(manual delete REST endpoint, T-0421 controller mirror) / slice 3(삭제 audit 영속, schema 게이트) / slice 4(doc-sync).** tasksCompleted=418. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.\\n\\n--- prev(T-0426 완료) ---\\n**T-0426(P7 ⑤/R-74 REQ-041 slice 1c — 최근 N일 manual delete 대상 산출 순수 조립 helper, buildRecentDeletionPlan) 완료(pr, PR #343 squash 474fa82, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** buildRecentDeletionWindow(T-0424) + selectInDeletionWindow(T-0425) 두 helper 를 순수 조립해 단일 진입점(reference + days + 후보 instant → RecentDeletionPlan{window,toDelete,toKeep})으로 최종 삭제/보존 대상 산출. 재구현 0(building block 호출만), 인자 검증 위임/전파(RangeError/TypeError), non-mutating. 신규 helper 100% cov(line/branch/func), schema/cycle/배선 0(src/scheduling/recent-deletion-plan.ts +spec). T-0418 buildBackfillPlan→T-0419 runner 분리와 동형(plan 먼저, 실행 후속) — REQ-041 의 순수-helper 3 slice(1/1b/1c) 완결, runner 게이트 전 마지막 ungated 단추 완료. **이후 우선순위(planner 미큐잉, 다음 fire dispatch): REQ-041 slice 2(세 helper(window+select+plan) 조립 실 삭제 runner + 재수집 trigger 배선, pr — module-cycle architect 사전 점검 필요) 또는 slice 1/1b/1c 의 REST/doc-sync 후속.** **여전히 게이트된 우선순위: slice 2 후속 a-2(PersonService hook, module 순환 architect 게이트) → slice 3(backfill 영속화 표식, schema 게이트).** **T-0425/T-0424 완료 유지(deletion-window-select.ts PR #342, recent-deletion-window.ts PR #341). T-0423/T-0422/T-0421/T-0420/T-0419 완료 유지. T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=418. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": null,
+  "backlogNote": "**T-0427(P7 ⑤/R-74 REQ-041 slice 2 — 최근 N일 결과 manual delete 실행 runner service, pr) 완료(PR #344 squash af9006e, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** 순수-helper 3 slice(1/1b/1c) 가 산출하는 {window,toDelete,toKeep} plan 을 실행하는 RecentDeletionRunnerService — toDelete 를 주입형 RecentDeletionDeleter(RECENT_DELETION_DELETER token, 미주입 시 삭제 0)로 삭제 후 CollectionTriggerService 로 같은 기간 1회 재수집(REQ-041 'delete→재수집'). T-0419 runner 패턴 mirror 로 실 deleter/repository/schema/PersonService 배선을 주입형 인터페이스로 분리해 schema/cycle 게이트 회피. fail-fast error 전파, 인자 검증 위임 전파, scheduling.module provider 등록+export. 신규 service 100% line/func cov(branch 83.33%>80%), 3284 test green. **이후 게이트된 후속(planner 미큐잉, 다음 fire dispatch): slice 2 후속 a(실 RecentDeletionDeleter Prisma provider, schema/repository 게이트) / 후속 b(manual delete REST endpoint, T-0421 controller mirror) / slice 3(삭제 audit 영속, schema 게이트) / slice 4(doc-sync).** tasksCompleted=419. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.\\n\\n--- prev(T-0427 큐잉) ---\\n**T-0427(P7 ⑤/R-74 REQ-041 slice 2 — 최근 N일 결과 manual delete 실행 runner service, pr, dependsOn [T-0426]) 큐잉.** 순수-helper 3 slice(1/1b/1c — buildRecentDeletionWindow+selectInDeletionWindow+buildRecentDeletionPlan, 모두 머지)가 산출하는 {window,toDelete,toKeep} plan 을 실제로 실행하는 runner — toDelete 를 주입형 RecentDeletionDeleter 로 삭제 후 CollectionTriggerService 로 같은 기간 재수집(REQ-041 'delete→재수집'). **module-cycle architect 게이트 회피책: T-0419 backfill runner 패턴 mirror** — 실 deleter/repository/schema/PersonService 배선을 주입형 인터페이스(RECENT_DELETION_DELETER token, @Optional 기본 no-op)로 분리해 본 task 는 runner 조립·순회·재수집·분기만 단위테스트 cover(schema/순환 0). fail-fast error, 검증 위임 전파, non-mutating. est ~230 LOC/3파일(recent-deletion-runner.service.ts +spec + scheduling.module provider 등록). issue-still-relevant pre-check: origin/main src/scheduling/ 에 RecentDeletionRunner 부재 확인, 순수-helper 3종 모두 머지(T-0424~T-0426). **이후 게이트된 후속: slice 2 후속 a(실 RecentDeletionDeleter Prisma provider, schema/repository 게이트) / 후속 b(manual delete REST endpoint, T-0421 controller mirror) / slice 3(삭제 audit 영속, schema 게이트) / slice 4(doc-sync).** tasksCompleted=418. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.\\n\\n--- prev(T-0426 완료) ---\\n**T-0426(P7 ⑤/R-74 REQ-041 slice 1c — 최근 N일 manual delete 대상 산출 순수 조립 helper, buildRecentDeletionPlan) 완료(pr, PR #343 squash 474fa82, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** buildRecentDeletionWindow(T-0424) + selectInDeletionWindow(T-0425) 두 helper 를 순수 조립해 단일 진입점(reference + days + 후보 instant → RecentDeletionPlan{window,toDelete,toKeep})으로 최종 삭제/보존 대상 산출. 재구현 0(building block 호출만), 인자 검증 위임/전파(RangeError/TypeError), non-mutating. 신규 helper 100% cov(line/branch/func), schema/cycle/배선 0(src/scheduling/recent-deletion-plan.ts +spec). T-0418 buildBackfillPlan→T-0419 runner 분리와 동형(plan 먼저, 실행 후속) — REQ-041 의 순수-helper 3 slice(1/1b/1c) 완결, runner 게이트 전 마지막 ungated 단추 완료. **이후 우선순위(planner 미큐잉, 다음 fire dispatch): REQ-041 slice 2(세 helper(window+select+plan) 조립 실 삭제 runner + 재수집 trigger 배선, pr — module-cycle architect 사전 점검 필요) 또는 slice 1/1b/1c 의 REST/doc-sync 후속.** **여전히 게이트된 우선순위: slice 2 후속 a-2(PersonService hook, module 순환 architect 게이트) → slice 3(backfill 영속화 표식, schema 게이트).** **T-0425/T-0424 완료 유지(deletion-window-select.ts PR #342, recent-deletion-window.ts PR #341). T-0423/T-0422/T-0421/T-0420/T-0419 완료 유지. T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=418. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aalocal-97da899",
-    "since": "2026-06-15T21:37:55Z",
-    "note": "planner-only fire(cron@cloud-aalocal, :30 근방 trigger — 충돌 회피). 진입 시 로컬 main 5b45459→origin/main 97da899 ff 동기(직전 cron@cloud-aa15 의 T-0426 closeout 반영 — T-0426 이미 DONE). currentTask/nextTask 둘 다 null·claims []·claimable PENDING 0 → fineGrainedConcurrency=true 이나 claimable 부재라 claim 경로 no-op → LOOP [2] planner dispatch. server-time 21:37:55Z(GitHub Date header). 권위 lock CAS 획득(6e51cce, prev tip 6a7153f free tombstone)→planner→nextTask=T-0427(P7 ⑤/R-74 REQ-041 slice 2 — 최근 N일 manual delete 실행 runner service, pr, dependsOn [T-0426], ~230 LOC/3파일, 주입형 deleter 로 module-cycle/schema 게이트 회피 T-0419 패턴 mirror, 게이트 없음) 큐잉. 코드 0 LOC(doc-only direct commit). 종료 시 tombstone CAS release. STATE.lock 은 비권위 mirror. T-0427 실행은 다음 fire(claim 경로)."
+    "session": "cron@cloud-aa15-6d063ba",
+    "since": "2026-06-15T22:04:21Z",
+    "note": "T-0427 DONE(pr, PR #344 squash af9006e) fire(cron@cloud-aa15, :15 trigger, stage 5b claim 경로). 진입 시 로컬 main 97da899→origin/main 6d063ba ff 동기(직전 planner fire T-0427 큐잉 반영, nextTask=T-0427 발견). server-time 22:04:21Z(GitHub Date header). 권위 lock CAS 획득(98777ad, prev tip 5c2ccb6 free tombstone)→reclaim no-op(claims [])→active claim 0<2 + T-0427 pr→활성 claim 0 조건 충족 단독 claim→validate-claim-candidate PASS(touchesFiles 교집합 0, dependsOn [T-0426] 머지됨)→select-claim T-0427(claim append+lock tombstone 동일 commit CAS, claimedAt 22:04:21Z, lock release)→lock-free executor(recent-deletion-runner.service.ts +spec + scheduling.module provider 등록, 신규 service 100% line/func cov)→feature branch push(e55e9ec)→integrator(PR #344 open→reviewer round1 APPROVE→4-게이트 PASS→squash merge af9006e + branch delete). closeout 시 claims.json 빈 배열 release. 권위 lock = branch tip lock.json(tombstone), STATE.lock 은 비권위 mirror."
   },
-  "lastActivity": "2026-06-15T21:37:55Z",
-  "lastCommit": "97da899",
+  "lastActivity": "2026-06-15T22:12:00Z",
+  "lastCommit": "af9006e",
   "mostRecentTasks": [
+    "T-0427",
     "T-0426",
     "T-0425",
     "T-0424",
-    "T-0423",
-    "T-0422"
+    "T-0423"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -36,9 +36,10 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0426 PR #343 CI success(기본 검사 pass + reviewer agent approval 검증 step success — gate-2/gate-4 둘 다 충족). squash merge 474fa82. 머지 후 main push CI run(474fa82)은 in_progress — 다음 fire [1]에서 conclusion 재확인(PR CI 가 이미 green 이라 trivially green 예상). 본 closeout(direct doc-only STATE/journal/task) main push CI 도 다음 fire 재확인. Node20 deprecation annotation non-blocking(2026-06-16)."
+    "note": "T-0427 PR #344 CI success(기본 검사 pass + reviewer agent approval 검증 step success — gate-2/gate-4 둘 다 충족, PR head e55e9ec run success). squash merge af9006e. 머지 후 main push CI run(af9006e)은 in_progress — 다음 fire [1]에서 conclusion 재확인(PR CI 가 이미 green 이라 trivially green 예상). 본 closeout(direct doc-only STATE/journal/task) main push CI 도 다음 fire 재확인. Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
+    "T-0427": 1,
     "T-0426": 1,
     "T-0425": 1,
     "T-0424": 1,
@@ -726,7 +727,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 418,
+    "tasksCompleted": 419,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
