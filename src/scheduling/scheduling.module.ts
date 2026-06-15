@@ -27,6 +27,7 @@ import {
   type CronTickHandler,
 } from "./cron-schedule.service";
 import { RecentDeletionRunnerService } from "./recent-deletion-runner.service";
+import { RecentDeletionController } from "./recent-deletion.controller";
 
 // 기본 tick handler provider — 실 평가 pipeline 결선은 Out of Scope(④/⑤ 후속 task)
 // 이므로 발화 시점만 logging 하는 no-op stub 을 바인딩한다. ④ manual trigger 가
@@ -53,7 +54,15 @@ const defaultCronTickHandlerProvider = {
   // 이미 providers/exports 에 있는 BackfillRunnerService 를 inject 받아 runBackfill 을
   // 호출한다(새 provider 0 — controller 등록만). cron endpoint 와 별도 controller 로
   // 분리해 단일 책임 유지(같은 prefix `api/schedules`, 클래스만 분리).
-  controllers: [CronScheduleController, BackfillController],
+  // RecentDeletionController(T-0428, P7 ⑤ slice 2 후속 b) — 최근 N일 결과 manual delete
+  // → 재수집 REST 진입점. 이미 providers/exports 에 있는 RecentDeletionRunnerService 를
+  // inject 받아 runRecentDeletion 을 호출한다(새 provider 0 — controller 등록만).
+  // BackfillController 와 같은 prefix `api/schedules`, 클래스만 분리해 단일 책임 유지.
+  controllers: [
+    CronScheduleController,
+    BackfillController,
+    RecentDeletionController,
+  ],
   // BackfillRunnerService(T-0419, P7 ⑤ slice 2) — 신규 인원 1년치 backfill 실행 runner.
   // CollectionTriggerService 를 주입받아 buildBackfillPlan 출력의 각 주 window 를 순차
   // 소비한다. idempotency 판정자(ALREADY_BACKFILLED_CHECKER)는 T-0420 에서 실 provider
