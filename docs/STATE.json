@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**T-0417(P7 ④ manual trigger endpoint POST /api/schedules/trigger, R-73/REQ-040) 완료(pr-mode, PR #336 squash 62edc3b merge).** CronScheduleController 에 manual trigger endpoint 추가 — 주입 CRON_TICK_HANDLER 를 즉시 1회 await(sync void/Promise 양분기)+202 Accepted+Admin+ RBAC(기존 3 endpoint 와 동일 stack). scheduling.module 무변경, 실 평가 pipeline 결선은 T-0414 와 동일 Out of Scope. cron-schedule.controller.ts 100% cov, unit 3144 green. 신규 dep 0. 본 fire(cron@local-aa15-56ca, :15 trigger)는 stage 5b claim 경로(select-claim 활성 claim 0<2 pr-mode 단독 게이트→lock-free 진행→claim 빈 배열 복원). reviewer 는 integrator 가 inline 8-check 수행(sub-agent nesting 한계로 reviewer sub-agent 미spawn)+APPROVE comment 외부 post. P7 후속 우선순위(planner 미큐잉 — 다음 fire dispatch): ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=409. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": "T-0418",
+  "backlogNote": "**nextTask=T-0418 큐잉됨(P7 ⑤ slice 1 — R-50/REQ-027 신규 인원 1년치 backfill plan 산출 순수 helper, pr-mode).** 본 fire(cron@cloud-aa15-d10c, :30 trigger)는 currentTask/nextTask 둘 다 null + claimable PENDING task 0 이라 CLAUDE.md §2 step3 대로 planner dispatch → T-0418 task 파일 신설 + STATE.nextTask 설정(direct doc commit). 코드 0 LOC. T-0418 실행은 다음 fire(claim 경로). T-0418 범위: buildBackfillPlan(reference, weeks=52) 주 단위 window 목록 산출 순수 함수(period-boundary.ts KST helper 위임, DB/trigger/실 평가 호출 0 — slice 2~3 Follow-up). touchesFiles=src/scheduling/backfill-plan.{ts,spec.ts}. **직전: T-0417(P7 ④ manual trigger endpoint) 완료(PR #336 squash 62edc3b).** **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=409. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@local-aa15-56ca",
-    "since": "2026-06-15T12:06:04Z",
-    "note": "T-0417 DONE(merged PR #336 squash 62edc3b) closeout. 본 fire(cron@local-aa15-56ca, :15 trigger)는 stage 5b claim 경로 — nextTask=T-0417 을 select-claim(server-time 2026-06-15T12:06:04Z, 활성 claim 0<2 pr-mode 단독 게이트 통과)으로 소유→lock tombstone 즉시 release→lock-free executor(controller +30/-7, spec +155)→push feature branch→integrator PR #336 open+reviewer inline APPROVE+4-게이트 PASS+squash merge. 종료 시 claims.json 빈 배열 CAS 복원(c364cc9). 권위 lock 은 branch tip lock.json, STATE.lock 은 비권위 mirror."
+    "session": "cron@cloud-aa15-d10c",
+    "since": "2026-06-15T12:27:00Z",
+    "note": "planner-only fire(cron@cloud-aa15-d10c, :30 trigger). currentTask/nextTask 둘 다 null·claimable PENDING task 0 이라 §2 step3 대로 planner dispatch → nextTask=T-0418(P7 ⑤ slice 1) 큐잉. 코드 0 LOC. 권위 lock 은 [1] 에서 CAS 획득(17f1c12)했고, 본 fire 종료 시 tombstone CAS release(claims.json 빈 배열 유지). STATE.lock 은 비권위 mirror. 실행은 다음 fire(claim 경로)."
   },
-  "lastActivity": "2026-06-15T12:26:04Z",
+  "lastActivity": "2026-06-15T12:30:00Z",
   "lastCommit": "62edc3b",
   "mostRecentTasks": [
     "T-0417",
