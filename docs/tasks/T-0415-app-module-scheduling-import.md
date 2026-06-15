@@ -2,7 +2,11 @@
 id: T-0415
 title: AppModule 에 SchedulingModule import — cron 지정 엔드포인트 런타임 활성화
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-15T10:18:00Z
+mergedAs: cc2eeff
+prNumber: 335
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-039]
 estimatedDiff: 60
