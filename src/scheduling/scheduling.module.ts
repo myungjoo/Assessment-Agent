@@ -12,7 +12,11 @@ import { Logger, Module } from "@nestjs/common";
 
 import { AssessmentCollectionModule } from "../assessment-collection/assessment-collection.module";
 
-import { BackfillRunnerService } from "./backfill-runner.service";
+import { AssessmentBackfillChecker } from "./assessment-backfill-checker.service";
+import {
+  ALREADY_BACKFILLED_CHECKER,
+  BackfillRunnerService,
+} from "./backfill-runner.service";
 import {
   CRON_TICK_HANDLER,
   CronScheduleController,
@@ -46,12 +50,22 @@ const defaultCronTickHandlerProvider = {
   controllers: [CronScheduleController],
   // BackfillRunnerService(T-0419, P7 ⑤ slice 2) — 신규 인원 1년치 backfill 실행 runner.
   // CollectionTriggerService 를 주입받아 buildBackfillPlan 출력의 각 주 window 를 순차
-  // 소비한다. idempotency 판정자(ALREADY_BACKFILLED_CHECKER)는 @Optional — 미주입 시
-  // 기본 "skip 안 함", 실 영속 판정 배선은 Follow-up sub-slice.
+  // 소비한다. idempotency 판정자(ALREADY_BACKFILLED_CHECKER)는 T-0420 에서 실 provider
+  // (AssessmentBackfilledChecker)로 바인딩 — 미주입(기본 false) 대신 실 판정을 resolve.
   providers: [
     CronScheduleService,
     defaultCronTickHandlerProvider,
     BackfillRunnerService,
+    // AssessmentBackfillChecker(T-0420, P7 ⑤ slice 2 후속 a-1) — SinceDerivationService
+    // (AssessmentCollectionModule export, 이미 import)를 주입받아 "직전 Assessment 존재
+    // 여부"를 backfill 완료의 보수적 proxy 로 판정한다. ALREADY_BACKFILLED_CHECKER token 에
+    // useExisting 으로 바인딩해 BackfillRunnerService 의 @Optional 주입 지점이 실 판정자를
+    // resolve 하게 한다(중복 backfill 방지, REQ-027 "1회"의 실 보장). schema 변경 0.
+    AssessmentBackfillChecker,
+    {
+      provide: ALREADY_BACKFILLED_CHECKER,
+      useExisting: AssessmentBackfillChecker,
+    },
   ],
   // CronScheduleService 외에 BackfillRunnerService 도 export — 후속 sub-slice(PersonService
   // create hook / manual backfill controller)가 inject 받아 runBackfill 을 호출한다.
