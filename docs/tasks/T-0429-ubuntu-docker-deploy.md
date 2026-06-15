@@ -2,7 +2,7 @@
 id: T-0429
 title: Ubuntu Docker Compose 배포 + 야간 자동 재배포 인프라
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 estimatedDiff: 290
 estimatedFiles: 11
@@ -70,3 +70,9 @@ plannerNote: "사용자 지시 — 이 서비스를 Ubuntu 머신에 Docker Comp
 
 - (선택) deploy 스크립트에 `shellcheck` 도입 — 현재는 `bash -n` 문법 검사만.
 - (선택) GitHub Actions 기반 push-deploy(self-hosted runner) — 현재는 서버측 pull 방식(redeploy.sh).
+
+## Result
+
+DONE — PR #345 squash merge `a26bd2f` (origin/main). Dockerfile(멀티스테이지 비루트 runtime) + docker-entrypoint.sh(prisma migrate deploy → node dist/src/main) + docker-compose.yml(postgres healthcheck + app 서비스) + .dockerignore + deploy/{env.prod.example,redeploy.sh,assessment-agent-redeploy.{service,timer},README.md} + CI `deploy-artifacts` job(스크립트 `bash -n`/`sh -n` 문법 검사 + `docker build` end-to-end) 추가. production TS symbol 0 LOC라 jest spec 신설 불요 — R-110 tester 역할은 CI deploy-artifacts job 이 겸함(AC §Test 정합). 머지 후 main push CI run 27583332490(headSha a26bd2f) conclusion=success 확인.
+
+본 closeout 은 후속 fire(cron@cloud-aalocal, server-time 2026-06-15T23:39:10Z)의 bookkeeping — PR #345 는 userDirected 경로로 머지됐으나 task status/STATE/journal closeout 이 누락돼 있어 driver 가 정합 복원. 코드 변경 0(direct doc-only).
