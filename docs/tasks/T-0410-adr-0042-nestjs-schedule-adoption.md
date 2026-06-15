@@ -2,7 +2,11 @@
 id: T-0410
 title: ADR-0042 작성 — @nestjs/schedule 도입 결정 (P7 스케줄링 인프라)
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-15T03:20:00Z
+mergedAs: e6a6638
+prNumber: 331
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-027, REQ-039, REQ-040]
 estimatedDiff: 150
