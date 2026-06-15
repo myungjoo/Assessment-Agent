@@ -2,7 +2,11 @@
 id: T-0428
 title: 최근 N일 결과 manual delete REST endpoint (P7 ⑤ slice 2 후속 b)
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-15T23:19:00Z
+mergedAs: 9704df1
+prNumber: 346
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 270
@@ -79,7 +83,7 @@ T-0421(BackfillController, PR로 머지됨)이 증명한 패턴을 mirror 한다
 
 ## Status
 
-PENDING
+DONE — PR #346 squash merge 9704df1 (reviewer round1 APPROVE, 4-게이트 PASS, CI green). RecentDeletionController + RecentDeletionDto 신설 + scheduling.module controllers 배선. 신규 2파일 coverage 100%, scheduling 246 test green. 실 deleter 미주입(삭제 0) 그대로 — endpoint 배선만, schema 무변경.
 
 ## Follow-ups
 
