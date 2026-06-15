@@ -26,6 +26,7 @@ import {
   CronScheduleService,
   type CronTickHandler,
 } from "./cron-schedule.service";
+import { RecentDeletionRunnerService } from "./recent-deletion-runner.service";
 
 // 기본 tick handler provider — 실 평가 pipeline 결선은 Out of Scope(④/⑤ 후속 task)
 // 이므로 발화 시점만 logging 하는 no-op stub 을 바인딩한다. ④ manual trigger 가
@@ -71,9 +72,19 @@ const defaultCronTickHandlerProvider = {
       provide: ALREADY_BACKFILLED_CHECKER,
       useExisting: AssessmentBackfillChecker,
     },
+    // RecentDeletionRunnerService(T-0427, P7 ⑤ slice 2) — 최근 N일 결과 manual delete →
+    // 재수집 실행 runner. CollectionTriggerService 를 주입받아 buildRecentDeletionPlan
+    // 출력의 toDelete 를 삭제 후 같은 기간을 재수집한다. 실 삭제 위임 인터페이스
+    // (RECENT_DELETION_DELETER)는 미주입(기본 삭제 0) — 실 repository delete provider 바인딩은
+    // 후속 sub-slice(schema 게이트). 새 module import / controller / schema 변경 0.
+    RecentDeletionRunnerService,
   ],
-  // CronScheduleService 외에 BackfillRunnerService 도 export — 후속 sub-slice(PersonService
-  // create hook / manual backfill controller)가 inject 받아 runBackfill 을 호출한다.
-  exports: [CronScheduleService, BackfillRunnerService],
+  // CronScheduleService·BackfillRunnerService 외에 RecentDeletionRunnerService 도 export —
+  // 후속 sub-slice(manual delete REST controller)가 inject 받아 runRecentDeletion 을 호출한다.
+  exports: [
+    CronScheduleService,
+    BackfillRunnerService,
+    RecentDeletionRunnerService,
+  ],
 })
 export class SchedulingModule {}
