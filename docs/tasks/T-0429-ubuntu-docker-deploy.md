@@ -42,7 +42,7 @@ plannerNote: "사용자 지시 — 이 서비스를 Ubuntu 머신에 Docker Comp
 ## Acceptance Criteria
 
 - [ ] `Dockerfile` — 멀티스테이지. builder 가 pnpm(corepack) 으로 의존성 설치 + `pnpm build`(backend) + `pnpm --filter web build`(web/dist) + `pnpm prune --prod`, runtime 이 비루트(`node`)로 dist/web/dist/node_modules/prisma 만 복사. bcrypt native 빌드용 python3/make/g++ 는 builder 에만. `ENTRYPOINT` = `deploy/docker-entrypoint.sh`.
-- [ ] `deploy/docker-entrypoint.sh` — 부팅 시 `prisma migrate deploy`(idempotent, deployment.md 정책) 후 `exec node dist/main`. `set -e`.
+- [ ] `deploy/docker-entrypoint.sh` — 부팅 시 `prisma migrate deploy`(idempotent, deployment.md 정책) 후 `exec node dist/src/main`(빌드 rootDir 추론으로 entry 가 dist/src/main.js). `set -e`.
 - [ ] `docker-compose.yml` — 기존 `postgres`(healthcheck 추가) + 신규 `app` 서비스(build context `.`, `depends_on: postgres healthy`, `env_file: .env`, port `${PORT:-3000}`). `docker compose up -d --build` 한 번으로 기동. dev 는 여전히 `up -d postgres` 로 DB 만 띄울 수 있어야 함(regression 0).
 - [ ] `.dockerignore` — node_modules/dist/web/dist/.git/.env*/.claude 등 build context 제외(secret 미반입 — §9).
 - [ ] `deploy/env.prod.example` — 운영 `.env` template. `DATABASE_URL` 호스트가 compose 서비스명 `postgres`(localhost 아님), `AUTH_JWT_SECRET` 필수 경고, NODE_EXTRA_CA_CERTS/HTTPS_PROXY 선택 주석. `.gitignore` 의 `.env.*` 매칭을 피하려 leading-dot 없는 이름.

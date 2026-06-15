@@ -13,5 +13,8 @@ set -e
 echo "[entrypoint] prisma migrate deploy 실행..."
 ./node_modules/.bin/prisma migrate deploy
 
-echo "[entrypoint] NestJS 앱 기동 (node dist/main)..."
-exec node dist/main
+# 빌드 산출물 경로: nest build(tsc)의 rootDir 이 prisma.config.ts / scripts/ 가
+# repo 루트에 있어 루트로 추론되므로, src/main.ts 는 dist/main.js 가 아니라
+# dist/src/main.js 로 emit 된다(nest start 는 자체 resolve 라 dev 에선 안 드러남).
+echo "[entrypoint] NestJS 앱 기동 (node dist/src/main)..."
+exec node dist/src/main

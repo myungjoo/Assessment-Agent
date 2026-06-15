@@ -9,7 +9,7 @@ Assessment-Agent 를 Ubuntu 머신에 Docker Compose 로 배포하고, **매일 
 | --- | --- |
 | [`Dockerfile`](../Dockerfile) | backend(`dist/`) + web SPA(`web/dist/`) 멀티스테이지 빌드 → 슬림 런타임 이미지 |
 | [`docker-compose.yml`](../docker-compose.yml) | `postgres` + `app` 두 서비스. `up -d --build` 한 번으로 기동 |
-| [`deploy/docker-entrypoint.sh`](docker-entrypoint.sh) | 컨테이너 부팅 시 `prisma migrate deploy` → `node dist/main` |
+| [`deploy/docker-entrypoint.sh`](docker-entrypoint.sh) | 컨테이너 부팅 시 `prisma migrate deploy` → `node dist/src/main` |
 | [`deploy/env.prod.example`](env.prod.example) | 운영 `.env` template (DB 자격 / `DATABASE_URL` / `AUTH_JWT_SECRET`) |
 | [`deploy/redeploy.sh`](redeploy.sh) | main 동기화 → 재빌드 → 컨테이너 교체 (야간 자동 재배포 본체) |
 | [`deploy/assessment-agent-redeploy.{service,timer}`](assessment-agent-redeploy.timer) | systemd 야간 트리거 (매일 03:00) |

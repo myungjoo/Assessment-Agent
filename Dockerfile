@@ -45,6 +45,12 @@ RUN pnpm prune --prod
 ############################
 FROM node:20-bookworm-slim AS runtime
 
+# openssl: prisma migrate engine 이 libssl 을 요구(미설치 시 "may not work" 경고).
+# ca-certificates: 앱의 외부 HTTPS outbound(GitHub/Confluence/LLM, deployment.md)용 root CA.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 ENV NODE_ENV=production
 WORKDIR /app
 
