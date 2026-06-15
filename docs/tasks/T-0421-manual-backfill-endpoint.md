@@ -2,7 +2,11 @@
 id: T-0421
 title: manual backfill 엔드포인트 (POST /api/schedules/backfill/:personId — 신규 인원 1년치 1회 backfill)
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-15T16:05:23Z
+mergedAs: 005c84d
+prNumber: 340
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-027]
 estimatedDiff: 280
@@ -58,6 +62,10 @@ backlogNote 가 명시한 후속 b("manual backfill REST endpoint POST /api/sche
 ## Suggested Sub-agents
 
 `implementer → tester`
+
+## Result
+
+DONE (pr-mode, PR #340 squash 005c84d merge). `BackfillController`(POST /api/schedules/backfill/:personId) 신설 — 주입된 `BackfillRunnerService.runBackfill(personId)` 1회 위임 → 202 반환, cron endpoint 동형 Admin+ RBAC(`JwtAuthGuard`+`RolesGuard`+`@Roles("Admin")`), service-throw raw forward. `scheduling.module.ts` controllers[] 1줄 등록(새 provider 0). 신규 controller 100% cov(stmt/branch/func/line), global line 99.96%/func 100%, 16 case(happy/skipped:false·true 분기/NotFound·일반 reject 전파/path param pass-through/RBAC 401·403·202 + 실 RolesGuard escalation) + supertest integration. 신규 dep 0 / schema 0 / 순환 0 / src/user 무변경. reviewer APPROVE r1/7(finding 0) + integrator 4-게이트 PASS(squash 직전 rebase noop, mergeStateStatus CLEAN). +98/-1 prod, 3 파일. 본 fire: cron@local-aa15-3fd715c7(:15 trigger) stage 5b claim 경로 — lock CAS 획득(3d6c5c3)→reclaim no-op→active claim 0<2 pr-mode 단독 게이트 통과→select-claim T-0421(c81d0d6, claim+lock tombstone 동일 commit CAS)→prNumber=340 claim CAS(68f5e19)→lock release(5b43292)→lock-free executor→PR #340→reviewer APPROVE+4-게이트 PASS+squash→claim 빈 배열 release. squash 005c84d main push CI run 27560369873 in_progress(다음 fire 재확인, squash trivially green 예상).
 
 ## Follow-ups
 

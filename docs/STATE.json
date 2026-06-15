@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0421",
-  "backlogNote": "**T-0420(P7 ⑤ slice 2 후속 a-1 — REQ-027 backfill idempotency 판정자 실 구현) 완료(pr-mode, PR #339 squash 60fb264 merge).** AssessmentBackfillChecker 신설 — T-0419 가 박제한 @Optional 주입형 AlreadyBackfilledChecker(DI token ALREADY_BACKFILLED_CHECKER)의 실 구현. SinceDerivationService.deriveSince(personId) 재사용으로 'Assessment 0건 = 신규 인원 = backfill 진행(false)' / '1건+ = 이미 평가/backfill 됨 = skip(true)' 판정 — schema 변경 0(slice 3 전용 영속 표식 전까지 보수적 proxy). scheduling.module 에 ALREADY_BACKFILLED_CHECKER useExisting 바인딩으로 미주입 기본(항상 false) override. 빈 문자열 경계(!==undefined 기준) negative cover 포함, 신규 파일 100% cov, unit 3192 test+smoke+e2e green. 신규 dep 0. +64/-3, 3 파일. **nextTask=T-0421 큐잉됨(P7 ⑤ slice 2 후속 b — manual backfill REST endpoint POST /api/schedules/backfill/:personId, Admin+ RBAC, T-0417 controller 패턴, pr-mode, 순환 게이트 없음).** 본 fire(cron@cloud-aa30-9f3c1, :30 trigger)는 currentTask/nextTask 둘 다 null + claimable PENDING task 0 이라 planner dispatch → T-0421 신설 + STATE.nextTask 설정(direct doc commit). 코드 0 LOC. T-0421 실행은 다음 fire(claim 경로). **P7 ⑤ 잔여 후속 우선순위: 후속 b(T-0421, 큐잉됨) → 후속 a-2(PersonService create hook 자동 호출 배선 — module 순환 UserModule→SchedulingModule→AssessmentCollectionModule→UserModule 해소 architect/ADR 선행 게이트) → slice 3(backfill 1회 완료 영속화 표식 Person.backfilledAt 등 + schema 게이트) → slice 4(api.md/data-model.md doc-sync).** **T-0419 완료 유지(PR #338 0e61198). T-0418 완료 유지(PR #337 bae0ace). T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=412. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": null,
+  "backlogNote": "**T-0421(P7 ⑤ slice 2 후속 b — REQ-027 manual backfill REST endpoint) 완료(pr-mode, PR #340 squash 005c84d merge).** BackfillController 신설 — POST /api/schedules/backfill/:personId 가 주입된 BackfillRunnerService.runBackfill(personId)(T-0419)을 1회 위임 → 202 반환, cron endpoint(T-0417) 동형 Admin+ RBAC(JwtAuthGuard+RolesGuard+@Roles(\"Admin\")), service-throw raw forward. scheduling.module controllers[] 1줄 등록(새 provider 0 — runBackfill 이미 export). idempotency 는 T-0420 AssessmentBackfillChecker 그대로(Assessment 존재 proxy). 신규 controller 100% cov, 16 case(happy/skipped 분기/NotFound·reject 전파/path param pass-through/RBAC 401·403·202 + 실 RolesGuard escalation) + supertest integration, unit 3208 test+smoke+e2e green. 신규 dep 0/schema 0/순환 0/src/user 무변경. +98/-1 prod, 3 파일. **P7 ⑤ 후속 우선순위(planner 미큐잉 — 다음 fire dispatch): slice 4(api.md POST /api/schedules/backfill/:personId 계약 doc-sync — direct doc-only, T-0416 패턴) → slice 2 후속 a-2(PersonService create hook 자동 호출 배선 — module 순환 UserModule→SchedulingModule→AssessmentCollectionModule→UserModule 해소 architect/ADR 선행 게이트) → slice 3(backfill 1회 완료 영속화 표식 Person.backfilledAt 등 + schema 게이트).** **T-0420 완료 유지(PR #339 60fb264). T-0419 완료 유지(PR #338 0e61198). T-0418 완료 유지(PR #337 bae0ace). T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=413. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa30-9f3c1",
-    "since": "2026-06-15T15:38:28Z",
-    "note": "planner-only fire(cron@cloud-aa30-9f3c1, :30 trigger). 진입 시 currentTask/nextTask 둘 다 null·claims 비어있음·claimable PENDING task 0 이라 §2 step3 / LOOP [2] 대로 planner dispatch → nextTask=T-0421(P7 ⑤ slice 2 후속 b — manual backfill REST endpoint POST /api/schedules/backfill/:personId, Admin+ RBAC, T-0417 controller 패턴, 순환 게이트 없음) 큐잉. 코드 0 LOC(doc-only direct commit). 권위 lock 은 [1]에서 CAS 획득(44f6b17, prev tip 396044f), 종료 시 tombstone CAS release(claims.json 빈 배열 유지). STATE.lock 은 비권위 mirror. T-0421 실행은 다음 fire(claim 경로)."
+    "session": "cron@local-aa15-3fd715c7",
+    "since": "2026-06-15T16:05:23Z",
+    "note": "T-0421 DONE(merged PR #340 squash 005c84d) closeout. 본 fire(cron@local-aa15-3fd715c7, :15 trigger)는 stage 5b claim 경로 — lock CAS 획득(3d6c5c3, prev tip 69180f0)→reclaim no-op(claims 비어있음)→active claim 0<2 pr-mode 단독 게이트 통과→select-claim T-0421(claimedAt 16:05:23Z, claim append+lock tombstone 동일 commit CAS c81d0d6)→prNumber=340 claim CAS(68f5e19)→lock release tombstone(5b43292)→lock-free executor(backfill.controller.ts 신설 +98/-1, spec, module 1줄)→reviewer APPROVE r1/7+integrator 4-게이트 PASS+squash merge(005c84d)→claim 빈 배열 release. 권위 lock 은 branch tip lock.json(tombstone), STATE.lock 은 비권위 mirror."
   },
-  "lastActivity": "2026-06-15T15:38:28Z",
-  "lastCommit": "60fb264",
+  "lastActivity": "2026-06-15T16:05:23Z",
+  "lastCommit": "005c84d",
   "mostRecentTasks": [
+    "T-0421",
     "T-0420",
     "T-0419",
     "T-0418",
-    "T-0417",
-    "T-0416"
+    "T-0417"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,11 +32,11 @@
     "note": "/loop vb707106 (dynamic, turn cap 5). t1(~11:11Z): origin/main e2461bf 동기, lock=cron@cloud-6d38 점유(non-stale, since 11:06:11Z)→no-op stand-down. t2(11:36Z): lock free(tombstone 8f19e18)→CAS 획득(6e202ae)→planner dispatch→T-0417(P7 ④ manual trigger endpoint POST /api/schedules/trigger, pr) 큐잉→direct doc commit→lock tombstone release. 다음 turn T-0417 execute."
   },
   "ci": {
-    "lastRun": "2026-06-15T15:19:55Z",
-    "status": "green",
+    "lastRun": "2026-06-15T16:05:23Z",
+    "status": "running",
     "consecutiveFails": 0,
-    "lastConclusion": "success",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27552674257",
+    "lastConclusion": "in_progress",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27560369873",
     "noteT0419": "PR #338(T-0419 P7 ⑤ slice 2 신규 인원 backfill 실행 runner service) head 2b2e809 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 0 BLOCKER/MAJOR + 1 MINOR(cap 예외 수용) + comment 외부 post #issuecomment-4708922774 + self-check AC 1:1·Out-of-Scope(REST endpoint·PersonService hook·schema 영속화 defer 정당) + CI green). pull_request run 27552674257 = 첫 run approval-gate ordering(benignRedNote case A — reviewer approve comment 가 approval-gate step 후 landing) 단독 fail, comment post 후 `gh run rerun --failed` → 전 step success(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증). BackfillRunnerService 신설 — buildBackfillPlan 출력을 CollectionTriggerService 로 시간순 순차 소비(period=week/scope=aggregate), 주입형 idempotency 판정자, fail-fast. backfill-runner.service.ts 100% cov, 155 suite/3184 test green. 신규 dep 0. cap 주: +517 LOC(prod+wiring +160/-2 內, 초과 357 LOC 전량 R-112 spec + import-graph mandated mock fixture, split 불요). mergeStateStatus CLEAN(origin/main 5968abc 가 head ancestor, rebase noop). squash 0e61198 --delete-branch. 본 fire(cron@local-aa15-596821554, :15 trigger)는 stage 5b claim 경로(lock CAS 29a145d→reclaim no-op→active claim 0<2 pr-mode 단독→select-claim T-0419+lock tombstone→prNumber=338 claim CAS→lock-free→PR→reviewer APPROVE→4-게이트→squash→claim 빈 배열 release d51c577). 0e61198 main push run 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0418": "PR #337(T-0418 P7 ⑤ slice 1 신규 인원 1년치 backfill plan 산출 순수 helper) head db62b7d = integrator 4-게이트 PASS(reviewer inline 8-check APPROVE r1/7 finding 0 + comment 외부 post + self-check AC 1:1·Out-of-Scope 2파일만(backfill-plan.ts/spec) 준수 + CI green: pull_request run 전 step success(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — approve comment 가 approval-gate step 동일 run 통과, race 없음)). buildBackfillPlan(reference, weeks=52) 순수 함수, 주 경계 산출 전량 period-boundary.ts KST helper 위임. backfill-plan.ts 100% cov, unit 154 suite/3162 test green. 신규 dep 0. squash bae0ace --delete-branch. 본 fire(cron@local-aa15-960718, :15 trigger)는 stage 5b claim 경로(lock CAS 71c0f3d→reclaim no-op→active claim 0<2 pr-mode 단독→select-claim T-0418+lock tombstone→lock-free→PR→4-게이트→squash, 종료 시 claim 빈 배열 복원). bae0ace main push run 27548812967 pending — 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0415": "PR #335(T-0415 P7 ③ slice 2 follow-up #1 AppModule SchedulingModule import) head dd17fae pull_request run = first-pass green 전 step(lint/build/Web/prisma/test+cov/smoke/e2e + reviewer agent approval 검증 — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요, benignRedNote 미발생). reviewer APPROVE r1/7 finding 0(BLOCKER/MAJOR/MINOR 0). integrator 4-게이트 PASS(reviewer APPROVE + comment 외부 post + self-check AC 1:1·Out-of-Scope api.md doc-sync defer 정당 + CI green). mergeStateStatus CLEAN(origin/main c8f6f65 가 PR head 의 ancestor, rebase noop). 본 fire 는 stage 5b claim 경로(cron@local-aa15 select+claim T-0415, lock-free 진행). 신규 dep 0. cov line 99.96%/branch 99.52%/func 100%, 153 suite/3132 test green. squash cc2eeff --delete-branch. cc2eeff main push run 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
@@ -103,7 +103,8 @@
     "noteT0392": "PR #323(T-0392 P6 wiring④h AdminView Admin+ RBAC gating UI) head 87e881a = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green: pull_request run 27481911120 전 step success(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증) — reviewer approve comment 가 approval 검증 step 실행 전 landing, rerun 불요; mergeStateStatus CLEAN noop, head 가 origin/main 5727d20 포함 rebase noop). GET /api/auth/me useApiResource 4번째 호출 + isAdminRole 순수 helper(Admin/SuperAdmin 정확 매칭, 그 외/누락/loading=false fail-closed) + isAdmin useMemo. isAdmin 시에만 DifficultyModelSelector·scope select·DataImportExportPanel 렌더, 아니면 권한 부족 안내 한 줄(role=status). GroupMemberList·그룹 select 등급 무관 유지(User+ 조회 가능). presentational/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 457 전체(isAdminRole 5종+gating 8종 신규) 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +298/-41(prod +97/-29). squash 9a66bc6 --delete-branch. 9a66bc6 main push run(23:21Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0416": "T-0416(api.md /api/schedules doc-sync, direct doc-only) main push fdeb3d6 CI run 27542100921 = in_progress(본 fire push 직후). doc-only 단일파일(docs/architecture/api.md +7/-2)이라 trivially green 예상 — 다음 fire 재확인. 직전 fire 의 e8bb5f4(T-0416 큐잉) push run 27541026963 = completed/success 확인. Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0417": "PR #336(T-0417 P7 ④ manual trigger endpoint POST /api/schedules/trigger) head 4d70276 = integrator 4-게이트 PASS(reviewer 8-check inline+APPROVE r1/7 finding 0 + comment 외부 post #issuecomment-4707793397 'Agent review — written by reviewer agent' + self-check AC 1:1·Out-of-Scope 실 평가 결선 defer 정당 + CI green: pull_request run 27545361324 전 step success(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — approve comment 가 approval-gate step 실행 전 landing, rerun 불요)). 주입 CRON_TICK_HANDLER 1회 await(sync void/Promise 양분기)+202 Accepted+Admin+ RBAC, scheduling.module 무변경. cron-schedule.controller.ts 100% cov, unit 3144 green. 신규 dep 0. squash 62edc3b --delete-branch. 본 fire(cron@local-aa15-56ca, :15 trigger)는 stage 5b claim 경로(select-claim T-0417 활성 claim 0<2 pr-mode 단독 게이트 통과→lock tombstone→lock-free 진행, 종료 시 claim 빈 배열 복원). 62edc3b main push run 27546004821 in_progress — 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
-    "noteT0420": "PR #339(T-0420 P7 ⑤ slice 2 후속 a-1 backfill idempotency 판정자 실 구현) head d2be38a pull_request run = completed/success 전 step green(lint/build/prisma/test+cov/smoke/e2e + reviewer agent approval 검증). integrator 4-게이트 PASS(reviewer APPROVE r1/7 + comment 외부 post + self-check AC 1:1·Out-of-Scope(PersonService hook module 순환 게이트·manual endpoint·schema 영속화 defer 정당) + CI green). AssessmentBackfillChecker 신설 — SinceDerivationService.deriveSince 재사용(Assessment 0건⟺신규 인원 = false, 1건+⟺이미 평가됨 = true, schema 0), scheduling.module 에 ALREADY_BACKFILLED_CHECKER useExisting 바인딩. 신규 파일 line/branch/func 100%, unit 3192 test green + smoke + e2e green. 신규 dep 0. +64/-3, 3 파일. squash 60fb264 --delete-branch. 60fb264 main push run(15:17:52Z in_progress) 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16)."
+    "noteT0420": "PR #339(T-0420 P7 ⑤ slice 2 후속 a-1 backfill idempotency 판정자 실 구현) head d2be38a pull_request run = completed/success 전 step green(lint/build/prisma/test+cov/smoke/e2e + reviewer agent approval 검증). integrator 4-게이트 PASS(reviewer APPROVE r1/7 + comment 외부 post + self-check AC 1:1·Out-of-Scope(PersonService hook module 순환 게이트·manual endpoint·schema 영속화 defer 정당) + CI green). AssessmentBackfillChecker 신설 — SinceDerivationService.deriveSince 재사용(Assessment 0건⟺신규 인원 = false, 1건+⟺이미 평가됨 = true, schema 0), scheduling.module 에 ALREADY_BACKFILLED_CHECKER useExisting 바인딩. 신규 파일 line/branch/func 100%, unit 3192 test green + smoke + e2e green. 신규 dep 0. +64/-3, 3 파일. squash 60fb264 --delete-branch. 60fb264 main push run(15:17:52Z in_progress) 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
+    "noteT0421": "PR #340(T-0421 P7 ⑤ slice 2 후속 b manual backfill endpoint POST /api/schedules/backfill/:personId) head 8f2f3d9 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 + comment 외부 post + self-check AC 1:1·Out-of-Scope 3파일만(backfill.controller.ts/spec + scheduling.module 1줄) 준수 + CI green). 첫 pull_request run 27559814145 = benignRedNote case A(reviewer approval 검증 step 단독 fail — approve comment 가 step 후 landing, 실 step lint/build/prisma/test+cov/smoke/e2e 전부 green) → `gh run rerun 27559814145 --failed` 후 전 step success. BackfillController 가 BackfillRunnerService.runBackfill(personId) 1회 위임 → 202, cron endpoint 동형 Admin+ RBAC, service-throw raw forward. backfill.controller.ts 100% cov, 157 suite/3208 test green. 신규 dep 0. +98/-1 prod, 3 파일. mergeStateStatus CLEAN(rebase noop). squash 005c84d --delete-branch. 005c84d main push run 27560369873 in_progress — 다음 fire 재확인(squash trivially green 예상). 본 fire(cron@local-aa15-3fd715c7, :15 trigger)는 stage 5b claim 경로(lock CAS 3d6c5c3→reclaim no-op→active claim 0<2 pr-mode 단독→select-claim T-0421 c81d0d6→prNumber=340 claim CAS 68f5e19→lock release 5b43292→lock-free→PR→reviewer APPROVE→4-게이트→squash→claim 빈 배열 release). Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
     "T-0419": 1,
@@ -249,7 +250,8 @@
     "T-0375": 1,
     "T-0384": 1,
     "T-0392": 1,
-    "T-0394": 1
+    "T-0394": 1,
+    "T-0421": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -789,7 +791,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 412,
+    "tasksCompleted": 413,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
