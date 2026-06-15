@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0426",
   "backlogNote": "**T-0425(P7 ⑤/R-74 REQ-041 slice 1b — 삭제 window [start,end) 내 평가 결과 선별 순수 helper, selectInDeletionWindow) 완료(pr, PR #342 squash 9455809, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** buildRecentDeletionWindow(T-0424) 출력 PeriodRange 를 인자로 소비해 instant 들을 in/out-of-window 반열림([start,end)) 분류(start 포함·end 배타), window 검증 TypeError(비-Date/Invalid)·RangeError(start>=end)·instants 검증 TypeError(비-배열·원소 Invalid Date index 포함)·빈 배열 정상·non-mutating·순서 보존. 신규 helper 100% cov(line/branch/func), schema/cycle/배선 0(src/scheduling/deletion-window-select.ts +spec). T-0418 buildBackfillPlan→T-0419 runner 분리와 동형(helper 먼저, 실행 후속). **이후 우선순위(planner 미큐잉, 다음 fire dispatch): REQ-041 slice 2(buildRecentDeletionWindow + selectInDeletionWindow 두 helper 조립 실 삭제 runner + 재수집 trigger 배선, pr — module-cycle architect 사전 점검 필요) 또는 slice 1/1b 의 REST/doc-sync 후속.** **여전히 게이트된 우선순위: slice 2 후속 a-2(PersonService hook, module 순환 architect 게이트) → slice 3(backfill 영속화 표식, schema 게이트).** **T-0424 완료 유지(recent-deletion-window.ts, PR #341 4d3345c). T-0423/T-0422/T-0421/T-0420/T-0419 완료 유지. T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=417. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa15-6c15f4e",
-    "since": "2026-06-15T20:03:53Z",
-    "note": "T-0425 DONE(pr, PR #342 squash 9455809) fire(cron@local-aa15, :15 trigger, stage 5b claim 경로). 진입 시 로컬 main 896a003→origin/main 6c15f4e ff 동기(직전 planner fire T-0425 큐잉 반영). server-time 20:03:53Z(GitHub Date header). 권위 lock CAS 획득(ecbebcf, prev tip 3cf6b98 free tombstone)→reclaim no-op(claims [])→active claim 0<2 + T-0425 pr→활성 claim 0 조건 충족 단독 claim→select-claim T-0425(claim append+lock tombstone 동일 commit CAS, lock release)→lock-free executor(deletion-window-select.ts +spec, 신규 100% cov)→feature branch push→integrator(PR #342 open→reviewer round1 APPROVE→4-게이트 PASS→squash merge 9455809 + branch delete). closeout 시 claims.json 빈 배열 release. 권위 lock = branch tip lock.json(tombstone), STATE.lock 은 비권위 mirror."
+    "session": "cron@cloud-aa-6ccabee",
+    "since": "2026-06-15T20:37:35Z",
+    "note": "planner-only fire(cron@cloud-aa, :30 근방 trigger). 진입 시 로컬 main 6c15f4e→origin/main 6ccabee ff 동기(직전 fire T-0425 closeout 머지 반영 — T-0425 이미 DONE). currentTask/nextTask 둘 다 null·claims []·claimable PENDING 0 → LOOP [2] planner dispatch(fineGrainedConcurrency=true 이나 claimable 부재라 claim 경로 no-op → planner). server-time 20:37:35Z(GitHub Date header). 권위 lock CAS 획득(e216008, prev tip f0bb830 free tombstone)→planner→nextTask=T-0426(P7 ⑤/R-74 REQ-041 slice 1c — buildRecentDeletionPlan 순수 조립 helper, pr, 게이트 없음, dependsOn []) 큐잉. 코드 0 LOC(doc-only direct commit). 종료 시 tombstone CAS release. STATE.lock 은 비권위 mirror. T-0426 실행은 다음 fire(claim 경로)."
   },
-  "lastActivity": "2026-06-15T20:12:00Z",
+  "lastActivity": "2026-06-15T20:37:35Z",
   "lastCommit": "9455809",
   "mostRecentTasks": [
     "T-0425",
