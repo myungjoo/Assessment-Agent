@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**T-0419(P7 ⑤ slice 2 — R-50/REQ-027 신규 인원 backfill 실행 runner service) 완료(pr-mode, PR #338 squash 0e61198 merge).** BackfillRunnerService 신설 — buildBackfillPlan(T-0418) 출력을 CollectionTriggerService.triggerCollection 으로 window 당 1회 시간순 순차 소비(period=\"week\"/scope=\"aggregate\", VALID_PERIODS 정합 위해 task 의 \"weekly\"→\"week\" 매핑), '신규 인원 1회만' idempotency 는 @Optional 주입형 판정자(미주입 기본 skip 안 함), 평가 실패 fail-fast 전파. SchedulingModule 이 AssessmentCollectionModule import + CollectionTriggerService export 로 DI 단방향 결선. backfill-runner.service.ts 100% cov, unit 155 suite/3184 test green. 신규 dep 0. cap 주: +517 LOC(production+wiring +160/-2 內, 초과분 357 LOC 전량 R-112 negative spec + import-graph mandated PrismaService mock fixture — split 불요, reviewer MINOR 수용). 본 fire(cron@local-aa15-596821554, :15 trigger)는 stage 5b claim 경로(lock CAS 29a145d→reclaim no-op→active claim 0<2 pr-mode 단독 게이트→select-claim T-0419+lock tombstone release→prNumber=338 claim CAS→lock-free executor→PR #338→reviewer APPROVE r1+integrator 4-게이트 PASS+squash→claim 빈 배열 release). **P7 ⑤ 후속 우선순위(planner 미큐잉 — 다음 fire dispatch): slice 2 후속 a(PersonService create hook 자동 호출 배선 + idempotency 판정자 실 구현) → 후속 b(manual backfill REST endpoint) → slice 3(backfill 1회 완료 영속화 표식 + schema 게이트) → slice 4(api.md/data-model.md doc-sync).** **T-0418 완료 유지(PR #337 bae0ace). T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=411. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": "T-0420",
+  "backlogNote": "**nextTask=T-0420 큐잉됨(P7 ⑤ slice 2 후속 a-1 — backfill idempotency 판정자 실 구현, pr-mode).** 본 fire(cron@local-aa-30c4, :30 trigger)는 currentTask/nextTask 둘 다 null + claimable PENDING task 0 이라 CLAUDE.md §2 step3 / LOOP [2] 대로 planner dispatch → T-0420 task 파일 신설 + STATE.nextTask 설정(direct doc commit). 코드 0 LOC. T-0420 실행은 다음 fire(claim 경로). T-0420 범위: T-0419 가 박제한 주입형 idempotency 판정자 인터페이스 AlreadyBackfilledChecker(token ALREADY_BACKFILLED_CHECKER, 기본 미주입=항상 false)의 실 구현 — AssessmentBackfillChecker 가 SinceDerivationService 재사용해 Assessment 존재 여부 proxy 로 '이미 backfill 됨' 판정, ALREADY_BACKFILLED_CHECKER token 바인딩. schema 변경 0·새 module import 0·cycle 0. touchesFiles=src/scheduling/assessment-backfill-checker.service.{ts,spec.ts}+scheduling.module.ts. dependsOn=T-0419(merged 0e61198). **PersonService create hook 자동 호출 배선은 module 순환 의존(UserModule→SchedulingModule→AssessmentCollectionModule→UserModule, ADR-0029 §1) 게이트라 architect 결정 선행 Follow-up 으로 분리.** **직전: T-0419(P7 ⑤ slice 2 BackfillRunnerService) 완료(PR #338 squash 0e61198).** **T-0418 완료 유지(PR #337 bae0ace). T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=411. **P7 ⑤ 후속 우선순위: 후속 a-1(T-0420, 큐잉됨) → 후속 a-2(PersonService hook, architect 게이트) → 후속 b(manual backfill REST endpoint) → slice 3(영속화 표식 + schema 게이트) → slice 4(doc-sync).** 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@local-aa15-596821554",
-    "since": "2026-06-15T14:05:06Z",
-    "note": "T-0419 DONE(merged PR #338 squash 0e61198) closeout. 본 fire(cron@local-aa15-596821554, :15 trigger)는 stage 5b claim 경로 — lock CAS 획득(29a145d, prev tip 7f41ac7)→reclaim no-op(claims 비어있음)→active claim 0<2 pr-mode 단독 게이트 통과→select-claim T-0419(claimedAt 14:05:06Z, claim append+lock tombstone 동일 commit CAS)→PR #338 open 후 prNumber=338 claim CAS(resume-safety)→lock-free executor(backfill-runner.service.ts +134, spec +257, module wiring)→reviewer APPROVE r1/7+integrator 4-게이트 PASS+squash merge→claim 빈 배열 release(d51c577). 권위 lock 은 branch tip lock.json(tombstone), STATE.lock 은 비권위 mirror."
+    "session": "cron@local-aa-30c4",
+    "since": "2026-06-15T14:39:06Z",
+    "note": "planner-only fire(cron@local-aa-30c4, :30 trigger). currentTask/nextTask 둘 다 null·claimable PENDING task 0 이라 §2 step3 / LOOP [2] 대로 planner dispatch → nextTask=T-0420(P7 ⑤ slice 2 후속 a-1) 큐잉. 코드 0 LOC. 권위 lock 은 [1] 에서 CAS 획득(bc752cf, prev tip d51c577)했고, 본 fire 종료 시 tombstone CAS release(claims.json 빈 배열 유지). STATE.lock 은 비권위 mirror. 실행은 다음 fire(claim 경로)."
   },
-  "lastActivity": "2026-06-15T14:28:00Z",
+  "lastActivity": "2026-06-15T14:39:06Z",
   "lastCommit": "0e61198",
   "mostRecentTasks": [
     "T-0419",
