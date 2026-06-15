@@ -11,12 +11,12 @@
   "backlogNote": "**T-0409 DONE (P6 T-0355 잔여(b) — check-spec-presence web .d.ts 위양성 수정 + self-test, pr-mode, PR #330 squash merge 57ecda8) → T-0355 종결.** check-spec-presence.sh 에 `*.d.ts) continue ;;` 제외 1줄(gate narrowing) + self-test 4 web 케이스. reviewer APPROVE r1/7 finding 0 → 4-게이트 PASS → merge. CI run 27504589537 first-pass green. tasksCompleted 400→401(T-0409 만; T-0355 closure 는 administrative — 슬라이스 T-0405/06/08/09·T-0397 이미 카운트). **T-0355(P6 scaffold parent) 완료: ci-wiring=T-0405·smoke=T-0406·coverage=T-0408·self-test=T-0409·directory=T-0397 전부 머지.** **현재 non-DONE task 0 — WIND-DOWN (19차 연속).** 잔여 stream 전부 게이트: live-LLM Q-0022(만료 6/30, today 6/15) / P7 @nestjs/schedule 새 dep §5(BLOCKED — 승인 필요) / ADR-0036 5c 측정 / backend-contract defer / Q-0032 DEFERRED / Q-0026 timezone. dependency-free non-gated 신규 task 0 → make-work 회피, cron 이 게이트 해소 시 재개.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-windown19",
-    "since": "2026-06-15T01:04:20Z",
-    "note": "cron fire NO-OP (19차 연속, 직전 18차는 cron 7efe3e0): WIND-DOWN 재확인(권위 lock CAS 4522d03→a87b9c7 획득[lock.json 단독 tree, claims.json 부재=[] 보존], tombstone release). fetch 후 origin/main 7efe3e0(직전 18차 NO-OP closeout) ff, currentTask·nextTask null. 독립검증(게이트 해소 이벤트 0): open PR 0(mcp__github__list_pull_requests=[])·claims 활성 0(브랜치 tip 에 claims.json 부재=[] 보존)·HQ unresolved 0(Q-0037·Q-0034 RESOLVED)·blockers []·counters tasksCompleted=401 불변. 6 잔여 stream 전부 게이트 그대로(live-LLM Q-0022 6/30 미도래·today 6/15 / P7 @nestjs/schedule 새 dep §5 BLOCKED·승인 필요 / ADR-0036 5c 측정데이터 부재 / backend reeval-endpoint defer·api.md 미구현 / Q-0032 DEFERRED / Q-0026 timezone chain shipped). 게이트 해소 이벤트 0 → dependency-free·non-gated 유용 task 0 → CLAUDE.md §3 진척용 task 금지 준수(make-work 회피, counters 401 유지). STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@cloud-aa-windown20",
+    "since": "2026-06-15T01:38:01Z",
+    "note": "cron fire NO-OP (20차 연속, 직전 19차는 cron 3d667c9): WIND-DOWN 재확인(권위 lock CAS c7f7870→3120526 획득[lock.json 단독 tree, claims.json 부재=[] 보존], 작업 후 tombstone release). fetch 후 origin/main 3d667c9(직전 19차 NO-OP closeout) reset, currentTask·nextTask null. 독립검증(게이트 해소 이벤트 0): non-terminal task 0(grep ^Status: PENDING|IN_PROGRESS|BLOCKED 매칭 0)·open PR 0(gh pr list 빈)·claims 활성 0(브랜치 tip claims.json 부재=[] 보존)·HQ unresolved 0(Q-0037·Q-0034·Q-0033 RESOLVED)·blockers []·counters tasksCompleted=401 불변. 6 잔여 stream 전부 게이트 그대로(live-LLM Q-0022 6/30 미도래·today 6/15 / P7 @nestjs/schedule 새 dep §5 BLOCKED·승인 필요 / ADR-0036 5c 측정데이터 부재 / backend reeval-endpoint defer·api.md 미구현 / Q-0032 DEFERRED / Q-0026 timezone chain shipped). 게이트 해소 이벤트 0 → dependency-free·non-gated 유용 task 0 → CLAUDE.md §3 진척용 task 금지 준수(make-work 회피, counters 401 유지). STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
   },
-  "lastActivity": "2026-06-15T01:04:20Z",
-  "lastCommit": "7efe3e0",
+  "lastActivity": "2026-06-15T01:38:01Z",
+  "lastCommit": "3d667c9",
   "mostRecentTasks": [
     "T-0409",
     "T-0408",
