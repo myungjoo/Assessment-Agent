@@ -133,7 +133,7 @@ crontab -e
 
 ## 6. 운영 메모
 
-- **마이그레이션**: 매 재배포 시 entrypoint 가 `prisma migrate deploy` 를 멱등 실행 — 미적용 migration 만 순차 적용. 별도 수작업 불요.
+- **마이그레이션**: 매 재배포 시 entrypoint 가 `prisma migrate deploy` 를 멱등 실행 — 미적용 migration 만 순차 적용. 별도 수작업 불요. (prod 이미지는 `typescript` 없이 prisma CLI 번들 로더로 `prisma.config.ts` 를 읽는다. 이 경로는 CI `deploy-artifacts` job 의 런타임 smoke 가 매 PR 마다 실제 기동으로 검증한다 — 부팅 실패 시 `docker compose logs app` 의 migrate 단계 로그를 먼저 확인.)
 - **롤백**: 특정 커밋으로 되돌리려면 배포 체크아웃에서 `git checkout <SHA>` 후 `docker compose up -d --build`. (단 DB 마이그레이션은 자동 down 되지 않으니, 스키마 변경을 되돌릴 땐 주의.)
 - **백업**: `docker compose exec postgres pg_dump -U assessment_agent assessment_agent > backup.sql` (deployment.md "Backup/restore" 참조).
 - **사내망 / 사내 인증서**: 외부 사내 endpoint(GitHub Enterprise / Confluence / LLM proxy)에 접근하려면 `.env` 의 `NODE_EXTRA_CA_CERTS` / `HTTPS_PROXY` 주석을 해제하고, CA 파일을 `app` 컨테이너에 mount 해야 한다 — `docker-compose.yml` 의 `app` 서비스에 다음을 추가:

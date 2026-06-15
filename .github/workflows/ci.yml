@@ -218,10 +218,27 @@ jobs:
   # red 로 만들어 merge 를 차단한다 (R-111/R-114). 사용자 요구 "CI 에서 docker
   # 만드는 것까지 시험" 의 구현체.
   deploy-artifacts:
-    name: 배포 산출물 검증 (Docker 빌드 + 스크립트 문법)
+    name: 배포 산출물 검증 (Docker 빌드 + 런타임 smoke)
     runs-on: ubuntu-latest
     # issue_comment(approval-gate 재실행) event 시엔 PR 일 때만 — 무의미한 빌드 회피.
     if: github.event_name != 'issue_comment' || github.event.issue.pull_request != null
+    # 런타임 smoke 가 붙을 실 PostgreSQL — 빌드한 이미지를 띄워 entrypoint 의
+    # `prisma migrate deploy` 가 실제 DB 에 발화하는지까지 검증한다 (T-0429 round 2,
+    # reviewer MAJOR: 빌드 성공 ≠ 배포 부팅 성공).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: assessment_agent
+          POSTGRES_PASSWORD: ci_smoke
+          POSTGRES_DB: assessment_agent
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U assessment_agent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: 저장소 checkout
         uses: actions/checkout@v4
@@ -236,3 +253,36 @@ jobs:
         # Dockerfile 전체(pnpm install → backend build → web build → prune → runtime)
         # 를 end-to-end 빌드해 배포 가능 상태를 검증. 레지스트리 push 는 하지 않는다.
         run: docker build -t assessment-agent:ci .
+
+      - name: 컨테이너 런타임 smoke (entrypoint migrate deploy + 부팅 + HTTP 응답)
+        # 빌드한 prod-only 이미지를 실제 기동한다. --network host 로 services.postgres
+        # 가 매핑된 runner localhost:5432 에 도달. 검증 대상:
+        #   1) pnpm prune --prod 로 typescript/ts-node 가 제거된 이미지에서 prisma CLI
+        #      번들 로더가 prisma.config.ts 를 읽어 `prisma migrate deploy` 가 성공하는가.
+        #   2) NestJS 가 부팅돼 GET / 가 200 을 응답하는가(web/dist 정적 serve 포함).
+        # 컨테이너가 crash 하거나 60s 내 응답이 없으면 로그를 찍고 fail → PR red.
+        run: |
+          docker run -d --name aa-smoke --network host \
+            -e DATABASE_URL="postgresql://assessment_agent:ci_smoke@localhost:5432/assessment_agent?schema=public" \
+            -e AUTH_JWT_SECRET=ci_smoke_secret \
+            -e PORT=3000 \
+            assessment-agent:ci
+
+          ok=""
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/ >/dev/null 2>&1; then
+              ok=1; echo "✅ 컨테이너 부팅 + GET / 200 확인 (${i}회 polling)"; break
+            fi
+            if [ -z "$(docker ps -q --filter name=aa-smoke --filter status=running)" ]; then
+              echo "::error::컨테이너가 비정상 종료(crash). 아래 로그 참조."
+              docker logs aa-smoke; exit 1
+            fi
+            sleep 2
+          done
+
+          echo "--- 컨테이너 로그 (prisma migrate deploy 발화 확인) ---"
+          docker logs aa-smoke
+          if [ -z "$ok" ]; then
+            echo "::error::60s 내 HTTP 응답 없음 — 부팅 실패."; exit 1
+          fi
+          docker rm -f aa-smoke

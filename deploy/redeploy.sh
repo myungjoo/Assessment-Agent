@@ -23,6 +23,9 @@ echo "[redeploy] $(date -Is) — 이미지 재빌드 + 컨테이너 교체"
 docker compose up -d --build
 
 echo "[redeploy] $(date -Is) — 미사용 이미지 정리"
+# 주의: 호스트 전역 dangling 이미지를 정리한다(이 프로젝트 한정 아님). README 가
+# 가정하는 "배포 전용 호스트"에서는 무해하다. 다른 컨테이너와 호스트를 공유한다면
+# 본 줄을 제거하거나 `docker image prune -f --filter "label=..."` 로 범위를 좁힌다.
 docker image prune -f
 
 echo "[redeploy] $(date -Is) — 완료 (현재 상태)"
