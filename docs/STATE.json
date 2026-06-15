@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0423",
-  "backlogNote": "**T-0422(P7 ⑤ slice 4 — REQ-027 api.md backfill endpoint doc-sync) 완료(direct doc-only main commit).** api.md §5 cron 주기 관리(/api/schedules) 그룹 DELETE 행 다음에 POST /api/schedules/backfill/:personId 행 1개 append(Admin+, 202+BackfillRunResult, T-0420 proxy idempotency, service-throw raw forward, PR #340 박제) + 합계 줄 약 53→54 endpoint(prefix 14 불변, 같은 /api/schedules prefix 내 추가). 단일 파일 +2/-1, 코드/테스트 0. **T-0423 큐잉됨(planner-only fire cron@cloud-aa16, P7 ⑤ slice 4 잔여 — api.md §5 POST /api/schedules/trigger manual trigger endpoint doc-sync, direct doc-only, 게이트 없음). T-0423 실행은 다음 fire(claim 경로).** 주: backlogNote 직전판이 T-0417 을 doc-sync task 로 오기재했으나 T-0417 은 실제로 shipped endpoint(PR #336 62edc3b) 였고 api.md §5 미박제분 doc-sync 가 T-0423 임 — planner pre-check 로 정정. **P7 ⑤ 후속 우선순위(T-0423 이후, planner 미큐잉): slice 2 후속 a-2(PersonService create hook 자동 호출 배선 — module 순환 UserModule→SchedulingModule→AssessmentCollectionModule→UserModule 해소 architect/ADR 선행 게이트) → slice 3(backfill 1회 완료 영속화 표식 Person.backfilledAt 등 + schema 게이트).** **T-0421 완료 유지(PR #340 005c84d). T-0420 완료 유지(PR #339 60fb264). T-0419 완료 유지(PR #338 0e61198). T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=414. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": null,
+  "backlogNote": "**T-0423(P7 ④/⑤ slice 4 잔여 — REQ-040 api.md trigger endpoint doc-sync) 완료(direct doc-only main commit).** api.md §5 cron 주기 관리(/api/schedules) 그룹 backfill 행 다음에 POST /api/schedules/trigger 행 1개 append(Admin+, 202 fire-and-forget body 없음, CRON_TICK_HANDLER 즉시 1회 호출, handler throw raw forward, T-0417/PR #336 박제) + 합계 줄 약 54→55 endpoint(prefix 14 불변, 같은 /api/schedules prefix 내 추가). 단일 파일 docs/architecture/api.md +2/-1, 코드/테스트 0. cron-schedule.controller.ts 사실 정합 확인. **slice 4 doc-sync 완결 — trigger + backfill 모두 api.md §5 박제 완료.** **P7 ⑤ 후속 우선순위(planner 미큐잉, 다음 fire dispatch): slice 2 후속 a-2(PersonService create hook 자동 호출 배선 — module 순환 UserModule→SchedulingModule→AssessmentCollectionModule→UserModule 해소 architect/ADR 선행 게이트) → slice 3(backfill 1회 완료 영속화 표식 Person.backfilledAt 등 + schema 게이트).** **T-0422 완료 유지(api.md backfill doc-sync, e4dae80). T-0421 완료 유지(PR #340 005c84d). T-0420 완료 유지(PR #339 60fb264). T-0419 완료 유지(PR #338 0e61198). T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=415. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa16-e4dae8",
-    "since": "2026-06-15T17:38:21Z",
-    "note": "planner-only fire(cron@cloud-aa16-e4dae8). 진입 시 로컬 main 9a7c9fc→origin/main e4dae80 ff 동기(직전 fire T-0422 머지 반영)→currentTask/nextTask 둘 다 null·claims 비어있음·claimable PENDING 0 → LOOP [2] 대로 planner dispatch. 권위 lock CAS 획득(6a70104, prev tip a30fedd free tombstone)→reclaim no-op→active claim 0<2→planner→nextTask=T-0423(P7 ⑤ slice 4 잔여 — api.md §5 POST /api/schedules/trigger manual trigger endpoint doc-sync, direct doc-only, 게이트 없음) 큐잉. 코드 0 LOC(doc-only direct commit). 종료 시 tombstone CAS release. STATE.lock 은 비권위 mirror. T-0423 실행은 다음 fire(claim 경로)."
+    "session": "cron@local-aa15-71aba8",
+    "since": "2026-06-15T18:05:03Z",
+    "note": "T-0423 DONE(direct doc-only, api.md §5 trigger endpoint doc-sync) closeout. 본 fire(cron@local-aa15-71aba8, :15 trigger)는 stage 5b claim 경로 — 진입 시 로컬 main e4dae80→origin/main 71aba8d ff 동기(직전 planner fire T-0423 큐잉 반영). server-time 18:05:03Z(GitHub Date header). lock CAS 획득(d5538c1, prev tip b015046 free tombstone)→reclaim no-op(claims [])→active claim 0<2 + T-0423 direct→select-claim T-0423(207675c, claim append+lock tombstone 동일 commit CAS)→lock-free executor(api.md +2/-1 §5 cron 그룹 trigger 행 + 합계 54→55)→direct main commit→claim 빈 배열 release. 권위 lock 은 branch tip lock.json(tombstone), STATE.lock 은 비권위 mirror."
   },
-  "lastActivity": "2026-06-15T17:38:21Z",
-  "lastCommit": "005c84d",
+  "lastActivity": "2026-06-15T18:05:30Z",
+  "lastCommit": "71aba8d",
   "mostRecentTasks": [
+    "T-0423",
     "T-0422",
     "T-0421",
     "T-0420",
-    "T-0419",
-    "T-0418"
+    "T-0419"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,11 +32,11 @@
     "note": "/loop vb707106 (dynamic, turn cap 5). t1(~11:11Z): origin/main e2461bf 동기, lock=cron@cloud-6d38 점유(non-stale, since 11:06:11Z)→no-op stand-down. t2(11:36Z): lock free(tombstone 8f19e18)→CAS 획득(6e202ae)→planner dispatch→T-0417(P7 ④ manual trigger endpoint POST /api/schedules/trigger, pr) 큐잉→direct doc commit→lock tombstone release. 다음 turn T-0417 execute."
   },
   "ci": {
-    "lastRun": "2026-06-15T17:05:00Z",
-    "status": "pending",
+    "lastRun": "2026-06-15T17:42:07Z",
+    "status": "green",
     "consecutiveFails": 0,
-    "lastConclusion": "pending",
-    "note": "T-0422(direct doc-only api.md §5 backfill endpoint doc-sync) main push CI 다음 fire 재확인 — doc-only 단일파일(docs/architecture/api.md +2/-1)이라 trivially green 예상. Node20 deprecation annotation non-blocking(2026-06-16)."
+    "lastConclusion": "success",
+    "note": "직전 main push(T-0422 e4dae80 + planner 71aba8d) CI 둘 다 success 확인(gh run list). T-0423(direct doc-only api.md §5 trigger endpoint doc-sync) main push CI 는 다음 fire 재확인 — doc-only 단일파일(docs/architecture/api.md +2/-1)이라 trivially green 예상. Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
     "T-0419": 1,
@@ -723,7 +723,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 414,
+    "tasksCompleted": 415,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

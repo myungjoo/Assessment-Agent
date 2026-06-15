@@ -2,7 +2,7 @@
 id: T-0423
 title: api.md 에 POST /api/schedules/trigger manual trigger endpoint doc-sync
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-040]
 dependsOn: [T-0417]
@@ -27,15 +27,19 @@ T-0417 (PR #336, squash 62edc3b merged) 이 `CronScheduleController` 위에 `POS
 - `src/scheduling/cron-schedule.controller.ts` — shipped 된 실 구현 확인 (`@Controller("api/schedules")` 의 `CronScheduleController`, `@Post("trigger")`, `@HttpCode(202)`, Admin+ guard stack). description 작성 시 사실 정합 검증용.
 - `docs/tasks/T-0422-api-md-backfill-endpoint-doc-sync.md` — 직전 동형 api.md doc-sync 패턴 (같은 `/api/schedules` 그룹에 backfill POST 행을 추가했던 task). description 톤 / 합계 줄 갱신 방식 mirror 참조.
 
+## Result
+
+DONE (2026-06-15T18:05Z, cron@local-aa15-71aba8). api.md §5 cron 주기 관리 (/api/schedules) 그룹 backfill 행 다음에 `POST /api/schedules/trigger` 행 1개 추가 (UC-01, Admin+, R-73/REQ-040, T-0417/PR #336 박제) + §5 합계 줄 endpoint 약 54→55 (prefix 14 불변 — 같은 `/api/schedules` prefix 내 추가). 단일 파일 docs/architecture/api.md +2/-1, 코드/테스트 0. 실 계약은 src/scheduling/cron-schedule.controller.ts (`@Post("trigger")`, `@HttpCode(202)`, `await this.tickHandler()`, Admin+ guard stack) 와 사실 정합 확인. slice 4 doc-sync 완결 (trigger + backfill 모두 api.md §5 박제 완료).
+
 ## Acceptance Criteria
 
-- [ ] §5 endpoint 표의 `cron 주기 관리 (/api/schedules)` 그룹 (현 L134~138) 안에 `POST` `/api/schedules/trigger` 행 1개 추가:
+- [x] §5 endpoint 표의 `cron 주기 관리 (/api/schedules)` 그룹 (현 L134~138) 안에 `POST` `/api/schedules/trigger` 행 1개 추가:
   - method `POST`, path `/api/schedules/trigger`, UC 컬럼 `[UC-01](../use-cases/UC-01-evaluation-execution.md)`.
   - description (≤1~2줄, 인접 행 톤 일치): Admin 이 cron 주기와 무관하게 즉시 1회 평가를 manual 하게 trigger (R-73 / REQ-040) — 주입된 `CRON_TICK_HANDLER` (tickHandler) 를 즉시 1회 호출 (Promise 반환 시 await) → `202 Accepted` (body 없음, fire-and-forget). handler throw/reject 시 raw forward (500 표면화). cron tick callback 과 동일 실행 추상 공유 ([ADR-0042 §Decision2](../decisions/ADR-0042-nestjs-schedule-adoption.md)). T-0417 박제 (PR #336) — RBAC enforced (Admin+ via `JwtAuthGuard`+`RolesGuard`, `@Roles("Admin")`). 요지 1~2줄로 압축.
   - auth tier 컬럼 `Admin+`.
-- [ ] §5 말미 `**합계**` 줄 (현 L140) 갱신 — `/api/schedules` prefix 의 endpoint 수가 +1 (trigger POST 1 추가) 임을 반영하는 1구절 append (기존 박제 톤 유지 — "T-0417 박제로 `/api/schedules/trigger` manual trigger endpoint 1 추가 (PR #336, 같은 `/api/schedules` prefix 내 추가라 prefix 14 불변)" 요지). headline 수치 약 54 → 약 55 endpoint 로 +1 (기존 표기 방식 그대로). prefix 수 (14) 는 동일 그룹 내 추가라 불변.
-- [ ] 변경은 `docs/architecture/api.md` 단일 파일에 국한 (코드/테스트 변경 0).
-- [ ] 추가 문구는 한국어 (§12), 식별자·path·status code·RBAC 토큰·enum 은 영어 유지.
+- [x] §5 말미 `**합계**` 줄 (현 L140) 갱신 — `/api/schedules` prefix 의 endpoint 수가 +1 (trigger POST 1 추가) 임을 반영하는 1구절 append (기존 박제 톤 유지 — "T-0417 박제로 `/api/schedules/trigger` manual trigger endpoint 1 추가 (PR #336, 같은 `/api/schedules` prefix 내 추가라 prefix 14 불변)" 요지). headline 수치 약 54 → 약 55 endpoint 로 +1 (기존 표기 방식 그대로). prefix 수 (14) 는 동일 그룹 내 추가라 불변.
+- [x] 변경은 `docs/architecture/api.md` 단일 파일에 국한 (코드/테스트 변경 0).
+- [x] 추가 문구는 한국어 (§12), 식별자·path·status code·RBAC 토큰·enum 은 영어 유지.
 
 ## Out of Scope
 
