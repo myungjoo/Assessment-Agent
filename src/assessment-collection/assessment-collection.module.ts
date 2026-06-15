@@ -132,6 +132,12 @@ import { SinceDerivationService } from "./since-derivation.service";
     // slice vi(T-0268): 후속 호출처(scheduler/manual trigger, 별도 module)가 inject 받아
     // since 를 산출하기 위해 export.
     SinceDerivationService,
+    // T-0419(P7 ⑤ slice 2): SchedulingModule 의 BackfillRunnerService 가 backfill 의 각 주
+    // window 를 triggerCollection 으로 소비하기 위해 CollectionTriggerService 를 export 한다.
+    // 기존엔 AssessmentCollectionController(#3) 가 같은 module 내부에서만 주입받아 미export
+    // 였으나, 별도 module(scheduling)이 inject 하므로 export 표면을 연다 — collection module
+    // 동작 변경 0(export 추가만, scheduling → collection 단방향 유지).
+    CollectionTriggerService,
   ],
 })
 export class AssessmentCollectionModule {}
