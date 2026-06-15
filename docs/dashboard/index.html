@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Assessment-Agent — 구현 진척 대시보드</title>
+<style>
+  :root {
+    --bg: #0f1320;
+    --panel: #181d2e;
+    --panel-2: #1f2740;
+    --line: #2a3350;
+    --text: #e8ecf6;
+    --muted: #9aa6c4;
+    --accent: #5b8cff;
+    --green: #38d39f;
+    --amber: #ffb347;
+    --red: #ff6b6b;
+    --gray: #6b7796;
+    --radius: 14px;
+    --shadow: 0 8px 28px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", Roboto, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #1b2440 0%, var(--bg) 55%);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 22px 80px; }
+
+  /* Header */
+  header.hero {
+    background: linear-gradient(135deg, #2a3a72 0%, #1b2240 60%, #14182a 100%);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 30px 32px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  header.hero::after {
+    content: "";
+    position: absolute; right: -60px; top: -60px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(91,140,255,.30), transparent 70%);
+  }
+  .hero h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -.4px; }
+  .hero .sub { color: var(--muted); margin: 0; font-size: 15px; }
+  .hero .meta { margin-top: 18px; display: flex; gap: 22px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .hero .meta b { color: var(--text); }
+
+  /* Overall progress */
+  .overall {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 26px;
+    align-items: center;
+  }
+  @media (max-width: 720px) { .overall { grid-template-columns: 1fr; } }
+  .ring { display: flex; align-items: center; justify-content: center; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .pct { font-size: 30px; font-weight: 700; }
+  .ring .lbl { font-size: 12px; fill: var(--muted); }
+  .phase-note { color: var(--muted); font-size: 14px; }
+  .phase-note .chip { color: var(--text); }
+
+  /* Stat cards */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 28px; }
+  @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .stat .n { font-size: 30px; font-weight: 700; letter-spacing: -.5px; }
+  .stat .t { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .stat.green .n { color: var(--green); }
+  .stat.blue .n { color: var(--accent); }
+  .stat.amber .n { color: var(--amber); }
+
+  /* Section */
+  section { margin-top: 40px; }
+  h2.title { font-size: 19px; margin: 0 0 16px; display: flex; align-items: center; gap: 10px; }
+  h2.title .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+  .desc { color: var(--muted); font-size: 14px; margin: -8px 0 18px; }
+
+  /* Phase list */
+  .phase {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 12px;
+  }
+  .phase .row { display: flex; align-items: center; gap: 14px; }
+  .phase .code { font-weight: 700; min-width: 56px; color: var(--text); }
+  .phase .name { flex: 1; min-width: 160px; }
+  .phase .name small { color: var(--muted); display: block; font-size: 12.5px; font-weight: 400; }
+  .bar { flex: 1.2; height: 10px; background: var(--panel-2); border-radius: 6px; overflow: hidden; min-width: 120px; }
+  .bar > span { display: block; height: 100%; border-radius: 6px; }
+  .bar.g > span { background: linear-gradient(90deg, #2bb98a, var(--green)); }
+  .bar.a > span { background: linear-gradient(90deg, #e89b2e, var(--amber)); }
+  .bar.x > span { background: var(--gray); }
+  .pctn { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
+
+  /* Badge */
+  .badge { font-size: 11.5px; padding: 3px 9px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
+  .badge.done { background: rgba(56,211,159,.16); color: var(--green); border: 1px solid rgba(56,211,159,.35); }
+  .badge.prog { background: rgba(255,179,71,.16); color: var(--amber); border: 1px solid rgba(255,179,71,.35); }
+  .badge.todo { background: rgba(107,119,150,.18); color: var(--gray); border: 1px solid rgba(107,119,150,.35); }
+
+  /* Two-column perspective cards */
+  .persp { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 860px) { .persp { grid-template-columns: 1fr; } }
+  .pcard {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+  }
+  .pcard h3 { margin: 0 0 4px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .pcard .who { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .try { list-style: none; padding: 0; margin: 0; }
+  .try li {
+    padding: 11px 0 11px 28px;
+    border-top: 1px solid var(--line);
+    position: relative;
+    font-size: 14px;
+  }
+  .try li:first-child { border-top: none; }
+  .try li::before {
+    content: "✓";
+    position: absolute; left: 0; top: 11px;
+    color: var(--green); font-weight: 700;
+  }
+  .try li.partial::before { content: "◐"; color: var(--amber); }
+  .try li.no::before { content: "○"; color: var(--gray); }
+  .try li small { display: block; color: var(--muted); font-size: 12.5px; }
+  code, .mono { font-family: "SF Mono", "JetBrains Mono", Consolas, monospace; }
+  .cmd {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    color: #cfe0ff;
+    overflow-x: auto;
+    margin: 4px 0;
+    white-space: pre;
+  }
+
+  /* Tables */
+  .tablecard { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel-2); color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(91,140,255,.06); }
+  .m { font-family: "SF Mono", Consolas, monospace; font-size: 12.5px; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 5px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+  .tag.get { color: #6bd3ff; }
+  .tag.post { color: var(--green); }
+  .tag.patch { color: var(--amber); }
+  .tag.delete { color: var(--red); }
+  .role { font-size: 11px; color: var(--muted); }
+
+  /* legend */
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .legend span::before { content: "●"; margin-right: 6px; }
+  .legend .l-done::before { color: var(--green); }
+  .legend .l-prog::before { color: var(--amber); }
+  .legend .l-todo::before { color: var(--gray); }
+
+  footer { margin-top: 50px; color: var(--muted); font-size: 12.5px; text-align: center; border-top: 1px solid var(--line); padding-top: 22px; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 0; }
+  summary { cursor: pointer; padding: 14px 20px; font-weight: 600; }
+  summary::-webkit-details-marker { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= HERO ================= -->
+  <header class="hero">
+    <h1>📊 Assessment-Agent — 구현 진척 대시보드</h1>
+    <p class="sub">개발자 기여 활동(코드·문서)의 양과 질을 LLM·Metric 으로 평가·저장·시각화하는 시스템의 현재 진척 현황</p>
+    <div class="meta">
+      <div>마지막 갱신 <b>2026-06-15 (KST)</b></div>
+      <div>현재 단계 <b>P4 완료 / P5 진행 중</b></div>
+      <div>누적 완료 task <b>419</b></div>
+      <div>CI 상태 <b style="color:var(--green)">🟢 green</b></div>
+    </div>
+
+    <div class="overall">
+      <div class="ring">
+        <svg width="170" height="170" viewBox="0 0 170 170">
+          <circle cx="85" cy="85" r="70" fill="none" stroke="#2a3350" stroke-width="16"/>
+          <!-- 둘레 2πr ≈ 439.8 ; 약 62% 채움 → dasharray 273/439 -->
+          <circle cx="85" cy="85" r="70" fill="none" stroke="url(#g)" stroke-width="16"
+                  stroke-linecap="round" stroke-dasharray="273 440"/>
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#5b8cff"/>
+              <stop offset="1" stop-color="#38d39f"/>
+            </linearGradient>
+          </defs>
+          <text class="pct" x="85" y="80" text-anchor="middle" fill="#e8ecf6">62%</text>
+          <text class="lbl" x="85" y="102" text-anchor="middle">전체 진척(추정)</text>
+        </svg>
+      </div>
+      <div class="phase-note">
+        백엔드 도메인 핵심(P3)·외부 통합(P4)·Web UI 골격(P6)은 <span class="chip">대부분 완료</span> 상태입니다.
+        현재는 <span class="chip">평가 파이프라인(P5)</span> 과 <span class="chip">스케줄링·운영(P7)</span> 을 진행 중이며,
+        보안 점검·부하 테스트 등 <span class="chip">하드닝(P8)</span> 이 남아 있습니다.
+        전체 진척률은 9개 phase 의 가중 추정치이며, 세부 근거는 아래 단계별 진척에서 확인할 수 있습니다.
+        <div class="legend">
+          <span class="l-done">완료</span>
+          <span class="l-prog">진행 중</span>
+          <span class="l-todo">예정</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= STATS ================= -->
+  <div class="stats">
+    <div class="stat blue"><div class="n">13</div><div class="t">NestJS 모듈</div></div>
+    <div class="stat blue"><div class="n">~55</div><div class="t">REST 엔드포인트</div></div>
+    <div class="stat green"><div class="n">191</div><div class="t">테스트 파일 (unit 161 · smoke 14 · e2e 16)</div></div>
+    <div class="stat green"><div class="n">419</div><div class="t">누적 완료 task</div></div>
+  </div>
+
+  <!-- ================= PHASE PROGRESS ================= -->
+  <section>
+    <h2 class="title"><span class="dot"></span>단계별 진척 (Phase P0 → P8)</h2>
+    <p class="desc">각 단계는 <a href="../PLAN.md">docs/PLAN.md</a> 의 phase 골격과 동기화됩니다. 진척률은 해당 phase 의 체크리스트 항목 완료 비율 기준입니다.</p>
+
+    <div class="phase"><div class="row">
+      <div class="code">P0</div>
+      <div class="name">Bootstrap<small>자동 루프 골격 + main CI lint/build/test</small></div>
+      <div class="bar g"><span style="width:100%"></span></div><div class="pctn">100%</div>
+      <span class="badge done">완료</span>
+    </div></div>
+
+    <div class="phase"><div class="row">
+      <div class="code">P0.5</div>
+      <div class="name">Test·CI infra hardening<small>spec-presence · coverage threshold · smoke · e2e 강제층</small></div>
+      <div class="bar g"><span style="width:100%"></span></div><div class="pctn">100%</div>
+      <span class="badge done">완료</span>
+    </div></div>
+
+    <div class="phase"><div class="row">
+      <div class="code">P1</div>
+      <div class="name">Architecture (MVA)<small>requirements · deployment · components · modules + ADR-0001~0003</small></div>
+      <div class="bar g"><span style="width:100%"></span></div><div class="pctn">100%</div>
+      <span class="badge done">완료</span>
+    </div></div>
+
+    <div class="phase"><div class="row">
+      <div class="code">P2</div>
+      <div class="name">Use case decomposition<small>UC-01~08 + API contract 초안 + 데이터 모델 초안</small></div>
+      <div class="bar g"><span style="width:100%"></span></div><div class="pctn">100%</div>
+      <span class="badge done">완료</span>
+    </div></div>
+
+    <div class="phase"><div class="row">
+      <div class="code">P3</div>
+      <div class="name">Domain core<small>인원/그룹/파트 CRUD · 평가결과 저장모델 · Persistence · Auth/RBAC 3등급</small></div>
+      <div class="bar g"><span style="width:95%"></span></div><div class="pctn">~95%</div>
+      <span class="badge done">완료</span>
+    </div></div>
+
+    <div class="phase"><div class="row">
+      <div class="code">P4</div>
+      <div class="name">External integrations<small>GitHub 3 instance · Confluence · LLM 5 provider · 권한부족 감지 · 토큰 암호화</small></div>
+      <div class="bar g"><span style="width:90%"></span></div><div class="pctn">~90%</div>
+      <span class="badge done">완료</span>
+    </div></div>
+
+    <div class="phase"><div class="row">
+      <div class="code">P5</div>
+      <div class="name">Evaluation pipeline<small>단위/요약 평가 · 사용자 지정 기간 · 중복제거 · abusing 방지 · 저성과자 식별</small></div>
+      <div class="bar a"><span style="width:50%"></span></div><div class="pctn">~50%</div>
+      <span class="badge prog">진행 중</span>
+    </div></div>
+
+    <div class="phase"><div class="row">
+      <div class="code">P6</div>
+      <div class="name">Web UI<small>로그인/SuperAdmin 셋업 · 대시보드(정렬·필터·시계열) · Admin 패널</small></div>
+      <div class="bar g"><span style="width:88%"></span></div><div class="pctn">~88%</div>
+      <span class="badge done">완료</span>
+    </div></div>
+
+    <div class="phase"><div class="row">
+      <div class="code">P7</div>
+      <div class="name">Scheduling &amp; operations<small>cron 주기 · manual trigger · 최근 N일 삭제→재수집 · 1년치 backfill · import/export · 성능</small></div>
+      <div class="bar a"><span style="width:45%"></span></div><div class="pctn">~45%</div>
+      <span class="badge prog">진행 중</span>
+    </div></div>
+
+    <div class="phase"><div class="row">
+      <div class="code">P8</div>
+      <div class="name">Hardening &amp; launch<small>E2E 시나리오 · 보안 점검 · 운영 문서 · 부하/내성 테스트</small></div>
+      <div class="bar x"><span style="width:3%"></span></div><div class="pctn">~3%</div>
+      <span class="badge todo">예정</span>
+    </div></div>
+  </section>
+
+  <!-- ================= PERSPECTIVES ================= -->
+  <section>
+    <h2 class="title"><span class="dot"></span>지금 어디까지 해볼 수 있나</h2>
+    <p class="desc">사용자(Admin·User)와 테스터 입장에서 현재 빌드로 실제 시험 가능한 범위입니다. (✓ 사용가능 · ◐ 부분/제약 · ○ 미구현)</p>
+
+    <div class="persp">
+      <!-- USER -->
+      <div class="pcard">
+        <h3>👤 사용자 입장</h3>
+        <div class="who">Web UI(React) + REST API 로 직접 사용 가능한 기능</div>
+        <ul class="try">
+          <li>로그인 / 최초 SuperAdmin 셋업
+            <small>최초 가입자는 SuperAdmin 자동 지정, 이후 가입은 User. 로그인 시 JWT 쿠키 발급</small></li>
+          <li>사용자 관리 · 권한 승급/강등
+            <small>Admin 이 사용자 추가, SuperAdmin 만 User↔Admin 변경(본인 self-demote 금지)</small></li>
+          <li>평가 대상 인원 / 그룹 / 파트 CRUD
+            <small>서비스별 ID 매핑, deactivate(휴직 숨김), 그룹 다중소속 · 파트 1개 소속</small></li>
+          <li>평가 결과 대시보드 조회 (정렬·필터·페이지네이션)
+            <small>이름·ID·지표별 정렬/필터, 점수 분포 히스토그램, 일/주/월 시계열 차트</small></li>
+          <li>LLM provider 설정 + 난이도 3슬롯 모델 매핑
+            <small>Admin 이 5개 provider 등록(API key 암호화 저장), easy/medium/hard 슬롯 지정</small></li>
+          <li>평가 진행 중 경고 배너 (R-78)
+            <small>수집/평가 중에는 기존 자료만 표시 + 상단 경고. 단 자동 polling 은 미배선</small></li>
+          <li class="partial">사용자 지정 기간 평가문 요청 (R-9)
+            <small>POST /assessment-evaluation/period 동작(User 휘발 / Admin 영속). UI 패널은 일부 defer</small></li>
+          <li class="partial">재평가 / 스케줄 패널
+            <small>backend 계약 일부 미shipped 로 ReEvaluation·Schedule 패널은 stub 상태</small></li>
+          <li class="no">Import / Export / Restore 백업
+            <small>Admin 패널 UI 는 존재하나 backend export/import 계약 진행 중(P7)</small></li>
+        </ul>
+      </div>
+
+      <!-- TESTER -->
+      <div class="pcard">
+        <h3>🧪 테스터 입장</h3>
+        <div class="who">로컬/CI 에서 검증 가능한 범위 (Node 20 LTS + pnpm 9)</div>
+        <ul class="try">
+          <li>로컬 전체 검증 스위트 실행
+            <small>아래 명령으로 lint → build → unit → smoke → e2e 까지 순차 검증</small></li>
+          <li>Unit 테스트 161개 + 커버리지 게이트
+            <small>line ≥ 80% · function ≥ 80% · branch/statement ≥ 90% 미달 시 CI fail</small></li>
+          <li>Smoke 테스트 14개
+            <small>NestJS 부트스트랩 + persons/groups/auth/llm/web-static 등 핵심 healthcheck</small></li>
+          <li>E2E 테스트 16개
+            <small>status·header·body contract 검증 (auth/assessments/period-bridge/instance-access 등)</small></li>
+          <li>실제 PostgreSQL 통합 검증
+            <small>CI 가 postgres:16 컨테이너 + prisma migrate deploy 로 mock 아닌 real DB 검증</small></li>
+          <li>REST API 직접 호출 (~55 엔드포인트)
+            <small>아래 엔드포인트 인벤토리 참고 — RBAC(User/Admin/SuperAdmin) 가드 포함</small></li>
+          <li>토큰 암호화 CLI 시험
+            <small>scripts/encrypt-token.ts 로 평문 토큰 → AES-256-GCM ciphertext 변환</small></li>
+          <li class="partial">실 네트워크 LLM round-trip
+            <small>env-gated live spec (credential 부재 시 skip). Q-0022/live-LLM 검증 6/30 만료 전 필요</small></li>
+          <li class="no">부하/성능 테스트 (100~200명, 1시간 이내, R-91/92)
+            <small>P8 hardening 단계에서 진행 예정</small></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pcard" style="margin-top:18px">
+      <h3 style="font-size:15px">⚡ 빠른 시작 (테스터)</h3>
+      <div class="cmd">pnpm install                 # 의존성 설치
+pnpm lint                    # ESLint 정적 분석
+pnpm build                   # NestJS 빌드 (TS → dist/)
+pnpm test                    # unit (Jest)
+pnpm test:cov                # unit + coverage 게이트
+pnpm test:smoke              # smoke (부트스트랩 + 핵심 endpoint)
+pnpm test:e2e                # e2e (HTTP contract)
+pnpm --filter web build      # 프론트엔드 빌드
+pnpm --filter web test       # 프론트엔드 unit (vitest)</div>
+      <div style="color:var(--muted);font-size:12.5px;margin-top:8px">
+        프론트엔드 개발 서버: <code>cd web &amp;&amp; pnpm dev</code> (Vite, <code>/api</code> 는 localhost:3000 NestJS 로 proxy).
+        전체 규칙은 <a href="../../README.md#로컬-빌드--테스트">README 로컬 빌드/테스트</a> 참고.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= MODULES ================= -->
+  <section>
+    <h2 class="title"><span class="dot"></span>구현된 모듈 (13)</h2>
+    <div class="tablecard">
+      <table>
+        <thead><tr><th>모듈</th><th>역할</th><th>상태</th></tr></thead>
+        <tbody>
+          <tr><td class="m">AuthModule</td><td>로그인/로그아웃/refresh, RBAC 3등급, JWT 쿠키 가드</td><td><span class="badge done">완료</span></td></tr>
+          <tr><td class="m">UserModule</td><td>사용자 계정 · Person/Group/Part · Assessment/Contribution/Summary 조회</td><td><span class="badge done">완료</span></td></tr>
+          <tr><td class="m">PersistenceModule</td><td>PostgreSQL + Prisma 단일 진입점</td><td><span class="badge done">완료</span></td></tr>
+          <tr><td class="m">GithubModule</td><td>3개 GitHub instance 어댑터 + 4xx 권한부족 emit</td><td><span class="badge done">완료</span></td></tr>
+          <tr><td class="m">ConfluenceModule</td><td>Confluence SPACE 탐색 어댑터 (allowlist 순회)</td><td><span class="badge done">완료</span></td></tr>
+          <tr><td class="m">LlmModule</td><td>5개 LLM provider 게이트웨이 + API key 암호화 + 난이도 슬롯</td><td><span class="badge done">완료</span></td></tr>
+          <tr><td class="m">PermissionDeniedRecordModule</td><td>권한부족 audit 영속 + audience 차등 조회</td><td><span class="badge done">완료</span></td></tr>
+          <tr><td class="m">UserInstanceAccessModule</td><td>사용자 ↔ instance 바인딩 grant/revoke</td><td><span class="badge done">완료</span></td></tr>
+          <tr><td class="m">AssessmentCollectionModule</td><td>GitHub/Confluence 활동 수집 → Contribution 영속 (중복제거)</td><td><span class="badge prog">진행 중</span></td></tr>
+          <tr><td class="m">AssessmentEvaluationModule</td><td>Activity → 점수화 → EvaluationResult, 기간 bridge(User/Admin)</td><td><span class="badge prog">진행 중</span></td></tr>
+          <tr><td class="m">SchedulingModule</td><td>cron 등록/삭제 · manual trigger · 1년치 backfill · 최근 N일 삭제</td><td><span class="badge prog">진행 중</span></td></tr>
+          <tr><td class="m">WebModule</td><td>React+Vite SPA 정적 서빙</td><td><span class="badge done">완료</span></td></tr>
+          <tr><td class="m">AppModule</td><td>루트 조립 (13개 모듈 aggregate)</td><td><span class="badge done">완료</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= ENDPOINTS ================= -->
+  <section>
+    <h2 class="title"><span class="dot"></span>REST 엔드포인트 인벤토리</h2>
+    <p class="desc">실제 컨트롤러에 구현된 엔드포인트. RBAC 가드(JwtAuthGuard + RolesGuard) 기준 최소 권한 표기. 전체 계약은 <a href="../architecture/api.md">docs/architecture/api.md</a> 참고.</p>
+
+    <details open>
+      <summary>인증 · 사용자 · 권한</summary>
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>설명</th><th>권한</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag post">POST</span></td><td class="m">/api/auth/login</td><td>로그인 → 쿠키 발급</td><td class="role">Public</td></tr>
+          <tr><td><span class="tag post">POST</span></td><td class="m">/api/auth/logout</td><td>쿠키 제거</td><td class="role">User+</td></tr>
+          <tr><td><span class="tag post">POST</span></td><td class="m">/api/auth/refresh</td><td>refresh 토큰 회전</td><td class="role">User+</td></tr>
+          <tr><td><span class="tag get">GET</span></td><td class="m">/api/auth/me</td><td>본인 정보</td><td class="role">User+</td></tr>
+          <tr><td><span class="tag post">POST</span></td><td class="m">/api/users</td><td>가입 (최초 → SuperAdmin)</td><td class="role">Public</td></tr>
+          <tr><td><span class="tag get">GET</span></td><td class="m">/api/users · /:id</td><td>사용자 목록 / 상세</td><td class="role">Admin+ / self</td></tr>
+          <tr><td><span class="tag patch">PATCH</span></td><td class="m">/api/users/:id/role</td><td>권한 변경 (self-demote 금지)</td><td class="role">SuperAdmin</td></tr>
+          <tr><td><span class="tag get">GET</span></td><td class="m">/api/permission-denied-records</td><td>권한부족 audit 조회</td><td class="role">User+</td></tr>
+          <tr><td><span class="tag post">POST</span> <span class="tag delete">DEL</span></td><td class="m">/api/users/:id/instance-access</td><td>instance 바인딩 grant/revoke</td><td class="role">Admin+</td></tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>인원 · 그룹 · 파트</summary>
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>설명</th><th>권한</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag get">GET</span></td><td class="m">/api/persons · /:id</td><td>인원 목록(active) / 상세</td><td class="role">User+</td></tr>
+          <tr><td><span class="tag post">POST</span> <span class="tag patch">PATCH</span> <span class="tag delete">DEL</span></td><td class="m">/api/persons</td><td>인원 생성/수정(deactivate)/삭제</td><td class="role">Admin+</td></tr>
+          <tr><td><span class="tag get">GET</span></td><td class="m">/api/groups · /:id · /:id/persons</td><td>그룹 목록/상세/소속인원</td><td class="role">User+</td></tr>
+          <tr><td><span class="tag post">POST</span> <span class="tag patch">PATCH</span> <span class="tag delete">DEL</span></td><td class="m">/api/groups + /:id/members</td><td>그룹 CRUD · 멤버 추가/제거</td><td class="role">Admin+</td></tr>
+          <tr><td><span class="tag get">GET</span></td><td class="m">/api/parts · /:id · /:id/persons</td><td>파트 목록/상세/소속인원</td><td class="role">User+</td></tr>
+          <tr><td><span class="tag post">POST</span> <span class="tag patch">PATCH</span> <span class="tag delete">DEL</span></td><td class="m">/api/parts</td><td>파트 CRUD</td><td class="role">Admin+</td></tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>평가 데이터 (Assessment · Contribution · Summary)</summary>
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>설명</th><th>권한</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag get">GET</span></td><td class="m">/api/assessments?personId=&amp;period=</td><td>인원·기간별 평가 (시계열)</td><td class="role">User+</td></tr>
+          <tr><td><span class="tag post">POST</span> <span class="tag delete">DEL</span></td><td class="m">/api/assessments · /:id</td><td>평가 생성/삭제 (불변)</td><td class="role">Admin+ / User+(조회)</td></tr>
+          <tr><td><span class="tag get">GET</span></td><td class="m">/api/contributions?assessmentId=</td><td>기여 항목 조회</td><td class="role">User+</td></tr>
+          <tr><td><span class="tag post">POST</span> <span class="tag delete">DEL</span></td><td class="m">/api/contributions · /:id</td><td>기여 생성/삭제 (불변)</td><td class="role">Admin+</td></tr>
+          <tr><td><span class="tag get">GET</span></td><td class="m">/api/summaries?personId=&amp;period=</td><td>일/주/월 요약 조회</td><td class="role">User+</td></tr>
+          <tr><td><span class="tag post">POST</span> <span class="tag delete">DEL</span></td><td class="m">/api/summaries · /:id</td><td>요약 생성/삭제 (불변)</td><td class="role">Admin+</td></tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>LLM · 수집 · 평가 · 스케줄</summary>
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>설명</th><th>권한</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag get">GET</span> <span class="tag post">POST</span> <span class="tag patch">PATCH</span> <span class="tag delete">DEL</span></td><td class="m">/api/llm/providers</td><td>provider 설정 CRUD (key 암호화)</td><td class="role">Admin+</td></tr>
+          <tr><td><span class="tag get">GET</span> <span class="tag patch">PATCH</span></td><td class="m">/api/llm/difficulty-mappings</td><td>난이도 3슬롯 모델 매핑</td><td class="role">Admin+</td></tr>
+          <tr><td><span class="tag post">POST</span></td><td class="m">/api/assessment-collection/collect</td><td>수집 manual trigger</td><td class="role">Admin+</td></tr>
+          <tr><td><span class="tag post">POST</span></td><td class="m">/api/assessment-evaluation/evaluate</td><td>평가 manual trigger</td><td class="role">Admin+</td></tr>
+          <tr><td><span class="tag post">POST</span></td><td class="m">/api/assessment-evaluation/period</td><td>기간 평가문 (User 휘발 / Admin 영속)</td><td class="role">User+ (self)</td></tr>
+          <tr><td><span class="tag get">GET</span> <span class="tag patch">PUT</span> <span class="tag delete">DEL</span></td><td class="m">/api/schedules</td><td>cron job 목록/등록/삭제</td><td class="role">Admin+</td></tr>
+          <tr><td><span class="tag post">POST</span></td><td class="m">/api/schedules/trigger</td><td>cron tick 즉시 발화 (202)</td><td class="role">Admin+</td></tr>
+          <tr><td><span class="tag post">POST</span></td><td class="m">/api/schedules/backfill/:personId</td><td>신규 인원 1년치 backfill (202)</td><td class="role">Admin+</td></tr>
+        </tbody>
+      </table>
+    </details>
+  </section>
+
+  <!-- ================= REQUIREMENTS / NEXT ================= -->
+  <section>
+    <h2 class="title"><span class="dot"></span>남은 핵심 작업</h2>
+    <div class="tablecard">
+      <table>
+        <thead><tr><th>영역</th><th>내용</th><th>Phase</th><th>상태</th></tr></thead>
+        <tbody>
+          <tr><td>평가 파이프라인</td><td>중복제거(시간적 중복) · abusing 방지 metric · 문서 update 중립화 · 저성과자 식별 · 품질 분류</td><td>P5</td><td><span class="badge prog">진행 중</span></td></tr>
+          <tr><td>live-LLM 검증</td><td>실 네트워크 LLM 1회 round-trip 평가 품질 확인 (credential 6/30 만료 전)</td><td>P5</td><td><span class="badge prog">대기</span></td></tr>
+          <tr><td>GitHub Issue 평가</td><td>Issue 문서 기여 평가 (본인 follow-up 소비 제외, R-30)</td><td>P4</td><td><span class="badge todo">예정</span></td></tr>
+          <tr><td>최근 N일 삭제 endpoint</td><td>Admin manual delete → 재수집 REST endpoint (T-0428 큐잉)</td><td>P7</td><td><span class="badge prog">진행 중</span></td></tr>
+          <tr><td>Import/Export/Restore</td><td>평가 자료 backup/restore (R-57)</td><td>P7</td><td><span class="badge todo">예정</span></td></tr>
+          <tr><td>성능 검증</td><td>100~200명 / 1시간 이내(R-91) · 조회 3초 이내(R-92)</td><td>P7/P8</td><td><span class="badge todo">예정</span></td></tr>
+          <tr><td>하드닝</td><td>보안 점검 · 운영 문서 · 부하/내성 테스트</td><td>P8</td><td><span class="badge todo">예정</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    Assessment-Agent 구현 진척 대시보드 · 데이터 출처:
+    <a href="../STATE.json">STATE.json</a> ·
+    <a href="../PLAN.md">PLAN.md</a> ·
+    <a href="../../README.md">README.md</a> · 코드베이스 인벤토리<br>
+    이 페이지는 정적 스냅샷입니다. 갱신 방법은 같은 폴더의 <a href="README.md">README.md</a> 를 참고하세요.
+  </footer>
+
+</div>
+</body>
+</html>
