@@ -2,7 +2,10 @@
 id: T-0425
 title: 삭제 window 내 평가 결과 선별 순수 helper
 phase: P7
-status: PENDING
+status: DONE
+prNumber: 342
+mergedAs: 9455809
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 110
