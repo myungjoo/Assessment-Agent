@@ -2,7 +2,8 @@
 id: T-0411
 title: ADR-0042 status PROPOSED→ACCEPTED flip (@nestjs/schedule 도입 확정)
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-15T04:05:00Z
 commitMode: direct
 coversReq: [REQ-027, REQ-039, REQ-040]
 estimatedDiff: 2
@@ -27,10 +28,14 @@ plannerNote: P7 stream ① — T-0410(ADR-0042 PROPOSED) 머지 후 ACCEPTED fli
 
 ## Acceptance Criteria
 
-- [ ] [ADR-0042](../decisions/ADR-0042-nestjs-schedule-adoption.md) frontmatter 의 `status: PROPOSED` 를 `status: ACCEPTED` 로 변경.
-- [ ] frontmatter 외 ADR 본문 (Context / Decision / Consequences / Alternatives / 범위 밖 / References) 은 **무수정** — flip 1줄 외 diff 0.
-- [ ] 변경 후 `git diff docs/decisions/ADR-0042-nestjs-schedule-adoption.md` 가 status 라인 1줄 (+`status: ACCEPTED` / -`status: PROPOSED`) 만 보여줄 것.
-- [ ] doc-only direct commit — 코드 변경 0, 새 dependency 0, test 영향 0 (R-110 면제 대상: direct-mode doc-only).
+- [x] [ADR-0042](../decisions/ADR-0042-nestjs-schedule-adoption.md) frontmatter 의 `status: PROPOSED` 를 `status: ACCEPTED` 로 변경.
+- [x] frontmatter 외 ADR 본문 (Context / Decision / Consequences / Alternatives / 범위 밖 / References) 은 **무수정** — flip 1줄 외 diff 0.
+- [x] 변경 후 `git diff docs/decisions/ADR-0042-nestjs-schedule-adoption.md` 가 status 라인 1줄 (+`status: ACCEPTED` / -`status: PROPOSED`) 만 보여줄 것.
+- [x] doc-only direct commit — 코드 변경 0, 새 dependency 0, test 영향 0 (R-110 면제 대상: direct-mode doc-only).
+
+## Result (DONE — 2026-06-15)
+
+ADR-0042 frontmatter `status` 를 `PROPOSED` → `ACCEPTED` 로 flip (diff +1/-1, status 라인만). 본문 무수정. `@nestjs/schedule` 도입 결정 확정 — 후속 ② (package.json dep 실 추가 + ScheduleModule import, pr-mode) 의 선행 게이트 해소. cron local-15 fire, direct doc-only main commit.
 
 ## Out of Scope
 

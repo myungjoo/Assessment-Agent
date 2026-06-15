@@ -1,7 +1,7 @@
 ---
 id: ADR-0042
 title: "@nestjs/schedule 도입 결정 (P7 스케줄링 인프라 — cron 주기 · manual trigger · 신규 인원 1년치)"
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-15
 relatedTask: T-0410
 supersedes: null
