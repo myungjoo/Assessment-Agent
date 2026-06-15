@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0417",
-  "backlogNote": "**T-0417(P7 ④ manual trigger endpoint, POST /api/schedules/trigger, R-73/REQ-040) 큐잉(planner, pr-mode, nextTask).** 기존 CronScheduleController(T-0414)에 주입형 CRON_TICK_HANDLER 즉시 1회 호출 경로 + Admin+ RBAC + 202 Accepted 추가, 실 평가 pipeline 결선은 T-0414 와 동일 Out of Scope. 2파일(controller+colocated spec)/~150 LOC, dependsOn T-0414. 본 fire(/loop vb707106 t2)는 lock free 창에서 CAS 획득→planner dispatch→큐잉→direct doc commit→lock release. 다음 driver turn/fire 가 execute. P7 후속: ⑤ 신규 인원 1년치 1회 backfill(R-50/REQ-027). T-0355(P6 scaffold parent) 완료 유지. tasksCompleted=408. 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 유지.",
+  "nextTask": null,
+  "backlogNote": "**T-0417(P7 ④ manual trigger endpoint POST /api/schedules/trigger, R-73/REQ-040) 완료(pr-mode, PR #336 squash 62edc3b merge).** CronScheduleController 에 manual trigger endpoint 추가 — 주입 CRON_TICK_HANDLER 를 즉시 1회 await(sync void/Promise 양분기)+202 Accepted+Admin+ RBAC(기존 3 endpoint 와 동일 stack). scheduling.module 무변경, 실 평가 pipeline 결선은 T-0414 와 동일 Out of Scope. cron-schedule.controller.ts 100% cov, unit 3144 green. 신규 dep 0. 본 fire(cron@local-aa15-56ca, :15 trigger)는 stage 5b claim 경로(select-claim 활성 claim 0<2 pr-mode 단독 게이트→lock-free 진행→claim 빈 배열 복원). reviewer 는 integrator 가 inline 8-check 수행(sub-agent nesting 한계로 reviewer sub-agent 미spawn)+APPROVE comment 외부 post. P7 후속 우선순위(planner 미큐잉 — 다음 fire dispatch): ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=409. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "loop@WIN-JQIPLSBL9QV-vb707106",
-    "since": "2026-06-15T11:36:28Z",
-    "note": "t2 planner-dispatch closeout: 권위 lock CAS 8f19e18→6e202ae(획득)→본 commit push 후 tombstone release. nextTask=T-0417 큐잉(P7 ④ manual trigger, pr-mode). STATE.lock mirror 비권위 — 권위는 branch tip lock.json."
+    "session": "cron@local-aa15-56ca",
+    "since": "2026-06-15T12:06:04Z",
+    "note": "T-0417 DONE(merged PR #336 squash 62edc3b) closeout. 본 fire(cron@local-aa15-56ca, :15 trigger)는 stage 5b claim 경로 — nextTask=T-0417 을 select-claim(server-time 2026-06-15T12:06:04Z, 활성 claim 0<2 pr-mode 단독 게이트 통과)으로 소유→lock tombstone 즉시 release→lock-free executor(controller +30/-7, spec +155)→push feature branch→integrator PR #336 open+reviewer inline APPROVE+4-게이트 PASS+squash merge. 종료 시 claims.json 빈 배열 CAS 복원(c364cc9). 권위 lock 은 branch tip lock.json, STATE.lock 은 비권위 mirror."
   },
-  "lastActivity": "2026-06-15T11:36:28Z",
-  "lastCommit": "fdeb3d6",
+  "lastActivity": "2026-06-15T12:26:04Z",
+  "lastCommit": "62edc3b",
   "mostRecentTasks": [
+    "T-0417",
     "T-0416",
     "T-0415",
     "T-0414",
-    "T-0413",
-    "T-0412"
+    "T-0413"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,11 +32,11 @@
     "note": "/loop vb707106 (dynamic, turn cap 5). t1(~11:11Z): origin/main e2461bf 동기, lock=cron@cloud-6d38 점유(non-stale, since 11:06:11Z)→no-op stand-down. t2(11:36Z): lock free(tombstone 8f19e18)→CAS 획득(6e202ae)→planner dispatch→T-0417(P7 ④ manual trigger endpoint POST /api/schedules/trigger, pr) 큐잉→direct doc commit→lock tombstone release. 다음 turn T-0417 execute."
   },
   "ci": {
-    "lastRun": "2026-06-15T11:08:00Z",
+    "lastRun": "2026-06-15T12:26:04Z",
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "in_progress",
-    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27542100921",
+    "lastRunUrl": "https://github.com/myungjoo/Assessment-Agent/actions/runs/27546004821",
     "noteT0415": "PR #335(T-0415 P7 ③ slice 2 follow-up #1 AppModule SchedulingModule import) head dd17fae pull_request run = first-pass green 전 step(lint/build/Web/prisma/test+cov/smoke/e2e + reviewer agent approval 검증 — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요, benignRedNote 미발생). reviewer APPROVE r1/7 finding 0(BLOCKER/MAJOR/MINOR 0). integrator 4-게이트 PASS(reviewer APPROVE + comment 외부 post + self-check AC 1:1·Out-of-Scope api.md doc-sync defer 정당 + CI green). mergeStateStatus CLEAN(origin/main c8f6f65 가 PR head 의 ancestor, rebase noop). 본 fire 는 stage 5b claim 경로(cron@local-aa15 select+claim T-0415, lock-free 진행). 신규 dep 0. cov line 99.96%/branch 99.52%/func 100%, 153 suite/3132 test green. squash cc2eeff --delete-branch. cc2eeff main push run 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0414": "PR #334(T-0414 P7 ③ slice 2 cron 지정 REST endpoint + tick callback 배선) head c1c2f06 pull_request run = first-pass green 전 step(lint/build/Web/prisma/test+cov/smoke/e2e + reviewer agent approval 검증 — reviewer approve comment 가 approval-gate step 실행 전 landing, rerun 불요, benignRedNote 미발생). reviewer APPROVE r1/7 finding 0(BLOCKER/MAJOR/MINOR 0). integrator 4-게이트 PASS(reviewer APPROVE + comment 외부 post + self-check AC 1:1·Out-of-Scope AppModule import defer 정당 + CI green). mergeStateStatus CLEAN(rebase noop). 본 fire 는 stage 5b claim 경로(cron@cloud-aa15 select+claim T-0414, lock-free 진행). 신규 dep 0. src/scheduling 전 파일 line/branch/func 100%, 전체 3126 test green. squash 275d6e6 --delete-branch. 275d6e6 main push run 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0413": "PR #333(T-0413 P7 ③ slice 1 동적 cron service) round 2 head f1d6432 pull_request run 27534119980 = completed/success 전 step green(lint/build/Web/prisma/test+cov/smoke/e2e + reviewer approval 검증). **round 1 head c3a1690 은 CI 테스트 step 이 leaked CronJob 실타이머(job.start() open handle)로 20분+ hang → 실 회귀(benign 아님), 2회 run cancel**. round 2 에서 spec 의 `jest.mock(\"cron\")` no-timer stub(production 무변경, test-only)으로 open handle 0/Jest 정상 종료 → 테스트 step 정상 완료. reviewer APPROVE r1(코드 정확성)+r2(test fix) comment 외부 post 2건. integrator 4-게이트 PASS(merge-前 rebase noop, mergeStateStatus CLEAN). squash cc9ff4b --delete-branch. cc9ff4b main push run 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
@@ -99,9 +99,11 @@
     "noteT0384": "PR #315(T-0384 P6 wiring③b-3 대시보드 페이지네이션) head 377ea91 = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-run green — reviewer approve comment 가 approval 검증 step 실행 전 landing, run 27476389242, rerun 불요; mergeStateStatus CLEAN noop). DashboardView 에 client-side 페이지네이션(currentPage/pageSize useState + initialPage/initialPageSize 주입 + 순수 helper pageRows slice + DashboardPaginationControl 배선, totalItems=visibleRows.length slice전, loading=assessments only, select 옵션 전체 visibleRows 유지·selectedRow 조회 visibleRows 기준). presentational/AppShell/useApiResource 수정 0, zero-new-dep. web vitest 357 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). squash 5615f50 --delete-branch. 5615f50 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0386": "PR #317(T-0386 P6 wiring④b AdminView DifficultyModelSelector 패널 배선) head 9bb8beb = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green — reviewer approve comment 가 approval 검증 step 실행 전 landing, CI run 27477783712 전 24 step success, rerun 불요; mergeStateStatus CLEAN noop). AdminView 에 useApiResource 두 번 추가 호출(/api/llm/providers·/api/llm/difficulty-mappings)+순수 helper deriveProviders/deriveDifficultyMapping + DifficultyModelSelector 패널 배선(onAssign no-op, PATCH 는 ④c). presentational/기존 그룹 패널/AppShell 수정 0, zero-new-dep. web vitest 377 전체 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +139/-2(prod)·test +236/-4. squash cec35b7 --delete-branch. cec35b7 main push run 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
     "noteT0392": "PR #323(T-0392 P6 wiring④h AdminView Admin+ RBAC gating UI) head 87e881a = integrator 4-게이트 PASS(reviewer APPROVE r1/7 finding 0 comment 외부 post + approval-gate first-pass green: pull_request run 27481911120 전 step success(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증) — reviewer approve comment 가 approval 검증 step 실행 전 landing, rerun 불요; mergeStateStatus CLEAN noop, head 가 origin/main 5727d20 포함 rebase noop). GET /api/auth/me useApiResource 4번째 호출 + isAdminRole 순수 helper(Admin/SuperAdmin 정확 매칭, 그 외/누락/loading=false fail-closed) + isAdmin useMemo. isAdmin 시에만 DifficultyModelSelector·scope select·DataImportExportPanel 렌더, 아니면 권한 부족 안내 한 줄(role=status). GroupMemberList·그룹 select 등급 무관 유지(User+ 조회 가능). presentational/apiClient/useApiResource 수정 0, zero-new-dep. web vitest 457 전체(isAdminRole 5종+gating 8종 신규) 로컬 검증(ci.yml 미배선, T-0355 Follow-up; @vitest/coverage-v8 미설치=구성적 cover). 2파일 +298/-41(prod +97/-29). squash 9a66bc6 --delete-branch. 9a66bc6 main push run(23:21Z in_progress) 다음 fire 재확인(web-only/squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16).",
-    "noteT0416": "T-0416(api.md /api/schedules doc-sync, direct doc-only) main push fdeb3d6 CI run 27542100921 = in_progress(본 fire push 직후). doc-only 단일파일(docs/architecture/api.md +7/-2)이라 trivially green 예상 — 다음 fire 재확인. 직전 fire 의 e8bb5f4(T-0416 큐잉) push run 27541026963 = completed/success 확인. Node20 deprecation annotation non-blocking(2026-06-16)."
+    "noteT0416": "T-0416(api.md /api/schedules doc-sync, direct doc-only) main push fdeb3d6 CI run 27542100921 = in_progress(본 fire push 직후). doc-only 단일파일(docs/architecture/api.md +7/-2)이라 trivially green 예상 — 다음 fire 재확인. 직전 fire 의 e8bb5f4(T-0416 큐잉) push run 27541026963 = completed/success 확인. Node20 deprecation annotation non-blocking(2026-06-16).",
+    "noteT0417": "PR #336(T-0417 P7 ④ manual trigger endpoint POST /api/schedules/trigger) head 4d70276 = integrator 4-게이트 PASS(reviewer 8-check inline+APPROVE r1/7 finding 0 + comment 외부 post #issuecomment-4707793397 'Agent review — written by reviewer agent' + self-check AC 1:1·Out-of-Scope 실 평가 결선 defer 정당 + CI green: pull_request run 27545361324 전 step success(lint/build/prisma/test+cov/smoke/e2e + reviewer approval 검증 — approve comment 가 approval-gate step 실행 전 landing, rerun 불요)). 주입 CRON_TICK_HANDLER 1회 await(sync void/Promise 양분기)+202 Accepted+Admin+ RBAC, scheduling.module 무변경. cron-schedule.controller.ts 100% cov, unit 3144 green. 신규 dep 0. squash 62edc3b --delete-branch. 본 fire(cron@local-aa15-56ca, :15 trigger)는 stage 5b claim 경로(select-claim T-0417 활성 claim 0<2 pr-mode 단독 게이트 통과→lock tombstone→lock-free 진행, 종료 시 claim 빈 배열 복원). 62edc3b main push run 27546004821 in_progress — 다음 fire 재확인(squash trivially green 예상). Node20 deprecation annotation non-blocking(2026-06-16)."
   },
   "reviewRounds": {
+    "T-0417": 1,
     "T-0415": 1,
     "T-0414": 1,
     "T-0413": 2,
@@ -782,7 +784,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 408,
+    "tasksCompleted": 409,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

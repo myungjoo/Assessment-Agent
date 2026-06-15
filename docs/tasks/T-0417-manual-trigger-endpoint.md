@@ -2,8 +2,12 @@
 id: T-0417
 title: manual trigger 엔드포인트 (POST /api/schedules/trigger — 즉시 1회 평가 발화)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 336
+mergedAs: 62edc3b
+reviewRounds: 1
+completed: 2026-06-15
 coversReq: [REQ-040]
 estimatedDiff: 150
 estimatedFiles: 2
