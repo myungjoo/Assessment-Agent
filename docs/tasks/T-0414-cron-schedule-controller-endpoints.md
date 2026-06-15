@@ -2,7 +2,11 @@
 id: T-0414
 title: cron 지정 엔드포인트 (controller/DTO) + 평가 tick callback 배선
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-15T09:10:00Z
+mergedAs: 275d6e6
+prNumber: 334
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-039]
 estimatedDiff: 250
