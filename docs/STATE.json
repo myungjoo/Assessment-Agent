@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "**P7 stream ② 큐잉 대기 — T-0411(ADR-0042 PROPOSED→ACCEPTED flip, direct doc-only) 머지 완료. ADR-0042(@nestjs/schedule 도입) ACCEPTED 확정.** 다음 P7 후속(다음 fire planner dispatch): ② package.json `@nestjs/schedule` dep 실 추가 + ScheduleModule.forRoot() import(pr, dependsOn T-0411) → ③ SchedulerRegistry 기반 cron 주기 지정 service/endpoint(R-72 REQ-039) → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). nextTask=null → 다음 fire planner dispatch. **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=403. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
+  "nextTask": "T-0412",
+  "backlogNote": "**P7 stream ② 큐잉 완료 — T-0412(@nestjs/schedule dep 추가 + ScheduleModule.forRoot() AppModule import, pr, dependsOn T-0411) nextTask 박제.** ADR-0042(@nestjs/schedule 도입) ACCEPTED 확정 + dep 사용자 승인 완료(commit 8931ef9)라 new-dep 미차단. T-0412 머지 후 P7 후속(다음 fire planner dispatch): ③ SchedulerRegistry 기반 cron 주기 지정 service/endpoint(R-72 REQ-039) → ④ manual trigger endpoint(R-73 REQ-040) → ⑤ 신규 인원 1년치 1회 backfill(R-50 REQ-027). **T-0355(P6 scaffold parent) 완료 유지.** tasksCompleted=403. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로.",
   "lock": {
     "holder": null,
-    "session": "cron@local-aa-local-15-2833f5",
-    "since": "2026-06-15T04:04:58Z",
-    "note": "local-15 cron fire — T-0411(ADR-0042 PROPOSED→ACCEPTED flip, direct doc-only) 실행·머지 완료. fineGrained ON 이나 claims.json 부재(빈 registry)+단일 큐 task → §D8(a) fail-safe coarse single-driver 경로(claim 인프라 우회, lock 점유 하 전 task 수행). 권위 lock CAS 2d71786→0ab961b 획득 → executor(ADR-0042 status flip 1줄) → direct main commit → CI 확인 → tombstone release. counters 402→403. STATE.lock mirror 비권위 — 권위는 branch tip lock.json(턴 종료 시 tombstone release)."
+    "session": "cron@local-aa-local-30-ea3673a",
+    "since": "2026-06-15T04:38:01Z",
+    "note": "local-30 cron fire — currentTask/nextTask null 진입, 권위 lock CAS 743e1c1->a15bbd7 획득 → planner dispatch → T-0412(P7 ② @nestjs/schedule dep+ScheduleModule.forRoot import, pr) 큐잉, nextTask=T-0412. 본 fire 는 planner 산출물 doc-only direct commit 으로 마무리. 다음 fire 가 T-0412 실행. counters 403 불변. 턴 종료 시 tombstone release."
   },
-  "lastActivity": "2026-06-15T04:06:00Z",
+  "lastActivity": "2026-06-15T04:38:01Z",
   "lastCommit": "e6a6638",
   "mostRecentTasks": [
     "T-0411",
