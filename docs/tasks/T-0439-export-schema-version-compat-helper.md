@@ -2,7 +2,7 @@
 id: T-0439
 title: UC-07 Import schema version 호환 판정 순수 helper (checkSchemaVersionCompat)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 150
