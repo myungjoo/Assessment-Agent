@@ -13,7 +13,7 @@
     "holder": null,
     "session": "loop@cloud-qkcctz",
     "since": "2026-06-16T04:54:19Z",
-    "note": "planner-dispatch fire(/loop cloud-qkcctz, turn 5/5 — 마지막). 권위 lock CAS 획득(aac688c→d0a0cc2). currentTask/nextTask null·P7 doc-sync chain(T-0430~T-0436) 완결로 게이트-free doc-sync 소진→planner 가 PLAN P7 "Import/export(R-57)" bullet 의 첫 게이트-free 단추 T-0437(UC-07 Export scope 선별 순수 helper selectExportRecords, pr, REQ-030/032, persistence/schema 무관, T-0424/T-0425 helper-먼저 패턴 mirror) 큐잉, STATE.nextTask=T-0437. 본 fire 는 planner 큐잉 direct doc-only commit 후 종료, tombstone CAS release. turn cap 5 도달→/loop session 종료. 다음 cron/세션 이 T-0437(pr-mode, github MCP 가용 시) execute."
+    "note": "planner-dispatch fire(/loop cloud-qkcctz, turn 5/5 — 마지막). 권위 lock CAS 획득(aac688c→d0a0cc2). currentTask/nextTask null·P7 doc-sync chain(T-0430~T-0436) 완결로 게이트-free doc-sync 소진→planner 가 PLAN P7 'Import/export(R-57)' bullet 의 첫 게이트-free 단추 T-0437(UC-07 Export scope 선별 순수 helper selectExportRecords, pr, REQ-030/032, persistence/schema 무관, T-0424/T-0425 helper-먼저 패턴 mirror) 큐잉, STATE.nextTask=T-0437. 본 fire 는 planner 큐잉 direct doc-only commit 후 종료, tombstone CAS release. turn cap 5 도달→/loop session 종료. 다음 cron/세션 이 T-0437(pr-mode, github MCP 가용 시) execute."
   },
   "lastActivity": "2026-06-16T05:06:00Z",
   "lastCommit": "0e7e1a3",
