@@ -4,7 +4,11 @@
 // validateExportScope 의 정상 verdict + 각 위반 분기별 field-level error 박제 + 다중 위반 동시
 // 누적 + normalized 정규화 + non-mutating(freeze 통과)을 검증한다(import-dump-validate.spec.ts
 // mirror). selectExportRecords(T-0437)의 inline 검증 규칙과 동형인지 round-trip 정합도 본다.
-import { ExportScope } from "./export-scope-select";
+import {
+  ExportScope,
+  VALID_EXPORT_ENTITIES,
+  VALID_EXPORT_SCOPES,
+} from "./export-scope-select";
 import {
   validateExportScope,
   ExportScopeValidation,
@@ -322,5 +326,51 @@ describe("validateExportScope — selectExportRecords round-trip (규칙 동형)
     const v = validateExportScope({ scope: "range", dateRange: VALID_RANGE });
     const scope: ExportScope | undefined = v.normalized;
     expect(scope?.scope).toBe("range");
+  });
+});
+
+// T-0445 단일 source-of-truth 통합의 regression — validateExportScope 가 사용하는 허용 scope/
+// entity 멤버십이 export-scope-select.ts 의 export 상수와 정확히 동일함을 직접 단언한다. 향후
+// 한쪽(select 의 export 상수 또는 validate 의 검증 동작)만 바뀌면 본 test 가 fail 한다.
+describe("validateExportScope — export 상수와 동일 멤버십 (T-0445 regression)", () => {
+  it("export 상수의 모든 scope 는 validate 가 valid 로 받아들인다", () => {
+    for (const scope of VALID_EXPORT_SCOPES) {
+      if (scope === "full") {
+        expect(validateExportScope({ scope }).valid).toBe(true);
+      } else if (scope === "range") {
+        expect(
+          validateExportScope({ scope, dateRange: VALID_RANGE }).valid,
+        ).toBe(true);
+      } else {
+        expect(
+          validateExportScope({ scope, entitySelector: ["Assessment"] }).valid,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("export 상수에 없는 scope 는 validate 가 reject (멤버십 동형)", () => {
+    const v = validateExportScope({ scope: "everything" });
+    expect(v.valid).toBe(false);
+    expect(v.errors.some((e) => e.field === "scope")).toBe(true);
+  });
+
+  it("export 상수의 모든 entity 는 partial entitySelector 로 valid", () => {
+    const v = validateExportScope({
+      scope: "partial",
+      entitySelector: [...VALID_EXPORT_ENTITIES],
+    });
+    expect(v.valid).toBe(true);
+    expect(v.normalized?.entitySelector).toEqual([...VALID_EXPORT_ENTITIES]);
+  });
+
+  it("export 상수에 없는 entity 는 validate 가 reject (멤버십 동형)", () => {
+    // VALID_EXPORT_ENTITIES 에 없는 값은 entitySelector error 로 거부돼야 한다.
+    const v = validateExportScope({
+      scope: "partial",
+      entitySelector: ["NotAnEntity"],
+    });
+    expect(v.valid).toBe(false);
+    expect(v.errors.some((e) => e.field === "entitySelector")).toBe(true);
   });
 });

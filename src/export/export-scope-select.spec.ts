@@ -8,6 +8,8 @@ import {
   ExportScope,
   ExportSelection,
   selectExportRecords,
+  VALID_EXPORT_ENTITIES,
+  VALID_EXPORT_SCOPES,
 } from "./export-scope-select";
 
 const d = (iso: string) => new Date(iso);
@@ -23,6 +25,50 @@ const range: PeriodRange = {
   start: d("2026-06-10T00:00:00Z"),
   end: d("2026-06-12T00:00:00Z"),
 };
+
+// T-0445 단일 source-of-truth 통합 — export 한 허용 scope/entity 상수의 멤버십을 명시적으로
+// 단언한다. 향후 멤버가 바뀌면(추가/삭제) 본 assertion 이 먼저 fail 해 의도된 변경임을 강제한다.
+describe("export 상수 — VALID_EXPORT_SCOPES / VALID_EXPORT_ENTITIES (T-0445 통합)", () => {
+  it("VALID_EXPORT_SCOPES 는 정확히 3 값(full/range/partial)", () => {
+    expect(VALID_EXPORT_SCOPES).toHaveLength(3);
+    expect([...VALID_EXPORT_SCOPES]).toEqual(["full", "range", "partial"]);
+  });
+
+  it("VALID_EXPORT_ENTITIES 는 정확히 5 entity(UC-07 §6.1 entitySelector 목록)", () => {
+    expect(VALID_EXPORT_ENTITIES).toHaveLength(5);
+    expect([...VALID_EXPORT_ENTITIES]).toEqual([
+      "Assessment",
+      "Person",
+      "Group",
+      "LlmConfig",
+      "AuditLog",
+    ]);
+  });
+
+  it("selectExportRecords 의 scope 검증은 export 상수와 동일 멤버십을 본다 (regression)", () => {
+    // export 상수에 든 scope 는 전부 throw 없이 소비 가능해야 한다.
+    for (const scope of VALID_EXPORT_SCOPES) {
+      if (scope === "full") {
+        expect(() => selectExportRecords({ scope }, [])).not.toThrow();
+      } else if (scope === "range") {
+        expect(() =>
+          selectExportRecords({ scope, dateRange: range }, []),
+        ).not.toThrow();
+      } else {
+        expect(() =>
+          selectExportRecords({ scope, entitySelector: ["Assessment"] }, []),
+        ).not.toThrow();
+      }
+    }
+    // export 상수에 없는 scope 는 거부.
+    expect(() =>
+      selectExportRecords(
+        { scope: "everything" } as unknown as ExportScope,
+        [],
+      ),
+    ).toThrow(RangeError);
+  });
+});
 
 describe("selectExportRecords — scope=full (happy / branch)", () => {
   it("full 은 dateRange/entitySelector 무시하고 모든 record 를 selected 로 분류한다", () => {
