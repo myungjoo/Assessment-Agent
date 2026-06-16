@@ -2,7 +2,7 @@
 id: T-0440
 title: UC-07 Import dump 구조 무결성 검증 순수 helper validateImportDumpStructure
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 170
@@ -67,3 +67,7 @@ implementer → tester
 ## Follow-ups
 
 (없음 — 생성 시 비어있음)
+
+## Result (DONE 2026-06-16T08:52Z)
+
+PR #351 squash merge d9018f2, reviewer round1 APPROVE, 4-게이트 PASS, CI green. 신규 `src/export/import-dump-validate.ts`(+145 LOC, 순수 `validateImportDumpStructure(dump: unknown): ImportDumpValidation`, non-mutating, ExportEntity 타입만 import — 게이트-free) + colocated spec(30 test). 검증 규칙: top-level shape·schemaVersion·generatedAt·records 원소 shape·entityCounts 5 entity key·entityCounts 합계 === recordCount·recordCount === records.length, 위반 issues 누적. 신규 파일 line/func 100%·branch 97.77% cov, 전체 3427 test green. P7 Export/Import helper-먼저 building block 4개 완비(select→build / version gate→구조 gate).
