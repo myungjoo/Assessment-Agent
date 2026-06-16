@@ -2,7 +2,11 @@
 id: T-0444
 title: UC-07 Export scope 요청 payload 검증 순수 helper validateExportScope
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-16T12:51:34Z
+mergedAs: 2958f37
+prNumber: 355
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 165
