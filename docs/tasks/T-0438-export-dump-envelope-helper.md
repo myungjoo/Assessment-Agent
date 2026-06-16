@@ -2,7 +2,11 @@
 id: T-0438
 title: UC-07 Export dump envelope 조립 순수 helper (buildExportDump)
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: 74ec4e3
+prNumber: 349
+reviewRounds: 1
+completedAt: 2026-06-16T06:52:50Z
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 150

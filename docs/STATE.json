@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0438",
-  "backlogNote": "**T-0437(P7 R-57/REQ-030·REQ-032 — UC-07 Export scope 선별 순수 helper selectExportRecords, pr) 완료(PR #348 squash 1fed99d, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** UC-07 §6.1 의 3차원 scope(full/range/partial × dateRange × entitySelector)를 메모리 record 배열에 적용해 selected/excluded 분류하는 순수 helper — persistence/repository/schema/REST 호출 0(deletion-window-select 패턴 mirror: 반열림 [start,end), non-mutating, 입력 순서 보존, 빈 배열 정상, PeriodRange 재사용). REQ-032(raw 미저장) invariant 는 입력 record 만 다뤄 helper layer 에서도 유지. 신규 export-scope-select.ts/.spec.ts 각 100% cov(R-112 4종 + negative 충분), 전체 3348 test green. 본 fire: cron@aalocal-s1-8732972 권위 lock CAS 획득(81ac0bb)→reclaim no-op(claims [])→active 0<2 게이트 OK(pr-mode 단독)→select-claim T-0437(lock tombstone 동반 release f2cab60)→lock-free executor→feature branch commit 55132bf push→integrator PR #348 squash merge 1fed99d→claims.json T-0437 제거. **이로써 P7 Export(R-57) 첫 게이트-free 단추 shipped — T-0424/T-0425 helper-먼저 패턴 mirror.** 다음 우선순위(planner 미큐잉): Export 후속 sub-slice(실 DB dump query·GET /api/admin/export controller·dump 직렬화 — repository/schema 게이트) 또는 게이트 없는 다음 단추(ADR-0036 5c 측정 등). 여전히 게이트된 후속: REQ-041 slice 2 후속 a(실 RecentDeletionDeleter Prisma provider, schema/repository 게이트)/후속 a-2(instants 자동 도출, repository 게이트)/slice 3(삭제 audit 영속, schema 게이트); REQ-027 slice 3(Person.backfilledAt 전용 영속 표식, schema 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=429.",
+  "nextTask": null,
+  "backlogNote": "**T-0438(P7 R-57/REQ-030·REQ-032 — UC-07 Export dump envelope 조립 순수 helper buildExportDump, pr) 완료(PR #349 squash 74ec4e3, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** selectExportRecords(T-0437) 가 선별한 record 배열을 schemaVersion 헤더 + metadata(5 entity entityCounts + generatedAt ISO + recordCount) + records payload 를 가진 plain ExportDump envelope 로 조립하는 순수 helper — persistence/repository/schema/REST/streaming 호출 0(T-0437 helper-먼저 패턴 mirror: non-mutating·입력 순서 보존·빈 배열 정상·assertValidDate 위임). REQ-032(raw 미저장) invariant 는 입력 record 만 envelope 에 담아 layer 유지. 신규 export-dump.ts/.spec.ts — export-dump.ts 100% line/branch/func/stmt cov(R-112 4종 + negative 충분), 전체 3374 test green. 본 fire: cron@aalocal-s1-2b0a2e0 권위 lock CAS 획득(8968ef4)→reclaim no-op(claims [])→active 0<2 게이트 OK(pr-mode 단독)→select-claim T-0438(lock tombstone 동반 release 42a02ec)→lock-free executor→feature branch commit e462c73 push→integrator PR #349 squash merge 74ec4e3→claims.json T-0438 제거. **이로써 P7 Export(R-57) 두 번째 게이트-free 단추 shipped — selectExportRecords→buildExportDump building block 2개 완비.** 다음 우선순위(planner 미큐잉): Export 후속 sub-slice(실 DB dump query·GET /api/admin/export controller·dump 직렬화 배선 — repository/schema 게이트) 또는 게이트 없는 다음 단추(ADR-0036 5c 측정 등). 여전히 게이트된 후속: REQ-041 slice 2 후속 a(실 RecentDeletionDeleter Prisma provider, schema/repository 게이트)/후속 a-2(instants 자동 도출, repository 게이트)/slice 3(삭제 audit 영속, schema 게이트); REQ-027 slice 3(Person.backfilledAt 전용 영속 표식, schema 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=430.\n\n**[ARCHIVED] T-0437(UC-07 Export scope 선별 순수 helper selectExportRecords, pr) 완료(PR #348 squash 1fed99d, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** UC-07 §6.1 의 3차원 scope(full/range/partial × dateRange × entitySelector)를 메모리 record 배열에 적용해 selected/excluded 분류하는 순수 helper — persistence/repository/schema/REST 호출 0(deletion-window-select 패턴 mirror: 반열림 [start,end), non-mutating, 입력 순서 보존, 빈 배열 정상, PeriodRange 재사용). REQ-032(raw 미저장) invariant 는 입력 record 만 다뤄 helper layer 에서도 유지. 신규 export-scope-select.ts/.spec.ts 각 100% cov(R-112 4종 + negative 충분), 전체 3348 test green. 본 fire: cron@aalocal-s1-8732972 권위 lock CAS 획득(81ac0bb)→reclaim no-op(claims [])→active 0<2 게이트 OK(pr-mode 단독)→select-claim T-0437(lock tombstone 동반 release f2cab60)→lock-free executor→feature branch commit 55132bf push→integrator PR #348 squash merge 1fed99d→claims.json T-0437 제거. **이로써 P7 Export(R-57) 첫 게이트-free 단추 shipped — T-0424/T-0425 helper-먼저 패턴 mirror.** 다음 우선순위(planner 미큐잉): Export 후속 sub-slice(실 DB dump query·GET /api/admin/export controller·dump 직렬화 — repository/schema 게이트) 또는 게이트 없는 다음 단추(ADR-0036 5c 측정 등). 여전히 게이트된 후속: REQ-041 slice 2 후속 a(실 RecentDeletionDeleter Prisma provider, schema/repository 게이트)/후속 a-2(instants 자동 도출, repository 게이트)/slice 3(삭제 audit 영속, schema 게이트); REQ-027 slice 3(Person.backfilledAt 전용 영속 표식, schema 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=429.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa15-29021",
-    "since": "2026-06-16T06:05:05Z",
-    "note": "planner-dispatch fire(cron@cloud-aa15-29021, :15 trigger 대역 — 매시 15분 충돌 회피). 진입 시 로컬 main 4510926→origin/main 245bd07 hard-reset 동기(직전 cron 들의 T-0434~T-0437 execute + bookkeeping 반영 — 로컬에 박제됐던 T-0434 는 이미 완료됨). server-time 06:05:05Z(GitHub API Date 헤더). fineGrainedConcurrency=true claim 경로: 권위 lock CAS 획득(0201bbf, prev tip 42aac3a free tombstone)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims 2 게이트 OK→그러나 currentTask/nextTask null·claimable PENDING task 0 → claim 경로 후보 부재 → planner dispatch(LOOP [2] '둘 다 없으면 planner'). planner 가 T-0438(UC-07 Export dump envelope 조립 순수 helper buildExportDump, P7 R-57/REQ-030·REQ-032, pr, 게이트-free, dependsOn [], est ~150 LOC/2파일 — T-0437 helper-먼저 패턴 mirror) 큐잉, STATE.nextTask=T-0438 갱신. 본 fire 는 planner 큐잉 direct doc-only commit 후 종료(코드 0 LOC). 종료 시 tombstone CAS release. 권위 lock = branch tip lock.json, STATE.lock 은 비권위 mirror. 다음 fire 는 nextTask=T-0438 발견 → execute(pr-mode)."
+    "session": "cron@aalocal-s1-2b0a2e0",
+    "since": "2026-06-16T06:37:54Z",
+    "note": "T-0438 execute fire(cron@aalocal-s1-2b0a2e0, :30 대역 trigger — 매시 30분 충돌 회피). 진입 시 로컬 main 245bd07→origin/main 2b0a2e0 hard-reset 동기(직전 planner-dispatch cron 의 T-0438 큐잉 반영). server-time 06:37:54Z(GitHub API Date 헤더). fineGrainedConcurrency=true claim 경로: 권위 lock CAS 획득(8968ef4, prev tip c167920 free tombstone)→reclaim no-op(claims [], RECLAIM_NOW server-time 주입)→active claim 0<maxConcurrentClaims 2 게이트 OK(pr-mode active 0 단독 claim 허용)→select-claim T-0438(claim 박제+lock tombstone 동반 CAS release tip 42a02ec)→lock-free executor 1회(implement+test)→feature branch claude/T-0438-export-dump-envelope commit e462c73 push→integrator PR #349 open+reviewer round1 APPROVE+4-게이트 PASS+CI green→squash merge 74ec4e3, branch 삭제. 종료 시 claims.json 에서 T-0438 entry 제거(완료). 권위 lock = branch tip lock.json(현 tombstone free), STATE.lock 은 비권위 mirror. 다음 fire 는 currentTask/nextTask null → planner dispatch.\n\n[PREV] planner-dispatch fire(cron@cloud-aa15-29021, :15 trigger 대역 — 매시 15분 충돌 회피). 진입 시 로컬 main 4510926→origin/main 245bd07 hard-reset 동기(직전 cron 들의 T-0434~T-0437 execute + bookkeeping 반영 — 로컬에 박제됐던 T-0434 는 이미 완료됨). server-time 06:05:05Z(GitHub API Date 헤더). fineGrainedConcurrency=true claim 경로: 권위 lock CAS 획득(0201bbf, prev tip 42aac3a free tombstone)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims 2 게이트 OK→그러나 currentTask/nextTask null·claimable PENDING task 0 → claim 경로 후보 부재 → planner dispatch(LOOP [2] '둘 다 없으면 planner'). planner 가 T-0438(UC-07 Export dump envelope 조립 순수 helper buildExportDump, P7 R-57/REQ-030·REQ-032, pr, 게이트-free, dependsOn [], est ~150 LOC/2파일 — T-0437 helper-먼저 패턴 mirror) 큐잉, STATE.nextTask=T-0438 갱신. 본 fire 는 planner 큐잉 direct doc-only commit 후 종료(코드 0 LOC). 종료 시 tombstone CAS release. 권위 lock = branch tip lock.json, STATE.lock 은 비권위 mirror. 다음 fire 는 nextTask=T-0438 발견 → execute(pr-mode)."
   },
-  "lastActivity": "2026-06-16T06:06:00Z",
-  "lastCommit": "1fed99d",
+  "lastActivity": "2026-06-16T06:53:00Z",
+  "lastCommit": "74ec4e3",
   "mostRecentTasks": [
+    "T-0438",
     "T-0437",
     "T-0436",
     "T-0435",
-    "T-0434",
-    "T-0433"
+    "T-0434"
   ],
   "loopSession": {
     "turnCount": 5,
@@ -32,13 +32,14 @@
     "note": "/loop cloud-qkcctz (dynamic, turn cap 5; remote web ScheduleWakeup/cron 부재→session 내 순차 turn). t1 planner→T-0435, t2 T-0435 execute, t3 planner→T-0436, t4 T-0436 execute, t5(05:06Z) planner→T-0437(UC-07 Export scope helper, pr) 큐잉. turn cap 5 도달→session 종료(self-reschedule 불가 환경이라 다음 cron/새 /loop 가 T-0437 execute)."
   },
   "ci": {
-    "lastRun": "2026-06-16T05:47:00Z",
+    "lastRun": "2026-06-16T06:52:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0437 PR #348 머지 squash 1fed99d, CI green run 27596944106 success(lint/build/unit/smoke/e2e + reviewer-approval 게이트 + coverage 전부 통과, 신규 export-scope-select.ts 100% cov). 다음 fire [1]에서 main push CI 재확인(R-114). Node20 deprecation annotation non-blocking."
+    "note": "T-0438 PR #349 머지 squash 74ec4e3, CI green success(lint/build/unit/smoke/e2e + reviewer-approval 게이트 + coverage 전부 통과, 신규 export-dump.ts 100% line/branch/func/stmt cov, 전체 3374 test). 다음 fire [1]에서 main push CI 재확인(R-114). Node20 deprecation annotation non-blocking."
   },
   "reviewRounds": {
+    "T-0438": 1,
     "T-0428": 1,
     "T-0427": 1,
     "T-0426": 1,
@@ -729,7 +730,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 429,
+    "tasksCompleted": 430,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
