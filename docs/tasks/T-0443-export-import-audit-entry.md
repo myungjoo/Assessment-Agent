@@ -2,7 +2,11 @@
 id: T-0443
 title: UC-07 Export/Import Audit log 항목 조립 순수 helper buildExportImportAuditEntry
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-16T11:51:23Z
+mergedAs: abc59f4
+prNumber: 354
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 165
