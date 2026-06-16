@@ -2,7 +2,7 @@
 id: T-0445
 title: export-scope VALID_SCOPES/VALID_ENTITIES 단일 source-of-truth 통합
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 dependsOn: []
@@ -58,3 +58,10 @@ T-0444(`validateExportScope`, PR #355) reviewer 가 MINOR nit 으로 지적: `ex
 ## Follow-ups
 
 (없음 — 생성 시점)
+
+## Result (DONE)
+
+- 완료: 2026-06-16T13:42Z (PR #356 squash-merge 3df9027, reviewer round1 APPROVE, 4-게이트 PASS, CI green).
+- select 에 `VALID_EXPORT_SCOPES`/`VALID_EXPORT_ENTITIES` export named const 신설(내부 VALID_SCOPES Set 도 그것에서 파생). validate 의 mirror 4 선언(VALID_SCOPES/VALID_SCOPE_SET/VALID_ENTITIES/VALID_ENTITY_SET) 제거 후 export 상수 import 해 Set 파생 — verdict(valid/errors/normalized) 동작 1 비트 불변.
+- 두 colocated spec 에 export 상수 명시 assertion(정확히 3 scope/5 entity) + regression test(두 파일 동일 멤버십 집합 직접 단언) 추가. 변경 파일 각 100% line/branch/func 유지, 전체 line 99.96%/func 100%, 3543 test green(+30/-29 LOC).
+- AC 전 항목 ok. UC-07 §6.1 옵션 규칙 단일 source-of-truth 확보 — T-0444 reviewer nit 정리 완결.
