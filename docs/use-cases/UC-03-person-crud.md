@@ -105,6 +105,8 @@ Person 의 primary key 역할 ID 는 4 서비스 ID 중 1 개 ([REQ-024](../requ
 
 신규 인원 추가가 성공한 경우 — UserModule 이 PersistenceModule 의 row insert 직후 **NewPersonEvent (personId, windowDays=365)** 를 AssessmentModule 에 emit. AssessmentModule 은 본 event 를 받아 1년치 평가 1회 job 을 SchedulerModule / Worker queue 에 enqueue. 본 흐름은 일반 인원의 매일 1주일 단위 평가 ([UC-01](UC-01-evaluation-execution.md)) 와 **별도 trigger** 다 — 신규 인원이 즉시 1년치 historical 평가를 받도록 보장하는 README L48 의 정책 박제. 본 UC 는 **event emit 까지만 cover** — emit 이후 실제 평가 파이프라인 실행은 UC-01 의 책임이다. event delivery 의 retry / DLQ 정책은 P7 (cross-cutting) 의 책임.
 
+> **shipped 구현 참조 (P7 R-50)** — 본 문단은 위 P2 설계기 conceptual 서술 (`NewPersonEvent` 자동 emit 흐름 / §5 sequence diagram / §9 mapping) 을 **변경하지 않고**, P7 stream 에서 실제 shipped 된 R-50 / REQ-027 (신규 인원 1년치 평가 1회) 구현 사실만 박제하는 addendum 이다. 현재 실 진입점은 `POST /api/schedules/backfill/:personId` REST endpoint ([T-0421](../tasks/T-0421-manual-backfill-endpoint.md), PR #340, Admin+ RBAC) 로, manual 하게 1년치 (52주) backfill 을 1회 발화한다. 내부적으로 `BackfillRunnerService.runBackfill(personId)` ([T-0419](../tasks/T-0419-backfill-runner-service.md)) 가 1년치 window 를 순회하며 `triggerCollection` 에 위임 (재구현 0) 하고, `AssessmentBackfillChecker` ([T-0420](../tasks/T-0420-backfill-idempotency-checker.md)) 가 직전 Assessment 존재를 proxy 로 "이미 backfill 됨" 을 판정해 중복 backfill 을 차단 (REQ-027 "1회" 보장 — `skipped:true`). 단 전용 영속 표식 (예: `Person.backfilledAt`) 은 schema 게이트 동반 slice 3 책임으로 **미shipped**, P2 설계기 `NewPersonEvent` 자동 emit 흐름도 **미shipped** 라 현재는 위 manual endpoint 가 유일한 shipped 진입점이다. 정확한 계약은 [api.md §5](../architecture/api.md) 표 참조.
+
 ### 6.4 Group 정책 invariant (REQ-028)
 
 Group 편집 시 invariant: **임의 group ≥ 0 개 + 조직도 파트 정확히 1 개**. UserModule 이 payload 검증 단계에서 본 invariant 를 enforce — 조직도 파트가 0 개 또는 2 개 이상이면 §7.5 (400 + "조직도 파트는 정확히 1 개" 안내) 로 분기. 임의 group 은 0 개도 허용 (group 미할당 인원). 본 invariant 의 schema-level enforcement (DB unique constraint + check constraint) 는 P3 data-model.md 의 책임 — 본 UC §7.5 는 application-level 검증의 conceptual 박제.
@@ -191,6 +193,7 @@ Group 편집 payload 에서 조직도 파트가 0 개 또는 2 개 이상 — Us
 - [docs/use-cases/UC-02-evaluation-query.md](UC-02-evaluation-query.md) — 본 UC 가 관리하는 인원 master data 가 UC-02 의 결과 표·시계열의 라벨 source. template 으로 사용.
 - [docs/architecture/components.md](../architecture/components.md) — 본 UC 가 거치는 3 component (Web UI / Backend API / DB Persistence) 의 책임 + contract 정의.
 - [docs/architecture/modules.md](../architecture/modules.md) — 본 UC 가 거치는 4 module (WebModule / UserModule / AuthModule / PersistenceModule) 의 책임 + 의존성 그래프.
+- [docs/architecture/api.md §5](../architecture/api.md) — §6.3 addendum 의 source. R-50 / REQ-027 (신규 인원 1년치 평가 1회) 의 shipped 계약 (`POST /api/schedules/backfill/:personId` backfill 행) 권위. UC §6.3 conceptual `NewPersonEvent` 흐름 대비 실 manual endpoint 매핑.
 - [docs/requirements.md](../requirements.md) — 본 UC 의 7 primary REQ + 2 인접 REQ row 의 source.
 - [docs/decisions/ADR-0002-db.md](../decisions/ADR-0002-db.md) — PostgreSQL + Prisma — 본 UC 의 인원 master data persistence layer 기반.
 - [docs/decisions/ADR-0003-deployment.md](../decisions/ADR-0003-deployment.md) — monolithic NestJS process (§1) — 본 UC 의 in-process hop 1 단계의 근거.
