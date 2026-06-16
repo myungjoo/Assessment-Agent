@@ -60,10 +60,6 @@ curl_code() {
 # --- step 구현 -------------------------------------------------------------
 
 step_redeploy() {
-  if [ "$SKIP_REDEPLOY" = "1" ]; then
-    log "step redeploy: SKIP (SKIP_REDEPLOY=1)"
-    return 0
-  fi
   log "step redeploy: deploy/redeploy.sh 실행"
   if REPO_DIR="$REPO_DIR" bash "$REPO_DIR/deploy/redeploy.sh" >>"$LOG_FILE" 2>&1; then
     log "step redeploy: OK"
@@ -156,12 +152,20 @@ mark() { # mark <step> <PASS|FAIL|SKIP>
   fi
 }
 
-if step_redeploy; then mark redeploy PASS; else mark redeploy FAIL; fi
+# SKIP_REDEPLOY=1(디버깅·이미 배포된 상태 테스트)은 redeploy 를 SKIP 으로 명확히 표기한다.
+# "PASS"(실제 실행 성공)와 구분해 머신 JSON 이 무인 모니터링에 false 신호를 주지 않게 한다.
+if [ "$SKIP_REDEPLOY" = "1" ]; then
+  log "step redeploy: SKIP (SKIP_REDEPLOY=1)"
+  mark redeploy SKIP
+elif step_redeploy; then
+  mark redeploy PASS
+else
+  mark redeploy FAIL
+fi
 
-if [ "${STEP_STATUS[redeploy]}" = "PASS" ] && step_health; then
-  mark health PASS
-elif [ "${STEP_STATUS[redeploy]}" = "PASS" ]; then
-  mark health FAIL
+# redeploy 가 FAIL 이 아니면(PASS 또는 SKIP) health 를 실행한다.
+if [ "${STEP_STATUS[redeploy]}" != "FAIL" ]; then
+  if step_health; then mark health PASS; else mark health FAIL; fi
 else
   mark health SKIP
 fi
