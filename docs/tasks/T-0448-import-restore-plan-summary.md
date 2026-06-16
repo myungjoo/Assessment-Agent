@@ -2,7 +2,7 @@
 id: T-0448
 title: UC-07 Import 복원 plan 영향 breakdown 요약 순수 helper summarizeRestorePlan
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 160
