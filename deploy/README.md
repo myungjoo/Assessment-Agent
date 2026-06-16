@@ -156,10 +156,10 @@ crontab -e
 수동 1 회 실행(검증용):
 
 ```bash
-# 재배포 포함 전체
-ssh deploy@192.168.0.7 "cd /opt/assessment-agent && ./deploy/daily-test.sh"
+# 재배포 포함 전체 (스크립트는 100644 — redeploy.sh 관례대로 bash 로 호출)
+ssh deploy@192.168.0.7 "cd /opt/assessment-agent && bash deploy/daily-test.sh"
 # 재배포 생략, 스모크만 (디버깅)
-ssh deploy@192.168.0.7 "cd /opt/assessment-agent && SKIP_REDEPLOY=1 ./deploy/daily-test.sh"
+ssh deploy@192.168.0.7 "cd /opt/assessment-agent && SKIP_REDEPLOY=1 bash deploy/daily-test.sh"
 ```
 
 루틴 등록 절차는 [docs/ops/daily-deploy-test.md](../docs/ops/daily-deploy-test.md) "루틴 등록" 참조.

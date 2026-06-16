@@ -21,7 +21,7 @@ redeploy → health → liveness → auth 를 모두 수행). stdout 마지막 �
 
 ```bash
 ssh -o BatchMode=yes -o ConnectTimeout=15 deploy@192.168.0.7 \
-  "cd /opt/assessment-agent && ./deploy/daily-test.sh"
+  "cd /opt/assessment-agent && bash deploy/daily-test.sh"
 ```
 
 - **exit code 와 stdout JSON 을 모두 수집**한다.
