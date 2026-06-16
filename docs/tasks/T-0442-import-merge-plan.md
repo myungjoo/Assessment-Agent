@@ -2,7 +2,9 @@
 id: T-0442
 title: UC-07 Import merge/replace mode 복원 plan 산출 순수 helper buildImportRestorePlan
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: 7f743d6
+prNumber: 353
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 165
