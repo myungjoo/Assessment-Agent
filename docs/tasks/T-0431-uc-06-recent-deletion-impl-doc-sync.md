@@ -2,7 +2,7 @@
 id: T-0431
 title: UC-06 에 shipped recent-deletion REST endpoint + runner 구현 doc-sync
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-041]
 estimatedDiff: 30
@@ -49,3 +49,9 @@ plannerNote: P7 ⑤ REQ-041 — UC-06(P2 설계기 conceptual)에 shipped /api/s
 ## Follow-ups
 
 (없음 — sub-agent 가 발견 시 추가)
+
+## Result
+
+- **DONE** (2026-06-16T01:38Z, cron@local-aalocal-0138 fire).
+- UC-06 에 `### 6.5 shipped 구현 참조 (P7 REQ-041)` addendum 1문단 추가 — `POST /api/schedules/recent-deletion/:personId` (T-0428, PR #346) 실 진입점 + `RecentDeletionRunnerService.runRecentDeletion` (T-0427, PR #344) orchestrate (삭제 → CollectionTriggerService 재수집) + 실 `RECENT_DELETION_DELETER` provider 미shipped (`deletedCount:0` 기본) 명시. §11 References 에 api.md §5 recent-deletion 행 링크 1줄 보강.
+- §5 sequence diagram / §9 mapping table 기존 conceptual 서술 불변 (P2 의도 존중). +7/-0, UC-06 1파일. doc-only direct commit, src/test 0 LOC (R-110/R-112 면제).
