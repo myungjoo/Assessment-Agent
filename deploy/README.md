@@ -92,7 +92,11 @@ docker compose logs -f app
 
 ---
 
-## 5. 매일 밤 자동 재배포 (systemd timer — 권장)
+## 5. 매일 밤 자동 재배포 (systemd timer)
+
+> **트리거는 둘 중 하나만**: 본 §5 의 systemd timer **또는** §5.1 의 로컬 루틴(배포+테스트).
+> 둘 다 켜면 하루 2 회 재배포된다. **배포 후 자동 테스트까지 원하면 §5 systemd timer 는 설치하지
+> 말고 §5.1 을 쓴다** ([ADR-0043](../docs/decisions/ADR-0043-daily-deploy-test.md) §5).
 
 `deploy/redeploy.sh` 가 main 동기화 → 재빌드 → 컨테이너 교체를 수행한다. systemd timer 로 매일 03:00 에 실행한다.
 
@@ -128,6 +132,42 @@ crontab -e
 ```
 
 > cron 사용자는 `docker` 그룹 소속이어야 한다(`sudo usermod -aG docker $USER` 후 재로그인).
+
+---
+
+## 5.1 매일 밤 배포 + 자동 테스트 (로컬 루틴 — 권장)
+
+재배포만 하는 §5 대신, **재배포 후 기동된 앱을 자동 테스트**까지 하려면 본 경로를 쓴다.
+구동 주체는 기기가 아니라 **같은 LAN 의 로컬 PC** 다 — 설계·근거는
+[ADR-0043](../docs/decisions/ADR-0043-daily-deploy-test.md), 자동화 절차는
+[docs/ops/daily-deploy-test.md](../docs/ops/daily-deploy-test.md) (플레이북).
+
+구성:
+
+- **기기 측 러너** [`deploy/daily-test.sh`](daily-test.sh) — `redeploy.sh` 호출 → health 대기 →
+  black-box 스모크(`GET /api` · `GET /` SPA) → 인증 라운드트립(`POST /api/users` →
+  `/api/auth/login` → `/api/auth/me`). 결과를 `deploy/logs/` 에 로그 + `latest-result.json`,
+  전부 PASS 면 exit 0. 운영 이미지는 슬림(devDep 제거)이라 컨테이너 안 jest 가 불가 →
+  black-box HTTP 스모크가 검증 수단이다.
+- **트리거** — 로컬 PC 의 Claude Desktop **로컬 루틴**(Daily 02:00)이 SSH 로 위 러너를 실행하고,
+  결과를 단일 `daily-test` 라벨 GitHub issue 로 보고한다(PASS=close, FAIL=open 유지, 항상 ≤1 개).
+  클라우드 cron 은 LAN 사설 IP 에 못 닿으므로 트리거는 반드시 같은 LAN 의 로컬 PC 다.
+
+수동 1 회 실행(검증용):
+
+```bash
+# 재배포 포함 전체
+ssh deploy@192.168.0.7 "cd /opt/assessment-agent && ./deploy/daily-test.sh"
+# 재배포 생략, 스모크만 (디버깅)
+ssh deploy@192.168.0.7 "cd /opt/assessment-agent && SKIP_REDEPLOY=1 ./deploy/daily-test.sh"
+```
+
+루틴 등록 절차는 [docs/ops/daily-deploy-test.md](../docs/ops/daily-deploy-test.md) "루틴 등록" 참조.
+
+> 본 경로를 쓰면 §5 systemd timer 는 **설치하지 않는다**(이중 재배포 방지).
+> 고정 테스트 계정 `daily-smoke@local.test` 1 개가 기기 DB 에 상주한다(테스트 전용 기기라 무해).
+> **다른 LAN 기기의 브라우저**로 로그인 사용자 테스트를 하려면 `secure` 쿠키 때문에 TLS(리버스
+> 프록시)가 필요하다([ADR-0043](../docs/decisions/ADR-0043-daily-deploy-test.md) Consequences).
 
 ---
 

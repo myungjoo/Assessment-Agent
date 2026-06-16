@@ -1,5 +1,5 @@
 ---
-id: T-0447
+id: T-0448
 title: UC-07 Import 복원 plan 영향 breakdown 요약 순수 helper summarizeRestorePlan
 phase: P7
 status: PENDING
@@ -16,7 +16,7 @@ touchesFiles:
 plannerNote: "P7 R-57/REQ-030 — UC-07 Export/Import 열한 번째 게이트-free 단추(restore plan delete/insert/keep entity-별 breakdown 요약), pr, dependsOn []"
 ---
 
-# T-0447 — UC-07 Import 복원 plan 영향 breakdown 요약 순수 helper summarizeRestorePlan
+# T-0448 — UC-07 Import 복원 plan 영향 breakdown 요약 순수 helper summarizeRestorePlan
 
 ## Why
 
