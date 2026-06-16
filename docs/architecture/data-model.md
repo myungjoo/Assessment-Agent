@@ -121,6 +121,7 @@ erDiagram
 | REQ-028 | Group (다중) + Part (정확히 1) | Group, Part, **PersonGroupMembership** |
 | REQ-032 | 🔥 raw data 저장 금지 | Assessment, Contribution (§ 4) |
 | REQ-037 | 평가 없는 부분 일괄 평가 + Reset & Reeval | Assessment (delete + 재수집 lifecycle) |
+| REQ-041 | 최근 N일 결과 delete→재수집 | Assessment (delete lifecycle) + 비영속 cron trigger (전용 entity 없음, [ADR-0042](../decisions/ADR-0042-nestjs-schedule-adoption.md) in-memory 결정 — § 7 참조) |
 | REQ-038 | UI 조회 / sort / filter / 시계열 | Assessment, Summary |
 | REQ-043 | ID/Password 보호 | User (credential) |
 | REQ-044 | 3 등급 + SuperAdmin / 승급 | User (role 필드) |
@@ -134,7 +135,7 @@ erDiagram
 | REQ-055 | OpenAI | LlmProviderConfig |
 | REQ-063 | 상대 비교 가능 데이터 구조 | Assessment (Person × metric 의 cross product 가능 형태) |
 
-**uncovered 0** — frontmatter coversReq 의 20 REQ 모두 1+ entity 로 cover.
+**uncovered 0** — frontmatter coversReq 의 20 REQ 모두 1+ entity 로 cover. (위 표의 REQ-041 은 frontmatter coversReq 외 추가 cover 항목으로, 전용 entity 없이 Assessment delete lifecycle + 비영속 cron trigger 로만 cover 됨 — § 7 Out of scope 의 cron schedule 비영속 결정과 정합.)
 
 **추가 cover** (frontmatter 외 — 관련 REQ 자동 cover):
 
@@ -161,6 +162,7 @@ erDiagram
 - **새 entity 발굴이 8 UC scope 를 벗어나는 경우** — 본 task scope 외, 후속 task 로 follow-up. ADR 없이 신규 entity 결정 금지.
 - **gap REQ-004** (사용자 지정 기간 임의 평가문) — [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) gap. UC-09 신설 또는 UC-01 확장 후 본 § 2 표에 row 추가 예정.
 - **ER cardinality 의 P3 schema-level 검증** — 본 문서는 MVA conceptual 만, schema-level 정확도는 P3 review 단계.
+- **Cron schedule 영속화 entity** — shipped SchedulingModule(`src/scheduling/`)의 동적 cron schedule 은 [ADR-0042](../decisions/ADR-0042-nestjs-schedule-adoption.md) §Consequences 결정에 따라 단일 process in-memory `SchedulerRegistry` 로만 보유(process 재시작 시 휘발)하며 별도 DB entity 를 신설하지 않는다. 따라서 § 2 entity 목록에 CronSchedule 류 entity 가 의도적으로 없다(REQ-072 / R-72 Admin 런타임 cron 주기 지정의 데이터 측면 = 비영속). 등록 cron 의 DB 영속화(부팅 시 재등록) 및 multi-instance 중복 발화 방지는 후속 task / 별도 ADR(§ 5 schema 게이트) 책임.
 
 ## 8. References
 

@@ -2,7 +2,7 @@
 id: T-0436
 title: data-model.md 에 cron schedule 비영속(ADR-0042 in-memory) 결정 + REQ-041 cross-ref doc-sync
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-041, REQ-072]
 dependsOn: []
@@ -55,3 +55,9 @@ doc-only(data-model.md 1파일)라 schema/repository/module-cycle/credential 게
 ## Follow-ups
 
 (비어있음 — 작성 시점)
+
+---
+
+## 완료 (2026-06-16T05:03Z, /loop cloud-qkcctz turn 4/5)
+
+data-model.md §7 Out of scope 에 cron schedule 비영속(ADR-0042 in-memory SchedulerRegistry, 재시작 휘발, 전용 entity 미신설) bullet 추가, §6 coverage 표에 REQ-041 row + uncovered 0 검산 정합. §2/§3/§5/mermaid 불변, 신규 entity 0. +3/-1, data-model.md 1파일, src/test 0 LOC(R-110/R-112 면제). direct main commit.
