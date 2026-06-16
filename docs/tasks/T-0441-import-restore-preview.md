@@ -2,7 +2,7 @@
 id: T-0441
 title: UC-07 Import restore 영향 범위 요약 순수 helper summarizeImportImpact
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 160
@@ -68,3 +68,9 @@ implementer → tester
 ## Follow-ups
 
 (없음 — 생성 시 비어있음)
+
+---
+
+## Result (DONE 2026-06-16T09:52Z)
+
+PR #352 squash merge **f846865**, reviewer round1 APPROVE, 4-게이트 PASS, CI green. 신규 `src/export/import-restore-preview.ts`(+110 LOC) — 순수 함수 `summarizeImportImpact(dump: ExportDump): ImportImpact`(totalRecords·perEntity 5 entity key 0-init records 실측 1-pass 집계·instantRange earliest/latest|빈 records 시 null). 입력 방어(비-object dump·records 비-배열·instant 비-Date → TypeError 한국어). non-mutating(Object.freeze 통과). persistence/repository/file parse/transaction/REST 호출 0. colocated spec `import-restore-preview.spec.ts` — R-112 4종 + negative 충분, 신규 파일 stmt/branch/func/line 100% cov, 전체 168 suite/3445 test green. 본 fire: cron@aalocal-s1-aac16a9 권위 lock CAS→select-claim T-0441→lock-free executor→PR #352→4-게이트 PASS→squash merge→claims.json T-0441 제거. tasksCompleted=433.
