@@ -2,7 +2,7 @@
 id: T-0430
 title: REQ-041 recent-deletion endpoint api.md 문서화 (slice 4 doc-sync)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-041]
 dependsOn: [T-0428]
@@ -50,3 +50,10 @@ direct doc-only 이므로 sub-agent 불요 — driver(또는 implementer)가 api
 ## Follow-ups
 
 (없음)
+
+## Result (DONE — 2026-06-16T00:38Z)
+
+- **완료**: cron@local-aalocal fire(claim 경로). docs/architecture/api.md §5 Endpoint 표에 `POST /api/schedules/recent-deletion/:personId` 행을 backfill/trigger 행 mirror 로 박제(UC-01 링크 + R-74/REQ-041 + RecentDeletionDto(instants ISO[] + 선택 days) + runRecentDeletion 위임 + 202/RecentDeletionRunResult{personId,deletedCount,recollected} + deleter 미주입 시 deletedCount:0 + raw forward + Admin+ RBAC) + 합계 주석/숫자 55→56 정합.
+- **변경**: docs/architecture/api.md (+2/-1), doc-only direct. src/test 0 LOC.
+- **검증**: R-110 면제(direct doc-only, 코드 0 LOC). lint/build/test 무관.
+- **commit**: direct → main (본 closeout commit). Acceptance Criteria 전 항목 ok.
