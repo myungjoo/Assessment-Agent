@@ -2,16 +2,21 @@
 id: T-0437
 title: UC-07 Export scope 선별 순수 helper (selectExportRecords)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 150
 estimatedFiles: 2
 created: 2026-06-16
+completedAt: 2026-06-16T05:50:00Z
+prNumber: 348
+mergedAs: 1fed99d
+reviewRounds: 1
 independentStream: p7-export-import
 dependsOn: []
 touchesFiles: [src/export/export-scope-select.ts, src/export/export-scope-select.spec.ts]
 plannerNote: "P7 R-57/REQ-030 UC-07 Export 첫 게이트-free 단추 — scope 선별 순수 helper(persistence/schema 무관). T-0424/T-0425 helper-먼저 패턴 mirror."
+result: "DONE — selectExportRecords 순수 helper(full/range/partial × dateRange × entitySelector, 반열림 [start,end), non-mutating) + colocated spec. 신규 파일 100% cov, 전체 3348 test green. PR #348 round1 APPROVE, 4-게이트 PASS, squash merge 1fed99d."
 ---
 
 # T-0437 — UC-07 Export scope 선별 순수 helper (selectExportRecords)
