@@ -2,7 +2,7 @@
 id: T-0435
 title: UC-01 §3 trigger 1·2 에 shipped cron schedule CRUD + manual trigger endpoint doc-sync
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-039, REQ-040]
 estimatedDiff: 22
@@ -49,3 +49,9 @@ plannerNote: P7 — UC-01 §3 trigger 1(cron 시각 도달)·2(manual trigger)�
 ## Follow-ups
 
 (없음 — sub-agent 가 발견 시 추가)
+
+---
+
+## 완료 (2026-06-16T04:58Z, /loop cloud-qkcctz turn 2/5)
+
+UC-01 §3 trigger 1 에 shipped `GET/PUT/DELETE /api/schedules`(T-0414/T-0415 PR #334) + SchedulerRegistry 동적 등록 + DB 영속화 미shipped(ADR-0042 §Consequences) 보강, trigger 2 에 `POST /api/schedules/trigger`(T-0417 PR #336, CRON_TICK_HANDLER 공유) 추가, §11 References 에 api.md §5 cron 행 1줄. +3/-2, UC-01 1파일, src/test 0 LOC(R-110/R-112 면제). direct main commit.

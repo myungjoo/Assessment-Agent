@@ -33,8 +33,8 @@ User 등급은 본 UC 의 actor 가 아니다 — User 는 read-only ([README.md
 
 본 UC 는 다음 3 가지 trigger 경로를 가지며, **모두 동일한 main flow (§5) 로 수렴**한다 — 차이는 trigger 의 출처 metadata 만 AssessmentRun row 에 기록된다.
 
-1. **Cron 시각 도달** (Scheduler trigger) — `@Cron` decorator handler 가 시각 도달 시 AssessmentModule 의 평가 service 를 호출. cron 표현식은 DB 에 영속 저장되어 process restart 후에도 복원 (REQ-039).
-2. **Admin manual trigger** — Admin 이 Web UI 의 "평가 즉시 실행" 버튼 클릭 → Backend API endpoint → 동일 AssessmentModule service 메서드 호출 (REQ-040).
+1. **Cron 시각 도달** (Scheduler trigger) — `@Cron` decorator handler 가 시각 도달 시 AssessmentModule 의 평가 service 를 호출. cron 표현식은 DB 에 영속 저장되어 process restart 후에도 복원 (REQ-039). 본 conceptual 서술의 실 진입점은 P7 stream 에서 `GET/PUT/DELETE /api/schedules` REST endpoint ([T-0414](../tasks/T-0414-cron-schedule-controller-endpoints.md)/[T-0415](../tasks/T-0415-app-module-scheduling-import.md), PR #334, Admin+ RBAC) 로 shipped 됐으며 cron 주기를 런타임 등록/교체/조회/삭제한다. 단 shipped 구현은 정적 `@Cron` 데코레이터가 아니라 `CronScheduleService` 의 SchedulerRegistry 동적 등록 (재배포 없이 주기 변경, [ADR-0042 §Decision2](../decisions/ADR-0042-nestjs-schedule-adoption.md)) 이며, cron 표현식의 DB 영속화는 ADR-0042 §Consequences 대로 미shipped (in-memory registry, process restart 시 비복원) 다. 정확한 계약은 [api.md §5](../architecture/api.md) 표 (cron 주기 관리 행) 참조.
+2. **Admin manual trigger** — Admin 이 Web UI 의 "평가 즉시 실행" 버튼 클릭 → Backend API endpoint → 동일 AssessmentModule service 메서드 호출 (REQ-040). 본 conceptual 서술의 실 진입점은 P7 stream 에서 `POST /api/schedules/trigger` REST endpoint ([T-0417](../tasks/T-0417-manual-trigger-endpoint.md), PR #336, Admin+ RBAC, REQ-040) 로 shipped 됐으며, cron tick callback 과 동일 실행 추상 (`CRON_TICK_HANDLER`) 을 공유해 manual / cron 두 경로가 같은 평가 실행 진입을 거친다.
 3. **재수집 trigger** (UC-06 후속) — Admin 이 기존 평가 결과를 manual delete 한 직후 또는 Reset & Reeval 클릭 시 발화 (REQ-037 → UC-06 의 책임). 본 UC 의 main flow 와 동일하지만 평가 대상 시간 범위가 "비어있는 시간 구간" 으로 한정됨 ([README.md](../../README.md) L74 "다음 평가 진행 시 비어있는 시간만큼 다시 하게 된다"). 본 conceptual 서술의 실 진입점은 P7 stream 에서 `POST /api/schedules/recent-deletion/:personId` REST endpoint ([T-0428](../tasks/T-0428-uc-06-recent-deletion-manual-endpoint.md), PR #346, Admin+ RBAC) 로 shipped 됐으며, 내부적으로 `RecentDeletionRunnerService.runRecentDeletion` ([T-0427](../tasks/T-0427-uc-06-recent-deletion-runner.md), PR #344) 이 삭제 → 같은 기간 재수집 (`CollectionTriggerService` 위임) 을 orchestrate 한다 (REQ-041) — 단 실 deleter (`RECENT_DELETION_DELETER`) provider 바인딩은 schema/repository 게이트 동반 별도 sub-slice 로 아직 미shipped 라 현재 `deletedCount:0` 이 기본이다. 정확한 계약은 [api.md §5](../architecture/api.md) 표 (recent-deletion 행) 참조.
 
 ## 4. Preconditions
@@ -180,6 +180,7 @@ step 수: 약 13 (autonumber 기준 — par/alt block 안의 호출 포함). 각
 
 - [docs/use-cases/INDEX.md](INDEX.md) — UC-01 row 의 source. 본 UC 의 §9 mapping 이 INDEX.md 의 "주요 component / 주요 module" 컬럼과 정확히 일치.
 - [docs/architecture/api.md §5](../architecture/api.md) — §3 trigger 3 (재수집 trigger) 의 shipped 진입점 `POST /api/schedules/recent-deletion/:personId` (recent-deletion 행, REQ-041) 의 계약 source. UC §5 conceptual 흐름 대비 실 endpoint 매핑 권위.
+- [docs/architecture/api.md §5](../architecture/api.md) — §3 trigger 1·2 의 shipped 진입점 cron 주기 관리 (`/api/schedules`) 행 (`GET/PUT/DELETE /api/schedules` cron CRUD REQ-039 + `POST /api/schedules/trigger` manual trigger REQ-040) 의 계약 source.
 - [docs/architecture/components.md](../architecture/components.md) — 본 UC 가 거치는 6 component 의 책임 + contract 정의.
 - [docs/architecture/modules.md](../architecture/modules.md) — 본 UC 가 거치는 6 module 의 책임 + 의존성 그래프.
 - [docs/requirements.md](../requirements.md) — 본 UC 의 13 primary REQ + 4 인접 REQ row 의 source.
