@@ -35,7 +35,7 @@ User 등급은 본 UC 의 actor 가 아니다 — User 는 read-only ([README.md
 
 1. **Cron 시각 도달** (Scheduler trigger) — `@Cron` decorator handler 가 시각 도달 시 AssessmentModule 의 평가 service 를 호출. cron 표현식은 DB 에 영속 저장되어 process restart 후에도 복원 (REQ-039).
 2. **Admin manual trigger** — Admin 이 Web UI 의 "평가 즉시 실행" 버튼 클릭 → Backend API endpoint → 동일 AssessmentModule service 메서드 호출 (REQ-040).
-3. **재수집 trigger** (UC-06 후속) — Admin 이 기존 평가 결과를 manual delete 한 직후 또는 Reset & Reeval 클릭 시 발화 (REQ-037 → UC-06 의 책임). 본 UC 의 main flow 와 동일하지만 평가 대상 시간 범위가 "비어있는 시간 구간" 으로 한정됨 ([README.md](../../README.md) L74 "다음 평가 진행 시 비어있는 시간만큼 다시 하게 된다").
+3. **재수집 trigger** (UC-06 후속) — Admin 이 기존 평가 결과를 manual delete 한 직후 또는 Reset & Reeval 클릭 시 발화 (REQ-037 → UC-06 의 책임). 본 UC 의 main flow 와 동일하지만 평가 대상 시간 범위가 "비어있는 시간 구간" 으로 한정됨 ([README.md](../../README.md) L74 "다음 평가 진행 시 비어있는 시간만큼 다시 하게 된다"). 본 conceptual 서술의 실 진입점은 P7 stream 에서 `POST /api/schedules/recent-deletion/:personId` REST endpoint ([T-0428](../tasks/T-0428-uc-06-recent-deletion-manual-endpoint.md), PR #346, Admin+ RBAC) 로 shipped 됐으며, 내부적으로 `RecentDeletionRunnerService.runRecentDeletion` ([T-0427](../tasks/T-0427-uc-06-recent-deletion-runner.md), PR #344) 이 삭제 → 같은 기간 재수집 (`CollectionTriggerService` 위임) 을 orchestrate 한다 (REQ-041) — 단 실 deleter (`RECENT_DELETION_DELETER`) provider 바인딩은 schema/repository 게이트 동반 별도 sub-slice 로 아직 미shipped 라 현재 `deletedCount:0` 이 기본이다. 정확한 계약은 [api.md §5](../architecture/api.md) 표 (recent-deletion 행) 참조.
 
 ## 4. Preconditions
 
@@ -179,6 +179,7 @@ step 수: 약 13 (autonumber 기준 — par/alt block 안의 호출 포함). 각
 ## 11. References
 
 - [docs/use-cases/INDEX.md](INDEX.md) — UC-01 row 의 source. 본 UC 의 §9 mapping 이 INDEX.md 의 "주요 component / 주요 module" 컬럼과 정확히 일치.
+- [docs/architecture/api.md §5](../architecture/api.md) — §3 trigger 3 (재수집 trigger) 의 shipped 진입점 `POST /api/schedules/recent-deletion/:personId` (recent-deletion 행, REQ-041) 의 계약 source. UC §5 conceptual 흐름 대비 실 endpoint 매핑 권위.
 - [docs/architecture/components.md](../architecture/components.md) — 본 UC 가 거치는 6 component 의 책임 + contract 정의.
 - [docs/architecture/modules.md](../architecture/modules.md) — 본 UC 가 거치는 6 module 의 책임 + 의존성 그래프.
 - [docs/requirements.md](../requirements.md) — 본 UC 의 13 primary REQ + 4 인접 REQ row 의 source.

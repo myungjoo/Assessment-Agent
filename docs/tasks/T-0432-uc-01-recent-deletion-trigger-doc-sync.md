@@ -2,7 +2,7 @@
 id: T-0432
 title: UC-01 §3 재수집 trigger 에 shipped recent-deletion endpoint doc-sync
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-041]
 estimatedDiff: 20
@@ -49,3 +49,9 @@ plannerNote: P7 ⑤ REQ-041 — UC-01 §3 trigger 3(재수집 trigger)에 shippe
 ## Follow-ups
 
 (없음 — sub-agent 가 발견 시 추가)
+
+## Result
+
+- **DONE** (2026-06-16, fire cron@aalocal-s1-dd456ff). direct doc-only commit. `docs/use-cases/UC-01-evaluation-execution.md` +2/-1.
+- §3 trigger 3 (재수집 trigger) 에 shipped 진입점 `POST /api/schedules/recent-deletion/:personId` (T-0428 PR #346, Admin+) + `RecentDeletionRunnerService.runRecentDeletion` (T-0427 PR #344, 삭제→`CollectionTriggerService` 재수집 orchestrate) 참조 한 절 보강 — 실 `RECENT_DELETION_DELETER` provider 미shipped (`deletedCount:0` 기본) 한정 명시. §11 References 에 api.md §5 recent-deletion 행 링크 1줄 추가.
+- §5 diagram / §9 mapping / §10 REQ 표 불변 (P2 설계 의도 존중). src/test 0 LOC — R-110/R-112 면제 (direct doc-only).
