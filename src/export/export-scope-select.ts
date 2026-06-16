@@ -44,7 +44,27 @@ export interface ExportSelection {
   excluded: ExportRecord[];
 }
 
-const VALID_SCOPES: ReadonlySet<string> = new Set(["full", "range", "partial"]);
+// UC-07 §6.1 의 scope 차원·entitySelector 차원 단일 source-of-truth (T-0445 통합). 본 두
+// 상수가 select 의 내부 검증과 validate(export-scope-validate.ts)의 mirror 선언을 동시에
+// 대체한다 — 한쪽이 바뀌면 다른 쪽이 silent 하게 어긋날 위험을 제거(DRY). 향후 entity 추가/
+// 삭제는 ExportEntity union 과 본 배열을 함께 갱신해야 하며, 두 export-scope helper 가 같은
+// 멤버십 집합을 본다(regression test 가 단언).
+export const VALID_EXPORT_SCOPES: ReadonlyArray<ExportScope["scope"]> = [
+  "full",
+  "range",
+  "partial",
+];
+
+// 허용 ExportEntity 5 종(UC-07 §6.1 entitySelector 목록 — ExportEntity union 과 동일 집합).
+export const VALID_EXPORT_ENTITIES: ReadonlyArray<ExportEntity> = [
+  "Assessment",
+  "Person",
+  "Group",
+  "LlmConfig",
+  "AuditLog",
+];
+
+const VALID_SCOPES: ReadonlySet<string> = new Set(VALID_EXPORT_SCOPES);
 
 // Invalid Date / 비-Date 입력은 명시적 error (deletion-window-select 의 assertValidDate 와
 // 동형 message convention — 해당 helper 가 export 되지 않아 본 파일에 mirror 한다).

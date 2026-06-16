@@ -15,33 +15,23 @@
 // 누적 검증 + non-mutating + 입력 방어)을 mirror 한다. selectExportRecords 처럼 첫 위반에서
 // throw 하지 않고, 여러 위반을 errors 배열에 모두 누적한다(UC-07 §7.3 form field-level error 가
 // 한 번에 여러 필드를 표시할 수 있어야 함). 검증 규칙의 source-of-truth 는 export-scope-select.ts
-// (VALID_SCOPES · ExportEntity · 반열림 [start,end) 정책)이며, 새 도메인 타입은 신설하지 않고
-// 그쪽 ExportScope / ExportEntity 를 재사용한다. REQ-032(raw 미저장)는 본 helper 가 scope option
-// 만 검사하고 record / raw 를 다루지 않으므로 helper layer 에서 자연 유지된다.
-import { ExportEntity, ExportScope } from "./export-scope-select";
+// 의 export 상수(VALID_EXPORT_SCOPES · VALID_EXPORT_ENTITIES) + ExportEntity · 반열림 [start,end)
+// 정책이며(T-0445 통합 — 더는 본 파일이 같은 목록을 mirror 하지 않는다), 새 도메인 타입은 신설
+// 하지 않고 그쪽 ExportScope / ExportEntity 를 재사용한다. REQ-032(raw 미저장)는 본 helper 가
+// scope option 만 검사하고 record / raw 를 다루지 않으므로 helper layer 에서 자연 유지된다.
+import {
+  ExportEntity,
+  ExportScope,
+  VALID_EXPORT_ENTITIES,
+  VALID_EXPORT_SCOPES,
+} from "./export-scope-select";
 
-// 허용 scope 값 — export-scope-select.ts 의 VALID_SCOPES 와 동일 집합(그쪽이 export 되지 않아
-// 본 파일에 같은 값을 mirror 한다). scope 차원 검증의 source-of-truth.
-const VALID_SCOPES: ReadonlyArray<ExportScope["scope"]> = [
-  "full",
-  "range",
-  "partial",
-];
+// 허용 scope/entity 멤버십 판정용 Set — export-scope-select.ts 의 단일 source-of-truth 상수
+// (VALID_EXPORT_SCOPES · VALID_EXPORT_ENTITIES)에서 파생한다. 더는 본 파일이 목록 literal 을
+// 들고 있지 않아, 한쪽만 바뀌어 silent 하게 어긋날 위험이 없다(T-0445 DRY 통합).
+const VALID_SCOPE_SET: ReadonlySet<string> = new Set(VALID_EXPORT_SCOPES);
 
-const VALID_SCOPE_SET: ReadonlySet<string> = new Set(VALID_SCOPES);
-
-// 허용 ExportEntity 5 종(UC-07 §6.1 entitySelector 목록 — export-scope-select.ts ExportEntity
-// union 과 동일 집합). partial scope 의 entitySelector 및 range+entitySelector AND 조합의 entity
-// 값 유효성 검증에 쓴다.
-const VALID_ENTITIES: ReadonlyArray<ExportEntity> = [
-  "Assessment",
-  "Person",
-  "Group",
-  "LlmConfig",
-  "AuditLog",
-];
-
-const VALID_ENTITY_SET: ReadonlySet<string> = new Set(VALID_ENTITIES);
+const VALID_ENTITY_SET: ReadonlySet<string> = new Set(VALID_EXPORT_ENTITIES);
 
 // 부적합 필드 식별자 — WebUI 의 form field 매핑용(§7.3 field-level error). 검출된 위반은 이
 // field + 한국어 message 쌍으로 errors 배열에 누적된다.
