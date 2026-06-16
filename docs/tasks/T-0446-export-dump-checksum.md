@@ -2,7 +2,7 @@
 id: T-0446
 title: UC-07 Export dump 무결성 checksum 산출·검증 순수 helper computeDumpChecksum/verifyDumpChecksum
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 165
@@ -60,3 +60,10 @@ P7 PLAN "Import/export/restore (R-57)" bullet 의 게이트-free 순수 helper s
 ## Follow-ups
 
 (작성 시 비어있음)
+
+## Result (DONE)
+
+- 완료: 2026-06-16T14:55Z (PR #357 squash-merge 7372165, reviewer round1 APPROVE, 4-게이트 PASS, CI green).
+- 신규 `src/export/export-dump-checksum.ts`(+200 LOC): `computeDumpChecksum(dump)` = ExportDump canonical 직렬화(JSON.stringify key 순서 비결정성 회피) 후 Node 내장 `crypto` sha256 64자 hex digest(결정적, 입력 방어 throw). `verifyDumpChecksum(dump, expected)` = `{valid, computed, expected}` verdict(비-throw, case-insensitive) — export-dump.ts / import-dump-validate.ts mirror 패턴. ExportDump 타입 재사용(새 타입 0), 새 외부 dependency 0(crypto 내장만).
+- 신규 colocated `export-dump-checksum.spec.ts`: line/branch/func 100% cov. happy(64자 hex)·결정성(field/record/순서 변경 시 digest 변화)·error path(null·누락 헤더·records 비-배열·Invalid Date·비-number)·negative(1자·대소문자·빈·비-string·길이·변조 dump)·non-mutating(freeze) 전부 cover(R-112 4종 충분). unit 3577 green. smoke/e2e 는 CI(DATABASE_URL)에서.
+- AC 전 항목 ok. UC-07 §5 step5 Note(무결성 hash) + §7.4(payload 무결성 hash 검증 실패→400, transaction 전 reject)의 byte-level 손상·변조 검출 gap 충족. REQ-032(raw 미저장)는 입력 dump 직렬화만 hash·raw 미fetch 로 자연 유지. 실 file streaming/HMAC·서명/envelope checksum 영속은 Out of Scope(후속 게이트).
