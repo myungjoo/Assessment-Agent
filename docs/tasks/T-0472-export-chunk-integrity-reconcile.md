@@ -2,7 +2,7 @@
 id: T-0472
 title: UC-07 §8 NFR chunked streaming 수신측 per-chunk 무결성 검증 결과로부터 재요청 지시(실패 chunk 식별·각 재요청 Content-Range 수치·재요청 byte 총량·전체 무결 여부)를 산정하는 순수 helper reconcileExportChunkIntegrity
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 220
