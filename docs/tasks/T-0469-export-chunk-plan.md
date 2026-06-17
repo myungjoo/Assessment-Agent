@@ -2,7 +2,10 @@
 id: T-0469
 title: UC-07 §8 NFR chunked streaming 의 실제 chunk 경계(개수·offset·size·마지막 잔여)를 산정하는 순수 helper buildExportChunkPlan
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: 07602e4
+prNumber: 380
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 195
