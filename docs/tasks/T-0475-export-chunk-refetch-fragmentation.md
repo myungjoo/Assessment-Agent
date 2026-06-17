@@ -2,7 +2,10 @@
 id: T-0475
 title: UC-07 §8 NFR chunked streaming 재요청 batch(T-0473)의 실패 byte 영역 분산(fragmentation) 형상을 정량화하는 순수 helper summariseExportChunkRefetchFragmentation
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T16:16:44Z
+prNumber: 386
+mergeCommit: 92e0e1b
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 200

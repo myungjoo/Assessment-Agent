@@ -7,38 +7,39 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0475",
-  "backlogNote": "T-0474(summariseExportChunkRefetchSavings) 완료(PR #385 squash 90df25d) — UC-07 §8 NFR chunked streaming 의 coalesceExportChunkRefetch(T-0473) 병합이 절감한 HTTP Range 요청 수(failedChunkCount-rangeCount)·절감률·통합 등급을 정량화하는 순수 helper(non-mutating·결정성). T-0437~T-0474 38 building block. planner 큐잉(2026-06-17): T-0475(summariseExportChunkRefetchFragmentation) — ExportChunkRefetchBatch(T-0473)의 실패 byte 영역 분산 형상(rangeCount·최대/최소/평균 범위 byte·범위당 평균 chunk·최대 범위 byte 비중·single/fragmented)을 정량화하는 순수 helper. T-0473 은 범위 배열만·T-0474 는 요청 수 절감만 노출 — 손상 byte 영역 분산 형상은 38 helper 중 0회 cover. git grep fragment|scatter|dispersion|largestRange src/export 0 도메인 매칭. pr·게이트-free·dependsOn []·새 dep 0·DRY(coalesce 재실행 금지·savings 중복 금지). 여전히 게이트된 후속: 실 streaming/byte slice/HTTP Range·guard/JWT·HTTP 401/403·WebUI·실 race detection·cancellation·Export/Import 실 배선(schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 그대로. tasksCompleted=466.",
+  "nextTask": "T-0476",
+  "backlogNote": "T-0475(summariseExportChunkRefetchFragmentation) merge(PR #386 squash 92e0e1b) — UC-07 §8 NFR chunked streaming 재요청 batch(T-0473)의 실패 byte 영역 분산 형상(rangeCount·최대/최소/평균 범위 byte·largestRangeShare·single/fragmented)을 정량화하는 순수 helper. T-0437~T-0475 39 building block. (주의: T-0475 DONE 의 STATE bookkeeping — tasksCompleted/mostRecentTasks/reviewRounds — 은 driver 가 처리; 본 planner 는 nextTask 만 갱신). planner 큐잉(2026-06-17): T-0476(summariseExportChunkRefetchGaps) — ExportChunkRefetchBatch(T-0473)의 분산된 재요청 범위 *사이*의 무결 byte gap(outer span·spannedBytes·gapBytes·largestGapBytes·averageGapBytes·gapRatio·gapCount·contiguous)을 정량화하는 순수 helper. coalesce(T-0473)는 범위 자체·savings(T-0474)는 요청 수 절감·fragmentation(T-0475)는 범위 *내부* 크기 분산만 노출 — 범위 *사이* 무결 byte gap(N개 분리 Range vs whole-span 한 번 Range 재전송 trade-off 입력)은 39 helper 중 0회 cover. git grep gapBytes|interRangeGap|outerSpan|spannedBytes|coverageSpan src/export 0 매칭. pr·게이트-free·dependsOn []·새 dep 0·DRY(coalesce 재실행 금지·savings/fragmentation 중복 금지). 여전히 게이트된 후속: 실 streaming/byte slice/HTTP Range·guard/JWT·HTTP 401/403·WebUI·실 race detection·cancellation·Export/Import 실 배선(schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 그대로. tasksCompleted=466(T-0475 bookkeeping 전 — driver 갱신 예정).",
   "lock": {
     "holder": null,
     "session": "loop@win-tt511",
-    "since": "2026-06-17T15:56:12Z",
-    "note": "loop@win-tt511 fire (로컬 /loop dynamic, turn cap 10) — origin/main 동기(c2812e6→ff→9f62da6, T-0473 이미 merged by cron@local15·T-0474 nextTask, merge CI green 확인 a01b047·9f62da6 success)→권위 lock CAS 획득(9b33c2d→934ed54)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0474 PASS→select-claim T-0474(claim 박제+lock tombstone release)→lock-free executor 1회 DONE(branch claude/T-0474-export-chunk-refetch-savings, 19305 test green, 신규 파일 stmt/branch/func/line 100% coverage)→PR #385 open→reviewer round1 APPROVE+comment(MINOR 0)→4-게이트 PASS+CI green(PR run 27701437949 success, 기본 검사+Docker smoke 둘 다 pass)→squash merge 90df25d branch 삭제→bookkeeping. tasksCompleted 465→466. planner T-0475 큐잉(summariseExportChunkRefetchFragmentation, pr, 게이트-free). 본 DONE direct doc commit 후 claim 제거([]). 단일-task fire(multi-task chain 미진입)."
+    "since": "2026-06-17T16:22:17Z",
+    "note": "loop@win-tt511 fire (로컬 /loop dynamic, turn cap 10) t3 — origin/main 동기(1036420→ff→92e0e1b, T-0474 bookkeeping CI green 1036420 success 확인)→권위 lock CAS 획득(c4484f9→540c446)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0475 PASS→select-claim T-0475(claim 박제+lock tombstone release)→lock-free executor 1회 DONE(branch claude/T-0475-export-chunk-refetch-fragmentation, 19350 test green, 신규 파일 stmt/branch/func/line 100% coverage, 45 test)→PR #386 open→reviewer round1 APPROVE+comment(MINOR 0)→4-게이트 PASS+CI green(PR run 27703099340 success, 기본 검사+Docker smoke 둘 다 pass)→squash merge 92e0e1b branch 삭제→bookkeeping. tasksCompleted 466→467. planner T-0476 큐잉(summariseExportChunkRefetchGaps, pr, 게이트-free). 본 DONE direct doc commit 후 claim 제거([]). 단일-task fire(multi-task chain 미진입)."
   },
-  "lastActivity": "2026-06-17T15:56:12Z",
-  "lastCommit": "90df25d",
+  "lastActivity": "2026-06-17T16:22:17Z",
+  "lastCommit": "92e0e1b",
   "mostRecentTasks": [
+    "T-0475",
     "T-0474",
     "T-0473",
     "T-0472",
-    "T-0471",
-    "T-0470"
+    "T-0471"
   ],
   "loopSession": {
-    "turnCount": 2,
+    "turnCount": 3,
     "cap": 10,
     "holder": "loop@win-tt511",
     "startedAt": "2026-06-17T15:10:44Z",
-    "note": "/loop win-tt511 (dynamic, turn cap 10; 로컬 PC ScheduleWakeup 가용). t1(15:10Z) stand-down — T-0473 이 cron@local15 활성 claim(PR #384)이라 no-op + 20분 wakeup. t2(15:36Z) T-0473 merged 확인→origin/main ff(9f62da6)→lock CAS 획득→T-0474 claim→executor DONE→PR #385 reviewer APPROVE→4-게이트 PASS+CI green→squash merge 90df25d→bookkeeping + planner T-0475 큐잉. 다음 turn: T-0475 execute(claimable 시)."
+    "note": "/loop win-tt511 (dynamic, turn cap 10; 로컬 PC ScheduleWakeup 가용). t1(15:10Z) stand-down — T-0473 cron@local15 활성 claim no-op. t2(15:36Z) T-0474 claim→PR #385→APPROVE→merge 90df25d→bookkeeping+planner T-0475. t3(16:04Z) T-0475 claim→executor DONE→PR #386 reviewer APPROVE→4-게이트 PASS+CI green(run 27703099340)→squash merge 92e0e1b→bookkeeping+planner T-0476. 다음 turn: T-0476 execute(claimable 시). turn 3/10 — 7 turn 여유."
   },
   "ci": {
-    "lastRun": "2026-06-17T15:56:12Z",
+    "lastRun": "2026-06-17T16:22:17Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0474 PR #385 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge 90df25d; PR run 27701437949 success, 기본 검사+Docker smoke 둘 다 pass). 직전 fire 의 T-0473 merge main push run(a01b047)·bookkeeping run(9f62da6)도 success 확인. consecutiveFails 0 유지."
+    "note": "T-0475 PR #386 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge 92e0e1b; PR run 27703099340 success, 기본 검사+Docker smoke 둘 다 pass). 직전 T-0474 merge(90df25d)·bookkeeping run(1036420)도 success 확인. consecutiveFails 0 유지."
   },
   "reviewRounds": {
+    "T-0475": 1,
     "T-0474": 1,
     "T-0473": 1,
     "T-0472": 1,
@@ -800,7 +801,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 466,
+    "tasksCompleted": 467,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
