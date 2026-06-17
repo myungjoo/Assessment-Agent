@@ -7,38 +7,39 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0481",
-  "backlogNote": "planner 큐잉(2026-06-17): T-0481(describeImportChunkUploadProgress) — IMPORT 측 pivot 지속. (주의: T-0480 DONE 시 STATE bookkeeping — tasksCompleted/mostRecentTasks/reviewRounds — 은 driver 처리; 본 planner 는 nextTask 만 갱신). export-streaming helper 공간(throughput snapshot/series·progress·resume·refetch coalesce/savings/fragmentation/gap/retry-budget·integrity reconcile) 사실상 포화. download 측 describeExportChunkStreamProgress(T-0470)의 대칭인 IMPORT *업로드 수신* 진행 view(진행률·status taxonomy not-started/uploading/stalled-incomplete/complete·resumeOffset)는 44 helper(T-0437~T-0480) 중 0회 cover. git grep -ic 'UploadProgress|describeImportChunkUpload|ImportUploadProgress|resumeOffset|uploadStatus' src/ 0 매칭 확인(issue-still-relevant pre-check). T-0480 validateImportChunkReassemblyOrder(검증/go-no-go)와 직교(검증 vs 진행 렌더 — 완전성 boolean·missing/duplicate 도출 안 함). T-0470 export download 진행과 직교(방향 보내는측 전달 vs 받는측 수신·입력 정적 plan+delivered vs 동적 수신 ImportChunkDescriptor[]·모델 content-range vs resumable status+resumeOffset). ImportChunkDescriptor 는 T-0480 import-chunk-reassembly-order.ts 에서 DRY-import(재정의 금지). pr·게이트-free·dependsOn []·새 dep 0·시계 read 0(stalled 는 시간 경과 아닌 시퀀스 gap 기반·수치는 caller 전달·실 업로드/byte slice/HTTP Range/resumable 프로토콜 0). touchesFiles disjoint(src/export/import-chunk-upload-progress.ts + spec)·maxConcurrentClaims=2 stage 5b direct-only 동시성과 무관(pr-mode 단독). 추가 import-측 후속 후보: chunk content-range 헤더 검증·중복 chunk dedup plan·reassembly resume 재요청 plan. 여전히 게이트된 후속: 실 streaming/byte slice/HTTP Range·타이머/시계 read·guard/JWT·HTTP 401/403·WebUI·실 race detection·cancellation·Export/Import 실 배선(schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 그대로. tasksCompleted=471(T-0479 bookkeeping 후 — 본 planner 미변경).",
+  "nextTask": "T-0482",
+  "backlogNote": "planner 큐잉(2026-06-17): T-0482(planImportChunkDeduplication) — IMPORT 측 pivot 지속. (주의: T-0481 DONE bookkeeping — tasksCompleted/mostRecentTasks/reviewRounds — 은 driver 처리; 본 planner 는 nextTask 만 갱신). resumable upload 재개 시 같은 chunk 가 재전송돼 수신 디스크립터에 중복 index·overlap byte 범위가 섞인다. T-0480 validate 는 duplicateIndexes/overlapBytes 를 *탐지(go/no-go)* 만 하고 actionable *dedup 계획*(어느 record 유지/폐기·keptChunks·redundant byte/record 통계)은 산정 안 함. 45 helper(T-0437~T-0481) 중 0회 cover — git grep -ic 'ImportChunkDedup|dedupImportChunk|describeImportChunkDuplicat|duplicateChunks|coalesceImportChunk' src/ → 0 매칭(issue-still-relevant pre-check). download 측 coalesceExportChunkRefetch(재요청 range 병합)의 대칭 IMPORT 측 resolve 이나 방향(보내는측 range 병합 vs 받는측 record dedup)·입력(요청 range vs 수신 ImportChunkDescriptor[])·출력(coalesce range vs 유지/폐기 record + 제거 통계) 직교. T-0480 validate(완전성/연속성 판정)·T-0481 progress(진행률/status/resumeOffset)와도 직교(중복 해소 결정만 — 완전성·gap·missingIndexes·진행률 도출 안 함). ImportChunkDescriptor 는 import-chunk-reassembly-order.ts 에서 DRY-import(재정의 금지). pr·게이트-free·dependsOn []·새 dep 0·시계 read 0(모든 수치 caller 전달·실 업로드/byte slice/HTTP Range/resumable 프로토콜 0). touchesFiles disjoint(src/export/import-chunk-dedup-plan.ts + spec)·maxConcurrentClaims=2 stage 5b direct-only 동시성과 무관(pr-mode 단독). 직전 큐잉 T-0481(describeImportChunkUploadProgress)은 PR #392 merge(HEAD 7866890). 추가 import-측 후속 후보: chunk content-range 헤더 검증·reassembly resume 재요청 plan·import-측 checksum 요약. 여전히 게이트된 후속: 실 streaming/byte slice/HTTP Range·타이머/시계 read·guard/JWT·HTTP 401/403·WebUI·실 race detection·cancellation·Export/Import 실 배선(schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 그대로. tasksCompleted=472(T-0480 bookkeeping 후 — 본 planner 미변경).",
   "lock": {
     "holder": null,
     "session": "loop@win-tt511",
-    "since": "2026-06-17T18:08:26Z",
-    "note": "loop@win-tt511 fire (로컬 /loop dynamic, turn cap 10) t8 — origin/main 동기(c7d43aa→ff→b2523a7, T-0479 bookkeeping CI green c7d43aa success 확인)→권위 lock CAS 획득(20499cb→7195a6f)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0480 PASS→select-claim T-0480(claim 박제+lock tombstone release)→lock-free executor 1회 DONE(branch claude/T-0480-import-chunk-reassembly-order-validate, 19539 test green, 신규 파일 stmt/branch/func/line 100% coverage, 44 test)→PR #391 open→reviewer round1 APPROVE+comment(finding 0, 검증 로직·non-mutation·TypeError-only AC 정합 검증)→4-게이트 PASS+CI green(PR run 27709337015 success, 기본 검사+Docker smoke 둘 다 pass)→squash merge b2523a7 branch 삭제→bookkeeping. tasksCompleted 471→472. planner T-0481 큐잉(describeImportChunkUploadProgress, pr, 게이트-free — IMPORT pivot 지속). 본 DONE direct doc commit 후 claim 제거([]). 단일-task fire(multi-task chain 미진입)."
+    "since": "2026-06-17T18:30:41Z",
+    "note": "loop@win-tt511 fire (로컬 /loop dynamic, turn cap 10) t9 — origin/main 동기(7e7dd74→ff→7866890, T-0480 bookkeeping CI green 7e7dd74 success 확인)→권위 lock CAS 획득(afd142b→c8ef42c)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0481 PASS→select-claim T-0481(claim 박제+lock tombstone release)→lock-free executor 1회 DONE(branch claude/T-0481-import-chunk-upload-progress-view, 19580 test green, 신규 파일 stmt/branch/func/line 100% coverage, 41 test)→PR #392 open→reviewer round1 APPROVE+comment(finding 0, NIT 1 — AC text index-sort vs impl offset-sort 동치 확인)→4-게이트 PASS+CI green(PR run 27710611561 success, 기본 검사+Docker smoke 둘 다 pass)→squash merge 7866890 branch 삭제→bookkeeping. tasksCompleted 472→473. planner T-0482 큐잉(planImportChunkDeduplication, pr, 게이트-free — IMPORT pivot 지속). 본 DONE direct doc commit 후 claim 제거([]). 단일-task fire(multi-task chain 미진입)."
   },
-  "lastActivity": "2026-06-17T18:08:26Z",
-  "lastCommit": "b2523a7",
+  "lastActivity": "2026-06-17T18:30:41Z",
+  "lastCommit": "7866890",
   "mostRecentTasks": [
+    "T-0481",
     "T-0480",
     "T-0479",
     "T-0478",
-    "T-0477",
-    "T-0476"
+    "T-0477"
   ],
   "loopSession": {
-    "turnCount": 8,
+    "turnCount": 9,
     "cap": 10,
     "holder": "loop@win-tt511",
     "startedAt": "2026-06-17T15:10:44Z",
-    "note": "/loop win-tt511 (dynamic, turn cap 10; 로컬 PC ScheduleWakeup 가용). t1 stand-down. t2 T-0474→90df25d. t3 T-0475→92e0e1b. t4 T-0476→1339f48. t5 T-0477→16ab736. t6 T-0478→549dfcd. t7 T-0479→8c8d286. t8(17:54Z) T-0480 claim→executor DONE→PR #391 reviewer APPROVE(finding 0)→4-게이트 PASS+CI green(run 27709337015)→squash merge b2523a7→bookkeeping+planner T-0481(IMPORT pivot 지속). 다음 turn: T-0481 execute(claimable 시). turn 8/10 — 2 turn 여유(t10 도달 시 cap 종료+cleanup 안내). T-0474~T-0480 7개 연속 round1 APPROVE merge."
+    "note": "/loop win-tt511 (dynamic, turn cap 10; 로컬 PC ScheduleWakeup 가용). t1 stand-down. t2-t9 매 turn 1 task: T-0474→90df25d, T-0475→92e0e1b, T-0476→1339f48, T-0477→16ab736, T-0478→549dfcd, T-0479→8c8d286, T-0480→b2523a7, t9(18:15Z) T-0481→PR #392 APPROVE(NIT 1)→merge 7866890→bookkeeping+planner T-0482. 다음 turn: T-0482 execute. turn 9/10 — 1 turn 남음(t10 완료 후 cap 종료 + /compact|/clear cleanup 안내). T-0474~T-0481 8개 연속 round1 APPROVE merge."
   },
   "ci": {
-    "lastRun": "2026-06-17T18:08:26Z",
+    "lastRun": "2026-06-17T18:30:41Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0480 PR #391 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge b2523a7; PR run 27709337015 success, 기본 검사+Docker smoke 둘 다 pass). 직전 T-0479 merge(8c8d286)·bookkeeping run(c7d43aa)도 success 확인. consecutiveFails 0 유지."
+    "note": "T-0481 PR #392 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge 7866890; PR run 27710611561 success, 기본 검사+Docker smoke 둘 다 pass). 직전 T-0480 merge(b2523a7)·bookkeeping run(7e7dd74)도 success 확인. consecutiveFails 0 유지."
   },
   "reviewRounds": {
+    "T-0481": 1,
     "T-0480": 1,
     "T-0479": 1,
     "T-0478": 1,
@@ -806,7 +807,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 472,
+    "tasksCompleted": 473,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

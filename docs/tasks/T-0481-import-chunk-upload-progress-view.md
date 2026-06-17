@@ -2,7 +2,10 @@
 id: T-0481
 title: UC-07 §8 NFR resumable upload Import 측 수신된 chunk 디스크립터로 업로드 진행 상태(진행률·상태 taxonomy·resume offset)를 순수 산술로 렌더하는 helper describeImportChunkUploadProgress
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T18:27:14Z
+prNumber: 392
+mergeCommit: 7866890
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 195
