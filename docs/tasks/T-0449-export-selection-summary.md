@@ -2,7 +2,10 @@
 id: T-0449
 title: UC-07 Export 선별 결과 영향 breakdown 요약 순수 helper summarizeExportSelection
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T00:53:00Z
+mergedAs: 7e555c4
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 170
