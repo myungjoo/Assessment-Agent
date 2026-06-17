@@ -2,7 +2,11 @@
 id: T-0457
 title: UC-07 Export 다운로드 artifact descriptor 조립 순수 helper buildExportArtifactDescriptor
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T07:15:27Z
+mergedAs: 89a49e1
+prNumber: 368
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 independentStream: uc07-export-import
