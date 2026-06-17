@@ -2,7 +2,10 @@
 id: T-0482
 title: UC-07 §8 NFR resumable upload Import 측 재전송으로 중복·overlap 된 수신 chunk 디스크립터에서 재조립용 유지/폐기 집합과 제거 통계를 순수 산술로 산정하는 helper planImportChunkDeduplication
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T18:47:27Z
+prNumber: 393
+mergeCommit: 0ab1b37
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 195
