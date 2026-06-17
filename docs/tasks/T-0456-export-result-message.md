@@ -2,7 +2,11 @@
 id: T-0456
 title: UC-07 Export 완료 결과 메시지 조립 순수 helper buildExportResult
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T06:55:00Z
+mergedAs: 7b6af6f
+prNumber: 367
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 190
