@@ -7,38 +7,39 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0474",
-  "backlogNote": "T-0473(coalesceExportChunkRefetch) 완료(PR #384 squash a01b047, reviewer APPROVE round1, 4-게이트 PASS, CI green) — UC-07 §8 NFR chunked streaming 의 reconcileExportChunkIntegrity(T-0472) 결과 중 인접(연속 index) 실패 chunk 들을 하나의 연속 byte 범위로 병합해 재요청 HTTP Range 요청 수를 최소화하는 순수 helper(연속 그룹 분할·inclusive byte 범위 병합·TypeError/RangeError 구분·non-mutating·결정성, 신규 파일 100% cov, 26 test). T-0437~T-0473 37 building block. planner 큐잉(2026-06-18): T-0474(summariseExportChunkRefetchSavings) — coalesceExportChunkRefetch(T-0473) 병합 전후의 요청 수 절감·절감률을 정량화하는 순수 helper. T-0473 은 병합 범위만 산출·절감 정량화는 37 helper 중 0회 cover. pr·게이트-free·dependsOn []·새 dep 0. 여전히 게이트된 후속: 실 streaming/byte slice/HTTP Range·guard/JWT·HTTP 401/403·WebUI·실 race detection·cancellation·Export/Import 실 배선(schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 그대로. tasksCompleted=465.",
+  "nextTask": "T-0475",
+  "backlogNote": "T-0474(summariseExportChunkRefetchSavings) 완료(PR #385 squash 90df25d) — UC-07 §8 NFR chunked streaming 의 coalesceExportChunkRefetch(T-0473) 병합이 절감한 HTTP Range 요청 수(failedChunkCount-rangeCount)·절감률·통합 등급을 정량화하는 순수 helper(non-mutating·결정성). T-0437~T-0474 38 building block. planner 큐잉(2026-06-17): T-0475(summariseExportChunkRefetchFragmentation) — ExportChunkRefetchBatch(T-0473)의 실패 byte 영역 분산 형상(rangeCount·최대/최소/평균 범위 byte·범위당 평균 chunk·최대 범위 byte 비중·single/fragmented)을 정량화하는 순수 helper. T-0473 은 범위 배열만·T-0474 는 요청 수 절감만 노출 — 손상 byte 영역 분산 형상은 38 helper 중 0회 cover. git grep fragment|scatter|dispersion|largestRange src/export 0 도메인 매칭. pr·게이트-free·dependsOn []·새 dep 0·DRY(coalesce 재실행 금지·savings 중복 금지). 여전히 게이트된 후속: 실 streaming/byte slice/HTTP Range·guard/JWT·HTTP 401/403·WebUI·실 race detection·cancellation·Export/Import 실 배선(schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 그대로. tasksCompleted=466.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa472x",
-    "since": "2026-06-17T14:38:18Z",
-    "note": "cron@local15-c2812e6 fire (aa-local-15, 매시 15분 trigger — 충돌 회피) — origin/main 동기(aab2420→reset→c2812e6, T-0472 이미 merged by cron@cloud·T-0473 nextTask, merge CI green 확인 7b0cc64·c2812e6 success)→권위 lock CAS 획득(ea19152→80a68fb)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0473 PASS→select-claim T-0473(claim 박제+lock tombstone release, tip 0c6fa2d)→lock-free executor 1회 DONE(branch claude/T-0473-export-chunk-refetch-coalesce, 4328 test green, 신규 파일 stmt/branch/func/line 100% coverage, 26 test)→integrator PR #384 open→reviewer round1 APPROVE+comment(MINOR 0)→4-게이트 PASS+CI green(PR run 8545ac3 success)→squash merge a01b047 branch 삭제→bookkeeping. tasksCompleted 464→465. planner T-0474 큐잉(summariseExportChunkRefetchSavings, pr, 게이트-free). 본 DONE direct doc commit 후 claim 제거([]). merge 후 main push run(a01b047) 은 in_progress — 다음 fire [1]에서 conclusion 재확인. 단일-task fire(multi-task chain 미진입)."
+    "session": "loop@win-tt511",
+    "since": "2026-06-17T15:56:12Z",
+    "note": "loop@win-tt511 fire (로컬 /loop dynamic, turn cap 10) — origin/main 동기(c2812e6→ff→9f62da6, T-0473 이미 merged by cron@local15·T-0474 nextTask, merge CI green 확인 a01b047·9f62da6 success)→권위 lock CAS 획득(9b33c2d→934ed54)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0474 PASS→select-claim T-0474(claim 박제+lock tombstone release)→lock-free executor 1회 DONE(branch claude/T-0474-export-chunk-refetch-savings, 19305 test green, 신규 파일 stmt/branch/func/line 100% coverage)→PR #385 open→reviewer round1 APPROVE+comment(MINOR 0)→4-게이트 PASS+CI green(PR run 27701437949 success, 기본 검사+Docker smoke 둘 다 pass)→squash merge 90df25d branch 삭제→bookkeeping. tasksCompleted 465→466. planner T-0475 큐잉(summariseExportChunkRefetchFragmentation, pr, 게이트-free). 본 DONE direct doc commit 후 claim 제거([]). 단일-task fire(multi-task chain 미진입)."
   },
-  "lastActivity": "2026-06-17T15:05:07Z",
-  "lastCommit": "a01b047",
+  "lastActivity": "2026-06-17T15:56:12Z",
+  "lastCommit": "90df25d",
   "mostRecentTasks": [
+    "T-0474",
     "T-0473",
     "T-0472",
     "T-0471",
-    "T-0470",
-    "T-0469"
+    "T-0470"
   ],
   "loopSession": {
-    "turnCount": 5,
-    "cap": 5,
-    "holder": "loop@cloud-qkcctz",
-    "startedAt": "2026-06-16T04:54:19Z",
-    "note": "/loop cloud-qkcctz (dynamic, turn cap 5; remote web ScheduleWakeup/cron 부재→session 내 순차 turn). t1 planner→T-0435, t2 T-0435 execute, t3 planner→T-0436, t4 T-0436 execute, t5(05:06Z) planner→T-0437(UC-07 Export scope helper, pr) 큐잉. turn cap 5 도달→session 종료(self-reschedule 불가 환경이라 다음 cron/새 /loop 가 T-0437 execute)."
+    "turnCount": 2,
+    "cap": 10,
+    "holder": "loop@win-tt511",
+    "startedAt": "2026-06-17T15:10:44Z",
+    "note": "/loop win-tt511 (dynamic, turn cap 10; 로컬 PC ScheduleWakeup 가용). t1(15:10Z) stand-down — T-0473 이 cron@local15 활성 claim(PR #384)이라 no-op + 20분 wakeup. t2(15:36Z) T-0473 merged 확인→origin/main ff(9f62da6)→lock CAS 획득→T-0474 claim→executor DONE→PR #385 reviewer APPROVE→4-게이트 PASS+CI green→squash merge 90df25d→bookkeeping + planner T-0475 큐잉. 다음 turn: T-0475 execute(claimable 시)."
   },
   "ci": {
-    "lastRun": "2026-06-17T15:05:07Z",
+    "lastRun": "2026-06-17T15:56:12Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0473 PR #384 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge a01b047; PR run 8545ac3 success). 직전 fire 의 T-0472 merge main push run(7b0cc64)·bookkeeping run(c2812e6)도 success 확인. merge 후 main push run(a01b047) 은 in_progress — 다음 fire [1]에서 conclusion 재확인. consecutiveFails 0 유지."
+    "note": "T-0474 PR #385 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge 90df25d; PR run 27701437949 success, 기본 검사+Docker smoke 둘 다 pass). 직전 fire 의 T-0473 merge main push run(a01b047)·bookkeeping run(9f62da6)도 success 확인. consecutiveFails 0 유지."
   },
   "reviewRounds": {
+    "T-0474": 1,
     "T-0473": 1,
     "T-0472": 1,
     "T-0471": 1,
@@ -799,7 +800,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 465,
+    "tasksCompleted": 466,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

@@ -2,7 +2,10 @@
 id: T-0474
 title: UC-07 §8 NFR chunked streaming 재요청 coalescing(T-0473)이 절감한 HTTP Range 요청 수·절감률을 정량화하는 순수 helper summariseExportChunkRefetchSavings
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T15:50:30Z
+prNumber: 385
+mergeCommit: 90df25d
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 200
