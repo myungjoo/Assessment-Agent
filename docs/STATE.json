@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0462",
-  "backlogNote": "**T-0461(buildRestoreFailureMessage) 완료(PR #372 squash fb4f803, reviewer APPROVE, 4-게이트 PASS round1, CI green) — T-0437~T-0461 25 building block 완비.** planner 큐잉(2026-06-17): **T-0462(describeExportScope) — UC-07 §5 step2 / §6.1 Export scope 선택 dialog 설명 메시지 조립 순수 helper(scope full/range/partial × dateRange × entitySelector → {headline,scopeKind,scopeLine,dateRangeLine?,entityLines[],readOnly}), pr, 게이트-free, dependsOn []).** T-0437~T-0461 25 building block 의 Export 측 마지막 사람-친화 단추 — Import 측 buildRestoreConfirmation(T-0453) 의 Export 대칭(read-only 라 destructive 경고 0). git grep describeExportScope/ExportScopeDescription src/export 0 매칭. touchesFiles(export-scope-description.ts/.spec) disjoint·dependsOn [] — stage 5b 동시 driver 안전. 여전히 게이트된 후속: 실 race detection(scheduler/pipeline polling)·cancellation protocol·Export/Import 실 배선(실 DB dump·entity-level FK·실 transaction restore·Audit row insert — schema/repository 게이트) 또는 REST controller(GET /api/admin/export·POST import — repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=453.",
+  "nextTask": "T-0463",
+  "backlogNote": "**T-0462(describeExportScope) 완료(PR #373 squash 7f0b9f7, reviewer APPROVE, 4-게이트 PASS round1, CI green) — T-0437~T-0462 26 building block 완비(Export 측 사람-친화 설명 단추 포함).** planner 큐잉(2026-06-17): T-0463(buildExportScopeRejection) — UC-07 §7.3 Export scope payload 검증 실패 사람-친화 안내 메시지(ExportScopeValidation verdict→{headline,detailLines,blocking}) 조립 순수 helper, Import 측 buildDumpValidationMessage(T-0459,§7.4)의 Export 대칭, pr·게이트-free·dependsOn []. git grep buildExportScopeRejection/ExportScopeRejectionMessage 0 매칭. 여전히 게이트된 후속: 실 race detection(scheduler/pipeline polling)·cancellation protocol·Export/Import 실 배선(실 DB dump·entity-level FK·실 transaction restore·Audit row insert — schema/repository 게이트) 또는 REST controller(GET /api/admin/export·POST import — repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=454.",
   "lock": {
     "holder": null,
-    "session": "cron@local15-7dd0347085",
-    "since": "2026-06-17T09:04:51Z",
-    "note": "cron@local15-7dd0347085 fire (aa-local-15, 매시 15분 trigger) — origin/main 동기(a0a01d3→reset→7dd0343, T-0460 이미 merged·T-0461 nextTask)→권위 lock CAS 획득(97f56cf→ae9214d)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0461 PASS→select-claim T-0461(claim 박제+lock tombstone release)→lock-free executor 1회 DONE(branch claude/T-0461-restore-failure-message @ 102d5d1, 3991 test green, 신규 파일 100% coverage)→integrator PR #372 open→reviewer round1 APPROVE+comment→4-게이트 PASS+CI green→squash merge fb4f803 branch 삭제→claim release([])→bookkeeping. tasksCompleted 452→453. planner T-0462 큐잉(describeExportScope, pr, 게이트-free). 본 DONE direct doc commit 후 claim 제거."
+    "session": "cron@cloud-13675",
+    "since": "2026-06-17T09:38:09Z",
+    "note": "cron@cloud-13675 fire (aa-local-scheduled, cloud fresh checkout) — origin/main 동기(7dd0343→ff→3e51393, T-0461 이미 merged·T-0462 nextTask)→권위 lock CAS 획득(7aca74a→2d2536c)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0462 PASS→select-claim T-0462(claim 박제+lock tombstone release 60f8263)→lock-free executor 1회 DONE(branch claude/T-0462-export-scope-description @ b444593, 4018 test green, 신규 파일 100% coverage)→integrator PR #373 open→reviewer round1 APPROVE+comment(MINOR 1: spec 포함 521 LOC>300 soft cap, R-112 선례 수용)→4-게이트 PASS+CI green→squash merge 7f0b9f7 branch 삭제→bookkeeping. tasksCompleted 453→454. planner T-0463 큐잉(buildExportScopeRejection, pr, 게이트-free). 본 DONE direct doc commit 후 claim 제거([])."
   },
-  "lastActivity": "2026-06-17T09:20:04Z",
-  "lastCommit": "fb4f803",
+  "lastActivity": "2026-06-17T09:56:00Z",
+  "lastCommit": "7f0b9f7",
   "mostRecentTasks": [
+    "T-0462",
     "T-0461",
     "T-0460",
     "T-0459",
-    "T-0458",
-    "T-0457"
+    "T-0458"
   ],
   "loopSession": {
     "turnCount": 5,
@@ -32,13 +32,14 @@
     "note": "/loop cloud-qkcctz (dynamic, turn cap 5; remote web ScheduleWakeup/cron 부재→session 내 순차 turn). t1 planner→T-0435, t2 T-0435 execute, t3 planner→T-0436, t4 T-0436 execute, t5(05:06Z) planner→T-0437(UC-07 Export scope helper, pr) 큐잉. turn cap 5 도달→session 종료(self-reschedule 불가 환경이라 다음 cron/새 /loop 가 T-0437 execute)."
   },
   "ci": {
-    "lastRun": "2026-06-17T09:20:04Z",
+    "lastRun": "2026-06-17T09:56:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0461 PR #372 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge fb4f803). consecutiveFails 0 유지."
+    "note": "T-0462 PR #373 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge 7f0b9f7). 병합 후 main CI run(7f0b9f7) completed success 확인. consecutiveFails 0 유지."
   },
   "reviewRounds": {
+    "T-0462": 1,
     "T-0461": 1,
     "T-0460": 1,
     "T-0459": 1,
@@ -787,7 +788,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 453,
+    "tasksCompleted": 454,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

@@ -2,7 +2,11 @@
 id: T-0462
 title: UC-07 Export scope 선택 사람-친화 설명 메시지 조립 순수 helper describeExportScope
 phase: P7
-status: PLANNER-QUEUED
+status: DONE
+completedAt: 2026-06-17
+mergedAs: 7f0b9f786614ae89c9b8f012a463ca3d08055d81
+prNumber: 373
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 190
