@@ -2,7 +2,7 @@
 id: T-0458
 title: UC-07 schema version 호환 판정 사람-친화 안내 메시지 조립 순수 helper buildVersionCompatMessage
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 dependsOn: []
