@@ -2,7 +2,10 @@
 id: T-0476
 title: UC-07 §8 NFR chunked streaming 재요청 batch(T-0473)의 분산된 실패 범위 *사이의 무결 byte gap*(outer span·총 gap byte·gap 개수·whole-span 재전송 trade-off)을 정량화하는 순수 helper summariseExportChunkRefetchGaps
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T16:40:38Z
+prNumber: 387
+mergeCommit: 1339f48
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 200
