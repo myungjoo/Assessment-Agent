@@ -2,7 +2,7 @@
 id: T-0451
 title: UC-07 Import merge-mode 충돌 검출·보고 순수 helper detectImportMergeConflicts
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 190
