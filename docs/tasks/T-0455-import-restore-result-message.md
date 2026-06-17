@@ -2,8 +2,12 @@
 id: T-0455
 title: UC-07 Import 복원 완료 결과 메시지 조립 순수 helper buildRestoreResult
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: fc20a97
+prNumber: 366
+reviewRounds: 1
+completedAt: 2026-06-17T06:19:51Z
 coversReq: [REQ-030, REQ-032, REQ-037]
 estimatedDiff: 190
 estimatedFiles: 2
