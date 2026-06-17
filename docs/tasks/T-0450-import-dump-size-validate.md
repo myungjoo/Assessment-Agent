@@ -2,7 +2,11 @@
 id: T-0450
 title: UC-07 Import dump 크기 한계 검증 순수 helper validateImportDumpSize
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T01:38:52Z
+mergedAs: 0798942
+prNumber: 361
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 180
