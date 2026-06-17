@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0466",
-  "backlogNote": "**T-0465(describeImportMode) 완료(PR #376 squash b715192, reviewer APPROVE round1, 4-게이트 PASS, CI green) — UC-07 §6.2 Import mode(replace/merge) 선택 설명 helper, Export 측 describeExportScope(T-0462)의 Import 대칭. T-0437~T-0465 29 building block.** planner 큐잉(2026-06-17): T-0466(estimateExportDumpSize) — UC-07 §8 NFR(대량 dump async/streaming) gap, ExportSelection 입력으로 예상 dump byte 크기·동기/async-streaming 권고 산정 순수 helper(실 직렬화/DB/streaming 0), Import 측 validateImportDumpSize(T-0450)의 Export 대칭. pr·게이트-free·dependsOn []·새 dep 0. git grep estimateExportDumpSize src/ 0 매칭. 여전히 게이트된 후속: 실 guard/JWT·HTTP 401/403 매핑·WebUI login redirect·실 race detection(scheduler/pipeline polling)·cancellation protocol·Export/Import 실 배선(실 DB dump·entity-level FK·실 transaction restore·Audit row insert — schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=457.",
+  "nextTask": "T-0467",
+  "backlogNote": "**T-0466(estimateExportDumpSize) 완료(PR #377 squash da36a4a, reviewer APPROVE round1, 4-게이트 PASS, CI green) — UC-07 §8 NFR Export dump 예상 크기 산정·async-streaming 권고 helper, Import 측 validateImportDumpSize(T-0450)의 Export 대칭. T-0437~T-0466 30 building block.** planner 큐잉(2026-06-17): T-0467(buildExportJobPlan) — UC-07 §8 NFR(대량 dump = long-running: async job + status polling + chunked streaming) gap. estimate(T-0466)가 recommendation·large 권고까지만 산출 — 그 권고를 실행 plan(즉시 다운로드 vs async-job descriptor: mode·status 상태집합·polling 안내·chunk 권고)으로 조립하는 순수 helper(실 job 생성/queue/status store/streaming/polling endpoint 0, estimate 입력만 — DRY). pr·게이트-free·dependsOn []·새 dep 0. git grep buildExportJobPlan|ExportJobPlan|asyncJob src/ 0 매칭. 여전히 게이트된 후속: 실 guard/JWT·HTTP 401/403 매핑·WebUI login redirect·실 race detection·cancellation protocol·Export/Import 실 배선(실 DB dump·entity-level FK·실 transaction restore·Audit row insert — schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=458.",
   "lock": {
     "holder": null,
-    "session": "cron@local15-e868699",
-    "since": "2026-06-17T11:04:00Z",
-    "note": "cron@local15-e868699 fire (aa-local-15, 매시 15분 trigger — 충돌 회피) — origin/main 동기(62cab4f→reset→e868699, T-0464 이미 merged·T-0465 nextTask)→권위 lock CAS 획득(42d2295→4b69818)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0465 PASS→select-claim T-0465(claim 박제+lock tombstone release 2411f6b)→lock-free executor 1회 DONE(branch claude/T-0465-import-mode-description @ 955d879, 4093 test green, 신규 파일 stmt/branch/func/line 100% coverage)→integrator PR #376 open→reviewer round1 APPROVE+comment(MINOR 0)→4-게이트 PASS+CI green(reviewer comment 가 first run approval-검증 step 도달 전 post 되어 race 없이 같은 run green)→squash merge b715192 branch 삭제→bookkeeping. tasksCompleted 456→457. planner T-0466 큐잉(estimateExportDumpSize, pr, 게이트-free). 본 DONE direct doc commit 후 claim 제거([])."
+    "session": "cron@cloud-aa53",
+    "since": "2026-06-17T11:34:00Z",
+    "note": "cron@cloud-aa53 fire (aa-local-scheduled, cloud fresh checkout, 매시 30분대 trigger — 충돌 회피) — origin/main 동기(e868699→ff→4a75071, T-0465 이미 merged·T-0466 nextTask)→권위 lock CAS 획득(5fa2e9e→352d66b)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0466 PASS→select-claim T-0466(claim 박제+lock tombstone release)→lock-free executor 1회 DONE(branch claude/T-0466-export-dump-size-estimate @ cc6077d, 4130 test green, 신규 파일 stmt/branch/func/line 100% coverage)→integrator PR #377 open→reviewer round1 APPROVE+comment(MINOR 0)→4-게이트 PASS+CI green→squash merge da36a4a branch 삭제→bookkeeping. tasksCompleted 457→458. planner T-0467 큐잉(buildExportJobPlan, pr, 게이트-free). 본 DONE direct doc commit 후 claim 제거([], 38fdf7e). merge 후 main push run 은 in_progress — 다음 fire [1]에서 conclusion 재확인."
   },
-  "lastActivity": "2026-06-17T11:08:00Z",
-  "lastCommit": "b715192",
+  "lastActivity": "2026-06-17T11:54:00Z",
+  "lastCommit": "da36a4a",
   "mostRecentTasks": [
+    "T-0466",
     "T-0465",
     "T-0464",
     "T-0463",
-    "T-0462",
-    "T-0461"
+    "T-0462"
   ],
   "loopSession": {
     "turnCount": 5,
@@ -32,13 +32,14 @@
     "note": "/loop cloud-qkcctz (dynamic, turn cap 5; remote web ScheduleWakeup/cron 부재→session 내 순차 turn). t1 planner→T-0435, t2 T-0435 execute, t3 planner→T-0436, t4 T-0436 execute, t5(05:06Z) planner→T-0437(UC-07 Export scope helper, pr) 큐잉. turn cap 5 도달→session 종료(self-reschedule 불가 환경이라 다음 cron/새 /loop 가 T-0437 execute)."
   },
   "ci": {
-    "lastRun": "2026-06-17T11:08:00Z",
+    "lastRun": "2026-06-17T11:54:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0465 PR #376 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge b715192). reviewer comment 가 first run(27684658253, event=pull_request) approval-검증 step 도달 전 post 되어 race 없이 같은 run green. merge 후 main push run 은 in_progress — 다음 fire [1]에서 conclusion 재확인. consecutiveFails 0 유지."
+    "note": "T-0466 PR #377 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge da36a4a). merge 후 main push run(da36a4a) 은 in_progress — 다음 fire [1]에서 conclusion 재확인. consecutiveFails 0 유지."
   },
   "reviewRounds": {
+    "T-0466": 1,
     "T-0465": 1,
     "T-0464": 1,
     "T-0463": 1,
@@ -791,7 +792,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 457,
+    "tasksCompleted": 458,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

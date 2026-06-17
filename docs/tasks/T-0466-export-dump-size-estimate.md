@@ -2,7 +2,7 @@
 id: T-0466
 title: UC-07 §8 NFR Export dump 예상 크기 산정·대량 dump async/streaming 권고 안내 순수 helper estimateExportDumpSize
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 200
