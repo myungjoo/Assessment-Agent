@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0470",
-  "backlogNote": "T-0469(buildExportChunkPlan) 완료(PR #380 squash 07602e4, reviewer APPROVE round1, 4-게이트 PASS, CI green) — UC-07 §8 NFR chunked streaming 의 chunk 경계(개수·byte offset·각 chunk size·마지막 잔여)를 estimatedBytes+chunkSizeBytes 입력으로 산정하는 순수 helper(chunkCount=ceil(total/size)·sum===totalBytes·인접 연속·gap/overlap 0 불변). T-0437~T-0469 33 building block. planner 큐잉(2026-06-17): T-0470(describeExportChunkStreamProgress) — UC-07 §8 NFR chunked streaming 전송 *진행 상태*(전달·잔여 chunk·전송 byte·진행률·현재 chunk content-range)를 렌더하는 순수 helper. buildExportChunkPlan(T-0469)은 정적 chunk 경계만 산출 — 전송 진행 상태는 33 helper 중 0회 cover. pr·게이트-free·dependsOn []·새 dep 0. 여전히 게이트된 후속: 실 streaming/byte slice/HTTP Range·guard/JWT·HTTP 401/403·WebUI·실 race detection·cancellation·Export/Import 실 배선(schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 그대로. tasksCompleted=461.",
+  "nextTask": "T-0471",
+  "backlogNote": "T-0470(describeExportChunkStreamProgress) 완료(PR #381 squash a73990b, reviewer APPROVE round1, 4-게이트 PASS, CI green) — UC-07 §8 NFR chunked streaming 전송 진행 상태(전달·잔여 chunk·전송 byte·진행률·현재 chunk content-range)를 ExportChunkPlan+deliveredChunks 입력으로 렌더하는 순수 helper(transferred+remaining===total·delivered+remaining===totalChunks·complete⟺currentChunk null 불변, non-mutating). T-0437~T-0470 34 building block. planner 큐잉(2026-06-17): T-0471(buildExportChunkResumePlan) — chunked streaming 중단 후 재개 지시(재개 시작 byte·잔여 chunk·재개 Content-Range 수치·재개 필요 여부)를 ExportChunkPlan+acknowledgedChunks 입력으로 산정하는 순수 helper. describeExportChunkStreamProgress(T-0470)는 순방향 진행 view 만 — 중단/재개 지시는 34 helper 중 0회 cover. pr·게이트-free·dependsOn []·새 dep 0. 여전히 게이트된 후속: 실 streaming/byte slice/HTTP Range·guard/JWT·HTTP 401/403·WebUI·실 race detection·cancellation·Export/Import 실 배선(schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 그대로. tasksCompleted=462.",
   "lock": {
     "holder": null,
-    "session": "cron@local15-c9afcd0",
-    "since": "2026-06-17T13:04:41Z",
-    "note": "cron@local15-c9afcd0 fire (aa-local-15, 매시 15분 trigger — 충돌 회피) — origin/main 동기(42dc41c→reset→c9afcd0, T-0468 이미 merged·T-0469 nextTask)→권위 lock CAS 획득(7d01852→82d5f74)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0469 PASS→select-claim T-0469(claim 박제+lock tombstone release c7296169)→lock-free executor 1회 DONE(branch claude/T-0469-export-chunk-plan @ 0667fb1, 4205 test green, 신규 파일 stmt/branch/func/line 100% coverage)→integrator PR #380 open→reviewer round1 APPROVE+comment(MINOR 0)→4-게이트 PASS+CI green→squash merge 07602e4 branch 삭제→bookkeeping. tasksCompleted 460→461. planner T-0470 큐잉(describeExportChunkStreamProgress, pr, 게이트-free). 본 DONE direct doc commit 후 claim 제거([]). merge 후 main push run(07602e4) 은 in_progress — 다음 fire [1]에서 conclusion 재확인."
+    "session": "cron@cloud-aa470x",
+    "since": "2026-06-17T13:38:21Z",
+    "note": "cron@cloud-aa470x fire (aa-local-scheduled, 매시 30분대 trigger — 충돌 회피) — origin/main 동기(c9afcd0→reset→a89ea41, T-0469 이미 merged by 다른 driver·T-0470 nextTask, merge CI green 확인)→권위 lock CAS 획득(47d9770→b4eb668)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0470 PASS→select-claim T-0470(claim 박제+lock tombstone release 0fb13d4)→lock-free executor 1회 DONE(branch claude/T-0470-export-chunk-stream-progress @ cccbae6, 4235 test green, 신규 파일 stmt/branch/func/line 100% coverage)→integrator PR #381 open→reviewer round1 APPROVE+comment(MINOR 0)→4-게이트 PASS+CI green→squash merge a73990b branch 삭제→bookkeeping. tasksCompleted 461→462. planner T-0471 큐잉(buildExportChunkResumePlan, pr, 게이트-free). 본 DONE direct doc commit 후 claim 제거([]). merge 후 main push run(a73990b) 은 in_progress — 다음 fire [1]에서 conclusion 재확인. 단일-task fire(multi-task chain 미진입)."
   },
-  "lastActivity": "2026-06-17T13:10:00Z",
-  "lastCommit": "07602e4",
+  "lastActivity": "2026-06-17T13:52:00Z",
+  "lastCommit": "a73990b",
   "mostRecentTasks": [
+    "T-0470",
     "T-0469",
     "T-0468",
     "T-0467",
-    "T-0466",
-    "T-0465"
+    "T-0466"
   ],
   "loopSession": {
     "turnCount": 5,
@@ -32,13 +32,14 @@
     "note": "/loop cloud-qkcctz (dynamic, turn cap 5; remote web ScheduleWakeup/cron 부재→session 내 순차 turn). t1 planner→T-0435, t2 T-0435 execute, t3 planner→T-0436, t4 T-0436 execute, t5(05:06Z) planner→T-0437(UC-07 Export scope helper, pr) 큐잉. turn cap 5 도달→session 종료(self-reschedule 불가 환경이라 다음 cron/새 /loop 가 T-0437 execute)."
   },
   "ci": {
-    "lastRun": "2026-06-17T13:10:00Z",
+    "lastRun": "2026-06-17T13:52:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0469 PR #380 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge 07602e4). merge 후 main push run(07602e4) 은 in_progress — 다음 fire [1]에서 conclusion 재확인. consecutiveFails 0 유지."
+    "note": "T-0470 PR #381 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge a73990b). 직전 fire 의 T-0469 merge main push run(07602e4)·bookkeeping run(a89ea41)도 success 확인. merge 후 main push run(a73990b) 은 in_progress — 다음 fire [1]에서 conclusion 재확인. consecutiveFails 0 유지."
   },
   "reviewRounds": {
+    "T-0470": 1,
     "T-0469": 1,
     "T-0468": 1,
     "T-0467": 1,
@@ -795,7 +796,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 461,
+    "tasksCompleted": 462,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

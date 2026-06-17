@@ -2,7 +2,10 @@
 id: T-0470
 title: UC-07 §8 NFR chunked streaming 진행 상태(전달·잔여 chunk·전송 byte·진행률·현재 chunk content-range)를 렌더하는 순수 helper describeExportChunkStreamProgress
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: a73990b
+prNumber: 381
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 195
