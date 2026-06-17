@@ -2,7 +2,7 @@
 id: T-0468
 title: UC-07 §8 NFR async Export job 현재 polling 상태를 사람-친화 진행 view 로 렌더하는 순수 helper describeExportJobStatus
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 195
@@ -59,3 +59,7 @@ UC-07 §8 NFR 은 대량 dump 를 "async job + **status polling** + chunked stre
 ## Follow-ups
 
 (없음 — 생성 시점)
+
+## 완료 기록
+
+- **DONE 2026-06-17** (PR [#379](https://github.com/myungjoo/Assessment-Agent/pull/379), squash merge `3261010`). reviewer APPROVE round1, 4-게이트 PASS, CI green. `describeExportJobStatus` 순수 helper + `ExportJobStatusView` 타입 신설(`ExportJobStatus` 는 `./export-job-plan` import 재사용). 신규 파일 stmt/branch/func/line 100% coverage, 4172 test green. happy 4 + error 8 + branch 3 + negative 7 test. 새 dep 0.
