@@ -2,7 +2,10 @@
 id: T-0460
 title: UC-07 §6.4 Import 진행중-작업 race precondition 판정 순수 helper evaluateImportRaceGuard
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: a36be02
+prNumber: 371
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-037]
 dependsOn: []
