@@ -2,7 +2,10 @@
 id: T-0477
 title: UC-07 §8 NFR chunked streaming 진행 상태(T-0470)와 경과 시간으로부터 전송 처리율(throughput)·잔여 ETA·정체(stall) 여부를 정량화하는 순수 helper estimateExportChunkStreamThroughput
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T17:02:40Z
+prNumber: 388
+mergeCommit: 16ab736
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 190
