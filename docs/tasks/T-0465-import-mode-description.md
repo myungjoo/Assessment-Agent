@@ -2,7 +2,10 @@
 id: T-0465
 title: UC-07 §6.2 Import mode(replace/merge) 선택 사람-친화 설명 메시지 조립 순수 helper describeImportMode
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: b715192
+prNumber: 376
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 195
@@ -68,3 +71,7 @@ implementer → tester
 ## Follow-ups
 
 (없음 — 생성 시점)
+
+## Result
+
+DONE (2026-06-17). PR [#376](https://github.com/myungjoo/Assessment-Agent/pull/376) round1 reviewer APPROVE + comment(MINOR 0) → 4-게이트 PASS + CI green → squash merge `b715192` branch 삭제. `describeImportMode(mode)` + `ImportModeDescription` interface 신설(`ImportRestoreMode` 재사용, 새 도메인 타입 0), 신규 파일 stmt/branch/func/line 100% coverage, 전체 suite 4093 test green.
