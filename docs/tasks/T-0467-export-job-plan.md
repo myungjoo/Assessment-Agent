@@ -2,7 +2,7 @@
 id: T-0467
 title: UC-07 §8 NFR Export 다운로드 실행 plan(동기 다운로드 vs async job + status polling) 조립 순수 helper buildExportJobPlan
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 195
