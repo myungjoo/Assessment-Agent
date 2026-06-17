@@ -14,7 +14,7 @@ touchesFiles:
   - src/export/export-selection-summary.ts
   - src/export/export-selection-summary.spec.ts
 hqOrigin: null
-prNumber: null
+prNumber: 360
 plannerNote: "P7 R-57/REQ-030 — UC-07 Export/Import 열두 번째 게이트-free 단추(selectExportRecords 산출 selected/excluded entity-별 breakdown 요약), pr, dependsOn []"
 ---
 
