@@ -2,7 +2,7 @@
 id: T-0452
 title: UC-07 Import 사전 검증 결과 통합 go/no-go 순수 helper summarizeImportPreflight
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 dependsOn: []
