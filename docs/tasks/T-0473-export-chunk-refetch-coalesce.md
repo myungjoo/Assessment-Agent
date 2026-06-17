@@ -2,7 +2,7 @@
 id: T-0473
 title: UC-07 §8 NFR chunked streaming per-chunk 무결성 재요청 지시(T-0472)의 인접 실패 chunk 를 연속 byte 범위로 병합해 재요청 HTTP Range 요청 수를 최소화하는 순수 helper coalesceExportChunkRefetch
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 220
