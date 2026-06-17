@@ -2,7 +2,10 @@
 id: T-0478
 title: UC-07 §8 NFR chunked streaming 의 여러 처리율 snapshot(T-0477) 시계열을 평균·최고·최저 전송 처리율과 정체 구간으로 평활·집계하는 순수 helper summariseExportChunkThroughputSeries
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T17:23:02Z
+prNumber: 389
+mergeCommit: 549dfcd
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 195
