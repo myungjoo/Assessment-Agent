@@ -2,7 +2,11 @@
 id: T-0461
 title: UC-07 §7.5 Import 복원 실패(DB write fail) 사람-친화 rollback 보장·재시도 안내 메시지 조립 순수 helper buildRestoreFailureMessage
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T09:20:04Z
+mergedAs: fb4f803
+prNumber: 372
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 dependsOn: []
