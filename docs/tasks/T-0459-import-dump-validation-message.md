@@ -2,8 +2,12 @@
 id: T-0459
 title: UC-07 Import dump 구조 검증 실패 사람-친화 안내 메시지 조립 순수 helper buildDumpValidationMessage
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-17T08:15:00Z
+completedBy: cron@local15-364f22Z
+resultCommit: 02800d5
+prNumber: 370
 coversReq: [REQ-030, REQ-032]
 dependsOn: []
 independentStream: uc07-export-import-helpers

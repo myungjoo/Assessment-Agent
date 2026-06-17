@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0459",
-  "backlogNote": "**T-0458(buildVersionCompatMessage) 완료(PR #369 squash 0f1e48e, reviewer APPROVE, 4-게이트 PASS, CI green) — T-0437~T-0458 22 building block 완비.** planner 큐잉(2026-06-17): **T-0459(P7 R-57/REQ-030·REQ-032 — UC-07 §7.4 Import dump 구조 검증 실패 사람-친화 file 재확인 안내 메시지 조립 순수 helper buildDumpValidationMessage, pr, 게이트-free, dependsOn []).** T-0440 validateImportDumpStructure 가 ImportDumpValidation{valid, issues: string[]} 구조화 verdict(진단용 terse 문자열 누적)만 산출하고, §7.4 가 명시한 transaction 전 reject + 사용자 file 재확인 안내(사람-친화 headline+detailLines+blocking 모델)는 22 helper 중 0회 cover — git grep buildDumpValidationMessage/DumpValidationMessage src/export 0 매칭 확인. pr-mode(src/export/import-dump-validate-message.ts + colocated spec 2파일, est ~190 LOC), R-112 4종 + negative 충분 acceptance 포함. touchesFiles disjoint·dependsOn [] — maxConcurrentClaims=2 stage 5b 동시 driver 안전. 여전히 게이트된 후속: Export/Import 실 배선(실 DB dump·entity-level FK 정합·실 transaction restore·Audit row insert — schema/repository 게이트) 또는 REST controller(GET /api/admin/export·POST import — repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=450.",
+  "nextTask": "T-0460",
+  "backlogNote": "**T-0459(buildDumpValidationMessage) 완료(PR #370 squash 02800d5, reviewer APPROVE, 4-게이트 PASS, CI green) — T-0437~T-0459 23 building block 완비.** planner 큐잉(2026-06-17): **T-0460(P7 R-57/REQ-030·REQ-037 — UC-07 §6.4/§7.6 Import 진행중-작업 race precondition 판정 순수 helper evaluateImportRaceGuard, pr, 게이트-free, dependsOn []).** §6.4(UC-01/UC-06 진행중 작업과 race 시 (i) default defer / (ii) interrupt 후 proceed 사용자 결정 위임) + §7.6(진행중 작업 비정상 timeout → 재시도) 의 proceed/defer/timeout 판정은 23 helper 중 0회 cover — git grep evaluateImportRaceGuard/ImportRaceGuard/ImportRaceVerdict src/ 0 매칭 확인. 입력 InProgressOperationState descriptor(실 scheduler/DB/pipeline state query 0)+now+timeoutMs+onConflict 정책으로 {verdict,blocking,reason,headline,detailLines} non-throw verdict 산출. pr-mode(src/export/import-race-guard.ts + colocated spec 2파일, est ~195 LOC), R-112 4종 + negative 충분 acceptance 포함. touchesFiles disjoint·dependsOn [] — maxConcurrentClaims=2 stage 5b 동시 driver 안전. 여전히 게이트된 후속: 실 race detection(scheduler/pipeline polling)·cancellation protocol·Export/Import 실 배선(실 DB dump·entity-level FK·실 transaction restore·Audit row insert — schema/repository 게이트) 또는 REST controller(GET /api/admin/export·POST import — repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=451.",
   "lock": {
     "holder": null,
-    "session": "cron@sched-0617a",
-    "since": "2026-06-17T07:37:46Z",
-    "note": "cron@sched-0617a fire (aa-local-scheduled) — origin/main 동기(dcfc018→reset→2f110fc, T-0457 이미 merged·T-0458 nextTask)→권위 lock tombstone(free) 확인→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→select-claim T-0458(claim 박제+lock tombstone release, 0f1e48e 전 CAS)→lock-free executor 1회 DONE→feature branch claude/T-0458-schema-version-message→PR #369 open→reviewer round1 APPROVE+comment→4-게이트 PASS+CI green→squash merge 0f1e48e branch 삭제. tasksCompleted 449→450. planner T-0459 큐잉(buildDumpValidationMessage, pr, 게이트-free) → 본 DONE direct doc commit 후 claim 제거(lock tombstone 는 select-claim 시점 이미 release)."
+    "session": "cron@local15-364f22Z",
+    "since": "2026-06-17T08:04:22Z",
+    "note": "cron@local15-364f22Z fire (aa-local-15, 매시 15분 trigger) — origin/main 동기(2f110fc→reset→364f53d, T-0458 이미 merged·T-0459 nextTask)→권위 lock CAS 획득(eb93986→e1921ce)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0459 PASS→select-claim T-0459(claim 박제+lock tombstone release, cc6d5e4)→lock-free executor 1회 DONE→feature branch claude/T-0459-import-dump-validation-message→PR #370 open→reviewer round1 APPROVE+comment→4-게이트 PASS+CI green→squash merge 02800d5 branch 삭제→bookkeeping. tasksCompleted 450→451. planner T-0460 큐잉(evaluateImportRaceGuard, pr, 게이트-free) → 본 DONE direct doc commit 후 claim 제거."
   },
-  "lastActivity": "2026-06-17T07:42:00Z",
-  "lastCommit": "0f1e48e",
+  "lastActivity": "2026-06-17T08:15:00Z",
+  "lastCommit": "02800d5",
   "mostRecentTasks": [
+    "T-0459",
     "T-0458",
     "T-0457",
     "T-0456",
-    "T-0455",
-    "T-0454"
+    "T-0455"
   ],
   "loopSession": {
     "turnCount": 5,
@@ -32,13 +32,14 @@
     "note": "/loop cloud-qkcctz (dynamic, turn cap 5; remote web ScheduleWakeup/cron 부재→session 내 순차 turn). t1 planner→T-0435, t2 T-0435 execute, t3 planner→T-0436, t4 T-0436 execute, t5(05:06Z) planner→T-0437(UC-07 Export scope helper, pr) 큐잉. turn cap 5 도달→session 종료(self-reschedule 불가 환경이라 다음 cron/새 /loop 가 T-0437 execute)."
   },
   "ci": {
-    "lastRun": "2026-06-17T07:42:00Z",
+    "lastRun": "2026-06-17T08:15:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0458 PR #369 CI green(4-게이트 PASS — reviewer approval gate 통과 후 squash merge 0f1e48e). 병합 후 main CI run(0f1e48e)은 in_progress — 다음 turn 재확인하되 PR 동일 content 이미 green. consecutiveFails 0."
+    "note": "T-0459 PR #370 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge 02800d5). consecutiveFails 0 유지."
   },
   "reviewRounds": {
+    "T-0459": 1,
     "T-0456": 1,
     "T-0451": 1,
     "T-0450": 1,
@@ -784,7 +785,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 450,
+    "tasksCompleted": 451,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
