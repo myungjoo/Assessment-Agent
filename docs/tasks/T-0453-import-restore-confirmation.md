@@ -2,7 +2,7 @@
 id: T-0453
 title: UC-07 Import 강한 confirmation dialog 메시지 조립 순수 helper buildRestoreConfirmation
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 190
@@ -62,3 +62,10 @@ PLAN.md P7 Export/Import(R-57) 의 게이트-free building block stream(독립 s
 ## Follow-ups
 
 (비어있음 — sub-agent 가 관련 작업 발견 시 추가)
+
+## Result (DONE 2026-06-17T04:48Z)
+
+- PR #364 squash merge `a49a337`, reviewer round1 APPROVE, 4-게이트 PASS, CI green.
+- 신규 `src/export/import-restore-confirmation.ts`(+160) — `buildRestoreConfirmation(summary, mode)` + `RestoreConfirmation` interface. `RestorePlanSummary`/`RestorePlanGroupBreakdown`/`ExportEntity` 재사용, 새 도메인 타입은 `RestoreConfirmation` 만, 새 외부 dep 0. `destructive===(mode==="replace" && deleted.total>0)`, `requiresExplicitConfirm===destructive`, headline·warnings·impactLines 한국어 조립, non-mutating, 한국어 TypeError 입력 방어.
+- 신규 spec 23 test pass(happy/error/branch/negative 충분 + deepFreeze regression), 신규 파일 stmt/line/func 100%·branch 90.62% cov(≥80%). full suite 3765 pass.
+- P7 Export/Import(R-57) 열여섯 번째 게이트-free 단추 shipped.

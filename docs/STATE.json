@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0453",
-  "backlogNote": "**planner(T-0452 머지 후 fire) 가 T-0453 큐잉 — UC-07 Import 강한 confirmation dialog 메시지 조립 순수 helper buildRestoreConfirmation(P7 R-57/REQ-030·REQ-032, pr, 게이트-free, dependsOn []).** T-0437~T-0452 의 16 building block 은 Import 영향 범위를 *구조화 데이터*(RestorePlanSummary{deleted/inserted/kept × total/perEntity}, ImportImpact, preflight verdict)로 박제했으나, UC-07 §5 step2·step7 + §3 trigger2 가 요구하는 '가장 destructive 한 흐름의 강한 confirmation dialog(destructive 명시 + 영향 범위 + 기존 데이터 삭제 경고 + 명시 확인)' 의 *메시지 모델 조립* 은 16 helper 중 0회 cover 된 gap — 실 controller/WebUI 가 RestorePlanSummary 를 매번 풀어 경고 문구를 중복 작성해야 함. buildRestoreConfirmation(summary, mode)=이미 산출된 RestorePlanSummary(T-0448) + import mode(replace/merge)를 입력으로 받아(재실행 0 — 순수 DRY 합성) {destructive, requiresExplicitConfirm, headline, warnings[], impactLines[]} 단일 confirmation 모델로 통합. destructive===(mode==='replace' && deleted.total>0), requiresExplicitConfirm===destructive, replace+삭제 row 존재 시 warnings 누적(throw 0), impactLines 는 deleted/inserted/kept 각 그룹 total + 0 아닌 perEntity 만 한국어 라인 나열. non-mutating, 빈 영향 정상, 입력 방어(summary 비-object/그룹 부재/total 비-정수/mode invalid → 한국어 TypeError). validator/plan 재실행 0(입력으로만 받음 — 게이트-free·새 dep 0), persistence/repository/transaction/REST 0, 새 도메인 타입 RestoreConfirmation 만(RestorePlanSummary/ExportEntity 재사용). REQ-032(raw 미저장)는 count metadata 만 다뤄 자연 유지. 실 transaction/REST/WebUI 렌더링은 게이트된 후속. issue-still-relevant pre-check: `git grep -rEl 'confirmation|destructive|경고' src/export` 매칭은 전부 주석 mention(실 dialog 메시지 builder 0), `RestoreConfirmation|buildRestoreConfirmation` 0 매칭(미존재 확인). pr-mode(src/export/import-restore-confirmation.ts + colocated spec 2파일, est ~190 LOC), R-112 4종 + negative 충분 acceptance 포함. STATE.nextTask=T-0453, counters·flags·lock·claims 불변.\\n\\n[ARCHIVED] T-0452(P7 R-57/REQ-030·REQ-032 — UC-07 Import 사전 검증 결과 통합 go/no-go 순수 helper summarizeImportPreflight, pr, 게이트-free) 완료(PR #363 squash eb966f6, reviewer round1 APPROVE, 4-게이트 PASS, CI green). T-0437~T-0451 14 building block 이 Import 사전 검증을 개별 verdict 단위(version/구조/size/checksum gate + merge-conflict report)로 박제했으나, UC-07 §7.4(transaction 전 reject — DB 변경 0) + §7.3(payload 검증 실패→400)가 요구하는 '모든 검증을 한데 모은 단일 go/no-go 결정'은 14 helper 중 0회 cover 된 gap 을 메우는 열다섯 번째 게이트-free 단추. summarizeImportPreflight(verdicts)=이미 산출된 sub-verdict(structure/version/size/checksum 필수 + mergeConflict 선택)를 입력으로 받아(재실행 0 — 순수 DRY 합성) {proceed, blockingIssues, warnings, summary} 단일 보고로 통합. structure/size/checksum invalid OR version reject → proceed=false + blockingIssues 누적(throw 0), version migrate + mergeConflict hasConflict → warnings 누적(차단 아님). proceed===(blockingIssues.length===0) 불변, non-mutating, 입력 방어(묶음/sub-verdict 부재·shape 불일치→한국어 TypeError). validator 재호출 0(입력으로만 받음), persistence/repository/transaction/REST 0, 새 도메인 타입/dep 0. REQ-032(raw 미저장) 자연 유지. 실 controller/transaction 진입·400/409 직렬화는 게이트된 후속. 신규 import-preflight-summary.ts/.spec.ts — 신규 파일 line/func 100%·branch 97.72% cov(R-112 4종 + negative 충분), 177 suites/3742 tests green(+682 LOC, 2 파일). 본 fire: cron@cloud-aalocal0617e 권위 lock CAS 획득(c5c13fd, prev tip 32c3c15 free tombstone)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims 2 게이트 OK(pr-mode 단독)→validate-claim-candidate PASS(touchesFiles disjoint·dependsOn [])→select-claim T-0452(claim 박제+lock tombstone 동반 release)→lock-free executor 1회(implement+test)→feature branch claude/T-0452-import-preflight-summary commit 506baa2 push→PR #363 open→reviewer round1 APPROVE+comment(gate2)→integrator 4-게이트 PASS+CI green(run 27664344743)→squash merge eb966f6 branch 삭제→bookkeeping lock 재획득→claims.json T-0452 제거+lock tombstone release. **이로써 P7 Export/Import(R-57) 열다섯 번째 게이트-free 단추 shipped — T-0437~T-0452 15 building block(scope select→dump→version/구조/size/checksum gate→영향/복원/audit→scope validate→merge-conflict report→preflight go/no-go aggregator) 완비.** 다음 우선순위(planner 미큐잉): Export/Import 실 배선(실 DB dump query·entity-level FK 정합·실 transaction restore·Audit row insert — schema/repository 게이트) 또는 REST controller(GET /api/admin/export·POST import — repository 게이트) 또는 게이트 없는 다음 단추(ADR-0036 5c 측정 등). 여전히 게이트된 후속: REQ-041 slice 2 후속 a/a-2/slice 3; REQ-027 slice 3. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=444.\n\n[ARCHIVED] planner(T-0451 머지 후 fire) 가 T-0452 큐잉 — summarizeImportPreflight(pr, 게이트-free, dependsOn []). 그 이전 task archive(T-0437~T-0451 등)는 git log --grep 'T-04' 로 추적.",
+  "nextTask": null,
+  "backlogNote": "**T-0453(P7 R-57/REQ-030·REQ-032 — UC-07 Import 강한 confirmation dialog 메시지 조립 순수 helper buildRestoreConfirmation, pr, 게이트-free) 완료(PR #364 squash a49a337, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** T-0437~T-0452 16 building block 이 Import 영향 범위를 구조화 데이터(RestorePlanSummary, ImportImpact, preflight verdict)로 박제했으나, UC-07 §5 step2·step7 + §3 trigger2 가 요구하는 강한 confirmation dialog 의 *메시지 모델 조립* 은 16 helper 중 0회 cover 된 gap 을 메우는 열여섯 번째 게이트-free 단추. buildRestoreConfirmation(summary, mode)=이미 산출된 RestorePlanSummary(T-0448) + import mode(replace/merge)를 입력으로 받아(재실행 0 — 순수 DRY 합성) {destructive, requiresExplicitConfirm, headline, warnings[], impactLines[]} 단일 confirmation 모델로 통합. destructive===(mode===replace && deleted.total>0), requiresExplicitConfirm===destructive, replace+삭제 row 존재 시 warnings 누적(throw 0), impactLines 는 deleted/inserted/kept 각 total + 0 아닌 perEntity 한국어 라인. non-mutating, 빈 영향 정상, 입력 방어(summary 비-object/그룹 부재/total 비-정수/mode invalid → 한국어 TypeError). validator/plan 재실행 0(입력으로만 받음 — 게이트-free·새 dep 0), persistence/repository/transaction/REST/UI 0, 새 도메인 타입 RestoreConfirmation 만(RestorePlanSummary/ExportEntity 재사용). REQ-032(raw 미저장) 자연 유지. 신규 import-restore-confirmation.ts/.spec.ts — 신규 파일 stmt/line/func 100%·branch 90.62% cov(R-112 4종 23 test + negative 충분 + deepFreeze regression), 3765 tests green(+160 LOC, 2 파일), 새 dep 0. 본 fire: cron@cloud-aalocal0617f 권위 lock CAS 획득(ec2696e, prev tip 83b5d1b free tombstone)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims 2 게이트 OK(pr-mode 단독)→validate-claim-candidate PASS→select-claim T-0453(claim 박제+lock tombstone release d9744f5)→lock-free executor 1회→feature branch→PR #364 open→reviewer round1 APPROVE+comment(gate2)→integrator 4-게이트 PASS+CI green→squash merge a49a337 branch 삭제→bookkeeping lock 재획득(4d201d6)→claims.json T-0453 제거+lock tombstone release. **이로써 P7 Export/Import(R-57) 열여섯 번째 게이트-free 단추 shipped — T-0437~T-0453 16 building block(scope select→dump→version/구조/size/checksum gate→영향/복원/audit→scope validate→merge-conflict report→preflight aggregator→confirmation 조립) 완비.** 다음 우선순위(planner 미큐잉): Export/Import 실 배선(실 DB dump query·entity-level FK 정합·실 transaction restore·Audit row insert — schema/repository 게이트) 또는 REST controller(GET /api/admin/export·POST import — repository 게이트) 또는 게이트 없는 다음 단추(ADR-0036 5c 측정 등). 여전히 게이트된 후속: REQ-041 slice 2 후속 a/a-2/slice 3; REQ-027 slice 3. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=445.\n\n[ARCHIVED] planner(T-0452 머지 후 fire) 가 T-0453 큐잉 — buildRestoreConfirmation(pr, 게이트-free, dependsOn []). 그 이전 task archive(T-0437~T-0452 등)는 git log --grep T-04 로 추적.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aalocal0617e",
-    "since": "2026-06-17T03:42:00Z",
-    "note": "cron@cloud-aalocal0617e fire 완료 (mirror release). origin/main 동기(41bac77→T-0452 nextTask)→권위 lock CAS 획득(c5c13fd, prev tip 32c3c15 free tombstone)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate PASS→select-claim T-0452(claim 박제+lock tombstone release)→lock-free executor 1회 DONE→feature branch claude/T-0452-import-preflight-summary commit 506baa2 push→PR #363 open→reviewer round1 APPROVE+comment→4-게이트 PASS+CI green→squash merge eb966f6 branch 삭제→본 DONE direct doc commit 후 claims.json T-0452 제거+lock tombstone release. tasksCompleted 443→444."
+    "session": "cron@cloud-aalocal0617f",
+    "since": "2026-06-17T04:48:00Z",
+    "note": "cron@cloud-aalocal0617f fire 완료 (mirror release). origin/main 동기(33c60e3→T-0453 nextTask)→권위 lock CAS 획득(ec2696e, prev tip 83b5d1b free tombstone, server-time 04:37:26Z)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate PASS→select-claim T-0453(claim 박제+lock tombstone release d9744f5)→lock-free executor 1회 DONE→feature branch claude/T-0453-import-restore-confirmation→PR #364 open→reviewer round1 APPROVE+comment→4-게이트 PASS+CI green→squash merge a49a337 branch 삭제→bookkeeping lock 재획득(4d201d6)→본 DONE direct doc commit 후 claims.json T-0453 제거+lock tombstone release. tasksCompleted 444→445."
   },
-  "lastActivity": "2026-06-17T03:42:00Z",
-  "lastCommit": "eb966f6",
+  "lastActivity": "2026-06-17T04:48:00Z",
+  "lastCommit": "a49a337",
   "mostRecentTasks": [
+    "T-0453",
     "T-0452",
     "T-0451",
     "T-0450",
-    "T-0449",
-    "T-0448"
+    "T-0449"
   ],
   "loopSession": {
     "turnCount": 5,
@@ -32,11 +32,11 @@
     "note": "/loop cloud-qkcctz (dynamic, turn cap 5; remote web ScheduleWakeup/cron 부재→session 내 순차 turn). t1 planner→T-0435, t2 T-0435 execute, t3 planner→T-0436, t4 T-0436 execute, t5(05:06Z) planner→T-0437(UC-07 Export scope helper, pr) 큐잉. turn cap 5 도달→session 종료(self-reschedule 불가 환경이라 다음 cron/새 /loop 가 T-0437 execute)."
   },
   "ci": {
-    "lastRun": "2026-06-17T03:42:00Z",
+    "lastRun": "2026-06-17T04:48:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0452 PR #363 CI green(round1, 4-게이트 PASS — reviewer approval gate 첫 run 통과, run 27664344743). consecutiveFails 0 유지."
+    "note": "T-0453 PR #364 CI green(round1, 4-게이트 PASS — reviewer approval gate 첫 run 통과). consecutiveFails 0 유지."
   },
   "reviewRounds": {
     "T-0451": 1,
@@ -203,7 +203,8 @@
     "T-0443": 1,
     "T-0446": 1,
     "T-0449": 1,
-    "T-0452": 1
+    "T-0452": 1,
+    "T-0453": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -780,7 +781,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 444,
+    "tasksCompleted": 445,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
