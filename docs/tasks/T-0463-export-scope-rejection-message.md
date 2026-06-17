@@ -2,7 +2,11 @@
 id: T-0463
 title: UC-07 §7.3 Export scope payload 검증 실패 사람-친화 안내 메시지 조립 순수 helper buildExportScopeRejection
 phase: P7
-status: PLANNER-QUEUED
+status: DONE
+mergedAs: 400e7da
+prNumber: 374
+reviewRounds: 1
+completedAt: 2026-06-17T10:27:07Z
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 190
