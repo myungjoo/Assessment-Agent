@@ -2,7 +2,10 @@
 id: T-0479
 title: UC-07 §8 NFR chunked streaming 부분 손상 재요청의 재시도 예산(최대 시도 수·사용 시도 수) 잔여·소진·추가 재시도 허용 여부를 순수 산술로 derive 하는 helper deriveExportChunkRefetchRetryBudget
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T17:43:57Z
+prNumber: 390
+mergeCommit: 8c8d286
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 190
