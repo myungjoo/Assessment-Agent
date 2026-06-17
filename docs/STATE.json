@@ -7,38 +7,39 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0480",
-  "backlogNote": "T-0479(deriveExportChunkRefetchRetryBudget) 큐잉 후 — export-streaming helper 공간(throughput snapshot/series·progress·resume·refetch coalesce/savings/fragmentation/gap/retry-budget·integrity reconcile) 사실상 포화. (주의: T-0479 DONE 시 STATE bookkeeping — tasksCompleted/mostRecentTasks/reviewRounds — 은 driver 처리; 본 planner 는 nextTask 만 갱신). planner 큐잉(2026-06-17): T-0480(validateImportChunkReassemblyOrder) — export-streaming 포화 진단 후 IMPORT 측으로 pivot. 기존 43 helper(T-0437~T-0479)는 거의 전부 Export 측(다운로드/재요청). chunked 전송의 대칭 책임인 Import 측(수신·업로드) — 수신된 dump chunk 디스크립터(index·offset·size)가 완전·연속·무중복·정렬된 reassembly 가능 시퀀스인지(complete·missingIndexes·duplicateIndexes·gapBytes·overlapBytes·byteShortfall·nextExpectedOffset) 검증은 43 helper 중 0회 cover. git grep -iwl 'ImportChunk|reassembl|validateImportChunk|nextExpectedOffset|expectedSequence' src/ 0 매칭 확인. export refetch-gap(T-0476: 손상된 *재요청* 대상)·import-merge-conflict(T-0451: record-level)·import-preflight(T-0452: 구조/크기 go/no-go)와 직교(방향 다운로드 vs 업로드·목적 재요청 vs 재조립 go/no-go). pr·게이트-free·dependsOn []·새 dep 0·DRY(export refetch 도메인 재호출 금지·수치는 caller 전달)·시계 read 0(실 업로드/byte slice/HTTP Range/resumable upload 프로토콜 0). 추가 import-측 후속 후보: chunk content-range 헤더 검증·업로드 진행률 view·중복 chunk dedup plan. 여전히 게이트된 후속: 실 streaming/byte slice/HTTP Range·타이머/시계 read·guard/JWT·HTTP 401/403·WebUI·실 race detection·cancellation·Export/Import 실 배선(schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 그대로. tasksCompleted=469(T-0478 bookkeeping 전 — driver 갱신 예정).",
+  "nextTask": "T-0481",
+  "backlogNote": "planner 큐잉(2026-06-17): T-0481(describeImportChunkUploadProgress) — IMPORT 측 pivot 지속. (주의: T-0480 DONE 시 STATE bookkeeping — tasksCompleted/mostRecentTasks/reviewRounds — 은 driver 처리; 본 planner 는 nextTask 만 갱신). export-streaming helper 공간(throughput snapshot/series·progress·resume·refetch coalesce/savings/fragmentation/gap/retry-budget·integrity reconcile) 사실상 포화. download 측 describeExportChunkStreamProgress(T-0470)의 대칭인 IMPORT *업로드 수신* 진행 view(진행률·status taxonomy not-started/uploading/stalled-incomplete/complete·resumeOffset)는 44 helper(T-0437~T-0480) 중 0회 cover. git grep -ic 'UploadProgress|describeImportChunkUpload|ImportUploadProgress|resumeOffset|uploadStatus' src/ 0 매칭 확인(issue-still-relevant pre-check). T-0480 validateImportChunkReassemblyOrder(검증/go-no-go)와 직교(검증 vs 진행 렌더 — 완전성 boolean·missing/duplicate 도출 안 함). T-0470 export download 진행과 직교(방향 보내는측 전달 vs 받는측 수신·입력 정적 plan+delivered vs 동적 수신 ImportChunkDescriptor[]·모델 content-range vs resumable status+resumeOffset). ImportChunkDescriptor 는 T-0480 import-chunk-reassembly-order.ts 에서 DRY-import(재정의 금지). pr·게이트-free·dependsOn []·새 dep 0·시계 read 0(stalled 는 시간 경과 아닌 시퀀스 gap 기반·수치는 caller 전달·실 업로드/byte slice/HTTP Range/resumable 프로토콜 0). touchesFiles disjoint(src/export/import-chunk-upload-progress.ts + spec)·maxConcurrentClaims=2 stage 5b direct-only 동시성과 무관(pr-mode 단독). 추가 import-측 후속 후보: chunk content-range 헤더 검증·중복 chunk dedup plan·reassembly resume 재요청 plan. 여전히 게이트된 후속: 실 streaming/byte slice/HTTP Range·타이머/시계 read·guard/JWT·HTTP 401/403·WebUI·실 race detection·cancellation·Export/Import 실 배선(schema/repository 게이트) 또는 REST controller(repository 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 그대로. tasksCompleted=471(T-0479 bookkeeping 후 — 본 planner 미변경).",
   "lock": {
     "holder": null,
     "session": "loop@win-tt511",
-    "since": "2026-06-17T17:48:10Z",
-    "note": "loop@win-tt511 fire (로컬 /loop dynamic, turn cap 10) t7 — origin/main 동기(0df5dee→ff→8c8d286, T-0478 bookkeeping CI green 0df5dee success 확인)→권위 lock CAS 획득(418644a→f5bd5f8)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0479 PASS→select-claim T-0479(claim 박제+lock tombstone release)→lock-free executor 1회 DONE(branch claude/T-0479-export-chunk-refetch-retry-budget, 19495 test green, 신규 파일 stmt/branch/func/line 100% coverage, 40 test)→PR #390 open→reviewer round1 APPROVE+comment(finding 0, used>max clamp AC 정합 검증)→4-게이트 PASS+CI green(PR run 27708134129 success, 기본 검사+Docker smoke 둘 다 pass)→squash merge 8c8d286 branch 삭제→bookkeeping. tasksCompleted 470→471. planner T-0480 큐잉(validateImportChunkReassemblyOrder, pr, 게이트-free — IMPORT 측 pivot). 본 DONE direct doc commit 후 claim 제거([]). 단일-task fire(multi-task chain 미진입)."
+    "since": "2026-06-17T18:08:26Z",
+    "note": "loop@win-tt511 fire (로컬 /loop dynamic, turn cap 10) t8 — origin/main 동기(c7d43aa→ff→b2523a7, T-0479 bookkeeping CI green c7d43aa success 확인)→권위 lock CAS 획득(20499cb→7195a6f)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0480 PASS→select-claim T-0480(claim 박제+lock tombstone release)→lock-free executor 1회 DONE(branch claude/T-0480-import-chunk-reassembly-order-validate, 19539 test green, 신규 파일 stmt/branch/func/line 100% coverage, 44 test)→PR #391 open→reviewer round1 APPROVE+comment(finding 0, 검증 로직·non-mutation·TypeError-only AC 정합 검증)→4-게이트 PASS+CI green(PR run 27709337015 success, 기본 검사+Docker smoke 둘 다 pass)→squash merge b2523a7 branch 삭제→bookkeeping. tasksCompleted 471→472. planner T-0481 큐잉(describeImportChunkUploadProgress, pr, 게이트-free — IMPORT pivot 지속). 본 DONE direct doc commit 후 claim 제거([]). 단일-task fire(multi-task chain 미진입)."
   },
-  "lastActivity": "2026-06-17T17:48:10Z",
-  "lastCommit": "8c8d286",
+  "lastActivity": "2026-06-17T18:08:26Z",
+  "lastCommit": "b2523a7",
   "mostRecentTasks": [
+    "T-0480",
     "T-0479",
     "T-0478",
     "T-0477",
-    "T-0476",
-    "T-0475"
+    "T-0476"
   ],
   "loopSession": {
-    "turnCount": 7,
+    "turnCount": 8,
     "cap": 10,
     "holder": "loop@win-tt511",
     "startedAt": "2026-06-17T15:10:44Z",
-    "note": "/loop win-tt511 (dynamic, turn cap 10; 로컬 PC ScheduleWakeup 가용). t1 stand-down(T-0473 cron@local15). t2 T-0474→90df25d. t3 T-0475→92e0e1b. t4 T-0476→1339f48. t5 T-0477→16ab736. t6 T-0478→549dfcd. t7(17:33Z) T-0479 claim→executor DONE→PR #390 reviewer APPROVE(finding 0)→4-게이트 PASS+CI green(run 27708134129)→squash merge 8c8d286→bookkeeping+planner T-0480(IMPORT 측 pivot). 다음 turn: T-0480 execute(claimable 시). turn 7/10 — 3 turn 여유. T-0474~T-0479 6개 연속 round1 APPROVE merge."
+    "note": "/loop win-tt511 (dynamic, turn cap 10; 로컬 PC ScheduleWakeup 가용). t1 stand-down. t2 T-0474→90df25d. t3 T-0475→92e0e1b. t4 T-0476→1339f48. t5 T-0477→16ab736. t6 T-0478→549dfcd. t7 T-0479→8c8d286. t8(17:54Z) T-0480 claim→executor DONE→PR #391 reviewer APPROVE(finding 0)→4-게이트 PASS+CI green(run 27709337015)→squash merge b2523a7→bookkeeping+planner T-0481(IMPORT pivot 지속). 다음 turn: T-0481 execute(claimable 시). turn 8/10 — 2 turn 여유(t10 도달 시 cap 종료+cleanup 안내). T-0474~T-0480 7개 연속 round1 APPROVE merge."
   },
   "ci": {
-    "lastRun": "2026-06-17T17:48:10Z",
+    "lastRun": "2026-06-17T18:08:26Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0479 PR #390 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge 8c8d286; PR run 27708134129 success, 기본 검사+Docker smoke 둘 다 pass). 직전 T-0478 merge(549dfcd)·bookkeeping run(0df5dee)도 success 확인. consecutiveFails 0 유지."
+    "note": "T-0480 PR #391 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge b2523a7; PR run 27709337015 success, 기본 검사+Docker smoke 둘 다 pass). 직전 T-0479 merge(8c8d286)·bookkeeping run(c7d43aa)도 success 확인. consecutiveFails 0 유지."
   },
   "reviewRounds": {
+    "T-0480": 1,
     "T-0479": 1,
     "T-0478": 1,
     "T-0477": 1,
@@ -805,7 +806,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 471,
+    "tasksCompleted": 472,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

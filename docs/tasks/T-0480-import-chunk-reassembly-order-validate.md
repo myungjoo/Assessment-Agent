@@ -2,7 +2,10 @@
 id: T-0480
 title: UC-07 §8 NFR chunked upload Import 측 수신 chunk 디스크립터가 완전·연속·무중복·정렬된 reassembly 가능한 시퀀스인지 순수 산술로 검증하는 helper validateImportChunkReassemblyOrder
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-17T18:04:45Z
+prNumber: 391
+mergeCommit: b2523a7
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 195
