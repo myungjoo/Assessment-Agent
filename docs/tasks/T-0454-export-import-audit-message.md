@@ -2,8 +2,11 @@
 id: T-0454
 title: UC-07 Export/Import Audit entry 사람-친화 로그 메시지 조립 순수 helper formatAuditLogLine
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 06ceef4
+prNumber: 365
+reviewRounds: 1
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 190
 estimatedFiles: 2

@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0454",
-  "backlogNote": "**T-0454(P7 R-57/REQ-030·REQ-032 — UC-07 Export/Import Audit entry 사람-친화 로그 메시지 조립 순수 helper formatAuditLogLine, pr, 게이트-free, dependsOn []) PLANNER-QUEUED.** T-0443 buildExportImportAuditEntry 가 audit 항목을 구조화 ExportImportAuditEntry{operation/actorId/actorRole/occurredAt/rowCount/detail} 객체로 박제했으나, UC-07 §8 (b)(e) Audit row 가 요구하는 '사람이 읽을 단일 로그 메시지 라인 조립'은 17 helper 중 0회 cover 된 gap — 실 controller/audit viewer 배선이 entry 를 매번 풀어 표시 문구 중복 작성해야 함. formatAuditLogLine(entry)=ExportImportAuditEntry 입력(재실행 0 — 순수 DRY 합성)→{headline, detailLines[], operation} AuditLogMessage 조립. export 분기는 scope 요약 + 0 아닌 entityCounts 라인, import 분기는 mode + deleted/inserted/kept + source 라인. non-mutating, 입력 방어(한국어 TypeError/RangeError). T-0453 buildRestoreConfirmation(구조화→사람-친화 모델)과 동형 패턴. persistence/repository/transaction/REST/logger 0, 새 도메인 타입 AuditLogMessage 만(ExportImportAuditEntry/ExportScope/ExportEntity 재사용), 새 dep 0. REQ-032(raw 미저장) 자연 유지. issue-still-relevant pre-check: git grep 'summarizeAuditEntry|formatAuditEntry|formatAuditLogLine|auditMessage|AuditLogMessage' src/export 0 매칭(미존재 확인) + 17 helper 어디에도 audit 메시지 formatter 0. pr-mode(src/export/export-import-audit-message.ts + colocated spec 2파일, est ~190 LOC), R-112 4종 + negative 충분 acceptance 포함. STATE.nextTask=T-0454, counters·flags·lock·claims 불변. 여전히 게이트된 후속: Export/Import 실 배선(실 DB dump query·entity-level FK 정합·실 transaction restore·Audit row insert — schema/repository 게이트) / REST controller(GET /api/admin/export·POST import — repository 게이트) / REQ-041 slice 2 후속 a/a-2/slice 3 / REQ-027 slice 3 / 기타(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone). tasksCompleted=445.\n\n[ARCHIVED] T-0453(buildRestoreConfirmation, 게이트-free) 완료(PR #364 squash a49a337, reviewer round1 APPROVE, 4-게이트 PASS, CI green) — P7 Export/Import(R-57) 16 building block(scope select→dump→version/구조/size/checksum gate→영향/복원/audit→scope validate→merge-conflict report→preflight aggregator→confirmation 조립) 완비. 그 이전 task archive(T-0437~T-0452 등)는 git log --grep T-04 로 추적.",
+  "nextTask": null,
+  "backlogNote": "**T-0454(P7 R-57/REQ-030·REQ-032 — UC-07 Export/Import Audit entry 사람-친화 로그 메시지 조립 순수 helper formatAuditLogLine, pr, 게이트-free) 완료(PR #365 squash 06ceef4, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** ExportImportAuditEntry(T-0437~ 계열)를 입력으로 받아 AuditLogMessage{headline, detailLines[], operation} 단일 모델로 합성 — export/import 분기별 detailLines + 한국어 입력 방어, 순수 DRY 합성(재실행 0·새 dep 0·persistence/DB/REST 0). 신규 export-import-audit-message.ts/.spec.ts(신규 파일 line/branch/func 100% cov, R-112 4종 38 test + negative 충분), 3803 tests green(+732 LOC, 2 파일). 다음 우선순위(planner 큐잉 예정): Export/Import 실 배선(실 DB dump·entity-level FK 정합·실 transaction restore·Audit row insert — schema/repository 게이트) 또는 REST controller(GET /api/admin/export·POST import — repository 게이트) 또는 게이트 없는 다음 단추(ADR-0036 5c 측정 등). 여전히 게이트된 후속: REQ-041 slice 2 후속; REQ-027 slice 3. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=446.\n\n[ARCHIVED] T-0453(buildRestoreConfirmation) 및 그 이전(T-0437~T-0452 등)은 git log --grep T-04 로 추적.",
   "lock": {
-    "holder": null,
-    "session": "cron@cloud-aalocal0617g",
-    "since": "2026-06-17T05:04:02Z",
-    "note": "cron@cloud-aalocal0617g planner fire 완료 (mirror release). origin/main 동기(38f608e, T-0453 merged·currentTask/nextTask 둘 다 null)→권위 lock CAS 획득(994379b, prev tip b3244ee free tombstone, server-time 2026-06-17T05:04:02Z)→reclaim no-op(claims [])→claimable 후보 0(currentTask/nextTask null)→planner dispatch→T-0454 큐잉(formatAuditLogLine, pr, 게이트-free)→본 PLANNER-QUEUED direct doc commit 후 lock tombstone release. tasksCompleted 445 불변. 매시 15분 trigger cron(aa-local-15)."
+    "holder": "cron",
+    "session": "cron@cloud-aalocal0617h",
+    "since": "2026-06-17T05:52:34Z",
+    "note": "cron@cloud-aalocal0617h fire — origin/main 동기(e7b17c3, T-0454 nextTask)→권위 lock CAS 획득(bb5b0a1)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→select-claim T-0454(claim 박제+lock tombstone release)→lock-free executor 1회 DONE→feature branch claude/T-0454-export-import-audit-message→PR #365 open→reviewer round1 APPROVE+comment→4-게이트 PASS+CI green→squash merge 06ceef4 branch 삭제→bookkeeping lock 재획득(cec012a). tasksCompleted 445→446. 이후 planner-queued + claim 제거 + lock tombstone release 예정."
   },
-  "lastActivity": "2026-06-17T05:04:02Z",
-  "lastCommit": "a49a337",
+  "lastActivity": "2026-06-17T05:52:34Z",
+  "lastCommit": "06ceef4",
   "mostRecentTasks": [
+    "T-0454",
     "T-0453",
     "T-0452",
     "T-0451",
-    "T-0450",
-    "T-0449"
+    "T-0450"
   ],
   "loopSession": {
     "turnCount": 5,
@@ -32,11 +32,11 @@
     "note": "/loop cloud-qkcctz (dynamic, turn cap 5; remote web ScheduleWakeup/cron 부재→session 내 순차 turn). t1 planner→T-0435, t2 T-0435 execute, t3 planner→T-0436, t4 T-0436 execute, t5(05:06Z) planner→T-0437(UC-07 Export scope helper, pr) 큐잉. turn cap 5 도달→session 종료(self-reschedule 불가 환경이라 다음 cron/새 /loop 가 T-0437 execute)."
   },
   "ci": {
-    "lastRun": "2026-06-17T04:48:00Z",
+    "lastRun": "2026-06-17T05:52:34Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0453 PR #364 CI green(round1, 4-게이트 PASS — reviewer approval gate 첫 run 통과). consecutiveFails 0 유지."
+    "note": "T-0454 PR #365 CI green(round1, 4-게이트 PASS — reviewer approval gate 첫 run 통과). consecutiveFails 0 유지."
   },
   "reviewRounds": {
     "T-0451": 1,
@@ -781,7 +781,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 445,
+    "tasksCompleted": 446,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
