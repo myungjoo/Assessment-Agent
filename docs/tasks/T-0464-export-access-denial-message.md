@@ -2,7 +2,7 @@
 id: T-0464
 title: UC-07 §7.1/§7.2 Export·Import 진입 인증·권한 거부 사람-친화 안내 메시지 조립 순수 helper buildExportAccessDenial
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-044, REQ-045]
 estimatedDiff: 195
