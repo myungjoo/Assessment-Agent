@@ -7,13 +7,13 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0455",
   "backlogNote": "**T-0454(P7 R-57/REQ-030·REQ-032 — UC-07 Export/Import Audit entry 사람-친화 로그 메시지 조립 순수 helper formatAuditLogLine, pr, 게이트-free) 완료(PR #365 squash 06ceef4, reviewer round1 APPROVE, 4-게이트 PASS, CI green).** ExportImportAuditEntry(T-0437~ 계열)를 입력으로 받아 AuditLogMessage{headline, detailLines[], operation} 단일 모델로 합성 — export/import 분기별 detailLines + 한국어 입력 방어, 순수 DRY 합성(재실행 0·새 dep 0·persistence/DB/REST 0). 신규 export-import-audit-message.ts/.spec.ts(신규 파일 line/branch/func 100% cov, R-112 4종 38 test + negative 충분), 3803 tests green(+732 LOC, 2 파일). 다음 우선순위(planner 큐잉 예정): Export/Import 실 배선(실 DB dump·entity-level FK 정합·실 transaction restore·Audit row insert — schema/repository 게이트) 또는 REST controller(GET /api/admin/export·POST import — repository 게이트) 또는 게이트 없는 다음 단추(ADR-0036 5c 측정 등). 여전히 게이트된 후속: REQ-041 slice 2 후속; REQ-027 slice 3. 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone)는 그대로. tasksCompleted=446.\n\n[ARCHIVED] T-0453(buildRestoreConfirmation) 및 그 이전(T-0437~T-0452 등)은 git log --grep T-04 로 추적.",
   "lock": {
     "holder": "cron",
     "session": "cron@cloud-aalocal0617h",
     "since": "2026-06-17T05:52:34Z",
-    "note": "cron@cloud-aalocal0617h fire — origin/main 동기(e7b17c3, T-0454 nextTask)→권위 lock CAS 획득(bb5b0a1)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→select-claim T-0454(claim 박제+lock tombstone release)→lock-free executor 1회 DONE→feature branch claude/T-0454-export-import-audit-message→PR #365 open→reviewer round1 APPROVE+comment→4-게이트 PASS+CI green→squash merge 06ceef4 branch 삭제→bookkeeping lock 재획득(cec012a). tasksCompleted 445→446. 이후 planner-queued + claim 제거 + lock tombstone release 예정."
+    "note": "cron@cloud-aalocal0617h fire — origin/main 동기(e7b17c3, T-0454 nextTask)→권위 lock CAS 획득(bb5b0a1)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→select-claim T-0454(claim 박제+lock tombstone release)→lock-free executor 1회 DONE→feature branch claude/T-0454-export-import-audit-message→PR #365 open→reviewer round1 APPROVE+comment→4-게이트 PASS+CI green→squash merge 06ceef4 branch 삭제→bookkeeping lock 재획득(cec012a). tasksCompleted 445→446. planner T-0455 큐잉(buildRestoreResult, pr, 게이트-free) → 본 PLANNER-QUEUED commit 후 claim 제거 + lock tombstone release."
   },
   "lastActivity": "2026-06-17T05:52:34Z",
   "lastCommit": "06ceef4",
