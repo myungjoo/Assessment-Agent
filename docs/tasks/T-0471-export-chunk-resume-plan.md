@@ -2,7 +2,7 @@
 id: T-0471
 title: UC-07 §8 NFR chunked streaming 중단 후 재개 지시(재개 시작 byte·잔여 chunk 목록·재개 Content-Range 수치·재개 필요 여부)를 산정하는 순수 helper buildExportChunkResumePlan
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 200
