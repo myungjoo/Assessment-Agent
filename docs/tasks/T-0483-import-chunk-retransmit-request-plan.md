@@ -2,7 +2,10 @@
 id: T-0483
 title: UC-07 §8 NFR resumable upload Import 측 재조립 검증으로 드러난 누락 chunk index 를 인접 run 으로 묶어 클라이언트에 재업로드를 요청할 retransmit-request plan 을 순수 산술로 산정하는 helper buildImportChunkRetransmitRequest
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: 952d335
+prNumber: 394
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 195

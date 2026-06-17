@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0483",
-  "backlogNote": "planner 큐잉(2026-06-17): T-0483(buildImportChunkRetransmitRequest) — IMPORT 측 pivot 지속. (주의: T-0482 DONE bookkeeping — tasksCompleted/mostRecentTasks/reviewRounds — 은 driver 처리; 본 planner 는 nextTask 만 갱신). resumable upload 가 중단·재개될 때 수신측은 빠진 chunk 를 클라이언트에 *재업로드 요청* 해야 한다. T-0480 validateImportChunkReassemblyOrder 는 missingIndexes/gapBytes 를 *탐지(go/no-go)* 만 하고 actionable *재업로드 요청 plan*(누락 index 를 인접 run 으로 묶어 몇 번의 요청으로 얼마의 byte 를 다시 받을지)은 산정 안 함 — 46 helper(T-0437~T-0482) 중 0회 cover(git grep -icE 'buildImportChunkRetransmitRequest|ImportChunkRetransmit|retransmitRequest|requestRetransmit|missingChunkRequest' src/ → 0 매칭/exit 1, issue-still-relevant pre-check). 이는 export 측 buildExportChunkResumePlan(T-0471, 보내는측 재개 directive)의 대칭 IMPORT(받는측 재업로드 요청 directive)이며 coalesceExportChunkRefetch(T-0473, 실패 export chunk 인접 byte 병합)의 import 측 mirror — 방향(보내는측 resume vs 받는측 request)·입력(ack 개수/실패 chunk vs 수신 ImportChunkDescriptor[]+expectedTotalChunks)·출력(resume/coalesce byte range vs 재업로드 요청할 index run 배열) 직교. T-0480 validate(완전성/gap/overlap 판정)·T-0481 progress·T-0482 dedup 과도 직교(누락 index 요청 plan 만 — 완전성·gap·진행률·중복 해소 도출 안 함). ImportChunkDescriptor 는 import-chunk-reassembly-order.ts 에서 DRY-import(재정의 금지)·validateImportChunkReassemblyOrder 재호출 금지. pr·게이트-free·dependsOn []·새 dep 0·시계 read 0·실 업로드/byte slice/HTTP Range/resumable 프로토콜 0. touchesFiles disjoint(src/export/import-chunk-retransmit-request.ts + spec)·maxConcurrentClaims=2 stage 5b direct-only 동시성과 무관(pr-mode 단독). 직전 큐잉 T-0482(planImportChunkDeduplication). DIMINISHING-RETURNS 경고: export/import chunked-streaming pure-helper vein 이 46개 누적·전부 실 service/controller 미배선(schema/repository 게이트). 사람이 schema/repository 게이트 해소 또는 실 배선 task 로의 전환을 검토할 시점 — 본 T-0483 은 그 전까지의 마지막 명백한 게이트-free 단추. 여전히 게이트된 후속: 실 streaming/byte slice/HTTP Range·타이머/시계 read·guard/JWT·HTTP 401/403·WebUI·실 race detection·cancellation·Export/Import 실 배선 또는 REST controller(repository/schema 게이트). 기타 잔여 게이트(live-LLM Q-0022 만료 6/30 / ADR-0036 5c 측정 / Q-0032 DEFERRED / Q-0026 timezone) 그대로. tasksCompleted=473(T-0481 bookkeeping 후 — 본 planner 미변경).",
+  "nextTask": null,
+  "backlogNote": "planner STAND-DOWN(2026-06-18, nextTask=null, Q-0040 escalate): T-0483(buildImportChunkRetransmitRequest)이 952d335/PR #394 로 머지됐고, 직전 큐잉 때 박제한 DIMINISHING-RETURNS 경고가 현실화됐다. export/import chunked-streaming pure-helper vein 이 이제 45 helper(T-0437~T-0483, src/export/*.ts 비-spec 45파일 실측)·전부 실 service/controller/schema 미배선. issue-still-relevant + HIGH make-work-bar 대조 survey 결과: (1) ExportController/ImportController 0(find src -name '*.controller.ts' | grep -iE export|import → 0), ExportModule/ImportModule 0, prisma/schema.prisma 에 Export/Import job 테이블 0(git grep 'model (Export|Import)' → 0매칭). (2) api.md 는 GET /api/admin/export + POST /api/admin/import 계약을 정의하나 구현 controller 0 — 배선은 AssessmentModule controller + Prisma schema migration(ExportJob/ImportJob 영속) 동반 = DB schema 변경 = CLAUDE.md §5 BLOCKED. (3) 46번째 helper(예: 또 다른 export 정량화의 import mirror) 날조는 정확히 회피하라고 지시받은 make-work — 미배선 산술 helper 의 한계 가치는 0 에 수렴. 정직한 결론: dependency-free backlog 진짜 소진(Q-0034/Q-0037 재발 패턴). 남은 모든 방향이 게이트됨 — (a) export/import 실 배선 / P5 evaluation pipeline 실작업 → Prisma schema migration(새 테이블) = §5 BLOCKED. (b) live-LLM bridge 검증(ADR-0037 §Decision5) → Q-0022 시험 credential, ⏰만료 2026-06-30 임박, §5 credential 게이트. (c) P6 deferred(ReEvaluationTriggerPanel/SchedulePanel/polling) → backend 계약 미shipped(그 자체가 schema/controller 게이트). (d) P7 scheduling 실작업 → @nestjs/schedule(머지됨) 이후 SchedulerModule 실 cron 배선은 schema(스케줄 영속)+ 운영 게이트. (e) ADR-0036 stage5c full-parallel → 30일 dogfood + throughput 측정 합의. (f) timezone Q-0026 잔여 → ADR-first human 결정. open PR 0·BLOCKED task 0·blockers 0·CI green. 다음 fire 는 stand down(no-op) — make-work 날조 대신 Q-0040 의 게이트 목록 중 하나를 사람이 unblock 할 때까지 대기. ⏰우선 권고: live-LLM bridge credential(만료 6/30) 또는 export/import 실 배선용 schema migration 승인. tasksCompleted=474(T-0482 bookkeeping 후 — 본 planner 미변경).",
   "lock": {
     "holder": null,
-    "session": "loop@win-tt511",
-    "since": "2026-06-17T18:52:03Z",
-    "note": "loop@win-tt511 fire (로컬 /loop dynamic, turn cap 10) t10 (최종) — origin/main 동기(3b8268a→ff→0ab1b37, T-0481 bookkeeping CI green 3b8268a success 확인)→권위 lock CAS 획득(d57b099→d616997)→reclaim no-op(claims [])→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0482 PASS→select-claim T-0482(claim 박제+lock tombstone release)→lock-free executor 1회 DONE(branch claude/T-0482-import-chunk-duplicate-dedup-plan, 19614 test green, 신규 파일 stmt/branch/func/line 100% coverage, 34 test)→PR #393 open→reviewer round1 APPROVE+comment(BLOCKER/MAJOR/MINOR 0, NIT 1)→4-게이트 PASS+CI green(PR run 27711750680 success, 기본 검사+Docker smoke 둘 다 pass)→squash merge 0ab1b37 branch 삭제→bookkeeping. tasksCompleted 473→474. planner T-0483 큐잉(buildImportChunkRetransmitRequest, pr, 게이트-free) + DIMINISHING-RETURNS 경고(helper 46개 누적·미배선 — schema/repository 게이트 해소 또는 실 배선 전환 검토 시점). 본 DONE direct doc commit 후 claim 제거([]). turn cap 10 도달 → /loop session 종료(self-reschedule 안 함). 다음 cron/새 /loop 가 T-0483 부터."
+    "session": "cron@local15-a15c",
+    "since": "2026-06-17T19:06:35Z",
+    "note": "cron@local15-a15c fire (cloud schedule, 매시 15분, [8] reschedule skip) — origin/main 동기(c7d43aa→ff→efd07b4, T-0482 bookkeeping efd07b4 확인)→권위 lock CAS 획득(d75d41a→1c70ee9)→reclaim no-op(claims [], RECLAIM_NOW server-time 주입)→active claim 0<maxConcurrentClaims=2 게이트 OK(pr-mode 단독)→validate-claim-candidate T-0483 PASS→select-claim T-0483(claim 박제+lock tombstone release 1c70ee9 직후)→lock-free executor 1회 DONE(branch claude/T-0483-import-chunk-retransmit-request-plan, 4726 test green, 신규 파일 stmt/branch/func/line 100% coverage)→PR #394 open→integrator: reviewer round1 APPROVE+comment(BLOCKER/MAJOR/MINOR 0)→4-게이트 PASS+CI green(PR run 27713439771 success)→squash merge 952d335 branch 삭제→bookkeeping. tasksCompleted 474→475. planner STAND-DOWN: nextTask=null, Q-0040 escalate(export/import pure-helper vein 45개 소진·전부 미배선, 남은 방향 전부 §5 schema/credential/ADR 게이트). 본 DONE direct doc commit 후 claim 제거([]). 단일-task fire. 다음 fire 는 Q-0040 unresolved → stand down."
   },
-  "lastActivity": "2026-06-17T18:52:03Z",
-  "lastCommit": "0ab1b37",
+  "lastActivity": "2026-06-17T19:06:35Z",
+  "lastCommit": "952d335",
   "mostRecentTasks": [
+    "T-0483",
     "T-0482",
     "T-0481",
     "T-0480",
-    "T-0479",
-    "T-0478"
+    "T-0479"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511 (dynamic, turn cap 10) — 종료. t1 stand-down(T-0473 cron@local15). t2-t10 매 turn 1 task merge: T-0474→90df25d, T-0475→92e0e1b, T-0476→1339f48, T-0477→16ab736, T-0478→549dfcd, T-0479→8c8d286, T-0480→b2523a7, T-0481→7866890, t10(18:37Z) T-0482→PR #393 APPROVE(NIT 1)→merge 0ab1b37→bookkeeping+planner T-0483. turn cap 10 도달 → self-reschedule 안 함, session 종료. 9개 task(T-0474~T-0482) 전부 round1 APPROVE merge·신규 파일 100% cov·CI green·blocker 0. cleanup 권장: /compact 또는 /clear 후 새 /loop, 또는 cron(KST 야간) 대기. 다음 진입점이 T-0483 부터."
   },
   "ci": {
-    "lastRun": "2026-06-17T18:52:03Z",
+    "lastRun": "2026-06-17T19:06:35Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0482 PR #393 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge 0ab1b37; PR run 27711750680 success, 기본 검사+Docker smoke 둘 다 pass). 직전 T-0481 merge(7866890)·bookkeeping run(3b8268a)도 success 확인. consecutiveFails 0 유지."
+    "note": "T-0483 PR #394 CI green(round1, 4-게이트 PASS — reviewer approval gate 통과 후 squash merge 952d335; PR run 27713439771 success). 직전 T-0482 merge(0ab1b37)·bookkeeping run(efd07b4)도 success 확인. consecutiveFails 0 유지."
   },
   "reviewRounds": {
+    "T-0483": 1,
     "T-0482": 1,
     "T-0481": 1,
     "T-0480": 1,
@@ -241,6 +242,23 @@
   "blockersResolvedNote2": "B-ci-infra-2026-06-08T21:07Z (3+ 연속 main CI runner 미할당 infra-fail) 는 2026-06-09T02:33Z 해소. 원인 = private repo 의 GitHub Actions spending limit $0 (결제수단만 추가로는 overage 미허용 — 무료 minutes 소진 후 runner 미할당). 사용자가 spending limit 상향 후 run 27167117992 rerun 이 runner 정상 할당 + 전체 green. ci-infra 는 코드 회귀가 아니므로 tasksBlocked counter increment 안 함(7 유지). Q-0028 RESOLVED 동반.",
   "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지. B-credential-2026-06-04T16:04Z (cron@cloud-bc1cce 16:04 fire 의 refs/locks/* 403 stale-탈취 실패) 는 동일 env 한계 재발화 — **loop@WIN-JQIPLSBL9QV-s55 가 session #55 t8 에서 정상 진행하며 자동 해소**(cron 이 못 한 T-0229 bookkeeping·Q-0022 escalation·counter 정합을 본 로컬 driver 가 완료, cron d82127d 의 blocker 기록을 본 commit 에서 blockers[]→[] 로 close). tasksBlocked counter 는 increment 하지 않는다(반복 env 한계지 정책 실패 아님). **근본 원인 = lock since 미갱신으로 60min stale 오판 — 본 turn 부터 매 turn since=now heartbeat 적용해 재발 차단.**",
   "humanQuestions": [
+    {
+      "id": "Q-0040",
+      "raisedAt": "2026-06-18T00:00:00Z",
+      "raisedBy": "planner (post-T-0483 merge)",
+      "reason": "needs-human-direction",
+      "status": "OPEN",
+      "summary": "export/import chunked-streaming pure-helper vein 이 45 helper(T-0437~T-0483)·전부 미배선으로 소진됐다. 직전 T-0483 큐잉 때 박제한 DIMINISHING-RETURNS 경고가 현실화 — 46번째 helper 는 make-work 라 날조하지 않고 nextTask=null 로 stand down 한다. HIGH make-work-bar 로 origin/main 실코드 대조: ExportController/ImportController 0개, ExportModule/ImportModule 0개, prisma/schema.prisma 에 Export/Import job 테이블 0개(git grep 'model (Export|Import)' → 0). api.md 는 GET /api/admin/export + POST /api/admin/import 계약을 정의하나 구현 controller 가 없고, 배선하려면 Prisma schema migration(ExportJob/ImportJob 영속) = DB schema 변경 = §5 BLOCKED. 남은 모든 방향이 게이트라 planner 단독 권한 밖 — Q-0034/Q-0037 과 동형 escalate. 사람이 아래 게이트 중 하나를 unblock 하기 전까지 다음 fire 는 정직하게 no-op.",
+      "context": "게이트 인벤토리(전부 NON-dependency-free): (a) **export/import 실 배선 + P5 evaluation pipeline 실작업** — ExportJob/ImportJob/평가 결과 테이블의 Prisma schema migration 필요 = §5 DB schema 변경 BLOCKED(사람이 schema 변경 승인 + migration 정책 결정해야 진입). (b) **live-LLM bridge 검증**(ADR-0037 §Decision5) — 머지된 mocked-only bridge(POST /period)를 실 네트워크 LLM 1회 round-trip. Q-0022 시험 credential 재사용(AZURE_OPENAI_* → LLM_LIVE_*, repo 밖 secrets.env, 실값은 §9 금지), ⏰**credential 만료 2026-06-30 임박** — env-gated live spec(env 부재 시 skip→CI green), 새 dep 0. 사용자 승인은 이미 2026-06-11 박제됐으나 실 credential 주입 환경이 필요. (c) **P6 deferred 배선**(ReEvaluationTriggerPanel·SchedulePanel·EvaluationGuardBanner polling·GroupMember mutation) — backend 계약 미shipped 라 그 자체가 schema/controller 게이트. (d) **P7 scheduling 실작업** — @nestjs/schedule(ADR-0042, 머지됨) 이후 SchedulerModule 실 cron 배선은 schedule 영속 schema + 운영 게이트. (e) **ADR-0036 stage5c**(full-parallel fine-grained concurrency) — 30일 dogfood + throughput-vs-coordination 비용 실측 합의 필요. (f) **timezone Q-0026 잔여**(재수집 window Asia/Seoul vs UTC) — ADR-first human 결정. 인접 sweep: open PR 0·BLOCKED task 0·blockers 0·CI green·tasksCompleted=474.",
+      "options": [
+        "(1) **export/import 실 배선용 schema migration 승인** — Prisma schema 에 ExportJob/ImportJob(또는 동등) 테이블 추가 + migration 정책(DB 변경)을 승인하면, 45개 누적 pure-helper 를 실 AssessmentModule export/import controller + repository 에 배선하는 dependency chain 으로 planner 가 분해. helper vein 의 sunk 가치를 실제로 회수하는 경로. 권고안 1.",
+        "(2) **live-LLM bridge credential 제공**(⏰만료 6/30 임박) — Q-0022 경로 재사용 credential(scope·secrets.env 경로·만료 명시, 실값은 §9 금지)을 주입하면 머지된 mocked-only bridge 를 실 LLM 1회 round-trip 으로 검증(평가문 품질·scoring·narrative). env-gated, CI green 유지. 만료일 임박 고려 우선 권고. 권고안 2.",
+        "(3) **다른 phase/feature 우선순위 지시** — 위 게이트 외에 사용자가 의도하는 신규 방향(예: ADR-0036 stage5c 측정 go-ahead / timezone Q-0026 결정 / P7 scheduler 실 배선 schema 승인 등)을 지정하면 다음 fire 의 planner 가 dependency chain 으로 분해.",
+        "(4) **idle 수용** — 사용자가 방향을 제공할 때까지 cron 정지. dependency-free 작업 부재로 loop 가 정지하는 것은 정상이며, make-work(46번째 미배선 helper) 날조보다 정직한 no-op 이 우선이다."
+      ],
+      "resolutionHint": "docs/STATE.json 본 Q-0040 에 resolvedAt(ISO)+decision 기입 후 commit, 또는 /loop 세션 채팅 응답. 옵션 (1)/(2)/(3) 선택 시 다음 fire 의 planner 가 해당 방향의 첫 dependency-free task 를 큐잉(nextTask 갱신). schema 변경(옵션1)·credential(옵션2)은 §5/§9 게이트라 사람 명시 승인 필수.",
+      "raisedThisTurn": true
+    },
     {
       "id": "Q-0039",
       "raisedAt": "2026-06-16T17:54:35Z",
@@ -808,7 +826,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 474,
+    "tasksCompleted": 475,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
