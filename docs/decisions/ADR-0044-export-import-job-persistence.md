@@ -62,7 +62,7 @@ supersedes: null
 **채택: ExportJob/ImportJob entity 자체도 raw commit 본문 / 문서 본문 컬럼 0, dump artifact 도 raw 미포함 — [data-model.md §4](../architecture/data-model.md) + [UC-07 §1 invariant a](../use-cases/UC-07-export-import.md) 와 정합하게 raw 미저장 invariant 가 job entity 까지 전파됨을 명시 박제한다.**
 
 - **job entity 차원**: ExportJob/ImportJob 의 어떤 필드도 raw GitHub commit message 전문 / diff / PR description / issue body / Confluence page 본문 HTML 을 컬럼으로 보유하지 **않는다**. `artifactRef` 는 artifact 의 **pointer (참조 식별자)** 일 뿐 본문이 아니며, `error` 는 사람-친화 실패 요약일 뿐 raw payload 가 아니다.
-- **dump artifact 차원**: Export 가 dump 하는 row 는 평가 결과 (Assessment/Contribution/Summary — 이미 raw 미저장) + 인원 master (Person/ServiceIdentity/Group/Part) + LLM 설정 (LlmProviderConfig/DifficultyMapping) + AuditLog 이며, raw 외부 본문은 **처음부터 DB 에 없으므로 dump artifact 에 자동 부재** (UC-07 §1 invariant a — "raw 미저장 정책이 Export payload 에 자연 전파"). 본 invariant 위반은 ADR 신설 필수 ([data-model.md §4](../architecture/data-model.md), CLAUDE.md §5).
+- **dump artifact 차원**: Export 가 dump 하는 row 는 평가 결과 (Assessment/Contribution/Summary — 이미 raw 미저장) + 인원 master (Person/ServiceIdentity/Group/Part) + LLM 설정 (LlmProviderConfig/DifficultyMapping) + AuditLog (실 export-source: `PermissionDeniedRecord` — §6 매핑표 참조) 이며, raw 외부 본문은 **처음부터 DB 에 없으므로 dump artifact 에 자동 부재** (UC-07 §1 invariant a — "raw 미저장 정책이 Export payload 에 자연 전파"). 본 invariant 위반은 ADR 신설 필수 ([data-model.md §4](../architecture/data-model.md), CLAUDE.md §5).
 
 ### Decision §3 — Import atomic transaction invariant (all-or-nothing) — ADR-0033 패턴 차용
 
@@ -89,6 +89,29 @@ supersedes: null
 - **ExportJob/ImportJob 책임**: 한 dump/restore operation 의 생명주기 (PENDING→RUNNING→SUCCEEDED/FAILED) 와 그 산출물 (artifactRef / restoredRowCount / error). UC-07 §8 NFR 의 status polling 이 본 entity 를 조회한다.
 - **AuditLog 책임**: UC-07 §5 step 의 "Audit log row insert (Export/Import 종류 + actor + scope/file source + row count)" — operation 발생 사실의 **감사 event-stream**. data-model.md §5 의 `createdBy` (row 자체 감사) 와 별도로, AuditLog 는 event-stream 형태 ([data-model.md §5](../architecture/data-model.md) 정합).
 - **중복 회피**: ExportJob/ImportJob 의 `requestedBy` + `createdAt` 이 "누가 언제 시작했는가" 의 1차 record 이고, AuditLog 는 그것을 감사 관점에서 별도 event 로 기록할 수 있으나 — **AuditLog entity 의 구체 schema 는 별도 보안 ADR 책임** ([data-model.md §2](../architecture/data-model.md) conceptual mention / §7 Out of scope). 본 ADR 은 ExportJob/ImportJob 이 AuditLog 를 대체하지 않으며, 역으로 AuditLog 가 job 진행 추적을 대체하지 않음 — 두 entity 의 경계만 박제한다.
+
+### Decision §6 — ExportEntity → Prisma model + instant 컬럼 매핑 (T-0497 사후 박제)
+
+**채택: `ExportEntity` union 의 5 literal 을 다음 Prisma model delegate + instant 컬럼으로 매핑한다. 두 건은 model 이름이 literal 과 달라 본 표가 그 치환을 흡수하며, 본 매핑은 [T-0497](../tasks/T-0497-export-select-records-preview-wire.md) (PR #408, squash 86c07c7) 이 `src/export/export-job.service.ts` 의 `EXPORT_ENTITY_SOURCES` 상수로 이미 머지된 사실을 contract source 인 본 ADR 에 사후 박제한다.**
+
+| ExportEntity (literal) | Prisma model delegate | instant 컬럼 |
+| --- | --- | --- |
+| `Assessment` | `assessment` | `createdAt` |
+| `Person` | `person` | `createdAt` |
+| `Group` | `group` | `createdAt` |
+| `LlmConfig` | `llmProviderConfig` | `createdAt` |
+| `AuditLog` | `permissionDeniedRecord` | `createdAt` |
+
+**두 치환의 사유**:
+
+- **`LlmConfig` → `LlmProviderConfig`**: literal 이 약어일 뿐 동일 entity — export-source 는 기존 [data-model.md §2](../architecture/data-model.md) 의 `LlmProviderConfig` model 그대로 (신설 0).
+- **`AuditLog` → `PermissionDeniedRecord`**: ADR-0044 §5 가 AuditLog 를 **conceptual-only** (구체 schema 는 별도 보안 ADR 책임) 로 둔 상태라, v1 export-source 로 현존하는 구체 감사 model `PermissionDeniedRecord` 를 **stand-in** 으로 사용한다. 일반 `AuditLog` Prisma model 이 별도 보안 ADR 로 신설되면 본 매핑의 export-source 가 그 model 로 승격될 수 있다 (forward note — §Follow-ups 참조).
+
+**§5 와의 정합**: 본 §6 은 §5 의 "AuditLog 의 구체 schema 결정은 별도 보안 ADR 책임" 경계 결정을 **변경하지 않는다** — export-source 가 잠정적으로 `PermissionDeniedRecord` 를 가리킬 뿐, AuditLog entity 자체의 구체 schema 결정을 본 amend 가 내리지 않으므로 §5 의 책임 경계는 불변이다.
+
+**instant 컬럼 = 5 model 모두 `createdAt` 선택 근거**: [UC-07 §6.1](../use-cases/UC-07-export-import.md) 의 range scope `[start, end)` 판정이 의미하는 "record 가 생성/발생한 시각" 과 정합 — Assessment 는 평가 record 생성, Person/Group/LlmProviderConfig 는 master record 생성, PermissionDeniedRecord 는 감사 사건 발생 시각이 모두 `createdAt` 으로 자연스럽다 (`src/export/export-job.service.ts` L89~92 inline 주석과 정합).
+
+**source-of-truth cross-reference**: 본 §6 매핑의 사실 source 는 `src/export/export-job.service.ts` 의 `EXPORT_ENTITY_SOURCES` (T-0497, PR #408, squash 86c07c7) 다. 본 ADR 은 contract source 로서 그 코드 사실을 사후 박제하며, 향후 `ExportEntity` union 변경 / model 치환 변경은 본 §6 amend 가 선행해야 한다 ([CLAUDE.md §7.3](../../CLAUDE.md) "코드보다 ADR 이 먼저다" 정신 — T-0497 은 reviewer follow-up 으로 본 사후 박제 task 가 발급됐다).
 
 ## Consequences
 
@@ -160,5 +183,7 @@ DB 영속 job entity 로 status / artifactRef / error / restoredRowCount 를 추
 - (후속) T-NNNN: AssessmentModule 에 export/import controller (`GET /api/admin/export` / `POST /api/admin/import`) + service 골격 배선 (job 생성·status 추적, dependsOn: [schema task]).
 - (후속) T-NNNN~: 누적 45 export/import helper (T-0437~T-0483) 를 controller/service 에 실제 호출로 배선 (chunked streaming·dedup·retransmit 등) — 여러 작은 task 로 분할.
 - (후속) job row retention / cleanup 정책 + artifact 저장소 mechanism 선택 (새 dependency 가능성 시 별도 §5 게이트).
+- (후속) 일반 `AuditLog` Prisma model 이 별도 보안 ADR 로 신설되면 §6 매핑표의 `AuditLog` export-source 를 `permissionDeniedRecord` → 새 `auditLog` delegate 로 승격 (T-NNNN, `commitMode: pr` — `src/export/export-job.service.ts` 의 `EXPORT_ENTITY_SOURCES` + `ExportEntityDelegate` union 동기 수정 + 본 ADR §6 표 update).
+- (후속) [api.md](../architecture/api.md) / [data-model.md §4](../architecture/data-model.md) 의 export entity 열거 서술이 §6 의 `AuditLog (실 export-source: PermissionDeniedRecord)` 치환을 반영하도록 doc-sync (별도 direct task).
 
 Refs: T-0484, ADR-0033, ADR-0035, ADR-0002, ADR-0042, ADR-0004, REQ-030, REQ-032, REQ-045, Q-0040

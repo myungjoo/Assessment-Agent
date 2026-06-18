@@ -2,7 +2,7 @@
 id: T-0498
 title: ExportEntity→Prisma-model 치환(AuditLog→PermissionDeniedRecord / LlmConfig→LlmProviderConfig) 을 ADR-0044 에 박제 — T-0497 reviewer follow-up doc-sync
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 35
