@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0486",
   "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). chain step1 DONE: T-0484(ADR-0044 ACCEPTED, 1ffad9d). chain step2 DONE: T-0485(prisma schema ExportJob/ImportJob + migration + spec, PR #396 round1 APPROVE round2 NIT closure, squash b8b8faa). 이후 step: AssessmentModule export/import controller/service 배선 → 누적 45 helper(T-0437~T-0483) 실 호출 배선(여러 task 분할) — 다음 fire 가 planner dispatch. 새 외부 dependency·credential 추가는 Q-0040 승인 범위 밖(별도 §5/§9 게이트 — artifact 저장소 object-storage 등). 잔여 게이트(미해소): live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend(backend 계약 ship 후), timezone Q-0026(ADR-first human), ADR-0036 stage5c full-parallel(30일 dogfood). open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-qd1u8",
-    "since": "2026-06-18T00:50:00Z",
-    "note": "cron@cloud-qd1u8 (schedule cron fire) — origin/main 동기(92ff443)→권위 lock CAS 획득(0c66206→43cae69)→select-claim atomic(claims=[T-0485] + lock tombstone)→executor T-0485 (round1 6edfd5f 482/-3, schema 2 model + 3 enum + migration + 13 test spec, 4739 green 99.95% line). PR #396 open (draft). reviewer APPROVE round1 (MINOR cap 인접, NIT L599-604 stale 주석). 본 fire 내 round2 commit 582293a (Nit-in-PR closure 3/-4). CI 게이트: run #2310 (582293a) green (lint/build/test/prisma migrate deploy/smoke/e2e/reviewer approval 21 step 전부 success). 4-게이트 (reviewer APPROVE + 외화 PR comment + integrator self + CI green) 모두 PASS → squash merge b8b8faa (mcp__github__merge_pull_request). next fire: planner dispatch (controller/service 배선 chain step3)."
+    "session": "cron@cloud-aas1f",
+    "since": "2026-06-18T01:37:23Z",
+    "note": "cron@cloud-aas1f (schedule cron fire) — origin/main 동기(790ae9f, 직전 fire 가 T-0485 squash merge b8b8faa 완료)→권위 lock CAS 획득(374b9f0→a624480, claims [] 보존). currentTask·nextTask 둘 다 null 이라 planner dispatch (LOOP §1[2] 둘다-없음 분기). planner 가 T-0486(ExportJobService — ExportJob 생성·status 전이·polling 조회, pr-mode, dependsOn [T-0485]) 큐잉 + STATE.nextTask=T-0486. doc-only direct commit 후 lock tombstone release. 다음 fire 가 T-0486 claim+execute. T-0486 은 P7 export/import 실배선 chain step3."
   },
-  "lastActivity": "2026-06-18T01:30:00Z",
+  "lastActivity": "2026-06-18T01:38:00Z",
   "lastCommit": "b8b8faa",
   "mostRecentTasks": [
     "T-0485",
