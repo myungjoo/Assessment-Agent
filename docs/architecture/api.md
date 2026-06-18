@@ -120,7 +120,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | GET | `/api/llm/difficulty-mappings` | UC-05 | 3 난이도 슬롯 (easy/medium/hard) ↔ provider/model 매핑 배열 조회 (REQ-049, REQ-050) — `findAllMappings`, 빈 배열 (seed 전) 도 정상. T-0139 박제 (PR-135). | Admin+ |
 | PATCH | `/api/llm/difficulty-mappings/:difficulty` | UC-05 §5 step 2 | `:difficulty` slot 별 `AssignDifficultyMappingDto.llmProviderConfigId` 재지정 (REQ-049, REQ-050) — service 4xx mapping: 미지원 난이도 400 (`isDifficulty` false) / config 부재·슬롯 부재 P2025 404. T-0139 박제 (PR-135). | Admin+ |
 | **UC-07 Export / Import / Backup (`/api/admin`)** | | | | |
-| GET | `/api/admin/export` | [UC-07 §5](../use-cases/UC-07-export-import.md#5-main-flow-sequence-diagram) | 평가 자료 export (raw 미포함, REQ-032·REQ-030) — `scope` query | Admin+ |
+| POST | `/api/admin/export` | [UC-07 §5](../use-cases/UC-07-export-import.md#5-main-flow-sequence-diagram) | 평가 자료 export (raw 미포함, REQ-032·REQ-030) — `scope`(body, `CreateExportDto`) | Admin+ |
 | POST | `/api/admin/import` | UC-07 §5 | 평가 자료 import (multipart file upload) | Admin+ |
 | POST | `/api/admin/backup` | UC-07 §5 | DB backup 생성 | Admin+ |
 | POST | `/api/admin/restore` | UC-07 §5 | backup 으로 reset & restore | Admin+ |
@@ -173,7 +173,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | [UC-04](../use-cases/UC-04-account-auth.md#5-main-flow-sequence-diagram) | step 1 (login 또는 user mutation) | `/api/auth/login`, `/api/auth/me`, `POST /api/users`, `PATCH /api/users/:id/role`, `PATCH /api/users/:id/password` |
 | [UC-05](../use-cases/UC-05-llm-config.md#5-main-flow-sequence-diagram) | step 2 (provider · difficulty-mapping mutation) | `/api/llm/providers`, `/api/llm/difficulty-mappings[/:difficulty]` |
 | [UC-06](../use-cases/UC-06-evaluation-delete-reeval.md#5-main-flow-sequence-diagram) | step 1 (DELETE 또는 POST reeval/reset) | `DELETE /api/assessments`, `POST /api/assessments/reeval`, `POST /api/assessments/reset` |
-| [UC-07](../use-cases/UC-07-export-import.md#5-main-flow-sequence-diagram) | step 1 (Admin → export 또는 import) | `GET /api/admin/export`, `POST /api/admin/import`, `POST /api/admin/backup`, `POST /api/admin/restore` |
+| [UC-07](../use-cases/UC-07-export-import.md#5-main-flow-sequence-diagram) | step 1 (Admin → export 또는 import) | `POST /api/admin/export`, `POST /api/admin/import`, `POST /api/admin/backup`, `POST /api/admin/restore` |
 | [UC-08](../use-cases/UC-08-permission-denied.md#5-main-flow-sequence-diagram) | step 1 (user / admin audience filter) | `GET /api/me/permission-denied`, `GET /api/admin/permission-denied` |
 
 **UC-01 의 cron trigger path 는 HTTP endpoint 가 아닌 in-process `@Cron` handler** ([ADR-0003 §3](../decisions/ADR-0003-deployment.md)) — 본 표의 endpoint 는 manual trigger path 만 박제. 단, **cron 발화 자체(tick)는 in-process 로 유지되나, 런타임 cron 주기 관리(등록/조회/삭제) HTTP surface `/api/schedules` 가 T-0414/T-0415 로 추가**되어 Admin 이 재배포 없이 주기를 동적 변경할 수 있다 (§5 cron 주기 관리 그룹, [ADR-0042 §Decision2](../decisions/ADR-0042-nestjs-schedule-adoption.md) 동적 registry).
