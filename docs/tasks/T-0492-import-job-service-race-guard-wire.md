@@ -2,8 +2,12 @@
 id: T-0492
 title: ImportJobService.createJob 에 evaluateImportRaceGuard(T-0460) 실호출 배선 — 45 helper 배선 chain step2
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-18T08:13:00Z
+mergedAs: 794ed51
+prNumber: 403
+reviewRounds: 1
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 210
 estimatedFiles: 2

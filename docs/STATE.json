@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0492",
-  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-6 DONE: T-0484~T-0489. doc-sync T-0490 DONE(api.md GET→POST). helper 배선 chain step1 = **T-0491 DONE/MERGED**(squash 79910b0, PR #402 round2 4-게이트 통과): validateExportScope(T-0444)→ExportJobService.createJob 실호출 배선 + round2 에서 CreateExportDto.entitySelector @IsObject→array-aware(@IsArray/@IsOptional) 정정(BLOCKER, PARTIAL export HTTP 경로 복구 REQ-030) + DTO→service 계약 pin test(MAJOR) + DTO 주석 갱신(MINOR). 동시성 메모: 본 round2 는 두 cron driver(cron@cloud-l15-0739 lock 보유 + cron@cloud-vm-aas2a 직전 active)가 orphan PR #402 를 동시 resume 해 near-duplicate round2 fix 를 각자 작성한 race 발생 — 다른 driver 가 aa08467 을 feature branch 에 먼저 push, lock 보유 driver 가 자기 중복 commit(19b9bf3) 폐기 후 aa08467 로 integrator 진행해 merge(무손실, throughput 만 일부 낭비). 다음 step: helper 배선 chain step2 = T-0492(evaluateImportRaceGuard→ImportJobService.createJob, import 측 대칭, pr). 이후 나머지 ~43 helper 배선·multipart upload(별도 task). 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0.",
+  "nextTask": "T-0493",
+  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-6 DONE: T-0484~T-0489. doc-sync T-0490 DONE(api.md GET→POST). helper 배선 chain step1 = **T-0491 DONE/MERGED**(squash 79910b0, PR #402 round2 4-게이트 통과): validateExportScope(T-0444)→ExportJobService.createJob 실호출 배선 + round2 에서 CreateExportDto.entitySelector @IsObject→array-aware(@IsArray/@IsOptional) 정정(BLOCKER, PARTIAL export HTTP 경로 복구 REQ-030) + DTO→service 계약 pin test(MAJOR) + DTO 주석 갱신(MINOR). 동시성 메모: 본 round2 는 두 cron driver(cron@cloud-l15-0739 lock 보유 + cron@cloud-vm-aas2a 직전 active)가 orphan PR #402 를 동시 resume 해 near-duplicate round2 fix 를 각자 작성한 race 발생 — 다른 driver 가 aa08467 을 feature branch 에 먼저 push, lock 보유 driver 가 자기 중복 commit(19b9bf3) 폐기 후 aa08467 로 integrator 진행해 merge(무손실, throughput 만 일부 낭비). helper 배선 chain step2 = **T-0492 DONE/MERGED**(squash 794ed51, PR #403 round1 4-게이트 통과): evaluateImportRaceGuard(T-0460)→ImportJobService.createJob 실호출 배선(import 측 대칭). createJob 이 findRunning() 결과로 race state derive→helper verdict blocking 시 ConflictException(409) throw, proceed 시 기존 흐름 불변. +166/-1 LOC 2파일, cov 97.5%/100%. 단일 active driver, race 0. 다음 step: helper 배선 chain step3 = T-0493(describeImportMode→신설 GET /api/admin/import/modes, payload-free, pr). 이후 나머지 ~42 helper 배선·multipart upload(별도 task). 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-l15-0739",
-    "since": "2026-06-18T07:39:30Z",
-    "note": "cron@cloud-l15-0739 (aa-local-15 schedule cron fire, fresh cloud checkout) — origin/main d750119 동기. 권위 lock CAS 획득(71289218→cefefdf, claims.json 보존: T-0491 PR_OPEN pr=402). currentTask=T-0491 resume, PR #402 round1 REQUEST_CHANGES(scope 이미 amend 됨 7b09c69) → executor re-entry(LOOP §1[2] e): feature branch checkout 후 round2 fix(entitySelector array-aware + 계약 test + 주석) 구현·commit 19b9bf3. push 직전 fetch 결과 feature branch 가 aa08467 로 선행 이동 발견 — 다른 active driver(cron@cloud-vm-aas2a)가 동일 round2 fix 를 lock-free 로 먼저 push(동시 orphan-resume race). 자기 중복 commit 19b9bf3 폐기(tag dup-19b9bf3-T0491-round2 보존), local 을 aa08467 로 reset. aa08467 CI watch→success(green) 확인 후 integrator dispatch: reviewer round2 APPROVE(issuecomment-4739414222) + 4-게이트 PASS → gh pr merge --squash --delete-branch, squash 79910b0 on main. bookkeeping direct commit(STATE/task/journal) + claim 제거(T-0491 PR_OPEN→완료) + lock tombstone release. 동시성 관측: orphan-resume 이 claim owner 를 atomic refresh 안 해 두 driver 가 같은 task round2 를 중복 작업한 throughput 낭비 — double-claim slug 의 strict 정의(claims.json 2-entry)엔 미해당이라 회로 차단기 미증가, 본 note 로 관측만 외화."
+    "session": "cron@local15-0804",
+    "since": "2026-06-18T08:16:08Z",
+    "note": "cron@local15-0804 (aa-local-15 schedule cron fire, 매시15분, fresh checkout) — origin/main ee537d2 동기. lock free(729c2ab tombstone)·claims=[] 확인 → 권위 lock CAS 획득(729c2ab→619b876). fineGrainedConcurrency=true(stage 5b): claims 빈 + active 0<maxConcurrentClaims2 → select-claim.sh 로 T-0492(nextTask, pr-mode) 단독 claim(claims append + lock tombstone 동일 commit d449659, 즉시 release). lock-free executor(implementer→tester) 로 T-0492 수행: evaluateImportRaceGuard→ImportJobService.createJob 배선 +166/-1 LOC 2파일, lint/build/test 4897 pass cov 97.5%/100% staged. feature branch claude/T-0492-... push(d2cbfba) → integrator: PR #403 open, reviewer round1 APPROVE, 4-게이트 PASS, CI green → gh pr merge --squash --delete-branch, squash 794ed51 on main. bookkeeping 위해 lock 재획득(d449659→fb40e28), planner T-0493 큐잉, direct commit(STATE/task/journal) + claim 제거(claims=[]) + lock tombstone release. 동시성: 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-18T07:56:00Z",
-  "lastCommit": "79910b0",
+  "lastActivity": "2026-06-18T08:18:00Z",
+  "lastCommit": "794ed51",
   "mostRecentTasks": [
+    "T-0492",
     "T-0491",
     "T-0490",
     "T-0489",
-    "T-0488",
-    "T-0487"
+    "T-0488"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -39,6 +39,7 @@
     "note": "T-0491 PR #402 round2 head aa08467 pull_request CI success(green, run 27744697472 — lint/build/test/cov/reviewer-approval-gate 전 step 통과) 확인 후 squash merge 79910b0. merge 후 main push CI(79910b0)는 pending(07:54:56Z trigger) — 이미 green 인 코드의 re-run 이라 다음 fire 에서 conclusion 확인. direct bookkeeping commit push 도 main CI 동반 trigger."
   },
   "reviewRounds": {
+    "T-0492": 1,
     "T-0491": 2,
     "T-0488": 2,
     "T-0487": 1,
@@ -873,7 +874,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 483,
+    "tasksCompleted": 484,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
