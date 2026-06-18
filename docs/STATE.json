@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0490",
+  "nextTask": "T-0491",
   "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-6 DONE: T-0484(ADR-0044), T-0485(prisma schema+migration), T-0486(ExportJobService), T-0487(ImportJobService), T-0488(ExportController+DTO+module, 9a89cb8 직전), T-0489(ImportController+CreateImportDto+ImportModule — POST /api/admin/import job 생성·polling, PR #401 round1 APPROVE, squash 9a89cb8). next: T-0490(api.md §5 GET /api/admin/export→POST 정정 — T-0488 §Follow-ups doc drift closure, direct doc-only ~4 LOC). 이후 step: 45 helper(T-0437~T-0483) 실 호출 배선·multipart upload(별도 task 분할). 실 atomic-transaction restore·artifact object-storage 는 새 외부 dependency/credential 라 Q-0040 승인 범위 밖(별도 §5/§9 게이트). 잔여 게이트(미해소): live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend(backend 계약 ship 후), timezone Q-0026(ADR-first human), ADR-0036 stage5c full-parallel(30일 dogfood). open PR 0·BLOCKED 0·blockers 0. pr-mode 4-게이트 CI green 정상 가동(T-0486~T-0489 연속 실증).",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aas1g-f925",
-    "since": "2026-06-18T04:39:11Z",
-    "note": "cron@cloud-aas1g-f925 (schedule cron fire, fresh checkout) — origin/main f925b2f 동기(직전 fire T-0488 merge + planner T-0489 큐잉). 권위 lock CAS 획득(lock-driver branch 재생성: mktemp 경로 사고로 branch 일시 삭제됐으나 zero-sha CAS 로 즉시 복구, claims=[] 무손실)→gate(active 0, pr-mode claimable)→select+claim T-0489(f239cfe)→lock-free execute. executor: ImportController+CreateImportDto+ImportModule (ExportController 1:1 mirror, 신규 import 파일 cov 100%). pr-mode push→integrator: PR #401 round1 APPROVE+CI green→4-게이트 PASS→squash merge 9a89cb8. bookkeeping 위해 lock reacquire(4bd28cb). planner T-0490(api.md GET→POST doc-sync) 큐잉. doc commit 후 claim 해제+lock tombstone release."
+    "session": "cron@cloud-l15-1520",
+    "since": "2026-06-18T05:05:30Z",
+    "note": "cron@cloud-l15-1520 (aa-local-15 schedule cron fire, fresh cloud checkout) — origin/main f925b2f→a57f112 ff 동기(직전 cron fire T-0489 merge 9a89cb8 + planner T-0490 큐잉). lock free(tombstone)·claims=[] 확인→fineGrainedConcurrency 분기: gate(active 0 < max 2, direct doc claimable)→select-claim.sh 로 T-0490 atomic select+claim(lock tombstone 동반 release)→lock-free execute. executor: api.md §5 export 계약표 L123 + UC-07 매핑표 L176 GET→POST 정정(T-0488 §Follow-ups doc drift closure), doc-only +2/-2. direct push HEAD:main(a57f112→1769a29), CI in_progress(doc-only — 다음 turn green 확인). bookkeeping direct commit 후 claims.json 에서 T-0490 제거(claim release)."
   },
-  "lastActivity": "2026-06-18T04:55:00Z",
-  "lastCommit": "9a89cb8",
+  "lastActivity": "2026-06-18T05:09:00Z",
+  "lastCommit": "1769a29",
   "mostRecentTasks": [
+    "T-0490",
     "T-0489",
     "T-0488",
     "T-0487",
-    "T-0486",
-    "T-0485"
+    "T-0486"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -32,11 +32,11 @@
     "note": "/loop win-tt511 (dynamic, turn cap 10) — 종료. t1 stand-down(T-0473 cron@local15). t2-t10 매 turn 1 task merge: T-0474→90df25d, T-0475→92e0e1b, T-0476→1339f48, T-0477→16ab736, T-0478→549dfcd, T-0479→8c8d286, T-0480→b2523a7, T-0481→7866890, t10(18:37Z) T-0482→PR #393 APPROVE(NIT 1)→merge 0ab1b37→bookkeeping+planner T-0483. turn cap 10 도달 → self-reschedule 안 함, session 종료. 9개 task(T-0474~T-0482) 전부 round1 APPROVE merge·신규 파일 100% cov·CI green·blocker 0. cleanup 권장: /compact 또는 /clear 후 새 /loop, 또는 cron(KST 야간) 대기. 다음 진입점이 T-0483 부터."
   },
   "ci": {
-    "lastRun": "2026-06-18T04:50:00Z",
+    "lastRun": "2026-06-18T05:09:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0489 PR #401 round1 CI green(4-게이트 통과, reviewer approval 검증 step 포함) → squash merge 9a89cb8. post-merge main CI(9a89cb8) in_progress — 다음 fire [1] 에서 conclusion 재확인. Q-0041 RESOLVED 후 pr-mode 4-게이트 연속 실증(T-0486·T-0487·T-0488·T-0489)."
+    "note": "T-0490 direct doc commit 1769a29(api.md GET→POST) main CI success — 전 step green. 직전 T-0489 PR #401 round1 4-게이트 통과 merge 9a89cb8 + post-merge main CI a57f112 success 도 확인. Q-0041 RESOLVED 후 pr-mode 4-게이트 연속 실증(T-0486~T-0489), direct doc-sync 도 green."
   },
   "reviewRounds": {
     "T-0488": 2,
@@ -872,7 +872,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 481,
+    "tasksCompleted": 482,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

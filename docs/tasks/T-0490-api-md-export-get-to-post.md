@@ -2,7 +2,7 @@
 id: T-0490
 title: api.md §5 GET /api/admin/export → POST 정정 (T-0488 code↔doc drift closure)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 4
