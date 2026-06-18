@@ -2,7 +2,7 @@
 id: T-0512
 title: ADR-0046 §Decision 1 맞물림 (iv) refetch materialization — MaterializedExportDumpChunk[] 를 reconcileExportChunkIntegrity 의 failedChunks(손상 chunk) 경계로 필터해 재요청 대상 chunk subset 만 반환하는 순수 helper selectRefetchMaterializedDumpChunks 신설
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 235
