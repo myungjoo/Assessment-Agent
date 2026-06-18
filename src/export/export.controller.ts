@@ -13,10 +13,18 @@
 //     endpoint 메서드를 POST 로 박제하고 api.md 의 GET→POST 정정을 follow-up 으로
 //     기록 (task §AC create endpoint 항목의 "POST 가 자연스러우면 근거 1줄 명시" 정합).
 //   - GET  /api/admin/export/running  → findRunning (RUNNING 목록, UC-07 §8 status polling).
+//   - POST /api/admin/export/describe-scope → describeScope (선택 scope 의 사람-친화
+//     설명 모델, UC-07 §5 step 2 + §6.1 + §8 (a) read-only — describeExportScope(T-0462)
+//     helper 를 실호출 배선, DB write 0 / raw 미접근). CreateExportDto body 를 받아
+//     enum→lowercase scope kind 변환 + dateRange ISO→Date coerce 후 helper 호출.
+//     POST 메서드라 `@Get(":id")` 동적 segment 와 충돌 없음 (메서드 분리 — Import 측
+//     describeModes 는 GET segment 라 `:id` 위에 선언했으나, 본 endpoint 는 POST 라
+//     순서 무관). Import 측 GET /modes (T-0493) 의 export 측 대칭.
 //   - GET  /api/admin/export/:id      → findJob (단건 polling, 부재 시 service 가
 //     NotFoundException→404 raw forward).
 //   라우트 선언 순서 주의 — `running` 고정 segment 를 `:id` 동적 segment 보다 먼저
 //   선언해야 "running" 이 :id 로 포착되지 않는다 (NestJS path matching 순서).
+//   describe-scope 는 POST 라 GET `:id` 와 메서드가 달라 순서 영향 없음.
 //
 // ValidationPipe wire (DifficultyMappingController mirror):
 //   - Controller-scope `@UsePipes(new ValidationPipe({...}))` — POST body 의
@@ -56,15 +64,42 @@ import {
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
-import type { ExportJob } from "@prisma/client";
+import {
+  ExportScope as PrismaExportScope,
+  type ExportJob,
+} from "@prisma/client";
 
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import type { PeriodRange } from "../common/period-boundary";
 
 import { CreateExportDto } from "./dto/create-export.dto";
 import { ExportJobService } from "./export-job.service";
+import {
+  describeExportScope,
+  type ExportScopeDescription,
+} from "./export-scope-description";
+import type {
+  ExportEntity,
+  ExportScope as ExportScopePayload,
+} from "./export-scope-select";
+
+// Prisma ExportScope enum(uppercase FULL/RANGE/PARTIAL) ↔ describeExportScope helper 가
+// 요구하는 lowercase scope kind("full"/"range"/"partial") 매핑. prisma/schema.prisma 의
+// enum ExportScope 가 source 이고, helper 는 export-scope-select.ts 의 ExportScope["scope"]
+// lowercase literal 을 요구한다 — 본 상수가 그 대소문자 차이를 흡수한다(schema·helper 변경
+// 0, ExportJobService.SCOPE_ENUM_TO_PAYLOAD / ImportController.IMPORT_MODE_ENUM_TO_PAYLOAD
+// 패턴 mirror).
+const SCOPE_ENUM_TO_PAYLOAD: Record<
+  PrismaExportScope,
+  ExportScopePayload["scope"]
+> = {
+  [PrismaExportScope.FULL]: "full",
+  [PrismaExportScope.RANGE]: "range",
+  [PrismaExportScope.PARTIAL]: "partial",
+};
 
 @Controller("api/admin/export")
 @UsePipes(
@@ -111,6 +146,65 @@ export class ExportController {
   @Roles("Admin")
   async findRunning(): Promise<ExportJob[]> {
     return this.service.findRunning();
+  }
+
+  // POST /api/admin/export/describe-scope — 선택 scope 의 사람-친화 설명 모델 조회
+  // (UC-07 §5 step 2 + §6.1 + §8 (a) read-only, REQ-030/032/045). 사용자가 Export 를
+  // *확정하기 전* "내가 무엇을 내보내는지" 를 보여줄 scope preview dialog 의 정보 source —
+  // Import 측 describeModes(T-0493) 의 export 측 대칭이다. CreateExportDto 를 그대로
+  // request body 로 재사용해 받고(create 와 동일 DTO), Prisma ExportScope enum →
+  // lowercase scope kind 변환(SCOPE_ENUM_TO_PAYLOAD) + dateRange 의 ISO string → Date
+  // coerce(ExportJobService.coerceDateRange 패턴 mirror — JSON 에 Date 타입이 없어
+  // start/end 가 string 으로 들어옴) 후 describeExportScope(T-0462) helper 를 실호출하고,
+  // 반환된 ExportScopeDescription 을 200 으로 그대로 반환한다.
+  //
+  // controller 자체 분기 0 (helper raw forward — create/findJob 정책 동일):
+  //   - RANGE+dateRange 누락 / start>=end / PARTIAL+빈 entitySelector / 허용 외 entity
+  //     섞임 → helper 의 RangeError, dateRange 비-Date/Invalid → helper 의 TypeError 가
+  //     swallow 없이 raw propagate(NestjS default exception filter 가 500 으로 매핑 —
+  //     본 controller 는 try/catch·status 변환 신설 0, helper 가 입력 방어 책임).
+  //   - persistence / DB write 0 — describeScope 는 순수 합성(read-only). job record
+  //     생성·status 변경 0 (REQ-032 raw 미저장 자연 유지 — 입력 scope 만 다룸).
+  //
+  // POST + describe-scope 고정 segment 라 GET `:id` 동적 segment 와 메서드·경로 모두
+  // 달라 라우트 충돌 0 (기존 running/:id GET 순서 불변).
+  //
+  // RBAC — Admin+ tier (create 동일). @Roles("Admin") → Admin / SuperAdmin 통과
+  // (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
+  @Post("describe-scope")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  describeScope(@Body() dto: CreateExportDto): ExportScopeDescription {
+    // enum→lowercase scope kind 변환 + dateRange ISO→Date coerce + entitySelector
+    // forward 로 helper 입력 ExportScope 를 합성한다(create 의 service 위임과 달리 본
+    // 경로는 helper 를 직접 호출 — describeScope 는 read-only 순수 합성이라 service 불요).
+    const helperInput: ExportScopePayload = {
+      scope: SCOPE_ENUM_TO_PAYLOAD[dto.scope],
+      dateRange: this.coerceDateRange(dto.dateRange),
+      entitySelector: dto.entitySelector as ExportEntity[] | undefined,
+    };
+    return describeExportScope(helperInput);
+  }
+
+  // coerceDateRange — JSON body 의 dateRange 는 역직렬화 과정에서 start/end 가 ISO string
+  // 으로 들어올 수 있으므로(JSON 에 Date 타입 부재), string 이면 new Date(...) 로 coerce
+  // 한다(ExportJobService.coerceDateRange 패턴 mirror). coerce 후 helper 의 assertValidDate
+  // 가 Invalid Date(잘못된 ISO string)를 TypeError 로 잡는다. 이미 Date instance 면 그대로
+  // 통과, dateRange 가 object 가 아니면(undefined 포함) undefined 로 흘려보내 helper 의
+  // dateRange 부재 분기(RANGE 면 RangeError)가 처리하도록 둔다(본 controller 는 형 변환만,
+  // 판정은 helper).
+  private coerceDateRange(
+    value: Record<string, unknown> | undefined,
+  ): PeriodRange | undefined {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      return undefined;
+    }
+    const range = value as { start?: unknown; end?: unknown };
+    return {
+      start:
+        typeof range.start === "string" ? new Date(range.start) : range.start,
+      end: typeof range.end === "string" ? new Date(range.end) : range.end,
+    } as PeriodRange;
   }
 
   // GET /api/admin/export/:id — 단건 status polling 조회 (UC-07 §8). :id 는 path
