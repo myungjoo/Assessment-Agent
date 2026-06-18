@@ -47,7 +47,7 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { Test, type TestingModule } from "@nestjs/testing";
-import { ExportScope, type ExportJob } from "@prisma/client";
+import { ExportScope, JobStatus, type ExportJob } from "@prisma/client";
 import type { Request } from "express";
 import request from "supertest";
 
@@ -55,6 +55,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
+import * as describeExportJobStatusModule from "./export-job-status-view";
 import { ExportJobService } from "./export-job.service";
 import * as describeExportScopeModule from "./export-scope-description";
 import { ExportController } from "./export.controller";
@@ -432,6 +433,134 @@ describe("ExportController (unit)", () => {
       }),
     ).toThrow(RangeError);
   });
+
+  // -----------------------------------------------------------------------
+  // statusView (GET /api/admin/export/:id/status-view) — describeExportJobStatus
+  // (T-0468) 실호출 배선 (T-0496). controller 가 findJob(id) 로 조회한 job 의 Prisma
+  // JobStatus 를 lowercase ExportJobStatus 로 JOB_STATUS_TO_VIEW 매핑한 뒤 helper 를
+  // 실호출해 ExportJobStatusView 를 반환한다. R-112: happy(4 status 각각) +
+  // error(findJob NotFoundException raw propagate, helper 미호출) + branch(4 enum 매핑
+  // 계약 — helper spy 인자 검증) + negative(부재 raw propagate / 매핑표 모든 enum cover).
+  // -----------------------------------------------------------------------
+  it.each([
+    [JobStatus.PENDING, "queued", false, false, "running"],
+    [JobStatus.RUNNING, "running", false, false, "ready"],
+    [JobStatus.SUCCEEDED, "ready", true, true, null],
+    [JobStatus.FAILED, "failed", true, false, null],
+  ])(
+    "GET :id/status-view — %s job → lowercase status '%s' 매핑 후 ExportJobStatusView 반환 (happy — status별 진행 view)",
+    async (jobStatus, expectedStatus, terminal, downloadable, nextStatus) => {
+      const { service, serviceMock } = buildServiceMock();
+      serviceMock.findJob.mockResolvedValueOnce(
+        buildExportJobFixture({ id: "ej-sv", status: jobStatus }),
+      );
+
+      const controller = new ExportController(service);
+      const result = await controller.statusView("ej-sv");
+
+      // findJob 가 :id 로 정확히 1 회 호출됨.
+      expect(serviceMock.findJob).toHaveBeenCalledTimes(1);
+      expect(serviceMock.findJob).toHaveBeenCalledWith("ej-sv");
+      // 매핑된 lowercase status + 핵심 불변 단언.
+      expect(result.status).toBe(expectedStatus);
+      expect(result.terminal).toBe(terminal);
+      expect(result.downloadable).toBe(downloadable);
+      expect(result.nextStatus).toBe(nextStatus);
+      expect(result.totalSteps).toBe(3);
+      expect(result.phaseLabel.length).toBeGreaterThan(0);
+      expect(result.message.length).toBeGreaterThan(0);
+    },
+  );
+
+  it("GET :id/status-view — SUCCEEDED 핵심 불변(downloadable=true & ready) / RUNNING(terminal=false) 단언 (happy — 핵심 불변)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.findJob.mockResolvedValueOnce(
+      buildExportJobFixture({ status: JobStatus.SUCCEEDED }),
+    );
+    const controller = new ExportController(service);
+
+    const succeeded = await controller.statusView("ej-ok");
+    expect(succeeded.downloadable).toBe(true);
+    expect(succeeded.status).toBe("ready");
+
+    serviceMock.findJob.mockResolvedValueOnce(
+      buildExportJobFixture({ status: JobStatus.RUNNING }),
+    );
+    const running = await controller.statusView("ej-run");
+    expect(running.terminal).toBe(false);
+    expect(running.downloadable).toBe(false);
+  });
+
+  it("GET :id/status-view — 4 enum 매핑이 정확히 queued/running/ready/failed 로 helper 에 forward (branch — 4 enum 매핑 계약)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const helperSpy = jest.spyOn(
+      describeExportJobStatusModule,
+      "describeExportJobStatus",
+    );
+    const controller = new ExportController(service);
+
+    for (const status of [
+      JobStatus.PENDING,
+      JobStatus.RUNNING,
+      JobStatus.SUCCEEDED,
+      JobStatus.FAILED,
+    ]) {
+      serviceMock.findJob.mockResolvedValueOnce(
+        buildExportJobFixture({ status }),
+      );
+      await controller.statusView("ej-map");
+    }
+
+    // helper 1번째 인자가 정확히 lowercase 4종 순서.
+    expect(helperSpy.mock.calls.map((c) => c[0])).toEqual([
+      "queued",
+      "running",
+      "ready",
+      "failed",
+    ]);
+    helperSpy.mockRestore();
+  });
+
+  it("GET :id/status-view — findJob 의 NotFoundException(부재 job) raw propagate + helper 미호출 (negative 핵심 — 부재 시 helper 도달 0)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const notFound = new NotFoundException("export job not found: missing");
+    serviceMock.findJob.mockRejectedValueOnce(notFound);
+    const helperSpy = jest.spyOn(
+      describeExportJobStatusModule,
+      "describeExportJobStatus",
+    );
+
+    const controller = new ExportController(service);
+    await expect(controller.statusView("missing")).rejects.toBe(notFound);
+    // helper 는 findJob 부재 분기에서 호출되지 않음 (swallow 없이 raw propagate).
+    expect(helperSpy).not.toHaveBeenCalled();
+    helperSpy.mockRestore();
+  });
+
+  it("GET :id/status-view — findJob 의 raw Error(의존성 fail) 를 그대로 propagate (error path)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const rawError = new Error("db-down");
+    serviceMock.findJob.mockRejectedValueOnce(rawError);
+
+    const controller = new ExportController(service);
+    await expect(controller.statusView("ej-x")).rejects.toBe(rawError);
+  });
+
+  it("GET :id/status-view — JOB_STATUS_TO_VIEW 매핑표가 모든 JobStatus enum 값을 유효 lowercase status 로 cover (negative — enum 확장 누락 회귀 방지)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const controller = new ExportController(service);
+    const validLowercase = new Set(["queued", "running", "ready", "failed"]);
+
+    // Object.values(JobStatus) 전부가 매핑되어 helper 가 RangeError 없이 유효 view 를
+    // 산출함을 단언 — schema 에 새 JobStatus 가 추가되면 본 test 가 회귀를 잡는다.
+    for (const status of Object.values(JobStatus)) {
+      serviceMock.findJob.mockResolvedValueOnce(
+        buildExportJobFixture({ status }),
+      );
+      const view = await controller.statusView("ej-cover");
+      expect(validLowercase.has(view.status)).toBe(true);
+    }
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -447,6 +576,7 @@ describe("ExportController (guard/@Roles metadata)", () => {
     ["create", ExportController.prototype.create],
     ["findRunning", ExportController.prototype.findRunning],
     ["describeScope", ExportController.prototype.describeScope],
+    ["statusView", ExportController.prototype.statusView],
     ["findJob", ExportController.prototype.findJob],
   ])(
     "%s 핸들러에 @Roles('Admin') metadata 부착 (Admin+ tier gate)",
@@ -460,6 +590,7 @@ describe("ExportController (guard/@Roles metadata)", () => {
     ["create", ExportController.prototype.create],
     ["findRunning", ExportController.prototype.findRunning],
     ["describeScope", ExportController.prototype.describeScope],
+    ["statusView", ExportController.prototype.statusView],
     ["findJob", ExportController.prototype.findJob],
   ])(
     "%s 핸들러에 @UseGuards(JwtAuthGuard, RolesGuard) 부착 (인증+RBAC gate)",
@@ -911,6 +1042,78 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
       .send({ scope: "FULL" })
       .expect(403);
   });
+
+  // == GET /api/admin/export/:id/status-view — statusView endpoint =================
+
+  // -- happy — Admin 통과 시 200 + helper 산출 ExportJobStatusView body 반환 ----------
+  // status-view 가 :id 보다 깊은 고정 segment 라 findJob 의 :id 로 포착되지 않음을 실
+  // HTTP 경로로 단언 (route 우선순위 — status-view 가 findJob 으로 라우트 안 됨).
+  it("GET :id/status-view — Admin role 통과 시 200 + ExportJobStatusView 반환 (happy — route 우선순위)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.findJob.mockResolvedValueOnce(
+      buildExportJobFixture({ id: "ej-sv", status: "SUCCEEDED" }),
+    );
+
+    const res = await request(app.getHttpServer())
+      .get("/api/admin/export/ej-sv/status-view")
+      .expect(200);
+
+    // SUCCEEDED → lowercase "ready" + downloadable=true.
+    expect(res.body.status).toBe("ready");
+    expect(res.body.downloadable).toBe(true);
+    expect(res.body.totalSteps).toBe(3);
+    expect(serviceMock.findJob).toHaveBeenCalledWith("ej-sv");
+  });
+
+  // -- negative — service NotFoundException (부재 job) → 404 (raw propagate) --------
+  it("GET :id/status-view — service 가 NotFoundException (부재 job) throw 시 404 (negative 핵심 — 부재 job)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.findJob.mockRejectedValueOnce(
+      new NotFoundException("export job not found: missing"),
+    );
+
+    await request(app.getHttpServer())
+      .get("/api/admin/export/missing/status-view")
+      .expect(404);
+  });
+
+  // -- negative — 401 (인증 부재) on :id/status-view ------------------------------
+  it("GET :id/status-view — JwtAuthGuard reject 시 401 + service 미호출 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .get("/api/admin/export/ej-7/status-view")
+      .expect(401);
+
+    expect(serviceMock.findJob).not.toHaveBeenCalled();
+  });
+
+  // -- negative — 403 (User actor) on :id/status-view -----------------------------
+  it("GET :id/status-view — RolesGuard reject 시 403 + service 미호출 (negative — User actor Admin+ 미달)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: { canActivate: () => false },
+    });
+
+    await request(app.getHttpServer())
+      .get("/api/admin/export/ej-7/status-view")
+      .expect(403);
+
+    expect(serviceMock.findJob).not.toHaveBeenCalled();
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -1022,6 +1225,34 @@ describe("ExportController (real RolesGuard escalation 분기)", () => {
 
       await request(app.getHttpServer())
         .get("/api/admin/export/ej-7")
+        .expect(200);
+
+      expect(serviceMock.findJob).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  // GET :id/status-view Admin+ tier — User actor 는 403 차단 (실 RolesGuard escalation).
+  it("GET :id/status-view — User actor 는 Admin+ tier 미달 → 403 (실 RolesGuard escalation)", async () => {
+    app = await buildAppWithRealRolesGuard("User");
+
+    await request(app.getHttpServer())
+      .get("/api/admin/export/ej-7/status-view")
+      .expect(403);
+
+    expect(serviceMock.findJob).not.toHaveBeenCalled();
+  });
+
+  // GET :id/status-view — Admin / SuperAdmin actor 통과 (escalation descent) → 200.
+  it.each(["Admin", "SuperAdmin"])(
+    "GET :id/status-view — %s actor 는 Admin+ tier 통과 (200, escalation hierarchy descent)",
+    async (role) => {
+      app = await buildAppWithRealRolesGuard(role);
+      serviceMock.findJob.mockResolvedValueOnce(
+        buildExportJobFixture({ status: "RUNNING" }),
+      );
+
+      await request(app.getHttpServer())
+        .get("/api/admin/export/ej-7/status-view")
         .expect(200);
 
       expect(serviceMock.findJob).toHaveBeenCalledTimes(1);

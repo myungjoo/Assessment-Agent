@@ -66,6 +66,7 @@ import {
 } from "@nestjs/common";
 import {
   ExportScope as PrismaExportScope,
+  JobStatus as PrismaJobStatus,
   type ExportJob,
 } from "@prisma/client";
 
@@ -76,6 +77,11 @@ import { RolesGuard } from "../auth/roles.guard";
 import type { PeriodRange } from "../common/period-boundary";
 
 import { CreateExportDto } from "./dto/create-export.dto";
+import type { ExportJobStatus } from "./export-job-plan";
+import {
+  describeExportJobStatus,
+  type ExportJobStatusView,
+} from "./export-job-status-view";
 import { ExportJobService } from "./export-job.service";
 import {
   describeExportScope,
@@ -99,6 +105,20 @@ const SCOPE_ENUM_TO_PAYLOAD: Record<
   [PrismaExportScope.FULL]: "full",
   [PrismaExportScope.RANGE]: "range",
   [PrismaExportScope.PARTIAL]: "partial",
+};
+
+// Prisma JobStatus enum(uppercase PENDING/RUNNING/SUCCEEDED/FAILED) ↔
+// describeExportJobStatus helper 가 요구하는 lowercase ExportJobStatus("queued"/
+// "running"/"ready"/"failed") 매핑. prisma/schema.prisma 의 enum JobStatus 가 source
+// 이고, helper 는 export-job-plan.ts 의 ExportJobStatus lowercase literal 을 요구한다 —
+// 본 상수가 그 대소문자·어휘 차이(SUCCEEDED→ready)를 흡수한다(schema·helper 변경 0,
+// SCOPE_ENUM_TO_PAYLOAD 패턴 mirror). 타입을 Record<PrismaJobStatus, ...> 로 강제해
+// enum 에 새 status 가 추가되면 본 표가 컴파일 단계에서 누락을 catch 한다.
+const JOB_STATUS_TO_VIEW: Record<PrismaJobStatus, ExportJobStatus> = {
+  [PrismaJobStatus.PENDING]: "queued",
+  [PrismaJobStatus.RUNNING]: "running",
+  [PrismaJobStatus.SUCCEEDED]: "ready",
+  [PrismaJobStatus.FAILED]: "failed",
 };
 
 @Controller("api/admin/export")
@@ -205,6 +225,38 @@ export class ExportController {
         typeof range.start === "string" ? new Date(range.start) : range.start,
       end: typeof range.end === "string" ? new Date(range.end) : range.end,
     } as PeriodRange;
+  }
+
+  // GET /api/admin/export/:id/status-view — async Export job 의 사람-친화 진행 view 조회
+  // (UC-07 §8 NFR async job + status polling + §5 step 13 다운로드 완료 직전 진행 안내,
+  // REQ-030/032/045). findJob(id) 로 조회한 job 의 Prisma JobStatus 를 helper 가 요구하는
+  // lowercase ExportJobStatus 로 JOB_STATUS_TO_VIEW 매핑한 뒤 describeExportJobStatus(T-0468)
+  // 를 실호출해 ExportJobStatusView(phaseLabel·stepIndex·totalSteps·nextStatus·terminal·
+  // downloadable·한국어 message)를 200 으로 반환한다. raw ExportJob 만 주던 GET :id 와 달리
+  // "지금 몇 단계 중 몇 번째인지" 를 사람-친화 view 로 derive 한다.
+  //
+  // controller 자체 분기 0 (helper / service raw forward — findJob/describeScope 정책 동일):
+  //   - job 부재 → service.findJob 의 NotFoundException(404)이 helper 호출 전에 raw propagate
+  //     (controller 자체 try/catch·status 변환 신설 0, REQ-032 raw stack 미노출 정합).
+  //   - 정상 조회 시 status 는 항상 JOB_STATUS_TO_VIEW 가 산출한 정상 lowercase 값이라 helper
+  //     의 입력 방어 분기(TypeError/RangeError)는 정상 경로에서 미발화 — 매핑표가 4 enum 을
+  //     1:1 cover 하므로 미정의 값이 helper 로 흘러가지 않는다.
+  //   - persistence / DB write 0 — describeExportJobStatus 는 status enum 하나만 다루는 순수
+  //     합성(read-only). job record 변경 0 (REQ-032 raw 미저장 자연 유지).
+  //
+  // route 선언 순서 — `:id/status-view` 고정-깊이 segment 를 `:id` 동적 segment 보다 먼저
+  // 선언해 NestJS path matching 안전을 확보(기존 running before :id 패턴 동형).
+  //
+  // RBAC — Admin+ tier (create 동일). @Roles("Admin") → Admin / SuperAdmin 통과
+  // (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
+  @Get(":id/status-view")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async statusView(@Param("id") id: string): Promise<ExportJobStatusView> {
+    // findJob 부재 시 NotFoundException 이 여기서 raw propagate — helper 호출 도달 전.
+    const job = await this.service.findJob(id);
+    // Prisma JobStatus → lowercase ExportJobStatus 매핑 후 helper 실호출(UC-07 §8 진행 view).
+    return describeExportJobStatus(JOB_STATUS_TO_VIEW[job.status]);
   }
 
   // GET /api/admin/export/:id — 단건 status polling 조회 (UC-07 §8). :id 는 path
