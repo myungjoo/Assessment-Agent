@@ -2,7 +2,7 @@
 id: T-0504
 title: describeExportChunkStreamProgress helper 를 ExportJobService.previewSelection 응답의 초기 streamProgress 로 실호출 배선 — helper 배선 chain step13
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 210

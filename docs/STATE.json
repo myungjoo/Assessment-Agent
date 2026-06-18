@@ -7,39 +7,40 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0504",
-  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). helper 배선 chain step11 = T-0502 DONE/MERGED(squash 2cab65e, PR #412): buildExportResult(T-0456)→previewSelection completionResult 확장 배선. step12 = **T-0503 DONE/MERGED**(squash 046836c, PR #414 round1 4-게이트): buildExportChunkPlan(T-0469 미호출 helper)→previewSelection 의 sizeEstimate+deliveryPlan.chunked 위에 chunkPlan 응답 조건부 확장 배선(chunked true 면 ExportChunkPlan, false 면 null). DEFAULT_EXPORT_CHUNK_SIZE_BYTES(1MB) service module-level 상수(정책/ENV 동적주입 별도 task)·DB write·신규 endpoint 0·기존 7필드 backward-compat(append-only). production +38 LOC service, cov service line98.5%/func100%/branch95.65%·controller100%, 변경 3파일 +332 insertions(production +38, 나머지 R-112 test). reviewer round1 APPROVE(0 BLOCKER/MAJOR, MINOR1[test diff cap, production tiny 라 본질 over-scope 아님]+NIT1[type-safe mock], 둘 다 비차단). 단일 active driver(loop@win-tt511-tc5 로컬 /loop turn cap 5, fineGrainedConcurrency stage5b select-claim), race 0. 다음 step: helper 배선 chain step13 = **T-0504 큐잉됨**(describeExportChunkStreamProgress(T-0470 미호출 helper)→T-0503 chunkPlan 위에 deliveredChunks=0 초기 streamProgress(0%·첫 chunk content-range) 응답 조건부 배선, chunkPlan null 이면 null, DB write·신규 endpoint 0, pr, ~210 LOC 4파일). ⚠️ **planner 경고: T-0504 가 마지막 clean preview-side step** — 이후 helper(export-chunk-stream-throughput/throughput-series/resume-plan)는 실 streaming runtime state(시간축 transfer sample·failed-chunk set) 필요로 preview 시점 배선 불가 가능성↑, export-artifact-descriptor/dump-checksum 은 materialized ExportDump(records 직렬화) 필요라 preview(projection-only, REQ-032) 범위 밖. T-0504 후 chain 은 실 streaming/build 게이트(별도 task·사람 결정) 도달 — 사람 검토 시점. 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0.",
+  "nextTask": null,
+  "backlogNote": "⚠️ **P7 export/import helper 실 배선 chain(Q-0040 옵션1) 의 dependency-free 분량 소진 — Q-0042 OPEN(사람 결정 대기)**. 마지막 4 step 전부 DONE/MERGED: T-0501(deliveryPlan 392e94e)·T-0502(completionResult 2cab65e #412)·T-0503(chunkPlan 046836c #414)·**T-0504(streamProgress 284cbac #415)**. previewSelection 응답이 이제 summary→sizeEstimate→deliveryPlan→completionResult→chunkPlan→streamProgress(deliveredChunks=0) 전 preview layer 노출. planner 가 origin/main 284cbac 대조로 남은 ~30 미호출 helper 전수 분류 → **dependency-free·preview-side 잔여 0** 확인. 다음 진행은 3 게이트 중 사람 결정 필요(Q-0042): (1) streaming-runtime 게이트(export-chunk throughput/series/integrity/refetch helper 는 실 transfer 데이터 — non-zero elapsed·throughput sample·per-chunk integrity·failed-chunk set 필요), (2) materialized-dump 게이트(buildExportDump/artifact-descriptor/dump-checksum 는 records 직렬화 + artifact object-storage 필요 — Q-0040 범위 밖), (3) file-upload-infra 게이트(import mirror 는 multipart/FileInterceptor 신규 infra dep + existing full-DB read 필요 — §5 BLOCKED-class). 권장: 사람이 (1)+(2) 실 chunked-streaming/build P5 service-layer chain 또는 (3) import upload infra 중 택일 승인. 기타 standing 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=496.",
   "lock": {
     "holder": null,
     "session": "loop@win-tt511-tc5",
-    "since": "2026-06-18T13:28:10Z",
-    "note": "loop@win-tt511-tc5 (로컬 /loop dynamic, turn cap 5) — ScheduleWakeup t3: origin/main 48c3e03 에서 깨어 fetch→ff(변동 없음). server-time 13:28:10Z(curl GitHub api Date 헤더). lock free(d1c20b7 tombstone holder=\"\")·claims=[] 확인 → 권위 lock CAS 획득(d1c20b7→4bb0e56, server-time 13:28:10Z, 13:30 cron 직전). fineGrainedConcurrency=true(stage 5b): reclaim no-op, active claim 0<maxConcurrentClaims2·pr-mode 활성claim0, validate-claim-candidate.sh T-0503 PASS(touchesFiles disjoint+dependsOn T-0502 merged) → select-claim.sh 로 T-0503(nextTask, pr) 단독 claim(claims append + lock tombstone 동일 commit 즉시 release). lock-free executor(implementer→tester) 로 T-0503 수행: buildExportChunkPlan(T-0469)→previewSelection 응답 chunkPlan 조건부 확장 배선(1MB 상수) production +38 LOC service, lint/build/test green(29995 pass) 변경파일 cov service line98.5%/func100%/branch95.65%·controller100% commit 1a22648. feature branch claude/T-0503-export-chunk-plan-wire push → claim prNumber=414 PR_OPEN 갱신(a9df3a8) → PR #414 open, reviewer 직접 dispatch round1 APPROVE(0 BLOCKER/MAJOR, MINOR1+NIT1 비차단)+comment(gate2), CI green(run 27763407031 success, 기본 검사 3m4s+Docker smoke 1m46s 둘 다 pass) → 4-게이트 PASS → gh pr merge --squash --delete-branch, squash 046836c on main 13:40:53Z. claim 제거(claims=[] dc07867). bookkeeping direct commit(STATE/task/journal) + planner T-0504 큐잉(+gate 경고) + lock tombstone 유지. 동시성: 단일 active driver, race 0. (이전 t2 note)",
-    "noteOld": "loop@win-tt511-tc5 t2 (로컬 /loop turn cap 5) — origin/main 81785d8(cron T-0501 merge 392e94e·T-0502 큐잉)에서 lock free(d1fe887)·claims=[] → CAS 획득(d1fe887→add9655, 13:02:52Z). stage5b: validate-claim T-0502 PASS → select-claim T-0502(pr) 단독 claim. lock-free executor: buildExportResult(T-0456)→previewSelection completionResult 확장 +25 LOC, 29981 pass. PR #412 round1 APPROVE(NIT1) 4-게이트 PASS CI green → squash 2cab65e. bookkeeping + planner T-0503 큐잉 + claim 제거. 단일 active driver, race 0."
+    "since": "2026-06-18T13:52:08Z",
+    "note": "loop@win-tt511-tc5 (로컬 /loop dynamic, turn cap 5) — ScheduleWakeup t4: origin/main 6619ba6 에서 깨어 fetch→ff(변동 없음). server-time 13:52:08Z(curl GitHub api Date 헤더). lock free(dc07867 tombstone holder=\"\")·claims=[] 확인 → 권위 lock CAS 획득(dc07867→debecbb). stage5b: reclaim no-op, active claim 0<maxConcurrentClaims2·pr-mode 활성claim0, validate-claim-candidate.sh T-0504 PASS(touchesFiles disjoint+dependsOn T-0503 merged) → select-claim.sh 로 T-0504(nextTask, pr) 단독 claim(claims append + lock tombstone 동일 commit 즉시 release). lock-free executor(implementer→tester) 로 T-0504 수행: describeExportChunkStreamProgress(T-0470)→previewSelection 응답 streamProgress(deliveredChunks=0) 조건부 확장 배선 production +36 LOC service, lint/build/test green(30010 pass) 변경파일 cov service line98.55%/func100%·controller100% commit 142a31d. feature branch claude/T-0504-export-chunk-stream-progress-wire push → claim prNumber=415 PR_OPEN 갱신(97d437f) → PR #415 open, reviewer 직접 dispatch round1 APPROVE(0 BLOCKER/MAJOR, MINOR1[385LOC>300 전부 test]+NIT1 비차단)+comment(gate2), CI green(run 27764850341 success, 기본 검사 3m25s+Docker smoke 1m49s 둘 다 pass) → 4-게이트 PASS → gh pr merge --squash --delete-branch, squash 284cbac on main 14:04:40Z. claim 제거(claims=[] 4f58972). planner: dependency-free chain 소진 확인(no task queued) → Q-0042 OPEN(3 게이트 사람 결정). bookkeeping direct commit(STATE/task/journal/HQ) + nextTask=null + lock tombstone 유지. 동시성: 단일 active driver, race 0. (이전 t3 note)",
+    "noteOld": "loop@win-tt511-tc5 t3 (로컬 /loop turn cap 5) — origin/main 48c3e03 에서 lock free(d1c20b7)·claims=[] → CAS 획득(d1c20b7→4bb0e56). stage5b: validate-claim T-0503 PASS → select-claim T-0503(pr) 단독 claim. lock-free executor: buildExportChunkPlan(T-0469)→previewSelection chunkPlan 조건부 확장 +38 LOC, 29995 pass. PR #414 round1 APPROVE(MINOR1+NIT1) 4-게이트 PASS CI green → squash 046836c. bookkeeping + planner T-0504 큐잉 + claim 제거. 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-18T13:40:53Z",
-  "lastCommit": "046836c",
+  "lastActivity": "2026-06-18T14:04:40Z",
+  "lastCommit": "284cbac",
   "mostRecentTasks": [
+    "T-0504",
     "T-0503",
     "T-0502",
     "T-0501",
-    "T-0500",
-    "T-0499"
+    "T-0500"
   ],
   "loopSession": {
-    "turnCount": 3,
+    "turnCount": 4,
     "cap": 5,
     "holder": "loop@win-tt511-tc5",
     "startedAt": "2026-06-18T12:40:22Z",
-    "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — 진행 중. t1(12:40Z) stand-down(T-0501 cron-claimed). t2(13:01Z) T-0502 claim→merge 2cab65e(PR #412 APPROVE)→bookkeeping+planner T-0503. t3(13:28Z) ScheduleWakeup wake: T-0503 claimable(lock free·claims=[]) → CAS 획득(d1c20b7→4bb0e56) → stage5b select-claim T-0503(pr) → lock-free executor → PR #414 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS → squash 046836c merge 13:40:53Z → bookkeeping+planner T-0504 큐잉(+gate 경고)+claim 제거. 누적 t2·t3 2 task merge(T-0502·T-0503), race 0. 다음 t4 가 T-0504 평가 — planner 가 T-0504 를 마지막 clean preview-side step 으로 경고(이후 streaming/build 게이트)."
+    "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-18T13:40:53Z",
+    "lastRun": "2026-06-18T14:04:40Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0503 PR #414 round1: pull_request run 27763407031 success(기본 검사 3m4s + Docker smoke 1m46s 둘 다 pass) → 4-게이트 PASS → squash merge 046836c. 본 bookkeeping direct commit CI 는 다음 turn/fire 에서 conclusion 확인."
+    "note": "T-0504 PR #415 round1: pull_request run 27764850341 success(기본 검사 3m25s + Docker smoke 1m49s 둘 다 pass) → 4-게이트 PASS → squash merge 284cbac. 본 bookkeeping direct commit CI 는 다음 turn/fire 에서 conclusion 확인."
   },
   "reviewRounds": {
+    "T-0504": 1,
     "T-0503": 1,
     "T-0502": 1,
     "T-0501": 1,
@@ -261,6 +262,25 @@
   "blockersResolvedNote2": "B-ci-infra-2026-06-08T21:07Z (3+ 연속 main CI runner 미할당 infra-fail) 는 2026-06-09T02:33Z 해소. 원인 = private repo 의 GitHub Actions spending limit $0 (결제수단만 추가로는 overage 미허용 — 무료 minutes 소진 후 runner 미할당). 사용자가 spending limit 상향 후 run 27167117992 rerun 이 runner 정상 할당 + 전체 green. ci-infra 는 코드 회귀가 아니므로 tasksBlocked counter increment 안 함(7 유지). Q-0028 RESOLVED 동반.",
   "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지. B-credential-2026-06-04T16:04Z (cron@cloud-bc1cce 16:04 fire 의 refs/locks/* 403 stale-탈취 실패) 는 동일 env 한계 재발화 — **loop@WIN-JQIPLSBL9QV-s55 가 session #55 t8 에서 정상 진행하며 자동 해소**(cron 이 못 한 T-0229 bookkeeping·Q-0022 escalation·counter 정합을 본 로컬 driver 가 완료, cron d82127d 의 blocker 기록을 본 commit 에서 blockers[]→[] 로 close). tasksBlocked counter 는 increment 하지 않는다(반복 env 한계지 정책 실패 아님). **근본 원인 = lock since 미갱신으로 60min stale 오판 — 본 turn 부터 매 turn since=now heartbeat 적용해 재발 차단.**",
   "humanQuestions": [
+    {
+      "id": "Q-0042",
+      "raisedAt": "2026-06-18T14:05:00Z",
+      "createdAt": "2026-06-18T14:05:00Z",
+      "raisedBy": "driver (loop@win-tt511-tc5)",
+      "reason": "dependency-free-exhausted",
+      "status": "OPEN",
+      "summary": "P7 export/import helper 실 배선 chain(Q-0040 옵션1)의 dependency-free 분량이 소진됐다. 마지막 4 step(T-0501 deliveryPlan·T-0502 completionResult·T-0503 chunkPlan·T-0504 streamProgress)이 전부 round1 APPROVE·CI green·squash merge 됐고(284cbac), previewSelection 응답이 summary→sizeEstimate→deliveryPlan→completionResult→chunkPlan→streamProgress(deliveredChunks=0) 전 preview layer 를 노출한다. planner 가 origin/main 284cbac 대조로 남은 ~30 미호출 helper 를 전수 분류한 결과 dependency-free·preview-side 잔여 task 0 — 다음 진행은 3 게이트 중 하나의 사람 결정이 필요하다.",
+      "context": "정황: previewSelection 의 preview layer 는 더 확장할 dependency-free helper 가 없다(planner 가 284cbac 에서 ~30 미호출 helper 전수 signature 분류). 남은 helper 는 3 게이트로 묶인다. (게이트1 streaming-runtime) estimateExportChunkStreamThroughput(progress,elapsedMillis)·summariseExportChunkThroughputSeries(samples[])·reconcileExportChunkIntegrity(plan,chunkIntegrity[]) + export-chunk-refetch-* family 는 실 transfer 데이터(non-zero elapsed·throughput sample 배열·per-chunk integrity boolean·failed/gap chunk set) 필요 — preview(deliveredChunks=0, elapsed=0)에선 degenerate. buildExportChunkResumePlan(plan,acknowledgedChunks)는 acknowledgedChunks=0 으로 호출 가능하나 chunkPlan 이 이미 노출한 정보 재산출이라 make-work. (게이트2 materialized-dump) buildExportDump(records,meta)·buildExportArtifactDescriptor(dump)·computeDumpChecksum(dump)는 records 전량 직렬화된 ExportDump 필요 — preview 는 projection-only(REQ-032 raw-not-stored) 유지, artifact object-storage 위치도 Q-0040 범위 밖(§5/§9). (게이트3 file-upload-infra) import mirror(validateImportDumpStructure/Size·summarizeImportImpact·detectImportMergeConflicts·buildImportRestorePlan 등)는 materialized uploaded dump 입력 필요인데 ImportController 는 multipart 파일 수신 0(신규 FileInterceptor/multer infra dep=§5 BLOCKED-class) + detect/restore 는 existing full-DB read(projection 초과)도 필요. 인접 sweep: open PR 0·BLOCKED 0·blockers 0·CI green·tasksCompleted=496·t2~t4 3 task merge race 0. standing 게이트: live-LLM credential(Q-0022 ⏰만료 2026-06-30)·P6 frontend·timezone Q-0026·ADR-0036 stage5c.",
+      "options": [
+        "(1) **실 chunked-streaming/build P5 service-layer chain 승인(게이트1+2)** — records 직렬화 ExportDump materialization + artifact object-storage 위치 결정 + 실 chunk transfer runtime(throughput/integrity/resume) 을 새 P5 task chain 으로 진행. 신규 infra(object-storage) 결정 동반 — ADR 선행.",
+        "(2) **import file-upload infra 승인(게이트3)** — multipart/FileInterceptor(multer) 신규 dependency + existing full-DB read 도입해 import preview-side helper(structure/size/impact/conflict/restore-plan) 배선. §5 새 dependency 승인 필요 — ADR 선행.",
+        "(3) **다른 게이트로 pivot** — live-LLM bridge credential(Q-0022 시험 키, ⏰만료 2026-06-30 임박) 주입 환경 마련 / P6 frontend(React+Vite ADR) 착수 / timezone Q-0026 결정 / ADR-0036 stage5c 측정 중 택일.",
+        "(4) **자동 driver 일시정지** — 위 결정 전까지 본 Q-0042 를 OPEN 으로 유지해 cron/loop driver 가 stand-down 하도록 둔다(불필요한 planner 재실행·LLM/CI 비용 회피). 결정 시 resolvedAt+decision 기입으로 재개."
+      ],
+      "resolutionHint": "docs/STATE.json 의 본 Q-0042 에 resolvedAt(ISO)+decision 기입 시 다음 driver turn 이 unblock. 옵션 택일 후 planner 가 해당 방향의 첫 task 를 큐잉한다(신규 dependency/infra 는 ADR 선행). 옵션4 선택 시 OPEN 유지.",
+      "raisedThisTurn": true,
+      "resolvedAt": null
+    },
     {
       "id": "Q-0041",
       "raisedAt": "2026-06-18T01:42:00Z",
@@ -885,7 +905,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 495,
+    "tasksCompleted": 496,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
