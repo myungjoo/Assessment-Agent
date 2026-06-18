@@ -2,7 +2,10 @@
 id: T-0494
 title: describeExportScope helper 를 POST /api/admin/export/describe-scope 에 실호출 배선
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: debe5a7
+prNumber: 405
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 180

@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0494",
-  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-6 DONE: T-0484~T-0489. doc-sync T-0490 DONE(api.md GET→POST). helper 배선 chain step1 = **T-0491 DONE/MERGED**(squash 79910b0, PR #402 round2 4-게이트 통과): validateExportScope(T-0444)→ExportJobService.createJob 실호출 배선 + round2 에서 CreateExportDto.entitySelector @IsObject→array-aware(@IsArray/@IsOptional) 정정(BLOCKER, PARTIAL export HTTP 경로 복구 REQ-030) + DTO→service 계약 pin test(MAJOR) + DTO 주석 갱신(MINOR). 동시성 메모: 본 round2 는 두 cron driver(cron@cloud-l15-0739 lock 보유 + cron@cloud-vm-aas2a 직전 active)가 orphan PR #402 를 동시 resume 해 near-duplicate round2 fix 를 각자 작성한 race 발생 — 다른 driver 가 aa08467 을 feature branch 에 먼저 push, lock 보유 driver 가 자기 중복 commit(19b9bf3) 폐기 후 aa08467 로 integrator 진행해 merge(무손실, throughput 만 일부 낭비). helper 배선 chain step2 = **T-0492 DONE/MERGED**(squash 794ed51, PR #403 round1 4-게이트 통과): evaluateImportRaceGuard(T-0460)→ImportJobService.createJob 실호출 배선(import 측 대칭). createJob 이 findRunning() 결과로 race state derive→helper verdict blocking 시 ConflictException(409) throw, proceed 시 기존 흐름 불변. +166/-1 LOC 2파일, cov 97.5%/100%. 단일 active driver, race 0. helper 배선 chain step3 = **T-0493 DONE/MERGED**(squash deb1abe, PR #404 round1 4-게이트): describeImportMode(T-0465)→신설 GET /api/admin/import/modes 배선. 다음 step: helper 배선 chain step4 = T-0494(describeExportScope(T-0462)→신설 POST /api/admin/export/describe-scope, T-0493 의 export 측 대칭 preview slice, pr). 이후 나머지 ~41 helper 배선·multipart upload(별도 task). 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0.",
+  "nextTask": "T-0495",
+  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-6 DONE: T-0484~T-0489. doc-sync T-0490 DONE(api.md GET→POST). helper 배선 chain step1 = **T-0491 DONE/MERGED**(squash 79910b0, PR #402 round2 4-게이트 통과): validateExportScope(T-0444)→ExportJobService.createJob 실호출 배선 + round2 에서 CreateExportDto.entitySelector @IsObject→array-aware(@IsArray/@IsOptional) 정정(BLOCKER, PARTIAL export HTTP 경로 복구 REQ-030) + DTO→service 계약 pin test(MAJOR) + DTO 주석 갱신(MINOR). 동시성 메모: 본 round2 는 두 cron driver(cron@cloud-l15-0739 lock 보유 + cron@cloud-vm-aas2a 직전 active)가 orphan PR #402 를 동시 resume 해 near-duplicate round2 fix 를 각자 작성한 race 발생 — 다른 driver 가 aa08467 을 feature branch 에 먼저 push, lock 보유 driver 가 자기 중복 commit(19b9bf3) 폐기 후 aa08467 로 integrator 진행해 merge(무손실, throughput 만 일부 낭비). helper 배선 chain step2 = **T-0492 DONE/MERGED**(squash 794ed51, PR #403 round1 4-게이트 통과): evaluateImportRaceGuard(T-0460)→ImportJobService.createJob 실호출 배선(import 측 대칭). createJob 이 findRunning() 결과로 race state derive→helper verdict blocking 시 ConflictException(409) throw, proceed 시 기존 흐름 불변. +166/-1 LOC 2파일, cov 97.5%/100%. 단일 active driver, race 0. helper 배선 chain step3 = **T-0493 DONE/MERGED**(squash deb1abe, PR #404 round1 4-게이트): describeImportMode(T-0465)→신설 GET /api/admin/import/modes 배선. helper 배선 chain step4 = **T-0494 DONE/MERGED**(squash debe5a7, PR #405 round1 4-게이트): describeExportScope(T-0462)→신설 POST /api/admin/export/describe-scope 배선(T-0493 GET import/modes 의 export 측 대칭 preview slice). SCOPE_ENUM_TO_PAYLOAD(FULL/RANGE/PARTIAL→lowercase) + coerceDateRange(ISO→Date) 후 helper 실호출, controller 분기 0·helper 입력 방어 raw propagate. +95/-1 prod LOC 2파일, controller cov 100%, 4925 pass. 단일 active driver(cron@local15-0906, fineGrainedConcurrency stage5b select-claim), race 0. 다음 step: helper 배선 chain step5 = T-0495(buildExportScopeRejection(T-0463)→ExportJobService.createJob scope-reject 분기 배선, pr). 이후 나머지 ~40 helper 배선·multipart upload(별도 task). 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@local-s1-98fc",
-    "since": "2026-06-18T08:38:41Z",
-    "note": "cron@local-s1-98fc (aa-local-scheduled 매시30분 cron fire, win-s1 fresh checkout) — origin/main d750119 에서 깨어 ff→6213a71(다른 driver 가 T-0492 merge·T-0493 큐잉 완료). lock free(98fc08e tombstone)·claims=[] 확인 → 권위 lock CAS 획득(98fc08e→45fdb7f). fineGrainedConcurrency=true(stage 5b): active claim 0<maxConcurrentClaims2, pr-mode 활성claim0 → select-claim.sh 로 T-0493(nextTask, pr) 단독 claim(claims append + lock tombstone 동일 commit, 즉시 release). claimedAt server-time(08:39:24Z)로 re-stamp(초기 빈 Date header→00:00:00Z 오각인 stale 위험 차단). lock-free executor(implementer→tester) 로 T-0493 수행: describeImportMode→신설 GET /api/admin/import/modes 배선 +170/-3 LOC 2파일, lint/build/test 4908 pass cov 100% staged. feature branch claude/T-0493-... push(46c1913) → claim PR_OPEN pr=404 CAS update → integrator: PR #404 open, reviewer round1 APPROVE(0 findings), 4-게이트 PASS, CI green(comment-trigger run) → gh pr merge --squash --delete-branch, squash deb1abe on main. bookkeeping direct commit(STATE/task/journal) + claim 제거(claims=[]) + lock tombstone release. 동시성: 단일 active driver, race 0."
+    "session": "cron@local15-0906",
+    "since": "2026-06-18T09:06:03Z",
+    "note": "cron@local15-0906 (aa-local-15 schedule cron fire 매시15분, cloud fresh checkout) — origin/main 6213a71 에서 깨어 ff→5023113(다른 driver cron@local-s1-98fc 가 T-0493 merge·T-0494 큐잉 완료). lock free(dd0e7b1 tombstone)·claims=[] 확인 → 권위 lock CAS 획득(dd0e7b1→27887ec, server-time 09:06:03Z). fineGrainedConcurrency=true(stage 5b): reclaim no-op(claims 빈), active claim 0<maxConcurrentClaims2·pr-mode 활성claim0 → select-claim.sh 로 T-0494(nextTask, pr) 단독 claim(claims append + lock tombstone 동일 commit, 즉시 release). lock-free executor(implementer→tester) 로 T-0494 수행: describeExportScope→신설 POST /api/admin/export/describe-scope 배선 +95/-1 prod LOC 2파일, lint/build/test 4925 pass controller cov 100% staged. feature branch claude/T-0494-... push(32ebee2) → integrator: PR #405 open, reviewer round1 APPROVE(0 blocker, nit 1 wording-only), 4-게이트 PASS, CI green(pull_request first-run success — comment 가 approval-gate 평가 전 post) → gh pr merge --squash --delete-branch, squash debe5a7 on main. bookkeeping direct commit(STATE/task/journal) + planner T-0495 큐잉 + claim 제거(claims=[]) + lock tombstone release. 동시성: 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-18T08:52:00Z",
-  "lastCommit": "deb1abe",
+  "lastActivity": "2026-06-18T09:28:00Z",
+  "lastCommit": "debe5a7",
   "mostRecentTasks": [
+    "T-0494",
     "T-0493",
     "T-0492",
     "T-0491",
-    "T-0490",
-    "T-0489"
+    "T-0490"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511 (dynamic, turn cap 10) — 종료. t1 stand-down(T-0473 cron@local15). t2-t10 매 turn 1 task merge: T-0474→90df25d, T-0475→92e0e1b, T-0476→1339f48, T-0477→16ab736, T-0478→549dfcd, T-0479→8c8d286, T-0480→b2523a7, T-0481→7866890, t10(18:37Z) T-0482→PR #393 APPROVE(NIT 1)→merge 0ab1b37→bookkeeping+planner T-0483. turn cap 10 도달 → self-reschedule 안 함, session 종료. 9개 task(T-0474~T-0482) 전부 round1 APPROVE merge·신규 파일 100% cov·CI green·blocker 0. cleanup 권장: /compact 또는 /clear 후 새 /loop, 또는 cron(KST 야간) 대기. 다음 진입점이 T-0483 부터."
   },
   "ci": {
-    "lastRun": "2026-06-18T08:50:00Z",
+    "lastRun": "2026-06-18T09:28:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0493 PR #404 round1: pull_request CI 의 reviewer-approval-gate 단독 fail 은 reviewer comment 전 평가된 race(expected). reviewer APPROVE comment 후 comment-trigger run 27748035484(event=issue_comment) success 로 4-게이트 (d) 충족 → squash merge deb1abe. merge 후 main push CI(deb1abe) + 본 bookkeeping direct commit CI 는 다음 fire 에서 conclusion 확인."
+    "note": "T-0494 PR #405 round1: pull_request first-run(27749278283) 단독 success 로 4-게이트 (d) 충족(reviewer comment 가 approval-gate step 평가 전 post 돼 별도 issue_comment 재실행 trigger 불요 — T-0493 의 second-run 패턴과 달리 first-run 통과) → squash merge debe5a7. merge 후 main push CI(debe5a7) + 본 bookkeeping direct commit CI 는 다음 fire 에서 conclusion 확인."
   },
   "reviewRounds": {
+    "T-0494": 1,
     "T-0493": 1,
     "T-0492": 1,
     "T-0491": 2,
@@ -875,7 +876,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 485,
+    "tasksCompleted": 486,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
