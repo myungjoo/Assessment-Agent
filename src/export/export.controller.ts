@@ -82,7 +82,10 @@ import {
   describeExportJobStatus,
   type ExportJobStatusView,
 } from "./export-job-status-view";
-import { ExportJobService } from "./export-job.service";
+import {
+  ExportJobService,
+  type ExportSelectionPreview,
+} from "./export-job.service";
 import {
   describeExportScope,
   type ExportScopeDescription,
@@ -204,6 +207,44 @@ export class ExportController {
       entitySelector: dto.entitySelector as ExportEntity[] | undefined,
     };
     return describeExportScope(helperInput);
+  }
+
+  // POST /api/admin/export/preview-selection — 선택 scope 로 실 DB 선별을 수행한 결과의
+  // count 요약 조회 (UC-07 §6.1 scope 선별 + §8 (a) read-only, REQ-030/032/045). describe
+  // -scope(T-0494) 가 scope 의 사람-친화 *설명* 만 합성했다면, 본 endpoint 는 scope 검증
+  // 통과 후 5 entity 의 `{instant}` projection 을 실 DB read 해 selectExportRecords(T-0437)
+  // 로 처음 실 선별을 수행한다. CreateExportDto 를 그대로 body 로 재사용해 받고, describe
+  // -scope 와 동일하게 enum→lowercase scope kind 변환(SCOPE_ENUM_TO_PAYLOAD) + dateRange
+  // ISO string→Date coerce(coerceDateRange) 후 service.previewSelection(scope) 를 호출하고
+  // count 요약(selectedCount·excludedCount·perEntitySelected)을 200 으로 반환한다.
+  //
+  // controller 자체 분기 0 (service/helper raw forward — describeScope/findJob 정책 동일):
+  //   - RANGE+dateRange 누락 / start>=end / PARTIAL+빈 entitySelector / 허용 외 entity →
+  //     service 안의 selectExportRecords 가 RangeError, dateRange Invalid Date → TypeError
+  //     를 swallow 없이 raw propagate(controller 는 형 변환만, 판정은 helper).
+  //   - DB read-only — 5 entity `{instant}` projection 만 select(전체 row·raw 미조회,
+  //     REQ-032). job record 생성·status 변경 0 / 실 record payload 반환 0(count 요약만).
+  //
+  // POST + preview-selection 고정 segment 라 GET `:id` 동적 segment 와 메서드·경로 모두
+  // 달라 라우트 충돌 0 (describe-scope 와 동일 — running/:id GET 순서 불변).
+  //
+  // RBAC — Admin+ tier (create 동일). @Roles("Admin") → Admin / SuperAdmin 통과
+  // (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
+  @Post("preview-selection")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async previewSelection(
+    @Body() dto: CreateExportDto,
+  ): Promise<ExportSelectionPreview> {
+    // enum→lowercase scope kind 변환 + dateRange ISO→Date coerce + entitySelector forward
+    // 로 service 입력 ExportScope 합성(describeScope 와 동일 변환 — 중복 최소화 위해 같은
+    // SCOPE_ENUM_TO_PAYLOAD / coerceDateRange 재사용, 신규 helper 파일 신설 0).
+    const scope: ExportScopePayload = {
+      scope: SCOPE_ENUM_TO_PAYLOAD[dto.scope],
+      dateRange: this.coerceDateRange(dto.dateRange),
+      entitySelector: dto.entitySelector as ExportEntity[] | undefined,
+    };
+    return this.service.previewSelection(scope);
   }
 
   // coerceDateRange — JSON body 의 dateRange 는 역직렬화 과정에서 start/end 가 ISO string

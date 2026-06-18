@@ -24,6 +24,11 @@ import {
 
 import { ExportJobService } from "./export-job.service";
 import * as rejectionMessageModule from "./export-scope-rejection-message";
+import * as scopeSelectModule from "./export-scope-select";
+import {
+  VALID_EXPORT_ENTITIES,
+  type ExportEntity,
+} from "./export-scope-select";
 
 // helper 산출 reject headline 의 안정적 prefix — 메시지가 buildExportScopeRejection(T-0463)
 // 산출 headline 을 포함함을 단언할 때 쓴다("Export scope 검증 실패 — N개 항목을 수정해야 합니다").
@@ -536,6 +541,247 @@ describe("ExportJobService", () => {
       prisma.exportJob.findMany.mockResolvedValue([]);
 
       await expect(service.findRunning()).resolves.toEqual([]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // previewSelection — selectExportRecords(T-0437) 실호출 배선 (T-0497)
+  // 5 entity instant projection read → helper 분류 → count 요약. DB write 0,
+  // REQ-032 projection-only(전체 row·raw 미조회). R-112: happy(full/range/partial) +
+  // error(scope invariant) + branch(3 scope 매핑) + negative 충분 cover.
+  // ---------------------------------------------------------------------------
+  describe("previewSelection", () => {
+    // 5 entity delegate 의 findMany 를 mock 한 PrismaService 와 service 를 빌드.
+    // prisma-mock.ts 는 exportJob delegate 만 보유하므로 5 entity delegate 는 본 spec
+    // 의 inline mock 으로 구성(test helper 미변경 — touchesFiles 4 파일 유지).
+    function buildPreviewService(): {
+      service: ExportJobService;
+      prisma: {
+        assessment: { findMany: jest.Mock };
+        person: { findMany: jest.Mock };
+        group: { findMany: jest.Mock };
+        llmProviderConfig: { findMany: jest.Mock };
+        permissionDeniedRecord: { findMany: jest.Mock };
+      };
+    } {
+      const prisma = {
+        assessment: { findMany: jest.fn().mockResolvedValue([]) },
+        person: { findMany: jest.fn().mockResolvedValue([]) },
+        group: { findMany: jest.fn().mockResolvedValue([]) },
+        llmProviderConfig: { findMany: jest.fn().mockResolvedValue([]) },
+        permissionDeniedRecord: { findMany: jest.fn().mockResolvedValue([]) },
+      };
+      const service = new ExportJobService(
+        prisma as unknown as ConstructorParameters<typeof ExportJobService>[0],
+      );
+      return { service, prisma };
+    }
+
+    // entity 별 instant projection row 를 채워 5 delegate 를 stub — 각 entity 1 row.
+    function stubAllEntities(
+      prisma: ReturnType<typeof buildPreviewService>["prisma"],
+      instant: Date,
+    ): void {
+      for (const delegate of [
+        prisma.assessment,
+        prisma.person,
+        prisma.group,
+        prisma.llmProviderConfig,
+        prisma.permissionDeniedRecord,
+      ]) {
+        delegate.findMany.mockResolvedValue([{ createdAt: instant }]);
+      }
+    }
+
+    // happy (full) — 5 entity 의 모든 record 가 selected, excluded 0.
+    it("full scope — 5 entity 의 모든 projection 이 selected (excluded 0)", async () => {
+      const { service, prisma } = buildPreviewService();
+      stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+      const result = await service.previewSelection({ scope: "full" });
+
+      expect(result.selectedCount).toBe(5);
+      expect(result.excludedCount).toBe(0);
+      // 5 entity 각 1 record selected.
+      for (const entity of VALID_EXPORT_ENTITIES) {
+        expect(result.perEntitySelected[entity]).toBe(1);
+      }
+    });
+
+    // happy (range) — [start,end) 구간 record 만 selected, 구간 밖 excluded.
+    it("range scope — dateRange [start,end) 안의 record 만 selected", async () => {
+      const { service, prisma } = buildPreviewService();
+      // Person 은 구간 안(2026-02-01), Assessment 는 구간 밖(2026-09-01).
+      prisma.person.findMany.mockResolvedValue([
+        { createdAt: new Date("2026-02-01T00:00:00.000Z") },
+      ]);
+      prisma.assessment.findMany.mockResolvedValue([
+        { createdAt: new Date("2026-09-01T00:00:00.000Z") },
+      ]);
+
+      const result = await service.previewSelection({
+        scope: "range",
+        dateRange: {
+          start: new Date("2026-01-01T00:00:00.000Z"),
+          end: new Date("2026-03-01T00:00:00.000Z"),
+        },
+      });
+
+      expect(result.selectedCount).toBe(1);
+      expect(result.excludedCount).toBe(1);
+      expect(result.perEntitySelected.Person).toBe(1);
+      expect(result.perEntitySelected.Assessment).toBe(0);
+    });
+
+    // happy (partial) — entitySelector 에 든 entity record 만 selected.
+    it("partial scope — entitySelector 에 든 entity record 만 selected", async () => {
+      const { service, prisma } = buildPreviewService();
+      stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+      const result = await service.previewSelection({
+        scope: "partial",
+        entitySelector: ["Person", "Group"],
+      });
+
+      // Person + Group 2 record 만 selected, 나머지 3 entity 는 excluded.
+      expect(result.selectedCount).toBe(2);
+      expect(result.excludedCount).toBe(3);
+      expect(result.perEntitySelected.Person).toBe(1);
+      expect(result.perEntitySelected.Group).toBe(1);
+      expect(result.perEntitySelected.Assessment).toBe(0);
+    });
+
+    // projection-only(REQ-032) 단언 — 5 delegate findMany 호출 인자에 select 가 존재하고
+    // raw payload 컬럼이 select 되지 않음(instant 컬럼 1개만).
+    it("5 entity findMany 가 instant 컬럼만 projection select (REQ-032 — raw 미조회)", async () => {
+      const { service, prisma } = buildPreviewService();
+      stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+      await service.previewSelection({ scope: "full" });
+
+      // 각 delegate 가 select projection 으로 정확히 1 회 호출됨.
+      const expectations: Array<[jest.Mock, string]> = [
+        [prisma.assessment.findMany, "createdAt"],
+        [prisma.person.findMany, "createdAt"],
+        [prisma.group.findMany, "createdAt"],
+        [prisma.llmProviderConfig.findMany, "createdAt"],
+        [prisma.permissionDeniedRecord.findMany, "createdAt"],
+      ];
+      for (const [fn, column] of expectations) {
+        expect(fn).toHaveBeenCalledTimes(1);
+        const arg = fn.mock.calls[0][0] as { select: Record<string, true> };
+        expect(arg).toHaveProperty("select");
+        expect(arg.select).toEqual({ [column]: true });
+        // raw 본문 컬럼(narrative / apiKey / reason 등)은 select 되지 않음.
+        expect(arg.select).not.toHaveProperty("narrative");
+        expect(arg.select).not.toHaveProperty("apiKey");
+      }
+    });
+
+    // branch — full scope 가 helper 에 정확히 { scope:"full" } 로 전달됨(spy).
+    it("full scope 가 selectExportRecords 에 { scope:'full' } 로 전달됨 (branch — helper spy)", async () => {
+      const { service, prisma } = buildPreviewService();
+      stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+      const spy = jest.spyOn(scopeSelectModule, "selectExportRecords");
+
+      await service.previewSelection({ scope: "full" });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0]).toEqual({ scope: "full" });
+      // helper 2번째 인자(records)는 5 entity projection 평탄화 배열.
+      expect(Array.isArray(spy.mock.calls[0][1])).toBe(true);
+      expect(spy.mock.calls[0][1]).toHaveLength(5);
+    });
+
+    // branch — range/partial scope 의 dateRange/entitySelector 가 helper 로 정확 forward.
+    it("range/partial scope 의 dateRange·entitySelector 가 helper 로 정확 forward (branch)", async () => {
+      const { service, prisma } = buildPreviewService();
+      stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+      const spy = jest.spyOn(scopeSelectModule, "selectExportRecords");
+
+      const dateRange = {
+        start: new Date("2026-01-01T00:00:00.000Z"),
+        end: new Date("2026-03-01T00:00:00.000Z"),
+      };
+      await service.previewSelection({ scope: "range", dateRange });
+      await service.previewSelection({
+        scope: "partial",
+        entitySelector: ["Person"],
+      });
+
+      expect(spy.mock.calls[0][0]).toEqual({ scope: "range", dateRange });
+      expect(spy.mock.calls[1][0]).toEqual({
+        scope: "partial",
+        entitySelector: ["Person"],
+      });
+    });
+
+    // negative (1) — RANGE+dateRange 누락 → helper RangeError swallow 없이 propagate.
+    it("range scope 인데 dateRange 누락 → RangeError propagate (negative — swallow 0)", async () => {
+      const { service, prisma } = buildPreviewService();
+      stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+      await expect(
+        service.previewSelection({ scope: "range" }),
+      ).rejects.toBeInstanceOf(RangeError);
+    });
+
+    // negative (2) — PARTIAL+entitySelector 빈 → helper RangeError propagate.
+    it("partial scope 인데 entitySelector 가 빈 배열 → RangeError propagate (negative)", async () => {
+      const { service, prisma } = buildPreviewService();
+      stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+      await expect(
+        service.previewSelection({ scope: "partial", entitySelector: [] }),
+      ).rejects.toBeInstanceOf(RangeError);
+    });
+
+    // negative (3) — 허용 외 scope kind → helper RangeError propagate.
+    it("허용 외 scope kind → RangeError propagate (negative — scope 검증)", async () => {
+      const { service, prisma } = buildPreviewService();
+      stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+      await expect(
+        service.previewSelection({
+          scope: "bogus" as unknown as "full",
+        }),
+      ).rejects.toBeInstanceOf(RangeError);
+    });
+
+    // negative (4 — 경계) — 빈 DB(5 entity findMany 전부 빈 배열) → count 0, throw 0.
+    it("빈 DB(5 entity 전부 빈 배열) → selectedCount 0 · excludedCount 0 (경계, throw 0)", async () => {
+      const { service } = buildPreviewService();
+      // buildPreviewService 의 default mockResolvedValue([]) 그대로 — 5 entity 전부 빈.
+
+      const result = await service.previewSelection({ scope: "full" });
+
+      expect(result.selectedCount).toBe(0);
+      expect(result.excludedCount).toBe(0);
+      for (const entity of VALID_EXPORT_ENTITIES) {
+        expect(result.perEntitySelected[entity]).toBe(0);
+      }
+    });
+
+    // negative (5 — 회귀) — perEntitySelected 가 5 ExportEntity 전부를 key 로 cover.
+    // EXPORT_ENTITY_SOURCES 매핑이 entity 누락 시 본 test 가 회귀를 잡는다.
+    it("perEntitySelected 가 VALID_EXPORT_ENTITIES 5 종 전부를 key 로 포함 (회귀 — entity 누락 방지)", async () => {
+      const { service } = buildPreviewService();
+
+      const result = await service.previewSelection({ scope: "full" });
+
+      const keys = Object.keys(result.perEntitySelected) as ExportEntity[];
+      expect(keys.sort()).toEqual([...VALID_EXPORT_ENTITIES].sort());
+    });
+
+    // negative (6 — DB read 실패) — 한 delegate findMany 가 reject 하면 propagate.
+    it("한 entity findMany 가 reject 하면 그 error 를 propagate (error path — 의존성 실패)", async () => {
+      const { service, prisma } = buildPreviewService();
+      stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+      prisma.assessment.findMany.mockRejectedValue(new Error("db-down"));
+
+      await expect(service.previewSelection({ scope: "full" })).rejects.toThrow(
+        "db-down",
+      );
     });
   });
 });
