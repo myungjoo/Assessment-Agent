@@ -40,6 +40,10 @@ import {
   type ExportScope as ExportScopePayload,
 } from "./export-scope-select";
 import { validateExportScope } from "./export-scope-validate";
+import {
+  summarizeExportSelection,
+  type ExportSelectionSummary,
+} from "./export-selection-summary";
 
 // Prisma known error helper — `code` field 가 known request error 의 식별자.
 // 실 PrismaClientKnownRequestError 인스턴스 생성 cost 를 회피하고 duck typing 으로
@@ -118,12 +122,22 @@ type ExportEntityDelegate =
   | "permissionDeniedRecord";
 
 // ExportSelectionPreview — previewSelection 의 반환 shape. 전체 row·raw payload 미반환,
-// count 요약만(REQ-032 — 선별된 실 record 데이터 노출 0). perEntitySelected 는 5 entity
-// 별 selected count breakdown(사람-친화 미리보기용).
+// count 요약만(REQ-032 — 선별된 실 record 데이터 노출 0).
+//   - perEntitySelected 는 5 entity 별 selected count breakdown(사람-친화 미리보기용).
+//     summarizeExportSelection 배선(T-0499) 이후 selectedCount/excludedCount/
+//     perEntitySelected 는 각각 summary.selected.total / summary.excluded.total /
+//     summary.selected.perEntity 와 1:1 mirror 이며 backward-compat 위해 유지한다
+//     (중복 제거는 별도 refactor task — 본 task §Follow-ups).
+//   - summary 는 summarizeExportSelection(T-0449 helper) 산출 — selected/excluded 두
+//     그룹 각각의 total + perEntity(5 entity 0-init) + instantRange{earliest,latest}|null
+//     을 노출(UC-07 §3 trigger 1 confirmation dialog / §8 (b) Audit row 의 breakdown).
+//     excluded 측 perEntity breakdown 과 양 그룹의 instant 시간 범위가 본 필드로 처음
+//     노출된다(기존 perEntitySelected 는 selected 측만 cover 했음).
 export interface ExportSelectionPreview {
   selectedCount: number;
   excludedCount: number;
   perEntitySelected: Record<ExportEntity, number>;
+  summary: ExportSelectionSummary;
 }
 
 @Injectable()
@@ -233,9 +247,20 @@ export class ExportJobService {
 
     // selectExportRecords 실호출(T-0437 helper 배선) — scope 규칙으로 selected/excluded
     // 분류. scope invariant 위반(range+dateRange 누락 등)은 helper 가 throw → propagate.
-    const { selected, excluded } = selectExportRecords(scope, records);
+    const selection = selectExportRecords(scope, records);
+    const { selected, excluded } = selection;
+
+    // summarizeExportSelection 실호출(T-0449 helper 배선, T-0499) — selectExportRecords
+    // 가 산출한 ExportSelection 을 그대로 forward 해 selected/excluded 두 그룹 각각의
+    // total + perEntity(5 entity) + instantRange 를 derive 한다(UC-07 §3 trigger 1 /
+    // §8 (b) confirmation·audit breakdown 정합). helper 는 입력 selection 만 집계하므로
+    // 추가 DB read 0 — REQ-032 raw 미저장은 derivation-only 라 자연 유지된다. 입력은 항상
+    // selectExportRecords 통과 selection(selected/excluded 가 ExportRecord[] 배열)이라
+    // helper 의 입력 방어 분기(TypeError)는 정상 경로에서 미발화한다.
+    const summary = summarizeExportSelection(selection);
 
     // selected 의 entity 별 count breakdown — 5 entity 0 초기화 후 누적(미선택 entity 는 0).
+    // summary.selected.perEntity 와 동일 값이나 backward-compat 위해 기존 필드 유지.
     const perEntitySelected = VALID_EXPORT_ENTITIES.reduce(
       (acc, entity) => {
         acc[entity] = 0;
@@ -251,6 +276,7 @@ export class ExportJobService {
       selectedCount: selected.length,
       excludedCount: excluded.length,
       perEntitySelected,
+      summary,
     };
   }
 

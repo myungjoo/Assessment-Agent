@@ -472,6 +472,60 @@ describe("ExportController (unit)", () => {
     expect(result).toBe(summary);
   });
 
+  it("POST preview-selection — service 반환의 summary(selected/excluded breakdown)가 그대로 200 forward (T-0499 — summary forward)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const earliest = new Date("2026-01-01T00:00:00.000Z");
+    const latest = new Date("2026-03-01T00:00:00.000Z");
+    const summary = {
+      selectedCount: 2,
+      excludedCount: 1,
+      perEntitySelected: {
+        Assessment: 0,
+        Person: 1,
+        Group: 1,
+        LlmConfig: 0,
+        AuditLog: 0,
+      },
+      summary: {
+        selected: {
+          total: 2,
+          perEntity: {
+            Assessment: 0,
+            Person: 1,
+            Group: 1,
+            LlmConfig: 0,
+            AuditLog: 0,
+          },
+          instantRange: { earliest, latest },
+        },
+        excluded: {
+          total: 1,
+          perEntity: {
+            Assessment: 1,
+            Person: 0,
+            Group: 0,
+            LlmConfig: 0,
+            AuditLog: 0,
+          },
+          instantRange: { earliest: latest, latest },
+        },
+      },
+    };
+    serviceMock.previewSelection.mockResolvedValueOnce(summary);
+
+    const controller = new ExportController(service);
+    const result = await controller.previewSelection({
+      scope: ExportScope.PARTIAL,
+      entitySelector: ["Person", "Group"],
+    });
+
+    // controller 분기 0 — service 반환 객체를 그대로 forward(summary 포함).
+    expect(result).toBe(summary);
+    expect(result.summary.selected.total).toBe(2);
+    expect(result.summary.excluded.perEntity.Assessment).toBe(1);
+    expect(result.summary.selected.instantRange).toEqual({ earliest, latest });
+  });
+
   it("POST preview-selection — RANGE scope (ISO string) → enum→lowercase + string→Date coerce 후 service forward (branch — range coerce)", async () => {
     const { service, serviceMock } = buildServiceMock();
     serviceMock.previewSelection.mockResolvedValueOnce({
@@ -1186,6 +1240,7 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
     });
+    const instant = new Date("2026-02-01T00:00:00.000Z");
     serviceMock.previewSelection.mockResolvedValueOnce({
       selectedCount: 5,
       excludedCount: 0,
@@ -1196,6 +1251,30 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
         LlmConfig: 1,
         AuditLog: 1,
       },
+      summary: {
+        selected: {
+          total: 5,
+          perEntity: {
+            Assessment: 1,
+            Person: 1,
+            Group: 1,
+            LlmConfig: 1,
+            AuditLog: 1,
+          },
+          instantRange: { earliest: instant, latest: instant },
+        },
+        excluded: {
+          total: 0,
+          perEntity: {
+            Assessment: 0,
+            Person: 0,
+            Group: 0,
+            LlmConfig: 0,
+            AuditLog: 0,
+          },
+          instantRange: null,
+        },
+      },
     });
 
     const res = await request(app.getHttpServer())
@@ -1205,6 +1284,10 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
 
     expect(res.body.selectedCount).toBe(5);
     expect(res.body.excludedCount).toBe(0);
+    // summary breakdown 이 응답 body 에 그대로 forward(JSON 직렬화 후 instant 는 ISO string).
+    expect(res.body.summary.selected.total).toBe(5);
+    expect(res.body.summary.excluded.total).toBe(0);
+    expect(res.body.summary.excluded.instantRange).toBeNull();
     // lowercase "full" 변환 후 service.previewSelection 위임.
     expect(serviceMock.previewSelection).toHaveBeenCalledTimes(1);
     expect(serviceMock.previewSelection).toHaveBeenCalledWith({
