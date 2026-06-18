@@ -15,7 +15,7 @@
     "since": "2026-06-18T01:37:23Z",
     "note": "cron@cloud-aas1f (schedule cron fire) — origin/main 동기(790ae9f, 직전 fire 가 T-0485 squash merge b8b8faa 완료)→권위 lock CAS 획득(374b9f0→a624480, claims [] 보존). currentTask·nextTask 둘 다 null 이라 planner dispatch (LOOP §1[2] 둘다-없음 분기). planner 가 T-0486(ExportJobService — ExportJob 생성·status 전이·polling 조회, pr-mode, dependsOn [T-0485]) 큐잉 + STATE.nextTask=T-0486. doc-only direct commit 후 lock tombstone release. 다음 fire 가 T-0486 claim+execute. T-0486 은 P7 export/import 실배선 chain step3."
   },
-  "lastActivity": "2026-06-18T01:38:00Z",
+  "lastActivity": "2026-06-18T01:52:00Z",
   "lastCommit": "b8b8faa",
   "mostRecentTasks": [
     "T-0485",
@@ -32,11 +32,11 @@
     "note": "/loop win-tt511 (dynamic, turn cap 10) — 종료. t1 stand-down(T-0473 cron@local15). t2-t10 매 turn 1 task merge: T-0474→90df25d, T-0475→92e0e1b, T-0476→1339f48, T-0477→16ab736, T-0478→549dfcd, T-0479→8c8d286, T-0480→b2523a7, T-0481→7866890, t10(18:37Z) T-0482→PR #393 APPROVE(NIT 1)→merge 0ab1b37→bookkeeping+planner T-0483. turn cap 10 도달 → self-reschedule 안 함, session 종료. 9개 task(T-0474~T-0482) 전부 round1 APPROVE merge·신규 파일 100% cov·CI green·blocker 0. cleanup 권장: /compact 또는 /clear 후 새 /loop, 또는 cron(KST 야간) 대기. 다음 진입점이 T-0483 부터."
   },
   "ci": {
-    "lastRun": "2026-06-18T01:29:27Z",
+    "lastRun": "2026-06-18T01:51:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0485 PR #396 round2 head 582293a CI run #2310 success (21 step 전부 green, 3분 12초). 직전 run #2309(round1 head 6edfd5f) failure on step 21 'reviewer approval 검증' (comment 미post 시점 trigger — 이후 round2 push + APPROVE comment post 로 게이트 정상 통과). squash merge b8b8faa 후 main CI 도 doc-only-not-applicable (squash 가 main 의 push event 별도로 trigger 안 함, PR CI 가 사실상 main pre-merge gate)."
+    "note": "결제-차단 일시(01:42~01:52Z): main 74d6eee/b76bed9 의 Actions runner 가 계정 결제 차단으로 미할당(steps 0, ~4초 fail) — Q-0041/B-credential-ci-billing. 코드 회귀 아님이라 consecutiveFails 미increment(Q-0028/Q-0039 선례). 2026-06-18T01:52Z 사용자 CI budget 상향으로 해소 — run 27731269831 rerun 시 runner 정상 할당(steps 22/1). pr-mode CI 게이트 재가동. 직전 정상분: T-0485 PR #396 round2 CI #2310 success(21 step green)."
   },
   "reviewRounds": {
     "T-0485": 1,
@@ -237,16 +237,8 @@
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
-  "blockers": [
-    {
-      "id": "B-credential-ci-billing-2026-06-18T01:42Z",
-      "reason": "credential",
-      "raisedAt": "2026-06-18T01:42:00Z",
-      "task": null,
-      "humanQuestion": "Q-0041",
-      "details": "main 74d6eee 의 GitHub Actions run 27731151977 이 계정 결제 차단으로 두 job 모두 시작 못 함(annotation: 'recent account payments have failed or your spending limit needs to be increased'). 저장소 밖 계정/결제 레벨 문제 — 에이전트 자력 해소 불가, 저장소 소유자가 GitHub Billing & plans 에서 결제수단/spending limit 갱신 필요. 영향: pr-mode 4-게이트(§3.3)가 CI green 미충족으로 모든 pr-mode merge 보류(T-0486 포함). direct doc commit 은 영향 없음. tasksBlocked counter 는 credential/infra(코드 회귀 아님)라 increment 안 함(Q-0028/Q-0039 선례 정합)."
-    }
-  ],
+  "blockers": [],
+  "blockersResolvedNote5": "B-credential-ci-billing-2026-06-18T01:42Z (Q-0041 — main 74d6eee/b76bed9 의 GitHub Actions runner 가 계정 결제 차단으로 미할당, 두 job steps 0 으로 ~4초 fail) 는 2026-06-18T01:52Z 해소 — 사용자가 GitHub Billing & plans 에서 CI budget(spending limit) 상향. 검증: 실패했던 main run 27731269831(b76bed9) rerun 시 두 job 모두 runner 정상 할당(steps 22/1, in_progress — 직전 fail 은 steps 0 runner 미할당). Q-0028/Q-0039 와 동형 billing-block, 동형 해소. tasksBlocked counter 는 credential/infra(코드 회귀 아님)라 increment 안 함(선례 정합). pr-mode 4-게이트 CI green 게이트 재가동 — T-0486 등 보류 task resume 가능. 코드 rework 0(infra/결제-only block).",
   "blockersResolvedNote4": "B-new-dep-2026-06-15T14:45Z (T-0413 P7 ③ slice 1 의 cron@3.2.1 직접 dep 선언 게이트, Q-0038) 는 2026-06-15T06:55Z 사용자 승인(option a — '권고대로')으로 해소. cron@3.2.1 직접 선언 승인(공급망 delta 0 — 이미 lockfile transitive dep, ADR-0042 §Decision1 named). T-0413 재진입 — implementer 가 package.json 에 cron 직접 선언 추가 + 작성한 src/scheduling/ 코드 재사용, rework 0. tasksBlocked counter 는 historical fact 로 8 유지(new-dep 은 정책상 정상 HITL 게이트 — 정책 실패 아님).",
   "blockersResolvedNote3": "B-credential-2026-06-14T12:41Z (cron@cloud-aa-local-scheduled 이 T-0405 의 `.github/workflows/ci.yml` push 를 workflow scope 부재로 BLOCKED 표기) 는 loop@WIN-JQIPLSBL9QV-vb707106 session 에서 해소 — 사용자가 `gh auth refresh -s workflow` 재인증 후 로컬 /loop(workflow-scoped)가 T-0405 resume: branch push → PR #326 → reviewer APPROVE r1/7(finding 0) → 4-게이트 PASS → squash merge 4566f7c --delete-branch. web build/test step 이 main CI 에 실 green 안착(run 27501403767 first-pass success, 신규 'Web 빌드'·'Web 단위 test' 2 step 모두 success 확인 — vitest 가 CI 에서 실제 실행됨, R-111/R-113 정합). cron 의 stale-lock 오판 원인 = 로컬 시계 skew(driver lock since 가 ~2.5h 과거로 보여 cron 이 stale 탈취 후 BLOCKED 오판). tasksBlocked counter 는 env/credential 한계라 increment 안 함(7 유지).",
   "blockersResolvedNote2": "B-ci-infra-2026-06-08T21:07Z (3+ 연속 main CI runner 미할당 infra-fail) 는 2026-06-09T02:33Z 해소. 원인 = private repo 의 GitHub Actions spending limit $0 (결제수단만 추가로는 overage 미허용 — 무료 minutes 소진 후 runner 미할당). 사용자가 spending limit 상향 후 run 27167117992 rerun 이 runner 정상 할당 + 전체 green. ci-infra 는 코드 회귀가 아니므로 tasksBlocked counter increment 안 함(7 유지). Q-0028 RESOLVED 동반.",
@@ -258,7 +250,7 @@
       "createdAt": "2026-06-18T01:42:00Z",
       "raisedBy": "notifier (cron@cloud-aas1f driver)",
       "reason": "credential",
-      "status": "BLOCKED",
+      "status": "RESOLVED",
       "summary": "main 74d6eee 의 GitHub Actions CI(run 27731151977)가 conclusion=failure 로 끝났으나 코드/test 회귀가 아니다 — 두 job(기본 검사 / 배포 산출물 검증) 모두 시작조차 안 됐고, 계정 결제 차단이 원인이다. run annotation: 'The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the Billing & plans section in your settings'. 저장소 밖 계정/결제 레벨 문제라 에이전트가 고칠 수 없다(저장소 소유자가 GitHub Billing 에서 결제수단/spending limit 갱신 필요). 영향: 모든 pr-mode task 의 §3.3 4-게이트가 CI green 을 못 받아 merge 불가 — 다음 큐 task T-0486(ExportJobService) 포함 pr-mode 전부 보류. direct doc commit 은 CI 게이트가 없어 계속 가능.",
       "context": "정황: (1) commit 74d6eee(main) 의 Actions run 27731151977 가 두 job 모두 runner start 전 단계에서 실패 — run annotation 이 'recent account payments have failed or your spending limit needs to be increased' 를 명시. (2) 이는 코드/ci.yml 변경이 아니라 계정 결제(payment failure 또는 spending limit) 레벨 차단. (3) 선례 Q-0028/Q-0039(B-ci-infra)는 'spending limit 소진 후 runner 미할당'(annotation 없는 runner_name='') 였고, 본 건은 추가로 결제수단 실패(payment failed) 가능성을 annotation 이 명시한 점이 다름 — 둘 다 GitHub Billing & plans 조치로 해소. (4) 영향 범위: pr-mode merge 의 4-게이트(§3.3)는 CI green 을 요구하므로 결제 해소 전까지 어떤 pr-mode task 도 merge 불가. direct(doc/STATE/planner) 진행만 가능. 인접 sweep: open PR 0·이 건 BLOCKED·nextTask=T-0486(pr-mode, 보류). 에이전트 자력 해소 불가(저장소 소유자 결제 권한 필요).",
       "options": [
@@ -266,7 +258,10 @@
         "(2) **잠정 direct-only 운영** — 결제 조치 전까지 pr-mode task(T-0486 등)는 보류하고 doc/planner/STATE bookkeeping 같은 direct commit 진행만 수행. CI 게이트가 없는 direct 경로는 계속 동작하므로 결제 복구 전 idle 대신 문서/계획 정비를 진행할 수 있다. 결제 해소 시 (1)로 전환."
       ],
       "resolutionHint": "GitHub Billing & plans 에서 결제수단/spending-limit 조치 후 docs/STATE.json 본 Q-0041 에 resolvedAt(ISO)+decision 기입하고 run 27731151977 rerun(또는 다음 pr-mode push 가 자동 재트리거). 해소 시 blockers[] 의 B-credential-ci-billing-2026-06-18T01:42Z 도 함께 close. 코드 rework 0 — infra/결제-only block.",
-      "raisedThisTurn": true
+      "raisedThisTurn": true,
+      "resolvedAt": "2026-06-18T01:52:00Z",
+      "resolvedBy": "loop@win-tt511 (사용자 CI budget 상향 보고 + 에이전트 검증)",
+      "decision": "옵션1 — 사용자가 GitHub Billing & plans 에서 CI budget(spending limit)을 상향했다. 에이전트 검증: 실패했던 main run 27731269831(b76bed9)을 rerun 하니 두 job 모두 runner 정상 할당(steps 22/1, in_progress — 직전 fail 은 steps 0 으로 runner 미할당이었다). 결제/runner 차단 해소 확인. blockers[] 의 B-credential-ci-billing-2026-06-18T01:42Z close(blockersResolvedNote5). pr-mode 4-게이트의 CI green 게이트 재가동 — T-0486 등 보류 pr-mode task resume 가능. 코드 rework 0(infra/결제-only block — Q-0028/Q-0039 동형)."
     },
     {
       "id": "Q-0040",
