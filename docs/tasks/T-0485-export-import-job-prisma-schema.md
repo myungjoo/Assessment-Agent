@@ -2,7 +2,9 @@
 id: T-0485
 title: prisma/schema.prisma 에 model ExportJob / ImportJob 추가 + migration 생성
 phase: P7
-status: PENDING
+status: DONE
+prNumber: 396
+mergeCommit: b8b8faa
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 190

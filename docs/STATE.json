@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0485",
-  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인 — ExportJob/ImportJob 영속 Prisma schema migration §5 게이트 통과). chain step1 DONE: T-0484(ADR-0044 export/import job 영속 데이터 모델 ACCEPTED, 1ffad9d, direct doc commit). chain step2 큐잉: T-0485(prisma/schema.prisma 에 model ExportJob/ImportJob + migration, pr-mode, dependsOn T-0484). 이후 step: AssessmentModule export/import controller/service 배선 → 누적 45 helper(T-0437~T-0483) 실 호출 배선(여러 task 분할). 새 외부 dependency·credential 추가는 Q-0040 승인 범위 밖(별도 §5/§9 게이트 — artifact 저장소 object-storage 등). 잔여 게이트(미해소): live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend(backend 계약 ship 후), timezone Q-0026(ADR-first human), ADR-0036 stage5c full-parallel(30일 dogfood). open PR 0·BLOCKED 0·blockers 0.",
+  "nextTask": null,
+  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). chain step1 DONE: T-0484(ADR-0044 ACCEPTED, 1ffad9d). chain step2 DONE: T-0485(prisma schema ExportJob/ImportJob + migration + spec, PR #396 round1 APPROVE round2 NIT closure, squash b8b8faa). 이후 step: AssessmentModule export/import controller/service 배선 → 누적 45 helper(T-0437~T-0483) 실 호출 배선(여러 task 분할) — 다음 fire 가 planner dispatch. 새 외부 dependency·credential 추가는 Q-0040 승인 범위 밖(별도 §5/§9 게이트 — artifact 저장소 object-storage 등). 잔여 게이트(미해소): live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend(backend 계약 ship 후), timezone Q-0026(ADR-first human), ADR-0036 stage5c full-parallel(30일 dogfood). open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-q40r2",
-    "since": "2026-06-18T00:37:30Z",
-    "note": "cron@cloud-q40r2 (schedule cron fire) — origin/main 동기(c0e955b)→권위 lock CAS 획득(9c37b00→9202d27, claims.json [] 보존)→T-0484 execute(executor: architect ADR-0044 + data-model.md, tester lint/build/test green 4726). commitMode override: frontmatter 는 pr 이나 cron 운영 directive(문서 변경=direct commit, PR/review 생략)에 따라 direct doc commit(1ffad9d) → main push 성공(c0e955b..1ffad9d). main CI run pending(1ffad9d, doc-only break risk 0). bookkeeping: tasksCompleted 475→476, T-0484 DONE, mostRecentTasks prepend, planner dispatch T-0485 큐잉(nextTask). bookkeeping commit 후 lock tombstone release. 다음 fire 가 T-0485 claim+execute(pr-mode 단독)."
+    "session": "cron@cloud-qd1u8",
+    "since": "2026-06-18T00:50:00Z",
+    "note": "cron@cloud-qd1u8 (schedule cron fire) — origin/main 동기(92ff443)→권위 lock CAS 획득(0c66206→43cae69)→select-claim atomic(claims=[T-0485] + lock tombstone)→executor T-0485 (round1 6edfd5f 482/-3, schema 2 model + 3 enum + migration + 13 test spec, 4739 green 99.95% line). PR #396 open (draft). reviewer APPROVE round1 (MINOR cap 인접, NIT L599-604 stale 주석). 본 fire 내 round2 commit 582293a (Nit-in-PR closure 3/-4). CI 게이트: run #2310 (582293a) green (lint/build/test/prisma migrate deploy/smoke/e2e/reviewer approval 21 step 전부 success). 4-게이트 (reviewer APPROVE + 외화 PR comment + integrator self + CI green) 모두 PASS → squash merge b8b8faa (mcp__github__merge_pull_request). next fire: planner dispatch (controller/service 배선 chain step3)."
   },
-  "lastActivity": "2026-06-18T00:43:00Z",
-  "lastCommit": "1ffad9d",
+  "lastActivity": "2026-06-18T01:30:00Z",
+  "lastCommit": "b8b8faa",
   "mostRecentTasks": [
+    "T-0485",
     "T-0484",
     "T-0483",
     "T-0482",
-    "T-0481",
-    "T-0480"
+    "T-0481"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511 (dynamic, turn cap 10) — 종료. t1 stand-down(T-0473 cron@local15). t2-t10 매 turn 1 task merge: T-0474→90df25d, T-0475→92e0e1b, T-0476→1339f48, T-0477→16ab736, T-0478→549dfcd, T-0479→8c8d286, T-0480→b2523a7, T-0481→7866890, t10(18:37Z) T-0482→PR #393 APPROVE(NIT 1)→merge 0ab1b37→bookkeeping+planner T-0483. turn cap 10 도달 → self-reschedule 안 함, session 종료. 9개 task(T-0474~T-0482) 전부 round1 APPROVE merge·신규 파일 100% cov·CI green·blocker 0. cleanup 권장: /compact 또는 /clear 후 새 /loop, 또는 cron(KST 야간) 대기. 다음 진입점이 T-0483 부터."
   },
   "ci": {
-    "lastRun": "2026-06-18T00:42:00Z",
-    "status": "running",
+    "lastRun": "2026-06-18T01:29:27Z",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0484 ADR-0044 direct doc commit(1ffad9d) → main CI run pending(1ffad9d, 미완) — doc-only(src/·test/ 0 LOC)라 break risk 0, executor 가 push 전 pnpm lint/build/test 로컬 green(208 suites/4726 tests) 선검증. 다음 fire 가 [1]에서 conclusion 재확인(LOOP §1[5] in_progress 처리). 직전 T-0483 merge(952d335) success."
+    "note": "T-0485 PR #396 round2 head 582293a CI run #2310 success (21 step 전부 green, 3분 12초). 직전 run #2309(round1 head 6edfd5f) failure on step 21 'reviewer approval 검증' (comment 미post 시점 trigger — 이후 round2 push + APPROVE comment post 로 게이트 정상 통과). squash merge b8b8faa 후 main CI 도 doc-only-not-applicable (squash 가 main 의 push event 별도로 trigger 안 함, PR CI 가 사실상 main pre-merge gate)."
   },
   "reviewRounds": {
+    "T-0485": 1,
     "T-0483": 1,
     "T-0482": 1,
     "T-0481": 1,
@@ -847,7 +848,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 476,
+    "tasksCompleted": 477,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
