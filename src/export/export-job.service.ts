@@ -39,6 +39,14 @@ import {
   buildExportChunkPlan,
   type ExportChunkPlan,
 } from "./export-chunk-plan";
+// describeExportChunkStreamProgress(T-0470) + ExportChunkStreamProgress 타입을 same-folder
+// 경로(`./export-chunk-stream-progress`)로 import 해 previewSelection 응답에 streamProgress 로
+// surface 한다(barrel re-export·alias 신설 0 — buildExportChunkPlan import 패턴 mirror).
+// ExportChunkStreamProgress 는 service interface(ExportSelectionPreview) 가 그대로 재노출한다.
+import {
+  describeExportChunkStreamProgress,
+  type ExportChunkStreamProgress,
+} from "./export-chunk-stream-progress";
 import {
   estimateExportDumpSize,
   type ExportDumpSizeEstimate,
@@ -196,6 +204,15 @@ export interface ExportSelectionPreview {
   // §8 NFR chunked streaming chunk 경계 정합). helper 는 sizeEstimate + 상수만 derivation 하므로
   // 추가 DB read 0(REQ-032 derivation-only). append-only 확장 — 기존 7 필드는 불변(backward-compat).
   chunkPlan: ExportChunkPlan | null;
+  // streamProgress 는 describeExportChunkStreamProgress(T-0470) 산출 — chunkPlan !== null(대량
+  // dump → chunk 경계 plan 존재)일 때만 deliveredChunks=0(미시작 — preview 시점)으로 호출해
+  // chunked streaming 의 초기 진행 상태(totalChunks/deliveredChunks/remainingChunks/
+  // transferredBytes/totalBytes/remainingBytes/percentComplete/complete/currentChunk/
+  // currentRange/headline)를 derive 하고, chunkPlan === null(sync 다운로드 — chunk 불요)이면
+  // null 이다(UC-07 §5 step 13 + §8 NFR chunked streaming progress bar / resume offset 안내
+  // 정합). helper 는 chunkPlan + 상수 0 만 derivation 하므로 추가 DB read 0(REQ-032
+  // derivation-only). append-only 확장 — 기존 8 필드는 불변(backward-compat).
+  streamProgress: ExportChunkStreamProgress | null;
 }
 
 @Injectable()
@@ -367,6 +384,24 @@ export class ExportJobService {
       ? buildExportChunkPlan(sizeEstimate, DEFAULT_EXPORT_CHUNK_SIZE_BYTES)
       : null;
 
+    // describeExportChunkStreamProgress 실호출(T-0470 helper 배선) — chunkPlan !== null(대량
+    // dump → chunk 경계 plan 존재)일 때만 deliveredChunks 상수 0(미시작 — preview 시점)으로
+    // 호출해 chunked streaming 의 초기 진행 상태(0% · 첫 chunk 의 content-range)를 derive 하고,
+    // chunkPlan === null(sync 다운로드 — chunk 불요)이면 null 로 둔다(UC-07 §5 step 13 + §8 NFR
+    // chunked streaming progress bar / resume offset 안내 정합). deliveredChunks 는 preview 시점
+    // streaming 시작 전이라 상수 0(미시작 초기 view — transferredBytes 0 · percentComplete 0 ·
+    // currentChunk chunks[0] · currentRange 첫 chunk content-range)으로 고정 전달하며, runtime
+    // 실 전송 chunk 수 기반 동적 progress 주입은 별도 task(§Follow-ups — 실 chunked streaming
+    // 전송 게이트와 묶임)다(직전 step T-0501/T-0503 의 default 상수 패턴 mirror). helper 는
+    // chunkPlan + 상수 0 만 derivation 하므로 추가 DB read 0(REQ-032 derivation-only 자연 유지 —
+    // 진행 상태만 산술 derive, raw payload 0). 입력 chunkPlan 은 항상 buildExportChunkPlan 통과
+    // (chunks.length === chunkCount · totalBytes 비-음수정수)이고 deliveredChunks 0(0 ≤ chunkCount)
+    // 이라, helper 의 입력 방어 분기(RangeError/TypeError)는 정상 경로에서 미발화한다.
+    const streamProgress =
+      chunkPlan !== null
+        ? describeExportChunkStreamProgress(chunkPlan, 0)
+        : null;
+
     // selected 의 entity 별 count breakdown — 5 entity 0 초기화 후 누적(미선택 entity 는 0).
     // summary.selected.perEntity 와 동일 값이나 backward-compat 위해 기존 필드 유지.
     const perEntitySelected = VALID_EXPORT_ENTITIES.reduce(
@@ -389,6 +424,7 @@ export class ExportJobService {
       deliveryPlan,
       completionResult,
       chunkPlan,
+      streamProgress,
     };
   }
 
