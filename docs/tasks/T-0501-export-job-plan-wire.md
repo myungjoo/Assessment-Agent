@@ -2,7 +2,11 @@
 id: T-0501
 title: buildExportJobPlan helper 를 ExportJobService.previewSelection 응답 확장으로 실호출 배선 — 45 helper 배선 chain step10
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: 392e94e
+prNumber: 411
+reviewRounds: 1
+completedAt: 2026-06-18T12:52:00Z
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 220
