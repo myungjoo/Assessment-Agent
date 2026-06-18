@@ -47,6 +47,15 @@ export type MockPrismaService = {
     update: jest.Mock;
     delete: jest.Mock;
   };
+  // exportJob delegate (T-0486) — ExportJobService 의 createJob / mark* / findJob /
+  // findRunning 이 사용하는 4 메서드만 mock 으로 보유. findUniqueOrThrow 는 row 부재 시
+  // P2025 throw 분기(NotFoundException 매핑)를 spec 이 직접 mockRejectedValue 로 구성.
+  exportJob: {
+    create: jest.Mock;
+    update: jest.Mock;
+    findUniqueOrThrow: jest.Mock;
+    findMany: jest.Mock;
+  };
 };
 
 // 신규 mock PrismaService 객체 생성 — 5 jest.fn() 보유한 `person` delegate.
@@ -61,6 +70,13 @@ export function buildMockPrismaService(): MockPrismaService {
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+    },
+    // exportJob delegate (T-0486) — create/update/findUniqueOrThrow/findMany 4 jest.fn().
+    exportJob: {
+      create: jest.fn(),
+      update: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      findMany: jest.fn(),
     },
   };
 }
