@@ -31,6 +31,10 @@ import { ExportScope, Prisma, type ExportJob } from "@prisma/client";
 
 import { PrismaService } from "../persistence/prisma.service";
 
+import {
+  estimateExportDumpSize,
+  type ExportDumpSizeEstimate,
+} from "./export-dump-size-estimate";
 import { buildExportScopeRejection } from "./export-scope-rejection-message";
 import {
   selectExportRecords,
@@ -133,11 +137,18 @@ type ExportEntityDelegate =
 //     을 노출(UC-07 §3 trigger 1 confirmation dialog / §8 (b) Audit row 의 breakdown).
 //     excluded 측 perEntity breakdown 과 양 그룹의 instant 시간 범위가 본 필드로 처음
 //     노출된다(기존 perEntitySelected 는 selected 측만 cover 했음).
+//   - sizeEstimate 는 estimateExportDumpSize(T-0466 helper) 산출 — selected record 를
+//     entity-별 byte weight 로 추정한 예상 dump 크기(estimatedBytes/humanSize/recordTotal/
+//     perEntityBytes(5 entity 0-init)/large/recommendation/guidanceLines)를 노출한다
+//     (UC-07 §8 NFR 동기/async-streaming 권고 + §3 trigger 1 confirmation dialog 의 규모
+//     안내). selection 만 derivation 하므로 추가 DB read 0(REQ-032 raw 미저장 자연 유지).
+//     append-only 확장 — 기존 4 필드는 불변(backward-compat).
 export interface ExportSelectionPreview {
   selectedCount: number;
   excludedCount: number;
   perEntitySelected: Record<ExportEntity, number>;
   summary: ExportSelectionSummary;
+  sizeEstimate: ExportDumpSizeEstimate;
 }
 
 @Injectable()
@@ -259,6 +270,16 @@ export class ExportJobService {
     // helper 의 입력 방어 분기(TypeError)는 정상 경로에서 미발화한다.
     const summary = summarizeExportSelection(selection);
 
+    // estimateExportDumpSize 실호출(T-0466 helper 배선) — 동일 selection 을 그대로
+    // forward 해 selected record 의 예상 dump 크기 + async 임계 판정 + 한국어 안내를
+    // derive 한다(UC-07 §8 NFR sync/async-streaming 권고 + §3 trigger 1 confirmation
+    // dialog 의 규모 안내 정합). byte weight / async 임계는 helper default 로 호출한다
+    // (옵션 미전달 — 정책 row · ENV 기반 동적 주입은 별도 task §Follow-ups). helper 는
+    // 입력 selection 만 집계하므로 추가 DB read 0(REQ-032 derivation-only 자연 유지).
+    // 입력은 항상 selectExportRecords 통과 selection(selected/excluded 가 ExportRecord[]
+    // 배열)이라 helper 의 입력 방어 분기(TypeError)는 정상 경로에서 미발화한다.
+    const sizeEstimate = estimateExportDumpSize(selection);
+
     // selected 의 entity 별 count breakdown — 5 entity 0 초기화 후 누적(미선택 entity 는 0).
     // summary.selected.perEntity 와 동일 값이나 backward-compat 위해 기존 필드 유지.
     const perEntitySelected = VALID_EXPORT_ENTITIES.reduce(
@@ -277,6 +298,7 @@ export class ExportJobService {
       excludedCount: excluded.length,
       perEntitySelected,
       summary,
+      sizeEstimate,
     };
   }
 
