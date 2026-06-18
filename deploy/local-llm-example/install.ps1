@@ -81,10 +81,16 @@ if ($NoAutostart) {
 }
 
 # ── [4/5] 서버 재기동 (새 환경변수 적용) + 헬스 대기 ─────────────────────────
+# 멈춘 인스턴스(설치 직후 트레이 앱이 서버를 못 띄우는 race) 를 피하려고, 모든
+# ollama 프로세스를 정리한 뒤 'ollama serve' 로 직접 기동한다(가장 결정적). 현재
+# 세션 env(OLLAMA_KEEP_ALIVE/HOST)를 그대로 상속해 정책이 즉시 반영된다. 재부팅
+# 후에는 [3/5] 의 자동시작(트레이 앱)이 동일 user env 로 서버를 띄운다.
 Write-Host "[4/5] 서버 재기동(환경변수 반영) 후 대기..." -ForegroundColor Yellow
-Get-Process -Name 'ollama app', 'ollama' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 1
-if (Start-OllamaServerIfNeeded -ApiBase $apiBase -TimeoutSec 40) {
+Get-Process -Name 'ollama app', 'ollama', 'ollama_llama_server' -ErrorAction SilentlyContinue |
+    Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+Start-Process -FilePath $exe -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
+if (Wait-OllamaServer -ApiBase $apiBase -TimeoutSec 60) {
     Write-Host "  서버 응답 OK: $apiBase" -ForegroundColor Green
 } else {
     Write-Warning "  서버가 시간 내 응답하지 않음. status.ps1 로 상태를 확인하세요."

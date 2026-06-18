@@ -93,17 +93,28 @@ function Wait-OllamaServer {
 
 # Start-OllamaServerIfNeeded — 서버가 꺼져 있으면 트레이 앱을 띄워 기동시킨다.
 # 이미 떠 있으면 noop. 기동 성공 여부($true/$false) 반환.
+# 전략: (1) 트레이 앱으로 기동 시도(정상 UX) → 절반 시간 내 서버가 안 뜨면
+#       (2) 멈춘 인스턴스 정리 후 'ollama serve' 직접 기동(가장 결정적)으로 폴백.
+# 일부 환경에서 트레이 앱이 백그라운드 서버를 띄우지 못하고 "existing instance" 로
+# 멈추는 race 가 있어 serve 폴백을 둔다.
 function Start-OllamaServerIfNeeded {
-    param([string]$ApiBase = 'http://127.0.0.1:11434', [int]$TimeoutSec = 30)
+    param([string]$ApiBase = 'http://127.0.0.1:11434', [int]$TimeoutSec = 60)
     if (Test-OllamaServer -ApiBase $ApiBase) { return $true }
+    $exe = Get-OllamaExe
+    if (-not $exe) { return $false }
+    $half = [Math]::Max(5, [int]($TimeoutSec / 2))
+
+    # (1) 트레이 앱 우선 (있으면)
     $app = Get-OllamaAppExe
     if ($app) {
         Start-Process -FilePath $app | Out-Null
-    } else {
-        # 트레이 앱이 없으면 CLI 로 백그라운드 serve 기동 (창 숨김).
-        $exe = Get-OllamaExe
-        if (-not $exe) { return $false }
-        Start-Process -FilePath $exe -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
+        if (Wait-OllamaServer -ApiBase $ApiBase -TimeoutSec $half) { return $true }
     }
-    return (Wait-OllamaServer -ApiBase $ApiBase -TimeoutSec $TimeoutSec)
+
+    # (2) 폴백: 멈춘 인스턴스 정리 후 serve 직접 기동
+    Get-Process -Name 'ollama app', 'ollama', 'ollama_llama_server' -ErrorAction SilentlyContinue |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    Start-Process -FilePath $exe -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
+    return (Wait-OllamaServer -ApiBase $ApiBase -TimeoutSec ([Math]::Max(10, $half)))
 }
