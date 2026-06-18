@@ -37,6 +37,7 @@ function Get-LlmConfig {
         OLLAMA_HOST       = '127.0.0.1:11434'
         OLLAMA_KEEP_ALIVE = '5m'
         OPENAI_BASE_URL   = 'http://127.0.0.1:11434/v1'
+        LAN_ALLOW_CIDR    = '192.168.0.0/24'
     }
     Read-EnvFile -Path (Join-Path $script:LlmExampleDir 'config.env') -Into $cfg
     Read-EnvFile -Path (Join-Path $script:LlmExampleDir 'config.local.env') -Into $cfg
