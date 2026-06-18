@@ -7,39 +7,40 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0502",
-  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). helper 배선 chain step9 = T-0500 DONE/MERGED(squash a184ad2, PR #410): estimateExportDumpSize(T-0466)→previewSelection sizeEstimate 확장 배선. step10 = **T-0501 DONE/MERGED**(squash 392e94e, PR #411 round1 4-게이트): buildExportJobPlan(T-0467 미호출 helper)→previewSelection 응답 deliveryPlan 확장 배선(mode('sync-download'|'async-job')/chunked/pollingRequired/statusFlow/headline/instructionLines). helper default 옵션 사용(chunk 임계 5MB·poll 3s — 동적 주입 별도 task)·controller verbatim forward 코드변경0·DB write·신규 endpoint 0·기존 5필드 backward-compat. +33/-1 LOC 3파일, cov service 98.38%/func100%·controller100%, 5014 pass. 단일 active driver(cron@cloud-s30-9b3e, fineGrainedConcurrency stage5b select-claim), race 0. 다음 step: helper 배선 chain step11 = **T-0502 큐잉됨**(buildExportResult(T-0456 미호출 helper)→previewSelection 의 이미 산출된 summary+인자 scope 위에 completionResult 응답 확장 배선(headline/exportedCounts/impactLines/scopeLine), ExportScopePayload=ExportScope 별칭이라 추가 변환0, DB write·신규 endpoint 0, pr, ~210 LOC 4파일). 이후 buildExportChunkPlan(chunkSizeBytes 정책 결정 선행 필요) + 나머지 chain + multipart upload(별도 task). 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0.",
+  "nextTask": "T-0503",
+  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). helper 배선 chain step10 = T-0501 DONE/MERGED(squash 392e94e, PR #411): buildExportJobPlan(T-0467)→previewSelection deliveryPlan 확장 배선. step11 = **T-0502 DONE/MERGED**(squash 2cab65e, PR #412 round1 4-게이트): buildExportResult(T-0456 미호출 helper)→previewSelection 의 이미 산출된 summary+인자 scope 위에 completionResult 응답 확장 배선(headline/exportedCounts/impactLines/scopeLine). ExportScopePayload=ExportScope 별칭이라 추가 변환0·DB write·신규 endpoint 0·기존 6필드 backward-compat(append-only). production +25 LOC service, cov service 98.43%/func100%·controller100%, 변경 3파일(service+2 spec) +369 insertions(production +25, 나머지 R-112 test). reviewer round1 APPROVE(0 BLOCKER/MAJOR/MINOR, NIT1 fix 불요). 단일 active driver(loop@win-tt511-tc5 로컬 /loop turn cap 5, fineGrainedConcurrency stage5b select-claim), race 0. 다음 step: helper 배선 chain step12 = **T-0503 큐잉됨**(buildExportChunkPlan(T-0469 미호출 helper)→previewSelection 의 sizeEstimate+deliveryPlan.chunked 위에 chunkPlan 응답 조건부 확장 배선(chunked true 면 ExportChunkPlan, false 면 null), chunkSizeBytes 는 service module-level default 상수(정책/ENV 동적주입 별도 task), DB write·신규 endpoint 0, pr, ~210 LOC 4파일). 이후 나머지 chain + multipart upload(별도 task). 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-s30-9b3e",
-    "since": "2026-06-18T12:48:00Z",
-    "note": "cron@cloud-s30-9b3e (aa-local-scheduled schedule cron fire 매시30분, Anthropic cloud fresh checkout) — origin/main b907ea5 에서 깨어 ff→9cdc723(다른 driver 가 T-0498·T-0499·T-0500 merge·T-0501 큐잉 완료). lock free(7ff5ed2 tombstone holder=\"\")·claims=[] 확인 → 권위 lock CAS 획득(7ff5ed2→108d172, server-time 12:37:32Z). fineGrainedConcurrency=true(stage 5b): reclaim no-op(claims 빈), active claim 0<maxConcurrentClaims2·pr-mode 활성claim0, validate-claim-candidate T-0501 PASS(touchesFiles disjoint+dependsOn T-0500 merged) → select-claim.sh 로 T-0501(nextTask, pr) 단독 claim(claims append + lock tombstone 동일 commit 즉시 release, tip a917c63). lock-free executor(implementer→tester) 로 T-0501 수행: buildExportJobPlan(T-0467)→previewSelection 응답 deliveryPlan 확장 배선 +33/-1 LOC, lint/build/test 5014 pass 변경파일 cov service 98.38%/func100%·controller100% staged. feature branch claude/T-0501-export-job-plan-wire push(1af76e4) → integrator: PR #411 open, reviewer round1 APPROVE(NIT1 fix 불요), 4-게이트 PASS, CI green → gh pr merge --squash --delete-branch, squash 392e94e on main. bookkeeping 전 lock reacquire(a917c63→f13d7b5)+claim 제거(claims=[]). bookkeeping direct commit(STATE/task/journal) + planner T-0502 큐잉. 동시성: 단일 active driver, race 0. (이전 cron@cloud-l15-4f7a note)",
-    "noteOld": "cron@cloud-l15-4f7a (aa-local-15 schedule cron fire 매시15분) — origin/main 1229985 에서 깨어 ff→b907ea5. lock free(c7f2cc2)·claims=[] → CAS 획득(c7f2cc2→adacc8f, 12:04:30Z). stage5b: validate-claim T-0500 PASS → select-claim T-0500(pr) 단독 claim. lock-free executor: estimateExportDumpSize(T-0466)→previewSelection sizeEstimate 확장 +22 LOC, 4999 pass. PR #410 round1 APPROVE 4-게이트 PASS CI green → squash a184ad2. bookkeeping + planner T-0501 큐잉 + claim 제거. 단일 active driver, race 0."
+    "session": "loop@win-tt511-tc5",
+    "since": "2026-06-18T13:02:52Z",
+    "note": "loop@win-tt511-tc5 (로컬 /loop dynamic, turn cap 5) — ScheduleWakeup t2: origin/main 9cdc723 에서 깨어 fetch→ff origin/main 81785d8(다른 cron driver 가 T-0501 merge 392e94e·T-0502 큐잉 완료). server-time 13:01:10Z(curl GitHub api Date 헤더). lock free(d1fe887 tombstone holder=\"\")·claims=[] 확인 → 권위 lock CAS 획득(d1fe887→add9655, server-time 13:02:52Z). fineGrainedConcurrency=true(stage 5b): reclaim no-op(claims 빈), active claim 0<maxConcurrentClaims2·pr-mode 활성claim0, validate-claim-candidate.sh T-0502 PASS(touchesFiles disjoint+dependsOn T-0501 merged) → select-claim.sh 로 T-0502(nextTask, pr) 단독 claim(claims append + lock tombstone 동일 commit 즉시 release). lock-free executor(implementer→tester) 로 T-0502 수행: buildExportResult(T-0456)→previewSelection 응답 completionResult 확장 배선 production +25 LOC service, lint/build/test green(29981 pass) 변경파일 cov service 98.43%/func100%·controller100% commit 4adc256. feature branch claude/T-0502-export-result-wire push → claim prNumber=412 PR_OPEN 갱신(739cf2c) → PR #412 open, reviewer 직접 dispatch round1 APPROVE(0 BLOCKER/MAJOR/MINOR, NIT1 fix 불요)+comment(gate2), CI green(run 27761950728 success, 기본 검사+Docker smoke 둘 다 pass) → 4-게이트 PASS → gh pr merge --squash --delete-branch, squash 2cab65e on main 13:17:06Z. claim 제거(claims=[] d1c20b7). bookkeeping direct commit(STATE/task/journal) + planner T-0503 큐잉 + lock tombstone 유지. 동시성: 단일 active driver, race 0. (이전 cron@cloud-s30-9b3e note)",
+    "noteOld": "cron@cloud-s30-9b3e (aa-local-scheduled 매시30분) — origin/main b907ea5 에서 ff→9cdc723. lock free(7ff5ed2)·claims=[] → CAS 획득(7ff5ed2→108d172, 12:37:32Z). stage5b: validate-claim T-0501 PASS → select-claim T-0501(pr) 단독 claim. lock-free executor: buildExportJobPlan(T-0467)→previewSelection deliveryPlan 확장 +33/-1 LOC, 5014 pass. PR #411 round1 APPROVE(NIT1) 4-게이트 PASS CI green → squash 392e94e. bookkeeping + planner T-0502 큐잉 + claim 제거. 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-18T12:52:00Z",
-  "lastCommit": "392e94e",
+  "lastActivity": "2026-06-18T13:17:06Z",
+  "lastCommit": "2cab65e",
   "mostRecentTasks": [
+    "T-0502",
     "T-0501",
     "T-0500",
     "T-0499",
-    "T-0498",
-    "T-0497"
+    "T-0498"
   ],
   "loopSession": {
-    "turnCount": 10,
-    "cap": 10,
-    "holder": "loop@win-tt511",
-    "startedAt": "2026-06-17T15:10:44Z",
-    "note": "/loop win-tt511 (dynamic, turn cap 10) — 종료. t1 stand-down(T-0473 cron@local15). t2-t10 매 turn 1 task merge: T-0474→90df25d, T-0475→92e0e1b, T-0476→1339f48, T-0477→16ab736, T-0478→549dfcd, T-0479→8c8d286, T-0480→b2523a7, T-0481→7866890, t10(18:37Z) T-0482→PR #393 APPROVE(NIT 1)→merge 0ab1b37→bookkeeping+planner T-0483. turn cap 10 도달 → self-reschedule 안 함, session 종료. 9개 task(T-0474~T-0482) 전부 round1 APPROVE merge·신규 파일 100% cov·CI green·blocker 0. cleanup 권장: /compact 또는 /clear 후 새 /loop, 또는 cron(KST 야간) 대기. 다음 진입점이 T-0483 부터."
+    "turnCount": 2,
+    "cap": 5,
+    "holder": "loop@win-tt511-tc5",
+    "startedAt": "2026-06-18T12:40:22Z",
+    "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — 진행 중. t1(12:40Z) stand-down: nextTask T-0501 이 cron@cloud-s30-9b3e 에 freshly claimed(12:37:32Z, claims.json) 상태라 claimable 부재 → no-op, ScheduleWakeup ~20분 reschedule. t2(13:01Z) ScheduleWakeup wake: T-0501 merge(392e94e)·T-0502 큐잉 확인, window open(lock free·claims=[]) → 권위 lock CAS 획득(d1fe887→add9655) → stage5b select-claim T-0502(pr) → lock-free executor → PR #412 round1 APPROVE 4-게이트 PASS → squash 2cab65e merge → bookkeeping+planner T-0503 큐잉+claim 제거. 다음 t3 가 T-0503 평가."
   },
   "ci": {
-    "lastRun": "2026-06-18T12:51:18Z",
-    "status": "running",
+    "lastRun": "2026-06-18T13:17:06Z",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0501 PR #411 round1: pull_request run success → 4-게이트 PASS → squash merge 392e94e. merge 후 main push CI(392e94e run 27760698256 in_progress) + 본 bookkeeping direct commit CI 는 다음 fire 에서 conclusion 확인."
+    "note": "T-0502 PR #412 round1: pull_request run 27761950728 success(기본 검사 3m28s + Docker smoke 1m48s 둘 다 pass) → 4-게이트 PASS → squash merge 2cab65e. 본 bookkeeping direct commit CI 는 다음 turn/fire 에서 conclusion 확인."
   },
   "reviewRounds": {
+    "T-0502": 1,
     "T-0501": 1,
     "T-0500": 1,
     "T-0497": 1,
@@ -883,7 +884,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 493,
+    "tasksCompleted": 494,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
