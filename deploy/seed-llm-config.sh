@@ -12,9 +12,10 @@
 #
 # apiKey 처리: AA 는 apiKey 를 AES-256-GCM envelope 으로 암호화 저장한다(ADR-0014).
 #   본 스크립트는 평문 키를 DB 에 넣지 않고, 실행 중인 app 컨테이너 안에서 compiled
-#   cipher(dist)로 암호화한 ciphertext 만 upsert 한다(컨테이너 env 의 LLM_APIKEY_ENC_KEY
-#   사용 — 앱이 호출 시 decrypt 할 때와 동일 키). Ollama 는 키를 무시하므로 평문 값은
-#   더미('ollama')여도 무방하나, gateway 가 decrypt 는 수행하므로 유효 envelope 이 필요.
+#   cipher(dist)로 암호화한 ciphertext 만 upsert 한다(암호화 키는 본 스크립트가 .env
+#   에서 읽어 docker exec -e 로 컨테이너에 직접 주입 — 앱이 호출 시 decrypt 할 때와
+#   동일 키). Ollama 는 키를 무시하므로 평문 값은 더미('ollama')여도 무방하나,
+#   gateway 가 decrypt 는 수행하므로 유효 envelope 이 필요.
 #
 # env(.env 또는 호출 환경):
 #   SEED_LLM_ENDPOINT_URL  (필수 트리거) OpenAI 호환 base, 예: http://192.168.0.5:11434/v1
