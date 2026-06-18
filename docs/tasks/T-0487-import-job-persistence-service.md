@@ -2,7 +2,10 @@
 id: T-0487
 title: ImportJobService — ImportJob 생성·status 전이·polling 조회 persistence service 배선
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: a451f6a
+prNumber: 399
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 225
