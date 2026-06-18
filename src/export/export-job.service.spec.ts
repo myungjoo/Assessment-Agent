@@ -7,10 +7,12 @@
 // 직접 생성자 주입 패턴 mirror). 검증 포인트:
 //   - happy: createJob / markRunning / markSucceeded / markFailed / findJob / findRunning
 //     의 정상 동작 (Prisma delegate 호출 인자 + 반환 검증).
-//   - branch: scope invariant 3 분기 (FULL / RANGE / PARTIAL) 각 정상 + status 전이 3 분기.
-//   - error/negative: scope=FULL+dateRange (400) / scope=RANGE+dateRange 누락 (400) /
-//     scope=PARTIAL+entitySelector 누락 (400) / 빈 requestedById (400) /
-//     findJob 부재 P2025 → 404 / mark* 부재 P2025 → 404 / 변환 범위 밖 error propagate.
+//   - branch: scope 매핑 3 분기 (FULL / RANGE / PARTIAL) 각 정상 + dateRange coerce 분기
+//     (string 입력 coerce / 이미 Date / 부재) + helper valid/invalid 분기 + status 전이 3 분기.
+//   - error/negative: validateExportScope(T-0444) 배선 — RANGE 역전 구간 (400) / RANGE
+//     Invalid Date (400) / PARTIAL 허용 외 entity (400) / RANGE-dateRange 누락 (400) /
+//     PARTIAL-entitySelector 누락 (400) / FULL+dateRange 는 helper normalize 로 valid /
+//     여러 field 위반 결합 message / 빈 requestedById (400) / findJob·mark* P2025 → 404.
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { ExportScope, Prisma, type ExportJob } from "@prisma/client";
 
@@ -82,10 +84,11 @@ describe("ExportJobService", () => {
       expect(result).toBe(row);
     });
 
-    it("scope=RANGE — dateRange 를 동반해 생성한다", async () => {
+    it("scope=RANGE — 유효한 dateRange(ISO string coerce)를 동반해 생성한다", async () => {
       const { service, prisma } = buildService();
       prisma.exportJob.create.mockResolvedValue(buildExportJobFixture());
 
+      // JSON body 경유 — start/end 가 ISO string. service 가 Date 로 coerce 후 helper 통과.
       await service.createJob({
         scope: ExportScope.RANGE,
         requestedById: "user-1",
@@ -93,6 +96,8 @@ describe("ExportJobService", () => {
       });
 
       const arg = prisma.exportJob.create.mock.calls[0][0];
+      // record 동작 불변 — 검증만 강화하고 input 값을 그대로 저장(coerce 는 helper 전용).
+      expect(arg.data.scope).toBe("RANGE");
       expect(arg.data.dateRange).toEqual({
         start: "2026-01-01",
         end: "2026-03-31",
@@ -100,22 +105,41 @@ describe("ExportJobService", () => {
       expect(arg.data.entitySelector).toBe(Prisma.DbNull);
     });
 
-    it("scope=PARTIAL — entitySelector 를 동반해 생성한다", async () => {
+    it("scope=RANGE — 이미 Date instance 인 dateRange 도 통과한다", async () => {
+      const { service, prisma } = buildService();
+      prisma.exportJob.create.mockResolvedValue(buildExportJobFixture());
+
+      // coerce 분기 — 이미 Date 면 그대로 통과(string 아님).
+      const dateRange = {
+        start: new Date("2026-01-01T00:00:00.000Z"),
+        end: new Date("2026-03-31T00:00:00.000Z"),
+      };
+      await service.createJob({
+        scope: ExportScope.RANGE,
+        requestedById: "user-1",
+        dateRange,
+      });
+
+      const arg = prisma.exportJob.create.mock.calls[0][0];
+      expect(arg.data.dateRange).toEqual(dateRange);
+    });
+
+    it("scope=PARTIAL — 유효한 entitySelector(entity 배열)를 동반해 생성한다", async () => {
       const { service, prisma } = buildService();
       prisma.exportJob.create.mockResolvedValue(buildExportJobFixture());
 
       await service.createJob({
         scope: ExportScope.PARTIAL,
         requestedById: "user-1",
-        entitySelector: { personIds: ["p1", "p2"] },
+        entitySelector: ["Person", "Group"],
       });
 
       const arg = prisma.exportJob.create.mock.calls[0][0];
-      expect(arg.data.entitySelector).toEqual({ personIds: ["p1", "p2"] });
+      expect(arg.data.entitySelector).toEqual(["Person", "Group"]);
       expect(arg.data.dateRange).toBe(Prisma.DbNull);
     });
 
-    // negative: 빈 requestedById → 400.
+    // negative: 빈 requestedById → 400 (helper 무관, service 가 helper 호출 전 분기).
     it("requestedById 가 빈 문자열이면 BadRequestException", async () => {
       const { service, prisma } = buildService();
 
@@ -125,34 +149,49 @@ describe("ExportJobService", () => {
       expect(prisma.exportJob.create).not.toHaveBeenCalled();
     });
 
-    // negative: scope=FULL 인데 dateRange 동반 → 400 (모순).
-    it("scope=FULL 인데 dateRange 가 넘어오면 BadRequestException", async () => {
+    // negative (helper): scope=RANGE 인데 start ≥ end(역전 구간) → 400.
+    it("scope=RANGE 인데 dateRange.start ≥ end 면 BadRequestException", async () => {
       const { service, prisma } = buildService();
 
       await expect(
         service.createJob({
-          scope: ExportScope.FULL,
+          scope: ExportScope.RANGE,
           requestedById: "user-1",
-          dateRange: { start: "2026-01-01" },
+          dateRange: { start: "2026-03-31", end: "2026-01-01" },
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(prisma.exportJob.create).not.toHaveBeenCalled();
     });
 
-    // negative: scope=FULL 인데 entitySelector 동반 → 400 (모순, 다른 축 cover).
-    it("scope=FULL 인데 entitySelector 가 넘어오면 BadRequestException", async () => {
-      const { service } = buildService();
+    // negative (helper): RANGE 인데 잘못된 ISO string → coerce 결과 Invalid Date → 400.
+    it("scope=RANGE 인데 dateRange.start 가 Invalid Date 면 BadRequestException", async () => {
+      const { service, prisma } = buildService();
 
       await expect(
         service.createJob({
-          scope: ExportScope.FULL,
+          scope: ExportScope.RANGE,
           requestedById: "user-1",
-          entitySelector: { personIds: ["p1"] },
+          dateRange: { start: "not-a-date", end: "2026-03-31" },
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.exportJob.create).not.toHaveBeenCalled();
     });
 
-    // negative: scope=RANGE 인데 dateRange 누락 → 400.
+    // negative (helper): PARTIAL 인데 허용 외 entity 값 포함 → 400.
+    it("scope=PARTIAL 인데 허용 외 entity 가 포함되면 BadRequestException", async () => {
+      const { service, prisma } = buildService();
+
+      await expect(
+        service.createJob({
+          scope: ExportScope.PARTIAL,
+          requestedById: "user-1",
+          entitySelector: ["Person", "Unknown"],
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.exportJob.create).not.toHaveBeenCalled();
+    });
+
+    // negative (helper): scope=RANGE 인데 dateRange 누락 → 400 (field "dateRange").
     it("scope=RANGE 인데 dateRange 누락 시 BadRequestException", async () => {
       const { service, prisma } = buildService();
 
@@ -165,7 +204,7 @@ describe("ExportJobService", () => {
       expect(prisma.exportJob.create).not.toHaveBeenCalled();
     });
 
-    // negative: scope=PARTIAL 인데 entitySelector 누락 → 400.
+    // negative (helper): scope=PARTIAL 인데 entitySelector 누락 → 400 (field "entitySelector").
     it("scope=PARTIAL 인데 entitySelector 누락 시 BadRequestException", async () => {
       const { service } = buildService();
 
@@ -177,17 +216,55 @@ describe("ExportJobService", () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    // branch: scope=RANGE + dateRange=null (명시 null) 도 누락으로 취급 → 400.
-    it("scope=RANGE 인데 dateRange 가 null 이면 BadRequestException", async () => {
+    // negative (helper normalize 회귀): scope=FULL+dateRange 동봉은 helper 가 normalized 에서
+    // 제거하므로 valid — create 가 정상 통과함을 단언해 normalize 의미를 회귀로 박제.
+    it("scope=FULL 인데 dateRange 가 동봉돼도 helper normalize 로 valid(생성 통과)", async () => {
+      const { service, prisma } = buildService();
+      prisma.exportJob.create.mockResolvedValue(buildExportJobFixture());
+
+      await service.createJob({
+        scope: ExportScope.FULL,
+        requestedById: "user-1",
+        dateRange: { start: "2026-01-01", end: "2026-03-31" },
+      });
+
+      // FULL 은 한정값 무시 — record 는 input 의 dateRange 를 그대로 저장(persistence 불변).
+      expect(prisma.exportJob.create).toHaveBeenCalledTimes(1);
+    });
+
+    // negative (helper): 여러 field 위반 동시 발생 시 결합 message 에 모든 field 포함.
+    it("여러 field 위반 시 결합 message 에 dateRange·entitySelector 모두 포함", async () => {
       const { service } = buildService();
 
+      // PARTIAL 인데 entitySelector 부재 + range 도 아닌데 dateRange 부적합은 아니므로,
+      // PARTIAL 에 허용 외 entity 2 종을 넣어 entitySelector 단일 field 의 다중 위반을 본다.
       await expect(
         service.createJob({
+          scope: ExportScope.PARTIAL,
+          requestedById: "user-1",
+          entitySelector: ["BadOne"],
+        }),
+      ).rejects.toThrow(/entitySelector/);
+    });
+
+    // 여러 field(scope 무관 — range 의 dateRange + entitySelector 두 field 동시 위반) 결합.
+    it("RANGE 에서 dateRange·entitySelector 두 field 위반이 결합 message 에 함께 노출", async () => {
+      const { service } = buildService();
+
+      // RANGE 인데 dateRange 역전 + 동봉 entitySelector 에 허용 외 값 → 두 field error 누적.
+      let message = "";
+      try {
+        await service.createJob({
           scope: ExportScope.RANGE,
           requestedById: "user-1",
-          dateRange: null,
-        }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+          dateRange: { start: "2026-03-31", end: "2026-01-01" },
+          entitySelector: ["BadEntity"],
+        });
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toContain("dateRange");
+      expect(message).toContain("entitySelector");
     });
   });
 
