@@ -56,6 +56,7 @@ import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
 import { ExportJobService } from "./export-job.service";
+import * as describeExportScopeModule from "./export-scope-description";
 import { ExportController } from "./export.controller";
 /* eslint-enable import/first */
 
@@ -266,6 +267,171 @@ describe("ExportController (unit)", () => {
     const controller = new ExportController(service);
     await expect(controller.findJob("ej-x")).rejects.toBe(rawError);
   });
+
+  // -----------------------------------------------------------------------
+  // describeScope (POST /api/admin/export/describe-scope) — describeExportScope
+  // (T-0462) 실호출 배선 (T-0494). controller 가 enum→lowercase scope kind 변환 +
+  // dateRange ISO string→Date coerce 후 helper 를 호출하고 ExportScopeDescription 을
+  // 그대로 반환한다. R-112: happy(FULL/RANGE/PARTIAL) + error(helper throw raw
+  // propagate) + branch(enum 3종 매핑 / dateRange coerce 3분기) + negative(허용 외
+  // entity / RANGE 누락 / start>=end / Invalid Date / 빈 entitySelector). service 의존
+  // 0 (helper 는 순수 함수 — describeScope 는 read-only 합성이라 service 불요).
+  // -----------------------------------------------------------------------
+  it("POST describe-scope — FULL scope 의 ExportScopeDescription 반환 (happy — full 분기, readOnly=true / dateRangeLine 부재)", () => {
+    const { service } = buildServiceMock();
+    const controller = new ExportController(service);
+
+    const result = controller.describeScope({ scope: ExportScope.FULL });
+
+    expect(result.scopeKind).toBe("full");
+    expect(result.readOnly).toBe(true);
+    expect(result.headline.length).toBeGreaterThan(0);
+    expect(result.scopeLine.length).toBeGreaterThan(0);
+    // full → 5 entity 전체, dateRangeLine 부재.
+    expect(result.entityLines).toHaveLength(5);
+    expect(result.dateRangeLine).toBeUndefined();
+  });
+
+  it("POST describe-scope — RANGE scope (ISO string dateRange) → enum→lowercase + string→Date coerce 후 dateRangeLine 포함 (happy/branch — range + string coerce)", () => {
+    const { service } = buildServiceMock();
+    const controller = new ExportController(service);
+
+    const result = controller.describeScope({
+      scope: ExportScope.RANGE,
+      dateRange: {
+        start: "2026-01-01T00:00:00.000Z",
+        end: "2026-03-31T00:00:00.000Z",
+      },
+    });
+
+    expect(result.scopeKind).toBe("range");
+    // string→Date coerce 가 성공해 helper 가 ISO dateRangeLine 을 만든다.
+    expect(result.dateRangeLine).toContain("2026-01-01T00:00:00.000Z");
+    expect(result.dateRangeLine).toContain("2026-03-31T00:00:00.000Z");
+    expect(result.entityLines).toHaveLength(5);
+  });
+
+  it("POST describe-scope — RANGE scope 가 이미 Date instance 인 dateRange → coerce 통과(branch — 이미 Date 입력)", () => {
+    const { service } = buildServiceMock();
+    const controller = new ExportController(service);
+
+    // JSON 경로가 아닌 직접 Date 입력 분기 (coerce 의 non-string 통과 path).
+    const result = controller.describeScope({
+      scope: ExportScope.RANGE,
+      dateRange: {
+        start: new Date("2026-02-01T00:00:00.000Z"),
+        end: new Date("2026-02-28T00:00:00.000Z"),
+      } as unknown as Record<string, unknown>,
+    });
+
+    expect(result.scopeKind).toBe("range");
+    expect(result.dateRangeLine).toContain("2026-02-01T00:00:00.000Z");
+  });
+
+  it("POST describe-scope — PARTIAL scope 의 entitySelector → 선택 entity 만 entityLines (happy/branch — partial)", () => {
+    const { service } = buildServiceMock();
+    const controller = new ExportController(service);
+
+    const result = controller.describeScope({
+      scope: ExportScope.PARTIAL,
+      entitySelector: ["Person", "Group"],
+    });
+
+    expect(result.scopeKind).toBe("partial");
+    // 선택 2 entity 만 노출.
+    expect(result.entityLines).toHaveLength(2);
+    expect(result.scopeLine).toContain("2");
+  });
+
+  it("POST describe-scope — enum→lowercase 매핑이 정확히 full/range/partial 로 helper 에 forward (branch — 3 enum 매핑 계약)", () => {
+    const { service } = buildServiceMock();
+    const controller = new ExportController(service);
+    const helperSpy = jest.spyOn(
+      describeExportScopeModule,
+      "describeExportScope",
+    );
+
+    controller.describeScope({ scope: ExportScope.FULL });
+    controller.describeScope({
+      scope: ExportScope.RANGE,
+      dateRange: {
+        start: "2026-01-01T00:00:00.000Z",
+        end: "2026-02-01T00:00:00.000Z",
+      },
+    });
+    controller.describeScope({
+      scope: ExportScope.PARTIAL,
+      entitySelector: ["Person"],
+    });
+
+    // helper 1번째 인자의 scope 가 정확히 lowercase 3종.
+    expect(helperSpy.mock.calls.map((c) => c[0].scope)).toEqual([
+      "full",
+      "range",
+      "partial",
+    ]);
+    helperSpy.mockRestore();
+  });
+
+  it("POST describe-scope — RANGE 인데 dateRange 누락 → helper RangeError raw propagate (negative — RANGE dateRange 누락, swallow 0)", () => {
+    const { service } = buildServiceMock();
+    const controller = new ExportController(service);
+
+    expect(() =>
+      controller.describeScope({ scope: ExportScope.RANGE }),
+    ).toThrow(RangeError);
+  });
+
+  it("POST describe-scope — RANGE start>=end → helper RangeError raw propagate (negative — 역전/빈 구간)", () => {
+    const { service } = buildServiceMock();
+    const controller = new ExportController(service);
+
+    expect(() =>
+      controller.describeScope({
+        scope: ExportScope.RANGE,
+        dateRange: {
+          start: "2026-03-31T00:00:00.000Z",
+          end: "2026-01-01T00:00:00.000Z",
+        },
+      }),
+    ).toThrow(RangeError);
+  });
+
+  it("POST describe-scope — dateRange 가 Invalid Date(잘못된 ISO string) → helper TypeError raw propagate (negative — 비-Date/Invalid)", () => {
+    const { service } = buildServiceMock();
+    const controller = new ExportController(service);
+
+    expect(() =>
+      controller.describeScope({
+        scope: ExportScope.RANGE,
+        dateRange: { start: "not-a-date", end: "also-bad" },
+      }),
+    ).toThrow(TypeError);
+  });
+
+  it("POST describe-scope — PARTIAL 인데 빈 entitySelector → helper RangeError raw propagate (negative — 빈 선택 모호)", () => {
+    const { service } = buildServiceMock();
+    const controller = new ExportController(service);
+
+    expect(() =>
+      controller.describeScope({
+        scope: ExportScope.PARTIAL,
+        entitySelector: [],
+      }),
+    ).toThrow(RangeError);
+  });
+
+  it("POST describe-scope — PARTIAL 에 허용 외 entity 섞임 → helper RangeError raw propagate (negative — 허용 외 entity, silent 무시 0)", () => {
+    const { service } = buildServiceMock();
+    const controller = new ExportController(service);
+
+    expect(() =>
+      controller.describeScope({
+        scope: ExportScope.PARTIAL,
+        entitySelector: ["Person", "NotAnEntity"],
+      }),
+    ).toThrow(RangeError);
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -280,6 +446,7 @@ describe("ExportController (guard/@Roles metadata)", () => {
   it.each([
     ["create", ExportController.prototype.create],
     ["findRunning", ExportController.prototype.findRunning],
+    ["describeScope", ExportController.prototype.describeScope],
     ["findJob", ExportController.prototype.findJob],
   ])(
     "%s 핸들러에 @Roles('Admin') metadata 부착 (Admin+ tier gate)",
@@ -292,6 +459,7 @@ describe("ExportController (guard/@Roles metadata)", () => {
   it.each([
     ["create", ExportController.prototype.create],
     ["findRunning", ExportController.prototype.findRunning],
+    ["describeScope", ExportController.prototype.describeScope],
     ["findJob", ExportController.prototype.findJob],
   ])(
     "%s 핸들러에 @UseGuards(JwtAuthGuard, RolesGuard) 부착 (인증+RBAC gate)",
@@ -663,6 +831,85 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
       .expect(403);
 
     expect(serviceMock.findJob).not.toHaveBeenCalled();
+  });
+
+  // == POST /api/admin/export/describe-scope — describeScope endpoint ===============
+
+  // -- happy — Admin 통과 시 201 + helper 산출 ExportScopeDescription body 반환 --------
+  // describe-scope 가 POST 라 GET `:id` 와 충돌하지 않음을 실 HTTP 경로로 단언
+  // (describe-scope segment 가 findJob 의 :id 로 포착 안 됨).
+  it("POST describe-scope — Admin role 통과 시 201 + ExportScopeDescription 반환 (happy — POST/GET :id 충돌 없음)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    const res = await request(app.getHttpServer())
+      .post("/api/admin/export/describe-scope")
+      .send({ scope: "FULL" })
+      .expect(201);
+
+    expect(res.body.scopeKind).toBe("full");
+    expect(res.body.readOnly).toBe(true);
+    // describe-scope 는 read-only — service(createJob/findJob) 미호출.
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+    expect(serviceMock.findJob).not.toHaveBeenCalled();
+  });
+
+  // -- negative — ValidationPipe: 정의되지 않은 raw 본문 키 → 400 ------------------
+  it("POST describe-scope — 정의되지 않은 extra body 키 (raw payload) 포함 시 400 (negative — forbidNonWhitelisted, ADR-0044 §2)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/export/describe-scope")
+      .send({ scope: "FULL", rawLeak: "secret" })
+      .expect(400);
+  });
+
+  // -- negative — ValidationPipe: 잘못된 scope enum 값 → 400 ----------------------
+  it("POST describe-scope — 잘못된 scope enum 값 (ALL) 시 400 (negative — invalid enum)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/export/describe-scope")
+      .send({ scope: "ALL" })
+      .expect(400);
+  });
+
+  // -- negative — 401 (JwtAuthGuard reject — 인증 부재) ----------------------------
+  it("POST describe-scope — JwtAuthGuard reject 시 401 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/export/describe-scope")
+      .send({ scope: "FULL" })
+      .expect(401);
+  });
+
+  // -- negative — 403 (RolesGuard reject — User actor Admin+ 미달) -----------------
+  it("POST describe-scope — RolesGuard reject 시 403 (negative — User actor Admin+ 미달)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: { canActivate: () => false },
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/export/describe-scope")
+      .send({ scope: "FULL" })
+      .expect(403);
   });
 });
 
