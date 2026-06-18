@@ -31,6 +31,14 @@ import { ExportScope, Prisma, type ExportJob } from "@prisma/client";
 
 import { PrismaService } from "../persistence/prisma.service";
 
+// buildExportChunkPlan(T-0469) + ExportChunkPlan 타입을 same-folder 경로
+// (`./export-chunk-plan`)로 import 해 previewSelection 응답에 chunkPlan 으로 surface 한다
+// (barrel re-export·alias 신설 0 — buildExportJobPlan/buildExportResult import 패턴 mirror).
+// ExportChunkPlan 은 service interface(ExportSelectionPreview) 가 그대로 재노출한다.
+import {
+  buildExportChunkPlan,
+  type ExportChunkPlan,
+} from "./export-chunk-plan";
 import {
   estimateExportDumpSize,
   type ExportDumpSizeEstimate,
@@ -134,6 +142,14 @@ type ExportEntityDelegate =
   | "llmProviderConfig"
   | "permissionDeniedRecord";
 
+// DEFAULT_EXPORT_CHUNK_SIZE_BYTES — chunked streaming 분할 단위(1 MB). buildExportChunkPlan
+// (T-0469)이 chunkSizeBytes 를 필수 양의 정수 인자로 요구하므로 본 service 가 module-level
+// 상수로 박제해 전달한다. 정책 source 0 — 인자로 받은 값만 분할에 쓰며, 정책 row · ENV 기반
+// 동적 chunk size 결정·주입은 별도 task(T-0503 §Follow-ups)다(직전 step T-0501 의
+// DEFAULT_CHUNK_THRESHOLD_BYTES / DEFAULT_POLL_INTERVAL_SECONDS default 상수 패턴 mirror).
+// 주의: buildExportJobPlan 의 chunkThreshold(전달 여부 판정)와 본 상수(분할 단위)는 다른 축이다.
+const DEFAULT_EXPORT_CHUNK_SIZE_BYTES = 1024 * 1024;
+
 // ExportSelectionPreview — previewSelection 의 반환 shape. 전체 row·raw payload 미반환,
 // count 요약만(REQ-032 — 선별된 실 record 데이터 노출 0).
 //   - perEntitySelected 는 5 entity 별 selected count breakdown(사람-친화 미리보기용).
@@ -173,6 +189,13 @@ export interface ExportSelectionPreview {
   // helper 는 summary/scope 만 derivation 하므로 추가 DB read 0(REQ-032 derivation-only).
   // append-only 확장 — 기존 6 필드는 불변(backward-compat).
   completionResult: ExportResult;
+  // chunkPlan 은 buildExportChunkPlan(T-0469) 산출 — deliveryPlan.chunked === true(대량 dump)
+  // 일 때만 sizeEstimate 의 estimatedBytes 를 DEFAULT_EXPORT_CHUNK_SIZE_BYTES 단위로 분할한
+  // chunk 경계 plan(totalBytes/chunkSizeBytes/chunkCount/chunks/lastChunkSizeBytes/headline)을
+  // derive 하고, chunked === false(sync 다운로드 — chunk 불요)면 null 이다(UC-07 §5 step 13 +
+  // §8 NFR chunked streaming chunk 경계 정합). helper 는 sizeEstimate + 상수만 derivation 하므로
+  // 추가 DB read 0(REQ-032 derivation-only). append-only 확장 — 기존 7 필드는 불변(backward-compat).
+  chunkPlan: ExportChunkPlan | null;
 }
 
 @Injectable()
@@ -330,6 +353,20 @@ export class ExportJobService {
     // 이라, helper 의 입력 방어 분기(RangeError/TypeError)는 정상 경로에서 미발화한다.
     const completionResult = buildExportResult(summary, scope);
 
+    // buildExportChunkPlan 실호출(T-0469 helper 배선) — deliveryPlan.chunked === true(대량 dump)
+    // 일 때만 sizeEstimate 를 DEFAULT_EXPORT_CHUNK_SIZE_BYTES 단위로 분할한 chunk 경계 plan 을
+    // derive 하고, chunked === false(sync 다운로드 — chunk 불요)면 null 로 둔다(UC-07 §5 step 13
+    // 다운로드 + §8 NFR chunked streaming chunk 경계 정합). chunkSizeBytes 는 default 상수 사용
+    // (정책 row · ENV 기반 동적 주입은 별도 task §Follow-ups — 직전 step T-0501 의 default 상수
+    // 패턴 mirror). helper 는 입력 sizeEstimate + 상수만 derivation 하므로 추가 DB read 0
+    // (REQ-032 derivation-only 자연 유지 — chunk 경계만 산술 derive, raw payload 0). 입력
+    // sizeEstimate.estimatedBytes 는 항상 estimateExportDumpSize 산출(비-음수 정수)이고
+    // chunkSizeBytes 는 양의 정수 상수라, helper 의 입력 방어 분기(RangeError/TypeError)는 정상
+    // 경로에서 미발화한다.
+    const chunkPlan = deliveryPlan.chunked
+      ? buildExportChunkPlan(sizeEstimate, DEFAULT_EXPORT_CHUNK_SIZE_BYTES)
+      : null;
+
     // selected 의 entity 별 count breakdown — 5 entity 0 초기화 후 누적(미선택 entity 는 0).
     // summary.selected.perEntity 와 동일 값이나 backward-compat 위해 기존 필드 유지.
     const perEntitySelected = VALID_EXPORT_ENTITIES.reduce(
@@ -351,6 +388,7 @@ export class ExportJobService {
       sizeEstimate,
       deliveryPlan,
       completionResult,
+      chunkPlan,
     };
   }
 

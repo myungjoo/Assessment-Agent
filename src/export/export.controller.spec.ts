@@ -599,6 +599,73 @@ describe("ExportController (unit)", () => {
     expect(result.completionResult.scopeLine).toBe("scope=full(전체)");
   });
 
+  it("POST preview-selection — service 반환의 chunkPlan(non-null ExportChunkPlan)이 그대로 200 forward (T-0503 — chunkPlan forward non-null)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const summary = {
+      selectedCount: 5,
+      excludedCount: 0,
+      perEntitySelected: {
+        Assessment: 1,
+        Person: 1,
+        Group: 1,
+        LlmConfig: 1,
+        AuditLog: 1,
+      },
+      chunkPlan: {
+        totalBytes: 1572864,
+        chunkSizeBytes: 1048576,
+        chunkCount: 2,
+        chunks: [
+          { index: 0, offsetBytes: 0, sizeBytes: 1048576, last: false },
+          { index: 1, offsetBytes: 1048576, sizeBytes: 524288, last: true },
+        ],
+        lastChunkSizeBytes: 524288,
+        headline:
+          "chunked streaming plan: 총 1572864 B 를 1048576 B 단위 2 개 chunk 로 분할 (마지막 524288 B)",
+      },
+    };
+    serviceMock.previewSelection.mockResolvedValueOnce(summary);
+
+    const controller = new ExportController(service);
+    const result = await controller.previewSelection({
+      scope: ExportScope.FULL,
+    });
+
+    // controller 분기 0 — service 반환 객체를 그대로 forward(chunkPlan 포함).
+    expect(result).toBe(summary);
+    expect(result.chunkPlan).not.toBeNull();
+    expect(result.chunkPlan!.chunkCount).toBe(2);
+    expect(result.chunkPlan!.chunks).toHaveLength(2);
+    expect(result.chunkPlan!.totalBytes).toBe(1572864);
+    expect(result.chunkPlan!.lastChunkSizeBytes).toBe(524288);
+  });
+
+  it("POST preview-selection — service 반환의 chunkPlan === null(소량 dump)이 그대로 200 forward (T-0503 — chunkPlan forward null)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const summary = {
+      selectedCount: 5,
+      excludedCount: 0,
+      perEntitySelected: {
+        Assessment: 1,
+        Person: 1,
+        Group: 1,
+        LlmConfig: 1,
+        AuditLog: 1,
+      },
+      chunkPlan: null,
+    };
+    serviceMock.previewSelection.mockResolvedValueOnce(summary);
+
+    const controller = new ExportController(service);
+    const result = await controller.previewSelection({
+      scope: ExportScope.FULL,
+    });
+
+    // controller 분기 0 — service 반환 객체(chunkPlan null)를 그대로 forward.
+    expect(result).toBe(summary);
+    expect(result.chunkPlan).toBeNull();
+  });
+
   it("POST preview-selection — service 반환의 summary(selected/excluded breakdown)가 그대로 200 forward (T-0499 — summary forward)", async () => {
     const { service, serviceMock } = buildServiceMock();
     const earliest = new Date("2026-01-01T00:00:00.000Z");
@@ -1440,6 +1507,8 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
         ],
         scopeLine: "scope=full(전체)",
       },
+      // 소량 dump(chunked false) → chunkPlan null(T-0503).
+      chunkPlan: null,
     });
 
     const res = await request(app.getHttpServer())
@@ -1469,6 +1538,8 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
     );
     expect(res.body.completionResult.exportedCounts.selected).toBe(5);
     expect(res.body.completionResult.scopeLine).toBe("scope=full(전체)");
+    // chunkPlan(chunk 경계 plan)도 응답 body 에 그대로 forward(T-0503 — 소량이라 null).
+    expect(res.body.chunkPlan).toBeNull();
     // lowercase "full" 변환 후 service.previewSelection 위임.
     expect(serviceMock.previewSelection).toHaveBeenCalledTimes(1);
     expect(serviceMock.previewSelection).toHaveBeenCalledWith({
