@@ -30,6 +30,7 @@ import {
 import * as jobPlanModule from "./export-job-plan";
 import { DEFAULT_CHUNK_THRESHOLD_BYTES } from "./export-job-plan";
 import { ExportJobService } from "./export-job.service";
+import * as resultModule from "./export-result";
 import * as rejectionMessageModule from "./export-scope-rejection-message";
 import * as scopeSelectModule from "./export-scope-select";
 import {
@@ -1562,6 +1563,295 @@ describe("ExportJobService", () => {
         expect(result.sizeEstimate.recordTotal).toBe(2);
         // 신규 필드 동반.
         expect(result.deliveryPlan.mode).toBe("sync-download");
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // completionResult — buildExportResult(T-0456) 실호출 배선 (T-0502)
+    // previewSelection 응답의 completionResult(headline/exportedCounts{selected,
+    // excluded}/impactLines[]/scopeLine) 검증. helper 는 summary/scope derivation 이라
+    // 추가 DB read 0(REQ-032 자연 유지). R-112: happy(full/range/partial) + error(result
+    // 도달 0 / 입력 방어 미발화) + branch(excluded 0 제외 라인 생략 vs excluded>0 포함 /
+    // scopeLine full·range·partial 분기) + negative 충분 cover(빈 selection / 일부 entity만
+    // 0 아님 / excluded만 0 아님) + helper 실호출 spy + count↔summary·scope cross-check.
+    // -------------------------------------------------------------------------
+    describe("completionResult (buildExportResult 배선)", () => {
+      // happy (full) — 5 entity 전부 selected → headline "선별 5 row" · exportedCounts
+      // {selected:5, excluded:0} · impactLines 에 5 entity 라인 · 제외 라인 생략 · scopeLine full.
+      it("full scope — headline · exportedCounts · impactLines(5 entity) · scopeLine(full) 박제 (happy)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.completionResult.headline).toBe(
+          "다운로드 완료 — 선별 5 row export",
+        );
+        expect(result.completionResult.exportedCounts).toEqual({
+          selected: 5,
+          excluded: 0,
+        });
+        // selected total 라인 + 5 entity 라인 = 6 라인. 제외 라인 없음(excluded.total 0).
+        expect(result.completionResult.impactLines[0]).toBe("선별 5 row");
+        expect(
+          result.completionResult.impactLines.some((line) =>
+            line.includes("제외"),
+          ),
+        ).toBe(false);
+        expect(result.completionResult.scopeLine).toBe("scope=full(전체)");
+      });
+
+      // happy (range) + branch — selected/excluded 양쪽 분배 → 제외 라인 포함 + scopeLine
+      // 에 range dateRange 요약 포함.
+      it("range scope — excluded>0 면 제외 라인 포함 · scopeLine 에 기간 요약 포함 (happy/branch)", async () => {
+        const { service, prisma } = buildPreviewService();
+        prisma.person.findMany.mockResolvedValue([
+          { createdAt: new Date("2026-02-01T00:00:00.000Z") },
+        ]);
+        prisma.assessment.findMany.mockResolvedValue([
+          { createdAt: new Date("2026-09-01T00:00:00.000Z") },
+        ]);
+
+        const result = await service.previewSelection({
+          scope: "range",
+          dateRange: {
+            start: new Date("2026-01-01T00:00:00.000Z"),
+            end: new Date("2026-03-01T00:00:00.000Z"),
+          },
+        });
+
+        expect(result.completionResult.exportedCounts).toEqual({
+          selected: 1,
+          excluded: 1,
+        });
+        // excluded.total 1 > 0 → 제외 라인 포함.
+        expect(result.completionResult.impactLines).toContain("제외 1 row");
+        // scopeLine 에 range 라벨 + 기간 요약.
+        expect(result.completionResult.scopeLine).toContain(
+          "scope=range(기간)",
+        );
+        expect(result.completionResult.scopeLine).toContain("기간 ");
+      });
+
+      // happy (partial) + branch — entitySelector 든 entity 만 selected, scopeLine 에
+      // partial entitySelector 요약 포함.
+      it("partial scope — selected entity 만 impactLines · scopeLine 에 대상 요약 포함 (happy/branch)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Person", "Group"],
+        });
+
+        expect(result.completionResult.exportedCounts.selected).toBe(2);
+        // Person/Group 라인은 포함, Assessment 라인은 미포함(selected 0).
+        expect(
+          result.completionResult.impactLines.some((line) =>
+            line.includes("Person"),
+          ),
+        ).toBe(true);
+        expect(
+          result.completionResult.impactLines.some((line) =>
+            line.includes("Assessment"),
+          ),
+        ).toBe(false);
+        expect(result.completionResult.scopeLine).toContain(
+          "scope=partial(부분)",
+        );
+        expect(result.completionResult.scopeLine).toContain("대상 ");
+      });
+
+      // branch — excluded.total > 0 → 제외 라인 포함(partial scope 로 excluded 발생).
+      it("excluded.total > 0 → impactLines 에 제외 라인 포함 (branch — 제외 라인)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Person"],
+        });
+
+        // Person 1 selected, 나머지 4 excluded.
+        expect(result.completionResult.exportedCounts.excluded).toBe(4);
+        expect(result.completionResult.impactLines).toContain("제외 4 row");
+      });
+
+      // negative (경계) — 빈 DB → headline "선별 0 row" · entity 라인 0 · 제외 라인 생략.
+      it("빈 DB(빈 selection) → headline '선별 0 row' · entity 라인 0 · 제외 라인 생략 (negative — 경계)", async () => {
+        const { service } = buildPreviewService();
+        // default mockResolvedValue([]) — 5 entity 전부 빈.
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.completionResult.headline).toBe(
+          "다운로드 완료 — 선별 0 row export",
+        );
+        expect(result.completionResult.exportedCounts).toEqual({
+          selected: 0,
+          excluded: 0,
+        });
+        // total 라인 1 개만(entity 라인 0 · 제외 라인 0).
+        expect(result.completionResult.impactLines).toEqual(["선별 0 row"]);
+      });
+
+      // negative — selected 일부 entity 만 0 아님 → 0 entity 라인 생략.
+      it("selected 일부 entity 만 0 아님 → 0 entity 라인 생략 (negative — entity 라인 생략)", async () => {
+        const { service, prisma } = buildPreviewService();
+        // Person 만 record 보유, 나머지 4 entity 빈.
+        prisma.person.findMany.mockResolvedValue([
+          { createdAt: new Date("2026-02-01T00:00:00.000Z") },
+        ]);
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        // selected 1 → total 라인 + Person 라인만(나머지 4 entity 라인 생략).
+        expect(result.completionResult.exportedCounts.selected).toBe(1);
+        const entityLines = result.completionResult.impactLines.filter((line) =>
+          line.trim().startsWith("- "),
+        );
+        expect(entityLines).toHaveLength(1);
+        expect(entityLines[0]).toContain("Person");
+      });
+
+      // negative — excluded.total 만 0 아님(selected 0 · excluded > 0) → 제외 라인 포함 +
+      // selected entity 라인 0.
+      it("excluded 만 0 아님(selected 0) → 제외 라인 포함 · selected entity 라인 0 (negative)", async () => {
+        const { service, prisma } = buildPreviewService();
+        // Person 만 record 보유하나 entitySelector 는 Group → selected 0 · excluded 1.
+        prisma.person.findMany.mockResolvedValue([
+          { createdAt: new Date("2026-02-01T00:00:00.000Z") },
+        ]);
+
+        const result = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Group"],
+        });
+
+        expect(result.completionResult.exportedCounts.selected).toBe(0);
+        expect(result.completionResult.exportedCounts.excluded).toBe(1);
+        expect(result.completionResult.impactLines).toContain("제외 1 row");
+        // selected entity 라인 0(selected total 0).
+        const entityLines = result.completionResult.impactLines.filter((line) =>
+          line.trim().startsWith("- "),
+        );
+        expect(entityLines).toHaveLength(0);
+      });
+
+      // error path — 한 delegate findMany reject 시 result 도달 0(DB read 단계에서 propagate).
+      it("한 entity findMany reject 시 buildExportResult 도달 0 (error path — DB 실패 시 helper 미호출)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+        prisma.llmProviderConfig.findMany.mockRejectedValue(
+          new Error("db-down"),
+        );
+        const spy = jest.spyOn(resultModule, "buildExportResult");
+
+        await expect(
+          service.previewSelection({ scope: "full" }),
+        ).rejects.toThrow("db-down");
+
+        // DB read 단계에서 throw → result helper 도달 0.
+        expect(spy).not.toHaveBeenCalled();
+        spy.mockRestore();
+      });
+
+      // helper 실호출 — buildExportResult 가 산출 summary + 인자 scope 를 그대로 1 회
+      // forward 받음을 spy 로 단언(추가 변환 0 — scope 동일 참조).
+      it("buildExportResult 가 summary + scope 를 그대로 1 회 forward 받음 (helper 실호출 spy)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+        const spy = jest.spyOn(resultModule, "buildExportResult");
+        const scope = { scope: "full" } as const;
+
+        const result = await service.previewSelection(scope);
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        const [summaryArg, scopeArg] = spy.mock.calls[0];
+        // 산출된 summary 를 그대로 forward(동일 참조).
+        expect(summaryArg).toBe(result.summary);
+        // 인자 scope 를 추가 변환 없이 그대로 forward(동일 참조).
+        expect(scopeArg).toBe(scope);
+        spy.mockRestore();
+      });
+
+      // negative — 정상 경로에서 helper 입력 방어(TypeError/RangeError) 미발화: summary 는
+      // 항상 selected/excluded breakdown 보유 · scope 는 항상 full/range/partial(빈 DB 포함).
+      it("정상 경로에서 helper 입력 방어(TypeError/RangeError) 미발화 — 빈 DB 도 정상 completionResult 반환 (negative — 방어 분기 미도달)", async () => {
+        const { service } = buildPreviewService();
+
+        await expect(
+          service.previewSelection({ scope: "full" }),
+        ).resolves.toMatchObject({
+          completionResult: {
+            headline: "다운로드 완료 — 선별 0 row export",
+            scopeLine: "scope=full(전체)",
+          },
+        });
+      });
+
+      // 회귀 (summary ground-truth) — completionResult.exportedCounts 가 summary 의
+      // selected.total / excluded.total 과 1:1 일치(cross-check).
+      it("exportedCounts.selected/excluded 가 summary.selected/excluded.total 과 1:1 일치 (회귀 — summary ground-truth)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Person", "Group"],
+        });
+
+        expect(result.completionResult.exportedCounts.selected).toBe(
+          result.summary.selected.total,
+        );
+        expect(result.completionResult.exportedCounts.excluded).toBe(
+          result.summary.excluded.total,
+        );
+      });
+
+      // 회귀 (scope ground-truth) — scopeLine 의 scope 표기가 인자 scope.scope 와 1:1 대응.
+      it("scopeLine 의 scope 표기가 인자 scope.scope 와 1:1 대응 (회귀 — scope ground-truth)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const full = await service.previewSelection({ scope: "full" });
+        expect(full.completionResult.scopeLine).toContain("scope=full");
+
+        const range = await service.previewSelection({
+          scope: "range",
+          dateRange: {
+            start: new Date("2026-01-01T00:00:00.000Z"),
+            end: new Date("2026-12-01T00:00:00.000Z"),
+          },
+        });
+        expect(range.completionResult.scopeLine).toContain("scope=range");
+
+        const partial = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Person"],
+        });
+        expect(partial.completionResult.scopeLine).toContain("scope=partial");
+      });
+
+      // 회귀 (backward-compat) — completionResult 추가 후에도 기존 6 필드가 그대로 반환됨.
+      it("completionResult 추가 후에도 기존 summary/sizeEstimate/deliveryPlan/selectedCount/excludedCount/perEntitySelected 유지 (회귀 — append-only backward-compat)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Person", "Group"],
+        });
+
+        // 기존 필드 전부 그대로 존재.
+        expect(result.selectedCount).toBe(2);
+        expect(result.excludedCount).toBe(3);
+        expect(result.perEntitySelected.Person).toBe(1);
+        expect(result.summary.selected.total).toBe(2);
+        expect(result.sizeEstimate.recordTotal).toBe(2);
+        expect(result.deliveryPlan.mode).toBe("sync-download");
+        // 신규 필드 동반.
+        expect(result.completionResult.exportedCounts.selected).toBe(2);
       });
     });
   });
