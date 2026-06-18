@@ -2,7 +2,7 @@
 id: T-0509
 title: ADR-0046 Decision §1 chunked-Readable 실행 layer — ExportDump + ExportChunkPlan 을 받아 sliced byte 를 chunk 경계대로 push 하는 Node Readable 을 만드는 순수 factory createChunkedExportDumpReadable 신설
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 240

@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0509",
-  "backlogNote": "✅ **Q-0042 게이트1(실 chunked-streaming/build service-layer chain) 진행 중**. ADR-0046(b718bb8) Decision §3 chain 진척: descriptor drift verifier T-0508 완료 — `verifyExportDumpDescriptorDrift(descriptor, dump, plan?): ExportDumpDescriptorDriftReport` 순수 helper (67181db, PR #421 round1 APPROVE 0 finding, CI green, 신규 파일 line/branch/func 100%, 22 tests). nextTask=T-0509(createChunkedExportDumpReadable — ADR-0046 §Decision 1 chunked-Readable factory: sliceMaterializedDumpByChunkPlan 의 in-memory Buffer[] 를 Node stream.Readable 로 push 하는 순수 factory, pr, dep0, T-0506+T-0507 deferred closure). 누적 chain: T-0501(deliveryPlan)·T-0502(completionResult)·T-0503(chunkPlan)·T-0504(streamProgress)·T-0505(ADR-0046)·T-0506(materializeExportDump)·T-0507(sliceByChunkPlan)·T-0508(verifyDescriptorDrift). 게이트1 chain 의 다음 후속: chunked Readable factory(T-0509) → controller/repository/stream pipe 배선(§5 게이트). 기타 standing 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=500.",
+  "nextTask": "T-0510",
+  "backlogNote": "✅ **Q-0042 게이트1(실 chunked-streaming/build service-layer chain) 진행 중**. ADR-0046(b718bb8) Decision §1 chain 진척: chunked-Readable factory T-0509 완료 — `createChunkedExportDumpReadable(dump, plan): Readable` 순수 factory (ed56a49, PR #422 round1 APPROVE 0 finding, CI green, 신규 파일 line/branch/func 100%, spec 10 negative cases). sliceMaterializedDumpByChunkPlan(T-0507) 의 in-memory Buffer[] 를 Readable.from 으로 감싸 chunk 경계대로 push, throw 는 T-0507 원형 eager 전파(DRY). nextTask=T-0510(serializeExportDownloadHeaders — ADR-0046 §Decision 1·3 다운로드 HTTP 헤더 직렬화 순수 helper: descriptor single-source 의 Content-Type/Disposition/Length + ExportChunkContentRange 의 Content-Range RFC7233, pr, dep0). 누적 chain: T-0501(deliveryPlan)·T-0502·T-0503(chunkPlan)·T-0504·T-0505(ADR-0046)·T-0506(materializeExportDump)·T-0507(sliceByChunkPlan)·T-0508(verifyDescriptorDrift)·T-0509(chunkedReadable). 게이트1 chain 의 다음 후속: 다운로드 헤더 직렬화(T-0510) → controller/repository/stream pipe 배선(§5 게이트). 기타 standing 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=501.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aa-94429c",
-    "since": "2026-06-18T17:04:53Z",
-    "note": "cron@cloud-aa-94429c (Anthropic 클라우드 scheduled cron fire, gh 부재·MCP github 인증됨) — T-0508 execute. origin/main 5d43170 에서 fetch(체크아웃 reset --hard origin/main), server-time 17:04:53Z(`date -u` UTC). lock free(8d0a731 tombstone holder=null)·claims=[] 확인 → 권위 lock CAS 획득(8d0a731→c3f78db). select-claim.sh 로 T-0508 atomic claim + lock tombstone(c3f78db→3f0a89e 동일 commit, lock-free 진행 — fineGrainedConcurrency=true stage5b 단독 claim 동등, pr-mode + 활성 claim 0). executor sub-agent 가 implementer+tester 실행: src/export/export-descriptor-drift-verify.ts 신설(187 LOC, Buffer.byteLength(JSON.stringify(dump),'utf8') === hint/plan 일치 derive, 한국어 TypeError 입력 방어 5종, drift 자체 throw 아닌 consistent:false 보고) + spec(456 LOC, 22 tests). lint·build·test:cov 통과(5118/5118), 신규 파일 statements/branch/function/line 100%. PR #421 open via mcp__github__create_pull_request → reviewer 직접 dispatch round1 APPROVE 0 finding + comment(gate2 via mcp__github__add_issue_comment) → CI green(pull_request run 27776589854 first-pass success, comment 가 approval-gate step 전 도착해 race 없음) → 4-게이트 PASS → mcp__github__merge_pull_request(squash) 67181db on main. feature branch delete 는 cloud proxy 비-supported(잔존, 비차단). bookkeeping: tasksCompleted 499→500, mostRecentTasks prepend T-0508, reviewRounds[T-0508]=1, nextTask=T-0508→T-0509(planner queue createChunkedExportDumpReadable). 단일 active driver, race 0."
+    "session": "cron@win-tt511-c509",
+    "since": "2026-06-18T17:38:37Z",
+    "note": "cron@win-tt511-c509 (로컬 Windows scheduled cron fire, gh 2.88.1 인증됨) — T-0509 execute. origin/main 5d43170(stale 로컬) 에서 fetch→reset --hard origin/main c8acb6e, server-time 17:38:37Z(GitHub api Date 헤더). lock free(2ebaded tombstone holder=null)·claims=[] 확인. fineGrainedConcurrency=true stage5b: reclaim(no stale)→select-claim.sh 로 T-0509 atomic claim + lock tombstone 동일 commit(lock-free 진행, pr-mode + 활성 claim 0 단독 claim 동등). executor sub-agent 가 implementer+tester 실행: src/export/export-dump-chunk-readable.ts 신설(74 LOC, createChunkedExportDumpReadable=sliceMaterializedDumpByChunkPlan 호출 후 Readable.from 으로 chunk byte push, 직렬화/검증 재구현 0, throw 는 T-0507 원형 eager 전파) + spec(423 LOC, happy 단일/다수/한글 + error + branch chunkCount 0/1/>1 + negative 10종). lint·build·test:cov 통과, 신규 파일 line/branch/function/stmt 100%. PR #422 open via gh pr create → reviewer 직접 dispatch round1 APPROVE 0 finding + comment(gate2) → CI green(기본검사+배포 산출물 검증 both success, approval-gate race 없음) → 4-게이트 PASS → gh pr merge --squash --delete-branch → ed56a49 on main(branch delete OK). bookkeeping: tasksCompleted 500→501, mostRecentTasks prepend T-0509, reviewRounds[T-0509]=1, nextTask=T-0509→T-0510(planner queue serializeExportDownloadHeaders). claim 회수 commit(3888e55, claims.json 비움) 후 lock tombstone 유지. 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-18T17:20:00Z",
-  "lastCommit": "67181db",
+  "lastActivity": "2026-06-18T17:40:00Z",
+  "lastCommit": "ed56a49",
   "mostRecentTasks": [
+    "T-0509",
     "T-0508",
     "T-0507",
     "T-0506",
-    "T-0505",
-    "T-0504"
+    "T-0505"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-18T17:16:26Z",
+    "lastRun": "2026-06-18T17:40:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0508 PR #421 round1: pull_request run 27776589854 first-pass success(기본검사 + Docker smoke + reviewer approval-gate — comment 가 approval-verify step 전 도착해 race 없음) → 4-게이트 PASS → squash merge 67181db. 본 bookkeeping direct commit CI 는 다음 fire 에서 conclusion 확인."
+    "note": "T-0509 PR #422 round1: 기본검사 + 배포 산출물 검증 both success(reviewer approval-gate — comment 가 approval-verify step 전 도착해 race 없음) → 4-게이트 PASS → squash merge ed56a49. 본 bookkeeping direct commit CI 는 다음 fire 에서 conclusion 확인."
   },
   "reviewRounds": {
+    "T-0509": 1,
     "T-0508": 1,
     "T-0507": 1,
     "T-0506": 1,
@@ -910,7 +911,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 500,
+    "tasksCompleted": 501,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
