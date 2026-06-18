@@ -131,6 +131,34 @@ AA는 LLM provider config를 DB에 저장하고, `custom`/`openai` provider는 O
 
 ---
 
+## 다른 기기(테스트 서버)에서 사용하기 — LAN 노출
+
+같은 LAN의 다른 기기(예: 테스트 서버 `192.168.0.7`)가 이 PC의 Ollama를 쓰게 하려면,
+기본값(`127.0.0.1` 로컬 전용)을 LAN으로 열어야 합니다. `expose-lan.ps1`이 두 가지를
+한 번에 처리합니다.
+
+1. `OLLAMA_HOST`를 `0.0.0.0:11434`로 설정(모든 NIC bind) + 서버 재기동
+2. Windows 방화벽 inbound 규칙 추가 — `config.env`의 `LAN_ALLOW_CIDR`(기본
+   `192.168.0.0/24`) 범위, TCP 11434만 허용
+
+```powershell
+# 관리자 PowerShell 에서 실행 (방화벽 규칙 변경에 권한 필요)
+powershell -ExecutionPolicy Bypass -File deploy\local-llm-example\expose-lan.ps1
+# 해제 (로컬 전용으로 복귀 + 방화벽 규칙 제거)
+powershell -ExecutionPolicy Bypass -File deploy\local-llm-example\expose-lan.ps1 -Revert
+```
+
+실행이 끝나면 이 PC의 LAN IP 기준 endpoint(예:
+`SEED_LLM_ENDPOINT_URL=http://192.168.0.5:11434/v1`)를 안내합니다. 허용 범위를 단일
+호스트로 좁히려면 `config.local.env`에 `LAN_ALLOW_CIDR=192.168.0.7`을 적습니다.
+
+> 테스트 서버 쪽 자동 연동(재배포 시 이 endpoint를 DB에 멱등 seed)은
+> [`deploy/README.md` §5.2](../README.md) + [`deploy/seed-llm-config.sh`](../seed-llm-config.sh)
+> 를 참조하세요. 서버 `.env`에 `SEED_LLM_ENDPOINT_URL` 만 넣으면 매 redeploy마다
+> 이 PC의 LLM을 가리키도록 구성됩니다.
+
+---
+
 ## 자원 해제 동작 정리
 
 | 상태 | VRAM | 설명 |

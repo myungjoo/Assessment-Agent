@@ -171,6 +171,55 @@ ssh deploy@192.168.0.7 "cd /opt/assessment-agent && SKIP_REDEPLOY=1 bash deploy/
 
 ---
 
+## 5.2 (선택) 재배포 시 LLM provider config 자동 seed
+
+이 기기가 특정 OpenAI 호환 LLM endpoint(예: **같은 LAN의 로컬 PC가 띄운 Ollama**)를
+쓰도록, **재배포 때마다 DB의 `LlmProviderConfig`를 멱등 seed**할 수 있다.
+[`deploy/redeploy.sh`](redeploy.sh)가 [`deploy/seed-llm-config.sh`](seed-llm-config.sh)를
+호출하며, **`.env`의 `SEED_LLM_ENDPOINT_URL`가 설정된 경우에만** 동작한다(미설정이면
+no-op — 다른 환경/공용 repo엔 영향 0).
+
+AA는 LLM 설정을 DB(`LlmProviderConfig`)에 두고 `apiKey`를 AES-256-GCM으로 암호화
+저장한다(ADR-0014). seed 스크립트는 평문 키를 DB에 넣지 않고, 실행 중인 `app`
+컨테이너 안에서 compiled cipher로 암호화한 ciphertext만 upsert한다(컨테이너 env의
+`LLM_APIKEY_ENC_KEY` 사용).
+
+`.env`에 추가할 값(template은 [`env.prod.example`](env.prod.example)):
+
+```bash
+# apiKey 암호화 키 (LLM 기능/seed 모두 필수). 생성: openssl rand -base64 32
+LLM_APIKEY_ENC_KEY=<base64_또는_hex_32byte>
+
+# seed 트리거 + 값 (SEED_LLM_ENDPOINT_URL 비우면 seed 생략)
+SEED_LLM_ENDPOINT_URL=http://192.168.0.5:11434/v1   # 로컬 PC의 Ollama LAN endpoint
+SEED_LLM_PROVIDER=custom
+SEED_LLM_MODEL_ID=gemma4:12b
+SEED_LLM_API_KEY=ollama                              # Ollama는 키 무시 — 더미
+SEED_LLM_CONFIG_ID=seed-local-llm                    # 고정 id(멱등 키 + 참조용)
+```
+
+> **PC(192.168.0.5) 측 선행 작업**: 로컬 PC의 Ollama를 LAN에 노출해야 이 기기가
+> 닿는다 — [`deploy/local-llm-example/expose-lan.ps1`](local-llm-example/README.md)
+> (OLLAMA_HOST=0.0.0.0 + 방화벽 허용)을 PC에서 1회 실행.
+>
+> **모델 선택 wiring 주의**: 평가 호출은 `gateway.generate(prompt, { modelId })`에서
+> `modelId`를 **config id로 해석**한다(현재 difficulty 라우팅 미사용). 따라서 평가
+> orchestrator가 위 `SEED_LLM_CONFIG_ID`(`seed-local-llm`)를 modelId로 넘겨야 실제로
+> 이 LLM이 쓰인다. 본 seed는 **provider config를 등록·보장**하는 단계이며, 어느 config를
+> 쓸지 고르는 정책 wiring은 앱 레벨 책임이다(P4 진행 중).
+
+수동 1회 실행(검증):
+
+```bash
+ssh deploy@192.168.0.7 "cd /opt/assessment-agent && REPO_DIR=/opt/assessment-agent bash deploy/seed-llm-config.sh"
+# 확인
+ssh deploy@192.168.0.7 "cd /opt/assessment-agent && docker compose exec -T postgres \
+  psql -U assessment_agent -d assessment_agent -c \
+  'SELECT id, provider, \"endpointUrl\", \"modelId\" FROM \"LlmProviderConfig\";'"
+```
+
+---
+
 ## 6. 운영 메모
 
 - **마이그레이션**: 매 재배포 시 entrypoint 가 `prisma migrate deploy` 를 멱등 실행 — 미적용 migration 만 순차 적용. 별도 수작업 불요. (prod 이미지는 `typescript` 없이 prisma CLI 번들 로더로 `prisma.config.ts` 를 읽는다. 이 경로는 CI `deploy-artifacts` job 의 런타임 smoke 가 매 PR 마다 실제 기동으로 검증한다 — 부팅 실패 시 `docker compose logs app` 의 migrate 단계 로그를 먼저 확인.)
