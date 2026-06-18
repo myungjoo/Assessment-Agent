@@ -31,6 +31,8 @@ import { ExportScope, Prisma, type ExportJob } from "@prisma/client";
 
 import { PrismaService } from "../persistence/prisma.service";
 
+import { validateExportScope } from "./export-scope-validate";
+
 // Prisma known error helper — `code` field 가 known request error 의 식별자.
 // 실 PrismaClientKnownRequestError 인스턴스 생성 cost 를 회피하고 duck typing 으로
 // code 만 추출한다 (전 service 의 동일 helper 패턴 mirror — person.service.ts 등).
@@ -60,19 +62,44 @@ export interface CreateExportJobInput {
   entitySelector?: unknown;
 }
 
+// Prisma ExportScope enum(uppercase) ↔ validateExportScope helper payload 의 lowercase
+// scope literal 매핑. prisma/schema.prisma 의 enum ExportScope(FULL/RANGE/PARTIAL) 가
+// source 이고, helper 는 export-scope-select.ts 의 ExportScope["scope"]("full"/"range"/
+// "partial") 를 요구한다 — 본 상수가 그 대소문자·형태 차이를 흡수한다(schema 변경 0).
+const SCOPE_ENUM_TO_PAYLOAD: Record<ExportScope, string> = {
+  [ExportScope.FULL]: "full",
+  [ExportScope.RANGE]: "range",
+  [ExportScope.PARTIAL]: "partial",
+};
+
 @Injectable()
 export class ExportJobService {
   constructor(private readonly prisma: PrismaService) {}
 
   // createJob — status=PENDING ExportJob row 를 생성한다.
-  // scope invariant 검증 (schema 주석 L549 "service-layer 가 값 invariant 검증 책임"):
-  //   - requestedById 가 비었으면 BadRequestException (FK 발화자 필수).
-  //   - scope=FULL 인데 dateRange/entitySelector 가 넘어오면 BadRequestException
-  //     (FULL 은 전체 entity 전 기간 — 한정값과 모순, ADR-0044 §1).
-  //   - scope=RANGE 인데 dateRange 누락 시 BadRequestException (기간 한정의 필수 축).
-  //   - scope=PARTIAL 인데 entitySelector 누락 시 BadRequestException (한정의 필수 축).
+  // scope 검증 책임 (schema 주석 L549 "service-layer 가 값 invariant 검증 책임"):
+  //   - requestedById 가 비었으면 BadRequestException (FK 발화자 필수). 이 축은 scope
+  //     payload 가 아닌 발화자 식별 책임이라 helper(validateExportScope) 가 다루지 않으므로
+  //     본 service 가 helper 호출 전에 먼저 검증한다 (책임 분리 — 둘 다 400 이지만 별 분기).
+  //   - 그 외 scope/dateRange/entitySelector 의 field-level 유효성은 validateExportScope
+  //     (T-0444) 순수 helper 에 위임 (UC-07 §6.1 3 차원 옵션 — scope enum / range 의 반열림
+  //     start<end / partial 의 entity 멤버십 / AND 조합). helper 가 { valid:false } 면 errors
+  //     를 사람-친화 message 로 결합해 BadRequestException(400) — raw stack 미포함(REQ-032).
   async createJob(input: CreateExportJobInput): Promise<ExportJob> {
-    this.assertScopeInvariant(input);
+    if (!input.requestedById) {
+      throw new BadRequestException(
+        "requestedById 는 필수입니다 (누가 dump 를 발화했는지 추적).",
+      );
+    }
+
+    // scope/dateRange/entitySelector field-level 검증을 helper 에 위임 (T-0444 배선).
+    const verdict = validateExportScope(this.toScopePayload(input));
+    if (!verdict.valid) {
+      // field+message 쌍을 "; " 로 결합 — WebUI form field-level error 의 사람-친화 표현.
+      throw new BadRequestException(
+        verdict.errors.map((e) => `${e.field}: ${e.message}`).join("; "),
+      );
+    }
 
     return this.prisma.exportJob.create({
       data: {
@@ -132,39 +159,39 @@ export class ExportJobService {
 
   // --- private helpers ---
 
-  // scope invariant 검증 — createJob 의 분기 책임 (schema 주석 L549 정합).
-  private assertScopeInvariant(input: CreateExportJobInput): void {
-    if (!input.requestedById) {
-      throw new BadRequestException(
-        "requestedById 는 필수입니다 (누가 dump 를 발화했는지 추적).",
-      );
-    }
+  // toScopePayload — CreateExportJobInput 을 validateExportScope helper 가 요구하는
+  // payload shape({ scope: "full"|"range"|"partial", dateRange?, entitySelector? }) 로
+  // 변환한다. Prisma `ExportScope` enum(FULL/RANGE/PARTIAL, uppercase) 과 helper 의
+  // lowercase scope literal 사이의 매핑이 핵심 — 매핑되지 않는 값은 그대로 통과시켜
+  // helper 의 scope error 가 잡도록 둔다(방어적). dateRange 는 아래 coerce 로 정규화.
+  private toScopePayload(input: CreateExportJobInput): {
+    scope: string;
+    dateRange?: unknown;
+    entitySelector?: unknown;
+  } {
+    return {
+      scope: SCOPE_ENUM_TO_PAYLOAD[input.scope] ?? input.scope,
+      dateRange: this.coerceDateRange(input.dateRange),
+      entitySelector: input.entitySelector,
+    };
+  }
 
-    const hasDateRange =
-      input.dateRange !== undefined && input.dateRange !== null;
-    const hasEntitySelector =
-      input.entitySelector !== undefined && input.entitySelector !== null;
-
-    if (input.scope === ExportScope.FULL) {
-      if (hasDateRange || hasEntitySelector) {
-        throw new BadRequestException(
-          "scope=FULL 은 전체 entity 전 기간 dump 이므로 dateRange/entitySelector 를 받지 않습니다.",
-        );
-      }
-      return;
+  // coerceDateRange — JSON body 의 dateRange 는 역직렬화 과정에서 start/end 가 ISO string 으로
+  // 들어올 수 있으므로(JSON 에 Date 타입이 없음), string 이면 new Date(...) 로 coerce 한다.
+  // coerce 후 helper 의 isValidDate 가 Invalid Date(잘못된 ISO string)를 field error 로 잡는다.
+  // 이미 Date instance 면 그대로 통과, dateRange 가 plain object 가 아니면 원본을 그대로 넘겨
+  // helper 의 dateRange error 분기가 처리하도록 둔다(본 service 는 형 변환만, 판정은 helper).
+  private coerceDateRange(value: unknown): unknown {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      return value;
     }
-
-    if (input.scope === ExportScope.RANGE && !hasDateRange) {
-      throw new BadRequestException(
-        "scope=RANGE 는 dateRange 가 필요합니다 (기간 한정의 필수 축).",
-      );
-    }
-
-    if (input.scope === ExportScope.PARTIAL && !hasEntitySelector) {
-      throw new BadRequestException(
-        "scope=PARTIAL 은 entitySelector 가 필요합니다 (entity·인원 한정의 필수 축).",
-      );
-    }
+    const range = value as { start?: unknown; end?: unknown };
+    return {
+      ...range,
+      start:
+        typeof range.start === "string" ? new Date(range.start) : range.start,
+      end: typeof range.end === "string" ? new Date(range.end) : range.end,
+    };
   }
 
   // updateOrThrow — mark* 전이의 공통 update 위임. row 부재 (P2025) 시
