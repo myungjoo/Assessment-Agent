@@ -149,14 +149,17 @@ describe("ExportController (unit)", () => {
     });
   });
 
-  it("POST create — PARTIAL scope 의 entitySelector 도 그대로 forward (branch — scope별 입력 분기)", async () => {
+  it("POST create — PARTIAL scope 의 entitySelector (entity 이름 배열) 도 그대로 forward (branch — scope별 입력 분기)", async () => {
     const { service, serviceMock } = buildServiceMock();
     serviceMock.createJob.mockResolvedValueOnce(
       buildExportJobFixture({ scope: "PARTIAL" }),
     );
+    // entitySelector 는 validateExportScope 헬퍼가 요구하는 entity 이름 string[] 배열
+    // (T-0491 round2 BLOCKER fix — 구 object shape `{ personIds: [...] }` 는 helper 계약
+    // 위반이라 정정). DTO 의 @IsArray 와 정합.
     const dto = {
       scope: ExportScope.PARTIAL,
-      entitySelector: { personIds: ["p1", "p2"] },
+      entitySelector: ["Person", "Group"],
     };
 
     const controller = new ExportController(service);
@@ -166,7 +169,7 @@ describe("ExportController (unit)", () => {
       scope: ExportScope.PARTIAL,
       requestedById: "admin-actor",
       dateRange: undefined,
-      entitySelector: { personIds: ["p1", "p2"] },
+      entitySelector: ["Person", "Group"],
     });
   });
 
@@ -445,6 +448,52 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
     await request(app.getHttpServer())
       .post("/api/admin/export")
       .send({ ...VALID_BODY, rawCommitMessage: "secret-leak" })
+      .expect(400);
+
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+  });
+
+  // -- happy — PARTIAL: entitySelector 배열이 ValidationPipe(@IsArray) 통과 → service 위임 -
+  // T-0491 round2 MAJOR fix — DTO↔service 계약 (entitySelector = entity 이름 배열) 을 실
+  // HTTP 경로로 pin. round1 의 @IsObject 라면 array 가 400 으로 거부돼 PARTIAL 이 동작
+  // 불가했음(REQ-030 회귀). 본 test 가 그 회귀를 차단한다.
+  it("POST — PARTIAL entitySelector 배열이 ValidationPipe(@IsArray) 통과 + service.createJob 에 배열 그대로 위임 (happy — DTO↔service 계약 pin, round2 BLOCKER 회귀 차단)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.createJob.mockResolvedValueOnce(
+      buildExportJobFixture({ id: "ej-partial", scope: "PARTIAL" }),
+    );
+
+    const res = await request(app.getHttpServer())
+      .post("/api/admin/export")
+      .send({ scope: "PARTIAL", entitySelector: ["Person", "Group"] })
+      .expect(201);
+
+    expect(serviceMock.createJob).toHaveBeenCalledTimes(1);
+    // ValidationPipe(transform) 통과 후 entitySelector 가 배열 그대로 service 로 forward.
+    expect(serviceMock.createJob).toHaveBeenCalledWith({
+      scope: "PARTIAL",
+      requestedById: "admin-1",
+      dateRange: undefined,
+      entitySelector: ["Person", "Group"],
+    });
+    expect(res.body.id).toBe("ej-partial");
+  });
+
+  // -- negative — ValidationPipe: entitySelector 가 배열 아님(숫자) → 400 + service 미호출 -
+  // T-0491 round2 MAJOR fix — @IsArray boundary 가 동작함을 단언 (DTO 형식 게이트).
+  // helper 의 per-element entity 멤버십 검증은 본 e2e 책임 아님(service-layer spec 가 cover).
+  it("POST — entitySelector 가 배열 아닌 shape(숫자) 시 400 + service 미호출 (negative — @IsArray boundary)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/export")
+      .send({ scope: "PARTIAL", entitySelector: 42 })
       .expect(400);
 
     expect(serviceMock.createJob).not.toHaveBeenCalled();

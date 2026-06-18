@@ -12,20 +12,24 @@
 //   - requestedById 부재 — 누가 dump 를 발화했는지는 인증 actor (req.user.sub) 에서
 //     추출하므로 DTO 에 박제하지 않는다 (client 가 임의 발화자 위장 불가, REQ-045).
 //
-// scope 별 한정값 분기 (ExportJobService.assertScopeInvariant 가 실 검증 — DTO 는
+// scope 별 한정값 분기 (ExportJobService.validateExportScope 가 실 검증 — DTO 는
 // 형식만):
 //   - scope=FULL  → dateRange/entitySelector 모두 미사용 (전체 entity 전 기간).
 //   - scope=RANGE → dateRange 활용 (기간 한정의 필수 축 — 누락 시 service 가 400).
-//   - scope=PARTIAL → entitySelector 활용 (entity·인원 한정의 필수 축 — service 가 400).
-// scope 별 필수 여부 (RANGE 의 dateRange 필수 등) 검증은 service-layer 책임이므로
-// DTO 는 두 한정값을 @IsOptional 로 두고 형식 (객체 여부) 만 검증한다.
+//   - scope=PARTIAL → entitySelector 활용 (entity 한정의 필수 축 — service 가 400).
+// scope 별 필수 여부 (RANGE 의 dateRange 필수 등) 와 entity 멤버십 등 field-level
+// 유효성 검증은 service-layer (validateExportScope 헬퍼 위임) 책임이므로 DTO 는
+// 두 한정값을 @IsOptional 로 두고 형식만 검증한다 — dateRange 는 객체(@IsObject),
+// entitySelector 는 entity 이름 배열(@IsArray, T-0491 round2 BLOCKER fix).
 //
 // 책임 경계 (Out of Scope — T-0488 §Out of Scope):
-//   - dateRange/entitySelector 의 구체 shape (기간 from/to·entity selector 구조) 검증
-//     — 후속 helper 배선 task 책임. 본 DTO 는 객체 여부 (@IsObject) 만 검증.
+//   - dateRange 의 구체 shape (기간 from/to) 검증 — service 배선이 validateExportScope
+//     위임으로 채움. 본 DTO 는 객체 여부 (@IsObject) 만 검증.
+//   - entitySelector 의 per-element entity 멤버십 (Assessment/Person/... 만 허용) 검증
+//     — validateExportScope 헬퍼 책임. 본 DTO 는 배열 형식 (@IsArray) 만 검증.
 //   - 새 외부 dependency 0 — class-validator 는 이미 의존 (전 DTO 가 사용 중).
 import { ExportScope } from "@prisma/client";
-import { IsEnum, IsObject, IsOptional } from "class-validator";
+import { IsArray, IsEnum, IsObject, IsOptional } from "class-validator";
 
 export class CreateExportDto {
   // scope — dump 범위 (FULL / RANGE / PARTIAL). @IsEnum 으로 ExportScope 의 유효
@@ -35,14 +39,17 @@ export class CreateExportDto {
   scope!: ExportScope;
 
   // dateRange — scope=RANGE 시 기간 한정값 (Json 직렬화). 선택적 — 형식 (객체) 만
-  // 검증하고 scope 별 필수 여부·구체 shape 은 service-layer (assertScopeInvariant) 책임.
+  // 검증하고 scope 별 필수 여부·구체 shape 은 service-layer (validateExportScope) 책임.
   @IsOptional()
   @IsObject()
   dateRange?: Record<string, unknown>;
 
-  // entitySelector — scope=PARTIAL 시 entity·인원 한정값 (Json 직렬화). 선택적 —
-  // 형식 (객체) 만 검증하고 scope 별 필수 여부·구체 shape 은 service-layer 책임.
+  // entitySelector — scope=PARTIAL 시 entity 한정값 (entity 이름 배열, 예:
+  // ["Person", "Group"]). validateExportScope 헬퍼가 entity 이름 string[] 배열을
+  // 요구하므로 (T-0491 round2 BLOCKER fix — 구 @IsObject 는 배열을 거부해 PARTIAL
+  // 실 경로가 동작 불가했음), DTO 는 @IsArray 로 형식만 검증한다. per-element entity
+  // 멤버십 (허용 5 종) 검증은 service-layer (validateExportScope) 책임.
   @IsOptional()
-  @IsObject()
-  entitySelector?: Record<string, unknown>;
+  @IsArray()
+  entitySelector?: unknown[];
 }

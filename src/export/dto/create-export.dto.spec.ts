@@ -43,12 +43,24 @@ describe("CreateExportDto", () => {
   });
 
   // --------------------------------------------------------------------------
-  // happy/branch: scope=PARTIAL + entitySelector (객체) → 통과 (@IsOptional 분기).
+  // happy/branch: scope=PARTIAL + entitySelector (entity 이름 배열) → 통과 (@IsArray
+  // + @IsOptional 분기). T-0491 round2 BLOCKER fix — validateExportScope 헬퍼가 요구하는
+  // string[] 배열 형식과 정합 (구 @IsObject 는 배열을 거부해 PARTIAL 실 경로 동작 불가했음).
   // --------------------------------------------------------------------------
-  it("scope=PARTIAL + entitySelector 객체 payload 는 errors 빈 배열 (branch — PARTIAL 한정 축)", async () => {
+  it("scope=PARTIAL + entitySelector 배열 payload 는 errors 빈 배열 (branch — PARTIAL 한정 축, @IsArray)", async () => {
     const errors = await validatePlain({
       scope: ExportScope.PARTIAL,
-      entitySelector: { personIds: ["p1", "p2"] },
+      entitySelector: ["Person", "Group"],
+    });
+    expect(errors).toEqual([]);
+  });
+
+  // 빈 배열도 형식(@IsArray)은 통과 — 비어있지 않음 검증은 service-layer
+  // (validateExportScope) 책임이라 DTO 형식 게이트에서는 errors 빈 배열 (layer 분리 박제).
+  it("scope=PARTIAL + entitySelector 빈 배열도 @IsArray 형식은 통과 (branch — 비어있음 검증은 service 책임)", async () => {
+    const errors = await validatePlain({
+      scope: ExportScope.PARTIAL,
+      entitySelector: [],
     });
     expect(errors).toEqual([]);
   });
@@ -80,7 +92,7 @@ describe("CreateExportDto", () => {
   });
 
   // --------------------------------------------------------------------------
-  // negative: dateRange/entitySelector 가 객체 아님 → isObject.
+  // negative: dateRange 가 객체 아님 → isObject.
   // --------------------------------------------------------------------------
   it("dateRange 가 string 시 isObject 위반 (negative — 한정값 type mismatch)", async () => {
     const errors = await validatePlain({
@@ -90,12 +102,24 @@ describe("CreateExportDto", () => {
     expect(errors).toEqual(expect.arrayContaining(["isObject"]));
   });
 
-  it("entitySelector 가 number 시 isObject 위반 (negative — 한정값 type mismatch)", async () => {
+  // --------------------------------------------------------------------------
+  // negative: entitySelector 가 배열 아님 → isArray (T-0491 round2 BLOCKER fix —
+  // 구 @IsObject 의 isObject 위반에서 @IsArray 의 isArray 위반으로 전환).
+  // --------------------------------------------------------------------------
+  it("entitySelector 가 number 시 isArray 위반 (negative — 한정값 type mismatch)", async () => {
     const errors = await validatePlain({
       scope: ExportScope.PARTIAL,
       entitySelector: 42,
     });
-    expect(errors).toEqual(expect.arrayContaining(["isObject"]));
+    expect(errors).toEqual(expect.arrayContaining(["isArray"]));
+  });
+
+  it("entitySelector 가 객체 시 isArray 위반 (negative — 구 object shape 거부, helper 계약 정합)", async () => {
+    const errors = await validatePlain({
+      scope: ExportScope.PARTIAL,
+      entitySelector: { personIds: ["p1", "p2"] },
+    });
+    expect(errors).toEqual(expect.arrayContaining(["isArray"]));
   });
 
   // --------------------------------------------------------------------------
