@@ -2,7 +2,7 @@
 id: T-0503
 title: buildExportChunkPlan helper 를 ExportJobService.previewSelection 응답 확장으로 실호출 배선 — helper 배선 chain step12
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 210
