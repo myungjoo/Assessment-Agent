@@ -13,7 +13,11 @@
 //   - error/negative: 빈 requestedById (400) / enum 외 mode (400) / findJob 부재 P2025
 //     → 404 / mark* 부재 P2025 → 404 / 변환 범위 밖 error propagate /
 //     markSucceeded restoredRowCount 0 처리.
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from "@nestjs/common";
 import { ImportMode, type ImportJob } from "@prisma/client";
 
 import {
@@ -62,6 +66,8 @@ describe("ImportJobService", () => {
     it("mode 미지정 — status=PENDING row 를 생성한다 (mode default REPLACE 위임)", async () => {
       const { service, prisma } = buildService();
       const row = buildImportJobFixture();
+      // 진행 중 import 없음 → race guard proceed → create 진행.
+      prisma.importJob.findMany.mockResolvedValue([]);
       prisma.importJob.create.mockResolvedValue(row);
 
       const result = await service.createJob({ requestedById: "user-1" });
@@ -78,6 +84,7 @@ describe("ImportJobService", () => {
 
     it("mode=MERGE 명시 — data 에 mode 를 전달한다", async () => {
       const { service, prisma } = buildService();
+      prisma.importJob.findMany.mockResolvedValue([]);
       prisma.importJob.create.mockResolvedValue(
         buildImportJobFixture({ mode: "MERGE" }),
       );
@@ -94,6 +101,7 @@ describe("ImportJobService", () => {
 
     it("mode=REPLACE 명시 — data 에 mode 를 전달한다", async () => {
       const { service, prisma } = buildService();
+      prisma.importJob.findMany.mockResolvedValue([]);
       prisma.importJob.create.mockResolvedValue(buildImportJobFixture());
 
       await service.createJob({
@@ -137,6 +145,117 @@ describe("ImportJobService", () => {
           mode: "UPSERT" as unknown as ImportMode,
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.importJob.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // createJob — 진행 중-작업 race 게이트 (T-0492, evaluateImportRaceGuard 배선)
+  // ---------------------------------------------------------------------------
+  describe("createJob 진행 중-작업 race 게이트", () => {
+    // branch(d) / happy: 진행 중 import 없음 → race proceed → create 호출.
+    it("findRunning 이 빈 배열이면 race proceed — create 를 진행한다", async () => {
+      const { service, prisma } = buildService();
+      const row = buildImportJobFixture();
+      prisma.importJob.findMany.mockResolvedValue([]);
+      prisma.importJob.create.mockResolvedValue(row);
+
+      const result = await service.createJob({ requestedById: "user-1" });
+
+      expect(prisma.importJob.findMany).toHaveBeenCalledWith({
+        where: { status: "RUNNING" },
+      });
+      expect(prisma.importJob.create).toHaveBeenCalledTimes(1);
+      expect(result).toBe(row);
+    });
+
+    // branch(c) / error path: RUNNING job 1+ → defer → ConflictException(409), create 미호출.
+    it("RUNNING import job 1+ 이면 ConflictException(409) 을 throw 하고 create 미호출", async () => {
+      const { service, prisma } = buildService();
+      // 가장 오래된 RUNNING job 의 startedAt 을 현재 근처로 둬 defer(임계 내) 유도.
+      prisma.importJob.findMany.mockResolvedValue([
+        buildImportJobFixture({
+          id: "running-1",
+          status: "RUNNING",
+          startedAt: new Date(Date.now() - 1000),
+        }),
+      ]);
+
+      await expect(
+        service.createJob({ requestedById: "user-1" }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.importJob.create).not.toHaveBeenCalled();
+    });
+
+    // negative(3) / REQ-032: blocking message 는 helper headline 을 포함 (empty / raw stack 아님).
+    it("race blocking 시 message 가 helper headline 을 포함한다", async () => {
+      const { service, prisma } = buildService();
+      prisma.importJob.findMany.mockResolvedValue([
+        buildImportJobFixture({
+          id: "running-1",
+          status: "RUNNING",
+          startedAt: new Date(Date.now() - 1000),
+        }),
+      ]);
+
+      await expect(
+        service.createJob({ requestedById: "user-1" }),
+      ).rejects.toThrow("진행 중 작업 완료 후 자동 재시도 예정");
+    });
+
+    // negative(2): 다수 RUNNING job 중 가장 오래된 startedAt 을 race 기준으로 고른다.
+    // 가장 오래된 것이 timeout 임계를 넘으면 timeout verdict(blocking) → 409.
+    it("다수 RUNNING job 중 가장 오래된 startedAt 을 기준으로 timeout 판정한다", async () => {
+      const { service, prisma } = buildService();
+      const oldStarted = new Date(Date.now() - 60 * 60 * 1000); // 1시간 전 (DEFAULT 5분 초과)
+      const recentStarted = new Date(Date.now() - 1000);
+      prisma.importJob.findMany.mockResolvedValue([
+        buildImportJobFixture({
+          id: "recent",
+          status: "RUNNING",
+          startedAt: recentStarted,
+        }),
+        buildImportJobFixture({
+          id: "oldest",
+          status: "RUNNING",
+          startedAt: oldStarted,
+        }),
+      ]);
+
+      // 가장 오래된 것(1시간 전)이 기준이면 5분 임계 초과 → timeout → 재시도 안내 message.
+      await expect(
+        service.createJob({ requestedById: "user-1" }),
+      ).rejects.toThrow("재시도");
+      expect(prisma.importJob.create).not.toHaveBeenCalled();
+    });
+
+    // negative(1) edge: RUNNING job 의 startedAt 이 null → createdAt fallback (helper TypeError
+    // 가 service 밖으로 새지 않음). createdAt 이 현재 근처면 defer → 409 (TypeError 아님).
+    it("RUNNING job 의 startedAt 이 null 이면 createdAt 으로 fallback 한다", async () => {
+      const { service, prisma } = buildService();
+      prisma.importJob.findMany.mockResolvedValue([
+        buildImportJobFixture({
+          id: "no-startedat",
+          status: "RUNNING",
+          startedAt: null,
+          createdAt: new Date(Date.now() - 1000),
+        }),
+      ]);
+
+      // TypeError 가 아니라 ConflictException 으로 귀결 — fallback 이 helper 입력을 채웠음.
+      await expect(
+        service.createJob({ requestedById: "user-1" }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    // negative(4): findRunning(findMany) DB 오류 → create 미도달 propagate.
+    it("findRunning DB 오류는 그대로 propagate 하고 create 에 도달하지 않는다", async () => {
+      const { service, prisma } = buildService();
+      prisma.importJob.findMany.mockRejectedValue(buildPrismaError("P2003"));
+
+      await expect(
+        service.createJob({ requestedById: "user-1" }),
+      ).rejects.toMatchObject({ code: "P2003" });
       expect(prisma.importJob.create).not.toHaveBeenCalled();
     });
   });

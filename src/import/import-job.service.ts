@@ -29,11 +29,16 @@
 //     message 만 record (raw stack trace 미저장).
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { ImportMode, type ImportJob } from "@prisma/client";
 
+import {
+  evaluateImportRaceGuard,
+  type InProgressOperationState,
+} from "../export/import-race-guard";
 import { PrismaService } from "../persistence/prisma.service";
 
 // Prisma known error helper — `code` field 가 known request error 의 식별자.
@@ -70,9 +75,23 @@ export class ImportJobService {
   //   - requestedById 가 비었으면 BadRequestException (FK 발화자 필수).
   //   - mode 가 명시됐으나 ImportMode enum 값이 아니면 BadRequestException
   //     (REPLACE/MERGE 외 거부).
+  // mode invariant 통과 후, DB create 전에 진행 중-작업 race precondition 을
+  // evaluateImportRaceGuard(T-0460) 에 위임한다 (UC-07 §4 precondition 4 / §6.4).
+  //   - 이미 RUNNING 인 import job 이 1+ 면 새 destructive import 를 차단해야 한다.
+  //   - helper verdict 가 blocking 이면 ConflictException(409), 아니면 기존 create 그대로.
   // mode 미지정 시 schema @default(REPLACE) 에 위임 — data 에 mode 명시하지 않음.
   async createJob(input: CreateImportJobInput): Promise<ImportJob> {
     this.assertModeInvariant(input);
+
+    // 진행 중-작업 race 게이트 — findRunning() 결과를 helper state descriptor 로 derive.
+    // verdict 가 blocking(defer/timeout) 이면 새 job 생성을 막고 409 로 안내한다.
+    const verdict = evaluateImportRaceGuard(await this.deriveRaceState());
+    if (verdict.blocking) {
+      // headline + detailLines 를 사람-친화 message 로 결합 — raw stack 미포함(REQ-032).
+      throw new ConflictException(
+        [verdict.headline, ...verdict.detailLines].join(" / "),
+      );
+    }
 
     return this.prisma.importJob.create({
       data: {
@@ -81,6 +100,33 @@ export class ImportJobService {
         ...(input.mode !== undefined ? { mode: input.mode } : {}),
       },
     });
+  }
+
+  // deriveRaceState — findRunning() (이미 존재하는 query) 가 관측한 진행 중 import 작업을
+  // evaluateImportRaceGuard 가 요구하는 InProgressOperationState descriptor 로 변환한다.
+  //   - RUNNING import job 0 → { active: false } (helper 는 항상 proceed).
+  //   - RUNNING 1+ → { active: true, operation: "UC06-destructive", startedAt: <가장 오래된
+  //     RUNNING job 의 startedAt; null 이면 createdAt fallback> }.
+  // operation 라벨: import 는 DB-wide 복원이라 UC-06 destructive 와 동질 → "UC06-destructive".
+  // onConflict / now / timeoutMs 는 helper default(defer / 현재시각 / DEFAULT_TIMEOUT_MS) 에
+  // 위임 — 본 task 는 진행 중 작업과의 충돌을 차단(defer)만 하고 실 중단(interrupt)은 Out of Scope.
+  private async deriveRaceState(): Promise<InProgressOperationState> {
+    const running = await this.findRunning();
+    if (running.length === 0) {
+      return { active: false };
+    }
+
+    // 가장 오래된 RUNNING job 의 시작 시각을 race 경과 산출 기준으로 고른다. startedAt 이
+    // null 인 edge(전이 직후 race 등) 는 createdAt 으로 fallback 해 helper TypeError 를 막는다.
+    const startedAt = running
+      .map((job) => job.startedAt ?? job.createdAt)
+      .reduce((oldest, ts) => (ts.getTime() < oldest.getTime() ? ts : oldest));
+
+    return {
+      active: true,
+      operation: "UC06-destructive",
+      startedAt,
+    };
   }
 
   // markRunning — PENDING → RUNNING 전이 + startedAt 기록 (ADR-0044 §1 실 실행 시작 시각).
