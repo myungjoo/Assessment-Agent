@@ -2,7 +2,8 @@
 id: T-0484
 title: ADR — export/import job 영속 데이터 모델 결정 (ExportJob/ImportJob)
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-18T00:42:00Z
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 200
@@ -67,3 +68,7 @@ Q-0040 이 옵션 1 (export/import 실 배선용 Prisma schema migration 승인)
 - (후속) T-NNNN: `prisma/schema.prisma` 에 `model ExportJob` / `model ImportJob` 추가 + `prisma migrate` migration 파일 생성 (ADR-0044 Decision 기반, commitMode: pr, dependsOn: [T-0484]).
 - (후속) T-NNNN: AssessmentModule 에 export/import controller (`GET /api/admin/export` / `POST /api/admin/import`) + service 골격 배선 (job 생성·status 추적, dependsOn: [schema task]).
 - (후속) T-NNNN~: 누적 45 export/import helper (T-0437~T-0483) 를 controller/service 에 실제 호출로 배선 (chunked streaming·dedup·retransmit 등) — 여러 작은 task 로 분할.
+
+## Result (DONE — 2026-06-18T00:42Z, cron@cloud-q40r2)
+
+ADR-0044(ACCEPTED) 신설 + `data-model.md` §2(ExportJob/ImportJob row, 합계 11→13)·§3(ER 관계)·§7 갱신. ExportJob/ImportJob 영속 entity·필드·raw 미저장(REQ-032) 전파·Import atomic `$transaction`(ADR-0033 동형)·idempotency·AuditLog 책임경계·Alternatives 3종 박제. 책임 module = AssessmentModule. pnpm lint/build/test green(208 suites/4726 tests). 코드 변경 0(doc-only). **commitMode 메모**: frontmatter 는 `pr` 이나 cron 운영 directive(문서 변경 = direct commit, PR/review 생략)에 따라 direct doc commit(1ffad9d)으로 머지. 실 Prisma schema·migration·controller 배선은 Follow-ups 후속 task chain.
