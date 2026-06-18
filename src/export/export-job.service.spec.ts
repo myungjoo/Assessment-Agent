@@ -23,6 +23,11 @@ import {
 } from "../../test/helpers/prisma-mock";
 
 import { ExportJobService } from "./export-job.service";
+import * as rejectionMessageModule from "./export-scope-rejection-message";
+
+// helper 산출 reject headline 의 안정적 prefix — 메시지가 buildExportScopeRejection(T-0463)
+// 산출 headline 을 포함함을 단언할 때 쓴다("Export scope 검증 실패 — N개 항목을 수정해야 합니다").
+const REJECTION_HEADLINE_PREFIX = "Export scope 검증 실패";
 
 // ExportJob fixture — schema 의 컬럼을 채운 default row. overrides 로 분기 구성.
 function buildExportJobFixture(overrides: Partial<ExportJob> = {}): ExportJob {
@@ -56,6 +61,11 @@ function buildService(): {
 }
 
 describe("ExportJobService", () => {
+  // 각 test 후 spy 복원 — buildExportScopeRejection spy 가 다른 test 로 새지 않도록.
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   // ---------------------------------------------------------------------------
   // createJob — happy + scope invariant 분기
   // ---------------------------------------------------------------------------
@@ -149,17 +159,25 @@ describe("ExportJobService", () => {
       expect(prisma.exportJob.create).not.toHaveBeenCalled();
     });
 
-    // negative (helper): scope=RANGE 인데 start ≥ end(역전 구간) → 400.
-    it("scope=RANGE 인데 dateRange.start ≥ end 면 BadRequestException", async () => {
+    // negative (helper): scope=RANGE 인데 start ≥ end(역전 구간) → 400. 메시지가
+    // buildExportScopeRejection 산출 headline 을 포함함을 단언(ad-hoc join 교체 검증).
+    it("scope=RANGE 인데 dateRange.start ≥ end 면 BadRequestException(reject headline 포함)", async () => {
       const { service, prisma } = buildService();
 
-      await expect(
-        service.createJob({
+      let message = "";
+      try {
+        await service.createJob({
           scope: ExportScope.RANGE,
           requestedById: "user-1",
           dateRange: { start: "2026-03-31", end: "2026-01-01" },
-        }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+        });
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        message = (error as Error).message;
+      }
+      // 사람-친화 headline(T-0463 산출) 포함 + 원본 field error message 도 detailLine 으로 보존.
+      expect(message).toContain(REJECTION_HEADLINE_PREFIX);
+      expect(message).toContain("반열림 구간");
       expect(prisma.exportJob.create).not.toHaveBeenCalled();
     });
 
@@ -265,6 +283,107 @@ describe("ExportJobService", () => {
       }
       expect(message).toContain("dateRange");
       expect(message).toContain("entitySelector");
+    });
+
+    // -------------------------------------------------------------------------
+    // buildExportScopeRejection(T-0463) 실호출 배선 검증 (T-0495)
+    // -------------------------------------------------------------------------
+
+    // branch (b) — invalid verdict 분기에서 helper 가 정확히 1 회 호출됨을 spy 로 단언.
+    it("invalid scope 면 buildExportScopeRejection 을 정확히 1 회 호출한다", async () => {
+      const { service, prisma } = buildService();
+      const spy = jest.spyOn(
+        rejectionMessageModule,
+        "buildExportScopeRejection",
+      );
+
+      await expect(
+        service.createJob({
+          scope: ExportScope.PARTIAL,
+          requestedById: "user-1",
+          entitySelector: ["Person", "Unknown"],
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // verdict 가 변환 없이 그대로 forward 됨을 단언 — valid=false + errors 배열.
+      const forwarded = spy.mock.calls[0][0];
+      expect(forwarded.valid).toBe(false);
+      expect(Array.isArray(forwarded.errors)).toBe(true);
+      expect(forwarded.errors.length).toBeGreaterThan(0);
+      expect(prisma.exportJob.create).not.toHaveBeenCalled();
+    });
+
+    // branch (b) — reject 메시지가 helper 산출 headline + detailLines 결합임을 단언.
+    it("PARTIAL 허용 외 entity reject 메시지에 headline + detailLine 이 함께 노출", async () => {
+      const { service } = buildService();
+
+      let message = "";
+      try {
+        await service.createJob({
+          scope: ExportScope.PARTIAL,
+          requestedById: "user-1",
+          entitySelector: ["Person", "Unknown"],
+        });
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      // headline + field 라벨 묶음 + 재입력 guidance(T-0463 산출 구조) 포함.
+      expect(message).toContain(REJECTION_HEADLINE_PREFIX);
+      expect(message).toContain("[대상 선택(entitySelector)]");
+      expect(message).toContain("다시 시도하세요");
+      // raw verdict 객체 직렬화(REQ-032 회피)가 아니라 사람-친화 라인 — "[object Object]" 부재.
+      expect(message).not.toContain("[object Object]");
+    });
+
+    // branch (a) — valid verdict 분기에서는 helper 가 호출되지 않음(미호출 단언).
+    it("valid scope 면 buildExportScopeRejection 을 호출하지 않는다", async () => {
+      const { service, prisma } = buildService();
+      prisma.exportJob.create.mockResolvedValue(buildExportJobFixture());
+      const spy = jest.spyOn(
+        rejectionMessageModule,
+        "buildExportScopeRejection",
+      );
+
+      await service.createJob({
+        scope: ExportScope.FULL,
+        requestedById: "user-1",
+      });
+
+      expect(spy).not.toHaveBeenCalled();
+      expect(prisma.exportJob.create).toHaveBeenCalledTimes(1);
+    });
+
+    // negative (早期 return) — 빈 requestedById 는 helper 호출 전 早期 throw → helper 미호출.
+    it("빈 requestedById 는 helper 호출 전 早期 throw 라 buildExportScopeRejection 미호출", async () => {
+      const { service, prisma } = buildService();
+      const spy = jest.spyOn(
+        rejectionMessageModule,
+        "buildExportScopeRejection",
+      );
+
+      await expect(
+        service.createJob({ scope: ExportScope.FULL, requestedById: "" }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(spy).not.toHaveBeenCalled();
+      expect(prisma.exportJob.create).not.toHaveBeenCalled();
+    });
+
+    // negative — reject 분기 메시지에 blocking=true 취지의 "시작되지 않습니다" guidance 포함.
+    it("reject 메시지에 blocking 안내(검증 통과 전 Export 미시작)가 포함된다", async () => {
+      const { service } = buildService();
+
+      let message = "";
+      try {
+        await service.createJob({
+          scope: ExportScope.RANGE,
+          requestedById: "user-1",
+        });
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toContain("시작되지 않습니다");
     });
   });
 

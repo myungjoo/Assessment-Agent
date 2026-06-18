@@ -31,6 +31,7 @@ import { ExportScope, Prisma, type ExportJob } from "@prisma/client";
 
 import { PrismaService } from "../persistence/prisma.service";
 
+import { buildExportScopeRejection } from "./export-scope-rejection-message";
 import { validateExportScope } from "./export-scope-validate";
 
 // Prisma known error helper — `code` field 가 known request error 의 식별자.
@@ -83,8 +84,10 @@ export class ExportJobService {
   //     본 service 가 helper 호출 전에 먼저 검증한다 (책임 분리 — 둘 다 400 이지만 별 분기).
   //   - 그 외 scope/dateRange/entitySelector 의 field-level 유효성은 validateExportScope
   //     (T-0444) 순수 helper 에 위임 (UC-07 §6.1 3 차원 옵션 — scope enum / range 의 반열림
-  //     start<end / partial 의 entity 멤버십 / AND 조합). helper 가 { valid:false } 면 errors
-  //     를 사람-친화 message 로 결합해 BadRequestException(400) — raw stack 미포함(REQ-032).
+  //     start<end / partial 의 entity 멤버십 / AND 조합). helper 가 { valid:false } 면 그
+  //     verdict 를 buildExportScopeRejection(T-0463) 에 그대로 forward 해 §7.3 구조화 reject
+  //     메시지(headline + field 별 묶음 detailLines)로 BadRequestException(400) — raw stack
+  //     미포함(REQ-032).
   async createJob(input: CreateExportJobInput): Promise<ExportJob> {
     if (!input.requestedById) {
       throw new BadRequestException(
@@ -95,9 +98,13 @@ export class ExportJobService {
     // scope/dateRange/entitySelector field-level 검증을 helper 에 위임 (T-0444 배선).
     const verdict = validateExportScope(this.toScopePayload(input));
     if (!verdict.valid) {
-      // field+message 쌍을 "; " 로 결합 — WebUI form field-level error 의 사람-친화 표현.
+      // ad-hoc field+message join 대신 buildExportScopeRejection(T-0463) 실호출 —
+      // UC-07 §7.3 의 구조화 reject 메시지(headline + field 별 묶음 detailLines +
+      // 재입력 guidance)로 교체. verdict 는 타입 동일(ExportScopeValidation)이라 변환 없이
+      // 그대로 forward. raw verdict.errors 객체·stack 을 메시지에 직렬화하지 않는다(REQ-032).
+      const rejection = buildExportScopeRejection(verdict);
       throw new BadRequestException(
-        verdict.errors.map((e) => `${e.field}: ${e.message}`).join("; "),
+        [rejection.headline, ...rejection.detailLines].join("\n"),
       );
     }
 
