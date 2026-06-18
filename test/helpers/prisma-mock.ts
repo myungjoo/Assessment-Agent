@@ -56,6 +56,14 @@ export type MockPrismaService = {
     findUniqueOrThrow: jest.Mock;
     findMany: jest.Mock;
   };
+  // importJob delegate (T-0487) — ImportJobService 의 createJob / mark* / findJob /
+  // findRunning 이 사용하는 4 메서드만 mock 으로 보유 (exportJob delegate 동형).
+  importJob: {
+    create: jest.Mock;
+    update: jest.Mock;
+    findUniqueOrThrow: jest.Mock;
+    findMany: jest.Mock;
+  };
 };
 
 // 신규 mock PrismaService 객체 생성 — 5 jest.fn() 보유한 `person` delegate.
@@ -73,6 +81,13 @@ export function buildMockPrismaService(): MockPrismaService {
     },
     // exportJob delegate (T-0486) — create/update/findUniqueOrThrow/findMany 4 jest.fn().
     exportJob: {
+      create: jest.fn(),
+      update: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      findMany: jest.fn(),
+    },
+    // importJob delegate (T-0487) — create/update/findUniqueOrThrow/findMany 4 jest.fn().
+    importJob: {
       create: jest.fn(),
       update: jest.fn(),
       findUniqueOrThrow: jest.fn(),
