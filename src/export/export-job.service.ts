@@ -35,6 +35,10 @@ import {
   estimateExportDumpSize,
   type ExportDumpSizeEstimate,
 } from "./export-dump-size-estimate";
+// buildExportJobPlan(T-0467) + ExportJobPlan 타입을 same-folder 경로(`./export-job-plan`)로
+// import 해 previewSelection 응답에 deliveryPlan 으로 surface 한다(barrel re-export·alias 신설
+// 0). ExportJobPlan 은 service interface(ExportSelectionPreview) 가 그대로 재노출한다.
+import { buildExportJobPlan, type ExportJobPlan } from "./export-job-plan";
 import { buildExportScopeRejection } from "./export-scope-rejection-message";
 import {
   selectExportRecords,
@@ -143,12 +147,21 @@ type ExportEntityDelegate =
 //     (UC-07 §8 NFR 동기/async-streaming 권고 + §3 trigger 1 confirmation dialog 의 규모
 //     안내). selection 만 derivation 하므로 추가 DB read 0(REQ-032 raw 미저장 자연 유지).
 //     append-only 확장 — 기존 4 필드는 불변(backward-compat).
+//   - deliveryPlan 은 buildExportJobPlan(T-0467 helper) 산출 — sizeEstimate(예상 dump 크기 +
+//     recommendation)를 입력으로 "그럼 실제로 어떻게 전달할 것인가" 의 실행 plan 을 derive
+//     한다(mode('sync-download'|'async-job')/chunked/pollingRequired/statusFlow/headline/
+//     instructionLines). UC-07 §8 NFR(대량 dump 는 async job + status polling + chunked
+//     streaming) + §3 trigger 1 confirmation dialog + §5 step 13 다운로드 완료 안내가 요구하는
+//     "sync 다운로드인가 async job 인가, 어떤 단계를 거치는가" 를 처음 노출한다. helper 는
+//     sizeEstimate 만 derivation 하므로 추가 DB read 0(REQ-032 derivation-only 자연 유지).
+//     append-only 확장 — 기존 5 필드는 불변(backward-compat).
 export interface ExportSelectionPreview {
   selectedCount: number;
   excludedCount: number;
   perEntitySelected: Record<ExportEntity, number>;
   summary: ExportSelectionSummary;
   sizeEstimate: ExportDumpSizeEstimate;
+  deliveryPlan: ExportJobPlan;
 }
 
 @Injectable()
@@ -280,6 +293,19 @@ export class ExportJobService {
     // 배열)이라 helper 의 입력 방어 분기(TypeError)는 정상 경로에서 미발화한다.
     const sizeEstimate = estimateExportDumpSize(selection);
 
+    // buildExportJobPlan 실호출(T-0467 helper 배선) — 위에서 산출된 sizeEstimate 를 그대로
+    // forward 해 Export 다운로드 실행 plan(mode/chunked/pollingRequired/statusFlow/headline/
+    // instructionLines)을 derive 한다(UC-07 §8 NFR sync 다운로드 vs async job + status polling
+    // + chunked streaming + §3 trigger 1 confirmation dialog / §5 step 13 다운로드 완료 안내
+    // 정합). chunk 임계 / poll 간격은 helper default(options 미전달 — DEFAULT_CHUNK_THRESHOLD_
+    // BYTES 5MB / DEFAULT_POLL_INTERVAL_SECONDS 3s)로 호출한다(정책 row · ENV 기반 동적 주입은
+    // 별도 task §Follow-ups). helper 는 입력 sizeEstimate 만 derivation 하므로 추가 DB read 0
+    // (REQ-032 derivation-only 자연 유지 — estimate descriptor 만 derive, raw payload 0). 입력
+    // sizeEstimate 는 항상 estimateExportDumpSize 산출(recommendation 은 sync/async-streaming ·
+    // estimatedBytes 는 비-음수 정수)이라 helper 입력 방어 분기(RangeError/TypeError)는 정상
+    // 경로에서 미발화한다.
+    const deliveryPlan = buildExportJobPlan(sizeEstimate);
+
     // selected 의 entity 별 count breakdown — 5 entity 0 초기화 후 누적(미선택 entity 는 0).
     // summary.selected.perEntity 와 동일 값이나 backward-compat 위해 기존 필드 유지.
     const perEntitySelected = VALID_EXPORT_ENTITIES.reduce(
@@ -299,6 +325,7 @@ export class ExportJobService {
       perEntitySelected,
       summary,
       sizeEstimate,
+      deliveryPlan,
     };
   }
 
