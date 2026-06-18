@@ -2,7 +2,11 @@
 id: T-0510
 title: ADR-0046 §Decision 1·3 다운로드 헤더 직렬화 layer — ExportArtifactDescriptor(+선택 ExportChunkContentRange)를 HTTP 응답 헤더 문자열 map 으로 직렬화하는 순수 helper serializeExportDownloadHeaders 신설
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-18T18:12:00Z
+mergedAs: 60766ce
+prNumber: 423
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 240
