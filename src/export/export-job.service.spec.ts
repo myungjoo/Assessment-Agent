@@ -29,6 +29,7 @@ import {
   VALID_EXPORT_ENTITIES,
   type ExportEntity,
 } from "./export-scope-select";
+import * as summaryModule from "./export-selection-summary";
 
 // helper 산출 reject headline 의 안정적 prefix — 메시지가 buildExportScopeRejection(T-0463)
 // 산출 headline 을 포함함을 단언할 때 쓴다("Export scope 검증 실패 — N개 항목을 수정해야 합니다").
@@ -782,6 +783,225 @@ describe("ExportJobService", () => {
       await expect(service.previewSelection({ scope: "full" })).rejects.toThrow(
         "db-down",
       );
+    });
+
+    // -------------------------------------------------------------------------
+    // summary — summarizeExportSelection(T-0449) 실호출 배선 (T-0499)
+    // previewSelection 응답의 summary.selected / summary.excluded 두 그룹 각각의
+    // total + perEntity(5 entity) + instantRange{earliest,latest} 검증. helper 는
+    // input derivation 이므로 추가 DB read 0(REQ-032 자연 유지). R-112: happy(full/
+    // range/partial) + branch(4 분기 — full·range·partial·빈 DB) + negative 충분
+    // cover(단일 record 경계 / excluded 빈 / selected 빈 / 전부 0 / instantRange null /
+    // 5 key 회귀 / count↔total cross-check) + helper 실호출 spy + 입력 방어 미발화.
+    // -------------------------------------------------------------------------
+    describe("summary (summarizeExportSelection 배선)", () => {
+      // happy (full) — 5 entity 전부 selected → summary.selected total 5 / excluded
+      // total 0 + instantRange null. perEntity 5 key 전부 1.
+      it("full scope — summary.selected.total 5 · perEntity 5 key 전부 1 · excluded.total 0 + instantRange null (happy)", async () => {
+        const { service, prisma } = buildPreviewService();
+        const instant = new Date("2026-02-01T00:00:00.000Z");
+        stubAllEntities(prisma, instant);
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.summary.selected.total).toBe(5);
+        for (const entity of VALID_EXPORT_ENTITIES) {
+          expect(result.summary.selected.perEntity[entity]).toBe(1);
+        }
+        // 5 record 가 모두 같은 instant → earliest === latest 경계.
+        expect(result.summary.selected.instantRange).toEqual({
+          earliest: instant,
+          latest: instant,
+        });
+        // full scope 는 excluded 빈 → total 0 + instantRange null + perEntity 전부 0.
+        expect(result.summary.excluded.total).toBe(0);
+        expect(result.summary.excluded.instantRange).toBeNull();
+        for (const entity of VALID_EXPORT_ENTITIES) {
+          expect(result.summary.excluded.perEntity[entity]).toBe(0);
+        }
+      });
+
+      // happy (range) — [start,end) 안/밖 record 가 selected/excluded 로 정확 분배되고
+      // 각 그룹 instantRange 가 그 그룹 instant 의 min/max 로 박제됨(branch — 양쪽 분배).
+      it("range scope — selected/excluded 양쪽 분배 + 각 그룹 instantRange earliest/latest 정확 (happy/branch)", async () => {
+        const { service, prisma } = buildPreviewService();
+        const inside = new Date("2026-02-01T00:00:00.000Z");
+        const outside = new Date("2026-09-01T00:00:00.000Z");
+        prisma.person.findMany.mockResolvedValue([{ createdAt: inside }]);
+        prisma.assessment.findMany.mockResolvedValue([{ createdAt: outside }]);
+
+        const result = await service.previewSelection({
+          scope: "range",
+          dateRange: {
+            start: new Date("2026-01-01T00:00:00.000Z"),
+            end: new Date("2026-03-01T00:00:00.000Z"),
+          },
+        });
+
+        expect(result.summary.selected.total).toBe(1);
+        expect(result.summary.selected.perEntity.Person).toBe(1);
+        expect(result.summary.selected.instantRange).toEqual({
+          earliest: inside,
+          latest: inside,
+        });
+        expect(result.summary.excluded.total).toBe(1);
+        expect(result.summary.excluded.perEntity.Assessment).toBe(1);
+        expect(result.summary.excluded.instantRange).toEqual({
+          earliest: outside,
+          latest: outside,
+        });
+      });
+
+      // happy (partial) — entitySelector 든 entity 만 selected, 나머지 excluded
+      // (branch — entity 별 분배).
+      it("partial scope — entitySelector 의 entity 만 summary.selected, 나머지 excluded (happy/branch)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Person", "Group"],
+        });
+
+        expect(result.summary.selected.total).toBe(2);
+        expect(result.summary.selected.perEntity.Person).toBe(1);
+        expect(result.summary.selected.perEntity.Group).toBe(1);
+        expect(result.summary.selected.perEntity.Assessment).toBe(0);
+        // 나머지 3 entity 는 excluded.
+        expect(result.summary.excluded.total).toBe(3);
+        expect(result.summary.excluded.perEntity.Assessment).toBe(1);
+        expect(result.summary.excluded.perEntity.LlmConfig).toBe(1);
+        expect(result.summary.excluded.perEntity.AuditLog).toBe(1);
+      });
+
+      // negative (경계) — instant 가 서로 다른 여러 record → instantRange 가 정렬 무관
+      // min/max 로 산출됨(earliest !== latest).
+      it("instant 가 다른 여러 record → instantRange earliest=min / latest=max (경계 — earliest !== latest)", async () => {
+        const { service, prisma } = buildPreviewService();
+        const early = new Date("2026-01-15T00:00:00.000Z");
+        const late = new Date("2026-05-20T00:00:00.000Z");
+        // 같은 entity 에 정렬 안 된 instant 2 개(late 먼저, early 나중)를 넣어 min/max 단언.
+        prisma.person.findMany.mockResolvedValue([
+          { createdAt: late },
+          { createdAt: early },
+        ]);
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.summary.selected.total).toBe(2);
+        expect(result.summary.selected.instantRange).toEqual({
+          earliest: early,
+          latest: late,
+        });
+      });
+
+      // negative (경계) — 빈 DB(5 entity 전부 빈) → 양 그룹 total 0 + instantRange null +
+      // perEntity 전부 0(branch — 빈 DB).
+      it("빈 DB → summary.selected/excluded 모두 total 0 · instantRange null · perEntity 전부 0 (경계/branch)", async () => {
+        const { service } = buildPreviewService();
+        // default mockResolvedValue([]) 그대로 — 5 entity 전부 빈.
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        for (const group of [
+          result.summary.selected,
+          result.summary.excluded,
+        ]) {
+          expect(group.total).toBe(0);
+          expect(group.instantRange).toBeNull();
+          for (const entity of VALID_EXPORT_ENTITIES) {
+            expect(group.perEntity[entity]).toBe(0);
+          }
+        }
+      });
+
+      // negative (경계) — partial scope 인데 selected 측 entity 가 DB 에 0 record →
+      // selected total 0 + instantRange null(selected 빈 그룹).
+      it("partial scope 의 selected entity 가 DB 에 0 record → summary.selected.total 0 + instantRange null (경계 — selected 빈)", async () => {
+        const { service, prisma } = buildPreviewService();
+        // Person 만 record 보유하나 entitySelector 는 Group 선택 → selected 빈.
+        prisma.person.findMany.mockResolvedValue([
+          { createdAt: new Date("2026-02-01T00:00:00.000Z") },
+        ]);
+
+        const result = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Group"],
+        });
+
+        expect(result.summary.selected.total).toBe(0);
+        expect(result.summary.selected.instantRange).toBeNull();
+        // Person record 는 excluded 측으로.
+        expect(result.summary.excluded.total).toBe(1);
+        expect(result.summary.excluded.perEntity.Person).toBe(1);
+      });
+
+      // 회귀 — summary.selected.perEntity / excluded.perEntity 가 항상 5 ExportEntity
+      // 전부를 key 로 cover(entity 누락 회귀 차단).
+      it("summary.selected/excluded.perEntity 가 5 ExportEntity 전부를 key 로 포함 (회귀 — entity 누락 방지)", async () => {
+        const { service } = buildPreviewService();
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        for (const group of [
+          result.summary.selected,
+          result.summary.excluded,
+        ]) {
+          const keys = Object.keys(group.perEntity) as ExportEntity[];
+          expect(keys.sort()).toEqual([...VALID_EXPORT_ENTITIES].sort());
+        }
+      });
+
+      // 회귀 (backward-compat) — 기존 count 필드가 summary.selected/excluded.total 및
+      // summary.selected.perEntity 와 정확히 1:1 mirror 임을 cross-check.
+      it("selectedCount/excludedCount/perEntitySelected 가 summary.selected/excluded.total · summary.selected.perEntity 와 1:1 일치 (회귀 — backward-compat)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Person", "Group"],
+        });
+
+        expect(result.selectedCount).toBe(result.summary.selected.total);
+        expect(result.excludedCount).toBe(result.summary.excluded.total);
+        expect(result.perEntitySelected).toEqual(
+          result.summary.selected.perEntity,
+        );
+      });
+
+      // helper 실호출 — summarizeExportSelection 이 selectExportRecords 산출 selection
+      // (selected/excluded 두 배열)을 그대로 1 회 forward 받음을 spy 로 단언.
+      it("summarizeExportSelection 이 selectExportRecords 산출 selection 을 그대로 1 회 forward 받음 (helper 실호출 spy)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+        const spy = jest.spyOn(summaryModule, "summarizeExportSelection");
+
+        await service.previewSelection({ scope: "full" });
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        const arg = spy.mock.calls[0][0];
+        expect(Array.isArray(arg.selected)).toBe(true);
+        expect(Array.isArray(arg.excluded)).toBe(true);
+        // full scope → selected 5 · excluded 0.
+        expect(arg.selected).toHaveLength(5);
+        expect(arg.excluded).toHaveLength(0);
+      });
+
+      // negative — helper 입력 방어 미발화: 정상 경로의 selection.selected/excluded 는
+      // 항상 ExportRecord[] 배열이라 helper 가 TypeError 를 던지지 않음(빈 DB 포함).
+      it("정상 경로에서 helper 입력 방어(TypeError) 미발화 — 빈 DB 도 정상 summary 반환 (negative — 방어 분기 미도달)", async () => {
+        const { service } = buildPreviewService();
+
+        await expect(
+          service.previewSelection({ scope: "full" }),
+        ).resolves.toMatchObject({
+          summary: {
+            selected: { total: 0, instantRange: null },
+            excluded: { total: 0, instantRange: null },
+          },
+        });
+      });
     });
   });
 });
