@@ -2,7 +2,11 @@
 id: T-0495
 title: buildExportScopeRejection helper 를 ExportJobService.createJob 의 scope 검증 실패 path 에 실호출 배선 — 45 helper 배선 chain step5
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: 9ab559e
+prNumber: 406
+reviewRounds: 1
+completedAt: 2026-06-18T09:55:51Z
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 170
