@@ -22,6 +22,7 @@ import {
   type MockPrismaService,
 } from "../../test/helpers/prisma-mock";
 
+import * as chunkPlanModule from "./export-chunk-plan";
 import * as dumpSizeModule from "./export-dump-size-estimate";
 import {
   DEFAULT_ASYNC_THRESHOLD_BYTES,
@@ -1852,6 +1853,228 @@ describe("ExportJobService", () => {
         expect(result.deliveryPlan.mode).toBe("sync-download");
         // 신규 필드 동반.
         expect(result.completionResult.exportedCounts.selected).toBe(2);
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // chunkPlan — buildExportChunkPlan(T-0469) 실호출 배선 (T-0503)
+    // previewSelection 응답의 chunkPlan(deliveryPlan.chunked === true 면 ExportChunkPlan,
+    // false 면 null)이 sizeEstimate + DEFAULT_EXPORT_CHUNK_SIZE_BYTES(1MB) 상수 위에
+    // 조건부 derive 됨을 검증. helper 는 estimate + 상수 derivation 이라 추가 DB read 0
+    // (REQ-032 자연 유지). R-112: happy(chunked true → ExportChunkPlan / chunked false →
+    // null) + error(DB 실패 시 chunk plan 도달 0 / 입력 방어 미발화) + branch(chunked
+    // true/false 두 분기) + negative 충분 cover(빈 selection · chunk 경계 === 5MB · 배수
+    // 아닌 잔여) + helper 실호출 spy + totalBytes↔estimatedBytes·동치관계 cross-check.
+    // chunk 임계 5MB → 5120 record · async 임계 10MB → 10240 record · record 당 1024 byte.
+    // -------------------------------------------------------------------------
+    describe("chunkPlan (buildExportChunkPlan 배선)", () => {
+      // helper default 임계(chunk 5MB)를 record 수로 환산할 때 쓸 상수.
+      const CHUNK_BOUNDARY_RECORDS = Math.floor(
+        DEFAULT_CHUNK_THRESHOLD_BYTES / DEFAULT_BYTES_PER_RECORD,
+      );
+      // chunkPlan 분할 단위 — service 의 DEFAULT_EXPORT_CHUNK_SIZE_BYTES(1MB)와 동일.
+      const CHUNK_SIZE_BYTES = 1024 * 1024;
+
+      // 지정 record 수를 Person delegate 에 stub(나머지 4 entity 는 빈 배열 default).
+      function stubPersonRecords(
+        prisma: ReturnType<typeof buildPreviewService>["prisma"],
+        count: number,
+      ): void {
+        const instant = new Date("2026-02-01T00:00:00.000Z");
+        prisma.person.findMany.mockResolvedValue(
+          Array.from({ length: count }, () => ({ createdAt: instant })),
+        );
+      }
+
+      // happy (chunked true) — 대량 dump(>5MB chunk 임계) → chunkPlan 이 ExportChunkPlan
+      // (chunkCount > 0 · chunks 비지 않음 · totalBytes === estimatedBytes) 으로 박제됨.
+      it("chunked === true(대량 dump) → chunkPlan 이 ExportChunkPlan(chunkCount>0 · chunks 비지않음 · totalBytes===estimatedBytes) (happy — chunked true)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubPersonRecords(prisma, CHUNK_BOUNDARY_RECORDS + 1);
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.deliveryPlan.chunked).toBe(true);
+        expect(result.chunkPlan).not.toBeNull();
+        const plan = result.chunkPlan!;
+        expect(plan.chunkCount).toBeGreaterThan(0);
+        expect(plan.chunks.length).toBe(plan.chunkCount);
+        expect(plan.chunks.length).toBeGreaterThan(0);
+        expect(plan.totalBytes).toBe(result.sizeEstimate.estimatedBytes);
+        expect(plan.chunkSizeBytes).toBe(CHUNK_SIZE_BYTES);
+        expect(typeof plan.headline).toBe("string");
+      });
+
+      // happy (chunked false) — 소량 dump → chunkPlan === null.
+      it("chunked === false(소량 dump) → chunkPlan === null (happy — chunked false)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.deliveryPlan.chunked).toBe(false);
+        expect(result.chunkPlan).toBeNull();
+      });
+
+      // branch (chunked true) — chunked true 분기에서 chunk 경계 불변(chunks sizeBytes 합 ===
+      // totalBytes, offset 연속) 검증.
+      it("chunked === true → chunk 경계 불변(sizeBytes 합 === totalBytes · offset 연속) (branch — chunked true 경계)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubPersonRecords(prisma, CHUNK_BOUNDARY_RECORDS + 1);
+
+        const result = await service.previewSelection({ scope: "full" });
+        const plan = result.chunkPlan!;
+
+        const sumBytes = plan.chunks.reduce((acc, c) => acc + c.sizeBytes, 0);
+        expect(sumBytes).toBe(plan.totalBytes);
+        // offset 연속 — 각 chunk 의 offset 은 직전 chunk 의 offset + size.
+        for (let i = 1; i < plan.chunks.length; i += 1) {
+          expect(plan.chunks[i].offsetBytes).toBe(
+            plan.chunks[i - 1].offsetBytes + plan.chunks[i - 1].sizeBytes,
+          );
+        }
+        // 마지막 chunk 만 last=true.
+        expect(plan.chunks[plan.chunks.length - 1].last).toBe(true);
+      });
+
+      // branch (chunked false) — 소량 → 호출 skip → chunkPlan === null.
+      it("chunked === false(소량) → buildExportChunkPlan skip → chunkPlan === null (branch — chunked false)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubPersonRecords(prisma, 10);
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.deliveryPlan.chunked).toBe(false);
+        expect(result.chunkPlan).toBeNull();
+      });
+
+      // negative (빈 selection) — 빈 DB → estimatedBytes 0 → chunked false → chunkPlan null.
+      it("빈 DB(빈 selection) → estimatedBytes 0 → chunked false → chunkPlan === null (negative — 빈 selection)", async () => {
+        const { service } = buildPreviewService();
+        // default mockResolvedValue([]) — 5 entity 전부 빈.
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.sizeEstimate.estimatedBytes).toBe(0);
+        expect(result.deliveryPlan.chunked).toBe(false);
+        expect(result.chunkPlan).toBeNull();
+      });
+
+      // negative (chunk 경계 === 5MB) — estimatedBytes 정확히 5MB → chunked false(초과 아님)
+      // → chunkPlan null.
+      it("estimatedBytes === chunk 임계(5MB) → chunked false → chunkPlan === null (negative — 경계 초과 아님)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubPersonRecords(prisma, CHUNK_BOUNDARY_RECORDS);
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.sizeEstimate.estimatedBytes).toBe(
+          DEFAULT_CHUNK_THRESHOLD_BYTES,
+        );
+        expect(result.deliveryPlan.chunked).toBe(false);
+        expect(result.chunkPlan).toBeNull();
+      });
+
+      // negative (배수 아닌 잔여) — chunked true 이고 totalBytes 가 chunkSize(1MB) 배수가
+      // 아닐 때 lastChunkSizeBytes < chunkSizeBytes 박제. 5121 record × 1024 = 5,243,904 B,
+      // 1MB(1,048,576) 의 정수배 아님 → 마지막 chunk 잔여 < 1MB.
+      it("chunked true 이고 totalBytes 가 chunkSize 배수 아님 → lastChunkSizeBytes < chunkSizeBytes (negative — 잔여 chunk)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubPersonRecords(prisma, CHUNK_BOUNDARY_RECORDS + 1);
+
+        const result = await service.previewSelection({ scope: "full" });
+        const plan = result.chunkPlan!;
+
+        // totalBytes 가 chunkSize 의 배수가 아님(잔여 존재) 전제.
+        expect(plan.totalBytes % plan.chunkSizeBytes).not.toBe(0);
+        expect(plan.lastChunkSizeBytes).toBeLessThan(plan.chunkSizeBytes);
+        expect(plan.lastChunkSizeBytes).toBeGreaterThan(0);
+      });
+
+      // error path — 한 delegate findMany reject 시 chunk plan 도달 0(DB read 단계에서 propagate).
+      it("한 entity findMany reject 시 buildExportChunkPlan 도달 0 (error path — DB 실패 시 helper 미호출)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubPersonRecords(prisma, CHUNK_BOUNDARY_RECORDS + 1);
+        prisma.assessment.findMany.mockRejectedValue(new Error("db-down"));
+        const spy = jest.spyOn(chunkPlanModule, "buildExportChunkPlan");
+
+        await expect(
+          service.previewSelection({ scope: "full" }),
+        ).rejects.toThrow("db-down");
+
+        // DB read 단계에서 throw → chunk plan helper 도달 0.
+        expect(spy).not.toHaveBeenCalled();
+        spy.mockRestore();
+      });
+
+      // helper 실호출 — buildExportChunkPlan 이 sizeEstimate + 양의 정수 상수(1MB)를 그대로
+      // 1 회 forward 받고, options 미전달(maxChunks default 없음) 호출됨을 spy 로 단언.
+      it("buildExportChunkPlan 이 sizeEstimate + 1MB 상수를 1 회 forward + options 미전달 (helper 실호출 spy)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubPersonRecords(prisma, CHUNK_BOUNDARY_RECORDS + 1);
+        const spy = jest.spyOn(chunkPlanModule, "buildExportChunkPlan");
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        const [estimateArg, sizeArg, optionsArg] = spy.mock.calls[0];
+        // 산출된 sizeEstimate 를 그대로 forward(동일 참조).
+        expect(estimateArg).toBe(result.sizeEstimate);
+        // chunkSizeBytes 는 module-level default 상수(1MB) — 양의 정수.
+        expect(sizeArg).toBe(CHUNK_SIZE_BYTES);
+        // options 미전달 — maxChunks cap 없음.
+        expect(optionsArg).toBeUndefined();
+        spy.mockRestore();
+      });
+
+      // 회귀 (estimate ground-truth) — chunkPlan.totalBytes(non-null)가 sizeEstimate.
+      // estimatedBytes 와 1:1 일치(estimate 회귀 차단).
+      it("chunkPlan.totalBytes(non-null) === sizeEstimate.estimatedBytes (회귀 — estimate ground-truth)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubPersonRecords(prisma, CHUNK_BOUNDARY_RECORDS + 1);
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.chunkPlan).not.toBeNull();
+        expect(result.chunkPlan!.totalBytes).toBe(
+          result.sizeEstimate.estimatedBytes,
+        );
+      });
+
+      // 회귀 (동치 관계) — chunkPlan !== null ⟺ deliveryPlan.chunked === true 가 양쪽
+      // 분기(소량/대량)에서 유지됨(조건부 분기 ground-truth 회귀 차단).
+      it("chunkPlan !== null ⟺ deliveryPlan.chunked === true 가 양 분기에서 유지 (회귀 — 조건부 분기 ground-truth)", async () => {
+        const { service, prisma } = buildPreviewService();
+        // 소량 분기 — 빈 DB → chunked false → chunkPlan null.
+        const small = await service.previewSelection({ scope: "full" });
+        expect(small.chunkPlan !== null).toBe(small.deliveryPlan.chunked);
+
+        // 대량 분기 — 5MB 초과 stub → chunked true → chunkPlan non-null.
+        stubPersonRecords(prisma, CHUNK_BOUNDARY_RECORDS + 1);
+        const large = await service.previewSelection({ scope: "full" });
+        expect(large.chunkPlan !== null).toBe(large.deliveryPlan.chunked);
+      });
+
+      // 회귀 (backward-compat) — chunkPlan 추가 후에도 기존 7 필드가 그대로 반환됨.
+      it("chunkPlan 추가 후에도 기존 summary/sizeEstimate/deliveryPlan/completionResult/selectedCount/excludedCount/perEntitySelected 유지 (회귀 — append-only backward-compat)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Person", "Group"],
+        });
+
+        // 기존 7 필드 전부 그대로 존재.
+        expect(result.selectedCount).toBe(2);
+        expect(result.excludedCount).toBe(3);
+        expect(result.perEntitySelected.Person).toBe(1);
+        expect(result.summary.selected.total).toBe(2);
+        expect(result.sizeEstimate.recordTotal).toBe(2);
+        expect(result.deliveryPlan.mode).toBe("sync-download");
+        expect(result.completionResult.exportedCounts.selected).toBe(2);
+        // 신규 필드 동반(소량이라 null).
+        expect(result.chunkPlan).toBeNull();
       });
     });
   });
