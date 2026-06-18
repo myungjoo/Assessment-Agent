@@ -51,6 +51,7 @@ import request from "supertest";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import * as describeImportModeModule from "../export/import-mode-description";
 
 import { ImportJobService } from "./import-job.service";
 import { ImportController } from "./import.controller";
@@ -229,6 +230,57 @@ describe("ImportController (unit)", () => {
     const controller = new ImportController(service);
     await expect(controller.findJob("ij-x")).rejects.toBe(rawError);
   });
+
+  // -----------------------------------------------------------------------
+  // describeModes (GET /api/admin/import/modes) — 고정 2-mode 산출 (T-0493,
+  // describeImportMode 실호출 배선). client 입력 분기 없음 (고정 REPLACE/MERGE) — 분기
+  // cover 는 두 mode 산출 경로 각각. helper 에 넘기는 인자가 항상 "replace"/"merge"
+  // 두 lowercase 값뿐(임의 입력 forward 0)임도 spy 로 단언. service 의존 0 (helper 는
+  // 순수 함수).
+  // -----------------------------------------------------------------------
+  it("GET modes — REPLACE/MERGE 두 mode 설명 2 원소 배열 반환 (happy — helper 산출 일치)", () => {
+    const { service } = buildServiceMock();
+
+    const controller = new ImportController(service);
+    const result = controller.describeModes();
+
+    expect(result).toHaveLength(2);
+    // (a) REPLACE 변환 → destructive=true 산출 경로.
+    expect(result[0].reason).toBe("replace");
+    expect(result[0].destructive).toBe(true);
+    expect(result[0].headline.length).toBeGreaterThan(0);
+    expect(result[0].detailLines.length).toBeGreaterThan(0);
+    // (b) MERGE 변환 → destructive=false 산출 경로.
+    expect(result[1].reason).toBe("merge");
+    expect(result[1].destructive).toBe(false);
+    expect(result[1].headline.length).toBeGreaterThan(0);
+    expect(result[1].detailLines.length).toBeGreaterThan(0);
+  });
+
+  it("GET modes — helper 에 넘기는 인자가 정확히 'replace'/'merge' 두 lowercase 값뿐 (error path — enum→lowercase 매핑 계약, 임의 입력 forward 0)", () => {
+    const { service } = buildServiceMock();
+    const helperSpy = jest.spyOn(
+      describeImportModeModule,
+      "describeImportMode",
+    );
+
+    const controller = new ImportController(service);
+    controller.describeModes();
+
+    // controller 가 helper 에 forward 한 인자가 정확히 두 lowercase ImportRestoreMode 뿐.
+    // enum→lowercase 매핑이 깨져 "REPLACE" 등이 새면 helper 의 RangeError 계약을 어김.
+    expect(helperSpy.mock.calls.map((c) => c[0])).toEqual(["replace", "merge"]);
+    helperSpy.mockRestore();
+  });
+
+  it("GET modes — 반환 배열이 정확히 2 원소이며 replace/merge reason 만 포함 (negative — 중복/누락 없음)", () => {
+    const { service } = buildServiceMock();
+
+    const controller = new ImportController(service);
+    const reasons = controller.describeModes().map((d) => d.reason);
+
+    expect(reasons).toEqual(["replace", "merge"]);
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -243,6 +295,7 @@ describe("ImportController (guard/@Roles metadata)", () => {
   it.each([
     ["create", ImportController.prototype.create],
     ["findRunning", ImportController.prototype.findRunning],
+    ["describeModes", ImportController.prototype.describeModes],
     ["findJob", ImportController.prototype.findJob],
   ])(
     "%s 핸들러에 @Roles('Admin') metadata 부착 (Admin+ tier gate)",
@@ -255,6 +308,7 @@ describe("ImportController (guard/@Roles metadata)", () => {
   it.each([
     ["create", ImportController.prototype.create],
     ["findRunning", ImportController.prototype.findRunning],
+    ["describeModes", ImportController.prototype.describeModes],
     ["findJob", ImportController.prototype.findJob],
   ])(
     "%s 핸들러에 @UseGuards(JwtAuthGuard, RolesGuard) 부착 (인증+RBAC gate)",
@@ -518,6 +572,58 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     expect(serviceMock.findRunning).not.toHaveBeenCalled();
   });
 
+  // == GET /api/admin/import/modes — describeModes endpoint =========================
+
+  // -- happy — Admin 통과 시 200 + 2 원소 설명 배열 (modes 가 :id 로 포착 안 됨) -------
+  it("GET modes — Admin role 통과 시 200 + REPLACE/MERGE 2 원소 설명 배열 (happy — 라우트 우선순위 + helper 산출)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    const res = await request(app.getHttpServer())
+      .get("/api/admin/import/modes")
+      .expect(200);
+
+    // "modes" 가 describeModes 로 라우트됨 (findJob 의 :id 로 포착 안 됨) 검증.
+    expect(serviceMock.findJob).not.toHaveBeenCalled();
+    expect(res.body).toHaveLength(2);
+    expect(res.body[0].reason).toBe("replace");
+    expect(res.body[0].destructive).toBe(true);
+    expect(res.body[0].headline.length).toBeGreaterThan(0);
+    expect(res.body[0].detailLines.length).toBeGreaterThan(0);
+    expect(res.body[1].reason).toBe("merge");
+    expect(res.body[1].destructive).toBe(false);
+  });
+
+  // -- negative — 401 (인증 부재) on modes + service 무관 --------------------------
+  it("GET modes — JwtAuthGuard reject 시 401 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .get("/api/admin/import/modes")
+      .expect(401);
+  });
+
+  // -- negative — 403 (User actor) on modes ---------------------------------------
+  it("GET modes — RolesGuard reject 시 403 (negative — User actor Admin+ 미달)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: { canActivate: () => false },
+    });
+
+    await request(app.getHttpServer())
+      .get("/api/admin/import/modes")
+      .expect(403);
+  });
+
   // == GET /api/admin/import/:id — findJob endpoint ================================
 
   // -- happy — Admin 통과 시 200 + 단건 forward ------------------------------------
@@ -672,6 +778,29 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
         .expect(201);
 
       expect(serviceMock.createJob).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  // GET modes Admin+ tier — User actor 는 403 차단 (실 RolesGuard escalation).
+  it("GET modes — User actor 는 Admin+ tier 미달 → 403 (실 RolesGuard escalation)", async () => {
+    app = await buildAppWithRealRolesGuard("User");
+
+    await request(app.getHttpServer())
+      .get("/api/admin/import/modes")
+      .expect(403);
+  });
+
+  // GET modes — Admin / SuperAdmin actor 통과 (escalation hierarchy descent) → 200.
+  it.each(["Admin", "SuperAdmin"])(
+    "GET modes — %s actor 는 Admin+ tier 통과 (200, escalation hierarchy descent)",
+    async (role) => {
+      app = await buildAppWithRealRolesGuard(role);
+
+      const res = await request(app.getHttpServer())
+        .get("/api/admin/import/modes")
+        .expect(200);
+
+      expect(res.body).toHaveLength(2);
     },
   );
 
