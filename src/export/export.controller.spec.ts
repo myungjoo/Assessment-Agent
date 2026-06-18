@@ -666,6 +666,99 @@ describe("ExportController (unit)", () => {
     expect(result.chunkPlan).toBeNull();
   });
 
+  it("POST preview-selection — service 반환의 streamProgress(non-null ExportChunkStreamProgress)가 그대로 200 forward (T-0504 — streamProgress forward non-null)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const summary = {
+      selectedCount: 5,
+      excludedCount: 0,
+      perEntitySelected: {
+        Assessment: 1,
+        Person: 1,
+        Group: 1,
+        LlmConfig: 1,
+        AuditLog: 1,
+      },
+      chunkPlan: {
+        totalBytes: 1572864,
+        chunkSizeBytes: 1048576,
+        chunkCount: 2,
+        chunks: [
+          { index: 0, offsetBytes: 0, sizeBytes: 1048576, last: false },
+          { index: 1, offsetBytes: 1048576, sizeBytes: 524288, last: true },
+        ],
+        lastChunkSizeBytes: 524288,
+        headline: "chunked streaming plan: 총 1572864 B",
+      },
+      // 미시작(deliveredChunks=0) 초기 진행 상태.
+      streamProgress: {
+        totalChunks: 2,
+        deliveredChunks: 0,
+        remainingChunks: 2,
+        transferredBytes: 0,
+        totalBytes: 1572864,
+        remainingBytes: 1572864,
+        percentComplete: 0,
+        complete: false,
+        currentChunk: {
+          index: 0,
+          offsetBytes: 0,
+          sizeBytes: 1048576,
+          last: false,
+        },
+        currentRange: {
+          firstBytePos: 0,
+          lastBytePos: 1048575,
+          totalBytes: 1572864,
+          chunkIndex: 0,
+        },
+        headline: "chunked streaming 진행: 2 개 중 0 개 chunk 전송",
+      },
+    };
+    serviceMock.previewSelection.mockResolvedValueOnce(summary);
+
+    const controller = new ExportController(service);
+    const result = await controller.previewSelection({
+      scope: ExportScope.FULL,
+    });
+
+    // controller 분기 0 — service 반환 객체를 그대로 forward(streamProgress 포함).
+    expect(result).toBe(summary);
+    expect(result.streamProgress).not.toBeNull();
+    expect(result.streamProgress!.totalChunks).toBe(2);
+    expect(result.streamProgress!.deliveredChunks).toBe(0);
+    expect(result.streamProgress!.percentComplete).toBe(0);
+    expect(result.streamProgress!.complete).toBe(false);
+    expect(result.streamProgress!.currentRange!.firstBytePos).toBe(0);
+    expect(result.streamProgress!.currentRange!.lastBytePos).toBe(1048575);
+  });
+
+  it("POST preview-selection — service 반환의 streamProgress === null(소량 dump)이 그대로 200 forward (T-0504 — streamProgress forward null)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const summary = {
+      selectedCount: 5,
+      excludedCount: 0,
+      perEntitySelected: {
+        Assessment: 1,
+        Person: 1,
+        Group: 1,
+        LlmConfig: 1,
+        AuditLog: 1,
+      },
+      chunkPlan: null,
+      streamProgress: null,
+    };
+    serviceMock.previewSelection.mockResolvedValueOnce(summary);
+
+    const controller = new ExportController(service);
+    const result = await controller.previewSelection({
+      scope: ExportScope.FULL,
+    });
+
+    // controller 분기 0 — service 반환 객체(streamProgress null)를 그대로 forward.
+    expect(result).toBe(summary);
+    expect(result.streamProgress).toBeNull();
+  });
+
   it("POST preview-selection — service 반환의 summary(selected/excluded breakdown)가 그대로 200 forward (T-0499 — summary forward)", async () => {
     const { service, serviceMock } = buildServiceMock();
     const earliest = new Date("2026-01-01T00:00:00.000Z");
@@ -1509,6 +1602,8 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
       },
       // 소량 dump(chunked false) → chunkPlan null(T-0503).
       chunkPlan: null,
+      // chunkPlan null → streamProgress null(T-0504).
+      streamProgress: null,
     });
 
     const res = await request(app.getHttpServer())
@@ -1540,6 +1635,8 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
     expect(res.body.completionResult.scopeLine).toBe("scope=full(전체)");
     // chunkPlan(chunk 경계 plan)도 응답 body 에 그대로 forward(T-0503 — 소량이라 null).
     expect(res.body.chunkPlan).toBeNull();
+    // streamProgress(초기 진행 상태)도 응답 body 에 그대로 forward(T-0504 — 소량이라 null).
+    expect(res.body.streamProgress).toBeNull();
     // lowercase "full" 변환 후 service.previewSelection 위임.
     expect(serviceMock.previewSelection).toHaveBeenCalledTimes(1);
     expect(serviceMock.previewSelection).toHaveBeenCalledWith({
