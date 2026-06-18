@@ -517,6 +517,50 @@ describe("ExportController (unit)", () => {
     expect(result.sizeEstimate.large).toBe(false);
   });
 
+  it("POST preview-selection — service 반환의 deliveryPlan(전달 plan)이 그대로 200 forward (T-0501 — deliveryPlan forward)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const summary = {
+      selectedCount: 5,
+      excludedCount: 0,
+      perEntitySelected: {
+        Assessment: 1,
+        Person: 1,
+        Group: 1,
+        LlmConfig: 1,
+        AuditLog: 1,
+      },
+      deliveryPlan: {
+        mode: "async-job" as const,
+        chunked: true,
+        pollingRequired: true,
+        statusFlow: ["queued", "running", "ready"] as const,
+        headline:
+          "Export 다운로드 plan: async job + status polling (예상 12 MB)",
+        instructionLines: [
+          "예상 dump 가 대량(12 MB)이라 async job 으로 처리합니다.",
+          "1) Export job 을 생성합니다 (상태: queued).",
+        ],
+      },
+    };
+    serviceMock.previewSelection.mockResolvedValueOnce(summary);
+
+    const controller = new ExportController(service);
+    const result = await controller.previewSelection({
+      scope: ExportScope.FULL,
+    });
+
+    // controller 분기 0 — service 반환 객체를 그대로 forward(deliveryPlan 포함).
+    expect(result).toBe(summary);
+    expect(result.deliveryPlan.mode).toBe("async-job");
+    expect(result.deliveryPlan.chunked).toBe(true);
+    expect(result.deliveryPlan.pollingRequired).toBe(true);
+    expect(result.deliveryPlan.statusFlow).toEqual([
+      "queued",
+      "running",
+      "ready",
+    ]);
+  });
+
   it("POST preview-selection — service 반환의 summary(selected/excluded breakdown)가 그대로 200 forward (T-0499 — summary forward)", async () => {
     const { service, serviceMock } = buildServiceMock();
     const earliest = new Date("2026-01-01T00:00:00.000Z");
@@ -1337,6 +1381,17 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
           "예상 dump 크기 5 KB(record 5 건)는 3 초 내 동기 다운로드가 가능합니다.",
         ],
       },
+      deliveryPlan: {
+        mode: "sync-download",
+        chunked: false,
+        pollingRequired: false,
+        statusFlow: [],
+        headline: "Export 다운로드 plan: 즉시 동기 다운로드 (예상 5 KB)",
+        instructionLines: [
+          "예상 dump 가 소량(5 KB)이라 즉시 동기 다운로드합니다.",
+          "1) 단일 응답으로 즉시 다운로드합니다.",
+        ],
+      },
     });
 
     const res = await request(app.getHttpServer())
@@ -1355,6 +1410,11 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
     expect(res.body.sizeEstimate.humanSize).toBe("5 KB");
     expect(res.body.sizeEstimate.recommendation).toBe("sync");
     expect(res.body.sizeEstimate.large).toBe(false);
+    // deliveryPlan(전달 plan)도 응답 body 에 그대로 forward(T-0501).
+    expect(res.body.deliveryPlan.mode).toBe("sync-download");
+    expect(res.body.deliveryPlan.pollingRequired).toBe(false);
+    expect(res.body.deliveryPlan.statusFlow).toEqual([]);
+    expect(res.body.deliveryPlan.chunked).toBe(false);
     // lowercase "full" 변환 후 service.previewSelection 위임.
     expect(serviceMock.previewSelection).toHaveBeenCalledTimes(1);
     expect(serviceMock.previewSelection).toHaveBeenCalledWith({
