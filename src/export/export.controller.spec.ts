@@ -472,6 +472,51 @@ describe("ExportController (unit)", () => {
     expect(result).toBe(summary);
   });
 
+  it("POST preview-selection — service 반환의 sizeEstimate(예상 dump 크기)가 그대로 200 forward (T-0500 — sizeEstimate forward)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const summary = {
+      selectedCount: 5,
+      excludedCount: 0,
+      perEntitySelected: {
+        Assessment: 1,
+        Person: 1,
+        Group: 1,
+        LlmConfig: 1,
+        AuditLog: 1,
+      },
+      sizeEstimate: {
+        estimatedBytes: 5120,
+        humanSize: "5 KB",
+        recordTotal: 5,
+        perEntityBytes: {
+          Assessment: 1024,
+          Person: 1024,
+          Group: 1024,
+          LlmConfig: 1024,
+          AuditLog: 1024,
+        },
+        large: false,
+        recommendation: "sync" as const,
+        guidanceLines: [
+          "예상 dump 크기 5 KB(record 5 건)는 3 초 내 동기 다운로드가 가능합니다.",
+        ],
+      },
+    };
+    serviceMock.previewSelection.mockResolvedValueOnce(summary);
+
+    const controller = new ExportController(service);
+    const result = await controller.previewSelection({
+      scope: ExportScope.FULL,
+    });
+
+    // controller 분기 0 — service 반환 객체를 그대로 forward(sizeEstimate 포함).
+    expect(result).toBe(summary);
+    expect(result.sizeEstimate.estimatedBytes).toBe(5120);
+    expect(result.sizeEstimate.humanSize).toBe("5 KB");
+    expect(result.sizeEstimate.recommendation).toBe("sync");
+    expect(result.sizeEstimate.large).toBe(false);
+  });
+
   it("POST preview-selection — service 반환의 summary(selected/excluded breakdown)가 그대로 200 forward (T-0499 — summary forward)", async () => {
     const { service, serviceMock } = buildServiceMock();
     const earliest = new Date("2026-01-01T00:00:00.000Z");
@@ -1275,6 +1320,23 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
           instantRange: null,
         },
       },
+      sizeEstimate: {
+        estimatedBytes: 5120,
+        humanSize: "5 KB",
+        recordTotal: 5,
+        perEntityBytes: {
+          Assessment: 1024,
+          Person: 1024,
+          Group: 1024,
+          LlmConfig: 1024,
+          AuditLog: 1024,
+        },
+        large: false,
+        recommendation: "sync",
+        guidanceLines: [
+          "예상 dump 크기 5 KB(record 5 건)는 3 초 내 동기 다운로드가 가능합니다.",
+        ],
+      },
     });
 
     const res = await request(app.getHttpServer())
@@ -1288,6 +1350,11 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
     expect(res.body.summary.selected.total).toBe(5);
     expect(res.body.summary.excluded.total).toBe(0);
     expect(res.body.summary.excluded.instantRange).toBeNull();
+    // sizeEstimate(예상 dump 크기)도 응답 body 에 그대로 forward(T-0500).
+    expect(res.body.sizeEstimate.estimatedBytes).toBe(5120);
+    expect(res.body.sizeEstimate.humanSize).toBe("5 KB");
+    expect(res.body.sizeEstimate.recommendation).toBe("sync");
+    expect(res.body.sizeEstimate.large).toBe(false);
     // lowercase "full" 변환 후 service.previewSelection 위임.
     expect(serviceMock.previewSelection).toHaveBeenCalledTimes(1);
     expect(serviceMock.previewSelection).toHaveBeenCalledWith({

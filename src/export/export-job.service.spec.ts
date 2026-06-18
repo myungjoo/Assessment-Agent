@@ -22,6 +22,11 @@ import {
   type MockPrismaService,
 } from "../../test/helpers/prisma-mock";
 
+import * as dumpSizeModule from "./export-dump-size-estimate";
+import {
+  DEFAULT_ASYNC_THRESHOLD_BYTES,
+  DEFAULT_BYTES_PER_RECORD,
+} from "./export-dump-size-estimate";
 import { ExportJobService } from "./export-job.service";
 import * as rejectionMessageModule from "./export-scope-rejection-message";
 import * as scopeSelectModule from "./export-scope-select";
@@ -1001,6 +1006,285 @@ describe("ExportJobService", () => {
             excluded: { total: 0, instantRange: null },
           },
         });
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // sizeEstimate — estimateExportDumpSize(T-0466) 실호출 배선 (T-0500)
+    // previewSelection 응답의 sizeEstimate(estimatedBytes/humanSize/recordTotal/
+    // perEntityBytes(5 entity)/large/recommendation/guidanceLines) 검증. helper 는
+    // input derivation 이라 추가 DB read 0(REQ-032 자연 유지). R-112: happy(full/range/
+    // partial) + error(estimate 도달 0) + branch(small=sync / large=async-streaming) +
+    // negative 충분 cover(빈 selection / 경계 === 임계 / 단일 record / 5 key 회귀 /
+    // large↔recommendation 불변 cross-check) + helper 실호출 spy + default 옵션 호출.
+    // -------------------------------------------------------------------------
+    describe("sizeEstimate (estimateExportDumpSize 배선)", () => {
+      // happy (full) — 5 entity 각 1 record selected → estimatedBytes = 5 × 1024,
+      // perEntityBytes 5 key 전부 1024, recordTotal 5, large false / recommendation sync.
+      it("full scope — estimatedBytes = recordTotal × DEFAULT weight · perEntityBytes 5 key · sync (happy)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.sizeEstimate.recordTotal).toBe(5);
+        expect(result.sizeEstimate.estimatedBytes).toBe(
+          5 * DEFAULT_BYTES_PER_RECORD,
+        );
+        for (const entity of VALID_EXPORT_ENTITIES) {
+          expect(result.sizeEstimate.perEntityBytes[entity]).toBe(
+            DEFAULT_BYTES_PER_RECORD,
+          );
+        }
+        expect(result.sizeEstimate.humanSize).toBe("5 KB");
+        expect(result.sizeEstimate.large).toBe(false);
+        expect(result.sizeEstimate.recommendation).toBe("sync");
+        // sync 안내는 1 줄(동기 다운로드 가능 류).
+        expect(result.sizeEstimate.guidanceLines).toHaveLength(1);
+        expect(result.sizeEstimate.guidanceLines[0]).toContain("동기 다운로드");
+      });
+
+      // happy (range) — 구간 안 record 만 selected 라 estimate 도 selected 기준.
+      it("range scope — selected record 만 estimate 에 반영 (excluded 는 미산입) (happy)", async () => {
+        const { service, prisma } = buildPreviewService();
+        prisma.person.findMany.mockResolvedValue([
+          { createdAt: new Date("2026-02-01T00:00:00.000Z") },
+        ]);
+        prisma.assessment.findMany.mockResolvedValue([
+          { createdAt: new Date("2026-09-01T00:00:00.000Z") },
+        ]);
+
+        const result = await service.previewSelection({
+          scope: "range",
+          dateRange: {
+            start: new Date("2026-01-01T00:00:00.000Z"),
+            end: new Date("2026-03-01T00:00:00.000Z"),
+          },
+        });
+
+        // Person 1 건만 selected → estimate 도 1 record 기준(excluded Assessment 미산입).
+        expect(result.sizeEstimate.recordTotal).toBe(1);
+        expect(result.sizeEstimate.estimatedBytes).toBe(
+          DEFAULT_BYTES_PER_RECORD,
+        );
+        expect(result.sizeEstimate.perEntityBytes.Person).toBe(
+          DEFAULT_BYTES_PER_RECORD,
+        );
+        expect(result.sizeEstimate.perEntityBytes.Assessment).toBe(0);
+      });
+
+      // happy (partial) — entitySelector 든 entity 만 estimate 에 반영.
+      it("partial scope — entitySelector 의 entity 만 estimate 에 반영 (happy)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Person", "Group"],
+        });
+
+        expect(result.sizeEstimate.recordTotal).toBe(2);
+        expect(result.sizeEstimate.estimatedBytes).toBe(
+          2 * DEFAULT_BYTES_PER_RECORD,
+        );
+        expect(result.sizeEstimate.perEntityBytes.Person).toBe(
+          DEFAULT_BYTES_PER_RECORD,
+        );
+        expect(result.sizeEstimate.perEntityBytes.Group).toBe(
+          DEFAULT_BYTES_PER_RECORD,
+        );
+        expect(result.sizeEstimate.perEntityBytes.Assessment).toBe(0);
+      });
+
+      // branch (small dump) — estimatedBytes ≤ 임계 → large=false / recommendation sync.
+      it("small dump (estimatedBytes ≤ 임계) → large=false / recommendation 'sync' (branch — sync 분기)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.sizeEstimate.estimatedBytes).toBeLessThanOrEqual(
+          DEFAULT_ASYNC_THRESHOLD_BYTES,
+        );
+        expect(result.sizeEstimate.large).toBe(false);
+        expect(result.sizeEstimate.recommendation).toBe("sync");
+      });
+
+      // branch (large dump) — selected record 를 충분히 stub(10MB 초과)해
+      // estimatedBytes > 임계 → large=true / recommendation 'async-streaming'.
+      it("large dump (estimatedBytes > 임계) → large=true / recommendation 'async-streaming' + 2 줄 안내 (branch — async 분기)", async () => {
+        const { service, prisma } = buildPreviewService();
+        // 10MB / 1024 = 10240 record 초과 필요 → Person 에 10241 건 stub.
+        const instant = new Date("2026-02-01T00:00:00.000Z");
+        const recordCount =
+          Math.floor(DEFAULT_ASYNC_THRESHOLD_BYTES / DEFAULT_BYTES_PER_RECORD) +
+          1;
+        prisma.person.findMany.mockResolvedValue(
+          Array.from({ length: recordCount }, () => ({ createdAt: instant })),
+        );
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.sizeEstimate.recordTotal).toBe(recordCount);
+        expect(result.sizeEstimate.estimatedBytes).toBeGreaterThan(
+          DEFAULT_ASYNC_THRESHOLD_BYTES,
+        );
+        expect(result.sizeEstimate.large).toBe(true);
+        expect(result.sizeEstimate.recommendation).toBe("async-streaming");
+        // async-streaming 안내는 2 줄(대량 dump + long-running 권고).
+        expect(result.sizeEstimate.guidanceLines).toHaveLength(2);
+        expect(result.sizeEstimate.guidanceLines[1]).toContain("async job");
+      });
+
+      // negative (경계) — 빈 DB / 빈 selection → estimatedBytes 0 · humanSize "0 B" ·
+      // recommendation sync · guidanceLines sync 안내.
+      it("빈 DB(빈 selection) → estimatedBytes 0 · humanSize '0 B' · sync (negative — 빈 selection)", async () => {
+        const { service } = buildPreviewService();
+        // default mockResolvedValue([]) 그대로 — 5 entity 전부 빈.
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.sizeEstimate.estimatedBytes).toBe(0);
+        expect(result.sizeEstimate.humanSize).toBe("0 B");
+        expect(result.sizeEstimate.recordTotal).toBe(0);
+        expect(result.sizeEstimate.large).toBe(false);
+        expect(result.sizeEstimate.recommendation).toBe("sync");
+        for (const entity of VALID_EXPORT_ENTITIES) {
+          expect(result.sizeEstimate.perEntityBytes[entity]).toBe(0);
+        }
+      });
+
+      // negative (경계 === 임계) — selected record 가 정확히 임계 byte 를 만들면
+      // large=false(초과 아님 → sync). 10240 record × 1024 = 정확히 10MB.
+      it("estimatedBytes === 임계 → large=false / sync (경계 — 초과 아님)", async () => {
+        const { service, prisma } = buildPreviewService();
+        const instant = new Date("2026-02-01T00:00:00.000Z");
+        // 정확히 10MB = 10240 record × 1024 byte.
+        const recordCount = Math.floor(
+          DEFAULT_ASYNC_THRESHOLD_BYTES / DEFAULT_BYTES_PER_RECORD,
+        );
+        prisma.person.findMany.mockResolvedValue(
+          Array.from({ length: recordCount }, () => ({ createdAt: instant })),
+        );
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.sizeEstimate.estimatedBytes).toBe(
+          DEFAULT_ASYNC_THRESHOLD_BYTES,
+        );
+        expect(result.sizeEstimate.large).toBe(false);
+        expect(result.sizeEstimate.recommendation).toBe("sync");
+      });
+
+      // negative (단일 record) — 단일 entity 1 record 만 selected → perEntityBytes
+      // 그 entity 만 non-zero, 나머지 4 entity 0.
+      it("단일 record(Person 1 건만) → perEntityBytes Person 만 non-zero · 나머지 0 (negative — 단일 record)", async () => {
+        const { service, prisma } = buildPreviewService();
+        prisma.person.findMany.mockResolvedValue([
+          { createdAt: new Date("2026-02-01T00:00:00.000Z") },
+        ]);
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        expect(result.sizeEstimate.perEntityBytes.Person).toBe(
+          DEFAULT_BYTES_PER_RECORD,
+        );
+        expect(result.sizeEstimate.perEntityBytes.Assessment).toBe(0);
+        expect(result.sizeEstimate.perEntityBytes.Group).toBe(0);
+        expect(result.sizeEstimate.perEntityBytes.LlmConfig).toBe(0);
+        expect(result.sizeEstimate.perEntityBytes.AuditLog).toBe(0);
+      });
+
+      // 회귀 — sizeEstimate.perEntityBytes 가 항상 5 ExportEntity 전부를 key 로 cover.
+      it("sizeEstimate.perEntityBytes 가 5 ExportEntity 전부를 key 로 포함 (회귀 — entity 누락 방지)", async () => {
+        const { service } = buildPreviewService();
+
+        const result = await service.previewSelection({ scope: "full" });
+
+        const keys = Object.keys(
+          result.sizeEstimate.perEntityBytes,
+        ) as ExportEntity[];
+        expect(keys.sort()).toEqual([...VALID_EXPORT_ENTITIES].sort());
+      });
+
+      // 회귀 (helper 불변) — large === (recommendation === "async-streaming") 가
+      // 응답에서 유지됨(small 분기 + large 분기 양쪽 cross-check).
+      it("large === (recommendation === 'async-streaming') 불변이 응답에서 유지 (회귀 — helper 불변 surface)", async () => {
+        const { service, prisma } = buildPreviewService();
+        // small 분기 — 빈 DB.
+        const small = await service.previewSelection({ scope: "full" });
+        expect(small.sizeEstimate.large).toBe(
+          small.sizeEstimate.recommendation === "async-streaming",
+        );
+
+        // large 분기 — 10MB 초과 stub.
+        const instant = new Date("2026-02-01T00:00:00.000Z");
+        const recordCount =
+          Math.floor(DEFAULT_ASYNC_THRESHOLD_BYTES / DEFAULT_BYTES_PER_RECORD) +
+          1;
+        prisma.person.findMany.mockResolvedValue(
+          Array.from({ length: recordCount }, () => ({ createdAt: instant })),
+        );
+        const large = await service.previewSelection({ scope: "full" });
+        expect(large.sizeEstimate.large).toBe(
+          large.sizeEstimate.recommendation === "async-streaming",
+        );
+      });
+
+      // helper 실호출 — estimateExportDumpSize 가 selectExportRecords 산출 selection 을
+      // 그대로 1 회 forward 받고, 옵션 없이(default 사용) 호출됨을 spy 로 단언.
+      it("estimateExportDumpSize 가 selection 을 그대로 1 회 forward + 옵션 미전달(default) 호출 (helper 실호출 spy)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+        const spy = jest.spyOn(dumpSizeModule, "estimateExportDumpSize");
+
+        await service.previewSelection({ scope: "full" });
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        const [selectionArg, optionsArg] = spy.mock.calls[0];
+        expect(Array.isArray(selectionArg.selected)).toBe(true);
+        expect(Array.isArray(selectionArg.excluded)).toBe(true);
+        expect(selectionArg.selected).toHaveLength(5);
+        // 옵션 미전달 — helper default(byte weight / async 임계) 사용.
+        expect(optionsArg).toBeUndefined();
+        spy.mockRestore();
+      });
+
+      // 회귀 (backward-compat) — sizeEstimate 추가 후에도 기존 4 필드(summary /
+      // selectedCount / excludedCount / perEntitySelected)가 그대로 반환됨.
+      it("sizeEstimate 추가 후에도 기존 summary/selectedCount/excludedCount/perEntitySelected 유지 (회귀 — append-only backward-compat)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+
+        const result = await service.previewSelection({
+          scope: "partial",
+          entitySelector: ["Person", "Group"],
+        });
+
+        // 기존 필드 전부 그대로 존재.
+        expect(result.selectedCount).toBe(2);
+        expect(result.excludedCount).toBe(3);
+        expect(result.perEntitySelected.Person).toBe(1);
+        expect(result.summary.selected.total).toBe(2);
+        // 신규 필드 동반.
+        expect(result.sizeEstimate.recordTotal).toBe(2);
+      });
+
+      // negative (error path) — 한 delegate findMany reject 시 estimate 도달 0
+      // (DB read 단계에서 propagate, helper 호출 전).
+      it("한 entity findMany reject 시 estimate 호출 도달 0 (error path — DB 실패 시 helper 미호출)", async () => {
+        const { service, prisma } = buildPreviewService();
+        stubAllEntities(prisma, new Date("2026-02-01T00:00:00.000Z"));
+        prisma.assessment.findMany.mockRejectedValue(new Error("db-down"));
+        const spy = jest.spyOn(dumpSizeModule, "estimateExportDumpSize");
+
+        await expect(
+          service.previewSelection({ scope: "full" }),
+        ).rejects.toThrow("db-down");
+
+        // DB read 단계에서 throw → estimate helper 도달 0.
+        expect(spy).not.toHaveBeenCalled();
+        spy.mockRestore();
       });
     });
   });
