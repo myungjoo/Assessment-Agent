@@ -71,4 +71,4 @@ implementer → tester
 
 ## Follow-ups
 
-(생성 시 비어 있음 — sub-agent 가 관련 작업 발견 시 추가.)
+- **api.md §5 `GET /api/admin/export` → `POST` 정정** (planner 신규 direct doc task) — 본 controller 는 job 생성이 mutation 이므로 `POST /api/admin/export` 로 박제했다 (REST 정합 — query GET 으로 mutation 발화는 안티패턴). 근거는 `src/export/export.controller.ts` 의 endpoint surface 주석에 1줄 명시. 그러나 [docs/architecture/api.md](../architecture/api.md) §5 (L123 부근) 의 계약 표는 여전히 `GET /api/admin/export` 를 명시 → 코드↔문서 drift. api.md 본문은 `direct` commitMode (docs/architecture status 갱신) 이므로 본 pr-mode PR 에 포함하지 않고 별도 direct doc task 로 `GET`→`POST` 메서드 정정 (status polling `GET /:id`·`GET /running` 은 조회라 GET 유지). PR-400 reviewer round 1 MAJOR finding 의 closure 기록 (AC L44 "follow-up 으로 기록" 의무 충족).
