@@ -2,7 +2,7 @@
 id: T-0505
 title: ExportDump materialization + artifact 저장 위치 결정 ADR-0044 작성
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 230
@@ -57,3 +57,7 @@ plannerNote: P7 R-57 게이트1(Q-0042 승인) — 실 service-layer 배선 chai
 ## Follow-ups
 
 (작성 시 비어 있음. sub-agent 가 관련 작업 발견 시 여기에 append.)
+
+## Result
+
+- Status: DONE — 2026-06-18T15:45Z. ADR-0046(0044/0045 점유로 id 조정) 신설 + data-model.md cross-ref. PR #418 round1 APPROVE(0 finding)·CI green(run 27771264445)·4-게이트 PASS → squash b718bb8 on main. Decision §1 materialization=in-process Node Readable stream(새 dep 0), §2 저장=응답 직접 streaming(영속 0, object-storage 별도 게이트). coarse 모드 처리(frontmatter touchesFiles 누락 → fail-safe 강등). nextTask=T-0506.
