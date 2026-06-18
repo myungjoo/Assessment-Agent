@@ -2,12 +2,14 @@
 id: T-0484
 title: ADR — export/import job 영속 데이터 모델 결정 (ExportJob/ImportJob)
 phase: P7
-status: PENDING
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 200
 estimatedFiles: 2
 created: 2026-06-18
+status: DONE
+completedAt: 2026-06-18
+result: "ADR-0044 신설(ACCEPTED) — ExportJob/ImportJob 영속 entity 도입 결정. data-model.md §2/§3/§4/§7 갱신(entity 11→13). 코드 0 LOC, tester lint/build/test green(208 suites/4726 tests). web /loop draft-PR 제안 모드 — 정식 merge 는 사람/cron driver. Follow-up: Prisma schema(T-0485 후보)."
 independentStream: export-import-wiring
 dependsOn: []
 touchesFiles: [docs/decisions/ADR-0044-export-import-job-persistence.md, docs/architecture/data-model.md]
