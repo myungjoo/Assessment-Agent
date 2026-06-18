@@ -12,10 +12,13 @@
 //     (multer / FileInterceptor) 는 새 infra 표면이라 T-0489 §Out of Scope — 본
 //     controller 는 mode + actor 결합으로 job record 만 생성한다.
 //   - GET  /api/admin/import/running  → findRunning (RUNNING 목록, UC-07 §8 status polling).
+//   - GET  /api/admin/import/modes    → describeModes (import mode 선택 dialog 의 사람-친화
+//     설명 목록, UC-07 §5 step 2 + §6.2 — describeImportMode helper 를 REPLACE/MERGE 두
+//     mode 에 호출, DB write 0 / raw 미접근).
 //   - GET  /api/admin/import/:id      → findJob (단건 polling, 부재 시 service 가
 //     P2025 → NotFoundException → 404 raw forward).
-//   라우트 선언 순서 주의 — `running` 고정 segment 를 `:id` 동적 segment 보다 먼저
-//   선언해야 "running" 이 :id 로 포착되지 않는다 (NestJS path matching 순서, ExportController 동형).
+//   라우트 선언 순서 주의 — `running`/`modes` 고정 segment 를 `:id` 동적 segment 보다 먼저
+//   선언해야 "running"/"modes" 가 :id 로 포착되지 않는다 (NestJS path matching 순서, ExportController 동형).
 //
 // ValidationPipe wire (ExportController mirror):
 //   - Controller-scope `@UsePipes(new ValidationPipe({...}))` — POST body 의
@@ -55,15 +58,30 @@ import {
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
-import type { ImportJob } from "@prisma/client";
+import { ImportMode, type ImportJob } from "@prisma/client";
 
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import {
+  describeImportMode,
+  type ImportModeDescription,
+} from "../export/import-mode-description";
+import type { ImportRestoreMode } from "../export/import-restore-plan";
 
 import { CreateImportDto } from "./dto/create-import.dto";
 import { ImportJobService } from "./import-job.service";
+
+// Prisma ImportMode enum(uppercase REPLACE/MERGE) ↔ describeImportMode helper 가
+// 요구하는 lowercase ImportRestoreMode("replace"/"merge") 매핑. prisma/schema.prisma
+// 의 enum ImportMode 가 source 이고, helper 는 import-restore-plan.ts 의
+// ImportRestoreMode lowercase literal 을 요구한다 — 본 상수가 그 대소문자 차이를
+// 흡수한다(schema·helper 변경 0, ExportJobService.SCOPE_ENUM_TO_PAYLOAD 패턴 mirror).
+const IMPORT_MODE_ENUM_TO_PAYLOAD: Record<ImportMode, ImportRestoreMode> = {
+  [ImportMode.REPLACE]: "replace",
+  [ImportMode.MERGE]: "merge",
+};
 
 @Controller("api/admin/import")
 @UsePipes(
@@ -112,6 +130,26 @@ export class ImportController {
   @Roles("Admin")
   async findRunning(): Promise<ImportJob[]> {
     return this.service.findRunning();
+  }
+
+  // GET /api/admin/import/modes — import mode(replace/merge) 선택 dialog 의 사람-친화
+  // 설명 목록 조회 (UC-07 §5 step 2 + §6.2, REQ-030 Import mode 선택). 고정 2 mode
+  // (Prisma ImportMode enum REPLACE/MERGE) 를 lowercase ImportRestoreMode 로 변환해
+  // describeImportMode helper 에 넘기고, 각 mode 의 ImportModeDescription 을 그대로
+  // 반환한다 (2 원소: REPLACE→destructive=true / MERGE→destructive=false). client 입력
+  // 분기 0 — 항상 알려진 2 종 lowercase mode 만 helper 에 forward (임의 입력 forward 0).
+  // persistence / DB write 0, raw 본문 미접근 (REQ-032 유지). `:id` 동적 segment 보다
+  // 먼저 선언해 "modes" 가 :id 로 포착되지 않도록 함 (NestJS path matching 순서).
+  //
+  // RBAC — Admin+ tier (create 동일).
+  @Get("modes")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  describeModes(): ImportModeDescription[] {
+    // 알려진 2 종 mode 만 enum→lowercase 변환 후 helper 호출 (임의 입력 helper 전달 0).
+    return [ImportMode.REPLACE, ImportMode.MERGE].map((mode) =>
+      describeImportMode(IMPORT_MODE_ENUM_TO_PAYLOAD[mode]),
+    );
   }
 
   // GET /api/admin/import/:id — 단건 status polling 조회 (UC-07 §8). :id 는 path
