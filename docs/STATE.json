@@ -15,7 +15,7 @@
     "since": "2026-06-18T19:05:28Z",
     "note": "cron@cloud-c512 (Anthropic 클라우드 fresh git checkout, schedule cron fire 매시 15분, gh 2.88.1 인증됨) — T-0512 execute. 로컬 205a9a9(stale)→fetch→reset --hard origin/main a764be8(T-0511 merge 본 상태), server-time 19:05:28Z(GitHub api Date 헤더). lock free(9b3e8a1 tombstone holder=null)·claims=[] 확인. 미해결 HQ 0(Q-0042 RESOLVED 게이트1 승인). fineGrainedConcurrency=true stage5b: reclaim(no stale)→select-claim.sh 로 T-0512 atomic claim(claims.json append + lock tombstone 동일 commit, lock-free 진행, pr-mode + 활성 claim 0 단독 claim 동등). executor sub-agent 가 implementer+tester 실행: src/export/export-dump-refetch-slice.ts 신설(+208 LOC, selectRefetchMaterializedDumpChunks=reconcileExportChunkIntegrity.failedChunks(비연속 손상 chunk index)→byIndex Map 으로 materialized subset 선택, reconcile 재산정 0·Buffer.from alias 0·single-source drift 거부·non-mutating·한국어 TypeError/RangeError 입력 방어 7 분기, 새 타입·dep 0) + spec(happy/error a~f/branch/negative a~n 충분 cover). lint·build·test:cov 통과(전체 224 suites/5217 pass, 신규 파일 stmt/func/line 100% branch 95.23%). PR #425 open via gh pr create → integrator: reviewer 직접 dispatch round1 APPROVE NIT1 비차단 + comment(gate2) → CI green → 4-게이트 PASS → gh pr merge --squash --delete-branch → f44892a on main(branch delete OK). 머지 commit f44892a main CI 는 in_progress(다음 fire 가 conclusion 확인). bookkeeping: tasksCompleted 503→504, mostRecentTasks prepend T-0512, reviewRounds[T-0512]=1, nextTask=T-0512→null. planner Outcome B(dependency-free 순수 helper backlog 소진) → Q-0043 OPEN. claim 회수 commit(claims.json T-0512 제거) 후 lock tombstone 유지. 단일 active driver, race 0. (구 c511 note: T-0511 execute → 8601ad9 merge.)"
   },
-  "lastActivity": "2026-06-18T19:05:28Z",
+  "lastActivity": "2026-06-18T19:37:22Z",
   "lastCommit": "f44892a",
   "mostRecentTasks": [
     "T-0512",
@@ -32,11 +32,11 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-18T19:05:28Z",
-    "status": "running",
+    "lastRun": "2026-06-18T19:37:22Z",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0512 PR #425 round1: CI green → 4-게이트 PASS → squash merge f44892a. 머지 commit f44892a 의 main CI(headSha f44892a) 는 pending/in_progress — 다음 fire [1] 에서 conclusion 재확인. 직전 완료 run(611125c4) success."
+    "note": "cron@cloud-c513 가 직전 fire 가 in_progress 로 남긴 f44892a(T-0512 merge) main CI conclusion 을 재확인 → success(run 19:17:14Z). 후속 bookkeeping commit f6fbb4d main CI 도 success(run 19:25:40Z). 미해결 HQ(Q-0043) 존재로 신규 task 없음 — CI 상태만 green 으로 동기."
   },
   "reviewRounds": {
     "T-0512": 1,
