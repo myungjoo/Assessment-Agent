@@ -2,12 +2,16 @@
 id: T-0508
 title: ADR-0046 Decision §3 descriptor single-source — descriptor.byteSizeHint 와 실 직렬화 byte / plan.totalBytes 의 drift 를 검증하는 순수 함수 verifyExportDumpDescriptorDrift 신설
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 225
 estimatedFiles: 2
 created: 2026-06-19
+completedAt: 2026-06-18T17:18:00Z
+mergedAs: 67181db0301cf4aaca45ec53f33e657989fb02da
+prNumber: 421
+reviewRounds: 1
 independentStream: uc07-export-import-helpers
 dependsOn: []
 touchesFiles:
