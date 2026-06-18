@@ -15,7 +15,7 @@
 
 ## 2. Entity 목록
 
-본 시스템은 다음 **11 entity (+ 1 conceptual mention)** 로 분해된다. 각 entity 의 책임은 1~2 줄로 한정하며, 구체 컬럼 / type / index 는 P3 의 범위.
+본 시스템은 다음 **13 entity (+ 1 conceptual mention)** 로 분해된다. 각 entity 의 책임은 1~2 줄로 한정하며, 구체 컬럼 / type / index 는 P3 의 범위.
 
 | entity | 책임 | source UC | 관련 REQ | 책임 module ([modules.md](modules.md)) |
 | --- | --- | --- | --- | --- |
@@ -31,9 +31,11 @@
 | **LlmProviderConfig** | 5 provider (custom / Azure OpenAI / Anthropic / Google Gemini / OpenAI) 별 설정 1 row — endpoint URL / API key (encrypted at rest, 별도 ADR) / model 식별자. **다중 row 모델** (각 provider 별 1+ row, custom 은 3 model 슬롯 모두 차지 가능 — REQ-051). | [UC-05](../use-cases/UC-05-llm-config.md) | REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055 | LlmModule |
 | **DifficultyMapping** | 3 난이도 (easy / medium / hard) ↔ LlmProviderConfig.modelId 매핑. **3 row 고정** (난이도 슬롯 3 개) 또는 sub-relation. | UC-05 | REQ-049, REQ-050 | LlmModule |
 | **PermissionDeniedRecord** | 외부 4xx (GitHub / Confluence) 를 GithubAdapter / ConfluenceAdapter 가 catch → System emit event 의 영속화. ServiceIdentity 또는 Person 에 N:1. user / admin audience 분리. | [UC-08](../use-cases/UC-08-permission-denied.md) | REQ-008, REQ-016 | AssessmentModule |
+| **ExportJob** | Export operation (DB → file artifact dump) 의 비동기 진행 추적·감사 record. `status` (PENDING/RUNNING/SUCCEEDED/FAILED) / `scope` (full/range/partial) / `requestedBy` (User 참조) / `artifactRef` (raw 미포함 pointer) / `error`. read-only operation 이라 DB 무변화. ([ADR-0044](../decisions/ADR-0044-export-import-job-persistence.md)) | [UC-07](../use-cases/UC-07-export-import.md) | REQ-030, REQ-032, REQ-045 | AssessmentModule |
+| **ImportJob** | Import / Restore operation (file artifact → DB 복원) 의 비동기 진행 추적·재시도·감사 record. `mode` (replace/merge) / `status` / `requestedBy` / `artifactRef` / `restoredRowCount` / `error`. 기존 row 삭제 + snapshot 재구성이 단일 `$transaction` all-or-nothing (ADR-0033 동형). ([ADR-0044](../decisions/ADR-0044-export-import-job-persistence.md)) | [UC-07](../use-cases/UC-07-export-import.md) | REQ-030, REQ-032, REQ-045 | AssessmentModule |
 | *(conceptual mention)* **AuditLog** | User mutation event (등급 변경 / 평가 삭제 / Import-Export 등) 의 감사 로그. **본 task scope 외** — conceptual mention 만, 구체 schema 는 별도 보안 ADR 책임. | (전 UC cross-cutting) | (cross-cutting) | AuthModule (또는 별도) |
 
-**합계**: 11 entity (+ 1 conceptual mention) / 4 module (UserModule / AuthModule / AssessmentModule / LlmModule) / 8 UC cover. 본 합계는 [T-0039](../tasks/T-0039-group-part-entity-and-repository.md) (mergeCommit c25a5de) 가 PersonGroupMembership join entity 를 schema-level 박제한 결과 10 → 11 로 1 자리 shift. 향후 entity 추가는 본 표 갱신 PR 의 reviewer 점검 대상.
+**합계**: 13 entity (+ 1 conceptual mention) / 4 module (UserModule / AuthModule / AssessmentModule / LlmModule) / 8 UC cover. 본 합계는 [T-0039](../tasks/T-0039-group-part-entity-and-repository.md) (mergeCommit c25a5de) 가 PersonGroupMembership join entity 를 schema-level 박제한 결과 10 → 11 로, 그리고 [ADR-0044](../decisions/ADR-0044-export-import-job-persistence.md) (T-0484, Q-0040 옵션1 승인) 가 ExportJob/ImportJob 영속 entity 를 박제한 결과 11 → 13 으로 shift. ExportJob/ImportJob 의 구체 Prisma schema 코드·migration 은 후속 task (§7 / ADR-0044 §Out of scope). 향후 entity 추가는 본 표 갱신 PR 의 reviewer 점검 대상.
 
 **module 명 정합성**: 본 문서의 "책임 module" 컬럼은 [modules.md](modules.md) 의 8 NestJS module 명만 사용 — 신규 module 신설 0. PermissionDeniedRecord 의 책임 module 은 AssessmentModule (event 수신·DB 저장 — [components.md](components.md) "AssessmentModule 이 event 를 받아 DB 에 권한 부족 기록을 남기고").
 
@@ -52,6 +54,8 @@ erDiagram
     LlmProviderConfig ||--o{ DifficultyMapping : "1:N (3 난이도 슬롯 → provider/model)"
     ServiceIdentity ||--o{ PermissionDeniedRecord : "1:N (외부 4xx event)"
     Person ||--o{ PermissionDeniedRecord : "1:N (audience 분기)"
+    User ||--o{ ExportJob : "1:N (requestedBy — Admin dump 발화)"
+    User ||--o{ ImportJob : "1:N (requestedBy — Admin restore 발화)"
 ```
 
 **관계 박제 요지**:
@@ -73,6 +77,7 @@ erDiagram
 8. **LlmProviderConfig ↔ DifficultyMapping (1:N)** — 3 난이도 슬롯 (easy / medium / hard) 이 각각 어느 provider 의 어느 model 을 사용할지 매핑. DifficultyMapping row 3 개 고정.
 9. **ServiceIdentity ↔ PermissionDeniedRecord (1:N)** — 외부 4xx 가 발생한 ServiceIdentity 단위 (예: 특정 GitHub instance + 특정 user ID 의 권한 부족). audience 분기 (UC-08 user / admin) 는 record 의 `audience` 필드로.
 10. **Person ↔ PermissionDeniedRecord (1:N)** — ServiceIdentity 의 owner Person 으로 reverse traversal. user audience GET `/api/me/permission-denied` 가 본 관계를 사용 (REQ-008).
+11. **User ↔ ExportJob (1:N)** / **User ↔ ImportJob (1:N)** — [UC-07](../use-cases/UC-07-export-import.md) 의 dump / restore 를 발화한 Admin User 가 `requestedBy` FK 로 참조됨 ([ADR-0044](../decisions/ADR-0044-export-import-job-persistence.md) Decision §1, REQ-045). ExportJob 은 read-only operation 의 진행 추적·감사, ImportJob 은 destructive restore 의 진행 추적·재시도·감사 record. 두 job 의 raw 미저장 (§4) + Import atomic transaction (`$transaction` all-or-nothing, ADR-0033 동형) invariant 는 ADR-0044 Decision §2·§3 박제. job 진행 추적 (ExportJob/ImportJob) 과 감사 event-stream (AuditLog conceptual mention) 의 책임 경계는 ADR-0044 Decision §5 (중복 신설 회피). 구체 Prisma schema·migration 은 후속 task (§7 / ADR-0044 §Out of scope).
 
 **cardinality 정확도** (1:1 / 1:N / N:M / optional) 의 P3 schema 단계 검증은 별도 — 본 문서는 MVA 수준 conceptual 만 박제.
 
@@ -163,6 +168,7 @@ erDiagram
 - **gap REQ-004** (사용자 지정 기간 임의 평가문) — [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) gap. UC-09 신설 또는 UC-01 확장 후 본 § 2 표에 row 추가 예정.
 - **ER cardinality 의 P3 schema-level 검증** — 본 문서는 MVA conceptual 만, schema-level 정확도는 P3 review 단계.
 - **Cron schedule 영속화 entity** — shipped SchedulingModule(`src/scheduling/`)의 동적 cron schedule 은 [ADR-0042](../decisions/ADR-0042-nestjs-schedule-adoption.md) §Consequences 결정에 따라 단일 process in-memory `SchedulerRegistry` 로만 보유(process 재시작 시 휘발)하며 별도 DB entity 를 신설하지 않는다. 따라서 § 2 entity 목록에 CronSchedule 류 entity 가 의도적으로 없다(REQ-072 / R-72 Admin 런타임 cron 주기 지정의 데이터 측면 = 비영속). 등록 cron 의 DB 영속화(부팅 시 재등록) 및 multi-instance 중복 발화 방지는 후속 task / 별도 ADR(§ 5 schema 게이트) 책임.
+- **ExportJob / ImportJob 의 구체 Prisma schema 코드 / migration / artifact 저장소** — [ADR-0044](../decisions/ADR-0044-export-import-job-persistence.md) (T-0484, Q-0040 옵션1 승인) 가 § 2 의 ExportJob/ImportJob entity 책임·필드·invariant·module 경계를 conceptual 박제했으나, `prisma/schema.prisma` 의 `model ExportJob`/`model ImportJob` 코드 + migration SQL + AssessmentModule controller/service 구현 + 누적 45 helper(T-0437~T-0483) 배선 + **artifact 저장소 mechanism**(로컬 파일시스템 vs S3-호환 object storage — 새 외부 dependency 가능성 시 별도 § 5 게이트) + job row retention/cleanup 정책 + merge mode conflict resolution 알고리즘은 모두 본 문서 범위 밖 — 후속 task chain(ADR-0044 §Out of scope / §Follow-ups). 본 문서는 entity / 관계 / invariant 의 source 만 제공.
 
 ## 8. References
 
