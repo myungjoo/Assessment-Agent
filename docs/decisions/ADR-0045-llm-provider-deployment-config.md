@@ -14,7 +14,7 @@ relatedReq: [REQ-096, REQ-097]
 
 > 본 ADR 은 **ACCEPTED** (2026-06-18, repo owner 가 아래 §ACCEPTED 전제조건 3개를 /loop 세션에서 모두 수락 — 결정 record 는 그 절 말미 참조). 새 메커니즘·새 코드·새 dependency 를 도입하지 **않으며**, 이미 main 에 박제된 provider-중립 설계 (`LlmProviderConfig` DB row + `LlmHttpGateway` 어댑터 + `llm-live-test-gating.ts` 의 custom↔azure 분기) 위에 **"LLM provider = 배포-환경 설정(deployment-environment configuration)" 이라는 명시적 원칙을 결정으로 확정**한다. 본 ADR 은 [ADR-0015](ADR-0015-llm-live-integration-test-contract.md)(custom live 계약)·[ADR-0025](ADR-0025-azure-openai-live-test-contract.md)(azure live 계약)·[ADR-0037 §Decision5](ADR-0037-period-collection-evaluate-bridge.md)(live 검증 deferred) 를 **폐기하지 않고 보강(augment)** 한다 — 그 위에 환경-중립 layer 를 올린다.
 
-## ACCEPTED 전제조건 / 검토 포인트 (PROPOSED 사유)
+## ACCEPTED 전제조건 / 검토 포인트 (수락 완료 — record 는 절 말미)
 
 본 ADR 이 ACCEPTED 로 flip 되기 전 사용자가 확인할 점:
 
