@@ -2,8 +2,12 @@
 id: T-0486
 title: ExportJobService — ExportJob 생성·status 전이·polling 조회 persistence service 배선
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 1ae19cb
+prNumber: 398
+reviewRounds: 1
+completedAt: 2026-06-18T03:25:33Z
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 230
 estimatedFiles: 3

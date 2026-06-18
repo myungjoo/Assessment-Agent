@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0486",
-  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). chain step1 DONE: T-0484(ADR-0044 ACCEPTED, 1ffad9d). chain step2 DONE: T-0485(prisma schema ExportJob/ImportJob + migration + spec, PR #396 round1 APPROVE round2 NIT closure, squash b8b8faa). 이후 step: AssessmentModule export/import controller/service 배선 → 누적 45 helper(T-0437~T-0483) 실 호출 배선(여러 task 분할) — 다음 fire 가 planner dispatch. 새 외부 dependency·credential 추가는 Q-0040 승인 범위 밖(별도 §5/§9 게이트 — artifact 저장소 object-storage 등). 잔여 게이트(미해소): live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend(backend 계약 ship 후), timezone Q-0026(ADR-first human), ADR-0036 stage5c full-parallel(30일 dogfood). open PR 0·BLOCKED 1(Q-0041 credential — GitHub Actions 계정 결제 차단, run 27731151977 두 job 미시작)·blockers 1(B-credential-ci-billing-2026-06-18T01:42Z). pr-mode merge 는 결제 해소 전까지 4-게이트 CI green 미충족으로 전부 보류(T-0486 포함) — direct doc/planner 만 진행 가능.",
+  "nextTask": "T-0487",
+  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-3 DONE: T-0484(ADR-0044 ACCEPTED), T-0485(prisma schema ExportJob/ImportJob+migration, b8b8faa), T-0486(ExportJobService — createJob/mark*/findJob/findRunning, PR #398 round1 APPROVE, squash 1ae19cb). step4 큐잉: T-0487(ImportJobService — ExportJobService 대칭, pr-mode, dependsOn [T-0485]) — 다음 fire 가 claim+execute. 이후 step: export/import controller·DTO·module 등록·45 helper(T-0437~T-0483) 실 호출 배선(여러 task 분할). 실 atomic-transaction restore·artifact object-storage 는 새 외부 dependency/credential 라 Q-0040 승인 범위 밖(별도 §5/§9 게이트). 잔여 게이트(미해소): live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend(backend 계약 ship 후), timezone Q-0026(ADR-first human), ADR-0036 stage5c full-parallel(30일 dogfood). open PR 0·BLOCKED 0·blockers 0 — Q-0041 CI billing RESOLVED(2026-06-18, de3c4c9). pr-mode 4-게이트 CI green 재가동, T-0486 정상 merge 로 실증.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aas1f",
-    "since": "2026-06-18T01:37:23Z",
-    "note": "cron@cloud-aas1f (schedule cron fire) — origin/main 동기(790ae9f, 직전 fire 가 T-0485 squash merge b8b8faa 완료)→권위 lock CAS 획득(374b9f0→a624480, claims [] 보존). currentTask·nextTask 둘 다 null 이라 planner dispatch (LOOP §1[2] 둘다-없음 분기). planner 가 T-0486(ExportJobService — ExportJob 생성·status 전이·polling 조회, pr-mode, dependsOn [T-0485]) 큐잉 + STATE.nextTask=T-0486. doc-only direct commit 후 lock tombstone release. 다음 fire 가 T-0486 claim+execute. T-0486 은 P7 export/import 실배선 chain step3."
+    "session": "cron@local15-7c0b",
+    "since": "2026-06-18T03:25:33Z",
+    "note": "cron@local15-7c0b (schedule cron fire, 매시15분) — origin/main 1ae19cb 동기. lock CAS 획득(72077c9)→reclaim(none)→select+claim T-0486(17f88b8, claims=[T-0486])→lock-free execute. executor: ExportJobService 신설+spec 21 tests(line 97% func 100%). pr-mode push→integrator: PR #398 round1 APPROVE+CI green(run 27734472878)→4-게이트 PASS→squash merge 1ae19cb. bookkeeping 위해 lock reacquire(ff0b9a7). planner T-0487(ImportJobService 대칭) 큐잉. doc commit 후 claim 해제+lock tombstone release."
   },
-  "lastActivity": "2026-06-18T01:52:00Z",
-  "lastCommit": "b8b8faa",
+  "lastActivity": "2026-06-18T03:25:33Z",
+  "lastCommit": "1ae19cb",
   "mostRecentTasks": [
+    "T-0486",
     "T-0485",
     "T-0484",
     "T-0483",
-    "T-0482",
-    "T-0481"
+    "T-0482"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -233,7 +233,8 @@
     "T-0452": 1,
     "T-0453": 1,
     "T-0457": 1,
-    "T-0458": 1
+    "T-0458": 1,
+    "T-0486": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -868,7 +869,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 477,
+    "tasksCompleted": 478,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
