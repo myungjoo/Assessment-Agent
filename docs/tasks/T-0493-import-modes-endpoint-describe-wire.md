@@ -2,7 +2,10 @@
 id: T-0493
 title: ImportController 에 GET /api/admin/import/modes 신설 + describeImportMode(T-0465) 실호출 배선 — 45 helper 배선 chain step3
 phase: P7
-status: PENDING
+status: DONE
+prNumber: 404
+mergedAs: deb1abe
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 180
