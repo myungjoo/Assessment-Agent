@@ -81,10 +81,10 @@ done
 [ "$ready" = 1 ] || { echo "[seed-llm] ERROR: app 컨테이너가 준비되지 않음" >&2; exit 1; }
 
 # 3) apiKey 암호화 — app 컨테이너 안에서 compiled cipher 직접 호출(컨테이너 env 의
-#    LLM_APIKEY_ENC_KEY 사용). 평문은 인자로만 전달하고 출력은 ciphertext envelope 뿐.
-CIPHERTEXT="$(docker compose exec -T app node -e \
-  'const {LlmApiKeyCipher}=require("/app/dist/src/llm/llm-apikey-cipher.service");process.stdout.write(new LlmApiKeyCipher().encrypt(process.argv[1]))' \
-  "$APIKEY_PLAIN")"
+#    LLM_APIKEY_ENC_KEY 사용). 평문은 **stdin 으로** 전달한다(argv 로 넘기면 컨테이너
+#    `ps` 에 잠깐 노출되므로 회피). 출력은 ciphertext envelope 뿐.
+CIPHERTEXT="$(printf '%s' "$APIKEY_PLAIN" | docker compose exec -T app node -e \
+  'let d="";process.stdin.on("data",c=>{d+=c}).on("end",()=>{const {LlmApiKeyCipher}=require("/app/dist/src/llm/llm-apikey-cipher.service");process.stdout.write(new LlmApiKeyCipher().encrypt(d))})')"
 if [ -z "$CIPHERTEXT" ]; then
   echo "[seed-llm] ERROR: apiKey 암호화 결과가 비어있음(LLM_APIKEY_ENC_KEY 확인)" >&2
   exit 1
