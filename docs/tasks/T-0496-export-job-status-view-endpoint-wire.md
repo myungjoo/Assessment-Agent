@@ -2,7 +2,11 @@
 id: T-0496
 title: describeExportJobStatus helper 를 신설 GET /api/admin/export/:id/status-view 에 실호출 배선 — 45 helper 배선 chain step6
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-18T10:04:47Z
+mergedAs: 023075f
+prNumber: 407
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 130
