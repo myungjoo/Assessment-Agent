@@ -11,12 +11,12 @@
   "backlogNote": "✅ **Q-0042 게이트1(실 chunked-streaming/build service-layer chain) 진행 중**. ADR-0046(b718bb8) Decision §1 맞물림 4 종 중 (i)·(ii)·(iii) 닫힘: resume materialization helper T-0511 완료 — `selectRemainingMaterializedDumpChunks(materializedChunks, resumePlan): MaterializedExportDumpChunk[]` 순수 helper (8601ad9, PR #424 round1 APPROVE, CI green, 신규 파일 100% cov). MaterializedExportDumpChunk[] 를 ExportChunkResumePlan.remainingChunks 경계로 필터해 연속 forward resume subset 반환 — resume plan 재산정 0(single-source) + Buffer.from alias 0 + single-source drift RangeError + non-mutating. nextTask=T-0512(selectRefetchMaterializedDumpChunks — ADR-0046 §Decision 1 맞물림 (iv) refetch materialization: reconcileExportChunkIntegrity.failedChunks(비연속 손상 chunk)로 필터해 재요청 subset 반환하는 순수 helper, (iii) resume 와 직교, pr, dep0 — 4 맞물림 중 마지막 미박제). 누적 chain: T-0501(deliveryPlan)·T-0502·T-0503(chunkPlan)·T-0504·T-0505(ADR-0046)·T-0506(materializeExportDump)·T-0507(sliceByChunkPlan)·T-0508(verifyDescriptorDrift)·T-0509(chunkedReadable)·T-0510(downloadHeaders)·T-0511(resumeSlice). (iv) refetch(T-0512) 후 맞물림 4 종 완성 → controller/repository/stream pipe 배선(§5 게이트). 기타 standing 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=503.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-c511",
-    "since": "2026-06-18T18:38:06Z",
-    "note": "cron@cloud-c511 (Anthropic 클라우드 fresh git checkout, schedule cron fire, gh 2.88.1 인증됨) — T-0511 execute. 로컬 b4a9e53(stale)→fetch→reset --hard origin/main 205a9a9(T-0510 merge 본 상태), server-time 18:38:06Z(GitHub api Date 헤더). lock free(9c48c53 tombstone holder=null)·claims=[] 확인. 미해결 HQ 0(Q-0042 RESOLVED 게이트1 승인). fineGrainedConcurrency=true stage5b: reclaim(no stale)→select-claim.sh 로 T-0511 atomic claim(claims.json append + lock tombstone 동일 commit 357644f, lock-free 진행, pr-mode + 활성 claim 0 단독 claim 동등). executor sub-agent 가 implementer+tester 실행: src/export/export-dump-resume-slice.ts 신설(+189 LOC, selectRemainingMaterializedDumpChunks=MaterializedExportDumpChunk[] 를 ExportChunkResumePlan.remainingChunks 경계로 필터해 연속 forward resume subset 반환, resume plan 재산정 0·Buffer.from alias 0·single-source drift RangeError·non-mutating·한국어 TypeError/RangeError 입력 방어 7 분기, 새 타입·dep 0) + spec(happy/error 9/branch 6/negative 충분 cover). lint·build·test:cov 통과(전체 5195 pass, 신규 파일 stmt/func/line 100% branch 95.23%). PR #424 open via gh pr create → integrator: reviewer 직접 dispatch round1 APPROVE + comment(gate2) → CI green → 4-게이트 PASS → gh pr merge --squash --delete-branch → 8601ad9 on main(branch delete OK). 머지 commit 8601ad9 main CI 는 in_progress(다음 fire 가 conclusion 확인). bookkeeping: tasksCompleted 502→503, mostRecentTasks prepend T-0511, reviewRounds[T-0511]=1, nextTask=T-0511→T-0512(planner queue selectRefetchMaterializedDumpChunks). claim 회수 commit(claims.json 비움 9b3e8a1) 후 lock tombstone 유지. 단일 active driver, race 0."
+    "session": "cron@cloud-cgarii",
+    "since": "2026-06-18T19:05:21Z",
+    "note": "cron@cloud-cgarii (Anthropic 클라우드 schedule cron fire, gh CLI 부재·MCP github 인증됨, wrapper-restricted to claude/focused-goodall-cgarii feature branch) — stand-down fire (no task execute). 진입 워킹트리: branch=claude/focused-goodall-cgarii, HEAD=a764be8(=origin/main, ff). server-time 19:05:21Z. lock 권위 ref(claude/lock-driver) tip=9b3e8a1 holder=null tombstone free·claims=[]. 직전 fire(cron@cloud-c511) 가 머지한 8601ad9(T-0511 PR #424 squash) 의 main CI 와 a764be8(T-0511 bookkeeping) main CI 둘 다 conclusion=success 로 mcp__github__actions_list 확인(run 27781991166 8601ad9 success, run 27782388131 a764be8 success). 이번 fire 는 wrapper-mandated 단일-branch push 제약(claude/focused-goodall-cgarii 외 push 금지) 으로 권위 lock CAS push(claude/lock-driver) 불가 → ADR-0034/LOOP.md §4 'Lock 미획득 = stand-down' 발동. T-0512(pr-mode 새 helper) 또한 claude/T-0512-* feature branch push 가 필요해 본 wrapper 에서 진행 불가. 본 commit 은 wrapper-branch 위 informational bookkeeping 만(CI green confirm + ci.status running→green 보정 + 본 fire 의 stand-down 박제) — 다음 unrestricted fire 가 T-0512 진행. 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-18T18:50:15Z",
-  "lastCommit": "8601ad9",
+  "lastActivity": "2026-06-18T19:05:21Z",
+  "lastCommit": "a764be8",
   "mostRecentTasks": [
     "T-0511",
     "T-0510",
@@ -32,11 +32,11 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-18T18:49:34Z",
-    "status": "running",
+    "lastRun": "2026-06-18T18:56:44Z",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0511 PR #424 round1: CI green → 4-게이트 PASS → squash merge 8601ad9. 머지 commit 8601ad9 의 main CI(run headSha 8601ad9, 18:49:34Z) 는 in_progress — 다음 fire [1] 에서 conclusion 재확인. 직전 완료 run(205a9a9 T-0510 bookkeeping) success."
+    "note": "T-0511 chain CI 전부 green 확정 — cron@cloud-cgarii fire 가 mcp__github__actions_list 로 main 의 latest 2 run conclusion 확인: (i) run 27781991166 head=8601ad9(T-0511 PR #424 squash) status=completed conclusion=success 18:49:34Z, (ii) run 27782388131 head=a764be8(T-0511 bookkeeping) status=completed conclusion=success 18:56:44Z. 직전 STATE.ci.status='running' (8601ad9 in_progress 표기) 의 stale 잔재 보정. 다음 fire 의 [1] 단계가 재확인 불요."
   },
   "reviewRounds": {
     "T-0511": 1,
