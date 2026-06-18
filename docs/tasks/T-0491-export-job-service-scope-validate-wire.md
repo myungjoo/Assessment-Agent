@@ -6,14 +6,16 @@ status: IN_PROGRESS
 commitMode: pr
 prNumber: 402
 coversReq: [REQ-030, REQ-032, REQ-045]
-estimatedDiff: 210
-estimatedFiles: 2
+estimatedDiff: 280
+estimatedFiles: 4
 created: 2026-06-18
 independentStream: export-import-wiring
 dependsOn: [T-0486, T-0488]
 touchesFiles:
   - src/export/export-job.service.ts
   - src/export/export-job.service.spec.ts
+  - src/export/dto/create-export.dto.ts
+  - src/export/export.controller.spec.ts
 plannerNote: "P7 helper-배선 chain step1 — validateExportScope(T-0444 순수 helper, 어디서도 미호출) 를 ExportJobService.createJob 에 실호출 배선. coarse assertScopeInvariant 를 field-level 검증으로 강화. 새 dep/schema/auth 0."
 ---
 
@@ -30,6 +32,7 @@ P7 export/import 실 배선 chain 의 controller slice (step3~6: [T-0486](T-0486
 ## Required Reading
 
 - `src/export/export-job.service.ts` 전체 — 배선 대상. `createJob` 의 현행 `assertScopeInvariant` 분기(requestedById 필수 / FULL+한정값 모순 / RANGE-dateRange 누락 / PARTIAL-entitySelector 누락)와 `CreateExportJobInput` shape(`scope: ExportScope` Prisma enum / `dateRange?: unknown` / `entitySelector?: unknown`).
+- `src/export/dto/create-export.dto.ts` 전체 — round1 BLOCKER 의 fix 대상. 현행 `entitySelector` 는 `@IsObject()` 인데 class-validator 의 `isObject` 는 **배열을 거부**한다(`Array.isArray` true → object 판정 false). 본 task 의 round2 fix 가 `entitySelector` 를 array-aware(`@IsArray()` + `@IsOptional()` — per-element 검증은 helper 위임) 로 바꾼다. dateRange 는 `@IsObject` 그대로 유지(JSON object {start,end} 형태). MINOR finding(`assertScopeInvariant` 주석 참조)도 동시에 `validateExportScope` 로 갱신.
 - `src/export/export-scope-validate.ts` 전체 — 호출할 순수 helper. `validateExportScope(input: unknown): ExportScopeValidation` 가 받는 **payload shape** 은 `{ scope: "full"|"range"|"partial", dateRange?: { start: Date, end: Date }, entitySelector?: ExportEntity[] }` 다 (lowercase scope·Date instance·string[] entity). 반환 `{ valid, errors: ExportScopeError[], normalized? }`.
 - `src/export/export-scope-select.ts` L34-60 — helper 의 `ExportScope` 타입(lowercase scope)·`ExportEntity` union·`VALID_EXPORT_SCOPES`/`VALID_EXPORT_ENTITIES` 상수. Prisma enum 과 helper 타입의 **대소문자·형태 차이**(매핑 필요)를 정확히 파악.
 - `src/export/export.controller.ts` L88-101 — `createJob` 에 들어오는 `dto.dateRange`/`dto.entitySelector` 가 `Record<string, unknown>` (JSON body) 이라는 점. JSON 역직렬화는 Date 를 ISO string 으로 보내므로, helper 가 요구하는 Date instance 와의 간극을 service 배선에서 어떻게 다룰지 결정(아래 AC 참조).
@@ -48,14 +51,17 @@ P7 export/import 실 배선 chain 의 controller slice (step3~6: [T-0486](T-0486
 - [ ] **Flow / branch cover**: scope 매핑 분기(FULL/RANGE/PARTIAL 각 1+) + dateRange coerce 분기(string 입력 coerce / 이미 Date 입력 / dateRange 부재) 각 1+ test. helper valid/invalid 두 분기 각 1+.
 - [ ] **Negative cases 충분 cover** — (1) requestedById 누락(BadRequestException, helper 무관 분기), (2) RANGE-dateRange 누락(helper field "dateRange" error), (3) PARTIAL-entitySelector 누락(helper field "entitySelector" error), (4) FULL+dateRange 동봉(helper 가 normalized 에서 제거하므로 **valid** — 이 경우 create 정상 통과함을 단언해 helper 의 normalize 의미를 회귀로 박제), (5) 여러 field 위반 동시 발생 시 결합 message 에 모든 field 포함, 각 1+ test.
 - [ ] colocated spec `src/export/export-job.service.spec.ts` 갱신 — 기존 test 는 보존(record/markRunning/findJob 등 회귀), 신규 검증 배선 test 추가. `exportJob` delegate 는 `test/helpers/prisma-mock.ts` mock 재사용.
+- [ ] **[round2 BLOCKER fix]** `src/export/dto/create-export.dto.ts` 의 `entitySelector` 검증을 array-aware 로 교체 — `@IsObject()` → `@IsArray()` + `@IsOptional()` (per-element entity 멤버십 검증은 `validateExportScope` 헬퍼가 책임, DTO 는 형식만). `@IsArray` import 추가, 사용하지 않게 된 `@IsObject` 는 `dateRange` 가 여전히 쓰므로 import 유지. dateRange 의 `@IsObject` 는 변경 0(JSON object {start,end} 형태 그대로).
+- [ ] **[round2 MINOR fix]** `src/export/dto/create-export.dto.ts` 의 주석 중 `assertScopeInvariant` 를 참조하는 문구(L15 / L21 부근 "scope 별 한정값 분기 (ExportJobService.assertScopeInvariant ...)" 등) 를 `validateExportScope` 로 교체. 본 task 의 service-layer 배선이 검증 책임 helper 위임으로 옮긴 사실과 doc 정합.
+- [ ] **[round2 MAJOR fix]** controller→service integration test 추가(`src/export/export.controller.spec.ts` 확장 — 신규 파일 생성 대신 기존 spec 확장 권장. 없으면 신설). NestJS Test module 로 ValidationPipe + ExportController + ExportJobService(mock) 를 wire 해 다음 2 분기 cover: (a) **happy-path**: `entitySelector: ["Person", "Group"]` 배열을 담은 POST body 가 ValidationPipe 를 **통과**(`@IsArray` 정합)하고 service.createJob 이 호출되어 정상 응답을 반환 — round1 의 PARTIAL 경로 회귀 차단. (b) **negative-path**: `entitySelector: 42`(숫자) 같은 명백히 잘못된 shape 이 ValidationPipe 의 `@IsArray` 단계에서 400 으로 거부 — DTO 형식 boundary 가 동작함을 단언. helper 의 per-element 검증은 본 e2e 의 책임 아님(service-layer spec 가 이미 cover).
 - [ ] `pnpm lint && pnpm build && pnpm test` green.
 - [ ] `pnpm test:cov` 통과 (변경 파일 line ≥ 80% / function ≥ 80%).
 
 ## Out of Scope
 
 - **다른 44 helper 의 실호출 배선** — T-0437(selectExportRecords)·T-0438(buildExportDump)·T-0442(buildImportRestorePlan) 등은 후속 chain task. 본 task 는 `validateExportScope`(T-0444) 1 종만.
-- **controller-layer 검증 이동** — 본 task 는 service-layer 배선만. ExportController 의 ValidationPipe(형식 검증)와 service 의 scope 검증은 layer 분리 유지. controller 파일 변경 0.
-- **CreateExportDto 의 dateRange/entitySelector 구체 shape 검증** — DTO 는 `@IsObject` 형식만(T-0488 그대로). 구체 shape 검증 책임은 본 service 배선이 helper 위임으로 채움 — DTO 변경 0.
+- **controller-layer 검증 로직 이동** — 본 task 는 service-layer 배선이 본체. ExportController 의 production code(검증 분기 추가 / Pipe 신설 등) 변경 0 — layer 분리 유지. 단 **round2 amend 로 controller→service integration test 추가는 in-scope** (test 파일만, production controller 코드 변경 0).
+- **CreateExportDto 의 dateRange 구체 shape 검증** — dateRange 는 `@IsObject` 형식만(T-0488 그대로). 구체 shape(start/end 유효 Date·start<end 등) 검증 책임은 본 service 배선이 helper 위임으로 채움. dateRange 의 DTO decorator 변경 0. (entitySelector 의 array-aware DTO 검증은 round1 BLOCKER 해소를 위해 **in-scope** — 위 AC 참조.)
 - **실 dump 직렬화 / artifact 저장소 / streaming 응답** — ADR-0044 §Out of Scope, 새 dependency 가능성 → 별도 §5 게이트.
 - **prisma/schema.prisma 변경 0** (이미 T-0485 merge). enum ExportScope 정의 불변 — 본 task 는 enum↔helper lowercase 매핑만 코드로 추가.
 - **ImportJobService 의 대칭 helper 배선** — 후속 task(예: validateImportDumpStructure 배선). 본 task 는 Export 측만.
@@ -67,8 +73,5 @@ implementer → tester
 
 ## Follow-ups
 
-- **PR #402 round1 REQUEST_CHANGES (reviewer, 2026-06-18) — 다음 turn resume 필요.** executor 의 service-layer 배선(`export-job.service.ts` + spec)은 CI green·cov 97%/100%/95% 로 정상이나, reviewer 가 **DTO↔helper 계약 모순**을 BLOCKER 로 catch:
-  - **BLOCKER**: `src/export/dto/create-export.dto.ts` 의 `entitySelector` 가 `@IsObject`(class-validator 의 `isObject` 는 배열을 **거부**) 인데, `validateExportScope`(`src/export/export-scope-validate.ts`) 는 `Array.isArray(entitySelector)` 를 요구 → 두 계약이 상호배제라 **PARTIAL export 가 실 HTTP 경로로 도달 불가**(REQ-030 회귀). 현 unit spec 의 PARTIAL test 는 DTO 를 우회해 `service.createJob` 에 배열을 직접 넘겨 통과할 뿐.
-  - **MAJOR**: controller→service integration/e2e test 부재 → 위 계약 drift 를 CI 가 못 잡음.
-  - **MINOR**: `create-export.dto.ts` 주석이 제거된 `assertScopeInvariant` 를 여전히 참조(§12 doc 정확성).
-- **권장 disposition (planner 결정)**: 위 BLOCKER 해소는 `create-export.dto.ts` 의 `entitySelector` 검증을 array-aware(`@IsArray` + `@IsOptional` 등) 로 바꾸고 controller→service PARTIAL 경로 integration/e2e test 1+ 를 추가하는 것 — 이는 본 task 의 §Out of Scope("DTO 변경 0", "controller 변경 0") 를 **넘는다**. 따라서 (a) T-0491 의 scope 를 그 작은 DTO 계약 fix + e2e test 까지 확장(amend)하거나, (b) 별도 follow-up task 로 분리한다. (a) 쪽이 helper 배선을 실제 동작 가능하게 만들어 ROI 가 높다 — 다음 turn 의 planner/executor 가 판정. 본 PR(#402)은 그동안 open 유지, 다음 진입점이 prNumber=402 로 resume(LOOP §1[2])."
+- **PR #402 round1 REQUEST_CHANGES (reviewer, 2026-06-18) — scope amend 결정(option (a)).** 이 turn 의 planner 가 BLOCKER(DTO `@IsObject` ↔ helper `Array.isArray` 계약 모순) / MAJOR(controller→service e2e 부재) / MINOR(DTO 주석 `assertScopeInvariant` 잔재) 3 종 finding 을 본 task 의 §Out of Scope 를 좁혀 **본 task 내 round2 fix** 로 흡수했다(위 AC `[round2 BLOCKER fix]` / `[round2 MINOR fix]` / `[round2 MAJOR fix]` 3 항목 참조). 근거: DTO array-aware 1 줄 + 주석 1 줄 + integration test 1 파일 = 추가 ~70 LOC / +2 파일 → 누적 ~280 LOC / 4 파일 (cap ≤ 300 / ≤ 5 안). 별도 task 분리보다 helper 배선이 실제 PARTIAL 경로로 도달 가능해지는 ROI 가 높다.
+- 다음 turn 의 executor 는 **prNumber=402 로 resume**(LOOP §1[2]) 하여 위 3 종 round2 fix 를 같은 PR 의 round2 commit 으로 올리고, 재호출된 reviewer 가 4-게이트 재평가. 신규 PR 생성 금지.
