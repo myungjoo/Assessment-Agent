@@ -6,17 +6,17 @@
     "fineGrainedConcurrency": true,
     "maxConcurrentClaims": 2
   },
-  "currentTask": null,
-  "nextTask": "T-0491",
-  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-6 DONE: T-0484(ADR-0044), T-0485(prisma schema+migration), T-0486(ExportJobService), T-0487(ImportJobService), T-0488(ExportController+DTO+module, 9a89cb8 직전), T-0489(ImportController+CreateImportDto+ImportModule — POST /api/admin/import job 생성·polling, PR #401 round1 APPROVE, squash 9a89cb8). next: T-0490(api.md §5 GET /api/admin/export→POST 정정 — T-0488 §Follow-ups doc drift closure, direct doc-only ~4 LOC). 이후 step: 45 helper(T-0437~T-0483) 실 호출 배선·multipart upload(별도 task 분할). 실 atomic-transaction restore·artifact object-storage 는 새 외부 dependency/credential 라 Q-0040 승인 범위 밖(별도 §5/§9 게이트). 잔여 게이트(미해소): live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend(backend 계약 ship 후), timezone Q-0026(ADR-first human), ADR-0036 stage5c full-parallel(30일 dogfood). open PR 0·BLOCKED 0·blockers 0. pr-mode 4-게이트 CI green 정상 가동(T-0486~T-0489 연속 실증).",
+  "currentTask": "T-0491",
+  "nextTask": null,
+  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-6 DONE: T-0484~T-0489. doc-sync T-0490 DONE(api.md GET→POST). 현재 step: 45 helper 배선 chain step1 = T-0491(validateExportScope→ExportJobService.createJob 실호출 배선). **PR #402 open, round1 REQUEST_CHANGES** — service-layer 배선·spec 은 CI green(cov 97%/100%/95%) 이나 reviewer 가 DTO↔helper 계약 모순 BLOCKER catch: create-export.dto.ts entitySelector `@IsObject`(배열 거부) ↔ validateExportScope `Array.isArray` 요구 → PARTIAL export 실 HTTP 경로 도달 불가(REQ-030 회귀). 해소는 DTO array-aware 검증 + controller→service e2e test 인데 T-0491 §Out of Scope(DTO/controller 변경 0) 를 넘음 → **다음 turn planner 가 scope amend(권장) 또는 follow-up 분리 결정**. claim=PR_OPEN prNumber=402(다음 진입점 resume, 중복 PR 금지). 이후 step: 나머지 44 helper 배선·multipart upload(별도 task). 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 1(#402)·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-l15-1520",
-    "since": "2026-06-18T05:05:30Z",
-    "note": "cron@cloud-l15-1520 (aa-local-15 schedule cron fire, fresh cloud checkout) — origin/main f925b2f→a57f112 ff 동기(직전 cron fire T-0489 merge 9a89cb8 + planner T-0490 큐잉). lock free(tombstone)·claims=[] 확인→fineGrainedConcurrency 분기: gate(active 0 < max 2, direct doc claimable)→select-claim.sh 로 T-0490 atomic select+claim(lock tombstone 동반 release)→lock-free execute. executor: api.md §5 export 계약표 L123 + UC-07 매핑표 L176 GET→POST 정정(T-0488 §Follow-ups doc drift closure), doc-only +2/-2. direct push HEAD:main(a57f112→1769a29), CI in_progress(doc-only — 다음 turn green 확인). bookkeeping direct commit 후 claims.json 에서 T-0490 제거(claim release)."
+    "session": "cron@cloud-aas1g-1172",
+    "since": "2026-06-18T05:39:32Z",
+    "note": "cron@cloud-aas1g-1172 (aa-local-scheduled schedule cron fire, fresh cloud checkout) — origin/main a57f112→01362f7 ff 동기(직전 cron fire T-0490 merge 1769a29 + planner T-0491 큐잉). lock free(tombstone)·claims=[] 확인→fineGrainedConcurrency 분기: gate(active 0 < max 2, pr-mode 단독 claimable)→select-claim.sh 로 T-0491 atomic select+claim(lock tombstone 동반 release)→lock-free execute. executor: validateExportScope→ExportJobService.createJob 배선(+167/-63, 2파일, 25 tests green cov 97%/100%/95%), commit d78f9ab feature branch. driver push→integrator: PR #402 open→reviewer round1 REQUEST_CHANGES(BLOCKER: DTO @IsObject↔helper Array.isArray 계약 모순, PARTIAL 실경로 불가)→4-게이트 (1)APPROVE FALSE→merge withheld, ANOTHER_ROUND 다음 turn 연기(fix 가 §Out of Scope DTO 넘음, planner 결정 필요). claim 을 PR_OPEN prNumber=402 로 CAS 갱신(5ba0fa7) — 다음 진입점 resume, 중복 PR 차단. bookkeeping direct commit 후 종료."
   },
-  "lastActivity": "2026-06-18T05:09:00Z",
-  "lastCommit": "1769a29",
+  "lastActivity": "2026-06-18T05:45:00Z",
+  "lastCommit": "01362f7",
   "mostRecentTasks": [
     "T-0490",
     "T-0489",
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511 (dynamic, turn cap 10) — 종료. t1 stand-down(T-0473 cron@local15). t2-t10 매 turn 1 task merge: T-0474→90df25d, T-0475→92e0e1b, T-0476→1339f48, T-0477→16ab736, T-0478→549dfcd, T-0479→8c8d286, T-0480→b2523a7, T-0481→7866890, t10(18:37Z) T-0482→PR #393 APPROVE(NIT 1)→merge 0ab1b37→bookkeeping+planner T-0483. turn cap 10 도달 → self-reschedule 안 함, session 종료. 9개 task(T-0474~T-0482) 전부 round1 APPROVE merge·신규 파일 100% cov·CI green·blocker 0. cleanup 권장: /compact 또는 /clear 후 새 /loop, 또는 cron(KST 야간) 대기. 다음 진입점이 T-0483 부터."
   },
   "ci": {
-    "lastRun": "2026-06-18T05:09:00Z",
+    "lastRun": "2026-06-18T05:43:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0490 direct doc commit 1769a29(api.md GET→POST) main CI success — 전 step green. 직전 T-0489 PR #401 round1 4-게이트 통과 merge 9a89cb8 + post-merge main CI a57f112 success 도 확인. Q-0041 RESOLVED 후 pr-mode 4-게이트 연속 실증(T-0486~T-0489), direct doc-sync 도 green."
+    "note": "T-0491 PR #402 pull_request CI run success(green) — lint/build/test/cov 전 step 통과. 단 4-게이트 (1)reviewer APPROVE 미충족(REQUEST_CHANGES round1)으로 merge 안 함(CI green ≠ merge). 직전 T-0490 direct doc commit 1769a29 main CI 도 success. pr-mode CI 인프라 정상."
   },
   "reviewRounds": {
+    "T-0491": 1,
     "T-0488": 2,
     "T-0487": 1,
     "T-0485": 1,

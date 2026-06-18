@@ -2,8 +2,9 @@
 id: T-0491
 title: ExportJobService.createJob 에 validateExportScope(T-0444) 실호출 배선 — 45 helper 배선 chain step1
 phase: P7
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 402
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 210
 estimatedFiles: 2
@@ -66,4 +67,8 @@ implementer → tester
 
 ## Follow-ups
 
-(생성 시 비움 — sub-agent 가 관련 작업 발견 시 append.)
+- **PR #402 round1 REQUEST_CHANGES (reviewer, 2026-06-18) — 다음 turn resume 필요.** executor 의 service-layer 배선(`export-job.service.ts` + spec)은 CI green·cov 97%/100%/95% 로 정상이나, reviewer 가 **DTO↔helper 계약 모순**을 BLOCKER 로 catch:
+  - **BLOCKER**: `src/export/dto/create-export.dto.ts` 의 `entitySelector` 가 `@IsObject`(class-validator 의 `isObject` 는 배열을 **거부**) 인데, `validateExportScope`(`src/export/export-scope-validate.ts`) 는 `Array.isArray(entitySelector)` 를 요구 → 두 계약이 상호배제라 **PARTIAL export 가 실 HTTP 경로로 도달 불가**(REQ-030 회귀). 현 unit spec 의 PARTIAL test 는 DTO 를 우회해 `service.createJob` 에 배열을 직접 넘겨 통과할 뿐.
+  - **MAJOR**: controller→service integration/e2e test 부재 → 위 계약 drift 를 CI 가 못 잡음.
+  - **MINOR**: `create-export.dto.ts` 주석이 제거된 `assertScopeInvariant` 를 여전히 참조(§12 doc 정확성).
+- **권장 disposition (planner 결정)**: 위 BLOCKER 해소는 `create-export.dto.ts` 의 `entitySelector` 검증을 array-aware(`@IsArray` + `@IsOptional` 등) 로 바꾸고 controller→service PARTIAL 경로 integration/e2e test 1+ 를 추가하는 것 — 이는 본 task 의 §Out of Scope("DTO 변경 0", "controller 변경 0") 를 **넘는다**. 따라서 (a) T-0491 의 scope 를 그 작은 DTO 계약 fix + e2e test 까지 확장(amend)하거나, (b) 별도 follow-up task 로 분리한다. (a) 쪽이 helper 배선을 실제 동작 가능하게 만들어 ROI 가 높다 — 다음 turn 의 planner/executor 가 판정. 본 PR(#402)은 그동안 open 유지, 다음 진입점이 prNumber=402 로 resume(LOOP §1[2])."
