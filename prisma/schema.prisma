@@ -181,6 +181,16 @@ model User {
   // User hard delete 시 UserInstanceAccess 의 `onDelete: Cascade` 가 binding row 를
   // 동반 정리 (고아 binding 0). PersonGroupMembership Cascade 패턴 정합.
   instanceAccess UserInstanceAccess[]
+
+  // T-0485 (ADR-0044 Decision §1) — User ↔ ExportJob / ImportJob back-relation.
+  // Prisma 양방향 relation 요건 (ExportJob.requestedBy / ImportJob.requestedBy 의
+  // back-field). 1 User 는 0+ ExportJob / 0+ ImportJob 를 발화 — 누가 dump/restore 를
+  // 일으켰는지 추적 (ADR-0044 §1 requestedBy 정합). cascade 는 ExportJob / ImportJob
+  // 측 onDelete: Restrict 이므로 User hard delete 시 dangling job row 차단 — User
+  // schema 의 기존 필드 변경 0 (back-field 추가만 — additive, ADR-0044 Cross-Module
+  // Impact "User schema 변경 0" 정신: 기존 컬럼·관계 무손상).
+  exportJobs ExportJob[] @relation("UserExportJobs")
+  importJobs ImportJob[] @relation("UserImportJobs")
 }
 
 // UserInstanceAccess — ADR-0024 Decision §2 의 schema 박제 (T-0221).
@@ -350,14 +360,13 @@ model Summary {
   // Person N:1 — Person 의 hard delete 시 Summary 동반 cascade (ADR-0006 Decision §6).
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
-  // 시계열 조회 (REQ-038) 용 index 후보 (ADR-0006 Decision §6).
-  @@index([personId, period, periodStart])
-
   // 한 person 의 한 granularity·구간 요약은 정확히 1 row (ADR-0035 §Decision 4).
   // (personId, period, periodStart) 좌표가 aggregate 재집계 reset-and-recreate 의
   // idempotency key — 같은 좌표 Summary 중복을 schema-level 로 차단해 application-layer
   // aggregate write service 의 schema backbone 을 박제한다.
   @@unique([personId, period, periodStart])
+  // 시계열 조회 (REQ-038) 용 index 후보 (ADR-0006 Decision §6).
+  @@index([personId, period, periodStart])
 }
 
 // LlmProviderConfig — data-model.md §2 row "LlmProviderConfig" + §3 관계 8 +
@@ -503,4 +512,145 @@ model PermissionDeniedRecord {
 
   @@index([instanceRef, createdAt])
   @@index([provider, httpStatus, createdAt])
+}
+
+// ExportJob / ImportJob — ADR-0044 Decision §1 (T-0485, P7 export/import 실배선 chain step 2).
+// UC-07 export/import 의 비동기 진행 추적·재시도·감사 backbone. 책임 module 은 AssessmentModule
+// (api.md L56 `/api/admin` 정합). 본 task 는 ADR-0044 §1 의 책임·필드 박제를 Prisma model 코드 +
+// migration 으로 옮기는 schema layer 만 — controller/service 배선 / 누적 45 helper 호출 결선 /
+// artifact 저장소 mechanism 선택은 후속 task (ADR-0044 §Out of scope / §Follow-ups).
+//
+// 🔥 raw 미저장 invariant (ADR-0044 §2 / REQ-032 / ADR-0006 schema-level 강제 동형):
+//   ExportJob / ImportJob 의 어떤 필드도 raw commit message / diff / PR body / page 본문
+//   컬럼을 두지 않는다. `artifactRef` 는 dump/upload artifact 의 **참조 식별자** (파일 경로 /
+//   object key / handle) 일 뿐 본문이 아니며, `error` 는 사람-친화 실패 요약 (raw stack
+//   trace / 응답 본문이 아님). schema 에 자리가 없으면 저장 자체가 불가 — Assessment /
+//   Contribution / PermissionDeniedRecord 의 raw 미저장 schema-level 강제 동형 기법.
+//
+// 공통 enum (JobStatus) 채택 근거: ExportJob / ImportJob 의 status 4값 (PENDING / RUNNING /
+//   SUCCEEDED / FAILED, ADR-0044 Decision §1) 이 완전히 동일하므로 enum 1 개로 share —
+//   ADR-0044 §1 의 "status enum 은 공통 `JobStatus` 를 재사용하거나 ImportJob 전용 enum 으로 —
+//   PENDING/RUNNING/SUCCEEDED/FAILED 4값을 정확히 반영하면 됨" 의 공통 안 선택. enum 중복
+//   선언으로 인한 schema 표면 확대 회피. ExportScope / ImportMode 는 entity 별 고유라 별도.
+
+// JobStatus — ExportJob / ImportJob 공통 진행 상태 enum (ADR-0044 Decision §1).
+// PENDING (job row 생성, 실행 전) → RUNNING (실행 중) → SUCCEEDED / FAILED (종결).
+// 향후 CANCELLED 추가 가능 (ADR-0044 §6.4 race 정책 — 본 task 는 4값만 박제).
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+// ExportScope — Export dump 범위 enum (ADR-0044 Decision §1, UC-07 §6.1).
+// FULL = 전체 entity 전 기간 / RANGE = 기간 한정 / PARTIAL = entity·인원 한정.
+// scope=RANGE 시 dateRange 필드 활용, scope=PARTIAL 시 entitySelector 필드 활용 (Json).
+// FULL 시 dateRange / entitySelector 모두 null. service-layer 가 값 invariant 검증 책임.
+enum ExportScope {
+  FULL
+  RANGE
+  PARTIAL
+}
+
+// ImportMode — Import 복원 모드 enum (ADR-0044 Decision §1, UC-07 §6.2).
+// REPLACE (default) = 기존 row 삭제 후 snapshot 복원 (single $transaction all-or-nothing,
+//   ADR-0033 reset-and-recreate 동형 — ADR-0044 Decision §3).
+// MERGE = 기존 row 보존 + 추가 (conflict resolution 알고리즘은 후속 service task — ADR-0044
+//   §Out of scope).
+enum ImportMode {
+  REPLACE
+  MERGE
+}
+
+// ExportJob — ADR-0044 Decision §1 + UC-07 §8 NFR 의 async job 진행 추적 backbone.
+// 한 Export operation 의 생명주기 (PENDING→RUNNING→SUCCEEDED/FAILED) 와 산출물
+// (artifactRef / error) 를 추적하는 영속 record. Export 는 read-only 라 DB 무변화이므로
+// 본 entity 자체가 job 의 audit trail (재실행마다 1 row, ADR-0044 §4 idempotency by nature).
+//
+// 컬럼 결정 (ADR-0044 §1 1:1):
+//   - id — 전 model 공통 cuid PK 컨벤션.
+//   - status — 공통 JobStatus enum (PENDING / RUNNING / SUCCEEDED / FAILED).
+//   - scope — ExportScope enum (FULL / RANGE / PARTIAL).
+//   - dateRange — nullable Json. scope=RANGE 시 {start, end} 직렬화 (구체 shape 은
+//     후속 service task — ADR-0044 §Out of scope "구체 직렬화 형태").
+//   - entitySelector — nullable Json. scope=PARTIAL 시 인원/entity 한정값 직렬화.
+//   - requestedBy — User FK scalar (ADR-0044 §1 누가 dump 를 일으켰는지 추적).
+//   - createdAt / startedAt? / finishedAt? — 생성 / 실행 시작 / 종결 시각 (PENDING 동안
+//     startedAt null, 종결 전 finishedAt null — ADR-0044 §1).
+//   - error — nullable 사람-친화 실패 요약 (raw stack trace 가 아닌 short message,
+//     ADR-0044 §2 raw 미저장 정합).
+//   - artifactRef — nullable. dump artifact 의 참조 식별자 (파일 경로 / object key /
+//     handle). artifact 저장소 mechanism (filesystem vs object storage) 의 선택은
+//     ADR-0044 §Out of scope — 후속 task 책임.
+//
+// updatedAt **미정의** — job row 는 status 전이 시 변경되나, ADR-0044 §4 의 "재시도 = 새
+//   row" 정책 + Assessment / Summary 의 immutable 패턴 정합으로 status / startedAt /
+//   finishedAt 갱신 자체는 단일 lifecycle 안의 표식이며 row 의 "기록 시점" 추적은 createdAt
+//   하나로 충분 (data-model.md §5 mutable-only updatedAt 정합 — job 은 audit 성격).
+//
+// @@index([status, createdAt]) — UC-07 §8 status polling + 감사 조회 패턴.
+//   "현재 RUNNING 중인 job 의 최근 순" / "FAILED job 의 기간별 감사" 의 leading-edge
+//   필터 + 시계열 정렬을 cover (Assessment 의 시계열 @@index([personId, period,
+//   periodStart]) 동형 패턴 — ADR-0006 Decision §6 정합).
+//   (구체 추가 index 는 ADR-0044 §Out of scope — 최소 1 종만 박제.)
+//
+// FK cascade — onDelete: Restrict (Prisma default). User hard delete 시 job row 의
+//   requestedBy 가 dangling reference 가 되지 않도록 차단. 운영자는 User 삭제 전 관련
+//   job row 정리 책임 (DifficultyMapping → LlmProviderConfig 의 Restrict 패턴 정합).
+//   ADR-0044 Cross-Module Impact "User schema 변경 0" 의 의도는 *기존 컬럼·관계* 무손상 —
+//   Prisma 양방향 relation 요건상 User 측 explicit back-relation 필드 (exportJobs /
+//   importJobs) 2 줄은 additive 로 추가 (FK 컬럼 / DB schema 변경 0, SQL impact 0).
+model ExportJob {
+  id             String      @id @default(cuid())
+  status         JobStatus   @default(PENDING)
+  scope          ExportScope
+  dateRange      Json?
+  entitySelector Json?
+  requestedById  String
+  createdAt      DateTime    @default(now())
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  error          String?
+  artifactRef    String?
+
+  // User N:1 — User hard delete 차단 (Restrict). 운영자가 사전 정리 책임.
+  requestedBy User @relation("UserExportJobs", fields: [requestedById], references: [id], onDelete: Restrict)
+
+  // status polling + 감사 조회 leading-edge index (ADR-0044 Decision §1, UC-07 §8).
+  @@index([status, createdAt])
+}
+
+// ImportJob — ADR-0044 Decision §1 + §3 (Import atomic transaction invariant).
+// 한 Import operation 의 생명주기와 산출물을 추적하는 영속 record. Import 는 destructive
+// 이나 ADR-0044 §3 의 single `$transaction` all-or-nothing 으로 부분 복원 상태 0 (ADR-0033
+// reset-and-recreate 동형). 재시도 = 새 row (ADR-0044 §4 immutable record 정신).
+//
+// 컬럼 결정 (ADR-0044 §1 1:1, ExportJob 공통 필드 + ImportJob 고유):
+//   - id / status / requestedBy / createdAt / startedAt? / finishedAt? / error /
+//     artifactRef — ExportJob 와 동일 공통 필드. status 는 공통 JobStatus enum 재사용.
+//   - mode — ImportMode enum (REPLACE / MERGE), default REPLACE (ADR-0044 §1).
+//   - restoredRowCount — nullable Int. SUCCEEDED 시 복원된 row 수 요약
+//     (UC-07 §8 (e) Import postcondition). PENDING / RUNNING / FAILED 동안 null.
+//
+// @@index([status, createdAt]) — ExportJob 와 동형 status polling + 감사 조회 패턴.
+//
+// FK cascade — onDelete: Restrict, User schema 변경 0 (ExportJob 정합).
+model ImportJob {
+  id               String     @id @default(cuid())
+  status           JobStatus  @default(PENDING)
+  mode             ImportMode @default(REPLACE)
+  requestedById    String
+  createdAt        DateTime   @default(now())
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  error            String?
+  artifactRef      String?
+  restoredRowCount Int?
+
+  // User N:1 — User hard delete 차단 (Restrict). ExportJob 정합.
+  requestedBy User @relation("UserImportJobs", fields: [requestedById], references: [id], onDelete: Restrict)
+
+  // status polling + 감사 조회 leading-edge index (ADR-0044 Decision §1, UC-07 §8).
+  @@index([status, createdAt])
 }
