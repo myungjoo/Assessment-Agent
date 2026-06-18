@@ -2,7 +2,9 @@
 id: T-0506
 title: ADR-0046 Decision §1 materialization 첫 step — ExportDump envelope 를 Node 내장 stream.Readable 로 직렬화하는 순수 함수 materializeExportDump 신설
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-06-18T16:17:00Z
+resultSummary: "PR #419 round1 APPROVE+CI green → squash merge 08a010f. src/export/export-dump-materialize.ts(78 LOC) + spec(308 LOC) line/branch/function 100% cov, 17 tests pass, 전체 218 suites/5074 tests pass. 새 외부 dep 0, Node 내장 stream 만."
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 200
