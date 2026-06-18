@@ -47,5 +47,5 @@ $smi = Get-Command nvidia-smi -ErrorAction SilentlyContinue
 if ($smi) {
     Write-Host ""
     Write-Host "── GPU (nvidia-smi) ──" -ForegroundColor Cyan
-    & nvidia-smi --query-gpu=name, memory.used, memory.total, utilization.gpu --format=csv
+    & nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv
 }
