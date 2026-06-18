@@ -2,7 +2,7 @@
 id: T-0507
 title: ADR-0046 Decision §1 맞물림 (i) — materializeExportDump 의 직렬화 byte 를 ExportChunkPlan 경계대로 slice 하는 순수 함수 sliceMaterializedDumpByChunkPlan 신설
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 240
