@@ -157,6 +157,10 @@ cron 과 manual 이 같은 service 메서드 (`EvaluationOrchestrator.runFullAss
 | OpenAI API | public | API key | (LLM provider — REQ TBD) |
 | Custom (사내 LLM proxy / OpenAI 호환 서버) | Samsung 내부망 또는 사용자 지정 | API key 또는 사내 token | (LLM provider — REQ TBD) |
 
+### 지원 LLM 환경 = 배포 config (provider-중립)
+
+위 표의 LLM provider 5 종(custom / Azure OpenAI / Anthropic / Google / OpenAI)은 **코드에 박힌 선택이 아니라 배포-환경 설정(deployment-environment configuration)** 이다 ([ADR-0045](../decisions/ADR-0045-llm-provider-deployment-config.md) ACCEPTED). provider 선택은 런타임에서 `LlmProviderConfig` DB row(Admin 지정 endpoint/key/model)로, live-verification 에서 gating env(`LLM_LIVE_PROVIDER` + `LLM_LIVE_*`)로 표현되며 — provider 를 바꾸는 것은 코드 변경이 아니라 설정 변경이다. **어느 provider 도 default/mandated 가 아니다**: openai-compatible 로컬 런너(Ollama / LM Studio / vLLM 등, localhost 의 `/v1`)·Azure OpenAI·Anthropic·Gemini·기타 OpenAI-호환 cloud 가 모두 동등하게 valid 한 config 이며, 개발 머신이 로컬 LLM 으로 도는 것은 "여러 valid 환경 중 하나" 일 뿐 시스템에 baked-in 되는 게 아니다. live-verification(배선 검증)은 특정 cloud credential 의 유효성과 분리되어 "그 실행 환경이 가진 아무 provider 로 1회 round-trip" 이면 충족되므로, cloud 키 만료와 무관하게 영구 성립한다(자세히는 ADR-0045 — 검증과 품질은 분리해 기술).
+
 ### TLS / 사내 인증서 처리
 
 사내 PKI (Samsung 사내 CA) 가 발급한 인증서를 trust 하기 위해 `NODE_EXTRA_CA_CERTS=/path/to/samsung-ca-bundle.pem` 환경변수 사용. Node.js 표준 메커니즘 — 별도 dependency 0. **`NODE_TLS_REJECT_UNAUTHORIZED=0` 사용 금지** (MITM 위험, 보안 사고 표면).
