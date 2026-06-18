@@ -39,6 +39,11 @@ import {
 // import 해 previewSelection 응답에 deliveryPlan 으로 surface 한다(barrel re-export·alias 신설
 // 0). ExportJobPlan 은 service interface(ExportSelectionPreview) 가 그대로 재노출한다.
 import { buildExportJobPlan, type ExportJobPlan } from "./export-job-plan";
+// buildExportResult(T-0456) + ExportResult 타입을 same-folder 경로(`./export-result`)로
+// import 해 previewSelection 응답에 completionResult 로 surface 한다(barrel re-export·alias
+// 신설 0 — buildExportJobPlan import 패턴 mirror). ExportResult 는 service interface
+// (ExportSelectionPreview) 가 그대로 재노출한다.
+import { buildExportResult, type ExportResult } from "./export-result";
 import { buildExportScopeRejection } from "./export-scope-rejection-message";
 import {
   selectExportRecords,
@@ -162,6 +167,12 @@ export interface ExportSelectionPreview {
   summary: ExportSelectionSummary;
   sizeEstimate: ExportDumpSizeEstimate;
   deliveryPlan: ExportJobPlan;
+  // completionResult 는 buildExportResult(T-0456) 산출 — 이미 산출된 summary 와 인자 scope 를
+  // 그대로 forward 해 "이 scope 로 무엇이 export 되는가" 의 사람-친화 완료 결과(headline/
+  // exportedCounts/impactLines/scopeLine)를 derive 한다(UC-07 §5 step 13 + §8 (a) 정합).
+  // helper 는 summary/scope 만 derivation 하므로 추가 DB read 0(REQ-032 derivation-only).
+  // append-only 확장 — 기존 6 필드는 불변(backward-compat).
+  completionResult: ExportResult;
 }
 
 @Injectable()
@@ -306,6 +317,19 @@ export class ExportJobService {
     // 경로에서 미발화한다.
     const deliveryPlan = buildExportJobPlan(sizeEstimate);
 
+    // buildExportResult 실호출(T-0456 helper 배선) — 이미 산출된 summary(ExportSelectionSummary)
+    // 와 인자로 받은 scope 를 그대로 forward 해 "이 scope 로 무엇이 실제로 export 되는가" 의
+    // 사람-친화 완료 결과(headline 다운로드 완료 메시지 / exportedCounts / entity-별 impactLines /
+    // scopeLine)를 derive 한다(UC-07 §5 step 13 다운로드 완료 결과 + §8 (a) Export postcondition
+    // scope 요약·entity-별 영향·row count 정합). scope 인자는 ExportScopePayload 가 ExportScope
+    // (T-0437)의 별칭(line 48)이라 추가 변환·매핑 없이 그대로 전달 가능(buildExportResult 가
+    // 기대하는 ExportScope 와 동일 타입). helper 는 입력 summary/scope 만 derivation 하므로 추가
+    // DB read 0(REQ-032 derivation-only 자연 유지 — result message 만 derive, raw payload 0).
+    // 입력 summary 는 항상 summarizeExportSelection 통과 산출(selected/excluded 두 그룹의 total +
+    // perEntity breakdown 보유)이고 scope 는 selectExportRecords 가 이미 검증한 full/range/partial
+    // 이라, helper 의 입력 방어 분기(RangeError/TypeError)는 정상 경로에서 미발화한다.
+    const completionResult = buildExportResult(summary, scope);
+
     // selected 의 entity 별 count breakdown — 5 entity 0 초기화 후 누적(미선택 entity 는 0).
     // summary.selected.perEntity 와 동일 값이나 backward-compat 위해 기존 필드 유지.
     const perEntitySelected = VALID_EXPORT_ENTITIES.reduce(
@@ -326,6 +350,7 @@ export class ExportJobService {
       summary,
       sizeEstimate,
       deliveryPlan,
+      completionResult,
     };
   }
 

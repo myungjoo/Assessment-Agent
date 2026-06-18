@@ -561,6 +561,44 @@ describe("ExportController (unit)", () => {
     ]);
   });
 
+  it("POST preview-selection — service 반환의 completionResult(완료 결과 메시지)가 그대로 200 forward (T-0502 — completionResult forward)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const summary = {
+      selectedCount: 5,
+      excludedCount: 0,
+      perEntitySelected: {
+        Assessment: 1,
+        Person: 1,
+        Group: 1,
+        LlmConfig: 1,
+        AuditLog: 1,
+      },
+      completionResult: {
+        headline: "다운로드 완료 — 선별 5 row export",
+        exportedCounts: { selected: 5, excluded: 0 },
+        impactLines: ["선별 5 row", "  - Person: 1 row export"],
+        scopeLine: "scope=full(전체)",
+      },
+    };
+    serviceMock.previewSelection.mockResolvedValueOnce(summary);
+
+    const controller = new ExportController(service);
+    const result = await controller.previewSelection({
+      scope: ExportScope.FULL,
+    });
+
+    // controller 분기 0 — service 반환 객체를 그대로 forward(completionResult 포함).
+    expect(result).toBe(summary);
+    expect(result.completionResult.headline).toBe(
+      "다운로드 완료 — 선별 5 row export",
+    );
+    expect(result.completionResult.exportedCounts).toEqual({
+      selected: 5,
+      excluded: 0,
+    });
+    expect(result.completionResult.scopeLine).toBe("scope=full(전체)");
+  });
+
   it("POST preview-selection — service 반환의 summary(selected/excluded breakdown)가 그대로 200 forward (T-0499 — summary forward)", async () => {
     const { service, serviceMock } = buildServiceMock();
     const earliest = new Date("2026-01-01T00:00:00.000Z");
@@ -1392,6 +1430,16 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
           "1) 단일 응답으로 즉시 다운로드합니다.",
         ],
       },
+      completionResult: {
+        headline: "다운로드 완료 — 선별 5 row export",
+        exportedCounts: { selected: 5, excluded: 0 },
+        impactLines: [
+          "선별 5 row",
+          "  - Assessment: 1 row export",
+          "  - Person: 1 row export",
+        ],
+        scopeLine: "scope=full(전체)",
+      },
     });
 
     const res = await request(app.getHttpServer())
@@ -1415,6 +1463,12 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
     expect(res.body.deliveryPlan.pollingRequired).toBe(false);
     expect(res.body.deliveryPlan.statusFlow).toEqual([]);
     expect(res.body.deliveryPlan.chunked).toBe(false);
+    // completionResult(완료 결과 메시지)도 응답 body 에 그대로 forward(T-0502).
+    expect(res.body.completionResult.headline).toBe(
+      "다운로드 완료 — 선별 5 row export",
+    );
+    expect(res.body.completionResult.exportedCounts.selected).toBe(5);
+    expect(res.body.completionResult.scopeLine).toBe("scope=full(전체)");
     // lowercase "full" 변환 후 service.previewSelection 위임.
     expect(serviceMock.previewSelection).toHaveBeenCalledTimes(1);
     expect(serviceMock.previewSelection).toHaveBeenCalledWith({
