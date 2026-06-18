@@ -13,7 +13,7 @@ supersedes: null
 
 ## Context
 
-[UC-07](../use-cases/UC-07-export-import.md) 이 Admin 의 export (read-only dump) / import (destructive restore) 대칭 흐름을 박제하고, [api.md L122~126](../architecture/api.md) 가 `GET /api/admin/export` / `POST /api/admin/import` (+ backup/restore) endpoint 를 [AssessmentModule](../architecture/modules.md) controller 책임으로 매핑해 두었다. 그러나 현 시점에 export/import 는 **DB 에 영속되는 job 추적 entity 가 없다** — 45 개 누적 pure-helper (chunked streaming · dedup · retransmit 등, T-0437~T-0483) 가 머지돼 있으나 실 controller/service/DB 에 미배선이고, job 의 진행 상태 (PENDING/RUNNING/...) · 실패 사유 · 재시도 여부 · 누가 언제 무엇을 dump/restore 했는지를 영속할 자리가 없다.
+[UC-07](../use-cases/UC-07-export-import.md) 이 Admin 의 export (read-only dump) / import (destructive restore) 대칭 흐름을 박제하고, [api.md L123~124](../architecture/api.md) 가 `GET /api/admin/export` / `POST /api/admin/import` (+ backup/restore) endpoint 를 [AssessmentModule](../architecture/modules.md) controller 책임으로 매핑해 두었다. 그러나 현 시점에 export/import 는 **DB 에 영속되는 job 추적 entity 가 없다** — 45 개 누적 pure-helper (chunked streaming · dedup · retransmit 등, T-0437~T-0483) 가 머지돼 있으나 실 controller/service/DB 에 미배선이고, job 의 진행 상태 (PENDING/RUNNING/...) · 실패 사유 · 재시도 여부 · 누가 언제 무엇을 dump/restore 했는지를 영속할 자리가 없다.
 
 [UC-07 §8 NFR](../use-cases/UC-07-export-import.md) 은 이미 "대량 dump 는 long-running operation 가능 — async job + status polling + chunked streaming + resumable upload 는 P5 의 별도 설계" 를 deferred 로 명시해 두었다. 본 ADR 은 그 deferred piece 의 **데이터 측면 (job 영속 entity)** 을 닫는다.
 
@@ -147,7 +147,7 @@ export 와 import 를 `type` discriminator 컬럼을 가진 단일 `IoJob` table
 - [ADR-0002](ADR-0002-db.md) — PostgreSQL + Prisma stack 기반 (본 conceptual entity 의 실 구현 form)
 - [ADR-0042](ADR-0042-nestjs-schedule-adoption.md) — cron schedule in-memory 비영속 선례 (본 ADR 의 영속 결정과 trade-off 대비, §Alternatives B)
 - [docs/architecture/data-model.md](../architecture/data-model.md) — §2 entity 표 (본 ADR 이 ExportJob/ImportJob row 추가) / §4 raw 미저장 invariant / §7 Out of scope
-- [docs/architecture/api.md](../architecture/api.md) L56·L122~126·L176 — `/api/admin/export`·`/api/admin/import` 계약 (AssessmentModule controller / Admin+ role)
+- [docs/architecture/api.md](../architecture/api.md) L56·L123~124·L176 — `/api/admin/export`·`/api/admin/import` 계약 (AssessmentModule controller / Admin+ role)
 - [README.md](../../README.md) L59 (REQ-032 raw 미저장) / "평가 자료의 저장" 단락
 - [CLAUDE.md §3.1 / §5 / §12](../../CLAUDE.md) — commitMode / DB schema BLOCKED 게이트 (Q-0040 승인으로 통과) / 언어 정책
 
