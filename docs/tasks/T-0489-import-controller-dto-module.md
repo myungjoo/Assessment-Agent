@@ -2,7 +2,7 @@
 id: T-0489
 title: ImportController + CreateImportDto + ImportModule 배선 — POST /api/admin/import job 생성·polling endpoint
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 280
