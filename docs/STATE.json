@@ -7,23 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0499",
-  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). 누적 chain step1-7 = T-0491~T-0497 DONE/MERGED. helper 배선 chain step7 = **T-0497 DONE/MERGED**(squash 86c07c7, PR #408 round1 4-게이트 통과): selectExportRecords(T-0437)→신설 read-only ExportJobService.previewSelection + POST /api/admin/export/preview-selection 실호출 배선. EXPORT_ENTITY_SOURCES Record<ExportEntity,{delegate,instantColumn}> 인라인 매핑(5 entity 전부 createdAt, LlmConfig→llmProviderConfig·AuditLog→permissionDeniedRecord) 박제 후 previewSelection 이 instant projection-only Prisma read(REQ-032)→selectExportRecords 실호출→selected/excluded count 요약 반환. +166/-1 LOC 4파일, cov service 98.27%/func 100%·controller 100%, 4974 pass. reviewer MAJOR 1 = EXPORT_ENTITY_SOURCES 치환 ADR 미기록 → T-0498 doc-sync 큐잉. **T-0498 DONE**(direct doc-only, f081ddf on main): ADR-0044 §6 신규 subsection 으로 ExportEntity→Prisma model 5 매핑표(전부 createdAt instant) + 2 치환 사유(LlmConfig 약어 / AuditLog→PermissionDeniedRecord stand-in + forward note) + §5 책임 경계 정합화 + T-0497 source-of-truth cross-reference 박제. §Consequences line 65 entity 열거 1줄 정정 + §Follow-ups 2 항목 append. ADR-0044 §Decision §1~§4 본문 불변(추가만). downstream chain 의 contract source 정합 완료 — 더 많은 코드가 이 매핑 위에 쌓이기 전 박제. 다음 step: helper 배선 chain step8 = T-0499(summarizeExportSelection(T-0449)→T-0497 previewSelection 의 ExportSelection 위에 응답 확장으로 배선, pr). selectExportRecords→summarizeExportSelection→estimateExportDumpSize→buildExportJobPlan→buildExportResult 4-step chain 의 step2. 이후 나머지 ~37 helper 배선·multipart upload(별도 task). 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0.",
+  "nextTask": "T-0500",
+  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). helper 배선 chain step7 = T-0497 DONE/MERGED(squash 86c07c7, PR #408): selectExportRecords(T-0437)→신설 previewSelection + POST /preview-selection 배선. step8 = **T-0499 DONE/MERGED**(squash ba687d0, PR #409 round1 4-게이트): summarizeExportSelection(T-0449)→previewSelection 응답에 summary 필드(perEntity 5-key breakdown + instantRange{earliest,latest}) 확장 배선. controller 무변경(타입 import 후 service return 그대로 200 forward). DB read/write 0·신규 endpoint 0·기존 count 필드 backward-compat. +332/-3 LOC 3파일, cov service 98.36%/func100%·controller100%·helper100%, 4985 pass. 단일 active driver(cron@cloud-s1-46f1, fineGrainedConcurrency stage5b select-claim), race 0. 다음 step: helper 배선 chain step9 = T-0500(estimateExportDumpSize(T-0466 미호출 helper)→previewSelection 의 ExportSelection 위에 sizeEstimate(estimatedBytes/humanSize/large/recommendation) 응답 확장 배선, DB write·신규 endpoint 0, pr, ~220 LOC 4파일). 이후 나머지 plan/result chain + multipart upload(별도 task). 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@vm-3442",
-    "since": "2026-06-18T11:04:43Z",
-    "note": "cron@vm-3442 (Anthropic cloud scheduled cron fire, fresh remote checkout) — origin/main 1229985 에서 깨어 origin/claude/lock-driver 561e365 tip lock.json holder=\"\"·claims=[] 확인 → 권위 lock CAS 획득(561e365→895c8e1, server-time 11:04:43Z). fineGrainedConcurrency=true(stage 5b) but T-0498 은 direct doc-only 라 select-claim 분기 skip — currentTask=null, nextTask=T-0498 직접 픽업. lock 보유 하에 executor(architect 단독 — ADR amend) 호출: ADR-0044 §6 신규 subsection 으로 ExportEntity→Prisma model 5 매핑표(전부 createdAt) + 2 치환 사유(LlmConfig 약어 / AuditLog→PermissionDeniedRecord stand-in + forward note) + §5 정합화 + T-0497 source-of-truth cross-ref 박제. §Consequences line 65 entity 열거 1줄 정정 + §Follow-ups 2 항목 append. 코드 변경 0 (doc-only direct, ADR-0044 §Decision §1~§4 본문 불변). 1 파일 변경. 직접 main commit f081ddf push 성공. planner sub-agent dispatch → T-0499 task file 신설(summarizeExportSelection chain step8, pr). 본 bookkeeping direct commit(STATE/journal/T-0499 task file) + lock tombstone release. 사용자 cron 요청 prompt 명시: 'gh CLI 인증/git push 권한 환경 의존, push 실패 시 BLOCKED(credential)' — 본 fire 는 gh 부재(which gh 0) but raw git push 정상(lock CAS + main direct 둘 다 성공), MCP github 가용. 동시성: 단일 active driver, race 0. (이전 cron@local-s1-a371 note)",
-    "noteOld": "cron@local-s1-a371 (aa-local-scheduled 매시30분 cron fire, win-s1 fresh checkout) — origin/main 73db713 에서 깨어 ff→fbd72d0(다른 driver 가 T-0496 merge·T-0497 큐잉 완료). lock free(7eae623 tombstone)·claims=[] 확인 → 권위 lock CAS 획득(7eae623→ee2d774, server-time 10:37:32Z). fineGrainedConcurrency=true(stage 5b): reclaim no-op(claims 빈), active claim 0<maxConcurrentClaims2·pr-mode 활성claim0 → select-claim.sh 로 T-0497(nextTask, pr) 단독 claim. lock-free executor 로 T-0497 selectExportRecords→previewSelection 배선 +166/-1 LOC 4974 pass cov service 98.27%/controller 100%, PR #408 round1 APPROVE merge 86c07c7. planner T-0498 큐잉 + claim 제거 + lock tombstone 유지. (이전 cron@local-s1-9838 note)"
+    "session": "cron@cloud-s1-46f1",
+    "since": "2026-06-18T11:55:00Z",
+    "note": "cron@cloud-s1-46f1 (aa-local-scheduled 매시30분 cron fire, Anthropic cloud fresh checkout) — origin/main 1229985 에서 깨어 ff→ac6d99b(다른 driver 가 T-0498 merge·T-0499 큐잉 완료). lock free(81006a3 tombstone holder=\"\")·claims=[] 확인 → 권위 lock CAS 획득(81006a3→c625e95, server-time 11:38:05Z). fineGrainedConcurrency=true(stage 5b): reclaim no-op(claims 빈), active claim 0<maxConcurrentClaims2·pr-mode 활성claim0 → validate-claim-candidate PASS 후 select-claim.sh 로 T-0499(nextTask, pr) 단독 claim(claims append + lock tombstone 동일 commit 즉시 release). lock-free executor(implementer→tester) 로 T-0499 수행: summarizeExportSelection(T-0449)→previewSelection 응답 확장(summary perEntity 5-key+instantRange) 실호출 배선 +332/-3 LOC 3파일(controller 무변경), lint/build/test 4985 pass 변경파일 cov service 98.36%/func100%·controller 100% staged. feature branch claude/T-0499-export-selection-summary-wire push(36e6d57) → integrator: PR #409 open, reviewer round1 APPROVE(0 finding), 4-게이트 PASS, CI green(run 27757235077 success) → gh pr merge --squash --delete-branch, squash ba687d0 on main. bookkeeping direct commit(STATE/task/journal) + planner T-0500 큐잉 + claim 제거(claims=[]) + lock tombstone 유지. 동시성: 단일 active driver, race 0. (이전 cron@vm-3442 note)"
   },
-  "lastActivity": "2026-06-18T11:09:00Z",
-  "lastCommit": "f081ddf",
+  "lastActivity": "2026-06-18T11:55:00Z",
+  "lastCommit": "ba687d0",
   "mostRecentTasks": [
+    "T-0499",
     "T-0498",
     "T-0497",
     "T-0496",
-    "T-0495",
-    "T-0494"
+    "T-0495"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -33,11 +32,11 @@
     "note": "/loop win-tt511 (dynamic, turn cap 10) — 종료. t1 stand-down(T-0473 cron@local15). t2-t10 매 turn 1 task merge: T-0474→90df25d, T-0475→92e0e1b, T-0476→1339f48, T-0477→16ab736, T-0478→549dfcd, T-0479→8c8d286, T-0480→b2523a7, T-0481→7866890, t10(18:37Z) T-0482→PR #393 APPROVE(NIT 1)→merge 0ab1b37→bookkeeping+planner T-0483. turn cap 10 도달 → self-reschedule 안 함, session 종료. 9개 task(T-0474~T-0482) 전부 round1 APPROVE merge·신규 파일 100% cov·CI green·blocker 0. cleanup 권장: /compact 또는 /clear 후 새 /loop, 또는 cron(KST 야간) 대기. 다음 진입점이 T-0483 부터."
   },
   "ci": {
-    "lastRun": "2026-06-18T11:09:00Z",
+    "lastRun": "2026-06-18T11:55:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "본 fire 진입 시 main 두 직전 push run 모두 success: run 27754701547(1229985, T-0497 bookkeeping) + run 27754429880(86c07c7, T-0497 squash merge) 둘 다 conclusion=success. T-0498 ADR amend direct push(f081ddf) + 본 bookkeeping direct commit CI 는 다음 fire 에서 conclusion 확인(현재 pending)."
+    "note": "T-0499 PR #409 round1: pull_request run 27757235077(36e6d57) success(기본검사 approval-gate+smoke + Docker smoke 둘 다 success) → 4-게이트 PASS → squash merge ba687d0. merge 후 main push CI(ba687d0) + 본 bookkeeping direct commit CI 는 다음 fire 에서 conclusion 확인(현재 pending)."
   },
   "reviewRounds": {
     "T-0497": 1,
@@ -245,7 +244,8 @@
     "T-0457": 1,
     "T-0458": 1,
     "T-0486": 1,
-    "T-0489": 1
+    "T-0489": 1,
+    "T-0499": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -880,7 +880,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 490,
+    "tasksCompleted": 491,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

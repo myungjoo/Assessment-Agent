@@ -2,7 +2,10 @@
 id: T-0499
 title: summarizeExportSelection helper 를 ExportJobService.previewSelection 응답 확장으로 실호출 배선 — 45 helper 배선 chain step8
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: ba687d0
+prNumber: 409
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 230
