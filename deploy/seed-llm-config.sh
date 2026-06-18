@@ -12,9 +12,10 @@
 #
 # apiKey 처리: AA 는 apiKey 를 AES-256-GCM envelope 으로 암호화 저장한다(ADR-0014).
 #   본 스크립트는 평문 키를 DB 에 넣지 않고, 실행 중인 app 컨테이너 안에서 compiled
-#   cipher(dist)로 암호화한 ciphertext 만 upsert 한다(컨테이너 env 의 LLM_APIKEY_ENC_KEY
-#   사용 — 앱이 호출 시 decrypt 할 때와 동일 키). Ollama 는 키를 무시하므로 평문 값은
-#   더미('ollama')여도 무방하나, gateway 가 decrypt 는 수행하므로 유효 envelope 이 필요.
+#   cipher(dist)로 암호화한 ciphertext 만 upsert 한다(암호화 키는 본 스크립트가 .env
+#   에서 읽어 docker exec -e 로 컨테이너에 직접 주입 — 앱이 호출 시 decrypt 할 때와
+#   동일 키). Ollama 는 키를 무시하므로 평문 값은 더미('ollama')여도 무방하나,
+#   gateway 가 decrypt 는 수행하므로 유효 envelope 이 필요.
 #
 # env(.env 또는 호출 환경):
 #   SEED_LLM_ENDPOINT_URL  (필수 트리거) OpenAI 호환 base, 예: http://192.168.0.5:11434/v1
@@ -80,10 +81,13 @@ for _ in $(seq 1 30); do
 done
 [ "$ready" = 1 ] || { echo "[seed-llm] ERROR: app 컨테이너가 준비되지 않음" >&2; exit 1; }
 
-# 3) apiKey 암호화 — app 컨테이너 안에서 compiled cipher 직접 호출(컨테이너 env 의
-#    LLM_APIKEY_ENC_KEY 사용). 평문은 **stdin 으로** 전달한다(argv 로 넘기면 컨테이너
-#    `ps` 에 잠깐 노출되므로 회피). 출력은 ciphertext envelope 뿐.
-CIPHERTEXT="$(printf '%s' "$APIKEY_PLAIN" | docker compose exec -T app node -e \
+# 3) apiKey 암호화 — app 컨테이너 안에서 compiled cipher 직접 호출. 평문은 **stdin
+#    으로** 전달한다(argv 로 넘기면 컨테이너 `ps` 에 잠깐 노출되므로 회피). 암호화
+#    키는 컨테이너 env_file 에 의존하지 않고 **이 스크립트가 .env 에서 읽은 값을
+#    -e 로 직접 주입**한다 — 컨테이너가 키 추가 *전*에 생성됐어도(env_file 은 생성
+#    시점에만 read) 최신 키로 암호화되도록 보장(수동 실행 견고성). 출력은 envelope 뿐.
+CIPHERTEXT="$(printf '%s' "$APIKEY_PLAIN" | docker compose exec -T \
+  -e LLM_APIKEY_ENC_KEY="$LLM_APIKEY_ENC_KEY" app node -e \
   'let d="";process.stdin.on("data",c=>{d+=c}).on("end",()=>{const {LlmApiKeyCipher}=require("/app/dist/src/llm/llm-apikey-cipher.service");process.stdout.write(new LlmApiKeyCipher().encrypt(d))})')"
 if [ -z "$CIPHERTEXT" ]; then
   echo "[seed-llm] ERROR: apiKey 암호화 결과가 비어있음(LLM_APIKEY_ENC_KEY 확인)" >&2
