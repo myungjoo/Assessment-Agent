@@ -6,23 +6,23 @@
     "fineGrainedConcurrency": true,
     "maxConcurrentClaims": 2
   },
-  "currentTask": "T-0491",
-  "nextTask": null,
-  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-6 DONE: T-0484~T-0489. doc-sync T-0490 DONE(api.md GET→POST). 현재 step: 45 helper 배선 chain step1 = T-0491(validateExportScope→ExportJobService.createJob 실호출 배선) — **PR #402 open, round1 REQUEST_CHANGES, 본 turn planner 가 scope amend(option a) 적용 완료**. amend: §Out of Scope 의 'DTO 변경 0'·'controller 변경 0' 항목을 round1 BLOCKER 해소 폭(entitySelector DTO array-aware 검증 + controller→service integration test, production controller 코드 0)으로 좁혀 본 task 내 round2 fix 흡수. estimatedDiff 210→280, estimatedFiles 2→4(누적 cap ≤300/≤5 안). AC append: [round2 BLOCKER fix] DTO @IsArray + @IsOptional 교체 / [round2 MINOR fix] DTO 주석 stale assertScopeInvariant→validateExportScope 갱신 / [round2 MAJOR fix] export.controller.spec.ts 확장으로 happy(`entitySelector:[\"Person\",\"Group\"]` ValidationPipe 통과+service 호출) + negative(숫자 entitySelector 400) integration test 추가. claim=PR_OPEN prNumber=402 유지(다음 진입점 resume, 중복 PR 금지). 다음 fire 의 executor 가 same PR #402 round2 commit 으로 위 3 종 fix push → reviewer 재호출. 이후 step: 나머지 44 helper 배선·multipart upload(별도 task). 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 1(#402)·BLOCKED 0·blockers 0.",
+  "currentTask": null,
+  "nextTask": "T-0492",
+  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-6 DONE: T-0484~T-0489. doc-sync T-0490 DONE(api.md GET→POST). helper 배선 chain step1 = **T-0491 DONE/MERGED**(squash 79910b0, PR #402 round2 4-게이트 통과): validateExportScope(T-0444)→ExportJobService.createJob 실호출 배선 + round2 에서 CreateExportDto.entitySelector @IsObject→array-aware(@IsArray/@IsOptional) 정정(BLOCKER, PARTIAL export HTTP 경로 복구 REQ-030) + DTO→service 계약 pin test(MAJOR) + DTO 주석 갱신(MINOR). 동시성 메모: 본 round2 는 두 cron driver(cron@cloud-l15-0739 lock 보유 + cron@cloud-vm-aas2a 직전 active)가 orphan PR #402 를 동시 resume 해 near-duplicate round2 fix 를 각자 작성한 race 발생 — 다른 driver 가 aa08467 을 feature branch 에 먼저 push, lock 보유 driver 가 자기 중복 commit(19b9bf3) 폐기 후 aa08467 로 integrator 진행해 merge(무손실, throughput 만 일부 낭비). 다음 step: helper 배선 chain step2 = T-0492(evaluateImportRaceGuard→ImportJobService.createJob, import 측 대칭, pr). 이후 나머지 ~43 helper 배선·multipart upload(별도 task). 실 atomic-transaction restore·artifact object-storage 는 Q-0040 범위 밖(별도 §5/§9). 잔여 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-vm-aas2a",
-    "since": "2026-06-18T07:04:36Z",
-    "note": "cron@cloud-vm-aas2a (scheduled cron fire, fresh cloud checkout) — origin/main e2f4452 동기(직전 cron T-0491 ANOTHER_ROUND bookkeeping). 권위 lock CAS 획득(5ba0fa7→4c14968, claims.json 보존: T-0491 PR_OPEN pr=402). currentTask=T-0491 resume, PR #402 round1 REQUEST_CHANGES 확인(reviewer comment 4738471663: BLOCKER DTO @IsObject↔helper Array.isArray + MAJOR integration test 부재 + MINOR 주석 stale). fix 가 §Out of Scope 넘어 executor 직접 진행 불가 → planner sub-agent dispatch 로 option (a) scope amend 수행: §Out of Scope 항목 좁힘(DTO array-aware in-scope, integration test in-scope, production controller 코드 0 유지) + AC append(round2 BLOCKER/MINOR/MAJOR 3 종 fix 항목) + Required Reading 1줄(create-export.dto.ts) + touchesFiles +2 파일(dto, controller.spec) + estimatedDiff 210→280 + estimatedFiles 2→4 + Follow-ups 의 round1 finding dump 를 amend 결정 노트로 교체. doc-only direct commit(task amend + STATE + journal) → main push. PR #402 는 그대로 open 유지, executor 재진입은 다음 cron fire(resume prNumber=402, LOOP §1[2] judgement (e)). bookkeeping 후 lock tombstone release. claim PR_OPEN 유지(release 안 함)."
+    "session": "cron@cloud-l15-0739",
+    "since": "2026-06-18T07:39:30Z",
+    "note": "cron@cloud-l15-0739 (aa-local-15 schedule cron fire, fresh cloud checkout) — origin/main d750119 동기. 권위 lock CAS 획득(71289218→cefefdf, claims.json 보존: T-0491 PR_OPEN pr=402). currentTask=T-0491 resume, PR #402 round1 REQUEST_CHANGES(scope 이미 amend 됨 7b09c69) → executor re-entry(LOOP §1[2] e): feature branch checkout 후 round2 fix(entitySelector array-aware + 계약 test + 주석) 구현·commit 19b9bf3. push 직전 fetch 결과 feature branch 가 aa08467 로 선행 이동 발견 — 다른 active driver(cron@cloud-vm-aas2a)가 동일 round2 fix 를 lock-free 로 먼저 push(동시 orphan-resume race). 자기 중복 commit 19b9bf3 폐기(tag dup-19b9bf3-T0491-round2 보존), local 을 aa08467 로 reset. aa08467 CI watch→success(green) 확인 후 integrator dispatch: reviewer round2 APPROVE(issuecomment-4739414222) + 4-게이트 PASS → gh pr merge --squash --delete-branch, squash 79910b0 on main. bookkeeping direct commit(STATE/task/journal) + claim 제거(T-0491 PR_OPEN→완료) + lock tombstone release. 동시성 관측: orphan-resume 이 claim owner 를 atomic refresh 안 해 두 driver 가 같은 task round2 를 중복 작업한 throughput 낭비 — double-claim slug 의 strict 정의(claims.json 2-entry)엔 미해당이라 회로 차단기 미증가, 본 note 로 관측만 외화."
   },
-  "lastActivity": "2026-06-18T07:06:30Z",
-  "lastCommit": "7b09c69",
+  "lastActivity": "2026-06-18T07:56:00Z",
+  "lastCommit": "79910b0",
   "mostRecentTasks": [
+    "T-0491",
     "T-0490",
     "T-0489",
     "T-0488",
-    "T-0487",
-    "T-0486"
+    "T-0487"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -32,14 +32,14 @@
     "note": "/loop win-tt511 (dynamic, turn cap 10) — 종료. t1 stand-down(T-0473 cron@local15). t2-t10 매 turn 1 task merge: T-0474→90df25d, T-0475→92e0e1b, T-0476→1339f48, T-0477→16ab736, T-0478→549dfcd, T-0479→8c8d286, T-0480→b2523a7, T-0481→7866890, t10(18:37Z) T-0482→PR #393 APPROVE(NIT 1)→merge 0ab1b37→bookkeeping+planner T-0483. turn cap 10 도달 → self-reschedule 안 함, session 종료. 9개 task(T-0474~T-0482) 전부 round1 APPROVE merge·신규 파일 100% cov·CI green·blocker 0. cleanup 권장: /compact 또는 /clear 후 새 /loop, 또는 cron(KST 야간) 대기. 다음 진입점이 T-0483 부터."
   },
   "ci": {
-    "lastRun": "2026-06-18T05:43:00Z",
-    "status": "green",
+    "lastRun": "2026-06-18T07:54:56Z",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0491 PR #402 pull_request CI run success(green) — lint/build/test/cov 전 step 통과. 단 4-게이트 (1)reviewer APPROVE 미충족(REQUEST_CHANGES round1)으로 merge 안 함(CI green ≠ merge). 직전 T-0490 direct doc commit 1769a29 main CI 도 success. pr-mode CI 인프라 정상."
+    "note": "T-0491 PR #402 round2 head aa08467 pull_request CI success(green, run 27744697472 — lint/build/test/cov/reviewer-approval-gate 전 step 통과) 확인 후 squash merge 79910b0. merge 후 main push CI(79910b0)는 pending(07:54:56Z trigger) — 이미 green 인 코드의 re-run 이라 다음 fire 에서 conclusion 확인. direct bookkeeping commit push 도 main CI 동반 trigger."
   },
   "reviewRounds": {
-    "T-0491": 1,
+    "T-0491": 2,
     "T-0488": 2,
     "T-0487": 1,
     "T-0485": 1,
@@ -873,7 +873,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 482,
+    "tasksCompleted": 483,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

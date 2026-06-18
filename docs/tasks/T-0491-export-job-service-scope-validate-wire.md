@@ -2,7 +2,10 @@
 id: T-0491
 title: ExportJobService.createJob 에 validateExportScope(T-0444) 실호출 배선 — 45 helper 배선 chain step1
 phase: P7
-status: IN_PROGRESS
+status: DONE
+completedAt: 2026-06-18T07:53Z
+mergedAs: 79910b0
+reviewRounds: 2
 commitMode: pr
 prNumber: 402
 coversReq: [REQ-030, REQ-032, REQ-045]
