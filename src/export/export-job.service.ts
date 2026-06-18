@@ -32,6 +32,13 @@ import { ExportScope, Prisma, type ExportJob } from "@prisma/client";
 import { PrismaService } from "../persistence/prisma.service";
 
 import { buildExportScopeRejection } from "./export-scope-rejection-message";
+import {
+  selectExportRecords,
+  VALID_EXPORT_ENTITIES,
+  type ExportEntity,
+  type ExportRecord,
+  type ExportScope as ExportScopePayload,
+} from "./export-scope-select";
 import { validateExportScope } from "./export-scope-validate";
 
 // Prisma known error helper — `code` field 가 known request error 의 식별자.
@@ -72,6 +79,52 @@ const SCOPE_ENUM_TO_PAYLOAD: Record<ExportScope, string> = {
   [ExportScope.RANGE]: "range",
   [ExportScope.PARTIAL]: "partial",
 };
+
+// EXPORT_ENTITY_SOURCES — 5 ExportEntity(UC-07 §6.1 entitySelector 목록) → Prisma
+// model delegate accessor + instant 컬럼 매핑표 (T-0497 architect 결정, ADR-0044 §1
+// dump 대상 entity 정합). ExportEntity union 의 5 literal 과 Prisma model 이름이 일부
+// 다른(LlmConfig→LlmProviderConfig, AuditLog→PermissionDeniedRecord) 차이를 본 표가
+// 흡수한다(schema·helper 변경 0 — SCOPE_ENUM_TO_PAYLOAD 패턴 mirror).
+//
+// instant 컬럼 결정(UC-07 §6.1 range scope [start,end) 판정의 "record 가 생성/발생한
+// 시각" 의미 정합): 5 model 모두 `createdAt`(row 생성 시각)을 instant 로 쓴다 —
+// Assessment 는 평가 record 생성, Person/Group/LlmProviderConfig 는 master record 생성,
+// PermissionDeniedRecord(=AuditLog) 는 감사 사건 발생 시각으로 모두 createdAt 이 자연.
+//
+// Record<ExportEntity, ...> 타입 강제 — ExportEntity union 에 새 entity 가 추가되면
+// 본 표가 컴파일 단계에서 누락을 catch(R-112 negative — entity 확장 회귀 방지).
+//
+// 🔥 REQ-032 projection-only — value 의 `instantColumn` 만 Prisma `select` 로 read 하고
+// 전체 row·raw 본문 컬럼은 select 하지 않는다(아래 previewSelection 의 findMany select).
+const EXPORT_ENTITY_SOURCES: Record<
+  ExportEntity,
+  { delegate: ExportEntityDelegate; instantColumn: string }
+> = {
+  Assessment: { delegate: "assessment", instantColumn: "createdAt" },
+  Person: { delegate: "person", instantColumn: "createdAt" },
+  Group: { delegate: "group", instantColumn: "createdAt" },
+  LlmConfig: { delegate: "llmProviderConfig", instantColumn: "createdAt" },
+  AuditLog: { delegate: "permissionDeniedRecord", instantColumn: "createdAt" },
+};
+
+// previewSelection 이 read 하는 PrismaService delegate 이름 union — findMany({ select })
+// projection-only read 만 사용한다. 본 union 으로 EXPORT_ENTITY_SOURCES 의 delegate 값을
+// 컴파일 차원에서 PrismaService 의 실 accessor 로 제약한다.
+type ExportEntityDelegate =
+  | "assessment"
+  | "person"
+  | "group"
+  | "llmProviderConfig"
+  | "permissionDeniedRecord";
+
+// ExportSelectionPreview — previewSelection 의 반환 shape. 전체 row·raw payload 미반환,
+// count 요약만(REQ-032 — 선별된 실 record 데이터 노출 0). perEntitySelected 는 5 entity
+// 별 selected count breakdown(사람-친화 미리보기용).
+export interface ExportSelectionPreview {
+  selectedCount: number;
+  excludedCount: number;
+  perEntitySelected: Record<ExportEntity, number>;
+}
 
 @Injectable()
 export class ExportJobService {
@@ -164,7 +217,77 @@ export class ExportJobService {
     return this.prisma.exportJob.findMany({ where: { status: "RUNNING" } });
   }
 
+  // previewSelection — selectExportRecords(T-0437 순수 helper) 를 실 DB read path 에
+  // 배선하는 read-only preview (UC-07 §6.1 scope 선별 + REQ-032 projection-only).
+  // (1) 5 entity 에서 `{instant}` projection 만 Prisma findMany({ select }) 로 모아
+  //     ExportRecord[] 로 조립(전체 row·raw 미조회 — REQ-032), (2) selectExportRecords
+  //     실호출로 selected/excluded 분류, (3) count 요약만 반환(실 record payload 0).
+  // DB write 0 — job record 생성·status 전이와 무관한 순수 조회. scope 검증(범위 누락 등)
+  // 은 helper 가 RangeError/TypeError 로 throw 하며 본 메서드는 swallow 없이 propagate
+  // (describe-scope 의 raw-forward 정책과 일관 — controller 가 service 호출 전 변환만 함).
+  async previewSelection(
+    scope: ExportScopePayload,
+  ): Promise<ExportSelectionPreview> {
+    // 5 entity 의 instant projection 을 병렬 read 후 ExportRecord[] 로 평탄화.
+    const records = await this.collectExportRecords();
+
+    // selectExportRecords 실호출(T-0437 helper 배선) — scope 규칙으로 selected/excluded
+    // 분류. scope invariant 위반(range+dateRange 누락 등)은 helper 가 throw → propagate.
+    const { selected, excluded } = selectExportRecords(scope, records);
+
+    // selected 의 entity 별 count breakdown — 5 entity 0 초기화 후 누적(미선택 entity 는 0).
+    const perEntitySelected = VALID_EXPORT_ENTITIES.reduce(
+      (acc, entity) => {
+        acc[entity] = 0;
+        return acc;
+      },
+      {} as Record<ExportEntity, number>,
+    );
+    for (const record of selected) {
+      perEntitySelected[record.entity] += 1;
+    }
+
+    return {
+      selectedCount: selected.length,
+      excludedCount: excluded.length,
+      perEntitySelected,
+    };
+  }
+
   // --- private helpers ---
+
+  // collectExportRecords — 5 entity 에서 instant 컬럼만 projection read 후 ExportRecord[]
+  // 로 평탄화. EXPORT_ENTITY_SOURCES 매핑표를 돌며 각 delegate.findMany({ select:
+  // { <instantColumn>: true } }) 로 전체 row·raw 미조회(REQ-032)하고, entity literal 을
+  // 부여해 helper 입력 형태로 만든다. 빈 DB(전부 빈 배열)는 빈 records → helper 가 빈
+  // 분류 정상 반환(throw 0, 경계).
+  private async collectExportRecords(): Promise<ExportRecord[]> {
+    const entries = Object.entries(EXPORT_ENTITY_SOURCES) as Array<
+      [ExportEntity, { delegate: ExportEntityDelegate; instantColumn: string }]
+    >;
+
+    const perEntity = await Promise.all(
+      entries.map(async ([entity, source]) => {
+        // delegate 별 Prisma findMany 시그니처가 model 마다 달라(union) 좁은 projection
+        // -only 시그니처로 unknown 경유 cast — 본 경로는 select 1 컬럼만 read 한다.
+        const delegate = this.prisma[source.delegate] as unknown as {
+          findMany: (args: {
+            select: Record<string, true>;
+          }) => Promise<Array<Record<string, unknown>>>;
+        };
+        // 🔥 projection-only — instant 컬럼 1개만 select(전체 row·raw 미조회, REQ-032).
+        const rows = await delegate.findMany({
+          select: { [source.instantColumn]: true },
+        });
+        return rows.map((row) => ({
+          entity,
+          instant: row[source.instantColumn] as Date,
+        }));
+      }),
+    );
+
+    return perEntity.flat();
+  }
 
   // toScopePayload — CreateExportJobInput 을 validateExportScope helper 가 요구하는
   // payload shape({ scope: "full"|"range"|"partial", dateRange?, entitySelector? }) 로

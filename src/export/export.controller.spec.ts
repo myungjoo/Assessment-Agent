@@ -87,12 +87,14 @@ function buildServiceMock(): {
     createJob: jest.Mock;
     findRunning: jest.Mock;
     findJob: jest.Mock;
+    previewSelection: jest.Mock;
   };
 } {
   const serviceMock = {
     createJob: jest.fn(),
     findRunning: jest.fn(),
     findJob: jest.fn(),
+    previewSelection: jest.fn(),
   };
   return {
     service: serviceMock as unknown as ExportJobService,
@@ -435,6 +437,135 @@ describe("ExportController (unit)", () => {
   });
 
   // -----------------------------------------------------------------------
+  // previewSelection (POST /api/admin/export/preview-selection) — service.
+  // previewSelection(scope) 실호출 배선 (T-0497). controller 가 enum→lowercase scope
+  // kind 변환 + dateRange ISO→Date coerce 후 service 를 호출하고 count 요약을 그대로
+  // 반환한다. R-112: happy(FULL/RANGE/PARTIAL forward) + error(service throw raw
+  // propagate) + branch(enum 3종 매핑 + dateRange coerce) + negative(부재 분기).
+  // -----------------------------------------------------------------------
+  it("POST preview-selection — FULL scope → lowercase 'full' 변환 후 service.previewSelection 호출 + count 요약 forward (happy)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const summary = {
+      selectedCount: 5,
+      excludedCount: 0,
+      perEntitySelected: {
+        Assessment: 1,
+        Person: 1,
+        Group: 1,
+        LlmConfig: 1,
+        AuditLog: 1,
+      },
+    };
+    serviceMock.previewSelection.mockResolvedValueOnce(summary);
+
+    const controller = new ExportController(service);
+    const result = await controller.previewSelection({
+      scope: ExportScope.FULL,
+    });
+
+    expect(serviceMock.previewSelection).toHaveBeenCalledTimes(1);
+    expect(serviceMock.previewSelection).toHaveBeenCalledWith({
+      scope: "full",
+      dateRange: undefined,
+      entitySelector: undefined,
+    });
+    expect(result).toBe(summary);
+  });
+
+  it("POST preview-selection — RANGE scope (ISO string) → enum→lowercase + string→Date coerce 후 service forward (branch — range coerce)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.previewSelection.mockResolvedValueOnce({
+      selectedCount: 0,
+      excludedCount: 0,
+      perEntitySelected: {} as never,
+    });
+
+    const controller = new ExportController(service);
+    await controller.previewSelection({
+      scope: ExportScope.RANGE,
+      dateRange: {
+        start: "2026-01-01T00:00:00.000Z",
+        end: "2026-03-31T00:00:00.000Z",
+      },
+    });
+
+    const arg = serviceMock.previewSelection.mock.calls[0][0];
+    expect(arg.scope).toBe("range");
+    // string→Date coerce 가 성공해 service 입력의 start/end 가 Date instance.
+    expect(arg.dateRange.start).toBeInstanceOf(Date);
+    expect(arg.dateRange.end).toBeInstanceOf(Date);
+  });
+
+  it("POST preview-selection — PARTIAL scope 의 entitySelector 배열이 그대로 service forward (branch — partial)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.previewSelection.mockResolvedValueOnce({
+      selectedCount: 2,
+      excludedCount: 3,
+      perEntitySelected: {} as never,
+    });
+
+    const controller = new ExportController(service);
+    await controller.previewSelection({
+      scope: ExportScope.PARTIAL,
+      entitySelector: ["Person", "Group"],
+    });
+
+    expect(serviceMock.previewSelection).toHaveBeenCalledWith({
+      scope: "partial",
+      dateRange: undefined,
+      entitySelector: ["Person", "Group"],
+    });
+  });
+
+  it("POST preview-selection — enum→lowercase 매핑이 정확히 full/range/partial 로 service 에 forward (branch — 3 enum 매핑 계약)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.previewSelection.mockResolvedValue({
+      selectedCount: 0,
+      excludedCount: 0,
+      perEntitySelected: {} as never,
+    });
+    const controller = new ExportController(service);
+
+    await controller.previewSelection({ scope: ExportScope.FULL });
+    await controller.previewSelection({
+      scope: ExportScope.RANGE,
+      dateRange: { start: "2026-01-01", end: "2026-02-01" },
+    });
+    await controller.previewSelection({
+      scope: ExportScope.PARTIAL,
+      entitySelector: ["Person"],
+    });
+
+    expect(
+      serviceMock.previewSelection.mock.calls.map((c) => c[0].scope),
+    ).toEqual(["full", "range", "partial"]);
+  });
+
+  it("POST preview-selection — service 의 RangeError (scope invariant 위반) 을 raw propagate (negative — swallow 0)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const rangeError = new RangeError(
+      "scope=range 에는 dateRange 가 필요합니다",
+    );
+    serviceMock.previewSelection.mockRejectedValueOnce(rangeError);
+
+    const controller = new ExportController(service);
+    await expect(
+      controller.previewSelection({ scope: ExportScope.RANGE }),
+    ).rejects.toBe(rangeError);
+  });
+
+  it("POST preview-selection — service 가 던진 raw Error (DB 의존성 fail) 를 그대로 propagate (error path)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const rawError = new Error("db-down");
+    serviceMock.previewSelection.mockRejectedValueOnce(rawError);
+
+    const controller = new ExportController(service);
+    await expect(
+      controller.previewSelection({ scope: ExportScope.FULL }),
+    ).rejects.toBe(rawError);
+  });
+
+  // -----------------------------------------------------------------------
   // statusView (GET /api/admin/export/:id/status-view) — describeExportJobStatus
   // (T-0468) 실호출 배선 (T-0496). controller 가 findJob(id) 로 조회한 job 의 Prisma
   // JobStatus 를 lowercase ExportJobStatus 로 JOB_STATUS_TO_VIEW 매핑한 뒤 helper 를
@@ -576,6 +707,7 @@ describe("ExportController (guard/@Roles metadata)", () => {
     ["create", ExportController.prototype.create],
     ["findRunning", ExportController.prototype.findRunning],
     ["describeScope", ExportController.prototype.describeScope],
+    ["previewSelection", ExportController.prototype.previewSelection],
     ["statusView", ExportController.prototype.statusView],
     ["findJob", ExportController.prototype.findJob],
   ])(
@@ -590,6 +722,7 @@ describe("ExportController (guard/@Roles metadata)", () => {
     ["create", ExportController.prototype.create],
     ["findRunning", ExportController.prototype.findRunning],
     ["describeScope", ExportController.prototype.describeScope],
+    ["previewSelection", ExportController.prototype.previewSelection],
     ["statusView", ExportController.prototype.statusView],
     ["findJob", ExportController.prototype.findJob],
   ])(
@@ -613,6 +746,7 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
     createJob: jest.Mock;
     findRunning: jest.Mock;
     findJob: jest.Mock;
+    previewSelection: jest.Mock;
   };
 
   // 통과 JwtAuthGuard mock — req.user 박제 + true 반환 (@CurrentUser("sub") 가 읽음).
@@ -641,6 +775,7 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
       createJob: jest.fn(),
       findRunning: jest.fn(),
       findJob: jest.fn(),
+      previewSelection: jest.fn(),
     };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [ExportController],
@@ -1043,6 +1178,125 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
       .expect(403);
   });
 
+  // == POST /api/admin/export/preview-selection — previewSelection endpoint ========
+
+  // -- happy — Admin 통과 시 201 + count 요약 body 반환 (POST/GET :id 충돌 없음) -------
+  it("POST preview-selection — Admin role 통과 시 201 + count 요약 반환 (happy — POST/GET :id 충돌 없음)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.previewSelection.mockResolvedValueOnce({
+      selectedCount: 5,
+      excludedCount: 0,
+      perEntitySelected: {
+        Assessment: 1,
+        Person: 1,
+        Group: 1,
+        LlmConfig: 1,
+        AuditLog: 1,
+      },
+    });
+
+    const res = await request(app.getHttpServer())
+      .post("/api/admin/export/preview-selection")
+      .send({ scope: "FULL" })
+      .expect(201);
+
+    expect(res.body.selectedCount).toBe(5);
+    expect(res.body.excludedCount).toBe(0);
+    // lowercase "full" 변환 후 service.previewSelection 위임.
+    expect(serviceMock.previewSelection).toHaveBeenCalledTimes(1);
+    expect(serviceMock.previewSelection).toHaveBeenCalledWith({
+      scope: "full",
+      dateRange: undefined,
+      entitySelector: undefined,
+    });
+    // read-only — createJob/findJob 미호출.
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+    expect(serviceMock.findJob).not.toHaveBeenCalled();
+  });
+
+  // -- negative — service RangeError (scope invariant 위반) → 500 (raw propagate) -----
+  it("POST preview-selection — service RangeError(scope invariant) → 500 raw propagate (negative — swallow 0)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.previewSelection.mockRejectedValueOnce(
+      new RangeError("scope=range 에는 dateRange 가 필요합니다"),
+    );
+
+    await request(app.getHttpServer())
+      .post("/api/admin/export/preview-selection")
+      .send({ scope: "RANGE" })
+      .expect(500);
+  });
+
+  // -- negative — ValidationPipe: 정의되지 않은 raw 본문 키 → 400 ------------------
+  it("POST preview-selection — 정의되지 않은 extra body 키(raw payload) 포함 시 400 + service 미호출 (negative — forbidNonWhitelisted)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/export/preview-selection")
+      .send({ scope: "FULL", rawLeak: "secret" })
+      .expect(400);
+
+    expect(serviceMock.previewSelection).not.toHaveBeenCalled();
+  });
+
+  // -- negative — ValidationPipe: 잘못된 scope enum 값 → 400 + service 미호출 --------
+  it("POST preview-selection — 잘못된 scope enum 값(ALL) 시 400 + service 미호출 (negative — invalid enum)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/export/preview-selection")
+      .send({ scope: "ALL" })
+      .expect(400);
+
+    expect(serviceMock.previewSelection).not.toHaveBeenCalled();
+  });
+
+  // -- negative — 401 (JwtAuthGuard reject — 인증 부재) + service 미호출 -----------
+  it("POST preview-selection — JwtAuthGuard reject 시 401 + service 미호출 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/export/preview-selection")
+      .send({ scope: "FULL" })
+      .expect(401);
+
+    expect(serviceMock.previewSelection).not.toHaveBeenCalled();
+  });
+
+  // -- negative — 403 (RolesGuard reject — User actor Admin+ 미달) + service 미호출 ---
+  it("POST preview-selection — RolesGuard reject 시 403 + service 미호출 (negative — User actor Admin+ 미달)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: { canActivate: () => false },
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/export/preview-selection")
+      .send({ scope: "FULL" })
+      .expect(403);
+
+    expect(serviceMock.previewSelection).not.toHaveBeenCalled();
+  });
+
   // == GET /api/admin/export/:id/status-view — statusView endpoint =================
 
   // -- happy — Admin 통과 시 200 + helper 산출 ExportJobStatusView body 반환 ----------
@@ -1128,6 +1382,7 @@ describe("ExportController (real RolesGuard escalation 분기)", () => {
     createJob: jest.Mock;
     findRunning: jest.Mock;
     findJob: jest.Mock;
+    previewSelection: jest.Mock;
   };
 
   const VALID_BODY = { scope: "FULL" };
@@ -1154,6 +1409,7 @@ describe("ExportController (real RolesGuard escalation 분기)", () => {
       createJob: jest.fn(),
       findRunning: jest.fn(),
       findJob: jest.fn(),
+      previewSelection: jest.fn(),
     };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [ExportController],
