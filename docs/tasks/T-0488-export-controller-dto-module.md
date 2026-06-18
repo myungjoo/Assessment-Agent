@@ -2,7 +2,10 @@
 id: T-0488
 title: ExportController + CreateExportDto + ExportModule 배선 — GET /api/admin/export job 생성·조회 endpoint
 phase: P7
-status: PENDING
+status: DONE
+mergedAs: ec2fe31
+prNumber: 400
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 280

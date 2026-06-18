@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0488",
-  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-4 DONE: T-0484(ADR-0044 ACCEPTED), T-0485(prisma schema ExportJob/ImportJob+migration, b8b8faa), T-0486(ExportJobService — createJob/mark*/findJob/findRunning, PR #398 round1 APPROVE, squash 1ae19cb), T-0487(ImportJobService — ExportJobService 대칭, PR #399 round1 APPROVE, squash a451f6a). step5 큐잉: T-0488(ExportController + CreateExportDto + ExportModule 등록 — GET /api/admin/export job 생성·polling endpoint, pr-mode, dependsOn [T-0486], touchesFiles src/export/* + app.module.ts) — 다음 fire 가 claim+execute. 이후 step: Import controller·DTO(multipart upload)·45 helper(T-0437~T-0483) 실 호출 배선(여러 task 분할). 실 atomic-transaction restore·artifact object-storage 는 새 외부 dependency/credential 라 Q-0040 승인 범위 밖(별도 §5/§9 게이트). 잔여 게이트(미해소): live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend(backend 계약 ship 후), timezone Q-0026(ADR-first human), ADR-0036 stage5c full-parallel(30일 dogfood). open PR 0·BLOCKED 0·blockers 0 — Q-0041 CI billing RESOLVED(2026-06-18, de3c4c9). pr-mode 4-게이트 CI green 재가동, T-0486/T-0487 정상 merge 로 실증.",
+  "nextTask": "T-0489",
+  "backlogNote": "P7 export/import 실 배선 chain 진행 중(Q-0040 옵션1 승인). step1-5 DONE: T-0484(ADR-0044 ACCEPTED), T-0485(prisma schema ExportJob/ImportJob+migration, b8b8faa), T-0486(ExportJobService, PR #398 squash 1ae19cb), T-0487(ImportJobService, PR #399 squash a451f6a), T-0488(ExportController + CreateExportDto + ExportModule — POST /api/admin/export job 생성 + GET running/:id polling + app.module 등록, PR #400 round2 APPROVE, merge ec2fe31 + follow-up doc 5a38b2c). step6 큐잉: T-0489(ImportController + CreateImportDto + ImportModule — POST /api/admin/import + GET running/:id polling, T-0488 대칭, pr-mode, dependsOn [T-0487,T-0488], touchesFiles src/import/* + app.module.ts) — 다음 fire 가 claim+execute. 이후 step: multipart upload·실 artifact 파싱·atomic-transaction restore·45 helper(T-0437~T-0483) 실 호출 배선(새 infra/dep 표면 → Q-0040 범위 밖, 별도 §5/§9 게이트). 잔존 direct doc-sync: api.md §5 L123 GET /api/admin/export→POST 정정(T-0488 §Follow-ups). 잔여 게이트(미해소): live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend(backend 계약 ship 후), timezone Q-0026(ADR-first human), ADR-0036 stage5c full-parallel(30일 dogfood). open PR 0·BLOCKED 0·blockers 0 — Q-0041 CI billing RESOLVED(2026-06-18, de3c4c9). pr-mode 4-게이트 CI green 가동, T-0486/T-0487/T-0488 연속 merge 로 실증.",
   "lock": {
     "holder": null,
-    "session": "cron@cloud-aas1f-032e",
-    "since": "2026-06-18T03:52:00Z",
-    "note": "cron@cloud-aas1f-032e (schedule cron fire, Anthropic cloud fresh checkout) — origin/main 14d2cb4 동기(직전 fire T-0486 merge + planner T-0487 큐잉). 권위 lock CAS 획득(d45951f)→reclaim(none, claims=[])→maxConcurrentClaims gate(active 0, pr-mode claimable)→select+claim T-0487(43aa765)→lock-free execute. executor: ImportJobService 신설+spec(신규 파일 line 96.29% func 100% branch 100%, 전역 99.93%). pr-mode push(claude/T-0487-... @12f358e)→integrator: PR #399 round1 APPROVE+CI green(run 27735294615)→4-게이트 PASS→squash merge a451f6a. bookkeeping 위해 lock reacquire(6500786). planner T-0488(ExportController/DTO/module) 큐잉. doc commit 후 claim 해제+lock tombstone release."
+    "session": "cron@local15-9d4a",
+    "since": "2026-06-18T04:04:35Z",
+    "note": "cron@local15-9d4a (schedule cron fire, 매시15분, 로컬 win) — origin/main 14d2cb4→bbd8549 ff 동기(직전 cron@cloud fire T-0487 merge + planner T-0488 큐잉). 권위 lock CAS 획득(330b69e)→reclaim(none, claims=[])→maxConcurrentClaims gate(active 0, pr-mode claimable)→validate-claim-candidate T-0488 PASS→select+claim T-0488(claims=[T-0488])→lock-free execute. executor: ExportController(POST create/GET running/GET :id) + CreateExportDto + ExportModule + app.module 등록, 신규 파일 export.controller.ts 100%/dto 100%, 4833 test green, cov≥80%. pr-mode push(claude/T-0488-... @ec2fe31)→integrator: PR #400 round1 REQUEST_CHANGES(MAJOR: api.md GET→POST doc-sync follow-up 기록)→round2 APPROVE+CI green→4-게이트 PASS→merge ec2fe31(+follow-up doc 5a38b2c). 과정 deviation: integrator 가 squash 대신 push HEAD:main(feature 단일 CI-검증 commit이라 내용 동일·CI green·무손상, 별도 tracked incident 아님). bookkeeping 위해 lock reacquire(9667759). planner T-0489(ImportController 대칭) 큐잉. doc commit 후 claim 해제+lock tombstone release."
   },
-  "lastActivity": "2026-06-18T03:53:00Z",
-  "lastCommit": "a451f6a",
+  "lastActivity": "2026-06-18T04:22:00Z",
+  "lastCommit": "5a38b2c",
   "mostRecentTasks": [
+    "T-0488",
     "T-0487",
     "T-0486",
     "T-0485",
-    "T-0484",
-    "T-0483"
+    "T-0484"
   ],
   "loopSession": {
     "turnCount": 10,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511 (dynamic, turn cap 10) — 종료. t1 stand-down(T-0473 cron@local15). t2-t10 매 turn 1 task merge: T-0474→90df25d, T-0475→92e0e1b, T-0476→1339f48, T-0477→16ab736, T-0478→549dfcd, T-0479→8c8d286, T-0480→b2523a7, T-0481→7866890, t10(18:37Z) T-0482→PR #393 APPROVE(NIT 1)→merge 0ab1b37→bookkeeping+planner T-0483. turn cap 10 도달 → self-reschedule 안 함, session 종료. 9개 task(T-0474~T-0482) 전부 round1 APPROVE merge·신규 파일 100% cov·CI green·blocker 0. cleanup 권장: /compact 또는 /clear 후 새 /loop, 또는 cron(KST 야간) 대기. 다음 진입점이 T-0483 부터."
   },
   "ci": {
-    "lastRun": "2026-06-18T03:50:00Z",
+    "lastRun": "2026-06-18T04:19:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0487 PR #399 round1 head 12f358e CI run 27735294615(pull_request) success — 전 step green(reviewer approval 검증 step 포함, comment 선post 로 race 없음). mergeStateStatus CLEAN, head not BEHIND → rebase 불요 직 squash merge a451f6a. Q-0041 CI billing RESOLVED 후 pr-mode 4-게이트 CI green 정상 가동 — T-0486·T-0487 연속 실증."
+    "note": "T-0488 PR #400 round2 head ec2fe31 CI success(reviewer approval 검증 step 포함) + main run on 5a38b2c success — 전 step green(기본 검사/smoke/e2e/approval-gate). 4-게이트 PASS 후 merge ec2fe31. Q-0041 CI billing RESOLVED 후 pr-mode 4-게이트 CI green 가동 — T-0486·T-0487·T-0488 연속 실증."
   },
   "reviewRounds": {
+    "T-0488": 2,
     "T-0487": 1,
     "T-0485": 1,
     "T-0483": 1,
@@ -870,7 +871,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 479,
+    "tasksCompleted": 480,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
