@@ -6,7 +6,8 @@
 // AssessmentEvaluationModule (T-0293, ADR-0032 — 평가 controller / orchestrator 가용화) +
 // WebModule (T-0354, ADR-0040 §3 — web/dist static serve + SPA fallback) +
 // ScheduleModule (T-0412, ADR-0042 §Decision 2 — SchedulerRegistry 전역 주입 활성화) +
-// SchedulingModule (T-0415, ADR-0042 §Decision 2 — /api/schedules 동적 cron 엔드포인트 런타임 활성화) 을 등록한다.
+// SchedulingModule (T-0415, ADR-0042 §Decision 2 — /api/schedules 동적 cron 엔드포인트 런타임 활성화) +
+// ExportModule (T-0488, ADR-0044 §Follow-ups — /api/admin/export export job 생성·조회 엔드포인트 활성화) 을 등록한다.
 // AssessmentModule 등 추가 도메인 module 은 후속 task 책임.
 import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -17,6 +18,7 @@ import { AssessmentCollectionModule } from "./assessment-collection/assessment-c
 import { AssessmentEvaluationModule } from "./assessment-evaluation/assessment-evaluation.module";
 import { AuthModule } from "./auth/auth.module";
 import { ConfluenceModule } from "./confluence/confluence.module";
+import { ExportModule } from "./export/export.module";
 import { GithubModule } from "./github/github.module";
 import { LlmModule } from "./llm/llm.module";
 import { PermissionDeniedRecordModule } from "./permission-denied/permission-denied-record.module";
@@ -49,6 +51,10 @@ import { WebModule } from "./web/web.module";
   // CronScheduleController(/api/schedules) + CRON_TICK_HANDLER provider + CronScheduleService 를
   // root DI 그래프에 노출해 Admin 런타임 cron 지정 진입점을 활성화한다. ScheduleModule.forRoot()
   // 는 위 1회 등록을 그대로 재사용(SchedulingModule 은 forRoot 재import 없이 전역 SchedulerRegistry 주입).
+  // ExportModule (T-0488 추가) — ADR-0044 §Follow-ups export HTTP slice. ExportJobService(T-0486)
+  // 위에 ExportController(POST /api/admin/export 생성 + GET running/:id status polling) 를 root DI
+  // 그래프에 노출해 Admin export job 진입점을 활성화한다. AuthModule 을 전이 import 하므로 본 module
+  // import 만으로 guard 바인딩이 닫힌다(외부 dep 0).
   imports: [
     PersistenceModule,
     UserModule,
@@ -62,6 +68,7 @@ import { WebModule } from "./web/web.module";
     WebModule,
     ScheduleModule.forRoot(),
     SchedulingModule,
+    ExportModule,
   ],
   controllers: [AppController],
   providers: [AppService],
