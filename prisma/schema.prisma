@@ -598,10 +598,9 @@ enum ImportMode {
 // FK cascade — onDelete: Restrict (Prisma default). User hard delete 시 job row 의
 //   requestedBy 가 dangling reference 가 되지 않도록 차단. 운영자는 User 삭제 전 관련
 //   job row 정리 책임 (DifficultyMapping → LlmProviderConfig 의 Restrict 패턴 정합).
-//   User schema 변경 0 (ADR-0044 Cross-Module Impact "User schema 변경 0") — User 의
-//   exportJobs / importJobs back-relation 필드를 추가하지 않는다 (Prisma 7 의 implicit
-//   back-relation 미지원 환경이면 User 측에 최소 한 줄 추가 필요할 수 있으나, 본 schema
-//   는 Prisma 7.8 이 implicit back-relation 을 허용하는지 검증 후 결정).
+//   ADR-0044 Cross-Module Impact "User schema 변경 0" 의 의도는 *기존 컬럼·관계* 무손상 —
+//   Prisma 양방향 relation 요건상 User 측 explicit back-relation 필드 (exportJobs /
+//   importJobs) 2 줄은 additive 로 추가 (FK 컬럼 / DB schema 변경 0, SQL impact 0).
 model ExportJob {
   id             String      @id @default(cuid())
   status         JobStatus   @default(PENDING)
