@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0511",
-  "backlogNote": "✅ **Q-0042 게이트1(실 chunked-streaming/build service-layer chain) 진행 중**. ADR-0046(b718bb8) Decision §1·3 chain 진척: 다운로드 헤더 직렬화 helper T-0510 완료 — `serializeExportDownloadHeaders(descriptor, contentRange?): Record<string,string>` 순수 helper (60766ce, PR #423 round1 APPROVE 0 finding, CI green, 신규 파일 line/branch/func 100%, 31 test). descriptor single-source 의 Content-Type/Content-Disposition/Content-Length + 선택 ExportChunkContentRange→Content-Range RFC7233, 한국어 TypeError/RangeError 입력 방어, non-mutating, 새 타입·dep 0. nextTask=T-0511(selectRemainingMaterializedDumpChunks — ADR-0046 §Decision 1 맞물림 (iii) resume materialization: materialized chunks 를 resume plan 의 remainingChunks 로 필터하는 순수 helper, pr, dep0). 누적 chain: T-0501(deliveryPlan)·T-0502·T-0503(chunkPlan)·T-0504·T-0505(ADR-0046)·T-0506(materializeExportDump)·T-0507(sliceByChunkPlan)·T-0508(verifyDescriptorDrift)·T-0509(chunkedReadable)·T-0510(downloadHeaders). 게이트1 chain 의 다음 후속: resume materialization(T-0511) → controller/repository/stream pipe 배선(§5 게이트). 기타 standing 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=502.",
+  "nextTask": "T-0512",
+  "backlogNote": "✅ **Q-0042 게이트1(실 chunked-streaming/build service-layer chain) 진행 중**. ADR-0046(b718bb8) Decision §1 맞물림 4 종 중 (i)·(ii)·(iii) 닫힘: resume materialization helper T-0511 완료 — `selectRemainingMaterializedDumpChunks(materializedChunks, resumePlan): MaterializedExportDumpChunk[]` 순수 helper (8601ad9, PR #424 round1 APPROVE, CI green, 신규 파일 100% cov). MaterializedExportDumpChunk[] 를 ExportChunkResumePlan.remainingChunks 경계로 필터해 연속 forward resume subset 반환 — resume plan 재산정 0(single-source) + Buffer.from alias 0 + single-source drift RangeError + non-mutating. nextTask=T-0512(selectRefetchMaterializedDumpChunks — ADR-0046 §Decision 1 맞물림 (iv) refetch materialization: reconcileExportChunkIntegrity.failedChunks(비연속 손상 chunk)로 필터해 재요청 subset 반환하는 순수 helper, (iii) resume 와 직교, pr, dep0 — 4 맞물림 중 마지막 미박제). 누적 chain: T-0501(deliveryPlan)·T-0502·T-0503(chunkPlan)·T-0504·T-0505(ADR-0046)·T-0506(materializeExportDump)·T-0507(sliceByChunkPlan)·T-0508(verifyDescriptorDrift)·T-0509(chunkedReadable)·T-0510(downloadHeaders)·T-0511(resumeSlice). (iv) refetch(T-0512) 후 맞물림 4 종 완성 → controller/repository/stream pipe 배선(§5 게이트). 기타 standing 게이트: live-LLM bridge credential(Q-0022 시험 키 ⏰만료 2026-06-30 임박, §5), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=503.",
   "lock": {
     "holder": null,
-    "session": "cron@win-tt511-c510",
-    "since": "2026-06-18T18:04:31Z",
-    "note": "cron@win-tt511-c510 (로컬 Windows scheduled cron fire, 매시 15분 trigger, gh 2.88.1 인증됨) — T-0510 execute. origin/main 5d43170(stale 로컬, T-0508/T-0509 못 본 상태)→fetch→reset --hard origin/main b4a9e53→merge 후 60766ce, server-time 18:04:31Z(GitHub api Date 헤더). lock free(3888e55 tombstone holder=null)·claims=[] 확인. fineGrainedConcurrency=true stage5b: reclaim(no stale)→select-claim.sh 로 T-0510 atomic claim(claims.json append + lock tombstone 동일 commit, lock-free 진행, pr-mode + 활성 claim 0 단독 claim 동등). executor sub-agent 가 implementer+tester 실행: src/export/export-download-headers.ts 신설(+177 LOC, serializeExportDownloadHeaders=ExportArtifactDescriptor single-source Content-Type/Disposition/Length + 선택 ExportChunkContentRange→Content-Range RFC7233, 한국어 TypeError/RangeError 입력 방어, non-mutating, 새 타입·dep 0) + spec(31 test, happy/error/branch/negative 충분 cover). lint·build·test:cov 통과(전체 5172 pass, 신규 파일 line/branch/function/stmt 100%). PR #423 open via gh pr create → integrator: reviewer 직접 dispatch round1 APPROVE 0 finding + comment(gate2) → CI green(기본검사+배포 산출물 검증 both success, run 27779911390, approval-gate race 없음) → 4-게이트 PASS → gh pr merge --squash --delete-branch → 60766ce on main(branch delete OK). bookkeeping: tasksCompleted 501→502, mostRecentTasks prepend T-0510, reviewRounds[T-0510]=1, nextTask=T-0510→T-0511(planner queue selectRemainingMaterializedDumpChunks). claim 회수 commit(claims.json T-0510 제거) 후 lock tombstone 유지. 단일 active driver, race 0. (구 c509 note: T-0509 execute → ed56a49 merge.)"
+    "session": "cron@cloud-c511",
+    "since": "2026-06-18T18:38:06Z",
+    "note": "cron@cloud-c511 (Anthropic 클라우드 fresh git checkout, schedule cron fire, gh 2.88.1 인증됨) — T-0511 execute. 로컬 b4a9e53(stale)→fetch→reset --hard origin/main 205a9a9(T-0510 merge 본 상태), server-time 18:38:06Z(GitHub api Date 헤더). lock free(9c48c53 tombstone holder=null)·claims=[] 확인. 미해결 HQ 0(Q-0042 RESOLVED 게이트1 승인). fineGrainedConcurrency=true stage5b: reclaim(no stale)→select-claim.sh 로 T-0511 atomic claim(claims.json append + lock tombstone 동일 commit 357644f, lock-free 진행, pr-mode + 활성 claim 0 단독 claim 동등). executor sub-agent 가 implementer+tester 실행: src/export/export-dump-resume-slice.ts 신설(+189 LOC, selectRemainingMaterializedDumpChunks=MaterializedExportDumpChunk[] 를 ExportChunkResumePlan.remainingChunks 경계로 필터해 연속 forward resume subset 반환, resume plan 재산정 0·Buffer.from alias 0·single-source drift RangeError·non-mutating·한국어 TypeError/RangeError 입력 방어 7 분기, 새 타입·dep 0) + spec(happy/error 9/branch 6/negative 충분 cover). lint·build·test:cov 통과(전체 5195 pass, 신규 파일 stmt/func/line 100% branch 95.23%). PR #424 open via gh pr create → integrator: reviewer 직접 dispatch round1 APPROVE + comment(gate2) → CI green → 4-게이트 PASS → gh pr merge --squash --delete-branch → 8601ad9 on main(branch delete OK). 머지 commit 8601ad9 main CI 는 in_progress(다음 fire 가 conclusion 확인). bookkeeping: tasksCompleted 502→503, mostRecentTasks prepend T-0511, reviewRounds[T-0511]=1, nextTask=T-0511→T-0512(planner queue selectRefetchMaterializedDumpChunks). claim 회수 commit(claims.json 비움 9b3e8a1) 후 lock tombstone 유지. 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-18T18:12:00Z",
-  "lastCommit": "60766ce",
+  "lastActivity": "2026-06-18T18:50:15Z",
+  "lastCommit": "8601ad9",
   "mostRecentTasks": [
+    "T-0511",
     "T-0510",
     "T-0509",
     "T-0508",
-    "T-0507",
-    "T-0506"
+    "T-0507"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-18T18:12:00Z",
-    "status": "green",
+    "lastRun": "2026-06-18T18:49:34Z",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0510 PR #423 round1: 기본검사 + 배포 산출물 검증 both success(run 27779911390, reviewer approval-gate — comment 가 approval-verify step 전 도착해 race 없음) → 4-게이트 PASS → squash merge 60766ce. 본 bookkeeping direct commit CI 는 다음 fire 에서 conclusion 확인."
+    "note": "T-0511 PR #424 round1: CI green → 4-게이트 PASS → squash merge 8601ad9. 머지 commit 8601ad9 의 main CI(run headSha 8601ad9, 18:49:34Z) 는 in_progress — 다음 fire [1] 에서 conclusion 재확인. 직전 완료 run(205a9a9 T-0510 bookkeeping) success."
   },
   "reviewRounds": {
+    "T-0511": 1,
     "T-0510": 1,
     "T-0509": 1,
     "T-0508": 1,
@@ -912,7 +913,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 502,
+    "tasksCompleted": 503,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
