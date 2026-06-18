@@ -15,8 +15,8 @@
     "since": "2026-06-18T07:04:36Z",
     "note": "cron@cloud-vm-aas2a (scheduled cron fire, fresh cloud checkout) — origin/main e2f4452 동기(직전 cron T-0491 ANOTHER_ROUND bookkeeping). 권위 lock CAS 획득(5ba0fa7→4c14968, claims.json 보존: T-0491 PR_OPEN pr=402). currentTask=T-0491 resume, PR #402 round1 REQUEST_CHANGES 확인(reviewer comment 4738471663: BLOCKER DTO @IsObject↔helper Array.isArray + MAJOR integration test 부재 + MINOR 주석 stale). fix 가 §Out of Scope 넘어 executor 직접 진행 불가 → planner sub-agent dispatch 로 option (a) scope amend 수행: §Out of Scope 항목 좁힘(DTO array-aware in-scope, integration test in-scope, production controller 코드 0 유지) + AC append(round2 BLOCKER/MINOR/MAJOR 3 종 fix 항목) + Required Reading 1줄(create-export.dto.ts) + touchesFiles +2 파일(dto, controller.spec) + estimatedDiff 210→280 + estimatedFiles 2→4 + Follow-ups 의 round1 finding dump 를 amend 결정 노트로 교체. doc-only direct commit(task amend + STATE + journal) → main push. PR #402 는 그대로 open 유지, executor 재진입은 다음 cron fire(resume prNumber=402, LOOP §1[2] judgement (e)). bookkeeping 후 lock tombstone release. claim PR_OPEN 유지(release 안 함)."
   },
-  "lastActivity": "2026-06-18T07:05:00Z",
-  "lastCommit": "01362f7",
+  "lastActivity": "2026-06-18T07:06:30Z",
+  "lastCommit": "7b09c69",
   "mostRecentTasks": [
     "T-0490",
     "T-0489",
