@@ -2,7 +2,7 @@
 id: T-0530
 title: 저성과자 식별 detection 순수 도메인 helper 신설 (computeUnderPerformerSignal)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-013]
 dependsOn: []
