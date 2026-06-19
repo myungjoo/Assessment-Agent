@@ -2,7 +2,10 @@
 id: T-0532
 title: EvaluationOrchestratorService 에 저성과자 narrative annotation 소비 배선 (computeUnderPerformerSignal→applyUnderPerformerAnnotation)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 446
+mergedAt: 2026-06-19T19:25:00Z
+mergeCommit: 6d349fb
 commitMode: pr
 coversReq: [REQ-013]
 dependsOn: [T-0530, T-0531]
