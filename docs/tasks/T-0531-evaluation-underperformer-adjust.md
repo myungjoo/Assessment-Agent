@@ -2,8 +2,12 @@
 id: T-0531
 title: 저성과자 신호 소비 underPerformer 결정적 annotation 순수 helper applyUnderPerformerAnnotation 추가
 phase: P5
-status: PENDING
 commitMode: pr
+status: DONE
+completedAt: 2026-06-20
+mergedAs: 40c73f8
+prNumber: 445
+reviewRounds: 1
 coversReq: [REQ-013]
 dependsOn: [T-0530]
 independentStream: p5-evaluation-underperformer
