@@ -122,6 +122,27 @@ function suspectedCommits(
   );
 }
 
+// docWithVersion — update 횟수 중립화 wiring 검증용 document fixture. 핵심:
+// computeUpdateCountNeutralization 은 `input.metadata.version` 을 읽으므로(매퍼는
+// ConfluenceActivity.version 을 metadata 로 옮기지 않는다 — 별도 top-level 필드),
+// 중립 대상 단위를 구성하려면 `metadata.version` 을 명시 주입해야 한다. confluence
+// page(document) 에 metadata.version 을 통제해 임계(5) 분기를 결정적으로 만든다.
+function docWithVersion(overrides: {
+  externalId: string;
+  author?: string;
+  version?: number;
+}): ConfluenceActivity {
+  const { externalId, author = "writer", version } = overrides;
+  return confluenceActivity({
+    externalId,
+    author,
+    metadata:
+      version === undefined
+        ? { titleLength: 10 }
+        : { titleLength: 10, version },
+  });
+}
+
 // orchestrator + mock scoring service 직접 생성(new Service(mock)) — sibling
 // service spec 의 direct-construction idiom mirror(생성자 의존이 scoringService
 // 단일이라 Test.createTestingModule 불요).
@@ -781,6 +802,387 @@ describe("EvaluationOrchestratorService", () => {
       const scoring = makeScoringServiceWithVolume(100);
       const orchestrator = makeOrchestrator(scoring);
       const activities: Activity[] = suspectedCommits("abuser", 3);
+      const snapshot = JSON.parse(JSON.stringify(activities));
+
+      await orchestrator.evaluateActivities(activities, OPTIONS);
+
+      expect(activities).toEqual(snapshot);
+    });
+  });
+
+  // ── T-0526: update 횟수 중립화 배선(computeUpdateCountNeutralization →
+  //    applyUpdateCountNeutralizationToVolume). detection 은 dedup 후 입력의
+  //    metadata.version 으로 신호를 산출하고(임계 5), 소비는 abuse 감점 후 중립 대상
+  //    document 단위의 volume 을 net 0(base 보존)으로 처리한다. mock scoreUnit 으로
+  //    scoring volume 을 통제해 보존/무변경을 입출력 비교로 단언한다. abuse 배선이
+  //    함께 보존됨(회귀 0)도 확인한다.
+  describe("update-count wiring — 중립 대상 단위 volume net 0 보존 / 비대상 무변경(R-41)", () => {
+    it("(happy) version 임계 이상(≥5) document 단위는 base volume 이 net 0 으로 보존된다", async () => {
+      // metadata.version 5 인 document → 중립 대상. abuse 는 단일 author 단일 단위라
+      // suspected=false(무감점) → scoring volume 그대로 도달 후 중립 보존(base 유지).
+      const scoring = makeScoringServiceWithVolume(40);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({ externalId: "doc-neutral", version: 5 }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      // 중립 보존 = base volume 그대로(net 0 — 감점도 가산도 없음).
+      expect(results[0].volume).toBe(40);
+    });
+
+    it("(happy) version 임계 미만(<5) 비대상 document 단위는 volume 무변경 passthrough 다", async () => {
+      const scoring = makeScoringServiceWithVolume(33);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({ externalId: "doc-low", version: 4 }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].volume).toBe(33);
+    });
+
+    it("(branch a) 중립 대상 + 비대상 혼합 batch → 대상 보존, 비대상 무변경(둘 다 무감점)", async () => {
+      // 두 단위 모두 다른 author(self-follow-up 미발화) + 단일 단위라 abuse suspected 0.
+      // doc-hi(version 6) 중립 대상, doc-lo(version 2) 비대상. 둘 다 base 보존이지만
+      // 중립 보존 분기와 passthrough 분기를 각각 통과한다.
+      const scoring = makeScoringServiceWithVolume(50);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({ externalId: "doc-hi", author: "a1", version: 6 }),
+        docWithVersion({ externalId: "doc-lo", author: "a2", version: 2 }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // 순서 보존 — 둘 다 base 50 보존(net 0).
+      expect(results.map((r) => r.volume)).toEqual([50, 50]);
+    });
+
+    it("(branch b) 전 단위 비대상(version<임계 또는 code) → 전 단위 volume 무변경", async () => {
+      const scoring = makeScoringServiceWithVolume(70);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({ externalId: "d-3", author: "a1", version: 3 }),
+        // code 단위(commit) — version 무관 비대상(R-41 문서 한정).
+        githubActivity({
+          externalId: "c-x",
+          author: "a2",
+          kind: "commit",
+          metadata: { titleLength: 50, version: 99 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results.map((r) => r.volume)).toEqual([70, 70]);
+    });
+
+    it("(branch c) dedup 으로 일부 제거된 batch → detection 이 dedup 후 입력 위에서 동작", async () => {
+      // 동일 unitId document 중복 2 건(둘 다 version≥5) → dedup 후 earliest 1 건.
+      // 그 1 건이 중립 대상으로 식별돼 base 보존(detection 이 dedup 후 입력 위 동작 확인).
+      const scoring = makeScoringServiceWithVolume(25);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        confluenceActivity({
+          externalId: "dup-doc",
+          author: "w",
+          timestamp: "2026-09-02T00:00:00Z",
+          metadata: { titleLength: 10, version: 7 },
+        }),
+        confluenceActivity({
+          externalId: "dup-doc",
+          author: "w",
+          timestamp: "2026-09-01T00:00:00Z", // earliest 보존
+          metadata: { titleLength: 10, version: 7 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].volume).toBe(25);
+    });
+
+    it("(branch d) version 경계 5 정확히 → 중립 대상, 4 → 비대상", async () => {
+      const scoring = makeScoringServiceWithVolume(15);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({ externalId: "exact-5", author: "a1", version: 5 }),
+        docWithVersion({ externalId: "below-4", author: "a2", version: 4 }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // 둘 다 base 보존(중립 대상은 보존, 비대상은 무변경)이라 volume 동일하지만,
+      // 임계 경계 5/4 의 두 분기(중립 보존 vs passthrough)를 각각 통과한다.
+      expect(results.map((r) => r.volume)).toEqual([15, 15]);
+    });
+
+    it("(branch d) version 비-number / 누락 → 비대상(0 흡수, 무변경)", async () => {
+      const scoring = makeScoringServiceWithVolume(18);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        // metadata.version 누락 document — resolveUpdateCount 0 흡수 → 비대상.
+        docWithVersion({ externalId: "no-ver", author: "a1" }),
+        // metadata.version 이 string("9") — number 아님 → 0 흡수 → 비대상.
+        confluenceActivity({
+          externalId: "str-ver",
+          author: "a2",
+          metadata: { titleLength: 10, version: "9" },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results.map((r) => r.volume)).toEqual([18, 18]);
+    });
+  });
+
+  describe("update-count wiring — error path / negative cases(예외 분기마다 cover)", () => {
+    it("(error) scoring reject 시 두 adjust(abuse + update-count) 미실행 + error 전파", async () => {
+      // 중립 대상 구성이어도 scoring reject 면 adjust 자리 도달 0 — error 전파.
+      const scoring = makeScoringServiceWithVolume(40);
+      const boom = new Error("LLM HTTP 호출 실패 (status: 500)");
+      scoring.scoreUnit
+        .mockResolvedValueOnce(resultWithVolume("ok", 40))
+        .mockRejectedValueOnce(boom);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({ externalId: "ok", author: "a1", version: 6 }),
+        docWithVersion({ externalId: "fail", author: "a2", version: 6 }),
+      ];
+
+      await expect(
+        orchestrator.evaluateActivities(activities, OPTIONS),
+      ).rejects.toThrow(boom);
+      // 두 번째 단위에서 throw → scoring 2 회 시도, adjust 도달 0(부분 결과 위장 0).
+      expect(scoring.scoreUnit).toHaveBeenCalledTimes(2);
+    });
+
+    it("(negative i) 빈 Activity[] → 빈 EvaluationResult[](두 helper 빈 입력 통과)", async () => {
+      const scoring = makeScoringServiceWithVolume(10);
+      const orchestrator = makeOrchestrator(scoring);
+
+      const results = await orchestrator.evaluateActivities([], OPTIONS);
+
+      expect(results).toEqual([]);
+      expect(scoring.scoreUnit).not.toHaveBeenCalled();
+    });
+
+    it("(negative ii) 단일 author 단일 단위(비대상) → 무변경", async () => {
+      const scoring = makeScoringServiceWithVolume(8);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({ externalId: "solo", author: "solo-w", version: 2 }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].volume).toBe(8);
+    });
+
+    it("(negative iii) 동일 author 다수 단위 — 일부만 중립 대상(부분 적용 정합)", async () => {
+      // 같은 author 의 document 3 건: version 6/2/8. unitId 가 모두 달라 dedup 미발화.
+      // version≥5 인 doc-1(6), doc-3(8) 만 중립 대상, doc-2(2)는 비대상. 모두 base
+      // 보존이지만 같은 author 안에서 unitId 단위 부분 적용 분기를 통과한다.
+      const scoring = makeScoringServiceWithVolume(60);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({ externalId: "doc-1", author: "multi", version: 6 }),
+        docWithVersion({ externalId: "doc-2", author: "multi", version: 2 }),
+        docWithVersion({ externalId: "doc-3", author: "multi", version: 8 }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(3);
+      expect(results.map((r) => r.volume)).toEqual([60, 60, 60]);
+    });
+
+    it("(negative iv) 중립 대상 단위의 scoring volume 이 0 → FLOOR 0 유지(무음수)", async () => {
+      // scoring volume 0 인 중립 대상 → preserveNeutralVolume 의 FLOOR 0 분기 통과.
+      const scoring = makeScoringServiceWithVolume(0);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({ externalId: "zero", author: "w", version: 9 }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results[0].volume).toBe(0);
+    });
+
+    it("(negative v) code 단위(commit)는 version≥5 라도 비대상(R-41 문서 한정)", async () => {
+      // commit 에 metadata.version 99 를 줘도 contributionKind=code 라 중립 미식별.
+      const scoring = makeScoringServiceWithVolume(45);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "code-hi-ver",
+          author: "dev",
+          kind: "commit",
+          metadata: { titleLength: 50, version: 99 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      // code 단위는 version 무관 비대상 → 무변경(scoring volume 그대로).
+      expect(results[0].volume).toBe(45);
+    });
+
+    it("(negative vi) entries 순서 = scoring 결과 순서 정합(매핑 misalignment 회귀 방어)", async () => {
+      // unitId 별 고유 volume 으로 author↔result 매핑 misalignment 를 잡는다. 전 단위
+      // 비대상(version<5) → volume 무변경, unitId 순서와 volume 순서가 입력 순서 그대로.
+      const volumeByUnit: Record<string, number> = {
+        "confluence:wiki:o-1": 11,
+        "confluence:wiki:o-2": 22,
+        "confluence:wiki:o-3": 33,
+      };
+      const scoring = {
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) =>
+            resultWithVolume(input.unitId, volumeByUnit[input.unitId]),
+          ),
+      };
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({ externalId: "o-1", author: "a1", version: 1 }),
+        docWithVersion({ externalId: "o-2", author: "a2", version: 2 }),
+        docWithVersion({ externalId: "o-3", author: "a3", version: 3 }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(
+        results.map((r) => ({ unitId: r.unitId, volume: r.volume })),
+      ).toEqual([
+        { unitId: "confluence:wiki:o-1", volume: 11 },
+        { unitId: "confluence:wiki:o-2", volume: 22 },
+        { unitId: "confluence:wiki:o-3", volume: 33 },
+      ]);
+    });
+  });
+
+  describe("abuse + update-count 공존 / 결정성 / 비변형 단언", () => {
+    it("(공존) 한 단위 abuse suspected 감점 + 다른 단위 update-count 중립 보존이 함께 동작", async () => {
+      // abuser: suspectedCommits 3 건(code, abuse 감점 → volume 0).
+      // writer: version 7 document 단일 단위(abuse 미발화 + update-count 중립 보존 → base).
+      const scoring = makeScoringServiceWithVolume(50);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        ...suspectedCommits("abuser", 3),
+        docWithVersion({
+          externalId: "doc-keep",
+          author: "writer",
+          version: 7,
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // 앞 3 건 abuse 감점 0, 마지막 document 중립 보존(base 50). 두 배선 공존 + 회귀 0.
+      expect(results.map((r) => r.volume)).toEqual([0, 0, 0, 50]);
+    });
+
+    it("(공존) abuse 배선이 보존된다 — update-count 비대상 batch 의 abuse 감점 회귀 0", async () => {
+      // update-count 중립 대상 0(전 code 단위) → abuse 감점만 작동. T-0523 동작 보존 확인.
+      const scoring = makeScoringServiceWithVolume(80);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = suspectedCommits("abuser", 3);
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results.map((r) => r.volume)).toEqual([0, 0, 0]);
+    });
+
+    it("(결정성) 동일 입력 2 회 호출 → 동일 출력(toEqual, deterministic adjust)", async () => {
+      const activities: Activity[] = [
+        ...suspectedCommits("abuser", 3),
+        docWithVersion({
+          externalId: "doc-keep",
+          author: "writer",
+          version: 7,
+        }),
+      ];
+
+      const first = await makeOrchestrator(
+        makeScoringServiceWithVolume(50),
+      ).evaluateActivities(activities, OPTIONS);
+      const second = await makeOrchestrator(
+        makeScoringServiceWithVolume(50),
+      ).evaluateActivities(activities, OPTIONS);
+
+      expect(first).toEqual(second);
+      expect(first.map((r) => r.volume)).toEqual([0, 0, 0, 50]);
+    });
+
+    it("(비변형) 중립 대상 입력 Activity[] 를 호출 후 변경하지 않는다(deep-equal)", async () => {
+      const scoring = makeScoringServiceWithVolume(50);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({
+          externalId: "doc-keep",
+          author: "writer",
+          version: 7,
+        }),
+        docWithVersion({
+          externalId: "doc-low",
+          author: "writer2",
+          version: 2,
+        }),
+      ];
       const snapshot = JSON.parse(JSON.stringify(activities));
 
       await orchestrator.evaluateActivities(activities, OPTIONS);
