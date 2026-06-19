@@ -30,7 +30,7 @@ supersedes: null
 - **[Q-0043 decision](../STATE.json)** — 사용자가 옵션1 (service-layer 배선 chain) 으로 resolve. 그 decision 의 명시된 첫 step 이 "ADR-0046 §Decision3 invariant 하에서 DB-read 범위·REQ-032 raw-미저장 경계 확정" — 본 ADR 이 정확히 그 산출물.
 - **[ADR-0046 §Decision3](ADR-0046-export-dump-materialization-storage.md)** — materialization 4 invariant (새 dep 0 · in-process · descriptor single-source · raw 미저장). 본 ADR 이 이를 보존하며 컬럼 경계로 보완.
 - **[ADR-0044 §2](ADR-0044-export-import-job-persistence.md)** — ExportJob 의 raw 미저장 invariant + `artifactRef` 는 pointer (본문 아님). 본 ADR 의 조부.
-- **[ADR-0006](ADR-0006-evaluation-pipeline.md) / [ADR-0022](ADR-0022-permission-denied-record.md)** — Contribution / PermissionDeniedRecord 의 raw 미저장 schema-level 강제 동형 기법 (raw 컬럼 부재 = 저장 불가). full-record read 가 끌어올 raw 컬럼이 애초에 schema 에 없다는 실증의 근거.
+- **[ADR-0006](ADR-0006-assessment-data-model.md) / [ADR-0022](ADR-0022-permission-denied-record-data-model.md)** — Contribution / PermissionDeniedRecord 의 raw 미저장 schema-level 강제 동형 기법 (raw 컬럼 부재 = 저장 불가). full-record read 가 끌어올 raw 컬럼이 애초에 schema 에 없다는 실증의 근거.
 - **[ADR-0033](ADR-0033-evaluation-result-persistence.md)** — "새 dependency 0 / 새 credential 0" 선례. 본 ADR 도 동일 invariant (Node 내장 + 기존 Prisma 만).
 - **[ADR-0003 §1](ADR-0003-deployment.md)** — monolithic in-process. full-record read 도 같은 process 의 Prisma query.
 - **[REQ-032](../requirements.md)** — raw 미저장 source of truth.
@@ -127,8 +127,8 @@ supersedes: null
 - [docs/decisions/ADR-0046-export-dump-materialization-storage.md](ADR-0046-export-dump-materialization-storage.md) — §Decision1·2·3 (materialization·저장·4 invariant) — 본 ADR 의 직접 상류 (sequel)
 - [docs/decisions/ADR-0044-export-import-job-persistence.md](ADR-0044-export-import-job-persistence.md) — ExportJob entity + `artifactRef` pointer + §2 raw 미저장 invariant (조부)
 - [docs/decisions/ADR-0033-evaluation-result-persistence.md](ADR-0033-evaluation-result-persistence.md) — "새 dep 0 / 새 credential 0" 선례 + ADR template
-- [docs/decisions/ADR-0022-permission-denied-record.md](ADR-0022-permission-denied-record.md) — PermissionDeniedRecord 의 token/본문 컬럼 미정의 (raw 미저장 schema-level 강제)
-- [docs/decisions/ADR-0006-evaluation-pipeline.md](ADR-0006-evaluation-pipeline.md) — Contribution 의 pointer(`sourceUrl`/`sourceRef`)-only / raw 본문 컬럼 0 선례
+- [docs/decisions/ADR-0022-permission-denied-record-data-model.md](ADR-0022-permission-denied-record-data-model.md) — PermissionDeniedRecord 의 token/본문 컬럼 미정의 (raw 미저장 schema-level 강제)
+- [docs/decisions/ADR-0006-assessment-data-model.md](ADR-0006-assessment-data-model.md) — Contribution 의 pointer(`sourceUrl`/`sourceRef`)-only / raw 본문 컬럼 0 선례
 - [docs/decisions/ADR-0003-deployment.md](ADR-0003-deployment.md) — §1 monolithic in-process (full-record read 도 같은 process Prisma query)
 - [docs/decisions/ADR-0002-db.md](ADR-0002-db.md) — PostgreSQL + Prisma stack (projection-only select source)
 - [src/export/export-job.service.ts](../../src/export/export-job.service.ts) — `previewSelection`/`collectExportRecords` 의 `{instant}` projection-only (REQ-032 안전 선례) + `EXPORT_ENTITY_SOURCES` 5 entity 매핑
