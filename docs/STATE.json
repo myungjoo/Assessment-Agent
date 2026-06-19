@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "✅ **T-0521 DONE(merge f2d76a3, PR #434, reviewer round1 APPROVE 0 finding, 4-게이트 PASS, post-merge main CI green)** — P5 evaluation pivot 첫 조각. computeAbuseSignal(inputs:EvaluationInput[]):AbuseSignal dependency-free 순수 domain helper 박제(R-26 코드 abusing + R-40 문서 abusing 반복 부풀리기 신호 결정적 산출, detection layer only, +221 src/+395 spec, 신규 파일 100% cov, 25 tests, ADD-only). ADR-0032 §3 deterministic·LLM-무관 정합. **후속 미박제**: 이 신호를 소비해 advantage 중립화/감점에 반영하는 scoring service 배선(impure — service-layer, 별도 task). nextTask=null → 다음 fire 가 planner dispatch(P5 evaluation 다음 조각: abuse-signal scoring 배선 OR PLAN.md P5 다른 미박제 항목). standing 게이트(cron backlog 아님): live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·tasksCompleted=513.",
+  "nextTask": "T-0522",
+  "backlogNote": "🟡 **T-0522 큐잉(planner dispatch fire — applyAbuseSignalToVolume)**. 직전 T-0521 DONE(merge f2d76a3, PR #434, computeAbuseSignal detection-layer 순수 helper). T-0522 = T-0521 산출 AbuseSignal 을 소비해 suspected author 의 EvaluationResult.volume 을 repetitionRatio 비례로 결정적 감점/중립화하는 dependency-free 순수 domain helper(src/assessment-evaluation/domain/evaluation-abuse-adjust.ts/.spec, commitMode pr, est ~240 LOC 2 파일 ≤300 cap, dependsOn []·touchesFiles disjoint — stage5b 동시 claim 안전, coversReq REQ-012 R-26/REQ-021 R-40). git grep applyAbuseSignal|neutralizeAbus|abuseAdjust src/ 0(issue-still-relevant 통과). 새 dep/schema/auth/credential 0. **후속 미박제**: impure orchestrator/scoring service 실배선(service-layer, 별도 task). 다음 fire 가 T-0522 claim→실행. standing 게이트(cron backlog 아님): live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·tasksCompleted=513.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-local-0619-1139",
-    "since": "2026-06-19T11:39:03Z",
-    "note": "cron@aa-local-0619-1139 (aa-local schedule, :39 trigger — 정각 회피) — T-0521 claim→실행→merge fire. fresh checkout 가 origin/main d23a31c(직전 cron@aa-local-15-1104 의 T-0521 큐잉)로 sync. server-time 2026-06-19T11:39:03Z(GitHub API Date header). lock CAS 획득(d0cd7f9 tombstone→741feed), reclaim no-op(orphan 0), maxConcurrentClaims 게이트 PASS(활성 claim 0<2, pr-mode 단독), select-claim T-0521(claim+lock tombstone 동반 release, tip 613c05c). executor: src/assessment-evaluation/domain/evaluation-abuse-signal.ts(+221)+.spec(+395) 신설, 신규 파일 100% cov, 25 tests, 전체 5362 green. pr-mode push(claude/T-0521-evaluation-abuse-signal-metric, 48b5ccd)→integrator PR #434 open→reviewer round1 APPROVE 0 finding+comment→4-게이트 PASS→squash f2d76a3 merge --delete-branch. post-merge main CI green(run 27824118699). T-0521 DONE, nextTask=null→다음 fire planner dispatch. claims.json cleanup(T-0521 제거). 단일 active driver, race 0."
+    "session": "cron@aa-local-15-1204",
+    "since": "2026-06-19T12:04:55Z",
+    "note": "cron@aa-local-15-1204 (aa-local-15 schedule, :15 trigger — 정각 회피) — planner dispatch fire. fresh checkout d23a31c 가 origin/main ae69f6b(직전 cron@aa-local-0619-1139 의 T-0521 merge)로 ff. server-time 2026-06-19T12:04:55Z(GitHub API Date header). lock CAS 획득(a16e313 tombstone→b93087a). claims.json=[]·open PR 0·orphan 0 확인 → reclaim/claim-pickup 대상 없음. currentTask·nextTask 둘 다 null → planner sub-agent dispatch: T-0522 생성(P5 evaluation — applyAbuseSignalToVolume, T-0521 AbuseSignal 소비 volume 중립화/감점 순수 helper, commitMode pr, est ~240 LOC 2 파일, dependsOn []), STATE.nextTask=T-0522. doc-only direct commit(main). 단일 active driver, race 0. lock tombstone release."
   },
-  "lastActivity": "2026-06-19T11:55:00Z",
+  "lastActivity": "2026-06-19T12:05:30Z",
   "lastCommit": "f2d76a3",
   "mostRecentTasks": [
     "T-0521",
