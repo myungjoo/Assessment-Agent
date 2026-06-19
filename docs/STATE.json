@@ -7,7 +7,7 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0513",
   "backlogNote": "⏸️ **Q-0043 OPEN — dependency-free 순수 helper backlog 소진(사람 결정 대기)**. ADR-0046(b718bb8) §Decision 1 맞물림 4 종 전부 T-0512 로 닫힘: refetch materialization helper T-0512 완료 — `selectRefetchMaterializedDumpChunks(materializedChunks, reconcile): MaterializedExportDumpChunk[]` 순수 helper (f44892a, PR #425 round1 APPROVE NIT1 비차단, CI green, 신규 파일 stmt/func/line 100% branch 95.23%, 전체 5217 test). reconcileExportChunkIntegrity.failedChunks(비연속 손상 chunk) 경계로 materialized subset 필터 — reconcile 재산정 0(single-source) + Buffer.from alias 0 + drift RangeError + non-mutating, (iii) resume 와 직교. 누적 chain: T-0501~T-0512 (deliveryPlan·completionResult·chunkPlan·streamProgress·ADR-0046·materializeExportDump·sliceByChunkPlan·verifyDescriptorDrift·chunkedReadable·downloadHeaders·resumeSlice·refetchSlice). planner Outcome B: 잔여 export download chain 은 service-layer materialization·download controller·repository DB-query streaming(REQ-032 raw-미저장 경계 + 신규 query 표면 = §5/persistence 게이트), import 은 multer/FileInterceptor 신규 dep(게이트3 미승인) — dependency-free 순수 helper 잔여 0. → Q-0043 OPEN(게이트1 service-layer 배선 착수 / 게이트3 import upload 승인 / 다른 게이트 pivot 택일). standing 게이트: live-LLM 검증(ADR-0045 ACCEPTED 로 azure 시험 키 ⏰만료 2026-06-30 결합 해소 — local LAN OpenAI-호환 custom 경로로 credential-free 영구 배선 검증 가능, 단 검증 머신이 같은 LAN 위 + 수동 실행 + 배선≠품질; cron 자동 진행 backlog 아님), P6 frontend, timezone Q-0026, ADR-0036 stage5c. nextTask=null·open PR 0·BLOCKED 0·blockers 0·tasksCompleted=504.",
   "lock": {
     "holder": "cron",
