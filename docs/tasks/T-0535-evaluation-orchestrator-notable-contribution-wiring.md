@@ -2,7 +2,11 @@
 id: T-0535
 title: EvaluationOrchestratorService 에 중요·어려운 기여 narrative annotation 소비 배선 (computeNotableContributionSignal→applyNotableContributionAnnotation)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 6095cb6
+prNumber: 449
+reviewRounds: 1
+completedAt: 2026-06-19T21:58:00Z
 commitMode: pr
 coversReq: [REQ-011]
 dependsOn: [T-0533, T-0534]
