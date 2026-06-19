@@ -2,7 +2,7 @@
 id: T-0513
 title: export full-record DB-read 범위 + REQ-032 raw-미저장 경계 확정 ADR (ADR-0047)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 0
