@@ -13,6 +13,8 @@
 //     Invalid Date (400) / PARTIAL 허용 외 entity (400) / RANGE-dateRange 누락 (400) /
 //     PARTIAL-entitySelector 누락 (400) / FULL+dateRange 는 helper normalize 로 valid /
 //     여러 field 위반 결합 message / 빈 requestedById (400) / findJob·mark* P2025 → 404.
+import { Readable } from "stream";
+
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { ExportScope, Prisma, type ExportJob } from "@prisma/client";
 
@@ -40,6 +42,7 @@ import * as scopeSelectModule from "./export-scope-select";
 import {
   VALID_EXPORT_ENTITIES,
   type ExportEntity,
+  type ExportScope as ExportScopePayload,
 } from "./export-scope-select";
 import * as summaryModule from "./export-selection-summary";
 
@@ -2541,6 +2544,211 @@ describe("ExportJobService", () => {
       ]);
 
       await expect(callCollect(service)).rejects.toThrow(TypeError);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // materializeFullExportDownload — scope → full-record DB-read → fields 보존 envelope →
+  // Node Readable stream 배선 (T-0518, ADR-0047 §Follow-ups[2], REQ-030 / REQ-032).
+  // collectFullExportRecords(T-0516) → buildFullExportDump(T-0517) → materializeExportDump
+  // (T-0506) 셋을 묶는 service 메서드. R-112 4 종:
+  //   - happy: 5 entity 일부 row → Readable instance + 소비한 JSON 이 envelope 형태 +
+  //     records[].fields 보존.
+  //   - error: delegate findMany reject(의존성 실패) propagate (swallow 0).
+  //   - branch/flow: 빈 DB(전 entity 빈 배열) → 빈 envelope(recordCount 0 / entityCounts 전부 0 /
+  //     records []) 정상 직렬화; 일부 entity 만 row 존재 분기.
+  //   - negative 충분: (a) instant 비-Date → TypeError propagate, (b) allow-list 외 key(apiKey)
+  //     혼입 → RangeError propagate(REQ-032 §Decision2(b) 회귀), (c) 정상 LlmConfig envelope
+  //     records 에 apiKey 부재(secret deny 회귀).
+  // ---------------------------------------------------------------------------
+  describe("materializeFullExportDownload", () => {
+    // 5 entity delegate 의 findMany 를 mock 한 service 빌드 (collectFullExportRecords 의
+    // buildFullRecordService 패턴 mirror — touchesFiles 2 파일 유지, helper 미변경).
+    function buildMaterializeService(): {
+      service: ExportJobService;
+      prisma: {
+        assessment: { findMany: jest.Mock };
+        person: { findMany: jest.Mock };
+        group: { findMany: jest.Mock };
+        llmProviderConfig: { findMany: jest.Mock };
+        permissionDeniedRecord: { findMany: jest.Mock };
+      };
+    } {
+      const prisma = {
+        assessment: { findMany: jest.fn().mockResolvedValue([]) },
+        person: { findMany: jest.fn().mockResolvedValue([]) },
+        group: { findMany: jest.fn().mockResolvedValue([]) },
+        llmProviderConfig: { findMany: jest.fn().mockResolvedValue([]) },
+        permissionDeniedRecord: { findMany: jest.fn().mockResolvedValue([]) },
+      };
+      const service = new ExportJobService(
+        prisma as unknown as ConstructorParameters<typeof ExportJobService>[0],
+      );
+      return { service, prisma };
+    }
+
+    // Readable stream 을 끝까지 소비해 UTF-8 string 으로 모은다(materializeExportDump 산출
+    // Readable.from(JSON.stringify(dump)) 결과를 parse 검증).
+    async function drain(stream: Readable): Promise<string> {
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(Buffer.from(chunk));
+      }
+      return Buffer.concat(chunks).toString("utf8");
+    }
+
+    const FULL_SCOPE: ExportScopePayload = { scope: "full" };
+    const INSTANT = new Date("2026-02-01T00:00:00.000Z");
+
+    // happy — 5 entity 일부에 row 가 있을 때 Readable 반환 + 소비한 JSON 이 envelope 형태 +
+    // records[].fields 보존 단언.
+    it("happy — full-record envelope 를 Readable stream 으로 materialize (fields 보존)", async () => {
+      const { service, prisma } = buildMaterializeService();
+      prisma.person.findMany.mockResolvedValue([
+        {
+          id: "p1",
+          fullName: "홍길동",
+          email: "h@example.test",
+          createdAt: INSTANT,
+        },
+      ]);
+      prisma.group.findMany.mockResolvedValue([
+        { id: "g1", name: "팀A", createdAt: INSTANT },
+      ]);
+
+      const stream = await service.materializeFullExportDownload(FULL_SCOPE);
+
+      // 반환이 Node Readable instance.
+      expect(stream).toBeInstanceOf(Readable);
+
+      const parsed = JSON.parse(await drain(stream)) as {
+        schemaVersion: string;
+        generatedAt: string;
+        scope: ExportScopePayload;
+        entityCounts: Record<string, number>;
+        recordCount: number;
+        records: Array<{ entity: string; fields: Record<string, unknown> }>;
+      };
+
+      // envelope 형태 — schemaVersion / generatedAt / scope / entityCounts / recordCount / records.
+      expect(parsed.schemaVersion).toBe("1");
+      expect(typeof parsed.generatedAt).toBe("string");
+      expect(parsed.scope).toEqual(FULL_SCOPE);
+      expect(parsed.recordCount).toBe(2);
+      expect(parsed.entityCounts.Person).toBe(1);
+      expect(parsed.entityCounts.Group).toBe(1);
+      expect(parsed.entityCounts.Assessment).toBe(0);
+      // records[].fields 보존 — Person fields 의 fullName 이 그대로 직렬화됨.
+      const person = parsed.records.find((r) => r.entity === "Person")!;
+      expect(person.fields.fullName).toBe("홍길동");
+      expect(person.fields.email).toBe("h@example.test");
+    });
+
+    // branch/flow (빈 DB) — 전 entity 빈 배열 → 빈 envelope(recordCount 0 / entityCounts 전부 0 /
+    // records []) 가 valid JSON 으로 정상 직렬화되는 분기.
+    it("branch — 빈 DB(전 entity 빈 배열)면 빈 envelope 가 정상 직렬화 (recordCount 0)", async () => {
+      const { service } = buildMaterializeService();
+
+      const stream = await service.materializeFullExportDownload(FULL_SCOPE);
+
+      expect(stream).toBeInstanceOf(Readable);
+      const parsed = JSON.parse(await drain(stream)) as {
+        recordCount: number;
+        records: unknown[];
+        entityCounts: Record<string, number>;
+      };
+      expect(parsed.recordCount).toBe(0);
+      expect(parsed.records).toEqual([]);
+      // entityCounts 5 entity 전부 0 (누락 key 없음).
+      for (const entity of VALID_EXPORT_ENTITIES) {
+        expect(parsed.entityCounts[entity]).toBe(0);
+      }
+    });
+
+    // branch/flow (일부 entity 만 row) — Person 만 2 row, 나머지 빈 배열 → recordCount 2 / Person 만.
+    it("branch — 일부 entity(Person)만 row 존재 시 envelope 에 그 entity 분만 반영", async () => {
+      const { service, prisma } = buildMaterializeService();
+      prisma.person.findMany.mockResolvedValue([
+        { id: "p1", fullName: "갑", createdAt: INSTANT },
+        { id: "p2", fullName: "을", createdAt: INSTANT },
+      ]);
+
+      const stream = await service.materializeFullExportDownload(FULL_SCOPE);
+      const parsed = JSON.parse(await drain(stream)) as {
+        recordCount: number;
+        entityCounts: Record<string, number>;
+        records: Array<{ entity: string }>;
+      };
+
+      expect(parsed.recordCount).toBe(2);
+      expect(parsed.entityCounts.Person).toBe(2);
+      expect(parsed.records.every((r) => r.entity === "Person")).toBe(true);
+    });
+
+    // error path — collectFullExportRecords 의 delegate.findMany 가 reject(의존성 실패)하면
+    // 그 reject 가 swallow 없이 propagate (Promise.all 전파).
+    it("error — 한 entity findMany 가 reject 하면 그 error 를 propagate (swallow 0)", async () => {
+      const { service, prisma } = buildMaterializeService();
+      prisma.assessment.findMany.mockRejectedValue(new Error("db-down"));
+
+      await expect(
+        service.materializeFullExportDownload(FULL_SCOPE),
+      ).rejects.toThrow("db-down");
+    });
+
+    // negative (a) — collectFullExportRecords 산출 record 의 instant(createdAt)가 비-Date 면
+    // buildFullExportRecord/buildFullExportDump 의 TypeError 가 propagate.
+    it("negative — instant(createdAt) 비-Date 면 TypeError propagate", async () => {
+      const { service, prisma } = buildMaterializeService();
+      prisma.person.findMany.mockResolvedValue([
+        { id: "p1", createdAt: "2026-02-01" as unknown as Date },
+      ]);
+
+      await expect(
+        service.materializeFullExportDownload(FULL_SCOPE),
+      ).rejects.toThrow(TypeError);
+    });
+
+    // negative (b) — allow-list 외 key(상류 select 결함 시뮬 apiKey)가 row 에 섞이면
+    // buildFullExportRecord 의 RangeError 가 propagate (REQ-032 §Decision2(b) 2 차 방어선 회귀).
+    it("negative — LlmConfig row 에 apiKey 혼입 시 RangeError propagate (secret 2 차 방어선)", async () => {
+      const { service, prisma } = buildMaterializeService();
+      prisma.llmProviderConfig.findMany.mockResolvedValue([
+        {
+          id: "l1",
+          provider: "openai",
+          apiKey: "sk-secret-leak",
+          createdAt: INSTANT,
+        },
+      ]);
+
+      await expect(
+        service.materializeFullExportDownload(FULL_SCOPE),
+      ).rejects.toThrow(RangeError);
+    });
+
+    // negative (c) — 정상 LlmConfig row 경로 결과 envelope 의 records 에 apiKey key 가 부재함을
+    // .not.toHaveProperty("apiKey") 로 단언 (secret deny 회귀).
+    it("negative — 정상 LlmConfig envelope records 에 apiKey 부재 (secret deny 회귀)", async () => {
+      const { service, prisma } = buildMaterializeService();
+      prisma.llmProviderConfig.findMany.mockResolvedValue([
+        {
+          id: "l1",
+          provider: "openai",
+          endpointUrl: "https://llm.test",
+          modelId: "gpt",
+          createdAt: INSTANT,
+        },
+      ]);
+
+      const stream = await service.materializeFullExportDownload(FULL_SCOPE);
+      const parsed = JSON.parse(await drain(stream)) as {
+        records: Array<{ entity: string; fields: Record<string, unknown> }>;
+      };
+
+      const llm = parsed.records.find((r) => r.entity === "LlmConfig")!;
+      expect(llm.fields).not.toHaveProperty("apiKey");
+      expect(llm.fields.provider).toBe("openai");
     });
   });
 });
