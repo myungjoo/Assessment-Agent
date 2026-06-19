@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0519",
-  "backlogNote": "▶️ **export download chain — T-0518 DONE(merge 31ab3cf, PR #431, reviewer APPROVE round1, 4-게이트 PASS, CI green)**. ADR-0047 §Follow-ups[2] chain 의 service-layer materialization 실배선 완료: `ExportJobService.materializeFullExportDownload(scope)` (+267 LOC, 2 파일) — `collectFullExportRecords()`(T-0516, impure DB-read → FullExportRecord[]) → `buildFullExportDump`(T-0517, fields 보존 envelope) → `materializeExportDump`(T-0506, ExportDump→Readable) 셋을 단일 service 메서드로 묶어 \"scope → full-record DB-read → fields 보존 envelope → Node Readable stream\" in-process 다운로드 materialization 을 service 차원에서 완결(REQ-030/REQ-032). FullExportDump→ExportDump 는 FullExportRecord extends ExportRecord 라 구조적 upcast(재필터 0, ADR-0047 §Decision3(i)). cov line 98.8%/func 100%/branch 96%, 신규 7 test(happy envelope+fields 보존 / error findMany reject propagate / branch 빈 DB·일부 entity / negative instant 비-Date TypeError·apiKey RangeError·apiKey 부재 secret deny 회귀), 전체 5323 test green. **다음 step(ADR-0047 §Follow-ups 잔여)**: `GET /api/admin/export/:id/download` streaming controller — service 메서드가 Readable 을 반환하므로 controller 는 그 stream 을 HTTP response 로 pipe + download header(Content-Disposition/Content-Type, T-0509 buildDownloadHeaders 활용) 배선. controller 표면이라 e2e/supertest 추가 의무. import upload(multer/FileInterceptor 신규 dep)은 게이트3 미승인 범위 밖. **nextTask=T-0519 큐잉(@cron@aa-local-0619-0838 planner-only fire)**: GET /api/admin/export/:id/download streaming controller @Get(\":id/download\") 1 메서드 — findJob(id) scope → materializeFullExportDownload(scope) Readable → buildDownloadHeaders(T-0509) header → StreamableFile/@Res pipe(재필터/secret strip 0, 상류 projection+builder 강제). pr-mode, est ~270 LOC 2 파일, dependsOn []·touchesFiles src/export/export.controller.ts/.spec disjoint. 다음 fire 가 claim·실행. **누적 chain**: T-0501~T-0518 (deliveryPlan·completionResult·chunkPlan·streamProgress·ADR-0046·materializeExportDump·sliceByChunkPlan·verifyDescriptorDrift·chunkedReadable·downloadHeaders·resumeSlice·refetchSlice·ADR-0047·fullRecordSelect·collectFullExportRecords·buildFullExportRecord·buildFullExportDump·materializeFullExportDownload). standing 게이트: live-LLM 검증(ADR-0045 ACCEPTED — local LAN OpenAI-호환 custom 경로 credential-free 수동 검증 가능, cron 자동 backlog 아님), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=510.",
+  "nextTask": null,
+  "backlogNote": "▶️ **export download chain — T-0519 DONE(merge 6dc1bac, PR #432, reviewer APPROVE round1, 4-게이트 PASS, CI green)**. ADR-0047 §Follow-ups[3]: GET /api/admin/export/:id/download streaming controller 배선 — @Get(\":id/download\") route 가 (1) job 저장 scope 합성 → ExportJobService.materializeFullExportDownload(scope) Readable 획득, (2) 다운로드 header(Content-Type/Content-Disposition, T-0509 serializeExportDownloadHeaders + Content-Length 실 body 길이 보정) 설정, (3) StreamableFile + @Res({passthrough}) 로 HTTP response stream(REQ-030 실 다운로드 진입점, REQ-032 raw 미저장 경계 = 상류 재필터/secret strip 0 raw forward). +143 LOC controller + 신규 spec, controller cov line/branch/func 100%, 신규 12 test(happy 다운로드 + RANGE/PARTIAL/Buffer-chunk branch + 빈 DB 0-record 경계 + findJob 404 propagate + service reject propagate + supertest 200 header/body·401·403·404), 전체 5337 test green. **다음 step(ADR-0047 §Follow-ups 잔여)**: live-DB 5-entity full-record download e2e-spec(test/e2e/export-download.e2e-spec.ts) — PR #432 본문 Follow-up 으로 기록. import upload(multer/FileInterceptor)는 게이트3 미승인 범위 밖. nextTask=null → 다음 fire 가 planner dispatch. **누적 chain**: T-0501~T-0519 (deliveryPlan·completionResult·chunkPlan·streamProgress·ADR-0046·materializeExportDump·sliceByChunkPlan·verifyDescriptorDrift·chunkedReadable·downloadHeaders·resumeSlice·refetchSlice·ADR-0047·fullRecordSelect·collectFullExportRecords·buildFullExportRecord·buildFullExportDump·materializeFullExportDownload·downloadController). standing 게이트: live-LLM 검증(ADR-0045 ACCEPTED), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=511.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-local-0619-0838",
-    "since": "2026-06-19T08:37:57Z",
-    "note": "cron@aa-local-0619-0838 (aa-local schedule, :38 trigger — 정각 회피) — planner-only fire. fresh checkout 가 origin/main da65d7f(직전 cron@aa-local-0619-0739 의 T-0518 큐잉)보다 뒤처져 reset --hard origin/main(fbc3057: cron@aa-local-15-0803 의 T-0518 DONE bookkeeping). server-time 2026-06-19T08:37:57Z(GitHub api Date header). 미해결 HQ 0(34개 전부 resolvedAt 존재)·blockers 0·claims.json=[]·open PR 0 확인 후 lock CAS 획득(f85db57 tombstone→e9b4a60). currentTask/nextTask 둘 다 null → LOOP §1[2] claim-pickup claimable 후보 0 → no-op, planner dispatch. planner 판정: export download chain(T-0501~T-0518 소진) 의 다음 조각 = GET /api/admin/export/:id/download streaming controller — T-0518 materializeFullExportDownload(scope) Readable 을 controller @Get(\":id/download\") 가 pipe + download header(T-0509 buildDownloadHeaders) 배선. Q-0043 옵션1 + ADR-0047 ACCEPTED → '결정된 ADR 구현'(§5 자동 진행, 신규 dep/schema/auth 0). T-0519 큐잉(pr-mode, est ~270 LOC 2 파일, dependsOn []·touchesFiles src/export/export.controller.ts/.spec disjoint, e2e/supertest 의무). controller 표면이라 후속 repository streaming query 는 별도 task 가능. doc-only direct commit + lock tombstone release. 단일 active driver, race 0. 다음 fire 가 T-0519 claim·실행."
+    "session": "cron@aa-local-15-0904",
+    "since": "2026-06-19T09:04:28Z",
+    "note": "cron@aa-local-15-0904 (aa-local-15 schedule, :15 trigger — 충돌 회피) — T-0519 실행 fire. fresh checkout 가 fbc3057 였고 ff origin/main 3bd8f70(직전 cron@aa-local-0619-0838 의 T-0519 큐잉). server-time 2026-06-19T09:04:28Z(GitHub api Date header). 미해결 HQ 0·blockers 0·claims.json=[]·open PR 0 확인 후 lock CAS 획득(6d8355c→625999e). fineGrainedConcurrency=true → LOOP §1[2] claim-pickup: reclaim no-op(orphan 0), (a2) 게이트 PASS(활성 claim 0<2, pr-mode 단독 OK, dependsOn []·touchesFiles disjoint), select-claim.sh 로 T-0519 atomic claim+lock tombstone release(625999e→claim commit). lock-free 실행: executor → implementer+tester(export.controller.ts @Get(:id/download) StreamableFile 배선, +143 LOC, 신규 12 test, cov 100%, 5337 test green) → PR #432 → integrator → reviewer APPROVE round1 + 외부 comment + self-check + CI green 4-게이트 PASS → squash merge 6dc1bac --delete-branch. bookkeeping: claims.json→[](T-0519 claim 정리), tasksCompleted 510→511. 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-19T08:37:57Z",
-  "lastCommit": "31ab3cf",
+  "lastActivity": "2026-06-19T09:25:00Z",
+  "lastCommit": "6dc1bac",
   "mostRecentTasks": [
+    "T-0519",
     "T-0518",
     "T-0517",
     "T-0516",
-    "T-0515",
-    "T-0514"
+    "T-0515"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-19T08:22:34Z",
+    "lastRun": "2026-06-19T09:25:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "PR #431(T-0518) CI full green(기본 검사 pass + 배포 산출물 검증 pass). reviewer-approval 게이트는 first run(event=pull_request)에서 comment-post 전 평가로 단독 fail → comment post 후 gh run rerun --failed 로 재평가 success(close+reopen 미사용). 4-게이트 PASS → squash merge 31ab3cf --delete-branch. export-job.service.ts cov line 98.8%/func 100%/branch 96%, 로컬 5323 test pass."
+    "note": "PR #432(T-0519) CI full green → 4-게이트 PASS → squash merge 6dc1bac --delete-branch. export.controller.ts cov line/branch/func 100%, test:cov global line 99.94/func 100/branch 99.37, 전체 5337 test pass. post-merge main CI run(6dc1bac) in_progress — 다음 fire [1]에서 conclusion 재확인(R-114)."
   },
   "reviewRounds": {
+    "T-0519": 1,
     "T-0518": 1,
     "T-0517": 1,
     "T-0516": 1,
@@ -961,7 +962,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 510,
+    "tasksCompleted": 511,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
