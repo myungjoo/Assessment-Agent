@@ -2,7 +2,11 @@
 id: T-0514
 title: export full-record allow-list select 상수 single-source 화 (entity 별 컬럼 + apiKey deny)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-19T03:45:00Z
+mergedAs: 81f115b
+prNumber: 427
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 240
