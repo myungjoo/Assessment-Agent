@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0517",
-  "backlogNote": "▶️ **export download chain — T-0517 큐잉(planner-only fire, pr-mode, dependency-free 순수 builder)**. T-0516 DONE 이후 currentTask/nextTask 둘 다 null 상태에서 cron@aa-local-0619-0637 가 planner dispatch → T-0517 생성: `FullExportRecord[]`→`fields` 보존 dump envelope 순수 builder(`buildFullExportDump`, `src/export/export-full-dump.ts`+spec, ~240 LOC 2 파일, dependsOn []·touchesFiles disjoint). ADR-0047 §Follow-ups[2] chain 의 다음 dependency-free 조각 — T-0506 `materializeExportDump`(ExportDump→Readable)의 full-record 입력 contract 를 닫는 순수 절반(`buildExportDump`가 `ExportRecord[]`만 받아 `fields` 소실되는 gap 보완). DB/repository/controller 실배선(impure)은 후속. 새 dep/ADR/schema/credential 0. 다음 fire 가 T-0517 claim·실행. **(직전) T-0516 DONE(merge 9d888cd, PR #429, reviewer APPROVE round1, 4-게이트 PASS, CI green run 27809090064)**. Q-0043 옵션1 승인 chain 의 첫 impure(DB-read) step 완료: `ExportJobService.collectFullExportRecords()` 추가 — EXPORT_ENTITY_SOURCES 5 entity 를 T-0514 allow-list select(`getExportEntityFullRecordSelect`) 로 projection-only read(무인자 findMany 금지) 후 T-0515 `buildFullExportRecord` 로 `FullExportRecord[]` 조립. 기존 collectExportRecords/previewSelection 불변(ADD-only), apiKey secret deny projection-only 보존. +270 LOC 2 파일(service+spec), export-job.service.ts line 98.71%/func 100%/branch 96%, 전체 226 suite/5285 test green. happy/error(reject·非Date)/branch(빈 DB·일부 entity)/negative(apiKey RangeError·임의 key·instant 누락/Invalid Date) cover. **다음 step(ADR-0047 §Follow-ups 잔여 / Q-0043 옵션1 chain)**: 실 materialization service 함수(ExportDump → Node Readable, ADR-0046 §Decision1 helper 소비) + `GET /api/admin/export/:id/download` streaming controller 배선 + repository allow-list full-record DB-query streaming — 본 collectFullExportRecords 가 입력 source. REQ-032 raw-미저장 경계 + 신규 query 표면이나 ADR-0047/ADR-0046 ACCEPTED 가 컬럼/저장 경계를 이미 닫아 '결정된 ADR 구현'(CLAUDE.md §5 자동 진행, 신규 게이트 아님). import upload(multer/FileInterceptor 신규 dep)은 게이트3 미승인 범위 밖. nextTask=null → 다음 fire 가 planner dispatch(잔여 dependency-free 조각 없으면 impure controller/materialization chain). (이전 step) T-0515 DONE(merge 6537757, PR #428) — `FullExportRecord` 확장 타입 + `buildFullExportRecord` 순수 builder(apiKey secret deny RangeError), billing 사고(Q-0044, 04:11~05:08Z spending-limit)는 저장소 public 전환으로 해제 후 rerun green merge. ADR-0047 §Follow-ups[1] 잔여 중 dependency-free 순수 절반 완료: `FullExportRecord` 확장 타입 + `buildFullExportRecord` 순수 builder(T-0514 select 상수의 소비측 짝, apiKey secret deny RangeError 단언), DB/Prisma/service 미접촉, 신규 파일 100% cov(36 spec), 전체 226 suite/5275 test green. reviewer APPROVE round1, 4-게이트 PASS. **billing 사고 메모**: PR #428 은 04:11Z~05:08Z 동안 account spending-limit 으로 CI instant-fail(Q-0044/B-credential-ci-billing-2026-06-19T04:39Z BLOCKED) 후, 저장소 public 전환으로 한도 해제(사용자 통보) → CI rerun full green → merge. 코드 rework 0. **다음 step(ADR-0047 §Follow-ups 잔여)**: 불순한 service-layer materialization 배선(본 builder+select 상수를 contract 로 소비) + `GET /api/admin/export/:id/download` streaming controller + repository allow-list DB-query — REQ-032 raw-미저장 경계 + 신규 query 표면 = §5/persistence 접촉이라 planner 가 dependency-free 조각으로 더 쪼갤 수 있는지 판정 필요(쪼갤 게 없으면 ADR-우선 impure chain). import upload(multer/FileInterceptor 신규 dep)은 게이트3 미승인 범위 밖. nextTask=null → 다음 fire 가 planner dispatch. (이전 step) T-0514 DONE(merge 81f115b, PR #427) — ADR-0047 §Follow-ups[1] dependency-order 첫 조각 완료: entity 별 export full-record allow-list 를 Prisma `select` 객체 상수(`EXPORT_ENTITY_FULL_RECORD_SELECT`, 5 entity Object.freeze) + derive 함수 1개(`getExportEntityFullRecordSelect`, 비-string→TypeError·미지원 entity→RangeError·방어 복제)로 single-source 박제하는 dependency-free 순수 helper(`src/export/export-entity-full-record-select.ts`+spec, +291 LOC 2 파일, Prisma runtime import 0). LlmConfig select 에 `apiKey` key 부재(ADR-0047 §Decision2(b) secret deny, projection-only) — 회귀 test `.not.toHaveProperty(\"apiKey\")` + 멤버십 정확 일치 단언. 신규 파일 stmt/branch/func/line 100%, 전체 225 suite/5239 test green. reviewer APPROVE round1(MINOR2 비차단), 4-게이트 PASS. **다음 step(ADR-0047 §Follow-ups 잔여)**: ExportRecord full-record 확장 + service materialization 배선(본 select 상수를 contract 로 소비) + `GET /api/admin/export/:id/download` streaming controller + repository allow-list DB-query — 단 service/repository/controller 배선은 신규 query 표면 + REQ-032 raw-미저장 경계 = §5/persistence 게이트 접촉이라 planner 가 dependency-free 조각으로 더 쪼갤 수 있는지 판정 필요. import upload(multer/FileInterceptor 신규 dep)은 게이트3 미승인 범위 밖. nextTask=null → 다음 fire 가 planner dispatch. (이전 chain 기록) T-0513=ADR-0047 merge(b4d3eb2, PR #426). 누적 chain: T-0501~T-0514 (deliveryPlan·completionResult·chunkPlan·streamProgress·ADR-0046·materializeExportDump·sliceByChunkPlan·verifyDescriptorDrift·chunkedReadable·downloadHeaders·resumeSlice·refetchSlice·ADR-0047·fullRecordSelect). standing 게이트: live-LLM 검증(ADR-0045 ACCEPTED 로 azure 시험 키 ⏰만료 2026-06-30 결합 해소 — local LAN OpenAI-호환 custom 경로 credential-free 검증 가능, 단 수동 실행·배선≠품질; cron 자동 진행 backlog 아님), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=507.",
+  "nextTask": null,
+  "backlogNote": "▶️ **export download chain — T-0517 DONE(merge 13358ff, PR #430, reviewer APPROVE round1, 4-게이트 PASS, CI green)**. ADR-0047 §Follow-ups[2] chain 의 다음 dependency-free 순수 조각 완료: `buildFullExportDump` 순수 builder(`src/export/export-full-dump.ts`+spec, +131 LOC, 신규 파일 cov 100%) — `FullExportRecord[]`(`{entity,instant,fields}`)를 받아 `fields` 를 보존한 `FullExportDump` envelope 조립. 기존 `buildExportDump`(`ExportRecord[]`만 받아 `fields` 소실)의 full-record gap 을 메워 T-0506 `materializeExportDump`(ExportDump→Readable)의 full-record 입력 contract 를 닫는 honest 절반. 컬럼 필터/secret strip 재검증 0(상류 projection-only T-0514 + buildFullExportRecord T-0515 가 이미 강제 — descriptor single-source). non-mutating(입력/원소/fields freeze 후 호출 통과), 31 test(happy/fields 보존/entityCounts 분기/빈 records/freeze/meta·records·instant·entity 예외 각 1+), 전체 227 suite/5316 test green. **다음 step(ADR-0047 §Follow-ups 잔여 / Q-0043 옵션1 chain)**: 순수 builder 조각 3종(record select T-0514·record builder T-0515·dump envelope T-0517) 모두 완료 → 다음은 impure service-layer materialization 실배선 — `collectFullExportRecords()`(T-0516, FullExportRecord[] 산출) → `buildFullExportDump`(envelope) → `materializeExportDump`(Readable) 를 묶는 service 함수 + `GET /api/admin/export/:id/download` streaming controller + repository allow-list full-record DB-query streaming. REQ-032 raw-미저장 경계 + 신규 query 표면이나 ADR-0047/ADR-0046 ACCEPTED 가 컬럼/저장 경계를 이미 닫아 '결정된 ADR 구현'(CLAUDE.md §5 자동 진행, 신규 게이트 아님). planner 가 dependency-free 로 더 쪼갤 수 있는지(예: service 메서드 먼저, controller 후속) 판정. import upload(multer/FileInterceptor 신규 dep)은 게이트3 미승인 범위 밖. nextTask=null → 다음 fire 가 planner dispatch. **누적 chain**: T-0501~T-0517 (deliveryPlan·completionResult·chunkPlan·streamProgress·ADR-0046·materializeExportDump·sliceByChunkPlan·verifyDescriptorDrift·chunkedReadable·downloadHeaders·resumeSlice·refetchSlice·ADR-0047·fullRecordSelect·collectFullExportRecords·buildFullExportRecord·buildFullExportDump). standing 게이트: live-LLM 검증(ADR-0045 ACCEPTED — local LAN OpenAI-호환 custom 경로 credential-free 수동 검증 가능, cron 자동 backlog 아님), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=509.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-local-0619-0637",
-    "since": "2026-06-19T06:37:18Z",
-    "note": "cron@aa-local-0619-0637 (aa-local schedule, :30분대 trigger — 충돌 회피) — planner-only fire. fresh checkout 로컬 f9c7905 였으나 origin/main 이 74372a1(직전 cron@aa-local-15-0604 가 T-0516 merge 9d888cd + bookkeeping 까지 완료)로 앞서 있어 reset --hard origin/main. server-time 2026-06-19T06:37:18Z(GitHub api Date header). 미해결 HQ 0·blockers 0·claims.json=[](활성 claim 0)·open PR 0 확인 후 lock CAS 획득(72256c2 tombstone→ea5778b). currentTask/nextTask 둘 다 null → LOOP §1[2] planner-only 경로(claimable 후보 0 → claim-pickup no-op, planner dispatch 가 다음 task 생성). planner dispatch → T-0517 큐잉(buildFullExportDump 순수 builder, FullExportRecord[]→fields 보존 dump envelope, materialize 입력 contract, commitMode pr, est ~240 LOC 2 파일, dependsOn []·touchesFiles src/export/export-full-dump.ts/.spec disjoint). planner 판정: ADR-0047 §Follow-ups[2] chain 의 dependency-free 순수 조각 — degenerate helper 날조 아닌 honest gap(buildExportDump 가 fields 소실) 보완. 새 dep/ADR/schema/credential 0. STATE.nextTask=T-0517 doc-only direct commit + lock tombstone release. 코드/CI 변경 0(문서만). 다음 fire 가 T-0517 claim·실행. 단일 active driver, race 0."
+    "session": "cron@aa-local-15-0703",
+    "since": "2026-06-19T07:03:52Z",
+    "note": "cron@aa-local-15-0703 (aa-local-15 schedule, :15 trigger — 충돌 회피) — T-0517 실행 fire. fresh checkout 로컬 74372a1 였으나 origin/main 이 99bf3a2(직전 cron@aa-local-0619-0637 가 T-0517 큐잉)로 앞서 reset --hard origin/main. server-time 2026-06-19T07:03:52Z(GitHub api Date header). 미해결 HQ 0·blockers 0·claims.json=[]·open PR 0 확인 후 lock CAS 획득(a869ca7 tombstone→01f698c). nextTask=T-0517(pr-mode, 활성 claim 0) → LOOP §1[2] claim-pickup: reclaim no-op(orphan 0), (a2) 게이트 PASS(활성 claim 0<2, pr-mode 단독 OK, dependsOn []·touchesFiles disjoint), select-claim.sh 로 T-0517 atomic claim+lock tombstone release. lock-free 실행: executor → implementer+tester(buildFullExportDump 순수 builder, +131 LOC, 신규 파일 cov 100%, 5316 test green) → PR #430 → integrator → reviewer APPROVE round1 + 외부 comment + self-check + CI green 4-게이트 PASS → squash merge 13358ff --delete-branch. bookkeeping: claims.json→[](T-0517 claim 정리), tasksCompleted 508→509. 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-19T06:37:18Z",
-  "lastCommit": "9d888cd",
+  "lastActivity": "2026-06-19T07:12:00Z",
+  "lastCommit": "13358ff",
   "mostRecentTasks": [
+    "T-0517",
+    "T-0516",
     "T-0515",
     "T-0514",
-    "T-0513",
-    "T-0512",
-    "T-0511"
+    "T-0513"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-19T06:10:00Z",
+    "lastRun": "2026-06-19T07:11:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "PR #429(T-0516) comment-triggered CI run 27809090064 full green(reviewer-approval 게이트 step 포함) → 4-게이트 PASS → squash merge 9d888cd --delete-branch. 첫 pull_request run 의 reviewer-gate 단독 fail 은 comment 도착 전 예상 race(코드-fail 아님). billing block 은 04:11~05:08Z 만 — 저장소 public 전환으로 해제됨, 06:xx 정상. T-0516 export-job.service.ts line 98.71%/func 100%, 로컬 5285 test pass."
+    "note": "PR #430(T-0517) CI full green(기본 검사 pass + 배포 산출물 검증 pass, reviewer-approval 게이트 포함) → 4-게이트 PASS → squash merge 13358ff --delete-branch. T-0517 export-full-dump.ts 신규 파일 cov 100%, 로컬 5316 test pass."
   },
   "reviewRounds": {
+    "T-0517": 1,
     "T-0516": 1,
     "T-0515": 1,
     "T-0514": 1,
@@ -959,7 +960,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 508,
+    "tasksCompleted": 509,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

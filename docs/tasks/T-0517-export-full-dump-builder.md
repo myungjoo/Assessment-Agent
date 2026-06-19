@@ -2,7 +2,7 @@
 id: T-0517
 title: FullExportRecord[] → full-record dump envelope 순수 builder (buildFullExportDump)
 phase: P5-in-progress
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 240
