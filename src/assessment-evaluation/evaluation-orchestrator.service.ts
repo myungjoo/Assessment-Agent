@@ -17,24 +17,36 @@
 //   3b. dedup 후 입력에 대한 update 횟수 중립화 detection —
 //      `computeUpdateCountNeutralization(deduped)`(R-41). abuse detection 과 동형으로
 //      중복 부풀림 제거 후 입력 위에서 document update 횟수(version)를 measure 한다.
+//   3c. dedup 후 입력에 대한 기여 품질 분류 detection —
+//      `computeContributionQualitySignal(deduped)`(R-37/R-38). abuse / update-count
+//      detection 과 동형으로 중복 부풀림 제거 후 입력 위에서 `metadata.titleLength`
+//      휴리스틱으로 zero-contribution 후보 단위를 measure 한다.
 //   4. 남은 각 `EvaluationInput` 마다 `scoringService.scoreUnit(input, options)` 호출 →
 //      `EvaluationResult[]` 수집(§2 단위 1 건당 scoring).
 //   5. scoring 후 abuse 신호 소비 — `applyAbuseSignalToVolume(entries, signal)` 로
 //      suspected author 단위의 `volume` 을 결정적으로 감점해 반환(R-26/R-40 중립화 v1).
 //   6. abuse 감점 산출물을 다시 entries 로 재조립 후 update 횟수 중립화 신호 소비 —
 //      `applyUpdateCountNeutralizationToVolume(entries2, neutralization)` 로 중립 대상
-//      author/unit 의 `volume` 을 net 0(중립 보존)으로 처리해 최종 반환(R-41 v1).
+//      author/unit 의 `volume` 을 net 0(중립 보존)으로 처리한다(R-41 v1).
+//   7. update-count 중립 산출물(entries 형태)을 기여 품질 신호 소비 —
+//      `applyContributionQualityFloor(entries3, qualitySignal)` 로 zero-contribution
+//      대상 author/unit 의 `contribution` 을 결정적으로 `"zero"` 로 floor 강등한 뒤
+//      마지막에 `.map((e) => e.result)` 로 flatten 해 최종 반환(R-37/R-38 v1).
 //
-// abuse / update-count 배선 박제(T-0523/T-0526, ADR-0032 §3 정신): 네 helper
-// (`computeAbuseSignal` / `applyAbuseSignalToVolume` / `computeUpdateCountNeutralization`
-// / `applyUpdateCountNeutralizationToVolume`)는 모두 의존성 0 의 결정적 순수 helper 다
-// (LLM 무관, 입력 비변형, throw 0 흡수 정책). 본 orchestrator 는 새 알고리즘 0 — 네 helper
-// 의 compose + 순서 결정만 담당한다. 두 detection 은 dedup 후(중복 부풀림 제거 후) 입력
-// 위에서 동작하고, 두 소비는 scoring 성공 후에만 실행해 부분 결과 위장 0(§2 실패 격리)을
-// 보존한다. entries 는 `deduped[i].author` 와 `results[i]` 를 같은 순서로 짝지어 조립한다
-// (매핑 misalignment 0). adjust 적용 순서는 abuse 감점(R-26/R-40) → update-count 중립
-// (R-41) 으로 고정한다 — abuse 는 penalty, update-count 는 net 0 보존이라 중립 대상 단위는
-// 마지막에 base 가 보존되어야 "advantage 도 penalty 도 없음"(R-41 명문)이 최종 보장된다.
+// abuse / update-count / contribution-quality 배선 박제(T-0523/T-0526/T-0529,
+// ADR-0032 §3 정신): 여섯 helper(`computeAbuseSignal` / `applyAbuseSignalToVolume`
+// / `computeUpdateCountNeutralization` / `applyUpdateCountNeutralizationToVolume` /
+// `computeContributionQualitySignal` / `applyContributionQualityFloor`)는 모두 의존성
+// 0 의 결정적 순수 helper 다(LLM 무관, 입력 비변형, throw 0 흡수 정책). 본 orchestrator
+// 는 새 알고리즘 0 — 여섯 helper 의 compose + 순서 결정만 담당한다. 세 detection 은
+// dedup 후(중복 부풀림 제거 후) 입력 위에서 동작하고, 세 소비는 scoring 성공 후에만
+// 실행해 부분 결과 위장 0(§2 실패 격리)을 보존한다. entries 는 `deduped[i].author` 와
+// `results[i]` 를 같은 순서로 짝지어 조립하고, 세 adjust 를 entries 형태로 연쇄
+// (mid-pipe flatten 미루기 — 마지막 단계에만 `.map((e) => e.result)`)한다(매핑
+// misalignment 0). adjust 적용 순서는 abuse 감점(R-26/R-40) → update-count 중립(R-41)
+// → contribution-quality floor(R-37/R-38) 로 고정한다 — 앞 둘은 `volume`(정량 수치),
+// 본 배선은 `contribution`(품질 등급 enum) 을 다뤄 **필드 직교** 라 적용 순서가 결과에
+// 무관하지만, 결정성과 spec 명료성을 위해 v1 순서를 고정한다.
 //
 // dedup 적용 순서 박제(ADR-0032 §4): `dedupTemporalDuplicates`(R-21 earliest-wins) →
 // `excludeSelfFollowUps`(R-30 self-follow-up 제외) 순서로 합성한다. 근거 — 시간적
@@ -71,6 +83,8 @@ import {
   excludeSelfFollowUps,
 } from "./domain/evaluation-dedup";
 import { mapActivityToEvaluationInput } from "./domain/evaluation-input.mapper";
+import { applyContributionQualityFloor } from "./domain/evaluation-quality-adjust";
+import { computeContributionQualitySignal } from "./domain/evaluation-quality-signal";
 import type { EvaluationResult } from "./domain/evaluation-result";
 import { applyUpdateCountNeutralizationToVolume } from "./domain/evaluation-update-count-adjust";
 import { computeUpdateCountNeutralization } from "./domain/evaluation-update-count-neutral";
@@ -98,30 +112,37 @@ export class EvaluationOrchestratorService {
    *   3. `computeAbuseSignal(deduped)` 로 dedup 후 입력의 abusing 신호 산출(§3).
    *   3b. `computeUpdateCountNeutralization(deduped)` 로 dedup 후 입력의 update 횟수
    *      중립화 신호 산출(R-41 — abuse detection 과 동형, 중복 부풀림 제거 후 measure).
+   *   3c. `computeContributionQualitySignal(deduped)` 로 dedup 후 입력의 기여 품질
+   *      분류 신호 산출(R-37/R-38 — titleLength 휴리스틱으로 zero-contribution 후보).
    *   4. 남은 각 단위마다 `scoringService.scoreUnit(input, options)` 를 순차 호출해
    *      `EvaluationResult[]` 를 입력 순서대로 수집(§2).
    *   5. `applyAbuseSignalToVolume(entries, signal)` 로 suspected author 단위의
    *      volume 을 결정적으로 감점한다(R-26/R-40 중립화 v1).
    *   6. abuse 감점 산출물을 entries 로 재조립 후
    *      `applyUpdateCountNeutralizationToVolume(entries2, neutralization)` 로 중립
-   *      대상 author/unit 의 volume 을 net 0(중립 보존)으로 처리해 최종 반환(R-41 v1).
+   *      대상 author/unit 의 volume 을 net 0(중립 보존)으로 처리한다(R-41 v1).
+   *   7. update-count 중립 산출물(entries 형태)을 그대로 받아
+   *      `applyContributionQualityFloor(entries3, qualitySignal)` 로 zero-contribution
+   *      대상 author/unit 의 contribution 을 결정적으로 `"zero"` 로 floor 강등한 뒤
+   *      마지막에 `.map((e) => e.result)` 로 flatten 해 최종 반환(R-37/R-38 v1).
    *
    * 정책:
-   *   - 빈 `activities` → 빈 배열 반환(scoreUnit 호출 0, 두 신호 빈 신호 / 빈 entries).
+   *   - 빈 `activities` → 빈 배열 반환(scoreUnit 호출 0, 세 신호 빈 신호 / 빈 entries).
    *   - scoring 순차 — 결과 순서 = dedup 후 입력 순서 보존(결정적).
    *   - 한 단위 scoring reject 시 그 error 를 전파(throw, swallow 0 — §2 실패 격리).
-   *     두 adjust(abuse + update-count) 는 scoring 전량 성공 후에만 실행(부분 결과
-   *     위장 0).
-   *   - adjust 적용 순서 = abuse 감점(R-26/R-40) → update-count 중립(R-41). 중립 대상
-   *     단위는 마지막에 base 가 보존돼 advantage 도 penalty 도 없음을 최종 보장한다.
+   *     세 adjust(abuse + update-count + contribution-quality) 는 scoring 전량 성공
+   *     후에만 실행(부분 결과 위장 0).
+   *   - adjust 적용 순서 = abuse 감점(R-26/R-40) → update-count 중립(R-41) →
+   *     contribution-quality floor(R-37/R-38). 앞 둘은 `volume`(정량 수치), 본 배선은
+   *     `contribution`(품질 등급 enum) 을 다뤄 필드 직교 — 순서 무관하지만 v1 고정.
    *   - 매핑 / dedup / scoring / detection / adjust 재구현 0 — 기존 import 호출만
    *     (compose + 순서 결정만). 새 알고리즘 0.
-   *   - 입력 배열 비변형(map / dedup / 네 helper 모두 새 배열 산출, 부수효과 0).
+   *   - 입력 배열 비변형(map / dedup / 여섯 helper 모두 새 배열 산출, 부수효과 0).
    *
    * @param activities 수집 산출물 `Activity` 목록(typed surface 만, raw 본문 0).
    * @param options scoring 옵션 — 각 `scoreUnit` 호출에 그대로 전달(`ScoringOptions`).
-   * @returns dedup 후 단위 순서를 보존하고 abuse 감점 + update 횟수 중립이 반영된
-   *          `EvaluationResult[]`.
+   * @returns dedup 후 단위 순서를 보존하고 abuse 감점 + update 횟수 중립 + 기여 품질
+   *          floor 강등이 반영된 `EvaluationResult[]`.
    */
   async evaluateActivities(
     activities: Activity[],
@@ -143,6 +164,12 @@ export class EvaluationOrchestratorService {
     //      helper(LLM 무관). 빈 deduped → 빈 신호(throw 0).
     const neutralization = computeUpdateCountNeutralization(deduped);
 
+    // (3c) 기여 품질 분류 detection(R-37/R-38) — abuse / update-count detection 과
+    //      동형으로 dedup 후 입력 위에서 metadata.titleLength 휴리스틱으로
+    //      zero-contribution 후보 단위를 식별한다. 결정적 순수 helper(LLM 무관).
+    //      빈 deduped → 빈 신호(throw 0).
+    const qualitySignal = computeContributionQualitySignal(deduped);
+
     // (4) 단위별 scoring(§2) — 순차 호출로 결과 순서 = dedup 후 입력 순서 보존.
     //     한 단위 reject 는 await 가 전파(부분 결과 위장 0 — 실패 격리).
     const results: EvaluationResult[] = [];
@@ -162,10 +189,22 @@ export class EvaluationOrchestratorService {
     // (6) update 횟수 중립화 신호 소비 — abuse 감점 산출물을 다시 entries 로 재조립해
     //     중립 대상 author/unit 의 volume 을 net 0(중립 보존)으로 처리한다. abuse
     //     감점 다음에 적용해 중립 대상 단위가 마지막에 base 를 보존하도록 한다(R-41
-    //     명문 — advantage 도 penalty 도 없음). 두 helper 모두 입력 비변형.
-    return applyUpdateCountNeutralizationToVolume(
+    //     명문 — advantage 도 penalty 도 없음). 본 산출물은 mid-pipe 라 flatten 하지
+    //     않고 entries 형태로 다음 배선(contribution-quality)에 그대로 넘긴다.
+    const updateCountAdjusted = applyUpdateCountNeutralizationToVolume(
       abuseAdjusted,
       neutralization,
+    );
+
+    // (7) 기여 품질 분류 신호 소비 — update-count 중립 산출물(entries 형태)을 그대로
+    //     받아 zero-contribution 대상 author/unit 의 contribution 을 결정적으로
+    //     `"zero"` 로 floor 강등한다. volume 을 다루는 앞 두 배선과 contribution 을
+    //     다루는 본 배선은 필드 직교라 적용 순서 무관하지만 v1 순서를 고정한다.
+    //     마지막에 `.map((e) => e.result)` 로 flatten 해 최종 반환한다. 세 helper
+    //     모두 입력 비변형.
+    return applyContributionQualityFloor(
+      updateCountAdjusted,
+      qualitySignal,
     ).map((e) => e.result);
   }
 }

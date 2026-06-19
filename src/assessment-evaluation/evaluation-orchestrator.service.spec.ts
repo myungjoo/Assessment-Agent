@@ -88,6 +88,52 @@ function resultWithVolume(unitId: string, volume: number): EvaluationResult {
   return { ...resultFor(unitId), volume };
 }
 
+// resultWithContribution — contribution-quality wiring 검증용. scoring 산출
+// contribution 을 명시 지정해 floor 강등/무변경을 입출력 비교로 단언한다(기본
+// resultFor 는 contribution "medium" 고정). zero-contribution 대상이면 mock 이
+// "high" 로 매겨도 결과가 "zero" 로 강등돼야 하고, 비대상이면 mock 값이 그대로
+// 보존돼야 한다. unitId echo 는 유지해 순서 정합도 함께 본다.
+function resultWithContribution(
+  unitId: string,
+  contribution: EvaluationResult["contribution"],
+): EvaluationResult {
+  return { ...resultFor(unitId), contribution };
+}
+
+// makeScoringServiceWithContribution — 각 단위에 고정 contribution 을 부여하는
+// mock. contribution-quality detection 은 deduped 입력의 titleLength 로 신호를
+// 산출하고, scoring contribution 은 본 mock 이 통제하므로 두 축(signal vs scored
+// contribution)을 독립적으로 구성할 수 있다. 기본을 "high" 로 둬 floor 강등이
+// LLM 정성 산출을 덮어쓰는지(가시성)를 확인하기 쉽게 한다.
+function makeScoringServiceWithContribution(
+  contribution: EvaluationResult["contribution"] = "high",
+): { scoreUnit: jest.Mock } {
+  return {
+    scoreUnit: jest.fn().mockImplementation(async (input: { unitId: string }) =>
+      // eslint-disable-next-line @typescript-eslint/require-await
+      resultWithContribution(input.unitId, contribution),
+    ),
+  };
+}
+
+// zeroContribCommit — contribution-quality 대상(zero-contribution 후보) 단위 fixture.
+// titleLength 를 CONTRIBUTION_QUALITY_TITLE_FLOOR(=1) 이하로 둬 detection 이
+// zero-contribution 후보로 식별하게 한다. 서로 다른 externalId 로 unitId 를 분리해
+// dedup 생존을 보장한다.
+function zeroContribCommit(overrides: {
+  externalId: string;
+  author?: string;
+  titleLength?: number;
+}): GithubActivity {
+  const { externalId, author = "reporter", titleLength = 1 } = overrides;
+  return githubActivity({
+    externalId,
+    author,
+    kind: "commit",
+    metadata: { titleLength },
+  });
+}
+
 // makeScoringServiceWithVolume — 각 단위에 고정 volume 을 부여하는 mock. abuse
 // detection 은 deduped 입력의 titleLength 로 신호를 산출하고, scoring volume 은 본
 // mock 이 통제하므로 두 축(signal vs scored volume)을 독립적으로 구성할 수 있다.
@@ -1181,6 +1227,611 @@ describe("EvaluationOrchestratorService", () => {
           externalId: "doc-low",
           author: "writer2",
           version: 2,
+        }),
+      ];
+      const snapshot = JSON.parse(JSON.stringify(activities));
+
+      await orchestrator.evaluateActivities(activities, OPTIONS);
+
+      expect(activities).toEqual(snapshot);
+    });
+  });
+
+  // ── T-0529: 기여 품질 floor 강등 배선(computeContributionQualitySignal →
+  //    applyContributionQualityFloor). detection 은 dedup 후 입력의
+  //    metadata.titleLength(임계 1) 로 zero-contribution 후보를 식별하고, 소비는
+  //    abuse 감점 + update-count 중립 후 대상 단위의 contribution 을 결정적으로
+  //    "zero" 로 floor 강등한다. mock scoreUnit 으로 contribution 을 통제해 강등/보존을
+  //    입출력 비교로 단언한다. abuse / update-count 배선이 함께 보존됨(회귀 0)도 확인.
+  describe("contribution-quality wiring — 대상 단위 contribution floor 강등 / 비대상 무변경(R-37/R-38)", () => {
+    it("(happy) titleLength≤임계(zero-contribution 후보) 단위는 mock 이 high 로 매겨도 contribution 이 zero 로 강등된다", async () => {
+      // titleLength 1(=임계) → detection 이 zero-contribution 후보로 식별. scoring
+      // contribution 은 high 로 통제 → floor 강등으로 결과는 zero 여야 한다.
+      const scoring = makeScoringServiceWithContribution("high");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        zeroContribCommit({ externalId: "trivial", titleLength: 1 }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].contribution).toBe("zero");
+    });
+
+    it("(happy) titleLength>임계(비대상) 단위는 mock scoreUnit contribution 이 그대로 보존된다", async () => {
+      // titleLength 42(기본 githubActivity) → 비대상. scoring contribution high →
+      // 무변경 passthrough 로 결과도 high.
+      const scoring = makeScoringServiceWithContribution("high");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({ externalId: "rich", metadata: { titleLength: 42 } }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].contribution).toBe("high");
+    });
+
+    it("(branch a) 대상 + 비대상 혼합 batch → 대상만 zero 강등, 비대상 무변경", async () => {
+      // reporter: titleLength 1(대상), author2: titleLength 50(비대상). 둘 다 scoring
+      // contribution medium → 대상만 zero 강등, 비대상은 medium 보존. 순서 보존.
+      const scoring = makeScoringServiceWithContribution("medium");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        zeroContribCommit({
+          externalId: "z-1",
+          author: "reporter",
+          titleLength: 1,
+        }),
+        githubActivity({
+          externalId: "r-1",
+          author: "richauthor",
+          metadata: { titleLength: 50 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results.map((r) => r.contribution)).toEqual(["zero", "medium"]);
+    });
+
+    it("(branch b) 전 단위 비대상(titleLength>임계) → 전 단위 contribution 무변경", async () => {
+      const scoring = makeScoringServiceWithContribution("low");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "n-1",
+          author: "a1",
+          metadata: { titleLength: 20 },
+        }),
+        confluenceActivity({
+          externalId: "n-2",
+          author: "a2",
+          metadata: { titleLength: 30 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results.map((r) => r.contribution)).toEqual(["low", "low"]);
+    });
+
+    it("(branch c) dedup 으로 일부 제거된 batch → detection 이 dedup 후 입력 위에서 동작", async () => {
+      // 동일 unitId(zero-contribution 후보) 중복 2 건 → dedup 후 earliest 1 건. 그
+      // 1 건이 대상으로 식별돼 zero 강등(detection 이 dedup 후 입력 위 동작 확인).
+      const scoring = makeScoringServiceWithContribution("high");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "dup-z",
+          author: "reporter",
+          kind: "commit",
+          timestamp: "2026-10-02T00:00:00Z",
+          metadata: { titleLength: 1 },
+        }),
+        githubActivity({
+          externalId: "dup-z",
+          author: "reporter",
+          kind: "commit",
+          timestamp: "2026-10-01T00:00:00Z", // earliest 보존
+          metadata: { titleLength: 1 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].contribution).toBe("zero");
+    });
+
+    it("(branch d) titleLength 경계 — 임계 정확히(1)→강등, 임계+1(2)→무변경, 누락→강등(0 흡수)", async () => {
+      const scoring = makeScoringServiceWithContribution("high");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "exact-1",
+          author: "a1",
+          metadata: { titleLength: 1 },
+        }),
+        githubActivity({
+          externalId: "above-2",
+          author: "a2",
+          metadata: { titleLength: 2 },
+        }),
+        // titleLength 누락 → resolveTitleLength 0 흡수 → 임계 이하 → 강등.
+        githubActivity({
+          externalId: "missing",
+          author: "a3",
+          metadata: {},
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // exact-1 강등(zero), above-2 무변경(high), missing 강등(zero).
+      expect(results.map((r) => r.contribution)).toEqual([
+        "zero",
+        "high",
+        "zero",
+      ]);
+    });
+  });
+
+  describe("contribution-quality wiring — error path / negative cases(예외 분기마다 cover)", () => {
+    it("(error) scoring reject 시 세 adjust(abuse + update-count + contribution-quality) 미실행 + error 전파", async () => {
+      // 강등 대상 구성이어도 scoring reject 면 adjust 자리 도달 0 — error 전파.
+      const scoring = makeScoringServiceWithContribution("high");
+      const boom = new Error("LLM HTTP 호출 실패 (status: 500)");
+      scoring.scoreUnit
+        .mockResolvedValueOnce(resultWithContribution("ok", "high"))
+        .mockRejectedValueOnce(boom);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        zeroContribCommit({ externalId: "ok", author: "a1", titleLength: 1 }),
+        zeroContribCommit({ externalId: "fail", author: "a2", titleLength: 1 }),
+      ];
+
+      await expect(
+        orchestrator.evaluateActivities(activities, OPTIONS),
+      ).rejects.toThrow(boom);
+      // 두 번째 단위에서 throw → scoring 2 회 시도, adjust 도달 0(부분 결과 위장 0).
+      expect(scoring.scoreUnit).toHaveBeenCalledTimes(2);
+    });
+
+    it("(negative i) 빈 Activity[] → 빈 EvaluationResult[](세 helper 빈 입력 통과)", async () => {
+      const scoring = makeScoringServiceWithContribution("high");
+      const orchestrator = makeOrchestrator(scoring);
+
+      const results = await orchestrator.evaluateActivities([], OPTIONS);
+
+      expect(results).toEqual([]);
+      expect(scoring.scoreUnit).not.toHaveBeenCalled();
+    });
+
+    it("(negative ii) 단일 author 단일 단위(비대상) → contribution 무변경", async () => {
+      const scoring = makeScoringServiceWithContribution("medium");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "solo",
+          author: "solo-dev",
+          metadata: { titleLength: 40 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].contribution).toBe("medium");
+    });
+
+    it("(negative iii) 동일 author 다수 단위 — 일부만 대상(부분 적용 정합)", async () => {
+      // 같은 author 의 단위 3 건: titleLength 1/40/0. unitId 가 모두 달라 dedup 미발화.
+      // titleLength≤1 인 u-1(1), u-3(0) 만 대상(zero 강등), u-2(40)는 비대상(보존).
+      const scoring = makeScoringServiceWithContribution("high");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "u-1",
+          author: "multi",
+          metadata: { titleLength: 1 },
+        }),
+        githubActivity({
+          externalId: "u-2",
+          author: "multi",
+          metadata: { titleLength: 40 },
+        }),
+        githubActivity({
+          externalId: "u-3",
+          author: "multi",
+          metadata: { titleLength: 0 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(3);
+      expect(results.map((r) => r.contribution)).toEqual([
+        "zero",
+        "high",
+        "zero",
+      ]);
+    });
+
+    it("(negative iv) 대상 단위의 scoring contribution 이 이미 zero → 멱등(zero 유지)", async () => {
+      // scoring contribution 이 이미 zero 인 대상 단위 → floor 강등 멱등(값 동일).
+      const scoring = makeScoringServiceWithContribution("zero");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        zeroContribCommit({ externalId: "idem", titleLength: 1 }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results[0].contribution).toBe("zero");
+    });
+
+    it("(negative v) titleLength 비-number(string) / Infinity → 0 흡수 → 강등 대상", async () => {
+      const scoring = makeScoringServiceWithContribution("high");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        // titleLength 가 string → resolveTitleLength 0 흡수 → 임계 이하 → 강등.
+        githubActivity({
+          externalId: "str-tl",
+          author: "a1",
+          metadata: { titleLength: "abc" as unknown as number },
+        }),
+        // titleLength Infinity → 비유한 → 0 흡수 → 강등.
+        githubActivity({
+          externalId: "inf-tl",
+          author: "a2",
+          metadata: { titleLength: Infinity },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results.map((r) => r.contribution)).toEqual(["zero", "zero"]);
+    });
+
+    it("(negative vi) entries 순서 = scoring 결과 순서 정합(매핑 misalignment 회귀 방어)", async () => {
+      // unitId 별 고유 contribution 으로 author↔result 매핑 misalignment 를 잡는다.
+      // 전 단위 비대상(titleLength>임계) → contribution 무변경, unitId 순서와
+      // contribution 순서가 입력 순서 그대로여야 한다.
+      const contributionByUnit: Record<
+        string,
+        EvaluationResult["contribution"]
+      > = {
+        "github:com/sec:q-1": "low",
+        "github:com/sec:q-2": "medium",
+        "confluence:wiki:q-3": "high",
+      };
+      const scoring = {
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) =>
+            resultWithContribution(
+              input.unitId,
+              contributionByUnit[input.unitId],
+            ),
+          ),
+      };
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "q-1",
+          author: "a1",
+          metadata: { titleLength: 40 },
+        }),
+        githubActivity({
+          externalId: "q-2",
+          author: "a2",
+          metadata: { titleLength: 40 },
+        }),
+        confluenceActivity({
+          externalId: "q-3",
+          author: "a3",
+          metadata: { titleLength: 40 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(
+        results.map((r) => ({
+          unitId: r.unitId,
+          contribution: r.contribution,
+        })),
+      ).toEqual([
+        { unitId: "github:com/sec:q-1", contribution: "low" },
+        { unitId: "github:com/sec:q-2", contribution: "medium" },
+        { unitId: "confluence:wiki:q-3", contribution: "high" },
+      ]);
+    });
+  });
+
+  describe("3 배선 공존(abuse + update-count + contribution-quality) / 결정성 / 비변형 / 직교", () => {
+    it("(공존) 한 단위 abuse 감점 + 다른 단위 update-count 중립 + 또 다른 단위 contribution floor 가 함께 동작", async () => {
+      // abuser: suspectedCommits 3 건(code, titleLength 1) → abuse 감점(volume 0) +
+      //   titleLength 1 이라 contribution-quality 대상이기도 함(zero 강등).
+      // writer: version 7 document(titleLength 10, abuse 미발화) → update-count 중립
+      //   (base volume 보존) + 비대상(contribution 보존).
+      // reporter: titleLength 1 단일 commit(abuse 미발화 — unitCount 1) → contribution
+      //   강등 대상(zero), volume 무변경.
+      // 본 케이스로 세 배선이 서로 다른 단위에서 동시에 작동함을 단언한다.
+      const scoring = {
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) => ({
+            ...resultFor(input.unitId),
+            volume: 50,
+            contribution: "high" as const,
+          })),
+      };
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        ...suspectedCommits("abuser", 3),
+        docWithVersion({
+          externalId: "doc-keep",
+          author: "writer",
+          version: 7,
+        }),
+        zeroContribCommit({
+          externalId: "solo-z",
+          author: "reporter",
+          titleLength: 1,
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // volume: abuser 3 건 감점 0, doc-keep 중립 보존 50, reporter 무감점 50.
+      expect(results.map((r) => r.volume)).toEqual([0, 0, 0, 50, 50]);
+      // contribution: abuser 3 건(titleLength 1) zero 강등, doc-keep(titleLength 10)
+      // 비대상 high 보존, reporter zero 강등.
+      expect(results.map((r) => r.contribution)).toEqual([
+        "zero",
+        "zero",
+        "zero",
+        "high",
+        "zero",
+      ]);
+    });
+
+    it("(교차) 한 단위가 abuse suspected ∩ update-count 중립 ∩ contribution floor 모두 대상 → volume 감점·중립 + contribution zero 동시 적용", async () => {
+      // 단일 author writer 의 document 단위들로 세 신호를 한 author 에 겹친다:
+      //   - version 7(≥5) → update-count 중립 대상.
+      //   - titleLength 1 → contribution-quality 강등 대상.
+      //   - 같은 (kind=document, low-volume) 반복 3 건 → abuse suspected.
+      // 동일 author·동일 kind·동일 titleLength·서로 다른 externalId 3 건이라
+      // repetitionRatio 1.0 → suspected. abuse 감점으로 volume 0 → update-count 중립은
+      // base(0) 보존, contribution 은 zero 강등. 필드 직교 결과를 명시 박제.
+      const scoring = {
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) => ({
+            ...resultFor(input.unitId),
+            volume: 100,
+            contribution: "high" as const,
+          })),
+      };
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        confluenceActivity({
+          externalId: "x-1",
+          author: "writer",
+          metadata: { titleLength: 1, version: 7 },
+        }),
+        confluenceActivity({
+          externalId: "x-2",
+          author: "writer",
+          metadata: { titleLength: 1, version: 7 },
+        }),
+        confluenceActivity({
+          externalId: "x-3",
+          author: "writer",
+          metadata: { titleLength: 1, version: 7 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(3);
+      // abuse 감점(repetitionRatio 1.0 → 0) → update-count 중립 base(0) 보존.
+      expect(results.map((r) => r.volume)).toEqual([0, 0, 0]);
+      // contribution-quality floor 강등 → 전부 zero(volume 축과 직교).
+      expect(results.map((r) => r.contribution)).toEqual([
+        "zero",
+        "zero",
+        "zero",
+      ]);
+    });
+
+    it("(공존) abuse 배선이 보존된다 — abuse 발화 batch 에서 contribution-quality 가 끼어도 abuse 감점 회귀 0", async () => {
+      // abuse 발화 조건(titleLength<3, 저-volume 반복)은 contribution-quality 발화
+      // 조건(titleLength≤1)과 부분 겹친다 — 둘은 저-titleLength 휴리스틱을 공유한다.
+      // 따라서 abuse 가 발화하는 batch 에서 contribution floor 가 함께 끼어도 abuse
+      // 감점(volume 0)이 회귀 없이 그대로 작동함을 단언한다(T-0523 보존).
+      const scoring = makeScoringServiceWithVolume(80);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = suspectedCommits("abuser", 3);
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // abuser 3 건 abuse 감점 0(회귀 0). contribution 은 titleLength 1 이라 함께 zero
+      // 강등되지만, 본 단언의 핵심은 abuse volume 감점이 보존됨이다.
+      expect(results.map((r) => r.volume)).toEqual([0, 0, 0]);
+    });
+
+    it("(공존) update-count 배선이 보존된다 — contribution-quality 비대상 document batch 의 중립 보존 회귀 0", async () => {
+      // 전 단위 titleLength>임계(contribution-quality 미발화) + version≥5(update-count
+      // 중립 대상) document → update-count 중립만 작동, contribution 무변경. T-0526 보존.
+      const scoring = makeScoringServiceWithVolume(80);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        docWithVersion({
+          externalId: "doc-keep",
+          author: "writer",
+          version: 7,
+        }),
+        docWithVersion({
+          externalId: "doc-low",
+          author: "writer2",
+          version: 2,
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // 둘 다 base 80 보존(중립 대상은 보존, 비대상은 무변경). contribution 비대상 보존.
+      expect(results.map((r) => r.volume)).toEqual([80, 80]);
+      expect(results.every((r) => r.contribution === "medium")).toBe(true);
+    });
+
+    it("(직교) 필드 직교 — volume 배선은 contribution 을, contribution 배선은 volume 을 건드리지 않는다", async () => {
+      // titleLength 1(contribution 강등 대상) + version 7(update-count 중립 대상) 단일
+      // document. abuse 는 단일 단위라 미발화. update-count 중립은 volume 만, contribution
+      // floor 는 contribution 만 바꿔야 한다.
+      const scoring = {
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) => ({
+            ...resultFor(input.unitId),
+            volume: 35,
+            contribution: "high" as const,
+          })),
+      };
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        confluenceActivity({
+          externalId: "ortho",
+          author: "writer",
+          metadata: { titleLength: 1, version: 7 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // volume 은 update-count 중립으로 base 35 보존(contribution 강등이 건드리지 않음).
+      expect(results[0].volume).toBe(35);
+      // contribution 은 floor 강등으로 zero(update-count 중립이 건드리지 않음).
+      expect(results[0].contribution).toBe("zero");
+    });
+
+    it("(결정성) 동일 입력 2 회 호출 → 동일 출력(toEqual, deterministic adjust)", async () => {
+      const activities: Activity[] = [
+        ...suspectedCommits("abuser", 3),
+        docWithVersion({
+          externalId: "doc-keep",
+          author: "writer",
+          version: 7,
+        }),
+        zeroContribCommit({
+          externalId: "z",
+          author: "reporter",
+          titleLength: 1,
+        }),
+      ];
+
+      const makeScoring = (): { scoreUnit: jest.Mock } => ({
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) => ({
+            ...resultFor(input.unitId),
+            volume: 50,
+            contribution: "high" as const,
+          })),
+      });
+
+      const first = await makeOrchestrator(makeScoring()).evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+      const second = await makeOrchestrator(makeScoring()).evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(first).toEqual(second);
+      // 결정적 결과를 함께 본다: volume [0,0,0,50,50], contribution 강등 반영.
+      expect(first.map((r) => r.volume)).toEqual([0, 0, 0, 50, 50]);
+      expect(first.map((r) => r.contribution)).toEqual([
+        "zero",
+        "zero",
+        "zero",
+        "high",
+        "zero",
+      ]);
+    });
+
+    it("(비변형) contribution-quality 대상 입력 Activity[] 를 호출 후 변경하지 않는다(deep-equal)", async () => {
+      const scoring = makeScoringServiceWithContribution("high");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        zeroContribCommit({
+          externalId: "z-1",
+          author: "reporter",
+          titleLength: 1,
+        }),
+        githubActivity({
+          externalId: "rich",
+          author: "richauthor",
+          metadata: { titleLength: 50 },
         }),
       ];
       const snapshot = JSON.parse(JSON.stringify(activities));
