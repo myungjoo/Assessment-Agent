@@ -7,16 +7,16 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "✅ **export download chain 완결 — T-0520 DONE(merge 56d7c9b, PR #433, reviewer round2 APPROVE, 4-게이트 PASS, CI green)**. ADR-0047 §Follow-ups 마지막 잔여(live-DB e2e-spec) 박제: test/e2e/export-download.e2e-spec.ts 가 Admin 토큰 5 entity seed→export job 생성→GET /api/admin/export/:id/download 실 PostgreSQL roundtrip 검증(happy 200+header+full-record dump body, 404 부재 job, 빈 DB 0-record 경계, 401/403 RBAC, **REQ-032 회귀: LlmProviderConfig.apiKey secret 다운로드 body 부재 단언**). round1 CI e2e 가 ExportJob_requestedById_fkey FK 위반(afterEach truncateAll 가 actor User 제거→POST 500)으로 fail→executor re-entry 가 actor User 원본 id 재 seed 로 수정(test-only, src/ 무변경), round2 reviewer APPROVE+CI green 으로 merge. **누적 chain 소진**: T-0501~T-0520 (deliveryPlan·completionResult·chunkPlan·streamProgress·ADR-0046·materializeExportDump·sliceByChunkPlan·verifyDescriptorDrift·chunkedReadable·downloadHeaders·resumeSlice·refetchSlice·ADR-0047·fullRecordSelect·collectFullExportRecords·buildFullExportRecord·buildFullExportDump·materializeFullExportDownload·downloadController·**downloadE2eSpec**). export download 기능 + R-113 live-DB e2e 검증 모두 완료. nextTask=null → 다음 fire 가 planner dispatch(다음 P5 방향: import upload 는 게이트3 미승인 — 별도 HQ 필요, 또는 다른 P5 backlog). standing 게이트(cron backlog 아님): live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=512.",
+  "nextTask": "T-0521",
+  "backlogNote": "✅ **export download chain 완결(T-0501~T-0520 소진, T-0520 merge 56d7c9b, tasksCompleted=512)**. **다음 방향: P5 evaluation pipeline pivot — T-0521 큐잉(R-26/R-40 abusing 방지 metric)**. export chain 이후 PLAN.md P5 첫 미박제 항목 = abusing 방지 metric(코드 abusing commit/PR 숫자만 늘리기 R-26 + 문서 abusing 의미없는 반복 R-40). 현 main 은 evaluation-volume.ts/evaluation-dedup.ts 주석이 'R-26/R-40 방지 metric 기반' 만 언급, dedicated helper 미박제(git grep abuseSignal|detectAbus|repetitionInflation src/ origin/main 0 — issue-still-relevant 통과). T-0521 = computeAbuseSignal(inputs:EvaluationInput[]):AbuseSignal dependency-free 순수 domain helper(detection layer only, scoring service 배선은 후속 task). ADR-0032 §3 deterministic·LLM-무관 정신 정합. commitMode pr, est ~240 LOC 2 파일 ≤300 cap, dependsOn []·touchesFiles src/assessment-evaluation/domain/evaluation-abuse-signal.ts/.spec disjoint — stage5b 동시 claim 안전. 새 dep/schema/auth/credential 0. standing 게이트(cron backlog 아님): live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-local-0619-1037",
-    "since": "2026-06-19T11:01:13Z",
-    "note": "cron@aa-local-0619-1037 (aa-local schedule, :37 trigger — 정각 회피) — T-0520 claim→실행→merge fire. fresh checkout 459ab70, claims.json=[] 확인 후 lock CAS 획득(294c11b→128887f), reclaim no-op(orphan 0), maxConcurrentClaims 게이트 PASS(활성 claim 0<2, pr-mode 단독), select-claim T-0520(lock tombstone 동반 release). executor: test/e2e/export-download.e2e-spec.ts 신설(+318 LOC, 1 file). pr-mode push→integrator PR #433 open→reviewer round1 APPROVE+comment, 단 CI e2e FK 실패→ANOTHER_ROUND. executor re-entry round2: actor User 원본 id 재 seed FK 수정(+43/-5)→push→reviewer round2 APPROVE(§5 재호출)+CI green→4-게이트 PASS→squash 56d7c9b merge. T-0520 DONE, nextTask=null→다음 fire planner dispatch. claims.json cleanup(T-0520 제거). 단일 active driver, race 0. lock tombstone release(이미 select-claim 시점)."
+    "session": "cron@aa-local-15-1104",
+    "since": "2026-06-19T11:04:29Z",
+    "note": "cron@aa-local-15-1104 (aa-local-15 schedule, :15 trigger — 충돌 회피) — planner dispatch fire. fresh checkout 459ab70 가 origin/main dd5029f(직전 cron@aa-local-0619-1037 의 T-0520 merge)로 ff. server-time 2026-06-19T11:04:29Z(GitHub API Date header). lock CAS 획득(ffc1b69 tombstone→3385aef). claims.json=[]·open PR 0·orphan 0 확인 → reclaim/claim-pickup 대상 없음. currentTask·nextTask 둘 다 null → planner sub-agent dispatch: T-0521 생성(P5 evaluation pivot — R-26/R-40 abusing 방지 metric computeAbuseSignal 순수 domain helper, commitMode pr, est ~240 LOC 2 파일, dependsOn []), STATE.nextTask=T-0521. doc-only direct commit(main). 단일 active driver, race 0. lock tombstone release."
   },
-  "lastActivity": "2026-06-19T11:01:13Z",
-  "lastCommit": "56d7c9b",
+  "lastActivity": "2026-06-19T11:04:29Z",
+  "lastCommit": "dd5029f",
   "mostRecentTasks": [
     "T-0520",
     "T-0519",
