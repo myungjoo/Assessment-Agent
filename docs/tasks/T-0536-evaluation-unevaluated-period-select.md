@@ -2,7 +2,11 @@
 id: T-0536
 title: 평가 없는 부분(미평가 좌표) 선별 순수 helper selectUnevaluatedPeriods 추가
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-19T22:51:00Z
+mergedAs: 9b6095a
+prNumber: 450
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-037]
 dependsOn: []
