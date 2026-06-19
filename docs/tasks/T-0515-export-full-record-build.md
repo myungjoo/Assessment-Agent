@@ -2,9 +2,11 @@
 id: T-0515
 title: ExportRecord full-record 확장 타입 + buildFullExportRecord 순수 builder (secret deny 단언)
 phase: P7
-status: IN_PROGRESS
+status: DONE
 commitMode: pr
 prNumber: 428
+mergedAt: 2026-06-19T05:08:04Z
+mergeCommit: 6537757
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 240
 estimatedFiles: 2

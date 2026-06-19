@@ -6,17 +6,17 @@
     "fineGrainedConcurrency": true,
     "maxConcurrentClaims": 2
   },
-  "currentTask": "T-0515",
+  "currentTask": null,
   "nextTask": null,
-  "backlogNote": "▶️ **export download chain — T-0515 큐잉(다음 fire executor 가 집어감)**. planner 가 ADR-0047 §Follow-ups[1] 잔여 중 dependency-free 순수 절반을 카브: `FullExportRecord` 확장 타입 + `buildFullExportRecord` 순수 builder(T-0514 select 상수의 소비측 짝, apiKey secret deny 단언), DB/Prisma/service 미접촉, commitMode pr, est ~240 LOC 2 파일, dependsOn []·touchesFiles disjoint → stage5b 동시 claim 안전. planner 판정: ADR-0047 ACCEPTED 로 §5 persistence/security 게이트(full-record DB-read 컬럼 경계 + REQ-032 raw/secret-deny)는 이미 닫혀 materialization-contract 구현은 '결정된 ADR 구현'(자동 진행, 신규 게이트 아님); 불순한 repository full-record-read DB-query 배선만 별도 follow-up 으로 deferral. 본 fire(cron@aa-local-15-10320, :15 trigger)는 planner-only — STATE.nextTask=T-0515 큐잉 후 doc-only direct commit + lock tombstone release. (이전 step) T-0514 DONE(merge 81f115b, PR #427) — ADR-0047 §Follow-ups[1] dependency-order 첫 조각 완료: entity 별 export full-record allow-list 를 Prisma `select` 객체 상수(`EXPORT_ENTITY_FULL_RECORD_SELECT`, 5 entity Object.freeze) + derive 함수 1개(`getExportEntityFullRecordSelect`, 비-string→TypeError·미지원 entity→RangeError·방어 복제)로 single-source 박제하는 dependency-free 순수 helper(`src/export/export-entity-full-record-select.ts`+spec, +291 LOC 2 파일, Prisma runtime import 0). LlmConfig select 에 `apiKey` key 부재(ADR-0047 §Decision2(b) secret deny, projection-only) — 회귀 test `.not.toHaveProperty(\"apiKey\")` + 멤버십 정확 일치 단언. 신규 파일 stmt/branch/func/line 100%, 전체 225 suite/5239 test green. reviewer APPROVE round1(MINOR2 비차단), 4-게이트 PASS. **다음 step(ADR-0047 §Follow-ups 잔여)**: ExportRecord full-record 확장 + service materialization 배선(본 select 상수를 contract 로 소비) + `GET /api/admin/export/:id/download` streaming controller + repository allow-list DB-query — 단 service/repository/controller 배선은 신규 query 표면 + REQ-032 raw-미저장 경계 = §5/persistence 게이트 접촉이라 planner 가 dependency-free 조각으로 더 쪼갤 수 있는지 판정 필요. import upload(multer/FileInterceptor 신규 dep)은 게이트3 미승인 범위 밖. nextTask=null → 다음 fire 가 planner dispatch. (이전 chain 기록) T-0513=ADR-0047 merge(b4d3eb2, PR #426). 누적 chain: T-0501~T-0514 (deliveryPlan·completionResult·chunkPlan·streamProgress·ADR-0046·materializeExportDump·sliceByChunkPlan·verifyDescriptorDrift·chunkedReadable·downloadHeaders·resumeSlice·refetchSlice·ADR-0047·fullRecordSelect). standing 게이트: live-LLM 검증(ADR-0045 ACCEPTED 로 azure 시험 키 ⏰만료 2026-06-30 결합 해소 — local LAN OpenAI-호환 custom 경로 credential-free 검증 가능, 단 수동 실행·배선≠품질; cron 자동 진행 backlog 아님), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=506.",
+  "backlogNote": "▶️ **export download chain — T-0515 DONE(merge 6537757, PR #428)**. ADR-0047 §Follow-ups[1] 잔여 중 dependency-free 순수 절반 완료: `FullExportRecord` 확장 타입 + `buildFullExportRecord` 순수 builder(T-0514 select 상수의 소비측 짝, apiKey secret deny RangeError 단언), DB/Prisma/service 미접촉, 신규 파일 100% cov(36 spec), 전체 226 suite/5275 test green. reviewer APPROVE round1, 4-게이트 PASS. **billing 사고 메모**: PR #428 은 04:11Z~05:08Z 동안 account spending-limit 으로 CI instant-fail(Q-0044/B-credential-ci-billing-2026-06-19T04:39Z BLOCKED) 후, 저장소 public 전환으로 한도 해제(사용자 통보) → CI rerun full green → merge. 코드 rework 0. **다음 step(ADR-0047 §Follow-ups 잔여)**: 불순한 service-layer materialization 배선(본 builder+select 상수를 contract 로 소비) + `GET /api/admin/export/:id/download` streaming controller + repository allow-list DB-query — REQ-032 raw-미저장 경계 + 신규 query 표면 = §5/persistence 접촉이라 planner 가 dependency-free 조각으로 더 쪼갤 수 있는지 판정 필요(쪼갤 게 없으면 ADR-우선 impure chain). import upload(multer/FileInterceptor 신규 dep)은 게이트3 미승인 범위 밖. nextTask=null → 다음 fire 가 planner dispatch. (이전 step) T-0514 DONE(merge 81f115b, PR #427) — ADR-0047 §Follow-ups[1] dependency-order 첫 조각 완료: entity 별 export full-record allow-list 를 Prisma `select` 객체 상수(`EXPORT_ENTITY_FULL_RECORD_SELECT`, 5 entity Object.freeze) + derive 함수 1개(`getExportEntityFullRecordSelect`, 비-string→TypeError·미지원 entity→RangeError·방어 복제)로 single-source 박제하는 dependency-free 순수 helper(`src/export/export-entity-full-record-select.ts`+spec, +291 LOC 2 파일, Prisma runtime import 0). LlmConfig select 에 `apiKey` key 부재(ADR-0047 §Decision2(b) secret deny, projection-only) — 회귀 test `.not.toHaveProperty(\"apiKey\")` + 멤버십 정확 일치 단언. 신규 파일 stmt/branch/func/line 100%, 전체 225 suite/5239 test green. reviewer APPROVE round1(MINOR2 비차단), 4-게이트 PASS. **다음 step(ADR-0047 §Follow-ups 잔여)**: ExportRecord full-record 확장 + service materialization 배선(본 select 상수를 contract 로 소비) + `GET /api/admin/export/:id/download` streaming controller + repository allow-list DB-query — 단 service/repository/controller 배선은 신규 query 표면 + REQ-032 raw-미저장 경계 = §5/persistence 게이트 접촉이라 planner 가 dependency-free 조각으로 더 쪼갤 수 있는지 판정 필요. import upload(multer/FileInterceptor 신규 dep)은 게이트3 미승인 범위 밖. nextTask=null → 다음 fire 가 planner dispatch. (이전 chain 기록) T-0513=ADR-0047 merge(b4d3eb2, PR #426). 누적 chain: T-0501~T-0514 (deliveryPlan·completionResult·chunkPlan·streamProgress·ADR-0046·materializeExportDump·sliceByChunkPlan·verifyDescriptorDrift·chunkedReadable·downloadHeaders·resumeSlice·refetchSlice·ADR-0047·fullRecordSelect). standing 게이트: live-LLM 검증(ADR-0045 ACCEPTED 로 azure 시험 키 ⏰만료 2026-06-30 결합 해소 — local LAN OpenAI-호환 custom 경로 credential-free 검증 가능, 단 수동 실행·배선≠품질; cron 자동 진행 backlog 아님), P6 frontend, timezone Q-0026, ADR-0036 stage5c. open PR 0·BLOCKED 0·blockers 0·tasksCompleted=507.",
   "lock": {
     "holder": null,
     "session": "cron@aa-local-15-10320",
     "since": "2026-06-19T04:04:31Z",
     "note": "cron@aa-local-15-10320 (aa-local-15 schedule, :15 trigger — 충돌 회피) — planner-only fire. fresh checkout fetch→ff origin/main 56bc94d→5f49dd6(T-0514 merge 흡수), server-time 2026-06-19T04:04:31Z(GitHub api Date header). 미해결 HQ 0·blockers 0·claims.json=[](활성 claim 0)·open PR 0 확인 후 lock CAS 획득(60dc991 tombstone→ad88ecc, 직후 claims.json=[] 복원 corrective CAS d014009). currentTask/nextTask 둘 다 null → LOOP.md §1[2] planner-only 경로(claim-pickup 은 claimable 후보 0 이라 no-op, planner dispatch 가 다음 task 생성). multi-task chain[7.5] 미적용(직전이 executor task 아닌 planner dispatch → §2.5(a) false). planner dispatch → T-0515 큐잉(ExportRecord full-record 확장 타입 + buildFullExportRecord 순수 builder, apiKey secret deny 단언, commitMode pr, est ~240 LOC 2 파일, dependsOn []·touchesFiles disjoint). planner 판정: ADR-0047 ACCEPTED 로 §5 persistence/security 게이트(full-record DB-read 컬럼 경계 + REQ-032 raw/secret-deny)는 이미 닫힘 → materialization-contract 구현은 '결정된 ADR 구현'(CLAUDE.md §5 자동 진행), 신규 게이트 아님. 순수 절반(타입+builder, DB/Prisma/service 미접촉) 카브, 불순한 repository full-record-read 배선은 별도 follow-up 으로 deferral. STATE.nextTask=T-0515 doc-only direct commit + lock tombstone release. 코드/CI 변경 0(문서만). 다음 fire 가 T-0515 claim·실행. 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-19T04:39:00Z",
-  "lastCommit": "81f115b",
+  "lastActivity": "2026-06-19T05:08:30Z",
+  "lastCommit": "6537757",
   "mostRecentTasks": [
     "T-0515",
     "T-0514",
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-19T04:11:00Z",
-    "status": "blocked-billing",
+    "lastRun": "2026-06-19T05:08:04Z",
+    "status": "green",
     "consecutiveFails": 0,
-    "lastConclusion": "failure",
-    "note": "PR #428(T-0515)의 GitHub Actions job 이 step 0개로 1~2초만에 즉시 실패한다 — annotation: 'The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the Billing & plans section.'. account-level 결제수단 실패/spending-limit 차단(코드 결함 아님). 03:54Z(T-0514 merge) green 이후 04:11Z 부터 instant-fail 재발 — 선례 Q-0041/Q-0039/Q-0028 동형 billing infra block. consecutiveFails 는 코드-fail 이 아니므로 increment 하지 않음(0 유지). B-credential-ci-billing-2026-06-19T04:39Z / Q-0044 raise. spending-limit/결제 조치 후 PR #428 CI rerun 시 green→자동 merge(코드 rework 0)."
+    "lastConclusion": "success",
+    "note": "Q-0044 billing block 해소 후(저장소 public 전환 → Actions spending-limit 해제) PR #428 CI rerun(run 27806017050) full green — 두 job(기본 검사 2m23s·배포 산출물 검증 1m14s) 전부 real runner 성공, reviewer-approval 게이트 step 포함. 4-게이트 PASS→squash merge 6537757. merge 후 main 6537757 CI 자명 green(동일 PR head 검증분). T-0515 신규 파일 export-full-record.ts 100% cov, 로컬 5275 test pass."
   },
   "reviewRounds": {
+    "T-0515": 1,
     "T-0514": 1,
     "T-0513": 2,
     "T-0512": 1,
@@ -264,17 +265,8 @@
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
-  "blockers": [
-    {
-      "id": "B-credential-ci-billing-2026-06-19T04:39Z",
-      "reason": "ci-trigger-missing",
-      "task": "T-0515",
-      "pr": 428,
-      "raisedAt": "2026-06-19T04:39:00Z",
-      "details": "PR #428(T-0515)의 GitHub Actions job 이 step 0개로 1~2초만에 즉시 실패한다 — annotation: 'The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the Billing & plans section.'. account-level 결제수단 실패/spending-limit 차단으로, 03:54Z(T-0514 merge) green 이후 04:11Z 부터 재발한 infra block(코드 결함 아님). PR #428 은 open·mergeable 상태로 reviewer APPROVE round1 + 외부 comment(게이트 a+b+c PASS)를 받았고 4-게이트 중 CI green 만 미충족이라 merge 보류 중. 저장소 소유자가 GitHub Billing & plans 에서 결제수단/spending-limit 조치 후 PR #428 CI rerun 시 green→자동 merge(코드 rework 0). 선례 Q-0041/Q-0039/Q-0028 동형.",
-      "linkedHQ": "Q-0044"
-    }
-  ],
+  "blockers": [],
+  "blockersResolvedNote6": "B-credential-ci-billing-2026-06-19T04:39Z (Q-0044 — PR #428/T-0515 의 GitHub Actions job 이 account spending-limit 으로 step 0개 instant-fail) 는 2026-06-19T05:08Z 해소 — 저장소가 public 전환되며 Actions 한도 차단 해제(사용자 통보 'It went public. Action spending limit lifted.'). 검증: PR #428 CI rerun(run 27806017050) 두 job 전부 real runner full green(기본 검사 2m23s·배포 산출물 검증 1m14s, reviewer-approval 게이트 step 포함). 4-게이트 PASS→squash merge 6537757 --delete-branch. consecutiveFails 는 코드-fail 이 아니므로 increment 안 함(0 유지). tasksBlocked counter 도 increment 안 함(infra/billing block — 선례 Q-0041/Q-0039/Q-0028 정합). 코드 rework 0.",
   "blockersResolvedNote5": "B-credential-ci-billing-2026-06-18T01:42Z (Q-0041 — main 74d6eee/b76bed9 의 GitHub Actions runner 가 계정 결제 차단으로 미할당, 두 job steps 0 으로 ~4초 fail) 는 2026-06-18T01:52Z 해소 — 사용자가 GitHub Billing & plans 에서 CI budget(spending limit) 상향. 검증: 실패했던 main run 27731269831(b76bed9) rerun 시 두 job 모두 runner 정상 할당(steps 22/1, in_progress — 직전 fail 은 steps 0 runner 미할당). Q-0028/Q-0039 와 동형 billing-block, 동형 해소. tasksBlocked counter 는 credential/infra(코드 회귀 아님)라 increment 안 함(선례 정합). pr-mode 4-게이트 CI green 게이트 재가동 — T-0486 등 보류 task resume 가능. 코드 rework 0(infra/결제-only block).",
   "blockersResolvedNote4": "B-new-dep-2026-06-15T14:45Z (T-0413 P7 ③ slice 1 의 cron@3.2.1 직접 dep 선언 게이트, Q-0038) 는 2026-06-15T06:55Z 사용자 승인(option a — '권고대로')으로 해소. cron@3.2.1 직접 선언 승인(공급망 delta 0 — 이미 lockfile transitive dep, ADR-0042 §Decision1 named). T-0413 재진입 — implementer 가 package.json 에 cron 직접 선언 추가 + 작성한 src/scheduling/ 코드 재사용, rework 0. tasksBlocked counter 는 historical fact 로 8 유지(new-dep 은 정책상 정상 HITL 게이트 — 정책 실패 아님).",
   "blockersResolvedNote3": "B-credential-2026-06-14T12:41Z (cron@cloud-aa-local-scheduled 이 T-0405 의 `.github/workflows/ci.yml` push 를 workflow scope 부재로 BLOCKED 표기) 는 loop@WIN-JQIPLSBL9QV-vb707106 session 에서 해소 — 사용자가 `gh auth refresh -s workflow` 재인증 후 로컬 /loop(workflow-scoped)가 T-0405 resume: branch push → PR #326 → reviewer APPROVE r1/7(finding 0) → 4-게이트 PASS → squash merge 4566f7c --delete-branch. web build/test step 이 main CI 에 실 green 안착(run 27501403767 first-pass success, 신규 'Web 빌드'·'Web 단위 test' 2 step 모두 success 확인 — vitest 가 CI 에서 실제 실행됨, R-111/R-113 정합). cron 의 stale-lock 오판 원인 = 로컬 시계 skew(driver lock since 가 ~2.5h 과거로 보여 cron 이 stale 탈취 후 BLOCKED 오판). tasksBlocked counter 는 env/credential 한계라 increment 안 함(7 유지).",
@@ -295,7 +287,10 @@
         "(2) **일시 한도 outage 대기** — 일시적 한도 outage 라면 한도 회복을 기다린 뒤 PR #428 CI 를 rerun. 회복 시 (1)과 동일하게 4-게이트 재평가·merge(코드 rework 0)."
       ],
       "resolutionHint": "docs/STATE.json 본 Q-0044 에 resolvedAt(ISO)+decision 기입 + spending-limit/결제 조치 후 PR #428 CI 를 rerun. green 시 다음 fire 가 claim prNumber=428 resume(또는 currentTask=T-0515 resume)으로 PR #428 을 이어 4-게이트 재평가→merge. 해소 시 아래 blocker(B-credential-ci-billing-2026-06-19T04:39Z)도 함께 close. 코드 rework 0.",
-      "raisedThisTurn": true
+      "raisedThisTurn": true,
+      "resolvedAt": "2026-06-19T05:08:30Z",
+      "resolvedBy": "human (user via 대화 세션 — 'It went public. Action spending limit lifted.')",
+      "decision": "GitHub Actions spending-limit 해소 — 저장소가 public 전환되며 Actions 한도 차단이 풀렸다(사용자 통보). 같은 driver 세션이 PR #428 CI 를 rerun(run 27806017050)하니 두 job(기본 검사·배포 산출물 검증) 전부 real runner full green(reviewer-approval 게이트 step 포함), mergeable=CLEAN. 4-게이트(reviewer APPROVE round1 + 외부 comment + self-check + CI green) 전부 PASS 확인 후 squash merge 6537757(--delete-branch). 코드 rework 0(infra/결제-only block 이었음). 선례 Q-0041/Q-0039/Q-0028 동형 해소. blocker B-credential-ci-billing-2026-06-19T04:39Z 동반 close, ci.status green 복귀."
     },
     {
       "id": "Q-0043",
@@ -963,7 +958,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 506,
+    "tasksCompleted": 507,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
