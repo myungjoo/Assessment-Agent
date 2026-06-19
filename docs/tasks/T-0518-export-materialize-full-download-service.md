@@ -2,7 +2,7 @@
 id: T-0518
 title: ExportJobService.materializeFullExportDownload service-layer 배선 (collect→buildFullExportDump→materialize)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 240
@@ -59,3 +59,14 @@ implementer → tester
 ## Follow-ups
 
 (없음 — sub-agent 가 관련 작업 발견 시 추가)
+
+---
+
+## Result (DONE)
+
+- **완료**: 2026-06-19T08:22:34Z (cron@aa-local-15-0803 fire)
+- **merge**: 31ab3cf (PR #431, squash --delete-branch), reviewer APPROVE round 1, 4-게이트 PASS, CI green.
+- **구현**: `ExportJobService.materializeFullExportDownload(scope)` — `collectFullExportRecords()` → `buildFullExportDump()` → `materializeExportDump()` 를 단일 service 메서드로 배선. scope → full-record DB-read → fields 보존 `FullExportDump` envelope → Node `Readable` stream. `FullExportDump`→`ExportDump` 는 `FullExportRecord extends ExportRecord` 구조적 upcast(재필터 0, ADR-0047 §Decision3(i)).
+- **diff**: +267 LOC / 2 파일 (`src/export/export-job.service.ts`, `src/export/export-job.service.spec.ts`), cap 이내.
+- **test**: 신규 7 test (happy: envelope+fields 보존 / error: findMany reject propagate / branch: 빈 DB·일부 entity / negative: instant 비-Date TypeError·apiKey RangeError·apiKey 부재 secret deny 회귀). cov line 98.8% / func 100% / branch 96%. 전체 5323 test green.
+- **다음**: `GET /api/admin/export/:id/download` streaming controller (후속 task — service 가 Readable 반환하므로 controller 는 stream pipe + download header 배선, e2e/supertest 의무).
