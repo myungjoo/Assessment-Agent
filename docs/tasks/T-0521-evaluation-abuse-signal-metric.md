@@ -2,7 +2,11 @@
 id: T-0521
 title: R-26/R-40 abusing 방지 metric 순수 helper (computeAbuseSignal)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-19T11:55:00Z
+mergedAs: f2d76a3
+prNumber: 434
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-026, REQ-040]
 estimatedDiff: 240
