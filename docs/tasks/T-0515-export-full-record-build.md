@@ -2,8 +2,9 @@
 id: T-0515
 title: ExportRecord full-record 확장 타입 + buildFullExportRecord 순수 builder (secret deny 단언)
 phase: P7
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 428
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 240
 estimatedFiles: 2
@@ -57,6 +58,12 @@ plannerNote: "ADR-0047 §Follow-ups[1] 잔여 — full-record materialization �
 ## Suggested Sub-agents
 
 `implementer → tester` (architecture 결정은 ADR-0047 이 이미 박제 — architect 불요).
+
+## Resume note
+
+- 코드 완성·PR #428 open(`claude/T-0515-export-full-record-build`). reviewer APPROVE round1/7 + 외부 PR comment 존재(4-게이트 a+b+c PASS). 로컬 5275 test pass·lint/build green·신규 파일 100% cov·새 dep 0.
+- **BLOCKED 사유 = CI green 미충족 (account billing/spending-limit)**: GitHub Actions job 이 step 0개로 즉시 실패(annotation: 'recent account payments have failed or your spending limit needs to be increased'). 03:54Z green → 04:11Z 부터 재발한 infra block(코드 결함 아님). Q-0044 / B-credential-ci-billing-2026-06-19T04:39Z.
+- **resume 경로**: 사용자가 Billing & plans 조치 + PR #428 CI rerun → green 시 다음 fire 가 prNumber=428 resume(또는 currentTask=T-0515 resume)으로 PR #428 을 이어 4-게이트 재평가→merge. 코드 rework 0.
 
 ## Follow-ups
 
