@@ -2,7 +2,7 @@
 id: T-0526
 title: EvaluationOrchestratorService 에 update 횟수 중립화 소비 배선 (computeUpdateCountNeutralization→applyUpdateCountNeutralizationToVolume)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-022]
 dependsOn: []
@@ -82,3 +82,9 @@ implementer → tester
 - (예정) abuse suspected ∩ update-count 중립 대상 교차 단위 우선순위 정책 — 두 신호가 한 단위에 동시 작용할 때 net 결과 규칙 명문화(실 data 관측 후 별도 task).
 - (예정) update 횟수 중립화 v1 baseline (UPDATE_COUNT_NEUTRAL_THRESHOLD=5 · FLOOR 0) tuning — 임계 calibration 은 실 data 관측 후 별도 task.
 - (예정) update-count 중립 신호의 evaluation 결과 영속화 — Assessment row 의 중립화 메모/근거 필드 (§5 schema 게이트 사람 결정 후).
+
+## Result (DONE)
+
+- **DONE** 2026-06-19T16:20Z — merge `861dee5` (PR #439), reviewer round 1 APPROVE, 4-게이트 PASS.
+- impl +47/-12 (evaluation-orchestrator.service.ts) + R-112 spec +402 LOC (update-count wiring 3 describe). orchestrator line/branch/func/stmt 100% cov. 전체 jest 5469 green.
+- abuse 감점 → update-count 중립 순서 고정, net 0(advantage·penalty 둘 다 없음) 보존, 비대상 무변경. 새 알고리즘 0 — 검증된 두 순수 helper(T-0524 detection + T-0525 소비) compose 만. REQ-022/R-41 layer 완결.
