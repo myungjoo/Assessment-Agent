@@ -38,9 +38,12 @@ jest.mock("../persistence/prisma.service", () => ({
 }));
 
 /* eslint-disable import/first */
+import { Readable } from "node:stream";
+
 import {
   BadRequestException,
   NotFoundException,
+  StreamableFile,
   UnauthorizedException,
   type ExecutionContext,
   type INestApplication,
@@ -80,6 +83,16 @@ function buildExportJobFixture(overrides: Partial<ExportJob> = {}): ExportJob {
   } as ExportJob;
 }
 
+// StreamableFile 의 내부 Readable 을 UTF-8 문자열로 모은다 — download() 가 반환한
+// body 가 service Readable 의 bytes 를 변형 없이 그대로 forward 했는지 단언용.
+async function streamableToString(file: StreamableFile): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of file.getStream()) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string));
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
 // ExportJobService mock factory — create / findRunning / findJob jest.fn().
 function buildServiceMock(): {
   service: ExportJobService;
@@ -88,6 +101,7 @@ function buildServiceMock(): {
     findRunning: jest.Mock;
     findJob: jest.Mock;
     previewSelection: jest.Mock;
+    materializeFullExportDownload: jest.Mock;
   };
 } {
   const serviceMock = {
@@ -95,6 +109,7 @@ function buildServiceMock(): {
     findRunning: jest.fn(),
     findJob: jest.fn(),
     previewSelection: jest.fn(),
+    materializeFullExportDownload: jest.fn(),
   };
   return {
     service: serviceMock as unknown as ExportJobService,
@@ -269,6 +284,217 @@ describe("ExportController (unit)", () => {
 
     const controller = new ExportController(service);
     await expect(controller.findJob("ej-x")).rejects.toBe(rawError);
+  });
+
+  // -----------------------------------------------------------------------
+  // download (GET /api/admin/export/:id/download) — materializeFullExportDownload
+  // (T-0518) Readable 을 HTTP response 로 stream 하는 controller 배선 (T-0519, ADR-0047
+  // §Follow-ups[3]). controller 가 findJob(id) → 저장 scope 합성 →
+  // materializeFullExportDownload(scope) Readable → descriptor 헤더 직렬화 + body stream.
+  // R-112: happy(정상 다운로드 — scope 합성 호출 + header + body) + error(findJob 부재
+  // 404 raw propagate / service reject raw propagate) + branch(FULL/RANGE/PARTIAL scope
+  // 합성) + negative(빈 DB 0-record stream 경계 / job 부재 시 materialize 미호출).
+  // res.set 을 spy 하는 fake Response 로 header 설정을 단언한다(passthrough Res 패턴).
+  // -----------------------------------------------------------------------
+
+  // res.set 호출을 캡처하는 최소 fake Express Response — passthrough Res 헤더 설정 단언용.
+  function makeFakeResponse(): {
+    res: import("express").Response;
+    setCalls: Array<Record<string, string>>;
+  } {
+    const setCalls: Array<Record<string, string>> = [];
+    const res = {
+      set: (headers: Record<string, string>) => {
+        setCalls.push(headers);
+        return res;
+      },
+    } as unknown as import("express").Response;
+    return { res, setCalls };
+  }
+
+  // 주어진 JSON 문자열을 단일 chunk in-memory Readable 로 만든다
+  // (materializeFullExportDownload 가 materializeExportDump 로 산출하는 형태 mirror).
+  function makeDumpReadable(serialized: string): Readable {
+    return Readable.from([serialized]);
+  }
+
+  it("GET :id/download — FULL job: findJob scope 로 materializeFullExportDownload 호출 + header(Content-Type/Disposition/Length) 설정 + body StreamableFile 반환 (happy)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.findJob.mockResolvedValueOnce(
+      buildExportJobFixture({ id: "ej-dl", scope: "FULL" }),
+    );
+    const body = JSON.stringify({
+      schemaVersion: "1",
+      generatedAt: "2026-06-19T00:00:00.000Z",
+      scope: { scope: "full" },
+      entityCounts: {},
+      recordCount: 0,
+      records: [],
+    });
+    serviceMock.materializeFullExportDownload.mockResolvedValueOnce(
+      makeDumpReadable(body),
+    );
+    const { res, setCalls } = makeFakeResponse();
+
+    const controller = new ExportController(service);
+    const result = await controller.download("ej-dl", res);
+
+    // findJob 가 :id 로 호출되고 그 scope 가 lowercase 'full' 로 합성돼 materialize 에 전달.
+    expect(serviceMock.findJob).toHaveBeenCalledWith("ej-dl");
+    expect(serviceMock.materializeFullExportDownload).toHaveBeenCalledTimes(1);
+    expect(
+      serviceMock.materializeFullExportDownload.mock.calls[0][0].scope,
+    ).toBe("full");
+
+    // 다운로드 header 가 response 에 설정됨 — descriptor single-source.
+    expect(setCalls).toHaveLength(1);
+    const headers = setCalls[0];
+    expect(headers["Content-Type"]).toBe("application/json");
+    expect(headers["Content-Disposition"]).toContain("attachment; filename=");
+    expect(headers["Content-Disposition"]).toContain("export-full-");
+    // Content-Length 가 실 body 의 UTF-8 byte 길이로 보정됨(Content-Range 부재 — full).
+    expect(headers["Content-Length"]).toBe(String(Buffer.byteLength(body)));
+    expect(headers["Content-Range"]).toBeUndefined();
+
+    // body 가 StreamableFile 로 반환되고 그 내용이 service Readable 의 bytes 그대로(가공 0).
+    expect(result).toBeInstanceOf(StreamableFile);
+    const streamed = await streamableToString(result);
+    expect(streamed).toBe(body);
+  });
+
+  it("GET :id/download — RANGE job 의 저장 dateRange 도 scope 합성에 포함돼 materialize 에 전달 (branch — range scope 합성)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.findJob.mockResolvedValueOnce(
+      buildExportJobFixture({
+        id: "ej-range",
+        scope: "RANGE",
+        dateRange: {
+          start: "2026-01-01T00:00:00.000Z",
+          end: "2026-03-31T00:00:00.000Z",
+        } as unknown as ExportJob["dateRange"],
+      }),
+    );
+    serviceMock.materializeFullExportDownload.mockResolvedValueOnce(
+      makeDumpReadable("{}"),
+    );
+    const { res } = makeFakeResponse();
+
+    const controller = new ExportController(service);
+    await controller.download("ej-range", res);
+
+    const arg = serviceMock.materializeFullExportDownload.mock.calls[0][0];
+    expect(arg.scope).toBe("range");
+    // ISO string → Date coerce 가 적용돼 start/end 가 Date instance.
+    expect(arg.dateRange.start).toBeInstanceOf(Date);
+    expect(arg.dateRange.end).toBeInstanceOf(Date);
+  });
+
+  it("GET :id/download — PARTIAL job 의 저장 entitySelector 배열이 scope 합성에 포함 (branch — partial scope 합성)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.findJob.mockResolvedValueOnce(
+      buildExportJobFixture({
+        id: "ej-partial",
+        scope: "PARTIAL",
+        entitySelector: [
+          "Person",
+          "Group",
+        ] as unknown as ExportJob["entitySelector"],
+      }),
+    );
+    serviceMock.materializeFullExportDownload.mockResolvedValueOnce(
+      makeDumpReadable("{}"),
+    );
+    const { res } = makeFakeResponse();
+
+    const controller = new ExportController(service);
+    await controller.download("ej-partial", res);
+
+    const arg = serviceMock.materializeFullExportDownload.mock.calls[0][0];
+    expect(arg.scope).toBe("partial");
+    expect(arg.entitySelector).toEqual(["Person", "Group"]);
+  });
+
+  it("GET :id/download — 빈 DB(0-record) dump 도 정상 stream + Content-Length 가 실 body 길이 (negative — 빈 dump 경계)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.findJob.mockResolvedValueOnce(
+      buildExportJobFixture({ id: "ej-empty", scope: "FULL" }),
+    );
+    // 0-record envelope (records: []) 의 직렬화 — 빈 DB 다운로드 경계.
+    const emptyBody = JSON.stringify({
+      schemaVersion: "1",
+      generatedAt: "2026-06-19T00:00:00.000Z",
+      scope: { scope: "full" },
+      entityCounts: {
+        Assessment: 0,
+        Person: 0,
+        Group: 0,
+        LlmConfig: 0,
+        AuditLog: 0,
+      },
+      recordCount: 0,
+      records: [],
+    });
+    serviceMock.materializeFullExportDownload.mockResolvedValueOnce(
+      makeDumpReadable(emptyBody),
+    );
+    const { res, setCalls } = makeFakeResponse();
+
+    const controller = new ExportController(service);
+    const result = await controller.download("ej-empty", res);
+
+    // 빈 dump 도 throw 없이 정상 stream — Content-Length 가 실 body 길이.
+    expect(setCalls[0]["Content-Length"]).toBe(
+      String(Buffer.byteLength(emptyBody)),
+    );
+    const streamed = await streamableToString(result);
+    expect(streamed).toBe(emptyBody);
+  });
+
+  it("GET :id/download — findJob 의 NotFoundException(부재 job) raw propagate + materialize 미호출 (negative 핵심 — 부재 시 materialize 도달 0)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const notFound = new NotFoundException("export job not found: missing");
+    serviceMock.findJob.mockRejectedValueOnce(notFound);
+    const { res } = makeFakeResponse();
+
+    const controller = new ExportController(service);
+    await expect(controller.download("missing", res)).rejects.toBe(notFound);
+    // 부재 분기에서 materialize 는 호출되지 않음(swallow 없이 raw propagate).
+    expect(serviceMock.materializeFullExportDownload).not.toHaveBeenCalled();
+  });
+
+  it("GET :id/download — service Readable 이 Buffer chunk 를 yield 해도 그대로 모아 stream (branch — Buffer chunk 경로)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.findJob.mockResolvedValueOnce(
+      buildExportJobFixture({ id: "ej-buf", scope: "FULL" }),
+    );
+    const bodyText = '{"records":[]}';
+    // string 이 아닌 Buffer chunk 를 yield 하는 Readable — collectStream 의 Buffer 분기 cover.
+    serviceMock.materializeFullExportDownload.mockResolvedValueOnce(
+      Readable.from([Buffer.from(bodyText, "utf8")]),
+    );
+    const { res, setCalls } = makeFakeResponse();
+
+    const controller = new ExportController(service);
+    const result = await controller.download("ej-buf", res);
+
+    expect(setCalls[0]["Content-Length"]).toBe(
+      String(Buffer.byteLength(bodyText)),
+    );
+    const streamed = await streamableToString(result);
+    expect(streamed).toBe(bodyText);
+  });
+
+  it("GET :id/download — materializeFullExportDownload reject(의존성 실패) 를 raw propagate (negative — service reject swallow 0)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.findJob.mockResolvedValueOnce(
+      buildExportJobFixture({ id: "ej-fail", scope: "FULL" }),
+    );
+    const rawError = new Error("collectFullExportRecords: findMany 실패");
+    serviceMock.materializeFullExportDownload.mockRejectedValueOnce(rawError);
+    const { res } = makeFakeResponse();
+
+    const controller = new ExportController(service);
+    await expect(controller.download("ej-fail", res)).rejects.toBe(rawError);
   });
 
   // -----------------------------------------------------------------------
@@ -1050,6 +1276,7 @@ describe("ExportController (guard/@Roles metadata)", () => {
     ["describeScope", ExportController.prototype.describeScope],
     ["previewSelection", ExportController.prototype.previewSelection],
     ["statusView", ExportController.prototype.statusView],
+    ["download", ExportController.prototype.download],
     ["findJob", ExportController.prototype.findJob],
   ])(
     "%s 핸들러에 @Roles('Admin') metadata 부착 (Admin+ tier gate)",
@@ -1065,6 +1292,7 @@ describe("ExportController (guard/@Roles metadata)", () => {
     ["describeScope", ExportController.prototype.describeScope],
     ["previewSelection", ExportController.prototype.previewSelection],
     ["statusView", ExportController.prototype.statusView],
+    ["download", ExportController.prototype.download],
     ["findJob", ExportController.prototype.findJob],
   ])(
     "%s 핸들러에 @UseGuards(JwtAuthGuard, RolesGuard) 부착 (인증+RBAC gate)",
@@ -1088,6 +1316,7 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
     findRunning: jest.Mock;
     findJob: jest.Mock;
     previewSelection: jest.Mock;
+    materializeFullExportDownload: jest.Mock;
   };
 
   // 통과 JwtAuthGuard mock — req.user 박제 + true 반환 (@CurrentUser("sub") 가 읽음).
@@ -1117,6 +1346,7 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
       findRunning: jest.fn(),
       findJob: jest.fn(),
       previewSelection: jest.fn(),
+      materializeFullExportDownload: jest.fn(),
     };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [ExportController],
@@ -1438,6 +1668,125 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
       .expect(403);
 
     expect(serviceMock.findJob).not.toHaveBeenCalled();
+  });
+
+  // == GET /api/admin/export/:id/download — download endpoint ======================
+
+  // -- happy — Admin 통과 시 200 + 다운로드 header + body stream (실 HTTP 경로) ---------
+  // controller 표면 supertest — :id/download 가 :id 로 포착되지 않고 (download segment 가
+  // findJob 의 :id 동적 segment 보다 먼저 선언) full dump body 가 200 으로 전달됨을 단언.
+  // (live DB 가 필요한 5-entity full-record e2e 는 Follow-ups 로 분리 — 본 supertest 가
+  // mocked service 로 HTTP-level header+body stream 표면을 cover.)
+  it("GET :id/download — Admin role 통과 시 200 + 다운로드 header + body stream forward (happy — 라우트 우선순위 + 표면 cover)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.findJob.mockResolvedValueOnce(
+      buildExportJobFixture({ id: "ej-dl", scope: "FULL" }),
+    );
+    const body = JSON.stringify({
+      schemaVersion: "1",
+      generatedAt: "2026-06-19T00:00:00.000Z",
+      scope: { scope: "full" },
+      entityCounts: {
+        Assessment: 1,
+        Person: 0,
+        Group: 0,
+        LlmConfig: 0,
+        AuditLog: 0,
+      },
+      recordCount: 1,
+      records: [{ entity: "Assessment", instant: "2026-06-18T00:00:00.000Z" }],
+    });
+    serviceMock.materializeFullExportDownload.mockResolvedValueOnce(
+      Readable.from([body]),
+    );
+
+    const res = await request(app.getHttpServer())
+      .get("/api/admin/export/ej-dl/download")
+      .expect(200);
+
+    // "download" segment 가 findJob(:id) 로 포착되지 않고 download handler 로 라우트됨.
+    expect(serviceMock.findJob).toHaveBeenCalledWith("ej-dl");
+    expect(serviceMock.materializeFullExportDownload).toHaveBeenCalledTimes(1);
+    // 다운로드 header — Content-Type / Content-Disposition / Content-Length.
+    expect(res.headers["content-type"]).toContain("application/json");
+    expect(res.headers["content-disposition"]).toContain(
+      "attachment; filename=",
+    );
+    expect(res.headers["content-length"]).toBe(String(Buffer.byteLength(body)));
+    // body 가 service Readable 의 bytes 그대로 전달됨(가공 0).
+    expect(res.text).toBe(body);
+  });
+
+  // -- negative — service NotFoundException (부재 job) → 404 (raw propagate) --------
+  it("GET :id/download — findJob 가 NotFoundException (부재 job) throw 시 404 + materialize 미호출 (negative 핵심 — 부재 job)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.findJob.mockRejectedValueOnce(
+      new NotFoundException("export job not found: missing"),
+    );
+
+    await request(app.getHttpServer())
+      .get("/api/admin/export/missing/download")
+      .expect(404);
+
+    expect(serviceMock.materializeFullExportDownload).not.toHaveBeenCalled();
+  });
+
+  // -- error path — materialize reject (DB 장애) → 500 (raw propagate) -------------
+  it("GET :id/download — materializeFullExportDownload reject (DB 장애) 시 500 + raw propagate (error path)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.findJob.mockResolvedValueOnce(
+      buildExportJobFixture({ id: "ej-fail", scope: "FULL" }),
+    );
+    serviceMock.materializeFullExportDownload.mockRejectedValueOnce(
+      new Error("db-down"),
+    );
+
+    await request(app.getHttpServer())
+      .get("/api/admin/export/ej-fail/download")
+      .expect(500);
+  });
+
+  // -- negative — 401 (인증 부재) on :id/download --------------------------------
+  it("GET :id/download — JwtAuthGuard reject 시 401 + service 미호출 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .get("/api/admin/export/ej-7/download")
+      .expect(401);
+
+    expect(serviceMock.findJob).not.toHaveBeenCalled();
+    expect(serviceMock.materializeFullExportDownload).not.toHaveBeenCalled();
+  });
+
+  // -- negative — 403 (User actor) on :id/download -------------------------------
+  it("GET :id/download — RolesGuard reject 시 403 + service 미호출 (negative — User actor Admin+ 미달)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: { canActivate: () => false },
+    });
+
+    await request(app.getHttpServer())
+      .get("/api/admin/export/ej-7/download")
+      .expect(403);
+
+    expect(serviceMock.findJob).not.toHaveBeenCalled();
+    expect(serviceMock.materializeFullExportDownload).not.toHaveBeenCalled();
   });
 
   // == POST /api/admin/export/describe-scope — describeScope endpoint ===============
@@ -1815,6 +2164,7 @@ describe("ExportController (real RolesGuard escalation 분기)", () => {
     findRunning: jest.Mock;
     findJob: jest.Mock;
     previewSelection: jest.Mock;
+    materializeFullExportDownload: jest.Mock;
   };
 
   const VALID_BODY = { scope: "FULL" };
@@ -1842,6 +2192,7 @@ describe("ExportController (real RolesGuard escalation 분기)", () => {
       findRunning: jest.fn(),
       findJob: jest.fn(),
       previewSelection: jest.fn(),
+      materializeFullExportDownload: jest.fn(),
     };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [ExportController],
