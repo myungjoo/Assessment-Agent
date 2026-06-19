@@ -285,10 +285,10 @@
         "(4) **자동 driver 일시정지** — 위 결정 전까지 본 Q-0043 을 OPEN 으로 유지해 cron/loop driver 가 stand-down 하도록 둔다(불필요한 planner 재실행·LLM/CI 비용 회피). 결정 시 resolvedAt+decision 기입으로 재개."
       ],
       "resolutionHint": "docs/STATE.json 의 본 Q-0043 에 resolvedAt(ISO)+decision 기입 시 다음 driver turn 이 unblock. 옵션 택일 후 planner 가 해당 방향의 첫 task 를 큐잉한다(신규 dependency/infra/persistence 경계는 ADR 선행). 주의: 옵션3 의 live-LLM 검증은 ADR-0045 로 만료 압박이 사라졌으나 LAN 로컬 수동 실행이라 cron 자율 진행 backlog 가 아니다 — 자동 루프를 실제로 먹이는 선택은 옵션1(service-layer 배선 code chain, ADR 선행 pr-mode). 옵션4 선택 시 OPEN 유지 — driver 는 미해결 HQ 존재로 자동 stand-down 한다.",
-      "raisedThisTurn": true
-    },
-    {
-      "id": "Q-0042",
+      "raisedThisTurn": true,
+      "resolvedAt": "2026-06-19T02:21:07Z",
+      "resolvedBy": "human (user via 대화 세션 — local LLM 192.168.0.5 가용 검토 후속)",
+      "decision": "옵션1 — 게이트1 service-layer 배선 code chain 승인. 사용자가 자동 루프를 실제로 먹이는 선택으로 옵션1 채택(옵션3 live-LLM 검증은 ADR-0045 로 만료 압박은 사라졌으나 LAN 로컬 수동 실행이라 cron 자율 backlog 아님 — 별도 수동 작업으로 분리). Q-0042 가 이미 방향 승인한 export download streaming chain 의 다음 step 인 impure service-layer 배선을 진행한다. CLAUDE.md §5(persistence/REQ-032 경계)+§3.1 rule4(새 ADR=pr) 에 따라 ADR-우선: planner 가 ADR-0046 §Decision3 invariant(새 dep 0·in-process·descriptor single-source·raw 미저장) 하에서 DB-read 범위·REQ-032 raw-미저장 경계를 확정하는 task 를 첫 step 으로 큐잉(repository 신규 query 표면·full-record DB-read 경계를 ADR 또는 ADR-0046 §Decision3 재확인 plan 으로 박제한 뒤 service-layer materialization 함수 + GET /api/admin/export/:id/download streaming controller 배선). 새 외부 dependency 0 옵션 우선, 외부 object-storage 채택은 별도 사용자 게이트로 분리. nextTask=planner 큐잉 결과로 chain 재개."
       "raisedAt": "2026-06-18T14:05:00Z",
       "createdAt": "2026-06-18T14:05:00Z",
       "raisedBy": "driver (loop@win-tt511-tc5)",
