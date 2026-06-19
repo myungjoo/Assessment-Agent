@@ -29,6 +29,8 @@ import {
   DEFAULT_ASYNC_THRESHOLD_BYTES,
   DEFAULT_BYTES_PER_RECORD,
 } from "./export-dump-size-estimate";
+import { EXPORT_ENTITY_FULL_RECORD_SELECT } from "./export-entity-full-record-select";
+import { type FullExportRecord } from "./export-full-record";
 import * as jobPlanModule from "./export-job-plan";
 import { DEFAULT_CHUNK_THRESHOLD_BYTES } from "./export-job-plan";
 import { ExportJobService } from "./export-job.service";
@@ -2328,6 +2330,217 @@ describe("ExportJobService", () => {
 
         expect(result.chunkPlan!.chunkSizeBytes).toBe(CHUNK_SIZE_BYTES);
       });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // collectFullExportRecords — full-record allow-list DB-read 배선 (T-0516,
+  // ADR-0047 §Decision1·§Decision2·§Decision3). 5 entity 를 돌며 각 delegate 에
+  // getExportEntityFullRecordSelect(entity) allow-list select 로 projection read 하고
+  // buildFullExportRecord 로 row → FullExportRecord 평탄 조립. R-112 4 종:
+  //   - happy: 5 entity allow-list 컬럼 + instant → FullExportRecord 정확 평탄 조립.
+  //   - error: delegate findMany reject 전파 + 비-Date instant → TypeError 전파.
+  //   - branch/flow: 빈 DB(전 entity 빈 배열) → []; 일부 entity 만 row 존재 분기.
+  //   - negative 충분: (a) apiKey 혼입 → RangeError, (b) 임의 비-allow-list key →
+  //     RangeError, (c) instant 누락/Invalid Date 경계 각 1+ (예외 분기마다 cover).
+  // ---------------------------------------------------------------------------
+  describe("collectFullExportRecords", () => {
+    // 5 entity delegate 의 findMany 를 mock 한 service 빌드 (previewSelection 의
+    // buildPreviewService 패턴 mirror — touchesFiles 2 파일 유지, helper 미변경).
+    function buildFullRecordService(): {
+      service: ExportJobService;
+      prisma: {
+        assessment: { findMany: jest.Mock };
+        person: { findMany: jest.Mock };
+        group: { findMany: jest.Mock };
+        llmProviderConfig: { findMany: jest.Mock };
+        permissionDeniedRecord: { findMany: jest.Mock };
+      };
+    } {
+      const prisma = {
+        assessment: { findMany: jest.fn().mockResolvedValue([]) },
+        person: { findMany: jest.fn().mockResolvedValue([]) },
+        group: { findMany: jest.fn().mockResolvedValue([]) },
+        llmProviderConfig: { findMany: jest.fn().mockResolvedValue([]) },
+        permissionDeniedRecord: { findMany: jest.fn().mockResolvedValue([]) },
+      };
+      const service = new ExportJobService(
+        prisma as unknown as ConstructorParameters<typeof ExportJobService>[0],
+      );
+      return { service, prisma };
+    }
+
+    // private 메서드를 bracket-notation 으로 호출 (spec 직접 검증 — 후속 materialization
+    // service 함수가 본 메서드를 input source 로 소비할 때까지의 단위 검증).
+    function callCollect(
+      service: ExportJobService,
+    ): Promise<FullExportRecord[]> {
+      return (
+        service as unknown as {
+          collectFullExportRecords(): Promise<FullExportRecord[]>;
+        }
+      ).collectFullExportRecords();
+    }
+
+    const INSTANT = new Date("2026-02-01T00:00:00.000Z");
+
+    // happy — 5 entity 가 각 allow-list 컬럼 + instant 를 반환할 때 FullExportRecord 로
+    // 평탄·정확 조립. fields 가 해당 entity allow-list 컬럼만 담음을 멤버십 정확 일치로 검증.
+    it("happy — 5 entity allow-list 컬럼 + instant 를 FullExportRecord 로 평탄 조립", async () => {
+      const { service, prisma } = buildFullRecordService();
+      // entity 별 allow-list 컬럼만 담은 row (T-0514 상수 컬럼 부분집합).
+      prisma.assessment.findMany.mockResolvedValue([
+        { id: "a1", personId: "p1", createdAt: INSTANT },
+      ]);
+      prisma.person.findMany.mockResolvedValue([
+        {
+          id: "p1",
+          fullName: "홍길동",
+          email: "h@example.test",
+          createdAt: INSTANT,
+        },
+      ]);
+      prisma.group.findMany.mockResolvedValue([
+        { id: "g1", name: "팀A", createdAt: INSTANT },
+      ]);
+      prisma.llmProviderConfig.findMany.mockResolvedValue([
+        { id: "l1", provider: "openai", modelId: "gpt", createdAt: INSTANT },
+      ]);
+      prisma.permissionDeniedRecord.findMany.mockResolvedValue([
+        { id: "d1", principal: "u1", reason: "denied", createdAt: INSTANT },
+      ]);
+
+      const records = await callCollect(service);
+
+      // 5 entity 각 1 record 평탄 반환.
+      expect(records).toHaveLength(5);
+      const byEntity = new Map(records.map((r) => [r.entity, r]));
+      // entity / instant 정확.
+      for (const entity of VALID_EXPORT_ENTITIES) {
+        const rec = byEntity.get(entity)!;
+        expect(rec.instant).toBe(INSTANT);
+      }
+      // Person fields 가 read row 컬럼만 멤버십 정확 일치(extra/secret key 0).
+      const person = byEntity.get("Person")!;
+      expect(Object.keys(person.fields).sort()).toEqual(
+        ["createdAt", "email", "fullName", "id"].sort(),
+      );
+      expect(person.fields.fullName).toBe("홍길동");
+      // LlmConfig fields 에 apiKey 절대 없음(secret deny — REQ-032 §Decision2(b)).
+      const llm = byEntity.get("LlmConfig")!;
+      expect(llm.fields).not.toHaveProperty("apiKey");
+      expect(llm.fields.provider).toBe("openai");
+    });
+
+    // projection-only(REQ-032 §Decision3(ii)) — 5 delegate findMany 가 allow-list select
+    // 로 호출되고 select 객체에 apiKey 가 없으며 무인자 findMany 호출이 없음을 단언.
+    it("5 entity findMany 가 allow-list select 로 projection 호출 (apiKey 부재 — secret deny)", async () => {
+      const { service, prisma } = buildFullRecordService();
+
+      await callCollect(service);
+
+      const delegates: Array<[jest.Mock, ExportEntity]> = [
+        [prisma.assessment.findMany, "Assessment"],
+        [prisma.person.findMany, "Person"],
+        [prisma.group.findMany, "Group"],
+        [prisma.llmProviderConfig.findMany, "LlmConfig"],
+        [prisma.permissionDeniedRecord.findMany, "AuditLog"],
+      ];
+      for (const [fn, entity] of delegates) {
+        expect(fn).toHaveBeenCalledTimes(1);
+        const arg = fn.mock.calls[0][0] as { select?: Record<string, true> };
+        // 전체 row 읽기 금지 — select 명시 존재.
+        expect(arg).toHaveProperty("select");
+        // allow-list 상수와 정확 일치(방어 복제라 값 동등).
+        expect(arg.select).toEqual(EXPORT_ENTITY_FULL_RECORD_SELECT[entity]);
+        // apiKey 는 어느 select 객체에도 없음(특히 LlmConfig).
+        expect(arg.select).not.toHaveProperty("apiKey");
+      }
+    });
+
+    // branch/flow (빈 DB) — 전 entity 빈 배열 → 빈 FullExportRecord[] (throw 0, 경계).
+    it("branch — 빈 DB(전 entity 빈 배열)면 빈 FullExportRecord[] 반환 (throw 0)", async () => {
+      const { service } = buildFullRecordService();
+
+      const records = await callCollect(service);
+
+      expect(records).toEqual([]);
+    });
+
+    // branch/flow (일부 entity 만 row) — Person 만 2 row, 나머지 빈 배열 → Person 분만.
+    it("branch — 일부 entity(Person)만 row 존재 시 그 entity 분만 평탄 반환", async () => {
+      const { service, prisma } = buildFullRecordService();
+      prisma.person.findMany.mockResolvedValue([
+        { id: "p1", fullName: "갑", createdAt: INSTANT },
+        { id: "p2", fullName: "을", createdAt: INSTANT },
+      ]);
+
+      const records = await callCollect(service);
+
+      expect(records).toHaveLength(2);
+      expect(records.every((r) => r.entity === "Person")).toBe(true);
+    });
+
+    // error path — delegate findMany reject(의존성 실패)면 swallow 없이 propagate.
+    it("error — 한 entity findMany 가 reject 하면 그 error 를 propagate (swallow 0)", async () => {
+      const { service, prisma } = buildFullRecordService();
+      prisma.assessment.findMany.mockRejectedValue(new Error("db-down"));
+
+      await expect(callCollect(service)).rejects.toThrow("db-down");
+    });
+
+    // error path — row 의 instant(createdAt)가 비-Date 면 buildFullExportRecord TypeError 전파.
+    it("error — instant 컬럼이 비-Date 면 buildFullExportRecord 의 TypeError 전파", async () => {
+      const { service, prisma } = buildFullRecordService();
+      prisma.person.findMany.mockResolvedValue([
+        { id: "p1", createdAt: "2026-02-01" as unknown as Date },
+      ]);
+
+      await expect(callCollect(service)).rejects.toThrow(TypeError);
+    });
+
+    // negative (a) — 상류 select 결함 시뮬: row 에 apiKey 가 섞여 들어오면 RangeError 로
+    // 거부(REQ-032 §Decision2(b) 2 차 방어선 — allow-list 외 key 차단).
+    it("negative — LlmConfig row 에 apiKey 혼입 시 RangeError 로 거부 (secret 2 차 방어선)", async () => {
+      const { service, prisma } = buildFullRecordService();
+      prisma.llmProviderConfig.findMany.mockResolvedValue([
+        {
+          id: "l1",
+          provider: "openai",
+          apiKey: "sk-secret-leak",
+          createdAt: INSTANT,
+        },
+      ]);
+
+      await expect(callCollect(service)).rejects.toThrow(RangeError);
+    });
+
+    // negative (b) — allow-list 외 임의 key 가 섞이면 RangeError (apiKey 가 아니어도 동형 거부).
+    it("negative — allow-list 외 임의 key 혼입 시 RangeError 로 거부", async () => {
+      const { service, prisma } = buildFullRecordService();
+      prisma.person.findMany.mockResolvedValue([
+        { id: "p1", fullName: "갑", notAColumn: 1, createdAt: INSTANT },
+      ]);
+
+      await expect(callCollect(service)).rejects.toThrow(RangeError);
+    });
+
+    // negative (c1) — instant 컬럼 누락(undefined)이면 TypeError 경계.
+    it("negative — instant 컬럼 누락(undefined)이면 TypeError 경계", async () => {
+      const { service, prisma } = buildFullRecordService();
+      prisma.group.findMany.mockResolvedValue([{ id: "g1", name: "팀" }]);
+
+      await expect(callCollect(service)).rejects.toThrow(TypeError);
+    });
+
+    // negative (c2) — instant 가 Invalid Date 면 TypeError 경계 (NaN getTime).
+    it("negative — instant 가 Invalid Date 면 TypeError 경계", async () => {
+      const { service, prisma } = buildFullRecordService();
+      prisma.group.findMany.mockResolvedValue([
+        { id: "g1", name: "팀", createdAt: new Date("invalid-date") },
+      ]);
+
+      await expect(callCollect(service)).rejects.toThrow(TypeError);
     });
   });
 });

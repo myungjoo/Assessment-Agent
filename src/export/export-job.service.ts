@@ -51,6 +51,17 @@ import {
   estimateExportDumpSize,
   type ExportDumpSizeEstimate,
 } from "./export-dump-size-estimate";
+// EXPORT_ENTITY_FULL_RECORD_SELECT(T-0514) allow-list select 상수의 방어 복제 derive
+// getExportEntityFullRecordSelect 를 same-folder 경로로 import 해 collectFullExportRecords
+// 의 full-record projection-only read 에 배선한다(secret apiKey 는 상수에 부재 — projection
+// 단계 deny).
+import { getExportEntityFullRecordSelect } from "./export-entity-full-record-select";
+// buildFullExportRecord(T-0515) 순수 builder + FullExportRecord 타입을 same-folder 경로로
+// import 해 row → FullExportRecord 조립 + allow-list 외 key 2 차 단언(RangeError)에 소비한다.
+import {
+  buildFullExportRecord,
+  type FullExportRecord,
+} from "./export-full-record";
 // buildExportJobPlan(T-0467) + ExportJobPlan 타입을 same-folder 경로(`./export-job-plan`)로
 // import 해 previewSelection 응답에 deliveryPlan 으로 surface 한다(barrel re-export·alias 신설
 // 0). ExportJobPlan 은 service interface(ExportSelectionPreview) 가 그대로 재노출한다.
@@ -457,6 +468,52 @@ export class ExportJobService {
           entity,
           instant: row[source.instantColumn] as Date,
         }));
+      }),
+    );
+
+    return perEntity.flat();
+  }
+
+  // collectFullExportRecords — 5 entity 에서 full-record allow-list 컬럼만 projection read
+  // 후 FullExportRecord[] 로 평탄화한다(T-0516, ADR-0047 §Decision1·§Decision2·§Decision3).
+  // EXPORT_ENTITY_SOURCES 매핑표를 돌며 각 delegate.findMany({ select:
+  // getExportEntityFullRecordSelect(entity) }) 로 read 하므로 — collectExportRecords 의
+  // instant 1-컬럼 projection 을 entity 별 allow-list 컬럼 묶음으로 확장한 것이다. 전체 row
+  // 읽기(findMany() 무인자 / select 생략) 금지 — 명시 projection 만(REQ-032 / §Decision3(ii)).
+  //
+  // 🔥 secret deny: getExportEntityFullRecordSelect 는 T-0514 상수의 방어 복제라 LlmConfig
+  // select 객체에 apiKey key 가 애초에 없다(query 단계 1 차 그물). row → fields 조립은
+  // buildFullExportRecord 에 위임해 allow-list 외 key(상류 select 결함 시뮬 시 apiKey 등)가
+  // 섞이면 RangeError 로 거부(조립 단계 2 차 그물 — §Decision2(b)). instant(createdAt)가
+  // 비-Date/누락이면 buildFullExportRecord 의 TypeError 가 swallow 없이 propagate.
+  //
+  // 빈 DB(전 entity 빈 배열)는 빈 FullExportRecord[] 정상 반환(throw 0, 경계). 일부 entity
+  // 만 row 존재해도 존재 entity 분만 평탄 반환. delegate.findMany reject(의존성 실패)는
+  // Promise.all 이 그대로 propagate(swallow 0 — collectExportRecords 정책 mirror).
+  private async collectFullExportRecords(): Promise<FullExportRecord[]> {
+    const entries = Object.entries(EXPORT_ENTITY_SOURCES) as Array<
+      [ExportEntity, { delegate: ExportEntityDelegate; instantColumn: string }]
+    >;
+
+    const perEntity = await Promise.all(
+      entries.map(async ([entity, source]) => {
+        // delegate 별 Prisma findMany 시그니처가 model 마다 달라(union) 좁은 projection
+        // -only 시그니처로 unknown 경유 cast — 본 경로는 allow-list 컬럼만 select read 한다.
+        const delegate = this.prisma[source.delegate] as unknown as {
+          findMany: (args: {
+            select: Record<string, true>;
+          }) => Promise<Array<Record<string, unknown>>>;
+        };
+        // 🔥 allow-list projection-only — T-0514 상수의 방어 복제 select(apiKey 부재).
+        const rows = await delegate.findMany({
+          select: getExportEntityFullRecordSelect(entity),
+        });
+        // row → FullExportRecord 조립. instant 는 entity 별 instant 컬럼(createdAt) 값을
+        // Date 로 forward(비-Date/누락 시 builder TypeError). fields 는 row 전체를 넘겨
+        // builder 의 allow-list 멤버십 단언(allow-list 외 key → RangeError)에 맡긴다.
+        return rows.map((row) =>
+          buildFullExportRecord(entity, row[source.instantColumn] as Date, row),
+        );
       }),
     );
 
