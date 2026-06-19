@@ -2,7 +2,7 @@
 id: T-0533
 title: 중요·어려운 기여 식별 detection 순수 helper computeNotableContributionSignal 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-011]
 dependsOn: []
@@ -13,6 +13,10 @@ touchesFiles:
 estimatedDiff: 240
 estimatedFiles: 2
 created: 2026-06-20
+completedAt: 2026-06-19T20:21:30Z
+prNumber: 447
+mergedAs: ee1ef0b5d62134eaafa4c03404ddec1cef03dfb2
+reviewRounds: 1
 plannerNote: P5 bullet 104(R-25/REQ-011 중요·어려운 기여 식별) 새 vein 의 detection slice — computeNotableContributionSignal 순수 helper, underperformer/abuse signal mirror, pr ~240 LOC 2 파일 disjoint
 ---
 
