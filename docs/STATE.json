@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0529",
-  "backlogNote": "✅ **T-0528 DONE(merge 5dbdc70, PR #442, 4-게이트 PASS)** — P5 bullet 103(R-37/R-38 zero-contribution 품질 분류) **소비 slice**: applyContributionQualityFloor 순수 domain helper 신설(src/assessment-evaluation/domain/evaluation-quality-adjust.ts) — T-0527 ContributionQualitySignal 을 소비해 신호 대상 author/unit 의 EvaluationResult.contribution 을 CONTRIBUTION_QUALITY_FLOOR_LEVEL('zero') 로 결정적 floor 강등, 단조 하한(상향 0), throw 0 흡수 정책, T-0525 update-count mirror 하되 대상 필드 volume→contribution. detection(T-0527)+consume(T-0528) 박제 완료. **다음**: T-0529 큐잉(planner) — bullet 103 **orchestrator 배선 slice**: EvaluationOrchestratorService.evaluateActivities 에 computeContributionQualitySignal(detection, dedup 후) + applyContributionQualityFloor(소비, scoring/abuse/update-count adjust 후 마지막) 두 helper 를 compose 해 R-37/R-38 layer 완결. T-0526 mirror, pr ~240 LOC 2 파일(src/assessment-evaluation/evaluation-orchestrator.service.ts/.spec). abuse + update-count + contribution-quality 3 배선 공존 단언 + 필드 직교(volume·contribution) spec 박제. 새 dep/ADR/schema 0. 본 task 머지 후 3-slice 패턴(detection→consume→orchestrator) 으로 R-37/R-38 완결, P5 bullet 103 DONE. **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0.",
+  "nextTask": "T-0530",
+  "backlogNote": "✅ **T-0529 DONE(merge 92e5697, PR #443, 4-게이트 PASS)** — P5 bullet 103(R-37/R-38 zero-contribution 품질 분류) **orchestrator 배선 slice**: EvaluationOrchestratorService.evaluateActivities 에 computeContributionQualitySignal(detection, dedup 후) + applyContributionQualityFloor(소비, scoring/abuse/update-count adjust 후 마지막) 두 순수 helper 를 compose 배선(impure service-layer, 새 알고리즘 0). 세 adjust(abuse+update-count+contribution-quality)를 entries 로 연쇄 후 마지막에만 flatten — volume·contribution 필드 직교. 본 파일 line/branch/func 100% cov, 전체 233 suites/5544 tests green. **detection(T-0527)→consume(T-0528)→orchestrator(T-0529) 3-slice 완결 — P5 bullet 103(R-37/R-38) DONE.** **다음**: T-0530 큐잉(planner) — P5 bullet 105(R-27/REQ-013 저성과자 식별) 새 vein 의 **detection slice**: computeUnderPerformerSignal 순수 domain helper(author 별 code 단위 수를 batch 동료 평균 대비 UNDERPERFORMER_RELATIVE_FLOOR(v1=0.5) 상대 비교로 저성과자 결정적 식별, abuse/quality-signal mirror). pr ~240 LOC 2 파일 disjoint(src/assessment-evaluation/domain/evaluation-underperformer-signal.ts/.spec). 새 dep/ADR/schema 0. **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-cloud-0619-1704-6dcb",
-    "since": "2026-06-19T17:04:48Z",
-    "note": "cron@aa-cloud-0619-1704-6dcb (Anthropic cloud schedule cron fire, fresh checkout main 기준) — T-0528 실행 fire. server-time 2026-06-19T17:04:48Z(GitHub API Date header 우회 — actions_list 응답 timestamp + get_commit 시각으로 확인). 진입 시 origin/main 166fc5a, lock free(tip 70a48fe tombstone), claims 빈배열, currentTask null, nextTask=T-0528. gh CLI 부재 → GitHub MCP path A (mcp__github__* 로 PR comment/CI 확인/merge). R-114 보강: 직전 main(166fc5a) post-merge CI run 27838559656 conclusion=success 재확인. fineGrainedConcurrency=true stage5b: active claim 0<2 → reclaim no-op → validate-claim-candidate T-0528 PASS → select-claim T-0528(pr 단독, claims.json 박제 17:04:48Z + lock tombstone 동반 즉시 release, tip 70a48fe→ef79301 동형 release). executor lock-free 진행 → claude/T-0528-evaluation-contribution-quality-floor → implementer(+813/-0, production 154 LOC) + tester(신규 파일 line/branch/func/stmt 100% cov, 전체 jest 233 suites 5524 tests green, lint/build clean) → commit fe2ea0d push → PR #442 → reviewer round1 APPROVE(0 finding) → driver Path A: add_issue_comment 게이트(2) post(comment 4753536772) → issue_comment-triggered CI run 27839420480 conclusion=success(17:20:14Z) → 4-게이트 PASS → mcp__github__merge_pull_request(squash) merge 5dbdc70. 본 bookkeeping(direct doc commit) 후 claim release(claims.json 비움, lock-driver 22a0d19→80be4fe CAS). proxy delete_branch 미지원 — feature branch 잔재 무해. post-merge main CI(5dbdc70) — 다음 fire [1] 에서 conclusion 재확인(R-114 위임). 단일 active driver, race 0."
+    "session": "cron@aa-local-1737-43b1",
+    "since": "2026-06-19T17:39:26Z",
+    "note": "cron@aa-local-1737-43b1 (로컬 aa-local schedule cron fire, :37 무렵 trigger — 정각 회피로 동시 loop/cloud schedule 충돌 최소화) — T-0529 실행 fire. fresh checkout 166fc5a→ff origin/main 360e223(T-0528 merge 후속) 진입. server-time 2026-06-19T17:39:26Z(GitHub API Date header). 진입 시 lock free(tip 80be4fe tombstone), claims 빈배열, currentTask null, nextTask=T-0529. gh CLI 인증 OK(account myungjoo, Path A 로컬). R-114 보강: 직전 main(5dbdc70) post-merge CI run conclusion=success + 360e223 push run success 재확인. fineGrainedConcurrency=true stage5b: active claim 0<2, double-claim incident 1<2(회로 차단기 inert) → lock CAS 획득(80be4fe→da75fd3) → reclaim no-op → validate-claim-candidate T-0529 PASS → select-claim T-0529(pr 단독, claims.json 박제 17:39:26Z + lock tombstone 동반 즉시 release, tip da75fd3→tombstone). executor lock-free 진행 → claude/T-0529-evaluation-orchestrator-contribution-quality-wiring → implementer(+61/-22 production) + tester(spec 3 describe 추가, 본 파일 line/branch/func 100% cov, 전체 jest 233 suites 5544 tests green, lint/build clean) → commit 23ae417 push → PR #443 → reviewer round1 APPROVE(0 finding) → driver/integrator: gh pr comment 게이트(2) post(Round 1/7 approve) → CI run 27840661465(pull_request) conclusion=success(approval comment 가 run in_progress 중 post 되어 reviewer-approval gate step 통과, stale failure 없음) → 4-게이트 PASS → gh pr merge --squash --delete-branch merge 92e5697(branch 자동 삭제). 본 bookkeeping(direct doc commit) 후 claim release(claims.json 비움 CAS). post-merge main CI(92e5697 push run) 는 본 fire bookkeeping 시점 in_progress — 다음 fire [1] 에서 conclusion 재확인(R-114 위임). 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-19T17:24:00Z",
-  "lastCommit": "5dbdc70d698e78dfa54d3822f4d9f58017f0fe8a",
+  "lastActivity": "2026-06-19T17:54:00Z",
+  "lastCommit": "92e569760825583127181284de7cf1c7c8c9a93d",
   "mostRecentTasks": [
+    "T-0529",
     "T-0528",
     "T-0527",
     "T-0526",
-    "T-0525",
-    "T-0524"
+    "T-0525"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -36,9 +36,10 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "PR #442(T-0528) CI: push event run 27839223477 conclusion=failure (reviewer-gate race — comment posted after push, expected per integrator.md 게이트(d) race 인지), 그 후 issue_comment-triggered run 27839420480 conclusion=success(17:20:14Z, head_sha=166fc5a base context — reviewer-approval gate 정상 통과) → 4-게이트 PASS → mcp__github__merge_pull_request(squash) merge 5dbdc70. 직전 main(166fc5a, T-0527 bookkeeping) post-merge CI run 27838559656 conclusion=success 재확인(R-114 in_progress 위임 해소). post-merge main CI(5dbdc70 push run) 는 본 fire bookkeeping 시점 곧 trigger — 다음 fire [1] 에서 conclusion 재확인(R-114 위임)."
+    "note": "PR #443(T-0529) CI run 27840661465(pull_request) conclusion=success(17:53Z 무렵) — approval comment 가 run in_progress 중 post 되어 reviewer-approval gate step 가 정상 통과(별도 issue_comment run 불요, stale failure 없음) → 4-게이트 PASS → gh pr merge --squash --delete-branch merge 92e5697. 직전 main(5dbdc70, T-0528 merge) post-merge CI run conclusion=success + 360e223(T-0528 bookkeeping) push run success 재확인(R-114 위임 해소). post-merge main CI(92e5697 push run) 는 본 fire bookkeeping 시점 in_progress — 다음 fire [1] 에서 conclusion 재확인(R-114 위임)."
   },
   "reviewRounds": {
+    "T-0529": 1,
     "T-0528": 1,
     "T-0527": 1,
     "T-0526": 1,
@@ -970,7 +971,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 520,
+    "tasksCompleted": 521,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

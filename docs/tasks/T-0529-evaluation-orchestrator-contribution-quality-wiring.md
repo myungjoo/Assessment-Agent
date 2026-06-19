@@ -2,7 +2,9 @@
 id: T-0529
 title: EvaluationOrchestratorService 에 기여 품질 floor 강등 소비 배선 (computeContributionQualitySignal→applyContributionQualityFloor)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-19T17:54:00Z
+result: DONE — PR #443 squash merge 92e5697, 4-게이트 round1 PASS(0 finding). orchestrator 3 adjust 배선 완결, 본 파일 100% cov, 전체 233 suites/5544 tests green. P5 bullet 103(R-37/R-38) 3-slice 완결.
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
