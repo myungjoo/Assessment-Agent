@@ -54,12 +54,16 @@
 //     job record 생성·조회만, 실 dump 전송 0.
 //   - 신규 auth-flow / RBAC 정책 변경 0 — 기존 guard stack 적용만.
 //   - 응답 envelope 표준화 / pagination / sort — service return 그대로 forward.
+import { Readable } from "node:stream";
+
 import {
   Body,
   Controller,
   Get,
   Param,
   Post,
+  Res,
+  StreamableFile,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -69,6 +73,7 @@ import {
   JobStatus as PrismaJobStatus,
   type ExportJob,
 } from "@prisma/client";
+import type { Response } from "express";
 
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -77,6 +82,12 @@ import { RolesGuard } from "../auth/roles.guard";
 import type { PeriodRange } from "../common/period-boundary";
 
 import { CreateExportDto } from "./dto/create-export.dto";
+import {
+  buildExportArtifactDescriptor,
+  type ExportArtifactDescriptor,
+} from "./export-artifact-descriptor";
+import { serializeExportDownloadHeaders } from "./export-download-headers";
+import { EXPORT_SCHEMA_VERSION, type ExportDump } from "./export-dump";
 import type { ExportJobStatus } from "./export-job-plan";
 import {
   describeExportJobStatus,
@@ -266,6 +277,138 @@ export class ExportController {
         typeof range.start === "string" ? new Date(range.start) : range.start,
       end: typeof range.end === "string" ? new Date(range.end) : range.end,
     } as PeriodRange;
+  }
+
+  // buildScopePayload — 저장된 ExportJob row 의 scope(Prisma enum) + dateRange/entitySelector
+  // (Json 컬럼)를 materializeFullExportDownload 가 받는 lowercase ExportScopePayload 로 합성한다
+  // (describeScope/previewSelection 이 CreateExportDto 에서 합성하던 SCOPE_ENUM_TO_PAYLOAD +
+  // coerceDateRange 패턴을 job row 입력으로 mirror — 신규 helper 신설 0, 기존 변환 재사용).
+  // job 의 scope 는 materialize 의 dump envelope meta context 로만 박제되며 record 선별과 결합
+  // 되지 않는다(§Out of Scope — materializeFullExportDownload 는 5 entity 전체 read).
+  private buildScopePayload(job: ExportJob): ExportScopePayload {
+    return {
+      scope: SCOPE_ENUM_TO_PAYLOAD[job.scope],
+      dateRange: this.coerceDateRange(
+        job.dateRange as Record<string, unknown> | undefined,
+      ),
+      entitySelector: (job.entitySelector ?? undefined) as
+        | ExportEntity[]
+        | undefined,
+    };
+  }
+
+  // buildHeaderDumpSeed — buildExportArtifactDescriptor 의 입력 dump seed 를 합성한다. descriptor
+  // 산출에 필요한 필드는 scope(scopeToken/fileName) + generatedAt(timestamp 토큰)뿐이고 byteSizeHint
+  // 은 download() 가 실 body 길이로 보정하므로(records 길이 무관), records 는 빈 배열로 둔다(합성
+  // dump 의 JSON.stringify 길이는 byteSizeHint 보정으로 폐기됨). entityCounts 는 5 entity 0 초기화.
+  // 본 seed 는 header 메타(contentType/contentDisposition/scopeToken) 산출 전용이며 body bytes 와
+  // 무관하다(descriptor single-source — 길이만 download() 가 실값으로 교체).
+  private buildHeaderDumpSeed(scope: ExportScopePayload): ExportDump {
+    return {
+      schemaVersion: EXPORT_SCHEMA_VERSION,
+      generatedAt: new Date().toISOString(),
+      scope,
+      entityCounts: {
+        Assessment: 0,
+        Person: 0,
+        Group: 0,
+        LlmConfig: 0,
+        AuditLog: 0,
+      },
+      recordCount: 0,
+      records: [],
+    };
+  }
+
+  // collectStream — Node Readable 의 chunk 들을 단일 Buffer 로 모은다(body bytes 변형 0 — 길이
+  // 측정 + StreamableFile 입력용). materializeExportDump 가 Readable.from(JSON.stringify(...)) 로
+  // 이미 in-memory 단일 chunk 를 만들므로 추가 메모리 비용은 미미하다. stream error(의존성 실패
+  // 등)는 reject 로 raw propagate(controller 자체 swallow 0 — handler 가 그대로 throw).
+  private async collectStream(stream: Readable): Promise<Buffer> {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(
+        Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string),
+      );
+    }
+    return Buffer.concat(chunks);
+  }
+
+  // GET /api/admin/export/:id/download — 저장된 export job 의 full-record dump 를 단일
+  // stream 으로 다운로드한다 (UC-07 §5 step13 다운로드 완료 + §8 (c) file artifact 전달,
+  // REQ-030 Export / REQ-032 raw 미저장 / REQ-045 Admin 전용). ADR-0047 §Follow-ups[3] chain
+  // 의 HTTP 표면 — 직전 T-0518 이 service 차원에서 완결한 materializeFullExportDownload(scope)
+  // Readable 을 사용자에게 내려주는 진입점이다. 배선 3 단계:
+  //   (1) findJob(id) 로 저장된 job 을 조회해 그 job 의 Prisma scope/dateRange/entitySelector 를
+  //       lowercase ExportScopePayload 로 합성(buildScopePayload — describeScope/previewSelection
+  //       이 dto 에서 합성하던 SCOPE_ENUM_TO_PAYLOAD + coerceDateRange 패턴을 job row 입력으로
+  //       mirror). 부재 시 findJob 의 NotFoundException(404)이 합성 도달 전 raw propagate.
+  //   (2) materializeFullExportDownload(scope) 로 full-record dump 의 Node Readable 을 획득.
+  //       service reject(의존성 실패)는 swallow 없이 raw propagate (controller 자체 try/catch 0).
+  //   (3) 그 Readable 을 Buffer 로 모아 정확한 byte 길이를 얻고, buildExportArtifactDescriptor 로
+  //       산출한 descriptor 의 contentType/contentDisposition/scopeToken 은 그대로 두되 byteSizeHint
+  //       만 실제 body 길이로 맞춘 뒤 serializeExportDownloadHeaders 로 직렬화한 header 를 response
+  //       에 설정하고, body Buffer 를 StreamableFile 로 stream 한다.
+  //
+  // StreamableFile 선택 근거(@Res({ passthrough: true }) 대신): NestJS 권장 streaming 전달
+  // primitive 가 StreamableFile 이며, passthrough Res 직접 res.end 보다 (a) 예외 발생 시
+  // NestJS exception filter 가 정상 동작하고(부분 전송 후 raw res 조작과 달리), (b) Content-Type
+  // 자동 추론을 끄고 우리가 descriptor 에서 산출한 header 를 우선하기 쉽다. header 는 동적
+  // (filename 에 timestamp 토큰)이라 정적 @Header() decorator 로는 표현 불가 → passthrough Res
+  // 핸들에 res.set(headers) 로 설정하고 body 는 StreamableFile 로 반환한다(header 설정과 body
+  // 반환 책임 분리 — res.end 수동 호출 0).
+  //
+  // descriptor single-source 정합(ADR-0047 §Decision3(i)): contentType/contentDisposition/
+  // scopeToken 은 buildExportArtifactDescriptor 산출물을 그대로 쓴다(재계산 0). byteSizeHint 만
+  // 실 body 길이로 교체하는 이유 — service 는 Readable 만 반환하고 dump 객체를 노출하지 않으므로,
+  // 합성 dump(빈 records)로 산출한 byteSizeHint 는 실제 stream 길이와 어긋난다. Content-Length 가
+  // 실 body 와 불일치하면 HTTP 응답이 깨지므로(잘림/hang), 실 buffer.length 로 보정한다. 이는
+  // 재필터/secret strip 이 아니라 길이 메타 1 개의 정확도 보정일 뿐 — body bytes 는 service 의
+  // Readable 그대로 forward(상류 T-0514 projection + T-0515 builder 가 이미 secret/raw 강제,
+  // controller 재검증 0).
+  //
+  // 🔥 재필터 / secret strip / 컬럼 재검증 0 — controller 는 raw forward. body 는 service Readable
+  // 의 bytes 를 변형 없이 그대로 흘려보낸다(buffer 는 길이 측정 + StreamableFile 입력용이며 내용
+  // 가공 0).
+  //
+  // route 선언 순서 — `:id/download` 고정-깊이 segment 를 `:id` 동적 segment 보다 먼저 선언해
+  // NestJS path matching 안전을 확보(기존 running / :id/status-view before :id 패턴 동형).
+  //
+  // RBAC — Admin+ tier (create 동일). @Roles("Admin") → Admin / SuperAdmin 통과
+  // (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
+  @Get(":id/download")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async download(
+    @Param("id") id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    // (1) job 조회 + 저장 scope 합성 — 부재 시 findJob 의 NotFoundException(404) raw propagate.
+    const job = await this.service.findJob(id);
+    const scope = this.buildScopePayload(job);
+
+    // (2) full-record dump Readable 획득 — service reject(의존성 실패)는 raw propagate.
+    const stream = await this.service.materializeFullExportDownload(scope);
+
+    // (3) Readable → Buffer 로 모아 실 byte 길이 측정(materializeExportDump 는 이미 in-memory
+    //     Readable.from(JSON.stringify(...)) 이므로 추가 메모리 비용 미미). body bytes 변형 0.
+    const body = await this.collectStream(stream);
+
+    // descriptor 는 합성 dump(scope + 측정 시각)로 contentType/contentDisposition/scopeToken 을
+    // 산출하고, byteSizeHint 만 실 body 길이로 보정한다(Content-Length 정확도 — 위 주석 참조).
+    const baseDescriptor = buildExportArtifactDescriptor(
+      this.buildHeaderDumpSeed(scope),
+    );
+    const descriptor: ExportArtifactDescriptor = {
+      ...baseDescriptor,
+      byteSizeHint: body.byteLength,
+    };
+
+    // 다운로드 header(Content-Type / Content-Disposition / Content-Length)를 response 에 설정.
+    res.set(serializeExportDownloadHeaders(descriptor));
+
+    // body Buffer 를 단일 stream 으로 반환 — NestJS 가 StreamableFile 을 response 로 흘려보낸다.
+    return new StreamableFile(body);
   }
 
   // GET /api/admin/export/:id/status-view — async Export job 의 사람-친화 진행 view 조회
