@@ -14,6 +14,7 @@ import type {
 
 import { mapActivityToEvaluationInput } from "./domain/evaluation-input.mapper";
 import type { EvaluationResult } from "./domain/evaluation-result";
+import { UNDERPERFORMER_NARRATIVE_MARKER } from "./domain/evaluation-underperformer-adjust";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import {
   EvaluationScoringService,
@@ -98,6 +99,74 @@ function resultWithContribution(
   contribution: EvaluationResult["contribution"],
 ): EvaluationResult {
   return { ...resultFor(unitId), contribution };
+}
+
+// resultWithNarrative — underperformer wiring 검증용. scoring 산출 narrative 를
+// 명시 지정해 marker 접두/보존을 입출력 비교로 단언한다(기본 resultFor 는
+// "narrative for <unitId>" 고정). 저성과 author 단위는 mock 이 어떤 narrative 를
+// 반환해도 결과가 marker 접두로 시작해야 하고, 비대상은 mock 값이 그대로 보존돼야
+// 한다. unitId echo 는 유지해 순서 정합도 함께 본다.
+function resultWithNarrative(
+  unitId: string,
+  narrative: string,
+): EvaluationResult {
+  return { ...resultFor(unitId), narrative };
+}
+
+// makeScoringServiceWithNarrative — 각 단위에 고정 narrative 를 부여하는 mock.
+// underperformer detection 은 deduped 입력의 contributionKind=code 단위 수를 동료
+// 평균 대비 측정하고, scoring narrative 는 본 mock 이 통제하므로 두 축(signal vs
+// scored narrative)을 독립적으로 구성할 수 있다. 기본은 "원본 narrative" 로 둬
+// marker 접두가 가시적으로 드러나도록 한다.
+function makeScoringServiceWithNarrative(narrative = "원본 narrative"): {
+  scoreUnit: jest.Mock;
+} {
+  return {
+    scoreUnit: jest.fn().mockImplementation(async (input: { unitId: string }) =>
+      // eslint-disable-next-line @typescript-eslint/require-await
+      resultWithNarrative(input.unitId, narrative),
+    ),
+  };
+}
+
+// underPerformerCommit — 저성과자 식별 대상 fixture(code 기여 단위 1 건만 가진
+// author). batch 안에서 평균 code 기여 단위 수가 충분히 높을 때(예: 동료가 4 건씩
+// 가질 때) underPerformer 로 식별된다. titleLength 를 contribution-quality 임계 이상
+// 으로 둬 zero-contribution 강등 분기와 분리한다(narrative 외 필드 영향 0).
+function underPerformerCommit(overrides: {
+  externalId: string;
+  author: string;
+  titleLength?: number;
+}): GithubActivity {
+  const { externalId, author, titleLength = 40 } = overrides;
+  return githubActivity({
+    externalId,
+    author,
+    kind: "commit",
+    metadata: { titleLength },
+  });
+}
+
+// peerCommits — underperformer 비교 기준 동료 author 의 code 기여 단위 다수. 같은
+// author 의 commit count 건. titleLength 는 contribution-quality 임계 이상으로 둬
+// zero-contribution 분기와 분리한다(narrative 외 필드 영향 0). underperformer detection
+// 은 author 별 code 단위 수만 보므로 titleLength / metadata 는 결과에 영향 없다.
+function peerCommits(
+  author: string,
+  count: number,
+  titleLengthBase = 40,
+): GithubActivity[] {
+  return Array.from({ length: count }, (_unused, i) =>
+    githubActivity({
+      externalId: `${author}-peer-${String(i)}`,
+      author,
+      kind: "commit",
+      timestamp: `2026-11-0${String(i + 1)}T00:00:00Z`,
+      // titleLength 를 단위마다 다르게 줘 (kind, volume) 반복도 줄여 abuse suspected
+      // 미발화를 보장한다(peer 단위는 narrative 보존이 검증 대상).
+      metadata: { titleLength: titleLengthBase + i },
+    }),
+  );
 }
 
 // makeScoringServiceWithContribution — 각 단위에 고정 contribution 을 부여하는
@@ -1833,6 +1902,750 @@ describe("EvaluationOrchestratorService", () => {
           author: "richauthor",
           metadata: { titleLength: 50 },
         }),
+      ];
+      const snapshot = JSON.parse(JSON.stringify(activities));
+
+      await orchestrator.evaluateActivities(activities, OPTIONS);
+
+      expect(activities).toEqual(snapshot);
+    });
+  });
+
+  // ── T-0532: 저성과자 narrative annotation 배선(computeUnderPerformerSignal →
+  //    applyUnderPerformerAnnotation). detection 은 dedup 후 입력의 author 별
+  //    contributionKind="code" 단위 수를 동료 평균 대비 상대 비교
+  //    (UNDERPERFORMER_RELATIVE_FLOOR=0.5) 로 measure 하고, 소비는 abuse 감점 +
+  //    update-count 중립 + contribution-quality floor 후 저성과 author 의 **모든**
+  //    단위 narrative 앞에 표준 한국어 marker(UNDERPERFORMER_NARRATIVE_MARKER) 를
+  //    결정적으로 접두 annotation 한다(author-level 전파). mock scoreUnit 으로
+  //    narrative 를 통제해 marker 접두/보존을 입출력 비교로 단언한다. abuse /
+  //    update-count / contribution-quality 배선이 함께 보존됨(회귀 0)도 확인한다.
+  describe("underperformer wiring — 저성과 author 단위 narrative marker 접두 / 비대상 무변경(R-27)", () => {
+    it("(happy) underPerformer=true author 의 모든 단위 narrative 가 marker 접두로 시작한다", async () => {
+      // slow author: code 단위 1 건. peers: 각 4 건 → 평균 (1+4+4)/3 = 3, floor 1.5,
+      // slow(1) < 1.5 → underPerformer=true. mock narrative "원본" → marker + "원본".
+      const scoring = makeScoringServiceWithNarrative("원본");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        underPerformerCommit({ externalId: "slow-1", author: "slow" }),
+        ...peerCommits("peerA", 4),
+        ...peerCommits("peerB", 4),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // 1(slow) + 4 + 4 = 9 단위.
+      expect(results).toHaveLength(9);
+      // slow author 의 단위(첫 1 건)는 marker 접두.
+      expect(results[0].narrative).toBe(
+        `${UNDERPERFORMER_NARRATIVE_MARKER}원본`,
+      );
+      expect(
+        results[0].narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+      ).toBe(true);
+    });
+
+    it("(happy) underPerformer=false author 단위는 narrative 가 mock 반환값 그대로 보존", async () => {
+      // 위와 동일 batch — peer 단위(인덱스 1~8) 는 비대상이라 narrative "원본" 그대로.
+      const scoring = makeScoringServiceWithNarrative("원본");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        underPerformerCommit({ externalId: "slow-1", author: "slow" }),
+        ...peerCommits("peerA", 4),
+        ...peerCommits("peerB", 4),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // 비대상 author 단위(인덱스 1 부터) → narrative 보존(marker 미접두).
+      for (let i = 1; i < results.length; i += 1) {
+        expect(results[i].narrative).toBe("원본");
+        expect(
+          results[i].narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+        ).toBe(false);
+      }
+    });
+
+    it("(branch a) 대상 + 비대상 author 혼합 batch → 대상만 marker 접두, 비대상 무변경(순서 보존)", async () => {
+      // 위 happy 와 동일 구성이지만 입력 순서를 섞어 marker 접두/보존이 unitId 순서를
+      // 그대로 따라가는지 단언한다(매핑 misalignment 회귀 방어 미니버전). peer 4 건 +
+      // slow 1 건이 [peer, slow, peer, peer, peer] 순으로 들어가도 marker 접두 자리는
+      // 슬로우 author 단위(인덱스 1)에만 정확히 와야 한다. peer-a~d 의 externalId 가
+      // 모두 다르므로 dedup 미발화.
+      const scoring = makeScoringServiceWithNarrative("기본");
+      const orchestrator = makeOrchestrator(scoring);
+      const activitiesFixed: Activity[] = [
+        githubActivity({
+          externalId: "peer-a",
+          author: "peer",
+          kind: "commit",
+          timestamp: "2026-12-01T00:00:00Z",
+          metadata: { titleLength: 40 },
+        }),
+        underPerformerCommit({ externalId: "slow-x", author: "slow" }),
+        githubActivity({
+          externalId: "peer-b",
+          author: "peer",
+          kind: "commit",
+          timestamp: "2026-12-02T00:00:00Z",
+          metadata: { titleLength: 41 },
+        }),
+        githubActivity({
+          externalId: "peer-c",
+          author: "peer",
+          kind: "commit",
+          timestamp: "2026-12-03T00:00:00Z",
+          metadata: { titleLength: 42 },
+        }),
+        githubActivity({
+          externalId: "peer-d",
+          author: "peer",
+          kind: "commit",
+          timestamp: "2026-12-04T00:00:00Z",
+          metadata: { titleLength: 43 },
+        }),
+      ];
+      // 인자에 activities 가 아닌 activitiesFixed 를 넘긴다(상기 fixture 가 의도된
+      // 분리된 외부 단위 5 건). peer 4 + slow 1 → mean=(4+1)/2=2.5, floor=1.25,
+      // slow(1)<1.25 → underPerformer=true.
+
+      const results = await orchestrator.evaluateActivities(
+        activitiesFixed,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(5);
+      // 입력 순서 [peer-a, slow-x, peer-b, peer-c, peer-d] 보존 — slow 단위만 marker 접두.
+      const isMarked = results.map((r) =>
+        r.narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+      );
+      expect(isMarked).toEqual([false, true, false, false, false]);
+    });
+
+    it("(branch b) 전 author 비대상(저성과 미식별) batch → 전 단위 narrative 무변경", async () => {
+      // 두 author 가 각 4 건씩 — 동률(equal counts), 동일 평균. floor 비교에서 양쪽
+      // 모두 codeUnitCount >= floor 이므로 underPerformer 0(전원 동일). narrative 전부
+      // mock 반환값 그대로 보존.
+      const scoring = makeScoringServiceWithNarrative("동률 narrative");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        ...peerCommits("alice", 4),
+        ...peerCommits("bob", 4),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(8);
+      // 전 단위 marker 미접두 — 신호 underPerformerDetected=false 흡수.
+      expect(
+        results.every(
+          (r) => !r.narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+        ),
+      ).toBe(true);
+      expect(results.every((r) => r.narrative === "동률 narrative")).toBe(true);
+    });
+
+    it("(branch c) dedup 으로 일부 제거된 batch → detection 이 dedup 후 입력 위에서 동작", async () => {
+      // slow author 의 commit 1 건 중복(unitId 동일) 2 건 → dedup 후 1 건. peer 4 건.
+      // dedup 후 mean=(1+4)/2=2.5, floor 1.25, slow(1)<1.25 → underPerformer.
+      // (만약 detection 이 dedup 전 입력 위에서 동작했다면 slow=2 → 2>=1.25 → 미식별
+      //  가능성 — 본 단언으로 dedup 후 input 사용을 검증.)
+      const scoring = makeScoringServiceWithNarrative("dedup-check");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "slow-dup",
+          author: "slow",
+          kind: "commit",
+          timestamp: "2026-09-02T00:00:00Z",
+          metadata: { titleLength: 40 },
+        }),
+        githubActivity({
+          externalId: "slow-dup",
+          author: "slow",
+          kind: "commit",
+          timestamp: "2026-09-01T00:00:00Z", // earliest 보존
+          metadata: { titleLength: 40 },
+        }),
+        ...peerCommits("peerX", 4),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // dedup 으로 slow 1 건 + peer 4 건 → 5 단위.
+      expect(results).toHaveLength(5);
+      // slow 단위(인덱스 0)는 underPerformer 식별되어 marker 접두, peer 는 보존.
+      expect(
+        results[0].narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+      ).toBe(true);
+      for (let i = 1; i < results.length; i += 1) {
+        expect(
+          results[i].narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+        ).toBe(false);
+      }
+    });
+
+    it("(branch d) 단독 author / 평균 0 경계 → underPerformer 0(보수적, 전 단위 무변경)", async () => {
+      // 단일 author 단일 단위 → comparable false → underPerformer 0. narrative 보존.
+      const scoring = makeScoringServiceWithNarrative("solo");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        underPerformerCommit({ externalId: "only", author: "solo-dev" }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(
+        results[0].narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+      ).toBe(false);
+
+      // 평균 0 경계 — 전 author 가 document 만 가져 code 단위 수 0 → meanCodeUnitCount 0.
+      // comparable false → underPerformer 0(전원 동일 — 보수적). narrative 보존.
+      const scoring2 = makeScoringServiceWithNarrative("docs-only");
+      const orchestrator2 = makeOrchestrator(scoring2);
+      const activitiesDocs: Activity[] = [
+        confluenceActivity({
+          externalId: "d-1",
+          author: "writer-a",
+          timestamp: "2026-09-01T00:00:00Z",
+          metadata: { titleLength: 40 },
+        }),
+        confluenceActivity({
+          externalId: "d-2",
+          author: "writer-b",
+          timestamp: "2026-09-02T00:00:00Z",
+          metadata: { titleLength: 40 },
+        }),
+      ];
+
+      const results2 = await orchestrator2.evaluateActivities(
+        activitiesDocs,
+        OPTIONS,
+      );
+
+      expect(results2).toHaveLength(2);
+      expect(
+        results2.every(
+          (r) => !r.narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+        ),
+      ).toBe(true);
+    });
+  });
+
+  describe("underperformer wiring — error path / negative cases(예외 분기마다 cover)", () => {
+    it("(error) scoring reject 시 네 adjust(abuse + update-count + contribution-quality + underperformer) 미실행 + error 전파", async () => {
+      // 저성과 식별 구성이어도 scoring reject 면 adjust 자리 도달 0 — error 전파.
+      const scoring = makeScoringServiceWithNarrative("원본");
+      const boom = new Error("LLM HTTP 호출 실패 (status: 500)");
+      scoring.scoreUnit
+        .mockResolvedValueOnce(resultWithNarrative("ok", "원본"))
+        .mockRejectedValueOnce(boom);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        underPerformerCommit({ externalId: "ok", author: "slow" }),
+        ...peerCommits("peerA", 4),
+      ];
+
+      await expect(
+        orchestrator.evaluateActivities(activities, OPTIONS),
+      ).rejects.toThrow(boom);
+      // 두 번째 단위에서 throw → scoring 2 회 시도, adjust 도달 0(부분 결과 위장 0).
+      expect(scoring.scoreUnit).toHaveBeenCalledTimes(2);
+    });
+
+    it("(negative i) 빈 Activity[] → 빈 EvaluationResult[](네 helper 빈 입력 통과)", async () => {
+      const scoring = makeScoringServiceWithNarrative("원본");
+      const orchestrator = makeOrchestrator(scoring);
+
+      const results = await orchestrator.evaluateActivities([], OPTIONS);
+
+      expect(results).toEqual([]);
+      expect(scoring.scoreUnit).not.toHaveBeenCalled();
+    });
+
+    it("(negative ii) 단일 author 단일 단위 → 동료 부재 → 비대상 → narrative 무변경", async () => {
+      const scoring = makeScoringServiceWithNarrative("solo-narrative");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        underPerformerCommit({ externalId: "only", author: "solo-dev" }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].narrative).toBe("solo-narrative");
+    });
+
+    it("(negative iii) 동일 author 다수 단위 — 저성과 식별 시 그 author 의 **모든** 단위가 일관 marker 접두(author-level 전파)", async () => {
+      // slow author 가 code 단위 1 건 + document 단위 2 건(code 카운트엔 미반영). peer
+      // 가 code 4 건. dedup 후 slow code=1, peer code=4 → mean (1+4)/2=2.5, floor 1.25,
+      // slow(1)<1.25 → underPerformer. slow author 의 **모든** 단위(code 1 + document 2)
+      // narrative 가 marker 접두로 일관됨을 단언.
+      const scoring = makeScoringServiceWithNarrative("multi-unit");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        // slow author code 1 건.
+        underPerformerCommit({ externalId: "slow-c-1", author: "slow" }),
+        // slow author document 2 건(code 카운트 미반영이지만 narrative annotation 대상).
+        confluenceActivity({
+          externalId: "slow-d-1",
+          author: "slow",
+          metadata: { titleLength: 40 },
+        }),
+        confluenceActivity({
+          externalId: "slow-d-2",
+          author: "slow",
+          metadata: { titleLength: 41 },
+        }),
+        // peer code 4 건.
+        ...peerCommits("peerY", 4),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // 3 + 4 = 7 단위.
+      expect(results).toHaveLength(7);
+      // slow author 단위(인덱스 0,1,2)는 모두 marker 접두 일관.
+      for (let i = 0; i < 3; i += 1) {
+        expect(
+          results[i].narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+        ).toBe(true);
+      }
+      // peer 단위(인덱스 3~6)는 보존.
+      for (let i = 3; i < 7; i += 1) {
+        expect(
+          results[i].narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+        ).toBe(false);
+      }
+    });
+
+    it("(negative iv) 대상 author narrative 가 이미 marker 접두 → 멱등(중복 접두 0)", async () => {
+      // mock scoring 이 이미 marker 로 시작하는 narrative 를 반환 → 멱등으로 1 회만 유지.
+      const preMarked = `${UNDERPERFORMER_NARRATIVE_MARKER}이미 접두된 본문`;
+      const scoring = makeScoringServiceWithNarrative(preMarked);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        underPerformerCommit({ externalId: "slow-1", author: "slow" }),
+        ...peerCommits("peerA", 4),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // slow 단위 narrative — marker 가 두 번 접두되지 않고 1 회만(멱등).
+      expect(results[0].narrative).toBe(preMarked);
+      // 검증: marker 가 정확히 1 회 등장(중복 접두 0).
+      const occurrences =
+        results[0].narrative.split(UNDERPERFORMER_NARRATIVE_MARKER).length - 1;
+      expect(occurrences).toBe(1);
+    });
+
+    it("(negative v) 빈 narrative('') 단위가 저성과 대상일 때도 marker 만 접두(본문 손상 없음)", async () => {
+      const scoring = makeScoringServiceWithNarrative("");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        underPerformerCommit({ externalId: "slow-1", author: "slow" }),
+        ...peerCommits("peerA", 4),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // slow → 빈 narrative 에 marker 만 접두.
+      expect(results[0].narrative).toBe(UNDERPERFORMER_NARRATIVE_MARKER);
+      // peer → 빈 narrative 보존.
+      for (let i = 1; i < results.length; i += 1) {
+        expect(results[i].narrative).toBe("");
+      }
+    });
+
+    it("(negative vi) entries 순서 = scoring 결과 순서 정합(매핑 misalignment 회귀 방어)", async () => {
+      // unitId 별 고유 narrative 로 author↔result 매핑 misalignment 를 잡는다. 전 단위
+      // 비대상(평균 0 / 단독 author 등 보수적 분기로 underPerformer 0) → narrative
+      // 무변경, unitId 순서와 narrative 순서가 입력 순서 그대로여야 한다.
+      const narrativeByUnit: Record<string, string> = {
+        "github:com/sec:p-1": "alpha",
+        "github:com/sec:p-2": "beta",
+        "github:com/sec:p-3": "gamma",
+      };
+      const scoring = {
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) =>
+            resultWithNarrative(input.unitId, narrativeByUnit[input.unitId]),
+          ),
+      };
+      const orchestrator = makeOrchestrator(scoring);
+      // 세 단위 모두 서로 다른 author 의 code 1 건씩 → mean (1+1+1)/3=1, floor 0.5,
+      // 전원 codeUnitCount(1) >= 0.5 → underPerformer 0. narrative 보존. 세 번째도
+      // contributionKind=code 로 통일(github commit) — 만약 document(confluence) 였다면
+      // 그 author 의 codeUnitCount=0 → underPerformer 식별되어 marker 가 끼었을 것.
+      // unitId 의 prefix 분기(github vs confluence)는 mapper 가 결정하므로 narrative 별
+      // 순서 정합만 검증한다.
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "p-1",
+          author: "a1",
+          kind: "commit",
+          metadata: { titleLength: 40 },
+        }),
+        githubActivity({
+          externalId: "p-2",
+          author: "a2",
+          kind: "commit",
+          metadata: { titleLength: 41 },
+        }),
+        githubActivity({
+          externalId: "p-3",
+          author: "a3",
+          kind: "commit",
+          metadata: { titleLength: 42 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(
+        results.map((r) => ({
+          unitId: r.unitId,
+          narrative: r.narrative,
+        })),
+      ).toEqual([
+        { unitId: "github:com/sec:p-1", narrative: "alpha" },
+        { unitId: "github:com/sec:p-2", narrative: "beta" },
+        { unitId: "github:com/sec:p-3", narrative: "gamma" },
+      ]);
+    });
+  });
+
+  describe("4 배선 공존(abuse + update-count + contribution-quality + underperformer) / 결정성 / 비변형 / 직교", () => {
+    it("(공존) 한 단위 abuse 감점 + 다른 단위 update-count 중립 + 또 다른 단위 contribution floor + 저성과 author narrative marker 가 함께 동작", async () => {
+      // abuser: suspectedCommits 3 건(code, titleLength 1) → abuse 감점 + contribution
+      //   floor 강등(titleLength 1). abuser 의 code 3 건.
+      // writer: version 7 document 단일(titleLength 10, abuse 미발화) → update-count
+      //   중립 보존, contribution 비대상. writer 의 code 0 건(document 만).
+      // reporter: titleLength 1 단일 commit(abuse 미발화 — unitCount 1) →
+      //   contribution 강등 대상. reporter 의 code 1 건.
+      // slow-narrator: code 1 건(titleLength 40, contribution 미발화).
+      // peer: code 4 건(titleLength 40~).
+      //
+      // code counts: abuser=3, writer=0, reporter=1, slow-narrator=1, peer=4 →
+      // mean=(3+0+1+1+4)/5=1.8, floor 0.9. 미만 author: writer(0), peer 미만 가능
+      // 검증 — writer(0)<0.9 → underPerformer, reporter(1)>=0.9 미식별, slow-narrator
+      // (1)>=0.9 미식별. 따라서 writer 의 document 단위에 marker 접두.
+      const scoring = {
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) => ({
+            ...resultFor(input.unitId),
+            volume: 50,
+            contribution: "high" as const,
+            narrative: "기본",
+          })),
+      };
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        ...suspectedCommits("abuser", 3),
+        docWithVersion({
+          externalId: "doc-keep",
+          author: "writer",
+          version: 7,
+        }),
+        zeroContribCommit({
+          externalId: "solo-z",
+          author: "reporter",
+          titleLength: 1,
+        }),
+        underPerformerCommit({
+          externalId: "narrator-1",
+          author: "slow-narrator",
+        }),
+        ...peerCommits("peer", 4),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // 3 + 1 + 1 + 1 + 4 = 10 단위.
+      expect(results).toHaveLength(10);
+      // volume: abuser 3 건 감점 0, doc-keep 중립 보존 50, reporter 무감점 50,
+      // narrator 50, peer 4 건 50.
+      expect(results.map((r) => r.volume)).toEqual([
+        0, 0, 0, 50, 50, 50, 50, 50, 50, 50,
+      ]);
+      // contribution: abuser 3 건(titleLength 1) zero, doc-keep(titleLength 10) 보존
+      // high, reporter zero, narrator(titleLength 40) high, peer high.
+      expect(results.map((r) => r.contribution)).toEqual([
+        "zero",
+        "zero",
+        "zero",
+        "high",
+        "zero",
+        "high",
+        "high",
+        "high",
+        "high",
+        "high",
+      ]);
+      // narrative marker: writer 의 doc-keep(인덱스 3)만 marker 접두, 나머지 보존.
+      const isMarked = results.map((r) =>
+        r.narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+      );
+      expect(isMarked).toEqual([
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+      ]);
+    });
+
+    it("(교차) 한 단위가 abuse suspected ∩ update-count 중립 ∩ contribution floor ∩ underperformer 모두 대상 → volume 감점·중립 + contribution zero + narrative marker 동시 적용", async () => {
+      // 단일 author writer 의 document 단위들로 네 신호를 한 author 에 겹친다:
+      //   - version 7(≥5) → update-count 중립 대상.
+      //   - titleLength 1 → contribution-quality 강등 대상.
+      //   - 같은 (kind=document, low-volume) 반복 3 건 → abuse suspected.
+      //   - writer 의 code 0 건 + peer 의 code 6 건 → mean=(0+6)/2=3, floor 1.5,
+      //     writer(0)<1.5 → underPerformer.
+      // 동일 author 동일 kind 동일 titleLength 다른 externalId 3 건이라 dedup 미발화.
+      // abuse 감점 → volume 0, update-count 중립 → base(0) 보존, contribution zero,
+      // narrative marker 접두. 필드 직교 결과를 명시 박제.
+      const scoring = {
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) => ({
+            ...resultFor(input.unitId),
+            volume: 100,
+            contribution: "high" as const,
+            narrative: "본문",
+          })),
+      };
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        confluenceActivity({
+          externalId: "x-1",
+          author: "writer",
+          metadata: { titleLength: 1, version: 7 },
+        }),
+        confluenceActivity({
+          externalId: "x-2",
+          author: "writer",
+          metadata: { titleLength: 1, version: 7 },
+        }),
+        confluenceActivity({
+          externalId: "x-3",
+          author: "writer",
+          metadata: { titleLength: 1, version: 7 },
+        }),
+        ...peerCommits("peer", 6),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(9);
+      // writer 의 3 단위: abuse 감점(repetitionRatio 1.0 → 0), update-count 중립 보존(0),
+      // contribution zero, narrative marker 접두. peer 6 단위: 모두 무감점 + 보존.
+      const writerResults = results.slice(0, 3);
+      const peerResults = results.slice(3);
+      expect(writerResults.every((r) => r.volume === 0)).toBe(true);
+      expect(writerResults.every((r) => r.contribution === "zero")).toBe(true);
+      expect(
+        writerResults.every((r) =>
+          r.narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+        ),
+      ).toBe(true);
+      // peer 단위 — volume 100, contribution high, narrative 보존.
+      expect(peerResults.every((r) => r.volume === 100)).toBe(true);
+      expect(peerResults.every((r) => r.contribution === "high")).toBe(true);
+      expect(
+        peerResults.every(
+          (r) => !r.narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+        ),
+      ).toBe(true);
+    });
+
+    it("(공존) abuse 배선이 보존된다 — underperformer 가 끼어도 abuse 감점 회귀 0", async () => {
+      // abuser 3 건(suspected, code) + peer 4 건(code). abuser 의 code=3, peer code=4
+      // → mean=3.5, floor 1.75 → 둘 다 미식별(>=1.75). underperformer 미발화 batch
+      // 에서도 abuse 감점이 그대로 작동함을 확인(T-0523 보존).
+      const scoring = makeScoringServiceWithVolume(80);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        ...suspectedCommits("abuser", 3),
+        ...peerCommits("peer", 4),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // abuser 3 건 abuse 감점 0(회귀 0), peer 4 건 무감점 보존.
+      expect(results.map((r) => r.volume)).toEqual([0, 0, 0, 80, 80, 80, 80]);
+    });
+
+    it("(공존) contribution-quality 배선이 보존된다 — underperformer 가 끼어도 contribution floor 회귀 0", async () => {
+      // reporter(titleLength 1) zero 강등 + peer 4 건(titleLength 40~). reporter
+      // code=1, peer code=4 → mean=2.5, floor 1.25, reporter(1)<1.25 → underPerformer.
+      // contribution 강등은 reporter 만(둘 다 보존이라 floor 회귀 검증).
+      const scoring = makeScoringServiceWithContribution("high");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        zeroContribCommit({
+          externalId: "r-1",
+          author: "reporter",
+          titleLength: 1,
+        }),
+        ...peerCommits("peer", 4),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // reporter zero 강등(회귀 0), peer high 보존.
+      expect(results.map((r) => r.contribution)).toEqual([
+        "zero",
+        "high",
+        "high",
+        "high",
+        "high",
+      ]);
+    });
+
+    it("(직교) 필드 직교 — narrative 배선은 volume / contribution 을, 다른 배선은 narrative 를 건드리지 않는다", async () => {
+      // slow(code 1) + peer(code 4) → slow underPerformer. mock 이 volume 35,
+      // contribution "high", narrative "x" 를 반환. slow 의 단위는 narrative 만
+      // marker 접두되고 volume / contribution 은 그대로 보존되어야 한다. peer 는 전체
+      // 보존(다른 배선 미발화).
+      const scoring = {
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) => ({
+            ...resultFor(input.unitId),
+            volume: 35,
+            contribution: "high" as const,
+            narrative: "x",
+          })),
+      };
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        underPerformerCommit({ externalId: "slow-1", author: "slow" }),
+        ...peerCommits("peer", 4),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // slow 단위 — narrative marker 접두, volume / contribution 보존.
+      expect(results[0].narrative).toBe(`${UNDERPERFORMER_NARRATIVE_MARKER}x`);
+      expect(results[0].volume).toBe(35);
+      expect(results[0].contribution).toBe("high");
+      // peer 단위 — 전체 보존.
+      for (let i = 1; i < results.length; i += 1) {
+        expect(results[i].narrative).toBe("x");
+        expect(results[i].volume).toBe(35);
+        expect(results[i].contribution).toBe("high");
+      }
+    });
+
+    it("(결정성) 동일 입력 2 회 호출 → 동일 출력(toEqual, deterministic adjust + marker 멱등)", async () => {
+      // 4 배선 공존 + 멱등 marker 검증 — 동일 입력으로 두 번 호출해도 동일 결과.
+      const activities: Activity[] = [
+        ...suspectedCommits("abuser", 3),
+        docWithVersion({
+          externalId: "doc-keep",
+          author: "writer",
+          version: 7,
+        }),
+        zeroContribCommit({
+          externalId: "z",
+          author: "reporter",
+          titleLength: 1,
+        }),
+        underPerformerCommit({
+          externalId: "narrator-1",
+          author: "slow-narrator",
+        }),
+        ...peerCommits("peer", 4),
+      ];
+
+      const makeScoring = (): { scoreUnit: jest.Mock } => ({
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) => ({
+            ...resultFor(input.unitId),
+            volume: 50,
+            contribution: "high" as const,
+            narrative: "deterministic",
+          })),
+      });
+
+      const first = await makeOrchestrator(makeScoring()).evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+      const second = await makeOrchestrator(makeScoring()).evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(first).toEqual(second);
+    });
+
+    it("(비변형) underperformer 대상 입력 Activity[] 를 호출 후 변경하지 않는다(deep-equal)", async () => {
+      const scoring = makeScoringServiceWithNarrative("원본");
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        underPerformerCommit({ externalId: "slow-1", author: "slow" }),
+        ...peerCommits("peer", 4),
       ];
       const snapshot = JSON.parse(JSON.stringify(activities));
 
