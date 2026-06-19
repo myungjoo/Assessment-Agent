@@ -2,8 +2,11 @@
 id: T-0538
 title: 의도 좌표 enumeration 순수 helper enumerateIntendedPeriodCoordinates 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-19T23:52:00Z
+mergeCommit: 2329d96
+prNumber: 452
 coversReq: [REQ-037]
 dependsOn: []
 independentStream: evaluation-coverage-gap
