@@ -15,7 +15,7 @@
     "since": "2026-06-19T16:05:34Z",
     "note": "cron@aa-local-1615-a7f3 (로컬 aa-local-15 schedule cron fire, :15 무렵 trigger — 정각 회피로 동시 loop/cloud schedule 과 충돌 최소화) — T-0526 실행 fire. fresh checkout 1f1f374→reset origin/main 9a310ec(T-0526 큐잉)→merge 후 861dee5. server-time 2026-06-19T16:05:34Z(GitHub API Date header). 진입 시 lock free(tombstone), claims 빈배열, nextTask=T-0526. gh 인증 OK(account myungjoo). fineGrainedConcurrency=true stage5b: active claim 0<2 → T-0526(pr) 단독 select-claim(claims.json 박제 16:05:34Z, lock tombstone 동반 즉시 release). executor lock-free 진행 → claude/T-0526-update-count-wiring → implementer(+47/-12) + tester(orchestrator 100% cov, jest 5469 green) → PR #439 → reviewer round1 APPROVE → 4-게이트 PASS → squash merge 861dee5. 본 bookkeeping(direct doc commit) 후 claim release(claims.json 비움). post-merge main CI(861dee5) in_progress — 다음 fire [1] 재확인(R-114 위임). 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-19T16:20:19Z",
+  "lastActivity": "2026-06-19T16:30:00Z",
   "lastCommit": "861dee5",
   "mostRecentTasks": [
     "T-0526",
@@ -974,11 +974,11 @@
     "tasksAccidentalMerge": 1
   },
   "concurrencyIncidents": {
-    "double-claim": 0,
+    "double-claim": 1,
     "merge-conflict-code": 0,
     "reclaim-misfire": 0,
     "ci-cost-overrun": 0,
-    "note": "ADR-0036 §Decision 8 (d) 회로 차단기 카운터 — 같은 유형 2회 누적 시 driver 가 lock-하 flags.fineGrainedConcurrency=false 자동 강등 + notifier(재활성=사람 결정). 토글 OFF 동안 inert — 본 schema 는 자리만(T-0343), incrementing·강등 분기는 후속 LOOP slice 책임. 권위 정의=ADR-0036 §Decision 8 (d) / concurrency.md §7.1."
+    "note": "ADR-0036 §Decision 8 (d) 회로 차단기 카운터 — 같은 유형 2회 누적 시 driver 가 lock-하 flags.fineGrainedConcurrency=false 자동 강등 + notifier(재활성=사람 결정). **double-claim 1회 누적 박제 (2026-06-19T16:30Z)** — T-0526 이 두 cron fire (driver A cron@cloud-routine-0619-1540 15:40Z / driver B cron@aa-local-1615-a7f3 16:05Z) 에 동시 dispatch 됐고 B 가 먼저 PR #439 squash merge (861dee5) 한 후 A 가 자체 executor 결과로 PR #440 open. reviewer round1 catch (duplicate-of-merged-pr BLOCKER) 후 A 가 PR #440 close + branch 잔존 (proxy 403 으로 raw delete 실패, harmless). 이론상 lock-하 atomic select+claim 으로 0 이어야 하는데 발생 — driver A 의 lock CAS 가 시간상 먼저 (15:40Z) 였으나 lock blob session=cron@cloud-routine-0619-1540 이 fresh checkout 환경의 driver B fire 가 본 lock 을 stale (>60min) 로 잘못 판정해 탈취 시도하지 않고 fetch 시점에 tombstone 을 본 race 의심. 다음 강등 임계 (2회) 까지 1회 여유 — 추가 incident 발생 시 자동 OFF. 권위 정의=ADR-0036 §Decision 8 (d) / concurrency.md §7.1."
   },
   "adr0036Rollout": {
     "status": "ACCEPTED",
