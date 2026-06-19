@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0524",
-  "backlogNote": "⏳ **T-0524 QUEUED(planner dispatch, nextTask)** — P5 bullet 102(R-41/REQ-022 문서 update 횟수 중립화) detection slice. computeUpdateCountNeutralization 순수 domain helper(T-0521 computeAbuseSignal 패턴 mirror): 습관적 중간 저장으로 update 횟수만 부푼 문서가 평가 양/점수에 유리하게도 불리하게도 작용하지 않도록(net 0 중립) 결정적 식별 신호 산출. R-41(중립)은 R-26/R-40 abusing(감점)과 의미가 달라 별도 신호로 분리. commitMode pr, dependsOn []·touchesFiles 2 파일(domain ts+spec), est ~160 LOC ≤300 cap. detection layer 만 — orchestrator 배선·volume 중립화는 후속 task. 다음 fire 가 select-claim T-0524 실행. **직전 완료(T-0523 DONE, merge 09de457, PR #436)**: EvaluationOrchestratorService 에 computeAbuseSignal+applyAbuseSignalToVolume 배선으로 abusing metric layer 완결, post-merge main CI green(run 27829582477 success 재확인). standing 게이트(cron backlog 아님): live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·tasksCompleted=515.",
+  "nextTask": "T-0525",
+  "backlogNote": "✅ **T-0524 DONE(merge 9306bf5, PR #437, reviewer round1 APPROVE, 4-게이트 PASS)** — P5 bullet 102(R-41/REQ-022 문서 update 횟수 중립화) detection slice: 순수 domain helper computeUpdateCountNeutralization 추가(src/assessment-evaluation/domain/evaluation-update-count-neutral.ts). document version 임계(UPDATE_COUNT_NEUTRAL_THRESHOLD=5) 이상 식별, code 단위 비대상, version 부재/비-number/비유한/0/음수 방어적 0 흡수, author 최초 등장 순서 보존. 신규 알고리즘만(배선 0, T-0521 computeAbuseSignal 패턴 mirror). impl +183/-0 + R-112 25 it spec, 신규 파일 100% cov(line/branch/func/stmt), 전체 jest 5424 green. REQ-022 cover. MINOR1(+485 LOC soft-cap 초과, 단일 self-contained pure helper+comprehensive spec — 비차단). **다음**: T-0525 큐잉됨(applyUpdateCountNeutralizationToVolume 순수 helper, pr-mode — T-0524 detection 신호 소비, 중립 대상 volume 을 net 0(advantage/penalty 둘 다 없음)로 보존, T-0522 패턴 mirror). T-0524 detection→T-0525 소비→(후속 service 배선)으로 update-count 중립화 layer 진행. **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·tasksCompleted=516.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-local-0619-1415-5350",
-    "since": "2026-06-19T14:05:07Z",
-    "note": "cron@aa-local-0619-1415-5350 (aa-local schedule cron fire, :15 무렵 trigger — 정각 회피로 동시 loop/cloud schedule 과 충돌 가능성 최소화) — planner dispatch fire(실행 task 없음). fresh checkout 21e71eb→reset origin/main 12904f2(직전 cron@aa-cloud-1337 의 T-0523 DONE bookkeeping)로 sync. server-time 2026-06-19T14:05:07Z(GitHub API Date header). 진입 시 lock free(tip 47676d9 tombstone holder=''), claims 빈배열, currentTask·nextTask 둘 다 null, open HQ 0·blockers 0. R-114 직전 fire 보강: T-0523 post-merge main CI(09de457, run 27829582477) conclusion=success 재확인. fineGrainedConcurrency=true stage5b 이나 claimable 후보 0(queued task 없음)→ LOOP §1[2] planner-dispatch 경로. lock CAS 획득(47676d9→3e748b0). planner 가 T-0524 큐잉(P5 bullet 102 R-41/REQ-022 update 횟수 중립화 detection 순수 helper computeUpdateCountNeutralization, pr-mode, dependsOn []·2 파일 domain ts+spec, T-0521 패턴 mirror). nextTask=T-0524, currentTask=null. doc-only direct commit(STATE+journal+task 파일) 후 lock tombstone release. 다음 fire 가 select-claim T-0524 실행. 단일 active driver, race 0."
+    "session": "cron@aa-local-0619-1438-cd70",
+    "since": "2026-06-19T14:56:30Z",
+    "note": "cron@aa-local-0619-1438-cd70 (Anthropic 클라우드 aa-local schedule cron fire, :38 무렵 trigger — 정각 회피) — T-0524 claim→실행→merge fire. fresh checkout 가 origin/main 686e31d(직전 cron@aa-local-1415 의 T-0524 큐잉)로 sync. server-time 2026-06-19T14:38:12Z(GitHub API Date header). fineGrainedConcurrency=true stage5b: lock CAS 획득(584668a→3219865), reclaim no-op(claims 빈배열), maxConcurrentClaims 게이트 PASS(활성 claim 0<2, pr-mode 단독). select-claim T-0524(claim append + lock tombstone 동반 CAS → lock-free 진행). executor: src/assessment-evaluation/domain/evaluation-update-count-neutral.ts(+183/-0, computeUpdateCountNeutralization 순수 helper) + spec 25 test 추가, 신규 파일 100% cov, 전체 5424 green, lint+build clean. pr-mode push(claude/T-0524-evaluation-update-count-neutralization)→integrator PR #437 open→reviewer round1 APPROVE+comment(MINOR1: +485 LOC soft-cap 초과 비차단)→4-게이트 PASS→squash 9306bf5 merge --delete-branch. bookkeeping 위해 lock 재획득(e8b7a2c→e16afcc), planner T-0525 큐잉. T-0524 DONE, nextTask=T-0525. claim cleanup(T-0524 제거)+lock release tombstone 동반 CAS 후속. 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-19T14:05:07Z",
-  "lastCommit": "12904f2",
+  "lastActivity": "2026-06-19T14:56:30Z",
+  "lastCommit": "9306bf5",
   "mostRecentTasks": [
+    "T-0524",
     "T-0523",
     "T-0522",
     "T-0521",
-    "T-0520",
-    "T-0519"
+    "T-0520"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-19T13:50:00Z",
+    "lastRun": "2026-06-19T14:56:30Z",
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "PR #436(T-0523) round 1 CI full green → 4-게이트 PASS → squash merge 09de457 --delete-branch. post-merge main CI(09de457, run 27829582477) in_progress — PR CI 가 동일 코드로 이미 green 이라 merge 확정, conclusion 은 다음 fire [1] 에서 재확인(R-114 in_progress 위임). EvaluationOrchestratorService abuse 배선 +41/-11, orchestrator.service.ts 100% cov, 전체 jest 5399 green."
+    "note": "PR #437(T-0524) round 1 CI full green(de7f9d9, lint/build/unit/e2e/Docker-smoke + reviewer-approval 검증 success) → 4-게이트 PASS → squash merge 9306bf5 --delete-branch. post-merge main CI(9306bf5, run started 14:54Z) in_progress — PR CI 가 동일 코드로 이미 green 이라 merge 확정, conclusion 은 다음 fire [1] 에서 재확인(R-114 in_progress 위임). computeUpdateCountNeutralization 순수 helper +183/-0 + spec 25 test, 신규 파일 100% cov, 전체 jest 5424 green."
   },
   "reviewRounds": {
+    "T-0524": 1,
     "T-0523": 1,
     "T-0522": 1,
     "T-0519": 1,
@@ -965,7 +966,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 515,
+    "tasksCompleted": 516,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

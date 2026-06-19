@@ -2,7 +2,11 @@
 id: T-0524
 title: 문서 update 횟수 중립화 detection 순수 helper computeUpdateCountNeutralization 추가
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 437
+mergedAs: 9306bf5
+reviewRounds: 1
+completed: 2026-06-19T14:56:30Z
 commitMode: pr
 coversReq: [REQ-022]
 estimatedDiff: 160
