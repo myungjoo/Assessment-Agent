@@ -32,11 +32,11 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-19T09:25:00Z",
-    "status": "green",
+    "lastRun": "2026-06-19T10:46:18Z",
+    "status": "red",
     "consecutiveFails": 0,
-    "lastConclusion": "success",
-    "note": "PR #432(T-0519) CI full green → 4-게이트 PASS → squash merge 6dc1bac --delete-branch. export.controller.ts cov line/branch/func 100%, test:cov global line 99.94/func 100/branch 99.37, 전체 5337 test pass. post-merge main CI run(6dc1bac) in_progress — 다음 fire [1]에서 conclusion 재확인(R-114)."
+    "lastConclusion": "failure",
+    "note": "PR #433(T-0520) round 1: reviewer APPROVE + comment 외부 존재(gate a/b PASS). 단 CI e2e test step FAIL — export-download.e2e-spec.ts 의 exportJob.create() 가 ExportJob_requestedById_fkey FK 위반(requestedById→User 부재)으로 500 → POST 201 기대 4 case fail. race 아님(failing step=e2e test, approval step 아님). gate(d) FAIL → ANOTHER_ROUND, executor re-entry 필요(seed/teardown 순서 수정: Admin actor user 가 각 exportJob.create 전 DB 에 존재하도록)."
   },
   "reviewRounds": {
     "T-0519": 1,
@@ -265,7 +265,8 @@
     "T-0486": 1,
     "T-0489": 1,
     "T-0499": 1,
-    "T-0505": 1
+    "T-0505": 1,
+    "T-0520": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
