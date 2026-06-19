@@ -2,7 +2,10 @@
 id: T-0537
 title: 미평가 gap 좌표를 person 별 일괄 평가 batch plan 으로 요약하는 순수 helper buildUnevaluatedFillBatchPlan 추가
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-19T23:20:01Z
+mergedCommit: da9e0a7
+prNumber: 451
 commitMode: pr
 coversReq: [REQ-037]
 dependsOn: []
