@@ -2,7 +2,7 @@
 id: T-0528
 title: 기여 품질 신호 소비 contribution floor 강등 순수 helper applyContributionQualityFloor 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
@@ -13,6 +13,10 @@ touchesFiles:
 estimatedDiff: 240
 estimatedFiles: 2
 created: 2026-06-20
+completedAt: 2026-06-19T17:21:30Z
+mergedAs: 5dbdc70d698e78dfa54d3822f4d9f58017f0fe8a
+prNumber: 442
+reviewRounds: 1
 plannerNote: P5 bullet 103(R-37/R-38 품질 분류) 소비 slice — T-0527 ContributionQualitySignal 소비해 contribution 을 zero 로 floor 강등하는 순수 helper, T-0525 mirror, pr ~240 LOC 2 파일 disjoint
 ---
 
