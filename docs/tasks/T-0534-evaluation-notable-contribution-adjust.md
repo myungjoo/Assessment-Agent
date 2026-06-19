@@ -2,7 +2,7 @@
 id: T-0534
 title: 중요·어려운 기여 신호 소비 notable 결정적 annotation 순수 helper applyNotableContributionAnnotation 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-011]
 dependsOn: [T-0533]
@@ -13,6 +13,10 @@ touchesFiles:
 estimatedDiff: 240
 estimatedFiles: 2
 created: 2026-06-20
+completedAt: 2026-06-19T21:24:00Z
+mergedAs: 1479bc357d959295bc93069968ab4edb419e264d
+prNumber: 448
+reviewRounds: 1
 plannerNote: P5 bullet 104(R-25/REQ-011 중요·어려운 기여 식별) 소비 slice — T-0533 NotableContributionSignal 소비해 notable author 단위를 결정적 annotation 하는 순수 helper, T-0531 mirror, pr ~240 LOC 2 파일 disjoint
 ---
 

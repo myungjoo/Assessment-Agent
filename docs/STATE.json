@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0534",
-  "backlogNote": "✅ **T-0533 DONE(merge ee1ef0b, PR #447, 4-게이트 round1 PASS)** — P5 bullet 104(R-25/REQ-011 중요·어려운 기여 식별) **detection slice**: 새 vein 의 첫 순수 도메인 helper `computeNotableContributionSignal` 신설(src/assessment-evaluation/domain/evaluation-notable-contribution-signal.ts +187 / .spec.ts +310). T-0530 underperformer signal 의 대칭(inverse) mirror — author Map 누적 + 최초 등장 순서 보존 + comparable=author≥2 AND mean>0 + strict > 판정 + `NOTABLE_RELATIVE_CEILING=1.5` export. 의존성 0(NestJS/Prisma/LLM import 0), ADD-only. R-112 4종 충족(happy/error/branch a~e/negative i~vi). 신규 파일 line/branch/func/stmt 100%, 전체 jest 5624 green, lint/build clean. reviewer round1 APPROVE(0B/0M/2 MINOR — LOC overrun 497>300 mirror precedent 수용 + spec describe 라벨 drift nit, 둘 다 비차단). LOC overrun 은 T-0530 선례(471) 와 parity 유지 위한 R-112 spec parity 필연 — 향후 mirror task LOC cap 예외 ADR 고려(follow-up). **다음**: planner dispatch 필요(nextTask 비움) — P5 bullet 104 후속 2-slice(소비 + orchestrator wiring T-0531/T-0532 mirror) 큐잉 또는 다른 P5 vein 탐색. **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0.",
+  "nextTask": "T-0535",
+  "backlogNote": "✅ **T-0534 DONE(merge 1479bc3, PR #448, 4-게이트 round1 PASS)** — P5 bullet 104(R-25/REQ-011 중요·어려운 기여 식별) **consume slice**: `applyNotableContributionAnnotation` 순수 domain helper 신설(src/assessment-evaluation/domain/evaluation-notable-contribution-adjust.ts + spec). T-0531 applyUnderPerformerAnnotation 대칭(inverse) mirror — author Map 색인 + notable=true author 의 모든 단위 narrative 앞에 `NOTABLE_CONTRIBUTION_NARRATIVE_MARKER='[중요기여] '` 결정적 접두 + 멱등 startsWith 검사 + 비파괴 · 단조 상향 marker · author-level 전파 · 입력 비변형. 의존성 0(NestJS/Prisma/LLM import 0), ADD-only. R-112 4종 충족(happy/error/branch a~d/negative i~vi). 신규 파일 line/branch/func/stmt 100%, lint/build clean. reviewer round1 APPROVE, CI rerun green(run 27848688086 rerun_attempt 2). detection(T-0533) → consume(T-0534) 완료, **orchestrator wiring slice 남음**. **다음**: T-0535 큐잉(notable orchestrator wiring — computeNotableContributionSignal+applyNotableContributionAnnotation 를 EvaluationOrchestratorService.evaluateActivities 에 compose, T-0532 underperformer wiring 대칭 mirror, pr ~240 LOC 2 파일). 본 task 머지 후 R-25/REQ-011 layer 3-slice 완결. **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
     "session": "cron@cloud-2037-pl4n",
-    "since": "2026-06-19T20:37:31Z",
-    "note": "cron@cloud-2037-pl4n (Anthropic 클라우드 fresh checkout schedule cron fire, 20:37Z trigger) — planner-dispatch fire. fresh checkout ca3ee22 진입 후 origin/main 0027637(T-0533 DONE bookkeeping) 으로 reset --hard sync. server-time 2026-06-19T20:37:31Z(GitHub API Date header). gh CLI 인증 OK(account myungjoo, keyring, Path A). 진입 STATE: currentTask null·nextTask null(T-0533 직전 fire 에서 merge 완료)·open HQ 0·blockers 0·CI green(0027637 run success)·double-claim incident 1<2(회로 차단기 inert). fineGrainedConcurrency=true stage5b: lock free(tip 8bab632 tombstone holder:null, claims 빈배열) → raw git push --force-with-lease lock CAS 획득(8bab632→94aa279, git plumbing hash-object+mktree+commit-tree). currentTask·nextTask 둘 다 null → claim-pickup 후보 task 부재 → planner dispatch. planner: T-0534 큐잉(R-25/REQ-011 중요·어려운 기여 식별 소비 slice, applyNotableContributionAnnotation 순수 helper, T-0531 underperformer consume mirror 의 대칭, commitMode pr ~240 LOC 2 파일 disjoint, dependsOn [T-0533] 머지됨) + STATE.nextTask=T-0534 + journal append. 본 bookkeeping(direct doc commit) 후 lock tombstone CAS release. 다음 fire 가 T-0534 claim·실행.\nPRIOR(T-0533): cron@cloud-fresh-rudh35 T-0533 DONE merge ee1ef0b(PR #447, 4-게이트 round1 PASS, reviewer APPROVE 0B/0M/2 MINOR LOC overrun 비차단). detection slice computeNotableContributionSignal 순수 helper +497/-0. select-claim → executor lock-free → rerun_failed_jobs 후 CI green → squash merge 20:21Z."
+    "since": "2026-06-19T21:30:00Z",
+    "note": "cron@cloud-2037-pl4n (Anthropic 클라우드 fresh checkout schedule cron fire) — T-0534 DONE merge 1479bc3(PR #448, 4-게이트 round1 PASS) bookkeeping + T-0535 planner 큐잉 fire. fineGrainedConcurrency=true stage5b: 진입 시 lock free·claims 빈배열·double-claim incident 1<2(회로 차단기 inert)·active claim 0<2 → select-claim T-0534(pr-mode 단독, lock tombstone 동반 release) → executor lock-free → implementer+tester: applyNotableContributionAnnotation 순수 domain helper(src/assessment-evaluation/domain/evaluation-notable-contribution-adjust.ts + spec) — T-0531 applyUnderPerformerAnnotation 대칭 mirror, author Map 색인·notable=true author 의 모든 단위 narrative 앞에 NOTABLE_CONTRIBUTION_NARRATIVE_MARKER='[중요기여] ' 결정적 접두·멱등 startsWith·비파괴·단조 상향·author-level 전파·입력 비변형·throw 0 흡수(명시적 null/undefined 만 한국어 TypeError). R-112 4종(happy/error/branch a~d/negative i~vi), 신규 파일 100% cov, lint/build clean. push HEAD:claude/T-0534-evaluation-notable-contribution-adjust → integrator PR #448 open → reviewer round1 APPROVE+comment 외부 존재 → 첫 CI run 27848688086 attempt 1 reviewer-gate race fail(통상, comment post 도착 전) → mcp__github__actions_run_trigger(rerun_failed_jobs) → attempt 2 conclusion=success(21:22:19Z) → 4-게이트 PASS → mcp__github__merge_pull_request(squash) merge 1479bc3 --delete-branch. detection(T-0533) → consume(T-0534) 닫힘. planner dispatch: T-0535 큐잉(notable orchestrator wiring slice — computeNotableContributionSignal+applyNotableContributionAnnotation 를 EvaluationOrchestratorService.evaluateActivities 에 compose, T-0532 underperformer wiring 대칭 mirror, commitMode pr ~240 LOC 2 파일 disjoint, dependsOn [T-0533,T-0534] 둘 다 머지됨). STATE.nextTask=T-0535 + journal append. 본 bookkeeping(direct doc commit) 후 lock tombstone CAS release. 다음 fire 가 T-0535 claim·실행하면 R-25/REQ-011 layer 3-slice 완결.\nPRIOR(T-0533): cron@cloud-fresh-rudh35 T-0533 DONE merge ee1ef0b(PR #447). detection slice computeNotableContributionSignal 순수 helper +497/-0. 4-게이트 round1 PASS."
   },
-  "lastActivity": "2026-06-19T20:38:00Z",
-  "lastCommit": "0027637",
+  "lastActivity": "2026-06-19T21:30:00Z",
+  "lastCommit": "1479bc3",
   "mostRecentTasks": [
+    "T-0534",
     "T-0533",
     "T-0532",
     "T-0531",
-    "T-0530",
-    "T-0529"
+    "T-0530"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-19T20:20:37Z",
+    "lastRun": "2026-06-19T21:22:19Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "PR #447(T-0533) CI conclusion=success — 첫 run(27846407369) 의 '기본 검사' job 은 reviewer comment 미존재 시점이라 reviewer-approval gate step 설계상 fail(20:15:39Z), MCP add_issue_comment 로 reviewer APPROVE comment post 후 mcp__github__actions_run_trigger(rerun_failed_jobs) → '기본 검사' 20:18:10Z 재기동 → 20:20:37Z conclusion=success, '배포 산출물 검증' 20:14:18Z success → 4-게이트 PASS → mcp__github__merge_pull_request(squash) merge ee1ef0b. 직전 main(6d349fb→ca3ee22) CI 도 green. post-merge main CI(ee1ef0b push run) 는 본 fire bookkeeping 시점 별도 trigger — 다음 fire [1] 에서 conclusion 재확인(R-114 위임)."
+    "note": "PR #448(T-0534) CI conclusion=success — 첫 run(27848688086) attempt 1 의 '기본 검사' job 은 reviewer comment 미존재 시점이라 reviewer-approval gate step 설계상 fail(통상), MCP add_issue_comment 로 reviewer APPROVE comment post 후 mcp__github__actions_run_trigger(rerun_failed_jobs) → attempt 2 conclusion=success(21:22:19Z), '배포 산출물 검증' success → 4-게이트 PASS → mcp__github__merge_pull_request(squash) merge 1479bc3 --delete-branch. PRIOR PR #447(T-0533) merge ee1ef0b 도 동일 패턴(첫 run reviewer-gate race fail → rerun green). post-merge main CI(1479bc3 push run) 는 본 fire bookkeeping 시점 별도 trigger — 다음 fire [1] 에서 conclusion 재확인(R-114 위임)."
   },
   "reviewRounds": {
+    "T-0534": 1,
     "T-0533": 1,
     "T-0532": 1,
     "T-0531": 1,
@@ -975,7 +976,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 525,
+    "tasksCompleted": 526,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
