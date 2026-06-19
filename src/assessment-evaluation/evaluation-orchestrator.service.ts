@@ -14,10 +14,16 @@
 //   2. 평가-side dedup 적용(§4) — 아래 박제 순서로 두 순수 함수를 합성.
 //   3. dedup 후 입력에 대한 abusing detection — `computeAbuseSignal(deduped)`(R-26/R-40).
 //      중복으로 부풀린 신호를 제거한 뒤 measure 하므로 dedup 직후가 자리다(§3 정신).
-//   4. 남은 각 `EvaluationInput` 마다 `scoringService.scoreUnit(input, options)` 호출 →
+//   4. dedup 후 입력에 대한 update 횟수 중립화 detection — `computeUpdateCountNeutralization
+//      (deduped)`(R-41 / REQ-022). abuse 와 마찬가지로 중복으로 부풀린 부풀림을 배제한
+//      뒤 measure 한다.
+//   5. 남은 각 `EvaluationInput` 마다 `scoringService.scoreUnit(input, options)` 호출 →
 //      `EvaluationResult[]` 수집(§2 단위 1 건당 scoring).
-//   5. scoring 후 abuse 신호 소비 — `applyAbuseSignalToVolume(entries, signal)` 로
-//      suspected author 단위의 `volume` 을 결정적으로 감점해 반환(R-26/R-40 중립화 v1).
+//   6. scoring 후 abuse 신호 소비 — `applyAbuseSignalToVolume(entries, signal)` 로
+//      suspected author 단위의 `volume` 을 결정적으로 감점한다(R-26/R-40 중립화 v1).
+//   7. abuse adjust 산출물을 다시 entries 로 재조립한 뒤 `applyUpdateCountNeutralizationTo
+//      Volume(entries2, neutralization)` 로 중립 대상 author/unit 의 `volume` 을 net 0
+//      (중립 보존)으로 처리해 반환한다(R-41 중립화 v1).
 //
 // abuse 배선 박제(T-0523, ADR-0032 §3 정신): detection(`computeAbuseSignal`)과 소비
 // (`applyAbuseSignalToVolume`)는 둘 다 의존성 0 의 결정적 순수 helper 다(LLM 무관, 입력
@@ -25,6 +31,15 @@
 // 순서 결정만 담당한다. detection 은 dedup 후(중복 부풀림 제거 후) 입력 위에서 동작하고,
 // 소비는 scoring 성공 후에만 실행해 부분 결과 위장 0(§2 실패 격리)을 보존한다. entries 는
 // `deduped[i].author` 와 `results[i]` 를 같은 순서로 짝지어 조립한다(매핑 misalignment 0).
+//
+// update-count 배선 박제(T-0526, R-41/REQ-022): T-0524 `computeUpdateCountNeutralization`
+// + T-0525 `applyUpdateCountNeutralizationToVolume` 두 결정적 순수 helper 를 abuse 배선
+// 옆에 동형으로 끼운다. 새 알고리즘 0 — 두 helper 의 compose 만. detection 은 abuse 와
+// 같은 자리(dedup 직후)에서 동작하고, 소비는 abuse 감점 직후에 실행한다. 적용 순서(abuse
+// 감점 → update-count 중립)의 근거: abuse 는 감점(penalty), update-count 는 net 0 보존
+// 이라, 중립 대상 단위는 마지막에 base 보존되어야 "advantage 도 penalty 도 없음"(R-41
+// 명문)이 최종 보장된다. 한 단위가 abuse suspected 이면서 동시에 update-count 중립 대상
+// 인 교차 경우의 정밀 우선순위 튜닝은 Follow-ups(별도 task).
 //
 // dedup 적용 순서 박제(ADR-0032 §4): `dedupTemporalDuplicates`(R-21 earliest-wins) →
 // `excludeSelfFollowUps`(R-30 self-follow-up 제외) 순서로 합성한다. 근거 — 시간적
@@ -62,6 +77,8 @@ import {
 } from "./domain/evaluation-dedup";
 import { mapActivityToEvaluationInput } from "./domain/evaluation-input.mapper";
 import type { EvaluationResult } from "./domain/evaluation-result";
+import { applyUpdateCountNeutralizationToVolume } from "./domain/evaluation-update-count-adjust";
+import { computeUpdateCountNeutralization } from "./domain/evaluation-update-count-neutral";
 import {
   EvaluationScoringService,
   type ScoringOptions,
@@ -84,23 +101,32 @@ export class EvaluationOrchestratorService {
    *   2. `dedupTemporalDuplicates` → `excludeSelfFollowUps` 순서로 평가-side dedup
    *      적용(§4, 위 파일 머리 주석의 순서 박제 근거 참조).
    *   3. `computeAbuseSignal(deduped)` 로 dedup 후 입력의 abusing 신호 산출(§3).
-   *   4. 남은 각 단위마다 `scoringService.scoreUnit(input, options)` 를 순차 호출해
+   *   4. `computeUpdateCountNeutralization(deduped)` 로 dedup 후 입력의 update 횟수
+   *      중립화 신호 산출(R-41 / REQ-022). detection 자리는 abuse 와 동형.
+   *   5. 남은 각 단위마다 `scoringService.scoreUnit(input, options)` 를 순차 호출해
    *      `EvaluationResult[]` 를 입력 순서대로 수집(§2).
-   *   5. `applyAbuseSignalToVolume(entries, signal)` 로 suspected author 단위의
-   *      volume 을 결정적으로 감점해 반환(R-26/R-40 중립화 v1).
+   *   6. `applyAbuseSignalToVolume(entries, signal)` 로 suspected author 단위의
+   *      volume 을 결정적으로 감점한다(R-26/R-40 중립화 v1).
+   *   7. abuse adjust 산출물을 다시 entries 로 재조립한 뒤
+   *      `applyUpdateCountNeutralizationToVolume(entries2, neutralization)` 로 중립
+   *      대상 author/unit 의 volume 을 net 0(중립 보존)으로 처리해 반환한다(R-41
+   *      중립화 v1).
    *
    * 정책:
-   *   - 빈 `activities` → 빈 배열 반환(scoreUnit 호출 0, signal 빈 신호 / 빈 entries).
+   *   - 빈 `activities` → 빈 배열 반환(scoreUnit 호출 0, signal / neutralization 빈 신호).
    *   - scoring 순차 — 결과 순서 = dedup 후 입력 순서 보존(결정적).
    *   - 한 단위 scoring reject 시 그 error 를 전파(throw, swallow 0 — §2 실패 격리).
-   *     abuse adjust 는 scoring 전량 성공 후에만 실행(부분 결과 위장 0).
-   *   - 매핑 / dedup / scoring / detection / adjust 재구현 0 — 기존 import 호출만
-   *     (compose + 순서 결정만). 새 알고리즘 0.
-   *   - 입력 배열 비변형(map / dedup / 두 abuse helper 모두 새 배열 산출, 부수효과 0).
+   *     abuse adjust / update-count adjust 둘 다 scoring 전량 성공 후에만 실행
+   *     (부분 결과 위장 0).
+   *   - 매핑 / dedup / scoring / detection 2 종 / adjust 2 종 재구현 0 — 기존 import
+   *     호출만(compose + 순서 결정만). 새 알고리즘 0.
+   *   - 입력 배열 비변형(map / dedup / 두 abuse helper / 두 update-count helper 모두
+   *     새 배열 산출, 부수효과 0).
    *
    * @param activities 수집 산출물 `Activity` 목록(typed surface 만, raw 본문 0).
    * @param options scoring 옵션 — 각 `scoreUnit` 호출에 그대로 전달(`ScoringOptions`).
-   * @returns dedup 후 단위 순서를 보존하고 abuse 감점이 반영된 `EvaluationResult[]`.
+   * @returns dedup 후 단위 순서를 보존하고 abuse 감점 + update 횟수 중립이 반영된
+   *          `EvaluationResult[]`.
    */
   async evaluateActivities(
     activities: Activity[],
@@ -117,20 +143,37 @@ export class EvaluationOrchestratorService {
     //     결정적 순수 helper(LLM 무관). 빈 deduped → 빈 신호(throw 0).
     const signal = computeAbuseSignal(deduped);
 
-    // (4) 단위별 scoring(§2) — 순차 호출로 결과 순서 = dedup 후 입력 순서 보존.
+    // (4) update 횟수 중립화 detection(R-41) — abuse 와 같은 자리에서 dedup 후 입력
+    //     위에 측정해 중복 부풀림을 배제한다. 결정적 순수 helper(LLM 무관). 빈
+    //     deduped → 빈 신호.
+    const neutralization = computeUpdateCountNeutralization(deduped);
+
+    // (5) 단위별 scoring(§2) — 순차 호출로 결과 순서 = dedup 후 입력 순서 보존.
     //     한 단위 reject 는 await 가 전파(부분 결과 위장 0 — 실패 격리).
     const results: EvaluationResult[] = [];
     for (const input of deduped) {
       results.push(await this.scoringService.scoreUnit(input, options));
     }
 
-    // (5) abuse 신호 소비 — entries 는 deduped[i].author 와 results[i] 를 같은 순서로
+    // (6) abuse 신호 소비 — entries 는 deduped[i].author 와 results[i] 를 같은 순서로
     //     짝지어 조립한다(매핑 misalignment 0). suspected author 단위의 volume 만
     //     결정적으로 감점되고 나머지는 무변경 복제된다. 입력 비변형.
     const entries = deduped.map((input, i) => ({
       author: input.author,
       result: results[i],
     }));
-    return applyAbuseSignalToVolume(entries, signal).map((e) => e.result);
+    const abuseAdjusted = applyAbuseSignalToVolume(entries, signal);
+
+    // (7) update 횟수 중립화 소비 — abuse adjust 산출물을 entries shape 그대로 받아
+    //     중립 대상 author/unit 의 volume 을 net 0(base 보존)으로 처리한다. 두 entry
+    //     shape(AbuseAdjustEntry / UpdateCountAdjustEntry)는 { author, result } 로
+    //     동형이라 추가 재조립 없이 그대로 전달한다(매핑 misalignment 0). 입력 비변형.
+    //     적용 순서 박제(abuse 감점 → update-count 중립): abuse 는 감점, update-count
+    //     는 net 0 보존이라, 마지막 단계가 base 보존이어야 R-41 의 "advantage 도
+    //     penalty 도 없음" 이 최종 보장된다.
+    return applyUpdateCountNeutralizationToVolume(
+      abuseAdjusted,
+      neutralization,
+    ).map((e) => e.result);
   }
 }
