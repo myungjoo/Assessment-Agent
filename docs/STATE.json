@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0522",
-  "backlogNote": "🟡 **T-0522 큐잉(planner dispatch fire — applyAbuseSignalToVolume)**. 직전 T-0521 DONE(merge f2d76a3, PR #434, computeAbuseSignal detection-layer 순수 helper). T-0522 = T-0521 산출 AbuseSignal 을 소비해 suspected author 의 EvaluationResult.volume 을 repetitionRatio 비례로 결정적 감점/중립화하는 dependency-free 순수 domain helper(src/assessment-evaluation/domain/evaluation-abuse-adjust.ts/.spec, commitMode pr, est ~240 LOC 2 파일 ≤300 cap, dependsOn []·touchesFiles disjoint — stage5b 동시 claim 안전, coversReq REQ-012 R-26/REQ-021 R-40). git grep applyAbuseSignal|neutralizeAbus|abuseAdjust src/ 0(issue-still-relevant 통과). 새 dep/schema/auth/credential 0. **후속 미박제**: impure orchestrator/scoring service 실배선(service-layer, 별도 task). 다음 fire 가 T-0522 claim→실행. standing 게이트(cron backlog 아님): live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·tasksCompleted=513.",
+  "nextTask": null,
+  "backlogNote": "✅ **T-0522 DONE(merge eb3c73f, PR #435, reviewer round1 APPROVE, 4-게이트 PASS, post-merge main CI green run 27826540038)** — P5 evaluation abuse 신호 소비 첫 조각. applyAbuseSignalToVolume(entries:EvaluationResult[], signal:AbuseSignal):EvaluationResult[] dependency-free 순수 domain helper 박제(suspected author volume = floor(volume*(1-clampRatio)) 감점, FLOOR 0 하한, 입력 비변형·결정적). +131 src/+spec, 신규 파일 100% cov, 22 tests, ADD-only. T-0521 detection(computeAbuseSignal)→T-0522 소비(volume 조정) layer 연결. **후속 미박제**: 이 순수 helper 를 실제 scoring orchestrator/service 에 배선(impure, service-layer, 별도 task). nextTask=null → 다음 fire 가 planner dispatch(P5 evaluation 다음 조각: abuse-adjust service 배선 OR PLAN.md P5 다른 미박제 항목). standing 게이트(cron backlog 아님): live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·tasksCompleted=514.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-local-15-1204",
-    "since": "2026-06-19T12:04:55Z",
-    "note": "cron@aa-local-15-1204 (aa-local-15 schedule, :15 trigger — 정각 회피) — planner dispatch fire. fresh checkout d23a31c 가 origin/main ae69f6b(직전 cron@aa-local-0619-1139 의 T-0521 merge)로 ff. server-time 2026-06-19T12:04:55Z(GitHub API Date header). lock CAS 획득(a16e313 tombstone→b93087a). claims.json=[]·open PR 0·orphan 0 확인 → reclaim/claim-pickup 대상 없음. currentTask·nextTask 둘 다 null → planner sub-agent dispatch: T-0522 생성(P5 evaluation — applyAbuseSignalToVolume, T-0521 AbuseSignal 소비 volume 중립화/감점 순수 helper, commitMode pr, est ~240 LOC 2 파일, dependsOn []), STATE.nextTask=T-0522. doc-only direct commit(main). 단일 active driver, race 0. lock tombstone release."
+    "session": "cron@aa-local-0619-1237",
+    "since": "2026-06-19T12:49:57Z",
+    "note": "cron@aa-local-0619-1237 (aa-local schedule, :39 무렵 trigger — 정각 회피) — T-0522 claim→실행→merge fire. fresh checkout 가 origin/main 668cc22(직전 cron@aa-local-15-1204 의 T-0522 큐잉)로 sync. server-time 2026-06-19T12:38:23Z(GitHub API Date header). lock CAS 획득(8d3012d tombstone→63e133a), reclaim no-op(orphan 0), maxConcurrentClaims 게이트 PASS(활성 claim 0<2, pr-mode 단독). select-claim T-0522(claim+lock tombstone 동반 release). executor: src/assessment-evaluation/domain/evaluation-abuse-adjust.ts(+131)+.spec 신설, applyAbuseSignalToVolume 순수 helper(suspected author volume floor(volume*(1-clampRatio)) 감점, FLOOR 0, 비변형·결정적), 신규 파일 100% cov, 22 tests, 전체 5384 green. pr-mode push(claude/T-0522-evaluation-abuse-volume-adjust)→integrator PR #435 open→reviewer round1 APPROVE+comment→4-게이트 PASS→squash eb3c73f merge --delete-branch. post-merge main CI green(run 27826540038). T-0522 DONE, nextTask=null→다음 fire planner dispatch. claims.json cleanup(T-0522 제거, 9af4a2a). 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-19T12:05:30Z",
-  "lastCommit": "f2d76a3",
+  "lastActivity": "2026-06-19T12:49:57Z",
+  "lastCommit": "eb3c73f",
   "mostRecentTasks": [
+    "T-0522",
     "T-0521",
     "T-0520",
     "T-0519",
-    "T-0518",
-    "T-0517"
+    "T-0518"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-19T11:53:23Z",
+    "lastRun": "2026-06-19T12:49:57Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "PR #434(T-0521) round 1 CI full green(head 48b5ccd) → 4-게이트 PASS → squash merge f2d76a3 --delete-branch. post-merge main CI(f2d76a3, run 27824118699) 기본 검사(unit+e2e)+배포 smoke 둘 다 success 확인(R-114 종료 전 conclusion 확보). computeAbuseSignal 순수 helper ADD-only, 신규 파일 100% cov."
+    "note": "PR #435(T-0522) round 1 CI full green → 4-게이트 PASS → squash merge eb3c73f --delete-branch. post-merge main CI(eb3c73f, run 27826540038) 기본 검사 + 배포 산출물 검증(Docker 빌드+런타임 smoke) 둘 다 success(R-114 종료 전 conclusion 확보). applyAbuseSignalToVolume 순수 helper ADD-only, 신규 파일 100% cov."
   },
   "reviewRounds": {
+    "T-0522": 1,
     "T-0519": 1,
     "T-0518": 1,
     "T-0517": 1,
@@ -963,7 +964,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 513,
+    "tasksCompleted": 514,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

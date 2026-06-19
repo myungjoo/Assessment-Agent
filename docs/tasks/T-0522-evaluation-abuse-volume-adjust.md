@@ -2,7 +2,7 @@
 id: T-0522
 title: applyAbuseSignalToVolume — abuse 신호 소비 volume 중립화/감점 순수 helper
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-012, REQ-021]
 dependsOn: []
