@@ -81,6 +81,47 @@ function makeScoringService(): { scoreUnit: jest.Mock } {
   };
 }
 
+// resultWithVolume — abuse wiring 검증용. scoring 산출 volume 을 명시 지정해 abuse
+// adjust 의 감점/무변경을 입출력 비교로 단언한다(기본 resultFor 는 volume 0 고정이라
+// 감점 가시성 0). unitId echo 는 유지해 순서 정합도 함께 본다.
+function resultWithVolume(unitId: string, volume: number): EvaluationResult {
+  return { ...resultFor(unitId), volume };
+}
+
+// makeScoringServiceWithVolume — 각 단위에 고정 volume 을 부여하는 mock. abuse
+// detection 은 deduped 입력의 titleLength 로 신호를 산출하고, scoring volume 은 본
+// mock 이 통제하므로 두 축(signal vs scored volume)을 독립적으로 구성할 수 있다.
+function makeScoringServiceWithVolume(volume: number): {
+  scoreUnit: jest.Mock;
+} {
+  return {
+    scoreUnit: jest.fn().mockImplementation(async (input: { unitId: string }) =>
+      // eslint-disable-next-line @typescript-eslint/require-await
+      resultWithVolume(input.unitId, volume),
+    ),
+  };
+}
+
+// suspectedCommits — 한 author 의 abusing 의심 신호를 만드는 fixture 집합. 같은 author
+// (suspectedAuthor)·같은 kind(commit→code)·동일 titleLength(1 → low-volume<3)·서로 다른
+// externalId(unitId 분리로 dedup 생존) n 건. computeAbuseSignal 기준 (kind, volume) 동일
+// 반복 + low-volume → repetitionRatio 1.0, unitCount≥2 → suspected=true.
+function suspectedCommits(
+  author: string,
+  count: number,
+  titleLength = 1,
+): GithubActivity[] {
+  return Array.from({ length: count }, (_unused, i) =>
+    githubActivity({
+      externalId: `${author}-sus-${String(i)}`,
+      author,
+      kind: "commit",
+      timestamp: `2026-07-0${String(i + 1)}T00:00:00Z`,
+      metadata: { titleLength },
+    }),
+  );
+}
+
 // orchestrator + mock scoring service 직접 생성(new Service(mock)) — sibling
 // service spec 의 direct-construction idiom mirror(생성자 의존이 scoringService
 // 단일이라 Test.createTestingModule 불요).
@@ -415,6 +456,335 @@ describe("EvaluationOrchestratorService", () => {
 
       // 원본 배열 길이·내용 비변형(map/dedup 모두 새 배열 산출).
       expect(activities).toHaveLength(2);
+      expect(activities).toEqual(snapshot);
+    });
+  });
+
+  // ── T-0523: abuse signal 소비 배선(computeAbuseSignal → applyAbuseSignalToVolume)
+  //    detection 은 deduped 입력의 titleLength 로 신호를 산출하고, 소비는 scoring 후
+  //    suspected author 단위의 volume 을 결정적으로 감점한다. mock scoreUnit 으로 scoring
+  //    volume 을 통제해 입출력 비교로 감점/무변경을 단언한다.
+  describe("abuse wiring — suspected author volume 감점 / non-suspected 무변경(R-26/R-40)", () => {
+    it("(happy) suspected author 의 단위 volume 이 결정적으로 0 으로 감점된다(repetitionRatio 1.0)", async () => {
+      // 같은 author·동일 titleLength(1, low-volume)·동일 kind 3 건 → repetitionRatio 1.0,
+      // suspected=true. scoring volume 은 100 으로 통제 → floor(100*(1-1))=0 으로 감점.
+      const scoring = makeScoringServiceWithVolume(100);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = suspectedCommits("abuser", 3);
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(3);
+      // suspected → 전 단위 volume 0 으로 감점(결정적).
+      expect(results.map((r) => r.volume)).toEqual([0, 0, 0]);
+    });
+
+    it("(happy) non-suspected author 의 단위 volume 은 무변경 passthrough 다", async () => {
+      // 단일 author 단일 단위(unitCount 1 < MIN_UNITS_FOR_SUSPICION) → suspected=false.
+      const scoring = makeScoringServiceWithVolume(42);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({ externalId: "clean-1", author: "honest" }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      // suspected 아님 → scoring volume 그대로 보존.
+      expect(results[0].volume).toBe(42);
+    });
+
+    it("(branch a) suspected + non-suspected 혼합 batch → suspected 만 감점, 나머지 무변경", async () => {
+      // abuser: suspectedCommits 3 건(감점), honest: 큰 titleLength 단일 단위(무변경).
+      const scoring = makeScoringServiceWithVolume(50);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        ...suspectedCommits("abuser", 3),
+        githubActivity({
+          externalId: "honest-1",
+          author: "honest",
+          metadata: { titleLength: 80 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // 순서 보존 — 앞 3 건 abuser(감점 0), 마지막 honest(무변경 50).
+      expect(results.map((r) => r.volume)).toEqual([0, 0, 0, 50]);
+    });
+
+    it("(branch b) 전 author 가 non-suspected → 전 단위 volume 무변경", async () => {
+      // 서로 다른 author 의 high-volume 단위들(반복 0) → suspected 0.
+      const scoring = makeScoringServiceWithVolume(77);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "h1",
+          author: "alice",
+          metadata: { titleLength: 50 },
+        }),
+        confluenceActivity({
+          externalId: "h2",
+          author: "bob",
+          metadata: { titleLength: 60 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results.map((r) => r.volume)).toEqual([77, 77]);
+    });
+
+    it("(branch c) dedup 으로 일부 제거된 batch → detection 이 dedup 후 입력 위에서 동작", async () => {
+      // 동일 unitId 중복 2 건 + 별개 단위 → dedup 후 2 건. detection 은 dedup 후 입력(2 건)
+      // 으로 신호 산출. 두 단위는 같은 author·동일 low-volume·동일 kind → suspected.
+      const scoring = makeScoringServiceWithVolume(30);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "dup",
+          author: "abuser",
+          kind: "commit",
+          timestamp: "2026-08-02T00:00:00Z",
+          metadata: { titleLength: 1 },
+        }),
+        githubActivity({
+          externalId: "dup",
+          author: "abuser",
+          kind: "commit",
+          timestamp: "2026-08-01T00:00:00Z", // earliest 보존 → 중복 1 건 제거
+          metadata: { titleLength: 1 },
+        }),
+        githubActivity({
+          externalId: "other",
+          author: "abuser",
+          kind: "commit",
+          timestamp: "2026-08-03T00:00:00Z",
+          metadata: { titleLength: 1 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // dedup 후 2 건 → 둘 다 suspected 감점(repetitionRatio 1.0 → volume 0).
+      expect(results).toHaveLength(2);
+      expect(results.map((r) => r.volume)).toEqual([0, 0]);
+    });
+
+    it("(branch d) repetitionRatio 1.0 경계 → 전량 감점(floor(volume*(1-1))=0)", async () => {
+      // 전 단위 동일 low-volume 반복 → repetitionRatio 1.0 → 가장 강한 감점.
+      const scoring = makeScoringServiceWithVolume(99);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = suspectedCommits("ratio-one", 4);
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results.map((r) => r.volume)).toEqual([0, 0, 0, 0]);
+    });
+
+    it("(branch d) repetitionRatio 0 경계(반복 0) → suspected 0, 무변경", async () => {
+      // 같은 author 2 단위지만 titleLength 가 서로 달라 (kind, volume) 반복 0 →
+      // repetitionRatio 0 → suspected false → 무변경.
+      const scoring = makeScoringServiceWithVolume(55);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "v-a",
+          author: "varied",
+          kind: "commit",
+          metadata: { titleLength: 1 },
+        }),
+        githubActivity({
+          externalId: "v-b",
+          author: "varied",
+          kind: "commit",
+          metadata: { titleLength: 2 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results.map((r) => r.volume)).toEqual([55, 55]);
+    });
+  });
+
+  describe("abuse wiring — error path / negative cases(예외 분기마다 cover)", () => {
+    it("(error) scoring reject 시 abuse adjust 미실행 + error 전파(§2 실패 격리)", async () => {
+      // suspected 구성이어도 scoring 단계 reject 면 adjust 자리에 도달 0 — error 전파.
+      const scoring = makeScoringServiceWithVolume(100);
+      const boom = new Error("LLM HTTP 호출 실패 (status: 500)");
+      scoring.scoreUnit
+        .mockResolvedValueOnce(resultWithVolume("ok", 100))
+        .mockRejectedValueOnce(boom);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = suspectedCommits("abuser", 2);
+
+      await expect(
+        orchestrator.evaluateActivities(activities, OPTIONS),
+      ).rejects.toThrow(boom);
+      // 두 번째 단위에서 throw → scoring 2 회 시도, adjust 도달 0(부분 결과 위장 0).
+      expect(scoring.scoreUnit).toHaveBeenCalledTimes(2);
+    });
+
+    it("(error/negative i) 빈 Activity[] → 빈 EvaluationResult[](helper 빈 입력 통과)", async () => {
+      const scoring = makeScoringServiceWithVolume(10);
+      const orchestrator = makeOrchestrator(scoring);
+
+      const results = await orchestrator.evaluateActivities([], OPTIONS);
+
+      expect(results).toEqual([]);
+      expect(scoring.scoreUnit).not.toHaveBeenCalled();
+    });
+
+    it("(negative ii) 단일 author 단일 단위(suspected=false) → 무변경", async () => {
+      const scoring = makeScoringServiceWithVolume(7);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({ externalId: "solo", author: "solo-dev" }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].volume).toBe(7);
+    });
+
+    it("(negative iii) 동일 author 다수 단위 → 전부 동일 규칙(suspected 시 전 단위 감점)", async () => {
+      const scoring = makeScoringServiceWithVolume(60);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = suspectedCommits("multi", 5);
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results).toHaveLength(5);
+      // 전 단위 동일 감점 규칙 적용(repetitionRatio 1.0 → 전부 0).
+      expect(results.every((r) => r.volume === 0)).toBe(true);
+    });
+
+    it("(negative iv) suspected author 의 volume 이 이미 0 → FLOOR 0 유지(무음수)", async () => {
+      // scoring volume 0 인 suspected 단위 → floor(0*(1-ratio))=0, FLOOR 절하로 0 유지.
+      const scoring = makeScoringServiceWithVolume(0);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = suspectedCommits("zero-vol", 3);
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      expect(results.map((r) => r.volume)).toEqual([0, 0, 0]);
+    });
+
+    it("(negative v) entries 순서 = scoring 결과 순서 정합(매핑 misalignment 회귀 방어)", async () => {
+      // 각 단위에 unitId 별 고유 volume 을 부여해 author↔result 매핑 misalignment 를 잡는다.
+      // honest author(non-suspected) 단위들이라 volume 무변경 → unitId 순서와 volume 순서가
+      // 입력 순서를 그대로 따라야 한다.
+      const volumeByUnit: Record<string, number> = {
+        "github:com/sec:m-1": 11,
+        "github:com/sec:m-2": 22,
+        "confluence:wiki:m-3": 33,
+      };
+      const scoring = {
+        scoreUnit: jest
+          .fn()
+          // eslint-disable-next-line @typescript-eslint/require-await
+          .mockImplementation(async (input: { unitId: string }) =>
+            resultWithVolume(input.unitId, volumeByUnit[input.unitId]),
+          ),
+      };
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "m-1",
+          author: "a1",
+          metadata: { titleLength: 40 },
+        }),
+        githubActivity({
+          externalId: "m-2",
+          author: "a2",
+          metadata: { titleLength: 40 },
+        }),
+        confluenceActivity({
+          externalId: "m-3",
+          author: "a3",
+          metadata: { titleLength: 40 },
+        }),
+      ];
+
+      const results = await orchestrator.evaluateActivities(
+        activities,
+        OPTIONS,
+      );
+
+      // unitId 와 volume 이 같은 단위에 짝지어진 채 입력 순서로 반환(매핑 정합).
+      expect(
+        results.map((r) => ({ unitId: r.unitId, volume: r.volume })),
+      ).toEqual([
+        { unitId: "github:com/sec:m-1", volume: 11 },
+        { unitId: "github:com/sec:m-2", volume: 22 },
+        { unitId: "confluence:wiki:m-3", volume: 33 },
+      ]);
+    });
+  });
+
+  describe("abuse wiring — 결정성 / 비변형 단언", () => {
+    it("(결정성) 동일 입력 2 회 호출 → 동일 출력(toEqual, deterministic adjust)", async () => {
+      const activities: Activity[] = [
+        ...suspectedCommits("abuser", 3),
+        githubActivity({
+          externalId: "honest-x",
+          author: "honest",
+          metadata: { titleLength: 70 },
+        }),
+      ];
+
+      const first = await makeOrchestrator(
+        makeScoringServiceWithVolume(88),
+      ).evaluateActivities(activities, OPTIONS);
+      const second = await makeOrchestrator(
+        makeScoringServiceWithVolume(88),
+      ).evaluateActivities(activities, OPTIONS);
+
+      expect(first).toEqual(second);
+      // suspected 감점이 결정적으로 반영됐는지도 함께 본다(앞 3 건 0, 마지막 88).
+      expect(first.map((r) => r.volume)).toEqual([0, 0, 0, 88]);
+    });
+
+    it("(비변형) suspected 입력 Activity[] 를 호출 후 변경하지 않는다(deep-equal)", async () => {
+      const scoring = makeScoringServiceWithVolume(100);
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = suspectedCommits("abuser", 3);
+      const snapshot = JSON.parse(JSON.stringify(activities));
+
+      await orchestrator.evaluateActivities(activities, OPTIONS);
+
       expect(activities).toEqual(snapshot);
     });
   });
