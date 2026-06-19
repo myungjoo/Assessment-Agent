@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0527",
-  "backlogNote": "✅ **T-0526 DONE(merge 861dee5, PR #439, reviewer round1 APPROVE, 4-게이트 PASS)** — P5 bullet 102(R-41/REQ-022 update 횟수 중립화) **마무리 배선**: EvaluationOrchestratorService.evaluateActivities 에 computeUpdateCountNeutralization(T-0524 detection)→applyUpdateCountNeutralizationToVolume(T-0525 소비) compose 추가(src/assessment-evaluation/evaluation-orchestrator.service.ts). T-0523 abuse 배선 mirror — 새 알고리즘 0, 검증된 두 순수 helper compose 만. abuse 감점→update-count 중립 순서 고정, net 0(advantage·penalty 둘 다 없음) 보존, 비대상 무변경. impl +47/-12 + R-112 spec(+402 LOC, update-count wiring 3 describe), orchestrator line/branch/func/stmt 100% cov, 전체 jest 5469 green. REQ-022/R-41 layer 완결(detection T-0524 + 소비 T-0525 + 배선 T-0526). **다음**: T-0527 큐잉(planner) — P5 bullet 103(R-37/R-38 zero-contribution 품질 분류) 첫 detection slice: computeContributionQualitySignal 순수 helper(단순 보고·copy-paste 결정적 식별), abuse/update-count detection 패턴 mirror, pr ~240 LOC 2 파일 disjoint. **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·tasksCompleted=518.",
+  "nextTask": "T-0528",
+  "backlogNote": "✅ **T-0527 DONE(merge cbd5232, PR #441, 4-게이트 PASS)** — P5 bullet 103(R-37/R-38 zero-contribution 품질 분류) 첫 **detection slice**: computeContributionQualitySignal 순수 domain helper 신설(src/assessment-evaluation/domain/evaluation-quality-signal.ts) — metadata.titleLength ≤ CONTRIBUTION_QUALITY_TITLE_FLOOR(v1=1) 보수적 휴리스틱으로 zero-contribution 후보를 LLM 무관 결정적 식별, abuse/update-count detection 패턴 mirror(author 그룹핑·등장순서 보존·비변형·throw 0). **다음**: T-0528 큐잉(planner) — bullet 103 **소비 slice** applyContributionQualityFloor 순수 helper(T-0527 ContributionQualitySignal 소비해 신호 대상 단위의 EvaluationResult.contribution 을 'zero' 로 결정적 floor 강등, T-0525 applyUpdateCountNeutralizationToVolume mirror 하되 대상 필드가 volume→contribution). pr ~240 LOC 2 파일 disjoint(src/assessment-evaluation/domain/evaluation-quality-adjust.ts/.spec). 그 다음 후속: orchestrator 배선(T-0526 mirror). **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-local-1615-a7f3",
-    "since": "2026-06-19T16:05:34Z",
-    "note": "cron@aa-local-1615-a7f3 (로컬 aa-local-15 schedule cron fire, :15 무렵 trigger — 정각 회피로 동시 loop/cloud schedule 과 충돌 최소화) — T-0526 실행 fire. fresh checkout 1f1f374→reset origin/main 9a310ec(T-0526 큐잉)→merge 후 861dee5. server-time 2026-06-19T16:05:34Z(GitHub API Date header). 진입 시 lock free(tombstone), claims 빈배열, nextTask=T-0526. gh 인증 OK(account myungjoo). fineGrainedConcurrency=true stage5b: active claim 0<2 → T-0526(pr) 단독 select-claim(claims.json 박제 16:05:34Z, lock tombstone 동반 즉시 release). executor lock-free 진행 → claude/T-0526-update-count-wiring → implementer(+47/-12) + tester(orchestrator 100% cov, jest 5469 green) → PR #439 → reviewer round1 APPROVE → 4-게이트 PASS → squash merge 861dee5. 본 bookkeeping(direct doc commit) 후 claim release(claims.json 비움). post-merge main CI(861dee5) in_progress — 다음 fire [1] 재확인(R-114 위임). 단일 active driver, race 0."
+    "session": "cron@aa-local-1637-b8e2",
+    "since": "2026-06-19T16:38:58Z",
+    "note": "cron@aa-local-1637-b8e2 (로컬 aa-local schedule cron fire, :37 무렵 trigger — 정각 회피로 동시 loop/cloud schedule 과 충돌 최소화) — T-0527 실행 fire. fresh checkout 9a310ec→ff origin/main 0572925(T-0526 double-claim 박제 후속) 후 cbd5232. server-time 2026-06-19T16:38:58Z(GitHub API Date header). 진입 시 lock free(tip 5bb5df8 tombstone), claims 빈배열, currentTask null, nextTask=T-0527. gh 인증 OK(account myungjoo). R-114 보강: 직전 main(0572925) post-merge CI run conclusion=success 재확인. fineGrainedConcurrency=true stage5b: active claim 0<2 → reclaim no-op → validate-claim-candidate T-0527 PASS → select-claim T-0527(pr 단독, claims.json 박제 16:38:58Z + lock tombstone 동반 즉시 release, tip 5bb5df8→ef79301). executor lock-free 진행 → claude/T-0527-evaluation-contribution-quality-signal → implementer(+195/-0) + tester(신규 파일 100% cov, jest 5500 green) → commit 5bb0275 push → PR #441 → reviewer round1 APPROVE(2 NIT 비차단) → 4-게이트 PASS → squash merge cbd5232. 본 bookkeeping(direct doc commit) 후 claim release(claims.json 비움). post-merge main CI(cbd5232) in_progress — 다음 fire [1] 재확인(R-114 위임). 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-19T16:30:00Z",
-  "lastCommit": "861dee5",
+  "lastActivity": "2026-06-19T16:42:00Z",
+  "lastCommit": "cbd5232",
   "mostRecentTasks": [
+    "T-0527",
     "T-0526",
     "T-0525",
     "T-0524",
-    "T-0523",
-    "T-0522"
+    "T-0523"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-19T16:20:19Z",
+    "lastRun": "2026-06-19T16:42:00Z",
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "PR #439(T-0526) CI conclusion=success → 4-게이트(reviewer.APPROVE+comment 외부 존재+integrator self-check+CI green) PASS → squash merge 861dee5. post-merge main CI(861dee5 run) 는 본 fire 시점 in_progress — R-114 in_progress 위임으로 다음 fire [1] 에서 conclusion 재확인. 직전 main(9a310ec) CI 는 success."
+    "note": "PR #441(T-0527) CI(push run 5bb0275 pull_request event) conclusion=success → 4-게이트(reviewer.APPROVE+comment 외부 존재+integrator self-check+CI green) PASS → squash merge cbd5232. post-merge main CI(cbd5232 push run) 는 본 fire 시점 in_progress — R-114 in_progress 위임으로 다음 fire [1] 에서 conclusion 재확인. 직전 main(0572925) post-merge CI 는 success 재확인."
   },
   "reviewRounds": {
+    "T-0527": 1,
     "T-0526": 1,
     "T-0524": 1,
     "T-0523": 1,
@@ -968,7 +969,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 518,
+    "tasksCompleted": 519,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

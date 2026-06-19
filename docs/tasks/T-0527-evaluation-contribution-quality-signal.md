@@ -2,7 +2,7 @@
 id: T-0527
 title: 기여 품질 분류 detection 순수 helper computeContributionQualitySignal 추가 (R-37/R-38 zero-contribution 식별)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
