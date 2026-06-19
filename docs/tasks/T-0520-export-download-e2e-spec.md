@@ -2,7 +2,11 @@
 id: T-0520
 title: export full-record download endpoint live-DB e2e-spec 추가
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 56d7c9b
+prNumber: 433
+reviewRounds: 2
+completedAt: 2026-06-19T11:01:13Z
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 260
