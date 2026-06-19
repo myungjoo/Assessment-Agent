@@ -34,6 +34,14 @@
 //     exportJob/llmProviderConfig 를 deleteMany 한 뒤 truncateAll 을 호출한다.
 //     ExportJob → User 는 onDelete: Restrict 라 User truncate 전에 ExportJob 를 먼저
 //     비워야 CASCADE 충돌이 없다.
+//   - 🔥 actor re-seed (T-0520 round 2 — FK seed 순서 결함 수정): permission-denied
+//     e2e 와 달리 본 endpoint 는 ExportJob.requestedById → User.id (onDelete: Restrict)
+//     FK 가 actor User row 의 실 존재를 요구한다. truncateAll 이 "User" 테이블을 동반
+//     truncate 하므로 첫 test 후 actor User 가 사라져, 다음 test 의 POST /api/admin/export
+//     (createExportJob) 가 FK 위반 (ExportJob_requestedById_fkey) 으로 500. 따라서
+//     afterEach 는 truncate 후 beforeAll 의 actor User 2종을 동일 id/email/role 로 재
+//     seed 한다 — JWT sub claim (= 원 User id) 이 그대로 유효하고 FK 대상이 매 test 직전
+//     존재한다 (token 재발급 불요).
 //
 // 실 DB 미가용 환경 (로컬 — DATABASE_URL 부재) 에서는 CI 에서만 실행 (다른 e2e 동일).
 // 본 spec 은 CI 의 `pnpm test:e2e` step 에서 자동 실행 (test/jest-e2e.json 의 testRegex
@@ -62,18 +70,39 @@ describe("E2E: GET /api/admin/export/:id/download full-record download (T-0520)"
   // RBAC actor token — Admin (full-record download 통과) / User (403 tier 미달).
   let adminCookie: string;
   let userCookie: string;
+  // actor User row snapshot (id/email/role) — afterEach 의 truncate 후 동일 id 로 재
+  // seed 하기 위해 보관 (ExportJob.requestedById FK 대상이 매 test 직전 존재해야 함).
+  const ADMIN_EMAIL = "export-dl-admin@e2e.test";
+  const USER_EMAIL = "export-dl-user@e2e.test";
+  let actorSnapshots: Array<{
+    id: string;
+    email: string;
+    role: string;
+    hashedPassword: string;
+  }>;
 
   beforeAll(async () => {
     // actor 2 종 seed (Admin / User) — Admin bypass 와 non-Admin 403 분기를 각
     // 적정 role token 으로 exercise. export entity 는 각 test 가 별도 seed.
     ctx = await createAuthenticatedE2EApp([
-      { role: "Admin", email: "export-dl-admin@e2e.test" },
-      { role: "User", email: "export-dl-user@e2e.test" },
+      { role: "Admin", email: ADMIN_EMAIL },
+      { role: "User", email: USER_EMAIL },
     ]);
     app = ctx.app;
     prisma = ctx.prisma;
-    adminCookie = buildAuthCookie(ctx.tokens["export-dl-admin@e2e.test"]);
-    userCookie = buildAuthCookie(ctx.tokens["export-dl-user@e2e.test"]);
+    adminCookie = buildAuthCookie(ctx.tokens[ADMIN_EMAIL]);
+    userCookie = buildAuthCookie(ctx.tokens[USER_EMAIL]);
+    // 원 actor User row 보존 — truncate 후 동일 id/email/role 로 재 seed 할 snapshot.
+    // hashedPassword 는 not-null 컬럼 충족용 placeholder 재사용 (token 은 sub claim 만
+    // 검증, password 무관).
+    actorSnapshots = [ctx.users[ADMIN_EMAIL], ctx.users[USER_EMAIL]].map(
+      (u) => ({
+        id: u.id,
+        email: u.email,
+        role: u.role,
+        hashedPassword: u.hashedPassword,
+      }),
+    );
   });
 
   afterAll(async () => {
@@ -81,14 +110,23 @@ describe("E2E: GET /api/admin/export/:id/download full-record download (T-0520)"
     await prisma.$disconnect();
   });
 
+  // reseedActors — truncate 가 비운 actor User 2종을 동일 id/email/role 로 재 seed.
+  // JWT sub claim (= 원 User id) 이 그대로 유효하므로 token 재발급 불요. createMany 는
+  // 단일 round-trip 으로 2 row 동시 삽입 (FK 대상 복원).
+  async function reseedActors(): Promise<void> {
+    await prisma.user.createMany({ data: actorSnapshots });
+  }
+
   // 각 test 후 정리 — ExportJob 는 User onDelete: Restrict 라 truncateAll (User
   // CASCADE) 전에 먼저 비워야 한다. LlmProviderConfig 는 TRUNCATE_TABLES 미포함이라
-  // 명시 deleteMany. Assessment 는 Person CASCADE 로 truncateAll 이 동반 정리.
+  // 명시 deleteMany. Assessment 는 Person CASCADE 로 truncateAll 이 동반 정리. 마지막에
+  // reseedActors 로 actor User 를 복원해 다음 test 의 createExportJob FK 를 충족시킨다.
   afterEach(async () => {
     await prisma.exportJob.deleteMany();
     await prisma.llmProviderConfig.deleteMany();
     await prisma.assessment.deleteMany();
     await truncateAll(prisma);
+    await reseedActors();
   });
 
   // seedFiveEntities — 5 export entity (Assessment / Person / Group /
