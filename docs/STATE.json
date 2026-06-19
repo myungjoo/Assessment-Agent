@@ -7,16 +7,16 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "✅ **T-0523 DONE(merge 09de457, PR #436, reviewer round1 APPROVE, 4-게이트 PASS)** — P5 bullet 101(abusing 방지 metric R-26/R-40) 마무리: EvaluationOrchestratorService.evaluateActivities 에 computeAbuseSignal(T-0521) + applyAbuseSignalToVolume(T-0522) 두 순수 helper 실배선(dedup 후 detection → scoring → adjust → 결과 반환). 신규 알고리즘 0, compose + 순서 결정만(ADR-0032 §1/§2/§4 정합). impl +41/-11 service + R-112 16 it spec, orchestrator.service.ts 100% cov(line/branch/func/stmt), 전체 jest 5399 green. REQ-012/021/026/040 cover. T-0521 detection→T-0522 소비 helper→T-0523 service-layer 배선으로 abusing metric layer 완결. **후속 미박제(T-0523 Follow-ups)**: abusing v1 baseline tuning(repetitionRatio 임계·감점 곡선 calibration, 실 data 후), R-41(REQ-022) 문서 update 횟수 중립화 규칙, abuse signal 영속화(§5 schema 게이트). nextTask=null → 다음 fire 가 planner dispatch(P5 다른 미박제 항목). standing 게이트(cron backlog 아님): live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·tasksCompleted=515.",
+  "nextTask": "T-0524",
+  "backlogNote": "⏳ **T-0524 QUEUED(planner dispatch, nextTask)** — P5 bullet 102(R-41/REQ-022 문서 update 횟수 중립화) detection slice. computeUpdateCountNeutralization 순수 domain helper(T-0521 computeAbuseSignal 패턴 mirror): 습관적 중간 저장으로 update 횟수만 부푼 문서가 평가 양/점수에 유리하게도 불리하게도 작용하지 않도록(net 0 중립) 결정적 식별 신호 산출. R-41(중립)은 R-26/R-40 abusing(감점)과 의미가 달라 별도 신호로 분리. commitMode pr, dependsOn []·touchesFiles 2 파일(domain ts+spec), est ~160 LOC ≤300 cap. detection layer 만 — orchestrator 배선·volume 중립화는 후속 task. 다음 fire 가 select-claim T-0524 실행. **직전 완료(T-0523 DONE, merge 09de457, PR #436)**: EvaluationOrchestratorService 에 computeAbuseSignal+applyAbuseSignalToVolume 배선으로 abusing metric layer 완결, post-merge main CI green(run 27829582477 success 재확인). standing 게이트(cron backlog 아님): live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·tasksCompleted=515.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-cloud-260619-1337-7e3a",
-    "since": "2026-06-19T13:37:36Z",
-    "note": "cron@aa-cloud-260619-1337-7e3a (Anthropic 클라우드 aa-local schedule cron fire, :37 무렵 trigger — 정각 회피) — T-0523 claim→실행→merge fire. fresh checkout 가 origin/main 52af59a(직전 cron@aa-cloud-1303 의 T-0523 큐잉)로 sync. server-time 2026-06-19T13:37:36Z(GitHub API Date header). fineGrainedConcurrency=true stage5b: lock CAS 획득(5f495fa→dbda13c), reclaim no-op(claims 빈배열), maxConcurrentClaims 게이트 PASS(활성 claim 0<2, pr-mode 단독). select-claim T-0523(claim append + lock tombstone 동반 CAS, claims=[{T-0523,owner=cron@aa-cloud-1337}] → lock-free 진행). executor: src/assessment-evaluation/evaluation-orchestrator.service.ts(+41/-11) 에 computeAbuseSignal(dedup 후)+applyAbuseSignalToVolume(scoring 후) 배선, spec R-112 16 it 추가, orchestrator 100% cov, 전체 5399 green. pr-mode push(claude/T-0523-evaluation-orchestrator-abuse-wiring)→integrator PR #436 open→reviewer round1 APPROVE+comment→4-게이트 PASS→squash 09de457 merge --delete-branch. post-merge main CI(09de457, run 27829582477) in_progress(PR CI 동일 코드 green — 다음 fire conclusion 재확인). T-0523 DONE, nextTask=null→다음 fire planner dispatch. claims.json cleanup(T-0523 제거) 후속. 단일 active driver, race 0."
+    "session": "cron@aa-local-0619-1415-5350",
+    "since": "2026-06-19T14:05:07Z",
+    "note": "cron@aa-local-0619-1415-5350 (aa-local schedule cron fire, :15 무렵 trigger — 정각 회피로 동시 loop/cloud schedule 과 충돌 가능성 최소화) — planner dispatch fire(실행 task 없음). fresh checkout 21e71eb→reset origin/main 12904f2(직전 cron@aa-cloud-1337 의 T-0523 DONE bookkeeping)로 sync. server-time 2026-06-19T14:05:07Z(GitHub API Date header). 진입 시 lock free(tip 47676d9 tombstone holder=''), claims 빈배열, currentTask·nextTask 둘 다 null, open HQ 0·blockers 0. R-114 직전 fire 보강: T-0523 post-merge main CI(09de457, run 27829582477) conclusion=success 재확인. fineGrainedConcurrency=true stage5b 이나 claimable 후보 0(queued task 없음)→ LOOP §1[2] planner-dispatch 경로. lock CAS 획득(47676d9→3e748b0). planner 가 T-0524 큐잉(P5 bullet 102 R-41/REQ-022 update 횟수 중립화 detection 순수 helper computeUpdateCountNeutralization, pr-mode, dependsOn []·2 파일 domain ts+spec, T-0521 패턴 mirror). nextTask=T-0524, currentTask=null. doc-only direct commit(STATE+journal+task 파일) 후 lock tombstone release. 다음 fire 가 select-claim T-0524 실행. 단일 active driver, race 0."
   },
-  "lastActivity": "2026-06-19T13:50:00Z",
-  "lastCommit": "09de457",
+  "lastActivity": "2026-06-19T14:05:07Z",
+  "lastCommit": "12904f2",
   "mostRecentTasks": [
     "T-0523",
     "T-0522",
