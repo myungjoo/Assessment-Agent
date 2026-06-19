@@ -2,7 +2,9 @@
 id: T-0523
 title: EvaluationOrchestratorService 에 abuse signal 소비 배선 (computeAbuseSignal→applyAbuseSignalToVolume)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-19T13:48:24Z
+result: "merge 09de457(PR #436, reviewer round1 APPROVE, 4-게이트 PASS). EvaluationOrchestratorService.evaluateActivities 에 computeAbuseSignal(dedup 후)+applyAbuseSignalToVolume(scoring 후) 배선(compose 만, 신규 알고리즘 0). impl +41/-11 service, R-112 16 it spec, orchestrator.service.ts 100% cov, 전체 jest 5399 green. CI green→squash merge --delete-branch."
 commitMode: pr
 coversReq: [REQ-012, REQ-021, REQ-026, REQ-040]
 dependsOn: []
