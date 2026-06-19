@@ -2,7 +2,7 @@
 id: T-0516
 title: ExportJobService 에 full-record allow-list DB-read 배선 (collectFullExportRecords)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 dependsOn: []
@@ -62,4 +62,9 @@ implementer → tester
 
 ## Follow-ups
 
-(생성 시 비어있음 — sub-agent 가 관련 작업 발견 시 추가)
+- 실 materialization service 함수(`ExportDump` → Node `Readable`, ADR-0046 §Decision1 helper 소비) — 본 `collectFullExportRecords` 가 입력 source.
+- `GET /api/admin/export/:id/download` streaming controller 배선 + repository allow-list full-record DB-query streaming.
+
+## Result (DONE 2026-06-19T06:11Z)
+
+PR #429 squash merge `9d888cd` — reviewer APPROVE round1, 4-게이트 PASS, CI green(run 27809090064). `collectFullExportRecords` 추가(+270 LOC, export-job.service.ts line 98.71%/func 100%/branch 96%, 전체 5285 test green). ADD-only(기존 collectExportRecords/previewSelection 불변), apiKey secret deny projection-only 보존.
