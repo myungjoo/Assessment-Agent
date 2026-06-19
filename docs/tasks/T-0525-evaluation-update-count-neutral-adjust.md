@@ -2,12 +2,16 @@
 id: T-0525
 title: update 횟수 중립화 신호 소비 volume 중립 보존 순수 helper applyUpdateCountNeutralizationToVolume 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-022]
 estimatedDiff: 240
 estimatedFiles: 2
 created: 2026-06-19
+completedAt: 2026-06-19T15:20:50Z
+prNumber: 438
+mergedAs: 2f70aa6
+reviewRounds: 1
 independentStream: evaluation-abuse
 dependsOn: []
 touchesFiles:
