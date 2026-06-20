@@ -2,7 +2,11 @@
 id: T-0546
 title: 미평가 fill batch plan → HTTP 응답 shape 순수 mapper toUnevaluatedFillPlanResponse 추가
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-20T03:59:32Z
+mergedAs: d8c4101
+prNumber: 460
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
