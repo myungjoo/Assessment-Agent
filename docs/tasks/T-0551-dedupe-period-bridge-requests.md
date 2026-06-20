@@ -2,7 +2,11 @@
 id: T-0551
 title: per-좌표 미평가 fill bridge 요청 배열 결정적 중복 제거 순수 helper dedupePeriodBridgeRequests 추가
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: d6045f4
+prNumber: 465
+reviewRounds: 1
+completedAt: 2026-06-20T06:45:00Z
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
