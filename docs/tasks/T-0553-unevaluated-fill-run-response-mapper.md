@@ -2,7 +2,7 @@
 id: T-0553
 title: 미평가 fill batch-run 요약 → HTTP 응답 shape 순수 mapper toUnevaluatedFillRunResponse 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
