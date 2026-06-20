@@ -2,7 +2,7 @@
 id: T-0550
 title: per-좌표 미평가 fill 요청 intent → 기존 bridge 진입점 PeriodBridgeDto 배열 순수 mapper toPeriodBridgeRequests 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
