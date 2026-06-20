@@ -2,7 +2,9 @@
 id: T-0547
 title: 미평가 fill plan controller route 배선 — POST /unevaluated-fill-plan (요청 DTO→mapper→planner→응답 mapper)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-20T04:51:30Z
+resultSummary: "merge 3a7e8e4 (PR #461, 4-게이트 round1 PASS, finding 0). POST /unevaluated-fill-plan thin-delegate route 배선 (production +58 LOC) + R-112 24 test colocated spec. controller 100% cov, 전체 5881 green. 새 dep/ADR/schema/auth 0."
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
