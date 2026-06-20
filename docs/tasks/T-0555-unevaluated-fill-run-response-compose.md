@@ -2,7 +2,10 @@
 id: T-0555
 title: per-좌표 미평가 fill 실행 outcome → controller-facing 응답 shape 순수 compose helper composeUnevaluatedFillRunResponse 추가
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: aa4004d
+prNumber: 469
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
