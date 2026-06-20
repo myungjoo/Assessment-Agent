@@ -2,7 +2,11 @@
 id: T-0545
 title: 미평가 fill 요청 DTO → IntendedPeriodCoordinatesInput 순수 mapper toIntendedPeriodCoordinatesInput 추가
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-20T03:12:00Z
+mergedAs: ffbc8b3
+prNumber: 459
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
