@@ -40,8 +40,10 @@ import { UserModule } from "../user/user.module";
 
 import { AssessmentEvaluationController } from "./assessment-evaluation.controller";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
+import { EvaluationPersistedRecordsReader } from "./evaluation-persisted-records-reader.service";
 import { EvaluationResultPersistService } from "./evaluation-result-persist.service";
 import { EvaluationScoringService } from "./evaluation-scoring.service";
+import { EvaluationUnevaluatedFillPlanner } from "./evaluation-unevaluated-fill-planner.service";
 import { PeriodBridgeAdminPersistService } from "./period-bridge-admin-persist.service";
 import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
 import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
@@ -114,6 +116,16 @@ import { SummaryPersistService } from "./summary-persist.service";
     // 도달 가능성은 본 Admin service 에 국소화된다. 추가 module import 0. 후속 controller
     // slice(slice 3)가 같은 module 내 DI 로 inject 받는다.
     PeriodBridgeAdminPersistService,
+    // EvaluationPersistedRecordsReader — T-0541(REQ-037 detection 사슬의 첫 impure 입력
+    // source). 유일한 생성자 의존 AssessmentService 가 UserModule export(user.module.ts
+    // L174)라 본 module 이 이미 import 중인 UserModule 로 DI resolve 된다(추가 import 0).
+    // T-0543 wiring slice 가 등록 — 후속 orchestrator/controller 소비처가 inject 받는다.
+    EvaluationPersistedRecordsReader,
+    // EvaluationUnevaluatedFillPlanner — T-0542(REQ-037 detection 사슬의 impure compose
+    // 완결). 유일한 생성자 의존 EvaluationPersistedRecordsReader 가 본 task 에서 같은
+    // module 의 provider 가 되므로 같은 module 내 DI 로 resolve 된다(추가 import 0).
+    // T-0543 wiring slice 가 등록 — 후속 orchestrator/controller 소비처가 inject 받는다.
+    EvaluationUnevaluatedFillPlanner,
     // LLM_GATEWAY → LlmHttpGateway useExisting 바인딩. LlmModule 이 등록·export 한
     // LlmHttpGateway singleton 을 그대로 재사용하므로 새 인스턴스 생성 0. interface
     // 가 runtime 소거라 string token 으로 주입을 닫는다.
@@ -139,6 +151,10 @@ import { SummaryPersistService } from "./summary-persist.service";
     // 후속 controller slice(slice 3, POST /api/assessment-evaluation/period Admin 분기)가
     // Admin full-persist bridge service 를 inject 받도록 export(T-0321).
     PeriodBridgeAdminPersistService,
+    // 후속 orchestrator/controller 소비처가 미평가 fill detection 사슬 service 2종을
+    // 다른 module 또는 같은 module DI 로 inject 받도록 export(T-0543 wiring slice).
+    EvaluationPersistedRecordsReader,
+    EvaluationUnevaluatedFillPlanner,
   ],
 })
 export class AssessmentEvaluationModule {}

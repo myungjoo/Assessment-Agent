@@ -98,9 +98,13 @@ import { AssessmentEvaluationModule } from "./assessment-evaluation.module";
 // eslint-disable-next-line import/first
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 // eslint-disable-next-line import/first
+import { EvaluationPersistedRecordsReader } from "./evaluation-persisted-records-reader.service";
+// eslint-disable-next-line import/first
 import { EvaluationResultPersistService } from "./evaluation-result-persist.service";
 // eslint-disable-next-line import/first
 import { EvaluationScoringService } from "./evaluation-scoring.service";
+// eslint-disable-next-line import/first
+import { EvaluationUnevaluatedFillPlanner } from "./evaluation-unevaluated-fill-planner.service";
 // eslint-disable-next-line import/first
 import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
 // eslint-disable-next-line import/first
@@ -172,6 +176,76 @@ describe("AssessmentEvaluationModule", () => {
     const periodBridge = moduleRef.get(PeriodBridgeEphemeralService);
     expect(periodBridge).toBeDefined();
     expect(periodBridge).toBeInstanceOf(PeriodBridgeEphemeralService);
+
+    // EvaluationPersistedRecordsReader(T-0541, REQ-037 detection 사슬의 첫 impure 입력)도
+    // 같은 module 에서 resolve 되며 유일한 생성자 의존 AssessmentService(UserModule export)
+    // 를 본 module 이 이미 import 중인 UserModule 로 DI 주입받는다(provider 등록 누락 시 본
+    // resolve 가 fail — T-0543 wiring 게이트).
+    const reader = moduleRef.get(EvaluationPersistedRecordsReader);
+    expect(reader).toBeDefined();
+    expect(reader).toBeInstanceOf(EvaluationPersistedRecordsReader);
+
+    // EvaluationUnevaluatedFillPlanner(T-0542, REQ-037 detection 사슬의 impure compose
+    // 완결)도 같은 module 에서 resolve 되며 유일한 생성자 의존
+    // EvaluationPersistedRecordsReader(같은 module provider)를 DI 주입받는다(reader 또는
+    // planner 등록 누락 시 본 resolve 가 fail — T-0543 wiring 게이트).
+    const fillPlanner = moduleRef.get(EvaluationUnevaluatedFillPlanner);
+    expect(fillPlanner).toBeDefined();
+    expect(fillPlanner).toBeInstanceOf(EvaluationUnevaluatedFillPlanner);
+
+    await moduleRef.close();
+  });
+
+  // DI 그래프 정합: planner 에 주입된 reader 의존이 같은 module 의 reader provider 와 동일
+  // singleton 인지(NestJS 기본 scope singleton) + reader 가 AssessmentService 의존을 끊김
+  // 없이 resolve 했는지를 박제한다. 이는 단일 negative 가 아닌 두 측면(planner→reader 동일
+  // 인스턴스 / reader→AssessmentService 의존 충족) 각 1+ assertion(T-0543 AC negative).
+  it("planner 의 주입 reader 가 같은 module 의 reader singleton 과 동일하다", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, AssessmentEvaluationModule],
+    }).compile();
+
+    const reader = moduleRef.get(EvaluationPersistedRecordsReader);
+    const fillPlanner = moduleRef.get(EvaluationUnevaluatedFillPlanner);
+
+    // (a) planner 가 unresolved-dependency 로 compile 실패하지 않고 정상 resolve 됐다 —
+    // 같은 module 의 reader provider 가 의존을 닫았다는 증거.
+    expect(fillPlanner).toBeInstanceOf(EvaluationUnevaluatedFillPlanner);
+
+    // (b) NestJS 기본 singleton scope — planner 에 주입된 reader 가 module.get 으로 꺼낸
+    // 동일 reader 인스턴스다(중복 생성 0, 같은 module 내 단일 provider 재사용).
+    expect(
+      (fillPlanner as unknown as { reader: EvaluationPersistedRecordsReader })
+        .reader,
+    ).toBe(reader);
+
+    // (c) reader 가 정상 resolve 됐다는 것은 UserModule import 가 AssessmentService 의존을
+    // 끊김 없이 닫았다는 의미 — import 누락이면 본 resolve 가 unresolved 로 fail 한다.
+    expect(reader).toBeInstanceOf(EvaluationPersistedRecordsReader);
+
+    await moduleRef.close();
+  });
+
+  // exports 정합: reader / planner 가 sentinel 로 override 돼도 module compile — exports
+  // 등록이 정상이라 외부 module 이 inject 가능함의 간접 검증(기존 override 패턴 mirror).
+  it("reader / planner provider 가 sentinel 로 override 되어도 compile 한다", async () => {
+    const readerSentinel = { __sentinel: "persisted-records-reader-override" };
+    const plannerSentinel = { __sentinel: "unevaluated-fill-planner-override" };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, AssessmentEvaluationModule],
+    })
+      .overrideProvider(EvaluationPersistedRecordsReader)
+      .useValue(readerSentinel)
+      .overrideProvider(EvaluationUnevaluatedFillPlanner)
+      .useValue(plannerSentinel)
+      .compile();
+
+    expect(moduleRef.get(EvaluationPersistedRecordsReader)).toBe(
+      readerSentinel,
+    );
+    expect(moduleRef.get(EvaluationUnevaluatedFillPlanner)).toBe(
+      plannerSentinel,
+    );
 
     await moduleRef.close();
   });
