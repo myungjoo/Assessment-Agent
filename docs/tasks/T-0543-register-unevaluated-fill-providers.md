@@ -2,7 +2,9 @@
 id: T-0543
 title: 미평가 fill detection 사슬 service 2종 AssessmentEvaluationModule provider 등록
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-20T02:13:00Z
+result: merge ddea799(PR #457, 4-게이트 round1 PASS) — reader(T-0541)+planner(T-0542) 를 AssessmentEvaluationModule providers/exports 에 등록(+90 LOC module.ts+module.spec). 새 module import/dep/token/query 표면/ADR/schema 0. module spec 4종 assertion(resolve+동일 singleton+exports compile). 전체 244 suite/5812 green·lint/build·cov threshold 통과. detection 사슬 class-complete+DI-wired 완결.
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
