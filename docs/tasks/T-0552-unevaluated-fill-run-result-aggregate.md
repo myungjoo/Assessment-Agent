@@ -2,8 +2,12 @@
 id: T-0552
 title: per-좌표 미평가 fill 실행 결과 → batch-run 요약 shape 결정적 집계 순수 helper aggregateUnevaluatedFillRunResult 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 3d95ab1
+prNumber: 466
+reviewRounds: 1
+completedAt: 2026-06-20T07:25:30Z
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
 independentStream: evaluation-coverage-gap
