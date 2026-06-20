@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0554",
-  "backlogNote": "✅ **T-0553 DONE(merge 98a25d0, PR #467, 4-게이트 round1 PASS, finding 0)** — P5 bullet 106(R-64/REQ-037·REQ-038 \"평가 없는 부분 일괄 평가\") plan→execute 전이 **출력-side 2번째 순수 조각**: batch-run 요약 도메인 타입 `UnevaluatedFillRunResult` → controller-facing 안정 HTTP 응답 shape `UnevaluatedFillRunResponse` 로 직렬화하는 dependency-free 순수 mapper `toUnevaluatedFillRunResponse` 추가 (src/assessment-evaluation/dto/unevaluated-fill-run-response.mapper.ts, +152 LOC). 집계 필드(total/evaluated/skipped/failedCount/totalEvaluatedRecords) passthrough 전사 + outcomes 새 배열 map(입력 비변형·순서 보존·periodStart string passthrough 직렬화 0), status union 은 도메인 UnevaluatedFillRunStatus import 재사용, result null/undefined·outcomes non-array·원소 null/undefined·result non-object fail-fast(한국어 TypeError 인덱스). @Injectable/NestJS/Prisma/LLM/class-validator import 0. spec colocated(happy[혼합 status 전사·순서·periodStart echo]/error[result null/undefined·outcomes null/undefined·non-array(객체/string)·result non-object·원소 null/undefined 인덱스]/branch[빈 outcomes·evaluatedCount 설정/미설정·reason 설정/미설정]/비변형 새-배열 참조) — 신규 파일 stmt/branch/func/line 100%, 전체 252 suite/5987 test green, global threshold(line≥80% AND func≥80%) 통과, lint/build/cov clean. 새 dep/ADR/schema/auth 0. reviewer round1 APPROVE(finding 0). T-0546(plan→response) 출력-side 대칭 짝 — 입력-side 3조각(T-0549·T-0550·T-0551) + 출력-side 2조각(T-0552 집계·T-0553 응답 mapper) 박제. **다음 T-0554**: 입력-side 3조각(flatten/bridge-map/dedup)을 1 deterministic step 으로 묶는 compose-only 순수 helper `composeUnevaluatedFillBridgeRequests`(T-0540 detection-chain compose 대칭, pr, ~230 LOC/2 파일). orchestrator 실배선·fresh-collect·LLM·controller route 는 live-LLM standing 게이트(ADR-0045) 뒤 impure slice 로 deferred. **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만, 만료 2026-06-30), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0.",
+  "nextTask": "T-0555",
+  "backlogNote": "✅ **T-0554 DONE(merge 0652e65, PR #468, 4-게이트 round1 PASS, finding 0)** — P5 bullet 106(R-64/REQ-037·REQ-038 \"평가 없는 부분 일괄 평가\") plan→execute 전이 **입력-side compose-only 순수 조각**: 미평가 fill batch plan → 중복 제거된 PeriodBridgeDto[] 로 잇는 dependency-free 순수 compose helper `composeUnevaluatedFillBridgeRequests` 추가 (src/assessment-evaluation/domain/evaluation-unevaluated-fill-bridge-requests.ts, production +90 LOC, spec +332 LOC). 입력-side 3조각(T-0549 flatten/T-0550 bridge-map/T-0551 dedup)을 build→toBridge→dedup 순서로 합성(중간 가공 0·새 타입 0·plan 비변형·첫 조각 fail-fast 자연 전파). @Injectable/NestJS/Prisma/LLM/class-validator 런타임 0. spec colocated(happy[중복 제거 동일성·4축 일치·reevaluate undefined·first-wins 순서·무중복 totalGapCount]/error[plan null/undefined·batches non-array·periodStart Invalid/비-Date]/branch[빈·중복·무중복 plan 대표 case]/negative[non-object·batches null·묶음 원소 null·periods non-array·좌표 null·type mismatch, 함수명 prefix 단언]/비변형) — 신규 파일 stmt/branch/func/line 100%, 전체 253 suite/6011 test green, global threshold(line≥80% AND func≥80%) 통과, lint/build/cov clean. 새 dep/ADR/schema/auth 0. reviewer round1 APPROVE(finding 0). T-0540 detection-chain compose 의 입력-side 실행 대칭 짝 — 입력-side 3조각(T-0549·T-0550·T-0551)+compose(T-0554) + 출력-side 2조각(T-0552 집계·T-0553 응답 mapper) 박제. **다음 T-0555**: per-좌표 미평가 fill 실행 outcome → controller-facing 응답 shape compose 순수 helper `composeUnevaluatedFillRunResponse`(출력-side 집계 T-0552 + 직렬화 T-0553 2조각을 1 deterministic step, T-0554 입력-side 의 출력-side 대칭, pr, ~200 LOC/2 파일). orchestrator 실배선·fresh-collect·LLM·controller route 는 live-LLM standing 게이트(ADR-0045) 뒤 impure slice 로 deferred. **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만, 만료 2026-06-30), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-local-0620-0737-d4a1",
-    "since": "2026-06-20T07:37:32Z",
-    "note": "cron@aa-local-0620-0737-d4a1 (aa-local-scheduled schedule cron fire, 07:37Z, 매시 30분대 충돌-회피 trigger, Windows local checkout) — T-0553 claim·실행·DONE merge 98a25d0(PR #467, 4-게이트 round1 PASS, finding 0) + T-0554 planner 큐잉 fire. 진입: HEAD=666b3b8(stale) → git reset --hard origin/main(처음 3dc6042 T-0552 bookkeeping, executor merge 후 98a25d0). server-time 2026-06-20T07:37:32Z(GitHub API Date 헤더). gh 인증 OK(account myungjoo, keyring). 직전 fire 위임분 main CI 재확인(R-114): T-0552(PR #466 3d95ab1) — PR CI success 확인됨(post-merge main run 은 본 fire 진입 시 origin/main=3dc6042 정상, 그 직후 T-0553 merge 로 98a25d0 전진). humanQuestions 34건 전원 resolved·blockers 0. fineGrainedConcurrency=true stage5b: lock free(tip 8ba97b8 tombstone holder=\"\")·claims 빈배열·active claim 0<2 → raw git push --force-with-lease lock CAS 획득(8ba97b8→45c254d, git plumbing hash-object+mktree+commit-tree) → reclaim no-op(claims [], RECLAIM_NOW=2026-06-20T07:37:32Z server-time 주입, 회수 대상 없음) → validate-claim-candidate T-0553 PASS(touchesFiles disjoint·dependsOn []) → maxConcurrentClaims gate 0<2 PASS(pr-mode 단독, active==0) → select-claim T-0553(claim+tombstone 동일 commit release, lock.json tombstone·claims [T-0553]) → executor lock-free(claude/T-0553-unevaluated-fill-run-response-mapper): production +152 LOC(toUnevaluatedFillRunResponse 순수 mapper + UnevaluatedFillRunOutcomeResponse/Response interface) + spec colocated(신규 stmt/branch/func/line 100%, 전체 252 suite/5987 green), lint/build/cov clean, 새 dep/ADR/schema/auth 0 → commit push → PR #467 open(gh) → integrator: reviewer round1 APPROVE(finding 0)+gh pr comment 외부 존재 → CI PR run success(reviewer-approval 게이트 APPROVE comment post 후 re-run green) → 4-게이트 PASS → gh pr merge --squash --delete-branch 98a25d0. claims.json release(T-0553 제거, [] CAS). plan→execute 출력-side 2번째 조각 박제 — 입력-side 3조각(T-0549·T-0550·T-0551) + 출력-side 2조각(T-0552·T-0553). planner: T-0554 큐잉(입력-side 3조각 compose-only 순수 helper composeUnevaluatedFillBridgeRequests, T-0540 대칭). STATE.nextTask=T-0554 + journal append. 본 bookkeeping direct doc commit. post-merge main CI(98a25d0 push run) in_progress → 다음 fire [1] 재확인(R-114 위임).\nPRIOR(T-0552): cron@aa-local-0620-0715-25254 T-0552 DONE merge 3d95ab1(PR #466). plan→execute 출력-side 첫 조각. 4-게이트 round1 PASS."
+    "session": "cron@aa-local-0620-0815-27315",
+    "since": "2026-06-20T08:04:34Z",
+    "note": "cron@aa-local-0620-0815-27315 (aa-local-15 schedule cron fire, 08:04Z, 매시 15분대 충돌-회피 trigger, Windows local checkout) — T-0554 claim·실행·DONE merge 0652e65(PR #468, 4-게이트 round1 PASS, finding 0) + T-0555 planner 큐잉 fire. 진입: HEAD=3dc6042(stale) → git merge --ff-only origin/main(7b124c4, T-0553 bookkeeping; 본 fire 진입 시 origin 이 이미 T-0553 doc commit 까지 전진). server-time 2026-06-20T08:04:34Z(GitHub API Date 헤더). gh 인증 OK(account myungjoo, keyring). 직전 fire 위임분 main CI 재확인(R-114): T-0553(98a25d0 PR #467)·bookkeeping 7b124c4 — gh run list 둘 다 conclusion=success. humanQuestions 34건 전원 resolved·blockers 0. fineGrainedConcurrency=true stage5b: lock free(tip 9daf5ed tombstone holder=\"\")·claims 빈배열·active claim 0<2 → raw git push --force-with-lease lock CAS 획득(9daf5ed→eaceda7, git plumbing hash-object+mktree+commit-tree) → reclaim no-op(claims [], RECLAIM_NOW=2026-06-20T08:04:34Z server-time 주입, 회수 대상 없음) → validate-claim-candidate T-0554 PASS(touchesFiles disjoint·dependsOn []) → maxConcurrentClaims gate 0<2 PASS(pr-mode 단독, active==0) → select-claim T-0554(claim+tombstone 동일 commit release, lock.json tombstone·claims [T-0554]) → executor lock-free(claude/T-0554-unevaluated-fill-bridge-requests-compose): production +90 LOC(composeUnevaluatedFillBridgeRequests 순수 compose helper, 3조각 build→toBridge→dedup 합성) + spec colocated +332 LOC(신규 stmt/branch/func/line 100%, 전체 253 suite/6011 green), lint/build/cov clean, 새 dep/ADR/schema/auth 0 → commit e572a78 push → PR #468 open(gh) → integrator: reviewer round1 APPROVE(finding 0)+gh pr comment 외부 존재 → CI PR run success(reviewer-approval 게이트 green) → 4-게이트 PASS → gh pr merge --squash --delete-branch 0652e65. claims.json release(T-0554 제거, [] CAS 8f718cd→39477b7). plan→execute 입력-side compose 조각 박제 — 입력-side 3조각(T-0549·T-0550·T-0551)+compose(T-0554) + 출력-side 2조각(T-0552·T-0553). planner: T-0555 큐잉(출력-side 집계 T-0552+직렬화 T-0553 2조각 compose-only 순수 helper composeUnevaluatedFillRunResponse, T-0554 출력-side 대칭). STATE.nextTask=T-0555 + journal append. 본 bookkeeping direct doc commit. post-merge main CI(0652e65 push run) in_progress → 다음 fire [1] 재확인(R-114 위임).\nPRIOR(T-0553): cron@aa-local-0620-0737-d4a1 T-0553 DONE merge 98a25d0(PR #467). plan→execute 출력-side 2번째 조각. 4-게이트 round1 PASS."
   },
-  "lastActivity": "2026-06-20T07:52:00Z",
-  "lastCommit": "98a25d0",
+  "lastActivity": "2026-06-20T08:25:00Z",
+  "lastCommit": "0652e65",
   "mostRecentTasks": [
+    "T-0554",
     "T-0553",
     "T-0552",
     "T-0551",
-    "T-0550",
-    "T-0549"
+    "T-0550"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-20T07:52:00Z",
+    "lastRun": "2026-06-20T08:25:00Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "PR #467(T-0553) CI conclusion=success(기본 검사 pass + 배포 산출물 검증 pass — lint/build/web/test+cov/smoke/e2e + reviewer agent approval 검증 step 전부 pass; reviewer-approval 게이트는 APPROVE comment post 후 re-run 으로 green) — 4-게이트 round1 PASS(reviewer APPROVE finding 0 + gh pr comment 외부 존재 + integrator self-check + CI green) → gh pr merge --squash --delete-branch 98a25d0(PR MERGED 07:50:09Z). post-merge main CI(98a25d0 push run) in_progress(본 fire 진입 시점) → 다음 fire [1] 재확인(R-114 위임). 직전 fire 위임분 main CI 재확인(R-114): T-0552(PR #466 3d95ab1) success."
+    "note": "PR #468(T-0554) CI conclusion=success(기본 검사 pass + 배포 산출물 검증 pass — lint/build/web/test+cov/smoke/e2e + reviewer agent approval 검증 step 전부 pass) — 4-게이트 round1 PASS(reviewer APPROVE finding 0 + gh pr comment 외부 존재 + integrator self-check + CI green) → gh pr merge --squash --delete-branch 0652e65. post-merge main CI(0652e65 push run) in_progress(본 fire 진입 시점) → 다음 fire [1] 재확인(R-114 위임). 직전 fire 위임분 main CI 재확인(R-114): T-0553(98a25d0 PR #467)·bookkeeping 7b124c4 둘 다 success."
   },
   "reviewRounds": {
+    "T-0554": 1,
     "T-0553": 1,
     "T-0552": 1,
     "T-0551": 1,
@@ -995,7 +996,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 545,
+    "tasksCompleted": 546,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

@@ -2,7 +2,11 @@
 id: T-0554
 title: 미평가 fill batch plan → 중복 제거된 PeriodBridgeDto[] 순수 compose helper composeUnevaluatedFillBridgeRequests 추가
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-20T08:25:00Z
+mergedAs: 0652e65
+prNumber: 468
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
