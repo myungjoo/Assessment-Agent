@@ -62,11 +62,18 @@ import type { EvaluationResult } from "./domain/evaluation-result";
 import type { EvaluationPersistContext } from "./domain/evaluation-result.persist.mapper";
 import { EvaluateActivitiesDto } from "./dto/evaluate-activities.dto";
 import { PeriodBridgeDto } from "./dto/period-bridge.dto";
+import { UnevaluatedFillPlanRequestDto } from "./dto/unevaluated-fill-plan-request.dto";
+import { toIntendedPeriodCoordinatesInput } from "./dto/unevaluated-fill-plan-request.mapper";
+import {
+  type UnevaluatedFillPlanResponse,
+  toUnevaluatedFillPlanResponse,
+} from "./dto/unevaluated-fill-plan-response.mapper";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import {
   EvaluationResultPersistService,
   type PersistMode,
 } from "./evaluation-result-persist.service";
+import { EvaluationUnevaluatedFillPlanner } from "./evaluation-unevaluated-fill-planner.service";
 import { PeriodBridgeAdminPersistService } from "./period-bridge-admin-persist.service";
 import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
 
@@ -150,6 +157,12 @@ export class AssessmentEvaluationController {
     // NotFoundException(404)을 전파하므로 controller 의 존재 검증 분기 0. test 는
     // mock { findByIdWithIdentities } 주입.
     private readonly personService: PersonService,
+    // EvaluationUnevaluatedFillPlanner — POST /unevaluated-fill-plan 의 위임 대상
+    // (T-0547, REQ-037 미평가 fill detection 사슬의 impure compose 완결, T-0542).
+    // 같은 module(assessment-evaluation.module.ts)이 이미 provider 등록(T-0543)이라
+    // 추가 token / module 배선 변경 0. test 는 jest mock { planUnevaluatedFill } 를
+    // 주입해 실 DB read 0 / 실 네트워크 0 으로 위임 정합만 검증한다.
+    private readonly unevaluatedFillPlanner: EvaluationUnevaluatedFillPlanner,
   ) {}
 
   // POST /api/assessment-evaluation/evaluate — 평가 manual trigger + persist.
@@ -410,5 +423,50 @@ export class AssessmentEvaluationController {
       periodStart: assessment.periodStart.toISOString(),
       created,
     };
+  }
+
+  // POST /api/assessment-evaluation/unevaluated-fill-plan — 미평가 fill 계획 detection
+  // 사슬의 HTTP 진입점(T-0547, PLAN.md P5 bullet 106 / R-64 / REQ-037 "평가 없는 부분
+  // 일괄 평가" / REQ-038). T-0542~T-0546 이 박제·머지한 4 조각(요청 DTO / request mapper /
+  // planner / response mapper)을 하나의 endpoint 로 잇는 **마지막 wiring slice** —
+  // 그동안 HTTP caller 가 0 이던 `planUnevaluatedFill` 의 실 호출 경로를 닫는다.
+  //
+  //   - 200 OK + `UnevaluatedFillPlanResponse`(person 별 미평가 좌표 묶음 + 총 gap 수 /
+  //     person 수, periodStart 는 offset-명시 ISO string 으로 직렬화).
+  //   - controller-scope ValidationPipe(whitelist + forbidNonWhitelisted + transform)가
+  //     `UnevaluatedFillPlanRequestDto` 의 5 축(personIds / period / scope / rangeStart /
+  //     rangeEnd)을 형식만 검증한다(허용 literal 값은 domain helper / service 책임).
+  //   - thin delegate: 분기 / 조립 / dedup / 재정렬 0. `toIntendedPeriodCoordinatesInput`
+  //     (request mapper, string→Date 변환)으로 검증된 DTO 를 planner 입력으로 바꾸고,
+  //     `planUnevaluatedFill` 에 forward 한 뒤, 반환 `UnevaluatedFillBatchPlan` 을
+  //     `toUnevaluatedFillPlanResponse`(response mapper, Date→ISO string)로 직렬화만 한다.
+  //   - service-layer error 는 raw 전파(swallow 0) — request mapper 의 RangeError/
+  //     TypeError(비-ISO range / 비문자열 등), planner reject(reader 의존성 실패 등),
+  //     response mapper 의 TypeError(Invalid Date 직렬화)가 그대로 NestJS 응답에 매핑된다.
+  //
+  // RBAC Admin+(JwtAuthGuard + RolesGuard + @Roles("Admin")) — 기존 `evaluate` route 의
+  // Admin+ 정책을 그대로 mirror 한다(새 auth 결정 0). 미평가 fill 계획은 비용 있는 LLM
+  // round-trip 일괄 평가 사슬의 **진입**이므로 evaluate route 와 동형으로 Admin+ 로 gate
+  // 한다(인증 부재 → 401 / tier 미달 → 403 은 기존 가드 동작에 위임 — controller 추가 분기 0).
+  @Post("unevaluated-fill-plan")
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async planUnevaluatedFill(
+    @Body() dto: UnevaluatedFillPlanRequestDto,
+  ): Promise<UnevaluatedFillPlanResponse> {
+    // 검증된 DTO(string 축) → 도메인 enumeration 입력(Date 축) 변환. rangeStart/rangeEnd
+    // 의 string→Date 변환은 mapper 가 single-source helper(parseKstPeriodInput)로 수행하며,
+    // 형식 위반(@IsISO8601 우회 가정한 edge)은 mapper 의 RangeError/TypeError 가 전파된다.
+    const intended = toIntendedPeriodCoordinatesInput(dto);
+
+    // planner 위임 — 미평가 fill batch plan 을 impure compose(reader read + 순수 compose).
+    // reader 의존성 실패 등의 reject 는 await 가 그대로 throw → raw 전파(swallow 0).
+    const plan =
+      await this.unevaluatedFillPlanner.planUnevaluatedFill(intended);
+
+    // 반환 plan(periodStart Date 축) → HTTP 응답 shape(periodStart ISO string 축) 직렬화.
+    // 재정렬/필터/dedup 0 — planner 의 결정성·순서 정책을 그대로 전파한다.
+    return toUnevaluatedFillPlanResponse(plan);
   }
 }
