@@ -2,7 +2,7 @@
 id: T-0540
 title: 미평가 fill 계획 순수 compose helper composeUnevaluatedFillPlan 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037]
 dependsOn: []
