@@ -2,7 +2,7 @@
 id: T-0539
 title: 영속 평가 레코드를 좌표로 투영하는 순수 helper projectPersistedPeriodCoordinates 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037]
 dependsOn: []
@@ -64,3 +64,12 @@ PLAN.md P5 bullet 106(R-64) "평가 재실행·부분 reset" / [README REQ-037](
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
+
+---
+
+## Result (DONE — 2026-06-20T00:22Z)
+
+- merge: PR #453 squash `659bdd3`, 4-게이트 round1 PASS (reviewer APPROVE finding 0/0/0 + comment 외부 + integrator self-check + CI green).
+- 산출: `src/assessment-evaluation/domain/evaluation-persisted-period-coordinates.ts` (+156) + colocated spec (25 test, 신규 파일 line/branch/func/stmt 100% cov).
+- REQ-037 detection 사슬 순수-domain 입력 3 조각(T-0536 select / T-0538 intended / T-0539 persisted) 모두 닫힘.
+- 후속: T-0540(composeUnevaluatedFillPlan — 4 조각 compose), impure Prisma findByPerson DB-read 배선은 별도 wiring slice.
