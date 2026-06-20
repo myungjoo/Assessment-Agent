@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0548",
-  "backlogNote": "✅ **T-0547 DONE(merge 3a7e8e4, PR #461, 4-게이트 round1 PASS, finding 0)** — P5 bullet 106(R-64/REQ-037·REQ-038 \"평가 없는 부분 일괄 평가\") detection 사슬 **controller route 배선 (wiring slice)**: `AssessmentEvaluationController` 에 `POST /api/assessment-evaluation/unevaluated-fill-plan` thin-delegate route 추가 — `@Body() UnevaluatedFillPlanRequestDto`→`toIntendedPeriodCoordinatesInput`(request mapper, T-0545)→`EvaluationUnevaluatedFillPlanner.planUnevaluatedFill`(T-0542)→`toUnevaluatedFillPlanResponse`(response mapper, T-0546). production +58 LOC(route 메서드 + planner 생성자 주입 1 줄), RBAC 기존 evaluate route Admin+ 정책(JwtAuthGuard+RolesGuard+@Roles Admin) mirror — 새 인증 흐름/권한 모델/secret/dep/ADR/schema/migration 0. spec append(~438 LOC colocated, R-112 24 test: happy/error[planner reject·mapper RangeError·TypeError]/branch[빈 personIds·2 묶음 순서 보존]/negative 6종 + DTO ValidationPipe 9종 + RBAC metadata 단언) — controller 100% line/branch/func cov, 전체 5881 test green·lint/build·cov threshold 통과. production 작아 test bulk 는 task-too-large 아님(files=2 ≤5 cap). reviewer round1 APPROVE(finding 0). detection 사슬 DTO→request mapper→planner→response mapper→controller route 전 조각 머지 완결. **다음**: T-0548 큐잉(REQ-037 detection 사슬 R-113 e2e 닫기 — POST /unevaluated-fill-plan 실 PostgreSQL round-trip + RBAC negative e2e, pr ~250 LOC/1 파일). **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0.",
+  "nextTask": "T-0549",
+  "backlogNote": "✅ **T-0548 DONE(merge c7f3583, PR #462, 4-게이트 round1 PASS, finding 0)** — P5 bullet 106(R-64/REQ-037·REQ-038 \"평가 없는 부분 일괄 평가\") detection 사슬 **R-113 e2e 닫기**: `POST /api/assessment-evaluation/unevaluated-fill-plan` 라우트 실 round-trip e2e (test/e2e/unevaluated-fill-plan.e2e-spec.ts, +293 LOC, production 0) — 인증(JWT Admin) + 실 PostgreSQL 좌표 read + 응답 shape({batches,totalGapCount,personCount}, periodStart ISO offset string) 검증, intended∖persisted 차집합(seed 좌표 gap 제외) 분기 실증. e2e 8 case: happy round-trip / gap 차집합 / 401 무인증 / 403 비-Admin / 400×3(누락·wrong-type·비-ISO) / 빈 personIds 200. 로컬 lint·build·unit(247 suite/5881 test) green, e2e 는 로컬 DATABASE_URL 부재로 CI 전용(R-114 — PR CI test:e2e success). reviewer round1 APPROVE(finding 0). 이로써 detection 사슬 helper→service→request/response mapper→controller route→e2e 전 조각 박제·머지 완결. **다음 T-0549**: detection 사슬을 plan→execute 방향으로 전진시키는 첫 순수-domain 조각 — `UnevaluatedFillBatchPlan` 을 per-좌표 평가 요청 intent 배열로 결정적 평탄화하는 dependency-free 순수 helper `buildUnevaluatedFillRequests`(periodStart 만 formatKstIso 경유, 순서 보존·비변형). orchestrator/bridge 실배선·LLM 경로는 후속 impure slice 로 deferred. pr ~200 LOC/2 파일 disjoint. 새 dep/ADR/schema/migration 0. **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만, 만료 2026-06-30), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-cloud-0620-0437-k9m2",
-    "since": "2026-06-20T04:39:32Z",
-    "note": "cron@aa-cloud-0620-0437-k9m2 (Anthropic 클라우드 fresh checkout schedule cron fire, 04:37Z, 매시 30분대 충돌-회피 trigger) — T-0547 claim·실행·DONE merge 3a7e8e4(PR #461, 4-게이트 round1 PASS, finding 0) + T-0548 planner 큐잉 fire. 진입: fresh checkout HEAD=origin/main 568cb7c(최신, T-0546 bookkeeping). server-time 2026-06-20T04:37:39Z(GitHub API Date 헤더). gh 인증 OK(account myungjoo). 직전 fire 위임분 main CI 재확인: 568cb7c success(run 27859681188) + d8c4101(T-0546) success. fineGrainedConcurrency=true stage5b: lock free(tip 13c4d81 tombstone)·claims 빈배열·active claim 0<2 → raw git push --force-with-lease lock CAS 획득(13c4d81→16cfe15, git plumbing hash-object+mktree+commit-tree) → reclaim no-op(RECLAIM_NOW=2026-06-20T04:39:32Z server-time 주입, 회수 대상 없음) → validate-claim-candidate T-0547 PASS(touchesFiles disjoint·dependsOn []) → maxConcurrentClaims gate 0<2 PASS(pr-mode 단독) → select-claim T-0547(13c4d81→f282d37, claim+tombstone 동일 commit release) → executor lock-free(claude/T-0547-unevaluated-fill-plan-controller-route): production +58 LOC(controller thin-delegate route POST /unevaluated-fill-plan + planner 생성자 주입 1줄) + spec append(~438 LOC colocated, R-112 24 test: happy/error[planner reject·mapper RangeError·TypeError]/branch[빈 personIds·2 묶음 보존]/negative 6+DTO ValidationPipe 9+RBAC metadata), controller 100% cov, 전체 5881 green, lint/build/cov clean, 새 dep/module/ADR/schema/auth 0 → commit 0dab154 push → PR #461 open(gh) → integrator: reviewer round1 APPROVE(finding 0)+gh pr comment 외부 존재(issuecomment-4756511955) → CI PR run success(run 27860597920, 기본 검사+배포 산출물 검증+reviewer agent approval 검증 step, race 없음) → 4-게이트 PASS → gh pr merge --squash --delete-branch 3a7e8e4. claims.json release(f282d37→acad2a3 CAS, []). REQ-037 detection 사슬 controller route 배선 박제 — DTO→request mapper→planner→response mapper→controller 전 조각 머지 완결. planner: T-0548 큐잉(R-113 e2e 닫기). STATE.nextTask=T-0548 + journal append. 본 bookkeeping direct doc commit. post-merge main CI(3a7e8e4 push run 27860690308) pending → 다음 fire [1] 재확인(R-114 위임).\nPRIOR(T-0546): cron@aa-cloud-0337-r8t3 T-0546 DONE merge d8c4101(PR #460). Date→ISO response mapper. 4-게이트 round1 PASS."
+    "session": "cron@aa-local-0620-0505-x7q9",
+    "since": "2026-06-20T05:05:30Z",
+    "note": "cron@aa-local-0620-0505-x7q9 (aa-local-15 schedule cron fire, 05:05Z, 매시 15분대 충돌-회피 trigger, Windows local checkout) — T-0548 claim·실행·DONE merge c7f3583(PR #462, 4-게이트 round1 PASS, finding 0) + T-0549 planner 큐잉 fire. 진입: HEAD=d8c4101(stale) → git merge --ff-only origin/main(1798056, T-0547 bookkeeping). server-time 2026-06-20T05:05:30Z(GitHub API Date 헤더). gh 인증 OK(account myungjoo). 직전 fire 위임분 main CI 재확인(R-114): 3a7e8e4(T-0547) success + 1798056 success. fineGrainedConcurrency=true stage5b: lock free(tip acad2a3 tombstone)·claims 빈배열·active claim 0<2 → raw git push --force-with-lease lock CAS 획득(acad2a3→1bab5ea, git plumbing hash-object+mktree+commit-tree) → reclaim no-op(RECLAIM_NOW=2026-06-20T05:05:30Z server-time 주입, 회수 대상 없음) → validate-claim-candidate T-0548 PASS(touchesFiles disjoint·dependsOn []) → maxConcurrentClaims gate 0<2 PASS(pr-mode 단독) → select-claim T-0548(claim+tombstone 동일 commit release) → executor lock-free(claude/T-0548-unevaluated-fill-plan-e2e): e2e spec 1 파일 +293 LOC(production 0), POST /unevaluated-fill-plan 실 round-trip e2e 8 case(happy/gap 차집합/401·403 RBAC/400×3/빈 personIds), 로컬 lint·build·unit(247 suite/5881) green, e2e=CI 전용(DATABASE_URL 부재) → commit 5b7dec2 push → PR #462 open(gh) → integrator: reviewer round1 APPROVE(finding 0)+gh pr comment 외부 존재(issuecomment-4756568429) → CI PR run success(e2e test step + reviewer agent approval 검증 step 포함, race 없음) → 4-게이트 PASS → gh pr merge --squash --delete-branch c7f3583. claims.json release([] CAS). REQ-037 detection 사슬 R-113 e2e 닫기 — helper→service→request/response mapper→controller route→e2e 전 조각 머지 완결. planner: T-0549 큐잉(plan→execute 전이 첫 순수 helper buildUnevaluatedFillRequests). STATE.nextTask=T-0549 + journal append. 본 bookkeeping direct doc commit. post-merge main CI(c7f3583 push run) pending → 다음 fire [1] 재확인(R-114 위임).\nPRIOR(T-0547): cron@aa-cloud-0437-k9m2 T-0547 DONE merge 3a7e8e4(PR #461). controller route 배선. 4-게이트 round1 PASS."
   },
-  "lastActivity": "2026-06-20T04:51:30Z",
-  "lastCommit": "3a7e8e4",
+  "lastActivity": "2026-06-20T05:18:30Z",
+  "lastCommit": "c7f3583",
   "mostRecentTasks": [
+    "T-0548",
     "T-0547",
     "T-0546",
     "T-0545",
-    "T-0544",
-    "T-0543"
+    "T-0544"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-20T04:51:30Z",
+    "lastRun": "2026-06-20T05:18:30Z",
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "PR #461(T-0547) CI conclusion=success(pull_request run 27860597920 — 기본 검사 + 배포 산출물 검증 + reviewer agent approval 검증 step, 전부 pass) — 4-게이트 round1 PASS(reviewer APPROVE + gh pr comment 외부 존재 issuecomment-4756511955 + integrator self-check + CI green, race 없음) → gh pr merge --squash --delete-branch 3a7e8e4. post-merge main CI(3a7e8e4 push run 27860690308) status=pending — 다음 fire [1] 에서 conclusion 재확인(R-114 위임, CI 는 push 로 trigger 됨). 직전 fire 위임분 main CI 재확인 완료: T-0546(d8c4101) success + 568cb7c success(run 27859681188)."
+    "note": "PR #462(T-0548) CI conclusion=success(pull_request run — e2e test step + 기본 검사 + 배포 산출물 검증 + reviewer agent approval 검증 step, 전부 pass) — 4-게이트 round1 PASS(reviewer APPROVE + gh pr comment 외부 존재 issuecomment-4756568429 + integrator self-check + CI green, race 없음) → gh pr merge --squash --delete-branch c7f3583. post-merge main CI(c7f3583 push run) status=pending — 다음 fire [1] 에서 conclusion 재확인(R-114 위임, CI 는 push 로 trigger 됨). 직전 fire 위임분 main CI 재확인 완료: T-0547(3a7e8e4) success + 1798056 success."
   },
   "reviewRounds": {
+    "T-0548": 1,
     "T-0547": 1,
     "T-0546": 1,
     "T-0545": 1,
@@ -989,7 +990,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 539,
+    "tasksCompleted": 540,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

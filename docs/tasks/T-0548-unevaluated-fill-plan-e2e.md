@@ -2,7 +2,10 @@
 id: T-0548
 title: POST /unevaluated-fill-plan 라우트 e2e 검증 추가
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: c7f3583
+prNumber: 462
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
