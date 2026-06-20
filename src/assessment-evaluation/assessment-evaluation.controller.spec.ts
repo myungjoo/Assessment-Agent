@@ -27,17 +27,21 @@ import type { PersonWithIdentities } from "../user/person.repository";
 import type { PersonService } from "../user/person.service";
 
 import { AssessmentEvaluationController } from "./assessment-evaluation.controller";
+import type { IntendedPeriodCoordinatesInput } from "./domain/evaluation-intended-period-coordinates";
 import type { EvaluationResult } from "./domain/evaluation-result";
+import type { UnevaluatedFillBatchPlan } from "./domain/evaluation-unevaluated-fill-batch-plan";
 import {
   EvaluateActivitiesDto,
   ActivityItemDto,
 } from "./dto/evaluate-activities.dto";
 import { PeriodBridgeDto } from "./dto/period-bridge.dto";
+import { UnevaluatedFillPlanRequestDto } from "./dto/unevaluated-fill-plan-request.dto";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import {
   EvaluationResultPersistService,
   type PersistResult,
 } from "./evaluation-result-persist.service";
+import type { EvaluationUnevaluatedFillPlanner } from "./evaluation-unevaluated-fill-planner.service";
 import type {
   PeriodBridgeAdminPersistResult,
   PeriodBridgeAdminPersistService,
@@ -96,6 +100,15 @@ function makeController(
       throw new Error("evaluate() 는 personService 를 호출하면 안 된다");
     }),
   } as unknown as PersonService;
+  // unevaluatedFillPlanner — evaluate() 경로 test 에서 미사용이라 throw mock 으로 주입.
+  // evaluate() 가 실수로 호출하면 즉시 실패해 격리 위반을 catch 한다.
+  const unevaluatedFillPlanner = {
+    planUnevaluatedFill: jest.fn(() => {
+      throw new Error(
+        "evaluate() 는 unevaluatedFillPlanner 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as EvaluationUnevaluatedFillPlanner;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -103,6 +116,7 @@ function makeController(
       ephemeralBridge,
       adminBridge,
       personService,
+      unevaluatedFillPlanner,
     ),
     evaluateSpy,
     persistSpy,
@@ -158,6 +172,12 @@ function makePeriodController(opts: {
       throw new Error("period() 는 persist 를 호출하면 안 된다");
     }),
   } as unknown as EvaluationResultPersistService;
+  // unevaluatedFillPlanner — period() 경로 test 에서 미사용이라 throw mock.
+  const unevaluatedFillPlanner = {
+    planUnevaluatedFill: jest.fn(() => {
+      throw new Error("period() 는 unevaluatedFillPlanner 를 호출하면 안 된다");
+    }),
+  } as unknown as EvaluationUnevaluatedFillPlanner;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -165,10 +185,136 @@ function makePeriodController(opts: {
       ephemeralBridge,
       adminBridge,
       personService,
+      unevaluatedFillPlanner,
     ),
     generateSpy,
     adminSpy,
     findPersonSpy,
+  };
+}
+
+// makeFillController — POST /unevaluated-fill-plan 전용 controller 빌더. planner 를
+// jest mock 으로 주입하고(실 DB read 0 / 실 네트워크 0), 다른 경로의 collaborator
+// (orchestrator / persist / ephemeral / admin / person)는 throw mock 으로 두어
+// planUnevaluatedFill() 가 실수로 호출하면 catch 한다. plannerSpy 로 위임 인자 / 횟수 /
+// 반환 forward 검증을 enable 한다.
+function makeFillController(
+  plannerImpl: (...args: unknown[]) => Promise<UnevaluatedFillBatchPlan>,
+): {
+  controller: AssessmentEvaluationController;
+  plannerSpy: jest.Mock;
+} {
+  const plannerSpy = jest.fn(plannerImpl);
+  const unevaluatedFillPlanner = {
+    planUnevaluatedFill: plannerSpy,
+  } as unknown as EvaluationUnevaluatedFillPlanner;
+  // 다른 route 의 collaborator 는 fill 경로 test 에서 호출되면 안 되므로 throw mock.
+  const orchestrator = {
+    evaluateActivities: jest.fn(() => {
+      throw new Error(
+        "planUnevaluatedFill() 는 orchestrator 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as EvaluationOrchestratorService;
+  const persistService = {
+    persist: jest.fn(() => {
+      throw new Error("planUnevaluatedFill() 는 persist 를 호출하면 안 된다");
+    }),
+  } as unknown as EvaluationResultPersistService;
+  const ephemeralBridge = {
+    generateEphemeral: jest.fn(() => {
+      throw new Error(
+        "planUnevaluatedFill() 는 ephemeralBridge 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as PeriodBridgeEphemeralService;
+  const adminBridge = {
+    generateAndPersist: jest.fn(() => {
+      throw new Error(
+        "planUnevaluatedFill() 는 adminBridge 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as PeriodBridgeAdminPersistService;
+  const personService = {
+    findByIdWithIdentities: jest.fn(() => {
+      throw new Error(
+        "planUnevaluatedFill() 는 personService 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as PersonService;
+  return {
+    controller: new AssessmentEvaluationController(
+      orchestrator,
+      persistService,
+      ephemeralBridge,
+      adminBridge,
+      personService,
+      unevaluatedFillPlanner,
+    ),
+    plannerSpy,
+  };
+}
+
+// makeFillDto — UnevaluatedFillPlanRequestDto fixture 빌더(유효 base — personIds 2 +
+// 유효 period/scope + 유효 ISO rangeStart/rangeEnd). overrides 로 각 축을 변형한다.
+function makeFillDto(
+  overrides: Partial<UnevaluatedFillPlanRequestDto> = {},
+): UnevaluatedFillPlanRequestDto {
+  return {
+    personIds: ["person-1", "person-2"],
+    period: "week",
+    scope: "commit",
+    rangeStart: "2026-06-01T00:00:00.000Z",
+    rangeEnd: "2026-06-30T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+// makeFillPlan — planner 반환 UnevaluatedFillBatchPlan mock fixture. periodStart 는
+// Date(도메인 컬럼) — controller 가 response mapper 경유로 ISO string 직렬화한다.
+function makeEmptyFillPlan(): UnevaluatedFillBatchPlan {
+  return { batches: [], totalGapCount: 0, personCount: 0 };
+}
+
+// makeTwoBatchFillPlan — person 2 묶음(person-1 좌표 2 + person-2 좌표 1)을 담은 plan.
+// 순서/좌표 보존 검증의 기준값. periodStart 는 Date 축.
+function makeTwoBatchFillPlan(): UnevaluatedFillBatchPlan {
+  return {
+    batches: [
+      {
+        personId: "person-1",
+        periods: [
+          {
+            personId: "person-1",
+            period: "week",
+            scope: "commit",
+            // KST 2026-06-01 00:00(= 2026-05-31T15:00Z) → formatKstIso 직렬화 시
+            // "2026-06-01T00:00:00+09:00".
+            periodStart: new Date("2026-05-31T15:00:00.000Z"),
+          },
+          {
+            personId: "person-1",
+            period: "week",
+            scope: "commit",
+            // KST 2026-06-08 00:00(= 2026-06-07T15:00Z) → "2026-06-08T00:00:00+09:00".
+            periodStart: new Date("2026-06-07T15:00:00.000Z"),
+          },
+        ],
+      },
+      {
+        personId: "person-2",
+        periods: [
+          {
+            personId: "person-2",
+            period: "week",
+            scope: "commit",
+            periodStart: new Date("2026-05-31T15:00:00.000Z"),
+          },
+        ],
+      },
+    ],
+    totalGapCount: 3,
+    personCount: 2,
   };
 }
 
@@ -1579,6 +1725,298 @@ describe("AssessmentEvaluationController.period (RBAC / guard metadata)", () => 
     const guards = Reflect.getMetadata(
       "__guards__",
       AssessmentEvaluationController.prototype.period,
+    ) as unknown[];
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+  });
+});
+
+// =======================================================================
+// POST /api/assessment-evaluation/unevaluated-fill-plan — 미평가 fill plan
+// (T-0547, PLAN.md P5 bullet 106 / R-64 / REQ-037 / REQ-038). thin delegate:
+// 요청 DTO → request mapper(string→Date) → planner → response mapper(Date→ISO).
+// R-112 4 종(happy / error path / branch / negative) + RBAC metadata 단언.
+// =======================================================================
+describe("AssessmentEvaluationController.planUnevaluatedFill (unit — request mapper → planner → response mapper delegation)", () => {
+  // happy: 유효 DTO 입력 시 planner 가 request mapper 산출 IntendedPeriodCoordinatesInput
+  // (personIds/period/scope passthrough + rangeStart/rangeEnd Date 변환)으로 정확히
+  // 호출되고, 반환 plan 이 response mapper 거쳐 응답 shape(periodStart string ISO)로 반환됨.
+  it("유효 DTO 시 planner 를 mapper 산출 IntendedPeriodCoordinatesInput 으로 호출하고 응답 shape 를 반환한다 (happy)", async () => {
+    const { controller, plannerSpy } = makeFillController(async () =>
+      makeTwoBatchFillPlan(),
+    );
+
+    const dto = makeFillDto();
+    const result = await controller.planUnevaluatedFill(dto);
+
+    // planner 위임 — request mapper 산출 IntendedPeriodCoordinatesInput 1 회.
+    // personIds/period/scope 는 passthrough(personIds 는 새 배열로 복사), rangeStart/
+    // rangeEnd 는 parseKstPeriodInput 경유 Date 변환(offset 명시 `...Z` 는 그대로 해석).
+    expect(plannerSpy).toHaveBeenCalledTimes(1);
+    const passed = plannerSpy.mock
+      .calls[0][0] as IntendedPeriodCoordinatesInput;
+    expect(passed.personIds).toEqual(["person-1", "person-2"]);
+    expect(passed.period).toBe("week");
+    expect(passed.scope).toBe("commit");
+    expect(passed.rangeStart).toBeInstanceOf(Date);
+    expect(passed.rangeStart.toISOString()).toBe("2026-06-01T00:00:00.000Z");
+    expect(passed.rangeEnd).toBeInstanceOf(Date);
+    expect(passed.rangeEnd.toISOString()).toBe("2026-06-30T00:00:00.000Z");
+
+    // 응답 shape — response mapper 가 periodStart 를 offset-명시 ISO string 으로 직렬화.
+    expect(result.personCount).toBe(2);
+    expect(result.totalGapCount).toBe(3);
+    expect(result.batches).toHaveLength(2);
+    expect(result.batches[0].personId).toBe("person-1");
+    expect(result.batches[0].periods).toHaveLength(2);
+    expect(typeof result.batches[0].periods[0].periodStart).toBe("string");
+    expect(result.batches[0].periods[0].periodStart).toBe(
+      "2026-06-01T00:00:00+09:00",
+    );
+    expect(result.batches[0].periods[1].periodStart).toBe(
+      "2026-06-08T00:00:00+09:00",
+    );
+    expect(result.batches[1].personId).toBe("person-2");
+  });
+
+  // error path (a): planner reject(예: reader 의존성 실패) → controller 가 raw 전파(swallow 0).
+  it("planner reject 시 controller 가 error 를 raw 전파한다 (error path — planner reject)", async () => {
+    const rawError = new Error("readForPersons failed: DB connection lost");
+    const { controller } = makeFillController(async () => {
+      throw rawError;
+    });
+
+    await expect(controller.planUnevaluatedFill(makeFillDto())).rejects.toBe(
+      rawError,
+    );
+  });
+
+  // error path (b): request mapper 가 던지는 경로 — rangeStart 가 형식 위반(@IsISO8601
+  // 우회 가정한 edge)이면 parseKstPeriodInput 의 RangeError 가 전파되고 planner 미호출.
+  it("rangeStart 형식 위반 시 request mapper RangeError 전파 + planner 미호출 (error path — request mapper)", async () => {
+    const { controller, plannerSpy } = makeFillController(async () =>
+      makeEmptyFillPlan(),
+    );
+
+    await expect(
+      controller.planUnevaluatedFill(
+        makeFillDto({ rangeStart: "not-a-real-date" }),
+      ),
+    ).rejects.toThrow(RangeError);
+    // mapper 가 throw 하면 planner 위임 단계 도달 0.
+    expect(plannerSpy).not.toHaveBeenCalled();
+  });
+
+  // error path (b'): rangeEnd 비-string(type mismatch) → parseKstPeriodInput TypeError 전파.
+  it("rangeEnd 가 비-string 이면 request mapper TypeError 전파 + planner 미호출 (negative — type mismatch)", async () => {
+    const { controller, plannerSpy } = makeFillController(async () =>
+      makeEmptyFillPlan(),
+    );
+
+    await expect(
+      controller.planUnevaluatedFill(
+        makeFillDto({ rangeEnd: 12345 as unknown as string }),
+      ),
+    ).rejects.toThrow(TypeError);
+    expect(plannerSpy).not.toHaveBeenCalled();
+  });
+
+  // flow / branch (a): personIds 빈 배열 DTO → mapper/planner 경유 빈 plan → 빈 batches 응답.
+  // 빈 배열은 정책상 허용(빈 plan 의 자연스러운 흐름) — silent 비정상 진행 아님(도메인 결정성).
+  it("personIds 빈 배열 DTO 는 빈 plan 을 빈 batches 응답으로 반환한다 (branch — 빈 personIds → 빈 응답)", async () => {
+    const { controller, plannerSpy } = makeFillController(async () =>
+      makeEmptyFillPlan(),
+    );
+
+    const result = await controller.planUnevaluatedFill(
+      makeFillDto({ personIds: [] }),
+    );
+
+    // mapper 가 빈 personIds 를 빈 배열로 전사해 planner 에 forward.
+    expect(plannerSpy).toHaveBeenCalledTimes(1);
+    const passed = plannerSpy.mock
+      .calls[0][0] as IntendedPeriodCoordinatesInput;
+    expect(passed.personIds).toEqual([]);
+    // 빈 plan → 빈 응답.
+    expect(result.batches).toEqual([]);
+    expect(result.totalGapCount).toBe(0);
+    expect(result.personCount).toBe(0);
+  });
+
+  // flow / branch (b): batches 2+ 묶음 정상 plan → 응답에 person 묶음 순서 / 좌표 순서 보존.
+  it("batches 2+ 묶음 plan 의 person 묶음 순서 / 좌표 순서를 응답에서 보존한다 (branch — 순서/좌표 보존)", async () => {
+    const { controller } = makeFillController(async () =>
+      makeTwoBatchFillPlan(),
+    );
+
+    const result = await controller.planUnevaluatedFill(makeFillDto());
+
+    // person 묶음 순서 보존(person-1 → person-2).
+    expect(result.batches.map((b) => b.personId)).toEqual([
+      "person-1",
+      "person-2",
+    ]);
+    // person-1 묶음 안의 좌표 순서 보존(periodStart 직렬화 순서).
+    expect(result.batches[0].periods.map((p) => p.periodStart)).toEqual([
+      "2026-06-01T00:00:00+09:00",
+      "2026-06-08T00:00:00+09:00",
+    ]);
+  });
+
+  // negative (thin delegate 비변형): controller 가 planner 반환 plan 을 재정렬 / 필터 없이
+  // response mapper 에만 넘긴다 — planner 호출 인자 = request mapper 산출(가공 0)이고,
+  // 응답의 좌표 묶음 수 / gap 수가 planner 반환 plan 과 1:1(controller 가공 0).
+  it("controller 는 planner 반환 plan 을 재정렬/필터 없이 response mapper 에만 넘긴다 (negative — thin delegate 비변형)", async () => {
+    const plan = makeTwoBatchFillPlan();
+    const { controller, plannerSpy } = makeFillController(async () => plan);
+
+    const result = await controller.planUnevaluatedFill(makeFillDto());
+
+    // planner 는 정확히 1 회 호출되고, 인자는 mapper 산출 외 추가 가공 0.
+    expect(plannerSpy).toHaveBeenCalledTimes(1);
+    // 응답 batches 수 / gap 수 / person 수가 planner 반환 plan 과 1:1(controller 가공 0).
+    expect(result.batches).toHaveLength(plan.batches.length);
+    expect(result.totalGapCount).toBe(plan.totalGapCount);
+    expect(result.personCount).toBe(plan.personCount);
+  });
+
+  // negative: 입력 dto.personIds 비변형 — request mapper 가 새 배열로 복사 전사하므로
+  // controller 호출 후에도 원 dto.personIds 배열이 변형되지 않는다(도메인 helper 안전).
+  it("입력 dto.personIds 를 변형하지 않는다 (negative — input immutability)", async () => {
+    const { controller } = makeFillController(async () => makeEmptyFillPlan());
+    const dto = makeFillDto({ personIds: ["a", "b"] });
+    const snapshot = [...dto.personIds];
+
+    await controller.planUnevaluatedFill(dto);
+
+    expect(dto.personIds).toEqual(snapshot);
+  });
+});
+
+// -----------------------------------------------------------------------
+// UnevaluatedFillPlanRequestDto ValidationPipe negative cases — controller-scope
+// pipe 와 동일 옵션으로 단위 검증(e2e 부재라 DTO decorator 검증). 필수 필드 누락 /
+// wrong type / 비-ISO range / 정의 외 필드 6 종 — 예외 분기마다 cover(단일 negative 금지).
+// -----------------------------------------------------------------------
+describe("UnevaluatedFillPlanRequestDto (ValidationPipe negative cases)", () => {
+  function makePipe(): ValidationPipe {
+    return new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    });
+  }
+
+  const meta = {
+    type: "body" as const,
+    metatype: UnevaluatedFillPlanRequestDto,
+    data: "",
+  };
+
+  const validPayload = {
+    personIds: ["person-1", "person-2"],
+    period: "week",
+    scope: "commit",
+    rangeStart: "2026-06-01T00:00:00.000Z",
+    rangeEnd: "2026-06-30T00:00:00.000Z",
+  };
+
+  it("유효한 DTO 는 통과한다 (sanity — happy)", async () => {
+    const pipe = makePipe();
+    const transformed = await pipe.transform({ ...validPayload }, meta);
+    expect(transformed).toBeInstanceOf(UnevaluatedFillPlanRequestDto);
+    expect(transformed.personIds).toEqual(["person-1", "person-2"]);
+  });
+
+  // 빈 personIds 는 형식상 허용(@ArrayNotEmpty 미적용 — 빈 배열 → 빈 plan 정책).
+  it("personIds 빈 배열은 형식상 통과한다 (branch — 빈 배열 허용, 빈 plan 정책)", async () => {
+    const pipe = makePipe();
+    const transformed = await pipe.transform(
+      { ...validPayload, personIds: [] },
+      meta,
+    );
+    expect(transformed.personIds).toEqual([]);
+  });
+
+  // 필수 필드 누락 → 거부.
+  it.each(["period", "scope", "rangeStart", "rangeEnd"] as const)(
+    "필수 필드 %s 누락 시 ValidationPipe 가 거부한다 (negative — required field missing)",
+    async (field) => {
+      const pipe = makePipe();
+      const payload: Record<string, unknown> = { ...validPayload };
+      delete payload[field];
+      await expect(pipe.transform(payload, meta)).rejects.toThrow();
+    },
+  );
+
+  // personIds 누락 → 거부(@IsArray).
+  it("personIds 누락 시 ValidationPipe 가 거부한다 (negative — required array missing)", async () => {
+    const pipe = makePipe();
+    const payload: Record<string, unknown> = { ...validPayload };
+    delete payload.personIds;
+    await expect(pipe.transform(payload, meta)).rejects.toThrow();
+  });
+
+  // personIds 가 배열 아님 → 거부.
+  it("personIds 가 배열이 아니면 ValidationPipe 가 거부한다 (negative — wrong type, not array)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform({ ...validPayload, personIds: "person-1" }, meta),
+    ).rejects.toThrow();
+  });
+
+  // personIds 원소가 string 아님 → 거부(@IsString({ each: true })).
+  it("personIds 원소가 string 이 아니면 ValidationPipe 가 거부한다 (negative — element wrong type)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform({ ...validPayload, personIds: [123] }, meta),
+    ).rejects.toThrow();
+  });
+
+  // rangeStart 가 비-ISO → 거부(@IsISO8601).
+  it("rangeStart 가 비-ISO 문자열이면 ValidationPipe 가 거부한다 (negative — @IsISO8601 rangeStart)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform({ ...validPayload, rangeStart: "2026-13-99" }, meta),
+    ).rejects.toThrow();
+  });
+
+  // rangeEnd 가 비-ISO → 거부(@IsISO8601).
+  it("rangeEnd 가 비-ISO 문자열이면 ValidationPipe 가 거부한다 (negative — @IsISO8601 rangeEnd)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform({ ...validPayload, rangeEnd: "not-iso" }, meta),
+    ).rejects.toThrow();
+  });
+
+  // 정의 외 추가 필드 → 거부(forbidNonWhitelisted).
+  it("정의되지 않은 추가 필드는 forbidNonWhitelisted 가 거부한다 (negative — extra field)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform({ ...validPayload, rawBody: "긴 raw 본문" }, meta),
+    ).rejects.toThrow();
+  });
+});
+
+// -----------------------------------------------------------------------
+// RBAC metadata 단언 — planUnevaluatedFill() 핸들러에 @Roles("Admin") +
+// @UseGuards(JwtAuthGuard, RolesGuard) 부착 검증(evaluate route mirror — Admin+
+// tier gate). guard 실행 401/403 live 검증은 e2e slice 책임(본 task Out of Scope).
+// -----------------------------------------------------------------------
+describe("AssessmentEvaluationController.planUnevaluatedFill (RBAC / guard metadata)", () => {
+  const reflector = new Reflector();
+
+  it("planUnevaluatedFill 핸들러에 @Roles('Admin') metadata 부착 (Admin+ tier gate)", () => {
+    const roles = reflector.get<string[]>(
+      ROLES_METADATA_KEY,
+      AssessmentEvaluationController.prototype.planUnevaluatedFill,
+    );
+    expect(roles).toEqual(["Admin"]);
+  });
+
+  it("planUnevaluatedFill 핸들러에 @UseGuards(JwtAuthGuard, RolesGuard) 부착 (인증 + RBAC gate)", () => {
+    const guards = Reflect.getMetadata(
+      "__guards__",
+      AssessmentEvaluationController.prototype.planUnevaluatedFill,
     ) as unknown[];
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
   });
