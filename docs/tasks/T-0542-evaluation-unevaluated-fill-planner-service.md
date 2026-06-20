@@ -2,8 +2,11 @@
 id: T-0542
 title: 미평가 fill 계획 impure compose service EvaluationUnevaluatedFillPlanner 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 2ff683a
+mergedPr: 456
+completedAt: 2026-06-20T01:50:00Z
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
 independentStream: evaluation-coverage-gap
