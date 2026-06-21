@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0567",
-  "backlogNote": "⏳ **T-0567 QUEUED(nextTask, commitMode=pr, architect-led ADR-first)** — P5 bullet 106(R-64/REQ-037·038) Q-0045 옵션1 run-side chain LLM config source slice: defaultModelId source 결정 ADR(ADR-0048) 작성 — defaultModelId 를 request body 가 아닌 LlmProviderConfig DB row(ADR-0045 deployment-env config 원칙)에서 해석, 다중 row(REQ-051 3-model slot, @unique 부재)에서 'default row' 결정. dependsOn []·touchesFiles=ADR-0048+deployment.md·production code 0·estimatedDiff ~130. 다음 fire 가 claim-pickup 으로 집어 실행. **직전 완료 T-0566 DONE(merge 30514d8, PR #481, +239 LOC e2e spec)**: slice(3) e2e POST /unevaluated-fill-run(RBAC 401/403 + ValidationPipe 400×4 + fail-fast 500 + 빈-좌표 200 round-trip, LLM 무도달 경로). **chain 남은 후속(T-0567 후)**: 비어있지-않은 좌표의 live-LLM round-trip 1회(LAN=AKIHA 192.168.0.5 Ollama 수동/로컬; cloud cron LAN 무경로, ADR-0045) + ADR-0048 결정 후 defaultModelId resolver 구현 slice. **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0.",
+  "nextTask": null,
+  "backlogNote": "✅ **T-0567 DONE(direct commit, 사용자 명시 override)** — P5 bullet 106(R-64/REQ-037·038) Q-0045 옵션1 run-side chain LLM config source slice: ADR-0048 PROPOSED 신설 (defaultModelId source = LlmProviderConfig row 의 modelId 필드; 단일-row 운용 가정 + 다중-row 분기는 REQ-051 진입 시 후속 ADR 로 deferred; request body 의 defaultModelId 필드 제거 결정; schema migration 0 / 새 env 0 / 새 dependency 0 — CLAUDE.md §5 미발화) + deployment.md '지원 LLM 환경' 단락에 ADR-0048 링크 1 문장 동기. 원래 commitMode=pr (architect-led ADR-first) 였으나 사용자가 본 fire 에 'PR/review 우회 direct commit merge' 명시 override — single direct commit 으로 main 머지(PR 미생성·integrator 미호출). **chain 남은 후속**: (1) ADR-0048 §Decision 1·2 의 단일-row + fail-fast resolver 실구현 (`LlmProviderConfigResolver` @Injectable + spec, R-112 4 종 cover, pr-mode) — 후속 planner-dispatch fire 큐잉, (2) `UnevaluatedFillRunRequestDto.defaultModelId` 필드 제거 + spec/e2e fixture 갱신 (pr-mode), (3) controller wiring 변경 (resolver 호출 + service inject, pr-mode), (4) REQ-051 (custom 3 model 슬롯) 진입 시 다중-row default ADR (별도 chain — 본 시점 미진입). (5) 비어있지-않은 좌표의 live-LLM round-trip 1회(LAN=AKIHA 192.168.0.5 Ollama 수동/로컬; cloud cron LAN 무경로, ADR-0045). **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0.",
   "lock": {
     "holder": "",
-    "session": "cron@aa-local-sched-1737z",
-    "since": "2026-06-21T17:37:19Z",
-    "note": "cron@aa-local-sched-1737z (로컬 schedule cron fire aa-local-scheduled — 매시 30분대 trigger 로 정각 cron@cloud·15분 cron@aa-local-15 발화와 시간대 분리, fresh cloud checkout 진입, 로컬 HEAD=5d196a0 가 origin/main(c5e251e) 보다 뒤처져 git merge --ff-only origin/main sync 후 진행) — **planner-dispatch fire (T-0567 큐잉)**: 진입 시 lock free(tip ab759cb tombstone holder:\"\")·claims=[]·currentTask/nextTask 둘 다 null → LOOP §1[1] lock CAS 획득(observed ab759cb → b923a4b, hash-object+mktree+commit-tree plumbing, claims.json blob 보존, critical section) → §1[2] fineGrainedConcurrency=true 분기: reclaim 무대상(빈 claims no-op) → claimable 후보 0(nextTask null·PENDING task 미큐잉) → planner sub-agent dispatch. planner 가 T-0567 생성(P5 bullet 106 R-64/REQ-037·038 Q-0045 옵션1 run-side chain LLM config source slice: defaultModelId source 결정 ADR(ADR-0048) — defaultModelId 를 request body 가 아닌 LlmProviderConfig DB row 에서 해석, 다중 row 'default' 결정; commitMode=pr·architect-led ADR-first·touchesFiles ADR-0048+deployment.md·dependsOn []·production code 0) + STATE.nextTask=T-0567 갱신. 본 fire 는 planner-dispatch 라 doc-only direct commit(task 파일 + STATE + journal) 후 lock tombstone release 하고 종료 — T-0567 실행은 다음 fire(claim-pickup). cloud cron LAN 무경로라 live-LLM round-trip slice 는 의도적으로 미선정(standing 게이트). server-time 2026-06-21T17:37:19Z(GitHub API Date 헤더). gh CLI 가용(인증됨). 단일 active driver, race 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0·consecutiveFails=0."
+    "session": "cron@claude-cloud-1803z",
+    "since": "2026-06-21T18:03:01Z",
+    "note": "cron@claude-cloud-1803z (Anthropic 클라우드 schedule cron fire — fresh git checkout 진입, 로컬 HEAD=9609db3 = origin/main 으로 sync 이미 일치; main branch 로 switch 후 진행 — feature-branch 라벨 claude/focused-goodall-prrg8j 는 harness 기본 설정이지만 사용자 명시 override 로 main direct commit 채택) — **T-0567 DONE direct commit fire (사용자 명시 override — '문서나 코멘트 변경에 대해서는 PR이나 리뷰 프로세스 없이 direct commit merge')**: 진입 시 lock free(tip b27f183 tombstone holder:\"\")·claims=[]·currentTask null·nextTask=T-0567(직전 cron@aa-local-sched-1737z planner-dispatch 가 큐잉) → LOOP §1[1] lock CAS 획득(observed b27f183 → 54a9a75, hash-object+mktree+commit-tree plumbing, claims.json blob []보존, critical section) → §1[2] 토글 ON 분기 우회 (사용자 override 로 PR/review skip → claim/select+claim/integrator chain 건너뛰고 단일 direct commit 경로) → executor 책임 inline 흡수: ADR-0048 PROPOSED 신설(+296 LOC) + deployment.md 1 문장 동기 + T-0567 task 파일 status=DONE + 본 STATE 갱신 + journal append → 단일 main direct commit. **본 fire 는 사용자 명시 override 로 통상 commitMode=pr 의 PR/review chain 을 우회** — fireOverride=direct 박제, 후속 resolver 구현 slice 는 정식 pr-mode chain 으로 진행. cloud cron LAN 무경로라 live-LLM round-trip slice 는 의도적으로 미선정(standing 게이트). server-time 2026-06-21T18:04:02Z(GitHub API Date 헤더 'Sun, 21 Jun 2026 18:04:02 GMT'). gh CLI 부재(`which gh` exit 1), MCP github tools 가용(본 fire 는 direct commit 만 — MCP 호출 0). 단일 active driver, race 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0·consecutiveFails=0. 본 bookkeeping commit 후 tombstone release."
   },
-  "lastActivity": "2026-06-21T17:37:19Z",
-  "lastCommit": "c5e251e",
+  "lastActivity": "2026-06-21T18:04:02Z",
+  "lastCommit": "9609db3",
   "mostRecentTasks": [
+    "T-0567",
     "T-0566",
     "T-0565",
     "T-0564",
-    "T-0563",
-    "T-0562"
+    "T-0563"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -1025,7 +1025,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 558,
+    "tasksCompleted": 559,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
