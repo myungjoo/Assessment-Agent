@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0565",
-  "backlogNote": "🆕 **T-0565 PENDING 큐잉(planner-dispatch fire 15:04Z, cron@cloud-anth-15255)** — P5 bullet 106(R-64/REQ-037·038) Q-0045 옵션1 run-side chain slice(2) controller route 배선: POST /api/assessment-evaluation/unevaluated-fill-run + 신규 UnevaluatedFillRunRequestDto(rawBridges PeriodBridgeDto[]·modelId?·defaultModelId) + UnevaluatedFillRunOrchestratorService.run(T-0564) 1회 위임 → UnevaluatedFillRunResult(plain JSON-safe) 그대로 반환. RBAC Admin+ mirror(evaluate·unevaluated-fill-plan route 동형 — JwtAuthGuard+RolesGuard+@Roles(\"Admin\")), thin delegate(분기/조립/dedup/response mapper 0). defaultModelId 는 클라이언트 명시 인자(env/LlmProviderConfig source 배선은 후속 slice 분리). commitMode=pr, ~130 LOC/4파일(DTO 신규 1 + DTO spec 신규 1 + controller route+constructor 주입 1줄 + controller spec describe append), R-112 4-카테고리 backbone ×1.5, ADR 불요·새 dep 0·새 module 변경 0·새 auth/schema/query 0. T-0547 plan-side mirror. **chain 남은 후속 slice(T-0565 후)**: (3) e2e(supertest 실 부팅 + 실 PostgreSQL CI service + LAN 수동 live-LLM 1회 round-trip; cloud cron LAN 무경로). LLM config source(defaultModelId env/table) 배선 slice 도 별도 후속(새 config 결정 ADR 후보). ✅ **T-0564 DONE(merge 4325286, PR #479, 4-게이트 round1 PASS, +158 LOC @Injectable orchestrator)**. **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0. 다음 fire 는 nextTask=T-0565(pr-mode 단독) → claim-pickup(stage5b, active claim 0 일 때 가능).",
+  "nextTask": null,
+  "backlogNote": "✅ **T-0565 DONE(merge 372a287, PR #480, 4-게이트 round1 PASS, +141 LOC controller route + run-request DTO)** — P5 bullet 106(R-64/REQ-037·038) Q-0045 옵션1 run-side chain slice(2) controller route 배선: POST /api/assessment-evaluation/unevaluated-fill-run + 신규 UnevaluatedFillRunRequestDto(rawBridges @ValidateNested PeriodBridgeDto[]·modelId?·defaultModelId) + UnevaluatedFillRunOrchestratorService.run(T-0564) 1회 위임 → UnevaluatedFillRunResult(plain JSON-safe) 가공 0 반환. RBAC Admin+ mirror(evaluate·unevaluated-fill-plan route 동형 — JwtAuthGuard+RolesGuard+@Roles(\"Admin\")), thin delegate(분기/조립/dedup/response mapper 0). 신규 route+DTO line/branch/func 100%, 6269 test green, lint/build/test:cov clean. **chain 남은 후속 slice(T-0565 후)**: (3) e2e(supertest 실 부팅 + 실 PostgreSQL CI service + LAN 수동 live-LLM 1회 round-trip; cloud cron LAN 무경로). LLM config source(defaultModelId env/table) 배선 slice 도 별도 후속(새 config 결정 ADR 후보). 이 두 후속은 live-LLM 배선검증(ADR-0045, LAN=AKIHA 192.168.0.5 Ollama 수동/로컬; cloud cron 은 LAN 무경로) 동반 가능 — 빌드/unit 은 mock. **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0. 다음 fire 는 currentTask/nextTask 둘 다 null → planner dispatch(run-side e2e slice(3) 또는 LLM config source slice 또는 gate 판정).",
   "lock": {
-    "holder": "cron",
-    "session": "cron@cloud-anth-15255",
-    "since": "2026-06-21T15:04:30Z",
-    "note": "cron@cloud-anth-15255 (Anthropic 클라우드 cron fire — fresh checkout 15:04Z 진입, 권위 lock branch ref `refs/heads/claude/lock-driver` tip 26cb953 critical section 점유 중 — 본 driver 가 직전에 CAS 획득) — **planner-dispatch fire**: 진입 시 currentTask=null·nextTask=null·claims=[](active claim 0)·open HQ 0·blockers 0·ci.lastConclusion=success → 단일-task 경로 planner sub-agent dispatch 로 진입. planner → T-0565 생성(P5 bullet 106 / R-64 / REQ-037·038 Q-0045 옵션1 run-side chain slice(2): POST /unevaluated-fill-run controller route + 신규 UnevaluatedFillRunRequestDto + UnevaluatedFillRunOrchestratorService.run(T-0564) 1 회 위임. commitMode=pr, ~130 LOC/4파일, T-0547 plan-side mirror, RBAC Admin+ mirror, ADR 불요, 새 dep/module/auth/schema 0) + STATE.nextTask=T-0565. 코드 변경 0(doc-only direct commit: T-0565 task 파일 신설 + STATE.nextTask/backlogNote/lock mirror + 본 journal). 본 bookkeeping commit 후 tombstone release 예정. server-time 2026-06-21T15:04:30Z(GitHub API Date 헤더). 단일 active driver, race 0. 다음 fire 는 nextTask=T-0565 claim-pickup(stage5b, pr-mode 단독 — 활성 claim 0 일 때만)."
+    "holder": "",
+    "session": "cron@aa-local-sched-1538z",
+    "since": "2026-06-21T15:38:08Z",
+    "note": "cron@aa-local-sched-1538z (로컬 schedule cron fire aa-local-scheduled — 매시 30분대 trigger 로 정각 cron@cloud·15분 cron@aa-local-15 발화와 시간대 분리, fresh checkout 진입, 로컬 HEAD=e91e506 가 origin/main(74263da) 보다 뒤처져 git merge --ff-only origin/main sync 후 진행) — **T-0565 DONE 1-task claim-pickup fire(stage5b)**: 진입 시 lock free(tombstone e62aca2)·claims=[]·nextTask=T-0565(cron@cloud-anth-15255 가 직전 planner-dispatch fire 에 큐잉) → LOOP §1[2] fineGrainedConcurrency=true 분기: lock CAS 획득(observed e62aca2 → f4594e4, hash-object+mktree+commit-tree plumbing, critical section) → reclaim(빈 claims no-op, RECLAIM_NOW server-time 15:38:08Z) → maxConcurrentClaims 게이트(active 0 < 2, pr-mode 단독 0 충족) → validate-claim-candidate.sh T-0565 PASS(disjoint·dependsOn []) → select-claim.sh T-0565(claim append + lock tombstone release 동일 commit, claimed 15:38:08Z server-time) → lock-free 진행. executor dispatch(implementer +141 LOC: 신규 UnevaluatedFillRunRequestDto(@ValidateNested rawBridges·modelId?·defaultModelId) + controller route runUnevaluatedFill @Post @HttpCode(200) @UseGuards @Roles(\"Admin\") thin delegate → orchestrator.run 1회 위임 + constructor 주입 1줄, module/dep/schema/auth 0 + tester 신규 spec·신규 route+DTO cov 100%·6269 test green, lint/build/test:cov clean) → feature branch claude/T-0565-unevaluated-fill-run-controller-route push(b51f78a) → integrator PR #480 open + reviewer APPROVE round 1/7(finding 0/비차단, comment 외부 gh) → 4-게이트 PASS(comment-aware rerun CI green) → squash merge 372a287 + branch 삭제. claims.json → [](T-0565 회수 CAS 8941641 → a96ec3f). 본 bookkeeping 은 lock 이미 release 상태에서 doc-only direct commit. server-time 2026-06-21T16:02:22Z(GitHub API Date 헤더). gh CLI 가용(인증됨). 단일 active driver, race 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0·consecutiveFails=0."
   },
-  "lastActivity": "2026-06-21T15:04:30Z",
-  "lastCommit": "4325286",
+  "lastActivity": "2026-06-21T16:02:22Z",
+  "lastCommit": "372a287",
   "mostRecentTasks": [
+    "T-0565",
     "T-0564",
     "T-0563",
     "T-0562",
-    "T-0561",
-    "T-0560"
+    "T-0561"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-21T14:52:34Z",
+    "lastRun": "2026-06-21T16:02:22Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "R-114 carryover 확인 완료(cron@cloud-anth-15255 15:04Z fire): T-0564 merge 4325286 main push CI run 27907942157 conclusion=success(14:49:34Z trigger), 직후 14:52 bookkeeping commit e91e506 main push CI run 27908023242 conclusion=success(14:52:34Z trigger) 두 run 모두 green 재확인(mcp__github__actions_list 직조회). 본 fire 의 doc-only direct commit push 후 main CI 도 trigger 예정 — conclusion 은 다음 fire 가 재확인. consecutiveFails=0 유지."
+    "note": "T-0565 PR #480 CI 는 integrator 4-게이트 (4) 에서 green 확인 후 squash merge 372a287. 첫 pull_request-event run 27909517838 은 reviewer-gate(approval 검증) race 로만 fail, reviewer comment post 후 comment-aware rerun 에서 양 check green — integrator 가 sanctioned `gh run rerun` self-heal 사용(close+reopen 아님). merge 후 main push CI(headSha 372a287) 와 본 fire 의 doc-only direct commit push 후 main CI 는 본 bookkeeping 시점 in_progress 가능 — R-114 CI trigger 는 push 자체로 시작, conclusion 은 다음 fire 가 재확인. consecutiveFails=0 유지."
   },
   "reviewRounds": {
+    "T-0565": 1,
     "T-0564": 1,
     "T-0563": 1,
     "T-0562": 1,
@@ -1023,7 +1024,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 556,
+    "tasksCompleted": 557,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

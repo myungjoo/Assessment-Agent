@@ -2,7 +2,9 @@
 id: T-0565
 title: 미평가 fill run controller route 배선 — POST /unevaluated-fill-run (run-request DTO → orchestrator.run → UnevaluatedFillRunResult)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 372a287
+prNumber: 480
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
