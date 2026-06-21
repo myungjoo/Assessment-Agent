@@ -998,13 +998,14 @@
       "raisedAt": "2026-06-20T09:01:14Z",
       "raisedBy": "planner",
       "reason": "dependency-free-work-exhausted",
-      "status": "OPEN",
+      "status": "RESOLVED",
       "summary": "미평가 fill(R-64/REQ-037·038) plan→execute flow 의 dependency-free 순수 chain 소진. 양방향 compose 진입점(입력 composeUnevaluatedFillBridgeRequests T-0554 + 출력 composeUnevaluatedFillRunResponse T-0555) + plan-side 사슬 POST /unevaluated-fill-plan(T-0547) 모두 완결. 남은 것은 전부 standing 게이트 뒤.",
       "context": "impure orchestrator(dedup'd PeriodBridgeDto[]→per-좌표 fresh-collect→LLM 평가→영속→outcome)는 live-LLM 검증 게이트(ADR-0045, LAN 수동, 만료 2026-06-30) 뒤. POST /unevaluated-fill-run route 는 그 orchestrator 의존. run-request DTO 는 UnevaluatedFillPlanRequestDto(T-0544) near-exact 중복이고 유일 소비처가 gated route 라 speculative(invent 금지). P5 bullet 103·104·105 shipped, 107 DEFERRED(Q-0032). 다른 backlog(P6 frontend partial·timezone Q-0026·ADR-0036 stage5c·import upload gate3) 전부 게이트/사람 결정 뒤.",
       "options": "(1) ADR-0045 live-LLM 게이트를 사람이 수동 검증(LAN)으로 통과시키고 impure run orchestrator + POST /unevaluated-fill-run chain 승인 → planner 가 첫 impure slice 부터 분해. (2) timezone Q-0026 / ADR-0036 stage5c / import upload gate3 중 하나를 다음 우선순위로 사람이 지정. (3) 현 상태 유지(자동 진행 가능한 ungated 작업 없음 — driver no-op stand-down).",
       "resolutionHint": "Q-0040/Q-0042 동형(vein 소진→human-decision 게이트). decision 필드에 선택 옵션 기재 시 다음 planner fire 가 task chain 재개.",
-      "resolvedAt": null,
-      "decision": null
+      "resolvedAt": "2026-06-21T06:41:29Z",
+      "resolvedBy": "human (user via 대화 세션 — '1번 해봐')",
+      "decision": "옵션1 — impure run orchestrator + POST /unevaluated-fill-run chain 승인. 사용자 보고로 게이트 오기재가 정정됨: 본 게이트는 'LLM 가용성' 이 아니라 (B) impure(LLM 호출+영속화) 체인 진행의 사람 승인이 본질이었다(ADR-0045 §Decision3 이 (A) live 배선 검증을 credential 가용성에서 이미 분리·CI skip 옵션화). 사용자가 'LLM server 가 떠 있고 테스트 서버에서 접속·사용 확인' 을 보고 — 이는 (A) 배선 검증을 LAN 머신에서 LLM_LIVE_* env(192.168.0.5 OpenAI-호환 custom 경로)로 1회 round-trip 으로 trivially 충족 가능하게 만들어 '지어도 동작 확인 못 함' 마찰을 제거한다. (단 cloud cron 은 LAN 무경로라 (A) 자율 수행 불가 — 배선 검증은 LAN 내 머신의 로컬 /loop 또는 사람 수동 1회. 코드 빌드 자체는 LLM 가용성 불요.) 진행 방향: planner 가 미평가 fill run-side chain 의 첫 impure slice 부터 분해. CLAUDE.md §5(영속화 경계)+§3.1 rule4 에 따라 — 새 persistence/REQ-032/auth/dep 경계를 새로 도입하면 ADR 선행(pr-mode), 기존 ADR-0037 period→collection→evaluate bridge + 기존 evaluation 영속화 재사용이면 ADR 불요로 바로 구현 slice. 새 외부 dependency 0. run-request DTO(UnevaluatedFillPlanRequestDto near-중복)는 route 승인으로 소비처가 생겨 더 이상 speculative 아님 — route slice 와 함께 박제 허용. nextTask=planner 큐잉 결과로 chain 재개."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
