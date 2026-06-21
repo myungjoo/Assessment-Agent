@@ -1,8 +1,12 @@
 // UnevaluatedFillRunRequestDto — P5 bullet 106(R-64 / REQ-037 "평가 없는 부분 일괄
-// 평가" / REQ-038) Q-0045 옵션1 run-side 사슬의 HTTP request body 검증 DTO. T-0564 가
-// 박제한 `UnevaluatedFillRunOrchestratorService.run(rawBridges, requestModelId,
-// defaultModelId)` 의 입력 3 축 — rawBridges / modelId / defaultModelId — 을 HTTP
-// boundary 에서 **형식만** 검증한다(POST /api/assessment-evaluation/unevaluated-fill-run).
+// 평가" / REQ-038) Q-0045 옵션1 run-side 사슬의 HTTP request body 검증 DTO. request body
+// 는 rawBridges / modelId 2 축만 보유한다 — rawBridges(필수 nested 배열) + modelId(선택
+// override) — 을 HTTP boundary 에서 **형식만** 검증한다(POST /api/assessment-evaluation/
+// unevaluated-fill-run). default modelId 는 request body 가 아니라 server-side resolver
+// (`LlmProviderConfigResolver`)가 LlmProviderConfig DB row 에서 단일 해석한다(ADR-0048
+// §Decision 1·3 — caller 가 default 를 매 호출마다 넘기는 구조 제거). controller 가
+// resolver 가 해석한 defaultModelId 를 `UnevaluatedFillRunOrchestratorService.run(
+// rawBridges, requestModelId, defaultModelId)` 의 3 번째 인자로 inject 한다(T-0569 머지).
 //
 // `UnevaluatedFillPlanRequestDto`(T-0542, plan-side request DTO) 패턴 mirror —
 // class-validator decorator 로 형식만 검증하고, 허용 literal 값(period 의 day/week/month,
@@ -16,23 +20,24 @@
 //     transformer)로 각 원소를 PeriodBridgeDto decorator 로 재귀 검증한다(plain object →
 //     PeriodBridgeDto 인스턴스 transform 후 각 4~5 축 검증).
 //
-// 본 DTO 는 controller endpoint(`runUnevaluatedFill`)의 @Body() 로 사용되어 검증된 3 축이
+// 본 DTO 는 controller endpoint(`runUnevaluatedFill`)의 @Body() 로 사용되어 검증된 2 축이
 // `UnevaluatedFillRunOrchestratorService.run(dto.rawBridges, dto.modelId,
-// dto.defaultModelId)` 로 그대로 흘러간다(가공 0). controller-scope ValidationPipe
-// (whitelist + forbidNonWhitelisted + transform)과 결합돼 다음을 자동 강제한다:
-//   - 정의되지 않은 필드 → 400 BadRequest(forbidNonWhitelisted). 본 DTO 단독 validate()
-//     호출(spec)에서는 whitelist 옵션이 없으므로 unknown 필드를 무시한다 — forbid 거부는
-//     controller-scope pipe 검증(별도 controller spec).
+// resolvedDefaultModelId)` 로 흘러간다(3 번째 인자는 server-side resolver source — dto 에서
+// 오지 않는다). controller-scope ValidationPipe(whitelist + forbidNonWhitelisted +
+// transform)과 결합돼 다음을 자동 강제한다:
+//   - 정의되지 않은 필드(이제 defaultModelId 포함) → 400 BadRequest(forbidNonWhitelisted).
+//     본 DTO 단독 validate() 호출(spec)에서는 whitelist 옵션이 없으므로 unknown 필드를
+//     무시한다 — forbid 거부는 controller-scope pipe 검증(별도 controller spec).
 //   - decorator 위반(rawBridges 누락 / non-array / nested PeriodBridgeDto 위반 / modelId
-//     빈 문자열 / defaultModelId 누락) → 400.
+//     빈 문자열) → 400.
 //
 // 책임 경계(task Out of Scope 정합):
 //   - controller endpoint 실배선 · orchestrator 위임 · 좌표 dedup / options 도출은 본 DTO
 //     밖(controller / service / core 책임).
 //   - 허용 literal 값 검증(period day/week/month, scope commit/document/aggregate,
 //     허용 modelId set)은 domain helper / service 책임(@IsIn 미적용).
-//   - `defaultModelId` 의 source(env / `LlmProviderConfig` table 자동 주입)는 본 DTO 밖 —
-//     본 DTO 는 request body 의 명시 인자로만 받는다(클라이언트 책임, 후속 config slice).
+//   - default modelId 의 source(`LlmProviderConfig` DB row 의 modelId)는 본 DTO 밖 —
+//     server-side `LlmProviderConfigResolver` 가 단일 해석한다(ADR-0048 §Decision 1·3).
 //   - 새 외부 dependency 0 — class-validator / class-transformer 는 이미 의존(period-
 //     bridge.dto.ts / unevaluated-fill-plan-request.dto.ts 가 사용 중, package.json 박제).
 import { Type } from "class-transformer";
@@ -72,12 +77,4 @@ export class UnevaluatedFillRunRequestDto {
   @IsString()
   @IsNotEmpty()
   modelId?: string;
-
-  // defaultModelId — request 의 modelId 가 비어있을 때 fallback 대상이 되는 필수 default
-  // modelId. 필수(`@IsString + @IsNotEmpty`) — 누락 / 빈 문자열은 400 으로 거부한다.
-  // request 도 비어있고 default 도 무효면 core 의 한국어 `TypeError`(options 무효)가
-  // 전파된다. env / config table 에서 자동 주입하는 layer 는 본 DTO 밖(후속 config slice).
-  @IsString()
-  @IsNotEmpty()
-  defaultModelId!: string;
 }

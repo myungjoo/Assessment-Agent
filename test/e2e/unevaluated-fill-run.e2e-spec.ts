@@ -84,14 +84,13 @@ const SEED_LLM_CONFIG = {
 // modelId. 좌표 0 → orchestrator 좌표 순회 0 → generateAndPersist 호출 0 → LLM 무도달.
 // happy-path round-trip + 결정성 케이스가 공유한다.
 //
-// defaultModelId 박제 근거(T-0569): controller 는 더 이상 dto.defaultModelId 를 읽지 않고
-// resolver 가 server-side 에서 해석한다. 하지만 DTO 의 @IsNotEmpty 필수 축은 아직 남아있으므로
-// (chain item 2 가 필드 제거 예정), ValidationPipe 400 을 통과하려면 body 에 defaultModelId 가
-// 여전히 있어야 한다 — 형식 충족용으로만 채우고 그 값은 server 동작에 영향 0.
+// defaultModelId 박제 근거(T-0570, ADR-0048 §Decision 3): request body 의 defaultModelId
+// 필드가 **제거**됐다 — default 의 source 는 server-side resolver(LlmProviderConfig DB row)다.
+// body 에 defaultModelId 를 넣으면 controller-scope ValidationPipe(forbidNonWhitelisted)가
+// unknown 필드로 거부하므로, 모든 유효 fixture 는 rawBridges + modelId 2 축만 보낸다.
 const validEmptyBody = () => ({
   rawBridges: [],
   modelId: VALID_MODEL_ID,
-  defaultModelId: VALID_MODEL_ID,
 });
 
 describe("E2E: POST /api/assessment-evaluation/unevaluated-fill-run — Admin run round-trip (T-0566, R-113)", () => {
@@ -184,13 +183,24 @@ describe("E2E: POST /api/assessment-evaluation/unevaluated-fill-run — Admin ru
     expect(response.status).toBe(403);
   });
 
-  // -- negative: 400 ValidationPipe ×4 (예외 분기마다 1+) --
+  // -- negative: 400 ValidationPipe (예외 분기마다 1+) --
+  //
+  // defaultModelId 누락 → 400 케이스는 제거됐다 — ADR-0048 §Decision 3 으로 필드가
+  // 사라져 그 400 분기 자체가 소멸했다. 대신 제거된 defaultModelId 를 보내면
+  // forbidNonWhitelisted 가 거부하는 case 로 재정의(아래 unknown 필드 negative).
 
-  it("Admin 토큰 + defaultModelId 누락 시 400 (negative — @IsString/@IsNotEmpty 필수 축)", async () => {
+  it("Admin 토큰 + 제거된 defaultModelId 를 보내면 400 (negative — forbidNonWhitelisted, 제거된 필드 unknown 처리)", async () => {
+    // ADR-0048 §Decision 3: request body 의 defaultModelId 필드가 제거됐으므로, 옛 caller 가
+    // 그 값을 계속 보내면 controller-scope ValidationPipe(forbidNonWhitelisted)가 unknown
+    // 필드로 거부한다(silent 무시 아님 — 정책 명시성 보존).
     const response = await request(app.getHttpServer())
       .post(ROUTE)
       .set("Cookie", adminCookie)
-      .send({ rawBridges: [], modelId: VALID_MODEL_ID });
+      .send({
+        rawBridges: [],
+        modelId: VALID_MODEL_ID,
+        defaultModelId: "gpt-4o",
+      });
 
     expect(response.status).toBe(400);
     expect(response.body.statusCode).toBe(400);
@@ -202,7 +212,7 @@ describe("E2E: POST /api/assessment-evaluation/unevaluated-fill-run — Admin ru
     const response = await request(app.getHttpServer())
       .post(ROUTE)
       .set("Cookie", adminCookie)
-      .send({ rawBridges: "not-an-array", defaultModelId: VALID_MODEL_ID });
+      .send({ rawBridges: "not-an-array" });
 
     expect(response.status).toBe(400);
     expect(response.body.statusCode).toBe(400);
@@ -213,7 +223,7 @@ describe("E2E: POST /api/assessment-evaluation/unevaluated-fill-run — Admin ru
     const response = await request(app.getHttpServer())
       .post(ROUTE)
       .set("Cookie", adminCookie)
-      .send({ rawBridges: [], modelId: "", defaultModelId: VALID_MODEL_ID });
+      .send({ rawBridges: [], modelId: "" });
 
     expect(response.status).toBe(400);
     expect(response.body.statusCode).toBe(400);
@@ -227,7 +237,7 @@ describe("E2E: POST /api/assessment-evaluation/unevaluated-fill-run — Admin ru
     const response = await request(app.getHttpServer())
       .post(ROUTE)
       .set("Cookie", adminCookie)
-      .send({ rawBridges: [{}], defaultModelId: VALID_MODEL_ID });
+      .send({ rawBridges: [{}] });
 
     expect(response.status).toBe(400);
     expect(response.body.statusCode).toBe(400);
