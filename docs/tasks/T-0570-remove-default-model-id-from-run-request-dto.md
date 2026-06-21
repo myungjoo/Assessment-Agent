@@ -2,8 +2,12 @@
 id: T-0570
 title: UnevaluatedFillRunRequestDto 의 defaultModelId 필드 제거 (request body) + spec·e2e fixture 갱신
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: c2e7c0c
+prNumber: 484
+reviewRounds: 1
+completedAt: 2026-06-21T21:04:16Z
 coversReq: [REQ-037, REQ-051]
 estimatedDiff: 130
 estimatedFiles: 4
