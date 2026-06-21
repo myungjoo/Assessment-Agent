@@ -2,7 +2,7 @@
 id: T-0564
 title: 미평가 fill run @Injectable orchestrator service 추가 (DB person lookup + persist 바인딩 → core 위임 + module 등록)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 240
@@ -73,6 +73,11 @@ build/unit 은 mock 로 완결된다 — spec 은 mock `PersonService` + mock `P
 - T-0556..T-0563 의 순수 조각(매퍼/dedup/runner/batch/core/options/person-factory) 로직 수정 — 본 service 는 호출만 한다(재구현 / 변경 0).
 - `PersonRepository` 직접 주입(raw null lookup) 으로의 전환 — 본 task 는 `PersonService` catch→null adapter 권장. repository 직접 사용은 별도 결정(추가 import 발생 시 §3.1 고려).
 - retry / batch abort / 동시성 정책 / RBAC personId 동등성 강제 — 본 service 는 위임 compose 만.
+
+## Result (DONE — 2026-06-21T14:38Z fire)
+
+- **DONE** (merge 4325286, PR #479, 4-게이트 round 1 PASS). `@Injectable UnevaluatedFillRunOrchestratorService` 신설: `run(rawBridges, requestModelId, defaultModelId)` 단일 진입 — lookup adapter(`PersonService.findByIdWithIdentities` 의 `NotFoundException` → `null` 화해) + `generateAndPersist` bind → `runUnevaluatedFillRunCore`(T-0563) 1 회 위임. 순수 조각 재구현 0, 추가 module import 0. `assessment-evaluation.module.ts` provider+export 등록.
+- 신규 파일 cov 100%(stmt/branch/func/line), 전체 263 suites / 6233 tests green, lint·build·test:cov clean. CI green(PR gate 4) 후 squash merge + branch 삭제.
 
 ## Suggested Sub-agents
 
