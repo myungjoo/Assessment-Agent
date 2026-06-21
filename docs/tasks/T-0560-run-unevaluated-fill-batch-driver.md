@@ -2,7 +2,7 @@
 id: T-0560
 title: 좌표 배열 → batch-run 요약 순수 loop driver (per-좌표 factory+helper 순회 + aggregate fold, person/persist 주입)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 200
