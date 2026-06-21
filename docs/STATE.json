@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0557",
-  "backlogNote": "🔜 **T-0557 PENDING(planner queued, commitMode pr)** — P5 bullet 106(R-64/REQ-037·038) Q-0045 옵션1 run-side chain 다음 slice: PeriodBridgeAdminPersistResult({assessment,created}) + 좌표 PeriodBridgeDto → UnevaluatedFillRunOutcome 순수 매퍼 추가(src/assessment-evaluation/dto/persist-result-to-run-outcome.mapper.ts). 좌표 4축 echo + created→status 결정적 도출(true→evaluated / false→skipped) + bridge/result null·created 비-boolean 한국어 TypeError fail-fast. evaluatedCount 미설정(안전 source 부재, follow-up). failed status 도출은 orchestrator 책임(영속 reject 좌표)이라 Out of Scope. 기존 타입(PeriodBridgeDto/PeriodBridgeAdminPersistResult/UnevaluatedFillRunOutcome) import-type 재사용 → ADR 불요. LLM 호출 0 → live-LLM 게이트(ADR-0045) 무관. dependency-free 순수 매퍼라 mock 없이 plain 객체 unit-test 독립 통과. est ~150 LOC / 2 파일(cap 안). 직전 **T-0556 DONE(merge 376563f, PR #471, 4-게이트 round1 PASS)** — PeriodBridgeDto→EvaluationPersistContext 좌표 매퍼. **chain 남은 slice**: 본 outcome 매퍼(T-0557) → impure run orchestrator 실배선(per-좌표 generateAndPersist 순회 + try/catch failed 합성 + aggregate) → POST /unevaluated-fill-run controller route + RBAC + run-request DTO → e2e. orchestrator/route slice 는 live-LLM 배선검증(ADR-0045, LAN 수동 1회 round-trip, 만료 2026-06-30) 동반 — 단 코드 빌드는 LLM 불요(mock unit). **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0.",
+  "nextTask": null,
+  "backlogNote": "✅ **T-0557 DONE(merge 91392d6, PR #472, 4-게이트 round1 PASS, finding 0/비차단)** — P5 bullet 106(R-64/REQ-037·038) Q-0045 옵션1 run-side chain 다음 slice: PeriodBridgeAdminPersistResult({assessment,created}) + 좌표 PeriodBridgeDto → UnevaluatedFillRunOutcome 순수 매퍼 toUnevaluatedFillRunOutcome 추가(src/assessment-evaluation/dto/persist-result-to-run-outcome.mapper.ts, +85 LOC). 좌표 4축 echo + created→status 결정적 도출(true→evaluated / false→skipped) + bridge/result null·created 비-boolean 한국어 TypeError fail-fast. evaluatedCount/reason 미설정(v1, 안전 source 부재). failed status 도출은 orchestrator 책임이라 Out of Scope. 기존 타입 import-type 재사용 → ADR 불요·LLM 0(live-LLM 게이트 ADR-0045 무관). colocated spec(신규 stmt/branch/func/line 100%, 256 suites/6083 test green, global line 99.94%·func 100%, threshold ≥80% 충족, lint/build clean). **chain 남은 slice(전부 nextTask 미큐잉 — 다음 fire 가 planner-dispatch)**: impure run orchestrator 실배선(dedup PeriodBridgeDto[] → per-좌표 fresh-collect → generateAndPersist 순회 + try/catch failed 합성 + aggregate) → POST /unevaluated-fill-run controller route + RBAC + run-request DTO → e2e. orchestrator/route slice 는 live-LLM 배선검증(ADR-0045, LAN 수동 1회 round-trip, 만료 2026-06-30) 동반 — dependency-free 순수 입력/출력 조각(T-0549..T-0557)은 모두 닫혔고 다음은 impure orchestrator wiring(게이트 동반 가능성). **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-local-sched-0736",
-    "since": "2026-06-21T07:36:45Z",
-    "note": "cron@aa-local-sched-0736 (로컬 schedule cron fire aa-local-scheduled — 매시 30분대 trigger 로 정각 cron@cloud·15분 cron@aa-local-15 발화와 시간대 분리, fresh checkout 07:36Z 진입, 로컬 HEAD=44a0ba6 가 origin/main 보다 뒤처져 `git merge --ff-only origin/main`(→b1fa7b2) sync 후 진행) — **planner-dispatch fire**: 직전 cloud fire(07:03Z)가 Q-0045 옵션1(impure run orchestrator + POST /unevaluated-fill-run chain) RESOLVE 후 T-0556(merge 376563f) 첫 slice 완료, currentTask·nextTask 둘 다 null·open HQ 0·blocker 0·claim 0 상태로 본 fire 진입. LOOP §1[2] 단일-task 경로(claimable 후보 부재) → planner sub-agent dispatch → **T-0557 PENDING 큐잉**(PeriodBridgeAdminPersistResult+좌표 → UnevaluatedFillRunOutcome 순수 매퍼, commitMode pr, ~150 LOC/2파일, dependency-free·live-LLM 게이트 무관). 본 fire 는 planner doc-only direct commit 으로 마무리·종료(§1[2] line162) — T-0557 실행은 다음 fire/동시 driver 가 claim-pickup. gh CLI 가용(`which gh` exit 0, gh 2.88.1). server-time 2026-06-21T07:36:45Z(`date -u`). lock branch-ref CAS 획득(observed 80d2f97 → c59f448, hash-object+mktree+commit-tree plumbing) → 본 doc-only direct commit(STATE/journal/task-file) → tombstone release 예정. R-114: 직전 main push CI(b1fa7b2 'T-0556 DONE bookkeeping', run created 07:20:55Z) conclusion=success 직접 확인(gh run list --branch main --event push). 단일 active driver, race 0. open PR 0·BLOCKED 0·blockers 0·active claim 0·consecutiveFails=0. fineGrainedConcurrency=true stage5b 정상 — claimable 후보 부재라 claim-pickup 대신 planner 경로 진입."
+    "session": "cron@aa-local-15-66820815",
+    "since": "2026-06-21T08:05:55Z",
+    "note": "cron@aa-local-15-66820815 (로컬 schedule cron fire aa-local-15 — 매시 15분 trigger 로 정각 cron@cloud·30분대 cron@aa-local-sched 발화와 시간대 분리, fresh checkout 진입, 로컬 HEAD=cb66f5d 가 origin/main=66823f7 보다 뒤처져 `git merge --ff-only origin/main` sync 후 진행) — **claim-pickup fire(stage5b)**: lock free(tombstone)·claims=[]·open HQ 0·blocker 0 상태로 진입. Q-0045 RESOLVE(옵션1) 후 T-0556 merge 376563f·T-0557 큐잉(66823f7) 완료된 상태였음. LOOP §1[2] fineGrainedConcurrency=true 분기: lock CAS 획득(observed 197e792 → 4fe9fee, hash-object+mktree+commit-tree plumbing, critical section) → reclaim(no stale, claims 빈배열 no-op) → maxConcurrentClaims 게이트(active 0 < 2, pr-mode 0 충족) → validate-claim-candidate.sh T-0557=PASS → select-claim.sh T-0557(claim append + tombstone release 동일 commit) → lock-free 진행. executor → implementer/tester(신규 매퍼+spec, 100% cov) → feature branch claude/T-0557-* push → integrator: PR #472 open + reviewer dispatch(round1 APPROVE, comment 외부 존재) + 4-게이트 PASS + CI green → squash merge 91392d6 + branch 삭제. gh CLI 가용(gh 2.88.1). server-time 2026-06-21T08:05:55Z(GitHub API Date 헤더). R-114: PR CI(run 27898337122) conclusion=success 직접 확인(unit+smoke+e2e+approval-gate). merge 후 본 bookkeeping doc-only direct commit + claim 회수(claims.json → []). 단일 active driver, race 0. open PR 0·BLOCKED 0·blockers 0·active claim 0(회수 완료)·consecutiveFails=0."
   },
-  "lastActivity": "2026-06-21T07:36:45Z",
-  "lastCommit": "b1fa7b2",
+  "lastActivity": "2026-06-21T08:05:55Z",
+  "lastCommit": "91392d6",
   "mostRecentTasks": [
+    "T-0557",
     "T-0556",
     "T-0555",
     "T-0554",
-    "T-0553",
-    "T-0552"
+    "T-0553"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-21T07:36:45Z",
+    "lastRun": "2026-06-21T08:05:55Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "직전 main push CI 재확인(R-114, 본 fire): b1fa7b2('docs(driver): T-0556 DONE bookkeeping', run created 2026-06-21T07:20:55Z event=push) conclusion=success — gh run list --branch main --event push --limit 3 결과로 latest 3 push run(b1fa7b2·376563f·cb66f5d) 모두 success 직접 확인. consecutiveFails=0 유지. 본 fire 는 planner-dispatch doc-only direct commit 1건이 main push CI 를 trigger(다음 fire 가 R-114 로 conclusion 확인)."
+    "note": "T-0557 PR #472 CI(run 27898337122) conclusion=success — integrator 4-게이트 (4) CI green 검증(기본 검사 + 배포 산출물 Docker+smoke + reviewer 승인 검증 step, R-113 unit+smoke+e2e 수행). squash merge 91392d6 후 main push CI 는 본 bookkeeping direct commit 과 함께 다음 fire 가 R-114 로 conclusion 재확인. consecutiveFails=0 유지."
   },
   "reviewRounds": {
+    "T-0557": 1,
     "T-0556": 1,
     "T-0555": 1,
     "T-0554": 1,
@@ -1015,7 +1016,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 548,
+    "tasksCompleted": 549,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

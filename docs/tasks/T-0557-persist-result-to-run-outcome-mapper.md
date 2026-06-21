@@ -2,7 +2,9 @@
 id: T-0557
 title: PeriodBridgeAdminPersistResult + 좌표 → UnevaluatedFillRunOutcome 순수 매퍼 추가
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 91392d6
+prNumber: 472
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 150
