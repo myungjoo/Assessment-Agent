@@ -2,7 +2,11 @@
 id: T-0569
 title: runUnevaluatedFill controller wiring — resolver inject + defaultModelId 해석 (DTO 필드 미제거)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: b50accb
+prNumber: 483
+reviewRounds: 2
+completed: 2026-06-21T20:32:16Z
 commitMode: pr
 coversReq: [REQ-037, REQ-051]
 independentStream: q0045-run-side-default-model
@@ -64,3 +68,10 @@ plannerNote: P5 bullet106 R-64/REQ-037 — ADR-0048 chain item(3) controller wir
 - (chain item 2) `UnevaluatedFillRunRequestDto.defaultModelId` 필드 제거 + dto.spec / e2e fixture 갱신 (pr-mode). 본 task merge 후 큐잉 — controller 가 더 이상 dto.defaultModelId 를 읽지 않으므로 안전.
 - (REQ-051 진입 시) 다중-row default 선택 정책 후속 ADR (ADR-0048 §Decision 2 의 4 검토 대상 중 택1).
 - PLAN.md P5 bullet 106 chain 완결 doc-sync (별도 direct doc commit) — item 2·3 머지 후.
+
+## Result (DONE)
+
+- **완료**: 2026-06-21T20:32:16Z · PR [#483](https://github.com/myungjoo/Assessment-Agent/pull/483) squash merge `b50accb` · reviewRounds=2.
+- **round 1** (`ba0aecb`): controller 에 `LlmProviderConfigResolver` DI 주입 + `runUnevaluatedFill` 가 `resolveDefaultModelId()` 를 orchestrator 위임 전 1 회 await + `dto.defaultModelId` 직접 참조 제거 + resolver throw(0-row/2+row/빈·non-string) → 503 `ServiceUnavailableException`(한국어 메시지·cause 보존). reviewer round1 APPROVE 였으나 CI 게이트(d) red — wiring 변경이 T-0566 e2e 의 구 계약(빈 좌표 200 / whitespace defaultModelId 500)을 깨뜨림(e2e DB 에 `LlmProviderConfig` row 0 → resolver throw 503).
+- **round 2** (`1fd19a5`): e2e 를 새 계약에 정합 — `beforeEach` 단일 `LlmProviderConfig` row seed(→ 200 happy path 회복) + obsolete whitespace→500 케이스를 "row 부재 → 503 resolver fail-fast" 로 재정의 + reviewer MINOR nit(non-Error catch 분기 미커버) 를 unit test 로 cover(controller.ts 100%). 4-게이트 PASS → merge.
+- **DTO 필드 미제거** (의도) — chain item 2 가 안전하게 제거 가능해짐 (controller 가 더 이상 읽지 않음).

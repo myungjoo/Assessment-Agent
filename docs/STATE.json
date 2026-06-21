@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0569",
-  "backlogNote": "▶ **T-0569 PENDING 큐잉 (pr-mode, chain item 3 — controller wiring)** — ADR-0048 §Decision1·2 를 `runUnevaluatedFill` controller 진입점에 배선: `LlmProviderConfigResolver`(T-0568 머지) 생성자 inject + `await resolveDefaultModelId()` 1 회 호출로 default modelId server-side 해석 + `dto.defaultModelId` 직접 참조 제거 + resolver throw(0-row/2+row/빈·non-string) → 503 ServiceUnavailable 매핑. touchesFiles 2(controller.ts + controller.spec.ts), LlmModule 이미 import 됨 → module 변경 0. dependsOn=[T-0568]. **ordering**: item3(controller)가 item2(DTO 제거)보다 **선행** — controller 가 dto.defaultModelId 를 읽는 동안(line 527) DTO 필드를 먼저 제거하면 build TS error. item3 가 그 참조를 resolver 호출로 교체한 뒤 item2 가 안전. ▶ **T-0568 DONE (pr-mode, PR #482 squash f1dcc7f)** — chain item(1) 머지 완료: `LlmProviderConfigResolver` @Injectable 실구현 (단일-row + fail-fast 3 분기 + 빈/whitespace/non-string modelId TypeError 차단) + R-112 4 종 cover spec 10 cases + llm.module providers/exports 등록. coverage line 99.92% / function 99.89% (resolver 자체 100%). **chain 남은 후속 (item3 머지 후 큐잉)**: (2) `UnevaluatedFillRunRequestDto.defaultModelId` 필드 제거 + dto.spec/e2e fixture 갱신 (pr-mode), (4) REQ-051 (custom 3 model 슬롯) 진입 시 다중-row default 정책 후속 ADR, (5) PLAN.md bullet 106 chain 완결 doc-sync, (6) 비어있지-않은 좌표 live-LLM round-trip 1회(LAN=AKIHA 192.168.0.5 Ollama; cloud cron LAN 무경로, ADR-0045). ✅ T-0567 DONE(direct commit, 사용자 명시 override): ADR-0048 PROPOSED 신설 (defaultModelId source = LlmProviderConfig row 의 modelId; 단일-row 가정 + 다중-row 분기 REQ-051 deferred; request body defaultModelId 제거 결정; schema migration 0 / 새 env 0 / 새 dep 0) + deployment.md 링크 1 문장 동기. **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0(T-0568 claim 본 fire 의 lock-tombstone push 와 함께 release).",
+  "nextTask": null,
+  "backlogNote": "▶ **T-0569 DONE (pr-mode, PR #483 squash b50accb, reviewRounds=2)** — chain item(3) controller wiring 머지: `runUnevaluatedFill` 가 `LlmProviderConfigResolver` DI 주입 + `resolveDefaultModelId()` 1 회 await(server-side 해석) + `dto.defaultModelId` 직접 참조 제거 + resolver throw(0-row/2+row/빈·non-string) → 503 `ServiceUnavailableException`(한국어 메시지·cause 보존). **round1**(ba0aecb) reviewer APPROVE 였으나 wiring 이 T-0566 e2e 구 계약(빈 좌표 200/whitespace defaultModelId 500)을 break(e2e DB LlmProviderConfig row 0 → resolver 503) → CI 게이트(d) red → **동일 turn round2**(1fd19a5) e2e 단일 row seed(→200 회복) + obsolete whitespace→500 을 row부재→503 재정의 + non-Error catch nit unit cover(controller.ts 100%) → 4-게이트 PASS merge. **DTO 필드 미제거(의도)** — controller 가 더 이상 읽지 않아 item2 안전. **chain 남은 후속**: (2) `UnevaluatedFillRunRequestDto.defaultModelId` 필드 제거 + dto.spec/e2e fixture 갱신 (pr-mode — **다음 우선 큐잉 대상**, item3 머지로 안전), (4) REQ-051 (custom 3 model 슬롯) 진입 시 다중-row default 정책 후속 ADR, (5) PLAN.md bullet 106 chain 완결 doc-sync(item2 머지 후), (6) 비어있지-않은 좌표 live-LLM round-trip 1회(LAN=AKIHA 192.168.0.5 Ollama; cloud cron LAN 무경로, ADR-0045). ✅ T-0568 DONE(PR #482 squash f1dcc7f): chain item(1) `LlmProviderConfigResolver` @Injectable 실구현(단일-row+fail-fast 3 분기). ✅ T-0567 DONE(direct override): ADR-0048 PROPOSED 신설(defaultModelId source = LlmProviderConfig row 의 modelId; 단일-row 가정+다중-row REQ-051 deferred; request body defaultModelId 제거 결정). **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0(T-0569 claim 본 fire 의 claims 회수와 함께 release).",
   "lock": {
     "holder": "",
-    "session": "cron@aa-local-sched-1937z",
-    "since": "2026-06-21T19:37:34Z",
-    "note": "cron@aa-local-sched-1937z (로컬 schedule cron fire aa-local-scheduled — 매시 30분대 trigger 로 정각·15분 cron 발화와 시간대 분리; 진입 시 로컬 HEAD=f51e8bd 가 origin/main(e24e79b) 보다 뒤처져 git merge --ff-only origin/main sync 후 진행 — 직전 cron@claude-cloud-1904z 가 T-0568 을 PR #482 squash f1dcc7f 머지) — **planner-dispatch fire (T-0569 큐잉)**: 진입 시 lock free(tip ec304e6 tombstone holder:\"\")·claims=[]·currentTask/nextTask 둘 다 null → LOOP §1[1] lock CAS 획득(observed ec304e6 → dc129c1, hash-object+mktree+commit-tree plumbing, claims.json blob [] 보존, critical section) → §1[2] fineGrainedConcurrency=true 분기: reclaim 무대상(빈 claims no-op) → claimable 후보 0(nextTask null·PENDING task 미큐잉) → planner sub-agent dispatch. planner 가 T-0569 생성(ADR-0048 §Decision1·2 chain item(3): runUnevaluatedFill controller 에 LlmProviderConfigResolver inject + resolveDefaultModelId() 호출 + dto.defaultModelId 참조 제거 + resolver throw → 503 매핑 — commitMode=pr·dependsOn [T-0568]·touchesFiles controller.ts+controller.spec.ts 2개·R-112 4종 cover. ordering: item3(controller) 가 item2(DTO 제거) 선행 — controller 가 dto.defaultModelId 읽는 동안 DTO 먼저 제거 시 build TS error) + STATE.nextTask=T-0569 갱신. 본 fire 는 planner-dispatch 라 doc-only direct commit(task 파일 + STATE + journal) 후 lock tombstone release 하고 종료 — T-0569 실행은 다음 fire(claim-pickup, pr-mode 라 gh/MCP 가용 진입점이 집어감). server-time 2026-06-21T19:37:34Z(GitHub API Date 헤더 'Sun, 21 Jun 2026 19:37:34 GMT'). git push 가용(claude/lock-driver CAS 성공). 단일 active driver, race 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0·consecutiveFails=0. 본 bookkeeping commit 후 tombstone release. (직전 fire cron@claude-cloud-1904z: T-0568 claim→impl→PR #482→squash f1dcc7f 머지, tasksCompleted 559→560, reviewRounds.T-0568=1.)"
+    "session": "cron@aa-local-15-2004z",
+    "since": "2026-06-21T20:32:16Z",
+    "note": "cron@aa-local-15-2004z (로컬 schedule cron fire aa-local-15 — 매시 15분 trigger 로 정각 cron@cloud·30분대 cron@aa-local-sched 와 시간대 분리) — **claim-pickup 실행 fire (T-0569 DONE, stage5b)**: 진입 시 로컬 HEAD=f51e8bd < origin/main(e1b0b61) → git merge --ff-only sync. lock free(tip f3bee8a tombstone holder:\"\")·claims=[] → LOOP §1[1] lock CAS 획득(observed f3bee8a → 4a13553, plumbing, claims.json [] 보존, critical section) → §1[2] fineGrainedConcurrency=true 분기: reclaim 무대상(빈 claims) → maxConcurrentClaims 게이트(active 0<2, pr-mode 단독 OK) → validate-claim-candidate.sh PASS(T-0568 dependsOn 머지·touchesFiles disjoint) → select-claim.sh T-0569(claim append + lock tombstone CAS 같은 commit → 즉시 release, lock-free 진행). gh 가용(account myungjoo) 이라 pr-mode 진행. executor(round1) → controller resolver wiring(ba0aecb, +52 LOC) → push feature branch → integrator PR #483 open → reviewer round1 APPROVE 이나 CI 게이트(d) red(wiring 이 T-0566 e2e 구 계약 break — e2e DB LlmProviderConfig row 0 → resolver throw 503). 동일 turn executor re-entry(round2) → e2e 단일 row seed + obsolete whitespace→500 을 row부재→503 재정의 + non-Error catch nit unit cover(1fd19a5) → push → integrator round2 reviewer APPROVE + CI green(run 27916460365 기본검사+배포검증 둘 다 pass) → 4-게이트 PASS → squash merge b50accb --delete-branch. server-time 2026-06-21T20:32:16Z(GitHub API Date 헤더). 단일 active driver, race 0. concurrency incident 0(round1 CI fail 은 test-contract break 로 4 유형 슬러그 아님 — increment 안 함). open PR 0·BLOCKED 0·blockers 0·open HQ 0·consecutiveFails=0. 본 bookkeeping direct commit 후 claims.json 의 T-0569 claim 회수(tombstone CAS). nextTask=null → 다음 fire planner-dispatch(chain item2 DTO 제거 큐잉). (직전 fire cron@aa-local-sched-1937z: planner-dispatch T-0569 큐잉.)"
   },
-  "lastActivity": "2026-06-21T19:37:34Z",
-  "lastCommit": "f1dcc7f",
+  "lastActivity": "2026-06-21T20:32:16Z",
+  "lastCommit": "b50accb",
   "mostRecentTasks": [
+    "T-0569",
     "T-0568",
     "T-0567",
     "T-0566",
-    "T-0565",
-    "T-0564"
+    "T-0565"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -39,6 +39,7 @@
     "note": "T-0568 PR #482 CI run 27914681414 — first pass: '배포 산출물 검증' success 19:15:18Z + '기본 검사' failure 19:16:44Z(approval gate step 이 reviewer comment 4763020184[19:22 post] 전 19:16 실행돼 4-게이트 (b) 위반 1차 fail — timing race). MCP actions_run_trigger rerun_failed_jobs 후 '기본 검사' 19:20:02Z success. 4-게이트 (4) green 확인 후 squash merge f1dcc7f. main push CI(headSha f1dcc7f)와 본 fire 의 doc-only direct commit push 후 main CI 는 본 bookkeeping 시점 in_progress 가능 — R-114 CI trigger 는 push 자체로 시작, conclusion 은 다음 fire 가 재확인. consecutiveFails=0 유지."
   },
   "reviewRounds": {
+    "T-0569": 2,
     "T-0568": 1,
     "T-0566": 1,
     "T-0565": 1,
@@ -1026,7 +1027,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 560,
+    "tasksCompleted": 561,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
