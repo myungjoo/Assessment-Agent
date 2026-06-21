@@ -3,7 +3,11 @@ id: T-0572
 slug: doc-update-count-neutralization-adr
 title: ADR-0049 신설 — 문서 update 횟수 중립화 정책 (REQ-022 / R-41, advantage·disadvantage 둘 다 없음)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-21T22:47:33Z
+mergedAs: d088e71
+prNumber: 485
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-022]
 estimatedDiff: 280
