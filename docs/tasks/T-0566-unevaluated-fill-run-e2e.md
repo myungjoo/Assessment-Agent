@@ -2,7 +2,10 @@
 id: T-0566
 title: POST /unevaluated-fill-run 라우트 e2e 검증 추가 (RBAC + ValidationPipe + fail-fast + 빈-좌표 round-trip; live-LLM round-trip 은 수동 후속)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 30514d8
+prNumber: 481
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
