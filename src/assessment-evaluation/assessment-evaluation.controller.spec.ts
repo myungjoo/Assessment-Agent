@@ -36,6 +36,8 @@ import {
 } from "./dto/evaluate-activities.dto";
 import { PeriodBridgeDto } from "./dto/period-bridge.dto";
 import { UnevaluatedFillPlanRequestDto } from "./dto/unevaluated-fill-plan-request.dto";
+import { UnevaluatedFillRunRequestDto } from "./dto/unevaluated-fill-run-request.dto";
+import type { UnevaluatedFillRunResult } from "./dto/unevaluated-fill-run-result";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import {
   EvaluationResultPersistService,
@@ -47,6 +49,7 @@ import type {
   PeriodBridgeAdminPersistService,
 } from "./period-bridge-admin-persist.service";
 import type { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
+import type { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-orchestrator.service";
 
 // context 4-tuple(ADR-0033 §51) — 모든 evaluate dto fixture 의 base. persist 호출
 // 인자 검증의 기준.
@@ -109,6 +112,14 @@ function makeController(
       );
     }),
   } as unknown as EvaluationUnevaluatedFillPlanner;
+  // unevaluatedFillRunOrchestrator — evaluate() 경로 test 에서 미사용이라 throw mock.
+  const unevaluatedFillRunOrchestrator = {
+    run: jest.fn(() => {
+      throw new Error(
+        "evaluate() 는 unevaluatedFillRunOrchestrator 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as UnevaluatedFillRunOrchestratorService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -117,6 +128,7 @@ function makeController(
       adminBridge,
       personService,
       unevaluatedFillPlanner,
+      unevaluatedFillRunOrchestrator,
     ),
     evaluateSpy,
     persistSpy,
@@ -178,6 +190,14 @@ function makePeriodController(opts: {
       throw new Error("period() 는 unevaluatedFillPlanner 를 호출하면 안 된다");
     }),
   } as unknown as EvaluationUnevaluatedFillPlanner;
+  // unevaluatedFillRunOrchestrator — period() 경로 test 에서 미사용이라 throw mock.
+  const unevaluatedFillRunOrchestrator = {
+    run: jest.fn(() => {
+      throw new Error(
+        "period() 는 unevaluatedFillRunOrchestrator 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as UnevaluatedFillRunOrchestratorService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -186,6 +206,7 @@ function makePeriodController(opts: {
       adminBridge,
       personService,
       unevaluatedFillPlanner,
+      unevaluatedFillRunOrchestrator,
     ),
     generateSpy,
     adminSpy,
@@ -242,6 +263,15 @@ function makeFillController(
       );
     }),
   } as unknown as PersonService;
+  // unevaluatedFillRunOrchestrator — planUnevaluatedFill() 경로 test 에서 미사용이라
+  // throw mock(run-side 사슬이 실수로 호출되면 즉시 실패해 격리 위반을 catch).
+  const unevaluatedFillRunOrchestrator = {
+    run: jest.fn(() => {
+      throw new Error(
+        "planUnevaluatedFill() 는 unevaluatedFillRunOrchestrator 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as UnevaluatedFillRunOrchestratorService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -250,6 +280,7 @@ function makeFillController(
       adminBridge,
       personService,
       unevaluatedFillPlanner,
+      unevaluatedFillRunOrchestrator,
     ),
     plannerSpy,
   };
@@ -2019,5 +2050,445 @@ describe("AssessmentEvaluationController.planUnevaluatedFill (RBAC / guard metad
       AssessmentEvaluationController.prototype.planUnevaluatedFill,
     ) as unknown[];
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+  });
+});
+
+// =======================================================================
+// T-0565 — POST /unevaluated-fill-run (run-side controller route) 검증.
+// run-request DTO → orchestrator.run → UnevaluatedFillRunResult thin delegate.
+// =======================================================================
+
+// makeRunController — POST /unevaluated-fill-run 전용 controller 빌더. run
+// orchestrator 를 jest mock 으로 주입하고(실 DB read 0 / 실 LLM 0 / 실 네트워크 0),
+// 다른 경로의 collaborator(orchestrator / persist / ephemeral / admin / person /
+// planner)는 throw mock 으로 두어 runUnevaluatedFill() 가 실수로 호출하면 catch 한다.
+// runSpy 로 위임 인자 / 횟수 / 반환 forward 검증을 enable 한다.
+function makeRunController(
+  runImpl: (...args: unknown[]) => Promise<UnevaluatedFillRunResult>,
+): {
+  controller: AssessmentEvaluationController;
+  runSpy: jest.Mock;
+} {
+  const runSpy = jest.fn(runImpl);
+  const unevaluatedFillRunOrchestrator = {
+    run: runSpy,
+  } as unknown as UnevaluatedFillRunOrchestratorService;
+  // 다른 route 의 collaborator 는 run 경로 test 에서 호출되면 안 되므로 throw mock.
+  const orchestrator = {
+    evaluateActivities: jest.fn(() => {
+      throw new Error(
+        "runUnevaluatedFill() 는 orchestrator 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as EvaluationOrchestratorService;
+  const persistService = {
+    persist: jest.fn(() => {
+      throw new Error("runUnevaluatedFill() 는 persist 를 호출하면 안 된다");
+    }),
+  } as unknown as EvaluationResultPersistService;
+  const ephemeralBridge = {
+    generateEphemeral: jest.fn(() => {
+      throw new Error(
+        "runUnevaluatedFill() 는 ephemeralBridge 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as PeriodBridgeEphemeralService;
+  const adminBridge = {
+    generateAndPersist: jest.fn(() => {
+      throw new Error(
+        "runUnevaluatedFill() 는 adminBridge 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as PeriodBridgeAdminPersistService;
+  const personService = {
+    findByIdWithIdentities: jest.fn(() => {
+      throw new Error(
+        "runUnevaluatedFill() 는 personService 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as PersonService;
+  const unevaluatedFillPlanner = {
+    planUnevaluatedFill: jest.fn(() => {
+      throw new Error(
+        "runUnevaluatedFill() 는 unevaluatedFillPlanner 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as EvaluationUnevaluatedFillPlanner;
+  return {
+    controller: new AssessmentEvaluationController(
+      orchestrator,
+      persistService,
+      ephemeralBridge,
+      adminBridge,
+      personService,
+      unevaluatedFillPlanner,
+      unevaluatedFillRunOrchestrator,
+    ),
+    runSpy,
+  };
+}
+
+// makeRunDto — UnevaluatedFillRunRequestDto fixture 빌더(유효 base — rawBridges 2 +
+// modelId 지정 + defaultModelId 지정). overrides 로 각 축을 변형한다.
+function makeRunDto(
+  overrides: Partial<UnevaluatedFillRunRequestDto> = {},
+): UnevaluatedFillRunRequestDto {
+  return {
+    rawBridges: [
+      {
+        personId: "person-1",
+        period: "week",
+        scope: "commit",
+        periodStart: "2026-06-01T00:00:00.000Z",
+      },
+      {
+        personId: "person-2",
+        period: "week",
+        scope: "commit",
+        periodStart: "2026-06-08T00:00:00.000Z",
+      },
+    ] as PeriodBridgeDto[],
+    modelId: "gpt-4o-mini",
+    defaultModelId: "gpt-4o",
+    ...overrides,
+  };
+}
+
+// makeRunResult — orchestrator.run 반환 UnevaluatedFillRunResult mock fixture(이미
+// plain JSON-safe — periodStart ISO string, count 축 number). controller 가 가공 0 으로
+// 그대로 반환하는 기준값.
+function makeRunResult(
+  overrides: Partial<UnevaluatedFillRunResult> = {},
+): UnevaluatedFillRunResult {
+  return {
+    outcomes: [
+      {
+        personId: "person-1",
+        period: "week",
+        scope: "commit",
+        periodStart: "2026-06-01T00:00:00.000Z",
+        status: "evaluated",
+        evaluatedCount: 3,
+      },
+      {
+        personId: "person-2",
+        period: "week",
+        scope: "commit",
+        periodStart: "2026-06-08T00:00:00.000Z",
+        status: "skipped",
+      },
+    ],
+    totalCount: 2,
+    evaluatedCount: 1,
+    skippedCount: 1,
+    failedCount: 0,
+    totalEvaluatedRecords: 3,
+    ...overrides,
+  };
+}
+
+// makeEmptyRunResult — 빈 좌표(rawBridges 빈 배열) 시 service 가 반환하는 빈 outcomes
+// 결과. 빈 입력 → 빈 outcomes 의 결정적 흐름(silent 비정상 진행 아님)을 검증.
+function makeEmptyRunResult(): UnevaluatedFillRunResult {
+  return {
+    outcomes: [],
+    totalCount: 0,
+    evaluatedCount: 0,
+    skippedCount: 0,
+    failedCount: 0,
+    totalEvaluatedRecords: 0,
+  };
+}
+
+describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → orchestrator.run → result delegation)", () => {
+  // happy: 유효 DTO(rawBridges 2 + modelId 지정 + defaultModelId 지정) 입력 시 orchestrator
+  // .run 이 (rawBridges, modelId, defaultModelId) 3 인자로 정확히 호출되고, 반환
+  // UnevaluatedFillRunResult 가 controller 반환과 deep-equal(가공 0).
+  it("유효 DTO 시 orchestrator.run 을 (rawBridges, modelId, defaultModelId) 로 호출하고 결과를 그대로 반환한다 (happy)", async () => {
+    const expected = makeRunResult();
+    const { controller, runSpy } = makeRunController(async () => expected);
+
+    const dto = makeRunDto();
+    const result = await controller.runUnevaluatedFill(dto);
+
+    // 위임 — 정확히 1 회, DTO 의 3 축을 가공 0 으로 forward.
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(runSpy).toHaveBeenCalledWith(
+      dto.rawBridges,
+      "gpt-4o-mini",
+      "gpt-4o",
+    );
+    // 반환 — service 결과 deep-equal(controller 가공 0).
+    expect(result).toEqual(expected);
+    // 동일 참조 forward(재정렬/복사 0 — thin delegate).
+    expect(result).toBe(expected);
+  });
+
+  // error path (a): orchestrator.run reject(예: core 의 options 무효 TypeError) →
+  // controller 가 raw 전파(swallow 0).
+  it("orchestrator.run reject 시 controller 가 error 를 raw 전파한다 (error path — run reject)", async () => {
+    const rawError = new TypeError("options 무효: modelId 가 비어있다");
+    const { controller } = makeRunController(async () => {
+      throw rawError;
+    });
+
+    await expect(controller.runUnevaluatedFill(makeRunDto())).rejects.toBe(
+      rawError,
+    );
+  });
+
+  // error path (b): modelId 미지정(undefined) 시에도 orchestrator 가 정확히
+  // (rawBridges, undefined, defaultModelId) 로 호출됨(plain pass-through — controller 가
+  // 임의 default 채워 넣지 않음).
+  it("modelId 미지정 시 orchestrator.run 을 (rawBridges, undefined, defaultModelId) 로 호출한다 (negative — pass-through, 임의 default 채움 0)", async () => {
+    const { controller, runSpy } = makeRunController(async () =>
+      makeRunResult(),
+    );
+
+    const dto = makeRunDto({ modelId: undefined });
+    await controller.runUnevaluatedFill(dto);
+
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(runSpy).toHaveBeenCalledWith(dto.rawBridges, undefined, "gpt-4o");
+  });
+
+  // flow / branch (a): rawBridges 빈 배열 DTO → orchestrator 호출 + service 가 반환한 빈
+  // outcomes 결과를 그대로 응답(빈 입력 → 빈 outcomes 의 결정적 흐름, silent 비정상 0).
+  it("rawBridges 빈 배열 DTO 는 빈 outcomes 결과를 그대로 응답한다 (branch — 빈 입력 → 빈 outcomes)", async () => {
+    const { controller, runSpy } = makeRunController(async () =>
+      makeEmptyRunResult(),
+    );
+
+    const result = await controller.runUnevaluatedFill(
+      makeRunDto({ rawBridges: [] }),
+    );
+
+    // 빈 배열도 그대로 forward(controller 가 빈 입력을 거부하지 않음 — 도메인 결정성).
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(runSpy).toHaveBeenCalledWith([], "gpt-4o-mini", "gpt-4o");
+    expect(result.outcomes).toEqual([]);
+    expect(result.totalCount).toBe(0);
+  });
+
+  // flow / branch (b): modelId 지정 vs 미지정 두 분기 각각 orchestrator 호출 인자 검증.
+  it("modelId 지정 분기는 지정 modelId 를 forward 한다 (branch — modelId 지정)", async () => {
+    const { controller, runSpy } = makeRunController(async () =>
+      makeRunResult(),
+    );
+
+    await controller.runUnevaluatedFill(
+      makeRunDto({ modelId: "custom-model" }),
+    );
+
+    expect(runSpy).toHaveBeenCalledWith(
+      expect.any(Array),
+      "custom-model",
+      "gpt-4o",
+    );
+  });
+
+  // negative (thin delegate 비변형): controller 가 service 반환 result 를 재정렬 / 필터 /
+  // 직렬화 변환 없이 그대로 반환 — outcome 수 / 4 count 축이 service 반환과 1:1(controller
+  // 가공 0).
+  it("controller 는 service 반환 result 를 재정렬/필터/변환 없이 그대로 반환한다 (negative — thin delegate 비변형)", async () => {
+    const expected = makeRunResult();
+    const { controller, runSpy } = makeRunController(async () => expected);
+
+    const result = await controller.runUnevaluatedFill(makeRunDto());
+
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(result.outcomes).toHaveLength(expected.outcomes.length);
+    expect(result.totalCount).toBe(expected.totalCount);
+    expect(result.evaluatedCount).toBe(expected.evaluatedCount);
+    expect(result.skippedCount).toBe(expected.skippedCount);
+    expect(result.failedCount).toBe(expected.failedCount);
+    expect(result.totalEvaluatedRecords).toBe(expected.totalEvaluatedRecords);
+    // outcome 순서 보존(person-1 evaluated → person-2 skipped).
+    expect(result.outcomes.map((o) => o.status)).toEqual([
+      "evaluated",
+      "skipped",
+    ]);
+  });
+
+  // negative: modelId null 도 그대로 forward — service 가 빈 값으로 취급해 defaultModelId
+  // fallback(controller 는 정규화 0).
+  it("modelId 가 null 이면 null 을 그대로 forward 한다 (negative — null pass-through)", async () => {
+    const { controller, runSpy } = makeRunController(async () =>
+      makeRunResult(),
+    );
+
+    const dto = makeRunDto({ modelId: null as unknown as string });
+    await controller.runUnevaluatedFill(dto);
+
+    expect(runSpy).toHaveBeenCalledWith(dto.rawBridges, null, "gpt-4o");
+  });
+});
+
+// -----------------------------------------------------------------------
+// UnevaluatedFillRunRequestDto ValidationPipe negative cases — controller-scope
+// pipe 와 동일 옵션으로 단위 검증(e2e 부재라 DTO decorator 검증). 필수 필드 누락 /
+// non-array / nested PeriodBridgeDto 위반 / modelId 빈 문자열 / defaultModelId 누락 /
+// 정의 외 필드 — 예외 분기마다 cover(단일 negative 금지).
+// -----------------------------------------------------------------------
+describe("UnevaluatedFillRunRequestDto (ValidationPipe negative cases)", () => {
+  function makePipe(): ValidationPipe {
+    return new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    });
+  }
+
+  const meta = {
+    type: "body" as const,
+    metatype: UnevaluatedFillRunRequestDto,
+    data: "",
+  };
+
+  const validBridge = {
+    personId: "person-1",
+    period: "week",
+    scope: "commit",
+    periodStart: "2026-06-01T00:00:00.000Z",
+  };
+
+  const validPayload = {
+    rawBridges: [validBridge],
+    modelId: "gpt-4o-mini",
+    defaultModelId: "gpt-4o",
+  };
+
+  it("유효한 DTO 는 통과하고 nested rawBridges 가 PeriodBridgeDto 로 transform 된다 (sanity — happy)", async () => {
+    const pipe = makePipe();
+    const transformed = await pipe.transform({ ...validPayload }, meta);
+    expect(transformed).toBeInstanceOf(UnevaluatedFillRunRequestDto);
+    expect(transformed.rawBridges).toHaveLength(1);
+    expect(transformed.rawBridges[0]).toBeInstanceOf(PeriodBridgeDto);
+    expect(transformed.defaultModelId).toBe("gpt-4o");
+  });
+
+  // modelId 미지정도 통과(@IsOptional — fallback 대상).
+  it("modelId 미지정 시 통과한다 (branch — modelId 선택)", async () => {
+    const pipe = makePipe();
+    const payload: Record<string, unknown> = { ...validPayload };
+    delete payload.modelId;
+    const transformed = await pipe.transform(payload, meta);
+    expect(transformed.modelId).toBeUndefined();
+    expect(transformed.defaultModelId).toBe("gpt-4o");
+  });
+
+  // 빈 rawBridges 는 형식상 허용(@ArrayNotEmpty 미적용 — 빈 배열 → 빈 outcomes 정책).
+  it("rawBridges 빈 배열은 형식상 통과한다 (branch — 빈 배열 허용, 빈 outcomes 정책)", async () => {
+    const pipe = makePipe();
+    const transformed = await pipe.transform(
+      { ...validPayload, rawBridges: [] },
+      meta,
+    );
+    expect(transformed.rawBridges).toEqual([]);
+  });
+
+  // rawBridges 누락 → 거부(@IsArray).
+  it("rawBridges 누락 시 ValidationPipe 가 거부한다 (negative — required array missing)", async () => {
+    const pipe = makePipe();
+    const payload: Record<string, unknown> = { ...validPayload };
+    delete payload.rawBridges;
+    await expect(pipe.transform(payload, meta)).rejects.toThrow();
+  });
+
+  // rawBridges 가 배열 아님 → 거부.
+  it("rawBridges 가 배열이 아니면 ValidationPipe 가 거부한다 (negative — wrong type, not array)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform({ ...validPayload, rawBridges: validBridge }, meta),
+    ).rejects.toThrow();
+  });
+
+  // nested PeriodBridgeDto 위반(원소의 필수 personId 누락) → 거부(@ValidateNested).
+  it("rawBridges 원소가 PeriodBridgeDto 위반(personId 누락)이면 거부한다 (negative — nested validation)", async () => {
+    const pipe = makePipe();
+    const badBridge = { ...validBridge };
+    delete (badBridge as Record<string, unknown>).personId;
+    await expect(
+      pipe.transform({ ...validPayload, rawBridges: [badBridge] }, meta),
+    ).rejects.toThrow();
+  });
+
+  // nested PeriodBridgeDto 위반(periodStart 비-ISO) → 거부(@IsISO8601 재귀).
+  it("rawBridges 원소의 periodStart 가 비-ISO 면 거부한다 (negative — nested @IsISO8601)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform(
+        {
+          ...validPayload,
+          rawBridges: [{ ...validBridge, periodStart: "2026-13-99" }],
+        },
+        meta,
+      ),
+    ).rejects.toThrow();
+  });
+
+  // modelId 빈 문자열 → 거부(@IsNotEmpty, 제공 시).
+  it("modelId 가 빈 문자열이면 거부한다 (negative — @IsNotEmpty modelId)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform({ ...validPayload, modelId: "" }, meta),
+    ).rejects.toThrow();
+  });
+
+  // defaultModelId 누락 → 거부(필수).
+  it("defaultModelId 누락 시 거부한다 (negative — required field missing)", async () => {
+    const pipe = makePipe();
+    const payload: Record<string, unknown> = { ...validPayload };
+    delete payload.defaultModelId;
+    await expect(pipe.transform(payload, meta)).rejects.toThrow();
+  });
+
+  // defaultModelId 빈 문자열 → 거부(@IsNotEmpty).
+  it("defaultModelId 가 빈 문자열이면 거부한다 (negative — @IsNotEmpty defaultModelId)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform({ ...validPayload, defaultModelId: "" }, meta),
+    ).rejects.toThrow();
+  });
+
+  // 정의 외 추가 필드 → 거부(forbidNonWhitelisted).
+  it("정의되지 않은 추가 필드는 forbidNonWhitelisted 가 거부한다 (negative — extra field)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform({ ...validPayload, rawBody: "긴 raw 본문" }, meta),
+    ).rejects.toThrow();
+  });
+});
+
+// -----------------------------------------------------------------------
+// RBAC / HttpCode metadata 단언 — runUnevaluatedFill() 핸들러에 @Roles("Admin") +
+// @UseGuards(JwtAuthGuard, RolesGuard) + @HttpCode(200) 부착 검증(evaluate / plan
+// route mirror — Admin+ tier gate). guard 실행 401/403 live 검증은 e2e slice 책임.
+// -----------------------------------------------------------------------
+describe("AssessmentEvaluationController.runUnevaluatedFill (RBAC / HttpCode metadata)", () => {
+  const reflector = new Reflector();
+
+  it("runUnevaluatedFill 핸들러에 @Roles('Admin') metadata 부착 (Admin+ tier gate)", () => {
+    const roles = reflector.get<string[]>(
+      ROLES_METADATA_KEY,
+      AssessmentEvaluationController.prototype.runUnevaluatedFill,
+    );
+    expect(roles).toEqual(["Admin"]);
+  });
+
+  it("runUnevaluatedFill 핸들러에 @UseGuards(JwtAuthGuard, RolesGuard) 부착 (인증 + RBAC gate)", () => {
+    const guards = Reflect.getMetadata(
+      "__guards__",
+      AssessmentEvaluationController.prototype.runUnevaluatedFill,
+    ) as unknown[];
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+  });
+
+  it("runUnevaluatedFill 핸들러에 @HttpCode(200) 부착 (실 실행 진입, 200 OK)", () => {
+    const httpCode = Reflect.getMetadata(
+      "__httpCode__",
+      AssessmentEvaluationController.prototype.runUnevaluatedFill,
+    ) as number;
+    expect(httpCode).toBe(200);
   });
 });
