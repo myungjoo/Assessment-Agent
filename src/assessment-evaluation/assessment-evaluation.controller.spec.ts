@@ -2171,7 +2171,8 @@ function makeRunController(
 }
 
 // makeRunDto — UnevaluatedFillRunRequestDto fixture 빌더(유효 base — rawBridges 2 +
-// modelId 지정 + defaultModelId 지정). overrides 로 각 축을 변형한다.
+// modelId 지정). default 의 source 는 server-side resolver 라 DTO 에 defaultModelId 가
+// 없다(ADR-0048 §Decision 3 필드 제거). overrides 로 각 축을 변형한다.
 function makeRunDto(
   overrides: Partial<UnevaluatedFillRunRequestDto> = {},
 ): UnevaluatedFillRunRequestDto {
@@ -2191,7 +2192,6 @@ function makeRunDto(
       },
     ] as PeriodBridgeDto[],
     modelId: "gpt-4o-mini",
-    defaultModelId: "gpt-4o",
     ...overrides,
   };
 }
@@ -2272,14 +2272,20 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
     expect(result).toBe(expected);
   });
 
-  // negative: dto.defaultModelId 는 더 이상 source 가 아니다 — dto 가 다른 값을 보내도
-  // orchestrator 에는 resolver 가 반환한 값만 forward 된다(server-side 권위 source 박제).
-  it("dto.defaultModelId 값과 무관하게 resolver 반환값을 forward 한다 (negative — dto.defaultModelId source 아님)", async () => {
+  // negative: default 의 source 는 server-side resolver 뿐이다 — DTO 에서 defaultModelId
+  // 필드가 제거됐으므로(ADR-0048 §Decision 3), caller 가 옛 인자를 (unknown 필드로) 끼워
+  // 넣어도 controller 는 그 값을 읽지 않고 resolver 가 반환한 값만 forward 한다(server-side
+  // 권위 source 박제). 옛 인자는 controller-scope ValidationPipe 가 별도로 거부한다.
+  it("DTO 에 옛 defaultModelId 가 unknown 필드로 끼어도 resolver 반환값만 forward 한다 (negative — defaultModelId source 아님)", async () => {
     const { controller, runSpy } = makeRunController(async () =>
       makeRunResult(),
     );
 
-    const dto = makeRunDto({ defaultModelId: "dto-가-보낸-무시될-값" });
+    // 옛 인자를 unknown 필드로 강제 주입(타입상 제거된 필드 — controller 가 미참조임을 검증).
+    const dto = {
+      ...makeRunDto(),
+      defaultModelId: "dto-가-보낸-무시될-값",
+    } as unknown as UnevaluatedFillRunRequestDto;
     await controller.runUnevaluatedFill(dto);
 
     expect(runSpy).toHaveBeenCalledWith(
@@ -2485,9 +2491,11 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
 
 // -----------------------------------------------------------------------
 // UnevaluatedFillRunRequestDto ValidationPipe negative cases — controller-scope
-// pipe 와 동일 옵션으로 단위 검증(e2e 부재라 DTO decorator 검증). 필수 필드 누락 /
-// non-array / nested PeriodBridgeDto 위반 / modelId 빈 문자열 / defaultModelId 누락 /
-// 정의 외 필드 — 예외 분기마다 cover(단일 negative 금지).
+// pipe 와 동일 옵션으로 단위 검증(e2e 부재라 DTO decorator 검증). 필수 rawBridges 누락 /
+// non-array / nested PeriodBridgeDto 위반 / modelId 빈 문자열 / 정의 외 필드(이제 제거된
+// defaultModelId 포함) — 예외 분기마다 cover(단일 negative 금지). defaultModelId 는
+// ADR-0048 §Decision 3 으로 필드가 제거됐으므로 누락/빈 case 대신 forbidNonWhitelisted
+// 가 unknown 필드로 거부하는 case 로 재정의한다.
 // -----------------------------------------------------------------------
 describe("UnevaluatedFillRunRequestDto (ValidationPipe negative cases)", () => {
   function makePipe(): ValidationPipe {
@@ -2514,7 +2522,6 @@ describe("UnevaluatedFillRunRequestDto (ValidationPipe negative cases)", () => {
   const validPayload = {
     rawBridges: [validBridge],
     modelId: "gpt-4o-mini",
-    defaultModelId: "gpt-4o",
   };
 
   it("유효한 DTO 는 통과하고 nested rawBridges 가 PeriodBridgeDto 로 transform 된다 (sanity — happy)", async () => {
@@ -2523,17 +2530,16 @@ describe("UnevaluatedFillRunRequestDto (ValidationPipe negative cases)", () => {
     expect(transformed).toBeInstanceOf(UnevaluatedFillRunRequestDto);
     expect(transformed.rawBridges).toHaveLength(1);
     expect(transformed.rawBridges[0]).toBeInstanceOf(PeriodBridgeDto);
-    expect(transformed.defaultModelId).toBe("gpt-4o");
+    expect(transformed.modelId).toBe("gpt-4o-mini");
   });
 
-  // modelId 미지정도 통과(@IsOptional — fallback 대상).
+  // modelId 미지정도 통과(@IsOptional — server-side resolver 가 default 해석).
   it("modelId 미지정 시 통과한다 (branch — modelId 선택)", async () => {
     const pipe = makePipe();
     const payload: Record<string, unknown> = { ...validPayload };
     delete payload.modelId;
     const transformed = await pipe.transform(payload, meta);
     expect(transformed.modelId).toBeUndefined();
-    expect(transformed.defaultModelId).toBe("gpt-4o");
   });
 
   // 빈 rawBridges 는 형식상 허용(@ArrayNotEmpty 미적용 — 빈 배열 → 빈 outcomes 정책).
@@ -2594,19 +2600,13 @@ describe("UnevaluatedFillRunRequestDto (ValidationPipe negative cases)", () => {
     ).rejects.toThrow();
   });
 
-  // defaultModelId 누락 → 거부(필수).
-  it("defaultModelId 누락 시 거부한다 (negative — required field missing)", async () => {
-    const pipe = makePipe();
-    const payload: Record<string, unknown> = { ...validPayload };
-    delete payload.defaultModelId;
-    await expect(pipe.transform(payload, meta)).rejects.toThrow();
-  });
-
-  // defaultModelId 빈 문자열 → 거부(@IsNotEmpty).
-  it("defaultModelId 가 빈 문자열이면 거부한다 (negative — @IsNotEmpty defaultModelId)", async () => {
+  // 제거된 defaultModelId 를 보내면 unknown 필드로 거부(forbidNonWhitelisted) — ADR-0048
+  // §Decision 3 의 필드 제거가 controller-scope pipe 계약으로 외화됨(옛 caller 가 옛 인자를
+  // 계속 보내면 400 으로 명시 실패 — silent 무시 아님).
+  it("제거된 defaultModelId 를 보내면 forbidNonWhitelisted 가 거부한다 (negative — 제거된 필드 unknown 처리)", async () => {
     const pipe = makePipe();
     await expect(
-      pipe.transform({ ...validPayload, defaultModelId: "" }, meta),
+      pipe.transform({ ...validPayload, defaultModelId: "gpt-4o" }, meta),
     ).rejects.toThrow();
   });
 
