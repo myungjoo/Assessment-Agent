@@ -31,6 +31,8 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import { PersistenceModule } from "../persistence/persistence.module";
 
 // eslint-disable-next-line import/first
+import { LlmProviderConfigResolver } from "./llm-provider-config-resolver.service";
+// eslint-disable-next-line import/first
 import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
 // eslint-disable-next-line import/first
 import { LlmModule } from "./llm.module";
@@ -80,5 +82,21 @@ describe("LlmModule", () => {
     expect(paramTypes?.length).toBeGreaterThanOrEqual(1);
     // mock 의 클래스명은 MockPrismaService — 둘 다 PrismaService substring 매칭.
     expect(paramTypes?.[0]?.name).toMatch(/PrismaService/);
+  });
+
+  // T-0568 — LlmProviderConfigResolver (ADR-0048 §Decision 1·2) 가 module 의
+  // providers + exports 에 등록되어 DI resolve 되는지 검증. 후속 controller wiring
+  // task (chain item 3) 가 AssessmentEvaluationModule 에서 LlmModule import 로
+  // inject 받을 수 있도록 export 정합성을 간접 확인.
+  it("compile 시 LlmProviderConfigResolver provider 가 resolve 된다 (T-0568, ADR-0048 §Decision 1)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, LlmModule],
+    }).compile();
+
+    const resolver = moduleRef.get(LlmProviderConfigResolver);
+    expect(resolver).toBeDefined();
+    expect(resolver).toBeInstanceOf(LlmProviderConfigResolver);
+
+    await moduleRef.close();
   });
 });

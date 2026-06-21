@@ -16,6 +16,10 @@
 //     주입해 encrypt 후 영속. Node 내장 node:crypto 만 사용 — 새 dependency 0).
 //   - LlmGateway interface + LlmProvider enum 은 llm-gateway.interface.ts 에 박제 —
 //     구현 class 0 이므로 본 module 에 gateway provider 등록 0 (후속 routing task 책임).
+//   - LlmProviderConfigResolver 등록 + export (T-0568 추가 — ADR-0048 §Decision 1·2:
+//     defaultModelId 의 source 를 LlmProviderConfig DB row 의 modelId 로 단일화하는
+//     thin resolver. 후속 controller wiring task (chain item 3) 가 AssessmentEvaluation
+//     Module 에서 LlmModule import 로 inject 받아 runUnevaluatedFill 진입 시 1 회 호출).
 //
 // PersistenceModule (`@Global()`) 이 PrismaService 를 application-wide 로 export
 // 하므로 본 module 은 PersistenceModule 을 imports 에 명시할 필요가 없다 (UserModule
@@ -34,6 +38,7 @@ import { DifficultyMappingRepository } from "./difficulty-mapping.repository";
 import { DifficultyMappingService } from "./difficulty-mapping.service";
 import { LlmApiKeyCipher } from "./llm-apikey-cipher.service";
 import { LlmHttpGateway } from "./llm-http-gateway.service";
+import { LlmProviderConfigResolver } from "./llm-provider-config-resolver.service";
 import { LlmProviderConfigController } from "./llm-provider-config.controller";
 import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
 import { LlmProviderConfigService } from "./llm-provider-config.service";
@@ -56,6 +61,11 @@ import { LlmProviderConfigService } from "./llm-provider-config.service";
     // cipher 를 inject 해 config→decrypt→fetch→parse 를 묶는다. 후속 평가 파이프라인
     // (P5) 이 inject 해 LLM 호출하므로 export.
     LlmHttpGateway,
+    // LlmProviderConfigResolver (T-0568, ADR-0048 §Decision 1·2) — defaultModelId 의
+    // source 를 LlmProviderConfig row 의 modelId 로 단일화하는 thin resolver. 후속
+    // controller wiring task (chain item 3) 가 AssessmentEvaluationModule 에서
+    // LlmModule import 로 inject 받아 runUnevaluatedFill 진입 시 1 회 호출하므로 export.
+    LlmProviderConfigResolver,
   ],
   exports: [
     LlmProviderConfigRepository,
@@ -64,6 +74,7 @@ import { LlmProviderConfigService } from "./llm-provider-config.service";
     DifficultyMappingService,
     LlmApiKeyCipher,
     LlmHttpGateway,
+    LlmProviderConfigResolver,
   ],
 })
 export class LlmModule {}
