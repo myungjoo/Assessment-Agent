@@ -2,7 +2,10 @@
 id: T-0568
 title: LlmProviderConfigResolver 실구현 (단일-row + fail-fast) + spec
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 482
+completedAt: 2026-06-21T19:25:00Z
+mergeSha: f1dcc7fba563da07aa5bc437a270f40d44bb1b4f
 commitMode: pr
 coversReq: [REQ-037, REQ-051]
 independentStream: q0045-run-side-default-model

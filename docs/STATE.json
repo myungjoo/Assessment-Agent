@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0568",
-  "backlogNote": "▶ **T-0568 QUEUED (pr-mode)** — P5 bullet 106(R-64/REQ-037) Q-0045 옵션1 run-side chain 의 ADR-이후 첫 구현 slice: ADR-0048 §Decision 1·2 의 `LlmProviderConfigResolver` @Injectable 실구현 (`LlmProviderConfigRepository.findMany()` 호출 → 단일-row 의 modelId 반환 / length 0·≥2·빈modelId fail-fast 한국어 throw) + R-112 4 종 cover spec + llm.module providers/exports 등록. dependsOn=[] (chain item 1 = dependency-free upstream). touchesFiles 4 개 (resolver+spec / llm.module+spec), schema 무변경·새 env 0·새 dep 0 (ADR-0048 §Decision 4, CLAUDE.md §5 미발화). **chain 남은 후속 (본 resolver merge 후 순차 큐잉)**: (2) `UnevaluatedFillRunRequestDto.defaultModelId` 필드 제거 + spec/e2e fixture 갱신 (pr-mode), (3) controller wiring 변경 — resolver 호출 + service inject + row 부재/비단일 HTTP status(503/400) 매핑 (pr-mode), (4) REQ-051 (custom 3 model 슬롯) 진입 시 다중-row default 정책 후속 ADR, (5) PLAN.md bullet 106 chain 완결 doc-sync, (6) 비어있지-않은 좌표 live-LLM round-trip 1회(LAN=AKIHA 192.168.0.5 Ollama; cloud cron LAN 무경로, ADR-0045). ✅ T-0567 DONE(direct commit, 사용자 명시 override): ADR-0048 PROPOSED 신설 (defaultModelId source = LlmProviderConfig row 의 modelId; 단일-row 가정 + 다중-row 분기 REQ-051 deferred; request body defaultModelId 제거 결정; schema migration 0 / 새 env 0 / 새 dep 0) + deployment.md 링크 1 문장 동기. **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0.",
+  "nextTask": null,
+  "backlogNote": "▶ **T-0568 DONE (pr-mode, PR #482 squash f1dcc7f)** — Q-0045 옵션1 run-side chain item(1) 머지 완료: `LlmProviderConfigResolver` @Injectable 실구현 (단일-row + fail-fast 3 분기 + 빈/whitespace/non-string modelId TypeError 차단) + R-112 4 종 cover spec 10 cases + llm.module providers/exports 등록. reviewer round1 APPROVE(0 BLOCKER / 0 MAJOR / 0 MINOR), 4-게이트 PASS(reviewer APPROVE + comment externalized + AC ok + CI green — '기본 검사' 1차 fail 은 timing race[approval gate step 이 reviewer comment post 전 실행], rerun 후 success). coverage line 99.92% / function 99.89% (resolver 자체 100%). **chain 남은 후속 (대기 — 다음 fire 의 planner-dispatch 가 item 2 큐잉)**: (2) `UnevaluatedFillRunRequestDto.defaultModelId` 필드 제거 + spec/e2e fixture 갱신 (pr-mode), (3) controller wiring 변경 — resolver 호출 + service inject + row 부재/비단일 HTTP status(503/400) 매핑 (pr-mode), (4) REQ-051 (custom 3 model 슬롯) 진입 시 다중-row default 정책 후속 ADR, (5) PLAN.md bullet 106 chain 완결 doc-sync, (6) 비어있지-않은 좌표 live-LLM round-trip 1회(LAN=AKIHA 192.168.0.5 Ollama; cloud cron LAN 무경로, ADR-0045). ✅ T-0567 DONE(direct commit, 사용자 명시 override): ADR-0048 PROPOSED 신설 (defaultModelId source = LlmProviderConfig row 의 modelId; 단일-row 가정 + 다중-row 분기 REQ-051 deferred; request body defaultModelId 제거 결정; schema migration 0 / 새 env 0 / 새 dep 0) + deployment.md 링크 1 문장 동기. **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0(T-0568 claim 본 fire 의 lock-tombstone push 와 함께 release).",
   "lock": {
     "holder": "",
-    "session": "cron@aa-local-sched-1837z",
-    "since": "2026-06-21T18:37:15Z",
-    "note": "cron@aa-local-sched-1837z (로컬 schedule cron fire aa-local-scheduled — 매시 30분대 trigger 로 정각 cron@cloud·15분 cron@aa-local-15 발화와 시간대 분리; 진입 시 로컬 HEAD=9609db3 가 origin/main(7a2fe95) 보다 뒤처져 git merge --ff-only origin/main sync 후 진행 — 직전 cron@claude-cloud-1803z 가 T-0567 을 direct override 로 머지) — **planner-dispatch fire (T-0568 큐잉)**: 진입 시 lock free(tip d01685c tombstone holder:\"\")·claims=[]·currentTask/nextTask 둘 다 null → LOOP §1[1] lock CAS 획득(observed d01685c → 2b34f3f, hash-object+mktree+commit-tree plumbing, claims.json blob [] 보존, critical section) → §1[2] fineGrainedConcurrency=true 분기: reclaim 무대상(빈 claims no-op) → claimable 후보 0(nextTask null·PENDING task 미큐잉) → planner sub-agent dispatch. planner 가 T-0568 생성(ADR-0048 §Decision1·2 chain item(1): LlmProviderConfigResolver @Injectable 실구현 — 단일-row+fail-fast, commitMode=pr·dependsOn []·touchesFiles resolver+spec(+service/module wiring)·R-112 4종 cover·~180 LOC) + STATE.nextTask=T-0568 갱신. 본 fire 는 planner-dispatch 라 doc-only direct commit(task 파일 + STATE + journal) 후 lock tombstone release 하고 종료 — T-0568 실행은 다음 fire(claim-pickup, pr-mode 라 gh/MCP 가용 진입점이 집어감). server-time 2026-06-21T18:37:15Z(GitHub API Date 헤더 'Sun, 21 Jun 2026 18:37:15 GMT'). git push 가용(claude/lock-driver CAS 성공). 단일 active driver, race 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0·consecutiveFails=0. 본 bookkeeping commit 후 tombstone release."
+    "session": "cron@claude-cloud-1904z",
+    "since": "2026-06-21T19:04:14Z",
+    "note": "cron@claude-cloud-1904z (Anthropic 클라우드 schedule cron fire — fresh checkout, gh CLI 부재 MCP 가용) — **T-0568 claim-pickup + impl + PR open + merge fire**: 진입 시 lock free(tip 82f93de tombstone holder:\"\")·claims=[]·currentTask null·nextTask=T-0568 → LOOP §1[1] lock CAS 획득(observed 82f93de → 834109e, hash-object+mktree+commit-tree plumbing, claims.json [] 보존, critical section) → §1[2] fineGrainedConcurrency=true 분기: reclaim 무대상(빈 claims) → maxConcurrentClaims gate 2 통과(활성 claim 0) → pr-mode 후보 T-0568 단독 claim(select-claim.sh, claims=[{taskId:T-0568,owner:cron@claude-cloud-1904z,claimedAt:19:04:14Z,status:CLAIMED}] + lock tombstone CAS 같은 commit 으로 critical section 종료) → lock-free 진행 → executor sub-agent dispatch(architect skip·implementer + tester chain): resolver+spec 신설, llm.module+spec wiring + R-112 4종 cover 10 cases, lint/build/test 6281/6281 pass, cov line 99.92%/function 99.89% — STATUS=DONE → 새 feature branch `claude/T-0568-llm-provider-config-resolver-impl` checkout + commit(62fcdb5) + push(origin 신규 branch) → MCP create_pull_request(draft, base=main, #482 open) → CI trigger(run 27914681414) → reviewer sub-agent dispatch: 8-check 8/8 PASS, VERDICT=APPROVE 0/0/0 findings, COMMENT_URL=pending-driver-post → driver MCP add_issue_comment post(#issuecomment-4763020184) → CI '기본 검사' first-pass failure(approval gate step 이 reviewer comment post 전 19:14 실행) 관측 → MCP actions_run_trigger rerun_failed_jobs(run 27914681414) → 90+90s 대기 후 둘 다 success(19:20:02Z) → 4-게이트(reviewer APPROVE / comment externalized / AC ok / CI green) PASS → MCP update_pull_request(draft→ready) + MCP merge_pull_request(squash, f1dcc7f) → feature branch delete proxy 403(harmless, GitHub auto-delete 가능) → main 으로 switch + reset --hard origin/main(f1dcc7f) → bookkeeping commit(STATE/task/journal direct main). server-time 2026-06-21T19:04:14Z(GitHub API Date 헤더 'Sun, 21 Jun 2026 19:04:14 GMT'). 단일 active driver, race 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0(본 fire 종료 시 tombstone release + claims=[]). 본 bookkeeping commit 후 tombstone release. tasksCompleted 559→560. reviewRounds.T-0568=1."
   },
-  "lastActivity": "2026-06-21T18:37:15Z",
-  "lastCommit": "7a2fe95",
+  "lastActivity": "2026-06-21T19:25:00Z",
+  "lastCommit": "f1dcc7f",
   "mostRecentTasks": [
+    "T-0568",
     "T-0567",
     "T-0566",
     "T-0565",
-    "T-0564",
-    "T-0563"
+    "T-0564"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-21T17:17:04Z",
+    "lastRun": "2026-06-21T19:20:02Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0566 PR #481 CI 는 integrator 4-게이트 (4) 에서 green 확인 후 squash merge 30514d8. first pull_request-event run 27911602194 이 reviewer comment 가 approval 게이트 step 실행 전 post 돼 first-pass green(e2e step success + reviewer-approval 검증 success) — ad-hoc rerun 불필요·race 0. e2e step(pnpm test:e2e)은 CI 전용(로컬 DATABASE_URL 부재) 으로 CI 에서만 실행됐고 green. merge 후 main push CI(headSha 30514d8) 와 본 fire 의 doc-only direct commit push 후 main CI 는 본 bookkeeping 시점 in_progress 가능 — R-114 CI trigger 는 push 자체로 시작, conclusion 은 다음 fire 가 재확인. consecutiveFails=0 유지."
+    "note": "T-0568 PR #482 CI run 27914681414 — first pass: '배포 산출물 검증' success 19:15:18Z + '기본 검사' failure 19:16:44Z(approval gate step 이 reviewer comment 4763020184[19:22 post] 전 19:16 실행돼 4-게이트 (b) 위반 1차 fail — timing race). MCP actions_run_trigger rerun_failed_jobs 후 '기본 검사' 19:20:02Z success. 4-게이트 (4) green 확인 후 squash merge f1dcc7f. main push CI(headSha f1dcc7f)와 본 fire 의 doc-only direct commit push 후 main CI 는 본 bookkeeping 시점 in_progress 가능 — R-114 CI trigger 는 push 자체로 시작, conclusion 은 다음 fire 가 재확인. consecutiveFails=0 유지."
   },
   "reviewRounds": {
+    "T-0568": 1,
     "T-0566": 1,
     "T-0565": 1,
     "T-0564": 1,
@@ -1025,7 +1026,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 559,
+    "tasksCompleted": 560,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
