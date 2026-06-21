@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0571",
-  "backlogNote": "▶ **T-0570 DONE (pr-mode, PR #484 squash c2e7c0c, reviewRounds=1)** — chain item(2) DTO 필드 제거 머지: `UnevaluatedFillRunRequestDto` 에서 `defaultModelId!` 필드 + @IsString/@IsNotEmpty decorator·주석 제거 → rawBridges(필수 nested)+modelId?(선택) 2축화. default modelId source 는 server-side resolver(`LlmProviderConfigResolver`, ADR-0045/ADR-0048 §Decision3)임을 DTO 주석 1줄 명시. controller 무변경(T-0569 머지로 이미 dto.defaultModelId 미참조). spec 3종 갱신: dto.spec(defaultModelId 무시 negative)/controller.spec(makeRunDto 필드 제거 + ValidationPipe forbidNonWhitelisted 거부)/e2e fixture('필드 누락 400'→'제거된 필드 forbidNonWhitelisted 400' 재정의, 503/200 유지). +99/-86 (4 파일). round1 reviewer APPROVE + CI green(reviewer comment 21:16Z 가 approval step 전 post → timing race 없음) → 4-게이트 PASS squash merge. ▶ **다음 큐잉 T-0571 PENDING (direct, doc-only)** — PLAN bullet106 Q-0045 run-side chain(T-0556~T-0570) 완결 doc-sync + ADR-0048 PROPOSED→ACCEPTED flip + deployment.md 참조 동기 (3 doc, dependsOn T-0570 머지됨). ▶ T-0569 DONE(PR #483 b50accb, r2): chain item(3) controller resolver wiring. ▶ T-0568 DONE(PR #482 f1dcc7f): chain item(1) LlmProviderConfigResolver @Injectable 단일-row+fail-fast. ▶ T-0567 DONE(direct): ADR-0048 PROPOSED 신설. **chain 남은 후속**: (4) REQ-051(custom 3 model 슬롯) 진입 시 다중-row default 정책 후속 ADR, (5) = T-0571(큐잉됨), (6) 비어있지-않은 좌표 live-LLM round-trip 1회(LAN=AKIHA 192.168.0.5 Ollama; cloud cron LAN 무경로, ADR-0045). **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0(T-0570 claim 본 fire 회수 release).",
+  "nextTask": null,
+  "backlogNote": "▶ **T-0571 DONE (direct, doc-only)** — Q-0045 옵션1 run-side chain 완결 doc-sync 3종: (1) PLAN.md bullet 106(R-64) 에 run-side 사슬 `POST /api/assessment-evaluation/unevaluated-fill-run` 까지 닫힘 표기(T-0556~T-0570 chain, default modelId source = server-side `LlmProviderConfigResolver`/ADR-0048) + checkbox `[ ]` 유지(부분 완료 — overwrite/reset 잔여 bullet 107 DEFERRED) + REQ-051 다중-row default 후속 ADR prerequisite link; (2) ADR-0048 status PROPOSED→ACCEPTED flip(relatedTask +T-0568/T-0569/T-0570, relatedPR [482,483,484], 도입문 사슬완결 1줄); (3) deployment.md L162 ADR-0048 참조 PROPOSED→ACCEPTED 동기. +6/-6 (3 doc). ▶ T-0570 DONE(PR #484 c2e7c0c, r1): chain item(2) DTO defaultModelId 필드 제거. ▶ T-0569 DONE(PR #483 b50accb, r2): chain item(3) controller resolver wiring. ▶ T-0568 DONE(PR #482 f1dcc7f): chain item(1) LlmProviderConfigResolver @Injectable. ▶ T-0567 DONE(direct): ADR-0048 신설. **Q-0045 run-side chain(T-0556~T-0571) 전부 닫힘 — nextTask 비움, 다음 fire planner dispatch.** **chain 남은 후속(deferred, cron backlog 아님)**: REQ-051 다중-row default 후속 ADR, 비어있지-않은 좌표 live-LLM round-trip 1회(LAN=AKIHA 192.168.0.5 Ollama; cloud cron LAN 무경로, ADR-0045). **standing 게이트**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0(T-0571 claim 본 fire 회수 release).",
   "lock": {
     "holder": "",
-    "session": "cron@aa-local-15-2104z",
-    "since": "2026-06-21T21:04:16Z",
-    "note": "cron@aa-local-15-2104z (로컬 schedule cron fire aa-local-15 — 매시 15분 trigger 로 정각 cron@cloud·30분대 cron@aa-local-sched 와 시간대 분리) — **claim-pickup 실행 fire (T-0570 DONE, stage5b)**: 진입 시 로컬 HEAD=e915b40 < origin/main(46c6d27) → git merge --ff-only sync. lock free(tip ca6719a tombstone holder:\"\")·claims=[]·nextTask=T-0570 → LOOP §1[1] lock CAS 획득(observed ca6719a → 35bee7a, plumbing, claims.json [] 보존, critical section) → §1[2] fineGrainedConcurrency=true 분기: reclaim 무대상(빈 claims) → maxConcurrentClaims 게이트(active 0<2, pr-mode 단독 OK) → validate-claim-candidate.sh PASS(T-0569 dependsOn 머지·touchesFiles disjoint) → select-claim.sh T-0570(claim append + lock tombstone CAS 같은 commit → 즉시 release, lock-free 진행). gh 가용(account myungjoo) 이라 pr-mode 진행. executor(implementer+tester) → DTO defaultModelId 필드 제거 + spec 3종 갱신(+99/-86, 4 파일, unit 6284 pass·cov 99.94%/100%·e2e 는 local DB 부재 CI 위임) → 8959894 commit → push feature branch → integrator PR #484 open → reviewer round1 APPROVE + CI green(reviewer comment 21:16Z 가 approval step 전 post) → 4-게이트 PASS → squash merge c2e7c0c --delete-branch. server-time 2026-06-21T21:04:16Z(GitHub API Date 헤더). 단일 active driver, race 0. concurrency incident 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·consecutiveFails=0. 본 bookkeeping direct commit 후 claims.json 의 T-0570 claim 회수(tombstone CAS, claims→[]). planner-dispatch 로 T-0571 큐잉(chain item5 doc-sync). (직전 fire cron@claude-cloud-2037z: planner-dispatch T-0570 큐잉.)"
+    "session": "cron@claude-cloud-2137z",
+    "since": "2026-06-21T21:37:49Z",
+    "note": "cron@claude-cloud-2137z (Anthropic 클라우드 schedule cron fire — fresh git checkout, main 기준) — **claim-pickup 실행 fire (T-0571 DONE, direct doc-only, stage5b)**: 진입 시 로컬 HEAD=46c6d27 < origin/main(3ab71e7) → git merge --ff-only sync(직전 cron@aa-local-15-2104z 가 T-0570 PR #484 squash c2e7c0c 머지 + T-0571 큐잉). lock free(tip d87189d tombstone holder:\"\")·claims=[]·nextTask=T-0571 → LOOP §1[1] lock CAS 획득(observed d87189d → 1672067, plumbing hash-object+mktree+commit-tree, claims.json [] 보존, critical section) → §1[2] fineGrainedConcurrency=true 분기: reclaim 무대상(빈 claims) → maxConcurrentClaims 게이트(active 0<2) → validate-claim-candidate.sh PASS(T-0570 dependsOn 머지·touchesFiles disjoint) → select-claim.sh T-0571(claim append + lock tombstone CAS 같은 commit c807d96 → 즉시 release, lock-free 진행). executor(implementer만, doc-only direct 라 tester R-110 면제) → PLAN bullet106 chain 완결 표기 + REQ-051 prereq link + ADR-0048 ACCEPTED flip(relatedPR/Task) + deployment.md L162 동기(+6/-6, 3 doc). driver 가 relatedPR YAML flow-seq `#`-comment 위험을 bare-integer [482,483,484] 로 교정. server-time 2026-06-21T21:37:49Z(GitHub API Date 헤더 'Sun, 21 Jun 2026 21:37:49 GMT'). git push 가용(claude/lock-driver CAS 성공 d87189d→1672067, claim c807d96). 단일 active driver, race 0. concurrency incident 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·consecutiveFails=0. 본 bookkeeping direct commit 후 claims.json 의 T-0571 claim 회수(tombstone CAS, claims→[]). Q-0045 run-side chain 전부 닫힘 → nextTask 비움(다음 fire planner dispatch). (직전 fire cron@aa-local-15-2104z: T-0570 claim→PR #484→squash c2e7c0c 머지.)"
   },
-  "lastActivity": "2026-06-21T21:04:16Z",
+  "lastActivity": "2026-06-21T21:37:49Z",
   "lastCommit": "c2e7c0c",
   "mostRecentTasks": [
+    "T-0571",
     "T-0570",
     "T-0569",
     "T-0568",
-    "T-0567",
-    "T-0566"
+    "T-0567"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -1028,7 +1028,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 562,
+    "tasksCompleted": 563,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

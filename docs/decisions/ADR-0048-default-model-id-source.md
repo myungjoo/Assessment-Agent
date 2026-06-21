@@ -1,10 +1,10 @@
 ---
 id: ADR-0048
 title: "defaultModelId 의 source — LlmProviderConfig DB row 의 modelId (단일-row 운용 + 다중-row 분기는 후속 ADR 로 deferred)"
-status: PROPOSED
+status: ACCEPTED
 date: 2026-06-21
-relatedTask: [T-0567]
-relatedPR: null
+relatedTask: [T-0567, T-0568, T-0569, T-0570]
+relatedPR: [482, 483, 484]
 supersedes: null
 augments: [ADR-0045]
 relatedReq: [REQ-037, REQ-051]
@@ -12,7 +12,7 @@ relatedReq: [REQ-037, REQ-051]
 
 # ADR-0048 — defaultModelId 의 source (LlmProviderConfig DB row 에서 해석)
 
-> 본 ADR 은 **PROPOSED** — P5 bullet 106 (R-64 / REQ-037 "평가 없는 부분 일괄 평가") Q-0045 옵션1 run-side 사슬의 마지막 미해결 결정인 **"defaultModelId 를 어디서·어떻게 해석하는가"** 를 박제한다. 구현(resolver·DTO·controller 배선·spec)은 본 ADR 이 분해할 후속 task 책임이며 본 ADR 은 결정만(§Out of scope). [ADR-0045](ADR-0045-llm-provider-deployment-config.md) §Decision 1 ("LLM provider = 배포-환경 설정, source = `LlmProviderConfig` row") 을 보강(augment)한다.
+> 본 ADR 은 **ACCEPTED** — P5 bullet 106 (R-64 / REQ-037 "평가 없는 부분 일괄 평가") Q-0045 옵션1 run-side 사슬의 마지막 미해결 결정인 **"defaultModelId 를 어디서·어떻게 해석하는가"** 를 박제한다. 결정안의 구현 사슬은 resolver(T-0568, PR #482) · controller resolver wiring(T-0569, PR #483) · request body `defaultModelId` 필드 제거(T-0570, PR #484 squash c2e7c0c)로 전부 머지돼 닫혔으며, 남은 후속은 REQ-051 다중-row default 정책 ADR(deferred) + 비어있지-않은 좌표 live-LLM round-trip 1회(LAN 수동 검증)뿐이다. [ADR-0045](ADR-0045-llm-provider-deployment-config.md) §Decision 1 ("LLM provider = 배포-환경 설정, source = `LlmProviderConfig` row") 을 보강(augment)한다.
 
 ## Context
 

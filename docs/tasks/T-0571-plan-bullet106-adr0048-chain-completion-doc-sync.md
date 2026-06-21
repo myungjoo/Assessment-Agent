@@ -2,7 +2,7 @@
 id: T-0571
 title: PLAN bullet 106 Q-0045 run-side chain 완결 doc-sync + ADR-0048 PROPOSED→ACCEPTED flip
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-037, REQ-051]
 estimatedDiff: 40
@@ -54,3 +54,9 @@ plannerNote: P5 bullet106 ADR-0048 §Out-of-scope chain item(5) — run-side 사
 ## Follow-ups
 
 (생성 시 비어있음)
+
+## Status
+
+- **DONE** (2026-06-21T21:37:49Z, cron@claude-cloud-2137z, direct doc-only)
+- 변경: `docs/PLAN.md`(bullet 106 chain 완결 표기 + REQ-051 다중-row default 후속 ADR prerequisite link, checkbox `[ ]` 유지) · `docs/decisions/ADR-0048-default-model-id-source.md`(status PROPOSED→ACCEPTED, relatedTask +T-0568/T-0569/T-0570, relatedPR [482,483,484], 도입문 사슬완결 1줄) · `docs/architecture/deployment.md`(L162 ADR-0048 참조 PROPOSED→ACCEPTED). +6/-6 (3 doc).
+- Acceptance Criteria 5종 전부 충족. STATE.json 미변경(driver bookkeeping 책임). Q-0045 옵션1 run-side chain(T-0556~T-0571) 완결.
