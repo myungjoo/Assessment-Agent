@@ -2,7 +2,11 @@
 id: T-0563
 title: run-unevaluated-fill-run 순수 orchestration core 추가 (dedup → options → batch)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-21T13:40:00Z
+mergedAs: fbfd15d
+prNumber: 478
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 160

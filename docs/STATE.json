@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0563",
-  "backlogNote": "✅ **T-0562 DONE(merge 0445061, PR #477, 4-게이트 round1 PASS)** — P5 bullet 106(R-64/REQ-037·038) Q-0045 옵션1 run-side chain slice(1-pre): run-request modelId → ScoringOptions 도출 순수 factory buildFillRunScoringOptions(src/assessment-evaluation/dto/build-fill-run-scoring-options.ts, +131 LOC). request 의 선택적 modelId 와 default modelId 를 받아 검증된 ScoringOptions 조립 — request 채택/default fallback/throw 3 분기, trim, null/\"\"/whitespace fallback, default 무효·type mismatch 시 한국어 TypeError. @Injectable 0·Prisma/LLM/class-validator import 0·새 dependency 0 → build-time dependency-free·mock-unit. 신규 파일 cov 100%(stmt/branch/func/line), 261 suites/6207 test green, full gate green. build-resolve-person-fn(T-0561) fail-fast 패턴 mirror. **chain 남은 후속 slice(T-0562 후)**: (1) loop-level @Injectable orchestrator(buildResolvePersonFn 의 lookup 을 DB personId→ServiceIdentity 조회로 실배선 + runUnevaluatedFillBatch(T-0560) 호출 + buildFillRunScoringOptions(T-0562) 로 options 도출 + persist=generateAndPersist + dedup(T-0551) 입력 결합 + module 등록) (2) POST /unevaluated-fill-run route + RBAC + run-request DTO (3) e2e. orchestrator/route/e2e 는 live-LLM 배선검증(ADR-0045, LAN=AKIHA 192.168.0.5 Ollama 수동/로컬; cloud cron 은 LAN 무경로) 동반 가능 — 빌드/unit 은 mock. **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0. **➡️ T-0563 큐잉됨(nextTask)** — slice(1) split: @Injectable orchestrator 전 dependency-free 순수 orchestration core(바인딩된 resolvePerson/persist callable + 좌표 배열·modelId 받아 dedup(T-0551)→buildFillRunScoringOptions(T-0562)→runUnevaluatedFillBatch(T-0560) 단일 순수 함수로 조립, commitMode=pr, mock-unit·dependency-free). 후속 slice 는 본 core 를 @Injectable 배선 후 1 회 호출로 위임. **chain 남은 후속 slice(T-0563 후)**: (1') loop-level @Injectable orchestrator(DB personId→ServiceIdentity lookup 실배선 + generateAndPersist 바인딩 + 본 core 호출 + module 등록) (2) POST /unevaluated-fill-run route + RBAC + run-request DTO (3) e2e. orchestrator/route/e2e 는 live-LLM 배선검증(ADR-0045, LAN=AKIHA 192.168.0.5 Ollama 수동/로컬; cloud cron 은 LAN 무경로) 동반 가능 — 빌드/unit 은 mock. **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인).",
+  "nextTask": null,
+  "backlogNote": "✅ **T-0563 DONE(merge fbfd15d, PR #478, 4-게이트 round1 PASS)** — P5 bullet 106(R-64/REQ-037·038) Q-0045 옵션1 run-side chain slice(1): @Injectable orchestrator 전 dependency-free 순수 orchestration core runUnevaluatedFillRunCore(src/assessment-evaluation/dto/run-unevaluated-fill-run-core.ts, +134 LOC). 이미 바인딩된 callable(resolvePerson/persist)과 좌표 배열·modelId 를 받아 buildFillRunScoringOptions(T-0562)→dedupePeriodBridgeRequests(T-0551)→runUnevaluatedFillBatch(T-0560) 순서 고정 위임(재구현 0). @Injectable 0·Prisma/LLM/class-validator import 0·새 dependency 0(value import 은 조립 함수 3 개뿐) → build-time dependency-free·mock-unit. 신규 파일 cov 100%(stmt/branch/func/line), 6221 test green, full gate green. T-0558~T-0562 fail-fast 순수-조각 패턴 mirror. **chain 남은 후속 slice(T-0563 후)**: (1') loop-level @Injectable orchestrator(DB personId→ServiceIdentity lookup 실배선 + generateAndPersist 바인딩 + 본 core 1 회 호출 위임 + module provider 등록) (2) POST /unevaluated-fill-run route + RBAC + run-request DTO (3) e2e. orchestrator/route/e2e 는 live-LLM 배선검증(ADR-0045, LAN=AKIHA 192.168.0.5 Ollama 수동/로컬; cloud cron 은 LAN 무경로) 동반 가능 — 빌드/unit 은 mock. **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0. 다음 fire 는 currentTask/nextTask 둘 다 null → planner dispatch(orchestrator slice(1') @Injectable 부분 또는 gate 판정).",
   "lock": {
     "holder": "",
-    "session": "cron@cloud-aa-local-15-13e1",
-    "since": "2026-06-21T13:03:51Z",
-    "note": "cron@cloud-aa-local-15-13e1 (Anthropic 클라우드 cron fire aa-local-15 — 매시 15분 trigger 로 정각 cron@cloud·30분 cron@aa-local-sched 발화와 시간대 분리, fresh checkout 진입, 로컬 HEAD=9239254 가 origin/main 보다 뒤처져 git merge --ff-only origin/main(→887bb41) sync 후 진행) — **planner-dispatch fire**: 진입 시 lock free(tombstone 840a4bd)·claims=[](active claim 0)·currentTask·nextTask 둘 다 null → claimable 후보 0 → LOOP §1[2] fineGrainedConcurrency=true claim-pickup 분기는 후보 부재로 no-op, 단일-task 경로의 planner dispatch 로 진입. lock CAS 획득(observed 840a4bd → d2c0226, hash-object+mktree+commit-tree plumbing). R-114 carryover: 직전 fire bookkeeping 887bb41 + T-0562 merge 0445061 main CI conclusion=success 둘 다 확인 완료. planner → T-0563 생성(Q-0045 옵션1 run-side chain slice(1) split: @Injectable orchestrator 전 dependency-free 순수 orchestration core — 바인딩된 resolvePerson/persist callable + 좌표 배열·modelId 받아 dedup(T-0551)→buildFillRunScoringOptions(T-0562)→runUnevaluatedFillBatch(T-0560) 조립, commitMode=pr, mock-unit·dependency-free) + STATE.nextTask=T-0563. 코드 변경 0(doc-only direct commit). 본 bookkeeping commit 후 tombstone release 예정. server-time 2026-06-21T13:03:51Z(GitHub API Date 헤더). gh CLI 가용(gh 2.88.1). 단일 active driver, race 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0·consecutiveFails=0."
+    "session": "cron@aa-local-sched-1337z",
+    "since": "2026-06-21T13:37:47Z",
+    "note": "cron@aa-local-sched-1337z (로컬 schedule cron fire aa-local-scheduled — 매시 30분대 trigger 로 정각 cron@cloud·15분 cron@aa-local-15 발화와 시간대 분리, fresh checkout 진입, 로컬 HEAD=887bb41 가 origin/main 보다 뒤처져 git merge --ff-only origin/main(→6c19dbf) sync 후 진행) — **T-0563 DONE 1-task fire(claim-pickup stage5b)**: 진입 시 lock free(tombstone 379c710)·claims=[]·nextTask=T-0563 → LOOP §1[2] fineGrainedConcurrency=true 분기: lock CAS 획득(observed 379c710 → ec1a498, hash-object+mktree+commit-tree plumbing, critical section) → reclaim(빈 claims no-op, RECLAIM_NOW server-time 13:37:47Z) → maxConcurrentClaims 게이트(active 0 < 2, pr-mode 단독 0 충족) → validate-claim-candidate.sh T-0563 PASS → select-claim.sh T-0563(claim append + lock tombstone release 동일 commit, claimed 13:37:47Z server-time) → lock-free 진행. executor dispatch(implementer +134 LOC 순수 함수 runUnevaluatedFillRunCore(바인딩된 resolvePerson/persist + 좌표·modelId → options→dedup→batch 조립 위임) + tester 신규 spec·신규 파일 cov 100%·6221 test green, lint/build/test:cov clean) → feature branch claude/T-0563-run-unevaluated-fill-run-core push(afe64e7) → integrator PR #478 open + reviewer APPROVE round 1/7(finding 0/비차단, comment 외부 gh) → 4-게이트 PASS → squash merge fbfd15d + branch 삭제. claims.json → [](T-0563 회수 CAS 4b5d6a1 → 704b72d). 본 bookkeeping 은 lock 이미 release 상태에서 doc-only direct commit. server-time 2026-06-21T13:37:47Z(GitHub API Date 헤더). gh CLI 가용(gh 2.88.1). 단일 active driver, race 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0·consecutiveFails=0."
   },
-  "lastActivity": "2026-06-21T13:05:00Z",
-  "lastCommit": "0445061",
+  "lastActivity": "2026-06-21T13:40:00Z",
+  "lastCommit": "fbfd15d",
   "mostRecentTasks": [
+    "T-0563",
     "T-0562",
     "T-0561",
     "T-0560",
-    "T-0559",
-    "T-0558"
+    "T-0559"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-21T12:49:50Z",
+    "lastRun": "2026-06-21T13:58:41Z",
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0562 PR #477 CI 는 integrator 4-게이트 (4) 에서 green 확인 후 squash merge 0445061(PR head CI conclusion=success). merge 후 main push CI(run created 12:49:50Z, headSha 0445061) 는 본 bookkeeping 시점 in_progress — R-114 CI trigger 확인됨(push 자체로 시작), conclusion 은 다음 fire 가 재확인. 직전 9239254 main push CI conclusion=success 확인. consecutiveFails=0 유지."
+    "note": "T-0563 PR #478 CI 는 integrator 4-게이트 (4) 에서 green 확인(afe64e7 pull_request run conclusion=success) 후 squash merge fbfd15d. merge 후 main push CI(run created 13:58:41Z, headSha fbfd15d) 는 본 bookkeeping 시점 in_progress — R-114 CI trigger 확인됨(push 자체로 시작), conclusion 은 다음 fire 가 재확인. 직전 6c19dbf main push CI conclusion=success 확인. consecutiveFails=0 유지."
   },
   "reviewRounds": {
+    "T-0563": 1,
     "T-0562": 1,
     "T-0561": 1,
     "T-0560": 1,
@@ -1021,7 +1022,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 554,
+    "tasksCompleted": 555,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
