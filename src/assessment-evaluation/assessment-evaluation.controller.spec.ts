@@ -2348,6 +2348,29 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
     expect(runSpy).not.toHaveBeenCalled();
   });
 
+  // error path (resolver non-Error reject): resolver 가 Error 인스턴스가 아닌 값(문자열
+  // 등)으로 reject 하는 비정상 시퀀스에서도 controller 의 catch 가 503 으로 매핑한다.
+  // 이때 `error instanceof Error` 가 false 인 else 분기가 동작해 한국어 fallback 메시지
+  // ("LLM provider 설정을 해석할 수 없다 ...")를 503 응답에 담는다(메시지 추출 불가 시의
+  // 진단성 보존). orchestrator 미호출 — resolver fail 시 평가 사슬 미진입.
+  it("resolver 가 non-Error 값으로 reject 시 503 + 한국어 fallback 메시지로 매핑한다 (negative — non-Error reject → 503 fallback)", async () => {
+    const { controller, runSpy, resolveSpy } = makeRunController(
+      async () => makeRunResult(),
+      // class-validator/promise 가 string reason 등 non-Error 로 reject 하는 비정상 경로.
+      () => Promise.reject("문자열 reason — Error 인스턴스 아님"),
+    );
+
+    await expect(
+      controller.runUnevaluatedFill(makeRunDto()),
+    ).rejects.toMatchObject({
+      message:
+        "LLM provider 설정을 해석할 수 없다 (default modelId source 미박제).",
+    });
+    expect(resolveSpy).toHaveBeenCalledTimes(1);
+    // 평가 사슬 미진입 — resolver fail 시 비용 있는 orchestrator 호출 0.
+    expect(runSpy).not.toHaveBeenCalled();
+  });
+
   // error path (orchestrator reject): resolver 성공 뒤 orchestrator.run reject(core 의
   // options 무효 TypeError 등) → controller 가 raw 전파(swallow 0). resolver fail 의 503
   // 매핑과 구분 — 이건 503 으로 wrapping 되지 않고 원본 error 가 그대로 전파된다.

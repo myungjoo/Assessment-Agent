@@ -19,17 +19,32 @@
 //   호출 → **실 LLM round-trip** 이 발생한다. 본 spec 을 실행하는 cloud cron 은 LAN
 //   (192.168.0.5 Ollama, ADR-0045)에 무경로라 live-LLM 자율 수행 불가다. 따라서 본 spec 의
 //   **모든 케이스는 LLM 에 도달하지 않는다** — (1) RBAC 가드(401/403, 가드는 handler 진입 전
-//   동작), (2) ValidationPipe(400, handler 진입 전), (3) fail-fast 경로(빈 좌표 + 무효 modelId
-//   조합이 core 의 한국어 `TypeError` 로 좌표를 흘리기 전 차단), (4) 빈 `rawBridges` + 유효
-//   modelId → 200 + 빈 outcomes(좌표 0 → orchestrator 가 좌표 순회 0 → `generateAndPersist`
-//   호출 0 → LLM 0 인 진짜 부팅 round-trip). 비어있지 않은 좌표의 live-LLM round-trip 1 회
-//   검증은 task Follow-ups 의 수동/로컬(LAN) 후속이다(cloud cron 미수행).
+//   동작), (2) ValidationPipe(400, handler 진입 전), (3) resolver fail-fast 경로(LlmProviderConfig
+//   row 0 → controller 가 503 으로 매핑, 좌표를 흘리기 전 차단), (4) 빈 `rawBridges` + 유효
+//   modelId + 단일 LlmProviderConfig row → 200 + 빈 outcomes(좌표 0 → orchestrator 가 좌표
+//   순회 0 → `generateAndPersist` 호출 0 → LLM 0 인 진짜 부팅 round-trip). 비어있지 않은
+//   좌표의 live-LLM round-trip 1 회 검증은 task Follow-ups 의 수동/로컬(LAN) 후속이다.
+//
+// server-side default model 해석 계약(T-0569, ADR-0048 §Decision 1·2 — 본 spec 정합 근거):
+//   controller 의 `runUnevaluatedFill` 은 더 이상 `dto.defaultModelId` 를 읽지 않고,
+//   `LlmProviderConfigResolver.resolveDefaultModelId()` 로 LlmProviderConfig DB row 의
+//   modelId 를 단일-row 해석해 default modelId 를 server-side 에서 권위 있게 결정한다.
+//   row 가 0(또는 2+)이면 resolver 가 throw → controller 가 **503 ServiceUnavailable** 로
+//   매핑한다(평가 사슬 미진입). 따라서 본 e2e 는:
+//     - 200 happy-path 케이스를 위해 beforeEach 에서 **단일 LlmProviderConfig row 를 seed**
+//       해 resolver success path 를 복원한다(이 seed 없이는 모든 200 케이스가 503 으로 깨진다).
+//     - row 부재 → 503 케이스를 새 계약(server-side fail-fast)의 e2e round-trip 으로 박제한다
+//       (구 "whitespace defaultModelId → 500" 케이스는 controller 가 dto.defaultModelId 를
+//       더 이상 읽지 않으므로 obsolete — 이 503 케이스로 재정의).
 //
 // 실 DB 전략(ADR-0004 — template 동일): mock override 0, createAuthenticatedE2EApp 가
-//   AppModule 부트스트랩 + actor seed, PrismaService 가 실 PostgreSQL connection. 단 본 spec 의
-//   모든 케이스는 빈 좌표(rawBridges: [])라 DB write/read 0 — afterEach(truncateAll) 는 seed 한
-//   actor user 만 정리한다(좌표 영속 0). afterAll(close + $disconnect). 로컬 DATABASE_URL
-//   부재 시 CI 전용(test:e2e step).
+//   AppModule 부트스트랩 + actor seed, PrismaService 가 실 PostgreSQL connection. 좌표는
+//   빈 배열(rawBridges: [])이라 좌표 영속 0 이지만, resolver 가 `llmProviderConfig.findMany()`
+//   를 실 read 하므로 LlmProviderConfig row 의 seed/cleanup 을 본 spec 이 직접 관리한다
+//   (truncateAll 명단에 LlmProviderConfig 미포함 → beforeEach 에서 deleteMany 후 단일 row
+//   create 로 결정성 보장, afterAll 에서 deleteMany 로 정리). afterEach(truncateAll) 는 seed 한
+//   actor user 만 정리한다. afterAll(close + $disconnect). 로컬 DATABASE_URL 부재 시
+//   CI 전용(test:e2e step) — e2e 의 실 DB round-trip 검증은 CI 에 위임한다.
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
@@ -54,9 +69,25 @@ const ROUTE = "/api/assessment-evaluation/unevaluated-fill-run";
 // 충족하면 된다.
 const VALID_MODEL_ID = "test-model";
 
+// seed 할 단일 LlmProviderConfig row 의 필드(schema: provider/endpointUrl/apiKey/modelId 4
+// 컬럼 — id/createdAt/updatedAt 은 @default/@updatedAt). resolver 는 이 row 의 modelId 를
+// trim 해 default modelId 로 반환한다(ADR-0048 §Decision 2 (a) 분기). 좌표 0 이라 이 modelId
+// 가 실제 LLM 으로 흘러가지 않으므로 endpointUrl/apiKey 는 형식 충족용 placeholder.
+const SEED_LLM_CONFIG = {
+  provider: "openai-compatible",
+  endpointUrl: "http://llm.e2e.test/v1",
+  apiKey: "e2e-placeholder-key",
+  modelId: VALID_MODEL_ID,
+};
+
 // 유효한 빈-좌표 body — rawBridges 빈 배열(형식 유효, @ArrayNotEmpty 미적용 박제) + 유효
-// modelId/defaultModelId. 좌표 0 → orchestrator 좌표 순회 0 → generateAndPersist 호출 0 →
-// LLM 무도달. happy-path round-trip + 결정성 케이스가 공유한다.
+// modelId. 좌표 0 → orchestrator 좌표 순회 0 → generateAndPersist 호출 0 → LLM 무도달.
+// happy-path round-trip + 결정성 케이스가 공유한다.
+//
+// defaultModelId 박제 근거(T-0569): controller 는 더 이상 dto.defaultModelId 를 읽지 않고
+// resolver 가 server-side 에서 해석한다. 하지만 DTO 의 @IsNotEmpty 필수 축은 아직 남아있으므로
+// (chain item 2 가 필드 제거 예정), ValidationPipe 400 을 통과하려면 body 에 defaultModelId 가
+// 여전히 있어야 한다 — 형식 충족용으로만 채우고 그 값은 server 동작에 영향 0.
 const validEmptyBody = () => ({
   rawBridges: [],
   modelId: VALID_MODEL_ID,
@@ -88,8 +119,20 @@ describe("E2E: POST /api/assessment-evaluation/unevaluated-fill-run — Admin ru
   });
 
   afterAll(async () => {
+    // LlmProviderConfig 는 truncateAll 명단 밖이라 본 spec 이 직접 정리한다(다른 spec 으로
+    // row leak 방지).
+    await prisma.llmProviderConfig.deleteMany();
     await app.close();
     await prisma.$disconnect();
+  });
+
+  // 각 test 전 LlmProviderConfig 를 정확히 단일 row 로 결정성 셋업 — resolver 의 (a) 단일-row
+  // success path 를 복원해 happy-path 200 케이스가 503 으로 깨지지 않게 한다. deleteMany 선행은
+  // truncateAll 이 본 테이블을 비우지 않아 직전 test 의 row 가 누적되는 것(→ 2+row → resolver
+  // 가 503 throw)을 차단한다. row 부재 → 503 케이스는 it 내부에서 deleteMany 로 단독 제거한다.
+  beforeEach(async () => {
+    await prisma.llmProviderConfig.deleteMany();
+    await prisma.llmProviderConfig.create({ data: SEED_LLM_CONFIG });
   });
 
   afterEach(async () => {
@@ -192,25 +235,29 @@ describe("E2E: POST /api/assessment-evaluation/unevaluated-fill-run — Admin ru
     expect(messageText(response.body).length).toBeGreaterThan(0);
   });
 
-  // -- flow / branch: fail-fast 경로 (빈 좌표 + 무효 modelId 조합, LLM 무도달) --
+  // -- flow / branch: resolver fail-fast 경로 (LlmProviderConfig row 0 → 503, LLM 무도달) --
 
-  it("Admin 토큰 + 빈 좌표 + request·default modelId 모두 무효(whitespace) 시 core fail-fast → 500 (flow — ValidationPipe 통과 후 core TypeError)", async () => {
-    // 설계 근거(load-bearing): @IsNotEmpty 는 class-validator 정의상 빈 문자열 "" / null /
-    // undefined 만 거부하고 whitespace-only " " 는 **통과**시킨다(non-empty string). 따라서
-    // { modelId: undefined(미제공), defaultModelId: " " } 는 ValidationPipe 400 을 통과한 뒤
-    // orchestrator → core 의 buildFillRunScoringOptions 에 도달한다. 거기서 request 는 비어
-    // (undefined) default " " 는 trim 후 빈 문자열로 수렴 → 둘 다 채택 불가 → 한국어 TypeError
-    // 가 좌표를 단 1 개도 흘리기 전(영속/LLM 부수효과 0) fail-fast 로 전파된다. 이 TypeError 는
-    // controller 가 흡수하지 않으므로(swallow 0) NestJS 기본 unhandled 매핑 → 500.
-    // 실제 status 는 `pnpm test:e2e` 관측으로 확정(추측 금지) — whitespace 가 @IsNotEmpty 를
-    // 통과해 core fail-fast 가 e2e 로 도달함을 본 케이스가 박제한다(만약 향후 DTO 가
-    // @IsNotEmpty 를 trim-aware 로 강화해 400 으로 선제 차단하면 본 assert 를 400 으로 갱신).
+  it("Admin 토큰 + LlmProviderConfig row 부재 시 503 (flow — resolver 0-row fail-fast → ServiceUnavailable, 평가 사슬 미진입)", async () => {
+    // server-side default model 해석 계약(T-0569, ADR-0048 §Decision 1·2)의 fail-fast e2e
+    // round-trip. 구 "whitespace defaultModelId → 500" 케이스를 재정의한 것 — controller 는
+    // 더 이상 dto.defaultModelId 를 읽지 않으므로 그 계약은 obsolete 다. 대신 운영자가 LLM
+    // provider 를 한 번도 설정하지 않은 상태(LlmProviderConfig row 0)에서 resolver 가 한국어
+    // fail-fast throw → controller 가 503 ServiceUnavailable 로 매핑함을 실 DB round-trip 으로
+    // 박제한다(좌표를 단 1 개도 흘리기 전 차단 — 영속/LLM 부수효과 0).
+    //
+    // beforeEach 가 단일 row 를 seed 하므로 본 케이스만 deleteMany 로 row 를 단독 제거해
+    // 0-row 상태를 만든다(afterEach truncateAll 은 LlmProviderConfig 미포함이라 다음 test 의
+    // beforeEach 가 다시 단일 row 를 복원한다).
+    await prisma.llmProviderConfig.deleteMany();
+
     const response = await request(app.getHttpServer())
       .post(ROUTE)
       .set("Cookie", adminCookie)
-      .send({ rawBridges: [], defaultModelId: " " });
+      .send(validEmptyBody());
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(503);
+    // resolver 의 한국어 진단 메시지가 503 응답에 보존된다(controller 가 error.message 를 담음).
+    expect(messageText(response.body)).toMatch(/LLM provider/);
   });
 
   // -- negative: thin delegate 비변형 / 빈-좌표 결정성 --
