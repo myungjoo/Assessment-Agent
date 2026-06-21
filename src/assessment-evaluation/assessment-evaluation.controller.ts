@@ -68,6 +68,8 @@ import {
   type UnevaluatedFillPlanResponse,
   toUnevaluatedFillPlanResponse,
 } from "./dto/unevaluated-fill-plan-response.mapper";
+import { UnevaluatedFillRunRequestDto } from "./dto/unevaluated-fill-run-request.dto";
+import type { UnevaluatedFillRunResult } from "./dto/unevaluated-fill-run-result";
 import { EvaluationOrchestratorService } from "./evaluation-orchestrator.service";
 import {
   EvaluationResultPersistService,
@@ -76,6 +78,7 @@ import {
 import { EvaluationUnevaluatedFillPlanner } from "./evaluation-unevaluated-fill-planner.service";
 import { PeriodBridgeAdminPersistService } from "./period-bridge-admin-persist.service";
 import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
+import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-orchestrator.service";
 
 // EvaluateResponse — POST /evaluate 반환 shape(ADR-0033 §Follow-ups slice 4 — "persists
 // the result and returns the assessmentId / persisted identifiers"). 영속 식별자
@@ -163,6 +166,12 @@ export class AssessmentEvaluationController {
     // 추가 token / module 배선 변경 0. test 는 jest mock { planUnevaluatedFill } 를
     // 주입해 실 DB read 0 / 실 네트워크 0 으로 위임 정합만 검증한다.
     private readonly unevaluatedFillPlanner: EvaluationUnevaluatedFillPlanner,
+    // UnevaluatedFillRunOrchestratorService — POST /unevaluated-fill-run 의 위임 대상
+    // (T-0564, REQ-037·038 Q-0045 옵션1 run-side 사슬의 loop-level @Injectable wiring).
+    // 같은 module(assessment-evaluation.module.ts)이 이미 provider 등록(T-0564 머지)이라
+    // 추가 token / module 배선 변경 0. test 는 jest mock { run } 을 주입해 실 DB read 0 /
+    // 실 LLM 0 / 실 네트워크 0 으로 위임 정합만 검증한다.
+    private readonly unevaluatedFillRunOrchestrator: UnevaluatedFillRunOrchestratorService,
   ) {}
 
   // POST /api/assessment-evaluation/evaluate — 평가 manual trigger + persist.
@@ -468,5 +477,54 @@ export class AssessmentEvaluationController {
     // 반환 plan(periodStart Date 축) → HTTP 응답 shape(periodStart ISO string 축) 직렬화.
     // 재정렬/필터/dedup 0 — planner 의 결정성·순서 정책을 그대로 전파한다.
     return toUnevaluatedFillPlanResponse(plan);
+  }
+
+  // POST /api/assessment-evaluation/unevaluated-fill-run — 미평가 fill **실행** 사슬의
+  // HTTP 진입점(T-0565, PLAN.md P5 bullet 106 / R-64 / REQ-037 "평가 없는 부분 일괄 평가"
+  // / REQ-038, Q-0045 옵션1 run-side chain 의 마지막 wiring slice). T-0556~T-0563 의
+  // dependency-free 순수 조각 8 개 + T-0564 의 `@Injectable
+  // UnevaluatedFillRunOrchestratorService`(slice 1', merge 4325286)까지 박제·머지됐으나
+  // orchestrator.run 의 HTTP caller 가 0 이라 실 호출 경로가 닫히지 않았다 — plan-side 의
+  // `unevaluated-fill-plan` route(T-0547)와 동형의 wiring 을 run-side 에 닫는다.
+  //
+  //   - 200 OK + `UnevaluatedFillRunResult`(per-좌표 outcome 리스트 + status 별 4 count 축).
+  //     이미 plain JSON-safe(periodStart 이미 ISO string, count 축 number, status union
+  //     string)라 **response mapper 불요** — service 반환을 그대로 controller 반환으로 노출.
+  //   - controller-scope ValidationPipe(whitelist + forbidNonWhitelisted + transform)가
+  //     `UnevaluatedFillRunRequestDto` 의 3 축(rawBridges nested PeriodBridgeDto 배열 /
+  //     선택 modelId / 필수 defaultModelId)을 형식만 검증한다(허용 literal 값은 service 책임).
+  //   - thin delegate: 분기 / 조립 / dedup / options 도출 / 재정렬 0. 검증된 DTO 의 3 축을
+  //     `unevaluatedFillRunOrchestrator.run(rawBridges, modelId, defaultModelId)` 로 그대로
+  //     분해 forward 하고, 반환 `UnevaluatedFillRunResult` 도 가공 0 으로 그대로 반환한다
+  //     (dedup / options 도출 / 좌표 순회 / 좌표 단위 부분 실패 흡수는 전부 service / core 책임).
+  //   - service-layer error 는 raw 전파(swallow 0) — core 의 한국어 `TypeError`(options
+  //     무효 / rawBridges non-array)가 그대로 NestJS 응답에 매핑된다. 좌표 1 개 단위 person
+  //     부재 / persist reject 는 service / batch 가 failed outcome 으로 흡수하므로 controller
+  //     는 그 결과를 pass-through 만 한다(REQ-037 부분 실패).
+  //
+  // RBAC Admin+(JwtAuthGuard + RolesGuard + @Roles("Admin")) — 기존 `evaluate` route +
+  // `unevaluated-fill-plan` route 의 Admin+ 정책을 그대로 mirror 한다(새 auth 결정 0).
+  // 미평가 fill **run** 은 비용 있는 LLM round-trip 실 평가 + 영속 사슬의 **실 실행 진입**
+  // 이므로 read-only detection(plan)보다 더 엄격해질 이유는 있어도 약해질 이유 없음 —
+  // evaluate / plan route 와 동형 Admin+ 로 gate 한다(인증 부재 → 401 / tier 미달 → 403 은
+  // 기존 가드 동작에 위임 — controller 추가 분기 0). self-only personId 동등성 강제 등
+  // 권한 모델 변경은 본 task 밖(후속 정책 결정).
+  @Post("unevaluated-fill-run")
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async runUnevaluatedFill(
+    @Body() dto: UnevaluatedFillRunRequestDto,
+  ): Promise<UnevaluatedFillRunResult> {
+    // orchestrator 위임 — 검증된 DTO 의 3 축을 그대로 분해 forward(가공 0). dedup / options
+    // 도출 / 좌표 순회 / 좌표 단위 부분 실패 흡수는 service → core 책임이라 controller 는
+    // pass-through 만 한다. modelId 미지정(undefined) 시에도 임의 default 를 채우지 않고
+    // 그대로 undefined 를 forward 한다(service 가 defaultModelId 로 fallback). service /
+    // core 의 reject(options 무효 TypeError 등)는 await 가 그대로 throw → raw 전파(swallow 0).
+    return this.unevaluatedFillRunOrchestrator.run(
+      dto.rawBridges,
+      dto.modelId,
+      dto.defaultModelId,
+    );
   }
 }
