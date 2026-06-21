@@ -49,6 +49,7 @@ import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service"
 import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
 import { SummaryNarrativeService } from "./summary-narrative.service";
 import { SummaryPersistService } from "./summary-persist.service";
+import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-orchestrator.service";
 
 @Module({
   // LlmModule import — LlmHttpGateway(LlmGateway 구현체) export 를 끌어와 LLM_GATEWAY
@@ -126,6 +127,13 @@ import { SummaryPersistService } from "./summary-persist.service";
     // module 의 provider 가 되므로 같은 module 내 DI 로 resolve 된다(추가 import 0).
     // T-0543 wiring slice 가 등록 — 후속 orchestrator/controller 소비처가 inject 받는다.
     EvaluationUnevaluatedFillPlanner,
+    // UnevaluatedFillRunOrchestratorService — T-0564(Q-0045 옵션1 run-side 사슬 slice 1'
+    // loop-level @Injectable wiring). PersonService(UserModule export, 이미 import 중)와
+    // PeriodBridgeAdminPersistService(같은 module provider)를 주입받아 person lookup
+    // adapter(NotFoundException→null 화해) + generateAndPersist 바인딩을 compose 한 뒤
+    // runUnevaluatedFillRunCore(T-0563)에 1 회 위임한다. 추가 module import 0. 후속
+    // controller slice(POST /unevaluated-fill-run)가 같은 module 내 DI 로 inject 받는다.
+    UnevaluatedFillRunOrchestratorService,
     // LLM_GATEWAY → LlmHttpGateway useExisting 바인딩. LlmModule 이 등록·export 한
     // LlmHttpGateway singleton 을 그대로 재사용하므로 새 인스턴스 생성 0. interface
     // 가 runtime 소거라 string token 으로 주입을 닫는다.
@@ -155,6 +163,9 @@ import { SummaryPersistService } from "./summary-persist.service";
     // 다른 module 또는 같은 module DI 로 inject 받도록 export(T-0543 wiring slice).
     EvaluationPersistedRecordsReader,
     EvaluationUnevaluatedFillPlanner,
+    // 후속 controller slice(POST /unevaluated-fill-run)가 person+persist 바인딩 compose
+    // orchestrator 를 같은 module 내 DI 로 inject 받도록 export(T-0564).
+    UnevaluatedFillRunOrchestratorService,
   ],
 })
 export class AssessmentEvaluationModule {}
