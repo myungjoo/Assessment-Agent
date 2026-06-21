@@ -7,15 +7,15 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "✅ **T-0558 DONE(merge 80bcfec, PR #473, 4-게이트 round1 PASS)** — P5 bullet 106(R-64/REQ-037·038) Q-0045 옵션1 run-side chain 의 첫 impure slice: 좌표 1개 미평가 fill 실행 helper runUnevaluatedFillCoordinate(bridge, runner) 추가(src/assessment-evaluation/dto/run-unevaluated-fill-coordinate.ts, +132 LOC). runner resolve → T-0557 toUnevaluatedFillRunOutcome 위임(evaluated/skipped), reject → 좌표 4축 echo + status failed + reason 합성(재던짐 0, 부분 실패 흡수). runner-as-param 으로 build-time dependency-free·mock-unit(LLM 0, live-LLM 게이트 ADR-0045 무관). 신규 파일 cov 100%, 27 test, full gate green. dependency-free 순수 입력/출력 조각(T-0549..T-0557) + impure 좌표 단위(T-0558) 닫힘. **chain 남은 후속 slice(planner 가 다음 fire 큐잉)**: (1) loop-level @Injectable orchestrator(dedup PeriodBridgeDto[] → per-좌표 person 해석+context(T-0556) 조립 → T-0558 helper 순회 → aggregate(T-0552) + module 등록) (2) POST /unevaluated-fill-run route + RBAC + run-request DTO (3) e2e. orchestrator/route/e2e 는 live-LLM 배선검증(ADR-0045, LAN 머신=AKIHA 192.168.0.5 Ollama 로 수동/로컬 가능; cloud cron 은 LAN 무경로) 동반 가능 — 단 빌드/unit 은 mock. **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0.",
+  "nextTask": "T-0559",
+  "backlogNote": "✅ **T-0558 DONE(merge 80bcfec, PR #473, 4-게이트 round1 PASS)** — P5 bullet 106(R-64/REQ-037·038) Q-0045 옵션1 run-side chain 의 첫 impure slice: 좌표 1개 미평가 fill 실행 helper runUnevaluatedFillCoordinate(bridge, runner) 추가(src/assessment-evaluation/dto/run-unevaluated-fill-coordinate.ts, +132 LOC). runner resolve → T-0557 toUnevaluatedFillRunOutcome 위임(evaluated/skipped), reject → 좌표 4축 echo + status failed + reason 합성(재던짐 0, 부분 실패 흡수). runner-as-param 으로 build-time dependency-free·mock-unit(LLM 0, live-LLM 게이트 ADR-0045 무관). 신규 파일 cov 100%, 27 test, full gate green. dependency-free 순수 입력/출력 조각(T-0549..T-0557) + impure 좌표 단위(T-0558) 닫힘. **chain 남은 후속 slice(➡️ T-0559 큐잉됨 — slice(1) orchestrator 를 split 한 첫 순수 조각: 좌표 1개 → generateAndPersist runner thunk 조립 factory, commitMode=pr ~180 LOC)**: (1) loop-level @Injectable orchestrator(dedup PeriodBridgeDto[] → per-좌표 person 해석+context(T-0556) 조립 → T-0558 helper 순회 → aggregate(T-0552) + module 등록) (2) POST /unevaluated-fill-run route + RBAC + run-request DTO (3) e2e. orchestrator/route/e2e 는 live-LLM 배선검증(ADR-0045, LAN 머신=AKIHA 192.168.0.5 Ollama 로 수동/로컬 가능; cloud cron 은 LAN 무경로) 동반 가능 — 단 빌드/unit 은 mock. **standing 게이트(cron backlog 아님)**: live-LLM 검증, P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0.",
   "lock": {
-    "holder": "human",
-    "session": "loop@interactive-aa-t0558",
-    "since": "2026-06-21T08:52:16Z",
-    "note": "loop@interactive-aa-t0558 (사용자 대화 세션 — 로컬 머신 AKIHA, lock holder=human) — **T-0558 실행 fire**: 사용자 지시('T556부터 하고')로 Q-0045 옵션1 run-side chain 진행. 대화 중 cron 이 T-0556(PR #471)·T-0557(PR #472) 자동 merge 완료해 chain 이 T-0558 로 진전 → 본 세션이 nextTask=T-0558 을 실행. lock CAS 획득(b11d591 → 9a9bab2) → executor dispatch(implementer+tester, 신규 파일 cov 100%·27 test·full gate green) → feature branch claude/T-0558-unevaluated-fill-run-coordinate push(0734b37) → integrator dispatch: PR #473 open + reviewer APPROVE round1 + 외부 comment + self-check + CI green 4-게이트 PASS → squash merge 80bcfec(--delete-branch). 본 bookkeeping direct commit(STATE/journal/task-file DONE) → tombstone release 예정. server-time 2026-06-21T09:10:23Z(`date -u`). R-114: merge commit 80bcfec main push CI(run 27899640519) in_progress — PR #473 check 는 merge 전 green 확인됨, 다음 fire 가 conclusion 재확인. 단일 active driver(cron 은 본 lock 점유 중 stand-down), race 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0·consecutiveFails=0."
+    "holder": "cron",
+    "session": "cron@cloud-aa-local-15-3d8f",
+    "since": "2026-06-21T09:27:34Z",
+    "note": "cron@cloud-aa-local-15-3d8f (Anthropic 클라우드 cron fire, 매시 15분 trigger — 비권위 mirror, 권위 lock 은 claude/lock-driver 브랜치 tip lock.json) — **planner-only fire**: 진입 시 currentTask·nextTask 둘 다 null, claims.json 부재(active claim 0) → claimable 후보 0 → planner dispatch 로 다음 task 큐잉. lock CAS 획득(eafb236 → 1792541). R-114 carryover: 직전 fire 의 merge commit 80bcfec main push CI(run 27899640519) conclusion=success 확인 완료. planner → T-0559 생성(Q-0045 옵션1 run-side chain 다음 slice: 좌표 1개 → generateAndPersist runner thunk 조립 순수 factory, commitMode=pr, ~180 LOC/2파일) + STATE.nextTask=T-0559. 코드 변경 0(doc-only direct commit). 본 bookkeeping commit 후 tombstone release 예정. 단일 active driver, race 0. open PR 0·BLOCKED 0·blockers 0·open HQ 0·active claim 0·consecutiveFails=0."
   },
-  "lastActivity": "2026-06-21T09:10:23Z",
+  "lastActivity": "2026-06-21T09:27:34Z",
   "lastCommit": "80bcfec",
   "mostRecentTasks": [
     "T-0558",
@@ -32,11 +32,11 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-21T09:10:23Z",
-    "status": "running",
+    "lastRun": "2026-06-21T09:27:34Z",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0558 PR #473 CI conclusion=success — integrator 4-게이트 (4) CI green 검증(기본 검사 + 배포 산출물 + reviewer 승인 step, R-113 unit+smoke+e2e). squash merge 80bcfec 후 main push CI(run 27899640519) in_progress — 다음 fire 가 R-114 로 conclusion 재확인. 직전 main push(83572683, run 27899022344) conclusion=success. consecutiveFails=0 유지."
+    "note": "R-114 carryover 확인: T-0558 merge commit 80bcfec main push CI(run 27899640519) conclusion=success (직전 fire 의 in_progress 가 success 로 종결). 본 planner-only fire 는 코드 변경 0(doc-only direct commit)이라 신규 CI run 무관 — 다음 fire 가 본 bookkeeping commit 의 main CI 를 확인. consecutiveFails=0 유지."
   },
   "reviewRounds": {
     "T-0558": 1,
