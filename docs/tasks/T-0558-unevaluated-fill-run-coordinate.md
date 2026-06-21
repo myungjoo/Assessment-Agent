@@ -2,7 +2,7 @@
 id: T-0558
 title: 좌표 1개 미평가 fill 실행 helper (generateAndPersist 호출 + failed try/catch outcome 합성)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 180
