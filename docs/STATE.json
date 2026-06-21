@@ -7,22 +7,22 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0556",
-  "backlogNote": "✅ **T-0555 DONE(merge aa4004d, PR #469, 4-게이트 round1 PASS, finding 0/MINOR1 비차단)** — P5 bullet 106(R-64/REQ-037·038 \"평가 없는 부분 일괄 평가\") plan→execute 전이 **출력-side compose-only 순수 조각**: 집계(T-0552 aggregateUnevaluatedFillRunResult)+직렬화(T-0553 toUnevaluatedFillRunResponse) 2조각을 1 deterministic step 으로 잇는 dependency-free 순수 compose helper composeUnevaluatedFillRunResponse(outcomes) 추가(src/assessment-evaluation/dto/unevaluated-fill-run-response.compose.ts, production +96 LOC). aggregate→toResponse 순서 박제, 중간 가공 0·새 타입 0·방어는 첫 조각으로 전파 위임, @Injectable/NestJS/Prisma/LLM/class-validator import 0. spec colocated 21 test(happy/error[첫 조각 prefix 전파 단언]/branch/비변형·합성 순서·새-배열) — 신규 파일 stmt/branch/func/line 100%, 전체 6032 test green, global threshold(line≥80% AND func≥80%) 통과, lint/build/cov clean. 새 dep/ADR/schema/auth 0. **입력-side 3조각(T-0549·T-0550·T-0551)+compose(T-0554) + 출력-side 집계/직렬화 2조각(T-0552·T-0553)+compose(T-0555) 양방향 compose 진입점 완결.** **⚠️ 다음 task 없음 — Q-0045(human-decision, dependency-free-work-exhausted) OPEN**: 미평가 fill flow 의 dependency-free 순수 chain 소진. impure orchestrator(dedup'd PeriodBridgeDto[]→per-좌표 fresh-collect→LLM 평가→영속→outcome) + POST /unevaluated-fill-run route 는 live-LLM standing 게이트(ADR-0045, LAN 수동, 만료 2026-06-30) 뒤. run-request DTO 는 gated route 가 유일 소비처라 speculative(invent 금지). Q-0040/Q-0042 선례 동형. nextTask=null — 다음 fire 는 Q-0045 미해결 시 [1]에서 즉시 no-op 종료(LOOP §1[1]). **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만, 만료 2026-06-30), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ Q-0045 1건.",
+  "nextTask": null,
+  "backlogNote": "✅ **T-0556 DONE(merge 376563f, PR #471, 4-게이트 round1 PASS, finding 0)** — P5 bullet 106(R-64/REQ-037·038) Q-0045 옵션1 run-side chain 재개 첫 slice: PeriodBridgeDto → EvaluationPersistContext 결정적 좌표 매퍼 추가(src/assessment-evaluation/dto/period-bridge-to-persist-context.mapper.ts, production +126 LOC). personId/period/scope pass-through + periodStart ISO string→Date 변환 + Invalid Date·비-string·빈 string·null/undefined 한국어 TypeError fail-fast(silent Invalid Date 진입 차단). 기존 EvaluationPersistContext 타입 import-type 재사용, @Injectable/NestJS/Prisma/LLM/class-validator 런타임 import 0. reevaluate 의도적 제외(영속 context 축 아님 — orchestrator 별도 인자). spec colocated 25 test(happy 4 + error 8 + branch 5 + negative 6 + regression 2: Q-0045 Invalid Date·빈 string silent 통과 방지) — 신규 파일 stmt/branch/func/line 100%, 전체 6057 test green, global line 99.92%·func 99.89%(threshold ≥80% 충족), lint/build/test/test:cov 통과. ADR 불요(기존 ADR-0037 bridge + 기존 영속 타입 재사용, 새 persistence/REQ-032/auth/dep 경계 0). 4-게이트 round1 PASS: reviewer APPROVE 0 BLOCKER + PR comment 외부 박제 + integrator self-check + CI green(run 27896942292). **다음 task 없음 — Q-0045 옵션1 chain 다음 slice planner dispatch 대기**(impure run orchestrator slice: 중복 제거된 PeriodBridgeDto[] → per-좌표 person 해석 → fresh-collect → LLM 평가 → 영속 → outcome 산출. POST /unevaluated-fill-run controller route + RBAC 는 그 후속 slice). 다음 fire 가 planner 호출. **standing 게이트(cron backlog 아님)**: live-LLM 검증(ADR-0045 ACCEPTED, LAN 수동만, 만료 2026-06-30 — 본 ADR 은 옵션1 chain 의 LAN 검증 1회 round-trip 게이트), P6 frontend, timezone Q-0026, ADR-0036 stage5c, import upload(게이트3 미승인). open PR 0·BLOCKED 0·blockers 0·open HQ 0.",
   "lock": {
     "holder": null,
-    "session": "cron@aa-local-sched-0637",
-    "since": "2026-06-21T06:37:22Z",
-    "note": "cron@aa-local-sched-0637 (로컬 schedule cron fire aa-local-scheduled — 매시 30분대 trigger 로 정각 cron@cloud·15분 cron@aa-local-15 발화와 시간대 분리, fresh checkout 06:37Z 진입, 로컬 HEAD=6badaf4 가 origin/main=4f53ddd 보다 뒤처져 `git merge --ff-only origin/main` sync 후 진행) — **no-op stand-down**: Q-0045 OPEN(미평가 fill flow dependency-free 순수 chain 소진, 사람 결정 대기) 으로 LOOP §1[1] 미해결 HQ 게이트 트리거, 신규 task 진입 안 함(§1[1] 가 §1[2] claim-pickup 보다 선행 → claim-pickup 도 skip). 직전 0604 fire(cron@aa-local-15-6badaf4) 위임분 main CI 재확인 완료(R-114): 4f53ddd(직전 fire heartbeat bookkeeping commit, run 27895512182 created 2026-06-21T06:06:17Z event=push) conclusion=success — 본 fire 는 gh CLI 가용(`which gh` exit 0, gh 2.88.1) → gh run list --branch main --event push --limit 3 으로 latest main push run green 직접 확인. server-time 2026-06-21T06:37:22Z(`date -u`). humanQuestions Q-0045 1건 OPEN 유지(전체 35건 중 34건 RESOLVED)·blockers 0·open PR 0·claims 부재·active claim 0·consecutiveFails=0. fineGrainedConcurrency=true stage5b 분기 정상 — 게이트 트리거(미해결 HQ) 로 claim-pickup skip. lock CAS heartbeat 만 박제: free(tip f435e0b tombstone holder=\"\")→raw git push --force-with-lease 획득(f435e0b→5138f00, hash-object+mktree+commit-tree plumbing)→bookkeeping direct commit(본 STATE.lock/lastActivity/ci heartbeat + journal append)→tombstone release 예정. 단일 active driver, race 0. 매시 30분대 trigger 로 정각/15분 cron 발화와 시간대 분리(충돌 가능성 저감). 다음 fire 도 Q-0045 unresolved 시 동형 no-op heartbeat 패턴 반복."
+    "session": "cron@aa-cloud-0621-0703",
+    "since": "2026-06-21T07:06:00Z",
+    "note": "cron@aa-cloud-0621-0703 (cloud schedule cron fire — fresh checkout 07:03Z 진입, local main 50/50 divergent 라 `git switch -C main origin/main` 으로 origin/main=cb66f5d sync 후 진행) — **T-0556 DONE 1-task fire**: lock branch-ref CAS 획득(observed 9be0bce → fd9e8be) → select-claim.sh atomic select+claim+tombstone release(claims.json append + lock.json tombstone same commit, T-0556 claimed by cron@aa-cloud-0621-0703 at 2026-06-21T07:06:00Z) → executor dispatch (implementer + tester, 25 test pass, lint/build/cov clean) → feature branch claude/T-0556-period-bridge-to-persist-context-mapper push (c13ca89) → PR #471 open draft → reviewer agent APPROVE round 1/7 (0 finding) → driver MCP post comment (id 4761225493) → 4-게이트 PASS (APPROVE + comment 외부 박제 + integrator self-check + CI run 27896942292 success) → MCP merge squash (376563f) → main bookkeeping commit(본 STATE/journal/task-file/claims.json cleanup). gh CLI 부재(`which gh` exit 1) → MCP github tools 로 PR 연산. server-time 2026-06-21T07:03:01Z(`date -u` 진입, MCP 응답 시각). claims.json T-0556 entry cleanup 예정(lock branch tip 재CAS). open PR 0·BLOCKED 0·blockers 0·active claim 0·consecutiveFails=0. fineGrainedConcurrency=true stage5b 분기 정상 — 5b direct-only 조건 inert(pr-mode 단독 claim, 활성 claim 0 이라 (a2) 게이트 자동 통과)."
   },
-  "lastActivity": "2026-06-21T06:37:22Z",
-  "lastCommit": "aa4004d",
+  "lastActivity": "2026-06-21T07:20:00Z",
+  "lastCommit": "376563f",
   "mostRecentTasks": [
+    "T-0556",
     "T-0555",
     "T-0554",
     "T-0553",
-    "T-0552",
-    "T-0551"
+    "T-0552"
   ],
   "loopSession": {
     "turnCount": 4,
@@ -32,13 +32,14 @@
     "note": "/loop win-tt511-tc5 (dynamic, turn cap 5) — t1 stand-down. t2 T-0502 merge 2cab65e. t3 T-0503 merge 046836c. t4(13:52Z) T-0504 claim→PR #415 round1 APPROVE(MINOR1+NIT1 비차단) 4-게이트 PASS→squash 284cbac merge 14:04:40Z→bookkeeping. t2~t4 3 task merge(T-0502·T-0503·T-0504) 전부 round1 APPROVE·CI green·race 0. t4 planner: dependency-free chain 소진(no task queued)→Q-0042 OPEN(3 게이트 사람 결정). 미해결 HQ 존재 → §1[8](a) self-reschedule 안 함(turn cap 5 도달 전이라도 loop 종료). 다음 진입점은 Q-0042 resolved 후."
   },
   "ci": {
-    "lastRun": "2026-06-21T06:37:22Z",
+    "lastRun": "2026-06-21T07:16:09Z",
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "직전 fire 위임분 main CI 재확인(R-114, 본 fire heartbeat): 4f53ddd(직전 0604 cron@aa-local-15-6badaf4 의 heartbeat bookkeeping commit, run 27895512182 created 2026-06-21T06:06:17Z event=push) conclusion=success — gh run list --branch main --event push --limit 3 결과로 latest main push run green 직접 확인(본 fire 는 gh CLI 가용). consecutiveFails=0 유지. 본 fire 는 Q-0045 OPEN no-op heartbeat — 신규 task/CI 없음, 본 heartbeat bookkeeping direct commit 1건이 main push CI 를 trigger(다음 fire 가 R-114 로 conclusion 확인)."
+    "note": "T-0556 PR #471 CI run 27896942292(event=pull_request, head=c13ca89, started 2026-06-21T07:13:39Z, completed 07:16:09Z) conclusion=success — 4-게이트 (4) CI green 충족. 두 job(`기본 검사`, `배포 산출물 검증`) 모두 success. PR comment(driver MCP post 4761225493, 07:13:13Z) 가 CI run 시작 전 존재 → `기본 검사` 의 `reviewer agent approval 검증` step 도 success(외부 fact 확인). 본 bookkeeping direct commit 이 main push CI 추가 trigger(다음 fire 가 R-114 로 conclusion 확인)."
   },
   "reviewRounds": {
+    "T-0556": 1,
     "T-0555": 1,
     "T-0554": 1,
     "T-0553": 1,
@@ -1014,7 +1015,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 547,
+    "tasksCompleted": 548,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

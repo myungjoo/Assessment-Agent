@@ -2,7 +2,11 @@
 id: T-0556
 title: PeriodBridgeDto → EvaluationPersistContext 순수 좌표 매퍼 추가
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-21T07:20:00Z
+mergedAt: 2026-06-21T07:18:00Z
+mergeCommit: 376563f
+prNumber: 471
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 130
