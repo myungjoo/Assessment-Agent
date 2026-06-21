@@ -2,7 +2,10 @@
 id: T-0561
 title: 좌표 → resolved person 변환 ResolvePersonFn 순수 factory (personId lookup callable 주입 + null→failed 흡수용 Error)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 9abf380
+prNumber: 476
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 150
