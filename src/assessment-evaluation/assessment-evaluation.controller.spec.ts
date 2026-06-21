@@ -15,6 +15,7 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  ServiceUnavailableException,
   ValidationPipe,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
@@ -23,6 +24,7 @@ import type { JwtPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import type { LlmProviderConfigResolver } from "../llm/llm-provider-config-resolver.service";
 import type { PersonWithIdentities } from "../user/person.repository";
 import type { PersonService } from "../user/person.service";
 
@@ -120,6 +122,14 @@ function makeController(
       );
     }),
   } as unknown as UnevaluatedFillRunOrchestratorService;
+  // llmProviderConfigResolver — evaluate() 경로 test 에서 미사용이라 throw mock.
+  const llmProviderConfigResolver = {
+    resolveDefaultModelId: jest.fn(() => {
+      throw new Error(
+        "evaluate() 는 llmProviderConfigResolver 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as LlmProviderConfigResolver;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -129,6 +139,7 @@ function makeController(
       personService,
       unevaluatedFillPlanner,
       unevaluatedFillRunOrchestrator,
+      llmProviderConfigResolver,
     ),
     evaluateSpy,
     persistSpy,
@@ -198,6 +209,14 @@ function makePeriodController(opts: {
       );
     }),
   } as unknown as UnevaluatedFillRunOrchestratorService;
+  // llmProviderConfigResolver — period() 경로 test 에서 미사용이라 throw mock.
+  const llmProviderConfigResolver = {
+    resolveDefaultModelId: jest.fn(() => {
+      throw new Error(
+        "period() 는 llmProviderConfigResolver 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as LlmProviderConfigResolver;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -207,6 +226,7 @@ function makePeriodController(opts: {
       personService,
       unevaluatedFillPlanner,
       unevaluatedFillRunOrchestrator,
+      llmProviderConfigResolver,
     ),
     generateSpy,
     adminSpy,
@@ -272,6 +292,14 @@ function makeFillController(
       );
     }),
   } as unknown as UnevaluatedFillRunOrchestratorService;
+  // llmProviderConfigResolver — planUnevaluatedFill() 경로 test 에서 미사용이라 throw mock.
+  const llmProviderConfigResolver = {
+    resolveDefaultModelId: jest.fn(() => {
+      throw new Error(
+        "planUnevaluatedFill() 는 llmProviderConfigResolver 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as LlmProviderConfigResolver;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -281,6 +309,7 @@ function makeFillController(
       personService,
       unevaluatedFillPlanner,
       unevaluatedFillRunOrchestrator,
+      llmProviderConfigResolver,
     ),
     plannerSpy,
   };
@@ -2065,14 +2094,25 @@ describe("AssessmentEvaluationController.planUnevaluatedFill (RBAC / guard metad
 // runSpy 로 위임 인자 / 횟수 / 반환 forward 검증을 enable 한다.
 function makeRunController(
   runImpl: (...args: unknown[]) => Promise<UnevaluatedFillRunResult>,
+  // resolveImpl — llmProviderConfigResolver.resolveDefaultModelId mock 구현. 기본은
+  // 단일-row resolve 성공 path("resolved-default") 를 반환한다. 0-row/2+row/빈·non-
+  // string fail-fast 시나리오는 reject 하는 impl 을 주입해 503 매핑 분기를 검증한다.
+  resolveImpl: () => Promise<string> = async () => "resolved-default",
 ): {
   controller: AssessmentEvaluationController;
   runSpy: jest.Mock;
+  resolveSpy: jest.Mock;
 } {
   const runSpy = jest.fn(runImpl);
   const unevaluatedFillRunOrchestrator = {
     run: runSpy,
   } as unknown as UnevaluatedFillRunOrchestratorService;
+  // llmProviderConfigResolver — default modelId 의 server-side source(ADR-0048 §Decision
+  // 1·2). resolveSpy 로 호출 횟수 / 503 매핑 분기를 검증한다.
+  const resolveSpy = jest.fn(resolveImpl);
+  const llmProviderConfigResolver = {
+    resolveDefaultModelId: resolveSpy,
+  } as unknown as LlmProviderConfigResolver;
   // 다른 route 의 collaborator 는 run 경로 test 에서 호출되면 안 되므로 throw mock.
   const orchestrator = {
     evaluateActivities: jest.fn(() => {
@@ -2123,8 +2163,10 @@ function makeRunController(
       personService,
       unevaluatedFillPlanner,
       unevaluatedFillRunOrchestrator,
+      llmProviderConfigResolver,
     ),
     runSpy,
+    resolveSpy,
   };
 }
 
@@ -2200,23 +2242,29 @@ function makeEmptyRunResult(): UnevaluatedFillRunResult {
   };
 }
 
-describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → orchestrator.run → result delegation)", () => {
-  // happy: 유효 DTO(rawBridges 2 + modelId 지정 + defaultModelId 지정) 입력 시 orchestrator
-  // .run 이 (rawBridges, modelId, defaultModelId) 3 인자로 정확히 호출되고, 반환
-  // UnevaluatedFillRunResult 가 controller 반환과 deep-equal(가공 0).
-  it("유효 DTO 시 orchestrator.run 을 (rawBridges, modelId, defaultModelId) 로 호출하고 결과를 그대로 반환한다 (happy)", async () => {
+describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → resolver → orchestrator.run → result delegation)", () => {
+  // happy: 유효 DTO(rawBridges 2 + modelId 지정) 입력 + resolver 단일-row resolve 성공 시,
+  // orchestrator.run 이 (rawBridges, dto.modelId, **resolver 가 반환한** defaultModelId)
+  // 3 인자로 정확히 호출되고, 반환 UnevaluatedFillRunResult 가 controller 반환과
+  // deep-equal(가공 0). 3 번째 인자는 더 이상 dto.defaultModelId 가 아니라 resolver source.
+  it("resolver 성공 시 orchestrator.run 을 (rawBridges, dto.modelId, resolved defaultModelId) 로 호출하고 결과를 그대로 반환한다 (happy)", async () => {
     const expected = makeRunResult();
-    const { controller, runSpy } = makeRunController(async () => expected);
+    const { controller, runSpy, resolveSpy } = makeRunController(
+      async () => expected,
+    );
 
     const dto = makeRunDto();
     const result = await controller.runUnevaluatedFill(dto);
 
-    // 위임 — 정확히 1 회, DTO 의 3 축을 가공 0 으로 forward.
+    // resolver — 정확히 1 회 호출(default modelId 의 server-side source).
+    expect(resolveSpy).toHaveBeenCalledTimes(1);
+    // 위임 — 정확히 1 회. 3 번째 인자는 resolver 가 반환한 "resolved-default"(dto.
+    // defaultModelId "gpt-4o" 아님 — source 가 resolver 로 이전).
     expect(runSpy).toHaveBeenCalledTimes(1);
     expect(runSpy).toHaveBeenCalledWith(
       dto.rawBridges,
       "gpt-4o-mini",
-      "gpt-4o",
+      "resolved-default",
     );
     // 반환 — service 결과 deep-equal(controller 가공 0).
     expect(result).toEqual(expected);
@@ -2224,23 +2272,102 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → or
     expect(result).toBe(expected);
   });
 
-  // error path (a): orchestrator.run reject(예: core 의 options 무효 TypeError) →
-  // controller 가 raw 전파(swallow 0).
-  it("orchestrator.run reject 시 controller 가 error 를 raw 전파한다 (error path — run reject)", async () => {
+  // negative: dto.defaultModelId 는 더 이상 source 가 아니다 — dto 가 다른 값을 보내도
+  // orchestrator 에는 resolver 가 반환한 값만 forward 된다(server-side 권위 source 박제).
+  it("dto.defaultModelId 값과 무관하게 resolver 반환값을 forward 한다 (negative — dto.defaultModelId source 아님)", async () => {
+    const { controller, runSpy } = makeRunController(async () =>
+      makeRunResult(),
+    );
+
+    const dto = makeRunDto({ defaultModelId: "dto-가-보낸-무시될-값" });
+    await controller.runUnevaluatedFill(dto);
+
+    expect(runSpy).toHaveBeenCalledWith(
+      dto.rawBridges,
+      "gpt-4o-mini",
+      "resolved-default",
+    );
+  });
+
+  // error path (resolver 0-row): resolver 가 row 0 throw 시 controller 가 503
+  // ServiceUnavailableException 으로 매핑하고 orchestrator.run 을 호출하지 않는다(평가 사슬
+  // 미진입). resolver 의 한국어 메시지가 503 응답에 보존된다.
+  it("resolver 0-row throw 시 503(ServiceUnavailableException)으로 매핑하고 orchestrator 를 호출하지 않는다 (negative — 0-row → 503)", async () => {
+    const { controller, runSpy, resolveSpy } = makeRunController(
+      async () => makeRunResult(),
+      async () => {
+        throw new Error(
+          "LlmProviderConfigResolver: LLM provider 가 설정되지 않았다 (row 0).",
+        );
+      },
+    );
+
+    await expect(
+      controller.runUnevaluatedFill(makeRunDto()),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(resolveSpy).toHaveBeenCalledTimes(1);
+    // 평가 사슬 미진입 — resolver fail 시 비용 있는 orchestrator 호출 0.
+    expect(runSpy).not.toHaveBeenCalled();
+  });
+
+  // error path (resolver 2+row): resolver 가 다중-row throw 시 동일하게 503 + orchestrator
+  // 미호출. 한국어 메시지가 503 message 에 보존되는지도 검증(진단성).
+  it("resolver 2+row throw 시 503 으로 매핑하고 한국어 메시지를 보존한다 (negative — 2+row → 503)", async () => {
+    const koMessage =
+      "LlmProviderConfigResolver: LlmProviderConfig 다중-row 운용 (row 수=2, 후속 ADR 필요).";
+    const { controller, runSpy } = makeRunController(
+      async () => makeRunResult(),
+      async () => {
+        throw new Error(koMessage);
+      },
+    );
+
+    await expect(
+      controller.runUnevaluatedFill(makeRunDto()),
+    ).rejects.toMatchObject({
+      message: koMessage,
+    });
+    expect(runSpy).not.toHaveBeenCalled();
+  });
+
+  // error path (resolver 빈/non-string TypeError): resolver 가 형식 위반 TypeError throw
+  // 시에도 동일하게 503 매핑(Error/TypeError 구분 없이 fail-fast → 일시적 서비스 불가).
+  it("resolver 가 빈/non-string modelId TypeError throw 시 503 으로 매핑한다 (negative — type mismatch → 503)", async () => {
+    const { controller, runSpy } = makeRunController(
+      async () => makeRunResult(),
+      async () => {
+        throw new TypeError(
+          "LlmProviderConfigResolver: LlmProviderConfig.modelId 가 비어있다.",
+        );
+      },
+    );
+
+    await expect(
+      controller.runUnevaluatedFill(makeRunDto()),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(runSpy).not.toHaveBeenCalled();
+  });
+
+  // error path (orchestrator reject): resolver 성공 뒤 orchestrator.run reject(core 의
+  // options 무효 TypeError 등) → controller 가 raw 전파(swallow 0). resolver fail 의 503
+  // 매핑과 구분 — 이건 503 으로 wrapping 되지 않고 원본 error 가 그대로 전파된다.
+  it("resolver 성공 후 orchestrator.run reject 시 raw 전파한다 (negative — orchestrator reject 는 503 아님)", async () => {
     const rawError = new TypeError("options 무효: modelId 가 비어있다");
-    const { controller } = makeRunController(async () => {
+    const { controller, resolveSpy } = makeRunController(async () => {
       throw rawError;
     });
 
     await expect(controller.runUnevaluatedFill(makeRunDto())).rejects.toBe(
       rawError,
     );
+    // resolver 는 성공했음(orchestrator 진입 전 fail 아님).
+    expect(resolveSpy).toHaveBeenCalledTimes(1);
   });
 
-  // error path (b): modelId 미지정(undefined) 시에도 orchestrator 가 정확히
-  // (rawBridges, undefined, defaultModelId) 로 호출됨(plain pass-through — controller 가
-  // 임의 default 채워 넣지 않음).
-  it("modelId 미지정 시 orchestrator.run 을 (rawBridges, undefined, defaultModelId) 로 호출한다 (negative — pass-through, 임의 default 채움 0)", async () => {
+  // flow / branch (modelId 미지정): modelId 미지정(undefined) 시에도 orchestrator 가 정확히
+  // (rawBridges, undefined, resolved default) 로 호출됨(controller 가 임의 default 채워
+  // 넣지 않음 — override 축은 dto.modelId, default 축은 resolver).
+  it("modelId 미지정 시 orchestrator.run 을 (rawBridges, undefined, resolved default) 로 호출한다 (branch — modelId override 미지정)", async () => {
     const { controller, runSpy } = makeRunController(async () =>
       makeRunResult(),
     );
@@ -2249,29 +2376,16 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → or
     await controller.runUnevaluatedFill(dto);
 
     expect(runSpy).toHaveBeenCalledTimes(1);
-    expect(runSpy).toHaveBeenCalledWith(dto.rawBridges, undefined, "gpt-4o");
+    expect(runSpy).toHaveBeenCalledWith(
+      dto.rawBridges,
+      undefined,
+      "resolved-default",
+    );
   });
 
-  // flow / branch (a): rawBridges 빈 배열 DTO → orchestrator 호출 + service 가 반환한 빈
-  // outcomes 결과를 그대로 응답(빈 입력 → 빈 outcomes 의 결정적 흐름, silent 비정상 0).
-  it("rawBridges 빈 배열 DTO 는 빈 outcomes 결과를 그대로 응답한다 (branch — 빈 입력 → 빈 outcomes)", async () => {
-    const { controller, runSpy } = makeRunController(async () =>
-      makeEmptyRunResult(),
-    );
-
-    const result = await controller.runUnevaluatedFill(
-      makeRunDto({ rawBridges: [] }),
-    );
-
-    // 빈 배열도 그대로 forward(controller 가 빈 입력을 거부하지 않음 — 도메인 결정성).
-    expect(runSpy).toHaveBeenCalledTimes(1);
-    expect(runSpy).toHaveBeenCalledWith([], "gpt-4o-mini", "gpt-4o");
-    expect(result.outcomes).toEqual([]);
-    expect(result.totalCount).toBe(0);
-  });
-
-  // flow / branch (b): modelId 지정 vs 미지정 두 분기 각각 orchestrator 호출 인자 검증.
-  it("modelId 지정 분기는 지정 modelId 를 forward 한다 (branch — modelId 지정)", async () => {
+  // flow / branch (modelId 지정): 지정 modelId override 분기는 resolved default 와 무관하게
+  // 그대로 forward 된다(두 축의 독립성).
+  it("modelId 지정 분기는 지정 modelId override 를 forward 한다 (branch — modelId 지정)", async () => {
     const { controller, runSpy } = makeRunController(async () =>
       makeRunResult(),
     );
@@ -2283,8 +2397,26 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → or
     expect(runSpy).toHaveBeenCalledWith(
       expect.any(Array),
       "custom-model",
-      "gpt-4o",
+      "resolved-default",
     );
+  });
+
+  // flow / branch (빈 입력): rawBridges 빈 배열 DTO → resolver 성공 후 orchestrator 호출 +
+  // service 가 반환한 빈 outcomes 결과를 그대로 응답(빈 입력 → 빈 outcomes 의 결정적 흐름).
+  it("rawBridges 빈 배열 DTO 는 빈 outcomes 결과를 그대로 응답한다 (branch — 빈 입력 → 빈 outcomes)", async () => {
+    const { controller, runSpy } = makeRunController(async () =>
+      makeEmptyRunResult(),
+    );
+
+    const result = await controller.runUnevaluatedFill(
+      makeRunDto({ rawBridges: [] }),
+    );
+
+    // 빈 배열도 그대로 forward(controller 가 빈 입력을 거부하지 않음 — 도메인 결정성).
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(runSpy).toHaveBeenCalledWith([], "gpt-4o-mini", "resolved-default");
+    expect(result.outcomes).toEqual([]);
+    expect(result.totalCount).toBe(0);
   });
 
   // negative (thin delegate 비변형): controller 가 service 반환 result 를 재정렬 / 필터 /
@@ -2310,9 +2442,9 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → or
     ]);
   });
 
-  // negative: modelId null 도 그대로 forward — service 가 빈 값으로 취급해 defaultModelId
-  // fallback(controller 는 정규화 0).
-  it("modelId 가 null 이면 null 을 그대로 forward 한다 (negative — null pass-through)", async () => {
+  // negative: modelId null 도 override 축으로 그대로 forward — service 가 빈 값으로 취급해
+  // resolved default fallback(controller 는 정규화 0). default 축은 여전히 resolver source.
+  it("modelId 가 null 이면 null override 를 그대로 forward 한다 (negative — null override pass-through)", async () => {
     const { controller, runSpy } = makeRunController(async () =>
       makeRunResult(),
     );
@@ -2320,7 +2452,11 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → or
     const dto = makeRunDto({ modelId: null as unknown as string });
     await controller.runUnevaluatedFill(dto);
 
-    expect(runSpy).toHaveBeenCalledWith(dto.rawBridges, null, "gpt-4o");
+    expect(runSpy).toHaveBeenCalledWith(
+      dto.rawBridges,
+      null,
+      "resolved-default",
+    );
   });
 });
 
