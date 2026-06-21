@@ -2,7 +2,10 @@
 id: T-0559
 title: 좌표 1개 → 영속 runner thunk 조립 순수 factory (context/period/options/reevaluate 인자 결정 + generateAndPersist 바인딩)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: a63a692
+prNumber: 474
+completedAt: 2026-06-21T09:52Z
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 180
