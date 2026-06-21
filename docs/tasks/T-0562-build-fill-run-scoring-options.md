@@ -2,7 +2,7 @@
 id: T-0562
 title: run-request modelId → ScoringOptions 도출 순수 factory 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 150
