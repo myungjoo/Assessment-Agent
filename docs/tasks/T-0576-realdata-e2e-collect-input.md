@@ -2,7 +2,11 @@
 id: T-0576
 title: 실 평가 e2e seed descriptor → CollectForPersonInput 순수 매퍼
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 48e0919
+prNumber: 489
+reviewRounds: 1
+completedAt: 2026-06-22T15:37:25Z
 commitMode: pr
 coversReq: [REQ-037, REQ-047]
 estimatedDiff: 110
