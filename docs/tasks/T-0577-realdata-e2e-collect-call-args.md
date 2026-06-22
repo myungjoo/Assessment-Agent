@@ -2,7 +2,7 @@
 id: T-0577
 title: 실 평가 e2e collectForPerson 호출-args descriptor 순수 빌더
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-031]
 estimatedDiff: 110
