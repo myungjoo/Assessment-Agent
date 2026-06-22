@@ -2,7 +2,11 @@
 id: T-0583
 title: 실 평가 e2e 결과 이슈 descriptor → gh issue 멱등 명령-args 순수 빌더
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-22T22:38:30Z
+mergedAs: b9ba896
+prNumber: 496
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 130
