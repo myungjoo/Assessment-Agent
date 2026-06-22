@@ -2,7 +2,7 @@
 id: T-0584
 title: 실 평가 e2e 결과 이슈 search response → create-or-update action 순수 resolver
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 140
