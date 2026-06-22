@@ -2,7 +2,7 @@
 id: T-0578
 title: 실 평가 e2e 수집 Activity[] → EvaluationInput[] 경계 순수 매퍼
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 120
