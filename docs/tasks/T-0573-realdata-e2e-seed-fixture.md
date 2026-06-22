@@ -2,7 +2,9 @@
 id: T-0573
 title: 실 평가 e2e 시드 픽스처 빌더 — myungjoo / leemgs github.com Person+ServiceIdentity 순수 helper
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 486
+mergedAs: 33d2086
 commitMode: pr
 coversReq: [REQ-023, REQ-009]
 estimatedDiff: 120
