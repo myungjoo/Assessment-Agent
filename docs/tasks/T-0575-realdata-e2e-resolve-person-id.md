@@ -2,8 +2,11 @@
 id: T-0575
 title: 실 평가 e2e upsert-args 의 personId placeholder → 실 person.id 치환 순수 매퍼
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 488
+mergedAs: 6ca0944
+reviewRounds: 1
 coversReq: [REQ-024, REQ-037]
 estimatedDiff: 130
 estimatedFiles: 2
