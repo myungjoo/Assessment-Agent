@@ -2,7 +2,11 @@
 id: T-0574
 title: 실 평가 e2e seed descriptor → Prisma upsert-args 순수 매퍼 추가
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-22T13:53:00Z
+mergedAs: 80c1715
+prNumber: 487
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-023, REQ-024, REQ-047, REQ-059]
 estimatedDiff: 120
