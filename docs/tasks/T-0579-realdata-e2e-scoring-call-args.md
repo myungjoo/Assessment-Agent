@@ -2,7 +2,7 @@
 id: T-0579
 title: 실 평가 e2e EvaluationInput[] → scoreUnit 호출-args 묶음 순수 빌더
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 130
@@ -69,3 +69,13 @@ implementer → tester
 ## Follow-ups
 
 (비어있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+---
+
+## 완료 기록 (DONE)
+
+- **완료**: 2026-06-22T18:38:01Z (server-time), cron@aa-cloud-1838-c962
+- **결과**: PR #492 squash merge `9d29862` (reviewer round1 APPROVE, 4-게이트 PASS, CI green).
+- **구현**: 순수 빌더 `buildRealDataScoringCallArgs(inputs, modelId)` — 각 `EvaluationInput` 에 동일 `modelId` `ScoringOptions` 페어링, 순서 보존, 새 배열+새 options(무공유). production `EvaluationInput`/`ScoringOptions` import 재사용(새 type 정의 0), 빈/공백 `modelId` guard throw. `test/helpers/realdata-e2e-scoring-call-args.ts`(+colocated spec) +90 LOC.
+- **테스트**: 17 spec case, 신규 helper line/branch/func/stmt 100%, 전체 suite 6399 test pass. happy+branch(빈/단일/다수·modelId 유효)+negative(빈/공백/탭개행 modelId throw·guard 우선)+무공유 회귀 cover.
+- **실 평가 e2e 후속 step(deferred, LAN/credential gate)**: ② 실 수집(github.com 공개활동 fetch) ③ Ollama 실 LLM round-trip(LAN=AKIHA 192.168.0.5, cloud cron 무경로 ADR-0045) ④ daily-test step_eval wiring. 난이도별 routing(R-97)·평가 결과 영속화는 별도 후속 slice.
