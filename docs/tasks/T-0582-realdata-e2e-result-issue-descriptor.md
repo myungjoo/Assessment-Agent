@@ -2,7 +2,7 @@
 id: T-0582
 title: 실 평가 e2e 결과 요약 → daily-test 결과 이슈 식별자/본문 descriptor 순수 빌더
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 130
@@ -73,3 +73,7 @@ implementer → tester
 ## Follow-ups
 
 (비어있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+## Result (DONE 2026-06-22T21:38Z, PR #495 r1 squash a8d82e4)
+
+순수 빌더 `buildRealDataResultIssueDescriptor()` 추가 — `RealDataResultSummary`(T-0580) + run 식별자(`RealDataResultIssueRunRef`) → `RealDataResultIssueDescriptor` {title, marker, body}. body 는 T-0581 `renderRealDataResultSummaryMarkdown` 위임(렌더 중복 0), marker 는 run token 안정 합성(멱등 — 동일 run 동일 marker, 상이 run 상이), gitSha/dateToken 빈·공백 guard throw. 결정론적(byte-identical) 출력, 입력 mutate 0·무공유, R-59 정합(raw 미보유). DB/네트워크/env/live-LLM 접근 0(build-time 순수, cloud-safe). `test/helpers/realdata-e2e-result-issue-descriptor.ts`(+colocated spec) +130 LOC, reviewer r1 APPROVE, 4-게이트 PASS, CI green(275 suite/6438 test), 신규 helper line/branch/func/stmt 100%.
