@@ -1,17 +1,33 @@
 ---
 id: ADR-0049
 title: "문서 update 횟수 중립화 — 점수 산출 alg 단계에서 update 횟수 축 제거 (동일 author + 동일 document N 회 update 를 1 event 로 합산, REQ-022)"
-status: PROPOSED
+status: SUPERSEDED
 date: 2026-06-21
+supersededDate: 2026-06-22
 relatedTask: [T-0572]
 relatedReq: [REQ-022, REQ-021, REQ-012]
 supersedes: null
+supersededBy: "implemented-on-main (T-0524 PR #437 + T-0525 PR #438)"
 augments: [ADR-0029, ADR-0033]
 ---
 
 # ADR-0049 — 문서 update 횟수 중립화 정책 (REQ-022 / R-41)
 
-> 본 ADR 은 **PROPOSED** — P5 evaluation pipeline 의 평가 metric 정책 중 [REQ-022](../requirements.md) ([README.md](../../README.md) L41 / R-41) "문서 작성 중 습관적으로 update 를 하여 중간 저장을 하여 update 횟수만 늘어나는 경우에 대해 advantage/disadvantage 둘 다 있어서는 안된다" 를 박제한다. 본 ADR 은 **평가 metric layer** 의 점수 산출 정책만 design-level 로 결정하며, impl chain (어느 helper / DTO / service 가 합산 logic 을 가지는가) 은 별도 후속 task 로 분해한다. [ADR-0029](ADR-0029-assessment-collection-orchestrator.md) (collection-layer dedup) 와 [ADR-0033](ADR-0033-evaluation-result-persistence.md) (Assessment persist 키) 를 보강(augment)한다 — 둘 다 수집·저장 layer 책임이고 본 ADR 은 직교한 metric layer 책임이다. PROPOSED → ACCEPTED flip 은 impl chain 첫 slice 머지 시 별도 direct task 가 수행한다.
+> ## ⚠️ SUPERSEDED (2026-06-22, Q-0046 옵션1)
+>
+> **본 ADR 은 SUPERSEDED 다 — 채택되지 않았다.** 본 ADR 이 박제하려던 [REQ-022](../requirements.md) / R-41 ("update 횟수가 advantage·disadvantage 둘 다 없음")은 **본 ADR 작성 시점에 이미 main 에 다른 메커니즘으로 구현·shipped 되어 있었다** (작성 당시 인지하지 못함):
+> - **T-0524** [`computeUpdateCountNeutralization`](../../src/assessment-evaluation/domain/evaluation-update-count-neutral.ts) (PR #437) — Confluence page `version` 임계(≥5) 기반 document 단위 중립 대상 detection.
+> - **T-0525** [`applyUpdateCountNeutralizationToVolume`](../../src/assessment-evaluation/domain/evaluation-update-count-adjust.ts) (PR #438) — 중립 대상 volume 을 abuse 감점 공식 없이 net-0 으로 보존.
+>
+> **R-41 두 축이 main 에서 실증 보장됨** (Q-0046 코드 검증): (a) **advantage 0** — [`evaluation-volume.ts`](../../src/assessment-evaluation/domain/evaluation-volume.ts) 가 `version`(update 횟수)을 volume 산출에 **애초에 미사용**(`version` 단어 0회 등장)이라 자주 저장해도 점수가 오르지 않는다. (b) **disadvantage 0** — T-0525 가 abuse 감점 공식(`floor(volume*(1-ratio))`)을 베끼지 않고 base volume 을 보존해 자주 저장해도 점수가 깎이지 않는다.
+>
+> **본 ADR §1 의 `(author, documentKey)` group-by-collapse 안은 미채택 alternative 다** — N 회 update 가 **N 개 분리 event** 로 들어온다는 입력 형태를 가정했으나, main 의 실제 데이터 모델은 한 문서를 **이미 1 unit**(version 숫자를 metadata 로 보유)으로 표현하므로 collapse 할 N 개 event 가 존재하지 않는다. 즉 본 ADR 이 풀려던 문제는 main 의 volume-version 배제로 **전 범위(임계 무관) 이미 해소**되어 있어, group-by-collapse 는 불필요했던 접근이다.
+>
+> **귀결**: impl chain(`aggregate-document-updates.ts` 등)은 **큐잉하지 않는다**(중복 코드 차단, 신규 코드 0). REQ-022 는 PLAN bullet 102 / requirements.md 에서 implemented-on-main(T-0524/T-0525)으로 doc-sync 됨. 아래 §Context ~ §Out of scope 는 **작성 당시의 원문**을 history 로 보존한다(미채택 설계 사고 흔적).
+>
+> ---
+>
+> *(이하 원문 — 미채택 설계안. 당시 main 구현 미인지 상태에서 작성됨.)* 본 ADR 은 P5 evaluation pipeline 의 평가 metric 정책 중 [REQ-022](../requirements.md) ([README.md](../../README.md) L41 / R-41) "문서 작성 중 습관적으로 update 를 하여 중간 저장을 하여 update 횟수만 늘어나는 경우에 대해 advantage/disadvantage 둘 다 있어서는 안된다" 를 박제하려 했다. 본 ADR 은 **평가 metric layer** 의 점수 산출 정책만 design-level 로 결정하며, impl chain (어느 helper / DTO / service 가 합산 logic 을 가지는가) 은 별도 후속 task 로 분해한다. [ADR-0029](ADR-0029-assessment-collection-orchestrator.md) (collection-layer dedup) 와 [ADR-0033](ADR-0033-evaluation-result-persistence.md) (Assessment persist 키) 를 보강(augment)한다 — 둘 다 수집·저장 layer 책임이고 본 ADR 은 직교한 metric layer 책임이다.
 
 ## Context
 

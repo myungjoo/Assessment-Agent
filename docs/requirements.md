@@ -38,7 +38,7 @@
 | REQ-019 | 38 | 새 알고리즘·외부 연구 소개 = 높은 contribution | FR | P5 | unit + manual | PLANNED |
 | REQ-020 | 39 | 조직 기여 큰 인원 → 높은 점수 | FR | P5 | manual + unit | PLANNED |
 | REQ-021 | 40 | 문서 abusing 방지 (의미 없는 기여 단순 반복) | FR | P5 | unit | PLANNED |
-| REQ-022 | 41 | 문서 update 횟수 중립화 (advantage/disadvantage 둘 다 없음) | FR | P5 | unit | PLANNED |
+| REQ-022 | 41 | 문서 update 횟수 중립화 (advantage/disadvantage 둘 다 없음) | FR | P5 | unit | DONE (implemented-on-main — T-0524 `computeUpdateCountNeutralization` PR #437 + T-0525 `applyUpdateCountNeutralizationToVolume` PR #438; volume 산출이 version 미사용 → advantage 0, 중립 보존 → disadvantage 0. ADR-0049 group-by-collapse 안은 미채택 — Q-0046 옵션1) |
 | REQ-023 | 45-46 | 서비스별 ID 매핑 (1 인물 ↔ N 서비스 ID) | FR | P3 | unit | PLANNED |
 | REQ-024 | 47 | Primary key 역할 ID 지정 (서비스 중 1개) | Constraint | P3 (ADR 필수) | policy + unit | PLANNED |
 | REQ-025 | 48 | 일부 서비스 ID NULL 허용 | FR | P3 | unit | PLANNED |
