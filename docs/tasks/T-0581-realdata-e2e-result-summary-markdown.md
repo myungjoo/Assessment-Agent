@@ -2,7 +2,11 @@
 id: T-0581
 title: 실 평가 e2e 결과 요약 descriptor → daily-test 이슈 마크다운 본문 순수 렌더러
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-22T20:39Z
+mergedAs: 2e60a4e
+prNumber: 494
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 130
