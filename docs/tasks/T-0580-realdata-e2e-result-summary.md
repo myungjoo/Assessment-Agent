@@ -2,7 +2,7 @@
 id: T-0580
 title: 실 평가 e2e EvaluationResult[] → daily-test 결과 요약 descriptor 순수 빌더
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 130
