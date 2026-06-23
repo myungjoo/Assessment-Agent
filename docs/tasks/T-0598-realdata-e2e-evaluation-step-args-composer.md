@@ -2,7 +2,7 @@
 id: T-0598
 title: 실 평가 e2e run plan + activities → scoreUnit 호출-args(modelId 일관) 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 150
