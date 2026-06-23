@@ -2,7 +2,10 @@
 id: T-0608
 title: 평가 detection 5-신호 단일 진입 순수 composer computeEvaluationAdjustmentSignals 추출
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 3441bd6
+prNumber: 522
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-026, REQ-040, REQ-037, REQ-041, REQ-027, REQ-025]
 estimatedDiff: 175
