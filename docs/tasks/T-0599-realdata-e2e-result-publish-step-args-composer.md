@@ -2,8 +2,11 @@
 id: T-0599
 title: 실 평가 e2e run plan + results → 결과 이슈 publish plan(run 일관) 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 381190b
+prNumber: 512
+reviewRounds: 1
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 150
 estimatedFiles: 2
