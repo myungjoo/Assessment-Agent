@@ -2,8 +2,11 @@
 id: T-0601
 title: 실 평가 e2e run plan → 평가+publish step-args 단일 진입 aggregator 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 514
+mergedAs: 1665394
+reviewRounds: 1
 coversReq: [REQ-013]
 estimatedDiff: 150
 estimatedFiles: 2
