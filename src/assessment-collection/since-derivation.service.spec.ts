@@ -145,4 +145,119 @@ describe("SinceDerivationService", () => {
       );
     });
   });
+
+  // deriveSinceWithRecollectionWindow — R-58 backoff variant(T-0603). deriveSince 도출 후
+  // applyRecollectionWindow(T-0602)로 since 경계를 windowDays 일 뒤로 물린다. 기존 deriveSince
+  // 측 분기는 위 describe 들이 cover 하므로 본 describe 는 backoff thread/위임/패스스루/
+  // 비정상 windowDays no-op/결정론을 cover 한다(CLAUDE.md §3.2 R-112 4종 + negative).
+  describe("deriveSinceWithRecollectionWindow (R-58 backoff variant)", () => {
+    describe("happy path (R-112-1)", () => {
+      it("직전 Assessment 의 ISO 의 정확히 7일(기본 window) 이전 ISO 를 반환한다", async () => {
+        const { service } = makeService(async () => [
+          assessment("2026-03-08T00:00:00.000Z"),
+        ]);
+
+        // 2026-03-08 - 7일 = 2026-03-01.
+        await expect(
+          service.deriveSinceWithRecollectionWindow("person-1"),
+        ).resolves.toBe("2026-03-01T00:00:00.000Z");
+      });
+
+      it("명시 windowDays(3) 지정 시 그만큼만 뒤로 물린 ISO 를 반환한다", async () => {
+        const { service } = makeService(async () => [
+          assessment("2026-03-08T00:00:00.000Z"),
+        ]);
+
+        // 2026-03-08 - 3일 = 2026-03-05.
+        await expect(
+          service.deriveSinceWithRecollectionWindow("person-1", 3),
+        ).resolves.toBe("2026-03-05T00:00:00.000Z");
+      });
+    });
+
+    describe("신규 인원 패스스루 (applyRecollectionWindow undefined 분기)", () => {
+      it("직전 Assessment 가 없으면(빈 배열) undefined 를 반환한다(full collection 의미 보존)", async () => {
+        const { service } = makeService(async () => []);
+
+        await expect(
+          service.deriveSinceWithRecollectionWindow("new-person"),
+        ).resolves.toBeUndefined();
+      });
+
+      it("명시 windowDays 를 줘도 신규 인원이면 undefined 그대로다(backoff 대상 없음)", async () => {
+        const { service } = makeService(async () => []);
+
+        await expect(
+          service.deriveSinceWithRecollectionWindow("new-person", 14),
+        ).resolves.toBeUndefined();
+      });
+    });
+
+    describe("negative / windowDays no-op 분기 충분 cover (R-112-4)", () => {
+      it("windowDays = 0 이면 backoff 0 = 원본 since 그대로 반환한다(no-op)", async () => {
+        const { service } = makeService(async () => [
+          assessment("2026-03-08T00:00:00.000Z"),
+        ]);
+
+        await expect(
+          service.deriveSinceWithRecollectionWindow("p", 0),
+        ).resolves.toBe("2026-03-08T00:00:00.000Z");
+      });
+
+      it("windowDays = -1(음수)이면 no-op = 원본 그대로다(경계 이동 없음)", async () => {
+        const { service } = makeService(async () => [
+          assessment("2026-03-08T00:00:00.000Z"),
+        ]);
+
+        await expect(
+          service.deriveSinceWithRecollectionWindow("p", -1),
+        ).resolves.toBe("2026-03-08T00:00:00.000Z");
+      });
+
+      it("windowDays = 1.5(비정수)이면 no-op = 원본 그대로다", async () => {
+        const { service } = makeService(async () => [
+          assessment("2026-03-08T00:00:00.000Z"),
+        ]);
+
+        await expect(
+          service.deriveSinceWithRecollectionWindow("p", 1.5),
+        ).resolves.toBe("2026-03-08T00:00:00.000Z");
+      });
+
+      it("findByPerson 이 reject(의존성 실패)하면 throw 0 으로 그대로 전파한다(fail-fast)", async () => {
+        const { service } = makeService(async () => {
+          throw new Error("assessment 조회 실패");
+        });
+
+        await expect(
+          service.deriveSinceWithRecollectionWindow("p"),
+        ).rejects.toThrow("assessment 조회 실패");
+      });
+    });
+
+    describe("위임 검증 + 결정론", () => {
+      it("findByPerson 을 personId 로 정확히 1회만 호출한다(deriveSince 경유, 재구현 없음)", async () => {
+        const { service, findSpy } = makeService(async () => [
+          assessment("2026-03-08T00:00:00.000Z"),
+        ]);
+
+        await service.deriveSinceWithRecollectionWindow("person-1");
+
+        expect(findSpy).toHaveBeenCalledTimes(1);
+        expect(findSpy).toHaveBeenCalledWith("person-1");
+      });
+
+      it("동일 personId · 동일 mock 응답을 두 번 호출하면 동일 결과를 반환한다(결정론)", async () => {
+        const { service } = makeService(async () => [
+          assessment("2026-03-08T00:00:00.000Z"),
+        ]);
+
+        const first = await service.deriveSinceWithRecollectionWindow("p");
+        const second = await service.deriveSinceWithRecollectionWindow("p");
+
+        expect(first).toBe(second);
+        expect(first).toBe("2026-03-01T00:00:00.000Z");
+      });
+    });
+  });
 });
