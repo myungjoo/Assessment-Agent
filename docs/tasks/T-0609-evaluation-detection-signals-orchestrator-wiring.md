@@ -2,8 +2,11 @@
 id: T-0609
 title: 평가 detection 5-신호 inline chain → computeEvaluationAdjustmentSignals 단일 호출 wiring
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 523
+mergedAs: f494c12
+reviewRounds: 1
 coversReq: [REQ-026, REQ-040, REQ-037, REQ-041, REQ-027, REQ-025]
 estimatedDiff: 130
 estimatedFiles: 2
