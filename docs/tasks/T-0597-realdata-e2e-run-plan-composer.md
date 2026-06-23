@@ -2,7 +2,7 @@
 id: T-0597
 title: 실 평가 e2e seed + modelId + run → 단일 진입 run plan 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 150
