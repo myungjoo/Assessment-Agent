@@ -2,7 +2,10 @@
 id: T-0602
 title: 재수집 정책 — 최근 1주 재수집 window backoff 순수 도메인 함수 (R-58)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: e0beedd
+prNumber: 515
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-031]
 estimatedDiff: 170
