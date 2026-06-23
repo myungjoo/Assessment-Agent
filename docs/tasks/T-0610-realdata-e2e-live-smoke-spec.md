@@ -2,8 +2,11 @@
 id: T-0610
 title: 실 평가 e2e env-gated live smoke spec — 조립된 step-args 를 실 수집+실 LLM 1 회 round-trip 실행
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 524
+mergedAs: 51c42b3
+reviewRounds: 1
 coversReq: [REQ-013, REQ-009, REQ-059]
 estimatedDiff: 175
 estimatedFiles: 2
