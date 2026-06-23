@@ -2,7 +2,11 @@
 id: T-0604
 title: CollectionTriggerService 의 since 도출을 R-58 backoff variant 로 wiring
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-23T17:06:09Z
+mergedAs: 5ea0b9f
+prNumber: 517
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-031, REQ-040, REQ-058]
 estimatedDiff: 90
