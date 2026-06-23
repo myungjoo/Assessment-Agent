@@ -12,6 +12,7 @@ import type {
   GithubActivity,
 } from "../assessment-collection/domain/activity";
 
+import * as evaluationAdjustmentsPipeline from "./domain/evaluation-adjustments-pipeline";
 import { mapActivityToEvaluationInput } from "./domain/evaluation-input.mapper";
 import { NOTABLE_CONTRIBUTION_NARRATIVE_MARKER } from "./domain/evaluation-notable-contribution-adjust";
 import type { EvaluationResult } from "./domain/evaluation-result";
@@ -3349,6 +3350,223 @@ describe("EvaluationOrchestratorService", () => {
       await orchestrator.evaluateActivities(activities, OPTIONS);
 
       expect(activities).toEqual(snapshot);
+    });
+  });
+
+  // ── T-0607: applyEvaluationAdjustments 단일 진입 wiring 검증 ───────────────
+  //    orchestrator L262~315 의 inline 5-step chain(abuse → update-count →
+  //    quality → underperformer → notable → flatten) 이 T-0606 박제 composer
+  //    `applyEvaluationAdjustments(entries, signals)` 단일 호출로 교체됐는지를
+  //    jest.spyOn 으로 직접 검증한다(중간 변환 0 / 5 signal 단일 container /
+  //    spy 산출 = 최종 return 의 same-ref / spy throw 시 try/catch 0 전파).
+  //    composer 자체의 동작 spec 은 evaluation-adjustments-pipeline.spec 이 박제
+  //    (중복 0 원칙) — 본 describe 는 service ↔ composer 의 wiring 만 cover.
+  describe("composer wiring(T-0607) — applyEvaluationAdjustments 단일 호출 / 5 signal container / spy 전파", () => {
+    // 본 describe 는 composer 의 named export 를 jest.spyOn 으로 가로채
+    // 호출 횟수 / 인자 형식 / 반환값 same-ref / throw 전파를 단언한다.
+    // namespace import(`* as evaluationAdjustmentsPipeline`)로 module binding
+    // 을 받아 spyOn 이 setter trap 으로 메서드 교체 가능하게 한다.
+    // afterEach 에서 spy 를 restore 해 케이스 간 누수 0.
+    let composerSpy: jest.SpyInstance;
+
+    afterEach(() => {
+      composerSpy.mockRestore();
+    });
+
+    it("(happy) composer 가 정확히 1 회 호출되고 인자는 (entries, 5-signal container) 형식 — 반환값이 orchestrator return 과 same-ref", async () => {
+      // 실 composer 동작은 그대로 두고 spy 만 부착(callThrough). 산출 = real
+      // composer 가 반환한 배열이라야 same-ref 단언이 의미 있다.
+      composerSpy = jest.spyOn(
+        evaluationAdjustmentsPipeline,
+        "applyEvaluationAdjustments",
+      );
+
+      const scoring = makeScoringService();
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({ externalId: "wire-c1", kind: "commit" }),
+        confluenceActivity({ externalId: "wire-p1" }),
+      ];
+
+      const result = await orchestrator.evaluateActivities(activities, OPTIONS);
+
+      // (a) 정확히 1 회 호출 — 5-step inline chain 이 단일 composer 진입으로 교체됐다.
+      expect(composerSpy).toHaveBeenCalledTimes(1);
+
+      // (b) 첫 인자 = entries({ author, result }[]). 길이/순서 정합 단언.
+      const [entriesArg, signalsArg] = composerSpy.mock.calls[0];
+      expect(Array.isArray(entriesArg)).toBe(true);
+      expect(entriesArg).toHaveLength(2);
+      expect(entriesArg[0]).toHaveProperty("author");
+      expect(entriesArg[0]).toHaveProperty("result");
+
+      // (c) 두 번째 인자 = 5-signal 단일 container(camelCase 5 field 정확히).
+      //     필드 이름이 composer 가 기대하는 정확한 형태인지 형 검증.
+      expect(signalsArg).toEqual(
+        expect.objectContaining({
+          abuse: expect.anything(),
+          updateCount: expect.anything(),
+          quality: expect.anything(),
+          underPerformer: expect.anything(),
+          notableContribution: expect.anything(),
+        }),
+      );
+      expect(Object.keys(signalsArg as object).sort()).toEqual([
+        "abuse",
+        "notableContribution",
+        "quality",
+        "underPerformer",
+        "updateCount",
+      ]);
+
+      // (d) composer 반환 배열이 orchestrator 의 최종 return 과 same-ref —
+      //     중간 변환 0 / 추가 mapping 0 보장(byte-identical 위임).
+      expect(result).toBe(composerSpy.mock.results[0].value);
+    });
+
+    it("(error) composer spy 가 throw 하면 orchestrator 가 자체 try/catch 없이 그대로 전파(투명성)", async () => {
+      // composer 가 던지는 임의의 Error 를 mock — orchestrator 의 흡수 0 확인.
+      const sentinel = new Error("composer-sentinel");
+      composerSpy = jest
+        .spyOn(evaluationAdjustmentsPipeline, "applyEvaluationAdjustments")
+        .mockImplementation(() => {
+          throw sentinel;
+        });
+
+      const scoring = makeScoringService();
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({ externalId: "err-c1", kind: "commit" }),
+      ];
+
+      await expect(
+        orchestrator.evaluateActivities(activities, OPTIONS),
+      ).rejects.toBe(sentinel);
+
+      // composer 가 1 회 호출됐고 spy 호출 후 error 전파라 orchestrator 의
+      // 마지막 단계(adjust thread)에서 throw 가 발생했음이 확인된다.
+      expect(composerSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("(negative i) 빈 activities → composer 도 빈 entries + 빈 신호 5종으로 호출되고 빈 배열 반환(throw 0)", async () => {
+      composerSpy = jest.spyOn(
+        evaluationAdjustmentsPipeline,
+        "applyEvaluationAdjustments",
+      );
+
+      const scoring = makeScoringService();
+      const orchestrator = makeOrchestrator(scoring);
+
+      const result = await orchestrator.evaluateActivities([], OPTIONS);
+
+      expect(result).toEqual([]);
+      // 빈 입력이어도 composer 는 정상 호출된다 — 본 service 는 short-circuit
+      // 분기 없이 composer 위임을 단일 path 로 둔다(분기 단순화).
+      expect(composerSpy).toHaveBeenCalledTimes(1);
+      const [entriesArg, signalsArg] = composerSpy.mock.calls[0];
+      expect(entriesArg).toEqual([]);
+      // 5 signal 모두 항상 새 객체로 전달(null/undefined 0 — composer guard
+      // 도달 0). 빈 deduped 에서도 detection helper 가 빈 신호 객체 반환.
+      expect(signalsArg).toBeDefined();
+      expect((signalsArg as Record<string, unknown>).abuse).toBeDefined();
+      expect((signalsArg as Record<string, unknown>).updateCount).toBeDefined();
+      expect((signalsArg as Record<string, unknown>).quality).toBeDefined();
+      expect(
+        (signalsArg as Record<string, unknown>).underPerformer,
+      ).toBeDefined();
+      expect(
+        (signalsArg as Record<string, unknown>).notableContribution,
+      ).toBeDefined();
+    });
+
+    it("(negative ii) scoreUnit reject 시 composer 도달 0 — scoring 실패 격리(§2)가 adjust 단계 보호", async () => {
+      composerSpy = jest.spyOn(
+        evaluationAdjustmentsPipeline,
+        "applyEvaluationAdjustments",
+      );
+
+      const scoring: { scoreUnit: jest.Mock } = {
+        scoreUnit: jest.fn().mockRejectedValue(new Error("scoring-failed")),
+      };
+      const orchestrator = makeOrchestrator(scoring);
+      const activities: Activity[] = [
+        githubActivity({ externalId: "scoring-fail", kind: "commit" }),
+      ];
+
+      await expect(
+        orchestrator.evaluateActivities(activities, OPTIONS),
+      ).rejects.toThrow("scoring-failed");
+
+      // scoring 실패 격리 — composer 위임은 scoring 전량 성공 후에만 진입.
+      // (부분 결과 위장 0)
+      expect(composerSpy).not.toHaveBeenCalled();
+    });
+
+    it("(negative iii) entries 길이 = scoring 결과 길이 = deduped 단위 수(매핑 misalignment 회귀 방어)", async () => {
+      composerSpy = jest.spyOn(
+        evaluationAdjustmentsPipeline,
+        "applyEvaluationAdjustments",
+      );
+
+      const scoring = makeScoringService();
+      const orchestrator = makeOrchestrator(scoring);
+      // dedup 으로 1 건 합쳐지는 입력 — 동일 unitId 두 timestamp.
+      const activities: Activity[] = [
+        githubActivity({
+          externalId: "dup-1",
+          timestamp: "2026-04-15T00:00:00Z",
+        }),
+        githubActivity({
+          externalId: "dup-1",
+          timestamp: "2026-04-01T00:00:00Z",
+        }),
+        githubActivity({ externalId: "uniq-2", kind: "commit" }),
+      ];
+
+      await orchestrator.evaluateActivities(activities, OPTIONS);
+
+      // dedup 으로 2 건 생존(중복 1 + 유일 1).
+      expect(scoring.scoreUnit).toHaveBeenCalledTimes(2);
+      const [entriesArg] = composerSpy.mock.calls[0];
+      expect(entriesArg).toHaveLength(2);
+      // entries[i].author = deduped[i].author 정합.
+      expect(entriesArg.map((e: { author: string }) => e.author)).toEqual([
+        "octocat",
+        "octocat",
+      ]);
+    });
+
+    it("(negative iv) options 변경 → scoring 까지만 영향, composer 인자(entries / signals) 와 무관", async () => {
+      composerSpy = jest.spyOn(
+        evaluationAdjustmentsPipeline,
+        "applyEvaluationAdjustments",
+      );
+
+      const scoring1 = makeScoringService();
+      const scoring2 = makeScoringService();
+      const orchestrator1 = makeOrchestrator(scoring1);
+      const orchestrator2 = makeOrchestrator(scoring2);
+      const activities: Activity[] = [
+        githubActivity({ externalId: "opt-1", kind: "commit" }),
+      ];
+      const optionsA: ScoringOptions = { modelId: "gpt-4o-deploy" };
+      const optionsB: ScoringOptions = { modelId: "claude-opus-deploy" };
+
+      await orchestrator1.evaluateActivities(activities, optionsA);
+      await orchestrator2.evaluateActivities(activities, optionsB);
+
+      expect(composerSpy).toHaveBeenCalledTimes(2);
+      // composer 인자는 options 와 무관해야 한다 — entries 형태 / signals 형태
+      // 가 두 호출에서 동일 (signal 객체 자체는 새로 만들어지지만 5 key 동일).
+      const [entriesA, signalsA] = composerSpy.mock.calls[0];
+      const [entriesB, signalsB] = composerSpy.mock.calls[1];
+      expect(entriesA).toEqual(entriesB);
+      expect(Object.keys(signalsA as object).sort()).toEqual(
+        Object.keys(signalsB as object).sort(),
+      );
+      // scoreUnit 에는 다른 options 가 전달된다(scoring 까지만 options 영향).
+      expect(scoring1.scoreUnit.mock.calls[0][1]).toBe(optionsA);
+      expect(scoring2.scoreUnit.mock.calls[0][1]).toBe(optionsB);
     });
   });
 });
