@@ -124,12 +124,71 @@ describe("CollectTriggerDto", () => {
   // --------------------------------------------------------------------------
   // DTO contract: 정의된 4 키만 선언됨(정의 외 키는 contract 일부 아님).
   // --------------------------------------------------------------------------
-  it("DTO 는 personId/period/scope/periodStart 4 키만 contract 로 가진다", () => {
-    const dto = plainToInstance(CollectTriggerDto, validPayload);
+  it("DTO 는 personId/period/scope/periodStart/windowDays 5 키만 contract 로 가진다", () => {
+    const dto = plainToInstance(CollectTriggerDto, {
+      ...validPayload,
+      windowDays: 7,
+    });
     expect(Object.keys(dto).sort()).toEqual(
-      ["period", "periodStart", "personId", "scope"].sort(),
+      ["period", "periodStart", "personId", "scope", "windowDays"].sort(),
     );
     expect(dto).not.toHaveProperty("assessmentId");
     expect(dto).not.toHaveProperty("difficulty");
+  });
+
+  // --------------------------------------------------------------------------
+  // windowDays (T-0605): R-58 재수집 겹침 폭 optional 정수 필드.
+  // --------------------------------------------------------------------------
+  describe("windowDays (T-0605, R-58)", () => {
+    // happy (R-112 #1): 정수 windowDays 제공 → 통과.
+    it("windowDays 정수 제공 시 errors 빈 배열 (happy)", async () => {
+      const errors = await validatePlain({ ...validPayload, windowDays: 30 });
+      expect(errors).toEqual([]);
+    });
+
+    // branch (R-112 #3): windowDays 미제공도 통과 — @IsOptional 분기.
+    it("windowDays 미제공 payload 도 errors 빈 배열 (@IsOptional 분기)", async () => {
+      const errors = await validatePlain(validPayload);
+      expect(errors).toEqual([]);
+    });
+
+    // negative: 문자열 "7" → isInt(비정수/문자열 400 차단).
+    it("windowDays 가 문자열 '7' 시 isInt 위반 (negative)", async () => {
+      const errors = await validatePlain({ ...validPayload, windowDays: "7" });
+      expect(errors).toEqual(expect.arrayContaining(["isInt"]));
+    });
+
+    // negative: 소수 7.5 → isInt.
+    it("windowDays 가 소수 7.5 시 isInt 위반 (negative)", async () => {
+      const errors = await validatePlain({ ...validPayload, windowDays: 7.5 });
+      expect(errors).toEqual(expect.arrayContaining(["isInt"]));
+    });
+
+    // negative: NaN → isInt.
+    it("windowDays 가 NaN 시 isInt 위반 (negative)", async () => {
+      const errors = await validatePlain({ ...validPayload, windowDays: NaN });
+      expect(errors).toEqual(expect.arrayContaining(["isInt"]));
+    });
+
+    // negative: 0 — 형식상 정수라 DTO 통과(값 의미 ≤0 no-op 은 applyRecollectionWindow
+    // 책임, 본 slice 변경 0). @IsInt 의 형식 경계만 검증.
+    it("windowDays = 0 은 정수라 DTO 통과 (값 의미 no-op 은 applyRecollectionWindow 책임)", async () => {
+      const errors = await validatePlain({ ...validPayload, windowDays: 0 });
+      expect(errors).toEqual([]);
+    });
+
+    // negative/branch: 음수 -3 — 형식상 정수라 DTO 통과(값 의미 ≤0 no-op 은 service 책임).
+    it("windowDays = -3 은 정수라 DTO 통과 (값 의미 no-op 은 applyRecollectionWindow 책임)", async () => {
+      const errors = await validatePlain({ ...validPayload, windowDays: -3 });
+      expect(errors).toEqual([]);
+    });
+
+    // branch: null → @IsOptional 가 null/undefined 둘 다 skip 하므로 통과(class-validator
+    // 계약 — 명시 null 도 "값 없음"으로 본다). 비정수 차단(isInt)은 number-아닌-실값
+    // (문자열/소수/NaN) 경로가 cover.
+    it("windowDays 가 null 이면 @IsOptional 가 skip 하여 통과 (branch)", async () => {
+      const errors = await validatePlain({ ...validPayload, windowDays: null });
+      expect(errors).toEqual([]);
+    });
   });
 });

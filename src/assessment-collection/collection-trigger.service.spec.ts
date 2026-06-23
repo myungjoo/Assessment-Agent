@@ -100,9 +100,10 @@ describe("CollectionTriggerService", () => {
 
       const result = await service.triggerCollection(dto);
 
-      // T-0604: since 도출은 R-58 backoff variant 를 dto.personId 단일 인자로 정확히 1회 호출.
+      // T-0605: since 도출은 R-58 backoff variant 를 (dto.personId, dto.windowDays) 로
+      // 정확히 1회 호출. base dto 는 windowDays 미제공이라 2번째 인자 undefined(기본 7일 backoff).
       expect(deriveSpy).toHaveBeenCalledTimes(1);
-      expect(deriveSpy).toHaveBeenCalledWith("person-1");
+      expect(deriveSpy).toHaveBeenCalledWith("person-1", undefined);
 
       expect(result).toEqual({
         assessmentId: "assess-1",
@@ -222,9 +223,47 @@ describe("CollectionTriggerService", () => {
 
       await service.triggerCollection({ ...dto, personId: "" });
 
-      // personId 검증/정규화 0 — variant 메서드에 빈 문자열을 그대로 위임(단일 인자).
+      // personId 검증/정규화 0 — variant 메서드에 빈 문자열을 그대로 위임(windowDays 미제공 → undefined).
       expect(deriveSpy).toHaveBeenCalledTimes(1);
-      expect(deriveSpy).toHaveBeenCalledWith("");
+      expect(deriveSpy).toHaveBeenCalledWith("", undefined);
+    });
+  });
+
+  describe("windowDays thread (R-112-1/3, T-0605 R-58)", () => {
+    it("happy — dto.windowDays(=30) 가 deriveSinceWithRecollectionWindow 의 2번째 인자로 그대로 thread 된다", async () => {
+      const { service, deriveSpy } = makeService();
+
+      await service.triggerCollection({ ...dto, windowDays: 30 });
+
+      expect(deriveSpy).toHaveBeenCalledTimes(1);
+      expect(deriveSpy).toHaveBeenCalledWith("person-1", 30);
+    });
+
+    it("branch — windowDays 미제공(undefined) 시 2번째 인자 undefined 로 위임(기본 7일 backoff 유지, 기존 동작 불변)", async () => {
+      const { service, deriveSpy } = makeService();
+      const dtoNoWindow: CollectTriggerDto = {
+        personId: dto.personId,
+        period: dto.period,
+        scope: dto.scope,
+        periodStart: dto.periodStart,
+      };
+
+      await service.triggerCollection(dtoNoWindow);
+
+      expect(deriveSpy).toHaveBeenCalledWith("person-1", undefined);
+    });
+
+    it("error — windowDays 제공 시에도 위임 메서드 reject(의존성 실패) 는 그대로 전파(fail-fast 보존)", async () => {
+      const { service, createSpy } = makeService({
+        derive: async () => {
+          throw new Error("since 도출 실패");
+        },
+      });
+
+      await expect(
+        service.triggerCollection({ ...dto, windowDays: 7 }),
+      ).rejects.toThrow("since 도출 실패");
+      expect(createSpy).not.toHaveBeenCalled();
     });
   });
 
