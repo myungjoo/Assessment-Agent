@@ -2,7 +2,11 @@
 id: T-0603
 title: 재수집 정책 — SinceDerivationService 의 R-58 backoff variant 메서드 박제
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-23T16:55:00Z
+mergedAs: 0d05788
+prNumber: 516
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-031]
 estimatedDiff: 80
