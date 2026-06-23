@@ -2,8 +2,12 @@
 id: T-0586
 title: 실 평가 e2e 결과 이슈 searchQuery → gh search issues 인자-벡터 순수 빌더
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 499
+mergedAs: 26f2e8b
+reviewRounds: 1
+completedAt: 2026-06-23T01:50:25Z
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 180
 estimatedFiles: 2
