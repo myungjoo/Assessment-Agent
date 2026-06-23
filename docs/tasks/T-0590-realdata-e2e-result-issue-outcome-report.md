@@ -2,8 +2,11 @@
 id: T-0590
 title: 실 평가 e2e 결과 이슈 박제 outcome + run → e2e 실행 리포트 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-23T05:54:42Z
+prNumber: 503
+squashSha: 88ee477
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 170
 estimatedFiles: 2
