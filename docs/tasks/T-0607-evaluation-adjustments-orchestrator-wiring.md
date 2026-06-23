@@ -2,12 +2,15 @@
 id: T-0607
 title: 평가 후처리 5-adjuster inline chain → applyEvaluationAdjustments 단일 호출 wiring
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-026, REQ-040, REQ-037, REQ-041, REQ-027, REQ-025]
 estimatedDiff: 130
 estimatedFiles: 2
 created: 2026-06-24
+completedAt: 2026-06-23T19:21:00Z
+prNumber: 521
+mergedSha: 48a1371
 plannerNote: "T-0606 composer 추출 닫는 wiring slice — orchestrator L258~315 inline 5-step → applyEvaluationAdjustments(entries, signals) 단일 호출 교체, byte-identical 보존"
 independentStream: p5-evaluation-adjustments
 dependsOn: []
