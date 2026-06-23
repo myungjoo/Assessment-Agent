@@ -2,7 +2,11 @@
 id: T-0588
 title: 실 평가 e2e 결과 이슈 search stdout + commandArgs → gh 실행 plan 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-23T03:38:35Z
+mergedAs: 2c453ec
+prNumber: 501
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032]
 estimatedDiff: 180
