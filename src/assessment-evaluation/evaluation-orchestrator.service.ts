@@ -12,27 +12,13 @@
 //   1. `activities.map(mapActivityToEvaluationInput)` 로 `Activity[]` → `EvaluationInput[]`
 //      정규화(§1). raw 본문 0 — typed surface 만 전사(REQ-032).
 //   2. 평가-side dedup 적용(§4) — 아래 박제 순서로 두 순수 함수를 합성.
-//   3. dedup 후 입력에 대한 abusing detection — `computeAbuseSignal(deduped)`(R-26/R-40).
-//      중복으로 부풀린 신호를 제거한 뒤 measure 하므로 dedup 직후가 자리다(§3 정신).
-//   3b. dedup 후 입력에 대한 update 횟수 중립화 detection —
-//      `computeUpdateCountNeutralization(deduped)`(R-41). abuse detection 과 동형으로
-//      중복 부풀림 제거 후 입력 위에서 document update 횟수(version)를 measure 한다.
-//   3c. dedup 후 입력에 대한 기여 품질 분류 detection —
-//      `computeContributionQualitySignal(deduped)`(R-37/R-38). abuse / update-count
-//      detection 과 동형으로 중복 부풀림 제거 후 입력 위에서 `metadata.titleLength`
-//      휴리스틱으로 zero-contribution 후보 단위를 measure 한다.
-//   3d. dedup 후 입력에 대한 저성과자 식별 detection —
-//      `computeUnderPerformerSignal(deduped)`(R-27 / REQ-013). 앞 세 detection 과
-//      동형으로 중복 부풀림 제거 후 입력 위에서 author 별 `contributionKind === "code"`
-//      단위 수를 동료 평균 대비 상대 비교(`UNDERPERFORMER_RELATIVE_FLOOR`)로 저성과자
-//      author 를 measure 한다. author-level 판정(unitId 목록 0).
-//   3e. dedup 후 입력에 대한 중요·어려운 기여 식별 detection —
-//      `computeNotableContributionSignal(deduped)`(R-25 / REQ-011). 앞 네 detection 과
-//      동형으로 중복 부풀림 제거 후 입력 위에서 author 별 `contributionKind === "code"`
-//      단위 수를 동료 평균 대비 상대 비교(`NOTABLE_RELATIVE_CEILING`)로 중요·어려운
-//      기여 author 를 measure 한다. underperformer 의 대칭(inverse) — 저성과는 평균 ×
-//      0.5 미만, 중요기여는 평균 × 1.5 초과(임계 disjoint). author-level 판정
-//      (unitId 목록 0).
+//   3. 평가 detection 5-신호 단일 진입 composer `computeEvaluationAdjustmentSignals(
+//      deduped)`(T-0608 박제) 호출 — abuse(R-26/R-40) → update-count(R-41) →
+//      quality(R-37/R-38) → underperformer(R-27/REQ-013) → notable(R-25/REQ-011)
+//      5 detection 을 v1 고정 순서로 위임 호출해 `EvaluationAdjustmentSignals`
+//      container 를 산출한다(§3 정신 — dedup 후 입력 위에서 측정해 중복 부풀림 배제).
+//      각 신호의 의미·임계·산출 shape 는 composer JSDoc 으로 single-source 화돼
+//      본 service 의 재구현 0(§5 post-scoring 단일 진입과 대칭쌍).
 //   4. 남은 각 `EvaluationInput` 마다 `scoringService.scoreUnit(input, options)` 호출 →
 //      `EvaluationResult[]` 수집(§2 단위 1 건당 scoring).
 //   5. 평가 후처리 5-adjuster 단일 composer `applyEvaluationAdjustments(entries,
@@ -41,20 +27,18 @@
 //      composer 위임, 본 service 의 재구현 0). 적용 순서 / 필드 직교 / entries 형태
 //      thread / 마지막 flatten 계약은 composer JSDoc 으로 single-source 화(중복 0).
 //
-// 평가 후처리 5-adjuster 단일 진입 박제(T-0606/T-0607, ADR-0032 §3 정신): 다섯 detection
-// helper(`computeAbuseSignal` / `computeUpdateCountNeutralization` /
-// `computeContributionQualitySignal` / `computeUnderPerformerSignal` /
-// `computeNotableContributionSignal`)는 본 orchestrator 가 호출해 5 signal 을 산출하고,
-// 다섯 위임 helper(`applyAbuseSignalToVolume` / `applyUpdateCountNeutralizationToVolume`
-// / `applyContributionQualityFloor` / `applyUnderPerformerAnnotation` /
-// `applyNotableContributionAnnotation`) 는 본 service 가 직접 호출하지 않고 T-0606 박제
-// `applyEvaluationAdjustments(entries, signals)` composer 가 v1 고정 순서로 thread 한다.
-// 본 orchestrator 의 책임은 (a) 5 signal 산출(detection), (b) entries 조립
-// (`deduped[i].author` + `results[i]`), (c) composer 단일 호출 + return 의 3 가지로
-// 좁혀진다 — 5 위임 helper 의 적용 순서 / 필드 직교 / entries↔result flatten 계약은 모두
-// composer JSDoc 에 single-source 화돼 본 service 의 재구현 0. 다섯 detection 은 dedup
-// 후(중복 부풀림 제거 후) 입력 위에서 동작하고, composer 위임은 scoring 성공 후에만
-// 실행돼 부분 결과 위장 0(§2 실패 격리) 을 보존한다.
+// 2-composer thread 박제(T-0606/T-0607/T-0608/T-0609, ADR-0032 §3 정신): 본 service
+// 는 detection-side 단일 진입 composer `computeEvaluationAdjustmentSignals(deduped)`
+// (T-0608 박제)를 호출해 5 signal container 를 산출하고(detection 재구현 0), 그
+// container 를 그대로 post-scoring 단일 진입 composer `applyEvaluationAdjustments(
+// entries, signals)`(T-0606 박제)의 두 번째 인자로 thread 한다(변환 0). 5 detection 의
+// 호출 순서·신호 의미·임계는 detection composer JSDoc 으로, 5 위임 adjuster 의 적용
+// 순서 / 필드 직교 / entries↔result flatten 계약은 post-scoring composer JSDoc 으로
+// 각각 single-source 화돼 본 service 의 재구현 0. 본 orchestrator 의 책임은 (a) detection
+// composer 호출(5 signal 산출), (b) entries 조립(`deduped[i].author` + `results[i]`),
+// (c) post-scoring composer 단일 호출 + return 의 3 가지로 좁혀진다. detection 은 dedup
+// 후(중복 부풀림 제거 후) 입력 위에서 동작하고, post-scoring composer 위임은 scoring
+// 성공 후에만 실행돼 부분 결과 위장 0(§2 실패 격리) 을 보존한다.
 //
 // dedup 적용 순서 박제(ADR-0032 §4): `dedupTemporalDuplicates`(R-21 earliest-wins) →
 // `excludeSelfFollowUps`(R-30 self-follow-up 제외) 순서로 합성한다. 근거 — 시간적
@@ -84,18 +68,14 @@ import { Injectable } from "@nestjs/common";
 
 import type { Activity } from "../assessment-collection/domain/activity";
 
-import { computeAbuseSignal } from "./domain/evaluation-abuse-signal";
 import { applyEvaluationAdjustments } from "./domain/evaluation-adjustments-pipeline";
 import {
   dedupTemporalDuplicates,
   excludeSelfFollowUps,
 } from "./domain/evaluation-dedup";
+import { computeEvaluationAdjustmentSignals } from "./domain/evaluation-detection-signals-pipeline";
 import { mapActivityToEvaluationInput } from "./domain/evaluation-input.mapper";
-import { computeNotableContributionSignal } from "./domain/evaluation-notable-contribution-signal";
-import { computeContributionQualitySignal } from "./domain/evaluation-quality-signal";
 import type { EvaluationResult } from "./domain/evaluation-result";
-import { computeUnderPerformerSignal } from "./domain/evaluation-underperformer-signal";
-import { computeUpdateCountNeutralization } from "./domain/evaluation-update-count-neutral";
 import {
   EvaluationScoringService,
   type ScoringOptions,
@@ -117,16 +97,11 @@ export class EvaluationOrchestratorService {
    *   1. `activities.map(mapActivityToEvaluationInput)` 로 정규화(§1).
    *   2. `dedupTemporalDuplicates` → `excludeSelfFollowUps` 순서로 평가-side dedup
    *      적용(§4, 위 파일 머리 주석의 순서 박제 근거 참조).
-   *   3. `computeAbuseSignal(deduped)` 로 dedup 후 입력의 abusing 신호 산출(§3).
-   *   3b. `computeUpdateCountNeutralization(deduped)` 로 dedup 후 입력의 update 횟수
-   *      중립화 신호 산출(R-41 — abuse detection 과 동형, 중복 부풀림 제거 후 measure).
-   *   3c. `computeContributionQualitySignal(deduped)` 로 dedup 후 입력의 기여 품질
-   *      분류 신호 산출(R-37/R-38 — titleLength 휴리스틱으로 zero-contribution 후보).
-   *   3d. `computeUnderPerformerSignal(deduped)` 로 dedup 후 입력의 저성과자 식별 신호
-   *      산출(R-27 / REQ-013 — author 별 code 단위 수를 동료 평균 대비 상대 비교).
-   *   3e. `computeNotableContributionSignal(deduped)` 로 dedup 후 입력의 중요·어려운
-   *      기여 식별 신호 산출(R-25 / REQ-011 — author 별 code 단위 수를 동료 평균 대비
-   *      상대 비교, underperformer 의 대칭 — 평균 × 1.5 초과).
+   *   3. `computeEvaluationAdjustmentSignals(deduped)`(T-0608 박제 detection 단일
+   *      진입 composer) 호출 — abuse(R-26/R-40) → update-count(R-41) →
+   *      quality(R-37/R-38) → underperformer(R-27/REQ-013) → notable(R-25/REQ-011)
+   *      5 detection 을 v1 고정 순서로 위임해 `EvaluationAdjustmentSignals` container
+   *      산출(§3, 본 service 의 detection 재구현 0 — composer JSDoc single-source).
    *   4. 남은 각 단위마다 `scoringService.scoreUnit(input, options)` 를 순차 호출해
    *      `EvaluationResult[]` 를 입력 순서대로 수집(§2).
    *   5. 평가 후처리 5-adjuster 단일 composer
@@ -172,37 +147,15 @@ export class EvaluationOrchestratorService {
     //     두 함수 모두 새 배열을 산출하므로 inputs / activities 는 비변형.
     const deduped = excludeSelfFollowUps(dedupTemporalDuplicates(inputs));
 
-    // (3) abusing detection(§3) — dedup 후 입력 위에서 측정해 중복 부풀림을 배제한다.
-    //     결정적 순수 helper(LLM 무관). 빈 deduped → 빈 신호(throw 0).
-    const signal = computeAbuseSignal(deduped);
-
-    // (3b) update 횟수 중립화 detection(R-41) — abuse detection 과 동형으로 dedup 후
-    //      입력 위에서 document update 횟수(version)를 measure 한다. 결정적 순수
-    //      helper(LLM 무관). 빈 deduped → 빈 신호(throw 0).
-    const neutralization = computeUpdateCountNeutralization(deduped);
-
-    // (3c) 기여 품질 분류 detection(R-37/R-38) — abuse / update-count detection 과
-    //      동형으로 dedup 후 입력 위에서 metadata.titleLength 휴리스틱으로
-    //      zero-contribution 후보 단위를 식별한다. 결정적 순수 helper(LLM 무관).
-    //      빈 deduped → 빈 신호(throw 0).
-    const qualitySignal = computeContributionQualitySignal(deduped);
-
-    // (3d) 저성과자 식별 detection(R-27 / REQ-013) — abuse / update-count /
-    //      contribution-quality detection 과 동형으로 dedup 후 입력 위에서 author 별
-    //      contributionKind === "code" 단위 수를 동료 평균 대비 상대 비교
-    //      (UNDERPERFORMER_RELATIVE_FLOOR)로 저성과자 author 를 식별한다. author-level
-    //      판정(unitId 목록 0) — 본 배선은 author-level 전파로 흡수한다. 결정적 순수
-    //      helper(LLM 무관). 빈 deduped → 빈 신호(throw 0).
-    const underPerformerSignal = computeUnderPerformerSignal(deduped);
-
-    // (3e) 중요·어려운 기여 식별 detection(R-25 / REQ-011) — 앞 네 detection 과 동형
-    //      으로 dedup 후 입력 위에서 author 별 contributionKind === "code" 단위 수를
-    //      동료 평균 대비 상대 비교(NOTABLE_RELATIVE_CEILING)로 중요·어려운 기여 author
-    //      를 식별한다. underperformer detection 의 대칭(inverse) — 저성과는 평균 ×
-    //      0.5 미만, 중요기여는 평균 × 1.5 초과(임계 disjoint). author-level 판정
-    //      (unitId 목록 0) — 본 배선은 author-level 전파로 흡수한다. 결정적 순수
-    //      helper(LLM 무관). 빈 deduped → 빈 신호(throw 0).
-    const notableContributionSignal = computeNotableContributionSignal(deduped);
+    // (3) 평가 detection 5-신호 단일 진입 composer(T-0608 박제) — abuse →
+    //     update-count → quality → underperformer → notable 5 detection 을 v1 고정
+    //     순서로 호출해 `EvaluationAdjustmentSignals` container 를 산출한다. 본
+    //     orchestrator 의 detection 재구현 0 — composer 위임만(post-scoring §5 의
+    //     `applyEvaluationAdjustments` 단일 진입과 대칭쌍). dedup 후 입력 위에서
+    //     측정해 중복 부풀림을 배제하며, 5 detection 모두 결정적 순수 helper(LLM
+    //     무관)다. 빈 deduped → 빈 신호 5종 container(throw 0). 산출 container 가
+    //     그대로 §5 composer 의 두 번째 인자(signals)로 thread 된다(변환 0).
+    const signals = computeEvaluationAdjustmentSignals(deduped);
 
     // (4) 단위별 scoring(§2) — 순차 호출로 결과 순서 = dedup 후 입력 순서 보존.
     //     한 단위 reject 는 await 가 전파(부분 결과 위장 0 — 실패 격리).
@@ -221,12 +174,6 @@ export class EvaluationOrchestratorService {
       author: input.author,
       result: results[i],
     }));
-    return applyEvaluationAdjustments(entries, {
-      abuse: signal,
-      updateCount: neutralization,
-      quality: qualitySignal,
-      underPerformer: underPerformerSignal,
-      notableContribution: notableContributionSignal,
-    });
+    return applyEvaluationAdjustments(entries, signals);
   }
 }
