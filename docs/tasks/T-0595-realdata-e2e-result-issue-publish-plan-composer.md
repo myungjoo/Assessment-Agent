@@ -2,7 +2,10 @@
 id: T-0595
 title: 실 평가 e2e EvaluationResult[] + run → 결과 이슈 publish plan (report + commandArgs + searchArgv) 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 90dc4e5
+prNumber: 508
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 170
