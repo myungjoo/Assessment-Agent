@@ -3,6 +3,12 @@
 // / SinceDerivationService / AssessmentService / CollectionEntryService)을 jest mock 으로
 // 주입 — 실 DB·실 adapter·실 token 0(Q-0025 deferred 정합). orchestration 합성(순서·throw
 // 전파·placeholder 평가필드·since/now 처리)만 검증한다.
+//
+// T-0604: since 도출이 deriveSince → deriveSinceWithRecollectionWindow(R-58 backoff variant,
+// T-0603) 로 wiring 됨. deriveSpy 는 이제 그 variant 메서드를 mock 하며, 반환값(이미 backoff
+// 된 ISO 또는 undefined 패스스루)이 그대로 collectForPerson since 인자 + summary since 로
+// 흐른다. 본 service 는 backoff 산술을 재구현하지 않고 위임만 — backoff 자체 계약은
+// recollection-window.spec / since-derivation.service.spec 가 cover.
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import type { Assessment, Contribution } from "@prisma/client";
 
@@ -65,7 +71,7 @@ function makeService(opts: MakeOpts = {}): {
     findByIdWithIdentities: findSpy,
   } as unknown as PersonService;
   const sinceDerivationService = {
-    deriveSince: deriveSpy,
+    deriveSinceWithRecollectionWindow: deriveSpy,
   } as unknown as SinceDerivationService;
   const assessmentService = {
     create: createSpy,
@@ -90,9 +96,13 @@ function makeService(opts: MakeOpts = {}): {
 describe("CollectionTriggerService", () => {
   describe("happy path (R-112-1)", () => {
     it("정상 summary 를 반환하고 placeholder 평가필드 Assessment 생성 + collectForPerson 을 (input, since, assessmentId) 로 호출한다", async () => {
-      const { service, createSpy, collectSpy } = makeService();
+      const { service, deriveSpy, createSpy, collectSpy } = makeService();
 
       const result = await service.triggerCollection(dto);
+
+      // T-0604: since 도출은 R-58 backoff variant 를 dto.personId 단일 인자로 정확히 1회 호출.
+      expect(deriveSpy).toHaveBeenCalledTimes(1);
+      expect(deriveSpy).toHaveBeenCalledWith("person-1");
 
       expect(result).toEqual({
         assessmentId: "assess-1",
@@ -156,7 +166,7 @@ describe("CollectionTriggerService", () => {
       );
     });
 
-    it("(c) deriveSince undefined → since null(full collection), collectForPerson 에 undefined 전달", async () => {
+    it("(c) deriveSinceWithRecollectionWindow undefined(신규 인원, backoff 패스스루) → since null(full collection), collectForPerson 에 undefined 전달", async () => {
       const { service, collectSpy } = makeService({
         derive: async () => undefined,
       });
@@ -194,7 +204,7 @@ describe("CollectionTriggerService", () => {
       await expect(service.triggerCollection(dto)).rejects.toThrow("수집 실패");
     });
 
-    it("(f) deriveSince reject → 전파하고 create 미호출", async () => {
+    it("(f) deriveSinceWithRecollectionWindow reject(findByPerson 의존성 실패 전파) → triggerCollection 이 잡지 않고 전파하고 create 미호출", async () => {
       const { service, createSpy } = makeService({
         derive: async () => {
           throw new Error("since 도출 실패");
@@ -205,6 +215,35 @@ describe("CollectionTriggerService", () => {
         "since 도출 실패",
       );
       expect(createSpy).not.toHaveBeenCalled();
+    });
+
+    it("(g) 빈/비정상 personId 도 검증 없이 deriveSinceWithRecollectionWindow 로 그대로 위임(fail-fast 동형)", async () => {
+      const { service, deriveSpy } = makeService();
+
+      await service.triggerCollection({ ...dto, personId: "" });
+
+      // personId 검증/정규화 0 — variant 메서드에 빈 문자열을 그대로 위임(단일 인자).
+      expect(deriveSpy).toHaveBeenCalledTimes(1);
+      expect(deriveSpy).toHaveBeenCalledWith("");
+    });
+  });
+
+  describe("since 분기 cover (R-112-3, T-0604 backoff variant wiring)", () => {
+    it("since=정의값 분기 — deriveSinceWithRecollectionWindow 의 backoff 된 ISO 가 그대로 collectForPerson since 인자 + summary since 로 흐른다", async () => {
+      // variant 가 backoff 된 경계(직전 periodStart 에서 7일 물린 값)를 반환한다고 가정.
+      const backoffSince = "2026-04-24T00:00:00.000Z";
+      const { service, collectSpy } = makeService({
+        derive: async () => backoffSince,
+      });
+
+      const result = await service.triggerCollection(dto);
+
+      expect(result.since).toBe(backoffSince);
+      expect(collectSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        backoffSince,
+        "assess-1",
+      );
     });
   });
 
