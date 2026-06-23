@@ -2,7 +2,10 @@
 id: T-0600
 title: 실 평가 e2e run plan + gh stdout → 결과 이슈 실행 리포트(run 일관) 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 90566dd
+prNumber: 513
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-013]
 estimatedDiff: 150
