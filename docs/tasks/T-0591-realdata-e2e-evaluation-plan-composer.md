@@ -2,7 +2,10 @@
 id: T-0591
 title: 실 평가 e2e 수집 Activity[] → scoreUnit 호출-args plan 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 9c5bf5a
+prNumber: 504
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-037]
 estimatedDiff: 170
