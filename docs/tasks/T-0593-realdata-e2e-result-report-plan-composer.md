@@ -2,7 +2,11 @@
 id: T-0593
 title: 실 평가 e2e EvaluationResult[] + run → 결과 이슈 descriptor 종단 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-23T08:10:00Z
+mergedAs: e28e98c
+prNumber: 506
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 170
