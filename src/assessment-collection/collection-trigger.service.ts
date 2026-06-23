@@ -61,10 +61,12 @@ export class CollectionTriggerService {
     // (3) incremental since 도출 — R-58 backoff variant(T-0603) 채택. 직전 Assessment
     // periodStart 를 기준으로 최근 1주(기본 windowDays=7)를 겹쳐 재수집하도록 경계를 뒤로
     // 물린다(REQ-031/R-58 — 겹친 부분은 dedup 이 흡수). 신규 인원(직전 0건)은 backoff
-    // 패스스루로 여전히 undefined=full collection. windowDays 미전달 → 기본 7일 backoff.
+    // 패스스루로 여전히 undefined=full collection. dto.windowDays 제공 시 그 폭으로,
+    // 미제공(undefined) 시 위임 메서드의 기본 7일 backoff 가 그대로 적용된다(non-breaking).
     const since =
       await this.sinceDerivationService.deriveSinceWithRecollectionWindow(
         dto.personId,
+        dto.windowDays,
       );
 
     // periodStart = 이번 수집 경계(ADR-0031 §1). dto 제공 시 그 ISO 값, 미제공 시 서버
