@@ -111,6 +111,14 @@ jobs:
         # 동형으로 self-contained(로컬 bare repo + 2 clone)라 네트워크/credential 불요.
         run: bash scripts/reclaim-stale-claim.test.sh
 
+      - name: daily-test step_eval 배선 검증
+        # T-0612 — deploy/daily-test.sh 의 realdata-e2e live smoke step_eval gating
+        # 배선(env-gated SKIP/run + jest argv mirror)의 executable spec. check-doc-only
+        # -pr.test.sh / select-claim.test.sh 와 동형으로 self-contained(네트워크 0 / jest
+        # 실 spawn 0 / 실 credential echo 0)라 credential 불요 — gating 판정·argv·SKIP/run
+        # /FAIL 분기·§9 echo 0 만 검증.
+        run: bash deploy/daily-test-step-eval.test.sh
+
       - name: pnpm 설치
         uses: pnpm/action-setup@v4
         with:
