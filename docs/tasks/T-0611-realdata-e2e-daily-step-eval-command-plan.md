@@ -2,8 +2,12 @@
 id: T-0611
 title: 실 평가 e2e daily-test step_eval 실행 command plan 순수 컴포저 — gating 판정 + jest invocation argv 산출
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-23T23:06:09Z
 commitMode: pr
+prNumber: 525
+mergeCommit: ae43d37
+result: "PR #525 r1 APPROVE squash merge ae43d37. step_eval gating 판정 + jest argv 순수 command plan 컴포저 + spec 박제(test-only). 4-게이트 PASS, CI green."
 coversReq: [REQ-013, REQ-009, REQ-059]
 estimatedDiff: 175
 estimatedFiles: 2
