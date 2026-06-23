@@ -2,7 +2,11 @@
 id: T-0594
 title: 실 평가 e2e EvaluationResult[] + run → 결과 이슈 명령-args 종단 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 64ee02b
+prNumber: 507
+reviewRounds: 1
+completed: 2026-06-23T08:45:00Z
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 170
