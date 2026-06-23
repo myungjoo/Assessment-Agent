@@ -2,8 +2,10 @@
 id: T-0592
 title: 실 평가 e2e seed → collect 호출-args + 평가 modelId 정책 묶음 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-23T07:50:00Z
+result: PR #505 r1 APPROVE squash 6c7b56d — buildRealDataPipelinePlan 순수 컴포저 + RealDataPipelinePlan type, 18 test 신규 helper 100% cov, CI green(285 suite/6616 test), 4-게이트 PASS
 coversReq: [REQ-009, REQ-061]
 estimatedDiff: 170
 estimatedFiles: 2
