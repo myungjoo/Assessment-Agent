@@ -2,7 +2,11 @@
 id: T-0589
 title: 실 평가 e2e 결과 이슈 gh create/edit stdout → 박제 결과 순수 파서
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-23T04:49:47Z
+mergedAs: 158e86b
+prNumber: 502
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 170
