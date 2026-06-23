@@ -2,7 +2,10 @@
 id: T-0605
 title: 재수집 정책 R-58 chain — manual-trigger windowDays 동적 전달(DTO + service thread)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 4beec46
+prNumber: 518
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-031, REQ-040]
 estimatedDiff: 130
