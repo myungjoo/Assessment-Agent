@@ -7,6 +7,8 @@
 #   step 2 health    — GET /api 가 APP_STATUS_MESSAGE("Assessment-Agent") 될 때까지 폴링
 #   step 3 liveness  — GET /api 문자열 일치 + GET / 가 200 + SPA HTML (ADR-0040)
 #   step 4 auth      — POST /api/users(201|409) → POST /api/auth/login(200) → GET /api/auth/me(200)
+#   step 5 eval      — (gating env 7 종 모두 set 일 때만) realdata-e2e live smoke 1 회 spawn.
+#                      gating 부재 시 SKIP(no-op — 네트워크 0 / secret 0 / jest spawn 0). T-0612.
 #
 # 운영 이미지는 pnpm prune --prod 로 devDependency(jest 등)가 제거돼 컨테이너 안에서
 # jest 를 못 돌린다. 그래서 daily 검증은 기동된 컨테이너를 :3000 으로 두드리는 black-box
@@ -136,14 +138,69 @@ step_auth() {
   return 0
 }
 
+# realdata-e2e live smoke 의 gating env 7 종 이름 (T-0610 realdata-e2e-live-gating.ts 의
+# REALDATA_E2E_REQUIRED_ENV 를 bash 로 mirror — 정본은 그 helper, 본 배열은 그 이름
+# 집합·순서를 그대로 따른다. bash 에서 TS import 불가하므로 이름만 동일 박제).
+#   enable flag → Ollama 접속 5 종 → github read PAT.
+REALDATA_E2E_REQUIRED_ENV=(
+  REALDATA_E2E_LIVE_TEST
+  REALDATA_E2E_LLM_BASE_URL
+  REALDATA_E2E_LLM_API_KEY
+  REALDATA_E2E_LLM_MODEL
+  REALDATA_E2E_LLM_PROVIDER
+  REALDATA_E2E_LLM_API_VERSION
+  REALDATA_E2E_GITHUB_READ_PAT
+)
+
+# realdata_eval_gating_enabled: gating env 7 종이 *모두* present+non-blank(trim 후 길이
+# > 0)인지 검사 (T-0610 helper 의 isPresent / 완전성 규칙 mirror). 하나라도 부재/빈/
+# 공백-only 면 1(disabled) 반환. 실 credential 값은 절대 echo 0 — 부재 시 *이름* 만
+# 진단 로그(§9). enabled 면 0, disabled 면 1.
+realdata_eval_gating_enabled() {
+  local name val missing=()
+  for name in "${REALDATA_E2E_REQUIRED_ENV[@]}"; do
+    val="${!name-}"
+    # trim 후 비어있으면 부재로 간주(공백-only guard — helper 의 non-blank 규칙 mirror).
+    if [ -z "${val//[[:space:]]/}" ]; then
+      missing+=("$name")
+    fi
+  done
+  if [ "${#missing[@]}" -ne 0 ]; then
+    # 실값 0 — 부재 env *이름* 만 보고(§9). 부분-set 진단.
+    log "step eval: gating env 부재 — ${missing[*]}"
+    return 1
+  fi
+  return 0
+}
+
+# step_eval: gating 활성(7 종 모두 set)이면 realdata-e2e live smoke 를 단일-spec bound
+# jest argv 로 1 회 spawn → exit 0 면 PASS(return 0), non-zero 면 FAIL(return 1).
+# gating 부재면 함수가 호출되지 않는다(caller 가 gating 검사 후 분기 — 본 함수는 run leg
+# 만 담당). jest argv 는 T-0611 buildRealDataDailyStepEvalCommandPlan 의 run 분기 산출을
+# bash 로 mirror (정본은 그 helper). 실 credential 값은 argv 미포함 — 자식 jest 프로세스가
+# 상속한 process env 로 전달되며 본 함수는 그 값을 로그/JSON 에 echo 0(§9).
+step_eval() {
+  log "step eval: realdata-e2e live smoke 실행 (gating env 7 종 set)"
+  # T-0611 plan helper 의 run argv mirror: 단일-spec bound · smoke jest config 재사용.
+  #   ["--config", "./test/jest-smoke.json", "--runTestsByPath",
+  #    "test/smoke/realdata-e2e-live.smoke-spec.ts"]
+  if ( cd "$REPO_DIR" && pnpm exec jest \
+        --config ./test/jest-smoke.json \
+        --runTestsByPath test/smoke/realdata-e2e-live.smoke-spec.ts ) >>"$LOG_FILE" 2>&1; then
+    log "step eval: OK (live smoke PASS)"
+    return 0
+  fi
+  log "step eval: FAIL (live smoke non-zero — 로그 참조)"
+  return 1
+}
+
 # --- 실행 ------------------------------------------------------------------
 
-log "=== daily-test 시작 (ts=$TS, base=$BASE_URL) ==="
-
-# step 상태 누적. health 실패 시 이후 smoke 는 의미 없어 SKIP 으로 표기한다.
+# step 상태 누적·순서·mark 헬퍼는 source 시에도 노출돼야 spec 이 ORDER 순회/JSON 조립
+# 호환(eval 추가로 기존 4 step 회귀 0)을 검증할 수 있으므로 가드 *앞* 에 정의한다.
 declare -A STEP_STATUS=()
 FAILED_STEP="null"
-ORDER=(redeploy health liveness auth)
+ORDER=(redeploy health liveness auth eval)
 
 mark() { # mark <step> <PASS|FAIL|SKIP>
   STEP_STATUS["$1"]="$2"
@@ -151,6 +208,17 @@ mark() { # mark <step> <PASS|FAIL|SKIP>
     FAILED_STEP="$1"
   fi
 }
+
+# 본 스크립트가 source 될 때(executable bash spec 의 함수 단위 검증용)는 아래 실행 블록을
+# 건너뛰어 함수 정의(step_eval / realdata_eval_gating_enabled / mark 등)만 노출한다.
+# 직접 실행(`bash deploy/daily-test.sh`)이면 정상적으로 전체 step 을 수행한다. T-0612 —
+# deploy/daily-test-step-eval.test.sh 가 이 가드를 통해 HTTP/redeploy 부작용 0 으로
+# gating 판정·argv·SKIP 분기만 단위 검증한다.
+if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
+  return 0 2>/dev/null || true
+fi
+
+log "=== daily-test 시작 (ts=$TS, base=$BASE_URL) ==="
 
 # SKIP_REDEPLOY=1(디버깅·이미 배포된 상태 테스트)은 redeploy 를 SKIP 으로 명확히 표기한다.
 # "PASS"(실제 실행 성공)와 구분해 머신 JSON 이 무인 모니터링에 false 신호를 주지 않게 한다.
@@ -176,6 +244,23 @@ if [ "${STEP_STATUS[health]:-SKIP}" = "PASS" ]; then
 else
   mark liveness SKIP
   mark auth SKIP
+fi
+
+# step eval(realdata-e2e live smoke): auth PASS(체인 통과) AND gating env 7 종 set 일 때만
+# 실행. 그 외(체인 미통과 또는 gating 부재)는 mark eval SKIP — cloud CI / 일반 LAN 에서
+# 네트워크 0 / secret 0 / jest spawn 0 의 no-op(기존 4 step 동작 불변). T-0612.
+if [ "${STEP_STATUS[auth]:-SKIP}" != "PASS" ]; then
+  log "step eval: SKIP (선행 체인 미통과 — auth=${STEP_STATUS[auth]:-SKIP})"
+  mark eval SKIP
+elif ! realdata_eval_gating_enabled; then
+  # gating 부재 — 조용한 SKIP(no-op). gating 진단 로그는 realdata_eval_gating_enabled 가
+  # 부재 env 이름만 출력(실값 echo 0, §9).
+  log "step eval: SKIP (gating env 부재 — cloud CI / 일반 LAN no-op)"
+  mark eval SKIP
+elif step_eval; then
+  mark eval PASS
+else
+  mark eval FAIL
 fi
 
 # 전체 결과: 하나라도 FAIL 이면 FAIL.
