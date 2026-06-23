@@ -22,6 +22,8 @@ import type { Assessment } from "@prisma/client";
 
 import { AssessmentService } from "../user/assessment.service";
 
+import { applyRecollectionWindow } from "./domain/recollection-window";
+
 @Injectable()
 export class SinceDerivationService {
   constructor(private readonly assessmentService: AssessmentService) {}
@@ -39,5 +41,21 @@ export class SinceDerivationService {
       current.periodStart.getTime() > max.periodStart.getTime() ? current : max,
     );
     return latest.periodStart.toISOString();
+  }
+
+  // deriveSinceWithRecollectionWindow — deriveSince 의 R-58 backoff variant.
+  // 기존 deriveSince 로 도출한 since 경계를 applyRecollectionWindow(T-0602)로 thread 해,
+  // 다음 수집이 직전 경계의 최근 windowDays 일(기본 7)을 겹쳐 fetch 하도록 뒤로 물린다
+  // (REQ-031 재수집 정책 / R-58 — 겹친 부분은 dedup 이 흡수). 재구현 0, 위임만:
+  //   (1) this.deriveSince(personId) 로 raw since 도출(신규 인원은 undefined).
+  //   (2) applyRecollectionWindow(raw, windowDays) 로 backoff(undefined 는 패스스루).
+  // windowDays 미지정 시 applyRecollectionWindow 의 default RECOLLECTION_WINDOW_DAYS(=7).
+  // throw 0 — deriveSince(findByPerson reject)의 전파만 그대로(fail-fast 계약 보존).
+  async deriveSinceWithRecollectionWindow(
+    personId: string,
+    windowDays?: number,
+  ): Promise<string | undefined> {
+    const raw = await this.deriveSince(personId);
+    return applyRecollectionWindow(raw, windowDays);
   }
 }
