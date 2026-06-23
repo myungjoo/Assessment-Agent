@@ -2,7 +2,7 @@
 id: T-0585
 title: 실 평가 e2e 결과 이슈 action + 명령-args → gh 인자-벡터 순수 빌더
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 140
