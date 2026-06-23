@@ -2,8 +2,11 @@
 id: T-0612
 title: 실 평가 e2e daily-test step_eval bash 배선 — env-gated SKIP/run + executable bash spec + CI step
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 526
+mergeCommit: 6911de5
+completedAt: 2026-06-23T23:54:50Z
 coversReq: [REQ-013, REQ-009, REQ-059]
 estimatedDiff: 160
 estimatedFiles: 3
