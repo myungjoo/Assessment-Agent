@@ -2,7 +2,11 @@
 id: T-0596
 title: 실 평가 e2e create/edit stdout + run → 결과 이슈 실행 리포트 post-execution 단일 진입 순수 컴포저
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 2e5277b
+prNumber: 509
+reviewRounds: 1
+completedAt: 2026-06-23T10:05:01Z
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 170
