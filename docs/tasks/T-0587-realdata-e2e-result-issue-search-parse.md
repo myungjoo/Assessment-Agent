@@ -2,7 +2,10 @@
 id: T-0587
 title: 실 평가 e2e 결과 이슈 gh search stdout → SearchHit[] 순수 파서
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: d616fd7
+prNumber: 500
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032]
 estimatedDiff: 170
