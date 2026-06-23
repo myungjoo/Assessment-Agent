@@ -2,7 +2,10 @@
 id: T-0606
 title: 평가 후처리 5-adjuster 단일 진입 순수 composer applyEvaluationAdjustments 추출
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-23T18:32:00Z
+prNumber: 519
+mergeCommit: 56993d2
 commitMode: pr
 coversReq: [REQ-026, REQ-040, REQ-037, REQ-041, REQ-027, REQ-025]
 estimatedDiff: 175
