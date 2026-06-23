@@ -20,7 +20,8 @@ import { SinceDerivationService } from "./since-derivation.service";
 
 // CollectionTriggerSummary — triggerCollection 의 반환 shape. controller(#3)·spec 가 재사용.
 // 영속화된 Contribution[] 전문 대신 요약을 반환한다(전문은 GET /api/assessments 등 조회
-// 경로로 확보, ADR-0031 §2). since 는 deriveSince 결과(undefined → JSON null = full collection).
+// 경로로 확보, ADR-0031 §2). since 는 deriveSinceWithRecollectionWindow 결과(R-58 backoff;
+// undefined → JSON null = full collection).
 export interface CollectionTriggerSummary {
   assessmentId: string;
   personId: string;
@@ -57,8 +58,14 @@ export class CollectionTriggerService {
       externalId: si.externalId,
     }));
 
-    // (3) incremental since 도출(직전 Assessment periodStart, 신규 인원 → undefined=full).
-    const since = await this.sinceDerivationService.deriveSince(dto.personId);
+    // (3) incremental since 도출 — R-58 backoff variant(T-0603) 채택. 직전 Assessment
+    // periodStart 를 기준으로 최근 1주(기본 windowDays=7)를 겹쳐 재수집하도록 경계를 뒤로
+    // 물린다(REQ-031/R-58 — 겹친 부분은 dedup 이 흡수). 신규 인원(직전 0건)은 backoff
+    // 패스스루로 여전히 undefined=full collection. windowDays 미전달 → 기본 7일 backoff.
+    const since =
+      await this.sinceDerivationService.deriveSinceWithRecollectionWindow(
+        dto.personId,
+      );
 
     // periodStart = 이번 수집 경계(ADR-0031 §1). dto 제공 시 그 ISO 값, 미제공 시 서버
     // now(). 이 값이 다음 수집의 since 하한이 된다(T-0267 periodStart-as-boundary convention).
