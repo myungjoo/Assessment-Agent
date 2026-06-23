@@ -35,49 +35,26 @@
 //      (unitId 목록 0).
 //   4. 남은 각 `EvaluationInput` 마다 `scoringService.scoreUnit(input, options)` 호출 →
 //      `EvaluationResult[]` 수집(§2 단위 1 건당 scoring).
-//   5. scoring 후 abuse 신호 소비 — `applyAbuseSignalToVolume(entries, signal)` 로
-//      suspected author 단위의 `volume` 을 결정적으로 감점해 반환(R-26/R-40 중립화 v1).
-//   6. abuse 감점 산출물을 다시 entries 로 재조립 후 update 횟수 중립화 신호 소비 —
-//      `applyUpdateCountNeutralizationToVolume(entries2, neutralization)` 로 중립 대상
-//      author/unit 의 `volume` 을 net 0(중립 보존)으로 처리한다(R-41 v1).
-//   7. update-count 중립 산출물(entries 형태)을 기여 품질 신호 소비 —
-//      `applyContributionQualityFloor(entries3, qualitySignal)` 로 zero-contribution
-//      대상 author/unit 의 `contribution` 을 결정적으로 `"zero"` 로 floor 강등한다
-//      (R-37/R-38 v1).
-//   8. contribution-quality floor 산출물(entries 형태)을 저성과자 신호 소비 —
-//      `applyUnderPerformerAnnotation(entries4, underPerformerSignal)` 로 저성과
-//      author 의 **모든** 단위 `narrative` 앞에 표준 한국어 marker
-//      (`UNDERPERFORMER_NARRATIVE_MARKER`)를 결정적으로 접두 annotation 한다(R-27 v1).
-//   9. underperformer annotation 산출물(entries 형태)을 중요·어려운 기여 신호 소비 —
-//      `applyNotableContributionAnnotation(entries5, notableContributionSignal)` 로
-//      중요기여 author 의 **모든** 단위 `narrative` 앞에 표준 한국어 marker
-//      (`NOTABLE_CONTRIBUTION_NARRATIVE_MARKER`)를 결정적으로 접두 annotation 한 뒤
-//      마지막에 `.map((e) => e.result)` 로 flatten 해 최종 반환(R-25 v1).
+//   5. 평가 후처리 5-adjuster 단일 composer `applyEvaluationAdjustments(entries,
+//      signals)` 호출 — abuse → update-count → quality → underperformer → notable →
+//      flatten 을 v1 고정 순서로 thread 후 `EvaluationResult[]` 반환(T-0606 박제
+//      composer 위임, 본 service 의 재구현 0). 적용 순서 / 필드 직교 / entries 형태
+//      thread / 마지막 flatten 계약은 composer JSDoc 으로 single-source 화(중복 0).
 //
-// abuse / update-count / contribution-quality / underperformer / notable 배선 박제
-// (T-0523/T-0526/T-0529/T-0532/T-0535, ADR-0032 §3 정신): 열 helper(`computeAbuseSignal`
-// / `applyAbuseSignalToVolume` / `computeUpdateCountNeutralization` /
-// `applyUpdateCountNeutralizationToVolume` / `computeContributionQualitySignal` /
-// `applyContributionQualityFloor` / `computeUnderPerformerSignal` /
-// `applyUnderPerformerAnnotation` / `computeNotableContributionSignal` /
-// `applyNotableContributionAnnotation`)는 모두 의존성 0 의 결정적 순수 helper 다(LLM
-// 무관, 입력 비변형, throw 0 흡수 정책). 본 orchestrator 는 새 알고리즘 0 — 열 helper 의
-// compose + 순서 결정만 담당한다. 다섯 detection 은 dedup 후(중복 부풀림 제거 후) 입력
-// 위에서 동작하고, 다섯 소비는 scoring 성공 후에만 실행해 부분 결과 위장 0(§2 실패 격리)
-// 을 보존한다. entries 는 `deduped[i].author` 와 `results[i]` 를 같은 순서로 짝지어
-// 조립하고, 다섯 adjust 를 entries 형태로 연쇄(mid-pipe flatten 미루기 — 마지막 단계에만
-// `.map((e) => e.result)`)한다(매핑 misalignment 0). adjust 적용 순서는 abuse 감점
-// (R-26/R-40) → update-count 중립(R-41) → contribution-quality floor(R-37/R-38) →
-// underperformer narrative annotation(R-27) → notable narrative annotation(R-25) 로
-// 고정한다 — 앞 둘은 `volume`(정량 수치), 세 번째는 `contribution`(품질 등급 enum), 뒤
-// 둘은 같은 `narrative`(LLM 정성 평가문 + 결정적 marker 접두) 를 다룬다. 앞 세 배선과
-// narrative 두 배선은 **필드 직교** 이고, underperformer/notable 두 배선도 marker 접두가
-// 서로 달라(`[저성과자] ` / `[중요기여] `) 임계 분리(평균 × 0.5↓ vs × 1.5↑ — disjoint)로
-// 한 author 가 동시에 둘 다일 수 없어 적용 순서가 결과에 무관하지만, 결정성과 spec
-// 명료성을 위해 v1 순서를 고정한다(edge case 로 동시 발생 시 두 marker 가 순차 접두). 두
-// narrative 배선은 **author-level 전파** — T-0530/T-0533 신호가 unitId 목록 없는 author
-// 판정이라, 저성과/중요기여 author 의 모든 단위 narrative 가 일관 marker 접두된다(unit
-// 차원 enrich 는 detection layer Follow-up).
+// 평가 후처리 5-adjuster 단일 진입 박제(T-0606/T-0607, ADR-0032 §3 정신): 다섯 detection
+// helper(`computeAbuseSignal` / `computeUpdateCountNeutralization` /
+// `computeContributionQualitySignal` / `computeUnderPerformerSignal` /
+// `computeNotableContributionSignal`)는 본 orchestrator 가 호출해 5 signal 을 산출하고,
+// 다섯 위임 helper(`applyAbuseSignalToVolume` / `applyUpdateCountNeutralizationToVolume`
+// / `applyContributionQualityFloor` / `applyUnderPerformerAnnotation` /
+// `applyNotableContributionAnnotation`) 는 본 service 가 직접 호출하지 않고 T-0606 박제
+// `applyEvaluationAdjustments(entries, signals)` composer 가 v1 고정 순서로 thread 한다.
+// 본 orchestrator 의 책임은 (a) 5 signal 산출(detection), (b) entries 조립
+// (`deduped[i].author` + `results[i]`), (c) composer 단일 호출 + return 의 3 가지로
+// 좁혀진다 — 5 위임 helper 의 적용 순서 / 필드 직교 / entries↔result flatten 계약은 모두
+// composer JSDoc 에 single-source 화돼 본 service 의 재구현 0. 다섯 detection 은 dedup
+// 후(중복 부풀림 제거 후) 입력 위에서 동작하고, composer 위임은 scoring 성공 후에만
+// 실행돼 부분 결과 위장 0(§2 실패 격리) 을 보존한다.
 //
 // dedup 적용 순서 박제(ADR-0032 §4): `dedupTemporalDuplicates`(R-21 earliest-wins) →
 // `excludeSelfFollowUps`(R-30 self-follow-up 제외) 순서로 합성한다. 근거 — 시간적
@@ -107,21 +84,17 @@ import { Injectable } from "@nestjs/common";
 
 import type { Activity } from "../assessment-collection/domain/activity";
 
-import { applyAbuseSignalToVolume } from "./domain/evaluation-abuse-adjust";
 import { computeAbuseSignal } from "./domain/evaluation-abuse-signal";
+import { applyEvaluationAdjustments } from "./domain/evaluation-adjustments-pipeline";
 import {
   dedupTemporalDuplicates,
   excludeSelfFollowUps,
 } from "./domain/evaluation-dedup";
 import { mapActivityToEvaluationInput } from "./domain/evaluation-input.mapper";
-import { applyNotableContributionAnnotation } from "./domain/evaluation-notable-contribution-adjust";
 import { computeNotableContributionSignal } from "./domain/evaluation-notable-contribution-signal";
-import { applyContributionQualityFloor } from "./domain/evaluation-quality-adjust";
 import { computeContributionQualitySignal } from "./domain/evaluation-quality-signal";
 import type { EvaluationResult } from "./domain/evaluation-result";
-import { applyUnderPerformerAnnotation } from "./domain/evaluation-underperformer-adjust";
 import { computeUnderPerformerSignal } from "./domain/evaluation-underperformer-signal";
-import { applyUpdateCountNeutralizationToVolume } from "./domain/evaluation-update-count-adjust";
 import { computeUpdateCountNeutralization } from "./domain/evaluation-update-count-neutral";
 import {
   EvaluationScoringService,
@@ -156,24 +129,10 @@ export class EvaluationOrchestratorService {
    *      상대 비교, underperformer 의 대칭 — 평균 × 1.5 초과).
    *   4. 남은 각 단위마다 `scoringService.scoreUnit(input, options)` 를 순차 호출해
    *      `EvaluationResult[]` 를 입력 순서대로 수집(§2).
-   *   5. `applyAbuseSignalToVolume(entries, signal)` 로 suspected author 단위의
-   *      volume 을 결정적으로 감점한다(R-26/R-40 중립화 v1).
-   *   6. abuse 감점 산출물을 entries 로 재조립 후
-   *      `applyUpdateCountNeutralizationToVolume(entries2, neutralization)` 로 중립
-   *      대상 author/unit 의 volume 을 net 0(중립 보존)으로 처리한다(R-41 v1).
-   *   7. update-count 중립 산출물(entries 형태)을 그대로 받아
-   *      `applyContributionQualityFloor(entries3, qualitySignal)` 로 zero-contribution
-   *      대상 author/unit 의 contribution 을 결정적으로 `"zero"` 로 floor 강등한다
-   *      (R-37/R-38 v1).
-   *   8. contribution-quality floor 산출물(entries 형태)을 그대로 받아
-   *      `applyUnderPerformerAnnotation(entries4, underPerformerSignal)` 로 저성과
-   *      author 의 모든 단위 narrative 앞에 표준 한국어 marker
-   *      (`UNDERPERFORMER_NARRATIVE_MARKER`)를 결정적으로 접두 annotation 한다(R-27 v1).
-   *   9. underperformer annotation 산출물(entries 형태)을 그대로 받아
-   *      `applyNotableContributionAnnotation(entries5, notableContributionSignal)` 로
-   *      중요기여 author 의 모든 단위 narrative 앞에 표준 한국어 marker
-   *      (`NOTABLE_CONTRIBUTION_NARRATIVE_MARKER`)를 결정적으로 접두 annotation 한 뒤
-   *      마지막에 `.map((e) => e.result)` 로 flatten 해 최종 반환(R-25 v1).
+   *   5. 평가 후처리 5-adjuster 단일 composer
+   *      `applyEvaluationAdjustments(entries, signals)` 호출 — abuse → update-count
+   *      → quality → underperformer → notable → flatten 을 v1 고정 순서로 thread 후
+   *      `EvaluationResult[]` 반환(T-0606 박제 composer 위임, 본 service 의 재구현 0).
    *
    * 정책:
    *   - 빈 `activities` → 빈 배열 반환(scoreUnit 호출 0, 다섯 신호 빈 신호 / 빈 entries).
@@ -252,66 +211,22 @@ export class EvaluationOrchestratorService {
       results.push(await this.scoringService.scoreUnit(input, options));
     }
 
-    // (5) abuse 신호 소비 — entries 는 deduped[i].author 와 results[i] 를 같은 순서로
-    //     짝지어 조립한다(매핑 misalignment 0). suspected author 단위의 volume 만
-    //     결정적으로 감점되고 나머지는 무변경 복제된다. 입력 비변형.
+    // (5) 평가 후처리 5-adjuster 단일 composer 위임 — entries 는 deduped[i].author 와
+    //     results[i] 를 같은 순서로 짝지어 조립한다(매핑 misalignment 0). composer 가
+    //     abuse → update-count → quality → underperformer → notable → flatten 을 v1
+    //     고정 순서로 thread 한 뒤 `EvaluationResult[]` 를 반환한다(T-0606 박제,
+    //     orchestrator 의 재구현 0). 5 위임 helper 의 적용 순서 / 필드 직교 / entries
+    //     형태 thread / 마지막 flatten 계약은 composer JSDoc 으로 single-source 화.
     const entries = deduped.map((input, i) => ({
       author: input.author,
       result: results[i],
     }));
-    const abuseAdjusted = applyAbuseSignalToVolume(entries, signal);
-
-    // (6) update 횟수 중립화 신호 소비 — abuse 감점 산출물을 다시 entries 로 재조립해
-    //     중립 대상 author/unit 의 volume 을 net 0(중립 보존)으로 처리한다. abuse
-    //     감점 다음에 적용해 중립 대상 단위가 마지막에 base 를 보존하도록 한다(R-41
-    //     명문 — advantage 도 penalty 도 없음). 본 산출물은 mid-pipe 라 flatten 하지
-    //     않고 entries 형태로 다음 배선(contribution-quality)에 그대로 넘긴다.
-    const updateCountAdjusted = applyUpdateCountNeutralizationToVolume(
-      abuseAdjusted,
-      neutralization,
-    );
-
-    // (7) 기여 품질 분류 신호 소비 — update-count 중립 산출물(entries 형태)을 그대로
-    //     받아 zero-contribution 대상 author/unit 의 contribution 을 결정적으로
-    //     `"zero"` 로 floor 강등한다. volume 을 다루는 앞 두 배선과 contribution 을
-    //     다루는 본 배선은 필드 직교라 적용 순서 무관하지만 v1 순서를 고정한다. 본
-    //     산출물은 mid-pipe 라 flatten 하지 않고 entries 형태로 다음 배선
-    //     (underperformer)에 그대로 넘긴다.
-    const qualityAdjusted = applyContributionQualityFloor(
-      updateCountAdjusted,
-      qualitySignal,
-    );
-
-    // (8) 저성과자 narrative annotation 신호 소비 — contribution-quality floor 산출물
-    //     (entries 형태)을 그대로 받아 저성과 author 의 **모든** 단위 narrative 앞에
-    //     표준 한국어 marker(UNDERPERFORMER_NARRATIVE_MARKER) 를 결정적으로 접두
-    //     annotation 한다(비파괴 · 멱등 · 단조). volume / contribution 을 다루는 앞 세
-    //     배선과 narrative 를 다루는 본 배선은 필드 직교라 적용 순서 무관하지만 v1
-    //     순서를 고정한다. T-0530 신호가 author-level 판정(unitId 목록 0)이라 entries
-    //     의 author 매칭만으로 그 author 의 모든 단위가 일관 annotation 된다(새 매핑
-    //     0). 본 산출물은 mid-pipe 라 flatten 하지 않고 entries 형태로 다음 배선
-    //     (notable)에 그대로 넘긴다. 네 helper 모두 입력 비변형.
-    const underPerformerAnnotated = applyUnderPerformerAnnotation(
-      qualityAdjusted,
-      underPerformerSignal,
-    );
-
-    // (9) 중요·어려운 기여 narrative annotation 신호 소비 — underperformer annotation
-    //     산출물(entries 형태)을 그대로 받아 중요기여 author 의 **모든** 단위 narrative
-    //     앞에 표준 한국어 marker(NOTABLE_CONTRIBUTION_NARRATIVE_MARKER)를 결정적으로
-    //     접두 annotation 한다(비파괴 · 멱등 · 단조 상향). underperformer(단조 하한
-    //     marker)와 notable(단조 상향 marker)은 같은 `narrative` 필드를 다루지만 marker
-    //     접두가 서로 달라(`[저성과자] ` / `[중요기여] `), 임계 분리(평균 × 0.5↓ vs ×
-    //     1.5↑ — disjoint)로 한 author 가 동시에 둘 다일 수 없다. 따라서 적용 순서는
-    //     결과에 무관하지만 결정성·spec 명료성을 위해 underperformer 먼저, notable 다음
-    //     으로 v1 고정한다(edge case 로 동시 발생 시 두 marker 가 순차 접두되는 결과를
-    //     spec 으로 박제). T-0533 신호가 author-level 판정(unitId 목록 0)이라 entries
-    //     의 author 매칭만으로 그 author 의 모든 단위가 일관 annotation 된다(새 매핑
-    //     0). 마지막에 `.map((e) => e.result)` 로 flatten 해 최종 반환한다. 다섯 helper
-    //     모두 입력 비변형.
-    return applyNotableContributionAnnotation(
-      underPerformerAnnotated,
-      notableContributionSignal,
-    ).map((e) => e.result);
+    return applyEvaluationAdjustments(entries, {
+      abuse: signal,
+      updateCount: neutralization,
+      quality: qualitySignal,
+      underPerformer: underPerformerSignal,
+      notableContribution: notableContributionSignal,
+    });
   }
 }
