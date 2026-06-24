@@ -30,6 +30,13 @@ import {
   type SummaryBatchOutcomeReport,
 } from "./summary-batch-outcome";
 
+// OUTCOME_LINE_PREFIX — outcome 한 줄 요약의 라벨 prefix(라벨 + 공백 1개). single
+// source 로 export 해 형태 검증 가드(summary-batch-outcome-format-shape.ts, T-0638)가
+// 동일 상수를 import 소비하도록 한다(라벨 drift 방지). 값·렌더 동작 무변경 — 아래 head
+// template literal 이 본 상수를 소비할 뿐(byte-identical 출력 보존). ROSTER_PLAN_PREFIX
+// (summary-batch-roster-plan-format.ts)의 outcome-side mirror.
+export const OUTCOME_LINE_PREFIX = "요약 평가 batch: ";
+
 /**
  * R-61 요약 평가 batch outcome 리포트를 **사람-친화 결정적 한국어 단일 라인**으로
  * 렌더링한다(PLAN.md P5 bullet 97 / REQ-061).
@@ -78,7 +85,7 @@ export function formatSummaryBatchOutcome(
 
   // 전역 요약 — 5 카운트(total/evaluated/created/existing/skipped)를 모두 노출.
   const head =
-    `요약 평가 batch: 총 ${report.total}건` +
+    `${OUTCOME_LINE_PREFIX}총 ${report.total}건` +
     ` · 평가 ${report.evaluated} (생성 ${report.created} / 기존 ${report.existing})` +
     ` · skip ${report.skipped}`;
 
