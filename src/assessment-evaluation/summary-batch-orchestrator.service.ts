@@ -24,6 +24,14 @@
 // 호출·DB write)는 전적으로 주입된 orchestrator → SummaryPersistService 책임으로
 // 위임된다.
 //
+// 진입점은 둘이다(둘 다 public): (1) `evaluateBatch(input)` — caller 가 이미
+// enumerate 해 넘긴 `coordinates` 입력을 받는 좌표-진입점. (2) `evaluateBatchForRoster(
+// roster)` — roster(personIds) + granularities 를 직접 받아 T-0624 순수 composer
+// `buildSummaryBatchOrchestratorInput` 으로 `SummaryBatchOrchestratorInput` 을 조립한
+// 뒤 (1) 에 위임하는 roster-진입점(T-0625, PR-pending). roster-진입점은 composer +
+// 기존 메서드 합성만(재구현 0) — 좌표 enumerate 가 caller-facing service 경계에서 처음
+// 소비된다(T-0624 가 닫은 composer 의 미소비 공백을 본 메서드가 배선).
+//
 // 부수효과 0(직접) / 새 외부 dependency 0 / 새 Prisma model 0 / 새 migration 0 —
 // service 는 산출(plan/outcomes/report/summaryLine)을 변형 없이 묶기만 한다.
 // `summaryLine`(report 의 사람-친화 결정적 한국어 단일 라인 요약)은 pipeline 이
@@ -52,6 +60,8 @@ import {
   runSummaryBatchPipeline,
   type SummaryBatchPipelineResult,
 } from "./domain/summary-batch-pipeline";
+import { buildSummaryBatchOrchestratorInput } from "./domain/summary-batch-roster-input";
+import type { SummaryBatchRosterInput } from "./domain/summary-batch-roster-input";
 import type { SummaryDueCoordinate } from "./domain/summary-due-coordinates";
 import type { PersistMode } from "./evaluation-result-persist.service";
 import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
@@ -144,5 +154,58 @@ export class SummaryBatchOrchestratorService {
           now,
         ),
     });
+  }
+
+  /**
+   * R-61 요약 평가 batch 를 roster(`personIds`) + granularities 를 직접 받는
+   * roster-진입점으로 평가·영속화·집계한다(PLAN.md P5 bullet 97 / REQ-061). T-0624 가
+   * 닫은 순수 composer `buildSummaryBatchOrchestratorInput(roster)` 로
+   * `SummaryBatchOrchestratorInput`(좌표 enumerate 포함)을 결정적으로 조립한 뒤 기존
+   * 좌표-진입점 `evaluateBatch(input)` 에 그대로 위임한다 — composer + 기존 메서드 합성만
+   * (재구현 0). 본 메서드가 좌표 enumerate 를 caller-facing service 경계에서 처음 소비한다
+   * (T-0624 composer 의 미소비 공백 배선).
+   *
+   * 흐름:
+   *   1. `input = buildSummaryBatchOrchestratorInput(roster)` — roster × granularity 를
+   *      `enumerateSummaryDueCoordinates` 로 좌표 enumerate(위임만) 후 resultsByCoordinate/
+   *      mode/options/now 를 변형 0 으로 부착한 `SummaryBatchOrchestratorInput` 조립.
+   *   2. `return this.evaluateBatch(input)` — 기존 좌표-진입점에 위임(pipeline 합성·실패
+   *      전파·결정성은 그 메서드/하위 pipeline 이 보장).
+   *
+   * `now` instance thread: composer 가 `roster.now` 를 변형 0 으로 그대로 부착하고
+   * `evaluateBatch` → pipeline 이 그 동일 instance 를 전 좌표 evaluator 에 thread 한다
+   * (같은 batch fire 동일 판정 기준 — T-0616/T-0617/T-0624 계약 상속).
+   *
+   * 실패 전파 상속(swallow 0):
+   *   - `roster` null/undefined → composer 직접 가드의 한국어 `TypeError` 전파.
+   *   - `personIds`/`granularities` null/undefined · 알 수 없는 granularity · `now`
+   *     Invalid Date → composer 가 위임한 `enumerateSummaryDueCoordinates` helper 의
+   *     TypeError/RangeError 전파(fail-fast — 좌표 enumerate 단계, evaluator 미도달).
+   *   - 주입된 orchestrator `evaluateAndPersist` reject/throw → `evaluateBatch` 위임 경로
+   *     로 그대로 전파(부분 성공 위장 0 — summarize 단계 미도달).
+   *   - 빈 roster(빈 `personIds` 또는 빈 `granularities`) → 빈 `coordinates` → 빈 plan/
+   *     outcomes + report 전 카운트 0 + orchestrator 호출 0(throw 0, enumerate/pipeline 정책 상속).
+   *
+   * 매 호출마다 composer + evaluator 를 새로 합성한다 — 같은 service 인스턴스로 2 회
+   * 호출해도 두 호출은 서로 독립(이전 호출 잔여 상태 누수 0). roster 입력 객체·배열·map·
+   * `now` 비변형(composer 의 비변형 계약 상속 — service 가 추가 변형 0).
+   *
+   * @param roster `personIds` / `granularities` / `resultsByCoordinate` / `mode` /
+   *   `options` / `now` 를 묶은 단일 객체(`SummaryBatchRosterInput`, positional 인자 혼동
+   *   차단). 좌표는 service 가 내부 composer 로 enumerate 하므로 입력에 없다.
+   * @returns `evaluateBatch` 위임이 반환하는 `{ plan, outcomes, report, summaryLine }`
+   *   4 산출을 가공 없이 그대로 노출(좌표-진입점과 동일 산출 — composer 가 동일
+   *   `SummaryBatchOrchestratorInput` 을 조립하므로 정합).
+   * @throws composer / `enumerateSummaryDueCoordinates` / 하위 pipeline 조각 /
+   *   주입된 orchestrator 가 던진 error 를 그대로 전파.
+   */
+  async evaluateBatchForRoster(
+    roster: SummaryBatchRosterInput,
+  ): Promise<SummaryBatchPipelineResult> {
+    // roster → SummaryBatchOrchestratorInput 조립(좌표 enumerate 포함) 후 기존
+    // 좌표-진입점에 위임한다 — composer + evaluateBatch 합성만(재구현 0). roster
+    // null/undefined·필드 무결성·Invalid Date 의 fail-fast 는 composer/enumerate 가 전파.
+    const input = buildSummaryBatchOrchestratorInput(roster);
+    return this.evaluateBatch(input);
   }
 }
