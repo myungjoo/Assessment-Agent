@@ -2,7 +2,9 @@
 id: T-0623
 title: R-61 요약 평가 batch orchestrator service 가 pipeline summaryLine 을 service 경계까지 외화함을 박제 — JSDoc/주석 drift 정정 + service-경계 summaryLine 통과 검증
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-24T05:48:04Z
+result: "PR #537 squash merge b49b1d2 — reviewer r1 APPROVE, 4-게이트 PASS, CI green. service 클래스 주석/evaluateBatch JSDoc 의 3산출→4산출(summaryLine 포함) drift 정정 + service-경계 summaryLine byte-identical 통과 검증 5케이스 추가. 코드 동작 변경 0(+9/-2 주석/JSDoc + spec). 새 dep 0·migration 0."
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 110
