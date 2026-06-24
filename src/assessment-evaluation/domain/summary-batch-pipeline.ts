@@ -55,6 +55,7 @@ import {
   type SummaryBatchOutcomeReport,
 } from "./summary-batch-outcome";
 import { assertSummaryBatchOutcomeConsistent } from "./summary-batch-outcome-consistency";
+import { formatSummaryBatchOutcome } from "./summary-batch-outcome-format";
 import {
   buildSummaryBatchPlan,
   type SummaryBatchPlanEntry,
@@ -98,6 +99,10 @@ export interface SummaryBatchPipelineResult {
   outcomes: SummaryAggregateResult[];
   // (3) summarizeSummaryBatchOutcome 산출 — 결정적 batch outcome 리포트.
   report: SummaryBatchOutcomeReport;
+  // (5) report 의 사람-친화 결정적 한국어 단일 라인 요약. 로그·journal·notification
+  //     surface 가 그대로 흘려보내는 presentation 산출(`formatSummaryBatchOutcome`
+  //     산출 — caller 별도 import·호출 0). report 와 항상 정합(동일 report 를 format).
+  summaryLine: string;
 }
 
 /**
@@ -120,6 +125,11 @@ export interface SummaryBatchPipelineResult {
  *      불변식 단언(손상 report 누출 차단, 정상 경로 무회귀). 단일 plan thread 가 정합을
  *      구조적으로 보장하므로 정상 경로에서는 void 반환(방어적 단언·회귀 보호)이며,
  *      불변식 위반·구조 결손 시 그 error 를 그대로 전파(자동 복구 0 — fail-fast).
+ *   5. 가드 통과 **직후** · 반환 전에 `formatSummaryBatchOutcome(report)` 으로 사람-친화
+ *      한 줄 요약을 산출해 `summaryLine` 으로 부착한다(로그/notification surface 직접
+ *      소비, presentation 누수 차단). 가드를 통과한 report 만 format 하므로 손상 report
+ *      의 요약 렌더링 위장 0(가드가 먼저 throw 하면 format 미도달). formatter 는 순수
+ *      렌더이므로 pipeline 순수성·입력 비변형·결정성 계약을 깨지 않는다.
  *
  * 실패 전파 계약 상속(runSummaryBatchPlan / ADR-0032 §2 mirror):
  *   - (2) `runSummaryBatchPlan` 이 evaluator reject/throw 를 전파하면 본 pipeline 도
@@ -149,8 +159,10 @@ export interface SummaryBatchPipelineResult {
  * @param input pipeline 의 6 입력을 묶은 단일 객체(coordinates / resultsByCoordinate /
  *   mode / options / evaluator / now). null/undefined 시 한국어 `TypeError`. 개별
  *   필드 무결성은 하위 조각 가드에 위임(JSDoc single source).
- * @returns `{ plan, outcomes, report }` 3 산출(매 호출 새 객체). evaluator reject 시
- *   그 error 를 그대로 reject 전파(부분 결과 미반환).
+ * @returns `{ plan, outcomes, report, summaryLine }` 4 산출(매 호출 새 객체).
+ *   `summaryLine` 은 가드 통과한 report 를 `formatSummaryBatchOutcome` 으로 렌더한
+ *   사람-친화 결정적 한국어 단일 라인 요약. evaluator reject 시 그 error 를 그대로
+ *   reject 전파(부분 결과 미반환 — format 미도달).
  * @throws {TypeError} `input` 이 null/undefined 일 때(직접 가드), 또는 하위 조각이
  *   좌표/map/evaluator/now 무결성 위반으로 던진 TypeError 전파(위임). report 산출 후
  *   `assertSummaryBatchOutcomeConsistent` 가 report 구조 결손으로 던진 TypeError 도 전파.
@@ -199,5 +211,13 @@ export async function runSummaryBatchPipeline(
   //     error 를 swallow 0 으로 그대로 전파한다(자동 복구·정규화 0 — fail-fast).
   assertSummaryBatchOutcomeConsistent(report);
 
-  return { plan, outcomes, report };
+  // (5) 가드 통과 **직후** · 반환 전에 사람-친화 한 줄 요약을 산출한다 — caller(로그·
+  //     journal·notification·관측 surface)가 별도 import·호출 없이 pipeline 산출
+  //     하나로 presentation 산출까지 받는다(presentation 누수 단일 산출로 차단).
+  //     가드를 통과한 report 만 format 하므로(이 줄은 가드 throw 시 미도달) 손상
+  //     report 의 요약 렌더링 위장 0. formatter 는 순수 렌더(부수효과 0 · 입력 비변형 ·
+  //     결정성)이므로 pipeline 의 순수성·비변형·결정성 계약을 깨지 않는다.
+  const summaryLine = formatSummaryBatchOutcome(report);
+
+  return { plan, outcomes, report, summaryLine };
 }
