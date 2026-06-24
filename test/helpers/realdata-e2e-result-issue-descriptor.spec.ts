@@ -25,6 +25,7 @@ import {
   type RealDataResultIssueRunRef,
 } from "./realdata-e2e-result-issue-descriptor";
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
+import { formatRealDataResultSummaryLine } from "./realdata-e2e-result-summary-line";
 
 // fixture 빌더 — 슬롯별 카운트를 명시적으로 받아 결정론적 summary descriptor 를 생성.
 function makeSummary(opts: {
@@ -246,5 +247,234 @@ describe("buildRealDataResultIssueDescriptor", () => {
 
     expect(descriptor.body).not.toContain("narrative");
     expect(descriptor.body).not.toContain("unitId");
+  });
+
+  // T-0645 — body 합성에 formatRealDataResultSummaryLine 한 줄이 marker 와 markdown
+  // 본문 사이에 정확히 포함된다(가공 0 합성).
+  describe("body 에 한 줄 요약(formatRealDataResultSummaryLine) 배선", () => {
+    // happy-path — 정상 summary(섞임, totalVolume>0) → 한 줄 요약 포함.
+    it("정상 summary 의 body 가 marker 와 markdown 사이에 한 줄 요약을 포함한다", () => {
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 2, medium: 1 },
+        byContribution: { low: 1, medium: 1, high: 1 },
+        totalVolume: 42,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+      const expectedLine = formatRealDataResultSummaryLine(summary);
+
+      expect(descriptor.body).toContain(expectedLine);
+      // marker 직후 빈 줄 1개 + 한 줄 요약 + 빈 줄 1개 + markdown 본문.
+      expect(descriptor.body).toContain(
+        `${descriptor.marker}\n\n${expectedLine}\n\n`,
+      );
+    });
+
+    // count=0 빈 summary 도 정상 body 합성 분기.
+    it("count=0·volume=0·슬롯 모두 0 인 빈 summary 도 한 줄 요약이 body 에 포함된다", () => {
+      const summary = makeSummary({
+        count: 0,
+        byDifficulty: {},
+        byContribution: {},
+        totalVolume: 0,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+      const expectedLine = formatRealDataResultSummaryLine(summary);
+
+      expect(descriptor.body).toContain(expectedLine);
+      // 한 줄 요약에 count=0·volume=0·전 슬롯 0 이 명시적으로 등장.
+      expect(expectedLine).toContain("count=0");
+      expect(expectedLine).toContain("volume=0");
+      expect(expectedLine).toContain("0/0/0");
+      expect(expectedLine).toContain("0/0/0/0");
+    });
+
+    // 큰 수·다양한 분포 summary 분기.
+    it("큰 수·다양한 분포 summary 에 대해 한 줄 요약이 body 에 포함된다", () => {
+      const summary = makeSummary({
+        count: 999,
+        byDifficulty: { easy: 333, medium: 333, hard: 333 },
+        byContribution: { zero: 100, low: 200, medium: 300, high: 399 },
+        totalVolume: 123456,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+      const expectedLine = formatRealDataResultSummaryLine(summary);
+
+      expect(descriptor.body).toContain(expectedLine);
+      expect(expectedLine).toContain("count=999");
+      expect(expectedLine).toContain("volume=123456");
+    });
+
+    // negative ① — 한 줄 요약이 정확히 1 회 등장(중복·누락 0).
+    it("body 에 한 줄 요약이 정확히 1 회만 등장한다", () => {
+      const summary = makeSummary({
+        count: 2,
+        byDifficulty: { easy: 1, medium: 1 },
+        byContribution: { low: 1, medium: 1 },
+        totalVolume: 7,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+      const expectedLine = formatRealDataResultSummaryLine(summary);
+
+      const occurrences = descriptor.body.split(expectedLine).length - 1;
+      expect(occurrences).toBe(1);
+    });
+
+    // negative ② — body 의 한 줄 요약 부분이 formatter 산출과 byte-identical
+    // (가공 0 합성 증명).
+    it("body 내 한 줄 요약이 formatRealDataResultSummaryLine 산출과 byte-identical 하다", () => {
+      const summary = makeSummary({
+        count: 4,
+        byDifficulty: { easy: 1, medium: 2, hard: 1 },
+        byContribution: { low: 2, medium: 1, high: 1 },
+        totalVolume: 77,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+      const expectedLine = formatRealDataResultSummaryLine(summary);
+
+      // body 의 라인 배열에서 한 줄 요약과 정확히 같은 라인이 1 개 존재.
+      const lines = descriptor.body.split("\n");
+      const matches = lines.filter((line) => line === expectedLine);
+      expect(matches).toHaveLength(1);
+    });
+
+    // negative ③ — body 라인 구조: [marker, "", line, "", ...markdown lines].
+    it("body 첫 4 라인이 marker / 빈 줄 / 한 줄 요약 / 빈 줄 순서로 합성된다", () => {
+      const summary = makeSummary({
+        count: 1,
+        byDifficulty: { hard: 1 },
+        byContribution: { high: 1 },
+        totalVolume: 11,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+      const expectedLine = formatRealDataResultSummaryLine(summary);
+      const lines = descriptor.body.split("\n");
+
+      expect(lines[0]).toBe(descriptor.marker);
+      expect(lines[1]).toBe("");
+      expect(lines[2]).toBe(expectedLine);
+      expect(lines[3]).toBe("");
+      // markdown 본문이 한 줄 요약 뒤에 위치(첫 markdown 헤더가 5번째 라인 이후).
+      expect(descriptor.body).toContain(
+        `${expectedLine}\n\n## 실 평가 e2e 결과 요약`,
+      );
+    });
+
+    // negative ④ — 결정성: 동일 (summary, run) 2 회 호출 → body 동일.
+    it("동일 입력에 대해 한 줄 요약 포함 body 가 byte-identical 하다", () => {
+      const summary = makeSummary({
+        count: 5,
+        byDifficulty: { easy: 2, medium: 2, hard: 1 },
+        byContribution: { zero: 1, low: 1, medium: 2, high: 1 },
+        totalVolume: 33,
+      });
+
+      const a = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+      const b = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+
+      expect(a.body).toBe(b.body);
+    });
+
+    // negative ⑤ — title·marker 회귀 0: 한 줄 요약 추가가 title/marker byte 를 바꾸지
+    // 않음(byte-identical 보존).
+    it("한 줄 요약 추가가 title·marker byte 를 바꾸지 않는다(회귀 0)", () => {
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 2, medium: 1 },
+        byContribution: { low: 1, medium: 1, high: 1 },
+        totalVolume: 42,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+
+      // title — 본 task 전과 byte-identical.
+      expect(descriptor.title).toBe("실 평가 e2e 결과 2026-06-23@abc1234");
+      // marker — 본 task 전과 byte-identical.
+      expect(descriptor.marker).toBe(
+        "<!-- realdata-e2e-result-issue: 2026-06-23@abc1234 -->",
+      );
+    });
+
+    // negative ⑥ — 입력 비변형: 한 줄 요약 합성 후에도 summary·byDifficulty·
+    // byContribution·run 객체 변경 0.
+    it("한 줄 요약 합성 후에도 입력 summary 와 run 을 mutate 하지 않는다", () => {
+      const summary = makeSummary({
+        count: 2,
+        byDifficulty: { easy: 1, hard: 1 },
+        byContribution: { low: 2 },
+        totalVolume: 9,
+      });
+      const run: RealDataResultIssueRunRef = {
+        gitSha: "abc1234",
+        dateToken: "2026-06-23",
+      };
+      const beforeDifficulty = { ...summary.byDifficulty };
+      const beforeContribution = { ...summary.byContribution };
+      const beforeRun = { ...run };
+
+      buildRealDataResultIssueDescriptor(summary, run);
+
+      expect(summary.byDifficulty).toEqual(beforeDifficulty);
+      expect(summary.byContribution).toEqual(beforeContribution);
+      expect(summary.count).toBe(2);
+      expect(summary.totalVolume).toBe(9);
+      expect(run).toEqual(beforeRun);
+    });
+
+    // R-59 — body 는 한 줄 요약·markdown 모두 카운트·분포만(narrative/raw 본문 0).
+    it("한 줄 요약 추가 후에도 body 가 narrative 류 raw 본문 키를 담지 않는다", () => {
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 1, medium: 1, hard: 1 },
+        byContribution: { low: 1, medium: 1, high: 1 },
+        totalVolume: 15,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+
+      expect(descriptor.body).not.toContain("narrative");
+      expect(descriptor.body).not.toContain("unitId");
+      expect(descriptor.body).not.toContain("rawActivity");
+    });
+
+    // guard 분기 — gitSha 빈 → throw(한 줄 요약 합성 도달 전).
+    it("gitSha guard 가 한 줄 요약 합성 전 단계에서 throw 한다", () => {
+      const summary = makeSummary({
+        count: 1,
+        byDifficulty: { easy: 1 },
+        byContribution: { low: 1 },
+        totalVolume: 1,
+      });
+
+      expect(() =>
+        buildRealDataResultIssueDescriptor(summary, {
+          gitSha: "",
+          dateToken: "2026-06-23",
+        }),
+      ).toThrow(/gitSha/);
+    });
+
+    // guard 분기 — dateToken 공백-only → throw(한 줄 요약 합성 도달 전).
+    it("dateToken guard 가 한 줄 요약 합성 전 단계에서 throw 한다", () => {
+      const summary = makeSummary({
+        count: 1,
+        byDifficulty: { easy: 1 },
+        byContribution: { low: 1 },
+        totalVolume: 1,
+      });
+
+      expect(() =>
+        buildRealDataResultIssueDescriptor(summary, {
+          gitSha: "abc1234",
+          dateToken: "   ",
+        }),
+      ).toThrow(/dateToken/);
+    });
   });
 });
