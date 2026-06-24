@@ -2,7 +2,11 @@
 id: T-0621
 title: R-61 요약 평가 batch pipeline 에 outcome 불변식 가드 단언 지점 배선 — runSummaryBatchPipeline report 산출 직후 assertSummaryBatchOutcomeConsistent 호출
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-24T04:54:39Z
+mergedAs: e5cd26e
+prNumber: 535
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 120
