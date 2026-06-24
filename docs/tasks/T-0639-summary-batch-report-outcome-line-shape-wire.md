@@ -2,7 +2,11 @@
 id: T-0639
 title: R-61 요약 batch 합본 리포트 2번째 라인의 outcome 형태 가드를 formatSummaryBatchReport 결과 라인 합성 직전에 배선
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-24T15:06:35Z
+mergedAs: dfcd0e0
+prNumber: 553
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 110
