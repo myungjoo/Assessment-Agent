@@ -2,7 +2,7 @@
 id: T-0625
 title: R-61 요약 batch roster-entry 메서드로 buildSummaryBatchOrchestratorInput composer 를 service 에 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 120
