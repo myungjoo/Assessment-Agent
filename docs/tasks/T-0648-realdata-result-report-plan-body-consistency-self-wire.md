@@ -2,7 +2,9 @@
 id: T-0648
 title: buildRealDataResultReportPlan 산출 직전 assertRealDataResultIssueDescriptorBodyConsistent self-wire 배선 (T-0647 builder self-wire 의 composer-side mirror)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-25T08:05:00+09:00
+result: "PR #562 squash-merge f359892 (reviewer round1 APPROVE + 외부 PR comment, 4-게이트 PASS). buildRealDataResultReportPlan 반환 직전 assertRealDataResultIssueDescriptorBodyConsistent self-wire 1지점 배선 (T-0647 builder self-wire 의 composer-side mirror) — import 1줄 + 호출 1줄, +11/-0, summary 집계·descriptor 위임 합성·순서·주석 변경 0, tsc green 으로 runtime cycle 0. colocated spec self-wire describe append (spyOn 으로 마지막 호출이 (descriptor, summary) 임을 검증, builder+composer 총 2회), 28/28 pass, 전역 test:cov line 99.95%/func 100%."
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 110
