@@ -59,6 +59,18 @@
 // `{ result, report }` 를 반환한다 — 두 메서드 합성만(재구현 0, pipeline 실행·formatter
 // 렌더 복제 0). caller 가 "roster batch 실행 + 그 계획·결과 합본 리포트" 를 두 메서드 수동
 // chain 없이 한 호출로 받는다(호출 순서·인자 drift 구조적 차단).
+// (6) `previewOutcomeLine(result)` — batch 실행 산출 `result.summaryLine`(outcome 한 줄
+// 요약, pipeline 이 `formatSummaryBatchOutcome` 으로 산출)을 산출 직후·반환 전에
+// `assertSummaryBatchOutcomeFormatShape(result.summaryLine)`(T-0638) 형태 가드 단언으로
+// 검증한 뒤 standalone 으로 외화하는 outcome 사후조회 진입점(T-0640). `previewRosterPlan`
+// (계획측, T-0629/T-0636)의 outcome-side mirror — caller(로그·journal·notification surface)
+// 가 outcome 한 줄 요약만 단독으로(합본 리포트의 계획 라인 동반 없이) 얻는다. `result.plan`/
+// `outcomes`/`report` 미접촉 · `formatSummaryBatchOutcome` 재호출 0(pipeline 산출 재사용,
+// 재렌더 0). 손상 outcome 라인(개행 혼입·prefix drift·카운트/버킷 슬롯 누락)은 표현 surface
+// 도달 전 가드 throw 로 fail-fast 차단(가드 본문 single-source
+// `summary-batch-outcome-format-shape.ts`). `formatSummaryBatchReport`/`reportBatch` 의
+// 합본 2번째 라인 가드는 T-0639 가 도메인 formatter 측에 이미 배선했으므로 본 진입점은 별개
+// 산출 지점(이중 단언 아님).
 //
 // 부수효과 0(직접) / 새 외부 dependency 0 / 새 Prisma model 0 / 새 migration 0 —
 // service 는 산출(plan/outcomes/report/summaryLine)을 변형 없이 묶기만 한다.
@@ -84,6 +96,7 @@
 import { Injectable } from "@nestjs/common";
 
 import type { EvaluationResult } from "./domain/evaluation-result";
+import { assertSummaryBatchOutcomeFormatShape } from "./domain/summary-batch-outcome-format-shape";
 import {
   runSummaryBatchPipeline,
   type SummaryBatchPipelineResult,
@@ -456,5 +469,80 @@ export class SummaryBatchOrchestratorService {
     const report = this.reportBatch(roster, result);
     // 3. 실행 산출(동일 instance)과 합본 리포트 문자열을 묶어 반환.
     return { result, report };
+  }
+
+  /**
+   * R-61 요약 평가 batch 의 outcome 한 줄 요약(`result.summaryLine`)을 batch 실행 **후**
+   * standalone 으로 외화하는 outcome 사후조회 진입점(PLAN.md P5 bullet 97 / REQ-061).
+   * pipeline 이 `formatSummaryBatchOutcome` 으로 산출해 `result.summaryLine` 에 부착한
+   * outcome 한 줄 요약을, 산출 직후·반환 전에 T-0638 순수 형태 가드
+   * `assertSummaryBatchOutcomeFormatShape(result.summaryLine)` 단언으로 검증한 뒤 변형 없이
+   * 반환한다. `previewRosterPlan`(계획측, T-0629/T-0636)의 정확한 outcome-side mirror —
+   * 이번엔 결과측 outcome 라인을 단독으로 외화한다. 본 진입점이 닫히면 p5-summary-aggregate
+   * stream 의 표현 양 반쪽이 모두 service 경계 standalone 진입점(계획 라인 `previewRosterPlan`
+   * · outcome 라인 `previewOutcomeLine`) + 산출 직전 형태 가드까지 대칭으로 완결된다.
+   *
+   * 동기(`string` 반환, async 아님): 가드는 순수 동기 함수이고 본 메서드는 caller 가 이미
+   * 보유한 `result.summaryLine`(이미 렌더된 string)만 읽는다 — 평가·영속화·DB write·LLM
+   * 호출 0, `formatSummaryBatchOutcome` 재호출 0(pipeline 산출 재사용, 재렌더 0). 평가 경로
+   * (`evaluateBatch`/`evaluateBatchForRoster`/주입된 orchestrator)를 호출하지 않는다.
+   *
+   * 흐름:
+   *   1. `result` null/undefined 직접 가드 — `result.summaryLine` 역참조 전에 한국어
+   *      `TypeError` 로 fail-fast(`reportBatch` 가 formatter 위임으로 동일 가드를 수행하는
+   *      것과 동형의 직접 방어).
+   *   2. `const line = result.summaryLine` — outcome 한 줄 요약을 읽는다(plan/outcomes/
+   *      report 미접촉). `summaryLine` 이 비-string 이면 다음 가드가 TypeError 로 전파한다.
+   *   3. `assertSummaryBatchOutcomeFormatShape(line)` — 2 의 라인이 형태 불변식(① string ·
+   *      ② 개행 0(단일 라인) · ③ prefix `요약 평가 batch: 총 N건` · ④ 5 카운트 토큰
+   *      (evaluated/skipped/created/existing) · ⑤ `[day N · week N · month N · other N]`
+   *      4 버킷 고정 순서)을 만족하는지 단언. 정합이면 void(무회귀), 위반이면 TypeError
+   *      (구조 결손)/RangeError(형태 위반)를 그대로 전파해 손상 outcome 라인이 caller
+   *      (로그·journal·notification surface)에 도달하기 전 차단(single-source 가드 본문
+   *      `summary-batch-outcome-format-shape.ts`).
+   *   4. `return line` — 가드 통과한 정상 outcome 라인을 변형 없이 반환.
+   *
+   * 실패 전파 상속(swallow 0):
+   *   - `result` null/undefined → 1 의 직접 가드 한국어 `TypeError` 전파(가드 단계 미도달).
+   *   - `result.summaryLine` 비-string(undefined/number 등) → 3 의
+   *     `assertSummaryBatchOutcomeFormatShape` ① TypeError 전파.
+   *   - outcome 라인이 형태 불변식 위반(개행 혼입·prefix drift·카운트/버킷 슬롯 누락) →
+   *     3 의 가드 RangeError 전파(미래 회귀 차단 — 단언 지점 fail-fast, 손상 라인 미반환).
+   *
+   * 입력 비변형(`result`·`result.summaryLine` 읽기만 — 가드 비변형 계약 상속). 동일
+   * `result` → byte-identical 출력(가드 결정성 상속, 잔여 상태 누수 0). raw 미저장(R-59 —
+   * 형태 검증만, 평가 본문·summaryId 미접촉).
+   *
+   * @param result caller 가 이미 보유한 batch pipeline 산출(`SummaryBatchPipelineResult`).
+   *   본 메서드는 `result.summaryLine`(이미 렌더된 string) 만 읽는다(plan/outcomes/report
+   *   미접촉). service 가 재실행하지 않는다(읽기만).
+   * @returns 가드 단언을 통과한 정상 outcome 한 줄 요약 문자열(개행 0) — `result.summaryLine`
+   *   과 byte-identical(가드가 정상 라인 변형·차단 0).
+   * @throws {TypeError} `result` 가 null/undefined 일 때(직접 가드), 또는 `result.summaryLine`
+   *   이 string 이 아닐 때 `assertSummaryBatchOutcomeFormatShape` 가 던지는 구조 결손 TypeError
+   *   (형태 가드 본문 single-source 참조 `summary-batch-outcome-format-shape.ts`).
+   * @throws {RangeError} `result.summaryLine` 이 형태 불변식을 위반할 때(개행 혼입·prefix
+   *   drift·카운트 토큰 누락·버킷 슬롯 누락) `assertSummaryBatchOutcomeFormatShape` 가 던지는
+   *   형태 위반 RangeError(형태 가드 본문 single-source 참조
+   *   `summary-batch-outcome-format-shape.ts`).
+   */
+  previewOutcomeLine(result: SummaryBatchPipelineResult): string {
+    // 1. result null/undefined 직접 가드 — summaryLine 역참조 전 한국어 TypeError 로
+    //    fail-fast(reportBatch 의 formatter 위임 직접 가드와 동형 방어).
+    if (result === null || result === undefined) {
+      throw new TypeError(
+        "result 가 null/undefined 다(outcome 라인 외화 불가 — summaryLine 역참조 전 차단).",
+      );
+    }
+    // 2. outcome 한 줄 요약을 읽는다(plan/outcomes/report 미접촉, formatSummaryBatchOutcome
+    //    재호출 0 — pipeline 산출 재사용). 비-string 이면 아래 가드가 TypeError 로 전파.
+    const line = result.summaryLine;
+    // 3. 산출 직후·반환 전 단일 라인 형태 불변식 단언(T-0640 wiring) — 손상 outcome 라인이
+    //    표현 surface(로그·journal·notification)로 새기 전 fail-fast 차단. 정합이면 void
+    //    반환(무회귀), 위반이면 한국어 TypeError(구조)/RangeError(형태) 전파(single-source
+    //    가드 본문 `summary-batch-outcome-format-shape.ts`).
+    assertSummaryBatchOutcomeFormatShape(line);
+    // 4. 가드 통과한 정상 outcome 라인을 변형 없이 반환.
+    return line;
   }
 }
