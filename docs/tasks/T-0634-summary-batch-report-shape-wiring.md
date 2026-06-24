@@ -2,19 +2,22 @@
 id: T-0634
 title: R-61 요약 batch 합본 리포트 shape 가드를 service reportBatch 산출 직전에 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 120
 estimatedFiles: 2
 created: 2026-06-24
+completed: 2026-06-24T11:34:00Z
+prNumber: 548
+mergeCommit: 3050e83
 plannerNote: "P5 R-61(PLAN 97행) — T-0633 assertSummaryBatchReportShape(PR #547 50d5625)가 exists-but-unwired. reportBatch 가 formatSummaryBatchReport 산출 직후·반환 전 가드 단언 배선. T-0621/T-0627 wiring 패턴 동형. p5-summary-aggregate, dependsOn []"
 independentStream: p5-summary-aggregate
 dependsOn: []
 touchesFiles:
   - src/assessment-evaluation/summary-batch-orchestrator.service.ts
   - src/assessment-evaluation/summary-batch-orchestrator.service.spec.ts
----
+result: "reportBatch 본문이 formatSummaryBatchReport → assertSummaryBatchReportShape → return 3-step 으로 배선됨. T-0633 exists-but-unwired 가드를 산출 직후 단언 지점에 연결, 손상 report 의 surface silent leak 차단. evaluateAndReportForRoster 는 자동 상속(별도 호출 0). PR #548 squash 3050e83, reviewer r1 APPROVE(8-check + R-110~R-114 + §3.3 게이트 전부 PASS, NIT 1+ MINOR 1 정보), 4-게이트 (reviewer APPROVE + PR comment 외부 + integrator self-check + CI green) 전부 PASS, post-merge CI 검증은 다음 fire."
 
 # T-0634 — R-61 요약 batch 합본 리포트 shape 가드를 service reportBatch 산출 직전에 배선
 
