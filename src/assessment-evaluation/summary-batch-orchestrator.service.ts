@@ -24,13 +24,18 @@
 // 호출·DB write)는 전적으로 주입된 orchestrator → SummaryPersistService 책임으로
 // 위임된다.
 //
-// 진입점은 둘이다(둘 다 public): (1) `evaluateBatch(input)` — caller 가 이미
+// 진입점은 셋이다(모두 public): (1) `evaluateBatch(input)` — caller 가 이미
 // enumerate 해 넘긴 `coordinates` 입력을 받는 좌표-진입점. (2) `evaluateBatchForRoster(
 // roster)` — roster(personIds) + granularities 를 직접 받아 T-0624 순수 composer
 // `buildSummaryBatchOrchestratorInput` 으로 `SummaryBatchOrchestratorInput` 을 조립한
-// 뒤 (1) 에 위임하는 roster-진입점(T-0625, PR-pending). roster-진입점은 composer +
-// 기존 메서드 합성만(재구현 0) — 좌표 enumerate 가 caller-facing service 경계에서 처음
-// 소비된다(T-0624 가 닫은 composer 의 미소비 공백을 본 메서드가 배선).
+// 뒤 (1) 에 위임하는 roster 실행 진입점(T-0625). roster-진입점은 composer + 기존 메서드
+// 합성만(재구현 0) — 좌표 enumerate 가 caller-facing service 경계에서 처음 소비된다
+// (T-0624 가 닫은 composer 의 미소비 공백을 본 메서드가 배선). (3) `previewRosterPlan(
+// roster)` — roster 의 pre-flight 평가 범위(어느 roster · granularity · 몇 개 좌표가
+// 돌아갈 것인가)를 batch 실행 **전에** 사람-친화 결정적 한국어 단일 라인으로 노출하는
+// roster 사전조회 진입점(T-0629). T-0628 가 닫은 순수 formatter `formatSummaryBatchRosterPlan`
+// 을 service 경계로 외화한다(평가·영속화·DB write·LLM 호출 0 — 동기 위임 1줄). caller(로그·
+// journal·향후 notification surface)가 service 모듈 하나만 import 해 pre-flight 요약을 받는다.
 //
 // 부수효과 0(직접) / 새 외부 dependency 0 / 새 Prisma model 0 / 새 migration 0 —
 // service 는 산출(plan/outcomes/report/summaryLine)을 변형 없이 묶기만 한다.
@@ -63,6 +68,7 @@ import {
 import { buildSummaryBatchOrchestratorInput } from "./domain/summary-batch-roster-input";
 import type { SummaryBatchRosterInput } from "./domain/summary-batch-roster-input";
 import { assertSummaryBatchRosterInputConsistent } from "./domain/summary-batch-roster-input-consistency";
+import { formatSummaryBatchRosterPlan } from "./domain/summary-batch-roster-plan-format";
 import type { SummaryDueCoordinate } from "./domain/summary-due-coordinates";
 import type { PersistMode } from "./evaluation-result-persist.service";
 import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
@@ -222,5 +228,42 @@ export class SummaryBatchOrchestratorService {
     // null/undefined·필드 무결성·Invalid Date 의 fail-fast 는 위 가드/composer/enumerate 가 전파.
     const input = buildSummaryBatchOrchestratorInput(roster);
     return this.evaluateBatch(input);
+  }
+
+  /**
+   * R-61 요약 평가 batch 의 roster pre-flight 평가 범위(어느 roster · 어느 granularity ·
+   * 몇 개 좌표가 enumerate 될 것인가)를 batch 실행 **전에** 사람-친화 결정적 한국어 단일
+   * 라인으로 산출하는 roster 사전조회 진입점(PLAN.md P5 bullet 97 / REQ-061). T-0628 가
+   * 닫은 순수 formatter `formatSummaryBatchRosterPlan(roster)` 를 service 경계로 외화한다 —
+   * 본문은 위임 1줄(재구현 0, 가공 0). T-0623 이 outcome formatter(결과측)를 service 경계로
+   * 외화한 패턴의 입력측 mirror.
+   *
+   * 동기(`string` 반환, async 아님): formatter 가 순수 동기 함수이므로 평가·영속화·DB
+   * write·LLM 호출 0. 평가 경로(`evaluateBatch`/`evaluateBatchForRoster`/주입된
+   * orchestrator)를 호출하지 않는다 — pre-flight 요약은 실행 0(좌표 식별 축만 counting).
+   *
+   * 실패 전파 상속(swallow 0):
+   *   - `roster` null/undefined → formatter 직접 가드의 한국어 `TypeError` 전파.
+   *   - `personIds`/`granularities` null/undefined · 알 수 없는 granularity · `now`
+   *     Invalid Date → formatter 가 위임한 `enumerateSummaryDueCoordinates` helper 의
+   *     TypeError/RangeError 전파(fail-fast).
+   *   - 빈 roster(빈 `personIds` 또는 빈 `granularities`) → 좌표 0 의 pre-flight 요약
+   *     문자열 정상 반환(throw 0, `총 0좌표` 명시 — formatter 정책 상속).
+   *
+   * 입력 비변형(roster·personIds·granularities·now 읽기만 — formatter 비변형 계약 상속).
+   * 동일 roster → byte-identical 출력(formatter 결정성 상속, 잔여 상태 누수 0).
+   *
+   * @param roster `personIds` / `granularities` / `now` 를 formatter 가 읽는 roster 입력
+   *   (`SummaryBatchRosterInput`). 변형하지 않는다(읽기만).
+   * @returns 결정적 한국어 단일 라인 pre-flight 요약 문자열(개행 0). 빈 roster 도 빈 문자열이
+   *   아니라 `총 0좌표` 를 명시.
+   * @throws {TypeError} `roster` 가 null/undefined 일 때(formatter 직접 가드), 또는
+   *   `personIds`/`granularities` null/undefined · `now` Invalid Date 의 enumerate 위임
+   *   TypeError 전파.
+   * @throws {RangeError} `granularities` 에 알 수 없는 period 가 포함될 때 enumerate 위임
+   *   helper 의 RangeError 전파.
+   */
+  previewRosterPlan(roster: SummaryBatchRosterInput): string {
+    return formatSummaryBatchRosterPlan(roster);
   }
 }
