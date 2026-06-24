@@ -36,6 +36,11 @@
 // roster 사전조회 진입점(T-0629). T-0628 가 닫은 순수 formatter `formatSummaryBatchRosterPlan`
 // 을 service 경계로 외화한다(평가·영속화·DB write·LLM 호출 0 — 동기 위임 1줄). caller(로그·
 // journal·향후 notification surface)가 service 모듈 하나만 import 해 pre-flight 요약을 받는다.
+// T-0636 이 산출 직후·반환 전에 `assertSummaryBatchRosterPlanShape(plan)`(T-0635) 형태 가드
+// 단언을 배선해, 손상 plan 라인(개행 혼입·prefix drift·person/총 좌표 토큰 누락·버킷 슬롯
+// 누락·빈 라인 위장 미래 회귀)이 표현 surface 로 silent leak 하기 전 fail-fast 차단한다(가드
+// 본문 single-source `summary-batch-roster-plan-shape.ts`). T-0634 합본 report-shape 배선의
+// 입력측 mirror.
 // (4) `reportBatch(roster, result)` — batch 를 실행한 **후** "무엇을 평가하려 했는가(계획)
 // vs 무엇을 평가했는가(결과)" 를 한 블록(정확히 2 라인)으로 합친 사람-친화 결정적 한국어
 // 합본 요약을 노출하는 계획-결과 합본 진입점(T-0631). T-0630 이 닫은 순수 formatter
@@ -89,6 +94,7 @@ import { buildSummaryBatchOrchestratorInput } from "./domain/summary-batch-roste
 import type { SummaryBatchRosterInput } from "./domain/summary-batch-roster-input";
 import { assertSummaryBatchRosterInputConsistent } from "./domain/summary-batch-roster-input-consistency";
 import { formatSummaryBatchRosterPlan } from "./domain/summary-batch-roster-plan-format";
+import { assertSummaryBatchRosterPlanShape } from "./domain/summary-batch-roster-plan-shape";
 import type { SummaryDueCoordinate } from "./domain/summary-due-coordinates";
 import type { PersistMode } from "./evaluation-result-persist.service";
 import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
@@ -254,37 +260,65 @@ export class SummaryBatchOrchestratorService {
    * R-61 요약 평가 batch 의 roster pre-flight 평가 범위(어느 roster · 어느 granularity ·
    * 몇 개 좌표가 enumerate 될 것인가)를 batch 실행 **전에** 사람-친화 결정적 한국어 단일
    * 라인으로 산출하는 roster 사전조회 진입점(PLAN.md P5 bullet 97 / REQ-061). T-0628 가
-   * 닫은 순수 formatter `formatSummaryBatchRosterPlan(roster)` 를 service 경계로 외화한다 —
-   * 본문은 위임 1줄(재구현 0, 가공 0). T-0623 이 outcome formatter(결과측)를 service 경계로
-   * 외화한 패턴의 입력측 mirror.
+   * 닫은 순수 formatter `formatSummaryBatchRosterPlan(roster)` 를 service 경계로 외화하고,
+   * T-0635 가 닫은 순수 형태 가드 `assertSummaryBatchRosterPlanShape(plan)` 를 산출 직후·반환
+   * 전에 단언해 손상 plan 라인이 표현 surface 로 새기 전 fail-fast 차단한다(T-0636 wiring).
+   * 본문은 formatter 위임 + 형태 가드 단언. T-0623 이 outcome formatter(결과측)를 service
+   * 경계로 외화한 패턴의 입력측 mirror, T-0634 합본 report-shape 배선의 입력측 mirror.
    *
-   * 동기(`string` 반환, async 아님): formatter 가 순수 동기 함수이므로 평가·영속화·DB
+   * 동기(`string` 반환, async 아님): formatter·가드 모두 순수 동기 함수이므로 평가·영속화·DB
    * write·LLM 호출 0. 평가 경로(`evaluateBatch`/`evaluateBatchForRoster`/주입된
    * orchestrator)를 호출하지 않는다 — pre-flight 요약은 실행 0(좌표 식별 축만 counting).
    *
+   * 흐름:
+   *   1. `const plan = formatSummaryBatchRosterPlan(roster)` — 순수 formatter 위임으로
+   *      결정적 한국어 단일 라인 pre-flight 계획 라인 산출(재구현 0).
+   *   2. `assertSummaryBatchRosterPlanShape(plan)` — 1 의 산출이 형태 불변식(① string ·
+   *      ② 개행 0(단일 라인) · ③ prefix `요약 평가 batch 예정: ` · ④ `person N명` 토큰 ·
+   *      ⑤ `· 총 N좌표 [` 토큰 · ⑥ `[day N · week N · month N · other N]` 4 버킷 슬롯 고정
+   *      순서)을 만족하는지 단언. 정합이면 void 반환(무회귀), 위반이면 TypeError(구조 결손)/
+   *      RangeError(형태 위반) 전파해 손상 plan 라인이 caller(로그·journal·notification
+   *      surface)에 도달하기 전 차단(single-source `summary-batch-roster-plan-shape.ts`).
+   *   3. `return plan` — 가드 통과한 정상 plan 라인을 변형 없이 반환.
+   *
    * 실패 전파 상속(swallow 0):
-   *   - `roster` null/undefined → formatter 직접 가드의 한국어 `TypeError` 전파.
+   *   - `roster` null/undefined → formatter 직접 가드의 한국어 `TypeError` 전파(가드 단계 미도달).
    *   - `personIds`/`granularities` null/undefined · 알 수 없는 granularity · `now`
    *     Invalid Date → formatter 가 위임한 `enumerateSummaryDueCoordinates` helper 의
-   *     TypeError/RangeError 전파(fail-fast).
+   *     TypeError/RangeError 전파(fail-fast — 가드 단계 미도달).
+   *   - formatter 산출이 형태 불변식 위반(개행 혼입·prefix drift·person/총 좌표 토큰 누락·
+   *     버킷 슬롯 누락·빈 라인 위장) → `assertSummaryBatchRosterPlanShape` 가 한국어
+   *     TypeError(구조 결손)/RangeError(형태 위반) 전파(미래 회귀 차단 — 단언 지점 fail-fast).
    *   - 빈 roster(빈 `personIds` 또는 빈 `granularities`) → 좌표 0 의 pre-flight 요약
-   *     문자열 정상 반환(throw 0, `총 0좌표` 명시 — formatter 정책 상속).
+   *     문자열 정상 반환(throw 0, `총 0좌표` 명시 — formatter 정책 + 가드 통과 상속).
    *
-   * 입력 비변형(roster·personIds·granularities·now 읽기만 — formatter 비변형 계약 상속).
-   * 동일 roster → byte-identical 출력(formatter 결정성 상속, 잔여 상태 누수 0).
+   * 입력 비변형(roster·personIds·granularities·now·plan 읽기만 — formatter·가드 비변형 계약
+   * 상속). 동일 roster → byte-identical 출력(formatter·가드 결정성 상속, 잔여 상태 누수 0).
    *
    * @param roster `personIds` / `granularities` / `now` 를 formatter 가 읽는 roster 입력
    *   (`SummaryBatchRosterInput`). 변형하지 않는다(읽기만).
-   * @returns 결정적 한국어 단일 라인 pre-flight 요약 문자열(개행 0). 빈 roster 도 빈 문자열이
-   *   아니라 `총 0좌표` 를 명시.
+   * @returns 결정적 한국어 단일 라인 pre-flight 요약 문자열(개행 0) — 형태 가드 단언을
+   *   통과한 정상 plan 라인만 반환. 빈 roster 도 빈 문자열이 아니라 `총 0좌표` 를 명시.
    * @throws {TypeError} `roster` 가 null/undefined 일 때(formatter 직접 가드), 또는
    *   `personIds`/`granularities` null/undefined · `now` Invalid Date 의 enumerate 위임
-   *   TypeError 전파.
+   *   TypeError 전파, 또는 `assertSummaryBatchRosterPlanShape` 가 던지는 구조 결손
+   *   TypeError(plan 이 string 이 아닌 미래 회귀 — 형태 가드 본문 single-source 참조
+   *   `summary-batch-roster-plan-shape.ts`).
    * @throws {RangeError} `granularities` 에 알 수 없는 period 가 포함될 때 enumerate 위임
-   *   helper 의 RangeError 전파.
+   *   helper 의 RangeError 전파, 또는 `assertSummaryBatchRosterPlanShape` 가 던지는 형태
+   *   위반 RangeError(개행 혼입·prefix drift·person/총 좌표 토큰 누락·버킷 슬롯 누락 미래
+   *   회귀 — 형태 가드 본문 single-source 참조 `summary-batch-roster-plan-shape.ts`).
    */
   previewRosterPlan(roster: SummaryBatchRosterInput): string {
-    return formatSummaryBatchRosterPlan(roster);
+    // 1. 순수 formatter 위임으로 pre-flight 계획 라인 산출(재구현 0).
+    const plan = formatSummaryBatchRosterPlan(roster);
+    // 2. 산출 직후·반환 전 단일 라인 형태 불변식 단언(T-0636 wiring) — 손상 plan 라인이
+    //    표현 surface(로그·journal·notification)로 새기 전 fail-fast 차단. 정합이면 void
+    //    반환(무회귀), 위반이면 한국어 TypeError(구조)/RangeError(형태) 전파(single-source
+    //    가드 본문 `summary-batch-roster-plan-shape.ts`).
+    assertSummaryBatchRosterPlanShape(plan);
+    // 3. 가드 통과한 정상 plan 라인을 변형 없이 반환.
+    return plan;
   }
 
   /**
