@@ -40,7 +40,7 @@ import type { SummaryBatchPlanEntry } from "./summary-batch-plan";
 // 버킷에 집계된다. 미등장 슬롯도 키 존재(값 0)를 보장 — 표현 layer 가 슬롯 누락 없이
 // 전 분포를 렌더링할 수 있다(realdata-e2e-result-summary 의 single-source 슬롯 관례
 // 동형). 슬롯 순서는 day → week → month → other 로 결정적 고정.
-const GRANULARITY_BUCKETS = ["day", "week", "month", "other"] as const;
+export const GRANULARITY_BUCKETS = ["day", "week", "month", "other"] as const;
 type GranularityBucket = (typeof GRANULARITY_BUCKETS)[number];
 
 // SummaryBatchOutcomeCounts — 한 버킷(혹은 전역) 카운트 묶음. evaluated/skipped 의
