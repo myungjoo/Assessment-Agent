@@ -2,8 +2,12 @@
 id: T-0626
 title: R-61 요약 batch roster-input orphan-result 정합 검증 순수 가드 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 540
+reviewRounds: 1
+mergedAs: 43337ab
+completedAt: 2026-06-24T07:20:00Z
 coversReq: [REQ-061]
 estimatedDiff: 175
 estimatedFiles: 2
