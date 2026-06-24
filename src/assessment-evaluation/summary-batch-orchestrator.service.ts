@@ -36,6 +36,14 @@
 // roster 사전조회 진입점(T-0629). T-0628 가 닫은 순수 formatter `formatSummaryBatchRosterPlan`
 // 을 service 경계로 외화한다(평가·영속화·DB write·LLM 호출 0 — 동기 위임 1줄). caller(로그·
 // journal·향후 notification surface)가 service 모듈 하나만 import 해 pre-flight 요약을 받는다.
+// (4) `reportBatch(roster, result)` — batch 를 실행한 **후** "무엇을 평가하려 했는가(계획)
+// vs 무엇을 평가했는가(결과)" 를 한 블록(정확히 2 라인)으로 합친 사람-친화 결정적 한국어
+// 합본 요약을 노출하는 계획-결과 합본 진입점(T-0631). T-0630 이 닫은 순수 formatter
+// `formatSummaryBatchReport(roster, result)` 를 service 경계로 외화한다(평가·영속화·DB
+// write·LLM 호출 0 — 동기 위임 1줄). caller(로그·journal·향후 notification surface)가
+// service 모듈 하나만 import 해 pre-flight 라인 + 결과 라인을 한 블록으로 받는다.
+// 평가 경로(`evaluateBatch`/`evaluateBatchForRoster`/주입된 orchestrator)를 호출하지 않으며,
+// batch 결과 `result` 는 caller 가 이미 보유한 산출을 인자로 받는다(service 가 재실행 0).
 //
 // 부수효과 0(직접) / 새 외부 dependency 0 / 새 Prisma model 0 / 새 migration 0 —
 // service 는 산출(plan/outcomes/report/summaryLine)을 변형 없이 묶기만 한다.
@@ -65,6 +73,7 @@ import {
   runSummaryBatchPipeline,
   type SummaryBatchPipelineResult,
 } from "./domain/summary-batch-pipeline";
+import { formatSummaryBatchReport } from "./domain/summary-batch-report-format";
 import { buildSummaryBatchOrchestratorInput } from "./domain/summary-batch-roster-input";
 import type { SummaryBatchRosterInput } from "./domain/summary-batch-roster-input";
 import { assertSummaryBatchRosterInputConsistent } from "./domain/summary-batch-roster-input-consistency";
@@ -265,5 +274,49 @@ export class SummaryBatchOrchestratorService {
    */
   previewRosterPlan(roster: SummaryBatchRosterInput): string {
     return formatSummaryBatchRosterPlan(roster);
+  }
+
+  /**
+   * R-61 요약 평가 batch 의 pre-flight 평가 범위(계획)와 outcome 결과(`result.summaryLine`)
+   * 를 batch 실행 **후** "무엇을 평가하려 했는가(계획) vs 무엇을 평가했는가(결과)" 한 블록
+   * (정확히 2 라인)으로 합친 사람-친화 결정적 한국어 합본 요약을 산출하는 계획-결과 합본
+   * 진입점(PLAN.md P5 bullet 97 / REQ-061). T-0630 이 닫은 순수 formatter
+   * `formatSummaryBatchReport(roster, result)` 를 service 경계로 외화한다 — 본문은 위임
+   * 1줄(재구현 0, 가공 0). T-0629(`previewRosterPlan`, 계획측)·T-0623(outcome formatter,
+   * 결과측) 외화 패턴의 합본 mirror.
+   *
+   * 동기(`string` 반환, async 아님): formatter 가 순수 동기 함수이므로 평가·영속화·DB
+   * write·LLM 호출 0. 평가 경로(`evaluateBatch`/`evaluateBatchForRoster`/주입된
+   * orchestrator)를 호출하지 않는다 — 합본 요약은 실행 0(caller 가 이미 보유한 `result` 를
+   * 인자로 받아 계획 라인과 합성만, batch 재실행 0).
+   *
+   * 실패 전파 상속(swallow 0):
+   *   - `roster` null/undefined → formatter 가 위임한 `formatSummaryBatchRosterPlan`
+   *     직접 가드의 한국어 `TypeError` 전파.
+   *   - `result` null/undefined → formatter 직접 가드의 한국어 `TypeError` 전파
+   *     (`result.summaryLine` 역참조 전 fail-fast).
+   *   - `result.summaryLine` 누락/비-string → formatter 직접 가드의 한국어 `TypeError` 전파.
+   *   - `personIds`/`granularities` null/undefined · 알 수 없는 granularity · `now`
+   *     Invalid Date → formatter 가 위임한 enumerate helper 의 TypeError/RangeError 전파.
+   *
+   * 입력 비변형(roster·result·result.summaryLine 읽기만 — formatter 비변형 계약 상속).
+   * 동일 (roster, result) → byte-identical 출력(formatter 결정성 상속, 잔여 상태 누수 0).
+   *
+   * @param roster pre-flight 계획 라인 위임(`formatSummaryBatchRosterPlan`)이 소비할 roster
+   *   입력(`SummaryBatchRosterInput`). 변형하지 않는다(읽기만).
+   * @param result caller 가 이미 보유한 batch pipeline 산출(`SummaryBatchPipelineResult`).
+   *   본 메서드는 `result.summaryLine`(이미 렌더된 string) 만 읽는다(plan/outcomes/report
+   *   미접촉). service 가 재실행하지 않는다(읽기만).
+   * @returns 결정적 한국어 2 라인 블록 문자열(계획 라인 + 결과 라인, 개행 정확히 1개).
+   * @throws {TypeError} `result` 가 null/undefined 일 때(직접 가드), `result.summaryLine`
+   *   이 string 이 아닐 때, 또는 `roster` null/undefined · enumerate 위임 TypeError 전파.
+   * @throws {RangeError} `roster.granularities` 에 알 수 없는 period 가 포함될 때 enumerate
+   *   위임 helper 의 RangeError 전파.
+   */
+  reportBatch(
+    roster: SummaryBatchRosterInput,
+    result: SummaryBatchPipelineResult,
+  ): string {
+    return formatSummaryBatchReport(roster, result);
   }
 }
