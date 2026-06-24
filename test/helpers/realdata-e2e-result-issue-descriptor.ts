@@ -54,6 +54,7 @@
 //   - 외부 템플릿/해시 라이브러리 도입 — 내장 string 합성만.
 //   - production `src/` 코드 변경 — test helper 단독(타입·렌더 함수 import 재사용만).
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
+import { formatRealDataResultSummaryLine } from "./realdata-e2e-result-summary-line";
 import { renderRealDataResultSummaryMarkdown } from "./realdata-e2e-result-summary-markdown";
 
 // 이슈 제목 prefix — 결정론적 고정 문자열. run 식별 token 이 뒤에 붙는다.
@@ -75,7 +76,10 @@ export interface RealDataResultIssueRunRef {
 // RealDataResultIssueDescriptor — daily-test 결과 이슈 박제 descriptor.
 //   - title: 결정론적 이슈 제목(고정 prefix + run 식별 token).
 //   - marker: 멱등 검색·갱신용 안정 식별 토큰(동일 run → 동일 marker).
-//   - body: marker 라인 + `renderRealDataResultSummaryMarkdown(summary)` 본문.
+//   - body: marker 라인 + 한 줄 요약(`formatRealDataResultSummaryLine`, T-0642/T-0644)
+//     + `renderRealDataResultSummaryMarkdown(summary)` 본문. 세 블록은 빈 줄 1개로
+//     구분되어 합성된다(marker → 한 줄 요약 → markdown). 사람이 이슈를 스캔할 때
+//     marker 직후·markdown 본문 위에서 count·volume·분포를 즉시 파악할 수 있다.
 export interface RealDataResultIssueDescriptor {
   title: string;
   marker: string;
@@ -121,9 +125,17 @@ export function buildRealDataResultIssueDescriptor(
   const title = `${ISSUE_TITLE_PREFIX} ${token}`;
   // marker 는 동일 run → 동일(summary 무관). 이슈 본문 첫 줄에 1 회만 박힌다.
   const marker = `${ISSUE_MARKER_PREFIX} ${token} -->`;
-  const body = [marker, "", renderRealDataResultSummaryMarkdown(summary)].join(
-    "\n",
-  );
+  // body 합성 — marker 라인 + 한 줄 요약(T-0642/T-0644 self-guard 통과 라인) + markdown
+  // 본문 3 블록을 빈 줄 1 개로 구분해 결합. 한 줄 요약은 정확히 1 회 등장(중복 0),
+  // marker 직후·markdown 본문 직전에 위치. summary-batch 측이 검증된 outcome 한 줄
+  // 을 합본 리포트로 가공 0 합성한 패턴의 realdata-e2e 측 mirror(가공 0 합성).
+  const body = [
+    marker,
+    "",
+    formatRealDataResultSummaryLine(summary),
+    "",
+    renderRealDataResultSummaryMarkdown(summary),
+  ].join("\n");
 
   return { title, marker, body };
 }
