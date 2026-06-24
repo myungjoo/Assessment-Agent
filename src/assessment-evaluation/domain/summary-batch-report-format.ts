@@ -42,10 +42,21 @@
 // (순수 함수 / null·undefined 입력 fail-fast 한국어 TypeError / 결정적 출력 / 입력 비변형 /
 // 한국어 JSDoc / 책임 경계 주석). 본 formatter 는 그 표현 관례·문구 톤을 mirror 하되 단일
 // 라인이 아니라 두 single-source 라인을 라벨·구분으로 합성한다(역할 분리).
+//
+// T-0637 wiring: 합본 1번째 라인 본문(`formatSummaryBatchRosterPlan(roster)` 의 bare 산출)
+// 에 `assertSummaryBatchRosterPlanShape(plan)`(T-0635) 형태 가드 단언을 PLAN_LABEL prepend
+// 전·합성 전에 배선해, 손상 plan 라인(개행 혼입·prefix drift·person/총 좌표 토큰 누락·버킷
+// 슬롯 누락·빈 라인 위장 미래 회귀)이 합본 리포트 합성·반환 단계에 도달하기 전 fail-fast
+// 차단한다. T-0634 합본 report-shape 가드(블록 외형: 2 라인·라벨 prefix·단일 개행·후행
+// 개행 0)는 1번째 라인 내부 plan 6 불변식을 검증하지 않으므로(책임 경계 분리), 본 가드가
+// 그 silent leak 표면을 닫는다. T-0636 service `previewRosterPlan` 배선의 합본 mirror —
+// 동일 가드를 별개 산출 지점(도메인 합본 formatter)에 적용(이중 단언 아님 — 별개 caller
+// surface).
 
 import type { SummaryBatchPipelineResult } from "./summary-batch-pipeline";
 import type { SummaryBatchRosterInput } from "./summary-batch-roster-input";
 import { formatSummaryBatchRosterPlan } from "./summary-batch-roster-plan-format";
+import { assertSummaryBatchRosterPlanShape } from "./summary-batch-roster-plan-shape";
 
 // 합본 라벨 — single source(JSDoc 예시와 정합). 계획(pre-flight 범위) 먼저, 결과(outcome
 // summaryLine) 다음의 결정적 고정 순서. 라벨·구분자는 본 formatter 가 발명하는 유일한
@@ -93,9 +104,15 @@ export const RESULT_LABEL = "결과: ";
  * @throws {TypeError} `result` 가 null/undefined 일 때(직접 가드 — `result.summaryLine`
  *   역참조 전에), 또는 `result.summaryLine` 이 string 이 아닐 때(누락 등). `roster`
  *   null/undefined · enumerate 위임의 TypeError 는 `formatSummaryBatchRosterPlan`
- *   위임에서 전파(swallow 0).
+ *   위임에서 전파(swallow 0). 또한 `assertSummaryBatchRosterPlanShape`(T-0637 wiring)가
+ *   던지는 구조 결손 TypeError(plan 이 string 이 아닌 미래 회귀 — 형태 가드 본문
+ *   single-source 참조 `summary-batch-roster-plan-shape.ts`).
  * @throws {RangeError} `roster.granularities` 에 알 수 없는 period 가 포함될 때
- *   `formatSummaryBatchRosterPlan` 위임 helper 의 RangeError 전파.
+ *   `formatSummaryBatchRosterPlan` 위임 helper 의 RangeError 전파. 또한
+ *   `assertSummaryBatchRosterPlanShape`(T-0637 wiring)가 던지는 형태 위반 RangeError
+ *   (개행 혼입·prefix drift·person/총 좌표 토큰 누락·버킷 슬롯 누락·빈 라인 위장 미래
+ *   회귀 — 형태 가드 본문 single-source 참조 `summary-batch-roster-plan-shape.ts`).
+ *   가드 throw 시 합본 리포트 합성·반환 단계 미도달(손상 plan 라인이 합본으로 새는 것 차단).
  */
 export function formatSummaryBatchReport(
   roster: SummaryBatchRosterInput,
@@ -118,7 +135,27 @@ export function formatSummaryBatchReport(
   // pre-flight 범위 라인 — formatSummaryBatchRosterPlan 위임(재구현 0). roster
   // null/undefined TypeError, enumerate 위임의 TypeError/RangeError 가 여기서 전파된다
   // (fail-fast, swallow 0). roster 비변형 계약도 위임으로 상속.
-  const planLine = `${PLAN_LABEL}${formatSummaryBatchRosterPlan(roster)}`;
+  //
+  // 산출 흐름(T-0637 wiring):
+  //   1. `const plan = formatSummaryBatchRosterPlan(roster)` — bare pre-flight 라인 산출
+  //      (PLAN_LABEL prepend 전 — 가드의 prefix 불변식 ③ 은 bare plan 라인이 `요약 평가
+  //      batch 예정: ` 로 시작함을 요구하므로 라벨 부착 전 단언이 필수. 라벨 부착 후
+  //      단언하면 prefix 가 `계획: 요약 평가 batch 예정: ...` 가 되어 false-positive throw).
+  //   2. `assertSummaryBatchRosterPlanShape(plan)` — 1 의 bare 산출이 형태 불변식
+  //      (① string · ② 개행 0 · ③ prefix `요약 평가 batch 예정: ` · ④ `person N명` 토큰 ·
+  //      ⑤ `· 총 N좌표 [` 토큰 · ⑥ `[day N · week N · month N · other N]` 4 버킷 슬롯 고정
+  //      순서)을 만족하는지 단언(single-source `summary-batch-roster-plan-shape.ts`).
+  //      정합이면 void 반환(무회귀), 위반이면 TypeError(구조 결손)/RangeError(형태 위반)
+  //      전파해 손상 plan 라인이 합본 리포트 합성·반환 단계에 도달하기 전 차단.
+  //   3. `${PLAN_LABEL}${plan}` — 가드 통과한 정상 plan 라인 앞에 결정적 라벨 부착(합성).
+  //
+  // T-0636 service `previewRosterPlan` 배선과 동형이되, 이번엔 도메인 합본 formatter 내부의
+  // 별개 산출 지점(합본 1번째 라인) 이 대상. 가드 단언은 두 산출 지점(service preview ·
+  // 합본 report formatter)에서 각각 배선되어 — 이중 단언이 아니라 별개 caller surface 에서의
+  // 동일 형태 가드 적용(p5-summary-aggregate stream presentation 가드 완결).
+  const plan = formatSummaryBatchRosterPlan(roster);
+  assertSummaryBatchRosterPlanShape(plan);
+  const planLine = `${PLAN_LABEL}${plan}`;
 
   // 결과 라인 — 이미 렌더된 result.summaryLine 을 가공 0 으로 재사용(중복 렌더 0 —
   // formatSummaryBatchOutcome 재호출 없음). 결과 라벨만 앞에 부착.
