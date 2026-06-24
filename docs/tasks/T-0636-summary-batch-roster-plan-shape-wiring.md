@@ -2,7 +2,7 @@
 id: T-0636
 title: R-61 요약 batch roster pre-flight 계획 라인 shape 가드를 service previewRosterPlan 산출 직전에 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 120
