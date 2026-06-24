@@ -24,7 +24,7 @@
 // 호출·DB write)는 전적으로 주입된 orchestrator → SummaryPersistService 책임으로
 // 위임된다.
 //
-// 진입점은 다섯이다(모두 public): (1) `evaluateBatch(input)` — caller 가 이미
+// 진입점은 여섯이다(모두 public): (1) `evaluateBatch(input)` — caller 가 이미
 // enumerate 해 넘긴 `coordinates` 입력을 받는 좌표-진입점. (2) `evaluateBatchForRoster(
 // roster)` — roster(personIds) + granularities 를 직접 받아 T-0624 순수 composer
 // `buildSummaryBatchOrchestratorInput` 으로 `SummaryBatchOrchestratorInput` 을 조립한
