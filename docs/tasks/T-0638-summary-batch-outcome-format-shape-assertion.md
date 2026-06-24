@@ -2,8 +2,10 @@
 id: T-0638
 title: R-61 요약 batch outcome 한 줄 요약 라인 형태 불변식 검증 순수 가드 assertSummaryBatchOutcomeFormatShape
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: fcd38e33721d7cc1641f29058cb2028bae3ebd0c
+prNumber: 552
 coversReq: [REQ-061]
 estimatedDiff: 175
 estimatedFiles: 2
