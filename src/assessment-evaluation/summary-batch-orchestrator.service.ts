@@ -40,8 +40,12 @@
 // vs 무엇을 평가했는가(결과)" 를 한 블록(정확히 2 라인)으로 합친 사람-친화 결정적 한국어
 // 합본 요약을 노출하는 계획-결과 합본 진입점(T-0631). T-0630 이 닫은 순수 formatter
 // `formatSummaryBatchReport(roster, result)` 를 service 경계로 외화한다(평가·영속화·DB
-// write·LLM 호출 0 — 동기 위임 1줄). caller(로그·journal·향후 notification surface)가
-// service 모듈 하나만 import 해 pre-flight 라인 + 결과 라인을 한 블록으로 받는다.
+// write·LLM 호출 0 — formatter 위임 + 형태 가드 단언). caller(로그·journal·향후 notification
+// surface)가 service 모듈 하나만 import 해 pre-flight 라인 + 결과 라인을 한 블록으로 받는다.
+// T-0634 가 산출 직후·반환 전에 `assertSummaryBatchReportShape(report)`(T-0633) 형태 가드
+// 단언을 배선해, 손상 report(라벨 drift·라인 수 변형·후행 개행·빈 본문 미래 회귀)가 표현
+// surface 로 silent leak 하기 전 fail-fast 차단한다(가드 본문 single-source
+// `summary-batch-report-shape.ts`).
 // 평가 경로(`evaluateBatch`/`evaluateBatchForRoster`/주입된 orchestrator)를 호출하지 않으며,
 // batch 결과 `result` 는 caller 가 이미 보유한 산출을 인자로 받는다(service 가 재실행 0).
 // (5) `evaluateAndReportForRoster(roster)` — roster 실행 후 합본 리포트까지 한 호출로
@@ -80,6 +84,7 @@ import {
   type SummaryBatchPipelineResult,
 } from "./domain/summary-batch-pipeline";
 import { formatSummaryBatchReport } from "./domain/summary-batch-report-format";
+import { assertSummaryBatchReportShape } from "./domain/summary-batch-report-shape";
 import { buildSummaryBatchOrchestratorInput } from "./domain/summary-batch-roster-input";
 import type { SummaryBatchRosterInput } from "./domain/summary-batch-roster-input";
 import { assertSummaryBatchRosterInputConsistent } from "./domain/summary-batch-roster-input-consistency";
@@ -287,14 +292,27 @@ export class SummaryBatchOrchestratorService {
    * 를 batch 실행 **후** "무엇을 평가하려 했는가(계획) vs 무엇을 평가했는가(결과)" 한 블록
    * (정확히 2 라인)으로 합친 사람-친화 결정적 한국어 합본 요약을 산출하는 계획-결과 합본
    * 진입점(PLAN.md P5 bullet 97 / REQ-061). T-0630 이 닫은 순수 formatter
-   * `formatSummaryBatchReport(roster, result)` 를 service 경계로 외화한다 — 본문은 위임
-   * 1줄(재구현 0, 가공 0). T-0629(`previewRosterPlan`, 계획측)·T-0623(outcome formatter,
-   * 결과측) 외화 패턴의 합본 mirror.
+   * `formatSummaryBatchReport(roster, result)` 를 service 경계로 외화하고, T-0633 가 닫은
+   * 순수 형태 가드 `assertSummaryBatchReportShape(report)` 를 산출 직후·반환 전에 단언해
+   * 손상 report 가 표현 surface 로 새기 전 fail-fast 차단한다(T-0634 wiring). 본문은
+   * formatter 위임 + 형태 가드 단언. T-0629(`previewRosterPlan`, 계획측)·T-0623(outcome
+   * formatter, 결과측) 외화 패턴의 합본 mirror.
    *
-   * 동기(`string` 반환, async 아님): formatter 가 순수 동기 함수이므로 평가·영속화·DB
-   * write·LLM 호출 0. 평가 경로(`evaluateBatch`/`evaluateBatchForRoster`/주입된
+   * 동기(`string` 반환, async 아님): formatter·가드 모두 순수 동기 함수이므로 평가·영속화·
+   * DB write·LLM 호출 0. 평가 경로(`evaluateBatch`/`evaluateBatchForRoster`/주입된
    * orchestrator)를 호출하지 않는다 — 합본 요약은 실행 0(caller 가 이미 보유한 `result` 를
    * 인자로 받아 계획 라인과 합성만, batch 재실행 0).
+   *
+   * 흐름:
+   *   1. `const report = formatSummaryBatchReport(roster, result)` — 순수 formatter 위임으로
+   *      계획 라인 + 결과 라인 2 라인 합본 한국어 리포트 블록 산출(재구현 0).
+   *   2. `assertSummaryBatchReportShape(report)` — 1 의 산출이 형태 불변식(① string · ② 정확히
+   *      2 라인(`\n` 1개) · ③ 후행 개행 0 · ④ 1번째 라인 `계획: ` 라벨 + 본문 non-empty ·
+   *      ⑤ 2번째 라인 `결과: ` 라벨 + 본문 non-empty)을 만족하는지 단언. 정합이면 void
+   *      반환(무회귀), 위반이면 TypeError(구조 결손)/RangeError(형태 위반) 전파해 손상
+   *      report 가 caller(로그·journal·notification surface)에 도달하기 전 차단(T-0633 단일
+   *      source 참조 — single-source `summary-batch-report-shape.ts`).
+   *   3. `return report` — 가드 통과한 정상 report 를 변형 없이 반환.
    *
    * 실패 전파 상속(swallow 0):
    *   - `roster` null/undefined → formatter 가 위임한 `formatSummaryBatchRosterPlan`
@@ -304,26 +322,42 @@ export class SummaryBatchOrchestratorService {
    *   - `result.summaryLine` 누락/비-string → formatter 직접 가드의 한국어 `TypeError` 전파.
    *   - `personIds`/`granularities` null/undefined · 알 수 없는 granularity · `now`
    *     Invalid Date → formatter 가 위임한 enumerate helper 의 TypeError/RangeError 전파.
+   *   - formatter 산출이 형태 불변식 위반(라벨 drift·라인 수·후행 개행·빈 본문) →
+   *     `assertSummaryBatchReportShape` 가 한국어 TypeError(구조 결손)/RangeError(형태 위반)
+   *     전파(미래 회귀 차단 — 단언 지점에서 fail-fast).
    *
-   * 입력 비변형(roster·result·result.summaryLine 읽기만 — formatter 비변형 계약 상속).
-   * 동일 (roster, result) → byte-identical 출력(formatter 결정성 상속, 잔여 상태 누수 0).
+   * 입력 비변형(roster·result·result.summaryLine 읽기만 — formatter·가드 비변형 계약 상속).
+   * 동일 (roster, result) → byte-identical 출력(formatter·가드 결정성 상속, 잔여 상태 누수 0).
    *
    * @param roster pre-flight 계획 라인 위임(`formatSummaryBatchRosterPlan`)이 소비할 roster
    *   입력(`SummaryBatchRosterInput`). 변형하지 않는다(읽기만).
    * @param result caller 가 이미 보유한 batch pipeline 산출(`SummaryBatchPipelineResult`).
    *   본 메서드는 `result.summaryLine`(이미 렌더된 string) 만 읽는다(plan/outcomes/report
    *   미접촉). service 가 재실행하지 않는다(읽기만).
-   * @returns 결정적 한국어 2 라인 블록 문자열(계획 라인 + 결과 라인, 개행 정확히 1개).
+   * @returns 결정적 한국어 2 라인 블록 문자열(계획 라인 + 결과 라인, 개행 정확히 1개) —
+   *   형태 가드 단언을 통과한 정상 report 만 반환.
    * @throws {TypeError} `result` 가 null/undefined 일 때(직접 가드), `result.summaryLine`
-   *   이 string 이 아닐 때, 또는 `roster` null/undefined · enumerate 위임 TypeError 전파.
+   *   이 string 이 아닐 때, `roster` null/undefined · enumerate 위임 TypeError 전파, 또는
+   *   `assertSummaryBatchReportShape` 가 던지는 구조 결손 TypeError(report 가 string 이 아닌
+   *   미래 회귀 — 형태 가드 본문 single-source 참조 `summary-batch-report-shape.ts`).
    * @throws {RangeError} `roster.granularities` 에 알 수 없는 period 가 포함될 때 enumerate
-   *   위임 helper 의 RangeError 전파.
+   *   위임 helper 의 RangeError 전파, 또는 `assertSummaryBatchReportShape` 가 던지는 형태
+   *   위반 RangeError(라벨 drift·라인 수 ≠ 2·후행 개행·라벨 뒤 본문 빈 미래 회귀 — 형태
+   *   가드 본문 single-source 참조 `summary-batch-report-shape.ts`).
    */
   reportBatch(
     roster: SummaryBatchRosterInput,
     result: SummaryBatchPipelineResult,
   ): string {
-    return formatSummaryBatchReport(roster, result);
+    // 1. 순수 formatter 위임으로 합본 리포트 산출(재구현 0).
+    const report = formatSummaryBatchReport(roster, result);
+    // 2. 산출 직후·반환 전 형태 불변식 단언(T-0634 wiring) — 손상 report 가 표현 surface
+    //    (로그·journal·notification)로 새기 전 fail-fast 차단. 정합이면 void 반환(무회귀),
+    //    위반이면 한국어 TypeError(구조)/RangeError(형태) 전파(single-source 가드 본문
+    //    `summary-batch-report-shape.ts`).
+    assertSummaryBatchReportShape(report);
+    // 3. 가드 통과한 정상 report 를 변형 없이 반환.
+    return report;
   }
 
   /**
@@ -341,6 +375,9 @@ export class SummaryBatchOrchestratorService {
    *      (orphan-result 가드·composer·pipeline 합성·실패 전파는 그 메서드가 보장).
    *   2. `const report = this.reportBatch(roster, result)` — 1 의 산출과 동일 `roster` 로
    *      계획 라인 + 결과 라인 2 라인 합본 한국어 리포트 블록을 산출한다(formatter 위임).
+   *      `reportBatch` 가 T-0634 형태 가드 단언을 산출 직후 수행하므로 손상 report 는
+   *      여기에서 fail-fast 전파되어 본 메서드의 반환·report 미생성으로 이어진다
+   *      (별도 가드 호출 0 — 자동 상속).
    *   3. `return { result, report }` — 실행 산출(동일 instance)과 합본 리포트 문자열을 묶어 반환.
    *
    * 합성만(재구현 0): pipeline 실행은 `evaluateBatchForRoster`, 리포트 렌더는 `reportBatch`
@@ -372,6 +409,8 @@ export class SummaryBatchOrchestratorService {
    *   가 반환한 결정적 한국어 2 라인 합본 리포트 블록 문자열(계획 라인 + 결과 라인).
    * @throws `evaluateBatchForRoster`(가드/composer/enumerate/하위 pipeline/주입된
    *   orchestrator)가 던진 error 를 그대로 전파(reject 시 `reportBatch` 미도달, report 미생성).
+   *   `reportBatch` 가 자기 내부에서 던지는 `assertSummaryBatchReportShape` TypeError/
+   *   RangeError 도 step 2 에서 전파되어 본 메서드 반환 미도달(T-0634 자동 상속).
    */
   async evaluateAndReportForRoster(
     roster: SummaryBatchRosterInput,
