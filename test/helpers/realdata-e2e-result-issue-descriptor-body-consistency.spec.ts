@@ -335,14 +335,16 @@ describe("assertRealDataResultIssueDescriptorBodyConsistent", () => {
     ).toThrow(/불변식\(1\)/);
   });
 
-  // negative ① — 한 줄 요약 중복 손상(2 회 등장) → RangeError.
-  it("한 줄 요약이 body 안에 2 회 등장하는 손상 descriptor 는 RangeError", () => {
+  // negative ① — 한 줄 요약 중복 손상(markdown 블록에 추가 삽입) → markdown 블록
+  // byte-identical 비교가 drift 를 catch → RangeError(불변식 6). 별도 occurrences
+  // 보강 분기는 dead branch 로 판정돼 제거됐고(불변식 (4)~(6) 통과 시 정확히 1 회
+  // 등장이 이미 강제됨), 본 negative test 는 그 (6) markdown drift 분기에 동기화.
+  it("한 줄 요약 중복 손상 → markdown 블록 drift 로 RangeError(불변식 6)", () => {
     const { descriptor, summary } = makeHappyFixture();
     const expectedLine = formatRealDataResultSummaryLine(summary);
-    // 한 줄 요약을 markdown 블록 안에도 끼워 중복 등장 시킨다(블록 구조는 유지).
+    // 한 줄 요약을 markdown 블록 안에도 끼워 중복 등장 시킨다(블록 구조 (1)~(5) 는
+    // 유지하되 markdown 본문이 single-source 산출과 drift 하도록).
     const lines = descriptor.body.split("\n");
-    // markdown 블록(5 번째 라인부터) 앞에 한 줄 요약 라인을 한 번 더 삽입한 뒤
-    // 빈 줄 보존(블록 구조 자체는 유지 — 한 줄 요약 라인 중복만 catch 하는 의도).
     const corruptedBody = [
       ...lines.slice(0, 4),
       lines[4],
@@ -357,6 +359,9 @@ describe("assertRealDataResultIssueDescriptorBodyConsistent", () => {
     expect(() =>
       assertRealDataResultIssueDescriptorBodyConsistent(broken, summary),
     ).toThrow(RangeError);
+    expect(() =>
+      assertRealDataResultIssueDescriptorBodyConsistent(broken, summary),
+    ).toThrow(/불변식\(6\)/);
   });
 
   // negative ② — 한 줄 요약 누락 손상(라인을 다른 값으로 대체) → RangeError(불변식 4).

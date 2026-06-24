@@ -95,7 +95,9 @@ function assertSummaryStructure(
  *   (2) 첫 라인 = `descriptor.marker` (body 가 marker 라인으로 시작).
  *   (3) 2 번째 라인 = "" (marker 직후 구분 빈 줄).
  *   (4) 3 번째 라인 = `formatRealDataResultSummaryLine(summary)` 산출과 byte-identical
- *       (한 줄 요약 블록 — 가공 0 합성). 한 줄 요약은 정확히 1 회 등장(중복 0).
+ *       (한 줄 요약 블록 — 가공 0 합성). 한 줄 요약 라인의 정확히 1 회 등장(중복 0)은
+ *       5 번째 라인 이후 markdown 본문 byte-identical (6) 비교가 함께 보장 — markdown
+ *       산출에 한 줄 요약 라인이 끼어들면 (6) 가 catch.
  *   (5) 4 번째 라인 = "" (한 줄 요약 직후 구분 빈 줄).
  *   (6) 5 번째 라인부터 끝까지 = `renderRealDataResultSummaryMarkdown(summary)` 산출과
  *       byte-identical (markdown 본문 — 가공 0 합성).
@@ -180,23 +182,13 @@ export function assertRealDataResultIssueDescriptorBodyConsistent(
 
   // 불변식 (6) — 5 번째 라인부터 끝까지가 renderRealDataResultSummaryMarkdown(summary)
   // 산출과 byte-identical(가공 0 합성 증명). markdown 본문이 다행이므로 라인 배열
-  // 일부 join 으로 재구성해 비교한다.
+  // 일부 join 으로 재구성해 비교한다. 본 단언이 한 줄 요약 라인이 markdown 본문에
+  // 추가 등장하는 손상도 함께 catch — 별도 occurrences 보강 검사는 dead branch
+  // 라 제거(불변식 (4)~(6) 통과 시 정확히 1 회 등장이 이미 강제됨).
   const actualMarkdown = bodyLines.slice(4).join("\n");
   if (actualMarkdown !== expectedMarkdown) {
     throw new RangeError(
       "불변식(6) 위반: body 의 markdown 블록(5 번째 라인 이후)이 renderRealDataResultSummaryMarkdown(summary) 산출과 byte-identical 하지 않다 — markdown 블록이 가공/drift 됐다.",
-    );
-  }
-
-  // 한 줄 요약 블록 단일 등장 보강 검증 — 위 (4)~(5) 까지 단언으로 3 번째 라인이
-  // 한 줄 요약과 일치함을 보장했지만, markdown 블록 안에 동일 라인이 끼어들었을
-  // 경우(예: 손상된 합성으로 한 줄 요약이 markdown 본문에도 중복 출현)를 catch
-  // 한다. expectedLine 으로 body 를 split 한 결과의 segment 수가 2(앞·뒤)여야 정확히
-  // 1 회 등장.
-  const occurrences = descriptor.body.split(expectedLine).length - 1;
-  if (occurrences !== 1) {
-    throw new RangeError(
-      `불변식(4) 보강 위반: body 안에 한 줄 요약이 ${occurrences} 회 등장한다 — 정확히 1 회 등장해야 한다(중복·누락 0).`,
     );
   }
 }
