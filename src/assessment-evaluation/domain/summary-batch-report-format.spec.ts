@@ -7,6 +7,7 @@
 
 import type { EvaluationResult } from "./evaluation-result";
 import type { PeriodGranularity } from "./period-evaluable";
+import * as outcomeFormatShapeModule from "./summary-batch-outcome-format-shape";
 import type { SummaryBatchPipelineResult } from "./summary-batch-pipeline";
 import { formatSummaryBatchReport } from "./summary-batch-report-format";
 import type { SummaryBatchRosterInput } from "./summary-batch-roster-input";
@@ -81,7 +82,7 @@ describe("formatSummaryBatchReport", () => {
 
   describe("error path", () => {
     const okResult = result(
-      "요약 평가 batch: 총 0건 [day 0 · week 0 · month 0 · other 0]",
+      "요약 평가 batch: 총 0건 · 평가 0 (생성 0 / 기존 0) · skip 0 [day 0 · week 0 · month 0 · other 0]",
     );
 
     it("(a) roster null → 위임 한국어 TypeError 가 전파된다", () => {
@@ -167,7 +168,7 @@ describe("formatSummaryBatchReport", () => {
         granularities: ["day", "week"] as PeriodGranularity[],
       });
       const subjectResult = result(
-        "요약 평가 batch: 총 4건 · 평가 4 (생성 4 / 기존 0) · skip 0",
+        "요약 평가 batch: 총 4건 · 평가 4 (생성 4 / 기존 0) · skip 0 [day 2(평가2) · week 2(평가2) · month 0 · other 0]",
       );
       const block = formatSummaryBatchReport(subjectRoster, subjectResult);
       const lines = block.split("\n");
@@ -182,7 +183,7 @@ describe("formatSummaryBatchReport", () => {
         granularities: ["day", "week", "month"] as PeriodGranularity[],
       });
       const subjectResult = result(
-        "요약 평가 batch: 총 0건 [day 0 · week 0 · month 0 · other 0]",
+        "요약 평가 batch: 총 0건 · 평가 0 (생성 0 / 기존 0) · skip 0 [day 0 · week 0 · month 0 · other 0]",
       );
       const block = formatSummaryBatchReport(subjectRoster, subjectResult);
       const lines = block.split("\n");
@@ -202,7 +203,9 @@ describe("formatSummaryBatchReport", () => {
     });
 
     it("(c) roster 가드 분기(null) 도달 — result 유효해도 roster null 이면 위임 roster TypeError", () => {
-      const okResult = result("요약 평가 batch: 총 0건");
+      const okResult = result(
+        "요약 평가 batch: 총 0건 · 평가 0 (생성 0 / 기존 0) · skip 0 [day 0 · week 0 · month 0 · other 0]",
+      );
       expect(() =>
         formatSummaryBatchReport(
           null as unknown as SummaryBatchRosterInput,
@@ -214,7 +217,9 @@ describe("formatSummaryBatchReport", () => {
 
   describe("negative cases", () => {
     it("(1) roster null/undefined → 한국어 TypeError 2종", () => {
-      const okResult = result("요약 평가 batch: 총 0건");
+      const okResult = result(
+        "요약 평가 batch: 총 0건 · 평가 0 (생성 0 / 기존 0) · skip 0 [day 0 · week 0 · month 0 · other 0]",
+      );
       expect(() =>
         formatSummaryBatchReport(
           null as unknown as SummaryBatchRosterInput,
@@ -264,7 +269,7 @@ describe("formatSummaryBatchReport", () => {
         granularities: ["day", "week", "month"] as PeriodGranularity[],
       });
       const subjectResult = result(
-        "요약 평가 batch: 총 0건 [day 0 · week 0 · month 0 · other 0]",
+        "요약 평가 batch: 총 0건 · 평가 0 (생성 0 / 기존 0) · skip 0 [day 0 · week 0 · month 0 · other 0]",
       );
       const block = formatSummaryBatchReport(subjectRoster, subjectResult);
       const lines = block.split("\n");
@@ -281,7 +286,7 @@ describe("formatSummaryBatchReport", () => {
         granularities: ["day", "month"] as PeriodGranularity[],
       });
       const subjectResult = result(
-        "요약 평가 batch: 총 4건 · 평가 4 (생성 4 / 기존 0) · skip 0",
+        "요약 평가 batch: 총 4건 · 평가 4 (생성 4 / 기존 0) · skip 0 [day 2(평가2) · week 0 · month 2(평가2) · other 0]",
       );
       const first = formatSummaryBatchReport(subjectRoster, subjectResult);
       const second = formatSummaryBatchReport(subjectRoster, subjectResult);
@@ -294,7 +299,7 @@ describe("formatSummaryBatchReport", () => {
         granularities: ["day", "week"] as PeriodGranularity[],
       });
       const subjectResult = result(
-        "요약 평가 batch: 총 4건 · 평가 4 (생성 4 / 기존 0) · skip 0",
+        "요약 평가 batch: 총 4건 · 평가 4 (생성 4 / 기존 0) · skip 0 [day 2(평가2) · week 2(평가2) · month 0 · other 0]",
       );
       const personIdsSnapshot = [...subjectRoster.personIds];
       const granularitiesSnapshot = [...subjectRoster.granularities];
@@ -315,12 +320,18 @@ describe("formatSummaryBatchReport", () => {
         granularities: ["day"] as PeriodGranularity[],
       });
       // 임의 sentinel summaryLine — formatSummaryBatchOutcome 재렌더면 이 문자열이
-      // 그대로 나올 수 없다(가공 0 재사용임을 단언).
+      // 그대로 나올 수 없다(가공 0 재사용임을 단언). outcome-shape 가드(T-0639)는
+      // sentinel 이 형태 불변식 비정합이므로 본 "재사용" 검증에 한해 no-op 으로 mock —
+      // 가공 0 재사용 사실만 격리 검증(가드 배선 자체는 별도 describe 에서 검증).
+      jest
+        .spyOn(outcomeFormatShapeModule, "assertSummaryBatchOutcomeFormatShape")
+        .mockImplementation(() => {});
       const sentinel = "SENTINEL-요약-라인-12345";
       const subjectResult = result(sentinel);
       const block = formatSummaryBatchReport(subjectRoster, subjectResult);
       const resultLine = block.split("\n")[1];
       expect(resultLine).toBe(`결과: ${sentinel}`);
+      jest.restoreAllMocks();
     });
 
     it("계획 라인이 formatSummaryBatchRosterPlan(roster) 출력과 라벨만 차이난다(재구현 0)", () => {
@@ -328,7 +339,9 @@ describe("formatSummaryBatchReport", () => {
         personIds: ["p1", "p2"],
         granularities: ["day", "week", "month"] as PeriodGranularity[],
       });
-      const subjectResult = result("요약 평가 batch: 총 6건");
+      const subjectResult = result(
+        "요약 평가 batch: 총 6건 · 평가 6 (생성 6 / 기존 0) · skip 0 [day 2(평가2) · week 2(평가2) · month 2(평가2) · other 0]",
+      );
       const block = formatSummaryBatchReport(subjectRoster, subjectResult);
       const planLine = block.split("\n")[0];
       expect(planLine).toBe(
@@ -557,6 +570,229 @@ describe("formatSummaryBatchReport", () => {
       ).toThrow(/summaryLine/);
       expect(shapeSpy).not.toHaveBeenCalled();
       shapeSpy.mockRestore();
+    });
+  });
+
+  // ── T-0639: 합본 2번째 라인 outcome-shape 가드 배선 ────────────────────────────
+  // formatSummaryBatchReport(roster, result) 가 bare result.summaryLine(이미
+  // formatSummaryBatchOutcome 으로 렌더된 outcome 한 줄)을 RESULT_LABEL prepend·resultLine
+  // 합성 **전**에 assertSummaryBatchOutcomeFormatShape(result.summaryLine) 형태 가드로
+  // 단언함을 박제한다(T-0637 plan-line 배선의 정확한 outcome-side mirror — 같은 합본
+  // formatter 안의 별개 산출 지점인 2번째 라인이 대상). 검증축:
+  // (1) 가드가 정확히 1회 + bare result.summaryLine(라벨 prepend 전) 인자 그대로 호출(배선
+  //     사실 + 가드 대상이 `결과: ` 부착 라인이 아닌 bare outcome 라인임을 박제 — 가드의
+  //     prefix 불변식 ③ 이 bare outcome 라인 `요약 평가 batch: 총 ` 기준이므로 라벨 부착 후
+  //     단언하면 prefix 불일치 false-positive throw),
+  // (2) plan-shape → outcome-shape → return 호출 순서(spy invocationCallOrder),
+  // (3) 가드 RangeError/TypeError throw 가 그대로 전파되어 손상 합본 미반환,
+  // (4) 형태 위반 outcome 라인(prefix drift·개행 혼입·버킷 슬롯 누락·순서 뒤바뀜) → 실 가드
+  //     RangeError 전파,
+  // (5) result null/result.summaryLine 비-string → 기존 L125~133 가드가 outcome 가드 전
+  //     차단(가드 spy 미호출, 기존 동작 보존),
+  // (6) 같은 (roster, result) 2회 호출 결정성·잔여 상태 누수 0 + 입력 비변형.
+  // 형태 가드 본문은 변경 0(single-source `summary-batch-outcome-format-shape.ts`) — 본
+  // spec 은 formatter 의 단언 호출 배선만 검증한다.
+
+  describe("outcome-shape 가드 배선(T-0639)", () => {
+    const subjectRoster = roster({
+      personIds: ["alice", "bob"],
+      granularities: ["day", "week"] as PeriodGranularity[],
+    });
+    // 형태 정합 outcome 라인(가드 ①~⑤ 통과): prefix `요약 평가 batch: 총 ` + 카운트
+    // 토큰 4종 + `[day · week · month · other]` 4 버킷 슬롯 고정 순서.
+    const VALID_OUTCOME_LINE =
+      "요약 평가 batch: 총 4건 · 평가 4 (생성 4 / 기존 0) · skip 0 [day 2(평가2) · week 2(평가2) · month 0 · other 0]";
+
+    it("(happy) 정합 (roster, result) → 가드가 bare result.summaryLine(라벨 부착 전) 인자 그대로 정확히 1회 호출됨 + throw 0 + 기존과 byte-identical 합본 반환", () => {
+      const subjectResult = result(VALID_OUTCOME_LINE);
+      // spyOn 은 formatter 가 import 하는 동일 module namespace 객체를 가로채므로 formatter
+      // 의 실제 호출이 잡힌다. 실 구현은 그대로 호출(정상 형태면 void) — 정합 산출이
+      // 변형 없이 반환되는 happy 분기를 검증.
+      const outcomeSpy = jest.spyOn(
+        outcomeFormatShapeModule,
+        "assertSummaryBatchOutcomeFormatShape",
+      );
+
+      const block = formatSummaryBatchReport(subjectRoster, subjectResult);
+
+      // (a) 가드가 정확히 1회 + bare result.summaryLine(label prepend 전 string) 인자 그대로
+      //     호출(배선 사실 박제). bare outcome 라인은 `요약 평가 batch: 총 ` 으로 시작하며,
+      //     `결과: ` label 이 부착된 합본 라인은 아니다(가드 prefix 불변식 ③ 일관성).
+      expect(outcomeSpy).toHaveBeenCalledTimes(1);
+      const bareSpyArg = outcomeSpy.mock.calls[0][0];
+      expect(bareSpyArg).toBe(VALID_OUTCOME_LINE);
+      expect(bareSpyArg.startsWith("요약 평가 batch: 총 ")).toBe(true);
+      // 가드 인자가 라벨 부착 라인 (`결과: ...`)이 아님을 명시 박제.
+      expect(bareSpyArg.startsWith("결과: ")).toBe(false);
+      // (b) 정합 산출은 가드 통과 후 byte-identical 합본 반환(가드가 정상 outcome 라인
+      //     변형·차단 0, 합본 합성 로직 무변경).
+      const expected = `계획: ${formatSummaryBatchRosterPlan(subjectRoster)}\n결과: ${VALID_OUTCOME_LINE}`;
+      expect(block).toBe(expected);
+      outcomeSpy.mockRestore();
+    });
+
+    it("(call order) plan-shape 가드 → outcome-shape 가드 → return 순서임을 invocation order 로 검증(spy 두 가드 호출 순서)", () => {
+      // plan-shape 가드(④ 전 단계)가 outcome-shape 가드(resultLine 합성 직전)보다 먼저
+      // 호출됨을 박제 — 가드 호출 순서 ③ plan-shape → ④ outcome-shape 고정.
+      const order: string[] = [];
+      const planSpy = jest
+        .spyOn(rosterPlanShapeModule, "assertSummaryBatchRosterPlanShape")
+        .mockImplementation(() => {
+          order.push("plan-shape");
+        });
+      const outcomeSpy = jest
+        .spyOn(outcomeFormatShapeModule, "assertSummaryBatchOutcomeFormatShape")
+        .mockImplementation(() => {
+          order.push("outcome-shape");
+        });
+
+      formatSummaryBatchReport(subjectRoster, result(VALID_OUTCOME_LINE));
+
+      expect(order).toEqual(["plan-shape", "outcome-shape"]);
+      // outcome 가드가 받은 인자는 bare result.summaryLine 그대로.
+      expect(outcomeSpy).toHaveBeenCalledWith(VALID_OUTCOME_LINE);
+      planSpy.mockRestore();
+      outcomeSpy.mockRestore();
+    });
+
+    it("(negative 1) 가드 RangeError throw → 그대로 전파 + 손상 합본 미반환", () => {
+      const corrupted = new RangeError("test corrupted outcome shape");
+      const outcomeSpy = jest
+        .spyOn(outcomeFormatShapeModule, "assertSummaryBatchOutcomeFormatShape")
+        .mockImplementation(() => {
+          throw corrupted;
+        });
+
+      expect(() =>
+        formatSummaryBatchReport(subjectRoster, result(VALID_OUTCOME_LINE)),
+      ).toThrow(corrupted);
+      // 가드 throw → 손상 outcome 라인이 합본 리포트 합성·반환 단계에 도달하기 전 차단.
+      expect(outcomeSpy).toHaveBeenCalledTimes(1);
+      outcomeSpy.mockRestore();
+    });
+
+    it("(negative 2) 가드 TypeError throw → 그대로 전파 + 손상 합본 미반환(구조 결손 시뮬)", () => {
+      const corrupted = new TypeError("test outcome type fail");
+      const outcomeSpy = jest
+        .spyOn(outcomeFormatShapeModule, "assertSummaryBatchOutcomeFormatShape")
+        .mockImplementation(() => {
+          throw corrupted;
+        });
+
+      expect(() =>
+        formatSummaryBatchReport(subjectRoster, result(VALID_OUTCOME_LINE)),
+      ).toThrow(corrupted);
+      expect(outcomeSpy).toHaveBeenCalledTimes(1);
+      outcomeSpy.mockRestore();
+    });
+
+    it("(negative 3) prefix drift outcome 라인(`요약 평가: 총 ...`) → 실 가드가 RangeError 로 전파 + 손상 합본 미반환", () => {
+      // outcome 라인 prefix 가 `요약 평가 batch: 총 ` 이 아니면(③ 불변식 위반) 실 가드가
+      // RangeError 로 차단함을 검증(format mock 0 — bare summaryLine 직접 손상 주입).
+      const driftLine =
+        "요약 평가: 총 4건 · 평가 4 (생성 4 / 기존 0) · skip 0 [day 2 · week 2 · month 0 · other 0]";
+      expect(() =>
+        formatSummaryBatchReport(subjectRoster, result(driftLine)),
+      ).toThrow(RangeError);
+    });
+
+    it("(negative 4) 개행 혼입 outcome 라인(`...other 0]\\n오염`) → 실 가드가 RangeError 로 전파", () => {
+      // 단일 라인 불변식(② 개행 0) 위반이 가드에서 차단됨을 검증.
+      const newlineLine = `${VALID_OUTCOME_LINE}\n오염`;
+      expect(() =>
+        formatSummaryBatchReport(subjectRoster, result(newlineLine)),
+      ).toThrow(RangeError);
+    });
+
+    it("(negative 5) 버킷 슬롯 누락 outcome 라인(`[day...]` 없음) → 실 가드가 RangeError 로 전파", () => {
+      // 4 버킷 슬롯(⑤) 누락이 가드에서 차단됨을 검증.
+      const noBucketLine =
+        "요약 평가 batch: 총 4건 · 평가 4 (생성 4 / 기존 0) · skip 0";
+      expect(() =>
+        formatSummaryBatchReport(subjectRoster, result(noBucketLine)),
+      ).toThrow(RangeError);
+    });
+
+    it("(negative 6) 버킷 순서 뒤바뀜 outcome 라인(`[week ... day ...]`) → 실 가드가 RangeError 로 전파", () => {
+      // 4 버킷 고정 순서(⑤) drift 가 가드에서 차단됨을 검증.
+      const reorderedLine =
+        "요약 평가 batch: 총 4건 · 평가 4 (생성 4 / 기존 0) · skip 0 [week 2 · day 2 · month 0 · other 0]";
+      expect(() =>
+        formatSummaryBatchReport(subjectRoster, result(reorderedLine)),
+      ).toThrow(RangeError);
+    });
+
+    it("(negative 7) 카운트 토큰 누락 outcome 라인(`· skip ` 없음) → 실 가드가 RangeError 로 전파", () => {
+      // 전역 카운트 토큰(④) 누락이 가드에서 차단됨을 검증.
+      const noSkipLine =
+        "요약 평가 batch: 총 4건 · 평가 4 (생성 4 / 기존 0) [day 2 · week 2 · month 0 · other 0]";
+      expect(() =>
+        formatSummaryBatchReport(subjectRoster, result(noSkipLine)),
+      ).toThrow(RangeError);
+    });
+
+    it("(result null preserved) result null → 기존 한국어 TypeError 전파(outcome 가드 단계 미도달 — 가드 spy 미호출)", () => {
+      // 기존 result 가드(직접 throw)가 outcome 가드 호출 전 차단함을 검증 — R-112 기존
+      // L125~127 동작 보존.
+      const outcomeSpy = jest.spyOn(
+        outcomeFormatShapeModule,
+        "assertSummaryBatchOutcomeFormatShape",
+      );
+
+      expect(() =>
+        formatSummaryBatchReport(
+          subjectRoster,
+          null as unknown as SummaryBatchPipelineResult,
+        ),
+      ).toThrow(TypeError);
+      // outcome 가드는 호출되지 않아야 한다(result 가드가 먼저 차단).
+      expect(outcomeSpy).not.toHaveBeenCalled();
+      outcomeSpy.mockRestore();
+    });
+
+    it("(result.summaryLine 비-string preserved) result.summaryLine null → 기존 한국어 TypeError 전파(outcome 가드 spy 미호출)", () => {
+      // 기존 L129 string 가드가 outcome 가드 전 차단함을 검증 — 기존 동작 보존.
+      const outcomeSpy = jest.spyOn(
+        outcomeFormatShapeModule,
+        "assertSummaryBatchOutcomeFormatShape",
+      );
+
+      expect(() =>
+        formatSummaryBatchReport(
+          subjectRoster,
+          result(null as unknown as string),
+        ),
+      ).toThrow(/summaryLine/);
+      expect(outcomeSpy).not.toHaveBeenCalled();
+      outcomeSpy.mockRestore();
+    });
+
+    it("(determinism + non-mutation) 같은 (roster, result) 2회 호출 → byte-identical 반환 · outcome 가드 호출 2회(잔여 상태 누수 0) · 입력 비변형", () => {
+      const personIds = ["alice", "bob"];
+      const granularities: PeriodGranularity[] = ["day", "week"];
+      const personIdsSnapshot = [...personIds];
+      const granularitiesSnapshot = [...granularities];
+      const localRoster = roster({ personIds, granularities });
+      const nowTimeBefore = localRoster.now.getTime();
+      const subjectResult = result(VALID_OUTCOME_LINE);
+      const summaryLineBefore = subjectResult.summaryLine;
+      const outcomeSpy = jest.spyOn(
+        outcomeFormatShapeModule,
+        "assertSummaryBatchOutcomeFormatShape",
+      );
+
+      const first = formatSummaryBatchReport(localRoster, subjectResult);
+      const second = formatSummaryBatchReport(localRoster, subjectResult);
+
+      // 결정성: 두 출력 byte-identical + 가드 매 호출마다 1회(총 2회, 잔여 상태 누수 0).
+      expect(first).toBe(second);
+      expect(outcomeSpy).toHaveBeenCalledTimes(2);
+      // 비변형: 가드 배선이 입력 변형 0(가드 본문 비변형 + formatter 추가 변형 0).
+      expect(personIds).toEqual(personIdsSnapshot);
+      expect(granularities).toEqual(granularitiesSnapshot);
+      expect(localRoster.now.getTime()).toBe(nowTimeBefore);
+      expect(subjectResult.summaryLine).toBe(summaryLineBefore);
+      outcomeSpy.mockRestore();
     });
   });
 });

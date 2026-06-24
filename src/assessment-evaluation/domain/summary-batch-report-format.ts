@@ -53,6 +53,7 @@
 // 동일 가드를 별개 산출 지점(도메인 합본 formatter)에 적용(이중 단언 아님 — 별개 caller
 // surface).
 
+import { assertSummaryBatchOutcomeFormatShape } from "./summary-batch-outcome-format-shape";
 import type { SummaryBatchPipelineResult } from "./summary-batch-pipeline";
 import type { SummaryBatchRosterInput } from "./summary-batch-roster-input";
 import { formatSummaryBatchRosterPlan } from "./summary-batch-roster-plan-format";
@@ -106,13 +107,21 @@ export const RESULT_LABEL = "결과: ";
  *   null/undefined · enumerate 위임의 TypeError 는 `formatSummaryBatchRosterPlan`
  *   위임에서 전파(swallow 0). 또한 `assertSummaryBatchRosterPlanShape`(T-0637 wiring)가
  *   던지는 구조 결손 TypeError(plan 이 string 이 아닌 미래 회귀 — 형태 가드 본문
- *   single-source 참조 `summary-batch-roster-plan-shape.ts`).
+ *   single-source 참조 `summary-batch-roster-plan-shape.ts`). 또한
+ *   `assertSummaryBatchOutcomeFormatShape`(T-0639 wiring)가 던지는 구조 결손 TypeError
+ *   (outcome 라인이 string 이 아닌 미래 회귀 — 형태 가드 본문 single-source 참조
+ *   `summary-batch-outcome-format-shape.ts`. 단 L129 string 가드가 이미 string 을 보장하므로
+ *   실제 도달은 드물다).
  * @throws {RangeError} `roster.granularities` 에 알 수 없는 period 가 포함될 때
  *   `formatSummaryBatchRosterPlan` 위임 helper 의 RangeError 전파. 또한
  *   `assertSummaryBatchRosterPlanShape`(T-0637 wiring)가 던지는 형태 위반 RangeError
  *   (개행 혼입·prefix drift·person/총 좌표 토큰 누락·버킷 슬롯 누락·빈 라인 위장 미래
- *   회귀 — 형태 가드 본문 single-source 참조 `summary-batch-roster-plan-shape.ts`).
- *   가드 throw 시 합본 리포트 합성·반환 단계 미도달(손상 plan 라인이 합본으로 새는 것 차단).
+ *   회귀 — 형태 가드 본문 single-source 참조 `summary-batch-roster-plan-shape.ts`). 또한
+ *   `assertSummaryBatchOutcomeFormatShape`(T-0639 wiring)가 던지는 outcome 라인 형태 위반
+ *   RangeError(개행 혼입·prefix drift `요약 평가 batch: 총 `·카운트 토큰 누락·버킷 슬롯
+ *   누락·순서 뒤바뀜·빈 라인 위장 미래 회귀 — 형태 가드 본문 single-source 참조
+ *   `summary-batch-outcome-format-shape.ts`). 가드 throw 시 합본 리포트 합성·반환 단계
+ *   미도달(손상 plan/outcome 라인이 합본으로 새는 것 차단).
  */
 export function formatSummaryBatchReport(
   roster: SummaryBatchRosterInput,
@@ -159,6 +168,20 @@ export function formatSummaryBatchReport(
 
   // 결과 라인 — 이미 렌더된 result.summaryLine 을 가공 0 으로 재사용(중복 렌더 0 —
   // formatSummaryBatchOutcome 재호출 없음). 결과 라벨만 앞에 부착.
+  //
+  // T-0639 wiring(T-0637 plan-line mirror): RESULT_LABEL prepend·resultLine 합성 **전**에
+  // bare `result.summaryLine`(이미 formatSummaryBatchOutcome 으로 렌더된 outcome 한 줄)을
+  // assertSummaryBatchOutcomeFormatShape 로 단언한다. 가드의 prefix 불변식 ③ 은 bare
+  // outcome 라인이 `요약 평가 batch: 총 ` 으로 시작함을 요구하므로 라벨 부착 전 단언이 필수
+  // (라벨 부착 후 `결과: 요약 평가 batch: ...` 에 단언하면 prefix 불일치 false-positive
+  // throw). 정합이면 void 반환(무회귀), 위반이면 RangeError(형태 위반: 개행 혼입·prefix
+  // drift·카운트 토큰 누락·버킷 슬롯 누락·순서 뒤바뀜·빈 라인 위장)/TypeError(구조 결손)를
+  // 전파해 손상 outcome 라인이 합본 리포트 합성·반환 단계에 도달하기 전 fail-fast 차단한다.
+  // L129 string 가드(book-keeping)는 그대로 두고(기존 한국어 메시지 보존), 본 가드는 그
+  // 통과 후 형태 불변식(②~⑤)을 추가 검증한다(single-source `summary-batch-outcome-format-
+  // shape.ts`). T-0634 report-shape 가드(블록 외형)는 2번째 라인 내부 outcome 6 불변식을
+  // 검증하지 않으므로(책임 경계 분리) 본 가드가 그 silent leak 표면을 닫는다.
+  assertSummaryBatchOutcomeFormatShape(result.summaryLine);
   const resultLine = `${RESULT_LABEL}${result.summaryLine}`;
 
   // 두 라인을 개행 1개로 합성 — 정확히 2 라인(계획 먼저 · 결과 다음). 후행 개행 0.
