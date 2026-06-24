@@ -2,7 +2,10 @@
 id: T-0614
 title: R-61 요약 평가 batch plan 순수 composer — 좌표 + 좌표별 results map → evaluateAndPersist 인자 tuple 순서 plan 산출
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-24T00:56:15Z
+prNumber: 528
+mergedAs: 2926747
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 175
