@@ -2,12 +2,16 @@
 id: T-0643
 title: 실 평가 e2e 결과 요약 한 줄 라인 형태 불변식 검증 순수 가드 assertRealDataResultSummaryLineFormatShape
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 175
 estimatedFiles: 3
 created: 2026-06-24
+completedAt: 2026-06-24T18:54Z
+mergedAs: a479f9acc305e471cc0958d7400bacd124ece85d
+prNumber: 557
+reviewRounds: 1
 plannerNote: "P5 PLAN 109행 실 평가 e2e step④ 표현 가드 mirror — T-0642 한 줄 formatter 의 산출 라인 형태 불변식을 T-0638 summary-batch outcome-shape 가드 패턴으로 mirror. realdata-e2e-result-summary-line stream 두 번째 slice, dependsOn []"
 independentStream: realdata-e2e-result-summary-line
 dependsOn: []
