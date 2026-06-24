@@ -2,7 +2,7 @@
 id: T-0644
 title: 실 평가 e2e 결과 한 줄 formatter formatRealDataResultSummaryLine 반환 직전에 assertRealDataResultSummaryLineFormatShape 형태 가드 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 130
@@ -70,3 +70,13 @@ implementer → tester
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가. 본 task 닫히면 realdata-e2e 결과 한 줄 표현이 정의·검증 + formatter self-guard 배선까지 완결되므로, 자연 후속은 ① 가드/formatter 를 외부 산출처 (이슈 title·body 한 줄 진입점·journal·CI stdout) 에 wiring 배선 — T-0636 service-경계 mirror / T-0637 합본 formatter mirror 패턴 ② daily-test rolling 이슈 surface 에 실배선 (step ④ 박제 chain 합류) — 모두 realdata-e2e-result-summary-line stream 의 연속 slice 로 mirror chain 으로 이어진다.)
+
+---
+
+## Result (DONE)
+
+- **완료**: 2026-06-24 (cron@aa-local-15-cc7d fire)
+- **PR #558** squash merge `62c2da8` — reviewer r1 APPROVE, 4-게이트 PASS, CI green.
+- `formatRealDataResultSummaryLine` 반환 직전에 `assertRealDataResultSummaryLineFormatShape(line)` self-가드 배선(import 1줄 + JSDoc @throws RangeError 보강 + 합성 라인을 지역 변수 `line` 으로 받아 assert 후 반환). 출력 byte-identical 보존, 기존 입력 가드(null/undefined·byDifficulty/byContribution TypeError) 본문 변경 0.
+- test-only 변경: `test/helpers/realdata-e2e-result-summary-line.ts` (+19/-3), `...spec.ts` (+88). 7442 test green, `test:cov` exit 0 (line·function ≥80%).
+- MINOR 1건(test/helpers 전역 coverage denom 밖, non-blocking·로컬 100%).
