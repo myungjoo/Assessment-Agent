@@ -2,12 +2,15 @@
 id: T-0615
 title: R-61 요약 평가 batch outcome 집계 순수 composer — plan × evaluateAndPersist 결과 zip → 결정적 batch 리포트(평가/skip/created/existing + granularity별 분포)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 175
 estimatedFiles: 2
 created: 2026-06-24
+completedAt: 2026-06-24T01:18:00Z
+prNumber: 529
+mergedAs: 3c7ca4f
 plannerNote: "P5 PLAN 97행 R-61 — T-0614 batch plan 의 다음 순수 slice. plan × evaluateAndPersist 결과(SummaryAggregateResult[]) zip → 결정적 batch outcome 리포트. orchestrator 실배선(async @Injectable)은 후속"
 independentStream: p5-summary-aggregate
 dependsOn: [T-0614]
