@@ -2,7 +2,7 @@
 id: T-0617
 title: R-61 요약 평가 batch end-to-end 순수 pipeline composer — coordinates + results map + evaluator → buildSummaryBatchPlan → runSummaryBatchPlan → summarizeSummaryBatchOutcome 한 흐름 조립(orchestrator 실배선 deferred)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 200
