@@ -2,7 +2,7 @@
 id: T-0642
 title: 실 평가 e2e 결과 요약 descriptor → 사람-친화 한 줄 요약 순수 formatter formatRealDataResultSummaryLine
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 175
