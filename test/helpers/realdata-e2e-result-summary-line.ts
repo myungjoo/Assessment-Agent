@@ -53,6 +53,7 @@ import { CONTRIBUTION_LEVELS } from "../../src/assessment-evaluation/domain/eval
 import { DIFFICULTIES } from "../../src/llm/difficulty";
 
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
+import { assertRealDataResultSummaryLineFormatShape } from "./realdata-e2e-result-summary-line-format-shape";
 
 // RESULT_LINE_PREFIX — 한 줄 요약의 라벨 prefix(라벨 + 공백 1개). single source 로
 // export 해 후속 형태 검증 가드(realdata-e2e-result-summary-line-format-shape.ts,
@@ -92,6 +93,10 @@ export const RESULT_LINE_PREFIX = "실 평가 e2e 결과: ";
  * @throws {TypeError} `summary` 가 null/undefined 이거나 `summary.byDifficulty` /
  *   `summary.byContribution` 가 누락(undefined)된 불완전 객체일 때(silent 손상 라인
  *   산출 차단 — 기본값 채움·정규화 없이 fail-fast).
+ * @throws {RangeError} `assertRealDataResultSummaryLineFormatShape`(T-0643, 반환 직전
+ *   self-guard)가 던지는 산출 라인 형태 불변식 위반(개행 혼입·prefix drift·count/volume
+ *   토큰 누락·난이도/기여도 슬롯 누락·순서 뒤바뀜 — 이론상 formatter template 회귀 시).
+ *   형태 가드 본문 single-source 참조 `realdata-e2e-result-summary-line-format-shape.ts`.
  */
 export function formatRealDataResultSummaryLine(
   summary: RealDataResultSummary,
@@ -122,10 +127,21 @@ export function formatRealDataResultSummaryLine(
     (level) => summary.byContribution[level],
   ).join("/");
 
-  return (
+  // 결정적 한 줄을 합성한다(출력 byte-identical 보존 — 라인 내용 변경 0).
+  const line =
     `${RESULT_LINE_PREFIX}count=${summary.count}` +
     ` · volume=${summary.totalVolume}` +
     ` · 난이도(${DIFFICULTIES.join("/")})=${difficultyValues}` +
-    ` · 기여도(${CONTRIBUTION_LEVELS.join("/")})=${contributionValues}`
-  );
+    ` · 기여도(${CONTRIBUTION_LEVELS.join("/")})=${contributionValues}`;
+
+  // 반환 직전 self-guard(T-0639 summary-batch outcome wire 의 realdata-e2e mirror) —
+  // 합성된 라인이 형태 불변식(① string · ② 개행 0 · ③ prefix · ④ count/volume 토큰 ·
+  // ⑤ 난이도 슬롯 · ⑥ 기여도 슬롯)을 만족하는지 단언한다(single-source
+  // `realdata-e2e-result-summary-line-format-shape.ts`). 정합이면 void(무회귀·라인
+  // 비변형), 위반이면 RangeError(형태 위반)/TypeError(구조 결손)를 전파해 손상된 결과
+  // 라인이 caller surface(이슈 title·rolling 이슈 한 줄·journal·CI stdout)로 silent leak
+  // 하기 전 fail-fast 차단한다. 가드는 line 을 읽기만 하므로 출력은 무영향(byte-identical).
+  assertRealDataResultSummaryLineFormatShape(line);
+
+  return line;
 }

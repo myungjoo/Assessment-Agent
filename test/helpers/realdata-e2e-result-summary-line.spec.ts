@@ -23,6 +23,7 @@ import {
   RESULT_LINE_PREFIX,
   formatRealDataResultSummaryLine,
 } from "./realdata-e2e-result-summary-line";
+import * as formatShapeModule from "./realdata-e2e-result-summary-line-format-shape";
 
 // fixture 빌더 — 슬롯별 카운트를 명시적으로 받아 결정론적 descriptor 를 생성.
 // 부분 입력만 받아 나머지 슬롯은 0 으로 채운다(미지정 슬롯도 키 존재 보장).
@@ -294,6 +295,93 @@ describe("formatRealDataResultSummaryLine", () => {
       expect(line).toContain("volume=-5");
       expect(line).toContain("난이도(easy/medium/hard)=-2/0/0");
       expect(line).toContain("기여도(zero/low/medium/high)=-3/0/0/0");
+    });
+  });
+
+  describe("T-0644 형태 가드 self-배선(반환 직전 assert)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("① 가드 호출 배선 — 정상 호출 시 assertRealDataResultSummaryLineFormatShape 가 합성 라인 인자로 정확히 1회 호출", () => {
+      const spy = jest.spyOn(
+        formatShapeModule,
+        "assertRealDataResultSummaryLineFormatShape",
+      );
+      const summary = makeSummary({
+        count: 5,
+        byDifficulty: { easy: 2, medium: 2, hard: 1 },
+        byContribution: { zero: 1, low: 1, medium: 2, high: 1 },
+        totalVolume: 42,
+      });
+
+      const line = formatRealDataResultSummaryLine(summary);
+
+      // 가드가 산출 경로에 실제로 배선됐음을 증명(미배선 회귀 catch).
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 반환된 라인과 동일한 문자열을 인자로 받아야 한다(합성 직후·반환 직전 단언).
+      expect(spy).toHaveBeenCalledWith(line);
+    });
+
+    it("② 가드 throw 전파 — 가드가 throw 하면 formatter 가 삼키지 않고 전파(silent 통과 0)", () => {
+      const sentinel = new RangeError("형태 가드 위반(테스트 주입)");
+      jest
+        .spyOn(formatShapeModule, "assertRealDataResultSummaryLineFormatShape")
+        .mockImplementation(() => {
+          throw sentinel;
+        });
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 1, medium: 1, hard: 1 },
+        byContribution: { zero: 0, low: 1, medium: 1, high: 1 },
+        totalVolume: 9,
+      });
+
+      expect(() => formatRealDataResultSummaryLine(summary)).toThrow(sentinel);
+    });
+
+    it("③ 입력 가드 throw 분기 — null 입력은 형태 가드 도달 전 TypeError(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        formatShapeModule,
+        "assertRealDataResultSummaryLineFormatShape",
+      );
+
+      expect(() =>
+        formatRealDataResultSummaryLine(
+          null as unknown as RealDataResultSummary,
+        ),
+      ).toThrow(TypeError);
+      // 입력 가드가 먼저 throw 하므로 형태 가드는 호출되지 않는다.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("④ byte-identical 보존 — 배선 후에도 happy 출력이 명세 형태와 정확 일치(가드 통과·라인 비변형)", () => {
+      const summary = makeSummary({
+        count: 5,
+        byDifficulty: { easy: 2, medium: 2, hard: 1 },
+        byContribution: { zero: 1, low: 1, medium: 2, high: 1 },
+        totalVolume: 42,
+      });
+
+      const line = formatRealDataResultSummaryLine(summary);
+
+      expect(line).toBe(
+        "실 평가 e2e 결과: count=5 · volume=42 · 난이도(easy/medium/hard)=2/2/1 · 기여도(zero/low/medium/high)=1/1/2/1",
+      );
+    });
+
+    it("⑤ count=0 빈 batch descriptor 도 가드 통과·정상 한 줄 반환(throw 0)", () => {
+      const summary = makeSummary({
+        count: 0,
+        byDifficulty: {},
+        byContribution: {},
+        totalVolume: 0,
+      });
+
+      expect(() => formatRealDataResultSummaryLine(summary)).not.toThrow();
+      expect(formatRealDataResultSummaryLine(summary)).toBe(
+        "실 평가 e2e 결과: count=0 · volume=0 · 난이도(easy/medium/hard)=0/0/0 · 기여도(zero/low/medium/high)=0/0/0/0",
+      );
     });
   });
 
