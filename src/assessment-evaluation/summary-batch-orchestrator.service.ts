@@ -25,7 +25,11 @@
 // 위임된다.
 //
 // 부수효과 0(직접) / 새 외부 dependency 0 / 새 Prisma model 0 / 새 migration 0 —
-// service 는 산출(plan/outcomes/report)을 변형 없이 묶기만 한다. 입력
+// service 는 산출(plan/outcomes/report/summaryLine)을 변형 없이 묶기만 한다.
+// `summaryLine`(report 의 사람-친화 결정적 한국어 단일 라인 요약)은 pipeline 이
+// `formatSummaryBatchOutcome` 으로 산출하는 presentation 산출이며(T-0622, PR #536),
+// service 는 그것을 재구현·가공 없이 service 경계까지 그대로 통과·노출한다(자동
+// 상속 — service caller 도 코드 변경 0 으로 이 산출을 받는다). 입력
 // `coordinates`/`resultsByCoordinate`/`now` 비변형(pipeline 비변형 계약 상속).
 // raw 미저장(R-59).
 //
@@ -113,7 +117,10 @@ export class SummaryBatchOrchestratorService {
    *
    * @param input 좌표 / resultsByCoordinate / mode / options / now 를 묶은 단일 객체
    *   (`evaluator` 는 service 내부 합성이라 입력에 없음).
-   * @returns pipeline 의 `{ plan, outcomes, report }` 3 산출을 가공 없이 그대로 노출.
+   * @returns pipeline 의 `{ plan, outcomes, report, summaryLine }` 4 산출을 가공 없이
+   *   그대로 노출(`summaryLine` = report 의 사람-친화 한 줄 요약, pipeline 이
+   *   `formatSummaryBatchOutcome` 으로 산출 — service 변형 0. presentation 산출이
+   *   service 경계까지 자동 상속됨을 박제).
    * @throws 주입된 orchestrator / 하위 pipeline 조각이 던진 error 를 그대로 전파.
    */
   async evaluateBatch(
