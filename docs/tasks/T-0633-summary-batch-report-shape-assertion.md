@@ -2,7 +2,7 @@
 id: T-0633
 title: R-61 요약 batch 합본 리포트 블록 형태 불변식 검증 순수 가드 assertSummaryBatchReportShape
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 175
@@ -62,4 +62,8 @@ implementer → tester
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가. 예상 후속: 본 가드를 `reportBatch`/`evaluateAndReportForRoster` 의 반환 직전 단언 지점으로 배선하는 wiring slice — T-0621/T-0627 패턴 동형.)
+(비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가. 예상 후속: 본 가드를 `reportBatch`/`evaluateAndReportForRoster` 의 반환 직전 단언 지점으로 배선하는 wiring slice — T-0621/T-0627 패턴 동형. → T-0634 로 큐잉됨.)
+
+## Status
+
+DONE — 2026-06-24T10:39:35Z. PR #547 squash merge 50d5625 (r1 APPROVE, 4-게이트 PASS). 순수 가드 assertSummaryBatchReportShape(report) 신규 — ①string ②개행 1개(2라인) ③후행 0 ④계획 라벨+본문 ⑤결과 라벨+본문 fail-fast 검증. format 모듈 라벨 상수 single-source export 한 줄 amend(동작 무변경). 신규 파일 line/branch/function 100%, 전체 312 suite/7264 test green. post-merge main 50d5625 run in_progress — 다음 fire 에서 conclusion 재확인.
