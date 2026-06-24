@@ -50,8 +50,11 @@ import { formatSummaryBatchRosterPlan } from "./summary-batch-roster-plan-format
 // 합본 라벨 — single source(JSDoc 예시와 정합). 계획(pre-flight 범위) 먼저, 결과(outcome
 // summaryLine) 다음의 결정적 고정 순서. 라벨·구분자는 본 formatter 가 발명하는 유일한
 // 표현이며, 두 라인 본문은 각 single-source formatter 가 소유한다.
-const PLAN_LABEL = "계획: ";
-const RESULT_LABEL = "결과: ";
+// 라벨 상수는 형태 검증 가드(summary-batch-report-shape.ts, T-0633)가 single-source
+// 로 재사용하도록 export 한다 — 값·동작 무변경(상수 export 한 줄 amend). 라벨 drift
+// 방지(가드가 본 모듈을 import 해 동일 라벨로 검증).
+export const PLAN_LABEL = "계획: ";
+export const RESULT_LABEL = "결과: ";
 
 /**
  * R-61 요약 평가 batch 의 pre-flight 평가 범위(계획)와 outcome 결과를 **한 블록(정확히
