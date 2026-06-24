@@ -2,7 +2,7 @@
 id: T-0647
 title: buildRealDataResultIssueDescriptor 산출 직전 assertRealDataResultIssueDescriptorBodyConsistent self-wire 배선 (T-0644 formatter self-guard 의 descriptor-side mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 110
@@ -69,3 +69,10 @@ implementer → tester
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가. 본 task 닫히면 한 줄 요약이 정의·형태검증·self-guard·caller-surface 실배선·body 구조 무결성 런타임 강제·산출처 self-wire 까지 닿으므로, 자연 후속은 gh issue 실배선 — `gh issue create`/`comment` + daily-test step_eval + 실 Ollama LLM round-trip, LAN/credential gate deferred (PLAN 108~109행) — realdata-e2e-result-summary-line stream 의 live wiring slice 로 이어진다.)
+
+## Result
+
+- Status: DONE (2026-06-24T22:17Z, cron@aa-local-15-30032)
+- PR #561 squash-merge → main `f1fbf86`. reviewer round1 APPROVE + 외부 PR comment, 4-게이트 PASS, CI green.
+- IMPLEMENTER: `test/helpers/realdata-e2e-result-issue-descriptor.ts` +11/-2 — import 1줄 + 반환 직전 `assertRealDataResultIssueDescriptorBodyConsistent(descriptor, summary)` 호출 1지점 배선. body 합성·식별자 guard 본문 변경 0. type-only import 라 runtime cycle 0.
+- TESTER: colocated spec 에 "body-consistency self-guard self-wire 배선 (T-0647)" describe (13 it) append. spyOn 으로 가드 정확히 1회 호출 검증 + happy/error/branch/negative(결정성·비변형·byte-identical 회귀0·body구조·R-59) cover. 대상 helper 100%, 전역 test:cov line 99.95%/func 100%.
