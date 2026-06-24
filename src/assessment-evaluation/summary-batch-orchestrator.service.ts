@@ -62,6 +62,7 @@ import {
 } from "./domain/summary-batch-pipeline";
 import { buildSummaryBatchOrchestratorInput } from "./domain/summary-batch-roster-input";
 import type { SummaryBatchRosterInput } from "./domain/summary-batch-roster-input";
+import { assertSummaryBatchRosterInputConsistent } from "./domain/summary-batch-roster-input-consistency";
 import type { SummaryDueCoordinate } from "./domain/summary-due-coordinates";
 import type { PersistMode } from "./evaluation-result-persist.service";
 import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
@@ -166,6 +167,10 @@ export class SummaryBatchOrchestratorService {
    * (T-0624 composer 의 미소비 공백 배선).
    *
    * 흐름:
+   *   0. `assertSummaryBatchRosterInputConsistent(roster)` — composer 조립 **직전** ·
+   *      위임 전에 roster 의 `resultsByCoordinate` orphan key(enumerate 가 산출하지 않은
+   *      stray 좌표)를 단언 지점에서 fail-fast 로 막는다(orphan-result 가 plan-building 에서
+   *      silent drop 되기 전에 차단 — T-0621 가드 배선과 동형). 정합 roster 면 void(무회귀).
    *   1. `input = buildSummaryBatchOrchestratorInput(roster)` — roster × granularity 를
    *      `enumerateSummaryDueCoordinates` 로 좌표 enumerate(위임만) 후 resultsByCoordinate/
    *      mode/options/now 를 변형 0 으로 부착한 `SummaryBatchOrchestratorInput` 조립.
@@ -196,15 +201,25 @@ export class SummaryBatchOrchestratorService {
    * @returns `evaluateBatch` 위임이 반환하는 `{ plan, outcomes, report, summaryLine }`
    *   4 산출을 가공 없이 그대로 노출(좌표-진입점과 동일 산출 — composer 가 동일
    *   `SummaryBatchOrchestratorInput` 을 조립하므로 정합).
-   * @throws composer / `enumerateSummaryDueCoordinates` / 하위 pipeline 조각 /
-   *   주입된 orchestrator 가 던진 error 를 그대로 전파.
+   * @throws roster 의 `resultsByCoordinate` 에 enumerate 가 산출하지 않은 orphan key 가
+   *   있으면 `assertSummaryBatchRosterInputConsistent` 가 `RangeError` 로 fail-fast(silent
+   *   drop 차단), roster null/undefined 면 `TypeError`. 그 외 composer /
+   *   `enumerateSummaryDueCoordinates` / 하위 pipeline 조각 / 주입된 orchestrator 가 던진
+   *   error 도 그대로 전파.
    */
   async evaluateBatchForRoster(
     roster: SummaryBatchRosterInput,
   ): Promise<SummaryBatchPipelineResult> {
+    // composer 조립 **직전** orphan-result 가드 단언 — roster 의 resultsByCoordinate 에
+    // enumerate 가 산출하지 않은 orphan 좌표 key 가 있으면 RangeError(roster null/undefined
+    // 면 TypeError)로 fail-fast 해, 그 orphan 이 plan-building 단계에서 silent drop 되기
+    // 전에 막는다(T-0621 outcome 가드 배선과 동형 — exists-but-unwired 가드를 산출 경로
+    // 직전 단언 지점에 배선). 순수 가드(부수효과 0·입력 비변형)라 정합 roster 면 void.
+    assertSummaryBatchRosterInputConsistent(roster);
+
     // roster → SummaryBatchOrchestratorInput 조립(좌표 enumerate 포함) 후 기존
     // 좌표-진입점에 위임한다 — composer + evaluateBatch 합성만(재구현 0). roster
-    // null/undefined·필드 무결성·Invalid Date 의 fail-fast 는 composer/enumerate 가 전파.
+    // null/undefined·필드 무결성·Invalid Date 의 fail-fast 는 위 가드/composer/enumerate 가 전파.
     const input = buildSummaryBatchOrchestratorInput(roster);
     return this.evaluateBatch(input);
   }
