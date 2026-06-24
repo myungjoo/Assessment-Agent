@@ -2,7 +2,7 @@
 id: T-0629
 title: R-61 요약 batch roster pre-flight 요약을 service 경계로 외화 (previewRosterPlan)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 120
@@ -59,3 +59,9 @@ implementer → tester
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
+
+## 완료 요약
+
+**Status: DONE** — 2026-06-24, PR #543 squash 673dfa2 (cron@aa-cloud-22b6 fire).
+
+`SummaryBatchOrchestratorService.previewRosterPlan(roster): string` 추가 — `formatSummaryBatchRosterPlan(roster)` 위임 1줄(재구현 0). formatter import 1줄 + 클래스 머리말 주석에 진입점 셋(`evaluateBatch`/`evaluateBatchForRoster`/`previewRosterPlan`) 정정. 생성자/DI/기존 진입점 무변경. spec 14 test(happy byte-identical + error null/undefined TypeError·bad granularity/Invalid Date throw 전파 + branch 빈 roster 0좌표·다건 roster). 변경 service 파일 line/branch/function 100%, 전체 310 suite/7180 test green, coverageThreshold(line≥80%·function≥80%) 통과. reviewer r1 APPROVE(8-check, finding 0) + PR comment 외부 존재, 4-게이트 PASS. fineGrainedConcurrency claim path: lock CAS 획득(4aa066f→00b1190) → claims [] reclaim no-op → maxConcurrentClaims=2 게이트 통과(active 0, pr-mode 단독) → select-claim atomic claim + lock tombstone release → lock-free 진행. concurrency incident 0.
