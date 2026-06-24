@@ -2,8 +2,12 @@
 id: T-0640
 title: R-61 요약 batch outcome 한 줄 요약을 service 경계 previewOutcomeLine 으로 외화 (shape 가드 배선 동반)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 554
+mergedAs: ba0dd33
+reviewRounds: 1
+completedAt: 2026-06-24T15:59:58Z
 coversReq: [REQ-061]
 estimatedDiff: 120
 estimatedFiles: 2
