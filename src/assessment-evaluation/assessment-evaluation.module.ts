@@ -47,6 +47,7 @@ import { EvaluationUnevaluatedFillPlanner } from "./evaluation-unevaluated-fill-
 import { PeriodBridgeAdminPersistService } from "./period-bridge-admin-persist.service";
 import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
 import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
+import { SummaryBatchOrchestratorService } from "./summary-batch-orchestrator.service";
 import { SummaryNarrativeService } from "./summary-narrative.service";
 import { SummaryPersistService } from "./summary-persist.service";
 import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-orchestrator.service";
@@ -97,6 +98,13 @@ import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-or
     // compose 한다. 추가 import 0(같은 module 내 DI resolve). 후속 controller slice 가
     // inject 받는다.
     SummaryAggregateOrchestratorService,
+    // SummaryBatchOrchestratorService — T-0618(R-61 batch orchestrator service slice).
+    // SummaryAggregateOrchestratorService(같은 module)를 생성자 주입받아 그 인스턴스의
+    // evaluateAndPersist 를 runSummaryBatchPipeline 의 evaluator 로 합성한다 — batch 전
+    // 좌표를 단일 service 호출(evaluateBatch)로 평가·영속화·집계하는 service-경계 진입점.
+    // 추가 module import 0(같은 module 내 DI resolve). 후속 controller slice(Q-0030 RBAC
+    // ADR-gated)가 inject 받는다.
+    SummaryBatchOrchestratorService,
     // PeriodBridgeEphemeralService — T-0316(ADR-0037 §Decision1 User self-only ephemeral
     // + §Decision4 fresh in-memory collect). CollectionSpecService /
     // CollectionOrchestratorService(AssessmentCollectionModule export) +
@@ -153,6 +161,9 @@ import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-or
     SummaryPersistService,
     // 후속 controller slice 가 aggregate 평가 orchestrator 를 inject 받도록 export(T-0310).
     SummaryAggregateOrchestratorService,
+    // 후속 controller slice(Q-0030 RBAC ADR-gated)가 batch 요약 평가 orchestrator 를
+    // inject 받도록 export(T-0618).
+    SummaryBatchOrchestratorService,
     // 후속 controller slice(slice 3, POST /api/assessment-evaluation/period)가 ephemeral
     // bridge service 를 inject 받도록 export(T-0316).
     PeriodBridgeEphemeralService,
