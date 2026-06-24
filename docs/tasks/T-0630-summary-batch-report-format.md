@@ -2,7 +2,11 @@
 id: T-0630
 title: R-61 요약 batch pre-flight 범위 + outcome 결과를 한 블록으로 묶는 순수 formatter formatSummaryBatchReport(roster, result) → string 추가
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-24
+mergedAs: 5a601e5
+prNumber: 544
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 175
