@@ -2,7 +2,7 @@
 id: T-0616
 title: R-61 요약 평가 batch plan 순회 순수 async 실행 helper — plan + evaluator callback → outcomes[] index 1:1 zip (orchestrator 실배선 deferred)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 175
