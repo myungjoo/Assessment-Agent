@@ -2,8 +2,11 @@
 id: T-0620
 title: R-61 요약 평가 batch outcome 리포트 불변식 검증 순수 가드 — assertSummaryBatchOutcomeConsistent(report) → void (pure invariant check)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 534
+mergedAs: 970e630
+reviewRounds: 1
 coversReq: [REQ-061]
 estimatedDiff: 175
 estimatedFiles: 2
