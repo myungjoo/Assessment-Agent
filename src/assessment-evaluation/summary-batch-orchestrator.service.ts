@@ -59,6 +59,13 @@
 // `{ result, report }` 를 반환한다 — 두 메서드 합성만(재구현 0, pipeline 실행·formatter
 // 렌더 복제 0). caller 가 "roster batch 실행 + 그 계획·결과 합본 리포트" 를 두 메서드 수동
 // chain 없이 한 호출로 받는다(호출 순서·인자 drift 구조적 차단).
+// T-0641 이 `reportBatch` 호출 직후·`{ result, report }` 반환 직전에
+// `assertSummaryBatchOutcomeFormatShape(result.summaryLine)` 단언을 추가해 standalone
+// outcome surface(caller 가 반환 객체에서 직접 역참조하는 `result.summaryLine`)에 대한
+// 형태 불변식 가드를 합성 진입점에 배선한다. 합본 `report` 의 outcome 라인은 T-0634
+// report-shape 가드가 별도 입력으로 보호하지만, `result.summaryLine` 필드는 그 가드의 보호
+// 밖이라 본 배선이 비대칭을 닫는다(`previewOutcomeLine` 의 가드와 동일 대상·동일 단언 지점
+// 정책 상속, 별개 산출 지점이라 이중 단언 아님).
 // (6) `previewOutcomeLine(result)` — batch 실행 산출 `result.summaryLine`(outcome 한 줄
 // 요약, pipeline 이 `formatSummaryBatchOutcome` 으로 산출)을 산출 직후·반환 전에
 // `assertSummaryBatchOutcomeFormatShape(result.summaryLine)`(T-0638) 형태 가드 단언으로
@@ -425,11 +432,21 @@ export class SummaryBatchOrchestratorService {
    *      `reportBatch` 가 T-0634 형태 가드 단언을 산출 직후 수행하므로 손상 report 는
    *      여기에서 fail-fast 전파되어 본 메서드의 반환·report 미생성으로 이어진다
    *      (별도 가드 호출 0 — 자동 상속).
-   *   3. `return { result, report }` — 실행 산출(동일 instance)과 합본 리포트 문자열을 묶어 반환.
+   *   3. `assertSummaryBatchOutcomeFormatShape(result.summaryLine)` — 2 가 통과한 뒤·반환
+   *      전에 standalone outcome surface (`result.summaryLine`) 에 대해 형태 불변식 단언을
+   *      1 회 추가한다(T-0641 wiring). 합본 `report` 는 step 2 가드가 보호하지만 caller 가
+   *      `{ result, report }` 에서 `result.summaryLine` 을 직접 역참조하는 경로는 그 가드의
+   *      보호 밖이라, 본 메서드가 그 비대칭을 닫는다(`previewOutcomeLine` 의 가드와 동일
+   *      대상·동일 단언 지점 정책을 합성 진입점에 상속). 정합 라인이면 void(무회귀), 위반이면
+   *      한국어 TypeError(구조)/RangeError(형태) 전파해 손상 `result.summaryLine` 이 caller
+   *      (로그·journal·notification surface)에 도달하기 전 차단(single-source 가드 본문
+   *      `summary-batch-outcome-format-shape.ts`). step 2 의 report-shape 가드와는 입력이
+   *      다르므로 이중 단언 아님(서로 다른 불변식).
+   *   4. `return { result, report }` — 실행 산출(동일 instance)과 합본 리포트 문자열을 묶어 반환.
    *
    * 합성만(재구현 0): pipeline 실행은 `evaluateBatchForRoster`, 리포트 렌더는 `reportBatch`
-   * 가 전적으로 소유한다. 본 메서드는 두 호출의 순서·인자(같은 `roster`, 1 의 `result`)만
-   * 배선한다.
+   * 가 전적으로 소유한다. 본 메서드는 두 호출의 순서·인자(같은 `roster`, 1 의 `result`)와
+   * 반환 직전 outcome-line 형태 가드 단언 1 줄만 배선한다.
    *
    * 실패 전파 상속(swallow 0):
    *   - `roster` null/undefined → `evaluateBatchForRoster` 의 가드/composer TypeError 전파.
@@ -439,7 +456,11 @@ export class SummaryBatchOrchestratorService {
    *     Invalid Date → enumerate 위임의 TypeError/RangeError 전파(좌표 단계 fail-fast).
    *   - 주입된 orchestrator `evaluateAndPersist` reject/throw → `evaluateBatchForRoster`
    *     경로로 그대로 전파되고, **`reportBatch` 에 도달하지 않는다**(report 미생성 —
-   *     await 가 즉시 reject, step 2 미실행).
+   *     await 가 즉시 reject, step 2/3 미실행).
+   *   - `reportBatch` 의 report-shape 가드 throw → step 3 outcome 가드 미도달(report 단계
+   *     fail-fast, 반환 미도달).
+   *   - step 3 outcome 가드가 형태 불변식 위반 → 한국어 TypeError/RangeError 전파, 반환
+   *     미도달(손상 `result.summaryLine` caller 미반환).
    *   - 빈 roster(빈 `personIds` 또는 빈 `granularities`) → 빈 실행 산출 + report 빈 batch
    *     2 라인 블록(throw 0, 하위 정책 상속).
    *
@@ -466,8 +487,19 @@ export class SummaryBatchOrchestratorService {
     //    보장(재구현 0). reject 시 await 가 즉시 전파해 아래 reportBatch 에 도달하지 않는다.
     const result = await this.evaluateBatchForRoster(roster);
     // 2. 1 과 동일 roster + 그 result 로 계획·결과 합본 리포트 산출(formatter 위임, 재실행 0).
+    //    reportBatch 내부의 T-0634 report-shape 가드가 합본 report 문자열 손상을 차단한다.
     const report = this.reportBatch(roster, result);
-    // 3. 실행 산출(동일 instance)과 합본 리포트 문자열을 묶어 반환.
+    // 3. 반환 직전 standalone outcome surface (result.summaryLine) 형태 불변식 단언(T-0641
+    //    wiring) — step 2 report-shape 가드는 합본 report 문자열 대상이라 caller 가
+    //    `{ result, report }` 에서 result.summaryLine 을 직접 역참조하는 경로(previewOutcomeLine
+    //    의 단독 외화와 동일 surface)는 보호 밖이다. 본 단언이 그 비대칭을 닫는다 —
+    //    `previewOutcomeLine`(T-0640) 의 가드와 동일 대상·동일 단언 지점 정책을 합성 진입점에
+    //    상속. 정합이면 void(무회귀), 위반이면 한국어 TypeError(구조)/RangeError(형태) 전파해
+    //    손상 라인이 caller(로그·journal·notification surface)에 도달하기 전 차단(single-source
+    //    가드 본문 `summary-batch-outcome-format-shape.ts`). step 2 가드와는 입력이 다르므로
+    //    이중 단언 아님(서로 다른 불변식).
+    assertSummaryBatchOutcomeFormatShape(result.summaryLine);
+    // 4. 두 가드 모두 통과 — 실행 산출(동일 instance)과 합본 리포트 문자열을 묶어 반환.
     return { result, report };
   }
 
