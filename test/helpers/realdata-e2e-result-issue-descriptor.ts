@@ -53,6 +53,7 @@
 //   - Person 별 / 기간 별 group-by 이슈 분해(본 helper 는 단일 결과 1 이슈 descriptor 만).
 //   - 외부 템플릿/해시 라이브러리 도입 — 내장 string 합성만.
 //   - production `src/` 코드 변경 — test helper 단독(타입·렌더 함수 import 재사용만).
+import { assertRealDataResultIssueDescriptorBodyConsistent } from "./realdata-e2e-result-issue-descriptor-body-consistency";
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
 import { formatRealDataResultSummaryLine } from "./realdata-e2e-result-summary-line";
 import { renderRealDataResultSummaryMarkdown } from "./realdata-e2e-result-summary-markdown";
@@ -136,6 +137,16 @@ export function buildRealDataResultIssueDescriptor(
     "",
     renderRealDataResultSummaryMarkdown(summary),
   ].join("\n");
+
+  // self-wire — 합성한 descriptor 의 body 3 블록 구조 무결성을 반환 직전 self-assert
+  // (T-0644 formatter self-guard 의 descriptor-side mirror). 정상 합성이면 가드는 void
+  // 반환하므로 동작·반환값 byte-identical 보존. 미래 회귀(블록 순서·구분 빈 줄·한 줄
+  // 요약 중복/누락·markdown 가공)가 생기면 손상 descriptor 를 반환하기 전에 한국어
+  // 명세형 에러로 즉시 throw 한다(fail-fast).
+  assertRealDataResultIssueDescriptorBodyConsistent(
+    { title, marker, body },
+    summary,
+  );
 
   return { title, marker, body };
 }
