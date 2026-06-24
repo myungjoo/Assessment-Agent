@@ -10,7 +10,9 @@ import type { PeriodGranularity } from "./period-evaluable";
 import type { SummaryBatchPipelineResult } from "./summary-batch-pipeline";
 import { formatSummaryBatchReport } from "./summary-batch-report-format";
 import type { SummaryBatchRosterInput } from "./summary-batch-roster-input";
+import * as rosterPlanFormatModule from "./summary-batch-roster-plan-format";
 import { formatSummaryBatchRosterPlan } from "./summary-batch-roster-plan-format";
+import * as rosterPlanShapeModule from "./summary-batch-roster-plan-shape";
 
 // 고정 now — 결정성 확보용(시스템 시계 미사용). KST 임의 시각.
 const FIXED_NOW = new Date("2026-06-24T05:00:00.000Z");
@@ -332,6 +334,229 @@ describe("formatSummaryBatchReport", () => {
       expect(planLine).toBe(
         `계획: ${formatSummaryBatchRosterPlan(subjectRoster)}`,
       );
+    });
+  });
+
+  // ── T-0637: 합본 1번째 라인 plan-shape 가드 배선 ───────────────────────────────
+  // formatSummaryBatchReport(roster, result) 가 formatSummaryBatchRosterPlan(roster)
+  // 산출 직후·PLAN_LABEL prepend 및 합성 전에 assertSummaryBatchRosterPlanShape(plan)
+  // 형태 가드 단언을 호출함을 박제한다(T-0636 service-boundary 배선의 합본 mirror —
+  // 이번엔 도메인 합본 formatter 내부의 별개 산출 지점이 대상). 검증축:
+  // (1) 가드가 정확히 1회 + bare formatter 산출(라벨 prepend 전) 인자 그대로 호출(배선
+  //     사실 + 가드 대상이 라벨 부착 라인이 아닌 bare plan 라인임을 박제 — 가드의 prefix
+  //     불변식 ③ 이 bare plan 라인 기준이므로 라벨 부착 후 단언하면 prefix 불일치로
+  //     false-positive throw),
+  // (2) format → assert → return 호출 순서(spy invocationCallOrder),
+  // (3) 가드 RangeError/TypeError throw 가 그대로 전파되어 손상 합본 미반환,
+  // (4) 같은 (roster, result) 2회 호출 결정성·잔여 상태 누수 0,
+  // (5) 입력 비변형. 형태 가드 본문은 변경 0(single-source `summary-batch-roster-plan-
+  // shape.ts`) — 본 spec 은 formatter 의 단언 호출 배선만 검증한다.
+
+  describe("plan-shape 가드 배선(T-0637)", () => {
+    const subjectRoster = roster({
+      personIds: ["alice", "bob"],
+      granularities: ["day", "week"] as PeriodGranularity[],
+    });
+    const SAMPLE_SUMMARY_LINE =
+      "요약 평가 batch: 총 4건 · 평가 4 (생성 4 / 기존 0) · skip 0 [day 2(평가2) · week 2(평가2) · month 0 · other 0]";
+
+    it("(happy) 정합 (roster, result) → 가드가 bare formatter 산출(라벨 부착 전) 인자 그대로 정확히 1회 호출됨 + throw 0 + 기존과 byte-identical 합본 반환", () => {
+      const subjectResult = result(SAMPLE_SUMMARY_LINE);
+      // spyOn 은 formatter 가 import 하는 동일 module namespace 객체를 가로채므로 formatter
+      // 의 실제 호출이 잡힌다. 실 구현은 그대로 호출(정상 형태면 void) — 정합 산출이
+      // 변형 없이 반환되는 happy 분기를 검증.
+      const shapeSpy = jest.spyOn(
+        rosterPlanShapeModule,
+        "assertSummaryBatchRosterPlanShape",
+      );
+
+      const block = formatSummaryBatchReport(subjectRoster, subjectResult);
+
+      // (a) 가드가 정확히 1회 + bare formatter 산출(label prepend 전 string) 인자 그대로
+      //     호출(배선 사실 박제). bare plan 라인은 `요약 평가 batch 예정: ` 로 시작하며,
+      //     `계획: ` label 이 부착된 합본 라인은 아니다(가드 prefix 불변식 ③ 일관성).
+      expect(shapeSpy).toHaveBeenCalledTimes(1);
+      const bareSpyArg = shapeSpy.mock.calls[0][0];
+      expect(bareSpyArg).toBe(formatSummaryBatchRosterPlan(subjectRoster));
+      expect(bareSpyArg.startsWith("요약 평가 batch 예정: ")).toBe(true);
+      // 가드 인자가 라벨 부착 라인 (`계획: ...`)이 아님을 명시 박제.
+      expect(bareSpyArg.startsWith("계획: ")).toBe(false);
+      // (b) 정합 산출은 가드 통과 후 byte-identical 합본 반환(가드가 정상 plan 라인
+      //     변형·차단 0, 합본 합성 로직 무변경).
+      const expected = `계획: ${formatSummaryBatchRosterPlan(subjectRoster)}\n결과: ${SAMPLE_SUMMARY_LINE}`;
+      expect(block).toBe(expected);
+      shapeSpy.mockRestore();
+    });
+
+    it("(call order) format → assert → return 순서임을 invocation order 로 검증(spy 두 함수 호출 순서)", () => {
+      // 호출 순서만 기록(spyOn 은 formatter 가 import 하는 동일 module namespace 객체를
+      // 가로채므로 formatter 의 실제 호출이 잡힌다). 실 구현 캡처(spy 가 같은 binding 을
+      // 덮으므로 재귀 방지용 actual 참조).
+      const order: string[] = [];
+      const actualFormat = rosterPlanFormatModule.formatSummaryBatchRosterPlan;
+      const formatSpy = jest
+        .spyOn(rosterPlanFormatModule, "formatSummaryBatchRosterPlan")
+        .mockImplementation((r) => {
+          order.push("format");
+          return actualFormat(r);
+        });
+      const shapeSpy = jest
+        .spyOn(rosterPlanShapeModule, "assertSummaryBatchRosterPlanShape")
+        .mockImplementation(() => {
+          order.push("assert");
+        });
+
+      formatSummaryBatchReport(subjectRoster, result(SAMPLE_SUMMARY_LINE));
+
+      // format → assert(가드는 formatter 산출 **뒤** 호출 — 합성·반환 전 단언).
+      expect(order).toEqual(["format", "assert"]);
+      // 가드가 받은 인자는 formatter 가 반환한 그 산출(같은 string 참조).
+      expect(shapeSpy).toHaveBeenCalledWith(formatSpy.mock.results[0].value);
+      formatSpy.mockRestore();
+      shapeSpy.mockRestore();
+    });
+
+    it("(negative 1) 가드 RangeError throw → 그대로 전파 + 손상 합본 미반환", () => {
+      const corrupted = new RangeError("test corrupted plan shape");
+      const shapeSpy = jest
+        .spyOn(rosterPlanShapeModule, "assertSummaryBatchRosterPlanShape")
+        .mockImplementation(() => {
+          throw corrupted;
+        });
+
+      expect(() =>
+        formatSummaryBatchReport(subjectRoster, result(SAMPLE_SUMMARY_LINE)),
+      ).toThrow(corrupted);
+      // 가드 throw → 손상 plan 라인이 합본 리포트 합성·반환 단계에 도달하기 전 차단.
+      expect(shapeSpy).toHaveBeenCalledTimes(1);
+      shapeSpy.mockRestore();
+    });
+
+    it("(negative 2) 가드 TypeError throw → 그대로 전파 + 손상 합본 미반환(구조 결손 시뮬)", () => {
+      const corrupted = new TypeError("test plan type fail");
+      const shapeSpy = jest
+        .spyOn(rosterPlanShapeModule, "assertSummaryBatchRosterPlanShape")
+        .mockImplementation(() => {
+          throw corrupted;
+        });
+
+      expect(() =>
+        formatSummaryBatchReport(subjectRoster, result(SAMPLE_SUMMARY_LINE)),
+      ).toThrow(corrupted);
+      expect(shapeSpy).toHaveBeenCalledTimes(1);
+      shapeSpy.mockRestore();
+    });
+
+    it("(negative 3) formatter 가 손상 형태(개행 혼입) 반환 → 실 가드가 RangeError 로 전파 + 손상 합본 미반환", () => {
+      // formatter 만 mock 으로 손상 plan(개행 혼입 = 단일 라인 불변식 위반) 반환하게 하고,
+      // 가드는 실 구현 그대로 둬 실제 형태 위반 차단 경로(format mock → 실 가드 throw)를
+      // 검증.
+      const formatSpy = jest
+        .spyOn(rosterPlanFormatModule, "formatSummaryBatchRosterPlan")
+        .mockReturnValue(
+          "요약 평가 batch 예정: person 1명 · 총 1좌표 [day 1 · week 0 · month 0 · other 0]\n오염",
+        );
+
+      expect(() =>
+        formatSummaryBatchReport(subjectRoster, result(SAMPLE_SUMMARY_LINE)),
+      ).toThrow(RangeError);
+      formatSpy.mockRestore();
+    });
+
+    it("(negative 4) formatter 가 prefix drift(없는 prefix) 반환 → 실 가드가 RangeError 로 전파", () => {
+      // prefix drift(③ 불변식 위반) 가 가드에서 차단됨을 검증.
+      const formatSpy = jest
+        .spyOn(rosterPlanFormatModule, "formatSummaryBatchRosterPlan")
+        .mockReturnValue(
+          "WRONG_PREFIX: person 1명 · 총 1좌표 [day 1 · week 0 · month 0 · other 0]",
+        );
+
+      expect(() =>
+        formatSummaryBatchReport(subjectRoster, result(SAMPLE_SUMMARY_LINE)),
+      ).toThrow(RangeError);
+      formatSpy.mockRestore();
+    });
+
+    it("(call ordering vs label) 가드 호출이 PLAN_LABEL prepend **전** 임을 reverse-fail 로 검증 — 라벨 prefix 가 가드 인자에 새지 않음", () => {
+      // 가드 spy 인자를 정밀하게 검증. 만약 future regression 으로 라벨 부착 후 단언으로
+      // 잘못 변경되면 가드 인자가 `계획: ...` 로 시작하게 되어 본 expect 가 fail.
+      const shapeSpy = jest.spyOn(
+        rosterPlanShapeModule,
+        "assertSummaryBatchRosterPlanShape",
+      );
+
+      formatSummaryBatchReport(subjectRoster, result(SAMPLE_SUMMARY_LINE));
+
+      expect(shapeSpy).toHaveBeenCalledTimes(1);
+      const arg = shapeSpy.mock.calls[0][0];
+      // bare plan 라인은 `요약 평가 batch 예정: ` 로 시작해야 한다(가드 ③ 정합).
+      expect(arg.startsWith("요약 평가 batch 예정: ")).toBe(true);
+      // 라벨 부착 후 단언이면 `계획: ` 으로 시작하게 됨 — 본 expect 가 false-positive
+      // 회귀 catch.
+      expect(arg.includes("계획: ")).toBe(false);
+      shapeSpy.mockRestore();
+    });
+
+    it("(determinism + non-mutation) 같은 (roster, result) 2회 호출 → byte-identical 반환 · 가드 호출 2회(잔여 상태 누수 0) · 입력 비변형(가드 배선이 roster·result.summaryLine 변형 0)", () => {
+      const personIds = ["alice", "bob"];
+      const granularities: PeriodGranularity[] = ["day", "week"];
+      const personIdsSnapshot = [...personIds];
+      const granularitiesSnapshot = [...granularities];
+      const localRoster = roster({ personIds, granularities });
+      const nowTimeBefore = localRoster.now.getTime();
+      const subjectResult = result(SAMPLE_SUMMARY_LINE);
+      const summaryLineBefore = subjectResult.summaryLine;
+      const shapeSpy = jest.spyOn(
+        rosterPlanShapeModule,
+        "assertSummaryBatchRosterPlanShape",
+      );
+
+      const first = formatSummaryBatchReport(localRoster, subjectResult);
+      const second = formatSummaryBatchReport(localRoster, subjectResult);
+
+      // 결정성: 두 출력 byte-identical + 가드 매 호출마다 1회(총 2회, 잔여 상태 누수 0).
+      expect(first).toBe(second);
+      expect(shapeSpy).toHaveBeenCalledTimes(2);
+      // 비변형: 가드 배선이 입력 변형 0(가드 본문 비변형 + formatter 추가 변형 0).
+      expect(personIds).toEqual(personIdsSnapshot);
+      expect(granularities).toEqual(granularitiesSnapshot);
+      expect(localRoster.now.getTime()).toBe(nowTimeBefore);
+      expect(subjectResult.summaryLine).toBe(summaryLineBefore);
+      shapeSpy.mockRestore();
+    });
+
+    it("(result null preserved) result null → 기존 한국어 TypeError 전파(가드 단계 미도달 — 가드 spy 미호출)", () => {
+      // 기존 result 가드(직접 throw)가 가드 호출 전 차단함을 검증 — R-112 기존 동작 보존.
+      const shapeSpy = jest.spyOn(
+        rosterPlanShapeModule,
+        "assertSummaryBatchRosterPlanShape",
+      );
+
+      expect(() =>
+        formatSummaryBatchReport(
+          subjectRoster,
+          null as unknown as SummaryBatchPipelineResult,
+        ),
+      ).toThrow(TypeError);
+      // 가드는 호출되지 않아야 한다(result 가드가 먼저 차단).
+      expect(shapeSpy).not.toHaveBeenCalled();
+      shapeSpy.mockRestore();
+    });
+
+    it("(result.summaryLine 비-string preserved) result.summaryLine null → 기존 한국어 TypeError 전파(가드 spy 미호출)", () => {
+      const shapeSpy = jest.spyOn(
+        rosterPlanShapeModule,
+        "assertSummaryBatchRosterPlanShape",
+      );
+
+      expect(() =>
+        formatSummaryBatchReport(
+          subjectRoster,
+          result(null as unknown as string),
+        ),
+      ).toThrow(/summaryLine/);
+      expect(shapeSpy).not.toHaveBeenCalled();
+      shapeSpy.mockRestore();
     });
   });
 });
