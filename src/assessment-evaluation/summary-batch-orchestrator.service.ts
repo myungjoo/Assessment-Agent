@@ -24,7 +24,7 @@
 // 호출·DB write)는 전적으로 주입된 orchestrator → SummaryPersistService 책임으로
 // 위임된다.
 //
-// 진입점은 셋이다(모두 public): (1) `evaluateBatch(input)` — caller 가 이미
+// 진입점은 다섯이다(모두 public): (1) `evaluateBatch(input)` — caller 가 이미
 // enumerate 해 넘긴 `coordinates` 입력을 받는 좌표-진입점. (2) `evaluateBatchForRoster(
 // roster)` — roster(personIds) + granularities 를 직접 받아 T-0624 순수 composer
 // `buildSummaryBatchOrchestratorInput` 으로 `SummaryBatchOrchestratorInput` 을 조립한
@@ -44,6 +44,12 @@
 // service 모듈 하나만 import 해 pre-flight 라인 + 결과 라인을 한 블록으로 받는다.
 // 평가 경로(`evaluateBatch`/`evaluateBatchForRoster`/주입된 orchestrator)를 호출하지 않으며,
 // batch 결과 `result` 는 caller 가 이미 보유한 산출을 인자로 받는다(service 가 재실행 0).
+// (5) `evaluateAndReportForRoster(roster)` — roster 실행 후 합본 리포트까지 한 호출로
+// 반환하는 합성 진입점(T-0632). 내부에서 (2) `evaluateBatchForRoster(roster)` 로 실행해
+// `result` 를 얻은 뒤 (4) `reportBatch(roster, result)` 로 합본 리포트를 산출하고
+// `{ result, report }` 를 반환한다 — 두 메서드 합성만(재구현 0, pipeline 실행·formatter
+// 렌더 복제 0). caller 가 "roster batch 실행 + 그 계획·결과 합본 리포트" 를 두 메서드 수동
+// chain 없이 한 호출로 받는다(호출 순서·인자 drift 구조적 차단).
 //
 // 부수효과 0(직접) / 새 외부 dependency 0 / 새 Prisma model 0 / 새 migration 0 —
 // service 는 산출(plan/outcomes/report/summaryLine)을 변형 없이 묶기만 한다.
@@ -318,5 +324,64 @@ export class SummaryBatchOrchestratorService {
     result: SummaryBatchPipelineResult,
   ): string {
     return formatSummaryBatchReport(roster, result);
+  }
+
+  /**
+   * R-61 요약 평가 batch 를 roster 로 실행한 **후** 그 계획·결과 합본 리포트까지 한 호출로
+   * 반환하는 합성 진입점(PLAN.md P5 bullet 97 / REQ-061). roster 실행 진입점
+   * `evaluateBatchForRoster(roster)`(T-0625)와 사후 합본 리포트 진입점
+   * `reportBatch(roster, result)`(T-0631)가 두 메서드로 분리돼, caller(로그·journal·
+   * notification·관측 surface)가 "roster batch 를 실행하고 그 계획+결과를 한 블록으로 받기"
+   * 위해 두 호출을 손수 이어야 했던 공백을 닫는다. 본 메서드는 그 두 호출을 합성만 한다 —
+   * pipeline 실행·formatter 렌더 로직을 복제하지 않는다(재구현 0).
+   *
+   * 흐름:
+   *   1. `const result = await this.evaluateBatchForRoster(roster)` — roster 를 실행해
+   *      `SummaryBatchPipelineResult`(`{ plan, outcomes, report, summaryLine }`)를 얻는다
+   *      (orphan-result 가드·composer·pipeline 합성·실패 전파는 그 메서드가 보장).
+   *   2. `const report = this.reportBatch(roster, result)` — 1 의 산출과 동일 `roster` 로
+   *      계획 라인 + 결과 라인 2 라인 합본 한국어 리포트 블록을 산출한다(formatter 위임).
+   *   3. `return { result, report }` — 실행 산출(동일 instance)과 합본 리포트 문자열을 묶어 반환.
+   *
+   * 합성만(재구현 0): pipeline 실행은 `evaluateBatchForRoster`, 리포트 렌더는 `reportBatch`
+   * 가 전적으로 소유한다. 본 메서드는 두 호출의 순서·인자(같은 `roster`, 1 의 `result`)만
+   * 배선한다.
+   *
+   * 실패 전파 상속(swallow 0):
+   *   - `roster` null/undefined → `evaluateBatchForRoster` 의 가드/composer TypeError 전파.
+   *   - `resultsByCoordinate` orphan key → `evaluateBatchForRoster` 의 orphan 가드
+   *     `RangeError` 전파(실행 미도달).
+   *   - `personIds`/`granularities` null/undefined · 알 수 없는 granularity · `now`
+   *     Invalid Date → enumerate 위임의 TypeError/RangeError 전파(좌표 단계 fail-fast).
+   *   - 주입된 orchestrator `evaluateAndPersist` reject/throw → `evaluateBatchForRoster`
+   *     경로로 그대로 전파되고, **`reportBatch` 에 도달하지 않는다**(report 미생성 —
+   *     await 가 즉시 reject, step 2 미실행).
+   *   - 빈 roster(빈 `personIds` 또는 빈 `granularities`) → 빈 실행 산출 + report 빈 batch
+   *     2 라인 블록(throw 0, 하위 정책 상속).
+   *
+   * 매 호출마다 `evaluateBatchForRoster` 가 evaluator·composer 를 새로 합성하므로 같은
+   * service 인스턴스로 2 회 호출해도 두 호출은 서로 독립(잔여 상태 누수 0). roster 입력
+   * 객체·배열·map·`now` 비변형(두 위임 메서드의 비변형 계약 상속 — service 추가 변형 0).
+   * 동일 roster → 결정적 report(formatter 결정성 상속).
+   *
+   * @param roster `personIds` / `granularities` / `resultsByCoordinate` / `mode` /
+   *   `options` / `now` 를 묶은 단일 객체(`SummaryBatchRosterInput`). 좌표는 service 가
+   *   내부 composer 로 enumerate 하므로 입력에 없다. 변형하지 않는다.
+   * @returns `{ result, report }` — `result` 는 `evaluateBatchForRoster` 가 반환한
+   *   `SummaryBatchPipelineResult`(동일 instance), `report` 는 `reportBatch(roster, result)`
+   *   가 반환한 결정적 한국어 2 라인 합본 리포트 블록 문자열(계획 라인 + 결과 라인).
+   * @throws `evaluateBatchForRoster`(가드/composer/enumerate/하위 pipeline/주입된
+   *   orchestrator)가 던진 error 를 그대로 전파(reject 시 `reportBatch` 미도달, report 미생성).
+   */
+  async evaluateAndReportForRoster(
+    roster: SummaryBatchRosterInput,
+  ): Promise<{ result: SummaryBatchPipelineResult; report: string }> {
+    // 1. roster 실행 — orphan-result 가드·composer·pipeline 합성·실패 전파는 위임 메서드가
+    //    보장(재구현 0). reject 시 await 가 즉시 전파해 아래 reportBatch 에 도달하지 않는다.
+    const result = await this.evaluateBatchForRoster(roster);
+    // 2. 1 과 동일 roster + 그 result 로 계획·결과 합본 리포트 산출(formatter 위임, 재실행 0).
+    const report = this.reportBatch(roster, result);
+    // 3. 실행 산출(동일 instance)과 합본 리포트 문자열을 묶어 반환.
+    return { result, report };
   }
 }
