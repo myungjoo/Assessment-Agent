@@ -2,8 +2,11 @@
 id: T-0637
 title: R-61 요약 batch 합본 리포트 1번째 라인의 roster plan-shape 가드를 formatSummaryBatchReport 산출 직전에 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 551
+mergedAt: 2026-06-24T13:32:00Z
+mergeSha: 48f545b59d74ad894d96563a65bd9e44659243b7
 coversReq: [REQ-061]
 estimatedDiff: 110
 estimatedFiles: 2
