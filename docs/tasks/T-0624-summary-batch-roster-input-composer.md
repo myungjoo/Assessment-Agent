@@ -2,7 +2,7 @@
 id: T-0624
 title: R-61 요약 batch roster→orchestrator-input enumerate 순수 composer 추출
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 175
@@ -73,3 +73,13 @@ implementer → tester
 ## Follow-ups
 
 (작성 시 비어 있음)
+
+---
+
+## 결과 (DONE — 2026-06-24)
+
+- PR #538 squash merge `cde656c` — reviewer r1 APPROVE(8-check, finding 0) · 외부 comment(issuecomment-4786423599), 4-게이트 PASS, PR checks green.
+- 신규 2 파일 `src/assessment-evaluation/domain/summary-batch-roster-input.{ts,spec.ts}` (+133/-0), 신규 파일 cov 100%, unit 7102 green.
+- 순수 composer `buildSummaryBatchOrchestratorInput` 추출 — 좌표 enumerate(`enumerateSummaryDueCoordinates`)가 caller-facing 으로 처음 소비. 부수효과 0·@Injectable 0·Prisma 0·LLM 0·새 dep 0.
+- cron@aa-local-15-5201 fire — lock CAS 98c7f59→fa60167(획득)→06a5f70(select-claim T-0624 + lock tombstone release). fineGrainedConcurrency claim path(claims.json [] → active 0 → maxConcurrentClaims=2 게이트 통과, pr-mode 단독 claim → lock-free 진행 → 회수). concurrency incident 0.
+- Follow-up: T-0625(roster-entry 메서드 `evaluateBatchForRoster` 로 본 composer 를 service 에 배선) planner queued.
