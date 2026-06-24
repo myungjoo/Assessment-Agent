@@ -2,8 +2,12 @@
 id: T-0613
 title: R-61 요약 평가 대상 좌표 enumeration 순수 composer — roster + now → just-closed (person, period, periodStart) 좌표 산출
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 527
+mergedAs: be77f86
+reviewRounds: 1
+completedAt: 2026-06-24T00:20:00Z
 coversReq: [REQ-061]
 estimatedDiff: 175
 estimatedFiles: 2
