@@ -2,7 +2,10 @@
 id: T-0641
 title: R-61 요약 batch 합성 진입점 evaluateAndReportForRoster 의 반환 result.summaryLine 에 outcome-line 형태 가드 배선
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 555
+mergedSha: 5c7386f8cbea2c0047dc4823dbeee75f4bcbd46f
+mergedAt: 2026-06-24T16:51:00Z
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 110
