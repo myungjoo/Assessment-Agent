@@ -2,7 +2,9 @@
 id: T-0619
 title: R-61 요약 평가 batch outcome 리포트 사람-친화 한 줄 요약 순수 formatter — formatSummaryBatchOutcome(report) → string (logging/notification surface, pure)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-24T03:50:00Z
+result: "PR #533 squash 8420ae4 — reviewer r1 APPROVE(0 finding), 4-게이트 PASS, CI green. formatSummaryBatchOutcome 순수 한 줄 요약 formatter 신설(+180), 신규 파일 line/branch/func/stmt 100%, 17 케이스(happy4/error4/branch4/negative5)."
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 175
