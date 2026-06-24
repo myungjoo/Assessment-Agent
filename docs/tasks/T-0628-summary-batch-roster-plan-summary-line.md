@@ -2,7 +2,7 @@
 id: T-0628
 title: R-61 요약 batch roster 입력의 pre-flight 평가 범위 사람-친화 한 줄 요약 순수 formatter formatSummaryBatchRosterPlan(roster) → string 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 175
