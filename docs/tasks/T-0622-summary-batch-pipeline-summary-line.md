@@ -2,7 +2,11 @@
 id: T-0622
 title: R-61 요약 평가 batch pipeline 산출에 사람-친화 한 줄 요약 배선 — runSummaryBatchPipeline report 산출 직후 formatSummaryBatchOutcome 으로 summaryLine 부착
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-24T05:15:16Z
+mergedAs: 147ce91
+prNumber: 536
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 120
