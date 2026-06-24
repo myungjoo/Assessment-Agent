@@ -2,7 +2,7 @@
 id: T-0632
 title: R-61 요약 batch roster 실행+합본 리포트 단일 진입점 evaluateAndReportForRoster 합성
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 120
@@ -55,3 +55,7 @@ implementer → tester
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+
+## Status
+
+DONE — 2026-06-24T10:12:00Z. PR #546 squash merge d668402 (r1 APPROVE, 4-게이트 PASS). evaluateAndReportForRoster(roster)→{result,report} 합성 진입점 추가(재구현 0), 변경 service line/branch/function 100%, 전체 311 suite/7238 test green.
