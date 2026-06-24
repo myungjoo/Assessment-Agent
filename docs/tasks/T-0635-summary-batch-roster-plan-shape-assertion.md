@@ -2,7 +2,11 @@
 id: T-0635
 title: R-61 요약 batch roster pre-flight 계획 라인 형태 불변식 검증 순수 가드 assertSummaryBatchRosterPlanShape
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 549
+mergeCommit: bd9a69c
+completed: 2026-06-24T12:01:57Z
+result: "assertSummaryBatchRosterPlanShape(6 불변식 fail-fast — ①string ②개행0 ③prefix ④person ⑤총좌표 ⑥GRANULARITY_BUCKETS 4버킷; 구조결손 TypeError/형태위반 RangeError) 순수 가드 신규 + format 모듈 ROSTER_PLAN_PREFIX 상수 export amend(single-source). T-0633 입력측 mirror. 부수효과·new-dep·migration·raw 0. PR #549 squash bd9a69c, reviewer r1 APPROVE(8-check finding 0)·외부 comment, 4-게이트 PASS, comment-triggered CI run green(첫 pull_request run 은 reviewer-gate race fail). 신규 파일 line/branch/function 100%, 7295 test pass. T-0634 와 파일 disjoint."
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 175
