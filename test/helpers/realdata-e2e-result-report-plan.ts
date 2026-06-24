@@ -63,6 +63,7 @@ import type {
   RealDataResultIssueDescriptor,
   RealDataResultIssueRunRef,
 } from "./realdata-e2e-result-issue-descriptor";
+import { assertRealDataResultIssueDescriptorBodyConsistent } from "./realdata-e2e-result-issue-descriptor-body-consistency";
 import { buildRealDataResultSummary } from "./realdata-e2e-result-summary";
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
 
@@ -118,6 +119,16 @@ export function buildRealDataResultReportPlan(
   // dateToken 빈/공백 의 하위 assertNonBlank throw 는 자체 try/catch 없이 그대로
   // 전파된다. 매 호출 새 descriptor 객체 반환.
   const descriptor = buildRealDataResultIssueDescriptor(summary, run);
+
+  // self-wire — 산출 plan 의 두 구성요소(`summary`·`descriptor`)가 body 구조상 정합한
+  // 한 묶음인지 반환 직전 self-assert (T-0647 builder self-wire 의 composer-side
+  // mirror). 본 컴포저는 `summary` 와 `descriptor` 를 동시에 in-scope 로 갖는 유일한
+  // 상위 지점이므로, descriptor 의 실제 body 와 summary 로 재유도한 기대값을 대조해
+  // 자기 반환 계약(둘이 서로 정합)을 스스로 강제한다. 정상 합성이면 가드는 void
+  // 반환하므로 동작·반환값 byte-identical 보존. 미래에 합성 순서·위임 대상이 회귀
+  // (summary·descriptor 가 서로 다른 입력에서 산출)하면 부정합 plan 을 반환하기 전에
+  // 한국어 명세형 에러로 즉시 throw 한다(fail-fast).
+  assertRealDataResultIssueDescriptorBodyConsistent(descriptor, summary);
 
   // 새 plan 객체 — summary / descriptor 는 위임 helper 가 이미 무공유로 반환하므로
   // 입력 보존·무공유.
