@@ -2,7 +2,10 @@
 id: T-0618
 title: R-61 요약 평가 batch orchestrator service — @Injectable 로 runSummaryBatchPipeline 를 감싸 SummaryAggregateOrchestratorService.evaluateAndPersist 를 evaluator 로 bind (collection bridge deferred)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 532
+mergedAs: ad20e3d
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 200
