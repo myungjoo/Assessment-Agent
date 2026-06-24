@@ -2,7 +2,10 @@
 id: T-0645
 title: 실 평가 e2e 결과 이슈 descriptor body 에 한 줄 요약 formatRealDataResultSummaryLine 배선 (marker 다음 leading 라인)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-24T20:24:00Z
+prNumber: 559
+mergeCommit: a14c88f122f1923dd5b9b00f02798382fcaedd82
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 130
