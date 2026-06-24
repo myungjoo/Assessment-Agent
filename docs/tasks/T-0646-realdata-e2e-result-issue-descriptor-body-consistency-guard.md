@@ -2,7 +2,7 @@
 id: T-0646
 title: 실 평가 e2e 결과 이슈 descriptor body 구조 불변식 검증 순수 가드 assertRealDataResultIssueDescriptorBodyConsistent 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 160
