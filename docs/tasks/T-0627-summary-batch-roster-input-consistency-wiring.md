@@ -2,7 +2,11 @@
 id: T-0627
 title: R-61 요약 batch roster-진입점에 roster-input orphan-result 가드 단언 지점 배선 — evaluateBatchForRoster 가 buildSummaryBatchOrchestratorInput 전 assertSummaryBatchRosterInputConsistent 호출
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 541
+mergedAs: a5eeaea
+reviewRounds: 1
+completedAt: 2026-06-24T08:01:58Z
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 120
