@@ -40,6 +40,12 @@ import { GRANULARITY_BUCKETS } from "./summary-batch-outcome";
 import type { SummaryBatchRosterInput } from "./summary-batch-roster-input";
 import { enumerateSummaryDueCoordinates } from "./summary-due-coordinates";
 
+// ROSTER_PLAN_PREFIX — pre-flight plan 라인의 라벨 prefix(라벨 + 공백 1개). single
+// source 로 export 해 형태 검증 가드(summary-batch-roster-plan-shape.ts, T-0635)가
+// 동일 상수를 import 소비하도록 한다(라벨 drift 방지). 값·렌더 동작 무변경 — 아래
+// 본문 template literal 이 본 상수를 소비할 뿐.
+export const ROSTER_PLAN_PREFIX = "요약 평가 batch 예정: ";
+
 /**
  * R-61 요약 평가 batch 의 roster 입력(pre-flight 평가 범위)을 **사람-친화 결정적 한국어
  * 단일 라인**으로 렌더링한다(PLAN.md P5 bullet 97 / REQ-061). batch 실행 **전에** "지금
@@ -106,5 +112,5 @@ export function formatSummaryBatchRosterPlan(
     return `${bucket} ${count}`;
   }).join(" · ");
 
-  return `요약 평가 batch 예정: person ${personCount}명 · 총 ${coordinates.length}좌표 [${buckets}]`;
+  return `${ROSTER_PLAN_PREFIX}person ${personCount}명 · 총 ${coordinates.length}좌표 [${buckets}]`;
 }
