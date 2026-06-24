@@ -54,6 +54,7 @@ import {
   summarizeSummaryBatchOutcome,
   type SummaryBatchOutcomeReport,
 } from "./summary-batch-outcome";
+import { assertSummaryBatchOutcomeConsistent } from "./summary-batch-outcome-consistency";
 import {
   buildSummaryBatchPlan,
   type SummaryBatchPlanEntry,
@@ -115,6 +116,10 @@ export interface SummaryBatchPipelineResult {
  *      plan 인스턴스 + (2) 의 outcomes** 를 함께 넘긴다. plan↔outcomes index 1:1 정합이
  *      pipeline 내부 단일 plan 으로 구조적으로 보장되므로(caller 정합 누수 차단),
  *      (3) 의 길이 정합 fail-fast 가 정상 흐름에서 트리거되지 않는다.
+ *   4. `assertSummaryBatchOutcomeConsistent(report)` — report 산출 **직후** · 반환 전에
+ *      불변식 단언(손상 report 누출 차단, 정상 경로 무회귀). 단일 plan thread 가 정합을
+ *      구조적으로 보장하므로 정상 경로에서는 void 반환(방어적 단언·회귀 보호)이며,
+ *      불변식 위반·구조 결손 시 그 error 를 그대로 전파(자동 복구 0 — fail-fast).
  *
  * 실패 전파 계약 상속(runSummaryBatchPlan / ADR-0032 §2 mirror):
  *   - (2) `runSummaryBatchPlan` 이 evaluator reject/throw 를 전파하면 본 pipeline 도
@@ -147,7 +152,11 @@ export interface SummaryBatchPipelineResult {
  * @returns `{ plan, outcomes, report }` 3 산출(매 호출 새 객체). evaluator reject 시
  *   그 error 를 그대로 reject 전파(부분 결과 미반환).
  * @throws {TypeError} `input` 이 null/undefined 일 때(직접 가드), 또는 하위 조각이
- *   좌표/map/evaluator/now 무결성 위반으로 던진 TypeError 전파(위임).
+ *   좌표/map/evaluator/now 무결성 위반으로 던진 TypeError 전파(위임). report 산출 후
+ *   `assertSummaryBatchOutcomeConsistent` 가 report 구조 결손으로 던진 TypeError 도 전파.
+ * @throws {RangeError} report 산출 후 `assertSummaryBatchOutcomeConsistent` 가 outcome
+ *   불변식(평가+skip=total / 생성+기존=평가 / 버킷합=전역) 위반을 감지하면 그 RangeError 를
+ *   그대로 전파(정상 경로에서는 단일 plan thread 정합 보장으로 미발생).
  */
 export async function runSummaryBatchPipeline(
   input: SummaryBatchPipelineInput,
@@ -180,6 +189,15 @@ export async function runSummaryBatchPipeline(
   // (3) (1)·(2) 와 **동일 plan 인스턴스 + (2) outcomes** 를 함께 집계. 단일 plan
   //     thread 로 plan↔outcomes 길이 1:1 정합이 구조적으로 보장된다(정합 누수 0).
   const report = summarizeSummaryBatchOutcome(plan, outcomes);
+
+  // (4) report 산출 **직후** · 반환 전에 불변식 가드를 단언 지점으로 호출한다 —
+  //     손상 report(미래 merge/diff 헬퍼 버그·수동 조립 오류)가 caller·로그·
+  //     notification·관측 surface 로 누출되기 전에 fail-fast 로 차단한다. pipeline 의
+  //     단일 plan thread 가 plan↔outcomes 정합을 구조적으로 보장하므로 정상 경로에서는
+  //     void(무회귀) 반환하며 흐름이 그대로 return 으로 이어진다(방어적 단언·회귀
+  //     보호). 가드가 throw 하면(불변식 위반 RangeError / 구조 결손 TypeError) 그
+  //     error 를 swallow 0 으로 그대로 전파한다(자동 복구·정규화 0 — fail-fast).
+  assertSummaryBatchOutcomeConsistent(report);
 
   return { plan, outcomes, report };
 }
