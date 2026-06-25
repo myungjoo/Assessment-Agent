@@ -55,6 +55,7 @@
 //   - repo slug(`owner/repo`) 결정 / `--repo` 인자 / gh auth — 실 wiring 의 환경 책임.
 //   - 외부 템플릿/해시/CLI 라이브러리 도입(새 dependency 0, 내장 string 합성만).
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
+import { assertRealDataResultIssueCommandArgsBodyPreservesDescriptor } from "./realdata-e2e-result-issue-command-args-body-marker";
 import type { RealDataResultIssueDescriptor } from "./realdata-e2e-result-issue-descriptor";
 
 // 결과 이슈 고정 labels — 결정론적 상수 집합. 호출마다 동일하며, `gh issue create` 의
@@ -121,7 +122,7 @@ export function buildRealDataResultIssueCommandArgs(
   assertNonBlank(descriptor.title, "title");
   assertNonBlank(descriptor.marker, "marker");
 
-  return {
+  const args: RealDataResultIssueCommandArgs = {
     // searchQuery — marker 그대로(later live wiring 의 동일 run 검색 토큰).
     searchQuery: descriptor.marker,
     createArgs: {
@@ -135,4 +136,14 @@ export function buildRealDataResultIssueCommandArgs(
       body: descriptor.body,
     },
   };
+
+  // self-wire — 합성한 명령-args 의 body marker-first 구조 무결성을 반환 직전 self-assert
+  // (T-0646→T-0647 descriptor-side self-wire 의 command-args-side mirror, T-0649 Follow-up ①).
+  // 정상 합성이면 가드는 void 반환하므로 동작·반환값 byte-identical 보존. 미래 회귀
+  // (createArgs/updateArgs body 불일치·marker-first 위반·searchQuery drift)가 생기면
+  // 손상 명령-args 를 caller(live wiring)로 반환하기 전에 한국어 명세형 에러로 즉시
+  // throw 한다(fail-fast). 같은 디렉토리 함수 호출이라 runtime cycle 0.
+  assertRealDataResultIssueCommandArgsBodyPreservesDescriptor(args, descriptor);
+
+  return args;
 }
