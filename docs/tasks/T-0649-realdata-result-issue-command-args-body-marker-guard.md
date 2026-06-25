@@ -2,8 +2,11 @@
 id: T-0649
 title: 실 평가 e2e 결과 이슈 command-args body marker-first 구조 불변식 검증 순수 가드 assertRealDataResultIssueCommandArgsBodyPreservesDescriptor 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 7c694e8
+prNumber: 563
+completedAt: 2026-06-25T00:20:00Z
 coversReq: [REQ-005]
 estimatedDiff: 160
 estimatedFiles: 2
