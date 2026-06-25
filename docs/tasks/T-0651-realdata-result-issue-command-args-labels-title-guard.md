@@ -2,7 +2,7 @@
 id: T-0651
 title: 실 평가 e2e 결과 이슈 command-args labels·title 정합 불변식 검증 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 160
