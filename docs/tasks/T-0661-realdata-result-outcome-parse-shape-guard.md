@@ -2,13 +2,17 @@
 id: T-0661
 title: 실 평가 e2e outcome 산출 키 집합 ↔ parse-shape 키 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 170
 estimatedFiles: 2
 created: 2026-06-25
+completedAt: 2026-06-25T11:27Z
+prNumber: 575
+mergeSha: 5722079dcdc91b8b5a0fa559ea143baa5087a5f5
 plannerNote: "P5 PLAN 109행 step④ realdata-e2e stream — post-execution outcome 산출 키 집합↔parse-shape 정합 가드(T-0659 search-hit 가드의 post-execution mirror), parser↔declared-shape seam 닫음"
+doneSummary: "신규 helper test/helpers/realdata-e2e-result-issue-outcome-parse-shape.ts (+271 LOC, single-source REAL_DATA_RESULT_ISSUE_OUTCOME_PARSE_SHAPE_KEYS 상수 + assertRealDataResultIssueOutcomeMatchesParseShape 순수 가드 — T-0659 search-hit 가드의 post-execution mirror, set-equality·TypeError/RangeError 구분·fail-fast·한국어 JSDoc 동형 패턴) + spec (+419 LOC, 29 test, line/branch/function/stmts 100%). PR #575 squash merge 5722079, reviewer round 1 APPROVE (0 BLOCKER / 0 MAJOR / 1 MINOR — size cap 690 LOC, sibling T-0659 684 LOC 선례), 4-게이트 PASS, CI run 28166376865 attempt 2 success (1차 reviewer-approval gate timing race → rerun_failed_jobs). 7787 test green. self-wire 는 Follow-up T-0662 후보."
 independentStream: realdata-e2e-result-summary-line
 dependsOn: []
 touchesFiles:
