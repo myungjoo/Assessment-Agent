@@ -14,7 +14,7 @@
     "session": "",
     "since": ""
   },
-  "lastActivity": "2026-06-25T17:40:00Z",
+  "lastActivity": "2026-06-25T18:08:00Z",
   "lastCommit": "72e499ab1a98d0f9919dfee0bf1749e395b0d60f",
   "mostRecentTasks": [
     "T-0667",
@@ -31,11 +31,11 @@
     "note": "/loop AKIHA-21631 (dynamic, turn cap 2) — t1 T-0651 merge 41a6ef2 + planner T-0652 큐잉. t2 T-0652 merge c580071. cap 도달 → 종료 + lock 해제."
   },
   "ci": {
-    "lastRun": "2026-06-25T17:17:11Z",
-    "status": "running",
+    "lastRun": "2026-06-25T17:41:18Z",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0667 PR #581 squash merge 8979d33 — r1 APPROVE, 4-게이트 통과(reviewer APPROVE+외부 comment+integrator self-check+PR CI green: lint·build·test:cov 327 suites/7886 tests). publish-step-args 컴포저 산출↔(runPlan.run, results) 재유도 정합 순수 가드 신설(test-only +226 LOC 1 file + spec 24 test, 신설 파일 cov 100%) — T-0665/T-0666 publish-plan 가드의 상위 step-args 미러. self-wire 는 후속. post-merge main run 8979d33 in_progress — 다음 turn [1] 에서 conclusion 재확인. nextTask 비어 다음 turn planner. 동시 fire cron@aa-cloud-focused-goodall 가 17:05:07Z lock 획득(hand-rolled acquire 가 claims.json 드롭 — mktree-drops-siblings 버그 재발, 단 T-0667 은 이미 merge 라 claim 유실 무해). 본 driver 는 lock-driver 브랜치 미접촉(focused-goodall lock <60min 유효 존중)."
+    "note": "T-0667 PR #581 squash merge 8979d33 main run completed/success(green). 1384231(PLANNER T-0668 큐잉) main run 28189001942 completed/success(green) — 4-게이트 + 4 ci jobs(lint·build·test:cov·smoke·e2e). post-merge follow 모두 안정. nextTask=T-0668 (cron@aa-local-15-28434 가 atomic claim, fd8c612 18:05:21Z). 본 cron fire(cron@aa-cloud-4x2u7u 17:50Z lock acquire 16e01cf) 가 select-claim race-loss — claims [{T-0668 by cron@aa-local-15-28434}] CAS 1초 차이 atomic 박제로 claimable 부재 → no-op 종료. lock-하 atomic CAS 의도대로 직렬화(이중 claim 0)."
   },
   "reviewRounds": {
     "T-0666": 1,
