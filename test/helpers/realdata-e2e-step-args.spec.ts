@@ -35,6 +35,7 @@ import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-desc
 import { buildRealDataResultPublishStepArgs } from "./realdata-e2e-result-publish-step-args";
 import type { RealDataE2eRunPlan } from "./realdata-e2e-run-plan";
 import { buildRealDataE2eStepArgs } from "./realdata-e2e-step-args";
+import * as consistency from "./realdata-e2e-step-args-consistency";
 
 // 유효 modelId fixture — 평가 정책 모델 식별 문자열.
 const MODEL_ID = "qwen2.5-coder:32b";
@@ -422,6 +423,175 @@ describe("buildRealDataE2eStepArgs — run plan → 평가+publish step-args 단
       ).toEqual(
         buildRealDataE2eStepArgs(runPlan, activities, MULTIPLE_RESULTS),
       );
+    });
+  });
+
+  // T-0672 self-wire 배선 검증 — aggregator 가 산출 컨테이너 반환 직전 consistency 가드를
+  // (산출 stepArgs, runPlan, activities, results) 인자로 정확히 1회 self-assert 하는지,
+  // 정상 합성이면 throw 0·반환 컨테이너 불변, 가드가 throw 하면 aggregator 가 삼키지 않고
+  // 전파하는지, 위임 throw 입력에서는 가드 진입 전 위임 throw 가 전파되는지(가드 미호출)
+  // 검증.
+  describe("consistency 가드 self-wire (T-0672) — 반환 직전 self-assert 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성(다수 activities + 다수 results) → 가드가 (산출 stepArgs, runPlan, activities, results) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataE2eStepArgsConsistentWithSources",
+      );
+      const runPlan = makeRunPlan();
+      const activities = mixedActivities();
+
+      const stepArgs = buildRealDataE2eStepArgs(
+        runPlan,
+        activities,
+        MULTIPLE_RESULTS,
+      );
+
+      // 정확히 1회 호출.
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서·값이 (반환된 산출 stepArgs, runPlan, activities, results) 와 일치.
+      expect(spy).toHaveBeenCalledWith(
+        stepArgs,
+        runPlan,
+        activities,
+        MULTIPLE_RESULTS,
+      );
+      // 가드에 넘어간 첫 인자가 aggregator 가 반환한 바로 그 컨테이너 참조여야 한다
+      // (검증 대상 일치 — 산출 컨테이너 자체를 self-assert).
+      expect(spy.mock.calls[0][0]).toBe(stepArgs);
+      expect(spy.mock.calls[0][1]).toBe(runPlan);
+      expect(spy.mock.calls[0][2]).toBe(activities);
+      expect(spy.mock.calls[0][3]).toBe(MULTIPLE_RESULTS);
+    });
+
+    it("빈 activities + 빈 results 경계 분기에서도 가드가 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataE2eStepArgsConsistentWithSources",
+      );
+      const runPlan = makeRunPlan();
+
+      const stepArgs = buildRealDataE2eStepArgs(runPlan, [], []);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(stepArgs, runPlan, [], []);
+    });
+
+    it("정상 합성 → 가드 통과 후 반환 컨테이너 가 가드 미배선 기대값(두 위임 산출)과 byte-identical(불변)", () => {
+      const runPlan = makeRunPlan();
+      const activities = mixedActivities();
+
+      const stepArgs = buildRealDataE2eStepArgs(
+        runPlan,
+        activities,
+        MULTIPLE_RESULTS,
+      );
+
+      // self-wire 가 반환 컨테이너 / evaluation / publish 트리를 변형하지 않음 — 두 위임
+      // 산출과 byte-identical.
+      expect(stepArgs.evaluation).toEqual(
+        buildRealDataEvaluationStepArgs(runPlan, activities),
+      );
+      expect(stepArgs.publish).toEqual(
+        buildRealDataResultPublishStepArgs(runPlan, MULTIPLE_RESULTS),
+      );
+      expect(Object.keys(stepArgs).sort()).toEqual(["evaluation", "publish"]);
+    });
+
+    it("가드가 throw 하면 aggregator 가 삼키지 않고 그대로 전파", () => {
+      jest
+        .spyOn(consistency, "assertRealDataE2eStepArgsConsistentWithSources")
+        .mockImplementation(() => {
+          throw new RangeError("정합 위반: self-wire 가드 모의 throw");
+        });
+
+      expect(() =>
+        buildRealDataE2eStepArgs(
+          makeRunPlan(),
+          mixedActivities(),
+          MULTIPLE_RESULTS,
+        ),
+      ).toThrow(/self-wire 가드 모의 throw/);
+    });
+
+    it("평가 위임 throw 입력(runPlan.pipeline.modelId 공백-only)에서는 가드 진입 전 평가 위임 throw 가 전파(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataE2eStepArgsConsistentWithSources",
+      );
+
+      expect(() =>
+        buildRealDataE2eStepArgs(
+          makeRunPlan("   "),
+          mixedActivities(),
+          MULTIPLE_RESULTS,
+        ),
+      ).toThrow(/modelId/);
+      // 평가 위임 단계에서 throw → publish 위임·가드 self-assert 까지 도달하지 못함.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("publish 위임 throw 입력(runPlan.run.gitSha 공백-only)에서는 가드 진입 전 publish 위임 throw 가 전파(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataE2eStepArgsConsistentWithSources",
+      );
+
+      expect(() =>
+        buildRealDataE2eStepArgs(
+          makeRunPlan(MODEL_ID, { gitSha: "  ", dateToken: "2026-06-23" }),
+          mixedActivities(),
+          MULTIPLE_RESULTS,
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+      // 평가 위임은 통과했으나 publish 위임 단계에서 throw → 가드 self-assert 까지
+      // 도달하지 못함.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("publish 위임 throw 입력(runPlan.run.dateToken 공백-only)에서도 가드 진입 전 publish 위임 throw 가 전파(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataE2eStepArgsConsistentWithSources",
+      );
+
+      expect(() =>
+        buildRealDataE2eStepArgs(
+          makeRunPlan(MODEL_ID, { gitSha: "abc1234", dateToken: " \t " }),
+          mixedActivities(),
+          MULTIPLE_RESULTS,
+        ),
+      ).toThrow(/dateToken 가 비어있습니다/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("self-wire 배선 후에도 입력 runPlan/activities/results 비변형 + 동일 입력 두 번 호출 deterministic + 반환 컨테이너 무공유", () => {
+      const runPlan = makeRunPlan();
+      const activities = mixedActivities();
+      const results = [...MULTIPLE_RESULTS];
+      const runPlanSnapshot = JSON.stringify(runPlan);
+      const activitiesSnapshot = JSON.stringify(activities);
+      const resultsSnapshot = JSON.stringify(results);
+
+      const a = buildRealDataE2eStepArgs(runPlan, activities, results);
+      const b = buildRealDataE2eStepArgs(runPlan, activities, results);
+
+      // 비변형(runPlan/activities/results mutate 0).
+      expect(JSON.stringify(runPlan)).toBe(runPlanSnapshot);
+      expect(JSON.stringify(activities)).toBe(activitiesSnapshot);
+      expect(JSON.stringify(results)).toBe(resultsSnapshot);
+      // deterministic byte-identical.
+      expect(a).toEqual(b);
+      expect(a).not.toBe(b);
+      expect(a.evaluation).not.toBe(b.evaluation);
+      expect(a.publish).not.toBe(b.publish);
+      // 무공유(반환 컨테이너·evaluation/publish 트리 mutate 가 후속 호출 결과에 누출 0).
+      a.publish.searchArgv.push("--오염");
+      const c = buildRealDataE2eStepArgs(runPlan, activities, results);
+      expect(c.publish.searchArgv).not.toContain("--오염");
     });
   });
 });

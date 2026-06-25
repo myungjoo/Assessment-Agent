@@ -85,6 +85,7 @@ import { buildRealDataEvaluationStepArgs } from "./realdata-e2e-evaluation-step-
 import type { RealDataResultIssuePublishPlan } from "./realdata-e2e-result-issue-publish-plan";
 import { buildRealDataResultPublishStepArgs } from "./realdata-e2e-result-publish-step-args";
 import type { RealDataE2eRunPlan } from "./realdata-e2e-run-plan";
+import { assertRealDataE2eStepArgsConsistentWithSources } from "./realdata-e2e-step-args-consistency";
 
 // RealDataE2eStepArgs — pre-실행 e2e step-args aggregator 의 출력. live runner 가 단일
 // 검증 `runPlan` + 수집 `activities` + 평가 `results` 를 한 번에 넘기면 받게 되는
@@ -151,5 +152,22 @@ export function buildRealDataE2eStepArgs(
 
   // 새 컨테이너 객체 — evaluation / publish 는 위임 helper 가 이미 무공유로 반환하므로
   // 입력 보존·무공유. 단일 runPlan 이 두 step 에 동시 thread 됨(modelId·run 일관).
-  return { evaluation, publish };
+  const stepArgs: RealDataE2eStepArgs = { evaluation, publish };
+
+  // 산출 컨테이너 반환 직전 self-assert(T-0672 self-wire) — aggregator 가 두 sub-composer
+  // 에 같은 runPlan 을 thread·합성하는 과정에서 run/runPlan 인자 위치를 뒤바꾸거나 한쪽
+  // 산출(evaluation 또는 publish)을 변형/누락하는 합성 회귀를, single-source 재유도
+  // (buildRealDataEvaluationStepArgs(runPlan, activities) /
+  // buildRealDataResultPublishStepArgs(runPlan, results)) 와의 byte-identical 정합 검증으로
+  // 호출 시점에 fail-fast 차단한다. 정상 합성이면 가드는 void → 반환 컨테이너 + 그
+  // evaluation/publish 트리 byte-identical·무공유 보존(관측 불가능하게 동일). 가드는
+  // read-only 라 stepArgs/runPlan/activities/results mutate 0.
+  assertRealDataE2eStepArgsConsistentWithSources(
+    stepArgs,
+    runPlan,
+    activities,
+    results,
+  );
+
+  return stepArgs;
 }
