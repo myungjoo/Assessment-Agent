@@ -2,12 +2,16 @@
 id: T-0663
 title: outcome-report composer 산출 ↔ single-source 재유도 정합 순수 가드 신설 (buildRealDataResultIssueOutcomeReportFromOutput)
 phase: P5
-status: PENDING
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 170
 estimatedFiles: 2
 created: 2026-06-25
+status: DONE
+completedAt: 2026-06-25
+mergedAs: ce5e5e286967402e17a6838b9d098d78cc23ebe4
+prNumber: 577
+reviewRounds: 1
 independentStream: realdata-e2e-result-summary-line
 dependsOn: []
 touchesFiles:
