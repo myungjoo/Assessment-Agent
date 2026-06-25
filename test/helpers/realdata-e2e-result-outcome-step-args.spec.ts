@@ -27,6 +27,7 @@ import type { RealDataPipelinePlan } from "./realdata-e2e-pipeline-plan";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
 import { buildRealDataResultIssueOutcomeReportFromOutput } from "./realdata-e2e-result-issue-outcome-report-from-output";
 import { buildRealDataResultOutcomeStepArgs } from "./realdata-e2e-result-outcome-step-args";
+import * as consistency from "./realdata-e2e-result-outcome-step-args-consistency";
 import type { RealDataE2eRunPlan } from "./realdata-e2e-run-plan";
 
 // 유효 run fixture — daily-test latest-result.json 의 gitSha + 날짜 토큰 모사.
@@ -302,6 +303,123 @@ describe("buildRealDataResultOutcomeStepArgs — run plan + gh stdout → 결과
       expect(
         buildRealDataResultOutcomeStepArgs(runPlan, CREATE_STDOUT),
       ).toEqual(buildRealDataResultOutcomeStepArgs(runPlan, CREATE_STDOUT));
+    });
+  });
+
+  // T-0670 self-wire 배선 검증 — 컴포저가 산출 report 반환 직전 consistency 가드를
+  // (산출 report, runPlan, stdout) 인자로 정확히 1회 self-assert 하는지, 정상 합성이면
+  // throw 0·반환 report 불변, 가드가 throw 하면 컴포저가 삼키지 않고 전파하는지, 위임 throw
+  // 입력에서는 가드 진입 전 위임 throw 가 전파되는지 검증.
+  describe("consistency 가드 self-wire (T-0670) — 반환 직전 self-assert 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성(create stdout) → 가드가 (산출 report, runPlan, stdout) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataResultOutcomeStepArgsConsistentWithSources",
+      );
+      const runPlan = makeRunPlan();
+
+      const report = buildRealDataResultOutcomeStepArgs(runPlan, CREATE_STDOUT);
+
+      // 정확히 1회 호출.
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서·값이 (반환된 산출 report, runPlan, stdout) 와 일치.
+      expect(spy).toHaveBeenCalledWith(report, runPlan, CREATE_STDOUT);
+      // 가드에 넘어간 첫 인자가 컴포저가 반환한 바로 그 report 참조여야 한다(검증 대상 일치).
+      expect(spy.mock.calls[0][0]).toBe(report);
+      expect(spy.mock.calls[0][1]).toBe(runPlan);
+      expect(spy.mock.calls[0][2]).toBe(CREATE_STDOUT);
+    });
+
+    it("edit stdout 분기에서도 가드가 (산출 report, runPlan, stdout) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataResultOutcomeStepArgsConsistentWithSources",
+      );
+      const runPlan = makeRunPlan();
+
+      const report = buildRealDataResultOutcomeStepArgs(runPlan, EDIT_STDOUT);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(report, runPlan, EDIT_STDOUT);
+    });
+
+    it("정상 합성 → 가드 통과 후 반환 report 가 가드 미배선 기대값(위임 산출)과 byte-identical(불변)", () => {
+      const runPlan = makeRunPlan();
+
+      const report = buildRealDataResultOutcomeStepArgs(runPlan, CREATE_STDOUT);
+
+      // self-wire 가 반환 report 를 변형하지 않음 — 위임 산출과 byte-identical.
+      expect(report).toEqual(
+        buildRealDataResultIssueOutcomeReportFromOutput(
+          CREATE_STDOUT,
+          runPlan.run,
+        ),
+      );
+    });
+
+    it("가드가 throw 하면 컴포저가 삼키지 않고 그대로 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataResultOutcomeStepArgsConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new RangeError("정합 위반: self-wire 가드 모의 throw");
+        });
+
+      expect(() =>
+        buildRealDataResultOutcomeStepArgs(makeRunPlan(), CREATE_STDOUT),
+      ).toThrow(/self-wire 가드 모의 throw/);
+    });
+
+    it("위임 throw 입력(stdout URL 미발견)에서는 가드 진입 전 위임 파서 throw 가 전파(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataResultOutcomeStepArgsConsistentWithSources",
+      );
+
+      expect(() =>
+        buildRealDataResultOutcomeStepArgs(makeRunPlan(), "no url here"),
+      ).toThrow(/issue URL/);
+      // 위임 파서 단계에서 throw → 가드 self-assert 까지 도달하지 못함.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("위임 throw 입력(runPlan.run.gitSha 공백-only)에서는 가드 진입 전 위임 빌더 guard throw 가 전파(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataResultOutcomeStepArgsConsistentWithSources",
+      );
+
+      expect(() =>
+        buildRealDataResultOutcomeStepArgs(
+          makeRunPlan({ gitSha: "  ", dateToken: "2026-06-23" }),
+          CREATE_STDOUT,
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+      // 위임 빌더 단계에서 throw → 가드 self-assert 까지 도달하지 못함.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("self-wire 배선 후에도 입력 runPlan/stdout 비변형 + 동일 입력 두 번 호출 deterministic + 반환 report 무공유", () => {
+      const runPlan = makeRunPlan();
+      const runPlanSnapshot = JSON.stringify(runPlan);
+
+      const a = buildRealDataResultOutcomeStepArgs(runPlan, CREATE_STDOUT);
+      const b = buildRealDataResultOutcomeStepArgs(runPlan, CREATE_STDOUT);
+
+      // 비변형(runPlan.run mutate 0).
+      expect(JSON.stringify(runPlan)).toBe(runPlanSnapshot);
+      // deterministic byte-identical.
+      expect(a).toEqual(b);
+      // 무공유(반환 report mutate 가 후속 호출 결과에 누출 0).
+      a.summaryLine = "오염된 요약";
+      const c = buildRealDataResultOutcomeStepArgs(runPlan, CREATE_STDOUT);
+      expect(c.summaryLine).not.toBe("오염된 요약");
     });
   });
 });
