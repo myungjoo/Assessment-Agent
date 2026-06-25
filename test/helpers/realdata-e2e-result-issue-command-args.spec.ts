@@ -20,6 +20,7 @@ import {
   type RealDataResultIssueCommandArgs,
 } from "./realdata-e2e-result-issue-command-args";
 import * as bodyMarkerModule from "./realdata-e2e-result-issue-command-args-body-marker";
+import * as labelsTitleModule from "./realdata-e2e-result-issue-command-args-labels-title";
 import type { RealDataResultIssueDescriptor } from "./realdata-e2e-result-issue-descriptor";
 
 const MARKER = "<!-- realdata-e2e-result-issue: 2026-06-23@abc1234 -->";
@@ -334,6 +335,213 @@ describe("buildRealDataResultIssueCommandArgs", () => {
       expect(args.createArgs.body).not.toContain("narrative");
       expect(args.updateArgs.body).not.toContain("narrative");
       expect(args.createArgs.body).not.toContain("rawActivity");
+    });
+  });
+
+  // self-wire 배선 검증 (T-0652) — buildRealDataResultIssueCommandArgs 가 명령-args 를
+  // 반환하기 직전에 assertRealDataResultIssueCommandArgsLabelsTitleConsistent(args,
+  // descriptor, RESULT_ISSUE_LABELS) 를 self-assert 하도록 배선됐음을 검증한다
+  // (T-0649→T-0650 body marker self-wire 의 labels·title-side mirror). 정상 입력이면
+  // 가드는 void 반환 → 동작·반환값 byte-identical 보존. builder 는 항상 정상 title·labels 를
+  // 합성하므로 가드 throw 분기는 builder 입력으로 직접 유발 불가 — 본 describe 는 (a)
+  // self-wire 가 실제 호출 경로에 배선됐음 + (b) self-wire 가 builder 동작(반환
+  // byte-identical)을 깨지 않음 + (c) 회귀 모사 시 fail-fast 에 집중.
+  describe("labels·title 정합 가드 self-wire 배선 (T-0652)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    // flow/branch ③ + negative ③ — self-wire 호출 인자 정합: 가드가 builder 반환 직전 실제
+    // 호출 경로에 정확히 1 회 (반환할 args, 원본 descriptor, RESULT_ISSUE_LABELS 동치
+    // 배열) 인자로 호출됨을 spyOn 으로 감시(self-wire 가 실제 배선됐음 증명).
+    it("정상 입력에서 가드를 정확히 1 회 (반환할 args, descriptor, RESULT_ISSUE_LABELS 동치 배열) 인자로 호출한다", () => {
+      const spy = jest.spyOn(
+        labelsTitleModule,
+        "assertRealDataResultIssueCommandArgsLabelsTitleConsistent",
+      );
+
+      const args = buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 가드는 (빌더가 반환하는 바로 그 args, 입력 descriptor, 고정 labels 동치 배열) 로
+      // 호출된다 — 세 번째 인자가 ["realdata-e2e", "result"] 와 동치임을 확인.
+      expect(spy).toHaveBeenCalledWith(args, HAPPY_DESCRIPTOR, [
+        "realdata-e2e",
+        "result",
+      ]);
+    });
+
+    // happy-path — 정상 descriptor → labels·title 가드 통과해 정상 명령-args 반환(throw 0).
+    it("정상 descriptor 에서 labels·title 가드 통과해 정상 명령-args 를 반환한다(throw 0)", () => {
+      expect(() =>
+        buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR),
+      ).not.toThrow();
+    });
+
+    // happy-path 분기 — 다른 title·marker 변형 descriptor 도 labels·title 가드 통과.
+    it("다른 title·marker 변형 descriptor 도 labels·title 가드 통과해 정상 반환한다", () => {
+      const altMarker =
+        "<!-- realdata-e2e-result-issue: 2026-06-24@deadbee -->";
+      const descriptor: RealDataResultIssueDescriptor = {
+        title: "실 평가 e2e 결과 2026-06-24@deadbee",
+        marker: altMarker,
+        body: [altMarker, "", "- 평가 단위 수: 1"].join("\n"),
+      };
+
+      expect(() =>
+        buildRealDataResultIssueCommandArgs(descriptor),
+      ).not.toThrow();
+    });
+
+    // flow/branch ① — 정상 입력 → body 가드 + labels·title 가드 둘 다 void → 정상 반환
+    // 분기. 두 가드가 모두 정확히 1 회 호출됨(나란히 배선).
+    it("정상 입력에서 body 가드와 labels·title 가드를 모두 정확히 1 회 호출한다", () => {
+      const bodySpy = jest.spyOn(
+        bodyMarkerModule,
+        "assertRealDataResultIssueCommandArgsBodyPreservesDescriptor",
+      );
+      const labelsTitleSpy = jest.spyOn(
+        labelsTitleModule,
+        "assertRealDataResultIssueCommandArgsLabelsTitleConsistent",
+      );
+
+      buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR);
+
+      expect(bodySpy).toHaveBeenCalledTimes(1);
+      expect(labelsTitleSpy).toHaveBeenCalledTimes(1);
+    });
+
+    // negative ④ + flow/branch ② — 식별자 guard 우선: 빈 title 은 labels·title 가드
+    // self-assert 도달 전 식별자 guard 에서 throw(분기 순서 보존). 가드 미호출.
+    it("빈 title 은 가드 self-assert 도달 전 식별자 guard 에서 throw 하고 labels·title 가드를 호출하지 않는다", () => {
+      const spy = jest.spyOn(
+        labelsTitleModule,
+        "assertRealDataResultIssueCommandArgsLabelsTitleConsistent",
+      );
+
+      expect(() =>
+        buildRealDataResultIssueCommandArgs({
+          ...HAPPY_DESCRIPTOR,
+          title: "",
+        }),
+      ).toThrow(/title/);
+      // 식별자 guard 가 먼저 throw → labels·title 가드 미도달.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    // 식별자 guard 우선 (marker 측) — 공백-only marker 도 labels·title 가드 도달 전
+    // 식별자 guard throw.
+    it("공백-only marker 는 가드 self-assert 도달 전 식별자 guard 에서 throw 한다", () => {
+      const spy = jest.spyOn(
+        labelsTitleModule,
+        "assertRealDataResultIssueCommandArgsLabelsTitleConsistent",
+      );
+
+      expect(() =>
+        buildRealDataResultIssueCommandArgs({
+          ...HAPPY_DESCRIPTOR,
+          marker: "   ",
+        }),
+      ).toThrow(/marker/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    // error path ② — labels·title 가드가 검출하는 불변식 위반을 spyOn 으로 모사: 빌더가
+    // 회귀해(title 3자 불일치 등) 가드가 RangeError throw 하는 상황을 mock 주입하면
+    // 빌더가 손상 args 를 반환하기 전에 fail-fast throw(손상 args 가 caller 로 새지 않음).
+    it("labels·title 가드가 회귀를 검출해 throw 하면 빌더도 손상 args 를 반환하지 않고 throw 한다", () => {
+      jest
+        .spyOn(
+          labelsTitleModule,
+          "assertRealDataResultIssueCommandArgsLabelsTitleConsistent",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            "불변식(1) 위반: createArgs.title 이 descriptor.title 과 byte-identical 하지 않다.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR),
+      ).toThrow(RangeError);
+    });
+
+    // error path ② (TypeError 변형) — labels·title 가드가 구조 결손을 TypeError 로
+    // 검출하는 경우도 빌더가 그대로 전파한다(가드 에러 정책 보존).
+    it("labels·title 가드가 구조 결손을 TypeError 로 검출하면 빌더가 그대로 전파한다", () => {
+      jest
+        .spyOn(
+          labelsTitleModule,
+          "assertRealDataResultIssueCommandArgsLabelsTitleConsistent",
+        )
+        .mockImplementation(() => {
+          throw new TypeError(
+            "args.createArgs.labels 가 배열이 아니다 — labels 정합 비교를 진행할 수 없다.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR),
+      ).toThrow(TypeError);
+    });
+
+    // negative ① — 결정성: 동일 descriptor 2 회 빌드 → 둘 다 byte-identical 정상 반환
+    // (labels·title self-wire 가 결정성 깨지지 않음).
+    it("labels·title self-wire 후에도 동일 descriptor 에 대해 byte-identical 명령-args 를 반환한다", () => {
+      const a = buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR);
+      const b = buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR);
+
+      expect(a).toEqual(b);
+      expect(a.createArgs.title).toBe(b.createArgs.title);
+      expect(a.updateArgs.title).toBe(b.updateArgs.title);
+      expect(a.createArgs.labels).toEqual(b.createArgs.labels);
+    });
+
+    // negative ② — 입력 비변형: 빌드 후 입력 descriptor 변경 0(self-wire 가 입력을
+    // mutate 하지 않음).
+    it("labels·title self-wire 후에도 입력 descriptor 를 mutate 하지 않는다", () => {
+      const descriptor: RealDataResultIssueDescriptor = {
+        title: "실 평가 e2e 결과 2026-06-23@abc1234",
+        marker: MARKER,
+        body: [MARKER, "", "본문"].join("\n"),
+      };
+      const before = { ...descriptor };
+
+      buildRealDataResultIssueCommandArgs(descriptor);
+
+      expect(descriptor).toEqual(before);
+    });
+
+    // negative — byte-identical 회귀 0: labels·title self-wire 추가가 정상 입력
+    // title·labels 반환값을 바꾸지 않음.
+    it("labels·title self-wire 추가가 정상 입력 명령-args title·labels byte 를 바꾸지 않는다(회귀 0)", () => {
+      const args = buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR);
+
+      expect(args.createArgs.title).toBe(HAPPY_DESCRIPTOR.title);
+      expect(args.updateArgs.title).toBe(HAPPY_DESCRIPTOR.title);
+      expect(args.createArgs.labels).toEqual(["realdata-e2e", "result"]);
+    });
+
+    // negative ⑤ — labels 무공유: 반환 createArgs.labels mutate 가 고정 상수·다음 호출에
+    // 누설 안 됨(가드의 무공유 불변식이 정상 경로에서 통과 — self-wire 후에도 빌더가
+    // 상수를 복제해 반환).
+    it("labels·title self-wire 후에도 반환 createArgs.labels mutate 가 다음 호출에 누설되지 않는다", () => {
+      const first = buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR);
+      first.createArgs.labels.push("leaked");
+
+      const second = buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR);
+
+      expect(second.createArgs.labels).toEqual(["realdata-e2e", "result"]);
+      expect(second.createArgs.labels).not.toContain("leaked");
+      expect(first.createArgs.labels).not.toBe(second.createArgs.labels);
+    });
+
+    // negative ⑥ — R-59: labels·title self-wire 후에도 빌더가 raw narrative 미접촉.
+    it("labels·title self-wire 후에도 명령-args body 에 narrative 류 raw 본문 키가 등장하지 않는다(R-59)", () => {
+      const args = buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR);
+
+      expect(args.createArgs.body).not.toContain("narrative");
+      expect(args.updateArgs.body).not.toContain("rawActivity");
     });
   });
 });
