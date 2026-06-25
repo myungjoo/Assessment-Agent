@@ -64,6 +64,7 @@
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
 import type { RealDataResultIssueAction } from "./realdata-e2e-result-issue-action";
 import type { RealDataResultIssueCommandArgs } from "./realdata-e2e-result-issue-command-args";
+import { assertRealDataResultIssueGhArgvPreservesCommandArgs } from "./realdata-e2e-result-issue-gh-argv-consistency";
 
 // 빈/공백-only 식별자 guard — title / body 가 빈 문자열·공백-only 면 비식별 이슈 argv
 // 생성을 방지하기 위해 명시적 throw 한다(조용한 통과 차단).
@@ -119,6 +120,19 @@ export function buildRealDataResultIssueGhArgv(
       argv.push("--label", label);
     }
 
+    // self-wire — 합성한 create argv 가 action + 명령-args 의 동사·title/body/labels 를
+    // argv 위치로 정합 round-trip 했는지 반환 직전 self-assert(T-0650/T-0652 command-args
+    // self-wire 의 argv-side mirror, T-0653 Follow-up ①). 정상 합성이면 가드는 void 반환하므로
+    // 동작·반환값 byte-identical 보존. 미래 회귀(--title↔body 뒤바뀜·label flag-pair 순서/개수
+    // drift·create 인데 edit argv)가 생기면 손상 argv 를 caller(live wiring, execFile('gh',
+    // argv))로 반환하기 전에 한국어 명세형 에러로 즉시 throw 한다(fail-fast). 같은 디렉토리
+    // 함수 호출이라 runtime cycle 0.
+    assertRealDataResultIssueGhArgvPreservesCommandArgs(
+      argv,
+      action,
+      commandArgs,
+    );
+
     return argv;
   }
 
@@ -131,7 +145,7 @@ export function buildRealDataResultIssueGhArgv(
   assertNonBlank(body, "updateArgs.body");
 
   // issueNumber 는 String(...) 으로 문자열화(argv 는 string[]).
-  return [
+  const argv = [
     "issue",
     "edit",
     String(issueNumber),
@@ -140,4 +154,15 @@ export function buildRealDataResultIssueGhArgv(
     "--body",
     body,
   ];
+
+  // self-wire — update argv 도 create 분기와 동형으로 반환 직전 self-assert(동사 'issue edit'·
+  // issueNumber 문자열화·title/body 위치 정합·잉여 원소 거부). 정상 합성이면 가드는 void
+  // 반환하므로 byte-identical 보존, 회귀 시 손상 argv 가 caller 로 새기 전에 fail-fast throw.
+  assertRealDataResultIssueGhArgvPreservesCommandArgs(
+    argv,
+    action,
+    commandArgs,
+  );
+
+  return argv;
 }
