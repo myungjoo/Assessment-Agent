@@ -27,6 +27,7 @@ import {
   REAL_DATA_RESULT_ISSUE_SEARCH_JSON_FIELDS,
   REAL_DATA_RESULT_ISSUE_SEARCH_LIMIT,
 } from "./realdata-e2e-result-issue-search-argv";
+import * as searchArgvConsistency from "./realdata-e2e-result-issue-search-argv-consistency";
 
 // 정상 명령-args fixture — T-0583 산출물 모사(searchQuery 단일 의존이지만 createArgs/
 // updateArgs 미사용을 검증하기 위해 전체 shape 을 채운다).
@@ -259,6 +260,150 @@ describe("buildRealDataResultIssueSearchGhArgv", () => {
         "--limit",
         "30",
       ]);
+    });
+  });
+
+  // ── T-0656: search argv↔commandArgs round-trip 정합 가드 self-wire 검증 ──
+  // 빌더가 argv 반환 직전 assertRealDataResultIssueSearchGhArgvPreservesCommandArgs 를
+  // (반환할 searchArgv, 원본 commandArgs) 인자로 self-assert 함을 검증한다. T-0655 신설
+  // 가드의 builder self-wire, T-0654 create/edit argv self-wire 의 search-side mirror.
+  // search 빌더는 단일 반환 지점(create/update 분기 없음 — 분기별 self-wire 항목 생략)이라
+  // 호출 지점도 1지점.
+  describe("self-wire: search argv 정합 가드를 반환 직전 self-assert (T-0656)", () => {
+    const guardName =
+      "assertRealDataResultIssueSearchGhArgvPreservesCommandArgs";
+
+    describe("happy-path — 가드 통과 후 byte-identical argv 반환", () => {
+      it("정상 commandArgs → self-wire 후에도 기존과 byte-identical argv 반환", () => {
+        const args = makeCommandArgs({ searchQuery: "<!-- marker-token -->" });
+
+        const argv = buildRealDataResultIssueSearchGhArgv(args);
+
+        expect(argv).toEqual([
+          "search",
+          "issues",
+          "--match",
+          "body",
+          "<!-- marker-token -->",
+          "--json",
+          "number,title,body",
+          "--limit",
+          "30",
+        ]);
+      });
+
+      it("self-assert 가 정상 입력에 대해 throw 없이 통과(가드 실제 호출, 미mock)", () => {
+        // 가드를 mock 하지 않고 실제 호출 — 정상 입력에서 throw 0 이어야 한다.
+        const args = makeCommandArgs();
+
+        expect(() => buildRealDataResultIssueSearchGhArgv(args)).not.toThrow();
+      });
+    });
+
+    describe("self-wire 호출 인자 정합 — spyOn 으로 (searchArgv, commandArgs) 검증", () => {
+      it("가드가 반환할 argv·원본 commandArgs 로 정확히 1회 호출", () => {
+        const spy = jest
+          .spyOn(searchArgvConsistency, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          const args = makeCommandArgs({ searchQuery: "<!-- 토큰 -->" });
+          const argv = buildRealDataResultIssueSearchGhArgv(args);
+
+          expect(spy).toHaveBeenCalledTimes(1);
+          // 인자가 (반환 argv, 입력 commandArgs) 임을 검증.
+          expect(spy).toHaveBeenCalledWith(argv, args);
+        } finally {
+          spy.mockRestore();
+        }
+      });
+    });
+
+    describe("회귀 fail-fast — 가드 throw 시 손상 argv 가 caller 로 새지 않음", () => {
+      it("(c) 가드가 RangeError 를 throw 하면 빌더가 argv 를 반환하지 않고 전파", () => {
+        const spy = jest
+          .spyOn(searchArgvConsistency, guardName)
+          .mockImplementation(() => {
+            throw new RangeError("모의 회귀: search argv 정합 위반");
+          });
+
+        try {
+          expect(() =>
+            buildRealDataResultIssueSearchGhArgv(makeCommandArgs()),
+          ).toThrow(/모의 회귀: search argv 정합 위반/);
+        } finally {
+          spy.mockRestore();
+        }
+      });
+    });
+
+    describe("searchQuery guard 우선 — self-assert 도달 전 먼저 throw(분기 순서 보존)", () => {
+      it("(a) searchQuery 빈 → searchQuery guard 가 먼저 throw, 가드 미호출", () => {
+        const spy = jest
+          .spyOn(searchArgvConsistency, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          expect(() =>
+            buildRealDataResultIssueSearchGhArgv(
+              makeCommandArgs({ searchQuery: "" }),
+            ),
+          ).toThrow(/searchQuery 가 비어있습니다/);
+          expect(spy).not.toHaveBeenCalled();
+        } finally {
+          spy.mockRestore();
+        }
+      });
+
+      it("(b) searchQuery 공백-only → searchQuery guard 가 먼저 throw, 가드 미호출", () => {
+        const spy = jest
+          .spyOn(searchArgvConsistency, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          expect(() =>
+            buildRealDataResultIssueSearchGhArgv(
+              makeCommandArgs({ searchQuery: "   \t  " }),
+            ),
+          ).toThrow(/searchQuery 가 비어있습니다/);
+          expect(spy).not.toHaveBeenCalled();
+        } finally {
+          spy.mockRestore();
+        }
+      });
+    });
+
+    describe("negative — 결정성·무공유·입력 비변형 (self-wire 가 깨지 않음)", () => {
+      it("결정성 — 동일 입력 2회 빌드 → 둘 다 정상 byte-identical 반환", () => {
+        const args = makeCommandArgs();
+
+        const first = buildRealDataResultIssueSearchGhArgv(args);
+        const second = buildRealDataResultIssueSearchGhArgv(args);
+
+        expect(first).toEqual(second);
+      });
+
+      it("(d) 입력 비변형 — 빌드 후 commandArgs(중첩 createArgs/updateArgs 포함) 변경 0", () => {
+        const args = makeCommandArgs({ labels: ["realdata-e2e", "result"] });
+        const snapshot = JSON.stringify(args);
+
+        buildRealDataResultIssueSearchGhArgv(args);
+
+        expect(JSON.stringify(args)).toBe(snapshot);
+      });
+
+      it("(e) 무공유 — 반환 argv 가 매 호출 새 배열(반환값 mutate 가 후속 호출에 누설 안 됨)", () => {
+        const args = makeCommandArgs();
+
+        const first = buildRealDataResultIssueSearchGhArgv(args);
+        const second = buildRealDataResultIssueSearchGhArgv(args);
+
+        expect(first).not.toBe(second);
+        first.push("INJECTED");
+        first[4] = "MUTATED";
+        expect(second).not.toContain("INJECTED");
+        expect(second).not.toContain("MUTATED");
+      });
     });
   });
 });

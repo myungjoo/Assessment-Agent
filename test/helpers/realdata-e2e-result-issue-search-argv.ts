@@ -69,6 +69,7 @@
 //   - 외부 CLI 라이브러리(execa 등) 도입 — 새 dependency 0, 내장 배열 연산만.
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
 import type { RealDataResultIssueCommandArgs } from "./realdata-e2e-result-issue-command-args";
+import { assertRealDataResultIssueSearchGhArgvPreservesCommandArgs } from "./realdata-e2e-result-issue-search-argv-consistency";
 
 // --json 요청 필드 — T-0584 `RealDataResultIssueSearchHit`({number, title, body})의
 // 모든 멤버와 정확히 일치(콤마 구분, 공백 0). 매직 스트링 대신 named constant 로 박제.
@@ -114,7 +115,7 @@ export function buildRealDataResultIssueSearchGhArgv(
   assertSearchQueryNonBlank(searchQuery);
 
   // search argv 합성 — searchQuery 는 단일 원소로 유지(escape 불요, 인젝션 불가).
-  return [
+  const searchArgv = [
     "search",
     "issues",
     "--match",
@@ -125,4 +126,19 @@ export function buildRealDataResultIssueSearchGhArgv(
     "--limit",
     REAL_DATA_RESULT_ISSUE_SEARCH_LIMIT,
   ];
+
+  // self-wire — 합성한 search argv 가 명령-args 의 searchQuery 를 동사 prefix·`--match body`·
+  // searchQuery 위치·`--json` 필드·`--limit` 값으로 정합 round-trip 했는지 반환 직전
+  // self-assert(T-0655 신설 가드의 builder self-wire, T-0654 create/edit argv self-wire 의
+  // search-side mirror). search 빌더는 단일 반환 지점(create/update 분기 없음)이라 self-assert
+  // 호출도 1지점. 정상 합성이면 가드는 void 반환하므로 동작·반환값 byte-identical 보존. 미래
+  // 회귀(searchQuery↔다른 위치 drift·`--match body` 변형·`--json` 필드 누락·`--limit` 값 drift)가
+  // 생기면 손상 argv 를 caller(live wiring, execFile('gh', searchArgv))로 반환하기 전에 한국어
+  // 명세형 에러로 즉시 throw 한다(fail-fast). 같은 디렉토리 함수 호출이라 runtime cycle 0.
+  assertRealDataResultIssueSearchGhArgvPreservesCommandArgs(
+    searchArgv,
+    commandArgs,
+  );
+
+  return searchArgv;
 }
