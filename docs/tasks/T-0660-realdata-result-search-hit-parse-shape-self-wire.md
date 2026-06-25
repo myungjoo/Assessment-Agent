@@ -2,7 +2,7 @@
 id: T-0660
 title: search-hit↔parse-shape set-equality 가드 producer self-wire (parseRealDataResultIssueSearchOutput)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 110
