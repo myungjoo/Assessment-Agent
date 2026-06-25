@@ -82,6 +82,7 @@ import type { EvaluationResult } from "../../src/assessment-evaluation/domain/ev
 
 import { buildRealDataResultIssuePublishPlan } from "./realdata-e2e-result-issue-publish-plan";
 import type { RealDataResultIssuePublishPlan } from "./realdata-e2e-result-issue-publish-plan";
+import { assertRealDataResultPublishStepArgsConsistentWithSources } from "./realdata-e2e-result-publish-step-args-consistency";
 import type { RealDataE2eRunPlan } from "./realdata-e2e-run-plan";
 
 // buildRealDataResultPublishStepArgs — 검증된 e2e run plan `runPlan` + 평가 결과
@@ -116,5 +117,19 @@ export function buildRealDataResultPublishStepArgs(
   // run plan 에서 검증·보존된 단일 run 식별자를 추출해 publish plan 으로 thread. 독립
   // run 인자 미수신 — step ① / step ④ run 식별자 일관 구조적 보장(재전달 0). 빈/공백
   // gitSha/dateToken 의 guard throw 는 위임 helper 가 자체 try/catch 없이 그대로 전파한다.
-  return buildRealDataResultIssuePublishPlan(results, runPlan.run);
+  const plan = buildRealDataResultIssuePublishPlan(results, runPlan.run);
+
+  // 산출 plan 반환 직전 self-assert(T-0668 self-wire) — 컴포저가 runPlan.run 추출/재전달/
+  // 위임 plan 반환 과정에서 run 인자 위치를 뒤바꾸거나 plan 을 변형/누락하는 합성 회귀를
+  // single-source 재유도(buildRealDataResultIssuePublishPlan(results, runPlan.run)) 와의
+  // byte-identical 정합 검증으로 호출 시점에 fail-fast 차단한다. 정상 합성이면 가드는 void →
+  // 반환 plan byte-identical·무공유 보존(관측 불가능하게 동일). 가드는 read-only 라 plan/
+  // runPlan/results mutate 0.
+  assertRealDataResultPublishStepArgsConsistentWithSources(
+    plan,
+    runPlan,
+    results,
+  );
+
+  return plan;
 }
