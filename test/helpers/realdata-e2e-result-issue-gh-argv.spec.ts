@@ -18,6 +18,7 @@
 import type { RealDataResultIssueAction } from "./realdata-e2e-result-issue-action";
 import type { RealDataResultIssueCommandArgs } from "./realdata-e2e-result-issue-command-args";
 import { buildRealDataResultIssueGhArgv } from "./realdata-e2e-result-issue-gh-argv";
+import * as ghArgvConsistency from "./realdata-e2e-result-issue-gh-argv-consistency";
 
 // 정상 명령-args fixture — create/update 양쪽 인자 묶음(T-0583 산출물 모사).
 function makeCommandArgs(
@@ -287,6 +288,242 @@ describe("buildRealDataResultIssueGhArgv", () => {
         "--body",
         "오직 본문",
       ]);
+    });
+  });
+
+  // ── T-0654: gh argv↔명령-args round-trip 정합 가드 self-wire 검증 ──
+  // 빌더가 argv 반환 직전 assertRealDataResultIssueGhArgvPreservesCommandArgs 를
+  // (반환할 argv, 원본 action, 원본 commandArgs) 인자로 self-assert 함을 검증한다.
+  // T-0650/T-0652 command-args self-wire 의 argv-side mirror. 빌더에 반환 지점이 둘
+  // (create·update)이라 호출 지점도 둘이므로 양쪽 모두 검증한다.
+  describe("self-wire: argv 정합 가드를 반환 직전 self-assert (T-0654)", () => {
+    const guardName = "assertRealDataResultIssueGhArgvPreservesCommandArgs";
+
+    describe("happy-path — 가드 통과 후 byte-identical argv 반환", () => {
+      it("(create, labels 0건) self-wire 후에도 기존과 byte-identical argv 반환", () => {
+        const args = makeCommandArgs({
+          createTitle: "t",
+          createBody: "b",
+          labels: [],
+        });
+
+        const argv = buildRealDataResultIssueGhArgv(CREATE, args);
+
+        expect(argv).toEqual([
+          "issue",
+          "create",
+          "--title",
+          "t",
+          "--body",
+          "b",
+        ]);
+      });
+
+      it("(create, labels 다수) self-wire 후에도 기존과 byte-identical argv 반환", () => {
+        const args = makeCommandArgs({
+          createTitle: "제목",
+          createBody: "본문",
+          labels: ["a", "b", "c"],
+        });
+
+        const argv = buildRealDataResultIssueGhArgv(CREATE, args);
+
+        expect(argv).toEqual([
+          "issue",
+          "create",
+          "--title",
+          "제목",
+          "--body",
+          "본문",
+          "--label",
+          "a",
+          "--label",
+          "b",
+          "--label",
+          "c",
+        ]);
+      });
+
+      it("(update) self-wire 후에도 기존과 byte-identical argv 반환", () => {
+        const args = makeCommandArgs({
+          updateTitle: "갱신 제목",
+          updateBody: "갱신 본문",
+        });
+
+        const argv = buildRealDataResultIssueGhArgv(updateOf(42), args);
+
+        expect(argv).toEqual([
+          "issue",
+          "edit",
+          "42",
+          "--title",
+          "갱신 제목",
+          "--body",
+          "갱신 본문",
+        ]);
+      });
+    });
+
+    describe("self-wire 호출 인자 정합 — spyOn 으로 (argv, action, commandArgs) 검증", () => {
+      it("(create 분기) 가드가 반환할 argv·원본 action·원본 commandArgs 로 정확히 1회 호출", () => {
+        const spy = jest
+          .spyOn(ghArgvConsistency, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          const args = makeCommandArgs({
+            createTitle: "t",
+            createBody: "b",
+            labels: ["solo"],
+          });
+          const argv = buildRealDataResultIssueGhArgv(CREATE, args);
+
+          expect(spy).toHaveBeenCalledTimes(1);
+          expect(spy).toHaveBeenCalledWith(argv, CREATE, args);
+        } finally {
+          spy.mockRestore();
+        }
+      });
+
+      it("(update 분기) 가드가 반환할 argv·원본 action·원본 commandArgs 로 정확히 1회 호출", () => {
+        const spy = jest
+          .spyOn(ghArgvConsistency, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          const args = makeCommandArgs();
+          const action = updateOf(7);
+          const argv = buildRealDataResultIssueGhArgv(action, args);
+
+          expect(spy).toHaveBeenCalledTimes(1);
+          expect(spy).toHaveBeenCalledWith(argv, action, args);
+        } finally {
+          spy.mockRestore();
+        }
+      });
+    });
+
+    describe("회귀 fail-fast — 가드 throw 시 손상 argv 가 caller 로 새지 않음", () => {
+      it("(create 분기) 가드가 throw 하면 빌더가 argv 를 반환하지 않고 전파", () => {
+        const spy = jest
+          .spyOn(ghArgvConsistency, guardName)
+          .mockImplementation(() => {
+            throw new RangeError("모의 회귀: create argv 정합 위반");
+          });
+
+        try {
+          expect(() =>
+            buildRealDataResultIssueGhArgv(CREATE, makeCommandArgs()),
+          ).toThrow(/모의 회귀: create argv 정합 위반/);
+        } finally {
+          spy.mockRestore();
+        }
+      });
+
+      it("(update 분기) 가드가 throw 하면 빌더가 argv 를 반환하지 않고 전파", () => {
+        const spy = jest
+          .spyOn(ghArgvConsistency, guardName)
+          .mockImplementation(() => {
+            throw new RangeError("모의 회귀: update argv 정합 위반");
+          });
+
+        try {
+          expect(() =>
+            buildRealDataResultIssueGhArgv(updateOf(7), makeCommandArgs()),
+          ).toThrow(/모의 회귀: update argv 정합 위반/);
+        } finally {
+          spy.mockRestore();
+        }
+      });
+    });
+
+    describe("식별자 guard 우선 — self-assert 도달 전 먼저 throw(분기 순서 보존)", () => {
+      it("(create) title 빈 → 식별자 guard 가 먼저 throw, 가드 미호출", () => {
+        const spy = jest
+          .spyOn(ghArgvConsistency, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          expect(() =>
+            buildRealDataResultIssueGhArgv(
+              CREATE,
+              makeCommandArgs({ createTitle: "", createBody: "b" }),
+            ),
+          ).toThrow(/createArgs\.title/);
+          expect(spy).not.toHaveBeenCalled();
+        } finally {
+          spy.mockRestore();
+        }
+      });
+
+      it("(update) issueNumber 비양수 → 식별자 guard 가 먼저 throw, 가드 미호출", () => {
+        const spy = jest
+          .spyOn(ghArgvConsistency, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          expect(() =>
+            buildRealDataResultIssueGhArgv(updateOf(0), makeCommandArgs()),
+          ).toThrow(/양의 정수가 아닙니다/);
+          expect(spy).not.toHaveBeenCalled();
+        } finally {
+          spy.mockRestore();
+        }
+      });
+    });
+
+    describe("negative — 결정성·무공유·입력 비변형 (self-wire 가 깨지 않음)", () => {
+      it("결정성 — 동일 입력 2회 빌드 → 둘 다 정상 byte-identical 반환", () => {
+        const args = makeCommandArgs({ labels: ["x", "y"] });
+
+        const first = buildRealDataResultIssueGhArgv(CREATE, args);
+        const second = buildRealDataResultIssueGhArgv(CREATE, args);
+
+        expect(first).toEqual(second);
+      });
+
+      it("입력 비변형 — 빌드 후 action·commandArgs(labels 포함) 변경 0", () => {
+        const labels = ["realdata-e2e", "result"];
+        const args = makeCommandArgs({ labels });
+        const action = updateOf(5);
+
+        buildRealDataResultIssueGhArgv(CREATE, args);
+        buildRealDataResultIssueGhArgv(action, args);
+
+        expect(labels).toEqual(["realdata-e2e", "result"]);
+        expect(args.createArgs.labels).toBe(labels);
+        expect(action).toEqual({ action: "update", issueNumber: 5 });
+      });
+
+      it("무공유 — 반환 argv 가 매 호출 새 배열(가드 self-wire 가 깨지 않음)", () => {
+        const args = makeCommandArgs({ labels: ["a"] });
+
+        const first = buildRealDataResultIssueGhArgv(CREATE, args);
+        const second = buildRealDataResultIssueGhArgv(CREATE, args);
+
+        expect(first).not.toBe(second);
+        first.push("INJECTED");
+        expect(second).not.toContain("INJECTED");
+      });
+
+      it("R-59 — self-wire 후에도 argv 는 title/body string 만 전파(raw 미추가)", () => {
+        const args = makeCommandArgs({
+          createTitle: "오직 제목",
+          createBody: "오직 본문",
+          labels: [],
+        });
+
+        const argv = buildRealDataResultIssueGhArgv(CREATE, args);
+
+        expect(argv).toEqual([
+          "issue",
+          "create",
+          "--title",
+          "오직 제목",
+          "--body",
+          "오직 본문",
+        ]);
+      });
     });
   });
 });
