@@ -2,7 +2,7 @@
 id: T-0670
 title: outcome-step-args 컴포저 산출 직전 consistency 가드 self-wire 배선 (buildRealDataResultOutcomeStepArgs)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 110
@@ -58,3 +58,9 @@ P5 PLAN.md 109행 🟢 "실 평가 e2e = github.com 공개 활동" bullet 의 st
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가. 본 self-wire 로 outcome-step-args layer seam consistency chain(가드신설 T-0669 → composer self-wire T-0670)이 완결됨. 그로써 step④ 의 pre-실행 publish(T-0667/T-0668) + post-실행 outcome(T-0669/T-0670) 두 step-args layer seam 짝이 모두 닫힘. 다음 후보: 그 위 상위 `buildRealDataE2eStepArgs`/`realdata-e2e-run-plan` 컴포저 seam 의 가드신설+self-wire 짝, 또는 step④ live execFile wiring credential 게이트 진입 여부 PLAN 재검토.)
+
+## Result
+
+- **DONE** 2026-06-25T20:10Z (PR #585 squash merge `eb3d3eb`). reviewer r1 APPROVE + 4-게이트 PASS, CI green(양 job).
+- `buildRealDataResultOutcomeStepArgs` 가 산출 outcome report 를 반환 직전 `assertRealDataResultOutcomeStepArgsConsistentWithSources(report, runPlan, stdout)` self-assert 배선(import 1줄 + 호출 1지점, byte-identical·무공유 보존, +20/-1 1 file). colocated spec self-wire describe 7 it 추가(spyOn 인자·1회 / throw 전파 / 위임 throw 가드 진입 전 / deterministic / 비변형 / 무공유).
+- 컴포저 파일 line/branch/func 100%, 전역 line 99.95%/func 100%, 7932 test green. 새 dep 0·src 변경 0·test-only.
