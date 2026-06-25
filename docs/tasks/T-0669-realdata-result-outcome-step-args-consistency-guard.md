@@ -2,7 +2,7 @@
 id: T-0669
 title: outcome-step-args 컴포저 산출↔(runPlan.run, stdout) 재유도 정합 순수 가드 신설 (assertRealDataResultOutcomeStepArgsConsistentWithSources)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 240
