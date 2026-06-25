@@ -19,6 +19,7 @@ import type { EvaluationResult } from "../../src/assessment-evaluation/domain/ev
 import { buildRealDataResultIssueCommandPlan } from "./realdata-e2e-result-issue-command-plan";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
 import { buildRealDataResultIssuePublishPlan } from "./realdata-e2e-result-issue-publish-plan";
+import * as consistencyModule from "./realdata-e2e-result-issue-publish-plan-consistency";
 import { buildRealDataResultIssueSearchGhArgv } from "./realdata-e2e-result-issue-search-argv";
 
 // 유효 run fixture — daily-test latest-result.json 의 gitSha + 날짜 토큰 모사.
@@ -236,6 +237,162 @@ describe("buildRealDataResultIssuePublishPlan — 결과 이슈 publish plan 종
       expect(Object.keys(plan).sort()).toEqual(
         ["commandArgs", "report", "searchArgv"].sort(),
       );
+    });
+  });
+
+  // T-0666 — publish-plan consistency 가드 composer self-wire 검증.
+  //
+  // R-112 cover 구조(self-wire):
+  //   - happy-path: self-wire 후에도 정상 (results, run) 산출 plan 이 byte-identical
+  //     보존되고 self-assert throw 0(round-trip 으로 가드 통과 확인) — 빈/단일/다수
+  //     results 분기 각각.
+  //   - self-wire 검증: 정상 합성 시 가드가 `(산출 plan, results, run)` 인자·순서로 매
+  //     호출 정확히 1회 호출됨을 spy 로 확인.
+  //   - error path: (a) 가드를 spy 로 강제 throw 시키면 컴포저가 손상 plan 을 반환하지
+  //     않고 그 에러를 caller 로 propagate(fail-fast), (b) 위임 command-plan 이 throw 하는
+  //     입력(run 식별자 빈/공백)에서는 가드 진입 전 위임 throw 가 전파(가드 미호출).
+  //   - flow/branch: (a) 정상 합성 → 가드 통과 → plan 반환, (b) 가드 throw 전파,
+  //     (c) 위임 throw 가 가드 진입 전 전파 각 1+.
+  //   - negative 충분 cover: (a) 가드 인자·순서·1회 호출, (b) 가드 throw 전파(RangeError/
+  //     TypeError 양쪽), (c) 위임 throw 입력(gitSha/dateToken 빈·공백)에서 가드 미호출,
+  //     (d) 동일 입력 두 번 deterministic, (e) 입력 results/run 비변형, (f) 반환 plan 무공유.
+  describe("T-0666 — publish-plan consistency 가드 composer self-wire", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("self-wire 후에도 정상 (results, run) 산출 plan 이 single-source 재유도와 byte-identical 보존된다(검증만, 출력 비변형)", () => {
+      const plan = buildRealDataResultIssuePublishPlan(MULTIPLE, RUN);
+
+      // 위임 2 단계를 손으로 엮은 single-source 재유도와 byte-identical — self-wire 가
+      // 출력을 변형하지 않음(round-trip 으로 가드 통과 확인).
+      const expectedCommand = buildRealDataResultIssueCommandPlan(
+        MULTIPLE,
+        RUN,
+      );
+      expect(plan.report).toEqual(expectedCommand.report);
+      expect(plan.commandArgs).toEqual(expectedCommand.commandArgs);
+      expect(plan.searchArgv).toEqual(
+        buildRealDataResultIssueSearchGhArgv(expectedCommand.commandArgs),
+      );
+    });
+
+    it("정상 합성 시 가드를 (산출 plan, results, run) 인자·순서로 정확히 1회 호출한다", () => {
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataResultIssuePublishPlanConsistentWithSources",
+      );
+
+      const plan = buildRealDataResultIssuePublishPlan(SINGLE, RUN);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서 (산출 plan, results, run) 정확 매칭 — plan 은 컴포저가 반환한 객체.
+      expect(spy).toHaveBeenCalledWith(plan, SINGLE, RUN);
+    });
+
+    it("빈 results 분기에서도 가드가 (산출 plan, [], run) 으로 정확히 1회 호출되고 throw 0", () => {
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataResultIssuePublishPlanConsistentWithSources",
+      );
+
+      const plan = buildRealDataResultIssuePublishPlan([], RUN);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(plan, [], RUN);
+    });
+
+    it("정상 (results, run) 에 대해 가드가 throw 하지 않는다(self-assert 통과)", () => {
+      expect(() =>
+        buildRealDataResultIssuePublishPlan(SINGLE, RUN),
+      ).not.toThrow();
+      expect(() => buildRealDataResultIssuePublishPlan([], RUN)).not.toThrow();
+    });
+
+    it("가드가 RangeError throw(값 정합 위반) 하면 컴포저가 손상 plan 을 반환하지 않고 에러를 propagate 한다(fail-fast)", () => {
+      jest
+        .spyOn(
+          consistencyModule,
+          "assertRealDataResultIssuePublishPlanConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new RangeError("forced consistency drift");
+        });
+
+      expect(() => buildRealDataResultIssuePublishPlan(SINGLE, RUN)).toThrow(
+        /forced consistency drift/,
+      );
+    });
+
+    it("가드가 TypeError throw(구조 결손) 하면 컴포저가 그 에러를 propagate 한다(fail-fast)", () => {
+      jest
+        .spyOn(
+          consistencyModule,
+          "assertRealDataResultIssuePublishPlanConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new TypeError("forced structural defect");
+        });
+
+      expect(() => buildRealDataResultIssuePublishPlan(SINGLE, RUN)).toThrow(
+        /forced structural defect/,
+      );
+    });
+
+    it("위임 command-plan throw(run.gitSha 빈)는 가드 도달 전에 발생한다(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataResultIssuePublishPlanConsistentWithSources",
+      );
+
+      expect(() =>
+        buildRealDataResultIssuePublishPlan(SINGLE, {
+          gitSha: "",
+          dateToken: "2026-06-23",
+        }),
+      ).toThrow(/gitSha 가 비어있습니다/);
+      // command-plan 단계에서 종료 → self-assert 미호출.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("위임 command-plan throw(run.dateToken 공백-only)는 가드 도달 전에 발생한다(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataResultIssuePublishPlanConsistentWithSources",
+      );
+
+      expect(() =>
+        buildRealDataResultIssuePublishPlan(SINGLE, {
+          gitSha: "abc1234",
+          dateToken: "   ",
+        }),
+      ).toThrow(/dateToken 가 비어있습니다/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("self-wire 후 동일 (results, run) 두 번 호출 deterministic(가드 통과 + plan deep-equal)", () => {
+      const first = buildRealDataResultIssuePublishPlan(MULTIPLE, RUN);
+      const second = buildRealDataResultIssuePublishPlan(MULTIPLE, RUN);
+
+      expect(first).toEqual(second);
+    });
+
+    it("self-wire 후에도 입력 results 배열·원소 / run 객체 mutate 0(가드 read-only)", () => {
+      const resultsSnapshot = JSON.parse(JSON.stringify(MULTIPLE));
+      const runSnapshot = { ...RUN };
+
+      buildRealDataResultIssuePublishPlan(MULTIPLE, RUN);
+
+      expect(MULTIPLE).toEqual(resultsSnapshot);
+      expect(RUN).toEqual(runSnapshot);
+    });
+
+    it("self-wire 후에도 반환 plan 무공유(반환값 mutate 가 후속 호출에 누출 0)", () => {
+      const first = buildRealDataResultIssuePublishPlan(SINGLE, RUN);
+      first.searchArgv.push("--오염");
+
+      const second = buildRealDataResultIssuePublishPlan(SINGLE, RUN);
+      expect(second.searchArgv).not.toContain("--오염");
     });
   });
 });

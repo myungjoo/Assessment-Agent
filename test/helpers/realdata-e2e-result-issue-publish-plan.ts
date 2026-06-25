@@ -74,6 +74,13 @@ import type { EvaluationResult } from "../../src/assessment-evaluation/domain/ev
 import type { RealDataResultIssueCommandArgs } from "./realdata-e2e-result-issue-command-args";
 import { buildRealDataResultIssueCommandPlan } from "./realdata-e2e-result-issue-command-plan";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
+// publish-plan 컴포저 산출 ↔ single-source 재유도 정합 가드(T-0665 신설)를 컴포저 산출
+// 경로에 self-wire 한다(T-0666). 합성한 plan 을 반환하기 직전에 self-assert 호출 — 컴포저가
+// 두 위임 layer(command-plan → search-argv) 사이에 끼어 결과를 변형/누락/순서 뒤바꾸는 합성
+// 회귀가 발생하면 손상 plan 을 caller 에 반환하기 전에 fail-fast throw 한다(구조 결손=TypeError /
+// 값 정합 위반=RangeError). 가드 본문은 변경 0(T-0665 산출물 그대로 import 재사용). 가드는
+// 컴포저와 동일한 두 위임(command-plan→search-argv)을 import 하므로 runtime cycle 위험 없음.
+import { assertRealDataResultIssuePublishPlanConsistentWithSources } from "./realdata-e2e-result-issue-publish-plan-consistency";
 import { buildRealDataResultIssueSearchGhArgv } from "./realdata-e2e-result-issue-search-argv";
 import type { RealDataResultReportPlan } from "./realdata-e2e-result-report-plan";
 
@@ -142,5 +149,13 @@ export function buildRealDataResultIssuePublishPlan(
 
   // 새 plan 객체 — report / commandArgs / searchArgv 는 위임 helper 가 이미 무공유로
   // 반환하므로 입력 보존·무공유.
-  return { report, commandArgs, searchArgv };
+  const plan = { report, commandArgs, searchArgv };
+
+  // self-wire(T-0666) — 합성한 plan 이 동일 (results, run) 의 single-source 재유도와
+  // byte-identical 정합한지 반환 직전 검증한다. 정상 합성이면 self-assert 가 void →
+  // plan 비변형·byte-identical 보존. 컴포저가 두 위임 사이에 끼어 결과를 변형/누락/순서
+  // 뒤바꾸는 합성 회귀가 발생하면 손상 plan 을 caller 에 넘기기 전에 fail-fast throw 한다.
+  assertRealDataResultIssuePublishPlanConsistentWithSources(plan, results, run);
+
+  return plan;
 }
