@@ -2,8 +2,11 @@
 id: T-0668
 title: publish-step-args 컴포저 산출 직전 consistency 가드 self-wire 배선 (buildRealDataResultPublishStepArgs)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-25T18:19:10Z
+prNumber: 583
+squashSha: 80b2e45
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 110
 estimatedFiles: 2
