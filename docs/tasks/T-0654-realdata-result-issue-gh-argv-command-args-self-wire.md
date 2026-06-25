@@ -2,7 +2,7 @@
 id: T-0654
 title: buildRealDataResultIssueGhArgv 산출 직전 gh argv↔명령-args round-trip 정합 가드 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 110
@@ -66,3 +66,12 @@ implementer → tester
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가. 본 task 닫히면 argv layer 의 round-trip 정합 불변식이 빌더 산출 직전 self-assert 로 박힌다 — command-args layer 의 body marker-first(T-0649→T-0650)·labels·title(T-0651→T-0652) 가드 self-wire 와 함께 결과 이슈 명령 chain 의 구조 무결성이 descriptor→command-args→argv 3단계 모두 빌더 산출 직전 self-assert 로 닫힌다. 자연 후속 후보: gh issue 실배선 — `execFile('gh', argv)` + `gh issue create`/`edit`/`search` + daily-test step_eval + 실 Ollama LLM round-trip, LAN/credential gate deferred (PLAN 108~109행) — realdata-e2e-result-summary-line stream 의 live wiring slice.)
+
+---
+
+## Status: DONE (2026-06-25)
+
+- **결과**: PR #568 squash merge `c28cf95`. reviewer round1 APPROVE (8-check, BLOCKER 0/MAJOR 0/MINOR 0) + 외부 PR comment #4795663890, 4-게이트 PASS, CI green.
+- **변경**: `buildRealDataResultIssueGhArgv` 의 create·update 두 반환 지점에 `assertRealDataResultIssueGhArgvPreservesCommandArgs(argv, action, commandArgs)` self-assert 배선 (import 1줄 + 호출 2지점). 정상 입력 byte-identical 보존, 회귀 fail-fast throw. 가드 helper 본문·식별자 guard·labels 전개·argv 합성 순서 변경 0.
+- **검증**: 신규 self-wire describe (spec append, 신규 spec 파일 신설 아님). 7641 tests green, 전역 line 99.95%/function 100% (≥80% AND ≥80%). 새 dep 0, migration 0, src 변경 0, raw 미저장(R-59).
+- **trail**: commit `c28cf95` body 의 agent-trail blob 참조.
