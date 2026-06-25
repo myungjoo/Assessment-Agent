@@ -2,7 +2,11 @@
 id: T-0650
 title: buildRealDataResultIssueCommandArgs 산출 직전 command-args body marker-first 구조 가드 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-25T01:20:00Z
+mergedAs: badfbcd
+prNumber: 564
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 110
