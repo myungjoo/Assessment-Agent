@@ -2,7 +2,7 @@
 id: T-0656
 title: buildRealDataResultIssueSearchGhArgv 산출 직전 search argv↔commandArgs round-trip 가드 self-wire
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 110
@@ -56,3 +56,10 @@ implementer → tester
 ## Follow-ups
 
 (없음 — search-argv layer 의 신설(T-0655)+self-wire(본 task)로 가드 chain 닫힘. 후속은 planner 가 PLAN 109행 step④ 의 다음 미커버 surface 를 선정.)
+
+## Result (DONE)
+
+- 완료: 2026-06-25T06:18:41Z (KST 15:18)
+- PR #570 squash merge `ad65416` — reviewer round1 APPROVE, 4-게이트 PASS, 외부 PR comment 존재, CI green(양 job, no rerun).
+- 변경: test-only 2 파일 +162/-1. buildRealDataResultIssueSearchGhArgv 산출 argv 반환 직전 assertRealDataResultIssueSearchGhArgvPreservesCommandArgs(searchArgv, commandArgs) self-assert 1지점 배선 + import 1줄. 빌더 단일 반환 지점 → create/update 분기 없음. argv byte-identical 보존.
+- 검증: 변경 빌더 파일 line/branch/function 100%, 전역 threshold ok. pnpm lint/build/test green (321 suites / 7683 tests).
