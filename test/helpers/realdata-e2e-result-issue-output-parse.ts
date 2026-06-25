@@ -50,6 +50,18 @@
 //   - production `src/` 코드 변경 — test helper 단독.
 //   - raw issue 본문/narrative 보유·저장 — REQ-059 정합으로 issueNumber/url 만 추출.
 
+// outcome↔parse-shape set-equality 가드(T-0661 신설)를 producer 산출 경로에 self-wire
+// 한다(T-0662). 정규화한 `{issueNumber, url}` outcome 을 반환하기 직전에 self-assert 호출 —
+// 파서가 선언 parse-shape 와 어긋난 키 집합의 outcome 을 산출하면 손상 outcome 을 caller 에
+// 반환하기 전에 fail-fast throw(구조 결손=TypeError / set 불일치=RangeError). 가드 본문·상수
+// 는 변경 0(T-0661 산출물 그대로 import 재사용). `REAL_DATA_RESULT_ISSUE_OUTCOME_PARSE_SHAPE_KEYS`
+// 는 가드 모듈이 single-source 로 정의·export 한 것을 그대로 사용한다(search 측 re-export 와 달리
+// post-execution 측엔 선행 상수가 없어 가드 모듈이 정의함).
+import {
+  assertRealDataResultIssueOutcomeMatchesParseShape,
+  REAL_DATA_RESULT_ISSUE_OUTCOME_PARSE_SHAPE_KEYS,
+} from "./realdata-e2e-result-issue-outcome-parse-shape";
+
 // RealDataResultIssueOutcome — `gh issue create` / `gh issue edit` 실행 후 stdout 에서
 // 추출한 박제 결과의 최소 shape.
 //   - issueNumber: 생성/수정된 이슈 번호(양의 정수).
@@ -110,9 +122,19 @@ export function parseRealDataResultIssueCreateEditOutput(
   // number 검증(양의 정수 — 0/선행 0/비정수 throw).
   const issueNumber = assertPositiveIssueNumber(match[1]);
 
-  // 매칭된 URL 전체를 정규화(trim). 새 객체 반환(무공유).
-  return {
+  // 매칭된 URL 전체를 정규화(trim). 새 객체 생성(무공유).
+  const outcome: RealDataResultIssueOutcome = {
     issueNumber,
     url: match[0].trim(),
   };
+
+  // self-wire(T-0662) — 정규화한 outcome 의 키 집합이 선언 parse-shape 와 set-equal 인지
+  // 반환 직전 검증한다. 정상 파서 경로는 항상 `{issueNumber, url}` 만 산출하므로 throw 0
+  // (검증만, 출력 비변형). 회귀로 키 집합이 어긋나면 손상 outcome 반환 전 fail-fast.
+  assertRealDataResultIssueOutcomeMatchesParseShape(
+    outcome,
+    REAL_DATA_RESULT_ISSUE_OUTCOME_PARSE_SHAPE_KEYS,
+  );
+
+  return outcome;
 }
