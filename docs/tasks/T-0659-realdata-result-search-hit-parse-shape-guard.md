@@ -2,7 +2,11 @@
 id: T-0659
 title: 실 평가 e2e search-hit 키 집합 ↔ parse-shape 키 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-25T09:21:50Z
+mergedAs: 978b662
+prNumber: 573
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 170
