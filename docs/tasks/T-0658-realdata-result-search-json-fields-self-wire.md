@@ -2,7 +2,7 @@
 id: T-0658
 title: buildRealDataResultIssueSearchGhArgv 산출 직전 search --json 필드↔parse-shape 정합 가드 self-wire
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 110
