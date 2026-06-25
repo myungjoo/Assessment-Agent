@@ -2,7 +2,7 @@
 id: T-0655
 title: 실 평가 e2e 결과 이슈 search argv↔searchQuery round-trip 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 170
@@ -67,3 +67,11 @@ implementer → tester
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가. 본 task 닫히면 멱등 search-or-update chain 의 **search argv layer** round-trip 정합 불변식이 순수 가드로 신설된다 — create/edit argv 측(T-0653 가드 + T-0654 self-wire)과 함께 build-time chain 의 양 끝(search ↔ create/edit)이 모두 정합 가드로 닫힌다. 자연 후속 후보: ① 본 search argv 가드의 빌더 self-wire — `buildRealDataResultIssueSearchGhArgv` 산출 직전 `assertRealDataResultIssueSearchGhArgvPreservesCommandArgs` self-assert (T-0654 가 create/edit 가드를 self-wire 한 것과 동형). ② gh issue/search 실배선 — `execFile('gh', argv)` + daily-test step_eval + 실 Ollama LLM round-trip, LAN/credential gate deferred (PLAN 108~109행) — realdata-e2e-result-summary-line stream 의 live wiring slice.)
+
+## 결과 (DONE)
+
+- **Status: DONE** — 2026-06-25T05:22Z, cron@aa-local-15 fire.
+- PR #569 squash merge `0de0050` (reviewer round1 APPROVE — BLOCKER 0/MAJOR 0/MINOR 1, 외부 comment #4796125869, 4-게이트 PASS, CI green 양 job).
+- `assertRealDataResultIssueSearchGhArgvPreservesCommandArgs` 순수 가드 신설 — `buildRealDataResultIssueSearchGhArgv`(T-0586) 산출 argv 의 searchQuery·`--match` body·`--json`·`--limit` 위치 round-trip 정합을 S0~S5 불변식으로 검증. T-0653 create/edit argv 가드의 search-side mirror. 구조 결손=TypeError / 값 위반=RangeError fail-fast.
+- 신규 2 파일(test/helpers/realdata-e2e-result-issue-search-argv-consistency.{ts,spec.ts}, +701 LOC), 가드 line/branch/function 100% cover. 전역 line 99.95%/function 100%. 새 dep 0·migration 0·src 변경 0·R-59 보존.
+- Follow-up ① (빌더 self-wire) 은 후속 task 후보로 남김.
