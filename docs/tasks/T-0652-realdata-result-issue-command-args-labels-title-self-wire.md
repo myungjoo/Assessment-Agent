@@ -2,7 +2,7 @@
 id: T-0652
 title: buildRealDataResultIssueCommandArgs 산출 직전 command-args labels·title 정합 가드 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 110
