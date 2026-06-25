@@ -2,7 +2,7 @@
 id: T-0671
 title: e2e-step-args aggregator 산출↔(runPlan, activities, results) 재유도 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 240
