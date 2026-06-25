@@ -28,6 +28,7 @@ import {
   REAL_DATA_RESULT_ISSUE_SEARCH_LIMIT,
 } from "./realdata-e2e-result-issue-search-argv";
 import * as searchArgvConsistency from "./realdata-e2e-result-issue-search-argv-consistency";
+import * as searchJsonFields from "./realdata-e2e-result-issue-search-json-fields";
 
 // 정상 명령-args fixture — T-0583 산출물 모사(searchQuery 단일 의존이지만 createArgs/
 // updateArgs 미사용을 검증하기 위해 전체 shape 을 채운다).
@@ -403,6 +404,158 @@ describe("buildRealDataResultIssueSearchGhArgv", () => {
         first[4] = "MUTATED";
         expect(second).not.toContain("INJECTED");
         expect(second).not.toContain("MUTATED");
+      });
+    });
+  });
+
+  // ── T-0658: search --json 필드↔parse-shape 정합 가드 self-wire 검증 ──
+  // 빌더가 argv 반환 직전 assertRealDataResultIssueSearchJsonFieldsMatchParseShape 를
+  // (REAL_DATA_RESULT_ISSUE_SEARCH_JSON_FIELDS, REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS)
+  // 인자로 self-assert 함을 검증한다. T-0657 신설 가드의 builder self-wire, T-0656 round-trip
+  // 가드 self-wire 의 json-fields-side sibling. search 빌더는 단일 반환 지점(create/update
+  // 분기 없음 — 분기별 self-wire 항목 생략)이라 호출 지점도 1지점.
+  describe("self-wire: search --json↔parse-shape 정합 가드를 반환 직전 self-assert (T-0658)", () => {
+    const guardName =
+      "assertRealDataResultIssueSearchJsonFieldsMatchParseShape";
+
+    describe("happy-path — 가드 통과 후 byte-identical argv 반환", () => {
+      it("정상 commandArgs → json-fields self-wire 후에도 기존과 byte-identical argv 반환", () => {
+        const args = makeCommandArgs({ searchQuery: "<!-- marker-token -->" });
+
+        const argv = buildRealDataResultIssueSearchGhArgv(args);
+
+        expect(argv).toEqual([
+          "search",
+          "issues",
+          "--match",
+          "body",
+          "<!-- marker-token -->",
+          "--json",
+          "number,title,body",
+          "--limit",
+          "30",
+        ]);
+      });
+
+      it("두 production 상수가 현재 정합이라 self-assert 가 throw 없이 통과(가드 실제 호출, 미mock)", () => {
+        // 가드를 mock 하지 않고 실제 호출 — 현재 정합 상수에서 throw 0 이어야 한다.
+        const args = makeCommandArgs();
+
+        expect(() => buildRealDataResultIssueSearchGhArgv(args)).not.toThrow();
+      });
+    });
+
+    describe("self-wire 호출 인자 정합 — spyOn 으로 (jsonFields, parseShapeKeys) 검증", () => {
+      it("가드가 (REAL_DATA_RESULT_ISSUE_SEARCH_JSON_FIELDS, REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS) 로 정확히 1회 호출", () => {
+        const spy = jest
+          .spyOn(searchJsonFields, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          const args = makeCommandArgs({ searchQuery: "<!-- 토큰 -->" });
+          buildRealDataResultIssueSearchGhArgv(args);
+
+          expect(spy).toHaveBeenCalledTimes(1);
+          // 인자가 (`--json` 요청 필드 문자열, parse-shape 키 목록) 임을 검증.
+          expect(spy).toHaveBeenCalledWith(
+            REAL_DATA_RESULT_ISSUE_SEARCH_JSON_FIELDS,
+            searchJsonFields.REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
+          );
+        } finally {
+          spy.mockRestore();
+        }
+      });
+    });
+
+    describe("error path — searchQuery guard 우선(self-wire 추가가 guard 순서·회귀 무영향)", () => {
+      it("(error) searchQuery 빈 → searchQuery guard 가 먼저 throw, json-fields 가드 미호출", () => {
+        const spy = jest
+          .spyOn(searchJsonFields, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          expect(() =>
+            buildRealDataResultIssueSearchGhArgv(
+              makeCommandArgs({ searchQuery: "" }),
+            ),
+          ).toThrow(/searchQuery 가 비어있습니다/);
+          expect(spy).not.toHaveBeenCalled();
+        } finally {
+          spy.mockRestore();
+        }
+      });
+    });
+
+    describe("negative cases 충분 cover (a~d)", () => {
+      it("(a) json-fields 가드 강제 throw → 빌더가 손상 argv 미반환·에러 propagate", () => {
+        const spy = jest
+          .spyOn(searchJsonFields, guardName)
+          .mockImplementation(() => {
+            throw new RangeError("모의 회귀: --json 필드↔parse-shape 부정합");
+          });
+
+        try {
+          expect(() =>
+            buildRealDataResultIssueSearchGhArgv(makeCommandArgs()),
+          ).toThrow(/모의 회귀: --json 필드↔parse-shape 부정합/);
+        } finally {
+          spy.mockRestore();
+        }
+      });
+
+      it("(b) self-wire 추가 후에도 입력 commandArgs 비변형(빌더 호출 후 입력 unchanged)", () => {
+        const args = makeCommandArgs({ labels: ["realdata-e2e", "result"] });
+        const snapshot = JSON.stringify(args);
+
+        buildRealDataResultIssueSearchGhArgv(args);
+
+        expect(JSON.stringify(args)).toBe(snapshot);
+      });
+
+      it("(c) 반환 argv 가 매 호출 새 배열(반환값 mutate 가 후속 호출에 누설 안 됨)", () => {
+        const args = makeCommandArgs();
+
+        const first = buildRealDataResultIssueSearchGhArgv(args);
+        const second = buildRealDataResultIssueSearchGhArgv(args);
+
+        expect(first).not.toBe(second);
+        first.push("INJECTED");
+        first[6] = "MUTATED"; // --json 값 위치 변형
+        expect(second).not.toContain("INJECTED");
+        expect(second).not.toContain("MUTATED");
+      });
+
+      it("(d) 두 self-assert(round-trip 가드 + json-fields 가드) 모두 호출되며, json-fields 가드가 throw 하면 argv 미반환", () => {
+        const roundTripSpy = jest
+          .spyOn(
+            searchArgvConsistency,
+            "assertRealDataResultIssueSearchGhArgvPreservesCommandArgs",
+          )
+          .mockImplementation(() => undefined);
+        const jsonFieldsSpy = jest
+          .spyOn(searchJsonFields, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          // 둘 다 통과 시 정상 호출됨을 확인.
+          const args = makeCommandArgs();
+          buildRealDataResultIssueSearchGhArgv(args);
+          expect(roundTripSpy).toHaveBeenCalledTimes(1);
+          expect(jsonFieldsSpy).toHaveBeenCalledTimes(1);
+
+          // json-fields 가드가 throw 하면 빌더는 argv 를 반환하지 않고 전파.
+          jsonFieldsSpy.mockImplementation(() => {
+            throw new RangeError("모의: json-fields 가드 throw");
+          });
+          let returned: string[] | undefined;
+          expect(() => {
+            returned = buildRealDataResultIssueSearchGhArgv(makeCommandArgs());
+          }).toThrow(/모의: json-fields 가드 throw/);
+          expect(returned).toBeUndefined();
+        } finally {
+          roundTripSpy.mockRestore();
+          jsonFieldsSpy.mockRestore();
+        }
       });
     });
   });
