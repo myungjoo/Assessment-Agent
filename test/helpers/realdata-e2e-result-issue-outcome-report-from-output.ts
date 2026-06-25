@@ -57,6 +57,13 @@
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
 import { buildRealDataResultIssueOutcomeReport } from "./realdata-e2e-result-issue-outcome-report";
 import type { RealDataResultIssueOutcomeReport } from "./realdata-e2e-result-issue-outcome-report";
+// outcome-report composer 산출 ↔ single-source 재유도 정합 가드(T-0663 신설)를 컴포저
+// 산출 경로에 self-wire 한다(T-0664). 합성한 report 를 반환하기 직전에 self-assert 호출 —
+// 컴포저가 두 위임 layer(parser → builder) 사이에 끼어 결과를 변형/누락하는 합성 회귀가
+// 발생하면 손상 report 를 caller 에 반환하기 전에 fail-fast throw 한다(구조 결손=TypeError /
+// 값 정합 위반=RangeError). 가드 본문은 변경 0(T-0663 산출물 그대로 import 재사용). 가드는
+// 컴포저와 동일한 두 위임(parse→build)을 import 하므로 runtime cycle 위험 없음.
+import { assertRealDataResultIssueOutcomeReportConsistentWithOutput } from "./realdata-e2e-result-issue-outcome-report-from-output-consistency";
 import { parseRealDataResultIssueCreateEditOutput } from "./realdata-e2e-result-issue-output-parse";
 
 // buildRealDataResultIssueOutcomeReportFromOutput — `gh issue create` / `gh issue edit`
@@ -86,6 +93,18 @@ export function buildRealDataResultIssueOutcomeReportFromOutput(
   const outcome = parseRealDataResultIssueCreateEditOutput(stdout);
 
   // (2) outcome + run → report(run 식별자 빈/공백 → 빌더 guard throw 전파). T-0590 빌더가
-  // 매 호출 새 report 객체를 반환하므로 그대로 반환(무공유·재구현 0).
-  return buildRealDataResultIssueOutcomeReport(outcome, run);
+  // 매 호출 새 report 객체를 반환한다(무공유·재구현 0).
+  const report = buildRealDataResultIssueOutcomeReport(outcome, run);
+
+  // self-wire(T-0664) — 합성한 report 가 동일 (stdout, run) 의 single-source 재유도와
+  // byte-identical 정합한지 반환 직전 검증한다. 정상 합성이면 self-assert 가 void →
+  // report 비변형·byte-identical 보존. 컴포저가 두 위임 사이에 끼어 결과를 변형/누락하는
+  // 합성 회귀가 발생하면 손상 report 를 caller 에 넘기기 전에 fail-fast throw 한다.
+  assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+    stdout,
+    run,
+    report,
+  );
+
+  return report;
 }
