@@ -2,7 +2,7 @@
 id: T-0653
 title: 실 평가 e2e 결과 이슈 gh argv 가 명령-args 를 정합 전파하는지 검증하는 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-005]
 estimatedDiff: 170
@@ -73,3 +73,10 @@ implementer → tester
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가. 본 task 닫히면 argv layer 의 round-trip 정합 불변식이 순수 가드로 박힌다 — command-args layer 의 body marker-first(T-0649)·labels·title(T-0651) 가드와 함께 결과 이슈 명령 layer 의 구조 무결성이 descriptor→command-args→argv 3단계로 닫힌다. 자연 후속 후보: ① **argv 가드 builder self-wire** — `buildRealDataResultIssueGhArgv` 가 argv 반환 직전 본 신규 가드를 self-assert(T-0650/T-0652 이 command-args 가드를 self-wire 한 것과 동형 패턴). ② gh issue 실배선 — `execFile('gh', argv)` + `gh issue create`/`edit`/`search` + daily-test step_eval + 실 Ollama LLM round-trip, LAN/credential gate deferred (PLAN 108~109행) — realdata-e2e-result-summary-line stream 의 live wiring slice.)
+
+## 완료 기록
+
+- **Status: DONE** (2026-06-25T02:53Z, cron@aa-local-6f5fe40 fire)
+- PR #567 squash merge `c0b913d`. reviewer round1 APPROVE (8-check, BLOCKER 0 / MAJOR 0 / MINOR 1 = oversized-test-file — test-only, stream 선례 T-0646/T-0651/T-0652 정합으로 수용), 4-게이트 PASS, CI green (기본 검사 + 배포 산출물 검증 둘 다 success).
+- 결과물: `assertRealDataResultIssueGhArgvPreservesCommandArgs` 순수 가드 신설 + colocated spec(46 test, 신규 helper line/branch/function 100%). create(C0~C3)·update(U0~U4) 분기별 argv 위치 정합 round-trip 검증, 구조 결손=TypeError / 값 정합 위반=RangeError 구분. 전역 320 suites / 7628 tests green.
+- 다음: Follow-up ① argv 가드 builder self-wire(T-0650/T-0652 동형 패턴) — 다음 fire planner 가 큐잉.
