@@ -54,6 +54,16 @@
 //   - 외부 라이브러리(zod 등) 도입 — 새 dependency 0, 내장 `JSON.parse` + 수동 검증만.
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
 import type { RealDataResultIssueSearchHit } from "./realdata-e2e-result-issue-action";
+// search-hit↔parse-shape set-equality 가드(T-0659 신설)를 producer 산출 경로에 self-wire
+// 한다(T-0660). 정규화한 `{number, title, body}` hit 을 반환하기 직전에 self-assert 호출 —
+// 파서가 선언 parse-shape 와 어긋난 키 집합의 hit 을 산출하면 손상 hit 을 caller 에 반환하기
+// 전에 fail-fast throw(구조 결손=TypeError / set 불일치=RangeError). 가드 본문·상수는 변경 0
+// (T-0657/T-0659 산출물 그대로 import 재사용). `REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS`
+// 는 가드 모듈이 single-source(json-fields)에서 re-export 한 것을 그대로 사용한다.
+import {
+  assertRealDataResultIssueSearchHitMatchesParseShape,
+  REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
+} from "./realdata-e2e-result-issue-search-hit-shape";
 
 // 원소 number guard — gh 응답이 정상이면 number 는 항상 양의 정수다. 0 이하/비정수면
 // 파싱 사고로 간주하고 명시적 throw(비정상 number 가 SearchHit 으로 새는 것을 차단).
@@ -128,10 +138,20 @@ export function parseRealDataResultIssueSearchOutput(
     assertHitString(record.body, "body", index);
 
     // 정규화 — `{number, title, body}` 만 추출(추가 필드 drop). 새 객체(무공유).
-    return {
+    const hit: RealDataResultIssueSearchHit = {
       number: record.number,
       title: record.title,
       body: record.body,
     };
+
+    // self-wire(T-0660) — 정규화한 hit 의 키 집합이 선언 parse-shape 와 set-equal 인지
+    // 반환 직전 검증한다. 정상 파서 경로는 항상 `{number, title, body}` 만 산출하므로
+    // throw 0(검증만, 출력 비변형). 회귀로 키 집합이 어긋나면 손상 hit 반환 전 fail-fast.
+    assertRealDataResultIssueSearchHitMatchesParseShape(
+      hit,
+      REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
+    );
+
+    return hit;
   });
 }

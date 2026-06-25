@@ -12,6 +12,8 @@
 //   - 결정론·무공유: 동일 stdout 2 회 호출 → deep-equal, 매 호출 새 배열·새 객체.
 //   - 최소 shape: `--json` 외 추가 필드 섞여도 {number, title, body} 만 추출(drop).
 //   - R-59: 입력 외 데이터 생성 0 — 출력 키가 {number, title, body} 만.
+import * as hitShapeModule from "./realdata-e2e-result-issue-search-hit-shape";
+import { REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS } from "./realdata-e2e-result-issue-search-hit-shape";
 import { parseRealDataResultIssueSearchOutput } from "./realdata-e2e-result-issue-search-parse";
 
 describe("parseRealDataResultIssueSearchOutput — gh search stdout → SearchHit[] 순수 파서", () => {
@@ -218,6 +220,136 @@ describe("parseRealDataResultIssueSearchOutput — gh search stdout → SearchHi
 
       expect(a).not.toBe(b);
       expect(a[0]).not.toBe(b[0]);
+    });
+  });
+
+  // T-0660 — search-hit↔parse-shape 가드 producer self-wire 검증.
+  //
+  // R-112 cover 구조(self-wire):
+  //   - happy-path: self-wire 전후 산출 배열 byte-identical 보존 + self-assert throw 0.
+  //   - self-wire 검증: 매 정규화 hit 마다 가드가 `(hit, PARSE_SHAPE_KEYS)` 인자로 호출됨을
+  //     spy 로 확인(다건=각 1회, 빈 배열=0회).
+  //   - error path: 가드를 spy 로 강제 throw 시키면 producer 가 손상 hit 을 반환하지 않고
+  //     그 에러를 propagate(fail-fast).
+  //   - flow/branch: 기존 검증 분기(비배열/비객체/number/title/body throw)가 self-assert
+  //     도달 전에 발생(검증 순서 보존) — 가드 미호출.
+  //   - negative 충분 cover: (a) 다건 매 hit self-assert, (b) 빈 배열 미호출, (c) 기존
+  //     throw 가 가드 도달 전, (d) 정상 hit throw 0, (e) 입력 stdout 비변형(순수성).
+  describe("T-0660 — search-hit↔parse-shape 가드 producer self-wire", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("self-wire 후에도 정상 산출 배열이 byte-identical 보존된다(검증만, 출력 비변형)", () => {
+      const stdout = JSON.stringify([
+        { number: 42, title: "결과 이슈", body: "본문 marker" },
+        { number: 7, title: "t", body: "b", url: "https://x/7", state: "open" },
+      ]);
+
+      const hits = parseRealDataResultIssueSearchOutput(stdout);
+
+      // self-wire 전과 동일 — {number, title, body} 만, 필드 순서 보존, 추가 필드 drop.
+      expect(hits).toEqual([
+        { number: 42, title: "결과 이슈", body: "본문 marker" },
+        { number: 7, title: "t", body: "b" },
+      ]);
+      expect(Object.keys(hits[0])).toEqual(["number", "title", "body"]);
+      expect(Object.keys(hits[1])).toEqual(["number", "title", "body"]);
+    });
+
+    it("매 정규화 hit 마다 가드를 (hit, PARSE_SHAPE_KEYS) 인자로 호출한다(다건=각 1회)", () => {
+      const spy = jest.spyOn(
+        hitShapeModule,
+        "assertRealDataResultIssueSearchHitMatchesParseShape",
+      );
+      const stdout = JSON.stringify([
+        { number: 1, title: "t1", body: "b1" },
+        { number: 2, title: "t2", body: "b2" },
+        { number: 3, title: "t3", body: "b3" },
+      ]);
+
+      parseRealDataResultIssueSearchOutput(stdout);
+
+      expect(spy).toHaveBeenCalledTimes(3);
+      // 각 호출의 2번째 인자는 single-source parse-shape 키 목록.
+      expect(spy).toHaveBeenNthCalledWith(
+        1,
+        { number: 1, title: "t1", body: "b1" },
+        REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
+      );
+      expect(spy).toHaveBeenNthCalledWith(
+        3,
+        { number: 3, title: "t3", body: "b3" },
+        REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
+      );
+    });
+
+    it('빈 배열("[]")이면 가드를 한 번도 호출하지 않는다(반복 0)', () => {
+      const spy = jest.spyOn(
+        hitShapeModule,
+        "assertRealDataResultIssueSearchHitMatchesParseShape",
+      );
+
+      const hits = parseRealDataResultIssueSearchOutput("[]");
+
+      expect(hits).toEqual([]);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("정상 hit 에 대해 가드가 throw 하지 않는다(self-assert 통과)", () => {
+      const stdout = JSON.stringify([{ number: 1, title: "t", body: "b" }]);
+      expect(() => parseRealDataResultIssueSearchOutput(stdout)).not.toThrow();
+    });
+
+    it("가드가 throw 하면 producer 가 손상 hit 을 반환하지 않고 에러를 propagate 한다(fail-fast)", () => {
+      jest
+        .spyOn(
+          hitShapeModule,
+          "assertRealDataResultIssueSearchHitMatchesParseShape",
+        )
+        .mockImplementation(() => {
+          throw new RangeError("forced shape mismatch");
+        });
+      const stdout = JSON.stringify([{ number: 1, title: "t", body: "b" }]);
+
+      expect(() => parseRealDataResultIssueSearchOutput(stdout)).toThrow(
+        /forced shape mismatch/,
+      );
+    });
+
+    it("기존 검증 throw(number 누락)는 가드 도달 전에 발생한다(검증 순서 보존 — 가드 미호출)", () => {
+      const spy = jest.spyOn(
+        hitShapeModule,
+        "assertRealDataResultIssueSearchHitMatchesParseShape",
+      );
+      const stdout = JSON.stringify([{ title: "t", body: "b" }]);
+
+      expect(() => parseRealDataResultIssueSearchOutput(stdout)).toThrow(
+        /number 가 양의 정수가 아닙니다/,
+      );
+      // 정규화 전에 throw 했으므로 self-assert 는 호출되지 않는다.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("기존 검증 throw(비객체 원소)는 가드 도달 전에 발생한다(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        hitShapeModule,
+        "assertRealDataResultIssueSearchHitMatchesParseShape",
+      );
+
+      expect(() => parseRealDataResultIssueSearchOutput("[null]")).toThrow(
+        /객체가 아닙니다/,
+      );
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("입력 stdout 문자열을 변형하지 않는다(순수성 보존)", () => {
+      const stdout = JSON.stringify([{ number: 1, title: "t", body: "b" }]);
+      const before = stdout;
+
+      parseRealDataResultIssueSearchOutput(stdout);
+
+      expect(stdout).toBe(before);
     });
   });
 });
