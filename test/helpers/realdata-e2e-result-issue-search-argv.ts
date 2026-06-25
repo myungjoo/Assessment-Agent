@@ -70,6 +70,10 @@
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
 import type { RealDataResultIssueCommandArgs } from "./realdata-e2e-result-issue-command-args";
 import { assertRealDataResultIssueSearchGhArgvPreservesCommandArgs } from "./realdata-e2e-result-issue-search-argv-consistency";
+import {
+  assertRealDataResultIssueSearchJsonFieldsMatchParseShape,
+  REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
+} from "./realdata-e2e-result-issue-search-json-fields";
 
 // --json 요청 필드 — T-0584 `RealDataResultIssueSearchHit`({number, title, body})의
 // 모든 멤버와 정확히 일치(콤마 구분, 공백 0). 매직 스트링 대신 named constant 로 박제.
@@ -138,6 +142,21 @@ export function buildRealDataResultIssueSearchGhArgv(
   assertRealDataResultIssueSearchGhArgvPreservesCommandArgs(
     searchArgv,
     commandArgs,
+  );
+
+  // self-wire — 합성한 search argv 의 `--json` 요청 필드 집합
+  // (REAL_DATA_RESULT_ISSUE_SEARCH_JSON_FIELDS = "number,title,body")이 search-parse 의
+  // 추출 shape 키 집합(REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS = ["number","title",
+  // "body"])과 set-equal 정합하는지 반환 직전 self-assert(T-0657 신설 가드의 builder
+  // self-wire, T-0656 round-trip 가드 self-wire 의 json-fields-side sibling). 두 production
+  // 상수가 현재 정합이라 정상 합성이면 가드는 void 반환 — 동작·반환값 byte-identical 보존.
+  // 미래 회귀(`--json` 필드 누락·요청 적 없는 잉여 필드 추가 등 latent coupling drift)가
+  // 생기면 손상 argv 를 caller(live wiring, execFile('gh', searchArgv))로 반환하기 전에
+  // 한국어 명세형 에러로 즉시 throw 한다(fail-fast). 같은 디렉토리 함수 호출이라 runtime
+  // cycle 0. search 빌더는 단일 반환 지점(create/update 분기 없음)이라 self-assert 도 1지점.
+  assertRealDataResultIssueSearchJsonFieldsMatchParseShape(
+    REAL_DATA_RESULT_ISSUE_SEARCH_JSON_FIELDS,
+    REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
   );
 
   return searchArgv;
