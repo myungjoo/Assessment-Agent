@@ -2,6 +2,7 @@
 id: T-0666
 title: publish-plan 종단 컴포저 산출 직전 publish-plan consistency 가드 self-wire 배선 (buildRealDataResultIssuePublishPlan)
 phase: P5
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 110
@@ -56,3 +57,11 @@ P5 PLAN.md 109행 🟢 "실 평가 e2e = github.com 공개 활동" bullet 의 st
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가. 본 self-wire 로 publish-plan 종단 컴포저-seam consistency chain(가드신설 T-0665 → composer self-wire T-0666)이 완결됨. 이로써 realdata-e2e step④ build-time 정합 가드 사슬의 descriptor/command-args/gh-argv/parse-shape/outcome-report/publish-plan seam 이 모두 신설+self-wire 짝으로 닫힘. 다음 후보: step④ live execFile wiring credential 게이트 진입 여부 PLAN 재검토, 또는 잔여 seam 일제 점검.)
+
+## Result (DONE)
+
+- 완료: 2026-06-25T16:16Z (cron@aa-local-15-5c89, 로컬 매시 15분 schedule cron fire).
+- PR #580 squash merge → main 72e499a. reviewer r1 APPROVE, 4-게이트 통과(reviewer APPROVE + 외부 PR comment + integrator self-check + PR CI green: lint·build·test:cov 326 suites/7862 tests·Docker smoke). branch 삭제.
+- `buildRealDataResultIssuePublishPlan` 컴포저가 합성한 `{report, commandArgs, searchArgv}` plan 을 caller 반환 직전에 T-0665 신설 `assertRealDataResultIssuePublishPlanConsistentWithSources(plan, results, run)` self-assert 배선 (import 1줄 + 호출 1지점, +16/-1). 정상 합성이면 byte-identical·무공유 보존, 합성 회귀 시 fail-fast(구조 결손 TypeError / 값 정합 위반 RangeError).
+- spec +157 (describe append): happy(빈/단일/다수 results round-trip) + error path(가드 throw 전파 / 위임 throw 가드 미도달) + negative 충분(인자·순서·1회 spy / 빈·공백 token 가드 미호출 / deterministic / 비변형 / 무공유). 변경 컴포저 파일 line/branch/func/stmt 100%.
+- 동시 fire cron@aa-cloud-49a8fc 는 lock+claim 선점 패배로 NO-OP race-loss(cd7eeef) 정상 stand-down — double-claim 아님(claims 항상 단일 T-0666). publish-plan 종단 컴포저-seam consistency chain(가드 T-0665 → composer self-wire T-0666) 완결.
