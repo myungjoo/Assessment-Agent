@@ -2,7 +2,11 @@
 id: T-0672
 title: e2e-step-args aggregator 산출 직전 consistency 가드 self-wire 배선 (buildRealDataE2eStepArgs)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-25T22:24:04Z
+mergedAs: 9101983
+prNumber: 587
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 110
