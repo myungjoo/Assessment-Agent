@@ -2,8 +2,11 @@
 id: T-0662
 title: outcome↔parse-shape set-equality 가드 producer self-wire (parseRealDataResultIssueCreateEditOutput)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 576
+mergedAs: 9d35cc1d29af33db3d198d17c931d41a219e7ec8
+reviewRounds: 1
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 110
 estimatedFiles: 2
