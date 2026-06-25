@@ -2,8 +2,10 @@
 id: T-0657
 title: search argv --json 요청 필드 ↔ search-parse 추출 shape 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 571
+completedAt: 2026-06-25T07:34:00Z
 coversReq: [REQ-009]
 estimatedDiff: 130
 estimatedFiles: 2
@@ -58,3 +60,11 @@ implementer → tester
 ## Follow-ups
 
 - ① (planner 가 후속 큐잉) `buildRealDataResultIssueSearchGhArgv` 가 search argv 를 반환하기 직전(또는 모듈 로드 시점)에 `assertRealDataResultIssueSearchJsonFieldsMatchParseShape(REAL_DATA_RESULT_ISSUE_SEARCH_JSON_FIELDS, REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS)` self-wire — T-0656 search-argv self-wire 와 동형 패턴.
+
+## Result (DONE)
+
+- 완료: 2026-06-25T07:34:00Z (KST 16:34)
+- PR #571 squash merge `1a33f6d` — reviewer round1 APPROVE, 4-게이트 PASS (reviewer comment 외부 존재 + integrator self-check + CI green re-run), 외부 PR comment 존재.
+- 변경: test-only 2 파일 +628/-0. 신규 helper `realdata-e2e-result-issue-search-json-fields.ts` (`assertRealDataResultIssueSearchJsonFieldsMatchParseShape` + `REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS`) + spec 30 test (happy 2 / 누락 2 / 잉여 1 / 동일 개수 mismatch 1 / 순서 무관 2 / 콤마 trim 2 / 빈 토큰 3 / 중복 토큰 2 / 빈 requested 2 / 빈 parseShape 1 / 구조 결손 7 / 순수성·무공유 3).
+- 검증: 신규 helper line/branch/function/statement 100% (jest --collectCoverageFrom). pnpm lint autofix 후 0 error/warning, CI 두 job 모두 green (rerun 후).
+- 환경 메모: 본 fire 는 Anthropic cloud cron 진입점 (`cron@cloud-vm-4c0a5c`) — prisma engines 다운로드 불가로 로컬 `pnpm build` 검증 skip, CI 게이트 위임. 첫 CI run 에서 4-게이트 (b) reviewer comment 미존재로 fail → reviewer comment post 후 rerun_failed_jobs 로 통과.
