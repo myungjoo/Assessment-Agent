@@ -78,6 +78,7 @@
 //   - production `src/` 코드 변경 — test helper 단독(타입·위임 함수 import 재사용만).
 import type { RealDataResultIssueOutcomeReport } from "./realdata-e2e-result-issue-outcome-report";
 import { buildRealDataResultIssueOutcomeReportFromOutput } from "./realdata-e2e-result-issue-outcome-report-from-output";
+import { assertRealDataResultOutcomeStepArgsConsistentWithSources } from "./realdata-e2e-result-outcome-step-args-consistency";
 import type { RealDataE2eRunPlan } from "./realdata-e2e-run-plan";
 
 // buildRealDataResultOutcomeStepArgs — 검증된 e2e run plan `runPlan` + `gh issue create`
@@ -114,5 +115,22 @@ export function buildRealDataResultOutcomeStepArgs(
   // run 인자 미수신 — step ① / post-실행 run 식별자 일관 구조적 보장(재전달 0). 잘못된
   // stdout 의 파서 throw 와 빈/공백 gitSha/dateToken 의 빌더 guard throw 는 위임 helper 가
   // 자체 try/catch 없이 그대로 전파한다.
-  return buildRealDataResultIssueOutcomeReportFromOutput(stdout, runPlan.run);
+  const report = buildRealDataResultIssueOutcomeReportFromOutput(
+    stdout,
+    runPlan.run,
+  );
+
+  // 산출 report 반환 직전 self-assert(T-0670 self-wire) — 컴포저가 runPlan.run 추출/재전달/
+  // 위임 report 반환 과정에서 run 인자 위치를 뒤바꾸거나 report 를 변형/누락하는 합성 회귀를
+  // single-source 재유도(buildRealDataResultIssueOutcomeReportFromOutput(stdout, runPlan.run))
+  // 와의 byte-identical 정합 검증으로 호출 시점에 fail-fast 차단한다. 정상 합성이면 가드는
+  // void → 반환 report byte-identical·무공유 보존(관측 불가능하게 동일). 가드는 read-only 라
+  // report/runPlan/stdout mutate 0.
+  assertRealDataResultOutcomeStepArgsConsistentWithSources(
+    report,
+    runPlan,
+    stdout,
+  );
+
+  return report;
 }
