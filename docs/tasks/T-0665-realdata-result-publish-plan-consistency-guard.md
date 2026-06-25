@@ -2,7 +2,7 @@
 id: T-0665
 title: realdata-e2e publish-plan 산출↔single-source 재유도 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 170
@@ -65,3 +65,12 @@ PLAN.md 109행("🟢 실 평가 e2e 테스트 데이터", P5)의 step④(평가 
 ## Follow-ups
 
 (비어있음 — sub-agent 가 관련 작업 발견 시 추가)
+
+## Result (DONE)
+
+- 완료: 2026-06-25T15:26Z (cron@aa-local-15-4a7d, 로컬 매시 15분 schedule cron fire)
+- PR #579 squash merge `96e9ec5` — round 1/7, 4-게이트 통과(reviewer APPROVE + 외부 PR comment + integrator self-check + PR CI green: lint·build·test:cov·smoke·e2e). post-merge main run 96e9ec5 completed/success.
+- 신규 2 파일(test-only, +629 LOC): `test/helpers/realdata-e2e-result-issue-publish-plan-consistency.ts` (순수 가드 `assertRealDataResultIssuePublishPlanConsistentWithSources`) + `.spec.ts`. src/ 변경 0.
+- 가드: publish-plan `{report, commandArgs, searchArgv}` 을 command-plan + search-argv single-source 위임 재유도와 byte-identical 비교. 구조 결손=TypeError / 값 정합 위반=RangeError fail-fast. T-0663 outcome-report-consistency 종단-composer mirror.
+- 신규 helper coverage line/branch/function 100%, R-112 4종 + negative 충분 cover.
+- 동시 fire cron@vm-2495e3 는 select-claim 패배로 NO-OP race-loss(b56d915) 정상 stand-down — double-claim 아님(claims 항상 단일 T-0665).
