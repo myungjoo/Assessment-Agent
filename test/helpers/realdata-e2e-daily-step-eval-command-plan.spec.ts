@@ -20,6 +20,7 @@ import {
   REALDATA_E2E_LIVE_SMOKE_SPEC_PATH,
   REALDATA_E2E_SMOKE_JEST_CONFIG,
 } from "./realdata-e2e-daily-step-eval-command-plan";
+import * as consistency from "./realdata-e2e-daily-step-eval-command-plan-consistency";
 import {
   REALDATA_E2E_LIVE_TEST_ENV,
   REALDATA_E2E_LLM_BASE_URL_ENV,
@@ -184,6 +185,155 @@ describe("buildRealDataDailyStepEvalCommandPlan", () => {
       const b = buildRealDataDailyStepEvalCommandPlan(makeEnabledEnv());
       expect(a.argv).not.toBe(b.argv);
       expect(a.argv).toEqual(b.argv);
+    });
+  });
+
+  // T-0694 self-wire 배선 검증 — 컴포저가 산출 RealDataDailyStepEvalCommandPlan 을 반환
+  // 직전(run/skip 양 분기 각각) consistency 가드를 (산출 plan, env) 인자로 정확히 1회
+  // self-assert 하는지, 정상 합성이면 throw 0·반환 plan 형태 보존(관측 불가능하게 동일),
+  // 가드가 throw 하면 컴포저가 삼키지 않고 그대로 선전파하는지(RangeError/TypeError 모의)
+  // 검증한다. T-0692 scoring-call-args self-wire spec 패턴의 step④-side mirror.
+  describe("consistency 가드 self-wire (T-0694) — 반환 직전 self-assert 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("(run 분기) gating enabled → 가드가 (산출 run plan, env) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataDailyStepEvalCommandPlanConsistentWithGating",
+      );
+      const env = makeEnabledEnv();
+
+      const plan = buildRealDataDailyStepEvalCommandPlan(env);
+
+      // 정확히 1회 호출.
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서·값이 (반환된 산출 plan, env) 와 일치.
+      expect(spy).toHaveBeenCalledWith(plan, env);
+      // 가드에 넘어간 첫 인자가 컴포저가 반환한 바로 그 plan 참조여야 한다(검증 대상 일치).
+      expect(spy.mock.calls[0][0]).toBe(plan);
+      expect(spy.mock.calls[0][1]).toBe(env);
+    });
+
+    it("(skip 분기) gating disabled → 가드가 (산출 skip plan, env) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataDailyStepEvalCommandPlanConsistentWithGating",
+      );
+      const env: NodeJS.ProcessEnv = {};
+
+      const plan = buildRealDataDailyStepEvalCommandPlan(env);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(plan, env);
+      expect(spy.mock.calls[0][0]).toBe(plan);
+      expect(spy.mock.calls[0][1]).toBe(env);
+      // skip 산출물 형태 보존.
+      expect(plan.action).toBe("skip");
+      expect(plan.argv).toBeUndefined();
+    });
+
+    it("(부분 set skip 분기) PAT 부재 → skip plan 산출 + 가드 정확히 1회 호출", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataDailyStepEvalCommandPlanConsistentWithGating",
+      );
+      const env = makeEnabledEnv({
+        [REALDATA_E2E_GITHUB_READ_PAT_ENV]: undefined,
+      });
+
+      const plan = buildRealDataDailyStepEvalCommandPlan(env);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(plan, env);
+      expect(plan.action).toBe("skip");
+    });
+
+    it("정상 합성(run) → 가드 통과 후 반환 plan 이 self-wire 미배선 기대값과 동일(불변)", () => {
+      const plan = buildRealDataDailyStepEvalCommandPlan(makeEnabledEnv());
+
+      // self-wire 가 반환 plan 을 변형하지 않음 — action/argv canonical 벡터/reason 보존.
+      expect(plan.action).toBe("run");
+      expect(plan.argv).toEqual([
+        "--config",
+        REALDATA_E2E_SMOKE_JEST_CONFIG,
+        "--runTestsByPath",
+        REALDATA_E2E_LIVE_SMOKE_SPEC_PATH,
+      ]);
+    });
+
+    it("정상 합성(run/skip 양 분기) → self-assert 통과로 throw 0", () => {
+      expect(() =>
+        buildRealDataDailyStepEvalCommandPlan(makeEnabledEnv()),
+      ).not.toThrow();
+      expect(() => buildRealDataDailyStepEvalCommandPlan({})).not.toThrow();
+    });
+
+    it("(negative 1 — run 분기 RangeError argv drift 회귀 모사) 가드 throw 가 그대로 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataDailyStepEvalCommandPlanConsistentWithGating",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            '정합 위반: plan.argv[1] 가 canonical 벡터와 다르다 — 기대="./test/jest-smoke.json", 실측="./drift.json".',
+          );
+        });
+
+      expect(() =>
+        buildRealDataDailyStepEvalCommandPlan(makeEnabledEnv()),
+      ).toThrow(/canonical 벡터와 다르다/);
+    });
+
+    it("(negative 2 — skip 분기 RangeError action 오매핑 회귀 모사) 가드 throw 가 그대로 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataDailyStepEvalCommandPlanConsistentWithGating",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            '정합 위반: plan.action 이 gating.enabled 와 어긋난다 — gating.enabled=false ⇒ 기대="skip", 실측="run".',
+          );
+        });
+
+      expect(() => buildRealDataDailyStepEvalCommandPlan({})).toThrow(
+        /gating\.enabled 와 어긋난다/,
+      );
+    });
+
+    it("(negative 3 — TypeError 구조결손 회귀 모사) 가드 TypeError throw 가 그대로 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataDailyStepEvalCommandPlanConsistentWithGating",
+        )
+        .mockImplementation(() => {
+          throw new TypeError(
+            "plan 이 객체가 아니다 — gating 재유도 정합 비교를 진행할 수 없다.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataDailyStepEvalCommandPlan(makeEnabledEnv()),
+      ).toThrow(TypeError);
+    });
+
+    it("self-wire 배선 후에도 입력 env 비변형 + 동일 입력 두 번 deterministic", () => {
+      const env = makeEnabledEnv();
+      const snapshot = JSON.parse(JSON.stringify(env));
+
+      const a = buildRealDataDailyStepEvalCommandPlan(env);
+      const b = buildRealDataDailyStepEvalCommandPlan(env);
+
+      // 비변형(env mutate 0).
+      expect(env).toEqual(snapshot);
+      // deterministic byte-identical.
+      expect(a).toEqual(b);
+      // 무공유(매 호출 새 argv 배열).
+      expect(a.argv).not.toBe(b.argv);
     });
   });
 });

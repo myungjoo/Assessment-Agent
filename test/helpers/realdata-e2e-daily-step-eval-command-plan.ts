@@ -24,7 +24,8 @@
 //     flag 만 담는다. 실 LLM/PAT 값은 bash 가 자식 jest 프로세스의 env 로 별도 전달하며
 //     본 plan 에는 구조적으로 포함되지 않는다(raw 미저장 R-59).
 //
-// 🔥 외부 의존 0 — 기존 gating helper import 만, 새 dependency 0.
+// 🔥 외부 의존 0 — 기존 gating helper + 정합 가드 import 만, 새 dependency 0.
+import { assertRealDataDailyStepEvalCommandPlanConsistentWithGating } from "./realdata-e2e-daily-step-eval-command-plan-consistency";
 import { resolveRealDataE2eLiveGating } from "./realdata-e2e-live-gating";
 
 // live smoke spec 의 경로 — jest argv 가 단일-spec bound 로 가리킬 대상(T-0610 박제).
@@ -78,14 +79,25 @@ export function buildRealDataDailyStepEvalCommandPlan(
 
   // (2) skip 분기 — argv 미포함(명시적 undefined), throw 0(조용한 SKIP 유도).
   if (!gating.enabled) {
-    return {
+    const skipPlan: RealDataDailyStepEvalCommandPlan = {
       action: "skip",
       reason: gating.reason,
     };
+
+    // 산출 skip plan 반환 직전 self-assert(T-0694 self-wire — T-0693 신설 step④ 진입측
+    // leaf 가드의 컴포저 self-wire, T-0692 scoring-call-args self-wire 의 step④-side
+    // mirror). 컴포저가 action↔gating 오매핑·skip 인데 argv 존재·reason 재포장 같은 합성
+    // 회귀로 산출물을 손상시키면, single-source(`env` gating 재유도)와의 정합 검증으로
+    // 호출 시점에 fail-fast throw 한다. 정상 합성이면 가드는 void → 반환 plan 형태
+    // (action/reason) 보존(관측 불가능하게 동일). 가드는 read-only 라 skipPlan/env mutate 0.
+    // 위임 가드가 throw 하면 컴포저가 삼키지 않고 그대로 선전파한다(부재는 action="skip").
+    assertRealDataDailyStepEvalCommandPlanConsistentWithGating(skipPlan, env);
+
+    return skipPlan;
   }
 
   // run 분기 — 단일-spec bound jest argv(매 호출 새 배열). 실 credential 미포함(§9).
-  return {
+  const runPlan: RealDataDailyStepEvalCommandPlan = {
     action: "run",
     argv: [
       "--config",
@@ -95,4 +107,14 @@ export function buildRealDataDailyStepEvalCommandPlan(
     ],
     reason: gating.reason,
   };
+
+  // 산출 run plan 반환 직전 self-assert(T-0694 self-wire — skip 분기와 동형). 컴포저가
+  // action↔gating 오매핑·argv config/spec-path drift·argv 길이/순서 어긋남·reason 재포장
+  // 같은 합성 회귀로 산출물을 손상시키면 single-source(`env` gating 재유도) 정합 검증으로
+  // 호출 시점에 fail-fast throw 한다. 정상 합성이면 가드는 void → 반환 plan 형태
+  // (action/argv/reason)·argv 4-요소 canonical 벡터 보존(관측 불가능하게 동일). 가드는
+  // read-only 라 runPlan/env mutate 0. 위임 가드 throw 는 컴포저가 그대로 선전파한다.
+  assertRealDataDailyStepEvalCommandPlanConsistentWithGating(runPlan, env);
+
+  return runPlan;
 }
