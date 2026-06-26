@@ -2,8 +2,11 @@
 id: T-0691
 title: realdata-e2e evaluate-side scoring-call-args leaf 컴포저 산출 ↔ single-source 재유도 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 607
+mergedAt: 2026-06-26T17:30:51Z
+mergedSha: e3e4fd03bed9dc34ff89d758b3e20d04d8553515
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 255
 estimatedFiles: 2

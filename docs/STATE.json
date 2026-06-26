@@ -7,24 +7,13 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": {
-    "id": "T-0691",
-    "title": "realdata-e2e evaluate-side scoring-call-args leaf 컴포저 산출 ↔ single-source 재유도 정합 순수 가드 신설",
-    "commitMode": "pr",
-    "phase": "P5",
-    "independentStream": "realdata-e2e-consistency-guard",
-    "dependsOn": [],
-    "touchesFiles": [
-      "test/helpers/realdata-e2e-scoring-call-args-consistency.ts",
-      "test/helpers/realdata-e2e-scoring-call-args-consistency.spec.ts"
-    ]
-  },
-  "backlogNote": "▶ **T-0690 DONE (pr, PR #606 squash ce17715)** — seed-side 가장 깊은 leaf 컴포저 buildRealDataCollectInput 에 T-0689 신설 가드 self-wire 배선 완료. seed-side leaf 가드 사슬(run-plan→pipeline-plan→collect-call-args→collect-input) 가드 신설→self-wire 짝 모두 닫힘. ▶ **다음 nextTask=T-0691 (pr)** — evaluate-side 로 가드 사슬 확장: 가장 깊은 호출-args 컴포저 buildRealDataScoringCallArgs(inputs, modelId) 의 정합 가드 assertRealDataScoringCallArgsConsistentWithInputs 신설. T-0687 seed-collect-call-args 가드의 evaluate-side mirror — 차이점: input reference 동등(복제 0) 검증 + modelId 주입값 동형 적용 + options 잉여키 누출 검사. 구조결손 TypeError·값drift RangeError·read-only·fail-fast. test-only 2 신설 파일(realdata-e2e-scoring-call-args-consistency.{ts,spec.ts}), cap 준수. dependency-free(dependsOn []). issue-still-relevant 확인: origin/main 에 가드 심볼·파일 미존재(grep 0) — 중복 아님. 후속 T-0692 self-wire 로 짝 닫기 예정. P5 109행 step③ build-time consistency 가드.",
+  "nextTask": null,
+  "backlogNote": "▶ **T-0691 DONE (pr, PR #607 squash e3e4fd0)** — evaluate-side 가장 깊은 호출-args 컴포저 buildRealDataScoringCallArgs(inputs, modelId) 의 독립 정합 가드 assertRealDataScoringCallArgsConsistentWithInputs 신설 완료. T-0687 seed-collect-call-args 가드의 evaluate-side mirror — input reference 동등(===) / modelId 동형 / options 단일키 / 길이 4 불변식 + 구조 TypeError + 값 RangeError + modelId 빈/공백 컴포저 동일 throw, 26/26 test pass, coverage line 96.87% / branch 94.11% / func 100%. 컴포저 본문 불변(self-wire 는 후속). reviewer round 1/7 APPROVE 0 findings, 4-게이트 PASS, CI rerun green. ▶ **다음 nextTask=null** — planner dispatch 필요(다음 fire). 자연스러운 다음 step = T-0692 self-wire 배선(buildRealDataScoringCallArgs 반환 직전 self-assert, evaluate-side seed-collect self-wire mirror — T-0688 패턴), dependsOn T-0691(머지됨, 게이트 충족). 또는 P5 109행 step③ 다른 evaluate-side leaf 가드 확장. backlogNote 의 standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "ce17715eba9c5d48fb4b605eefbb78dd782aa0bf",
+  "lastCommit": "e3e4fd03bed9dc34ff89d758b3e20d04d8553515",
   "mostRecentTasks": [
     "T-0691",
     "T-0690",
@@ -43,10 +32,11 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "본 fire(cron@aa-cloud-a1c3a1a): fetch -> origin/main a1c3a1a 동기(local 6715a05 뒤처짐 -> reset). lock free·claims [] 확인 -> lock 획득(290d41e). R-114 직전 fire 위임건 재확인: PR #606 squash ce17715 main CI conclusion=success(green 확정), 본 fire bookkeeping a1c3a1a 는 doc-only 라 CI run 없음. currentTask/nextTask 둘 다 null -> planner dispatch -> T-0691 큐잉(nextTask, pr). doc-only direct commit + lock tombstone release.",
-    "lastRun": "2026-06-27T00:00:00Z"
+    "note": "본 fire(cron@aa-cloud-e16f7be): fetch -> origin/main e16f7be 동기(local feature-branch worktree 였음 -> switch main + reset). lock free·claims [] 확인 -> acquire-lock(7055014) -> select-claim T-0691(claims=[T-0691, owner=cron@aa-cloud-e16f7be], lock tombstone 동반). feature branch claude/T-0691-... 생성 후 executor dispatch -> 2 파일 신설(test/helpers/realdata-e2e-scoring-call-args-consistency.{ts,spec.ts}, +639 LOC, 26/26 test pass, coverage 96.87/94.11/100/97.05). commit 54d716f -> push feature branch. mcp__github__create_pull_request -> PR #607 draft. integrator dispatch -> reviewer round 1/7 APPROVE 0 findings, self-check 6/6 PASS, gate-2 comment driver post via mcp__github__add_issue_comment(4811837377). 첫 CI run(28254064730 event=pull_request)은 reviewer-gate 부재로 failure -> rerun_failed_jobs -> 기본 검사 success(83713584538) + 배포 산출물 검증 success(83713604951). 4-게이트 PASS -> update_pull_request(draft=false) -> merge_pull_request squash e3e4fd0. 브랜치 delete 시도는 proxy 403(cloud 환경 한계 — 무해). 본 bookkeeping commit 은 doc-only direct main push.",
+    "lastRun": "2026-06-26T17:30:51Z"
   },
   "reviewRounds": {
+    "T-0691": 1,
     "T-0673": 2,
     "T-0666": 1,
     "T-0655": 1,
@@ -1157,7 +1147,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 682,
+    "tasksCompleted": 683,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1185,5 +1175,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-26T16:06:00Z"
+  "lastActivity": "2026-06-27T00:35:00Z"
 }
