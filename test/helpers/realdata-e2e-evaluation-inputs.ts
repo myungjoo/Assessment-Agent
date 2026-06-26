@@ -43,6 +43,8 @@ import type { Activity } from "../../src/assessment-collection/domain/activity";
 import type { EvaluationInput } from "../../src/assessment-evaluation/domain/evaluation-input";
 import { mapActivityToEvaluationInput } from "../../src/assessment-evaluation/domain/evaluation-input.mapper";
 
+import { assertRealDataEvaluationInputsConsistentWithSources } from "./realdata-e2e-evaluation-inputs-consistency";
+
 // buildRealDataEvaluationInputs — 수집 산출 `Activity[]` 를 평가 입력 `EvaluationInput[]`
 // 로 변환하는 **순수 함수**. 각 원소를 production `mapActivityToEvaluationInput()` 로
 // 변환하고 순서를 보존한다.
@@ -61,5 +63,21 @@ export function buildRealDataEvaluationInputs(
 ): EvaluationInput[] {
   // 매핑은 production 단건 매퍼에 위임(중복 정의 0). map 이 매 호출 새 배열을 반환하므로
   // 배열 차원에서 입력·다음 호출 결과와 무공유다.
-  return activities.map((activity) => mapActivityToEvaluationInput(activity));
+  const evaluationInputs: EvaluationInput[] = activities.map((activity) =>
+    mapActivityToEvaluationInput(activity),
+  );
+
+  // 산출 EvaluationInput[] 반환 직전 self-assert(T-0686 self-wire — T-0685 신설 leaf 가드의
+  // 컴포저 self-wire, T-0684 evaluation-step-args self-wire 의 leaf layer mirror). 컴포저가
+  // 위임 매퍼 변형·원소 drop·순서 뒤섞임 등으로 산출물을 손상시키는 합성 회귀를, single-source
+  // `activities` 재유도와의 byte-identical 정합 검증으로 호출 시점에 fail-fast 차단한다. 정상
+  // 합성이면 가드는 void → 반환 배열 byte-identical·무공유 보존(관측 불가능하게 동일). 가드는
+  // read-only 라 evaluationInputs/activities mutate 0. 위임 매퍼가 변환 불가 activity 로
+  // throw 하면 위 map 단계에서 이미 전파되므로 가드 미도달.
+  assertRealDataEvaluationInputsConsistentWithSources(
+    evaluationInputs,
+    activities,
+  );
+
+  return evaluationInputs;
 }
