@@ -139,12 +139,13 @@ attempt() {
   reclaim_msg=""
   changed=0
 
-  local entry tid cat prn cat_epoch age is_stale
+  local entry tid cat prn status cat_epoch age is_stale
   while IFS= read -r entry; do
     [ -z "$entry" ] && continue
     tid="$(field "$entry" taskId)"
     cat="$(field "$entry" claimedAt)"
     prn="$(field "$entry" prNumber)"
+    status="$(field "$entry" status)"
     cat_epoch="$(to_epoch "$cat")"
 
     is_stale=0
@@ -157,7 +158,20 @@ attempt() {
 
     if [ "$is_stale" -eq 0 ]; then
       # 살아있는 claim(임계 이내) 또는 claimedAt 파싱 불가 → 보수적으로 보존.
+      # (live 인 DONE claim 도 여기서 보존 — finalize 경로가 정리한다.)
       kept_entries="${kept_entries}${kept_entries:+,}${entry}"
+      continue
+    fi
+
+    # ── DONE-skip 가드 (T-0676 — spurious RESUME 차단) ──
+    # status 가 DONE 인 stale claim 은 이미 종료된 PR 이라 resume 대상이 아니다.
+    # prNumber 유무와 무관하게 단순 제거(prune)한다 — merged PR 에 대한 spurious
+    # RESUME 신호를 내지 않는다. T-0674 13:00 사고(merged PR #589 에 RESUME emit)
+    # 의 직접 회귀 가드. ADR-0036 §Decision 1 "prNumber 보유 claim 은 resume"
+    # 규칙의 정당한 예외(종료된 PR 은 resume 대상 아님).
+    if [ "$status" = "DONE" ]; then
+      reclaim_msg="${reclaim_msg}RECLAIM taskId=${tid}"$'\n'
+      changed=1
       continue
     fi
 
