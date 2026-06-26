@@ -40,6 +40,7 @@
 //   - CollectionEntryService / SinceDerivationService / production `src/` 코드 변경.
 import type { CollectForPersonInput } from "../../src/assessment-collection/collection-entry.service";
 
+import { assertRealDataCollectCallArgsConsistentWithSources } from "./realdata-e2e-seed-collect-call-args-consistency";
 import { buildRealDataCollectInput } from "./realdata-e2e-seed-collect-input";
 import type { RealDataSeedDescriptor } from "./realdata-e2e-seed-fixture";
 
@@ -81,11 +82,23 @@ export function buildRealDataCollectCallArgs(
   // person 매핑은 기존 매퍼에 위임(중복 정의 0). buildRealDataCollectInput 이 매
   // 호출 새 트리를 반환하므로 element 단위로 1:1 감싸면 무공유가 보존된다.
   const persons = buildRealDataCollectInput(seeds);
-  return persons.map((person) => ({
+  const callArgs: RealDataCollectCallArgs[] = persons.map((person) => ({
     person,
     // 신규 seed 인원 — 직전 Assessment 부재 → full collection(SinceDerivationService §4).
     since: undefined,
     // DB write 시점 치환 대상 placeholder.
     assessmentId: ASSESSMENT_ID_PLACEHOLDER,
   }));
+
+  // 산출 RealDataCollectCallArgs[] 반환 직전 self-assert(T-0688 self-wire — T-0687 신설
+  // seed-side leaf 가드의 컴포저 self-wire, T-0686 evaluation-inputs self-wire 의 seed-side
+  // mirror). 컴포저가 위임 person 매퍼 변형·원소 drop·순서 뒤섞임이나 since/assessmentId
+  // 정책 상수 어긋남 같은 합성 회귀로 산출물을 손상시키면, single-source `seeds` 재유도(person
+  // 매퍼 1 호출) + 정책 상수 대조와의 정합 검증으로 호출 시점에 fail-fast throw 한다. 정상
+  // 합성이면 가드는 void → 반환 배열 byte-identical·무공유 보존(관측 불가능하게 동일). 가드는
+  // read-only 라 callArgs/seeds mutate 0. 위임 매퍼가 변환 불가 seed 로 throw 하면 위 map
+  // 단계에서 이미 전파되므로 가드 미도달.
+  assertRealDataCollectCallArgsConsistentWithSources(callArgs, seeds);
+
+  return callArgs;
 }
