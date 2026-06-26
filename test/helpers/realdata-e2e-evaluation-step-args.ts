@@ -66,6 +66,7 @@ import type { Activity } from "../../src/assessment-collection/domain/activity";
 
 import { buildRealDataEvaluationPlan } from "./realdata-e2e-evaluation-plan";
 import type { RealDataEvaluationPlan } from "./realdata-e2e-evaluation-plan";
+import { assertRealDataEvaluationStepArgsConsistentWithSources } from "./realdata-e2e-evaluation-step-args-consistency";
 import type { RealDataE2eRunPlan } from "./realdata-e2e-run-plan";
 
 // buildRealDataEvaluationStepArgs — 검증된 e2e run plan `runPlan` + 수집 산출
@@ -99,5 +100,25 @@ export function buildRealDataEvaluationStepArgs(
   // run plan 에서 검증·보존된 단일 modelId 를 추출해 평가 plan 으로 thread. 독립 modelId
   // 인자 미수신 — step ① / step ③ 모델 정책 일관 구조적 보장(재전달 0). 빈/공백 modelId
   // 의 guard throw 는 위임 helper 가 자체 try/catch 없이 그대로 전파한다.
-  return buildRealDataEvaluationPlan(activities, runPlan.pipeline.modelId);
+  const plan: RealDataEvaluationPlan = buildRealDataEvaluationPlan(
+    activities,
+    runPlan.pipeline.modelId,
+  );
+
+  // 산출 plan 반환 직전 self-assert(T-0684 self-wire — T-0682 evaluation-plan self-wire
+  // 의 step-args layer mirror). 종단 컴포저가 `runPlan.pipeline.modelId` 추출 + 위임
+  // 합성으로 `{ inputs, callArgs }` 를 산출하는 과정에서 인자 위치를 뒤바꾸거나 한쪽
+  // 산출(inputs 또는 callArgs)을 변형/누락하거나 `callArgs[i].input === inputs[i]`
+  // reference 페어링을 깨는 합성 회귀를, single-source `(runPlan, activities)` 재유도와의
+  // byte-identical 정합 검증으로 호출 시점에 fail-fast 차단한다. 정상 합성이면 가드는
+  // void → 반환 plan byte-identical·무공유 보존(관측 불가능하게 동일). 가드는 read-only
+  // 라 plan/runPlan/activities mutate 0. 빈/공백 modelId 는 위 위임 단계에서 이미
+  // throw 되므로 가드 미도달.
+  assertRealDataEvaluationStepArgsConsistentWithSources(
+    plan,
+    runPlan,
+    activities,
+  );
+
+  return plan;
 }
