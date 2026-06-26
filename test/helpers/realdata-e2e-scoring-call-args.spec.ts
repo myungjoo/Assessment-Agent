@@ -20,6 +20,7 @@ import type { EvaluationInput } from "../../src/assessment-evaluation/domain/eva
 
 import { buildRealDataEvaluationInputs } from "./realdata-e2e-evaluation-inputs";
 import { buildRealDataScoringCallArgs } from "./realdata-e2e-scoring-call-args";
+import * as consistency from "./realdata-e2e-scoring-call-args-consistency";
 
 const MODEL_ID = "qwen2.5-coder:32b";
 
@@ -198,6 +199,190 @@ describe("buildRealDataScoringCallArgs", () => {
         expect(Object.keys(args).sort()).toEqual(["input", "options"]);
         expect(Object.keys(args.options)).toEqual(["modelId"]);
       }
+    });
+  });
+
+  // T-0692 self-wire 배선 검증 — 컴포저가 산출 RealDataScoringCallArgs[] 반환 직전
+  // consistency 가드를 (산출 callArgs, inputs, modelId) 인자로 정확히 1회 self-assert
+  // 하는지, 정상 합성이면 throw 0·반환 산출물 byte-identical·무공유 불변, 가드가 throw
+  // 하면 컴포저가 삼키지 않고 그대로 전파하는지, 컴포저 modelId 빈/공백 가드(L84) throw
+  // 입력에서는 가드 진입 전 그 throw 가 선행 전파(가드 미호출)되는지, 가드 회귀
+  // (RangeError/TypeError 모의) 전파를 검증한다. T-0688 seed-collect-call-args self-wire
+  // spec 패턴의 evaluate-side mirror.
+  describe("consistency 가드 self-wire (T-0692) — 반환 직전 self-assert 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성(다수 input) → 가드가 (산출 callArgs, inputs, modelId) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataScoringCallArgsConsistentWithInputs",
+      );
+      const inputs = mixedInputs();
+
+      const result = buildRealDataScoringCallArgs(inputs, MODEL_ID);
+
+      // 정확히 1회 호출.
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서·값이 (반환된 산출 callArgs, inputs, modelId) 와 일치.
+      expect(spy).toHaveBeenCalledWith(result, inputs, MODEL_ID);
+      // 가드에 넘어간 첫 인자가 컴포저가 반환한 바로 그 배열 참조여야 한다(검증 대상 일치).
+      expect(spy.mock.calls[0][0]).toBe(result);
+      expect(spy.mock.calls[0][1]).toBe(inputs);
+      expect(spy.mock.calls[0][2]).toBe(MODEL_ID);
+    });
+
+    it("(분기 단일 input) 단일 EvaluationInput 분기에서도 가드가 (산출 callArgs, inputs, modelId) 로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataScoringCallArgsConsistentWithInputs",
+      );
+      const inputs = buildRealDataEvaluationInputs([COMMIT]);
+
+      const result = buildRealDataScoringCallArgs(inputs, MODEL_ID);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(result, inputs, MODEL_ID);
+    });
+
+    it("(분기 빈 inputs 경계) 빈 배열에서도 가드가 (산출 [], [], modelId) 로 정확히 1회 호출됨 (가드 통과·빈 산출물)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataScoringCallArgsConsistentWithInputs",
+      );
+      const empty: EvaluationInput[] = [];
+
+      const result = buildRealDataScoringCallArgs(empty, MODEL_ID);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(result, empty, MODEL_ID);
+      // 빈 배열 통과(가드가 빈 callArgs 를 정합으로 인정 — throw 0).
+      expect(result).toEqual([]);
+    });
+
+    it("정상 합성 → 가드 통과 후 반환 산출물이 self-wire 미배선 기대값(매핑 결과)과 byte-identical(불변)", () => {
+      const inputs = mixedInputs();
+
+      const result = buildRealDataScoringCallArgs(inputs, MODEL_ID);
+
+      // self-wire 가 반환 산출물을 변형하지 않음 — input reference 페어링·options 단일
+      // modelId 필드·순서 보존.
+      expect(result).toEqual(
+        inputs.map((input) => ({ input, options: { modelId: MODEL_ID } })),
+      );
+      result.forEach((args, i) => {
+        expect(args.input).toBe(inputs[i]);
+      });
+    });
+
+    it("(negative 1 — 컴포저 modelId 빈 가드 선행 throw) modelId 빈 문자열 → 가드 self-assert 도달 전 throw + 가드 미호출", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataScoringCallArgsConsistentWithInputs",
+      );
+      // 컴포저 modelId guard(L84) 의 throw 가 self-assert 보다 먼저 평가되므로 가드 미도달.
+      expect(() => buildRealDataScoringCallArgs(mixedInputs(), "")).toThrow(
+        /modelId/,
+      );
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("(negative 2 — 컴포저 modelId 빈 가드 선행 throw) modelId 공백만 → 가드 self-assert 도달 전 throw + 가드 미호출", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataScoringCallArgsConsistentWithInputs",
+      );
+      expect(() => buildRealDataScoringCallArgs(mixedInputs(), "   ")).toThrow(
+        /modelId/,
+      );
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("(negative 3 — RangeError 길이 불일치 회귀 모사) 원소 drop 회귀 → 가드 RangeError throw 가 그대로 전파", () => {
+      jest
+        .spyOn(consistency, "assertRealDataScoringCallArgsConsistentWithInputs")
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: callArgs 길이가 inputs 와 다르다 — 기대=4, 실측=3.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataScoringCallArgs(mixedInputs(), MODEL_ID),
+      ).toThrow(/길이가 inputs 와 다르다/);
+    });
+
+    it("(negative 4 — RangeError input reference drift 회귀 모사) 특정 index input 변조 → 가드 RangeError throw 전파", () => {
+      jest
+        .spyOn(consistency, "assertRealDataScoringCallArgsConsistentWithInputs")
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: callArgs[1].input 이 inputs[1] 와 reference 동등하지 않다",
+          );
+        });
+
+      expect(() =>
+        buildRealDataScoringCallArgs(mixedInputs(), MODEL_ID),
+      ).toThrow(/reference 동등하지 않다/);
+    });
+
+    it("(negative 5 — RangeError modelId 정책 위반 회귀 모사) modelId 어긋남 → 가드 RangeError throw 전파", () => {
+      jest
+        .spyOn(consistency, "assertRealDataScoringCallArgsConsistentWithInputs")
+        .mockImplementation(() => {
+          throw new RangeError(
+            '정합 위반: callArgs[0].options.modelId 가 주입 modelId 와 다르다 — 기대="qwen2.5-coder:32b", 실측="llama3".',
+          );
+        });
+
+      expect(() =>
+        buildRealDataScoringCallArgs(mixedInputs(), MODEL_ID),
+      ).toThrow(/options\.modelId 가 주입 modelId 와 다르다/);
+    });
+
+    it("(negative 6 — RangeError options 잉여 필드 회귀 모사) options 에 잉여 키 → 가드 RangeError throw 전파", () => {
+      jest
+        .spyOn(consistency, "assertRealDataScoringCallArgsConsistentWithInputs")
+        .mockImplementation(() => {
+          throw new RangeError(
+            '정합 위반: callArgs[0].options 에 { modelId } 외 잉여 키가 있다 — 실측 키=["modelId","temperature"].',
+          );
+        });
+
+      expect(() =>
+        buildRealDataScoringCallArgs(mixedInputs(), MODEL_ID),
+      ).toThrow(/잉여 키가 있다/);
+    });
+
+    it("(negative 7 — TypeError 구조결손 회귀 모사) 산출물 비-배열 모사 → 가드 TypeError throw 전파", () => {
+      jest
+        .spyOn(consistency, "assertRealDataScoringCallArgsConsistentWithInputs")
+        .mockImplementation(() => {
+          throw new TypeError("callArgs 가 배열이 아니다 — 구조 검증 실패.");
+        });
+
+      expect(() =>
+        buildRealDataScoringCallArgs(mixedInputs(), MODEL_ID),
+      ).toThrow(TypeError);
+    });
+
+    it("self-wire 배선 후에도 입력 비변형 + 동일 입력 두 번 deterministic + 반환 산출물 무공유", () => {
+      const inputs = mixedInputs();
+      const inputsSnapshot = JSON.stringify(inputs);
+
+      const a = buildRealDataScoringCallArgs(inputs, MODEL_ID);
+      const b = buildRealDataScoringCallArgs(inputs, MODEL_ID);
+
+      // 비변형(inputs mutate 0).
+      expect(JSON.stringify(inputs)).toBe(inputsSnapshot);
+      expect(inputs).toHaveLength(4);
+      // deterministic byte-identical.
+      expect(a).toEqual(b);
+      // 무공유(반환 배열·options 가 호출마다 새 객체).
+      expect(a).not.toBe(b);
+      expect(a[0]).not.toBe(b[0]);
+      expect(a[0].options).not.toBe(b[0].options);
     });
   });
 });

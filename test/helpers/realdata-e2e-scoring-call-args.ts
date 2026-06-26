@@ -51,6 +51,8 @@
 import type { EvaluationInput } from "../../src/assessment-evaluation/domain/evaluation-input";
 import type { ScoringOptions } from "../../src/assessment-evaluation/evaluation-scoring.service";
 
+import { assertRealDataScoringCallArgsConsistentWithInputs } from "./realdata-e2e-scoring-call-args-consistency";
+
 // RealDataScoringCallArgs — `scoreUnit(input, options)` 의 호출-args 묶음. 필드 모양은
 // production 시그니처와 1:1 정합:
 //   - input: EvaluationInput (production import 재사용, 중복 정의 0).
@@ -88,5 +90,21 @@ export function buildRealDataScoringCallArgs(
   }
   // 각 원소에 동일 modelId 를 담은 새 options 객체를 페어링. map 이 매 호출 새 배열을
   // 반환하고 `{ modelId }` 가 매번 새 객체라 배열·options 차원 무공유가 보존된다.
-  return inputs.map((input) => ({ input, options: { modelId } }));
+  const callArgs: RealDataScoringCallArgs[] = inputs.map((input) => ({
+    input,
+    options: { modelId },
+  }));
+
+  // 산출 RealDataScoringCallArgs[] 반환 직전 self-assert(T-0692 self-wire — T-0691 신설
+  // evaluate-side leaf 가드의 컴포저 self-wire, T-0688 seed-collect-call-args self-wire 의
+  // evaluate-side mirror). 컴포저가 input reference 페어링 실패·원소 drop/추가·modelId
+  // 정책 어긋남·options 잉여 필드 누출 같은 합성 회귀로 산출물을 손상시키면, single-source
+  // (`inputs` reference + 주입 `modelId`) 재유도와의 정합 검증으로 호출 시점에 fail-fast
+  // throw 한다. 정상 합성이면 가드는 void → 반환 배열 byte-identical·무공유 보존(관측
+  // 불가능하게 동일). 가드는 read-only 라 callArgs/inputs/modelId mutate 0. modelId 빈/공백
+  // 은 위 L84 컴포저 가드가 가드 도달 전 선행 throw 하므로 본 self-assert 미도달(가드
+  // 자체도 동일 조건식으로 throw 하지만 컴포저 가드가 먼저 발동 — 정책 drift 0).
+  assertRealDataScoringCallArgsConsistentWithInputs(callArgs, inputs, modelId);
+
+  return callArgs;
 }
