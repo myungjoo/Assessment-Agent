@@ -15,6 +15,7 @@ import {
   ASSESSMENT_ID_PLACEHOLDER,
   buildRealDataCollectCallArgs,
 } from "./realdata-e2e-seed-collect-call-args";
+import * as consistency from "./realdata-e2e-seed-collect-call-args-consistency";
 import { buildRealDataCollectInput } from "./realdata-e2e-seed-collect-input";
 import {
   buildRealDataE2eSeed,
@@ -237,6 +238,222 @@ describe("buildRealDataCollectCallArgs", () => {
           ]);
         }
       }
+    });
+  });
+
+  // T-0688 self-wire 배선 검증 — 컴포저가 산출 RealDataCollectCallArgs[] 반환 직전
+  // consistency 가드를 (산출 callArgs, seeds) 인자로 정확히 1회 self-assert 하는지, 정상
+  // 합성이면 throw 0·반환 산출물 byte-identical·무공유 불변, 가드가 throw 하면 컴포저가
+  // 삼키지 않고 그대로 전파하는지, 위임 매퍼 throw 입력(externalId 빈/공백)에서는 가드 진입
+  // 전 그 throw 가 map 단계에서 전파(가드 미호출)되는지, 가드 회귀(RangeError/TypeError
+  // 모의) 전파를 검증한다. T-0686 evaluation-inputs self-wire spec 패턴의 seed-side mirror.
+  describe("consistency 가드 self-wire (T-0688) — 반환 직전 self-assert 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성(다수 seed) → 가드가 (산출 callArgs, seeds) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataCollectCallArgsConsistentWithSources",
+      );
+      const seeds = buildRealDataE2eSeed();
+
+      const result = buildRealDataCollectCallArgs(seeds);
+
+      // 정확히 1회 호출.
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서·값이 (반환된 산출 callArgs, seeds) 와 일치.
+      expect(spy).toHaveBeenCalledWith(result, seeds);
+      // 가드에 넘어간 첫 인자가 컴포저가 반환한 바로 그 배열 참조여야 한다(검증 대상 일치).
+      expect(spy.mock.calls[0][0]).toBe(result);
+      expect(spy.mock.calls[0][1]).toBe(seeds);
+    });
+
+    it("(분기 단일 seed) 단일 descriptor 분기에서도 가드가 (산출 callArgs, seeds) 로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataCollectCallArgsConsistentWithSources",
+      );
+      const seeds = [MULTI_IDENTITY_DESCRIPTOR];
+
+      const result = buildRealDataCollectCallArgs(seeds);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(result, seeds);
+    });
+
+    it("(분기 빈 seeds 경계) 빈 배열에서도 가드가 (산출 [], []) 로 정확히 1회 호출됨 (가드 통과·빈 산출물)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataCollectCallArgsConsistentWithSources",
+      );
+      const empty: RealDataSeedDescriptor[] = [];
+
+      const result = buildRealDataCollectCallArgs(empty);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(result, empty);
+      // 빈 배열 통과(가드가 빈 callArgs 를 정합으로 인정 — throw 0).
+      expect(result).toEqual([]);
+    });
+
+    it("정상 합성 → 가드 통과 후 반환 산출물이 self-wire 미배선 기대값(위임 매퍼 산출 + 정책 상수)과 byte-identical(불변)", () => {
+      const seeds = buildRealDataE2eSeed();
+
+      const result = buildRealDataCollectCallArgs(seeds);
+
+      // self-wire 가 반환 산출물을 변형하지 않음 — person 은 위임 매퍼 산출과 deep-equal,
+      // since/assessmentId 는 정책 상수, 순서 보존.
+      expect(result).toEqual([
+        {
+          person: {
+            serviceIdentities: [
+              { service: "github.com", externalId: "myungjoo" },
+            ],
+          },
+          since: undefined,
+          assessmentId: ASSESSMENT_ID_PLACEHOLDER,
+        },
+        {
+          person: {
+            serviceIdentities: [
+              { service: "github.com", externalId: "leemgs" },
+            ],
+          },
+          since: undefined,
+          assessmentId: ASSESSMENT_ID_PLACEHOLDER,
+        },
+      ]);
+      // person 은 위임 매퍼 재유도와 byte-identical.
+      expect(result.map((a) => a.person)).toEqual(
+        buildRealDataCollectInput(seeds),
+      );
+    });
+
+    it("(negative 1 — 위임 매퍼 throw) externalId 빈/공백 seed → map 단계 throw 가 가드 진입 전 전파(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataCollectCallArgsConsistentWithSources",
+      );
+      // externalId 빈 문자열 → buildRealDataCollectInput 의 map 단계 throw 가 가드
+      // self-assert 보다 먼저 평가되므로 가드 미도달.
+      const broken: RealDataSeedDescriptor[] = [
+        {
+          person: { fullName: "e", email: "e@x.test", active: true },
+          serviceIdentities: [
+            { service: "github.com", externalId: "", isPrimary: true },
+          ],
+        },
+      ];
+
+      expect(() => buildRealDataCollectCallArgs(broken)).toThrow(/externalId/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("(negative 2 — RangeError 길이 불일치 회귀 모사) 원소 drop 회귀 → 가드 RangeError throw 가 그대로 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataCollectCallArgsConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: callArgs 길이가 재유도 expected 와 다르다 — 기대=2, 실측=1.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataCollectCallArgs(buildRealDataE2eSeed()),
+      ).toThrow(/길이가 재유도 expected 와 다르다/);
+    });
+
+    it("(negative 3 — RangeError index person drift 회귀 모사) 특정 index person 변조 → 가드 RangeError throw 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataCollectCallArgsConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: callArgs[1].person 이 재유도 expected 와 byte-identical 하지 않다",
+          );
+        });
+
+      expect(() =>
+        buildRealDataCollectCallArgs(buildRealDataE2eSeed()),
+      ).toThrow(/byte-identical 하지 않다/);
+    });
+
+    it("(negative 4 — RangeError since 정책 위반 회귀 모사) since 비-undefined 주입 → 가드 RangeError throw 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataCollectCallArgsConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            '정합 위반: callArgs[0].since 가 신규-인원 정책(undefined)과 다르다 — 실측="2026-01-01".',
+          );
+        });
+
+      expect(() =>
+        buildRealDataCollectCallArgs(buildRealDataE2eSeed()),
+      ).toThrow(/since 가 신규-인원 정책/);
+    });
+
+    it("(negative 5 — RangeError assessmentId 정책 위반 회귀 모사) placeholder 아님 → 가드 RangeError throw 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataCollectCallArgsConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            '정합 위반: callArgs[0].assessmentId 가 placeholder 정책과 다르다 — 실측="real-id".',
+          );
+        });
+
+      expect(() =>
+        buildRealDataCollectCallArgs(buildRealDataE2eSeed()),
+      ).toThrow(/assessmentId 가 placeholder 정책/);
+    });
+
+    it("(negative 6 — TypeError 구조결손 회귀 모사) 산출물 비-배열 모사 → 가드 TypeError throw 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataCollectCallArgsConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new TypeError("callArgs 가 배열이 아니다 — 구조 검증 실패.");
+        });
+
+      expect(() =>
+        buildRealDataCollectCallArgs(buildRealDataE2eSeed()),
+      ).toThrow(TypeError);
+    });
+
+    it("(negative 7 — 빈 seeds 경계) 빈 배열은 가드 통과 + 빈 산출물 반환(throw 0)", () => {
+      expect(() => buildRealDataCollectCallArgs([])).not.toThrow();
+      expect(buildRealDataCollectCallArgs([])).toEqual([]);
+    });
+
+    it("self-wire 배선 후에도 입력 비변형 + 동일 입력 두 번 deterministic + 반환 산출물 무공유", () => {
+      const seeds = buildRealDataE2eSeed();
+      const seedsSnapshot = JSON.stringify(seeds);
+
+      const a = buildRealDataCollectCallArgs(seeds);
+      const b = buildRealDataCollectCallArgs(seeds);
+
+      // 비변형(seeds mutate 0).
+      expect(JSON.stringify(seeds)).toBe(seedsSnapshot);
+      expect(seeds).toHaveLength(2);
+      // deterministic byte-identical.
+      expect(a).toEqual(b);
+      // 무공유(반환 배열이 호출마다 새 객체).
+      expect(a).not.toBe(b);
+      expect(a[0].person).not.toBe(b[0].person);
     });
   });
 });
