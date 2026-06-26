@@ -34,6 +34,7 @@
 //   - CollectionEntryService / production `src/` 코드 변경(타입은 import 재사용만).
 import type { CollectForPersonInput } from "../../src/assessment-collection/collection-entry.service";
 
+import { assertRealDataCollectInputConsistentWithSeeds } from "./realdata-e2e-seed-collect-input-consistency";
 import type { RealDataSeedDescriptor } from "./realdata-e2e-seed-fixture";
 
 // buildRealDataCollectInput — seed descriptor 배열을 수집 입력 contract 배열로
@@ -55,7 +56,7 @@ import type { RealDataSeedDescriptor } from "./realdata-e2e-seed-fixture";
 export function buildRealDataCollectInput(
   seeds: RealDataSeedDescriptor[],
 ): CollectForPersonInput[] {
-  return seeds.map((seed) => ({
+  const collectInputs = seeds.map((seed) => ({
     serviceIdentities: seed.serviceIdentities.map((identity) => {
       const externalId = identity.externalId;
       if (externalId.trim() === "") {
@@ -69,4 +70,17 @@ export function buildRealDataCollectInput(
       };
     }),
   }));
+
+  // 산출 CollectForPersonInput[] 반환 직전 self-assert(T-0690 self-wire — T-0689 신설
+  // 가장 깊은 seed-side leaf 가드의 컴포저 self-wire, T-0688 seed-collect-call-args
+  // self-wire 의 한 layer 더 깊은 leaf mirror). 컴포저가 identity 투영을 변형/누락하거나
+  // externalId 빈-가드 정책을 어긋나게 합성하는 회귀로 산출물을 손상시키면, single-source
+  // `seeds` 의 identity 투영 직접 재유도와의 정합 검증으로 호출 시점에 fail-fast throw 한다.
+  // 정상 합성이면 가드는 void → 반환 배열 byte-identical·무공유 보존(관측 불가능하게 동일).
+  // 가드는 read-only 라 collectInputs/seeds mutate 0. externalId 빈/공백 seed 는 위 map
+  // 단계에서 이미 throw 가 전파되므로 가드 미도달(self-wire 가 기존 빈-가드 throw 를
+  // 삼키지 않음).
+  assertRealDataCollectInputConsistentWithSeeds(collectInputs, seeds);
+
+  return collectInputs;
 }
