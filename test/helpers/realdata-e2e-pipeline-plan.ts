@@ -59,6 +59,7 @@
 //   - 실 `LlmProviderConfigResolver` 호출 / DB lookup / modelId 실 결정(ADR-0048 — 인자로만 받음).
 //   - `ASSESSMENT_ID_PLACEHOLDER` → 실 assessment.id 치환 runner.
 //   - production `src/` 코드 변경 — test helper 단독.
+import { assertRealDataPipelinePlanConsistentWithSources } from "./realdata-e2e-pipeline-plan-consistency";
 import { buildRealDataCollectCallArgs } from "./realdata-e2e-seed-collect-call-args";
 import type { RealDataCollectCallArgs } from "./realdata-e2e-seed-collect-call-args";
 import type { RealDataSeedDescriptor } from "./realdata-e2e-seed-fixture";
@@ -117,5 +118,16 @@ export function buildRealDataPipelinePlan(
 
   // 새 plan 객체(collectCallArgs 는 위임 helper 가 이미 무공유로 반환, modelId 는
   // 원시값) — 입력 보존·무공유.
-  return { collectCallArgs, modelId };
+  const plan = { collectCallArgs, modelId };
+
+  // 산출 plan 반환 직전 self-assert(T-0680 self-wire) — 컴포저가 collect 위임 +
+  // modelId 보존으로 `{ collectCallArgs, modelId }` 를 합성하는 과정에서 collect 측
+  // 산출(collectCallArgs)을 변형/누락하거나 modelId 를 다른 값으로 바꿔치는 합성 회귀를,
+  // single-source 재유도(collect 위임 직접 재호출 + modelId 직접 대조)와의 byte-identical
+  // 정합 검증으로 호출 시점에 fail-fast 차단한다(손상 plan 을 caller 로 반환하기 전 throw).
+  // 정상 합성이면 가드는 void → 반환 plan byte-identical·무공유 보존(관측 불가능하게 동일).
+  // 가드는 read-only 라 plan/seeds mutate 0.
+  assertRealDataPipelinePlanConsistentWithSources(plan, seeds, modelId);
+
+  return plan;
 }
