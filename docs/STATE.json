@@ -8,18 +8,18 @@
   },
   "currentTask": null,
   "nextTask": {
-    "id": "T-0695",
-    "title": "realdata-e2e result-issue gh-command-plan 종단 컴포저 산출 ↔ (stdout, commandArgs) single-source 재유도 정합 순수 가드 신설",
+    "id": "T-0696",
+    "title": "realdata-e2e result-issue command-plan 종단 컴포저 산출 ↔ (results, run) single-source 재유도 정합 순수 가드 신설",
     "commitMode": "pr",
     "phase": "P5",
-    "independentStream": "realdata-e2e-consistency-guard",
+    "independentStream": "realdata-e2e-command-plan-guard",
     "dependsOn": [],
     "touchesFiles": [
-      "test/helpers/realdata-e2e-result-issue-gh-command-plan-consistency.ts",
-      "test/helpers/realdata-e2e-result-issue-gh-command-plan-consistency.spec.ts"
+      "test/helpers/realdata-e2e-result-issue-command-plan-consistency.ts",
+      "test/helpers/realdata-e2e-result-issue-command-plan-consistency.spec.ts"
     ]
   },
-  "backlogNote": "▶ **T-0695 QUEUED (planner)** — step④ result-issue gh-command-plan 종단 컴포저(resolveRealDataResultIssueGhCommandPlan, T-0588) 정합 가드 신설: 산출 {action, argv} plan 을 입력 (stdout, commandArgs) 로 동일 3 위임 helper(parse→resolveAction→buildGhArgv) 재호출해 single-source 재유도 후 대조하는 read-only fail-fast 순수 가드. T-0693 daily-step-eval-command-plan 가드의 result-issue-side mirror. issue-still-relevant: assertRealDataResultIssueGhCommandPlan* 심볼·*-gh-command-plan-consistency.ts 파일·컴포저 self-wire 모두 origin/main grep 0(부재 확인). dependsOn [](독립·claimable). pr, ~255 LOC/2 파일. ▶ **후속**: 본 가드 머지 후 self-wire 짝 닫기(T-0694 패턴). ▶ **직전 T-0694 DONE (PR #610 squash 82c0853)** — daily-step-eval-command-plan self-wire 완결. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
+  "backlogNote": "▶ **T-0696 QUEUED (planner, T-0695-disjoint 병렬용)** — step④ result-issue command-plan 종단 컴포저(buildRealDataResultIssueCommandPlan, T-0594) 정합 가드 신설: 산출 {report, commandArgs} plan 을 입력 (results, run) 으로 동일 2 위임 helper(buildRealDataResultReportPlan → buildRealDataResultIssueCommandArgs) 재호출해 single-source 재유도 후 deep-equal 대조하는 read-only fail-fast 순수 가드. T-0695 gh-command-plan(stdout-side 종단) 가드의 evaluation-side(results,run 입력 축) mirror — **파일·심볼·independentStream(realdata-e2e-command-plan-guard) 모두 T-0695 와 disjoint, dependsOn [] 독립·동시 claimable**. issue-still-relevant: assertRealDataResultIssueCommandPlan* 심볼·*-command-plan-consistency.ts(gh- 제외) 파일·컴포저 종단 self-wire 모두 origin/main grep 0(부재 확인). pr, ~255 LOC/2 파일. ▶ **T-0695 IN-FLIGHT** — 동시 driver(cron@AKIHA-d134a3dc)가 claim 해 진행 중(claims.json 박제). T-0695 spec(result-issue gh-command-plan 종단 컴포저 (stdout,commandArgs) 재유도 정합 가드, independentStream realdata-e2e-consistency-guard, dependsOn [], pr ~255 LOC/2 파일, 머지 후 self-wire 짝 닫기 후속) 은 본 in-flight claim 으로 추적되므로 유실 없음. ▶ **후속**: T-0696/T-0695 각 머지 후 self-wire 짝 닫기(T-0694 패턴). ▶ **직전 T-0694 DONE (PR #610 squash 82c0853)** — daily-step-eval-command-plan self-wire 완결. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
   "lock": {
     "holder": null,
     "since": ""
@@ -43,7 +43,7 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "본 fire(cron@AKIHA-7aebecf9, planner-only): local main fbc8444(origin 7aebecf9 뒤처짐) -> reset --hard origin/main. lock free({holder:''})·claims [] 확인 -> acquire-lock(cron@AKIHA-7aebecf9, tip 9064a157). currentTask·nextTask 둘 다 null(T-0694 이미 PR #610 머지 완료) -> planner dispatch. planner 가 T-0695(pr, result-issue gh-command-plan 종단 컴포저 정합 가드 신설, T-0588 mirror, dependsOn [], grep 으로 심볼·파일·self-wire 부재 확인) 큐잉 + STATE.nextTask/backlogNote/journal 갱신. 본 turn 코드 변경 0(planner 경로) -> doc-only direct main push 후 lock tombstone release. 다음 fire 가 T-0695 claim+execute.",
+    "note": "본 fire(cron@AKIHA-742c, aa-local-15 매시15분, planner-only): fetch 후 origin/main(98619e4) ff. lock free(tombstone)·claims [] 확인 -> acquire-lock(cron@AKIHA-742c, tip 2843400). reclaim(server-time 21:04:42Z 주입) no-op. **그러나 acquire 가 base 로 보존한 claims.json 에 T-0695 이미 claim 됨(동시 driver cron@AKIHA-d134a3dc @21:05:06Z, 내 lock @21:05:19Z 직전)** -> T-0695 in-flight, claimable task 부재. fineGrained 경합 패배 흡수 + scheduled-task '서로 다른 task' 지침대로 planner dispatch 로 다른 독립 work 큐잉. planner 가 T-0696(pr, result-issue command-plan 종단 컴포저 (results,run) 정합 가드 신설, T-0594 mirror, T-0695 와 파일·심볼·stream disjoint, dependsOn []) 큐잉 + STATE.nextTask/backlogNote/journal 갱신. T-0695 spec 은 backlogNote 에 in-flight 로 보존. 본 turn 코드 변경 0(planner 경로) -> doc-only direct main push 후 lock tombstone release. 다음 fire/2nd slot 이 T-0696 claim+execute(T-0695 는 d134a3dc 진행).",
     "lastRun": "2026-06-27T00:00:00Z"
   },
   "reviewRounds": {
@@ -1189,5 +1189,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-26T20:20:00Z"
+  "lastActivity": "2026-06-26T21:05:30Z"
 }
