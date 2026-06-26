@@ -64,6 +64,7 @@
 import { buildRealDataPipelinePlan } from "./realdata-e2e-pipeline-plan";
 import type { RealDataPipelinePlan } from "./realdata-e2e-pipeline-plan";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
+import { assertRealDataE2eRunPlanConsistentWithSources } from "./realdata-e2e-run-plan-consistency";
 import type { RealDataSeedDescriptor } from "./realdata-e2e-seed-fixture";
 
 // RealDataE2eRunPlan — 실 평가 e2e 최외곽 진입 plan. live runner 가 (seeds, modelId,
@@ -133,6 +134,19 @@ export function buildRealDataE2eRunPlan(
   assertRunRefNonBlank(run.dateToken, "dateToken");
 
   // 검증 통과한 run 을 새 객체로 복사해 보존(입력 run 객체와 무공유 — 출력 mutate 가
-  // 입력에 누설되지 않는다). 새 plan 객체 반환.
-  return { pipeline, run: { gitSha: run.gitSha, dateToken: run.dateToken } };
+  // 입력에 누설되지 않는다). 새 plan 객체 산출.
+  const runPlan: RealDataE2eRunPlan = {
+    pipeline,
+    run: { gitSha: run.gitSha, dateToken: run.dateToken },
+  };
+
+  // 산출 plan 반환 직전 self-assert(T-0678 self-wire) — 최외곽 컴포저가 seed-side pipeline
+  // 위임 + run 복사로 `{ pipeline, run }` 을 합성하는 과정에서 seeds/modelId 인자 위치를
+  // 뒤바꾸거나 한쪽 산출(pipeline 또는 run)을 변형/누락하는 합성 회귀를 single-source
+  // 재유도(pipeline 측 위임 직접 재호출 + run 직접 대조)와의 byte-identical 정합 검증으로
+  // 호출 시점에 fail-fast 차단한다. 정상 합성이면 가드는 void → 반환 plan byte-identical·
+  // 무공유 보존(관측 불가능하게 동일). 가드는 read-only 라 runPlan/seeds/run mutate 0.
+  assertRealDataE2eRunPlanConsistentWithSources(runPlan, seeds, modelId, run);
+
+  return runPlan;
 }
