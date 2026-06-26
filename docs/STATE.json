@@ -7,32 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": {
-    "id": "T-0690",
-    "commitMode": "pr",
-    "phase": "P5",
-    "independentStream": "realdata-e2e-consistency-guard",
-    "dependsOn": [
-      "T-0689"
-    ],
-    "touchesFiles": [
-      "test/helpers/realdata-e2e-seed-collect-input.ts",
-      "test/helpers/realdata-e2e-seed-collect-input.spec.ts"
-    ],
-    "title": "realdata-e2e seed-collect-input leaf 컴포저 consistency 가드 self-wire 배선"
-  },
+  "nextTask": null,
   "backlogNote": "▶ **T-0689 DONE (pr, PR #605 squash ba0b39e)** — realdata-e2e seed-side 가장 깊은 leaf 컴포저 buildRealDataCollectInput 의 정합 가드 assertRealDataCollectInputConsistentWithSeeds 신설(seed serviceIdentities {service,externalId} 직접 투영 재유도 ↔ 산출 byte-identical 대조, 구조결손 TypeError·값drift RangeError·read-only). ▶ **다음 nextTask=T-0690 (pr)** — 그 신설 가드를 leaf 컴포저 buildRealDataCollectInput 반환 직전에 self-assert 로 배선해 짝 닫기. T-0688(seed-collect-call-args self-wire)의 한 layer 더 깊은 leaf mirror — seed-side leaf 가드 사슬(run-plan→pipeline-plan→collect-call-args→collect-input) 완결. import 1줄 + 반환지점 const 추출 + self-assert 1 호출 외 byte-identical 산출물 보존, test-only 2 파일(realdata-e2e-seed-collect-input.{ts,spec.ts}), cap 준수. dependency-free(dependsOn T-0689 머지 완료). issue-still-relevant 확인: origin/main 에 self-wire 미존재(grep 0) — 중복 아님. P5 109행 step① build-time consistency 가드.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "ddb5bf40fec45446dd9ada093dc931907b90a114",
+  "lastCommit": "ce17715eba9c5d48fb4b605eefbb78dd782aa0bf",
   "mostRecentTasks": [
+    "T-0690",
     "T-0689",
     "T-0688",
     "T-0687",
-    "T-0686",
-    "T-0685"
+    "T-0686"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -42,11 +29,11 @@
     "note": "/loop AKIHA-21631 (dynamic, turn cap 2) — t1 T-0651 merge 41a6ef2 + planner T-0652 큐잉. t2 T-0652 merge c580071. cap 도달 → 종료 + lock 해제."
   },
   "ci": {
-    "status": "green",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0689 머지커밋 ba0b39e 및 bookkeeping a8c0d9d main CI conclusion=success 재확인(직전 fire 가 in_progress 로 위임한 건 green 확정). 본 fire(cron@aa-cloud-a8c0d9d): lock free·claims [] 확인 -> lock 획득 -> currentTask/nextTask 둘 다 null 이라 planner dispatch -> T-0690 큐잉(nextTask). doc-only direct commit + lock tombstone release.",
-    "lastRun": "2026-06-27T00:00:00Z"
+    "note": "본 fire(cron@aa-local-15-24657): lock free·claims [] -> lock 획득 -> fineGrainedConcurrency=true claim-pickup: reclaim(회수 0) -> gate(active 0 < max 2, pr-mode active 0) -> validate PASS -> select-claim T-0690. executor DONE(test-only, +196/-1, unit 8216 green). integrator MERGED PR #606 round 1/7 squash ce17715, branch delete. 머지커밋 ce17715 main CI in_progress -> 다음 fire 에서 conclusion 재확인. claim prune(claims.json []) + lock tombstone 유지.",
+    "lastRun": "2026-06-26T16:06:00Z"
   },
   "reviewRounds": {
     "T-0673": 2,
@@ -1159,7 +1146,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 681,
+    "tasksCompleted": 682,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1187,5 +1174,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-27T00:00:00Z"
+  "lastActivity": "2026-06-26T16:06:00Z"
 }

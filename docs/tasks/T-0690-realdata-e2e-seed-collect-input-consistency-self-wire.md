@@ -2,7 +2,11 @@
 id: T-0690
 title: realdata-e2e seed-side seed-collect-input leaf 컴포저 산출 직전 consistency 가드 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-26T16:06:00Z
+mergedAs: ce17715eba9c5d48fb4b605eefbb78dd782aa0bf
+prNumber: 606
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 170
@@ -59,3 +63,10 @@ implementer → tester
 ## Follow-ups
 
 (없음 — seed-side leaf 가드 사슬 완결. 가드 사슬의 다음 미커버 seam 이 있으면 후속 planner 가 surface.)
+
+## Result (DONE)
+
+- 완료: 2026-06-26T16:06:00Z, PR #606 round 1/7 APPROVE → squash merge `ce17715`.
+- 변경: seed-collect-input leaf 컴포저에 `assertRealDataCollectInputConsistentWithSeeds` self-wire 1 호출 배선(+196/-1, 2 files). behavioral 변경 0, byte-identical 보존.
+- 검증: unit 8216 pass, lint/build green, coverage line/func ≥80% ok. smoke/e2e 는 CI(R-113).
+- claim prune(claims.json []) + lock tombstone 유지. 머지커밋 main CI 는 in_progress → 다음 fire 에서 conclusion 재확인.
