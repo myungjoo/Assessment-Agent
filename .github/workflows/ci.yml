@@ -111,6 +111,13 @@ jobs:
         # 동형으로 self-contained(로컬 bare repo + 2 clone)라 네트워크/credential 불요.
         run: bash scripts/reclaim-stale-claim.test.sh
 
+      - name: acquire-lock claims 보존 검증
+        # T-0673 — scripts/acquire-lock.sh 의 lock 취득 시 기존 claims.json 배열
+        # 보존(claim 박제 race 방지) primitive 의 executable spec. select-claim CAS
+        # 검증 / reclaim-stale-claim 검증과 동형으로 self-contained(로컬 bare repo
+        # + clone)라 네트워크/credential 불요.
+        run: bash scripts/acquire-lock.test.sh
+
       - name: daily-test step_eval 배선 검증
         # T-0612 — deploy/daily-test.sh 의 realdata-e2e live smoke step_eval gating
         # 배선(env-gated SKIP/run + jest argv mirror)의 executable spec. check-doc-only
