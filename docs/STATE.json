@@ -7,8 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "▶ **T-0694 DONE (PR #610 squash 82c0853)** — step④ daily-step-eval-command-plan 컴포저 self-wire 완결: buildRealDataDailyStepEvalCommandPlan(env) 의 run/skip 양 분기 반환 직전 assertRealDataDailyStepEvalCommandPlanConsistentWithGating(plan, env) self-assert 배선. T-0693 가드 신설 짝 닫음(가드 신설→self-wire leaf 짝 전반 닫힘). reviewer round1 APPROVE 0-nit, 4-게이트 PASS, CI green. ▶ **다음 fire = planner 차례** — nextTask null, planner 가 후속 큐잉. ▶ **후속 후보**: step④ result-issue gh-command-plan(T-0588) 계열 잔여 가드 짝 점검. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
+  "nextTask": {
+    "id": "T-0695",
+    "title": "realdata-e2e result-issue gh-command-plan 종단 컴포저 산출 ↔ (stdout, commandArgs) single-source 재유도 정합 순수 가드 신설",
+    "commitMode": "pr",
+    "phase": "P5",
+    "independentStream": "realdata-e2e-consistency-guard",
+    "dependsOn": [],
+    "touchesFiles": [
+      "test/helpers/realdata-e2e-result-issue-gh-command-plan-consistency.ts",
+      "test/helpers/realdata-e2e-result-issue-gh-command-plan-consistency.spec.ts"
+    ]
+  },
+  "backlogNote": "▶ **T-0695 QUEUED (planner)** — step④ result-issue gh-command-plan 종단 컴포저(resolveRealDataResultIssueGhCommandPlan, T-0588) 정합 가드 신설: 산출 {action, argv} plan 을 입력 (stdout, commandArgs) 로 동일 3 위임 helper(parse→resolveAction→buildGhArgv) 재호출해 single-source 재유도 후 대조하는 read-only fail-fast 순수 가드. T-0693 daily-step-eval-command-plan 가드의 result-issue-side mirror. issue-still-relevant: assertRealDataResultIssueGhCommandPlan* 심볼·*-gh-command-plan-consistency.ts 파일·컴포저 self-wire 모두 origin/main grep 0(부재 확인). dependsOn [](독립·claimable). pr, ~255 LOC/2 파일. ▶ **후속**: 본 가드 머지 후 self-wire 짝 닫기(T-0694 패턴). ▶ **직전 T-0694 DONE (PR #610 squash 82c0853)** — daily-step-eval-command-plan self-wire 완결. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
   "lock": {
     "holder": null,
     "since": ""
@@ -32,8 +43,8 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "본 fire(cron@aa-local15-fbc8444, execute): local main fbc8444 동기(reset --hard origin/main). lock free·claims [] 확인 -> acquire-lock(cron@aa-local15-fbc8444, tip 6d51d7f) -> reclaim(no stale) -> (a2) 게이트 활성 claim 0 -> validate-claim-candidate T-0694 PASS -> select-claim(T-0694, lock 동반 tombstone release). gh 인증 확인(myungjoo). executor(implementer +25/-3 + tester spec 9 test 추가, 전체 8292 green) -> feature branch claude/T-0694-* push(462c9cce) -> integrator: PR #610 open + reviewer round1 APPROVE 0-nit + gh pr comment 외화 + CI green(approval-gate 포함) -> 4-게이트 PASS -> squash merge 82c0853 + branch delete. 머지 후 claim prune(lock_tree_cas_push, tip f808d6b, claims []). 본 bookkeeping 은 STATE/journal/task-file/counters doc-only direct main push.",
-    "lastRun": "2026-06-26T20:20:00Z"
+    "note": "본 fire(cron@AKIHA-7aebecf9, planner-only): local main fbc8444(origin 7aebecf9 뒤처짐) -> reset --hard origin/main. lock free({holder:''})·claims [] 확인 -> acquire-lock(cron@AKIHA-7aebecf9, tip 9064a157). currentTask·nextTask 둘 다 null(T-0694 이미 PR #610 머지 완료) -> planner dispatch. planner 가 T-0695(pr, result-issue gh-command-plan 종단 컴포저 정합 가드 신설, T-0588 mirror, dependsOn [], grep 으로 심볼·파일·self-wire 부재 확인) 큐잉 + STATE.nextTask/backlogNote/journal 갱신. 본 turn 코드 변경 0(planner 경로) -> doc-only direct main push 후 lock tombstone release. 다음 fire 가 T-0695 claim+execute.",
+    "lastRun": "2026-06-27T00:00:00Z"
   },
   "reviewRounds": {
     "T-0694": 1,
