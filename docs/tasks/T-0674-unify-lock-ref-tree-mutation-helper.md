@@ -2,7 +2,11 @@
 id: T-0674
 title: lock-ref tree mutation 공통 헬퍼 신설 + acquire/select 2 script 라우팅 (fix-2 slice 1a)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-26T04:00:51Z
+mergedAs: 0823d30
+prNumber: 590
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 285
