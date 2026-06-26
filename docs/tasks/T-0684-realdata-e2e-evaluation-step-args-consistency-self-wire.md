@@ -2,7 +2,7 @@
 id: T-0684
 title: realdata-e2e evaluate-side evaluation-step-args 컴포저 산출 직전 consistency 가드 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 110
