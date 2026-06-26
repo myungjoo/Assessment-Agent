@@ -36,6 +36,11 @@
 
 set -uo pipefail
 
+# tree-보존 CAS mutation 공통 헬퍼(scripts/lib-lock-tree.sh)를 source.
+# acquire(lock.json 교체)·release(tombstone lock.json 교체) 모두 이 헬퍼를 거친다.
+# shellcheck source=scripts/lib-lock-tree.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-lock-tree.sh"
+
 REMOTE="${ACQUIRE_REMOTE:-origin}"
 REF="${ACQUIRE_REF:-refs/heads/claude/lock-driver}"
 RETRIES="${ACQUIRE_RETRIES:-3}"
@@ -75,51 +80,18 @@ attempt() {
   old_sha="$(git ls-remote "$REMOTE" "$REF" 2>/dev/null | cut -f1)"
 
   # 새 commit tree: 기존 tip tree 를 base 로 lock.json **만** 교체.
-  # claims.json 및 그 외 모든 엔트리는 ls-tree base 로 그대로 보존(본 버그 차단).
-  local lock_blob tree commit
+  # claims.json 및 그 외 모든 엔트리는 헬퍼의 ls-tree base 로 그대로 보존(본 버그
+  # 차단). tree 구성·self-contained identity commit·빈 commit 가드·CAS push 는
+  # 전부 lock_tree_cas_push 에 위임(현 return code 0/20/30 의미 그대로 전파).
+  local lock_blob msg
   lock_blob="$(lock_blob_body | git hash-object -w --stdin)"
-
-  {
-    if [ -n "$old_sha" ]; then
-      git ls-tree "$old_sha" \
-        | grep -vE '\s(lock\.json)$' || true
-    fi
-    printf '100644 blob %s\tlock.json\n' "$lock_blob"
-  } | git mktree >/tmp/.al_tree 2>/dev/null
-  tree="$(cat /tmp/.al_tree)"
-  rm -f /tmp/.al_tree
-
-  # CI ubuntu runner 는 ambient git identity 가 0 이라 commit-tree 가
-  # `fatal: empty ident name` 으로 실패한다 — select-claim.sh 와 동형으로
-  # identity 를 호출 지점에서 self-provide 해 self-contained 계약을 지킨다.
-  local msg
   if [ "$MODE" = "release" ]; then
     msg="release lock"
   else
     msg="acquire lock by ${SESSION}"
   fi
-  if [ -n "$old_sha" ]; then
-    commit="$(git -c user.name='lock-acquire' -c user.email='lock-acquire@localhost' \
-      commit-tree "$tree" -p "$old_sha" -m "$msg" 2>/dev/null)"
-  else
-    commit="$(git -c user.name='lock-acquire' -c user.email='lock-acquire@localhost' \
-      commit-tree "$tree" -m "$msg" 2>/dev/null)"
-  fi
-
-  # 빈/누락 commit push 방지 가드(MEMORY lock-cas-bash-hazard — 빈 $commit 으로
-  # `git push <empty>:$REF` 하면 lock-driver 브랜치를 **삭제**한다, 6회 재발).
-  if [ -z "$commit" ]; then
-    echo "acquire-lock: commit-tree 실패(빈 COMMIT) — push 차단(브랜치 삭제 방지)" >&2
-    return 30
-  fi
-
-  # CAS push: lease=old-sha(빈 문자열이면 expect-absent). 성공 시 이중 획득 불가.
-  if git push "$REMOTE" "$commit:$REF" \
-       --force-with-lease="$REF:$old_sha" >/dev/null 2>&1; then
-    printf '%s\n' "$commit"
-    return 0
-  fi
-  return 20
+  lock_tree_cas_push "$REMOTE" "$REF" "$old_sha" '\s(lock\.json)$' \
+    "lock.json=${lock_blob}" "$msg"
 }
 
 i=0

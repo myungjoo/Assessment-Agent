@@ -118,6 +118,15 @@ jobs:
         # + clone)라 네트워크/credential 불요.
         run: bash scripts/acquire-lock.test.sh
 
+      - name: lib-lock-tree 헬퍼 검증
+        # T-0674 — scripts/lib-lock-tree.sh 의 tree-보존 CAS mutation 공통 헬퍼
+        # (acquire-lock.sh·select-claim.sh 가 라우팅하는 lock_tree_cas_push)의
+        # executable spec. claims.json byte-보존 회귀 가드(#588) + CAS lose(20)
+        # /빈 commit 가드(30)/첫 생성 분기 cover. acquire-lock claims 보존 검증 /
+        # select-claim CAS 검증과 동형으로 self-contained(로컬 bare repo + clone)라
+        # 네트워크/credential 불요.
+        run: bash scripts/lib-lock-tree.test.sh
+
       - name: daily-test step_eval 배선 검증
         # T-0612 — deploy/daily-test.sh 의 realdata-e2e live smoke step_eval gating
         # 배선(env-gated SKIP/run + jest argv mirror)의 executable spec. check-doc-only
