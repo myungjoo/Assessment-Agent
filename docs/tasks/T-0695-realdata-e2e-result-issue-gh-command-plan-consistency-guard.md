@@ -2,12 +2,15 @@
 id: T-0695
 title: realdata-e2e result-issue gh-command-plan 종단 컴포저 산출 ↔ (stdout, commandArgs) single-source 재유도 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 255
 estimatedFiles: 2
 created: 2026-06-27
+completedAt: 2026-06-26T21:25:00Z
+prNumber: 611
+mergeSha: c6aca13e74774228cfb7754a10d61ce6dd674a84
 plannerNote: P5 109행 step④ — result-issue gh-command-plan 종단 컴포저(T-0588) 정합 가드 신설(plan↔(stdout,commandArgs) 재유도 대조). guard category × 1.5 × 1.0.
 touchesFiles:
   - test/helpers/realdata-e2e-result-issue-gh-command-plan-consistency.ts
@@ -15,6 +18,16 @@ touchesFiles:
 dependsOn: []
 independentStream: realdata-e2e-consistency-guard
 ---
+
+## Result (DONE)
+
+- PR #611 squash-merged at 2026-06-26 21:25Z → main `c6aca13e74774228cfb7754a10d61ce6dd674a84`
+- Reviewer round 1/7 APPROVE, 0 finding (BLOCKER 0 / MAJOR 0 / MINOR 0 / NIT 0)
+- CI 4-게이트: 기본 검사 success + 배포 산출물 검증 success
+- 신설 가드 helper `assertRealDataResultIssueGhCommandPlanConsistentWithInputs` line/branch/func/stmt 100% cover (36 신설 test / 8328 전체)
+- Driver: cron@AKIHA-d134a3dc (ADR-0036 stage5b — fineGrainedConcurrency ON, maxConcurrentClaims=2, pr-mode 단독 claim)
+- Follow-up: 종단 컴포저 self-wire 짝 닫기 task (T-0694 패턴)
+
 
 # T-0695 — realdata-e2e result-issue gh-command-plan 종단 컴포저 산출 ↔ (stdout, commandArgs) single-source 재유도 정합 순수 가드 신설
 
