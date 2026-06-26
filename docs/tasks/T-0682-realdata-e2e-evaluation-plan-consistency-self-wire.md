@@ -2,7 +2,9 @@
 id: T-0682
 title: realdata-e2e evaluate-side evaluation-plan 컴포저 산출 직전 consistency 가드 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-26T10:55:00Z
+prNumber: 598
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 dependsOn: []
