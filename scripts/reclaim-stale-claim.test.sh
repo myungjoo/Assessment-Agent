@@ -20,6 +20,12 @@
 #   B7 회수 대상 부재(claims.json 빈 배열/ref 부재) → no-op exit 0 : [T7] negative
 #   ── 라우팅 회귀 가드(T-0675, lib-lock-tree 헬퍼 위임) ──
 #   B8 회수 시 sibling 파일(meta.txt)·살아있는 entry byte-보존  : [T8] #588 wipe 회귀 가드
+#   ── DONE-skip 가드(T-0676, spurious RESUME 차단) ──
+#   B9  stale DONE+prNumber → prune(RESUME 미발생)             : [T9] happy + regression(13:00 사고)
+#   B10 stale DONE+prNumber null → prune 유지(불변)            : [T10] negative
+#   B11 live DONE+prNumber → 보존(stale 아님)                  : [T11] negative
+#   B12 status 누락(레거시) stale+prNumber → 기존 resume 분기   : [T12] negative(보수)
+#   B13 DONE/PR_OPEN/CLAIMED/IN_PROGRESS 4종 혼재 분기 분리      : [T13] branch(status 분기 분리)
 
 set -uo pipefail
 
@@ -282,9 +288,106 @@ else
 fi
 
 # ──────────────────────────────────────────────────────────────────────────
+echo "[T9] DONE-skip happy/regression — stale DONE+prNumber=589 → prune, RESUME 미발생 (B9, T-0674 13:00 사고 회귀 가드)"
+seed_claims A "[{\"taskId\":\"T-0673\",\"owner\":\"dead@h-0\",\"claimedAt\":\"$STALE_AT\",\"status\":\"DONE\",\"prNumber\":589}]"
+OUT9="$(run_reclaim A loopA@h-1)"; RC9=$?
+# (a) RESUME 문자열이 stdout 에 절대 나오지 않음(현 버그면 RESUME 출력 → fail).
+if [ $RC9 -eq 0 ] && ! printf '%s' "$OUT9" | grep -qF "RESUME"; then
+  pass "stale DONE+prNumber 인데 RESUME 미발생 + exit 0 (spurious RESUME 차단)"
+else
+  fail "DONE claim 에 RESUME 이 emit 됨 (rc=$RC9 out=$OUT9)"
+fi
+# (b) entry 가 claims.json 에서 제거됨(prune).
+if [ "$(count_entry T-0673)" = "0" ]; then
+  pass "T-0673(DONE) entry prune 됨 — merged PR 에 대한 resume 후보 아님"
+else
+  fail "DONE claim 이 prune 안 됨 (entry=$(count_entry T-0673))"
+fi
+# (c) RECLAIM/prune 신호 1줄 박제.
+if printf '%s' "$OUT9" | grep -qF "RECLAIM taskId=T-0673"; then
+  pass "RECLAIM(prune) 신호 출력"
+else
+  fail "prune 신호 미출력 (out=$OUT9)"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
+echo "[T10] negative — stale DONE+prNumber null → 기존 prune 유지(status 가드 추가 후에도 불변) (B10)"
+seed_claims A "[{\"taskId\":\"T-1010\",\"owner\":\"dead@h-0\",\"claimedAt\":\"$STALE_AT\",\"status\":\"DONE\",\"prNumber\":null}]"
+OUT10="$(run_reclaim A loopA@h-1)"; RC10=$?
+if [ $RC10 -eq 0 ] && [ "$(count_entry T-1010)" = "0" ] && printf '%s' "$OUT10" | grep -qF "RECLAIM taskId=T-1010"; then
+  pass "DONE+prNumber null prune 유지 + exit 0 (이미 prune 대상 경로 불변)"
+else
+  fail "DONE+prNumber null 회수 이상 (rc=$RC10 entry=$(count_entry T-1010) out=$OUT10)"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
+echo "[T11] negative — live(임계 이내) DONE+prNumber → 보존(stale 아니므로 손대지 않음) (B11)"
+seed_claims A "[{\"taskId\":\"T-1111\",\"owner\":\"live@h-9\",\"claimedAt\":\"$LIVE_AT\",\"status\":\"DONE\",\"prNumber\":601}]"
+TIP_B11="$(git -C A ls-remote "$WORK/origin.git" "$REF" | cut -f1)"
+OUT11="$(run_reclaim A loopA@h-1)"; RC11=$?
+git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+TIP_A11="$(git -C A ls-remote "$WORK/origin.git" "$REF" | cut -f1)"
+if [ $RC11 -eq 0 ] && [ "$(count_entry T-1111)" = "1" ] && [ "$TIP_A11" = "$TIP_B11" ]; then
+  pass "live DONE 보존 + ref tip 불변 + exit 0 (stale 아니면 DONE 도 손대지 않음)"
+else
+  fail "live DONE 이 회수됨 (rc=$RC11 entry=$(count_entry T-1111) tip변경=$([ "$TIP_A11" != "$TIP_B11" ] && echo yes || echo no))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
+echo "[T12] negative — status 필드 누락(레거시) stale+prNumber → DONE 아님으로 간주, 기존 resume 분기 (B12, 보수)"
+seed_claims A "[{\"taskId\":\"T-1212\",\"owner\":\"dead@h-0\",\"claimedAt\":\"$STALE_AT\",\"prNumber\":701}]"
+OUT12="$(run_reclaim A loopA@h-1)"; RC12=$?
+if [ $RC12 -eq 0 ] && printf '%s' "$OUT12" | grep -qE "RESUME prNumber=701 taskId=T-1212"; then
+  pass "status 누락 claim 은 DONE 미적용 → 기존 RESUME 분기 그대로(보수적 불변)"
+else
+  fail "status 누락 claim 의 resume 분기 변형 (rc=$RC12 out=$OUT12)"
+fi
+if [ "$(count_entry T-1212)" = "1" ]; then
+  pass "status 누락 claim entry 보존(resume 분기 — 단순 회수 아님)"
+else
+  fail "status 누락 claim 이 제거됨 (entry=$(count_entry T-1212))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
+echo "[T13] branch — DONE/PR_OPEN/CLAIMED/IN_PROGRESS 4종 한 배열 혼재 시 status 분기 분리 (B13)"
+# (a) stale DONE+prNumber → prune, (b) stale PR_OPEN+prNumber → RESUME+보존+owner교체,
+# (c) stale CLAIMED+prNumber null → prune, (d) live IN_PROGRESS → 보존.
+seed_claims A "[\
+{\"taskId\":\"T-1301\",\"owner\":\"dead@h-0\",\"claimedAt\":\"$STALE_AT\",\"status\":\"DONE\",\"prNumber\":589},\
+{\"taskId\":\"T-1302\",\"owner\":\"dead@h-0\",\"claimedAt\":\"$STALE_AT\",\"status\":\"PR_OPEN\",\"prNumber\":273},\
+{\"taskId\":\"T-1303\",\"owner\":\"dead@h-0\",\"claimedAt\":\"$STALE_AT\",\"status\":\"CLAIMED\",\"prNumber\":null},\
+{\"taskId\":\"T-1304\",\"owner\":\"live@h-9\",\"claimedAt\":\"$LIVE_AT\",\"status\":\"IN_PROGRESS\",\"prNumber\":null}]"
+OUT13="$(run_reclaim A loopA@h-1)"; RC13=$?
+# (a) DONE prune + RESUME 미발생(이 taskId 에 한해).
+if [ "$(count_entry T-1301)" = "0" ] && ! printf '%s' "$OUT13" | grep -qE "RESUME prNumber=589"; then
+  pass "(a) stale DONE(T-1301) prune + RESUME prNumber=589 미발생"
+else
+  fail "(a) DONE 분기 이상 (entry=$(count_entry T-1301) out=$OUT13)"
+fi
+# (b) PR_OPEN → RESUME + entry 보존 + owner 교체.
+if printf '%s' "$OUT13" | grep -qE "RESUME prNumber=273 taskId=T-1302" \
+   && [ "$(count_entry T-1302)" = "1" ] && [ "$(owner_of T-1302)" = "loopA@h-1" ]; then
+  pass "(b) stale PR_OPEN(T-1302) RESUME + entry 보존 + owner 교체"
+else
+  fail "(b) PR_OPEN 분기 이상 (entry=$(count_entry T-1302) owner=$(owner_of T-1302) out=$OUT13)"
+fi
+# (c) CLAIMED+null → prune.
+if [ "$(count_entry T-1303)" = "0" ] && printf '%s' "$OUT13" | grep -qF "RECLAIM taskId=T-1303"; then
+  pass "(c) stale CLAIMED+null(T-1303) prune"
+else
+  fail "(c) CLAIMED 분기 이상 (entry=$(count_entry T-1303) out=$OUT13)"
+fi
+# (d) live IN_PROGRESS → 보존.
+if [ $RC13 -eq 0 ] && [ "$(count_entry T-1304)" = "1" ]; then
+  pass "(d) live IN_PROGRESS(T-1304) 보존 + exit 0"
+else
+  fail "(d) live 분기 이상 (rc=$RC13 entry=$(count_entry T-1304))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
 echo ""
 if [ $FAIL -eq 0 ]; then
-  echo "reclaim-stale-claim 검증 통과 (T1 회수 / T2 PR-resume / T3 live보존 / T4 보류 / T5 stale거부 / T6 이중회수0 / T7 no-op / T8 sibling보존)"
+  echo "reclaim-stale-claim 검증 통과 (T1 회수 / T2 PR-resume / T3 live보존 / T4 보류 / T5 stale거부 / T6 이중회수0 / T7 no-op / T8 sibling보존 / T9 DONE-prune / T10 DONE+null prune / T11 live DONE 보존 / T12 status누락보수 / T13 status분기분리)"
   exit 0
 else
   echo "reclaim-stale-claim 검증 실패"
