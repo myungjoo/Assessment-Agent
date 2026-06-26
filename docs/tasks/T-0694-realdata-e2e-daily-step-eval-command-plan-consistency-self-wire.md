@@ -2,8 +2,12 @@
 id: T-0694
 title: realdata-e2e daily-step-eval-command-plan 컴포저 self-wire 배선 (T-0693 가드 짝 닫기)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 610
+mergedAs: 82c0853ef7afac065a308bf93b39c95c3de65a2d
+reviewRounds: 1
+completedAt: 2026-06-26T20:20:00Z
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 80
 estimatedFiles: 2
