@@ -2,7 +2,10 @@
 id: T-0677
 title: e2e run-plan 최외곽 컴포저 산출↔(seeds, modelId, run) 재유도 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 593
+mergedAs: 4f10d09c77651b685228003f6dc43d96efb7890f
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 250
