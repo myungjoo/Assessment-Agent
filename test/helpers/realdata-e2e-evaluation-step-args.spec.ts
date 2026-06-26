@@ -25,6 +25,7 @@ import type {
 
 import { buildRealDataEvaluationPlan } from "./realdata-e2e-evaluation-plan";
 import { buildRealDataEvaluationStepArgs } from "./realdata-e2e-evaluation-step-args";
+import * as consistency from "./realdata-e2e-evaluation-step-args-consistency";
 import type { RealDataE2eRunPlan } from "./realdata-e2e-run-plan";
 
 // 유효 modelId fixture — 평가 정책 모델 식별 문자열.
@@ -261,6 +262,193 @@ describe("buildRealDataEvaluationStepArgs — run plan + activities → scoreUni
 
       const second = buildRealDataEvaluationStepArgs(runPlan, activities);
       expect(second.callArgs[0].options.modelId).toBe(MODEL_ID);
+    });
+  });
+
+  // T-0684 self-wire 배선 검증 — 컴포저가 산출 plan({inputs, callArgs}) 반환 직전
+  // consistency 가드를 (산출 plan, runPlan, activities) 인자로 정확히 1회 self-assert
+  // 하는지, 정상 합성이면 throw 0·반환 plan byte-identical·무공유 불변, 가드가 throw 하면
+  // 컴포저가 삼키지 않고 그대로 전파하는지, 위임 modelId guard throw 입력에서는 가드 진입
+  // 전 그 throw 가 전파(가드 미호출)되는지, 가드 회귀(RangeError/TypeError 모의) 전파를
+  // 검증한다. T-0682 evaluation-plan self-wire spec 패턴의 step-args layer mirror.
+  describe("consistency 가드 self-wire (T-0684) — 반환 직전 self-assert 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성(다수 원소) → 가드가 (산출 plan, runPlan, activities) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataEvaluationStepArgsConsistentWithSources",
+      );
+      const runPlan = makeRunPlan();
+      const activities = mixedActivities();
+
+      const plan = buildRealDataEvaluationStepArgs(runPlan, activities);
+
+      // 정확히 1회 호출.
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서·값이 (반환된 산출 plan, runPlan, activities) 와 일치.
+      expect(spy).toHaveBeenCalledWith(plan, runPlan, activities);
+      // 가드에 넘어간 첫 인자가 컴포저가 반환한 바로 그 plan 참조여야 한다(검증 대상 일치).
+      expect(spy.mock.calls[0][0]).toBe(plan);
+      expect(spy.mock.calls[0][1]).toBe(runPlan);
+      expect(spy.mock.calls[0][2]).toBe(activities);
+    });
+
+    it("(분기 단일 원소) 단일 Activity 분기에서도 가드가 (산출 plan, runPlan, activities) 로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataEvaluationStepArgsConsistentWithSources",
+      );
+      const runPlan = makeRunPlan();
+      const activities: Activity[] = [COMMIT];
+
+      const plan = buildRealDataEvaluationStepArgs(runPlan, activities);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(plan, runPlan, activities);
+    });
+
+    it("(분기 빈 activities 경계) 빈 배열에서도 가드가 (산출 plan, runPlan, []) 로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataEvaluationStepArgsConsistentWithSources",
+      );
+      const runPlan = makeRunPlan();
+      const empty: Activity[] = [];
+
+      const plan = buildRealDataEvaluationStepArgs(runPlan, empty);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(plan, runPlan, empty);
+      // 빈 plan 통과(가드가 빈 inputs/callArgs 를 정합으로 인정 — throw 0).
+      expect(plan).toEqual({ inputs: [], callArgs: [] });
+    });
+
+    it("정상 합성 → 가드 통과 후 반환 plan 이 가드 미배선 기대값(위임 산출 + 페어링)과 byte-identical(불변)", () => {
+      const activities = mixedActivities();
+
+      const plan = buildRealDataEvaluationStepArgs(makeRunPlan(), activities);
+
+      // self-wire 가 반환 plan 을 변형하지 않음 — 위임 종단 컴포저 산출과 deep-equal·
+      // reference 페어링 유지.
+      expect(plan).toEqual(buildRealDataEvaluationPlan(activities, MODEL_ID));
+      plan.callArgs.forEach((args, i) => {
+        expect(args.input).toBe(plan.inputs[i]);
+      });
+    });
+
+    it("(c-RangeError inputs drift 회귀 모사) 가드가 RangeError throw 하면 컴포저가 삼키지 않고 그대로 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataEvaluationStepArgsConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: plan.inputs 가 재유도 expected 와 byte-identical 하지 않다",
+          );
+        });
+
+      expect(() =>
+        buildRealDataEvaluationStepArgs(makeRunPlan(), mixedActivities()),
+      ).toThrow(/byte-identical 하지 않다/);
+    });
+
+    it("(c-RangeError callArgs drift 회귀 모사) 가드 RangeError(callArgs) throw 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataEvaluationStepArgsConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: plan.callArgs 가 재유도 expected 와 byte-identical 하지 않다",
+          );
+        });
+
+      expect(() =>
+        buildRealDataEvaluationStepArgs(makeRunPlan(), mixedActivities()),
+      ).toThrow(/callArgs 가 재유도 expected/);
+    });
+
+    it("(reference 페어링 깨짐 회귀 모사) 가드 RangeError(reference) throw 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataEvaluationStepArgsConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: plan.callArgs[0].input 이 plan.inputs[0] 와 동일 reference 가 아니다 — reference 페어링(복제 0 계약)이 깨졌다.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataEvaluationStepArgs(makeRunPlan(), mixedActivities()),
+      ).toThrow(/reference 페어링/);
+    });
+
+    it("(구조결손 회귀 모사) 가드 TypeError throw 전파", () => {
+      jest
+        .spyOn(
+          consistency,
+          "assertRealDataEvaluationStepArgsConsistentWithSources",
+        )
+        .mockImplementation(() => {
+          throw new TypeError(
+            "runPlan.pipeline 이 object 가 아니다 — modelId 재유도를 진행할 수 없다.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataEvaluationStepArgs(makeRunPlan(), mixedActivities()),
+      ).toThrow(TypeError);
+    });
+
+    it("(negative 빈 modelId) 위임 callArgs guard throw 입력에서는 가드 진입 전 위임 throw 가 전파(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataEvaluationStepArgsConsistentWithSources",
+      );
+
+      expect(() =>
+        buildRealDataEvaluationStepArgs(makeRunPlan(""), mixedActivities()),
+      ).toThrow(/modelId/);
+      // 위임 callArgs guard 단계에서 throw → 가드 self-assert 까지 도달하지 못함.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("(negative 공백-only modelId) 위임 callArgs guard throw 전파(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataEvaluationStepArgsConsistentWithSources",
+      );
+
+      expect(() =>
+        buildRealDataEvaluationStepArgs(makeRunPlan("   "), mixedActivities()),
+      ).toThrow(/modelId/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("self-wire 배선 후에도 입력 비변형 + 동일 입력 두 번 deterministic + 반환 plan 무공유", () => {
+      const runPlan = makeRunPlan();
+      const activities = mixedActivities();
+      const runPlanSnapshot = JSON.stringify(runPlan);
+      const activitiesSnapshot = JSON.stringify(activities);
+
+      const a = buildRealDataEvaluationStepArgs(runPlan, activities);
+      const b = buildRealDataEvaluationStepArgs(runPlan, activities);
+
+      // 비변형(runPlan/activities mutate 0).
+      expect(JSON.stringify(runPlan)).toBe(runPlanSnapshot);
+      expect(JSON.stringify(activities)).toBe(activitiesSnapshot);
+      // deterministic byte-identical.
+      expect(a).toEqual(b);
+      // 무공유(반환 plan 의 inputs/callArgs 트리가 호출마다 새 객체).
+      expect(a.inputs).not.toBe(b.inputs);
+      expect(a.callArgs).not.toBe(b.callArgs);
     });
   });
 });
