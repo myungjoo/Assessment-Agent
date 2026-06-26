@@ -18,6 +18,8 @@
 #   B5 stale lease(틀린 old-sha)로 회수 push → CAS 거부   : [T5] negative(verify-ref-cas T3 mirror)
 #   B6 동시 회수 시도 → CAS 로 1개만 성공(이중 회수 0)    : [T6] CAS race(정확성)
 #   B7 회수 대상 부재(claims.json 빈 배열/ref 부재) → no-op exit 0 : [T7] negative
+#   ── 라우팅 회귀 가드(T-0675, lib-lock-tree 헬퍼 위임) ──
+#   B8 회수 시 sibling 파일(meta.txt)·살아있는 entry byte-보존  : [T8] #588 wipe 회귀 가드
 
 set -uo pipefail
 
@@ -60,6 +62,40 @@ seed_claims() { # <clone> <claims-json>
     fi
     git push "$WORK/origin.git" "$commit:$REF" --force-with-lease="$lease" >/dev/null 2>&1
   )
+}
+
+# claims.json + sibling 파일(meta.txt)을 함께 lock ref tip 으로 박제.
+# 라우팅 회귀 가드용 — 헬퍼가 claims.json/lock.json 만 교체하고 sibling 을
+# byte-보존하는지 검증하기 위해 무관 파일을 tip tree 에 함께 심는다.
+seed_with_sibling() { # <clone> <claims-json> <sibling-body>
+  local clone="$1" arr="$2" sib="$3" old cblob sblob tree commit lease
+  ( cd "$WORK/$clone"
+    git fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+    old="$(git ls-remote "$WORK/origin.git" "$REF" | cut -f1)"
+    cblob="$(printf '%s' "$arr" | git hash-object -w --stdin)"
+    sblob="$(printf '%s' "$sib" | git hash-object -w --stdin)"
+    tree="$( { printf '100644 blob %s\tclaims.json\n' "$cblob"; \
+               printf '100644 blob %s\tmeta.txt\n' "$sblob"; } | git mktree )"
+    if [ -n "$old" ]; then
+      commit="$(git -c user.name=claim-spec -c user.email=claim-spec@localhost \
+        commit-tree "$tree" -p "$old" -m seed)"
+      lease="$REF:$old"
+    else
+      commit="$(git -c user.name=claim-spec -c user.email=claim-spec@localhost \
+        commit-tree "$tree" -m seed)"
+      lease="$REF:"
+    fi
+    git push "$WORK/origin.git" "$commit:$REF" --force-with-lease="$lease" >/dev/null 2>&1
+  )
+}
+
+# lock ref tip 의 특정 path raw 본문(byte 비교용). 부재 시 <none>.
+tip_path_raw() { # <path>
+  local tip
+  tip="$(git -C "$WORK/A" ls-remote "$WORK/origin.git" "$REF" | cut -f1)"
+  [ -z "$tip" ] && { echo "<none>"; return; }
+  git -C "$WORK/A" fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+  git -C "$WORK/A" cat-file -p "$tip:$1" 2>/dev/null || echo "<none>"
 }
 
 # lock ref tip 의 claims.json 에서 특정 taskId entry 개수.
@@ -217,9 +253,38 @@ else
 fi
 
 # ──────────────────────────────────────────────────────────────────────────
+echo "[T8] 라우팅 회귀 가드 — 회수 시 sibling 파일(meta.txt)·살아있는 entry byte-보존 (B8, #588 wipe 가드)"
+# stale orphan(T-8001) + live(T-8002, prNumber null) 혼재 + 무관 sibling meta.txt.
+# 헬퍼 라우팅이 claims.json/lock.json 만 교체하고 meta.txt 를 byte-보존하며,
+# stale 만 제거하고 live entry 는 보존하는지 — #588 류 wipe 가 reclaim 경로에서
+# 재발하지 않음을 가드(라우팅 전 inline mktree 가 했던 preserve 를 헬퍼가 동일 보장).
+META8='sentinel-사이드파일-reclaim-보존검증'
+seed_with_sibling A \
+  "[{\"taskId\":\"T-8001\",\"owner\":\"dead@h-0\",\"claimedAt\":\"$STALE_AT\",\"status\":\"CLAIMED\",\"prNumber\":null},{\"taskId\":\"T-8002\",\"owner\":\"live@h-9\",\"claimedAt\":\"$LIVE_AT\",\"status\":\"IN_PROGRESS\",\"prNumber\":null}]" \
+  "$META8"
+B_META8="$(tip_path_raw meta.txt)"
+OUT8="$(run_reclaim A loopA@h-1)"; RC8=$?
+A_META8="$(tip_path_raw meta.txt)"
+if [ $RC8 -eq 0 ] && printf '%s' "$OUT8" | grep -qF "RECLAIM taskId=T-8001"; then
+  pass "stale T-8001 회수 + exit 0 (out=$(printf '%s' "$OUT8" | tr '\n' ';'))"
+else
+  fail "T8 회수 신호 이상 (rc=$RC8 out=$OUT8)"
+fi
+if [ "$(count_entry T-8001)" = "0" ] && [ "$(count_entry T-8002)" = "1" ]; then
+  pass "stale(T-8001) 제거 + live(T-8002) entry 보존(선택적 회수)"
+else
+  fail "회수 범위 이상 (T-8001=$(count_entry T-8001) T-8002=$(count_entry T-8002))"
+fi
+if [ "$A_META8" = "$B_META8" ] && [ "$A_META8" = "$META8" ]; then
+  pass "sibling meta.txt byte-동일 보존 — 헬퍼 라우팅이 #588 wipe 회귀 차단"
+else
+  fail "sibling wipe/변형 — 라우팅이 sibling 보존 깨뜨림 (meta $B_META8→$A_META8)"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
 echo ""
 if [ $FAIL -eq 0 ]; then
-  echo "reclaim-stale-claim 검증 통과 (T1 회수 / T2 PR-resume / T3 live보존 / T4 보류 / T5 stale거부 / T6 이중회수0 / T7 no-op)"
+  echo "reclaim-stale-claim 검증 통과 (T1 회수 / T2 PR-resume / T3 live보존 / T4 보류 / T5 stale거부 / T6 이중회수0 / T7 no-op / T8 sibling보존)"
   exit 0
 else
   echo "reclaim-stale-claim 검증 실패"

@@ -9,8 +9,10 @@
 #   임계**(§Decision 5 보수화) — 짧은 임계는 clock-skew 시 살아있는 driver 의
 #   claim 을 오회수할 위험이 커 보수화한다. ADR-0009 ref-CAS lock
 #   (`--force-with-lease`) 원자성을 재사용해 회수 commit 직렬화까지 커버.
-#   slice 1 scripts/select-claim.sh 의 claims.json read·CAS push·tombstone
-#   동반 release·CI ubuntu identity self-provide 패턴을 그대로 mirror.
+#   claims.json read·tombstone 동반 release 패턴은 select-claim.sh 와 동형이며,
+#   tree-보존 mutation + CAS push 는 공통 헬퍼 scripts/lib-lock-tree.sh 의
+#   lock_tree_cas_push 로 위임한다(T-0675, fix-2 slice 1b — acquire/select 와
+#   단일 구현 통일, CI ubuntu identity self-provide·빈 commit 가드 헬퍼 내장).
 #   토글 `flags.fineGrainedConcurrency` 는 stage 5 까지 OFF — forward-looking
 #   primitive. driver loop 통합(언제 본 script 를 호출하는지)은 stage 3 책임.
 #   운영 view·절차 상세는 docs/architecture/concurrency.md §5.
@@ -51,6 +53,13 @@
 #           PR-resume 시 `RESUME prNumber=<n> taskId=<T-NNNN>`.
 
 set -uo pipefail
+
+# tree-보존 CAS mutation 공통 헬퍼(scripts/lib-lock-tree.sh)를 source.
+# orphan 회수 CAS(claims.json 재작성 + lock.json tombstone 2 blob 교체)를 이
+# 헬퍼를 거쳐 수행한다 — acquire-lock.sh·select-claim.sh 와 동일한 단일 구현
+# (ADR-0036 §Decision 1 "보존 불변" 을 lock-ref 변경 경로 셋 모두에서 강제).
+# shellcheck source=scripts/lib-lock-tree.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-lock-tree.sh"
 
 REMOTE="${RECLAIM_REMOTE:-origin}"
 REF="${RECLAIM_REF:-refs/heads/claude/lock-driver}"
@@ -175,36 +184,28 @@ attempt() {
   local new_arr
   new_arr="[${kept_entries}]"
 
-  # 새 commit tree: 기존 tip tree 를 base 로 claims.json 교체 + lock.json
-  # tombstone 동반(즉시 release — select-claim.sh mirror).
-  local claims_blob tomb_blob tree commit
+  # 새 commit tree: 기존 tip tree 를 base 로 claims.json 재작성 + lock.json
+  # tombstone 동반(즉시 release — select-claim.sh mirror). tree 구성·
+  # self-contained identity commit·빈 commit 가드·CAS push 는 lock_tree_cas_push
+  # 에 위임(claims.json/lock.json 만 교체, 나머지 엔트리 byte-보존 — #588 류 wipe
+  # 회귀 차단). 회수 외부 동작(분류·exit code·신호)은 불변, plumbing 만 헬퍼로 통일.
+  local claims_blob tomb_blob rc
   claims_blob="$(printf '%s' "$new_arr" | git hash-object -w --stdin)"
   tomb_blob="$(printf '{"holder":"","since":""}' | git hash-object -w --stdin)"
 
-  {
-    git ls-tree "$old_sha" \
-      | grep -vE '\s(claims\.json|lock\.json)$' || true
-    printf '100644 blob %s\tclaims.json\n' "$claims_blob"
-    printf '100644 blob %s\tlock.json\n' "$tomb_blob"
-  } | git mktree >/tmp/.rc_tree 2>/dev/null
-  tree="$(cat /tmp/.rc_tree)"
-  rm -f /tmp/.rc_tree
-
-  # CI ubuntu runner 는 ambient git identity 가 0 이라 commit-tree 가
-  # `fatal: empty ident name` 으로 실패한다 — select-claim.sh 와 동형으로
-  # identity 를 호출 지점에서 self-provide 해 self-contained 계약을 지킨다.
-  commit="$(git -c user.name='claim-spec' -c user.email='claim-spec@localhost' \
-    commit-tree "$tree" -p "$old_sha" -m "reclaim stale claim by ${OWNER}" 2>/dev/null)"
-
-  # CAS push: lease=old-sha. 그 사이 ref 가 이동했으면(다른 driver 가 동시 회수)
-  # 거부 → 1개만 성공(이중 회수 0).
-  if git push "$REMOTE" "$commit:$REF" \
-       --force-with-lease="$REF:$old_sha" >/dev/null 2>&1; then
+  # 헬퍼는 성공 시 새 tip sha 를 stdout 으로 내지만, 회수 성공 시 본 함수는
+  # RESUME/RECLAIM 신호를 stdout 으로 내야 하므로 헬퍼 출력은 버리고 rc 만 본다.
+  if lock_tree_cas_push "$REMOTE" "$REF" "$old_sha" '\s(claims\.json|lock\.json)$' \
+       "claims.json=${claims_blob}" "lock.json=${tomb_blob}" \
+       "reclaim stale claim by ${OWNER}" >/dev/null; then
     [ -n "$resume_msg" ] && printf '%s' "$resume_msg"
     [ -n "$reclaim_msg" ] && printf '%s' "$reclaim_msg"
     return 0
   fi
-  return 20
+  rc=$?
+  # 헬퍼의 빈 commit 가드(30)는 상위 case 에서 그대로 전파되고, CAS lose(20)는
+  # 재시도 루프가 받는다(현 의미 보존 — select-claim.sh 와 동형).
+  return "$rc"
 }
 
 i=0
