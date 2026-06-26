@@ -14,7 +14,7 @@
     "session": "",
     "since": ""
   },
-  "lastActivity": "2026-06-26T01:04:30Z",
+  "lastActivity": "2026-06-26T01:49:46Z",
   "lastCommit": "8ec6218fb87eaf8893d12c161af9760ea1d270c0",
   "mostRecentTasks": [
     "T-0672",
@@ -1124,14 +1124,19 @@
       "followupNote": "planner 가 run-side chain 첫 slice T-0556(PeriodBridgeDto → EvaluationPersistContext 순수 좌표 매퍼, pr-mode, ADR 불요 — 기존 ADR-0037/영속 타입 재사용 새 경계 0) 큐잉. 후속: orchestrator wiring → run-request DTO/mapper → POST /unevaluated-fill-run route → e2e."
     },
     {
-      "id": "Q-0046",
+      "id": "Q-0047",
       "raisedAt": "2026-06-25T22:24:04Z",
       "raisedBy": "driver",
       "reason": "concurrency-circuit-breaker-tripped",
-      "status": "OPEN",
+      "status": "RESOLVED",
       "summary": "fineGrainedConcurrency 회로 차단기 발동 — double-claim 2회 누적으로 flags.fineGrainedConcurrency 를 자동 OFF 강등했다. 재활성(토글 재-ON) 여부는 사람 결정이 필요하다. ADR-0036 §Decision 8 (d): 회로 차단기는 자동 강등만 하고 자동 복구는 하지 않는다.",
       "context": "2회차 incident(T-0672, 2026-06-25T22:xxZ): aa-local-15 cron 이 T-0672 를 atomic claim+PR #587 squash merge(9101983) 정상 완료했으나, 직후 cloud cron(cron@aa-cloud-86801625)의 lock-acquire commit(be74f97)이 claims.json 을 보존하지 않고 빈 tree 로 덮어써 local claim 을 소실시킨 뒤 동일 task 를 재claim 하고 중복 PR #588 을 open 했다. #588 은 dup-of-merged 로 close 했고 T-0672 자체는 #587 로 이미 main 반영됨. 1회차=T-0526(2026-06-19). 데이터 손상 0(중복 PR close 로 흡수) — 단 claim atomicity 가 cloud driver 의 별도 lock-acquire 경로에서 깨진 것이 근본 원인.",
-      "options": "(1) cloud driver 의 lock-acquire 경로가 claims.json 을 보존하도록 수정하는 task 를 먼저 박은 뒤 토글 재-ON. (2) select-claim.sh atomic 경로만 쓰도록 모든 진입점 acquire 를 단일화(별도 acquire 금지). (3) 당분간 coarse single-driver(토글 OFF) 유지하며 dogfood 관측. 권장=(1)+(2): atomicity 위반의 근본 원인(claims.json 미보존 acquire 경로)을 제거하기 전엔 재-ON 하지 않는다."
+      "options": "(1) cloud driver 의 lock-acquire 경로가 claims.json 을 보존하도록 수정하는 task 를 먼저 박은 뒤 토글 재-ON. (2) select-claim.sh atomic 경로만 쓰도록 모든 진입점 acquire 를 단일화(별도 acquire 금지). (3) 당분간 coarse single-driver(토글 OFF) 유지하며 dogfood 관측. 권장=(1)+(2): atomicity 위반의 근본 원인(claims.json 미보존 acquire 경로)을 제거하기 전엔 재-ON 하지 않는다.",
+      "resolvedAt": "2026-06-26T01:49:46Z",
+      "resolvedBy": "human (myungjoo) via loop@aa-cloud — driver 대리 기입",
+      "decision": "옵션(1)+(2) 채택. 근본 원인(cloud driver 의 별도 lock-acquire 경로가 claims.json 을 보존하지 않고 빈 tree 로 덮어써 atomic claim 을 깸)을 제거하기 전에는 fineGrainedConcurrency 재-ON 하지 않는다. flags.fineGrainedConcurrency 는 false(coarse single-driver) 유지. 다음 2개 fix task 를 큐잉·머지한 뒤 별도 사람 결정으로 재-ON 검토: (fix-1) 모든 진입점의 lock-acquire 경로가 claims.json 을 read-modify-write 로 보존하도록 수정 — 빈 tree 덮어쓰기 금지. (fix-2) lock-acquire+claim 을 단일 atomic 경로(select-claim.sh)로 통일하고 별도 acquire 경로 제거 — LOOP.md §1[2]·§4 동기. 두 fix 머지 후에도 자동 재-ON 금지(회로 차단기는 자동 복구 안 함) — 재-ON 은 별도 HQ/사람 결정.",
+      "processedByPlanner": false,
+      "followupNote": "다음 planner fire 가 fix-1(claims.json 보존 acquire) + fix-2(acquire 경로 단일화) 2개 pr-mode task 를 큐잉. 토글 재-ON 은 두 fix 머지 + 별도 사람 결정까지 보류. id 중복 해소: 본 circuit-breaker HQ 를 Q-0046→Q-0047 로 재번호(06-22 RESOLVED Q-0046 과 id 충돌 제거). 향후 HQ 발급기는 max(existing id)+1 로 번호 할당해 재사용 방지."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
