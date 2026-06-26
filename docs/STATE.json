@@ -7,19 +7,30 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "▶ **T-0689 DONE (pr, PR #605 squash ba0b39e)** — realdata-e2e seed-side 가장 깊은 leaf 컴포저 buildRealDataCollectInput 의 정합 가드 assertRealDataCollectInputConsistentWithSeeds 신설(seed serviceIdentities {service,externalId} 직접 투영 재유도 ↔ 산출 byte-identical 대조, 구조결손 TypeError·값drift RangeError·read-only). ▶ **다음 nextTask=T-0690 (pr)** — 그 신설 가드를 leaf 컴포저 buildRealDataCollectInput 반환 직전에 self-assert 로 배선해 짝 닫기. T-0688(seed-collect-call-args self-wire)의 한 layer 더 깊은 leaf mirror — seed-side leaf 가드 사슬(run-plan→pipeline-plan→collect-call-args→collect-input) 완결. import 1줄 + 반환지점 const 추출 + self-assert 1 호출 외 byte-identical 산출물 보존, test-only 2 파일(realdata-e2e-seed-collect-input.{ts,spec.ts}), cap 준수. dependency-free(dependsOn T-0689 머지 완료). issue-still-relevant 확인: origin/main 에 self-wire 미존재(grep 0) — 중복 아님. P5 109행 step① build-time consistency 가드.",
+  "nextTask": {
+    "id": "T-0691",
+    "title": "realdata-e2e evaluate-side scoring-call-args leaf 컴포저 산출 ↔ single-source 재유도 정합 순수 가드 신설",
+    "commitMode": "pr",
+    "phase": "P5",
+    "independentStream": "realdata-e2e-consistency-guard",
+    "dependsOn": [],
+    "touchesFiles": [
+      "test/helpers/realdata-e2e-scoring-call-args-consistency.ts",
+      "test/helpers/realdata-e2e-scoring-call-args-consistency.spec.ts"
+    ]
+  },
+  "backlogNote": "▶ **T-0690 DONE (pr, PR #606 squash ce17715)** — seed-side 가장 깊은 leaf 컴포저 buildRealDataCollectInput 에 T-0689 신설 가드 self-wire 배선 완료. seed-side leaf 가드 사슬(run-plan→pipeline-plan→collect-call-args→collect-input) 가드 신설→self-wire 짝 모두 닫힘. ▶ **다음 nextTask=T-0691 (pr)** — evaluate-side 로 가드 사슬 확장: 가장 깊은 호출-args 컴포저 buildRealDataScoringCallArgs(inputs, modelId) 의 정합 가드 assertRealDataScoringCallArgsConsistentWithInputs 신설. T-0687 seed-collect-call-args 가드의 evaluate-side mirror — 차이점: input reference 동등(복제 0) 검증 + modelId 주입값 동형 적용 + options 잉여키 누출 검사. 구조결손 TypeError·값drift RangeError·read-only·fail-fast. test-only 2 신설 파일(realdata-e2e-scoring-call-args-consistency.{ts,spec.ts}), cap 준수. dependency-free(dependsOn []). issue-still-relevant 확인: origin/main 에 가드 심볼·파일 미존재(grep 0) — 중복 아님. 후속 T-0692 self-wire 로 짝 닫기 예정. P5 109행 step③ build-time consistency 가드.",
   "lock": {
     "holder": null,
     "since": ""
   },
   "lastCommit": "ce17715eba9c5d48fb4b605eefbb78dd782aa0bf",
   "mostRecentTasks": [
+    "T-0691",
     "T-0690",
     "T-0689",
     "T-0688",
-    "T-0687",
-    "T-0686"
+    "T-0687"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -29,11 +40,11 @@
     "note": "/loop AKIHA-21631 (dynamic, turn cap 2) — t1 T-0651 merge 41a6ef2 + planner T-0652 큐잉. t2 T-0652 merge c580071. cap 도달 → 종료 + lock 해제."
   },
   "ci": {
-    "status": "running",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "본 fire(cron@aa-local-15-24657): lock free·claims [] -> lock 획득 -> fineGrainedConcurrency=true claim-pickup: reclaim(회수 0) -> gate(active 0 < max 2, pr-mode active 0) -> validate PASS -> select-claim T-0690. executor DONE(test-only, +196/-1, unit 8216 green). integrator MERGED PR #606 round 1/7 squash ce17715, branch delete. 머지커밋 ce17715 main CI in_progress -> 다음 fire 에서 conclusion 재확인. claim prune(claims.json []) + lock tombstone 유지.",
-    "lastRun": "2026-06-26T16:06:00Z"
+    "note": "본 fire(cron@aa-cloud-a1c3a1a): fetch -> origin/main a1c3a1a 동기(local 6715a05 뒤처짐 -> reset). lock free·claims [] 확인 -> lock 획득(290d41e). R-114 직전 fire 위임건 재확인: PR #606 squash ce17715 main CI conclusion=success(green 확정), 본 fire bookkeeping a1c3a1a 는 doc-only 라 CI run 없음. currentTask/nextTask 둘 다 null -> planner dispatch -> T-0691 큐잉(nextTask, pr). doc-only direct commit + lock tombstone release.",
+    "lastRun": "2026-06-27T00:00:00Z"
   },
   "reviewRounds": {
     "T-0673": 2,
