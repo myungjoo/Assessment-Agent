@@ -2,7 +2,11 @@
 id: T-0675
 title: reclaim-stale-claim 을 lib-lock-tree 헬퍼로 라우팅 + 동시성 test case 보강 (fix-2 slice 1b)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-26T04:20:42Z
+mergedAs: a9bfe3c
+prNumber: 591
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 95
