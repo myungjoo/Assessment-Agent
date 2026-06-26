@@ -7,8 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "▶ **T-0691 DONE (pr, PR #607 squash e3e4fd0)** — evaluate-side 가장 깊은 호출-args 컴포저 buildRealDataScoringCallArgs(inputs, modelId) 의 독립 정합 가드 assertRealDataScoringCallArgsConsistentWithInputs 신설 완료. T-0687 seed-collect-call-args 가드의 evaluate-side mirror — input reference 동등(===) / modelId 동형 / options 단일키 / 길이 4 불변식 + 구조 TypeError + 값 RangeError + modelId 빈/공백 컴포저 동일 throw, 26/26 test pass, coverage line 96.87% / branch 94.11% / func 100%. 컴포저 본문 불변(self-wire 는 후속). reviewer round 1/7 APPROVE 0 findings, 4-게이트 PASS, CI rerun green. ▶ **다음 nextTask=null** — planner dispatch 필요(다음 fire). 자연스러운 다음 step = T-0692 self-wire 배선(buildRealDataScoringCallArgs 반환 직전 self-assert, evaluate-side seed-collect self-wire mirror — T-0688 패턴), dependsOn T-0691(머지됨, 게이트 충족). 또는 P5 109행 step③ 다른 evaluate-side leaf 가드 확장. backlogNote 의 standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
+  "nextTask": {
+    "id": "T-0692",
+    "title": "realdata-e2e evaluate-side scoring-call-args leaf 컴포저 self-wire 배선 (T-0691 가드 짝 닫기)",
+    "commitMode": "pr",
+    "phase": "P5",
+    "independentStream": "realdata-e2e-consistency-guard",
+    "dependsOn": ["T-0691"],
+    "touchesFiles": [
+      "test/helpers/realdata-e2e-scoring-call-args.ts",
+      "test/helpers/realdata-e2e-scoring-call-args.spec.ts"
+    ]
+  },
+  "backlogNote": "▶ **T-0692 PLANNED (pr, nextTask)** — evaluate-side leaf 컴포저 buildRealDataScoringCallArgs 반환 직전에 T-0691 신설 가드 assertRealDataScoringCallArgsConsistentWithInputs 를 self-assert 로 배선해 가드 신설→self-wire 짝 닫기. T-0688 seed-collect-call-args self-wire 의 evaluate-side mirror. issue-still-relevant 확인: 가드 파일은 main 존재(T-0691, 01ea2cc)하나 컴포저는 import/call 0(grep 0) — self-wire 미존재. touches test/helpers/realdata-e2e-scoring-call-args.{ts,spec.ts}, dependsOn T-0691(머지됨 e3e4fd0, 게이트 충족), est 80 LOC / 2 파일. ▶ **직전 T-0691 DONE (PR #607 squash e3e4fd0)** — scoring-call-args 가드 신설, 26/26 test pass, coverage 96.87/94.11/100, reviewer round 1/7 APPROVE 0 findings, 4-게이트 PASS. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
   "lock": {
     "holder": null,
     "since": ""
