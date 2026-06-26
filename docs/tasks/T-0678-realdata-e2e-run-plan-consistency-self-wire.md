@@ -2,7 +2,7 @@
 id: T-0678
 title: e2e run-plan 최외곽 컴포저 산출 직전 consistency 가드 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 110
@@ -64,3 +64,10 @@ P5 PLAN.md 109행 🟢 "실 평가 e2e = github.com 공개 활동" bullet 의 bu
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가. 본 self-wire 후 realdata-e2e build-time consistency 가드 사슬이 (sub-composer → aggregator → 최외곽 run-plan) 3 layer 모두 self-wire 박제 완결. 다음 자연 후보: ① step ① live execFile / gh / 실 수집 wiring credential 게이트 진입 여부 (PLAN 109행 운영 전제 — github.com read PAT 주입), ② daily-test step_eval 배선 (109행 후반), ③ 또는 새 build-time seam 발굴 시 그쪽 stream — 단 가드 사슬 완결 후이므로 productive 진척 우선 권고.)
+
+## Result
+
+- Status: DONE — 2026-06-26 (cron@aa-local-6409 fire)
+- Completed: 2026-06-26T06:50Z, PR #594 squash merge `7bf0169` (4-게이트 PASS, reviewer r1 APPROVE 0 finding, CI green)
+- 변경: `test/helpers/realdata-e2e-run-plan.ts` self-wire(import 1줄 + 단일 반환 지점에서 산출 plan 을 `const runPlan` 분리 → `assertRealDataE2eRunPlanConsistentWithSources(runPlan, seeds, modelId, run)` self-assert → `return runPlan`) + `test/helpers/realdata-e2e-run-plan.spec.ts` self-wire describe 10 it.
+- 결과: focused 33 + 전체 330 suite/8004 tests pass, coverage line≥80% AND function≥80% green, lint/build clean. byte-identical 보존(정상 합성 시 가드 void).
