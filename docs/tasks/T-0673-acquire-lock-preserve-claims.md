@@ -2,7 +2,11 @@
 id: T-0673
 title: lock-acquire 가 claims.json 을 보존하도록 canonical acquire-lock.sh 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 53af60c
+prNumber: 589
+reviewRounds: 2
+completedAt: 2026-06-26T02:54:32Z
 commitMode: pr
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 260
