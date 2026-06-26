@@ -2,7 +2,7 @@
 id: T-0689
 title: realdata-e2e seed-side seed-collect-input leaf 컴포저 산출↔(seeds) single-source 재유도 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 250
@@ -60,3 +60,11 @@ implementer → tester
 ## Follow-ups
 
 (없음 — 신설 시점. self-wire 짝 닫기는 후속 T-0690 으로 큐잉 예정.)
+
+## Result (DONE — 2026-06-26)
+
+- **STATUS: DONE / MERGED** — PR #605 squash→main `ba0b39e`, feature branch 삭제.
+- 신설 `assertRealDataCollectInputConsistentWithSeeds` 순수 가드: seed serviceIdentities {service,externalId} 직접 투영 재유도와 buildRealDataCollectInput 산출을 byte-identical 대조. 구조결손=TypeError / 값drift·잉여필드=RangeError, read-only.
+- tester: 신설 가드 파일 line/branch/func/stmt 100%, happy(빈/단일/다수/다중 identity)+error+negative ①~⑦+비변형 총 28 케이스, 전체 스위트 8205 pass.
+- reviewer round1 APPROVE·외부 comment 존재, 4-게이트 PASS, PR CI green(양 job). 머지커밋 ba0b39e main CI in_progress — 다음 fire 재확인.
+- self-wire 짝 닫기는 후속 task(T-0690 예정)로 planner 큐잉 대상.
