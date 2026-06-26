@@ -2,12 +2,16 @@
 id: T-0692
 title: realdata-e2e evaluate-side scoring-call-args leaf 컴포저 self-wire 배선 (T-0691 가드 짝 닫기)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 80
 estimatedFiles: 2
 created: 2026-06-27
+completedAt: 2026-06-26T18:22:00Z
+prNumber: 608
+mergedAs: febcb153e83fff76aeca424668f483ec3f335a88
+reviewRounds: 1
 plannerNote: P5 109행 step③ — T-0691 신설 scoring-call-args 가드를 buildRealDataScoringCallArgs 반환 직전 self-assert 배선(T-0688 seed-collect self-wire 의 evaluate-side mirror). guard self-wire × 1.0.
 touchesFiles:
   - test/helpers/realdata-e2e-scoring-call-args.ts
