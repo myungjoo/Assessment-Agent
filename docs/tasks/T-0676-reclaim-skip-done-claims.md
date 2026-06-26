@@ -2,7 +2,11 @@
 id: T-0676
 title: reclaim-stale-claim 이 status=DONE claim 을 prune 처리(spurious RESUME 차단)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-26T04:50:00Z
+mergedAs: 91f4b82
+prNumber: 592
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 70
