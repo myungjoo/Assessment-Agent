@@ -2,7 +2,7 @@
 id: T-0679
 title: realdata-e2e seed-side pipeline-plan 컴포저 산출↔(seeds, modelId) 재유도 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037]
 estimatedDiff: 250
@@ -56,3 +56,11 @@ plannerNote: P5 PLAN 109행 step① realdata-e2e — run-plan 가드(T-0677)의 
 ## Follow-ups
 
 - (예정) pipeline-plan self-wire — `buildRealDataPipelinePlan` 반환 직전 `assertRealDataPipelinePlanConsistentWithSources(plan, seeds, modelId)` self-assert 배선(T-0678-style, 가드신설+self-wire 짝 닫기).
+
+## Result
+
+- **Status: DONE** (2026-06-26T07:51:11Z)
+- PR [#595](https://github.com/myungjoo/Assessment-Agent/pull/595) squash-merge `0f9dc6e` → main.
+- 산출물: `test/helpers/realdata-e2e-pipeline-plan-consistency.ts` (순수 가드 `assertRealDataPipelinePlanConsistentWithSources`) + colocated spec. 신설 파일 line/branch/func 100%, 전체 8028 tests green(회귀 0).
+- 가드 정책: `collectCallArgs` 는 `buildRealDataCollectCallArgs(seeds)` single-source 재유도 deep-equal, `modelId` 는 입력 직접 `===` 대조. 구조 결손 → TypeError / 값 정합 위반 → RangeError, 위임 throw 전파.
+- Follow-up 유효: pipeline-plan self-wire(반환 직전 self-assert, T-0678-style).
