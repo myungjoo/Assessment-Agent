@@ -20,6 +20,8 @@
 #   B4 CAS lease mismatch(틀린 old_sha) → push reject(return 20)       : [T4] negative
 #   B5 빈/누락 commit 가드(commit-tree 실패) → push 차단(return 30,    : [T5] negative
 #      ref 미삭제)                                                       (브랜치 삭제 방지)
+#   B6 같은 work-tree 에서 연속 2회 호출 → 임시파일 충돌 0(고유 캡처)   : [T6] 동시성(temp-collision)
+#      (T-0674 이연 — command-substitution 직접 캡처라 고정 /tmp 경로 race 0)
 
 set -uo pipefail
 
@@ -154,9 +156,45 @@ else
 fi
 
 # ──────────────────────────────────────────────────────────────────────────
+echo "[T6] 동시성 — 같은 work-tree 연속 2회 호출 시 임시파일 충돌 0(고유 캡처) (B6, T-0674 이연)"
+# 헬퍼는 `git mktree` 출력을 고정 /tmp 경로가 아니라 command substitution 으로
+# 직접 캡처한다(헬퍼 상단 주석 박제 — 옛 acquire/select 의 /tmp/.al_tree·.sc_tree
+# 고정 경로가 동시 driver race-prone 이었던 것을 제거). 같은 work-tree 에서 2회
+# 연속 호출이 서로의 중간 산출물을 덮어쓰지 않고 각자 올바른 tip 을 내는지 가드.
+# (1) 고정 임시 경로 잔재가 헬퍼 **코드**에 없음을 정적 확인 — race 표면 0 의 직접
+#     증거. 주석(`#` 줄)에는 옛 /tmp/.al_tree·mktemp hazard 설명이 박제돼 있으므로
+#     comment 행을 제거한 코드 본문만 검사한다(주석 매칭 false-positive 차단).
+LIB_CODE="$(sed -E 's/[[:space:]]*#.*$//' "$LIB")"
+if printf '%s\n' "$LIB_CODE" | grep -qE '/tmp/\.[a-z]+_tree|[^a-z]mktemp'; then
+  fail "헬퍼 코드에 고정 임시 경로/mktemp 잔재 — 동시 호출 race 표면 존재"
+else
+  pass "헬퍼 코드에 고정 임시 경로 없음(command-substitution 직접 캡처) — race 표면 0"
+fi
+# (2) 같은 work-tree 에서 2회 연속 호출이 서로 간섭 없이 순차 성공 + 두 번째
+#     호출이 첫 번째 결과를 base 로 누적(claims.json 2 entry)되는지.
+CUR6="$(cur_tip)"
+C6A='[{"taskId":"T-A","owner":"o1","claimedAt":"t","status":"CLAIMED","prNumber":null}]'
+C6A_BLOB="$(mkblob "$C6A")"; TOMB6="$(mkblob '{"holder":"","since":""}')"
+T6_OUT1="$(run_push "$CUR6" '\s(claims\.json|lock\.json)$' \
+  "claims.json=${C6A_BLOB}" "lock.json=${TOMB6}" "concurrent-1")"; T6_RC1=$?
+MID6="$(cur_tip)"
+C6B='[{"taskId":"T-A","owner":"o1","claimedAt":"t","status":"CLAIMED","prNumber":null},{"taskId":"T-B","owner":"o2","claimedAt":"t2","status":"CLAIMED","prNumber":null}]'
+C6B_BLOB="$(mkblob "$C6B")"
+T6_OUT2="$(run_push "$MID6" '\s(claims\.json|lock\.json)$' \
+  "claims.json=${C6B_BLOB}" "lock.json=${TOMB6}" "concurrent-2")"; T6_RC2=$?
+if [ $T6_RC1 -eq 0 ] && [ $T6_RC2 -eq 0 ] \
+   && [ -n "$T6_OUT1" ] && [ -n "$T6_OUT2" ] && [ "$T6_OUT1" != "$T6_OUT2" ] \
+   && [ "$(tip_path_raw claims.json)" = "$C6B" ] \
+   && [ "$(tip_path_raw meta.txt)" = "$META_BODY" ]; then
+  pass "연속 2회 호출 각자 고유 tip 성공 + 임시파일 간섭 0 + sibling 보존"
+else
+  fail "연속 호출 간 충돌/누적 이상 (rc1=$T6_RC1 rc2=$T6_RC2 tip1=$T6_OUT1 tip2=$T6_OUT2 claims=$(tip_path_raw claims.json))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
 echo ""
 if [ $FAIL -eq 0 ]; then
-  echo "lib-lock-tree 검증 통과 (T1 첫생성 / T2 1blob회귀가드 / T3 2blob분기 / T4 CAS거부20 / T5 빈commit가드30)"
+  echo "lib-lock-tree 검증 통과 (T1 첫생성 / T2 1blob회귀가드 / T3 2blob분기 / T4 CAS거부20 / T5 빈commit가드30 / T6 temp충돌0)"
   exit 0
 else
   echo "lib-lock-tree 검증 실패"
