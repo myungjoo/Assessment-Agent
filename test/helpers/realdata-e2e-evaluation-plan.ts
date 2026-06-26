@@ -42,6 +42,7 @@ import type { Activity } from "../../src/assessment-collection/domain/activity";
 import type { EvaluationInput } from "../../src/assessment-evaluation/domain/evaluation-input";
 
 import { buildRealDataEvaluationInputs } from "./realdata-e2e-evaluation-inputs";
+import { assertRealDataEvaluationPlanConsistentWithSources } from "./realdata-e2e-evaluation-plan-consistency";
 import type { RealDataScoringCallArgs } from "./realdata-e2e-scoring-call-args";
 import { buildRealDataScoringCallArgs } from "./realdata-e2e-scoring-call-args";
 
@@ -83,5 +84,17 @@ export function buildRealDataEvaluationPlan(
   const callArgs = buildRealDataScoringCallArgs(inputs, modelId);
 
   // 새 plan 객체(inputs/callArgs 는 위임 helper 가 이미 무공유로 반환) — 입력 보존·무공유.
-  return { inputs, callArgs };
+  const plan: RealDataEvaluationPlan = { inputs, callArgs };
+
+  // 산출 plan 반환 직전 self-assert(T-0682 self-wire) — 종단 컴포저가 두 sub-composer
+  // 위임(inputs → callArgs)으로 `{ inputs, callArgs }` 를 합성하는 과정에서 activities/
+  // modelId 인자 위치를 뒤바꾸거나 한쪽 산출(inputs 또는 callArgs)을 변형/누락하거나
+  // `callArgs[i].input === inputs[i]` reference 페어링을 깨는 합성 회귀를, single-source
+  // 재유도(두 sub-composer 위임 직접 재호출 + reference 대조)와의 byte-identical 정합
+  // 검증으로 호출 시점에 fail-fast 차단한다. 정상 합성이면 가드는 void → 반환 plan
+  // byte-identical·무공유 보존(관측 불가능하게 동일). 가드는 read-only 라 plan/activities
+  // mutate 0. modelId 빈/공백은 위 (2) callArgs 위임 단계에서 이미 throw 되므로 가드 미도달.
+  assertRealDataEvaluationPlanConsistentWithSources(plan, activities, modelId);
+
+  return plan;
 }

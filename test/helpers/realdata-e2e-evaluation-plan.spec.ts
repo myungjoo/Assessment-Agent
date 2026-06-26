@@ -19,6 +19,7 @@ import type {
 
 import { buildRealDataEvaluationInputs } from "./realdata-e2e-evaluation-inputs";
 import { buildRealDataEvaluationPlan } from "./realdata-e2e-evaluation-plan";
+import * as consistency from "./realdata-e2e-evaluation-plan-consistency";
 
 const MODEL_ID = "qwen2.5-coder:32b";
 
@@ -200,6 +201,160 @@ describe("buildRealDataEvaluationPlan", () => {
       first.callArgs[0].options.modelId = "TAMPERED";
       const second = buildRealDataEvaluationPlan(activities, MODEL_ID);
       expect(second.callArgs[0].options.modelId).toBe(MODEL_ID);
+    });
+  });
+
+  // T-0682 self-wire 배선 검증 — 컴포저가 산출 plan({inputs, callArgs}) 반환 직전 consistency
+  // 가드를 (산출 plan, activities, modelId) 인자로 정확히 1회 self-assert 하는지, 정상
+  // 합성이면 throw 0·반환 plan byte-identical·무공유 불변, 가드가 throw 하면 컴포저가
+  // 삼키지 않고 전파하는지, 위임 modelId guard throw 입력에서는 가드 진입 전 그 throw 가
+  // 전파(가드 미호출)되는지, 가드 회귀(RangeError/TypeError 모의) 전파를 검증한다.
+  describe("consistency 가드 self-wire (T-0682) — 반환 직전 self-assert 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성(다수 원소) → 가드가 (산출 plan, activities, modelId) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataEvaluationPlanConsistentWithSources",
+      );
+      const activities = mixedActivities();
+
+      const plan = buildRealDataEvaluationPlan(activities, MODEL_ID);
+
+      // 정확히 1회 호출.
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서·값이 (반환된 산출 plan, activities, modelId) 와 일치.
+      expect(spy).toHaveBeenCalledWith(plan, activities, MODEL_ID);
+      // 가드에 넘어간 첫 인자가 컴포저가 반환한 바로 그 plan 참조여야 한다(검증 대상 일치).
+      expect(spy.mock.calls[0][0]).toBe(plan);
+      expect(spy.mock.calls[0][1]).toBe(activities);
+      expect(spy.mock.calls[0][2]).toBe(MODEL_ID);
+    });
+
+    it("(분기 단일 원소) 단일 Activity 분기에서도 가드가 (산출 plan, activities, modelId) 로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataEvaluationPlanConsistentWithSources",
+      );
+      const activities: Activity[] = [COMMIT];
+
+      const plan = buildRealDataEvaluationPlan(activities, MODEL_ID);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(plan, activities, MODEL_ID);
+    });
+
+    it("(분기 빈 activities 경계) 빈 배열에서도 가드가 (산출 plan, [], modelId) 로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataEvaluationPlanConsistentWithSources",
+      );
+      const empty: Activity[] = [];
+
+      const plan = buildRealDataEvaluationPlan(empty, MODEL_ID);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(plan, empty, MODEL_ID);
+      // 빈 plan 통과(가드가 빈 inputs/callArgs 를 정합으로 인정 — throw 0).
+      expect(plan).toEqual({ inputs: [], callArgs: [] });
+    });
+
+    it("정상 합성 → 가드 통과 후 반환 plan 이 가드 미배선 기대값(위임 inputs + callArgs 페어링)과 byte-identical(불변)", () => {
+      const activities = mixedActivities();
+
+      const plan = buildRealDataEvaluationPlan(activities, MODEL_ID);
+
+      // self-wire 가 반환 plan 을 변형하지 않음 — 위임 inputs 산출과 deep-equal·
+      // reference 페어링 유지.
+      expect(plan.inputs).toEqual(buildRealDataEvaluationInputs(activities));
+      plan.callArgs.forEach((args, i) => {
+        expect(args.input).toBe(plan.inputs[i]);
+      });
+    });
+
+    it("(c-RangeError drift 회귀 모사) 가드가 RangeError throw 하면 컴포저가 삼키지 않고 그대로 전파", () => {
+      jest
+        .spyOn(consistency, "assertRealDataEvaluationPlanConsistentWithSources")
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: plan.inputs 가 재유도 expected 와 byte-identical 하지 않다",
+          );
+        });
+
+      expect(() =>
+        buildRealDataEvaluationPlan(mixedActivities(), MODEL_ID),
+      ).toThrow(/byte-identical 하지 않다/);
+    });
+
+    it("(reference 페어링 깨짐 회귀 모사) 가드 RangeError(reference) throw 전파", () => {
+      jest
+        .spyOn(consistency, "assertRealDataEvaluationPlanConsistentWithSources")
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: plan.callArgs[0].input 이 plan.inputs[0] 와 동일 reference 가 아니다 — reference 페어링(복제 0 계약)이 깨졌다.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataEvaluationPlan(mixedActivities(), MODEL_ID),
+      ).toThrow(/reference 페어링/);
+    });
+
+    it("(구조결손 회귀 모사) 가드 TypeError throw 전파", () => {
+      jest
+        .spyOn(consistency, "assertRealDataEvaluationPlanConsistentWithSources")
+        .mockImplementation(() => {
+          throw new TypeError(
+            "plan.inputs 가 배열이 아니다 — inputs 정합 비교를 진행할 수 없다.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataEvaluationPlan(mixedActivities(), MODEL_ID),
+      ).toThrow(TypeError);
+    });
+
+    it("(negative 빈 modelId) 위임 callArgs guard throw 입력에서는 가드 진입 전 위임 throw 가 전파(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataEvaluationPlanConsistentWithSources",
+      );
+
+      expect(() => buildRealDataEvaluationPlan(mixedActivities(), "")).toThrow(
+        /modelId/,
+      );
+      // 위임 callArgs guard 단계에서 throw → 가드 self-assert 까지 도달하지 못함.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("(negative 공백-only modelId) 위임 callArgs guard throw 전파(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistency,
+        "assertRealDataEvaluationPlanConsistentWithSources",
+      );
+
+      expect(() =>
+        buildRealDataEvaluationPlan(mixedActivities(), "   "),
+      ).toThrow(/modelId/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("self-wire 배선 후에도 입력 비변형 + 동일 입력 두 번 deterministic + 반환 plan 무공유", () => {
+      const activities = mixedActivities();
+      const snapshot = JSON.stringify(activities);
+
+      const a = buildRealDataEvaluationPlan(activities, MODEL_ID);
+      const b = buildRealDataEvaluationPlan(activities, MODEL_ID);
+
+      // 비변형(activities mutate 0).
+      expect(JSON.stringify(activities)).toBe(snapshot);
+      // deterministic byte-identical.
+      expect(a).toEqual(b);
+      // 무공유(반환 plan 의 inputs/callArgs 트리가 호출마다 새 객체).
+      expect(a.inputs).not.toBe(b.inputs);
+      expect(a.callArgs).not.toBe(b.callArgs);
     });
   });
 });
