@@ -7,8 +7,8 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "▶ **T-0696 DONE** — PR #612 squash 1ae33090 (cron@cloud-66fdf314, ADR-0036 stage5b pr-mode 단독 claim). reviewer round1 APPROVE 1 MINOR(LOC cap 명목 초과 — T-0695 mirror 선례 정당), CI 2 check green, 신설 가드 line/branch/func/stmt 100% cover (38 tests pass). evaluation-side(results,run 입력 축) command-plan 종단 컴포저 정합 가드 신설 완결 — T-0695 stdout-side mirror 짝 닫음. ▶ **next planner pickup**: (a) T-0696 자체 self-wire 짝(컴포저 buildRealDataResultIssueCommandPlan 반환 직전 assert 호출 배선) + (b) T-0695 stdout-side self-wire 짝(미큐잉) — 두 self-wire 모두 컴포저 본문 1 LOC 수정 + spec 보강 패턴(T-0694 동형). nextTask 비어있으니 다음 fire 의 planner 가 (a) 큐잉 권장. ▶ **직전 T-0695 DONE (PR #611 squash c6aca13e)** — stdout-side gh-command-plan 종단 가드. ▶ **그 전 T-0694 DONE (PR #610 squash 82c0853)** — daily-step-eval-command-plan self-wire 완결. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
+  "nextTask": "T-0697",
+  "backlogNote": "▶ **T-0697 큐잉 (cron@cloud-498a953a planner)** — realdata-e2e result-issue command-plan 컴포저(`buildRealDataResultIssueCommandPlan`) self-wire 배선. T-0696 신설 가드(`assertRealDataResultIssueCommandPlanConsistentWithInputs`, consistency.ts L269)를 컴포저 단일 return 사이트(plan.ts L134) 반환 직전 호출 배선 + spec self-wire 회귀 test. pr-mode, dependsOn T-0696(머지 1ae33090). issue-still-relevant 확인: 컴포저 L134 직전 가드 호출/import 0(grep 0 — self-wire 부재 확정). touchesFiles=[realdata-e2e-result-issue-command-plan.ts, .spec.ts] cap 내. **T-0694 daily-step-eval self-wire mirror** — 단일 return + (results, run) 입력 축 차이만. ▶ **T-0695 stdout-side self-wire 짝(미큐잉, follow-up)** — 본 task 머지 후 별도 planner pickup. ▶ **T-0696 DONE** PR #612 squash 1ae33090(evaluation-side 가드 신설). ▶ **T-0695 DONE** PR #611 squash c6aca13e(stdout-side 가드 신설). ▶ **T-0694 DONE** PR #610 squash 82c0853(daily-step-eval self-wire). ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
   "lock": {
     "holder": null,
     "since": ""
