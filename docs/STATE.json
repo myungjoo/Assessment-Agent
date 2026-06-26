@@ -3,7 +3,7 @@
   "phase": "P4-complete / P5-in-progress",
   "flags": {
     "multiTaskFire": true,
-    "fineGrainedConcurrency": false,
+    "fineGrainedConcurrency": true,
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
@@ -1136,7 +1136,8 @@
       "resolvedBy": "human (myungjoo) via loop@aa-cloud — driver 대리 기입",
       "decision": "옵션(1)+(2) 채택. 근본 원인(cloud driver 의 별도 lock-acquire 경로가 claims.json 을 보존하지 않고 빈 tree 로 덮어써 atomic claim 을 깸)을 제거하기 전에는 fineGrainedConcurrency 재-ON 하지 않는다. flags.fineGrainedConcurrency 는 false(coarse single-driver) 유지. 다음 2개 fix task 를 큐잉·머지한 뒤 별도 사람 결정으로 재-ON 검토: (fix-1) 모든 진입점의 lock-acquire 경로가 claims.json 을 read-modify-write 로 보존하도록 수정 — 빈 tree 덮어쓰기 금지. (fix-2) lock-acquire+claim 을 단일 atomic 경로(select-claim.sh)로 통일하고 별도 acquire 경로 제거 — LOOP.md §1[2]·§4 동기. 두 fix 머지 후에도 자동 재-ON 금지(회로 차단기는 자동 복구 안 함) — 재-ON 은 별도 HQ/사람 결정.",
       "processedByPlanner": false,
-      "followupNote": "다음 planner fire 가 fix-1(claims.json 보존 acquire) + fix-2(acquire 경로 단일화) 2개 pr-mode task 를 큐잉. 토글 재-ON 은 두 fix 머지 + 별도 사람 결정까지 보류. id 중복 해소: 본 circuit-breaker HQ 를 Q-0046→Q-0047 로 재번호(06-22 RESOLVED Q-0046 과 id 충돌 제거). 향후 HQ 발급기는 max(existing id)+1 로 번호 할당해 재사용 방지."
+      "followupNote": "다음 planner fire 가 fix-1(claims.json 보존 acquire) + fix-2(acquire 경로 단일화) 2개 pr-mode task 를 큐잉. 토글 재-ON 은 두 fix 머지 + 별도 사람 결정까지 보류. id 중복 해소: 본 circuit-breaker HQ 를 Q-0046→Q-0047 로 재번호(06-22 RESOLVED Q-0046 과 id 충돌 제거). 향후 HQ 발급기는 max(existing id)+1 로 번호 할당해 재사용 방지.",
+      "amendment": "2026-06-26T01:49Z 사람(myungjoo) 결정 변경 — 위 '두 fix 머지까지 재-ON 보류' 를 뒤집어 fineGrainedConcurrency 를 **즉시 재-ON**(flags=true) + double-claim 카운터 2→0 리셋. 근거: T-0526/T-0672 forensic 재분석으로 근본 원인을 정확히 확정(be74f97 commit tree = lock.json 단독, parent = claims.json+lock.json → bare lock-acquire 가 fresh mktree 로 claims.json drop; select-claim.sh 는 git ls-tree base 로 보존하므로 무관). fix-1(모든 lock-acquire 가 ls-tree base 로 claims.json 보존)+fix-2(acquire+claim 을 select-claim.sh 단일 경로 통일) 는 여전히 최우선 큐잉 — 머지 전까지 cloud+local race 시 dup-PR 재발 가능(데이터 손상 0, dup-of-merged close 로 흡수). 사람이 재발 risk 인지·수용하고 재-ON. 회로 차단기는 그대로 armed(다음 2회 누적 시 재강등). concurrencyIncidents.reenableNote 와 동기."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
@@ -1148,11 +1149,14 @@
     "tasksAccidentalMerge": 1
   },
   "concurrencyIncidents": {
-    "double-claim": 2,
+    "double-claim": 0,
     "merge-conflict-code": 0,
     "reclaim-misfire": 0,
     "ci-cost-overrun": 0,
-    "note": "ADR-0036 §Decision 8 (d) 회로 차단기 카운터 — 같은 유형 2회 누적 시 driver 가 lock-하 flags.fineGrainedConcurrency=false 자동 강등 + notifier(재활성=사람 결정). **double-claim 2회 누적 → 회로 차단기 발동, fineGrainedConcurrency 자동 OFF 강등 (2026-06-25T22:24Z, T-0672)**. 1회차=T-0526(2026-06-19). 2회차=T-0672: aa-local-15 cron(cron@aa-local-15-aa17)이 lock free 확인 후 select-claim.sh 로 T-0672 atomic claim(1f766d6 @22:04Z)+PR #587 squash merge(9101983) 정상 완료. 그 직후 cloud cron(cron@aa-cloud-86801625)이 lock acquire commit(be74f97 @22:05Z)에서 claims.json 을 보존하지 않고 빈 tree 로 덮어써(atomicity 위반) 기존 local claim 을 소실시킨 뒤 T-0672 재claim(ca7ec5 @22:07Z)+중복 PR #588 open(@22:13Z). T-0672 는 #587 로 이미 merge 됐으므로 #588 은 dup-of-merged 로 close+branch delete(local driver 정리). 근본 원인=cloud driver 의 lock-acquire 경로가 claims.json 미보존(select-claim.sh 의 atomic select+claim 을 우회한 별도 acquire 경로 버그). 재활성(토글 재-ON)은 사람 결정(HQ Q-0046). 권위 정의=ADR-0036 §Decision 8 (d) / concurrency.md §7.1."
+    "reenabledAt": "2026-06-26T01:49:46Z",
+    "reenabledBy": "human (myungjoo) via loop@aa-cloud — driver 대리 기입",
+    "reenableNote": "사람 결정으로 fineGrainedConcurrency 즉시 재-ON + double-claim 카운터 2→0 리셋(리셋 없으면 다음 fire 에서 회로 차단기가 2 임계로 즉시 재강등). **주의: 근본 원인(lock-acquire 경로 claims.json 미보존) fix 아직 미머지** — 재발 risk 인지·수용. forensic 재분석으로 root cause 확정(be74f97 tree = lock.json 단독, parent tree = claims.json+lock.json → T-0672 claim wipe; claims.json 은 select-claim.sh 가 git ls-tree base 로 보존하나 bare lock-acquire 는 fresh mktree 로 drop). fix-1(모든 lock-acquire 경로가 ls-tree base 로 claims.json 보존) + fix-2(acquire+claim 을 select-claim.sh 단일 경로로 통일) 를 planner 가 최우선 큐잉 — 머지 전까지 cloud+local race 시 dup-PR 재발 가능(데이터 손상 0, dup close 로 흡수). fix-1 머지 후 재발 risk 해소.",
+    "note": "ADR-0036 §Decision 8 (d) 회로 차단기 카운터 — 같은 유형 2회 누적 시 driver 가 lock-하 flags.fineGrainedConcurrency=false 자동 강등 + notifier(재활성=사람 결정). double-claim 1회차=T-0526(2026-06-19, cloud routine vs local cron race, dup PR #439/#440). 2회차=T-0672(2026-06-25): aa-local-15 cron(cron@aa-local-15-aa17)이 lock free 확인 후 select-claim.sh 로 T-0672 atomic claim(1f766d6 @22:04Z)+PR #587 squash merge(9101983) 정상 완료. 그 직후 cloud cron(cron@aa-cloud-86801625)이 lock acquire commit(be74f97 @22:05Z)에서 claims.json 을 보존하지 않고 빈 tree 로 덮어써(atomicity 위반) 기존 local claim 을 소실시킨 뒤 T-0672 재claim(ca7ec5 @22:07Z)+중복 PR #588 open(@22:13Z). #588 은 dup-of-merged 로 close. 근본 원인=bare lock-acquire 경로가 claims.json 미보존(select-claim.sh 의 atomic select+claim 을 우회한 별도 acquire 경로 버그). 2026-06-26 사람 결정으로 카운터 리셋+재-ON(reenableNote 참조). 권위 정의=ADR-0036 §Decision 8 (d) / concurrency.md §7.1."
   },
   "adr0036Rollout": {
     "status": "ACCEPTED",
