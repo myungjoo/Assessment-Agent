@@ -40,6 +40,11 @@
 
 set -uo pipefail
 
+# tree-보존 CAS mutation 공통 헬퍼(scripts/lib-lock-tree.sh)를 source.
+# claim CAS(claims.json + lock.json tombstone 2 blob 교체)를 이 헬퍼를 거쳐 수행.
+# shellcheck source=scripts/lib-lock-tree.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-lock-tree.sh"
+
 REMOTE="${CLAIM_REMOTE:-origin}"
 REF="${CLAIM_REF:-refs/heads/claude/lock-driver}"
 RETRIES="${CLAIM_RETRIES:-3}"
@@ -112,43 +117,26 @@ attempt() {
     new_arr="$(printf '%s' "$base_arr" | sed -E "s/[[:space:]]*\]$/,${new_entry//\//\\/}]/")"
   fi
 
-  # 새 commit tree 를 만든다: 기존 tip tree 를 base 로 claims.json blob 교체.
-  # lock.json(있으면)을 tombstone 으로 동반 = 즉시 release(ADR-0036 §Decision 1).
-  local claims_blob tomb_blob tree commit
+  # 새 commit tree: 기존 tip tree 를 base 로 claims.json blob 교체 + lock.json
+  # 을 tombstone 으로 동반 = 즉시 release(ADR-0036 §Decision 1). tree 구성·
+  # self-contained identity commit·빈 commit 가드·CAS push 는 lock_tree_cas_push
+  # 에 위임(claims.json/lock.json 만 교체, 나머지 엔트리 보존 — claim CAS 의미 불변).
+  local claims_blob tomb_blob rc
   claims_blob="$(printf '%s' "$new_arr" | git hash-object -w --stdin)"
   tomb_blob="$(printf '{"holder":"","since":""}' | git hash-object -w --stdin)"
 
-  # tree 구성: 기존 tree 의 엔트리를 ls-tree 로 받아 claims.json/lock.json 만 교체.
-  {
-    if [ -n "$old_sha" ]; then
-      git ls-tree "$old_sha" \
-        | grep -vE '\s(claims\.json|lock\.json)$' || true
-    fi
-    printf '100644 blob %s\tclaims.json\n' "$claims_blob"
-    printf '100644 blob %s\tlock.json\n' "$tomb_blob"
-  } | git mktree >/tmp/.sc_tree 2>/dev/null
-  tree="$(cat /tmp/.sc_tree)"
-  rm -f /tmp/.sc_tree
-
-  # CI ubuntu runner 는 ambient git identity 가 0 이라 `git commit-tree` 가
-  # `fatal: empty ident name` 으로 실패한다(claims.json 미생성 → spec 연쇄 fail).
-  # 선례 verify-ref-cas-lock.sh 가 ambient git config 에 의존하지 않는 것과 동형으로,
-  # identity 를 호출 지점에서 self-provide 해 self-contained 계약을 지킨다.
-  if [ -n "$old_sha" ]; then
-    commit="$(git -c user.name='claim-spec' -c user.email='claim-spec@localhost' \
-      commit-tree "$tree" -p "$old_sha" -m "claim ${task} by ${OWNER}" 2>/dev/null)"
-  else
-    commit="$(git -c user.name='claim-spec' -c user.email='claim-spec@localhost' \
-      commit-tree "$tree" -m "claim ${task} by ${OWNER}" 2>/dev/null)"
-  fi
-
-  # CAS push: lease=old-sha(빈 문자열이면 expect-absent). 성공 시 이중 claim 불가.
-  if git push "$REMOTE" "$commit:$REF" \
-       --force-with-lease="$REF:$old_sha" >/dev/null 2>&1; then
+  # 헬퍼는 성공 시 새 tip sha 를 stdout 으로, claim 성공 시 호출측은 task id 를
+  # stdout 으로 내야 하므로 헬퍼 출력은 버리고 return code 만 본다.
+  if lock_tree_cas_push "$REMOTE" "$REF" "$old_sha" '\s(claims\.json|lock\.json)$' \
+       "claims.json=${claims_blob}" "lock.json=${tomb_blob}" \
+       "claim ${task} by ${OWNER}" >/dev/null; then
     printf '%s\n' "$task"
     return 0
   fi
-  return 20
+  rc=$?
+  # 헬퍼의 빈 commit 가드(30)는 본 script 의 상위 case 에서 그대로 전파되고,
+  # CAS lose(20)는 재시도 루프가 받는다(현 의미 보존).
+  return "$rc"
 }
 
 i=0
