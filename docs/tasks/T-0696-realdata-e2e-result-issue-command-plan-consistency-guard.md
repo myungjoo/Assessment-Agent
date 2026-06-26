@@ -2,7 +2,7 @@
 id: T-0696
 title: realdata-e2e result-issue command-plan 종단 컴포저 산출 ↔ (results, run) single-source 재유도 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 255
