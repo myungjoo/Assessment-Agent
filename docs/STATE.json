@@ -7,8 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "▶ **T-0693 DONE (PR #609 squash ac2d64dc)** — step④ daily-test step_eval 진입측 leaf 컴포저 buildRealDataDailyStepEvalCommandPlan(env) 정합 가드 신설(가드 신설 짝의 앞 절반, T-0691 mirror). assertRealDataDailyStepEvalCommandPlanConsistentWithGating(plan, env) export: env 로 gating 재유도해 action↔enabled 매핑 / canonical argv 4-요소 벡터 / reason 일치 fail-fast 대조(TypeError 구조 / RangeError 값정합). spec 29 case(happy run/skip 3 + TypeError 7 + flow 4 + negative ①~⑥ 11 + 비변형 2 + 결정론 2) all green. CI run 28259901688 attempt 2 conclusion=success(attempt 1 의 reviewer-approval 게이트 race 는 rerun_failed_jobs 로 해소). reviewer round1 APPROVE, 4-게이트 PASS(verdict + comment 외화 + integrator self-check + CI green). ▶ **다음 fire**: planner dispatch → step④ daily-step-eval-command-plan 컴포저 self-wire(짝 닫기, T-0692 패턴 mirror) 또는 다른 leaf 가드 chain. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
+  "nextTask": {
+    "id": "T-0694",
+    "title": "realdata-e2e daily-step-eval-command-plan 컴포저 self-wire 배선 (T-0693 가드 짝 닫기)",
+    "commitMode": "pr",
+    "phase": "P5",
+    "independentStream": "realdata-e2e-consistency-guard",
+    "dependsOn": ["T-0693"],
+    "touchesFiles": [
+      "test/helpers/realdata-e2e-daily-step-eval-command-plan.ts",
+      "test/helpers/realdata-e2e-daily-step-eval-command-plan.spec.ts"
+    ]
+  },
+  "backlogNote": "▶ **T-0693 DONE (PR #609 squash ac2d64dc)** — step④ daily-step-eval-command-plan 컴포저 정합 가드 신설(짝 앞 절반). assertRealDataDailyStepEvalCommandPlanConsistentWithGating(plan, env) export. ▶ **T-0694 큐잉(nextTask, pr)** — 그 가드 짝 닫기 self-wire: 컴포저 buildRealDataDailyStepEvalCommandPlan(env) 의 run/skip 양 분기 반환 직전 self-assert 배선(T-0692 scoring-call-args self-wire 의 step④ mirror). origin/main 컴포저 grep 0 확인(두 return 사이트 모두 가드 호출 부재). touches test/helpers/realdata-e2e-daily-step-eval-command-plan.{ts,spec.ts}, dependsOn=[T-0693], guard self-wire × 1.0 (~80 LOC / 2 파일). self-wire 발동 증명 회귀 test(jest.spyOn 호출 1회/분기) 의무. ▶ **후속**: step④ result-issue gh-command-plan(T-0588) 계열 잔여 가드 짝 점검. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
   "lock": {
     "holder": null,
     "since": ""
@@ -32,7 +43,7 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "본 fire(cron@cloud-6630, T-0693 end-to-end): fetch -> origin/main 5529300 동기. lock free·claims [] -> acquire-lock(cron@cloud-6630, tip 2d437a2). nextTask=T-0693(pr) -> select-claim(T-0693, tip f2cbca4)+lock tombstone release(same commit). executor dispatch -> implementer + tester(가드 226 LOC + spec 466 LOC, lint pass + 29/29 spec pass) -> feature branch claude/T-0693-... push(tip ba24a6be). mcp__github__create_pull_request -> PR #609 draft open. reviewer dispatch -> verdict=APPROVE round=1, COMMENT_BODY 외화. mcp__github__add_issue_comment -> reviewer comment post(4812712640). CI run 28259901688 attempt 1 fail(approval-gate race — comment 가 post 전 step 24 실행) -> rerun_failed_jobs -> attempt 2 success. update_pull_request draft=false -> merge_pull_request(squash, ac2d64dc). 4-게이트 PASS(reviewer APPROVE + comment 외화 + integrator inline self-check + CI green). lock-driver claim prune(tip 6ca912b, claims.json=[]). feature branch auto-delete. STATE/journal/task-file/counters direct commit on main 진행.",
+    "note": "본 fire(cron@AKIHA-local, planner-only): local main 55293001 (origin 8feddd91 뒤처짐) -> fetch -> reset --hard origin/main. lock free({holder:''})·claims [] 확인 -> acquire-lock(cron@AKIHA-local-8feddd91, tip 5751bbf5). currentTask·nextTask 둘 다 null(T-0693 이미 PR #609 머지 완료) -> planner dispatch. planner 가 T-0694(pr, daily-step-eval-command-plan 컴포저 self-wire, T-0693 가드 짝 닫기, dependsOn [T-0693] 머지됨, grep 으로 가드 존재+self-wire 부재 확인) 큐잉 + STATE.nextTask/backlogNote/journal 갱신. 본 turn 코드 변경 0(planner 경로) -> doc-only direct main push 후 lock tombstone release. 다음 fire 가 T-0694 claim+execute.",
     "lastRun": "2026-06-26T19:23:37Z"
   },
   "reviewRounds": {
