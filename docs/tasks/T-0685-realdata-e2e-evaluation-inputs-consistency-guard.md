@@ -2,7 +2,11 @@
 id: T-0685
 title: realdata-e2e evaluate-side evaluation-inputs 컴포저 산출↔재유도 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 88c032d
+prNumber: 601
+reviewRounds: 1
+completed: 2026-06-26
 commitMode: pr
 coversReq: [REQ-032, REQ-030, REQ-059]
 estimatedDiff: 250
