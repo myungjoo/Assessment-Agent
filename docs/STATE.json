@@ -7,30 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": {
-    "id": "T-0693",
-    "title": "realdata-e2e daily-step-eval-command-plan 컴포저 산출 ↔ gating single-source 재유도 정합 순수 가드 신설",
-    "commitMode": "pr",
-    "phase": "P5",
-    "independentStream": "realdata-e2e-consistency-guard",
-    "dependsOn": [],
-    "touchesFiles": [
-      "test/helpers/realdata-e2e-daily-step-eval-command-plan-consistency.ts",
-      "test/helpers/realdata-e2e-daily-step-eval-command-plan-consistency.spec.ts"
-    ]
-  },
-  "backlogNote": "▶ **T-0693 큐잉(nextTask, pr)** — step④ daily-test step_eval 진입 컴포저 buildRealDataDailyStepEvalCommandPlan(env) 의 산출 plan↔gating single-source 재유도 정합 순수 가드 신설(action/argv/reason ↔ resolveRealDataE2eLiveGating 재유도 대조). T-0691 scoring-call-args 가드 신설의 step④-side mirror, 가드 신설 절반(self-wire 는 후속). issue-still-relevant: 가드 심볼·파일 origin/main grep 0(부재) 확인. dependsOn [](독립·claimable). ▶ **T-0692 DONE (PR #608 squash febcb15)** — evaluate-side scoring-call-args self-wire 완결, 가드 신설→self-wire 짝 leaf 전반 닫힘. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
+  "nextTask": null,
+  "backlogNote": "▶ **T-0693 DONE (PR #609 squash ac2d64dc)** — step④ daily-test step_eval 진입측 leaf 컴포저 buildRealDataDailyStepEvalCommandPlan(env) 정합 가드 신설(가드 신설 짝의 앞 절반, T-0691 mirror). assertRealDataDailyStepEvalCommandPlanConsistentWithGating(plan, env) export: env 로 gating 재유도해 action↔enabled 매핑 / canonical argv 4-요소 벡터 / reason 일치 fail-fast 대조(TypeError 구조 / RangeError 값정합). spec 29 case(happy run/skip 3 + TypeError 7 + flow 4 + negative ①~⑥ 11 + 비변형 2 + 결정론 2) all green. CI run 28259901688 attempt 2 conclusion=success(attempt 1 의 reviewer-approval 게이트 race 는 rerun_failed_jobs 로 해소). reviewer round1 APPROVE, 4-게이트 PASS(verdict + comment 외화 + integrator self-check + CI green). ▶ **다음 fire**: planner dispatch → step④ daily-step-eval-command-plan 컴포저 self-wire(짝 닫기, T-0692 패턴 mirror) 또는 다른 leaf 가드 chain. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "febcb153e83fff76aeca424668f483ec3f335a88",
+  "lastCommit": "ac2d64dc8480c51e16c94af9b119181d1c8d6f27",
   "mostRecentTasks": [
+    "T-0693",
     "T-0692",
     "T-0691",
     "T-0690",
-    "T-0689",
-    "T-0688"
+    "T-0689"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -43,10 +32,11 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "본 fire(cron@aa-cloud-da20368, planner-only): fetch -> origin/main da20368 동기(local 9efe0f4 뒤처짐 -> reset --hard origin/main). lock free({holder:''})·claims [] 확인 -> acquire-lock(cron@aa-cloud-da20368, tip cc79e4a). currentTask·nextTask 둘 다 null -> planner dispatch. planner 가 T-0693(pr, realdata-e2e daily-step-eval-command-plan 컴포저 산출↔gating 재유도 정합 가드 신설, dependsOn [] 독립, main grep 0 확인) 큐잉 + STATE.nextTask/backlogNote/journal 갱신. 본 turn 은 코드 변경 0(planner 경로) -> doc-only direct main push 후 lock tombstone release. 다음 fire 가 T-0693 claim+execute.",
-    "lastRun": "2026-06-26T18:19:31Z"
+    "note": "본 fire(cron@cloud-6630, T-0693 end-to-end): fetch -> origin/main 5529300 동기. lock free·claims [] -> acquire-lock(cron@cloud-6630, tip 2d437a2). nextTask=T-0693(pr) -> select-claim(T-0693, tip f2cbca4)+lock tombstone release(same commit). executor dispatch -> implementer + tester(가드 226 LOC + spec 466 LOC, lint pass + 29/29 spec pass) -> feature branch claude/T-0693-... push(tip ba24a6be). mcp__github__create_pull_request -> PR #609 draft open. reviewer dispatch -> verdict=APPROVE round=1, COMMENT_BODY 외화. mcp__github__add_issue_comment -> reviewer comment post(4812712640). CI run 28259901688 attempt 1 fail(approval-gate race — comment 가 post 전 step 24 실행) -> rerun_failed_jobs -> attempt 2 success. update_pull_request draft=false -> merge_pull_request(squash, ac2d64dc). 4-게이트 PASS(reviewer APPROVE + comment 외화 + integrator inline self-check + CI green). lock-driver claim prune(tip 6ca912b, claims.json=[]). feature branch auto-delete. STATE/journal/task-file/counters direct commit on main 진행.",
+    "lastRun": "2026-06-26T19:23:37Z"
   },
   "reviewRounds": {
+    "T-0693": 1,
     "T-0692": 1,
     "T-0691": 1,
     "T-0673": 2,
@@ -1159,7 +1149,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 684,
+    "tasksCompleted": 685,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1187,5 +1177,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-26T18:43:06Z"
+  "lastActivity": "2026-06-26T19:30:00Z"
 }

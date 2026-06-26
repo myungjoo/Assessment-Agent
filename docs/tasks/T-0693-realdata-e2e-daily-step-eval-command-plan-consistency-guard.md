@@ -2,7 +2,10 @@
 id: T-0693
 title: realdata-e2e daily-step-eval-command-plan 컴포저 산출 ↔ gating single-source 재유도 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 609
+mergedAt: 2026-06-26T19:25:00Z
+mergedSha: ac2d64dc8480c51e16c94af9b119181d1c8d6f27
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 255
