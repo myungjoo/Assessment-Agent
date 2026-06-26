@@ -2,7 +2,7 @@
 id: T-0688
 title: realdata-e2e seed-side seed-collect-call-args 컴포저 산출 직전 consistency 가드 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 170
@@ -58,3 +58,9 @@ implementer → tester
 ## Follow-ups
 
 (없음 — 신설 시점)
+
+## 결과
+
+- Status: DONE (2026-06-26T14:18:46Z)
+- PR #604 squash merge 1cac5a0 — reviewer round 1 APPROVE, 4-게이트 통과, CI green(unit/smoke/e2e).
+- 컴포저 `buildRealDataCollectCallArgs` 반환 직전에 T-0687 가드 self-assert 배선(byte-identical 보존). spec self-wire 11 케이스(+217 LOC), 컴포저 cov 100%.
