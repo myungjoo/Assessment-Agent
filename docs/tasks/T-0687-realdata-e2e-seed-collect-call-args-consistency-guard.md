@@ -2,7 +2,7 @@
 id: T-0687
 title: realdata-e2e seed-side seed-collect-call-args leaf 컴포저 산출↔single-source 재유도 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 250
@@ -58,3 +58,12 @@ implementer → tester
 ## Follow-ups
 
 (없음 — 신설 시점)
+
+---
+
+## 결과 (DONE 2026-06-26)
+
+- PR #603 squash merge `4112873`, branch delete. reviewer round1 APPROVE(0 blocking findings), 4-게이트 PASS.
+- 가드 `assertRealDataCollectCallArgsConsistentWithSources` 신설 — person 은 `buildRealDataCollectInput` 위임 재유도 deep-equal, since=undefined / assessmentId=ASSESSMENT_ID_PLACEHOLDER 정책 상수 대조. 구조 결손=TypeError, 값 위반=RangeError, read-only, fail-fast.
+- test/helpers 2파일 +185 LOC, 신설 파일 stmts 96.87 / branch 90.9 / funcs 100 / lines 96.66 (line·function ≥80 충족). full suite 8165 tests green, lint·build green.
+- 머지 후 main CI(4112873) in_progress — 다음 fire 에서 conclusion 재확인.
