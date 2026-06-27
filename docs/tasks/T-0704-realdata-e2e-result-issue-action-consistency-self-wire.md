@@ -2,7 +2,9 @@
 id: T-0704
 title: realdata-e2e result-issue-action 컴포저 self-wire 배선 (T-0703 가드 짝 닫기)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 8b5e80148f6a5b72784c3c05ff17fc28d4582a6e
+prNumber: 620
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 90
