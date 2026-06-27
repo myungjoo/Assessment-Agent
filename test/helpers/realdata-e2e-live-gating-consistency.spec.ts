@@ -310,10 +310,28 @@ describe("assertRealDataE2eLiveGatingConsistentWithEnv", () => {
     // reason 정합 비교를 통과시키되 §9 비노출 단언만 위반하도록, expected reason 과
     // 동일하되 credential 값을 포함하는 경우를 합성한다. apiKey="활성" 같은 부분 문자열이
     // expected reason 에 우연히 포함되는 상황을 모사 — credential 값이 reason 부분과 겹침.
+    //
+    // T-0708 self-wire 후 컴포저(`resolveRealDataE2eLiveGating`)는 두 return 직전에
+    // 자기 가드를 self-assert 하므로, apiKey="활성" env 로 컴포저를 호출하면 fixture
+    // 생성 시점에 이 §9 위반으로 throw 해 회귀한다. 본 test 는 §9 단독 경로 검증이
+    // 목적이므로 fixture 를 컴포저 호출 없이 literal object 로 손수 합성한다(컴포저
+    // 의존 제거 — 테스트 의도는 가드의 §9 RangeError 전파 검증으로 불변).
     const env = fullEnv();
     env[REALDATA_E2E_LLM_API_KEY_ENV] = "활성"; // expected reason 에 등장하는 토큰
-    const gating = resolveRealDataE2eLiveGating(env);
-    // 이 경우 reason="...live smoke 활성..." 이 apiKey "활성" 을 포함 → §9 위반.
+    // 컴포저가 위 env 로 산출했을 gating 과 byte-identical 한 literal 합성(active 분기).
+    // reason="...live smoke 활성..." 이 apiKey "활성" 을 포함 → §9 위반(컴포저 비호출).
+    const gating: RealDataE2eLiveGating = {
+      enabled: true,
+      ollama: {
+        baseUrl: "http://dummy/v1",
+        apiKey: "활성",
+        model: "dummy-model",
+        provider: "dummy-provider",
+        apiVersion: "2024-dummy",
+      },
+      githubPat: "dummy-pat",
+      reason: "realdata-e2e live smoke 활성 — gating env 7 종 모두 set",
+    };
     expect(gating.reason).toContain("활성");
     expect(() =>
       assertRealDataE2eLiveGatingConsistentWithEnv(gating, env),

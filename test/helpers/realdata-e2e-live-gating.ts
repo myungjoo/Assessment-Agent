@@ -148,6 +148,16 @@ export function resolveRealDataE2eLiveGating(
 
   // 하나라도 부재 → skip. 명시적 ORed 부정으로 type guard 가 narrowing 을 보장하도록
   // (이후 분기에서 raw 들이 string 으로 좁혀진다 — llm-live-test-gating.ts 동형).
+  // self-wire(T-0708) — 정합 가드를 함수 내부 lazy require 로 가져온다. 가드
+  // (`realdata-e2e-live-gating-consistency.ts`)가 본 컴포저의 env 이름 상수를 runtime
+  // value 로 import 하므로, 컴포저가 가드를 top-level import 하면 CommonJS 순환 의존이
+  // 형성된다 — 함수 내부 require 로 우회한다(가드 본체 수정 0, T-0708 AC). 두 return
+  // 사이트 직전에서 결과를 self-assert 해 gating 결정 drift 를 build-time fail-fast 로 차단.
+  const consistency =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- 순환 의존 해소용 lazy require(가드가 본 모듈의 env 상수를 top-level value 로 사용하므로 top-level import 불가)
+    require("./realdata-e2e-live-gating-consistency") as typeof import("./realdata-e2e-live-gating-consistency");
+  const { assertRealDataE2eLiveGatingConsistentWithEnv } = consistency;
+
   if (
     !flagOk ||
     !baseUrlOk ||
@@ -157,17 +167,21 @@ export function resolveRealDataE2eLiveGating(
     !apiVersionOk ||
     !githubPatOk
   ) {
-    // 실값을 reason 에 넣지 않는다(이름만, §9). throw 0.
-    return {
+    // 실값을 reason 에 넣지 않는다(이름만, §9). throw 0(부재는 skip 으로만 표현).
+    // self-wire: skip 분기 산출물을 가드로 자기 검증 후 반환(정합 위반 시 throw 전파).
+    const gating: RealDataE2eLiveGating = {
       enabled: false,
       reason: `realdata-e2e live smoke skip — gating env 부재: ${missing.join(", ")}`,
     };
+    assertRealDataE2eLiveGatingConsistentWithEnv(gating, env);
+    return gating;
   }
 
   // 7 종 모두 present — live 활성. trim 된 값을 credential 묶음으로 반환. type guard 가
   // 각 raw 를 string 으로 narrowing 한다. 본 객체는 credential 값을 담되 reason 에는
   // 절대 노출하지 않는다(§9 — reason 은 활성 사실만 보고).
-  return {
+  // self-wire: active 분기 산출물도 가드로 자기 검증 후 반환(정합 위반 시 throw 전파).
+  const gating: RealDataE2eLiveGating = {
     enabled: true,
     ollama: {
       baseUrl: baseUrlRaw.trim(),
@@ -179,4 +193,6 @@ export function resolveRealDataE2eLiveGating(
     githubPat: githubPatRaw.trim(),
     reason: "realdata-e2e live smoke 활성 — gating env 7 종 모두 set",
   };
+  assertRealDataE2eLiveGatingConsistentWithEnv(gating, env);
+  return gating;
 }
