@@ -16,7 +16,8 @@
 #   B4 CAS lease mismatch(틀린 old-sha) → push reject            : [T5] negative
 #   B5 빈/누락 commit push 가드(test -n "$COMMIT")               : [T6] negative
 #   B6 release(tombstone) 경로 → claims.json 보존                : [T7] negative/branch
-#   B7 CAS race lose → old-sha 재독 후 재시도                     : [T5] 패자 직접 push 거부로 cover
+#   B7 CAS race lose → old-sha 재독 후 재시도                     : [T5] 패자 직접 push 거부 +
+#      [T8] server-hook 구동 실 재시도 성공(`20)` 분기) + [T9] 재시도소진(`exit 1` 분기)
 
 set -uo pipefail
 
@@ -177,9 +178,93 @@ else
 fi
 
 # ──────────────────────────────────────────────────────────────────────────
+echo "[T8] CAS-race 재시도 분기 회귀 가드 — 첫 push 가 CAS lose(20) → while-loop"
+echo "     \`20)\` 재시도 분기 → 새 tip 재독 후 둘째 시도 성공 (B7)"
+echo "     (pre-fix 에서 FAIL: attempt() 가 sibling 의 옛 \`if helper; then exit 0; fi; rc=\$?\`"
+echo "      마스킹 패턴으로 리팩터되면 첫 lose 가 0 으로 덮여 가짜 exit 0 + holder 미반영 /"
+echo "      post-fix 에서 PASS: 재시도 후 실제 lock 박제 + exit 0 + holder 정확)"
+# select-claim.test.sh [T5] mirror. acquire-lock.sh 의 attempt() 는 현재 bare-call
+# 후 즉시 rc=$? 라 무버그지만, 그 무버그를 회귀로부터 지키는 server-hook 구동 가드가
+# 없다(B7 은 그동안 [T5] 직접 push 거부로만 cover). 동시성을 결정론적으로 박제하기
+# 위해 origin.git 에 **서버측 update hook** 을 심어, lock ref 로의 **첫** push 만 한
+# 번 거부(competing pusher 가 끼어든 ref 전진 효과)하고 자기 자신을 무장 해제한다.
+# 그러면 첫 CAS push 는 hook 거부로 lose(20) → \`20)\` 재시도 → 둘째 push 는 hook
+# 통과로 성공해야 한다. attempt() 가 마스킹 패턴으로 회귀하면 첫 lose 가 0 으로 덮여
+# 가짜 exit 0 이지만 hook 이 첫 push 를 거부했으니 ref tip 은 갱신되지 않아
+# "성공 보고했는데 holder 미반영" 으로 본 test 가 FAIL 한다.
+mkdir -p "$WORK/origin.git/hooks"
+HOOK8="$WORK/origin.git/hooks/update"
+ARM8="$WORK/origin.git/hooks/.t8-armed"
+: > "$ARM8"   # 무장 — hook 이 존재하는 동안 첫 push 1회만 거부.
+cat > "$HOOK8" <<EOF
+#!/usr/bin/env bash
+# T8: lock ref 로의 첫 push 만 1회 거부(CAS lose 시뮬레이션), 이후 통과.
+ref="\$1"
+if [ "\$ref" = "$REF" ] && [ -e "$ARM8" ]; then
+  rm -f "$ARM8"
+  echo "T8 update hook: 첫 push 거부(race 시뮬레이션)" >&2
+  exit 1
+fi
+exit 0
+EOF
+chmod +x "$HOOK8"
+OUT8="$(run_acquire A loop loop@h-8)"; RC8=$?
+rm -f "$HOOK8" "$ARM8"   # hook 정리(이후 다른 test 영향 0).
+git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+if [ $RC8 -eq 0 ] && [ -n "$OUT8" ]; then
+  pass "첫 CAS lose 후 재시도 분기에서 최종 성공 exit 0 + 새 tip 반환 (tip=$OUT8)"
+else
+  fail "CAS-race 재시도 실패 — \`20)\` 분기 dead code 의심(rc 캡처 마스킹 회귀) (rc=$RC8 out=$OUT8)"
+fi
+if [ "$(tip_holder)" = "loop" ]; then
+  pass "재시도 후 ref tip 에 holder=loop 정확 박제(가짜 성공 아님)"
+else
+  fail "성공 보고했으나 holder 미반영 — rc 캡처 마스킹 회귀 (holder=$(tip_holder))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
+echo "[T9] 재시도소진 분기 회귀 가드 — hook 이 매 push 영구 거부 + ACQUIRE_RETRIES=1"
+echo "     → 매 라운드 CAS lose(20) → 재시도소진 → while-loop 후 \`exit 1\` 분기 (B7 소진)"
+echo "     (pre-fix 에서 FAIL: 마스킹 패턴이면 가짜 성공 exit 0 으로 소진 분기 미도달 /"
+echo "      post-fix 에서 PASS: 소진 시 non-zero + \"소진\" 사유 + ref tip 불변)"
+# select-claim.test.sh [T6] mirror. attempt() 가 마스킹 패턴으로 회귀하면 매 CAS
+# lose(20)가 0 으로 덮여 첫 attempt 에서 곧장 exit 0(가짜 성공) → 소진 분기에 도달
+# 하지 못한다. competitor 를 매번 이기게 만들기 위해 update hook 이 lock ref 로의
+# **모든** push 를 거부(항상 ref 가 전진해 lease mismatch 인 상황과 동형)하게 하고,
+# ACQUIRE_RETRIES 를 작게(1) 줘 소진을 빠르게 유도한다. 기대: 매 라운드 CAS
+# lose(20) → 재시도 → 소진 → "재시도 ... 소진" 사유와 함께 non-zero exit, ref tip
+# 은 끝까지 불변(부분 반영 0).
+git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+TIP_B9="$(cur_tip)"
+HOOK9="$WORK/origin.git/hooks/update"
+cat > "$HOOK9" <<EOF
+#!/usr/bin/env bash
+# T9: lock ref 로의 모든 push 를 항상 거부(competitor 영구 승리 시뮬레이션).
+[ "\$1" = "$REF" ] && { echo "T9 update hook: push 영구 거부" >&2; exit 1; }
+exit 0
+EOF
+chmod +x "$HOOK9"
+ERR9="$( ( cd "$WORK/A" && ACQUIRE_REMOTE="$WORK/origin.git" ACQUIRE_REF="$REF" \
+  ACQUIRE_NOW="2026-06-26T00:00:00Z" ACQUIRE_RETRIES=1 \
+  bash "$SCRIPT" cron cron@h-9 ) 2>&1 >/dev/null )"; RC9=$?
+rm -f "$HOOK9"   # hook 정리.
+git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+TIP_A9="$(cur_tip)"
+if [ $RC9 -ne 0 ] && printf '%s' "$ERR9" | grep -qF "소진"; then
+  pass "재시도 소진 시 non-zero exit + 소진 사유 — \`exit 1\` 분기 도달 (rc=$RC9)"
+else
+  fail "소진 분기 미도달 — rc 캡처 마스킹으로 가짜 성공 의심 (rc=$RC9 err=$ERR9)"
+fi
+if [ "$TIP_B9" = "$TIP_A9" ] && [ -n "$TIP_A9" ]; then
+  pass "소진까지 ref tip 불변(부분 반영 0)"
+else
+  fail "소진인데 ref tip 변동 ($TIP_B9→$TIP_A9)"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
 echo ""
 if [ $FAIL -eq 0 ]; then
-  echo "acquire-lock 검증 통과 (T1 first-create / T2 free / T3 claims보존회귀 / T4 held / T5 CAS거부 / T6 빈commit가드 / T7 release보존)"
+  echo "acquire-lock 검증 통과 (T1 first-create / T2 free / T3 claims보존회귀 / T4 held / T5 CAS거부 / T6 빈commit가드 / T7 release보존 / T8 CAS-race재시도 / T9 재시도소진)"
   exit 0
 else
   echo "acquire-lock 검증 실패"
