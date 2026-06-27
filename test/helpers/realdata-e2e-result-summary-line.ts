@@ -93,10 +93,14 @@ export const RESULT_LINE_PREFIX = "실 평가 e2e 결과: ";
  * @throws {TypeError} `summary` 가 null/undefined 이거나 `summary.byDifficulty` /
  *   `summary.byContribution` 가 누락(undefined)된 불완전 객체일 때(silent 손상 라인
  *   산출 차단 — 기본값 채움·정규화 없이 fail-fast).
- * @throws {RangeError} `assertRealDataResultSummaryLineFormatShape`(T-0643, 반환 직전
+ * @throws {RangeError} ① `assertRealDataResultSummaryLineFormatShape`(T-0643, 반환 직전
  *   self-guard)가 던지는 산출 라인 형태 불변식 위반(개행 혼입·prefix drift·count/volume
  *   토큰 누락·난이도/기여도 슬롯 누락·순서 뒤바뀜 — 이론상 formatter template 회귀 시).
  *   형태 가드 본문 single-source 참조 `realdata-e2e-result-summary-line-format-shape.ts`.
+ *   ② `assertRealDataResultSummaryLineConsistentWithSummary`(T-0711 가드, T-0712 반환 직전
+ *   값-정합 self-guard)가 던지는 값 drift(count/volume·난이도/기여도 슬롯 값·순서·prefix 가
+ *   summary 필드로 독립 재합성한 라인과 byte-identical 아님 — formatter 값 매핑 회귀 시).
+ *   값-정합 가드 본문 single-source 참조 `realdata-e2e-result-summary-line-consistency.ts`.
  */
 export function formatRealDataResultSummaryLine(
   summary: RealDataResultSummary,
@@ -142,6 +146,21 @@ export function formatRealDataResultSummaryLine(
   // 라인이 caller surface(이슈 title·rolling 이슈 한 줄·journal·CI stdout)로 silent leak
   // 하기 전 fail-fast 차단한다. 가드는 line 을 읽기만 하므로 출력은 무영향(byte-identical).
   assertRealDataResultSummaryLineFormatShape(line);
+
+  // 반환 직전 값-정합 self-guard(T-0712, live-gating self-wire(T-0708)의 동형) —
+  // 합성된 라인의 **값**(count/volume 토큰·난이도/기여도 슬롯 값·순서·prefix)이
+  // summary 필드만으로 독립 재합성한 라인과 byte-identical 정합인지 단언한다. 형태
+  // 가드(위)는 라인 **형태**만 보지만 본 가드는 값 매핑 drift 를 잡는다(양방향 상쇄
+  // 없는 독립 재구현). 본 가드는 컴포저의 RESULT_LINE_PREFIX 를 runtime value 로
+  // import 하므로, 컴포저가 가드를 top-level import 하면 composer → guard → composer
+  // CommonJS 순환 의존이 형성된다 — 함수 본문 lazy require 로 우회한다(T-0708 precedent,
+  // 가드 본체 무변경). 정합이면 void(라인 비변형), 위반이면 RangeError(값 drift)/
+  // TypeError(구조 결손)를 전파해 손상 라인이 caller surface 로 silent leak 하기 전 차단.
+  const consistency =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- 순환 의존 해소용 lazy require(가드가 본 모듈의 RESULT_LINE_PREFIX 를 top-level value 로 사용하므로 top-level import 불가)
+    require("./realdata-e2e-result-summary-line-consistency") as typeof import("./realdata-e2e-result-summary-line-consistency");
+  const { assertRealDataResultSummaryLineConsistentWithSummary } = consistency;
+  assertRealDataResultSummaryLineConsistentWithSummary(line, summary);
 
   return line;
 }
