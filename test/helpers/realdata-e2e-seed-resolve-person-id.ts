@@ -27,6 +27,7 @@
 //     같은 map 값). 치환 후 where.personId_service 는 실 (personId, service) 쌍이라
 //     step ② upsert 가 idempotent 하게 동작한다.
 
+import { assertRealDataResolvePersonIdConsistentWithInputs } from "./realdata-e2e-seed-resolve-person-id-consistency";
 import type {
   RealDataUpsertArgs,
   ServiceIdentityUpsertArgs,
@@ -77,7 +78,7 @@ export function resolveRealDataPersonId(
   upsertArgsList: RealDataUpsertArgs[],
   emailToPersonId: PersonIdMap,
 ): RealDataUpsertArgs[] {
-  return upsertArgsList.map((args) => {
+  const resolved = upsertArgsList.map((args) => {
     const email = args.personUpsert.where.email;
     const personId = lookupPersonId(emailToPersonId, email);
 
@@ -114,4 +115,23 @@ export function resolveRealDataPersonId(
       ),
     };
   });
+
+  // 반환 직전 값-정합 self-guard(T-0718, T-0714/T-0710 self-wire 의 seed-side mirror) —
+  // 치환 결과 트리 `resolved` 의 각 슬롯 값(placeholder→실 person.id 치환·personUpsert/
+  // service/create/update 보존·identity 순서)이 입력 `upsertArgsList` + `emailToPersonId`
+  // map 만으로 독립 재유도한 expected 트리와 deep-equal 정합인지 단언한다. 본 컴포저의
+  // 분기는 매핑 단계(email 누락/빈값 throw) 외 없지만, 미래 회귀(다른 슬롯 치환·email→id
+  // 조회 규칙 drift·placeholder 잔존·순서 swap)가 생기면 손상 트리가 caller surface(step ②
+  // upsert runner)로 silent leak 하기 전 fail-fast 차단한다. 가드는 본 컴포저로부터
+  // `import type { PersonIdMap }`(타입만) 만 import 하므로(value import 0) top-level import
+  // 로 CommonJS 순환 의존 0(T-0714 mirror, T-0716 lazy require 불요). 매핑 단계가 먼저
+  // throw 하면(email 누락/빈값) 본 self-assert 는 도달하지 않는다(분기 순서 보장). 정합이면
+  // void — `resolved` 비변형·byte-identical 반환.
+  assertRealDataResolvePersonIdConsistentWithInputs(
+    resolved,
+    upsertArgsList,
+    emailToPersonId,
+  );
+
+  return resolved;
 }

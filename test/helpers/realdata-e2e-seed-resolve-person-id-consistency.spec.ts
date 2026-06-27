@@ -20,6 +20,10 @@ import {
   type PersonIdMap,
   resolveRealDataPersonId,
 } from "./realdata-e2e-seed-resolve-person-id";
+// consistency 모듈 namespace import — self-wire(T-0718) 배선 검증 test 가 컴포저의
+// 가드 호출을 spyOn 으로 가로채기 위함. 컴포저는 top-level import 로 같은 CommonJS 모듈
+// 캐시 객체를 로드하므로 본 spy 가 컴포저 내부 호출을 가로챈다.
+import * as consistencyModule from "./realdata-e2e-seed-resolve-person-id-consistency";
 import { assertRealDataResolvePersonIdConsistentWithInputs } from "./realdata-e2e-seed-resolve-person-id-consistency";
 import {
   buildRealDataUpsertArgs,
@@ -724,6 +728,189 @@ describe("assertRealDataResolvePersonIdConsistentWithInputs", () => {
       );
       expect(resolved).toBe(resolvedRef);
       expect(upsertArgsList).toBe(upsertRef);
+    });
+  });
+
+  // ── self-wire(T-0718) — 값-정합 가드 컴포저 single-return 배선 ───────────────
+  // 컴포저 `resolveRealDataPersonId` 가 단일 return 직전 값-정합 가드
+  // assertRealDataResolvePersonIdConsistentWithInputs 를 self-assert 하는지 검증한다.
+  // 컴포저는 top-level import 로 본 모듈을 로드하고 spec 도 namespace import 하므로 동일
+  // CommonJS 모듈 캐시 객체를 가리킨다 — spyOn 이 컴포저 내부 가드 호출을 가로챈다(가드는
+  // 컴포저로부터 type-only import 만 → 순환 의존 0, T-0716 lazy require 불요).
+  describe("self-wire(T-0718) — 컴포저 single-return 값-정합 가드 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    // ① happy — 정상 입력에서 가드를 throw 0 으로 통과해 반환 트리가 self-wire 전 산출과
+    //   deep-equal(byte-identical, 무회귀).
+    it("① 정상 입력에서 가드를 throw 0 으로 통과해 치환 결과 트리를 반환한다(happy, 무회귀)", () => {
+      const upsertArgsList = buildRealDataUpsertArgs(SYNTH_DESCRIPTORS);
+      const map = buildIdMap(upsertArgsList);
+
+      const resolved = resolveRealDataPersonId(upsertArgsList, map);
+
+      // 자립 재유도(컴포저 미러링): 각 identity 의 personId 만 map 실값으로 치환.
+      const expected = upsertArgsList.map((args) => {
+        const personId = map.get(args.personUpsert.where.email);
+        return {
+          personUpsert: {
+            where: { email: args.personUpsert.where.email },
+            create: { ...args.personUpsert.create },
+            update: { ...args.personUpsert.update },
+          },
+          identityUpsertsByEmail: args.identityUpsertsByEmail.map(
+            (identity) => ({
+              where: {
+                personId_service: {
+                  personId,
+                  service: identity.where.personId_service.service,
+                },
+              },
+              create: { ...identity.create },
+              update: { ...identity.update },
+            }),
+          ),
+        };
+      });
+      expect(resolved).toEqual(expected);
+    });
+
+    // ① happy(Record arm) — Record 형태 map + 빈 입력 배열 경계도 throw 0 으로 통과.
+    it("① Record 형태 map·빈 입력 배열 경계도 가드 통과·정상 반환(throw 0, 경계)", () => {
+      const upsertArgsList = buildRealDataUpsertArgs(SYNTH_DESCRIPTORS);
+      const record = buildIdRecord(upsertArgsList);
+      expect(() =>
+        resolveRealDataPersonId(upsertArgsList, record),
+      ).not.toThrow();
+      // 빈 입력 → 빈 배열 반환(throw 0).
+      expect(resolveRealDataPersonId([], new Map())).toEqual([]);
+      expect(resolveRealDataPersonId([], {})).toEqual([]);
+    });
+
+    // ② 호출 배선 검증(self-wire 발동 증명) — 정확히 1 회·(resolved, upsertArgsList,
+    //   emailToPersonId) 인자로 단일 return 직전 호출. 미배선 회귀(import 만 추가하고 호출
+    //   누락) 시 호출수 0 으로 fail.
+    it("② 가드 호출 배선 — 정확히 1 회·(resolved, upsertArgsList, emailToPersonId) 인자로 호출(self-wire 발동 증명)", () => {
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataResolvePersonIdConsistentWithInputs",
+      );
+      const upsertArgsList = buildRealDataUpsertArgs(SYNTH_DESCRIPTORS);
+      const map = buildIdMap(upsertArgsList);
+
+      const resolved = resolveRealDataPersonId(upsertArgsList, map);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 반환 트리·입력 배열·map 동일 참조를 인자로 받아야 한다(반환 직전 단언).
+      expect(spy).toHaveBeenCalledWith(resolved, upsertArgsList, map);
+      expect(spy.mock.calls[0][0]).toBe(resolved);
+      expect(spy.mock.calls[0][1]).toBe(upsertArgsList);
+      expect(spy.mock.calls[0][2]).toBe(map);
+    });
+
+    // ③ 값 가드 RangeError throw 전파 — 가드가 throw 하면 컴포저가 삼키지 않고 선전파
+    //   (silent 통과 0, negative ① — 값 정합 위반).
+    it("③ 값 가드 RangeError throw 전파 — 컴포저가 삼키지 않고 선전파(silent 통과 0, negative)", () => {
+      const sentinel = new RangeError("값 정합 위반(테스트 주입)");
+      jest
+        .spyOn(
+          consistencyModule,
+          "assertRealDataResolvePersonIdConsistentWithInputs",
+        )
+        .mockImplementation(() => {
+          throw sentinel;
+        });
+      const upsertArgsList = buildRealDataUpsertArgs(SYNTH_DESCRIPTORS);
+      const map = buildIdMap(upsertArgsList);
+
+      expect(() => resolveRealDataPersonId(upsertArgsList, map)).toThrow(
+        sentinel,
+      );
+    });
+
+    // ④ 값 가드 TypeError(구조 결손 모사) throw 도 컴포저가 선전파한다(에러 종류 무관
+    //   전파, negative ② — 구조 결손).
+    it("④ 값 가드 TypeError(구조 결손 모사) throw 도 컴포저가 선전파한다(에러 종류 무관 전파, negative)", () => {
+      jest
+        .spyOn(
+          consistencyModule,
+          "assertRealDataResolvePersonIdConsistentWithInputs",
+        )
+        .mockImplementation(() => {
+          throw new TypeError("구조 결손 모사");
+        });
+      const upsertArgsList = buildRealDataUpsertArgs(SYNTH_DESCRIPTORS);
+      const map = buildIdMap(upsertArgsList);
+
+      expect(() => resolveRealDataPersonId(upsertArgsList, map)).toThrow(
+        "구조 결손 모사",
+      );
+    });
+
+    // ⑤ 매핑 선throw(email 누락) → 값-정합 가드 미호출(분기 순서 보장, negative ③).
+    //   컴포저는 가드 호출 전에 `.map` 안에서 email→id 조회를 수행하므로 누락 email 에서
+    //   매핑 단계 throw 가 먼저 발생해 값 가드 도달 전에 전파된다. 값 가드 spy 호출수 0.
+    it("⑤ 매핑 선throw(email 누락) — 값-정합 가드 미호출(분기 순서 보장, negative)", () => {
+      const valueSpy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataResolvePersonIdConsistentWithInputs",
+      );
+      const upsertArgsList = buildRealDataUpsertArgs(SYNTH_DESCRIPTORS);
+
+      // map 이 비어 첫 원소 email 조회부터 매핑 throw → 가드 도달 전 선throw.
+      expect(() => resolveRealDataPersonId(upsertArgsList, new Map())).toThrow(
+        /매핑 누락/,
+      );
+      expect(valueSpy).not.toHaveBeenCalled();
+    });
+
+    // ⑤ 매핑 선throw(빈/공백 person.id) → 값-정합 가드 미호출(분기 순서 보장, negative).
+    it("⑤ 매핑 선throw(빈/공백 person.id) — 값-정합 가드 미호출(분기 순서 보장, negative)", () => {
+      const valueSpy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataResolvePersonIdConsistentWithInputs",
+      );
+      const upsertArgsList = buildRealDataUpsertArgs([
+        makeDescriptor("blank@e2e.realdata.test", [makeIdentity("b", true)]),
+      ]);
+
+      expect(() =>
+        resolveRealDataPersonId(
+          upsertArgsList,
+          new Map([["blank@e2e.realdata.test", "   "]]),
+        ),
+      ).toThrow(/빈 값\/공백/);
+      expect(valueSpy).not.toHaveBeenCalled();
+    });
+
+    // ⑥ 결정성 — self-wire 후에도 동일 입력 2 회 호출 → deep-equal 동일 트리(byte-identical).
+    it("⑥ self-wire 후에도 동일 입력 2 회 호출 → deep-equal 동일 트리(결정성 보존)", () => {
+      const upsertArgsList = buildRealDataUpsertArgs(SYNTH_DESCRIPTORS);
+      const map = buildIdMap(upsertArgsList);
+
+      const a = resolveRealDataPersonId(upsertArgsList, map);
+      const b = resolveRealDataPersonId(upsertArgsList, map);
+
+      expect(a).toEqual(b);
+    });
+
+    // ⑦ 비변형 — self-wire 후에도 입력 upsertArgsList·하위 트리 mutate 0(원본 placeholder 보존).
+    it("⑦ self-wire 후에도 입력 upsertArgsList 와 하위 트리를 mutate 하지 않는다(비변형 보존)", () => {
+      const upsertArgsList = buildRealDataUpsertArgs(SYNTH_DESCRIPTORS);
+      const map = buildIdMap(upsertArgsList);
+      const snapshot = JSON.stringify(upsertArgsList);
+
+      resolveRealDataPersonId(upsertArgsList, map);
+
+      expect(JSON.stringify(upsertArgsList)).toBe(snapshot);
+      // 원본 placeholder 가 그대로 살아있다(치환 결과는 새 트리).
+      const withIdentity = upsertArgsList.find(
+        (a) => a.identityUpsertsByEmail.length > 0,
+      );
+      expect(
+        withIdentity?.identityUpsertsByEmail[0].where.personId_service.personId,
+      ).toBe(PERSON_ID_PLACEHOLDER);
     });
   });
 });
