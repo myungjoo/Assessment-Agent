@@ -37,6 +37,17 @@
 //     (T-0581 위임) — 본 helper 는 박제 outcome + run → 실행 리포트 단일 책임.
 //   - raw 평가 narrative/원본 활동 보유·저장 — REQ-059 정합으로 issueNumber/url/run 식별자만.
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
+// 산출 report 5 필드 전체가 입력 `(outcome, run)` 으로부터 컴포저 재호출 없이 독립
+// 재유도한 expected 와 deep-equal 정합한지 검증하는 값-정합 가드(T-0725 신설)를 컴포저
+// 산출 경로에 self-wire 한다(T-0726). 단일 return 사이트 직전(기존 summary-line self-wire
+// 다음)에 산출 report + 입력 outcome + 입력 run 셋 다 가용하므로 단일 호출 안에서 배선된다.
+// summary-line 가드(summaryLine 단일 필드 내부 정합)와 공존 — 본 가드는 issueNumber/url/
+// gitSha/dateToken 전파 값·url trim 정규화·summaryLine 합성 5 필드 전체를 본다. 가드가
+// 세 type(`RealDataResultIssueOutcomeReport`/`RealDataResultIssueOutcome`/`RealDataResultIssueRunRef`)
+// 을 전부 type-only import 로만 가져와 컴포저 value 를 import 하지 않으므로(value import 0),
+// 컴포저가 본 가드를 top-level value import 해도 순환 의존이 생기지 않는다(T-0724/T-0722/
+// T-0720 type-only top-level import mirror — lazy require 불요).
+import { assertRealDataResultIssueOutcomeReportOutputConsistentWithInput } from "./realdata-e2e-result-issue-outcome-report-output-consistency";
 import { assertRealDataResultIssueOutcomeReportSummaryLineConsistent } from "./realdata-e2e-result-issue-outcome-report-summary-line-consistency";
 import type { RealDataResultIssueOutcome } from "./realdata-e2e-result-issue-output-parse";
 
@@ -122,6 +133,21 @@ export function buildRealDataResultIssueOutcomeReport(
   // (report mutate 0)이며 정상 산출물에는 void 반환 — 관측 불가능하게 동일한 report 를 반환한다.
   // 기존 입력 guard(assertNonBlank/assertPositiveIssueNumber)는 그대로 유지(위 호출 보존).
   assertRealDataResultIssueOutcomeReportSummaryLineConsistent(report);
+
+  // self-wire(T-0726) — 산출 report 5 필드(`{issueNumber, url, gitSha, dateToken, summaryLine}`)
+  // 전체가 입력 `(outcome, run)` 으로부터 컴포저 재호출 없이 독립 재유도한 expected 와
+  // deep-equal 정합한지 반환 직전 검증한다. summary-line 가드(위 호출)는 summaryLine 단일
+  // 필드와 구성 4 필드 사이의 **내부 정합**만 보므로 issueNumber/url/gitSha/dateToken **전파**
+  // 가 어긋나거나 url trim 정규화가 누락돼도 통과할 수 있다 — 본 가드가 그 gap 을 닫는다.
+  // 정상 산출 경로는 입력과 정합하는 report 를 산출하므로 throw 0(검증만, 산출 byte-identical
+  // 무변형). issueNumber/url/gitSha/dateToken 전파 값·url trim 정규화·summaryLine 합성 또는
+  // 추가필드 drop 회귀 시 손상 report 가 step④ 박제/로그 emit wiring 으로 새기 전 fail-fast
+  // throw(값 정합 위반 RangeError / 구조 결손 TypeError).
+  assertRealDataResultIssueOutcomeReportOutputConsistentWithInput(
+    report,
+    outcome,
+    run,
+  );
 
   return report;
 }
