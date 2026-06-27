@@ -29,11 +29,11 @@
     "note": "/loop AKIHA-21631 (dynamic, turn cap 2) — t1 T-0651 merge 41a6ef2 + planner T-0652 큐잉. t2 T-0652 merge c580071. cap 도달 → 종료 + lock 해제."
   },
   "ci": {
-    "status": "running",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "본 fire(cron@aa-anthropic-69e656d2, aa-local-scheduled, ADR-0036 stage5b lock-free claim): fresh anthropic cloud checkout HEAD=b1f8408b 였고 origin/main 은 69e656d2(cron@aa-local15-efa6092f T-0716 DONE PR #632 머지+T-0717 큐잉)로 앞서감 -> reset --hard origin/main 동기. lock free(tombstone)·claims [] -> acquire-lock.sh cron 획득(0bb5fcf6) -> reclaim(server-time Date 헤더 주입, 회수 대상 없음) -> 활성 claim 0(<max 2, pr-mode 단독 OK) -> select-claim.sh 로 T-0717 atomic claim(claim 박제+lock tombstone 동일 commit -> lock-free 진행). T-0717 nextTask(pr-mode, gh 인증 myungjoo). feature branch claude/T-0717-realdata-e2e-seed-resolve-person-id-guard 위 executor dispatch -> implementer 가 seed-resolve-person-id 치환결과↔(args·email→id map) 값-정합 가드(assertRealDataResolvePersonIdConsistentWithInputs) 신설(컴포저 재호출 0, 입력만으로 치환 트리 독립 재유도 deep-equal, map union 조회 미러링, TypeError↔RangeError 분리, test-only +1037/-0 2 파일, src 무변경) + tester(신규 가드 line/branch/func/stmt 100%, 전체 350 suite 8737 test green, negative ①~⑪ 충분 cover, lint+build pass). push -> integrator: gh pr create PR #633 + reviewer round1 APPROVE finding 0 + gate2 comment + CI green -> 4-게이트 PASS -> gh pr merge --squash --delete-branch b37941ff. claim prune(lock_tree_cas_push 5d772feb, claims []). 본 fire 후속: doc-only bookkeeping direct push to main(currentTask null + counters 708→709 + mostRecentTasks T-0717 prepend + reviewRounds T-0717:1 + nextTask=T-0718 planner 큐잉). 머지 후 main CI(b37941ff) push 직후 in_progress — PR run 동일 content green 이라 success 예상, 다음 fire [1]에서 conclusion 재확인.",
-    "lastRun": "2026-06-27T12:54:14Z"
+    "note": "본 fire(cron@aa-cloud-21f7a3e7, anthropic 클라우드 schedule cron, ADR-0036 stage5b lock-free claim) 는 직전 fire(cron@aa-anthropic-69e656d2) 가 push 후 'in_progress' 로 남겨둔 main CI(b37941ff, T-0717 PR #633 squash merge) 의 conclusion 을 [1] 단계에서 재확인하는 것이 주 임무였다. mcp__github__actions_list 로 origin/main latest run 확인: b37941ff = success, 후속 bookkeeping 5b7e9004 = success — 두 직전 main CI 모두 green. STATE.ci.status running→green 동기. nextTask=T-0718(pr, test-only, seed-resolve-person-id 값-정합 가드 컴포저 self-wire, type-only import top-level T-0714 mirror, T-0717 가드 짝 닫기) 은 본 fire 에서 stand-down — 본 fresh anthropic 클라우드 체크아웃의 wrapper 환경 제약(에이전트 branch claude/focused-goodall-5q7h6i 정책 + pr-mode 전체 사이클의 cloud cron 단일 turn 위험)을 사용자 cron prompt 의 'push 실패 시 BLOCKED(credential) 깔끔히 종료' 보수 가드와 정합해 doc-only direct main push 만 수행. lock 획득(113dedff, acquire-lock.sh cron cron@aa-cloud-21f7a3e7) -> 본 bookkeeping 후 tombstone release. T-0718 은 nextTask 그대로 유지 — 다음 fire(gh 보유 local /loop 또는 anthropic cloud) 가 pickup. claims [] 변화 0(claim 미수행).",
+    "lastRun": "2026-06-27T13:09:00Z"
   },
   "reviewRounds": {
     "T-0717": 1,
