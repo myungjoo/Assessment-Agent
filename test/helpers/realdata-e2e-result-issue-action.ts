@@ -57,6 +57,8 @@
 //   - 외부 템플릿/해시/CLI 라이브러리 도입(새 dependency 0, 내장 string 합성만).
 //   - production `src/` 코드 변경 — test helper 단독.
 
+import { assertRealDataResultIssueActionConsistentWithInputs } from "./realdata-e2e-result-issue-action-consistency";
+
 // RealDataResultIssueSearchHit — `gh search issues --json number,title,body` 응답의
 // 최소 shape. caller 가 실 호출 결과를 `JSON.parse` 해 본 resolver 에 전달한다.
 //   - number: 이슈 번호(gh 응답이 정상이면 항상 양수).
@@ -126,11 +128,31 @@ export function resolveRealDataResultIssueAction(
     .filter((hit) => hit.body.includes(marker))
     .map((hit) => hit.number);
 
-  // 후보 0건 → 신규 생성.
+  // 후보 0건 → 신규 생성. 반환 직전 동일 (searchHits, marker) 로부터 독립 재유도한
+  // expected action 과 deep-equal 정합한지 self-assert(self-wire, T-0704) — 후보
+  // 판정/create-update 분기가 drift 한 손상 action 이 step④ 박제 wiring 으로 새기 전
+  // 호출 시점에 fail-fast throw. 정상 분기면 가드는 void → 동일 action 반환(형태 보존).
   if (candidateNumbers.length === 0) {
-    return { action: "create" };
+    const action: RealDataResultIssueAction = { action: "create" };
+    assertRealDataResultIssueActionConsistentWithInputs(
+      action,
+      searchHits,
+      marker,
+    );
+    return action;
   }
 
   // 후보 1+ 건 → 최소 번호(가장 오래된 이슈) 갱신(멱등 회귀 보호 — 입력 순서 무관).
-  return { action: "update", issueNumber: Math.min(...candidateNumbers) };
+  // 반환 직전 동일 가드로 self-assert(self-wire, T-0704) — 최소 대신 최대 선택 등
+  // issueNumber drift 를 호출 시점에 fail-fast. 정상이면 void → 동일 action 반환.
+  const action: RealDataResultIssueAction = {
+    action: "update",
+    issueNumber: Math.min(...candidateNumbers),
+  };
+  assertRealDataResultIssueActionConsistentWithInputs(
+    action,
+    searchHits,
+    marker,
+  );
+  return action;
 }
