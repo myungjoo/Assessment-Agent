@@ -21,6 +21,10 @@ import { DIFFICULTIES, type Difficulty } from "../../src/llm/difficulty";
 
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
 import { renderRealDataResultSummaryMarkdown } from "./realdata-e2e-result-summary-markdown";
+// self-wire(T-0714) 검증용 namespace import — 컴포저가 top-level import 로 같은 모듈을
+// 로드하므로 CommonJS 모듈 캐시 객체와 본 namespace 가 동일 참조라 spyOn 이 컴포저의
+// 가드 호출을 가로챈다(가드는 컴포저 모듈을 import 하지 않아 top-level 순환 의존 0).
+import * as markdownConsistencyModule from "./realdata-e2e-result-summary-markdown-consistency";
 
 // fixture 빌더 — 슬롯별 카운트를 명시적으로 받아 결정론적 descriptor 를 생성.
 // 부분 입력만 받아 나머지 슬롯은 0 으로 채운다(미지정 슬롯도 키 존재 보장).
@@ -231,5 +235,202 @@ describe("renderRealDataResultSummaryMarkdown", () => {
 
     expect(md).not.toContain("narrative");
     expect(md).not.toContain("unitId");
+  });
+
+  // ── self-wire(T-0714) — 값-정합 가드 단일 return 배선 ─────────────────────
+  // 컴포저가 단일 return 직전 값-정합 가드
+  // assertRealDataResultSummaryMarkdownConsistentWithSummary 를 self-assert 하는지 검증한다.
+  // 컴포저는 top-level import 로 가드 모듈을 로드하고 본 spec 은 namespace import 하므로
+  // 동일 CommonJS 모듈 캐시 객체를 가리킨다 — spyOn 이 컴포저의 가드 호출을 가로챈다
+  // (가드는 컴포저 모듈을 import 하지 않아 순환 의존 0, T-0712 lazy require 불요).
+  describe("self-wire(T-0714) — 값-정합 가드 단일 return 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    // ① happy — 정상 입력에서 값-정합 가드를 throw 0 으로 통과해 반환 마크다운이
+    //   self-wire 전과 byte-identical(기존 happy-path test 의 expected 와 정확히 일치).
+    it("① 정상 입력에서 값-정합 가드를 throw 0 으로 통과해 반환물이 self-wire 전과 byte-identical 하다(happy)", () => {
+      const summary = makeSummary({
+        count: 5,
+        byDifficulty: { easy: 2, medium: 2, hard: 1 },
+        byContribution: { zero: 1, low: 1, medium: 2, high: 1 },
+        totalVolume: 42,
+      });
+
+      const md = renderRealDataResultSummaryMarkdown(summary);
+
+      // self-wire 전 합성 규칙(헤더 + count + volume + difficulty 표 + contribution 표)
+      // 의 byte-identical 재구성과 일치(컴포저 출력 자체가 single source).
+      const expected = [
+        "## 실 평가 e2e 결과 요약",
+        "",
+        "- 평가 단위 수: 5",
+        "- 총 volume: 42",
+        "",
+        "### difficulty 분포",
+        "",
+        "| difficulty | count |",
+        "| --- | --- |",
+        "| easy | 2 |",
+        "| medium | 2 |",
+        "| hard | 1 |",
+        "",
+        "### contribution 분포",
+        "",
+        "| contribution | count |",
+        "| --- | --- |",
+        "| zero | 1 |",
+        "| low | 1 |",
+        "| medium | 2 |",
+        "| high | 1 |",
+      ].join("\n");
+      expect(md).toBe(expected);
+    });
+
+    // ② 빈 batch happy — count=0·전 슬롯 0 에서도 self-assert 통과·정상 반환.
+    it("② 빈 batch(count=0·전 슬롯 0)도 값-정합 가드 통과·정상 마크다운 반환(throw 0, 경계 입력)", () => {
+      const summary = makeSummary({
+        count: 0,
+        byDifficulty: {},
+        byContribution: {},
+        totalVolume: 0,
+      });
+
+      expect(() => renderRealDataResultSummaryMarkdown(summary)).not.toThrow();
+      const md = renderRealDataResultSummaryMarkdown(summary);
+      expect(md).toContain("- 평가 단위 수: 0");
+      expect(md).toContain("- 총 volume: 0");
+      for (const d of DIFFICULTIES) {
+        expect(md).toContain(`| ${d} | 0 |`);
+      }
+      for (const c of CONTRIBUTION_LEVELS) {
+        expect(md).toContain(`| ${c} | 0 |`);
+      }
+    });
+
+    // ③ 호출 배선 검증(self-wire 발동 증명) — 정확히 1 회·(markdown, summary) 인자 호출.
+    //   미배선 회귀(import 만 추가하고 호출 누락) 시 호출수 0 으로 fail.
+    it("③ 값-정합 가드 호출 배선 — 정확히 1 회·합성 마크다운과 입력 summary 동일 인자로 호출(self-wire 발동 증명)", () => {
+      const spy = jest.spyOn(
+        markdownConsistencyModule,
+        "assertRealDataResultSummaryMarkdownConsistentWithSummary",
+      );
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 1, medium: 1, hard: 1 },
+        byContribution: { zero: 0, low: 1, medium: 1, high: 1 },
+        totalVolume: 9,
+      });
+
+      const md = renderRealDataResultSummaryMarkdown(summary);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 반환 마크다운과 동일 문자열·입력 summary 동일 참조를 인자로 받아야 한다(반환 직전 단언).
+      expect(spy).toHaveBeenCalledWith(md, summary);
+      expect(spy.mock.calls[0][0]).toBe(md);
+      expect(spy.mock.calls[0][1]).toBe(summary);
+    });
+
+    // ④ 값 가드 RangeError throw 전파 — 가드가 throw 하면 컴포저가 삼키지 않고 선전파
+    //   (silent 통과 0, negative ①).
+    it("④ 값 가드 RangeError throw 전파 — 가드가 throw 하면 컴포저가 삼키지 않고 선전파(silent 통과 0, negative)", () => {
+      const sentinel = new RangeError("값 정합 위반(테스트 주입)");
+      jest
+        .spyOn(
+          markdownConsistencyModule,
+          "assertRealDataResultSummaryMarkdownConsistentWithSummary",
+        )
+        .mockImplementation(() => {
+          throw sentinel;
+        });
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 1, medium: 1, hard: 1 },
+        byContribution: { zero: 0, low: 1, medium: 1, high: 1 },
+        totalVolume: 9,
+      });
+
+      expect(() => renderRealDataResultSummaryMarkdown(summary)).toThrow(
+        sentinel,
+      );
+    });
+
+    // ⑤ 값 가드 TypeError(구조 결손 모사) throw 도 컴포저가 선전파한다(에러 종류
+    //   무관 전파, negative ②).
+    it("⑤ 값 가드 TypeError(구조 결손 모사) throw 도 컴포저가 선전파한다(에러 종류 무관 전파, negative)", () => {
+      jest
+        .spyOn(
+          markdownConsistencyModule,
+          "assertRealDataResultSummaryMarkdownConsistentWithSummary",
+        )
+        .mockImplementation(() => {
+          throw new TypeError("구조 결손 모사");
+        });
+      const summary = makeSummary({
+        count: 2,
+        byDifficulty: { easy: 1, medium: 1, hard: 0 },
+        byContribution: { zero: 0, low: 1, medium: 1, high: 0 },
+        totalVolume: 4,
+      });
+
+      expect(() => renderRealDataResultSummaryMarkdown(summary)).toThrow(
+        "구조 결손 모사",
+      );
+    });
+
+    // ⑥ 형태/구조 가드 선throw 시 값-정합 가드 미호출(분기 순서 보장, negative ③).
+    //   컴포저는 가드 호출 전에 슬롯 순회(`DIFFICULTIES.map`)를 수행하므로 byDifficulty
+    //   가 undefined 인 손상 입력에서는 슬롯 순회 단계에서 TypeError 가 먼저 발생해 값
+    //   가드 도달 전에 throw 전파된다(slot iteration 이 형태 결손에 대한 first-throw guard
+    //   역할). 값-정합 가드 spy 호출수 0 으로 분기 순서 박제.
+    it("⑥ 형태/구조 결손 입력(byDifficulty 누락)은 슬롯 순회 단계에서 선throw — 값-정합 가드는 미호출(분기 순서 보장, negative)", () => {
+      const valueSpy = jest.spyOn(
+        markdownConsistencyModule,
+        "assertRealDataResultSummaryMarkdownConsistentWithSummary",
+      );
+      const broken = {
+        count: 1,
+        byContribution: { zero: 0, low: 0, medium: 0, high: 1 },
+        totalVolume: 1,
+        // byDifficulty 누락 → DIFFICULTIES.map 의 summary.byDifficulty[d] 접근에서 TypeError.
+      } as unknown as RealDataResultSummary;
+
+      expect(() => renderRealDataResultSummaryMarkdown(broken)).toThrow(
+        TypeError,
+      );
+      // 슬롯 순회 단계에서 먼저 throw 하므로 값-정합 가드는 호출되지 않는다(선throw 시 후속 미호출).
+      expect(valueSpy).not.toHaveBeenCalled();
+    });
+
+    // ⑦ self-wire 후에도 동일 입력에 대해 byte-identical 마크다운 반환(결정성 보존).
+    it("⑦ self-wire 후에도 동일 입력에 대해 byte-identical 마크다운 반환(결정성 보존)", () => {
+      const summary = makeSummary({
+        count: 4,
+        byDifficulty: { easy: 1, medium: 2, hard: 1 },
+        byContribution: { zero: 0, low: 2, medium: 1, high: 1 },
+        totalVolume: 77,
+      });
+
+      const a = renderRealDataResultSummaryMarkdown(summary);
+      const b = renderRealDataResultSummaryMarkdown(summary);
+
+      expect(a).toBe(b);
+    });
+
+    // ⑧ self-wire 후에도 입력 summary·하위 분포 객체 mutate 0(비변형 보존).
+    it("⑧ self-wire 후에도 입력 summary 와 하위 분포 객체를 mutate 하지 않는다(비변형 보존)", () => {
+      const summary = makeSummary({
+        count: 2,
+        byDifficulty: { easy: 1, hard: 1 },
+        byContribution: { low: 2 },
+        totalVolume: 9,
+      });
+      const snapshot = JSON.stringify(summary);
+
+      renderRealDataResultSummaryMarkdown(summary);
+
+      expect(JSON.stringify(summary)).toBe(snapshot);
+    });
   });
 });
