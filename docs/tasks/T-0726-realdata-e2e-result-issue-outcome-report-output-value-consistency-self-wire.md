@@ -2,7 +2,11 @@
 id: T-0726
 title: realdata-e2e result-issue outcome-report 산출↔(outcome,run) 값-정합 가드 컴포저 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-27T17:25:00Z
+mergedAs: 8482bbb73dae147e8be732e300ee937cbfae8655
+prNumber: 642
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 120
