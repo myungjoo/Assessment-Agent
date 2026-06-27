@@ -165,14 +165,19 @@ attempt() {
   claims_blob="$(printf '%s' "$new_arr" | git hash-object -w --stdin)"
 
   # 헬퍼는 성공 시 새 tip sha 를 stdout 으로 내지만, 본 함수는 SYNC 신호를
-  # stdout 으로 내야 하므로 헬퍼 출력은 버리고 rc 만 본다.
-  if lock_tree_cas_push "$REMOTE" "$REF" "$old_sha" '\s(claims\.json)$' \
-       "claims.json=${claims_blob}" \
-       "sync claim ${TASK_ID} pr ${PR_NUMBER} by ${OWNER}" >/dev/null; then
+  # stdout 으로 내야 하므로 헬퍼 출력은 버린다(>/dev/null). rc 를 **헬퍼 호출
+  # 직후 즉시** 캡처해야 한다 — `if helper; then ...; fi` 뒤에서 `rc=$?` 를 읽으면
+  # if 가 false 분기(else 없음)일 때 compound `if` 자체의 종료코드 0 을 받게 돼
+  # CAS lose(20)/빈 commit 가드(30)가 0 으로 덮여 재시도/소진 분기가 dead code 가
+  # 된다(round-1 MAJOR). 그래서 rc 를 먼저 캡처한 뒤 분기한다.
+  lock_tree_cas_push "$REMOTE" "$REF" "$old_sha" '\s(claims\.json)$' \
+    "claims.json=${claims_blob}" \
+    "sync claim ${TASK_ID} pr ${PR_NUMBER} by ${OWNER}" >/dev/null
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
     printf 'SYNC taskId=%s prNumber=%s\n' "$TASK_ID" "$PR_NUMBER"
     return 0
   fi
-  rc=$?
   # 헬퍼의 빈 commit 가드(30)는 상위 case 에서 그대로 전파되고, CAS lose(20)는
   # 재시도 루프가 받는다(현 의미 보존 — select-claim.sh / reclaim-stale-claim.sh 동형).
   return "$rc"

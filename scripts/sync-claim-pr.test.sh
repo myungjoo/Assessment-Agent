@@ -19,10 +19,14 @@
 #   B5 idempotent(이미 prNumber=N+PR_OPEN) → no-op success(push 0)    : [T5] flow/branch
 #   B6 pr-number 비정수(type mismatch) → non-zero exit                : [T6] negative
 #   B7 stale lease(틀린 old-sha)로 직접 push → CAS 거부               : [T7] negative(verify-ref-cas mirror)
-#   B8 동시 sync 시도 → CAS 로 1개만 성공(sibling/타 claim wipe 0)    : [T8] CAS race(정확성, #588 가드)
+#   B8 CAS lose(20) → main-loop `20)` 재시도 분기 → 재독 후 성공      : [T8] concurrent CAS-race(서버측 update hook 으로 첫 push 직전 ref 전진, 둘째 시도 성공)
 #   B9 빈 claims.json/ref 부재 → non-zero(no-op)                     : [T9] negative
 #   B10 sibling 파일(meta.txt)·타 claim entry byte-보존              : [T10] #588 wipe 회귀 가드
 #   B11 status=IN_PROGRESS 인 자기 claim → PR_OPEN 갱신(분기)         : [T11] branch(status 진입 분기)
+#   B12 CAS lose 매 라운드 반복 → 재시도 소진 → `exit 1` 소진 분기    : [T12] retry-exhaustion(매번 ref 를 전진시키는 competitor + 작은 SYNC_RETRIES)
+#   * B8/B12 는 round-1 MAJOR(attempt() rc 캡처 버그로 `20)`/`exit 1`
+#     분기가 dead code 였던 것)의 회귀 가드 — OLD 버그 코드에서는 FAIL,
+#     fix 후 PASS 하도록 설계됐다.
 
 set -uo pipefail
 
@@ -248,22 +252,43 @@ else
 fi
 
 # ──────────────────────────────────────────────────────────────────────────
-echo "[T8] CAS race — A 가 stale view 위에서 sync 시도, 그 사이 ref 가 전진 → CAS lose 후 재시도 정상 (B8)"
-# A 가 old-sha 를 본 직후 B 가 ref 를 전진(다른 claim sync)시키면, A 의 첫 CAS 는
-# lose(20) 하지만 재시도 루프에서 새 tip 재독 후 자기 claim 을 정상 갱신해야 한다.
-seed_claims A "[{\"taskId\":\"T-8001\",\"owner\":\"loopA@h-1\",\"claimedAt\":\"2026-06-28T00:00:00Z\",\"status\":\"CLAIMED\",\"prNumber\":null},{\"taskId\":\"T-8002\",\"owner\":\"loopB@h-2\",\"claimedAt\":\"2026-06-28T00:00:00Z\",\"status\":\"CLAIMED\",\"prNumber\":null}]"
-# 정상 sync 두 driver 가 각자 claim 을 순차 갱신 — 둘 다 성공 + sibling claim wipe 0.
-OUT8a="$(run_sync A T-8001 810 loopA@h-1)"; RC8a=$?
-OUT8b="$(run_sync B T-8002 820 loopB@h-2)"; RC8b=$?
-if [ $RC8a -eq 0 ] && [ $RC8b -eq 0 ]; then
-  pass "두 driver 의 순차 sync 둘 다 성공(rc A=$RC8a B=$RC8b)"
-else
-  fail "순차 sync 일부 실패 (rc A=$RC8a B=$RC8b)"
+echo "[T8] concurrent CAS-race — 첫 push 가 lease mismatch 로 CAS lose(20) →"
+echo "     main-loop \`20)\` 재시도 분기 → 새 tip 재독 후 둘째 시도 성공 (B8)"
+# round-1 MAJOR 회귀 가드: attempt() 의 rc 캡처 버그가 살아있으면 첫 CAS lose(20)
+# 가 0 으로 덮여 그대로 exit 0 하지만 ref tip 은 갱신되지 않는다 — 즉 "성공
+# 보고했는데 prNumber 미반영" 으로 본 test 가 FAIL 한다. 동시성을 결정론적으로
+# 박제하기 위해 origin.git 에 **서버측 update hook** 을 심어, 그 ref 로의 **첫**
+# push 만 한 번 거부(ref 전진 시뮬레이션 — competing pusher 가 끼어든 효과)하고
+# 자기 자신을 무장 해제한다. 그러면 sync 의 첫 CAS 는 반드시 lose(20) → `20)`
+# 재시도 → 둘째 push 는 hook 통과로 성공해야 한다.
+seed_claims A "[{\"taskId\":\"T-8001\",\"owner\":\"loopA@h-1\",\"claimedAt\":\"2026-06-28T00:00:00Z\",\"status\":\"CLAIMED\",\"prNumber\":null}]"
+mkdir -p "$WORK/origin.git/hooks"
+HOOK8="$WORK/origin.git/hooks/update"
+ARM8="$WORK/origin.git/hooks/.t8-armed"
+: > "$ARM8"   # 무장 — hook 이 존재하는 동안 첫 push 1회만 거부.
+cat > "$HOOK8" <<EOF
+#!/usr/bin/env bash
+# T8: lock ref 로의 첫 push 만 1회 거부(CAS lose 시뮬레이션), 이후 통과.
+ref="\$1"
+if [ "\$ref" = "$REF" ] && [ -e "$ARM8" ]; then
+  rm -f "$ARM8"
+  echo "T8 update hook: 첫 push 거부(race 시뮬레이션)" >&2
+  exit 1
 fi
-if [ "$(field_of T-8001 prNumber)" = "810" ] && [ "$(field_of T-8002 prNumber)" = "820" ]; then
-  pass "두 claim 모두 정확히 갱신 + sibling claim wipe 0 (#588 가드)"
+exit 0
+EOF
+chmod +x "$HOOK8"
+OUT8="$(run_sync A T-8001 810 loopA@h-1)"; RC8=$?
+rm -f "$HOOK8" "$ARM8"   # hook 정리(이후 test 영향 0).
+if [ $RC8 -eq 0 ] && printf '%s' "$OUT8" | grep -qF "SYNC taskId=T-8001 prNumber=810"; then
+  pass "첫 CAS lose 후 재시도 분기에서 최종 성공 exit 0 + SYNC 신호 (out=$OUT8)"
 else
-  fail "claim 갱신/보존 실패 (T-8001=$(field_of T-8001 prNumber) T-8002=$(field_of T-8002 prNumber))"
+  fail "CAS-race 재시도 실패 — \`20)\` 분기 dead code 의심 (rc=$RC8 out=$OUT8)"
+fi
+if [ "$(field_of T-8001 prNumber)" = "810" ] && [ "$(field_of T-8001 status)" = "PR_OPEN" ]; then
+  pass "재시도 후 ref tip 에 prNumber=810 + PR_OPEN 정확 반영(가짜 성공 아님)"
+else
+  fail "성공 보고했으나 ref 미반영 — rc 캡처 버그 회귀 (prNumber=$(field_of T-8001 prNumber) status=$(field_of T-8001 status))"
 fi
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -313,9 +338,45 @@ else
 fi
 
 # ──────────────────────────────────────────────────────────────────────────
+echo "[T12] retry-exhaustion — competitor 가 매 라운드 push 를 거부 → 재시도 소진"
+echo "      → main-loop \`exit 1\` 소진 분기로 non-zero + 사유 (B12)"
+# round-1 MAJOR 회귀 가드: rc 캡처 버그가 살아있으면 매 CAS lose(20) 가 0 으로
+# 덮여 첫 attempt 에서 곧장 exit 0(가짜 성공) → 소진 분기에 도달하지 못한다.
+# competitor 를 매번 이기게 만들기 위해 origin.git 의 update hook 이 lock ref 로의
+# **모든** push 를 거부(항상 ref 가 전진해 lease mismatch 인 상황과 동형)하게
+# 하고, SYNC_RETRIES 를 작게(1) 줘 소진을 빠르게 유도한다. 기대: 매 라운드 CAS
+# lose(20) → 재시도 → 결국 소진 → "재시도 ... 소진" 사유와 함께 non-zero exit,
+# ref tip 은 끝까지 불변(가짜 성공/부분 반영 0).
+seed_claims A "[{\"taskId\":\"T-12A\",\"owner\":\"loopA@h-1\",\"claimedAt\":\"2026-06-28T00:00:00Z\",\"status\":\"CLAIMED\",\"prNumber\":null}]"
+TIP_B12="$(git -C A ls-remote "$WORK/origin.git" "$REF" | cut -f1)"
+HOOK12="$WORK/origin.git/hooks/update"
+cat > "$HOOK12" <<EOF
+#!/usr/bin/env bash
+# T12: lock ref 로의 모든 push 를 항상 거부(competitor 영구 승리 시뮬레이션).
+[ "\$1" = "$REF" ] && { echo "T12 update hook: push 영구 거부" >&2; exit 1; }
+exit 0
+EOF
+chmod +x "$HOOK12"
+ERR12="$( ( cd "$WORK/A" && SYNC_REMOTE="$WORK/origin.git" SYNC_REF="$REF" SYNC_RETRIES=1 \
+  bash "$SCRIPT" T-12A 1212 loopA@h-1 ) 2>&1 >/dev/null )"; RC12=$?
+rm -f "$HOOK12"   # hook 정리.
+git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+TIP_B12_AFTER="$(git -C A ls-remote "$WORK/origin.git" "$REF" | cut -f1)"
+if [ $RC12 -ne 0 ] && printf '%s' "$ERR12" | grep -qF "소진"; then
+  pass "재시도 소진 시 non-zero exit + 소진 사유 — \`exit 1\` 분기 도달 (rc=$RC12)"
+else
+  fail "소진 분기 미도달 — rc 캡처 버그로 가짜 성공 의심 (rc=$RC12 err=$ERR12)"
+fi
+if [ "$TIP_B12" = "$TIP_B12_AFTER" ] && [ "$(field_of T-12A prNumber)" = "null" ]; then
+  pass "소진까지 ref tip 불변 + claim prNumber null 보존(부분 반영 0)"
+else
+  fail "소진인데 상태 변동 (tip변경=$([ "$TIP_B12" != "$TIP_B12_AFTER" ] && echo yes || echo no) prNumber=$(field_of T-12A prNumber))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
 echo ""
 if [ $FAIL -eq 0 ]; then
-  echo "sync-claim-pr 검증 통과 (T1 happy / T2 인자누락 / T3 대상부재 / T4 owner불일치 / T5 idempotent / T6 비정수 / T7 stale거부 / T8 CAS / T9 ref부재 / T10 byte보존 / T11 status분기)"
+  echo "sync-claim-pr 검증 통과 (T1 happy / T2 인자누락 / T3 대상부재 / T4 owner불일치 / T5 idempotent / T6 비정수 / T7 stale거부 / T8 CAS-race재시도 / T9 ref부재 / T10 byte보존 / T11 status분기 / T12 재시도소진)"
   exit 0
 else
   echo "sync-claim-pr 검증 실패"
