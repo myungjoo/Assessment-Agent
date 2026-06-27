@@ -52,6 +52,7 @@ import { CONTRIBUTION_LEVELS } from "../../src/assessment-evaluation/domain/eval
 import { DIFFICULTIES } from "../../src/llm/difficulty";
 
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
+import { assertRealDataResultSummaryMarkdownConsistentWithSummary } from "./realdata-e2e-result-summary-markdown-consistency";
 
 // renderRealDataResultSummaryMarkdown — 결과 요약 descriptor 를 daily-test 이슈
 // 본문용 **결정론적 마크다운 문자열**로 변환하는 순수 함수.
@@ -82,7 +83,7 @@ export function renderRealDataResultSummaryMarkdown(
     (level) => `| ${level} | ${summary.byContribution[level]} |`,
   ).join("\n");
 
-  return [
+  const markdown = [
     "## 실 평가 e2e 결과 요약",
     "",
     `- 평가 단위 수: ${summary.count}`,
@@ -100,4 +101,18 @@ export function renderRealDataResultSummaryMarkdown(
     "| --- | --- |",
     contributionRows,
   ].join("\n");
+
+  // 반환 직전 값-정합 self-guard(T-0714, T-0710 identity self-wire 의 markdown mirror) —
+  // 합성한 markdown 의 **값**(count/volume 토큰·난이도/기여도 슬롯 값·순서·헤더/표 고정
+  // 리터럴)이 summary 필드만으로 독립 재합성한 markdown 과 byte-identical 정합인지
+  // 단언한다. 본 컴포저의 분기는 슬롯 순회 외 없지만, 미래 회귀(슬롯 swap·count↔volume
+  // 토큰 교차·헤더/표 골격 drift)가 생기면 손상 마크다운이 caller surface(daily-test
+  // 이슈 본문 / rolling 이슈 / step_eval stdout)로 silent leak 하기 전 fail-fast 차단한다.
+  // 가드는 본 컴포저 모듈을 import 하지 않으므로(`CONTRIBUTION_LEVELS`·`DIFFICULTIES`
+  // value + type-only `RealDataResultSummary` 만 import) top-level import 로 순환 의존
+  // 0(T-0710 identity 가드 self-wire mirror, T-0712 lazy require 불요). 정합이면 void —
+  // markdown 비변형·byte-identical 반환.
+  assertRealDataResultSummaryMarkdownConsistentWithSummary(markdown, summary);
+
+  return markdown;
 }
