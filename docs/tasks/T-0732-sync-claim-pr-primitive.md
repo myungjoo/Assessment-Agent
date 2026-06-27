@@ -2,8 +2,10 @@
 id: T-0732
 title: claim record PR-open sync primitive (sync-claim-pr.sh) 신설 — dup-PR 근본 차단
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-27T22:49:40Z
+completionNote: "PR #648 squash d142fdf1 merge (round 2/7). round 1 reviewer MAJOR 로 attempt() 의 if-then rc=$? gotcha(rc=20/30 마스킹 → 재시도/소진 분기 dead code) 발견, round 2 에서 rc 즉시-캡처 fix + 실 CAS-race 회귀 테스트(T8/T12). 동일 gotcha 형제(select-claim/reclaim) → T-0733 큐잉."
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 230
 estimatedFiles: 2
