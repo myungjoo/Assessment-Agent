@@ -2,8 +2,11 @@
 id: T-0718
 title: realdata-e2e seed-resolve-person-id 값-정합 가드 컴포저 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: f56aa622
+prNumber: 634
+reviewRounds: 1
 coversReq: [REQ-058, REQ-059, REQ-024]
 estimatedDiff: 120
 estimatedFiles: 3
