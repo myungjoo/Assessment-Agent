@@ -37,6 +37,7 @@
 //     (T-0581 위임) — 본 helper 는 박제 outcome + run → 실행 리포트 단일 책임.
 //   - raw 평가 narrative/원본 활동 보유·저장 — REQ-059 정합으로 issueNumber/url/run 식별자만.
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
+import { assertRealDataResultIssueOutcomeReportSummaryLineConsistent } from "./realdata-e2e-result-issue-outcome-report-summary-line-consistency";
 import type { RealDataResultIssueOutcome } from "./realdata-e2e-result-issue-output-parse";
 
 // RealDataResultIssueOutcomeReport — daily-test 결과 이슈 박제 후 caller 가 로그/이슈
@@ -106,12 +107,21 @@ export function buildRealDataResultIssueOutcomeReport(
   // 사람-친화 한 줄 요약 합성(동일 입력 → byte-identical).
   const summaryLine = `[${run.dateToken}@${run.gitSha}] 결과 이슈 #${outcome.issueNumber} 박제 → ${url}`;
 
-  // 새 report 객체 반환(무공유·입력 보존).
-  return {
+  // 새 report 객체(무공유·입력 보존).
+  const report: RealDataResultIssueOutcomeReport = {
     issueNumber: outcome.issueNumber,
     url,
     gitSha: run.gitSha,
     dateToken: run.dateToken,
     summaryLine,
   };
+
+  // self-wire(T-0702) — 반환 직전 summaryLine 정합 가드(T-0701)로 self-assert 해, 합성
+  // 회귀(템플릿 토큰 순서·구분자·접두 drift, 구성 필드↔summaryLine 어긋남)로 손상된 report 가
+  // step④ 박제/로그 emit wiring 으로 새기 전 fail-fast throw 하도록 닫는다. 가드는 read-only
+  // (report mutate 0)이며 정상 산출물에는 void 반환 — 관측 불가능하게 동일한 report 를 반환한다.
+  // 기존 입력 guard(assertNonBlank/assertPositiveIssueNumber)는 그대로 유지(위 호출 보존).
+  assertRealDataResultIssueOutcomeReportSummaryLineConsistent(report);
+
+  return report;
 }
