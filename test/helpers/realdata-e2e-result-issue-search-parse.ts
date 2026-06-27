@@ -64,6 +64,14 @@ import {
   assertRealDataResultIssueSearchHitMatchesParseShape,
   REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
 } from "./realdata-e2e-result-issue-search-hit-shape";
+// 산출 hits 전체가 raw stdout 으로부터 올바른 개수·순서·필드값으로 재유도됐는지 검증하는
+// 값-정합 가드(T-0721 신설)를 컴포저 산출 경로에 self-wire 한다(T-0722). 단일 return 사이트
+// 직전에 산출 hits + 원본 stdout 을 넘겨 self-assert — set-equality 가드(키 집합만 봄)가
+// 놓치는 number/title/body 값 drift·hit 누락/중복/재정렬을 build-time fail-fast 로 닫는다.
+// 가드가 `RealDataResultIssueSearchHit` 를 type-only import 로만 가져와 컴포저 value 를
+// import 하지 않으므로(value import 0), 컴포저가 본 가드를 top-level value import 해도 순환
+// 의존이 생기지 않는다(T-0720/T-0718 type-only top-level import mirror — lazy require 불요).
+import { assertRealDataResultIssueSearchOutputConsistentWithStdout } from "./realdata-e2e-result-issue-search-parse-consistency";
 
 // 원소 number guard — gh 응답이 정상이면 number 는 항상 양의 정수다. 0 이하/비정수면
 // 파싱 사고로 간주하고 명시적 throw(비정상 number 가 SearchHit 으로 새는 것을 차단).
@@ -121,7 +129,7 @@ export function parseRealDataResultIssueSearchOutput(
   }
 
   // 각 원소 검증·정규화 — 매 원소마다 새 객체를 만들어 새 배열에 push(무공유).
-  return parsed.map((element: unknown, index: number) => {
+  const hits = parsed.map((element: unknown, index: number) => {
     // 원소 객체 guard — null / 숫자 / 문자열 등 비객체 차단(typeof null === "object" 라
     // null 을 별도 배제).
     if (typeof element !== "object" || element === null) {
@@ -154,4 +162,15 @@ export function parseRealDataResultIssueSearchOutput(
 
     return hit;
   });
+
+  // self-wire(T-0722) — 산출 hits 배열 전체가 raw stdout 으로부터 올바른 개수·순서·필드값
+  // 으로 재유도됐는지 반환 직전 검증한다. stdout 은 파라미터로, hits 는 위 map 산출로 둘 다
+  // 가용하므로 한 호출 안에서 배선된다(per-hit set-equality 가드와 공존 — 그 가드는 각 hit
+  // 의 키 집합만, 본 가드는 전체 값·순서·개수를 본다). 정상 파서 경로는 stdout 과 정합하는
+  // hits 를 산출하므로 throw 0(검증만, 산출 byte-identical 무변형). 값 drift·hit 누락/중복/
+  // 재정렬 회귀 시 손상 산출이 caller resolver(T-0584)로 새기 전 fail-fast(값 정합 위반
+  // RangeError / 구조 결손 TypeError).
+  assertRealDataResultIssueSearchOutputConsistentWithStdout(hits, stdout);
+
+  return hits;
 }
