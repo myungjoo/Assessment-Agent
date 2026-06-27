@@ -23,6 +23,9 @@ import {
   RESULT_LINE_PREFIX,
   formatRealDataResultSummaryLine,
 } from "./realdata-e2e-result-summary-line";
+// self-wire(T-0712) 검증용 namespace import — 컴포저가 lazy require 로 같은 모듈을
+// 로드하므로 require 캐시 객체와 본 namespace 가 동일 참조라 spyOn 이 컴포저 호출을 가로챈다.
+import * as lineConsistencyModule from "./realdata-e2e-result-summary-line-consistency";
 import * as formatShapeModule from "./realdata-e2e-result-summary-line-format-shape";
 
 // fixture 빌더 — 슬롯별 카운트를 명시적으로 받아 결정론적 descriptor 를 생성.
@@ -382,6 +385,149 @@ describe("formatRealDataResultSummaryLine", () => {
       expect(formatRealDataResultSummaryLine(summary)).toBe(
         "실 평가 e2e 결과: count=0 · volume=0 · 난이도(easy/medium/hard)=0/0/0 · 기여도(zero/low/medium/high)=0/0/0/0",
       );
+    });
+  });
+
+  // ── self-wire(T-0712) — 값-정합 가드 단일 return 배선 ─────────────────────
+  // 컴포저가 단일 return 직전(형태 가드 다음)에 값-정합 가드
+  // assertRealDataResultSummaryLineConsistentWithSummary 를 self-assert 하는지 검증한다.
+  // 컴포저는 lazy require 로 가드 모듈을 로드하고 본 spec 은 namespace import 하므로
+  // 동일 모듈 캐시 객체를 가리킨다 — spyOn 이 컴포저의 가드 호출을 가로챈다(순환 의존
+  // 없이 컴포저·가드·spec 가 모두 import 가능함은 본 suite green 자체가 증명).
+  describe("self-wire(T-0712) — 값-정합 가드 단일 return 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("① 정상 입력에서 값-정합 가드를 throw 0 으로 통과해 반환물이 self-wire 전과 byte-identical 하다(happy)", () => {
+      const summary = makeSummary({
+        count: 5,
+        byDifficulty: { easy: 2, medium: 2, hard: 1 },
+        byContribution: { zero: 1, low: 1, medium: 2, high: 1 },
+        totalVolume: 42,
+      });
+
+      const line = formatRealDataResultSummaryLine(summary);
+
+      expect(line).toBe(
+        "실 평가 e2e 결과: count=5 · volume=42 · 난이도(easy/medium/hard)=2/2/1 · 기여도(zero/low/medium/high)=1/1/2/1",
+      );
+    });
+
+    it("② count=0 빈 batch 슬롯도 값-정합 가드 통과·정상 한 줄 반환(throw 0, 경계 입력)", () => {
+      const summary = makeSummary({
+        count: 0,
+        byDifficulty: {},
+        byContribution: {},
+        totalVolume: 0,
+      });
+
+      expect(() => formatRealDataResultSummaryLine(summary)).not.toThrow();
+      expect(formatRealDataResultSummaryLine(summary)).toBe(
+        "실 평가 e2e 결과: count=0 · volume=0 · 난이도(easy/medium/hard)=0/0/0 · 기여도(zero/low/medium/high)=0/0/0/0",
+      );
+    });
+
+    it("③ 값-정합 가드 호출 배선 — 정확히 1회·합성 라인과 입력 summary 동일 인자로 호출(self-wire 발동 증명)", () => {
+      // spyOn 으로 컴포저가 실제로 lazy require 한 가드를 호출함을 입증 — 미배선 회귀 시 호출수 0 으로 fail.
+      const spy = jest.spyOn(
+        lineConsistencyModule,
+        "assertRealDataResultSummaryLineConsistentWithSummary",
+      );
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 1, medium: 1, hard: 1 },
+        byContribution: { zero: 0, low: 1, medium: 1, high: 1 },
+        totalVolume: 9,
+      });
+
+      const line = formatRealDataResultSummaryLine(summary);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 반환 라인과 동일 문자열·입력 summary 동일 참조를 인자로 받아야 한다(반환 직전 단언).
+      expect(spy).toHaveBeenCalledWith(line, summary);
+      expect(spy.mock.calls[0][0]).toBe(line);
+      expect(spy.mock.calls[0][1]).toBe(summary);
+    });
+
+    it("④ 형태 가드 다음·값 가드 둘 다 호출 경로에 있음 — 두 self-assert 모두 1회씩 발동(공존 증명)", () => {
+      // 형태 가드 self-wire 는 유지(대체·삭제 금지) — 형태·값 두 가드가 모두 호출됨을 입증.
+      const shapeSpy = jest.spyOn(
+        formatShapeModule,
+        "assertRealDataResultSummaryLineFormatShape",
+      );
+      const valueSpy = jest.spyOn(
+        lineConsistencyModule,
+        "assertRealDataResultSummaryLineConsistentWithSummary",
+      );
+      const summary = makeSummary({
+        count: 4,
+        byDifficulty: { easy: 1, medium: 2, hard: 1 },
+        byContribution: { zero: 0, low: 2, medium: 1, high: 1 },
+        totalVolume: 20,
+      });
+
+      formatRealDataResultSummaryLine(summary);
+
+      expect(shapeSpy).toHaveBeenCalledTimes(1);
+      expect(valueSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("⑤ 값 가드 RangeError throw 전파 — 가드가 throw 하면 컴포저가 삼키지 않고 선전파(silent 통과 0, negative)", () => {
+      const sentinel = new RangeError("값 정합 위반(테스트 주입)");
+      jest
+        .spyOn(
+          lineConsistencyModule,
+          "assertRealDataResultSummaryLineConsistentWithSummary",
+        )
+        .mockImplementation(() => {
+          throw sentinel;
+        });
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 1, medium: 1, hard: 1 },
+        byContribution: { zero: 0, low: 1, medium: 1, high: 1 },
+        totalVolume: 9,
+      });
+
+      expect(() => formatRealDataResultSummaryLine(summary)).toThrow(sentinel);
+    });
+
+    it("⑥ 값 가드 TypeError(구조 결손 모사) throw 도 컴포저가 선전파한다(에러 종류 무관 전파, negative)", () => {
+      jest
+        .spyOn(
+          lineConsistencyModule,
+          "assertRealDataResultSummaryLineConsistentWithSummary",
+        )
+        .mockImplementation(() => {
+          throw new TypeError("구조 결손 모사");
+        });
+      const summary = makeSummary({
+        count: 2,
+        byDifficulty: { easy: 1, medium: 1, hard: 0 },
+        byContribution: { zero: 0, low: 1, medium: 1, high: 0 },
+        totalVolume: 4,
+      });
+
+      expect(() => formatRealDataResultSummaryLine(summary)).toThrow(
+        "구조 결손 모사",
+      );
+    });
+
+    it("⑦ 입력 가드가 먼저 throw 하면 값 가드는 미호출 — byContribution 누락 입력은 값 가드 도달 전 TypeError(negative 분기)", () => {
+      const valueSpy = jest.spyOn(
+        lineConsistencyModule,
+        "assertRealDataResultSummaryLineConsistentWithSummary",
+      );
+      const broken = {
+        count: 1,
+        byDifficulty: { easy: 1, medium: 0, hard: 0 },
+        totalVolume: 1,
+      } as unknown as RealDataResultSummary;
+
+      expect(() => formatRealDataResultSummaryLine(broken)).toThrow(TypeError);
+      // 입력 가드(byContribution 누락)가 먼저 throw 하므로 값-정합 가드는 호출되지 않는다.
+      expect(valueSpy).not.toHaveBeenCalled();
     });
   });
 
