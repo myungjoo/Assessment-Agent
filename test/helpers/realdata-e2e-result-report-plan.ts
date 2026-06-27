@@ -64,6 +64,7 @@ import type {
   RealDataResultIssueRunRef,
 } from "./realdata-e2e-result-issue-descriptor";
 import { assertRealDataResultIssueDescriptorBodyConsistent } from "./realdata-e2e-result-issue-descriptor-body-consistency";
+import { assertRealDataResultReportPlanConsistentWithInputs } from "./realdata-e2e-result-report-plan-consistency";
 import { buildRealDataResultSummary } from "./realdata-e2e-result-summary";
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
 
@@ -132,5 +133,21 @@ export function buildRealDataResultReportPlan(
 
   // 새 plan 객체 — summary / descriptor 는 위임 helper 가 이미 무공유로 반환하므로
   // 입력 보존·무공유.
-  return { summary, descriptor };
+  const plan: RealDataResultReportPlan = { summary, descriptor };
+
+  // 산출 plan 반환 직전 self-assert(T-0700 self-wire — T-0699 신설 result-report-plan
+  // 가드 짝 닫기, T-0697 result-issue command-plan self-wire 의 mirror). 컴포저가 위임
+  // 합성 순서 뒤바뀜·summary 집계 drift·descriptor title/marker/body drift·summary↔
+  // descriptor cross 어긋남·위임 호출 입력 축 뒤바뀜 같은 합성 회귀로 산출물을
+  // 손상시키면, single-source((results, run) 의 2 위임 helper 재유도)와의 정합 검증으로
+  // 호출 시점에 fail-fast throw 한다. 위 body-consistency self-wire 는 산출 plan 의 두
+  // 구성요소(summary↔descriptor) 가 body 구조상 정합한지(plan 내부 cross)를 검사하고,
+  // 본 가드는 plan↔inputs(results, run) 재유도 축으로 보완한다 — 두 self-wire 는
+  // 상호 보완(대체 0). 정상 합성이면 가드는 void → 반환 plan 형태(summary/descriptor)
+  // 보존(관측 불가능하게 동일). 가드는 read-only 라 plan/results/run mutate 0. 위임
+  // 가드 throw(run.gitSha/dateToken 빈/공백 → descriptor 재유도 단계 throw)는 컴포저가
+  // 삼키지 않고 그대로 선전파한다(throw 전파 정책 동형).
+  assertRealDataResultReportPlanConsistentWithInputs(plan, results, run);
+
+  return plan;
 }
