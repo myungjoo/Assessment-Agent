@@ -2,7 +2,7 @@
 id: T-0706
 title: realdata-e2e result-summary 컴포저 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 80
@@ -56,3 +56,7 @@ P5(PLAN L109) realdata-e2e build-time consistency guard chain 의 후속이다. 
 ## Follow-ups
 
 (없음 — 생성 시점)
+
+## Status: DONE (2026-06-27T06:38Z)
+
+PR #622 squash `0adb4cd4`. `buildRealDataResultSummary` 단일 return 직전에 `assertRealDataResultSummaryConsistentWithInputs(summary, results)` self-assert + 가드 import 1줄 배선 (+21/-1), 집계 알고리즘·반환 shape byte-identical 무변경. spec 에 self-wire describe 8 test 추가. reviewer round1 APPROVE 0 finding, 4-게이트 PASS, CI green first-pass, 컴포저 cov 100% 보존, 전체 344 suite/8517 test green. counters 697→698.
