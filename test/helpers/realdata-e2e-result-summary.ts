@@ -51,6 +51,8 @@ import {
 } from "../../src/assessment-evaluation/domain/evaluation-result";
 import { DIFFICULTIES, type Difficulty } from "../../src/llm/difficulty";
 
+import { assertRealDataResultSummaryConsistentWithInputs } from "./realdata-e2e-result-summary-consistency";
+
 // RealDataResultSummary — `EvaluationResult[]` 집계의 결과 요약 descriptor.
 // raw 본문(narrative 등) 부재 — 식별자 카운트·분류 enum 분포·정량 합산만(R-59).
 //   - count: 평가 단위 총 개수.
@@ -113,10 +115,27 @@ export function buildRealDataResultSummary(
     totalVolume += result.volume;
   }
 
-  return {
+  // 산출 요약 객체 — 매 호출 새 객체(+ 새 byDifficulty / byContribution 하위 객체).
+  const summary: RealDataResultSummary = {
     count: results.length,
     byDifficulty,
     byContribution,
     totalVolume,
   };
+
+  // self-wire — 산출 요약(count / byDifficulty / byContribution / totalVolume)이
+  // 입력 `results` 로부터 독립 재유도한 기대값과 정합한 한 묶음인지 반환 직전
+  // self-assert (T-0706 self-wire — T-0705 신설 result-summary 가드 짝 닫기, T-0700
+  // result-report-plan / T-0702 summary-line / T-0704 result-issue-action self-wire 의
+  // mirror). 본 컴포저는 집계 결과와 그 입력 `results` 를 동시에 in-scope 로 갖는
+  // 유일한 상위 지점이므로, 가드 안에서 `results` 만으로 expected 를 재유도해 산출
+  // `summary` 와 deep-equal 대조함으로써 집계 drift(count off-by-one · difficulty/
+  // contribution 슬롯 +1 누락 · volume 합산 누락 · 미등장 슬롯 임의 값)를 build-time
+  // fail-fast 로 차단한다. 정상 집계면 가드는 void 반환하므로 반환값 byte-identical
+  // 보존(관측 불가능하게 동일). 가드는 read-only 라 summary / results mutate 0. 가드
+  // throw(구조 결손 TypeError · 값 정합 위반 RangeError)는 컴포저가 삼키지 않고 그대로
+  // 호출부로 선전파한다(throw 전파 정책 동형).
+  assertRealDataResultSummaryConsistentWithInputs(summary, results);
+
+  return summary;
 }

@@ -20,6 +20,7 @@ import {
 import { DIFFICULTIES, type Difficulty } from "../../src/llm/difficulty";
 
 import { buildRealDataResultSummary } from "./realdata-e2e-result-summary";
+import * as summaryConsistency from "./realdata-e2e-result-summary-consistency";
 
 // fixture 빌더 — EvaluationResult 1 건을 결정론적으로 생성(narrative 는 분포 집계와
 // 무관하므로 placeholder, 집계 대상 필드만 인자로 받는다).
@@ -240,6 +241,143 @@ describe("buildRealDataResultSummary", () => {
       expect(summary.narrative).toBeUndefined();
       expect(summary.narratives).toBeUndefined();
       expect(summary.unitId).toBeUndefined();
+    });
+  });
+
+  // T-0706 self-wire 배선 검증 — 컴포저가 산출 RealDataResultSummary 를 반환 직전 T-0705
+  // 신설 가드 `assertRealDataResultSummaryConsistentWithInputs` 를 (산출 summary, results)
+  // 인자로 정확히 1회 self-assert 하는지, 정상 집계면 throw 0·반환값 byte-identical 보존
+  // (관측 불가능하게 동일), 가드가 throw 하면 컴포저가 삼키지 않고 그대로 선전파하는지
+  // (RangeError 값 정합 위반 / TypeError 구조 결손 모의) 검증한다. T-0700 result-report-plan
+  // / T-0702 summary-line / T-0704 result-issue-action self-wire spec 패턴의 result-summary
+  // mirror. 본 컴포저는 단일 return·추가 if 분기 0 이므로 분기 cover 는 빈 배열(루프 0회)
+  // vs 비어있지 않은 배열(루프 N회) 2 경로로 표현한다.
+  describe("consistency 가드 self-wire (T-0706) — 반환 직전 self-assert 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("(빈 results 분기, 루프 0회) 가드가 (산출 summary, results) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        summaryConsistency,
+        "assertRealDataResultSummaryConsistentWithInputs",
+      );
+      const results: EvaluationResult[] = [];
+
+      const summary = buildRealDataResultSummary(results);
+
+      // 정확히 1회 호출.
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서·값이 (반환된 산출 summary, results) 와 일치.
+      expect(spy).toHaveBeenCalledWith(summary, results);
+      // 가드에 넘어간 인자가 컴포저가 반환한/받은 바로 그 참조여야 한다(검증 대상 일치).
+      expect(spy.mock.calls[0][0]).toBe(summary);
+      expect(spy.mock.calls[0][1]).toBe(results);
+    });
+
+    it("(단일 result 분기, 루프 1회) 가드가 (산출 summary, results) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        summaryConsistency,
+        "assertRealDataResultSummaryConsistentWithInputs",
+      );
+      const results = [makeResult("u1", "medium", "high", 9)];
+
+      const summary = buildRealDataResultSummary(results);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(summary, results);
+      expect(spy.mock.calls[0][0]).toBe(summary);
+      expect(spy.mock.calls[0][1]).toBe(results);
+    });
+
+    it("(다수 result 분기, 루프 N회) 가드가 (산출 summary, results) 인자로 정확히 1회 호출됨", () => {
+      const spy = jest.spyOn(
+        summaryConsistency,
+        "assertRealDataResultSummaryConsistentWithInputs",
+      );
+      const results = mixedResults();
+
+      const summary = buildRealDataResultSummary(results);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(summary, results);
+    });
+
+    it("정상 집계 → 가드 통과 후 반환 summary 가 self-wire 미배선 기대값과 byte-identical(불변)", () => {
+      // self-wire 가 반환 summary 를 변형하지 않음 — count/분포/totalVolume 트리 보존.
+      expect(buildRealDataResultSummary(mixedResults())).toEqual({
+        count: 5,
+        byDifficulty: { easy: 2, medium: 2, hard: 1 },
+        byContribution: { zero: 1, low: 1, medium: 1, high: 2 },
+        totalVolume: 10,
+      });
+      expect(buildRealDataResultSummary([])).toEqual({
+        count: 0,
+        byDifficulty: { easy: 0, medium: 0, hard: 0 },
+        byContribution: { zero: 0, low: 0, medium: 0, high: 0 },
+        totalVolume: 0,
+      });
+    });
+
+    it("정상 집계(빈/단일/다수 results) → self-assert 통과로 throw 0", () => {
+      expect(() => buildRealDataResultSummary([])).not.toThrow();
+      expect(() =>
+        buildRealDataResultSummary([makeResult("u1", "easy", "low", 3)]),
+      ).not.toThrow();
+      expect(() => buildRealDataResultSummary(mixedResults())).not.toThrow();
+    });
+
+    it("(negative 1 — RangeError 집계 drift 회귀 모사) 가드 throw 가 그대로 전파", () => {
+      jest
+        .spyOn(
+          summaryConsistency,
+          "assertRealDataResultSummaryConsistentWithInputs",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: summary.count 가 results 로부터 독립 재유도한 expected 와 다르다.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataResultSummary([makeResult("u1", "easy", "low", 1)]),
+      ).toThrow(
+        /summary\.count 가 results 로부터 독립 재유도한 expected 와 다르다/,
+      );
+    });
+
+    it("(negative 2 — TypeError 구조 결손 회귀 모사) 가드 TypeError throw 가 그대로 전파", () => {
+      jest
+        .spyOn(
+          summaryConsistency,
+          "assertRealDataResultSummaryConsistentWithInputs",
+        )
+        .mockImplementation(() => {
+          throw new TypeError(
+            "summary 가 객체가 아니다 — RealDataResultSummary 가 필요하다.",
+          );
+        });
+
+      expect(() => buildRealDataResultSummary(mixedResults())).toThrow(
+        TypeError,
+      );
+    });
+
+    it("self-wire 배선 후에도 입력 results 비변형 + 동일 입력 두 번 deterministic·무공유", () => {
+      const results = mixedResults();
+      const snapshot = JSON.stringify(results);
+
+      const a = buildRealDataResultSummary(results);
+      const b = buildRealDataResultSummary(results);
+
+      // 비변형(results mutate 0).
+      expect(JSON.stringify(results)).toBe(snapshot);
+      // deterministic deep-equal.
+      expect(a).toEqual(b);
+      // 무공유(매 호출 새 summary/하위 분포 객체).
+      expect(a).not.toBe(b);
+      expect(a.byDifficulty).not.toBe(b.byDifficulty);
+      expect(a.byContribution).not.toBe(b.byContribution);
     });
   });
 });
