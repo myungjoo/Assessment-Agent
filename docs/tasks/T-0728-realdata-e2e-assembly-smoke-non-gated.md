@@ -2,7 +2,10 @@
 id: T-0728
 title: realdata-e2e 조립 체인 non-gated build-time smoke 신설 (seed→run-plan→step-args, live-LLM 0)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 643
+mergedAt: "2026-06-27T19:24:00Z"
+mergedSha: 92adfbe09191879c531a869bcc6d8d6791d21a58
 commitMode: pr
 coversReq: [REQ-059, TBD]
 dependsOn: []
