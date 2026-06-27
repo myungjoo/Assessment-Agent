@@ -2,7 +2,7 @@
 id: T-0717
 title: realdata-e2e seed-resolve-person-id 치환 결과 ↔ (입력 args · email→id map) single-source 재유도 정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-058, REQ-059, REQ-024]
 estimatedDiff: 270
@@ -76,3 +76,11 @@ T-0715(seed-upsert) 의 seed-side mirror 로, 입력 `RealDataUpsertArgs[]` 와 
 
 - (예정) seed-resolve-person-id 컴포저 self-wire 짝 — `resolveRealDataPersonId` 반환 직전 본 신규 가드 self-assert + import(T-0716 self-wire mirror). 가드가 컴포저의 `RealDataUpsertArgs`/`PersonIdMap` 타입을 type-only import 하면 순환 의존 없이 top-level import 가능한지(T-0710/T-0714 type-only mirror), 아니면 lazy require(T-0712 mirror) 필요한지 self-wire task 에서 import 그래프 확인 필요.
 - 잔여 seed-side NO-GUARD leaf 후보: `buildRealDataE2eSeed`(T-0573 — 무인자 결정론 상수 빌더). 값-정합 가드(입력 없음 → 재유도 surface 빈약)보다는 결정성(매 호출 새 트리·동일 shape)·invariant(email distinct · github.com 1 primary) 가드가 적합한지 case-by-case 판정 후 별도 task.
+
+## Result (DONE)
+
+- 완료: 2026-06-27 (cron@aa-anthropic-69e656d2 fire).
+- PR #633 squash-merge `b37941ff`. reviewer round1 APPROVE finding 0, 4-게이트 PASS, CI green.
+- `assertRealDataResolvePersonIdConsistentWithInputs` 순수 가드 신설 — 입력 `RealDataUpsertArgs[]` + `email→id` map 만으로 치환 트리(컴포저 재호출 0) 독립 재유도 후 deep-equal, 구조결손 TypeError ↔ 값정합 RangeError 분리, map union(ReadonlyMap·Record) 조회 규칙 미러링, 입력 비변형.
+- test-only +1037/-0 2 파일(가드 + colocated spec). 신규 가드 line/branch/func/stmt 100%. 전체 unit 350 suite/8737 test green.
+- Follow-up: T-0718 (컴포저 self-wire 짝, type-only import top-level — T-0714 mirror).
