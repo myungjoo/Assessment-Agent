@@ -2,7 +2,7 @@
 id: T-0705
 title: realdata-e2e result-summary 집계 결과 ↔ EvaluationResult[] 독립 재유도 정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 290
