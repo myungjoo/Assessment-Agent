@@ -385,9 +385,88 @@ else
 fi
 
 # ──────────────────────────────────────────────────────────────────────────
+echo "[T14] CAS-race 재시도 분기 회귀 가드 — 첫 회수 push 가 CAS lose(20) →"
+echo "      main-loop \`20)\` 재시도 분기 → 새 tip 재독 후 둘째 시도 성공 (B6 재시도)"
+echo "      (pre-fix 에서 FAIL: rc 캡처 버그면 첫 lose 가 0 으로 덮여 가짜 exit 0 +"
+echo "       회수 미반영 / post-fix 에서 PASS: 재시도 후 실제 회수 + exit 0)"
+# sync-claim-pr.test.sh [T8] mirror. attempt() 의 rc 캡처 버그(if helper; then;fi
+# 뒤 rc=$? → 항상 0)가 살아있으면 첫 CAS lose(20)가 0 으로 덮여 그대로 exit 0
+# 하지만 ref tip 은 갱신되지 않는다 — "회수 보고했는데 entry 미제거" 로 FAIL.
+# origin.git 에 **서버측 update hook** 을 심어 lock ref 로의 **첫** push 만 한 번
+# 거부(competing pusher ref 전진 효과)하고 자기 무장 해제. 첫 CAS 는 반드시
+# lose(20) → \`20)\` 재시도 → 둘째 push 는 hook 통과로 성공해야 한다.
+seed_claims A "[{\"taskId\":\"T-1401\",\"owner\":\"dead@h-0\",\"claimedAt\":\"$STALE_AT\",\"status\":\"CLAIMED\",\"prNumber\":null}]"
+mkdir -p "$WORK/origin.git/hooks"
+HOOK14="$WORK/origin.git/hooks/update"
+ARM14="$WORK/origin.git/hooks/.t14-armed"
+: > "$ARM14"   # 무장 — 첫 push 1회만 거부.
+cat > "$HOOK14" <<EOF
+#!/usr/bin/env bash
+# T14: lock ref 로의 첫 push 만 1회 거부(CAS lose 시뮬레이션), 이후 통과.
+ref="\$1"
+if [ "\$ref" = "$REF" ] && [ -e "$ARM14" ]; then
+  rm -f "$ARM14"
+  echo "T14 update hook: 첫 push 거부(race 시뮬레이션)" >&2
+  exit 1
+fi
+exit 0
+EOF
+chmod +x "$HOOK14"
+OUT14="$(run_reclaim A loopA@h-1)"; RC14=$?
+rm -f "$HOOK14" "$ARM14"   # hook 정리.
+git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+if [ $RC14 -eq 0 ] && printf '%s' "$OUT14" | grep -qF "RECLAIM taskId=T-1401"; then
+  pass "첫 CAS lose 후 재시도 분기에서 최종 회수 성공 exit 0 + RECLAIM 신호 (out=$(printf '%s' "$OUT14" | tr '\n' ';'))"
+else
+  fail "CAS-race 재시도 실패 — \`20)\` 분기 dead code 의심(rc 캡처 버그 회귀) (rc=$RC14 out=$OUT14)"
+fi
+if [ "$(count_entry T-1401)" = "0" ]; then
+  pass "재시도 후 ref tip 에서 T-1401 정확 제거(가짜 성공 아님)"
+else
+  fail "회수 보고했으나 entry 미제거 — rc 캡처 버그 회귀 (entry=$(count_entry T-1401))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
+echo "[T15] 재시도소진 분기 회귀 가드 — hook 이 매 push 영구 거부 + RECLAIM_RETRIES=1"
+echo "      → 매 라운드 CAS lose(20) → 재시도소진 → main-loop \`exit 1\` 분기 (B6 소진)"
+echo "      (pre-fix 에서 FAIL: 가짜 성공 exit 0 으로 소진 분기 미도달 /"
+echo "       post-fix 에서 PASS: 소진 시 non-zero + \"소진\" 사유 + ref tip 불변)"
+# sync-claim-pr.test.sh [T12] mirror. rc 캡처 버그면 매 CAS lose(20)가 0 으로 덮여
+# 첫 attempt 에서 곧장 exit 0(가짜 성공) → 소진 분기 미도달. update hook 이 lock
+# ref 로의 **모든** push 를 거부(항상 lease mismatch 동형)하게 하고 RECLAIM_RETRIES
+# 를 1 로 작게 줘 소진을 빠르게 유도. 기대: 매 라운드 CAS lose(20) → 재시도 → 소진
+# → "재시도 ... 소진" 사유와 함께 non-zero exit, ref tip 은 끝까지 불변.
+seed_claims A "[{\"taskId\":\"T-1501\",\"owner\":\"dead@h-0\",\"claimedAt\":\"$STALE_AT\",\"status\":\"CLAIMED\",\"prNumber\":null}]"
+git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+TIP_B15="$(git -C A ls-remote "$WORK/origin.git" "$REF" | cut -f1)"
+HOOK15="$WORK/origin.git/hooks/update"
+cat > "$HOOK15" <<EOF
+#!/usr/bin/env bash
+# T15: lock ref 로의 모든 push 를 항상 거부(competitor 영구 승리 시뮬레이션).
+[ "\$1" = "$REF" ] && { echo "T15 update hook: push 영구 거부" >&2; exit 1; }
+exit 0
+EOF
+chmod +x "$HOOK15"
+ERR15="$( ( cd "$WORK/A" && RECLAIM_REMOTE="$WORK/origin.git" RECLAIM_REF="$REF" \
+  RECLAIM_RETRIES=1 bash "$SCRIPT" loopA@h-1 "$NOW" ) 2>&1 >/dev/null )"; RC15=$?
+rm -f "$HOOK15"   # hook 정리.
+git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+TIP_A15="$(git -C A ls-remote "$WORK/origin.git" "$REF" | cut -f1)"
+if [ $RC15 -ne 0 ] && printf '%s' "$ERR15" | grep -qF "소진"; then
+  pass "재시도 소진 시 non-zero exit + 소진 사유 — \`exit 1\` 분기 도달 (rc=$RC15)"
+else
+  fail "소진 분기 미도달 — rc 캡처 버그로 가짜 성공 의심 (rc=$RC15 err=$ERR15)"
+fi
+if [ "$TIP_B15" = "$TIP_A15" ] && [ "$(count_entry T-1501)" = "1" ]; then
+  pass "소진까지 ref tip 불변 + T-1501 claim 보존(부분 회수 0)"
+else
+  fail "소진인데 상태 변동 (tip변경=$([ "$TIP_B15" != "$TIP_A15" ] && echo yes || echo no) entry=$(count_entry T-1501))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
 echo ""
 if [ $FAIL -eq 0 ]; then
-  echo "reclaim-stale-claim 검증 통과 (T1 회수 / T2 PR-resume / T3 live보존 / T4 보류 / T5 stale거부 / T6 이중회수0 / T7 no-op / T8 sibling보존 / T9 DONE-prune / T10 DONE+null prune / T11 live DONE 보존 / T12 status누락보수 / T13 status분기분리)"
+  echo "reclaim-stale-claim 검증 통과 (T1 회수 / T2 PR-resume / T3 live보존 / T4 보류 / T5 stale거부 / T6 이중회수0 / T7 no-op / T8 sibling보존 / T9 DONE-prune / T10 DONE+null prune / T11 live DONE 보존 / T12 status누락보수 / T13 status분기분리 / T14 CAS-race재시도 / T15 재시도소진)"
   exit 0
 else
   echo "reclaim-stale-claim 검증 실패"
