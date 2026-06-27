@@ -2,7 +2,11 @@
 id: T-0700
 title: realdata-e2e result-report-plan 종단 컴포저 self-wire 배선 (T-0699 가드 짝 닫기)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-27T03:52:05Z
+prNumber: 616
+mergedAs: a9e02c1f46de21dec41c1ea5ba1a98439226dbee
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 80
