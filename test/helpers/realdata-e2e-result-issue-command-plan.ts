@@ -69,6 +69,7 @@ import type { EvaluationResult } from "../../src/assessment-evaluation/domain/ev
 
 import type { RealDataResultIssueCommandArgs } from "./realdata-e2e-result-issue-command-args";
 import { buildRealDataResultIssueCommandArgs } from "./realdata-e2e-result-issue-command-args";
+import { assertRealDataResultIssueCommandPlanConsistentWithInputs } from "./realdata-e2e-result-issue-command-plan-consistency";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
 import type { RealDataResultReportPlan } from "./realdata-e2e-result-report-plan";
 import { buildRealDataResultReportPlan } from "./realdata-e2e-result-report-plan";
@@ -131,5 +132,20 @@ export function buildRealDataResultIssueCommandPlan(
 
   // 새 plan 객체 — report / commandArgs 는 위임 helper 가 이미 무공유로 반환하므로
   // 입력 보존·무공유.
-  return { report, commandArgs };
+  const plan: RealDataResultIssueCommandPlan = { report, commandArgs };
+
+  // 산출 plan 반환 직전 self-assert(T-0697 self-wire — T-0696 신설 result-issue
+  // command-plan 가드 짝 닫기, T-0694 daily-step-eval-command-plan self-wire 의
+  // evaluation-side mirror). 컴포저가 위임 합성 순서 뒤바뀜·report↔commandArgs
+  // descriptor drift·summary 집계 drift·createArgs↔updateArgs body drift·labels
+  // drift·§9 raw narrative 본문 누출 같은 합성 회귀로 산출물을 손상시키면,
+  // single-source((results, run) 의 2 위임 helper 재유도)와의 정합 검증으로 호출
+  // 시점에 fail-fast throw 한다. 정상 합성이면 가드는 void → 반환 plan 형태
+  // (report/commandArgs) 보존(관측 불가능하게 동일). 가드는 read-only 라
+  // plan/results/run mutate 0. 위임 가드 throw(run.gitSha/dateToken 빈/공백 →
+  // report-plan throw, descriptor.title/marker 빈/공백 → command-args throw)는
+  // 컴포저가 삼키지 않고 그대로 선전파한다(throw 전파 정책 동형).
+  assertRealDataResultIssueCommandPlanConsistentWithInputs(plan, results, run);
+
+  return plan;
 }
