@@ -7,8 +7,8 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "▶ **T-0697 DONE** PR #613 squash 93bc3c6f(realdata-e2e result-issue command-plan 컴포저 self-wire 배선 — T-0696 가드 짝 닫기, T-0694 evaluation-side mirror). reviewer round 1 APPROVE 0 finding, 4-게이트 PASS, CI green(rerun_failed_jobs attempt 2 — attempt 1 approval-gate race 는 comment post 후 rerun 으로 해소, 28272418326). counters 688→689. ▶ **T-0696 DONE** PR #612 squash 1ae33090(evaluation-side 가드 신설). ▶ **T-0695 DONE** PR #611 squash c6aca13e(stdout-side 가드 신설). ▶ **T-0694 DONE** PR #610 squash 82c0853(daily-step-eval self-wire). ▶ 다음 fire 가 planner pickup — (a) T-0695 stdout-side self-wire 짝(T-0696 evaluation-side mirror, dependsOn T-0695 머지됨) 큐잉 권장, (b) realdata-e2e 가드 사슬 잔여 / 인접 sweep 재survey. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
+  "nextTask": "T-0698",
+  "backlogNote": "▶ **T-0698 QUEUED** by planner(cron@cloud-11ec0c7 fire) — realdata-e2e result-issue gh-command-plan 컴포저 self-wire 배선(resolveRealDataResultIssueGhCommandPlan 단일 return 사이트 직전 assertRealDataResultIssueGhCommandPlanConsistentWithInputs self-assert, T-0697 evaluation-side self-wire 의 stdout-side mirror, T-0695 가드 짝 닫기, pr, dependsOn T-0695 머지됨 c6aca13e). issue-still-relevant: 컴포저 self-wire 미존재 origin/main grep 0 확인(L60 return 직전 가드 호출 부재, import 부재 — 가드 helper L207 박제는 main 존재). touchesFiles: test/helpers/realdata-e2e-result-issue-gh-command-plan.ts + .spec.ts. ▶ **T-0697 DONE** PR #613 squash 93bc3c6f(evaluation-side self-wire — T-0696 짝, T-0694 mirror). reviewer round 1 APPROVE 0 finding, 4-게이트 PASS, CI green. counters 688→689. ▶ **T-0696 DONE** PR #612 squash 1ae33090(evaluation-side 가드 신설). ▶ **T-0695 DONE** PR #611 squash c6aca13e(stdout-side 가드 신설). ▶ T-0698 머지 후 다음 fire pickup — (a) result-issue 측 build-time consistency 사슬 완결 점검(두 종단 self-wire 짝 닫힌 뒤 publish-plan / outcome-report-from-output leaf 가드 존재 재survey), (b) step③/step⑤ build-time consistency 사슬 self-wire 잔여 sweep. ▶ standing 게이트(live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra) 불변.",
   "lock": {
     "holder": null,
     "since": ""
