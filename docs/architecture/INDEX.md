@@ -19,6 +19,7 @@
 | [race-patterns.md](race-patterns.md) | race pattern 7+7=14 회차 누적 박제 — gh pr merge worktree race (T-0048~T-0062) + reviewer-gate race-fix (T-0036~T-0047 + T-0061 `gh run rerun` SUCCESS) + integrator race-aware 평가 절차 cross-ref | T-0065 (race lessons doc) | 완료 (T-0065) |
 | [concurrency.md](concurrency.md) | fine-grained driver concurrency 운영 view — claim registry 저장 위치(단일 CAS 평면) + claims.json schema + select+claim 원자성(이중 claim 0 정확성 게이트) + 동시 claimable 조건 + staleness/PR-resume(slice 2+ forward-looking) | T-0327 (ADR-0036 stage 2 slice 1) | 부분 (slice 1 — schema + select+claim primitive) |
 | [frontend-api-contract.md](frontend-api-contract.md) | P6 frontend ↔ backend API 소비 계약 prep — 4 화면별 소비 endpoint 맵 + 인증 cookie 소비 패턴 + R-78 배너 데이터 소스 + RBAC↔가시성 + backend 선행 gap 5종 (ADR-0040 §2 순수 소비자 경계의 화면 단위 구체화, stack flip 비의존 dependency-free prep) | T-0352 (P6 prep) | 완료 (T-0352) |
+| [realdata-e2e-guard-harness.md](realdata-e2e-guard-harness.md) | realdata-e2e build-time consistency-guard harness — composer 33↔guard 33+shape 3 인벤토리 + 4 불변식 설계계약 + 독립재유도→self-wire 2-step idiom + sweep 종결 근거 (T-0584~T-0726) | T-0727 (P5) | 완료 (T-0727) |
 
 ## 갱신 룰
 
