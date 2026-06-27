@@ -2,7 +2,9 @@
 id: T-0714
 title: realdata-e2e result-summary-markdown 값-정합 가드 컴포저 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-27T11:30:00Z
+mergeSha: 2236171462
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 120
