@@ -2,7 +2,7 @@
 id: T-0731
 title: realdata-e2e pipeline-plan 조립 체인 non-gated build-time smoke 신설 (seeds+modelId→{collectCallArgs,modelId})
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 dependsOn: []
