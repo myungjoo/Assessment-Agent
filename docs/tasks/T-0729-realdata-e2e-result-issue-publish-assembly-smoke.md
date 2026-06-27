@@ -2,8 +2,11 @@
 id: T-0729
 title: realdata-e2e result-issue publish 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 644
+mergedAs: e001cb18
+reviewRounds: 1
 coversReq: [REQ-037, REQ-059]
 dependsOn: []
 touchesFiles:
