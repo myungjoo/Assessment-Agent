@@ -2,7 +2,7 @@
 id: T-0719
 title: realdata-e2e seed-fixture 결정성·불변식 정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-058, REQ-059, REQ-024]
 estimatedDiff: 280
@@ -67,3 +67,14 @@ REQ-058(재수집 중복 방지: idempotent seed 의 distinct compound-unique ke
 
 - 컴포저 `buildRealDataE2eSeed` self-wire 짝(별도 task) — 단일 return 직전 본 가드 self-assert 배선, T-0717→T-0718 mirror. seed-fixture 는 가드가 컴포저를 type-only import 라 top-level import 채택 예상(순환 0).
 - 잔여 NO-GUARD parse-shape 류 leaf(`result-issue-output-parse`·`result-issue-search-parse`·`result-issue-outcome-parse-shape`) — 형태 검증 위주는 값-정합 가드 적용 여부 case-by-case 판정 후 별도 task.
+
+## Result (DONE — 2026-06-27)
+
+PR #635 squash merge `5ac01daf`. test-only +699/-0 2 파일(`test/helpers/realdata-e2e-seed-fixture-consistency.ts` +309 가드 2함수 + `.spec.ts` +390). `src/`·`schema.prisma` 무변경.
+
+- 불변식 가드 `assertRealDataE2eSeedConsistentWithUsernames(seed)` — 각 descriptor 의 `person.fullName`(=username) single-source 로 `email`·`active`·`serviceIdentities` 길이 1·`service`·`externalId`·`isPrimary` 독립 재유도·대조 + 배열 전체 email distinct·person 당 primary github.com identity 정확히 1(REQ-024).
+- 결정성 가드 `assertRealDataE2eSeedDeterministic(first, second)` — 두 산출 deep-equal + 참조-무공유. 2-출력 인자 형태라 컴포저 self-wire 대상이 아니며 spec 이 컴포저를 직접 호출해 전달(type-only import 유지, 순환 0).
+- 구조 결손 TypeError ↔ 값·불변식 위반 RangeError 분리, 한국어 명세형 메시지.
+- 신규 가드 stmt/branch/func/line 100%, 전체 351 suite 8784 test green. reviewer round1 APPROVE finding 0, 4-게이트 PASS(첫 CI run Docker apt mirror 일시 장애 → rerun → green).
+
+Follow-up `T-0720` 큐잉(불변식 가드 컴포저 self-wire — Deterministic 은 spec 잔류).
