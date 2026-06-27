@@ -2,7 +2,11 @@
 id: T-0730
 title: realdata-e2e evaluation-plan 조립 체인 non-gated build-time smoke 신설 (Activity[]+modelId→{inputs,callArgs})
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-27T21:11:00Z
+mergedAs: d9359d240345f1ca55b80cce1e971bf36f3d05a4
+prNumber: 645
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 dependsOn: []
