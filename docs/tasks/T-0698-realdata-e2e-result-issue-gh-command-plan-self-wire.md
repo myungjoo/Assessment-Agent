@@ -2,8 +2,11 @@
 id: T-0698
 title: realdata-e2e result-issue gh-command-plan 컴포저 self-wire 배선 (T-0695 가드 짝 닫기)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 86e8826
+prNumber: 614
+reviewRounds: 1
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 80
 estimatedFiles: 2
