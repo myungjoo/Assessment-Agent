@@ -2,7 +2,7 @@
 id: T-0711
 title: realdata-e2e result-summary-line 값 ↔ summary 필드 single-source 재유도 정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 300
@@ -60,3 +60,9 @@ PLAN.md Phase P5(Evaluation pipeline) 109행 step ④ 결과 요약 표현 surfa
 
 - (예정) result-summary-line 컴포저 self-wire 짝 — `formatRealDataResultSummaryLine` 반환 직전 본 신규 가드 self-assert + import(T-0702/T-0710 self-wire mirror).
 - 잔여 NO-GUARD leaf 후보 재survey: `renderRealDataResultSummaryMarkdown`(result-summary-markdown) 등.
+
+## Result (DONE)
+
+- 완료: 2026-06-27, PR #627 squash 머지 `bfb1426f`.
+- assertRealDataResultSummaryLineConsistentWithSummary 신설 — RESULT_LINE_PREFIX·DIFFICULTIES·CONTRIBUTION_LEVELS single-source import 재사용해 컴포저 재호출 0 으로 expected 라인 독립 재합성 후 byte-identical 대조. 구조결손 TypeError·값정합 RangeError 분리. 컴포저 본문·self-wire 미변경(읽기만). +421/-0 2 파일.
+- tester: 신규 가드 파일 stmts/branch/funcs/lines 100%, unit 20 cases(happy · TypeError 6종 · RangeError 6종 · 결정성·비변형), 전체 347 suite 8617 test green 무회귀. reviewer round1 APPROVE, 4-게이트 PASS, CI green first-pass.
