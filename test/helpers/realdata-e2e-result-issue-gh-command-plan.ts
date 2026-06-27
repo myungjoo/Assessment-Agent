@@ -28,6 +28,7 @@ import type { RealDataResultIssueAction } from "./realdata-e2e-result-issue-acti
 import { resolveRealDataResultIssueAction } from "./realdata-e2e-result-issue-action";
 import type { RealDataResultIssueCommandArgs } from "./realdata-e2e-result-issue-command-args";
 import { buildRealDataResultIssueGhArgv } from "./realdata-e2e-result-issue-gh-argv";
+import { assertRealDataResultIssueGhCommandPlanConsistentWithInputs } from "./realdata-e2e-result-issue-gh-command-plan-consistency";
 import { parseRealDataResultIssueSearchOutput } from "./realdata-e2e-result-issue-search-parse";
 
 // RealDataResultIssueGhCommandPlan — 종단 컴포저의 출력. caller 가 action 종류(create/update)
@@ -74,5 +75,23 @@ export function resolveRealDataResultIssueGhCommandPlan(
   const argv = buildRealDataResultIssueGhArgv(action, commandArgs);
 
   // 새 plan 객체(새 argv 배열은 빌더가 이미 무공유로 반환) — 입력 보존·무공유.
-  return { action, argv };
+  const plan: RealDataResultIssueGhCommandPlan = { action, argv };
+
+  // 산출 plan 반환 직전 self-assert(T-0698 self-wire — T-0695 신설 gh-command-plan 가드
+  // 짝 닫기, T-0697 result-issue command-plan self-wire 의 stdout-side mirror). 컴포저가
+  // 3-단계 합성 순서 어긋남(parse→resolveAction→buildGhArgv)·action 분기 오매핑
+  // (create↔update)·argv↔action drift·marker 재해석 drift·§9 credential 값 argv 누출
+  // 같은 합성 회귀로 산출물을 손상시키면, single-source((stdout, commandArgs) 의 3 위임
+  // helper 재유도)와의 정합 검증으로 호출 시점에 fail-fast throw 한다. 정상 합성이면 가드는
+  // void → 반환 plan 형태(action/argv) 보존(관측 불가능하게 동일). 가드는 read-only 라
+  // plan/stdout/commandArgs mutate 0. 위임 가드 throw(비JSON stdout → 파서 throw, 빈
+  // marker → resolver throw, 빈 title/body·비양수 issueNumber → 빌더 throw)는 컴포저가
+  // 삼키지 않고 그대로 선전파한다(throw 전파 정책 동형).
+  assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+    plan,
+    stdout,
+    commandArgs,
+  );
+
+  return plan;
 }
