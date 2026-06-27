@@ -2,7 +2,7 @@
 id: T-0708
 title: realdata-e2e live-gating 컴포저 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 95
@@ -73,4 +73,11 @@ arch-conflict re-scope 경위 (executor BLOCKED 반환 → planner 재검증):
 
 ## Follow-ups
 
-(없음 — 생성 시점)
+- 잔여 NO-GUARD leaf 컴포저(result-issue-descriptor) 가드 신설 + self-wire 배선 (별도 task chain).
+
+## Result (DONE)
+
+- **완료**: 2026-06-27 (fire cron@aa-local15-5b168144, ADR-0036 stage5b claim-pickup).
+- PR #624 squash 머지 `49476ee2`. reviewer round1 APPROVE, 4-게이트 PASS, CI green.
+- 컴포저 `resolveRealDataE2eLiveGating` 두 return(skip/active) 직전 `const gating` 으로 묶어 `assertRealDataE2eLiveGatingConsistentWithEnv` self-assert 배선 + lazy `require` 로 CommonJS 순환 의존 해소(가드 본체 무수정). §9 단독-경로 test 1건만 composer-free literal fixture 로 조정.
+- test-only +177/-5, 3 파일. self-wire(T-0708) describe 8 test 추가. 전체 8558 test pass, line/function ≥80% 게이트 통과.
