@@ -2,7 +2,10 @@
 id: T-0697
 title: realdata-e2e result-issue command-plan 컴포저 self-wire 배선 (T-0696 가드 짝 닫기)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-27T00:30:00Z
+prNumber: 613
+mergeCommit: 93bc3c6f616b8bcb4aaf5ee432f99f14d577e626
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 80
