@@ -2,7 +2,7 @@
 id: T-0713
 title: realdata-e2e result-summary-markdown 렌더 값 ↔ summary 필드 single-source 재유도 정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 330
@@ -64,3 +64,14 @@ T-0711(라인 값 독립 재합성 정합 가드)의 markdown mirror 로, summar
 
 - (예정) result-summary-markdown 컴포저 self-wire 짝 — `renderRealDataResultSummaryMarkdown` 반환 직전 본 신규 가드 self-assert + import(T-0712 self-wire mirror; markdown 리터럴 재합성이라 lazy require 순환 의존 여부는 implementer 가 import 그래프로 판정).
 - 잔여 NO-GUARD leaf 후보 재survey: parse-shape(`result-issue-output-parse`·`result-issue-search-parse`·`result-issue-outcome-parse-shape`) 류는 형태 검증 위주라 값-정합 가드 적용 여부 case-by-case. seed-side(`seed-fixture`·`seed-upsert`·`seed-resolve-person-id`)는 별도 stream.
+
+---
+
+## Result (DONE — 2026-06-27)
+
+- **완료 시각**: 2026-06-27 (cron@aa-local-sched fire, ADR-0036 stage5b lock-free claim)
+- **PR**: #629 squash merge `cc6d1224`. reviewer round 1 APPROVE finding 0, 4-게이트 PASS, CI green.
+- **변경**: 순수 가드 `assertRealDataResultSummaryMarkdownConsistentWithSummary` 신설 — 컴포저 재호출 0, summary 필드만으로 마크다운 독립 재합성 후 byte-identical 대조, 구조결손 TypeError ↔ 값정합 RangeError 분리. test-only +480/-0 2 파일(가드 + colocated spec), src 무변경.
+- **검증**: 신규 가드 파일 line/branch/func/stmt 100%, 전체 unit 348 suites·8646 tests green, lint·build 통과. negative 8 분기(count·volume·난이도 슬롯·기여도 슬롯·헤더/표 리터럴·markdown 비-string·summary null·슬롯 누락) 각 1+ cover.
+- **size note**: +480 LOC > 300 soft cap — `sizeExempt: true` 사전 정당화(sibling T-0711/T-0705/T-0709 선례), test-only·src 무변경이라 reviewer MINOR.
+- **Follow-up**: 컴포저 self-wire 짝(T-0714 큐잉) — `renderRealDataResultSummaryMarkdown` 단일 return 직전 self-assert 배선.
