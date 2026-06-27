@@ -2,7 +2,7 @@
 id: T-0720
 title: realdata-e2e seed-fixture 결정성·불변식 정합 가드 컴포저 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-058, REQ-059, REQ-024]
 estimatedDiff: 95
