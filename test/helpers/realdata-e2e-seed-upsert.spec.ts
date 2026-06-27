@@ -16,6 +16,9 @@ import {
   buildRealDataUpsertArgs,
   PERSON_ID_PLACEHOLDER,
 } from "./realdata-e2e-seed-upsert";
+// self-wire(T-0716) 검증용 namespace import — 컴포저가 lazy require 로 같은 모듈을
+// 로드하므로 require 캐시 객체와 본 namespace 가 동일 참조라 spyOn 이 컴포저 호출을 가로챈다.
+import * as upsertConsistencyModule from "./realdata-e2e-seed-upsert-consistency";
 
 describe("buildRealDataUpsertArgs", () => {
   describe("happy path (buildRealDataE2eSeed 입력)", () => {
@@ -231,6 +234,126 @@ describe("buildRealDataUpsertArgs", () => {
       const second = buildRealDataUpsertArgs(seed);
       expect(second[0].personUpsert.create.fullName).not.toBe("MUTATED");
       expect(second[0].identityUpsertsByEmail).toHaveLength(1);
+    });
+  });
+
+  // ── self-wire(T-0716) — 값-정합 가드 단일 return 배선 ─────────────────────
+  // 컴포저가 단일 return 직전에 값-정합 가드
+  // assertRealDataUpsertArgsConsistentWithDescriptors 를 self-assert 하는지 검증한다.
+  // 컴포저는 lazy require 로 가드 모듈을 로드하고 본 spec 은 namespace import 하므로
+  // 동일 모듈 캐시 객체를 가리킨다 — spyOn 이 컴포저의 가드 호출을 가로챈다(순환 의존
+  // 없이 컴포저·가드·spec 가 모두 import 가능함은 본 suite green 자체가 증명).
+  describe("self-wire(T-0716) — 값-정합 가드 단일 return 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("① 정상 입력에서 값-정합 가드를 throw 0 으로 통과해 반환물이 self-wire 전과 deep-equal 하다(happy·무회귀)", () => {
+      const seed = buildRealDataE2eSeed();
+      const args = buildRealDataUpsertArgs(seed);
+      // self-wire 가 산출 구조/값을 바꾸지 않았음을 명세 산출과 deep-equal 로 재확인.
+      expect(args).toEqual(
+        seed.map((descriptor) => ({
+          personUpsert: {
+            where: { email: descriptor.person.email },
+            create: {
+              fullName: descriptor.person.fullName,
+              email: descriptor.person.email,
+              active: descriptor.person.active,
+            },
+            update: {
+              fullName: descriptor.person.fullName,
+              active: descriptor.person.active,
+            },
+          },
+          identityUpsertsByEmail: descriptor.serviceIdentities.map((i) => ({
+            where: {
+              personId_service: {
+                personId: PERSON_ID_PLACEHOLDER,
+                service: i.service,
+              },
+            },
+            create: {
+              service: i.service,
+              externalId: i.externalId,
+              isPrimary: i.isPrimary,
+            },
+            update: { isPrimary: i.isPrimary },
+          })),
+        })),
+      );
+    });
+
+    it("② 빈 배열 입력도 값-정합 가드 통과·빈 배열 반환(throw 0, 경계 입력)", () => {
+      expect(() => buildRealDataUpsertArgs([])).not.toThrow();
+      expect(buildRealDataUpsertArgs([])).toEqual([]);
+    });
+
+    it("③ 값-정합 가드 호출 배선 — 정확히 1회·산출 args 트리와 입력 descriptors 동일 인자로 호출(self-wire 발동 증명)", () => {
+      // spyOn 으로 컴포저가 실제로 lazy require 한 가드를 호출함을 입증 — 미배선 회귀 시 호출수 0 으로 fail.
+      const spy = jest.spyOn(
+        upsertConsistencyModule,
+        "assertRealDataUpsertArgsConsistentWithDescriptors",
+      );
+      const seed = buildRealDataE2eSeed();
+
+      const args = buildRealDataUpsertArgs(seed);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 반환 args 트리와 동일 참조·입력 descriptors 동일 참조를 인자로 받아야 한다(반환 직전 단언).
+      expect(spy).toHaveBeenCalledWith(args, seed);
+      expect(spy.mock.calls[0][0]).toBe(args);
+      expect(spy.mock.calls[0][1]).toBe(seed);
+    });
+
+    it("④ 값 가드 RangeError throw 전파 — 가드가 throw 하면 컴포저가 삼키지 않고 선전파(silent 통과 0, negative)", () => {
+      const sentinel = new RangeError("값 정합 위반(테스트 주입)");
+      jest
+        .spyOn(
+          upsertConsistencyModule,
+          "assertRealDataUpsertArgsConsistentWithDescriptors",
+        )
+        .mockImplementation(() => {
+          throw sentinel;
+        });
+
+      expect(() => buildRealDataUpsertArgs(buildRealDataE2eSeed())).toThrow(
+        sentinel,
+      );
+    });
+
+    it("⑤ 값 가드 TypeError(구조 결손 모사) throw 도 컴포저가 선전파한다(에러 종류 무관 전파, negative)", () => {
+      jest
+        .spyOn(
+          upsertConsistencyModule,
+          "assertRealDataUpsertArgsConsistentWithDescriptors",
+        )
+        .mockImplementation(() => {
+          throw new TypeError("구조 결손 모사");
+        });
+
+      expect(() => buildRealDataUpsertArgs(buildRealDataE2eSeed())).toThrow(
+        "구조 결손 모사",
+      );
+    });
+
+    it("⑥ 컴포저 매핑 단계는 throw 분기가 없어 가드는 항상 호출됨 — 정상 descriptor 에서 가드 호출 도달(분기 순서 보장)", () => {
+      // 본 컴포저 매핑(buildPersonUpsert/buildServiceIdentityUpsert)에는 throw 분기가
+      // 없으므로 "가드 도달 전 매핑 throw → 가드 미호출" negative 분기는 존재하지 않는다.
+      // 따라서 정상 입력에서 가드가 매핑 완료 후 반드시 호출됨을 명시 검증(분기 순서 보장).
+      const spy = jest.spyOn(
+        upsertConsistencyModule,
+        "assertRealDataUpsertArgsConsistentWithDescriptors",
+      );
+
+      buildRealDataUpsertArgs([
+        {
+          person: { fullName: "x", email: "x@x.test", active: true },
+          serviceIdentities: [],
+        },
+      ]);
+
+      expect(spy).toHaveBeenCalledTimes(1);
     });
   });
 

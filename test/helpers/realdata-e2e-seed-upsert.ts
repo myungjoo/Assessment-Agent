@@ -80,12 +80,34 @@ export interface RealDataUpsertArgs {
 export function buildRealDataUpsertArgs(
   descriptors: RealDataSeedDescriptor[],
 ): RealDataUpsertArgs[] {
-  return descriptors.map((descriptor) => ({
+  // 최종 args 트리를 먼저 묶는다(단일 return 직전 self-assert 배선 대상).
+  const upsertArgsList = descriptors.map((descriptor) => ({
     personUpsert: buildPersonUpsert(descriptor),
     identityUpsertsByEmail: descriptor.serviceIdentities.map(
       buildServiceIdentityUpsert,
     ),
   }));
+
+  // 반환 직전 값-정합 self-guard(T-0716, T-0712 result-summary-line wire 의 seed-side
+  // mirror) — 산출된 args 트리의 각 슬롯 값(where/create/update·compound-unique key·
+  // personId placeholder·service/externalId/isPrimary·순서)이 descriptor 필드만으로
+  // 독립 재유도한 expected 트리와 deep-equal 정합인지 단언한다. 위반 시
+  // RangeError(값 drift)/TypeError(구조 결손)를 전파해 손상된 upsert-args 가 step ②
+  // runner(prisma.upsert) 로 silent leak 하기 전 build-time fail-fast 차단한다. 가드는
+  // upsertArgsList/descriptors 를 읽기만 하므로 출력은 무영향(byte-identical·구조 무변경).
+  // 본 가드 모듈은 컴포저의 PERSON_ID_PLACEHOLDER 를 runtime value 로 import 하므로,
+  // 컴포저가 top-level import 하면 composer → guard → composer CommonJS 순환 의존이
+  // 형성된다 — 함수 본문 lazy require 로 우회한다(T-0712/T-0708 precedent, 가드 본체 무변경).
+  const consistency =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- 순환 의존 해소용 lazy require(가드가 본 모듈의 PERSON_ID_PLACEHOLDER 를 top-level value 로 사용하므로 top-level import 불가)
+    require("./realdata-e2e-seed-upsert-consistency") as typeof import("./realdata-e2e-seed-upsert-consistency");
+  const { assertRealDataUpsertArgsConsistentWithDescriptors } = consistency;
+  assertRealDataUpsertArgsConsistentWithDescriptors(
+    upsertArgsList,
+    descriptors,
+  );
+
+  return upsertArgsList;
 }
 
 // buildPersonUpsert — 1 Person descriptor → person.upsert args.
