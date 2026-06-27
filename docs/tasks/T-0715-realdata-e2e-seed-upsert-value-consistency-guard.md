@@ -2,7 +2,10 @@
 id: T-0715
 title: realdata-e2e seed-upsert args ↔ seed descriptor single-source 재유도 정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: ddcb794fa5cbaf457e6aa69383aa83cd46c3f2a0
+prNumber: 631
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-058, REQ-059, REQ-024]
 estimatedDiff: 300
