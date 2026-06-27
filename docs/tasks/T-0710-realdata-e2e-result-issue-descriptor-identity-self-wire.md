@@ -2,7 +2,7 @@
 id: T-0710
 title: realdata-e2e result-issue-descriptor identity 가드 컴포저 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 90
@@ -67,3 +67,10 @@ circular-dep 부재 (T-0708 과의 차이):
 ## Follow-ups
 
 (없음 — 생성 시점. result-issue-descriptor leaf 의 가드 신설(T-0709)+self-wire(T-0710) 짝이 닫히면 backlogNote 가 명명한 NO-GUARD leaf 사슬이 한 칸 더 마감됨 — 다음 fire 에서 잔여 미cover 영역 재survey.)
+
+## Result (DONE)
+
+- **완료**: 2026-06-27 (fire cron@aa-local15-02573de6, ADR-0036 stage5b claim-pickup — claims=[] 상태에서 pr-mode 단독 claim).
+- PR #626 squash 머지 `0b8b9ede`. reviewer round1 APPROVE(8-check 전 통과·finding 0), 4-게이트 PASS, CI green(양 check success, race 미발생).
+- 컴포저 `buildRealDataResultIssueDescriptor` 단일 return 직전에 `assertRealDataResultIssueDescriptorIdentityConsistent(descriptor, run)` self-assert 1줄 + top-level import 1줄 배선(body self-assert T-0646 옆 동형 패턴). type-only import 라 순환 의존 없음 — 가드 본체·src 무변경.
+- test-only +282/-0, 2 파일. identity self-wire 검증 describe 12 test 추가(spy 호출 증명 + RangeError/TypeError throw 전파 + negative 충분). 컴포저 line/func/branch 100%, 전체 346 suite/8597 test green.
