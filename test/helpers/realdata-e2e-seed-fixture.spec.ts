@@ -13,6 +13,11 @@ import {
   buildRealDataE2eSeed,
   type RealDataSeedDescriptor,
 } from "./realdata-e2e-seed-fixture";
+// self-wire(T-0720) 검증용 namespace import — 컴포저가 top-level value import 로 같은
+// 모듈을 로드하고 본 spec 도 namespace import 하므로 require 캐시의 동일 모듈 객체를
+// 가리킨다 — spyOn 이 컴포저의 가드 호출을 가로챈다(가드가 컴포저를 type-only import
+// 하므로 순환 의존 0, 본 suite green 자체가 증명).
+import * as consistencyModule from "./realdata-e2e-seed-fixture-consistency";
 
 describe("buildRealDataE2eSeed", () => {
   describe("happy path", () => {
@@ -124,6 +129,126 @@ describe("buildRealDataE2eSeed", () => {
 
     it("(d) 모든 fullName 이 빈 문자열이 아니다", () => {
       expect(seed.every((d) => d.person.fullName.length > 0)).toBe(true);
+    });
+  });
+
+  // ── self-wire(T-0720) — 불변식 정합 가드 단일 return 배선 ──────────────────
+  // 컴포저가 단일 return 직전에 불변식 정합 가드
+  // assertRealDataE2eSeedConsistentWithUsernames 를 self-assert 하는지 검증한다.
+  // 컴포저는 top-level value import 로 가드 모듈을 로드하고 본 spec 은 namespace import
+  // 하므로 동일 모듈 캐시 객체를 가리킨다 — spyOn 이 컴포저의 가드 호출을 가로챈다(가드가
+  // 컴포저를 type-only import 하므로 순환 의존 없이 컴포저·가드·spec 가 모두 import 가능함은
+  // 본 suite green 자체가 증명). 결정성 가드 assertRealDataE2eSeedDeterministic 는 2-출력
+  // 인자라 self-wire 대상 아님 — 아래 ⑦ 에서 spec 이 두 산출을 넘겨 직접 검증한다.
+  describe("self-wire(T-0720) — 불변식 정합 가드 단일 return 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("① 정상 호출에서 불변식 가드를 throw 0 으로 통과해 산출이 self-wire 전과 deep-equal 하다(happy·무회귀)", () => {
+      const seed = buildRealDataE2eSeed();
+      // self-wire 가 산출 구조/값을 바꾸지 않았음을 명세 기대값과 deep-equal 로 재확인.
+      expect(seed).toEqual([
+        {
+          person: {
+            fullName: "myungjoo",
+            email: "myungjoo@e2e.realdata.test",
+            active: true,
+          },
+          serviceIdentities: [
+            { service: "github.com", externalId: "myungjoo", isPrimary: true },
+          ],
+        },
+        {
+          person: {
+            fullName: "leemgs",
+            email: "leemgs@e2e.realdata.test",
+            active: true,
+          },
+          serviceIdentities: [
+            { service: "github.com", externalId: "leemgs", isPrimary: true },
+          ],
+        },
+      ]);
+    });
+
+    it("② 불변식 가드 호출 배선 — 정확히 1회·반환될 산출과 동일 참조를 인자로 호출(self-wire 발동 증명)", () => {
+      // spyOn 으로 컴포저가 실제로 가드를 호출함을 입증 — 미배선 회귀 시 호출수 0 으로 fail.
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataE2eSeedConsistentWithUsernames",
+      );
+
+      const seed = buildRealDataE2eSeed();
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 반환 seed 트리와 동일 참조를 인자로 받아야 한다(반환 직전 단언).
+      expect(spy).toHaveBeenCalledWith(seed);
+      expect(spy.mock.calls[0][0]).toBe(seed);
+    });
+
+    it("③ 매 호출마다 가드가 1회씩 호출된다 — 두 번 호출 시 누적 2회(호출별 self-assert 발동)", () => {
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataE2eSeedConsistentWithUsernames",
+      );
+
+      buildRealDataE2eSeed();
+      buildRealDataE2eSeed();
+
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it("④ 불변식 가드 RangeError throw 전파 — 가드가 throw 하면 컴포저가 삼키지 않고 선전파(silent 통과 0, negative)", () => {
+      const sentinel = new RangeError("불변식 위반(테스트 주입)");
+      jest
+        .spyOn(
+          consistencyModule,
+          "assertRealDataE2eSeedConsistentWithUsernames",
+        )
+        .mockImplementation(() => {
+          throw sentinel;
+        });
+
+      expect(() => buildRealDataE2eSeed()).toThrow(sentinel);
+    });
+
+    it("⑤ 불변식 가드 TypeError(구조 결손 모사) throw 도 컴포저가 선전파한다(에러 종류 무관 전파, negative)", () => {
+      jest
+        .spyOn(
+          consistencyModule,
+          "assertRealDataE2eSeedConsistentWithUsernames",
+        )
+        .mockImplementation(() => {
+          throw new TypeError("구조 결손 모사");
+        });
+
+      expect(() => buildRealDataE2eSeed()).toThrow("구조 결손 모사");
+    });
+
+    it("⑥ 컴포저 매핑 단계는 throw 분기가 없어 가드는 항상 호출됨 — 정상 호출에서 가드 호출 도달(분기 순서 보장)", () => {
+      // 본 컴포저는 무인자 결정론 builder 라 매핑 단계에 throw 분기가 없으므로 "가드 도달
+      // 전 매핑 throw → 가드 미호출" negative 분기는 존재하지 않는다. 따라서 정상 호출에서
+      // 가드가 매핑 완료 후 반드시 호출됨을 명시 검증(분기 순서 보장).
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataE2eSeedConsistentWithUsernames",
+      );
+
+      buildRealDataE2eSeed();
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it("⑦ 결정성 가드는 self-wire 대상 아님 — 두 산출이 deep-equal·참조-무공유 유지(spec 직접 검증, Deterministic 잔류)", () => {
+      // assertRealDataE2eSeedDeterministic 는 2-출력 인자(두 호출 산출)라 컴포저 단일 return
+      // 안에서 배선 불가 — spec 에서 두 산출을 넘겨 결정성·무공유를 직접 검증한다. 본 가드
+      // self-wire 가 결정성을 깨지 않음을 확인.
+      const first = buildRealDataE2eSeed();
+      const second = buildRealDataE2eSeed();
+      expect(() =>
+        consistencyModule.assertRealDataE2eSeedDeterministic(first, second),
+      ).not.toThrow();
     });
   });
 

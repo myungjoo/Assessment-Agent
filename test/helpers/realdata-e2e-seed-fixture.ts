@@ -28,6 +28,8 @@
 //     배선은 후속).
 //   - Person/ServiceIdentity service/repository / schema.prisma 변경 0.
 
+import { assertRealDataE2eSeedConsistentWithUsernames } from "./realdata-e2e-seed-fixture-consistency";
+
 // RealDataServiceIdentitySeed — descriptor 내 ServiceIdentity 1 개의 seed shape.
 // prisma `model ServiceIdentity` 의 사용자 지정 필드(service/externalId/isPrimary)와
 // 1:1. id/personId/createdAt/updatedAt 는 DB write 시점에 생성되므로 본 빌더가
@@ -74,7 +76,7 @@ const REAL_DATA_GITHUB_USERNAMES = ["myungjoo", "leemgs"] as const;
 //     `@@unique([personId, service])` 정합) + externalId = username(non-empty) +
 //     isPrimary=true.
 export function buildRealDataE2eSeed(): RealDataSeedDescriptor[] {
-  return REAL_DATA_GITHUB_USERNAMES.map((username) => ({
+  const seed = REAL_DATA_GITHUB_USERNAMES.map((username) => ({
     person: {
       // fullName — 실명 미보유(공개 username 만). 결정론적 표시명으로 username 사용.
       // R-59 정합 — raw 활동 아님, Person 메타데이터일 뿐.
@@ -86,10 +88,29 @@ export function buildRealDataE2eSeed(): RealDataSeedDescriptor[] {
     },
     serviceIdentities: [
       {
-        service: "github.com",
+        service: "github.com" as const,
         externalId: username,
         isPrimary: true,
       },
     ],
   }));
+
+  // 반환 직전 username-파생 불변식 정합 self-guard(T-0720, T-0714/T-0718 self-wire 의
+  // seed-side mirror) — 산출 `seed` 의 각 descriptor 가 자신의 `person.fullName`
+  // (= username) single-source 로부터 독립 재유도한 불변식(email = `${username}@e2e.
+  // realdata.test`·externalId = username·service="github.com"·isPrimary=true·active=true·
+  // serviceIdentities 길이 1·email distinct·정확히 1 primary)을 만족하는지 단언한다. 본
+  // 컴포저는 무인자 결정론 builder 라 매핑 단계에 throw 분기가 없지만, 미래 회귀(email
+  // suffix drift·externalId≠username·isPrimary 누락·service 중복·primary 개수 위반·email
+  // 중복)가 생기면 손상된 산출이 caller surface(step ② upsert/resolve runner)로 silent
+  // leak 하기 전 build-time fail-fast 로 차단한다. 가드는 본 컴포저로부터
+  // `RealDataSeedDescriptor` 를 `import type` only(value import 0)로 가져오므로 본 컴포저가
+  // 가드를 top-level `import` 해도 CommonJS 순환 의존 0(T-0714/T-0718 type-only top-level
+  // import mirror, T-0716 lazy require 불요). 결정성 가드
+  // `assertRealDataE2eSeedDeterministic` 는 2-출력 인자(두 호출 산출)를 받는 형태라 컴포저
+  // 단일 return 안에서 배선 불가 — self-wire 대상 아님(spec 에서 두 산출을 넘겨 잔류 검증).
+  // 정합이면 void — `seed` 비변형·byte-identical 반환.
+  assertRealDataE2eSeedConsistentWithUsernames(seed);
+
+  return seed;
 }
