@@ -164,9 +164,89 @@ else
 fi
 
 # ──────────────────────────────────────────────────────────────────────────
+echo "[T5] CAS-race 재시도 분기 회귀 가드 — 첫 push 가 CAS lose(20) → main-loop"
+echo "     \`20)\` 재시도 분기 → 새 tip 재독 후 둘째 시도 성공 (B5)"
+echo "     (pre-fix 에서 FAIL: rc 캡처 버그면 첫 lose 가 0 으로 덮여 가짜 exit 0 +"
+echo "      claim 미박제 / post-fix 에서 PASS: 재시도 후 실제 claim 박제 + exit 0)"
+# sync-claim-pr.test.sh [T8] mirror. attempt() 의 rc 캡처 버그(if helper; then;fi
+# 뒤 rc=$? → 항상 0)가 살아있으면 첫 CAS lose(20)가 0 으로 덮여 그대로 exit 0
+# 하지만 ref tip 은 갱신되지 않는다 — "성공 보고했는데 claim 미박제" 로 본 test 가
+# FAIL 한다. 동시성을 결정론적으로 박제하기 위해 origin.git 에 **서버측 update
+# hook** 을 심어, lock ref 로의 **첫** push 만 한 번 거부(competing pusher 가 끼어든
+# ref 전진 효과)하고 자기 자신을 무장 해제한다. 그러면 첫 CAS 는 반드시 lose(20)
+# → \`20)\` 재시도 → 둘째 push 는 hook 통과로 성공해야 한다.
+mkdir -p "$WORK/origin.git/hooks"
+HOOK5="$WORK/origin.git/hooks/update"
+ARM5="$WORK/origin.git/hooks/.t5-armed"
+: > "$ARM5"   # 무장 — hook 이 존재하는 동안 첫 push 1회만 거부.
+cat > "$HOOK5" <<EOF
+#!/usr/bin/env bash
+# T5: lock ref 로의 첫 push 만 1회 거부(CAS lose 시뮬레이션), 이후 통과.
+ref="\$1"
+if [ "\$ref" = "$REF" ] && [ -e "$ARM5" ]; then
+  rm -f "$ARM5"
+  echo "T5 update hook: 첫 push 거부(race 시뮬레이션)" >&2
+  exit 1
+fi
+exit 0
+EOF
+chmod +x "$HOOK5"
+OUT5="$(run_claim A loopA@h-1 T-5001)"; RC5=$?
+rm -f "$HOOK5" "$ARM5"   # hook 정리(이후 test 영향 0).
+git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+if [ $RC5 -eq 0 ] && [ "$OUT5" = "T-5001" ]; then
+  pass "첫 CAS lose 후 재시도 분기에서 최종 성공 exit 0 + claim 신호 (out=$OUT5)"
+else
+  fail "CAS-race 재시도 실패 — \`20)\` 분기 dead code 의심(rc 캡처 버그 회귀) (rc=$RC5 out=$OUT5)"
+fi
+if [ "$(count_entry T-5001)" = "1" ]; then
+  pass "재시도 후 ref tip 에 T-5001 정확 박제(가짜 성공 아님)"
+else
+  fail "성공 보고했으나 claim 미박제 — rc 캡처 버그 회귀 (entry=$(count_entry T-5001))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
+echo "[T6] 재시도소진 분기 회귀 가드 — hook 이 매 push 영구 거부 + CLAIM_RETRIES=1"
+echo "     → 매 라운드 CAS lose(20) → 재시도소진 → main-loop \`exit 1\` 분기 (B5 소진)"
+echo "     (pre-fix 에서 FAIL: 가짜 성공 exit 0 으로 소진 분기 미도달 /"
+echo "      post-fix 에서 PASS: 소진 시 non-zero + \"소진\" 사유 + ref tip 불변)"
+# sync-claim-pr.test.sh [T12] mirror. rc 캡처 버그면 매 CAS lose(20)가 0 으로
+# 덮여 첫 attempt 에서 곧장 exit 0(가짜 성공) → 소진 분기에 도달하지 못한다.
+# competitor 를 매번 이기게 만들기 위해 update hook 이 lock ref 로의 **모든** push
+# 를 거부(항상 ref 가 전진해 lease mismatch 인 상황과 동형)하게 하고, CLAIM_RETRIES
+# 를 작게(1) 줘 소진을 빠르게 유도한다. 기대: 매 라운드 CAS lose(20) → 재시도 →
+# 소진 → "재시도 ... 소진" 사유와 함께 non-zero exit, ref tip 은 끝까지 불변.
+git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+TIP_B6="$(git -C A ls-remote "$WORK/origin.git" "$REF" | cut -f1)"
+HOOK6="$WORK/origin.git/hooks/update"
+cat > "$HOOK6" <<EOF
+#!/usr/bin/env bash
+# T6: lock ref 로의 모든 push 를 항상 거부(competitor 영구 승리 시뮬레이션).
+[ "\$1" = "$REF" ] && { echo "T6 update hook: push 영구 거부" >&2; exit 1; }
+exit 0
+EOF
+chmod +x "$HOOK6"
+ERR6="$( ( cd "$WORK/A" && CLAIM_REMOTE="$WORK/origin.git" CLAIM_REF="$REF" \
+  CLAIM_NOW="2026-06-10T00:00:00Z" CLAIM_RETRIES=1 \
+  bash "$SCRIPT" loopA@h-1 T-6001 ) 2>&1 >/dev/null )"; RC6=$?
+rm -f "$HOOK6"   # hook 정리.
+git -C A fetch -q "$WORK/origin.git" "$REF" 2>/dev/null || true
+TIP_A6="$(git -C A ls-remote "$WORK/origin.git" "$REF" | cut -f1)"
+if [ $RC6 -ne 0 ] && printf '%s' "$ERR6" | grep -qF "소진"; then
+  pass "재시도 소진 시 non-zero exit + 소진 사유 — \`exit 1\` 분기 도달 (rc=$RC6)"
+else
+  fail "소진 분기 미도달 — rc 캡처 버그로 가짜 성공 의심 (rc=$RC6 err=$ERR6)"
+fi
+if [ "$TIP_B6" = "$TIP_A6" ] && [ "$(count_entry T-6001)" = "0" ]; then
+  pass "소진까지 ref tip 불변 + T-6001 미박제(부분 반영 0)"
+else
+  fail "소진인데 상태 변동 (tip변경=$([ "$TIP_B6" != "$TIP_A6" ] && echo yes || echo no) entry=$(count_entry T-6001))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
 echo ""
 if [ $FAIL -eq 0 ]; then
-  echo "select-claim 검증 통과 (T1 happy / T2 이중claim0 / T3 claimable부재 / T4 stale거부)"
+  echo "select-claim 검증 통과 (T1 happy / T2 이중claim0 / T3 claimable부재 / T4 stale거부 / T5 CAS-race재시도 / T6 재시도소진)"
   exit 0
 else
   echo "select-claim 검증 실패"

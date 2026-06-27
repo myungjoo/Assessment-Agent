@@ -126,14 +126,19 @@ attempt() {
   tomb_blob="$(printf '{"holder":"","since":""}' | git hash-object -w --stdin)"
 
   # 헬퍼는 성공 시 새 tip sha 를 stdout 으로, claim 성공 시 호출측은 task id 를
-  # stdout 으로 내야 하므로 헬퍼 출력은 버리고 return code 만 본다.
-  if lock_tree_cas_push "$REMOTE" "$REF" "$old_sha" '\s(claims\.json|lock\.json)$' \
-       "claims.json=${claims_blob}" "lock.json=${tomb_blob}" \
-       "claim ${task} by ${OWNER}" >/dev/null; then
+  # stdout 으로 내야 하므로 헬퍼 출력은 버린다(>/dev/null). rc 를 **헬퍼 호출
+  # 직후 즉시** 캡처해야 한다 — `if helper; then ...; fi` 뒤에서 `rc=$?` 를 읽으면
+  # if 가 false 분기(else 없음)일 때 compound `if` 자체의 종료코드 0 을 받게 돼
+  # CAS lose(20)/빈 commit 가드(30)가 0 으로 덮여 재시도/소진 분기가 dead code 가
+  # 된다(T-0732 PR #648 동형 버그). 그래서 rc 를 먼저 캡처한 뒤 분기한다.
+  lock_tree_cas_push "$REMOTE" "$REF" "$old_sha" '\s(claims\.json|lock\.json)$' \
+    "claims.json=${claims_blob}" "lock.json=${tomb_blob}" \
+    "claim ${task} by ${OWNER}" >/dev/null
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
     printf '%s\n' "$task"
     return 0
   fi
-  rc=$?
   # 헬퍼의 빈 commit 가드(30)는 본 script 의 상위 case 에서 그대로 전파되고,
   # CAS lose(20)는 재시도 루프가 받는다(현 의미 보존).
   return "$rc"
