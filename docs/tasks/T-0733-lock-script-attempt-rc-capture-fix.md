@@ -2,7 +2,7 @@
 id: T-0733
 title: select-claim·reclaim-stale-claim 의 attempt() rc-capture 버그 수정 + 실 CAS-race·재시도소진 회귀 가드
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 150
