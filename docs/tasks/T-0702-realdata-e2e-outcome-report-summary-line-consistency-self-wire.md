@@ -2,7 +2,7 @@
 id: T-0702
 title: realdata-e2e outcome-report 종단 컴포저 self-wire 배선 (T-0701 가드 짝 닫기)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 80
@@ -64,3 +64,10 @@ implementer → tester (self-wire 선례 T-0700 거의 byte-동형 — architect
 
 - (본 task 머지 후) outcome-report 측 build-time consistency 사슬 완결 점검 — summaryLine 정합 가드(T-0701) 신설 + 종단 self-wire(본 task) 닫힘 후, step③/step⑤ build-time consistency 사슬 self-wire 잔여 sweep 으로 planner 가 다음 짝 큐잉.
 - NO-GUARD 컴포저 중 상위 가드 미cover leaf(live-gating, result-summary, result-issue-{action,descriptor} 등) 가드 신설 여부 case-by-case survey 후 큐잉.
+
+## 완료 기록
+
+- **Status: DONE** (2026-06-27T04:50Z, cron@aa-cloud-2fb578)
+- PR #618 squash 머지 `f4ab99df` — reviewer round1 APPROVE(0 BLOCKER/0 MAJOR/0 MINOR), 4-게이트 PASS, CI green(first-pass).
+- 변경: +89/-2, 2 파일 test-only(`test/helpers/realdata-e2e-result-issue-outcome-report.ts` self-wire + `.spec.ts` self-wire describe). production `src/` 변경 0.
+- `buildRealDataResultIssueOutcomeReport` 단일 return 직전 `assertRealDataResultIssueOutcomeReportSummaryLineConsistent(report)` self-assert 배선 — 기존 입력 guard 유지, 컴포저 cov 100% 보존.
