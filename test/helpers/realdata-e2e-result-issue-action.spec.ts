@@ -16,6 +16,7 @@ import {
   resolveRealDataResultIssueAction,
   type RealDataResultIssueSearchHit,
 } from "./realdata-e2e-result-issue-action";
+import * as actionConsistency from "./realdata-e2e-result-issue-action-consistency";
 
 const MARKER = "<!-- realdata-e2e-result-issue: 2026-06-23@abc1234 -->";
 
@@ -194,5 +195,121 @@ describe("resolveRealDataResultIssueAction", () => {
     (a as { issueNumber: number }).issueNumber = 999;
     const b = resolveRealDataResultIssueAction([hitWithMarker(42)], MARKER);
     expect(b).toEqual({ action: "update", issueNumber: 42 });
+  });
+
+  // ── self-wire(T-0704) — result-issue-action 정합 가드 컴포저 양분기 배선 ────
+  // 컴포저는 return 사이트가 둘(create 분기·update 분기)이다 — self-assert 를 양
+  // 분기 모두에서 발동시켜야 한다(T-0702 단일 return 과의 유일한 구조 차이).
+  describe("self-wire(T-0704) — 정합 가드 컴포저 양분기 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("create 분기 정상 입력에서 self-wire 가 신규 가드를 throw 0 으로 통과해 action 을 반환한다", () => {
+      // self-wire 발동 후에도 정상 산출물은 가드를 통과(void) → 기존 happy-path 와
+      // 동일하게 {action:'create'} 를 반환한다(관측 불가능하게 동일).
+      expect(resolveRealDataResultIssueAction([], MARKER)).toEqual({
+        action: "create",
+      });
+    });
+
+    it("update 분기 정상 입력에서 self-wire 가 신규 가드를 throw 0 으로 통과해 최소 number action 을 반환한다", () => {
+      // update 분기도 동일 — 최소 issueNumber 선택이 가드를 통과(void) → 기존
+      // happy-path 와 동일하게 {action:'update', issueNumber: 최소} 를 반환한다.
+      expect(
+        resolveRealDataResultIssueAction(
+          [hitWithMarker(200), hitWithMarker(100)],
+          MARKER,
+        ),
+      ).toEqual({ action: "update", issueNumber: 100 });
+    });
+
+    it("create 경로에서 정합 가드를 정확히 1회·반환 action/입력(searchHits,marker) 동일 인자로 호출한다(self-wire 발동 증명)", () => {
+      // spyOn 으로 컴포저가 실제로 신규 가드를 호출함을 입증 — self-wire 가 누락되면
+      // 호출수 0 으로 본 test 가 fail 한다. 인자 순서(action, searchHits, marker):
+      // action 은 반환 객체 동일 참조, searchHits/marker 는 입력 동일 참조.
+      const spy = jest.spyOn(
+        actionConsistency,
+        "assertRealDataResultIssueActionConsistentWithInputs",
+      );
+      const searchHits: RealDataResultIssueSearchHit[] = [hitWithoutMarker(7)];
+
+      const action = resolveRealDataResultIssueAction(searchHits, MARKER);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(action, searchHits, MARKER);
+      // 가드에 넘겨진 인자가 컴포저 반환물/입력과 동일 참조임을 확인.
+      expect(spy.mock.calls[0][0]).toBe(action);
+      expect(spy.mock.calls[0][1]).toBe(searchHits);
+      expect(spy.mock.calls[0][2]).toBe(MARKER);
+    });
+
+    it("update 경로에서 정합 가드를 정확히 1회·반환 action/입력(searchHits,marker) 동일 인자로 호출한다(self-wire 발동 증명)", () => {
+      // update 분기에서도 동일하게 1회 호출·인자 순서(action, searchHits, marker)
+      // 검증 — 양 분기 모두 배선됐음을 입증(self-wire 누락 시 fail).
+      const spy = jest.spyOn(
+        actionConsistency,
+        "assertRealDataResultIssueActionConsistentWithInputs",
+      );
+      const searchHits: RealDataResultIssueSearchHit[] = [
+        hitWithMarker(50),
+        hitWithMarker(30),
+      ];
+
+      const action = resolveRealDataResultIssueAction(searchHits, MARKER);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(action, searchHits, MARKER);
+      expect(spy.mock.calls[0][0]).toBe(action);
+      expect(spy.mock.calls[0][0]).toEqual({
+        action: "update",
+        issueNumber: 30,
+      });
+      expect(spy.mock.calls[0][1]).toBe(searchHits);
+      expect(spy.mock.calls[0][2]).toBe(MARKER);
+    });
+
+    it("입력 guard throw 분기(빈 marker)에서는 후보 추출/분기에 도달하지 않아 정합 가드를 호출하지 않는다", () => {
+      // 비식별 입력(빈 marker)은 후보 추출 전 입력 guard 에서 throw → self-wire 미도달.
+      // self-wire 가 기존 입력 guard throw 정책을 깨거나 우회하지 않음을 검증.
+      const spy = jest.spyOn(
+        actionConsistency,
+        "assertRealDataResultIssueActionConsistentWithInputs",
+      );
+
+      expect(() =>
+        resolveRealDataResultIssueAction([hitWithMarker(1)], ""),
+      ).toThrow(/marker/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("입력 guard throw 분기(비양수 number)에서도 정합 가드를 호출하지 않는다", () => {
+      // hit number 0 이하/비정수는 후보 추출 전 input guard throw → self-wire 미도달.
+      const spy = jest.spyOn(
+        actionConsistency,
+        "assertRealDataResultIssueActionConsistentWithInputs",
+      );
+
+      expect(() =>
+        resolveRealDataResultIssueAction([hitWithMarker(0)], MARKER),
+      ).toThrow(/number/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("정합 가드가 throw 하면 컴포저가 그 throw 를 그대로 선전파한다(가드 throw 전파)", () => {
+      // 가드를 강제로 throw 시켜 self-wire 가 가드의 throw 를 삼키지 않고 선전파함을 검증.
+      jest
+        .spyOn(
+          actionConsistency,
+          "assertRealDataResultIssueActionConsistentWithInputs",
+        )
+        .mockImplementation(() => {
+          throw new RangeError("정합 위반 모사");
+        });
+
+      expect(() =>
+        resolveRealDataResultIssueAction([hitWithMarker(42)], MARKER),
+      ).toThrow(/정합 위반 모사/);
+    });
   });
 });
