@@ -2,7 +2,10 @@
 id: T-0734
 title: acquire-lock retry-loop CAS-race·재시도소진 회귀 가드 보강 (T-0733 split 2/2)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 650
+mergedAs: c3bdf01d
+completed: 2026-06-27T23:45:00Z
 commitMode: pr
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 75
