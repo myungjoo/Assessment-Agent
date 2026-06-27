@@ -19,6 +19,9 @@ import {
   REALDATA_E2E_REQUIRED_ENV,
   resolveRealDataE2eLiveGating,
 } from "./realdata-e2e-live-gating";
+// self-wire(T-0708) 검증용 namespace import — 컴포저가 lazy require 로 같은 모듈
+// 캐시 객체를 가져오므로, 이 namespace 에 spyOn 한 것을 컴포저 호출이 관측한다.
+import * as gatingConsistency from "./realdata-e2e-live-gating-consistency";
 
 // 전 7 gating env 가 모두 set 된 모의 env 를 만든다(실값 아님 — 합성 토큰, §9).
 // 각 키를 식별 가능한 distinct 값으로 채워 매핑 정확성을 assert 할 수 있게 한다.
@@ -215,6 +218,141 @@ describe("resolveRealDataE2eLiveGating", () => {
         REALDATA_E2E_LLM_API_VERSION_ENV,
         REALDATA_E2E_GITHUB_READ_PAT_ENV,
       ]);
+    });
+  });
+
+  // ── self-wire(T-0708) — 정합 가드 컴포저 양분기 배선 ──────────────────────
+  // 컴포저가 두 return 직전에 assertRealDataE2eLiveGatingConsistentWithEnv 를
+  // self-assert 하는지 검증한다. lazy require 로 import 한 가드와 본 spec 의 namespace
+  // import 가 동일 모듈 캐시 객체를 가리키므로 spyOn 이 컴포저 호출을 가로챈다.
+  describe("self-wire(T-0708) — 정합 가드 양분기 배선", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("active 분기 정상 입력에서 self-wire 가 가드를 throw 0 으로 통과해 반환물이 self-wire 전과 동일하다", () => {
+      // 정상 산출물은 가드를 통과(void) → 기존 happy-path 와 byte-identical 한 반환.
+      const gating = resolveRealDataE2eLiveGating(fullEnv());
+      expect(gating).toEqual({
+        enabled: true,
+        ollama: {
+          baseUrl: "http://localhost:11434/v1",
+          apiKey: "ollama-dummy-key",
+          model: "llama3.1",
+          provider: "openai-compatible",
+          apiVersion: "2024-02-01",
+        },
+        githubPat: "ghp_synthetic_pat_value",
+        reason: "realdata-e2e live smoke 활성 — gating env 7 종 모두 set",
+      });
+    });
+
+    it("skip 분기 정상 입력에서 self-wire 가 가드를 throw 0 으로 통과해 반환물이 self-wire 전과 동일하다", () => {
+      // enable flag 부재 → skip 분기. 가드 통과(void) + 반환(enabled/reason) byte-identical.
+      const env = fullEnv();
+      delete env[REALDATA_E2E_LIVE_TEST_ENV];
+      const gating = resolveRealDataE2eLiveGating(env);
+      expect(gating).toEqual({
+        enabled: false,
+        reason: `realdata-e2e live smoke skip — gating env 부재: ${REALDATA_E2E_LIVE_TEST_ENV}`,
+      });
+    });
+
+    it("active 경로에서 정합 가드를 정확히 1회·반환 gating/입력 env 동일 인자로 호출한다(self-wire 발동 증명)", () => {
+      // spyOn 으로 컴포저가 실제로 가드를 호출함을 입증 — self-wire 누락 시 호출수 0 으로 fail.
+      const spy = jest.spyOn(
+        gatingConsistency,
+        "assertRealDataE2eLiveGatingConsistentWithEnv",
+      );
+      const env = fullEnv();
+
+      const gating = resolveRealDataE2eLiveGating(env);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(gating, env);
+      // 가드에 넘겨진 인자가 컴포저 반환물/입력과 동일 참조임을 확인.
+      expect(spy.mock.calls[0][0]).toBe(gating);
+      expect(spy.mock.calls[0][1]).toBe(env);
+    });
+
+    it("skip 경로에서도 정합 가드를 정확히 1회·반환 gating/입력 env 동일 인자로 호출한다(양분기 배선 증명)", () => {
+      // skip 분기에서도 1회 호출·인자(gating, env) 검증 — 양 분기 모두 배선됐음을 입증.
+      const spy = jest.spyOn(
+        gatingConsistency,
+        "assertRealDataE2eLiveGatingConsistentWithEnv",
+      );
+      const env: NodeJS.ProcessEnv = {};
+
+      const gating = resolveRealDataE2eLiveGating(env);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(gating, env);
+      expect(spy.mock.calls[0][0]).toBe(gating);
+      expect(spy.mock.calls[0][0].enabled).toBe(false);
+      expect(spy.mock.calls[0][1]).toBe(env);
+    });
+
+    it("env 완전성 경계(7 env 중 하나만 부재)에서 skip 경로로 진입하며 가드를 1회 호출한다", () => {
+      // 7 env 중 PAT 하나만 부재 → active 가 아니라 skip 분기로 진입함을 검증(경계 cover).
+      const spy = jest.spyOn(
+        gatingConsistency,
+        "assertRealDataE2eLiveGatingConsistentWithEnv",
+      );
+      const env = fullEnv();
+      delete env[REALDATA_E2E_GITHUB_READ_PAT_ENV];
+
+      const gating = resolveRealDataE2eLiveGating(env);
+
+      expect(gating.enabled).toBe(false);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0]).toBe(gating);
+    });
+
+    it("active 분기에서 가드가 RangeError 를 throw 하면 컴포저가 삼키지 않고 선전파한다", () => {
+      // 가드를 강제로 RangeError throw 시켜 self-wire 가 throw 를 삼키지 않고 전파함을 검증.
+      jest
+        .spyOn(
+          gatingConsistency,
+          "assertRealDataE2eLiveGatingConsistentWithEnv",
+        )
+        .mockImplementation(() => {
+          throw new RangeError("정합 위반 모사(active)");
+        });
+
+      expect(() => resolveRealDataE2eLiveGating(fullEnv())).toThrow(
+        /정합 위반 모사\(active\)/,
+      );
+    });
+
+    it("skip 분기에서 가드가 RangeError 를 throw 하면 컴포저가 삼키지 않고 선전파한다", () => {
+      // skip 분기에서도 가드 throw 전파를 검증 — 한쪽 분기만 배선한 회귀를 잡는다.
+      jest
+        .spyOn(
+          gatingConsistency,
+          "assertRealDataE2eLiveGatingConsistentWithEnv",
+        )
+        .mockImplementation(() => {
+          throw new RangeError("정합 위반 모사(skip)");
+        });
+
+      const env: NodeJS.ProcessEnv = {};
+      expect(() => resolveRealDataE2eLiveGating(env)).toThrow(
+        /정합 위반 모사\(skip\)/,
+      );
+    });
+
+    it("active 분기에서 가드가 TypeError(구조 결손 모사)를 throw 해도 컴포저가 선전파한다", () => {
+      // 구조 결손 시나리오의 TypeError 도 삼키지 않고 전파됨을 검증(negative — 에러 종류 무관 전파).
+      jest
+        .spyOn(
+          gatingConsistency,
+          "assertRealDataE2eLiveGatingConsistentWithEnv",
+        )
+        .mockImplementation(() => {
+          throw new TypeError("구조 결손 모사");
+        });
+
+      expect(() => resolveRealDataE2eLiveGating(fullEnv())).toThrow(TypeError);
     });
   });
 });
