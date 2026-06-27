@@ -25,6 +25,7 @@ import {
   type RealDataResultIssueRunRef,
 } from "./realdata-e2e-result-issue-descriptor";
 import * as bodyConsistencyModule from "./realdata-e2e-result-issue-descriptor-body-consistency";
+import * as identityConsistencyModule from "./realdata-e2e-result-issue-descriptor-identity-consistency";
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
 import { formatRealDataResultSummaryLine } from "./realdata-e2e-result-summary-line";
 import { renderRealDataResultSummaryMarkdown } from "./realdata-e2e-result-summary-markdown";
@@ -704,6 +705,274 @@ describe("buildRealDataResultIssueDescriptor", () => {
       expect(descriptor.body).not.toContain("narrative");
       expect(descriptor.body).not.toContain("unitId");
       expect(descriptor.body).not.toContain("rawActivity");
+    });
+  });
+
+  // T-0710 — buildRealDataResultIssueDescriptor 가 반환 직전 자기 산출 descriptor 의
+  // title·marker identity 정합을 assertRealDataResultIssueDescriptorIdentityConsistent
+  // 로 self-assert 하도록 배선됐음을 검증한다(T-0709 identity 가드 신설의 self-wire 짝).
+  // builder 는 항상 정합 descriptor 를 합성하므로 identity 가드의 throw 분기는 builder
+  // 입력으로 직접 유발 불가 — 본 describe 는 (a) self-wire 가 실제 호출 경로에 배선됐음
+  // (정확히 1 회·(descriptor, run) 인자) + (b) self-wire 가 builder 동작(title/marker/body
+  // byte-identical)을 깨지 않음 + (c) 가드 throw 시 컴포저가 삼키지 않고 전파함에 집중한다.
+  describe("identity-consistency self-guard self-wire 배선 (T-0710)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    // negative ① — self-wire 배선 검증: 가드가 builder 산출 경로에 실제 배선됐음을
+    // spyOn 으로 감시(정확히 1 회·(descriptor, run) 인자로 호출).
+    it("정상 입력에서 identity 가드를 정확히 1 회 (descriptor, run) 인자로 호출한다", () => {
+      const spy = jest.spyOn(
+        identityConsistencyModule,
+        "assertRealDataResultIssueDescriptorIdentityConsistent",
+      );
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 2, medium: 1 },
+        byContribution: { low: 1, medium: 1, high: 1 },
+        totalVolume: 42,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 가드는 (합성된 descriptor, 입력 run) 로 호출된다.
+      expect(spy).toHaveBeenCalledWith(
+        {
+          title: descriptor.title,
+          marker: descriptor.marker,
+          body: descriptor.body,
+        },
+        HAPPY_RUN,
+      );
+    });
+
+    // negative ② — body-consistency(T-0646)와 identity(T-0709) 가드가 **둘 다** 반환
+    // 직전에 호출됨을 검증(한쪽만 배선한 회귀 차단 — 두 spy 모두 1 회 호출 확인).
+    it("body-consistency 가드와 identity 가드를 둘 다 정확히 1 회씩 호출한다", () => {
+      const bodySpy = jest.spyOn(
+        bodyConsistencyModule,
+        "assertRealDataResultIssueDescriptorBodyConsistent",
+      );
+      const identitySpy = jest.spyOn(
+        identityConsistencyModule,
+        "assertRealDataResultIssueDescriptorIdentityConsistent",
+      );
+      const summary = makeSummary({
+        count: 2,
+        byDifficulty: { easy: 1, medium: 1 },
+        byContribution: { low: 1, medium: 1 },
+        totalVolume: 7,
+      });
+
+      buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+
+      expect(bodySpy).toHaveBeenCalledTimes(1);
+      expect(identitySpy).toHaveBeenCalledTimes(1);
+    });
+
+    // happy-path — 정상 summary(섞임, totalVolume>0) → identity self-guard 통과해 정상
+    // descriptor 반환(throw 0).
+    it("정상 summary + 정상 run 에서 identity self-guard 통과해 정상 descriptor 를 반환한다(throw 0)", () => {
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 2, medium: 1 },
+        byContribution: { low: 1, medium: 1, high: 1 },
+        totalVolume: 42,
+      });
+
+      expect(() =>
+        buildRealDataResultIssueDescriptor(summary, HAPPY_RUN),
+      ).not.toThrow();
+    });
+
+    // branch — count=0·volume=0·전 슬롯 0 빈 summary 도 identity self-guard 통과.
+    it("count=0·volume=0 빈 summary 도 identity self-guard 통과해 정상 descriptor 를 반환한다", () => {
+      const summary = makeSummary({
+        count: 0,
+        byDifficulty: {},
+        byContribution: {},
+        totalVolume: 0,
+      });
+
+      expect(() =>
+        buildRealDataResultIssueDescriptor(summary, HAPPY_RUN),
+      ).not.toThrow();
+    });
+
+    // negative ③ — identity 가드가 RangeError(값 정합 위반) throw 시 컴포저가 삼키지
+    // 않고 전파(손상 descriptor 미반환).
+    it("identity 가드가 RangeError 를 throw 하면 컴포저가 삼키지 않고 전파한다", () => {
+      jest
+        .spyOn(
+          identityConsistencyModule,
+          "assertRealDataResultIssueDescriptorIdentityConsistent",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: title·marker run token drift(테스트 주입).",
+          );
+        });
+      const summary = makeSummary({
+        count: 1,
+        byDifficulty: { easy: 1 },
+        byContribution: { low: 1 },
+        totalVolume: 1,
+      });
+
+      expect(() =>
+        buildRealDataResultIssueDescriptor(summary, HAPPY_RUN),
+      ).toThrow(RangeError);
+    });
+
+    // negative ④ — identity 가드가 TypeError(구조 결손) throw 시 컴포저가 전파.
+    it("identity 가드가 TypeError 를 throw 하면 컴포저가 삼키지 않고 전파한다", () => {
+      jest
+        .spyOn(
+          identityConsistencyModule,
+          "assertRealDataResultIssueDescriptorIdentityConsistent",
+        )
+        .mockImplementation(() => {
+          throw new TypeError(
+            "descriptor.title 이 문자열이 아니다(테스트 주입).",
+          );
+        });
+      const summary = makeSummary({
+        count: 1,
+        byDifficulty: { easy: 1 },
+        byContribution: { low: 1 },
+        totalVolume: 1,
+      });
+
+      expect(() =>
+        buildRealDataResultIssueDescriptor(summary, HAPPY_RUN),
+      ).toThrow(TypeError);
+    });
+
+    // error 분기 ① — 빈 gitSha run 은 identity self-guard 도달 전 식별자 guard
+    // (assertNonBlank)에서 throw(self-wire 가 기존 식별자 guard 우선순위를 깨지 않음).
+    it("빈 gitSha 는 identity self-guard 도달 전 식별자 guard 에서 throw 하고 identity 가드를 호출하지 않는다", () => {
+      const spy = jest.spyOn(
+        identityConsistencyModule,
+        "assertRealDataResultIssueDescriptorIdentityConsistent",
+      );
+
+      expect(() =>
+        buildRealDataResultIssueDescriptor(baseSummary, {
+          gitSha: "",
+          dateToken: "2026-06-23",
+        }),
+      ).toThrow(/gitSha/);
+      // 식별자 guard 가 먼저 throw → identity 가드 미도달.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    // error 분기 ② — 공백-only dateToken run 도 identity self-guard 도달 전 식별자
+    // guard 에서 throw.
+    it("공백-only dateToken 은 identity self-guard 도달 전 식별자 guard 에서 throw 한다", () => {
+      const spy = jest.spyOn(
+        identityConsistencyModule,
+        "assertRealDataResultIssueDescriptorIdentityConsistent",
+      );
+
+      expect(() =>
+        buildRealDataResultIssueDescriptor(baseSummary, {
+          gitSha: "abc1234",
+          dateToken: "\t \n",
+        }),
+      ).toThrow(/dateToken/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    // negative ⑤ — 결정성: 동일 (summary, run) 2 회 호출 → 둘 다 동일 descriptor
+    // (identity self-wire 후에도 결정성 보존).
+    it("identity self-wire 후에도 동일 입력에 대해 byte-identical descriptor 를 반환한다", () => {
+      const summary = makeSummary({
+        count: 4,
+        byDifficulty: { easy: 1, medium: 2, hard: 1 },
+        byContribution: { low: 2, medium: 1, high: 1 },
+        totalVolume: 77,
+      });
+
+      const a = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+      const b = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+
+      expect(a.title).toBe(b.title);
+      expect(a.marker).toBe(b.marker);
+      expect(a.body).toBe(b.body);
+    });
+
+    // negative ⑥ — 멱등 식별자 회귀 0: summary 가 달라도 동일 run 이면 identity self-wire
+    // 후에도 동일 title·marker(REQ-032 멱등 search-or-update 불변식 보존).
+    it("identity self-wire 후에도 동일 run 이면 summary 무관 동일 title·marker 를 유지한다(멱등)", () => {
+      const summaryA = makeSummary({
+        count: 1,
+        byDifficulty: { easy: 1 },
+        byContribution: { low: 1 },
+        totalVolume: 10,
+      });
+      const summaryB = makeSummary({
+        count: 99,
+        byDifficulty: { hard: 99 },
+        byContribution: { high: 99 },
+        totalVolume: 9999,
+      });
+
+      const a = buildRealDataResultIssueDescriptor(summaryA, HAPPY_RUN);
+      const b = buildRealDataResultIssueDescriptor(summaryB, HAPPY_RUN);
+
+      expect(a.title).toBe(b.title);
+      expect(a.marker).toBe(b.marker);
+    });
+
+    // negative ⑦ — byte-identical 회귀 0: identity self-wire 추가가 title/marker/body
+    // byte 를 바꾸지 않음(정상 입력).
+    it("identity self-wire 추가가 title·marker·body byte 를 바꾸지 않는다(회귀 0)", () => {
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 2, medium: 1 },
+        byContribution: { low: 1, medium: 1, high: 1 },
+        totalVolume: 42,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+      const expectedLine = formatRealDataResultSummaryLine(summary);
+      const expectedMarkdown = renderRealDataResultSummaryMarkdown(summary);
+
+      expect(descriptor.title).toBe("실 평가 e2e 결과 2026-06-23@abc1234");
+      expect(descriptor.marker).toBe(
+        "<!-- realdata-e2e-result-issue: 2026-06-23@abc1234 -->",
+      );
+      expect(descriptor.body).toBe(
+        [descriptor.marker, "", expectedLine, "", expectedMarkdown].join("\n"),
+      );
+    });
+
+    // negative ⑧ — 입력 비변형: identity self-wire 후에도 summary·byDifficulty·
+    // byContribution·run 객체 변경 0.
+    it("identity self-wire 후에도 입력 summary 와 run 을 mutate 하지 않는다", () => {
+      const summary = makeSummary({
+        count: 2,
+        byDifficulty: { easy: 1, hard: 1 },
+        byContribution: { low: 2 },
+        totalVolume: 9,
+      });
+      const run: RealDataResultIssueRunRef = {
+        gitSha: "abc1234",
+        dateToken: "2026-06-23",
+      };
+      const beforeDifficulty = { ...summary.byDifficulty };
+      const beforeContribution = { ...summary.byContribution };
+      const beforeRun = { ...run };
+
+      buildRealDataResultIssueDescriptor(summary, run);
+
+      expect(summary.byDifficulty).toEqual(beforeDifficulty);
+      expect(summary.byContribution).toEqual(beforeContribution);
+      expect(summary.count).toBe(2);
+      expect(summary.totalVolume).toBe(9);
+      expect(run).toEqual(beforeRun);
     });
   });
 });
