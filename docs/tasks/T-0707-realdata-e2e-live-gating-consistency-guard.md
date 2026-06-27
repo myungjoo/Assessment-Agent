@@ -2,7 +2,9 @@
 id: T-0707
 title: realdata-e2e live-gating 결정 ↔ env 완전성 single-source 재유도 정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-27T07:08:00Z
+result: PR #623 squash a9ff2acd 머지. assertRealDataE2eLiveGatingConsistentWithEnv 신설(env 만으로 독립 재유도 후 대조, 구조결손 TypeError↔값정합 RangeError 분리, §9 credential 비노출 단언). reviewer round1 APPROVE, 4-게이트 PASS, CI green, 신규 가드 line 95.71%/func 100%, 전체 345 suite/8550 test green.
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 300
