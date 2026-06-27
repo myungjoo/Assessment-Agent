@@ -2,7 +2,7 @@
 id: T-0699
 title: realdata-e2e result-report-plan 종단 컴포저 정합 가드 신설 (plan ↔ inputs single-source 재유도)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-021, REQ-022]
 estimatedDiff: 280
