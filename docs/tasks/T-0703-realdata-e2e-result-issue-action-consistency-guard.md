@@ -2,7 +2,7 @@
 id: T-0703
 title: realdata-e2e result-issue-action 분기 결정 ↔ searchHits/marker 재유도 정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 290
