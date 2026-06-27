@@ -61,6 +61,15 @@ import {
   assertRealDataResultIssueOutcomeMatchesParseShape,
   REAL_DATA_RESULT_ISSUE_OUTCOME_PARSE_SHAPE_KEYS,
 } from "./realdata-e2e-result-issue-outcome-parse-shape";
+// 산출 `{issueNumber, url}` 전체가 raw stdout 으로부터 올바른 값(issueNumber 값·url trim
+// 정규화·첫 매칭 URL 결정론)으로 재유도됐는지 검증하는 값-정합 가드(T-0723 신설)를 컴포저
+// 산출 경로에 self-wire 한다(T-0724). 단일 return 사이트 직전에 산출 outcome + 원본 stdout
+// 을 넘겨 self-assert — set-equality 가드(키 집합만 봄)가 놓치는 issueNumber/url 값 drift·
+// 잘못된 매칭 URL 선택·trim 누락을 build-time fail-fast 로 닫는다. 가드가
+// `RealDataResultIssueOutcome` 를 type-only import 로만 가져와 컴포저 value 를 import 하지
+// 않으므로(value import 0), 컴포저가 본 가드를 top-level value import 해도 순환 의존이
+// 생기지 않는다(T-0722/T-0720/T-0718 type-only top-level import mirror — lazy require 불요).
+import { assertRealDataResultIssueOutputConsistentWithStdout } from "./realdata-e2e-result-issue-output-parse-consistency";
 
 // RealDataResultIssueOutcome — `gh issue create` / `gh issue edit` 실행 후 stdout 에서
 // 추출한 박제 결과의 최소 shape.
@@ -135,6 +144,15 @@ export function parseRealDataResultIssueCreateEditOutput(
     outcome,
     REAL_DATA_RESULT_ISSUE_OUTCOME_PARSE_SHAPE_KEYS,
   );
+
+  // self-wire(T-0724) — 산출 outcome 전체가 raw stdout 으로부터 올바른 값(issueNumber·url·
+  // 첫 매칭 URL trim 정규화)으로 재유도됐는지 반환 직전 검증한다. stdout 은 파라미터로,
+  // outcome 은 위에서 묶인 객체로 둘 다 가용하므로 단일 호출 안에서 배선된다(set-equality
+  // 가드와 공존 — 그 가드는 outcome 의 키 집합만, 본 가드는 전체 값을 본다). 정상 파서 경로는
+  // stdout 과 정합하는 outcome 을 산출하므로 throw 0(검증만, 산출 byte-identical 무변형).
+  // issueNumber/url 값 drift·잘못된 매칭 URL 선택·trim 누락 회귀 시 손상 산출이 caller live
+  // wiring 으로 새기 전 fail-fast(값 정합 위반 RangeError / 구조 결손 TypeError).
+  assertRealDataResultIssueOutputConsistentWithStdout(outcome, stdout);
 
   return outcome;
 }
