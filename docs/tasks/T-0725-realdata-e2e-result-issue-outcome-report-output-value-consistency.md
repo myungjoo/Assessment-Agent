@@ -2,7 +2,11 @@
 id: T-0725
 title: realdata-e2e result-issue outcome-report 산출 ↔ (outcome, run) single-source 재유도 정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-27T16:54:45Z
+mergedAs: a7636a8e
+prNumber: 641
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 320
