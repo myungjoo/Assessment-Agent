@@ -54,6 +54,7 @@
 //   - 외부 템플릿/해시 라이브러리 도입 — 내장 string 합성만.
 //   - production `src/` 코드 변경 — test helper 단독(타입·렌더 함수 import 재사용만).
 import { assertRealDataResultIssueDescriptorBodyConsistent } from "./realdata-e2e-result-issue-descriptor-body-consistency";
+import { assertRealDataResultIssueDescriptorIdentityConsistent } from "./realdata-e2e-result-issue-descriptor-identity-consistency";
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
 import { formatRealDataResultSummaryLine } from "./realdata-e2e-result-summary-line";
 import { renderRealDataResultSummaryMarkdown } from "./realdata-e2e-result-summary-markdown";
@@ -146,6 +147,18 @@ export function buildRealDataResultIssueDescriptor(
   assertRealDataResultIssueDescriptorBodyConsistent(
     { title, marker, body },
     summary,
+  );
+
+  // self-wire — 합성한 descriptor 의 title·marker 가 run 식별자로부터 독립 재유도한
+  // expected 와 byte-identical 정합함을 반환 직전 self-assert(T-0709 identity 가드 짝
+  // 닫기). 가드는 컴포저로부터 type-only import 만 쓰므로 top-level import 에 circular
+  // dep 없음(T-0708 식 lazy require 불요). 정상 합성이면 가드는 void 반환하므로 동작·
+  // 반환값 byte-identical 보존. 미래 회귀(title·marker 의 run token 어긋남 / prefix 변형
+  // / marker 가 다른 run token 을 담아 멱등 search-or-update 가 깨짐)가 생기면 손상
+  // descriptor 를 반환하기 전에 한국어 명세형 에러로 즉시 throw 한다(fail-fast).
+  assertRealDataResultIssueDescriptorIdentityConsistent(
+    { title, marker, body },
+    run,
   );
 
   return { title, marker, body };
