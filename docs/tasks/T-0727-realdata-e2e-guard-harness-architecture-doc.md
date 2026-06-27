@@ -2,7 +2,9 @@
 id: T-0727
 title: realdata-e2e build-time consistency-guard harness architecture doc 신설 + INDEX 동기
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-27T18:13:00Z
+completedCommit: 066ff1fcea4502df9159806a9a0bbd5e279543df
 commitMode: direct
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 180
