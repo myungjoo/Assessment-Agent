@@ -2,7 +2,7 @@
 id: T-0723
 title: realdata-e2e result-issue-output-parse 산출 ↔ raw stdout single-source 재유도 정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 320
