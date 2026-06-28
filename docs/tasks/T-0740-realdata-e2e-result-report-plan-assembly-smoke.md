@@ -2,7 +2,11 @@
 id: T-0740
 title: realdata-e2e result-report-plan 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-28T03:14:00Z
+mergedAs: f79e529fd3aa5688ae9a85a98b01c2e3ea9f8940
+prNumber: 655
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 195
