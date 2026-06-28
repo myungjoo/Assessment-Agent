@@ -2,7 +2,7 @@
 id: T-0756
 title: realdata-e2e evaluation-plan 컴포저 dual-leg(inputs·callArgs) convergence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 280
