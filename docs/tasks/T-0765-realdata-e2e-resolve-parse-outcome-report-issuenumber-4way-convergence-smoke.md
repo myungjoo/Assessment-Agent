@@ -2,7 +2,7 @@
 id: T-0765
 title: realdata-e2e step④ post-execution resolve↔parse↔outcome-report 3-composer single-source issueNumber 4자 cross-stage 수렴 — search-hit.minNumber ↔ resolveRealDataResultIssueGhCommandPlan.action.issueNumber ↔ parseRealDataResultIssueCreateEditOutput.issueNumber ↔ buildRealDataResultIssueOutcomeReport.issueNumber byte-identical 4자 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 320
