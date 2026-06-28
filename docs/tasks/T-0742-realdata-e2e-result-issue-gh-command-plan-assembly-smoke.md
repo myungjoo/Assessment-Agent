@@ -2,7 +2,9 @@
 id: T-0742
 title: realdata-e2e result-issue gh-command-plan 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-28T04:25:44Z
+result: "DONE — PR #657 squash 235fb290, reviewer round1 APPROVE, 4-게이트 PASS, CI green. test-only +406/-0 1파일(신규 spec 25/25 pass). resolveRealDataResultIssueGhCommandPlan(stdout,commandArgs)→{action,argv} step④ search-side 종단 조립 smoke 박제 — step④ 두 절반 조립 smoke 쌍 닫음."
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 215
