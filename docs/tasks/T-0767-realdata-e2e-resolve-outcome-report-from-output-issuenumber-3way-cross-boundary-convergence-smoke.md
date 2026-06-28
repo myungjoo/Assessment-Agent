@@ -2,7 +2,10 @@
 id: T-0767
 title: realdata-e2e step④ pre/post-execution cross-boundary resolve↔outcome-report-from-output 단일-진입 issueNumber 3자 수렴 — search-hit.minNumber ↔ resolveRealDataResultIssueGhCommandPlan.action.update.issueNumber ↔ buildRealDataResultIssueOutcomeReportFromOutput.issueNumber byte-identical 3자 cross-boundary 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: af6534d6
+prNumber: 682
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 300
