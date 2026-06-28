@@ -2,7 +2,7 @@
 id: T-0738
 title: realdata-e2e result-outcome step-args 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 195
