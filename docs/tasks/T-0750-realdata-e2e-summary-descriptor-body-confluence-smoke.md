@@ -2,7 +2,7 @@
 id: T-0750
 title: realdata-e2e summary→descriptor body 3-블록 confluence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-109]
 estimatedDiff: 280
