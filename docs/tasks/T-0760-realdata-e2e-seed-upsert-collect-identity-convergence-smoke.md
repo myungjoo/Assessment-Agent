@@ -2,8 +2,10 @@
 id: T-0760
 title: realdata-e2e step① seed upsert↔collect 두 leg(buildRealDataUpsertArgs·buildRealDataCollectCallArgs) single-source seeds identity convergence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-28T13:56Z
+result: "DONE — PR #675 squash 6bf32e3c, reviewer round1 APPROVE(0 finding), 4-게이트 PASS, PR CI green. test-only +424/-0 1파일 smoke 15 it."
 coversReq: [REQ-009, REQ-023, REQ-024]
 estimatedDiff: 280
 estimatedFiles: 1

@@ -7,20 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0760",
-  "backlogNote": "▶ **nextTask=T-0760**(pr, test-only — realdata-e2e step① seed의 DB-write upsert leg(buildRealDataUpsertArgs)와 collect-call leg가 동일 seeds(RealDataSeedDescriptor[]) 단일 source로 identity(service·externalId·email) 수렴함을 묶는 non-gated build-time smoke. sweep의 seed-side 대칭 — T-0759 step④ 수렴 sibling. git grep 으로 두 leg 동시-호출 cross convergence 파일 0 확인. dependsOn [] file-disjoint·claimable stage5b 병렬, 신규 spec 1파일). ▶ **T-0759 DONE** PR #674 squash d752cdd1(step④ publish↔outcome step-args 두 leg single-source runPlan.run convergence smoke — reviewer round1 APPROVE 0 finding, +461/-0 1파일 smoke 18 it). ▶ **T-0758 DONE** PR #673 squash 8bdb240b(search-then-resolve 멱등 round-trip dual-leg single-source commandArgs convergence smoke). ▶ **T-0757 DONE** PR #672(command-args tri-leg single-source descriptor convergence smoke). ▶ **T-0756 DONE** PR #671 squash 82ea1192(evaluation-plan dual-leg convergence smoke). ▶ **T-0755 DONE** PR #670(result-issue-publish-plan tri-leg). ▶ **T-0754 DONE** PR #669(pipeline-plan dual-leg). claim prune 완료(claims.json=[]). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0761",
+  "backlogNote": "▶ **nextTask=T-0761**(pr, test-only — realdata-e2e seed-side pipeline-plan(step①→②)과 evaluate-side evaluation-plan(step③)이 동일 단일 modelId 정책 source 로 byte-identical 수렴함을 묶는 cross-stage non-gated build-time smoke. T-0760 seed identity 수렴 sibling 의 cross-stage modelId 대칭. dependsOn [] file-disjoint·claimable stage5b 병렬, 신규 spec 1파일). ▶ **T-0760 DONE** PR #675 squash 6bf32e3c(step① seed upsert↔collect 두 leg single-source seeds identity convergence smoke — reviewer round1 APPROVE 0 finding, +424/-0 1파일 smoke 15 it). ▶ **T-0759 DONE** PR #674 squash d752cdd1(step④ publish↔outcome step-args 두 leg single-source runPlan.run convergence smoke). ▶ **T-0758 DONE** PR #673 squash 8bdb240b(search-then-resolve 멱등 round-trip dual-leg single-source commandArgs convergence smoke). ▶ **T-0757 DONE** PR #672(command-args tri-leg single-source descriptor convergence smoke). ▶ **T-0756 DONE** PR #671(evaluation-plan dual-leg). claim prune 완료(claims.json=[]). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
-    "holder": "cron",
-    "session": "cron@cloudaa-3cc3f258670",
-    "since": "2026-06-28T13:00:41Z"
+    "holder": null,
+    "since": ""
   },
-  "lastCommit": "d752cdd1",
+  "lastCommit": "6bf32e3c",
   "mostRecentTasks": [
+    "T-0760",
     "T-0759",
     "T-0758",
     "T-0757",
-    "T-0756",
-    "T-0755"
+    "T-0756"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -33,8 +32,8 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0759 DONE (pr) — realdata-e2e step④ publish↔outcome step-args 두 leg single-source runPlan.run convergence 직접-체인 non-gated build-time smoke. PR #674 squash d752cdd1, reviewer round1 APPROVE(0 finding), 4-게이트 PASS, PR CI green(first run 은 reviewer-gate race 로 fail→comment 후 rerun green). test-only +461/-0 1파일 smoke 18 it. claim prune 완료(claims.json=[]). 직전 main run 3cc3f25c·8bdb240b·951a4c1e 전부 success 재확인 완료(이번 fire [1]). 머지 직후 main run(d752cdd1) conclusion 은 다음 fire [1] 에서 재확인 — PR CI 머지 전 green 확인됨.",
-    "lastRun": "2026-06-28T13:01:00Z"
+    "note": "T-0760 DONE (pr) — realdata-e2e step① seed upsert↔collect 두 leg single-source seeds identity convergence 직접-체인 non-gated build-time smoke. PR #675 squash 6bf32e3c, reviewer round1 APPROVE(0 finding), 4-게이트 PASS, PR CI green(머지 전 확인). test-only +424/-0 1파일 smoke 15 it. claim prune 완료(claims.json=[]). 머지 직후 main run(6bf32e3c) conclusion 은 in_progress — 다음 fire [1] 에서 재확인. 직전 main run d2332198·d752cdd1·3cc3f25c 전부 success.",
+    "lastRun": "2026-06-28T13:56:54Z"
   },
   "reviewRounds": {
     "T-0759": 1,
@@ -446,7 +445,8 @@
     "T-0737": 1,
     "T-0739": 1,
     "T-0740": 1,
-    "T-0744": 1
+    "T-0744": 1,
+    "T-0760": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -1206,7 +1206,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 751,
+    "tasksCompleted": 752,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1234,5 +1234,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-28T13:01Z"
+  "lastActivity": "2026-06-28T13:56:54Z"
 }
