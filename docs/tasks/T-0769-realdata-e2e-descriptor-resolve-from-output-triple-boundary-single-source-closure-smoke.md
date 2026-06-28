@@ -2,8 +2,10 @@
 id: T-0769
 title: realdata-e2e step④ pre→resolve→post triple-boundary single-source closure — buildRealDataResultIssueDescriptor.marker(run token) → buildRealDataResultIssueCommandArgs.searchQuery → resolveRealDataResultIssueGhCommandPlan.action.update.issueNumber ↔ buildRealDataResultIssueOutcomeReportFromOutput.{issueNumber,gitSha,dateToken} 가 단일 (run, summary, search-stdout, exec-stdout) source 로 triple-boundary byte-identical 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-28T19:18:00Z
+result: "DONE — PR #684 squash 69645af6. reviewer round1 APPROVE(0 BLOCKER·0 MAJOR·0 MINOR·2 NIT), 4-게이트 PASS, PR CI green. test-only 1파일 +544 LOC smoke."
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 300
 estimatedFiles: 1
