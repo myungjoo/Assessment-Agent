@@ -2,7 +2,10 @@
 id: T-0748
 title: realdata-e2e result-summary→markdown 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-28T07:30Z
+mergedSha: 65becf25
+prNumber: 663
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 230
