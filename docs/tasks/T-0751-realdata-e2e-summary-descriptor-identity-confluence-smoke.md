@@ -2,7 +2,7 @@
 id: T-0751
 title: realdata-e2e summary→descriptor title·marker run-token identity-confluence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 240
