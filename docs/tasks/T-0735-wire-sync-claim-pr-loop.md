@@ -2,7 +2,7 @@
 id: T-0735
 title: sync-claim-pr.sh 를 driver loop PR-open 단계에 wiring (dup-PR 근본 fix 완결)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 55

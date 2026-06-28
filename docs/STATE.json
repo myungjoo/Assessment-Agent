@@ -7,7 +7,7 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0735",
+  "nextTask": "T-0736",
   "backlogNote": "▶ **nextTask=T-0735**(direct, doc-only — 동시성 근본 fix 완결). sync-claim-pr.sh(T-0732 신설 primitive) 를 driver loop 에 wiring: LOOP.md §1[4] 에 PR-open 직후 lock-하 `sync-claim-pr.sh <T> <pr> <self>` 호출(claim entry prNumber 원자동기) 절차 박제 + concurrency.md §5 단락 추가. T-0730 dup-PR 근본 원인(driver 가 PR open 후 claim prNumber 미동기 → reclaim 의 prNumber==null bare-prune 분기가 PR-resume 신호 상실 → 중복 PR) 의 마지막 미배선 step(option a) 을 닫는다. option b(reclaim GitHub API cross-check)는 credential 의존이라 후속 후보로 분리. issue-still-relevant: git grep sync-claim-pr 가 LOOP.md/agents/concurrency.md 에서 0(미배선) 확인. dependsOn [] 독립·claimable, doc-only direct, file-disjoint. ▶ **T-0734 DONE** PR #650 squash c3bdf01d(acquire-lock retry-loop CAS-race·재시도소진 회귀 가드 보강 — T-0733 split 2/2. acquire-lock.test.sh 에 [T8](server-hook 첫 push 1회 거부→`20)` 재시도→exit 0+holder 정확) + [T9](hook 영구 거부+ACQUIRE_RETRIES=1→소진 exit 1+\"소진\"사유+ref tip 불변) 2종 server-hook 구동 회귀 가드 이식, select-claim.test.sh [T5]/[T6] mirror. test-only +87/-2 1파일, acquire-lock.sh production 0 LOC. 마스킹 패턴 주입 시 [T8][T9] FAIL 확인(진짜 회귀 가드). reviewer round1 APPROVE 1 non-blocking nit, 4-게이트 PASS, CI green first-pass). counters 725→726. lock-script 회귀 가드 sibling pair(select-claim T-0733 + acquire-lock T-0734) 닫힘. **fire 메모**: cron@aa-cloud-7bb6ba5122808 fire(Anthropic cloud fresh checkout, ADR-0036 stage5b lock-free claim) — fresh checkout HEAD=a07c9b83 였고 origin/main 은 7bb6ba51(T-0733 DONE PR #649 머지+T-0734 큐잉)로 앞서 reset --hard 동기 → lock 획득(3b511cf1)→reclaim(server-time \"Sat, 27 Jun 2026 23:38:07 GMT\" 주입, claims [] 회수 0)→활성 claim 0(<max 2, pr-mode 단독 OK)→select-claim T-0734 atomic(claim 박제+lock tombstone 동일 commit→lock-free 진행)→feature branch claude/T-0734-... push(f0e6c6bd)→executor(implementer [T8][T9] +87/-2+tester [T1]~[T9] PASS)→integrator gh pr create #650→reviewer APPROVE→gate2 comment→CI green first-pass→gh pr merge --squash --delete-branch c3bdf01d→bookkeeping(lock 재획득 dbf3f7f6)+claim prune. ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지) — 근본 fix(claim prNumber 동기) 가 T-0735 로 완결 예정. live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
@@ -15,11 +15,11 @@
   },
   "lastCommit": "c3bdf01d1a7a105943aa3a8d004f960d8086517f",
   "mostRecentTasks": [
+    "T-0735",
     "T-0734",
     "T-0733",
     "T-0732",
-    "T-0731",
-    "T-0730"
+    "T-0731"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,8 +32,8 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0734 PR #650 squash c3bdf01d merge — PR CI run 28305403085 success (both jobs, approval-gate first-pass). 4-게이트 PASS round 1/7. reviewer 1 non-blocking nit(select-claim mirror 일관성 위해 의도적 잔류, follow-up 불요). main merge-commit CI run 28305491422 pending(다음 turn 재확인 불요 — 동일 tree 이미 green).",
-    "lastRun": "2026-06-27T23:45:00Z"
+    "note": "T-0735 DONE (direct doc) — LOOP.md §1[4] pr-mode 에 sync-claim-pr.sh PR-open prNumber 동기 step + concurrency.md §5 단락 박제(dup-PR 근본 fix 완결). main commit 67b8869b push — main CI 직후 확인 다음 fire 위임(direct doc, lint/build/test 무영향 예상).",
+    "lastRun": "2026-06-28T00:09:25Z"
   },
   "reviewRounds": {
     "T-0733": 1,
@@ -1184,7 +1184,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 726,
+    "tasksCompleted": 727,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
