@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0744",
-  "backlogNote": "▶ **nextTask=T-0744**(pr, test-only — realdata-e2e seed-collect-call-args 조립 체인 non-gated build-time smoke. PLAN §109 실 평가 e2e step① seed-collect-side: buildRealDataE2eSeed→buildRealDataCollectInput→buildRealDataCollectCallArgs 종단 조립 — descriptor→CollectForPersonInput shape(service/externalId 만 추리고 isPrimary 드롭)·call-args 묶음(since=undefined·assessmentId=ASSESSMENT_ID_PLACEHOLDER)·person 1:1 wrap 단일 source deep-equal·externalId 빈/공백 throw 전파·빈/단일/다수 descriptor 분기·결정론/무공유/no-mutation 회귀 그물. T-0743 seed-side upsert(seed→upsert-args→resolve)의 collect-side 대칭 sibling). dependsOn [] file-disjoint·claimable stage5b 병렬. issue-still-relevant: git grep buildRealDataCollectInput origin/main test/smoke/ = pipeline-plan 위임 throw 주석 1회뿐(직접 chain 단언 0, 컴포저 unit+consistency spec 만 존재, collect-side assembly smoke 부재) 확인. ▶ **T-0743 DONE** PR #658 squash 3be73da7(realdata-e2e seed-upsert-resolve 조립 체인 non-gated smoke — buildRealDataE2eSeed→buildRealDataUpsertArgs→resolveRealDataPersonId, placeholder→실 person.id 치환·net-0 update 보존·Record/Map 양 arm·email 키 누락/빈/공백 id throw 전파, test-only 1파일 18 it). ▶ **T-0742 DONE** PR #657 squash 235fb290(result-issue gh-command-plan 조립 smoke). counters 734→735. ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0745",
+  "backlogNote": "▶ **nextTask=T-0745**(pr, test-only — realdata-e2e evaluation-inputs→scoring-call-args 직접 조립 체인 non-gated build-time smoke. PLAN §109 실 평가 e2e step②→③ evaluate-side: buildRealDataEvaluationInputs→buildRealDataScoringCallArgs 종단 조립 — T-0744 collect-side(step①→②) 대칭 sibling. 기존 evaluation-plan-assembly smoke 는 aggregator(buildRealDataEvaluationPlan) 진입뿐, 두 컴포저 직접 chain smoke 부재 git grep 확인). dependsOn [] file-disjoint·claimable stage5b 병렬. ▶ **T-0744 DONE** PR #659 squash 8a6625dc(seed-collect-call-args 조립 smoke — buildRealDataE2eSeed→buildRealDataCollectInput→buildRealDataCollectCallArgs 종단, service/externalId 투영·isPrimary 미누출·since=undefined·assessmentId placeholder·throw 전파·결정론·무공유·no-mutation cover, test-only +358 1파일). claim prune 완료(claims.json=[]). counters 735→736. ▶ **T-0743 DONE** PR #658 squash 3be73da7(seed-upsert-resolve 조립 smoke). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "3be73da76a13187539a7e3ec5355d0d2df65992b",
+  "lastCommit": "8a6625dc",
   "mostRecentTasks": [
+    "T-0744",
     "T-0743",
     "T-0742",
     "T-0741",
-    "T-0740",
-    "T-0739"
+    "T-0740"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,8 +32,8 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0743 DONE (pr) — realdata-e2e seed-upsert-resolve 조립 체인 non-gated build-time smoke. PR #658 squash 3be73da7, reviewer round1 APPROVE(0 finding), 4-게이트 PASS, PR CI green(reviewer-approval 게이트 step 포함). 머지 후 main push run(3be73da7)은 in_progress — 다음 fire 재확인. test-only +412/-0 1파일 18 it.",
-    "lastRun": "2026-06-28T04:48:45Z"
+    "note": "T-0744 DONE (pr) — realdata-e2e seed-collect-call-args 조립 체인 non-gated build-time smoke. PR #659 squash 8a6625dc, reviewer round1 APPROVE, 4-게이트 PASS, PR CI green(reviewer-approval 게이트 step 포함 단일 run success). 머지 후 main push run(8a6625dc)은 발화돼 in_progress — 다음 fire 재확인. test-only +358/-0 1파일 신규 smoke spec(collect-side, T-0743 seed-side 형제).",
+    "lastRun": "2026-06-28T05:20:06Z"
   },
   "reviewRounds": {
     "T-0743": 1,
@@ -430,7 +430,8 @@
     "T-0734": 1,
     "T-0737": 1,
     "T-0739": 1,
-    "T-0740": 1
+    "T-0740": 1,
+    "T-0744": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -1190,7 +1191,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 735,
+    "tasksCompleted": 736,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1218,5 +1219,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-28T04:25:44Z"
+  "lastActivity": "2026-06-28T05:20:06Z"
 }

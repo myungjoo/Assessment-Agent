@@ -2,7 +2,7 @@
 id: T-0744
 title: realdata-e2e seed-collect-call-args 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 220
