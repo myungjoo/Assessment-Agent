@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0737",
-  "backlogNote": "▶ **nextTask=T-0737**(pr, test-only — realdata-e2e result-publish step-args 조립 체인 build-time smoke. buildRealDataResultPublishStepArgs run-plan threading 조립 gap: seed→buildRealDataE2eRunPlan→step④ publish-step-args 조립을 묶은 smoke, run 단일 source threading 회귀(gitSha/dateToken drift·runPlan.run↔publish plan 불일치·합성 누락·빈 results 분기) public CI 그물 박제. T-0729 는 buildRealDataResultIssuePublishPlan 직접 진입이라 run-plan threading layer 밖 — 본 task 가 그 layer 조립 gap 닫음. dependsOn [] file-disjoint stage5b 병렬, touchesFiles 신규 1파일). ▶ **T-0736 DONE** PR #651 squash f8a64b19(realdata-e2e daily-test step_eval command-plan 조립 체인 non-gated build-time smoke — buildRealDataDailyStepEvalCommandPlan(env)→gating→{action,argv} 조립 surface: happy run+canonical 4-argv·skip(argv undefined)·부분 gating→skip·credential echo 0·결정론/무공유·env 불변 cover, test-only +235/-0 1파일 15 case. reviewer round1 APPROVE finding 0, 4-게이트 PASS, CI green first-pass run 28306715340). counters 727→728. **fire 메모**: cron@AKIHA-7002 fire(aa-local-scheduled, 로컬 Windows, ADR-0036 stage5b lock-free claim) — fresh checkout HEAD=b9f21226 였고 origin/main 은 5e6df834(T-0735 DONE+T-0736 큐잉)로 앞서 ff 동기 → lock 획득(820e1b35)→reclaim(server-time 'Sun, 28 Jun 2026 00:38:33 GMT' 주입, claims [] 회수 0)→활성 claim 0(<max 2, pr-mode 단독 OK)→select-claim T-0736 atomic(claim 박제+lock tombstone 동일 commit→lock-free 진행)→feature branch push→executor(implementer +235/-0+tester 15 case PASS)→integrator gh pr create #651→sync-claim-pr.sh(prNumber 651 동기·T-0735 wiring 실사용)→reviewer APPROVE→gate2 comment→CI green first-pass→gh pr merge --squash --delete-branch f8a64b19→bookkeeping(lock 재획득 6897a977)+claim prune. ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변. (이하 과거 메모) ▶ **nextTask=T-0735**(direct, doc-only — 동시성 근본 fix 완결). sync-claim-pr.sh(T-0732 신설 primitive) 를 driver loop 에 wiring: LOOP.md §1[4] 에 PR-open 직후 lock-하 `sync-claim-pr.sh <T> <pr> <self>` 호출(claim entry prNumber 원자동기) 절차 박제 + concurrency.md §5 단락 추가. T-0730 dup-PR 근본 원인(driver 가 PR open 후 claim prNumber 미동기 → reclaim 의 prNumber==null bare-prune 분기가 PR-resume 신호 상실 → 중복 PR) 의 마지막 미배선 step(option a) 을 닫는다. option b(reclaim GitHub API cross-check)는 credential 의존이라 후속 후보로 분리. issue-still-relevant: git grep sync-claim-pr 가 LOOP.md/agents/concurrency.md 에서 0(미배선) 확인. dependsOn [] 독립·claimable, doc-only direct, file-disjoint. ▶ **T-0734 DONE** PR #650 squash c3bdf01d(acquire-lock retry-loop CAS-race·재시도소진 회귀 가드 보강 — T-0733 split 2/2. acquire-lock.test.sh 에 [T8](server-hook 첫 push 1회 거부→`20)` 재시도→exit 0+holder 정확) + [T9](hook 영구 거부+ACQUIRE_RETRIES=1→소진 exit 1+\"소진\"사유+ref tip 불변) 2종 server-hook 구동 회귀 가드 이식, select-claim.test.sh [T5]/[T6] mirror. test-only +87/-2 1파일, acquire-lock.sh production 0 LOC. 마스킹 패턴 주입 시 [T8][T9] FAIL 확인(진짜 회귀 가드). reviewer round1 APPROVE 1 non-blocking nit, 4-게이트 PASS, CI green first-pass). counters 725→726. lock-script 회귀 가드 sibling pair(select-claim T-0733 + acquire-lock T-0734) 닫힘. **fire 메모**: cron@aa-cloud-7bb6ba5122808 fire(Anthropic cloud fresh checkout, ADR-0036 stage5b lock-free claim) — fresh checkout HEAD=a07c9b83 였고 origin/main 은 7bb6ba51(T-0733 DONE PR #649 머지+T-0734 큐잉)로 앞서 reset --hard 동기 → lock 획득(3b511cf1)→reclaim(server-time \"Sat, 27 Jun 2026 23:38:07 GMT\" 주입, claims [] 회수 0)→활성 claim 0(<max 2, pr-mode 단독 OK)→select-claim T-0734 atomic(claim 박제+lock tombstone 동일 commit→lock-free 진행)→feature branch claude/T-0734-... push(f0e6c6bd)→executor(implementer [T8][T9] +87/-2+tester [T1]~[T9] PASS)→integrator gh pr create #650→reviewer APPROVE→gate2 comment→CI green first-pass→gh pr merge --squash --delete-branch c3bdf01d→bookkeeping(lock 재획득 dbf3f7f6)+claim prune. ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지) — 근본 fix(claim prNumber 동기) 가 T-0735 로 완결 예정. live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0738",
+  "backlogNote": "▶ **nextTask=T-0738**(pr, test-only — realdata-e2e result-outcome step-args 조립 체인 non-gated build-time smoke. T-0737 publish-step-args 의 post-실행 대칭, step④ 두 sub-path 조립 smoke 쌍 닫음). dependsOn [] file-disjoint·claimable stage5b 병렬. ▶ **T-0737 DONE** PR #652 squash 10cd6b83(realdata-e2e result-publish step-args 조립 체인 non-gated smoke — buildRealDataResultPublishStepArgs(runPlan,results) 조립 surface: happy/run 단일 source deep-equal/빈·단일·다수 results flow/gitSha·dateToken blank throw/결정론·무공유·no-mutation 11 case, test-only +267/-0 1파일). reviewer round1 APPROVE finding 0, 4-게이트 PASS, CI green(update-branch rebase 후 head 321abdd4 재확인). counters 728→729. **fire 메모**: cron@aa-local15-dd45 (로컬 Windows, ADR-0036 stage5b lock-free claim) — fresh checkout HEAD=5e6df834 였고 origin/main 은 dd45eeec(T-0736 DONE PR #651)로 앞서 reset --hard 동기 → lock 획득(2adb0647)→reclaim(server-time 미확보로 RECLAIM_NOW 미주입, claims [] 회수 0)→활성 claim 0(<max 2, pr-mode 단독 OK)→select-claim T-0737 atomic(claim 박제+lock tombstone 동일 commit 249649a8→lock-free 진행)→feature branch push(ff3857e9)→executor(implementer +267/-0+tester 11 case PASS)→integrator gh pr create #652→reviewer APPROVE→gate2 comment→CI green(update-branch rebase head 321abdd4 재확인)→gh pr merge --squash --delete-branch 10cd6b83→bookkeeping(lock 재획득 ef78c664)+claim prune. 동시 cron@aa-cloud-0d016470 는 lock CAS race-loser 로 T-0737 SKIP stand-down(정상). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "f8a64b19a3c0e9f4f648a422c95bb352923f5919",
+  "lastCommit": "10cd6b835fbba55c4f2827041b1f5240b77d9169",
   "mostRecentTasks": [
+    "T-0737",
     "T-0736",
     "T-0735",
     "T-0734",
-    "T-0733",
-    "T-0732"
+    "T-0733"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,8 +32,8 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0736 DONE (pr) — realdata-e2e daily step_eval command-plan 조립 smoke. PR #651 squash f8a64b19, reviewer round1 APPROVE finding 0, 4-게이트 PASS, CI green first-pass(run 28306715340 success — reviewer-approval 게이트 step 포함). test-only +235/-0 1파일.",
-    "lastRun": "2026-06-28T00:55:00Z"
+    "note": "T-0737 DONE (pr) — realdata-e2e result-publish step-args 조립 체인 non-gated build-time smoke 신설. PR #652 squash 10cd6b83, reviewer round1 APPROVE finding 0, 4-게이트 PASS, CI green(update-branch rebase 후 head 321abdd4 재확인 success). test-only +267/-0 1파일 11 case.",
+    "lastRun": "2026-06-28T01:36:12Z"
   },
   "reviewRounds": {
     "T-0736": 1,
@@ -425,7 +425,8 @@
     "T-0728": 1,
     "T-0729": 1,
     "T-0731": 1,
-    "T-0734": 1
+    "T-0734": 1,
+    "T-0737": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -1185,7 +1186,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 728,
+    "tasksCompleted": 729,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1213,5 +1214,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-28T01:08:00Z"
+  "lastActivity": "2026-06-28T01:36:12Z"
 }
