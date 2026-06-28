@@ -2,7 +2,11 @@
 id: T-0739
 title: realdata-e2e evaluation step-args 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-28T02:55:00Z
+mergedAs: 9abc0cbd
+prNumber: 654
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 195

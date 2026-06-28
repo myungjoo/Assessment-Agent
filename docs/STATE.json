@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0739",
-  "backlogNote": "▶ **nextTask=T-0739**(pr, test-only — realdata-e2e evaluation step-args 조립 체인 non-gated build-time smoke. buildRealDataEvaluationStepArgs(runPlan,activities) step②→③ run-plan 경계 컴포저 — runPlan.pipeline.modelId 단일 source threading 검증. step④ T-0737/T-0738 의 step②③ 대칭 sibling, modelId-drift 회귀 그물). dependsOn [] file-disjoint·claimable stage5b 병렬. ▶ **T-0738 DONE** PR #653 squash 667de755(realdata-e2e result-outcome step-args 조립 체인 non-gated smoke — buildRealDataResultOutcomeStepArgs(runPlan,stdout) 조립 surface: happy/run 단일 source deep-equal vs buildRealDataResultIssueOutcomeReportFromOutput/create·edit stdout 5필드 shape/gitSha·dateToken blank throw 전파/URL 미발견·비-github·issueNumber 비정수 throw 분기/결정론·무공유·no-mutation 16 it, test-only +285/-0 1파일). reviewer round1 APPROVE, 4-게이트 PASS, CI green(reviewer-approval 게이트 comment post 후 gh run rerun --failed 로 green). counters 729→730. **fire 메모**: cron@aa-local15-767c (로컬 Windows, ADR-0036 stage5b lock-free claim) — fresh checkout HEAD=050d29cc==origin/main → lock 획득(3f64dfb8)→reclaim(server-time 2026-06-28T02:04:25Z 주입, claims [] 회수 0)→활성 claim 0(<max 2, pr-mode 단독 OK)→select-claim T-0738 atomic(claim 박제+lock tombstone 동일 commit 026c1891→lock-free 진행)→sync-claim-pr 653(24c05710)→executor(implementer +285/-0+tester 16 it PASS)→integrator gh pr create #653→reviewer APPROVE→gate2 comment→CI green→gh pr merge --squash --delete-branch 667de755→bookkeeping(prune 0606f65c 류 + lock 재획득 433c9d6d)+claim prune(41b6443a). main post-merge CI run 은 in_progress(PR CI 동일 tree green 확인, 다음 fire [1] 재확인). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0740",
+  "backlogNote": "▶ **nextTask=T-0740**(pr, test-only — realdata-e2e result-report-plan 조립 체인 non-gated build-time smoke. buildRealDataResultReportPlan(results,run)→{summary,descriptor} step③→④ post-eval interpretation 컴포저 — run 단일 source threading(멱등 marker)·summary↔descriptor 정합 검증. publish/outcome/evaluation step-args(T-0737/T-0738/T-0739) 의 result-side 형제 조립 smoke, summary 집계 drift·descriptor title/marker/body drift·run blank throw 전파·빈 results 분기 회귀 그물). dependsOn [] file-disjoint·claimable stage5b 병렬. ▶ **T-0739 DONE**(HEAD 9abc0cbd PR #654) — driver bookkeeping(counters 730→731·mostRecentTasks·claim prune) 다음 fire 처리 예정. ▶ **T-0738 DONE** PR #653 squash 667de755(realdata-e2e result-outcome step-args 조립 체인 non-gated smoke — buildRealDataResultOutcomeStepArgs(runPlan,stdout) 조립 surface: happy/run 단일 source deep-equal vs buildRealDataResultIssueOutcomeReportFromOutput/create·edit stdout 5필드 shape/gitSha·dateToken blank throw 전파/URL 미발견·비-github·issueNumber 비정수 throw 분기/결정론·무공유·no-mutation 16 it, test-only +285/-0 1파일). reviewer round1 APPROVE, 4-게이트 PASS, CI green(reviewer-approval 게이트 comment post 후 gh run rerun --failed 로 green). counters 729→730. **fire 메모**: cron@aa-local15-767c (로컬 Windows, ADR-0036 stage5b lock-free claim) — fresh checkout HEAD=050d29cc==origin/main → lock 획득(3f64dfb8)→reclaim(server-time 2026-06-28T02:04:25Z 주입, claims [] 회수 0)→활성 claim 0(<max 2, pr-mode 단독 OK)→select-claim T-0738 atomic(claim 박제+lock tombstone 동일 commit 026c1891→lock-free 진행)→sync-claim-pr 653(24c05710)→executor(implementer +285/-0+tester 16 it PASS)→integrator gh pr create #653→reviewer APPROVE→gate2 comment→CI green→gh pr merge --squash --delete-branch 667de755→bookkeeping(prune 0606f65c 류 + lock 재획득 433c9d6d)+claim prune(41b6443a). main post-merge CI run 은 in_progress(PR CI 동일 tree green 확인, 다음 fire [1] 재확인). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "667de755c91f261228d3322da830ed704ca56ce8",
+  "lastCommit": "9abc0cbdc82f23168c181e855f9025ddc8e8b227",
   "mostRecentTasks": [
+    "T-0739",
     "T-0738",
     "T-0737",
     "T-0736",
-    "T-0735",
-    "T-0734"
+    "T-0735"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -29,11 +29,11 @@
     "note": "/loop AKIHA-21631 (dynamic, turn cap 2) — t1 T-0651 merge 41a6ef2 + planner T-0652 큐잉. t2 T-0652 merge c580071. cap 도달 → 종료 + lock 해제."
   },
   "ci": {
-    "status": "running",
+    "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0738 DONE (pr) — realdata-e2e result-outcome step-args 조립 체인 non-gated build-time smoke 신설. PR #653 squash 667de755, reviewer round1 APPROVE, 4-게이트 PASS, PR CI green(reviewer-approval 게이트 comment post 후 rerun green). test-only +285/-0 1파일 16 it. main post-merge run(667de755) 은 in_progress — PR CI 가 동일 tree 에서 이미 green 이므로 expected success, 다음 fire [1] 에서 conclusion 재확인.",
-    "lastRun": "2026-06-28T02:24:33Z"
+    "note": "T-0739 DONE (pr) — realdata-e2e evaluation step-args 조립 체인 non-gated build-time smoke. PR #654 squash 9abc0cbd, reviewer round1 APPROVE(1 MINOR cap-overage +4 LOC), 4-게이트 PASS, CI green first-pass(run 28309147002 success — reviewer-approval 게이트 step 포함). test-only +304/-0 1파일.",
+    "lastRun": "2026-06-28T02:55:00Z"
   },
   "reviewRounds": {
     "T-0738": 1,
@@ -427,7 +427,8 @@
     "T-0729": 1,
     "T-0731": 1,
     "T-0734": 1,
-    "T-0737": 1
+    "T-0737": 1,
+    "T-0739": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -1187,7 +1188,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 730,
+    "tasksCompleted": 731,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1215,5 +1216,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-28T01:36:12Z"
+  "lastActivity": "2026-06-28T02:55:00Z"
 }
