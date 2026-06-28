@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0761",
-  "backlogNote": "▶ **nextTask=T-0761**(pr, test-only — realdata-e2e seed-side pipeline-plan(step①→②)과 evaluate-side evaluation-plan(step③)이 동일 단일 modelId 정책 source 로 byte-identical 수렴함을 묶는 cross-stage non-gated build-time smoke. T-0760 seed identity 수렴 sibling 의 cross-stage modelId 대칭. dependsOn [] file-disjoint·claimable stage5b 병렬, 신규 spec 1파일). ▶ **T-0760 DONE** PR #675 squash 6bf32e3c(step① seed upsert↔collect 두 leg single-source seeds identity convergence smoke — reviewer round1 APPROVE 0 finding, +424/-0 1파일 smoke 15 it). ▶ **T-0759 DONE** PR #674 squash d752cdd1(step④ publish↔outcome step-args 두 leg single-source runPlan.run convergence smoke). ▶ **T-0758 DONE** PR #673 squash 8bdb240b(search-then-resolve 멱등 round-trip dual-leg single-source commandArgs convergence smoke). ▶ **T-0757 DONE** PR #672(command-args tri-leg single-source descriptor convergence smoke). ▶ **T-0756 DONE** PR #671(evaluation-plan dual-leg). claim prune 완료(claims.json=[]). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0762",
+  "backlogNote": "▶ **nextTask=T-0762**(pr, test-only — realdata-e2e step④ publish 진입 composer buildRealDataResultIssuePublishPlan(results,run) 의 내포 report 와 standalone buildRealDataResultReportPlan(results,run) 산출이 동일 single-source (results,run) 로 byte-identical 수렴(publishPlan.report toEqual reportPlan·not.toBe 무공유·summary/descriptor sub-필드·multi-result 동형·partial-thread 격리·run-guard 대칭 throw)함을 묶는 cross-composer non-gated build-time smoke. report-plan smoke 는 publish-plan 을 '별개 family' 코멘트로만 언급(수렴 단언 0) gap. T-0761 cross-stage modelId 수렴 sibling 의 cross-composer report 대칭. dependsOn [] file-disjoint·claimable stage5b 병렬, 신규 spec 1파일). ▶ **T-0761 DONE** PR #676 squash 72c32695(pipeline-plan↔evaluation-plan cross-stage modelId 정책 수렴 smoke, test-only +355 LOC). ▶ **T-0760 DONE** PR #675 squash 6bf32e3c(step① seed upsert↔collect 두 leg single-source seeds identity convergence smoke — reviewer round1 APPROVE 0 finding, +424/-0 1파일 smoke 15 it). ▶ **T-0759 DONE** PR #674 squash d752cdd1(step④ publish↔outcome step-args 두 leg single-source runPlan.run convergence smoke). ▶ **T-0758 DONE** PR #673 squash 8bdb240b(search-then-resolve 멱등 round-trip dual-leg single-source commandArgs convergence smoke). ▶ **T-0757 DONE** PR #672(command-args tri-leg single-source descriptor convergence smoke). ▶ **T-0756 DONE** PR #671(evaluation-plan dual-leg). claim prune 완료(claims.json=[]). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "6bf32e3c",
+  "lastCommit": "72c32695",
   "mostRecentTasks": [
+    "T-0761",
     "T-0760",
     "T-0759",
     "T-0758",
-    "T-0757",
-    "T-0756"
+    "T-0757"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -29,13 +29,14 @@
     "note": "/loop AKIHA-21631 (dynamic, turn cap 2) — t1 T-0651 merge 41a6ef2 + planner T-0652 큐잉. t2 T-0652 merge c580071. cap 도달 → 종료 + lock 해제."
   },
   "ci": {
-    "status": "green",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0760 DONE (pr) — realdata-e2e step① seed upsert↔collect 두 leg single-source seeds identity convergence 직접-체인 non-gated build-time smoke. PR #675 squash 6bf32e3c, reviewer round1 APPROVE(0 finding), 4-게이트 PASS, PR CI green(머지 전 확인). test-only +424/-0 1파일 smoke 15 it. claim prune 완료(claims.json=[]). 머지 직후 main run(6bf32e3c) conclusion 은 in_progress — 다음 fire [1] 에서 재확인. 직전 main run d2332198·d752cdd1·3cc3f25c 전부 success.",
-    "lastRun": "2026-06-28T13:56:54Z"
+    "note": "T-0761 DONE (pr) — realdata-e2e pipeline-plan↔evaluation-plan cross-stage modelId 정책 single-source byte-identical 수렴 직접-체인 non-gated build-time smoke. PR #676 squash 72c32695, reviewer round1 APPROVE(1 MINOR: 355 LOC>300 cap, test-only sizeExempt sibling-consistent), 4-게이트 PASS, PR CI green(머지 전 reviewer-approval 게이트 포함 전 job success). test-only +355/-0 1파일 smoke 16 it. claim prune 완료(claims.json=[]). 머지 직후 main run(72c32695) conclusion 은 pending/in_progress — 다음 fire [1] 에서 재확인. 직전 main run 6bf32e3c·d752cdd1·3cc3f25c 전부 success 가정(PR CI green).",
+    "lastRun": "2026-06-28T14:14:52Z"
   },
   "reviewRounds": {
+    "T-0761": 1,
     "T-0759": 1,
     "T-0758": 1,
     "T-0757": 1,
@@ -1206,7 +1207,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 752,
+    "tasksCompleted": 753,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

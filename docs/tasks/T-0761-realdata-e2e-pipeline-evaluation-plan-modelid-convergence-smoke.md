@@ -2,8 +2,12 @@
 id: T-0761
 title: realdata-e2e pipeline-plan↔evaluation-plan 두 stage(buildRealDataPipelinePlan·buildRealDataEvaluationPlan) single-source modelId 정책 cross-stage convergence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 676
+mergedAs: 72c32695
+reviewRounds: 1
+completed: 2026-06-28
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 285
 estimatedFiles: 1
