@@ -2,7 +2,7 @@
 id: T-0770
 title: realdata-e2e step④ top-orchestrator pre→resolve→post triple-boundary single-source closure — buildRealDataResultIssuePublishPlan(results,run).{searchArgv,commandArgs,report.descriptor.marker} → resolveRealDataResultIssueGhCommandPlan(searchStdout, publishPlan.commandArgs).action.update.issueNumber ↔ buildRealDataResultIssueOutcomeReportFromOutput(execStdout, run).{issueNumber,gitSha,dateToken} 가 단일 (results, run, search-stdout, exec-stdout) source 로 marker+issueNumber+run-identity 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 300
