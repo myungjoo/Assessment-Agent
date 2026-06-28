@@ -2,7 +2,7 @@
 id: T-0759
 title: realdata-e2e step④ publish↔outcome step-args 두 leg(buildRealDataResultPublishStepArgs·buildRealDataResultOutcomeStepArgs) single-source runPlan.run convergence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 270
@@ -80,3 +80,9 @@ implementer → tester
 ## Follow-ups
 
 (없음 — 생성 시점)
+
+## Result (DONE 2026-06-28)
+
+- PR #674 squash merge `d752cdd1` — reviewer round 1/7 APPROVE(0 finding), 4-게이트 전부 PASS, PR CI green.
+- test-only +461/-0 1 파일 신설(`test/smoke/realdata-e2e-publish-outcome-step-args-run-convergence-assembly.smoke-spec.ts`), 신규 smoke 18/18 pass. lint·build·unit(8910)·test:cov green. src 변경 0.
+- publish↔outcome 두 leg 동일 runPlan.run single-source 수렴(marker run source ↔ outcome gitSha/dateToken)·create/edit 분기·partial-thread 격리·negative 전파 단언.
