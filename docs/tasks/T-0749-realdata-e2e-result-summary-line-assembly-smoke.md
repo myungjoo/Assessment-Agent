@@ -2,7 +2,9 @@
 id: T-0749
 title: realdata-e2e result-summary→line 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-28T07:50:00Z
+result: "DONE — PR #664 squash 131ae48a. result-summary→line 직접 조립 체인 smoke 1파일(+278/-0) 신설, reviewer round1 APPROVE(0 findings), 4-게이트 PASS, CI green(reviewer-approval step timing rerun 후). 신규 15 it: happy 한-줄 골격·byte-identical expected·슬롯 값 summary 전파·chain↔direct 단일 source·count/volume 토큰 정합·빈/단일/집중 results 분기·raw narrative 누출 0·슬롯 순서 결정론·totalVolume 합·개행 0·무공유·no-mutation·non-gated."
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 230
