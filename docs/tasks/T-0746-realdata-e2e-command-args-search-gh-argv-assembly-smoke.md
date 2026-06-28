@@ -2,7 +2,10 @@
 id: T-0746
 title: realdata-e2e command-args-search-gh-argv 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-28T06:13Z
+resultCommit: 8ca9a1b5
+prNumber: 661
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 230
