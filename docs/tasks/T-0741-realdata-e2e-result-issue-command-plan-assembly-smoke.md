@@ -2,7 +2,7 @@
 id: T-0741
 title: realdata-e2e result-issue-command-plan 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 210
@@ -63,3 +63,7 @@ PLAN.md 109행 (🟢 실 평가 e2e, P5) 의 step③(평가) → step④(결과 
 ## Follow-ups
 
 (없음)
+
+## Result
+
+Status: DONE — 2026-06-28. PR #656 squash 머지(adac904c), reviewer round1 APPROVE + 4-게이트 PASS + PR CI green. test-only 1파일(+371/-0) 15 it: buildRealDataResultIssueCommandPlan(results,run)→{report,commandArgs} 종단 조립 — run 단일 source threading · report↔commandArgs descriptor 정합 · blank throw 전파 · 빈/단일/다수 results 분기 cover.
