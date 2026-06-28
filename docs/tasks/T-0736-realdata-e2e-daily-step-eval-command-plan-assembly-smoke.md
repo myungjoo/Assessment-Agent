@@ -2,7 +2,11 @@
 id: T-0736
 title: realdata-e2e daily-test step_eval command-plan 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-28T00:55:00Z
+mergedAs: f8a64b19a3c0e9f4f648a422c95bb352923f5919
+prNumber: 651
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 190
