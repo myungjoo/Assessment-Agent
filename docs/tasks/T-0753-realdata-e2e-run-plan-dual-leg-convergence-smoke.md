@@ -2,7 +2,10 @@
 id: T-0753
 title: realdata-e2e run-plan 최외곽 컴포저 dual-leg(pipeline·run) convergence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: cb93bd03
+prNumber: 668
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 300

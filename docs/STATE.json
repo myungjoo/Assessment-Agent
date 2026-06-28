@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0753",
-  "backlogNote": "▶ **nextTask=T-0753**(pr, test-only — realdata-e2e run-plan 최외곽 컴포저 buildRealDataE2eRunPlan dual-leg(pipeline·run) convergence 직접 조립 체인 non-gated build-time smoke. T-0752 aggregator(step-args) downstream 의 upstream 대칭 sibling — runPlan.pipeline byte-identical vs 직접 buildRealDataPipelinePlan·run leg·partial-thread 격리·guard-ordering gap. dependsOn [] file-disjoint·claimable stage5b 병렬). ▶ **T-0752 DONE** PR #667 squash 5657d1ac(step-args aggregator dual-leg runPlan single-source convergence smoke 16 it). ▶ **T-0751 DONE** PR #666 squash aadc0e2d(summary→descriptor title·marker identity-confluence). ▶ **T-0750 DONE** PR #665 squash 355771ea(summary→descriptor body 3-블록 confluence). ▶ **T-0749 DONE** PR #664 squash 131ae48a(result-summary→line 조립 smoke). claim prune 완료(claims.json=[]). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0754",
+  "backlogNote": "▶ **nextTask=T-0754**(pr, test-only — realdata-e2e seed-side 진입 컴포저 buildRealDataPipelinePlan dual-leg(collectCallArgs·modelId) convergence 직접 조립 체인 non-gated build-time smoke. T-0753 run-plan(pipeline·run) dual-leg 의 seed-side 안쪽 sibling — plan.collectCallArgs byte-identical vs 직접 buildRealDataCollectCallArgs·modelId leg·partial-thread 격리·modelId-guard 우선 ordering gap(기존 pipeline-plan-assembly smoke 는 per-element shallow 만). dependsOn [] file-disjoint·claimable stage5b 병렬). ▶ **T-0753 DONE** PR #668 squash cb93bd03(run-plan 최외곽 컴포저 dual-leg pipeline·run convergence smoke). ▶ **T-0752 DONE** PR #667 squash 5657d1ac(step-args aggregator dual-leg runPlan single-source convergence smoke 16 it). ▶ **T-0751 DONE** PR #666 squash aadc0e2d(summary→descriptor title·marker identity-confluence). ▶ **T-0750 DONE** PR #665 squash 355771ea(summary→descriptor body 3-블록 confluence). claim prune 완료(claims.json=[]). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "5657d1ac",
+  "lastCommit": "cb93bd03",
   "mostRecentTasks": [
+    "T-0753",
     "T-0752",
     "T-0751",
     "T-0750",
-    "T-0749",
-    "T-0748"
+    "T-0749"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,10 +32,11 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0752 DONE (pr) — realdata-e2e step-args aggregator dual-leg runPlan single-source convergence 직접 조립 체인 non-gated build-time smoke. PR #667 squash 5657d1ac, reviewer round1 APPROVE 0 findings, 4-게이트 PASS, PR CI green + 머지 후 main run(5657d1ac) CI 도 completed success 확인(R-114 충족). test-only +382/-0 1파일 신규 smoke spec 16 it(aggregator evaluation·publish 두 leg byte-identical vs 직접 sub-composer 호출). claim prune 완료(claims.json=[]).",
-    "lastRun": "2026-06-28T09:05:00Z"
+    "note": "T-0753 DONE (pr) — realdata-e2e run-plan 최외곽 컴포저 buildRealDataE2eRunPlan dual-leg(pipeline·run) convergence 직접-체인 non-gated build-time smoke. PR #668 squash cb93bd03, reviewer round1 APPROVE 0 findings, 4-게이트 PASS, PR CI green(reviewer approval 검증 step success). test-only +358/-0 1파일 신규 smoke spec 21 it(pipeline leg byte-identical vs 직접 buildRealDataPipelinePlan·run leg 복사·partial-thread 격리·guard-ordering). 머지 후 main push run(cb93bd03)은 다음 fire [1] 재확인. claim prune 완료(claims.json=[]).",
+    "lastRun": "2026-06-28T09:38:00Z"
   },
   "reviewRounds": {
+    "T-0753": 1,
     "T-0752": 1,
     "T-0751": 1,
     "T-0750": 1,
@@ -1198,7 +1199,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 744,
+    "tasksCompleted": 745,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1226,5 +1227,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-28T09:05Z"
+  "lastActivity": "2026-06-28T09:40Z"
 }
