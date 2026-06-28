@@ -2,12 +2,16 @@
 id: T-0764
 title: realdata-e2e step④ post-execution resolve↔parse issueNumber single-source roundtrip 수렴 — resolveRealDataResultIssueGhCommandPlan(update path).action.issueNumber ↔ parseRealDataResultIssueCreateEditOutput(stdout).issueNumber byte-identical 3자 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 300
 estimatedFiles: 1
 created: 2026-06-28
+completedAt: 2026-06-28
+mergedAs: 496a4f0032e0bc38bd5d83e2af6bc5ec941a7856
+prNumber: 679
+reviewRounds: 1
 plannerNote: "P5 §109 step④ 멱등 search-or-update 의 post-execution complement — resolve.action(update).issueNumber 와 parse(create/edit stdout).issueNumber 가 동일 N 단일 source 로 byte-identical 3자 수렴함을 묶는 cross-stage non-gated smoke 0 gap; git grep resolveRealDataResultIssueGhCommandPlan AND parseRealDataResultIssueCreateEditOutput 동시-호출 smoke 0 확인"
 independentStream: realdata-e2e-resolve-parse-issuenumber-roundtrip-convergence-smoke
 dependsOn: []
