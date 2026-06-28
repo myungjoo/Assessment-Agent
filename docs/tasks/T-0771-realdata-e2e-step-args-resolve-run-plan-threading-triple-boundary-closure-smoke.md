@@ -2,7 +2,7 @@
 id: T-0771
 title: realdata-e2e step④ run-plan-threading triple-boundary single-source closure — buildRealDataResultPublishStepArgs(runPlan, results)(pre) → resolveRealDataResultIssueGhCommandPlan(searchStdout, publishPlan.commandArgs).action.update.issueNumber ↔ buildRealDataResultOutcomeStepArgs(runPlan, execStdout)(post) 가 단일 검증 runPlan.run(step① 보존) single-source 로 marker+issueNumber+run-identity 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 300
