@@ -2,7 +2,7 @@
 id: T-0754
 title: realdata-e2e pipeline-plan 컴포저 dual-leg(collectCallArgs·modelId) convergence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 290
