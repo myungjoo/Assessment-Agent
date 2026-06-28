@@ -2,8 +2,10 @@
 id: T-0774
 title: realdata-e2e step④ aggregator dual-leg modelId+searchArgv 합류 5-way single-source closure — buildRealDataE2eStepArgs(runPlan, activities, results) 한 호출의 {evaluation.callArgs[].options.modelId(=runPlan.pipeline.modelId), publish.{report.descriptor.marker, commandArgs.searchQuery, searchArgv(--match 토큰)}} ↔ resolveRealDataResultIssueGhCommandPlan(searchStdout, stepArgs.publish.commandArgs).action.update.issueNumber ↔ buildRealDataResultOutcomeStepArgs(runPlan, execStdout) run-identity 가 단일 검증 runPlan single-source 로 modelId+marker+searchArgv+issueNumber+run-identity 5축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 0076fd68
+prNumber: 689
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 300
 estimatedFiles: 1
