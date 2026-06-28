@@ -2,7 +2,7 @@
 id: T-0758
 title: realdata-e2e search-then-resolve 멱등 round-trip dual-leg(searchArgv·resolve-gh-command-plan) single-source commandArgs convergence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 285
@@ -79,3 +79,9 @@ implementer → tester
 ## Follow-ups
 
 (없음 — 생성 시점)
+
+## 결과 (DONE)
+
+- 완료: 2026-06-28T12:08Z (fire=cron@aa-local15-faaba0)
+- PR #673 squash merge 8bdb240b (--delete-branch). reviewer round1 APPROVE (1 MINOR: 459 LOC>300 cap, test-only sibling-consistent). 4-게이트 PASS. PR CI green (run 28321820667 전 job success).
+- test-only +459/-0 1파일: test/smoke/realdata-e2e-search-resolve-roundtrip-convergence-assembly.smoke-spec.ts (smoke 24 it). search leg·resolve leg 가 동일 commandArgs 단일 source 로 byte-identical 수렴함을 직접-체인으로 박제.

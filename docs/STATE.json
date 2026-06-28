@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0758",
-  "backlogNote": "▶ **nextTask=T-0758**(pr, test-only — realdata-e2e step④ search-then-resolve 멱등 round-trip dual-leg(searchArgv·resolve-gh-command-plan) single-source commandArgs convergence 조립 체인 non-gated build-time smoke. 기존 sweep 은 search leg(T-0746)·resolve leg(T-0742)를 각각 따로 닫았으나 두 leg 를 동일 commandArgs.searchQuery 단일 source 로 묶은 round-trip 수렴(search 가 쓴 marker = resolve 가 매칭·update argv 에 쓰는 searchQuery byte-identical = 멱등 핵심 불변식) smoke 0 gap — git grep 으로 SearchGhArgv+GhCommandPlan 동시 포함 smoke 0 파일 확인. search→create(빈 stdout)·search→update(hit 1+건 최소 number)·partial-thread 격리(marker 변→두 leg 동시 이동)·negative(빈 searchQuery 양 leg throw·비JSON/비배열/비양수 number parse throw·빈 update title/body buildGhArgv throw)·create/update 분기 분리·credential 누출 0·결정론 무공유. dependsOn [] file-disjoint·claimable stage5b 병렬). ▶ **T-0757 DONE** PR #672(command-args tri-leg searchQuery·createArgs·updateArgs single-source descriptor convergence smoke). ▶ **T-0756 DONE** PR #671 squash 82ea1192(evaluation-plan dual-leg inputs·callArgs convergence smoke). ▶ **T-0755 DONE** PR #670 squash a8f6540c(result-issue-publish-plan tri-leg convergence smoke). ▶ **T-0754 DONE** PR #669(pipeline-plan dual-leg). ▶ **T-0753 DONE** PR #668(run-plan 최외곽 dual-leg). claim prune 완료(claims.json=[]). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0759",
+  "backlogNote": "▶ **nextTask=T-0759**(pr, test-only — realdata-e2e step④ publish↔outcome step-args 두 leg(buildRealDataResultPublishStepArgs·buildRealDataResultOutcomeStepArgs) single-source runPlan.run convergence 조립 체인 non-gated build-time smoke. 기존 sweep 은 publish leg(T-0737)·outcome leg(T-0738)를 각각 따로 닫았고 pre-실행 dual-leg aggregator(T-0752)·단일-run search↔resolve round-trip(T-0758)도 닫았으나, pre-실행 publish leg 와 post-실행 outcome leg 를 동일 runPlan 으로 동시 호출해 publish marker 의 run source(=descriptor.marker=commandArgs.searchQuery)와 outcome report 의 gitSha/dateToken 이 동일 runPlan.run 단일 source 로 byte-identical 수렴(run X 로 박제한 이슈의 outcome 도 run X — step④ post-실행 round-trip 멱등 핵심 불변식)함을 묶은 smoke 0 gap — git grep 으로 두 leg 동시-호출 cross convergence 파일 0 확인. cross-leg run 수렴·create/edit stdout 분기·partial-thread 격리(다른 runPlan→두 leg 동시 이동·run 은 results/stdout 독립)·negative(빈/공백 gitSha·dateToken 양 leg throw·잘못/빈 stdout 파서 throw)·pre/post leg 분리·credential 누출 0·결정론 무공유. dependsOn [] file-disjoint·claimable stage5b 병렬). ▶ **T-0758 DONE** PR #673 squash 8bdb240b(search-then-resolve 멱등 round-trip dual-leg single-source commandArgs convergence smoke). ▶ **T-0757 DONE** PR #672(command-args tri-leg searchQuery·createArgs·updateArgs single-source descriptor convergence smoke). ▶ **T-0756 DONE** PR #671 squash 82ea1192(evaluation-plan dual-leg inputs·callArgs convergence smoke). ▶ **T-0755 DONE** PR #670 squash a8f6540c(result-issue-publish-plan tri-leg convergence smoke). ▶ **T-0754 DONE** PR #669(pipeline-plan dual-leg). ▶ **T-0753 DONE** PR #668(run-plan 최외곽 dual-leg). claim prune 완료(claims.json=[]). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "19fdf7e3",
+  "lastCommit": "8bdb240b",
   "mostRecentTasks": [
+    "T-0758",
     "T-0757",
     "T-0756",
     "T-0755",
-    "T-0754",
-    "T-0753"
+    "T-0754"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,10 +32,11 @@
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0757 DONE (pr) — realdata-e2e command-args 컴포저 buildRealDataResultIssueCommandArgs tri-leg(searchQuery·createArgs·updateArgs) single-source descriptor convergence 직접-체인 non-gated build-time smoke. PR #672 squash 19fdf7e3, reviewer round1 APPROVE, 4-게이트 PASS, PR CI green (머지 전 lint·build·cov·smoke·e2e green 확인). test-only +358/-0 1파일 smoke 18 it. claim prune 완료(claims.json=[]). 머지 후 main run(19fdf7e3)은 in_progress — 다음 fire [1] 에서 conclusion 재확인(PR CI 머지 전 green 확인됨 → 코드 건전). 직전 main run 82ea1192/bfdba143 success 재확인 완료.",
-    "lastRun": "2026-06-28T11:38:00Z"
+    "note": "T-0758 DONE (pr) — realdata-e2e search-then-resolve 멱등 round-trip dual-leg(searchArgv·resolve-gh-command-plan) single-source commandArgs convergence 직접-체인 non-gated build-time smoke. PR #673 squash 8bdb240b, reviewer round1 APPROVE(1 MINOR: 459 LOC>300 cap, test-only sibling-consistent), 4-게이트 PASS, PR CI green (run 28321820667 전 job success — reviewer-approval 게이트 포함). test-only +459/-0 1파일 smoke 24 it. claim prune 완료(claims.json=[]). 머지 후 main run(8bdb240b)은 in_progress — 다음 fire [1] 에서 conclusion 재확인(PR CI 머지 전 green 확인됨 → 코드 건전). 직전 main run 19fdf7e3/951a4c1e success 가정(PR CI green)·다음 fire 확인.",
+    "lastRun": "2026-06-28T12:08:00Z"
   },
   "reviewRounds": {
+    "T-0758": 1,
     "T-0757": 1,
     "T-0756": 1,
     "T-0755": 1,
@@ -1203,7 +1204,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 749,
+    "tasksCompleted": 750,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1231,5 +1232,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-28T11:40Z"
+  "lastActivity": "2026-06-28T12:08Z"
 }
