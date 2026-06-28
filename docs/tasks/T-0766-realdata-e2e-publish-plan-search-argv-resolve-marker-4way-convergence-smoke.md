@@ -2,12 +2,16 @@
 id: T-0766
 title: realdata-e2e step④ pre-execution publish-plan↔search-argv↔resolve↔descriptor marker 4자 cross-stage 수렴 — buildRealDataResultIssuePublishPlan.searchArgv ↔ buildRealDataResultIssueSearchGhArgv(commandArgs) ↔ resolveRealDataResultIssueGhCommandPlan.searchQuery ↔ descriptor.marker byte-identical 4자 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 300
 estimatedFiles: 1
 created: 2026-06-29
+completedAt: 2026-06-28T17:24:47Z
+prNumber: 681
+mergedAs: e6bf46467a2f72bb8ab81c3caed2e8ad7ffad541
+reviewRounds: 1
 plannerNote: "P5 §109 step④ pre-execution sweep 연장 — T-0758 search-argv↔resolve↔descriptor marker 3자 위에 publish-plan 진입 leg 합류로 4자 확장(publishPlan.searchArgv 가 marker single-source); git grep buildRealDataResultIssuePublishPlan AND resolveRealDataResultIssueGhCommandPlan 둘 다 실호출 smoke 0 확인(주석 외)"
 independentStream: realdata-e2e-publish-plan-search-argv-resolve-marker-4way-convergence-smoke
 dependsOn: []
