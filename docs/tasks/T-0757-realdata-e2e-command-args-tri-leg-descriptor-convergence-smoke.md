@@ -2,7 +2,10 @@
 id: T-0757
 title: realdata-e2e command-args 컴포저 tri-leg(searchQuery·createArgs·updateArgs) single-source descriptor convergence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-28T11:40Z
+resultPR: 672
+resultCommit: 19fdf7e3
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 280
