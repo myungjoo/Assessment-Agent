@@ -2,8 +2,12 @@
 id: T-0763
 title: realdata-e2e step①↔step④ run-identity convergence — buildRealDataE2eRunPlan.run ↔ buildRealDataResultPublishStepArgs.report.descriptor marker/title ↔ standalone buildRealDataResultIssueDescriptor single-source run 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-06-28T15:34:00Z
+mergedAs: 12b3b783
+prNumber: 678
+reviewRounds: 1
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 300
 estimatedFiles: 1

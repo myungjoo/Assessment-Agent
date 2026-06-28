@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0763",
-  "backlogNote": "▶ **nextTask=T-0763**(pr, test-only — realdata-e2e step①↔step④ run-identity 수렴: buildRealDataE2eRunPlan.run ↔ publish-step-args report.descriptor marker/title ↔ standalone descriptor 가 동일 run single-source 로 byte-identical 3자 수렴함을 묶는 cross-stage non-gated build-time smoke. T-0761 modelId 대칭의 run-축 형제. dependsOn [] file-disjoint·claimable stage5b 병렬, 신규 spec 1파일). ▶ **T-0762 DONE** PR #677 squash d25f57e7(publish-plan↔report-plan cross-composer report 수렴 smoke, test-only +401/-0 1파일 smoke 15 it, reviewer round1 APPROVE 0 blocker). ▶ **T-0761 DONE** PR #676 squash 72c32695(pipeline-plan↔evaluation-plan cross-stage modelId 수렴 smoke). ▶ **T-0760 DONE** PR #675 squash 6bf32e3c. ▶ **T-0759 DONE** PR #674 d752cdd1. ▶ **T-0758 DONE** PR #673. claim prune 완료(claims.json=[]). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0764",
+  "backlogNote": "▶ **nextTask=T-0764**(pr, test-only — realdata-e2e step④ post-execution resolve↔parse issueNumber single-source 3자 roundtrip 수렴: resolveRealDataResultIssueGhCommandPlan(update path).action.issueNumber ↔ resolve.argv 안 N ↔ parseRealDataResultIssueCreateEditOutput(stdout).issueNumber + search-hit.minNumber 멱등 source 가 동일 N 단일 source 로 byte-identical 3자 수렴함을 묶는 cross-stage non-gated build-time smoke. T-0758 marker 축 pre-execution roundtrip 의 post-execution mirror — issueNumber 축. dependsOn [] file-disjoint·claimable stage5b 병렬, 신규 spec 1파일). ▶ **T-0763 DONE** PR #678 squash 12b3b783(realdata-e2e step①↔step④ run-identity 3자 수렴 smoke — runPlan.run↔publishPlan.report.descriptor↔standalone descriptor byte-identical, test-only 1파일). ▶ **T-0762 DONE** PR #677 squash d25f57e7(publish-plan↔report-plan cross-composer report 수렴 smoke). ▶ **T-0761 DONE** PR #676 squash 72c32695(pipeline-plan↔evaluation-plan cross-stage modelId 수렴 smoke). ▶ **T-0760 DONE** PR #675 squash 6bf32e3c. ▶ **T-0759 DONE** PR #674 d752cdd1. ▶ **T-0758 DONE** PR #673. claim prune 완료(claims.json=[]). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "d25f57e7",
+  "lastCommit": "12b3b783",
   "mostRecentTasks": [
+    "T-0763",
     "T-0762",
     "T-0761",
     "T-0760",
-    "T-0759",
-    "T-0758"
+    "T-0759"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,10 +32,11 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0762 DONE (pr) — realdata-e2e publish-plan↔report-plan 두 composer single-source (results,run) report byte-identical 수렴 non-gated build-time smoke. PR #677 squash d25f57e7, reviewer round1 APPROVE(0 blocker, 1 informational nit), 4-게이트 PASS, PR CI green(run 28325835790, 머지 전 확인). test-only +401/-0 1파일 smoke 15 it. claim prune 완료(claims.json=[]). 직전 main run 88e014f5·72c32695 success.",
-    "lastRun": "2026-06-28T14:45:00Z"
+    "note": "T-0763 DONE (pr) — realdata-e2e step①↔step④ run-identity 3자 byte-identical 수렴 (runPlan.run ↔ publishPlan.report.descriptor marker/title ↔ standalone descriptor) non-gated build-time smoke. PR #678 squash 12b3b783, reviewer round1 APPROVE(0 BLOCKER · 0 MAJOR · 0 MINOR · 0 NIT), 4-게이트 PASS, PR CI green(comment-triggered run 28327077842 success, 머지 전 확인). test-only +628/-0 1파일 smoke 21 it (sizeExempt: true). claim prune 완료(claims.json=[]). 직전 main run 12b3b783·d25f57e7 success.",
+    "lastRun": "2026-06-28T15:34:00Z"
   },
   "reviewRounds": {
+    "T-0763": 1,
     "T-0762": 1,
     "T-0761": 1,
     "T-0759": 1,
@@ -1208,7 +1209,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 754,
+    "tasksCompleted": 755,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
