@@ -157,6 +157,10 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
       e. head sha == 마지막 reviewer-인지 sha + reviewer.VERDICT == REQUEST_CHANGES
          → executor re-entry mode 로 진입 ([3] EXECUTOR 호출 단계로).
       f. 위 모두 아님 (정상 진행 중) → [3] EXECUTOR 호출.
+      - **prNumber 재동기 idempotent (ADR-0036)**: 토글 ON 에서 위 분기로 PR 을
+        resume / ANOTHER_ROUND 진행할 때 이미 claim 의 `prNumber` 가 동기돼 있으면
+        `scripts/sync-claim-pr.sh` 재호출은 **idempotent no-op(exit 0)** 이라 안전
+        하다(이미 같은 prNumber + PR_OPEN — 중복 호출이 claims.json 을 변경하지 않음).
 - 없고 state.nextTask가 있으면 currentTask=nextTask, nextTask=null.
 - 둘 다 없으면 planner sub-agent를 dispatch한다.
   → planner가 task 1개를 만들고 STATE.nextTask를 갱신해 돌아오면
@@ -202,6 +206,22 @@ Assessment-Agent long-horizon driver를 1 turn 수행한다.
     target=claude/<TaskID>-<slug> (없으면 main에서 새로 생성).
     위 (i)~(iv) 따라 feature branch에 push.
     이어서 integrator sub-agent 호출 (PR open + reviewer dispatch + 결과 판정).
+    **(claim prNumber 동기 — fineGrainedConcurrency 토글 ON 시에만, ADR-0036)**:
+      integrator 가 PR 을 open 해 PR number N 을 확보한 **직후, lock(critical
+      section) 보유 상태에서** `scripts/sync-claim-pr.sh <T-NNNN> <N> <self-session>`
+      를 호출해 자기 claim entry 의 `prNumber`(null→정수) + `status`(→PR_OPEN)
+      를 원자 동기한다. 이 동기가 reclaim 의 `prNumber != null → RESUME` 분기
+      ([2] PR Resume 판정)를 살려, 본 driver 가 머지 전 사망해도 다음 driver 가
+      **중복 PR 을 열지 않고** 그 PR 을 resume 하게 한다(T-0730 dup-PR #645/#646
+      근본 fix 완결). **토글 OFF(coarse mutex) 에서는 claim registry 자체가 없어
+      본 step 은 inert** — claims.json 부재이므로 호출 불요(호출돼도 sync-claim-pr
+      가 대상 부재로 exit 1, 아래 fail-safe 흡수).
+      - **호출 실패 처리 (fail-safe — BLOCKED 아님)**: sync-claim-pr 가 non-zero
+        (대상 부재/owner 불일치/CAS 재시도 소진)면 driver 는 **BLOCKED 로 가지
+        않고** 경고를 journal 에 박제만 한다. dup-PR risk 는 1 회 sync 실패로
+        즉시 재현되지 않으며(다음 turn 의 reclaim 이 GitHub branch 점검으로
+        흡수 — §D8 (a) "모르면 직렬화"), sync-claim-pr 는 idempotent(exit 0
+        no-op) 라 다음 turn·ANOTHER_ROUND 에서 안전하게 재호출된다.
     integrator 반환에 따라:
       MERGED → INTEGRATOR trail을 merge commit 메시지에 포함시켜 머지 (이미 됨).
       ANOTHER_ROUND → STATE.reviewRounds++. 같은 turn 안에서 executor re-entry 즉시

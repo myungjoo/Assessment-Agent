@@ -123,6 +123,18 @@ env `RECLAIM_NOW` / 인자로 **주입**받는다. **미주입 시 회수를 보
 now 미주입 보류 / stale-lease 거부 / 이중 회수 0 / no-op 7 종을 박제해 CI
 (`reclaim-stale-claim 검증` step)에서 매 PR 강제한다.
 
+**PR open 직후 prNumber 동기 (shipped: scripts/sync-claim-pr.sh, wiring T-0735)**:
+위 2단계의 **(b) `prNumber != null → RESUME`** 분기가 정상 작동하려면, driver 가
+PR 을 open 한 직후 자기 claim entry 의 `prNumber`(null→정수) + `status`(→PR_OPEN)
+를 **선행 동기**해 둬야 한다. 이 동기가 빠지면 PR open 후 driver 가 머지 전 사망
+했을 때 그 claim 이 `prNumber == null` 인 채 남아 reclaim 이 (a) bare-prune 분기로
+PR-resume 신호를 잃고, 다음 driver 가 **중복 PR** 을 연다(T-0730 dup-PR #645/#646
+이 정확히 이 빠진 단계가 원인). [scripts/sync-claim-pr.sh](../../scripts/sync-claim-pr.sh)
+가 lock(critical section) 하에서 claims.json 만 CAS 교체해 이 동기를 수행하는
+primitive 이며(인자 `<task-id> <pr-number> <owner>`, exit 0 = 성공/idempotent
+no-op), driver loop 의 PR open 직후 호출 시점은 [LOOP.md](../LOOP.md) §1 [4]
+pr-mode 블록에 박제돼 있다(토글 ON 시에만 활성 — 토글 OFF 에서는 claim 부재로 inert).
+
 **미shipped (후속 stage)**: driver loop 통합(§1 loop 재작성 — loop 가 언제
 reclaim-stale-claim.sh 를 호출하고 server-time now 를 주입하는지)은 **stage 3**,
 per-PR CI concurrency group(§Decision 6)은 **stage 4**, `flags.fineGrainedConcurrency
