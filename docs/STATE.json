@@ -29,11 +29,11 @@
     "note": "/loop AKIHA-21631 (dynamic, turn cap 2) — t1 T-0651 merge 41a6ef2 + planner T-0652 큐잉. t2 T-0652 merge c580071. cap 도달 → 종료 + lock 해제."
   },
   "ci": {
-    "status": "green",
+    "status": "transient-infra-fail",
     "consecutiveFails": 0,
-    "lastConclusion": "success",
-    "note": "T-0753 DONE (pr) — realdata-e2e run-plan 최외곽 컴포저 buildRealDataE2eRunPlan dual-leg(pipeline·run) convergence 직접-체인 non-gated build-time smoke. PR #668 squash cb93bd03, reviewer round1 APPROVE 0 findings, 4-게이트 PASS, PR CI green(reviewer approval 검증 step success). test-only +358/-0 1파일 신규 smoke spec 21 it(pipeline leg byte-identical vs 직접 buildRealDataPipelinePlan·run leg 복사·partial-thread 격리·guard-ordering). 머지 후 main push run(cb93bd03)은 다음 fire [1] 재확인. claim prune 완료(claims.json=[]).",
-    "lastRun": "2026-06-28T09:38:00Z"
+    "lastConclusion": "failure",
+    "note": "T-0753 DONE (pr) — realdata-e2e run-plan 최외곽 컴포저 buildRealDataE2eRunPlan dual-leg(pipeline·run) convergence smoke. PR #668 squash cb93bd03, reviewer round1 APPROVE 0 findings, 4-게이트 PASS, PR CI green. test-only +358/-0 1파일 21 it. ⚠️ 머지 후 main run(cb93bd03)은 'failure' — 단 코드/test 결함 아님: '기본 검사' job 의 postgres:16-alpine docker pull 이 registry-1.docker.io context-deadline-exceeded(Docker Hub 네트워크 타임아웃 3회 재시도 소진)로 service container init 실패한 transient infra fail(배포 산출물 검증 job 은 success). PR CI 는 머지 전 green 확인됨 → main 코드 건전. consecutiveFails 미증가(infra-transient, 코드 동일 사유 반복 아님). bookkeeping run(e636f2e5)은 같은 main tip 에서 in_progress — 다음 fire [1] 에서 conclusion 재확인해 green 이면 status green 복귀, 같은 docker-pull 사유 반복 fail 시에만 누적 고려. claim prune 완료(claims.json=[]).",
+    "lastRun": "2026-06-28T10:00:00Z"
   },
   "reviewRounds": {
     "T-0753": 1,
