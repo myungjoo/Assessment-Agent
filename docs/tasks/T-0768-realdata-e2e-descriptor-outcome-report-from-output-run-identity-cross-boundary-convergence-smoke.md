@@ -2,7 +2,7 @@
 id: T-0768
 title: realdata-e2e step④ pre/post-execution cross-boundary descriptor↔outcome-report-from-output run-identity(gitSha·dateToken) single-source 수렴 — buildRealDataResultIssueDescriptor.{title,marker} ↔ buildRealDataResultIssueOutcomeReportFromOutput.{gitSha,dateToken} byte-identical cross-boundary 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 300
