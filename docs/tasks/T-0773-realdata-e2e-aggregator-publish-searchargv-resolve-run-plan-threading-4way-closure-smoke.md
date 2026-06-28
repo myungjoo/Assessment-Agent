@@ -2,7 +2,7 @@
 id: T-0773
 title: realdata-e2e step④ aggregator-publish-leg search-argv 합류 4-way single-source closure — buildRealDataE2eStepArgs(runPlan, activities, results).publish 의 {report.descriptor.marker, commandArgs.searchQuery, searchArgv(--match 토큰)} 3-내부-축 ↔ resolveRealDataResultIssueGhCommandPlan(searchStdout, stepArgs.publish.commandArgs).action.update.issueNumber ↔ buildRealDataResultOutcomeStepArgs(runPlan, execStdout) run-identity 가 단일 검증 runPlan single-source 로 marker+issueNumber+run-identity+search-argv 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 300
