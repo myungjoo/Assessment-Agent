@@ -2,7 +2,9 @@
 id: T-0747
 title: realdata-e2e create-edit-output→outcome-report 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-28T06:42Z
+result: "DONE — PR #662 squash 5ed1e477, reviewer round1 APPROVE, 4-게이트 PASS, CI green. test-only +275/-0 1파일 신규 smoke spec 23 it(parseRealDataResultIssueCreateEditOutput→buildRealDataResultIssueOutcomeReport 직접 조립, step④ 박제-후 outcome-report leg)."
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 230
