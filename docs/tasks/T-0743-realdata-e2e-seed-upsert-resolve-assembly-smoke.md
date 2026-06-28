@@ -2,7 +2,11 @@
 id: T-0743
 title: realdata-e2e seed-upsert-resolve 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-28T04:48:00Z
+mergedAs: 3be73da76a13187539a7e3ec5355d0d2df65992b
+prNumber: 658
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 220

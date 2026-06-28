@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0743",
-  "backlogNote": "▶ **nextTask=T-0743**(pr, test-only — realdata-e2e seed-upsert-resolve 조립 체인 non-gated build-time smoke. PLAN §109 실 평가 e2e step①→② seed-side: buildRealDataE2eSeed→buildRealDataUpsertArgs(descriptors)→resolveRealDataPersonId(upsertArgsList,emailToPersonId) 종단 조립 — placeholder(PERSON_ID_PLACEHOLDER)→실 person.id 치환·email→id join·compound-unique where(personId_service) shape·net-0 update 보존(email/service/externalId 제외)·email 매핑 누락/빈/공백 throw 전파·빈/단일/다수 descriptor 분기·Record↔Map map 양형·결정론/무공유/no-mutation 회귀 그물. step④ search-side(T-0741/T-0742)·step②③ step-args(T-0737~T-0739) 의 seed-side(step①②) 대칭 sibling). dependsOn [] file-disjoint·claimable stage5b 병렬. issue-still-relevant: git grep buildRealDataUpsertArgs/resolveRealDataPersonId origin/main test/smoke/ = NONE(seed-side assembly smoke 부재, 컴포저 unit+consistency spec 만 존재) 확인. ▶ **T-0742 DONE** PR #657(realdata-e2e result-issue gh-command-plan 조립 체인 non-gated smoke — resolveRealDataResultIssueGhCommandPlan(stdout,commandArgs)→{action,argv}, step④ search-side 종단 3-위임 합성, create↔update 분기·credential argv 누출 0·throw 전파 cover, test-only 1파일). step④ 두 절반(commandArgs 산출↔gh argv 해소) 조립 smoke 쌍 닫음. ▶ **T-0741 DONE** PR #656 squash adac904c(result-issue-command-plan 조립 smoke). counters 733→734(T-0742 DONE bookkeeping 다음 fire 검증). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0744",
+  "backlogNote": "▶ **nextTask=T-0744**(pr, test-only — realdata-e2e seed-collect-call-args 조립 체인 non-gated build-time smoke. PLAN §109 실 평가 e2e step① seed-collect-side: buildRealDataE2eSeed→buildRealDataCollectInput→buildRealDataCollectCallArgs 종단 조립 — descriptor→CollectForPersonInput shape(service/externalId 만 추리고 isPrimary 드롭)·call-args 묶음(since=undefined·assessmentId=ASSESSMENT_ID_PLACEHOLDER)·person 1:1 wrap 단일 source deep-equal·externalId 빈/공백 throw 전파·빈/단일/다수 descriptor 분기·결정론/무공유/no-mutation 회귀 그물. T-0743 seed-side upsert(seed→upsert-args→resolve)의 collect-side 대칭 sibling). dependsOn [] file-disjoint·claimable stage5b 병렬. issue-still-relevant: git grep buildRealDataCollectInput origin/main test/smoke/ = pipeline-plan 위임 throw 주석 1회뿐(직접 chain 단언 0, 컴포저 unit+consistency spec 만 존재, collect-side assembly smoke 부재) 확인. ▶ **T-0743 DONE** PR #658 squash 3be73da7(realdata-e2e seed-upsert-resolve 조립 체인 non-gated smoke — buildRealDataE2eSeed→buildRealDataUpsertArgs→resolveRealDataPersonId, placeholder→실 person.id 치환·net-0 update 보존·Record/Map 양 arm·email 키 누락/빈/공백 id throw 전파, test-only 1파일 18 it). ▶ **T-0742 DONE** PR #657 squash 235fb290(result-issue gh-command-plan 조립 smoke). counters 734→735. ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "235fb290",
+  "lastCommit": "3be73da76a13187539a7e3ec5355d0d2df65992b",
   "mostRecentTasks": [
+    "T-0743",
     "T-0742",
     "T-0741",
     "T-0740",
-    "T-0739",
-    "T-0738"
+    "T-0739"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,10 +32,11 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0742 DONE (pr) — realdata-e2e result-issue gh-command-plan 조립 체인 non-gated build-time smoke. PR #657 squash 235fb290, reviewer round1 APPROVE, 4-게이트 PASS, PR CI green(pull_request + issue_comment run 둘 다 success — reviewer-approval 게이트 step; issue_comment auto-rerun 미발화로 gh run rerun self-heal 후 success). 머지 후 main push run(235fb290)은 다음 fire 재확인. test-only +406/-0 1파일 신규 spec 25/25 pass.",
-    "lastRun": "2026-06-28T04:25:44Z"
+    "note": "T-0743 DONE (pr) — realdata-e2e seed-upsert-resolve 조립 체인 non-gated build-time smoke. PR #658 squash 3be73da7, reviewer round1 APPROVE(0 finding), 4-게이트 PASS, PR CI green(reviewer-approval 게이트 step 포함). 머지 후 main push run(3be73da7)은 in_progress — 다음 fire 재확인. test-only +412/-0 1파일 18 it.",
+    "lastRun": "2026-06-28T04:48:45Z"
   },
   "reviewRounds": {
+    "T-0743": 1,
     "T-0738": 1,
     "T-0736": 1,
     "T-0733": 1,
@@ -1189,7 +1190,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 734,
+    "tasksCompleted": 735,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
