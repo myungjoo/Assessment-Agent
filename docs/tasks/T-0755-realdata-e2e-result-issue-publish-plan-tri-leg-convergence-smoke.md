@@ -2,8 +2,11 @@
 id: T-0755
 title: realdata-e2e result-issue-publish-plan 컴포저 tri-leg(report·commandArgs·searchArgv) convergence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: a8f6540c
+prNumber: 670
+reviewRounds: 1
 coversReq: [REQ-009]
 estimatedDiff: 290
 estimatedFiles: 1
