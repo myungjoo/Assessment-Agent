@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0775",
-  "backlogNote": "▶ **T-0774 DONE** PR #689 squash 0076fd68(realdata-e2e step④ aggregator dual-leg modelId+searchArgv 합류 5-way single-source closure smoke, test-only 1파일 +807 LOC, 24 it). reviewer round1 APPROVE, 4-게이트 PASS, PR CI green(run 28337064533 success — reviewer comment 가 run 완료 전 안착해 approval-gate race 없음). 단일 검증 runPlan single-source 로 evaluation-leg modelId 축(callArgs[].options.modelId=runPlan.pipeline.modelId) + publish 내부 marker 3-축(descriptor.marker/commandArgs.searchQuery/searchArgv --match 토큰) + resolve issueNumber + post run-identity 5-way 동시 수렴(dual-leg). claim prune 완료(claims.json=[]). ▶ **T-0773 DONE** PR #688 squash b99717a8. ▶ **T-0772 DONE** PR #687 squash 0008977f. ▶ **T-0771 DONE** PR #686 squash 4be36fb1. ▶ **T-0770 DONE** PR #685 squash 5bba7c64. ▶ **nextTask** = T-0775 (planner 큐잉 — realdata-e2e step④ aggregator evaluation-inputs 축 합류 6-way single-source closure smoke, pr/test-only sizeExempt). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0776",
+  "backlogNote": "▶ **T-0775 DONE (resume)** PR #690 squash 418f8e5e(realdata-e2e step④ aggregator evaluation-inputs 축 합류 6-way single-source closure smoke, test-only 1파일 +919 LOC, 23 it). 이전 fire cron@cloud-f4c02a30 가 PR #690 open + reviewer round1 APPROVE 까지 받았으나 merge 전 종료 → 본 fire(cron@cloud-e938590d)가 orphan claim(claimedAt 22:05:02Z, server-time 23:38Z 기준 ~93분 stale) reclaim→RESUME prNumber=690→integrator 4-게이트 PASS(reviewer APPROVE + comment 외부 존재 + self-check + CI green 기본검사·배포산출물 둘 다 pass, mergeState CLEAN)→squash merge --delete-branch. claim prune 완료(claims.json=[]). post-merge main run 28339949748(418f8e5e) push 직후 in_progress — 다음 turn 재확인. ▶ **T-0774 DONE** PR #689 squash 0076fd68. ▶ **T-0773 DONE** PR #688 squash b99717a8. ▶ **T-0772 DONE** PR #687 squash 0008977f. ▶ **T-0771 DONE** PR #686 squash 4be36fb1. ▶ **nextTask** = T-0776 (planner 큐잉 — realdata-e2e step④ aggregator results-summary 축 합류 7-way single-source closure smoke, pr/test-only sizeExempt; 세 입력 source runPlan+activities+results 중 마지막 미합류 results→report.summary 합류). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "0076fd68",
+  "lastCommit": "418f8e5e",
   "mostRecentTasks": [
+    "T-0775",
     "T-0774",
     "T-0773",
     "T-0772",
-    "T-0771",
-    "T-0770"
+    "T-0771"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,8 +32,8 @@
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "in_progress",
-    "note": "T-0774 DONE (pr) — realdata-e2e step④ aggregator dual-leg modelId+searchArgv 합류 5-way single-source closure non-gated build-time smoke. PR #689 squash 0076fd68, reviewer round1 APPROVE, 4-게이트 PASS, PR CI green(run 28337064533 success — reviewer comment 21:49:52Z 가 run 완료 21:50:14Z 전 안착해 approval-gate race 없음, rerun 불요). test-only +807/-0 1파일 smoke 24 it (sizeExempt: true). post-merge main run(0076fd68) push 직후 pending — 다음 turn [5] 에서 conclusion 재확인. 직전 main run b99717a8 success.",
-    "lastRun": "2026-06-28T21:50:00Z"
+    "note": "T-0775 DONE (pr, resume) — realdata-e2e step④ aggregator evaluation-inputs 축 합류 6-way single-source closure non-gated build-time smoke. PR #690 squash 418f8e5e, reviewer round1 APPROVE(이전 fire cron@cloud-f4c02a30 가 PR open+approve 후 merge 전 종료 → 본 fire 가 orphan claim(~93분 stale) reclaim→RESUME→4-게이트 PASS→merge). PR CI green(기본 검사 pass + 배포 산출물 검증 pass, mergeState CLEAN). test-only +919/-0 1파일 smoke 23 it (sizeExempt: true). post-merge main run(418f8e5e, run 28339949748) push 직후 in_progress — 다음 turn [5] 에서 conclusion 재확인. 직전 main run ac11c5e4 success.",
+    "lastRun": "2026-06-28T23:40:24Z"
   },
   "reviewRounds": {
     "T-0774": 1,
@@ -1220,7 +1220,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 766,
+    "tasksCompleted": 767,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

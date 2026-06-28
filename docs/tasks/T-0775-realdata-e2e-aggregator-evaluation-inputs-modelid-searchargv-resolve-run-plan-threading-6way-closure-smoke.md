@@ -2,7 +2,11 @@
 id: T-0775
 title: realdata-e2e step④ aggregator evaluation-inputs 합류 6-way single-source closure — buildRealDataE2eStepArgs(runPlan, activities, results) 한 호출의 {evaluation.inputs(=buildRealDataEvaluationInputs(activities) byte-identical, callArgs[i].input === inputs[i] reference), evaluation.callArgs[].options.modelId(=runPlan.pipeline.modelId), publish.{descriptor.marker, commandArgs.searchQuery, searchArgv(--match 토큰)}} ↔ resolveRealDataResultIssueGhCommandPlan(searchStdout, stepArgs.publish.commandArgs).action.update.issueNumber ↔ buildRealDataResultOutcomeStepArgs(runPlan, execStdout) run-identity 가 단일 검증 source(runPlan+activities)로 inputs+modelId+marker+searchArgv+issueNumber+run-identity 6축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-28T23:40:00Z
+mergedAs: 418f8e5e
+prNumber: 690
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-037, REQ-059]
 estimatedDiff: 300
