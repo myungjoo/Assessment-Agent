@@ -2,7 +2,7 @@
 id: T-0778
 title: realdata-e2e step④ aggregator command-args-body 합류 9-way single-source closure — buildRealDataE2eStepArgs(runPlan, activities, results) 한 호출의 {publish.commandArgs.createArgs.body(=stepArgs.publish.report.descriptor.body byte-identical, gh issue create 경로 본문), publish.commandArgs.updateArgs.body(=동 descriptor.body byte-identical, gh issue edit 경로 본문), publish.report.descriptor.body(=buildRealDataResultIssueCommandPlan(results, runPlan.run).report.descriptor.body 재유도), publish.report.summary(=동 command-plan.report.summary), evaluation.inputs(=buildRealDataEvaluationInputs(activities)), callArgs[].options.modelId(=runPlan.pipeline.modelId), publish.{descriptor.marker, commandArgs.searchQuery, searchArgv(--match 토큰)}} ↔ resolveRealDataResultIssueGhCommandPlan(searchStdout, stepArgs.publish.commandArgs).action.update.issueNumber ↔ buildRealDataResultOutcomeStepArgs(runPlan, execStdout) run-identity 가 단일 검증 source(runPlan+activities+results)로 command-args-body(create/update 두 경로)+descriptor-body 재유도+summary+inputs+modelId+marker+searchArgv+issueNumber+run-identity 9축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-037, REQ-059]
 estimatedDiff: 300
