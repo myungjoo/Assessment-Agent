@@ -2,7 +2,7 @@
 id: T-0787
 title: realdata-e2e step④ aggregator publish-leg report.summary 내부-shape per-result 1:1 집계 thread 합류 18-way single-source closure — aggregator 가 산출한 stepArgs.publish.report.summary(RealDataResultSummary)의 내부 집계(count·byDifficulty 3슬롯·byContribution 4슬롯·totalVolume)가 검증 source results[] 로부터 원소별(각 results[i] 가 자기 difficulty/contribution 슬롯 +1·count +1·volume 누적) 1:1 재유도되고 전 enum 슬롯이 존재(미등장 슬롯도 0)함을, github commit/pr/issue·confluence 모든 분기 포함해 18번째 축으로 합류 — publish-leg summary 내부-shape(EvaluationResult[]→RealDataResultSummary 집계 깊이)가 evaluation-leg input 내부-shape + collect-leg serviceIdentities 내부-shape + collectCallArgs top-level 재유도 + inputs top-level + callArgs.input 페어링 + collect/evaluate modelId 공유 + search-json-fields↔parse-shape set-equal + search-argv 전체-벡터 + resolve-argv + descriptor + summary top-level + marker + resolve + post 와 같은 검증 source(seeds+modelId+run+activities+results) 로 18축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-037, REQ-038, REQ-059]
 estimatedDiff: 300
