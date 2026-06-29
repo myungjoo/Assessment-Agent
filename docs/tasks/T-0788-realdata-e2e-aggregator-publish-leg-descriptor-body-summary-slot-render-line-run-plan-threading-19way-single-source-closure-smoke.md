@@ -2,7 +2,10 @@
 id: T-0788
 title: realdata-e2e step④ aggregator publish-leg descriptor.body summary-slot→render-line per-slot 1:1 thread 합류 19-way single-source closure — aggregator 가 산출한 stepArgs.publish.report.descriptor.body(마크다운)가 그 leg 의 summary(count·byDifficulty 3슬롯·byContribution 4슬롯·totalVolume)로부터 production renderRealDataResultSummaryMarkdown + formatRealDataResultSummaryLine 와 byte-identical 이고, 각 summary 슬롯값이 body 의 대응 라인(난이도 표 3행·기여도 표 4행·평가 단위 수·총 volume·한 줄 요약 토큰)으로 슬롯별 1:1 렌더(전 enum 슬롯 라인 존재/미등장 슬롯도 값 0 라인)됨을, github commit/pr/issue·confluence 모든 분기 포함해 19번째 축으로 합류 — publish-leg descriptor.body render-line 내부-shape(RealDataResultSummary→markdown body 라인 깊이)가 summary 내부-shape per-result 집계(18-way) + evaluation-leg input 내부-shape + collect-leg serviceIdentities 내부-shape + collectCallArgs top-level + inputs top-level + callArgs.input 페어링 + collect/evaluate modelId 공유 + search-json-fields↔parse-shape set-equal + summary top-level + descriptor 재유도 + marker + resolve + post 와 같은 검증 source(seeds+modelId+run+activities+results) 로 19축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 9b780fcc
+prNumber: 703
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-037, REQ-038, REQ-059]
 estimatedDiff: 300
