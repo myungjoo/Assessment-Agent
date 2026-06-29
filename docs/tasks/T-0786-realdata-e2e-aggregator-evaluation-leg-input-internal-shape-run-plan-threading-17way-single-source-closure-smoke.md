@@ -2,7 +2,11 @@
 id: T-0786
 title: realdata-e2e step④ aggregator evaluation-leg callArgs[i].input 내부-shape 1:1 thread 합류 17-way single-source closure — aggregator 가 산출한 stepArgs.evaluation.inputs[i](=callArgs[i].input, EvaluationInput)의 필드별(unitId 합성·contributionKind R-30 routing·sourceType/instanceKey/author/timestamp 전사·metadata reference·raw-not-stored boundary)이 검증 source activities[i] 로부터 production mapActivityToEvaluationInput(activity) 와 byte-identical 1:1 재유도됨을, github commit/pr/issue·confluence 모든 분기 포함해 17번째 축으로 합류 — evaluation-leg input 내부-shape(Activity→EvaluationInput 필드 깊이)가 collect-leg serviceIdentities 내부-shape + collectCallArgs top-level 재유도 + inputs top-level + callArgs.input 페어링 + collect/evaluate modelId 공유 + search-json-fields↔parse-shape set-equal + search-argv 전체-벡터 + resolve-argv + descriptor + summary + marker + resolve + post 와 같은 검증 source(seeds+modelId+run+activities+results) 로 17축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 87d84def
+prNumber: 701
+reviewRounds: 1
+completedAt: 2026-06-29T05:21:24Z
 commitMode: pr
 coversReq: [REQ-009, REQ-030, REQ-032, REQ-047, REQ-059]
 estimatedDiff: 300
