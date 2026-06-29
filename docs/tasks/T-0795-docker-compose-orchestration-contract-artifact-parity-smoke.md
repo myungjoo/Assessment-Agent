@@ -2,12 +2,16 @@
 id: T-0795
 title: realdata-e2e/deploy step① docker-compose.yml 오케스트레이션 계약(app.build.dockerfile↔Dockerfile 실존 · app.ports/environment.PORT 기본값 3000 ↔ Dockerfile EXPOSE ↔ src/parse-port DEFAULT_PORT ↔ env.prod.example PORT · postgres.image/healthcheck pg_isready 환경변수 ↔ env.prod.example POSTGRES_* · DATABASE_URL host=postgres:5432 ↔ compose 서비스명/포트) ↔ 실 build/runtime artifact(Dockerfile · src/parse-port.ts · deploy/env.prod.example) parity drift-detection non-gated build-time smoke 신설 — docker-compose.yml 이 하드코딩한 오케스트레이션 계약(빌드 dockerfile 경로 · 포트 매핑 기본값 · postgres 이미지/healthcheck env · DB host:port 서비스명 정합)이 실 build/runtime artifact 와 정합임을, compose·Dockerfile·parse-port·env.prod.example 소스를 정적 추출해 cross-artifact 대조하는 drift-detection smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 275
 estimatedFiles: 1
 created: 2026-06-29
+completedAt: 2026-06-29T11:05:00Z
+prNumber: 710
+mergedAs: a5a57b97
+reviewRounds: 1
 plannerNote: "P5 §109/deployment.md — deploy shell build-time seam 5종(daily-test step_eval argv T-0790·machine-JSON T-0791·HTTP-step↔route T-0792·docker-entrypoint↔build-artifact T-0793·seed-llm-config SQL/cipher↔schema T-0794) 닫힘. T-0793 Follow-up (b1)(deploy/redeploy.sh redeploy 절차 shell↔docker-compose/Dockerfile 정합 — docker build·compose up 계약이 실 compose/Dockerfile 과 정합인지 genuine seam HIGH bar 재판정)를 재판정 — redeploy.sh 자체는 docker compose up/git reset 호출만이라 contract 토큰이 얇으나, 그 redeploy 가 호출하는 docker-compose.yml 은 풍부한 오케스트레이션 계약(빌드 dockerfile 경로·포트 매핑·postgres image/healthcheck env·DATABASE_URL host:port↔서비스명)을 담아 genuine distinct seam 으로 채택. 사전조사(origin/main a5b7b3bf): (1) genuine 계약 실존 — docker-compose.yml app.build.dockerfile=Dockerfile(73행 ENTRYPOINT 실존)·app.ports `${PORT:-3000}:${PORT:-3000}`+environment.PORT `${PORT:-3000}`↔Dockerfile EXPOSE 3000↔src/parse-port.ts DEFAULT_PORT=3000↔env.prod.example PORT=3000 4중 정합·postgres.image postgres:16-alpine+healthcheck `pg_isready -U $POSTGRES_USER -d $POSTGRES_DB`↔env.prod.example POSTGRES_USER/POSTGRES_DB·DATABASE_URL host `postgres:5432`↔compose postgres 서비스명+ports 5432. (2) build-time smoke 0 부재 — test/ grep 결과 docker-compose.yml 읽는 spec 0(compose smoke 파일 부재 실측). distinct seam(T-0793 entrypoint↔build-artifact 와 다른 compose-orchestration↔artifact 표면). dependsOn [] file-disjoint stage5b 병렬, 신규 spec 1파일 sizeExempt"
 independentStream: docker-compose-orchestration-contract-artifact-parity-smoke
 dependsOn: []
