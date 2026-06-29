@@ -2,7 +2,11 @@
 id: T-0780
 title: realdata-e2e step④ aggregator command-args-labels 합류 11-way single-source closure — buildRealDataE2eStepArgs(runPlan, activities, results) 한 호출의 {publish.commandArgs.createArgs.labels(=고정 결정론 상수 ["realdata-e2e","result"] byte-identical + buildRealDataResultIssueCommandPlan(results, runPlan.run).commandArgs.createArgs.labels 재유도 deep-equal, gh issue create --label 경로 이슈 분류 surface), publish.commandArgs.{createArgs,updateArgs}.title(=descriptor.title byte-identical, 두 실행 경로), publish.commandArgs.{createArgs,updateArgs}.body(=descriptor.body byte-identical, 두 실행 경로), publish.report.descriptor.{title,body}(=command-plan 재유도), publish.report.summary, evaluation.inputs(=buildRealDataEvaluationInputs(activities)), callArgs[].options.modelId(=runPlan.pipeline.modelId), publish.{descriptor.marker, commandArgs.searchQuery, searchArgv(--match 토큰)}} ↔ resolveRealDataResultIssueGhCommandPlan(searchStdout, stepArgs.publish.commandArgs).action.update.issueNumber ↔ buildRealDataResultOutcomeStepArgs(runPlan, execStdout) run-identity 가 단일 검증 source(runPlan+activities+results)로 command-args-labels(고정 상수 보존)+command-args-title 두 경로+command-args-body 두 경로+descriptor-{title,body} 재유도+summary+inputs+modelId+marker+searchArgv+issueNumber+run-identity 11축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-06-29
+mergedAs: c8878e8b
+prNumber: 695
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-037, REQ-059]
 estimatedDiff: 300
