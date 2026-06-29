@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0796",
-  "backlogNote": "▶ **T-0795 DONE** PR #710 squash a5a57b97(realdata-e2e/deploy step① docker-compose.yml 오케스트레이션 계약↔실 build/runtime artifact parity drift smoke — compose app.build.dockerfile↔Dockerfile 실존·PORT 기본값 4중 정합(compose `${PORT:-3000}`==Dockerfile EXPOSE==src/parse-port DEFAULT_PORT==env.prod.example PORT)·postgres image+healthcheck pg_isready env↔env.prod.example POSTGRES_*·DATABASE_URL host postgres:5432↔compose 서비스명/포트를 compose·Dockerfile·parse-port·env.prod.example 4소스 readFileSync 정적 추출 후 cross-artifact parity 단언, drift 변별성(mutate 사본 not.toBe)+negative 7종(파일부재·PORT/EXPOSE/host/dockerfile drift·healthcheck env 누락)+credential 0·결정론·non-gated, node fs/path 내장만(새 dep 0·YAML 파서 0), test-only 1파일 +593/-0(sizeExempt), 19 it, src 0). fire=cron@aa-local-5da61cc7(Anthropic cloud fresh checkout, gh 인증 OK): fresh fetch→local a87e02f2 ff origin/main 5da61cc7(T-0794 이미 머지·T-0795 큐잉)→lock free(tombstone)·claims=[]→acquire-lock CAS(tip acaad69e)→reclaim no-op(claims 빈; gh Date 헤더 MSYS path-rewrite 회피 후 server-time 2026-06-29T10:38:12Z 확보)→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→select-claim T-0795 atomic claim(CLAIM_NOW=10:38:12Z 주입, midnight bug 없음, lock 동시 release)→executor lock-free 구현+test(19 it)→feature branch push ee7a9976→PR #710 open→sync-claim-pr prNumber=710 PR_OPEN→integrator reviewer round1 APPROVE 0 finding + 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green; reviewer-approval step race fail→gh run rerun 28366436719 fallback→green)→squash merge a5a57b97 --delete-branch(head CLEAN no-rebase, local main ff)→re-acquire-lock(tip d3b18953)→claim prune(printf '[]'|hash-object blob 0637a088, tip 35fad25e, 내용 검증 [])→counters 786→787→planner T-0796 큐잉. ▶ **T-0794 DONE** PR #709 squash a5b7b3bf(seed-llm-config.sh 멱등 upsert 계약↔Prisma schema·TS cipher·tsconfig outDir parity smoke). ▶ **T-0793 DONE** PR #708 squash 4358d2e8. ▶ **T-0792 DONE** PR #707 squash 3ac4cc6d. ▶ **T-0791 DONE** PR #706 squash aebc5a58. ▶ **nextTask** = T-0796 (planner 큐잉 — CI workflow(.github/workflows/ci.yml) 검증-체인 계약(모든 `run: pnpm <script>` ∈ package.json scripts 키·`run: bash <path>` 실존·test:smoke/test:e2e 의 --config jest config 실존·R-110/111/113 체인 test:cov/test:smoke/test:e2e 인보케이션 완결)↔실 build/test artifact(package.json·scripts/*.sh·deploy/*.test.sh·test/jest-*.json) parity drift smoke; deploy build-time seam 6종(T-0790~0795) 소진·(c1)systemd-unit HIGH-bar 거부 후 distinct CI 검증-체인 seam 전환, pr/test-only sizeExempt, dependsOn []). planner Follow-up: build-time cross-artifact seam 이 deploy 6 + CI 검증-체인으로 상당히 닫힘 — 잔여 (d1)web/package.json·(d2)deploy/README 설치절차 HIGH-bar 재판정, seam 부재 시 live-wiring escalate(credential/LAN/LLM gate BLOCKED) 또는 P5 도메인 로직 심화로 정직 전환, make-work 금지. ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0797",
+  "backlogNote": "▶ **T-0796 DONE** PR #711 squash 7a7a5641(CI workflow(.github/workflows/ci.yml) 검증-체인 계약↔실 build/test artifact parity drift smoke — `run: pnpm <script>` 의 루트-script 가 package.json scripts 키에 실존·`run: bash <path>` 의 path 가 실 스크립트 파일로 실존·test:smoke/test:e2e 의 `--config <path>` jest config 파일 실존·R-110/111/113 검증 layer(lint·build·test:cov·test:smoke·test:e2e) 인보케이션 완결을 ci.yml·package.json·scripts/*.sh·deploy/*.test.sh·test/jest-*.json 소스를 정적 추출(ci.yml 정규식 — 주석 skip+script-name shape 필터로 버전숫자·경로형 오인 배제; package.json JSON.parse)해 cross-artifact 대조, drift 변별성(script rename·bash path 삭제·jest config 이동 검출)+negative 다수+credential 0·결정론·non-gated, node fs/path 내장만(새 dep 0·YAML 파서 0), test-only 1파일 +598/-0(sizeExempt), 20 it, src 0). fire=cron@aa-local-d9a45e55(Anthropic cloud fresh checkout, gh 인증 OK): fresh fetch→local d9a45e55==origin/main(T-0795 머지·T-0796 큐잉)→lock free(tombstone)·claims=[]→acquire-lock CAS(tip 7f15ae01)→reclaim no-op(claims 빈; gh Date 헤더 MSYS path-rewrite 회피 후 server-time 2026-06-29T11:38:03Z 확보)→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→select-claim T-0796 atomic claim(CLAIM_NOW=11:38:03Z 주입, midnight bug 없음, lock 동시 release)→executor lock-free 구현+test(20 it)→feature branch push 0ebddfc1→PR #711 open→sync-claim-pr prNumber=711 PR_OPEN→integrator reviewer round1 APPROVE 0 BLOCKER/0 MAJOR/1 MINOR(frontmatter estimatedDiff non-blocking)+4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green; reviewer-approval step race fail→gh run rerun 28369628016 fallback→green)→squash merge 7a7a5641 --delete-branch(head CLEAN no-rebase, local main ff)→re-acquire-lock(tip 2fc0c4a3)→claim prune(printf '[]'|hash-object blob 0637a088, tip c4802c79, 내용 검증 [])→counters 787→788→planner T-0797 큐잉. ▶ **T-0795 DONE** PR #710 squash a5a57b97(docker-compose.yml 오케스트레이션 계약↔Dockerfile·parse-port·env.prod.example parity smoke). ▶ **T-0794 DONE** PR #709 squash a5b7b3bf. ▶ **T-0793 DONE** PR #708 squash 4358d2e8. ▶ **T-0792 DONE** PR #707 squash 3ac4cc6d. ▶ **nextTask** = T-0797 (planner 큐잉 — redeploy 오케스트레이션-진입점 계약(deploy/redeploy.sh REPO_DIR 기본·`bash $REPO_DIR/deploy/seed-llm-config.sh` 호출 path·docker compose precondition + systemd .service ExecStart/Environment/WorkingDirectory triple-match /opt/assessment-agent + .timer OnCalendar)↔실 배포 artifact parity drift smoke; pr/test-only sizeExempt, dependsOn []). planner Follow-up ⚠ **deploy seam 정직 소진** — T-0797 이 LAST deploy seam(redeploy 진입점). T-0796 거부한 systemd-단독(ExecStart 1줄)과 distinct(redeploy.sh 5 경로 계약). 다음 planner 는 live-wiring escalate(credential/LAN/LLM gate BLOCKED) 또는 P5 도메인 로직 심화로 정직 전환, 세 번째 parity-smoke 변형 make-work 금지. ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
-    "holder": null,
-    "since": ""
+    "holder": "cron",
+    "since": "2026-06-29T11:58:08Z"
   },
-  "lastCommit": "a5a57b97",
+  "lastCommit": "7a7a5641",
   "mostRecentTasks": [
+    "T-0796",
     "T-0795",
     "T-0794",
     "T-0793",
-    "T-0792",
-    "T-0791"
+    "T-0792"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,10 +32,11 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0795 DONE (pr) — realdata-e2e/deploy step① docker-compose.yml 오케스트레이션 계약(build.dockerfile↔Dockerfile·PORT 4중 정합 compose==EXPOSE==DEFAULT_PORT==env·postgres image+healthcheck env·DATABASE_URL host:port↔서비스명)↔실 build/runtime artifact(Dockerfile EXPOSE/ENTRYPOINT·src/parse-port DEFAULT_PORT·env.prod.example) parity drift smoke. PR #710 squash a5a57b97, reviewer round1 APPROVE 0 BLOCKER/0 MAJOR/0 MINOR, 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green; reviewer-approval step 첫 run race fail→issue_comment auto-rerun 미발화로 gh run rerun 28366436719 ad-hoc fallback→green). 19 it PASS(happy 2·불변식4·drift변별성3·negative7·credential1·결정론2), lint+build green, test-only 1파일 +593/-0(sizeExempt). 직전 main run a5b7b3bf(T-0794)·4358d2e8 success. 본 bookkeeping commit(direct main)은 push 후 다음 fire [1]에서 conclusion 재확인.",
-    "lastRun": "2026-06-29T11:08:00Z"
+    "note": "T-0796 DONE (pr) — CI workflow(.github/workflows/ci.yml) 검증-체인 계약(`run: pnpm <script>`↔package.json scripts 키 실존·`run: bash <path>`↔실 스크립트 파일 실존·test:smoke/test:e2e 의 --config jest config 파일 실존·R-110/111/113 체인 lint·build·test:cov·test:smoke·test:e2e 인보케이션 완결)↔실 build/test artifact(package.json·scripts/*.sh·deploy/*.test.sh·test/jest-*.json) parity drift smoke. ci.yml 정규식 추출(주석 skip+script-name shape 필터로 버전숫자·경로형 오인 배제)+package.json JSON.parse, node fs/path 내장만(새 dep 0·YAML 파서 0). PR #711 squash 7a7a5641, reviewer round1 APPROVE 0 BLOCKER/0 MAJOR/1 MINOR(frontmatter estimatedDiff 270 vs actual +598 — non-blocking sizeExempt)/0 NIT, 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green; reviewer-approval step race fail→gh run rerun 28369628016 fallback→green). smoke 20/20 PASS(local 은 DB globalSetup 만 미발화·spec 자체 DB-free·CI 발화), lint+build green, test-only 1파일 +598/-0(sizeExempt). 직전 main run a5a57b97(T-0795)·a5b7b3bf success. 본 bookkeeping commit(direct main)은 push 후 다음 fire [1]에서 conclusion 재확인.",
+    "lastRun": "2026-06-29T12:05:00Z"
   },
   "reviewRounds": {
+    "T-0796": 1,
     "T-0793": 1,
     "T-0792": 1,
     "T-0791": 1,
@@ -1239,7 +1240,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 787,
+    "tasksCompleted": 788,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

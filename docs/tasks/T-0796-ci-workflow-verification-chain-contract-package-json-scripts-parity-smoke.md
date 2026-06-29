@@ -2,7 +2,7 @@
 id: T-0796
 title: CI workflow(.github/workflows/ci.yml) 검증-체인 계약(`run: pnpm <script>` 인보케이션 ↔ package.json scripts 실존 · `run: bash <path>` ↔ 실 스크립트 파일 실존 · test:smoke/test:e2e 가 가리키는 jest config 파일 실존) ↔ 실 build/test artifact(package.json · scripts/*.sh · deploy/*.test.sh · test/jest-*.json) parity drift-detection non-gated build-time smoke 신설 — ci.yml 이 R-110/R-111/R-113 검증 체인을 구성하려고 호출하는 모든 `pnpm <script>`·`bash <path>` 토큰이 실 package.json scripts·실 스크립트 파일과 정합임을 ci.yml·package.json·스크립트 파일 소스를 정적 추출해 cross-artifact 대조하는 drift-detection smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 270
