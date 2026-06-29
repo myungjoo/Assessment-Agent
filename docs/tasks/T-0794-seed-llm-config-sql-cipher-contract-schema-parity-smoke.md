@@ -2,7 +2,7 @@
 id: T-0794
 title: realdata-e2e/deploy step③ deploy/seed-llm-config.sh 멱등 upsert 계약(LlmProviderConfig INSERT/ON CONFLICT 컬럼 집합 + compiled cipher require-path `/app/dist/src/llm/llm-apikey-cipher.service` + `new LlmApiKeyCipher().encrypt()` API) ↔ 실 build/runtime artifact(prisma/schema.prisma 의 LlmProviderConfig scalar 컬럼, src/llm/llm-apikey-cipher.service.ts 의 export class·메서드, tsconfig outDir) parity drift-detection non-gated build-time smoke — seed shell 이 하드코딩한 SQL 컬럼 튜플·ON CONFLICT update 집합·compiled cipher require-path/API 가 실 Prisma 모델 scalar 필드·실 TS cipher class·dist 산출물 경로와 정합임을, shell·schema·TS 소스를 정적 추출해 cross-artifact 대조하는 drift-detection smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061, REQ-051]
 estimatedDiff: 285
