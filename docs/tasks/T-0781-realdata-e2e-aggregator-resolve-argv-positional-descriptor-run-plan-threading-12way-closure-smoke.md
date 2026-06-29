@@ -2,7 +2,10 @@
 id: T-0781
 title: realdata-e2e step④ aggregator resolve-argv 위치-정합 합류 12-way single-source closure — buildRealDataE2eStepArgs(runPlan, activities, results) 한 호출의 publish.commandArgs 가 resolveRealDataResultIssueGhCommandPlan(searchStdout, stepArgs.publish.commandArgs).argv(live runner 가 execFile('gh', argv)로 거는 실 gh issue create/edit CLI 인자-벡터)로 위치-정합 조립됨을 12번째 축으로 합류 — update 분기 argv == ["issue","edit",String(N),"--title",updateArgs.title(=descriptor.title),"--body",updateArgs.body(=descriptor.body)], create 분기 argv == ["issue","create","--title",createArgs.title,"--body",createArgs.body,"--label","realdata-e2e","--label","result"](=createArgs.labels 순서 보존 flag-pair 전개) 가 command-args-title 두 경로+command-args-body 두 경로+command-args-labels 고정상수+descriptor.{title,body} 재유도+summary+inputs+modelId+marker+searchArgv+resolve issueNumber+post run-identity 와 함께 세 검증 source(runPlan+activities+results)로 12축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 62a4de1f
+prNumber: 696
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-037, REQ-059]
 estimatedDiff: 300
