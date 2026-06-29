@@ -2,7 +2,7 @@
 id: T-0789
 title: realdata-e2e step④ aggregator post-leg outcomeReport.summaryLine internal-token render-line per-token 1:1 thread 합류 20-way single-source closure — aggregator+resolve+post chain 이 산출한 outcomeReport.summaryLine(`[dateToken@gitSha] 결과 이슈 #N 박제 → url` 한 줄 확인 문자열)이 그 source `(runPlan.run, resolvePlan issueNumber N, execStdout url)` 로부터 production buildRealDataResultIssueOutcomeReportFromOutput(execStdout, runPlan.run).summaryLine 와 byte-identical 이고, summaryLine 의 각 토큰(dateToken·gitSha·issueNumber·url)이 그 source 슬롯과 토큰-위치별 1:1 재유도(dateToken@gitSha 묶음 == runPlan.run, #N == resolvePlan.action.issueNumber == execStdout url 의 /issues/N, url 종단 토큰 == parse 산출 url)됨을, github create/edit 두 분기 포함해 20번째 축으로 합류 — post-leg summaryLine internal-token render-line 내부-shape(RealDataResultIssueOutcomeReport→한 줄 확인 문자열 토큰 깊이)가 publish-leg descriptor.body render-line(19-way) + summary 내부-shape per-result 집계 + evaluation-leg input 내부-shape + collect-leg serviceIdentities 내부-shape + 표면 축들과 같은 검증 source(runPlan+activities+results+execStdout) 로 20축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-038, REQ-059]
 estimatedDiff: 300
