@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0790",
-  "backlogNote": "▶ **T-0789 DONE** PR #704 squash 1e0217b0(realdata-e2e step④ aggregator post-leg outcomeReport.summaryLine internal-token render-line per-token 1:1 thread 합류 — production buildRealDataResultIssueOutcomeReportFromOutput(execStdout, runPlan.run).summaryLine byte-identical + spec-로컬 토큰 재조립(#N==resolve issueNumber==url /issues/N·dateToken@gitSha==runPlan.run·종단 url==parse url) 20-way single-source closure smoke, test-only 1파일 +1408 LOC, 33 it). fire=cron@aa-cloud-9b780fcc(Anthropic cloud fresh checkout, gh 인증 OK, 매시 40분대 trigger): fresh fetch→HEAD 4fd04e6d ff origin/main 9b780fcc→그 직후 origin/main 이 e020eace(타 driver cron@aa-local15-4a4a5104 가 T-0788 bookkeeping 완료·T-0789 큐잉)로 재진행 발견→내 초기 가정(T-0788 bookkeeping 누락)은 stale 로 폐기, 중복 bookkeeping 0→lock free·claims=[]→acquire-lock CAS(tip 3bc00e01)→reclaim no-op(claims 빈)→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→validate-claim-candidate T-0789 PASS→select-claim.sh T-0789 atomic claim(06:41:06Z, lock 동시 release)→executor lock-free 구현+test(33 it: happy + post-leg summaryLine token render-line per-token 1:1(from-output byte-identical + spec-로컬 재조립) + #N/url/dateToken@gitSha 토큰 cross-leg 위치-정합 + summaryLine↔descriptor.body 변별성 + 19축(publish-leg descriptor.body render-line) 합류 + 20-way 묶음 + create/update 분기 격리 + negative 13 + 결정론/무공유/no-mutation + credential, lint+build green, src 0)→feature branch push(309a1aac)→PR #704 open→sync-claim-pr prNumber=704 PR_OPEN→integrator reviewer round1 APPROVE 0 findings + 4-게이트 PASS(comment 외부 header 매칭 issuecomment-4829825777 + self-check test-only src 0 + CI green: reviewer approval-gate step 첫 run race→gh run rerun --failed fallback→green)→squash merge 1e0217b0 --delete-branch→claim prune(claims.json=[], blob 0637a088, tip da895b78)→counters 780→781→planner T-0790 큐잉. post-merge main run(1e0217b0) success. ▶ **T-0788 DONE** PR #703 squash 9b780fcc. ▶ **T-0787 DONE** PR #702 squash 661cfe76. ▶ **T-0786 DONE** PR #701 squash 87d84def. ▶ **nextTask** = T-0790 (planner 큐잉 — realdata-e2e step④ deploy/daily-test.sh step_eval shell-literal jest argv ↔ buildRealDataDailyStepEvalCommandPlan run-branch argv full-ordered-vector parity drift-detection smoke; build-time render-line sweep(T-0778~0789 20-way) 소진 → HIGH-bar 로 sweep 21축 거부, cross-artifact bash↔TS drift distinct seam 으로 전환, pr/test-only sizeExempt, dependsOn []). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0791",
+  "backlogNote": "▶ **T-0790 DONE** PR #705 squash e99bd2b7(realdata-e2e step④ deploy/daily-test.sh step_eval shell-literal jest argv ↔ buildRealDataDailyStepEvalCommandPlan run-branch argv full-ordered-vector parity drift-detection smoke — 실 deploy/daily-test.sh readFileSync→step_eval 본문 jest argv 토큰 추출 + gating-enabled env helper run-branch argv 대조, shell↔TS full-ordered-vector toEqual parity + drift 변별성(mutate/reorder not.toEqual) + skip-branch argv 부재 boundary + negative(파일 부재·step_eval 부재·flag 누락·순서 뒤집힘·gating 부분-부재), test-only 1파일 +295 LOC, 16 it, src 0). fire=cron@aa-cloud-d1a0f5c4(Anthropic cloud fresh checkout, gh 인증 OK, 매시 30~40분대 trigger): fresh fetch→HEAD==origin/main d1a0f5c4→lock free(tombstone)·claims=[]→acquire-lock CAS(tip ca9f2b23)→reclaim no-op(claims 빈, server-time 2026-06-29T07:38:07Z 주입)→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→validate-claim-candidate T-0790 PASS→select-claim.sh T-0790 atomic claim(07:38:18Z≈server-time, midnight bug 없음, lock 동시 release)→executor lock-free 구현+test(16 it)→feature branch push→PR #705 open→integrator reviewer round1 APPROVE 0 findings + 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green)→squash merge e99bd2b7 --delete-branch(local main ff)→claim prune(jq 부재로 첫 시도 empty-blob 오기록→즉시 [] 재기록 blob 0637a088, tip 8608efcd)→counters 781→782→planner T-0791 큐잉. post-merge main run(e99bd2b7) in_progress(PR CI 는 머지 전 green, 다음 fire 확인). ▶ **T-0789 DONE** PR #704 squash 1e0217b0. ▶ **T-0788 DONE** PR #703 squash 9b780fcc. ▶ **T-0787 DONE** PR #702 squash 661cfe76. ▶ **nextTask** = T-0791 (planner 큐잉 — realdata-e2e step④ deploy/daily-test.sh 머신 요약 latest-result.json 6-키 스키마(ts·gitSha·result·failedStep·steps·logPath)·steps키==ORDER(redeploy·health·liveness·auth·eval)·failedStep null/quoted 직렬화 분기 contract parity drift smoke; render-line sweep(T-0778~89)·step_eval argv(T-0790) 소진 후 HIGH-bar 로 shell→machine-JSON distinct seam 채택, pr/test-only sizeExempt, dependsOn []). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "1e0217b0",
+  "lastCommit": "e99bd2b7",
   "mostRecentTasks": [
+    "T-0790",
     "T-0789",
     "T-0788",
     "T-0787",
-    "T-0786",
-    "T-0785"
+    "T-0786"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -29,13 +29,14 @@
     "note": "/loop AKIHA-21631 (dynamic, turn cap 2) — t1 T-0651 merge 41a6ef2 + planner T-0652 큐잉. t2 T-0652 merge c580071. cap 도달 → 종료 + lock 해제."
   },
   "ci": {
-    "status": "green",
+    "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0789 DONE (pr) — realdata-e2e step④ aggregator post-leg outcomeReport.summaryLine internal-token render-line per-token 1:1 thread 합류 20-way single-source closure smoke. PR #704 squash 1e0217b0, reviewer round1 APPROVE 0 findings, 4-게이트 PASS(comment 외부 header 매칭 issuecomment-4829825777 + self-check test-only src 0 + CI green). reviewer approval-gate step 첫 run race→gh run rerun --failed fallback→green. post-merge main run(1e0217b0) success. 직전 main run e020eace(T-0788 bookkeeping) success.",
-    "lastRun": "2026-06-29T06:48:00Z"
+    "note": "T-0790 DONE (pr) — realdata-e2e step④ daily-test.sh step_eval shell argv ↔ helper run-branch argv full-vector parity drift smoke. PR #705 squash e99bd2b7, reviewer round1 APPROVE 0 findings, 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green pre-merge). post-merge main run(e99bd2b7) in_progress at bookkeeping — 다음 fire 가 [1]에서 conclusion 재확인. 직전 main run d1a0f5c4 success.",
+    "lastRun": "2026-06-29T07:50:41Z"
   },
   "reviewRounds": {
+    "T-0790": 1,
     "T-0789": 1,
     "T-0788": 1,
     "T-0787": 1,
@@ -1233,7 +1234,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 781,
+    "tasksCompleted": 782,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

@@ -2,7 +2,7 @@
 id: T-0790
 title: realdata-e2e step④ deploy/daily-test.sh step_eval shell-literal jest argv ↔ buildRealDataDailyStepEvalCommandPlan run-branch argv full-ordered-vector parity drift-detection smoke — bash step_eval 가 하드코딩한 jest 실행 argv(`--config ./test/jest-smoke.json --runTestsByPath test/smoke/realdata-e2e-live.smoke-spec.ts`)가 그 "정본(canonical source)" TS helper buildRealDataDailyStepEvalCommandPlan(gating-enabled env).argv 의 4-요소 ordered 벡터와 byte-identical(full-vector·순서·길이·토큰 1:1)임을, 실 deploy/daily-test.sh 파일을 readFileSync 로 읽어 step_eval 함수 본문에서 argv 토큰을 추출해 helper 산출과 대조하는 cross-artifact(bash↔TS) drift-detection non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 230
