@@ -2,7 +2,7 @@
 id: T-0797
 title: redeploy 오케스트레이션-진입점 계약(deploy/redeploy.sh 의 REPO_DIR 기본값·`bash $REPO_DIR/deploy/seed-llm-config.sh` 호출 경로·`docker compose up -d --build` 가 전제하는 compose 파일 · systemd unit ExecStart/Environment=REPO_DIR/WorkingDirectory triple-match) ↔ 실 배포 artifact(deploy/redeploy.sh · deploy/seed-llm-config.sh · docker-compose.yml · assessment-agent-redeploy.{service,timer}) parity drift-detection non-gated build-time smoke 신설 — systemd timer→service→redeploy.sh→sub-script/compose 무인 야간 재배포 체인의 경로/식별자 계약이 실 파일과 정합임을 정적 추출해 cross-artifact 대조하는 drift-detection smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 270

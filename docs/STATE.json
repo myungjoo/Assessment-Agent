@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0797",
-  "backlogNote": "▶ **T-0796 DONE** PR #711 squash 7a7a5641(CI workflow(.github/workflows/ci.yml) 검증-체인 계약↔실 build/test artifact parity drift smoke — `run: pnpm <script>` 의 루트-script 가 package.json scripts 키에 실존·`run: bash <path>` 의 path 가 실 스크립트 파일로 실존·test:smoke/test:e2e 의 `--config <path>` jest config 파일 실존·R-110/111/113 검증 layer(lint·build·test:cov·test:smoke·test:e2e) 인보케이션 완결을 ci.yml·package.json·scripts/*.sh·deploy/*.test.sh·test/jest-*.json 소스를 정적 추출(ci.yml 정규식 — 주석 skip+script-name shape 필터로 버전숫자·경로형 오인 배제; package.json JSON.parse)해 cross-artifact 대조, drift 변별성(script rename·bash path 삭제·jest config 이동 검출)+negative 다수+credential 0·결정론·non-gated, node fs/path 내장만(새 dep 0·YAML 파서 0), test-only 1파일 +598/-0(sizeExempt), 20 it, src 0). fire=cron@aa-local-d9a45e55(Anthropic cloud fresh checkout, gh 인증 OK): fresh fetch→local d9a45e55==origin/main(T-0795 머지·T-0796 큐잉)→lock free(tombstone)·claims=[]→acquire-lock CAS(tip 7f15ae01)→reclaim no-op(claims 빈; gh Date 헤더 MSYS path-rewrite 회피 후 server-time 2026-06-29T11:38:03Z 확보)→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→select-claim T-0796 atomic claim(CLAIM_NOW=11:38:03Z 주입, midnight bug 없음, lock 동시 release)→executor lock-free 구현+test(20 it)→feature branch push 0ebddfc1→PR #711 open→sync-claim-pr prNumber=711 PR_OPEN→integrator reviewer round1 APPROVE 0 BLOCKER/0 MAJOR/1 MINOR(frontmatter estimatedDiff non-blocking)+4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green; reviewer-approval step race fail→gh run rerun 28369628016 fallback→green)→squash merge 7a7a5641 --delete-branch(head CLEAN no-rebase, local main ff)→re-acquire-lock(tip 2fc0c4a3)→claim prune(printf '[]'|hash-object blob 0637a088, tip c4802c79, 내용 검증 [])→counters 787→788→planner T-0797 큐잉. ▶ **T-0795 DONE** PR #710 squash a5a57b97(docker-compose.yml 오케스트레이션 계약↔Dockerfile·parse-port·env.prod.example parity smoke). ▶ **T-0794 DONE** PR #709 squash a5b7b3bf. ▶ **T-0793 DONE** PR #708 squash 4358d2e8. ▶ **T-0792 DONE** PR #707 squash 3ac4cc6d. ▶ **nextTask** = T-0797 (planner 큐잉 — redeploy 오케스트레이션-진입점 계약(deploy/redeploy.sh REPO_DIR 기본·`bash $REPO_DIR/deploy/seed-llm-config.sh` 호출 path·docker compose precondition + systemd .service ExecStart/Environment/WorkingDirectory triple-match /opt/assessment-agent + .timer OnCalendar)↔실 배포 artifact parity drift smoke; pr/test-only sizeExempt, dependsOn []). planner Follow-up ⚠ **deploy seam 정직 소진** — T-0797 이 LAST deploy seam(redeploy 진입점). T-0796 거부한 systemd-단독(ExecStart 1줄)과 distinct(redeploy.sh 5 경로 계약). 다음 planner 는 live-wiring escalate(credential/LAN/LLM gate BLOCKED) 또는 P5 도메인 로직 심화로 정직 전환, 세 번째 parity-smoke 변형 make-work 금지. ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": null,
+  "backlogNote": "▶ **T-0797 DONE** PR #712 squash a9891afe(redeploy 오케스트레이션-진입점 계약↔실 배포 artifact(deploy/redeploy.sh·seed-llm-config.sh·docker-compose.yml·assessment-agent-redeploy.{service,timer}) parity drift-detection non-gated build-time smoke — systemd timer→service→redeploy.sh→sub-script/compose 무인 야간 재배포 체인의 경로/식별자 계약 정합을 정적 추출 cross-artifact 대조; service ExecStart↔실 redeploy.sh 실존·service triple-match(ExecStart prefix==Environment=REPO_DIR==WorkingDirectory)·redeploy.sh REPO_DIR 기본값↔service Environment=REPO_DIR·seed 호출 경로↔실 파일·docker compose 전제↔compose 실존·timer OnCalendar non-empty+unit 짝, drift 변별성 5종 합성 mutate, negative 다수·credential 0·결정론·no-mutation, node fs/path 내장만(새 dep 0), test-only 1파일 +466/-0(sizeExempt), 25 it, src 0). fire=cron@aa-local-bef451de(Anthropic cloud fresh checkout, gh 인증 OK): fresh fetch→main bef451de==origin/main→lock free(tombstone)·claims=[]→acquire-lock CAS(tip e372a86d)→reclaim no-op(claims 빈; server-time 2026-06-29T12:38:01Z)→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→select-claim T-0797 atomic claim(CLAIM_NOW=12:38:23Z 주입, midnight bug 없음, lock 동시 release)→executor lock-free 구현+test(25 it)→feature branch push 2598664c→PR #712 open→sync-claim-pr prNumber=712 PR_OPEN→integrator reviewer round1 APPROVE+4-게이트 PASS(rerun fallback→green)→squash merge a9891afe --delete-branch→re-acquire-lock(tip ab4d3950)→claim prune→counters 788→789→planner escalate Q-0047. ▶ **T-0796 DONE** PR #711 squash 7a7a5641(ci.yml 검증-체인 계약 parity smoke). ▶ **T-0795 DONE** PR #710 squash a5a57b97. ▶ **T-0794 DONE** PR #709 squash a5b7b3bf. ▶ **nextTask = null** (planner escalate Q-0047 OPEN, reason dependency-free-exhausted): deploy-artifact parity-smoke family(T-0790~0797) + P5 dependency-free 순수-helper vein (60+ helpers in src/assessment-evaluation·assessment-collection/domain, 전부 wired) 둘 다 정직 소진. 남은 genuine 방향 전부 §5 게이트(live-LLM credential·DB schema migration·new dependency·external LAN) → make-work 날조 금지 standing instruction 준수, stand down. planner 권고=option 1 timezone KST ADR(유일 non-gated genuine value path). 다음 fire 는 unresolved HQ(Q-0047) 로 [1]에서 즉시 종료 — 사람 결정 대기. ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026/Q-0047·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
-    "holder": "cron",
-    "since": "2026-06-29T11:58:08Z"
+    "holder": null,
+    "since": ""
   },
-  "lastCommit": "7a7a5641",
+  "lastCommit": "a9891afe",
   "mostRecentTasks": [
+    "T-0797",
     "T-0796",
     "T-0795",
     "T-0794",
-    "T-0793",
-    "T-0792"
+    "T-0793"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,8 +32,8 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0796 DONE (pr) — CI workflow(.github/workflows/ci.yml) 검증-체인 계약(`run: pnpm <script>`↔package.json scripts 키 실존·`run: bash <path>`↔실 스크립트 파일 실존·test:smoke/test:e2e 의 --config jest config 파일 실존·R-110/111/113 체인 lint·build·test:cov·test:smoke·test:e2e 인보케이션 완결)↔실 build/test artifact(package.json·scripts/*.sh·deploy/*.test.sh·test/jest-*.json) parity drift smoke. ci.yml 정규식 추출(주석 skip+script-name shape 필터로 버전숫자·경로형 오인 배제)+package.json JSON.parse, node fs/path 내장만(새 dep 0·YAML 파서 0). PR #711 squash 7a7a5641, reviewer round1 APPROVE 0 BLOCKER/0 MAJOR/1 MINOR(frontmatter estimatedDiff 270 vs actual +598 — non-blocking sizeExempt)/0 NIT, 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green; reviewer-approval step race fail→gh run rerun 28369628016 fallback→green). smoke 20/20 PASS(local 은 DB globalSetup 만 미발화·spec 자체 DB-free·CI 발화), lint+build green, test-only 1파일 +598/-0(sizeExempt). 직전 main run a5a57b97(T-0795)·a5b7b3bf success. 본 bookkeeping commit(direct main)은 push 후 다음 fire [1]에서 conclusion 재확인.",
-    "lastRun": "2026-06-29T12:05:00Z"
+    "note": "T-0797 DONE (pr) — redeploy 오케스트레이션-진입점 계약↔실 배포 artifact(deploy/redeploy.sh·deploy/seed-llm-config.sh·docker-compose.yml·assessment-agent-redeploy.{service,timer}) parity drift-detection smoke. redeploy.sh/.service/.timer readFileSync 추출 보조 5함수(REPO_DIR 기본값·seed 호출 경로 suffix·docker compose 전제·ExecStart suffix/prefix·triple-match) + 실 artifact existsSync 대조, node fs/path 내장만(새 dep 0). PR #712 squash a9891afe, reviewer round1 APPROVE 0 BLOCKER/0 MAJOR/1 NIT(read-only .replace no-mutation test 의도 — 별도 fix 불요), 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green; reviewer-approval step race fail→gh run rerun fallback→green). smoke 25/25 PASS(local 은 DB globalSetup 미발화·spec DB-free·CI services.postgres 발화), lint+build green, test-only 1파일 +466/-0(sizeExempt). 직전 main run 7a7a5641(T-0796) success. 본 bookkeeping commit(direct main)은 push 후 다음 fire [1]에서 conclusion 재확인.",
+    "lastRun": "2026-06-29T12:50:00Z"
   },
   "reviewRounds": {
     "T-0796": 1,
@@ -480,7 +480,8 @@
     "T-0773": 1,
     "T-0778": 1,
     "T-0794": 1,
-    "T-0795": 1
+    "T-0795": 1,
+    "T-0797": 1
   },
   "reviewRoundsArchive": "docs/progress/reviewRounds-archive.md",
   "reviewRoundsArchivedCount": 68,
@@ -492,6 +493,26 @@
   "blockersResolvedNote2": "B-ci-infra-2026-06-08T21:07Z (3+ 연속 main CI runner 미할당 infra-fail) 는 2026-06-09T02:33Z 해소. 원인 = private repo 의 GitHub Actions spending limit $0 (결제수단만 추가로는 overage 미허용 — 무료 minutes 소진 후 runner 미할당). 사용자가 spending limit 상향 후 run 27167117992 rerun 이 runner 정상 할당 + 전체 green. ci-infra 는 코드 회귀가 아니므로 tasksBlocked counter increment 안 함(7 유지). Q-0028 RESOLVED 동반.",
   "blockersResolvedNote": "B-credential-2026-06-02T02:03Z (cron@web refs/locks/* 403 + gh 부재 env 한계) 는 /loop session #38 t1 에서 해소 — 로컬 driver(loop@WIN-JQIPLSBL9QV, gh 2.88.1 + refs/locks/* push 권한)가 ref-CAS lock 정상 획득 후 T-0151 픽업·merge. 정책 변경 불요 (env 한계였을 뿐). tasksBlocked counter 는 historical fact 로 7 유지. B-credential-2026-06-04T16:04Z (cron@cloud-bc1cce 16:04 fire 의 refs/locks/* 403 stale-탈취 실패) 는 동일 env 한계 재발화 — **loop@WIN-JQIPLSBL9QV-s55 가 session #55 t8 에서 정상 진행하며 자동 해소**(cron 이 못 한 T-0229 bookkeeping·Q-0022 escalation·counter 정합을 본 로컬 driver 가 완료, cron d82127d 의 blocker 기록을 본 commit 에서 blockers[]→[] 로 close). tasksBlocked counter 는 increment 하지 않는다(반복 env 한계지 정책 실패 아님). **근본 원인 = lock since 미갱신으로 60min stale 오판 — 본 turn 부터 매 turn since=now heartbeat 적용해 재발 차단.**",
   "humanQuestions": [
+    {
+      "id": "Q-0047",
+      "raisedAt": "2026-06-29T12:20:00Z",
+      "createdAt": "2026-06-29T12:20:00Z",
+      "raisedBy": "planner (post-T-0797 merge, cron@aa-local)",
+      "reason": "dependency-free-exhausted",
+      "status": "OPEN",
+      "summary": "T-0797(redeploy 오케스트레이션-진입점 parity smoke, PR #712 squash a9891afe)가 머지되며 deploy-artifact parity-smoke seam family(T-0790~T-0797, 8 task)가 정직하게 소진됐다. T-0797 자신의 Follow-up 이 '본 task 가 deploy 계열 LAST genuine build-time seam — 다음 planner 는 세 번째 parity-smoke 변형 제조 금지' 를 standing instruction 으로 박제했다. 동시에 P5 evaluation-pipeline 의 dependency-free 순수-helper vein 도 Q-0040/0042/0043 이래 소진 상태가 유지된다(domain/ 60+ 순수 helper + adjustments/detection pipeline 배선 완료, dedup/abuse/quality/notable/underperformer/update-count-neutral 전부 main 박제·배선됨). 즉 두 비-게이트(non-gated) 자율 진행 vein 이 모두 소진됐고, 남은 모든 genuine product 방향은 §5 게이트(새 dependency/credential/DB schema/외부 LAN)를 동반한다. make-work(세 번째 parity-smoke 변형 또는 미배선 46번째 순수 helper)를 날조하지 않고 nextTask=null 로 정직하게 stand down 한다 — Q-0040/Q-0043/Q-0046 과 동형 escalate.",
+      "context": "정황(origin/main 7a7a5641 + T-0797 머지 a9891afe 대조): (1) deploy vein 소진 — T-0790(daily-test step_eval) ~ T-0797(redeploy 진입점)까지 daily-test/docker/compose/seed-sql/ci-workflow/redeploy 의 build-time parity-smoke 가 전부 박제됐다. 남은 deploy 표면(web/package.json·deploy/README 산문)은 T-0796 Follow-up 이 이미 token-poor/false-coupling-risk 로 HIGH-bar 미통과 판정. (2) P5 도메인 소진 — assessment-evaluation/domain 60+ 순수 helper(volume·dedup·abuse-signal/adjust·quality·notable-contribution·underperformer·update-count-neutral·summary-batch family) + assessment-collection/domain(commit-dedup·page-dedup·github/confluence mapper·author-filter·recollection-window) 전부 main 박제·adjustments/detection pipeline 으로 배선됨. R-21 temporal dedup(earliest-wins) + R-30 self-follow-up 제외 + R-26/40 abuse + R-37/38 quality + R-25 notable + R-27 underperformer + R-41 update-count 중립화 = 모두 implemented-on-main. 추가 순수 helper 는 미배선 make-work(Q-0040 의 45-helper diminishing-returns 경고와 동형). (3) 남은 genuine 방향은 전부 §5 게이트: (a) **live-LLM bridge 검증**(PLAN P5 bullet 108·ADR-0037 §Decision5) — 실 네트워크 LLM 1회 round-trip 검증. ⏰**credential 만료 2026-06-30 임박**(AZURE_OPENAI_*→LLM_LIVE_*, repo 밖 secrets.env, §9 실값 금지). 사용자 승인은 2026-06-11 박제됐으나 LAN 로컬 머신 수동 실행이라 cron 자율 backlog 아님. (b) **실 github.com 공개활동 e2e**(PLAN P5 bullet 109, myungjoo+leemgs) — deploy 환경 github.com read PAT 주입 + PC Ollama LAN 노출 필요(운영 게이트). (c) **timezone KST ADR**(PLAN P5 bullet 110·Q-0026) — ADR-first 사람 결정 대기. (d) **export/import 실 배선·평가결과 테이블** — Prisma schema migration = §5 DB schema BLOCKED. (e) **P6 deferred 배선**(ReEvaluationTriggerPanel·SchedulePanel·polling) — backend 계약 미shipped(schema/controller 게이트). (f) **P7 scheduling** — @nestjs/schedule cron 배선 + schedule 영속 schema 운영 게이트. (g) **ADR-0036 stage5c** — 30일 dogfood + throughput 실측 합의. 인접 sweep: open PR 0·BLOCKED task 0·blockers 0·CI green·tasksCompleted=788·active claim 0. server-time 2026-06-29T12:05Z(STATE.ci.lastRun 기준).",
+      "options": [
+        "(1) **timezone KST ADR 착수(가장 cron 자율 가능)** — PLAN P5 bullet 110(사용자 2026-06-11 KST 확정)을 ADR-first 로 박제. 저장=UTC timestamptz 유지 + 일/주/월 경계 계산·표시만 KST(Asia/Seoul) 변환의 표준 패턴을 ADR 로 결정하고, 순수 도메인 helper(예: toKstPeriodBoundary / kstDayStart)로 cron 자율 진행 가능(새 dep 0·credential 0·schema 0). R-61 자정 룰·R-9 사용자 지정 기간·summary 경계가 KST 정합하게 닫힌다. 권고안 — 유일하게 §5 게이트 없이 genuine product 가치를 더하는 방향.",
+        "(2) **live-LLM bridge 검증 실행(⏰만료 2026-06-30 임박)** — PLAN P5 bullet 108. 사용자가 LAN 로컬 머신에서 LLM_LIVE_* env(또는 local Ollama/OpenAI-호환 custom endpoint) 주입 후 env-gated live spec 1회 round-trip 실행. 만료일 임박해 우선순위 높으나 cron 자율 불가(사람/로컬 수동 작업). planner 는 env-gated spec scaffold task(env 부재 시 skip→CI green) 만 큐잉 가능.",
+        "(3) **DB schema 게이트 unblock(export/import 실 배선 또는 평가결과 영속 확장)** — Prisma schema migration 승인 시 export/import controller·repository 실 배선 또는 평가결과 테이블 확장 chain 진입. §5 DB schema 변경 사람 승인 + migration 정책 결정 필요.",
+        "(4) **P6/P7 infra 게이트 unblock** — P6 deferred 배선(ReEvaluationTriggerPanel·SchedulePanel·EvaluationGuardBanner polling)은 backend status/controller 계약 + 일부 @nestjs/schedule(새 dep)·schema 동반. P7 scheduling 도 동일. §5 새 dep/schema 승인 필요.",
+        "(5) **자동 driver 일시정지(idle 수용)** — 위 결정 전까지 본 Q-0047 을 OPEN 으로 유지해 cron/loop driver 가 stand-down(no-op heartbeat)하도록 둔다. make-work 날조보다 정직한 idle 이 낫다(불필요한 LLM/CI 비용 회피). 결정 시 resolvedAt+decision 기입으로 재개."
+      ],
+      "resolutionHint": "docs/STATE.json 본 Q-0047 에 resolvedAt(ISO)+decision 기입 후 commit. 옵션1(권고) 선택 시 다음 planner fire 가 timezone KST ADR(pr, ADR-NNNN 신설) → 후속 순수 도메인 helper(toKstPeriodBoundary 등, pr) chain 을 큐잉(새 dep/credential/schema 0). 옵션2 선택 시 env-gated live spec scaffold(pr) + 사용자 LAN 수동 실행 가이드. 옵션3/4 선택 시 ADR-우선(새 schema/dep 승인) chain. decision 미기입 시(또는 옵션5) 미해결 OPEN HQ 존재로 다음 cron/loop fire 는 LOOP §1[1] 게이트로 stand-down(no-op heartbeat) 한다. processedByPlanner 처리는 resolvedAt set 후 다음 planner 호출이 수행.",
+      "raisedThisTurn": true,
+      "processedByPlanner": false
+    },
     {
       "id": "Q-0046",
       "raisedAt": "2026-06-21T23:03:58Z",
@@ -1240,7 +1261,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 788,
+    "tasksCompleted": 789,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1268,5 +1289,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-29T11:08:00Z"
+  "lastActivity": "2026-06-29T12:55:00Z"
 }
