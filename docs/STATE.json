@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0779",
-  "backlogNote": "▶ **T-0778 DONE** PR #693 squash a175510e(realdata-e2e step④ aggregator command-args-body 합류 9-way single-source closure smoke, test-only 1파일 +1145 LOC, 23 it). fire=cron@aa-local15-3b3e65(Anthropic cloud fresh checkout, gh 인증 OK, 매시 15분 trigger): fresh fetch→HEAD 501be945 ff origin/main 3b3e656e(T-0777 이미 머지·T-0778 큐잉돼 있음)→lock free·claims=[]→reclaim no-op→select-claim.sh T-0778 atomic claim(01:04:40Z, lock 동시 release)→executor lock-free 구현+test(23 it: happy 1+축별 branch 8+9-way 종단 1+변별 2+create 격리 1+negative 9+결정론/무공유 3+credential 1, lint/build/tsc green, src 0)→feature branch push→PR #693 open→sync-claim-pr(prNumber=693)→integrator round1: reviewer APPROVE + 4-게이트 PASS→squash merge a175510e --delete-branch→claim prune(claims.json=[], 비-empty blob 0637a088 검증)→counters 769→770→planner T-0779 큐잉. 검증: buildRealDataE2eStepArgs(runPlan,activities,results) 한 호출의 publish.commandArgs.createArgs.body(=descriptor.body byte-identical, gh issue create 경로)+updateArgs.body(=동, gh issue edit 경로)+report.descriptor.body 재유도+report.summary 재유도+evaluation.inputs 재유도+callArgs 페어링+modelId+marker 3축+searchArgv+searchQuery+resolve issueNumber+post run-identity 9축 동시 수렴. ▶ **T-0777 DONE** PR #692 squash 9b365124. ▶ **T-0776 DONE** PR #691 squash 7339b67d. ▶ **T-0775 DONE** PR #690 squash 418f8e5e. ▶ **T-0774 DONE** PR #689 squash 0076fd68. ▶ **nextTask** = T-0779 (planner 큐잉 — realdata-e2e step④ aggregator command-args-title 10-way single-source closure smoke: publish.commandArgs.{createArgs,updateArgs}.title == report.descriptor.title byte-identical, pr/test-only sizeExempt). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0780",
+  "backlogNote": "▶ **T-0779 DONE** PR #694 squash d45e2a89(realdata-e2e step④ aggregator command-args-title 합류 10-way single-source closure smoke, test-only 1파일 +1213 LOC, 27 it). fire=cron@AKIHA-f5990f(Anthropic cloud fresh checkout, gh 인증 OK, 매시 30분대 trigger): fresh fetch→HEAD 3b3e656e ff origin/main f5990f9a(T-0778 이미 머지·T-0779 큐잉돼 있음)→lock free·claims=[]→reclaim no-op(server-time 01:37:48Z 주입)→a2 gate(활성 claim 0<2)→select-claim.sh T-0779 atomic claim(01:37:56Z, lock 동시 release)→executor lock-free 구현+test(27 it: happy 1+축별 branch+10-way 종단+변별 2+create 격리 1+negative 8+결정론/무공유 3+credential 1, lint/build/tsc green, src 0)→feature branch push→PR #694 open→integrator round1: reviewer APPROVE + 4-게이트 PASS(comment 외부 + self-check Out-of-Scope test-only src 0 + CI 2-check green)→squash merge d45e2a89 --delete-branch→claim prune(claims.json=[])→counters 770→771→planner T-0780 큐잉. 검증: buildRealDataE2eStepArgs(runPlan,activities,results) 한 호출의 publish.commandArgs.createArgs.title(=descriptor.title byte-identical, gh issue create 경로)+updateArgs.title(=동, gh issue edit 경로)+command-args body 두 경로+descriptor.{title,body} 재유도+summary 재유도+inputs 재유도+callArgs 페어링+modelId+marker 3축+resolve issueNumber+post run-identity 10축 동시 수렴. ▶ **T-0778 DONE** PR #693 squash a175510e. ▶ **T-0777 DONE** PR #692 squash 9b365124. ▶ **T-0776 DONE** PR #691 squash 7339b67d. ▶ **T-0775 DONE** PR #690 squash 418f8e5e. ▶ **nextTask** = T-0780 (planner 큐잉 — realdata-e2e step④ aggregator command-args-labels 11-way single-source closure smoke: publish.commandArgs.createArgs.labels == 고정 상수 RESULT_ISSUE_LABELS deep-equal·무공유 + command-plan 재유도, pr/test-only sizeExempt). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "a175510e",
+  "lastCommit": "d45e2a89",
   "mostRecentTasks": [
+    "T-0779",
     "T-0778",
     "T-0777",
     "T-0776",
-    "T-0775",
-    "T-0774"
+    "T-0775"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,10 +32,11 @@
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "in_progress",
-    "note": "T-0778 DONE (pr) — realdata-e2e step④ aggregator command-args-body 합류 9-way single-source closure non-gated build-time smoke. PR #693 squash a175510e, reviewer round1 APPROVE, 4-게이트 PASS, --delete-branch. PR CI 2/2 SUCCESS(기본 검사 + 배포 산출물 검증). post-merge main run(a175510e) push 직후 in_progress — 다음 turn [5] 에서 conclusion 재확인. 직전 main run 3b3e656e(T-0777 bookkeeping) 및 9b365124(T-0777) 정상.",
-    "lastRun": "2026-06-29T01:08:00Z"
+    "note": "T-0779 DONE (pr) — realdata-e2e step④ aggregator command-args-title 합류 10-way single-source closure non-gated build-time smoke. PR #694 squash d45e2a89, reviewer round1 APPROVE, 4-게이트 PASS, --delete-branch. PR CI 2/2 SUCCESS. post-merge main run(d45e2a89) push 직후 in_progress — 다음 turn [5] 에서 conclusion 재확인. 직전 main run f5990f9a(T-0778 bookkeeping) 및 a175510e(T-0778) 정상.",
+    "lastRun": "2026-06-29T01:49:47Z"
   },
   "reviewRounds": {
+    "T-0779": 1,
     "T-0777": 1,
     "T-0776": 1,
     "T-0774": 1,
@@ -1223,7 +1224,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 770,
+    "tasksCompleted": 771,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
