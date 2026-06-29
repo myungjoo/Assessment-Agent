@@ -2,7 +2,10 @@
 id: T-0776
 title: realdata-e2e step④ aggregator results-summary 합류 7-way single-source closure — buildRealDataE2eStepArgs(runPlan, activities, results) 한 호출의 {publish.report.summary(=buildRealDataResultIssueCommandPlan(results, runPlan.run).report.summary byte-identical, results 단일 source 재유도), evaluation.inputs(=buildRealDataEvaluationInputs(activities) byte-identical, callArgs[i].input===inputs[i]), evaluation.callArgs[].options.modelId(=runPlan.pipeline.modelId), publish.{descriptor.marker, commandArgs.searchQuery, searchArgv(--match 토큰)}} ↔ resolveRealDataResultIssueGhCommandPlan(searchStdout, stepArgs.publish.commandArgs).action.update.issueNumber ↔ buildRealDataResultOutcomeStepArgs(runPlan, execStdout) run-identity 가 단일 검증 source(runPlan+activities+results)로 summary+inputs+modelId+marker+searchArgv+issueNumber+run-identity 7축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 7339b67d
+prNumber: 691
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-037, REQ-059]
 estimatedDiff: 300
