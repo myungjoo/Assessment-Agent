@@ -2,7 +2,10 @@
 id: T-0785
 title: realdata-e2e step④ aggregator collect-leg serviceIdentities 내부-shape 1:1 thread 합류 16-way single-source closure — aggregator 가 산출한 runPlan.pipeline.collectCallArgs[i].person.serviceIdentities(collectForPerson 호출-args 의 Person 내부 ServiceIdentity 배열)가 검증 source seeds[i].serviceIdentities 의 {service, externalId} 쌍 배열과 원소별·필드별(service+externalId 동시) byte-identical 1:1 임을, multi-identity Person·다중 seeds 까지 포함해 16번째 축으로 합류 — collect-leg 내부-shape(Person→ServiceIdentity 배열 깊이)가 collectCallArgs top-level 재유도 + collect/evaluate modelId 공유 + search-json-fields↔parse-shape set-equal + search-argv 전체-벡터 + resolve-argv + command-args + descriptor + summary + inputs + marker + resolve + post 와 같은 검증 source(seeds+modelId+run+activities+results) 로 16축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 054c6c4b
+prNumber: 700
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-024, REQ-032, REQ-047, REQ-059]
 estimatedDiff: 300

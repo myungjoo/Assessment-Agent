@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0785",
-  "backlogNote": "▶ **T-0784 DONE** PR #699 squash ac347053(realdata-e2e step④ aggregator search-json-fields↔parse-shape 합류 15-way single-source closure smoke, test-only 1파일 +1087 LOC, 30 it). fire=cron@aa-local15-6febc304(Anthropic cloud fresh checkout, gh 인증 OK, 매시 15분 trigger): fresh fetch→HEAD e0b323d3 ff origin/main 6febc304(T-0783 이미 머지·T-0784 큐잉)→lock free·claims=[]→acquire-lock CAS→reclaim no-op(server-time 04:05:05Z 주입)→validate-claim-candidate T-0784 PASS→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→select-claim.sh T-0784 atomic claim(04:05:34Z, lock 동시 release)→executor lock-free 구현+test(30 it: happy + search-json-fields↔parse-shape set-equal(searchArgv[6] `--json` 토큰 split 집합 == PARSE_SHAPE_KEYS == 실 파싱 hit 키, 추가필드 미누출) + number→resolve→post thread + 변별성 + collect-leg 재유도 + 14축 묶음 + 15-way 종단 + create/update 분기 격리 + negative 충분 + 결정론/무공유/no-mutation + credential, lint+build green, src 0)→feature branch push→integrator PR #699 open→sync-claim-pr(prNumber=699, PR_OPEN)→reviewer round1 APPROVE + 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green: first run reviewer-gate step race fail→issue_comment 미발화→gh run rerun 재실행 green)→squash merge ac347053 --delete-branch→claim prune(claims.json=[], blob 0637a088)→counters 775→776→planner T-0785 큐잉. ▶ **T-0783 DONE** PR #698 squash 0cea7ade. ▶ **T-0782 DONE** PR #697 squash 3b320244. ▶ **T-0781 DONE** PR #696 squash 62a4de1f. ▶ **T-0780 DONE** PR #695 squash c8878e8b. ▶ **nextTask** = T-0785 (planner 큐잉 — realdata-e2e step④ aggregator collect-leg serviceIdentities 내부-shape 1:1 thread 16-way single-source closure smoke, pr/test-only sizeExempt). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0786",
+  "backlogNote": "▶ **T-0785 DONE** PR #700 squash 054c6c4b(realdata-e2e step④ aggregator collect-leg serviceIdentities 내부-shape 1:1 thread 합류 16-way single-source closure smoke, test-only 1파일 +1185 LOC, 31 it). fire=cron@aa-cloud-02e8321d(Anthropic cloud fresh checkout, gh 인증 OK, 매시 30분대 trigger): fresh fetch→HEAD 6febc304 ff origin/main 02e8321d(T-0784 이미 머지·T-0785 큐잉)→lock free·claims=[]→acquire-lock CAS(tip aab09cfa)→reclaim no-op(server-time 04:37:38Z 주입)→validate-claim-candidate T-0785 PASS→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→select-claim.sh T-0785 atomic claim(04:38:16Z, lock 동시 release)→executor lock-free 구현+test(31 it: happy + collect-leg serviceIdentities 내부-shape 원소별·필드별 1:1(toEqual {service,externalId} 배열, 길이·순서 보존) + multi-identity Person seed(2 identity) 모든 원소 1:1 + isPrimary 미surface boundary + 변별성 + collectCallArgs top-level 재유도 + search-json-fields↔parse-shape set-equal + 15축 묶음 + 16-way 종단 + create/update 분기 격리 + negative 충분 + 결정론/무공유/no-mutation + credential, lint+build green, src 0)→feature branch push(c39288a6)→integrator PR #700 open→sync-claim-pr(prNumber=700, PR_OPEN)→reviewer round1 APPROVE + 4-게이트 PASS(comment 외부 header 매칭 + self-check test-only src 0 + CI green: reviewer-gate step 첫 run race 미발생, rerun 불요)→squash merge 054c6c4b --delete-branch→claim prune(claims.json=[], blob 0637a088, tip 1d5f280d)→counters 776→777→planner T-0786 큐잉. ▶ **T-0784 DONE** PR #699 squash ac347053. ▶ **T-0783 DONE** PR #698 squash 0cea7ade. ▶ **T-0782 DONE** PR #697 squash 3b320244. ▶ **T-0781 DONE** PR #696 squash 62a4de1f. ▶ **nextTask** = T-0786 (planner 큐잉 — realdata-e2e step④ aggregator evaluation-leg callArgs[i].input 내부-shape(EvaluationInput 필드별 1:1 activities 재유도: unitId 합성·contributionKind R-30 4분기·typed 전사·metadata reference·raw 미보유) 17-way single-source closure smoke, pr/test-only sizeExempt). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "ac347053",
+  "lastCommit": "054c6c4b",
   "mostRecentTasks": [
+    "T-0785",
     "T-0784",
     "T-0783",
     "T-0782",
-    "T-0781",
-    "T-0780"
+    "T-0781"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,10 +32,11 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0784 DONE (pr) — realdata-e2e step④ aggregator search-json-fields↔parse-shape 합류 15-way single-source closure non-gated build-time smoke. PR #699 squash ac347053, reviewer round1 APPROVE, 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green). PR CI first run 의 reviewer-gate step race fail(issue_comment 미발화)→`gh run rerun` 재실행으로 green(integrator §race fallback). pre-squash mergeState CLEAN(rebase 불요). post-merge main run(ac347053) 04:00:00Z run success 확인. 직전 main run 6febc304·0cea7ade(T-0783) success.",
-    "lastRun": "2026-06-29T04:25:00Z"
+    "note": "T-0785 DONE (pr) — realdata-e2e step④ aggregator collect-leg serviceIdentities 내부-shape 1:1 thread 합류 16-way single-source closure non-gated build-time smoke. PR #700 squash 054c6c4b, reviewer round1 APPROVE, 4-게이트 PASS(comment 외부 header 매칭 + self-check test-only src 0 + CI green). reviewer-gate step 첫 run race 미발생 — rerun 불요. pre-squash mergeState CLEAN(rebase 불요). post-merge main run(054c6c4b) success 확인. 직전 main run 02e8321d·ac347053(T-0784) success.",
+    "lastRun": "2026-06-29T04:54:58Z"
   },
   "reviewRounds": {
+    "T-0785": 1,
     "T-0784": 1,
     "T-0783": 1,
     "T-0782": 1,
@@ -1228,7 +1229,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 776,
+    "tasksCompleted": 777,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
