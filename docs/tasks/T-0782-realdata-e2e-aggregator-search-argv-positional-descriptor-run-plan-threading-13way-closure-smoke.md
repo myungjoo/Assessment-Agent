@@ -2,7 +2,11 @@
 id: T-0782
 title: realdata-e2e step④ aggregator search-argv 전체-벡터 위치-정합 합류 13-way single-source closure — buildRealDataE2eStepArgs(runPlan, activities, results) 한 호출의 stepArgs.publish.searchArgv 가 buildRealDataResultIssueSearchGhArgv(commandArgs) 산출 canonical 벡터 ["search","issues","--match","body",searchQuery,"--json","number,title,body","--limit","30"](live runner 가 execFile('gh', searchArgv)로 거는 실 gh search issues CLI 인자-벡터)와 byte-identical 전체-벡터 위치-정합임을 13번째 축으로 합류 — searchArgv[0..1]=="search","issues" 동사 prefix + searchArgv[2..3]=="--match","body" 고정 + searchArgv[4]==commandArgs.searchQuery(==descriptor.marker) + searchArgv[5..6]=="--json","number,title,body" 고정 + searchArgv[7..8]=="--limit","30" 고정 이 resolve-argv 위치-정합(create/update) + command-args labels 고정상수 + command-args title/body 두 경로 + descriptor.{title,body} 재유도 + summary + inputs + modelId + marker 3-축 + resolve issueNumber + post run-identity 와 함께 세 검증 source(runPlan+activities+results)로 13축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 3b320244
+prNumber: 697
+reviewRounds: 1
+completedAt: 2026-06-29T03:18:00Z
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-037, REQ-059]
 estimatedDiff: 300
