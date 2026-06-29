@@ -2,7 +2,7 @@
 id: T-0777
 title: realdata-e2e step④ aggregator descriptor-body 합류 8-way single-source closure — buildRealDataE2eStepArgs(runPlan, activities, results) 한 호출의 {publish.report.descriptor.body(=buildRealDataResultIssueCommandPlan(results, runPlan.run).report.descriptor.body byte-identical, results+run 단일 source 로 marker 라인+summary 한 줄+markdown 본문 동형 재유도), publish.report.summary(=동 command-plan.report.summary), evaluation.inputs(=buildRealDataEvaluationInputs(activities)), callArgs[].options.modelId(=runPlan.pipeline.modelId), publish.{descriptor.marker, commandArgs.searchQuery, searchArgv(--match 토큰)}} ↔ resolveRealDataResultIssueGhCommandPlan(searchStdout, stepArgs.publish.commandArgs).action.update.issueNumber ↔ buildRealDataResultOutcomeStepArgs(runPlan, execStdout) run-identity 가 단일 검증 source(runPlan+activities+results)로 descriptor-body+summary+inputs+modelId+marker+searchArgv+issueNumber+run-identity 8축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-037, REQ-059]
 estimatedDiff: 300
