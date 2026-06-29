@@ -2,7 +2,7 @@
 id: T-0791
 title: realdata-e2e step④ deploy/daily-test.sh 머신 요약 latest-result.json 스키마 ↔ ORDER-driven steps 조립 ↔ failedStep null/quoted 분기 contract parity drift-detection non-gated build-time smoke — daily-test.sh 가 stdout/latest-result.json 으로 내보내는 머신 요약 JSON 의 6-키 스키마(ts·gitSha·result·failedStep·steps·logPath), 그 steps 객체 키 집합이 ORDER 배열(redeploy·health·liveness·auth·eval)과 정확히 일치(steps_json 이 ORDER 순회로 조립됨), failedStep 이 null(unquoted)/"step"(quoted) 두 분기로 직렬화됨을 실 deploy/daily-test.sh 파일을 readFileSync 로 읽어 정적 검증하는 cross-artifact(shell→machine-JSON) drift-detection 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-059]
 estimatedDiff: 235
