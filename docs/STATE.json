@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0793",
-  "backlogNote": "▶ **T-0792 DONE** PR #707 squash 3ac4cc6d(realdata-e2e step④ deploy/daily-test.sh black-box HTTP step 계약(GET /api==\"Assessment-Agent\"·GET / liveness 200·POST /api/users 201|409 멱등·POST /api/auth/login 200·GET /api/auth/me 200)↔실 NestJS controller route decorator(@Controller prefix+@Get/@Post path·method·@HttpCode/HttpStatus) path·method·status 1:1 parity drift-detection non-gated build-time smoke — shell readFileSync HTTP 계약 추출 + controller 4파일(app·user·auth·app.service) readFileSync route decorator 정적 추출 후 full-path(prefix+route) byte-identical + method + 기대 status 1:1 단언, drift 변별성(@HttpCode·prefix·path mutate 사본 not.toBe) + negative 6종(파일부재·route부재·path drift·method swap·status drift·prefix누락) + credential 0·결정론·no-mutation, test-only 1파일 +626 LOC, 18 it, src 0). fire=cron@aa-cloud-d4f6160d(Anthropic cloud fresh checkout, gh 인증 OK, 매시 38분대 trigger): fresh fetch→HEAD 0fe5e9d2 ff origin/main d4f6160d(T-0791 이미 머지·T-0792 큐잉)→prior main CI(aebc5a58·d4f6160d) success 확인→lock free(tombstone)·claims=[]→acquire-lock CAS(tip c690c69f)→reclaim no-op(claims 빈, server-time 2026-06-29T08:37:47Z 주입)→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→validate-claim-candidate T-0792 PASS→select-claim.sh T-0792 atomic claim(08:38:09Z≈server-time, midnight bug 없음, lock 동시 release)→executor lock-free 구현+test(18 it)→feature branch push 197d169b→PR #707 open→sync-claim-pr prNumber=707 PR_OPEN→integrator reviewer round1 APPROVE 0 BLOCKER/0 MAJOR/1 MINOR(method-swap negative 약함, non-blocking) + 4-게이트 PASS(comment 외부 issuecomment-4830626472 + self-check test-only src 0 + CI green; 기본검사 reviewer-approval step 첫 run race fail→APPROVE comment 후 issue_comment-triggered rerun(28360064148) green)→squash merge 3ac4cc6d --delete-branch(local main ff)→re-acquire-lock(tip 4c2fec66)→claim prune(printf '[]'|hash-object guard blob 0637a088, tip eab1e53e, 내용 검증 []) →release(tombstone tip 5f544761)→counters 783→784→planner T-0793 큐잉. post-merge main run(3ac4cc6d) in_progress(PR CI 는 머지 전 green, 다음 fire 확인). ▶ **T-0791 DONE** PR #706 squash aebc5a58. ▶ **T-0790 DONE** PR #705 squash e99bd2b7. ▶ **T-0789 DONE** PR #704 squash 1e0217b0. ▶ **nextTask** = T-0793 (planner 큐잉 — deploy step① docker-entrypoint.sh 런타임 계약(./node_modules/.bin/prisma migrate deploy + node dist/src/main)↔실 build/runtime artifact(package.json prisma deps·tsconfig outDir·Dockerfile ENTRYPOINT/COPY) parity drift smoke; daily-test build-time seam 3종(T-0790~0792) 소진 후 distinct deploy-entrypoint↔build-artifact seam 채택, pr/test-only sizeExempt, dependsOn []). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0794",
+  "backlogNote": "▶ **T-0793 DONE** PR #708 squash 4358d2e8(realdata-e2e/deploy step① deploy/docker-entrypoint.sh 런타임 계약(`./node_modules/.bin/prisma migrate deploy` 바이너리 경로·migrate deploy 서브커맨드 + `exec node dist/src/main` 빌드-산출물 경로 + Dockerfile ENTRYPOINT/COPY 정합)↔실 build/runtime artifact(package.json prisma=dependencies prune --prod 생존·tsconfig outDir ./dist·Dockerfile) parity drift-detection non-gated build-time smoke — docker-entrypoint.sh + package.json + tsconfig.json + Dockerfile 4소스를 readFileSync/JSON.parse 로 읽어 (a)prisma 가 dependencies byte-identical (b)dist/src/main 의 dist prefix == tsconfig outDir basename (c)Dockerfile ENTRYPOINT == ./deploy/docker-entrypoint.sh (d)COPY dist·prisma.config.ts 존재 정합 + R-112 4종 + drift 변별성(prisma-devDeps·outDir·서브커맨드·ENTRYPOINT mutate 사본 not.toBe) + negative 다수(파일부재·서브커맨드 drift·경로 mismatch·COPY 누락) + credential 0·결정론·no-mutation, test-only 1파일 +547 LOC, 21 it, src 0). fire=cron@aa-cloud-5ad763f7(Anthropic cloud fresh checkout, gh 인증 OK, 매시 38분대 trigger): fresh fetch→HEAD 5ad763f7 == origin/main(T-0792 머지·T-0793 큐잉)→prior main CI(5ad763f7) success 확인→lock free(tombstone)·claims=[]→acquire-lock CAS(tip d7d8cabc)→reclaim no-op(claims 빈)→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→select-claim.sh T-0793 atomic claim(09:38:11Z≈now, midnight bug 없음, lock 동시 release)→executor lock-free 구현+test(21 it)→feature branch push→PR #708 open→sync-claim-pr prNumber=708→integrator reviewer round1 APPROVE + 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green)→squash merge 4358d2e8 --delete-branch(local main ff)→re-acquire-lock(tip d0d68118)→claim prune(printf '[]'|hash-object guard blob 0637a088, tip edff46dc, 내용 검증 [])→counters 784→785→planner T-0794 큐잉. post-merge main run(4358d2e8) in_progress(PR CI 는 머지 전 green, 다음 fire 확인). ▶ **T-0792 DONE** PR #707 squash 3ac4cc6d. ▶ **T-0791 DONE** PR #706 squash aebc5a58. ▶ **T-0790 DONE** PR #705 squash e99bd2b7. ▶ **nextTask** = T-0794 (planner 큐잉 — deploy/seed-llm-config.sh 멱등 upsert 계약(LlmProviderConfig INSERT 7-컬럼 + ON CONFLICT 5-컬럼 멱등 불변 + compiled cipher require-path + encrypt API)↔실 prisma schema scalar 컬럼·TS cipher class·tsconfig outDir parity drift smoke; HIGH-bar genuine distinct seam(live-LLM gate 경계 준수 — 순수 정적 텍스트 추출), pr/test-only sizeExempt, dependsOn []). planner Follow-up: deploy build-time seam 사실상 소진 — 다음은 live-wiring escalation 또는 P5 도메인 로직. ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "3ac4cc6d",
+  "lastCommit": "4358d2e8",
   "mostRecentTasks": [
+    "T-0793",
     "T-0792",
     "T-0791",
     "T-0790",
-    "T-0789",
-    "T-0788"
+    "T-0789"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,10 +32,11 @@
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0792 DONE (pr) — realdata-e2e step④ daily-test.sh HTTP step 계약↔NestJS controller route decorator path·method·status parity drift smoke. PR #707 squash 3ac4cc6d, reviewer round1 APPROVE 0 BLOCKER/0 MAJOR/1 MINOR(non-blocking), 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green; reviewer-approval step 첫 run race fail→APPROVE comment 후 issue_comment-triggered rerun 28360064148 green). post-merge main run(3ac4cc6d) in_progress at bookkeeping — 다음 fire 가 [1]에서 conclusion 재확인. 직전 main run aebc5a58(T-0791)·d4f6160d success.",
-    "lastRun": "2026-06-29T08:56:03Z"
+    "note": "T-0793 DONE (pr) — realdata-e2e/deploy step① docker-entrypoint.sh 런타임 계약↔build/runtime artifact(package.json prisma deps·tsconfig outDir·Dockerfile ENTRYPOINT/COPY) parity drift smoke. PR #708 squash 4358d2e8, reviewer round1 APPROVE, 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green). post-merge main run(4358d2e8) in_progress at bookkeeping — 다음 fire 가 [1]에서 conclusion 재확인. 직전 main run 5ad763f7(T-0792)·3ac4cc6d success.",
+    "lastRun": "2026-06-29T09:54:00Z"
   },
   "reviewRounds": {
+    "T-0793": 1,
     "T-0792": 1,
     "T-0791": 1,
     "T-0790": 1,
@@ -1236,7 +1237,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 784,
+    "tasksCompleted": 785,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1264,5 +1265,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-29T09:02:00Z"
+  "lastActivity": "2026-06-29T09:55:00Z"
 }

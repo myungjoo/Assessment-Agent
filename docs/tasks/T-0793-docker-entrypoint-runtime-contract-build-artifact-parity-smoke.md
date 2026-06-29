@@ -2,7 +2,7 @@
 id: T-0793
 title: realdata-e2e/deploy step① deploy/docker-entrypoint.sh 런타임 계약(prisma migrate deploy 바이너리 경로 + node dist/src/main 빌드-산출물 경로 + Dockerfile ENTRYPOINT/COPY 정합) ↔ 실 build/runtime artifact(package.json prisma dependency · tsconfig outDir · Dockerfile) parity drift-detection non-gated build-time smoke — docker-entrypoint.sh 가 하드코딩한 두 런타임 계약(`./node_modules/.bin/prisma migrate deploy`, `exec node dist/src/main`)이 실 build/runtime artifact(prisma 가 dependencies 라 prune --prod 생존 · tsconfig outDir ./dist · Dockerfile 이 docker-entrypoint.sh 를 ENTRYPOINT 로 두고 dist/·prisma.config.ts COPY)와 정합임을, shell·config·Dockerfile 소스를 정적 추출해 cross-artifact 대조하는 drift-detection smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 270
