@@ -2,7 +2,12 @@
 id: T-0783
 title: realdata-e2e step④ aggregator collect-call-args 합류 14-way single-source closure — buildRealDataE2eRunPlan(seeds, modelId, run)→buildRealDataE2eStepArgs(runPlan, activities, results) 한 chain 의 collect-leg(runPlan.pipeline.collectCallArgs)가 buildRealDataCollectCallArgs(seeds) 산출과 byte-identical 재유도이고 그 collect-leg modelId(runPlan.pipeline.modelId)가 evaluation-leg callArgs[].options.modelId 로 동형 thread 됨을 14번째 축으로 합류 — collect-leg(seed-side 수집 호출-args 묶음)가 search-argv 전체-벡터 위치-정합 + resolve-argv 위치-정합(create/update) + command-args labels 고정상수 + command-args title/body 두 경로 + descriptor.{title,body} 재유도 + summary + inputs + modelId + marker 3-축 + resolve issueNumber + post run-identity 와 함께 같은 검증 source(seeds+modelId+run+activities+results)로 14축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 0cea7ade
+prNumber: 698
+reviewRounds: 1
+completedAt: 2026-06-29T03:52:00Z
+result: "DONE — PR #698 squash 0cea7ade. collect-call-args 14-way single-source closure smoke 신설(test/smoke 1파일 +996 LOC, 28 it green). reviewer round1 APPROVE 0-finding, 4-게이트 PASS, lint+build+full unit green, src 0."
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-037, REQ-059]
 estimatedDiff: 300
