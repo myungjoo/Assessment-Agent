@@ -2,7 +2,7 @@
 id: T-0792
 title: realdata-e2e step④ deploy/daily-test.sh black-box HTTP step 계약(health·liveness·auth) ↔ 실 NestJS controller route decorator(path·method·status) parity drift-detection non-gated build-time smoke — daily-test.sh 의 step_health/step_liveness/step_auth 가 두드리는 HTTP 계약(GET /api == "Assessment-Agent", GET / == 200+SPA HTML, POST /api/users == 201|409, POST /api/auth/login == 200, GET /api/auth/me == 200)이 실 NestJS controller decorator(@Controller·@Get·@Post·@HttpCode)와 path·method·기대 status 1:1 정합임을, shell 소스(readFileSync)와 controller 소스(readFileSync) 양측을 정적 추출해 cross-artifact 대조하는 drift-detection smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-061]
 estimatedDiff: 260

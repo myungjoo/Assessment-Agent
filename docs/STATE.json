@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0792",
-  "backlogNote": "▶ **T-0791 DONE** PR #706 squash aebc5a58(realdata-e2e step④ deploy/daily-test.sh 머신 요약 latest-result.json 6-키 스키마(ts·gitSha·result·failedStep·steps·logPath)·steps키==ORDER(redeploy·health·liveness·auth·eval) byte-identical·failedStep null/quoted 두 직렬화 분기 contract parity drift-detection smoke — 실 deploy/daily-test.sh readFileSync→printf 템플릿(282행) 6-키 순서·ORDER(203행) 5-원소·steps_json for 순회(276~279행)·failedStep 분기(284행) 정적 추출 대조, JSON.parse null/quoted 파싱-가능성 + drift 변별성(키/ORDER mutate not.toEqual) + negative 5종(파일부재·템플릿부재·키누락·ORDER어긋남·failedStep분기누락) + credential 0·결정론·no-mutation, test-only 1파일 +420 LOC, 18 it, src 0). fire=cron@aa-local15-0fe5e9d2(Anthropic cloud fresh checkout, gh 인증 OK, 매시 15분 trigger): fresh fetch→HEAD e020eace ff origin/main 0fe5e9d2(T-0789/T-0790 이미 머지)→lock free(tombstone)·claims=[]→acquire-lock CAS(tip 92d228a9)→reclaim no-op(claims 빈, server-time 2026-06-29T08:05:16Z 주입)→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→validate-claim-candidate T-0791 PASS→select-claim.sh T-0791 atomic claim(08:05:42Z≈server-time, lock 동시 release)→executor lock-free 구현+test(18 it)→feature branch push→PR #706 open→sync-claim-pr prNumber=706 PR_OPEN→integrator reviewer round1 APPROVE 0 findings + 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green; 기본검사 reviewer-approval step 1회 race fail→APPROVE comment post 후 rerun green)→squash merge aebc5a58 --delete-branch(local main ff)→claim prune(printf '[]'|hash-object guard blob 0637a088, tip afc4ba72)→counters 782→783→planner T-0792 큐잉. post-merge main run(aebc5a58) in_progress(PR CI 는 머지 전 green, 다음 fire 확인). ▶ **T-0790 DONE** PR #705 squash e99bd2b7. ▶ **T-0789 DONE** PR #704 squash 1e0217b0. ▶ **T-0788 DONE** PR #703 squash 9b780fcc. ▶ **nextTask** = T-0792 (planner 큐잉 — daily-test.sh black-box HTTP step 계약(GET /api·POST /api/users 201|409·login 200·me) ↔ 실 NestJS controller route decorator(path·method·@HttpCode) parity drift smoke; render-line/argv/JSON-schema sweep 소진 후 HIGH-bar 로 route 실존·계약↔decorator build-time 대조 0 부재 distinct seam 채택, pr/test-only sizeExempt, dependsOn []). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
+  "nextTask": "T-0793",
+  "backlogNote": "▶ **T-0792 DONE** PR #707 squash 3ac4cc6d(realdata-e2e step④ deploy/daily-test.sh black-box HTTP step 계약(GET /api==\"Assessment-Agent\"·GET / liveness 200·POST /api/users 201|409 멱등·POST /api/auth/login 200·GET /api/auth/me 200)↔실 NestJS controller route decorator(@Controller prefix+@Get/@Post path·method·@HttpCode/HttpStatus) path·method·status 1:1 parity drift-detection non-gated build-time smoke — shell readFileSync HTTP 계약 추출 + controller 4파일(app·user·auth·app.service) readFileSync route decorator 정적 추출 후 full-path(prefix+route) byte-identical + method + 기대 status 1:1 단언, drift 변별성(@HttpCode·prefix·path mutate 사본 not.toBe) + negative 6종(파일부재·route부재·path drift·method swap·status drift·prefix누락) + credential 0·결정론·no-mutation, test-only 1파일 +626 LOC, 18 it, src 0). fire=cron@aa-cloud-d4f6160d(Anthropic cloud fresh checkout, gh 인증 OK, 매시 38분대 trigger): fresh fetch→HEAD 0fe5e9d2 ff origin/main d4f6160d(T-0791 이미 머지·T-0792 큐잉)→prior main CI(aebc5a58·d4f6160d) success 확인→lock free(tombstone)·claims=[]→acquire-lock CAS(tip c690c69f)→reclaim no-op(claims 빈, server-time 2026-06-29T08:37:47Z 주입)→a2 gate(활성 claim 0<2, pr-mode 단독 OK)→validate-claim-candidate T-0792 PASS→select-claim.sh T-0792 atomic claim(08:38:09Z≈server-time, midnight bug 없음, lock 동시 release)→executor lock-free 구현+test(18 it)→feature branch push 197d169b→PR #707 open→sync-claim-pr prNumber=707 PR_OPEN→integrator reviewer round1 APPROVE 0 BLOCKER/0 MAJOR/1 MINOR(method-swap negative 약함, non-blocking) + 4-게이트 PASS(comment 외부 issuecomment-4830626472 + self-check test-only src 0 + CI green; 기본검사 reviewer-approval step 첫 run race fail→APPROVE comment 후 issue_comment-triggered rerun(28360064148) green)→squash merge 3ac4cc6d --delete-branch(local main ff)→re-acquire-lock(tip 4c2fec66)→claim prune(printf '[]'|hash-object guard blob 0637a088, tip eab1e53e, 내용 검증 []) →release(tombstone tip 5f544761)→counters 783→784→planner T-0793 큐잉. post-merge main run(3ac4cc6d) in_progress(PR CI 는 머지 전 green, 다음 fire 확인). ▶ **T-0791 DONE** PR #706 squash aebc5a58. ▶ **T-0790 DONE** PR #705 squash e99bd2b7. ▶ **T-0789 DONE** PR #704 squash 1e0217b0. ▶ **nextTask** = T-0793 (planner 큐잉 — deploy step① docker-entrypoint.sh 런타임 계약(./node_modules/.bin/prisma migrate deploy + node dist/src/main)↔실 build/runtime artifact(package.json prisma deps·tsconfig outDir·Dockerfile ENTRYPOINT/COPY) parity drift smoke; daily-test build-time seam 3종(T-0790~0792) 소진 후 distinct deploy-entrypoint↔build-artifact seam 채택, pr/test-only sizeExempt, dependsOn []). ▶ **standing 게이트** 불변: concurrencyIncidents.double-claim=1(임계 2 미달, fineGrainedConcurrency ON 유지, maxConcurrentClaims=2 stage5b). live-LLM·P6·timezone Q-0026·ADR-0036 stage5c·schema 변경 BLOCKED·import infra 게이트 불변.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "aebc5a58",
+  "lastCommit": "3ac4cc6d",
   "mostRecentTasks": [
+    "T-0792",
     "T-0791",
     "T-0790",
     "T-0789",
-    "T-0788",
-    "T-0787"
+    "T-0788"
   ],
   "loopSession": {
     "turnCount": 2,
@@ -32,10 +32,11 @@
     "status": "running",
     "consecutiveFails": 0,
     "lastConclusion": "success",
-    "note": "T-0791 DONE (pr) — realdata-e2e step④ daily-test.sh 머신 요약 JSON 6-키 스키마↔ORDER↔failedStep null/quoted 분기 parity drift smoke. PR #706 squash aebc5a58, reviewer round1 APPROVE 0 findings, 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green; 기본검사 reviewer-approval step 1회 race fail→APPROVE comment post 후 rerun green). post-merge main run(aebc5a58) in_progress at bookkeeping — 다음 fire 가 [1]에서 conclusion 재확인. 직전 main run e99bd2b7(T-0790)·0fe5e9d2 success.",
-    "lastRun": "2026-06-29T08:20:23Z"
+    "note": "T-0792 DONE (pr) — realdata-e2e step④ daily-test.sh HTTP step 계약↔NestJS controller route decorator path·method·status parity drift smoke. PR #707 squash 3ac4cc6d, reviewer round1 APPROVE 0 BLOCKER/0 MAJOR/1 MINOR(non-blocking), 4-게이트 PASS(comment 외부 + self-check test-only src 0 + CI green; reviewer-approval step 첫 run race fail→APPROVE comment 후 issue_comment-triggered rerun 28360064148 green). post-merge main run(3ac4cc6d) in_progress at bookkeeping — 다음 fire 가 [1]에서 conclusion 재확인. 직전 main run aebc5a58(T-0791)·d4f6160d success.",
+    "lastRun": "2026-06-29T08:56:03Z"
   },
   "reviewRounds": {
+    "T-0792": 1,
     "T-0791": 1,
     "T-0790": 1,
     "T-0789": 1,
@@ -1235,7 +1236,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 783,
+    "tasksCompleted": 784,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1263,5 +1264,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-06-29T08:21:00Z"
+  "lastActivity": "2026-06-29T09:02:00Z"
 }
