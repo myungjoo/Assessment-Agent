@@ -2,7 +2,7 @@
 id: T-0784
 title: realdata-e2e step④ aggregator search-json-fields↔parse-shape 합류 15-way single-source closure — aggregator 가 산출한 stepArgs.publish.searchArgv 의 `--json` 요청-필드 토큰(searchArgv[6])을 split 한 집합이 search-parse 추출 shape 키 집합(REAL_DATA_RESULT_ISSUE_SEARCH_PARSE_SHAPE_KEYS=["number","title","body"]) AND searchStdout 으로부터 실제 파싱된 각 RealDataResultIssueSearchHit 의 키 집합과 set-equal 임을, 그리고 그 parse-shape 의 number 가 resolve action issueNumber→post 로 thread 됨을 15번째 축으로 합류 — search-json-fields(요청-필드 정합)가 collect-leg + search-argv 전체-벡터 위치-정합 + resolve-argv + command-args + descriptor + summary + inputs + modelId + marker + resolve + post 와 같은 검증 source(seeds+modelId+run+activities+results)로 15축 동시 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-037, REQ-059]
 estimatedDiff: 300
