@@ -2,7 +2,7 @@
 id: T-0798
 title: timezone = KST(Asia/Seoul) 기간 경계 표준 패턴 ADR 박제 (ADR-0050 신설) — 저장=UTC timestamptz 유지 + 경계 계산·표시만 고정 +09:00 offset KST 변환, 주 시작=월요일(ISO), 반열림 구간 [start,end), 적용 범위 R-61 일별 자정·주간·월간·R-9 사용자 지정 기간·R-58 최근 1주 재수집 window·시각화 표시
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-034, REQ-031]
 estimatedDiff: 20
@@ -58,3 +58,12 @@ architect 가 `docs/decisions/ADR-0050-timezone-kst-period-boundary.md` 1개를 
 
 - (다음 slice) 순수 helper `kstDayStart` / `kstWeekStart`(월요일 시작) / `kstMonthStart` / `toKstPeriodBoundary` 구현 + R-112 4종 test(happy·error·flow·negative 경계: 월/주/일 경계 전후·윤년·UTC↔KST 자정 넘김 등) — pr, dependsOn: [T-0798].
 - 이후 summary/재수집 window/사용자 지정 기간 해석부에 helper 배선.
+
+---
+
+## 완료 기록 (Status: DONE)
+
+- 완료: 2026-07-01T08:50:35Z (driver cron@aa-local-bb0d)
+- 결과: ADR-0050 신설(ACCEPTED, docs/decisions/ADR-0050-timezone-kst-period-boundary.md, 150 LOC, 구현 0). Q-0049 옵션(1) 사용자 확정 6종 (a)~(f) 박제.
+- commitMode 처리: frontmatter=pr 이나 cron standing instruction(문서 변경 direct commit) + 확정 결정 transcription 이라 direct commit(6bea74ef) 처리. doc-only → R-110 tester 면제(§3.2).
+- Follow-ups 정정: 후속 순수 helper(kstDayStart/kstWeekStart/kstMonthStart/toKstPeriodBoundary)는 이미 main(src/common/period-boundary.ts, ADR-0039)에 동일 계약으로 존재 → duplicate 회피. planner 가 Q-0050(issue-already-fixed-on-main) escalate. 권고: helper wiring(summary/R-58/R-9 경로)으로 전환, 사람 결정 대기.
