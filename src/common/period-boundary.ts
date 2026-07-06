@@ -214,44 +214,54 @@ export function getKstPeriodRangeByPeriod(
 // 2 자리 zero-pad — wall-clock 구성요소 표시용.
 const pad2 = (v: number) => String(v).padStart(2, "0");
 
-// 저장 UTC instant → Asia/Seoul wall-clock 표시 string "YYYY-MM-DD HH:mm:ss"
-// (예: 2026-06-10T06:00:00Z → "2026-06-10 15:00:00"). h23 hourCycle 정합으로 자정은
+// 저장 UTC instant → 해당 timeZone wall-clock 표시 string "YYYY-MM-DD HH:mm:ss"
+// (예: 2026-06-10T06:00:00Z → KST "2026-06-10 15:00:00"). h23 hourCycle 정합으로 자정은
 // "24" 아닌 "00" 으로 표시된다. Invalid Date / 비-Date → 명시 TypeError (R-112 negative).
-// T-0800 Out of Scope — display formatter 의 timeZone 파라미터화는 slice(2b). 여기선 KST 고정
-// (내부 helper 의 default 로 KST 유지). formatter timeZone 일반화는 후속 slice 로 분리.
-export function formatKstDisplay(instant: Date): string {
+// T-0801(ADR-0052 §Decision(b)/(d)): timeZone 파라미터(기본 KST) 일반화. 내부 wall-clock
+// 조회는 toWallClock → formatterCache 재사용(매 호출 새 Intl 인스턴스 금지 — ADR-0039 §Decision5).
+// timeZone 미지정 시 기존 KST 표시 100% 보존(backward-compat). 무효 IANA 식별자는 RangeError 전파.
+export function formatKstDisplay(
+  instant: Date,
+  timeZone: string = KST_TIMEZONE,
+): string {
   assertValidDate(instant, "formatKstDisplay");
-  const w = toWallClock(instant);
+  const w = toWallClock(instant, timeZone);
   return (
     `${w.year}-${pad2(w.month)}-${pad2(w.day)} ` +
     `${pad2(w.hour)}:${pad2(w.minute)}:${pad2(w.second)}`
   );
 }
 
-// instant 시점의 Asia/Seoul offset(ms) → "+09:00" 류 ISO offset 표기로 직렬화.
-// offsetMs(default KST) 재사용 — hardcoded +09:00 산술 0 (IANA rule 변경 자동 대응).
-// sign 분기는 방어 깊이 — Asia/Seoul 은 도메인상 항상 +offset (음수 도달 불가) 이나,
-// 미래 IANA rule / 타 zone 재사용 시 부호를 올바르게 산출하도록 일반식으로 둔다
-// (음수 분기는 본 zone 에서 unreachable — coverage 미도달은 설계상 정상).
-function kstOffsetLabel(instant: Date): string {
-  const offMin = Math.round(offsetMs(instant) / 60000);
+// instant 시점의 해당 timeZone offset(ms) → "+09:00" 류 ISO offset 표기로 직렬화.
+// offsetMs(기본 KST) 재사용 — hardcoded +09:00 산술 0 (IANA rule 변경·타 zone 자동 대응,
+// ADR-0051 §Decision(b) offset 실측). T-0801: timeZone 파라미터 일반화(기본 KST). sign 분기는
+// KST 에선 항상 +offset 이나, non-KST zone(예: America/New_York -04:00)·미래 IANA rule 재사용
+// 시 부호를 올바르게 산출하도록 일반식으로 둔다(음수 분기는 non-KST zone 에서 도달 가능).
+function kstOffsetLabel(
+  instant: Date,
+  timeZone: string = KST_TIMEZONE,
+): string {
+  const offMin = Math.round(offsetMs(instant, timeZone) / 60000);
   const sign = offMin < 0 ? "-" : "+";
   const abs = Math.abs(offMin);
   return `${sign}${pad2(Math.floor(abs / 60))}:${pad2(abs % 60)}`;
 }
 
-// 저장 UTC instant → Asia/Seoul offset 명시 ISO-8601 string
-// (예: 2026-06-10T06:00:00Z → "2026-06-10T15:00:00+09:00"). §Decision4 가 응답 JSON 의
+// 저장 UTC instant → 해당 timeZone offset 명시 ISO-8601 string
+// (예: 2026-06-10T06:00:00Z → KST "2026-06-10T15:00:00+09:00"). §Decision4 가 응답 JSON 의
 // 시각 필드로 "...Z" 또는 "+09:00" 어느 쪽이든 허용 — view-layer 가 offset-명시 JSON 을
-// 선택할 때 사용. 산출 string 은 동일 instant 를 보존한다 (new Date / parseKstPeriodInput
-// round-trip 시 원 instant 와 동등 — R-112 round-trip 검증). Invalid Date / 비-Date →
-// 명시 TypeError. 보조 formatter (§Decision4 offset-명시 허용 경로).
-export function formatKstIso(instant: Date): string {
+// 선택할 때 사용. 산출 string 은 동일 instant 를 보존한다 (new Date / 같은 zone
+// parseKstPeriodInput round-trip 시 원 wall-clock 복원 — R-112 round-trip 검증). Invalid Date /
+// 비-Date → 명시 TypeError. T-0801: timeZone 파라미터 일반화(기본 KST) — offset 라벨도 해당 zone.
+export function formatKstIso(
+  instant: Date,
+  timeZone: string = KST_TIMEZONE,
+): string {
   assertValidDate(instant, "formatKstIso");
-  const w = toWallClock(instant);
+  const w = toWallClock(instant, timeZone);
   const date = `${w.year}-${pad2(w.month)}-${pad2(w.day)}`;
   const time = `${pad2(w.hour)}:${pad2(w.minute)}:${pad2(w.second)}`;
-  return `${date}T${time}${kstOffsetLabel(instant)}`;
+  return `${date}T${time}${kstOffsetLabel(instant, timeZone)}`;
 }
 
 // R-9 입력 ISO-8601 extended 패턴 — 날짜 필수 + 시각 선택 + offset(Z / ±hh:mm) 선택.
@@ -259,10 +269,16 @@ export function formatKstIso(instant: Date): string {
 const ISO_INPUT_PATTERN =
   /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?)?$/;
 
-// R-9 사용자 지정 기간 입력 해석 (§Decision3 (d)). offset 명시 (Z / +09:00) → 그대로.
-// 미명시 → Asia/Seoul 해석 (예: "2026-06-10T15:00" → 2026-06-10T06:00:00Z). 날짜만 → KST 자정.
-// malformed (비문자열 / 빈 문자열 / 형식 위반 / 달력상 불가능 값) → 명시적 error.
-export function parseKstPeriodInput(input: string): Date {
+// R-9 사용자 지정 기간 입력 해석 (§Decision3 (d)). offset 명시 (Z / +09:00) → 그대로(zone 무시).
+// 미명시 → 해당 timeZone 해석 (예: KST "2026-06-10T15:00" → 2026-06-10T06:00:00Z). 날짜만 → 해당
+// zone 자정. malformed (비문자열 / 빈 문자열 / 형식 위반 / 달력상 불가능 값) → 명시적 error.
+// T-0801(ADR-0052 §Decision(b)/(d)): timeZone 파라미터(기본 KST) 일반화 — offset 미명시 입력을
+// 해당 zone 으로 해석(line 296 KST-고정 → 파라미터화). 내부는 이미 timeZone 을 받는 wallClockToUtc
+// 로 위임. offset 명시 입력은 timeZone 인자와 무관하게 그 offset 을 존중. 무효 tz 는 RangeError 전파.
+export function parseKstPeriodInput(
+  input: string,
+  timeZone: string = KST_TIMEZONE,
+): Date {
   if (typeof input !== "string" || input.trim() === "") {
     throw new TypeError("parseKstPeriodInput: 문자열 입력이 필요합니다");
   }
@@ -293,6 +309,12 @@ export function parseKstPeriodInput(input: string): Date {
     }
     return result;
   }
-  // T-0800 Out of Scope — R-9 입력 해석의 timeZone 파라미터화는 slice(2b/3). 여기선 KST 해석 고정.
-  return wallClockToUtc(year, month, day, [hour, minute, second, milli]);
+  // T-0801: offset 미명시 입력을 해당 timeZone(기본 KST) wall-clock 으로 해석.
+  return wallClockToUtc(
+    year,
+    month,
+    day,
+    [hour, minute, second, milli],
+    timeZone,
+  );
 }
