@@ -24,6 +24,7 @@ import type { JwtPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import { formatKstIso } from "../common/period-boundary";
 import type { LlmProviderConfigResolver } from "../llm/llm-provider-config-resolver.service";
 import type { PersonWithIdentities } from "../user/person.repository";
 import type { PersonService } from "../user/person.service";
@@ -265,9 +266,19 @@ function makePeriodController(opts: {
 // 반환 forward 검증을 enable 한다.
 function makeFillController(
   plannerImpl: (...args: unknown[]) => Promise<UnevaluatedFillBatchPlan>,
+  // findUserImpl — userService.findById mock 구현(T-0803, ADR-0052 §Decision(b)(ii)
+  // display 축). 기본은 요청 User row 를 KST timezone 으로 resolve 한다(actor 미전달
+  // 기존 test 는 resolveRequestTimeZone 이 sub 부재 KST fallback 이라 findById 미호출 —
+  // 기본 impl 은 non-KST/reject/무효tz 시나리오를 각 test 가 주입할 때만 쓰인다).
+  findUserImpl: (
+    ...args: unknown[]
+  ) => Promise<{ timezone: string }> = async () => ({
+    timezone: "Asia/Seoul",
+  }),
 ): {
   controller: AssessmentEvaluationController;
   plannerSpy: jest.Mock;
+  findUserSpy: jest.Mock;
 } {
   const plannerSpy = jest.fn(plannerImpl);
   const unevaluatedFillPlanner = {
@@ -324,13 +335,12 @@ function makeFillController(
       );
     }),
   } as unknown as LlmProviderConfigResolver;
-  // userService — planUnevaluatedFill() 경로 test 에서 미사용이라 throw mock.
+  // userService — planUnevaluatedFill() 이 resolveRequestTimeZone(actor?.sub)로 요청 User
+  // timezone 을 조회한다(T-0803). actor 미전달 test 는 sub 부재 KST fallback 이라 findById
+  // 미호출이고, actor 전달 test 만 이 spy 를 호출한다. findUserSpy 로 조회 횟수/인자 검증 enable.
+  const findUserSpy = jest.fn(findUserImpl);
   const userService = {
-    findById: jest.fn(() => {
-      throw new Error(
-        "planUnevaluatedFill() 는 userService 를 호출하면 안 된다",
-      );
-    }),
+    findById: findUserSpy,
   } as unknown as UserService;
   return {
     controller: new AssessmentEvaluationController(
@@ -345,6 +355,7 @@ function makeFillController(
       userService,
     ),
     plannerSpy,
+    findUserSpy,
   };
 }
 
@@ -2000,7 +2011,8 @@ describe("AssessmentEvaluationController.planUnevaluatedFill (unit — request m
     );
 
     const dto = makeFillDto();
-    const result = await controller.planUnevaluatedFill(dto);
+    // actor 미전달(undefined) — resolveRequestTimeZone sub 부재 KST fallback(기존 +09:00 보존).
+    const result = await controller.planUnevaluatedFill(dto, undefined);
 
     // planner 위임 — request mapper 산출 IntendedPeriodCoordinatesInput 1 회.
     // personIds/period/scope 는 passthrough(personIds 는 새 배열로 복사), rangeStart/
@@ -2039,9 +2051,9 @@ describe("AssessmentEvaluationController.planUnevaluatedFill (unit — request m
       throw rawError;
     });
 
-    await expect(controller.planUnevaluatedFill(makeFillDto())).rejects.toBe(
-      rawError,
-    );
+    await expect(
+      controller.planUnevaluatedFill(makeFillDto(), undefined),
+    ).rejects.toBe(rawError);
   });
 
   // error path (b): request mapper 가 던지는 경로 — rangeStart 가 형식 위반(@IsISO8601
@@ -2054,6 +2066,7 @@ describe("AssessmentEvaluationController.planUnevaluatedFill (unit — request m
     await expect(
       controller.planUnevaluatedFill(
         makeFillDto({ rangeStart: "not-a-real-date" }),
+        undefined,
       ),
     ).rejects.toThrow(RangeError);
     // mapper 가 throw 하면 planner 위임 단계 도달 0.
@@ -2069,6 +2082,7 @@ describe("AssessmentEvaluationController.planUnevaluatedFill (unit — request m
     await expect(
       controller.planUnevaluatedFill(
         makeFillDto({ rangeEnd: 12345 as unknown as string }),
+        undefined,
       ),
     ).rejects.toThrow(TypeError);
     expect(plannerSpy).not.toHaveBeenCalled();
@@ -2083,6 +2097,7 @@ describe("AssessmentEvaluationController.planUnevaluatedFill (unit — request m
 
     const result = await controller.planUnevaluatedFill(
       makeFillDto({ personIds: [] }),
+      undefined,
     );
 
     // mapper 가 빈 personIds 를 빈 배열로 전사해 planner 에 forward.
@@ -2102,7 +2117,10 @@ describe("AssessmentEvaluationController.planUnevaluatedFill (unit — request m
       makeTwoBatchFillPlan(),
     );
 
-    const result = await controller.planUnevaluatedFill(makeFillDto());
+    const result = await controller.planUnevaluatedFill(
+      makeFillDto(),
+      undefined,
+    );
 
     // person 묶음 순서 보존(person-1 → person-2).
     expect(result.batches.map((b) => b.personId)).toEqual([
@@ -2123,7 +2141,10 @@ describe("AssessmentEvaluationController.planUnevaluatedFill (unit — request m
     const plan = makeTwoBatchFillPlan();
     const { controller, plannerSpy } = makeFillController(async () => plan);
 
-    const result = await controller.planUnevaluatedFill(makeFillDto());
+    const result = await controller.planUnevaluatedFill(
+      makeFillDto(),
+      undefined,
+    );
 
     // planner 는 정확히 1 회 호출되고, 인자는 mapper 산출 외 추가 가공 0.
     expect(plannerSpy).toHaveBeenCalledTimes(1);
@@ -2140,9 +2161,109 @@ describe("AssessmentEvaluationController.planUnevaluatedFill (unit — request m
     const dto = makeFillDto({ personIds: ["a", "b"] });
     const snapshot = [...dto.personIds];
 
-    await controller.planUnevaluatedFill(dto);
+    await controller.planUnevaluatedFill(dto, undefined);
 
     expect(dto.personIds).toEqual(snapshot);
+  });
+
+  // ---- T-0803: 요청 User.timezone display 축 배선(ADR-0052 §Decision(b)(ii)) ----
+
+  // happy(비-KST): 요청 User.timezone = America/New_York 이면 응답 periodStart 가 그 zone
+  // offset(-04:00, 초여름 EDT)으로 직렬화 + findById 가 principal sub 으로 정확히 1 회 호출.
+  it("요청 User.timezone(America/New_York) 이면 periodStart 를 그 zone offset(-04:00)으로 직렬화한다 (happy — 비-KST display)", async () => {
+    const { controller, findUserSpy } = makeFillController(
+      async () => makeTwoBatchFillPlan(),
+      async () => ({ timezone: "America/New_York" }),
+    );
+
+    const result = await controller.planUnevaluatedFill(makeFillDto(), {
+      sub: "admin-1",
+      role: "Admin",
+    } as JwtPayload);
+
+    // 요청 principal sub 으로 timezone 조회(정확히 1 회).
+    expect(findUserSpy).toHaveBeenCalledTimes(1);
+    expect(findUserSpy).toHaveBeenCalledWith("admin-1");
+    // periodStart 가 America/New_York offset(-04:00, EDT)으로 직렬화 — KST(+09:00) 아님.
+    const ps = result.batches[0].periods[0].periodStart;
+    expect(ps).toBe(
+      formatKstIso(new Date("2026-05-31T15:00:00.000Z"), "America/New_York"),
+    );
+    expect(ps).toContain("-04:00");
+    expect(ps).not.toContain("+09:00");
+  });
+
+  // branch(요청 User.timezone = KST): timezone 이 Asia/Seoul 이면 기존 +09:00 직렬화 유지.
+  it("요청 User.timezone 이 KST(Asia/Seoul) 면 기존 +09:00 직렬화를 유지한다 (branch — KST display backward-compat)", async () => {
+    const { controller, findUserSpy } = makeFillController(
+      async () => makeTwoBatchFillPlan(),
+      async () => ({ timezone: "Asia/Seoul" }),
+    );
+
+    const result = await controller.planUnevaluatedFill(makeFillDto(), {
+      sub: "admin-1",
+      role: "Admin",
+    } as JwtPayload);
+
+    expect(findUserSpy).toHaveBeenCalledTimes(1);
+    expect(result.batches[0].periods[0].periodStart).toBe(
+      "2026-06-01T00:00:00+09:00",
+    );
+  });
+
+  // flow(sub 부재 fallback): actor 미전달(비로그인 이론 경로) 이면 resolveRequestTimeZone 이
+  // findById 미호출 + KST fallback → 기존 +09:00 직렬화(회귀 0 — 기존 caller 무변경).
+  it("actor 부재(sub 미전달) 시 findById 미호출 + KST fallback 으로 +09:00 직렬화 (flow — sub 부재 fallback)", async () => {
+    const { controller, findUserSpy } = makeFillController(async () =>
+      makeTwoBatchFillPlan(),
+    );
+
+    // actor 미전달(undefined) — 비로그인 이론 경로 재현.
+    const result = await controller.planUnevaluatedFill(
+      makeFillDto(),
+      undefined,
+    );
+
+    // sub 부재 → findById 미호출(불필요한 DB read 0), KST fallback.
+    expect(findUserSpy).not.toHaveBeenCalled();
+    expect(result.batches[0].periods[0].periodStart).toBe(
+      "2026-06-01T00:00:00+09:00",
+    );
+  });
+
+  // error path: userService.findById reject(NotFoundException)는 raw 전파(swallow 0) +
+  // response mapper 미도달(planner 는 timezone 조회 전에 이미 호출됨을 확인).
+  it("userService.findById reject(NotFoundException)는 raw 전파한다 (error path — findById reject)", async () => {
+    const notFound = new NotFoundException("User(admin-1) 미존재");
+    const { controller } = makeFillController(
+      async () => makeTwoBatchFillPlan(),
+      async () => {
+        throw notFound;
+      },
+    );
+
+    await expect(
+      controller.planUnevaluatedFill(makeFillDto(), {
+        sub: "admin-1",
+        role: "Admin",
+      } as JwtPayload),
+    ).rejects.toBe(notFound);
+  });
+
+  // negative(무효 tz): User row 의 timezone 이 무효 IANA 식별자면 response mapper 의
+  // formatKstIso(Intl)가 RangeError 를 전파한다(저장 경로 검증은 본 task 밖 — 읽기 경로 방어).
+  it("User row 의 timezone 이 무효 IANA 면 formatKstIso RangeError 전파 (negative — 무효 tz)", async () => {
+    const { controller } = makeFillController(
+      async () => makeTwoBatchFillPlan(),
+      async () => ({ timezone: "Not/A_Zone" }),
+    );
+
+    await expect(
+      controller.planUnevaluatedFill(makeFillDto(), {
+        sub: "admin-1",
+        role: "Admin",
+      } as JwtPayload),
+    ).rejects.toThrow(RangeError);
   });
 });
 

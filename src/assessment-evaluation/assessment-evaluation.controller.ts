@@ -541,6 +541,7 @@ export class AssessmentEvaluationController {
   @Roles("Admin")
   async planUnevaluatedFill(
     @Body() dto: UnevaluatedFillPlanRequestDto,
+    @CurrentUser() actor: JwtPayload | undefined,
   ): Promise<UnevaluatedFillPlanResponse> {
     // 검증된 DTO(string 축) → 도메인 enumeration 입력(Date 축) 변환. rangeStart/rangeEnd
     // 의 string→Date 변환은 mapper 가 single-source helper(parseKstPeriodInput)로 수행하며,
@@ -552,9 +553,17 @@ export class AssessmentEvaluationController {
     const plan =
       await this.unevaluatedFillPlanner.planUnevaluatedFill(intended);
 
+    // 요청 User zone 해석(T-0803, ADR-0052 §Decision(b)(ii) display 축) — principal sub
+    // 으로 저장된 timezone 을 읽는다. sub 부재 이론 경로면 KST fallback(resolveRequestTimeZone
+    // 내부). UserService.findById reject(NotFoundException 등)는 await 가 그대로 throw → raw
+    // 전파(swallow 0). RBAC 가드(JwtAuthGuard+RolesGuard @Roles("Admin"))가 이 조회보다 먼저
+    // 401/403 차단하므로 인증 부재/tier 미달은 여기 도달 전 거부된다(회귀 0).
+    const timeZone = await this.resolveRequestTimeZone(actor?.sub);
+
     // 반환 plan(periodStart Date 축) → HTTP 응답 shape(periodStart ISO string 축) 직렬화.
-    // 재정렬/필터/dedup 0 — planner 의 결정성·순서 정책을 그대로 전파한다.
-    return toUnevaluatedFillPlanResponse(plan);
+    // 재정렬/필터/dedup 0 — planner 의 결정성·순서 정책을 그대로 전파한다. periodStart 는
+    // 요청 User zone(기본 KST)으로 직렬화된다.
+    return toUnevaluatedFillPlanResponse(plan, timeZone);
   }
 
   // POST /api/assessment-evaluation/unevaluated-fill-run — 미평가 fill **실행** 사슬의

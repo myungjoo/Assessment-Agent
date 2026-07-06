@@ -10,7 +10,7 @@
 // controller 실배선은 본 mapper 밖. 순수 함수 — `@Injectable` 0, NestJS/Prisma/LLM import 0,
 // 부수효과 0, 입력 비변형(batches/periods 는 새 배열로 map). 새 외부 dependency 0.
 
-import { formatKstIso } from "../../common/period-boundary";
+import { formatKstIso, KST_TIMEZONE } from "../../common/period-boundary";
 import type { UnevaluatedFillBatchPlan } from "../domain/evaluation-unevaluated-fill-batch-plan";
 
 /**
@@ -63,13 +63,22 @@ export interface UnevaluatedFillPlanResponse {
  * 된다 — mapper 가 재던지지 않아 single-source error 메시지를 보존한다. 정상 경로에서
  * planner 출력은 유효 Date 만 담으므로 본 helper error 는 방어 그물(opaque 직렬화 차단).
  *
+ * T-0803(ADR-0052 §Decision(b)(ii) display 축): optional `timeZone` 파라미터(기본
+ * `KST_TIMEZONE`)를 받아 periodStart 직렬화의 zone/offset 라벨을 요청 User 의 timezone 으로
+ * 일반화한다. 미지정 호출은 기본값으로 기존 KST(+09:00) 직렬화를 100% 보존한다(backward-compat
+ * — 기존 caller 무변경 동작 유지). 무효 IANA `timeZone` 식별자는 `formatKstIso`(Intl)의
+ * `RangeError` 로 전파된다(방어 그물).
+ *
  * @param plan 미평가 fill batch plan. 변형하지 않는다(batches/periods 는 새 배열로 map).
+ * @param timeZone periodStart 직렬화에 적용할 IANA timeZone. 기본 `KST_TIMEZONE`(Asia/Seoul).
  * @returns `UnevaluatedFillPlanResponse` — periodStart 가 ISO string 으로 직렬화된 응답 shape.
  * @throws {TypeError} `plan` 이 null/undefined 이거나, 한 period 의 periodStart 가
  *   Invalid Date / 비-Date 일 때(후자는 `formatKstIso` 자연 전파).
+ * @throws {RangeError} `timeZone` 이 무효 IANA 식별자일 때(`formatKstIso` 자연 전파).
  */
 export function toUnevaluatedFillPlanResponse(
   plan: UnevaluatedFillBatchPlan,
+  timeZone: string = KST_TIMEZONE,
 ): UnevaluatedFillPlanResponse {
   // plan 자체 방어 — null/undefined 면 한국어 메시지 TypeError 로 fail-fast(silent 진행
   // 시 속성 접근에서 opaque TypeError 가 나므로, 명시적 메시지로 조기 노출).
@@ -90,7 +99,8 @@ export function toUnevaluatedFillPlanResponse(
         period: period.period,
         scope: period.scope,
         // periodStart 만 single-source helper 경유로 Date → offset-명시 ISO string 변환.
-        periodStart: formatKstIso(period.periodStart),
+        // timeZone(기본 KST) 로 zone/offset 라벨 일반화 — 요청 User zone 배선(T-0803).
+        periodStart: formatKstIso(period.periodStart, timeZone),
       })),
     })),
     // totalGapCount / personCount 는 그대로 전사(passthrough).
