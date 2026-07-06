@@ -62,6 +62,8 @@ function buildUserFixture(overrides: Partial<User> = {}): User {
     role: "User",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    // T-0799 (ADR-0052) — User.timezone 컬럼 additive 추가에 따른 fixture 정합.
+    timezone: "Asia/Seoul",
     ...overrides,
   };
 }
