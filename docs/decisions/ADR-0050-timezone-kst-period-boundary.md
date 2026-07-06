@@ -44,6 +44,8 @@ PLAN P5 bullet 110 은 사용자가 2026-06-11 에 기준 timezone 을 **KST(Asi
 
 ### (b) 고정 +09:00 offset 사용 — 새 dependency 0
 
+> ⚠️ **SUPERSEDED by [ADR-0051](ADR-0051-user-configurable-timezone.md) §Decision (b)/(c) (2026-07-06)** — timezone 이 사용자 설정 가능(기본 KST)으로 확장되면서 임의 zone 을 고정 offset 으로 표현할 수 없어, 변환 메커니즘 권위는 `Intl.DateTimeFormat(timeZone)`([ADR-0039](ADR-0039-timezone-kst-boundary-policy.md))로 단일화됐다. 아래 "고정 +09:00 산술" 서술은 무효. 단 "새 dependency 0" 목표는 유지된다(`Intl` built-in 이 모든 IANA zone 을 dependency 0 으로 지원).
+
 **채택: KST 변환은 IANA tz 데이터베이스/라이브러리(Luxon · date-fns-tz 등) 없이 순수 helper 의 고정 `+09:00` offset 산술로 처리한다.** 한국은 1988 서울올림픽 이후 DST(일광절약시간)를 시행하지 않으므로 offset 이 연중 항상 `+09:00` 로 불변이다 — tz 규칙 테이블 조회가 필요 없다. 따라서 IANA tz 라이브러리를 **새 dependency 로 도입하지 않는다**([CLAUDE.md §5](../../CLAUDE.md) 게이트 미발화 — package.json 변경 0). UTC↔KST 변환은 UTC epoch 에 `+9h` 를 가감하는 순수 산술로 완결된다.
 
 ### (c) 저장 = UTC `timestamptz` 유지, 경계 계산·표시할 때만 KST 변환
@@ -97,6 +99,8 @@ PLAN P5 bullet 110 은 사용자가 2026-06-11 에 기준 timezone 을 **KST(Asi
 - **표시 layer 마다 변환 책임** — 저장이 UTC 라 경계 계산·표시 지점마다 KST 변환을 호출해야 한다. mitigation: 변환을 순수 helper(`kstDayStart` 등)로 국지화해 각 호출부는 helper 만 부르면 되도록 한다 — 변환 로직 중복 0.
 
 ### NON-goal (명시 — 박제)
+
+> ⚠️ **일부 해제 by [ADR-0051](ADR-0051-user-configurable-timezone.md) (2026-07-06)** — 아래 "사용자별 timezone 지원 아님" 은 해제됐다: timezone 은 이제 **사용자 설정 가능**(기본값 KST)이다. 단 멀티테넌트/다국가 확장 자체는 여전히 본 결정 밖(설정형 단일 timezone 만 IN scope).
 
 - **다국가/사용자별 timezone 지원 아님** — 본 ADR 은 KST 단일 기준만 확정한다. per-user timezone 이나 다국가 지원은 본 결정 밖(필요 시 별도 ADR).
 - **저장 timezone 변경 아님** — 저장은 UTC `timestamptz` 유지. DB 를 KST 로 재저장하거나 컬럼 semantics 를 바꾸지 않는다.
