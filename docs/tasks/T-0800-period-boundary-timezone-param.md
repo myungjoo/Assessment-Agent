@@ -2,7 +2,7 @@
 id: T-0800
 title: period-boundary boundary helper 에 timeZone 파라미터 일반화 (기본 KST)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-058, REQ-009]
 dependsOn: [T-0799]
@@ -61,3 +61,13 @@ plannerNote: "P5 Q-0050 slice(2) — ADR-0052 §Decision(c) 경계 helper 에 ti
 - (slice 2b) display formatter 계열(`formatKstDisplay`/`formatKstIso`/`kstOffsetLabel`/`parseKstPeriodInput`) 에 timeZone 파라미터 일반화(기본 KST) + R-112.
 - (slice 3) R-9 사용자 지정 기간 controller + display mapper 가 요청 User.timezone 을 본 helper 인자로 배선(ADR-0052 §Decision(b)). User.timezone 조회 경로 포함.
 - (설정 저장) timezone 설정 update 경로에서 무효 IANA 식별자 화이트리스트/try-catch 검증(ADR-0052 §Consequences).
+
+---
+
+## Result (DONE — 2026-07-06, cron@AKIHA-16075)
+
+- **STATUS: DONE / MERGED** — PR #714 squash 9e324ca4, reviewer round1 APPROVE(0 BLOCKER/0 MAJOR), 4-게이트 PASS, CI green(PR run) + main CI in_progress.
+- **변경**: `src/common/period-boundary.ts` 경계 helper 5종(`startOfKstDay`/`startOfKstWeek`/`startOfKstMonth`/`getKstPeriodRange`/`getKstPeriodRangeByPeriod`)에 optional `timeZone: string = "Asia/Seoul"` 파라미터 추가. 내부 helper(`toWallClock`/`offsetMs`/`wallClockToUtc`) timeZone 인자화 + `formatterCache` Map 도입(매 호출 새 `Intl.DateTimeFormat` 생성 금지 — ADR-0039 §Decision5). hardcoded `+09:00` 산술 도입 0(전 경로 `Intl.DateTimeFormat(timeZone)` 경유 — ADR-0051 §Decision(b)). 기존 호출부 무변경 backward-compat. +286/-47, 2파일(300 LOC cap 내).
+- **test**: `src/common/period-boundary.spec.ts` 확장(non-KST zone happy/branch/error/negative describe 4종). 8950 pass. cov period-boundary.ts stmts 98.88%/branch 91.42%/funcs 100%/lines 98.83%(threshold line·func 80% 충족). lint+build green. smoke/e2e 는 DB 무관(helper 순수) — CI 검증.
+- **Out of Scope 준수**: formatter/parse 경로는 KST 고정 유지. slice(3) R-9 controller/display mapper 배선은 별도 task.
+- **fire 구조**: fineGrainedConcurrency ON — acquire-lock CAS → reclaim no-op → a2 gate(pr-mode 활성0 단독) → select-claim atomic → lock-free executor → PR/integrator merge → re-acquire → claim prune(claims.json=[]) → tombstone release. counters 791→792.
