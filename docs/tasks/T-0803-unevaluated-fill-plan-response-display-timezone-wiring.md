@@ -2,7 +2,7 @@
 id: T-0803
 title: unevaluated-fill-plan 응답의 periodStart 직렬화를 요청 User.timezone 으로 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-038, REQ-043]
 dependsOn: [T-0802]
@@ -101,3 +101,12 @@ controller route 는 그 파라미터를 아직 흘리지 않는다. 본 task �
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기 append)
+
+---
+
+## Result (DONE — 2026-07-06T14:05:06Z)
+
+PR [#717](https://github.com/myungjoo/Assessment-Agent/pull/717) squash merge `edf599ce` (round 2). reviewer APPROVE(0/0/0/0) + 4-게이트 PASS.
+- **변경**: mapper `toUnevaluatedFillPlanResponse(plan, timeZone?=KST)` optional 파라미터 + `formatKstIso` 일반화, controller `planUnevaluatedFill` @CurrentUser + `resolveRequestTimeZone(actor?.sub)` 배선(sub 부재 KST fallback), backward-compat 보존. +217/-17 core.
+- **round2 fix**: e2e afterEach `reseedAuthenticatedActors` 로 actor User 재-seed(신규 findById 배선의 404 회귀 해소) + 200 회귀 assertion, +35 LOC.
+- unit 9015 pass, mapper 100% / controller line·func 100%. CI green(run 28797062803).
