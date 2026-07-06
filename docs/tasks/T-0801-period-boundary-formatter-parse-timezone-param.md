@@ -2,7 +2,7 @@
 id: T-0801
 title: period-boundary display formatter·parse 계열에 timeZone 파라미터 일반화 (기본 KST)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-058, REQ-009]
 dependsOn: [T-0800]
@@ -63,3 +63,7 @@ plannerNote: "P5 Q-0050 slice(2b) — ADR-0052 §Decision(b)/(d) display·parse 
 
 - (slice 3) R-9 사용자 지정 기간 controller(`assessment-evaluation.controller`) + display mapper 가 요청 User.timezone 을 `parseKstPeriodInput`/`formatKstIso` 인자로 배선(ADR-0052 §Decision(b)). User.timezone 조회 경로(PersonService/JwtPayload) 포함.
 - (설정 저장) timezone 설정 update 경로에서 무효 IANA 식별자 화이트리스트/try-catch 검증(ADR-0052 §Consequences).
+
+## Status
+
+**DONE** — 2026-07-06 (cron@AKIHA-5df60664 fire). PR [#715](https://github.com/myungjoo/Assessment-Agent/pull/715) squash merge `acb453b3`, reviewer round 1 APPROVE (0 BLOCKER/0 MAJOR/0 MINOR), 4-게이트 PASS, CI green(reviewer-gate race 1회 rerun 후 green). 변경: `src/common/period-boundary.ts` display/parse helper 4종(`formatKstDisplay`/`formatKstIso`/`kstOffsetLabel`/`parseKstPeriodInput`)에 optional `timeZone` (기본 KST) 추가 — offset 미명시 입력만 `wallClockToUtc` 로 zone 위임(명시 offset 은 그대로 존중), formatterCache 재사용, 기존 시그니처 호출부 무변경 backward-compat, 새 dep 0. +49/-27 core, spec timeZone 4 describe 확장, 2 파일 cap 내. test 8997 pass, cov period-boundary.ts stmts 98.88%/branch 84.61%/func 100% (threshold 충족). 남은 genuine work = slice(3) R-9 controller/display mapper 가 요청 User.timezone 을 본 파라미터에 배선 — 다음 fire planner 가 큐잉.
