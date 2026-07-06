@@ -2,7 +2,11 @@
 id: T-0799
 title: User.timezone 컬럼 additive migration + schema 추가 (ADR-0052 slice 1)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-06T06:05:00Z
+mergedAs: 486b3b9e
+prNumber: 713
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-043, REQ-034, REQ-031]
 dependsOn: []
