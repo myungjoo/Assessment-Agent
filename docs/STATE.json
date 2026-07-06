@@ -499,7 +499,7 @@
       "createdAt": "2026-07-01T09:00:00Z",
       "raisedBy": "planner (post-T-0798 merge, cron driver)",
       "reason": "issue-already-fixed-on-main",
-      "status": "OPEN",
+      "status": "RESOLVED",
       "summary": "ADR-0050 Follow-ups 가 요구한 순수 helper(kstDayStart/kstWeekStart/kstMonthStart/toKstPeriodBoundary)가 이미 main 에 동일 계약으로 박제돼 있어 후속 helper task 생성을 abort 함 — 사람 결정 필요.",
       "context": "T-0798(ADR-0050 ACCEPTED) 의 §Follow-ups 첫 항목은 순수 helper kstDayStart/kstWeekStart(월요일 시작)/kstMonthStart/toKstPeriodBoundary 를 dependsOn:[T-0798] pr task 로 구현하라고 지시한다. planner 의 issue-still-relevant pre-check(step 4: already-landed-on-main) 결과, 요구된 4 helper 전부가 이미 main 의 src/common/period-boundary.ts(ADR-0039, T-0565 근방 merge)에 동일 계약으로 존재한다: (1) startOfKstDay == kstDayStart, (2) startOfKstWeek(요일 산술 (getUTCDay()+6)%7 = 월요일 ISO) == kstWeekStart, (3) startOfKstMonth == kstMonthStart, (4) getKstPeriodRange/getKstPeriodRangeByPeriod(PeriodRange {start,end}, end 배타 반열림 [start,end)) == toKstPeriodBoundary. 저장 UTC 유지·주 시작 월요일 ISO·반열림 [start,end) 모두 ADR-0050 §Decision 과 일치한다. 유일한 차이: ADR-0039 구현은 하드코딩 +09:00 리터럴 대신 Intl.DateTimeFormat(IANA Asia/Seoul)을 쓴다 — 이는 ADR-0050 (b)(고정 +09:00 산술 허용, DST 부재 근거)보다 오히려 강한 계약이라 동일 결과를 만족한다. spec(period-boundary.spec.ts)도 11 describe 블록으로 R-112 4종을 이미 cover. 따라서 신규 helper 구현 task 를 큐잉하면 main 과 duplicate 가 된다. STATE.nextTask 는 건드리지 않고 null 유지, task 파일도 생성하지 않음.",
       "options": [
@@ -510,6 +510,9 @@
       ],
       "recommendation": "옵션(1) — helper 는 ADR-0039 로 이미 main 에 single-source 로 존재하므로 재구현은 duplicate. ADR-0050 §Follow-ups 첫 항목을 SUPERSEDED 로 박제하고, 실제 남은 genuine work 는 '기존 helper 를 summary/재수집 window/사용자 지정 기간 해석부에 배선하는 slice'다. 이 배선 slice 가 다음 planner task 후보.",
       "resolutionHint": "결정 시 이 항목에 resolvedAt + decision 을 기입하면 다음 planner 호출이 pre-check(resolved humanQuestion 자동 처리)로 후속 task 를 큐잉한다. decision 이 옵션(1)이면 planner 는 ADR-0050 §Follow-ups direct-amend + 배선 slice task 생성.",
+      "resolvedAt": "2026-07-06T05:26:42Z",
+      "resolvedBy": "repo owner myungjoo (aa-local interactive session)",
+      "decision": "옵션(1) 채택 + 쟁점 B/저장 결정 확정 (2026-07-06). (i) helper 재구현 불요 — ADR-0039 가 single-source(src/common/period-boundary.ts). (ii) 쟁점 B 해소 = ADR-0051: timezone 사용자 설정 가능·기본 KST, 변환 메커니즘 권위 = Intl.DateTimeFormat(timeZone)(ADR-0039), ADR-0050 §D(b) 고정 +09:00 산술 supersede. (iii) 저장 결정 = ADR-0052: per-user 저장 위치 = User.timezone 컬럼(String @default \"Asia/Seoul\", additive migration, owner 가 옵션(B) 채택). 지배 범위 = R-9 기간 입력 해석 + 화면 표시(display)에 요청 User.timezone 적용. 요약/평가 기간 경계(R-61 자정·주·월·R-58 재수집)는 Person 활동 중심이라 KST 기본 유지 — Person.timezone 미도입. 남은 genuine work = 구현 slice 3종(planner 큐잉 순서): (1) Prisma migration + schema User.timezone(pr, DB schema — owner 승인 완료), (2) period-boundary.ts helper 에 timeZone 파라미터(기본 KST) 일반화 + R-112(pr), (3) R-9 controller / display mapper 배선(pr). ADR-0050 §Follow-ups 1항 SUPERSEDED 는 ADR-0051 마커로 이미 처리. planner 는 slice (1) 부터 nextTask 로 큐잉.",
       "raisedThisTurn": true,
       "processedByPlanner": false
     },
