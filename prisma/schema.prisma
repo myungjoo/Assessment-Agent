@@ -175,6 +175,16 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // T-0799 (ADR-0052 Decision (a)) — per-user timezone 저장 컬럼.
+  // 로그인 계정 User 의 표시(display)·R-9 기간 입력 해석 timezone 을 IANA tz
+  // 식별자 문자열로 영속한다 (예: "Asia/Seoul", "America/New_York"). additive —
+  // @default("Asia/Seoul") 보유로 기존 User row 는 migration 시 KST 로 자동
+  // backfill, 신규 User 도 미지정 시 KST. NOT NULL (default 상시 존재) 이라
+  // nullable 없음. 요약/평가 기간 경계는 본 컬럼 영향 밖 — KST 기본 유지
+  // (ADR-0052 Decision (c), Person.timezone 미도입). helper 일반화·R-9/display
+  // 배선은 후속 slice (ADR-0052 §Follow-ups 2/3) — 본 task 는 저장 위치만 박제.
+  timezone String @default("Asia/Seoul")
+
   // T-0221 (ADR-0024 Decision §2) — User ↔ instance binding back-relation.
   // 1 User 는 0+ 개의 UserInstanceAccess (허용 instance binding) 를 가진다.
   // Prisma 양방향 relation 요건 (UserInstanceAccess.user 의 back-field).

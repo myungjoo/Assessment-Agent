@@ -258,3 +258,115 @@ describe("prisma schema — ExportJob / ImportJob (T-0485, ADR-0044 §1)", () =>
     });
   });
 });
+
+// T-0799 (ADR-0052 Decision (a)) — User.timezone 컬럼 additive migration 검증.
+//
+// 본 task 는 prisma/schema.prisma 의 model User 에 `timezone String
+// @default("Asia/Seoul")` 컬럼 1개 + additive migration SQL 만 추가한다 (helper
+// 일반화·R-9/display 배선은 후속 slice — ADR-0052 §Out of scope / §Follow-ups).
+// 따라서 production 분기 로직이 0 LOC — branch / error-path 항목은 "schema
+// 선언 + migration DDL 만, 분기 없음 — 생략" (R-112, 위 ExportJob/ImportJob 블록
+// (T-0485) 및 기존 prisma-schema.spec.ts 패턴 정합).
+//
+// 검증 전략 (분기 없는 schema — happy-path + negative/regression 중심):
+//   (a) happy-path — 생성된 PrismaClient 의 User DMMF 에 timezone 필드가 존재하고
+//       type=String, hasDefaultValue=true, default 값 "Asia/Seoul" 임을 단언 +
+//       migration.sql 원문에 `ADD COLUMN "timezone"` + `DEFAULT 'Asia/Seoul'` 존재.
+//   (b) negative / regression — 기존 User 컬럼/relation (email @unique ·
+//       instanceAccess · exportJobs · importJobs) 이 그대로 존재해 additive
+//       무손상임을 단언 (기존 시그니처 파괴 regression 방지) + timezone 이
+//       nullable 아님(NOT NULL) 을 schema 원문으로 단언 (default 없는 nullable
+//       drift 차단).
+describe("prisma schema — User.timezone (T-0799, ADR-0052 §Decision (a))", () => {
+  const schemaPath = join(__dirname, "..", "prisma", "schema.prisma");
+  const schema = readFileSync(schemaPath, "utf8");
+  const migrationPath = join(
+    __dirname,
+    "..",
+    "prisma",
+    "migrations",
+    "20260706000000_user_timezone",
+    "migration.sql",
+  );
+  const migration = readFileSync(migrationPath, "utf8");
+
+  // User 모델의 timezone 필드 DMMF 를 반환 (runtime DMMF — hasDefaultValue/default carry).
+  const timezoneField = () =>
+    Prisma.dmmf.datamodel.models
+      .find((m) => m.name === "User")!
+      .fields.find((f) => f.name === "timezone");
+
+  // (a) happy-path — DMMF 필드 존재 + type/default + migration DDL 원문.
+  describe("(a) happy-path — DMMF timezone 필드 + migration DDL", () => {
+    it("User DMMF 에 timezone 필드가 존재하고 type=String 이다", () => {
+      const f = timezoneField();
+      expect(f).toBeDefined();
+      expect(f?.type).toBe("String");
+    });
+
+    it('timezone 의 default 가 "Asia/Seoul" 이다 (hasDefaultValue — DMMF carry 시 DMMF, 아니면 schema-as-truth)', () => {
+      // Prisma 7.x runtime DMMF 는 scalar 필드의 @default 메타(hasDefaultValue/default)를
+      // carry 하지 않는다 (본 파일 상단 (c) 블록 주석의 "@default 메타는 schema 원문을
+      // truth 로 단언" 패턴 정합 — 위 ExportJob/ImportJob 도 default 는 schema 원문으로
+      // 단언). 따라서 DMMF 가 메타를 노출하면 DMMF 로, 아니면 schema 원문으로 default 를
+      // 단언한다 (Prisma 버전 무관하게 criterion 의도 "default=Asia/Seoul" 를 강제).
+      const f = timezoneField() as
+        | { hasDefaultValue?: boolean; default?: unknown }
+        | undefined;
+      if (f?.hasDefaultValue !== undefined) {
+        // DMMF 가 메타를 carry 하는 버전 — DMMF 로 단언.
+        expect(f.hasDefaultValue).toBe(true);
+        expect(f.default).toBe("Asia/Seoul");
+      } else {
+        // DMMF 가 carry 안 하는 버전 (현 Prisma 7.x) — schema 원문 truth 로 default 단언.
+        expect(schema).toMatch(/timezone\s+String\s+@default\("Asia\/Seoul"\)/);
+      }
+    });
+
+    it('schema 원문에 `timezone String @default("Asia/Seoul")` 이 선언돼 있다', () => {
+      expect(schema).toMatch(/timezone\s+String\s+@default\("Asia\/Seoul"\)/);
+    });
+
+    it("migration.sql 에 `ADD COLUMN \"timezone\"` + `DEFAULT 'Asia/Seoul'` 이 존재한다", () => {
+      expect(migration).toMatch(/ADD COLUMN "timezone"/);
+      expect(migration).toMatch(/DEFAULT 'Asia\/Seoul'/);
+      // additive only — 기존 컬럼 DROP / RENAME / ALTER TYPE 없음 (무손상 regression 방지).
+      expect(migration).not.toMatch(/DROP COLUMN/);
+      expect(migration).not.toMatch(/RENAME COLUMN/);
+    });
+  });
+
+  // (b) negative / regression — additive 무손상 + NOT NULL drift 차단.
+  describe("(b) negative / regression — additive 무손상 + NOT NULL drift 차단", () => {
+    it("기존 User 컬럼/relation (email @unique · instanceAccess · exportJobs · importJobs) 이 그대로 존재한다", () => {
+      const fields = Prisma.dmmf.datamodel.models
+        .find((m) => m.name === "User")!
+        .fields.map((f) => f.name);
+      expect(fields).toEqual(
+        expect.arrayContaining([
+          "id",
+          "email",
+          "hashedPassword",
+          "role",
+          "createdAt",
+          "updatedAt",
+          "instanceAccess",
+          "exportJobs",
+          "importJobs",
+        ]),
+      );
+      // email @unique 유지 (schema 원문).
+      expect(schema).toMatch(/email\s+String\s+@unique/);
+    });
+
+    it("timezone 이 nullable 아님(NOT NULL) — schema 원문에 `timezone String?` 이 없다", () => {
+      // default 없는 nullable(timezone String? 또는 @default 없는 String?) drift 차단.
+      expect(schema).not.toMatch(/timezone\s+String\?/);
+      // migration DDL 도 NOT NULL 선언 — nullable 컬럼 drift 차단.
+      expect(migration).toMatch(/ADD COLUMN "timezone" TEXT NOT NULL/);
+    });
+
+    // 분기 cover — 본 task 는 production 분기 로직 0 LOC (schema 선언 + migration DDL 만).
+    // "분기 없음, 이 항목 생략" (R-112, 기존 prisma-schema.spec.ts (T-0485) 패턴 정합).
+  });
+});
