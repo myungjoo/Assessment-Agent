@@ -161,3 +161,36 @@ export async function createAuthenticatedE2EApp(
 
   return { app, moduleRef, prisma, jwtService, users, tokens };
 }
+
+// reseedAuthenticatedActors — afterEach `truncateAll` 가 "User" 테이블을 비운 뒤 seed
+// actor User row 를 **원본 id / email / role / timezone / hashedPassword 그대로** 재삽입
+// 한다(T-0802 e2e round-2 CI fix). 배경: POST /period 의 controller 가 요청 principal
+// sub(=User.id)로 `UserService.findById(sub)` 를 호출해 요청 User 의 timezone 을 해석
+// 하는데(ADR-0052 §Decision(b)), truncate 가 actor User row 를 지우면 후속 요청의 JWT
+// sub 은 유효하나 그 User row 가 부재해 `findById` 가 NotFoundException(404)을 던진다.
+//
+// 재-seed 원칙(production 정합): production 은 인증된 principal 의 User row 가 항상 존재
+// 하므로 controller 의 `findById(sub)` 동작은 정상이다. 따라서 controller 를 silent
+// fallback 으로 약화시키지 않고, **e2e harness 가 actor 존재 전제를 복원**한다(선례 T-0520
+// afterEach truncate 후 FK re-seed). JWT 가 발급된 원본 id 를 보존해야 sub 매칭이 유지
+// 되므로 `ctx.users[email]` 의 원본 User 필드를 그대로 재삽입한다(새 id 생성 금지).
+//
+// 멱등/방어: `create` 가 아니라 원본 id 를 명시한 재삽입 — truncate 로 row 0 인 상태를
+// 전제한다(afterEach 순서: truncateAll → reseedAuthenticatedActors). Person CASCADE
+// truncate 는 "User" 를 건드리지 않지만 truncateAll 의 명단에 "User" 가 포함되므로 매
+// afterEach 마다 재-seed 가 필요하다.
+export async function reseedAuthenticatedActors(
+  ctx: AuthenticatedE2EContext,
+): Promise<void> {
+  for (const user of Object.values(ctx.users)) {
+    await ctx.prisma.user.create({
+      data: {
+        id: user.id,
+        email: user.email,
+        hashedPassword: user.hashedPassword,
+        role: user.role,
+        timezone: user.timezone,
+      },
+    });
+  }
+}

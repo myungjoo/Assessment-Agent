@@ -26,6 +26,7 @@ import { PrismaService } from "../../src/persistence/prisma.service";
 import {
   buildAuthCookie,
   createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
   type AuthenticatedE2EContext,
 } from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
@@ -77,6 +78,10 @@ describe("E2E: POST /api/assessment-evaluation/period — reevaluate replace·�
 
   afterEach(async () => {
     await truncateAll(prisma);
+    // truncateAll 이 "User" 를 비우면 다음 case 의 요청 principal(Admin/User JWT sub)의
+    // User row 가 부재해 controller 의 resolveRequestTimeZone → findById(sub) 가 404 를
+    // 던진다(T-0802 round-1 회귀). actor User 를 원본 id 로 재-seed 해 존재를 복원한다.
+    await reseedAuthenticatedActors(ctx);
   });
 
   // target Person seed — 빈 serviceIdentities → no-network(template 동일).
