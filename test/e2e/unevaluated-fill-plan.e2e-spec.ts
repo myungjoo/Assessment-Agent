@@ -37,6 +37,7 @@ import { PrismaService } from "../../src/persistence/prisma.service";
 import {
   buildAuthCookie,
   createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
   type AuthenticatedE2EContext,
 } from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
@@ -106,6 +107,12 @@ describe("E2E: POST /api/assessment-evaluation/unevaluated-fill-plan — Admin d
 
   afterEach(async () => {
     await truncateAll(prisma);
+    // truncateAll 이 "User" 를 비우면 다음 case 의 요청 principal(Admin/User JWT sub)의
+    // User row 가 부재해 controller 의 resolveRequestTimeZone → findById(sub) 가 404 를
+    // 던진다(T-0803 round-2 CI 회귀 — 이 PR 이 planUnevaluatedFill route 에 timezone 해석
+    // 배선을 새로 추가하면서 actor User row read 가 도입됨). actor User 를 원본 id 로 재-seed
+    // 해 존재를 복원한다("e2e truncate actor FK re-seed" 선례 T-0520/T-0802 동형).
+    await reseedAuthenticatedActors(ctx);
   });
 
   // target Person seed — detection 이 좌표를 enumerate 할 임의 personId. Assessment 의
@@ -289,5 +296,33 @@ describe("E2E: POST /api/assessment-evaluation/unevaluated-fill-plan — Admin d
     expect(response.body.batches).toEqual([]);
     expect(response.body.totalGapCount).toBe(0);
     expect(response.body.personCount).toBe(0);
+  });
+
+  // -- actor-present regression (T-0803 round-2) — truncate-후-재-seed 회귀 차단 --
+  //    이 PR 이 planUnevaluatedFill route 에 resolveRequestTimeZone → findById(principal
+  //    sub) 배선을 새로 추가하면서 요청 Admin User 의 timezone read 가 도입됐다(ADR-0052).
+  //    truncate 가 actor Admin User 를 지우면 후속 요청이 404 로 fail 한다. afterEach 재-seed
+  //    가 actor 존재를 복원함을 실측: (1) Admin actor row 가 원본 id 로 재존재, (2) 그 위에서
+  //    detection round-trip(200)이 성립. 재-seed 누락 시 여기서 404 로 fail.
+  it("직전 case truncate 후에도 Admin actor 재존재 + detection round-trip 200 (actor-present 회귀, T-0803)", async () => {
+    // reseed 검증 — Admin actor User row 가 원본 id 로 재존재해야 findById(sub) 가 성립.
+    const adminActor = await prisma.user.findFirst({
+      where: { email: adminEmail },
+    });
+    expect(adminActor).not.toBeNull();
+    expect(adminActor?.role).toBe("Admin");
+
+    const personId = await seedTargetPerson("actor-present");
+    expect(await prisma.assessment.count()).toBe(0);
+
+    // actor 존재 + timezone 해석 성립 → detection 200(404 아님). 재-seed 누락 시 404.
+    const response = await request(app.getHttpServer())
+      .post(ROUTE)
+      .set("Cookie", adminCookie)
+      .send(validBody([personId]));
+
+    expect(response.status).toBe(200);
+    expect(response.body.totalGapCount).toBe(1);
+    expect(response.body.batches).toHaveLength(1);
   });
 });

@@ -196,4 +196,64 @@ describe("toUnevaluatedFillPlanResponse", () => {
     expect(plan.batches[0].periods).toHaveLength(2);
     expect(plan.batches[0].periods[0].periodStart).toBeInstanceOf(Date);
   });
+
+  // ---- T-0803: optional timeZone 파라미터(ADR-0052 §Decision(b)(ii) display 축) ----
+
+  // branch (a) timeZone 명시 + (d) 비-KST: America/New_York 이면 그 zone offset(-04:00,
+  // 초여름 EDT)으로 직렬화 — 각 period 가 해당 zone 라벨을 얻는다.
+  it("timeZone 명시(America/New_York) 시 그 zone offset(-04:00)으로 직렬화한다 (branch — 비-KST timeZone)", () => {
+    const result = toUnevaluatedFillPlanResponse(
+      buildValidPlan(),
+      "America/New_York",
+    );
+    const ps = result.batches[0].periods[0].periodStart;
+    expect(ps).toBe(formatKstIso(ps1, "America/New_York"));
+    expect(ps).toContain("-04:00");
+    expect(ps).not.toContain("+09:00");
+    // 다른 period 도 동일 zone 라벨.
+    expect(result.batches[1].periods[0].periodStart).toBe(
+      formatKstIso(ps3, "America/New_York"),
+    );
+  });
+
+  // branch (b) timeZone 미지정(기본 KST) + (c) KST 명시: 두 호출이 동등한 +09:00 산출.
+  it("timeZone 미지정과 KST(Asia/Seoul) 명시는 동일한 +09:00 직렬화를 낸다 (branch — 기본 KST backward-compat)", () => {
+    const implicit = toUnevaluatedFillPlanResponse(buildValidPlan());
+    const explicitKst = toUnevaluatedFillPlanResponse(
+      buildValidPlan(),
+      "Asia/Seoul",
+    );
+    expect(implicit.batches[0].periods[0].periodStart).toBe(formatKstIso(ps1));
+    expect(implicit.batches[0].periods[0].periodStart).toContain("+09:00");
+    // 명시 KST 는 미지정 기본값과 정확히 동등(backward-compat 100% 보존).
+    expect(explicitKst.batches[0].periods[0].periodStart).toBe(
+      implicit.batches[0].periods[0].periodStart,
+    );
+  });
+
+  // error path / negative (2): 무효 IANA timeZone 식별자면 formatKstIso(Intl)의 RangeError 전파.
+  it("무효 IANA timeZone 식별자면 formatKstIso 의 RangeError 가 전파된다 (negative — 무효 tz)", () => {
+    expect(() =>
+      toUnevaluatedFillPlanResponse(buildValidPlan(), "Not/A_Zone"),
+    ).toThrow(RangeError);
+  });
+
+  // negative (3): timeZone 인자를 줘도 Invalid Date periodStart 의 TypeError 방어는 유지된다
+  // (timeZone 추가가 기존 error 그물을 깨지 않음).
+  it("timeZone 명시 시에도 Invalid Date periodStart 는 TypeError 로 전파된다 (negative — timeZone 무관 error 그물 유지)", () => {
+    const plan = singleBatchPlan([coord("p", new Date("invalid"))]);
+    expect(() =>
+      toUnevaluatedFillPlanResponse(plan, "America/New_York"),
+    ).toThrow(TypeError);
+  });
+
+  // negative (1): timeZone 명시 시에도 null plan 방어(한국어 TypeError)는 그대로 유지된다.
+  it("timeZone 명시 시에도 null plan 은 TypeError 로 fail-fast (negative — timeZone 무관 plan 방어 유지)", () => {
+    expect(() =>
+      toUnevaluatedFillPlanResponse(
+        null as unknown as UnevaluatedFillBatchPlan,
+        "America/New_York",
+      ),
+    ).toThrow(TypeError);
+  });
 });
