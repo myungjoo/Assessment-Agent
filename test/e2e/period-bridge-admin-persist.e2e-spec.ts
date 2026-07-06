@@ -41,6 +41,7 @@ import { PrismaService } from "../../src/persistence/prisma.service";
 import {
   buildAuthCookie,
   createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
   type AuthenticatedE2EContext,
 } from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
@@ -109,6 +110,10 @@ describe("E2E: POST /api/assessment-evaluation/period — Admin full-persist (T-
 
   afterEach(async () => {
     await truncateAll(prisma);
+    // truncateAll 이 "User" 를 비우면 다음 case 의 요청 principal(Admin/User JWT sub)의
+    // User row 가 부재해 controller 의 resolveRequestTimeZone → findById(sub) 가 404 를
+    // 던진다(T-0802 round-1 회귀). actor User 를 원본 id 로 재-seed 해 존재를 복원한다.
+    await reseedAuthenticatedActors(ctx);
   });
 
   // target Person seed — Admin 이 평가를 요청할 임의 personId. 빈 serviceIdentities →
@@ -242,6 +247,34 @@ describe("E2E: POST /api/assessment-evaluation/period — Admin full-persist (T-
     // 반환 assessmentId 가 1번째와 동일(같은 영속본 수렴).
     expect(second.body.assessmentId).toBe(firstId);
     // **2번째 write 미발생** — count 여전히 1(row 증가 0).
+    expect(await prisma.assessment.count()).toBe(1);
+  });
+
+  // -- actor-present regression (T-0802 round-2) — truncate-후-재-seed 회귀 차단 --
+  //    Admin 분기도 resolveRequestTimeZone → findById(principal sub) 로 요청 Admin User 의
+  //    timezone 을 해석한다(ADR-0052 §Decision(b) 요청 주체 기준). truncate 가 actor Admin
+  //    User 를 지우면 후속 full-persist 요청이 404 로 fail 한다. afterEach 재-seed 가 actor
+  //    존재를 복원함을 실측: (1) Admin actor row 가 원본 id 로 재존재, (2) 그 위에서 full-
+  //    persist round-trip(200 + row 0→1)이 성립. 재-seed 누락 시 여기서 404 로 fail.
+  it("직전 case truncate 후에도 Admin actor 재존재 + full-persist 200 + row 0→1 (actor-present 회귀, T-0802)", async () => {
+    // reseed 검증 — Admin actor User row 가 원본 id 로 재존재해야 findById(sub) 가 성립.
+    const adminActor = await prisma.user.findFirst({
+      where: { email: adminEmail },
+    });
+    expect(adminActor).not.toBeNull();
+    expect(adminActor?.role).toBe("Admin");
+    expect(adminActor?.timezone).toBe("Asia/Seoul");
+
+    const personId = await seedTargetPerson();
+    expect(await prisma.assessment.count()).toBe(0);
+
+    // actor 존재 + timezone 해석 성립 → full-persist 200(404 아님). 재-seed 누락 시 404.
+    const response = await request(app.getHttpServer())
+      .post(PERIOD)
+      .set("Cookie", adminCookie)
+      .send(validBody(personId));
+
+    expect(response.status).toBe(200);
     expect(await prisma.assessment.count()).toBe(1);
   });
 

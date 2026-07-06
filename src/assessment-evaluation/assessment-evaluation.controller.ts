@@ -55,10 +55,12 @@ import { Roles } from "../auth/roles.decorator";
 import { ROLE_HIERARCHY, RolesGuard } from "../auth/roles.guard";
 import {
   getKstPeriodRangeByPeriod,
+  KST_TIMEZONE,
   parseKstPeriodInput,
 } from "../common/period-boundary";
 import { LlmProviderConfigResolver } from "../llm/llm-provider-config-resolver.service";
 import { PersonService } from "../user/person.service";
+import { UserService } from "../user/user.service";
 
 import type { EvaluationResult } from "./domain/evaluation-result";
 import type { EvaluationPersistContext } from "./domain/evaluation-result.persist.mapper";
@@ -183,6 +185,14 @@ export class AssessmentEvaluationController {
     // 배선 변경 0 — 생성자 주입만으로 inject. test 는 jest mock { resolveDefaultModelId }
     // 를 주입해 실 DB read 0 / 실 LLM 0 / 실 네트워크 0 으로 배선 정합만 검증한다.
     private readonly llmProviderConfigResolver: LlmProviderConfigResolver,
+    // UserService — POST /period 의 요청 User timezone 해석 source(T-0802, ADR-0052
+    // §Decision(b)/(d) + §Follow-ups(3)). JWT payload(JwtPayload = { sub, role })는
+    // timezone 을 담지 않으므로, principal sub(userId)로 findById(sub) 를 호출해 그
+    // row 의 timezone 을 조회한다. UserService 는 UserModule export 이고 본 controller
+    // 의 module(assessment-evaluation.module.ts L70)이 이미 UserModule 을 import 중이라
+    // 추가 module/token 배선 0 — 생성자 주입만(PersonService 주입과 동형 패턴). test 는
+    // jest mock { findById } 를 주입해 실 DB read 0 / 실 네트워크 0 으로 배선 정합만 검증.
+    private readonly userService: UserService,
   ) {}
 
   // POST /api/assessment-evaluation/evaluate — 평가 manual trigger + persist.
@@ -256,9 +266,24 @@ export class AssessmentEvaluationController {
   // Invalid coordinate 금지). DTO `@IsISO8601` 통과했으나 형식 위반/달력 불가능/범위 외
   // offset 인 edge 는 `parseKstPeriodInput` 의 RangeError, 비문자열/빈 입력은 TypeError
   // 가 전파된다(R-112 negative 분기 — silent Invalid Date 대신 명시적 error).
-  private normalizeKstPeriodStart(period: string, periodStart: string): Date {
-    return getKstPeriodRangeByPeriod(period, parseKstPeriodInput(periodStart))
-      .start;
+  //
+  // T-0802(ADR-0052 §Decision(b)/(d)): `timeZone` 파라미터(기본 `KST_TIMEZONE`)를
+  // 받아 `parseKstPeriodInput`(offset 미명시 입력 해석 zone)와 `getKstPeriodRangeByPeriod`
+  // (boundary snap 계산 zone) 둘 다에 전달한다. 요청 User 의 zone 으로 입력·경계가
+  // 해석돼 offset 미명시 입력이 그 zone 기준 wall-clock 으로 읽힌다. timeZone 미지정
+  // 호출부(evaluate 경로 등)는 기본값으로 기존 KST 동작 100% 보존(backward-compat).
+  // 무효 IANA 식별자는 helper 의 RangeError 가 전파된다(R-112 negative — silent 무효
+  // 좌표 금지).
+  private normalizeKstPeriodStart(
+    period: string,
+    periodStart: string,
+    timeZone: string = KST_TIMEZONE,
+  ): Date {
+    return getKstPeriodRangeByPeriod(
+      period,
+      parseKstPeriodInput(periodStart, timeZone),
+      timeZone,
+    ).start;
   }
 
   // POST /api/assessment-evaluation/period — period bridge HTTP 진입점.
@@ -321,10 +346,34 @@ export class AssessmentEvaluationController {
   ): Promise<EvaluationResult[] | PeriodBridgeAdminResponse> {
     // role dispatch — Admin tier 이상이면 full-persist 분기(임의 personId 허용),
     // 그 외(User 등)는 self-only ephemeral 분기. dispatch source 는 principal role.
+    // 요청 User timezone 해석은 각 분기 안에서(self-only/재평가 fail-closed 검사 우선순위
+    // 보존을 위해) 수행한다 — User 분기는 self-only/재평가 차단이 timezone 조회보다 먼저
+    // 도달해야 하므로 여기서 미리 조회하지 않는다(회귀 0 / 불필요한 DB read 0).
     if (isAdminRole(actor?.role)) {
-      return this.persistForAdmin(dto);
+      return this.persistForAdmin(dto, actor?.sub);
     }
     return this.ephemeralForUser(dto, actor?.sub);
+  }
+
+  // resolveRequestTimeZone — 요청 principal sub(userId)로 요청 User 의 timezone 을
+  // 해석한다(T-0802, ADR-0052 §Decision(b) "조회/요청 주체 User" 기준). JWT payload 는
+  // timezone 을 담지 않으므로 DB 조회가 필요하다:
+  //   - principal sub 존재  → UserService.findById(sub) 로 조회한 row 의 timezone.
+  //     row 부재 시 findById 가 NotFoundException 을 전파(swallow 0 — raw 전파).
+  //   - principal sub 부재(비로그인 이론 경로) → KST_TIMEZONE(Asia/Seoul) fallback.
+  //     guard 를 통과한 정상 경로에선 sub 이 항상 존재하나, 방어적 fallback 을 둔다.
+  // 반환 timezone 은 normalizeKstPeriodStart 로 전달돼 offset 미명시 입력이 그 zone 으로
+  // 해석된다(기본 KST fallback 보존). User row 의 timezone 이 무효 IANA 식별자면 helper
+  // (Intl.DateTimeFormat)가 RangeError 를 전파한다(R-112 negative — 저장 경로 검증은 본
+  // task 밖, 읽기 경로는 helper 의 RangeError 로 방어).
+  private async resolveRequestTimeZone(
+    principalUserId: string | undefined,
+  ): Promise<string> {
+    if (principalUserId === undefined || principalUserId === null) {
+      return KST_TIMEZONE;
+    }
+    const user = await this.userService.findById(principalUserId);
+    return user.timezone;
   }
 
   // ephemeralForUser — User 분기(self-only ephemeral, T-0317 기존 동작 보존 +
@@ -366,14 +415,22 @@ export class AssessmentEvaluationController {
       dto.personId,
     );
 
-    // periodStart 를 요청 period granularity 의 canonical KST boundary 로 snap 한 뒤
+    // 요청 User timezone 해석(T-0802, ADR-0052 §Decision(b)) — self-only 는 principal
+    // sub == personId 를 이미 강제했으므로 요청 주체 == target User. 그 timezone 으로
+    // offset 미명시 입력을 해석한다. 조회는 self-only/재평가 fail-closed 검사 **이후**라
+    // 기존 차단 우선순위 불변(회귀 0). row 부재 시 findById 가 NotFoundException 전파.
+    const timeZone = await this.resolveRequestTimeZone(principalUserId);
+
+    // periodStart 를 요청 period granularity 의 canonical boundary 로 snap 한 뒤
     // since(ISO string)로 흘려보낸다(ADR-0039 §Decision3 — raw `dto.periodStart` 직접
-    // 전달 금지). snap 은 self-only/재평가 fail-closed 검사 **이후**에만 도달하므로
-    // 기존 차단 우선순위는 불변(회귀 0). 알 수 없는 period / Invalid Date 는 helper 가
+    // 전달 금지). offset 미명시 입력은 요청 User timezone(기본 KST)으로 해석된다.
+    // snap 은 self-only/재평가 fail-closed 검사 **이후**에만 도달하므로 기존 차단
+    // 우선순위는 불변(회귀 0). 알 수 없는 period / Invalid Date / 무효 tz 는 helper 가
     // reject(전파).
     const sinceBoundary = this.normalizeKstPeriodStart(
       dto.period,
       dto.periodStart,
+      timeZone,
     );
 
     // resolved person 의 serviceIdentities 만 조립해 ephemeral bridge 에 위임.
@@ -393,6 +450,7 @@ export class AssessmentEvaluationController {
   // §Decision1 — strict-true 만 "reeval" 판정은 service 책임, baking·정규화 0).
   private async persistForAdmin(
     dto: PeriodBridgeDto,
+    principalUserId: string | undefined,
   ): Promise<PeriodBridgeAdminResponse> {
     // personId → resolved person 변환 재사용 — Admin 은 임의 personId 를 target 할 수
     // 있으므로 self-only 동등성 검사 없이 바로 resolve(row 부재 시 PersonService 가
@@ -401,13 +459,22 @@ export class AssessmentEvaluationController {
       dto.personId,
     );
 
-    // periodStart 를 요청 period granularity 의 canonical KST boundary 로 snap(ADR-0039
-    // §Decision3). 같은 KST 일/주/월 안의 서로 다른 입력 instant 가 동일 좌표로 수렴해
-    // persist idempotency(ADR-0037/0038 first-write-wins)가 KST 자정/주초/월초로 정렬된다.
-    // 알 수 없는 period / Invalid Date 는 helper 가 reject(전파) — silent Invalid 좌표 금지.
+    // 요청 User timezone 해석(T-0802, ADR-0052 §Decision(b)) — Admin 은 임의 personId 를
+    // target 할 수 있으나 입력 해석 zone 은 **요청 주체(로그인 Admin User)** 기준이다
+    // (§Decision(b) "조회/요청 주체 User" 정합). 즉 target person 이 아닌 principal sub 의
+    // timezone 으로 offset 미명시 입력을 해석한다. row 부재 시 findById 가 NotFoundException
+    // 전파(swallow 0), principal sub 부재 이론 경로면 KST fallback.
+    const timeZone = await this.resolveRequestTimeZone(principalUserId);
+
+    // periodStart 를 요청 period granularity 의 canonical boundary 로 snap(ADR-0039
+    // §Decision3). offset 미명시 입력은 요청 User timezone(기본 KST)으로 해석된다. 같은
+    // 일/주/월 안의 서로 다른 입력 instant 가 동일 좌표로 수렴해 persist idempotency
+    // (ADR-0037/0038 first-write-wins)가 자정/주초/월초로 정렬된다. 알 수 없는 period /
+    // Invalid Date / 무효 tz 는 helper 가 reject(전파) — silent Invalid 좌표 금지.
     const periodStartBoundary = this.normalizeKstPeriodStart(
       dto.period,
       dto.periodStart,
+      timeZone,
     );
 
     // context 4-tuple(ADR-0037 §Decision4 좌표) 조립 — personId/period/scope 전사 +

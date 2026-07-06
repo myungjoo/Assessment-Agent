@@ -35,6 +35,7 @@ import { PrismaService } from "../../src/persistence/prisma.service";
 import {
   buildAuthCookie,
   createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
   type AuthenticatedE2EContext,
 } from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
@@ -88,6 +89,10 @@ describe("E2E: POST /api/assessment-evaluation/period (T-0318, ADR-0037 §Decisi
 
   afterEach(async () => {
     await truncateAll(prisma);
+    // truncateAll 이 "User" 를 비우면 다음 case 의 요청 principal(JWT sub)의 User row 가
+    // 부재해 controller 의 resolveRequestTimeZone → findById(sub) 가 404 를 던진다
+    // (T-0802 round-1 회귀). actor User 를 원본 id 로 재-seed 해 요청 주체 존재를 복원한다.
+    await reseedAuthenticatedActors(ctx);
   });
 
   // self-only happy-path 전제 seed — Person.id 를 인증 User.id 와 **동일하게 명시 생성**
@@ -133,6 +138,32 @@ describe("E2E: POST /api/assessment-evaluation/period (T-0318, ADR-0037 §Decisi
     expect(response.status).toBe(200);
     // ephemeral 경로는 persist 호출 0 — 어떤 영속 row 도 생성하지 않는다.
     await expectNoPersistedRows(prisma);
+  });
+
+  // -- actor-present regression (T-0802 round-2) — truncate-후-재-seed 회귀 차단 --
+  //    round-1 은 truncate 가 actor User 를 지워 findById(sub) 가 404 를 던졌다. afterEach
+  //    의 reseedAuthenticatedActors 가 actor 존재를 복원함을 실측한다: (1) actor User row 가
+  //    truncate 후에도 원본 id 로 존재하고, (2) 그 위에서 timezone 해석 경로(200)가 성립함을
+  //    **직전 case 가 이미 truncate 를 한 번 돈 뒤** 검증한다. 재-seed 가 빠지면 이 200 이
+  //    404 로 fail 하므로 미래의 truncate-without-reseed 회귀가 여기서 잡힌다.
+  it("직전 case 의 truncate 후에도 actor User 가 원본 id 로 존재 + timezone 해석 200 (actor-present 회귀, T-0802)", async () => {
+    // reseed 검증: JWT sub == selfUserId 인 actor User row 가 원본 id 로 재존재해야 한다.
+    const actor = await prisma.user.findUnique({ where: { id: selfUserId } });
+    expect(actor).not.toBeNull();
+    expect(actor?.id).toBe(selfUserId);
+    // 기본 timezone(Asia/Seoul) 이 재-seed 로 보존 — findById(sub).timezone 해석 source.
+    expect(actor?.timezone).toBe("Asia/Seoul");
+
+    await seedSelfPerson();
+
+    // actor 존재 + timezone 해석 성립 → 200(404 아님). 재-seed 누락 시 여기서 404 로 fail.
+    const response = await request(app.getHttpServer())
+      .post(PERIOD)
+      .set("Cookie", selfCookie)
+      .send(validBody(selfUserId));
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body)).toBe(true);
   });
 
   // -- 403 self-only (User 토큰 + dto.personId != sub) negative --
