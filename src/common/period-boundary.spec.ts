@@ -240,6 +240,190 @@ describe("formatKstDisplay — 저장 UTC instant → Asia/Seoul 가독 표시 s
   );
 });
 
+// T-0800 — ADR-0052 §Decision(c) / ADR-0051 §Decision(b): 경계 helper timeZone 파라미터 일반화.
+// 기본값(미지정)=KST 는 위 기존 describe 들이 이미 100% 커버(backward-compat 회귀 방지). 아래는
+// timeZone 명시 시 해당 zone 기준 경계 산출 정확성 + 무효 tz error path + branch/negative.
+describe("startOfKstDay/Week/Month — timeZone 파라미터 일반화 (기본 KST 보존)", () => {
+  // (i) 미지정 시 기존 KST 결과 불변 — default 인자가 KST_TIMEZONE 임을 명시 박제(happy·branch).
+  it("timeZone 미지정 == 'Asia/Seoul' 명시 == 기존 KST 결과 (default fallback branch)", () => {
+    const i = d("2026-06-10T15:00:00Z"); // KST 6/11 00:00
+    expect(startOfKstDay(i)).toEqual(startOfKstDay(i, "Asia/Seoul"));
+    expect(startOfKstDay(i)).toEqual(d("2026-06-10T15:00Z"));
+    expect(startOfKstWeek(i)).toEqual(startOfKstWeek(i, "Asia/Seoul"));
+    expect(startOfKstMonth(i)).toEqual(startOfKstMonth(i, "Asia/Seoul"));
+  });
+
+  // (ii) startOfKstDay — non-KST zone 기준 자정 산출 (happy — UTC / New_York).
+  it.each([
+    // UTC: instant 그 자체의 UTC 자정. 2026-06-10T15:00Z 는 UTC 6/10 소속 → UTC 6/10 00:00.
+    ["2026-06-10T15:00:00Z", "UTC", "2026-06-10T00:00:00Z"],
+    // UTC 자정 정각 = 자기 자신 (경계값).
+    ["2026-06-10T00:00:00Z", "UTC", "2026-06-10T00:00:00Z"],
+    // America/New_York(EDT, -04:00 여름): 2026-06-10T15:00Z = NY 6/10 11:00 → NY 자정 = 6/10T04:00Z.
+    ["2026-06-10T15:00:00Z", "America/New_York", "2026-06-10T04:00:00Z"],
+    // NY 자정 직전 (6/10T03:59Z = NY 6/9 23:59) → 전날 자정 6/9T04:00Z (경계값·전날 snap).
+    ["2026-06-10T03:59:00Z", "America/New_York", "2026-06-09T04:00:00Z"],
+  ])("startOfKstDay(%s, %s) = %s", (input, tz, expected) => {
+    expect(startOfKstDay(d(input), tz)).toEqual(d(expected));
+  });
+
+  // 주 시작=월요일(ISO 8601) 계약이 non-KST zone 에서도 유지됨 (AC — 다른 zone 월요일 자정).
+  it.each([
+    // UTC 목 2026-06-11 → 그 주 월요일 UTC 6/8 00:00.
+    ["2026-06-11T12:00:00Z", "UTC", "2026-06-08T00:00:00Z"],
+    // UTC 일 2026-06-14 → 직전 월요일 6/8 (일요일 시작 금지 — 당일 아님).
+    ["2026-06-14T12:00:00Z", "UTC", "2026-06-08T00:00:00Z"],
+    // 연 경계 UTC 목 2026-01-01 → 월 2025-12-29.
+    ["2026-01-01T12:00:00Z", "UTC", "2025-12-29T00:00:00Z"],
+    // NY 목 6/11(6/11T12:00Z = NY 08:00) → NY 월 6/8 자정 = 6/8T04:00Z.
+    ["2026-06-11T12:00:00Z", "America/New_York", "2026-06-08T04:00:00Z"],
+  ])("startOfKstWeek(%s, %s) = %s (ISO 월요일 시작 유지)", (input, tz, exp) => {
+    expect(startOfKstWeek(d(input), tz)).toEqual(d(exp));
+  });
+  it("non-KST zone 에서도 일요일 instant 의 주 시작은 당일이 아니다 (일요일 시작 금지)", () => {
+    const sundayUtc = d("2026-06-14T12:00:00Z"); // UTC 일
+    expect(startOfKstWeek(sundayUtc, "UTC")).not.toEqual(
+      d("2026-06-14T00:00Z"),
+    );
+    expect(startOfKstWeek(sundayUtc, "UTC")).toEqual(d("2026-06-08T00:00Z"));
+  });
+
+  it.each([
+    // UTC 월 시작.
+    ["2026-06-15T12:00:00Z", "UTC", "2026-06-01T00:00:00Z"],
+    // NY 월 시작 = NY 6/1 자정 = 6/1T04:00Z.
+    ["2026-06-15T12:00:00Z", "America/New_York", "2026-06-01T04:00:00Z"],
+  ])("startOfKstMonth(%s, %s) = %s", (input, tz, exp) => {
+    expect(startOfKstMonth(d(input), tz)).toEqual(d(exp));
+  });
+});
+
+describe("getKstPeriodRange — timeZone 파라미터 반열림 [start, end) 정확성", () => {
+  // 월 가변 길이(28~31)가 non-KST zone 에서도 [start,end) 반열림으로 정확한지 (AC).
+  it.each([
+    // 28일 평년 2월 (UTC): [2/1, 3/1).
+    [
+      "monthly",
+      "2026-02-15T12:00:00Z",
+      "UTC",
+      "2026-02-01T00:00:00Z",
+      "2026-03-01T00:00:00Z",
+    ],
+    // 29일 윤년 2월 (UTC): [2/1, 3/1) — 2/29 포함.
+    [
+      "monthly",
+      "2028-02-15T12:00:00Z",
+      "UTC",
+      "2028-02-01T00:00:00Z",
+      "2028-03-01T00:00:00Z",
+    ],
+    // 31일 7월 (UTC): [7/1, 8/1).
+    [
+      "monthly",
+      "2026-07-10T12:00:00Z",
+      "UTC",
+      "2026-07-01T00:00:00Z",
+      "2026-08-01T00:00:00Z",
+    ],
+    // 연 경계 월 (UTC): [12/1, 1/1).
+    [
+      "monthly",
+      "2025-12-15T12:00:00Z",
+      "UTC",
+      "2025-12-01T00:00:00Z",
+      "2026-01-01T00:00:00Z",
+    ],
+    // daily (UTC): [6/10, 6/11).
+    [
+      "daily",
+      "2026-06-10T12:00:00Z",
+      "UTC",
+      "2026-06-10T00:00:00Z",
+      "2026-06-11T00:00:00Z",
+    ],
+    // weekly (UTC): 목 6/11 → [월 6/8, 월 6/15).
+    [
+      "weekly",
+      "2026-06-11T12:00:00Z",
+      "UTC",
+      "2026-06-08T00:00:00Z",
+      "2026-06-15T00:00:00Z",
+    ],
+  ] as const)("getKstPeriodRange(%s, %s, %s) = [%s, %s)", (g, i, tz, s, e) => {
+    expect(getKstPeriodRange(g, d(i), tz)).toEqual({ start: d(s), end: d(e) });
+  });
+
+  // 반열림 — non-KST zone 에서도 end instant 는 다음 구간의 start 가 된다 (branch — 수렴).
+  it("UTC daily end instant 는 다음 구간의 start 가 된다 (반열림 유지)", () => {
+    const { end } = getKstPeriodRange(
+      "daily",
+      d("2026-06-10T12:00:00Z"),
+      "UTC",
+    );
+    expect(getKstPeriodRange("daily", end, "UTC").start).toEqual(end);
+  });
+
+  // getKstPeriodRangeByPeriod 도 timeZone 을 흘려보낸다 (배선 branch).
+  it("getKstPeriodRangeByPeriod 가 timeZone 인자를 getKstPeriodRange 로 전달한다", () => {
+    const i = d("2026-06-10T12:00:00Z");
+    expect(getKstPeriodRangeByPeriod("day", i, "UTC")).toEqual(
+      getKstPeriodRange("daily", i, "UTC"),
+    );
+    // KST vs UTC 는 서로 다른 start 를 낸다 (timezone 지정이 실제로 결과를 바꾼다).
+    expect(getKstPeriodRangeByPeriod("day", i, "UTC").start).not.toEqual(
+      getKstPeriodRangeByPeriod("day", i).start,
+    );
+  });
+});
+
+describe("timeZone 무효 IANA 식별자 — Intl throw 전파 (ADR-0052 §Consequences 무효 tz 방어)", () => {
+  // error path: 무효 IANA 식별자 전달 시 RangeError 전파 (1+ test / 각 public 경계 함수).
+  // 주의: "asia/seoul" 류 lower-case 는 ICU 가 canonicalize 해 수용(throw 안 함) — 무효 목록 제외.
+  const invalidZones = ["Not/AZone", "Mars/Phobos", "", "Foo/Bar/Baz"];
+  it.each(invalidZones)(
+    "startOfKstDay(valid, %p) 는 RangeError (무효 tz)",
+    (tz) => {
+      expect(() => startOfKstDay(t0, tz)).toThrow(RangeError);
+    },
+  );
+  it.each(invalidZones)(
+    "getKstPeriodRange(daily, valid, %p) 는 RangeError (무효 tz)",
+    (tz) => {
+      expect(() => getKstPeriodRange("daily", t0, tz)).toThrow(RangeError);
+    },
+  );
+  it("startOfKstWeek / startOfKstMonth / byPeriod 도 무효 tz 는 RangeError", () => {
+    expect(() => startOfKstWeek(t0, "Not/AZone")).toThrow(RangeError);
+    expect(() => startOfKstMonth(t0, "Not/AZone")).toThrow(RangeError);
+    expect(() => getKstPeriodRangeByPeriod("day", t0, "Not/AZone")).toThrow(
+      RangeError,
+    );
+  });
+  // negative 조합: 무효 granularity 는 무효 tz 보다 먼저 검사돼 RangeError (granularity 게이트 우선).
+  it("무효 granularity 는 tz 검증 이전에 RangeError (게이트 순서)", () => {
+    expect(() =>
+      getKstPeriodRange("yearly" as unknown as PeriodGranularity, t0, "UTC"),
+    ).toThrow(/미지원 granularity/);
+  });
+  // negative 조합: Invalid Date + 유효 tz → assertValidDate TypeError (tz 유효해도 Date 우선).
+  it.each(badDates)(
+    "Invalid Date %p + 유효 tz(UTC) 는 TypeError (Date 검증 우선)",
+    (bad) => {
+      expect(() => startOfKstDay(bad, "UTC")).toThrow(TypeError);
+    },
+  );
+});
+
+describe("formatterCache — timezone 별 Intl.DateTimeFormat 재사용 (§Decision5 비용/drift)", () => {
+  // 같은 zone 반복 호출이 안정적으로 같은 결과 — 캐시 hit 경로 (매 호출 새 인스턴스 금지 박제).
+  it("같은 timeZone 반복 호출은 동일 결과 (캐시 hit 경로)", () => {
+    const i = d("2026-06-10T15:00:00Z");
+    const first = startOfKstDay(i, "America/New_York");
+    const second = startOfKstDay(i, "America/New_York");
+    expect(first).toEqual(second);
+  });
+});
+
 describe("formatKstIso — 저장 UTC instant → Asia/Seoul offset 명시 ISO-8601", () => {
   // happy: +09:00 offset 명시 + 서로 다른 시각대.
   it.each([

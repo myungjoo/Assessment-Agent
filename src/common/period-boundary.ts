@@ -1,6 +1,11 @@
 // ADR-0039 KST boundary helper — boundary 계산 timezone = Asia/Seoul 1 점 집중 (§Decision5).
-// 입출력 Date 는 전부 UTC instant (ADR-0012 §1 저장 UTC 보존) — KST 는 계산 내부에만 존재.
+// 입출력 Date 는 전부 UTC instant (ADR-0012 §1 저장 UTC 보존) — wall-clock 은 계산 내부에만 존재.
 // 새 dependency 0: Node 내장 Intl.DateTimeFormat 만 사용. hardcoded +09:00 산술 금지 (§Decision1).
+//
+// T-0800(ADR-0052 §Decision(c) / ADR-0051 §Decision(b)): 경계 계산 helper 들이 `timeZone`
+// 파라미터(기본값 KST)를 받도록 일반화. 기존 caller 는 default 로 100% 동작 보존(backward-compat).
+// timezone 별 Intl.DateTimeFormat 은 module-level Map 캐시로 조회(매 호출 새 인스턴스 생성 금지 —
+// ADR-0039 §Decision5 drift/비용 backbone 유지). 모든 경로는 여전히 Intl 경유(hardcoded offset 0).
 
 // IANA tz database 표준 식별자 (§Decision1 — 단순 "KST" string 박제 금지).
 export const KST_TIMEZONE = "Asia/Seoul";
@@ -21,17 +26,29 @@ type WallClock = Record<
   number
 >;
 
-// Intl formatter 는 생성 비용이 커 module-level 캐시. h23 = 자정을 "24" 아닌 "0" 으로.
-const kstFormatter = new Intl.DateTimeFormat("en-US", {
-  timeZone: KST_TIMEZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hourCycle: "h23",
-});
+// Intl formatter 는 생성 비용이 커 module-level Map 캐시(timezone 키). h23 = 자정을 "24" 아닌
+// "0" 으로. timezone 별 formatter 를 lazy 생성 후 재사용 — 매 호출 새 인스턴스 금지(§Decision5).
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+
+// 주어진 timeZone 의 wall-clock formatter 를 캐시에서 조회(없으면 생성). 무효 IANA 식별자는
+// Intl.DateTimeFormat 생성자가 RangeError throw — 그대로 전파(ADR-0052 §Consequences 무효 tz 방어).
+function getFormatter(timeZone: string): Intl.DateTimeFormat {
+  let formatter = formatterCache.get(timeZone);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    formatterCache.set(timeZone, formatter);
+  }
+  return formatter;
+}
 
 // Invalid Date / 비-Date 입력은 명시적 error (R-112 negative 분기).
 function assertValidDate(value: Date, fnName: string): void {
@@ -40,64 +57,89 @@ function assertValidDate(value: Date, fnName: string): void {
   }
 }
 
-// UTC instant → Asia/Seoul wall-clock (Intl 경유 — offset 산술 0).
-function toKstWallClock(instant: Date): WallClock {
+// UTC instant → 주어진 timeZone 의 wall-clock (Intl 경유 — offset 산술 0). 기본 KST.
+function toWallClock(
+  instant: Date,
+  timeZone: string = KST_TIMEZONE,
+): WallClock {
   const acc: Partial<Record<string, number>> = {};
-  for (const { type, value } of kstFormatter.formatToParts(instant)) {
+  for (const { type, value } of getFormatter(timeZone).formatToParts(instant)) {
     if (type !== "literal") acc[type] = Number(value);
   }
   return acc as unknown as WallClock;
 }
 
-// instant 시점의 Asia/Seoul UTC offset(ms) — IANA rule 변경에 자동 대응하는 산출식.
-function kstOffsetMs(instant: Date): number {
-  const w = toKstWallClock(instant);
+// instant 시점의 해당 timeZone UTC offset(ms) — IANA rule 변경에 자동 대응하는 산출식. 기본 KST.
+function offsetMs(instant: Date, timeZone: string = KST_TIMEZONE): number {
+  const w = toWallClock(instant, timeZone);
   return (
     Date.UTC(w.year, w.month - 1, w.day, w.hour, w.minute, w.second) -
     Math.floor(instant.getTime() / 1000) * 1000
   );
 }
 
-// Asia/Seoul wall-clock → UTC instant (t = [hour, minute, second, ms] 선택).
+// 해당 timeZone wall-clock → UTC instant (t = [hour, minute, second, ms] 선택). 기본 KST.
 // guess-and-correct 2 회 수렴 — DST 류 rule 변경 경계까지 일반 대응 (표준 기법).
 // Date.UTC 의 0~99년 → 1900+y 매핑은 미방어 — parse 경로는 round-trip 이 거부하고, Intl 산출
 // wall-clock 은 도메인(현대 연도)상 0~99 도달 불가 (본 파일 모든 Date.UTC 달력 산술 공통).
-function kstToUtc(y: number, mo: number, d: number, t: number[] = []): Date {
+function wallClockToUtc(
+  y: number,
+  mo: number,
+  d: number,
+  t: number[] = [],
+  timeZone: string = KST_TIMEZONE,
+): Date {
   const [h = 0, mi = 0, s = 0, ms = 0] = t;
   const candidate = Date.UTC(y, mo - 1, d, h, mi, s, ms);
-  const firstPass = candidate - kstOffsetMs(new Date(candidate));
-  return new Date(candidate - kstOffsetMs(new Date(firstPass)));
+  const firstPass = candidate - offsetMs(new Date(candidate), timeZone);
+  return new Date(candidate - offsetMs(new Date(firstPass), timeZone));
 }
 
-// instant 가 속한 KST 달력일의 자정 (R-61 "자정" = KST 자정, §Decision3 (a)).
-export function startOfKstDay(instant: Date): Date {
+// instant 가 속한 달력일의 자정 (R-61 "자정" = 해당 timeZone 자정, §Decision3 (a)). 기본 KST.
+// timeZone 미지정 시 기존 KST caller 동작 100% 보존(backward-compat, ADR-0052 §Decision(c)).
+export function startOfKstDay(
+  instant: Date,
+  timeZone: string = KST_TIMEZONE,
+): Date {
   assertValidDate(instant, "startOfKstDay");
-  const w = toKstWallClock(instant);
-  return kstToUtc(w.year, w.month, w.day);
+  const w = toWallClock(instant, timeZone);
+  return wallClockToUtc(w.year, w.month, w.day, [], timeZone);
 }
 
-// instant 가 속한 KST 주의 시작 = KST 월요일 00:00 (§Decision3 (b) — 일요일 시작 금지).
-export function startOfKstWeek(instant: Date): Date {
+// instant 가 속한 주의 시작 = 해당 timeZone 월요일 00:00 (§Decision3 (b) — 일요일 시작 금지).
+// ISO 8601 주 시작=월요일 계약은 non-KST zone 에서도 유지된다. 기본 KST.
+export function startOfKstWeek(
+  instant: Date,
+  timeZone: string = KST_TIMEZONE,
+): Date {
   assertValidDate(instant, "startOfKstWeek");
-  const w = toKstWallClock(instant);
+  const w = toWallClock(instant, timeZone);
   // 달력일 요일 도출 — 달력 산술이므로 Date.UTC 사용은 offset 산술이 아님. 월=0 … 일=6.
   const day = new Date(Date.UTC(w.year, w.month - 1, w.day));
   day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
-  return kstToUtc(
+  return wallClockToUtc(
     day.getUTCFullYear(),
     day.getUTCMonth() + 1,
     day.getUTCDate(),
+    [],
+    timeZone,
   );
 }
 
-// instant 가 속한 KST 월의 시작 = KST 매월 1일 00:00 (§Decision3 (c)).
-export function startOfKstMonth(instant: Date): Date {
+// instant 가 속한 월의 시작 = 해당 timeZone 매월 1일 00:00 (§Decision3 (c)). 기본 KST.
+export function startOfKstMonth(
+  instant: Date,
+  timeZone: string = KST_TIMEZONE,
+): Date {
   assertValidDate(instant, "startOfKstMonth");
-  const w = toKstWallClock(instant);
-  return kstToUtc(w.year, w.month, 1);
+  const w = toWallClock(instant, timeZone);
+  return wallClockToUtc(w.year, w.month, 1, [], timeZone);
 }
 
-const PERIOD_STARTS: Record<PeriodGranularity, (instant: Date) => Date> = {
+const PERIOD_STARTS: Record<
+  PeriodGranularity,
+  (instant: Date, timeZone?: string) => Date
+> = {
   daily: startOfKstDay,
   weekly: startOfKstWeek,
   monthly: startOfKstMonth,
@@ -105,21 +147,29 @@ const PERIOD_STARTS: Record<PeriodGranularity, (instant: Date) => Date> = {
 
 // granularity + 임의 instant → 반열림 { start, end }. end = start + 1 granularity
 // (ADR-0035 §Decision3 정합). 월 28~31 일 가변 길이는 Date.UTC 달력 overflow 로 도출.
+// timeZone 미지정 시 기존 KST 동작 보존(backward-compat, ADR-0052 §Decision(c)). 기본 KST.
 export function getKstPeriodRange(
   g: PeriodGranularity,
   instant: Date,
+  timeZone: string = KST_TIMEZONE,
 ): PeriodRange {
   // Object.hasOwn — prototype 상속 키 ("constructor" 등) 의 우회 진입 차단.
   if (!Object.hasOwn(PERIOD_STARTS, g)) {
     throw new RangeError(`getKstPeriodRange: 미지원 granularity "${g}"`);
   }
   assertValidDate(instant, "getKstPeriodRange");
-  const start = PERIOD_STARTS[g](instant);
-  const w = toKstWallClock(start);
+  const start = PERIOD_STARTS[g](instant, timeZone);
+  const w = toWallClock(start, timeZone);
   const end =
     g === "monthly"
-      ? kstToUtc(w.year, w.month + 1, 1)
-      : kstToUtc(w.year, w.month, w.day + (g === "daily" ? 1 : 7));
+      ? wallClockToUtc(w.year, w.month + 1, 1, [], timeZone)
+      : wallClockToUtc(
+          w.year,
+          w.month,
+          w.day + (g === "daily" ? 1 : 7),
+          [],
+          timeZone,
+        );
   return { start, end };
 }
 
@@ -139,9 +189,11 @@ export const PERIOD_TO_GRANULARITY: Record<string, PeriodGranularity> = {
 // snap 전 명시적 RangeError 로 거부해 silent Invalid coordinate 를 만들지 않는다
 // (controller 배선이 raw `new Date(periodStart)` 대신 본 wrapper 로 좌표를 정규화).
 // instant 가 Invalid Date 면 내부 `getKstPeriodRange` 의 assertValidDate TypeError 전파.
+// timeZone 미지정 시 기존 KST 동작 보존(backward-compat, ADR-0052 §Decision(c)). 기본 KST.
 export function getKstPeriodRangeByPeriod(
   period: string,
   instant: Date,
+  timeZone: string = KST_TIMEZONE,
 ): PeriodRange {
   // Object.hasOwn — prototype 상속 키("constructor" 등)의 우회 진입 차단.
   if (!Object.hasOwn(PERIOD_TO_GRANULARITY, period)) {
@@ -149,14 +201,14 @@ export function getKstPeriodRangeByPeriod(
       `getKstPeriodRangeByPeriod: 미지원 period "${period}"`,
     );
   }
-  return getKstPeriodRange(PERIOD_TO_GRANULARITY[period], instant);
+  return getKstPeriodRange(PERIOD_TO_GRANULARITY[period], instant, timeZone);
 }
 
 // ── ADR-0039 §Decision4/§Decision5 (iv) view-layer formatter ──────────────────
 // 저장 UTC instant → Asia/Seoul 기준 사람-가독 표시 string. §Decision4 "조회 endpoint
 // 응답 / Web UI 표시 default = Asia/Seoul". §Decision2/ADR-0012 §1 저장값(UTC) 불변 —
-// formatter 는 입력 Date 를 변형하지 않고 string 만 산출한다. 기존 kstFormatter /
-// toKstWallClock / kstOffsetMs / KST_TIMEZONE 재사용 (새 Intl 인스턴스 중복 생성 0 /
+// formatter 는 입력 Date 를 변형하지 않고 string 만 산출한다. 기존 getFormatter /
+// toWallClock / offsetMs / KST_TIMEZONE(default) 재사용 (새 Intl 인스턴스 중복 생성 0 /
 // hardcoded +09:00 산술 0 — §Decision5 drift 차단 backbone, §Decision1 IANA single source).
 
 // 2 자리 zero-pad — wall-clock 구성요소 표시용.
@@ -165,9 +217,11 @@ const pad2 = (v: number) => String(v).padStart(2, "0");
 // 저장 UTC instant → Asia/Seoul wall-clock 표시 string "YYYY-MM-DD HH:mm:ss"
 // (예: 2026-06-10T06:00:00Z → "2026-06-10 15:00:00"). h23 hourCycle 정합으로 자정은
 // "24" 아닌 "00" 으로 표시된다. Invalid Date / 비-Date → 명시 TypeError (R-112 negative).
+// T-0800 Out of Scope — display formatter 의 timeZone 파라미터화는 slice(2b). 여기선 KST 고정
+// (내부 helper 의 default 로 KST 유지). formatter timeZone 일반화는 후속 slice 로 분리.
 export function formatKstDisplay(instant: Date): string {
   assertValidDate(instant, "formatKstDisplay");
-  const w = toKstWallClock(instant);
+  const w = toWallClock(instant);
   return (
     `${w.year}-${pad2(w.month)}-${pad2(w.day)} ` +
     `${pad2(w.hour)}:${pad2(w.minute)}:${pad2(w.second)}`
@@ -175,12 +229,12 @@ export function formatKstDisplay(instant: Date): string {
 }
 
 // instant 시점의 Asia/Seoul offset(ms) → "+09:00" 류 ISO offset 표기로 직렬화.
-// kstOffsetMs 재사용 — hardcoded +09:00 산술 0 (IANA rule 변경 자동 대응).
+// offsetMs(default KST) 재사용 — hardcoded +09:00 산술 0 (IANA rule 변경 자동 대응).
 // sign 분기는 방어 깊이 — Asia/Seoul 은 도메인상 항상 +offset (음수 도달 불가) 이나,
 // 미래 IANA rule / 타 zone 재사용 시 부호를 올바르게 산출하도록 일반식으로 둔다
 // (음수 분기는 본 zone 에서 unreachable — coverage 미도달은 설계상 정상).
 function kstOffsetLabel(instant: Date): string {
-  const offMin = Math.round(kstOffsetMs(instant) / 60000);
+  const offMin = Math.round(offsetMs(instant) / 60000);
   const sign = offMin < 0 ? "-" : "+";
   const abs = Math.abs(offMin);
   return `${sign}${pad2(Math.floor(abs / 60))}:${pad2(abs % 60)}`;
@@ -194,7 +248,7 @@ function kstOffsetLabel(instant: Date): string {
 // 명시 TypeError. 보조 formatter (§Decision4 offset-명시 허용 경로).
 export function formatKstIso(instant: Date): string {
   assertValidDate(instant, "formatKstIso");
-  const w = toKstWallClock(instant);
+  const w = toWallClock(instant);
   const date = `${w.year}-${pad2(w.month)}-${pad2(w.day)}`;
   const time = `${pad2(w.hour)}:${pad2(w.minute)}:${pad2(w.second)}`;
   return `${date}T${time}${kstOffsetLabel(instant)}`;
@@ -239,5 +293,6 @@ export function parseKstPeriodInput(input: string): Date {
     }
     return result;
   }
-  return kstToUtc(year, month, day, [hour, minute, second, milli]);
+  // T-0800 Out of Scope — R-9 입력 해석의 timeZone 파라미터화는 slice(2b/3). 여기선 KST 해석 고정.
+  return wallClockToUtc(year, month, day, [hour, minute, second, milli]);
 }
