@@ -27,6 +27,7 @@ import { RolesGuard } from "../auth/roles.guard";
 import type { LlmProviderConfigResolver } from "../llm/llm-provider-config-resolver.service";
 import type { PersonWithIdentities } from "../user/person.repository";
 import type { PersonService } from "../user/person.service";
+import type { UserService } from "../user/user.service";
 
 import { AssessmentEvaluationController } from "./assessment-evaluation.controller";
 import type { IntendedPeriodCoordinatesInput } from "./domain/evaluation-intended-period-coordinates";
@@ -130,6 +131,13 @@ function makeController(
       );
     }),
   } as unknown as LlmProviderConfigResolver;
+  // userService — evaluate() 경로 test 에서 미사용이라 throw mock(period() 전용 timezone
+  // 조회 source 라 evaluate() 가 실수로 호출하면 즉시 실패해 격리 위반을 catch).
+  const userService = {
+    findById: jest.fn(() => {
+      throw new Error("evaluate() 는 userService 를 호출하면 안 된다");
+    }),
+  } as unknown as UserService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -140,6 +148,7 @@ function makeController(
       unevaluatedFillPlanner,
       unevaluatedFillRunOrchestrator,
       llmProviderConfigResolver,
+      userService,
     ),
     evaluateSpy,
     persistSpy,
@@ -155,11 +164,16 @@ function makePeriodController(opts: {
   generateImpl?: (...args: unknown[]) => Promise<EvaluationResult[]>;
   adminImpl?: (...args: unknown[]) => Promise<PeriodBridgeAdminPersistResult>;
   findPersonImpl?: (...args: unknown[]) => Promise<PersonWithIdentities>;
+  // findUserImpl — userService.findById mock 구현(T-0802). 기본은 요청 User row 를
+  // KST timezone 으로 resolve 한다. 비-KST zone / NotFoundException reject 시나리오는
+  // 각 test 가 impl 을 주입해 timezone 배선 / error 전파 분기를 검증한다.
+  findUserImpl?: (...args: unknown[]) => Promise<{ timezone: string }>;
 }): {
   controller: AssessmentEvaluationController;
   generateSpy: jest.Mock;
   adminSpy: jest.Mock;
   findPersonSpy: jest.Mock;
+  findUserSpy: jest.Mock;
 } {
   const generateSpy = jest.fn(
     opts.generateImpl ?? (async () => [] as EvaluationResult[]),
@@ -174,6 +188,11 @@ function makePeriodController(opts: {
           id: "person-1",
           serviceIdentities: [{ service: "github", externalId: "octocat" }],
         }) as unknown as PersonWithIdentities),
+  );
+  // findUserSpy — userService.findById mock. 기본은 KST timezone row 를 resolve(기존
+  // KST 동작 보존). timezone 필드만 있으면 controller 배선 검증에 충분해 최소 User shape.
+  const findUserSpy = jest.fn(
+    opts.findUserImpl ?? (async () => ({ timezone: "Asia/Seoul" })),
   );
   const ephemeralBridge = {
     generateEphemeral: generateSpy,
@@ -217,6 +236,9 @@ function makePeriodController(opts: {
       );
     }),
   } as unknown as LlmProviderConfigResolver;
+  const userService = {
+    findById: findUserSpy,
+  } as unknown as UserService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -227,10 +249,12 @@ function makePeriodController(opts: {
       unevaluatedFillPlanner,
       unevaluatedFillRunOrchestrator,
       llmProviderConfigResolver,
+      userService,
     ),
     generateSpy,
     adminSpy,
     findPersonSpy,
+    findUserSpy,
   };
 }
 
@@ -300,6 +324,14 @@ function makeFillController(
       );
     }),
   } as unknown as LlmProviderConfigResolver;
+  // userService — planUnevaluatedFill() 경로 test 에서 미사용이라 throw mock.
+  const userService = {
+    findById: jest.fn(() => {
+      throw new Error(
+        "planUnevaluatedFill() 는 userService 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as UserService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -310,6 +342,7 @@ function makeFillController(
       unevaluatedFillPlanner,
       unevaluatedFillRunOrchestrator,
       llmProviderConfigResolver,
+      userService,
     ),
     plannerSpy,
   };
@@ -1503,6 +1536,167 @@ describe("AssessmentEvaluationController (unit — R-9 입력 parseKstPeriodInpu
 });
 
 // =======================================================================
+// POST /api/assessment-evaluation/period — 요청 User.timezone 배선
+// (T-0802, ADR-0052 §Decision(b)/(d) + §Follow-ups(3)). period() 가 요청
+// principal sub 으로 UserService.findById(sub) 를 호출해 그 row 의 timezone 으로
+// offset 미명시 입력을 해석함을 검증한다. offset 미명시 입력이 비-KST zone 에서 KST
+// 해석과 다른 instant 로 snap 되는 것을 User/Admin 분기 각각 확인 + error path
+// (findById reject 전파 / sub 부재 KST fallback) + negative(우선순위 보존 / 무효 tz)
+// 각 1+. R-112 4 종 + negative cases 충분 cover.
+// =======================================================================
+describe("AssessmentEvaluationController.period (unit — 요청 User.timezone 배선, ADR-0052 §Decision(b)/(d))", () => {
+  // happy(User 분기): 요청 User.timezone = America/New_York 일 때 offset 미명시
+  // periodStart("2026-06-10T15:00", day)가 그 zone(EDT -04:00)으로 해석된다 →
+  // 2026-06-10T19:00:00Z. day boundary snap 은 New_York 자정(2026-06-10 00:00 EDT =
+  // 2026-06-10T04:00:00Z)으로 수렴. KST 해석(2026-06-10T06:00Z → KST 자정 boundary
+  // 2026-06-09T15:00Z)과 명백히 다른 instant 임을 검증(비-KST zone 배선 효과).
+  it("User 분기 — 요청 User.timezone(America/New_York)으로 offset 미명시 입력을 해석해 KST 와 다른 since 로 위임한다 (happy — User 비-KST)", async () => {
+    const { controller, generateSpy, findUserSpy } = makePeriodController({
+      findUserImpl: async () => ({ timezone: "America/New_York" }),
+    });
+
+    await controller.period(
+      makePeriodDto({ periodStart: "2026-06-10T15:00", period: "day" }),
+      userActor("person-1"),
+    );
+
+    // 요청 principal sub 으로 timezone 조회(정확히 1 회).
+    expect(findUserSpy).toHaveBeenCalledTimes(1);
+    expect(findUserSpy).toHaveBeenCalledWith("person-1");
+    // since = New_York 달력일 자정으로 snap(2026-06-10 00:00 EDT = 04:00Z). KST 해석의
+    // boundary(2026-06-09T15:00Z)와 다르다 — 비-KST zone 배선이 실제 instant 를 바꾼다.
+    const since = generateSpy.mock.calls[0][1] as { since: string };
+    expect(since.since).toBe("2026-06-10T04:00:00.000Z");
+    expect(since.since).not.toBe("2026-06-09T15:00:00.000Z");
+  });
+
+  // happy(Admin 분기): Admin 은 임의 personId(target-person)를 target 하나 입력 해석
+  // zone 은 **요청 주체(로그인 Admin sub="admin-1")** 의 timezone(America/New_York).
+  // context.periodStart / since 둘 다 New_York 해석 instant 로 snap.
+  it("Admin 분기 — 임의 personId target 이어도 요청 주체(Admin) timezone 으로 입력을 해석한다 (happy — Admin 비-KST, 요청 주체 기준)", async () => {
+    const { controller, adminSpy, findUserSpy } = makePeriodController({
+      findUserImpl: async () => ({ timezone: "America/New_York" }),
+    });
+
+    await controller.period(
+      makePeriodDto({
+        personId: "target-person",
+        periodStart: "2026-06-10T15:00",
+        period: "day",
+      }),
+      adminActor,
+    );
+
+    // 요청 주체(Admin sub="admin-1")로 timezone 조회 — target personId 가 아니다.
+    expect(findUserSpy).toHaveBeenCalledTimes(1);
+    expect(findUserSpy).toHaveBeenCalledWith("admin-1");
+    // since + context.periodStart 둘 다 New_York 자정 boundary(2026-06-10T04:00Z).
+    const since = adminSpy.mock.calls[0][1] as { since: string };
+    const ctx = adminSpy.mock.calls[0][3] as { periodStart: Date };
+    expect(since.since).toBe("2026-06-10T04:00:00.000Z");
+    expect(ctx.periodStart.toISOString()).toBe("2026-06-10T04:00:00.000Z");
+    // KST 해석(2026-06-09T15:00Z)과 다르다.
+    expect(ctx.periodStart.toISOString()).not.toBe("2026-06-09T15:00:00.000Z");
+  });
+
+  // branch(요청 User.timezone = KST): 요청 User.timezone 이 Asia/Seoul 이면 기존 KST
+  // 해석과 동일(backward-compat) — offset 미명시 "2026-06-10T15:00"(day)이 KST 15시로
+  // 해석돼 KST 자정 boundary(2026-06-09T15:00Z)로 snap.
+  it("요청 User.timezone 이 KST 면 기존 KST 해석과 동일한 since (branch — KST zone backward-compat)", async () => {
+    const { controller, generateSpy } = makePeriodController({
+      findUserImpl: async () => ({ timezone: "Asia/Seoul" }),
+    });
+
+    await controller.period(
+      makePeriodDto({ periodStart: "2026-06-10T15:00", period: "day" }),
+      userActor("person-1"),
+    );
+
+    const since = generateSpy.mock.calls[0][1] as { since: string };
+    expect(since.since).toBe("2026-06-09T15:00:00.000Z");
+  });
+
+  // error path: userService.findById 가 reject(NotFoundException)하면 그 error 가 raw
+  // 전파(swallow 0)되고 이후 위임(generateEphemeral)은 미호출.
+  it("userService.findById reject(NotFoundException)는 raw 전파 + generateEphemeral 미호출 (error path — findById reject 전파)", async () => {
+    const { controller, generateSpy } = makePeriodController({
+      findUserImpl: async () => {
+        throw new NotFoundException("User person-1 가 존재하지 않습니다.");
+      },
+    });
+
+    await expect(
+      controller.period(makePeriodDto(), userActor("person-1")),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // flow / branch: principal sub 부재(undefined) 이론 경로 — Admin 분기(self-only 미적용)
+  // 로 진입하되 role="Admin" + sub=undefined 인 비정상 principal 을 재현. timezone 조회는
+  // findById 를 호출하지 않고 KST fallback 으로 진행(기존 KST 동작 보존).
+  it("principal sub 부재(Admin, sub undefined) 시 findById 미호출 + KST fallback 으로 진행한다 (flow — sub 부재 fallback)", async () => {
+    const { controller, adminSpy, findUserSpy } = makePeriodController({});
+
+    await controller.period(
+      makePeriodDto({
+        personId: "target-person",
+        periodStart: "2026-06-10T15:00",
+        period: "day",
+      }),
+      { sub: undefined, role: "Admin" } as unknown as JwtPayload,
+    );
+
+    // sub 부재 → findById 미호출(불필요한 DB read 0), KST fallback.
+    expect(findUserSpy).not.toHaveBeenCalled();
+    // KST 해석 boundary(2026-06-09T15:00Z)로 snap.
+    const ctx = adminSpy.mock.calls[0][3] as { periodStart: Date };
+    expect(ctx.periodStart.toISOString()).toBe("2026-06-09T15:00:00.000Z");
+  });
+
+  // negative(우선순위 보존): self-only 위반 User 분기가 timezone 조회보다 **먼저** 403
+  // 으로 차단(회귀 0) — findById 미호출.
+  it("self-only 위반 User 분기는 timezone 조회 전에 403 차단 + findById 미호출 (negative — 우선순위 보존)", async () => {
+    const { controller, findUserSpy } = makePeriodController({});
+
+    await expect(
+      controller.period(
+        makePeriodDto({ personId: "person-1" }),
+        userActor("attacker"),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(findUserSpy).not.toHaveBeenCalled();
+  });
+
+  // negative(우선순위 보존): 재평가 fail-closed(비-Admin reevaluate:true)가 timezone
+  // 조회 전에 403 으로 차단 — findById 미호출.
+  it("재평가 fail-closed(비-Admin reevaluate:true)는 timezone 조회 전에 403 차단 + findById 미호출 (negative — 재평가 우선순위)", async () => {
+    const { controller, findUserSpy } = makePeriodController({});
+
+    await expect(
+      controller.period(
+        makePeriodDto({ reevaluate: true }),
+        userActor("person-1"),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(findUserSpy).not.toHaveBeenCalled();
+  });
+
+  // negative(무효 tz): User row 의 timezone 이 무효 IANA 식별자면 helper
+  // (Intl.DateTimeFormat)의 RangeError 가 전파 + 위임 미호출(저장 경로 검증은 본 task 밖,
+  // 읽기 경로는 helper RangeError 로 방어).
+  it("User row 의 timezone 이 무효 IANA 면 helper RangeError 전파 + 위임 미호출 (negative — 무효 tz)", async () => {
+    const { controller, generateSpy } = makePeriodController({
+      findUserImpl: async () => ({ timezone: "Not/A_Zone" }),
+    });
+
+    await expect(
+      controller.period(makePeriodDto(), userActor("person-1")),
+    ).rejects.toThrow(RangeError);
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+});
+
+// =======================================================================
 // POST /api/assessment-evaluation/period — reevaluate dispatch
 // (T-0336, ADR-0038 slice 3, §Decision1 flag dispatch + §Decision4 (ii)
 // User fail-closed reject). Admin true/false 분기 + User true/false 분기 +
@@ -2154,6 +2348,14 @@ function makeRunController(
       );
     }),
   } as unknown as EvaluationUnevaluatedFillPlanner;
+  // userService — runUnevaluatedFill() 경로 test 에서 미사용이라 throw mock.
+  const userService = {
+    findById: jest.fn(() => {
+      throw new Error(
+        "runUnevaluatedFill() 는 userService 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as UserService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -2164,6 +2366,7 @@ function makeRunController(
       unevaluatedFillPlanner,
       unevaluatedFillRunOrchestrator,
       llmProviderConfigResolver,
+      userService,
     ),
     runSpy,
     resolveSpy,
