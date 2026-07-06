@@ -2,7 +2,9 @@
 id: T-0802
 title: R-9 POST /period 가 요청 User.timezone 을 KST 입력 해석에 배선
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-06T12:12:00Z
+result: "MERGED PR #716 (e98564d8, round2). period() 에 UserService 주입 + resolveRequestTimeZone(sub→findById→timezone, 부재 KST fallback), normalizeKstPeriodStart timeZone 일반화, User/Admin 배선. round1 CI FAIL(e2e actor truncate 404)→round2 e2e reseedAuthenticatedActors fix. 9005 test pass, controller 100% line/func. ADR-0052 timezone 배선 stream 완결."
 commitMode: pr
 coversReq: [REQ-043, REQ-034, REQ-031]
 dependsOn: [T-0801]
