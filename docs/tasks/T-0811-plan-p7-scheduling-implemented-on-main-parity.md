@@ -2,7 +2,7 @@
 id: T-0811
 title: PLAN.md P7 scheduling/operations bullet 4종 implemented-on-main checkbox 정합
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-072, REQ-073, REQ-074, REQ-050]
 estimatedDiff: 8
@@ -34,10 +34,10 @@ T-0809(P5 detection/adjustment)·T-0810(api.md UC-06) 가 교정한 "PLAN↔ship
 
 ## Acceptance Criteria
 
-- [ ] `docs/PLAN.md` L132(R-72)·L133(R-73)·L134(R-74)·L135(R-50) 4 bullet 의 `- [ ]` 를 `- [x]` 로 flip.
-- [ ] 각 bullet 끝에 **implemented-on-main** 절 append — 실 파일 경로 + symbol + ADR-0042 참조. bullet 99~101/103~105(T-0809) 포맷 mirror. 예: R-72 = `[cron-schedule.controller.ts](../src/scheduling/cron-schedule.controller.ts)` GET/PUT/DELETE(":name")/POST("trigger") route.
-- [ ] append 하는 모든 링크 경로·symbol 을 구현 직전 `git grep`/`ls` 로 origin/main 실존 재확인(T-0809 규율). 실존 안 하는 경로 링크 금지.
-- [ ] R-50 은 "일반 인원 매주 1회 평가와 분리된 신규 인원 1년치(52주) 1회 backfill" 이 `backfill-plan.ts`/`backfill-runner.service.ts` 로 shipped 임을 절에 명시.
+- [x] `docs/PLAN.md` L132(R-72)·L133(R-73)·L134(R-74)·L135(R-50) 4 bullet 의 `- [ ]` 를 `- [x]` 로 flip.
+- [x] 각 bullet 끝에 **implemented-on-main** 절 append — 실 파일 경로 + symbol + ADR-0042 참조. bullet 99~101/103~105(T-0809) 포맷 mirror. 예: R-72 = `[cron-schedule.controller.ts](../src/scheduling/cron-schedule.controller.ts)` GET/PUT/DELETE(":name")/POST("trigger") route.
+- [x] append 하는 모든 링크 경로·symbol 을 구현 직전 `git grep`/`ls` 로 origin/main 실존 재확인(T-0809 규율). 실존 안 하는 경로 링크 금지.
+- [x] R-50 은 "일반 인원 매주 1회 평가와 분리된 신규 인원 1년치(52주) 1회 backfill" 이 `backfill-plan.ts`/`backfill-runner.service.ts` 로 shipped 임을 절에 명시.
 - [ ] R-73(manual trigger) 은 cron-schedule `POST("trigger")` + backfill `POST("backfill/:personId")` 두 경로가 함께 cover 함을 명시(중복 아님 — 다른 대상의 수동 트리거).
 - [ ] append-only 규율 — 기존 REQ 참조·설명 본문·헤더는 보존, checkbox flip + implemented-on-main 절 추가만.
 - [ ] R-57(import/export/restore)·R-91/R-92(성능 검증) bullet 은 **건드리지 않는다**(Out of Scope — restore leg 산발/perf test 부재로 shipped 판정 보류).
