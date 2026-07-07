@@ -129,10 +129,10 @@ P3 진행 중 발견된 진척 status quo + P4 진입 trigger 의사결정 가�
 
 > **오너 승인 (2026-07-07, Q-0051)**: P7 진입 + `@nestjs/schedule` 새 외부 dependency 승인(§5 새-dep 게이트 해소). ADR 선행 후 SchedulerModule 구현 — cron 주기 지정(R-72)·manual trigger(R-73)·재수집(R-74). 이 backend 계약이 P6 SchedulePanel defer 도 연쇄 해소. 권장 착수 순위 = 옵션 5 다음(2순위).
 
-- [ ] Admin이 cron 주기 지정 (예: KST 02:00) (R-72)
-- [ ] Manual trigger (R-73)
-- [ ] 최근 N일 결과 manual delete → 재수집 (예: 1일/7일/30일, R-74)
-- [ ] **신규 인원 추가 시 1년치 평가 1회** (R-50) — 일반 인원의 매일 1주일 단위 평가와 분리
+- [x] Admin이 cron 주기 지정 (예: KST 02:00) (R-72). **implemented-on-main**: [`cron-schedule.controller.ts`](../src/scheduling/cron-schedule.controller.ts) `@Get()`/`@Put()`/`@Delete(":name")`/`@Post("trigger")` route (cron 조회·upsert·삭제·즉시 트리거). [ADR-0042](decisions/ADR-0042-nestjs-schedule-adoption.md) (`@nestjs/schedule` 도입 ACCEPTED).
+- [x] Manual trigger (R-73). **implemented-on-main**: cron-schedule [`@Post("trigger")`](../src/scheduling/cron-schedule.controller.ts) (스케줄 즉시 실행) + backfill [`@Post("backfill/:personId")`](../src/scheduling/backfill.controller.ts) (신규 인원 backfill 수동 실행) 두 경로가 각각 다른 대상의 수동 트리거를 cover (중복 아님). [ADR-0042](decisions/ADR-0042-nestjs-schedule-adoption.md).
+- [x] 최근 N일 결과 manual delete → 재수집 (예: 1일/7일/30일, R-74). **implemented-on-main**: [`recent-deletion.controller.ts`](../src/scheduling/recent-deletion.controller.ts) `@Post("recent-deletion/:personId")` route (최근 N일 window 산출 후 삭제→재수집). [ADR-0042](decisions/ADR-0042-nestjs-schedule-adoption.md).
+- [x] **신규 인원 추가 시 1년치 평가 1회** (R-50) — 일반 인원의 매일 1주일 단위 평가와 분리. **implemented-on-main**: [`buildBackfillPlan`](../src/scheduling/backfill-plan.ts) (`DEFAULT_WEEKS=52`≈1년 주 단위 window 산출, 매주 1회 평가와 분리된 신규 인원 1회 backfill) + [`runBackfill`](../src/scheduling/backfill-runner.service.ts) (`BackfillRunnerService` 1회 실행). [ADR-0042](decisions/ADR-0042-nestjs-schedule-adoption.md).
 - [ ] Import / export / restore (R-57) — 평가 자료 backup/restore
 - [ ] **성능 검증**:
   - 100~200명 / 50~100 repo / ~1000 confluence page / **1h 이내** (R-91)
