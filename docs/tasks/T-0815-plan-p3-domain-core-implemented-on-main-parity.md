@@ -2,7 +2,8 @@
 id: T-0815
 title: PLAN.md P3 domain-core bullet 10종 implemented-on-main checkbox 정합
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-07T19:39Z
 commitMode: direct
 coversReq: [REQ-047, REQ-048, REQ-051, REQ-059, REQ-063, REQ-084, REQ-086, REQ-032]
 estimatedDiff: 14
@@ -60,3 +61,10 @@ T-0809(P5 detection/adjustment)·T-0811(P7 scheduling)·T-0812~0814(P5 단위/�
 ## Follow-ups
 
 (비어있음 — sub-agent 가 관련 작업 발견 시 여기 append)
+
+## 완료 요약 (DONE)
+
+- **완료 시각**: 2026-07-07T19:39Z (cron@AKIHA-1e0ae7f4-9838 fire).
+- **결과**: `docs/PLAN.md` L53~62 P3 domain-core bullet 10종을 `[ ]`→`[x]` flip + 각 bullet 에 implemented-on-main 절(실 파일 경로 링크 + symbol + ADR) append (+10/-10, 1 파일). commit 406812b0 direct main push(fast-forward, source=target=main).
+- **실존 재확인**: 참조한 13개 src/prisma 경로 + ADR-0002/ADR-0006(파일명 `ADR-0006-assessment-data-model.md` 확정) 전부 origin/main 실존 grep/ls 확인. false-positive flip 0(10 bullet 전부 shipped 명확).
+- **패턴**: T-0809/0811~0814 PLAN↔shipped-code drift-reconciliation mirror — 미래 planner 의 done-bullet 재큐잉(make-work) 차단.
