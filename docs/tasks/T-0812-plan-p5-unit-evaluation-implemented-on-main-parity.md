@@ -2,7 +2,9 @@
 id: T-0812
 title: PLAN.md P5 단위 commit/document 평가 bullet(96) implemented-on-main checkbox 정합
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-07T16:40:27Z
+resultCommit: a72e167c
 commitMode: direct
 coversReq: [REQ-032]
 estimatedDiff: 4
@@ -52,4 +54,12 @@ PLAN.md P5 phase 의 bullet 96 "단위 commit/document 평가 (난이도·기여
 
 ## Follow-ups
 
-(생성 시 비어 있음)
+(없음 — bullet 96 단독 정합 완결. bullet 97/98 등 잔여 checkbox 는 timezone/R-61 얽힘으로 별도 실측 task 필요 시 planner 가 큐잉.)
+
+## Result
+
+DONE (2026-07-07T16:40:27Z, cron@aa-local-c58a03d6-6180 fire). docs/PLAN.md
+bullet96 `[ ]`→`[x]` flip + implemented-on-main 절 append (+1/-1). 구현 경로
+`EvaluationScoringService.score` → `classifyNarrative` + `calculateEvaluationVolume`
+compose → `EvaluationResult` 5필드(REQ-032) + ADR-0032 명시. 각 링크 경로/symbol
+origin/main 실측(git grep/ls-tree) 재확인. bullet 97~110 무손상. direct commit a72e167c.
