@@ -33,7 +33,7 @@ historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-00
 | 영역 | 선택 |
 | --- | --- |
 | Backend | Node.js LTS + NestJS + TypeScript |
-| Frontend | (별도 ADR로 결정 — 기본 후보: React + Vite, P6 진입 시) |
+| Frontend | **React + Vite** (오너 확정 2026-07-07, Q-0051; SSR 불요 정적 SPA — 정식 stack ADR 은 P6 진입 시 박제) |
 | DB | PostgreSQL ([ADR-0002](docs/decisions/ADR-0002-db.md) ACCEPTED) |
 | Test | Jest (unit), supertest (e2e) |
 | CI | GitHub Actions |
