@@ -2,7 +2,7 @@
 id: T-0814
 title: PLAN.md P5 일/주/월 요약 평가 bullet(97) implemented-on-main checkbox 정합
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-061]
 estimatedDiff: 2
@@ -32,11 +32,15 @@ PLAN.md P5 line 97 "일/주/월 요약 평가 (LLM 정성 + Metric 수치)" bull
 
 ## Acceptance Criteria
 
-- [ ] `docs/PLAN.md` line 97 의 체크박스를 `[ ]` → `[x]` 로 변경.
-- [ ] 같은 bullet 에 `**implemented-on-main**:` 절 추가 — period-evaluable(`isPeriodEvaluable`/`computePeriodEnd` KST 경계), summary-due-coordinates(좌표 enumeration), summary-batch/aggregate orchestrator chain, ADR-0035 + ADR-0039 canonical source 를 인용. 참조 경로·심볼명은 origin/main 실측과 일치해야 함.
-- [ ] R-61 의 "당일 활동은 자정까지 평가 미실시 / 주간은 다음주 시작 / 월간은 다음달 시작" 이 KST(Asia/Seoul) 경계로 cover 됨을 절 안에 명시.
-- [ ] 변경은 line 97 국한 — 다른 bullet·section 미접촉 (`git diff --stat` 로 `docs/PLAN.md` 1 파일 확인).
-- [ ] `node -e "require('./docs/STATE.json')"` 로 STATE.json parse 무결 확인 (본 task 가 STATE 를 건드리면).
+- [x] `docs/PLAN.md` line 97 의 체크박스를 `[ ]` → `[x]` 로 변경.
+- [x] 같은 bullet 에 `**implemented-on-main**:` 절 추가 — period-evaluable(`isPeriodEvaluable`/`computePeriodEnd` KST 경계), summary-due-coordinates(좌표 enumeration), summary-batch/aggregate orchestrator chain, ADR-0035 + ADR-0039 canonical source 를 인용. 참조 경로·심볼명은 origin/main 실측과 일치해야 함.
+- [x] R-61 의 "당일 활동은 자정까지 평가 미실시 / 주간은 다음주 시작 / 월간은 다음달 시작" 이 KST(Asia/Seoul) 경계로 cover 됨을 절 안에 명시.
+- [x] 변경은 line 97 국한 — 다른 bullet·section 미접촉 (`git diff --stat` 로 `docs/PLAN.md` 1 파일 확인).
+- [x] `node -e "require('./docs/STATE.json')"` 로 STATE.json parse 무결 확인 (본 task 가 STATE 를 건드리면).
+
+## Result (DONE 2026-07-07)
+
+PLAN.md P5 line 97 을 `[ ]` → `[x]` + implemented-on-main 절로 정합 (direct commit `19399d02`, +1/-1, line 97 국한). period-evaluable KST 경계(ADR-0039 §Decision 3) + summary-due-coordinates enumeration + summary-batch/aggregate orchestrator `evaluateAndPersist` chain(ADR-0035) 인용, 참조 심볼·경로 origin/main 실측 일치 확인.
 
 ## Out of Scope
 
