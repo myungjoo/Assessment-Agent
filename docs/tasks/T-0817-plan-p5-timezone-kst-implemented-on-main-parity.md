@@ -2,7 +2,7 @@
 id: T-0817
 title: PLAN.md P5 timezone=KST 확정 bullet implemented-on-main checkbox 정합
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-034, REQ-031, TBD]
 estimatedDiff: 2
@@ -53,3 +53,7 @@ direct doc-only tiny task — executor 가 직접 편집 (implementer/tester 불
 ## Follow-ups
 
 (none at creation)
+
+## Result (DONE 2026-07-07T21:38Z)
+
+direct doc-only 완료. PLAN.md line110 timezone=KST bullet `[ ]`→`[x]` + implemented-on-main 근거 절 append (+1/-1, line110 국한). 인용 경로(ADR-0050/0051/0052·period-boundary.ts·period-evaluable.ts·schema.prisma:186·migration 20260706000000_user_timezone) origin/main 실존 재확인 — false-positive flip 0. direct commit main `55b95bdb`. counters 808→809.
