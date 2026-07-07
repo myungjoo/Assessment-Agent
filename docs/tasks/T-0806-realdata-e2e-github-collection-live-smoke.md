@@ -2,8 +2,12 @@
 id: T-0806
 title: 실 평가 e2e github.com 수집 leg env-gated live smoke (PLAN 109행 gate 2 collection leg)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 720
+mergedAs: 23bf1f5e
+reviewRounds: 1
+completedAt: 2026-07-07T09:00Z
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 210
 estimatedFiles: 4
