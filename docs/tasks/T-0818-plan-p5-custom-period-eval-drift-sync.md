@@ -2,7 +2,7 @@
 id: T-0818
 title: PLAN.md P5 사용자 지정 기간 임의 평가문(R-9) bullet implemented-on-main checkbox 정합
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-009]
 estimatedDiff: 2
@@ -48,6 +48,10 @@ plannerNote: P5 line98 R-9 사용자 지정 기간 평가문 bullet — period-b
 ## Suggested Sub-agents
 
 `implementer` (doc-only edit — architect/tester 불요, direct doc-only commit).
+
+## Result (DONE 2026-07-08, cron@aa-local-s1-cf0caeec)
+
+docs/PLAN.md P5 line 98 R-9 bullet 를 `[ ]`→`[x]` flip + implemented-on-main 근거 절 append (controller `@Post("period")` role dispatch → admin-persist / ephemeral service + KST 경계 period-boundary.ts + e2e 3종 + canonical ADR-0037). append-only, 인접 line 97/99 무손상, +1/-1 line 98 국한. 각 경로 origin/main git ls-tree 실존 재확인(false-positive flip 0). direct commit main `8e241cef` → push (fast-forward). Acceptance Criteria 5항 전부 ok.
 
 ## Follow-ups
 
