@@ -2,7 +2,7 @@
 id: T-0813
 title: PLAN.md P5 overwrite/재평가 bullet(107) implemented-on-main checkbox 정합 (ADR-0038 chain 반영, ADR-0053 SUPERSEDED 갱신)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-009, REQ-040, REQ-045, REQ-064]
 estimatedDiff: 6
