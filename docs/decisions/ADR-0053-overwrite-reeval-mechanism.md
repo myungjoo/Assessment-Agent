@@ -1,16 +1,19 @@
 ---
 id: ADR-0053
 title: "overwrite / 이미 영속화된 평가문 재평가 mechanism — 명시 mode flag 시에만 reset-and-recreate(ADR-0033 §D3 재사용), 무플래그 default 는 first-write-wins 보존(ADR-0037 §D3 조건분기 supersede)"
-status: ACCEPTED
+status: SUPERSEDED
 date: 2026-07-07
 relatedTask: [T-0804]
 relatedReq: [REQ-037, REQ-041, REQ-064]
 supersedes: null
+supersededBy: ADR-0038
 supersedesDecision: "ADR-0037 §Decision 3 (first-write-wins read-through) — 조건분기 supersede: 무플래그 default 는 보존, 명시 overwrite/reeval mode 진입 시에만 대체"
 augments: [ADR-0033, ADR-0048]
 ---
 
 # ADR-0053 — overwrite / 이미 영속화된 평가문 재평가 mechanism
+
+> **SUPERSEDED (supersededBy: [ADR-0038](ADR-0038-overwrite-reevaluate-persisted-assessment.md)).** 본 ADR 은 선행 [ADR-0038](ADR-0038-overwrite-reevaluate-persisted-assessment.md)(ACCEPTED, 2026-06-10)이 이미 완결한 **동일 mechanism**(명시 mode flag 시에만 reset-and-recreate, 무플래그 default 는 first-write-wins 보존)을 선행 ADR-0038 을 0회 참조한 채 **중복 재결정**한 것으로 확인돼 **SUPERSEDED** 됨 — canonical source 는 ADR-0038. 그 구현 chain(T-0333~T-0337)은 이미 main 안착·e2e 검증됐다. 아래 결정 본문은 history 보존 목적으로 그대로 둔다. (T-0806 §Follow-ups gate5 cleanup 에서 발견.)
 
 > 본 ADR 은 **PROPOSED** — 오너가 2026-07-07 [Q-0051](../STATE.json) 옵션 5 로 [PLAN line 107](../PLAN.md) "(DEFERRED) overwrite / 이미 영속화된 평가문 재평가" 의 DEFERRED 를 해제하고 재개를 승인(권장 착수 1순위)한 방향의 **ADR-first 첫 slice** 다. 이미 영속화된 좌표 `(personId, period, scope, periodStart)` 에 대해 **덮어쓰기/재평가** 를 어떻게 표현할지의 mechanism 만 decide 하며 **production code · DB migration 0 LOC** 다(decision-only ADR). 구현(bridge 진입점 overwrite 분기 → e2e idempotency → PLAN status sync)은 §Follow-ups 의 dependency-free chain 으로 분해되며 각 slice 는 ≤300 LOC / ≤5 파일 + R-112 4 종(+ negative cases 충분 cover)으로 강제한다. 본 ADR 은 [ADR-0037](ADR-0037-period-collection-evaluate-bridge.md) §Decision 3(first-write-wins read-through)을 **조건분기 supersede**(무플래그 default 는 보존, 명시 mode flag 진입 시에만 대체)하고 [ADR-0033](ADR-0033-evaluation-result-persistence.md) §Decision 3(reset-and-recreate + fill/reeval 모드)의 write-layer semantics 를 **재사용(변경 0)** 하며 [ADR-0048](ADR-0048-default-model-id-source.md) §Decision 1(재평가 modelId source = LlmProviderConfig row)의 상호작용을 확정한다.
 

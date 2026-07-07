@@ -2,7 +2,7 @@
 id: T-0807
 title: ADR-0053(overwrite/재평가)를 선행 ADR-0038 의 중복 재결정으로 SUPERSEDED 표기
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-037, REQ-040, REQ-041, REQ-045, REQ-064]
 estimatedDiff: 30
@@ -31,11 +31,15 @@ plannerNote: "P5 gate5 cleanup (T-0806 Follow-up) — ADR-0053 은 선행 ADR-00
 
 `docs/decisions/ADR-0053-overwrite-reeval-mechanism.md` 만 수정한다(1 파일). 다른 파일 변경 0.
 
-- [ ] ADR-0053 frontmatter `status:` 를 `ACCEPTED` → `SUPERSEDED` 로 변경.
-- [ ] ADR-0053 frontmatter 에 `supersededBy: ADR-0038` 필드 추가(기존 `supersedes: null` 아래 또는 인접).
-- [ ] ADR-0053 상단 blockquote(15행 부근) 또는 Context 최상단에 **한국어 한~두 줄** 로 "본 ADR 은 선행 [ADR-0038](ADR-0038-overwrite-reevaluate-persisted-assessment.md)(ACCEPTED, 2026-06-10)의 동일 mechanism 을 중복 재결정한 것으로 확인돼 **SUPERSEDED** 됨 — canonical source 는 ADR-0038. 구현(T-0333~T-0337)은 이미 main 안착·e2e 검증. (T-0806 §Follow-ups gate5 cleanup 발견)" 취지를 명시. 기존 본문 결정 내용은 삭제하지 말고 상단 표기만 추가(history 보존).
-- [ ] ADR-0038 을 상호 참조하도록 링크 경로가 정확한지 확인(`ADR-0038-overwrite-reevaluate-persisted-assessment.md`).
-- [ ] 파일 내 markdown link 문법·frontmatter YAML 문법이 깨지지 않았는지 육안 확인(status enum 은 영어 `SUPERSEDED` 유지 — §12).
+- [x] ADR-0053 frontmatter `status:` 를 `ACCEPTED` → `SUPERSEDED` 로 변경.
+- [x] ADR-0053 frontmatter 에 `supersededBy: ADR-0038` 필드 추가(기존 `supersedes: null` 아래 또는 인접).
+- [x] ADR-0053 상단 blockquote(15행 부근) 또는 Context 최상단에 **한국어 한~두 줄** 로 "본 ADR 은 선행 [ADR-0038](ADR-0038-overwrite-reevaluate-persisted-assessment.md)(ACCEPTED, 2026-06-10)의 동일 mechanism 을 중복 재결정한 것으로 확인돼 **SUPERSEDED** 됨 — canonical source 는 ADR-0038. 구현(T-0333~T-0337)은 이미 main 안착·e2e 검증. (T-0806 §Follow-ups gate5 cleanup 발견)" 취지를 명시. 기존 본문 결정 내용은 삭제하지 말고 상단 표기만 추가(history 보존).
+- [x] ADR-0038 을 상호 참조하도록 링크 경로가 정확한지 확인(`ADR-0038-overwrite-reevaluate-persisted-assessment.md`).
+- [x] 파일 내 markdown link 문법·frontmatter YAML 문법이 깨지지 않았는지 육안 확인(status enum 은 영어 `SUPERSEDED` 유지 — §12).
+
+## Result
+
+**DONE (2026-07-07T10:40Z, cron@aa-local-s1-aa44b96d1cbe fire).** ADR-0053 frontmatter `status: ACCEPTED → SUPERSEDED` + `supersededBy: ADR-0038` 추가 + 상단 blockquote 에 canonical=ADR-0038(구현 T-0333~T-0337 안착·e2e 검증) 중복 재결정 SUPERSEDED 표기 1줄(기존 결정 본문 history 보존). 1 파일 direct doc-only(+4/-1). helper 제거(slice2, pr)는 §Follow-ups 로 이관.
 
 ## Out of Scope
 
