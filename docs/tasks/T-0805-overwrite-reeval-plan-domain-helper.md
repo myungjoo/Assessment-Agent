@@ -2,7 +2,12 @@
 id: T-0805
 title: overwrite/재평가 reset-and-recreate plan 순수 도메인 helper (ADR-0053 slice 1)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-07T06:40:00Z
+prNumber: 719
+mergedAs: 063df611
+reviewRounds: 1
+result: computeOverwriteReevalPlan 순수 helper + spec (ADR-0053 slice1 — mode-gated reset-and-recreate plan, 무플래그=first-write-wins 보존). 신규 파일 100% cov, 9055 tests green. PR #719 round1 4-게이트 PASS, squash merge 063df611.
 commitMode: pr
 coversReq: [REQ-037, REQ-041, REQ-064]
 estimatedDiff: 240
