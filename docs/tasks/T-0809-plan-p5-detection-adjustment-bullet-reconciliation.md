@@ -2,7 +2,8 @@
 id: T-0809
 title: PLAN.md P5 detection/adjustment bullet 6종(R-21/R-58/R-26·R-40/R-37·R-38/R-25/R-27) 을 implemented-on-main 으로 checkbox 정합 — bullet 102 precedent mirror
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-07T14:05Z
 commitMode: direct
 coversReq: [REQ-011, REQ-013, REQ-021, REQ-026, REQ-037, REQ-040, REQ-058]
 estimatedDiff: 55
