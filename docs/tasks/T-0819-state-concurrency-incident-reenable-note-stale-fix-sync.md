@@ -2,7 +2,7 @@
 id: T-0819
 title: STATE concurrencyIncidents.reenableNote 의 'fix 미머지' stale prose 교정 (fix-1/fix-2 머지 확인 반영)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 4
