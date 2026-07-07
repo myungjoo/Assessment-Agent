@@ -93,7 +93,7 @@ P3 진행 중 발견된 진척 status quo + P4 진입 trigger 의사결정 가�
 
 ## Phase P5 — Evaluation pipeline
 
-- [ ] 단위 commit/document 평가 (난이도·기여도·양)
+- [x] 단위 commit/document 평가 (난이도·기여도·양) — **implemented-on-main**: [`evaluation-scoring.service.ts`](../src/assessment-evaluation/evaluation-scoring.service.ts) `EvaluationScoringService.score` 가 LLM narrative → [`classifyNarrative`](../src/assessment-evaluation/domain/evaluation-prompt.ts)(narrative → difficulty/contribution 분류) + [`calculateEvaluationVolume`](../src/assessment-evaluation/domain/evaluation-volume.ts)(metadata 기반 결정적 volume) 을 compose 해 [`EvaluationResult`](../src/assessment-evaluation/domain/evaluation-result.ts) 5필드(unitId/narrative/difficulty/contribution/volume, REQ-032)를 조립·반환하는 경로로 shipped ([ADR-0032](decisions/ADR-0032-p5-evaluation-contract.md) §2 LLM scoring 입력 shape + §3 난이도·기여도·양 output 산출).
 - [ ] 일/주/월 요약 평가 (LLM 정성 + Metric 수치). **당일 활동은 자정까지 평가 미실시** (R-61). 주간은 다음주 시작 시, 월간은 다음달 시작 시.
 - [ ] **사용자 지정 기간** 임의 평가문 생성 (R-9) — Admin/User 가 임의 기간을 지정해 LLM 평가문 요청
 - [x] **중복 제거** — fork/rebase/meld 로 인한 중복 + **시간적 중복** (earlier date 우선 — 2월 결과물이 3월 timestamp 일 때 2월 기여로 판단, R-21). **implemented-on-main**: T-0289 [`dedupTemporalDuplicates`](../src/assessment-evaluation/domain/evaluation-dedup.ts) (PR #241, earlier-date 우선 시간적 중복 제거) + collection-side 구조적 중복 [commit-dedup.ts](../src/assessment-collection/domain/commit-dedup.ts) (fork/rebase/meld). detection-signals pipeline([evaluation-adjustments-pipeline.ts](../src/assessment-evaluation/domain/evaluation-adjustments-pipeline.ts) `applyEvaluationAdjustments`) + orchestrator([evaluation-orchestrator.service.ts](../src/assessment-evaluation/evaluation-orchestrator.service.ts)) 배선.
