@@ -2,8 +2,11 @@
 id: T-0808
 title: 미배선 dead helper computeOverwriteReevalPlan + spec 제거 (ADR-0053 SUPERSEDED 정리)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-07-07T12:47:00Z
+prNumber: 721
+mergeCommit: 56477500
 coversReq: [REQ-037, REQ-040, REQ-041, REQ-045, REQ-064]
 estimatedDiff: 40
 estimatedFiles: 2
@@ -60,4 +63,8 @@ plannerNote: "P5 gate5 cleanup slice2 (T-0807 §Follow-ups) — ADR-0053 SUPERSE
 
 ## Follow-ups
 
-(생성 시 비어있음 — sub-agent 가 관련 작업 발견 시 여기 append)
+(없음 — dead-code 순삭제 완결. gate5 cleanup slice1(T-0807 ADR-0053 SUPERSEDED)+slice2(본 task 파일 제거) 로 overwrite/재평가 canonical source 가 ADR-0038 chain 하나로 수렴.)
+
+## Result (DONE)
+
+PR [#721](https://github.com/myungjoo/Assessment-Agent/pull/721) round1 reviewer APPROVE(0 BLOCKER/0 MAJOR/0 MINOR) + 4-게이트 PASS → squash merge `56477500` --delete-branch. `evaluation-overwrite-reeval-plan.ts` + `.spec.ts` 2파일 통삭(-668 raw), production src 무변경. 제거 직전 `git grep` src/ 재확인 참조 자기 파일 2개뿐(dead 확정). build/lint/test(355 suites/9042 tests green)/cov(line 99.95%·func 100%·branch 99.25%, 임계 line≥80%∧func≥80% 유지)/check-spec-presence 통과. R-112 신규 test 는 순수 dead-code 제거라 해당 없음(green suite 가 회귀 게이트).
