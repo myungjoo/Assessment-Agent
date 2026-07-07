@@ -2,7 +2,7 @@
 id: T-0816
 title: PLAN.md P4 GitHub Issue 평가 bullet(82) implemented-on-main checkbox 정합
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-030]
 estimatedDiff: 2
@@ -52,3 +52,7 @@ direct doc-only — sub-agent 불요. driver 가 Edit 1회로 처리(§3.1 direc
 ## Follow-ups
 
 (없음 — 생성 시점)
+
+---
+
+**DONE (2026-07-07, cron@cloud-3fefa fire)** — docs/PLAN.md line82 GitHub Issue 평가(R-30) bullet `[ ]`→`[x]` flip + implemented-on-main 근거 절 append(수집 leg `endpoint: "issues"` / 평가 leg `issue → "document"` ADR-0032 §1 / dedup `excludeSelfFollowUps` + orchestrator:148 배선 ADR-0032 §4). 인용 3 심볼 origin/main grep 각 1+ hit 재확인, diff line82 국한 +1/-1. direct commit main 68d0793b push(source=target=main). AC 4/4 ok.
