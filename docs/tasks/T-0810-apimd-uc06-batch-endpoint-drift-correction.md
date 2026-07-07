@@ -2,7 +2,7 @@
 id: T-0810
 title: api.md UC-06 batch endpoint 4행을 implemented-on-main 대체 route 로 drift 교정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-037, REQ-040, REQ-041]
 estimatedDiff: 8
@@ -59,3 +59,7 @@ shipped 대체 route(전부 main 실존 확인):
 ## Follow-ups
 
 (생성 시 비어 있음. sub-agent 가 관련 작업 발견 시 여기 append.)
+
+## Result (DONE 2026-07-07)
+
+direct doc-only commit `8492f0a1` — api.md L95~98 batch 4행(run/bulk-DELETE/reeval/reset) + 합계행(L142)의 "미구현 P5 예정" 서술을 "shipped 아님(never-built) — capability 는 대체 route 로 implemented-on-main 이관" pointer 로 교정. 대체 route 4종(`/api/assessment-collection/collect`+`/api/assessment-evaluation/period`, `/api/schedules/recent-deletion/:personId`, `/api/assessment-evaluation/unevaluated-fill-run`, period `reevaluate` flag ADR-0038) 전부 main grep 재확인. append-only(METHOD/path/UC/REQ 보존). 실측 diff 1파일 5/5 LOC. CI(headSha 8492f0a1) markdown-only, in_progress → 다음 turn conclusion 재확인.
