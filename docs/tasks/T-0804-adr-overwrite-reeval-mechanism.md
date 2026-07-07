@@ -2,7 +2,9 @@
 id: T-0804
 title: ADR — overwrite / 이미 영속화된 평가문 재평가 mechanism 결정 (first-write-wins supersede)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-07T06:12:00Z
+result: ADR-0053 ACCEPTED (overwrite/재평가 mechanism — 명시 mode reset-and-recreate 재사용, ADR-0037 §D3 조건분기 supersede, schema 0). PR #718 round1 4-게이트 PASS, squash merge 667ad68c.
 commitMode: pr
 coversReq: [REQ-037, REQ-041, REQ-064]
 estimatedDiff: 200

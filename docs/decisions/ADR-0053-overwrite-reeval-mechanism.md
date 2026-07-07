@@ -1,7 +1,7 @@
 ---
 id: ADR-0053
 title: "overwrite / 이미 영속화된 평가문 재평가 mechanism — 명시 mode flag 시에만 reset-and-recreate(ADR-0033 §D3 재사용), 무플래그 default 는 first-write-wins 보존(ADR-0037 §D3 조건분기 supersede)"
-status: PROPOSED
+status: ACCEPTED
 date: 2026-07-07
 relatedTask: [T-0804]
 relatedReq: [REQ-037, REQ-041, REQ-064]
