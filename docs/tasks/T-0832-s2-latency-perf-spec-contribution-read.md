@@ -2,12 +2,16 @@
 id: T-0832
 title: S2 조회 latency harness 를 세 번째 조회 endpoint(ContributionController)에 배선하는 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 175
 estimatedFiles: 2
 created: 2026-07-08
+mergedAs: 66c3b7fb
+prNumber: 726
+reviewRounds: 1
+completedAt: 2026-07-08T11:50:00Z
 independentStream: p8-load-resilience-s2
 dependsOn: [T-0828, T-0829, T-0830, T-0831]
 touchesFiles:
