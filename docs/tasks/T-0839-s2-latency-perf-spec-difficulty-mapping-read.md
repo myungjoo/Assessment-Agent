@@ -2,7 +2,11 @@
 id: T-0839
 title: S2 조회 latency harness 를 열 번째 조회 endpoint(DifficultyMappingController)에 배선하는 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-08T18:38:34Z
+mergedAs: 1a78cda6
+prNumber: 733
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 170
