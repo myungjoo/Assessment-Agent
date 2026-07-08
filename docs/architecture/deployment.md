@@ -10,6 +10,8 @@
 
 본 deployment view 가 박제한 단일 NestJS process 안의 **component 분해 + contract** 는 [components.md](components.md) (T-0016 의 산출물) 에 박제되어 있다.
 
+운영자용 배포·복구·trouble-shoot **실행 절차**(본 view 의 정책을 명령-level 로 푼 플레이북)는 [docs/ops/runbook.md](../ops/runbook.md) 참조.
+
 ## DB / Persistence
 
 본 단락의 결정은 [ADR-0002 — Persistence DB / ORM 선택](../decisions/ADR-0002-db.md) 에서 박제했다. 본 view 는 그 결정을 운영 토폴로지로 풀어낸다.
