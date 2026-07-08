@@ -37,19 +37,19 @@ const r = await collectLatencySamples(() => request(app).get("/summary"), 30);
 expect(assertS2Threshold(r).pass).toBe(true);
 ```
 
-## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read`)
+## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read` / `cron-schedule-read`)
 
-collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 열 개다. 열 다
+collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 열한 개다. 열한 다
 `Test.createTestingModule` 로 대상 controller + **mocked service** 를 부트스트랩하고,
 `collectLatencySamples(() => request(app.getHttpServer()).get(...), N)` 로 반복 호출해
 표본을 수집하고 `assertS2Threshold(result).pass` 를 검증한다. `summary-read`·
-`user-read`·`permission-denied-read`·`llm-provider-config-read`·`difficulty-mapping-read`
-는 guard 가 부착된 controller 라 `JwtAuthGuard`/`RolesGuard` 를
+`user-read`·`permission-denied-read`·`llm-provider-config-read`·`difficulty-mapping-read`·
+`cron-schedule-read` 는 guard 가 부착된 controller 라 `JwtAuthGuard`/`RolesGuard` 를
 `overrideGuard(...).useValue({ canActivate: () => true })` 로 통과시키지만,
 `person-read`·`group-read`·`part-read` 는 guard 미적용 controller 라 override 가
 불요하다. harness 가 단일 controller 에 국한되지 않고
-요약·평가·기여·인원·그룹·파트·사용자·권한거부·LLM설정·난이도매핑 10 read 경로 전반에
-재사용됨을 실증한다.
+요약·평가·기여·인원·그룹·파트·사용자·권한거부·LLM설정·난이도매핑·cron스케줄 11 read
+경로 전반에 재사용됨을 실증한다.
 
 - `summary-read.perf-spec.ts` (T-0830) — `SummaryController` + mocked `SummaryService`,
   `GET /api/summaries?personId=...` 배선. 첫 실 perf-spec.
@@ -121,13 +121,28 @@ collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현�
   negative case 로 빈 배열(슬롯 seed 전)·3 슬롯 배열도 harness 가 정상 수집함을 실증한다.
   non-2xx 분류 실증은 mocked `findAllMappings` 이 예외를 던져 endpoint 가 500 을
   반환하는 error path 로 커버한다.
+- `cron-schedule-read.perf-spec.ts` (T-0840) — `CronScheduleController` + mocked
+  `CronScheduleService`, `GET /api/schedules`(list → `service.list()` — 현재 등록된
+  cron job 이름 `string[]` 조회, REQ-096 Admin 가시성 / REQ-048 조회 back) 배선.
+  열한 번째 배선 spec. 이 endpoint 는 `@UseGuards(JwtAuthGuard, RolesGuard)` +
+  `@Roles("Admin")` 로 **가드가 부착된 Admin list read** 라
+  `user-read`·`permission-denied-read`·`llm-provider-config-read`·`difficulty-mapping-read`
+  처럼 `overrideGuard(JwtAuthGuard)`·`overrideGuard(RolesGuard)` 로 가드를 무력화한다.
+  또한 controller 가 `@Inject(CRON_TICK_HANDLER)` 로 `CronTickHandler` 를 함께
+  주입받으므로, 테스트 모듈은 `CronScheduleService` mock 과 더불어 `CRON_TICK_HANDLER`
+  **no-op `useValue` provider**(list 경로 미호출)도 제공해야 부트스트랩이 성립한다.
+  `list` 핸들러는 query param 도 `@CurrentUser()` actor 도 읽지 않고 mocked `list()` 를
+  raw forward(등록 job 이름 순서 그대로 반환, 빈 배열도 404 변환 없음, controller 자체
+  분기 없음)하므로 req.user 박제가 불요하다(canActivate true 만으로 충분). negative
+  case 로 빈 배열(등록 0)·다건 배열도 harness 가 정상 수집함을 실증한다. non-2xx 분류
+  실증은 mocked `list` 이 예외를 던져 endpoint 가 500 을 반환하는 error path 로 커버한다.
 
 - **DB 무의존**: service 를 mock 하고(guard 있는 controller 는 override 도) 실 Postgres
-  round-trip·실 LLM·외부 I/O 가 없어 결정론적이다. 실 DB round-trip **baseline 실측**은
-  별도 follow-up (§5 item 5). 열 spec 모두 collector 배선의 **정확성 검증**이지 baseline
-  측정이 아니다.
+  round-trip·실 LLM·실 스케줄러·외부 I/O 가 없어 결정론적이다. 실 DB round-trip
+  **baseline 실측**은 별도 follow-up (§5 item 5). 열한 spec 모두 collector 배선의
+  **정확성 검증**이지 baseline 측정이 아니다.
 - **실행**: `pnpm test:perf` (`jest-perf.json` 의 `testRegex: test/perf/.*\.perf-spec\.ts$`
-  가 열 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
+  가 열한 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
   `pnpm test` 는 `.spec.ts$` 만 매칭하므로 perf-spec 을 picking 하지 않아 unit coverage
   gate 와 분리된다.
 - perf job 은 상시 PR CI 와 분리한다(follow-up #4).
