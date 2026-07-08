@@ -7,7 +7,7 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": "T-0821",
   "backlogNote": "▶ **T-0820 DONE — PLAN.md bullet160 ADR-0036 fine-grained concurrency rollout stale→shipped 정합 (T-0809~0819 checkbox drift 패턴 mirror, direct doc-only) (2026-07-08, cron@aa-local-s1-624762cc fire)** — fresh fetch→reset --hard origin/main 624762cc→lock free(authoritative claude/lock-driver tip lock.json holder=null tombstone; claims=[])→미해결 HQ 0→gh auth OK(myungjoo)→acquire-lock CAS(cron@aa-local-s1-624762cc, since 00:39:48Z, tip 3155be9a)→[2] nextTask=T-0820→coarse lock 유지(fineGrainedConcurrency ON 이나 단일 doc-only task + claims 0 → §D8(a) fail-safe serialize, 최근 T-0817/0818/0819 fire 와 동형 coarse acquire→work→release)→executor 1회 dispatch(taskId만)→PLAN.md bullet160 [ ]→[x] flip: ADR-0036 (PROPOSED)→ACCEPTED(2026-06-10), stage1 진행중/stage2~5 보류→인프라 전량 shipped(claim registry·select+claim·§1 loop 재작성·per-PR CI group·§D8 안전장치 5종) + stage 5b ON(T-0348 5a→T-0349 실측→T-0350 5b, flags.fineGrainedConcurrency=true·maxConcurrentClaims=2·direct-only 병렬), 토글OFF 잔여 서술→§D8(d) 강등 시에만 OFF 복귀. content commit d3ae53d9 main push OK(624762cc..d3ae53d9). bookkeeping: task DONE, nextTask=null, counters.tasksCompleted 811→812, mostRecentTasks prepend T-0820, journal 1줄. CI: main push 로 trigger, conclusion 다음 fire [1] 재확인(R-114 CI 시작=push 충족). lock tombstone release 예정. next: planner needed(nextTask=null). **1 task 후 종료.**",
   "lock": {
     "holder": null,
