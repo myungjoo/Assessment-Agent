@@ -37,8 +37,24 @@ const r = await collectLatencySamples(() => request(app).get("/summary"), 30);
 expect(assertS2Threshold(r).pass).toBe(true);
 ```
 
-## 후속 harness (DB-backed `*.perf-spec.ts`)
+## 실 endpoint 배선 perf-spec (`summary-read.perf-spec.ts`)
 
-실 조회 endpoint round-trip latency 수집은 별도 follow-up 이며 이 primitive 를 import 한다.
-`jest-perf.json` 은 `*.perf-spec.ts` 만 매칭하고 현재 매칭 0 이라 `passWithNoTests: true`
-scaffold 다(실행: `pnpm test:perf`). perf job 은 상시 PR CI 와 분리한다(follow-up #4).
+collector 를 **실제 조회 endpoint(`SummaryController`)** 에 배선하는 첫 실 perf-spec 이다
+(T-0830). `Test.createTestingModule` 로 `SummaryController` + **mocked `SummaryService`**
+를 부트스트랩하고, `JwtAuthGuard`/`RolesGuard` 를 `overrideGuard(...).useValue({
+canActivate: () => true })` 로 통과시킨 뒤, `collectLatencySamples(() =>
+request(app.getHttpServer()).get("/api/summaries?personId=..."), N)` 로 반복 호출해
+표본을 수집하고 `assertS2Threshold(result).pass` 를 검증한다.
+
+- **DB 무의존**: service 를 mock 하고 guard 를 override 하므로 실 Postgres round-trip·실
+  LLM·외부 I/O 가 없어 결정론적이다. 실 DB round-trip **baseline 실측**은 별도 follow-up
+  (§5 item 5). 본 spec 은 collector 배선의 **정확성 검증**이지 baseline 측정이 아니다.
+- **실행**: `pnpm test:perf` (`jest-perf.json` 의 `testRegex: test/perf/.*\.perf-spec\.ts$`
+  가 본 파일을 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본 `pnpm test`
+  는 `.spec.ts$` 만 매칭하므로 perf-spec 을 picking 하지 않아 unit coverage gate 와 분리된다.
+- perf job 은 상시 PR CI 와 분리한다(follow-up #4).
+
+## 후속 harness (DB-backed baseline / S1·S3)
+
+실 조회 endpoint round-trip latency **baseline 실측**(실 Postgres)·S1 배치 부하·S3 동시성
+내성 harness 는 별도 follow-up 이며 이 primitive 를 import 한다(§5 item 1/3/5).
