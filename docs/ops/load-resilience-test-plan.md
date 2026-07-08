@@ -125,7 +125,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 
 1. **부하 도구 선택 ADR** (pr-mode + 신규 dependency, 사람 승인) — k6 / artillery /
    autocannon 중 택1, trade-off·격리 endpoint 전략 박제. [CLAUDE.md §5](../../CLAUDE.md)
-   BLOCKED 해소 전제.
+   BLOCKED 해소 전제. → [ADR-0054](../decisions/ADR-0054-load-resilience-harness-tool.md) (PROPOSED, k6 권고 — 도입은 owner 승인 후 별도 task).
 2. **S2 조회 latency 경량 harness** (supertest 기반, 신규 dependency 불요 가능) — 위 1
    과 독립적으로 먼저 착수 가능한 최소 measure.
 3. **S1 / S3 부하 harness 구현** — 1 의 도구 결정 후. 배치 부하·동시성 내성 스크립트.
