@@ -2,7 +2,7 @@
 id: T-0831
 title: S2 조회 latency harness 를 두 번째 조회 endpoint(AssessmentController)에 배선하는 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 175
