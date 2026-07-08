@@ -2,7 +2,7 @@
 id: T-0823
 title: PLAN.md Import/export/restore(R-57) bullet implemented-on-main checkbox 정합
 phase: P8
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 touchesFiles: [docs/PLAN.md]
@@ -55,3 +55,7 @@ PLAN.md line 136 의 `- [ ] Import / export / restore (R-57)` bullet 이 미완�
 ## Follow-ups
 
 (없음 — 생성 시 비어있음)
+
+---
+
+**완료** (2026-07-08, cron@aa-local-15-c3ce67e1 fire): PLAN.md line136 Import/export/restore(R-57) bullet `[ ]`→`[x]` flip + implemented-on-main 근거 절 append (export/import/restore 3경로 + ADR-0044/0046/0047 링크). shipped-on-main 실측 검증(`git ls-tree origin/main` 파일 8종·ADR 3종 실존 + 양 controller route 배선). content commit `33d15e2b` main push OK (c3ce67e1..33d15e2b). 인접 bullet 무손상.
