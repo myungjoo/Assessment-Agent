@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0837",
-  "backlogNote": "▶ **T-0837 PLANNER-QUEUED — S2 조회 latency perf-spec 을 여덟 번째 조회 endpoint(PermissionDeniedRecordController audit list, @Roles(User) guarded + query-param 분기)에 배선 (pr-mode, dep 0, ≤170 LOC/2 files; 2026-07-08 cron@aa-local-15-16ed fire, 매시 15분 trigger)** — fresh cloud checkout→fetch origin main+lock-driver→ff-only main 9a424632→c9709b11(직전 T-0836 merge/bookkeeping 반영)→authoritative lock free(tip lock.json tombstone; claims=[])→미해결 HQ 0→gh auth OK(myungjoo)→[1] CI green(c9709b11 merge run success, R-114)→acquire-lock CAS(cron@aa-local-15-16ed, tip 4baced7e)→[2] currentTask=null·nextTask=null→planner dispatch(1회): T-0837 task 파일 신설(T-0836 user-read guarded 패턴 mirror, PermissionDeniedRecordController) + STATE.nextTask=T-0837 + journal 큐잉 라인. STATE.json validates. doc-only direct commit(main) + lock tombstone release. next: T-0837(다음 fire 가 select-claim 으로 pickup). **planner-only fire, 코드 변경 0.** === prior: T-0836 DONE — S2 조회 latency harness 를 일곱 번째 조회 endpoint UserController(GET /api/users findAll @Roles(Admin) guarded read + /:id findById 404)에 배선하는 첫 guarded-list perf-spec 신설 (신규 dep 0; pr-mode code task, 2026-07-08 cron@aa-local-9a424632 fire, 매시 30분 trigger)** — fresh checkout→fetch→reset --hard origin/main(153607ab→9a424632, 직전 T-0836 planner 큐잉 반영)→authoritative lock free(tip lock.json tombstone; claims=[])→미해결 HQ 0(43/43 resolvedAt)→gh auth OK(myungjoo)→[1] CI green(9a424632·153607ab·d508628f 전부 success, R-114)→acquire-lock CAS(cron@aa-local-9a424632, tip 5c0cea71)→[2] fineGrainedConcurrency ON: server-time 확보(gh api Date 15:39:44Z, midnight-fallback 아님 — memory claim-now-servertime-midnight-bug 회피)→reclaim(no stale, claims=[])→maxConcurrentClaims gate(활성 claim 0 → pr-mode 단독 claim 허용)→validate-claim-candidate T-0836 PASS(dependsOn T-0828/0829/0830 머지·touchesFiles disjoint)→select-claim T-0836(CLAIM_NOW=15:39:44Z 주입, claimedAt≈server-time midnight 아님 ✓; lock tombstone release 동일 commit)→lock-free executor 1회(implementer+tester): user-read.perf-spec.ts 신설(281L, UserController+mocked UserService findAll/findById jest.fn, 첫 guarded-list — overrideGuard(JwtAuthGuard/RolesGuard) 명시 무력화, override canActivate 가 req.user 를 Admin payload 로 박제해 findById 404 도달, summary-read mirror, happy/error/branch+negative a~d[빈배열·404·mixed·iterations=1]) + README 6→7 spec 갱신, 2 files +281/-8, dep 0, lint/build/test:cov(357 suites/9094)/test:perf(7 suites/41) all green→[4] pr-mode: commit feature branch push→PR #730 open→sync-claim-pr(prNumber=730, PR_OPEN, CAS)→integrator: reviewer APPROVE(MINOR 1 — task 문서 stale req-ID, diff 밖 non-blocking; PR comment 외부 존재)+CI green+self-check 4-게이트 all PASS→gh pr merge --squash --delete-branch, merge sha 2fef9f53, round 1/7→[6] claim finalize(claims.json→[] CAS prune tip 4f21e708, content 검증 [] not blob-sha only — memory jq-absent-cloud-claim-prune, msg '='-free — memory lock-tree-cas-msg-equals)+STATE bookkeeping(tasksCompleted 827→828, mostRecentTasks prepend, nextTask=null) main direct commit. CI: merge push 로 main CI in_progress(2fef9f53, R-114 충족), conclusion 다음 fire [1] 재확인. next: planner needed(nextTask=null — 다음 fire 가 planner dispatch). **1 task 후 종료 (pr-mode 단일-task fire).**",
+  "nextTask": null,
+  "backlogNote": "▶ **T-0837 DONE — S2 조회 latency harness 를 여덟 번째 조회 endpoint(PermissionDeniedRecordController GET /api/permission-denied-records, @Roles(User) guarded audit list + query-param 분기)에 배선하는 perf-spec 신설 (pr-mode code task, 신규 dep 0; 2026-07-08 cron@cloud-17e1 fire, 매시 30분경 trigger)** — fresh cloud checkout→fetch origin main+lock-driver→ff-only main c9709b11→69064c73(직전 T-0836 DONE bookkeeping 반영)→authoritative lock free(tip lock.json tombstone; claims=[])→미해결 HQ 0→gh auth OK(myungjoo, repo+workflow)→[1] acquire-lock CAS(cron@cloud-17e1, tip e003543)→[2] fineGrainedConcurrency ON: server-time 확보(gh api Date 16:38:31Z, midnight-fallback 아님 — memory claim-now-servertime-midnight-bug 회피)→reclaim 불요(claims=[])→maxConcurrentClaims gate(활성 claim 0 → pr-mode 단독 claim 허용)→validate-claim-candidate T-0837 PASS(dependsOn T-0828/0829/0830 머지·touchesFiles disjoint)→select-claim T-0837(CLAIM_NOW=16:38:31Z 주입, claimedAt≈server-time midnight 아님 ✓; lock tombstone release 동일 commit)→lock-free executor 1회(implementer+tester): permission-denied-read.perf-spec.ts 신설(+272L, PermissionDeniedRecordController list 에 collectLatencySamples 배선 — overrideGuard(Jwt/Roles) + mocked service, happy/error/branch+negative a~d[빈결과·query-param·mixed·iterations=1]) + README harness 절 8번째 spec 갱신, 2 files, dep 0, lint/build/test:cov(357 suites/9094)/test:perf(8 suites/47) all green→[4] pr-mode: commit feature branch push→PR #731 open→sync-claim-pr(prNumber=731, PR_OPEN, CAS exit 0)→integrator: reviewer APPROVE(PR comment 외부 존재)+CI green+self-check 4-게이트 all PASS→gh pr merge --squash --delete-branch, merge sha d86a3feb, round 1/7→[6] claim finalize(claims.json→[] CAS prune tip 62538e99, content 검증 [] not blob-sha only — memory jq-absent-cloud-claim-prune, msg '='-free — memory lock-tree-cas-msg-equals)+STATE bookkeeping(tasksCompleted 828→829, mostRecentTasks prepend, nextTask=null) main direct commit. CI: PR #731 CI green(integrator 확인), merge push 로 main CI in_progress→conclusion 다음 fire [1] 재확인(R-114). next: planner needed(nextTask=null — 다음 fire 가 planner dispatch). **1 task 후 종료 (pr-mode 단일-task fire).**",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "2fef9f53",
+  "lastCommit": "d86a3feb",
   "mostRecentTasks": [
+    "T-0837",
     "T-0836",
     "T-0835",
     "T-0834",
-    "T-0833",
-    "T-0832"
+    "T-0833"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -29,10 +29,10 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-08T15:56:12Z",
+    "lastRun": "2026-07-08T16:49:24Z",
     "status": "green",
     "consecutiveFails": 0,
-    "headSha": "c9709b11"
+    "headSha": "d86a3feb"
   },
   "reviewRounds": {
     "T-0831": 1,
@@ -1386,7 +1386,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 828,
+    "tasksCompleted": 829,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1414,5 +1414,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-07-08T15:54:11Z"
+  "lastActivity": "2026-07-08T16:49:24Z"
 }
