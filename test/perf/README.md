@@ -37,20 +37,22 @@ const r = await collectLatencySamples(() => request(app).get("/summary"), 30);
 expect(assertS2Threshold(r).pass).toBe(true);
 ```
 
-## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read` / `cron-schedule-read` / `export-running-read` / `import-running-read`)
+## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read` / `cron-schedule-read` / `export-running-read` / `import-running-read` / `auth-me-read`)
 
-collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 열세 개다. 열세 다
+collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 열네 개다. 열네 다
 `Test.createTestingModule` 로 대상 controller + **mocked service** 를 부트스트랩하고,
 `collectLatencySamples(() => request(app.getHttpServer()).get(...), N)` 로 반복 호출해
 표본을 수집하고 `assertS2Threshold(result).pass` 를 검증한다. `summary-read`·
 `user-read`·`permission-denied-read`·`llm-provider-config-read`·`difficulty-mapping-read`·
-`cron-schedule-read`·`export-running-read`·`import-running-read` 는 guard 가 부착된
-controller 라 `JwtAuthGuard`/`RolesGuard` 를
+`cron-schedule-read`·`export-running-read`·`import-running-read` 는 `JwtAuthGuard`/
+`RolesGuard` 두 가드가 부착된 controller 라 둘 다
 `overrideGuard(...).useValue({ canActivate: () => true })`
-로 통과시키지만, `person-read`·`group-read`·`part-read` 는 guard 미적용 controller 라
-override 가 불요하다. harness 가 단일 controller 에 국한되지 않고
-요약·평가·기여·인원·그룹·파트·사용자·권한거부·LLM설정·난이도매핑·cron스케줄·export러닝·import러닝
-13 read 경로 전반에 재사용됨을 실증한다.
+로 통과시키고, `auth-me-read` 는 `JwtAuthGuard` **만** 부착이라 그 하나만 override 하되
+`canActivate` 가 `req.user = { sub }` 를 박제해야 me 핸들러가 sub 분기(200/404)에
+도달한다(RolesGuard override 불요). `person-read`·`group-read`·`part-read` 는 guard
+미적용 controller 라 override 가 불요하다. harness 가 단일 controller 에 국한되지 않고
+요약·평가·기여·인원·그룹·파트·사용자·권한거부·LLM설정·난이도매핑·cron스케줄·export러닝·import러닝·auth-me
+14 read 경로 전반에 재사용됨을 실증한다.
 
 - `summary-read.perf-spec.ts` (T-0830) — `SummaryController` + mocked `SummaryService`,
   `GET /api/summaries?personId=...` 배선. 첫 실 perf-spec.
@@ -169,13 +171,28 @@ override 가 불요하다. harness 가 단일 controller 에 국한되지 않고
   만으로 충분). negative case 로 빈 배열(진행 중 0)·다건 배열(REPLACE/MERGE 혼재)도
   harness 가 정상 수집함을 실증한다. non-2xx 분류 실증은 mocked `findRunning` 이 예외를
   던져 endpoint 가 500 을 반환하는 error path 로 커버한다.
+- `auth-me-read.perf-spec.ts` (T-0843) — `AuthController` + 4 mock provider(`AuthService`·
+  `UserRepository`·`JwtService`·`UserService`, me 경로가 실제로 호출하는 것은
+  `userService.findById` 뿐), `GET /api/auth/me`(me → `userService.findById(req.user.sub)`
+  → `UserResponseDto.fromEntity` — 인증된 사용자 자기 자신 조회, ADR-0008 §6 / REQ-048
+  조회 back) 배선. 열네 번째 배선 spec. 앞선 12·13 slice(Export/Import 의 Admin 가드
+  부착 raw-forward list)와 달리 이 endpoint 는 (1) `@UseGuards(JwtAuthGuard)` **만**
+  부착(RolesGuard 미적용)이고 (2) **controller 자체 분기가 있는** self-read 다: sub 부재
+  시 401(defence in depth), `findById` 가 stale token(DB row 삭제) 시 404
+  (`NotFoundException`), 정상 시 5 필드(hashedPassword 제외) 200. 따라서 `user-read` 의
+  passGuard 패턴을 mirror 하되 RolesGuard override 부분만 제거하고, `overrideGuard
+  (JwtAuthGuard)` 의 `canActivate` 가 `req.user = { sub }` 를 박제해 me 핸들러가 sub 를
+  읽어 200/404 분기에 도달하게 한다(req.user 미박제 시 401 분기). happy-path 는 응답
+  body 에 hashedPassword 가 없음(UserResponseDto whitelist)도 함께 assert 한다. non-2xx
+  분류 실증은 mocked `findById` 의 404(stale token) error path 와, req.user 미박제 guard
+  를 쓰는 별도 module 의 401 defence-in-depth 분기로 커버한다.
 
 - **DB 무의존**: service 를 mock 하고(guard 있는 controller 는 override 도) 실 Postgres
   round-trip·실 LLM·실 스케줄러·외부 I/O 가 없어 결정론적이다. 실 DB round-trip
-  **baseline 실측**은 별도 follow-up (§5 item 5). 열세 spec 모두 collector 배선의
+  **baseline 실측**은 별도 follow-up (§5 item 5). 열네 spec 모두 collector 배선의
   **정확성 검증**이지 baseline 측정이 아니다.
 - **실행**: `pnpm test:perf` (`jest-perf.json` 의 `testRegex: test/perf/.*\.perf-spec\.ts$`
-  가 열세 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
+  가 열네 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
   `pnpm test` 는 `.spec.ts$` 만 매칭하므로 perf-spec 을 picking 하지 않아 unit coverage
   gate 와 분리된다.
 - perf job 은 상시 PR CI 와 분리한다(follow-up #4).
