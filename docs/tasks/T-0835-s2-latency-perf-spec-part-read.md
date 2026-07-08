@@ -2,7 +2,11 @@
 id: T-0835
 title: S2 조회 latency harness 를 여섯 번째 조회 endpoint(PartController)에 배선하는 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-08T14:50:31Z
+mergedAs: d508628f
+prNumber: 729
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 160
