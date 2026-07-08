@@ -2,7 +2,9 @@
 id: T-0841
 title: S2 조회 latency harness 를 열두 번째 조회 endpoint(ExportController GET /api/admin/export/running)에 배선하는 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-08T20:16:00Z
+prNumber: 735
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 170
@@ -102,3 +104,11 @@ implementer → tester
 ## Follow-ups
 
 (작성 시 비어 있음. sub-agent 가 관련 작업 발견 시 여기에 append.)
+
+## Result (DONE)
+
+- **완료 2026-07-08T20:16Z (KST 2026-07-09 05:16), PR #735 squash merge `0882571f`, 브랜치 삭제.**
+- `test/perf/export-running-read.perf-spec.ts` 신설(+230/-13) — cron-schedule-read mirror, `overrideGuard(Jwt/Roles)` 로 Admin 가드 무력화 + `ExportJobService` mock(useValue)만 부트스트랩(부가 provider 불요). `test/perf/README.md` 열두 번째 S2 배선 반영.
+- tester: happy-path(200 N회) + error path(service 예외 → 500) + branch(`assertS2Threshold` pass/fail) + negative (a)빈배열 (b)mixed 부분실패 (c)iterations===1 (d)다건 cover.
+- `pnpm lint && pnpm build && pnpm test`(357 suites/9094) · `test:perf`(12 suites/71) · `test:cov`(line 99.95% / func 100%) 다 green. 신규 dependency 0.
+- reviewer round 1/7 APPROVE(0 findings) + CI green + 4-게이트 PASS → integrator squash merge. 회수: fresh checkout prisma client 미생성 pitfall 은 `pnpm prisma generate` 로 해소(known false alarm).

@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0841",
-  "backlogNote": "▶ **T-0840 DONE — S2 조회 latency harness 를 열한 번째 조회 endpoint(CronScheduleController GET /api/schedules @Roles(Admin) guarded list)에 배선하는 perf-spec 신설 (pr-mode code task, 신규 dep 0, 2 files; 2026-07-09 cron@cloud-132b1c2e fire, 매시 15분 trigger 로 충돌 회피)** — fresh cloud checkout(HEAD 93fb7b06, behind)→fetch origin main+lock-driver→ff-only main→aae9e4a9(직전 T-0840 큐잉 planner fire 반영)→authoritative lock free(tip lock.json tombstone; claims=[])→미해결 HQ 0→gh auth OK(myungjoo, repo+workflow)→[1] CI green→acquire-lock CAS(cron@cloud-132b1c2e, tip bf29e3c6)→[2] fineGrainedConcurrency ON: reclaim(claims 빈 배열, 회수 대상 0)→maxConcurrentClaims gate(활성 claim 0 < 2, pr-mode 단독 OK)→validate-claim-candidate PASS→select-claim T-0840(CLAIM_NOW=19:05:11Z, lock tombstone release 동일 commit)→lock-free executor: **1차 BLOCKED(false alarm) — fresh checkout 에 prisma client 미생성(node_modules/.prisma/client 부재)으로 user.timezone TS2339 build fail**. driver 가 `pnpm prisma generate`→`pnpm build` green 확인(schema.prisma:186 timezone 실재, T-0799/ADR-0052)→SendMessage 로 executor resume→cron-schedule-read.perf-spec.ts 신설(+281/-10)+README 11번째 spec, lint/build/test(357 suites/9094)/test:perf(11 suites/65)/test:cov(line 99.95%/func 100%) 다 green→push feature branch→integrator: PR #734 open→sync-claim-pr(prNumber 734)→reviewer round 1/7 APPROVE(0 findings)+CI green(기본 검사+Docker smoke)+4-게이트 PASS→squash merge 38c996e7→claim prune []→doc-only direct bookkeeping(main) tasksCompleted 832. **pr-mode 단일-task fire, N-driver claim regime.** next: planner needed(nextTask=null — 다음 fire 가 planner dispatch).",
+  "nextTask": null,
+  "backlogNote": "▶ **T-0841 DONE — S2 조회 latency harness 를 열두 번째 조회 endpoint(ExportController GET /api/admin/export/running @Roles(Admin) guarded RUNNING job list, findRunning→service.findRunning())에 배선하는 perf-spec 신설 (pr-mode code task, 신규 dep 0, 2 files; 2026-07-08T20Z / KST 2026-07-09 05시 cron@aa-local-37d8 fire, 매시 15분 trigger 로 충돌 회피)** — fresh checkout(HEAD 6045f9cf, behind 1)→fetch origin main+lock-driver→ff-only main 6fd7e43a(직전 planner fire 가 T-0841 큐잉)→authoritative lock free(tip lock.json tombstone; claims=[])→미해결 HQ 0(전부 RESOLVED)→gh auth OK(myungjoo, keyring)→[1] CI green(6fd7e43a)→acquire-lock CAS(cron@aa-local-37d8, tip f65506bc)→[2] fineGrainedConcurrency ON: reclaim(claims 빈 배열, 회수 0)→maxConcurrentClaims gate(활성 claim 0 < 2, pr-mode 단독 OK)→validate-claim-candidate PASS→select-claim T-0841(CLAIM_NOW=서버 Date 헤더, lock tombstone release 동일 commit)→lock-free executor→implementer: export-running-read.perf-spec.ts 신설(+230/-13, cron-schedule mirror·overrideGuard·ExportJobService mock)+README 12번째 배선, lint/build/test(357 suites/9094)/test:perf(12 suites/71)/test:cov(line 99.95%/func 100%) 다 green→push feature branch→integrator: PR #735 open→sync-claim-pr(prNumber 735)→reviewer round 1/7 APPROVE(0 findings)+CI green+4-게이트 PASS→squash merge 0882571f→claim prune [](acquire-lock→lock_tree_cas_push 가드 hash-object)→doc-only direct bookkeeping(main) tasksCompleted 833. executor 가 prisma client 미생성 pitfall 을 `pnpm prisma generate` 로 자체 해소(known false alarm). **pr-mode 단일-task fire, N-driver claim regime.** next: planner needed(nextTask=null — 다음 fire 가 planner dispatch).",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "38c996e7",
+  "lastCommit": "0882571f",
   "mostRecentTasks": [
+    "T-0841",
     "T-0840",
     "T-0839",
     "T-0838",
-    "T-0837",
-    "T-0836"
+    "T-0837"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -29,12 +29,14 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-08T19:23:04Z",
-    "status": "green",
+    "lastRun": "2026-07-08T20:16:00Z",
+    "status": "running",
     "consecutiveFails": 0,
-    "headSha": "38c996e7"
+    "headSha": "0882571f",
+    "note": "post-merge main CI(0882571f) in_progress — PR #735 자체 CI 는 merge 전 green(4-게이트). 다음 fire [1] 에서 conclusion 재확인."
   },
   "reviewRounds": {
+    "T-0841": 1,
     "T-0831": 1,
     "T-0830": 1,
     "T-0829": 1,
@@ -1386,7 +1388,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 832,
+    "tasksCompleted": 833,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
