@@ -2,7 +2,7 @@
 id: T-0822
 title: PLAN.md P8 운영 문서 bullet(147) implemented-on-main checkbox 정합
 phase: P8
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [TBD]
 estimatedDiff: 3
@@ -47,3 +47,7 @@ plannerNote: P8 line147 운영 문서 bullet — T-0821 runbook.md shipped-on-ma
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기 append)
+
+## Result (DONE 2026-07-08T02:40Z)
+
+PLAN.md line147 `- [ ] 운영 문서 (배포·복구·trouble-shoot)` → `- [x]` flip + implemented-on-main 근거 절 append. runbook.md(`git ls-tree origin/main` blob 62e07c6e 실존 재확인)가 §1 배포·§2 복구·§3 trouble-shoot·§4 운영 전제 4 섹션 cover, deployment.md(architecture/)·daily-deploy-test.md(ops/)·T-0821 cross-link. 인접 bullet(145 E2E/146 보안/148 부하) 무손상, diff +1/-1 1파일. direct commit 4bb1b2db main push. coarse lock fail-safe §D8(a) (jq 부재+midnight bug 회피 select-claim 미사용). counters 813→814.
