@@ -143,7 +143,7 @@ P3 진행 중 발견된 진척 status quo + P4 진입 trigger 의사결정 가�
 ## Phase P8 — Hardening & launch
 
 - [ ] E2E 시나리오 커버리지
-- [ ] 보안 점검 (secret 처리, 인증 흐름, RBAC)
+- [x] 보안 점검 (secret 처리, 인증 흐름, RBAC). **보안 감사 완료**: [docs/ops/security-review.md](ops/security-review.md) 가 secret 처리(§1 JWT secret 해석 `resolve-jwt-secret.ts`·access↔refresh 분리·env 주입 정책·실값 금지 규율)·인증 흐름(§2 발급 `auth.controller.ts`·검증 `jwt.strategy.ts`·guard `jwt-auth.guard.ts`·미인증 차단 401, REQ-043)·RBAC(§3 `roles.decorator.ts`+`roles.guard.ts` escalation·Admin 게이트 REQ-045·permission-denied audit ADR-0023 REQ-008/016) 4 섹션 + 감사 결과 표(통제/실증파일/REQ/상태)로 실증. 심각 미비 통제 0(gap G1~G4 모두 known-deferral 낮음), 각 gap 은 별도 pr-mode task 로 tracking. [T-0824](tasks/T-0824-p8-security-review-audit.md).
 - [x] 운영 문서 (배포·복구·trouble-shoot). **implemented-on-main**: [`docs/ops/runbook.md`](ops/runbook.md) 가 배포(§1 재배포 실행/migration 적용 순서/배포 성공 확인)·복구(§2 롤백/DB restore/migration 실패 대응)·trouble-shoot(§3 증상별 진단 + 알려진 장애 유형)·운영 전제(§4 체크리스트) 4 섹션을 실행 절차 중심으로 cover, 정책은 [`deployment.md`](architecture/deployment.md)·[`daily-deploy-test.md`](ops/daily-deploy-test.md) cross-link. [T-0821](tasks/T-0821-p8-ops-runbook.md).
 - [ ] 부하·내성 테스트
 
