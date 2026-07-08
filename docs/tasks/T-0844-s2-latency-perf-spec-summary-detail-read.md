@@ -2,8 +2,11 @@
 id: T-0844
 title: S2 조회 latency harness 를 열다섯 번째 조회 endpoint(SummaryController GET /api/summaries/:id)에 배선하는 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 738
+completedAt: 2026-07-08T23:15:00Z
+resultCommit: d98e3f23
 coversReq: [REQ-048]
 estimatedDiff: 190
 estimatedFiles: 2
