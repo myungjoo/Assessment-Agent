@@ -2,8 +2,8 @@
 id: T-0827
 title: 부하·내성 harness 도구 선택 ADR 신설 (k6/artillery/autocannon/supertest 비교·권고)
 phase: P8
-status: PENDING
-commitMode: pr
+status: DONE
+commitMode: pr  # 본 cron fire 는 운영 지침(문서 변경=direct commit)에 따라 direct doc-only 로 처리 — ADR 순수 문서·코드/dep 0. content 20dab424.
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 190
 estimatedFiles: 2
