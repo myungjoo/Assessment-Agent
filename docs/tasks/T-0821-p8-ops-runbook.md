@@ -2,7 +2,8 @@
 id: T-0821
 title: P8 운영 문서 — 배포·복구·trouble-shoot 런북 신설 (docs/ops/runbook.md)
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-08T01:40:00Z
 commitMode: direct
 coversReq: [REQ-047, REQ-057, REQ-058]
 estimatedDiff: 130
@@ -57,3 +58,10 @@ PLAN.md Phase P8 line 147 "운영 문서 (배포·복구·trouble-shoot)" 는 �
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기 append)
+
+## Result (DONE 2026-07-08)
+
+docs/ops/runbook.md 신설(배포·복구·trouble-shoot·운영 전제 4 섹션, 실행 절차만; 정책은
+deployment.md·daily-deploy-test.md·deploy/README.md 로 cross-link) + deployment.md §개요
+말미 런북 링크 1줄. secret 실값 0, 2 files +164 LOC, direct 콘텐츠 commit 3e6eae1f main push.
+PLAN line147 checkbox flip 은 out-of-scope(P8 완결까지 열어둠).
