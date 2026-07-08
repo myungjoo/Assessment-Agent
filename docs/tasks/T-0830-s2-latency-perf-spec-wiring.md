@@ -2,8 +2,12 @@
 id: T-0830
 title: S2 조회 latency harness 를 실제 조회 endpoint 에 배선하는 첫 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 67f9bb06
+prNumber: 724
+reviewRounds: 1
+completedAt: 2026-07-08T09:52:00Z
 coversReq: [REQ-048]
 estimatedDiff: 160
 estimatedFiles: 3
