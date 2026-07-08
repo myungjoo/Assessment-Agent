@@ -2,7 +2,11 @@
 id: T-0834
 title: S2 조회 latency harness 를 다섯 번째 조회 endpoint(GroupController)에 배선하는 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
+mergedAs: 3b247550
+prNumber: 728
+reviewRounds: 1
+completedAt: 2026-07-08T13:53:49Z
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 160
