@@ -2,8 +2,11 @@
 id: T-0828
 title: S2 조회 latency 경량 harness 측정 primitive 신설 (supertest 기반, 신규 dep 0)
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-07-08T07:57:12Z
+resultPR: 722
+resultSha: a7267f64
 coversReq: [REQ-048]
 estimatedDiff: 130
 estimatedFiles: 5
