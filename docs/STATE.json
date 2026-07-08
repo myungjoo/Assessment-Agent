@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0840",
-  "backlogNote": "▶ **T-0839 DONE — S2 조회 latency harness 를 열 번째 조회 endpoint(DifficultyMappingController findAll @Roles(Admin) guarded list)에 배선하는 perf-spec 신설 (pr-mode code task, 신규 dep 0, 2 files; 2026-07-08 cron@cloud-93fb7b06 fire, 매시 30분 근처 trigger 로 충돌 회피)** — fresh cloud checkout(HEAD eda138c2, 1 behind)→fetch origin main+lock-driver→ff-only main→93fb7b06(직전 T-0839 큐잉 planner fire 반영)→authoritative lock free(tip lock.json tombstone; claims=[])→미해결 HQ 0→gh auth OK(myungjoo, repo+workflow)→[1] CI green→acquire-lock CAS(cron@cloud-93fb7b06-13281, tip b534283f)→[2] fineGrainedConcurrency ON: reclaim(server-time 18:38:34Z 주입, 회수 대상 0)→maxConcurrentClaims gate(활성 claim 0 < 2, pr-mode 단독 OK)→select-claim T-0839(CLAIM_NOW=18:38:34Z, lock tombstone release 동일 commit)→lock-free executor 1회: difficulty-mapping-read.perf-spec.ts 신설(+268/-8)+README 10번째 spec, lint/build/test:perf(10 suites/59)/test:cov(9094, line 99.95%/func 100%) 다 green→push feature branch→integrator: PR #733 open→reviewer round 1/7 APPROVE(0 findings)+CI green+4-게이트 PASS→squash merge 1a78cda6→claim prune []→doc-only direct bookkeeping(main) tasksCompleted 831. **pr-mode 단일-task fire, N-driver claim regime.** next: planner needed(nextTask=null — 다음 fire 가 planner dispatch 로 T-0840 큐잉).",
+  "nextTask": null,
+  "backlogNote": "▶ **T-0840 DONE — S2 조회 latency harness 를 열한 번째 조회 endpoint(CronScheduleController GET /api/schedules @Roles(Admin) guarded list)에 배선하는 perf-spec 신설 (pr-mode code task, 신규 dep 0, 2 files; 2026-07-09 cron@cloud-132b1c2e fire, 매시 15분 trigger 로 충돌 회피)** — fresh cloud checkout(HEAD 93fb7b06, behind)→fetch origin main+lock-driver→ff-only main→aae9e4a9(직전 T-0840 큐잉 planner fire 반영)→authoritative lock free(tip lock.json tombstone; claims=[])→미해결 HQ 0→gh auth OK(myungjoo, repo+workflow)→[1] CI green→acquire-lock CAS(cron@cloud-132b1c2e, tip bf29e3c6)→[2] fineGrainedConcurrency ON: reclaim(claims 빈 배열, 회수 대상 0)→maxConcurrentClaims gate(활성 claim 0 < 2, pr-mode 단독 OK)→validate-claim-candidate PASS→select-claim T-0840(CLAIM_NOW=19:05:11Z, lock tombstone release 동일 commit)→lock-free executor: **1차 BLOCKED(false alarm) — fresh checkout 에 prisma client 미생성(node_modules/.prisma/client 부재)으로 user.timezone TS2339 build fail**. driver 가 `pnpm prisma generate`→`pnpm build` green 확인(schema.prisma:186 timezone 실재, T-0799/ADR-0052)→SendMessage 로 executor resume→cron-schedule-read.perf-spec.ts 신설(+281/-10)+README 11번째 spec, lint/build/test(357 suites/9094)/test:perf(11 suites/65)/test:cov(line 99.95%/func 100%) 다 green→push feature branch→integrator: PR #734 open→sync-claim-pr(prNumber 734)→reviewer round 1/7 APPROVE(0 findings)+CI green(기본 검사+Docker smoke)+4-게이트 PASS→squash merge 38c996e7→claim prune []→doc-only direct bookkeeping(main) tasksCompleted 832. **pr-mode 단일-task fire, N-driver claim regime.** next: planner needed(nextTask=null — 다음 fire 가 planner dispatch).",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "1a78cda6",
+  "lastCommit": "38c996e7",
   "mostRecentTasks": [
+    "T-0840",
     "T-0839",
     "T-0838",
     "T-0837",
-    "T-0836",
-    "T-0835"
+    "T-0836"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -29,10 +29,10 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-08T18:38:34Z",
+    "lastRun": "2026-07-08T19:23:04Z",
     "status": "green",
     "consecutiveFails": 0,
-    "headSha": "1a78cda6"
+    "headSha": "38c996e7"
   },
   "reviewRounds": {
     "T-0831": 1,
@@ -1386,7 +1386,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 831,
+    "tasksCompleted": 832,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1414,5 +1414,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-07-08T18:52:00Z"
+  "lastActivity": "2026-07-08T19:23:04Z"
 }
