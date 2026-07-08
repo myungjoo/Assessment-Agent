@@ -20,6 +20,23 @@ const er = errorRate(reqs.length, fails); // er < 0.01 검증
 
 `latency-metrics.spec.ts` 는 순수 unit 이라 기본 `pnpm test` 에서도 수집·검증된다.
 
+## 표본 수집기 (`latency-collector.ts`)
+
+요청 함수를 주입받아 반복 호출하며 latency 표본을 모으고 S2 임계를 판정하는 순수
+orchestration 로직(DB·네트워크 무의존, clock 주입으로 결정론적).
+
+- `collectLatencySamples(request, iterations, opts?)` → `{ samplesMs, total, failures }`.
+  `request: () => Promise<{ ok?: boolean; status?: number }>`, `opts.now?` 로 clock 주입.
+- `assertS2Threshold(result, thresholds?)` → `{ pass, summary, errorRate, reasons }`.
+  기본 임계 p95 < 3000ms(REQ-048) / errorRate < 0.01(§3), 위반 사유는 `reasons` 축적.
+
+```ts
+import { collectLatencySamples, assertS2Threshold } from "./latency-collector";
+// 후속 *.perf-spec.ts 에서 supertest 호출 함수를 주입:
+const r = await collectLatencySamples(() => request(app).get("/summary"), 30);
+expect(assertS2Threshold(r).pass).toBe(true);
+```
+
 ## 후속 harness (DB-backed `*.perf-spec.ts`)
 
 실 조회 endpoint round-trip latency 수집은 별도 follow-up 이며 이 primitive 를 import 한다.
