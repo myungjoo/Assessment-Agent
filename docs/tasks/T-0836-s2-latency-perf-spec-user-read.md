@@ -2,8 +2,12 @@
 id: T-0836
 title: S2 조회 latency harness 를 일곱 번째 조회 endpoint(UserController)에 배선하는 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-07-08T15:54:11Z
+mergedAs: 2fef9f53
+prNumber: 730
+reviewRounds: 1
 coversReq: [REQ-048]
 estimatedDiff: 170
 estimatedFiles: 2
