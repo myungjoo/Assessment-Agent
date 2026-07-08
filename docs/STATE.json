@@ -7,8 +7,8 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
-  "backlogNote": "▶ **T-0843 DONE (PR #737 merged, squash fc1ad0c7)** — S2 조회 latency harness 를 열네 번째 조회 endpoint(AuthController GET /api/auth/me @UseGuards(JwtAuthGuard) self-read, req.user.sub → userService.findById → UserResponseDto; controller 분기 200/404/401 있는 첫 self-read slice)에 배선하는 perf-spec 신설. fineGrainedConcurrency ON(stage 5b, maxConcurrentClaims=2) claim-pickup fire: fresh checkout(HEAD 862c8a99 behind)→fetch origin main+lock-driver→ff-only main ec5845f6(직전 planner-dispatch fire 가 T-0843 큐잉)→authoritative lock free(tip lock.json tombstone; claims=[])→미해결 HQ 0(43/43 resolvedAt)→gh auth OK(myungjoo, keyring)→acquire-lock CAS(cron@aa-local-15-50c5, tip c1ae659c)→server-time 2026-07-08T22:05:17Z(gh Date header 빈값, local UTC fallback — reclaim 무관 claims=[])→reclaim 불요(no stale claim)→maxConcurrentClaims gate(활성 claim 0<2)→T-0843 pr-mode 단독 조건 충족(active 0)→select-claim T-0843(claim 박제 + lock tombstone release 원자)→lock-free executor(feature branch claude/T-0843-…, implement+test, commit 153679da, test:perf 14 suites/84 green, test:cov 357/9094 green, lint·build green)→push feature branch→PR #737 open→sync-claim-pr prNumber=737(status PR_OPEN)→integrator: reviewer APPROVE round 1/7 (finding 0) + CI run(153679da pull_request) conclusion=success→4-게이트 PASS→squash merge fc1ad0c7 + feature branch delete→claim prune [](content 검증 [] not empty-blob, msg '='-free). 신규 외부 dependency 0. 본 fire 의 DONE bookkeeping doc-only direct commit + merge push fc1ad0c7 가 새 main CI trigger(in_progress) — 다음 fire [1] 에서 conclusion 재확인. 매시 15분 trigger 로 cloud schedule·loop 과 충돌 회피. next: planner needed (nextTask=null).",
+  "nextTask": "T-0844",
+  "backlogNote": "▶ **T-0844 queued (pr-mode, planner dispatch)** — S2 조회 latency harness 를 열다섯 번째 조회 endpoint(SummaryController GET /api/summaries/:id findById — 첫 path-param detail(:id) read, row 부재 시 NotFoundException→404 분기)에 배선하는 perf-spec 신설. P8 line148 부하·내성 follow-up #15(load-resilience-test-plan §5-2). 앞선 14 slice(T-0830~T-0843, summary-read(list)~auth-me-read) 는 전부 list/query/self-read 였고 본 task 는 첫 :id detail read — T-0830 summary-read.perf-spec.ts 의 passGuard(canActivate 항상 true) + SummaryService 4 jest.fn mock 패턴을 mirror 하되 요청 URL 을 `?personId=`→`/:id` 로, 배선 대상 메서드를 findByPerson→findById 로 교체. mocked findById 가 정상 Summary(200)/NotFoundException(404)/일반 예외(500) 를 반환해 assertS2Threshold pass/fail 분기 결정론적 도달. R-112 4종(happy 200 / error 404 / branch pass·fail / negative: 404·500·mixed·iterations 경계) + 404·500 두 non-2xx 구분 커버. touchesFiles=test/perf/summary-detail-read.perf-spec.ts(신규) + test/perf/README.md(harness 절 14→15 갱신), 기존 14 perf-spec 과 file-disjoint. 신규 외부 dependency 0(supertest 기존 devDependency). issue-still-relevant precheck: origin/main test/perf/ 에 summary-detail-read.perf-spec.ts 부재(summary-read(list) 만 존재) 확인. next: 다음 fire 가 pr-mode T-0844 를 claim(gh/MCP 가용 fire).",
   "lock": {
     "holder": null,
     "since": ""
@@ -29,11 +29,11 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-08T22:10:00Z",
+    "lastRun": "2026-07-08T22:20:05Z",
     "status": "green",
     "consecutiveFails": 0,
-    "headSha": "fc1ad0c7",
-    "note": "T-0843 PR #737 CI run(153679da event=pull_request) conclusion=success — reviewer approval-gate 포함 job 다 pass, integrator 4-게이트 확인. squash merge fc1ad0c7 로 main 진입, main CI(fc1ad0c7 push) in_progress — 다음 fire [1] 에서 conclusion 재확인(R-114)."
+    "headSha": "4f9fb051",
+    "note": "T-0843 merge 후속 main CI 재확인(R-114): fc1ad0c7 push run + 4f9fb051 push run 둘 다 conclusion=success(green). 본 fire(cron@aa-local-30-4f9f, 매시 30분)는 planner-dispatch fire — nextTask=T-0844 큐잉만, 코드 변경 0. 본 bookkeeping doc-only direct commit 이 새 main CI trigger — 다음 fire [1] 에서 conclusion 재확인."
   },
   "reviewRounds": {
     "T-0841": 1,
