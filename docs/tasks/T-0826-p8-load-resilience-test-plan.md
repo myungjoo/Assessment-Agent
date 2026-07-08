@@ -2,7 +2,7 @@
 id: T-0826
 title: P8 부하·내성 테스트 계획 문서 신설 (REQ-047/048 시나리오·임계·접근)
 phase: P8
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 170
