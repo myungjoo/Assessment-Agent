@@ -2,7 +2,11 @@
 id: T-0833
 title: S2 조회 latency harness 를 네 번째 조회 endpoint(PersonController)에 배선하는 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-08T12:51:54Z
+mergedAs: 89e86dcb
+prNumber: 727
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 160
