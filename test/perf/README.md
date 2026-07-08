@@ -37,17 +37,19 @@ const r = await collectLatencySamples(() => request(app).get("/summary"), 30);
 expect(assertS2Threshold(r).pass).toBe(true);
 ```
 
-## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read`)
+## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read`)
 
-collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 여덟 개다. 여덟 다
+collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 아홉 개다. 아홉 다
 `Test.createTestingModule` 로 대상 controller + **mocked service** 를 부트스트랩하고,
 `collectLatencySamples(() => request(app.getHttpServer()).get(...), N)` 로 반복 호출해
 표본을 수집하고 `assertS2Threshold(result).pass` 를 검증한다. `summary-read`·
-`user-read`·`permission-denied-read` 는 guard 가 부착된 controller 라
-`JwtAuthGuard`/`RolesGuard` 를 `overrideGuard(...).useValue({ canActivate: () => true })`
-로 통과시키지만, `person-read`·`group-read`·`part-read` 는 guard 미적용 controller 라
-override 가 불요하다. harness 가 단일 controller 에 국한되지 않고
-요약·평가·기여·인원·그룹·파트·사용자·권한거부 8 read 경로 전반에 재사용됨을 실증한다.
+`user-read`·`permission-denied-read`·`llm-provider-config-read` 는 guard 가 부착된
+controller 라 `JwtAuthGuard`/`RolesGuard` 를
+`overrideGuard(...).useValue({ canActivate: () => true })` 로 통과시키지만,
+`person-read`·`group-read`·`part-read` 는 guard 미적용 controller 라 override 가
+불요하다. harness 가 단일 controller 에 국한되지 않고
+요약·평가·기여·인원·그룹·파트·사용자·권한거부·LLM설정 9 read 경로 전반에 재사용됨을
+실증한다.
 
 - `summary-read.perf-spec.ts` (T-0830) — `SummaryController` + mocked `SummaryService`,
   `GET /api/summaries?personId=...` 배선. 첫 실 perf-spec.
@@ -95,13 +97,24 @@ override 가 불요하다. harness 가 단일 controller 에 국한되지 않고
   정상 수집함을 실증한다. non-2xx 분류 실증은 mocked `list` 가 예외를 던져 endpoint 가
   500 을 반환하는 error path 로 커버한다(list 는 actor 를 mocked service 로만 forward
   하므로 req.user 박제 불요 — canActivate true 만으로 충분).
+- `llm-provider-config-read.perf-spec.ts` (T-0838) — `LlmProviderConfigController` +
+  mocked `LlmProviderConfigService`, `GET /api/llm/providers`(REQ-096 Admin 가시성 /
+  REQ-048 조회 back) 배선. 아홉 번째 배선 spec. 이 endpoint 는
+  `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("Admin")` 로 **가드가 부착된 Admin
+  list read** 라 `user-read`·`permission-denied-read` 처럼
+  `overrideGuard(JwtAuthGuard)`·`overrideGuard(RolesGuard)` 로 가드를 무력화한다.
+  `findAll` 핸들러는 query param 도 `@CurrentUser()` actor 도 읽지 않고 mocked
+  `findAll()` 를 raw forward(apiKey 제거 view 배열 반환, controller 자체 분기 없음)하므로
+  req.user 박제가 불요하다(canActivate true 만으로 충분). negative case 로 빈 배열(등록
+  0)·다건 배열도 harness 가 정상 수집함을 실증한다. non-2xx 분류 실증은 mocked `findAll`
+  이 예외를 던져 endpoint 가 500 을 반환하는 error path 로 커버한다.
 
 - **DB 무의존**: service 를 mock 하고(guard 있는 controller 는 override 도) 실 Postgres
   round-trip·실 LLM·외부 I/O 가 없어 결정론적이다. 실 DB round-trip **baseline 실측**은
-  별도 follow-up (§5 item 5). 여덟 spec 모두 collector 배선의 **정확성 검증**이지 baseline
+  별도 follow-up (§5 item 5). 아홉 spec 모두 collector 배선의 **정확성 검증**이지 baseline
   측정이 아니다.
 - **실행**: `pnpm test:perf` (`jest-perf.json` 의 `testRegex: test/perf/.*\.perf-spec\.ts$`
-  가 여덟 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
+  가 아홉 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
   `pnpm test` 는 `.spec.ts$` 만 매칭하므로 perf-spec 을 picking 하지 않아 unit coverage
   gate 와 분리된다.
 - perf job 은 상시 PR CI 와 분리한다(follow-up #4).
