@@ -2,7 +2,7 @@
 id: T-0843
 title: S2 조회 latency harness 를 열네 번째 조회 endpoint(AuthController GET /api/auth/me)에 배선하는 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 190
@@ -107,3 +107,10 @@ implementer → tester
 ## Follow-ups
 
 (작성 시 비어 있음. sub-agent 가 관련 작업 발견 시 여기에 append.)
+
+## Result (DONE — 2026-07-08T22:10Z)
+
+- PR [#737](https://github.com/myungjoo/Assessment-Agent/pull/737) squash-merge `fc1ad0c7` (round 1/7, reviewer APPROVE finding 0, 4-게이트 PASS, CI green).
+- 신설: `test/perf/auth-me-read.perf-spec.ts` (AuthController + 4 mock provider, `JwtAuthGuard` override 의 canActivate 가 `req.user={sub}` 박제; happy 2 / error 1 / negative a~d), `test/perf/README.md` harness 절 13→14 갱신. +346/-10, 2 files.
+- 검증: `pnpm lint`·`pnpm build` green, `pnpm test:perf` 14 suites/84 tests green(신규 spec 8 test), `pnpm test:cov` 357 suites/9094 tests green(coverage line·function ≥80% gate 유지). 신규 외부 dependency 0.
+- fineGrainedConcurrency ON(stage 5b, maxConcurrentClaims=2) claim-pickup fire: acquire-lock CAS(cron@aa-local-15-50c5) → active claims 0<2 pr-mode 단독 조건 충족 → select-claim T-0843(lock tombstone release 동일 commit) → lock-free executor → PR #737 → sync-claim-pr(prNumber=737) → integrator 4-게이트 → merge → claim prune [].
