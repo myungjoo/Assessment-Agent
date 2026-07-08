@@ -11,6 +11,7 @@
 - [deploy/README.md](../../deploy/README.md) — Docker Compose 배포 가이드(설치·기동·systemd timer).
 - [docs/ops/daily-deploy-test.md](daily-deploy-test.md) — 일일 배포·자동 테스트 플레이북(로컬 루틴).
 - [docs/architecture/deployment.md](../architecture/deployment.md) — deployment view(토폴로지·migration·secret·scheduler·network).
+- [docs/ops/load-resilience-test-plan.md](load-resilience-test-plan.md) — 부하·내성 테스트 계획(시나리오·임계·도구 후보, harness 구현은 follow-up).
 
 > **범위 한정**: 본 런북은 *문서*다. 실 credential/PAT 주입·live 배포 실행은 운영 행위(HITL 영역)로,
 > 본 문서는 그 절차를 서술만 한다. 실값은 절대 본 문서에 적지 않는다(§9, 아래 4장 참조).
