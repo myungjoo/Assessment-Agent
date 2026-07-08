@@ -2,7 +2,7 @@
 id: T-0825
 title: PLAN.md P8 E2E 시나리오 커버리지 bullet implemented-on-main checkbox 정합
 phase: P8
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-113]
 touchesFiles: [docs/PLAN.md]
@@ -52,3 +52,11 @@ PLAN.md line 145 의 `- [ ] E2E 시나리오 커버리지` bullet 이 미완료 
 ## Follow-ups
 
 (없음 — 생성 시 비어있음)
+
+## Result (DONE)
+
+- 완료 시각: 2026-07-08T05:08Z (cron@cloud-703f21fa, aa-local-15 fire)
+- `docs/PLAN.md` line 145 `- [ ] E2E 시나리오 커버리지` → `- [x]` flip + `**implemented-on-main**` 근거 절 append. 1 file +1/-1.
+- executor→implementer 가 `git ls-tree origin/main test/e2e/` 로 19 e2e-spec 실존 실측 후 flip (false-positive 방지), 인용 파일 전량 확인. 인접 bullet(146 보안 점검 / 148 부하·내성 [ ] 유지) 무손상 append-only.
+- content commit ab39926b main push. CI run 28918985085 in_progress (doc-only, green 예상 — 다음 fire conclusion 재확인).
+- Acceptance Criteria 5/5 ok.
