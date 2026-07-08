@@ -2,7 +2,7 @@
 id: T-0824
 title: P8 보안 점검 감사 문서 신설 (secret 처리 / 인증 흐름 / RBAC)
 phase: P8
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043, REQ-045, REQ-008, REQ-016]
 estimatedDiff: 200
