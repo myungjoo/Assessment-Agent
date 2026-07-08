@@ -37,14 +37,14 @@ const r = await collectLatencySamples(() => request(app).get("/summary"), 30);
 expect(assertS2Threshold(r).pass).toBe(true);
 ```
 
-## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read`)
+## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read`)
 
-collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 두 개다. 둘 다
+collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 세 개다. 셋 다
 `Test.createTestingModule` 로 대상 controller + **mocked service** 를 부트스트랩하고,
 `JwtAuthGuard`/`RolesGuard` 를 `overrideGuard(...).useValue({ canActivate: () => true })`
 로 통과시킨 뒤, `collectLatencySamples(() => request(app.getHttpServer()).get(...), N)` 로
 반복 호출해 표본을 수집하고 `assertS2Threshold(result).pass` 를 검증한다. harness 가 단일
-controller 에 국한되지 않고 재사용됨을 실증한다.
+controller 에 국한되지 않고 요약·평가·기여 3 read 경로 전반에 재사용됨을 실증한다.
 
 - `summary-read.perf-spec.ts` (T-0830) — `SummaryController` + mocked `SummaryService`,
   `GET /api/summaries?personId=...` 배선. 첫 실 perf-spec.
@@ -53,12 +53,17 @@ controller 에 국한되지 않고 재사용됨을 실증한다.
   두 번째 배선 spec. 이 endpoint 는 `personId` query 누락 시 controller 가
   `BadRequestException`(400) 을 강제하는 고유 분기가 있어, collector 가 non-2xx(400) 도
   `failures` 로 정확히 분류하는지 추가 검증한다.
+- `contribution-read.perf-spec.ts` (T-0832) — `ContributionController` + mocked
+  `ContributionService`, `GET /api/contributions?assessmentId=...`(REQ-033 aggregate-level
+  기여 조회) 배선. 세 번째 배선 spec. 이 endpoint 도 `assessmentId` query 누락/빈 string
+  시 controller 가 `BadRequestException`(400) 을 강제하는 분기가 있어, collector 의
+  non-2xx(400) 분류 검증을 이어간다.
 
 - **DB 무의존**: service 를 mock 하고 guard 를 override 하므로 실 Postgres round-trip·실
   LLM·외부 I/O 가 없어 결정론적이다. 실 DB round-trip **baseline 실측**은 별도 follow-up
-  (§5 item 5). 두 spec 모두 collector 배선의 **정확성 검증**이지 baseline 측정이 아니다.
+  (§5 item 5). 세 spec 모두 collector 배선의 **정확성 검증**이지 baseline 측정이 아니다.
 - **실행**: `pnpm test:perf` (`jest-perf.json` 의 `testRegex: test/perf/.*\.perf-spec\.ts$`
-  가 두 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
+  가 세 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
   `pnpm test` 는 `.spec.ts$` 만 매칭하므로 perf-spec 을 picking 하지 않아 unit coverage
   gate 와 분리된다.
 - perf job 은 상시 PR CI 와 분리한다(follow-up #4).
