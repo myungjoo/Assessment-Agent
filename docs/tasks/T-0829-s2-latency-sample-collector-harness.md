@@ -2,7 +2,10 @@
 id: T-0829
 title: S2 조회 latency 반복-호출 표본 수집기 harness 신설 (T-0828 primitive 조합, 신규 dep 0)
 phase: P8
-status: PENDING
+status: DONE
+mergedAs: 44b6ef9b
+prNumber: 723
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 150
