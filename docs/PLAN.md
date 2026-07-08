@@ -144,7 +144,7 @@ P3 진행 중 발견된 진척 status quo + P4 진입 trigger 의사결정 가�
 
 - [ ] E2E 시나리오 커버리지
 - [ ] 보안 점검 (secret 처리, 인증 흐름, RBAC)
-- [ ] 운영 문서 (배포·복구·trouble-shoot)
+- [x] 운영 문서 (배포·복구·trouble-shoot). **implemented-on-main**: [`docs/ops/runbook.md`](ops/runbook.md) 가 배포(§1 재배포 실행/migration 적용 순서/배포 성공 확인)·복구(§2 롤백/DB restore/migration 실패 대응)·trouble-shoot(§3 증상별 진단 + 알려진 장애 유형)·운영 전제(§4 체크리스트) 4 섹션을 실행 절차 중심으로 cover, 정책은 [`deployment.md`](architecture/deployment.md)·[`daily-deploy-test.md`](ops/daily-deploy-test.md) cross-link. [T-0821](tasks/T-0821-p8-ops-runbook.md).
 - [ ] 부하·내성 테스트
 
 ---
