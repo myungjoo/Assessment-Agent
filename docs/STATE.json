@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0842",
-  "backlogNote": "▶ **T-0842 큐잉 — planner dispatch fire (nextTask=T-0842)**. S2 조회 latency harness 를 열세 번째 조회 endpoint(ImportController GET /api/admin/import/running @Roles(Admin) guarded RUNNING job list — export↔import counterpart 로 T-0841 mirror)에 배선하는 perf-spec 신설 (pr-mode code task, 신규 dep 0, 2 files, ~170 LOC; P8 line148 부하·내성 follow-up #13, load-resilience-test-plan §5-2). fire 궤적: fresh checkout(HEAD 6fd7e43a, behind)→fetch origin main+lock-driver→ff-only main 319fca5c(직전 cron fire 가 T-0841 DONE bookkeeping)→authoritative lock free(tip lock.json tombstone; claims=[])→미해결 HQ 0→gh auth OK(myungjoo, keyring)→[1] CI 확인: 0882571f·319fca5c conclusion=success(green)→acquire-lock CAS(cron@aa-local-7f4d6978, tip 338ef0e3)→currentTask·nextTask 둘 다 null → planner dispatch→planner: T-0842 task 파일 신설 + nextTask=T-0842 갱신(다른 STATE 필드 불변) + journal 1줄→doc-only direct bookkeeping(main) tasksCompleted 불변(큐잉만). **본 fire 는 코드 변경 0 — 다음 fire 가 T-0842 를 claim/executor 로 집어감.** 매시 15분경 trigger 로 cloud schedule·loop 과 충돌 회피. next: T-0842 (nextTask).",
+  "nextTask": null,
+  "backlogNote": "▶ **T-0842 DONE (PR #736 merged, squash c87b78d4)** — S2 조회 latency harness 를 열세 번째 조회 endpoint(ImportController GET /api/admin/import/running @Roles(Admin) guarded RUNNING job list — export↔import counterpart, T-0841 mirror)에 배선하는 perf-spec 신설. fineGrainedConcurrency 토글 ON(stage 5b, maxConcurrentClaims=2) claim-pickup fire: fresh checkout(HEAD 319fca5c behind)→fetch origin main+lock-driver→ff-only main 5b1a898a(직전 planner-dispatch fire 가 T-0842 큐잉)→authoritative lock free(tip lock.json tombstone; claims=[])→미해결 HQ 0→gh auth OK(myungjoo, keyring)→acquire-lock CAS(cron@aa-local-15-5b1a, tip 8b07c35d)→reclaim(server-time 2026-07-08T21:05:30Z, no stale claim)→active claims 0<2, T-0842 pr-mode 단독 조건 충족→select-claim T-0842(claim 박제 + lock tombstone release 원자)→executor(feature branch claude/T-0842-…, implement+test, commit c2a1acab, test:perf 13 suites/77 green, test:cov 357/9094 green, lint·build green)→push feature branch→PR #736 open→sync-claim-pr prNumber=736(status PR_OPEN)→integrator: reviewer APPROVE round 1/7 (finding 0) + CI run 28976099881 conclusion=success→4-게이트 PASS→squash merge c87b78d4 + feature branch delete. 신규 외부 dependency 0. 본 fire 의 DONE bookkeeping doc-only direct commit 이 새 main CI trigger — 다음 fire [1] 에서 conclusion 재확인. next: planner needed (nextTask=null).",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "0882571f",
+  "lastCommit": "c87b78d4",
   "mostRecentTasks": [
+    "T-0842",
     "T-0841",
     "T-0840",
     "T-0839",
-    "T-0838",
-    "T-0837"
+    "T-0838"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -29,11 +29,11 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-08T20:18:25Z",
+    "lastRun": "2026-07-08T21:05:30Z",
     "status": "green",
     "consecutiveFails": 0,
-    "headSha": "319fca5c",
-    "note": "직전 fire 의 post-merge main CI(0882571f) conclusion=success 확인 완료. 그 뒤 T-0841 DONE bookkeeping(319fca5c) main CI 도 success. 본 planner-dispatch fire 의 doc-only direct commit 이 새 main CI trigger — 다음 fire [1] 에서 conclusion 재확인."
+    "headSha": "c87b78d4",
+    "note": "T-0842 PR #736 CI run 28976099881(event=pull_request) conclusion=success — reviewer approval-gate 포함 두 job 다 pass, race 없이 단일 run green. squash merge c87b78d4 로 main 진입. 본 fire 의 T-0842 DONE bookkeeping doc-only direct commit 이 새 main CI trigger — 다음 fire [1] 에서 conclusion 재확인."
   },
   "reviewRounds": {
     "T-0841": 1,
@@ -1388,7 +1388,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 833,
+    "tasksCompleted": 834,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1416,5 +1416,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-07-08T20:41:27Z"
+  "lastActivity": "2026-07-08T21:10:00Z"
 }

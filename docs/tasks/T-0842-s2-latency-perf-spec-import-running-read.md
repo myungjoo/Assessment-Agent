@@ -2,8 +2,11 @@
 id: T-0842
 title: S2 조회 latency harness 를 열세 번째 조회 endpoint(ImportController GET /api/admin/import/running)에 배선하는 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 736
+mergedAs: c87b78d4
+reviewRounds: 1
 coversReq: [REQ-048]
 estimatedDiff: 170
 estimatedFiles: 2
