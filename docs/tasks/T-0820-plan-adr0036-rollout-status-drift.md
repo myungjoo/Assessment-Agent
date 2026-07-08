@@ -2,7 +2,7 @@
 id: T-0820
 title: PLAN.md ADR-0036 fine-grained concurrency rollout bullet(160) implemented-on-main 정합
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 independentStream: doc-drift-reconciliation
