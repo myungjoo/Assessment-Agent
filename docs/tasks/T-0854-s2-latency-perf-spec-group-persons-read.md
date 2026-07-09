@@ -2,7 +2,7 @@
 id: T-0854
 title: S2 조회 latency perf-spec 를 GroupController GET /api/groups/:id/persons sub-resource read 에 배선
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 independentStream: s2-latency-harness
@@ -59,3 +59,9 @@ implementer → tester
 ## Follow-ups
 
 (없음 — 신규 생성 시점)
+
+## 완료 기록
+
+- **Status: DONE** (2026-07-09T08:48Z, cron@AKIHA-15cc fire)
+- PR #748 squash-merge, merge SHA `e0cd0900`, reviewer round 1 APPROVE + CI green (4-게이트 통과).
+- 결과: `test/perf/group-persons-read.perf-spec.ts` 신설 + `test/perf/README.md` 배선 카운트 24→25. GET /api/groups/:id/persons 를 S2 latency collector/assertS2Threshold 에 배선 (첫 sub-resource read, group-detail T-0845 mirror, guard-free 부트스트랩, findPersonsByGroupId mock). happy/empty-list/404/500/mixed/경계 negative cover. pnpm test:perf 25 suites green, coverage 회귀 무영향.
