@@ -2,12 +2,15 @@
 id: T-0859
 title: S2 조회 latency harness 를 AppController GET /api health-read 에 배선하는 서른 번째 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 250
 estimatedFiles: 2
 created: 2026-07-09
+mergedAs: 9bfd5b20
+prNumber: 753
+reviewRounds: 1
 independentStream: s2-latency-harness
 dependsOn: []
 touchesFiles:

@@ -7,19 +7,19 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0859",
-  "backlogNote": "▶ **T-0858 DONE (PR #752 merged, squash db091913)** — S2 조회 latency harness 를 스물아홉 번째 조회 endpoint(ExportController GET /api/admin/export/:id/download artifact-stream read — `download` 핸들러가 findJob(id)→buildScopePayload→materializeFullExportDownload(scope) 로 Readable 획득→collectStream Buffer 화→download header(Content-Type/Disposition/Length) set 후 StreamableFile 200 반환. 첫 dual-service-call(findJob+materialize) read + StreamableFile byte-body read, @Roles(\"Admin\") Admin-tier, export :id/status-view(T-0856) sibling mirror)에 배선하는 perf-spec 신설. reviewer APPROVE round 1/7(0 blocker/0 major/2 minor non-blocking: LOC 391>estimate 300 test 전량 / negative 403·body-less 는 injectStatus fabricate 정직 명시). fineGrainedConcurrency ON(stage 5b, maxConcurrentClaims=2) claim-pickup fire(cron@aa-local-e4d00232-99278, aa-local-scheduled 매시 30분): 로컬 checkout origin/main e4d00232 ff→lock free(claims=[])→acquire-lock(c911762a)+reclaim no-op+select-claim T-0858(gate 활성0<2, pr-mode 단독)→lock tombstone release→lock-free executor(implement+test, feature branch, test:perf 29 suites/184 green, cov line 99.95%/func 100% ≥80% 무회귀, +391/-0)→sync-claim-pr(752, PR_OPEN)→integrator: reviewer APPROVE + CI success→4-게이트 PASS→squash db091913 + branch delete→claim prune []. 신규 외부 dependency 0. 본 fire 의 DONE bookkeeping doc-only direct commit + merge run db091913(push) 이 새 main CI trigger — 다음 fire [1] 에서 conclusion 재확인(R-114). next: planner needed (nextTask=null). ▶ **S2 latency harness backlog** — P8 load-resilience-test-plan §5 follow-up #2 로 조회 endpoint 29 개 배선 완료(list/query/self-read 14 + :id detail 10 + group·part :id/persons sub-resource 2 + export :id/status-view derived-detail 1 + import /modes derived-list 1 + export :id/download artifact-stream 1). 다음 slice 후보(planner 판정): 남은 sub-resource/derived read 또는 write-route(POST/PATCH/DELETE) latency 배선 — planner 가 endpoint backlog 점검해 다음 task 큐잉.",
+  "nextTask": null,
+  "backlogNote": "▶ **T-0859 DONE (PR #753 merged, squash 9bfd5b20)** — S2 조회 latency harness 를 서른 번째 조회 endpoint(AppController GET /api health-read — `getRoot` 핸들러가 `appService.getStatus()` 가 반환하는 고정 문자열 `APP_STATUS_MESSAGE`(\"Assessment-Agent\")를 200 반환. guard 미적용·path/query param 0·service 동기 함수 1개 호출·예외 경로 0 의 최단 read floor case, import /modes(T-0857) 부트스트랩 mirror 하되 guard-free 라 overrideGuard 제거)에 배선하는 perf-spec 신설 + test/perf/README.md 28→30 catch-up(export-download T-0858 미반영분 동반 해소). reviewer APPROVE round 1/7(0 blocker/0 major/0 minor). fineGrainedConcurrency ON(stage 5b, maxConcurrentClaims=2) claim-pickup fire(cron@aa-local-bf2830a2-101756, aa-local-scheduled 매시 30분): 로컬 checkout origin/main bf2830a2 ff→lock free(claims=[])→acquire-lock(071de18a)+reclaim no-op+select-claim T-0859(claimedAt 13:38:49Z server-time, gate 활성0<2, pr-mode 단독)→lock tombstone release→lock-free executor(implement+test, feature branch, test:perf 30 suites/191 green, test:cov 357 suites 9094 tests, cov line 99.95%/func 100% ≥80% 무회귀, +281/-6)→re-acquire→sync-claim-pr(753, PR_OPEN)→release→integrator: reviewer APPROVE + CI success→4-게이트 PASS→squash 9bfd5b20 + branch delete→claim prune []. 신규 외부 dependency 0. 본 fire 의 DONE bookkeeping doc-only direct commit(push) 이 새 main CI trigger — 다음 fire [1] 에서 conclusion 재확인(R-114). next: planner needed (nextTask=null). ▶ **S2 latency harness backlog** — P8 load-resilience-test-plan §5 follow-up #2 로 조회 endpoint 30 개 배선 완료(list/query/self-read 14 + :id detail 10 + group·part :id/persons sub-resource 2 + export :id/status-view derived-detail 1 + import /modes derived-list 1 + export :id/download artifact-stream 1 + app-root /api health-read 1). 다음 slice 후보(planner 판정): 남은 sub-resource/derived read 또는 write-route(POST/PATCH/DELETE) latency 배선 — planner 가 endpoint backlog 점검해 다음 task 큐잉.",
   "lock": {
     "holder": null,
     "since": ""
   },
-  "lastCommit": "db091913",
+  "lastCommit": "9bfd5b20",
   "mostRecentTasks": [
+    "T-0859",
     "T-0858",
     "T-0857",
     "T-0856",
-    "T-0855",
-    "T-0854"
+    "T-0855"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -29,11 +29,11 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-09T12:57:45Z",
+    "lastRun": "2026-07-09T13:38:49Z",
     "status": "green",
     "consecutiveFails": 0,
-    "headSha": "db091913",
-    "note": "T-0858 merge db091913 CI green(확인 완료, R-114). 본 fire(cron@AKIHA-461aa0c7, aa-local-scheduled 매시 15분)는 planner-only turn — currentTask/nextTask 둘 다 null 이라 planner dispatch 로 T-0859 큐잉. 로컬 origin/main 461aa0c7 ff, lock free 확인→acquire-lock(cron, tip d851579f). planner: T-0859 신설(S2 latency harness 30번째 perf-spec, AppController GET /api health-read 배선 + README 28→30 카운트 catch-up, pr-mode, dep 0, 2 files) + STATE.nextTask=T-0859. doc-only direct commit. next: T-0859 실행(다음 fire)."
+    "headSha": "9bfd5b20",
+    "note": "T-0859 DONE (PR #753 squash 9bfd5b20) — S2 latency harness 30번째 perf-spec(AppController GET /api health-read — getRoot→getStatus 고정 문자열 200, guard-free·분기 0 최단 read floor case) 배선 + test/perf/README.md 28→30 catch-up(export-download T-0858 누락분 동반 반영). fineGrainedConcurrency ON(stage 5b, maxConcurrentClaims=2) claim-pickup fire(cron@aa-local-bf2830a2-101756, aa-local-scheduled 매시 30분). 로컬 checkout origin/main bf2830a2 ff→lock free(claims=[])→acquire-lock(cron, tip 071de18a)→reclaim no-op(claims empty)→maxConcurrentClaims gate(활성 0<2, pr-mode 단독)→select-claim T-0859(claimedAt 13:38:49Z server-time, midnight-bug 회피)→lock tombstone release→lock-free executor(implement+test, feature branch, lint/build/test:perf 30 suites/191 green, test:cov 357 suites/9094 tests, cov line 99.95%/func 100% ≥80/80 무회귀, +281/-6)→re-acquire lock→sync-claim-pr(753, PR_OPEN)→lock release→integrator: reviewer APPROVE round 1/7(0 blocker/0 major/0 minor) + CI run 29022619311 success→4-게이트 all PASS→squash 9bfd5b20 + branch delete. bookkeeping: 재-acquire lock→claim prune([])→main direct commit(STATE+journal+task DONE)→lock release. counters 850→851. 신규 외부 dependency 0. 본 bookkeeping doc-only direct commit(push) 이 새 main CI trigger — 다음 fire [1] 에서 conclusion 재확인(R-114). next: planner needed(nextTask null)."
   },
   "reviewRounds": {
     "T-0857": 1,
@@ -1394,7 +1394,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 850,
+    "tasksCompleted": 851,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
