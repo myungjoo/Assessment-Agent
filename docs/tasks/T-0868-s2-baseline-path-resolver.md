@@ -2,8 +2,10 @@
 id: T-0868
 title: S2 latency baseline 디렉토리 경로 조립 순수 함수 신설 (resolveBaselinePath)
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 762
+mergedAs: 6a6d2fee
 coversReq: [REQ-048]
 estimatedDiff: 150
 estimatedFiles: 3
