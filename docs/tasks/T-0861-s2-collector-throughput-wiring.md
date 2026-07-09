@@ -2,7 +2,10 @@
 id: T-0861
 title: S2 latency collector 에 wall-clock 총 경과 수집 + throughput(req/s) 배선
 phase: P8
-status: PENDING
+status: DONE
+mergedAs: cf80540b
+prNumber: 755
+completedAt: 2026-07-09T16:08:00Z
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 130
