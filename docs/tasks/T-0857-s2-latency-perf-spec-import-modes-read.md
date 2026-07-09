@@ -2,7 +2,7 @@
 id: T-0857
 title: S2 조회 latency perf-spec 를 ImportController GET /api/admin/import/modes derived-list read 에 배선
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-030, REQ-032]
 independentStream: s2-latency-harness
@@ -59,3 +59,7 @@ plannerNote: "P8 load-resilience §5 #2 — S2 latency harness 28번째 perf-spe
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+
+## 완료 기록
+
+- **DONE 2026-07-09T11:49Z** (PR #751 squash-merged, main 96697a33). ImportController GET /api/admin/import/modes derived-list read 에 S2 latency harness 배선하는 28번째 perf-spec 신설. test:perf 28 suites/176 green, cov line 99.95%/func 100%(≥80% 무회귀), +313/-6. reviewer APPROVE round 1/7, 4-게이트 PASS. cron@aa-local-cfa73844 claim-pickup fire.
