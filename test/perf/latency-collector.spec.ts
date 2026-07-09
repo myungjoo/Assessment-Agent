@@ -47,6 +47,15 @@ describe("latency-collector harness (S2)", () => {
       expect(res.samplesMs.every((s) => s === 10)).toBe(true);
     });
 
+    it("elapsedMs = 첫 시작~마지막 종료 wall-clock 경과(주입 clock 기준 정확)", async () => {
+      // stepClock(10): 호출당 start=t, end=t+10 로 t 가 10 씩 누적.
+      // 5 회 반복이면 firstStart=0, lastEnd=50 → elapsedMs=50.
+      const res = await collectLatencySamples(okRequest, 5, {
+        now: stepClock(10),
+      });
+      expect(res.elapsedMs).toBe(50);
+    });
+
     it("status 코드 기반 2xx 판정(ok 미제공)", async () => {
       const req: RequestFn = async () => ({ status: 204 });
       const res = await collectLatencySamples(req, 3, { now: stepClock(5) });
@@ -135,12 +144,13 @@ describe("latency-collector harness (S2)", () => {
   });
 
   describe("collectLatencySamples — branch: iterations === 0", () => {
-    it("iterations 0 → 빈 표본, 호출 없음", async () => {
+    it("iterations 0 → 빈 표본, 호출 없음, elapsedMs === 0", async () => {
       const req = jest.fn(okRequest);
       const res = await collectLatencySamples(req, 0, { now: stepClock(1) });
       expect(res.samplesMs).toHaveLength(0);
       expect(res.total).toBe(0);
       expect(res.failures).toBe(0);
+      expect(res.elapsedMs).toBe(0);
       expect(req).not.toHaveBeenCalled();
     });
 
@@ -159,6 +169,7 @@ describe("latency-collector harness (S2)", () => {
         samplesMs: [10, 12, 11, 9, 15],
         total: 5,
         failures: 0,
+        elapsedMs: 100,
       };
       const a = assertS2Threshold(result);
       expect(a.pass).toBe(true);
@@ -175,6 +186,7 @@ describe("latency-collector harness (S2)", () => {
         samplesMs: samples,
         total: 100,
         failures: 0,
+        elapsedMs: 500000,
       };
       const a = assertS2Threshold(result);
       expect(a.pass).toBe(false);
@@ -186,6 +198,7 @@ describe("latency-collector harness (S2)", () => {
         samplesMs: [10, 10, 10, 10, 10, 10, 10, 10, 10],
         total: 100,
         failures: 91,
+        elapsedMs: 1000,
       };
       const a = assertS2Threshold(result);
       expect(a.pass).toBe(false);
@@ -199,6 +212,7 @@ describe("latency-collector harness (S2)", () => {
         samplesMs: [],
         total: 5,
         failures: 5,
+        elapsedMs: 200,
       };
       const a = assertS2Threshold(result);
       expect(a.pass).toBe(false);
@@ -211,6 +225,7 @@ describe("latency-collector harness (S2)", () => {
         samplesMs: samples,
         total: 100,
         failures: 50,
+        elapsedMs: 200000,
       };
       const a = assertS2Threshold(result);
       expect(a.pass).toBe(false);
@@ -224,6 +239,7 @@ describe("latency-collector harness (S2)", () => {
         samplesMs: [2000, 2100, 1900],
         total: 3,
         failures: 0,
+        elapsedMs: 6000,
       };
       // 기본 3000 이하라 pass, 상한 1000 으로 낮추면 fail.
       expect(assertS2Threshold(result).pass).toBe(true);
@@ -235,6 +251,7 @@ describe("latency-collector harness (S2)", () => {
         samplesMs: [10, 20],
         total: 3,
         failures: 1,
+        elapsedMs: 100,
       };
       const a = assertS2Threshold(result, { errorRateMax: 0 });
       expect(a.pass).toBe(false);
@@ -257,26 +274,185 @@ describe("latency-collector harness (S2)", () => {
     });
 
     it("p95MaxMs 음수 → RangeError", () => {
-      const result: CollectResult = { samplesMs: [1], total: 1, failures: 0 };
+      const result: CollectResult = {
+        samplesMs: [1],
+        total: 1,
+        failures: 0,
+        elapsedMs: 100,
+      };
       expect(() => assertS2Threshold(result, { p95MaxMs: -1 })).toThrow(
         RangeError,
       );
     });
 
     it("errorRateMax NaN → RangeError", () => {
-      const result: CollectResult = { samplesMs: [1], total: 1, failures: 0 };
+      const result: CollectResult = {
+        samplesMs: [1],
+        total: 1,
+        failures: 0,
+        elapsedMs: 100,
+      };
       expect(() => assertS2Threshold(result, { errorRateMax: NaN })).toThrow(
         RangeError,
       );
     });
 
     it("p95MaxMs 비수치 → RangeError", () => {
-      const result: CollectResult = { samplesMs: [1], total: 1, failures: 0 };
+      const result: CollectResult = {
+        samplesMs: [1],
+        total: 1,
+        failures: 0,
+        elapsedMs: 1000,
+      };
       expect(() =>
         assertS2Threshold(result, {
           p95MaxMs: "3000" as unknown as number,
         }),
       ).toThrow(RangeError);
+    });
+  });
+
+  describe("assertS2Threshold — throughput 배선 (§3 관찰 지표)", () => {
+    it("happy: 성공 표본 N + elapsedMs → throughput = count/(elapsedMs/1000), pass 유지", () => {
+      // 성공 표본 6개, 총 경과 2000ms(=2s) → 6 / 2 = 3 req/s.
+      const result: CollectResult = {
+        samplesMs: [10, 12, 11, 9, 15, 13],
+        total: 6,
+        failures: 0,
+        elapsedMs: 2000,
+      };
+      const a = assertS2Threshold(result);
+      expect(a.throughput).toBeCloseTo(3, 10);
+      // throughput 은 관찰 전용 — pass 판정에 영향 없음(낮은 latency + 실패 0 → pass).
+      expect(a.pass).toBe(true);
+      expect(a.reasons).toHaveLength(0);
+    });
+
+    it("branch (b): 성공 표본 >0 & elapsedMs>0 → 정상 req/s(1000ms 에 4건 → 4 req/s)", () => {
+      const result: CollectResult = {
+        samplesMs: [5, 5, 5, 5],
+        total: 4,
+        failures: 0,
+        elapsedMs: 1000,
+      };
+      expect(assertS2Threshold(result).throughput).toBeCloseTo(4, 10);
+    });
+
+    it("branch (a): 성공 표본 0(전부 실패) → throughput === 0(elapsedMs 무관)", () => {
+      const result: CollectResult = {
+        samplesMs: [],
+        total: 5,
+        failures: 5,
+        elapsedMs: 1234,
+      };
+      const a = assertS2Threshold(result);
+      expect(a.throughput).toBe(0);
+      // 성공 표본 0 이라 측정 불가 fail 은 유지되지만 throughput 은 0 으로 방어.
+      expect(a.pass).toBe(false);
+    });
+
+    it("branch (c): iterations=0 결과(elapsedMs=0 & count=0) → throughput === 0", () => {
+      const result: CollectResult = {
+        samplesMs: [],
+        total: 0,
+        failures: 0,
+        elapsedMs: 0,
+      };
+      expect(assertS2Threshold(result).throughput).toBe(0);
+    });
+
+    it("negative: 빈 표본에서 throughput 이 NaN/Infinity 아니라 0 으로 방어", () => {
+      const result: CollectResult = {
+        samplesMs: [],
+        total: 3,
+        failures: 3,
+        elapsedMs: 500,
+      };
+      const t = assertS2Threshold(result).throughput;
+      expect(Number.isNaN(t)).toBe(false);
+      expect(Number.isFinite(t)).toBe(true);
+      expect(t).toBe(0);
+    });
+
+    it("negative: legacy CollectResult(elapsedMs 필드 누락) + 성공 표본 0 → throughput 0(결정론적)", () => {
+      // elapsedMs 미제공 → undefined → 0 취급. 성공 표본 0 이라 primitive 가 안전하게 0 반환.
+      const legacy = {
+        samplesMs: [] as number[],
+        total: 4,
+        failures: 4,
+      } as unknown as CollectResult;
+      expect(assertS2Threshold(legacy).throughput).toBe(0);
+    });
+
+    it("negative: legacy CollectResult(elapsedMs 누락) + 성공 표본 >0 → clamp 로 결정론적 유한값(Infinity/throw 없음)", () => {
+      // elapsedMs undefined → 0 취급이나 count>0 이면 collector 가 최소 1ms 로 clamp 해
+      // primitive 의 count>0 && elapsedMs===0 RangeError 경계를 회피(Infinity 도 차단).
+      // count=2, elapsedMs=1ms → 2/(1/1000)=2000 req/s 로 결정론적.
+      const legacy = {
+        samplesMs: [10, 20],
+        total: 2,
+        failures: 0,
+      } as unknown as CollectResult;
+      const t = assertS2Threshold(legacy).throughput;
+      expect(Number.isFinite(t)).toBe(true);
+      expect(t).toBeCloseTo(2000, 6);
+    });
+
+    it("negative: 극단적으로 빠른 반복(elapsedMs<0.5ms → round 0) + 성공 표본 >0 → clamp 1ms 로 방어", () => {
+      // round(0.4)=0 이지만 count>0 이라 collector 가 1ms 로 clamp → RangeError/Infinity 없음.
+      const result: CollectResult = {
+        samplesMs: [0.1, 0.1, 0.1],
+        total: 3,
+        failures: 0,
+        elapsedMs: 0.4,
+      };
+      const t = assertS2Threshold(result).throughput;
+      expect(Number.isFinite(t)).toBe(true);
+      expect(t).toBeCloseTo(3000, 6);
+    });
+
+    it("negative: 단조 clock 위반으로 음수 elapsed → collectLatencySamples RangeError 유지", async () => {
+      // throughput 배선 후에도 collector 의 비단조 clock 방어가 그대로 동작.
+      let call = 0;
+      const nonMonotonic = () => {
+        call++;
+        return call === 1 ? 100 : 40;
+      };
+      await expect(
+        collectLatencySamples(okRequest, 1, { now: nonMonotonic }),
+      ).rejects.toThrow(RangeError);
+    });
+
+    it("error path: throughput 배선 후에도 result 형태 검증(TypeError) 유지", () => {
+      expect(() => assertS2Threshold(null as unknown as CollectResult)).toThrow(
+        TypeError,
+      );
+    });
+
+    it("error path: throughput 배선 후에도 thresholds RangeError(음수/NaN) 유지", () => {
+      const result: CollectResult = {
+        samplesMs: [1],
+        total: 1,
+        failures: 0,
+        elapsedMs: 100,
+      };
+      expect(() => assertS2Threshold(result, { p95MaxMs: -1 })).toThrow(
+        RangeError,
+      );
+      expect(() => assertS2Threshold(result, { errorRateMax: NaN })).toThrow(
+        RangeError,
+      );
+    });
+
+    it("end-to-end: collectLatencySamples → assertS2Threshold throughput 산출", async () => {
+      // stepClock(10) 5회 → elapsedMs=50ms, 성공 표본 5. throughput=5/(50/1000)=100 req/s.
+      const collected = await collectLatencySamples(okRequest, 5, {
+        now: stepClock(10),
+      });
+      expect(collected.elapsedMs).toBe(50);
+      const a = assertS2Threshold(collected);
+      expect(a.throughput).toBeCloseTo(100, 10);
+      expect(a.pass).toBe(true);
     });
   });
 });

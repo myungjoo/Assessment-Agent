@@ -10,7 +10,12 @@
  * DB-backed `*.perf-spec.ts` harness 는 이 수집기에 supertest 호출 함수만 넘기면 된다.
  */
 
-import { summarizeLatency, errorRate, LatencySummary } from "./latency-metrics";
+import {
+  summarizeLatency,
+  errorRate,
+  throughput,
+  LatencySummary,
+} from "./latency-metrics";
 
 /** 요청 1회의 결과 — 2xx 성공 여부. `ok` 또는 HTTP `status`(200~299 성공) 중 하나로 판정. */
 export interface RequestResult {
@@ -38,6 +43,12 @@ export interface CollectResult {
   total: number;
   /** non-2xx 또는 reject 로 분류된 실패 건수. */
   failures: number;
+  /**
+   * 전체 반복의 총 wall-clock 경과(ms) — 첫 요청 시작 직전 `now()` 와 마지막 요청
+   * 종료 직후 `now()` 의 차(단조 clock 전제). iterations=0 이면 0.
+   * §3 throughput(req/s) 관찰 지표 산출의 분모(elapsedMs/1000)로 쓰인다.
+   */
+  elapsedMs: number;
 }
 
 /** 요청 결과가 2xx 성공인지 판정 — `ok` 우선, 없으면 `status` 가 [200,300) 범위인지. */
@@ -79,9 +90,16 @@ export async function collectLatencySamples(
 
   const samplesMs: number[] = [];
   let failures = 0;
+  // 전체 반복의 wall-clock 경과 측정: 첫 요청 시작 직전과 마지막 요청 종료 직후의
+  // now() 차. iterations=0 이면 루프가 돌지 않아 아래 초기값 0 이 그대로 반환된다.
+  let firstStart = 0;
+  let lastEnd = 0;
 
   for (let i = 0; i < iterations; i++) {
     const start = now();
+    if (i === 0) {
+      firstStart = start;
+    }
     let success: boolean;
     try {
       const res = await request();
@@ -91,6 +109,7 @@ export async function collectLatencySamples(
       success = false;
     }
     const end = now();
+    lastEnd = end;
     const elapsed = end - start;
     if (elapsed < 0) {
       throw new RangeError(
@@ -104,7 +123,11 @@ export async function collectLatencySamples(
     }
   }
 
-  return { samplesMs, total: iterations, failures };
+  // iterations=0 이면 firstStart===lastEnd===0 → elapsedMs 0. iterations>0 이면
+  // 단조 clock 전제상 lastEnd >= firstStart 이므로 elapsedMs >= 0.
+  const elapsedMs = iterations === 0 ? 0 : lastEnd - firstStart;
+
+  return { samplesMs, total: iterations, failures, elapsedMs };
 }
 
 /** `assertS2Threshold` 임계 — 기본 p95 < 3000ms(REQ-048), errorRate < 0.01(§3). */
@@ -120,6 +143,12 @@ export interface S2Assertion {
   pass: boolean;
   summary: LatencySummary;
   errorRate: number;
+  /**
+   * 초당 처리 요청 수(req/s) 관찰값 — `throughput(성공 표본수, elapsedMs)`.
+   * §3 표상 throughput 은 "baseline 후 fix" 관찰 지표라 **pass/fail 판정에는
+   * 넣지 않는다**(관찰 전용). 성공 표본 0 이면 0.
+   */
+  throughput: number;
   /** 임계 위반 사유(한국어). pass=true 면 빈 배열. */
   reasons: string[];
 }
@@ -179,6 +208,22 @@ export function assertS2Threshold(
 
   const summary = summarizeLatency(result.samplesMs);
   const er = errorRate(result.total, result.failures);
+  // throughput 관찰값 산출(§3). 성공 표본수 = summary.count(= samplesMs.length).
+  // T-0860 primitive 는 elapsedMs 를 **정수**로 요구하고(0 나눗셈 방어 계약),
+  // count>0 && elapsedMs===0 이면 RangeError 를 던진다. 실 `performance.now()` 는
+  // 소수 ms 를 내므로 collector 레벨에서 Math.round 로 정수화하되(관찰 지표라
+  // sub-ms 정밀도 불요), **count>0 이면 반올림값을 최소 1ms 로 clamp** 해 primitive
+  // 의 count>0 && elapsedMs===0 경계를 회피한다(AC 명시 정책: "성공 표본이 있으면
+  // elapsedMs>0 가 보장되는 단조 clock 전제"의 collector-레벨 강제). 이로써
+  // 극단적으로 빠른 mock 반복(총 <0.5ms)에서도 Infinity·RangeError 없이 안전하다.
+  // legacy CollectResult(elapsedMs 필드 누락)는 undefined → 0 으로 취급: count===0
+  // 이면 0 반환, count>0 이면 위 clamp 로 1ms 처리돼 결정론적 관찰값을 낸다.
+  const rawElapsed =
+    typeof result.elapsedMs === "number" ? result.elapsedMs : 0;
+  const roundedElapsed = Math.round(rawElapsed);
+  const safeElapsedMs =
+    summary.count > 0 ? Math.max(roundedElapsed, 1) : roundedElapsed;
+  const tput = throughput(summary.count, safeElapsedMs);
   const reasons: string[] = [];
 
   if (Number.isNaN(summary.p95)) {
@@ -194,5 +239,11 @@ export function assertS2Threshold(
     reasons.push(`error rate 임계 초과: ${er} >= 상한 ${errorRateMax} (§3)`);
   }
 
-  return { pass: reasons.length === 0, summary, errorRate: er, reasons };
+  return {
+    pass: reasons.length === 0,
+    summary,
+    errorRate: er,
+    throughput: tput,
+    reasons,
+  };
 }

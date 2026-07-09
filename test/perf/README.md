@@ -26,10 +26,13 @@ const er = errorRate(reqs.length, fails); // er < 0.01 검증
 요청 함수를 주입받아 반복 호출하며 latency 표본을 모으고 S2 임계를 판정하는 순수
 orchestration 로직(DB·네트워크 무의존, clock 주입으로 결정론적).
 
-- `collectLatencySamples(request, iterations, opts?)` → `{ samplesMs, total, failures }`.
+- `collectLatencySamples(request, iterations, opts?)` → `{ samplesMs, total, failures, elapsedMs }`.
   `request: () => Promise<{ ok?: boolean; status?: number }>`, `opts.now?` 로 clock 주입.
-- `assertS2Threshold(result, thresholds?)` → `{ pass, summary, errorRate, reasons }`.
+  `elapsedMs` 는 첫 요청 시작~마지막 요청 종료의 총 wall-clock 경과(monotonic clock, iterations=0 이면 0).
+- `assertS2Threshold(result, thresholds?)` → `{ pass, summary, errorRate, throughput, reasons }`.
   기본 임계 p95 < 3000ms(REQ-048) / errorRate < 0.01(§3), 위반 사유는 `reasons` 축적.
+  `throughput`(req/s)은 `throughput(summary.count, result.elapsedMs)`(T-0860 primitive)로 산출한
+  **§3 관찰 지표**다 — pass/fail 판정에는 넣지 않으며(관찰 전용), 성공 표본 0 이면 0 으로 방어된다.
 
 ```ts
 import { collectLatencySamples, assertS2Threshold } from "./latency-collector";
