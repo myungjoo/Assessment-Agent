@@ -2,7 +2,11 @@
 id: T-0869
 title: S2 latency baseline 디스크 write harness 함수 신설 (writeBaselineFile)
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-09T23:58:21Z
+mergedAs: e68c2c15
+prNumber: 763
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 150
