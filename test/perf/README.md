@@ -11,6 +11,7 @@ DB·네트워크·앱 부트스트랩에 의존하지 않는 **순수 함수**(�
 - `percentile(samplesMs, p)` — p-분위수(0~100, 선형 보간).
 - `summarizeLatency(samplesMs)` — `{ p50, p95, p99, count, maxMs }`(§3 임계 표 대응).
 - `errorRate(total, failures)` — non-2xx/전체 비율(0~1), total=0 방어.
+- `throughput(count, elapsedMs)` — 초당 요청 수(req/s, `count/(elapsedMs/1000)`), §3 throughput 관찰 지표 대응. count=0 → 0, count>0 && elapsedMs=0 → RangeError.
 
 ```ts
 import { summarizeLatency, errorRate } from "./latency-metrics";
