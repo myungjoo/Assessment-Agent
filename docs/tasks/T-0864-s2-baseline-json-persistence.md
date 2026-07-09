@@ -2,7 +2,9 @@
 id: T-0864
 title: S2 latency baseline JSON 직렬화·역직렬화 순수 함수 신설 (serializeBaselineReport / parseBaselineReport)
 phase: P8
-status: PENDING
+status: DONE
+mergedAs: 7a8ddeba
+prNumber: 758
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 200
