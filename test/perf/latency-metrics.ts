@@ -96,3 +96,37 @@ export function errorRate(total: number, failures: number): number {
   }
   return failures / total;
 }
+
+/**
+ * 초당 처리 요청 수(req/s)를 산출한다(§3 임계 표의 throughput 관찰 지표 대응).
+ * 성공 요청 수(count)와 총 wall-clock 경과(elapsedMs)를 받아 `count / (elapsedMs / 1000)`
+ * 를 반환하는 순수 함수다(DB·네트워크 무의존). `errorRate` 와 동형의 입력 검증을 갖춘다.
+ *
+ * 0 나눗셈 방어 정책:
+ * - `count === 0` 이면 경과 시간과 무관하게 `0` 을 반환한다(요청 없음 → throughput 0).
+ * - `count > 0` 인데 `elapsedMs === 0` 이면 `Infinity` 를 뱉지 않고 `RangeError` 를
+ *   throw 한다(0 경과에 요청이 있었다는 것은 측정 오류이므로 명시적 실패로 처리).
+ *
+ * @throws {RangeError} count/elapsedMs 가 음수·비정수·NaN 이거나, count>0 && elapsedMs===0 일 때.
+ */
+export function throughput(count: number, elapsedMs: number): number {
+  if (!Number.isInteger(count) || !Number.isInteger(elapsedMs)) {
+    throw new RangeError(
+      `throughput: count/elapsedMs 는 정수여야 함 (받은 값: count=${count}, elapsedMs=${elapsedMs})`,
+    );
+  }
+  if (count < 0 || elapsedMs < 0) {
+    throw new RangeError(
+      `throughput: 음수 입력 불가 (받은 값: count=${count}, elapsedMs=${elapsedMs})`,
+    );
+  }
+  if (count === 0) {
+    return 0;
+  }
+  if (elapsedMs === 0) {
+    throw new RangeError(
+      `throughput: count>0 인데 elapsedMs===0 은 측정 오류 (받은 값: count=${count})`,
+    );
+  }
+  return count / (elapsedMs / 1000);
+}

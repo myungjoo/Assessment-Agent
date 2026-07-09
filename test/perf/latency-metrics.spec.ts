@@ -1,4 +1,9 @@
-import { percentile, summarizeLatency, errorRate } from "./latency-metrics";
+import {
+  percentile,
+  summarizeLatency,
+  errorRate,
+  throughput,
+} from "./latency-metrics";
 
 /**
  * T-0828 — S2 조회 latency 측정 primitive 의 R-112 spec.
@@ -153,6 +158,64 @@ describe("latency-metrics primitive (S2 harness)", () => {
 
     it("NaN 입력 → RangeError(정수 검사 분기)", () => {
       expect(() => errorRate(NaN, 0)).toThrow(RangeError);
+    });
+  });
+
+  describe("throughput — happy path", () => {
+    it("30 요청 / 1500ms → 20 req/s", () => {
+      expect(throughput(30, 1500)).toBeCloseTo(20, 10);
+    });
+
+    it("1 요청 / 1000ms → 1 req/s(경계)", () => {
+      expect(throughput(1, 1000)).toBeCloseTo(1, 10);
+    });
+
+    it("100 요청 / 250ms → 400 req/s(1s 미만 경과)", () => {
+      expect(throughput(100, 250)).toBeCloseTo(400, 10);
+    });
+  });
+
+  describe("throughput — flow/branch cover", () => {
+    it("count=0 → 0(elapsedMs 무관 방어 분기)", () => {
+      expect(throughput(0, 1500)).toBe(0);
+    });
+
+    it("count=0 && elapsedMs=0 → 0(count 분기가 elapsedMs 분기보다 우선)", () => {
+      expect(throughput(0, 0)).toBe(0);
+    });
+
+    it("정상 나눗셈 분기(count>0 && elapsedMs>0) → count/(elapsedMs/1000)", () => {
+      expect(throughput(60, 2000)).toBeCloseTo(30, 10);
+    });
+  });
+
+  describe("throughput — error path / negative cases", () => {
+    it("count>0 && elapsedMs=0 → RangeError(0 나눗셈 방어 분기)", () => {
+      expect(() => throughput(5, 0)).toThrow(RangeError);
+    });
+
+    it("음수 count → RangeError", () => {
+      expect(() => throughput(-1, 1000)).toThrow(RangeError);
+    });
+
+    it("음수 elapsedMs → RangeError", () => {
+      expect(() => throughput(10, -1)).toThrow(RangeError);
+    });
+
+    it("비정수 count → RangeError(정수 검사 분기)", () => {
+      expect(() => throughput(10.5, 1000)).toThrow(RangeError);
+    });
+
+    it("비정수 elapsedMs → RangeError(정수 검사 분기)", () => {
+      expect(() => throughput(10, 1000.5)).toThrow(RangeError);
+    });
+
+    it("NaN count → RangeError(정수 검사 분기)", () => {
+      expect(() => throughput(NaN, 1000)).toThrow(RangeError);
+    });
+
+    it("NaN elapsedMs → RangeError(정수 검사 분기)", () => {
+      expect(() => throughput(10, NaN)).toThrow(RangeError);
     });
   });
 });
