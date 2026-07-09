@@ -2,7 +2,7 @@
 id: T-0853
 title: S2 조회 latency harness 를 ImportController :id detail-read 에 배선하는 스물네 번째 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-096]
 independentStream: s2-latency-perf-wiring
@@ -57,3 +57,7 @@ plannerNote: "P8 load-resilience §5 follow-up (S2 latency harness) — T-0852(e
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+
+## Result (DONE 2026-07-09)
+
+PR #747 4-게이트 PASS 후 squash-merge (d8355f35). `test/perf/import-detail-read.perf-spec.ts` 신설 (ImportController + ImportJobService mock, overrideGuard(JwtAuthGuard/RolesGuard), findJob 만 호출; happy 200 + error 404 + negative a~d(404 not-found / 500 일반 Error / mixed / n=1 경계)) + `test/perf/README.md` 배선 카운트 23→24 갱신. +309/-6, 2 files. test:perf 24 suites/147 green, test:cov line 99.95%/func 100%, lint·build green. reviewer APPROVE round 1/7 0 findings, CI green. 신규 dependency 0.
