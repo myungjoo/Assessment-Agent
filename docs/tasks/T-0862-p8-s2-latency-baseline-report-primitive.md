@@ -2,7 +2,11 @@
 id: T-0862
 title: S2 latency harness 에 baseline 리포트 순수 함수(env-meta + 지표 요약) 추가
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-09T16:57:00Z
+mergedAs: 59e31207
+prNumber: 756
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 115
