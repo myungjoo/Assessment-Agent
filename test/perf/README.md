@@ -31,6 +31,7 @@ env-meta(§3 "환경 고정")를 동반해 `S2Assertion` 을 비교 가능한 �
 - `BaselineReport` — env-meta + 핵심 지표(p50/p95/p99/throughput/errorRate/count/pass) machine-readable 레코드.
 - `buildBaselineReport(env, assertion)` — env-meta + `S2Assertion` 을 합쳐 리포트 조립(지표 파생, 재계산 없음).
 - `formatBaselineLine(report)` — 리포트를 파싱 용이한 한 줄(key=value, NaN 은 "n/a")로 포맷.
+- `compareBaselineReports(baseline, candidate, options?)` — 기준 vs 새 측정 두 `BaselineReport` 를 비교해 지표별 delta + 회귀 여부(`BaselineComparison`)를 산출(**관찰 전용** — pass/fail 임계 불변). latency(p50/p95/p99)는 허용 비율(기본 0.10) 초과 증가 시 회귀, errorRate 는 허용 절대치(기본 0.01) 초과 증가 시 회귀, throughput 은 delta 만 리포트(회귀 판정 미반영). baseline NaN(빈 표본) 지표는 판정 제외, candidate 만 NaN(측정 소실)이면 회귀 표기.
 
 실 baseline 실측 harness(§5 follow-up #5)는 이 primitive 를 import 만 하면 된다.
 `latency-baseline.spec.ts` 는 순수 unit 이라 기본 `pnpm test` 에서 수집·검증된다.
