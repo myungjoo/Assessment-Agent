@@ -638,3 +638,43 @@ export function formatComparisonReport(comparison: BaselineComparison): string {
   ];
   return lines.join("\n");
 }
+
+/**
+ * 저장된 두 baseline JSON 문자열(기준 baseline·새 측정 candidate)을 받아 parse→compare→
+ * format 을 순서대로 이어붙이는 **얇은 합성 순수 함수**다. 실 §5 #5 harness 가 디스크에서
+ * 로드한 두 JSON 만 넘기면 `{ comparison, report }` 를 받도록 하는 단일 진입점이다.
+ *
+ * 처리 순서(신규 판정·계산 로직 0 — 하위 primitive 를 조립만):
+ *  1. `parseBaselineReport(baselineJson)` / `parseBaselineReport(candidateJson)` 로 각각
+ *     `BaselineReport` 복원(NaN sentinel round-trip 포함).
+ *  2. `compareBaselineReports(baseline, candidate, options)` 로 `BaselineComparison` 산출.
+ *  3. `formatComparisonReport(comparison)` 로 사람-친화 문자열 산출.
+ *  4. `{ comparison, report }` 반환 — `report` 는 반환 `comparison` 에서 파생되어 정합 보장.
+ *
+ * delta·회귀 판정·NaN 방어·포맷은 전부 하위 primitive 가 이미 책임진다. `options` 미지정 시
+ * `compareBaselineReports` 기본 tolerance(latency 0.10 / errorRate 0.01)를 그대로 사용한다.
+ *
+ * **오류 전파(재래핑 없음)** — 하위 primitive 예외를 그대로 propagate 한다. 별도 error 타입을
+ * 새로 만들지 않는다(합성이라 하위 계약을 그대로 노출).
+ *
+ * @throws {SyntaxError} `baselineJson` 또는 `candidateJson` 이 유효 JSON 이 아닐 때
+ *   (`parseBaselineReport` → `JSON.parse` 가 던지는 그대로, 빈 문자열 포함).
+ * @throws {TypeError} JSON 은 유효하나 `BaselineReport` 형태가 불량할 때
+ *   (`parseBaselineReport` 가드에서 propagate).
+ * @throws {RangeError} `options.latencyTolerance` / `errorRateTolerance` 가 음수·NaN 일 때
+ *   (`compareBaselineReports` 에서 propagate).
+ */
+export function compareBaselineJson(
+  baselineJson: string,
+  candidateJson: string,
+  options?: CompareOptions,
+): { comparison: BaselineComparison; report: string } {
+  // 1. 저장 JSON 2개를 각각 BaselineReport 로 복원(잘못된 JSON·형태 불량은 여기서 propagate).
+  const baseline = parseBaselineReport(baselineJson);
+  const candidate = parseBaselineReport(candidateJson);
+  // 2. 두 리포트를 비교(tolerance 음수·NaN 은 여기서 RangeError propagate).
+  const comparison = compareBaselineReports(baseline, candidate, options);
+  // 3. 비교 결과를 사람-친화 문자열로 포맷(반환 comparison 에서 파생 → 정합 보장).
+  const report = formatComparisonReport(comparison);
+  return { comparison, report };
+}

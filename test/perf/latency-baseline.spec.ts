@@ -3,6 +3,7 @@ import {
   formatBaselineLine,
   compareBaselineReports,
   formatComparisonReport,
+  compareBaselineJson,
   serializeBaselineReport,
   parseBaselineReport,
   BaselineEnvMeta,
@@ -1139,6 +1140,220 @@ describe("latency-baseline 리포트 순수 함수 (S2)", () => {
         const out = formatComparisonReport(cmp);
         // err 5.00%→1.00%, delta -4.00%.
         expect(out).toContain("err: base=5.00% cand=1.00% delta=-4.00% ok");
+      });
+    });
+  });
+
+  describe("compareBaselineJson — 저장 JSON 회귀 비교 합성 순수 함수 (T-0866)", () => {
+    /** 지정 지표로 정상 `BaselineReport` 를 만드는 팩토리(env·pass 는 고정 full). */
+    function report(overrides: Partial<BaselineReport> = {}): BaselineReport {
+      return {
+        env: fullEnv(),
+        p50: 10,
+        p95: 15,
+        p99: 20,
+        throughput: 100,
+        errorRate: 0,
+        count: 6,
+        pass: true,
+        ...overrides,
+      };
+    }
+
+    /** 빈 표본(전 지표 NaN) `BaselineReport` 팩토리 — round-trip NaN sentinel 경로 검증용. */
+    function emptyReport(): BaselineReport {
+      return buildBaselineReport(fullEnv(), emptyAssertion());
+    }
+
+    /** BaselineReport 를 직렬화해 저장 JSON 문자열로 만드는 편의. */
+    function json(r: BaselineReport): string {
+      return serializeBaselineReport(r);
+    }
+
+    describe("happy path", () => {
+      it("회귀 없는 baseline·candidate 두 JSON → regressed=false + report 는 종합 false 표기", () => {
+        const out = compareBaselineJson(json(report()), json(report()));
+        expect(out.comparison.regressed).toBe(false);
+        expect(out.report.length).toBeGreaterThan(0);
+        expect(out.report).toContain("regressed=false");
+        expect(out.report).not.toContain("REGRESSED");
+      });
+
+      it("회귀 있는(candidate p95 tolerance 초과 증가) → regressed=true + report 에 REGRESSED", () => {
+        // p95 10→12(+20% > 기본 10%) → 회귀.
+        const out = compareBaselineJson(
+          json(report({ p95: 10 })),
+          json(report({ p95: 12 })),
+        );
+        expect(out.comparison.regressed).toBe(true);
+        expect(out.comparison.p95.regressed).toBe(true);
+        expect(out.report).toContain("regressed=true");
+        expect(out.report).toContain("REGRESSED");
+      });
+
+      it("반환 report 는 formatComparisonReport(반환 comparison) 와 정확히 일치(정합)", () => {
+        const out = compareBaselineJson(
+          json(report({ p95: 10 })),
+          json(report({ p95: 20 })),
+        );
+        // report 는 반환 comparison 에서 파생 — 정확히 동일해야 정합.
+        expect(out.report).toBe(formatComparisonReport(out.comparison));
+      });
+
+      it("반환 comparison 은 compareBaselineReports 결과와 동등(하위 primitive 조립만)", () => {
+        const b = report({ p50: 10 });
+        const c = report({ p50: 11 });
+        const out = compareBaselineJson(json(b), json(c));
+        const direct = compareBaselineReports(
+          parseBaselineReport(json(b)),
+          parseBaselineReport(json(c)),
+        );
+        expect(out.comparison).toEqual(direct);
+      });
+    });
+
+    describe("error path — 하위 예외 재래핑 없이 propagate", () => {
+      it("baselineJson 이 잘못된 JSON('{') → SyntaxError", () => {
+        expect(() => compareBaselineJson("{", json(report()))).toThrow(
+          SyntaxError,
+        );
+      });
+
+      it("candidateJson 이 잘못된 JSON('{') → SyntaxError", () => {
+        expect(() => compareBaselineJson(json(report()), "{")).toThrow(
+          SyntaxError,
+        );
+      });
+
+      it("baselineJson 이 유효 JSON 이나 형태 불량(env 누락) → TypeError", () => {
+        const malformed = JSON.stringify({
+          p50: 1,
+          p95: 2,
+          p99: 3,
+          throughput: 4,
+          errorRate: 0,
+          count: 1,
+          pass: true,
+        });
+        expect(() => compareBaselineJson(malformed, json(report()))).toThrow(
+          TypeError,
+        );
+      });
+
+      it("candidateJson 이 유효 JSON 이나 지표 타입 불일치(p95 string) → TypeError", () => {
+        const malformed = JSON.stringify({
+          env: { label: "x", concurrency: 1 },
+          p50: 1,
+          p95: "nope",
+          p99: 3,
+          throughput: 4,
+          errorRate: 0,
+          count: 1,
+          pass: true,
+        });
+        expect(() => compareBaselineJson(json(report()), malformed)).toThrow(
+          TypeError,
+        );
+      });
+
+      it("options.latencyTolerance 음수 → RangeError(compareBaselineReports 에서 propagate)", () => {
+        expect(() =>
+          compareBaselineJson(json(report()), json(report()), {
+            latencyTolerance: -0.1,
+          }),
+        ).toThrow(RangeError);
+      });
+
+      it("options.latencyTolerance NaN → RangeError", () => {
+        expect(() =>
+          compareBaselineJson(json(report()), json(report()), {
+            latencyTolerance: NaN,
+          }),
+        ).toThrow(RangeError);
+      });
+    });
+
+    describe("flow / branch coverage", () => {
+      it("어느 인자가 불량이든 propagate — baseline 불량 분기 vs candidate 불량 분기", () => {
+        // baseline 불량.
+        expect(() => compareBaselineJson("{", json(report()))).toThrow(
+          SyntaxError,
+        );
+        // candidate 불량.
+        expect(() => compareBaselineJson(json(report()), "not json")).toThrow(
+          SyntaxError,
+        );
+      });
+
+      it("options 지정(latencyTolerance 0.5) 시 tolerance 전달 → 회귀 판정이 달라짐 vs 미지정 기본 0.10", () => {
+        // p95 10→14(+40%): 기본 0.10 이면 회귀, 0.5 tolerance 면 회귀 아님.
+        const b = json(report({ p95: 10 }));
+        const c = json(report({ p95: 14 }));
+        const withDefault = compareBaselineJson(b, c);
+        expect(withDefault.comparison.regressed).toBe(true);
+        const withLoose = compareBaselineJson(b, c, { latencyTolerance: 0.5 });
+        expect(withLoose.comparison.regressed).toBe(false);
+        expect(withLoose.report).toContain("regressed=false");
+      });
+
+      it("NaN 지표(빈 표본) baseline round-trip 이 comparison·report 에 정상 반영", () => {
+        const out = compareBaselineJson(json(emptyReport()), json(report()));
+        // baseline p95 가 NaN → 그 지표 baseline 은 NaN 으로 복원.
+        expect(Number.isNaN(out.comparison.p95.baseline)).toBe(true);
+        // report 에는 n/a 방어 표기가 반영.
+        expect(out.report).toContain("n/a");
+      });
+    });
+
+    describe("negative cases 충분 cover", () => {
+      it("두 JSON 모두 NaN 지표(전부 빈 표본) → 정상 조립(회귀 없음)", () => {
+        const out = compareBaselineJson(
+          json(emptyReport()),
+          json(emptyReport()),
+        );
+        // 양쪽 NaN → 회귀 판정 제외 → regressed=false.
+        expect(out.comparison.regressed).toBe(false);
+        expect(Number.isNaN(out.comparison.p95.baseline)).toBe(true);
+        expect(Number.isNaN(out.comparison.p95.candidate)).toBe(true);
+        expect(out.report).toContain("n/a");
+      });
+
+      it("candidate 만 측정 소실(NaN)인 baseline → 회귀 표기 정합", () => {
+        // baseline 유한, candidate NaN → 측정 소실 → 회귀 표기.
+        const out = compareBaselineJson(json(report()), json(emptyReport()));
+        expect(out.comparison.regressed).toBe(true);
+        expect(out.report).toContain("regressed=true");
+        // report 는 comparison 에서 파생 — 정합.
+        expect(out.report).toBe(formatComparisonReport(out.comparison));
+      });
+
+      it("options.errorRateTolerance 음수 → RangeError", () => {
+        expect(() =>
+          compareBaselineJson(json(report()), json(report()), {
+            errorRateTolerance: -0.01,
+          }),
+        ).toThrow(RangeError);
+      });
+
+      it("baselineJson 이 빈 문자열('') → SyntaxError", () => {
+        expect(() => compareBaselineJson("", json(report()))).toThrow(
+          SyntaxError,
+        );
+      });
+
+      it("candidateJson 이 빈 문자열('') → SyntaxError", () => {
+        expect(() => compareBaselineJson(json(report()), "")).toThrow(
+          SyntaxError,
+        );
+      });
+
+      it("정상 입력 → 반환 object 가 comparison·report 두 키를 모두 가지고 report 에 모든 지표명 포함", () => {
+        const out = compareBaselineJson(json(report()), json(report()));
+        expect(out).toHaveProperty("comparison");
+        expect(out).toHaveProperty("report");
+        for (const name of ["p50:", "p95:", "p99:", "err:", "throughput:"]) {
+          expect(out.report).toContain(name);
+        }
       });
     });
   });
