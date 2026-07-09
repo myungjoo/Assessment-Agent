@@ -678,3 +678,69 @@ export function compareBaselineJson(
   const report = formatComparisonReport(comparison);
   return { comparison, report };
 }
+
+/** baseline 파일명 고정 prefix(디렉토리 없는 basename 앞부분). 상수 고정 — env override 금지. */
+const BASELINE_FILENAME_PREFIX = "baseline-";
+/** baseline 파일명 고정 확장자. 상수 고정 — env override 금지. */
+const BASELINE_FILENAME_EXT = ".json";
+
+/**
+ * env-meta 의 `label` 을 FS-safe slug 으로 정규화한다:
+ * 소문자화 → 영숫자·하이픈 외 문자(공백·`/`·`\`·`:`·`.`·유니코드 등)를 단일 하이픈으로 치환
+ * → 선행/후행 하이픈 trim → 연속 하이픈 축약. 파일명 유도의 결정성·FS 안전성의 핵심.
+ *
+ * 정규화 결과가 빈 string 이 되는 label(구분자·비-ASCII 로만 구성 등)은 유의미한 파일명을
+ * 유도할 수 없으므로 여기서는 빈 string 을 반환하고, 호출측이 `RangeError` 로 처리한다.
+ */
+function slugifyLabel(label: string): string {
+  return (
+    label
+      .toLowerCase()
+      // 영숫자(ASCII a-z0-9) 외 모든 문자(공백·구분자·유니코드 포함)를 하이픈으로.
+      .replace(/[^a-z0-9]+/g, "-")
+      // 선행/후행 하이픈 제거(위 치환 결과 양끝에 남은 하이픈 정리 = 연속 축약도 겸함).
+      .replace(/^-+|-+$/g, "")
+  );
+}
+
+/**
+ * `BaselineEnvMeta`(특히 `label`)로부터 baseline JSON 파일명(디렉토리 없는 basename)을
+ * **결정적(deterministic)·파일시스템-안전(FS-safe)** 하게 유도하는 순수 함수다.
+ * 저장 harness(§5 #4·#5)가 `serializeBaselineReport` 결과를 어떤 파일명으로 쓸지, 조회
+ * harness 가 어떤 파일명에서 기준 baseline 을 읽을지 결정하는 단일 명명 진입점이다.
+ *
+ * 유도 규칙:
+ *  1. `env` 가 유효 `BaselineEnvMeta` 형태가 아니면(`isValidEnvMeta` 재사용) `TypeError`.
+ *  2. `env.label` 이 빈 string 또는 공백-only 이면 `RangeError`
+ *     (`buildBaselineReport` 의 label 계약과 동형 — 파일명의 유의미성 보장).
+ *  3. `label` 을 `slugifyLabel` 로 FS-safe slug 으로 정규화. 정규화 결과가 빈 string 이
+ *     되는 label(구분자·비-ASCII 로만 구성 등)은 유의미한 파일명 유도 불가라 `RangeError`.
+ *  4. 고정 prefix + slug + 고정 확장자로 basename 조립(예: `baseline-ci-linux-x64.json`).
+ *
+ * **결정성** — 정규화 후 동일 slug 을 낳는 label(대소문자만 다른 `"CI-Linux"`/`"ci-linux"`
+ * 포함)은 항상 같은 파일명을 낳는다(저장·조회 파일명 일치의 핵심).
+ * **순수·부작용 0** — `fs`·`path` 조인·디렉토리 조립·환경 read 없음. 문자열 유도만.
+ * 디렉토리 결합(예: `test/perf/baselines/<name>`)은 본 함수 밖(disk harness) 책임이다.
+ *
+ * @throws {TypeError} `env` 가 유효 `BaselineEnvMeta` 형태가 아닐 때.
+ * @throws {RangeError} `label` 이 빈/공백-only 이거나, 정규화 slug 이 빈 string 이 될 때.
+ */
+export function resolveBaselineFilename(env: BaselineEnvMeta): string {
+  if (!isValidEnvMeta(env)) {
+    throw new TypeError(
+      "resolveBaselineFilename: env 는 { label:string, concurrency:number } 형태여야 함",
+    );
+  }
+  if (env.label.trim() === "") {
+    throw new RangeError(
+      "resolveBaselineFilename: env.label 은 빈 string 일 수 없음",
+    );
+  }
+  const slug = slugifyLabel(env.label);
+  if (slug === "") {
+    throw new RangeError(
+      `resolveBaselineFilename: env.label 을 FS-safe slug 으로 정규화한 결과가 빈 string 임 (받은 label: ${JSON.stringify(env.label)})`,
+    );
+  }
+  return `${BASELINE_FILENAME_PREFIX}${slug}${BASELINE_FILENAME_EXT}`;
+}

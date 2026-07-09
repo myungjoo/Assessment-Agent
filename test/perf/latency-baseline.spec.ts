@@ -4,6 +4,7 @@ import {
   compareBaselineReports,
   formatComparisonReport,
   compareBaselineJson,
+  resolveBaselineFilename,
   serializeBaselineReport,
   parseBaselineReport,
   BaselineEnvMeta,
@@ -1354,6 +1355,143 @@ describe("latency-baseline 리포트 순수 함수 (S2)", () => {
         for (const name of ["p50:", "p95:", "p99:", "err:", "throughput:"]) {
           expect(out.report).toContain(name);
         }
+      });
+    });
+  });
+
+  describe("resolveBaselineFilename — 파일명 규약 순수 함수 (T-0867)", () => {
+    /** label 만 지정하고 나머지는 유효 기본값을 채우는 env 팩토리. */
+    function envWith(label: unknown): BaselineEnvMeta {
+      return { label, concurrency: 4 } as BaselineEnvMeta;
+    }
+
+    describe("happy path", () => {
+      it("정상 label(이미 slug-safe)이면 결정적 basename 반환", () => {
+        expect(resolveBaselineFilename(envWith("ci-linux-x64"))).toBe(
+          "baseline-ci-linux-x64.json",
+        );
+      });
+
+      it("같은 env 를 두 번 호출하면 동일 문자열 반환(결정성)", () => {
+        const env = envWith("ci-linux-x64");
+        expect(resolveBaselineFilename(env)).toBe(resolveBaselineFilename(env));
+      });
+
+      it("공백·특수문자 포함 label 이 FS-safe slug(소문자·단일 하이픈·.json)로 정규화", () => {
+        expect(resolveBaselineFilename(envWith("Local MacBook / M1"))).toBe(
+          "baseline-local-macbook-m1.json",
+        );
+      });
+    });
+
+    describe("error path", () => {
+      it("env 가 null → TypeError", () => {
+        expect(() =>
+          resolveBaselineFilename(null as unknown as BaselineEnvMeta),
+        ).toThrow(TypeError);
+      });
+
+      it("env 에 label 누락 → TypeError", () => {
+        expect(() =>
+          resolveBaselineFilename({ concurrency: 4 } as BaselineEnvMeta),
+        ).toThrow(TypeError);
+      });
+
+      it("concurrency 가 non-number → TypeError", () => {
+        expect(() =>
+          resolveBaselineFilename({
+            label: "ci-linux",
+            concurrency: "4",
+          } as unknown as BaselineEnvMeta),
+        ).toThrow(TypeError);
+      });
+
+      it("label 이 빈 string('') → RangeError", () => {
+        expect(() => resolveBaselineFilename(envWith(""))).toThrow(RangeError);
+      });
+
+      it("label 이 공백-only('   ') → RangeError", () => {
+        expect(() => resolveBaselineFilename(envWith("   "))).toThrow(
+          RangeError,
+        );
+      });
+
+      it("label 이 구분자로만 구성('///')돼 slug 이 빈 string → RangeError", () => {
+        expect(() => resolveBaselineFilename(envWith("///"))).toThrow(
+          RangeError,
+        );
+      });
+    });
+
+    describe("flow / branch coverage", () => {
+      it("slug 정규화가 문자를 치환하는 label vs 이미 slug-safe 라 변형 없는 label", () => {
+        // 변형 없는 분기: 입력 label 이 그대로 slug 이 됨.
+        expect(resolveBaselineFilename(envWith("ci-linux"))).toBe(
+          "baseline-ci-linux.json",
+        );
+        // 치환 분기: 공백·슬래시가 하이픈으로 치환됨.
+        expect(resolveBaselineFilename(envWith("ci linux x64"))).toBe(
+          "baseline-ci-linux-x64.json",
+        );
+      });
+
+      it("대소문자만 다른 두 label 이 동일 slug/파일명으로 수렴", () => {
+        expect(resolveBaselineFilename(envWith("CI-Linux"))).toBe(
+          resolveBaselineFilename(envWith("ci-linux")),
+        );
+        expect(resolveBaselineFilename(envWith("CI-Linux"))).toBe(
+          "baseline-ci-linux.json",
+        );
+      });
+
+      it("연속 특수문자·선행/후행 구분자가 단일 하이픈 축약·trim 됨", () => {
+        expect(resolveBaselineFilename(envWith("__ci___linux__"))).toBe(
+          "baseline-ci-linux.json",
+        );
+        expect(resolveBaselineFilename(envWith("//ci -- linux//"))).toBe(
+          "baseline-ci-linux.json",
+        );
+      });
+    });
+
+    describe("negative cases 충분 cover", () => {
+      it("env = undefined → TypeError", () => {
+        expect(() =>
+          resolveBaselineFilename(undefined as unknown as BaselineEnvMeta),
+        ).toThrow(TypeError);
+      });
+
+      it("label 이 숫자 → TypeError(isValidEnvMeta 경유)", () => {
+        expect(() => resolveBaselineFilename(envWith(42))).toThrow(TypeError);
+      });
+
+      it("label 이 객체 → TypeError(isValidEnvMeta 경유)", () => {
+        expect(() => resolveBaselineFilename(envWith({}))).toThrow(TypeError);
+      });
+
+      it("공백/구분자로만 이뤄져 slug 이 비는 label('  --  ') → RangeError", () => {
+        expect(() => resolveBaselineFilename(envWith("  --  "))).toThrow(
+          RangeError,
+        );
+      });
+
+      it("비-ASCII 문자만으로 이뤄져 slug 이 비는 label(한글·이모지) → RangeError", () => {
+        expect(() => resolveBaselineFilename(envWith("리눅스 서버"))).toThrow(
+          RangeError,
+        );
+        expect(() => resolveBaselineFilename(envWith("🚀"))).toThrow(
+          RangeError,
+        );
+      });
+
+      it("반환 basename 은 디렉토리 구분자(/·\\)를 포함하지 않고 .json 으로 끝남(FS-safe)", () => {
+        const name = resolveBaselineFilename(
+          envWith("Local MacBook / M1 \\ dev"),
+        );
+        expect(name).not.toContain("/");
+        expect(name).not.toContain("\\");
+        expect(name.endsWith(".json")).toBe(true);
+        expect(name.startsWith("baseline-")).toBe(true);
       });
     });
   });
