@@ -34,6 +34,7 @@ env-meta(§3 "환경 고정")를 동반해 `S2Assertion` 을 비교 가능한 �
 - `compareBaselineReports(baseline, candidate, options?)` — 기준 vs 새 측정 두 `BaselineReport` 를 비교해 지표별 delta + 회귀 여부(`BaselineComparison`)를 산출(**관찰 전용** — pass/fail 임계 불변). latency(p50/p95/p99)는 허용 비율(기본 0.10) 초과 증가 시 회귀, errorRate 는 허용 절대치(기본 0.01) 초과 증가 시 회귀, throughput 은 delta 만 리포트(회귀 판정 미반영). baseline NaN(빈 표본) 지표는 판정 제외, candidate 만 NaN(측정 소실)이면 회귀 표기.
 - `serializeBaselineReport(report)` — 리포트를 안정적·비교 가능한 유효 JSON 문자열로 직렬화(영속화용). NaN 지표(빈 표본)는 JSON 이 표현 못 하므로 sentinel(`"__NaN__"`)로 저장하고, optional env-meta 는 지정된 것만 보존(미지정은 키 자체 생략). 지표 재계산 없이 파생값만 전사.
 - `parseBaselineReport(json)` — 위 JSON 을 파싱해 `BaselineReport` 로 복원. NaN sentinel 을 다시 NaN 으로 복원해 **round-trip 불변**(`parseBaselineReport(serializeBaselineReport(r))` ≡ `r`, NaN 포함) 보장. 잘못된 JSON 은 `SyntaxError`, 형태 불량(env 누락·지표 타입 불일치 등)은 `TypeError`(기존 `isValidReport`/`isValidEnvMeta` 가드 재사용). 실 baseline harness(§5 #5)가 저장 기준을 로드해 `compareBaselineReports` 에 먹이는 저장측 선행 slice.
+- `formatComparisonReport(comparison)` — `compareBaselineReports` 가 낸 `BaselineComparison` 을 사람-친화 여러 줄 문자열로 포맷(헤더 `regressed=` + 지표별 `base/cand/delta` 줄, 회귀 지표는 `REGRESSED`). **관찰·리포트 전용**이라 재계산·재판정 없이 파생값만 전사하며, NaN 지표(빈 표본)는 "n/a" 로 방어(기존 `fmt` 재사용), delta 는 명시 부호(+/-), throughput 은 회귀 표시 없이 delta·"(관찰)" 만 렌더링. 형태 불량 입력은 `TypeError`. §5 #5 harness 가 회귀 여부를 로그·CI 로 사람에게 보여줄 때 import.
 
 실 baseline 실측 harness(§5 follow-up #5)는 이 primitive 를 import 만 하면 된다.
 `latency-baseline.spec.ts` 는 순수 unit 이라 기본 `pnpm test` 에서 수집·검증된다.

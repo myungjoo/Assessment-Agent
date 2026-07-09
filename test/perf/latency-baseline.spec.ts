@@ -2,10 +2,13 @@ import {
   buildBaselineReport,
   formatBaselineLine,
   compareBaselineReports,
+  formatComparisonReport,
   serializeBaselineReport,
   parseBaselineReport,
   BaselineEnvMeta,
   BaselineReport,
+  BaselineComparison,
+  MetricComparison,
 } from "./latency-baseline";
 import { S2Assertion } from "./latency-collector";
 import { LatencySummary } from "./latency-metrics";
@@ -858,6 +861,284 @@ describe("latency-baseline 리포트 순수 함수 (S2)", () => {
         expect(restored.env.concurrency).toBe(8);
         expect(restored.env.memoryMb).toBe(512);
         expect(restored.p50).toBe(1);
+      });
+    });
+  });
+
+  describe("formatComparisonReport — 회귀 비교 결과 포맷 순수 함수 (T-0865)", () => {
+    /** 지정 지표로 정상 `BaselineReport` 를 만드는 팩토리(env·pass 는 고정 full). */
+    function report(overrides: Partial<BaselineReport> = {}): BaselineReport {
+      return {
+        env: fullEnv(),
+        p50: 10,
+        p95: 15,
+        p99: 20,
+        throughput: 100,
+        errorRate: 0,
+        count: 6,
+        pass: true,
+        ...overrides,
+      };
+    }
+
+    /** 유효 `MetricComparison` 을 만드는 팩토리(형태 불량 입력 구성용). */
+    function metric(
+      overrides: Partial<MetricComparison> = {},
+    ): MetricComparison {
+      return {
+        baseline: 10,
+        candidate: 10,
+        delta: 0,
+        regressed: false,
+        ...overrides,
+      };
+    }
+
+    /** 정상 `BaselineComparison` 을 만드는 팩토리(직접 구성 — compare 를 거치지 않음). */
+    function comparison(
+      overrides: Partial<BaselineComparison> = {},
+    ): BaselineComparison {
+      return {
+        p50: metric(),
+        p95: metric(),
+        p99: metric(),
+        errorRate: metric(),
+        throughput: metric(),
+        regressed: false,
+        ...overrides,
+      };
+    }
+
+    describe("happy path", () => {
+      it("회귀 없는(regressed=false) 정상 비교 → 종합 false + 각 지표 base/cand/delta 표기", () => {
+        const cmp = compareBaselineReports(report(), report());
+        const out = formatComparisonReport(cmp);
+        expect(out).toContain("regressed=false");
+        // latency 지표: delta 0(부호 없음), ok.
+        expect(out).toContain("p50: base=10.0ms cand=10.0ms delta=0.0ms ok");
+        expect(out).toContain("p95: base=15.0ms cand=15.0ms delta=0.0ms ok");
+        expect(out).toContain("p99: base=20.0ms cand=20.0ms delta=0.0ms ok");
+        // errorRate 퍼센트 표기.
+        expect(out).toContain("err: base=0.00% cand=0.00% delta=0.00% ok");
+        // throughput 은 관찰 전용 — 회귀 표시 없이 "(관찰)".
+        expect(out).toContain(
+          "throughput: base=100.00req/s cand=100.00req/s delta=0.00req/s (관찰)",
+        );
+        // 결과 문자열에 REGRESSED 는 등장하지 않는다.
+        expect(out).not.toContain("REGRESSED");
+      });
+
+      it("회귀 있는(regressed=true) 비교 → 회귀 지표에 REGRESSED 표시 + 종합 true", () => {
+        // p95 10→12(+20% > 10%) → 회귀.
+        const cmp = compareBaselineReports(
+          report({ p95: 10 }),
+          report({ p95: 12 }),
+        );
+        const out = formatComparisonReport(cmp);
+        expect(out).toContain("regressed=true");
+        expect(out).toContain(
+          "p95: base=10.0ms cand=12.0ms delta=+2.0ms REGRESSED",
+        );
+        // 회귀 안 한 지표는 ok.
+        expect(out).toContain("p50: base=10.0ms cand=10.0ms delta=0.0ms ok");
+      });
+
+      it("compareBaselineReports 산출물을 재계산·재판정 없이 그대로 전사", () => {
+        // delta·regressed 를 임의 값으로 직접 구성해도 그대로 렌더링됨을 확인(파생값 전사).
+        const cmp = comparison({
+          p95: metric({ baseline: 5, candidate: 9, delta: 4, regressed: true }),
+          regressed: true,
+        });
+        const out = formatComparisonReport(cmp);
+        expect(out).toContain(
+          "p95: base=5.0ms cand=9.0ms delta=+4.0ms REGRESSED",
+        );
+        expect(out).toContain("regressed=true");
+      });
+    });
+
+    describe("error path — 형태 가드", () => {
+      it("null 입력 → TypeError", () => {
+        expect(() =>
+          formatComparisonReport(null as unknown as BaselineComparison),
+        ).toThrow(TypeError);
+      });
+
+      it("undefined 입력 → TypeError", () => {
+        expect(() =>
+          formatComparisonReport(undefined as unknown as BaselineComparison),
+        ).toThrow(TypeError);
+      });
+
+      it("p95 가 MetricComparison 형태 아님(비-object) → TypeError", () => {
+        const bad = comparison({ p95: 42 as unknown as MetricComparison });
+        expect(() => formatComparisonReport(bad)).toThrow(TypeError);
+      });
+
+      it("p95.delta 가 비수치(형태 불량) → TypeError", () => {
+        const bad = comparison({
+          p95: metric({ delta: "x" as unknown as number }),
+        });
+        expect(() => formatComparisonReport(bad)).toThrow(TypeError);
+      });
+
+      it("최상위 regressed 가 boolean 아님 → TypeError", () => {
+        const bad = comparison({
+          regressed: "true" as unknown as boolean,
+        });
+        expect(() => formatComparisonReport(bad)).toThrow(TypeError);
+      });
+
+      it("throughput 지표 누락(전체 형태 불량) → TypeError", () => {
+        const bad = {
+          p50: metric(),
+          p95: metric(),
+          p99: metric(),
+          errorRate: metric(),
+          regressed: false,
+        } as unknown as BaselineComparison;
+        expect(() => formatComparisonReport(bad)).toThrow(TypeError);
+      });
+    });
+
+    describe("flow / branch coverage", () => {
+      it("(1) delta 양수(증가)는 '+', 음수(감소)는 '-' 부호 표기", () => {
+        // p50 증가(+3), p99 감소(-4).
+        const cmp = compareBaselineReports(
+          report({ p50: 10, p99: 20 }),
+          report({ p50: 13, p99: 16 }),
+        );
+        const out = formatComparisonReport(cmp);
+        expect(out).toContain("delta=+3.0ms");
+        expect(out).toContain("delta=-4.0ms");
+      });
+
+      it("(2) NaN 지표(빈 표본) → base/cand/delta 모두 'n/a' 표기", () => {
+        const cmp = compareBaselineReports(
+          report({ p95: NaN }),
+          report({ p95: NaN }),
+        );
+        const out = formatComparisonReport(cmp);
+        // 빈 표본 p95: base·cand·delta 전부 n/a(단위 접미사는 그대로 붙음).
+        expect(out).toContain("p95: base=n/ams cand=n/ams delta=n/ams ok");
+        // 유한 지표는 정상 렌더링(대비).
+        expect(out).toContain("p50: base=10.0ms cand=10.0ms delta=0.0ms ok");
+      });
+
+      it("(3) throughput 은 REGRESSED 표시 없이 delta·'(관찰)' 만 렌더링", () => {
+        // throughput 급감(100→10) — 관찰 전용이라 회귀 표시 없음.
+        const cmp = compareBaselineReports(
+          report({ throughput: 100 }),
+          report({ throughput: 10 }),
+        );
+        const out = formatComparisonReport(cmp);
+        expect(out).toContain(
+          "throughput: base=100.00req/s cand=10.00req/s delta=-90.00req/s (관찰)",
+        );
+        // throughput 줄에는 REGRESSED/ok 토큰이 없다(관찰 전용).
+        const tpLine = out.split("\n").find((l) => l.startsWith("throughput:"));
+        expect(tpLine).toBeDefined();
+        expect(tpLine).not.toContain("REGRESSED");
+        expect(tpLine).not.toContain(" ok");
+      });
+
+      it("(4) 종합 regressed=true 헤더 vs false 헤더 분기", () => {
+        const falseOut = formatComparisonReport(
+          compareBaselineReports(report(), report()),
+        );
+        expect(falseOut.split("\n")[0]).toBe("regressed=false");
+        const trueOut = formatComparisonReport(
+          compareBaselineReports(report({ p95: 10 }), report({ p95: 20 })),
+        );
+        expect(trueOut.split("\n")[0]).toBe("regressed=true");
+      });
+    });
+
+    describe("negative cases 충분 cover", () => {
+      it("모든 지표 NaN(전부 빈 표본) 입력 → 각 지표 'n/a', 결과 비어있지 않음", () => {
+        const cmp = compareBaselineReports(
+          report({
+            p50: NaN,
+            p95: NaN,
+            p99: NaN,
+            errorRate: NaN,
+            throughput: NaN,
+          }),
+          report({
+            p50: NaN,
+            p95: NaN,
+            p99: NaN,
+            errorRate: NaN,
+            throughput: NaN,
+          }),
+        );
+        const out = formatComparisonReport(cmp);
+        expect(out.length).toBeGreaterThan(0);
+        // NaN 은 "n/a" 로 표기(단위 접미사는 `formatBaselineLine` 과 동형으로 그대로 붙음).
+        expect(out).toContain("p50: base=n/ams cand=n/ams delta=n/ams");
+        expect(out).toContain("p95: base=n/ams cand=n/ams delta=n/ams");
+        expect(out).toContain("p99: base=n/ams cand=n/ams delta=n/ams");
+        expect(out).toContain("err: base=n/a% cand=n/a% delta=n/a%");
+        expect(out).toContain(
+          "throughput: base=n/areq/s cand=n/areq/s delta=n/areq/s (관찰)",
+        );
+      });
+
+      it("candidate 만 NaN(측정 소실) 지표 → base 유한·cand 'n/a'·delta 'n/a' + 회귀 표기", () => {
+        const cmp = compareBaselineReports(
+          report({ p95: 15 }),
+          report({ p95: NaN }),
+        );
+        const out = formatComparisonReport(cmp);
+        expect(out).toContain(
+          "p95: base=15.0ms cand=n/ams delta=n/ams REGRESSED",
+        );
+        expect(out).toContain("regressed=true");
+      });
+
+      it("delta=0(변화 없음) 지표 → 부호 없이 '0.0' 표기", () => {
+        const cmp = compareBaselineReports(report(), report());
+        const out = formatComparisonReport(cmp);
+        expect(out).toContain("delta=0.0ms");
+        expect(out).not.toContain("delta=+0.0ms");
+        expect(out).not.toContain("delta=-0.0ms");
+      });
+
+      it("종합 regressed=true 이나 개별 지표 표시와 정합(errorRate REGRESSED)", () => {
+        // errorRate 0→0.02(+0.02 > 0.01) → 회귀, latency 는 동일.
+        const cmp = compareBaselineReports(
+          report({ errorRate: 0 }),
+          report({ errorRate: 0.02 }),
+        );
+        const out = formatComparisonReport(cmp);
+        expect(out).toContain("regressed=true");
+        expect(out).toContain(
+          "err: base=0.00% cand=2.00% delta=+2.00% REGRESSED",
+        );
+        // latency 지표는 회귀 아님.
+        expect(out).toContain("p95: base=15.0ms cand=15.0ms delta=0.0ms ok");
+      });
+
+      it("결과 문자열이 비어있지 않고 각 지표명(p50/p95/p99/err/throughput)이 모두 포함", () => {
+        const out = formatComparisonReport(
+          compareBaselineReports(report(), report()),
+        );
+        expect(out.length).toBeGreaterThan(0);
+        for (const name of ["p50:", "p95:", "p99:", "err:", "throughput:"]) {
+          expect(out).toContain(name);
+        }
+        // 헤더 포함 총 6 줄(regressed 헤더 + 5 지표).
+        expect(out.split("\n")).toHaveLength(6);
+      });
+
+      it("errorRate 개선(감소) 지표 → delta 음수 부호 + ok", () => {
+        const cmp = compareBaselineReports(
+          report({ errorRate: 0.05 }),
+          report({ errorRate: 0.01 }),
+        );
+        const out = formatComparisonReport(cmp);
+        // err 5.00%→1.00%, delta -4.00%.
+        expect(out).toContain("err: base=5.00% cand=1.00% delta=-4.00% ok");
       });
     });
   });
