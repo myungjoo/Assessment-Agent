@@ -2,8 +2,12 @@
 id: T-0856
 title: S2 조회 latency perf-spec 를 ExportController GET /api/admin/export/:id/status-view derived-detail read 에 배선
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 750
+mergedAs: 48cd2ecd
+reviewRounds: 1
+completedAt: 2026-07-09T10:55:07Z
 coversReq: [REQ-048, REQ-030, REQ-032]
 independentStream: s2-latency-harness
 dependsOn: []
