@@ -37,9 +37,9 @@ const r = await collectLatencySamples(() => request(app).get("/summary"), 30);
 expect(assertS2Threshold(r).pass).toBe(true);
 ```
 
-## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read` / `cron-schedule-read` / `export-running-read` / `import-running-read` / `auth-me-read` / `summary-detail-read` / `group-detail-read` / `assessment-detail-read` / `person-detail-read` / `part-detail-read` / `contribution-detail-read` / `user-detail-read` / `llm-provider-config-detail-read` / `export-detail-read` / `import-detail-read` / `group-persons-read` / `part-persons-read` / `export-status-view-read` / `import-modes-read`)
+## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read` / `cron-schedule-read` / `export-running-read` / `import-running-read` / `auth-me-read` / `summary-detail-read` / `group-detail-read` / `assessment-detail-read` / `person-detail-read` / `part-detail-read` / `contribution-detail-read` / `user-detail-read` / `llm-provider-config-detail-read` / `export-detail-read` / `import-detail-read` / `group-persons-read` / `part-persons-read` / `export-status-view-read` / `import-modes-read` / `export-download-read` / `app-root-read`)
 
-collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 스물여덟 개다. 스물여덟 다
+collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 서른 개다. 서른 다
 `Test.createTestingModule` 로 대상 controller + **mocked service** 를 부트스트랩하고,
 `collectLatencySamples(() => request(app.getHttpServer()).get(...), N)` 로 반복 호출해
 표본을 수집하고 `assertS2Threshold(result).pass` 를 검증한다. `summary-read`·
@@ -51,8 +51,8 @@ collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현�
 `canActivate` 가 `req.user = { sub }` 를 박제해야 me 핸들러가 sub 분기(200/404)에
 도달한다(RolesGuard override 불요). `person-read`·`group-read`·`part-read` 는 guard
 미적용 controller 라 override 가 불요하다. harness 가 단일 controller 에 국한되지 않고
-요약·평가·기여·인원·그룹·파트·사용자·권한거부·LLM설정·난이도매핑·cron스케줄·export러닝·import러닝·auth-me·요약상세(:id)·그룹상세(:id)·평가상세(:id)·인원상세(:id)·파트상세(:id)·기여상세(:id)·사용자상세(:id)·LLM설정상세(:id)·export상세(:id)·import상세(:id)·그룹인원(:id/persons)·파트인원(:id/persons)·export진행뷰(:id/status-view)·import모드(/modes)
-28 read 경로 전반에 재사용됨을 실증한다(단건 detail(:id) 24 + sub-resource(:id/persons) read 2 + derived-detail(:id/status-view) read 1 + derived-list(/modes) read 1).
+요약·평가·기여·인원·그룹·파트·사용자·권한거부·LLM설정·난이도매핑·cron스케줄·export러닝·import러닝·auth-me·요약상세(:id)·그룹상세(:id)·평가상세(:id)·인원상세(:id)·파트상세(:id)·기여상세(:id)·사용자상세(:id)·LLM설정상세(:id)·export상세(:id)·import상세(:id)·그룹인원(:id/persons)·파트인원(:id/persons)·export진행뷰(:id/status-view)·import모드(/modes)·export다운로드(:id/download)·app-root(/api health)
+30 read 경로 전반에 재사용됨을 실증한다(list/query/self-read 14 + 단건 detail(:id) 10 + sub-resource(:id/persons) read 2 + derived-detail(:id/status-view) read 1 + derived-list(/modes) read 1 + artifact-stream(:id/download) read 1 + health-read(/api) 1).
 
 - `summary-read.perf-spec.ts` (T-0830) — `SummaryController` + mocked `SummaryService`,
   `GET /api/summaries?personId=...` 배선. 첫 실 perf-spec.
@@ -361,13 +361,49 @@ collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현�
   는 응답 body 가 helper derive 결과 `ImportModeDescription[]`(길이 2, destructive
   true/false)임과 service mock 미발화를 함께 assert 한다. mixed 부분 실패(4회 중 1회 500
   → failures===1)와 harness 가 body 형태에 무관(status 만 성공 판정)함도 실증한다.
+- `export-download-read.perf-spec.ts` (T-0858) — `ExportController` + mocked
+  `ExportJobService`(5 jest.fn, download 경로가 실제 호출하는 것은 `findJob` +
+  `materializeFullExportDownload` 두 개), `GET /api/admin/export/:id/download`(download →
+  `findJob(id)` 로 job 조회 → `buildScopePayload(job)` → `materializeFullExportDownload(scope)`
+  로 `Readable` 획득 → `collectStream` 으로 Buffer 화 → 다운로드 header set 후
+  `StreamableFile`(byte body) 200 반환, job 부재 시 findJob 의 `NotFoundException`(404) raw
+  propagate, materialize 실패 시 service reject(500) raw propagate, REQ-030 Export /
+  REQ-032 raw 미저장·미노출 / REQ-045 Admin 전용 / REQ-048 조회 back) 배선. 스물아홉 번째
+  배선 spec 이자 **첫 artifact-stream(:id/download) read(첫 dual-service-call read)** 다.
+  앞선 slice 들이 단건 detail·derived read 였다면 본 endpoint 는 **두 service 호출을
+  연쇄**(findJob → materializeFullExportDownload)하고 **StreamableFile(byte body)을
+  흘려보내는 artifact-stream read** 라 harness 재사용이 dual-service-call + stream body
+  read 에서도 유효함을 실증한다. `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("Admin")`
+  가드 스택을 sibling(export-detail T-0852 / export-status-view T-0856) 처럼
+  `overrideGuard(JwtAuthGuard)`·`overrideGuard(RolesGuard)` 로 통과시키되 controller 자체
+  authorization 분기가 없어 req.user 박제는 불요하다(canActivate true 만으로 충분). non-2xx
+  분류 실증은 두 service 호출 각각이 실패 지점이라 (1) findJob 404 → 두 번째 호출 도달 전
+  propagate, (2) materializeFullExportDownload reject(500) → 첫 호출 성공 후 두 번째에서
+  실패, 두 error path 를 각각 커버하며 mixed 부분 실패(4회 중 1회 404 → failures===1)도
+  실증한다.
+- `app-root-read.perf-spec.ts` (T-0859) — `AppController` + mocked `AppService`(1 jest.fn,
+  getRoot 경로가 실제 호출하는 것은 `getStatus` 뿐), `GET /api`(getRoot →
+  `appService.getStatus()` 가 반환하는 고정 문자열 `APP_STATUS_MESSAGE`("Assessment-Agent")를
+  그대로 200 반환 — path/query param 0, guard 미적용, service 는 동기 `getStatus()` 1개만
+  호출하며 예외 경로가 없음, REQ-048 조회 back) 배선. 서른 번째 배선 spec 이자 **최단
+  health/sanity read** 다. 이 endpoint 는 지금까지 배선한 모든 read 중 **가장 단순한
+  형태**로 collector 배선 정확성 검증의 하한(floor) case 를 채운다: (1) guard 미적용이라
+  `overrideGuard` 가 불요(person-read/group-read/part-read 처럼 순수 부트스트랩), (2)
+  path/query param 없음, (3) service 는 `getStatus()` 동기 함수 1개만 호출하며 예외 경로가
+  없음(항상 200 고정 문자열 — import /modes(T-0857) 의 순수-helper derive 보다도 단순, helper
+  derive 조차 없이 상수 문자열 forward). happy-path 는 응답 body 가 고정 문자열
+  ("Assessment-Agent")이고 `getStatus` 가 실호출됨을 함께 assert 한다(import /modes 의
+  service-무의존 derive 와 달리 getRoot 는 service 를 실호출). getRoot 는 예외 경로가 없는
+  순수 동기 반환이라(항상 200), collector 의 실패(non-2xx) 분기 실증은 import /modes(T-0857)
+  처럼 **요청 wrapper 레벨에서 인위 non-2xx status(500/503)를 주입**해 커버하며, mixed 부분
+  실패(4회 중 1회 503 → failures===1)와 harness 가 body 형태에 무관함도 실증한다.
 
 - **DB 무의존**: service 를 mock 하고(guard 있는 controller 는 override 도) 실 Postgres
   round-trip·실 LLM·실 스케줄러·외부 I/O 가 없어 결정론적이다. 실 DB round-trip
-  **baseline 실측**은 별도 follow-up (§5 item 5). 스물여덟 spec 모두 collector 배선의
+  **baseline 실측**은 별도 follow-up (§5 item 5). 서른 spec 모두 collector 배선의
   **정확성 검증**이지 baseline 측정이 아니다.
 - **실행**: `pnpm test:perf` (`jest-perf.json` 의 `testRegex: test/perf/.*\.perf-spec\.ts$`
-  가 스물여덟 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
+  가 서른 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
   `pnpm test` 는 `.spec.ts$` 만 매칭하므로 perf-spec 을 picking 하지 않아 unit coverage
   gate 와 분리된다.
 - perf job 은 상시 PR CI 와 분리한다(follow-up #4).
