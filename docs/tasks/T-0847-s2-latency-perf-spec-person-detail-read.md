@@ -2,7 +2,7 @@
 id: T-0847
 title: S2 조회 latency harness 를 PersonController :id detail-read 에 배선하는 열여덟 번째 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 independentStream: s2-latency-perf-wiring
@@ -53,3 +53,10 @@ plannerNote: "P8 load-resilience §5 follow-up #2 (S2 latency harness) — T-084
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+
+## Result (DONE 2026-07-09T02:18Z)
+
+- **PR #741 merged (squash `ecbf1cc8`), reviewer APPROVE round 1/7 (finding 0), 4-게이트 PASS, CI green (run 28989148601).**
+- `test/perf/person-detail-read.perf-spec.ts` 신설 (+234/-0, 1 file, cap 내). PersonController + PersonService(mock useValue) 부트스트랩, `GET /api/persons/:id` 를 `collectLatencySamples` 로 반복 호출. guard 미적용이라 overrideGuard 없이 순수 부트스트랩(group-detail-read mirror). `findById` mock 으로 200/404/500 결정론 제어.
+- R-112 4종 + negative 4종((a) 없는 id→404, (b) 일반 Error→500, (c) mixed 4회 중 1회 404→failures===1, (d) iterations===1 경계) 전부 present. `pnpm test:perf` 18 suites/108 green, lint·build green, `test:cov` 357 suites/9094 green(line≥80/func≥80 유지, perf-spec coverage 무영향).
+- claim(cron@aa-local-15-bc4eb4df) prune → claims.json=[]. 신규 dependency 0.
