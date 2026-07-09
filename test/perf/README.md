@@ -21,6 +21,20 @@ const er = errorRate(reqs.length, fails); // er < 0.01 검증
 
 `latency-metrics.spec.ts` 는 순수 unit 이라 기본 `pnpm test` 에서도 수집·검증된다.
 
+## baseline 리포트 (`latency-baseline.ts`)
+
+env-meta(§3 "환경 고정")를 동반해 `S2Assertion` 을 비교 가능한 리포트 레코드로 포맷하는
+**순수 함수**(DB·네트워크 무의존). **관찰·리포트 전용**이라 pass/fail 판정·임계 로직은
+전혀 바꾸지 않고, 지표는 assertion 에서 파생만 한다(재계산 없음).
+
+- `BaselineEnvMeta` — 실행 환경 메타(`label`·`concurrency` 필수, `cpu?`·`memoryMb?`·`dataScale?` optional).
+- `BaselineReport` — env-meta + 핵심 지표(p50/p95/p99/throughput/errorRate/count/pass) machine-readable 레코드.
+- `buildBaselineReport(env, assertion)` — env-meta + `S2Assertion` 을 합쳐 리포트 조립(지표 파생, 재계산 없음).
+- `formatBaselineLine(report)` — 리포트를 파싱 용이한 한 줄(key=value, NaN 은 "n/a")로 포맷.
+
+실 baseline 실측 harness(§5 follow-up #5)는 이 primitive 를 import 만 하면 된다.
+`latency-baseline.spec.ts` 는 순수 unit 이라 기본 `pnpm test` 에서 수집·검증된다.
+
 ## 표본 수집기 (`latency-collector.ts`)
 
 요청 함수를 주입받아 반복 호출하며 latency 표본을 모으고 S2 임계를 판정하는 순수
