@@ -37,9 +37,9 @@ const r = await collectLatencySamples(() => request(app).get("/summary"), 30);
 expect(assertS2Threshold(r).pass).toBe(true);
 ```
 
-## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read` / `cron-schedule-read` / `export-running-read` / `import-running-read` / `auth-me-read` / `summary-detail-read`)
+## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read` / `cron-schedule-read` / `export-running-read` / `import-running-read` / `auth-me-read` / `summary-detail-read` / `group-detail-read` / `assessment-detail-read` / `person-detail-read` / `part-detail-read` / `contribution-detail-read`)
 
-collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 열다섯 개다. 열다섯 다
+collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 스무 개다. 스무 다
 `Test.createTestingModule` 로 대상 controller + **mocked service** 를 부트스트랩하고,
 `collectLatencySamples(() => request(app.getHttpServer()).get(...), N)` 로 반복 호출해
 표본을 수집하고 `assertS2Threshold(result).pass` 를 검증한다. `summary-read`·
@@ -51,8 +51,8 @@ collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현�
 `canActivate` 가 `req.user = { sub }` 를 박제해야 me 핸들러가 sub 분기(200/404)에
 도달한다(RolesGuard override 불요). `person-read`·`group-read`·`part-read` 는 guard
 미적용 controller 라 override 가 불요하다. harness 가 단일 controller 에 국한되지 않고
-요약·평가·기여·인원·그룹·파트·사용자·권한거부·LLM설정·난이도매핑·cron스케줄·export러닝·import러닝·auth-me·요약상세(:id)
-15 read 경로 전반에 재사용됨을 실증한다.
+요약·평가·기여·인원·그룹·파트·사용자·권한거부·LLM설정·난이도매핑·cron스케줄·export러닝·import러닝·auth-me·요약상세(:id)·그룹상세(:id)·평가상세(:id)·인원상세(:id)·파트상세(:id)·기여상세(:id)
+20 read 경로 전반에 재사용됨을 실증한다.
 
 - `summary-read.perf-spec.ts` (T-0830) — `SummaryController` + mocked `SummaryService`,
   `GET /api/summaries?personId=...` 배선. 첫 실 perf-spec.
@@ -200,13 +200,26 @@ collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현�
   실증은 mocked `findById` 가 `NotFoundException`(404 — row 부재)/일반 `Error`(500 — 장애)
   를 던져 endpoint 가 404/500 을 반환하는 error path 로 커버하며(404 를 collector
   failures 로 분류), mixed 부분 실패(4회 중 1회 404 → failures===1)도 실증한다.
+- `contribution-detail-read.perf-spec.ts` (T-0849) — `ContributionController` + mocked
+  `ContributionService`(4 jest.fn, detail 경로가 실제 호출하는 것은 `findById` 뿐),
+  `GET /api/contributions/:id`(findOne → `service.findById(id)` — 단일 Contribution 상세,
+  row 부재 시 service `NotFoundException` → 404, REQ-048 조회 back) 배선. 스무 번째 배선
+  spec 이자 **여섯 번째 path-param `:id` detail read** 이며 첫 Contribution entity 상세
+  조회 경로다. detail 핸들러가 `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("User")`
+  가드 스택을 적용하므로 assessment-detail-read(T-0846) 처럼
+  `overrideGuard(JwtAuthGuard)`·`overrideGuard(RolesGuard)` 로 둘 다 통과시키되, self-read
+  가 아니라 `findById(id)` raw forward 라 req.user 박제는 불요하다(canActivate true
+  만으로 충분). non-2xx 분류 실증은 mocked `findById` 가 `NotFoundException`(404 — row
+  부재)/일반 `Error`(500 — 장애)를 던져 endpoint 가 404/500 을 반환하는 error path 로
+  커버하며(404 를 collector failures 로 분류), mixed 부분 실패(4회 중 1회 404 →
+  failures===1)도 실증한다.
 
 - **DB 무의존**: service 를 mock 하고(guard 있는 controller 는 override 도) 실 Postgres
   round-trip·실 LLM·실 스케줄러·외부 I/O 가 없어 결정론적이다. 실 DB round-trip
-  **baseline 실측**은 별도 follow-up (§5 item 5). 열다섯 spec 모두 collector 배선의
+  **baseline 실측**은 별도 follow-up (§5 item 5). 스무 spec 모두 collector 배선의
   **정확성 검증**이지 baseline 측정이 아니다.
 - **실행**: `pnpm test:perf` (`jest-perf.json` 의 `testRegex: test/perf/.*\.perf-spec\.ts$`
-  가 열다섯 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
+  가 스무 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
   `pnpm test` 는 `.spec.ts$` 만 매칭하므로 perf-spec 을 picking 하지 않아 unit coverage
   gate 와 분리된다.
 - perf job 은 상시 PR CI 와 분리한다(follow-up #4).
