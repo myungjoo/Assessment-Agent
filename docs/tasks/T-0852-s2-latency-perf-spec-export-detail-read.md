@@ -2,7 +2,11 @@
 id: T-0852
 title: S2 조회 latency harness 를 ExportController :id detail-read 에 배선하는 스물세 번째 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-09T06:58:00Z
+mergedAs: ffddffc2
+prNumber: 746
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048, REQ-096]
 independentStream: s2-latency-perf-wiring
