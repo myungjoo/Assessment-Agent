@@ -10,6 +10,8 @@
  * pass/fail 판정 로직·임계 자체는 전혀 바꾸지 않는다(§3 throughput 은 여전히 관찰 지표).
  */
 
+import * as path from "path";
+
 import { S2Assertion } from "./latency-collector";
 
 /**
@@ -743,4 +745,47 @@ export function resolveBaselineFilename(env: BaselineEnvMeta): string {
     );
   }
   return `${BASELINE_FILENAME_PREFIX}${slug}${BASELINE_FILENAME_EXT}`;
+}
+
+/**
+ * baseline 디렉토리(`baseDir`)와 `BaselineEnvMeta` 로부터 baseline JSON 파일의 전체 경로를
+ * **결정적(deterministic)** 하게 유도하는 순수 함수다. 저장 harness(§5 #4·#5)가
+ * `serializeBaselineReport` 결과를 **어느 디렉토리 아래** 어떤 파일명으로 쓸지, 조회 harness 가
+ * **어느 디렉토리에서** 기준 baseline 을 읽을지 결정하는 단일 경로 결정 진입점이다.
+ *
+ * 유도 규칙:
+ *  1. `resolveBaselineFilename(env)` 로 basename 을 얻는다(env 형태 불량 → `TypeError`,
+ *     빈/공백-only·slug 빈 label → `RangeError` 은 그대로 전파 — 재검증·중복 throw 금지).
+ *  2. `baseDir` 이 string 이 아니면 `TypeError`, 빈 string 또는 공백-only 이면 `RangeError`
+ *     (경로 유의미성 보장 — filename 계약과 동형).
+ *  3. `baseDir` 과 basename 을 **POSIX-결정적**으로 결합한다. `path.posix.join` 이 후행
+ *     구분자 유무(`"a/b"` vs `"a/b/"`)와 중복 구분자(`"//"`)를 정규화해 플랫폼 무관 동일
+ *     결과를 보장한다(CI/로컬 경로 일치의 핵심).
+ *
+ * **결정성** — 같은 (`env`, `baseDir`) 는 항상 같은 경로를 낳는다. `baseDir` 의 후행 슬래시
+ * 유무는 결과에 영향을 주지 않는다(`path.posix.join` 정규화).
+ * **basename 위임 불변** — 파일명 규약은 전적으로 `resolveBaselineFilename` 에 위임한다.
+ * 본 함수는 디렉토리 결합만 책임진다(파일명 slug 규칙 재구현 금지 — DRY).
+ * **순수·부작용 0** — `fs`·환경 read·경로 존재 검사·절대경로 강제 없음. `path.posix`(정규화)만.
+ *
+ * @throws {TypeError} `env` 형태 불량(전파) 또는 `baseDir` 이 non-string 일 때.
+ * @throws {RangeError} `env.label`/slug 무효(전파) 또는 `baseDir` 이 빈/공백-only 일 때.
+ */
+export function resolveBaselinePath(
+  env: BaselineEnvMeta,
+  baseDir: string,
+): string {
+  // 1. basename 은 전적으로 resolveBaselineFilename 에 위임(env 관련 예외는 그대로 전파).
+  const filename = resolveBaselineFilename(env);
+  // 2. baseDir 검증(filename 계약과 동형 — non-string TypeError, 빈/공백-only RangeError).
+  if (typeof baseDir !== "string") {
+    throw new TypeError("resolveBaselinePath: baseDir 은 string 이어야 함");
+  }
+  if (baseDir.trim() === "") {
+    throw new RangeError(
+      "resolveBaselinePath: baseDir 은 빈/공백-only string 일 수 없음",
+    );
+  }
+  // 3. POSIX-결정적 결합 — 후행 구분자·중복 구분자를 정규화(플랫폼 무관 동일 결과).
+  return path.posix.join(baseDir, filename);
 }

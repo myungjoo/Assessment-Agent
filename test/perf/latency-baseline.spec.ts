@@ -5,6 +5,7 @@ import {
   formatComparisonReport,
   compareBaselineJson,
   resolveBaselineFilename,
+  resolveBaselinePath,
   serializeBaselineReport,
   parseBaselineReport,
   BaselineEnvMeta,
@@ -1492,6 +1493,175 @@ describe("latency-baseline 리포트 순수 함수 (S2)", () => {
         expect(name).not.toContain("\\");
         expect(name.endsWith(".json")).toBe(true);
         expect(name.startsWith("baseline-")).toBe(true);
+      });
+    });
+  });
+
+  describe("resolveBaselinePath — 경로 조립 순수 함수 (T-0868)", () => {
+    /** label 만 지정하고 나머지는 유효 기본값을 채우는 env 팩토리. */
+    function envWith(label: unknown): BaselineEnvMeta {
+      return { label, concurrency: 4 } as BaselineEnvMeta;
+    }
+
+    describe("happy path", () => {
+      it("정상 (env, baseDir)이면 결정적 전체 경로 반환", () => {
+        expect(
+          resolveBaselinePath(envWith("ci-linux-x64"), "test/perf/baselines"),
+        ).toBe("test/perf/baselines/baseline-ci-linux-x64.json");
+      });
+
+      it("같은 인자를 두 번 호출하면 동일 문자열 반환(결정성)", () => {
+        const env = envWith("ci-linux-x64");
+        expect(resolveBaselinePath(env, "test/perf/baselines")).toBe(
+          resolveBaselinePath(env, "test/perf/baselines"),
+        );
+      });
+
+      it("basename 부분이 resolveBaselineFilename(env) 와 정확히 일치(위임 검증)", () => {
+        const env = envWith("Local MacBook / M1");
+        const full = resolveBaselinePath(env, "a/b/c");
+        expect(full.endsWith("/" + resolveBaselineFilename(env))).toBe(true);
+        expect(full).toBe("a/b/c/baseline-local-macbook-m1.json");
+      });
+    });
+
+    describe("error path", () => {
+      it("env 가 null → TypeError 전파", () => {
+        expect(() =>
+          resolveBaselinePath(null as unknown as BaselineEnvMeta, "a/b"),
+        ).toThrow(TypeError);
+      });
+
+      it("env.concurrency 가 non-number → TypeError 전파", () => {
+        expect(() =>
+          resolveBaselinePath(
+            {
+              label: "ci-linux",
+              concurrency: "4",
+            } as unknown as BaselineEnvMeta,
+            "a/b",
+          ),
+        ).toThrow(TypeError);
+      });
+
+      it("env.label 이 빈 string → RangeError 전파", () => {
+        expect(() => resolveBaselinePath(envWith(""), "a/b")).toThrow(
+          RangeError,
+        );
+      });
+
+      it("env.label 이 공백-only → RangeError 전파", () => {
+        expect(() => resolveBaselinePath(envWith("   "), "a/b")).toThrow(
+          RangeError,
+        );
+      });
+
+      it("baseDir 이 non-string(null) → TypeError", () => {
+        expect(() =>
+          resolveBaselinePath(envWith("ci-linux"), null as unknown as string),
+        ).toThrow(TypeError);
+      });
+
+      it("baseDir 이 non-string(숫자) → TypeError", () => {
+        expect(() =>
+          resolveBaselinePath(envWith("ci-linux"), 42 as unknown as string),
+        ).toThrow(TypeError);
+      });
+
+      it("baseDir 이 non-string(객체) → TypeError", () => {
+        expect(() =>
+          resolveBaselinePath(envWith("ci-linux"), {} as unknown as string),
+        ).toThrow(TypeError);
+      });
+
+      it("baseDir 이 빈 string('') → RangeError", () => {
+        expect(() => resolveBaselinePath(envWith("ci-linux"), "")).toThrow(
+          RangeError,
+        );
+      });
+
+      it("baseDir 이 공백-only('   ') → RangeError", () => {
+        expect(() => resolveBaselinePath(envWith("ci-linux"), "   ")).toThrow(
+          RangeError,
+        );
+      });
+    });
+
+    describe("flow / branch coverage", () => {
+      it("baseDir 후행 구분자 유무('a/b/' vs 'a/b')가 동일 결과로 수렴(정규화)", () => {
+        const env = envWith("ci-linux");
+        expect(resolveBaselinePath(env, "a/b/")).toBe(
+          resolveBaselinePath(env, "a/b"),
+        );
+        expect(resolveBaselinePath(env, "a/b/")).toBe(
+          "a/b/baseline-ci-linux.json",
+        );
+      });
+
+      it("단일 세그먼트 baseDir vs 다중 세그먼트 baseDir 둘 다 결정적 결합", () => {
+        const env = envWith("ci-linux");
+        expect(resolveBaselinePath(env, "baselines")).toBe(
+          "baselines/baseline-ci-linux.json",
+        );
+        expect(resolveBaselinePath(env, "a/b/c")).toBe(
+          "a/b/c/baseline-ci-linux.json",
+        );
+      });
+
+      it("resolveBaselineFilename 예외가 재검증 없이 그대로 전파되는 분기", () => {
+        // env 불량이면 baseDir 검증에 도달하기 전에 filename 유도에서 동일 TypeError 전파.
+        expect(() =>
+          resolveBaselinePath(undefined as unknown as BaselineEnvMeta, "a/b"),
+        ).toThrow(TypeError);
+      });
+    });
+
+    describe("negative cases 충분 cover", () => {
+      it("env = undefined → TypeError", () => {
+        expect(() =>
+          resolveBaselinePath(undefined as unknown as BaselineEnvMeta, "a/b"),
+        ).toThrow(TypeError);
+      });
+
+      it("baseDir = undefined → TypeError", () => {
+        expect(() =>
+          resolveBaselinePath(
+            envWith("ci-linux"),
+            undefined as unknown as string,
+          ),
+        ).toThrow(TypeError);
+      });
+
+      it("baseDir 이 오직 슬래시로만 구성('/')이면 posix 정규화 후 결정적 절대 경로", () => {
+        // '/' 는 공백-only 가 아니므로 RangeError 아님 — path.posix.join 이 결정적으로 결합.
+        // 규약: baseDir='/' 는 유의미(루트)라 통과하고 절대 경로 basename 을 낳는다.
+        expect(resolveBaselinePath(envWith("ci-linux"), "/")).toBe(
+          "/baseline-ci-linux.json",
+        );
+      });
+
+      it("중복 구분자 baseDir('a//b//')도 단일 구분자로 정규화(// 미포함)", () => {
+        const full = resolveBaselinePath(envWith("ci-linux"), "a//b//");
+        expect(full).toBe("a/b/baseline-ci-linux.json");
+        expect(full).not.toContain("//");
+      });
+
+      it("반환 경로가 basename(baseline-...json)으로 끝남", () => {
+        const full = resolveBaselinePath(
+          envWith("ci-linux-x64"),
+          "test/perf/baselines",
+        );
+        expect(full.endsWith("baseline-ci-linux-x64.json")).toBe(true);
+        expect(full).not.toContain("//");
+      });
+
+      it("서로 다른 baseDir 이 동일 basename 을 서로 다른 경로로 매핑", () => {
+        const env = envWith("ci-linux");
+        const p1 = resolveBaselinePath(env, "dir-a");
+        const p2 = resolveBaselinePath(env, "dir-b");
+        expect(p1).not.toBe(p2);
+        expect(p1).toBe("dir-a/baseline-ci-linux.json");
+        expect(p2).toBe("dir-b/baseline-ci-linux.json");
       });
     });
   });
