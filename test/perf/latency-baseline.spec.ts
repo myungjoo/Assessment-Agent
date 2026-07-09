@@ -1,6 +1,7 @@
 import {
   buildBaselineReport,
   formatBaselineLine,
+  compareBaselineReports,
   BaselineEnvMeta,
   BaselineReport,
 } from "./latency-baseline";
@@ -253,6 +254,308 @@ describe("latency-baseline 리포트 순수 함수 (S2)", () => {
     it("report.env 형태 불량 → TypeError", () => {
       const bad = { p50: 1 } as unknown as BaselineReport;
       expect(() => formatBaselineLine(bad)).toThrow(TypeError);
+    });
+  });
+
+  describe("compareBaselineReports — 회귀 비교 순수 함수 (T-0863)", () => {
+    /** 지정 지표로 정상 `BaselineReport` 를 만드는 팩토리(env·pass 는 고정). */
+    function report(overrides: Partial<BaselineReport> = {}): BaselineReport {
+      return {
+        env: fullEnv(),
+        p50: 10,
+        p95: 15,
+        p99: 20,
+        throughput: 100,
+        errorRate: 0,
+        count: 6,
+        pass: true,
+        ...overrides,
+      };
+    }
+
+    describe("happy path", () => {
+      it("동일 baseline·candidate → 회귀 없음(regressed=false) + delta 0", () => {
+        const cmp = compareBaselineReports(report(), report());
+        expect(cmp.regressed).toBe(false);
+        expect(cmp.p50.delta).toBe(0);
+        expect(cmp.p95.delta).toBe(0);
+        expect(cmp.p99.delta).toBe(0);
+        expect(cmp.errorRate.delta).toBe(0);
+        expect(cmp.throughput.delta).toBe(0);
+        // 지표별 회귀 플래그도 전부 false.
+        expect(cmp.p95.regressed).toBe(false);
+        expect(cmp.errorRate.regressed).toBe(false);
+      });
+
+      it("허용치 안(+5% latency, errorRate 동일) → 회귀 없음 + 지표별 delta 정확", () => {
+        // p95 10→10.5(+5%, 기본 tolerance 0.10 안), 나머지 동일.
+        const base = report({ p95: 10 });
+        const cand = report({ p95: 10.5 });
+        const cmp = compareBaselineReports(base, cand);
+        expect(cmp.regressed).toBe(false);
+        expect(cmp.p95.delta).toBeCloseTo(0.5, 10);
+        expect(cmp.p95.baseline).toBe(10);
+        expect(cmp.p95.candidate).toBe(10.5);
+        expect(cmp.p95.regressed).toBe(false);
+      });
+    });
+
+    describe("error path — 형태 가드 / tolerance 검증", () => {
+      it("baseline 이 유효 형태 아님(env 누락) → TypeError", () => {
+        const bad = { p50: 1, p95: 2, p99: 3, throughput: 4, errorRate: 0 };
+        expect(() =>
+          compareBaselineReports(bad as unknown as BaselineReport, report()),
+        ).toThrow(TypeError);
+      });
+
+      it("candidate 가 유효 형태 아님(p95 비수치) → TypeError", () => {
+        const bad = report({ p95: "x" as unknown as number });
+        expect(() => compareBaselineReports(report(), bad)).toThrow(TypeError);
+      });
+
+      it("baseline null → TypeError", () => {
+        expect(() =>
+          compareBaselineReports(null as unknown as BaselineReport, report()),
+        ).toThrow(TypeError);
+      });
+
+      it("latencyTolerance 음수 → RangeError", () => {
+        expect(() =>
+          compareBaselineReports(report(), report(), {
+            latencyTolerance: -0.1,
+          }),
+        ).toThrow(RangeError);
+      });
+
+      it("latencyTolerance NaN → RangeError", () => {
+        expect(() =>
+          compareBaselineReports(report(), report(), {
+            latencyTolerance: NaN,
+          }),
+        ).toThrow(RangeError);
+      });
+
+      it("errorRateTolerance 음수 → RangeError", () => {
+        expect(() =>
+          compareBaselineReports(report(), report(), {
+            errorRateTolerance: -0.01,
+          }),
+        ).toThrow(RangeError);
+      });
+
+      it("errorRateTolerance NaN → RangeError", () => {
+        expect(() =>
+          compareBaselineReports(report(), report(), {
+            errorRateTolerance: NaN,
+          }),
+        ).toThrow(RangeError);
+      });
+    });
+
+    describe("flow / branch coverage", () => {
+      it("(1) latency 회귀 — candidate p95 가 tolerance 초과 증가 → regressed=true", () => {
+        // p95 10→12(+20% > 기본 10%) → 회귀.
+        const cmp = compareBaselineReports(
+          report({ p95: 10 }),
+          report({ p95: 12 }),
+        );
+        expect(cmp.p95.regressed).toBe(true);
+        expect(cmp.regressed).toBe(true);
+        expect(cmp.p95.delta).toBeCloseTo(2, 10);
+      });
+
+      it("(2) errorRate 회귀 — candidate 가 허용 절대치 초과 증가 → regressed=true", () => {
+        // errorRate 0→0.02(delta 0.02 > 기본 0.01) → 회귀.
+        const cmp = compareBaselineReports(
+          report({ errorRate: 0 }),
+          report({ errorRate: 0.02 }),
+        );
+        expect(cmp.errorRate.regressed).toBe(true);
+        expect(cmp.regressed).toBe(true);
+        expect(cmp.errorRate.delta).toBeCloseTo(0.02, 10);
+      });
+
+      it("(3a) tolerance 경계 — 정확히 tolerance 만큼 증가는 회귀 아님", () => {
+        // p95 10→11(+10% == 기본 tolerance) → 회귀 아님(초과 아님).
+        const cmp = compareBaselineReports(
+          report({ p95: 10 }),
+          report({ p95: 11 }),
+        );
+        expect(cmp.p95.regressed).toBe(false);
+        expect(cmp.regressed).toBe(false);
+      });
+
+      it("(3b) tolerance 경계 — tolerance 초과(아주 조금)는 회귀", () => {
+        // p95 10→11.001(+10.01% > 10%) → 회귀.
+        const cmp = compareBaselineReports(
+          report({ p95: 10 }),
+          report({ p95: 11.001 }),
+        );
+        expect(cmp.p95.regressed).toBe(true);
+        expect(cmp.regressed).toBe(true);
+      });
+
+      it("(4) NaN 지표 제외 — baseline p95 가 NaN → 그 지표 판정 제외(delta NaN, regressed=false)", () => {
+        const cmp = compareBaselineReports(
+          report({ p95: NaN }),
+          report({ p95: 15 }),
+        );
+        expect(Number.isNaN(cmp.p95.delta)).toBe(true);
+        expect(cmp.p95.regressed).toBe(false);
+        // 다른 지표가 정상이면 종합도 회귀 아님.
+        expect(cmp.regressed).toBe(false);
+      });
+
+      it("(5) candidate 만 NaN(측정 소실) → 그 지표 회귀 + 종합 회귀", () => {
+        const cmp = compareBaselineReports(
+          report({ p95: 15 }),
+          report({ p95: NaN }),
+        );
+        expect(Number.isNaN(cmp.p95.delta)).toBe(true);
+        expect(cmp.p95.regressed).toBe(true);
+        expect(cmp.regressed).toBe(true);
+      });
+
+      it("baseline·candidate 모두 NaN(양쪽 빈 표본) → 제외(측정 소실 아님)", () => {
+        const cmp = compareBaselineReports(
+          report({ p95: NaN }),
+          report({ p95: NaN }),
+        );
+        expect(Number.isNaN(cmp.p95.delta)).toBe(true);
+        expect(cmp.p95.regressed).toBe(false);
+        expect(cmp.regressed).toBe(false);
+      });
+
+      it("(4-er) errorRate baseline NaN → 판정 제외(delta NaN, regressed=false)", () => {
+        const cmp = compareBaselineReports(
+          report({ errorRate: NaN }),
+          report({ errorRate: 0.02 }),
+        );
+        expect(Number.isNaN(cmp.errorRate.delta)).toBe(true);
+        expect(cmp.errorRate.regressed).toBe(false);
+        expect(cmp.regressed).toBe(false);
+      });
+
+      it("(5-er) errorRate candidate 만 NaN(측정 소실) → 그 지표 회귀 + 종합 회귀", () => {
+        const cmp = compareBaselineReports(
+          report({ errorRate: 0.01 }),
+          report({ errorRate: NaN }),
+        );
+        expect(Number.isNaN(cmp.errorRate.delta)).toBe(true);
+        expect(cmp.errorRate.regressed).toBe(true);
+        expect(cmp.regressed).toBe(true);
+      });
+
+      it("throughput 어느 한쪽 NaN → delta NaN, 관찰 전용이라 regressed=false", () => {
+        const cmp = compareBaselineReports(
+          report({ throughput: NaN }),
+          report({ throughput: 100 }),
+        );
+        expect(Number.isNaN(cmp.throughput.delta)).toBe(true);
+        expect(cmp.throughput.regressed).toBe(false);
+        expect(cmp.regressed).toBe(false);
+      });
+    });
+
+    describe("negative cases 충분 cover", () => {
+      it("빈 표본(count=0, p95=NaN) baseline vs 정상 candidate → latency 판정 제외", () => {
+        const emptyBase = report({
+          p50: NaN,
+          p95: NaN,
+          p99: NaN,
+          throughput: 0,
+          count: 0,
+          pass: false,
+        });
+        const cmp = compareBaselineReports(emptyBase, report());
+        // 모든 latency 지표 baseline NaN → 제외, errorRate 동일 → 회귀 아님.
+        expect(cmp.p50.regressed).toBe(false);
+        expect(cmp.p95.regressed).toBe(false);
+        expect(cmp.p99.regressed).toBe(false);
+        expect(cmp.regressed).toBe(false);
+      });
+
+      it("throughput 이 크게 나빠져도(급감) 회귀 판정에 반영 안 됨(관찰 전용)", () => {
+        // throughput 100→10 급감, latency·errorRate 는 동일.
+        const cmp = compareBaselineReports(
+          report({ throughput: 100 }),
+          report({ throughput: 10 }),
+        );
+        expect(cmp.throughput.delta).toBe(-90);
+        expect(cmp.throughput.regressed).toBe(false);
+        // throughput 은 종합 회귀에 절대 반영 안 됨.
+        expect(cmp.regressed).toBe(false);
+      });
+
+      it("throughput 이 개선(증가)해도 regressed=false, delta 만 리포트", () => {
+        const cmp = compareBaselineReports(
+          report({ throughput: 100 }),
+          report({ throughput: 250 }),
+        );
+        expect(cmp.throughput.delta).toBe(150);
+        expect(cmp.throughput.regressed).toBe(false);
+      });
+
+      it("errorRate 개선(감소) → 회귀 아님 + delta 음수", () => {
+        const cmp = compareBaselineReports(
+          report({ errorRate: 0.05 }),
+          report({ errorRate: 0.01 }),
+        );
+        expect(cmp.errorRate.delta).toBeCloseTo(-0.04, 10);
+        expect(cmp.errorRate.regressed).toBe(false);
+        expect(cmp.regressed).toBe(false);
+      });
+
+      it("latency 개선(감소) → delta 음수 + 회귀 아님", () => {
+        const cmp = compareBaselineReports(
+          report({ p95: 20 }),
+          report({ p95: 12 }),
+        );
+        expect(cmp.p95.delta).toBe(-8);
+        expect(cmp.p95.regressed).toBe(false);
+        expect(cmp.regressed).toBe(false);
+      });
+
+      it("tolerance=0 극단값 — baseline 초과 증가는 즉시 회귀", () => {
+        // p95 10→10.001(+0.01%)도 tolerance=0 이면 회귀.
+        const cmp = compareBaselineReports(
+          report({ p95: 10 }),
+          report({ p95: 10.001 }),
+          { latencyTolerance: 0 },
+        );
+        expect(cmp.p95.regressed).toBe(true);
+        expect(cmp.regressed).toBe(true);
+      });
+
+      it("tolerance=0 극단값 — 정확히 동일하면 회귀 아님", () => {
+        const cmp = compareBaselineReports(
+          report({ p95: 10 }),
+          report({ p95: 10 }),
+          { latencyTolerance: 0 },
+        );
+        expect(cmp.p95.regressed).toBe(false);
+        expect(cmp.regressed).toBe(false);
+      });
+
+      it("baseline p95=0(경계) + candidate 증가 → 허용 절대량 0 이라 회귀", () => {
+        const cmp = compareBaselineReports(
+          report({ p95: 0 }),
+          report({ p95: 1 }),
+        );
+        expect(cmp.p95.regressed).toBe(true);
+        expect(cmp.regressed).toBe(true);
+      });
+
+      it("errorRateTolerance 커스텀(0.005) 경계 — 초과분만 회귀", () => {
+        // delta 0.006 > 0.005 → 회귀.
+        const cmp = compareBaselineReports(
+          report({ errorRate: 0 }),
+          report({ errorRate: 0.006 }),
+          { errorRateTolerance: 0.005 },
+        );
+        expect(cmp.errorRate.regressed).toBe(true);
+        expect(cmp.regressed).toBe(true);
+      });
     });
   });
 });
