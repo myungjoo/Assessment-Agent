@@ -2,7 +2,7 @@
 id: T-0867
 title: S2 latency baseline 파일명 규약 순수 함수 신설 (resolveBaselineFilename)
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 195
@@ -70,3 +70,13 @@ implementer → tester
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+
+---
+
+## 결과 (DONE)
+
+- **완료 시각**: 2026-07-09T21:49Z (server-time)
+- **PR**: #761, squash-merge `c634b414`, reviewer APPROVE round 1/7, 4-게이트 PASS, CI green.
+- **변경**: `resolveBaselineFilename(env: BaselineEnvMeta): string` + 내부 `slugifyLabel` 헬퍼를 `test/perf/latency-baseline.ts` 에 추가(순수·fs/path I/O 0). colocated spec 19 case(happy/error/branch/negative 충분 cover), README baseline 절 항목 추가. +67/-0.
+- **검증**: `pnpm lint && pnpm build && pnpm test:cov` 통과, test:cov line 99.95%/func 100%/branch 99.25%(≥80/80 무회귀), 전체 134/9254 pass. 신규 함수 ~100%.
+- **AC**: 전부 ok(8/8). 신규 외부 dependency 0, 판정 로직 불변.
