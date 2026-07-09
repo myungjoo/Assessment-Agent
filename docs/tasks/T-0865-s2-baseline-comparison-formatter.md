@@ -2,7 +2,11 @@
 id: T-0865
 title: S2 latency baseline 회귀 비교 결과 포맷 순수 함수 신설 (formatComparisonReport)
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-09T19:53:03Z
+prNumber: 759
+mergedAs: f2f38161
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 195
