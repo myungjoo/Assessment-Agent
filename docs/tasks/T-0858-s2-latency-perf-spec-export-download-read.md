@@ -2,8 +2,11 @@
 id: T-0858
 title: S2 조회 latency harness 를 ExportController :id/download artifact-stream read 에 배선하는 스물아홉 번째 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 752
+mergedAs: db091913
+reviewRounds: 1
 coversReq: [REQ-048, REQ-030, REQ-032, REQ-045]
 estimatedDiff: 300
 estimatedFiles: 1
