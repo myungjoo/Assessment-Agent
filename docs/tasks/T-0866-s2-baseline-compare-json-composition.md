@@ -2,7 +2,9 @@
 id: T-0866
 title: S2 latency baseline 저장 JSON 회귀 비교 합성 순수 함수 신설 (compareBaselineJson)
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-09T20:54:26Z
+result: "compareBaselineJson 합성 순수 함수 신설(parseBaselineReport×2 → compareBaselineReports → formatComparisonReport 조립, 신규 판정 0, 하위 예외 propagate). spec 21케이스, cov line 99.95%/func 100%/branch 99.25% 무회귀. PR #760 squash aa77b510 merged(reviewer APPROVE r1/7 0 finding, CI green)."
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 195
