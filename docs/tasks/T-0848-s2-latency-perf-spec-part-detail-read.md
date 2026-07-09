@@ -2,7 +2,11 @@
 id: T-0848
 title: S2 조회 latency harness 를 PartController :id detail-read 에 배선하는 열아홉 번째 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-09T03:18:19Z
+mergedAs: de41e116
+prNumber: 742
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 independentStream: s2-latency-perf-wiring
