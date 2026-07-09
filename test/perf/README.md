@@ -39,6 +39,12 @@ env-meta(§3 "환경 고정")를 동반해 `S2Assertion` 을 비교 가능한 �
 - `resolveBaselineFilename(env)` — env-meta 의 `label` 을 소문자·영숫자/하이픈만(연속/선후행 하이픈 정리)으로 정규화해 **결정적·FS-safe** baseline JSON 파일명(디렉토리 없는 basename, 예: `baseline-ci-linux-x64.json`)을 유도하는 **순수 함수**(파일 I/O·`path` 조인 0 — 문자열 유도만). 대소문자만 다른 label 도 같은 slug 으로 수렴해 저장·조회 파일명이 일치한다. 형태 불량 env → `TypeError`, 빈/공백-only label·정규화 slug 이 비는 label → `RangeError`. 이후 disk harness(§5 #4·#5)가 파일명 결정 진입점으로 import(디렉토리 결합은 본 함수 밖 책임).
 - `resolveBaselinePath(env, baseDir)` — `baseDir` 과 `resolveBaselineFilename(env)` 이 유도한 basename 을 **POSIX-결정적**(`path.posix.join` — 후행/중복 구분자 정규화, 플랫폼 무관 동일 결과)으로 결합해 baseline JSON 파일의 **전체 경로**를 내는 **순수 함수**(fs I/O·환경 read·경로 존재 검사·절대경로 강제 0). 파일명 규약은 전적으로 `resolveBaselineFilename` 에 위임하고(slug 규칙 재구현 없음) 본 함수는 디렉토리 결합만 책임진다. env 관련 예외(`TypeError`/`RangeError`)는 그대로 전파하고, `baseDir` 이 non-string → `TypeError`, 빈/공백-only → `RangeError`. disk harness(§5 #4·#5)가 저장·조회 baseline 파일 경로 결정 진입점으로 import.
 
+### disk io harness (`latency-baseline-io.ts`)
+
+순수 primitive 파일(`latency-baseline.ts`)을 fs 부작용으로 오염시키지 않도록 io 책임을 분리한 **첫 fs-touching 모듈**. 경로·직렬화 규칙은 재구현하지 않고 전적으로 primitive 에 위임한다(DRY).
+
+- `writeBaselineFile(report, env, baseDir)` — `resolveBaselinePath(env, baseDir)` 로 저장 경로를 결정하고 `serializeBaselineReport(report)` 로 직렬화한 JSON 을 그 경로에 **UTF-8 로 기록**한 뒤 쓴 파일의 **전체 경로**를 반환하는 **write harness**. 상위 디렉토리가 없으면 `fs.mkdirSync(dir, { recursive: true })` 로 다중 depth 까지 재귀 생성한다(이미 있으면 no-op). 경로 결정·직렬화(순수, 예외 시 fs 접근 0)를 fs 접근 **전에** 완료하므로 primitive 예외(`TypeError`/`RangeError`)는 부작용 없이 그대로 전파된다. 기존 동기 스타일과 통일해 `*Sync` API 만 쓴다(async 미도입, 결정성 유지). read 방향(`readBaselineFile` = `fs.readFile` → `parseBaselineReport`)은 대칭 slice 로 별도 follow-up.
+
 실 baseline 실측 harness(§5 follow-up #5)는 이 primitive 를 import 만 하면 된다.
 `latency-baseline.spec.ts` 는 순수 unit 이라 기본 `pnpm test` 에서 수집·검증된다.
 
