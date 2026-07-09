@@ -2,7 +2,8 @@
 id: T-0855
 title: S2 조회 latency perf-spec 를 PartController GET /api/parts/:id/persons sub-resource read 에 배선
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-09T09:52:00Z
 commitMode: pr
 coversReq: [REQ-048, REQ-028]
 independentStream: s2-latency-harness
@@ -60,3 +61,11 @@ plannerNote: "P8 load-resilience §5 #2 — S2 latency harness 26번째 perf-spe
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+
+## Result (DONE 2026-07-09T09:52Z)
+
+PR #749 squash-merged (`09c1dfe0`), reviewer APPROVE round 1/7, 4-게이트 all PASS.
+`test/perf/part-persons-read.perf-spec.ts` 신설 + `test/perf/README.md` 배선 count 25→26.
+group-persons(T-0854) mirror — Group→Part controller/service, `findPersonsByGroupId`→`findPersonsByPartId`.
+happy/empty-list/404/500/mixed/n=1 분기 cover(신규 7 tests). +298/-6, 2 files.
+`pnpm test:perf` 26 suites/161 green, `pnpm test:cov` line 99.95%/func 100%/branch 99.25%(≥80% 게이트 통과), lint·build green. 신규 외부 dependency 0.
