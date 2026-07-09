@@ -2,6 +2,8 @@ import {
   buildBaselineReport,
   formatBaselineLine,
   compareBaselineReports,
+  serializeBaselineReport,
+  parseBaselineReport,
   BaselineEnvMeta,
   BaselineReport,
 } from "./latency-baseline";
@@ -555,6 +557,307 @@ describe("latency-baseline 리포트 순수 함수 (S2)", () => {
         );
         expect(cmp.errorRate.regressed).toBe(true);
         expect(cmp.regressed).toBe(true);
+      });
+    });
+  });
+
+  describe("serialize/parse baseline 영속화 순수 함수 (T-0864)", () => {
+    /** 지정 지표로 정상 `BaselineReport` 를 만드는 팩토리(env·pass 는 기본 full). */
+    function report(overrides: Partial<BaselineReport> = {}): BaselineReport {
+      return {
+        env: fullEnv(),
+        p50: 10,
+        p95: 15,
+        p99: 20,
+        throughput: 100,
+        errorRate: 0.005,
+        count: 6,
+        pass: true,
+        ...overrides,
+      };
+    }
+
+    describe("happy path — round-trip 동등", () => {
+      it("완전한 리포트(유한 수치+optional env-meta 전부) → round-trip 원본 동등", () => {
+        const original = report();
+        const restored = parseBaselineReport(serializeBaselineReport(original));
+        // 지표 정확 복원.
+        expect(restored.p50).toBe(10);
+        expect(restored.p95).toBe(15);
+        expect(restored.p99).toBe(20);
+        expect(restored.throughput).toBe(100);
+        expect(restored.errorRate).toBe(0.005);
+        expect(restored.count).toBe(6);
+        expect(restored.pass).toBe(true);
+        // env-meta 전부 보존.
+        expect(restored.env).toEqual({
+          label: "ci-linux-x64",
+          concurrency: 4,
+          cpu: "8x Xeon",
+          memoryMb: 16384,
+          dataScale: "100 persons x 50 repos",
+        });
+        // 통째 동등.
+        expect(restored).toEqual(original);
+      });
+
+      it("buildBaselineReport 산출물도 그대로 round-trip 동등", () => {
+        const built = buildBaselineReport(fullEnv(), passAssertion());
+        const restored = parseBaselineReport(serializeBaselineReport(built));
+        expect(restored).toEqual(built);
+      });
+
+      it("직렬화 결과는 JSON.parse 가능한 유효 JSON(sentinel 미포함 정상 케이스)", () => {
+        const json = serializeBaselineReport(report());
+        expect(() => JSON.parse(json) as unknown).not.toThrow();
+        const obj = JSON.parse(json) as Record<string, unknown>;
+        expect(obj.p95).toBe(15);
+        expect(obj.pass).toBe(true);
+      });
+    });
+
+    describe("flow / branch — NaN sentinel round-trip", () => {
+      it("(1) 빈 표본(p50/p95/p99=NaN) 직렬화 → sentinel 저장 + 역직렬화 시 NaN 복원", () => {
+        const empty = report({
+          p50: NaN,
+          p95: NaN,
+          p99: NaN,
+          throughput: 0,
+          count: 0,
+          pass: false,
+        });
+        const json = serializeBaselineReport(empty);
+        // JSON 안에 NaN 리터럴이 아니라 sentinel 문자열이 들어간다(유효 JSON).
+        expect(json).not.toContain("NaN,");
+        expect(json).toContain("__NaN__");
+        const parsedRaw = JSON.parse(json) as Record<string, unknown>;
+        expect(parsedRaw.p95).toBe("__NaN__");
+        // 역직렬화 시 NaN 으로 복원.
+        const restored = parseBaselineReport(json);
+        expect(Number.isNaN(restored.p50)).toBe(true);
+        expect(Number.isNaN(restored.p95)).toBe(true);
+        expect(Number.isNaN(restored.p99)).toBe(true);
+        expect(restored.throughput).toBe(0);
+        expect(restored.count).toBe(0);
+        expect(restored.pass).toBe(false);
+      });
+
+      it("(1-mix) 일부만 NaN(p95 만 빈 값) → 그 지표만 sentinel, 나머지 유한 복원", () => {
+        const mixed = report({ p95: NaN });
+        const restored = parseBaselineReport(serializeBaselineReport(mixed));
+        expect(restored.p50).toBe(10);
+        expect(Number.isNaN(restored.p95)).toBe(true);
+        expect(restored.p99).toBe(20);
+      });
+
+      it("(2a) optional env-meta 전부 지정 → 전부 보존 round-trip", () => {
+        const restored = parseBaselineReport(serializeBaselineReport(report()));
+        expect(restored.env.cpu).toBe("8x Xeon");
+        expect(restored.env.memoryMb).toBe(16384);
+        expect(restored.env.dataScale).toBe("100 persons x 50 repos");
+      });
+
+      it("(2b) optional env-meta 전부 미지정 → round-trip 후에도 미지정 유지", () => {
+        const env = fullEnv({
+          cpu: undefined,
+          memoryMb: undefined,
+          dataScale: undefined,
+        });
+        const bare = report({ env });
+        const json = serializeBaselineReport(bare);
+        // 미지정 optional 은 직렬화 JSON 에 아예 키가 없어야 한다.
+        const rawEnv = (JSON.parse(json) as { env: Record<string, unknown> })
+          .env;
+        expect("cpu" in rawEnv).toBe(false);
+        expect("memoryMb" in rawEnv).toBe(false);
+        expect("dataScale" in rawEnv).toBe(false);
+        const restored = parseBaselineReport(json);
+        expect(restored.env.cpu).toBeUndefined();
+        expect(restored.env.memoryMb).toBeUndefined();
+        expect(restored.env.dataScale).toBeUndefined();
+        expect(restored.env).toEqual({ label: "ci-linux-x64", concurrency: 4 });
+      });
+
+      it("(2c) optional 중 일부만 지정(cpu 만) → 그 하나만 보존", () => {
+        const env = fullEnv({
+          cpu: "4x ARM",
+          memoryMb: undefined,
+          dataScale: undefined,
+        });
+        const restored = parseBaselineReport(
+          serializeBaselineReport(report({ env })),
+        );
+        expect(restored.env.cpu).toBe("4x ARM");
+        expect(restored.env.memoryMb).toBeUndefined();
+        expect(restored.env.dataScale).toBeUndefined();
+      });
+
+      it("(3) throughput=0(빈 표본 관찰값) 정상 round-trip", () => {
+        const restored = parseBaselineReport(
+          serializeBaselineReport(report({ throughput: 0 })),
+        );
+        expect(restored.throughput).toBe(0);
+      });
+
+      it("(4) 파싱 성공 분기 vs 형태 가드 실패 분기 — 유효 JSON 은 성공", () => {
+        // 성공 분기.
+        expect(() =>
+          parseBaselineReport(serializeBaselineReport(report())),
+        ).not.toThrow();
+      });
+    });
+
+    describe("error path — serialize 입력 형태 불량", () => {
+      it("serializeBaselineReport 에 env 누락 리포트 → TypeError", () => {
+        const bad = { p50: 1, p95: 2, p99: 3, throughput: 4, errorRate: 0 };
+        expect(() =>
+          serializeBaselineReport(bad as unknown as BaselineReport),
+        ).toThrow(TypeError);
+      });
+
+      it("serializeBaselineReport 에 null → TypeError", () => {
+        expect(() =>
+          serializeBaselineReport(null as unknown as BaselineReport),
+        ).toThrow(TypeError);
+      });
+
+      it("serializeBaselineReport 에 p95 비수치(string) → TypeError", () => {
+        const bad = report({ p95: "x" as unknown as number });
+        expect(() => serializeBaselineReport(bad)).toThrow(TypeError);
+      });
+    });
+
+    describe("error path — parse 실패 / 형태 불량", () => {
+      it("(1) 잘못된 JSON 문자열 → SyntaxError", () => {
+        expect(() => parseBaselineReport("{not valid json")).toThrow(
+          SyntaxError,
+        );
+      });
+
+      it("빈 문자열 파싱 → SyntaxError", () => {
+        expect(() => parseBaselineReport("")).toThrow(SyntaxError);
+      });
+
+      it("(2) 유효 JSON 이나 형태 불량(env 누락) → TypeError", () => {
+        expect(() => parseBaselineReport('{"p50":1}')).toThrow(TypeError);
+      });
+
+      it("배열 JSON(object 아님) → TypeError", () => {
+        expect(() => parseBaselineReport("[1,2,3]")).toThrow(TypeError);
+      });
+
+      it("숫자 JSON(원시값) → TypeError", () => {
+        expect(() => parseBaselineReport("42")).toThrow(TypeError);
+      });
+
+      it("null JSON → TypeError", () => {
+        expect(() => parseBaselineReport("null")).toThrow(TypeError);
+      });
+
+      it("env 필드는 있으나 concurrency 누락(형태 불량) → TypeError", () => {
+        expect(() =>
+          parseBaselineReport('{"env":{"label":"x"},"p50":1}'),
+        ).toThrow(TypeError);
+      });
+
+      it("p95 가 string(형태 불량, sentinel 아님) → TypeError", () => {
+        const json = JSON.stringify({
+          env: { label: "x", concurrency: 1 },
+          p50: 1,
+          p95: "not-a-number",
+          p99: 3,
+          throughput: 4,
+          errorRate: 0,
+          count: 1,
+          pass: true,
+        });
+        expect(() => parseBaselineReport(json)).toThrow(TypeError);
+      });
+
+      it("p50 자리에 실제 null(sentinel 아님) → TypeError(형태 불량)", () => {
+        const json = JSON.stringify({
+          env: { label: "x", concurrency: 1 },
+          p50: null,
+          p95: 2,
+          p99: 3,
+          throughput: 4,
+          errorRate: 0,
+          count: 1,
+          pass: true,
+        });
+        expect(() => parseBaselineReport(json)).toThrow(TypeError);
+      });
+    });
+
+    describe("negative cases 충분 cover — round-trip 견고성", () => {
+      it("pass=false 리포트도 정확히 round-trip(pass 분기)", () => {
+        const restored = parseBaselineReport(
+          serializeBaselineReport(report({ pass: false })),
+        );
+        expect(restored.pass).toBe(false);
+      });
+
+      it("errorRate=NaN(빈 표본) → sentinel 저장 후 NaN 복원", () => {
+        const restored = parseBaselineReport(
+          serializeBaselineReport(report({ errorRate: NaN })),
+        );
+        expect(Number.isNaN(restored.errorRate)).toBe(true);
+      });
+
+      it("음수/소수 지표(errorRate 0.0001)도 유한 수치로 정확 복원", () => {
+        const restored = parseBaselineReport(
+          serializeBaselineReport(report({ errorRate: 0.0001, p50: 3.14159 })),
+        );
+        expect(restored.errorRate).toBe(0.0001);
+        expect(restored.p50).toBe(3.14159);
+      });
+
+      it("pass 필드가 JSON 에서 truthy 비-boolean 이어도 boolean 으로 정규화", () => {
+        // pass:1 은 === true 가 아니므로 false 로 정규화(형태 방어).
+        const json = JSON.stringify({
+          env: { label: "x", concurrency: 1 },
+          p50: 1,
+          p95: 2,
+          p99: 3,
+          throughput: 4,
+          errorRate: 0,
+          count: 1,
+          pass: 1,
+        });
+        expect(parseBaselineReport(json).pass).toBe(false);
+      });
+
+      it("count 누락 JSON → count 는 NaN 으로 방어 복원(형태 가드 통과)", () => {
+        const json = JSON.stringify({
+          env: { label: "x", concurrency: 1 },
+          p50: 1,
+          p95: 2,
+          p99: 3,
+          throughput: 4,
+          errorRate: 0,
+          pass: true,
+        });
+        const restored = parseBaselineReport(json);
+        expect(Number.isNaN(restored.count)).toBe(true);
+      });
+
+      it("직렬화 JSON 은 env optional 키 순서와 무관하게 안정적으로 파싱", () => {
+        // 수동 구성한 JSON(키 순서 다름)도 동일하게 복원.
+        const json = JSON.stringify({
+          pass: true,
+          count: 2,
+          errorRate: 0,
+          throughput: 4,
+          p99: 3,
+          p95: 2,
+          p50: 1,
+          env: { concurrency: 8, label: "y", memoryMb: 512 },
+        });
+        const restored = parseBaselineReport(json);
+        expect(restored.env.label).toBe("y");
+        expect(restored.env.concurrency).toBe(8);
+        expect(restored.env.memoryMb).toBe(512);
+        expect(restored.p50).toBe(1);
       });
     });
   });
