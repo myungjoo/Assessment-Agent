@@ -2,7 +2,7 @@
 id: T-0860
 title: S2 latency harness 에 throughput(req/s) 집계 순수 함수 추가
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 140
@@ -86,3 +86,11 @@ endpoint 배선(T-0830~T-0859)이 exhaustive 하게 완결됐으므로, 시리�
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기 추가)
+
+## Result
+
+- **Status: DONE** (2026-07-09T14:53Z, PR #754 squash-merge → main f207247a)
+- `test/perf/latency-metrics.ts` 에 `throughput(count, elapsedMs)` 순수 함수 추가 — errorRate 동형 검증 + 0 나눗셈 방어(count=0→0, count>0&&elapsedMs=0→RangeError). `test/perf/README.md` primitive 절 1줄 설명. (+35/-1)
+- 테스트: colocated spec +64 (throughput happy 3 + branch 3 + negative 7: 음수·비정수·NaN·count>0&&elapsed=0). test:perf 30 spec 191 test green(회귀 무영향), test:cov line 99.95%/func 100% (gate 80% 상회).
+- Integrator: reviewer APPROVE round 1/7, 4-게이트 PASS, CI success. (4-게이트 b reviewer-approval CI gate 는 approve comment post 후 `gh run rerun --failed` 로 재통과 — 코드 무변경.)
+- Follow-up (task 내 Out of Scope 로 이월): `LatencySummary` throughput 통합·collector wall-clock 경과 수집·실 DB baseline 측정 — 별도 task.
