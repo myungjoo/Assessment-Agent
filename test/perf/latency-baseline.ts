@@ -347,6 +347,149 @@ export function compareBaselineReports(
   return { p50, p95, p99, errorRate, throughput, regressed };
 }
 
+/**
+ * NaN sentinel — JSON 은 `NaN` 을 표현하지 못하므로(round-trip 소실) 직렬화 시 빈 표본
+ * 지표(p50/p95/p99 등의 NaN)를 이 sentinel 문자열로 저장하고, 역직렬화 시 다시 `NaN` 으로
+ * 복원한다. 실제 `null`(형태 불량)과 구분하기 위해 명시 문자열 마커를 쓴다.
+ */
+const NAN_SENTINEL = "__NaN__";
+
+/** 유한 수치는 그대로, NaN 은 sentinel 로 치환해 JSON-safe 값으로 만든다. */
+function toSerializableNumber(value: number): number | typeof NAN_SENTINEL {
+  return Number.isNaN(value) ? NAN_SENTINEL : value;
+}
+
+/**
+ * 직렬화된 지표 값을 number 로 복원한다 — sentinel 은 `NaN` 으로, 유한 number 는 그대로.
+ * @throws {TypeError} 값이 number 도 NaN-sentinel 도 아닐 때(형태 불량).
+ */
+function fromSerializedNumber(value: unknown): number {
+  if (value === NAN_SENTINEL) {
+    return NaN;
+  }
+  if (typeof value !== "number") {
+    throw new TypeError(
+      `parseBaselineReport: 지표 값은 number 또는 NaN sentinel 이어야 함 (받은 값: ${JSON.stringify(value)})`,
+    );
+  }
+  return value;
+}
+
+/**
+ * `BaselineReport` 를 안정적(stable)·비교 가능한 JSON 문자열로 직렬화한다.
+ *
+ * NaN 지표(빈 표본으로 인한 p50/p95/p99 등)는 JSON 이 `NaN` 을 표현하지 못하므로 명시
+ * sentinel(`"__NaN__"`)로 저장하고, `parseBaselineReport` 가 이를 다시 `NaN` 으로 복원한다
+ * (round-trip 보존). 지표는 재계산 없이 파생값을 그대로 전사만 하며, optional env-meta
+ * (cpu/memoryMb/dataScale)는 지정된 것만 보존한다(미지정은 필드 자체를 넣지 않음).
+ *
+ * 반환 문자열은 항상 `JSON.parse` 가능한 유효 JSON 이다.
+ *
+ * @throws {TypeError} `report` 가 유효 `BaselineReport` 형태가 아닐 때(기존 `isValidReport` 가드 재사용).
+ */
+export function serializeBaselineReport(report: BaselineReport): string {
+  if (!isValidReport(report)) {
+    throw new TypeError(
+      "serializeBaselineReport: report 는 유효한 BaselineReport 형태여야 함",
+    );
+  }
+  const { env } = report;
+  // env 는 필수 2 필드 + 지정된 optional 만 보존(미지정 optional 은 넣지 않음).
+  const serializedEnv: Record<string, unknown> = {
+    label: env.label,
+    concurrency: env.concurrency,
+  };
+  if (env.cpu !== undefined) {
+    serializedEnv.cpu = env.cpu;
+  }
+  if (env.memoryMb !== undefined) {
+    serializedEnv.memoryMb = env.memoryMb;
+  }
+  if (env.dataScale !== undefined) {
+    serializedEnv.dataScale = env.dataScale;
+  }
+  // 지표는 재계산 없이 전사만 — NaN 은 sentinel 로 치환.
+  const record = {
+    env: serializedEnv,
+    p50: toSerializableNumber(report.p50),
+    p95: toSerializableNumber(report.p95),
+    p99: toSerializableNumber(report.p99),
+    throughput: toSerializableNumber(report.throughput),
+    errorRate: toSerializableNumber(report.errorRate),
+    count: report.count,
+    pass: report.pass,
+  };
+  return JSON.stringify(record);
+}
+
+/**
+ * `serializeBaselineReport` 가 낸 JSON 문자열을 파싱해 `BaselineReport` 로 복원한다.
+ *
+ * NaN sentinel(`"__NaN__"`)은 다시 `NaN` 으로 복원하고, optional env-meta 는 존재하는 것만
+ * 보존한다(round-trip 불변: `parseBaselineReport(serializeBaselineReport(r))` 는 원본 `r` 과
+ * 지표·env-meta 가 동등, NaN 포함). 지표 재계산 없이 파싱값만 복원한다.
+ *
+ * @throws {SyntaxError} `json` 이 유효한 JSON 이 아닐 때(`JSON.parse` 가 던지는 그대로).
+ * @throws {TypeError} JSON 은 유효하나 형태가 불량할 때(필수 필드 누락·타입 불일치 —
+ *   기존 `isValidReport` 가드 재사용, 또는 지표 자리에 sentinel 아닌 `null`/string 등).
+ */
+export function parseBaselineReport(json: string): BaselineReport {
+  // 잘못된 JSON 은 JSON.parse 가 SyntaxError 를 던진다(빈 문자열 포함).
+  const parsed: unknown = JSON.parse(json);
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new TypeError(
+      "parseBaselineReport: 최상위는 배열/원시값이 아닌 object JSON 이어야 함",
+    );
+  }
+  const raw = parsed as Record<string, unknown>;
+  // env 형태 가드(기존 isValidEnvMeta 재사용) — label/concurrency 필수.
+  if (!isValidEnvMeta(raw.env)) {
+    throw new TypeError(
+      "parseBaselineReport: env 는 { label:string, concurrency:number } 형태여야 함",
+    );
+  }
+  const rawEnv = raw.env as unknown as Record<string, unknown>;
+  // 지표는 sentinel → NaN 복원(number 아닌 값은 fromSerializedNumber 가 TypeError).
+  const report: BaselineReport = {
+    env: rebuildEnv(raw.env, rawEnv),
+    p50: fromSerializedNumber(raw.p50),
+    p95: fromSerializedNumber(raw.p95),
+    p99: fromSerializedNumber(raw.p99),
+    throughput: fromSerializedNumber(raw.throughput),
+    errorRate: fromSerializedNumber(raw.errorRate),
+    count: typeof raw.count === "number" ? raw.count : NaN,
+    pass: raw.pass === true,
+  };
+  // 지표 복원 후 최종 형태를 다시 가드(방어적 재검증 — 지표 자리 형태 불량 catch).
+  if (!isValidReport(report)) {
+    throw new TypeError(
+      "parseBaselineReport: 복원된 레코드가 유효한 BaselineReport 형태가 아님",
+    );
+  }
+  return report;
+}
+
+/** 직렬화 env 에서 필수 2 필드 + 지정된 optional 만 복원한다(미지정은 미지정 유지). */
+function rebuildEnv(
+  env: BaselineEnvMeta,
+  rawEnv: Record<string, unknown>,
+): BaselineEnvMeta {
+  const restored: BaselineEnvMeta = {
+    label: env.label,
+    concurrency: env.concurrency,
+  };
+  if (typeof rawEnv.cpu === "string") {
+    restored.cpu = rawEnv.cpu;
+  }
+  if (typeof rawEnv.memoryMb === "number") {
+    restored.memoryMb = rawEnv.memoryMb;
+  }
+  if (typeof rawEnv.dataScale === "string") {
+    restored.dataScale = rawEnv.dataScale;
+  }
+  return restored;
+}
+
 /** NaN(빈 표본 등)은 "n/a" 로, 유한 수치는 소수 자릿수를 고정해 포맷한다. */
 function fmt(value: number, digits: number): string {
   if (!Number.isFinite(value)) {
