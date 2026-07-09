@@ -2,8 +2,12 @@
 id: T-0850
 title: S2 조회 latency harness 를 UserController :id detail-read 에 배선하는 스물한 번째 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 3eec9669
+prNumber: 744
+reviewRounds: 1
+completedAt: 2026-07-09T04:50:00Z
 coversReq: [REQ-048]
 independentStream: s2-latency-perf-wiring
 dependsOn: []
