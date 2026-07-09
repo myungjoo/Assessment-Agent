@@ -2,8 +2,12 @@
 id: T-0845
 title: S2 조회 latency harness 를 GroupController :id detail-read 에 배선하는 열여섯 번째 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-07-09T00:15:00Z
+mergedAs: 71270779
+prNumber: 739
+reviewRounds: 1
 coversReq: [REQ-048]
 independentStream: s2-latency-perf-wiring
 dependsOn: []
