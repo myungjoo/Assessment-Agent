@@ -37,9 +37,9 @@ const r = await collectLatencySamples(() => request(app).get("/summary"), 30);
 expect(assertS2Threshold(r).pass).toBe(true);
 ```
 
-## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read` / `cron-schedule-read` / `export-running-read` / `import-running-read` / `auth-me-read` / `summary-detail-read` / `group-detail-read` / `assessment-detail-read` / `person-detail-read` / `part-detail-read` / `contribution-detail-read` / `user-detail-read` / `llm-provider-config-detail-read` / `export-detail-read` / `import-detail-read` / `group-persons-read` / `part-persons-read`)
+## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read` / `cron-schedule-read` / `export-running-read` / `import-running-read` / `auth-me-read` / `summary-detail-read` / `group-detail-read` / `assessment-detail-read` / `person-detail-read` / `part-detail-read` / `contribution-detail-read` / `user-detail-read` / `llm-provider-config-detail-read` / `export-detail-read` / `import-detail-read` / `group-persons-read` / `part-persons-read` / `export-status-view-read`)
 
-collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 스물여섯 개다. 스물여섯 다
+collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 스물일곱 개다. 스물일곱 다
 `Test.createTestingModule` 로 대상 controller + **mocked service** 를 부트스트랩하고,
 `collectLatencySamples(() => request(app.getHttpServer()).get(...), N)` 로 반복 호출해
 표본을 수집하고 `assertS2Threshold(result).pass` 를 검증한다. `summary-read`·
@@ -51,8 +51,8 @@ collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현�
 `canActivate` 가 `req.user = { sub }` 를 박제해야 me 핸들러가 sub 분기(200/404)에
 도달한다(RolesGuard override 불요). `person-read`·`group-read`·`part-read` 는 guard
 미적용 controller 라 override 가 불요하다. harness 가 단일 controller 에 국한되지 않고
-요약·평가·기여·인원·그룹·파트·사용자·권한거부·LLM설정·난이도매핑·cron스케줄·export러닝·import러닝·auth-me·요약상세(:id)·그룹상세(:id)·평가상세(:id)·인원상세(:id)·파트상세(:id)·기여상세(:id)·사용자상세(:id)·LLM설정상세(:id)·export상세(:id)·import상세(:id)·그룹인원(:id/persons)·파트인원(:id/persons)
-26 read 경로 전반에 재사용됨을 실증한다(단건 detail(:id) 24 + sub-resource(:id/persons) read 2).
+요약·평가·기여·인원·그룹·파트·사용자·권한거부·LLM설정·난이도매핑·cron스케줄·export러닝·import러닝·auth-me·요약상세(:id)·그룹상세(:id)·평가상세(:id)·인원상세(:id)·파트상세(:id)·기여상세(:id)·사용자상세(:id)·LLM설정상세(:id)·export상세(:id)·import상세(:id)·그룹인원(:id/persons)·파트인원(:id/persons)·export진행뷰(:id/status-view)
+27 read 경로 전반에 재사용됨을 실증한다(단건 detail(:id) 24 + sub-resource(:id/persons) read 2 + derived-detail(:id/status-view) read 1).
 
 - `summary-read.perf-spec.ts` (T-0830) — `SummaryController` + mocked `SummaryService`,
   `GET /api/summaries?personId=...` 배선. 첫 실 perf-spec.
@@ -316,13 +316,36 @@ collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현�
   장애)를 던져 endpoint 가 404/500 을 반환하는 error path 로 커버하며(404 를
   collector failures 로 분류), mixed 부분 실패(4회 중 1회 404 → failures===1)도
   실증한다.
+- `export-status-view-read.perf-spec.ts` (T-0856) — `ExportController` + mocked
+  `ExportJobService`(5 jest.fn, derived-detail 경로가 실제 호출하는 것은 `findJob`
+  뿐), `GET /api/admin/export/:id/status-view`(statusView → `service.findJob(id)` 로
+  job 조회 후 `describeExportJobStatus(JOB_STATUS_TO_VIEW[job.status])` 로 사람-친화
+  `ExportJobStatusView`(phaseLabel·terminal·downloadable·한국어 message)를 200 반환,
+  job 부재 시 findJob 의 `NotFoundException`(404)이 helper 호출 도달 전 raw propagate,
+  REQ-030 async job 진행 view / REQ-032 raw stack 미노출 / REQ-048 조회 back) 배선.
+  스물일곱 번째 배선 spec 이자 **첫 derived-detail(:id/status-view) read** 다. 앞선 26
+  spec 중 export :id detail(T-0852)이 raw record(단건 ExportJob)를 반환한 반면, 본
+  endpoint 는 status 를 view 로 derive 하는 조합 read 라 harness 재사용이 순수
+  pass-through 뿐 아니라 derive 경로에서도 유효함을 실증한다. statusView 핸들러가
+  `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("Admin")` 가드 스택을 적용하므로
+  export-detail-read(T-0852) 처럼 `overrideGuard(JwtAuthGuard)`·`overrideGuard(RolesGuard)`
+  로 둘 다 통과시키되, controller 자체 authorization 분기가 없어(RolesGuard 가 가드하는
+  것을 override 로 통과) `findJob(id)` raw forward 라 req.user 박제는 불요하다(canActivate
+  true 만으로 충분). 서로 다른 JobStatus(진행 중 RUNNING → "running" / terminal
+  SUCCEEDED → "ready")를 mock 으로 주어 JOB_STATUS_TO_VIEW 매핑 + helper derive 가 각각
+  정상 200 으로 분류되고 view 가 status 별로 phaseLabel·terminal 을 달리 산출함을
+  실증하며, 응답 body 가 raw ExportJob 이 아니라 derive 된 `ExportJobStatusView` 임을
+  최소 1개 field(phaseLabel·terminal)로 확인한다. non-2xx 분류 실증은 mocked `findJob`
+  이 `NotFoundException`(404 — job 부재)/일반 `Error`(500 — 장애)를 던져 endpoint 가
+  404/500 을 반환하는 error path 로 커버하며(404 를 collector failures 로 분류), mixed
+  부분 실패(4회 중 1회 404 → failures===1)도 실증한다.
 
 - **DB 무의존**: service 를 mock 하고(guard 있는 controller 는 override 도) 실 Postgres
   round-trip·실 LLM·실 스케줄러·외부 I/O 가 없어 결정론적이다. 실 DB round-trip
-  **baseline 실측**은 별도 follow-up (§5 item 5). 스물여섯 spec 모두 collector 배선의
+  **baseline 실측**은 별도 follow-up (§5 item 5). 스물일곱 spec 모두 collector 배선의
   **정확성 검증**이지 baseline 측정이 아니다.
 - **실행**: `pnpm test:perf` (`jest-perf.json` 의 `testRegex: test/perf/.*\.perf-spec\.ts$`
-  가 스물여섯 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
+  가 스물일곱 파일을 모두 picking — 더 이상 `passWithNoTests` 로 skip 되지 않는다). 기본
   `pnpm test` 는 `.spec.ts$` 만 매칭하므로 perf-spec 을 picking 하지 않아 unit coverage
   gate 와 분리된다.
 - perf job 은 상시 PR CI 와 분리한다(follow-up #4).
