@@ -2,7 +2,7 @@
 id: T-0846
 title: S2 조회 latency harness 를 AssessmentController :id detail-read 에 배선하는 열일곱 번째 perf-spec 신설
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 independentStream: s2-latency-perf-wiring
@@ -54,3 +54,9 @@ plannerNote: "P8 load-resilience §5 follow-up (S2 latency harness) — T-0845(g
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+
+## Result (DONE — 2026-07-09T01:20Z)
+
+- PR #740 squash-merged → main `537285d5`. commitMode pr, reviewer APPROVE + CI green 4-gate 통과.
+- 신설: `test/perf/assessment-detail-read.perf-spec.ts` (+248 LOC). summary-detail-read.perf-spec 패턴 mirror — `overrideGuard(canActivate true)` + AssessmentService mock, `GET /api/assessments/:id` (findById) 를 `collectLatencySamples` 로 배선한 열일곱 번째 S2 latency perf-spec (세 번째 `:id` detail read).
+- R-112: happy 200 N회 + error 404/500 분기 + negative 4종(없는 id / 일반 Error 500 / mixed 부분실패 / iterations===1). `pnpm test:perf` 17 suites green, lint+build green, `pnpm test:cov` 회귀 무영향(perf-spec 은 `.spec.ts$` 밖).
