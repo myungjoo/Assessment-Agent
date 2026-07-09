@@ -7,7 +7,20 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": null,
+  "nextTask": {
+    "id": "T-0862",
+    "title": "S2 latency harness 에 baseline 리포트 순수 함수(env-meta + 지표 요약) 추가",
+    "commitMode": "pr",
+    "phase": "P8",
+    "coversReq": ["REQ-048"],
+    "dependsOn": [],
+    "touchesFiles": [
+      "test/perf/latency-baseline.ts",
+      "test/perf/latency-baseline.spec.ts",
+      "test/perf/README.md"
+    ],
+    "plannerNote": "P8 load-resilience §5 follow-up #5(baseline 확정) 선행 — S2Assertion 을 env-meta 동반 baseline 리포트로 포맷하는 순수 함수 신설(§3 '환경 고정' 대응, 관찰 전용)"
+  },
   "backlogNote": "▶ **T-0861 DONE (PR #755 merged, squash cf80540b)** — S2 latency collector 에 wall-clock 총 경과(elapsedMs) 수집 + throughput(req/s) 관찰지표를 배선. CollectResult 에 elapsedMs(첫 시작~마지막 종료 monotonic 경과, iterations=0→0) 필드 추가, S2Assertion 에 throughput 필드 추가(T-0860 이 신설한 latency-metrics throughput primitive 를 collector orchestration 에 통합 — count=0→0, count>0 clamp elapsedMs>=1 로 RangeError 경계 회피, 관찰 전용·pass/fail 미반영). test/perf/latency-collector.spec.ts throughput 배선 12 test + elapsedMs 검증(happy/error/branch/negative 충분 cover), README orchestration 절 반영. +57/-9 · latency-metrics.ts 무변경. reviewer APPROVE round 1/7(0 blocker/0 major/0 minor, AC 9/9). fineGrainedConcurrency ON(stage 5b, maxConcurrentClaims=2) claim-pickup fire(cron@aa-local-9b514c86-153823, aa-local-scheduled 매시 30분): 로컬 checkout origin/main 9b514c86 ff→lock free(tombstone, claims=[])→acquire-lock(cron, tip 33bb1222)→reclaim no-op(claims empty)→validate-claim-candidate T-0861 PASS→maxConcurrentClaims gate(활성 0<2, pr-mode 단독)→select-claim T-0861(claimedAt 15:39:23Z server-time, midnight-bug 회피)→lock tombstone release→lock-free executor(implement+test, feature branch, unit 9120 green, test:perf 30 spec/191 green, test:cov line 99.95%/func 100%/branch 99.25% ≥80/80 무회귀)→PR #755 open→re-acquire lock→sync-claim-pr(755, PR_OPEN)→release→integrator: reviewer APPROVE + 4-게이트 PASS(CI first run reviewer-gate race fail→approve comment 후 rerun green)→squash cf80540b + branch delete→re-acquire→claim prune([])→release. 신규 외부 dependency 0. 본 fire 의 DONE bookkeeping doc-only direct commit(push) 이 새 main CI trigger — 다음 fire [1] 에서 conclusion 재확인(R-114). next: planner needed (nextTask=null). ▶ **T-0860 DONE (PR #754 merged, squash f207247a)** — 30 개 read endpoint 배선(T-0830~T-0859) exhaustive 완결 후, load-resilience-test-plan §3 이 명시했으나 primitive 에 미커버였던 throughput(req/s) 순수 함수를 `test/perf/latency-metrics.ts` 에 추가. ▶ **T-0859 DONE (PR #753 merged, squash 9bfd5b20)** — S2 조회 latency harness 를 서른 번째 조회 endpoint(AppController GET /api health-read — `getRoot` 핸들러가 `appService.getStatus()` 가 반환하는 고정 문자열 `APP_STATUS_MESSAGE`(\"Assessment-Agent\")를 200 반환. guard 미적용·path/query param 0·service 동기 함수 1개 호출·예외 경로 0 의 최단 read floor case, import /modes(T-0857) 부트스트랩 mirror 하되 guard-free 라 overrideGuard 제거)에 배선하는 perf-spec 신설 + test/perf/README.md 28→30 catch-up(export-download T-0858 미반영분 동반 해소). reviewer APPROVE round 1/7(0 blocker/0 major/0 minor). fineGrainedConcurrency ON(stage 5b, maxConcurrentClaims=2) claim-pickup fire(cron@aa-local-bf2830a2-101756, aa-local-scheduled 매시 30분): 로컬 checkout origin/main bf2830a2 ff→lock free(claims=[])→acquire-lock(071de18a)+reclaim no-op+select-claim T-0859(claimedAt 13:38:49Z server-time, gate 활성0<2, pr-mode 단독)→lock tombstone release→lock-free executor(implement+test, feature branch, test:perf 30 suites/191 green, test:cov 357 suites 9094 tests, cov line 99.95%/func 100% ≥80% 무회귀, +281/-6)→re-acquire→sync-claim-pr(753, PR_OPEN)→release→integrator: reviewer APPROVE + CI success→4-게이트 PASS→squash 9bfd5b20 + branch delete→claim prune []. 신규 외부 dependency 0. 본 fire 의 DONE bookkeeping doc-only direct commit(push) 이 새 main CI trigger — 다음 fire [1] 에서 conclusion 재확인(R-114). next: planner needed (nextTask=null). ▶ **S2 latency harness backlog** — P8 load-resilience-test-plan §5 follow-up #2 로 조회 endpoint 30 개 배선 완료(list/query/self-read 14 + :id detail 10 + group·part :id/persons sub-resource 2 + export :id/status-view derived-detail 1 + import /modes derived-list 1 + export :id/download artifact-stream 1 + app-root /api health-read 1). 다음 slice 후보(planner 판정): 남은 sub-resource/derived read 또는 write-route(POST/PATCH/DELETE) latency 배선 — planner 가 endpoint backlog 점검해 다음 task 큐잉.",
   "lock": null,
   "lastCommit": "cf80540b",
