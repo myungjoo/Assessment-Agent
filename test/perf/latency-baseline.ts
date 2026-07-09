@@ -540,3 +540,101 @@ export function formatBaselineLine(report: BaselineReport): string {
   }
   return parts.join(" ");
 }
+
+/**
+ * delta 를 명시 부호(증가는 `+`, 감소는 `-`)와 함께 포맷한다 — 개선/악화 방향을 사람이
+ * 즉시 읽게 한다. NaN(어느 한쪽 빈 표본)은 `fmt` 와 동형으로 "n/a" 로 방어적으로 표기한다.
+ * delta=0(변화 없음)은 부호 없이 "0.0" 등으로 표기한다.
+ */
+function fmtDelta(value: number, digits: number): string {
+  if (!Number.isFinite(value)) {
+    return "n/a";
+  }
+  const body = value.toFixed(digits);
+  // toFixed 는 음수만 "-" 를 붙이므로 양수(0 초과)에만 명시 "+" 를 덧댄다. 0 은 부호 없음.
+  return value > 0 ? `+${body}` : body;
+}
+
+/** 값이 최소한의 `MetricComparison` 형태(baseline/candidate/delta number + regressed boolean)인지 방어적으로 검증. */
+function isValidMetricComparison(metric: unknown): metric is MetricComparison {
+  if (metric === null || typeof metric !== "object") {
+    return false;
+  }
+  const m = metric as Record<string, unknown>;
+  return (
+    typeof m.baseline === "number" &&
+    typeof m.candidate === "number" &&
+    typeof m.delta === "number" &&
+    typeof m.regressed === "boolean"
+  );
+}
+
+/** comparison 이 유효 `BaselineComparison` 형태(5 지표 MetricComparison + boolean regressed)인지 방어적으로 검증. */
+function isValidComparison(
+  comparison: unknown,
+): comparison is BaselineComparison {
+  if (comparison === null || typeof comparison !== "object") {
+    return false;
+  }
+  const c = comparison as Record<string, unknown>;
+  return (
+    typeof c.regressed === "boolean" &&
+    isValidMetricComparison(c.p50) &&
+    isValidMetricComparison(c.p95) &&
+    isValidMetricComparison(c.p99) &&
+    isValidMetricComparison(c.errorRate) &&
+    isValidMetricComparison(c.throughput)
+  );
+}
+
+/**
+ * latency 지표(p50/p95/p99) 한 줄을 포맷한다 — base/cand 는 ms 단위, delta 는 명시 부호.
+ * 회귀했으면 `REGRESSED`, 아니면 `ok` 로 표기한다. NaN 지표(빈 표본)는 "n/a".
+ */
+function formatLatencyMetricLine(name: string, m: MetricComparison): string {
+  return (
+    `${name}: base=${fmt(m.baseline, 1)}ms cand=${fmt(m.candidate, 1)}ms ` +
+    `delta=${fmtDelta(m.delta, 1)}ms ${m.regressed ? "REGRESSED" : "ok"}`
+  );
+}
+
+/**
+ * `compareBaselineReports` 가 반환한 `BaselineComparison` 을 사람-친화 + 파싱 용이한
+ * 여러 줄 문자열로 포맷한다. 지표별로 baseline·candidate·delta·회귀 표시를 렌더링한다.
+ *
+ * - 헤더 1줄: 종합 `regressed=true|false`.
+ * - latency 3종(p50/p95/p99): `p95: base=15.0ms cand=18.0ms delta=+3.0ms REGRESSED|ok`.
+ * - errorRate: 퍼센트 표기(`err: base=0.00% cand=2.00% delta=+2.00% REGRESSED|ok`).
+ * - throughput: §3 상 관찰 전용이라 회귀 표시 대신 delta 만 렌더링하고 "(관찰)" 로 판정
+ *   제외임을 명시한다(req/s 단위).
+ *
+ * NaN 지표(빈 표본)는 `formatBaselineLine` 과 동형으로 "n/a" 로 방어적으로 표기하고,
+ * delta 부호는 명시(증가 `+`, 감소 `-`, 0 은 부호 없음)한다. 지표 재계산·재판정 없이
+ * `BaselineComparison` 의 이미 파생된 값만 그대로 전사한다(관찰·리포트 전용).
+ *
+ * @throws {TypeError} `comparison` 이 유효 `BaselineComparison` 형태가 아닐 때(최소한
+ *   p50/p95/p99/errorRate/throughput 이 `MetricComparison` 형태이고 최상위 `regressed`
+ *   가 boolean 인지 검사).
+ */
+export function formatComparisonReport(comparison: BaselineComparison): string {
+  if (!isValidComparison(comparison)) {
+    throw new TypeError(
+      "formatComparisonReport: comparison 은 유효한 BaselineComparison 형태여야 함",
+    );
+  }
+  const er = comparison.errorRate;
+  const tp = comparison.throughput;
+  const lines = [
+    `regressed=${comparison.regressed}`,
+    formatLatencyMetricLine("p50", comparison.p50),
+    formatLatencyMetricLine("p95", comparison.p95),
+    formatLatencyMetricLine("p99", comparison.p99),
+    // errorRate 는 비율이라 퍼센트로 렌더링(base*100, delta*100).
+    `err: base=${fmt(er.baseline * 100, 2)}% cand=${fmt(er.candidate * 100, 2)}% ` +
+      `delta=${fmtDelta(er.delta * 100, 2)}% ${er.regressed ? "REGRESSED" : "ok"}`,
+    // throughput 은 §3 관찰 전용 — 회귀 표시 없이 delta 만 + "(관찰)" 로 판정 제외 명시.
+    `throughput: base=${fmt(tp.baseline, 2)}req/s cand=${fmt(tp.candidate, 2)}req/s ` +
+      `delta=${fmtDelta(tp.delta, 2)}req/s (관찰)`,
+  ];
+  return lines.join("\n");
+}
