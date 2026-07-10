@@ -481,6 +481,12 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   `overrideGuard(...).useValue({ canActivate: () => true })` 로 통과시키고, **personId 부재
   요청(실 400)** 이라는 SummaryController 고유 query-param 예외경로를 errorRate 위반 candidate
   established write 로 추가 실증한다(§5 #2 S2 조회 경로 배선 이월분).
+- `assessment-measure-confirm.perf-spec.ts` (T-0882) — 위 top loop 를 REQ-048 이 직접 겨냥하는
+  평가 결과 조회 경로의 대표 endpoint `AssessmentController`
+  `GET /api/assessments?personId=<id>&period=<day|week|month>`(REQ-038 시계열 조회) 에 배선한
+  **세 번째 fs+HTTP 통합 perf-spec**. summary(T-0880)의 personId 필수 query-param 400 분기에
+  더해 **summary 에 없던 `period` optional query 분기**(부재 vs `?personId=&period=week` 두
+  요청 형태)를 established/compared 양쪽에서 추가 실증한다(§5 #2 S2 조회 경로 배선 이월분).
 
 - **DB 무의존**: service 를 mock 하고(guard 있는 controller 는 override 도) 실 Postgres
   round-trip·실 LLM·실 스케줄러·외부 I/O 가 없어 결정론적이다. 실 DB round-trip
