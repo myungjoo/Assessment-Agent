@@ -250,8 +250,10 @@ describe("realdata-e2e step④ daily-test.sh step_collect shell argv ↔ helper 
       const shellSource = readFileSync(DAILY_TEST_SH_PATH, "utf8");
       expect(shellSource).toContain("mark collect SKIP");
       expect(shellSource).toContain("realdata_eval_gating_enabled");
-      // ORDER 에 collect step 이 등재돼 nightly runner 가 collect leg 를 순회함을 확인.
-      expect(shellSource).toContain("collect");
+      // ORDER 배열에 collect step 이 등재돼 nightly runner 가 collect leg 를 순회함을 확인.
+      // 편재(ubiquitous)하는 "collect" substring 대신 `ORDER=(...)` 배열 *내부* 에 collect
+      // 토큰이 있음을 단언 — skip-branch boundary AC 의 구체 토큰 매칭(약한 단언 강화).
+      expect(shellSource).toMatch(/ORDER=\([^)]*\bcollect\b[^)]*\)/);
     });
   });
 
@@ -295,6 +297,28 @@ describe("realdata-e2e step④ daily-test.sh step_collect shell argv ↔ helper 
 
       expect(argv).toEqual([]);
       // 빈 배열은 helper 4-요소 벡터와 결코 같지 않음 → 함수 본문 소실 시 본 smoke 가 fail.
+      expect(argv).not.toEqual(helperArgv);
+    });
+
+    it("step_collect 함수 본문은 있으나 pnpm exec jest 호출 부재 합성 shell → 추출 결과 빈 배열(jestIdx<0 분기 cover)", () => {
+      // 함수 헤더/본문은 존재하지만 jest invocation 이 빠진 케이스 — 추출 helper 의
+      // `jestIdx < 0` 분기(jest 마커 부재 시 빈 배열 반환)를 직접 exercise 한다. 실 shell
+      // 에서 jest 줄만 실수로 삭제되는 drift 를 상정 — 이 분기가 silent PASS 로 뚫리지
+      // 않도록 빈 배열 → helper 4-요소 벡터와 not.toEqual 로 fail 함을 함께 박제한다.
+      const noJestInvocation = [
+        "#!/bin/bash",
+        "step_collect() {",
+        '  log "step collect: gating 활성"',
+        "  return 0",
+        "}",
+      ].join("\n");
+      const argv = extractStepCollectJestArgv(noJestInvocation);
+      const plan = buildRealDataDailyStepCollectCommandPlan(
+        buildGatingEnabledEnv(),
+      );
+      const helperArgv = expectRunPlanArgv(plan);
+
+      expect(argv).toEqual([]);
       expect(argv).not.toEqual(helperArgv);
     });
 
