@@ -1,7 +1,7 @@
 // realdata-e2e-daily-test-machine-result-json-schema-order-driven-steps-parity-drift.smoke-spec.ts
 // — 실 평가 e2e step④ `deploy/daily-test.sh` 가 stdout/`deploy/logs/latest-result.json` 으로
 // 내보내는 머신 요약 JSON 의 6-키 스키마(`ts`·`gitSha`·`result`·`failedStep`·`steps`·`logPath`)
-// ↔ `steps` 객체 키 집합 == `ORDER` 배열(redeploy·health·liveness·auth·eval) ↔ `failedStep`
+// ↔ `steps` 객체 키 집합 == `ORDER` 배열(redeploy·health·liveness·auth·eval·collect) ↔ `failedStep`
 // null(unquoted)/quoted-string 두 직렬화 분기 contract parity 를 실 shell 파일을 readFileSync
 // 로 읽어 정적 검증하는 cross-artifact(shell→machine-JSON) drift-detection non-gated build-time
 // smoke (T-0791 박제, PLAN.md 109행 🟢 실 평가 e2e step④).
@@ -19,7 +19,7 @@
 //          정의/검증하지 않음.
 //   - 본 spec 은 그 빈 자리를 메운다 — `deploy/daily-test.sh` 를 readFileSync 로 읽어
 //     (a) `printf` 머신 요약 JSON 템플릿(282행)의 top-level 키를 순서대로 추출해 6-키 벡터와
-//     byte-identical, (b) `ORDER=(...)` 배열(203행)을 5-원소 벡터와 byte-identical + `steps_json`
+//     byte-identical, (b) `ORDER=(...)` 배열(230행)을 6-원소 벡터와 byte-identical + `steps_json`
 //     이 `for s in "${ORDER[@]}"` 순회로 조립됨(276~279행) 확인, (c) `failedStep` 직렬화
 //     표현식(284행)의 null-분기(`echo null`)/quoted-분기(`printf '"%s"'`) 두 토큰 정합을
 //     단언한다. 이 contract 가 drift 하면(키 rename·ORDER↔steps 어긋남·failedStep 분기 깨짐)
@@ -59,13 +59,15 @@ const EXPECTED_RESULT_JSON_KEYS = [
   "steps",
   "logPath",
 ] as const;
-// step 순회 정본 ORDER(`deploy/daily-test.sh` 203행) — steps 객체 키 집합 == 이 벡터.
+// step 순회 정본 ORDER(`deploy/daily-test.sh` 230행) — steps 객체 키 집합 == 이 벡터.
+// T-0888 에서 `collect` step 이 6번째 원소로 append 됨(step_collect bash 배선).
 const EXPECTED_ORDER = [
   "redeploy",
   "health",
   "liveness",
   "auth",
   "eval",
+  "collect",
 ] as const;
 
 // shell 소스에서 머신 요약 JSON `printf` 템플릿 문자열(282행 `{"ts":"%s",...}`)을 추출한다.
@@ -99,7 +101,7 @@ function extractTemplateKeys(template: string): string[] {
   return keys;
 }
 
-// shell 소스에서 `ORDER=(...)` 배열(203행 `ORDER=(redeploy health liveness auth eval)`)의
+// shell 소스에서 `ORDER=(...)` 배열(230행 `ORDER=(redeploy health liveness auth eval collect)`)의
 // 원소를 등장 순서대로 추출한다. 못 찾으면 빈 배열을 반환.
 function extractOrderArray(shellSource: string): string[] {
   const match = shellSource.match(/^ORDER=\(([^)]*)\)/m);
@@ -167,7 +169,7 @@ describe("realdata-e2e step④ daily-test.sh 머신 요약 JSON 6-키 스키마 
       // cwd 무관 — __dirname 기준 상대(path.resolve)로 해석한 경로가 실제 파일을 가리킨다.
       const shellSource = readFileSync(DAILY_TEST_SH_PATH, "utf8");
       expect(shellSource).toContain(
-        "ORDER=(redeploy health liveness auth eval)",
+        "ORDER=(redeploy health liveness auth eval collect)",
       );
       expect(shellSource).toContain('printf \'{"ts":"%s"');
     });
@@ -186,12 +188,12 @@ describe("realdata-e2e step④ daily-test.sh 머신 요약 JSON 6-키 스키마 
   });
 
   describe("steps 키 집합 == ORDER byte-identical 수렴(핵심 불변식 2 — 본 task 의 새 표면)", () => {
-    it("추출한 ORDER 가 [redeploy·health·liveness·auth·eval]와 byte-identical(5-원소 ordered)", () => {
+    it("추출한 ORDER 가 [redeploy·health·liveness·auth·eval·collect]와 byte-identical(6-원소 ordered)", () => {
       const shellSource = readFileSync(DAILY_TEST_SH_PATH, "utf8");
       const order = extractOrderArray(shellSource);
 
       expect(order).toEqual([...EXPECTED_ORDER]);
-      expect(order).toHaveLength(5);
+      expect(order).toHaveLength(6);
     });
 
     it("steps_json 이 ORDER 를 순회 source 로 조립함(for s in ORDER 패턴 + steps_json 에 키 삽입)이 shell 소스에 등장", () => {
@@ -336,15 +338,16 @@ describe("realdata-e2e step④ daily-test.sh 머신 요약 JSON 6-키 스키마 
       expect(keys).toHaveLength(5);
     });
 
-    it("ORDER 에 원소가 추가된 합성(또는 순서 swap) → expected 5-원소 벡터와 not.toEqual(ORDER drift 검출)", () => {
-      // 원소 추가 합성 — steps 키 contract 를 깨뜨릴 risk 를 본 smoke 가 잡음.
-      const orderAdded = "ORDER=(redeploy health liveness auth eval deploy)";
+    it("ORDER 에 원소가 추가된 합성(또는 순서 swap) → expected 6-원소 벡터와 not.toEqual(ORDER drift 검출)", () => {
+      // 원소 추가 합성(6-원소 정본에 deploy 를 더한 7-원소) — steps 키 contract 를 깨뜨릴 risk 를 본 smoke 가 잡음.
+      const orderAdded =
+        "ORDER=(redeploy health liveness auth eval collect deploy)";
       const extracted = extractOrderArray(orderAdded);
       expect(extracted).not.toEqual([...EXPECTED_ORDER]);
       expect(extracted).toContain("deploy");
 
-      // 순서 swap 합성.
-      const orderSwapped = "ORDER=(health redeploy liveness auth eval)";
+      // 순서 swap 합성(6-원소 정본의 [0]↔[1] swap).
+      const orderSwapped = "ORDER=(health redeploy liveness auth eval collect)";
       const swappedExtracted = extractOrderArray(orderSwapped);
       expect(swappedExtracted).not.toEqual([...EXPECTED_ORDER]);
     });
