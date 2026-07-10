@@ -28,10 +28,14 @@
 //     flag 만 담는다. 실 LLM/PAT 값은 bash 가 자식 jest 프로세스의 env 로 별도 전달하며
 //     본 plan 에는 구조적으로 포함되지 않는다(raw 미저장 R-59).
 //
-// 🔥 외부 의존 0 — 기존 gating helper import 만, 새 dependency 0 (Node 내장 타입만).
-//   collection leg 전용 consistency 가드(`...-collect-command-plan-consistency.ts`)는
-//   eval-leg 이 T-0693 별도 slice 로 붙인 것과 대칭으로 후속 slice — 본 task 는 순수
-//   additive 신설 2 파일이라 self-assert 가드를 도입하지 않는다(Out of Scope 준수).
+// 🔥 외부 의존 0 — 기존 gating helper + 정합 가드 import 만, 새 dependency 0 (Node 내장 타입만).
+//   collection leg 전용 consistency 가드(`...-collect-command-plan-consistency.ts`, T-0890
+//   신설)는 eval-leg 이 T-0693 별도 slice 로 붙인 것과 대칭으로 신설됐고, 본 컴포저는
+//   T-0891 self-wire 로 그 가드를 run/skip 양 분기 반환 직전에 self-assert 호출한다
+//   (eval-leg T-0694 self-wire mirror). 가드는 read-only fail-fast 만 — 새 분기/정규화/
+//   복구 0. 가드 신설(T-0890) → self-wire(T-0891) 짝으로 collect-leg command-plan 무결성
+//   사슬이 eval-leg(T-0693→T-0694)와 동형으로 닫힌다.
+import { assertRealDataDailyStepCollectCommandPlanConsistentWithGating } from "./realdata-e2e-daily-step-collect-command-plan-consistency";
 import { resolveRealDataE2eLiveGating } from "./realdata-e2e-live-gating";
 
 // collection live smoke spec 의 경로 — jest argv 가 단일-spec bound 로 가리킬 대상
@@ -87,15 +91,29 @@ export function buildRealDataDailyStepCollectCommandPlan(
 
   // (2) skip 분기 — argv 미포함(명시적 undefined), throw 0(조용한 SKIP 유도).
   if (!gating.enabled) {
-    return {
+    const skipPlan: RealDataDailyStepCollectCommandPlan = {
       action: "skip",
       reason: gating.reason,
     };
+
+    // 산출 skip plan 반환 직전 self-assert(T-0891 self-wire — T-0890 신설 step④ 진입측
+    // collect leaf 가드의 컴포저 self-wire, eval-leg T-0694 self-wire 의 collect-leg
+    // mirror). 컴포저가 action↔gating 오매핑·skip 인데 argv 존재·reason 재포장 같은 합성
+    // 회귀로 산출물을 손상시키면, single-source(`env` gating 재유도)와의 정합 검증으로
+    // 호출 시점에 fail-fast throw 한다. 정상 합성이면 가드는 void → 반환 plan 형태
+    // (action/reason) 보존(관측 불가능하게 동일). 가드는 read-only 라 skipPlan/env mutate 0.
+    // 위임 가드가 throw 하면 컴포저가 삼키지 않고 그대로 선전파한다(부재는 action="skip").
+    assertRealDataDailyStepCollectCommandPlanConsistentWithGating(
+      skipPlan,
+      env,
+    );
+
+    return skipPlan;
   }
 
   // run 분기 — 단일-spec bound jest argv(매 호출 새 배열). 실 credential 미포함(§9).
   // argv 의 spec 경로만 eval-leg 과 다르다(collection live smoke spec 을 가리킴).
-  return {
+  const runPlan: RealDataDailyStepCollectCommandPlan = {
     action: "run",
     argv: [
       "--config",
@@ -105,4 +123,14 @@ export function buildRealDataDailyStepCollectCommandPlan(
     ],
     reason: gating.reason,
   };
+
+  // 산출 run plan 반환 직전 self-assert(T-0891 self-wire — skip 분기와 동형). 컴포저가
+  // action↔gating 오매핑·argv config/spec-path drift·argv 길이/순서 어긋남·reason 재포장
+  // 같은 합성 회귀로 산출물을 손상시키면 single-source(`env` gating 재유도) 정합 검증으로
+  // 호출 시점에 fail-fast throw 한다. 정상 합성이면 가드는 void → 반환 plan 형태
+  // (action/argv/reason)·argv 4-요소 canonical 벡터 보존(관측 불가능하게 동일). 가드는
+  // read-only 라 runPlan/env mutate 0. 위임 가드 throw 는 컴포저가 그대로 선전파한다.
+  assertRealDataDailyStepCollectCommandPlanConsistentWithGating(runPlan, env);
+
+  return runPlan;
 }
