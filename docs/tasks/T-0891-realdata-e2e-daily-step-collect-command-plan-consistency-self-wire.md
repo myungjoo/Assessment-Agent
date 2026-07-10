@@ -2,7 +2,11 @@
 id: T-0891
 title: realdata-e2e daily-step-collect-command-plan 컴포저 self-wire 배선 (T-0890 가드 짝 닫기)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 766d81ad
+prNumber: 785
+reviewRounds: 1
+completedAt: 2026-07-10T18:13:37Z
 commitMode: pr
 coversReq: [REQ-009, REQ-013, REQ-059]
 estimatedDiff: 120
