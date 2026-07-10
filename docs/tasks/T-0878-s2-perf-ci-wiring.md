@@ -2,7 +2,11 @@
 id: T-0878
 title: CI 에 test:perf step 배선 (perf-spec 스위트 CI 자동 실행)
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-10T05:26:06Z
+mergedAs: 9910e8b1fd739c52efd93e0e69a2d9148d93fdbf
+prNumber: 772
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-111, REQ-113]
 estimatedDiff: 20
