@@ -2,7 +2,7 @@
 id: T-0875
 title: S2 latency measure→candidate 조립 harness 신설 (measureBaselineCandidate)
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 135
