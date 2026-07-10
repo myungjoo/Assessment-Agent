@@ -76,7 +76,7 @@ orchestration 로직(DB·네트워크 무의존, clock 주입으로 결정론적
   `iterations`/비단조 clock → `RangeError`, `thresholds` 음수·NaN → `RangeError`, `env` 형태·label·
   concurrency 불량 → `TypeError`/`RangeError`). **관찰·리포트 전용** — 임계 위반은 candidate.pass 로
   노출만 하고 **throw 하지 않는다**(임계 강제는 호출측 expect·별도 assertS2Threshold 책임). `disk io
-harness` §의 `confirmOrCompareBaseline`(T-0874)이 **소비**하는 candidate 를 **생산**하는 짝이며,
+  harness` §의 `confirmOrCompareBaseline`(T-0874)이 **소비**하는 candidate 를 **생산**하는 짝이며,
   §5 #2 경량 measure 진입점이다(실 supertest request 배선은 호출측 책임 — Out of Scope). 신규 dep 0.
 - `measureAndConfirmBaseline(request, env, baseDir, opts?)` → `Promise<ConfirmOrCompareResult>`.
   `measureBaselineCandidate`(candidate 생산, async I/O) → `confirmOrCompareBaseline`(기준 부재면
@@ -253,7 +253,7 @@ collector 개별 배선이 아니라 measure→(최초 확정 write | 로드·�
   시 401(defence in depth), `findById` 가 stale token(DB row 삭제) 시 404
   (`NotFoundException`), 정상 시 5 필드(hashedPassword 제외) 200. 따라서 `user-read` 의
   passGuard 패턴을 mirror 하되 RolesGuard override 부분만 제거하고, `overrideGuard
-(JwtAuthGuard)` 의 `canActivate` 가 `req.user = { sub }` 를 박제해 me 핸들러가 sub 를
+  (JwtAuthGuard)` 의 `canActivate` 가 `req.user = { sub }` 를 박제해 me 핸들러가 sub 를
   읽어 200/404 분기에 도달하게 한다(req.user 미박제 시 401 분기). happy-path 는 응답
   body 에 hashedPassword 가 없음(UserResponseDto whitelist)도 함께 assert 한다. non-2xx
   분류 실증은 mocked `findById` 의 404(stale token) error path 와, req.user 미박제 guard
@@ -292,7 +292,7 @@ collector 개별 배선이 아니라 measure→(최초 확정 write | 로드·�
   `ForbiddenException`(403 — service 미도달), row 부재 시 `NotFoundException`(404),
   REQ-048 조회 back) 배선. 스물한 번째 배선 spec 이자 **일곱 번째 path-param `:id`
   detail read** 이며 **controller 자체 403 분기가 있는 첫 detail(:id)** 다. `GET
-/api/users/:id` 는 `@UseGuards(JwtAuthGuard)` **만** 부착(RolesGuard 미적용)이라
+  /api/users/:id` 는 `@UseGuards(JwtAuthGuard)` **만** 부착(RolesGuard 미적용)이라
   auth-me-read(T-0843)처럼 `overrideGuard(JwtAuthGuard)` 의 `canActivate` 가 `req.user`
   를 박제하되, me 의 sub-only 박제와 달리 `{ sub, role }` 를 박제해 detail 핸들러가
   self/Admin+ 분기(200/403/404)에 도달하게 한다. passGuard payload 를 test 별로 달리해
@@ -423,7 +423,7 @@ collector 개별 배선이 아니라 measure→(최초 확정 write | 로드·�
   view 로 derive 하는 derived-detail 이었다면, 본 endpoint 는 고정 목록을 helper 로
   derive 하는 derived-list 라 harness 재사용이 pass-through·조합 detail 뿐 아니라 파생
   목록 read 에서도 유효함을 실증한다. describeModes 는 `@UseGuards(JwtAuthGuard,
-RolesGuard)` + `@Roles("Admin")` 가드 스택을 적용하므로 import-running(T-0842) 처럼
+  RolesGuard)` + `@Roles("Admin")` 가드 스택을 적용하므로 import-running(T-0842) 처럼
   `overrideGuard(JwtAuthGuard)`·`overrideGuard(RolesGuard)` 로 둘 다 통과시키되,
   controller 자체 authorization 분기가 없어 req.user 박제는 불요하다(canActivate true
   만으로 충분). 앞선 findJob/findRunning mock-예외 slice 들과 달리 describeModes 는
