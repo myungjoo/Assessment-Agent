@@ -2,7 +2,11 @@
 id: T-0871
 title: S2 latency baseline 디스크 compare harness 함수 신설 (readCompareBaselineFile)
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-10T01:52:00Z
+mergedAs: 5cf0c15ab467a9271be39ac4056a08fe552c2ab1
+prNumber: 765
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 135
