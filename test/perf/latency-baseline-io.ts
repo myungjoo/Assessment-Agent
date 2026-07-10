@@ -9,8 +9,11 @@
  * write 방향(`writeBaselineFile` = `serializeBaselineReport` → `fs.writeFile`)과 read 방향
  * (`readBaselineFile` = `fs.readFile` → `parseBaselineReport`)이 대칭 짝을 이룬다(§5 #4·#5).
  * 그 위에 `readCompareBaselineFile`(= `readBaselineFile` → `compareBaselineReports` →
- * `formatComparisonReport`)이 디스크 기준을 로드해 in-memory candidate 와 비교하는 최종
- * 조립 진입점을 얹는다(`compareBaselineJson` 의 disk-input 짝, §5 #5).
+ * `formatComparisonReport`)이 디스크 기준을 로드해 in-memory candidate 와 비교하는 조립
+ * 진입점을 얹고(`compareBaselineJson` 의 disk-input 짝, §5 #5), 마지막으로
+ * `compareBaselineFiles`(= `readBaselineFile`×2 → `compareBaselineReports` →
+ * `formatComparisonReport`)이 기준·candidate 를 **둘 다 디스크에서 로드**해 비교하는
+ * both-disk 조립 진입점을 얹는다(`compareBaselineJson` 의 both-disk 짝, §5 #5).
  */
 
 import * as fs from "fs";
@@ -180,6 +183,82 @@ export function readCompareBaselineFile(
   // 2. 기준 baseline ↔ in-memory candidate 비교(candidate 형태 불량·tolerance 무효는 여기서 전파).
   const comparison = compareBaselineReports(baseline, candidate, options);
   // 3. 비교 결과를 사람-친화 문자열로 포맷(반환 comparison 에서 파생 → 정합 보장).
+  const report = formatComparisonReport(comparison);
+  return { comparison, report };
+}
+
+/**
+ * 디스크에 확정 저장된 **기준 baseline** 과 별도 저장된 **candidate baseline** 을 **둘 다
+ * 디스크에서 로드**해 비교하고, 회귀 판정(`comparison`)과 사람-친화 리포트(`report`)를
+ * `{ comparison, report }` 로 조립해 반환한다. `compareBaselineJson` 의 **both-disk 짝**이자
+ * `readCompareBaselineFile` 의 **file-input 변형**으로, load-resilience-test-plan §5 #5 실
+ * harness 가 이전 run·새 run 을 각각 파일로 남긴 뒤 후속 스텝에서 두 파일을 비교하는 경로가
+ * import 할 조립 진입점이다.
+ *
+ * `compareBaselineJson` 이 in-memory JSON 문자열 2개를, `readCompareBaselineFile` 이 기준만
+ * 디스크·candidate 를 in-memory 로 받는 것과 달리, 본 함수는 **양쪽 다 디스크에서 로드**한다
+ * (`readBaselineFile` ×2). 반환 형태 `{ comparison, report }`·조립 순서(로드→비교→포맷)·하위
+ * 예외 propagate 컨벤션은 두 sibling 과 동형이다. 이로써 compose 진입점이 both-JSON /
+ * 기준-only-disk / both-disk 3 종으로 완성된다.
+ *
+ * 절차(신규 판정·계산 로직 0 — 하위 primitive 를 조립만):
+ *  1. `readBaselineFile(baselineEnv, baselineDir)` 로 저장 기준 baseline 을 로드한다(env/baseDir
+ *     형태·빈값 예외 및 fs 오류(`ENOENT` 계열)·파싱 예외는 `readBaselineFile` 계약대로 그대로
+ *     전파 — 재검증·중복 throw·친절한 래핑 금지).
+ *  2. `readBaselineFile(candidateEnv, candidateDir)` 로 저장 candidate baseline 을 로드한다
+ *     (동일 계약으로 예외 그대로 전파).
+ *  3. 로드한 두 리포트를 `compareBaselineReports(baseline, candidate, options)` 로 비교한다
+ *     (tolerance 음수/NaN 예외는 그대로 전파).
+ *  4. `formatComparisonReport(comparison)` 로 사람-친화 문자열을 만들어 `{ comparison, report }`
+ *     로 반환한다(`report` 는 반환 `comparison` 에서 파생되어 정합 보장).
+ *
+ * **순서 계약** — 기준 로드를 candidate 로드 **전에**, 두 로드를 비교 **전에** 완료한다. 즉
+ * 기준 로드(`readBaselineFile(baselineEnv, baselineDir)`)가 throw(경로 예외·`ENOENT`·파싱
+ * 실패)하면 candidate 로드·비교·포맷이 일어나지 않고, candidate 로드가 throw 하면 비교·포맷이
+ * 일어나지 않는다(기준 먼저).
+ *
+ * **서로 다른 (env, dir) 지원** — 기준과 candidate 가 다른 label(예: 이전 run vs 새 run) 또는
+ * 다른 디렉토리에 저장될 수 있으므로 두 (env, dir) 쌍을 각각 받는다. 두 파일이 같은 경로여도
+ * 정상 동작한다(자기 자신과 비교 → 회귀 0).
+ *
+ * **판정·렌더 위임 불변** — 회귀 판정·delta 계산·NaN 방어는 전적으로 `compareBaselineReports`,
+ * 리포트 렌더링은 `formatComparisonReport` 에 위임한다(재구현 금지 — DRY). 본 함수는
+ * read ×2 → compare → format 의 얇은 조립만 책임진다.
+ *
+ * **관찰·리포트 전용** — S2 pass/fail 임계·assertion 로직을 바꾸지 않는다. 회귀 탐지 관찰·
+ * 리포트 용도이며, 신규 외부 dependency 0(`readBaselineFile` 경유 fs builtin 만).
+ *
+ * **동기 fs** — 기존 harness 의 동기 스타일과 통일하기 위해 `readBaselineFile`(`*Sync`)을 쓴다
+ * (async 미도입, 결정성 유지).
+ *
+ * @param baselineEnv 기준 실행 환경 메타(기준 파일명 slug 유도 — `readBaselineFile`→`resolveBaselinePath` 계약).
+ * @param baselineDir 기준 baseline 이 저장된 디렉토리(파일명과 결합할 상위 경로).
+ * @param candidateEnv candidate 실행 환경 메타(candidate 파일명 slug 유도 — 동일 계약).
+ * @param candidateDir candidate baseline 이 저장된 디렉토리(파일명과 결합할 상위 경로).
+ * @param options 회귀 판정 허용치(선택 — 미지정 시 `compareBaselineReports` 기본 tolerance 사용).
+ * @returns `{ comparison, report }` — 비교 결과와 그에서 파생한 사람-친화 리포트 문자열.
+ * @throws {TypeError} `baselineEnv`/`candidateEnv` 형태 불량 또는 `baselineDir`/`candidateDir`
+ *   non-string(경로 결정 primitive 전파).
+ * @throws {RangeError} `env.label`/slug 무효 또는 dir 빈/공백-only(경로 결정 primitive 전파),
+ *   또는 `options.latencyTolerance`/`errorRateTolerance` 음수·NaN(`compareBaselineReports` 전파).
+ * @throws {Error} 기준·candidate 파일 부재 등 fs 오류(`ENOENT` 계열 — `readBaselineFile` 이 던지는 그대로).
+ * @throws {SyntaxError} 기준·candidate 파일 내용이 유효 JSON 이 아닐 때(`parseBaselineReport` 전파).
+ */
+export function compareBaselineFiles(
+  baselineEnv: BaselineEnvMeta,
+  baselineDir: string,
+  candidateEnv: BaselineEnvMeta,
+  candidateDir: string,
+  options?: CompareOptions,
+): { comparison: BaselineComparison; report: string } {
+  // 1. 디스크 기준 로드 — 경로 예외·ENOENT·파싱 예외는 readBaselineFile 계약대로 그대로 전파.
+  //    throw 시 candidate 로드·비교·포맷 미도달(기준 먼저 — 순서 계약).
+  const baseline = readBaselineFile(baselineEnv, baselineDir);
+  // 2. 디스크 candidate 로드 — 동일 계약으로 예외 그대로 전파. throw 시 비교·포맷 미도달.
+  const candidate = readBaselineFile(candidateEnv, candidateDir);
+  // 3. 두 리포트 비교(tolerance 음수/NaN 은 여기서 RangeError 전파).
+  const comparison = compareBaselineReports(baseline, candidate, options);
+  // 4. 비교 결과를 사람-친화 문자열로 포맷(반환 comparison 에서 파생 → 정합 보장).
   const report = formatComparisonReport(comparison);
   return { comparison, report };
 }
