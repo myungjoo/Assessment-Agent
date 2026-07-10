@@ -2,7 +2,11 @@
 id: T-0897
 title: realdata-e2e daily-step dual-leg run report 이슈 descriptor → gh issue 멱등 명령-args 순수 빌더 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 5da59785
+prNumber: 791
+reviewRounds: 1
+completedAt: 2026-07-10T22:20:00Z
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 150
