@@ -2,7 +2,11 @@
 id: T-0889
 title: realdata-e2e step④ deploy/daily-test.sh step_collect shell-literal jest argv ↔ buildRealDataDailyStepCollectCommandPlan run-branch argv full-ordered-vector parity drift-detection smoke — bash step_collect 가 하드코딩한 jest argv(`--config ./test/jest-smoke.json --runTestsByPath test/smoke/realdata-e2e-github-collection-live.smoke-spec.ts`)가 정본 TS helper buildRealDataDailyStepCollectCommandPlan(gating-enabled env).argv 의 4-요소 ordered 벡터와 byte-identical 임을 실 shell 파일 readFileSync 로 대조하는 cross-artifact(bash↔TS) drift-detection non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-10T17:30:51Z
+mergedAs: 09fa6054
+prNumber: 783
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-009, REQ-013, REQ-059]
 estimatedDiff: 230
