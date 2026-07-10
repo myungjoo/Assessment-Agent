@@ -2,8 +2,12 @@
 id: T-0872
 title: S2 latency baseline 양쪽-디스크 compare harness 함수 신설 (compareBaselineFiles)
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 766
+mergedAs: aba9989633109b863c331f2b33eb4879ba90eef7
+reviewRounds: 1
+completedAt: 2026-07-10T02:23:00Z
 coversReq: [REQ-048]
 estimatedDiff: 135
 estimatedFiles: 3
