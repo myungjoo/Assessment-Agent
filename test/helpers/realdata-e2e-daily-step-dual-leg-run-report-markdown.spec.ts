@@ -219,18 +219,17 @@ describe("renderRealDataDailyStepDualLegRunReportMarkdown", () => {
     expect(md).toContain("- git sha: ghp_FAKE1234");
   });
 
-  // (e) 결정론·무공유 — 동일 descriptor 두 번 렌더 시 문자열 동일 + 반환은 매번 새 문자열.
-  it("반환은 매 호출 새 문자열이며 동일 descriptor 에 대해 값은 동일하다(무공유)", () => {
-    const report = makeReport({ overallStatus: "all-pass" });
-
-    const a = renderRealDataDailyStepDualLegRunReportMarkdown(report);
-    const b = renderRealDataDailyStepDualLegRunReportMarkdown(report);
+  // (e) 결정론 — 동일 입력으로 독립 구성한 두 descriptor 를 렌더하면 출력이 동일.
+  //     렌더가 입력의 순수 함수임(우연한 캐싱/공유 상태 아님)을 표상.
+  it("동일 입력으로 독립 구성한 두 descriptor 를 렌더하면 출력 문자열이 동일하다(결정론)", () => {
+    const a = renderRealDataDailyStepDualLegRunReportMarkdown(
+      makeReport({ overallStatus: "all-pass" }),
+    );
+    const b = renderRealDataDailyStepDualLegRunReportMarkdown(
+      makeReport({ overallStatus: "all-pass" }),
+    );
 
     expect(a).toBe(b);
-    // 문자열은 primitive 라 동일 값이면 참조 비교도 true — 대신 새 렌더가 stale 공유
-    // 객체를 노출하지 않음을 표상하기 위해 독립 mutate 가 서로 영향 없음을 확인.
-    const mutated = `${a}-x`;
-    expect(mutated).not.toBe(b);
   });
 
   // (f) 입력 mutate 0 — report 및 하위 eval/collect 객체가 렌더 전후 deep-equal(읽기만).
