@@ -11,6 +11,11 @@
  */
 
 import {
+  buildBaselineReport,
+  BaselineEnvMeta,
+  BaselineReport,
+} from "./latency-baseline";
+import {
   summarizeLatency,
   errorRate,
   throughput,
@@ -246,4 +251,71 @@ export function assertS2Threshold(
     throughput: tput,
     reasons,
   };
+}
+
+/** `collectLatencySamples` 기본 반복 횟수 — S2 경량 스모크(단일-클라이언트, 부하 발생기 아님, §4.1). */
+const DEFAULT_ITERATIONS = 30;
+
+/**
+ * `measureBaselineCandidate` 옵션 — measure 파라미터 묶음. 셋 다 optional(미지정 시 하위
+ * primitive 기본치로 위임).
+ */
+export interface MeasureBaselineOpts {
+  /** 반복 호출 횟수(collectLatencySamples 의 iterations). 기본 30(S2 경량 스모크 수준). */
+  iterations?: number;
+  /** S2 임계(p95/errorRate 상한). 기본 assertS2Threshold 기본치(p95<3000ms, errorRate<0.01). */
+  thresholds?: S2Thresholds;
+  /** monotonic clock 주입(테스트 결정성). 기본 performance.now — collectLatencySamples 로 위임. */
+  now?: NowFn;
+}
+
+/**
+ * S2 조회 latency 를 measure 해 candidate `BaselineReport` 를 생산하는 **얇은 조립 harness**다.
+ * `collectLatencySamples`(표본 수집) → `assertS2Threshold`(임계 판정·throughput 관찰) →
+ * `buildBaselineReport`(candidate 조립) 를 순서대로 이어붙인다. `confirmOrCompareBaseline`(T-0874)
+ * 이 candidate 를 **소비**하는 진입점이라면, 본 함수는 candidate 를 **생산**하는 짝이다.
+ *
+ * 처리 순서(신규 판정·계산 로직 0 — 하위 primitive 를 조립만):
+ *  1. `iterations` 결정(`opts.iterations` 미지정 시 30). 값 검증은 `collectLatencySamples`
+ *     에 위임(음수·비정수·NaN → `RangeError` 그대로 전파, 재검증·중복 throw 금지).
+ *  2. `collectLatencySamples(request, iterations, { now })` 로 표본 수집(async I/O).
+ *  3. `assertS2Threshold(result, thresholds)` 로 임계 판정(순수). 빈 표본이어도 throw 하지
+ *     않고 pass=false·측정불가 reason 만 담으므로 정상 진행.
+ *  4. `buildBaselineReport(env, assertion)` 로 candidate `BaselineReport` 조립·반환(순수).
+ *
+ * **순서 계약** — collect(async I/O) → assert(순수 판정) → build(순수 조립) 순서를 지킨다.
+ * collect 가 reject/throw 하면 assert·build 가 일어나지 않는다.
+ * **판정·조립 위임 불변(DRY)** — 표본 수집은 `collectLatencySamples`, 임계 판정·throughput
+ * 관찰은 `assertS2Threshold`, candidate 조립은 `buildBaselineReport` 에 전적으로 위임한다.
+ * 본 함수는 iterations 기본값 + collect→assert→build 의 얇은 조립만 책임진다.
+ * **관찰·리포트 전용** — 반환은 candidate `BaselineReport`(pass 플래그 포함)뿐이며 임계 위반을
+ * throw 로 강제하지 않는다(임계 강제는 호출측 expect·별도 assertS2Threshold 책임).
+ *
+ * **오류 전파(재래핑 없음)** — 하위 primitive 예외를 그대로 propagate 한다:
+ *  - `request` 비함수 → `collectLatencySamples` `TypeError`(판정·조립 미도달).
+ *  - `opts.iterations` 음수·비정수·NaN → `collectLatencySamples` `RangeError`.
+ *  - 주입 clock 비단조 → `collectLatencySamples` `RangeError`.
+ *  - `opts.thresholds` 값 음수·NaN → `assertS2Threshold` `RangeError`.
+ *  - `env` 형태 불량 → `buildBaselineReport` `TypeError`, `env.label` 빈·`concurrency`
+ *    음수·NaN → `buildBaselineReport` `RangeError`.
+ *
+ * @throws {TypeError} `request` 비함수 또는 `env` 형태 불량(하위 전파).
+ * @throws {RangeError} `iterations`/clock/thresholds/env.label/env.concurrency 무효(하위 전파).
+ */
+export async function measureBaselineCandidate(
+  request: RequestFn,
+  env: BaselineEnvMeta,
+  opts: MeasureBaselineOpts = {},
+): Promise<BaselineReport> {
+  // 1. iterations 결정(미지정 시 기본 30). 값 검증은 collectLatencySamples 에 위임.
+  const iterations =
+    opts.iterations === undefined ? DEFAULT_ITERATIONS : opts.iterations;
+  // 2. 표본 수집(async I/O) — request 비함수·iterations 무효·비단조 clock 은 여기서 전파.
+  const result = await collectLatencySamples(request, iterations, {
+    now: opts.now,
+  });
+  // 3. 임계 판정(순수) — thresholds 음수·NaN 은 여기서 전파. 빈 표본이어도 throw 안 함.
+  const assertion = assertS2Threshold(result, opts.thresholds);
+  // 4. candidate BaselineReport 조립·반환(순수) — env 형태·label·concurrency 불량은 여기서 전파.
+  return buildBaselineReport(env, assertion);
 }

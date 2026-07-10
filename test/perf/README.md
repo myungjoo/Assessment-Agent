@@ -65,6 +65,19 @@ orchestration 로직(DB·네트워크 무의존, clock 주입으로 결정론적
   기본 임계 p95 < 3000ms(REQ-048) / errorRate < 0.01(§3), 위반 사유는 `reasons` 축적.
   `throughput`(req/s)은 `throughput(summary.count, result.elapsedMs)`(T-0860 primitive)로 산출한
   **§3 관찰 지표**다 — pass/fail 판정에는 넣지 않으며(관찰 전용), 성공 표본 0 이면 0 으로 방어된다.
+- `measureBaselineCandidate(request, env, opts?)` → `Promise<BaselineReport>`. `collectLatencySamples`
+  → `assertS2Threshold` → `buildBaselineReport` 를 순서대로 이어붙여 candidate `BaselineReport` 를
+  생산하는 **조립 harness**(신규 판정·계산 0 — collect→assert→build 얇은 조립만). `opts.iterations`
+  기본 **30**(단일-클라이언트 경량 스모크 — §4.1 부하 발생기 아님), `opts.thresholds`/`opts.now` 는
+  미지정 시 하위 primitive 기본치로 위임한다. 수집·임계 판정·candidate 조립 로직은 전적으로
+  `collectLatencySamples`/`assertS2Threshold`/`buildBaselineReport` 에 위임(재구현 금지 — DRY)한다.
+  **순서 계약**(collect(async I/O)→assert(순수 판정)→build(순수 조립); collect throw 시 assert·build
+  미도달)을 지키며, 하위 예외를 재래핑 없이 **그대로 전파**한다(`request` 비함수 → `TypeError`,
+  `iterations`/비단조 clock → `RangeError`, `thresholds` 음수·NaN → `RangeError`, `env` 형태·label·
+  concurrency 불량 → `TypeError`/`RangeError`). **관찰·리포트 전용** — 임계 위반은 candidate.pass 로
+  노출만 하고 **throw 하지 않는다**(임계 강제는 호출측 expect·별도 assertS2Threshold 책임). `disk io
+  harness` §의 `confirmOrCompareBaseline`(T-0874)이 **소비**하는 candidate 를 **생산**하는 짝이며,
+  §5 #2 경량 measure 진입점이다(실 supertest request 배선은 호출측 책임 — Out of Scope). 신규 dep 0.
 
 ```ts
 import { collectLatencySamples, assertS2Threshold } from "./latency-collector";
