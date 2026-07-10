@@ -2,8 +2,11 @@
 id: T-0887
 title: 실 평가 e2e daily-test step_collect 실행 command plan 순수 컴포저 — gating 판정 + github-collection leg jest argv 산출
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 781
+completedAt: 2026-07-10T15:53:28Z
+result: PR #781 merged (squash 959aec83). 순수 컴포저 buildRealDataDailyStepCollectCommandPlan(env) + colocated spec 신설(+354 LOC, 2 files, 신규 파일 cov 100%). reviewer APPROVE round 1/7(2 advisory nit — diff 354>300 test-dominated, collection spec path 상수 file-existence assert 부재 — 둘 다 후속 bash step_collect slice 로 이월). 4-게이트 PASS. 신규 dependency 0.
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 185
 estimatedFiles: 2
