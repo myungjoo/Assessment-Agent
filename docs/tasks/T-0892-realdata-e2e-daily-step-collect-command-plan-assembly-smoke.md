@@ -2,7 +2,10 @@
 id: T-0892
 title: realdata-e2e daily-test step_collect command-plan 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: bb694e02
+prNumber: 786
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 250
