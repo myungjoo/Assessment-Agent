@@ -2,7 +2,11 @@
 id: T-0870
 title: S2 latency baseline 디스크 read harness 함수 신설 (readBaselineFile)
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-10T00:58:41Z
+mergedAs: 502075f9adf58896112f4bd057797480075016d6
+prNumber: 764
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 150
