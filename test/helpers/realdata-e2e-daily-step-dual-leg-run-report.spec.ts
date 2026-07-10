@@ -267,6 +267,34 @@ describe("buildRealDataDailyStepDualLegRunReport", () => {
       expect(report.collect.status).toBe("pass");
     });
 
+    // (b2) 대칭 collect-only 실패 — eval run+pass & collect run+fail → some-fail.
+    // deriveOverallStatus 의 `evalStatus === "fail" || collectStatus === "fail"`
+    // 에서 (b)/기존 some-fail 케이스는 모두 좌변(eval fail)이 trigger 였다.
+    // 본 케이스는 eval NOT fail(pass) + collect fail 로 우변(collectStatus==="fail")
+    // 단독 trigger 를 직접 assert — R-112 negative 대칭 cover.
+    it("(b2) eval run+pass & collect run+fail → some-fail (collect-only 실패 대칭)", () => {
+      const report = buildRealDataDailyStepDualLegRunReport(
+        evalOutcome({ passed: true }),
+        collectOutcome({ passed: false }),
+        RUN,
+      );
+      expect(report.overallStatus).toBe("some-fail");
+      expect(report.eval.status).toBe("pass");
+      expect(report.collect.status).toBe("fail");
+    });
+
+    // (b3) eval skip & collect run+fail → some-fail (eval NOT fail=skip + collect fail).
+    it("(b3) eval skip & collect run+fail → some-fail (collect-only 실패, eval skip)", () => {
+      const report = buildRealDataDailyStepDualLegRunReport(
+        evalOutcome({ action: "skip", passed: undefined }),
+        collectOutcome({ passed: false }),
+        RUN,
+      );
+      expect(report.overallStatus).toBe("some-fail");
+      expect(report.eval.status).toBe("skip");
+      expect(report.collect.status).toBe("fail");
+    });
+
     // (c) eval run+pass & collect skip(혼합) → partial.
     it("(c) eval run+pass & collect skip → partial", () => {
       const report = buildRealDataDailyStepDualLegRunReport(
