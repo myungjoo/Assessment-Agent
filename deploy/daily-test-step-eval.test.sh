@@ -139,14 +139,15 @@ else
   pass "T-0611 정본 helper 부재(검증 환경) — bash 박제 grep 만으로 충족(skip)"
 fi
 
-# === ORDER 회귀 0: ORDER 에 eval 추가 + 기존 4 step 순서/JSON 조립 호환 ===
-# source 한 ORDER 가 redeploy→...→eval 순서를 가지고, 기존 4 step 이 앞순서 그대로인지
-# (eval 추가로 기존 step 회귀 0) + mark/steps_json 조립이 ORDER 순회 기반인지 검증.
-order_str="$( ( source "$DAILY_TEST_SH"; printf '%s' "${ORDER[*]}" ) )"
-if [ "$order_str" = "redeploy health liveness auth eval" ]; then
-  pass "ORDER = (redeploy health liveness auth eval) — 기존 4 step 순서 불변 + eval 말미 추가"
+# === ORDER 회귀 0: ORDER 가 redeploy→...→eval prefix 를 유지 + JSON 조립 호환 ===
+# source 한 ORDER 의 앞 5 요소가 redeploy→eval 순서 그대로인지 검증(eval 추가로 기존 4 step
+# 회귀 0). T-0888 이 말미에 collect 를 append 하므로 exact-match 대신 prefix 로 검증한다 —
+# 뒤에 후속 step(collect 등)이 append 돼도 eval 까지의 순서 불변만 보장하면 회귀 0.
+order_prefix="$( ( source "$DAILY_TEST_SH"; printf '%s' "${ORDER[*]:0:5}" ) )"
+if [ "$order_prefix" = "redeploy health liveness auth eval" ]; then
+  pass "ORDER prefix = (redeploy health liveness auth eval) — 기존 4 step 순서 불변 + eval 말미 추가"
 else
-  failtest "ORDER 회귀 — got '$order_str'"
+  failtest "ORDER 회귀 — got prefix '$order_prefix'"
 fi
 
 # mark 헬퍼가 ORDER 순회 호환 — eval 을 mark 하면 STEP_STATUS 에 반영되고 FAIL 시
