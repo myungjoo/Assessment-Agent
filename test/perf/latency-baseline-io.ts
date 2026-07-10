@@ -262,3 +262,54 @@ export function compareBaselineFiles(
   const report = formatComparisonReport(comparison);
   return { comparison, report };
 }
+
+/**
+ * baseline 파일이 baseline 디렉토리(`baseDir`) 아래 결정적 경로에 **이미 확정 저장돼 있는지**를
+ * boolean 으로 판정하는 predicate 다. load-resilience-test-plan §5 #5 의 confirm-or-compare
+ * 오케스트레이션("파일 부재 시 최초 확정 write / 존재 시 로드·비교")의 **선행 precondition**
+ * 으로, 후속 harness 가 `if (baselineFileExists(...)) { readBaselineFile → compare }
+ * else { writeBaselineFile }` 분기를 얇게 조립할 수 있게 한다.
+ *
+ * 절차(신규 판정·계산 0 — 하위 primitive 를 조립만):
+ *  1. `resolveBaselinePath(env, baseDir)` 로 baseline 파일의 전체 경로를 결정한다(env/baseDir
+ *     형태·빈값 예외는 primitive 계약대로 그대로 전파 — 재검증·중복 throw 금지).
+ *  2. `fs.existsSync(path)` 로 그 경로의 존재 여부를 boolean 으로 반환한다(read-only 조회).
+ *
+ * **순서 계약** — 경로 결정(순수, 예외 시 fs 접근 0)을 `fs.existsSync` **전에** 완료한다. 즉
+ * `resolveBaselinePath` 가 throw(env 형태 불량 `TypeError`, `env.label`/slug 무효·`baseDir`
+ * 빈/공백-only `RangeError`)하면 fs 조회가 일어나지 않는다(부작용 0 으로 실패). `readBaselineFile`
+ * /`compareBaselineFiles` 와 동형이다.
+ *
+ * **write/read 짝과의 round-trip 정합** — `writeBaselineFile`(경로 결정→write)·`readBaselineFile`
+ * (경로 결정→read)과 동일 `resolveBaselinePath` 경로 규약을 공유하므로, "쓴 파일은 존재(true),
+ * 안 쓴 파일은 부재(false)"로 판정한다(`writeBaselineFile` 후 `true`, write 전 `false`).
+ *
+ * **경로 위임 불변** — 경로/파일명 규칙은 전적으로 `resolveBaselinePath`(→ `resolveBaselineFilename`)
+ * 에 위임한다(재구현 금지 — DRY). 본 함수는 경로 결정 → `existsSync` 의 얇은 조립만 책임진다.
+ *
+ * **부재 = false(예외 아님)** — 상위 디렉토리 자체가 없거나 다중 depth 경로가 미존재해도
+ * `fs.existsSync` 는 이를 예외가 아닌 `false` 로 조회한다(존재 판정 오류를 boolean 으로 흡수하는
+ * 것은 `existsSync` 의 본래 계약). 반면 경로 결정 단계 예외(`TypeError`/`RangeError`)는 흡수하지
+ * 않고 그대로 전파한다(계약 최소화).
+ *
+ * **관찰 전용** — `fs.existsSync` 는 read-only 조회로 파일·환경을 변경하지 않는다. S2 pass/fail
+ * 임계·assertion 로직을 바꾸지 않으며 신규 외부 dependency 0(`fs` builtin 만).
+ *
+ * **동기 fs** — 기존 io 모듈의 동기 스타일과 통일하기 위해 `fs.existsSync` 를 쓴다(async
+ * 미도입, 결정성 유지).
+ *
+ * @param env 실행 환경 메타(파일명 slug 유도에 사용 — `resolveBaselinePath` 계약).
+ * @param baseDir baseline 디렉토리(파일명과 결합할 상위 경로).
+ * @returns baseline 파일이 결정된 경로에 존재하면 `true`, 아니면 `false`.
+ * @throws {TypeError} `env` 형태 불량 또는 `baseDir` non-string(경로 결정 primitive 전파).
+ * @throws {RangeError} `env.label`/slug 무효 또는 `baseDir` 빈/공백-only(경로 결정 primitive 전파).
+ */
+export function baselineFileExists(
+  env: BaselineEnvMeta,
+  baseDir: string,
+): boolean {
+  // 1. 경로 결정(순수, 예외 시 fs 접근 0) — throw 시 existsSync 미도달, 부작용 0 으로 실패.
+  const filePath = resolveBaselinePath(env, baseDir);
+  // 2. read-only 존재 조회 — 부재(상위 디렉토리 미존재 포함)는 예외 아닌 false 로 흡수.
+  return fs.existsSync(filePath);
+}
