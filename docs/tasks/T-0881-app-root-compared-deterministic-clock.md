@@ -2,7 +2,11 @@
 id: T-0881
 title: app-root compared 분기 perf-spec 를 주입 clock 으로 결정론화
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 67955a76f287895fe82be5b0b7172c4b2a896f0b
+prNumber: 775
+reviewRounds: 1
+completedAt: 2026-07-10T10:53:17Z
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 40
