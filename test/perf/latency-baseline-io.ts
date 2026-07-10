@@ -13,7 +13,11 @@
  * 진입점을 얹고(`compareBaselineJson` 의 disk-input 짝, §5 #5), 마지막으로
  * `compareBaselineFiles`(= `readBaselineFile`×2 → `compareBaselineReports` →
  * `formatComparisonReport`)이 기준·candidate 를 **둘 다 디스크에서 로드**해 비교하는
- * both-disk 조립 진입점을 얹는다(`compareBaselineJson` 의 both-disk 짝, §5 #5).
+ * both-disk 조립 진입점을 얹는다(`compareBaselineJson` 의 both-disk 짝, §5 #5). 마지막으로
+ * 존재 predicate(`baselineFileExists`)와 write/compose primitive 를 얇게 조립한
+ * `confirmOrCompareBaseline`(= `baselineFileExists` → 부재:`writeBaselineFile`(최초 확정) |
+ * 존재:`readCompareBaselineFile`(로드·비교))이 "최초 실측으로 baseline 확정 / 이후 비교"
+ * 두 국면을 한 진입점으로 흡수하는 confirm-or-compare 오케스트레이션을 얹는다(§5 #5).
  */
 
 import * as fs from "fs";
@@ -312,4 +316,86 @@ export function baselineFileExists(
   const filePath = resolveBaselinePath(env, baseDir);
   // 2. read-only 존재 조회 — 부재(상위 디렉토리 미존재 포함)는 예외 아닌 false 로 흡수.
   return fs.existsSync(filePath);
+}
+
+/**
+ * `confirmOrCompareBaseline` 반환 — 두 국면을 `outcome` 판별자로 구별하는 discriminated union.
+ * 호출측(§5 #5 실 harness / CI step)이 "이번이 최초 확정이었나, 비교였나"를 결정적으로 분기할
+ * 수 있게 한다.
+ *
+ *  - `"established"` — 기준 baseline 이 부재라 candidate 를 기준으로 **최초 확정 write** 한 경우.
+ *    `path` 는 `writeBaselineFile` 이 반환한 쓴 파일 전체 경로(`resolveBaselinePath` 와 동일).
+ *  - `"compared"` — 기준 baseline 이 존재해 **로드·비교** 한 경우. `{ comparison, report }` 는
+ *    `readCompareBaselineFile` 반환을 그대로 전달한다(회귀 여부는 `comparison.regressed`).
+ */
+export type ConfirmOrCompareResult =
+  | { outcome: "established"; path: string }
+  | { outcome: "compared"; comparison: BaselineComparison; report: string };
+
+/**
+ * 기준 baseline 이 **이미 확정 저장돼 있는가**를 판정해 (a) **없으면** candidate 를 기준으로
+ * **최초 확정 write** 하고 (b) **있으면** 로드해 **비교** 하는 **confirm-or-compare 오케스트레이션**
+ * 진입점이다. load-resilience-test-plan §5 #5("최초 실측으로 baseline 확정 → 이후 candidate 와
+ * 비교해 회귀 탐지")의 first-run write / 이후 compare 두 국면을 한 진입점으로 흡수한다.
+ *
+ * ```
+ * if (baselineFileExists(env, baseDir))  → readCompareBaselineFile(env, baseDir, candidate, options)  // 존재: 로드·비교
+ * else                                   → writeBaselineFile(candidate, env, baseDir)                 // 부재: 최초 확정 write
+ * ```
+ *
+ * 절차(신규 판정·계산 0 — 하위 primitive 를 조립만):
+ *  1. `baselineFileExists(env, baseDir)` 로 기준 baseline 존재 여부를 판정한다(경로 결정 단계
+ *     예외 `TypeError`/`RangeError` 는 그대로 전파 — fs 접근 전 부작용 0).
+ *  2. **부재 분기** — `false` 면 `writeBaselineFile(candidate, env, baseDir)` 로 최초 확정 write 하고
+ *     `{ outcome: "established", path }` 를 반환한다(candidate 형태 불량 → 직렬화 `TypeError` 전파).
+ *  3. **존재 분기** — `true` 면 `readCompareBaselineFile(env, baseDir, candidate, options)` 로
+ *     로드·비교하고 `{ outcome: "compared", comparison, report }` 를 반환한다(파일 부재 `ENOENT`·
+ *     내용 불량 `SyntaxError`/`TypeError`·tolerance 무효 `RangeError` 등 하위 예외 그대로 전파).
+ *
+ * **순서 계약** — 존재 판정(순수 경로 결정 + read-only `existsSync`)을 write/compare **전에**
+ * 완료한다. `baselineFileExists` 가 throw 하면 write·compare 가 일어나지 않는다(부작용 0 으로 실패).
+ *
+ * **판정·io 위임 불변** — 존재 판정은 `baselineFileExists`, write 부작용은 `writeBaselineFile`,
+ * 로드·비교·포맷은 `readCompareBaselineFile` 에 전적으로 위임한다(재구현 금지 — DRY). 본 함수는
+ * predicate → 분기 → (write | readCompare) 의 얇은 조립만 책임진다.
+ *
+ * **관찰·리포트 전용** — `assertS2Threshold`/collector·metrics 판정 로직 불변. baseline 확정/회귀
+ * 탐지 관찰 용도이며 S2 pass/fail 임계를 바꾸지 않는다(회귀 여부는 `comparison.regressed` 로
+ * 관찰만 노출, throw 하지 않음). 신규 외부 dependency 0(하위 primitive 경유 fs builtin 만).
+ *
+ * **동기 fs** — 하위 primitive 가 동기(`*Sync`)이므로 async 미도입, 결정성 유지.
+ *
+ * @param env 실행 환경 메타(파일명 slug 유도 — `resolveBaselinePath` 계약).
+ * @param baseDir baseline 디렉토리(파일명과 결합할 상위 경로).
+ * @param candidate 방금 측정한 candidate 리포트(in-memory — 측정은 호출측 책임, §5 #2 별도 slice).
+ * @param options 회귀 판정 허용치(선택 — 존재 분기에서 `readCompareBaselineFile` 기본 tolerance 로 위임).
+ * @returns `{ outcome: "established", path }`(최초 확정 write) 또는
+ *   `{ outcome: "compared", comparison, report }`(로드·비교) 판별 union.
+ * @throws {TypeError} `env` 형태 불량 또는 `baseDir` non-string(경로 결정 primitive 전파),
+ *   또는 부재 분기 `candidate` 직렬화 불량·존재 분기 `candidate` 형태 불량(하위 primitive 전파).
+ * @throws {RangeError} `env.label`/slug 무효 또는 `baseDir` 빈/공백-only(경로 결정 primitive 전파),
+ *   또는 존재 분기 `options` tolerance 음수·NaN(`readCompareBaselineFile` 전파).
+ * @throws {Error} 존재 분기에서 파일이 판정 직후 사라진 경우 등 fs 오류(`ENOENT` 계열 전파).
+ * @throws {SyntaxError} 존재 분기에서 저장 파일 내용이 유효 JSON 이 아닐 때(`readCompareBaselineFile` 전파).
+ */
+export function confirmOrCompareBaseline(
+  env: BaselineEnvMeta,
+  baseDir: string,
+  candidate: BaselineReport,
+  options?: CompareOptions,
+): ConfirmOrCompareResult {
+  // 1. 존재 판정(순수 경로 결정 + read-only existsSync) — throw 시 write·compare 미도달(순서 계약).
+  if (baselineFileExists(env, baseDir)) {
+    // 3. 존재 분기 — 로드·비교. 하위 예외(ENOENT·SyntaxError/TypeError·RangeError) 그대로 전파.
+    const { comparison, report } = readCompareBaselineFile(
+      env,
+      baseDir,
+      candidate,
+      options,
+    );
+    return { outcome: "compared", comparison, report };
+  }
+  // 2. 부재 분기 — candidate 를 기준으로 최초 확정 write. 직렬화 불량은 TypeError 로 전파.
+  const path = writeBaselineFile(candidate, env, baseDir);
+  return { outcome: "established", path };
 }

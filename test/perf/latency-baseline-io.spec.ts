@@ -13,6 +13,7 @@ import {
 import {
   baselineFileExists,
   compareBaselineFiles,
+  confirmOrCompareBaseline,
   readBaselineFile,
   readCompareBaselineFile,
   writeBaselineFile,
@@ -1494,6 +1495,283 @@ describe("latency-baseline-io baselineFileExists (S2 baseline 존재 predicate)"
 
       expect(baselineFileExists(envA, baseDir)).toBe(true);
       expect(baselineFileExists(envB, baseDir)).toBe(false);
+    });
+  });
+});
+
+/**
+ * T-0874 — S2 latency baseline confirm-or-compare 오케스트레이션(`confirmOrCompareBaseline`)의
+ * R-112 spec. happy-path(최초 확정 write → "established", 직후 재호출 → "compared" 자기 비교
+ * 회귀 0) / error path(경로 결정·로드·비교 각 단계 예외가 부작용 없이 그대로 전파, case 1~4) /
+ * flow·branch(부재→"established" write 분기 / 존재→"compared" readCompare 분기 / 경로 결정
+ * 단계 존재 판정 전 실패 분기, outcome 판별자별 반환 shape 배타 명시) / negative cases 충분 cover
+ * (undefined·회귀 candidate→regressed=true 관찰(throw 아님)·존재→부재 국면 전이·options 위임).
+ * 격리 임시 디렉토리에서만 동작하고 매 test 후 정리한다(결정성 유지).
+ */
+describe("latency-baseline-io confirmOrCompareBaseline (S2 baseline confirm-or-compare)", () => {
+  /** 매 test 마다 새로 만드는 격리 임시 디렉토리 루트(afterEach 에서 재귀 삭제). */
+  let tmpRoot: string;
+
+  beforeEach(() => {
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "s2-baseline-confirm-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  /** 완전한 env-meta(optional 필드 포함) 팩토리. */
+  function fullEnv(overrides: Partial<BaselineEnvMeta> = {}): BaselineEnvMeta {
+    return {
+      label: "ci-linux-x64",
+      concurrency: 4,
+      cpu: "8x Xeon",
+      memoryMb: 16384,
+      dataScale: "100 persons x 50 repos",
+      ...overrides,
+    };
+  }
+
+  /** 유효한 baseline 리포트(표본 있음) 팩토리. */
+  function fullReport(overrides: Partial<BaselineReport> = {}): BaselineReport {
+    return {
+      env: fullEnv(),
+      p50: 10,
+      p95: 15,
+      p99: 20,
+      throughput: 100,
+      errorRate: 0,
+      count: 6,
+      pass: true,
+      ...overrides,
+    };
+  }
+
+  /** tmpRoot 하위 POSIX 결합 baseline 디렉토리(테스트 공통 baseDir). */
+  function baselineDir(...segments: string[]): string {
+    return path.posix.join(tmpRoot.split(path.sep).join("/"), ...segments);
+  }
+
+  describe("happy path — 최초 확정(established) → 이후 비교(compared)", () => {
+    it("(1) baseline 부재이면 candidate 를 최초 확정 write 하고 outcome=established + path 반환(파일 생성)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      const candidate = fullReport();
+
+      const result = confirmOrCompareBaseline(env, baseDir, candidate);
+
+      expect(result.outcome).toBe("established");
+      if (result.outcome === "established") {
+        // path 는 resolveBaselinePath 규약과 일치하고 실제 파일이 생성됨.
+        expect(result.path).toBe(resolveBaselinePath(env, baseDir));
+        expect(fs.existsSync(result.path)).toBe(true);
+      }
+    });
+
+    it("(2) 확정 직후 같은 (env, baseDir) 에 재호출하면 outcome=compared + comparison·report 존재, 자기 비교라 regressed=false", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      const candidate = fullReport();
+
+      // 1차 — 최초 확정 write.
+      const first = confirmOrCompareBaseline(env, baseDir, candidate);
+      expect(first.outcome).toBe("established");
+
+      // 2차 — 이제 존재하므로 로드·비교. 동일 리포트 재비교 → 회귀 0.
+      const second = confirmOrCompareBaseline(env, baseDir, candidate);
+      expect(second.outcome).toBe("compared");
+      if (second.outcome === "compared") {
+        expect(second.comparison).toBeDefined();
+        expect(second.report).toBeDefined();
+        expect(second.comparison.regressed).toBe(false);
+      }
+    });
+
+    it("확정 후 compared 국면의 comparison·report 가 하위 primitive 조립과 동치(위임 검증)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      const baseline = fullReport();
+      confirmOrCompareBaseline(env, baseDir, baseline);
+
+      const candidate = fullReport();
+      const result = confirmOrCompareBaseline(env, baseDir, candidate);
+      expect(result.outcome).toBe("compared");
+      if (result.outcome === "compared") {
+        // readCompareBaselineFile 을 직접 조립한 결과와 동치여야 한다.
+        const expected = readCompareBaselineFile(env, baseDir, candidate);
+        expect(result.comparison).toEqual(expected.comparison);
+        expect(result.report).toBe(expected.report);
+      }
+    });
+  });
+
+  describe("error path — 예외가 부작용/래핑 없이 그대로 전파", () => {
+    it("(1) env 형태 불량(null) → 경로 결정 primitive TypeError 전파(존재 판정·write·compare 미도달, 파일 미생성)", () => {
+      const baseDir = baselineDir("baselines");
+      expect(() =>
+        confirmOrCompareBaseline(
+          null as unknown as BaselineEnvMeta,
+          baseDir,
+          fullReport(),
+        ),
+      ).toThrow(TypeError);
+      // 부작용 0 — baseDir 자체가 생성되지 않음.
+      expect(fs.existsSync(baseDir)).toBe(false);
+    });
+
+    it("(2) env.label 공백-only → slug 무효 RangeError 전파(파일 미생성)", () => {
+      const baseDir = baselineDir("baselines");
+      expect(() =>
+        confirmOrCompareBaseline(
+          fullEnv({ label: "   " }),
+          baseDir,
+          fullReport(),
+        ),
+      ).toThrow(RangeError);
+      expect(fs.existsSync(baseDir)).toBe(false);
+    });
+
+    it("(3) baseDir 공백-only → RangeError 전파", () => {
+      expect(() =>
+        confirmOrCompareBaseline(fullEnv(), "   ", fullReport()),
+      ).toThrow(RangeError);
+    });
+
+    it("(4) 존재 분기에서 저장 파일 내용을 손상시키면 readCompareBaselineFile 경유 SyntaxError 전파(래핑 없이)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      // 먼저 정상 확정 write 로 파일을 존재하게 한 뒤, 내용을 유효 JSON 이 아니게 손상시킨다.
+      const first = confirmOrCompareBaseline(env, baseDir, fullReport());
+      expect(first.outcome).toBe("established");
+      fs.writeFileSync(resolveBaselinePath(env, baseDir), "{not-json", {
+        encoding: "utf-8",
+      });
+
+      expect(() =>
+        confirmOrCompareBaseline(env, baseDir, fullReport()),
+      ).toThrow(SyntaxError);
+    });
+  });
+
+  describe("flow / branch coverage — outcome 판별자별 반환 shape 배타", () => {
+    it("분기(1) baseline 부재 → established write 분기(path 채워지고 comparison/report 없음)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+
+      const result = confirmOrCompareBaseline(env, baseDir, fullReport());
+      expect(result.outcome).toBe("established");
+      if (result.outcome === "established") {
+        expect(typeof result.path).toBe("string");
+        // established shape 은 comparison/report 를 갖지 않는다(배타적 union).
+        expect(result).not.toHaveProperty("comparison");
+        expect(result).not.toHaveProperty("report");
+      }
+    });
+
+    it("분기(2) baseline 존재 → compared readCompare 분기(comparison/report 채워지고 path 없음)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      confirmOrCompareBaseline(env, baseDir, fullReport()); // 확정.
+
+      const result = confirmOrCompareBaseline(env, baseDir, fullReport());
+      expect(result.outcome).toBe("compared");
+      if (result.outcome === "compared") {
+        expect(result.comparison).toBeDefined();
+        expect(typeof result.report).toBe("string");
+        // compared shape 은 path 를 갖지 않는다(배타적 union).
+        expect(result).not.toHaveProperty("path");
+      }
+    });
+
+    it("분기(3) 경로 결정 단계(env 불량)에서 존재 판정 전에 실패 — 파일이 있어도 잘못된 env 면 진입 안 함", () => {
+      const goodEnv = fullEnv();
+      const baseDir = baselineDir("baselines");
+      // 유효 파일을 미리 확정해 두어도, env 불량이면 baselineFileExists→resolveBaselinePath 에서 먼저 throw.
+      confirmOrCompareBaseline(goodEnv, baseDir, fullReport());
+
+      expect(() =>
+        confirmOrCompareBaseline(fullEnv({ label: "" }), baseDir, fullReport()),
+      ).toThrow(RangeError);
+    });
+  });
+
+  describe("negative cases 충분 cover", () => {
+    it("env=undefined → TypeError 전파(존재 판정 전 실패)", () => {
+      const baseDir = baselineDir("baselines");
+      expect(() =>
+        confirmOrCompareBaseline(
+          undefined as unknown as BaselineEnvMeta,
+          baseDir,
+          fullReport(),
+        ),
+      ).toThrow(TypeError);
+    });
+
+    it("baseDir=undefined → TypeError 전파(존재 판정 전 실패)", () => {
+      expect(() =>
+        confirmOrCompareBaseline(
+          fullEnv(),
+          undefined as unknown as string,
+          fullReport(),
+        ),
+      ).toThrow(TypeError);
+    });
+
+    it("비교 분기에서 회귀가 있는 candidate 를 넘기면 outcome=compared + regressed=true(예외 아님 — 관찰 전용)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      // 기준 p95=15 로 확정.
+      confirmOrCompareBaseline(env, baseDir, fullReport({ p95: 15 }));
+
+      // p95 를 기본 tolerance(+10%) 초과 증가 → 회귀. throw 하지 않고 관찰만 노출.
+      const result = confirmOrCompareBaseline(
+        env,
+        baseDir,
+        fullReport({ p95: 30 }),
+      );
+      expect(result.outcome).toBe("compared");
+      if (result.outcome === "compared") {
+        expect(result.comparison.regressed).toBe(true);
+        expect(result.comparison.p95.regressed).toBe(true);
+      }
+    });
+
+    it("존재하던 baseline 파일을 제거한 뒤 재호출하면 compared → established 로 국면 전이(존재→부재 반영)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      // 1차 확정 → 2차는 compared.
+      confirmOrCompareBaseline(env, baseDir, fullReport());
+      const compared = confirmOrCompareBaseline(env, baseDir, fullReport());
+      expect(compared.outcome).toBe("compared");
+
+      // 파일 제거 → 다시 부재 국면.
+      fs.rmSync(resolveBaselinePath(env, baseDir));
+      const reestablished = confirmOrCompareBaseline(
+        env,
+        baseDir,
+        fullReport(),
+      );
+      expect(reestablished.outcome).toBe("established");
+    });
+
+    it("options 미지정이면 존재 분기에서 readCompareBaselineFile 기본 tolerance 로 위임됨", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      // 기준 p95=15 확정.
+      confirmOrCompareBaseline(env, baseDir, fullReport({ p95: 15 }));
+
+      // 기본 tolerance(+10%) 로는 회귀, 넉넉한 options(+100%) 로는 회귀 아님 → options 위임 확인.
+      const candidate = fullReport({ p95: 18 });
+      const tight = confirmOrCompareBaseline(env, baseDir, candidate);
+      const loose = confirmOrCompareBaseline(env, baseDir, candidate, {
+        latencyTolerance: 1.0,
+      });
+      expect(tight.outcome).toBe("compared");
+      expect(loose.outcome).toBe("compared");
+      if (tight.outcome === "compared" && loose.outcome === "compared") {
+        expect(tight.comparison.regressed).toBe(true);
+        expect(loose.comparison.regressed).toBe(false);
+      }
     });
   });
 });
