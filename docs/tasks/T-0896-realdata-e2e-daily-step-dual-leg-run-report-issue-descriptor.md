@@ -2,7 +2,11 @@
 id: T-0896
 title: realdata-e2e daily-step dual-leg run report → rolling-issue 식별자/본문 descriptor 순수 빌더 신설
 phase: P5
-status: PENDING
+status: DONE
+completed: 2026-07-10T21:54:10Z
+mergedAs: af2ee491
+prNumber: 790
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 160
