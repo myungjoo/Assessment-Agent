@@ -1,6 +1,8 @@
+import { buildBaselineReport, BaselineEnvMeta } from "./latency-baseline";
 import {
   collectLatencySamples,
   assertS2Threshold,
+  measureBaselineCandidate,
   RequestFn,
   CollectResult,
 } from "./latency-collector";
@@ -453,6 +455,252 @@ describe("latency-collector harness (S2)", () => {
       const a = assertS2Threshold(collected);
       expect(a.throughput).toBeCloseTo(100, 10);
       expect(a.pass).toBe(true);
+    });
+  });
+
+  /**
+   * T-0875 — measure→candidate 조립 harness `measureBaselineCandidate` 의 R-112 spec.
+   * collect→assert→build 위임을 주입 request·clock 으로 결정론적으로 검증하고,
+   * 하위 예외가 부작용 없이 그대로 전파됨을 확인한다.
+   */
+  describe("measureBaselineCandidate (S2 measure→candidate 조립)", () => {
+    /** 표준 env-meta fixture. */
+    const env: BaselineEnvMeta = { label: "ci-test", concurrency: 4 };
+
+    describe("happy path — 수동 조립과 동치", () => {
+      it("반환 BaselineReport 가 collect+assert+build 수동 조립과 동치", async () => {
+        const now = stepClock(10);
+        const report = await measureBaselineCandidate(okRequest, env, {
+          iterations: 5,
+          now,
+        });
+        // 동일 입력을 수동 조립: collect → assert → build.
+        const collected = await collectLatencySamples(okRequest, 5, {
+          now: stepClock(10),
+        });
+        const assertion = assertS2Threshold(collected);
+        const manual = buildBaselineReport(env, assertion);
+        expect(report.env).toEqual(manual.env);
+        expect(report.p50).toBe(manual.p50);
+        expect(report.p95).toBe(manual.p95);
+        expect(report.p99).toBe(manual.p99);
+        expect(report.throughput).toBeCloseTo(manual.throughput, 10);
+        expect(report.errorRate).toBe(manual.errorRate);
+        expect(report.count).toBe(manual.count);
+        expect(report.pass).toBe(manual.pass);
+      });
+
+      it("iterations 미지정 → 기본 30 회 호출(주입 request 호출 횟수로 검증)", async () => {
+        const req = jest.fn(okRequest);
+        const report = await measureBaselineCandidate(req, env, {
+          now: stepClock(1),
+        });
+        expect(req).toHaveBeenCalledTimes(30);
+        expect(report.count).toBe(30);
+        expect(report.pass).toBe(true);
+      });
+    });
+
+    describe("error path — 하위 예외 그대로 전파(부작용 없음)", () => {
+      it("request 가 함수 아님(null) → collectLatencySamples TypeError 전파", async () => {
+        await expect(
+          measureBaselineCandidate(null as unknown as RequestFn, env),
+        ).rejects.toThrow(TypeError);
+      });
+
+      it("opts.iterations 음수 → collectLatencySamples RangeError 전파", async () => {
+        await expect(
+          measureBaselineCandidate(okRequest, env, { iterations: -1 }),
+        ).rejects.toThrow(RangeError);
+      });
+
+      it("opts.iterations 비정수 → collectLatencySamples RangeError 전파", async () => {
+        await expect(
+          measureBaselineCandidate(okRequest, env, { iterations: 2.5 }),
+        ).rejects.toThrow(RangeError);
+      });
+
+      it("opts.iterations NaN → collectLatencySamples RangeError 전파", async () => {
+        await expect(
+          measureBaselineCandidate(okRequest, env, { iterations: NaN }),
+        ).rejects.toThrow(RangeError);
+      });
+
+      it("opts.thresholds.p95MaxMs 음수 → assertS2Threshold RangeError 전파", async () => {
+        await expect(
+          measureBaselineCandidate(okRequest, env, {
+            iterations: 3,
+            now: stepClock(5),
+            thresholds: { p95MaxMs: -1 },
+          }),
+        ).rejects.toThrow(RangeError);
+      });
+
+      it("opts.thresholds.errorRateMax NaN → assertS2Threshold RangeError 전파", async () => {
+        await expect(
+          measureBaselineCandidate(okRequest, env, {
+            iterations: 3,
+            now: stepClock(5),
+            thresholds: { errorRateMax: NaN },
+          }),
+        ).rejects.toThrow(RangeError);
+      });
+
+      it("env 형태 불량(null) → buildBaselineReport TypeError 전파", async () => {
+        await expect(
+          measureBaselineCandidate(
+            okRequest,
+            null as unknown as BaselineEnvMeta,
+            { iterations: 2, now: stepClock(5) },
+          ),
+        ).rejects.toThrow(TypeError);
+      });
+
+      it("env.label 빈 string → buildBaselineReport RangeError 전파", async () => {
+        await expect(
+          measureBaselineCandidate(
+            okRequest,
+            { label: "  ", concurrency: 1 },
+            { iterations: 2, now: stepClock(5) },
+          ),
+        ).rejects.toThrow(RangeError);
+      });
+
+      it("env.concurrency 음수 → buildBaselineReport RangeError 전파", async () => {
+        await expect(
+          measureBaselineCandidate(
+            okRequest,
+            { label: "ci", concurrency: -1 },
+            { iterations: 2, now: stepClock(5) },
+          ),
+        ).rejects.toThrow(RangeError);
+      });
+
+      it("clock 비단조 → collectLatencySamples RangeError 전파(판정·조립 미도달)", async () => {
+        const buildSpy = jest.fn(okRequest);
+        let call = 0;
+        const nonMonotonic = () => {
+          call++;
+          return call === 1 ? 100 : 50;
+        };
+        await expect(
+          measureBaselineCandidate(buildSpy, env, {
+            iterations: 1,
+            now: nonMonotonic,
+          }),
+        ).rejects.toThrow(RangeError);
+      });
+    });
+
+    describe("flow / branch — 옵션 위임 경로 분리", () => {
+      it("opts.iterations 지정 시 그 값이 collectLatencySamples 로 전달됨", async () => {
+        const req = jest.fn(okRequest);
+        await measureBaselineCandidate(req, env, {
+          iterations: 7,
+          now: stepClock(1),
+        });
+        expect(req).toHaveBeenCalledTimes(7);
+      });
+
+      it("opts 미지정 시 기본 30 이 쓰임", async () => {
+        const req = jest.fn(okRequest);
+        // opts 자체를 생략(기본 clock·기본 thresholds·기본 iterations).
+        const report = await measureBaselineCandidate(req, env);
+        expect(req).toHaveBeenCalledTimes(30);
+        expect(report.count).toBe(30);
+      });
+
+      it("opts.now 지정 시 clock 주입이 collector 로 전달됨(결정론적 표본)", async () => {
+        const report = await measureBaselineCandidate(okRequest, env, {
+          iterations: 5,
+          now: stepClock(10),
+        });
+        // stepClock(10) 5회 → 모든 표본 10ms → p50/p95/p99 === 10.
+        expect(report.p50).toBe(10);
+        expect(report.p95).toBe(10);
+        expect(report.p99).toBe(10);
+      });
+
+      it("opts.now 미지정 시 기본 clock 로 동작(표본 count 는 iterations)", async () => {
+        const report = await measureBaselineCandidate(okRequest, env, {
+          iterations: 3,
+        });
+        // 실 clock 이라 값은 비결정적이지만 count 는 확정.
+        expect(report.count).toBe(3);
+        expect(report.pass).toBe(true);
+      });
+
+      it("opts.thresholds 지정(p95MaxMs 낮춤) → pass=false 유도", async () => {
+        const report = await measureBaselineCandidate(okRequest, env, {
+          iterations: 5,
+          now: stepClock(10),
+          // 표본은 전부 10ms → p95=10. 상한 5 로 낮추면 임계 초과.
+          thresholds: { p95MaxMs: 5 },
+        });
+        expect(report.pass).toBe(false);
+      });
+
+      it("opts.thresholds 미지정 → 기본 임계(p95<3000)로 pass=true", async () => {
+        const report = await measureBaselineCandidate(okRequest, env, {
+          iterations: 5,
+          now: stepClock(10),
+        });
+        expect(report.pass).toBe(true);
+      });
+    });
+
+    describe("negative cases 충분 cover", () => {
+      it("opts 전체 undefined → 기본 iterations 30·기본 thresholds·기본 clock 로 정상 동작", async () => {
+        const req = jest.fn(okRequest);
+        const report = await measureBaselineCandidate(req, env);
+        expect(req).toHaveBeenCalledTimes(30);
+        expect(report.pass).toBe(true);
+        expect(report.count).toBe(30);
+      });
+
+      it("iterations=0 → 빈 표본, throw 없이 pass=false·NaN percentile candidate 반환", async () => {
+        const req = jest.fn(okRequest);
+        const report = await measureBaselineCandidate(req, env, {
+          iterations: 0,
+          now: stepClock(1),
+        });
+        // 호출 0 회, 예외 아님(관찰 전용).
+        expect(req).not.toHaveBeenCalled();
+        expect(report.count).toBe(0);
+        expect(Number.isNaN(report.p95)).toBe(true);
+        expect(report.pass).toBe(false);
+      });
+
+      it("일부 non-2xx/reject → errorRate>0·failures 반영된 candidate 반환", async () => {
+        // 4 회 중 2 회 실패(교대) → errorRate 0.5.
+        let i = 0;
+        const flaky: RequestFn = async () => {
+          i++;
+          if (i % 2 === 0) {
+            throw new Error("네트워크 오류");
+          }
+          return { ok: true };
+        };
+        const report = await measureBaselineCandidate(flaky, env, {
+          iterations: 4,
+          now: stepClock(2),
+        });
+        expect(report.errorRate).toBeCloseTo(0.5, 10);
+        // 실패는 candidate 로 노출만 되고 throw 하지 않음.
+        expect(report.count).toBe(2);
+      });
+
+      it("임계 위반은 candidate.pass=false 로만 노출되고 함수는 throw 하지 않음", async () => {
+        // p95MaxMs 를 낮춰 위반 유도 — resolve(reject 아님) 확인.
+        const report = await measureBaselineCandidate(okRequest, env, {
+          iterations: 5,
+          now: stepClock(10),
+          thresholds: { p95MaxMs: 1 },
+        });
+        expect(report.pass).toBe(false);
+        // throw 하지 않았으므로 여기 도달 자체가 관찰 전용 계약 검증.
+        expect(report.env).toEqual(env);
+      });
     });
   });
 });
