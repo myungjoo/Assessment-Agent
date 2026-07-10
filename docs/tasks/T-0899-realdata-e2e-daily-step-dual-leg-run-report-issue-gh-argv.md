@@ -2,7 +2,10 @@
 id: T-0899
 title: realdata-e2e daily-step dual-leg run report 이슈 action + 명령-args → gh 인자-벡터 순수 빌더 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 012d9dca
+prNumber: 793
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 150
