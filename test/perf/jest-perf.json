@@ -7,6 +7,5 @@
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "testEnvironment": "node",
-  "passWithNoTests": true,
   "maxWorkers": 1
 }
