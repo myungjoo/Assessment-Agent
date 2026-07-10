@@ -2,7 +2,7 @@
 id: T-0876
 title: S2 latency measure→confirm-or-compare end-to-end loop harness 신설 (measureAndConfirmBaseline)
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 135
