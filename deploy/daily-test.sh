@@ -7,8 +7,10 @@
 #   step 2 health    — GET /api 가 APP_STATUS_MESSAGE("Assessment-Agent") 될 때까지 폴링
 #   step 3 liveness  — GET /api 문자열 일치 + GET / 가 200 + SPA HTML (ADR-0040)
 #   step 4 auth      — POST /api/users(201|409) → POST /api/auth/login(200) → GET /api/auth/me(200)
-#   step 5 eval      — (gating env 7 종 모두 set 일 때만) realdata-e2e live smoke 1 회 spawn.
+#   step 5 eval      — (gating env 7 종 모두 set 일 때만) realdata-e2e LLM 평가 live smoke 1 회 spawn.
 #                      gating 부재 시 SKIP(no-op — 네트워크 0 / secret 0 / jest spawn 0). T-0612.
+#   step 6 collect   — (gating env 7 종 모두 set 일 때만) realdata-e2e github 수집 live smoke 1 회 spawn.
+#                      eval 과 gating 공유(realdata_eval_gating_enabled) — 부재 시 SKIP(no-op). T-0888.
 #
 # 운영 이미지는 pnpm prune --prod 로 devDependency(jest 등)가 제거돼 컨테이너 안에서
 # jest 를 못 돌린다. 그래서 daily 검증은 기동된 컨테이너를 :3000 으로 두드리는 black-box
@@ -194,13 +196,38 @@ step_eval() {
   return 1
 }
 
+# step_collect: gating 활성(공유 realdata_eval_gating_enabled = 7 종 모두 set)이면 실
+# github.com 수집 leg(realdata-e2e-github-collection-live smoke)를 단일-spec bound jest
+# argv 로 1 회 spawn → exit 0 면 PASS(return 0), non-zero 면 FAIL(return 1). gating 부재면
+# 함수가 호출되지 않는다(caller 가 gating 검사 후 분기 — 본 함수는 run leg 만 담당).
+# collect leg 의 gating env 는 eval leg 과 동일한 7 종(REALDATA_E2E_*)이라 새 gating 함수
+# 추가 0 — 위 realdata_eval_gating_enabled 를 그대로 재사용한다. jest argv 는 T-0887
+# buildRealDataDailyStepCollectCommandPlan 의 run 분기 산출을 bash 로 mirror(정본은 그
+# helper). eval leg 과 argv 형태 동형이되 spec 경로만 collection live smoke 로 교체한다.
+# 실 credential 값은 argv 미포함 — 자식 jest 프로세스가 상속한 process env 로 전달되며 본
+# 함수는 그 값을 로그/JSON 에 echo 0(§9).
+step_collect() {
+  log "step collect: realdata-e2e github 수집 live smoke 실행 (gating env 7 종 set)"
+  # T-0887 plan helper 의 run argv mirror: 단일-spec bound · smoke jest config 재사용.
+  #   ["--config", "./test/jest-smoke.json", "--runTestsByPath",
+  #    "test/smoke/realdata-e2e-github-collection-live.smoke-spec.ts"]
+  if ( cd "$REPO_DIR" && pnpm exec jest \
+        --config ./test/jest-smoke.json \
+        --runTestsByPath test/smoke/realdata-e2e-github-collection-live.smoke-spec.ts ) >>"$LOG_FILE" 2>&1; then
+    log "step collect: OK (collection live smoke PASS)"
+    return 0
+  fi
+  log "step collect: FAIL (collection live smoke non-zero — 로그 참조)"
+  return 1
+}
+
 # --- 실행 ------------------------------------------------------------------
 
 # step 상태 누적·순서·mark 헬퍼는 source 시에도 노출돼야 spec 이 ORDER 순회/JSON 조립
 # 호환(eval 추가로 기존 4 step 회귀 0)을 검증할 수 있으므로 가드 *앞* 에 정의한다.
 declare -A STEP_STATUS=()
 FAILED_STEP="null"
-ORDER=(redeploy health liveness auth eval)
+ORDER=(redeploy health liveness auth eval collect)
 
 mark() { # mark <step> <PASS|FAIL|SKIP>
   STEP_STATUS["$1"]="$2"
@@ -261,6 +288,24 @@ elif step_eval; then
   mark eval PASS
 else
   mark eval FAIL
+fi
+
+# step collect(realdata-e2e github 수집 live smoke): eval 과 동형 — auth PASS(체인 통과)
+# AND gating env 7 종 set 일 때만 실행. 그 외(체인 미통과 또는 gating 부재)는 mark collect
+# SKIP — cloud CI / 일반 LAN 에서 네트워크 0 / secret 0 / jest spawn 0 의 no-op(기존
+# 5 step 동작 불변). 공유 realdata_eval_gating_enabled 재사용(새 gating 함수 0). T-0888.
+if [ "${STEP_STATUS[auth]:-SKIP}" != "PASS" ]; then
+  log "step collect: SKIP (선행 체인 미통과 — auth=${STEP_STATUS[auth]:-SKIP})"
+  mark collect SKIP
+elif ! realdata_eval_gating_enabled; then
+  # gating 부재 — 조용한 SKIP(no-op). gating 진단 로그는 realdata_eval_gating_enabled 가
+  # 부재 env 이름만 출력(실값 echo 0, §9).
+  log "step collect: SKIP (gating env 부재 — cloud CI / 일반 LAN no-op)"
+  mark collect SKIP
+elif step_collect; then
+  mark collect PASS
+else
+  mark collect FAIL
 fi
 
 # 전체 결과: 하나라도 FAIL 이면 FAIL.
