@@ -2,8 +2,10 @@
 id: T-0880
 title: S2 measure→confirm-or-compare 를 실 조회 endpoint(SummaryController GET /api/summaries)에 배선하는 두 번째 통합 perf-spec 신설
 phase: P5
-status: PENDING
+status: BLOCKED
 commitMode: pr
+prNumber: 774
+blockedReason: "ci-repeat-fail — PR #774 는 reviewer APPROVE + 게이트 (a)(b)(c) PASS 이나 CI test:perf 가 pre-existing T-0877 flake(app-root-measure-confirm.perf-spec.ts:217 wall-clock 비결정 regressed 단언)로 2회 fail. T-0880 코드 결함 아님(동일 head_sha main CI green). unblock 선행 = T-0881(app-root compared 결정론화). T-0881 merge 후 이 task 를 nextTask 로 재큐잉 → PR #774 를 LOOP [2] frontmatter-prNumber resume(rebase origin/main + re-CI + 4-게이트 재확인 → merge). 중복 PR 금지 — prNumber:774 로 기존 PR resume."
 coversReq: [REQ-048]
 estimatedDiff: 300
 estimatedFiles: 2
