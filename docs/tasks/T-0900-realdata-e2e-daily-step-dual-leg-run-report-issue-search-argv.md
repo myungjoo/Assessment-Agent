@@ -2,7 +2,7 @@
 id: T-0900
 title: realdata-e2e daily-step dual-leg run report 이슈 명령-args → gh search issues 인자-벡터 순수 빌더 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 150
