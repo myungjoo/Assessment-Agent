@@ -2,7 +2,7 @@
 id: T-0898
 title: realdata-e2e daily-step dual-leg run report 이슈 search response → create-or-update action 순수 resolver 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 150
@@ -83,3 +83,7 @@ implementer → tester
 ## Follow-ups
 
 (비어있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+## 완료 기록
+
+- **DONE** 2026-07-10T22:52Z — PR #792 squash-merge `5100f201`. 순수 resolver `resolveRealDataDailyStepDualLegRunReportIssueAction`(search hits + marker → create/update action discriminated union) + colocated spec 19 test(신규 파일 line/branch/func/stmt 100%). 후보 0→create, 1+→최소 number update(멱등 회귀 보호). marker 빈/공백·number 0이하/비정수 guard throw. dep0, descriptor/명령-args import 0, process.env 0. reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·1 MINOR), 4-게이트 PASS. CI: pull_request run 은 실 step(lint/build/test+cov/smoke/e2e/perf) 전원 green, reviewer-approval step 만 comment-전 race 로 red → issue_comment 재실행 green(benignRedNote case B). fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-90975d7b).
