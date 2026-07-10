@@ -2,11 +2,13 @@
 id: T-0890
 title: realdata-e2e daily-step-collect-command-plan 컴포저 산출 ↔ gating single-source 재유도 정합 순수 가드 신설 (eval-leg T-0693 collect-leg mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-013, REQ-059]
 estimatedDiff: 230
 estimatedFiles: 2
+completedAt: 2026-07-10T18:00:50Z
+result: "PR #784 squash ad3e006a, round 1/7 reviewer APPROVE + 1 nit in-PR closure(round2 commit 13327bc, describe/it clarity ≤3 LOC reviewer-exempt), 4-게이트 PASS. 신규 가드 line/branch/func/stmt 100%, 전체 361 suite/9475 test green, dep 0. 실제 +826 LOC(test-only 2파일, eval-leg T-0693 mirror) sizeExempt(estimatedDiff 230 미달 — reviewer MINOR advisory, T-0891 계열 estimate 재보정 반영). collect-leg command-plan↔gating single-source 재유도 정합 순수 가드 신설(self-wire 는 T-0891)."
 created: 2026-07-11
 independentStream: realdata-e2e-consistency-guard
 dependsOn: [T-0887]
