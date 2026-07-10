@@ -5,10 +5,16 @@ import * as path from "path";
 import {
   BaselineEnvMeta,
   BaselineReport,
+  compareBaselineReports,
+  formatComparisonReport,
   parseBaselineReport,
   resolveBaselinePath,
 } from "./latency-baseline";
-import { readBaselineFile, writeBaselineFile } from "./latency-baseline-io";
+import {
+  readBaselineFile,
+  readCompareBaselineFile,
+  writeBaselineFile,
+} from "./latency-baseline-io";
 
 /**
  * T-0869 — S2 latency baseline 디스크 write harness(`writeBaselineFile`)의 R-112 spec.
@@ -517,6 +523,322 @@ describe("latency-baseline-io readBaselineFile (S2 disk read)", () => {
       fs.writeFileSync(target, "", { encoding: "utf-8" });
 
       expect(() => readBaselineFile(env, baseDir)).toThrow(SyntaxError);
+    });
+  });
+});
+
+/**
+ * T-0871 — S2 latency baseline 디스크 compare harness(`readCompareBaselineFile`)의 R-112 spec.
+ * happy-path(회귀 없음/있음, options 위임 동치) / error path(로드·비교 단계 예외가 부작용 없이
+ * 그대로 전파, case 1~6) / flow·branch(로드 성공→비교 / 로드 단계 실패 / 비교 단계 실패 3 흐름) /
+ * negative cases 충분 cover. `readBaselineFile` 과 동일하게 격리 임시 디렉토리에서만 동작하고 매
+ * test 후 정리한다(결정성 유지 — write/read spec 의 tmp 셋업/정리 패턴 재사용).
+ */
+describe("latency-baseline-io readCompareBaselineFile (S2 disk compare)", () => {
+  /** 매 test 마다 새로 만드는 격리 임시 디렉토리 루트(afterEach 에서 재귀 삭제). */
+  let tmpRoot: string;
+
+  beforeEach(() => {
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "s2-baseline-cmp-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  /** 완전한 env-meta(optional 필드 포함) 팩토리. */
+  function fullEnv(overrides: Partial<BaselineEnvMeta> = {}): BaselineEnvMeta {
+    return {
+      label: "ci-linux-x64",
+      concurrency: 4,
+      cpu: "8x Xeon",
+      memoryMb: 16384,
+      dataScale: "100 persons x 50 repos",
+      ...overrides,
+    };
+  }
+
+  /** 유효한 baseline 리포트(표본 있음) 팩토리. */
+  function fullReport(overrides: Partial<BaselineReport> = {}): BaselineReport {
+    return {
+      env: fullEnv(),
+      p50: 10,
+      p95: 15,
+      p99: 20,
+      throughput: 100,
+      errorRate: 0,
+      count: 6,
+      pass: true,
+      ...overrides,
+    };
+  }
+
+  /** 빈 표본(NaN 지표) baseline 리포트 — NaN 방어·"n/a" 렌더링 검증용. */
+  function emptyReport(): BaselineReport {
+    return {
+      env: fullEnv({ label: "local-macbook", concurrency: 1 }),
+      p50: NaN,
+      p95: NaN,
+      p99: NaN,
+      throughput: 0,
+      errorRate: 0,
+      count: 0,
+      pass: false,
+    };
+  }
+
+  /** tmpRoot 하위 POSIX 결합 baseline 디렉토리(테스트 공통 baseDir). */
+  function baselineDir(...segments: string[]): string {
+    return path.posix.join(tmpRoot.split(path.sep).join("/"), ...segments);
+  }
+
+  describe("happy path — 디스크 기준 로드 + candidate 비교", () => {
+    it("회귀 없는 candidate 면 comparison.regressed=false 이고 primitive 조립 동치를 반환", () => {
+      const baseline = fullReport();
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(baseline, env, baseDir);
+
+      // 회귀 없음 — 모든 지표가 baseline 과 동일.
+      const candidate = fullReport();
+      const { comparison, report } = readCompareBaselineFile(
+        env,
+        baseDir,
+        candidate,
+      );
+
+      // 하위 primitive 를 직접 조립한 결과와 동치여야 한다(얇은 조립 위임 검증).
+      const expectedComparison = compareBaselineReports(baseline, candidate);
+      expect(comparison).toEqual(expectedComparison);
+      expect(report).toBe(formatComparisonReport(expectedComparison));
+      expect(comparison.regressed).toBe(false);
+    });
+
+    it("p95 tolerance 초과 candidate 면 comparison.regressed=true (회귀 탐지)", () => {
+      const baseline = fullReport({ p95: 15 });
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(baseline, env, baseDir);
+
+      // p95 를 기본 tolerance(+10%) 를 초과해 증가 → 회귀.
+      const candidate = fullReport({ p95: 30 });
+      const { comparison, report } = readCompareBaselineFile(
+        env,
+        baseDir,
+        candidate,
+      );
+
+      expect(comparison.regressed).toBe(true);
+      expect(comparison.p95.regressed).toBe(true);
+      expect(report).toContain("regressed=true");
+      expect(report).toContain("REGRESSED");
+    });
+
+    it("options.latencyTolerance 를 넘기면 그 허용치가 하위 비교에 그대로 위임됨", () => {
+      const baseline = fullReport({ p95: 15 });
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(baseline, env, baseDir);
+
+      // 기본 tolerance(+10%) 로는 회귀이나, 넉넉한 tolerance(+100%) 로는 회귀 아님.
+      const candidate = fullReport({ p95: 18 });
+      const loose = readCompareBaselineFile(env, baseDir, candidate, {
+        latencyTolerance: 1.0,
+      });
+      const tight = readCompareBaselineFile(env, baseDir, candidate);
+
+      expect(loose.comparison.regressed).toBe(false);
+      expect(tight.comparison.regressed).toBe(true);
+    });
+  });
+
+  describe("error path — 예외가 부작용/래핑 없이 그대로 전파", () => {
+    it("(1) env 형태 불량(null) → readBaselineFile→resolveBaselinePath 의 TypeError 전파(비교 미도달)", () => {
+      const baseDir = baselineDir("baselines");
+      expect(() =>
+        readCompareBaselineFile(
+          null as unknown as BaselineEnvMeta,
+          baseDir,
+          fullReport(),
+        ),
+      ).toThrow(TypeError);
+    });
+
+    it("(2) baseDir 공백-only → RangeError 전파(비교 미도달)", () => {
+      expect(() =>
+        readCompareBaselineFile(fullEnv(), "   ", fullReport()),
+      ).toThrow(RangeError);
+    });
+
+    it("(3) 기준 파일 미저장 경로 → readBaselineFile 의 ENOENT 계열 오류 전파(비교 미도달)", () => {
+      const baseDir = baselineDir("baselines");
+      // 아무 baseline 도 write 하지 않음 — 로드 단계에서 실패.
+      let caught: NodeJS.ErrnoException | undefined;
+      try {
+        readCompareBaselineFile(fullEnv(), baseDir, fullReport());
+      } catch (err) {
+        caught = err as NodeJS.ErrnoException;
+      }
+      expect(caught?.code).toBe("ENOENT");
+    });
+
+    it("(4) 저장된 기준 파일 내용 불량(유효 JSON 아님) → parseBaselineReport 의 SyntaxError 전파", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      const target = resolveBaselinePath(env, baseDir);
+      fs.mkdirSync(path.posix.dirname(target), { recursive: true });
+      fs.writeFileSync(target, "{not-json", { encoding: "utf-8" });
+
+      expect(() => readCompareBaselineFile(env, baseDir, fullReport())).toThrow(
+        SyntaxError,
+      );
+    });
+
+    it("(5) candidate 형태 불량(null) → compareBaselineReports 의 TypeError 전파", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(fullReport(), env, baseDir);
+
+      expect(() =>
+        readCompareBaselineFile(
+          env,
+          baseDir,
+          null as unknown as BaselineReport,
+        ),
+      ).toThrow(TypeError);
+    });
+
+    it("(6) options.tolerance 음수 → compareBaselineReports 의 RangeError 전파", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(fullReport(), env, baseDir);
+
+      expect(() =>
+        readCompareBaselineFile(env, baseDir, fullReport(), {
+          latencyTolerance: -0.5,
+        }),
+      ).toThrow(RangeError);
+    });
+
+    it("options.errorRateTolerance NaN → compareBaselineReports 의 RangeError 전파", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(fullReport(), env, baseDir);
+
+      expect(() =>
+        readCompareBaselineFile(env, baseDir, fullReport(), {
+          errorRateTolerance: NaN,
+        }),
+      ).toThrow(RangeError);
+    });
+  });
+
+  describe("flow / branch coverage", () => {
+    it("분기(1) 유효 기준 로드 성공 → 비교·포맷 성공(회귀 없음)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(fullReport(), env, baseDir);
+
+      const { comparison } = readCompareBaselineFile(
+        env,
+        baseDir,
+        fullReport(),
+      );
+      expect(comparison.regressed).toBe(false);
+    });
+
+    it("분기(1') 유효 기준 로드 성공 → 비교·포맷 성공(회귀 있음)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(fullReport({ p99: 20 }), env, baseDir);
+
+      const { comparison } = readCompareBaselineFile(
+        env,
+        baseDir,
+        fullReport({ p99: 40 }),
+      );
+      expect(comparison.regressed).toBe(true);
+    });
+
+    it("분기(2) 기준 로드 단계(ENOENT)에서 비교 전 실패", () => {
+      const baseDir = baselineDir("baselines");
+      expect(() =>
+        readCompareBaselineFile(fullEnv(), baseDir, fullReport()),
+      ).toThrow(/ENOENT/);
+    });
+
+    it("분기(3) 로드는 성공하나 비교 단계(candidate 형태 불량)에서 실패", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(fullReport(), env, baseDir);
+
+      expect(() =>
+        readCompareBaselineFile(env, baseDir, {
+          p50: 1,
+        } as unknown as BaselineReport),
+      ).toThrow(TypeError);
+    });
+  });
+
+  describe("negative cases 충분 cover", () => {
+    it("env=undefined → TypeError 전파(비교 미도달)", () => {
+      const baseDir = baselineDir("baselines");
+      expect(() =>
+        readCompareBaselineFile(
+          undefined as unknown as BaselineEnvMeta,
+          baseDir,
+          fullReport(),
+        ),
+      ).toThrow(TypeError);
+    });
+
+    it("candidate=undefined → compareBaselineReports 의 TypeError 전파", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(fullReport(), env, baseDir);
+
+      expect(() =>
+        readCompareBaselineFile(
+          env,
+          baseDir,
+          undefined as unknown as BaselineReport,
+        ),
+      ).toThrow(TypeError);
+    });
+
+    it("options 미지정(default) 호출이 기본 tolerance 로 정상 동작(옵션 optional 확인)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(fullReport(), env, baseDir);
+
+      // options 인자 없이 호출 — 기본 tolerance 로 회귀 없음 판정.
+      const { comparison, report } = readCompareBaselineFile(
+        env,
+        baseDir,
+        fullReport(),
+      );
+      expect(comparison.regressed).toBe(false);
+      expect(report).toContain("regressed=false");
+    });
+
+    it("NaN 지표(빈 표본) 기준/candidate 비교 시 판정 제외되고 report 에 n/a 로 렌더링", () => {
+      const env = emptyReport().env;
+      const baseDir = baselineDir("baselines");
+      // 기준·candidate 모두 빈 표본(NaN 지표) — 해당 지표는 회귀 판정에서 제외.
+      writeBaselineFile(emptyReport(), env, baseDir);
+
+      const { comparison, report } = readCompareBaselineFile(
+        env,
+        baseDir,
+        emptyReport(),
+      );
+      // 양쪽 NaN → latency 지표는 회귀 제외(regressed=false).
+      expect(comparison.p50.regressed).toBe(false);
+      expect(comparison.p95.regressed).toBe(false);
+      expect(comparison.p99.regressed).toBe(false);
+      expect(comparison.regressed).toBe(false);
+      // NaN 지표는 사람-친화 리포트에서 "n/a" 로 방어 렌더링(하위 primitive 위임 정합).
+      expect(report).toContain("n/a");
     });
   });
 });
