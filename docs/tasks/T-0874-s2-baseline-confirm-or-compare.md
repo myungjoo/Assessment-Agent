@@ -2,7 +2,7 @@
 id: T-0874
 title: S2 latency baseline confirm-or-compare 오케스트레이션 harness 신설 (confirmOrCompareBaseline)
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 135
