@@ -190,6 +190,17 @@ jobs:
         # (test/jest-e2e.json). T-0010 도입.
         run: pnpm test:e2e
 
+      - name: perf test
+        # CLAUDE.md §3.2 R-111 (모든 test 는 CI 자동 실행) / R-113 (smoke·e2e 외
+        # 추가 스위트도 CI 에서) 를 perf 스위트에도 적용. T-0855~T-0877 로 쌓인 30+
+        # perf-spec (191 test) 을 CI 로 강제한다 (기존엔 로컬 tester 만 실행 = 여러
+        # slice PR 에서 반복 지적된 standing MAJOR retire). T-0878 도입.
+        # 배치 근거: perf-spec 은 live NestJS app + PostgreSQL 위에서 부트하므로
+        # Prisma migrate deploy 및 DB 의존 e2e step 이후에 두어야 DB schema 가
+        # 준비된 상태에서 실행된다. unit(test:cov) / smoke / e2e 와 격리된 별도
+        # jest config (test/perf/jest-perf.json) 으로 독립 실행된다.
+        run: pnpm test:perf
+
       - name: reviewer agent approval 검증
         # CLAUDE.md §3.3 4-게이트 (b) 의 외부 자동 layer. PR event 일 때만 실행.
         # PR-5/6/7 reviewer 우회 패턴 (미 dispatch / 위장 / comment 누락) 자동 차단.
