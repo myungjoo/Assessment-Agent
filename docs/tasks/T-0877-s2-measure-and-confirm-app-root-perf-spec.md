@@ -2,8 +2,12 @@
 id: T-0877
 title: S2 measure→confirm-or-compare 첫 실 supertest 배선 perf-spec 신설 (app-root health-read + fs baseline round-trip)
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 771
+mergedAs: 103f5b3a
+reviewRounds: 1
+completedAt: 2026-07-10T04:57:00Z
 coversReq: [REQ-048]
 estimatedDiff: 200
 estimatedFiles: 3
