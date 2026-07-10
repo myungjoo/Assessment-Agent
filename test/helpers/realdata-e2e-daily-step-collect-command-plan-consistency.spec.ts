@@ -488,11 +488,12 @@ describe("assertRealDataDailyStepCollectCommandPlanConsistentWithGating", () => 
   });
 
   describe("credential 누출 0(§9 / REQ-059)", () => {
-    it("정합 run plan 통과 시 가드가 credential placeholder 를 어디에도 노출하지 않는다", () => {
+    it("정합 run plan 통과 후 컴포저 산출 plan(가드 통과 surface) 직렬화에 credential placeholder 가 없다", () => {
       const env = makeEnabledEnv();
       const plan = buildConsistent(env);
-      // 가드는 void — argv 는 jest 실행 인자(spec 경로 + config flag)만 담아 credential
-      // 미surface. plan 직렬화에 sentinel 이 없음을 박제.
+      // 가드 자체는 void 라 leak surface 가 없다 — 여기서 박제하는 건 가드가 통과시킨
+      // 컴포저 산출 plan 이다. argv 는 jest 실행 인자(spec 경로 + config flag)만 담고,
+      // plan 직렬화 전체에 credential sentinel 이 없음을 확인한다.
       assertRealDataDailyStepCollectCommandPlanConsistentWithGating(plan, env);
       const blob = JSON.stringify(plan);
       expect(blob).not.toMatch(
