@@ -470,6 +470,18 @@ collector 개별 배선이 아니라 measure→(최초 확정 write | 로드·�
   처럼 **요청 wrapper 레벨에서 인위 non-2xx status(500/503)를 주입**해 커버하며, mixed 부분
   실패(4회 중 1회 503 → failures===1)와 harness 가 body 형태에 무관함도 실증한다.
 
+fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서른-배치와 별개 종류):
+
+- `app-root-measure-confirm.perf-spec.ts` (T-0877) — top loop `measureAndConfirmBaseline` 을 실
+  `GET /api` 요청·임시 baseDir fs baseline round-trip 에 태운 **첫 fs+HTTP 통합 perf-spec**
+  (established 최초 확정 write + compared 로드·비교 양분기 실 실행, floor-case health-read).
+- `summary-measure-confirm.perf-spec.ts` (T-0880) — 위 top loop 를 실 조회 endpoint
+  `SummaryController` `GET /api/summaries?personId=<id>` 에 배선한 **두 번째 fs+HTTP 통합
+  perf-spec**. floor-case(app-root)와 달리 `JwtAuthGuard`/`RolesGuard` 두 가드를
+  `overrideGuard(...).useValue({ canActivate: () => true })` 로 통과시키고, **personId 부재
+  요청(실 400)** 이라는 SummaryController 고유 query-param 예외경로를 errorRate 위반 candidate
+  established write 로 추가 실증한다(§5 #2 S2 조회 경로 배선 이월분).
+
 - **DB 무의존**: service 를 mock 하고(guard 있는 controller 는 override 도) 실 Postgres
   round-trip·실 LLM·실 스케줄러·외부 I/O 가 없어 결정론적이다. 실 DB round-trip
   **baseline 실측**은 별도 follow-up (§5 item 5). 서른 spec 모두 collector 배선의
