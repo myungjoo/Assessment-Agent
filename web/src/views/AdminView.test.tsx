@@ -66,6 +66,9 @@ import AdminView, {
   runAssign,
   runExport,
   runImport,
+  runApply,
+  runTrigger,
+  deriveScheduleMessage,
   isAdminRole,
 } from './AdminView';
 import type {
@@ -76,6 +79,7 @@ import type {
   DownloadDeps,
   ExportDeps,
   ImportDeps,
+  ScheduleMutationDeps,
 } from './AdminView';
 
 // LLM 조회 두 path 의 기본 성공(빈 데이터) 상태 — 그룹 전용 test 가 LLM path 응답을 명시하지
@@ -1762,5 +1766,310 @@ describe('AdminView — Admin+ RBAC gating (④h 정적 렌더)', () => {
     expect(html).toContain('프론트팀');
     // Admin 전용 패널은 숨김.
     expect(html).not.toContain('aria-label="export 범위 선택"');
+  });
+});
+
+// ==========================================================================================
+// R-112 — T-0885 SchedulePanel 배선 검증. P6 deferred wiring 재개(PLAN line120/123). 다섯 번째
+// 패널 SchedulePanel 을 AdminView 컨테이너에 mount + GET/PUT /api/schedules + POST trigger 배선.
+// 렌더 test(정적 렌더 — 마운트/GET 상태/busy 억제/cron 값 흐름)와 순수 러너 test(runApply/
+// runTrigger — PUT/POST body·성공/실패·이중 발사 가드)로 happy/error/branch/negative 를 각 1+ cover.
+// ==========================================================================================
+
+const SCHEDULES = '/api/schedules';
+const SCHEDULE_TRIGGER = '/api/schedules/trigger';
+const DEFAULT_SCHEDULE = 'daily-evaluation';
+const APPLY_DONE = '스케줄 주기를 적용했습니다';
+const TRIGGER_DONE = '수동 실행을 시작했습니다';
+const SCHEDULE_LOADING = '스케줄 정보를 불러오는 중…';
+const NO_SCHEDULE = '등록된 스케줄이 없습니다';
+const SCHEDULE_BUSY_TEXT = '적용 중…'; // SchedulePanel 의 BUSY_TEXT(busy 우선 표시).
+const TRIGGER_LABEL = '지금 실행'; // SchedulePanel 의 manual trigger 버튼 기본 라벨.
+
+// GET /api/schedules 응답을 명시 주입하고 나머지 path 는 기존 default(그룹 EMPTY_OK, auth/me
+// ADMIN_ME_OK)로 두는 setter — 스케줄 렌더 test 용(Admin 등급 default 라 패널 마운트 보장).
+function setSchedules(state: ApiResourceState<unknown>) {
+  useApiResourceMock.mockImplementation((path: string) => {
+    if (path === SCHEDULES) {
+      return state;
+    }
+    if (path === AUTH_ME) {
+      return ADMIN_ME_OK;
+    }
+    return EMPTY_OK;
+  });
+}
+
+describe('AdminView — SchedulePanel 배선 렌더 (T-0885)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path(mount + GET) — GET 성공 시 SchedulePanel 이 실제 mount 되고(cron 입력 + 적용/실행
+  // 버튼), 등록 schedule name 목록이 message 로 요약 노출된다(미마운트→마운트 회귀 검증).
+  it('GET 성공 시 SchedulePanel 이 마운트되고 등록 스케줄 목록을 message 로 노출한다 (happy-path — mount+GET)', () => {
+    setSchedules({
+      data: [DEFAULT_SCHEDULE, 'weekly-report'],
+      loading: false,
+      error: undefined,
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 패널 마운트 — cron 주기 입력 label + manual trigger 버튼.
+    expect(html).toContain('cron 주기');
+    expect(html).toContain(TRIGGER_LABEL);
+    // 등록 스케줄 목록이 message(role="status")로 요약 노출.
+    expect(html).toContain(`등록된 스케줄: ${DEFAULT_SCHEDULE}, weekly-report`);
+    // 기존 패널 회귀 0 — 그룹 select 도 함께 렌더(추가만).
+    expect(html).toContain('aria-label="그룹 선택"');
+  });
+
+  // flow/branch(cron 값 흐름) — 컨테이너 cron state(initialCronExpression 주입)가 패널 입력 value
+  // 로 흐르고, onCronChange 배선으로 입력이 활성(비-readonly)이다(controlled lift-up 왕복 배선).
+  it('컨테이너 cron state 가 패널 입력 value 로 흐르고 onCronChange 배선으로 입력이 활성이다 (flow/branch — cron 변경 배선)', () => {
+    setSchedules({ data: [], loading: false, error: undefined });
+    const html = renderToStaticMarkup(
+      <AdminView initialCronExpression="0 9 * * *" />,
+    );
+    // 주입한 cron 값이 패널 입력 value 로 흐른다(컨테이너 → 패널 controlled).
+    expect(html).toContain('value="0 9 * * *"');
+    // onCronChange 가 배선돼 입력이 활성(readonly/disabled 미부착 = self-close 직후 종료).
+    expect(html).toContain('value="0 9 * * *"/>');
+    expect(html).not.toContain('readonly');
+  });
+
+  // flow/branch(빈 목록) — GET 이 빈 배열(등록 0 건)이어도 crash 없이 빈 상태 안내를 message 로
+  // 노출하고 패널은 정상 마운트(버튼 활성)한다.
+  it('GET 이 빈 배열이면 빈 상태 안내를 노출하고 패널은 정상 마운트한다 (flow/branch — 빈 스케줄 목록)', () => {
+    setSchedules({ data: [], loading: false, error: undefined });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain(NO_SCHEDULE);
+    // 빈 목록이어도 패널 컨트롤은 렌더(마운트 유지).
+    expect(html).toContain(TRIGGER_LABEL);
+  });
+
+  // negative(loading 초기) — GET 진행 중(loading=true) 초기 상태에서 crash 없이 로딩 안내를
+  // message 로 노출하고, busy=false 라 컨트롤은 정상 렌더(초기 loading 안전 렌더).
+  it('GET loading 초기 상태에서 crash 없이 로딩 안내를 노출하고 컨트롤을 렌더한다 (negative — loading 초기 렌더)', () => {
+    setSchedules({ data: undefined, loading: true, error: undefined });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain(SCHEDULE_LOADING);
+    // busy 는 mutation 전용이라 loading 중에도 컨트롤 노출(진행 표시 억제 아님).
+    expect(html).toContain(TRIGGER_LABEL);
+  });
+
+  // error path(GET 실패) — GET 403/실패 시 error props 로 패널이 alert 를 안전 표시한다(throw 없음).
+  it('GET 실패(403) 시 패널이 error alert 를 안전 표시한다 (error path — GET 실패)', () => {
+    setSchedules({
+      data: undefined,
+      loading: false,
+      error: 'HTTP 403: Forbidden',
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // busy=false + error truthy → 패널이 alert 분기 렌더(SchedulePanel 박제).
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('HTTP 403: Forbidden');
+    // error 분기라 cron 입력·버튼은 미렌더(패널이 alert 만).
+    expect(html).not.toContain('cron 주기');
+  });
+
+  // flow/branch(busy 억제) — apply/trigger in-flight(scheduleBusy=true) 중에는 패널이 진행 표시를
+  // 우선하고 입력·버튼을 억제한다(중복 트리거 원천 차단 — busy 우선 정책).
+  it('busy in-flight 중에는 진행 표시를 우선하고 컨트롤을 억제한다 (flow/branch — busy 억제)', () => {
+    setSchedules({ data: [DEFAULT_SCHEDULE], loading: false, error: undefined });
+    const html = renderToStaticMarkup(<AdminView initialScheduleBusy />);
+    // busy 우선 — 진행 문구만 렌더.
+    expect(html).toContain(SCHEDULE_BUSY_TEXT);
+    // manual trigger 버튼 억제(busy=true 면 컨트롤 미렌더 → 이중 트리거 차단).
+    expect(html).not.toContain(TRIGGER_LABEL);
+  });
+});
+
+// R-112 — T-0885 onApply 실 PUT mutation 본체(runApply) + onManualTrigger POST(runTrigger) 검증.
+// jsdom/렌더러 없이 mutation 본체를 직접 호출하고(④c runAssign / ④e runImport 동일 convention),
+// apiClient.request mock 으로 method/path/body 를 단언하며 성공/실패 분기 응답을 주입한다. 상태
+// 전이는 record harness 로 관찰한다. happy/error/branch/negative 예외 분기마다 각 1+ cover.
+describe('AdminView — onApply/onManualTrigger 실 mutation (T-0885 runApply/runTrigger)', () => {
+  // 상태 전이를 기록하는 deps harness — busy 초기값과 request mock 을 주입받아 setBusy/setError/
+  // setMessage 호출을 모두 캡처한다(makeExportDeps 동형).
+  function makeDeps(busy: boolean) {
+    const calls = {
+      busy: [] as boolean[],
+      error: [] as (string | undefined)[],
+      message: [] as (string | undefined)[],
+    };
+    const deps: ScheduleMutationDeps = {
+      request: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      busy,
+      setBusy: (next) => calls.busy.push(next),
+      setError: (next) => calls.error.push(next),
+      setMessage: (next) => calls.message.push(next),
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path(apply) — runApply 호출 시 request 가 PUT /api/schedules + body {name:<default>,
+  // cronExpression} 로 정확히 호출되고, 성공 후 완료 message 가 설정되며 busy on→off 순서.
+  it('PUT /api/schedules 를 default name + cron 식 body 로 호출하고 성공 시 완료 message (happy-path — apply)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps, calls } = makeDeps(false);
+    await runApply('0 9 * * *', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock).toHaveBeenCalledWith(SCHEDULES, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: DEFAULT_SCHEDULE,
+        cronExpression: '0 9 * * *',
+      }),
+    });
+    // 성공 → 시작 시 message 비움(undefined) + 완료 안내 설정.
+    expect(calls.message).toEqual([undefined, APPLY_DONE]);
+    // busy on→off + error 비움(실패 문구 미설정).
+    expect(calls.busy).toEqual([true, false]);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // happy-path(trigger) — runTrigger 호출 시 request 가 POST /api/schedules/trigger(body 없음)로
+  // 호출되고 성공 후 완료 message 설정.
+  it('POST /api/schedules/trigger 를 body 없이 호출하고 성공 시 완료 message (happy-path — trigger)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps, calls } = makeDeps(false);
+    await runTrigger(deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock).toHaveBeenCalledWith(SCHEDULE_TRIGGER, {
+      method: 'POST',
+    });
+    expect(calls.message).toEqual([undefined, TRIGGER_DONE]);
+    expect(calls.busy).toEqual([true, false]);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // error path(apply 400) — 유효하지 않은 cron 식 400 시 안전 문구 표면화(throw 없음) + message 미설정.
+  it('PUT 400(유효하지 않은 cron 식) 실패 시 안전 문구를 표면화한다 (error path — apply 400)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'invalid cron expression'));
+    const { deps, calls } = makeDeps(false);
+    await expect(runApply('bad cron', deps)).resolves.toBeUndefined();
+    // 시작 message 비움만 + 완료 미설정, error 문구 표면화.
+    expect(calls.message).toEqual([undefined]);
+    expect(calls.error).toEqual([undefined, 'HTTP 400: invalid cron expression']);
+    expect(calls.busy).toEqual([true, false]);
+  });
+
+  // error path(apply 403) — Admin+ 미만 403 도 동일 안전 경로로 문구 표면화(throw 없음).
+  it('PUT 403(Admin+ 미만) 실패 시 안전 문구를 표면화한다 (error path — apply 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeDeps(false);
+    await expect(runApply('0 9 * * *', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+  });
+
+  // error path(apply 네트워크) — 네트워크 실패(ApiError 0) 시 네트워크 오류 문구(throw 없음).
+  it('PUT 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — apply 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeDeps(false);
+    await expect(runApply('0 9 * * *', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+  });
+
+  // error path(trigger 실패) — POST trigger 500 실패 시 안전 문구 표면화(throw 없음).
+  it('POST trigger 500 실패 시 안전 문구를 표면화한다 (error path — trigger 실패)', async () => {
+    requestMock.mockRejectedValue(new ApiError(500, 'boom'));
+    const { deps, calls } = makeDeps(false);
+    await expect(runTrigger(deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(calls.busy).toEqual([true, false]);
+  });
+
+  // negative(빈 cron apply) — 빈/falsy cronExpression 으로 apply 시 PUT 미발사(발사 억제 구현 택1).
+  it('빈 cronExpression 으로 apply 시 PUT 을 발사하지 않는다 (negative — 빈 cron 발사 억제)', async () => {
+    const empty = makeDeps(false);
+    await runApply('', empty.deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    // 어떤 state 전이도 없음(가드로 즉시 return).
+    expect(empty.calls.busy).toEqual([]);
+    expect(empty.calls.message).toEqual([]);
+  });
+
+  // negative(apply 이중 발사 가드) — 이전 apply/trigger 미완(busy=true) 중 재호출은 PUT 미발사.
+  it('busy(in-flight) 중 apply 재호출은 PUT 을 발사하지 않는다 (negative — apply 이중 발사 가드)', async () => {
+    const { deps, calls } = makeDeps(true); // 이미 in-flight.
+    await runApply('0 9 * * *', deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.busy).toEqual([]);
+  });
+
+  // negative(trigger 이중 발사 가드) — busy=true 중 trigger 재호출은 POST 미발사.
+  it('busy(in-flight) 중 trigger 재호출은 POST 를 발사하지 않는다 (negative — trigger 이중 발사 가드)', async () => {
+    const { deps, calls } = makeDeps(true);
+    await runTrigger(deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.busy).toEqual([]);
+  });
+
+  // flow/branch(진행 해제) — 성공·실패 어느 경우든 busy 가 finally 로 해제됨(중복 트리거 방지 불변).
+  it('성공·실패 어느 경우든 busy 가 finally 로 해제된다 (flow/branch — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeDeps(false);
+    await runApply('0 9 * * *', ok.deps);
+    expect(ok.calls.busy).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(400, 'bad'));
+    const fail = makeDeps(false);
+    await runApply('0 9 * * *', fail.deps);
+    expect(fail.calls.busy).toEqual([true, false]);
+  });
+});
+
+// R-112 — T-0885 신규 순수 helper(deriveScheduleMessage) 검증. mutation 우선 / loading / 빈 목록
+// / 이름 목록 요약 / 비배열 안전 처리 등 분기를 각 1+ cover(negative 예외 분기마다).
+describe('AdminView — deriveScheduleMessage (순수 함수, T-0885)', () => {
+  it('mutation 완료 안내가 있으면 GET 상태보다 우선한다 (branch — mutation 우선)', () => {
+    // apply/trigger 완료 안내가 최신 피드백이라 목록·loading 보다 우선.
+    expect(deriveScheduleMessage(['a', 'b'], false, APPLY_DONE)).toBe(APPLY_DONE);
+    expect(deriveScheduleMessage(undefined, true, TRIGGER_DONE)).toBe(
+      TRIGGER_DONE,
+    );
+  });
+
+  it('mutation 없고 loading 중이면 로딩 안내를 낸다 (branch — loading)', () => {
+    expect(deriveScheduleMessage(undefined, true, undefined)).toBe(
+      SCHEDULE_LOADING,
+    );
+  });
+
+  it('등록 1+ 건이면 이름 목록을 요약한다 (happy)', () => {
+    expect(deriveScheduleMessage([DEFAULT_SCHEDULE], false, undefined)).toBe(
+      `등록된 스케줄: ${DEFAULT_SCHEDULE}`,
+    );
+    expect(deriveScheduleMessage(['a', 'b', 'c'], false, undefined)).toBe(
+      '등록된 스케줄: a, b, c',
+    );
+  });
+
+  it('빈 배열/비배열/undefined 는 빈 상태 안내를 낸다 (negative — 빈/비정상 입력)', () => {
+    expect(deriveScheduleMessage([], false, undefined)).toBe(NO_SCHEDULE);
+    expect(deriveScheduleMessage(undefined, false, undefined)).toBe(NO_SCHEDULE);
+    expect(
+      deriveScheduleMessage(null as unknown as string[], false, undefined),
+    ).toBe(NO_SCHEDULE);
   });
 });

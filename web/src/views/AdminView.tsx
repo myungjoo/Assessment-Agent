@@ -30,6 +30,11 @@ import type {
 // 컴포넌트는 수정 0 으로 named import 만(ADR-0041 Decision 1 — 패널은 fetch 를 모른다).
 import DataImportExportPanel from '../components/DataImportExportPanel';
 import type { DataImportExportPanelProps } from '../components/DataImportExportPanel';
+// T-0885 — P6 deferred wiring 재개(PLAN line120/123). 다섯 번째 패널 SchedulePanel export
+// 배선. presentational 컴포넌트는 수정 0 으로 default import 만(ADR-0041 Decision 1 — 패널은
+// fetch 를 모른다). backend 계약(P7 @Controller("api/schedules"), ADR-0042)이 shipped 되어
+// defer 사유 해소.
+import SchedulePanel from '../components/SchedulePanel';
 
 // 그룹 목록 조회 path — 고정 endpoint(GET /api/groups, api.md 81 User+). personId 같은
 // 필수 query 가 없어 무조건 조회한다(미인증은 AuthGate 가 이미 차단). DashboardView 의
@@ -155,6 +160,30 @@ const IMPORT_FILE_FIELD = 'file';
 // 호출 성공 사실만 표면화한다(응답 형태 미확정이라 단순 완료 문구로 둔다 — EXPORT_DONE_TEXT 동형).
 const IMPORT_DONE_TEXT = '가져오기 완료';
 
+// 스케줄 조회/upsert path — 고정 endpoint(GET/PUT /api/schedules, ADR-0042 Admin+). GET 은
+// 등록된 schedule name string[] 을 반환하고, PUT 은 `{ name, cronExpression }` body 로 이름
+// 붙은 cron 주기를 등록/교체한다(T-0885). Admin+ 라 User 등급은 403 — 그 403 은 error props
+// 로 안전 표시(throw 없음). personId 같은 필수 query 가 없어 무조건 조회한다.
+const SCHEDULES_PATH = '/api/schedules';
+// manual trigger path — 고정 endpoint(POST /api/schedules/trigger, ADR-0042 Admin+, 202
+// Accepted, body 없음). cron 주기와 무관하게 즉시 1회 평가를 발화하는 수동 trigger(R-73).
+const SCHEDULE_TRIGGER_PATH = '/api/schedules/trigger';
+// PUT body 에 공급할 단일 default schedule name 상수(T-0885). SchedulePanel 은 cronExpression
+// 만 노출하고 name 은 노출하지 않으므로, 본 컨테이너가 단일 default name 1 개를 upsert 대상으로
+// 고정한다(다중-named schedule 관리 UI 는 Out of Scope / Follow-up).
+const DEFAULT_SCHEDULE_NAME = 'daily-evaluation';
+// apply(PUT) 성공 시 SchedulePanel 의 message props 로 내려보낼 사람-친화 완료 안내.
+const APPLY_DONE_TEXT = '스케줄 주기를 적용했습니다';
+// manual trigger(POST) 성공 시 message props 로 내려보낼 사람-친화 완료 안내.
+const TRIGGER_DONE_TEXT = '수동 실행을 시작했습니다';
+// 스케줄 목록 조회(GET) 진행 중 표시할 안내 문구 — busy(적용/실행 in-flight)가 아닌 정상
+// 상태에서 message props 로 내려보낸다(초기 loading 안전 표시 — crash 없이).
+const SCHEDULE_LOADING_TEXT = '스케줄 정보를 불러오는 중…';
+// 등록된 스케줄이 0 건일 때 표시할 빈 상태 안내 문구(GET 이 빈 배열 반환 — seed 전 정상).
+const NO_SCHEDULE_TEXT = '등록된 스케줄이 없습니다';
+// 등록 스케줄 목록을 message 로 요약할 때 붙일 접두 문구(예: "등록된 스케줄: daily-evaluation").
+const SCHEDULE_LIST_PREFIX = '등록된 스케줄: ';
+
 // 그룹 미선택 시 멤버 패널에 노출할 안내 문구 — 그룹을 고르면 그 멤버가 표시됨을 안내한다.
 const NO_GROUP_SELECTED_TEXT = '그룹을 선택하면 인원이 표시됩니다';
 // 그룹 선택 <select> 의 빈 선택지 라벨 — selectedGroupId 미선택 시 첫 옵션으로 노출한다.
@@ -220,6 +249,12 @@ interface AdminViewProps {
   // 초기 선택 그룹 id(선택) — renderToStaticMarkup 정적 검증을 위해 초기값 주입을 허용한다
   // (③a~③b-3 의 initial* 주입 패턴 정합). 미주입 시 그룹 미선택(빈 멤버 안내) 으로 시작한다.
   initialSelectedGroupId?: string;
+  // 초기 cron 식 입력값(선택, T-0885) — 위 initialSelectedGroupId 와 동일한 정적 검증용 초기값
+  // 주입 affordance. 미주입 시 빈 cron 입력으로 시작한다(controlled lift-up — 컨테이너 소유).
+  initialCronExpression?: string;
+  // 초기 스케줄 busy 상태(선택, T-0885) — apply/trigger in-flight 시 SchedulePanel 이 진행 표시로
+  // 컨트롤을 억제하는 분기를 정적 렌더로 검증하기 위한 초기값 주입 affordance. 미주입 시 false.
+  initialScheduleBusy?: boolean;
 }
 
 // 등급 문자열 → Admin+ 여부 파생(순수 helper, ④h). backend role enum(api.md 71 —
@@ -576,10 +611,126 @@ async function runImport(file: File, deps: ImportDeps): Promise<void> {
   }
 }
 
+// SchedulePanel 의 apply(PUT)·manual trigger(POST) mutation + state-전이 로직에 주입하는 deps
+// (T-0885 — ④c runAssign / ④e runImport 의 *Deps 주입 convention 차용. jsdom/렌더러 없이
+// mutation 본체를 직접 검증한다). apply·trigger 는 SchedulePanel 의 단일 busy 슬롯을 공유하므로
+// (패널이 busy=true 면 두 컨트롤 모두 억제) 하나의 busy 플래그·error·message setter 를 공유한다.
+interface ScheduleMutationDeps {
+  // mutation 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  request: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 apply/trigger in-flight 여부 — true 면 미발사(동시 재호출·이중 발사 가드).
+  busy: boolean;
+  setBusy: (next: boolean) => void;
+  setError: (next: string | undefined) => void;
+  setMessage: (next: string | undefined) => void;
+}
+
+// onApply 의 PUT /api/schedules + state-전이 로직을 캡슐화한 순수 async 러너(T-0885 — runImport
+// 캡슐화 패턴 차용). 컨테이너의 handleApply 는 이 러너에 현재 cron 입력값과 in-flight 여부(busy)·
+// 상태 setter 를 주입해 호출만 한다. 동작:
+//  - 빈/falsy cronExpression → 미발사(빈 값으로 apply 시 잘못된 body·400 회피 — 발사 억제 택1).
+//  - busy(이전 apply/trigger 미완) → 미발사(이중 PUT·state 경합 차단 — runImport importing 가드 동형).
+//  - 발사 시 진행 on + 이전 error·message 비움 → PUT `{ name: <default 상수>, cronExpression }` →
+//    성공(완료 message 설정) / 실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
+async function runApply(
+  cronExpression: string,
+  deps: ScheduleMutationDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/falsy cron 식은 PUT 미발사(잘못된 body 회피 — 발사 억제 구현 택1).
+  if (!cronExpression) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 apply/trigger 미완 중이면 미발사(이중 PUT·state 경합 차단).
+  if (deps.busy) {
+    return;
+  }
+  deps.setBusy(true);
+  // 재발화 시작 시 직전 error·message 를 비운다(실패 후 재시도 시 직전 error 정리 + 직전 완료
+  // 안내 정리 — 새 apply 의 진행 표시만 남도록, runImport 의 시작 정리 동형).
+  deps.setError(undefined);
+  deps.setMessage(undefined);
+  try {
+    // PUT /api/schedules — 단일 default schedule name + 현재 cron 입력값을 body 로 전송. name 은
+    // SchedulePanel 이 노출하지 않으므로 컨테이너가 default 상수를 공급한다(다중-named 관리는 후속).
+    await deps.request(SCHEDULES_PATH, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: DEFAULT_SCHEDULE_NAME,
+        cronExpression,
+      }),
+    });
+    // 성공 — 사람-친화 완료 안내를 message 로 표면화(SchedulePanel 의 정상 message 분기).
+    deps.setMessage(APPLY_DONE_TEXT);
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 400 유효하지
+    // 않은 cron 식·빈 name / 404 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생.
+    deps.setError(deps.describeError(e));
+  } finally {
+    deps.setBusy(false);
+  }
+}
+
+// onManualTrigger 의 POST /api/schedules/trigger + state-전이 로직을 캡슐화한 순수 async 러너
+// (T-0885 — runApply 동형, body 없는 202 Accepted fire-and-forget). 컨테이너의 handleTrigger 는
+// 이 러너에 in-flight 여부(busy)·상태 setter 를 주입해 호출만 한다. 동작:
+//  - busy(이전 apply/trigger 미완) → 미발사(이중 POST·state 경합 차단).
+//  - 발사 시 진행 on + 이전 error·message 비움 → POST(body 없음) → 성공(완료 message 설정) /
+//    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
+async function runTrigger(deps: ScheduleMutationDeps): Promise<void> {
+  // 동시 재호출 가드 — 이전 apply/trigger 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.busy) {
+    return;
+  }
+  deps.setBusy(true);
+  deps.setError(undefined);
+  deps.setMessage(undefined);
+  try {
+    // POST /api/schedules/trigger — body 없는 fire-and-forget(202 Accepted). 응답 body 를
+    // 소비하지 않으므로 성공 사실만 확인한다(수동 실행 시작 안내).
+    await deps.request(SCHEDULE_TRIGGER_PATH, { method: 'POST' });
+    // 성공 — 사람-친화 완료 안내를 message 로 표면화.
+    deps.setMessage(TRIGGER_DONE_TEXT);
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 / 404 / 비-2xx / 네트워크 0 모두.
+    deps.setError(deps.describeError(e));
+  } finally {
+    deps.setBusy(false);
+  }
+}
+
+// 등록 schedule name 목록 → SchedulePanel 의 message props 로 내려보낼 안내 문구 파생(순수
+// helper, T-0885). 사용자 조작 결과(mutationMessage: apply/trigger 완료 안내)가 있으면 그것을
+// 우선하고(최신 피드백), 없으면 GET 상태를 파생한다: loading 중이면 로딩 안내, 등록 0 건이면
+// 빈 상태 안내, 1+ 건이면 이름 목록 요약("등록된 스케줄: a, b"). 비배열/undefined 입력도 빈
+// 배열로 간주해 throw 없이 빈 상태 안내를 낸다(안전 처리).
+function deriveScheduleMessage(
+  names: string[] | undefined,
+  loading: boolean,
+  mutationMessage: string | undefined,
+): string {
+  if (mutationMessage) {
+    return mutationMessage;
+  }
+  if (loading) {
+    return SCHEDULE_LOADING_TEXT;
+  }
+  if (!Array.isArray(names) || names.length === 0) {
+    return NO_SCHEDULE_TEXT;
+  }
+  return `${SCHEDULE_LIST_PREFIX}${names.join(', ')}`;
+}
+
 // Admin 화면 컨테이너. useApiResource 로 GET /api/groups 결과를 소유하고, 선택 그룹 상태를
 // useState 로 보유해 선택 그룹의 멤버를 client-side 파생 후 GroupMemberList 에 props 로
 // 내려보낸다(controlled lift-up — GroupMemberList 는 fetch 를 모른다, ADR-0041 Decision 1).
-function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
+function AdminView({
+  initialSelectedGroupId = '',
+  initialCronExpression = '',
+  initialScheduleBusy = false,
+}: AdminViewProps) {
   // 선택 그룹 상태 — controlled lift-up(컨테이너 소유). <select> 선택이 이 값을 갱신한다.
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
     initialSelectedGroupId,
@@ -812,6 +963,91 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
     message: exportMessage ?? importMessage,
   };
 
+  // === 스케줄 패널 배선(T-0885) — 다섯 번째 패널 ==========================================
+  // cron 식 입력 상태 — controlled lift-up(컨테이너 소유). SchedulePanel 의 onCronChange 가
+  // 이 값을 갱신하고, handleApply 가 PUT body 의 cronExpression 으로 공급한다.
+  const [cronExpression, setCronExpression] =
+    useState<string>(initialCronExpression);
+
+  // apply/trigger in-flight 플래그 — SchedulePanel 이 단일 busy 슬롯으로 두 컨트롤을 억제하므로
+  // (busy=true 면 입력·버튼 미렌더 → 중복 트리거 원천 차단) 하나의 busy 상태를 공유한다. 진행 표시
+  // (busy 우선)와 이중 발사 가드(runApply/runTrigger 의 busy 가드)에 함께 쓴다(④d exporting 동형).
+  const [scheduleBusy, setScheduleBusy] = useState<boolean>(initialScheduleBusy);
+
+  // apply/trigger 완료 안내 문구 — 성공 시 사람-친화 완료 안내를 보관해 message props 로 표시한다.
+  // 재발화 시작·실패 시 비운다(④d exportMessage 동형). GET 파생 안내보다 우선(최신 피드백).
+  const [scheduleMessage, setScheduleMessage] = useState<string | undefined>(
+    undefined,
+  );
+
+  // apply/trigger 실패 문구 — 실패 시 사람-친화 문구(toErrorMessage 파생)를 보관해 error props 로
+  // 안전 표시한다(throw 없음). 재발화 시작 시 비운다(④d exportError 동형).
+  const [scheduleError, setScheduleError] = useState<string | undefined>(
+    undefined,
+  );
+
+  // 등록 스케줄 목록 조회(GET /api/schedules, Admin+) — useApiResource 다섯 번째 호출. 응답
+  // string[](등록 schedule name 목록)·loading·error 를 컨테이너가 받아 message/error props 로
+  // 내려보낸다(Decision 1 — 패널은 fetch 를 모른다). Admin+ 라 User 는 403→error props 안전 표시.
+  const {
+    data: scheduleData,
+    loading: scheduleLoading,
+    error: scheduleGetError,
+  } = useApiResource<string[]>(SCHEDULES_PATH);
+
+  // SchedulePanel 로 내려보낼 안내 message 파생 — apply/trigger 완료 안내 우선, 없으면 GET 상태
+  // (loading/빈 목록/이름 목록 요약)를 파생한다(deriveScheduleMessage). 초기 loading 도 안전 안내.
+  const schedulePanelMessage = useMemo(
+    () =>
+      deriveScheduleMessage(scheduleData, scheduleLoading, scheduleMessage),
+    [scheduleData, scheduleLoading, scheduleMessage],
+  );
+
+  // SchedulePanel 로 내려보낼 error 파생 — mutation 실패(scheduleError)를 최우선 노출하고(방금
+  // 사용자가 한 apply/trigger 의 실패가 가장 최신 피드백), 없으면 GET 실패(scheduleGetError)를
+  // 표시한다. 둘 다 없으면 undefined. Admin+ 미만 403 도 이 경로로 안전 표시(throw 없음). busy 중
+  // 에는 패널이 error 를 무시하고 진행 표시를 우선한다(busy 우선 정책).
+  const schedulePanelError = scheduleError ?? scheduleGetError;
+
+  // onApply 실 핸들러(T-0885) — apply PUT 을 컨테이너 내부 async 로 발사한다(runImport 정합 —
+  // useApiResource 는 read-on-mount 라 클릭 발화에 부적합). 빈 cron 식 발사 억제 + 이중 발사 가드 +
+  // 성공/실패 message·error 전이는 runApply 가 캡슐화한다. busy 를 deps 의존성에 포함해 stale 가드
+  // 방지, cronExpression 을 포함해 최신 입력값을 발사한다.
+  const handleApply = useCallback(
+    () =>
+      runApply(cronExpression, {
+        request,
+        describeError: toErrorMessage,
+        busy: scheduleBusy,
+        setBusy: setScheduleBusy,
+        setError: setScheduleError,
+        setMessage: setScheduleMessage,
+      }),
+    [cronExpression, scheduleBusy],
+  );
+
+  // onManualTrigger 실 핸들러(T-0885) — manual trigger POST 를 컨테이너 내부 async 로 발사한다.
+  // 이중 발사 가드 + 성공/실패 전이는 runTrigger 가 캡슐화한다(body 없는 202 Accepted).
+  const handleManualTrigger = useCallback(
+    () =>
+      runTrigger({
+        request,
+        describeError: toErrorMessage,
+        busy: scheduleBusy,
+        setBusy: setScheduleBusy,
+        setError: setScheduleError,
+        setMessage: setScheduleMessage,
+      }),
+    [scheduleBusy],
+  );
+
+  // cron 식 변경 — SchedulePanel 의 cron 입력이 값을 컨테이너 상태로 올린다(controlled lift-up).
+  // 그룹 선택 handleSelectChange 동형. SchedulePanel 은 이 값의 저장처를 모른다(Decision 1).
+  const handleCronChange = useCallback((value: string) => {
+    setCronExpression(value);
+  }, []);
+  // === /스케줄 패널 배선(T-0885) =========================================================
+
   // 그룹 선택 변경 — <select> 가 선택 그룹 id 를 컨테이너 상태로 올린다(빈 값 선택 시 미선택
   // 으로 되돌려 멤버 빈 상태로 표시). GroupMemberList 는 선택 상호작용을 모른다(Decision 1).
   const handleSelectChange = (event: { target: { value: string } }) => {
@@ -895,6 +1131,23 @@ function AdminView({ initialSelectedGroupId = '' }: AdminViewProps) {
               /api/admin/import 로 multipart FormData 전송(④e). scope query 부착은 컨테이너 책임 —
               패널 props 계약 불변(④g). 컴포넌트 수정 0. */}
           <DataImportExportPanel {...importExportPanelProps} />
+          {/* 스케줄 설정(다섯 번째 패널, T-0885 — P6 deferred wiring 재개) — cron 주기 지정(R-72)·
+              manual trigger(R-73)의 콜백·진행·결과·실패를 컨테이너가 소유하고, 패널은 cronExpression·
+              onCronChange·onApply·onManualTrigger·busy·error·message props 만 소비한다(ADR-0041
+              Decision 1 — 패널은 fetch 를 모른다). onCronChange/onApply/onManualTrigger 배선으로
+              입력·버튼이 활성화된다(콜백 미전달 시 패널이 비활성 렌더). apply 는 PUT /api/schedules
+              (단일 default name + cron 식), trigger 는 POST /api/schedules/trigger(body 없음). GET
+              /api/schedules 목록·loading 은 message 로, GET 실패·mutation 실패는 error 로 합성해
+              내려보낸다(schedulePanelMessage/schedulePanelError). 컴포넌트 수정 0. */}
+          <SchedulePanel
+            cronExpression={cronExpression}
+            onCronChange={handleCronChange}
+            onApply={handleApply}
+            onManualTrigger={handleManualTrigger}
+            busy={scheduleBusy}
+            error={schedulePanelError}
+            message={schedulePanelMessage}
+          />
         </>
       ) : (
         // 비-Admin(또는 등급 불명/조회 중) — Admin 전용 패널 대신 권한 부족 안내 한 줄(fail-closed).
@@ -917,6 +1170,9 @@ export {
   runAssign,
   runExport,
   runImport,
+  runApply,
+  runTrigger,
+  deriveScheduleMessage,
   isAdminRole,
 };
 export type {
@@ -930,5 +1186,6 @@ export type {
   DownloadDeps,
   ExportDeps,
   ImportDeps,
+  ScheduleMutationDeps,
 };
 export default AdminView;
