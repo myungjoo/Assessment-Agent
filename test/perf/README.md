@@ -93,7 +93,10 @@ orchestration 로직(DB·네트워크 무의존, clock 주입으로 결정론적
   빈/공백 → `RangeError`, 존재 분기 파일부재 → `ENOENT` 계열·내용불량 → `SyntaxError`/`TypeError`·
   tolerance 무효 → `RangeError`). **관찰·리포트 전용** — 회귀는 `comparison.regressed`(존재 분기)로
   노출만 하고 **throw 하지 않는다**(회귀 강제는 호출측 책임). import 방향 collector→io(순환 없음),
-  신규 dep 0. 실 supertest 배선은 §5 #2 별도 slice(Out of Scope).
+  신규 dep 0. **실 supertest 배선**은 `app-root-measure-confirm.perf-spec.ts`(T-0877, §5 #2)가
+  담당한다 — 이 spec 이 본 top loop 를 실 `GET /api` HTTP 요청·임시 baseDir fs baseline
+  round-trip 에 태운 **첫 fs+HTTP 통합 perf-spec**(established 최초 확정 write + compared 로드·
+  비교 양분기 실 실행)이다. CI job 편입(§5 #4)·실 baseline JSON repo 체크인(§5 #5)은 별도 slice.
 
 ```ts
 import { collectLatencySamples, assertS2Threshold } from "./latency-collector";
@@ -104,10 +107,14 @@ expect(assertS2Threshold(r).pass).toBe(true);
 
 ## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read` / `cron-schedule-read` / `export-running-read` / `import-running-read` / `auth-me-read` / `summary-detail-read` / `group-detail-read` / `assessment-detail-read` / `person-detail-read` / `part-detail-read` / `contribution-detail-read` / `user-detail-read` / `llm-provider-config-detail-read` / `export-detail-read` / `import-detail-read` / `group-persons-read` / `part-persons-read` / `export-status-view-read` / `import-modes-read` / `export-download-read` / `app-root-read`)
 
-collector 를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재 서른 개다. 서른 다
-`Test.createTestingModule` 로 대상 controller + **mocked service** 를 부트스트랩하고,
-`collectLatencySamples(() => request(app.getHttpServer()).get(...), N)` 로 반복 호출해
-표본을 수집하고 `assertS2Threshold(result).pass` 를 검증한다. `summary-read`·
+collector(`collectLatencySamples`)를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재
+서른 개다. 서른 다 `Test.createTestingModule` 로 대상 controller + **mocked service** 를
+부트스트랩하고, `collectLatencySamples(() => request(app.getHttpServer()).get(...), N)` 로 반복
+호출해 표본을 수집하고 `assertS2Threshold(result).pass` 를 검증한다. 이 서른에 더해, top loop
+`measureAndConfirmBaseline` 을 실 `GET /api` 요청·임시 baseDir fs baseline round-trip 에 태운
+**서른한 번째** perf-spec `app-root-measure-confirm.perf-spec.ts`(T-0877)가 있다 — 이는
+collector 개별 배선이 아니라 measure→(최초 확정 write | 로드·비교) 전체 loop 를 실 fs 위에서
+실증하는 **첫 fs+HTTP 통합 perf-spec** 이라 아래 서른-배치와 별개 종류로 분류한다(§5 #2). `summary-read`·
 `user-read`·`permission-denied-read`·`llm-provider-config-read`·`difficulty-mapping-read`·
 `cron-schedule-read`·`export-running-read`·`import-running-read` 는 `JwtAuthGuard`/
 `RolesGuard` 두 가드가 부착된 controller 라 둘 다
