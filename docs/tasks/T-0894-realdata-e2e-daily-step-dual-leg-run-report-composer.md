@@ -2,7 +2,11 @@
 id: T-0894
 title: realdata-e2e daily-test eval↔collect 두 leg jest run outcome → dual-leg run report 순수 컴포저 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-10T20:28:00Z
+mergedAs: f89244f8
+prNumber: 788
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 290
