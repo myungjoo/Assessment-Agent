@@ -2,7 +2,11 @@
 id: T-0886
 title: ReEvaluationTriggerPanel 을 AdminView 에 배선 (POST /api/schedules/recent-deletion/:personId 컨테이너) — P6 deferred wiring 완결
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 532df2d3
+prNumber: 780
+reviewRounds: 1
+completedAt: 2026-07-10T15:20:00Z
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 240
