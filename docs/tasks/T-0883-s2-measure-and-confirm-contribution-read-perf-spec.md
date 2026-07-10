@@ -2,8 +2,12 @@
 id: T-0883
 title: S2 measure→confirm-or-compare 를 실 조회 endpoint(ContributionController GET /api/contributions?assessmentId)에 배선하는 네 번째 통합 perf-spec 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 777
+mergedAs: 43929cd2
+reviewRounds: 1
+completedAt: 2026-07-10T13:03:24Z
 coversReq: [REQ-048]
 estimatedDiff: 300
 estimatedFiles: 2
