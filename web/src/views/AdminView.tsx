@@ -35,6 +35,13 @@ import type { DataImportExportPanelProps } from '../components/DataImportExportP
 // fetch 를 모른다). backend 계약(P7 @Controller("api/schedules"), ADR-0042)이 shipped 되어
 // defer 사유 해소.
 import SchedulePanel from '../components/SchedulePanel';
+// T-0886 — P6 deferred wiring 완결(PLAN line120/123). 여섯 번째 패널 ReEvaluationTriggerPanel
+// export 배선. presentational 컴포넌트는 수정 0 으로 default import 만(ADR-0041 Decision 1 —
+// 패널은 fetch 를 모른다). backend 계약(POST /api/schedules/recent-deletion/:personId, Admin+,
+// ADR-0038 reeval chain / RecentDeletionController)이 shipped 되어 defer 사유 해소. T-0885
+// (SchedulePanel) 의 짝.
+import ReEvaluationTriggerPanel from '../components/ReEvaluationTriggerPanel';
+import type { ReEvaluationWindow } from '../components/ReEvaluationTriggerPanel';
 
 // 그룹 목록 조회 path — 고정 endpoint(GET /api/groups, api.md 81 User+). personId 같은
 // 필수 query 가 없어 무조건 조회한다(미인증은 AuthGate 가 이미 차단). DashboardView 의
@@ -184,6 +191,18 @@ const NO_SCHEDULE_TEXT = '등록된 스케줄이 없습니다';
 // 등록 스케줄 목록을 message 로 요약할 때 붙일 접두 문구(예: "등록된 스케줄: daily-evaluation").
 const SCHEDULE_LIST_PREFIX = '등록된 스케줄: ';
 
+// 재수집 window 후보 목록(frontend-local 상수, T-0886 — EXPORT_SCOPE_OPTIONS 동형). 선택 가능한
+// 최근 N일 재수집 기간(예: 최근 1일/1주/30일). backend 는 body.days 로 받는다(RecentDeletionDto 의
+// 선택 양수 정수 days). days 는 backend body 값이자 panel selectedDays 매칭 값, label 은 사람-친화
+// 한국어. api 계약에 window enum 이 없으므로(days 자유 정수) 보편 후보를 frontend-local 로 둔다.
+const REEVAL_WINDOW_OPTIONS: ReEvaluationWindow[] = [
+  { days: 1, label: '최근 1일' },
+  { days: 7, label: '최근 1주' },
+  { days: 30, label: '최근 30일' },
+];
+// 재평가 person 선택 <select> 의 빈 선택지 라벨 — selectedPersonId 미선택 시 첫 옵션으로 노출한다.
+const NO_PERSON_SELECTION_LABEL = '인원을 선택하세요';
+
 // 그룹 미선택 시 멤버 패널에 노출할 안내 문구 — 그룹을 고르면 그 멤버가 표시됨을 안내한다.
 const NO_GROUP_SELECTED_TEXT = '그룹을 선택하면 인원이 표시됩니다';
 // 그룹 선택 <select> 의 빈 선택지 라벨 — selectedGroupId 미선택 시 첫 옵션으로 노출한다.
@@ -255,6 +274,15 @@ interface AdminViewProps {
   // 초기 스케줄 busy 상태(선택, T-0885) — apply/trigger in-flight 시 SchedulePanel 이 진행 표시로
   // 컨트롤을 억제하는 분기를 정적 렌더로 검증하기 위한 초기값 주입 affordance. 미주입 시 false.
   initialScheduleBusy?: boolean;
+  // 초기 선택 person id(선택, T-0886) — 정적 렌더 검증용 초기값 주입 affordance(initialSelectedGroupId
+  // 동형). 미주입 시 person 미선택으로 시작한다(controlled lift-up — 컨테이너 소유).
+  initialSelectedPersonId?: string;
+  // 초기 선택 재수집 window days(선택, T-0886) — 정적 렌더 검증용. 미주입 시 0(windows 미매칭 →
+  // ReEvaluationTriggerPanel 이 placeholder 로 fallback + 트리거 버튼 비활성 — 경계값 안전).
+  initialSelectedDays?: number;
+  // 초기 재평가 submitting 상태(선택, T-0886) — 재평가 in-flight 시 패널이 진행 표시로 컨트롤을
+  // 억제하는 분기를 정적 렌더로 검증하기 위한 초기값 주입 affordance. 미주입 시 false.
+  initialReevalSubmitting?: boolean;
 }
 
 // 등급 문자열 → Admin+ 여부 파생(순수 helper, ④h). backend role enum(api.md 71 —
@@ -723,6 +751,74 @@ function deriveScheduleMessage(
   return `${SCHEDULE_LIST_PREFIX}${names.join(', ')}`;
 }
 
+// 재평가(최근 N일 delete→재수집) 트리거 path 빌더(순수 helper, T-0886) — POST
+// /api/schedules/recent-deletion/:personId(Admin+, ADR-0038 reeval chain / RecentDeletionController).
+// 선택 personId 를 path param 으로 부착한다. encodeURIComponent 로 비정상 문자가 든 personId 도
+// path 가 깨지지 않게 안전 인코딩한다(buildExportPath 의 안전 인코딩 convention 정합).
+function buildRecentDeletionPath(personId: string): string {
+  return `${SCHEDULES_PATH}/recent-deletion/${encodeURIComponent(personId)}`;
+}
+
+// onTrigger 의 재평가 POST + state-전이 로직에 주입하는 deps(T-0886 — runImport/runTrigger 의
+// *Deps 주입 convention 차용. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). ReEvaluationTriggerPanel
+// 은 submitting 우선/error 분기를 이미 박제하므로 컨테이너는 단일 submitting·error setter 만 공유한다.
+interface ReEvaluationDeps {
+  // 재평가 POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  post: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 재평가 in-flight 여부 — true 면 미발사(동시 재호출·이중 발사 가드).
+  submitting: boolean;
+  setSubmitting: (next: boolean) => void;
+  setError: (next: string | undefined) => void;
+}
+
+// onTrigger 의 POST /api/schedules/recent-deletion/:personId + state-전이 로직을 캡슐화한 순수
+// async 러너(T-0886 — runTrigger 캡슐화 패턴 차용). 컨테이너의 handleReevalTrigger 는 이 러너에
+// 선택 personId·window days·in-flight 여부(submitting)·상태 setter 를 주입해 호출만 한다. 동작:
+//  - 빈/falsy personId(인원 미선택) → 미발사(발사 억제 — path param 누락·잘못된 요청 방어, 택1 구현).
+//  - submitting(이전 재평가 미완) → 미발사(이중 POST·state 경합 차단 — runTrigger busy 가드 동형).
+//  - 발사 시 진행 on + 이전 error 비움 → POST { instants: [], days } → 성공(error 없음 유지) /
+//    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
+// body 의 instants 는 빈 배열([])로 고정한다(RecentDeletionDto 가 빈 배열 허용 — no-op 정상 경로).
+// 선택 person 의 최근 N일 실제 instant 자동 도출은 Out of Scope(별도 GET 필요 — Follow-up).
+async function runReEvaluate(
+  personId: string,
+  days: number,
+  deps: ReEvaluationDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/falsy personId(인원 미선택)는 POST 미발사(path param 누락 방어 — 발사 억제).
+  if (!personId) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 재평가 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.submitting) {
+    return;
+  }
+  deps.setSubmitting(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 재평가 진행만 남도록).
+  deps.setError(undefined);
+  try {
+    // POST /api/schedules/recent-deletion/:personId — 선택 window 의 days 를 body.days 로,
+    // instants 는 빈 배열([])로 공급한다(DTO 빈 배열 허용 no-op — instant 자동 도출은 후속). 202
+    // Accepted fire-and-forget. 응답 body(deletedCount/recollected)는 소비하지 않으므로(건수 표시
+    // 는 후속) 성공 사실만 확인한다.
+    await deps.post(buildRecentDeletionPath(personId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instants: [], days }),
+    });
+    // 성공 — 방금 비운 error(undefined)를 유지한다(패널이 정상 트리거 폼을 렌더 — 완료 문구 소비
+    // 상태). 성공 message props 는 panel 계약에 없어(submitting/error/confirmText 만) 별도 설정 불요.
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 400 잘못된
+    // body / 404 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
+    deps.setError(deps.describeError(e));
+  } finally {
+    deps.setSubmitting(false);
+  }
+}
+
 // Admin 화면 컨테이너. useApiResource 로 GET /api/groups 결과를 소유하고, 선택 그룹 상태를
 // useState 로 보유해 선택 그룹의 멤버를 client-side 파생 후 GroupMemberList 에 props 로
 // 내려보낸다(controlled lift-up — GroupMemberList 는 fetch 를 모른다, ADR-0041 Decision 1).
@@ -730,6 +826,9 @@ function AdminView({
   initialSelectedGroupId = '',
   initialCronExpression = '',
   initialScheduleBusy = false,
+  initialSelectedPersonId = '',
+  initialSelectedDays = 0,
+  initialReevalSubmitting = false,
 }: AdminViewProps) {
   // 선택 그룹 상태 — controlled lift-up(컨테이너 소유). <select> 선택이 이 값을 갱신한다.
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
@@ -1048,6 +1147,63 @@ function AdminView({
   }, []);
   // === /스케줄 패널 배선(T-0885) =========================================================
 
+  // === 재평가 트리거 패널 배선(T-0886) — 여섯 번째 패널 ==================================
+  // 선택 person 상태 — controlled lift-up(컨테이너 소유). person <select> 선택이 이 값을 갱신하고,
+  // handleReevalTrigger 가 POST path param 으로 공급한다. 옵션은 선택 그룹의 파생 members 를 쓴다
+  // (기존 deriveMembers 결과 재사용 — 별도 fetch 0). 그룹 선택 <select> 동형의 controlled lift-up.
+  const [selectedPersonId, setSelectedPersonId] = useState<string>(
+    initialSelectedPersonId,
+  );
+
+  // 선택 재수집 window(days) 상태 — controlled lift-up. ReEvaluationTriggerPanel 의 onSelect 가 이
+  // 값을 갱신하고, onTrigger 가 이 값을 body.days 로 발사한다. 0(windows 미매칭)이면 panel 이
+  // placeholder 로 fallback + 트리거 버튼 비활성(경계값 안전 — 의미 없는 기간 트리거 방지).
+  const [selectedDays, setSelectedDays] = useState<number>(initialSelectedDays);
+
+  // 재평가 in-flight 플래그 — POST 진행 중 true. 진행 표시(submitting 우선)와 이중 발사 가드
+  // (runReEvaluate 의 submitting 가드)에 함께 쓴다(scheduleBusy 동형).
+  const [reevalSubmitting, setReevalSubmitting] = useState<boolean>(
+    initialReevalSubmitting,
+  );
+
+  // 재평가 실패 문구 — 실패 시 사람-친화 문구(toErrorMessage 파생)를 보관해 error props 로 안전
+  // 표시한다(throw 없음). 재발화 시작 시 비운다(scheduleError 동형). 성공 시 error 는 undefined 유지.
+  const [reevalError, setReevalError] = useState<string | undefined>(undefined);
+
+  // person 선택 옵션 — 선택 그룹의 파생 members 를 재사용한다(deriveMembers 결과). 그룹 미선택/멤버
+  // 0 이면 빈 옵션(placeholder 만) — 재평가 트리거는 person 미선택 가드로 안전하게 억제된다.
+  const personOptions = members;
+
+  // onTrigger 실 핸들러(T-0886) — 재평가 POST 를 컨테이너 내부 async 로 발사한다(runTrigger 정합 —
+  // useApiResource 는 read-on-mount 라 클릭 발화에 부적합). 선택 personId(path param)·days(body)·
+  // in-flight 여부·상태 setter 를 runReEvaluate 에 주입한다. person 미선택 발사 억제 + 이중 발사
+  // 가드 + 성공/실패 전이는 runReEvaluate 가 캡슐화한다. selectedPersonId·reevalSubmitting 을 deps
+  // 의존성에 포함해 stale 없이 최신값을 발사·가드한다.
+  const handleReevalTrigger = useCallback(
+    (days: number) =>
+      runReEvaluate(selectedPersonId, days, {
+        post: request,
+        describeError: toErrorMessage,
+        submitting: reevalSubmitting,
+        setSubmitting: setReevalSubmitting,
+        setError: setReevalError,
+      }),
+    [selectedPersonId, reevalSubmitting],
+  );
+
+  // onSelect 실 핸들러(T-0886) — panel 의 window 선택이 selectedDays 를 컨테이너 상태로 올린다
+  // (controlled lift-up). handleCronChange 동형. panel 은 이 값의 저장처를 모른다(Decision 1).
+  const handleReevalSelect = useCallback((days: number) => {
+    setSelectedDays(days);
+  }, []);
+
+  // person 선택 변경 — person <select> 가 선택 person id 를 컨테이너 상태로 올린다(빈 값 = 미선택
+  // 으로 되돌림). 그룹 선택 handleSelectChange 동형. panel 은 person 선택을 모른다(Decision 1).
+  const handlePersonChange = (event: { target: { value: string } }) => {
+    setSelectedPersonId(event.target.value);
+  };
+  // === /재평가 트리거 패널 배선(T-0886) ================================================
+
   // 그룹 선택 변경 — <select> 가 선택 그룹 id 를 컨테이너 상태로 올린다(빈 값 선택 시 미선택
   // 으로 되돌려 멤버 빈 상태로 표시). GroupMemberList 는 선택 상호작용을 모른다(Decision 1).
   const handleSelectChange = (event: { target: { value: string } }) => {
@@ -1148,6 +1304,37 @@ function AdminView({
             error={schedulePanelError}
             message={schedulePanelMessage}
           />
+          {/* 재평가 인원 선택 컨트롤(T-0886) — 선택 그룹의 파생 members 를 옵션으로 노출한다(그룹
+              선택 <select> 동형 controlled lift-up — presentational 패널은 person 선택을 모른다,
+              ADR-0041 Decision 1). 선택된 personId 가 재평가 POST 의 path param 으로 쓰인다. 그룹
+              미선택/멤버 0 이면 placeholder 만 노출(재평가는 person 미선택 가드로 억제 — crash 없음). */}
+          <select
+            aria-label="재평가 인원 선택"
+            value={selectedPersonId}
+            onChange={handlePersonChange}
+          >
+            <option value="">{NO_PERSON_SELECTION_LABEL}</option>
+            {personOptions.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
+              </option>
+            ))}
+          </select>
+          {/* 재평가 트리거(여섯 번째 패널, T-0886 — P6 deferred wiring 완결) — 최근 N일 delete→재수집
+              (R-74)의 window 후보·선택·진행·실패를 컨테이너가 소유하고, 패널은 windows·selectedDays·
+              onSelect·onTrigger·submitting·error props 만 소비한다(ADR-0041 Decision 1 — 패널은
+              fetch 를 모른다). onSelect 는 selectedDays 갱신, onTrigger 는 POST /api/schedules/
+              recent-deletion/:personId 로 { instants: [], days } body 를 발사한다(person 미선택 시
+              가드로 억제). 성공은 error 없음으로, 실패는 error props(reevalError)로 안전 표시한다
+              (throw 없음). windows 는 frontend-local 상수(REEVAL_WINDOW_OPTIONS). 컴포넌트 수정 0. */}
+          <ReEvaluationTriggerPanel
+            windows={REEVAL_WINDOW_OPTIONS}
+            selectedDays={selectedDays}
+            onSelect={handleReevalSelect}
+            onTrigger={handleReevalTrigger}
+            submitting={reevalSubmitting}
+            error={reevalError}
+          />
         </>
       ) : (
         // 비-Admin(또는 등급 불명/조회 중) — Admin 전용 패널 대신 권한 부족 안내 한 줄(fail-closed).
@@ -1173,6 +1360,8 @@ export {
   runApply,
   runTrigger,
   deriveScheduleMessage,
+  buildRecentDeletionPath,
+  runReEvaluate,
   isAdminRole,
 };
 export type {
@@ -1187,5 +1376,6 @@ export type {
   ExportDeps,
   ImportDeps,
   ScheduleMutationDeps,
+  ReEvaluationDeps,
 };
 export default AdminView;
