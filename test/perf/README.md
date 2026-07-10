@@ -487,6 +487,13 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   **세 번째 fs+HTTP 통합 perf-spec**. summary(T-0880)의 personId 필수 query-param 400 분기에
   더해 **summary 에 없던 `period` optional query 분기**(부재 vs `?personId=&period=week` 두
   요청 형태)를 established/compared 양쪽에서 추가 실증한다(§5 #2 S2 조회 경로 배선 이월분).
+- `contribution-measure-confirm.perf-spec.ts` (T-0883) — 위 top loop 를 REQ-048 이 겨냥하는
+  평가 결과 조회·시각화 경로의 마지막 distinct read 표면 `ContributionController`
+  `GET /api/contributions?assessmentId=<id>`(REQ-033 aggregate-level 기여 조회) 에 배선한
+  **네 번째 fs+HTTP 통합 perf-spec**. assessment(T-0882)의 `period` optional query 분기는
+  없고(단일 필수 `assessmentId` query 만), **assessmentId 부재/빈 string 실 400** 이라는
+  ContributionController 고유 query-param 예외경로를 errorRate 위반 candidate established write
+  로 실증한다. 이로써 요약·평가·기여 3 read 경로의 measure-confirm 배선이 완결된다(§5 #2).
 
 - **DB 무의존**: service 를 mock 하고(guard 있는 controller 는 override 도) 실 Postgres
   round-trip·실 LLM·실 스케줄러·외부 I/O 가 없어 결정론적이다. 실 DB round-trip
