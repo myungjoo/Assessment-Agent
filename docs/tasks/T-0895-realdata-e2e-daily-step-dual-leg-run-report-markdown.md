@@ -2,7 +2,7 @@
 id: T-0895
 title: realdata-e2e daily-step dual-leg run report descriptor → rolling-issue 마크다운 본문 순수 렌더러 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 280
