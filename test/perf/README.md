@@ -78,6 +78,22 @@ orchestration 로직(DB·네트워크 무의존, clock 주입으로 결정론적
   노출만 하고 **throw 하지 않는다**(임계 강제는 호출측 expect·별도 assertS2Threshold 책임). `disk io
   harness` §의 `confirmOrCompareBaseline`(T-0874)이 **소비**하는 candidate 를 **생산**하는 짝이며,
   §5 #2 경량 measure 진입점이다(실 supertest request 배선은 호출측 책임 — Out of Scope). 신규 dep 0.
+- `measureAndConfirmBaseline(request, env, baseDir, opts?)` → `Promise<ConfirmOrCompareResult>`.
+  `measureBaselineCandidate`(candidate 생산, async I/O) → `confirmOrCompareBaseline`(기준 부재면
+  최초 확정 write / 존재면 로드·비교)을 이어붙인 **measure→confirm-or-compare end-to-end loop
+  harness**(신규 판정·계산·io 0 — 조립만). candidate 를 **생산**하는 `measureBaselineCandidate` 와
+  **소비**하는 `confirmOrCompareBaseline` 두 짝을 이어붙인 **top-of-pyramid 진입점**이라, §5 #5 실
+  supertest harness 는 `await measureAndConfirmBaseline(() => request(app).get(...), env, baseDir)`
+  **한 줄**로 baseline 확정/회귀탐지 loop 를 완성한다. `opts.measure`(iterations/thresholds/now)는
+  `measureBaselineCandidate` 로, `opts.compare`(회귀 tolerance)는 존재 분기 비교로 **옵션 분배**하며,
+  측정·확정·비교 로직은 전적으로 두 하위 harness 에 위임한다(재구현 금지 — DRY). **순서 계약**
+  (measure(async I/O) reject 시 confirmOrCompare 미도달 — candidate 미생산 시 write·compare 부작용 0)
+  을 지키며 하위 예외를 재래핑 없이 그대로 전파한다(request 비함수·env 형태 → `TypeError`,
+  iterations/clock/thresholds/label/concurrency 무효 → `RangeError`; baseDir non-string → `TypeError`,
+  빈/공백 → `RangeError`, 존재 분기 파일부재 → `ENOENT` 계열·내용불량 → `SyntaxError`/`TypeError`·
+  tolerance 무효 → `RangeError`). **관찰·리포트 전용** — 회귀는 `comparison.regressed`(존재 분기)로
+  노출만 하고 **throw 하지 않는다**(회귀 강제는 호출측 책임). import 방향 collector→io(순환 없음),
+  신규 dep 0. 실 supertest 배선은 §5 #2 별도 slice(Out of Scope).
 
 ```ts
 import { collectLatencySamples, assertS2Threshold } from "./latency-collector";

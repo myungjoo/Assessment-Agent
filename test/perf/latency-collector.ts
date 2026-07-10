@@ -14,7 +14,12 @@ import {
   buildBaselineReport,
   BaselineEnvMeta,
   BaselineReport,
+  CompareOptions,
 } from "./latency-baseline";
+import {
+  confirmOrCompareBaseline,
+  ConfirmOrCompareResult,
+} from "./latency-baseline-io";
 import {
   summarizeLatency,
   errorRate,
@@ -318,4 +323,69 @@ export async function measureBaselineCandidate(
   const assertion = assertS2Threshold(result, opts.thresholds);
   // 4. candidate BaselineReport 조립·반환(순수) — env 형태·label·concurrency 불량은 여기서 전파.
   return buildBaselineReport(env, assertion);
+}
+
+/**
+ * `measureAndConfirmBaseline` 옵션 — measure + compare 파라미터 묶음. 둘 다 optional
+ * (미지정 시 하위 primitive 기본치로 위임).
+ */
+export interface MeasureAndConfirmOpts {
+  /** measure 파라미터(iterations/thresholds/now) — measureBaselineCandidate 로 위임. */
+  measure?: MeasureBaselineOpts;
+  /** 회귀 판정 허용치 — confirmOrCompareBaseline(존재 분기 readCompareBaselineFile)로 위임. */
+  compare?: CompareOptions;
+}
+
+/**
+ * S2 조회 latency 를 measure 한 candidate 를 곧바로 baseline 확정/회귀비교로 이어붙이는
+ * **measure→confirm-or-compare end-to-end loop harness**다. `measureBaselineCandidate`(candidate
+ * 생산, async I/O) → `confirmOrCompareBaseline`(기준 부재면 최초 확정 write / 존재면 로드·비교)를
+ * 순서대로 조립한다. `measureBaselineCandidate` 이 candidate 를 **생산**하는 짝,
+ * `confirmOrCompareBaseline`(T-0874) 이 **소비**하는 짝이라면, 본 함수는 **둘을 이어붙인
+ * top-of-pyramid 진입점**이다(§5 #5 baseline 확정 loop).
+ *
+ * ```
+ * measureBaselineCandidate(request, env, opts?.measure)           // candidate 생산(async I/O)
+ *   → confirmOrCompareBaseline(env, baseDir, candidate, opts?.compare)  // 최초 확정 write | 로드·비교
+ * ```
+ *
+ * 처리 순서(신규 판정·계산·io 0 — 하위 primitive 를 조립만):
+ *  1. `candidate = await measureBaselineCandidate(request, env, opts?.measure)` 로 candidate 생산
+ *     (async I/O). request 비함수·iterations/clock/thresholds 무효·env 형태 불량은 여기서 그대로
+ *     전파(confirm 미도달 — candidate 미생산 시 write·compare 부작용 0).
+ *  2. `return confirmOrCompareBaseline(env, baseDir, candidate, opts?.compare)` 로 확정 write |
+ *     로드·비교 후 판별 union 반환(baseDir non-string `TypeError`·빈/공백 `RangeError`·존재 분기
+ *     파일부재 `ENOENT`·내용불량 `SyntaxError`/`TypeError`·tolerance 무효 `RangeError` 그대로 전파).
+ *
+ * **순서 계약** — measure(async I/O) → confirmOrCompare(동기 fs) 순서를 지킨다. measure 가
+ * reject/throw 하면 confirmOrCompare 가 일어나지 않는다(candidate 미생산 시 write·compare 부작용 0).
+ * **측정·확정·비교 위임 불변(DRY)** — candidate 생산은 `measureBaselineCandidate`, 존재 판정·write·
+ * 로드·비교는 `confirmOrCompareBaseline` 에 전적으로 위임한다(재구현 금지). 본 함수는 measure→confirm
+ * 의 얇은 이어붙임 + 옵션 분배(`opts.measure`/`opts.compare`)만 책임진다.
+ * **관찰·리포트 전용** — 반환은 `ConfirmOrCompareResult` 판별 union 뿐이며 회귀는
+ * `comparison.regressed`(존재 분기)로 노출만 한다(throw 안 함). S2 pass/fail 임계·collector metrics
+ * 판정 로직 불변. 신규 외부 dependency 0(기존 collector/io 함수만 조립).
+ *
+ * @param request 주입 async 요청 함수(`RequestFn`) — DB·네트워크·supertest 무의존 결정론 테스트용.
+ * @param env 실행 환경 메타(candidate 생산·파일명 slug 유도).
+ * @param baseDir baseline 디렉토리(confirmOrCompareBaseline 경로 결정에 위임).
+ * @param opts measure(`opts.measure`)/compare(`opts.compare`) 파라미터 묶음(선택).
+ * @returns `{ outcome: "established", path }`(최초 확정 write) 또는
+ *   `{ outcome: "compared", comparison, report }`(로드·비교) 판별 union.
+ * @throws {TypeError} `request` 비함수·`env` 형태 불량(measure 전파) 또는 `baseDir` non-string·
+ *   존재 분기 candidate 형태 불량(confirm 전파).
+ * @throws {RangeError} `iterations`/clock/thresholds/env.label/env.concurrency 무효(measure 전파)
+ *   또는 `baseDir` 빈/공백-only·존재 분기 tolerance 음수·NaN(confirm 전파).
+ */
+export async function measureAndConfirmBaseline(
+  request: RequestFn,
+  env: BaselineEnvMeta,
+  baseDir: string,
+  opts: MeasureAndConfirmOpts = {},
+): Promise<ConfirmOrCompareResult> {
+  // 1. candidate 생산(async I/O) — request/iterations/clock/thresholds/env 무효는 여기서 전파.
+  //    measure 가 reject/throw 하면 아래 confirmOrCompare 미도달(순서 계약, write·compare 부작용 0).
+  const candidate = await measureBaselineCandidate(request, env, opts.measure);
+  // 2. 확정 write | 로드·비교 — baseDir/파일 내용/tolerance 무효는 여기서 전파. 판별 union 반환.
+  return confirmOrCompareBaseline(env, baseDir, candidate, opts.compare);
 }
