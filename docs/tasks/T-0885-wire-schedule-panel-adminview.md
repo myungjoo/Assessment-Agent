@@ -2,7 +2,10 @@
 id: T-0885
 title: SchedulePanel 을 AdminView 에 배선 (GET/PUT /api/schedules + POST trigger 데이터 컨테이너) — P6 deferred wiring 재개
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-10T14:39:35Z
+prNumber: 779
+result: "PR #779 merged (squash 74d00f40). SchedulePanel 을 AdminView 에 mount + GET/PUT/POST /api/schedules 배선. production +259 / test +309, 2 files, 새 dep 0, backend 무변경. web vitest 496 green + build+lint green. reviewer APPROVE round 1/7(0 finding). 4-게이트 PASS, main CI success."
 commitMode: pr
 coversReq: [REQ-072, REQ-073]
 estimatedDiff: 190
