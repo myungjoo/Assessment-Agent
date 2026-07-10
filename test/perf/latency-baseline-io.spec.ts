@@ -11,6 +11,7 @@ import {
   resolveBaselinePath,
 } from "./latency-baseline";
 import {
+  baselineFileExists,
   compareBaselineFiles,
   readBaselineFile,
   readCompareBaselineFile,
@@ -1315,6 +1316,184 @@ describe("latency-baseline-io compareBaselineFiles (S2 both-disk compare)", () =
       expect(comparison.regressed).toBe(false);
       // NaN 지표는 사람-친화 리포트에서 "n/a" 로 방어 렌더링(하위 primitive 위임 정합).
       expect(report).toContain("n/a");
+    });
+  });
+});
+
+/**
+ * T-0873 — S2 latency baseline 파일 존재 여부 predicate(`baselineFileExists`)의 R-112 spec.
+ * happy-path(write 후 true / write 전 false) / error path(경로 결정 예외가 existsSync 전에
+ * 부작용 없이 그대로 전파, env·label·baseDir 3 종) / flow·branch(존재 true / 부재 false / 경로
+ * 결정 단계 실패 3 분기) / negative cases 충분 cover(undefined·다중 depth 부재·존재→부재 전이).
+ * `existsSync` 는 read-only 조회이므로 write spec 의 tmp 셋업/정리 패턴을 재사용하되, 존재를
+ * 만들 때만 `writeBaselineFile` 로 기준을 먼저 저장한다(결정성 유지).
+ */
+describe("latency-baseline-io baselineFileExists (S2 baseline 존재 predicate)", () => {
+  /** 매 test 마다 새로 만드는 격리 임시 디렉토리 루트(afterEach 에서 재귀 삭제). */
+  let tmpRoot: string;
+
+  beforeEach(() => {
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "s2-baseline-exists-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  /** 완전한 env-meta(optional 필드 포함) 팩토리. */
+  function fullEnv(overrides: Partial<BaselineEnvMeta> = {}): BaselineEnvMeta {
+    return {
+      label: "ci-linux-x64",
+      concurrency: 4,
+      cpu: "8x Xeon",
+      memoryMb: 16384,
+      dataScale: "100 persons x 50 repos",
+      ...overrides,
+    };
+  }
+
+  /** 유효한 baseline 리포트(표본 있음) 팩토리 — 존재를 만드는 write 셋업용. */
+  function fullReport(overrides: Partial<BaselineReport> = {}): BaselineReport {
+    return {
+      env: fullEnv(),
+      p50: 10,
+      p95: 15,
+      p99: 20,
+      throughput: 100,
+      errorRate: 0,
+      count: 6,
+      pass: true,
+      ...overrides,
+    };
+  }
+
+  /** tmpRoot 하위 POSIX 결합 baseline 디렉토리(테스트 공통 baseDir). */
+  function baselineDir(...segments: string[]): string {
+    return path.posix.join(tmpRoot.split(path.sep).join("/"), ...segments);
+  }
+
+  describe("happy path — write 후 존재 / write 전 부재", () => {
+    it("writeBaselineFile 로 저장한 뒤 같은 env·baseDir 로는 true 를 반환", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(fullReport(), env, baseDir);
+
+      expect(baselineFileExists(env, baseDir)).toBe(true);
+    });
+
+    it("아직 아무것도 쓰지 않은 (env, baseDir) 는 false 를 반환(예외 아님)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+
+      expect(baselineFileExists(env, baseDir)).toBe(false);
+    });
+
+    it("결정된 경로가 resolveBaselinePath 와 일치해 write 가 쓴 파일을 정확히 존재로 판정", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      const written = writeBaselineFile(fullReport(), env, baseDir);
+
+      // write 반환 경로 = resolveBaselinePath, predicate 도 같은 경로 규약 공유.
+      expect(written).toBe(resolveBaselinePath(env, baseDir));
+      expect(baselineFileExists(env, baseDir)).toBe(true);
+    });
+  });
+
+  describe("error path — 경로 결정 예외가 existsSync 전에 그대로 전파", () => {
+    it("(1) env 형태 불량(null) → resolveBaselinePath 의 TypeError 전파(existsSync 미도달)", () => {
+      const baseDir = baselineDir("baselines");
+      expect(() =>
+        baselineFileExists(null as unknown as BaselineEnvMeta, baseDir),
+      ).toThrow(TypeError);
+    });
+
+    it("(2) env.label 공백-only → slug 무효 RangeError 전파(existsSync 미도달)", () => {
+      const baseDir = baselineDir("baselines");
+      expect(() =>
+        baselineFileExists(fullEnv({ label: "   " }), baseDir),
+      ).toThrow(RangeError);
+    });
+
+    it("(3) baseDir 공백-only → RangeError 전파(existsSync 미도달)", () => {
+      expect(() => baselineFileExists(fullEnv(), "   ")).toThrow(RangeError);
+    });
+
+    it("baseDir non-string → TypeError 전파(existsSync 미도달)", () => {
+      expect(() =>
+        baselineFileExists(fullEnv(), 123 as unknown as string),
+      ).toThrow(TypeError);
+    });
+  });
+
+  describe("flow / branch coverage", () => {
+    it("분기(1) 경로 존재 → true", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(fullReport(), env, baseDir);
+
+      expect(baselineFileExists(env, baseDir)).toBe(true);
+    });
+
+    it("분기(2) 경로 부재 → false(파일을 쓰지 않은 경우)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+
+      expect(baselineFileExists(env, baseDir)).toBe(false);
+    });
+
+    it("분기(3) 경로 결정 단계(잘못된 env)에서 existsSync 전에 실패", () => {
+      // 유효 파일을 미리 써 두어도, env 불량이면 resolveBaselinePath 에서 먼저 throw.
+      const goodEnv = fullEnv();
+      const baseDir = baselineDir("baselines");
+      writeBaselineFile(fullReport(), goodEnv, baseDir);
+
+      expect(() => baselineFileExists(fullEnv({ label: "" }), baseDir)).toThrow(
+        RangeError,
+      );
+    });
+  });
+
+  describe("negative cases 충분 cover", () => {
+    it("env=undefined → TypeError 전파(existsSync 미도달)", () => {
+      const baseDir = baselineDir("baselines");
+      expect(() =>
+        baselineFileExists(undefined as unknown as BaselineEnvMeta, baseDir),
+      ).toThrow(TypeError);
+    });
+
+    it("baseDir=undefined → TypeError 전파(existsSync 미도달)", () => {
+      expect(() =>
+        baselineFileExists(fullEnv(), undefined as unknown as string),
+      ).toThrow(TypeError);
+    });
+
+    it("상위 디렉토리 자체가 부재한 다중 depth 경로도 예외 아닌 false 로 조회", () => {
+      const env = fullEnv();
+      // baselines/a/b/c 는 상위 디렉토리조차 미존재 — existsSync 는 false 로 흡수.
+      const baseDir = baselineDir("baselines", "a", "b", "c");
+
+      expect(baselineFileExists(env, baseDir)).toBe(false);
+    });
+
+    it("write 후 파일을 제거하면 다시 false 로 판정(존재→부재 전이)", () => {
+      const env = fullEnv();
+      const baseDir = baselineDir("baselines");
+      const written = writeBaselineFile(fullReport(), env, baseDir);
+      expect(baselineFileExists(env, baseDir)).toBe(true);
+
+      fs.rmSync(written);
+
+      expect(baselineFileExists(env, baseDir)).toBe(false);
+    });
+
+    it("서로 다른 env.label 은 분리 판정 — 한쪽만 write 하면 다른 label 은 false", () => {
+      const baseDir = baselineDir("baselines");
+      const envA = fullEnv({ label: "ci-linux-x64" });
+      const envB = fullEnv({ label: "local-macbook" });
+      writeBaselineFile(fullReport({ env: envA }), envA, baseDir);
+
+      expect(baselineFileExists(envA, baseDir)).toBe(true);
+      expect(baselineFileExists(envB, baseDir)).toBe(false);
     });
   });
 });
