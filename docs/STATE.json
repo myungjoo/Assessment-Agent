@@ -7,16 +7,16 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0879",
-  "backlogNote": "▶ **T-0878 DONE (PR #772 merged, squash 9910e8b1)** — CI 에 test:perf step 배선. .github/workflows/ci.yml 의 ci job e2e test step 뒤에 `run: pnpm test:perf` step 추가(한국어 주석 — 목적 R-111/R-113 perf 스위트 CI 실행, 배치 근거 live NestJS+PostgreSQL 부팅 의존이라 migrate deploy 이후) + README 명령 목록에 test:perf 1줄. perf 는 test/perf/jest-perf.json 독립 config 라 unit/smoke/e2e 와 격리, src/ 변경 0·신규 dep 0. test:perf 31 suite/209 test green(AC 30+/191 초과), test:cov All files line 99.95%/func 100%(≥80/80 무회귀), lint+build green. R-112 happy/error/branch/negative 항목 N/A — 신규 production symbol 0(YAML step + doc 1줄), perf-spec 자산 자체가 이미 R-112 만족 test 이며 본 task 는 그것을 CI 로 실행시키는 배선. +12/-0 · 2 files(ci.yml + README). reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·1 non-blocking MINOR: jest-perf.json passWithNoTests empty-suite silent-pass, out-of-scope). 여러 slice PR 에서 반복된 reviewer standing MAJOR(perf-spec 이 CI 에서 안 돈다) retire 완결. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-15-d22aa5). MINOR closure(passWithNoTests 제거)를 위해 T-0879 큐잉(pr-mode, test/perf/jest-perf.json + README).",
+  "nextTask": "T-0880",
+  "backlogNote": "▶ **T-0879 DONE (PR #773 merged, squash b1683f4b)** — perf 스위트 empty-suite silent-pass 가드. test/perf/jest-perf.json 의 `passWithNoTests: true` 제거(나머지 testRegex/maxWorkers 불변) + README perf-spec 절에 \"perf-spec 부재 시 CI fail(passWithNoTests 미허용)\" 1줄. T-0878 이 test:perf 를 CI 배선한 직후의 PR #772 non-blocking MINOR closure — perf-spec 이 실수로 전부 삭제/rename 되면 jest 가 test 0개로도 green 반환하던 구멍을 막아 perf-gating 을 강제. positive gate: pnpm test:perf 31 suite/209 test green(test count>0). negative gate: --testPathPattern '__no_such_perf_spec__' exit 1(silent-pass 제거 입증, 증거 docs/progress/details/T-0879-negative-gate-evidence.md). lint+build green, src/ 변경 0이라 test:cov 무영향. +2/-2 · 2 files(jest-perf.json + README). reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR, Nit residual 0). R-112 happy(non-empty green)/negative(empty fail) 두 실행이 cover, 신규 production symbol 0. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-sched). 다음: T-0880 큐잉(pr-mode) — S2 measure→confirm-or-compare 를 실 조회 endpoint(SummaryController GET /api/summaries, guard+query-param 분기 포함)에 배선하는 두 번째 통합 perf-spec, T-0877 floor-case 이월분(§5 #2 잔여 slice).",
   "lock": null,
-  "lastCommit": "9910e8b1fd739c52efd93e0e69a2d9148d93fdbf",
+  "lastCommit": "b1683f4ba50c56f2131dea15bf26a1cb685ccea7",
   "mostRecentTasks": [
+    "T-0879",
     "T-0878",
     "T-0877",
     "T-0876",
-    "T-0875",
-    "T-0874"
+    "T-0875"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -26,13 +26,14 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-10T05:26:06Z",
+    "lastRun": "2026-07-10T05:51:48Z",
     "status": "running",
     "consecutiveFails": 0,
-    "headSha": "9910e8b1",
-    "note": "본 fire(cron@aa-local-15-d22aa5, aa-local-15 매시 15분) claim-pickup(fineGrainedConcurrency ON stage 5b, maxConcurrentClaims=2): 로컬 stale checkout 0e517cce→ff origin/main d7f0e785(직전 fire T-0877 DONE + T-0878 큐잉) → 직전 merge commit CI(103f5b3a run 29070235300) success 재확인(R-114) + d7f0e785 bookkeeping CI success → lock free(tombstone, claims []) → acquire-lock(cron, tip 9ba3487b, server-time 2026-07-10T05:05:31Z via api.github.com Date 헤더) → reclaim no-op(claims empty) → validate-claim-candidate T-0878 PASS → maxConcurrentClaims gate(활성 0<2, pr-mode 단독) → select-claim T-0878(claimedAt 05:05:54Z server-time) → lock tombstone release → lock-free executor(feature branch claude/T-0878-s2-perf-ci-wiring, ci.yml e2e 뒤 perf test step + README 1줄, PR #772 open, head ae31d4f4) → re-acquire lock(tip 852342e1) → sync-claim-pr(772, PR_OPEN) → release(tip f18bacd8) → integrator: reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·1 non-blocking MINOR — jest-perf.json passWithNoTests empty-suite silent-pass, out-of-scope→T-0879 큐잉) + 4-게이트 PASS(CI run 29070737422 green incl reviewer-approval step, mergeStateStatus CLEAN, ADR-0036 §8(c) head 이미 origin/main 포함) → squash 9910e8b1 + branch delete → re-acquire lock(tip 9afd2c79) → claim prune([], printf '[]'|hash-object 0637a088 직접 write + lock_tree_cas_push 내용검증·lock.json 보존, tip 457779fc) → bookkeeping direct commit. standing MAJOR(perf-spec CI 미실행, 30+ perf-spec 공통) retire 완결 — test:perf(31 suite/209 test) 이제 CI enforced. 신규 외부 dependency 0. counters 869→870. 머지 commit 9910e8b1 push CI = in_progress(run 29071192694) — 다음 fire [1] 에서 conclusion 재확인(R-114)."
+    "headSha": "b1683f4b",
+    "note": "본 fire(cron@aa-local-sched, aa-local-scheduled 매시 30분경) claim-pickup(fineGrainedConcurrency ON stage 5b, maxConcurrentClaims=2): 로컬 stale checkout d7f0e785→ff origin/main 2b98b448(직전 fire T-0878 DONE + T-0879 큐잉) → 직전 merge commit CI(9910e8b1 run 29071192694) success 재확인(R-114) + 2b98b448 bookkeeping CI success(run 29071423342) → lock free(tombstone, claims []) → acquire-lock(cron, tip aff7e12f, server-time 2026-07-10T05:38:22Z via api.github.com Date 헤더) → reclaim no-op(claims empty) → validate-claim-candidate T-0879 PASS → maxConcurrentClaims gate(활성 0<2, pr-mode 단독) → select-claim T-0879(claimedAt 05:39:01Z server-time, midnight-fallback 아님 확인) → lock tombstone release → lock-free executor(feature branch claude/T-0879-perf-suite-empty-guard, jest-perf.json passWithNoTests 제거 + README 1줄, PR #773 open, head→squash) → integrator: reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR, Nit residual 0) + 4-게이트 PASS(reviewer comment #4932364453 external, CI green incl 배포 산출물 검증, mergeStateStatus CLEAN, ADR-0036 §8(c) head 이미 origin/main 포함) → squash b1683f4b + branch delete → re-acquire lock(tip 888fcba6) → claim prune([], printf '[]'|hash-object 0637a088 직접 write + lock_tree_cas_push 내용검증·lock.json 보존, tip 5f77b02a) → bookkeeping direct commit. PR #772 MINOR(empty-suite silent-pass) closure 완결 — perf-spec 전멸 시 CI 가 이제 fail(passWithNoTests 미허용). 신규 외부 dependency 0. counters 870→871. 머지 commit b1683f4b push CI = in_progress(run 29072190297) — 다음 fire [1] 에서 conclusion 재확인(R-114)."
   },
   "reviewRounds": {
+    "T-0879": 1,
     "T-0877": 1,
     "T-0876": 1,
     "T-0870": 1,
@@ -1403,7 +1404,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 870,
+    "tasksCompleted": 871,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1431,5 +1432,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-07-10T05:26:06Z"
+  "lastActivity": "2026-07-10T05:51:48Z"
 }

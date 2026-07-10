@@ -2,7 +2,9 @@
 id: T-0879
 title: perf-spec 스위트 empty-suite silent-pass 가드 (passWithNoTests 제거)
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-10T05:52:00Z
+resultSummary: "PR #773 merged (squash b1683f4b). jest-perf.json passWithNoTests 제거 + README gating 1줄. positive gate 31 suite/209 green, negative gate exit 1(silent-pass 제거). reviewer APPROVE r1/7, 4-게이트 PASS. +2/-2 · 2 files. counters→871."
 commitMode: pr
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 30
