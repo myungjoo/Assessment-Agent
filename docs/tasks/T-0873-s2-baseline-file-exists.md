@@ -2,7 +2,11 @@
 id: T-0873
 title: S2 latency baseline 파일 존재 여부 predicate 신설 (baselineFileExists)
 phase: P8
-status: PENDING
+status: DONE
+completedAt: 2026-07-10T02:53:00Z
+mergedAs: bbfb1bca3ffbc32e7a15e4b3b749fa1874b03f76
+prNumber: 767
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 105
