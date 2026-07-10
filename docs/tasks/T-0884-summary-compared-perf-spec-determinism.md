@@ -2,7 +2,11 @@
 id: T-0884
 title: summary-measure-confirm perf-spec 의 compared happy-path 를 주입 clock 으로 결정론화(잔존 wall-clock flake 제거)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-10T13:49:52Z
+mergedAs: 9f71888c
+prNumber: 778
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 15
