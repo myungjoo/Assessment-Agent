@@ -69,6 +69,8 @@ import AdminView, {
   runApply,
   runTrigger,
   deriveScheduleMessage,
+  buildRecentDeletionPath,
+  runReEvaluate,
   isAdminRole,
 } from './AdminView';
 import type {
@@ -80,6 +82,7 @@ import type {
   ExportDeps,
   ImportDeps,
   ScheduleMutationDeps,
+  ReEvaluationDeps,
 } from './AdminView';
 
 // LLM 조회 두 path 의 기본 성공(빈 데이터) 상태 — 그룹 전용 test 가 LLM path 응답을 명시하지
@@ -2071,5 +2074,253 @@ describe('AdminView — deriveScheduleMessage (순수 함수, T-0885)', () => {
     expect(
       deriveScheduleMessage(null as unknown as string[], false, undefined),
     ).toBe(NO_SCHEDULE);
+  });
+});
+
+// R-112 — T-0886 ReEvaluationTriggerPanel 배선 검증. P6 deferred wiring 완결(PLAN line120/123 —
+// T-0885 SchedulePanel 의 짝). 여섯 번째 패널 ReEvaluationTriggerPanel 을 AdminView 컨테이너에
+// mount + person 선택(파생 members 재사용) + POST /api/schedules/recent-deletion/:personId 배선.
+// 렌더 test(정적 렌더 — 마운트/person 옵션/windows 전달/submitting 억제/경계 days)와 순수 러너
+// test(runReEvaluate — POST body·path param·성공/실패·person 미선택·이중 발사 가드)로 happy/error/
+// branch/negative 를 각 1+ cover(negative 예외 분기마다).
+// ==========================================================================================
+
+const RECENT_DELETION_P1 = '/api/schedules/recent-deletion/p1';
+const REEVAL_SUBMITTING_TEXT = '재수집 진행 중…'; // 패널 SUBMITTING_TEXT(submitting 우선 표시).
+const REEVAL_TRIGGER_LABEL = '재수집 시작'; // 패널 TRIGGER_LABEL(트리거 버튼 라벨).
+const REEVAL_WINDOW_SELECT_LABEL = '재수집 기간'; // 패널 window <select> label.
+const PERSON_SELECT_LABEL = '재평가 인원 선택'; // 컨테이너 person <select> aria-label.
+const NO_PERSON_PLACEHOLDER = '인원을 선택하세요'; // person <select> placeholder.
+
+describe('AdminView — ReEvaluationTriggerPanel 배선 렌더 (T-0886)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path(mount) — 그룹 선택 시 파생 members 가 person 옵션으로 노출되고, ReEvaluationTriggerPanel
+  // 이 실제 mount 되며(window 선택 + 트리거 버튼), 기존 패널(그룹/스케줄)도 회귀 없이 함께 렌더된다.
+  it('그룹 선택 시 person 옵션과 재평가 패널이 마운트된다 (happy-path — mount)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // person 선택 컨트롤 + 파생 members 옵션(선택 그룹 g1 의 김철수/이영희).
+    expect(html).toContain(`aria-label="${PERSON_SELECT_LABEL}"`);
+    expect(html).toContain(NO_PERSON_PLACEHOLDER);
+    expect(html).toContain('김철수');
+    expect(html).toContain('이영희');
+    // 재평가 패널 마운트 — window 선택 label + 트리거 버튼.
+    expect(html).toContain(REEVAL_WINDOW_SELECT_LABEL);
+    expect(html).toContain(REEVAL_TRIGGER_LABEL);
+    // 기존 패널 회귀 0 — 그룹 select + 스케줄 패널(지금 실행)도 함께 렌더(추가만).
+    expect(html).toContain('aria-label="그룹 선택"');
+    expect(html).toContain('지금 실행');
+  });
+
+  // flow/branch(windows 전달) — frontend-local 재수집 window 후보(최근 1일/1주/30일)가 실제 windows
+  // props 로 패널에 전달돼 <select> 옵션으로 렌더된다(windows 배선 검증).
+  it('재수집 window 후보가 패널 옵션으로 전달돼 렌더된다 (flow/branch — windows 배선)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // 세 window 후보 라벨이 모두 패널 <select> 옵션으로 렌더(windows props 전달 증명).
+    expect(html).toContain('최근 1일');
+    expect(html).toContain('최근 1주');
+    expect(html).toContain('최근 30일');
+    // 패널의 window <select>(name=reevaluation-window)가 렌더됨(컴포넌트 박제 마크업).
+    expect(html).toContain('name="reevaluation-window"');
+  });
+
+  // flow/branch(submitting 억제) — 재평가 in-flight(reevalSubmitting=true) 중에는 패널이 진행 표시를
+  // 우선하고 트리거 컨트롤을 억제한다(이중 트리거 원천 차단 — submitting 우선 정책).
+  it('submitting in-flight 중에는 진행 표시를 우선하고 트리거를 억제한다 (flow/branch — submitting 억제)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(
+      <AdminView initialSelectedGroupId="g1" initialReevalSubmitting />,
+    );
+    // submitting 우선 — 진행 문구만 렌더.
+    expect(html).toContain(REEVAL_SUBMITTING_TEXT);
+    // 트리거 버튼 억제(submitting=true 면 트리거 폼 미렌더 → 이중 트리거 차단).
+    expect(html).not.toContain(REEVAL_TRIGGER_LABEL);
+  });
+
+  // negative(경계 days) — selectedDays 가 windows 에 없는 경계값(예: 999)이면 패널이 placeholder 로
+  // fallback + 트리거 버튼을 비활성(컴포넌트 박제)하고 컨테이너는 crash 없이 렌더한다.
+  it('selectedDays 가 windows 에 없어도 crash 없이 트리거 버튼을 비활성 렌더한다 (negative — 경계 days)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(
+      <AdminView
+        initialSelectedGroupId="g1"
+        initialSelectedPersonId="p1"
+        initialSelectedDays={999}
+      />,
+    );
+    // 경계값이어도 패널은 마운트(버튼 렌더) — hasSelection=false 라 disabled 부착(컴포넌트 박제).
+    expect(html).toContain(REEVAL_TRIGGER_LABEL);
+    expect(html).toContain('disabled');
+  });
+
+  // negative(초기 안전 렌더) — 그룹/person/days 미선택 초기 상태에서도 crash 없이 패널이 마운트되고
+  // person placeholder 만 노출한다(빈 members → 옵션 없이 placeholder — 안전 렌더).
+  it('그룹/person 미선택 초기 상태에서 crash 없이 마운트하고 placeholder 를 노출한다 (negative — 초기 안전 렌더)', () => {
+    setResource({ data: [], loading: false, error: undefined });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 그룹 미선택 → members 빈 배열 → person placeholder 만(옵션 없이).
+    expect(html).toContain(NO_PERSON_PLACEHOLDER);
+    // 패널은 windows 상수를 받아 마운트(person 미선택과 무관 — 패널은 person 을 모른다).
+    expect(html).toContain(REEVAL_TRIGGER_LABEL);
+  });
+});
+
+// R-112 — T-0886 onTrigger 실 POST mutation 본체(runReEvaluate) 검증. jsdom/렌더러 없이 mutation
+// 본체를 직접 호출하고(runTrigger 동일 convention), apiClient.request mock 으로 method/path/body 를
+// 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 로 관찰한다. happy/error/
+// branch/negative 예외 분기마다 각 1+ cover.
+describe('AdminView — onTrigger 실 POST 재평가 (T-0886 runReEvaluate)', () => {
+  // 상태 전이를 기록하는 deps harness — submitting 초기값과 request mock 을 주입받아 setSubmitting/
+  // setError 호출을 모두 캡처한다(makeDeps 동형).
+  function makeReevalDeps(submitting: boolean) {
+    const calls = {
+      submitting: [] as boolean[],
+      error: [] as (string | undefined)[],
+    };
+    const deps: ReEvaluationDeps = {
+      post: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      submitting,
+      setSubmitting: (next) => calls.submitting.push(next),
+      setError: (next) => calls.error.push(next),
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — runReEvaluate 호출 시 request 가 POST /api/schedules/recent-deletion/:personId +
+  // body { instants: [], days } 로 정확히 호출되고, 성공 후 error 없음(시작 비움만) + submitting on→off.
+  it('POST recent-deletion 을 { instants: [], days } body 로 선택 personId path 로 호출한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps, calls } = makeReevalDeps(false);
+    await runReEvaluate('p1', 7, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock).toHaveBeenCalledWith(RECENT_DELETION_P1, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instants: [], days: 7 }),
+    });
+    // 성공 → 시작 시 error 비움(undefined)만, 완료 error 미설정(성공은 error 없음).
+    expect(calls.error).toEqual([undefined]);
+    // submitting on→off.
+    expect(calls.submitting).toEqual([true, false]);
+  });
+
+  // 배선(person path param + days 흐름) — 다른 personId/days 선택값이 path param + body.days 로
+  // 그대로 흘러간다(선택된 personId 가 POST path param 으로 쓰임 + onSelect→onTrigger days 흐름 검증).
+  it('선택된 personId 가 path param 으로, selectedDays 가 body.days 로 흐른다 (branch — person path param + days 흐름)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeReevalDeps(false);
+    await runReEvaluate('p2', 30, deps);
+    expect(requestMock).toHaveBeenCalledWith(
+      '/api/schedules/recent-deletion/p2',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instants: [], days: 30 }),
+      },
+    );
+  });
+
+  // error path(403) — Admin+ 미만 403 실패 시 안전 문구 표면화(throw 없음) + submitting on→off.
+  it('POST 403(Admin+ 미만) 실패 시 안전 문구를 표면화한다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeReevalDeps(false);
+    await expect(runReEvaluate('p1', 7, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.submitting).toEqual([true, false]);
+  });
+
+  // error path(400) — 잘못된 body 400 실패 시 안전 문구 표면화(throw 없음).
+  it('POST 400(잘못된 body) 실패 시 안전 문구를 표면화한다 (error path — 400)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'invalid body'));
+    const { deps, calls } = makeReevalDeps(false);
+    await expect(runReEvaluate('p1', 7, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 400: invalid body']);
+  });
+
+  // error path(404) — 존재하지 않는 person 404 실패 시 안전 문구 표면화(throw 없음).
+  it('POST 404 실패 시 안전 문구를 표면화한다 (error path — 404)', async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeReevalDeps(false);
+    await expect(runReEvaluate('p1', 7, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+  });
+
+  // error path(네트워크) — 네트워크 실패(ApiError 0) 시 네트워크 오류 문구(throw 없음).
+  it('POST 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeReevalDeps(false);
+    await expect(runReEvaluate('p1', 7, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+  });
+
+  // negative(person 미선택) — 빈/falsy personId 로 트리거 시 POST 미발사(발사 억제 — path param 방어).
+  it('person 미선택(빈 personId)으로 트리거 시 POST 를 발사하지 않는다 (negative — person 미선택 발사 억제)', async () => {
+    const { deps, calls } = makeReevalDeps(false);
+    await runReEvaluate('', 7, deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    // 어떤 state 전이도 없음(가드로 즉시 return).
+    expect(calls.submitting).toEqual([]);
+    expect(calls.error).toEqual([]);
+  });
+
+  // negative(이중 발사 가드) — 이전 재평가 미완(submitting=true) 중 재트리거는 POST 미발사.
+  it('submitting(in-flight) 중 재트리거는 POST 를 발사하지 않는다 (negative — 이중 발사 가드)', async () => {
+    const { deps, calls } = makeReevalDeps(true); // 이미 in-flight.
+    await runReEvaluate('p1', 7, deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.submitting).toEqual([]);
+  });
+
+  // flow/branch(진행 해제) — 성공·실패 어느 경우든 submitting 이 finally 로 해제됨(이중 트리거 방지 불변).
+  it('성공·실패 어느 경우든 submitting 이 finally 로 해제된다 (flow/branch — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeReevalDeps(false);
+    await runReEvaluate('p1', 7, ok.deps);
+    expect(ok.calls.submitting).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeReevalDeps(false);
+    await runReEvaluate('p1', 7, fail.deps);
+    expect(fail.calls.submitting).toEqual([true, false]);
+  });
+});
+
+// R-112 — T-0886 신규 순수 helper(buildRecentDeletionPath) 검증. path param 부착 + 비정상 문자
+// 안전 인코딩 분기를 각 1+ cover.
+describe('AdminView — buildRecentDeletionPath (순수 함수, T-0886)', () => {
+  it('personId 를 recent-deletion path param 으로 부착한다 (happy)', () => {
+    expect(buildRecentDeletionPath('p1')).toBe(RECENT_DELETION_P1);
+    expect(buildRecentDeletionPath('abc-123')).toBe(
+      '/api/schedules/recent-deletion/abc-123',
+    );
+  });
+
+  it('비정상 문자가 든 personId 도 안전 인코딩한다 (negative — 특수문자 인코딩)', () => {
+    // 공백·슬래시 등이 path 를 깨지 않도록 encodeURIComponent 로 안전 인코딩.
+    expect(buildRecentDeletionPath('a b/c')).toBe(
+      '/api/schedules/recent-deletion/a%20b%2Fc',
+    );
   });
 });
