@@ -2,7 +2,10 @@
 id: T-0893
 title: realdata-e2e daily-step command-plan eval↔collect dual-leg convergence build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 0a305de3
+prNumber: 787
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 270
