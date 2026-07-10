@@ -195,20 +195,27 @@ describe("S2 measure→confirm-or-compare perf-spec — AppController health-rea
       }
     });
 
-    it("(b) compared — 같은 baseDir 재호출 → outcome=compared + comparison·report, 동일 endpoint 라 기본 tolerance 에서 regressed=false(실 GET /api 200 반영)", async () => {
+    it("(b) compared — 같은 baseDir 재호출 → outcome=compared + comparison·report, 동일 합성 latency 라 regressed=false(주입 clock 결정론, 실 GET /api 200 반영)", async () => {
       const baseDir = baselineDir("baselines");
 
-      // 1차 — 최초 확정 write(established).
+      // 1차·2차 모두 **동일 stepMs 의 주입 clock**(stepClock(50))을 measure 에 태워 두 실측이
+      // 동일 합성 latency 표본을 보게 만든다. 이렇게 하면 회귀 판정이 wall-clock 부하와 무관하게
+      // 결정론적으로 무회귀(regressed=false)로 수렴한다 — 실 performance.now() 표본에 의존하던
+      // 기존 flake(시스템 부하 상승 시 2차가 1차보다 느려져 regressed=true 로 튐)를 제거한다.
+      const stepMs = 50;
+
+      // 1차 — 최초 확정 write(established). 주입 clock 표본 stepMs 로 baseline 확정.
       const first = await measureAndConfirmBaseline(readRequest, env, baseDir, {
-        measure: { iterations: 3 },
+        measure: { iterations: 3, now: stepClock(stepMs) },
       });
       expect(first.outcome).toBe("established");
 
-      // 2차 — baseline 이 존재하므로 로드·비교(compared). 동일 endpoint(즉시 200 상수) 특성상
-      // 기본 tolerance 에서 회귀 없음. 실 200 응답이 measure 에 반영됨(errorRate 0, count>0).
+      // 2차 — baseline 이 존재하므로 로드·비교(compared). **동일 stepMs 주입 clock** 으로 1차와
+      // 동일 합성 latency 를 실측 → 기본 tolerance 에서 회귀 없음이 결정론적으로 성립.
+      // 실 200 응답이 measure 에 반영됨(errorRate 0, count>0)은 그대로 유지.
       const req = jest.fn(readRequest);
       const second = await measureAndConfirmBaseline(req, env, baseDir, {
-        measure: { iterations: 3 },
+        measure: { iterations: 3, now: stepClock(stepMs) },
       });
 
       expect(req).toHaveBeenCalledTimes(3);
