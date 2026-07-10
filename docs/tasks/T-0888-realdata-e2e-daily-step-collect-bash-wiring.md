@@ -2,18 +2,25 @@
 id: T-0888
 title: 실 평가 e2e daily-test step_collect bash 배선 — env-gated SKIP/run + executable bash spec + CI step
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-013, REQ-009, REQ-059]
 estimatedDiff: 250
 estimatedFiles: 3
 created: 2026-07-11
+completedAt: 2026-07-10T16:46:45Z
+mergedAs: 9b4e817f
+prNumber: 782
+reviewRounds: 2
 independentStream: p5-realdata-e2e-daily-runner
 dependsOn: [T-0887]
 touchesFiles:
   - deploy/daily-test.sh
   - deploy/daily-test-step-collect.test.sh
   - .github/workflows/ci.yml
+  # 실제 변경에서 추가된 커플 파일(reviewer MINOR closure):
+  - deploy/daily-test-step-eval.test.sh  # ORDER exact→prefix match 갱신(collect append 수용)
+  - test/smoke/realdata-e2e-daily-test-machine-result-json-schema-order-driven-steps-parity-drift.smoke-spec.ts  # 5→6-elem ORDER 갱신(round1 BLOCKER fix)
 plannerNote: "P5 PLAN 109행 ④ — T-0887 collect 컴포저 소비하는 bash step_collect 배선(gating 공유·SKIP no-op). eval-leg T-0612 mirror. 3 파일, 250 LOC, cap 내(gating 함수 재사용)."
 ---
 
