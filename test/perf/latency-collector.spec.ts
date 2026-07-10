@@ -1,8 +1,21 @@
-import { buildBaselineReport, BaselineEnvMeta } from "./latency-baseline";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
+import {
+  buildBaselineReport,
+  BaselineEnvMeta,
+  resolveBaselinePath,
+} from "./latency-baseline";
+import {
+  readBaselineFile,
+  readCompareBaselineFile,
+} from "./latency-baseline-io";
 import {
   collectLatencySamples,
   assertS2Threshold,
   measureBaselineCandidate,
+  measureAndConfirmBaseline,
   RequestFn,
   CollectResult,
 } from "./latency-collector";
@@ -700,6 +713,362 @@ describe("latency-collector harness (S2)", () => {
         expect(report.pass).toBe(false);
         // throw 하지 않았으므로 여기 도달 자체가 관찰 전용 계약 검증.
         expect(report.env).toEqual(env);
+      });
+    });
+  });
+
+  /**
+   * T-0876 — measure→confirm-or-compare end-to-end loop harness `measureAndConfirmBaseline` 의
+   * R-112 spec. measureBaselineCandidate(candidate 생산) → confirmOrCompareBaseline(최초 확정 write |
+   * 로드·비교) 조립을 주입 request·clock 과 격리 임시 디렉토리에서 결정론적으로 검증한다.
+   * happy-path(established/compared 양 분기) / error path(각 예외 부작용 없이 그대로 전파) /
+   * flow·branch(부재→established vs 존재→compared, measure/compare 옵션 위임) / negative cases
+   * 충분 cover(undefined·임계위반 established·회귀 comparison.regressed·measure reject 시 부작용 0).
+   * confirmOrCompareBaseline 의 disk 부작용은 매 test 격리 임시 디렉토리에서만 일으키고 정리한다.
+   */
+  describe("measureAndConfirmBaseline (S2 measure→confirm-or-compare loop)", () => {
+    /** 표준 env-meta fixture. */
+    const env: BaselineEnvMeta = { label: "ci-loop", concurrency: 4 };
+
+    /** 매 test 격리 임시 디렉토리 루트(afterEach 재귀 삭제). */
+    let tmpRoot: string;
+
+    beforeEach(() => {
+      tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "s2-measure-confirm-"));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    });
+
+    /** tmpRoot 하위 POSIX 결합 baseline 디렉토리(테스트 공통 baseDir). */
+    function baselineDir(...segments: string[]): string {
+      return path.posix.join(tmpRoot.split(path.sep).join("/"), ...segments);
+    }
+
+    describe("happy path — established(최초 확정) / compared(비교) 양 분기", () => {
+      it("(a) baseline 부재 → outcome=established + path, candidate 가 디스크에 write(round-trip 동치)", async () => {
+        const baseDir = baselineDir("baselines");
+        // 동일 입력으로 수동 조립한 candidate 와 비교하기 위해 결정론 clock·iterations 고정.
+        const measure = { iterations: 5, now: stepClock(10) };
+
+        const result = await measureAndConfirmBaseline(
+          okRequest,
+          env,
+          baseDir,
+          {
+            measure,
+          },
+        );
+
+        expect(result.outcome).toBe("established");
+        if (result.outcome === "established") {
+          expect(result.path).toBe(resolveBaselinePath(env, baseDir));
+          expect(fs.existsSync(result.path)).toBe(true);
+          // 디스크 파일 내용이 measureBaselineCandidate 산출 candidate 와 round-trip 동치.
+          const expectedCandidate = await measureBaselineCandidate(
+            okRequest,
+            env,
+            {
+              iterations: 5,
+              now: stepClock(10),
+            },
+          );
+          const persisted = readBaselineFile(env, baseDir);
+          expect(persisted).toEqual(expectedCandidate);
+        }
+      });
+
+      it("(b) baseline 존재 → outcome=compared + comparison·report, 수동 조립 동치(자기 비교 회귀 0)", async () => {
+        const baseDir = baselineDir("baselines");
+        const measure = { iterations: 5, now: stepClock(10) };
+
+        // 1차 — 최초 확정 write.
+        const first = await measureAndConfirmBaseline(okRequest, env, baseDir, {
+          measure,
+        });
+        expect(first.outcome).toBe("established");
+
+        // 2차 — 존재하므로 로드·비교. 동일 측정이라 회귀 0.
+        const second = await measureAndConfirmBaseline(
+          okRequest,
+          env,
+          baseDir,
+          {
+            measure: { iterations: 5, now: stepClock(10) },
+          },
+        );
+        expect(second.outcome).toBe("compared");
+        if (second.outcome === "compared") {
+          expect(second.comparison.regressed).toBe(false);
+          // measureBaselineCandidate 결과가 그대로 confirm 으로 전달돼 수동 조립과 동치.
+          const candidate = await measureBaselineCandidate(okRequest, env, {
+            iterations: 5,
+            now: stepClock(10),
+          });
+          const expected = readCompareBaselineFile(env, baseDir, candidate);
+          expect(second.comparison).toEqual(expected.comparison);
+          expect(second.report).toBe(expected.report);
+        }
+      });
+    });
+
+    describe("error path — 하위 예외 그대로 전파(부작용 없음)", () => {
+      it("(1) request 가 함수 아님(null) → measure TypeError 전파, confirm 미도달(파일 미생성)", async () => {
+        const baseDir = baselineDir("baselines");
+        await expect(
+          measureAndConfirmBaseline(null as unknown as RequestFn, env, baseDir),
+        ).rejects.toThrow(TypeError);
+        expect(fs.existsSync(baseDir)).toBe(false);
+      });
+
+      it("(2) opts.measure.iterations 음수 → measure RangeError 전파", async () => {
+        const baseDir = baselineDir("baselines");
+        await expect(
+          measureAndConfirmBaseline(okRequest, env, baseDir, {
+            measure: { iterations: -1 },
+          }),
+        ).rejects.toThrow(RangeError);
+        expect(fs.existsSync(baseDir)).toBe(false);
+      });
+
+      it("(2b) opts.measure.iterations NaN → measure RangeError 전파", async () => {
+        const baseDir = baselineDir("baselines");
+        await expect(
+          measureAndConfirmBaseline(okRequest, env, baseDir, {
+            measure: { iterations: NaN },
+          }),
+        ).rejects.toThrow(RangeError);
+      });
+
+      it("(3) env 형태 불량(null) → measure(build) TypeError 전파", async () => {
+        const baseDir = baselineDir("baselines");
+        await expect(
+          measureAndConfirmBaseline(
+            okRequest,
+            null as unknown as BaselineEnvMeta,
+            baseDir,
+            { measure: { iterations: 2, now: stepClock(5) } },
+          ),
+        ).rejects.toThrow(TypeError);
+        expect(fs.existsSync(baseDir)).toBe(false);
+      });
+
+      it("(3b) env.label 빈/공백 → measure(build) RangeError 전파", async () => {
+        const baseDir = baselineDir("baselines");
+        await expect(
+          measureAndConfirmBaseline(
+            okRequest,
+            { label: "  ", concurrency: 1 },
+            baseDir,
+            { measure: { iterations: 2, now: stepClock(5) } },
+          ),
+        ).rejects.toThrow(RangeError);
+      });
+
+      it("(4) baseDir non-string → confirmOrCompareBaseline TypeError 전파", async () => {
+        await expect(
+          measureAndConfirmBaseline(okRequest, env, 123 as unknown as string, {
+            measure: { iterations: 2, now: stepClock(5) },
+          }),
+        ).rejects.toThrow(TypeError);
+      });
+
+      it("(5) baseDir 빈/공백-only → confirmOrCompareBaseline RangeError 전파", async () => {
+        await expect(
+          measureAndConfirmBaseline(okRequest, env, "   ", {
+            measure: { iterations: 2, now: stepClock(5) },
+          }),
+        ).rejects.toThrow(RangeError);
+      });
+
+      it("(6) 비교 분기에서 저장 파일 내용이 유효 JSON 아님(사전 손상) → SyntaxError 전파", async () => {
+        const baseDir = baselineDir("baselines");
+        // 먼저 정상 확정해 파일을 만든 뒤 내용을 손상시킨다(존재 분기 유도).
+        const first = await measureAndConfirmBaseline(okRequest, env, baseDir, {
+          measure: { iterations: 3, now: stepClock(5) },
+        });
+        expect(first.outcome).toBe("established");
+        fs.writeFileSync(resolveBaselinePath(env, baseDir), "{not-json", {
+          encoding: "utf-8",
+        });
+        await expect(
+          measureAndConfirmBaseline(okRequest, env, baseDir, {
+            measure: { iterations: 3, now: stepClock(5) },
+          }),
+        ).rejects.toThrow(SyntaxError);
+      });
+
+      it("(7) opts.compare tolerance 음수 → 비교 분기 RangeError 전파", async () => {
+        const baseDir = baselineDir("baselines");
+        // 확정으로 존재 분기 준비.
+        await measureAndConfirmBaseline(okRequest, env, baseDir, {
+          measure: { iterations: 3, now: stepClock(5) },
+        });
+        await expect(
+          measureAndConfirmBaseline(okRequest, env, baseDir, {
+            measure: { iterations: 3, now: stepClock(5) },
+            compare: { latencyTolerance: -1 },
+          }),
+        ).rejects.toThrow(RangeError);
+      });
+    });
+
+    describe("flow / branch — 부재→established vs 존재→compared, 옵션 위임", () => {
+      it("baseline 부재 → established 분기(write 발생) vs 존재 → compared 분기(write 없이 read·compare)", async () => {
+        const baseDir = baselineDir("baselines");
+        const first = await measureAndConfirmBaseline(okRequest, env, baseDir, {
+          measure: { iterations: 4, now: stepClock(10) },
+        });
+        expect(first.outcome).toBe("established");
+        // mtime 을 기록해 두 번째 호출이 write 하지 않음을 확인.
+        const target = resolveBaselinePath(env, baseDir);
+        const firstMtime = fs.statSync(target).mtimeMs;
+
+        const second = await measureAndConfirmBaseline(
+          okRequest,
+          env,
+          baseDir,
+          {
+            measure: { iterations: 4, now: stepClock(10) },
+          },
+        );
+        expect(second.outcome).toBe("compared");
+        // 존재 분기는 read-only — 파일이 재기록되지 않음.
+        expect(fs.statSync(target).mtimeMs).toBe(firstMtime);
+      });
+
+      it("opts.measure.iterations 지정 시 measureBaselineCandidate 로 전달(호출 횟수로 검증)", async () => {
+        const baseDir = baselineDir("baselines");
+        const req = jest.fn(okRequest);
+        await measureAndConfirmBaseline(req, env, baseDir, {
+          measure: { iterations: 7, now: stepClock(1) },
+        });
+        expect(req).toHaveBeenCalledTimes(7);
+      });
+
+      it("opts.measure 미지정 시 기본 30 이 measure 로 위임(호출 횟수 30)", async () => {
+        const baseDir = baselineDir("baselines");
+        const req = jest.fn(okRequest);
+        // measure 미지정(clock 기본) — 호출 횟수만 검증.
+        const result = await measureAndConfirmBaseline(req, env, baseDir);
+        expect(req).toHaveBeenCalledTimes(30);
+        expect(result.outcome).toBe("established");
+      });
+
+      it("opts.compare 지정(tolerance 좁힘) → 비교 분기 comparison.regressed=true 유도", async () => {
+        const baseDir = baselineDir("baselines");
+        // 1차 — 빠른 baseline 확정(표본 10ms).
+        await measureAndConfirmBaseline(okRequest, env, baseDir, {
+          measure: { iterations: 5, now: stepClock(10) },
+        });
+        // 2차 — 느린 candidate(표본 100ms) + tolerance 0 → 회귀.
+        const result = await measureAndConfirmBaseline(
+          okRequest,
+          env,
+          baseDir,
+          {
+            measure: { iterations: 5, now: stepClock(100) },
+            compare: { latencyTolerance: 0 },
+          },
+        );
+        expect(result.outcome).toBe("compared");
+        if (result.outcome === "compared") {
+          expect(result.comparison.regressed).toBe(true);
+        }
+      });
+
+      it("opts.compare 미지정 → 기본 tolerance(+10%)로 소폭 증가는 회귀 아님", async () => {
+        const baseDir = baselineDir("baselines");
+        await measureAndConfirmBaseline(okRequest, env, baseDir, {
+          measure: { iterations: 5, now: stepClock(100) },
+        });
+        // candidate 105ms(+5%) < 기본 tolerance 10% → 회귀 아님.
+        const result = await measureAndConfirmBaseline(
+          okRequest,
+          env,
+          baseDir,
+          {
+            measure: { iterations: 5, now: stepClock(105) },
+          },
+        );
+        expect(result.outcome).toBe("compared");
+        if (result.outcome === "compared") {
+          expect(result.comparison.regressed).toBe(false);
+        }
+      });
+    });
+
+    describe("negative cases 충분 cover", () => {
+      it("opts=undefined → 기본 measure(iterations 30)·기본 compare 로 정상 established", async () => {
+        const baseDir = baselineDir("baselines");
+        const req = jest.fn(okRequest);
+        const result = await measureAndConfirmBaseline(req, env, baseDir);
+        expect(req).toHaveBeenCalledTimes(30);
+        expect(result.outcome).toBe("established");
+        if (result.outcome === "established") {
+          expect(fs.existsSync(result.path)).toBe(true);
+        }
+      });
+
+      it("established 분기 candidate 가 임계 위반(pass=false)이어도 throw 없이 write, pass=false 가 파일에 저장", async () => {
+        const baseDir = baselineDir("baselines");
+        // p95MaxMs 낮춰 pass=false 유도 — 관찰 전용이라 write 는 수행.
+        const result = await measureAndConfirmBaseline(
+          okRequest,
+          env,
+          baseDir,
+          {
+            measure: {
+              iterations: 5,
+              now: stepClock(10),
+              thresholds: { p95MaxMs: 1 },
+            },
+          },
+        );
+        expect(result.outcome).toBe("established");
+        if (result.outcome === "established") {
+          const persisted = readBaselineFile(env, baseDir);
+          // pass=false candidate 가 그대로 파일에 저장됨(관찰 전용).
+          expect(persisted.pass).toBe(false);
+        }
+      });
+
+      it("compared 분기 회귀 발생(tolerance 좁힘)은 comparison.regressed=true 로만 노출·함수는 throw 안 함", async () => {
+        const baseDir = baselineDir("baselines");
+        await measureAndConfirmBaseline(okRequest, env, baseDir, {
+          measure: { iterations: 5, now: stepClock(10) },
+        });
+        // 회귀해도 resolve(reject 아님) 확인.
+        const result = await measureAndConfirmBaseline(
+          okRequest,
+          env,
+          baseDir,
+          {
+            measure: { iterations: 5, now: stepClock(100) },
+            compare: { latencyTolerance: 0 },
+          },
+        );
+        expect(result.outcome).toBe("compared");
+        if (result.outcome === "compared") {
+          expect(result.comparison.regressed).toBe(true);
+        }
+      });
+
+      it("measure 가 reject(주입 request throw) → confirm 미도달로 파일 미생성(부작용 0)", async () => {
+        const baseDir = baselineDir("baselines");
+        // request 자체가 함수 아님이 아니라, env 형태 불량으로 build 단계 reject → confirm 미도달.
+        // 여기서는 request 가 함수지만 env.label 공백으로 measure 가 reject 하는 경로를 검증.
+        await expect(
+          measureAndConfirmBaseline(
+            okRequest,
+            { label: "  ", concurrency: 1 },
+            baseDir,
+            { measure: { iterations: 3, now: stepClock(5) } },
+          ),
+        ).rejects.toThrow(RangeError);
+        // confirm 미도달 → baseDir 자체가 생성되지 않음(write 부작용 0).
+        expect(fs.existsSync(baseDir)).toBe(false);
       });
     });
   });
