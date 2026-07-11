@@ -2,7 +2,7 @@
 id: T-0913
 title: realdata-e2e dual-leg run report 이슈 publish round-trip(박제-후 output-parse) 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-059]
 estimatedDiff: 230
@@ -68,3 +68,12 @@ PLAN §109 "🟢 실 평가 e2e" 의 dual-leg run report 이슈 publish 축은 *
 ## Follow-ups
 
 (없음 — 생성 시점)
+
+---
+
+## 완료 기록
+
+- **Status: DONE** (2026-07-11)
+- PR: [#807](https://github.com/myungjoo/Assessment-Agent/pull/807) — squash merge `2c95c59d`, round 1/7 APPROVE.
+- 결과: dual-leg run report 이슈 publish round-trip(박제-후 output-parse) 조립 체인 non-gated build-time smoke 신설. test-only +478/-0 (1 파일), production LOC 0, 신규 dependency 0. smoke 22/22 green (happy·create/update 분기·error·negative 분기별·결정론/무공유/no-mutation·raw 누출 0). lint·build·CI green.
+- summary 축 T-0742(forward)↔T-0747(post-exec) round-trip 대칭 mirror. T-0912 forward publish + 본 T-0913 로 dual-leg run report publish 축 종결.
