@@ -2,7 +2,11 @@
 id: T-0904
 title: realdata-e2e daily-step dual-leg run report 이슈 outcome 산출 키 집합 ↔ parse-shape 정합 순수 가드 신설
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 798
+mergedAs: 1bc706a6
+reviewRounds: 1
+completedAt: 2026-07-11T01:58:52Z
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 480
