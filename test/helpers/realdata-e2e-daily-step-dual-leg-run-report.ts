@@ -23,6 +23,18 @@
 // Out of Scope: 실 daily-test bash 배선 / 실 jest spawn / 실 leg outcome 캡처 / 실 gh
 //   박제 / credential wiring(step ④ live wiring — credential gate) / EvaluationResult[]
 //   집계·렌더(T-0580/581) / 두 leg command-plan·gating·가드 수정(개념 참조만).
+//
+// 산출 report 6 필드(gitSha/dateToken/eval/collect/overallStatus/summaryLine) 전체가 입력
+// (evalOutcome, collectOutcome, run) 으로부터 컴포저 재호출 없이 독립 재유도한 expected 와
+// deep-equal 정합한지 검증하는 값-정합 가드(T-0910 신설)를 컴포저 산출 경로에 self-wire
+// 한다(T-0911). 단일 return 사이트 직전에 산출 report + 세 입력을 넘겨 self-assert — per-leg
+// status 파생·overallStatus 파생·gitSha/dateToken 전파·summaryLine 합성 중 값 drift 를
+// build-time fail-fast 로 닫는다. 가드가 컴포저 type(RealDataDailyStepLegRunOutcome/
+// RealDataDailyStepDualLegRunReport 등)을 type-only import 로만 가져와 컴포저 value 를
+// import 하지 않으므로(value import 0), 컴포저가 본 가드를 top-level value import 해도
+// 순환 의존이 생기지 않는다(summary 축 T-0726·dual-leg output 축 T-0907·search 축 T-0909
+// type-only top-level import mirror — lazy require 불요).
+import { assertRealDataDailyStepDualLegRunReportConsistentWithInput } from "./realdata-e2e-daily-step-dual-leg-run-report-consistency";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
 
 // RealDataDailyStepLegRunOutcome — 한 leg(eval | collect)의 jest run outcome 입력.
@@ -168,7 +180,7 @@ export function buildRealDataDailyStepDualLegRunReport(
   const summaryLine = `[${run.dateToken}@${run.gitSha}] eval=${evalStatus} collect=${collectStatus} → ${overallStatus}`;
 
   // 새 report 객체(무공유·입력 보존). eval/collect 필드도 매 호출 새 객체.
-  return {
+  const report: RealDataDailyStepDualLegRunReport = {
     gitSha: run.gitSha,
     dateToken: run.dateToken,
     eval: { action: evalOutcome.action, status: evalStatus },
@@ -176,4 +188,20 @@ export function buildRealDataDailyStepDualLegRunReport(
     overallStatus,
     summaryLine,
   };
+
+  // self-wire(T-0911) — 산출 report 6 필드 전체가 (evalOutcome, collectOutcome, run) 으로부터
+  // 컴포저 재호출 없이 독립 재유도한 expected 와 deep-equal 정합한지 반환 직전 검증한다. 세
+  // 입력은 파라미터로, report 는 위 조립 산출로 전부 가용하므로 한 호출 안에서 배선된다. 정상
+  // 조립 경로는 입력과 정합하는 report 를 산출하므로 throw 0(검증만, 산출 byte-identical
+  // 무변형). per-leg status/overallStatus 파생·gitSha/dateToken 전파·summaryLine 합성 회귀
+  // 시 손상 산출이 하위 wiring(descriptor·markdown·command-args)으로 새기 전 fail-fast(값
+  // 정합 위반 RangeError / 구조 결손 TypeError).
+  assertRealDataDailyStepDualLegRunReportConsistentWithInput(
+    report,
+    evalOutcome,
+    collectOutcome,
+    run,
+  );
+
+  return report;
 }

@@ -9,10 +9,19 @@
 //   - flow/branch: overallStatus 4 분기 + per-leg status 3 분기 각 1+.
 //   - negative 충분 cover(단일 negative 금지): all-skip / some-fail(혼합) / partial(혼합) /
 //     credential echo 0 / 결정론·무공유 / 입력 mutate 0.
+//
+// self-wire(T-0911) cover 구조: 값-정합 가드 종단 컴포저 self-wire — happy 무회귀(byte-
+// identical) + 가드 호출 배선(1회·(report, evalOutcome, collectOutcome, run) 인자·동일 참조)
+// + throw 선전파(RangeError/TypeError) + 기존 컴포저 throw 는 가드 도달 전 발생(가드 미호출)
+// + 결정성·무공유 유지.
 import {
   buildRealDataDailyStepDualLegRunReport,
   RealDataDailyStepLegRunOutcome,
 } from "./realdata-e2e-daily-step-dual-leg-run-report";
+// self-wire(T-0911) 검증용 namespace import — 컴포저가 top-level value import 로 같은 모듈을
+// 가져오므로(가드가 컴포저를 type-only import 만 함 → 순환 0) spec 의 spy 와 컴포저의 호출이
+// 동일 모듈 캐시 객체를 가리킨다 — spyOn 이 컴포저의 가드 호출을 가로챈다.
+import * as dualLegRunReportConsistencyModule from "./realdata-e2e-daily-step-dual-leg-run-report-consistency";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
 
 // 표준 run 식별자 fixture.
@@ -359,6 +368,221 @@ describe("buildRealDataDailyStepDualLegRunReport", () => {
       expect(ev).toEqual(evSnapshot);
       expect(co).toEqual(coSnapshot);
       expect(run).toEqual(runSnapshot);
+    });
+  });
+
+  // ── self-wire(T-0911) — 값-정합 가드 종단 컴포저 단일 return 배선 ────────────────
+  // 컴포저가 top-level value import 로 consistency 모듈을 가져오므로(가드는 컴포저를
+  // type-only import 만 함 → 순환 0) 아래 spyOn 이 컴포저의 가드 호출을 가로챈다. 본 가드는
+  // report + evalOutcome + collectOutcome + run 네 인자를 받고 넷 다 단일 return 사이트에서
+  // 가용하므로 컴포저 단일 호출 안에서 self-wire 된다(summary 축 T-0726·dual-leg output 축
+  // T-0907·search 축 T-0909 mirror — 본 task 는 인자가 4 개인 점만 다르다).
+  describe("T-0911 — 값-정합 가드 종단 컴포저 self-wire(산출 6필드↔입력 deep-equal)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("① 정상 호출에서 값-정합 가드를 throw 0 으로 통과해 산출이 self-wire 전과 byte-identical 하다(happy·무회귀)", () => {
+      const report = buildRealDataDailyStepDualLegRunReport(
+        evalOutcome(),
+        collectOutcome(),
+        RUN,
+      );
+
+      // self-wire 후에도 6 필드 값·shape 무회귀(byte-identical).
+      expect(report).toEqual({
+        gitSha: "a1b2c3d",
+        dateToken: "2026-07-11",
+        eval: { action: "run", status: "pass" },
+        collect: { action: "run", status: "pass" },
+        overallStatus: "all-pass",
+        summaryLine: "[2026-07-11@a1b2c3d] eval=pass collect=pass → all-pass",
+      });
+    });
+
+    it("② 값-정합 가드 호출 배선 — 정확히 1회·(반환될 report 와 동일 참조, evalOutcome, collectOutcome, run) 인자로 호출(인자 순서 검증)", () => {
+      const spy = jest.spyOn(
+        dualLegRunReportConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportConsistentWithInput",
+      );
+      const ev = evalOutcome();
+      const co = collectOutcome();
+
+      const report = buildRealDataDailyStepDualLegRunReport(ev, co, RUN);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서 (report, evalOutcome, collectOutcome, run) 준수 — 첫 인자는 반환 report 와
+      // 동일 참조, 나머지 셋은 각 입력과 동일 참조.
+      expect(spy).toHaveBeenCalledWith(report, ev, co, RUN);
+      expect(spy.mock.calls[0][0]).toBe(report);
+      expect(spy.mock.calls[0][1]).toBe(ev);
+      expect(spy.mock.calls[0][2]).toBe(co);
+      expect(spy.mock.calls[0][3]).toBe(RUN);
+    });
+
+    it("③ 매 호출마다 가드가 1회씩 호출된다 — 두 번 호출 시 누적 2회(호출별 self-assert 발동, 결정론)", () => {
+      const spy = jest.spyOn(
+        dualLegRunReportConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportConsistentWithInput",
+      );
+
+      buildRealDataDailyStepDualLegRunReport(
+        evalOutcome(),
+        collectOutcome(),
+        RUN,
+      );
+      buildRealDataDailyStepDualLegRunReport(
+        evalOutcome(),
+        collectOutcome(),
+        RUN,
+      );
+
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it("④ all-skip 산출이어도 값-정합 가드를 1회 호출한다(전체-산출 단일 호출)", () => {
+      const spy = jest.spyOn(
+        dualLegRunReportConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportConsistentWithInput",
+      );
+
+      const report = buildRealDataDailyStepDualLegRunReport(
+        evalOutcome({ action: "skip", passed: undefined }),
+        collectOutcome({ action: "skip", passed: undefined }),
+        RUN,
+      );
+
+      expect(report.overallStatus).toBe("all-skip");
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0]).toBe(report);
+    });
+
+    it("⑤ 값-정합 가드 RangeError(값 정합 위반) throw 전파 — 가드가 throw 하면 컴포저가 삼키지 않고 선전파(negative)", () => {
+      const sentinel = new RangeError("값 정합 위반(테스트 주입)");
+      jest
+        .spyOn(
+          dualLegRunReportConsistencyModule,
+          "assertRealDataDailyStepDualLegRunReportConsistentWithInput",
+        )
+        .mockImplementation(() => {
+          throw sentinel;
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReport(
+          evalOutcome(),
+          collectOutcome(),
+          RUN,
+        ),
+      ).toThrow(sentinel);
+    });
+
+    it("⑥ 값-정합 가드 TypeError(구조 결손 모사) throw 도 컴포저가 선전파한다(에러 종류 무관 전파, negative)", () => {
+      jest
+        .spyOn(
+          dualLegRunReportConsistencyModule,
+          "assertRealDataDailyStepDualLegRunReportConsistentWithInput",
+        )
+        .mockImplementation(() => {
+          throw new TypeError("구조 결손 모사");
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReport(
+          evalOutcome(),
+          collectOutcome(),
+          RUN,
+        ),
+      ).toThrow("구조 결손 모사");
+    });
+
+    it("⑦ 기존 컴포저 throw(run.gitSha 공백)는 가드 도달 전 발생해 값-정합 가드를 거치지 않는다(self-wire 가 fail-fast 를 가리지 않음, negative)", () => {
+      const spy = jest.spyOn(
+        dualLegRunReportConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportConsistentWithInput",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReport(
+          evalOutcome(),
+          collectOutcome(),
+          {
+            gitSha: "   ",
+            dateToken: "2026-07-11",
+          },
+        ),
+      ).toThrow(/gitSha/);
+      // run 식별자 guard 단계에서 throw 했으므로 단일 return 직전 self-assert 는 도달하지 않는다.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("⑧ 기존 컴포저 throw(leg 라벨 mislabel)도 가드 도달 전 발생한다(가드 미호출, negative)", () => {
+      const spy = jest.spyOn(
+        dualLegRunReportConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportConsistentWithInput",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReport(
+          evalOutcome({ leg: "collect" }),
+          collectOutcome(),
+          RUN,
+        ),
+      ).toThrow(/leg 라벨 불일치/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('⑨ 기존 컴포저 throw(action="run" 인데 passed=undefined)도 가드 도달 전 발생한다(가드 미호출, negative)', () => {
+      const spy = jest.spyOn(
+        dualLegRunReportConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportConsistentWithInput",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReport(
+          evalOutcome({ passed: undefined }),
+          collectOutcome(),
+          RUN,
+        ),
+      ).toThrow(/불완전 run outcome/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("⑩ self-wire 는 입력 outcome/run 을 변형하지 않는다(순수성 — 호출 전후 deep-equal)", () => {
+      const ev = evalOutcome();
+      const co = collectOutcome();
+      const run: RealDataResultIssueRunRef = {
+        gitSha: "a1b2c3d",
+        dateToken: "2026-07-11",
+      };
+      const evSnapshot = JSON.parse(JSON.stringify(ev));
+      const coSnapshot = JSON.parse(JSON.stringify(co));
+      const runSnapshot = JSON.parse(JSON.stringify(run));
+
+      buildRealDataDailyStepDualLegRunReport(ev, co, run);
+
+      expect(ev).toEqual(evSnapshot);
+      expect(co).toEqual(coSnapshot);
+      expect(run).toEqual(runSnapshot);
+    });
+
+    it("⑪ self-wire 후에도 동일 입력 두 번 호출 산출이 deep-equal·참조-무공유 유지(결정성·무공유, negative — mutation 격리)", () => {
+      const first = buildRealDataDailyStepDualLegRunReport(
+        evalOutcome(),
+        collectOutcome(),
+        RUN,
+      );
+      const second = buildRealDataDailyStepDualLegRunReport(
+        evalOutcome(),
+        collectOutcome(),
+        RUN,
+      );
+
+      expect(first).toEqual(second);
+      // 매 호출 새 report·새 leg 객체(참조-무공유) — self-wire 가 무공유를 깨지 않음.
+      expect(first).not.toBe(second);
+      expect(first.eval).not.toBe(second.eval);
+      expect(first.collect).not.toBe(second.collect);
     });
   });
 });
