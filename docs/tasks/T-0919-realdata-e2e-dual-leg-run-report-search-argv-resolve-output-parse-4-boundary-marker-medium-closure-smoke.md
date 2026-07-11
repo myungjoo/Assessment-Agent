@@ -2,7 +2,7 @@
 id: T-0919
 title: realdata-e2e dual-leg run report descriptor(marker) → command-args(searchQuery) → search-gh-argv(marker-as-argv-element) → resolve(action.update.issueNumber) → output-parse(issueNumber) 4-boundary marker-as-search-medium single-source closure non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 290
@@ -97,3 +97,12 @@ issue-still-relevant 확인(2026-07-11): `buildRealDataDailyStepDualLegRunReport
 ## Follow-ups
 
 (없음 — sweep 안에서 자연 후속이 더 있으면 다음 turn 의 planner 가 박제)
+
+---
+
+## Completion
+
+- **Status**: DONE (2026-07-11T11:58Z)
+- **PR**: #813 (squash 8eb9d6ce) — reviewer APPROVE round 1/7, 0 BLOCKER·0 MAJOR·0 MINOR·0 NIT, 4-게이트 PASS.
+- **결과**: descriptor→command-args→search-gh-argv(marker-as-argv-element)→resolve→output-parse 4-boundary marker-as-search-medium single-source closure non-gated build-time smoke 신설(+623/-0, test-only 1 file, production LOC 0). 기존 6 helper import 재사용·신규 helper/type/dep 0. 로컬 smoke 23/23 격리 green. CI green(first run reviewer-gate race 후 rerun --failed self-heal). counters 909→910.
+- **fire**: cron@aa-local-0aaa (fineGrainedConcurrency stage 5b claim-pickup).
