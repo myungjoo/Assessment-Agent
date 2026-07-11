@@ -2,7 +2,11 @@
 id: T-0926
 title: realdata-e2e dual-leg run report chain 을 종단 컴포저 산출까지 통과시켜 report 6 필드(gitSha/dateToken/eval/collect/overallStatus/summaryLine) 전체 값이 입력 (evalOutcome, collectOutcome, run) 으로부터 single-source 독립 재유도한 expected 와 deep-equal(값·per-leg status 파생·overallStatus 파생·summaryLine 합성·추가필드 drop) 정합함을 assertRealDataDailyStepDualLegRunReportConsistentWithInput(T-0911 가드)로 박제하는 report↔input value-consistency convergence non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-11T16:45:00Z
+mergedAs: b57afefa
+prNumber: 820
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 290
