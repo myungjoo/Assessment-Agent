@@ -2,8 +2,11 @@
 id: T-0920
 title: realdata-e2e dual-leg run report search-hit(N) → resolve(action.update.issueNumber) → edit-gh-argv(issueNumber-as-argv-element) → output-parse(issueNumber) execute-side single-source closure non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 814
+completedAt: 2026-07-11T13:00:00Z
+result: "DONE — PR #814 squash 34c225b3. execute-side issueNumber-as-edit-medium(plan.argv[2]===String(N)) 4지점 single-source closure non-gated smoke 신설(+596/-0 test-only 1 file, production LOC 0, 신규 helper/type/dep 0). reviewer round1 APPROVE(0 BLOCKER·0 MAJOR·0 MINOR·1 NIT sizeExempt), 4-게이트 PASS, CI green(merge run 34c225b3 success). counters 910→911."
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 290
 estimatedFiles: 1
