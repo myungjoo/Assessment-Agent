@@ -2,7 +2,7 @@
 id: T-0927
 title: realdata-e2e dual-leg run report chain 을 gh-command-plan 종단 컴포저까지 통과시켜 산출 plan.argv 가 create 분기(gh issue create --title/--body/--label flag-pair 순서 보존 전개)·update 분기(gh issue edit String(issueNumber) --title/--body) 양쪽 모두 buildRealDataDailyStepDualLegRunReportIssueGhArgv(action, commandArgs) single-source 빌더 산출과 byte-identical(원소·순서·labels 전개·issueNumber 문자열화) 정합하고 plan.action 이 search hits(빈→create/1+→최소 number update)로부터 재유도한 action 과 일치함을 박제하는 gh-command-plan argv single-source assembly non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 480
@@ -84,3 +84,7 @@ issue-still-relevant 확인(2026-07-12): `git grep -l "buildRealDataDailyStepDua
 ## Follow-ups
 
 (없음 — gh-command-plan argv single-source assembly 로 execute-side gh-argv 빌더(T-0899)가 smoke 그물에 편입되면 dual-leg run report chain 의 search-argv(T-0919)·edit-argv(T-0920)·gh-command-plan argv(본 task) execute/명령-plan 측이 모두 봉합. value-consistency 3-seam(T-0924/25/26) + gh-command-plan argv single-source 로 dual-leg build-time chain 의 parse·조립·값-정합·명령-plan 축 종결. 잔여는 step④ live wiring(credential gate deferred) — 다음 turn 의 planner 가 PLAN 재평가로 판단)
+
+## Status: DONE (2026-07-11T17:35Z)
+
+PR #821 merge 완료 (squash `0c9d1c0d`). test-only smoke 1파일 신설(+601 LOC, production 0 LOC). implementer → tester: lint + build + 격리 smoke 34 tests green. reviewer round 1/7 APPROVE(0 BLOCKER·0 MAJOR·2 MINOR optional nit), 4-게이트 PASS(reviewer comment external·CI green·self-check). plan.argv ↔ single-source gh-argv 빌더(T-0899) create/update 두 분기 byte-identical 정합 박제. dual-leg run report chain 의 gh-command-plan argv single-source 축 종결.
