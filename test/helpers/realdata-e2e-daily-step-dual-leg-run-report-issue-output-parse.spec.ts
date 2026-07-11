@@ -18,10 +18,15 @@
 // 가드 호출을 가로채고(강제 throw / 호출 인자 확인), 정규 키 상수를 인자 대조에 쓴다.
 import * as outcomeShapeModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-parse-shape";
 import { REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_OUTCOME_PARSE_SHAPE_KEYS } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-parse-shape";
+// self-wire(T-0907) 검증용 — 값-정합 가드 모듈 전체를 namespace import 해 `jest.spyOn`
+// 으로 컴포저의 가드 호출을 가로챈다(강제 throw / 호출 인자 확인). 컴포저가 top-level value
+// import 로 이 모듈을 가져오므로 spyOn 이 그 호출을 가로챌 수 있다(가드는 컴포저를 type-only
+// import 만 함 → 순환 0).
 import {
   parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput,
   type RealDataDailyStepDualLegRunReportIssueOutcome,
 } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-output-parse";
+import * as outputParseConsistencyModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-output-parse-consistency";
 
 describe("parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput — gh create/edit stdout → outcome 순수 파서", () => {
   describe("happy-path (정상 파싱)", () => {
@@ -397,6 +402,214 @@ describe("parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput — gh cre
 
       expect(a).toEqual(b);
       expect(a).not.toBe(b);
+    });
+  });
+
+  // ── self-wire(T-0907) — 값-정합 가드 단일 return 배선 ────────────────────────
+  // 컴포저가 top-level value import 로 값-정합 consistency 모듈을 가져오므로(가드는 컴포저를
+  // type-only import 만 함 → 순환 0) 아래 spyOn 이 컴포저의 가드 호출을 가로챈다. 본 가드는
+  // outcome + stdout 두 인자를 받고 둘 다 단일 return 사이트에서 가용하므로 컴포저 단일 호출
+  // 안에서 self-wire 된다(set-equality 가드와 공존 — 그 가드는 outcome 의 키 집합만, 본 가드는
+  // 전체 값을 본다). summary 축 T-0724 self-wire 의 dual-leg mirror.
+  //
+  // R-112 cover 구조(self-wire):
+  //   - happy-path: self-wire 후 정상 산출 outcome byte-identical 보존 + self-assert throw 0.
+  //   - self-wire 검증: 가드가 `(반환될 outcome 과 동일 참조, 원본 stdout)` 인자로 정확히
+  //     1회 호출됨을 spy 로 확인(인자 순서 outcome+stdout). 매 호출 1회(두 번 호출=2회).
+  //   - error path: 가드를 spy 로 강제 throw(RangeError 값 정합 위반 / TypeError 구조 결손)
+  //     시키면 컴포저가 그 에러를 삼키지 않고 선전파(fail-fast).
+  //   - flow/branch: 기존 컴포저 throw(URL 미발견 / issueNumber 비양정수)가 self-assert 도달
+  //     전에 발생(검증 순서 보존) — 값-정합 가드 미호출(spy 0회).
+  //   - negative 충분 cover: (a) RangeError throw 전파, (b) TypeError throw 전파, (c) 기존
+  //     URL 미발견 throw 가 가드 도달 전(spy 0회), (d) 기존 issueNumber 0 throw 가 가드
+  //     도달 전(spy 0회), (e) 기존 issueNumber 선행 0 throw 가 가드 도달 전(spy 0회),
+  //     (f) 입력 stdout 비변형(순수성 보존), (g) self-wire 후 동일 stdout 두 번 호출 산출
+  //     deep-equal·참조-무공유.
+  describe("T-0907 — 값-정합 가드 producer self-wire(산출↔stdout deep-equal)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("① 정상 호출에서 값-정합 가드를 throw 0 으로 통과해 산출이 self-wire 전과 byte-identical 하다(happy·무회귀)", () => {
+      const stdout = [
+        "Creating issue in owner/repo",
+        "https://github.com/owner/repo/issues/123  ",
+        "Done.",
+      ].join("\n");
+
+      const outcome =
+        parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(stdout);
+
+      // self-wire 후에도 {issueNumber, url} 만, 첫 매칭 URL trim 정규화, 필드 순서 보존.
+      expect(outcome).toEqual({
+        issueNumber: 123,
+        url: "https://github.com/owner/repo/issues/123",
+      });
+      expect(Object.keys(outcome)).toEqual(["issueNumber", "url"]);
+    });
+
+    it("② 값-정합 가드 호출 배선 — 정확히 1회·(반환될 outcome 과 동일 참조, 원본 stdout) 인자로 호출(인자 순서 outcome+stdout 검증)", () => {
+      const spy = jest.spyOn(
+        outputParseConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout",
+      );
+      const stdout = "https://github.com/owner/repo/issues/42\n";
+
+      const outcome =
+        parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(stdout);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서 (outcome, stdout) 준수 — 첫 인자는 반환 outcome 과 동일 참조, 둘째는 입력 stdout.
+      expect(spy).toHaveBeenCalledWith(outcome, stdout);
+      expect(spy.mock.calls[0][0]).toBe(outcome);
+      expect(spy.mock.calls[0][1]).toBe(stdout);
+    });
+
+    it("③ 매 호출마다 가드가 1회씩 호출된다 — 두 번 호출 시 누적 2회(호출별 self-assert 발동)", () => {
+      const spy = jest.spyOn(
+        outputParseConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout",
+      );
+      const stdout = "https://github.com/owner/repo/issues/7";
+
+      parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(stdout);
+      parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(stdout);
+
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it("④ 값-정합 가드가 self-wire 다음(set-equality 가드 뒤)에 호출된다(가드 순서 보존)", () => {
+      const shapeSpy = jest.spyOn(
+        outcomeShapeModule,
+        "assertRealDataDailyStepDualLegRunReportIssueOutcomeMatchesParseShape",
+      );
+      const valueSpy = jest.spyOn(
+        outputParseConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout",
+      );
+
+      parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(
+        "https://github.com/owner/repo/issues/9",
+      );
+
+      // set-equality 가드가 값-정합 가드보다 먼저 호출된다(호출 순서 보존).
+      expect(shapeSpy).toHaveBeenCalledTimes(1);
+      expect(valueSpy).toHaveBeenCalledTimes(1);
+      expect(shapeSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        valueSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("⑤ 값-정합 가드 RangeError(값 정합 위반) throw 전파 — 가드가 throw 하면 컴포저가 삼키지 않고 선전파(negative)", () => {
+      const sentinel = new RangeError("값 정합 위반(테스트 주입)");
+      jest
+        .spyOn(
+          outputParseConsistencyModule,
+          "assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout",
+        )
+        .mockImplementation(() => {
+          throw sentinel;
+        });
+
+      expect(() =>
+        parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(
+          "https://github.com/owner/repo/issues/1",
+        ),
+      ).toThrow(sentinel);
+    });
+
+    it("⑥ 값-정합 가드 TypeError(구조 결손 모사) throw 도 컴포저가 선전파한다(에러 종류 무관 전파, negative)", () => {
+      jest
+        .spyOn(
+          outputParseConsistencyModule,
+          "assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout",
+        )
+        .mockImplementation(() => {
+          throw new TypeError("구조 결손 모사");
+        });
+
+      expect(() =>
+        parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(
+          "https://github.com/owner/repo/issues/1",
+        ),
+      ).toThrow("구조 결손 모사");
+    });
+
+    it("⑦ 기존 컴포저 throw(URL 미발견)는 가드 도달 전 발생해 값-정합 가드를 거치지 않는다(self-wire 가 fail-fast 를 가리지 않음, negative)", () => {
+      const spy = jest.spyOn(
+        outputParseConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout",
+      );
+
+      expect(() =>
+        parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(""),
+      ).toThrow(/issue URL/);
+      // URL 매칭 전에 throw 했으므로 단일 return 직전 self-assert 는 도달하지 않는다.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("⑧ 기존 컴포저 throw(issueNumber 0)도 가드 도달 전 발생한다(가드 미호출, negative)", () => {
+      const spy = jest.spyOn(
+        outputParseConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout",
+      );
+
+      expect(() =>
+        parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(
+          "https://github.com/owner/repo/issues/0",
+        ),
+      ).toThrow(/양의 정수가 아닙니다/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("⑨ 기존 컴포저 throw(issueNumber 선행 0)도 가드 도달 전 발생한다(가드 미호출, negative)", () => {
+      const spy = jest.spyOn(
+        outputParseConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout",
+      );
+
+      expect(() =>
+        parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(
+          "https://github.com/owner/repo/issues/007",
+        ),
+      ).toThrow(/양의 정수가 아닙니다/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("⑩ 입력 stdout 문자열을 변형하지 않는다(순수성 보존)", () => {
+      const stdout = "https://github.com/owner/repo/issues/42\n";
+      const before = stdout;
+
+      parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(stdout);
+
+      expect(stdout).toBe(before);
+    });
+
+    it("⑪ self-wire 후에도 동일 stdout 두 번 호출 산출이 deep-equal·참조-무공유 유지(결정성·무공유, negative — mutation 격리)", () => {
+      const stdout = "https://github.com/owner/repo/issues/42\n";
+
+      const first =
+        parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(stdout);
+      const second =
+        parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(stdout);
+
+      expect(first).toEqual(second);
+      // 매 호출 새 객체(참조-무공유) — self-wire 가 무공유를 깨지 않음.
+      expect(first).not.toBe(second);
+    });
+
+    it("⑫ 실 가드(non-mock)가 정상 outcome 에 대해 throw 0 으로 산출을 통과시킨다(가드가 컴포저 산출 경로에서 실제 발동)", () => {
+      // spy 없이 실 가드가 배선돼 동작함을 확인 — 값 정합 outcome 은 통과, throw 0.
+      const stdout =
+        "Editing issue #55\nhttps://github.com/some-org/my-repo/issues/55  \n";
+
+      const outcome =
+        parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(stdout);
+
+      expect(outcome).toEqual({
+        issueNumber: 55,
+        url: "https://github.com/some-org/my-repo/issues/55",
+      });
     });
   });
 });

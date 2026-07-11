@@ -68,6 +68,13 @@ import {
   assertRealDataDailyStepDualLegRunReportIssueOutcomeMatchesParseShape,
   REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_OUTCOME_PARSE_SHAPE_KEYS,
 } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-parse-shape";
+// self-wire(T-0907) — 파서가 정규화 outcome 을 반환하기 직전에, 산출 outcome 전체가 raw
+// stdout 으로부터 올바른 값(issueNumber 값·url trim 정규화·첫 매칭 URL 결정론)으로 재유도
+// 됐는지 self-assert 하기 위해 T-0906 신설 값-정합 가드를 값 import 한다. 가드 모듈은
+// `RealDataDailyStepDualLegRunReportIssueOutcome` 를 type-only 로만 import 하므로(value
+// import 0) 본 파서가 가드를 top-level value import 해도 순환 의존이 생기지 않는다(tsc green).
+// summary 축 T-0724 self-wire 의 dual-leg mirror.
+import { assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-output-parse-consistency";
 
 // RealDataDailyStepDualLegRunReportIssueOutcome — `gh issue create` / `gh issue edit`
 // 실행 후 stdout 에서 추출한 박제 결과의 최소 shape. (summary 축
@@ -143,6 +150,18 @@ export function parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(
   assertRealDataDailyStepDualLegRunReportIssueOutcomeMatchesParseShape(
     outcome,
     REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_OUTCOME_PARSE_SHAPE_KEYS,
+  );
+
+  // self-wire(T-0907) — 산출 outcome 전체가 raw stdout 으로부터 올바른 값(issueNumber·url·
+  // 첫 매칭 URL trim 정규화)으로 재유도됐는지 반환 직전 검증한다. stdout 은 파라미터로,
+  // outcome 은 위에서 묶인 객체로 둘 다 가용하므로 단일 호출 안에서 배선된다(set-equality
+  // 가드와 공존 — 그 가드는 outcome 의 키 집합만, 본 가드는 전체 값을 본다). 정상 파서 경로는
+  // stdout 과 정합하는 outcome 을 산출하므로 throw 0(검증만, 산출 byte-identical 무변형).
+  // issueNumber/url 값 drift·잘못된 매칭 URL 선택·trim 누락 회귀 시 손상 산출이 caller live
+  // wiring 으로 새기 전 fail-fast(값 정합 위반 RangeError / 구조 결손 TypeError).
+  assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout(
+    outcome,
+    stdout,
   );
 
   return outcome;
