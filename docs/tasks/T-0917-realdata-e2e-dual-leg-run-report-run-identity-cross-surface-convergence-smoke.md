@@ -2,7 +2,7 @@
 id: T-0917
 title: realdata-e2e dual-leg run report run-token(dateToken@gitSha) 단일 source cross-surface(descriptor.title·marker ↔ report.summaryLine ↔ markdown) 수렴 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 270
