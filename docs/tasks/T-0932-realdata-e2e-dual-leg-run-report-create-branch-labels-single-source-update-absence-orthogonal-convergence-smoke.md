@@ -2,7 +2,10 @@
 id: T-0932
 title: realdata-e2e dual-leg run report 의 create 분기(빈 search) plan.argv `--label` flag-pair 원소들이 단일 source(commandArgs.createArgs.labels)로부터 순서 보존·byte-identical 전개되고 update 분기(marker-매칭 hit) plan.argv 에는 `--label`/label 원소가 전무함(create-only labels ⊥ update)을 박제하는 create-branch labels single-source + update-absence orthogonal convergence non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 826
+mergedAs: 1ed3b5aa
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-059]
 estimatedDiff: 330
