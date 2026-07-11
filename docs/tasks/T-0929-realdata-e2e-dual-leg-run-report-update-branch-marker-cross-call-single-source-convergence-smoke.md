@@ -2,7 +2,7 @@
 id: T-0929
 title: realdata-e2e dual-leg run report 의 update 분기(marker-매칭 hit)에서 searchArgv(call 1 `--match body <marker>`)의 검색 marker 와 edit-branch plan.argv(call 2 `gh issue edit N --body`)의 body 선두 marker 라인이 단일 source(descriptor.marker)로부터 byte-identical 하게 관통함을 박제하는 update-branch cross-call marker single-source convergence non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-059]
 estimatedDiff: 320
@@ -93,3 +93,12 @@ issue-still-relevant 확인(2026-07-12): dual-leg smoke 중 파일명·본문에
 ## Follow-ups
 
 (없음 — update-branch cross-call marker single-source 수렴이 봉합되면 dual-leg run report step④ 의 update 분기 두 gh 호출(search call 1 + edit call 2) marker 관통이 chain 그물에 편입. T-0928(create-branch marker cross-call) + 본 task(update-branch marker cross-call)로 두 action 분기(create/update)의 cross-call marker single-source 관통이 모두 봉합. 잔여는 step④ live wiring(credential gate deferred, ADR-0045 LAN gate) — 다음 turn 의 planner 가 PLAN 재평가로 판단)
+
+---
+
+## 완료 기록
+
+- **완료 시각**: 2026-07-11T18:52Z (cron@cloud-720e451 fire)
+- **결과**: DONE. PR #823 squash 머지(merge SHA b4df2270), 4-게이트 PASS, integrator round1 APPROVE.
+- **변경**: test-only +611/-0 (smoke spec 1파일). production LOC 0, coverageThreshold 무회귀.
+- **검증**: update 분기 marker-매칭 hit chain 에서 search call1(`--match body <marker>`)의 검색 marker 와 edit call2(`gh issue edit N --body`) body 선두 marker 라인이 동일 descriptor.marker 로부터 byte-identical 관통 박제. marker 유일성·run 분포 변별·leg outcome 무관 안정·create 분기 격리·single-source 독립 재유도·negative 다수. smoke 24/24 격리 green, lint/build/unit 무회귀.
