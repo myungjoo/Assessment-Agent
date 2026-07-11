@@ -2,7 +2,11 @@
 id: T-0928
 title: realdata-e2e dual-leg run report 의 create 분기(빈 search)에서 searchArgv(call 1 `--match body <marker>`)의 검색 marker 와 create-branch plan.argv(call 2 `gh issue create --body`)의 body 선두 marker 라인이 단일 source(descriptor.marker)로부터 byte-identical 하게 관통함을 박제하는 create-branch cross-call marker single-source convergence non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-11T18:22:00Z
+mergedAs: a5ec61b0
+prNumber: 822
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-059]
 estimatedDiff: 320
