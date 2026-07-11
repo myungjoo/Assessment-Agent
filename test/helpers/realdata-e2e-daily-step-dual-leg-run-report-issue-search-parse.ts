@@ -65,6 +65,16 @@
 //   - 외부 라이브러리(zod 등) 도입 — 새 dependency 0, 내장 `JSON.parse` + 수동 검증만.
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
 import type { RealDataDailyStepDualLegRunReportIssueSearchHit } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-action";
+// 산출 hits 전체가 raw stdout 으로부터 올바른 개수·순서·필드값으로 재유도됐는지 검증하는
+// 값-정합 가드(T-0908 신설)를 컴포저 산출 경로에 self-wire 한다(T-0909). 단일 return 사이트
+// 직전에 산출 hits + 원본 stdout 을 넘겨 self-assert — number/title/body 값 drift·hit 누락/
+// 중복/재정렬을 build-time fail-fast 로 닫는다. 본 컴포저에는 기존 per-hit set-equality
+// self-wire 가 없어 본 배선이 최초 self-wire 다. 가드가
+// `RealDataDailyStepDualLegRunReportIssueSearchHit` 를 type-only import 로만 가져와 컴포저
+// value 를 import 하지 않으므로(value import 0), 컴포저가 본 가드를 top-level value import
+// 해도 순환 의존이 생기지 않는다(summary 축 T-0722·dual-leg output 축 T-0907 type-only
+// top-level import mirror — lazy require 불요).
+import { assertRealDataDailyStepDualLegRunReportIssueSearchOutputConsistentWithStdout } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-parse-consistency";
 
 // 원소 number guard — gh 응답이 정상이면 number 는 항상 양의 정수다. 0 이하/비정수면
 // 파싱 사고로 간주하고 명시적 throw(비정상 number 가 SearchHit 으로 새는 것을 차단).
@@ -122,7 +132,7 @@ export function parseRealDataDailyStepDualLegRunReportIssueSearchOutput(
   }
 
   // 각 원소 검증·정규화 — 매 원소마다 새 객체를 만들어 새 배열에 push(무공유).
-  return parsed.map((element: unknown, index: number) => {
+  const hits = parsed.map((element: unknown, index: number) => {
     // 원소 객체 guard — null / 숫자 / 문자열 등 비객체 차단(typeof null === "object" 라
     // null 을 별도 배제).
     if (typeof element !== "object" || element === null) {
@@ -147,4 +157,17 @@ export function parseRealDataDailyStepDualLegRunReportIssueSearchOutput(
 
     return hit;
   });
+
+  // self-wire(T-0909) — 산출 hits 배열 전체가 raw stdout 으로부터 올바른 개수·순서·필드값
+  // 으로 재유도됐는지 반환 직전 검증한다. stdout 은 파라미터로, hits 는 위 map 산출로 둘 다
+  // 가용하므로 한 호출 안에서 배선된다(본 컴포저는 per-hit set-equality 가드가 없어 본 배선이
+  // 최초 self-wire). 정상 파서 경로는 stdout 과 정합하는 hits 를 산출하므로 throw 0(검증만,
+  // 산출 byte-identical 무변형). 값 drift·hit 누락/중복/재정렬 회귀 시 손상 산출이 caller
+  // resolver(T-0898)로 새기 전 fail-fast(값 정합 위반 RangeError / 구조 결손 TypeError).
+  assertRealDataDailyStepDualLegRunReportIssueSearchOutputConsistentWithStdout(
+    hits,
+    stdout,
+  );
+
+  return hits;
 }
