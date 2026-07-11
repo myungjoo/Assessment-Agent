@@ -2,7 +2,10 @@
 id: T-0937
 title: realdata-e2e dual-leg run report 를 같은 run 으로 두 번(그리고 멱등 확인용 세 번) 연속 publish 할 때, 사람이 여는 rolling-issue 의 permalink(`outcome.url`)가 1차 create publish 와 그 이후 모든 update publish 에서 **byte-identical 하게 안정**함 — 즉 2차·3차 update 의 `outcome.url` 이 1차 create 의 `outcome.url` 과 정확히 같은 `.../issues/M`(M = 1차 create-output 이 낳은 이슈 번호, republish T-0922 가 봉합한 그 threaded M) 을 가리켜 사람 링크가 rolling 갱신마다 어긋나지 않음을 박제하는 cross-publish url permalink stability single-source convergence non-gated build-time smoke — T-0922(republish issueNumber M threading)의 url 축 짝
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 7be3dce5
+prNumber: 831
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 340
