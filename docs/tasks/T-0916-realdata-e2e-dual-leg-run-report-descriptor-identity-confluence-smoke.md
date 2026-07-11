@@ -2,8 +2,11 @@
 id: T-0916
 title: realdata-e2e dual-leg run report descriptor title·marker run-token identity-confluence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 810
+mergedAs: 9aa4fd1b
+completedAt: 2026-07-11T09:45:00Z
 coversReq: [REQ-109]
 estimatedDiff: 300
 estimatedFiles: 1
