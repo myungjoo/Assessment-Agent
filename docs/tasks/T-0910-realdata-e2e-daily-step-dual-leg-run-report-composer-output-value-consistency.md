@@ -2,7 +2,9 @@
 id: T-0910
 title: dual-leg run report 종단 컴포저 산출 6필드 ↔ (evalOutcome, collectOutcome, run) single-source 재유도 값-정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-11T05:05Z
+result: "PR #804 merged (squash aa0f1a65). 종단 컴포저 buildRealDataDailyStepDualLegRunReport 산출 6필드 값-정합 가드+spec 신설(+361/+610, test-only 2 files). reviewer round1 APPROVE(0/0/2 MINOR non-blocking), 4-게이트 PASS, 375 suite/9838 test green. self-wire 는 후속 T-0911."
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 330
