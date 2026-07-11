@@ -2,7 +2,7 @@
 id: T-0906
 title: dual-leg run report 이슈 output-parse 산출 ↔ raw stdout single-source 재유도 값-정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 320
@@ -65,3 +65,8 @@ plannerNote: "P5 §109 step④ — dual-leg run report output-parse 산출↔std
 ## Follow-ups
 
 (비어있음 — sub-agent 가 관련 작업 발견 시 여기에 append. 값-정합 가드 producer self-wire(summary 축 T-0724 mirror)는 다음 planner 가 후속 slice T-0907 로 큐잉 후보.)
+
+## Result
+
+- **Status: DONE** (2026-07-11) — PR #800 merged, squash 2468effd.
+- dual-leg run report output-parse 값-정합 가드 신설 완결(assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout, +642 LOC test-only 2 files, 신규 파일 cov 100%). summary 축 T-0723 mirror. reviewer round1 APPROVE + 4-게이트 PASS. self-wire 짝은 T-0907.
