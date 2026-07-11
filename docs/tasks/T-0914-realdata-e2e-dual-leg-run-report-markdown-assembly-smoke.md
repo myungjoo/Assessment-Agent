@@ -2,7 +2,10 @@
 id: T-0914
 title: realdata-e2e dual-leg run report → markdown 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-11T09:05:00Z
+mergedAs: 1565828f
+prNumber: 808
 commitMode: pr
 coversReq: [REQ-037, REQ-059]
 estimatedDiff: 230
