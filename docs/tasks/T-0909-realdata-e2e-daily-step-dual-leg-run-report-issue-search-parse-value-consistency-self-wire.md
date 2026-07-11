@@ -2,7 +2,7 @@
 id: T-0909
 title: dual-leg run report 이슈 search-parse 산출↔stdout 값-정합 가드 컴포저 self-wire 배선 (parseRealDataDailyStepDualLegRunReportIssueSearchOutput)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 130
