@@ -2,7 +2,11 @@
 id: T-0915
 title: realdata-e2e dual-leg run report descriptor body 2-블록 confluence 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completed: 2026-07-11T09:28:23Z
+mergedAs: 00cfd179
+prNumber: 809
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-109]
 estimatedDiff: 300

@@ -7,7 +7,7 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0915",
+  "nextTask": "T-0916",
   "backlogNoteResolved": "▶ **T-0880 BLOCKED (ci-repeat-fail) — PR #774 OPEN, 머지 보류; T-0881 이 unblock 선행** — S2 measure→confirm-or-compare 를 SummaryController GET /api/summaries?personId 에 배선한 두 번째 통합 perf-spec(구현 commit 27693524, cron@cloud-6ba9 가 4h 전 구현·push 했으나 PR open 전 사망 → 본 fire cron@aa-local-2ff3 가 orphan claim reclaim 후 PR #774 open). reviewer APPROVE + 게이트 (a)(b)(c) PASS, **게이트 (d) CI FAIL**: `test:perf` 가 2회(초회+rerun) 연속 fail. 실패 지점은 T-0880 신규 spec 이 아니라 **pre-existing `test/perf/app-root-measure-confirm.perf-spec.ts:217`**(T-0877 compared 분기 `regressed=false` wall-clock 비결정 단언) — 동일 head_sha main CI 는 green 이므로 T-0880 코드 결함 0, T-0880 이 추가한 perf-spec 부하가 T-0877 timing-fragile 단언을 노출. self-heal 불가(fix 대상이 T-0880 touchesFiles/Out-of-Scope 밖). **처리**: planner 가 **T-0881**(pr-mode, app-root compared 분기를 주입 clock=stepClock 으로 결정론화) 큐잉, T-0880 claim prune(release — pr-mode T-0881 이 0-active-claim gate 통과하도록), PR #774 는 OPEN 유지 + T-0880 task frontmatter 에 prNumber:774 박제(향후 fire 가 LOOP [2] frontmatter-prNumber resume 로 중복 PR 없이 rebase+re-CI). **시퀀스**: T-0881 merge → 그 fire 가 T-0880 을 nextTask 로 재큐잉 → PR #774 rebase+re-CI → 4-게이트 재확인 → merge. `close+reopen`/`--admin` bypass 금지.",
   "backlogNoteT0881": "▶ **T-0881 DONE (PR #775 merged, squash 67955a76) — T-0880 unblock 완결; 다음 fire 가 T-0880/PR #774 resume** — app-root compared 분기 perf-spec(test/perf/app-root-measure-confirm.perf-spec.ts) 의 compared happy-path(b) 1차·2차 measure 에 stepClock(50) 주입해 regressed 비결정성 제거(+13/-6, 1 file). 이로써 T-0880 PR #774 를 2회 fail 시킨 T-0877 timing-fragile 단언(:217 wall-clock regressed=false)이 결정론화됨. reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR), 4-게이트 PASS(reviewer comment external, CI test:perf 포함 green, ADR-0036 §8(c) head 최신 main 포함), squash 67955a76 + branch delete. R-112: compared happy-path 결정론(ok) + 회귀 분기는 기존 flow(336~356)/negative(414~433) 가 stepClock+tolerance:0 로 이미 커버, src 0 LOC 변경이라 test:cov 무영향. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-33f5). **다음 시퀀스**: nextTask=T-0880 → 다음 fire 가 currentTask 로 옮겨 LOOP [2] frontmatter-prNumber(774) resume 분기로 PR #774 checkout+rebase(최신 main 이제 T-0881 fix 포함)+re-CI(test:perf 이제 green 기대)+4-게이트 재확인 → merge. 중복 PR 금지(prNumber:774 resume).",
   "backlogNoteT0880": "▶ **T-0880 DONE (PR #774 merged, squash effb2b6c) — S2 조회 endpoint 두 번째 통합 perf-spec 배선 완결** — SummaryController GET /api/summaries?personId 를 measureAndConfirmBaseline top loop 에 배선한 두 번째 통합 perf-spec. T-0881→T-0880 unblock 시퀀스 완결.",
@@ -15,11 +15,11 @@
   "lock": null,
   "lastCommit": "1565828f",
   "mostRecentTasks": [
+    "T-0915",
     "T-0914",
     "T-0913",
     "T-0912",
-    "T-0911",
-    "T-0910"
+    "T-0911"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -29,11 +29,11 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-11T09:01:00Z",
-    "status": "running",
+    "lastRun": "2026-07-11T09:28:23Z",
+    "status": "green",
     "consecutiveFails": 0,
-    "headSha": "1565828f",
-    "note": "본 fire(cron@aa-local-a59062f7, aa-local 매시 30분대 trigger). fresh checkout a5909eb1==origin/main. lock free(tombstone)/claims [] → acquire-lock(cron@aa-local-a59062f7, tip 83c7a759) → reclaim no-op(claims empty, server-time 08:38:31Z 주입·midnight fallback 아님) → validate-claim-candidate T-0914 PASS(dependsOn []) → maxConcurrentClaims gate(활성 0<2, pr-mode 단독) → select-claim T-0914(원자 claim+lock release, claimedAt 08:38:42Z 서버시각≈now·midnight fallback 아님) → lock-free executor(feature branch claude/T-0914-*, test-only +414/-0: dual-leg run report → markdown 조립 체인 non-gated build-time smoke 신설, build*(T-0894)·render*(T-0895) 컴포저 import 재사용·신규 helper 0·production LOC 0·dep0, smoke 23/23 격리 green·lint·build pass) → push feature branch(e51a62bb) → PR #808 open → re-acquire lock(tip 07f15fe4) → sync-claim-pr(prNumber 808, status PR_OPEN) → lock release(tombstone) → lock-free integrator round1 APPROVE(0 BLOCKER·0 MAJOR) → 4-게이트 PASS(reviewer comment external Round 1/7, CI: 초회 pull_request run 은 reviewer-gate race 로 approval step fail(expected) → gh run rerun --failed ad-hoc fallback conclusion success, mergeStateStatus CLEAN, head 최신 main 포함 noop) → squash 1565828f + branch delete → re-acquire lock(tip 339b9ba6) → claim prune([]) → lock release(tombstone) → planner(nextTask=T-0915) → bookkeeping direct commit. merge push run 29146924272(1565828f) 은 본 turn 종료 시점 in_progress — R-114 상 CI 시작 확인됨, 다음 turn [1] 에서 conclusion 재확인. PR #808 approval-gate rerun success. consecutiveFails 0. 신규 dependency 0. 중복 PR 0. counters 904→905(origin+1 read-modify-write). T-0912(forward publish)+T-0913(박제-후 output-parse round-trip)+T-0914(markdown assembly) 로 dual-leg run report publish·markdown 축 종결(summary 축 T-0742↔T-0747·T-0748 mirror). next: nextTask=T-0915(dual-leg run report descriptor body(marker+markdown 2-블록) confluence non-gated smoke — descriptor.body↔직접 렌더 합류 미검증 gap, summary 축 T-0750 mirror, pr-mode test-only dep0)."
+    "headSha": "00cfd179",
+    "note": "본 fire(cron@aa-local-1565828f, aa-local 매시 15분대 trigger). fresh checkout a5909eb1→ff origin/main. lock free(tombstone)/claims [] → acquire-lock → reclaim no-op(claims empty, server-time 09:05:17Z 주입) → validate-claim-candidate T-0914 PASS → select-claim T-0914(원자 claim+lock release) → executor 재진입 no-op(T-0914 이미 PR #808 머지·origin/main 이 concurrent driver 로 a32c98bc 전진·bookkeeping 완료 판명 — claim race) → orphan claim prune([]) → 동일 fire 로 nextTask T-0916 이전 T-0915 pickup(acquire-lock→reclaim no-op→validate PASS→select-claim T-0915, claimedAt 09:11:04Z 서버시각) → lock-free executor(feature branch claude/T-0915-*, test-only +399/-0: dual-leg run report descriptor body 2-블록 confluence 조립 체인 non-gated smoke 신설, build*/descriptor*/render* 컴포저 import 재사용·신규 helper 0·production LOC 0·dep0, smoke 20/20 격리 green·lint·build pass) → push feature branch(f110cdd4) → PR #809 open → re-acquire lock → sync-claim-pr(prNumber 809, status PR_OPEN) → lock release(tombstone) → lock-free integrator round1 APPROVE(0 BLOCKER·0 MAJOR·0 MINOR) → 4-게이트 PASS(reviewer comment external Round 1/7, CI: 초회 pull_request run reviewer-gate race approval step fail(expected) → gh run rerun 29147498643 --failed conclusion success, mergeState CLEAN) → squash 00cfd179 + branch delete → re-acquire lock → planner(nextTask=T-0916) → claim prune([]) → bookkeeping direct commit + lock tombstone release. merge 00cfd179 CI green(both jobs 기본 검사+배포 산출물 검증 success). consecutiveFails 0. 신규 dependency 0. 중복 PR 0. counters 905→906(origin+1 read-modify-write). dual-leg run report descriptor confluence 축: body-side(T-0915) 종결, identity-side(title·marker) T-0916 큐잉(요약 축 T-0751 mirror). next: nextTask=T-0916(dual-leg run report descriptor title·marker run-token identity-side confluence smoke, pr-mode test-only, dependsOn [] stage5b 병렬)."
   },
   "reviewRounds": {
     "T-0914": 1,
@@ -1429,7 +1429,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 905,
+    "tasksCompleted": 906,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
