@@ -2,7 +2,9 @@
 id: T-0933
 title: realdata-e2e dual-leg run report 의 update 분기(marker-매칭 hit) plan.argv 의 issueNumber 원소(String(N))가 단일 source(action.issueNumber = search-hit number)로부터 index 2 로 관통하고 create 분기(빈 search) plan.argv 및 action 에는 issueNumber 원소·필드가 전무함(update-only ⊥ create)을 박제하는 update-branch issueNumber single-source + create-absence orthogonal convergence non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-11T20:39:07Z
+result: DONE — PR #827 squash 3d01334d. update-branch issueNumber single-source(argv[2]=String(N)=action.issueNumber, 7원소) + create-absence orthogonal smoke(25 test) 신설, test-only +696/-0, reviewer APPROVE round1 4-게이트 PASS, lint/build/smoke green, unit·coverage 무회귀.
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-059]
 estimatedDiff: 340
