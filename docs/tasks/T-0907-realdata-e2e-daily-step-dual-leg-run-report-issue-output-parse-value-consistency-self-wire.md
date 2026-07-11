@@ -2,7 +2,7 @@
 id: T-0907
 title: dual-leg run report 이슈 output-parse 산출↔stdout 값-정합 가드 컴포저 self-wire 배선 (parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 120
@@ -71,3 +71,7 @@ plannerNote: "P5 §109 step④ — T-0906 신설 output-parse 값-정합 가드�
 ## Follow-ups
 
 (비어있음 — sub-agent 가 관련 작업 발견 시 여기에 append. output-parse 값-가드 짝(T-0906 신설 + 본 self-wire) 닫힘 후, 잔여 dual-leg run report seam 의 값-정합 가드 적용 여부는 다음 planner 가 case-by-case 판정 후 별도 task.)
+
+## Result
+
+**Status: DONE** (2026-07-11T03:22Z, PR #801 squash 9713a211, reviewer round 1/7 APPROVE, 4-게이트 PASS, CI green). 컴포저 단일 return 직전(set-equality self-wire 다음)에 값-정합 가드 `assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout(outcome, stdout)` 를 top-level value import + 1호출로 배선(+232/-4 test-only 2 files). 산출 byte-identical 무변경, 가드 본체/src 무변경. all files line 99.95%·func 100%·branch 99.25%, full suite 373 suites·9759 tests green. dual-leg output-parse 값-가드 "신설(T-0906)→self-wire(T-0907)" 2-slice 마감. 다음 nextTask=T-0908(search-parse 값-정합 가드 신설, summary 축 T-0721 mirror).
