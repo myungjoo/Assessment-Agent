@@ -2,7 +2,7 @@
 id: T-0934
 title: realdata-e2e dual-leg run report 의 create-or-update action 분기가 search stdout 의 marker-match 술어(body.includes(marker))로부터 단일 source 로 결정되고 argv[0]==="issue" 는 두 분기 불변·argv[1] 은 create action → "create" / update action → "edit"(update→edit 비대칭 verb 매핑)로 단일 discriminant 관통함을 박제하는 action-verb dispatch single-source convergence non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-059]
 estimatedDiff: 340
