@@ -2,7 +2,7 @@
 id: T-0924
 title: realdata-e2e dual-leg run report publish chain 을 create/edit stdout 까지 통과시켜 파서 산출 outcome({issueNumber,url}) 전체 값이 raw stdout 으로부터 single-source 독립 재유도한 expected 와 deep-equal 정합함을 assertRealDataDailyStepDualLegRunReportIssueOutputConsistentWithStdout(T-0906 가드)로 박제하는 post-execution output↔stdout value-consistency convergence non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 290
