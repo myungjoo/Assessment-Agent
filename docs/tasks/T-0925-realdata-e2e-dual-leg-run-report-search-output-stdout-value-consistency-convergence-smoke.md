@@ -2,7 +2,11 @@
 id: T-0925
 title: realdata-e2e dual-leg run report chain 을 search-leg stdout 까지 통과시켜 파서 산출 hits(number/title/body[]) 전체 값이 raw `gh search issues --json` stdout 으로부터 single-source 독립 재유도한 expected 배열과 deep-equal(개수·순서·필드값·추가필드 drop) 정합함을 assertRealDataDailyStepDualLegRunReportIssueSearchOutputConsistentWithStdout(T-0908 가드)로 박제하는 search-output↔stdout value-consistency convergence non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-11T16:28:12Z
+prNumber: 819
+mergeCommit: 0f07ccf7
+result: "PR #819 merged (squash 0f07ccf7), reviewer APPROVE round 1/7, 4-게이트 PASS. test-only +502/-0(1 file, production LOC 0), 18 smoke 격리 green. search-leg output↔stdout value-consistency seam(T-0908 가드) 봉합. 신규 dep 0, 중복 PR 0."
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 290
