@@ -2,7 +2,7 @@
 id: T-0921
 title: realdata-e2e dual-leg run report 한 publish chain 안에서 marker(=searchArgv 검색 매체, run-token 종속) 와 issueNumber(=editArgv[2] 편집 매체, search-hit 종속) 두 매체가 단일 source 로부터 각각 관통하며 서로 직교(cross-contamination 0)함을 박제하는 dual-medium single-source orthogonal convergence non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 295
