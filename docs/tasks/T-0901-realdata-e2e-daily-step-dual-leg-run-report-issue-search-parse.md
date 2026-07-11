@@ -2,8 +2,10 @@
 id: T-0901
 title: realdata-e2e daily-step dual-leg run report 이슈 gh search stdout → SearchHit[] 순수 파서 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-07-11T00:28:00Z
+resultSummary: "PR #795 머지(squash 2847ce39). parseRealDataDailyStepDualLegRunReportIssueSearchOutput 순수 파서 신설 — gh search stdout(JSON)→SearchHit[] 파싱·검증(배열 guard→{number,title,body} 정규화→양의 정수 number guard, 여분 절삭, \"[]\"→[]). test-only 2파일 dep0, 신규 파일 100% cov, R-112 26 case, reviewer round1 APPROVE·4-게이트 PASS."
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 170
 estimatedFiles: 2
