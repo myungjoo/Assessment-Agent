@@ -2,7 +2,11 @@
 id: T-0918
 title: realdata-e2e dual-leg run report descriptor(pre, marker run-token) → command-plan resolve(marker-as-search-medium → action.update.issueNumber) → output-parse(post, issueNumber) triple-boundary single-source closure non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: aa889b52
+prNumber: 812
+reviewRounds: 1
+completedAt: 2026-07-11T11:03:00Z
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 290
