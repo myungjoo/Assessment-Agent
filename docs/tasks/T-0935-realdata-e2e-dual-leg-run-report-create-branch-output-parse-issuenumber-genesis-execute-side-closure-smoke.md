@@ -2,8 +2,11 @@
 id: T-0935
 title: realdata-e2e dual-leg run report 의 create 분기(빈 search)에서 갓 생성된 이슈 번호 M 이 오직 `gh issue create` stdout URL 파싱(output-parse, 실행 후)에서만 태어나고(genesis) 실행 이전 create chain(create action.issueNumber 필드 부재 · create plan.argv 에 M 원소 전무)에는 어디에도 없음을 박제하는 create-branch output-parse issueNumber genesis execute-side single-source closure non-gated build-time smoke 신설 — T-0920 edit-side 의 거울상
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-07-11T21:38Z
+resultPR: 829
+resultSquash: 500daf19
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 340
 estimatedFiles: 1
