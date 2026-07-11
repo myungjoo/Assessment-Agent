@@ -2,7 +2,7 @@
 id: T-0908
 title: dual-leg run report 이슈 search-parse 산출 ↔ raw stdout single-source 재유도 값-정합 가드 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 330
