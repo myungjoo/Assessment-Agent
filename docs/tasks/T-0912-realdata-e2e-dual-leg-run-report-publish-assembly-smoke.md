@@ -2,13 +2,14 @@
 id: T-0912
 title: realdata-e2e dual-leg run report 이슈 publish 조립 체인 non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-059]
 estimatedDiff: 220
 estimatedFiles: 1
 created: 2026-07-11
 dependsOn: []
+prNumber: 806
 touchesFiles:
   - test/smoke/realdata-e2e-daily-step-dual-leg-run-report-publish-assembly.smoke-spec.ts
 independentStream: realdata-e2e-dual-leg-run-report-publish-assembly-smoke
