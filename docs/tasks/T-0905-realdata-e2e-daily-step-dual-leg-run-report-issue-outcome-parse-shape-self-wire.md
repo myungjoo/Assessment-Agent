@@ -2,7 +2,9 @@
 id: T-0905
 title: dual-leg run report 이슈 outcome↔parse-shape set-equality 가드 producer self-wire (parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-11T02:10:00Z
+result: "PR #799 squash d386e544 머지. dual-leg run report 이슈 outcome↔parse-shape 가드 producer self-wire (import 1줄+호출 1지점, byte-identical 보존). round1 APPROVE 4-게이트 PASS, test-only +179 2파일, lint/build/test:cov green, dep0."
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 120
