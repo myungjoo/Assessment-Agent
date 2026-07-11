@@ -2,7 +2,10 @@
 id: T-0931
 title: realdata-e2e dual-leg run report 의 create 분기(빈 search) plan.argv `--body` 원소와 update 분기(marker-매칭 hit) plan.argv `--body` 원소가 단일 source(descriptor.body)로부터 byte-identical 하게 관통함을 박제하는 body cross-branch single-source convergence non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 825
+mergedAs: 5fc901f5
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-032, REQ-059]
 estimatedDiff: 330
