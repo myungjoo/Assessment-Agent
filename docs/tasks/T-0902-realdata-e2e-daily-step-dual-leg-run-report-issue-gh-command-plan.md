@@ -2,7 +2,7 @@
 id: T-0902
 title: realdata-e2e daily-step dual-leg run report 이슈 search stdout + commandArgs → gh 실행 plan 순수 컴포저 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 185
@@ -76,3 +76,11 @@ implementer → tester
 ## Follow-ups
 
 (비어있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+## Result (DONE — 2026-07-11T00:42Z)
+
+- PR #796 squash 머지(`bc27c0d0`), reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR), 4-게이트 PASS, branch delete.
+- 신규 2파일(test-only, +408/-0): `resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(stdout, commandArgs): {action, argv}` 순수 컴포저 + colocated R-112 spec(21 case). parse(T-0901)→resolveAction(T-0898)→buildGhArgv(T-0899) 3단계 위임 합성, 타입 import type 재사용(신규 정의 0), marker=commandArgs.searchQuery. 실 execFile deferred.
+- 신규 파일 stmt/branch/func/line 100% cov, lint/build/full(370 suites/9658 tests) green, dep0.
+- diff 408>300 cap 은 test-dominated(code ~89 LOC) 로 reviewer 가 justified 분류(형제 T-0899/T-0900/T-0901 동형). 이로써 dual-leg run report build-time chain 이 종단까지 닫힘 — 남는 외부 경계는 search/exec 두 execFile 뿐(LAN/credential gate deferred).
+- cron@aa-local-06da fire, fineGrainedConcurrency ON stage 5b claim-pickup.
