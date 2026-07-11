@@ -2,7 +2,10 @@
 id: T-0936
 title: realdata-e2e dual-leg run report output-parse 가 산출한 outcome(`{issueNumber, url}`)의 두 반환 필드가 **같은 execStdout URL 매칭 한 지점**에서 co-유도돼 서로 어긋날 수 없음(intra-outcome cross-field single-source) — `outcome.url` 이 정확히 `.../issues/${outcome.issueNumber}` 로 끝나고 url 의 `/issues/<n>` 번호 segment === `String(outcome.issueNumber)` 임을 create/edit 두 실행-후 분기 모두에서 박제하는 output-parse url↔issueNumber cross-field single-source closure non-gated build-time smoke — T-0935(issueNumber genesis)·T-0920(issueNumber convergence)의 url 축 짝
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 4caf6832
+prNumber: 830
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 340
