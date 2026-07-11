@@ -2,7 +2,7 @@
 id: T-0923
 title: realdata-e2e dual-leg run report publish chain 을 create/edit stdout 까지 통과시켜 산출된 outcome({issueNumber,url})의 own 키 집합이 선언 parse-shape 키 집합과 set-equal 로 수렴함을 assertRealDataDailyStepDualLegRunReportIssueOutcomeMatchesParseShape(T-0904 가드)로 박제하는 post-execution outcome producer↔declared-shape parse-shape convergence non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-059]
 estimatedDiff: 290
