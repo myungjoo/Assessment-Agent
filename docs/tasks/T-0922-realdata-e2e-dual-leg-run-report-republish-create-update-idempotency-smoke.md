@@ -2,7 +2,10 @@
 id: T-0922
 title: realdata-e2e dual-leg run report 같은 run 을 두 번 publish 할 때 1차 publish(빈 검색→create)의 create-output issueNumber M 이 2차 publish 의 search-hit 로 다시 관통해 resolve 가 그 동일 M 을 update(신규 create 아님)로 좁힘을 박제하는 re-publish create→update state-transition idempotency non-gated build-time smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 037ffa0f
+prNumber: 816
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 290
