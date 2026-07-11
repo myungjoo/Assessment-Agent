@@ -2,7 +2,10 @@
 id: T-0903
 title: realdata-e2e daily-step dual-leg run report 이슈 gh create/edit stdout → 박제 결과 순수 파서 신설
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 10577060
+prNumber: 797
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-037]
 estimatedDiff: 185
