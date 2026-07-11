@@ -2,7 +2,7 @@
 id: T-0911
 title: dual-leg run report 종단 컴포저 산출 6필드↔(evalOutcome,collectOutcome,run) 값-정합 가드 컴포저 self-wire 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 120
