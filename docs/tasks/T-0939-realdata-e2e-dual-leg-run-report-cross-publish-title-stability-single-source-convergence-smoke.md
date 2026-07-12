@@ -2,7 +2,7 @@
 id: T-0939
 title: realdata-e2e dual-leg run report 를 같은 run 으로 여러 밤 연속 publish 할 때, 사람이 이슈 목록에서 보는 rolling-issue 의 **제목(`descriptor.title` = `--title` argv 값, run-token 종속)** 이 1차 create publish 와 그 이후 모든 update publish 에서 **byte-identical 하게 안정**하고, 나아가 그 제목이 **search-hit 이 다른 값으로 오염돼 있어도(사람이 GitHub 에서 제목을 손수 바꿔도) 매 publish 마다 단일 source(commandArgs)로부터 재-정규화(re-emit)** 되어 hit.title 종속이 아님(issueNumber 처럼 threaded 되지 않음)을 박제하는 cross-publish title stability single-source convergence non-gated build-time smoke — T-0938(marker 검색 anchor)·T-0922(issueNumber 편집 대상)·T-0937(url 사람 링크) cross-publish 안정 trilogy 에 이어, 사람이 이슈 목록에서 읽는 제목 축의 cross-publish 안정성 짝(T-0930 이 봉합한 것은 한 chain 내부 create argv --title ↔ update argv --title 뿐 — 여러 publish 에 걸친 안정성·hit-오염 재정규화는 미봉합)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 340
@@ -92,3 +92,9 @@ issue-still-relevant 확인(2026-07-12): `ls test/smoke | grep dual-leg | grep -
 ## Follow-ups
 
 (없음 — cross-publish title stability + hit-오염 재정규화가 봉합되면 dual-leg run report step④ 의 rolling-issue 멱등이 cross-publish 4-medium 안정 — (a) marker 검색 anchor(T-0938) (b) issueNumber 편집 대상 threaded(T-0922) (c) url 사람 링크(T-0937) (d) title 사람 제목 re-emit(본 task) — 축 모두 chain 그물에 편입. 즉 "다음 밤 그 이슈를 다시 찾고(marker) · 그 번호를 갱신하고(issueNumber) · 사람이 같은 링크를 열고(url) · 같은 제목으로 목록에서 식별하는(title)" 재발견-갱신-링크-식별 loop 이 전부 봉합. 잔여는 step④ live wiring(credential gate deferred, ADR-0045 LAN gate) — 다음 turn 의 planner 가 PLAN 재평가로 판단)
+
+## Result
+
+**Status: DONE** (2026-07-12, cron@cloud-aa15-1454-894)
+
+PR [#833](https://github.com/myungjoo/Assessment-Agent/pull/833) squash-merge (77eab98c). cross-publish title stability single-source convergence smoke 1 파일 신설(25 test, +741/-0, production LOC 0). 세 publish `--title` 상호 byte-identical + hit.title 오염 시 descriptor.title(단일 source)로 re-emit(issueNumber threaded 와 대비되는 거울상)·title run-token single-source·create/update 분기 무관 title 불변·run/leg outcome status 무관 안정·negative 충분 cover(descriptor/command-args guard·search stdout 손상 상류 차단·결정론/no-mutation/credential). 기존 helper 재사용 신규 dep 0. lint/build/smoke/e2e green, coverageThreshold 회귀 0. integrator round1 APPROVE 4-게이트 PASS. 머지 후 main CI(77eab98c) in_progress — 다음 turn conclusion 재확인.
