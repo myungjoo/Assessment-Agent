@@ -2,7 +2,11 @@
 id: T-0940
 title: realdata-e2e dual-leg run report 를 같은 run 으로 여러 밤 연속 publish 할 때, 사람이 이슈 안에서 읽는 rolling-issue 의 **본문(`descriptor.body` = `--body` argv 값, marker 라인 포함 run-token 종속)** 이 1차 create publish 와 그 이후 모든 update publish 에서 **byte-identical 하게 안정**하고, 나아가 그 본문이 **search-hit 의 body 가 다른 값으로 오염돼 있어도(사람이 GitHub 에서 이슈 본문을 손수 바꿔도, 단 marker 라인은 유지) 매 publish 마다 단일 source(commandArgs)로부터 재-정규화(re-emit)** 되어 hit.body 종속이 아님(issueNumber 처럼 threaded 되지 않음, 오염된 본문이 self-heal)을 박제하는 cross-publish body stability single-source convergence non-gated build-time smoke — T-0939(사람-제목)·T-0938(marker 검색 anchor)·T-0922(issueNumber 편집 대상)·T-0937(url 사람 링크) cross-publish 안정 quadrilogy 에 이어, 사람이 이슈 안에서 읽는 본문 축의 cross-publish 안정성 짝(T-0931 이 봉합한 것은 한 chain 내부 create argv --body ↔ update argv --body 뿐 — 여러 publish 에 걸친 안정성·hit.body 오염 재정규화는 미봉합, T-0938 은 body 중 marker 라인 round-trip 만·전체 body 재정규화는 미단언)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-12T01:05:00Z
+mergedAs: df1d9193
+prNumber: 834
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 345
