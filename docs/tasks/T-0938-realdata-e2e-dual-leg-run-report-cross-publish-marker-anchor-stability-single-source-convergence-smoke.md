@@ -2,7 +2,7 @@
 id: T-0938
 title: realdata-e2e dual-leg run report 를 같은 run 으로 여러 밤 연속 publish 할 때, 다음 밤 rolling-issue 를 **재발견(re-find)** 하는 검색 identity anchor(`commandArgs.searchQuery` = `descriptor.marker`, run-token 종속)가 1차 create publish 와 그 이후 모든 update publish 에서 **byte-identical 하게 안정**하고, 나아가 1차 create publish 의 body 에 심긴 marker 라인이 2·3차 publish 의 `searchQuery` 와 정확히 같아 **publish→re-search round-trip 이 닫혀** 재발견이 실제로 성립(hit.body.includes(searchQuery) → resolve update)함을 박제하는 cross-publish marker anchor stability single-source convergence non-gated build-time smoke — T-0922(issueNumber state-transition)·T-0937(url permalink)와 함께 cross-publish 3-medium(marker 검색 anchor / issueNumber 편집 대상 / url 사람 링크) 안정 trilogy 의 marker 축(그리고 재발견 loop 을 닫는 load-bearing 축)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 340
