@@ -293,6 +293,23 @@ describe('realdata-e2e step④ daily-test.sh curl_code() 헬퍼 status-code-only
     });
   });
 
+  describe("branch: silent(`-s`) 존재 → progress meter 억제", () => {
+    it("정본은 silent=true, `-s` 제거 mutant 은 false — 두 입력으로 분리 실증(다른 4요소와 대칭)", () => {
+      expect(curlCodeContract(CURL_CODE_WIRING).silent).toBe(true);
+      // mutant(모델 사본): `-s` 제거 → progress meter/error 가 출력에 잡음으로 섞이는 회귀.
+      const mutant = CURL_CODE_WIRING.replace("-s ", "");
+      expect(curlCodeContract(mutant).silent).toBe(false);
+      expect(curlCodeContract(mutant).silent).not.toBe(
+        curlCodeContract(CURL_CODE_WIRING).silent,
+      );
+      // 실 소스 배선 라인이 `-s` 포함(원본 불변).
+      const line = extractCurlCodeWiringLine(
+        readFileSync(DAILY_TEST_SH_PATH, "utf8"),
+      );
+      expect(line).toContain("-s ");
+    });
+  });
+
   describe("branch: status-only(`-w '%{http_code}'`) vs 다른 write-out 정적 대조", () => {
     it("정본은 statusCodeOnlyWrite=true(`%{http_code}`), `%{time_total}` mutant 은 false", () => {
       expect(curlCodeContract(CURL_CODE_WIRING).statusCodeOnlyWrite).toBe(true);
