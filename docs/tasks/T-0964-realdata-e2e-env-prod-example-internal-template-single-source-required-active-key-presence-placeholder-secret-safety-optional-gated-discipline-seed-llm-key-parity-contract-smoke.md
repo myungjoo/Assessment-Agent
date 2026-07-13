@@ -2,7 +2,10 @@
 id: T-0964
 title: env.prod.example 내부 env 템플릿 single-source 계약(필수 active 키 존재 + 시크릿 보유 키 placeholder-safety + 선택 gated 키 주석-규율 + DATABASE_URL 내부 credential parity + SEED_LLM_* 키셋 seed-llm-config.sh 소비셋 parity) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: ed10aff2
+prNumber: 858
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 420
