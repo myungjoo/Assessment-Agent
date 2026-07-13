@@ -2,7 +2,7 @@
 id: T-0958
 title: redeploy.sh 내부 재배포 단계-시퀀스(fetch→checkout→reset-hard mirror→up--build→seed-guard→prune→ps) + set -euo pipefail 엄격모드 + 비치명 seed 계속 계약 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 420
@@ -15,6 +15,8 @@ touchesFiles: [test/smoke/realdata-e2e-redeploy-internal-step-sequence-strict-mo
 created: 2026-07-13
 plannerNote: "P5 §109 step①/④ — daily-test.sh 계약 chain(T-0944~T-0957) 완결 뒤 nightly runner 가 호출하는 redeploy.sh 의 미봉 표면 = 내부 ordered 재배포 시퀀스. T-0797(outer artifact parity)·T-0955(caller invocation)는 봉했으나 redeploy.sh 자신의 fetch→reset-hard mirror→build→seed-guard→prune 순서·strict-mode·비치명 seed 계속은 미봉."
 ---
+
+> Completed: 2026-07-13 — PR #852 squash 머지 1d89b601. redeploy.sh 내부 재배포 ordered 시퀀스 정적 smoke 27 test green, production 0 LOC. reviewer APPROVE·4-게이트 PASS·CI green(PR run 8cf74359). 머지 후 main CI in_progress(R-114 다음 turn 재확인).
 
 # T-0958 — redeploy.sh 내부 재배포 단계-시퀀스 + strict-mode + 비치명 seed 계속 계약 정적 smoke
 
