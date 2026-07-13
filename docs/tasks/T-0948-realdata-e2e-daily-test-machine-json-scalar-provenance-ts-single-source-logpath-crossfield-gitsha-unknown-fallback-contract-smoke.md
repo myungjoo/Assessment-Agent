@@ -2,7 +2,7 @@
 id: T-0948
 title: realdata-e2e nightly runner(`deploy/daily-test.sh`) 머신 요약 JSON 의 **scalar-value provenance 계약**을 정적 검증하는 non-gated build-time smoke — 스칼라 필드(`ts`·`gitSha`·`logPath`)가 **어떻게 산출·직렬화되는가**를 봉함(무인 모니터링이 JSON↔로그 파일 상관·git 실패 내성을 신뢰). 계약: **(a) `ts` single-source**(51행 `TS="$(date -u +%Y%m%dT%H%M%SZ)"` 1 회 산출 → 52행 `LOG_FILE="$LOG_DIR/daily-$TS.log"` · 376행 JSON `ts` 필드 · 277/380행 시작/종료 로그 라인이 **동일 TS** 재사용, 형식 `^\d{8}T\d{6}Z$` compact UTC Z) · **(b) logPath↔ts cross-field**(375행 JSON `logPath` == `$LOG_DIR/daily-$TS.log` → `basename(logPath)` == `daily-${ts}.log` 이므로 머신 JSON 한 건에서 사람용 로그 파일을 결정론적으로 역추적) · **(c) LOG_DIR 유도**(50행 `LOG_DIR="$REPO_DIR/deploy/logs"` · 53행 `RESULT_JSON="$LOG_DIR/latest-result.json"`) · **(d) gitSha unknown-fallback**(365행 `git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown` → git 실패 시 `gitSha` == literal `unknown`, 스크립트 계속·non-fatal, `--short` abbreviated). 불변식: 스칼라 필드는 단일 소스(TS)·결정론 유도·git 실패 내성(unknown)으로 산출되어 무인 모니터링이 JSON↔로그 상관·부분 실패 진단을 신뢰. `deploy/daily-test.sh` 를 readFileSync 로 읽어(실행/HTTP/spawn 0) 스칼라 유도 표현(50/51/52/53/365/375/376행)을 정적 추출 + TS 동형 pure 함수(`deriveLogPath`/`isCompactUtcTs`/`resolveGitSha`/`logFileNameFromTs`)로 provenance 불변식 assert. T-0791(6-키 schema·failedStep null/quoted 직렬화)·T-0944(result/failedStep 집계 값)·T-0945(dual-sink 방출)·T-0946(로그 prune)·T-0947(step-chain cascade)·T-0792(HTTP path/method/status parity)가 미cover 한 **스칼라 필드 값이 어떻게 산출·직렬화되는가**(ts single-source·logPath cross-field·gitSha fallback) gap 상보 표면. 실 redeploy/HTTP/jest spawn/gh/git 0·process.env/gating 실행 0·credential 0·새 dep 0·write 0(ADR-0045 무관)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 300
