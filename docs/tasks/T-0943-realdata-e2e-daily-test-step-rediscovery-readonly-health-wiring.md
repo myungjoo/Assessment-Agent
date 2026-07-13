@@ -2,7 +2,11 @@
 id: T-0943
 title: realdata-e2e nightly runner(`deploy/daily-test.sh`)에 **read-only 재발견 검색 health step** `step_rediscovery` 배선 — T-0942(rediscovery-search-live smoke)를 step_eval(T-0612)/step_collect(T-0888) 패턴으로 dormant env-gated 단일-spec bound jest argv 로 nightly 에 편입. 공유 `realdata_eval_gating_enabled`(REALDATA_E2E_* 7 종) 재사용(새 gating 함수 0), auth PASS 체인 + gating 7 종 set 일 때만 실 `gh search issues`(read-only, mutation 0) round-trip smoke 실행 → PASS/FAIL, 그 외 SKIP(cloud CI/일반 LAN no-op, 기존 6 step 불변). ORDER=(redeploy health liveness auth eval collect rediscovery) 7 원소로 확장 + 머신 JSON parity-drift smoke(T-0791) EXPECTED_ORDER 동기 + CI run step 추가 + bash executable spec 신설. **write step_report(create/edit publish)는 본 task 밖 — ADR-0045 credential gate deferred 유지**. read-scope PAT 만으로 도는 read-only health 라 write credential 불요(오너 승인 Q-0051)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-13T04:40:00Z
+mergedAs: c4fb3f92
+prNumber: 837
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 210
