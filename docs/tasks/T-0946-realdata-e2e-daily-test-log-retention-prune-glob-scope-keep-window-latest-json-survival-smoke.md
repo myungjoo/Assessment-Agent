@@ -2,8 +2,9 @@
 id: T-0946
 title: realdata-e2e nightly runner(`deploy/daily-test.sh`) 의 **오래된 daily 로그 prune contract** 를 정적 검증하는 non-gated build-time smoke — prune(384행 `ls -1t "$LOG_DIR"/daily-*.log 2>/dev/null | tail -n +"$((LOG_KEEP + 1))" | xargs -r rm -f`)이 **(a) glob scope 가 `daily-*.log` 뿐**(무인 모니터링이 읽는 `latest-result.json` 은 basename 불일치로 **절대 prune 대상 아님** = 방출 파일 생존), **(b) keep-window 가 최근 `LOG_KEEP`(기본 14) 개 유지**(`tail -n +LOG_KEEP+1` = LOG_KEEP 초과분만 삭제), **(c) mtime newest-first sort**(`ls -1t` 로 오래된 것부터 삭제 대상), **(d) `xargs -r`(--no-run-if-empty) 빈-입력 guard**(매칭 0 시 `rm` 이 인자 없이 실행되지 않음), **(e) 실행 위치가 머신-JSON write(375행 `>"$RESULT_JSON"`) 뒤 · stdout `cat "$RESULT_JSON"`(387행) 앞**(prune 이 방금 쓴 result JSON 을 오염/차단 0)임을 봉함. 추가로 머신-JSON `logPath` 필드가 `$LOG_FILE`(52행 `$LOG_DIR/daily-$TS.log`, per-run 로그 — `latest-result.json` 과 distinct)에 bind 됨을 앵커. T-0791(schema)·T-0944(집계)·T-0945(dual-sink 방출) 미cover 한 **로그 보관/prune 경로** gap 을 상보적으로 닫는다. `deploy/daily-test.sh` 를 readFileSync 로 읽어(실행/source 0) prune 표현식(384행)·`LOG_KEEP`(46행)·`LOG_FILE`/`LOG_DIR`(50/52행)·머신-JSON logPath(375행)를 정적 추출 + glob==daily-*.log·keep-count==LOG_KEEP+1 offset·`-t` sort·`-r` guard·순서(write<prune<cat)·logPath==LOG_FILE 를 assert. 실 redeploy/HTTP/jest spawn/gh/git 0·process.env/gating 0·credential 0·새 dep 0·write 0(ADR-0045 무관)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 840
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 250
 estimatedFiles: 1
