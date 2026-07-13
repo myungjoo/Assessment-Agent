@@ -2,7 +2,7 @@
 id: T-0944
 title: realdata-e2e nightly runner(`deploy/daily-test.sh`) 머신 요약 JSON 의 **result/failedStep 상태-집계 contract** 를 정적 검증하는 non-gated build-time smoke — SKIP 은 result 를 FAIL 로 뒤집지 않음(dormant 6-step SKIP 프로파일 → result=PASS·failedStep=null 유지), FAIL 은 result=FAIL 로 뒤집고 첫 FAIL step 만 failedStep 에 박제(mark first-FAIL-wins), SKIP 은 PASS/FAIL 과 구분되는 제3 상태 토큰으로 steps 값에 직렬화됨을 봉함. T-0791/T-0943 parity-drift(schema·order)가 dummy "PASS" 만 채워 미cover 한 **집계 semantics gap** 을 상보적으로 닫는다. `deploy/daily-test.sh` 를 readFileSync 로 읽어(실행/source 0) RESULT 루프(359~362행)·mark first-FAIL guard(266~271행)·steps_json SKIP 직렬화를 정적 추출 + TS 로 동형 모델링해 7-step PASS/FAIL/SKIP 조합을 assert. 실 redeploy/HTTP/jest spawn/gh 0·process.env/gating 0·credential 0·새 dep 0·write 0(ADR-0045 무관)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 260
@@ -78,3 +78,7 @@ issue-still-relevant 확인(2026-07-13): `grep -rl "status-aggregation\|first-FA
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기 append)
+
+## Result (DONE 2026-07-13T05:22Z)
+
+PR #838 round1 squash 머지(e483528a). 신규 test-only 1 파일(+428/-0): `deploy/daily-test.sh` 를 readFileSync 로 읽어 RESULT 집계 루프·mark first-FAIL guard·steps_json SKIP 직렬화를 정적 앵커 추출 + bash semantics 를 TS 순수 함수(`aggregate`/`buildStepsJson`)로 동형 모델링. 19 test: happy(all-SKIP dormant·mixed·정적 앵커)/branch(단일 FAIL·다중 FAIL first-FAIL-wins)/error(파일 부재 throw·미지 토큰)/negative 5종(SKIP 비-failing 변별·SKIP 제3 토큰 보존·집계 drift mutant·failedStep 덮어쓰기 mutant·credential 0)/결정론·no-mutation·non-gated. 4-게이트 PASS(reviewer comment external, CI green 60421aa0 tool=gh). src 0 LOC·gating 0·credential 0·새 dep 0·write 0(ADR-0045 무관). SKIP 비-failing·first-FAIL-wins·SKIP 제3 토큰 3 집계 불변식 봉함 완료. size: +428 LOC 로 300 cap 초과했으나 단일 test-only 파일·accepted sibling T-0791(427 LOC) 동형·R-112 test 수 불가피로 task-too-large BLOCK 대신 진행(reviewability 단일 초점 파일로 충족).
