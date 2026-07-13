@@ -153,6 +153,16 @@ function stepBannersMonotonic(install: string): boolean {
   return true;
 }
 
+// sectionHeaderOccurrences(install): STEP_BANNERS 각 배너의 **섹션 헤더**(`── [N/5]` box-drawing 주석 헤더)가
+//   소스에 몇 번 등장하는지 count 배열. `split(needle).length - 1` 로 non-overlapping 등장 횟수 산출.
+//   정본 계약 "각 배너가 오름차순 단조 순서로 정확히 1회씩 등장" 의 "정확히 1회씩" 은 **step 섹션 헤더**를 가리킨다 —
+//   각 step 은 `# ── [N/5] ...` 헤더로 정확히 1번 선언되고, 그것이 stepBannerOrder(최초 등장 인덱스)의 단조 순서 앵커다.
+//   (반면 step 본문의 `Write-Host "[N/5] ..."` 배너 emission 은 분기(멱등 skip/설치, NoAutostart/유지, NoModelPull/pull)마다
+//    반복될 수 있어 raw `[N/5]` 문자열 count 는 1 이 아니다 — 따라서 헤더 단위로 "정확히 1회" 를 검증한다.)
+function sectionHeaderOccurrences(install: string): number[] {
+  return STEP_BANNERS.map((b) => install.split(`── ${b}`).length - 1);
+}
+
 // installFallbackChain(install): [1/5] 설치 단계의 멱등 guard + winget→직접다운로드 fallback→throw 토큰이
 //   모두 존재하고 소스 순서(winget 성공판정 → Invoke-WebRequest → 무인 설치 → throw)가 성립하는가.
 function installFallbackChain(install: string): boolean {
@@ -382,7 +392,7 @@ describe("realdata-e2e §108/§109 deploy/local-llm-example/install.ps1 설치 �
   });
 
   describe("Happy-path: 5-step ordered 시퀀스([1/5]~[5/5] 오름차순 단조·각 1회)", () => {
-    it("5 배너가 각 존재하고 소스에서 오름차순 단조로 등장", () => {
+    it("5 배너가 각 존재하고 소스에서 오름차순 단조로 등장 + 각 step 섹션 헤더가 정확히 1회씩 등장(count===1)", () => {
       const i = install();
       const idxs = stepBannerOrder(i);
       expect(idxs.every((x) => x >= 0)).toBe(true);
@@ -390,6 +400,12 @@ describe("realdata-e2e §108/§109 deploy/local-llm-example/install.ps1 설치 �
         expect(idxs[k]).toBeGreaterThan(idxs[k - 1]);
       }
       expect(stepBannersMonotonic(i)).toBe(true);
+      // 정본 계약 "각 배너가 오름차순 단조 순서로 정확히 1회씩 등장" 의 count 측면 — 단조성(최초 인덱스)만으로는
+      // step 섹션 헤더가 중복 선언돼도 놓치므로, 각 step 의 `# ── [N/5]` 섹션 헤더가 정확히 1회(count===1) 임을
+      // 명시적으로 assert(step 본문 Write-Host 배너는 분기마다 반복될 수 있어 헤더 단위로 검증 — 헤더 위치가 곧 단조 앵커).
+      const headerCounts = sectionHeaderOccurrences(i);
+      expect(headerCounts).toEqual([1, 1, 1, 1, 1]);
+      expect(headerCounts.every((c) => c === 1)).toBe(true);
     });
 
     it("각 단계 의미가 순서대로 설치→환경변수→자동시작→서버재기동→모델pull", () => {
