@@ -2,7 +2,11 @@
 id: T-0962
 title: docker-compose.yml 내부 오케스트레이션 계약(app.depends_on.postgres.condition=service_healthy 기동-순서 게이트 + 양 서비스 restart=unless-stopped 정책 + postgres healthcheck bounded polling(interval/timeout/retries) + postgres-data named volume 영속 + app.env_file=.env single-source secret 주입) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 9b552b8b
+prNumber: 856
+reviewRounds: 1
+completed: 2026-07-13T17:05:00Z
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 420
