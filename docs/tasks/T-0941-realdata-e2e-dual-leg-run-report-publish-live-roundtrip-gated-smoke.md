@@ -2,7 +2,9 @@
 id: T-0941
 title: realdata-e2e dual-leg run report 의 rolling-issue publish 를 **실 `gh` 실행-후(execute-side)** 로 1 회 round-trip 하는 env-gated skip-by-default live smoke 신설 — 지금까지 35 개 assembly smoke 가 순수 in-memory 로만 검증한 command-plan(search→create/edit argv)을 처음으로 실 `gh issue list/create/edit` 에 도달시켜 outcome 파서(`parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput`)가 **실 gh stdout** 을 round-trip 하고, 같은 run 을 두 번 publish 할 때 1차 create·2차 edit 로 멱등하게 같은 rolling-issue(번호/url byte-identical)로 수렴함을 실증. gating env 부재(=public CI 기본) 시 `describe.skip` → 실 네트워크 0 / mutation 0 / secret 0 으로 green(R-113) — eval-live(T-0610)·collection-live(T-0806) 이 그 wiring(step_eval/step_collect) 보다 먼저 dormant 로 shipped 된 것과 동형. step④ live wiring(step_report 를 deploy/daily-test.sh 에 배선 + credential 주입)은 ADR-0045 credential gate deferred 로 본 task 밖(Follow-up)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 835
+completedAt: 2026-07-13T02:55:00Z
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 260
