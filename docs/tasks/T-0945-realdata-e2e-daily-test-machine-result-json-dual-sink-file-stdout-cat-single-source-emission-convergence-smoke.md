@@ -2,7 +2,11 @@
 id: T-0945
 title: realdata-e2e nightly runner(`deploy/daily-test.sh`) 머신 요약 JSON 의 **dual-sink(file+stdout) single-source 방출 contract** 를 정적 검증하는 non-gated build-time smoke — 머신 JSON 은 정확히 **1개의 printf 템플릿**으로 `>"$RESULT_JSON"`(deploy/logs/latest-result.json)에 **overwrite(`>`, append `>>` 아님)** 로 1회 기록되고, stdout 방출(387행 `cat "$RESULT_JSON"`)은 **그 동일 파일을 재-읽기(cat) 로 re-emit** 할 뿐 **독립 second printf 가 아님** → 무인 모니터링이 파싱하는 stdout JSON 이 persisted 파일과 byte-identical(single write source) 임을 봉함. T-0791(schema/order)·T-0944(집계 값 semantics)가 미cover 한 **방출-경로 single-source** gap 을 상보적으로 닫는다. `deploy/daily-test.sh` 를 readFileSync 로 읽어(실행/source 0) printf 방출 표현식(375~378행)·`RESULT_JSON` 정의(53행)·`cat "$RESULT_JSON"` stdout 방출(387행)을 정적 추출 + 머신-JSON printf 발생 횟수==1·overwrite redirect·cat 인자==printf redirect 대상 동일 변수 를 assert. 실 redeploy/HTTP/jest spawn/gh/git 0·process.env/gating 0·credential 0·새 dep 0·write 0(ADR-0045 무관)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 839
+mergedAs: 7cdecf73
+reviewRounds: 1
+completedAt: 2026-07-13T06:04:32Z
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 235
