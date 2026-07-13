@@ -148,12 +148,16 @@ else
 fi
 
 # === ORDER parity(negative d): rediscovery 를 정확히 7번째로 포함 + 기존 6 step 순서 불변 ===
-# 전체-문자열 등가로 위치·순서를 한 번에 단언(ORDER[6] == rediscovery 를 함의).
-order_str="$( ( source "$DAILY_TEST_SH"; printf '%s' "${ORDER[*]}" ) )"
-if [ "$order_str" = "redeploy health liveness auth eval collect rediscovery" ]; then
-  pass "ORDER = (…eval collect rediscovery) — 기존 6 step 순서 불변 + rediscovery 정확히 7번째"
+# 전체-배열 exact-match 는 다음 leg 추가 시마다 깨지므로(daily-test-step-eval.test.sh:146 패턴),
+# 앞 6 원소 prefix slice 로 collect 까지 순서 불변을 단언 + index 6 targeted 단언으로 rediscovery
+# 가 정확히 7번째임을 검증한다(이후 leg 성장에 resilient).
+order_prefix="$( ( source "$DAILY_TEST_SH"; printf '%s' "${ORDER[*]:0:6}" ) )"
+order_seventh="$( ( source "$DAILY_TEST_SH"; printf '%s' "${ORDER[6]}" ) )"
+if [ "$order_prefix" = "redeploy health liveness auth eval collect" ] \
+   && [ "$order_seventh" = "rediscovery" ]; then
+  pass "ORDER[0:6] 순서 불변(…eval collect) + ORDER[6] == rediscovery(정확히 7번째)"
 else
-  failtest "ORDER 회귀 — got '$order_str'"
+  failtest "ORDER 회귀 — prefix='$order_prefix' seventh='$order_seventh'"
 fi
 
 # mark 헬퍼 호환 — rediscovery mark 반영 + FAIL 없으면 FAILED_STEP=null(기존 6 step 회귀 0).
@@ -166,11 +170,13 @@ else
   failtest "mark 회귀 — got '$mark_result'"
 fi
 
-# === Negative (5): 6 step mark + steps_json 형식 회귀 0(rediscovery 키 말미 추가 호환) ===
+# === Negative (5): 7 step mark + steps_json 형식 회귀 0(rediscovery 키 말미 추가 호환) ===
+# 본 spec scope 는 rediscovery 까지의 7 step 이라 앞 7 원소(ORDER[@]:0:7)만 mark/조립한다 —
+# 이후 leg 가 append 돼도 미mark step 의 set -u 폭발 없이 형식 회귀만 단언(future-growth resilient).
 steps_json_probe="$( ( source "$DAILY_TEST_SH"
   mark redeploy PASS; mark health PASS; mark liveness PASS; mark auth PASS; mark eval SKIP; mark collect SKIP; mark rediscovery SKIP
   sj=""
-  for s in "${ORDER[@]}"; do sj="$sj,\"$s\":\"${STEP_STATUS[$s]}\""; done
+  for s in "${ORDER[@]:0:7}"; do sj="$sj,\"$s\":\"${STEP_STATUS[$s]}\""; done
   printf '{%s}' "${sj#,}" ) )"
 expected_json='{"redeploy":"PASS","health":"PASS","liveness":"PASS","auth":"PASS","eval":"SKIP","collect":"SKIP","rediscovery":"SKIP"}'
 if [ "$steps_json_probe" = "$expected_json" ]; then
