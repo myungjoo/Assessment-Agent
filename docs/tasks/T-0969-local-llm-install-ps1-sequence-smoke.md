@@ -2,7 +2,11 @@
 id: T-0969
 title: deploy/local-llm-example/install.ps1 설치 스크립트 내부 계약(dot-source _common.ps1·CmdletBinding 2-switch·config-sourced 값(하드코딩 아님)·5-step ordered 시퀀스·[1/5] winget→직접다운로드 fallback+멱등 guard·[2/5] env-var User+session dual-write·[3/5] HKCU Run 자동시작 -NoAutostart 분기·[4/5] 서버 재기동+Wait-OllamaServer 60s·[5/5] -NoModelPull 분기+pull 실패 non-fatal) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-13T21:59:00Z
+mergedAs: 7ba763b8
+prNumber: 863
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 560
