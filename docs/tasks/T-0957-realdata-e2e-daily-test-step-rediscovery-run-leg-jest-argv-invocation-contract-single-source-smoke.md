@@ -2,7 +2,7 @@
 id: T-0957
 title: daily-test step_rediscovery() run-leg jest-spawn argv invocation contract 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 400
@@ -67,3 +67,7 @@ plannerNote: "P5 §109 step④ — 서두 bootstrap(T-0956)까지 봉함 뒤 남
 ## Follow-ups
 
 (없음)
+
+---
+
+**Status: DONE** (2026-07-13T13:52Z) — PR #851 squash-merged (97dc0230). executor→implementer→tester→integrator: test-only 단일 smoke-spec (+435/-0) `test/smoke/realdata-e2e-daily-test-step-rediscovery-run-leg-jest-argv-invocation-contract.smoke-spec.ts`. 22 test green(happy/branch/삼형제 single-source 동형/negative mutant a~e/§9 secret-safety/결정론), reviewer APPROVE round 1/7, 4-게이트 PASS, production 0 LOC·daily-test.sh 미변경. eval(T-0790)/collect/rediscovery run-leg 삼형제 계약 완결.
