@@ -2,7 +2,10 @@
 id: T-0942
 title: realdata-e2e dual-leg run report 의 rolling-issue 재발견(re-discovery) 검색을 **실 `gh search issues` (read-only)** 로 1 회 round-trip 하는 env-gated skip-by-default live smoke 신설 — T-0941 이 봉한 write-side(create/edit) round-trip 의 **read-side 짝**. descriptor.marker → search-argv(`buildRealData...IssueSearchGhArgv`) → 실 `gh search issues --match body <marker> --json number,title,body --limit 30` execFile(**mutation 0 순수 read**) → 실 search stdout(JSON) → `parseRealData...IssueSearchOutput` round-trip → `resolve...GhCommandPlan(searchStdout, commandArgs)` 재발견 결정. fresh run 식별자(오늘 KST dateToken@실 git short HEAD)의 marker 는 아직 github 에 없어 `gh search` 가 빈 배열(`[]`) 을 산출 → 파서 `[]` round-trip → plan.action==="create"(재발견 미매칭 → 신규) 를 **결정론적으로** 실증. 이로써 (a) search argv 가 실 gh 에 accept 되는지(argv malformation 0·`--match body`/`--json`/`--limit` 유효 flag) (b) 실 gh `--json` 출력이 파서가 round-trip 하는 배열 schema 인지 (c) 실 github 상태로부터 재발견 결정이 유도되는지를 read-only 로 봉합. gating 부재(public CI) 시 `describe.skip` → 실 네트워크 0 / **mutation 0**(read-only) / secret 0 으로 green(R-113). write credential 불요(read-scope PAT/gh ambient read 로 충분)라 T-0941(write path) 보다 넓은 환경에서 실행 가능. step_report 배선은 ADR-0045 credential gate deferred 로 본 task 밖(Follow-up)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-13T03:59:55Z
+prNumber: 836
+mergeCommit: 7098ed94
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 235
