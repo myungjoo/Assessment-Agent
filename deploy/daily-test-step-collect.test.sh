@@ -149,12 +149,14 @@ else
   pass "T-0887 정본 helper 부재(검증 환경) — bash 박제 grep 만으로 충족(skip)"
 fi
 
-# === ORDER 회귀 0: ORDER 에 collect 말미 추가 + 기존 5 step 순서/JSON 조립 호환 ===
-order_str="$( ( source "$DAILY_TEST_SH"; printf '%s' "${ORDER[*]}" ) )"
-if [ "$order_str" = "redeploy health liveness auth eval collect" ]; then
-  pass "ORDER = (redeploy health liveness auth eval collect) — 기존 5 step 순서 불변 + collect 말미 추가"
+# === ORDER 회귀 0: 앞 6 step(…collect) 순서 불변 — 이후 leg 추가에 resilient 한 prefix slice ===
+# 전체-배열 exact-match 는 다음 leg 추가(T-0943 rediscovery 등) 시마다 깨지므로 앞 6 원소
+# prefix slice 로 collect 까지의 순서만 단언한다(daily-test-step-eval.test.sh:146 패턴).
+order_prefix="$( ( source "$DAILY_TEST_SH"; printf '%s' "${ORDER[*]:0:6}" ) )"
+if [ "$order_prefix" = "redeploy health liveness auth eval collect" ]; then
+  pass "ORDER[0:6] = (redeploy health liveness auth eval collect) — 기존 5 step 순서 불변 + collect 6번째"
 else
-  failtest "ORDER 회귀 — got '$order_str'"
+  failtest "ORDER 회귀 — got '$order_prefix'"
 fi
 
 # mark 헬퍼 ORDER 순회 호환 — collect mark 반영 + FAIL 없으면 FAILED_STEP=null(회귀 0).
@@ -168,10 +170,13 @@ else
 fi
 
 # === Negative (5): 기존 5 step mark + steps_json 형식 회귀 0(collect 추가 호환) ===
+# 본 spec 은 collect leg scope 라 앞 6 step(…collect)만 mark/조립한다. 이후 leg(rediscovery
+# 등)는 ORDER 에 있어도 여기서 mark 하지 않으므로, 전체 ORDER 순회 시 미mark step 이 set -u
+# 하에서 unbound → 폭발한다. 따라서 조립 순회를 collect 까지의 prefix(ORDER[@]:0:6)로 한정.
 steps_json_probe="$( ( source "$DAILY_TEST_SH"
   mark redeploy PASS; mark health PASS; mark liveness PASS; mark auth PASS; mark eval SKIP; mark collect SKIP
   sj=""
-  for s in "${ORDER[@]}"; do sj="$sj,\"$s\":\"${STEP_STATUS[$s]}\""; done
+  for s in "${ORDER[@]:0:6}"; do sj="$sj,\"$s\":\"${STEP_STATUS[$s]}\""; done
   printf '{%s}' "${sj#,}" ) )"
 expected_json='{"redeploy":"PASS","health":"PASS","liveness":"PASS","auth":"PASS","eval":"SKIP","collect":"SKIP"}'
 if [ "$steps_json_probe" = "$expected_json" ]; then

@@ -143,6 +143,14 @@ jobs:
         # /run/FAIL 분기·eval leg 교차오염 0·§9 echo 0 만 검증.
         run: bash deploy/daily-test-step-collect.test.sh
 
+      - name: daily-test step_rediscovery 배선 검증
+        # T-0943 — deploy/daily-test.sh 의 realdata-e2e github 재발견 검색 read-only live smoke
+        # step_rediscovery gating 배선(env-gated SKIP/run + jest argv mirror)의 executable spec.
+        # collect-leg step_collect 검증(T-0888)과 동형으로 self-contained(네트워크 0 / jest 실
+        # spawn 0 / 실 credential echo 0)라 credential 불요 — 공유 gating 판정·rediscovery argv·
+        # SKIP/run/FAIL 분기·eval/collect leg 교차오염 0·write 명령 0·§9 echo 0 만 검증.
+        run: bash deploy/daily-test-step-rediscovery.test.sh
+
       - name: pnpm 설치
         uses: pnpm/action-setup@v4
         with:
