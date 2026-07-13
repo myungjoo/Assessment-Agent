@@ -2,7 +2,7 @@
 id: T-0959
 title: seed-llm-config.sh 내부 env-gating(SEED_LLM_ENDPOINT_URL 부재 no-op exit0 guard + set -euo pipefail 엄격모드 + SEED_LLM_* env-override 기본값 + LLM_APIKEY_ENC_KEY fail-fast + apiKey stdin-not-argv secret-safety + postgres/app bounded readiness polling) 계약 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 400
@@ -73,3 +73,11 @@ plannerNote: "P5 §109 step③ — redeploy.sh 가 조건부 호출하는 seed-l
 ## Follow-ups
 
 (없음)
+
+## Result
+
+- **Status: DONE** (2026-07-13T15:03Z, PR [#853](https://github.com/myungjoo/Assessment-Agent/pull/853) squash 머지 `c9e7a503`).
+- test-only 단일 smoke-spec `test/smoke/realdata-e2e-seed-llm-config-env-gating-no-op-guard-strict-mode-env-override-defaults-enckey-failfast-stdin-secret-safe-bounded-readiness-contract.smoke-spec.ts` 신설 (+628/-0, 30 케이스). `deploy/seed-llm-config.sh` 미변경, production 0 LOC.
+- `readFileSync` 정적 추출로 strict-mode(errexit ON)·REPO_DIR/6종 env-override 기본값·.env 조건부 3-token 로드·no-op guard(exit0)·enc-key fail-fast(exit1)·bounded polling 2종·apiKey stdin-not-argv·ciphertext fail-fast 불변식을 pure 함수로 앵커. no-op(exit0) vs fail-fast(exit1) exit-code 분기·stdin-not-argv secret-safety·negative mutant a~f·원본 read-only·§9 secret-safety·flow/branch cover 전부 assert.
+- reviewer round 1/7 APPROVE (0 BLOCKER / 0 MAJOR / 1 informational MINOR — sizeExempt overrun 문서화, nit-closure 불요). 4-게이트 PASS. `pnpm lint && pnpm build && pnpm test:cov` green, coverageThreshold 무회귀.
+- fineGrainedConcurrency stage5b claim-pickup fire (cron@aa-local-1955-5379). daily-test(T-0944~T-0957)·redeploy 내부(T-0958)·seed-llm-config env-gating(T-0959) 봉함으로 nightly runner seed leg 완결. next: T-0960(docker-entrypoint.sh 내부 부팅 시퀀스 정적 smoke).
