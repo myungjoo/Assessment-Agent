@@ -2,7 +2,10 @@
 id: T-0950
 title: realdata-e2e nightly runner(`deploy/daily-test.sh`) 의 **step_liveness 앱-생존 3-gate 합취(conjunction) 계약**을 정적 검증하는 non-gated build-time smoke — 기동된 컨테이너가 "살아있다" 를 판정하는 liveness step 의 **내부 3-조건 AND 판정 + SPA-HTML 탐지 정규식 + 조건별 진단 diagnostic** 을 봉함(무인 nightly 가 배포된 앱의 생존을 false-positive/negative 없이 판정함을 신뢰). 계약: **(a) 3-gate 합취 규칙**(95~114행 `step_liveness()` — ① `GET /api` body == `$HEALTH_MESSAGE`(98행) AND ② `GET /` status == `200`(104행 `curl_code`) AND ③ `GET /` body 가 SPA-HTML(108행 `grep -qiE '<!doctype html\|id="root"'`) — 셋 *모두* 통과해야 return 0(alive), 하나라도 실패면 return 1) · **(b) SPA-HTML 탐지 정규식**(108행 `<!doctype html|id="root"` case-insensitive `-qiE` — doctype 선언 또는 SPA mount root div 중 하나만 있어도 SPA 로 인정, health 문자열 단독으론 SPA 아님) · **(c) 조건별 §9-safe 진단 diagnostic**(99·105·109행 `log "step liveness: FAIL — ..."` — 어느 gate 가 깨졌는지 *조건* 만 진단하고 실 body 는 `${body:-<none>}` placeholder 로만 노출, credential/secret echo 0) · **(d) health-vs-liveness 구분**(step_health 는 `GET /api` body 일치만(79~93행), step_liveness 는 그 위에 root 200 + SPA-HTML 을 *더* 요구 — liveness 가 health 의 strict superset). 불변식: liveness 는 3-조건을 *모두* 만족해야만 앱-생존을 단언하고(부분 통과는 FAIL), 실패 시 어느 조건이 깨졌는지 *조건* 만 진단해 응답 body 실값을 누출하지 않으며(§9), SPA-HTML 판정은 doctype 또는 root-div 정규식으로만 한다 — 무인 nightly 가 배포 앱의 실 생존(단순 health ping 이 아닌 SPA 서빙까지)을 신뢰. `deploy/daily-test.sh` 를 readFileSync 로 읽어(실행/source 0) liveness 유도 표현(95~114행)을 정적 추출 + 3-gate 합취 동형 pure 함수(`isAlive`/`isSpaHtml`/`livenessDiagnostic`)로 합취·SPA-정규식·조건별-진단 불변식 assert. T-0792(HTTP path·method·status parity — SPA-HTML 내용 비교 *제외* 명시, line 46)·T-0947(step-chain SKIP cascade — liveness 를 black-box outcome 으로만 취급)·T-0944(집계 값)·T-0945(dual-sink)·T-0946(로그 prune)·T-0948(스칼라 provenance)·T-0949(gating-env 완전성) 가 미cover 한 **liveness step 내부 3-gate 합취 + SPA-HTML 탐지 semantics** gap 상보 표면. 실 redeploy/HTTP/curl/gh/git 0·process.env/liveness 실행 0·credential 0·새 dep 0·write 0(ADR-0045 무관)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 3bf5abcf
+prNumber: 844
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 360
