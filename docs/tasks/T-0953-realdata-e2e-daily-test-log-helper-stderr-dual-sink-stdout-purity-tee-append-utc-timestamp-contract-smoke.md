@@ -2,7 +2,11 @@
 id: T-0953
 title: realdata-e2e nightly runner(`deploy/daily-test.sh`) 의 **log() 헬퍼 stderr 라우팅 · stdout 순수성 계약**을 정적 검증하는 non-gated build-time smoke — 모든 진행 로그가 로그 파일 append + stderr 로만 이중 방출되고 **stdout 은 절대 오염되지 않아** 무인 모니터링 routine 이 파싱하는 stdout 이 오직 최종 머신 JSON(387행 `cat "$RESULT_JSON"`)만 담음을 봉함(T-0945 가 JSON *방출* 측을 봉한 것의 상보 — "진행 로그는 stdout 으로 새지 않는다" stdout-순수성 측). 계약 (a) **stderr+파일 이중 sink**(59행 `printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*" | tee -a "$LOG_FILE" >&2` — tee 가 로그 파일에 append + 그 tee 출력을 `>&2` 로 stderr 에 방출) · (b) **stdout 순수성**(`>&2` 가 tee 의 stdout 을 stderr 로 돌려 log() 는 stdout 에 0 byte — 유일한 bare-stdout 방출은 387행 `cat "$RESULT_JSON"`) · (c) **append 누적**(`tee -a` — overwrite `>` 아님, 한 run 의 모든 로그 라인이 로그 파일에 누적) · (d) **UTC timestamp 접두**(`date -u +%H:%M:%S` → `[HH:MM:SS]` 접두, 로컬 TZ 아님) · (e) **whole-message pass**(`"$*"` — 모든 인자를 join 해 한 줄로) · (f) **stdout 은 JSON 전용 주석 계약**(27~28·57행 "stdout 은 JSON 전용이라 건드리지 않음" — log() 가 이를 구조적으로 보장). 불변식: 모든 진행 로그는 `tee -a "$LOG_FILE" >&2` 로 로그 파일 append + stderr 이중 방출되며 stdout 에는 0 byte 를 쓰고(UTC `[HH:MM:SS]` 접두 + `"$*"` whole-message), 스크립트 전체에서 stdout 에 방출하는 라인은 오직 387행 최종 `cat "$RESULT_JSON"` 하나뿐 — 무인 routine 이 stdout 을 순수 JSON 으로 파싱할 수 있음의 근원. `deploy/daily-test.sh` 를 readFileSync 로 읽어(실행/source 0) log 헬퍼 유도 표현(27~28·57~60·387행)을 정적 추출 + 라우팅 동형 pure 함수(`formatLogLine`/`logRouteTargets`/`stdoutEmitterLines`)로 stderr-이중-sink·stdout-순수성·append·UTC-timestamp·whole-message 불변식 assert. T-0945(머신 JSON dual-sink file+stdout cat single-source — *JSON 방출* 측만, 진행 로그 stderr 라우팅 제외)·T-0948(스칼라 provenance)·T-0944(집계 값)·T-0946(로그 prune)·T-0947(cascade)·T-0949~T-0952(gating/liveness/auth/health) 가 미cover 한 **log() 헬퍼 stderr 라우팅 + stdout 순수성** gap 상보 표면. 실 log 실행·실 tee·실 stderr·실 date·gh·git 0·process.env 읽기 0·새 dep 0·write 0(ADR-0045 무관)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 1109f9bf
+prNumber: 847
+reviewRounds: 1
+completedAt: 2026-07-13T11:15:00Z
 commitMode: pr
 coversReq: [REQ-037, REQ-059]
 estimatedDiff: 370
