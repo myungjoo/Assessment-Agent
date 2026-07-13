@@ -2,7 +2,7 @@
 id: T-0960
 title: docker-entrypoint.sh 내부 부팅 시퀀스(set -e strict-mode + prisma migrate deploy → exec node dist/src/main ordered + exec PID-1 replacement + #!/bin/sh POSIX 인터프리터 + echo 진단 관측성) 계약 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 400
@@ -68,3 +68,10 @@ plannerNote: "P5 §109 step①/③ — 재배포 runner chain(daily-test T-0944~
 ## Follow-ups
 
 (없음)
+
+## Result
+
+- **Status: DONE** (2026-07-13T15:36:01Z)
+- PR #854 squash 머지 (c3b33b43), reviewer round 1/7 APPROVE, 4-게이트 PASS.
+- test-only 단일 smoke-spec +521/-0, 27 test green. production 0 LOC — docker-entrypoint.sh 미변경.
+- POSIX-sh·set -e errexit·migrate<boot ordered·exec PID-1·echo 진단·negative mutant a~e·§9 secret-safety 정적 앵커로 봉함.
