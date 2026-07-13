@@ -2,7 +2,10 @@
 id: T-0968
 title: deploy/local-llm-example/README.md 사용법 runbook cross-artifact 정본 계약(문서화 config 값 4종↔config.env active 키 byte-parity·LAN_ALLOW_CIDR/포트 11434 parity·AA 연결 endpointUrl/modelId↔config.env·스크립트 표 7종 실 파일 존재·config.local.env↔.gitignore 커밋금지 parity·SEED_LLM_ENDPOINT_URL 포트 규약 + deploy/README·seed-llm-config.sh cross-ref 실존) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-13T21:04:51Z
+mergedAs: e5dadd5f
+prNumber: 862
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 400
