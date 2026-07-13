@@ -2,7 +2,8 @@
 id: T-0966
 title: deploy/local-llm-example/config.env 로컬 LLM 호스트 템플릿 내부 계약 + seed-llm-config.sh cross-artifact 정본 parity(필수 active 키 5종 존재·OLLAMA_HOST↔OPENAI_BASE_URL 포트 내부 parity·OpenAI-호환 /v1 suffix·기본 모델 tag gemma4:12b↔seed 기본값·:11434/v1 endpoint 규약 parity·§9 secret-safety) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 860
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 390
