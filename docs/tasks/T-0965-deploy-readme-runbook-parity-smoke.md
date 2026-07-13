@@ -2,7 +2,7 @@
 id: T-0965
 title: deploy/README.md 배포 runbook cross-artifact 정본 계약(OnCalendar 03:00 ↔ timer·DATABASE_URL host:port ↔ compose·named volume·PORT 3000·systemd unit 파일명 실존·cp env.prod.example .env·SEED_LLM_* 키셋 ↔ seed-llm-config.sh 소비셋·redeploy→seed 호출 문서화) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 430
