@@ -2,8 +2,12 @@
 id: T-0970
 title: deploy/local-llm-example/start-llm.ps1 서버 보장 기동+모델 예열 스크립트 내부 계약(dot-source _common.ps1·CmdletBinding 1-switch(-NoWarm)·config-sourced 값(하드코딩 아님)·Start-OllamaServerIfNeeded 실패 시 throw fail-fast·-NoWarm early-return skip 분기·예열 POST /api/generate body(model/keep_alive config-sourced·prompt 'ok'·stream false)·예열 실패 non-fatal Write-Warning) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 864
+mergedAs: a6ddc938
+reviewRounds: 1
+completed: 2026-07-13T23:07:05Z
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 470
 estimatedFiles: 1
