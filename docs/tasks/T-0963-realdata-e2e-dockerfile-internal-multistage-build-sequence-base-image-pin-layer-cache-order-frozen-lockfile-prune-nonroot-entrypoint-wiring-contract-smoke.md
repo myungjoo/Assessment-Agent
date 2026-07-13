@@ -2,7 +2,11 @@
 id: T-0963
 title: Dockerfile 내부 멀티스테이지 빌드 시퀀스 계약(2-stage builder/runtime 분리 + node:20-bookworm-slim 베이스 pin ×2 + dep-meta-COPY→frozen-lockfile install→소스-COPY→build 레이어캐시 순서 + backend→web build 순서 + prune --prod devDep 제거 + COPY --from=builder --chown=node:node 선별 복사 + USER node 비루트 + ENV NODE_ENV=production + chmod+x→USER 순서 + ENTRYPOINT docker-entrypoint 배선) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-13T18:04:44Z
+prNumber: 857
+mergeCommit: 4bf4f476
+result: "DONE — PR #857 squash 머지(4bf4f476). test-only 단일 smoke-spec +686/-0(37 test green): Dockerfile 내부 멀티스테이지 빌드 시퀀스 15 불변식(2-stage builder/runtime 분리·node:20-bookworm-slim pin ×2·레이어캐시 순서·--frozen-lockfile·backend→web build·prune --prod·COPY --from=builder --chown 선별 복사·USER node·NODE_ENV=production·chmod→USER·ENTRYPOINT 배선) + negative mutant a~g 7종 + 원본 read-only + §9 secret-safety. reviewer round1 APPROVE(0 BLOCKER/0 MAJOR/0 MINOR) 4-게이트 PASS(tool=gh). src 0 LOC·Dockerfile 미변경·dep 0. 재배포 runner chain 빌드 leg 봉함."
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 460
