@@ -2,7 +2,11 @@
 id: T-0961
 title: systemd redeploy unit 내부 directive 계약(.service Type=oneshot + Wants/After=network-online.target docker.service ordering + .timer Persistent=true missed-boot catchup + RandomizedDelaySec≤300 bounded jitter + [Install] WantedBy=timers.target enable + timer↔service basename pairing) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-13T16:10:00Z
+mergedAs: 46675049
+prNumber: 855
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 420
