@@ -2,7 +2,9 @@
 id: T-0967
 title: deploy/local-llm-example/_common.ps1 공용 헬퍼 내부 계약 + config.env/.gitignore cross-artifact 정본 parity(Get-LlmConfig 코드-기본값 5종↔config.env byte-parity·Read-EnvFile 형식 규약↔config.env 문서 형식·config.env→config.local.env 병합순서·config.local.env↔.gitignore 커밋금지 parity·Get-LocalApiBase 포트 11434 규약·/api/version 헬스 endpoint) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-13T20:22:42Z
+result: "PR #861 squash 머지(c14f16a1, +593/-0 단일 smoke-spec, 30 test green). reviewer round1 APPROVE 4-게이트 PASS. _common.ps1 코드-기본값 5종↔config.env byte-parity·Read-EnvFile 형식·병합순서·config.local.env↔.gitignore parity·Get-LocalApiBase 포트 11434·/api/version 정적 앵커 봉함. production 0 LOC."
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 400
