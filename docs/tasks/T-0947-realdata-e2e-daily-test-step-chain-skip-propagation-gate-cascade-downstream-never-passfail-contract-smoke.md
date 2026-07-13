@@ -2,7 +2,11 @@
 id: T-0947
 title: realdata-e2e nightly runner(`deploy/daily-test.sh`) 의 **step-chaining SKIP-propagation gate cascade** 를 정적 검증하는 non-gated build-time smoke — 선행 체인이 끊긴 downstream step 은 **절대 PASS/FAIL 이 아니라 SKIP** 으로 표기됨(무인 모니터링 false 신호 차단)을 봉함. cascade 계약: **(a) `SKIP_REDEPLOY=1` → redeploy SKIP**(281행, "PASS" 와 구별 — 실행 성공 아님) · **(b) redeploy FAIL → health SKIP**(291행 `[ "${STEP_STATUS[redeploy]}" != "FAIL" ]` gate — SKIP·PASS 는 non-FAIL 이라 health 진행) · **(c) health != PASS → liveness+auth 둘 다 SKIP**(297행 `[ "${STEP_STATUS[health]:-SKIP}" = "PASS" ]` gate — health SKIP/FAIL 시 둘 SKIP) · **(d) auth != PASS → eval·collect·rediscovery 3종 SKIP**(308/326/345행 `[ "${STEP_STATUS[auth]:-SKIP}" != "PASS" ]` gate) · **(e) auth PASS + gating 부재 → eval·collect·rediscovery SKIP**(311/329/348행 `! realdata_eval_gating_enabled`). 불변식: downstream step 은 precondition 미충족 시 항상 SKIP(never PASS/FAIL) — false-positive nightly 신호 차단. `deploy/daily-test.sh` 를 readFileSync 로 읽어(실행/HTTP/spawn 0) cascade gate 표현(281/291/297/308/326/345/311/329/348행)을 정적 추출 + TS 동형 `computeChainedStatuses` 로 SKIP-propagation 불변식 assert. T-0944(집계 값 aggregate)·T-0791(schema)·T-0945(방출)·T-0946(prune)가 미cover 한 **cascade gate → 어떤 status 가 발생하는가** gap 상보 표면. 실 redeploy/HTTP/jest spawn/gh/git 0·process.env/gating 실행 0·credential 0·새 dep 0·write 0(ADR-0045 무관)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 81f6a97d
+prNumber: 841
+reviewRounds: 1
+completedAt: 2026-07-13T08:07:13Z
 commitMode: pr
 coversReq: [REQ-009, REQ-037, REQ-059]
 estimatedDiff: 280
