@@ -2,7 +2,7 @@
 id: T-0954
 title: realdata-e2e nightly runner(`deploy/daily-test.sh`) 의 **curl_code() 헬퍼 status-code-only 방출 · body 폐기 · max-time hang-guard · argv passthrough · command-substitution 캡처 계약**을 정적 검증하는 non-gated build-time smoke — 모든 HTTP status 검사가 body 를 버리고(`-o /dev/null`) status code 만(`-w '%{http_code}'`) stdout 으로 방출하되 그 stdout 이 caller 의 `$(...)` command-substitution 에 캡처돼 스크립트 bare-stdout 을 오염시키지 않으며(T-0953 stdout-순수성 계약의 상보 — "curl_code 는 stdout 에 status 를 쓰지만 caller 가 변수로 캡처"), 첫 위치 인자(`"${1}"`)가 `--max-time` 으로 배선돼 hang 을 막고 나머지 인자(`"${@:2}"`)가 curl 로 passthrough 됨을 봉함(log() 헬퍼를 봉한 T-0953 의 helper-쌍 상보 — 스크립트의 두 공유 헬퍼 중 curl_code 측). 계약 (a) **silent**(64행 `-s` — progress meter 억제) · (b) **body 폐기**(`-o /dev/null` — 응답 body 를 stdout 아닌 null 로) · (c) **status-code-only 방출**(`-w '%{http_code}'` — HTTP status code 만 stdout 방출, caller 가 `$(...)` 로 캡처) · (d) **max-time hang-guard positional**(`--max-time "${1}"` — 첫 위치 인자가 timeout, hang 방지) · (e) **argv passthrough from arg2**(`"${@:2}"` — 두 번째 인자부터 URL/method/header/data 를 curl 로 전달) · (f) **caller 캡처로 stdout 비오염**(liveness 102·auth 122·130·137행 `code="$(curl_code ...)"` — curl_code stdout 이 command-substitution 에 캡처돼 스크립트 bare-stdout 방출 아님, 유일 bare-stdout emitter 는 387행 cat 그대로). 불변식: 모든 curl_code 호출은 `-s -o /dev/null -w '%{http_code}' --max-time "${1}" "${@:2}"` 로 body 를 버리고 status code 만 stdout 방출하며 첫 인자를 timeout 으로 배선(hang-guard)하고 나머지를 curl 로 passthrough 하되, 그 stdout 은 caller 의 `$(...)` 에 캡처돼 스크립트 stdout 순수성(387행 cat 유일 bare-emitter)을 깨지 않는다. `deploy/daily-test.sh` 를 readFileSync 로 읽어(실행/source 0) curl_code 유도 표현(62~65행 정의 + liveness 102·auth 122·130·137행 caller 캡처)을 정적 추출 + argv 동형 pure 함수(`buildCurlCodeArgv`/`curlCodeContract`/`curlCodeCallerCaptures`)로 silent·body-폐기·status-only·max-time·passthrough·caller-캡처 불변식 assert. T-0953(log() 헬퍼 stderr dual-sink/stdout purity — 진행 로그 라우팅 측만, HTTP status 헬퍼 제외)·T-0952(step_health 폴링 — curl_code 미사용 직접 curl)·T-0950(liveness 3-gate)·T-0951(auth roundtrip)·T-0944~T-0949(집계/JSON/prune/cascade/provenance/gating) 가 curl_code 를 black-box 로 취급해 미cover 한 **HTTP status 헬퍼 계약** gap 상보 표면. 실 curl 실행·실 HTTP·실 network·gh·git 0·process.env 읽기 0·새 dep 0·write 0(ADR-0045 무관)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-059]
 estimatedDiff: 375
@@ -121,3 +121,7 @@ issue-still-relevant 확인(2026-07-13): `deploy/daily-test.sh` 는 현재 62~65
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기 append)
+
+## Result (DONE 2026-07-13T12:05Z)
+
+PR #848 squash `53b58d22` 로 머지. test/smoke/realdata-e2e-daily-test-curl-code-helper-...-contract.smoke-spec.ts 1 파일(+524/-0, production src 0 LOC). curl_code() 헬퍼 계약 6요소(silent `-s`·body 폐기 `-o /dev/null`·status-only `%{http_code}`·max-time positional `--max-time "${1}"`·passthrough `"${@:2}"`·caller `$(...)` 캡처로 stdout 비오염) 를 argv 동형 pure 함수로 봉함. reviewer round1 APPROVE 1 MINOR(silent false-branch mutant 부재) → §3 nit-in-PR closure round2 commit `e637838f` 로 test 추가(21→22), round2 APPROVE 0 finding. 4-게이트 PASS. coverageThreshold 무회귀. T-0953 log() 헬퍼와 helper-쌍 상보 완결.
