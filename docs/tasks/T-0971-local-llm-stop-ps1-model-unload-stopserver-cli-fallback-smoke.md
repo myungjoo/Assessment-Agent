@@ -2,7 +2,7 @@
 id: T-0971
 title: deploy/local-llm-example/stop-llm.ps1 모델 언로드+서버종료+CLI 폴백 스크립트 내부 계약(dot-source _common.ps1·CmdletBinding 1-switch(-StopServer)·config-sourced 값(하드코딩 아님)·서버 미기동 early-return skip·모델 언로드 POST /api/generate body(model config-sourced·keep_alive=0)·API 실패 catch CLI stop 폴백·-StopServer 서버 프로세스 종료 분기·else 서버 유지 안내) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 470
