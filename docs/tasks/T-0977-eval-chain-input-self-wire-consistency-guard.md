@@ -2,8 +2,12 @@
 id: T-0977
 title: eval-chain leg 조립 helper 반환 직전 consistency drift-guard self-wire (buildRealDataE2eEvalChainInput 산출을 즉시 자가 검증)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 871
+mergedAs: 07529f88
+reviewRounds: 1
+completedAt: 2026-07-14T03:16:34Z
 coversReq: [REQ-013, REQ-030, REQ-059]
 estimatedDiff: 75
 estimatedFiles: 2
