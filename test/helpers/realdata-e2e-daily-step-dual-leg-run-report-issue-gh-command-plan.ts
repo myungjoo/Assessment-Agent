@@ -29,10 +29,26 @@
 //   - 신규 type 정의 0: 입력·출력 타입은 전부 기존 dual-leg helper 에서 import type 재사용.
 //   - 실 execFile('gh', ...) 은 deferred — 본 컴포저는 stdout(이미 받은) + commandArgs →
 //     실행할 argv 산출까지만 담당한다(search / create / edit 실행 모두 caller 책임).
+//
+// 🔥 self-wire drift-guard (T-0997): T-0994 가 봉한 독립 oracle 가드
+//   `assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWithInputs`
+//   (`-issue-gh-command-plan-consistency.ts`, PR #888 squash 3930ab80 main 박제)를 컴포저의
+//   **단일 반환 지점** 직전 스스로 호출해 매 산출 plan 을 즉시 자가 검증한다. consistency
+//   모듈은 plan/action/command-args 타입만 `import type` 로 참조하고 본 컴포저를 value import
+//   하지 않으므로(consistency → gh-command-plan value 엣지 0, consistency line 70–73)
+//   런타임 순환 의존이 없다(gh-command-plan → consistency 만 런타임 엣지). 정합 산출이면
+//   tautology(항상 void — 가드가 3 위임 helper 를 독립 재유도해 동일 plan 을 확인)라 정상
+//   동작을 바꾸지 않고, 3-단계 합성 순서·분기 매핑·argv 전달이 oracle 규칙과 어긋나는 순간
+//   모든 호출 경로(unit spec·live wiring `execFile('gh', argv)`)에서 즉시 throw 하는 live
+//   트립와이어가 된다 — spec 커버리지에 의존하지 않는다. issue-action leaf(T-0996)가
+//   create/update 두 반환 지점을 배선한 것과 달리 본 컴포저는 3 위임 결과를 하나의 plan 으로
+//   묶어 한 곳에서 반환하므로 그 단일 return 직전 한 지점만 배선한다.
+//   T-0982/T-0983/T-0985/T-0987/T-0989/T-0991/T-0993/T-0996 self-wire mirror.
 import type { RealDataDailyStepDualLegRunReportIssueAction } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-action";
 import { resolveRealDataDailyStepDualLegRunReportIssueAction } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-action";
 import type { RealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
 import { buildRealDataDailyStepDualLegRunReportIssueGhArgv } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-gh-argv";
+import { assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWithInputs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-gh-command-plan-consistency";
 import { parseRealDataDailyStepDualLegRunReportIssueSearchOutput } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-parse";
 
 // RealDataDailyStepDualLegRunReportIssueGhCommandPlan — 종단 컴포저의 출력. caller 가
@@ -85,5 +101,23 @@ export function resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
   );
 
   // 새 plan 객체(새 argv 배열은 빌더가 이미 무공유로 반환) — 입력 보존·무공유.
-  return { action, argv };
+  const plan: RealDataDailyStepDualLegRunReportIssueGhCommandPlan = {
+    action,
+    argv,
+  };
+
+  // 🔥 self-wire drift-guard (T-0997): plan 을 반환하기 **직전** 독립 oracle 가드를 스스로
+  //   호출해 산출 즉시 자가 검증한다. 가드가 입력 (stdout, commandArgs) 로 동일 3 위임
+  //   helper 를 독립 재유도해 이 plan 과 대조하므로, 정합 산출이면 tautology(항상 void)라
+  //   정상 동작을 바꾸지 않고, 3-단계 합성 순서·분기 매핑·argv 전달이 oracle 규칙과 어긋나는
+  //   순간 모든 호출 경로(unit spec·live wiring)에서 즉시 throw 하는 live 트립와이어가 된다.
+  //   단일 반환 지점이라 한 지점만 배선한다(issue-action leaf 의 create/update 두 지점 배선과
+  //   대비). consistency → gh-command-plan value 엣지 0 이라 런타임 순환 없음.
+  assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWithInputs(
+    plan,
+    stdout,
+    commandArgs,
+  );
+
+  return plan;
 }

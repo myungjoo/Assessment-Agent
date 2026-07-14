@@ -14,8 +14,14 @@
 //     updateArgs.body/title 빈/공백 빌더 guard — 각 1+ throw 검증.
 //   - 결정론·무공유: 동일 입력 2회 호출 → deep equal, 입력 commandArgs(중첩 labels) mutate 0.
 //   - R-59: argv 가 commandArgs 의 title/body(=marker 라인 포함) 만 옮길 뿐 추가 본문 0.
+//   - self-wire (T-0997): 컴포저가 단일 반환 지점 직전 consistency oracle 가드를 스스로
+//     호출하는지(flow spy)·drift 를 전파하는지(negative)·정상 산출을 mutate 하지 않는지
+//     (무공유) 검증. consistency 모듈은 namespace 로 import 해 self-wire spy(jest.spyOn) 대상
+//     으로 삼는다 — ts-jest CommonJS 로 컴파일되므로 이 namespace 의 함수를 spyOn 하면 컴포저
+//     내부 self-wire 호출이 가로채진다.
 import type { RealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
 import { resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-gh-command-plan";
+import * as ghCommandPlanConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-gh-command-plan-consistency";
 
 const MARKER =
   "<!-- realdata-e2e-daily-step-dual-leg-run-report-issue: 2026-07-11@abc1234 -->";
@@ -314,6 +320,214 @@ describe("resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan — 종단 
       const bodyIdx = plan.argv.indexOf("--body");
       expect(bodyIdx).toBeGreaterThanOrEqual(0);
       expect(plan.argv[bodyIdx + 1]).toBe(body);
+    });
+  });
+});
+
+// self-wire drift-guard 배선 검증 (T-0997) — 컴포저가 단일 반환 지점 직전 consistency oracle
+// 가드를 스스로 호출하는지(flow spy)·drift 를 전파하는지(negative)·정상 산출을 mutate 하지
+// 않는지(무공유)를 검증한다. self-wire 가 제거되면 flow spy·negative 전파 case 가 fail =
+// de-facto regression guard(단일 반환 지점 배선 존재 증명).
+const GUARD_NAME =
+  "assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWithInputs" as const;
+
+describe("resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan self-wire consistency guard (T-0997)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe("happy-path (self-wire 배선 후에도 정합 plan 정상 반환 — throw 0)", () => {
+    it("(i) create 분기(후보 0건 stdout '[]') → self-wire 후에도 기대 plan 반환", () => {
+      const args = makeCommandArgs();
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan("[]", args),
+      ).not.toThrow();
+
+      const plan = resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+        "[]",
+        args,
+      );
+      expect(plan.action).toEqual({ action: "create" });
+      expect(plan.argv.slice(0, 2)).toEqual(["issue", "create"]);
+    });
+
+    it("(ii) create 분기(marker 미포함 hits) → self-wire 후에도 create plan 반환", () => {
+      const plan = resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+        stdoutOf([{ number: 5, body: "marker 없는 무관 이슈 본문" }]),
+        makeCommandArgs(),
+      );
+      expect(plan.action).toEqual({ action: "create" });
+      expect(plan.argv.slice(0, 2)).toEqual(["issue", "create"]);
+    });
+
+    it("(iii) update 분기(후보 1건) → self-wire 후에도 그 number 로 update plan 반환", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+          stdoutOf([{ number: 42 }]),
+          makeCommandArgs(),
+        ),
+      ).not.toThrow();
+
+      const plan = resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+        stdoutOf([{ number: 42 }]),
+        makeCommandArgs(),
+      );
+      expect(plan.action).toEqual({ action: "update", issueNumber: 42 });
+      expect(plan.argv.slice(0, 3)).toEqual(["issue", "edit", "42"]);
+    });
+
+    it("(iv) update 분기(후보 다수) → self-wire 후에도 최소 number 로 update plan 반환", () => {
+      const plan = resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+        stdoutOf([{ number: 91 }, { number: 7 }, { number: 33 }]),
+        makeCommandArgs(),
+      );
+      expect(plan.action).toEqual({ action: "update", issueNumber: 7 });
+      expect(plan.argv.slice(0, 3)).toEqual(["issue", "edit", "7"]);
+    });
+  });
+
+  describe("error-path (기존 위임 helper 방어 throw 가 self-wire 로 가려지지 않음)", () => {
+    it("비JSON stdout → 여전히 파서 throw 전파", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+          "not json",
+          makeCommandArgs(),
+        ),
+      ).toThrow();
+    });
+
+    it("빈 searchQuery(marker) → 여전히 resolver throw 전파", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+          "[]",
+          makeCommandArgs({ searchQuery: "" }),
+        ),
+      ).toThrow(/marker 가 비어있습니다/);
+    });
+
+    it("공백-only searchQuery → 여전히 resolver throw 전파", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+          "[]",
+          makeCommandArgs({ searchQuery: "   " }),
+        ),
+      ).toThrow(/marker 가 비어있습니다/);
+    });
+
+    it("create 분기 createArgs.title 빈/공백 → 여전히 argv 빌더 throw 전파", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+          "[]",
+          makeCommandArgs({ createTitle: "  " }),
+        ),
+      ).toThrow(/createArgs\.title 가 비어있습니다/);
+    });
+
+    it("update 분기 updateArgs.body 빈 → 여전히 argv 빌더 throw 전파", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+          stdoutOf([{ number: 9 }]),
+          makeCommandArgs({ updateBody: "" }),
+        ),
+      ).toThrow(/updateArgs\.body 가 비어있습니다/);
+    });
+
+    it("비양수 hit number → 여전히 파서 number guard throw 전파", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+          stdoutOf([{ number: 0 }]),
+          makeCommandArgs(),
+        ),
+      ).toThrow();
+    });
+  });
+
+  describe("flow/branch (self-wire 호출 사실 검증 — 두 분기 각각 spy 로 배선 존재 증명)", () => {
+    it("create 분기(후보 0건) → 가드가 (반환된 plan, stdout, commandArgs) 로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(ghCommandPlanConsistency, GUARD_NAME);
+      const stdout = "[]";
+      const args = makeCommandArgs();
+
+      const plan = resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+        stdout,
+        args,
+      );
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(plan, stdout, args);
+    });
+
+    it("update 분기(후보 1+건) → 가드가 (반환된 plan, stdout, commandArgs) 로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(ghCommandPlanConsistency, GUARD_NAME);
+      const stdout = stdoutOf([{ number: 42 }]);
+      const args = makeCommandArgs();
+
+      const plan = resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+        stdout,
+        args,
+      );
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(plan, stdout, args);
+    });
+  });
+
+  describe("negative (예외 상황 분기마다 1+ — drift 전파 · 비변형)", () => {
+    it("(a) create 분기 — 가드가 RangeError throw → 컴포저가 동일 RangeError 전파(silent 삼킴 0)", () => {
+      const drift = new RangeError("정합 위반: create 강제 drift(테스트)");
+      jest
+        .spyOn(ghCommandPlanConsistency, GUARD_NAME)
+        .mockImplementation(() => {
+          throw drift;
+        });
+
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+          "[]",
+          makeCommandArgs(),
+        ),
+      ).toThrow(drift);
+    });
+
+    it("(a) update 분기 — 가드가 RangeError throw → 컴포저가 동일 RangeError 전파(silent 삼킴 0)", () => {
+      const drift = new RangeError("정합 위반: update 강제 drift(테스트)");
+      jest
+        .spyOn(ghCommandPlanConsistency, GUARD_NAME)
+        .mockImplementation(() => {
+          throw drift;
+        });
+
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+          stdoutOf([{ number: 42 }]),
+          makeCommandArgs(),
+        ),
+      ).toThrow(drift);
+    });
+
+    it("(b) self-wire 가 정상 산출을 mutate 하지 않음 — 반환 plan deep-equal, 입력 commandArgs 무공유, 매 호출 새 plan·새 argv", () => {
+      const args = makeCommandArgs();
+      const labelsBefore = [...args.createArgs.labels];
+      const searchQueryBefore = args.searchQuery;
+
+      const first = resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+        "[]",
+        args,
+      );
+      const second = resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+        "[]",
+        args,
+      );
+
+      // self-wire 는 tautology(void)라 반환 plan 은 배선 이전 산출과 동일해야 한다.
+      expect(first).toEqual(second);
+      expect(first.action).toEqual({ action: "create" });
+      // 입력 commandArgs(중첩 createArgs.labels)·searchQuery 미변형.
+      expect(args.createArgs.labels).toEqual(labelsBefore);
+      expect(args.searchQuery).toBe(searchQueryBefore);
+      // 매 호출 새 plan 객체·새 argv 배열 무공유.
+      expect(first).not.toBe(second);
+      expect(first.argv).not.toBe(second.argv);
     });
   });
 });
