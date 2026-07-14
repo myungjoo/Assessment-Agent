@@ -2,7 +2,10 @@
 id: T-0978
 title: eval-chain full-chain live smoke 의 github event→도메인 Activity 매핑을 순수 helper 로 추출 + R-112 spec
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: d452bb8a
+prNumber: 872
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 150
