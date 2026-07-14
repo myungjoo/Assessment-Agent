@@ -2,7 +2,7 @@
 id: T-1004
 title: daily-step dual-leg run report issue outcome-report 반환 직전 output-consistency drift-guard self-wire (buildRealDataDailyStepDualLegRunReportIssueOutcomeReport 산출 5필드를 (outcome, runReport) 로부터 독립 재유도 대조하는 T-1003 가드를 단일 반환 지점에 배선 — 요약축 T-0726 의 두 번째 self-assert call mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 130
