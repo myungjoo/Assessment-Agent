@@ -2,7 +2,7 @@
 id: T-0976
 title: 실 평가 e2e eval-chain leg 의 수집→평가 경계 조립을 독립 oracle 재유도로 대조하는 consistency drift-guard 순수 helper + colocated spec 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-013, REQ-030, REQ-059]
 estimatedDiff: 260
