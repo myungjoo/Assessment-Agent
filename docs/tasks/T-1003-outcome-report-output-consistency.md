@@ -2,7 +2,11 @@
 id: T-1003
 title: daily-step dual-leg run report issue outcome-report output-consistency drift-guard 신설 (assertRealDataDailyStepDualLegRunReportIssueOutcomeReportOutputConsistentWithInput — 산출 report 5필드를 (outcome, runReport) 로부터 컴포저 재호출 없이 독립 재유도 deep-equal 대조, 요약축 T-0725 mirror)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-14T18:57:55Z
+mergedAs: 23fd6122
+prNumber: 897
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 600
