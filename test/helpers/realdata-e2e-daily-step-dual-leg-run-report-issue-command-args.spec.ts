@@ -28,6 +28,11 @@ import * as issueCommandArgsBodyMarker from "./realdata-e2e-daily-step-dual-leg-
 // ts-jest CommonJS 트랜스파일에서 빌더의 named import 는 이 모듈 객체 프로퍼티 접근으로
 // 컴파일되므로, 이 namespace 의 함수를 spyOn 하면 빌더 내부 self-wire 호출이 가로채진다.
 import * as issueCommandArgsConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args-consistency";
+// labels·title 가드 모듈(T-1010)은 namespace 로 import 해 T-1011 self-wire spy(jest.spyOn)
+// 대상으로 삼는다. ts-jest CommonJS 트랜스파일에서 빌더의 named import 는 이 모듈 객체
+// 프로퍼티 접근으로 컴파일되므로, 이 namespace 의 함수를 spyOn 하면 빌더 내부 self-wire
+// 호출이 가로채진다.
+import * as issueCommandArgsLabelsTitle from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args-labels-title";
 import type { RealDataDailyStepDualLegRunReportIssueDescriptor } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
 
 const MARKER =
@@ -667,6 +672,274 @@ describe("buildRealDataDailyStepDualLegRunReportIssueCommandArgs self-wire body-
     });
 
     it("(e) R-59 — self-wire 후에도 반환 body 에 narrative 류 raw 본문 키 부재", () => {
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      expect(args.createArgs.body).not.toContain("narrative");
+      expect(args.updateArgs.body).not.toContain("rawActivity");
+    });
+  });
+});
+
+// self-wire labels·title 정합 가드 배선 검증 (T-1011, 요약축 T-0652 mirror) — 빌더가 반환
+// 직전 T-1010 labels·title 축 가드
+// `assertRealDataDailyStepDualLegRunReportIssueCommandArgsLabelsTitleConsistent` 를
+// (commandArgs, descriptor, DUAL_LEG_RUN_REPORT_ISSUE_LABELS) 인자로 스스로 호출해 create/
+// update title byte-identical 전파·labels 고정-상수 exact match·labels 무공유를 즉시 자가
+// 검증하는지를 R-112 4종(happy/error/flow/negative)으로 봉한다. self-wire 가 제거되면 flow
+// spy·negative 전파 case 가 fail = de-facto regression guard.
+describe("buildRealDataDailyStepDualLegRunReportIssueCommandArgs self-wire labels-title guard (T-1011)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  // 서로 다른 marker/body 를 갖는 두 번째 정합 fixture(호출 사실 검증의 다중 descriptor 용).
+  const OTHER_MARKER =
+    "<!-- realdata-e2e-daily-step-dual-leg-run-report-issue: 2026-07-12@deadbee -->";
+  const OTHER_DESCRIPTOR: RealDataDailyStepDualLegRunReportIssueDescriptor = {
+    title: "실 평가 e2e daily-step dual-leg run report 2026-07-12@deadbee",
+    marker: OTHER_MARKER,
+    body: [OTHER_MARKER, "", "## 본문", "- overall: some-fail"].join("\n"),
+  };
+
+  describe("happy-path (self-wire 배선 후에도 정합 명령-args 정상 반환 — throw 0, 다양성)", () => {
+    it("(i) 정상 descriptor → throw 없이 정합 명령-args 반환(create/update title=descriptor.title·labels 고정상수)", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        ),
+      ).not.toThrow();
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      // create·update title 이 descriptor.title 로 byte-identical 수렴(멱등 식별).
+      expect(args.createArgs.title).toBe(HAPPY_DESCRIPTOR.title);
+      expect(args.updateArgs.title).toBe(HAPPY_DESCRIPTOR.title);
+      // labels 고정 상수 exact match.
+      expect(args.createArgs.labels).toEqual(FIXED_LABELS);
+    });
+
+    it("(ii) 다른 descriptor(다른 marker/body·some-fail leg status) → throw 없이 정합 명령-args 반환", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          OTHER_DESCRIPTOR,
+        ),
+      ).not.toThrow();
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          OTHER_DESCRIPTOR,
+        );
+      expect(args.createArgs.title).toBe(OTHER_DESCRIPTOR.title);
+      expect(args.updateArgs.title).toBe(OTHER_DESCRIPTOR.title);
+      expect(args.createArgs.labels).toEqual(FIXED_LABELS);
+    });
+  });
+
+  describe("error-path (기존 방어 guard·labels·title 축 가드가 self-wire 로 서로 가려지지 않음)", () => {
+    it("(a) title 빈-공백 → 빌더 자체 assertNonBlank 의 Error 를 던진다(labels·title 가드 self-wire 가 식별자 guard 를 깨지 않음)", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs({
+          ...HAPPY_DESCRIPTOR,
+          title: "  ",
+        }),
+      ).toThrow(/title 가 비어있습니다/);
+    });
+
+    it("(b) marker 빈-공백 → 빌더 자체 assertNonBlank 의 Error 를 던진다", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs({
+          ...HAPPY_DESCRIPTOR,
+          marker: "",
+        }),
+      ).toThrow(/marker 가 비어있습니다/);
+    });
+
+    it("(c) labels·title 가드가 정합 회귀를 감지해 RangeError throw → 빌더가 동일 RangeError 전파(손상 args 유출 0)", () => {
+      const drift = new RangeError("불변식(1) 위반: 강제 title drift(테스트)");
+      jest
+        .spyOn(
+          issueCommandArgsLabelsTitle,
+          "assertRealDataDailyStepDualLegRunReportIssueCommandArgsLabelsTitleConsistent",
+        )
+        .mockImplementation(() => {
+          throw drift;
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        ),
+      ).toThrow(drift);
+    });
+  });
+
+  describe("flow/branch (self-wire 호출 사실 검증 — spy 로 배선 존재·순서·인자 증명)", () => {
+    it("(i) 정상 경로 → labels·title 가드가 (반환된 commandArgs, descriptor, 고정 labels 상수) 로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(
+        issueCommandArgsLabelsTitle,
+        "assertRealDataDailyStepDualLegRunReportIssueCommandArgsLabelsTitleConsistent",
+      );
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 정합 — (반환할 commandArgs, 원본 descriptor, 고정 labels 상수와 동치 배열).
+      expect(spy).toHaveBeenCalledWith(args, HAPPY_DESCRIPTOR, FIXED_LABELS);
+      // 3번째 인자가 반환 createArgs.labels 와 동치이되(고정 상수) 참조는 무공유(빌더가 복제 반환).
+      const passedLabels = spy.mock.calls[0][2];
+      expect(passedLabels).toEqual(FIXED_LABELS);
+      expect(args.createArgs.labels).not.toBe(passedLabels);
+    });
+
+    it("(ii) 다른 descriptor fixture → labels·title 가드가 반환 commandArgs 인자로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(
+        issueCommandArgsLabelsTitle,
+        "assertRealDataDailyStepDualLegRunReportIssueCommandArgsLabelsTitleConsistent",
+      );
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          OTHER_DESCRIPTOR,
+        );
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(args, OTHER_DESCRIPTOR, FIXED_LABELS);
+    });
+
+    it("(iii) 세 가드(Consistent·Body·LabelsTitle) 모두 여전히 호출됨 + 순서 보존(Consistent→Body→LabelsTitle)", () => {
+      const consistentSpy = jest.spyOn(
+        issueCommandArgsConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent",
+      );
+      const bodySpy = jest.spyOn(
+        issueCommandArgsBodyMarker,
+        "assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor",
+      );
+      const labelsTitleSpy = jest.spyOn(
+        issueCommandArgsLabelsTitle,
+        "assertRealDataDailyStepDualLegRunReportIssueCommandArgsLabelsTitleConsistent",
+      );
+
+      buildRealDataDailyStepDualLegRunReportIssueCommandArgs(HAPPY_DESCRIPTOR);
+
+      // 세 가드 모두 정확히 1 회 호출 — 나란히 배선(새 가드가 기존 두 self-wire 를 밀어내지 않음).
+      expect(consistentSpy).toHaveBeenCalledTimes(1);
+      expect(bodySpy).toHaveBeenCalledTimes(1);
+      expect(labelsTitleSpy).toHaveBeenCalledTimes(1);
+      // 순서 보존 — Consistent → Body → LabelsTitle(식별자 guard 이후).
+      expect(consistentSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        bodySpy.mock.invocationCallOrder[0],
+      );
+      expect(bodySpy.mock.invocationCallOrder[0]).toBeLessThan(
+        labelsTitleSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("(iv) 식별자 guard throw 분기(title 빈) → labels·title 가드는 호출되지 않음(fail-fast, 가드 순서 보존)", () => {
+      const labelsTitleSpy = jest.spyOn(
+        issueCommandArgsLabelsTitle,
+        "assertRealDataDailyStepDualLegRunReportIssueCommandArgsLabelsTitleConsistent",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs({
+          ...HAPPY_DESCRIPTOR,
+          title: "",
+        }),
+      ).toThrow(/title/);
+
+      // 식별자 guard 가 먼저 throw 하므로 labels·title 가드까지 도달하지 않는다.
+      expect(labelsTitleSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("negative (예외 상황 분기마다 1+ — drift 전파·비변형·결정성·순서·무공유·R-59)", () => {
+    it("(a) 결정성 — 동일 descriptor 2 회 빌드 → 둘 다 byte-identical 정상 반환(self-wire 가 결정성 안 깨짐)", () => {
+      const a =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      const b =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      expect(a).toEqual(b);
+      expect(a.createArgs.title).toBe(b.createArgs.title);
+      expect(a.createArgs.labels).toEqual(b.createArgs.labels);
+    });
+
+    it("(b) 입력 비변형 — 빌드 후 입력 descriptor deep-equal(self-wire 호출 전후 변경 0)", () => {
+      const descriptor: RealDataDailyStepDualLegRunReportIssueDescriptor = {
+        ...HAPPY_DESCRIPTOR,
+      };
+      const before = { ...descriptor };
+
+      buildRealDataDailyStepDualLegRunReportIssueCommandArgs(descriptor);
+
+      expect(descriptor).toEqual(before);
+      expect(descriptor.title).toBe(before.title);
+    });
+
+    it("(c) self-wire 가 정상 산출을 mutate 하지 않음 — 반환 명령-args 가 배선 이전 조립 결과와 byte-identical, labels 무공유", () => {
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      // labels·title 가드는 tautology(void)라 반환 명령-args 는 배선 이전 조립 결과와 동일.
+      expect(args.searchQuery).toBe(HAPPY_DESCRIPTOR.marker);
+      expect(args.createArgs.title).toBe(HAPPY_DESCRIPTOR.title);
+      expect(args.createArgs.body).toBe(HAPPY_DESCRIPTOR.body);
+      expect(args.createArgs.labels).toEqual(FIXED_LABELS);
+      expect(args.updateArgs.title).toBe(HAPPY_DESCRIPTOR.title);
+      expect(args.updateArgs.body).toBe(HAPPY_DESCRIPTOR.body);
+      // 반환 labels 무공유 — mutate 가 상수·다음 호출에 누설되지 않음.
+      args.createArgs.labels.push("leaked");
+      const next =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      expect(next.createArgs.labels).toEqual(FIXED_LABELS);
+    });
+
+    it("(d) labels·title 가드가 TypeError throw(구조 결손) → 빌더가 동일 TypeError 전파(삼키지 않음)", () => {
+      const structural = new TypeError(
+        "commandArgs labels·title 구조 결손(테스트)",
+      );
+      jest
+        .spyOn(
+          issueCommandArgsLabelsTitle,
+          "assertRealDataDailyStepDualLegRunReportIssueCommandArgsLabelsTitleConsistent",
+        )
+        .mockImplementation(() => {
+          throw structural;
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        ),
+      ).toThrow(structural);
+    });
+
+    it("(e) 무공유 보존 — self-wire 후에도 반환 createArgs.labels 가 고정 상수 exact match 이되 매 호출 새 배열", () => {
+      const a =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      const b =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      expect(a.createArgs.labels).toEqual(FIXED_LABELS);
+      expect(b.createArgs.labels).toEqual(FIXED_LABELS);
+      // 매 호출 새 배열 — 두 호출의 labels 는 서로 다른 참조(무공유).
+      expect(a.createArgs.labels).not.toBe(b.createArgs.labels);
+    });
+
+    it("(f) R-59 — self-wire 후에도 반환 body 에 narrative 류 raw 본문 키 부재", () => {
       const args =
         buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
           HAPPY_DESCRIPTOR,

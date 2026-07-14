@@ -75,6 +75,7 @@
 //   런타임 엣지). T-0982/T-0983/T-0985/T-0987/T-0989 self-wire mirror.
 import { assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args-body-marker";
 import { assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args-consistency";
+import { assertRealDataDailyStepDualLegRunReportIssueCommandArgsLabelsTitleConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args-labels-title";
 import type { RealDataDailyStepDualLegRunReportIssueDescriptor } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
 
 // dual-leg run report 이슈 고정 labels — 결정론적 상수 집합. 호출마다 동일하며,
@@ -186,6 +187,25 @@ export function buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
   assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor(
     commandArgs,
     descriptor,
+  );
+
+  // 🔥 self-wire labels·title 정합 가드 (T-1011, 요약축 T-0652 mirror): 명령-args 를
+  //   반환하기 **직전** T-1010 이 신설한 labels·title 축 불변식 가드를 스스로 호출해 산출
+  //   즉시 자가 검증한다. create/update title 이 descriptor.title 과 byte-identical 하고
+  //   createArgs.labels 가 고정 상수 `DUAL_LEG_RUN_REPORT_ISSUE_LABELS` 와 순서·원소·개수까지
+  //   exact match 이며 상수 참조와 무공유(복제)인지의 4 불변식을 강제한다. 정합 산출이면
+  //   tautology(항상 void)라 정상 동작·반환값을 byte-identical 로 보존하고, title 전파 회귀
+  //   (create/update title 이 descriptor.title 과 drift)나 labels 배선 회귀(상수와 어긋난
+  //   순서·원소, 또는 상수 참조를 복제 없이 반환한 무공유 위반)가 생기는 순간 손상 명령-args 를
+  //   caller(live wiring)로 반환하기 전에 fail-fast throw 한다 — spec 커버리지에 의존하지 않는
+  //   live 트립와이어. 기존 Consistent 가드(T-0991)·body marker-first 가드(T-1009)와 축이
+  //   다르며(labels·title 좁은 축) 그 옆에 세 번째로 나란히 배선한다. 빌더가 보유한 고정 labels
+  //   상수를 expectedLabels 로 넘긴다. 같은 `test/helpers/` 디렉토리 함수 호출이라 runtime
+  //   cycle 0.
+  assertRealDataDailyStepDualLegRunReportIssueCommandArgsLabelsTitleConsistent(
+    commandArgs,
+    descriptor,
+    DUAL_LEG_RUN_REPORT_ISSUE_LABELS,
   );
 
   return commandArgs;
