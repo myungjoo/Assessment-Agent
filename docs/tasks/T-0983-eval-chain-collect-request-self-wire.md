@@ -2,7 +2,11 @@
 id: T-0983
 title: eval-chain 수집 요청 조립 helper 반환 직전 consistency drift-guard self-wire (buildRealDataE2eEvalChainCollectRequest 산출을 즉시 자가 검증)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-14T06:20:03Z
+mergedAs: 19fbd21f
+prNumber: 877
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 85
