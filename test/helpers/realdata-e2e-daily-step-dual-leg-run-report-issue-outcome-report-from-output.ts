@@ -37,10 +37,13 @@
 //   - (2) report.gitSha / report.dateToken 빈/공백 → T-1000 guard throw 전파.
 //   본 컴포저는 어느 layer 의 throw 도 삼키지 않고 그대로 위로 흘려보낸다(조용한 통과 차단).
 //
-// 🔥 self-wire·from-output-consistency 가드 배선 0 (본 slice 범위 밖 — 후속 leaf):
-//   - 본 컴포저는 위임 (2) 산출을 **바로 반환**한다. from-output-consistency 가드 신설
-//     (요약축 T-0663 계열)·그 가드의 컴포저 반환 직전 self-wire(요약축 T-0664 계열)는 본
-//     task 범위 밖이다 — bare 2 단 위임 컴포저만.
+// 🔥 self-wire·from-output-consistency 가드 배선 완료 (T-1007, 요약축 T-0664 mirror):
+//   - 본 컴포저는 위임 (2) 산출 outcomeReport 를 반환하기 직전에 T-1006 신설 가드
+//     `assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput(
+//     stdout, report, outcomeReport)` 를 self-assert 한다(import 1줄 + 호출 1지점). 정상
+//     합성이면 가드는 void → 반환 outcomeReport byte-identical 보존, 회귀 시 손상
+//     outcomeReport 를 caller 에 넘기기 전 fail-fast throw. 가드 본문은 T-1006 그대로
+//     import 재사용(재정의 0).
 //
 // 🔥 결정론·무공유:
 //   - 입력 외 상태(시각·난수·env) 의존 0. 동일 (stdout, report) 두 번 호출 → deep-equal
@@ -61,8 +64,8 @@
 //   - 실 gh 호출 / `execFile('gh', argv)` / 실 이슈 search·create·edit·박제(step ④ live
 //     wiring — credential gate). 본 컴포저는 (stdout, report) → 실행 리포트 descriptor 만
 //     산출. stdout 은 이미 실행된 gh 의 산출로 인자로만 받음(부수효과 0).
-//   - from-output-consistency 가드 신설·컴포저 반환 self-wire(요약축 T-0663/T-0664 계열) —
-//     별도 후속 slice. 본 컴포저는 위임 (2) 산출을 바로 반환.
+//   - from-output-consistency 가드 신설(요약축 T-0663 계열) — T-1006 이 이미 박제. 본
+//     컴포저는 그 가드를 반환 직전 self-wire 재사용만(T-1007), 가드 본문 수정 0.
 //   - URL 파싱(T-0903 위임) / issueNumber 검증(T-0903 위임) / run guard·summaryLine 합성
 //     (T-1000 위임) — 전부 위임 안에서 처리(재구현 금지).
 //   - report.gitSha / report.dateToken 의 실 도출(인자로만 받음).
@@ -70,6 +73,13 @@
 import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
 import { buildRealDataDailyStepDualLegRunReportIssueOutcomeReport } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report";
 import type { RealDataDailyStepDualLegRunReportIssueOutcomeReport } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report";
+// outcome-report composer 산출 ↔ single-source 재유도 정합 가드(T-1006 신설)를 컴포저
+// 산출 경로에 self-wire 한다(T-1007). 합성한 outcomeReport 를 반환하기 직전에 self-assert
+// 호출 — 컴포저가 두 위임 layer(parser → builder) 사이에 끼어 결과를 변형/누락하는 합성
+// 회귀가 발생하면 손상 outcomeReport 를 caller 에 반환하기 전에 fail-fast throw 한다(구조
+// 결손=TypeError / 값 정합 위반=RangeError). 가드 본문은 변경 0(T-1006 산출물 그대로 import
+// 재사용). 가드는 컴포저와 동일한 두 위임(parse→build)을 import 하므로 runtime cycle 위험 없음.
+import { assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report-from-output-consistency";
 import { parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-output-parse";
 
 // buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput — `gh issue create` /
@@ -104,6 +114,15 @@ export function buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutp
   const outcomeReport =
     buildRealDataDailyStepDualLegRunReportIssueOutcomeReport(outcome, report);
 
-  // 위임 (2) 산출을 바로 반환(self-wire·consistency 가드 배선 0 — 후속 slice).
+  // self-wire(T-1007) — 합성한 outcomeReport 가 동일 (stdout, report) 의 single-source
+  // 재유도와 byte-identical 정합한지 반환 직전 검증한다. 정상 합성이면 self-assert 가 void →
+  // outcomeReport 비변형·byte-identical 보존. 컴포저가 두 위임 사이에 끼어 결과를 변형/누락
+  // 하는 합성 회귀가 발생하면 손상 outcomeReport 를 caller 에 넘기기 전에 fail-fast throw 한다.
+  assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput(
+    stdout,
+    report,
+    outcomeReport,
+  );
+
   return outcomeReport;
 }
