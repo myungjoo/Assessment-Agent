@@ -2,7 +2,10 @@
 id: T-1012
 title: daily-step dual-leg run report issue search `--json` 요청 필드↔parse-shape 키 set-equality 정합 순수 가드 신설 (assertRealDataDailyStepDualLegRunReportIssueSearchJsonFieldsMatchParseShape — SEARCH_JSON_FIELDS 가 파서 정규화 shape 키와 집합-동일 불변식, 요약축 T-0657 mirror)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 54c881b8
+prNumber: 906
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 630
