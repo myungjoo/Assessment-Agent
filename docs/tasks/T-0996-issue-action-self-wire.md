@@ -2,7 +2,7 @@
 id: T-0996
 title: daily-step dual-leg run report issue-action leaf resolver 반환 직전 consistency drift-guard self-wire (resolveRealDataDailyStepDualLegRunReportIssueAction 산출 action 을 create/update 두 반환 지점 모두 즉시 자가 검증)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 115
