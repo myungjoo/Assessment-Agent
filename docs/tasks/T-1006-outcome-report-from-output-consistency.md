@@ -2,7 +2,7 @@
 id: T-1006
 title: daily-step dual-leg run report issue outcome-report from-output-consistency 순수 가드 신설 (assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput — 컴포저 산출 5필드 ↔ (stdout, report) single-source 재유도 byte-identical 대조, 요약축 T-0663 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 190
