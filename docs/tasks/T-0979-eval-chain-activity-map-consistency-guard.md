@@ -2,12 +2,15 @@
 id: T-0979
 title: eval-chain activity-map 매핑을 독립 oracle 재유도로 대조하는 consistency drift-guard 순수 helper + colocated spec 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 240
 estimatedFiles: 2
 created: 2026-07-14
+mergedAs: 52170fed
+prNumber: 873
+reviewRounds: 1
 independentStream: realdata-e2e-eval-chain
 dependsOn: []
 touchesFiles:
