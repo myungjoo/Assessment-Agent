@@ -14,10 +14,16 @@
 //   - 무공유/순수성: 호출 후 입력 searchHits 배열 길이·각 hit 키·값 불변. 반환 action
 //     mutate 가 다음 호출에 누설되지 않음(매 호출 새 객체).
 //   - R-59: action descriptor 가 body / title 류 raw 본문 키를 담지 않음(issueNumber 만).
+//   - self-wire (T-0996): resolver 가 create/update 두 반환 지점 직전 consistency oracle
+//     가드를 스스로 호출하는지(flow spy)·drift 를 전파하는지(negative)·정상 산출을 mutate 하지
+//     않는지(무공유) 검증. consistency 모듈은 namespace 로 import 해 self-wire spy(jest.spyOn)
+//     대상으로 삼는다 — ts-jest CommonJS 로 컴파일되므로, 이 namespace 의 함수를 spyOn 하면
+//     resolver 내부 self-wire 호출이 가로채진다.
 import {
   resolveRealDataDailyStepDualLegRunReportIssueAction,
   type RealDataDailyStepDualLegRunReportIssueSearchHit,
 } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-action";
+import * as actionConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-action-consistency";
 
 const MARKER =
   "<!-- realdata-e2e-daily-step-dual-leg-run-report: 2026-07-11@abc1234 -->";
@@ -244,5 +250,188 @@ describe("resolveRealDataDailyStepDualLegRunReportIssueAction", () => {
       MARKER,
     );
     expect(b).toEqual({ action: "update", issueNumber: 42 });
+  });
+});
+
+// self-wire drift-guard 배선 검증 (T-0996) — resolver 가 create/update 두 반환 지점 직전
+// consistency oracle 가드를 스스로 호출하는지(flow spy)·drift 를 전파하는지(negative)·정상
+// 산출을 mutate 하지 않는지(무공유)를 검증한다. self-wire 가 어느 분기에서든 제거되면 flow
+// spy·negative 전파 case 가 fail = de-facto regression guard(양 분기 배선 존재 증명).
+const GUARD_NAME =
+  "assertRealDataDailyStepDualLegRunReportIssueActionConsistentWithInputs" as const;
+
+describe("resolveRealDataDailyStepDualLegRunReportIssueAction self-wire consistency guard (T-0996)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe("happy-path (self-wire 배선 후에도 정합 action 정상 반환 — throw 0)", () => {
+    it("(i) create 분기(빈 hits) → self-wire 후에도 기대 action 반환", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueAction([], MARKER),
+      ).not.toThrow();
+      expect(
+        resolveRealDataDailyStepDualLegRunReportIssueAction([], MARKER),
+      ).toEqual({ action: "create" });
+    });
+
+    it("(ii) create 분기(marker 미포함 hits) → self-wire 후에도 create 반환", () => {
+      expect(
+        resolveRealDataDailyStepDualLegRunReportIssueAction(
+          [hitWithoutMarker(7), hitWithoutMarker(8)],
+          MARKER,
+        ),
+      ).toEqual({ action: "create" });
+    });
+
+    it("(iii) update 분기(후보 1건) → self-wire 후에도 그 number 로 update 반환", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueAction(
+          [hitWithMarker(42)],
+          MARKER,
+        ),
+      ).not.toThrow();
+      expect(
+        resolveRealDataDailyStepDualLegRunReportIssueAction(
+          [hitWithMarker(42)],
+          MARKER,
+        ),
+      ).toEqual({ action: "update", issueNumber: 42 });
+    });
+
+    it("(iv) update 분기(후보 다수) → self-wire 후에도 최소 number 로 update 반환", () => {
+      expect(
+        resolveRealDataDailyStepDualLegRunReportIssueAction(
+          [hitWithMarker(200), hitWithMarker(100), hitWithMarker(300)],
+          MARKER,
+        ),
+      ).toEqual({ action: "update", issueNumber: 100 });
+    });
+  });
+
+  describe("error-path (기존 방어 guard 가 self-wire 로 가려지지 않음)", () => {
+    it("marker 빈 → resolver 자체 assertMarkerNonBlank Error 를 던진다", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueAction(
+          [hitWithMarker(1)],
+          "",
+        ),
+      ).toThrow(/marker/);
+    });
+
+    it("marker 공백-only → resolver 자체 assertMarkerNonBlank Error 를 던진다", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueAction(
+          [hitWithMarker(1)],
+          "   \t  ",
+        ),
+      ).toThrow(/marker/);
+    });
+
+    it("hit number 0 → resolver 자체 assertPositiveNumber Error 를 던진다", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueAction(
+          [hitWithMarker(0)],
+          MARKER,
+        ),
+      ).toThrow(/number/);
+    });
+
+    it("hit number 음수 → resolver 자체 assertPositiveNumber Error 를 던진다", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueAction(
+          [hitWithMarker(-1)],
+          MARKER,
+        ),
+      ).toThrow(/number/);
+    });
+
+    it("hit number 비정수 → resolver 자체 assertPositiveNumber Error 를 던진다", () => {
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueAction(
+          [hitWithMarker(1.5)],
+          MARKER,
+        ),
+      ).toThrow(/number/);
+    });
+  });
+
+  describe("flow/branch (self-wire 호출 사실 검증 — 두 분기 각각 spy 로 배선 존재 증명)", () => {
+    it("create 분기(후보 0건) → 가드가 (반환된 action, searchHits, marker) 로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(actionConsistency, GUARD_NAME);
+      const hits = [hitWithoutMarker(7)];
+      const action = resolveRealDataDailyStepDualLegRunReportIssueAction(
+        hits,
+        MARKER,
+      );
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(action, hits, MARKER);
+    });
+
+    it("update 분기(후보 1+건) → 가드가 (반환된 action, searchHits, marker) 로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(actionConsistency, GUARD_NAME);
+      const hits = [hitWithMarker(200), hitWithMarker(100)];
+      const action = resolveRealDataDailyStepDualLegRunReportIssueAction(
+        hits,
+        MARKER,
+      );
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(action, hits, MARKER);
+    });
+  });
+
+  describe("negative (예외 상황 분기마다 1+ — drift 전파 · 비변형)", () => {
+    it("(a) create 분기 — 가드가 RangeError throw → resolver 가 동일 RangeError 전파(silent 삼킴 0)", () => {
+      const drift = new RangeError("정합 위반: create 강제 drift(테스트)");
+      jest.spyOn(actionConsistency, GUARD_NAME).mockImplementation(() => {
+        throw drift;
+      });
+
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueAction([], MARKER),
+      ).toThrow(drift);
+    });
+
+    it("(a) update 분기 — 가드가 RangeError throw → resolver 가 동일 RangeError 전파(silent 삼킴 0)", () => {
+      const drift = new RangeError("정합 위반: update 강제 drift(테스트)");
+      jest.spyOn(actionConsistency, GUARD_NAME).mockImplementation(() => {
+        throw drift;
+      });
+
+      expect(() =>
+        resolveRealDataDailyStepDualLegRunReportIssueAction(
+          [hitWithMarker(42)],
+          MARKER,
+        ),
+      ).toThrow(drift);
+    });
+
+    it("(b) self-wire 가 정상 산출을 mutate 하지 않음 — 반환 action byte-identical, 입력 hits 무공유, 매 호출 새 객체", () => {
+      const hits: RealDataDailyStepDualLegRunReportIssueSearchHit[] = [
+        hitWithMarker(200),
+        hitWithMarker(100),
+      ];
+      const snapshot = JSON.parse(JSON.stringify(hits));
+
+      const first = resolveRealDataDailyStepDualLegRunReportIssueAction(
+        hits,
+        MARKER,
+      );
+      const second = resolveRealDataDailyStepDualLegRunReportIssueAction(
+        hits,
+        MARKER,
+      );
+
+      // self-wire 는 tautology(void)라 반환 action 은 배선 이전 산출 결과와 동일해야 한다.
+      expect(first).toEqual({ action: "update", issueNumber: 100 });
+      // 입력 searchHits 배열·각 hit 객체 미변형.
+      expect(hits).toEqual(snapshot);
+      // 매 호출 새 action 객체 무공유 — mutate 가 다음 호출에 누설되지 않음.
+      expect(first).not.toBe(second);
+      (first as { issueNumber: number }).issueNumber = 999;
+      expect(second).toEqual({ action: "update", issueNumber: 100 });
+    });
   });
 });
