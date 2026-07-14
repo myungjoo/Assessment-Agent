@@ -2,7 +2,7 @@
 id: T-0991
 title: daily-step dual-leg run report issue 명령-args 빌더 반환 직전 consistency drift-guard self-wire (buildRealDataDailyStepDualLegRunReportIssueCommandArgs 산출을 즉시 자가 검증)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 95
