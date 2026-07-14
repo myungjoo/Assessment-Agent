@@ -29,8 +29,16 @@
 // 🔥 외부 dependency 0 — Node 내장 타입 + 기존 helper/도메인 import 재사용만. 새 package 0,
 //   production `src/` 변경 0(`GithubRequestInput` 타입 · `RealDataE2eGithubCollectionPlanEntry`
 //   타입 read-only import).
+//
+// 🔥 self-wire drift-guard (T-0983): T-0981 이 봉한 독립 oracle 가드
+//   `assertRealDataE2eEvalChainCollectRequestConsistent`(`-collect-request-consistency.ts`)를
+//   producer 반환 직전 스스로 호출해 매 조립을 즉시 자가 검증한다. consistency 모듈은
+//   `GithubRequestInput`·`RealDataE2eGithubCollectionPlanEntry` 타입만 참조하고 본 producer 를
+//   value import 하지 않으므로 런타임 순환 의존이 없다(collect-request → consistency 만
+//   런타임 엣지). T-0977/T-0982 self-wire mirror.
 import type { GithubRequestInput } from "../../src/github/github-request.builder";
 
+import { assertRealDataE2eEvalChainCollectRequestConsistent } from "./realdata-e2e-eval-chain-collect-request-consistency";
 import type { RealDataE2eGithubCollectionPlanEntry } from "./realdata-e2e-github-collection-live";
 
 // bounded single round-trip 강제 상수 — per_page=1(정확히 1 건, 무제한 아님). T-0245 선례
@@ -92,10 +100,20 @@ export function buildRealDataE2eEvalChainCollectRequest(
   assertNonEmptyField(token, "token");
 
   // bounded single 요청 조립 — host/path 귀속 + per_page="1" 고정. query 는 매 호출 새 객체.
-  return {
+  const result: GithubRequestInput = {
     host: entry.host,
     token,
     path: entry.path,
     query: { per_page: BOUNDED_SINGLE_PER_PAGE },
   };
+
+  // 🔥 self-wire drift-guard (T-0983): 조립 결과를 반환하기 **직전** 독립 oracle 가드를
+  //   스스로 호출해 매 조립을 즉시 자가 검증한다. 정합 산출이면 tautology(항상 void)라 정상
+  //   동작을 바꾸지 않고, host/path 귀속 · per_page="1" bounded single · token 필드-only 통과
+  //   규칙과 oracle 규칙이 어긋나는 순간(drift 도입) 모든 호출 경로(unit spec · live smoke
+  //   재사용)에서 즉시 throw 하는 live 트립와이어가 된다 — spec 커버리지에 의존하지 않는다.
+  //   throw 는 삼키지 않고 전파한다(복구는 호출처 책임).
+  assertRealDataE2eEvalChainCollectRequestConsistent(entry, token, result);
+
+  return result;
 }
