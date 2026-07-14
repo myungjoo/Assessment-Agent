@@ -23,6 +23,7 @@ import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-ste
 import { buildRealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
 import * as outcomeReportModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report";
 import { buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report-from-output";
+import * as consistencyModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report-from-output-consistency";
 import * as outputParseModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-output-parse";
 
 // `gh issue create` stdout 모사 — 단일 줄 issue URL(비시크릿 더미).
@@ -118,7 +119,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput —
       expect(outcomeReport.dateToken).toBe("2026-12-31");
     });
 
-    it("위임 순서(parse 먼저 1회 → build 다음 1회)·인자 전파를 spy 로 검증", () => {
+    it("컴포저 본문 위임 순서(parse → build)·인자 전파를 spy 로 검증(self-wire 재유도 포함 2회)", () => {
       const parseSpy = jest.spyOn(
         outputParseModule,
         "parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput",
@@ -134,10 +135,12 @@ describe("buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput —
         report,
       );
 
-      // 각 위임 정확히 1회.
-      expect(parseSpy).toHaveBeenCalledTimes(1);
-      expect(buildSpy).toHaveBeenCalledTimes(1);
-      // 순서: parse 가 build 보다 먼저 호출.
+      // T-1007 self-wire 이후 각 위임은 정확히 2회 호출된다 — (1) 컴포저 본문 합성 1회 +
+      // (2) 반환 직전 self-assert 가드가 single-source 재유도로 1회 더. 컴포저 본문 자체의
+      // 위임 호출 지점은 여전히 각 1개(호출 변경 0)이며, 두 번째는 가드 내부 재유도다.
+      expect(parseSpy).toHaveBeenCalledTimes(2);
+      expect(buildSpy).toHaveBeenCalledTimes(2);
+      // 순서: 컴포저 본문의 parse(첫 호출)가 build(첫 호출)보다 먼저 호출.
       expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
         buildSpy.mock.invocationCallOrder[0],
       );
@@ -356,6 +359,191 @@ describe("buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput —
       expect(Object.keys(outcomeReport).sort()).toEqual(
         ["dateToken", "gitSha", "issueNumber", "summaryLine", "url"].sort(),
       );
+    });
+  });
+
+  // T-1007 — outcome-report consistency 가드 composer self-wire 검증(요약축 T-0664 mirror).
+  //
+  // R-112 cover 구조(self-wire):
+  //   - happy-path: self-wire 후에도 정상 (stdout, report) 산출 outcomeReport 가
+  //     byte-identical 보존되고 self-assert throw 0(round-trip 으로 가드 통과 확인).
+  //   - self-wire 검증: 정상 합성 시 가드가 `(stdout, report, 산출 outcomeReport)` 인자·
+  //     순서로 매 호출 정확히 1회 호출됨을 spy 로 확인(daily-step 인자 순서 명시 검증).
+  //   - error path: (a) 가드를 spy 로 강제 throw(RangeError/TypeError) 시키면 컴포저가 손상
+  //     outcomeReport 를 반환하지 않고 그 에러를 caller 로 propagate(fail-fast), (b) 위임
+  //     파서/빌더가 throw 하는 입력에서는 가드 진입 전 위임 throw 가 전파(가드 미호출).
+  //   - flow/branch: (a) 정상 합성 → 가드 통과 → outcomeReport 반환, (b) 가드 throw 전파,
+  //     (c) 위임 throw 가 가드 진입 전 전파(파서 throw 입력·빌더 throw 입력 각각) 각 1+.
+  //   - negative 충분 cover: (a) 가드 인자·순서·1회 호출, (b) 가드 throw 전파(RangeError/
+  //     TypeError 양쪽), (c) 파서 throw 입력에서 가드 미호출, (d) 빌더 throw 입력(report
+  //     식별자 빈/공백)에서 가드 미호출, (e) 동일 입력 두 번 deterministic, (f) 입력
+  //     stdout/report 비변형(mutate 0).
+  describe("T-1007 — outcome-report consistency 가드 composer self-wire", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("self-wire 후에도 정상 (stdout, report) 산출 outcomeReport 가 byte-identical 보존된다(검증만, 출력 비변형)", () => {
+      const report = makeReport();
+      const outcomeReport =
+        buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+          CREATE_STDOUT,
+          report,
+        );
+
+      // 위임 2 단계를 손으로 엮은 single-source 재유도와 byte-identical — self-wire 가
+      // 출력을 변형하지 않음(round-trip 으로 가드 통과 확인).
+      const reference =
+        outcomeReportModule.buildRealDataDailyStepDualLegRunReportIssueOutcomeReport(
+          outputParseModule.parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(
+            CREATE_STDOUT,
+          ),
+          report,
+        );
+
+      expect(outcomeReport).toEqual(reference);
+    });
+
+    it("정상 합성 시 가드를 (stdout, report, 산출 outcomeReport) 인자·순서로 정확히 1회 호출한다", () => {
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput",
+      );
+      const report = makeReport();
+
+      const outcomeReport =
+        buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+          CREATE_STDOUT,
+          report,
+        );
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자 순서 (stdout, report, 산출 outcomeReport) 정확 매칭 — outcomeReport 는 컴포저가
+      // 반환한 바로 그 객체.
+      expect(spy).toHaveBeenCalledWith(CREATE_STDOUT, report, outcomeReport);
+    });
+
+    it("정상 (stdout, report) 에 대해 가드가 throw 하지 않는다(self-assert 통과)", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+          CREATE_STDOUT,
+          makeReport(),
+        ),
+      ).not.toThrow();
+    });
+
+    it("가드가 RangeError throw(값 정합 위반) 하면 컴포저가 손상 outcomeReport 를 반환하지 않고 에러를 propagate 한다(fail-fast)", () => {
+      jest
+        .spyOn(
+          consistencyModule,
+          "assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput",
+        )
+        .mockImplementation(() => {
+          throw new RangeError("forced consistency drift");
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+          CREATE_STDOUT,
+          makeReport(),
+        ),
+      ).toThrow(/forced consistency drift/);
+    });
+
+    it("가드가 TypeError throw(구조 결손) 하면 컴포저가 그 에러를 propagate 한다(fail-fast)", () => {
+      jest
+        .spyOn(
+          consistencyModule,
+          "assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput",
+        )
+        .mockImplementation(() => {
+          throw new TypeError("forced structural defect");
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+          CREATE_STDOUT,
+          makeReport(),
+        ),
+      ).toThrow(/forced structural defect/);
+    });
+
+    it("위임 파서 throw(stdout URL 미발견)는 가드 도달 전에 발생한다(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+          "이슈 URL 이 없는 무관한 stdout",
+          makeReport(),
+        ),
+      ).toThrow(/issue URL/);
+      // 파서 단계에서 종료 → self-assert 미호출.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("위임 빌더 throw(report.gitSha 빈)는 가드 도달 전에 발생한다(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+          CREATE_STDOUT,
+          makeReport({ gitSha: "" }),
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("위임 빌더 throw(report.dateToken 공백-only)는 가드 도달 전에 발생한다(가드 미호출)", () => {
+      const spy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+          CREATE_STDOUT,
+          makeReport({ dateToken: "   " }),
+        ),
+      ).toThrow(/dateToken 가 비어있습니다/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("동일 (stdout, report) 두 번 호출 → self-wire 후에도 deterministic(byte-identical)", () => {
+      const report = makeReport();
+      const first =
+        buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+          CREATE_STDOUT,
+          report,
+        );
+      const second =
+        buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+          CREATE_STDOUT,
+          report,
+        );
+
+      expect(first).toEqual(second);
+      expect(first.summaryLine).toBe(second.summaryLine);
+    });
+
+    it("self-wire 가 입력 stdout/report 를 변형하지 않는다(순수성 보존)", () => {
+      const stdout = CREATE_STDOUT;
+      const stdoutBefore = stdout;
+      const report = makeReport();
+      const reportSnapshot = JSON.parse(JSON.stringify(report));
+
+      buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+        stdout,
+        report,
+      );
+
+      expect(stdout).toBe(stdoutBefore);
+      expect(report).toEqual(reportSnapshot);
     });
   });
 });
