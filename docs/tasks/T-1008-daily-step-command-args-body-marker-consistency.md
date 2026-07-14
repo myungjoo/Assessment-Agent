@@ -2,7 +2,7 @@
 id: T-1008
 title: daily-step dual-leg run report issue command-args body marker-first 정합 순수 가드 신설 (assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor — createArgs.body/updateArgs.body byte-identical + marker-first + searchQuery=marker 불변식, 요약축 T-0649 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 660
