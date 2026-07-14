@@ -2,7 +2,10 @@
 id: T-0999
 title: daily-step dual-leg run report issue search-argv 빌더 반환 직전 consistency drift-guard self-wire (buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv 산출 argv 를 단일 반환 지점에서 즉시 자가 검증)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 9694030e
+prNumber: 893
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 120
