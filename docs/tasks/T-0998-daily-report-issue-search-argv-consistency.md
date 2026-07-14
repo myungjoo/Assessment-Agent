@@ -2,7 +2,10 @@
 id: T-0998
 title: daily-step dual-leg run report issue search-argv 빌더에 sibling -consistency drift-guard 신설 (buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv 산출 argv 를 commandArgs.searchQuery single-source 로 round-trip 대조)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 1b408bac
+prNumber: 892
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 270
