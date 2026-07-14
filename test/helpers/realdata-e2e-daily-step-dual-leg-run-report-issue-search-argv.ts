@@ -76,7 +76,22 @@
 //     분리된 argv 배열만 산출(shell 미경유, escape 불요).
 //   - 외부 CLI 라이브러리(execa 등) 도입 — 새 dependency 0, 내장 배열 연산만.
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
+//
+// 🔥 self-wire drift-guard (T-0999): T-0998 이 봉한 독립 oracle 가드
+//   `assertRealDataDailyStepDualLegRunReportIssueSearchGhArgvPreservesCommandArgs`
+//   (`-issue-search-argv-consistency.ts`, PR #892 squash 1b408bac main 박제)를 빌더의
+//   **단일 반환 지점** 직전 스스로 호출해 매 산출 argv 를 즉시 자가 검증한다. consistency
+//   모듈은 commandArgs 타입만 `import type` 으로, 본 파일의 두 named constant 만 value import
+//   하고 본 빌더 함수를 재호출하지 않으므로(consistency → search-argv value 엣지는 상수만,
+//   consistency line 60–64) 런타임 순환 의존이 없다(search-argv → consistency 만 런타임 엣지).
+//   정합 산출이면 tautology(항상 void — 가드가 commandArgs.searchQuery + 두 named constant 만
+//   single-source 로 대조)라 정상 동작을 바꾸지 않고, argv 합성 로직과 oracle 규칙이 어긋나는
+//   순간 모든 호출 경로(unit spec·live wiring `execFile('gh', searchArgv)`)에서 즉시 throw 하는
+//   live 트립와이어가 된다 — spec 커버리지에 의존하지 않는다. issue-gh-command-plan leaf
+//   (T-0997)·outcome-parse-shape leaf(T-0905) self-wire mirror. 단일 반환 지점이라 한 지점만
+//   배선한다.
 import type { RealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
+import { assertRealDataDailyStepDualLegRunReportIssueSearchGhArgvPreservesCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-argv-consistency";
 
 // --json 요청 필드 — T-0898 `RealDataDailyStepDualLegRunReportIssueSearchHit`
 // ({number, title, body})의 모든 멤버와 정확히 일치(콤마 구분, 공백 0). 매직 스트링
@@ -126,7 +141,7 @@ export function buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
 
   // search argv 합성 — searchQuery 는 단일 원소로 유지(escape 불요, 인젝션 불가). 매
   // 호출 새 배열 리터럴을 반환해 무공유를 보존한다.
-  return [
+  const searchArgv: string[] = [
     "search",
     "issues",
     "--match",
@@ -137,4 +152,18 @@ export function buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
     "--limit",
     REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_LIMIT,
   ];
+
+  // 🔥 self-wire drift-guard (T-0999): searchArgv 를 반환하기 **직전** 독립 oracle 가드를
+  //   스스로 호출해 산출 즉시 자가 검증한다. 가드가 commandArgs.searchQuery + 두 named
+  //   constant 를 single-source 로 삼아 이 argv 와 대조하므로, 정합 산출이면 tautology(항상
+  //   void)라 정상 동작을 바꾸지 않고, argv 합성 로직(원소·순서·상수)이 oracle 규칙과
+  //   어긋나는 순간 모든 호출 경로(unit spec·live wiring `execFile('gh', searchArgv)`)에서
+  //   즉시 throw 하는 live 트립와이어가 된다. 단일 반환 지점이라 한 지점만 배선한다.
+  //   consistency → search-argv value 엣지는 상수만이라 런타임 순환 없음.
+  assertRealDataDailyStepDualLegRunReportIssueSearchGhArgvPreservesCommandArgs(
+    searchArgv,
+    commandArgs,
+  );
+
+  return searchArgv;
 }

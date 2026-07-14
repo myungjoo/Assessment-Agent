@@ -27,6 +27,7 @@ import {
   REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_JSON_FIELDS,
   REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_LIMIT,
 } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-argv";
+import * as searchArgvConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-argv-consistency";
 
 // 정상 명령-args fixture — T-0897 산출물 모사(searchQuery 단일 의존이지만 createArgs/
 // updateArgs 미사용을 검증하기 위해 전체 shape 을 채운다).
@@ -310,6 +311,159 @@ describe("buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv", () => {
         "--limit",
         "30",
       ]);
+    });
+  });
+});
+
+// self-wire drift-guard 배선 검증 (T-0999) — 빌더가 단일 반환 지점 직전 consistency oracle
+// 가드를 스스로 호출하는지(flow spy)·drift 를 전파하는지(negative)·정상 산출을 mutate 하지
+// 않는지(무공유)를 검증한다. self-wire 가 제거되면 flow spy·negative 전파 case 가 fail =
+// de-facto regression guard(단일 반환 지점 배선 존재 증명). consistency 모듈은 namespace 로
+// import 해 self-wire spy(jest.spyOn) 대상으로 삼는다 — ts-jest CommonJS 로 컴파일되므로 이
+// namespace 의 함수를 spyOn 하면 빌더 내부 self-wire 호출이 가로채진다.
+const GUARD_NAME =
+  "assertRealDataDailyStepDualLegRunReportIssueSearchGhArgvPreservesCommandArgs" as const;
+
+const EXPECTED_ARGV = (searchQuery: string): string[] => [
+  "search",
+  "issues",
+  "--match",
+  "body",
+  searchQuery,
+  "--json",
+  "number,title,body",
+  "--limit",
+  "30",
+];
+
+describe("buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv self-wire consistency guard (T-0999)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe("happy-path (self-wire 배선 후에도 정합 argv 정상 반환 — throw 0)", () => {
+    it("(i) 일반 marker searchQuery → self-wire 후에도 기대 argv(deep-equal) 반환", () => {
+      const searchQuery = "<!-- marker-token -->";
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+          makeCommandArgs({ searchQuery }),
+        ),
+      ).not.toThrow();
+
+      const argv = buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+        makeCommandArgs({ searchQuery }),
+      );
+      expect(argv).toEqual(EXPECTED_ARGV(searchQuery));
+    });
+
+    it("(ii) 인젝션 토큰(`; rm -rf`) 포함 searchQuery → self-wire 후에도 단일 원소 유지·정합 통과", () => {
+      const searchQuery = 'normal"; rm -rf / #';
+      const argv = buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+        makeCommandArgs({ searchQuery }),
+      );
+      expect(argv).toEqual(EXPECTED_ARGV(searchQuery));
+      // searchQuery 는 index 4 단일 원소로 그대로 보존(분리·escape 0).
+      expect(argv[4]).toBe(searchQuery);
+    });
+
+    it("(iii) 유니코드/공백 포함 searchQuery → self-wire 후에도 정합 통과", () => {
+      const searchQuery = "<!-- 유니코드 마커 ✅ 2026-07-15 -->";
+      const argv = buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+        makeCommandArgs({ searchQuery }),
+      );
+      expect(argv).toEqual(EXPECTED_ARGV(searchQuery));
+    });
+  });
+
+  describe("error-path (기존 방어 throw 가 self-wire 로 가려지지 않음)", () => {
+    it("빈 searchQuery → 여전히 assertSearchQueryNonBlank Error 전파", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+          makeCommandArgs({ searchQuery: "" }),
+        ),
+      ).toThrow(/searchQuery 가 비어있습니다/);
+    });
+
+    it("공백-only searchQuery → 여전히 assertSearchQueryNonBlank Error 전파", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+          makeCommandArgs({ searchQuery: "   \t\n" }),
+        ),
+      ).toThrow(/searchQuery 가 비어있습니다/);
+    });
+  });
+
+  describe("flow/branch (self-wire 호출 사실 검증 — spy 로 배선 존재 증명)", () => {
+    it("(i) 빌더 호출 시 가드가 (반환된 searchArgv, commandArgs) 로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(searchArgvConsistency, GUARD_NAME);
+      const args = makeCommandArgs({ searchQuery: "<!-- marker -->" });
+
+      const argv =
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(argv, args);
+    });
+
+    it("(ii) 인젝션 토큰 searchQuery 다양성 → 가드가 정확히 그 argv·commandArgs 로 호출", () => {
+      const spy = jest.spyOn(searchArgvConsistency, GUARD_NAME);
+      const args = makeCommandArgs({ searchQuery: 'x"; rm -rf /' });
+
+      const argv =
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(argv, args);
+    });
+  });
+
+  describe("negative (예외 상황 분기마다 1+ — drift 전파 · 비변형)", () => {
+    it("(a) 가드가 RangeError throw → 빌더가 동일 RangeError 전파(silent 삼킴 0)", () => {
+      const drift = new RangeError("정합 위반: 강제 drift(테스트)");
+      jest.spyOn(searchArgvConsistency, GUARD_NAME).mockImplementation(() => {
+        throw drift;
+      });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+          makeCommandArgs(),
+        ),
+      ).toThrow(drift);
+    });
+
+    it("(b) 가드가 TypeError throw → 빌더가 동일 TypeError 전파(silent 삼킴 0)", () => {
+      const drift = new TypeError("구조 결손: 강제 drift(테스트)");
+      jest.spyOn(searchArgvConsistency, GUARD_NAME).mockImplementation(() => {
+        throw drift;
+      });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+          makeCommandArgs(),
+        ),
+      ).toThrow(drift);
+    });
+
+    it("(c) self-wire 가 정상 산출을 mutate 하지 않음 — 반환 argv deep-equal, 입력 commandArgs 무공유, 매 호출 새 배열", () => {
+      const args = makeCommandArgs({ searchQuery: "<!-- token -->" });
+      const searchQueryBefore = args.searchQuery;
+      const labelsBefore = [...args.createArgs.labels];
+      const snapshot = JSON.stringify(args);
+
+      const first =
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+      const second =
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+
+      // self-wire 는 tautology(void)라 반환 argv 는 배선 이전 산출과 동일해야 한다.
+      expect(first).toEqual(EXPECTED_ARGV("<!-- token -->"));
+      expect(first).toEqual(second);
+      // 입력 commandArgs(중첩 createArgs.labels)·searchQuery 미변형.
+      expect(args.searchQuery).toBe(searchQueryBefore);
+      expect(args.createArgs.labels).toEqual(labelsBefore);
+      expect(JSON.stringify(args)).toBe(snapshot);
+      // 매 호출 새 argv 배열 무공유.
+      expect(first).not.toBe(second);
     });
   });
 });
