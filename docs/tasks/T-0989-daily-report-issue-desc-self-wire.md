@@ -2,7 +2,7 @@
 id: T-0989
 title: daily-step dual-leg run report issue-박제 descriptor 빌더 반환 직전 consistency drift-guard self-wire (buildRealDataDailyStepDualLegRunReportIssueDescriptor 산출을 즉시 자가 검증)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 95
@@ -64,3 +64,14 @@ PLAN.md 109행(실 github myungjoo/leemgs 공개 활동 수집 → 로컬 Ollama
 - 이 배선으로 daily-report(step ④) issue-박제 descriptor leg 도 producer(T-0896)→consistency(T-0988)→self-wire(본 task) 삼단 완결 — collection-plan·daily-report markdown·eval-chain 3 sub-leg 과 동형. §109 test-hardening 은 이후 daily-report issue-박제 sub-helper vein 잔여 또는 다른 vein 으로 이동 검토.
 - daily-report issue-박제 vein 잔여(consistency 미봉 sibling): `-issue-command-args` / `-issue-gh-argv` / `-issue-gh-command-plan` / `-issue-action` / `-issue-search-argv` / `-issue-outcome-parse-shape` — `result-issue-*` 사촌과 달리 consistency 짝 부재, 순차 mirror 후보(별도 큐잉).
 - §109 잔여(변경 없음, credential/env 게이트라 별도 큐잉): (1) 실 credential 주입 하 credentialed live run 1회(운영/env 층), (2) `deploy/daily-test.sh` step ④ 가 dual-leg run report 를 실 gh rolling-issue 에 박제하도록 재배선.
+
+---
+
+## Result (DONE — 2026-07-14)
+
+- PR #883 round 1/7 reviewer APPROVE (0 BLOCKER / 0 MAJOR / 0 MINOR / 0 NIT), 4-게이트 PASS, squash **71d450a2** + feature branch delete.
+- 변경: test-only 2파일 +222/-1 (helper self-wire +23/-1, colocated spec self-wire describe R-112 4종 +199). src·dep 0.
+- `buildRealDataDailyStepDualLegRunReportIssueDescriptor` 이 `{ title, marker, body }` 반환 직전 `assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(report, descriptor)` value import 후 self-assert — 조립·oracle drift 순간 모든 호출 경로에서 즉시 throw. consistency→producer 는 type-only import 라 런타임 순환 0, 정합 산출엔 tautology(void).
+- 384 suites / 10152 tests green, All files line 99.95% / func 100% / branch 99.25% (threshold line≥80% AND func≥80% 충족).
+- issue-descriptor sub-helper 삼단 완결: producer(T-0896) → consistency(T-0988) → self-wire(T-0989).
+- 머지-커밋 main CI(71d450a2)는 push 시점 in_progress — 다음 fire 에서 conclusion 재확인(R-114).
