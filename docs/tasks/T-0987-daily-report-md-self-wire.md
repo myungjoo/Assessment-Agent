@@ -2,7 +2,9 @@
 id: T-0987
 title: daily-step dual-leg run report 마크다운 렌더러 반환 직전 consistency drift-guard self-wire (renderRealDataDailyStepDualLegRunReportMarkdown 산출을 즉시 자가 검증)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: db98b679
+prNumber: 881
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 95
