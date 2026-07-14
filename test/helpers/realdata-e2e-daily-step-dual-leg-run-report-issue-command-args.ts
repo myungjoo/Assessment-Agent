@@ -65,6 +65,15 @@
 //   - summary 축(T-0580~T-0583) / 단일 issue-post outcome-report(T-0590) 수정.
 //   - 외부 템플릿/해시/CLI 라이브러리 도입(새 dependency 0, 내장 string 합성만).
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
+//
+// 🔥 self-wire drift-guard (T-0991): T-0990 이 봉한 독립 oracle 가드
+//   `assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent`
+//   (`-issue-command-args-consistency.ts`)를 빌더 반환 직전 스스로 호출해 매 산출
+//   명령-args 를 즉시 자가 검증한다. consistency 모듈은 descriptor·command-args 타입만
+//   `import type` 로 참조하고 본 빌더를 value import 하지 않으므로(consistency →
+//   command-args value 엣지 0) 런타임 순환 의존이 없다(command-args → consistency 만
+//   런타임 엣지). T-0982/T-0983/T-0985/T-0987/T-0989 self-wire mirror.
+import { assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args-consistency";
 import type { RealDataDailyStepDualLegRunReportIssueDescriptor } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
 
 // dual-leg run report 이슈 고정 labels — 결정론적 상수 집합. 호출마다 동일하며,
@@ -138,7 +147,7 @@ export function buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
   assertNonBlank(descriptor.title, "title");
   assertNonBlank(descriptor.marker, "marker");
 
-  return {
+  const commandArgs: RealDataDailyStepDualLegRunReportIssueCommandArgs = {
     // searchQuery — marker 그대로(later live wiring 의 동일 run 검색 토큰).
     searchQuery: descriptor.marker,
     createArgs: {
@@ -152,4 +161,16 @@ export function buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
       body: descriptor.body,
     },
   };
+
+  // 🔥 self-wire drift-guard (T-0991): 명령-args 를 반환하기 **직전** 독립 oracle 가드를
+  //   스스로 호출해 산출 즉시 자가 검증한다. 정합 산출이면 tautology(항상 void)라 정상
+  //   동작을 바꾸지 않고, 조립 규칙(searchQuery=marker·createArgs 3필드·updateArgs 2필드·
+  //   labels 상수 복제)과 oracle 규칙이 어긋나는 순간 모든 호출 경로(unit spec·이슈 박제
+  //   재사용)에서 즉시 throw 하는 live 트립와이어가 된다 — spec 커버리지에 의존하지 않는다.
+  assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
+    descriptor,
+    commandArgs,
+  );
+
+  return commandArgs;
 }
