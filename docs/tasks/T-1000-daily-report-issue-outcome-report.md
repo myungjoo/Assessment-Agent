@@ -2,7 +2,9 @@
 id: T-1000
 title: daily-step dual-leg run report issue outcome-report 종단 컴포저 순수 helper 신설 (buildRealDataDailyStepDualLegRunReportIssueOutcomeReport — 박제 outcome + run report 식별자 → 사람-친화 e2e 실행 리포트 descriptor, 요약축 T-0590 mirror)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 16a5a06c
+prNumber: 894
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 260
