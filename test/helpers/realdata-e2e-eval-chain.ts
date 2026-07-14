@@ -33,6 +33,11 @@
 //   production `src/` 변경 0(`GithubActivity` 타입 read-only import).
 import type { GithubActivity } from "../../src/assessment-collection/domain/activity";
 
+// 🔥 self-wire drift-guard (T-0977): T-0976 이 봉한 독립 oracle 가드를 producer 반환 직전
+//   value import 해 배선한다. consistency 모듈은 이 파일로부터 `RealDataE2eEvalChainInput`
+//   을 **type-only** import 만 하므로(타입 소거) value import 를 되받아도 런타임 순환
+//   의존이 없다(eval-chain → consistency 만 런타임 엣지). T-0682/T-0684 self-wire mirror.
+import { assertRealDataE2eEvalChainInputConsistent } from "./realdata-e2e-eval-chain-consistency";
 import type { RealDataE2eLiveGating } from "./realdata-e2e-live-gating";
 
 // RealDataE2eEvalChainInput — 수집 활동을 실 LLM 평가로 chain 하기 위해 조립된 결정론적
@@ -118,9 +123,22 @@ export function buildRealDataE2eEvalChainInput(
   // 아니면 실 평가 round-trip 진입 금지(빈-입력 평가 차단 · 비활성/비정상 조합 차단).
   const active = hasEvalCredential && bounded.length === 1;
 
-  return {
+  const result: RealDataE2eEvalChainInput = {
     active,
     activities: bounded,
     username: bounded.length === 1 ? bounded[0].author : null,
   };
+
+  // 🔥 self-wire drift-guard (T-0977): descriptor 를 반환하기 **직전** 독립 oracle 가드를
+  //   스스로 호출해 조립 즉시 자가 검증한다. 정합 산출이면 tautology(항상 void)라 정상
+  //   동작을 바꾸지 않고, filter/bound/active/username 규칙과 oracle 규칙이 어긋나는 순간
+  //   (drift 도입) 모든 호출 경로(unit spec · live smoke 재사용)에서 즉시 throw 하는 live
+  //   트립와이어가 된다 — spec 커버리지에 의존하지 않는다. throw 는 삼키지 않고 전파한다.
+  assertRealDataE2eEvalChainInputConsistent(
+    gating,
+    collectedActivities,
+    result,
+  );
+
+  return result;
 }
