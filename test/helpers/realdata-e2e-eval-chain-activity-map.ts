@@ -30,7 +30,15 @@
 //
 // 🔥 외부 dependency 0 — Node 내장 타입 + `GithubActivity` 타입 read-only import 만.
 //   production `src/` 변경 0.
+//
+// 🔥 self-wire drift-guard (T-0982): T-0979 가 봉한 독립 oracle 가드
+//   `assertRealDataGithubEventActivityMappingConsistent`(`-activity-map-consistency.ts`)를
+//   producer 반환 직전 스스로 호출해 매 매핑을 즉시 자가 검증한다. consistency 모듈은
+//   `GithubActivity` 타입만 참조하고 본 producer 를 value import 하지 않으므로 런타임
+//   순환 의존이 없다(activity-map → consistency 만 런타임 엣지). T-0977 self-wire mirror.
 import type { GithubActivity } from "../../src/assessment-collection/domain/activity";
+
+import { assertRealDataGithubEventActivityMappingConsistent } from "./realdata-e2e-eval-chain-activity-map-consistency";
 
 // mapRealDataGithubEventToActivity — 실 github events API 응답 1 건을 도메인
 // `GithubActivity` 로 매핑하는 순수 함수. inline 원본(T-0975 spec-local mapEventToActivity)과
@@ -63,7 +71,7 @@ export function mapRealDataGithubEventToActivity(
         ? "issue"
         : "commit";
   const repo = event.repo as { name?: unknown } | undefined;
-  return {
+  const result: GithubActivity = {
     sourceType: "github",
     externalId:
       typeof event.id === "string" ? event.id : String(event.id ?? "unknown"),
@@ -81,4 +89,14 @@ export function mapRealDataGithubEventToActivity(
         : `${username}/unknown-repo`,
     kind,
   };
+
+  // 🔥 self-wire drift-guard (T-0982): activity 를 반환하기 **직전** 독립 oracle 가드를
+  //   스스로 호출해 매핑 즉시 자가 검증한다. 정합 산출이면 tautology(항상 void)라 정상
+  //   동작을 바꾸지 않고, kind/externalId/timestamp/repoRef/상수/metadata 규칙과 oracle
+  //   규칙이 어긋나는 순간(drift 도입) 모든 호출 경로(unit spec · live smoke 재사용)에서
+  //   즉시 throw 하는 live 트립와이어가 된다 — spec 커버리지에 의존하지 않는다. throw 는
+  //   삼키지 않고 전파한다(복구는 호출처 책임).
+  assertRealDataGithubEventActivityMappingConsistent(username, event, result);
+
+  return result;
 }

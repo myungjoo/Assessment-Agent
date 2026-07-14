@@ -10,9 +10,15 @@
 //   - flow/branch: kind 3 분기(pr/issue/commit) 각각 + 4 fallback 분기 각각 분리 test.
 //   - R-59 격리: metadata 에 raw payload 전문/본문 키가 실리지 않고 typed scalar(titleLength)만.
 //   - 순수성: 동일 입력 2 회 호출 시 서로 다른 새 객체 반환 + 입력 event unmutated.
+//   - self-wire (T-0982): producer 가 반환 직전 consistency oracle 가드를 스스로 호출하는지
+//     R-112 4종(happy/error/flow/negative)으로 봉한다.
 import type { GithubActivity } from "../../src/assessment-collection/domain/activity";
 
 import { mapRealDataGithubEventToActivity } from "./realdata-e2e-eval-chain-activity-map";
+// consistency 모듈은 namespace 로 import 해 self-wire spy(jest.spyOn) 대상으로 삼는다.
+// ts-jest CommonJS 트랜스파일에서 producer 의 named import 는 이 모듈 객체 프로퍼티 접근으로
+// 컴파일되므로, 이 namespace 의 함수를 spyOn 하면 producer 내부 self-wire 호출이 가로채진다.
+import * as activityMapConsistency from "./realdata-e2e-eval-chain-activity-map-consistency";
 
 // 정상 github events API 응답 1 건 형태의 fixture 빌더 — 지정 type/id/repo 로 raw event 를
 // 만든다. metadata 에 실릴 raw 본문 후보(payload)를 일부러 넣어 R-59 격리를 검증한다.
@@ -200,6 +206,150 @@ describe("mapRealDataGithubEventToActivity", () => {
         eventOf({}),
       );
       expect(activity.sourceType).toBe("github");
+    });
+  });
+
+  // self-wire drift-guard 배선 검증 (T-0982) — producer 가 반환 직전 consistency oracle 가드를
+  // 스스로 호출해 매핑 즉시 자가 검증하는지를 R-112 4종(happy/error/flow/negative)으로 봉한다.
+  describe("self-wire consistency guard (T-0982)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    describe("happy-path (self-wire 배선 후에도 정합 activity 정상 반환 — throw 0)", () => {
+      it("(i) PullRequestEvent(kind=pr) → throw 없이 정합 activity 반환", () => {
+        expect(() =>
+          mapRealDataGithubEventToActivity(
+            "myungjoo",
+            eventOf({ type: "PullRequestEvent", id: "pr-1" }),
+          ),
+        ).not.toThrow();
+        const activity = mapRealDataGithubEventToActivity(
+          "myungjoo",
+          eventOf({ type: "PullRequestEvent", id: "pr-1" }),
+        );
+        expect(activity.kind).toBe("pr");
+      });
+
+      it("(ii) IssuesEvent(kind=issue) → throw 없이 정합 activity 반환", () => {
+        expect(() =>
+          mapRealDataGithubEventToActivity(
+            "leemgs",
+            eventOf({ type: "IssuesEvent", id: "iss-1" }),
+          ),
+        ).not.toThrow();
+        const activity = mapRealDataGithubEventToActivity(
+          "leemgs",
+          eventOf({ type: "IssuesEvent", id: "iss-1" }),
+        );
+        expect(activity.kind).toBe("issue");
+      });
+
+      it("(iii) 그 외 type(kind=commit) → throw 없이 정합 activity 반환", () => {
+        expect(() =>
+          mapRealDataGithubEventToActivity(
+            "myungjoo",
+            eventOf({ type: "PushEvent", id: "push-1" }),
+          ),
+        ).not.toThrow();
+        const activity = mapRealDataGithubEventToActivity(
+          "myungjoo",
+          eventOf({ type: "PushEvent", id: "push-1" }),
+        );
+        expect(activity.kind).toBe("commit");
+      });
+    });
+
+    describe("error-path (기존 방어 guard 가 self-wire 로 가려지지 않음)", () => {
+      it("username 비-string → self-assert 의 TypeError 를 던진다", () => {
+        expect(() =>
+          mapRealDataGithubEventToActivity(
+            123 as unknown as string,
+            eventOf({}),
+          ),
+        ).toThrow(TypeError);
+      });
+
+      it("event null → producer 자체 TypeError(가드 미도달)", () => {
+        expect(() =>
+          mapRealDataGithubEventToActivity(
+            "u",
+            null as unknown as Record<string, unknown>,
+          ),
+        ).toThrow(TypeError);
+      });
+
+      it("event 비-객체(number) → self-assert 의 TypeError 를 던진다", () => {
+        expect(() =>
+          mapRealDataGithubEventToActivity(
+            "u",
+            42 as unknown as Record<string, unknown>,
+          ),
+        ).toThrow(TypeError);
+      });
+    });
+
+    describe("flow/branch (self-wire 호출 사실 검증 — spy 로 배선 존재 증명)", () => {
+      it("PullRequestEvent 경로 → 가드가 (username, event, 반환 activity) 로 정확히 1 회 호출", () => {
+        const spy = jest.spyOn(
+          activityMapConsistency,
+          "assertRealDataGithubEventActivityMappingConsistent",
+        );
+        const event = eventOf({ type: "PullRequestEvent", id: "s1" });
+        const activity = mapRealDataGithubEventToActivity("myungjoo", event);
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith("myungjoo", event, activity);
+      });
+
+      it("commit 경로(그 외 type) → 가드가 반환 activity 인자로 정확히 1 회 호출", () => {
+        const spy = jest.spyOn(
+          activityMapConsistency,
+          "assertRealDataGithubEventActivityMappingConsistent",
+        );
+        const event = eventOf({ type: "PushEvent", id: "s2" });
+        const activity = mapRealDataGithubEventToActivity("leemgs", event);
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith("leemgs", event, activity);
+        expect(activity.kind).toBe("commit");
+      });
+    });
+
+    describe("negative (예외 상황 분기마다 1+ — drift 전파 · 비변형)", () => {
+      it("(a) 가드가 drift 감지해 RangeError throw → producer 가 동일 RangeError 전파(silent 삼킴 0)", () => {
+        const drift = new RangeError("정합 위반: 강제 drift(테스트)");
+        jest
+          .spyOn(
+            activityMapConsistency,
+            "assertRealDataGithubEventActivityMappingConsistent",
+          )
+          .mockImplementation(() => {
+            throw drift;
+          });
+
+        expect(() =>
+          mapRealDataGithubEventToActivity(
+            "myungjoo",
+            eventOf({ type: "PullRequestEvent", id: "d1" }),
+          ),
+        ).toThrow(drift);
+      });
+
+      it("(b) self-wire 가 정상 산출을 mutate 하지 않음 — 반환 activity 는 새 객체, 입력 event/username 미변형", () => {
+        const event = eventOf({ type: "IssuesEvent", id: "n1" });
+        const snapshot = JSON.stringify(event);
+
+        const a = mapRealDataGithubEventToActivity("myungjoo", event);
+        const b = mapRealDataGithubEventToActivity("myungjoo", event);
+
+        // 입력 event 미변형.
+        expect(JSON.stringify(event)).toBe(snapshot);
+        // 반환 activity 는 매 호출 새 객체(공유 노출 0).
+        expect(a).toEqual(b);
+        expect(a).not.toBe(b);
+        expect(a.metadata).not.toBe(b.metadata);
+      });
     });
   });
 });
