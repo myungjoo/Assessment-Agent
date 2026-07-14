@@ -29,7 +29,6 @@ import { isContributionLevel } from "../../src/assessment-evaluation/domain/eval
 import { EvaluationOrchestratorService } from "../../src/assessment-evaluation/evaluation-orchestrator.service";
 import { EvaluationScoringService } from "../../src/assessment-evaluation/evaluation-scoring.service";
 import { GithubAdapter } from "../../src/github/github-adapter.service";
-import { GithubRequestInput } from "../../src/github/github-request.builder";
 import { isDifficulty } from "../../src/llm/difficulty";
 import { DifficultyMappingService } from "../../src/llm/difficulty-mapping.service";
 import { LlmApiKeyCipher } from "../../src/llm/llm-apikey-cipher.service";
@@ -38,6 +37,7 @@ import { LlmHttpGateway } from "../../src/llm/llm-http-gateway.service";
 import { LlmProviderConfigRepository } from "../../src/llm/llm-provider-config.repository";
 import { buildRealDataE2eEvalChainInput } from "../helpers/realdata-e2e-eval-chain";
 import { mapRealDataGithubEventToActivity } from "../helpers/realdata-e2e-eval-chain-activity-map";
+import { buildRealDataE2eEvalChainCollectRequest } from "../helpers/realdata-e2e-eval-chain-collect-request";
 import { buildRealDataGithubCollectionPlan } from "../helpers/realdata-e2e-github-collection-live";
 import { resolveRealDataE2eLiveGating } from "../helpers/realdata-e2e-live-gating";
 import { buildRealDataE2eSeed } from "../helpers/realdata-e2e-seed-fixture";
@@ -107,14 +107,14 @@ describeLive(
       expect(plan.entries.length).toBeGreaterThan(0);
 
       // (2) 첫 대상 username 을 실 github 로 1 회 round-trip 수집(bounded single, per_page=1).
+      //     요청 조립은 순수 helper buildRealDataE2eEvalChainCollectRequest(T-0980, unit spec
+      //     별도 검증)로 추출됐다 — host/path 귀속 + per_page="1" bounded single 단일 원천.
       const entry = plan.entries[0];
       const adapter = new GithubAdapter();
-      const input: GithubRequestInput = {
-        host: entry.host,
-        token: gating.githubPat as string,
-        path: entry.path,
-        query: { per_page: "1" },
-      };
+      const input = buildRealDataE2eEvalChainCollectRequest(
+        entry,
+        gating.githubPat as string,
+      );
       const body = await adapter.request(input);
       expect(Array.isArray(body)).toBe(true);
       const events = body as Record<string, unknown>[];
