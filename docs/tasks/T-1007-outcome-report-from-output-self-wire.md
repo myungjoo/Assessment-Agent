@@ -2,7 +2,9 @@
 id: T-1007
 title: daily-step dual-leg run report issue outcome-report from-output composer 산출 직전 from-output-consistency 가드 self-wire 배선 (buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput → assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput, 요약축 T-0664 mirror)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-14T20:58:29Z
+result: "PR #901 squash bd2b92aa merged. from-output 컴포저 반환 직전 T-1006 consistency 가드 self-wire(composer-seam chain 완결). test-only 2파일 +219/-12, 컴포저 100% cov, 394 suite/10574 test green. round1 APPROVE 4-게이트 PASS."
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 110
