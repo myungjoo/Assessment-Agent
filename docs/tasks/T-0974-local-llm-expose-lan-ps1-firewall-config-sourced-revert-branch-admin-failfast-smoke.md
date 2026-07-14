@@ -2,7 +2,11 @@
 id: T-0974
 title: deploy/local-llm-example/expose-lan.ps1 LAN 노출 스크립트 내부 계약(dot-source _common.ps1·config-sourced port($cfg.OLLAMA_HOST)/CIDR($cfg.LAN_ALLOW_CIDR)(하드코딩 아님)·관리자 권한 fail-fast exit 1·방화벽 규칙 idempotent remove-then-create·RemoteAddress $cidr 범위제한·-Revert vs expose OLLAMA_HOST(127.0.0.1 vs 0.0.0.0) 분기·서버 재기동 Get-OllamaExe exe-미발견 warning·LAN IP 안내 expose-only) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-14T01:15:00Z
+mergedAs: 5029204b449218efa5baa519f293e36b4d3cd450
+prNumber: 868
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 470
