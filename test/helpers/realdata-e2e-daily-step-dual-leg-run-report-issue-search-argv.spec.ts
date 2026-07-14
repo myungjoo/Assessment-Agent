@@ -28,6 +28,8 @@ import {
   REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_LIMIT,
 } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-argv";
 import * as searchArgvConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-argv-consistency";
+import * as searchJsonFields from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-json-fields";
+import { REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_PARSE_SHAPE_KEYS } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-json-fields";
 
 // 정상 명령-args fixture — T-0897 산출물 모사(searchQuery 단일 의존이지만 createArgs/
 // updateArgs 미사용을 검증하기 위해 전체 shape 을 채운다).
@@ -464,6 +466,194 @@ describe("buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv self-wire cons
       expect(JSON.stringify(args)).toBe(snapshot);
       // 매 호출 새 argv 배열 무공유.
       expect(first).not.toBe(second);
+    });
+  });
+});
+
+// ── T-1013: search --json 필드↔parse-shape 정합 가드 self-wire 검증 ──
+// 빌더가 argv 반환 직전 assertRealDataDailyStepDualLegRunReportIssueSearchJsonFieldsMatchParseShape 를
+// (REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_JSON_FIELDS,
+//  REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_PARSE_SHAPE_KEYS) 인자로 self-assert
+// 함을 검증한다. T-1012 신설 가드의 builder self-wire, 요약축 T-0658 mirror(T-1010 Follow-up ②).
+// search 빌더는 단일 반환 지점(create/update 분기 없음)이라 호출 지점도 1지점. consistency 모듈
+// spy(위 T-0999 describe)와 별도로 json-fields 모듈을 namespace 로 import 해 spyOn 대상으로 삼는다.
+describe("buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv self-wire json-fields↔parse-shape 정합 가드 (T-1013)", () => {
+  const jsonFieldsGuardName =
+    "assertRealDataDailyStepDualLegRunReportIssueSearchJsonFieldsMatchParseShape" as const;
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe("happy-path — 가드 통과 후 byte-identical argv 반환", () => {
+    it("(a) 정상 commandArgs → json-fields self-wire 후에도 기존과 byte-identical argv 반환", () => {
+      const args = makeCommandArgs({ searchQuery: "<!-- marker-token -->" });
+
+      const argv =
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+
+      expect(argv).toEqual(EXPECTED_ARGV("<!-- marker-token -->"));
+    });
+
+    it("(b) 두 production 상수가 현재 정합이라 self-assert 가 throw 없이 통과(가드 실제 호출, 미mock)", () => {
+      // 가드를 mock 하지 않고 실제 호출 — 현재 정합 상수에서 throw 0 이어야 한다.
+      const args = makeCommandArgs();
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args),
+      ).not.toThrow();
+    });
+
+    it("(c) 인젝션 토큰(`; rm -rf`) 포함 searchQuery → self-wire 후에도 정합 통과·단일 원소 유지", () => {
+      const searchQuery = 'normal"; rm -rf / #';
+      const argv = buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+        makeCommandArgs({ searchQuery }),
+      );
+
+      expect(argv).toEqual(EXPECTED_ARGV(searchQuery));
+      expect(argv[4]).toBe(searchQuery);
+    });
+  });
+
+  describe("self-wire 호출 인자 정합 — spyOn 으로 (jsonFields, parseShapeKeys) 검증", () => {
+    it("(a) 가드가 (REAL_DATA_..._SEARCH_JSON_FIELDS, REAL_DATA_..._SEARCH_PARSE_SHAPE_KEYS) 로 정확히 1회 호출", () => {
+      const spy = jest
+        .spyOn(searchJsonFields, jsonFieldsGuardName)
+        .mockImplementation(() => undefined);
+
+      const args = makeCommandArgs({ searchQuery: "<!-- 토큰 -->" });
+      buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // 인자가 (`--json` 요청 필드 문자열, parse-shape 키 목록) 임을 검증.
+      expect(spy).toHaveBeenCalledWith(
+        REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_JSON_FIELDS,
+        REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
+      );
+    });
+  });
+
+  describe("error path — searchQuery guard 우선(self-wire 추가가 guard 순서·회귀 무영향)", () => {
+    it("(a) searchQuery 빈 → searchQuery guard 가 먼저 throw, json-fields 가드 미호출", () => {
+      const spy = jest
+        .spyOn(searchJsonFields, jsonFieldsGuardName)
+        .mockImplementation(() => undefined);
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+          makeCommandArgs({ searchQuery: "" }),
+        ),
+      ).toThrow(/searchQuery 가 비어있습니다/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("(b) searchQuery 공백-only → searchQuery guard 가 먼저 throw, json-fields 가드 미호출", () => {
+      const spy = jest
+        .spyOn(searchJsonFields, jsonFieldsGuardName)
+        .mockImplementation(() => undefined);
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+          makeCommandArgs({ searchQuery: "   \t\n" }),
+        ),
+      ).toThrow(/searchQuery 가 비어있습니다/);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("(c) json-fields 가드 강제 throw → 빌더가 손상 argv 미반환·에러 propagate", () => {
+      jest
+        .spyOn(searchJsonFields, jsonFieldsGuardName)
+        .mockImplementation(() => {
+          throw new RangeError("모의 회귀: --json 필드↔parse-shape 부정합");
+        });
+
+      let returned: string[] | undefined;
+      expect(() => {
+        returned =
+          buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+            makeCommandArgs(),
+          );
+      }).toThrow(/모의 회귀: --json 필드↔parse-shape 부정합/);
+      expect(returned).toBeUndefined();
+    });
+  });
+
+  describe("negative cases 충분 cover", () => {
+    it("(a) 결정성 — 동일 commandArgs 2회 빌드 → 둘 다 byte-identical 정상 반환", () => {
+      const args = makeCommandArgs();
+
+      const first =
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+      const second =
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+
+      expect(first).toEqual(second);
+    });
+
+    it("(b) 입력 비변형 — self-wire 추가 후에도 빌더 호출 후 입력 commandArgs unchanged", () => {
+      const args = makeCommandArgs({
+        labels: ["realdata-e2e", "daily-step-dual-leg-run-report"],
+      });
+      const snapshot = JSON.stringify(args);
+
+      buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+
+      expect(JSON.stringify(args)).toBe(snapshot);
+    });
+
+    it("(c) 반환 argv 가 매 호출 새 배열(반환값 mutate 가 후속 호출에 누설 안 됨)", () => {
+      const args = makeCommandArgs();
+
+      const first =
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+      const second =
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+
+      expect(first).not.toBe(second);
+      first.push("INJECTED");
+      first[6] = "MUTATED"; // --json 값 위치 변형
+      expect(second).not.toContain("INJECTED");
+      expect(second).not.toContain("MUTATED");
+    });
+
+    it("(d) 가드 순서 보존 — SearchGhArgvPreservesCommandArgs 가드 → JsonFieldsMatchParseShape 가드 순서 유지(둘 다 1회 호출)", () => {
+      const roundTripSpy = jest
+        .spyOn(
+          searchArgvConsistency,
+          "assertRealDataDailyStepDualLegRunReportIssueSearchGhArgvPreservesCommandArgs",
+        )
+        .mockImplementation(() => undefined);
+      const jsonFieldsSpy = jest
+        .spyOn(searchJsonFields, jsonFieldsGuardName)
+        .mockImplementation(() => undefined);
+
+      buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+        makeCommandArgs(),
+      );
+
+      // 두 가드 모두 1회 호출 — argv↔command-args 보존 가드가 json-fields 가드보다 먼저.
+      expect(roundTripSpy).toHaveBeenCalledTimes(1);
+      expect(jsonFieldsSpy).toHaveBeenCalledTimes(1);
+      expect(roundTripSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        jsonFieldsSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("(e) 두 production 상수 현재 정합 — 가드 미mock 실제 호출 시 정상 commandArgs 에서 throw 0", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+          makeCommandArgs({ searchQuery: "<!-- 실제 가드 -->" }),
+        ),
+      ).not.toThrow();
+    });
+
+    it("(f) R-59 — self-wire 후에도 argv 는 searchQuery 만 옮길 뿐 raw 본문 미접촉", () => {
+      const args = makeCommandArgs({ searchQuery: "<!-- 오직 토큰 -->" });
+
+      const argv =
+        buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(args);
+
+      expect(argv).toEqual(EXPECTED_ARGV("<!-- 오직 토큰 -->"));
     });
   });
 });
