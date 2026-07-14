@@ -2,7 +2,9 @@
 id: T-1001
 title: daily-step dual-leg run report issue outcome-report summary-line consistency drift-guard 신설 (assertRealDataDailyStepDualLegRunReportIssueOutcomeReportSummaryLineConsistent — report 5필드의 summaryLine 을 4 식별자 필드로 독립 재합성 대조, 요약축 T-0701 mirror)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: a9614b5e
+prNumber: 895
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 265
