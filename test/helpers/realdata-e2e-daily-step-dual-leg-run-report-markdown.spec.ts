@@ -9,12 +9,18 @@
 //     per-leg status 3 분기(pass/fail/skip) 각 1+ 로 렌더 표기 정확성 검증.
 //   - negative 충분 cover: all-skip / some-fail / partial 정확 표기, credential echo 0,
 //     결정론·무공유, 입력 mutate 0 각 1+. 단일 negative 만으로 부족.
+//   - self-wire (T-0987): 렌더러가 반환 직전 consistency oracle 가드를 스스로 호출하는지
+//     R-112 4종(happy/error/flow/negative)으로 봉한다.
 import type {
   RealDataDailyStepDualLegRunReport,
   RealDataDailyStepDualLegOverallStatus,
   RealDataDailyStepLegStatus,
 } from "./realdata-e2e-daily-step-dual-leg-run-report";
 import { renderRealDataDailyStepDualLegRunReportMarkdown } from "./realdata-e2e-daily-step-dual-leg-run-report-markdown";
+// consistency 모듈은 namespace 로 import 해 self-wire spy(jest.spyOn) 대상으로 삼는다.
+// ts-jest CommonJS 트랜스파일에서 렌더러의 named import 는 이 모듈 객체 프로퍼티 접근으로
+// 컴파일되므로, 이 namespace 의 함수를 spyOn 하면 렌더러 내부 self-wire 호출이 가로채진다.
+import * as markdownConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-markdown-consistency";
 
 // fixture 빌더 — run 식별자·per-leg {action,status}·overallStatus 를 명시적으로 받아
 // 결정론적 descriptor 를 생성(spec 내 인라인 구성 — 새 공용 mock helper 추출 0). 기본값은
@@ -258,5 +264,154 @@ describe("renderRealDataDailyStepDualLegRunReportMarkdown", () => {
     expect(md).toContain(
       "- summary: [2026-12-31@cafe123] eval=skip collect=fail → some-fail",
     );
+  });
+
+  // self-wire drift-guard 배선 검증 (T-0987) — 렌더러가 반환 직전 consistency oracle 가드를
+  // 스스로 호출해 산출 마크다운을 즉시 자가 검증하는지를 R-112 4종(happy/error/flow/negative)
+  // 으로 봉한다.
+  describe("self-wire consistency guard (T-0987)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    describe("happy-path (self-wire 배선 후에도 정합 마크다운 정상 반환 — throw 0)", () => {
+      it("(i) all-pass(eval pass & collect pass) → throw 없이 정합 마크다운 반환", () => {
+        const report = makeReport({
+          evalStatus: "pass",
+          collectStatus: "pass",
+          overallStatus: "all-pass",
+        });
+        expect(() =>
+          renderRealDataDailyStepDualLegRunReportMarkdown(report),
+        ).not.toThrow();
+        const md = renderRealDataDailyStepDualLegRunReportMarkdown(report);
+        expect(md).toContain("- overall status: all-pass");
+      });
+
+      it("(ii) some-fail(eval fail & collect pass) → throw 없이 정합 마크다운 반환", () => {
+        const report = makeReport({
+          evalStatus: "fail",
+          collectStatus: "pass",
+          overallStatus: "some-fail",
+        });
+        expect(() =>
+          renderRealDataDailyStepDualLegRunReportMarkdown(report),
+        ).not.toThrow();
+        const md = renderRealDataDailyStepDualLegRunReportMarkdown(report);
+        expect(md).toContain("| eval | run | fail |");
+      });
+
+      it("(iii) all-skip(두 leg skip) → throw 없이 정합 마크다운 반환", () => {
+        const report = makeReport({
+          evalAction: "skip",
+          evalStatus: "skip",
+          collectAction: "skip",
+          collectStatus: "skip",
+          overallStatus: "all-skip",
+        });
+        expect(() =>
+          renderRealDataDailyStepDualLegRunReportMarkdown(report),
+        ).not.toThrow();
+        const md = renderRealDataDailyStepDualLegRunReportMarkdown(report);
+        expect(md).toContain("- overall status: all-skip");
+      });
+    });
+
+    describe("error-path (기존 방어 guard 가 self-wire 로 가려지지 않음)", () => {
+      it("gitSha 빈-공백 → 렌더러 자체 assertNonBlank 의 Error 를 던진다(가드 미도달)", () => {
+        expect(() =>
+          renderRealDataDailyStepDualLegRunReportMarkdown(
+            makeReport({ gitSha: "  " }),
+          ),
+        ).toThrow(/gitSha 가 비어있습니다/);
+      });
+
+      it("dateToken 빈-공백 → 렌더러 자체 assertNonBlank 의 Error 를 던진다(가드 미도달)", () => {
+        expect(() =>
+          renderRealDataDailyStepDualLegRunReportMarkdown(
+            makeReport({ dateToken: "" }),
+          ),
+        ).toThrow(/dateToken 가 비어있습니다/);
+      });
+
+      it("summaryLine 빈-공백 → 렌더러 자체 assertNonBlank 의 Error 를 던진다(가드 미도달)", () => {
+        expect(() =>
+          renderRealDataDailyStepDualLegRunReportMarkdown(
+            makeReport({ summaryLine: "   " }),
+          ),
+        ).toThrow(/summaryLine 가 비어있습니다/);
+      });
+    });
+
+    describe("flow/branch (self-wire 호출 사실 검증 — spy 로 배선 존재 증명)", () => {
+      it("all-pass 경로 → 가드가 (report, 반환된 markdown) 로 정확히 1 회 호출", () => {
+        const spy = jest.spyOn(
+          markdownConsistency,
+          "assertRealDataDailyStepDualLegRunReportMarkdownConsistent",
+        );
+        const report = makeReport({ overallStatus: "all-pass" });
+        const md = renderRealDataDailyStepDualLegRunReportMarkdown(report);
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith(report, md);
+      });
+
+      it("all-skip 경로(다른 per-leg status·overallStatus) → 가드가 반환 markdown 인자로 정확히 1 회 호출", () => {
+        const spy = jest.spyOn(
+          markdownConsistency,
+          "assertRealDataDailyStepDualLegRunReportMarkdownConsistent",
+        );
+        const report = makeReport({
+          evalAction: "skip",
+          evalStatus: "skip",
+          collectAction: "skip",
+          collectStatus: "skip",
+          overallStatus: "all-skip",
+        });
+        const md = renderRealDataDailyStepDualLegRunReportMarkdown(report);
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith(report, md);
+        expect(md).toContain("- overall status: all-skip");
+      });
+    });
+
+    describe("negative (예외 상황 분기마다 1+ — drift 전파 · 비변형)", () => {
+      it("(a) 가드가 drift 감지해 RangeError throw → 렌더러가 동일 RangeError 전파(silent 삼킴 0)", () => {
+        const drift = new RangeError("정합 위반: 강제 drift(테스트)");
+        jest
+          .spyOn(
+            markdownConsistency,
+            "assertRealDataDailyStepDualLegRunReportMarkdownConsistent",
+          )
+          .mockImplementation(() => {
+            throw drift;
+          });
+
+        expect(() =>
+          renderRealDataDailyStepDualLegRunReportMarkdown(
+            makeReport({ overallStatus: "all-pass" }),
+          ),
+        ).toThrow(drift);
+      });
+
+      it("(b) self-wire 가 정상 산출을 mutate 하지 않음 — 반환 markdown byte-identical, 입력 report 미변형", () => {
+        const report = makeReport({
+          evalStatus: "fail",
+          collectAction: "skip",
+          collectStatus: "skip",
+          overallStatus: "some-fail",
+        });
+        const snapshot = JSON.stringify(report);
+
+        const a = renderRealDataDailyStepDualLegRunReportMarkdown(report);
+        const b = renderRealDataDailyStepDualLegRunReportMarkdown(report);
+
+        // 입력 report 미변형.
+        expect(JSON.stringify(report)).toBe(snapshot);
+        // 반환 markdown 은 self-wire 후에도 byte-identical(자가 검증이 산출을 바꾸지 않음).
+        expect(a).toBe(b);
+      });
+    });
   });
 });
