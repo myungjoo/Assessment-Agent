@@ -12,7 +12,11 @@
 //   - §9: descriptor 어디에도 실 secret/token/apiKey 미등장(username·활동 메타 비시크릿만).
 import type { GithubActivity } from "../../src/assessment-collection/domain/activity";
 
+// consistency 모듈은 namespace 로 import 해 self-wire spy(jest.spyOn) 대상으로 삼는다.
+// ts-jest CommonJS 트랜스파일에서 producer 의 named import 는 이 모듈 객체 프로퍼티 접근으로
+// 컴파일되므로, 이 namespace 의 함수를 spyOn 하면 producer 내부 self-wire 호출이 가로채진다.
 import { buildRealDataE2eEvalChainInput } from "./realdata-e2e-eval-chain";
+import * as evalChainConsistency from "./realdata-e2e-eval-chain-consistency";
 import type { RealDataE2eLiveGating } from "./realdata-e2e-live-gating";
 
 // gating enabled(평가 credential present) mock — 실 credential 값 0(더미만). ollama 는 실 LLM
@@ -257,6 +261,142 @@ describe("buildRealDataE2eEvalChainInput", () => {
       expect(serialized).not.toContain("dummy-pat-not-real");
       // 비시크릿(username)만 노출됨을 확인.
       expect(serialized).toContain("myungjoo");
+    });
+  });
+
+  // self-wire drift-guard 배선 검증 (T-0977) — producer 가 반환 직전 consistency oracle 가드를
+  // 스스로 호출해 조립 즉시 자가 검증하는지를 R-112 4종(happy/error/flow/negative)으로 봉한다.
+  describe("self-wire consistency guard (T-0977)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    describe("happy-path (self-wire 배선 후에도 정합 descriptor 정상 반환 — throw 0)", () => {
+      it("(i) 유효 활동 1 건 → throw 없이 정합 descriptor 반환", () => {
+        expect(() =>
+          buildRealDataE2eEvalChainInput(GATING_ENABLED, [
+            activityFor("myungjoo", "h1"),
+          ]),
+        ).not.toThrow();
+        const input = buildRealDataE2eEvalChainInput(GATING_ENABLED, [
+          activityFor("myungjoo", "h1"),
+        ]);
+        expect(input.active).toBe(true);
+        expect(input.activities).toHaveLength(1);
+        expect(input.username).toBe("myungjoo");
+      });
+
+      it("(ii) 유효 활동 다수 → 1 건 bound, throw 없이 정합 descriptor 반환", () => {
+        const input = buildRealDataE2eEvalChainInput(GATING_ENABLED, [
+          activityFor("leemgs", "m1"),
+          activityFor("leemgs", "m2"),
+          activityFor("leemgs", "m3"),
+        ]);
+        expect(input.activities).toHaveLength(1);
+        expect(input.activities[0].externalId).toBe("m1");
+        expect(input.active).toBe(true);
+      });
+
+      it("(iii) 유효 활동 0 건 → active:false/빈 activities, throw 없이 정합 반환", () => {
+        const input = buildRealDataE2eEvalChainInput(GATING_ENABLED, []);
+        expect(input.active).toBe(false);
+        expect(input.activities).toHaveLength(0);
+        expect(input.username).toBeNull();
+      });
+    });
+
+    describe("error-path (기존 방어 guard 가 self-wire 로 가려지지 않음 — 가드 도달 전 차단)", () => {
+      it("gating 비객체(null) → producer 자체 TypeError(프리픽스 그대로, 가드 미도달)", () => {
+        expect(() =>
+          buildRealDataE2eEvalChainInput(
+            null as unknown as RealDataE2eLiveGating,
+            [activityFor("myungjoo", "a")],
+          ),
+        ).toThrow(/buildRealDataE2eEvalChainInput: gating 이 null/);
+      });
+
+      it("collectedActivities 비배열 → producer 자체 TypeError(프리픽스 그대로, 가드 미도달)", () => {
+        expect(() =>
+          buildRealDataE2eEvalChainInput(
+            GATING_ENABLED,
+            undefined as unknown as GithubActivity[],
+          ),
+        ).toThrow(
+          /buildRealDataE2eEvalChainInput: collectedActivities 가 배열이 아닙니다/,
+        );
+      });
+    });
+
+    describe("flow/branch (self-wire 호출 사실 검증 — spy 로 배선 존재 증명)", () => {
+      it("active:true 경로 → 가드가 (gating, collectedActivities, 반환 descriptor) 로 정확히 1 회 호출", () => {
+        const spy = jest.spyOn(
+          evalChainConsistency,
+          "assertRealDataE2eEvalChainInputConsistent",
+        );
+        const activities = [activityFor("myungjoo", "s1")];
+        const input = buildRealDataE2eEvalChainInput(
+          GATING_ENABLED,
+          activities,
+        );
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith(GATING_ENABLED, activities, input);
+      });
+
+      it("active:false 경로(유효 0 건) → 가드가 반환 descriptor 인자로 정확히 1 회 호출", () => {
+        const spy = jest.spyOn(
+          evalChainConsistency,
+          "assertRealDataE2eEvalChainInputConsistent",
+        );
+        const activities: GithubActivity[] = [];
+        const input = buildRealDataE2eEvalChainInput(
+          GATING_ENABLED,
+          activities,
+        );
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith(GATING_ENABLED, activities, input);
+        expect(input.active).toBe(false);
+      });
+    });
+
+    describe("negative (예외 상황 분기마다 1+ — drift 전파 · 비변형)", () => {
+      it("(a) 가드가 drift 감지해 RangeError throw → producer 가 동일 RangeError 전파(silent 삼킴 0)", () => {
+        const drift = new RangeError("정합 위반: 강제 drift(테스트)");
+        jest
+          .spyOn(
+            evalChainConsistency,
+            "assertRealDataE2eEvalChainInputConsistent",
+          )
+          .mockImplementation(() => {
+            throw drift;
+          });
+
+        expect(() =>
+          buildRealDataE2eEvalChainInput(GATING_ENABLED, [
+            activityFor("myungjoo", "d1"),
+          ]),
+        ).toThrow(drift);
+      });
+
+      it("(b) self-wire 가 정상 산출을 mutate 하지 않음 — 반환 activities 는 새 배열, 입력 미변형", () => {
+        const activities = [
+          activityFor("myungjoo", "n1"),
+          activityFor("myungjoo", "n2"),
+        ];
+        const snapshot = JSON.stringify(activities);
+        const gatingSnapshot = JSON.stringify(GATING_ENABLED);
+
+        const a = buildRealDataE2eEvalChainInput(GATING_ENABLED, activities);
+        const b = buildRealDataE2eEvalChainInput(GATING_ENABLED, activities);
+
+        // 입력 collectedActivities / gating 미변형.
+        expect(JSON.stringify(activities)).toBe(snapshot);
+        expect(JSON.stringify(GATING_ENABLED)).toBe(gatingSnapshot);
+        // 반환 descriptor 의 activities 는 매 호출 새 배열(공유 노출 0).
+        expect(a.activities).not.toBe(b.activities);
+        expect(a.activities).not.toBe(activities);
+      });
     });
   });
 });
