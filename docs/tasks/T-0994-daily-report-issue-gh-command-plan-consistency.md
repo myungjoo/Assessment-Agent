@@ -2,7 +2,10 @@
 id: T-0994
 title: daily-step dual-leg run report issue gh-command-plan 종단 컴포저에 sibling -consistency drift-guard 신설 (resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan 산출 {action, argv} 을 (stdout, commandArgs) single-source 재유도 대조)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 3930ab80
+prNumber: 888
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 285
