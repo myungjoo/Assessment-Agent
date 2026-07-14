@@ -7,7 +7,7 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0972",
+  "nextTask": "T-0973",
   "backlogNoteResolved": "▶ **T-0880 BLOCKED (ci-repeat-fail) — PR #774 OPEN, 머지 보류; T-0881 이 unblock 선행** — S2 measure→confirm-or-compare 를 SummaryController GET /api/summaries?personId 에 배선한 두 번째 통합 perf-spec(구현 commit 27693524, cron@cloud-6ba9 가 4h 전 구현·push 했으나 PR open 전 사망 → 본 fire cron@aa-local-2ff3 가 orphan claim reclaim 후 PR #774 open). reviewer APPROVE + 게이트 (a)(b)(c) PASS, **게이트 (d) CI FAIL**: `test:perf` 가 2회(초회+rerun) 연속 fail. 실패 지점은 T-0880 신규 spec 이 아니라 **pre-existing `test/perf/app-root-measure-confirm.perf-spec.ts:217`**(T-0877 compared 분기 `regressed=false` wall-clock 비결정 단언) — 동일 head_sha main CI 는 green 이므로 T-0880 코드 결함 0, T-0880 이 추가한 perf-spec 부하가 T-0877 timing-fragile 단언을 노출. self-heal 불가(fix 대상이 T-0880 touchesFiles/Out-of-Scope 밖). **처리**: planner 가 **T-0881**(pr-mode, app-root compared 분기를 주입 clock=stepClock 으로 결정론화) 큐잉, T-0880 claim prune(release — pr-mode T-0881 이 0-active-claim gate 통과하도록), PR #774 는 OPEN 유지 + T-0880 task frontmatter 에 prNumber:774 박제(향후 fire 가 LOOP [2] frontmatter-prNumber resume 로 중복 PR 없이 rebase+re-CI). **시퀀스**: T-0881 merge → 그 fire 가 T-0880 을 nextTask 로 재큐잉 → PR #774 rebase+re-CI → 4-게이트 재확인 → merge. `close+reopen`/`--admin` bypass 금지.",
   "backlogNoteT0881": "▶ **T-0881 DONE (PR #775 merged, squash 67955a76) — T-0880 unblock 완결; 다음 fire 가 T-0880/PR #774 resume** — app-root compared 분기 perf-spec(test/perf/app-root-measure-confirm.perf-spec.ts) 의 compared happy-path(b) 1차·2차 measure 에 stepClock(50) 주입해 regressed 비결정성 제거(+13/-6, 1 file). 이로써 T-0880 PR #774 를 2회 fail 시킨 T-0877 timing-fragile 단언(:217 wall-clock regressed=false)이 결정론화됨. reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR), 4-게이트 PASS(reviewer comment external, CI test:perf 포함 green, ADR-0036 §8(c) head 최신 main 포함), squash 67955a76 + branch delete. R-112: compared happy-path 결정론(ok) + 회귀 분기는 기존 flow(336~356)/negative(414~433) 가 stepClock+tolerance:0 로 이미 커버, src 0 LOC 변경이라 test:cov 무영향. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-33f5). **다음 시퀀스**: nextTask=T-0880 → 다음 fire 가 currentTask 로 옮겨 LOOP [2] frontmatter-prNumber(774) resume 분기로 PR #774 checkout+rebase(최신 main 이제 T-0881 fix 포함)+re-CI(test:perf 이제 green 기대)+4-게이트 재확인 → merge. 중복 PR 금지(prNumber:774 resume).",
   "backlogNoteT0880": "▶ **T-0880 DONE (PR #774 merged, squash effb2b6c) — S2 조회 endpoint 두 번째 통합 perf-spec 배선 완결** — SummaryController GET /api/summaries?personId 를 measureAndConfirmBaseline top loop 에 배선한 두 번째 통합 perf-spec. T-0881→T-0880 unblock 시퀀스 완결.",
@@ -17,13 +17,13 @@
   "backlogNoteT0940": "▶ **T-0940 DONE (PR #834 merged, squash df1d9193) — dual-leg run report cross-publish body stability single-source convergence non-gated smoke 신설 완결; cross-publish 5-medium quintet 봉합** — 같은 run 을 여러 밤 연속 publish 할 때 사람이 이슈 안에서 읽는 본문(descriptor.body=--body argv 값, marker 라인 포함)이 1차 create 와 이후 모든 update 에서 byte-identical 하게 안정하고, hit.body 오염(사람이 이슈 본문 손수 변경, marker 유지) 시에도 매 publish 마다 commandArgs 단일 source 로 재정규화(re-emit)돼 threaded 아님(self-heal)을 박제하는 build-time in-memory smoke(test/smoke/realdata-e2e-daily-step-dual-leg-run-report-cross-publish-body-stability-single-source-convergence-assembly.smoke-spec.ts, +783/-0 test-only 1 file, production 0 LOC, 26 test). title(T-0939)의 content-medium 짝·body 가 issueNumber(T-0922)처럼 threaded 아님을 못 박는 거울상. 이로써 dual-leg run report step④ rolling-issue 멱등의 cross-publish 5-medium 안정성 봉합: marker 검색 anchor(T-0938)·issueNumber 편집 대상 threaded(T-0922)·url 사람 링크(T-0937)·title 사람 제목 re-emit(T-0939)·body 사람 본문 re-emit(본 task). reviewer APPROVE round 1/7, 4-게이트 PASS(reviewer comment external, CI reviewer-gate race 는 gh run rerun --failed self-heal 로 green, ADR-0036 §8(c) head 최신 main 포함 noop), coverageThreshold 무회귀. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-a7b056fe, server-time 00:39Z fresh 非midnight claim). **다음**: nextTask=T-0941 (dual-leg run report rolling-issue publish 를 처음으로 실 gh(search->create/edit)에 도달시키는 env-gated skip-by-default live execute-side round-trip smoke — assembly smoke 35개는 전부 in-memory 이므로 실 gh stdout 을 output parser 에 먹인 spec 0. eval-live(T-0610)/collection-live(T-0806) dormant gated 선례, step_report+credential 배선은 ADR-0045 deferred=Follow-up).",
   "backlogNoteT0935": "▶ **T-0935 DONE (PR #829 merged, squash 500daf19) — dual-leg run report create-branch output-parse issueNumber genesis execute-side single-source closure non-gated smoke 신설 완결** — create 분기(빈 search)에서 갓 생성된 이슈 번호 M 이 오직 `gh issue create` stdout URL 파싱(output-parse, 실행 후)에서만 태어나고(genesis) 실행 이전 create chain(create action.issueNumber 필드 부재·create plan.argv 에 M 원소 전무·argv[0..1]=[\"issue\",\"create\"])에는 어디에도 없음을 박제하는 build-time in-memory smoke (test/smoke/realdata-e2e-daily-step-dual-leg-run-report-create-branch-output-parse-issuenumber-genesis-execute-side-single-source-closure-assembly.smoke-spec.ts, +688/-0 test-only 1 file, production 0 LOC). T-0920 edit-side(N pre-exec 3+지점 관통)의 정확한 거울상 — create 는 M 이 pre-exec 0지점 + post-exec 1지점(output-parse genesis)·M 은 stdout 종속이라 run/leg outcome 무관·검색 미스(create 분기 선택)가 output-parse 경로와 독립·negative(URL 미발견·비양수 M·search stdout 손상 상류 차단·descriptor guard·결정론/no-mutation/credential) 다수. 이로써 issueNumber 축 종결(create genesis + T-0920 update convergence). reviewer APPROVE round 1/7, 4-게이트 PASS, coverageThreshold 무회귀. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-f766974). **다음**: nextTask=T-0936 (output-parse url↔issueNumber intra-outcome cross-field single-source closure smoke — 파서 두 반환 필드 url·issueNumber 가 같은 execStdout URL 한 지점 co-유도(url ⊇ issueNumber) create/edit 두 분기 박제).",
   "lock": null,
-  "lastCommit": "7ba763b8",
+  "lastCommit": "5a9a9cb4",
   "mostRecentTasks": [
+    "T-0972",
     "T-0971",
     "T-0970",
     "T-0969",
-    "T-0968",
-    "T-0967"
+    "T-0968"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -33,13 +33,14 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-13T23:41:00.000Z",
+    "lastRun": "2026-07-14T00:05:34Z",
     "status": "running",
     "consecutiveFails": 0,
-    "headSha": "2d8b0dd2",
-    "note": "T-0972(deploy/local-llm-example/status.ps1 진단 상태 표시 스크립트 내부 계약: _common.ps1 dot-source·Get-LlmConfig config 정본·Test-OllamaServer online/offline 분기·config-sourced 값 표시(하드코딩 아님)·진단 출력 계약 정적 smoke, planner 큐잉) 대기. 본 fire(cron@aa-cloud-1780, 매시 30분경 트리거) single-fire 완결: lock free 관측(holder empty)+claims [] → acquire-lock(cron d1cb8c65) → server-time 23:39:09Z(gh api Date, 非midnight) → reclaim noop → active claim 0 < maxConcurrentClaims 2 → validate-claim-candidate T-0971 PASS → select-claim T-0971(claimedAt 23:39:18Z, lock release atomic, pr-mode 0-active-claim gate PASS) → lock-free executor(feature branch claude/T-0971-local-llm-stop-ps1-model-unload-stopserver-cli-fallback-smoke, test-only readFileSync 정적 추출·production 0 LOC·stop-llm.ps1/config.env/_common.ps1 미변경·credential 0·새 dep 0, smoke 30 test + lint/build green 무회귀) → PR #865 → integrator round1 reviewer APPROVE(0 finding) 4-게이트 PASS(reviewer comment external, PR CI green tool=gh) → squash 2d8b0dd2 branch delete → claim prune([], lock CAS a042f46c 검증 content=[]). single-fire 완결이라 sync-claim-pr 미호출 — driver 사망 전 prune 완료로 dup-PR risk 0. 머지-커밋 main CI(2d8b0dd2 push run) in_progress — 다음 turn conclusion 재확인(R-114). 직전 T-0970 머지 CI(a6ddc938)·7f14f21f bookkeeping CI 둘 다 success 확인 완료(R-114). consecutiveFails 0. dependency 0. dup-PR 0. counters 961→962. 로컬 Ollama live-LLM 운영 premise 의 자원해제 진입점 stop-llm.ps1 leg 봉함. next: T-0972(status.ps1 진단 계약 smoke)."
+    "headSha": "5a9a9cb4",
+    "note": "T-0973(deploy/local-llm-example/test-llm.ps1 OpenAI 호환 /v1/chat/completions wire·config-sourced model·Bearer·UTF-8 body·throw/exit 분기 정적 smoke, planner 큐잉) 대기. 본 fire(cron@aa-local-9faabf77, aa-local-15 매시 15분 트리거) single-fire 완결: 초기 로컬 체크아웃 a6ddc938(origin/main 보다 4 commit 뒤) 관측 → read 전 fetch → ff-merge origin/main a950f3c1(T-0970·T-0971 이미 머지+bookkept, nextTask=T-0972) → lock free(holder empty)+claims [] 재확인 → acquire-lock(cron 0bd178fb) → server-time 2026-07-14T00:05:34Z(gh api Date) → reclaim noop → active claim 0 < maxConcurrentClaims 2 → validate-claim-candidate T-0972 PASS → select-claim T-0972(claimedAt 00:05:34Z, lock release atomic, pr-mode 0-active-claim gate PASS) → lock-free executor(feature branch claude/T-0972-local-llm-status-ps1-smoke, test-only readFileSync 정적 추출 13 pure 함수·production 0 LOC·status.ps1/config.env/_common.ps1 미변경·credential 0·새 dep 0, smoke 28 test 로컬 green + lint/build 통과) → PR #866 → integrator round1 reviewer APPROVE(0 BLOCKER/0 MAJOR/1 non-actionable nit) 4-게이트 PASS(reviewer comment external issuecomment-4964113312, PR CI green tool=gh) → squash 5a9a9cb4 branch delete → claim prune([], lock CAS ca62ee2a 검증 content=[]). single-fire 완결이라 sync-claim-pr 미호출 — driver 사망 전 prune 완료로 dup-PR risk 0. 머지-커밋 main CI(5a9a9cb4 push run 29295547125) pending — 다음 turn conclusion 재확인(R-114). 직전 T-0971 머지 CI(2d8b0dd2)·a950f3c1 bookkeeping CI 는 다음 turn 확인 승계. consecutiveFails 0. dependency 0. dup-PR 0. counters 962→963. 로컬 Ollama live-LLM 운영 premise 의 read-only 진단 진입점 status.ps1 leg 봉함. next: T-0973(test-llm.ps1 wire 계약 smoke)."
   },
   "reviewRounds": {
+    "T-0972": 1,
     "T-0969": 2,
     "T-0966": 1,
     "T-0953": 1,
@@ -1463,7 +1464,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 962,
+    "tasksCompleted": 963,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

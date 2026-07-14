@@ -2,7 +2,10 @@
 id: T-0972
 title: deploy/local-llm-example/status.ps1 진단 상태 표시 스크립트 내부 계약(dot-source _common.ps1·config-sourced 값 표시(하드코딩 아님)·서버 ONLINE/OFFLINE 분기·version 조회 try/catch·exe 미발견 early-return·ollama ps/list 진단·nvidia-smi 선택 분기) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 5a9a9cb4
+prNumber: 866
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 470
