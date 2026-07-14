@@ -62,6 +62,19 @@
 //   - repo slug(`owner/repo`) 결정 / `--repo` 인자 / gh auth — 실 wiring 의 환경 책임.
 //   - 외부 dependency 도입(새 import 0, 내장 string/배열 연산만).
 //   - production `src/` 코드 변경 — test helper 단독.
+//
+// 🔥 self-wire drift-guard (T-0996): T-0995 가 봉한 독립 oracle 가드
+//   `assertRealDataDailyStepDualLegRunReportIssueActionConsistentWithInputs`
+//   (`-issue-action-consistency.ts`)를 resolver 의 **두 반환 지점(create/update) 모두**
+//   직전 스스로 호출해 매 산출 action 을 즉시 자가 검증한다. consistency 모듈은
+//   hit/action 타입만 `import type` 로 참조하고 본 resolver 를 value import 하지 않으므로
+//   (consistency → action value 엣지 0) 런타임 순환 의존이 없다(action → consistency 만
+//   런타임 엣지). 정합 산출이면 tautology(항상 void)라 정상 동작을 바꾸지 않고, 후보
+//   필터링·최소 선택·create/update 분기가 oracle 규칙과 어긋나는 순간 모든 호출 경로
+//   (unit spec·gh-command-plan 컴포저 위임 재사용·live wiring)에서 즉시 throw 하는 live
+//   트립와이어가 된다 — spec 커버리지에 의존하지 않는다.
+//   T-0982/T-0983/T-0985/T-0987/T-0989/T-0991/T-0993 self-wire mirror.
+import { assertRealDataDailyStepDualLegRunReportIssueActionConsistentWithInputs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-action-consistency";
 
 // RealDataDailyStepDualLegRunReportIssueSearchHit — `gh search issues
 // --json number,title,body` 응답의 최소 shape. caller 가 실 호출 결과를 `JSON.parse`
@@ -136,12 +149,40 @@ export function resolveRealDataDailyStepDualLegRunReportIssueAction(
 
   // 후보 0건 → 신규 생성(매 호출 새 객체 — 무공유).
   if (candidateNumbers.length === 0) {
-    return { action: "create" };
+    const action: RealDataDailyStepDualLegRunReportIssueAction = {
+      action: "create",
+    };
+
+    // 🔥 self-wire drift-guard (T-0996): create action 을 반환하기 **직전** 독립 oracle
+    //   가드를 스스로 호출해 산출 즉시 자가 검증한다. 정합 산출이면 tautology(항상 void)라
+    //   정상 동작을 바꾸지 않고, 후보 판정·create/update 분기가 oracle 규칙과 어긋나는 순간
+    //   모든 호출 경로(unit spec·live wiring 재사용)에서 즉시 throw 하는 live 트립와이어가
+    //   된다 — spec 커버리지에 의존하지 않는다.
+    assertRealDataDailyStepDualLegRunReportIssueActionConsistentWithInputs(
+      action,
+      searchHits,
+      marker,
+    );
+
+    return action;
   }
 
   // 후보 1+ 건 → 최소 번호(가장 오래된 이슈) 갱신(멱등 회귀 보호 — 입력 순서 무관).
-  return {
+  const action: RealDataDailyStepDualLegRunReportIssueAction = {
     action: "update",
     issueNumber: Math.min(...candidateNumbers),
   };
+
+  // 🔥 self-wire drift-guard (T-0996): update action 을 반환하기 **직전** 독립 oracle
+  //   가드를 스스로 호출해 산출 즉시 자가 검증한다. create 분기와 동형 — 한 분기만 배선하면
+  //   다른 분기 action 은 트립와이어 미보호로 남으므로 두 반환 지점 모두 배선한다
+  //   (T-0993 gh-argv create/update 두 return 지점 배선 mirror). 정합이면 void, drift 면
+  //   최소 issueNumber 선택·분기 오류를 즉시 throw.
+  assertRealDataDailyStepDualLegRunReportIssueActionConsistentWithInputs(
+    action,
+    searchHits,
+    marker,
+  );
+
+  return action;
 }
