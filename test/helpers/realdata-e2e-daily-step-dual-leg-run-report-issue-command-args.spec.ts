@@ -19,6 +19,11 @@
 //   - self-wire (T-0991): 빌더가 반환 직전 consistency oracle 가드를 스스로 호출하는지
 //     R-112 4종(happy/error/flow/negative)으로 봉한다.
 import { buildRealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
+// body-marker 가드 모듈(T-1008)은 namespace 로 import 해 T-1009 self-wire spy(jest.spyOn)
+// 대상으로 삼는다. ts-jest CommonJS 트랜스파일에서 빌더의 named import 는 이 모듈 객체
+// 프로퍼티 접근으로 컴파일되므로, 이 namespace 의 함수를 spyOn 하면 빌더 내부 self-wire
+// 호출이 가로채진다.
+import * as issueCommandArgsBodyMarker from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args-body-marker";
 // consistency 모듈은 namespace 로 import 해 self-wire spy(jest.spyOn) 대상으로 삼는다.
 // ts-jest CommonJS 트랜스파일에서 빌더의 named import 는 이 모듈 객체 프로퍼티 접근으로
 // 컴파일되므로, 이 namespace 의 함수를 spyOn 하면 빌더 내부 self-wire 호출이 가로채진다.
@@ -410,6 +415,264 @@ describe("buildRealDataDailyStepDualLegRunReportIssueCommandArgs self-wire consi
           HAPPY_DESCRIPTOR,
         );
       expect(next.createArgs.labels).toEqual(FIXED_LABELS);
+    });
+  });
+});
+
+// self-wire body marker-first 정합 가드 배선 검증 (T-1009, 요약축 T-0650 mirror) — 빌더가
+// 반환 직전 T-1008 body 축 가드
+// `assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor` 를
+// (commandArgs, descriptor) 인자로 스스로 호출해 body 전파·marker-first·searchQuery 정합을
+// 즉시 자가 검증하는지를 R-112 4종(happy/error/flow/negative)으로 봉한다. self-wire 가
+// 제거되면 flow spy·negative 전파 case 가 fail = de-facto regression guard.
+describe("buildRealDataDailyStepDualLegRunReportIssueCommandArgs self-wire body-marker guard (T-1009)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  // 서로 다른 marker/body 를 갖는 두 번째 정합 fixture(호출 사실 검증의 다중 descriptor 용).
+  const OTHER_MARKER =
+    "<!-- realdata-e2e-daily-step-dual-leg-run-report-issue: 2026-07-12@deadbee -->";
+  const OTHER_DESCRIPTOR: RealDataDailyStepDualLegRunReportIssueDescriptor = {
+    title: "실 평가 e2e daily-step dual-leg run report 2026-07-12@deadbee",
+    marker: OTHER_MARKER,
+    body: [OTHER_MARKER, "", "## 본문", "- overall: some-fail"].join("\n"),
+  };
+
+  describe("happy-path (self-wire 배선 후에도 정합 명령-args 정상 반환 — throw 0, 다양성)", () => {
+    it("(i) 정상 descriptor(다수 leg 요약) → throw 없이 정합 명령-args 반환(body byte-identical·marker-first·searchQuery=marker)", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        ),
+      ).not.toThrow();
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      // create·update body 가 descriptor.body 와 byte-identical(양 경로 전파).
+      expect(args.createArgs.body).toBe(HAPPY_DESCRIPTOR.body);
+      expect(args.updateArgs.body).toBe(HAPPY_DESCRIPTOR.body);
+      // marker-first — 두 body 의 첫 라인이 marker.
+      expect(args.createArgs.body.split("\n")[0]).toBe(HAPPY_DESCRIPTOR.marker);
+      expect(args.updateArgs.body.split("\n")[0]).toBe(HAPPY_DESCRIPTOR.marker);
+      // searchQuery=marker.
+      expect(args.searchQuery).toBe(HAPPY_DESCRIPTOR.marker);
+    });
+
+    it("(ii) 다른 descriptor(다른 marker/body·some-fail leg status) → throw 없이 정합 명령-args 반환", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          OTHER_DESCRIPTOR,
+        ),
+      ).not.toThrow();
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          OTHER_DESCRIPTOR,
+        );
+      expect(args.createArgs.body).toBe(OTHER_DESCRIPTOR.body);
+      expect(args.updateArgs.body).toBe(OTHER_DESCRIPTOR.body);
+      expect(args.searchQuery).toBe(OTHER_MARKER);
+    });
+
+    it("(iii) marker-only body descriptor(최소 변형) → self-wire 후에도 정상 반환(body=marker, marker-first 자명)", () => {
+      const onlyMarker =
+        "<!-- realdata-e2e-daily-step-dual-leg-run-report-issue: 2026-07-13@cafef00 -->";
+      const descriptor: RealDataDailyStepDualLegRunReportIssueDescriptor = {
+        title: "실 평가 e2e daily-step dual-leg run report 2026-07-13@cafef00",
+        marker: onlyMarker,
+        body: onlyMarker,
+      };
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(descriptor),
+      ).not.toThrow();
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(descriptor);
+      expect(args.createArgs.body).toBe(onlyMarker);
+      expect(args.searchQuery).toBe(onlyMarker);
+    });
+  });
+
+  describe("error-path (기존 방어 guard·body 축 가드가 self-wire 로 서로 가려지지 않음)", () => {
+    it("(a) title 빈-공백 → 빌더 자체 assertNonBlank 의 Error 를 던진다(body 가드 self-wire 가 식별자 guard 를 깨지 않음)", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs({
+          ...HAPPY_DESCRIPTOR,
+          title: "  ",
+        }),
+      ).toThrow(/title 가 비어있습니다/);
+    });
+
+    it("(b) marker 빈-공백 → 빌더 자체 assertNonBlank 의 Error 를 던진다", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs({
+          ...HAPPY_DESCRIPTOR,
+          marker: "",
+        }),
+      ).toThrow(/marker 가 비어있습니다/);
+    });
+
+    it("(c) body 가드가 body 전파 회귀를 감지해 RangeError throw → 빌더가 동일 RangeError 전파(손상 args 유출 0)", () => {
+      const drift = new RangeError("불변식(1) 위반: 강제 body drift(테스트)");
+      jest
+        .spyOn(
+          issueCommandArgsBodyMarker,
+          "assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor",
+        )
+        .mockImplementation(() => {
+          throw drift;
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        ),
+      ).toThrow(drift);
+    });
+  });
+
+  describe("flow/branch (self-wire 호출 사실 검증 — spy 로 배선 존재·순서 증명)", () => {
+    it("(i) 정상 경로 → body 가드가 (반환된 commandArgs, descriptor) 로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(
+        issueCommandArgsBodyMarker,
+        "assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor",
+      );
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(args, HAPPY_DESCRIPTOR);
+    });
+
+    it("(ii) 다른 descriptor fixture → body 가드가 반환 commandArgs 인자로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(
+        issueCommandArgsBodyMarker,
+        "assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor",
+      );
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          OTHER_DESCRIPTOR,
+        );
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(args, OTHER_DESCRIPTOR);
+    });
+
+    it("(iii) 기존 Consistent 가드도 여전히 호출됨(body 가드 배선이 기존 self-wire 를 밀어내지 않음)", () => {
+      const consistentSpy = jest.spyOn(
+        issueCommandArgsConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent",
+      );
+      const bodySpy = jest.spyOn(
+        issueCommandArgsBodyMarker,
+        "assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor",
+      );
+
+      buildRealDataDailyStepDualLegRunReportIssueCommandArgs(HAPPY_DESCRIPTOR);
+
+      // 두 가드 모두 정확히 1 회 호출 — 나란히 배선.
+      expect(consistentSpy).toHaveBeenCalledTimes(1);
+      expect(bodySpy).toHaveBeenCalledTimes(1);
+      // 순서 보존 — Consistent 가드가 body 가드보다 먼저 호출된다(식별자→Consistent→Body).
+      expect(consistentSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        bodySpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("(iv) 식별자 guard throw 분기(title 빈) → body 가드는 호출되지 않음(fail-fast, 가드 순서 보존)", () => {
+      const bodySpy = jest.spyOn(
+        issueCommandArgsBodyMarker,
+        "assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs({
+          ...HAPPY_DESCRIPTOR,
+          title: "",
+        }),
+      ).toThrow(/title/);
+
+      // 식별자 guard 가 먼저 throw 하므로 body 가드까지 도달하지 않는다.
+      expect(bodySpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("negative (예외 상황 분기마다 1+ — drift 전파·비변형·결정성·순서·R-59)", () => {
+    it("(a) 결정성 — 동일 descriptor 2 회 빌드 → 둘 다 byte-identical 정상 반환(self-wire 가 결정성 안 깨짐)", () => {
+      const a =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      const b =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      expect(a).toEqual(b);
+      expect(a.createArgs.body).toBe(b.createArgs.body);
+      expect(a.updateArgs.body).toBe(b.updateArgs.body);
+    });
+
+    it("(b) 입력 비변형 — 빌드 후 입력 descriptor deep-equal(self-wire 호출 전후 변경 0)", () => {
+      const descriptor: RealDataDailyStepDualLegRunReportIssueDescriptor = {
+        ...HAPPY_DESCRIPTOR,
+      };
+      const before = { ...descriptor };
+
+      buildRealDataDailyStepDualLegRunReportIssueCommandArgs(descriptor);
+
+      expect(descriptor).toEqual(before);
+      expect(descriptor.body).toBe(before.body);
+      expect(descriptor.marker).toBe(before.marker);
+    });
+
+    it("(c) self-wire 가 정상 산출을 mutate 하지 않음 — 반환 명령-args 가 배선 이전 조립 결과와 byte-identical, labels 무공유", () => {
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      // body 가드는 tautology(void)라 반환 명령-args 는 배선 이전 조립 결과와 동일해야 한다.
+      expect(args.searchQuery).toBe(HAPPY_DESCRIPTOR.marker);
+      expect(args.createArgs.title).toBe(HAPPY_DESCRIPTOR.title);
+      expect(args.createArgs.body).toBe(HAPPY_DESCRIPTOR.body);
+      expect(args.createArgs.labels).toEqual(FIXED_LABELS);
+      expect(args.updateArgs.title).toBe(HAPPY_DESCRIPTOR.title);
+      expect(args.updateArgs.body).toBe(HAPPY_DESCRIPTOR.body);
+      // 반환 labels 무공유 — mutate 가 상수·다음 호출에 누설되지 않음.
+      args.createArgs.labels.push("leaked");
+      const next =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      expect(next.createArgs.labels).toEqual(FIXED_LABELS);
+    });
+
+    it("(d) body 가드가 TypeError throw(구조 결손) → 빌더가 동일 TypeError 전파(삼키지 않음)", () => {
+      const structural = new TypeError("commandArgs body 구조 결손(테스트)");
+      jest
+        .spyOn(
+          issueCommandArgsBodyMarker,
+          "assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor",
+        )
+        .mockImplementation(() => {
+          throw structural;
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        ),
+      ).toThrow(structural);
+    });
+
+    it("(e) R-59 — self-wire 후에도 반환 body 에 narrative 류 raw 본문 키 부재", () => {
+      const args =
+        buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          HAPPY_DESCRIPTOR,
+        );
+      expect(args.createArgs.body).not.toContain("narrative");
+      expect(args.updateArgs.body).not.toContain("rawActivity");
     });
   });
 });

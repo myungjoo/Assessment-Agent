@@ -73,6 +73,7 @@
 //   `import type` 로 참조하고 본 빌더를 value import 하지 않으므로(consistency →
 //   command-args value 엣지 0) 런타임 순환 의존이 없다(command-args → consistency 만
 //   런타임 엣지). T-0982/T-0983/T-0985/T-0987/T-0989 self-wire mirror.
+import { assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args-body-marker";
 import { assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args-consistency";
 import type { RealDataDailyStepDualLegRunReportIssueDescriptor } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
 
@@ -170,6 +171,21 @@ export function buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
   assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
     descriptor,
     commandArgs,
+  );
+
+  // 🔥 self-wire body marker-first 정합 가드 (T-1009, 요약축 T-0650 mirror): 명령-args 를
+  //   반환하기 **직전** T-1008 이 신설한 body 축 불변식 가드를 스스로 호출해 산출 즉시 자가
+  //   검증한다. createArgs/updateArgs body 가 descriptor.body 와 byte-identical 하고 두 body
+  //   가 marker-first 이며 searchQuery 가 descriptor.marker 와 일치하는지의 4 불변식을 강제한다.
+  //   정합 산출이면 tautology(항상 void)라 정상 동작·반환값을 byte-identical 로 보존하고, body
+  //   전파 회귀(createArgs/updateArgs body drift·marker-first 위반·searchQuery drift)가 생기는
+  //   순간 손상 명령-args 를 caller(live wiring)로 반환하기 전에 fail-fast throw 한다 — spec
+  //   커버리지에 의존하지 않는 live 트립와이어. 기존 Consistent 가드(T-0991)와 축이 다르며(body
+  //   marker-first 좁은 축) 나란히 배선한다. 같은 `test/helpers/` 디렉토리 함수 호출이라 runtime
+  //   cycle 0.
+  assertRealDataDailyStepDualLegRunReportIssueCommandArgsBodyPreservesDescriptor(
+    commandArgs,
+    descriptor,
   );
 
   return commandArgs;
