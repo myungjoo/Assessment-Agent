@@ -2,12 +2,16 @@
 id: T-0988
 title: daily-step dual-leg run report issue-박제 descriptor 조립 consistency drift-guard 순수 helper + R-112 spec 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 250
 estimatedFiles: 2
 created: 2026-07-14
+completedAt: 2026-07-14T08:45:00Z
+mergedAs: bcf75de0
+prNumber: 882
+reviewRounds: 2
 independentStream: realdata-e2e-daily-report-issue-descriptor
 dependsOn: []
 touchesFiles:
