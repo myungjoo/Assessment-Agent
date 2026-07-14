@@ -2,7 +2,7 @@
 id: T-0984
 title: 실 평가 e2e github 수집 plan 조립(buildRealDataGithubCollectionPlan) consistency drift-guard 순수 helper + colocated R-112 spec
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 210
@@ -62,3 +62,12 @@ PLAN.md 109행(실 github myungjoo/leemgs 공개 활동 수집 → 로컬 Ollama
 
 - collection-plan self-wire slice(후속): 본 가드를 `buildRealDataGithubCollectionPlan` 반환 직전에 self-wire 해 매 조립 자가 검증 트립와이어화(T-0983/T-0977/T-0982 self-wire mirror). producer→guard type-only import 라 런타임 순환 없음 예상(구현 시 재확인). 본 consistency 짝이 main 박제된 뒤 dep 으로 큐잉.
 - §109 잔여(변경 없음, credential/env 게이트라 별도 큐잉): (1) 실 credential 주입 하 credentialed live run 1 회(운영/env 층), (2) `deploy/daily-test.sh` step_eval 이 full-chain smoke(`realdata-e2e-eval-chain-live`)를 실 트리거하도록 재배선 + 결과 daily-test 이슈 박제.
+
+---
+
+## Result (DONE)
+
+- 완료: 2026-07-14, PR #878 squash merge `b8718165` (reviewer APPROVE round1 — 0 BLOCKER/0 MAJOR/0 MINOR, 4-게이트 PASS).
+- 신설: `test/helpers/realdata-e2e-github-collection-live-consistency.ts` (+355, `assertRealDataGithubCollectionPlanConsistent`) + `.spec.ts` (29 test, R-112 4종).
+- 전체 382 suite / 10055 tests green, lint·build·test:cov 통과 (global line 99.95% / func 100% / branch 99.25%, 신 helper 완전 커버). production src 0 LOC, 새 dep 0.
+- Follow-up: T-0985 — producer `buildRealDataGithubCollectionPlan` 반환 직전 self-wire (planner 큐잉 완료).
