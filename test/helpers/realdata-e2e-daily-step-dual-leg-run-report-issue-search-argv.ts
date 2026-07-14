@@ -92,6 +92,10 @@
 //   배선한다.
 import type { RealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
 import { assertRealDataDailyStepDualLegRunReportIssueSearchGhArgvPreservesCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-argv-consistency";
+import {
+  assertRealDataDailyStepDualLegRunReportIssueSearchJsonFieldsMatchParseShape,
+  REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
+} from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-json-fields";
 
 // --json 요청 필드 — T-0898 `RealDataDailyStepDualLegRunReportIssueSearchHit`
 // ({number, title, body})의 모든 멤버와 정확히 일치(콤마 구분, 공백 0). 매직 스트링
@@ -163,6 +167,26 @@ export function buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
   assertRealDataDailyStepDualLegRunReportIssueSearchGhArgvPreservesCommandArgs(
     searchArgv,
     commandArgs,
+  );
+
+  // 🔥 self-wire — 합성한 search argv 의 `--json` 요청 필드 집합
+  //   (REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_JSON_FIELDS =
+  //   "number,title,body")이 search-parse 의 추출 shape 키 집합
+  //   (REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_PARSE_SHAPE_KEYS =
+  //   ["number","title","body"], T-1012)과 set-equal 정합하는지 반환 직전 self-assert
+  //   (T-1012 신설 가드의 builder self-wire, 요약축 T-0658 mirror — T-1010 Follow-up ②).
+  //   위 `SearchGhArgvPreservesCommandArgs`(argv↔command-args 보존) 가드와 축이 겹치지
+  //   않는 두 번째 가드다(그쪽은 argv 원소·순서 round-trip, 이쪽은 `--json` 필드↔추출
+  //   shape set-equality). 두 production 상수가 현재 정합이라 정상 합성이면 가드는 void
+  //   반환 — 동작·반환값 byte-identical 보존(tautology). 미래 회귀(`--json` 필드 누락·
+  //   요청한 적 없는 잉여 필드 추가 등 latent coupling drift)가 생기면 손상 argv 를
+  //   caller(live wiring, execFile('gh', searchArgv))로 반환하기 전에 한국어 명세형
+  //   에러로 즉시 throw 하는 live 트립와이어가 된다(fail-fast). 같은 디렉토리 함수
+  //   호출이라 runtime cycle 0. search 빌더는 단일 반환 지점(create/update 분기 없음)이라
+  //   self-assert 도 1지점.
+  assertRealDataDailyStepDualLegRunReportIssueSearchJsonFieldsMatchParseShape(
+    REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_JSON_FIELDS,
+    REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
   );
 
   return searchArgv;
