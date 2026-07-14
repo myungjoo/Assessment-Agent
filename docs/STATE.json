@@ -7,7 +7,7 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-0995",
+  "nextTask": "T-0996",
   "backlogNoteResolved": "▶ **T-0880 BLOCKED (ci-repeat-fail) — PR #774 OPEN, 머지 보류; T-0881 이 unblock 선행** — S2 measure→confirm-or-compare 를 SummaryController GET /api/summaries?personId 에 배선한 두 번째 통합 perf-spec(구현 commit 27693524, cron@cloud-6ba9 가 4h 전 구현·push 했으나 PR open 전 사망 → 본 fire cron@aa-local-2ff3 가 orphan claim reclaim 후 PR #774 open). reviewer APPROVE + 게이트 (a)(b)(c) PASS, **게이트 (d) CI FAIL**: `test:perf` 가 2회(초회+rerun) 연속 fail. 실패 지점은 T-0880 신규 spec 이 아니라 **pre-existing `test/perf/app-root-measure-confirm.perf-spec.ts:217`**(T-0877 compared 분기 `regressed=false` wall-clock 비결정 단언) — 동일 head_sha main CI 는 green 이므로 T-0880 코드 결함 0, T-0880 이 추가한 perf-spec 부하가 T-0877 timing-fragile 단언을 노출. self-heal 불가(fix 대상이 T-0880 touchesFiles/Out-of-Scope 밖). **처리**: planner 가 **T-0881**(pr-mode, app-root compared 분기를 주입 clock=stepClock 으로 결정론화) 큐잉, T-0880 claim prune(release — pr-mode T-0881 이 0-active-claim gate 통과하도록), PR #774 는 OPEN 유지 + T-0880 task frontmatter 에 prNumber:774 박제(향후 fire 가 LOOP [2] frontmatter-prNumber resume 로 중복 PR 없이 rebase+re-CI). **시퀀스**: T-0881 merge → 그 fire 가 T-0880 을 nextTask 로 재큐잉 → PR #774 rebase+re-CI → 4-게이트 재확인 → merge. `close+reopen`/`--admin` bypass 금지.",
   "backlogNoteT0881": "▶ **T-0881 DONE (PR #775 merged, squash 67955a76) — T-0880 unblock 완결; 다음 fire 가 T-0880/PR #774 resume** — app-root compared 분기 perf-spec(test/perf/app-root-measure-confirm.perf-spec.ts) 의 compared happy-path(b) 1차·2차 measure 에 stepClock(50) 주입해 regressed 비결정성 제거(+13/-6, 1 file). 이로써 T-0880 PR #774 를 2회 fail 시킨 T-0877 timing-fragile 단언(:217 wall-clock regressed=false)이 결정론화됨. reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR), 4-게이트 PASS(reviewer comment external, CI test:perf 포함 green, ADR-0036 §8(c) head 최신 main 포함), squash 67955a76 + branch delete. R-112: compared happy-path 결정론(ok) + 회귀 분기는 기존 flow(336~356)/negative(414~433) 가 stepClock+tolerance:0 로 이미 커버, src 0 LOC 변경이라 test:cov 무영향. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-33f5). **다음 시퀀스**: nextTask=T-0880 → 다음 fire 가 currentTask 로 옮겨 LOOP [2] frontmatter-prNumber(774) resume 분기로 PR #774 checkout+rebase(최신 main 이제 T-0881 fix 포함)+re-CI(test:perf 이제 green 기대)+4-게이트 재확인 → merge. 중복 PR 금지(prNumber:774 resume).",
   "backlogNoteT0880": "▶ **T-0880 DONE (PR #774 merged, squash effb2b6c) — S2 조회 endpoint 두 번째 통합 perf-spec 배선 완결** — SummaryController GET /api/summaries?personId 를 measureAndConfirmBaseline top loop 에 배선한 두 번째 통합 perf-spec. T-0881→T-0880 unblock 시퀀스 완결.",
@@ -22,11 +22,11 @@
   },
   "lastCommit": "3930ab80",
   "mostRecentTasks": [
+    "T-0995",
     "T-0994",
     "T-0993",
     "T-0992",
-    "T-0991",
-    "T-0990"
+    "T-0991"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -36,14 +36,16 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-14T13:47:50Z",
+    "lastRun": "2026-07-14T14:55:00Z",
     "status": "green",
     "consecutiveFails": 0,
-    "headSha": "3930ab80",
+    "headSha": "6c9fac13",
+    "noteT0995": "T-0995 DONE (PR #889 squash 6c9fac13) — daily-step dual-leg run report issue-action leaf resolver consistency drift-guard 신설. 순수 fail-fast 가드 assertRealDataDailyStepDualLegRunReportIssueActionConsistentWithInputs 이 입력 (searchHits, marker) 를 single-source 로 후보 추출(body.includes)·최소 number(Math.min)·create/update 분기를 가드 안에서 독립 재유도(producer resolveRealDataDailyStepDualLegRunReportIssueAction T-0898 재호출 0, import type 만)한 expected action 과 입력 action 대조 — create/update 분기 일치 + update 시 issueNumber deep equal byte-identical. 요약축 선례 T-0703 mirror(leaf resolver 라 로직 재구현). 구조 결손=TypeError·값 정합 위반=RangeError·input-guard(marker 빈/공백, hit.number 비-양정수)=Error fail-fast. producer 무변경(self-wire 후속 T-0996). test-only 2파일(consistency.ts +254, .spec.ts +556, 33-case), src·dep 0. PR #889 round1 reviewer APPROVE(0 BLOCKER/0 MAJOR/0 MINOR/1 NIT LOC — test-only sibling pattern 내재, T-0994/T-0703 선례 정합) 4-게이트 PASS(reviewer comment external Round 1/7, CI green approval-gate incl; 첫 pull_request run reviewer-gate race 로 approval step 단독 fail — issue_comment auto-rerun 미발생 ~90s, gh run rerun --failed fallback 로 green) squash 6c9fac13 branch delete. 신설 가드 line/branch/func/stmt 100% cov, threshold line≥80% AND func≥80% 충족. fineGrainedConcurrency ON(stage5b) claim-pickup fire(cron@aa-local-10173, 매시 30분대 트리거로 충돌 회피). 시퀀스: fetch→origin/main 3706a739→lock free(tombstone)→acquire-lock(cron@aa-local-10173, tip 838a1df4)→reclaim noop(claims[] 무대상)→active claim 0<max 2→pr-mode 0-active-claim gate PASS→select-claim T-0995(CLAIM_NOW 14:38:25Z≈now 非midnight 검증, lock release atomic tombstone)→lock-free executor(feature branch claude/T-0995-daily-report-issue-action-consistency, implementer+tester, test-only staged, commit·push)→PR #889 open(driver gh, ADR-0005)→sync-claim-pr(prNumber 889 PR_OPEN, tree-보존 CAS)→integrator round1 reviewer APPROVE 4-게이트 PASS→squash 6c9fac13 branch delete→bookkeeping(direct main)+claim prune([]). counters 985→986. dup-PR 0. next: T-0996 큐잉(issue-action leaf resolver 반환 직전 consistency self-wire — create/update 두 return 지점, T-0993/T-0991/T-0989 mirror, leaf 삼단 완결).",
     "note": "T-0994 DONE (PR #888 squash 3930ab80) — daily-step dual-leg run report issue gh-command-plan 종단 컴포저 consistency drift-guard 신설. 순수 fail-fast 가드 assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWithInputs 이 컴포저 산출 {action, argv} 을 입력 (stdout, commandArgs) single-source 로 삼아 동일 3 위임 helper(parse→resolveAction→buildGhArgv) 재호출로 독립 재유도한 expected 와 대조 — plan.action(분기+update issueNumber deep equal)·plan.argv(길이+각 원소 byte-identical). oracle 독립성(producer T-0902 import 0, plan/action/command-args 타입만 import type — 런타임 순환 0), 구조 결손=TypeError·값 정합 위반=RangeError fail-fast. producer 무변경(self-wire 후속 slice). T-0695(요약축)/T-0992(gh-argv) mirror. test-only 2파일(realdata-e2e-daily-step-dual-leg-run-report-issue-gh-command-plan-consistency.ts +278, .spec.ts +813, 42-case), src·dep 0. PR #888 round1 reviewer APPROVE(0 BLOCKER/0 MAJOR/1 MINOR labels-[] 빈배열 미커버 비차단/1 NIT LOC) 4-게이트 PASS(reviewer comment external Round 1/7, CI green issue_comment run 29338259644 approval-gate incl; 첫 pull_request run 29337971797 reviewer-gate race 로 approval step 단독 fail — issue_comment run 이 main ref 로 green, ad-hoc rerun 안 함) squash 3930ab80 branch delete. 387 suites/10302 tests green, 신설 가드 100% cov, threshold line≥80% AND func≥80% 충족. fineGrainedConcurrency ON(stage5b) claim-pickup fire(cron@aa-local-190bda, 매시 30분대 트리거로 정각/15분 충돌 회피). 시퀀스: fetch→origin/main 190bda4d→lock stale(cron@aa-local15-71330692 since 12:04:52Z, server-time 13:36:58Z 92분 경과)→acquire-lock 탈취(cron@aa-local-190bda, tip 4200aea0)→reclaim noop(claims[] 무대상)→validate-claim-candidate T-0994 PASS→active claim 0<max 2→pr-mode 0-active-claim gate PASS→select-claim(CLAIM_NOW 13:37:56Z≈now 非midnight 검증, lock release atomic tombstone)→lock-free executor(feature branch claude/T-0994-issue-gh-command-plan-consistency, implementer+tester, test-only staged, commit·push, PR #888 head 75008c0a)→re-acquire lock(tip d5695341)→sync-claim-pr(prNumber 888 PR_OPEN, tree-보존 CAS)→release(tip a0246dc3)→integrator round1 reviewer APPROVE 4-게이트 PASS→squash 3930ab80 branch delete→bookkeeping(direct main)+claim prune([]). 머지-커밋 main CI(3930ab80 run 29338862729) success 확인 R-114. 직전 T-0993 머지(713376d9)+bookkeeping(190bda4d) main CI 둘 다 success 확인. counters 984→985. dup-PR 0. next: T-0995 큐잉(issue-action leaf resolver consistency drift-guard 신설).",
     "noteT0993": "T-0993 DONE (PR #887 squash 713376d9) — 머지-커밋 main CI(713376d9)+bookkeeping(190bda4d) 둘 다 success 확인 R-114. counters 983→984."
   },
   "reviewRounds": {
+    "T-0995": 1,
     "T-0994": 1,
     "T-0993": 1,
     "T-0982": 1,
@@ -1478,7 +1480,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 985,
+    "tasksCompleted": 986,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

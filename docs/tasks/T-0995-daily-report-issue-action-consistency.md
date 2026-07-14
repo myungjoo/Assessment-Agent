@@ -2,7 +2,10 @@
 id: T-0995
 title: daily-step dual-leg run report issue-action leaf resolver 에 sibling -consistency drift-guard 신설 (resolveRealDataDailyStepDualLegRunReportIssueAction 산출 action 을 (searchHits, marker) single-source 독립 재유도 대조)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 6c9fac13
+prNumber: 889
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 285
