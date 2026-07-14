@@ -2,7 +2,9 @@
 id: T-1009
 title: buildRealDataDailyStepDualLegRunReportIssueCommandArgs 산출 직전 command-args body marker-first 정합 가드(T-1008) self-wire 배선 (요약축 T-0650 mirror)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 78b7fc61
+completedAt: 2026-07-14T21:53Z
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 110
