@@ -68,8 +68,17 @@
 //     argv 배열만 산출(shell 미경유, escape 불요).
 //   - 외부 CLI 라이브러리(execa 등) 도입 — 새 dependency 0, 내장 배열 연산만.
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
+//
+// 🔥 self-wire drift-guard (T-0993): T-0992 가 봉한 독립 oracle 가드
+//   `assertRealDataDailyStepDualLegRunReportIssueGhArgvPreservesCommandArgs`
+//   (`-issue-gh-argv-consistency.ts`)를 빌더의 **두 반환 지점(create/update) 모두** 직전
+//   스스로 호출해 매 산출 argv 를 즉시 자가 검증한다. consistency 모듈은 action·command-args
+//   타입만 `import type` 로 참조하고 본 빌더를 value import 하지 않으므로(consistency →
+//   gh-argv value 엣지 0) 런타임 순환 의존이 없다(gh-argv → consistency 만 런타임 엣지).
+//   T-0982/T-0983/T-0985/T-0987/T-0989/T-0991 self-wire mirror.
 import type { RealDataDailyStepDualLegRunReportIssueAction } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-action";
 import type { RealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
+import { assertRealDataDailyStepDualLegRunReportIssueGhArgvPreservesCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-gh-argv-consistency";
 
 // 빈/공백-only 식별자 guard — title / body 가 빈 문자열·공백-only 면 비식별 이슈 argv
 // 생성을 방지하기 위해 명시적 throw 한다(조용한 통과 차단).
@@ -126,6 +135,17 @@ export function buildRealDataDailyStepDualLegRunReportIssueGhArgv(
       argv.push("--label", label);
     }
 
+    // 🔥 self-wire drift-guard (T-0993): create argv 를 반환하기 **직전** 독립 oracle
+    //   가드를 스스로 호출해 산출 즉시 자가 검증한다. 정합 산출이면 tautology(항상 void)라
+    //   정상 동작을 바꾸지 않고, 합성 규칙(동사·title/body 위치·labels flag-pair 전개)과
+    //   oracle 규칙이 어긋나는 순간 모든 호출 경로(unit spec·live wiring 재사용)에서 즉시
+    //   throw 하는 live 트립와이어가 된다 — spec 커버리지에 의존하지 않는다.
+    assertRealDataDailyStepDualLegRunReportIssueGhArgvPreservesCommandArgs(
+      argv,
+      action,
+      commandArgs,
+    );
+
     return argv;
   }
 
@@ -138,7 +158,7 @@ export function buildRealDataDailyStepDualLegRunReportIssueGhArgv(
   assertNonBlank(body, "updateArgs.body");
 
   // issueNumber 는 String(...) 으로 문자열화(argv 는 string[]).
-  return [
+  const argv = [
     "issue",
     "edit",
     String(issueNumber),
@@ -147,4 +167,16 @@ export function buildRealDataDailyStepDualLegRunReportIssueGhArgv(
     "--body",
     body,
   ];
+
+  // 🔥 self-wire drift-guard (T-0993): update argv 를 반환하기 **직전** 독립 oracle
+  //   가드를 스스로 호출해 산출 즉시 자가 검증한다. create 분기와 동형 — 한 분기만
+  //   배선하면 다른 분기 argv 는 트립와이어 미보호로 남으므로 두 반환 지점 모두 배선한다
+  //   (T-0985 collection-plan 두 return 지점 배선 mirror). 정합이면 void, drift 면 throw.
+  assertRealDataDailyStepDualLegRunReportIssueGhArgvPreservesCommandArgs(
+    argv,
+    action,
+    commandArgs,
+  );
+
+  return argv;
 }

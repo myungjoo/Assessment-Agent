@@ -16,9 +16,15 @@
 //   - 인자 분리/인젝션: argv[0] === "issue"(gh 실행 파일명 미포함), body 에 `"; rm -rf"`
 //     가 들어가도 단일 argv 원소로 유지.
 //   - R-59: argv 가 commandArgs 의 title/body 만 옮길 뿐 raw 본문을 추가하지 않음.
+//   - self-wire (T-0993): 빌더가 create/update 두 반환 지점 직전 consistency oracle 가드를
+//     스스로 호출하는지(flow spy)·drift 를 전파하는지(negative)·정상 산출을 mutate 하지
+//     않는지(무공유) 검증. consistency 모듈은 namespace 로 import 해 self-wire spy(jest.spyOn)
+//     대상으로 삼는다 — ts-jest CommonJS 로 컴파일되므로, 이 namespace 의 함수를 spyOn 하면
+//     빌더 내부 self-wire 호출이 가로채진다.
 import type { RealDataDailyStepDualLegRunReportIssueAction } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-action";
 import type { RealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
 import { buildRealDataDailyStepDualLegRunReportIssueGhArgv } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-gh-argv";
+import * as ghArgvConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-gh-argv-consistency";
 
 // 정상 명령-args fixture — create/update 양쪽 인자 묶음(T-0897 산출물 모사).
 function makeCommandArgs(
@@ -359,6 +365,249 @@ describe("buildRealDataDailyStepDualLegRunReportIssueGhArgv", () => {
         "--body",
         "오직 본문",
       ]);
+    });
+  });
+});
+
+// self-wire drift-guard 배선 검증 (T-0993) — 빌더가 create/update 두 반환 지점 직전
+// consistency oracle 가드를 스스로 호출하는지(flow spy)·drift 를 전파하는지(negative)·정상
+// 산출을 mutate 하지 않는지(무공유)를 검증한다. self-wire 가 어느 분기에서든 제거되면 flow
+// spy·negative 전파 case 가 fail = de-facto regression guard(양 분기 배선 존재 증명).
+const GUARD_NAME =
+  "assertRealDataDailyStepDualLegRunReportIssueGhArgvPreservesCommandArgs" as const;
+
+describe("buildRealDataDailyStepDualLegRunReportIssueGhArgv self-wire consistency guard (T-0993)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe("happy-path (self-wire 배선 후에도 정합 argv 정상 반환 — throw 0)", () => {
+    it("(i) create 분기 labels 0개 → self-wire 후에도 기대 벡터 byte-identical 반환", () => {
+      const args = makeCommandArgs({
+        createTitle: "제목",
+        createBody: "본문",
+        labels: [],
+      });
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(CREATE, args),
+      ).not.toThrow();
+      expect(
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(CREATE, args),
+      ).toEqual(["issue", "create", "--title", "제목", "--body", "본문"]);
+    });
+
+    it("(ii) create 분기 labels 1개 → self-wire 후에도 기대 벡터 byte-identical 반환", () => {
+      const args = makeCommandArgs({
+        createTitle: "t",
+        createBody: "b",
+        labels: ["solo"],
+      });
+      expect(
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(CREATE, args),
+      ).toEqual([
+        "issue",
+        "create",
+        "--title",
+        "t",
+        "--body",
+        "b",
+        "--label",
+        "solo",
+      ]);
+    });
+
+    it("(iii) create 분기 labels 다수 → self-wire 후에도 기대 벡터 byte-identical 반환", () => {
+      const args = makeCommandArgs({
+        createTitle: "t",
+        createBody: "b",
+        labels: ["a", "b", "c"],
+      });
+      expect(
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(CREATE, args),
+      ).toEqual([
+        "issue",
+        "create",
+        "--title",
+        "t",
+        "--body",
+        "b",
+        "--label",
+        "a",
+        "--label",
+        "b",
+        "--label",
+        "c",
+      ]);
+    });
+
+    it("(iv) update 분기 → self-wire 후에도 기대 edit 벡터 byte-identical 반환", () => {
+      const args = makeCommandArgs({
+        updateTitle: "갱신 제목",
+        updateBody: "갱신 본문",
+      });
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(updateOf(42), args),
+      ).not.toThrow();
+      expect(
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(updateOf(42), args),
+      ).toEqual([
+        "issue",
+        "edit",
+        "42",
+        "--title",
+        "갱신 제목",
+        "--body",
+        "갱신 본문",
+      ]);
+    });
+  });
+
+  describe("error-path (기존 방어 guard 가 self-wire 로 가려지지 않음)", () => {
+    it("create title 빈-공백 → 빌더 자체 assertNonBlank Error 를 던진다", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(
+          CREATE,
+          makeCommandArgs({ createTitle: "  ", createBody: "b" }),
+        ),
+      ).toThrow(/createArgs\.title/);
+    });
+
+    it("create body 빈-공백 → 빌더 자체 assertNonBlank Error 를 던진다", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(
+          CREATE,
+          makeCommandArgs({ createTitle: "t", createBody: "   " }),
+        ),
+      ).toThrow(/createArgs\.body/);
+    });
+
+    it("update issueNumber 비-양의정수 → assertPositiveIssueNumber Error 를 던진다", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(
+          updateOf(0),
+          makeCommandArgs(),
+        ),
+      ).toThrow(/양의 정수가 아닙니다/);
+    });
+
+    it("update title 빈-공백 → 빌더 자체 assertNonBlank Error 를 던진다", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(
+          updateOf(7),
+          makeCommandArgs({ updateTitle: " ", updateBody: "b" }),
+        ),
+      ).toThrow(/updateArgs\.title/);
+    });
+  });
+
+  describe("flow/branch (self-wire 호출 사실 검증 — 두 분기 각각 spy 로 배선 존재 증명)", () => {
+    it("create action → 가드가 (반환된 argv, action, commandArgs) 로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(ghArgvConsistency, GUARD_NAME);
+      const args = makeCommandArgs({ labels: ["a", "b"] });
+      const argv = buildRealDataDailyStepDualLegRunReportIssueGhArgv(
+        CREATE,
+        args,
+      );
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(argv, CREATE, args);
+    });
+
+    it("update action → 가드가 (반환된 argv, action, commandArgs) 로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(ghArgvConsistency, GUARD_NAME);
+      const args = makeCommandArgs();
+      const action = updateOf(99);
+      const argv = buildRealDataDailyStepDualLegRunReportIssueGhArgv(
+        action,
+        args,
+      );
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(argv, action, args);
+    });
+  });
+
+  describe("negative (예외 상황 분기마다 1+ — drift 전파 · 비변형)", () => {
+    it("(a) create 분기 — 가드가 RangeError throw → 빌더가 동일 RangeError 전파(silent 삼킴 0)", () => {
+      const drift = new RangeError("정합 위반: 강제 drift(테스트)");
+      jest.spyOn(ghArgvConsistency, GUARD_NAME).mockImplementation(() => {
+        throw drift;
+      });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(
+          CREATE,
+          makeCommandArgs(),
+        ),
+      ).toThrow(drift);
+    });
+
+    it("(a) update 분기 — 가드가 RangeError throw → 빌더가 동일 RangeError 전파(silent 삼킴 0)", () => {
+      const drift = new RangeError("정합 위반: update 강제 drift(테스트)");
+      jest.spyOn(ghArgvConsistency, GUARD_NAME).mockImplementation(() => {
+        throw drift;
+      });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueGhArgv(
+          updateOf(7),
+          makeCommandArgs(),
+        ),
+      ).toThrow(drift);
+    });
+
+    it("(b) self-wire 가 정상 산출을 mutate 하지 않음 — 반환 argv byte-identical, 입력·labels 무공유, 매 호출 새 배열", () => {
+      const labels = ["a", "b"];
+      const args = makeCommandArgs({
+        createTitle: "t",
+        createBody: "b",
+        labels,
+      });
+      const action = updateOf(5);
+
+      const createArgv = buildRealDataDailyStepDualLegRunReportIssueGhArgv(
+        CREATE,
+        args,
+      );
+      const updateArgv = buildRealDataDailyStepDualLegRunReportIssueGhArgv(
+        action,
+        args,
+      );
+
+      // self-wire 는 tautology(void)라 반환 argv 는 배선 이전 합성 결과와 동일해야 한다.
+      expect(createArgv).toEqual([
+        "issue",
+        "create",
+        "--title",
+        "t",
+        "--body",
+        "b",
+        "--label",
+        "a",
+        "--label",
+        "b",
+      ]);
+      expect(updateArgv).toEqual([
+        "issue",
+        "edit",
+        "5",
+        "--title",
+        args.updateArgs.title,
+        "--body",
+        args.updateArgs.body,
+      ]);
+      // 입력 action·commandArgs·중첩 labels 미변형.
+      expect(labels).toEqual(["a", "b"]);
+      expect(args.createArgs.labels).toBe(labels);
+      expect(action).toEqual({ action: "update", issueNumber: 5 });
+      // 매 호출 새 배열 무공유 — mutate 가 다음 호출에 누설되지 않음.
+      const second = buildRealDataDailyStepDualLegRunReportIssueGhArgv(
+        CREATE,
+        args,
+      );
+      expect(second).not.toBe(createArgv);
+      createArgv.push("INJECTED");
+      expect(second).not.toContain("INJECTED");
     });
   });
 });
