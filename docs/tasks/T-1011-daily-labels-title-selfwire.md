@@ -2,7 +2,11 @@
 id: T-1011
 title: buildRealDataDailyStepDualLegRunReportIssueCommandArgs 산출 직전 command-args labels·title 정합 가드(T-1010) self-wire 배선 (요약축 T-0652 mirror)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-14T22:52:00Z
+mergedAs: 29a5eaf0
+prNumber: 905
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 110
