@@ -2,7 +2,10 @@
 id: T-0980
 title: eval-chain full-chain live smoke 의 inline github 수집 요청 조립을 bounded-single GithubRequestInput 순수 helper 로 추출 + colocated R-112 spec + smoke rewire
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: daf639fe
+prNumber: 874
+completedAt: 2026-07-14T04:58:00Z
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 230
