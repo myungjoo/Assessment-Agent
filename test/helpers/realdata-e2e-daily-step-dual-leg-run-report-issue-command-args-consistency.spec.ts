@@ -7,7 +7,8 @@
 //     가드에 넣으면 throw 0(void) — 서로 다른 descriptor fixture(title/marker/body 조합).
 //     producer 를 실제 호출해 얻은 command-args round-trip(oracle↔producer 규칙 일치 증명).
 //   - error path: commandArgs 구조 결손(null·비-객체·searchQuery 부재·createArgs 부재·비-객체·
-//     updateArgs 부재·labels 비-배열) → TypeError. descriptor.title/marker 빈-공백 → Error.
+//     updateArgs 부재·비-객체·labels 비-배열·요소 비-string, create·update 의 title/body 비-string)
+//     → TypeError. descriptor.title/marker 빈-공백 → Error.
 //   - flow/branch: 재유도 분기(searchQuery·createArgs 3필드·updateArgs 2필드·labels 배열)마다
 //     정합 통과 + drift throw 를 각 분리 검증.
 //   - negative 충분 cover: searchQuery 왜곡·create·update body 불일치(멱등성 파괴)·title 왜곡·
@@ -273,6 +274,55 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
           args,
         ),
       ).toThrow(/commandArgs\.updateArgs\.body 가 string 이 아니다/);
+    });
+
+    it("createArgs.body 비-string → TypeError", () => {
+      const descriptor = makeDescriptor();
+      const base = makeArgs(descriptor);
+      const args = {
+        ...base,
+        createArgs: { ...base.createArgs, body: 7 as unknown as string },
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
+          descriptor,
+          args,
+        ),
+      ).toThrow(/commandArgs\.createArgs\.body 가 string 이 아니다/);
+    });
+
+    it("updateArgs.title 비-string → TypeError", () => {
+      const descriptor = makeDescriptor();
+      const base = makeArgs(descriptor);
+      const args = {
+        ...base,
+        updateArgs: {
+          ...base.updateArgs,
+          title: undefined as unknown as string,
+        },
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
+          descriptor,
+          args,
+        ),
+      ).toThrow(/commandArgs\.updateArgs\.title 가 string 이 아니다/);
+    });
+
+    it("updateArgs 비-객체(문자열) → TypeError", () => {
+      const descriptor = makeDescriptor();
+      const base = makeArgs(descriptor);
+      const args = {
+        ...base,
+        updateArgs:
+          "updateArgs" as unknown as RealDataDailyStepDualLegRunReportIssueCommandArgs["updateArgs"],
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
+          descriptor,
+          args,
+        ),
+      ).toThrow(/commandArgs\.updateArgs 가 객체가 아니다/);
     });
   });
 
