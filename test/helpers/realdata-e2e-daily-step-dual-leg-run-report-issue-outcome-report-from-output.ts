@@ -1,0 +1,109 @@
+// realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report-from-output.ts —
+// 실 평가 e2e daily-step dual-leg run report 이슈 `gh issue create` / `gh issue edit <n>`
+// 의 stdout + run report → e2e 실행 리포트 descriptor post-execution 단일 진입 순수
+// 컴포저 (T-1005 박제 — 요약축 T-0596
+// `buildRealDataResultIssueOutcomeReportFromOutput` 의 daily-step 축 mirror).
+//
+// 책임:
+//   - PLAN.md 109행 step ④(daily-test 결과를 dual-leg run report rolling-issue 에 박제)
+//     의 **post-실행(post-execution interpretation)** 측 build-time chain 의 단일 진입점을
+//     닫는다. daily-step 축 post-실행 측 단위 layer 는 이미 둘 다 main 에 박제됨:
+//     (a) T-0903 `parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(stdout)` 가
+//         `execFile('gh', argv)` 의 stdout(이슈 URL) → `RealDataDailyStepDualLegRunReportIssueOutcome
+//         {issueNumber, url}` 로 파싱하고,
+//     (b) T-1000 `buildRealDataDailyStepDualLegRunReportIssueOutcomeReport(outcome, report)`
+//         이 그 outcome + run report → 사람-친화 실행 리포트
+//         `RealDataDailyStepDualLegRunReportIssueOutcomeReport` 로 묶는다.
+//     그러나 live runner 가 이슈 박제 직후 받는 "create/edit stdout + run report" 묶음을
+//     실행 리포트로 바꾸려면 아직 두 helper(T-0903 → T-1000)를 caller 가 수동으로 엮어야
+//     한다. 본 컴포저가 그 2 단계를 단일 순수 함수로 합성해 daily-step 축 post-실행 단일
+//     진입점을 닫는다 — 요약축 T-0596 의 daily-step mirror.
+//
+//   요약축 대비 축-차이: 요약축 T-0596 은 두 번째 인자로 run 식별자 `RealDataResultIssueRunRef`
+//     를 받지만, daily-step 축은 별도 run ref 타입이 없고 run 식별자(gitSha·dateToken)를
+//     `RealDataDailyStepDualLegRunReport`(T-0894) 가 이미 보유한다(위임 (2) T-1000 이
+//     `(outcome, report)` 를 받는 관례와 동일). 따라서 본 컴포저의 두 번째 파라미터는
+//     `report`(타입 `RealDataDailyStepDualLegRunReport` = run report) 다 — 요약축의
+//     `(stdout, run)` 을 daily-step 관례로 치환.
+//
+// 🔥 위임 재구현 0 (URL 파싱·issueNumber 검증·run guard·summaryLine 합성 전부 위임):
+//   - 본 컴포저는 (1) T-0903 파서 → (2) T-1000 리포트 빌더만 순서대로 엮는다. URL 정규
+//     표현식·issueNumber 양수성 검증·run 식별자 guard·summaryLine 합성 로직을 일절
+//     재구현하지 않는다(위임 호출만).
+//
+// 🔥 위임 throw 전파 (자체 try/catch 0):
+//   - (1) stdout 에서 issue URL 미발견·`/pull/`·비-github 호스트·issueNumber 0/선행0/
+//         비정수 → T-0903 파서 throw 가 자체 try/catch 없이 그대로 전파(T-1000 단계 미도달).
+//   - (2) report.gitSha / report.dateToken 빈/공백 → T-1000 guard throw 전파.
+//   본 컴포저는 어느 layer 의 throw 도 삼키지 않고 그대로 위로 흘려보낸다(조용한 통과 차단).
+//
+// 🔥 self-wire·from-output-consistency 가드 배선 0 (본 slice 범위 밖 — 후속 leaf):
+//   - 본 컴포저는 위임 (2) 산출을 **바로 반환**한다. from-output-consistency 가드 신설
+//     (요약축 T-0663 계열)·그 가드의 컴포저 반환 직전 self-wire(요약축 T-0664 계열)는 본
+//     task 범위 밖이다 — bare 2 단 위임 컴포저만.
+//
+// 🔥 결정론·무공유:
+//   - 입력 외 상태(시각·난수·env) 의존 0. 동일 (stdout, report) 두 번 호출 → deep-equal
+//     결과(summaryLine byte-identical). 매 호출 새 report 객체를 반환 — 출력이 입력 / 다음
+//     호출 결과와 무공유. 입력 stdout(문자열)은 불변, 입력 report 객체는 읽기만(mutate 0).
+//
+// 🔥 raw 미저장 정합 (R-59 / REQ-059):
+//   - 출력 `RealDataDailyStepDualLegRunReportIssueOutcomeReport` 은 위임 helper 들이 산출
+//     하는 issueNumber/url/gitSha/dateToken/summaryLine 만 보유한다 — raw narrative·원본
+//     활동 본문·이슈 body 를 **구조적으로 미보유**(위임 type 에 그런 필드가 없으므로 합성
+//     불가).
+//
+// 🔥 build-time 완결 — dependency-free (cloud cron 자율 실행 가능):
+//   - 실 네트워크 호출 0, env 읽기 0, DB 접근 0, live-LLM 0, credential 0, gh 실행 0.
+//     외부 라이브러리(zod 등) 0 — 위임 함수 import 재사용만. 순수 함수.
+//
+// Out of Scope (task T-1005):
+//   - 실 gh 호출 / `execFile('gh', argv)` / 실 이슈 search·create·edit·박제(step ④ live
+//     wiring — credential gate). 본 컴포저는 (stdout, report) → 실행 리포트 descriptor 만
+//     산출. stdout 은 이미 실행된 gh 의 산출로 인자로만 받음(부수효과 0).
+//   - from-output-consistency 가드 신설·컴포저 반환 self-wire(요약축 T-0663/T-0664 계열) —
+//     별도 후속 slice. 본 컴포저는 위임 (2) 산출을 바로 반환.
+//   - URL 파싱(T-0903 위임) / issueNumber 검증(T-0903 위임) / run guard·summaryLine 합성
+//     (T-1000 위임) — 전부 위임 안에서 처리(재구현 금지).
+//   - report.gitSha / report.dateToken 의 실 도출(인자로만 받음).
+//   - production `src/` 코드 변경 — test helper 단독(위임 함수·타입 import 재사용만).
+import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
+import { buildRealDataDailyStepDualLegRunReportIssueOutcomeReport } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report";
+import type { RealDataDailyStepDualLegRunReportIssueOutcomeReport } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report";
+import { parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-output-parse";
+
+// buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput — `gh issue create` /
+// `gh issue edit <n>` 의 stdout + run report 를 e2e 실행 리포트 descriptor 로 묶는
+// **post-실행 단일 진입 순수 컴포저**.
+//
+// 합성 순서(2 단계 위임):
+//   (1) parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(stdout)(T-0903) →
+//       outcome {issueNumber, url}. stdout URL 미발견·비-github·`/pull/`·issueNumber 0/
+//       선행0/비정수 → 파서 throw 전파(이 단계에서 종료, (2) 미도달).
+//   (2) buildRealDataDailyStepDualLegRunReportIssueOutcomeReport(outcome, report)(T-1000)
+//       → outcomeReport. report.gitSha / report.dateToken 빈/공백 → 빌더 guard throw 전파.
+//
+// 분기:
+//   - 정상: (1)·(2) 모두 통과 → 위임이 반환한 outcomeReport 를 그대로 반환.
+//   - throw: (1) 파서 throw 또는 (2) 빌더 guard throw 가 자체 try/catch 없이 전파.
+//
+// 순수성·무공유:
+//   - 입력 stdout(문자열·불변) / report(읽기만, mutate 0). 반환 outcomeReport 는 T-1000
+//     빌더가 매 호출 새 객체로 산출하므로 본 컴포저도 매 호출 새 객체를 반환(무공유). 입력
+//     외 상태 의존 0(결정론) — 동일 (stdout, report) → byte-identical summaryLine.
+export function buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput(
+  stdout: string,
+  report: RealDataDailyStepDualLegRunReport,
+): RealDataDailyStepDualLegRunReportIssueOutcomeReport {
+  // (1) stdout → outcome(URL 미발견·비-github·issueNumber 비정상 → 파서 throw 전파).
+  const outcome =
+    parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput(stdout);
+
+  // (2) outcome + report → outcomeReport(report 식별자 빈/공백 → 빌더 guard throw 전파).
+  // T-1000 빌더가 매 호출 새 outcomeReport 객체를 반환한다(무공유·재구현 0).
+  const outcomeReport =
+    buildRealDataDailyStepDualLegRunReportIssueOutcomeReport(outcome, report);
+
+  // 위임 (2) 산출을 바로 반환(self-wire·consistency 가드 배선 0 — 후속 slice).
+  return outcomeReport;
+}
