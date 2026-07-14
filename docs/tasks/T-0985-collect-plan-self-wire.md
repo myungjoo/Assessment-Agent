@@ -2,8 +2,11 @@
 id: T-0985
 title: github 수집 plan 조립 helper 반환 직전 consistency drift-guard self-wire (buildRealDataGithubCollectionPlan 산출을 즉시 자가 검증)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 879
+mergedAs: 85ae5cf5
+reviewRounds: 1
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 95
 estimatedFiles: 2
@@ -62,3 +65,10 @@ PLAN.md 109행(실 github myungjoo/leemgs 공개 활동 수집 → 로컬 Ollama
 
 - 이 배선으로 collection-plan leg 도 helper(T-0806)→consistency(T-0984)→self-wire(본 task) 삼단 완결 — eval-chain 3 sub-leg 과 동형. §109 test-hardening 은 이후 다른 vein(예: gating premise leg·seed fixture consistency) 으로 이동 검토.
 - §109 잔여(변경 없음, credential/env 게이트라 별도 큐잉): (1) 실 credential 주입 하 credentialed live run 1 회(운영/env 층), (2) `deploy/daily-test.sh` step_eval 이 full-chain smoke(`realdata-e2e-eval-chain-live`)를 실 트리거하도록 재배선 + 결과 daily-test 이슈 박제.
+
+## Result (DONE — 2026-07-14T07:15Z)
+
+- 완료: PR [#879](https://github.com/myungjoo/Assessment-Agent/pull/879) squash `85ae5cf5` main 머지. reviewer round 1/7 APPROVE(0 BLOCKER/0 MAJOR/0 MINOR), 4-게이트 전부 PASS.
+- `buildRealDataGithubCollectionPlan` 두 return 지점(disabled 빈 plan · enabled entries plan) 반환 직전 `assertRealDataGithubCollectionPlanConsistent(gating, seeds, plan)` self-wire. 조립 계산 재정의 0 — value import + return 직전 self-assert 만. consistency→producer type-only 라 런타임 순환 없음.
+- spec R-112 4종(happy enabled/disabled · error-path 가드 미가림 · flow/branch spy 로 두 return 지점 (gating,seeds,plan) 호출 증명 · negative drift RangeError 전파 + 비변형) 추가. lint·build·test:cov green(382 suites / 10065 tests, threshold line≥80%/func≥80% 충족). test-only 2파일 +168/-2, src·dep 변경 0.
+- collection-plan leg 삼단 완결(helper T-0806 → consistency T-0984 → self-wire T-0985). §109 test-hardening 은 daily-report(step ④) vein(T-0986)으로 이동.
