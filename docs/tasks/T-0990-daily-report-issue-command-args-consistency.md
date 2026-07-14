@@ -2,7 +2,11 @@
 id: T-0990
 title: daily-step dual-leg run report issue 명령-args 빌더에 sibling -consistency drift-guard 신설 (buildRealDataDailyStepDualLegRunReportIssueCommandArgs 산출을 독립 oracle 재유도 대조)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-14T10:24:09Z
+mergedAs: 58d0f347
+prNumber: 884
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 280
