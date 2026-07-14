@@ -2,7 +2,10 @@
 id: T-0992
 title: daily-step dual-leg run report issue gh argv 빌더에 sibling -consistency drift-guard 신설 (buildRealDataDailyStepDualLegRunReportIssueGhArgv 산출을 action+commandArgs single-source round-trip 대조)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: d8222deb
+prNumber: 886
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 280
