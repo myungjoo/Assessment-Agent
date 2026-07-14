@@ -2,7 +2,7 @@
 id: T-0986
 title: 실 평가 e2e daily-step dual-leg run report 마크다운 렌더러(renderRealDataDailyStepDualLegRunReportMarkdown) consistency drift-guard 순수 helper + colocated R-112 spec
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 190
@@ -63,3 +63,12 @@ PLAN.md 109행(실 github myungjoo/leemgs 공개 활동 수집 → 로컬 Ollama
 - daily-report markdown self-wire slice(후속): 본 가드를 `renderRealDataDailyStepDualLegRunReportMarkdown` 반환 직전에 self-wire 해 매 렌더 자가 검증 트립와이어화(T-0985/T-0977/T-0982/T-0983 self-wire mirror). 렌더러→guard type-only import 라 런타임 순환 없음 예상(구현 시 재확인). 본 consistency 짝이 main 박제된 뒤 dep 으로 큐잉.
 - daily-report vein 잔여(consistency 미봉 sibling): `daily-step-dual-leg-run-report-issue-descriptor` / `-issue-command-args` / `-issue-gh-argv` / `-issue-gh-command-plan` 등 issue-박제 sub-helper 들도 `result-issue-*` 사촌과 달리 consistency 짝 부재 — 순차 mirror 후보(별도 큐잉).
 - §109 잔여(변경 없음, credential/env 게이트라 별도 큐잉): (1) 실 credential 주입 하 credentialed live run 1 회(운영/env 층), (2) `deploy/daily-test.sh` step_eval 이 full-chain smoke(`realdata-e2e-eval-chain-live`)를 실 트리거하도록 재배선 + 결과 daily-test 이슈 박제.
+
+---
+
+## Result (DONE — 2026-07-14)
+
+- **머지**: PR #880 squash `357c9f25`, reviewer round 1 APPROVE (0 BLOCKER/0 MAJOR/0 MINOR, 1 nit=estimatedDiff 190 vs 실제 803 skew — planner recalibration note, nit-in-PR closure 대상 아님).
+- **산출**: `test/helpers/realdata-e2e-daily-step-dual-leg-run-report-markdown-consistency.ts` (`assertRealDataDailyStepDualLegRunReportMarkdownConsistent` — 독립 oracle 재유도 + byte-identical 대조, 구조 결손 TypeError / 문자열·슬롯 drift RangeError, 렌더러 import 0, mutate 0) + colocated R-112 spec. 렌더러(T-0895) 무변경.
+- **검증**: 383 suites / 10101 tests green, 신규 helper line/branch/func/stmt 100%, global threshold(line·func ≥80%) 충족. lint·build green. PR head CI(244a4a1) green.
+- **후속**: T-0987 — 렌더러 반환 직전 self-wire (삼단 완결, T-0985 collection-plan self-wire mirror).
