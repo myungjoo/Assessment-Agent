@@ -25,7 +25,6 @@
 // 어디에도 적지 않는다 — env(resolveRealDataE2eLiveGating 의 gating)에서만 읽는다. persist
 // symbol 주입 0(in-memory 평가 산출 검증만 — DB write 0). 새 외부 dependency 0(Node 내장
 // fetch 만 — adapter/gateway default transport).
-import type { GithubActivity } from "../../src/assessment-collection/domain/activity";
 import { isContributionLevel } from "../../src/assessment-evaluation/domain/evaluation-result";
 import { EvaluationOrchestratorService } from "../../src/assessment-evaluation/evaluation-orchestrator.service";
 import { EvaluationScoringService } from "../../src/assessment-evaluation/evaluation-scoring.service";
@@ -38,6 +37,7 @@ import { LlmProvider } from "../../src/llm/llm-gateway.interface";
 import { LlmHttpGateway } from "../../src/llm/llm-http-gateway.service";
 import { LlmProviderConfigRepository } from "../../src/llm/llm-provider-config.repository";
 import { buildRealDataE2eEvalChainInput } from "../helpers/realdata-e2e-eval-chain";
+import { mapRealDataGithubEventToActivity } from "../helpers/realdata-e2e-eval-chain-activity-map";
 import { buildRealDataGithubCollectionPlan } from "../helpers/realdata-e2e-github-collection-live";
 import { resolveRealDataE2eLiveGating } from "../helpers/realdata-e2e-live-gating";
 import { buildRealDataE2eSeed } from "../helpers/realdata-e2e-seed-fixture";
@@ -52,41 +52,9 @@ const describeLive = gating.enabled ? describe : describe.skip;
 // 쓰인다(difficulty 미주입 → modelId 직접 경로). Ollama config 식별 라벨(T-0610 동형).
 const CONFIG_ID = "cfg-realdata-e2e-eval-chain-live-ollama";
 
-// mapEventToActivity — 실 github /users/{user}/events/public 응답 1 건을 도메인
-// GithubActivity 로 매핑하는 spec-local 어댑터. raw 본문(payload 전문)은 보관하지 않고
-// (R-59) typed 참조 필드만 뽑는다. author 는 결정론적 귀속을 위해 plan username 을 쓴다
-// (수집 대상 = 그 username 의 공개 활동이므로). kind 는 event type 을 3 종으로 사영.
-function mapEventToActivity(
-  username: string,
-  event: Record<string, unknown>,
-): GithubActivity {
-  const type = typeof event.type === "string" ? event.type : "";
-  const kind: GithubActivity["kind"] =
-    type === "PullRequestEvent"
-      ? "pr"
-      : type === "IssuesEvent"
-        ? "issue"
-        : "commit";
-  const repo = event.repo as { name?: unknown } | undefined;
-  return {
-    sourceType: "github",
-    externalId:
-      typeof event.id === "string" ? event.id : String(event.id ?? "unknown"),
-    instanceKey: "github.com",
-    author: username,
-    timestamp:
-      typeof event.created_at === "string"
-        ? event.created_at
-        : "1970-01-01T00:00:00Z",
-    // typed scalar 만 — raw 본문 미포함(R-59). event type 문자열 길이 등 volume 산출용.
-    metadata: { titleLength: type.length },
-    repoRef:
-      repo && typeof repo.name === "string"
-        ? repo.name
-        : `${username}/unknown-repo`,
-    kind,
-  };
-}
+// event → 도메인 GithubActivity 매핑은 순수 helper mapRealDataGithubEventToActivity
+// (T-0978, unit spec 별도 검증)로 추출됐다 — 단일 source-of-truth. live/skip 여부와 무관하게
+// CI 가 매 실행마다 이 경계를 검증한다(raw 본문 폐기 · typed 참조 필드만, R-59).
 
 describeLive(
   "Smoke(live): 실 평가 e2e full-chain — 실 github 수집 → 실 Ollama LLM 평가 round-trip",
@@ -154,7 +122,7 @@ describeLive(
       // (3) 수집 응답 → 도메인 Activity 매핑(raw 본문 폐기, typed 필드만). 공개 활동이 0 건인
       //     계정도 있을 수 있으므로 그 경우엔 chain 진입 대신 skip 판정만 확인하고 종료.
       const activities = events.map((event) =>
-        mapEventToActivity(entry.username, event),
+        mapRealDataGithubEventToActivity(entry.username, event),
       );
       const chainInput = buildRealDataE2eEvalChainInput(gating, activities);
 
