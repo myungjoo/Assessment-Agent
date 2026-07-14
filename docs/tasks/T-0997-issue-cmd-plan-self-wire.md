@@ -2,7 +2,7 @@
 id: T-0997
 title: daily-step dual-leg run report issue-gh-command-plan 종단 컴포저 반환 직전 consistency drift-guard self-wire (resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan 산출 plan 을 단일 반환 지점에서 즉시 자가 검증)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 115
