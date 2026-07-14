@@ -15,7 +15,11 @@
 //     만, entry 키 집합 고정).
 import { resolveGithubApiBaseUrl } from "../../src/github/github-request.builder";
 
+// consistency 모듈은 namespace 로 import 해 self-wire spy(jest.spyOn) 대상으로 삼는다(T-0985).
+// producer 가 이 모듈의 assertRealDataGithubCollectionPlanConsistent 를 value import 로 참조해
+// 컴파일되므로, 이 namespace 의 함수를 spyOn 하면 producer 내부 self-wire 호출이 가로채진다.
 import { buildRealDataGithubCollectionPlan } from "./realdata-e2e-github-collection-live";
+import * as collectionPlanConsistency from "./realdata-e2e-github-collection-live-consistency";
 import { resolveRealDataE2eLiveGating } from "./realdata-e2e-live-gating";
 import {
   buildRealDataE2eSeed,
@@ -364,6 +368,152 @@ describe("buildRealDataGithubCollectionPlan", () => {
           "username",
         ]);
       }
+    });
+  });
+
+  // self-wire drift-guard 배선 검증 (T-0985) — producer 가 두 return 지점(disabled 빈 plan ·
+  // enabled entries plan) 반환 직전 consistency oracle 가드를 스스로 호출해 조립 즉시 자가
+  // 검증하는지를 R-112 4종(happy/error/flow/negative)으로 봉한다.
+  describe("self-wire consistency guard (T-0985)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    describe("happy-path (self-wire 배선 후에도 정합 plan 정상 반환 — throw 0)", () => {
+      it("(enabled) 정상 gating + seed → throw 없이 정합 plan 반환", () => {
+        const gating = resolveRealDataE2eLiveGating(FULL_ENV);
+        const seeds = buildRealDataE2eSeed();
+        expect(() =>
+          buildRealDataGithubCollectionPlan(gating, seeds),
+        ).not.toThrow();
+        const plan = buildRealDataGithubCollectionPlan(gating, seeds);
+        expect(plan.enabled).toBe(true);
+        expect(plan.entries.map((e) => e.username)).toEqual([
+          "myungjoo",
+          "leemgs",
+        ]);
+      });
+
+      it("(disabled) gating 미활성 → throw 없이 빈 plan 반환", () => {
+        const gating = resolveRealDataE2eLiveGating({}); // env 전부 부재
+        expect(() =>
+          buildRealDataGithubCollectionPlan(gating, buildRealDataE2eSeed()),
+        ).not.toThrow();
+        expect(
+          buildRealDataGithubCollectionPlan(gating, buildRealDataE2eSeed()),
+        ).toEqual({ enabled: false, entries: [] });
+      });
+    });
+
+    describe("error-path (기존 방어 guard 가 self-wire 로 가려지지 않음)", () => {
+      it("gating null → producer 자체 TypeError(가드 미도달)", () => {
+        expect(() =>
+          buildRealDataGithubCollectionPlan(
+            null as unknown as ReturnType<typeof resolveRealDataE2eLiveGating>,
+            buildRealDataE2eSeed(),
+          ),
+        ).toThrow(TypeError);
+      });
+
+      it("seeds 비-배열 → producer 자체 TypeError(가드 미도달)", () => {
+        const gating = resolveRealDataE2eLiveGating(FULL_ENV);
+        expect(() =>
+          buildRealDataGithubCollectionPlan(
+            gating,
+            null as unknown as RealDataSeedDescriptor[],
+          ),
+        ).toThrow(TypeError);
+      });
+
+      it("github.com identity 부재 seed → producer 자체 throw", () => {
+        const gating = resolveRealDataE2eLiveGating(FULL_ENV);
+        const seed = {
+          person: { fullName: "x", email: "x@x.test", active: true },
+          serviceIdentities: [],
+        } as unknown as RealDataSeedDescriptor;
+        expect(() => buildRealDataGithubCollectionPlan(gating, [seed])).toThrow(
+          /github\.com serviceIdentity 가 없습니다/,
+        );
+      });
+
+      it("externalId 공백뿐 seed → producer 자체 throw", () => {
+        const gating = resolveRealDataE2eLiveGating(FULL_ENV);
+        const seed: RealDataSeedDescriptor = {
+          person: { fullName: "w", email: "w@x.test", active: true },
+          serviceIdentities: [
+            { service: "github.com", externalId: "   ", isPrimary: true },
+          ],
+        };
+        expect(() => buildRealDataGithubCollectionPlan(gating, [seed])).toThrow(
+          /공백뿐/,
+        );
+      });
+    });
+
+    describe("flow/branch (self-wire 호출 사실 검증 — spy 로 배선 존재 증명)", () => {
+      it("(a) enabled 경로 → 가드가 (gating, seeds, 반환 plan) 로 정확히 1 회 호출", () => {
+        const spy = jest.spyOn(
+          collectionPlanConsistency,
+          "assertRealDataGithubCollectionPlanConsistent",
+        );
+        const gating = resolveRealDataE2eLiveGating(FULL_ENV);
+        const seeds = buildRealDataE2eSeed();
+        const plan = buildRealDataGithubCollectionPlan(gating, seeds);
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith(gating, seeds, plan);
+      });
+
+      it("(b) disabled 경로 → 가드가 (gating, seeds, 빈 plan) 로 정확히 1 회 호출", () => {
+        const spy = jest.spyOn(
+          collectionPlanConsistency,
+          "assertRealDataGithubCollectionPlanConsistent",
+        );
+        const gating = resolveRealDataE2eLiveGating({}); // env 전부 부재
+        const seeds = buildRealDataE2eSeed();
+        const plan = buildRealDataGithubCollectionPlan(gating, seeds);
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith(gating, seeds, plan);
+        expect(plan).toEqual({ enabled: false, entries: [] });
+      });
+    });
+
+    describe("negative (예외 상황 분기마다 1+ — drift 전파 · 비변형)", () => {
+      it("(a) 가드가 drift 감지해 RangeError throw → producer 가 동일 RangeError 전파(silent 삼킴 0)", () => {
+        const drift = new RangeError("정합 위반: 강제 drift(테스트)");
+        jest
+          .spyOn(
+            collectionPlanConsistency,
+            "assertRealDataGithubCollectionPlanConsistent",
+          )
+          .mockImplementation(() => {
+            throw drift;
+          });
+
+        const gating = resolveRealDataE2eLiveGating(FULL_ENV);
+        expect(() =>
+          buildRealDataGithubCollectionPlan(gating, buildRealDataE2eSeed()),
+        ).toThrow(drift);
+      });
+
+      it("(b) self-wire 가 정상 산출을 mutate 하지 않음 — 반환은 새 객체 + 새 배열, 입력 gating/seeds 미변형", () => {
+        const gating = resolveRealDataE2eLiveGating(FULL_ENV);
+        const seeds = buildRealDataE2eSeed();
+        const seedSnapshot = JSON.stringify(seeds);
+        const gatingSnapshot = JSON.stringify(gating);
+
+        const a = buildRealDataGithubCollectionPlan(gating, seeds);
+        const b = buildRealDataGithubCollectionPlan(gating, seeds);
+
+        // 입력 gating/seeds 미변형.
+        expect(JSON.stringify(seeds)).toBe(seedSnapshot);
+        expect(JSON.stringify(gating)).toBe(gatingSnapshot);
+        // 반환은 매 호출 새 객체 + 새 entries 배열(공유 mutable 노출 0).
+        expect(a).toEqual(b);
+        expect(a).not.toBe(b);
+        expect(a.entries).not.toBe(b.entries);
+      });
     });
   });
 });

@@ -31,6 +31,7 @@
 //   `RealDataSeedDescriptor` 를 전부 read-only import 로 재사용한다.
 import { resolveGithubApiBaseUrl } from "../../src/github/github-request.builder";
 
+import { assertRealDataGithubCollectionPlanConsistent } from "./realdata-e2e-github-collection-live-consistency";
 import type { RealDataE2eLiveGating } from "./realdata-e2e-live-gating";
 import type { RealDataSeedDescriptor } from "./realdata-e2e-seed-fixture";
 
@@ -108,7 +109,15 @@ export function buildRealDataGithubCollectionPlan(
 
   // gating disabled(공개 CI 기본) → 빈 plan. seed 를 읽지 않고 실 네트워크 진입도 없다.
   if (gating.enabled !== true) {
-    return { enabled: false, entries: [] };
+    const plan: RealDataE2eGithubCollectionPlan = {
+      enabled: false,
+      entries: [],
+    };
+    // 🔥 self-wire drift-guard (T-0985): 빈 plan 반환 직전에도 독립 oracle 가드로 자가 검증.
+    //   정합이면 tautology(항상 void)라 정상 동작 무변경, enabled 반영 규칙이 drift(예: 빈
+    //   plan 인데 entries 를 채움)하면 이 지점에서 즉시 throw. throw 는 삼키지 않고 전파한다.
+    assertRealDataGithubCollectionPlanConsistent(gating, seeds, plan);
+    return plan;
   }
 
   // Authorization 헤더 존재 여부 — gating.githubPat(env 출처 평문) 의 *존재* 만 본다.
@@ -130,7 +139,14 @@ export function buildRealDataGithubCollectionPlan(
     };
   });
 
-  return { enabled: true, entries };
+  const plan: RealDataE2eGithubCollectionPlan = { enabled: true, entries };
+  // 🔥 self-wire drift-guard (T-0985): entries plan 반환 직전 독립 oracle 가드를 스스로 호출해
+  //   매 조립을 즉시 자가 검증한다. 정합 산출이면 tautology(항상 void)라 정상 동작을 바꾸지
+  //   않고, seed→entry 매핑 · primary-우선 username · host/apiBaseUrl/path/hasAuthorizationHeader
+  //   슬롯 규칙과 oracle 규칙이 어긋나는 순간(drift 도입) 모든 호출 경로(unit spec · live smoke
+  //   재사용)에서 즉시 throw 하는 live 트립와이어가 된다 — spec 커버리지에 의존하지 않는다.
+  assertRealDataGithubCollectionPlanConsistent(gating, seeds, plan);
+  return plan;
 }
 
 // extractGithubUsername — seed descriptor 1 개에서 실 수집 대상 github.com username 을
