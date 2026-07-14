@@ -2,7 +2,10 @@
 id: T-0982
 title: eval-chain activity-map 매핑 helper 반환 직전 consistency drift-guard self-wire (mapRealDataGithubEventToActivity 산출을 즉시 자가 검증)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 876
+completedAt: 2026-07-14T05:42:00Z
+mergeSquash: a5804a2d
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 85
