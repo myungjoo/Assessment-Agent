@@ -35,20 +35,23 @@
 //   - 실 네트워크 호출 0, env 읽기 0, DB 접근 0, live-LLM 0, credential 0, gh 실행 0.
 //     외부 라이브러리(zod 등) 0 — 내장 수동 검증만. 순수 함수.
 //
-// 🔥 self-wire (T-1002 — 반환 직전 summaryLine 정합 self-assert 배선):
-//   - consistency 가드(summary-line-consistency T-1001)가 main 에 박제된 뒤, 본 producer 의
-//     단일 반환 지점 직전에 그 가드를 self-assert 로 배선한다(요약축 T-0702 mirror). 이로써
-//     어떤 경로로 producer 를 호출하든 summaryLine 합성 회귀(토큰 순서·구분자·접두 drift,
-//     구성 4 필드↔summaryLine 어긋남)로 손상된 report 가 step ④ 박제/로그 emit wiring 으로
-//     새기 전 build-time 에 fail-fast throw 로 차단된다. 가드는 read-only(report mutate 0)이며
-//     정상 산출물에는 void 반환 — 관측 불가능하게 동일한 report 를 그대로 반환한다. 기존 입력
-//     guard(assertNonBlank/assertPositiveIssueNumber)는 그대로 유지한다.
-//   - output-consistency 가드(요약축 T-0726 analog)는 daily-step 축에 아직 존재하지 않으므로
-//     그 두 번째 self-assert 는 미배선(별도 후속 slice — 가드 신설 → self-wire 순).
+// 🔥 self-wire (T-1002 + T-1004 — 반환 직전 두 값-정합 self-assert 배선):
+//   - (1) summary-line-consistency 가드(T-1001)가 main 에 박제된 뒤, 본 producer 의 단일 반환
+//     지점 직전에 그 가드를 self-assert 로 배선한다(T-1002, 요약축 T-0702 mirror). 이로써 어떤
+//     경로로 producer 를 호출하든 summaryLine 합성 회귀(토큰 순서·구분자·접두 drift, 구성 4
+//     필드↔summaryLine 어긋남)로 손상된 report 가 build-time 에 fail-fast throw 로 차단된다.
+//   - (2) output-consistency 가드(T-1003)를 그 다음·반환 직전에 두 번째 self-assert 로 배선한다
+//     (T-1004, 요약축 T-0726 mirror). 산출 5 필드 전체를 입력 `(outcome, report)` 으로부터
+//     컴포저 재호출 없이 독립 재유도한 expected 와 deep-equal 대조한다 — summary-line 가드가
+//     놓치는 issueNumber/url/gitSha/dateToken **전파** drift·url trim 정규화 누락을 잡는다.
+//   - 두 가드 모두 read-only(report/outcome/report mutate 0)이며 정상 산출물에는 void 반환 —
+//     관측 불가능하게 동일한 outcomeReport 를 그대로 반환한다. 기존 입력 guard
+//     (assertNonBlank/assertPositiveIssueNumber)는 그대로 유지한다. 본 producer 로 outcome-report
+//     leg 는 요약축과 완전 동형(producer → 두 가드 self-wire)으로 닫힌다.
 //
-// Out of Scope (task T-1002):
-//   - output-consistency 가드(요약축 T-0726 대응) 신설·self-wire 0 — daily-step 대응
-//     가드 부재, 별도 후속 slice.
+// Out of Scope (task T-1004):
+//   - 가드 본체(output-consistency T-1003 / summary-line T-1001) 로직·시그니처·에러 메시지
+//     수정 0 — 본 producer 는 두 가드로의 **배선**만.
 //   - outcome-report-from-output(요약축 T-0589 계열) mirror 0 — 본 producer 에 의존하는
 //     상위 조립, 별도 후속 leaf.
 //   - 실 gh 호출 / `execFile('gh', argv)` / stdout 파싱(T-0903 위임) 재현 0 — 본 producer 는
@@ -56,6 +59,12 @@
 //   - raw 평가 narrative/원본 활동 보유·저장 — REQ-059 정합으로 issueNumber/url/run 식별자만.
 //   - production `src/` 코드 변경 — test helper 단독(타입 read-only `import type` 만).
 import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
+// output-consistency 값-정합 가드(T-1003)를 반환 직전 두 번째 self-assert 로 배선하기 위한
+// value import(요약축 T-0726 mirror). 가드는 세 입력 타입(outcome-report / outcome /
+// runReport)을 전부 `import type` 로만 참조하고 본 producer 의 value 를 import 하지 않으므로
+// (oracle 독립성), 본 producer 가 가드를 top-level value import 해도 런타임 순환 의존이 생기지
+// 않는다(lazy require 불요).
+import { assertRealDataDailyStepDualLegRunReportIssueOutcomeReportOutputConsistentWithInput } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report-output-consistency";
 // summaryLine 정합 가드(T-1001)를 반환 직전 self-assert 로 배선하기 위한 value import
 // (요약축 T-0702 mirror). 가드는 report 타입만 `import type` 로 참조하고 본 producer 의
 // value 를 import 하지 않으므로(oracle 독립성), 본 producer 가 가드를 value import 해도
@@ -115,9 +124,10 @@ function assertPositiveIssueNumber(value: number): void {
 //   - 입력 outcome / report(읽기만, mutate 0). 매 호출이 새 report 객체를 반환 — 출력이
 //     입력 / 다음 호출 결과와 무공유. 입력 외 상태 의존 0(결정론).
 //
-// self-wire(T-1002) — 반환 직전 summaryLine 정합 가드(T-1001)로 self-assert 해 합성 회귀로
-// 손상된 report 가 새기 전 fail-fast 로 차단한다. output-consistency 가드(요약축 T-0726 analog)는
-// daily-step 축 미존재라 그 두 번째 self-assert 는 미배선(후속 slice).
+// self-wire(T-1002 + T-1004) — 반환 직전 (1) summaryLine 정합 가드(T-1001) + (2)
+// output-consistency 값-정합 가드(T-1003)로 self-assert 해, 합성 회귀·전파/정규화 drift 로
+// 손상된 report 가 새기 전 fail-fast 로 차단한다. 두 가드 공존(summaryLine 내부 정합 + 5 필드
+// 전체 값 정합).
 export function buildRealDataDailyStepDualLegRunReportIssueOutcomeReport(
   outcome: RealDataDailyStepDualLegRunReportIssueOutcome,
   report: RealDataDailyStepDualLegRunReport,
@@ -158,10 +168,26 @@ export function buildRealDataDailyStepDualLegRunReportIssueOutcomeReport(
   // report 가 step ④ 박제/로그 emit wiring 으로 새기 전 fail-fast throw 하도록 닫는다. 가드는
   // read-only(report mutate 0)이며 정상 산출물에는 void 반환 — 관측 불가능하게 동일한
   // outcomeReport 를 그대로 반환한다. 기존 입력 guard(assertNonBlank/assertPositiveIssueNumber)는
-  // 위 호출 그대로 유지. output-consistency 가드(요약축 T-0726 analog)는 daily-step 축 미존재라
-  // 두 번째 self-assert 는 미배선(후속 slice).
+  // 위 호출 그대로 유지.
   assertRealDataDailyStepDualLegRunReportIssueOutcomeReportSummaryLineConsistent(
     outcomeReport,
+  );
+
+  // self-wire(T-1004) — 산출 5 필드(`{issueNumber, url, gitSha, dateToken, summaryLine}`)
+  // 전체가 입력 `(outcome, report)` 으로부터 컴포저 재호출 없이 독립 재유도한 expected 와
+  // deep-equal 정합한지 반환 직전 두 번째로 검증한다(요약축 T-0726 mirror). 위 summary-line
+  // 가드는 summaryLine 단일 필드↔구성 4 필드 사이의 **내부 정합**만 보므로 issueNumber/url/
+  // gitSha/dateToken **전파** drift·url trim 정규화 누락은 놓칠 수 있다 — 본 가드가 그 gap 을
+  // 닫아, 전파·정규화 drift 로 손상된 report 가 step ④ 박제/로그 emit wiring 으로 새기 전
+  // fail-fast throw(값 정합 위반 RangeError / 구조 결손 TypeError) 하도록 한다. 가드는
+  // read-only(report/outcome/report mutate 0)이며 정상 산출물에는 void 반환 — 관측 불가능하게
+  // 동일한 outcomeReport 를 그대로 반환한다. summary-line 가드와 공존(두 가드 반환 직전 호출).
+  // 가드 인자 순서는 시그니처 `(report, outcome, runReport)` 에 대응 — 첫 인자=산출 outcomeReport,
+  // 셋째 인자=producer 의 `report` 파라미터(=runReport).
+  assertRealDataDailyStepDualLegRunReportIssueOutcomeReportOutputConsistentWithInput(
+    outcomeReport,
+    outcome,
+    report,
   );
 
   return outcomeReport;
