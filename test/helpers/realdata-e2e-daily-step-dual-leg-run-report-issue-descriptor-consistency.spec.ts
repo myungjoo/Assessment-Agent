@@ -139,6 +139,17 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent", () 
         ),
       ).not.toThrow();
     });
+
+    it("빈 문자열 label 도 정합 쌍이면 void (contextPrefix 빈-label 분기)", () => {
+      const report = makeReport();
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+          report,
+          makeDescriptor(report),
+          "",
+        ),
+      ).not.toThrow();
+    });
   });
 
   describe("error path — report 식별자 빈-공백 → producer 동형 Error", () => {
