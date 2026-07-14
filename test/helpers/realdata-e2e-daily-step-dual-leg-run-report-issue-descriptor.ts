@@ -67,7 +67,17 @@
 //   - Person 별 / 기간 별 group-by 이슈 분해 / 마크다운 외 포맷(plain text/HTML/JSON) 본문.
 //   - 외부 템플릿/해시 라이브러리 도입 — 내장 string 합성만.
 //   - production `src/` 코드 변경 — test helper 단독(타입·렌더 함수 import 재사용만).
+//
+// 🔥 self-wire drift-guard (T-0989): T-0988 이 봉한 독립 oracle 가드
+//   `assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent`
+//   (`-issue-descriptor-consistency.ts`)를 빌더 반환 직전 스스로 호출해 매 산출
+//   descriptor 를 즉시 자가 검증한다. consistency 모듈은
+//   `RealDataDailyStepDualLegRunReport`·`RealDataDailyStepDualLegRunReportIssueDescriptor`
+//   타입만 `import type` 로 참조하고 본 빌더를 value import 하지 않으므로(consistency →
+//   issue-descriptor value 엣지 0) 런타임 순환 의존이 없다(issue-descriptor →
+//   consistency 만 런타임 엣지). T-0982/T-0983/T-0985/T-0987 self-wire mirror.
 import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
+import { assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-consistency";
 import { renderRealDataDailyStepDualLegRunReportMarkdown } from "./realdata-e2e-daily-step-dual-leg-run-report-markdown";
 
 // 이슈 제목 prefix — 결정론적 고정 문자열. run 식별 token 이 뒤에 붙는다.
@@ -144,5 +154,17 @@ export function buildRealDataDailyStepDualLegRunReportIssueDescriptor(
     renderRealDataDailyStepDualLegRunReportMarkdown(report),
   ].join("\n");
 
-  return { title, marker, body };
+  const descriptor = { title, marker, body };
+
+  // 🔥 self-wire drift-guard (T-0989): descriptor 를 반환하기 **직전** 독립 oracle 가드를
+  //   스스로 호출해 산출 즉시 자가 검증한다. 정합 산출이면 tautology(항상 void)라 정상
+  //   동작을 바꾸지 않고, 조립 규칙(prefix 상수·runToken 결합·title/marker 합성·body 2블록
+  //   결합)과 oracle 규칙이 어긋나는 순간 모든 호출 경로(unit spec·이슈 박제 재사용)에서
+  //   즉시 throw 하는 live 트립와이어가 된다 — spec 커버리지에 의존하지 않는다.
+  assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+    report,
+    descriptor,
+  );
+
+  return descriptor;
 }

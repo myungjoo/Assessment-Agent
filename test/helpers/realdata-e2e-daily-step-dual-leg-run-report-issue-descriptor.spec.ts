@@ -16,11 +16,17 @@
 //   - 결정론: 동일 report 2 회 호출 → byte-identical descriptor + 매번 새 객체.
 //   - 무공유/순수성: 빌드 후 입력 report / eval / collect 객체 deep-equal 불변.
 //   - R-59: descriptor 가 narrative 류 raw 본문 키를 담지 않음(렌더 입력 자체에 부재).
+//   - self-wire (T-0989): 빌더가 반환 직전 consistency oracle 가드를 스스로 호출하는지
+//     R-112 4종(happy/error/flow/negative)으로 봉한다.
 import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
 import {
   buildRealDataDailyStepDualLegRunReportIssueDescriptor,
   type RealDataDailyStepDualLegRunReportIssueDescriptor,
 } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
+// consistency 모듈은 namespace 로 import 해 self-wire spy(jest.spyOn) 대상으로 삼는다.
+// ts-jest CommonJS 트랜스파일에서 빌더의 named import 는 이 모듈 객체 프로퍼티 접근으로
+// 컴파일되므로, 이 namespace 의 함수를 spyOn 하면 빌더 내부 self-wire 호출이 가로채진다.
+import * as issueDescriptorConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-consistency";
 import { renderRealDataDailyStepDualLegRunReportMarkdown } from "./realdata-e2e-daily-step-dual-leg-run-report-markdown";
 
 // fixture 빌더 — leg status / overallStatus / run 식별자를 명시적으로 받아 결정론적
@@ -286,5 +292,198 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor", () => {
       buildRealDataDailyStepDualLegRunReportIssueDescriptor(HAPPY_REPORT);
 
     expect(Object.keys(descriptor).sort()).toEqual(["body", "marker", "title"]);
+  });
+});
+
+// self-wire drift-guard 배선 검증 (T-0989) — 빌더가 반환 직전 consistency oracle 가드
+// `assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent`(T-0988)를 스스로
+// 호출해 산출 descriptor 를 즉시 자가 검증하는지를 R-112 4종(happy/error/flow/negative)으로
+// 봉한다. self-wire 가 제거되면 flow spy·negative 전파 case 가 fail = de-facto regression guard.
+describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire consistency guard (T-0989)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe("happy-path (self-wire 배선 후에도 정합 descriptor 정상 반환 — throw 0)", () => {
+    it("(i) all-pass(eval pass & collect pass) → throw 없이 정합 descriptor 반환", () => {
+      const report = makeReport({
+        evalStatus: "pass",
+        collectStatus: "pass",
+        overallStatus: "all-pass",
+      });
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report),
+      ).not.toThrow();
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+      expect(descriptor.body).toContain("- overall status: all-pass");
+    });
+
+    it("(ii) some-fail(eval fail & collect pass) → throw 없이 정합 descriptor 반환", () => {
+      const report = makeReport({
+        evalStatus: "fail",
+        collectStatus: "pass",
+        overallStatus: "some-fail",
+      });
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report),
+      ).not.toThrow();
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+      expect(descriptor.body).toContain("| eval | run | fail |");
+    });
+
+    it("(iii) all-skip(두 leg skip) → throw 없이 정합 descriptor 반환", () => {
+      const report = makeReport({
+        evalAction: "skip",
+        evalStatus: "skip",
+        collectAction: "skip",
+        collectStatus: "skip",
+        overallStatus: "all-skip",
+      });
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report),
+      ).not.toThrow();
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+      expect(descriptor.body).toContain("- overall status: all-skip");
+    });
+
+    it("(iv) 동일 run 이면 leg status/overallStatus 가 달라도 self-wire 후에도 title/marker 동일(멱등)", () => {
+      const a = buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+        makeReport({ overallStatus: "all-pass" }),
+      );
+      const b = buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+        makeReport({
+          evalStatus: "fail",
+          collectStatus: "skip",
+          collectAction: "skip",
+          overallStatus: "some-fail",
+        }),
+      );
+      expect(a.title).toBe(b.title);
+      expect(a.marker).toBe(b.marker);
+    });
+  });
+
+  describe("error-path (기존 방어 guard 가 self-wire 로 가려지지 않음)", () => {
+    it("gitSha 빈-공백 → 빌더 자체 assertNonBlank 의 Error 를 던진다", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          makeReport({ gitSha: "  " }),
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+    });
+
+    it("dateToken 빈-공백 → 빌더 자체 assertNonBlank 의 Error 를 던진다", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          makeReport({ dateToken: "" }),
+        ),
+      ).toThrow(/dateToken 가 비어있습니다/);
+    });
+  });
+
+  describe("flow/branch (self-wire 호출 사실 검증 — spy 로 배선 존재 증명)", () => {
+    it("all-pass 경로 → 가드가 (report, 반환된 descriptor) 로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(
+        issueDescriptorConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent",
+      );
+      const report = makeReport({ overallStatus: "all-pass" });
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(report, descriptor);
+    });
+
+    it("all-skip 경로(다른 per-leg status·overallStatus) → 가드가 반환 descriptor 인자로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(
+        issueDescriptorConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent",
+      );
+      const report = makeReport({
+        evalAction: "skip",
+        evalStatus: "skip",
+        collectAction: "skip",
+        collectStatus: "skip",
+        overallStatus: "all-skip",
+      });
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(report, descriptor);
+      expect(descriptor.body).toContain("- overall status: all-skip");
+    });
+  });
+
+  describe("negative (예외 상황 분기마다 1+ — drift 전파 · 비변형)", () => {
+    it("(a) 가드가 drift 감지해 RangeError throw → 빌더가 동일 RangeError 전파(silent 삼킴 0)", () => {
+      const drift = new RangeError("정합 위반: 강제 drift(테스트)");
+      jest
+        .spyOn(
+          issueDescriptorConsistency,
+          "assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent",
+        )
+        .mockImplementation(() => {
+          throw drift;
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          makeReport({ overallStatus: "all-pass" }),
+        ),
+      ).toThrow(drift);
+    });
+
+    it("(b) 가드가 TypeError throw → 빌더가 동일 TypeError 전파(구조 결손도 삼키지 않음)", () => {
+      const structural = new TypeError("descriptor 구조 결손(테스트)");
+      jest
+        .spyOn(
+          issueDescriptorConsistency,
+          "assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent",
+        )
+        .mockImplementation(() => {
+          throw structural;
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          makeReport({ overallStatus: "all-pass" }),
+        ),
+      ).toThrow(structural);
+    });
+
+    it("(c) self-wire 가 정상 산출을 mutate 하지 않음 — 반환 descriptor 가 기대 문자열과 byte-identical, 입력 report 미변형", () => {
+      const report = makeReport({
+        evalStatus: "fail",
+        collectStatus: "skip",
+        collectAction: "skip",
+        overallStatus: "some-fail",
+      });
+      const before = JSON.parse(JSON.stringify(report));
+
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+
+      // self-wire 는 tautology(void)라 반환 descriptor 는 배선 이전 조립 결과와 동일해야 한다.
+      const token = `${report.dateToken}@${report.gitSha}`;
+      const expectedMarker = `<!-- realdata-e2e-daily-step-dual-leg-run-report-issue: ${token} -->`;
+      expect(descriptor.title).toBe(
+        `실 평가 e2e daily-step dual-leg run report ${token}`,
+      );
+      expect(descriptor.marker).toBe(expectedMarker);
+      expect(descriptor.body).toBe(
+        [
+          expectedMarker,
+          "",
+          renderRealDataDailyStepDualLegRunReportMarkdown(report),
+        ].join("\n"),
+      );
+      // 입력 report 및 하위 객체 미변형.
+      expect(report).toEqual(before);
+    });
   });
 });
