@@ -2,7 +2,10 @@
 id: T-1002
 title: daily-step dual-leg run report issue outcome-report 반환 직전 summary-line consistency drift-guard self-wire (buildRealDataDailyStepDualLegRunReportIssueOutcomeReport 산출 report 를 단일 반환 지점에서 즉시 자가 검증 — 요약축 T-0702 mirror)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 26a35c96
+prNumber: 896
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059]
 estimatedDiff: 120
