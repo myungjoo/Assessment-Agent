@@ -35,7 +35,15 @@
 //   - EvaluationResult[] 집계·렌더(T-0580/581) / 단일 issue-post outcome-report(T-0590) 수정.
 //   - 마크다운 외 포맷(plain text / HTML / JSON) 출력.
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
+//
+// 🔥 self-wire drift-guard (T-0987): T-0986 이 봉한 독립 oracle 가드
+//   `assertRealDataDailyStepDualLegRunReportMarkdownConsistent`(`-markdown-consistency.ts`)를
+//   렌더러 반환 직전 스스로 호출해 매 산출 마크다운을 즉시 자가 검증한다. consistency 모듈은
+//   `RealDataDailyStepDualLegRunReport` 타입만 `import type` 로 참조하고 본 렌더러를 value
+//   import 하지 않으므로 런타임 순환 의존이 없다(markdown → consistency 만 런타임 엣지).
+//   T-0982/T-0983/T-0985 self-wire mirror.
 import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
+import { assertRealDataDailyStepDualLegRunReportMarkdownConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-markdown-consistency";
 
 // 빈/공백-only 식별자 guard — mislabel 된 raw descriptor(비식별 리포트)를 렌더 시점에
 // 재확인해 이슈 본문으로 새기 전 명시적 throw(조용한 통과 차단). T-0894 컴포저의
@@ -100,6 +108,14 @@ export function renderRealDataDailyStepDualLegRunReportMarkdown(
     "",
     `- summary: ${report.summaryLine}`,
   ].join("\n");
+
+  // 🔥 self-wire drift-guard (T-0987): 마크다운을 반환하기 **직전** 독립 oracle 가드를
+  //   스스로 호출해 산출 즉시 자가 검증한다. 정합 산출이면 tautology(항상 void)라 정상
+  //   동작을 바꾸지 않고, 헤더 문구·run 식별자 3행·overallStatus·eval→collect leg 표 행·
+  //   표 헤더/구분선·summary 규칙과 oracle 규칙이 어긋나는 순간(drift 도입) 모든 호출 경로
+  //   (unit spec · 이슈 박제 재사용)에서 즉시 throw 하는 live 트립와이어가 된다 — spec
+  //   커버리지에 의존하지 않는다. throw 는 삼키지 않고 전파한다(복구는 호출처 책임).
+  assertRealDataDailyStepDualLegRunReportMarkdownConsistent(report, markdown);
 
   return markdown;
 }
