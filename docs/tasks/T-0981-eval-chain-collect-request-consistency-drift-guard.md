@@ -2,7 +2,10 @@
 id: T-0981
 title: eval-chain 수집 요청 조립을 독립 oracle 재유도로 대조하는 consistency drift-guard 순수 helper + colocated R-112 spec 추가
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: c95e9f45
+prNumber: 875
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 240
