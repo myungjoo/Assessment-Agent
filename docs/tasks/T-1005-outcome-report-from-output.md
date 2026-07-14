@@ -2,7 +2,7 @@
 id: T-1005
 title: daily-step dual-leg run report issue outcome-report from-output 컴포저 신설 (buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput — gh create/edit stdout + run report → 실행 리포트, output-parse → outcome-report 2단 위임 순수 합성, 요약축 T-0596 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 340
