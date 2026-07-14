@@ -2,7 +2,11 @@
 id: T-1010
 title: daily-step dual-leg run report issue command-args labels·title 정합 순수 가드 신설 (assertRealDataDailyStepDualLegRunReportIssueCommandArgsLabelsTitleConsistent — createArgs/updateArgs title byte-identical descriptor.title + createArgs.labels 고정-상수 exact match + labels 무공유 불변식, 요약축 T-0651 mirror)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 8de6528b
+prNumber: 904
+reviewRounds: 1
+completedAt: 2026-07-14T22:10Z
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 740
