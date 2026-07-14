@@ -2,7 +2,10 @@
 id: T-0975
 title: 실 평가 e2e full-chain leg — 실 github 수집(myungjoo/leemgs) → 실 Ollama LLM 평가 1 회 round-trip env-gated live smoke (PLAN 109행 두 leg 합류)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 48b72059
+prNumber: 869
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-013, REQ-030, REQ-059]
 estimatedDiff: 270
