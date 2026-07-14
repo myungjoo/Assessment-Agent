@@ -2,7 +2,7 @@
 id: T-0973
 title: deploy/local-llm-example/test-llm.ps1 OpenAI 호환 스모크 스크립트 내부 계약(dot-source _common.ps1·config-sourced model/apiBase(하드코딩 아님)·서버 기동 실패 throw 분기·/v1/chat/completions wire 포맷·Bearer 헤더·UTF-8 body 바이트·응답 choices[0].message.content 소비·성공/실패 exit 분기) 정적 smoke
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061, REQ-062]
 estimatedDiff: 470
