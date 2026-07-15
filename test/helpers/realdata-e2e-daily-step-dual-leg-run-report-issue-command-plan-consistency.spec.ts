@@ -344,6 +344,39 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithS
       ).toThrow(/타입: array/);
     });
 
+    it("descriptor 비-object(primitive 문자열) → TypeError(string 라벨)", () => {
+      // primitive(문자열)는 null/array 어느 쪽도 아니므로 describe() 가 typeof 로
+      // 라벨을 뽑는 분기(primitive fallthrough)를 태운다 — null/array 케이스와 구분되는
+      // 별개의 R-112 negative case(원시값 != object).
+      const plan = makePlan();
+      const corrupted = {
+        ...plan,
+        descriptor: "not-an-object",
+      } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.descriptor 가 객체가 아니다\(타입: string\)/);
+    });
+
+    it("commandArgs 비-object(primitive 숫자) → TypeError(number 라벨)", () => {
+      // primitive(숫자) commandArgs 도 describe() 의 typeof fallthrough 를 태운다 —
+      // descriptor 는 object 이나 commandArgs 만 원시값이라 두 번째 구조 분기에서 throw.
+      const plan = makePlan();
+      const corrupted = {
+        ...plan,
+        commandArgs: 42,
+      } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.commandArgs 가 객체가 아니다\(타입: number\)/);
+    });
+
     it("commandArgs 비-object(배열) → TypeError", () => {
       const plan = makePlan();
       const corrupted = {
