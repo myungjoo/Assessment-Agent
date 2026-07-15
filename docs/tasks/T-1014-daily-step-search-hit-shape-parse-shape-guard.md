@@ -2,7 +2,7 @@
 id: T-1014
 title: daily-step dual-leg run report issue search 파싱 산출 hit 의 own 키 집합↔parse-shape 키 set-equality 정합 순수 가드 신설 (assertRealDataDailyStepDualLegRunReportIssueSearchHitShapeMatchesParseShapeKeys — 파서 produced-hit 키가 PARSE_SHAPE_KEYS 와 집합-동일 불변식, 요약축 T-0659 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 690
@@ -74,3 +74,10 @@ issue-still-relevant pre-check(origin/main grep): daily-step helpers 에 `Search
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가. 본 task 닫히면 daily-step search seam 의 파싱 산출 hit 키 집합↔parse-shape 키 정합 불변식이 순수 가드로 박힌다 — 요약축 T-0659 mirror. 이로써 daily-step search seam 은 request-side(T-1012/T-1013 json-fields)·consumer-side(본 task hit-shape) 양끝 정합 가드가 모두 갖춰져 요약축과 동형화된다.) 예상 후속 ①: 본 가드를 `parseRealDataDailyStepDualLegRunReportIssueSearchOutput` 산출 직전 self-wire 배선(요약축 T-0659 self-wire mirror). ②: §109 잔여 미미러 seam(publish-plan) mirror. ③: §109 잔여 credential/env 게이트(실 credentialed live run 1회, `deploy/daily-test.sh` step ④ 재배선)는 별도 큐잉.
+
+## Result
+
+- **Status: DONE** (2026-07-15T00:22:47.000Z) — PR [#908](https://github.com/myungjoo/Assessment-Agent/pull/908) squash-merged (82617c3e), branch deleted.
+- 순수 가드 `assertRealDataDailyStepDualLegRunReportIssueSearchHitShapeMatchesParseShapeKeys` + parse-shape 상수 re-export 신설(요약축 T-0659 daily-step mirror). 파서 산출 hit own 키 집합↔parse-shape 키 set-equality fail-fast(구조=TypeError/값=RangeError).
+- test-only 2파일(+728 LOC), `src/`·`package.json`·CI·새 dep 0. 398 suite/10744 test green, coverage(line·func ≥80%) 무회귀.
+- reviewer round1 APPROVE(0 BLOCKER/0 MAJOR/0 MINOR), 4-게이트 PASS(reviewer comment external Round 1/7, CI run 29378494484 success). fineGrainedConcurrency ON(stage5b) claim-pickup fire, dup-PR 0.
