@@ -65,6 +65,20 @@
 //   - 외부 라이브러리(zod 등) 도입 — 새 dependency 0, 내장 `JSON.parse` + 수동 검증만.
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
 import type { RealDataDailyStepDualLegRunReportIssueSearchHit } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-action";
+// 정규화한 hit 의 own 키 집합이 선언된 parse-shape 키 집합과 set-equal 인지 검증하는 가드
+// (T-1014 신설)를 producer 산출 경로에 self-wire 한다(T-1015). 정규화한 `{number, title,
+// body}` hit 을 반환하기 직전에 per-hit self-assert 호출 — 파서가 선언 parse-shape 와 어긋난
+// 키 집합의 hit 을 산출하면 손상 hit 을 caller(live wiring, `execFile('gh', searchArgv)` →
+// 소비자)에 반환하기 전에 fail-fast throw(구조 결손=TypeError / set 불일치=RangeError). 가드
+// 본문·상수는 변경 0(T-1012/T-1014 산출물 그대로 import 재사용). 상수
+// `REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_PARSE_SHAPE_KEYS` 는 가드 모듈이
+// single-source(json-fields)에서 re-export 한 것을 그대로 사용한다. 가드가 hit type 을
+// type-only import 로만 가져와 컴포저 value 를 import 하지 않으므로(value import 0), 컴포저가
+// 본 가드를 top-level value import 해도 순환 의존이 생기지 않는다(요약축 T-0660 mirror).
+import {
+  assertRealDataDailyStepDualLegRunReportIssueSearchHitShapeMatchesParseShapeKeys,
+  REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
+} from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-hit-shape";
 // 산출 hits 전체가 raw stdout 으로부터 올바른 개수·순서·필드값으로 재유도됐는지 검증하는
 // 값-정합 가드(T-0908 신설)를 컴포저 산출 경로에 self-wire 한다(T-0909). 단일 return 사이트
 // 직전에 산출 hits + 원본 stdout 을 넘겨 self-assert — number/title/body 값 drift·hit 누락/
@@ -154,6 +168,20 @@ export function parseRealDataDailyStepDualLegRunReportIssueSearchOutput(
       title: record.title,
       body: record.body,
     };
+
+    // self-wire(T-1015) — 정규화한 hit 의 own 키 집합이 선언 parse-shape 키 집합과 set-equal
+    // 인지 반환 직전 per-hit 검증한다. 정상 파서 경로는 항상 `{number, title, body}` 만
+    // 산출하므로 매 hit 마다 void(검증만, 출력 비변형 — tautology 보존). 상수·literal 이
+    // 회귀로 어긋나면(parse-shape 상수에 키 추가됐는데 literal 은 옛 키만 산출, 혹은 literal 에
+    // 잉여 필드 추가) 손상 hit 을 caller 로 반환하기 전 fail-fast throw 한다. 아래 whole-batch
+    // `ConsistentWithStdout` self-assert(T-0909)와 축이 비중복 — 그 가드는 산출 배열 전체의
+    // 값·개수·순서 정합(값 축)을, 본 가드는 각 hit 의 키 집합 정합(shape 축)을 본다. 정규화
+    // literal 조립 직후에만 호출하므로 파서의 기존 검증(number/title/body throw)은 본 가드
+    // 도달 전에 발생한다(검증 순서 보존). 빈 배열이면 map 콜백 자체가 돌지 않아 미호출.
+    assertRealDataDailyStepDualLegRunReportIssueSearchHitShapeMatchesParseShapeKeys(
+      hit,
+      REAL_DATA_DAILY_STEP_DUAL_LEG_RUN_REPORT_ISSUE_SEARCH_PARSE_SHAPE_KEYS,
+    );
 
     return hit;
   });
