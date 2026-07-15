@@ -2,7 +2,7 @@
 id: T-1019
 title: daily-step dual-leg run report issue command-plan 중간 순수 컴포저 신설 (buildRealDataDailyStepDualLegRunReportIssueCommandPlan — report → descriptor → commandArgs 2단 위임 합성, 요약축 T-0594 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 430
