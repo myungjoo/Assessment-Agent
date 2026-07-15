@@ -2,7 +2,7 @@
 id: T-1020
 title: daily-step dual-leg run report issue command-plan consistency 순수 가드 신설 (assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource — 컴포저 산출 {descriptor, commandArgs} ↔ single-source(report) 2단 재유도 정합 대조, 요약축 T-0696 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 500
