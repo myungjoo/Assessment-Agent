@@ -2,7 +2,11 @@
 id: T-1021
 title: daily-step command-plan 컴포저에 consistency 가드(T-1020) self-wire 배선 (buildRealDataDailyStepDualLegRunReportIssueCommandPlan 반환 직전 assertRealData...CommandPlanConsistentWithSource(plan, report) self-assert, 요약축 T-0697 mirror)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 7895b3ac
+prNumber: 915
+reviewRounds: 1
+completedAt: 2026-07-15T04:40:00Z
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 270
