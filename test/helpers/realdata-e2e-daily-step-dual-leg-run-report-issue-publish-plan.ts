@@ -60,15 +60,19 @@
 //     한다. 신규 type 정의는 `RealDataDailyStepDualLegRunReportIssuePublishPlan` 컨테이너
 //     1 개뿐(SSOT).
 //
-// 🔥 self-wire 없음 (범위 확인 — 요약축 T-0595 창설 단계 대응):
-//   - 본 컴포저는 consistency 가드 self-assert 를 **포함하지 않는다**. 요약축도 T-0595 는
-//     컴포저만 신설했고 consistency 가드(T-0665)·self-wire(T-0666)는 후속 slice 에서
-//     박제했다 — 본 task 는 그 T-0595 단계에 정확히 대응한다(순수 3단 위임만).
+// 🔥 self-wire 배선됨 (T-1018 — 요약축 T-0666 mirror):
+//   - 본 컴포저는 3단 위임 합성 후 반환 직전 consistency 가드
+//     `assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource(plan, report)`
+//     를 self-assert 호출한다(T-1017 가드 신설 → T-1018 self-wire). 요약축도 T-0595 컴포저
+//     신설 → T-0665 가드 → T-0666 self-wire 순으로 박제했다 — 본 컴포저는 그 T-0666 단계에
+//     대응한다. 가드는 컴포저를 import 하지 않고 하위 세 위임(descriptor → command-args →
+//     search-argv)만 import 해 expected 를 재유도하므로 runtime import cycle 위험 없고,
+//     정상 합성 plan 은 항상 통과한다. 위임 throw(report.gitSha / dateToken 빈/공백)는
+//     descriptor 단계에서 self-assert 도달 전 그대로 전파된다.
 //
-// Out of Scope (task T-1016):
-//   - daily-step publish-plan-consistency 가드 신설(요약축 T-0665 mirror) / 그 self-wire
-//     (요약축 T-0666 mirror) — 본 컴포저는 self-wire 없이 순수 3단 위임만.
-//   - 위임 3빌더(descriptor / command-args / search-argv) 본문 변경 — 순서대로 호출만
+// Out of Scope (task T-1018):
+//   - 가드(T-1017)·위임 3빌더(descriptor / command-args / search-argv) 본문 변경 — 본
+//     컴포저는 가드를 import·호출만(재정의 0). 순서대로 호출만
 //     (재구현 0).
 //   - 종단 post-execution 컴포저(stdout, commandArgs) 변경 — 별도 helper(post-실행 leg).
 //   - 실 gh 호출 / `execFile('gh', argv)` / `gh search issues` 실 실행 / 실 이슈 박제
@@ -85,6 +89,14 @@ import { buildRealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realda
 import type { RealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
 import { buildRealDataDailyStepDualLegRunReportIssueDescriptor } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
 import type { RealDataDailyStepDualLegRunReportIssueDescriptor } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
+// publish-plan 컴포저 산출 ↔ single-source(report) 3단 재유도 정합 가드(T-1017 신설)를
+// 컴포저 산출 경로에 self-wire 한다(T-1018). 합성한 plan 을 반환하기 직전에 self-assert
+// 호출 — 컴포저가 세 위임 layer(descriptor → command-args → search-argv) 사이에 끼어
+// 결과를 변형/누락/순서 뒤바꾸는 합성 회귀가 발생하면 손상 plan 을 caller 에 반환하기 전에
+// fail-fast throw 한다(구조 결손=TypeError / 값 정합 위반=RangeError). 가드 본문은 변경 0
+// (T-1017 산출물 그대로 import 재사용). 가드는 컴포저를 import 하지 않고 동일한 세 위임
+// (descriptor → command-args → search-argv)만 import 하므로 runtime import cycle 위험 없음.
+import { assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-publish-plan-consistency";
 import { buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-argv";
 
 // RealDataDailyStepDualLegRunReportIssuePublishPlan — dual-leg run report 결과 박제
@@ -147,7 +159,18 @@ export function buildRealDataDailyStepDualLegRunReportIssuePublishPlan(
     buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(commandArgs);
 
   // 새 plan 객체 — descriptor / commandArgs / searchArgv 는 위임 helper 가 이미 무공유로
-  // 반환하므로 입력 보존·무공유. self-wire 없음(요약축 T-0595 창설 단계 대응 — 가드·
-  // self-wire 는 후속 slice).
-  return { descriptor, commandArgs, searchArgv };
+  // 반환하므로 입력 보존·무공유.
+  const plan = { descriptor, commandArgs, searchArgv };
+
+  // self-wire(T-1018) — 합성한 plan 이 동일 single source `report` 의 3단 재유도와
+  // byte-identical 정합한지 반환 직전 검증한다. 정상 합성이면 self-assert 가 void →
+  // plan 비변형·byte-identical 보존. 컴포저가 세 위임 사이에 끼어 결과를 변형/누락/순서
+  // 뒤바꾸는 합성 회귀가 발생하면 손상 plan 을 caller 에 넘기기 전에 fail-fast throw 한다.
+  // 가드는 하위 세 위임만 import 하므로 runtime cycle 없음(정상 plan 은 항상 통과).
+  assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource(
+    plan,
+    report,
+  );
+
+  return plan;
 }
