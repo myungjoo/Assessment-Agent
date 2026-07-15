@@ -2,7 +2,10 @@
 id: T-1018
 title: daily-step publish-plan 컴포저에 consistency 가드(T-1017) self-wire 배선 (buildRealDataDailyStepDualLegRunReportIssuePublishPlan 반환 직전 assertRealData...PublishPlanConsistentWithSource(plan, report) self-assert, 요약축 T-0666 mirror)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 343e71db
+prNumber: 912
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 290
