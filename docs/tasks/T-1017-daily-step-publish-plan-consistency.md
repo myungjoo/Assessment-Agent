@@ -2,7 +2,10 @@
 id: T-1017
 title: daily-step dual-leg run report issue publish-plan consistency 순수 가드 신설 (assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource — 컴포저 산출 plan ↔ single-source(report) 3단 재유도 정합 대조, 요약축 T-0665 mirror)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 0849643b
+prNumber: 911
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 560
