@@ -2,8 +2,12 @@
 id: T-1016
 title: daily-step dual-leg run report issue publish-plan 종단 순수 컴포저 신설 (buildRealDataDailyStepDualLegRunReportIssuePublishPlan — report → descriptor → commandArgs → searchArgv 3단 위임 합성, 요약축 T-0595 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: c3c90bec
+prNumber: 910
+reviewRounds: 1
+completedAt: 2026-07-15T01:38:27Z
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 490
 estimatedFiles: 2
