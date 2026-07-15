@@ -2,7 +2,7 @@
 id: T-1013
 title: buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv 반환 직전 search --json 필드↔parse-shape 정합 가드(T-1012) self-wire 배선 (요약축 T-0658 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 110
@@ -66,3 +66,9 @@ issue-still-relevant pre-check(origin/main grep): `git grep -c JsonFieldsMatchPa
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가. 본 task 닫히면 daily-step search-argv 빌더의 `--json` 필드↔parse-shape 정합 불변식이 argv 반환 직전 self-assert 로 박힌다 — 요약축 T-0657→T-0658 self-wire 의 daily-step mirror 완결. 이로써 daily-step search-argv 는 argv↔command-args 보존(`SearchGhArgvPreservesCommandArgs`)·json-fields 정합(본 task) 두 축 가드가 모두 빌더 산출 경로에 배선돼 요약축과 동형화된다.) 예상 후속 ①: §109 잔여 미미러 seam(publish-plan·search-hit-shape) mirror. ②: §109 잔여 credential/env 게이트(실 credentialed live run 1회, `deploy/daily-test.sh` step ④ 재배선)는 별도 큐잉.
+
+## Result
+
+Completed: 2026-07-14T23:37:31Z (cron fire, claim-pickup stage5b)
+Merged as: PR #907 squash 2583a9aa (round 1 reviewer APPROVE, 4-게이트 PASS, CI green)
+요약: daily-step search-argv 빌더가 argv 반환 직전 json-fields↔parse-shape set-equality 정합 가드(T-1012)를 self-assert 하도록 배선. test-only 2파일 +214 LOC, 397 suite/10712 test green, coverageThreshold(line·func ≥80%) 무회귀. 요약축 T-0658 mirror 완결.
