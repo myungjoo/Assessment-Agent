@@ -64,11 +64,19 @@
 //     한다. 신규 type 정의는 `RealDataDailyStepDualLegRunReportIssueCommandPlan` 컨테이너
 //     1 개뿐(SSOT).
 //
-// Out of Scope (task T-1019):
-//   - command-plan consistency 가드(요약축 T-0696 mirror —
-//     `assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithInputs`) 신설·
-//     self-wire — 별도 후속 slice(본 task 는 컴포저 신설만, 요약축 T-0594 가 이미 배선한
-//     self-assert 호출 라인은 mirror 하지 않는다).
+// 🔥 self-wire 배선됨 (T-1021 — 요약축 T-0697 mirror · 형제 publish-plan T-1018 동형):
+//   - 본 컴포저는 2단 위임 합성 후 반환 직전 consistency 가드
+//     `assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(plan, report)`
+//     를 self-assert 호출한다(T-1020 가드 신설 → T-1021 self-wire). 요약축도 T-0594 컴포저
+//     신설 → T-0696 가드 → T-0697 self-wire 순으로 박제했다 — 본 컴포저는 그 T-0697 단계에
+//     대응한다. 가드는 컴포저를 import 하지 않고 하위 두 위임(descriptor → command-args)만
+//     import 해 expected 를 재유도하므로 runtime import cycle 위험 없고, 정상 합성 plan 은
+//     항상 통과한다. 위임 throw(report.gitSha / dateToken 빈/공백)는 descriptor 단계에서
+//     self-assert 도달 전 그대로 전파된다.
+//
+// Out of Scope (task T-1021):
+//   - 가드(T-1020)·위임 2빌더(descriptor T-0896 / command-args T-0990) 본문 변경 — 본
+//     컴포저는 가드를 import·호출만(재정의 0). 순서대로 호출만(재구현 0).
 //   - publish-plan(T-1016)을 command-plan 위임으로 리팩터(publish-plan = command-plan +
 //     searchArgv) — publish-plan.ts 본문 변경 대상이라 별도 slice(무회귀).
 //   - 위임 2빌더(descriptor T-0896 / command-args T-0990) 본문·spec 변경 — 본 컴포저는 그
@@ -87,6 +95,14 @@
 import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
 import { buildRealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
 import type { RealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
+// command-plan 컴포저 산출 ↔ single-source(report) 2단 재유도 정합 가드(T-1020 신설)를
+// 컴포저 산출 경로에 self-wire 한다(T-1021). 합성한 plan 을 반환하기 직전에 self-assert
+// 호출 — 컴포저가 두 위임 layer(descriptor → command-args) 사이에 끼어 결과를 변형/누락/
+// 재가공하는 합성 회귀가 발생하면 손상 plan 을 caller 에 반환하기 전에 fail-fast throw 한다
+// (구조 결손=TypeError / 값 정합 위반=RangeError). 가드 본문은 변경 0(T-1020 산출물 그대로
+// import 재사용). 가드는 컴포저를 import 하지 않고 동일한 두 위임(descriptor → command-args)
+// 만 import 하므로 runtime import cycle 위험 없음.
+import { assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-plan-consistency";
 import { buildRealDataDailyStepDualLegRunReportIssueDescriptor } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
 import type { RealDataDailyStepDualLegRunReportIssueDescriptor } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
 
@@ -144,9 +160,18 @@ export function buildRealDataDailyStepDualLegRunReportIssueCommandPlan(
     buildRealDataDailyStepDualLegRunReportIssueCommandArgs(descriptor);
 
   // 새 plan 객체 — descriptor / commandArgs 는 위임 helper 가 이미 무공유로 반환하므로
-  // 입력 보존·무공유. (consistency 가드 self-wire 는 후속 slice — 요약축 T-0594 의
-  // self-assert 호출 라인은 본 task 에서 mirror 하지 않는다.)
+  // 입력 보존·무공유.
   const plan = { descriptor, commandArgs };
+
+  // self-wire(T-1021) — 합성한 plan 이 동일 single source `report` 의 2단 재유도와
+  // byte-identical 정합한지 반환 직전 검증한다. 정상 합성이면 self-assert 가 void →
+  // plan 비변형·byte-identical 보존. 컴포저가 두 위임 사이에 끼어 결과를 변형/누락/재가공
+  // 하는 합성 회귀가 발생하면 손상 plan 을 caller 에 넘기기 전에 fail-fast throw 한다.
+  // 가드는 하위 두 위임만 import 하므로 runtime cycle 없음(정상 plan 은 항상 통과).
+  assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+    plan,
+    report,
+  );
 
   return plan;
 }
