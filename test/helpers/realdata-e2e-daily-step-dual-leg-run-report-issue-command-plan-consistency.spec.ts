@@ -1,0 +1,550 @@
+// realdata-e2e-daily-step-dual-leg-run-report-issue-command-plan-consistency.spec.ts —
+// T-1020 colocated unit spec for
+// `assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource`
+// (형제 publish-plan T-1017 spec 의 command-plan 축소 mirror · 요약축 T-0696 mirror —
+// single source(report) + 2단 위임에 맞춰 조정, searchArgv drift describe 제거).
+//
+// R-112 cover 구조:
+//   - happy-path: 정상 `report` 로 컴포저(
+//     `buildRealDataDailyStepDualLegRunReportIssueCommandPlan`)가 산출한 plan 을 가드에
+//     넘기면 throw 0(void) — round-trip 정합. 다양한 leg status 조합 각각 happy 검증.
+//   - error/negative 충분 cover (TypeError): plan null·undefined / descriptor·commandArgs
+//     비-object → 각 분기 별 TypeError.
+//   - error/negative 충분 cover (RangeError): descriptor.title 변조 / commandArgs.
+//     searchQuery 변형 / createArgs.labels 원소·순서·길이 변형 → 각 분기 RangeError.
+//   - 위임 throw 전파: report.gitSha/dateToken 빈/공백 → descriptor 재유도 위임 throw 가
+//     가드를 삼키지 않고 그대로 전파(RangeError 아님). command-args 위임 throw(spyOn 주입)도
+//     그대로 전파.
+//   - flow/branch: ① 정합 → void ② 2 구성요소 각각 drift → RangeError(구성요소별 1+)
+//     ③ 구조 결손 분기(TypeError) ④ 재유도 chain throw 전파 ⑤ descriptor throw 시 후속
+//     위임(command-args) 미호출(spyOn 순서 검증) — 각 1+ test.
+//   - 결정성: 동일 (plan, report) 2 회 호출 → 둘 다 동일 동작.
+//   - 입력 비변형: 가드 호출 후 report / plan 객체 변경 0.
+//   - short-circuit: 구조 위반(TypeError) 시 재유도 위임 미호출(spyOn).
+import { buildRealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
+import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
+import * as commandArgsModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
+import { buildRealDataDailyStepDualLegRunReportIssueCommandPlan } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-plan";
+import type { RealDataDailyStepDualLegRunReportIssueCommandPlan } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-plan";
+import { assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-plan-consistency";
+import * as descriptorModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
+
+// makeReport — 컴포저로 정상 dual-leg run report 를 만든다. leg status 조합을 override 로
+// 바꿔 다양한 정상 분기를 만든다(happy 검증용).
+function makeReport(
+  overrides: {
+    gitSha?: string;
+    dateToken?: string;
+    evalPassed?: boolean;
+    collectPassed?: boolean;
+  } = {},
+): RealDataDailyStepDualLegRunReport {
+  return buildRealDataDailyStepDualLegRunReport(
+    { leg: "eval", action: "run", passed: overrides.evalPassed ?? true },
+    { leg: "collect", action: "run", passed: overrides.collectPassed ?? true },
+    {
+      gitSha: overrides.gitSha ?? "abc1234",
+      dateToken: overrides.dateToken ?? "2026-07-15",
+    },
+  );
+}
+
+// 정상 report fixture(두 leg 모두 pass → all-pass).
+const HAPPY_REPORT: RealDataDailyStepDualLegRunReport = makeReport();
+
+// makePlan — 컴포저 실제 산출물을 재사용해 정상 정합 plan 을 만든다(손상 분기 test 가
+// 구조 복제 후 한 구성요소만 변조해 손상 fixture 를 만든다).
+function makePlan(
+  report: RealDataDailyStepDualLegRunReport = HAPPY_REPORT,
+): RealDataDailyStepDualLegRunReportIssueCommandPlan {
+  return buildRealDataDailyStepDualLegRunReportIssueCommandPlan(report);
+}
+
+describe("assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe("happy-path (정합 plan → void)", () => {
+    it("all-pass report 컴포저 산출 plan 을 그대로 넘기면 throw 0(void)", () => {
+      const plan = makePlan();
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          plan,
+          HAPPY_REPORT,
+        ),
+      ).not.toThrow();
+    });
+
+    it("정합 plan 면 void(undefined) 를 반환한다", () => {
+      const plan = makePlan();
+      expect(
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          plan,
+          HAPPY_REPORT,
+        ),
+      ).toBeUndefined();
+    });
+
+    it("some-fail(eval fail) leg status 조합도 round-trip 정합(void)", () => {
+      const report = makeReport({ evalPassed: false });
+      const plan = makePlan(report);
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          plan,
+          report,
+        ),
+      ).not.toThrow();
+    });
+
+    it("다른 유효 run 식별자 조합도 round-trip 정합(void)", () => {
+      const report = makeReport({
+        gitSha: "deadbee",
+        dateToken: "2026-01-01",
+      });
+      const plan = makePlan(report);
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          plan,
+          report,
+        ),
+      ).not.toThrow();
+    });
+  });
+
+  describe("값 정합 위반 — 구성요소 drift → RangeError", () => {
+    it("descriptor drift(title 변조) → RangeError(descriptor 노출)", () => {
+      const plan = makePlan();
+      const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+        ...plan,
+        descriptor: {
+          ...plan.descriptor,
+          title: `${plan.descriptor.title}-변조`,
+        },
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(RangeError);
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.descriptor.*byte-identical/s);
+    });
+
+    it("descriptor drift(marker 변조) → RangeError", () => {
+      const plan = makePlan();
+      const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+        ...plan,
+        descriptor: {
+          ...plan.descriptor,
+          marker: `${plan.descriptor.marker}-변조`,
+        },
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.descriptor.*byte-identical/s);
+    });
+
+    it("commandArgs drift(searchQuery 변형) → RangeError", () => {
+      const plan = makePlan();
+      const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+        ...plan,
+        commandArgs: {
+          ...plan.commandArgs,
+          searchQuery: `${plan.commandArgs.searchQuery}-변조`,
+        },
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.commandArgs.*byte-identical/s);
+    });
+
+    it("commandArgs drift(createArgs.body 변형) → RangeError", () => {
+      const plan = makePlan();
+      const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+        ...plan,
+        commandArgs: {
+          ...plan.commandArgs,
+          createArgs: {
+            ...plan.commandArgs.createArgs,
+            body: `${plan.commandArgs.createArgs.body}-변조`,
+          },
+        },
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(RangeError);
+    });
+
+    it("commandArgs drift(createArgs.labels 원소 값 변형) → RangeError", () => {
+      const plan = makePlan();
+      const mutatedLabels = [...plan.commandArgs.createArgs.labels];
+      mutatedLabels[0] = `${mutatedLabels[0]}-변조`;
+      const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+        ...plan,
+        commandArgs: {
+          ...plan.commandArgs,
+          createArgs: {
+            ...plan.commandArgs.createArgs,
+            labels: mutatedLabels,
+          },
+        },
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.commandArgs.*byte-identical/s);
+    });
+
+    it("commandArgs drift(createArgs.labels 순서 swap) → RangeError", () => {
+      const plan = makePlan();
+      const swapped = [...plan.commandArgs.createArgs.labels];
+      [swapped[0], swapped[1]] = [swapped[1], swapped[0]];
+      const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+        ...plan,
+        commandArgs: {
+          ...plan.commandArgs,
+          createArgs: {
+            ...plan.commandArgs.createArgs,
+            labels: swapped,
+          },
+        },
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(RangeError);
+    });
+
+    it("commandArgs drift(createArgs.labels 길이 증가 — 원소 추가) → RangeError", () => {
+      const plan = makePlan();
+      const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+        ...plan,
+        commandArgs: {
+          ...plan.commandArgs,
+          createArgs: {
+            ...plan.commandArgs.createArgs,
+            labels: [...plan.commandArgs.createArgs.labels, "잉여"],
+          },
+        },
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(RangeError);
+    });
+
+    it("commandArgs drift(createArgs.labels 길이 감소 — 원소 누락) → RangeError", () => {
+      const plan = makePlan();
+      const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+        ...plan,
+        commandArgs: {
+          ...plan.commandArgs,
+          createArgs: {
+            ...plan.commandArgs.createArgs,
+            labels: plan.commandArgs.createArgs.labels.slice(0, -1),
+          },
+        },
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(RangeError);
+    });
+
+    it("commandArgs drift(updateArgs.title 변형) → RangeError", () => {
+      const plan = makePlan();
+      const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+        ...plan,
+        commandArgs: {
+          ...plan.commandArgs,
+          updateArgs: {
+            ...plan.commandArgs.updateArgs,
+            title: `${plan.commandArgs.updateArgs.title}-변조`,
+          },
+        },
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.commandArgs.*byte-identical/s);
+    });
+  });
+
+  describe("구조 결손 — null/undefined → TypeError", () => {
+    it("plan null → TypeError", () => {
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          null as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan 이 null\/undefined/);
+    });
+
+    it("plan undefined → TypeError", () => {
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          undefined as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(TypeError);
+    });
+  });
+
+  describe("구성요소 type 위반 → TypeError", () => {
+    it("descriptor 비-object(null) → TypeError", () => {
+      const plan = makePlan();
+      const corrupted = {
+        ...plan,
+        descriptor: null,
+      } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.descriptor 가 객체가 아니다/);
+    });
+
+    it("descriptor 비-object(배열) → TypeError(array 라벨)", () => {
+      const plan = makePlan();
+      const corrupted = {
+        ...plan,
+        descriptor: [],
+      } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/타입: array/);
+    });
+
+    it("descriptor 비-object(primitive 문자열) → TypeError(string 라벨)", () => {
+      // primitive(문자열)는 null/array 어느 쪽도 아니므로 describe() 가 typeof 로
+      // 라벨을 뽑는 분기(primitive fallthrough)를 태운다 — null/array 케이스와 구분되는
+      // 별개의 R-112 negative case(원시값 != object).
+      const plan = makePlan();
+      const corrupted = {
+        ...plan,
+        descriptor: "not-an-object",
+      } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.descriptor 가 객체가 아니다\(타입: string\)/);
+    });
+
+    it("commandArgs 비-object(primitive 숫자) → TypeError(number 라벨)", () => {
+      // primitive(숫자) commandArgs 도 describe() 의 typeof fallthrough 를 태운다 —
+      // descriptor 는 object 이나 commandArgs 만 원시값이라 두 번째 구조 분기에서 throw.
+      const plan = makePlan();
+      const corrupted = {
+        ...plan,
+        commandArgs: 42,
+      } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.commandArgs 가 객체가 아니다\(타입: number\)/);
+    });
+
+    it("commandArgs 비-object(배열) → TypeError", () => {
+      const plan = makePlan();
+      const corrupted = {
+        ...plan,
+        commandArgs: [],
+      } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.commandArgs 가 객체가 아니다/);
+    });
+
+    it("commandArgs 비-object(null) → TypeError", () => {
+      const plan = makePlan();
+      const corrupted = {
+        ...plan,
+        commandArgs: null,
+      } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/plan\.commandArgs 가 객체가 아니다/);
+    });
+  });
+
+  describe("재유도 chain throw 전파 — 가드가 삼키지 않음 (branch cover)", () => {
+    it("report.gitSha 빈/공백 → descriptor 재유도 위임 throw 가 전파(RangeError 아님)", () => {
+      const blankReport: RealDataDailyStepDualLegRunReport = {
+        ...HAPPY_REPORT,
+        gitSha: "   ",
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          makePlan(),
+          blankReport,
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+    });
+
+    it("report.dateToken 빈/공백 → descriptor 재유도 위임 throw 가 전파", () => {
+      const blankReport: RealDataDailyStepDualLegRunReport = {
+        ...HAPPY_REPORT,
+        dateToken: "  ",
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          makePlan(),
+          blankReport,
+        ),
+      ).toThrow(/dateToken 가 비어있습니다/);
+    });
+
+    it("command-args 재유도 위임 throw(spyOn 주입) → 가드가 삼키지 않고 전파", () => {
+      // descriptor.title/marker 는 prefix 상수 때문에 정상 report 로는 빈 값이 될 수 없어
+      // command-args 위임 throw 가 report 경로로는 도달 불가하다. 그 전파 계약을 검증하려면
+      // command-args 위임을 spy 로 강제 throw 시켜 가드가 자체 try/catch 없이 그대로
+      // 흘려보냄을 확인한다.
+      const plan = makePlan();
+      jest
+        .spyOn(
+          commandArgsModule,
+          "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+        )
+        .mockImplementation(() => {
+          throw new Error("command-args 위임 강제 throw");
+        });
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          plan,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/command-args 위임 강제 throw/);
+    });
+  });
+
+  describe("위임 순차 순서 / short-circuit (spyOn)", () => {
+    it("descriptor 재유도 throw 시 command-args 재유도 미호출", () => {
+      const blankReport: RealDataDailyStepDualLegRunReport = {
+        ...HAPPY_REPORT,
+        gitSha: "   ",
+      };
+      // plan 은 spy 설정 **전**에 미리 만든다 — makePlan() 자체가 컴포저 chain 을 돌려
+      // command-args 를 호출하므로, spy 이후에 만들면 그 내부 호출이 잡혀 short-circuit
+      // 관측이 오염된다(가드의 재유도 호출만 관측해야 한다).
+      const plan = makePlan();
+      const commandArgsSpy = jest.spyOn(
+        commandArgsModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+      );
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          plan,
+          blankReport,
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+      expect(commandArgsSpy).not.toHaveBeenCalled();
+    });
+
+    it("구조 위반(TypeError) 시 재유도 위임(descriptor) 미호출", () => {
+      const plan = makePlan();
+      const corrupted = {
+        ...plan,
+        descriptor: null,
+      } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+      const descriptorSpy = jest.spyOn(
+        descriptorModule,
+        "buildRealDataDailyStepDualLegRunReportIssueDescriptor",
+      );
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(TypeError);
+      expect(descriptorSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("결정성 / 비변형", () => {
+    it("동일 입력 2 회 호출 → 둘 다 동일 동작(정합이면 둘 다 void)", () => {
+      const plan = makePlan();
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          plan,
+          HAPPY_REPORT,
+        ),
+      ).not.toThrow();
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          plan,
+          HAPPY_REPORT,
+        ),
+      ).not.toThrow();
+    });
+
+    it("동일 drift plan 2 회 호출 → 둘 다 동일 구성요소에서 throw", () => {
+      const plan = makePlan();
+      const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+        ...plan,
+        commandArgs: {
+          ...plan.commandArgs,
+          searchQuery: `${plan.commandArgs.searchQuery}-변조`,
+        },
+      };
+      const run = () =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        );
+      expect(run).toThrow(/plan\.commandArgs/);
+      expect(run).toThrow(/plan\.commandArgs/);
+    });
+
+    it("가드 호출 후 report / plan 객체 mutate 0", () => {
+      const report = makeReport();
+      const plan = makePlan(report);
+      const reportSnapshot = JSON.stringify(report);
+      const planSnapshot = JSON.stringify(plan);
+      assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+        plan,
+        report,
+      );
+      expect(JSON.stringify(report)).toBe(reportSnapshot);
+      expect(JSON.stringify(plan)).toBe(planSnapshot);
+    });
+  });
+});
