@@ -2,7 +2,11 @@
 id: T-1015
 title: daily-step search 파서 산출 hit 키 집합↔parse-shape 키 set-equality 가드(T-1014) producer self-wire (parseRealDataDailyStepDualLegRunReportIssueSearchOutput map 콜백 per-hit self-assert, 요약축 T-0660 mirror)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 909
+mergedAs: b4335809
+reviewRounds: 1
+completedAt: 2026-07-15T01:01:47Z
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 110
