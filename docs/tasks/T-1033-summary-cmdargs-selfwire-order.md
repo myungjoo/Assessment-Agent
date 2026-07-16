@@ -2,7 +2,9 @@
 id: T-1033
 title: summary-axis command-args producer 3개 self-wire 호출 순서를 daily 정본(Consistent→Body→LabelsTitle)으로 정규화 + invocationCallOrder 순서-lock test 추가 (daily spec L832 mirror)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 927
+completedAt: 2026-07-16T11:18:26Z
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 90
