@@ -707,5 +707,64 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire identi
       );
       expect(report).toEqual(before);
     });
+
+    // 순서-lock (T-1034, command-args 순서-lock daily 정본 L832 mirror) — self-wire 두 가드의
+    // **상대 호출 순서(Body→Identity)**를 invocationCallOrder 2 자 부등식으로 못박는다. 기존
+    // (c) 는 두 가드가 각 1 회 호출됨 + 인자 순서만 lock 했고 상대 순서는 lock 하지 않았다.
+    it("(f) self-wire 두 가드 호출 순서 보존(Body→Identity) — bodySpy 가 identitySpy 보다 먼저 호출됨(역전 시 fail)", () => {
+      const bodySpy = jest.spyOn(
+        issueDescriptorConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent",
+      );
+      const identitySpy = jest.spyOn(
+        issueDescriptorIdentityConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent",
+      );
+      const report = makeReport({ overallStatus: "all-pass" });
+
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+
+      // 두 가드 각 정확히 1 회 호출(command-args 순서-lock daily 정본 L832 mirror).
+      expect(bodySpy).toHaveBeenCalledTimes(1);
+      expect(identitySpy).toHaveBeenCalledTimes(1);
+      // 순서 보존 — Body(본문 2-블록 구조 검증) → Identity(title·marker 식별자 재유도).
+      // 2 자 부등식 방향이라 순서가 역전(Identity 먼저)되면 이 assertion 이 fail 한다.
+      expect(bodySpy.mock.invocationCallOrder[0]).toBeLessThan(
+        identitySpy.mock.invocationCallOrder[0],
+      );
+      // 실 구현 spy(호출 pass-through)이므로 산출 descriptor byte-identical 회귀 0 재확인.
+      expect(descriptor.body.startsWith(descriptor.marker)).toBe(true);
+    });
+
+    // Body-first fail-fast (T-1034) — body-consistency 가드가 throw 하면 producer 가 전파하고
+    // identity 가드까지 도달하지 않음을 못박아 Body→Identity 순서의 fail-fast 의미를 결정적이게 한다.
+    it("(g) Body-first fail-fast — body 가드가 throw 하면 producer 전파 + identity 가드 미도달(not.toHaveBeenCalled)", () => {
+      const drift = new RangeError(
+        "정합 위반: body 강제 drift(순서 fail-fast 테스트)",
+      );
+      const bodySpy = jest
+        .spyOn(
+          issueDescriptorConsistency,
+          "assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent",
+        )
+        .mockImplementation(() => {
+          throw drift;
+        });
+      const identitySpy = jest.spyOn(
+        issueDescriptorIdentityConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          makeReport({ overallStatus: "all-pass" }),
+        ),
+      ).toThrow(drift);
+
+      // Body 가 먼저 throw 하므로 identity self-assert 까지 흐름이 도달하지 않는다.
+      expect(bodySpy).toHaveBeenCalledTimes(1);
+      expect(identitySpy).not.toHaveBeenCalled();
+    });
   });
 });
