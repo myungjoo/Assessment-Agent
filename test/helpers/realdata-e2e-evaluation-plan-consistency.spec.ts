@@ -23,9 +23,14 @@ import type {
   GithubActivity,
 } from "../../src/assessment-collection/domain/activity";
 
+// 재유도 위임(delegate) 순서-lock(T-1055) — guard 재유도가 재호출하는 두 builder 를
+// module namespace 로 import 해 `jest.spyOn` 대상 프로퍼티로 삼는다(ts-jest 가 named
+// import 소비를 module 객체 프로퍼티 접근으로 컴파일 — 선례 T-1046/T-1052/T-1054).
+import * as evaluationInputsModule from "./realdata-e2e-evaluation-inputs";
 import { buildRealDataEvaluationPlan } from "./realdata-e2e-evaluation-plan";
 import type { RealDataEvaluationPlan } from "./realdata-e2e-evaluation-plan";
 import { assertRealDataEvaluationPlanConsistentWithSources } from "./realdata-e2e-evaluation-plan-consistency";
+import * as scoringCallArgsModule from "./realdata-e2e-scoring-call-args";
 
 const MODEL_ID = "qwen2.5-coder:32b";
 
@@ -446,6 +451,147 @@ describe("assertRealDataEvaluationPlanConsistentWithSources", () => {
       );
       expect(JSON.stringify(plan)).toBe(planSnapshot);
       expect(JSON.stringify(activities)).toBe(activitiesSnapshot);
+    });
+  });
+
+  // T-1055 — consistency-guard 재유도 위임(delegate) 순서-lock(inputs → callArgs).
+  //
+  // 기존 spec 은 재유도 산출의 값 대조(deep-equal)·구조 결손 TypeError·reference 페어링
+  // ·위임 throw 전파·fail-fast(inputs 검사가 callArgs 보다 먼저)만 검증하고, 재유도
+  // 단계의 두 builder 위임(buildRealDataEvaluationInputs → buildRealDataScoringCallArgs)
+  // 의 상대 호출 순서는 invocationCallOrder 부등식으로 못박지 않았다(grep 0). guard 본문
+  // L207~221 은 inputs 재유도 산출로 deep-equal fail-fast 게이트(L211)를 먼저 통과해야
+  // callArgs 재유도(L221)에 도달하는 순서-의미 chain 이라 inputs 가 반드시 먼저 평가돼야
+  // 한다. T-1052(evaluation-plan 컴포저 inputs → scoring) 데이터-의존 chain 을 guard
+  // 재유도 층으로 mirror 하고 T-1054(result-report-plan-consistency summary → descriptor)
+  // 를 sibling consistency-guard leg 로 mirror 해 그 gap 을 봉한다.
+  //
+  // 주의: builder ②(callArgs)는 guard 인자 `plan.inputs` 를 source 로 쓰고 builder ①
+  // 산출을 소비하지 않으므로(데이터-의존 reference 페어링 부재) 순서(invocationCallOrder)
+  // ·횟수(fail-fast)만 lock 하고 reference 페어링 assert 는 하지 않는다.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: 정합 plan 을 spy 설치 前 미리 만든 뒤(그래야 plan 합성이 spy 를
+  //     오염시키지 않음) 두 builder 위임을 실 구현 pass-through spy 로 감싸고 guard 재유도
+  //     1회 트리거 → inputs 첫 호출이 callArgs 첫 호출보다 먼저(invocationCallOrder
+  //     toBeLessThan) + 각 정확히 1회.
+  //   - branch/무공유 재확인: pass-through spy 하에서도 guard 가 정상 void 반환 + 입력
+  //     plan/activities mutate 0(read-only guard).
+  //   - error/negative(a fail-fast): inputs 위임 강제 throw → callArgs 위임 미도달(0회)
+  //     — inputs-먼저 순서로 callArgs 도달 불가를 fail-fast 로 못박음.
+  //   - error/negative(b guard-throw 전파): callArgs 위임 강제 throw → 그 에러가 전파,
+  //     이때 inputs 위임은 이미 호출됨(순서 상 inputs 가 callArgs 보다 먼저 평가됨을
+  //     negative 경로에서도 재확인).
+  describe("T-1055 — 재유도 위임 순서-lock(inputs → callArgs)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정합 재유도 시 inputs 위임이 callArgs 위임보다 먼저 호출된다(invocationCallOrder 부등식·각 1회)", () => {
+      const activities = mixedActivities();
+      // plan 은 spy 설치 前 합성 — buildRealDataEvaluationPlan 내부도 두 builder 를
+      // 호출하므로 spy 설치 후 만들면 호출 횟수가 오염된다. guard 재유도 호출만 격리 계측.
+      const plan = buildRealDataEvaluationPlan(activities, MODEL_ID);
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const callArgsSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+
+      assertRealDataEvaluationPlanConsistentWithSources(
+        plan,
+        activities,
+        MODEL_ID,
+      );
+
+      // guard 재유도 지점 각 1개 → 각 위임 정확히 1회.
+      expect(inputsSpy).toHaveBeenCalledTimes(1);
+      expect(callArgsSpy).toHaveBeenCalledTimes(1);
+      // 순서: inputs 위임(첫 호출)이 callArgs 위임(첫 호출)보다 먼저 호출된다.
+      expect(inputsSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        callArgsSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/activities mutate 0", () => {
+      const activities = mixedActivities();
+      const plan = buildRealDataEvaluationPlan(activities, MODEL_ID);
+      const planSnapshot = JSON.stringify(plan);
+      const activitiesSnapshot = JSON.stringify(activities);
+      jest.spyOn(evaluationInputsModule, "buildRealDataEvaluationInputs");
+      jest.spyOn(scoringCallArgsModule, "buildRealDataScoringCallArgs");
+
+      // 정합 경로 → 정상 void(throw 0).
+      expect(
+        assertRealDataEvaluationPlanConsistentWithSources(
+          plan,
+          activities,
+          MODEL_ID,
+        ),
+      ).toBeUndefined();
+      // read-only guard — 입력 mutate 0.
+      expect(JSON.stringify(plan)).toBe(planSnapshot);
+      expect(JSON.stringify(activities)).toBe(activitiesSnapshot);
+    });
+
+    it("(a fail-fast) inputs 위임이 throw 하면 callArgs 위임에 도달하지 못한다(callArgs 0회)", () => {
+      const activities = mixedActivities();
+      const plan = buildRealDataEvaluationPlan(activities, MODEL_ID);
+      jest
+        .spyOn(evaluationInputsModule, "buildRealDataEvaluationInputs")
+        .mockImplementation(() => {
+          throw new Error("inputs-boom");
+        });
+      const callArgsSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+
+      expect(() =>
+        assertRealDataEvaluationPlanConsistentWithSources(
+          plan,
+          activities,
+          MODEL_ID,
+        ),
+      ).toThrow(/inputs-boom/);
+
+      // inputs-먼저 순서로 인해 inputs throw 가 callArgs 도달(deep-equal 게이트) 전에
+      // 선전파 → callArgs 미호출.
+      expect(callArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(b guard-throw 전파) callArgs 위임 throw → 그 에러 전파, 이때 inputs 위임은 이미 호출됨(1회·inputs → callArgs 순서 재확인)", () => {
+      const activities = mixedActivities();
+      const plan = buildRealDataEvaluationPlan(activities, MODEL_ID);
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const callArgsSpy = jest
+        .spyOn(scoringCallArgsModule, "buildRealDataScoringCallArgs")
+        .mockImplementation(() => {
+          throw new Error("callargs-boom");
+        });
+
+      // inputs 게이트는 통과(정합 plan) 후 callArgs 재유도가 throw → 그대로 전파.
+      expect(() =>
+        assertRealDataEvaluationPlanConsistentWithSources(
+          plan,
+          activities,
+          MODEL_ID,
+        ),
+      ).toThrow(/callargs-boom/);
+
+      // 순서 상 inputs 가 callArgs 보다 먼저 평가됨 — callArgs 재유도 throw 시점에 inputs
+      // 는 이미 1회 호출됐고 callArgs 도 1회 진입(그 안에서 throw).
+      expect(inputsSpy).toHaveBeenCalledTimes(1);
+      expect(callArgsSpy).toHaveBeenCalledTimes(1);
+      expect(inputsSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        callArgsSpy.mock.invocationCallOrder[0],
+      );
     });
   });
 });
