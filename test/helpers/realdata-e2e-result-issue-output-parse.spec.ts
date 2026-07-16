@@ -461,5 +461,56 @@ describe("parseRealDataResultIssueCreateEditOutput — gh issue create/edit stdo
       // 매 호출 새 객체(참조-무공유) — self-wire 가 무공유를 깨지 않음.
       expect(first).not.toBe(second);
     });
+
+    it("⑨ 두 self-wire 가드 상대 호출 순서 lock — Shape(set-equality)가 OutputConsistent(값-정합)보다 먼저 호출된다(daily T-0907 canonical mirror, happy·flow)", () => {
+      const shapeSpy = jest.spyOn(
+        outcomeShapeModule,
+        "assertRealDataResultIssueOutcomeMatchesParseShape",
+      );
+      const valueSpy = jest.spyOn(
+        outputParseConsistencyModule,
+        "assertRealDataResultIssueOutputConsistentWithStdout",
+      );
+
+      const outcome = parseRealDataResultIssueCreateEditOutput(
+        "https://github.com/owner/repo/issues/9",
+      );
+
+      // 두 가드 모두 정확히 1회 호출되고, Shape 가드가 값-정합 가드보다 먼저 발동한다(순서 보존).
+      expect(shapeSpy).toHaveBeenCalledTimes(1);
+      expect(valueSpy).toHaveBeenCalledTimes(1);
+      expect(shapeSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        valueSpy.mock.invocationCallOrder[0],
+      );
+      // 실 구현 pass-through spy 이므로 산출 outcome 은 self-wire 삽입 전후 byte-identical.
+      expect(outcome).toEqual({
+        issueNumber: 9,
+        url: "https://github.com/owner/repo/issues/9",
+      });
+      expect(Object.keys(outcome)).toEqual(["issueNumber", "url"]);
+    });
+
+    it("⑩ 첫 가드(Shape) throw 시 둘째 가드(OutputConsistent)는 호출되지 않는다(fail-fast — error path/negative)", () => {
+      jest
+        .spyOn(
+          outcomeShapeModule,
+          "assertRealDataResultIssueOutcomeMatchesParseShape",
+        )
+        .mockImplementation(() => {
+          throw new RangeError("forced shape mismatch(순서 lock)");
+        });
+      const valueSpy = jest.spyOn(
+        outputParseConsistencyModule,
+        "assertRealDataResultIssueOutputConsistentWithStdout",
+      );
+
+      expect(() =>
+        parseRealDataResultIssueCreateEditOutput(
+          "https://github.com/owner/repo/issues/1",
+        ),
+      ).toThrow(/forced shape mismatch/);
+      // Shape 가 먼저 throw 하므로 값-정합 가드는 도달하지 않는다(fail-fast — spy 0회).
+      expect(valueSpy).toHaveBeenCalledTimes(0);
+    });
   });
 });
