@@ -2,7 +2,7 @@
 id: T-1041
 title: summary search-argv self-wire 두 가드 호출 순서(GhArgvPreserves→JsonFieldsMatchParseShape)를 invocationCallOrder 순서-lock test 로 못박기 (search-argv 축 요약축 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 60
