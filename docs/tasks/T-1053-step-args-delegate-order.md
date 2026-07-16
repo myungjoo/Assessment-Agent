@@ -2,7 +2,10 @@
 id: T-1053
 title: 종단 step-args aggregator(buildRealDataE2eStepArgs)의 2 sub-composer 위임 순서(evaluation → publish) invocationCallOrder 순서-lock test 로 못박기 (step-args aggregator delegate 순서-lock leg)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-16T21:41:00Z
+prNumber: 947
+squashCommit: e570e42a
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 105
