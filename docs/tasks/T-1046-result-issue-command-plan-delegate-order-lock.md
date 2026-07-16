@@ -2,7 +2,11 @@
 id: T-1046
 title: 요약축 result-issue command-plan 컴포저 본문 위임 순서(reportPlan → commandArgs)를 invocationCallOrder 순서-lock test 로 못박기 (plan 컴포저 sweep 요약축 mirror leg)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-16T18:10:00Z
+mergedAs: 92966b0c
+prNumber: 940
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 66
