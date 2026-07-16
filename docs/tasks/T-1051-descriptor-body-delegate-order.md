@@ -2,7 +2,9 @@
 id: T-1051
 title: result-issue(요약축) descriptor 컴포저 body 합성 위임 순서(formatSummaryLine → renderMarkdown)를 invocationCallOrder 순서-lock test 로 못박기 (descriptor 축 delegate 순서-lock leg)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 24c79ade
+completedAt: 2026-07-16T20:45:00Z
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 95
