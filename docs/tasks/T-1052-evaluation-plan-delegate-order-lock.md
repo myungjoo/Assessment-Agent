@@ -2,8 +2,12 @@
 id: T-1052
 title: 종단 evaluation-plan 컴포저의 2 sub-composer 위임 순서(buildRealDataEvaluationInputs → buildRealDataScoringCallArgs)를 invocationCallOrder 순서-lock test 로 못박기 (evaluation-plan delegate 순서-lock leg)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 946
+mergedAs: 29a1f8ae
+reviewRounds: 1
+completedAt: 2026-07-16T21:10:00Z
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 100
 estimatedFiles: 1
