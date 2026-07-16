@@ -2,7 +2,11 @@
 id: T-1024
 title: daily-step issue descriptor 의 title·marker 를 run 식별자(dateToken@gitSha)로부터 독립 재유도해 정합 검증하는 전용 identity-consistency 순수 가드 신설 (요약축 T-0709 mirror, REQ-032 멱등 불변식 focused oracle, body 축과 disjoint)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 29493a668411bd76ec24edb22790911d88abb523
+prNumber: 918
+reviewRounds: 1
+completedAt: 2026-07-16T05:37:35Z
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 560
