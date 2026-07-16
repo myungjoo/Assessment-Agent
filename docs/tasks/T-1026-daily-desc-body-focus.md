@@ -2,7 +2,7 @@
 id: T-1026
 title: daily-step issue descriptor combined 가드(T-0988)를 body-focus 로 좁혀 title·marker 재유도를 identity oracle 에 위임 (요약축 body-consistency mirror, disjoint 2-가드 구조 복원)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 130
@@ -66,3 +66,7 @@ issue-still-relevant pre-check(origin/main grep, 본 planner 확인): combined �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가.) 예상 후속 ①: combined 가드 개명(`-consistency` → `-body-consistency`) 으로 파일명까지 요약축과 완전 동형화 — producer import·self-wire·spec 다수 파일 동시 갱신(별도 slice, blast radius 관리). 예상 후속 ②: descriptor 축 body/identity disjoint 2-가드 구조가 완전 복원됐으므로, 요약축 대비 아직 남은 issue-박제 sub-helper vein 의 구조 미동형 축 재survey(build-time chain 정합 봉합이 거의 완결 → 다음 자연 stream 은 live 도달). 예상 후속 ③: §109 credential/env 게이트(실 credentialed live run 1회, `deploy/daily-test.sh` step ④ 재배선)는 별도 큐잉(§5 게이트, 사용자 승인 필요).
+
+---
+
+**완료 (2026-07-16T06:59:28Z)** — PR #920 merged (squash 56e204a8). combined 가드 `assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent` 에서 title·marker 독립 재유도·대조(ISSUE_TITLE_PREFIX·ISSUE_MARKER_PREFIX·runToken·composeExpectedDescriptor)를 제거하고 body 2 블록 구조 검증(marker==첫 라인 → 빈 줄 → markdown byte-identical, min-length)으로 재편 — 요약축 -body-consistency mirror. title·marker 식별자 정합은 producer self-wire 된 identity 가드(T-1024/T-1025)가 live 담당 → live 방어 손실 0, daily 축 body/identity disjoint 2-가드 구조 복원. test-only 2파일(+188/-169), src·producer·identity 가드·renderer·컴포저·package·CI·dep 0. 좁힌 가드 파일 100%(stmt/branch/func/line, 30 tests), 전체 unit 403 suite/10927 test green, 전역 line 99.95%/function 100%(임계 line≥80 AND function≥80) 무회귀. reviewer round1 APPROVE(0/0/0/0) 4-게이트 PASS. claim prune([]). next=T-1027.
