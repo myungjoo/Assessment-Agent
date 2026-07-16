@@ -2,7 +2,10 @@
 id: T-1043
 title: result-report-plan 컴포저 self-wire 두 가드 호출 순서(BodyConsistent→ConsistentWithInputs)를 invocationCallOrder 순서-lock test 로 못박기 (result-summary 축 2번째)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: b365c7fc
+prNumber: 937
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 75
