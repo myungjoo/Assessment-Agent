@@ -1,17 +1,23 @@
 // realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-consistency.spec.ts —
 // T-0988 colocated unit spec for
-// `assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent`.
+// `assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent`
+// (T-1026 에서 body-focus 로 축소 — title·marker 식별자 재유도·대조는 identity oracle
+// T-1024 로 위임, 본 가드는 body 2 블록 구조[marker 라인 → 빈 줄 → markdown] 만 검증).
 //
 // R-112 cover 구조:
 //   - happy-path: 실 producer `buildRealDataDailyStepDualLegRunReportIssueDescriptor` 산출을
 //     가드에 넣으면 throw 0(void) — 다중 leg-status 조합(all-pass / some-fail / all-skip / partial).
 //   - error path: report gitSha/dateToken 빈-공백 입력 시 재유도가 producer 와 동형 Error 를 던짐.
-//   - flow/branch: descriptor 구조 결손(title/marker/body 필드 제거·비-string) → TypeError,
-//     값 drift(title/marker/body 각 미세 변형) → RangeError 를 분기마다. 동일 run 이면 leg
-//     status 가 달라도 title/marker 동일(멱등) 검증.
-//   - negative 충분 cover: title prefix 변조·runToken 순서 뒤집기·marker `-->` 종결 누락·body
-//     2블록 빈 줄 제거·marker 라인 위치 이동 등 각 mutant 를 개별 RangeError 로 감지 + 가드
+//   - flow/branch: descriptor 구조 결손(marker/body 필드 제거·비-string) → TypeError,
+//     body 2 블록 구조 drift(최소 라인 미달 / marker 첫라인 불일치 / 빈 줄 구분 결손 / 마크다운
+//     블록 변조) → RangeError 를 분기마다. 동일 run 이면 leg status 가 달라도 body/marker 정합.
+//   - negative 충분 cover: body markdown 블록 drift·2블록 빈 줄 제거·marker 라인 위치 이동·
+//     marker 첫라인 불일치·min-length 미달 등 각 mutant 를 개별 RangeError 로 감지 + 가드
 //     비변형(입력 mutate 0) + §9 비시크릿 더미 fixture assert.
+//   - 회귀 방지(T-1026 축소 못 박기): title 이 drift 해도 본 body-focus 가드는 통과(title 은
+//     이제 검증하지 않음 — identity oracle T-1024 가 별도로 잡음). marker 합성 규칙(prefix·
+//     runToken·`-->`)이 틀려도 body 첫 라인과 일치하기만 하면 통과(marker 합성 검증은 identity
+//     oracle 위임 — 본 가드는 body 안 marker 라인 위치만 확인).
 import type {
   RealDataDailyStepDualLegRunReport,
   RealDataDailyStepDualLegOverallStatus,
@@ -62,7 +68,7 @@ function makeDescriptor(
   return buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
 }
 
-describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent", () => {
+describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body-focus)", () => {
   describe("happy-path (정합 descriptor↔report → void)", () => {
     it("all-pass — producer 산출 descriptor 를 그대로 넘기면 throw 0(void)", () => {
       const report = makeReport();
@@ -214,20 +220,6 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent", () 
       ).toThrow(/descriptor 가 객체가 아니다/);
     });
 
-    it("title 필드 부재/비-string → TypeError", () => {
-      const report = makeReport();
-      const descriptor = {
-        ...makeDescriptor(report),
-        title: undefined as unknown as string,
-      };
-      expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
-          report,
-          descriptor,
-        ),
-      ).toThrow(/descriptor\.title 가 string 이 아니다/);
-    });
-
     it("marker 필드 비-string(숫자) → TypeError", () => {
       const report = makeReport();
       const descriptor = {
@@ -255,12 +247,26 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent", () 
         ),
       ).toThrow(/descriptor\.body 가 string 이 아니다/);
     });
+
+    it("body 필드 비-string(숫자) → TypeError", () => {
+      const report = makeReport();
+      const descriptor = {
+        ...makeDescriptor(report),
+        body: 7 as unknown as string,
+      };
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+          report,
+          descriptor,
+        ),
+      ).toThrow(/descriptor\.body 가 string 이 아니다/);
+    });
   });
 
-  describe("flow/branch — 멱등(동일 run → title/marker 동일)", () => {
-    it("동일 run 이면 leg status/overallStatus 가 달라도 title/marker 정합(양 descriptor 모두 void)", () => {
-      // 동일 gitSha+dateToken, 다른 leg status. producer 는 title/marker 를 동일하게 산출하므로
-      // 두 report↔descriptor 쌍 모두 정합 통과해야 한다(가드가 멱등 title/marker 를 재유도).
+  describe("flow/branch — 멱등(동일 run → body/marker 동일)", () => {
+    it("동일 run 이면 leg status/overallStatus 가 달라도 body/marker 정합(양 descriptor 모두 void)", () => {
+      // 동일 gitSha+dateToken, 다른 leg status. producer 는 marker 를 동일하게 산출하므로
+      // 두 report↔descriptor 쌍 모두 body-focus 정합 통과해야 한다.
       const reportA = makeReport({ overallStatus: "all-pass" });
       const reportB = makeReport({
         evalStatus: "fail",
@@ -270,9 +276,9 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent", () 
       });
       const descA = makeDescriptor(reportA);
       const descB = makeDescriptor(reportB);
-      // 동일 run → title/marker 멱등(producer 규약) — 가드 재유도도 동일 token 을 산출.
-      expect(descA.title).toBe(descB.title);
+      // 동일 run → marker 멱등(producer 규약). body 첫 라인(=marker)도 동일.
       expect(descA.marker).toBe(descB.marker);
+      expect(descA.body.split("\n")[0]).toBe(descB.body.split("\n")[0]);
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
           reportA,
@@ -288,12 +294,12 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent", () 
     });
   });
 
-  describe("negative 충분 cover — descriptor 필드별 drift → RangeError", () => {
-    it("(a) title prefix 변조 → RangeError(title)", () => {
+  describe("negative 충분 cover — body 2 블록 구조 drift → RangeError", () => {
+    it("(min-length) body 라인 수 3 미달(단일 라인) → RangeError(body)", () => {
       const report = makeReport();
       const descriptor = {
         ...makeDescriptor(report),
-        title: "실 평가 e2e daily-step run report 2026-07-14@abc1234",
+        body: "single-line-body",
       };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
@@ -301,30 +307,15 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent", () 
           descriptor,
         );
       expect(run).toThrow(RangeError);
-      expect(run).toThrow(/정합 위반\(title\)/);
-      expect(run).toThrow(/기대=.*실측=/s);
+      expect(run).toThrow(/최소 3 라인/);
     });
 
-    it("(b) title runToken 순서 뒤집기(gitSha@dateToken) → RangeError(title)", () => {
-      const report = makeReport();
-      const descriptor = {
-        ...makeDescriptor(report),
-        title: "실 평가 e2e daily-step dual-leg run report abc1234@2026-07-14",
-      };
-      expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
-          report,
-          descriptor,
-        ),
-      ).toThrow(/정합 위반\(title\)/);
-    });
-
-    it("(c) marker `-->` 종결 누락 → RangeError(marker)", () => {
+    it("(a) body 마크다운 블록 값 변조 → RangeError(body)", () => {
       const report = makeReport();
       const base = makeDescriptor(report);
       const descriptor = {
         ...base,
-        marker: base.marker.replace(/ -->$/, ""),
+        body: base.body.replace("- git sha: abc1234", "- git sha: deadbee"),
       };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
@@ -332,25 +323,11 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent", () 
           descriptor,
         );
       expect(run).toThrow(RangeError);
-      expect(run).toThrow(/정합 위반\(marker\)/);
+      expect(run).toThrow(/정합 위반\(body\)/);
+      expect(run).toThrow(/byte-identical 하지 않다/);
     });
 
-    it("(d) marker runToken 순서 뒤집기 → RangeError(marker)", () => {
-      const report = makeReport();
-      const base = makeDescriptor(report);
-      const descriptor = {
-        ...base,
-        marker: base.marker.replace("2026-07-14@abc1234", "abc1234@2026-07-14"),
-      };
-      expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
-          report,
-          descriptor,
-        ),
-      ).toThrow(/정합 위반\(marker\)/);
-    });
-
-    it("(e) body 2블록 구분 빈 줄 제거 → RangeError(body)", () => {
+    it("(b) body 2블록 구분 빈 줄 제거 → RangeError(body)", () => {
       const report = makeReport();
       const base = makeDescriptor(report);
       // marker\n\n<markdown> → marker\n<markdown> (빈 줄 1개 제거).
@@ -367,48 +344,91 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent", () 
       expect(run).toThrow(/정합 위반\(body\)/);
     });
 
-    it("(f) body marker 라인 위치 이동(마크다운 뒤로) → RangeError(body)", () => {
+    it("(c) marker 가 body 첫 라인과 불일치(marker 단독 변조) → RangeError(body)", () => {
+      const report = makeReport();
+      const base = makeDescriptor(report);
+      // descriptor.marker 만 바꾸고 body 는 그대로 → body 첫 라인 != marker.
+      const descriptor = {
+        ...base,
+        marker: `${base.marker} DRIFT`,
+      };
+      const run = () =>
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+          report,
+          descriptor,
+        );
+      expect(run).toThrow(RangeError);
+      expect(run).toThrow(/body 첫 라인이 descriptor\.marker 와 불일치/);
+    });
+
+    it("(d) body marker 라인 위치 이동(마크다운 뒤로) → RangeError(body)", () => {
       const report = makeReport();
       const base = makeDescriptor(report);
       const markdown = base.body.slice(base.marker.length + 2); // marker + "\n\n" 제거
-      // marker 를 본문 뒤로 이동(위치 규칙 위반).
+      // marker 를 본문 뒤로 이동(위치 규칙 위반) — body 첫 라인이 marker 가 아니게 됨.
       const descriptor = {
         ...base,
         body: [markdown, "", base.marker].join("\n"),
       };
-      expect(() =>
+      const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
           report,
           descriptor,
-        ),
-      ).toThrow(/정합 위반\(body\)/);
+        );
+      expect(run).toThrow(RangeError);
+      expect(run).toThrow(/정합 위반\(body\)/);
     });
 
-    it("(g) body 마크다운 블록 값 변조 → RangeError(body)", () => {
+    it("report 측 슬롯이 descriptor 와 어긋나면 마크다운 재유도가 drift → RangeError(body)", () => {
+      // descriptor 는 abc1234 run 산출인데 report 만 gitSha 를 바꾸면 마크다운 재유도가 어긋남.
+      const rendered = makeDescriptor(makeReport());
+      const mismatched = makeReport({ gitSha: "0000000" });
+      const run = () =>
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+          mismatched,
+          rendered,
+        );
+      expect(run).toThrow(RangeError);
+      expect(run).toThrow(/정합 위반\(body\)/);
+    });
+  });
+
+  describe("회귀 방지 — T-1026 body-focus 축소(title·marker 식별자 검증은 identity oracle 위임)", () => {
+    it("title 이 drift 해도 body-focus 가드는 통과(title 은 이제 미검증 — identity oracle 이 별도로 잡음)", () => {
       const report = makeReport();
       const base = makeDescriptor(report);
+      // title 만 변조 — body/marker 는 그대로. body-focus 가드는 title 을 검증하지 않으므로 통과.
       const descriptor = {
         ...base,
-        body: base.body.replace("- git sha: abc1234", "- git sha: deadbee"),
+        title: `${base.title} DRIFT`,
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
           report,
           descriptor,
         ),
-      ).toThrow(/정합 위반\(body\)/);
+      ).not.toThrow();
     });
 
-    it("report 측 슬롯이 descriptor 와 어긋나도 RangeError(양방향 어느 쪽이든 노출)", () => {
-      // descriptor 는 abc1234 run 산출인데 report 만 gitSha 를 바꾸면 재유도가 어긋남.
-      const rendered = makeDescriptor(makeReport());
-      const mismatched = makeReport({ gitSha: "0000000" });
+    it("marker 합성 규칙이 틀려도 body 첫 라인과 일치하면 통과(marker 합성 검증은 identity oracle 위임)", () => {
+      const report = makeReport();
+      const base = makeDescriptor(report);
+      // marker 를 잘못된(하지만 body 첫 라인과 일관된) 값으로 바꿈 — prefix·runToken·`-->`
+      // 규칙이 어긋나도 body 첫 라인 == marker 이기만 하면 body-focus 가드는 통과.
+      // marker 합성 규칙 위반은 identity oracle(T-1024)이 별도로 catch.
+      const wrongMarker = "<!-- wrong-composed-marker -->";
+      const markdown = base.body.slice(base.marker.length + 2);
+      const descriptor = {
+        ...base,
+        marker: wrongMarker,
+        body: [wrongMarker, "", markdown].join("\n"),
+      };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
-          mismatched,
-          rendered,
+          report,
+          descriptor,
         ),
-      ).toThrow(RangeError);
+      ).not.toThrow();
     });
   });
 
@@ -433,7 +453,10 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent", () 
     it("동일 drift 쌍 2 회 호출 → 둘 다 RangeError", () => {
       const report = makeReport();
       const base = makeDescriptor(report);
-      const descriptor = { ...base, title: `${base.title} DRIFT` };
+      const descriptor = {
+        ...base,
+        body: base.body.replace(`${base.marker}\n\n`, `${base.marker}\n`),
+      };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
           report,
