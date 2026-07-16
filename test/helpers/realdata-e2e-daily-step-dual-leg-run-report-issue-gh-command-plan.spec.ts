@@ -19,9 +19,15 @@
 //     (무공유) 검증. consistency 모듈은 namespace 로 import 해 self-wire spy(jest.spyOn) 대상
 //     으로 삼는다 — ts-jest CommonJS 로 컴파일되므로 이 namespace 의 함수를 spyOn 하면 컴포저
 //     내부 self-wire 호출이 가로채진다.
+import * as actionModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-action";
 import type { RealDataDailyStepDualLegRunReportIssueCommandArgs } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
+import * as ghArgvModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-gh-argv";
 import { resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-gh-command-plan";
 import * as ghCommandPlanConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-gh-command-plan-consistency";
+// T-1047 delegate 순서-lock spy 대상 — 컴포저 본문이 순차 호출하는 세 위임을 namespace 로
+// import 해 pass-through jest.spyOn(mockImplementation 없이) 대상으로 삼는다. ts-jest 가
+// CommonJS 로 컴파일하므로 이 namespace 의 함수를 spyOn 하면 컴포저 내부 위임 호출이 가로채진다.
+import * as searchParseModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-search-parse";
 
 const MARKER =
   "<!-- realdata-e2e-daily-step-dual-leg-run-report-issue: 2026-07-11@abc1234 -->";
@@ -529,5 +535,162 @@ describe("resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan self-wire c
       expect(first).not.toBe(second);
       expect(first.argv).not.toBe(second.argv);
     });
+  });
+});
+
+// delegate 상대 호출 순서-lock 배선 검증 (T-1047) — 컴포저 본문이 순차 호출하는 세 위임
+// (parse → resolveAction → buildGhArgv, 각 산출이 다음 입력)의 **상대 호출 순서**를
+// invocationCallOrder 부등식으로 못박는다. plan(command-plan) 축(T-1045/T-1046) canonical
+// 패턴을 gh-command-plan 축 daily leg 로 확립. 3-delegate chain 이라 두 부등식
+// (parse<resolveAction, resolveAction<buildGhArgv)으로 lock. pass-through spy(mockImplementation
+// 없이)라 원 구현이 그대로 통과 → 산출 plan 은 배선 이전과 byte-identical·무공유.
+//
+// 호출 횟수 N: 컴포저 본문이 세 위임을 1 회씩 호출한 뒤 self-wire 가드
+// (assert...ConsistentWithInputs)가 동일 세 위임을 독립 재유도(1 회씩 재호출)하므로
+// happy-path 에서 각 spy 는 정확히 2 회 호출된다(본문 1 + 가드 재유도 1). 순서-lock 은
+// 첫 호출(invocationCallOrder[0])로 판정 — 본문의 순차 호출 순서를 못박는다.
+describe("resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan delegate 순서-lock (T-1047)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("happy-path/flow — parse → resolveAction → buildGhArgv 순차 호출(두 부등식 lock) + 인자 전파·호출 횟수", () => {
+    const parseSpy = jest.spyOn(
+      searchParseModule,
+      "parseRealDataDailyStepDualLegRunReportIssueSearchOutput",
+    );
+    const actionSpy = jest.spyOn(
+      actionModule,
+      "resolveRealDataDailyStepDualLegRunReportIssueAction",
+    );
+    const ghArgvSpy = jest.spyOn(
+      ghArgvModule,
+      "buildRealDataDailyStepDualLegRunReportIssueGhArgv",
+    );
+
+    const stdout = stdoutOf([{ number: 42 }]);
+    const args = makeCommandArgs();
+
+    const plan = resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+      stdout,
+      args,
+    );
+
+    // 두 부등식으로 3-delegate chain 순서 lock — 첫 호출(invocationCallOrder[0]) 기준.
+    expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      actionSpy.mock.invocationCallOrder[0],
+    );
+    expect(actionSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      ghArgvSpy.mock.invocationCallOrder[0],
+    );
+
+    // 호출 횟수 — 본문 1 회 + self-wire 가드 재유도 1 회 = 각 2 회.
+    expect(parseSpy).toHaveBeenCalledTimes(2);
+    expect(actionSpy).toHaveBeenCalledTimes(2);
+    expect(ghArgvSpy).toHaveBeenCalledTimes(2);
+
+    // 인자 전파 — 각 위임이 이전 산출을 다음 입력으로 받는다(첫 호출 = 본문 경로).
+    const hits = parseSpy.mock.results[0].value;
+    expect(parseSpy.mock.calls[0]).toEqual([stdout]);
+    expect(actionSpy.mock.calls[0]).toEqual([hits, args.searchQuery]);
+    const action = actionSpy.mock.results[0].value;
+    expect(ghArgvSpy.mock.calls[0]).toEqual([action, args]);
+
+    // pass-through spy 라 산출 plan 은 배선 이전과 동일해야 한다(byte-identical·무공유 재확인).
+    expect(plan.action).toEqual({ action: "update", issueNumber: 42 });
+    const reference =
+      resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(stdout, args);
+    expect(plan).toEqual(reference);
+    expect(plan).not.toBe(reference);
+    expect(plan.argv).not.toBe(reference.argv);
+  });
+
+  it("fail-fast (a) — parse 위임 throw(비JSON stdout) 시 resolveAction·buildGhArgv 미도달(각 0 회) + 에러 선전파", () => {
+    const parseSpy = jest.spyOn(
+      searchParseModule,
+      "parseRealDataDailyStepDualLegRunReportIssueSearchOutput",
+    );
+    const actionSpy = jest.spyOn(
+      actionModule,
+      "resolveRealDataDailyStepDualLegRunReportIssueAction",
+    );
+    const ghArgvSpy = jest.spyOn(
+      ghArgvModule,
+      "buildRealDataDailyStepDualLegRunReportIssueGhArgv",
+    );
+
+    expect(() =>
+      resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+        "not json",
+        makeCommandArgs(),
+      ),
+    ).toThrow();
+
+    // parse 가 먼저 throw → 후속 두 위임은 호출조차 되지 않는다(fail-fast).
+    expect(parseSpy).toHaveBeenCalledTimes(1);
+    expect(actionSpy).toHaveBeenCalledTimes(0);
+    expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+  });
+
+  it("fail-fast (b) — resolveAction 위임 throw(빈 searchQuery) 시 buildGhArgv 미도달(0 회) + parse 는 이미 호출됨", () => {
+    const parseSpy = jest.spyOn(
+      searchParseModule,
+      "parseRealDataDailyStepDualLegRunReportIssueSearchOutput",
+    );
+    const actionSpy = jest.spyOn(
+      actionModule,
+      "resolveRealDataDailyStepDualLegRunReportIssueAction",
+    );
+    const ghArgvSpy = jest.spyOn(
+      ghArgvModule,
+      "buildRealDataDailyStepDualLegRunReportIssueGhArgv",
+    );
+
+    expect(() =>
+      resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+        "[]",
+        makeCommandArgs({ searchQuery: "" }),
+      ),
+    ).toThrow(/marker 가 비어있습니다/);
+
+    // parse 는 이미 호출(순서상 먼저) — invocationCallOrder[0] 존재.
+    expect(parseSpy).toHaveBeenCalledTimes(1);
+    expect(parseSpy.mock.invocationCallOrder[0]).toBeGreaterThan(0);
+    // resolveAction 이 throw → buildGhArgv 미도달.
+    expect(actionSpy).toHaveBeenCalledTimes(1);
+    expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+  });
+
+  it("branch/guard-우선 — buildGhArgv 단계 throw(createTitle 빈) 시에도 parse < resolveAction 순서 보존", () => {
+    const parseSpy = jest.spyOn(
+      searchParseModule,
+      "parseRealDataDailyStepDualLegRunReportIssueSearchOutput",
+    );
+    const actionSpy = jest.spyOn(
+      actionModule,
+      "resolveRealDataDailyStepDualLegRunReportIssueAction",
+    );
+    const ghArgvSpy = jest.spyOn(
+      ghArgvModule,
+      "buildRealDataDailyStepDualLegRunReportIssueGhArgv",
+    );
+
+    expect(() =>
+      resolveRealDataDailyStepDualLegRunReportIssueGhCommandPlan(
+        "[]",
+        makeCommandArgs({ createTitle: "" }),
+      ),
+    ).toThrow(/createArgs\.title 가 비어있습니다/);
+
+    // 마지막(buildGhArgv) 단계가 throw 해도 앞선 두 위임은 그 전에 순서대로 호출됨.
+    expect(parseSpy).toHaveBeenCalledTimes(1);
+    expect(actionSpy).toHaveBeenCalledTimes(1);
+    expect(ghArgvSpy).toHaveBeenCalledTimes(1);
+    expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      actionSpy.mock.invocationCallOrder[0],
+    );
+    expect(actionSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      ghArgvSpy.mock.invocationCallOrder[0],
+    );
   });
 });
