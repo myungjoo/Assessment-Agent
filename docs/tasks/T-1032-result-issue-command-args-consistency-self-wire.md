@@ -2,7 +2,10 @@
 id: T-1032
 title: summary-axis command-args-consistency 가드 producer self-wire 배선 (daily T-1025 mirror)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-16T10:54:00Z
+prNumber: 926
+mergedSquash: 9d405b0f
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 210
