@@ -2,7 +2,11 @@
 id: T-1038
 title: summary(result-issue) output-parse self-wire 두 가드 호출 순서(Shape→OutputConsistent)를 invocationCallOrder 순서-lock test 로 못박기 (daily output-parse T-0907 canonical mirror, 요약축 leg)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 9844c4c5
+prNumber: 932
+reviewRounds: 1
+completed: 2026-07-16
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 60
