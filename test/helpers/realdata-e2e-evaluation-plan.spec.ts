@@ -17,9 +17,11 @@ import type {
   GithubActivity,
 } from "../../src/assessment-collection/domain/activity";
 
+import * as evaluationInputsModule from "./realdata-e2e-evaluation-inputs";
 import { buildRealDataEvaluationInputs } from "./realdata-e2e-evaluation-inputs";
 import { buildRealDataEvaluationPlan } from "./realdata-e2e-evaluation-plan";
 import * as consistency from "./realdata-e2e-evaluation-plan-consistency";
+import * as scoringCallArgsModule from "./realdata-e2e-scoring-call-args";
 
 const MODEL_ID = "qwen2.5-coder:32b";
 
@@ -355,6 +357,131 @@ describe("buildRealDataEvaluationPlan", () => {
       // 무공유(반환 plan 의 inputs/callArgs 트리가 호출마다 새 객체).
       expect(a.inputs).not.toBe(b.inputs);
       expect(a.callArgs).not.toBe(b.callArgs);
+    });
+  });
+
+  // T-1052 — 컴포저 본문 위임(delegate) 순서-lock(inputs → scoring).
+  //
+  // 기존 spec 은 두 sub-composer 산출의 값 대조(deep-equal)와 self-wire 가드(T-0682)
+  // 배선만 검증하고, 두 builder 위임의 상대 호출 순서(inputs → scoring)는
+  // invocationCallOrder 부등식으로 못박지 않았다(grep 0). publish-plan 축
+  // (T-1049/T-1050, commandPlan → searchGhArgv 데이터-의존 mirror) canonical 패턴을
+  // evaluation-plan 축으로 확립해 그 gap 을 해소한다 — buildRealDataEvaluationInputs →
+  // buildRealDataScoringCallArgs 순서를 invocationCallOrder 부등식으로 못박아 silent
+  // 재정렬 회귀를 감지한다. scoring 위임은 inputs 위임의 산출을 첫 인자로 받는
+  // 데이터-의존 chain 이라 inputs 가 반드시 먼저 평가돼야 한다. 2-delegate chain 이라
+  // 한 부등식으로 lock.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: 두 builder 위임을 실 구현 pass-through spy 로 감싸고 T-0682
+  //     self-wire 가드를 no-op mock 으로 격리(재유도가 위임을 재호출하지 않게)해 컴포저
+  //     본 합성 1회 시 inputs 첫 호출이 scoring 첫 호출보다 먼저(invocationCallOrder
+  //     toBeLessThan) + 각 정확히 1회 + 인자 전파(inputs(activities); scoring(inputs,
+  //     MODEL_ID), scoring 첫 인자 === inputs 위임 반환값 === plan.inputs reference).
+  //   - branch/무공유 재확인: pass-through spy 하에서도 산출 plan 이 {inputs, callArgs}
+  //     필드만 보유 + callArgs[i].input === inputs[i] reference 페어링 보존.
+  //   - error/negative(fail-fast): inputs 위임 강제 throw 시 scoring 위임 미도달(0회) —
+  //     inputs-먼저 순서로 scoring 도달 불가를 fail-fast 로 못박음.
+  //   - error/negative(guard-우선): 빈 modelId → scoring 위임 guard throw 전파, 이때
+  //     inputs 위임은 이미 호출됨(순서 상 inputs 가 scoring 보다 먼저 평가됨을 negative
+  //     경로에서도 재확인).
+  describe("T-1052 — 컴포저 본문 위임 순서-lock(inputs → scoring)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성 시 inputs 위임이 scoring 위임보다 먼저 호출된다(invocationCallOrder 부등식·인자 전파·각 1회)", () => {
+      // T-0682 self-wire 가드를 no-op 으로 mock — 반환 직전 재유도가 두 builder 위임을
+      // 재호출하지 않게 해 컴포저 본 합성의 위임 호출 순서·인자·횟수만 격리 검증한다
+      // (재유도 호출 검증은 T-0682 self-wire describe 의 몫).
+      jest
+        .spyOn(consistency, "assertRealDataEvaluationPlanConsistentWithSources")
+        .mockImplementation(() => {});
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const scoringSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+
+      const activities = mixedActivities();
+      const plan = buildRealDataEvaluationPlan(activities, MODEL_ID);
+
+      // 가드 no-op 이라 재유도 0 → 각 위임 정확히 1회(컴포저 본문 위임 지점 각 1개).
+      expect(inputsSpy).toHaveBeenCalledTimes(1);
+      expect(scoringSpy).toHaveBeenCalledTimes(1);
+      // 순서: inputs 위임(첫 호출)이 scoring 위임(첫 호출)보다 먼저 호출된다.
+      expect(inputsSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        scoringSpy.mock.invocationCallOrder[0],
+      );
+      // 인자 전파: inputs 위임은 원본 activities 로, scoring 위임은 (inputs, MODEL_ID) 로
+      // 호출된다. scoring 첫 인자 = inputs 위임 반환값 = plan.inputs(reference 동일 —
+      // 데이터-의존 chain 못박기).
+      expect(inputsSpy).toHaveBeenCalledWith(activities);
+      const producedInputs = inputsSpy.mock.results[0].value;
+      expect(scoringSpy).toHaveBeenCalledWith(producedInputs, MODEL_ID);
+      expect(scoringSpy.mock.calls[0][0]).toBe(producedInputs);
+      expect(scoringSpy.mock.calls[0][0]).toBe(plan.inputs);
+    });
+
+    it("(branch/무공유 재확인) pass-through spy 하에서도 산출 plan 이 {inputs, callArgs} 필드만 보유 + reference 페어링 보존", () => {
+      jest
+        .spyOn(consistency, "assertRealDataEvaluationPlanConsistentWithSources")
+        .mockImplementation(() => {});
+      jest.spyOn(evaluationInputsModule, "buildRealDataEvaluationInputs");
+      jest.spyOn(scoringCallArgsModule, "buildRealDataScoringCallArgs");
+
+      const plan = buildRealDataEvaluationPlan(mixedActivities(), MODEL_ID);
+
+      // 순서-검증(pass-through spy) 전후 산출 정합 — 기존 값 대조 test 와 동일.
+      expect(Object.keys(plan).sort()).toEqual(["callArgs", "inputs"]);
+      plan.callArgs.forEach((args, i) => {
+        expect(args.input).toBe(plan.inputs[i]);
+      });
+    });
+
+    it("(a fail-fast) inputs 위임이 throw 하면 scoring 위임에 도달하지 못한다(scoring 0회)", () => {
+      jest
+        .spyOn(evaluationInputsModule, "buildRealDataEvaluationInputs")
+        .mockImplementation(() => {
+          throw new Error("forced inputs failure");
+        });
+      const scoringSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+
+      expect(() =>
+        buildRealDataEvaluationPlan(mixedActivities(), MODEL_ID),
+      ).toThrow(/forced inputs failure/);
+
+      // inputs-먼저 순서로 인해 inputs throw 가 scoring 도달 전에 선전파 → scoring 미호출.
+      expect(scoringSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(b guard-throw 전파) 빈 modelId → scoring 위임 guard throw 전파, 이때 inputs 위임은 이미 호출됨(1회·inputs → scoring 순서 재확인)", () => {
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const scoringSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+
+      expect(() => buildRealDataEvaluationPlan(mixedActivities(), "")).toThrow(
+        /modelId/,
+      );
+
+      // 순서 상 inputs 가 scoring 보다 먼저 평가됨 — scoring 위임 guard throw 시점에
+      // inputs 는 이미 1회 호출됐고 scoring 도 1회 진입(그 안의 modelId guard 가 throw).
+      expect(inputsSpy).toHaveBeenCalledTimes(1);
+      expect(scoringSpy).toHaveBeenCalledTimes(1);
+      expect(inputsSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        scoringSpy.mock.invocationCallOrder[0],
+      );
     });
   });
 });
