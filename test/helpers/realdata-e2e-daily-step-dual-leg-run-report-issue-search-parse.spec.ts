@@ -675,5 +675,81 @@ describe("parseRealDataDailyStepDualLegRunReportIssueSearchOutput — gh search 
 
       expect(Object.keys(hits[0])).toEqual(["number", "title", "body"]);
     });
+
+    it("⑯ 두 self-wire 가드 상대 호출 순서 lock — hit-shape(per-hit set-equality) 첫 호출이 OutputConsistent(whole-array 값-정합)보다 먼저 발동한다(daily output-parse T-0907 canonical mirror, happy·flow)", () => {
+      const hitShapeSpy = jest.spyOn(
+        searchHitShapeModule,
+        "assertRealDataDailyStepDualLegRunReportIssueSearchHitShapeMatchesParseShapeKeys",
+      );
+      const consistencySpy = jest.spyOn(
+        searchParseConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueSearchOutputConsistentWithStdout",
+      );
+      const stdout = JSON.stringify([
+        { number: 1, title: "t1", body: "b1" },
+        { number: 2, title: "t2", body: "b2" },
+      ]);
+
+      const hits =
+        parseRealDataDailyStepDualLegRunReportIssueSearchOutput(stdout);
+
+      // per-hit hit-shape 가드는 hit 개수(2)만큼, whole-array 값-정합 가드는 1회 호출된다.
+      expect(hitShapeSpy).toHaveBeenCalledTimes(2);
+      expect(consistencySpy).toHaveBeenCalledTimes(1);
+      // 첫 hit-shape 호출(map 콜백 첫 hit)이 map 종료 후 whole-array OutputConsistent 보다 먼저다.
+      expect(hitShapeSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        consistencySpy.mock.invocationCallOrder[0],
+      );
+      // 실 구현 pass-through spy 이므로 산출 hits 는 순서-검증 전후 byte-identical(회귀 0).
+      expect(hits).toEqual([
+        { number: 1, title: "t1", body: "b1" },
+        { number: 2, title: "t2", body: "b2" },
+      ]);
+      expect(Object.keys(hits[0])).toEqual(["number", "title", "body"]);
+    });
+
+    it("⑰ 첫 가드(hit-shape) throw 시 둘째 가드(OutputConsistent)는 호출되지 않는다(fail-fast — error path/negative)", () => {
+      jest
+        .spyOn(
+          searchHitShapeModule,
+          "assertRealDataDailyStepDualLegRunReportIssueSearchHitShapeMatchesParseShapeKeys",
+        )
+        .mockImplementation(() => {
+          throw new RangeError("forced shape mismatch(순서 lock)");
+        });
+      const consistencySpy = jest.spyOn(
+        searchParseConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueSearchOutputConsistentWithStdout",
+      );
+      const stdout = JSON.stringify([{ number: 1, title: "t", body: "b" }]);
+
+      expect(() =>
+        parseRealDataDailyStepDualLegRunReportIssueSearchOutput(stdout),
+      ).toThrow(/forced shape mismatch/);
+      // hit-shape 가 map 첫 hit 에서 throw 하므로 map 종료 후 값-정합 가드는 도달하지 않는다(fail-fast).
+      expect(consistencySpy).toHaveBeenCalledTimes(0);
+    });
+
+    it('⑱ 빈 배열("[]") 입력이면 per-hit hit-shape 는 map 미진입으로 미호출이라 순서 부등식이 성립 불가하다(경계 — hit-shape 0회, whole-array OutputConsistent 는 1회 실호출)', () => {
+      const hitShapeSpy = jest.spyOn(
+        searchHitShapeModule,
+        "assertRealDataDailyStepDualLegRunReportIssueSearchHitShapeMatchesParseShapeKeys",
+      );
+      const consistencySpy = jest.spyOn(
+        searchParseConsistencyModule,
+        "assertRealDataDailyStepDualLegRunReportIssueSearchOutputConsistentWithStdout",
+      );
+
+      const hits =
+        parseRealDataDailyStepDualLegRunReportIssueSearchOutput("[]");
+
+      expect(hits).toEqual([]);
+      // map 콜백 미진입 → per-hit hit-shape 0회 → invocationCallOrder[0] 부재라 순서 부등식(⑯)이
+      // 성립 불가한 경계. whole-array OutputConsistent 는 map 종료 후 무조건 호출되므로 1회다
+      // (기존 T-0909 블록 ④ 와 정합 — 값-정합 가드는 빈 배열도 전체-산출 단일 호출). 따라서
+      // 순서 lock 은 hit ≥ 1건에서만 의미를 갖고, 빈 배열은 hit-shape 미발동으로 lock 대상 밖이다.
+      expect(hitShapeSpy).toHaveBeenCalledTimes(0);
+      expect(consistencySpy).toHaveBeenCalledTimes(1);
+    });
   });
 });
