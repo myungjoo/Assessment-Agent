@@ -2,7 +2,7 @@
 id: T-1025
 title: daily-step issue descriptor identity-consistency 가드(T-1024)를 producer 반환 직전 self-wire 배선 (요약축 T-0710 mirror, 기존 combined 가드 self-assert 옆 identity self-assert 1줄 추가)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 150
@@ -70,3 +70,7 @@ circular-dep 부재: T-1024 identity 가드는 producer 로부터 **type-only im
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가.) 예상 후속 ①: combined 가드 T-0988 을 body-focus 로 좁혀(title·marker 재유도를 identity oracle 로 위임/제거) 요약축의 body/identity disjoint 2-가드 구조를 daily 축에 완전 복원 — 그러면 descriptor 축까지 양축 완전 disjoint 동형(T-1024 Follow-up ②). 예상 후속 ②: descriptor 축 self-wire 완결 후, 요약축 대비 아직 남은 issue-박제 sub-helper vein 의 구조 미동형 축 재survey(build-time chain 정합 봉합이 거의 완결됐으므로 다음 자연 stream 은 live 도달). 예상 후속 ③: §109 credential/env 게이트(실 credentialed live run 1회, `deploy/daily-test.sh` step ④ 재배선)는 별도 큐잉(§5 게이트, 사용자 승인 필요).
+
+---
+
+**완료 (2026-07-16T06:04:56Z)** — PR #919 merged (squash 2f642584). identity 가드 `assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent(descriptor, report)` 를 producer `buildRealDataDailyStepDualLegRunReportIssueDescriptor` 단일 return 직전에 self-assert 배선(기존 combined 가드 self-assert 옆) + top-level import 1줄. arg order (descriptor, report) — combined 가드(report, descriptor)와 반대, spy+TS 로 swap 방지. test-only 2파일(+237/-0), src·CI·dep 0, 403 suite/10927 test green, threshold 무회귀. reviewer round1 APPROVE(0/0/0) 4-게이트 PASS. claim prune([]). next=T-1026.
