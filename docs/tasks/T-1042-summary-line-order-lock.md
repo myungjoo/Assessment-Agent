@@ -2,7 +2,7 @@
 id: T-1042
 title: result-summary-line formatter self-wire 두 가드 호출 순서(FormatShape→ConsistentWithSummary)를 invocationCallOrder 순서-lock test 로 못박기 (result-summary 축 canonical)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 65
@@ -55,3 +55,10 @@ P5 test-hardening sweep 은 producer 가 자기 return 경로에서 self-assert 
 ## Follow-ups
 
 - (예정) result-report-plan(`buildRealDataResultReportPlan`) self-wire 두 가드(`assertRealDataResultIssueDescriptorBodyConsistent` L132 → `assertRealDataResultReportPlanConsistentWithInputs` L150) 호출 순서 invocationCallOrder 순서-lock — result-summary 패밀리 두 번째 축. ⚠️ 첫 가드는 issue 패밀리 descriptor 가드를 재사용(cross-axis borrow)하므로 arg/spy 대상 모듈 확인 필요.
+
+## Result (DONE — 2026-07-16)
+
+- **완료**: PR [#936](https://github.com/myungjoo/Assessment-Agent/pull/936) squash-merge `ffeec576`, reviewer round1 APPROVE(finding 0), 4-게이트 PASS, branch delete.
+- **변경**: `test/helpers/realdata-e2e-result-summary-line.spec.ts` +112/-0 (test-only, production src 0 LOC). 순서-lock(`shapeSpy.invocationCallOrder[0] < valueSpy.invocationCallOrder[0]`, `toBeLessThan`) + fail-fast(첫 가드 throw→값-정합 spy 0회) + 입력 guard 우선(null summary→두 가드 0회) 3 test 추가.
+- **검증**: 전체 404 suites/11009 tests green, `pnpm lint`·`build` 통과, coverageThreshold line 99.95%/function 100%(line≥80 AND function≥80 무회귀).
+- **후속**: result-report-plan 축(T-1043 큐잉) — result-summary 패밀리 2번째/마지막 order-lock.
