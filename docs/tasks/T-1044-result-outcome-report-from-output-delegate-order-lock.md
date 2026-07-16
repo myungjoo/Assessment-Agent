@@ -2,7 +2,7 @@
 id: T-1044
 title: result-issue outcome-report-from-output 컴포저 본문 위임 순서(parse → build)를 invocationCallOrder 순서-lock test 로 못박기 (daily from-output canonical 요약축 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 62
