@@ -78,6 +78,7 @@
 //   consistency 만 런타임 엣지). T-0982/T-0983/T-0985/T-0987 self-wire mirror.
 import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
 import { assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-consistency";
+import { assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-identity-consistency";
 import { renderRealDataDailyStepDualLegRunReportMarkdown } from "./realdata-e2e-daily-step-dual-leg-run-report-markdown";
 
 // 이슈 제목 prefix — 결정론적 고정 문자열. run 식별 token 이 뒤에 붙는다.
@@ -164,6 +165,20 @@ export function buildRealDataDailyStepDualLegRunReportIssueDescriptor(
   assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
     report,
     descriptor,
+  );
+
+  // 🔥 self-wire identity 가드 (T-1025, 요약축 T-0710 mirror): combined 가드 옆에서 산출
+  //   descriptor 의 title·marker 가 run 식별자(`${dateToken}@${gitSha}`)로부터 독립 재유도한
+  //   expected 와 byte-identical 정합함을 반환 직전 self-assert 한다(T-1024 identity 가드 짝
+  //   닫기). identity 가드는 producer 로부터 type-only import 만 쓰므로 top-level import 에
+  //   circular dep 없음(lazy require 불요). ⚠️ 인자 순서 (descriptor, report) — combined
+  //   가드의 (report, descriptor)와 반대다(swap 금지). 정합 산출이면 void 라 반환값·동작
+  //   byte-identical 보존, title·marker 식별자 drift(run token 어긋남 / prefix 변형 / marker
+  //   가 다른 run token 을 담아 멱등 search-or-update 가 깨짐)가 생기면 손상 descriptor 를
+  //   반환하기 전에 즉시 throw 하는 build-time 트립와이어가 된다(spec 커버리지 무의존).
+  assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent(
+    descriptor,
+    report,
   );
 
   return descriptor;
