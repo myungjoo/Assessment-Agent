@@ -2,7 +2,9 @@
 id: T-1031
 title: summary-axis command-args-consistency full-recomposition 가드 신설 (daily T-0991 mirror)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-16T09:39:00Z
+prNumber: 925
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 900
