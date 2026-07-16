@@ -2,7 +2,10 @@
 id: T-1023
 title: daily-step publish-plan consistency 가드(T-1017) 재유도 경로를 command-plan 컴포저(T-1019) 위임으로 리팩터 (가드 재유도도 2층 구조 동형화, 요약축 T-0665 mirror, byte-identical 판정 보존)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: cbc15504
+prNumber: 917
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 170
