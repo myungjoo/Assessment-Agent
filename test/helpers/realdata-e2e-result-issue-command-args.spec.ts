@@ -778,4 +778,193 @@ describe("buildRealDataResultIssueCommandArgs", () => {
       expect(args.updateArgs.body).not.toContain("rawActivity");
     });
   });
+
+  // self-wire 호출 순서 lock (T-1033) — 세 self-assert(full-recomposition + body-marker +
+  // labels-title)의 producer 반환-직전 상대 호출 순서를 daily 정본(...CommandArgs.ts
+  // L172/187/205 Consistent→Body→LabelsTitle broad-first)과 동형으로 잠근다. daily spec
+  // L812/L832~837 의 invocationCallOrder 3자 부등식을 요약축 이름으로 mirror 한다. T-1033
+  // 이전 요약축은 body→labels→consistent broad-last 였고(신규 full-recomp 를 뒤에 append),
+  // 순서를 잠그는 test 가 부재했다 — 본 describe 가 (a) 재정렬된 broad-first 순서를 명시
+  // lock 하고 (b) full-recomp-first fail-fast 분기(가장 강한 오라클 회귀 시 나머지 두 가드
+  // 미도달)를 검증한다. 근거: full-recomposition 오라클은 전체 객체를 독립 재조립·대조하는
+  // 가장 강한(broad) 오라클로, 먼저 실행하면 drift 시 최고 정보량 진단이 first-throw 로 난다.
+  describe("self-wire 호출 순서 lock — Consistent→Body→LabelsTitle broad-first (T-1033, daily spec L832 mirror)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    // flow/branch + 순서-lock — 세 가드 모두 호출됨 + 상대 순서 보존(Consistent→Body→
+    // LabelsTitle). daily spec (iii) L812/L832~837 mirror. 세 spy 의 invocationCallOrder[0]
+    // 로 broad-first(full-recomp 가 가장 먼저, labels-title 가 가장 나중)를 명시 부등식으로 lock.
+    it("세 가드(Consistent·Body·LabelsTitle) 모두 호출됨 + 순서 보존(Consistent→Body→LabelsTitle)", () => {
+      const consistentSpy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataResultIssueCommandArgsConsistent",
+      );
+      const bodySpy = jest.spyOn(
+        bodyMarkerModule,
+        "assertRealDataResultIssueCommandArgsBodyPreservesDescriptor",
+      );
+      const labelsTitleSpy = jest.spyOn(
+        labelsTitleModule,
+        "assertRealDataResultIssueCommandArgsLabelsTitleConsistent",
+      );
+
+      buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR);
+
+      // 세 가드 모두 정확히 1 회 호출 — 나란히 배선(재정렬이 어느 가드도 밀어내지 않음).
+      expect(consistentSpy).toHaveBeenCalledTimes(1);
+      expect(bodySpy).toHaveBeenCalledTimes(1);
+      expect(labelsTitleSpy).toHaveBeenCalledTimes(1);
+      // 순서 보존 — Consistent → Body → LabelsTitle(식별자 guard 이후, daily 정본 broad-first).
+      expect(consistentSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        bodySpy.mock.invocationCallOrder[0],
+      );
+      expect(bodySpy.mock.invocationCallOrder[0]).toBeLessThan(
+        labelsTitleSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    // error-path (a) + flow/branch — full-recomp-first fail-fast: 가장 강한 가드가 회귀를
+    // 모사(throw)하면 producer 가 throw 전파 + 재정렬로 이제 **가장 먼저** 실행되므로
+    // body-marker·labels-title 는 미도달(미호출)까지 검증한다.
+    it("full-recomp 가드가 throw 하면 producer 가 전파하고 body-marker·labels-title 는 미호출(broad-first fail-fast)", () => {
+      const consistentSpy = jest
+        .spyOn(
+          consistencyModule,
+          "assertRealDataResultIssueCommandArgsConsistent",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            "정합 위반: full-recomposition expected 와 byte-identical 하지 않다.",
+          );
+        });
+      const bodySpy = jest.spyOn(
+        bodyMarkerModule,
+        "assertRealDataResultIssueCommandArgsBodyPreservesDescriptor",
+      );
+      const labelsTitleSpy = jest.spyOn(
+        labelsTitleModule,
+        "assertRealDataResultIssueCommandArgsLabelsTitleConsistent",
+      );
+
+      expect(() =>
+        buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR),
+      ).toThrow(RangeError);
+      // full-recomp 가 먼저 throw → 나머지 두 자매 가드 미도달(fail-fast, 순서 보존).
+      expect(consistentSpy).toHaveBeenCalledTimes(1);
+      expect(bodySpy).not.toHaveBeenCalled();
+      expect(labelsTitleSpy).not.toHaveBeenCalled();
+    });
+
+    // error-path (b) + flow/branch — body-marker 가 throw 하면 producer 전파 + labels-title
+    // 는 미도달(full-recomp 는 이미 통과). 중간 가드 fail-fast 순서 검증.
+    it("body-marker 가드가 throw 하면 producer 가 전파하고 labels-title 는 미호출", () => {
+      const consistentSpy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataResultIssueCommandArgsConsistent",
+      );
+      jest
+        .spyOn(
+          bodyMarkerModule,
+          "assertRealDataResultIssueCommandArgsBodyPreservesDescriptor",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            "불변식 위반: createArgs.body 가 descriptor.body 와 byte-identical 하지 않다.",
+          );
+        });
+      const labelsTitleSpy = jest.spyOn(
+        labelsTitleModule,
+        "assertRealDataResultIssueCommandArgsLabelsTitleConsistent",
+      );
+
+      expect(() =>
+        buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR),
+      ).toThrow(RangeError);
+      // full-recomp 는 먼저 통과(호출됨), labels-title 는 미도달.
+      expect(consistentSpy).toHaveBeenCalledTimes(1);
+      expect(labelsTitleSpy).not.toHaveBeenCalled();
+    });
+
+    // error-path (c) — labels-title(가장 나중) 가드가 throw 하면 producer 전파. 앞선 두
+    // 가드는 이미 통과(호출됨).
+    it("labels-title 가드가 throw 하면 producer 가 전파한다(앞선 두 가드는 통과)", () => {
+      const consistentSpy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataResultIssueCommandArgsConsistent",
+      );
+      const bodySpy = jest.spyOn(
+        bodyMarkerModule,
+        "assertRealDataResultIssueCommandArgsBodyPreservesDescriptor",
+      );
+      jest
+        .spyOn(
+          labelsTitleModule,
+          "assertRealDataResultIssueCommandArgsLabelsTitleConsistent",
+        )
+        .mockImplementation(() => {
+          throw new RangeError(
+            "불변식 위반: createArgs.title 이 descriptor.title 과 byte-identical 하지 않다.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR),
+      ).toThrow(RangeError);
+      expect(consistentSpy).toHaveBeenCalledTimes(1);
+      expect(bodySpy).toHaveBeenCalledTimes(1);
+    });
+
+    // negative — 순서-lock 부등식이 실제로 Consistent-first 를 강제함을 명시(daily 와 동일
+    // 순서). full-recomp 의 호출 순번이 자매 둘보다 엄격히 작음을 재확인(broad-first invariant).
+    it("Consistent 의 invocationCallOrder 가 Body·LabelsTitle 둘보다 엄격히 작다(daily 동일 broad-first)", () => {
+      const consistentSpy = jest.spyOn(
+        consistencyModule,
+        "assertRealDataResultIssueCommandArgsConsistent",
+      );
+      const bodySpy = jest.spyOn(
+        bodyMarkerModule,
+        "assertRealDataResultIssueCommandArgsBodyPreservesDescriptor",
+      );
+      const labelsTitleSpy = jest.spyOn(
+        labelsTitleModule,
+        "assertRealDataResultIssueCommandArgsLabelsTitleConsistent",
+      );
+
+      buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR);
+
+      const consistentOrder = consistentSpy.mock.invocationCallOrder[0];
+      expect(consistentOrder).toBeLessThan(bodySpy.mock.invocationCallOrder[0]);
+      expect(consistentOrder).toBeLessThan(
+        labelsTitleSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    // negative — 재정렬이 정상 입력 반환값을 바꾸지 않음(byte-identical 회귀 0).
+    it("순서 재정렬 후에도 정상 입력 명령-args byte 를 바꾸지 않는다(회귀 0)", () => {
+      const args = buildRealDataResultIssueCommandArgs(HAPPY_DESCRIPTOR);
+
+      expect(args.searchQuery).toBe(MARKER);
+      expect(args.createArgs.title).toBe(HAPPY_DESCRIPTOR.title);
+      expect(args.createArgs.body).toBe(HAPPY_DESCRIPTOR.body);
+      expect(args.createArgs.labels).toEqual(["realdata-e2e", "result"]);
+      expect(args.updateArgs.title).toBe(HAPPY_DESCRIPTOR.title);
+      expect(args.updateArgs.body).toBe(HAPPY_DESCRIPTOR.body);
+    });
+
+    // negative — 재정렬이 입력 descriptor 를 mutate 하지 않음(비변형).
+    it("순서 재정렬 후에도 입력 descriptor 를 mutate 하지 않는다", () => {
+      const descriptor: RealDataResultIssueDescriptor = {
+        title: "실 평가 e2e 결과 2026-06-23@abc1234",
+        marker: MARKER,
+        body: [MARKER, "", "본문"].join("\n"),
+      };
+      const before = { ...descriptor };
+
+      buildRealDataResultIssueCommandArgs(descriptor);
+
+      expect(descriptor).toEqual(before);
+    });
+  });
 });
