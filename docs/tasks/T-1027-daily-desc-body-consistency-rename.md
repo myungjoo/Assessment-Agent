@@ -2,7 +2,7 @@
 id: T-1027
 title: daily-step issue descriptor body-focus 가드(T-1026)를 `-body-consistency` 로 개명해 요약축과 파일명·심볼까지 완전 동형화 (naming isomorphism 마무리)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 130
@@ -69,3 +69,8 @@ issue-still-relevant pre-check(origin/main grep, 본 planner 확인): 파일 `re
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가.) 예상 후속 ①: descriptor 축 body/identity disjoint 2-가드 구조가 파일명·심볼까지 완전 동형화됐으므로(T-1026 structural + T-1027 naming), 요약축 대비 아직 구조·명명이 미동형인 다른 issue-박제 sub-helper vein(예: command-plan·publish-plan seam 의 잔여 미동형 축) 재survey — build-time chain 정합 봉합이 거의 완결이라 다음 자연 stream 은 live 도달(§109 credential/env 게이트) 쪽으로 기운다. 예상 후속 ②: §109 credential/env 게이트(실 credentialed live run 1회, `deploy/daily-test.sh` step ④ 재배선)는 별도 큐잉(§5 게이트, 사용자 승인 필요).
+
+## Result (DONE — 2026-07-16T07:05Z)
+
+PR #921 round 1/7 APPROVE 4-게이트 통과 squash 머지(f630b9e2), branch delete.
+daily-step body-focus 가드를 `-body-consistency`/`...DescriptorBodyConsistent` 로 순수 개명(git mv 2 + 참조 3파일, +55/-54, behavior 0). 요약축(-body-consistency)과 파일명·심볼까지 완전 동형화 달성. 403 suite/10927 test green, 개명 가드 cov 100%, 전역 cov ≥80% 무회귀. reviewer MINOR 1건(command-args-body-marker.ts:29 구 stage명 주석 참조 — out-of-scope, T-1028 로 큐잉).
