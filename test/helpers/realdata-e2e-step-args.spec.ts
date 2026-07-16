@@ -31,8 +31,10 @@ import type {
 import type { EvaluationResult } from "../../src/assessment-evaluation/domain/evaluation-result";
 
 import { buildRealDataEvaluationStepArgs } from "./realdata-e2e-evaluation-step-args";
+import * as evaluationStepArgsModule from "./realdata-e2e-evaluation-step-args";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
 import { buildRealDataResultPublishStepArgs } from "./realdata-e2e-result-publish-step-args";
+import * as resultPublishStepArgsModule from "./realdata-e2e-result-publish-step-args";
 import type { RealDataE2eRunPlan } from "./realdata-e2e-run-plan";
 import { buildRealDataE2eStepArgs } from "./realdata-e2e-step-args";
 import * as consistency from "./realdata-e2e-step-args-consistency";
@@ -587,6 +589,123 @@ describe("buildRealDataE2eStepArgs — run plan → 평가+publish step-args 단
       a.publish.searchArgv.push("--오염");
       const c = buildRealDataE2eStepArgs(runPlan, activities, results);
       expect(c.publish.searchArgv).not.toContain("--오염");
+    });
+  });
+
+  // 두 sub-composer 위임(evaluation → publish)의 상대 호출 순서를 invocationCallOrder
+  // 부등식으로 못박는 delegate 순서-lock. 값 대조(deep-equal) test 는 순서 무관이라 두
+  // 위임 평가 순서를 뒤바꾸는 회귀를 잡지 못하고, 두 builder 가 상호 독립이라 최종
+  // 컨테이너도 재정렬 후 동일하다 — 따라서 fail-fast 계약(evaluation-first, 빈/공백
+  // modelId 면 publish 위임 미도달)이 조용히 깨진다. 두 builder module namespace 를
+  // 실 구현 pass-through spyOn 으로 감싸 좌→우 평가 순서(evaluation → publish)를 한 부등식
+  // 으로 lock 한다(consistency 가드 self-wire describe 의 spyOn/restore 구조 선례를 mirror,
+  // spyOn 대상만 두 builder module 로 교체).
+  describe("delegate 순서-lock — 두 sub-composer 위임(evaluation → publish) invocationCallOrder", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성 → evaluation 위임이 publish 위임보다 먼저 호출(invocationCallOrder 부등식) + 정확 인자·단일 runPlan thread", () => {
+      const evaluationSpy = jest.spyOn(
+        evaluationStepArgsModule,
+        "buildRealDataEvaluationStepArgs",
+      );
+      const publishSpy = jest.spyOn(
+        resultPublishStepArgsModule,
+        "buildRealDataResultPublishStepArgs",
+      );
+      const runPlan = makeRunPlan();
+      const activities = mixedActivities();
+
+      buildRealDataE2eStepArgs(runPlan, activities, MULTIPLE_RESULTS);
+
+      // 좌→우 평가 순서 lock: aggregator 본문의 첫 evaluation 위임 호출이 첫 publish 위임
+      // 호출보다 먼저 평가됨(invocationCallOrder[0] 부등식). 이 [0] 비교는 뒤따르는
+      // self-wire 가드의 재유도 호출과 무관하게 본문 평가 순서만 못박는다.
+      expect(evaluationSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        publishSpy.mock.invocationCallOrder[0],
+      );
+      // 각 위임 2회 호출 — aggregator 본문 1회 + 반환 직전 self-wire 가드
+      // (assertRealDataE2eStepArgsConsistentWithSources, T-0672)의 single-source 재유도 1회.
+      // (본문만의 1회를 강제하려 가드를 mock 하지 않는다 — 순서-lock 은 [0] 부등식이 담당.)
+      expect(evaluationSpy).toHaveBeenCalledTimes(2);
+      expect(publishSpy).toHaveBeenCalledTimes(2);
+      // evaluation 위임은 (runPlan, activities) 인자로 호출.
+      expect(evaluationSpy).toHaveBeenCalledWith(runPlan, activities);
+      // publish 위임은 (runPlan, results) 인자로 호출.
+      expect(publishSpy).toHaveBeenCalledWith(runPlan, MULTIPLE_RESULTS);
+      // 두 위임 모두 첫 인자가 같은 runPlan reference — 단일 runPlan 동시 thread 못박기.
+      expect(evaluationSpy.mock.calls[0][0]).toBe(runPlan);
+      expect(publishSpy.mock.calls[0][0]).toBe(runPlan);
+    });
+
+    it("fail-fast 순서(evaluation 위임 throw → publish 미도달): modelId 공백-only → publish 위임 0회", () => {
+      const evaluationSpy = jest.spyOn(
+        evaluationStepArgsModule,
+        "buildRealDataEvaluationStepArgs",
+      );
+      const publishSpy = jest.spyOn(
+        resultPublishStepArgsModule,
+        "buildRealDataResultPublishStepArgs",
+      );
+
+      // evaluation 위임 guard 가 먼저 throw → aggregator 가 선전파.
+      expect(() =>
+        buildRealDataE2eStepArgs(
+          makeRunPlan("   "),
+          mixedActivities(),
+          MULTIPLE_RESULTS,
+        ),
+      ).toThrow(/modelId/);
+      // evaluation 이 먼저 평가되므로 publish 위임은 미도달(0회) — fail-fast 방향 lock.
+      expect(evaluationSpy).toHaveBeenCalledTimes(1);
+      expect(publishSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("후속-위임 throw 전파(publish 위임 throw → evaluation 이미 호출): gitSha 공백-only → evaluation 위임 1회", () => {
+      const evaluationSpy = jest.spyOn(
+        evaluationStepArgsModule,
+        "buildRealDataEvaluationStepArgs",
+      );
+      const publishSpy = jest.spyOn(
+        resultPublishStepArgsModule,
+        "buildRealDataResultPublishStepArgs",
+      );
+
+      // publish 위임 guard 가 throw → aggregator 가 전파.
+      expect(() =>
+        buildRealDataE2eStepArgs(
+          makeRunPlan(MODEL_ID, { gitSha: "  ", dateToken: "2026-06-23" }),
+          mixedActivities(),
+          MULTIPLE_RESULTS,
+        ),
+      ).toThrow(/gitSha/);
+      // evaluation 이 publish 보다 먼저 평가되므로 negative 경로에서도 evaluation 은 이미 1회 호출됨.
+      expect(evaluationSpy).toHaveBeenCalledTimes(1);
+      expect(publishSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("pass-through spy → 산출 컨테이너의 {evaluation, publish} 필드가 각 위임 반환 reference 와 동일(무공유 재확인)", () => {
+      const evaluationSpy = jest.spyOn(
+        evaluationStepArgsModule,
+        "buildRealDataEvaluationStepArgs",
+      );
+      const publishSpy = jest.spyOn(
+        resultPublishStepArgsModule,
+        "buildRealDataResultPublishStepArgs",
+      );
+      const runPlan = makeRunPlan();
+      const activities = mixedActivities();
+
+      const stepArgs = buildRealDataE2eStepArgs(
+        runPlan,
+        activities,
+        MULTIPLE_RESULTS,
+      );
+
+      // pass-through 이므로 컨테이너 필드가 각 위임이 반환한 바로 그 reference 여야 한다.
+      expect(stepArgs.evaluation).toBe(evaluationSpy.mock.results[0].value);
+      expect(stepArgs.publish).toBe(publishSpy.mock.results[0].value);
     });
   });
 });
