@@ -2,8 +2,10 @@
 id: T-1045
 title: daily command-plan 컴포저 본문 위임 순서(descriptor → commandArgs)를 invocationCallOrder 순서-lock test 로 못박기 (plan 컴포저 sweep daily canonical leg)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-07-16T18:01:29Z
+result: "PR #939 squash 7f0f4ba9 — descriptor→commandArgs invocationCallOrder 순서-lock 3 test(happy 부등식+fail-fast+guard-우선) 추가, test-only 1파일 +104/-0 src 0 LOC, 404 suites/11018 tests green, reviewer round1 APPROVE 4-게이트 PASS."
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 66
 estimatedFiles: 1
