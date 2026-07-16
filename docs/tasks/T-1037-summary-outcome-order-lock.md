@@ -2,7 +2,10 @@
 id: T-1037
 title: summary(result-issue) outcome-report self-wire 두 가드 호출 순서(SummaryLine→OutputConsistent)를 invocationCallOrder 순서-lock test 로 못박기 (daily outcome-report T-1036 mirror, 요약축 leg)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 3cf578eb
+prNumber: 931
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 60
