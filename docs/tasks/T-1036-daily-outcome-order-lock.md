@@ -2,7 +2,9 @@
 id: T-1036
 title: daily outcome-report self-wire 두 가드 호출 순서(SummaryLine→OutputConsistent)를 invocationCallOrder 순서-lock test 로 못박기 (descriptor T-1034 순서-lock 패턴을 outcome-report 축으로 확장, canonical daily 확립)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 4f5555a9
+prNumber: 930
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 45
