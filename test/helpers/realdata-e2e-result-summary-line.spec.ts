@@ -529,6 +529,118 @@ describe("formatRealDataResultSummaryLine", () => {
       // 입력 가드(byContribution 누락)가 먼저 throw 하므로 값-정합 가드는 호출되지 않는다.
       expect(valueSpy).not.toHaveBeenCalled();
     });
+
+    // ── T-1042: 두 self-assert 가드 상대 호출 순서 lock (result-summary canonical) ──
+    // 위 ④ 블록은 두 가드가 각각 1회 호출됨(공존)은 보이지만 상대 순서는 못박지 않는다.
+    // producer L148 FormatShape(형태 불변식) → L163 ConsistentWithSummary(값-정합)
+    // 순서를 invocationCallOrder 부등식으로 lock 해 silent 재정렬 회귀를 감지한다.
+    // result-issue/daily-issue 6 축 order-lock(T-1033~T-1041) 을 result-summary
+    // 패밀리로 확장하는 첫 축(T-1041 search-argv 선례의 요약축 동형). 실 구현
+    // pass-through spy 사용(산출 라인 byte-identical 함께 재확인).
+    describe("호출 순서-lock — FormatShape 가드 → ConsistentWithSummary 가드 상대 순서 (T-1042)", () => {
+      it("(순서-lock) 두 가드 모두 1회 호출 — FormatShape 가 ConsistentWithSummary 보다 먼저(invocationCallOrder)", () => {
+        // 실 구현 pass-through(미mock spy) — 두 가드 실제 실행 + 호출 순서 관찰.
+        const shapeSpy = jest.spyOn(
+          formatShapeModule,
+          "assertRealDataResultSummaryLineFormatShape",
+        );
+        const valueSpy = jest.spyOn(
+          lineConsistencyModule,
+          "assertRealDataResultSummaryLineConsistentWithSummary",
+        );
+
+        try {
+          const summary = makeSummary({
+            count: 5,
+            byDifficulty: { easy: 2, medium: 2, hard: 1 },
+            byContribution: { zero: 1, low: 1, medium: 2, high: 1 },
+            totalVolume: 42,
+          });
+          const line = formatRealDataResultSummaryLine(summary);
+
+          // 두 가드 모두 정확히 1회 호출.
+          expect(shapeSpy).toHaveBeenCalledTimes(1);
+          expect(valueSpy).toHaveBeenCalledTimes(1);
+          // 형태 가드가 값-정합 가드보다 먼저 호출.
+          expect(shapeSpy.mock.invocationCallOrder[0]).toBeLessThan(
+            valueSpy.mock.invocationCallOrder[0],
+          );
+          // 실 구현 pass-through 이므로 산출 라인은 순서 검증 전후 byte-identical.
+          expect(line).toBe(
+            "실 평가 e2e 결과: count=5 · volume=42 · 난이도(easy/medium/hard)=2/2/1 · 기여도(zero/low/medium/high)=1/1/2/1",
+          );
+        } finally {
+          shapeSpy.mockRestore();
+          valueSpy.mockRestore();
+        }
+      });
+
+      it("(fail-fast) 첫 가드(FormatShape) throw 시 둘째 가드(ConsistentWithSummary) 미호출", () => {
+        const shapeSpy = jest
+          .spyOn(
+            formatShapeModule,
+            "assertRealDataResultSummaryLineFormatShape",
+          )
+          .mockImplementation(() => {
+            throw new RangeError("모의: FormatShape 가드 throw");
+          });
+        const valueSpy = jest
+          .spyOn(
+            lineConsistencyModule,
+            "assertRealDataResultSummaryLineConsistentWithSummary",
+          )
+          .mockImplementation(() => undefined);
+
+        try {
+          const summary = makeSummary({
+            count: 3,
+            byDifficulty: { easy: 1, medium: 1, hard: 1 },
+            byContribution: { zero: 0, low: 1, medium: 1, high: 1 },
+            totalVolume: 9,
+          });
+
+          expect(() => formatRealDataResultSummaryLine(summary)).toThrow(
+            /모의: FormatShape 가드 throw/,
+          );
+          // 첫 가드가 먼저 throw 하므로 둘째 가드는 도달조차 못 함(fail-fast).
+          expect(shapeSpy).toHaveBeenCalledTimes(1);
+          expect(valueSpy).not.toHaveBeenCalled();
+        } finally {
+          shapeSpy.mockRestore();
+          valueSpy.mockRestore();
+        }
+      });
+
+      it("(guard 우선) null(또는 byContribution 누락) summary → 입력 guard 가 먼저 throw, 두 가드 모두 미호출", () => {
+        const shapeSpy = jest
+          .spyOn(
+            formatShapeModule,
+            "assertRealDataResultSummaryLineFormatShape",
+          )
+          .mockImplementation(() => undefined);
+        const valueSpy = jest
+          .spyOn(
+            lineConsistencyModule,
+            "assertRealDataResultSummaryLineConsistentWithSummary",
+          )
+          .mockImplementation(() => undefined);
+
+        try {
+          expect(() =>
+            formatRealDataResultSummaryLine(
+              null as unknown as RealDataResultSummary,
+            ),
+          ).toThrow(TypeError);
+          // 입력 guard(null summary)가 두 self-assert 도달 전에 먼저 throw — self-wire
+          // 추가가 입력 guard 우선순위를 깨지 않음(형태·값 가드 모두 미호출).
+          expect(shapeSpy).not.toHaveBeenCalled();
+          expect(valueSpy).not.toHaveBeenCalled();
+        } finally {
+          shapeSpy.mockRestore();
+          valueSpy.mockRestore();
+        }
+      });
+    });
   });
 
   describe("R-59 raw 미저장 정합", () => {
