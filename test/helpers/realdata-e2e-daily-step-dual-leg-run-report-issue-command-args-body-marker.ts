@@ -26,7 +26,7 @@
 //     `RealDataDailyStepDualLegRunReport`·markdown 렌더러·summary 를 import 하지 않는다.
 //     descriptor.body / descriptor.marker 를 single-source 로 삼아 명령-args 의 body
 //     전파·searchQuery 가 그것을 보존하는지만 비교한다. full body 재유도가 필요하면
-//     descriptor 단계(issue-descriptor-consistency)가 이미 cover.
+//     descriptor 단계(issue-descriptor-body-consistency)가 이미 cover.
 //
 // 부수효과 0 / 외부 의존 0 / `@Injectable` 0 / Prisma 0 / LLM 호출 0 / repository 0 /
 // 입력 비변형(args·descriptor 객체 읽기·비교만) / 동일 입력 → 동일 동작(정상 명령-args 면
