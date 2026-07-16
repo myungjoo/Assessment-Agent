@@ -329,7 +329,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueCommandArgs self-wire consi
   });
 
   describe("flow/branch (self-wire 호출 사실 검증 — spy 로 배선 존재 증명)", () => {
-    it("정상 경로 → 가드가 (descriptor, 반환된 commandArgs) 로 정확히 1 회 호출", () => {
+    it("정상 경로 → 가드가 (반환된 commandArgs, descriptor) 로 정확히 1 회 호출", () => {
       const spy = jest.spyOn(
         issueCommandArgsConsistency,
         "assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent",
@@ -340,7 +340,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueCommandArgs self-wire consi
         );
 
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(HAPPY_DESCRIPTOR, args);
+      expect(spy).toHaveBeenCalledWith(args, HAPPY_DESCRIPTOR);
     });
 
     it("다른 descriptor fixture → 가드가 반환 commandArgs 인자로 정확히 1 회 호출", () => {
@@ -354,7 +354,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueCommandArgs self-wire consi
         );
 
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(OTHER_DESCRIPTOR, args);
+      expect(spy).toHaveBeenCalledWith(args, OTHER_DESCRIPTOR);
     });
   });
 

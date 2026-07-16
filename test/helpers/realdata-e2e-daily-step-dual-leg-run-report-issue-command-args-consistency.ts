@@ -245,8 +245,8 @@ function assertLabelsConsistent(
  * title·body·labels) → RangeError(기대 vs 실측 노출). silent 통과 0, fail-fast. 공백·줄바꿈·
  * 대소문자·배열 순서 민감(trim·case-fold 0).
  *
- * @param descriptor 명령-args 의 single source. 변형하지 않는다(읽기·비교만).
  * @param commandArgs 검증 대상 issue 명령-args(producer 산출). 변형하지 않는다(읽기·비교만).
+ * @param descriptor 명령-args 의 single source. 변형하지 않는다(읽기·비교만).
  * @param label 선택 — 에러 메시지에 붙일 대조 지점 식별자.
  * @returns 정합하면 정상 반환(void).
  * @throws {TypeError} commandArgs 구조 결손(null/비-객체·필드 부재·비-string·labels 비-배열).
@@ -254,8 +254,8 @@ function assertLabelsConsistent(
  * @throws {RangeError} 독립 재유도 expected 와 commandArgs drift(기대 vs 실측 포함).
  */
 export function assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-  descriptor: RealDataDailyStepDualLegRunReportIssueDescriptor,
   commandArgs: RealDataDailyStepDualLegRunReportIssueCommandArgs,
+  descriptor: RealDataDailyStepDualLegRunReportIssueDescriptor,
   label?: string,
 ): void {
   const ctx = contextPrefix(label);
