@@ -2,7 +2,7 @@
 id: T-1055
 title: evaluation-plan consistency-guard(assertRealDataEvaluationPlanConsistentWithSources)의 2 distinct builder 재유도 순서(inputs → scoring-call-args) invocationCallOrder 순서-lock test 로 못박기 (consistency-guard 재유도 delegate 순서-lock leg 2)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 115
@@ -66,3 +66,10 @@ P5 test-hardening sweep 은 producer / 컴포저 / consistency-guard 가 자기 
 ## Follow-ups
 
 - (감사 후속) 본 task(evaluation-plan-consistency 재유도 순서-lock) 완결 후 나머지 consistency guard 를 pre-check(각 spec `invocationCallOrder` 0건 여부 + guard 본문 재유도 builder 개수 + fail-fast 게이트/데이터-의존 여부)로 재판정. fail-fast 게이트를 낀 순차 2 builder 재유도 또는 데이터-의존 chain(둘째가 첫째 산출 소비)을 가진 guard 를 우선, 단일 builder 재유도·게이트 없는 상호-독립 병렬 재유도는 defense-in-depth 가치가 낮으므로 후순위 또는 "order-lock 불요" 확정 기록.
+
+## Result (DONE)
+
+- 완료: 2026-07-16T22:44Z (fire cron@aa-local-75146551-7t3k)
+- PR [#949](https://github.com/myungjoo/Assessment-Agent/pull/949) squash merge → main `98ed8ac5`. reviewer round1 APPROVE(4-게이트 PASS), 브랜치 삭제.
+- 구현: `test/helpers/realdata-e2e-evaluation-plan-consistency.spec.ts` +146/-0 (test-only, production 0 LOC). `evaluationInputsModule`·`scoringCallArgsModule` namespace spyOn 배선 + 순서-lock describe 4 test(happy 부등식 `inputs<callArgs`·무공유 재확인·fail-fast(inputs throw→callArgs 0회)·후속 throw 전파(callArgs throw→inputs 1회)).
+- 검증: 대상 suite 28 pass(신규 4), 전체 404 suites/11055 tests green, coverage line 99.95%/func 100%/branch 99.25% (≥80 무회귀). `invocationCallOrder` grep 0→8.
