@@ -558,5 +558,100 @@ describe("buildRealDataResultIssueSearchGhArgv", () => {
         }
       });
     });
+
+    // ── T-1041: 두 self-assert 가드 상대 호출 순서 lock (daily canonical mirror) ──
+    // 위 (d) 블록은 두 가드가 각각 1회 호출됨은 보이지만 상대 순서는 못박지 않는다.
+    // producer L142 GhArgvPreserves(argv↔command-args 보존) → L157 JsonFields(--json↔
+    // parse-shape 정합) 순서를 invocationCallOrder 부등식으로 lock 해 silent 재정렬
+    // 회귀를 감지한다. daily `(d) 가드 순서 보존`(search-argv daily spec L619) 의
+    // 요약축 mirror. 실 구현 pass-through spy 사용(byte-identical argv 함께 재확인).
+    describe("호출 순서-lock — GhArgvPreserves 가드 → JsonFields 가드 상대 순서 (T-1041)", () => {
+      const roundTripGuardName =
+        "assertRealDataResultIssueSearchGhArgvPreservesCommandArgs";
+
+      it("(순서-lock) 두 가드 모두 1회 호출 — GhArgvPreserves 가 JsonFields 보다 먼저(invocationCallOrder)", () => {
+        // 실 구현 pass-through(미mock spy) — 두 가드 실제 실행 + 호출 순서 관찰.
+        const roundTripSpy = jest.spyOn(
+          searchArgvConsistency,
+          roundTripGuardName,
+        );
+        const jsonFieldsSpy = jest.spyOn(searchJsonFields, guardName);
+
+        try {
+          const args = makeCommandArgs({ searchQuery: "<!-- 순서 토큰 -->" });
+          const argv = buildRealDataResultIssueSearchGhArgv(args);
+
+          // 두 가드 모두 정확히 1회 호출.
+          expect(roundTripSpy).toHaveBeenCalledTimes(1);
+          expect(jsonFieldsSpy).toHaveBeenCalledTimes(1);
+          // argv↔command-args 보존 가드가 --json↔parse-shape 가드보다 먼저 호출.
+          expect(roundTripSpy.mock.invocationCallOrder[0]).toBeLessThan(
+            jsonFieldsSpy.mock.invocationCallOrder[0],
+          );
+          // 실 구현 pass-through 이므로 산출 argv 는 순서 검증 전후 byte-identical.
+          expect(argv).toEqual([
+            "search",
+            "issues",
+            "--match",
+            "body",
+            "<!-- 순서 토큰 -->",
+            "--json",
+            "number,title,body",
+            "--limit",
+            "30",
+          ]);
+        } finally {
+          roundTripSpy.mockRestore();
+          jsonFieldsSpy.mockRestore();
+        }
+      });
+
+      it("(fail-fast) 첫 가드(GhArgvPreserves) throw 시 둘째 가드(JsonFields) 미호출", () => {
+        const roundTripSpy = jest
+          .spyOn(searchArgvConsistency, roundTripGuardName)
+          .mockImplementation(() => {
+            throw new RangeError("모의: GhArgvPreserves 가드 throw");
+          });
+        const jsonFieldsSpy = jest
+          .spyOn(searchJsonFields, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          expect(() =>
+            buildRealDataResultIssueSearchGhArgv(makeCommandArgs()),
+          ).toThrow(/모의: GhArgvPreserves 가드 throw/);
+          // 첫 가드가 먼저 throw 하므로 둘째 가드는 도달조차 못 함(fail-fast).
+          expect(roundTripSpy).toHaveBeenCalledTimes(1);
+          expect(jsonFieldsSpy).not.toHaveBeenCalled();
+        } finally {
+          roundTripSpy.mockRestore();
+          jsonFieldsSpy.mockRestore();
+        }
+      });
+
+      it("(guard 우선) 빈/공백 searchQuery → assertSearchQueryNonBlank 가 먼저 throw, 두 가드 모두 미호출", () => {
+        const roundTripSpy = jest
+          .spyOn(searchArgvConsistency, roundTripGuardName)
+          .mockImplementation(() => undefined);
+        const jsonFieldsSpy = jest
+          .spyOn(searchJsonFields, guardName)
+          .mockImplementation(() => undefined);
+
+        try {
+          expect(() =>
+            buildRealDataResultIssueSearchGhArgv(
+              makeCommandArgs({ searchQuery: "   \t\n " }),
+            ),
+          ).toThrow(/searchQuery 가 비어있습니다/);
+          // 입력 guard 가 두 self-assert 도달 전에 먼저 throw — self-wire 추가가
+          // 입력 guard 우선순위를 깨지 않음.
+          expect(roundTripSpy).not.toHaveBeenCalled();
+          expect(jsonFieldsSpy).not.toHaveBeenCalled();
+        } finally {
+          roundTripSpy.mockRestore();
+          jsonFieldsSpy.mockRestore();
+        }
+      });
+    });
   });
 });
