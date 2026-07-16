@@ -170,8 +170,8 @@ export function buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
   //   labels 상수 복제)과 oracle 규칙이 어긋나는 순간 모든 호출 경로(unit spec·이슈 박제
   //   재사용)에서 즉시 throw 하는 live 트립와이어가 된다 — spec 커버리지에 의존하지 않는다.
   assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-    descriptor,
     commandArgs,
+    descriptor,
   );
 
   // 🔥 self-wire body marker-first 정합 가드 (T-1009, 요약축 T-0650 mirror): 명령-args 를

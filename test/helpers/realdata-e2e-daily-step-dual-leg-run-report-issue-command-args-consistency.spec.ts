@@ -62,8 +62,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const descriptor = makeDescriptor();
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           makeArgs(descriptor),
+          descriptor,
         ),
       ).not.toThrow();
     });
@@ -72,8 +72,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const descriptor = makeDescriptor();
       expect(
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           makeArgs(descriptor),
+          descriptor,
         ),
       ).toBeUndefined();
     });
@@ -87,8 +87,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       // producer 산출 그대로 정합(oracle 이 producer 규칙과 byte-identical 재유도).
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).not.toThrow();
     });
@@ -103,8 +103,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           makeArgs(descriptor),
+          descriptor,
         ),
       ).not.toThrow();
     });
@@ -113,8 +113,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const descriptor = makeDescriptor();
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           makeArgs(descriptor),
+          descriptor,
           "daily-issue#1",
         ),
       ).not.toThrow();
@@ -124,8 +124,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const descriptor = makeDescriptor();
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           makeArgs(descriptor),
+          descriptor,
           "",
         ),
       ).not.toThrow();
@@ -136,8 +136,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
     it("commandArgs null → TypeError", () => {
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          makeDescriptor(),
           null as unknown as RealDataDailyStepDualLegRunReportIssueCommandArgs,
+          makeDescriptor(),
         ),
       ).toThrow(/commandArgs 가 null\/undefined/);
     });
@@ -145,8 +145,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
     it("commandArgs 비-객체(문자열) → TypeError", () => {
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          makeDescriptor(),
           "not-an-object" as unknown as RealDataDailyStepDualLegRunReportIssueCommandArgs,
+          makeDescriptor(),
         ),
       ).toThrow(/commandArgs 가 객체가 아니다/);
     });
@@ -159,8 +159,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/commandArgs\.searchQuery 가 string 이 아니다/);
     });
@@ -174,8 +174,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/commandArgs\.createArgs 가 null\/undefined/);
     });
@@ -189,8 +189,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/commandArgs\.createArgs 가 객체가 아니다/);
     });
@@ -204,8 +204,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/commandArgs\.updateArgs 가 null\/undefined/);
     });
@@ -222,8 +222,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/commandArgs\.createArgs\.labels 가 배열이 아니다/);
     });
@@ -240,8 +240,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/commandArgs\.createArgs\.labels\[1\] 가 string 이 아니다/);
     });
@@ -255,8 +255,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/commandArgs\.createArgs\.title 가 string 이 아니다/);
     });
@@ -270,8 +270,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/commandArgs\.updateArgs\.body 가 string 이 아니다/);
     });
@@ -285,8 +285,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/commandArgs\.createArgs\.body 가 string 이 아니다/);
     });
@@ -303,8 +303,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/commandArgs\.updateArgs\.title 가 string 이 아니다/);
     });
@@ -319,8 +319,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/commandArgs\.updateArgs 가 객체가 아니다/);
     });
@@ -332,12 +332,12 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       // command-args 는 구조상 온전한 더미(재유도 이전 descriptor guard 가 먼저 throw).
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           {
             searchQuery: "y",
             createArgs: { title: "x", body: "z", labels: [...FIXED_LABELS] },
             updateArgs: { title: "x", body: "z" },
           },
+          descriptor,
         ),
       ).toThrow(/title/);
     });
@@ -346,8 +346,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const descriptor = { ...makeDescriptor(), title: "  \t " };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           makeArgs(makeDescriptor()),
+          descriptor,
         ),
       ).toThrow(/title/);
     });
@@ -356,12 +356,12 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const descriptor = { ...makeDescriptor(), marker: "" };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           {
             searchQuery: "y",
             createArgs: { title: "x", body: "z", labels: [...FIXED_LABELS] },
             updateArgs: { title: "x", body: "z" },
           },
+          descriptor,
         ),
       ).toThrow(/marker/);
     });
@@ -370,12 +370,12 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const descriptor = { ...makeDescriptor(), marker: "\n \t" };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           {
             searchQuery: "y",
             createArgs: { title: "x", body: "z", labels: [...FIXED_LABELS] },
             updateArgs: { title: "x", body: "z" },
           },
+          descriptor,
         ),
       ).toThrow(/marker/);
     });
@@ -388,8 +388,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const args = { ...base, searchQuery: descriptor.title };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         );
       expect(run).toThrow(RangeError);
       expect(run).toThrow(/정합 위반\(searchQuery\)/);
@@ -408,8 +408,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         );
       expect(run).toThrow(RangeError);
       expect(run).toThrow(/정합 위반\(updateArgs\.body\)/);
@@ -424,8 +424,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/정합 위반\(createArgs\.body\)/);
     });
@@ -439,8 +439,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/정합 위반\(createArgs\.title\)/);
     });
@@ -454,8 +454,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/정합 위반\(updateArgs\.title\)/);
     });
@@ -472,8 +472,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/정합 위반\(createArgs\.labels 개수\)/);
     });
@@ -487,8 +487,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/정합 위반\(createArgs\.labels 개수\)/);
     });
@@ -505,8 +505,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/정합 위반\(createArgs\.labels\[1\]\)/);
     });
@@ -523,8 +523,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/정합 위반\(createArgs\.labels\[0\]\)/);
     });
@@ -538,8 +538,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).toThrow(/정합 위반\(createArgs\.labels 개수\)/);
     });
@@ -554,8 +554,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          mismatched,
           args,
+          mismatched,
         ),
       ).toThrow(RangeError);
     });
@@ -567,14 +567,14 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const args = makeArgs(descriptor);
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).not.toThrow();
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).not.toThrow();
     });
@@ -585,8 +585,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const args = { ...base, searchQuery: `${base.searchQuery} DRIFT` };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         );
       expect(run).toThrow(RangeError);
       expect(run).toThrow(RangeError);
@@ -597,8 +597,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const args = makeArgs(descriptor);
       const snapshot = JSON.stringify(descriptor);
       assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-        descriptor,
         args,
+        descriptor,
       );
       expect(JSON.stringify(descriptor)).toBe(snapshot);
     });
@@ -608,8 +608,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const args = makeArgs(descriptor);
       const snapshot = JSON.stringify(args);
       assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-        descriptor,
         args,
+        descriptor,
       );
       expect(JSON.stringify(args)).toBe(snapshot);
       // labels 배열도 mutate 0(원소·순서 보존).
@@ -622,8 +622,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent", ()
       const args = makeArgs(descriptor);
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueCommandArgsConsistent(
-          descriptor,
           args,
+          descriptor,
         ),
       ).not.toThrow();
       // 가드는 descriptor·command-args 구조만 다룬다 — Bearer/authorization/password 등
