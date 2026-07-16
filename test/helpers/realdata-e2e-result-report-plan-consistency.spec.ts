@@ -26,11 +26,16 @@
 import type { EvaluationResult } from "../../src/assessment-evaluation/domain/evaluation-result";
 
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
+// 재유도 위임(delegate) 순서-lock(T-1054) — guard 재유도가 재호출하는 두 builder 를
+// module namespace 로 import 해 `jest.spyOn` 대상 프로퍼티로 삼는다(ts-jest 가 named
+// import 소비를 module 객체 프로퍼티 접근으로 컴파일 — 선례 T-1046/T-1052).
+import * as resultIssueDescriptorModule from "./realdata-e2e-result-issue-descriptor";
 import {
   buildRealDataResultReportPlan,
   type RealDataResultReportPlan,
 } from "./realdata-e2e-result-report-plan";
 import { assertRealDataResultReportPlanConsistentWithInputs } from "./realdata-e2e-result-report-plan-consistency";
+import * as resultSummaryModule from "./realdata-e2e-result-summary";
 
 // EvaluationResult fixture — 평가 단위 1 건 모사. 컴포저 spec(T-0593) 패턴 차용.
 function makeResult(
@@ -517,6 +522,143 @@ describe("assertRealDataResultReportPlanConsistentWithInputs", () => {
       expect(() =>
         assertRealDataResultReportPlanConsistentWithInputs(plan, results, run),
       ).not.toThrow();
+    });
+  });
+
+  // T-1054 — consistency-guard 재유도 위임(delegate) 순서-lock(summary → descriptor).
+  //
+  // 기존 spec 은 재유도 산출의 값 대조(deep-equal)·구조 결손 TypeError·위임 throw 선전파
+  // ·fail-fast(구조 → 재유도 → deep equal) 순서만 검증하고, 재유도 단계의 두 builder
+  // 위임(buildRealDataResultSummary → buildRealDataResultIssueDescriptor)의 상대 호출
+  // 순서 + descriptor 위임의 summary-산출 소비(데이터-의존)는 invocationCallOrder
+  // 부등식으로 못박지 않았다(grep 0). guard 본문 L238~242 는 descriptor 재유도가 앞
+  // summary 재유도 산출(expectedSummary)을 첫 인자로 소비하는 데이터-의존 chain 이라
+  // summary 가 반드시 먼저 평가돼야 한다. T-1052(evaluation-plan inputs → scoring)
+  // 데이터-의존 chain 을 guard 재유도 층으로 mirror 해 그 gap 을 봉한다.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: 정합 plan 을 spy 설치 前 미리 만든 뒤(그래야 plan 합성이 spy 를
+  //     오염시키지 않음) 두 builder 위임을 실 구현 pass-through spy 로 감싸고 guard 재유도
+  //     1회 트리거 → summary 첫 호출이 descriptor 첫 호출보다 먼저(invocationCallOrder
+  //     toBeLessThan) + 각 정확히 1회 + descriptor 첫 인자 === summary 위임 반환값(데이터
+  //     -의존 reference 페어링).
+  //   - branch/무공유 재확인: pass-through spy 하에서도 guard 가 정상 void 반환 + 입력
+  //     plan/results/run mutate 0(read-only guard).
+  //   - error/negative(a fail-fast): summary 위임 강제 throw → descriptor 위임 미도달(0회)
+  //     — summary-먼저 순서로 descriptor 도달 불가를 fail-fast 로 못박음.
+  //   - error/negative(b guard-throw 전파): 공백-only gitSha → descriptor 재유도 하위
+  //     assertNonBlank throw 전파, 이때 summary 위임은 이미 호출됨(순서 상 summary 가
+  //     descriptor 보다 먼저 평가됨을 negative 경로에서도 재확인).
+  describe("T-1054 — 재유도 위임 순서-lock(summary → descriptor)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정합 재유도 시 summary 위임이 descriptor 위임보다 먼저 호출된다(invocationCallOrder 부등식·데이터-의존 reference·각 1회)", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      // plan 은 spy 설치 前 합성 — buildConsistent 내부도 두 builder 를 호출하므로 spy
+      // 설치 후 만들면 호출 횟수가 오염된다. guard 재유도 호출만 격리 계측한다.
+      const plan = buildConsistent(results, run);
+      const summarySpy = jest.spyOn(
+        resultSummaryModule,
+        "buildRealDataResultSummary",
+      );
+      const descriptorSpy = jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+
+      assertRealDataResultReportPlanConsistentWithInputs(plan, results, run);
+
+      // guard 재유도 지점 각 1개 → 각 위임 정확히 1회.
+      expect(summarySpy).toHaveBeenCalledTimes(1);
+      expect(descriptorSpy).toHaveBeenCalledTimes(1);
+      // 순서: summary 위임(첫 호출)이 descriptor 위임(첫 호출)보다 먼저 호출된다.
+      expect(summarySpy.mock.invocationCallOrder[0]).toBeLessThan(
+        descriptorSpy.mock.invocationCallOrder[0],
+      );
+      // 데이터-의존: descriptor 위임 첫 인자 = summary 위임 반환값(reference 동일) +
+      // 둘째 인자 = run.
+      const producedSummary = summarySpy.mock.results[0].value;
+      expect(descriptorSpy.mock.calls[0][0]).toBe(producedSummary);
+      expect(descriptorSpy.mock.calls[0][1]).toBe(run);
+    });
+
+    it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/results/run mutate 0", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      const plan = buildConsistent(results, run);
+      const planSnapshot = JSON.parse(JSON.stringify(plan));
+      const resultsSnapshot = JSON.parse(JSON.stringify(results));
+      const runSnapshot = JSON.parse(JSON.stringify(run));
+      jest.spyOn(resultSummaryModule, "buildRealDataResultSummary");
+      jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+
+      // 정합 경로 → 정상 void(throw 0).
+      expect(
+        assertRealDataResultReportPlanConsistentWithInputs(plan, results, run),
+      ).toBeUndefined();
+      // read-only guard — 입력 mutate 0.
+      expect(plan).toEqual(planSnapshot);
+      expect(results).toEqual(resultsSnapshot);
+      expect(run).toEqual(runSnapshot);
+    });
+
+    it("(a fail-fast) summary 위임이 throw 하면 descriptor 위임에 도달하지 못한다(descriptor 0회)", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      const plan = buildConsistent(results, run);
+      jest
+        .spyOn(resultSummaryModule, "buildRealDataResultSummary")
+        .mockImplementation(() => {
+          throw new Error("summary-boom");
+        });
+      const descriptorSpy = jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+
+      expect(() =>
+        assertRealDataResultReportPlanConsistentWithInputs(plan, results, run),
+      ).toThrow(/summary-boom/);
+
+      // summary-먼저 순서로 인해 summary throw 가 descriptor 도달 전에 선전파 → descriptor
+      // 미호출.
+      expect(descriptorSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(b guard-throw 전파) 공백-only gitSha → descriptor 재유도 throw 전파, 이때 summary 위임은 이미 호출됨(1회·summary → descriptor 순서 재확인)", () => {
+      const results = [makeResult()];
+      const plan = buildConsistent(results, makeRun());
+      const summarySpy = jest.spyOn(
+        resultSummaryModule,
+        "buildRealDataResultSummary",
+      );
+      const descriptorSpy = jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+
+      // 공백-only gitSha → descriptor 재유도 하위 assertNonBlank throw 전파.
+      expect(() =>
+        assertRealDataResultReportPlanConsistentWithInputs(
+          plan,
+          results,
+          makeRun({ gitSha: "   " }),
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+
+      // 순서 상 summary 가 descriptor 보다 먼저 평가됨 — descriptor 재유도 throw 시점에
+      // summary 는 이미 1회 호출됐고 descriptor 도 1회 진입(그 안의 assertNonBlank throw).
+      expect(summarySpy).toHaveBeenCalledTimes(1);
+      expect(descriptorSpy).toHaveBeenCalledTimes(1);
+      expect(summarySpy.mock.invocationCallOrder[0]).toBeLessThan(
+        descriptorSpy.mock.invocationCallOrder[0],
+      );
     });
   });
 });
