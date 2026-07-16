@@ -3,6 +3,8 @@
 // `assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent`
 // (T-1026 에서 body-focus 로 축소 — title·marker 식별자 재유도·대조는 identity oracle
 // T-1024 로 위임, 본 가드는 body 2 블록 구조[marker 라인 → 빈 줄 → markdown] 만 검증).
+// (T-1029 에서 가드 signature 를 (descriptor, report) 로 정규화 — identity 가드·요약축 body
+// 가드와 인자 순서 동형. 본 spec 의 모든 가드 호출은 descriptor-first 로 갱신됐다.)
 //
 // R-112 cover 구조:
 //   - happy-path: 실 producer `buildRealDataDailyStepDualLegRunReportIssueDescriptor` 산출을
@@ -74,8 +76,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const report = makeReport();
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           makeDescriptor(report),
+          report,
         ),
       ).not.toThrow();
     });
@@ -84,8 +86,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const report = makeReport();
       expect(
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           makeDescriptor(report),
+          report,
         ),
       ).toBeUndefined();
     });
@@ -98,8 +100,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       });
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           makeDescriptor(report),
+          report,
         ),
       ).not.toThrow();
     });
@@ -114,8 +116,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       });
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           makeDescriptor(report),
+          report,
         ),
       ).not.toThrow();
     });
@@ -129,8 +131,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       });
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           makeDescriptor(report),
+          report,
         ),
       ).not.toThrow();
     });
@@ -139,8 +141,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const report = makeReport();
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           makeDescriptor(report),
+          report,
           "daily-issue#1",
         ),
       ).not.toThrow();
@@ -150,8 +152,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const report = makeReport();
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           makeDescriptor(report),
+          report,
           "",
         ),
       ).not.toThrow();
@@ -163,9 +165,9 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const report = makeReport({ gitSha: "" });
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
-          // descriptor 는 구조상 온전한 더미(재유도 이전 단계에서 report guard 가 먼저 throw).
+          // descriptor 는 구조상 온전한 더미(구조 검증 통과 후 report guard 가 재유도 이전에 throw).
           { title: "x", marker: "y", body: "z" },
+          report,
         ),
       ).toThrow(/gitSha/);
     });
@@ -174,8 +176,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const report = makeReport({ gitSha: "   " });
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           { title: "x", marker: "y", body: "z" },
+          report,
         ),
       ).toThrow(/gitSha/);
     });
@@ -184,8 +186,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const report = makeReport({ dateToken: "" });
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           { title: "x", marker: "y", body: "z" },
+          report,
         ),
       ).toThrow(/dateToken/);
     });
@@ -194,8 +196,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const report = makeReport({ dateToken: "\t \n" });
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           { title: "x", marker: "y", body: "z" },
+          report,
         ),
       ).toThrow(/dateToken/);
     });
@@ -205,8 +207,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
     it("descriptor null → TypeError", () => {
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          makeReport(),
           null as unknown as RealDataDailyStepDualLegRunReportIssueDescriptor,
+          makeReport(),
         ),
       ).toThrow(/descriptor 가 null\/undefined/);
     });
@@ -214,8 +216,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
     it("descriptor 비-객체(문자열) → TypeError", () => {
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          makeReport(),
           "not-an-object" as unknown as RealDataDailyStepDualLegRunReportIssueDescriptor,
+          makeReport(),
         ),
       ).toThrow(/descriptor 가 객체가 아니다/);
     });
@@ -228,8 +230,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         ),
       ).toThrow(/descriptor\.marker 가 string 이 아니다/);
     });
@@ -242,8 +244,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         ),
       ).toThrow(/descriptor\.body 가 string 이 아니다/);
     });
@@ -256,8 +258,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         ),
       ).toThrow(/descriptor\.body 가 string 이 아니다/);
     });
@@ -281,14 +283,14 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       expect(descA.body.split("\n")[0]).toBe(descB.body.split("\n")[0]);
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          reportA,
           descA,
+          reportA,
         ),
       ).not.toThrow();
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          reportB,
           descB,
+          reportB,
         ),
       ).not.toThrow();
     });
@@ -303,8 +305,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         );
       expect(run).toThrow(RangeError);
       expect(run).toThrow(/최소 3 라인/);
@@ -319,8 +321,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         );
       expect(run).toThrow(RangeError);
       expect(run).toThrow(/정합 위반\(body\)/);
@@ -337,8 +339,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         );
       expect(run).toThrow(RangeError);
       expect(run).toThrow(/정합 위반\(body\)/);
@@ -354,8 +356,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         );
       expect(run).toThrow(RangeError);
       expect(run).toThrow(/body 첫 라인이 descriptor\.marker 와 불일치/);
@@ -372,8 +374,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         );
       expect(run).toThrow(RangeError);
       expect(run).toThrow(/정합 위반\(body\)/);
@@ -385,8 +387,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const mismatched = makeReport({ gitSha: "0000000" });
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          mismatched,
           rendered,
+          mismatched,
         );
       expect(run).toThrow(RangeError);
       expect(run).toThrow(/정합 위반\(body\)/);
@@ -404,8 +406,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         ),
       ).not.toThrow();
     });
@@ -425,8 +427,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       };
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         ),
       ).not.toThrow();
     });
@@ -438,14 +440,14 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const descriptor = makeDescriptor(report);
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         ),
       ).not.toThrow();
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         ),
       ).not.toThrow();
     });
@@ -459,8 +461,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       };
       const run = () =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         );
       expect(run).toThrow(RangeError);
       expect(run).toThrow(RangeError);
@@ -476,8 +478,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const descriptor = makeDescriptor(report);
       const snapshot = JSON.stringify(report);
       assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-        report,
         descriptor,
+        report,
       );
       expect(JSON.stringify(report)).toBe(snapshot);
     });
@@ -487,8 +489,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const descriptor = makeDescriptor(report);
       const snapshot = JSON.stringify(descriptor);
       assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-        report,
         descriptor,
+        report,
       );
       expect(JSON.stringify(descriptor)).toBe(snapshot);
     });
@@ -503,8 +505,8 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       const descriptor = makeDescriptor(report);
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-          report,
           descriptor,
+          report,
         ),
       ).not.toThrow();
       // 가드는 descriptor·마크다운 구조만 다룬다 — Bearer/authorization/password 등 secret

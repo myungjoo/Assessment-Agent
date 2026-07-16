@@ -388,7 +388,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire consis
   });
 
   describe("flow/branch (self-wire 호출 사실 검증 — spy 로 배선 존재 증명)", () => {
-    it("all-pass 경로 → 가드가 (report, 반환된 descriptor) 로 정확히 1 회 호출", () => {
+    it("all-pass 경로 → 가드가 (반환된 descriptor, report) 로 정확히 1 회 호출", () => {
       const spy = jest.spyOn(
         issueDescriptorConsistency,
         "assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent",
@@ -398,7 +398,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire consis
         buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
 
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(report, descriptor);
+      expect(spy).toHaveBeenCalledWith(descriptor, report);
     });
 
     it("all-skip 경로(다른 per-leg status·overallStatus) → 가드가 반환 descriptor 인자로 정확히 1 회 호출", () => {
@@ -417,7 +417,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire consis
         buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
 
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(report, descriptor);
+      expect(spy).toHaveBeenCalledWith(descriptor, report);
       expect(descriptor.body).toContain("- overall status: all-skip");
     });
   });
@@ -495,9 +495,9 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire consis
 // identity oracle 가드 `assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent`
 // (T-1024)를 **(descriptor, report) 인자 순서로** 스스로 호출해 title·marker 식별자 정합을
 // 즉시 자가 검증하는지를 R-112 4종(happy/error/flow/negative)으로 봉한다. combined 가드
-// self-wire(T-0989) describe 와 동형이되, ⚠️ 인자 순서가 반대(identity 는 descriptor-first)
-// 라는 회귀를 spy 인자 대조로 명시 차단한다. self-wire 가 제거되거나 인자가 swap 되면
-// flow spy·negative 전파 case 가 fail = de-facto regression guard.
+// self-wire(T-0989) describe 와 동형이며, T-1029 정규화 이후 두 가드 모두 descriptor-first
+// (descriptor, report) 인자 순서로 통일됐음을 spy 인자 대조로 명시한다. self-wire 가 제거되거나
+// 인자가 swap 되면 flow spy·negative 전파 case 가 fail = de-facto regression guard.
 describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire identity guard (T-1025)", () => {
   afterEach(() => {
     jest.restoreAllMocks();
@@ -578,7 +578,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire identi
         buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
 
       expect(spy).toHaveBeenCalledTimes(1);
-      // ⚠️ 인자 순서 = (descriptor, report) — combined 가드(report, descriptor)와 반대.
+      // 인자 순서 = (descriptor, report) — combined 가드도 T-1029 정규화로 동일 순서.
       expect(spy).toHaveBeenCalledWith(descriptor, report);
     });
 
@@ -654,9 +654,9 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire identi
         buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
 
       expect(combinedSpy).toHaveBeenCalledTimes(1);
-      expect(combinedSpy).toHaveBeenCalledWith(report, descriptor);
+      expect(combinedSpy).toHaveBeenCalledWith(descriptor, report);
       expect(identitySpy).toHaveBeenCalledTimes(1);
-      // 인자 순서가 서로 반대임을 나란히 못박는다: combined=(report, descriptor), identity=(descriptor, report).
+      // T-1029 정규화 이후 두 가드가 동일 인자 순서임을 나란히 못박는다: combined=identity=(descriptor, report).
       expect(identitySpy).toHaveBeenCalledWith(descriptor, report);
     });
 
