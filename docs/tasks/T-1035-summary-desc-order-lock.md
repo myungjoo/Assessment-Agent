@@ -2,8 +2,11 @@
 id: T-1035
 title: summary(result-issue) descriptor self-wire 두 가드 호출 순서(Body→Identity)를 invocationCallOrder 순서-lock test 로 못박기 (daily descriptor T-1034 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 929
+mergedAs: 315818f1
+completedAt: 2026-07-16T12:20:00Z
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 45
 estimatedFiles: 1
@@ -68,3 +71,11 @@ implementer → tester
 ## Follow-ups
 
 (비어 있음)
+
+## Result (DONE)
+
+- **PR #929 merged (squash `315818f1`, branch delete)** — 요약축 result-issue descriptor self-wire 두 가드 호출 순서(Body→Identity)를 `invocationCallOrder` 2자 부등식(`bodySpy.mock.invocationCallOrder[0] < identitySpy.mock.invocationCallOrder[0]`)으로 못박는 순서-lock test 1개 + Body-first fail-fast test 1개 추가. daily descriptor 정본(T-1034) 을 요약축으로 mirror — 이전 요약축 spec `invocationCallOrder` 0건 → 4건.
+- test-only 1파일 `test/helpers/realdata-e2e-result-issue-descriptor.spec.ts` (+71/-0), production src 0 LOC.
+- 대상 spec 48 tests pass, 전체 404 suites/10991 tests green, coverageThreshold line 99.95% / function 100% (임계 line≥80 AND function≥80 무회귀).
+- reviewer round 1/7 APPROVE (0 blocker / 0 major / 0 minor), 4-게이트 PASS (reviewer external comment + CI green run 29497147061 approval-gate incl, race 미발생, ADR-0036 §8(c) head CLEAN).
+- fineGrainedConcurrency ON (stage 5b) claim-pickup fire (cron@aa-local15). 다음: nextTask=T-1036 (daily outcome-report self-wire 순서-lock, planner 큐잉).
