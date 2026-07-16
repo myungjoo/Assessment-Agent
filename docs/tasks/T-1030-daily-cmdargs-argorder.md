@@ -2,7 +2,7 @@
 id: T-1030
 title: daily-step command-args-consistency 가드 인자 순서를 (commandArgs, descriptor) 로 정규화
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032]
 estimatedDiff: 90
