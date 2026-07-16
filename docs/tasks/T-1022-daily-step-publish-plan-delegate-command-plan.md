@@ -2,7 +2,7 @@
 id: T-1022
 title: daily-step publish-plan 종단 컴포저를 command-plan 중간 컴포저(T-1019) 위임으로 리팩터 (publish-plan = command-plan + search-argv 2단 위임, 요약축 T-0595 2층 구조 동형화, byte-identical 산출 보존)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 210
