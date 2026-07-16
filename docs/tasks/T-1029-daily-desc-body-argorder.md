@@ -2,7 +2,7 @@
 id: T-1029
 title: daily-step descriptor body-consistency 가드 인자 순서를 (descriptor, report) 로 정규화
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032]
 estimatedDiff: 70
@@ -63,3 +63,10 @@ implementer → tester
 ## Follow-ups
 
 (비어 있음)
+
+## Result (DONE)
+
+- 완료: 2026-07-16, PR #923 squash-merge (`7e214f5f`), reviewer round 1 APPROVE (finding 0).
+- daily body-consistency 가드 signature `(report, descriptor)` → `(descriptor, report)` 정규화 — identity 가드·요약축 body 가드와 descriptor-first 동형. producer self-wire 두 호출 + stale 반대 경고 주석 정정 + spec 가드 호출·spy 대조 전부 갱신. +51/-48, test-only 4파일.
+- behavior 0 순수 signature 정규화. 403 suite/10927 test green, 전역 cov line 99.95% / function 100% / branch 99.25% (임계 line≥80 AND function≥80 무회귀). git grep BodyConsistent report-first 잔존 0.
+- Follow-up: T-1030 (daily command-args-consistency 가드 인자순서 정규화 — 유일 source-first outlier) planner 큐잉.
