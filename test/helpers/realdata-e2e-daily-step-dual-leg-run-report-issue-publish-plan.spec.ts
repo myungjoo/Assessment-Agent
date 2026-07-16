@@ -671,4 +671,118 @@ describe("buildRealDataDailyStepDualLegRunReportIssuePublishPlan — daily-step 
       );
     });
   });
+
+  // T-1049 — 컴포저 본문 위임(delegate) 순서-lock (publish-plan 컴포저 daily canonical leg).
+  //
+  // 기존 flow/branch·self-wire describe 는 두 위임(command-plan, search-argv)을 spyOn
+  // 하면서도 상대 호출 순서를 invocationCallOrder 부등식으로 못박지 않았다(grep 0).
+  // command-plan 축(T-1045) canonical 패턴을 publish-plan 축 daily leg 로 확립해 그 gap 을
+  // 해소한다 — command-plan → search-argv 순서를 invocationCallOrder 부등식으로 못박아
+  // silent 재정렬 회귀를 감지한다. 2-delegate chain 이라 한 부등식으로 lock.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: command-plan·search-argv 위임을 실 구현 pass-through spy 로 감싸
+  //     정상 합성 1회 시 command-plan 첫 호출이 search-argv 첫 호출보다 먼저
+  //     (invocationCallOrder toBeLessThan) + 인자 전파(commandPlan(REPORT); searchArgv 첫
+  //     호출 = plan.commandArgs) + self-wire 재유도 포함 각 2회 호출 + 산출 plan deep-equal.
+  //   - error path/negative(fail-fast): command-plan 위임 throw(report.gitSha 빈) 시 search-argv
+  //     위임 미도달(0회) — command-plan-먼저 순서로 search-argv 도달 불가를 fail-fast 로 못박음.
+  //   - branch/negative(guard-우선): search-argv-단계 throw 분기에서도 command-plan 위임은
+  //     그 전에 이미 호출됨(command-plan → search-argv 순서가 후속 단계 실패 시에도 보존).
+  describe("T-1049 — 컴포저 본문 위임 순서-lock(command-plan → search-argv)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성 시 command-plan 위임이 search-argv 위임보다 먼저 호출된다(invocationCallOrder 부등식·인자 전파·self-wire 재유도 포함 각 2회)", () => {
+      const commandPlanSpy = jest.spyOn(
+        commandPlanModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
+      );
+      const searchArgvSpy = jest.spyOn(
+        searchArgvModule,
+        "buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv",
+      );
+
+      const plan =
+        buildRealDataDailyStepDualLegRunReportIssuePublishPlan(REPORT);
+
+      // T-1018 self-wire 이후 각 위임은 정확히 2회 호출된다 — (1) 컴포저 본문 합성 1회 +
+      // (2) 반환 직전 self-assert 가드가 single-source 재유도로 1회 더(가드가 T-1023 동형화로
+      // command-plan 을 경유해 재유도). 컴포저 본문 자체의 위임 호출 지점은 여전히 각 1개다.
+      expect(commandPlanSpy).toHaveBeenCalledTimes(2);
+      expect(searchArgvSpy).toHaveBeenCalledTimes(2);
+      // 순서: 컴포저 본문의 command-plan(첫 호출)이 search-argv(첫 호출)보다 먼저 호출.
+      expect(commandPlanSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        searchArgvSpy.mock.invocationCallOrder[0],
+      );
+      // 인자 전파: command-plan 은 입력 report, search-argv 첫 인자 = command-plan 산출
+      // commandArgs = plan.commandArgs.
+      expect(commandPlanSpy).toHaveBeenCalledWith(REPORT);
+      expect(searchArgvSpy).toHaveBeenNthCalledWith(1, plan.commandArgs);
+
+      // 실 구현 pass-through spy 이므로 산출 plan 은 손으로 엮은 재유도와 byte-identical
+      // (순서-검증 전후 무변경 — production 무변경 회귀 0).
+      const expectedDescriptor =
+        descriptorModule.buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          REPORT,
+        );
+      const expectedCommandArgs =
+        commandArgsModule.buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          expectedDescriptor,
+        );
+      expect(plan.descriptor).toEqual(expectedDescriptor);
+      expect(plan.commandArgs).toEqual(expectedCommandArgs);
+      expect(plan.searchArgv).toEqual(
+        searchArgvModule.buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv(
+          expectedCommandArgs,
+        ),
+      );
+    });
+
+    it("command-plan 위임 throw(report.gitSha 빈) 시 search-argv 위임은 도달하지 않는다(search-argv 0회·fail-fast)", () => {
+      const searchArgvSpy = jest.spyOn(
+        searchArgvModule,
+        "buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssuePublishPlan(
+          makeReport({ gitSha: "" }),
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+
+      // command-plan-먼저 순서로 인해 command-plan 내부 descriptor throw 가 search-argv
+      // 도달 전에 선전파 → search-argv 위임 미호출.
+      expect(searchArgvSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("search-argv-단계 throw 분기에서도 command-plan 위임은 그 전에 이미 호출된다(command-plan → search-argv 순서 보존)", () => {
+      const commandPlanSpy = jest.spyOn(
+        commandPlanModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
+      );
+      // command-plan 은 정상 산출하되 search-argv 위임을 강제 throw → search-argv 단계 실패.
+      const searchArgvSpy = jest
+        .spyOn(
+          searchArgvModule,
+          "buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv",
+        )
+        .mockImplementation(() => {
+          throw new Error("forced search-argv failure");
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssuePublishPlan(REPORT),
+      ).toThrow(/forced search-argv failure/);
+
+      // search-argv 단계에서 실패해도 그 전에 command-plan 위임이 이미 호출됨 — 두 위임의
+      // 상대 순서(command-plan → search-argv)가 후속 단계 실패 시에도 보존된다.
+      expect(commandPlanSpy.mock.invocationCallOrder[0]).toBeDefined();
+      expect(commandPlanSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        searchArgvSpy.mock.invocationCallOrder[0],
+      );
+      expect(commandPlanSpy).toHaveBeenCalledWith(REPORT);
+    });
+  });
 });
