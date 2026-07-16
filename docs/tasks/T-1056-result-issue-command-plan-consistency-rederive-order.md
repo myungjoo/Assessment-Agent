@@ -2,7 +2,7 @@
 id: T-1056
 title: result-issue-command-plan consistency-guard(assertRealDataResultIssueCommandPlanConsistentWithInputs)의 2 distinct builder 데이터-의존 재유도 순서(report-plan → command-args) invocationCallOrder 순서-lock test 로 못박기 (consistency-guard 재유도 delegate 순서-lock leg 3)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 120
