@@ -649,5 +649,140 @@ describe("buildRealDataResultReportPlan — post-evaluation 종단 plan 컴포�
       expect(a.summary).not.toBe(b.summary);
       expect(a.descriptor).not.toBe(b.descriptor);
     });
+
+    // ── T-1043: 두 self-assert 가드 상대 호출 순서 lock (result-summary 패밀리 2번째 축) ──
+    // 위 T-0648 블록은 body-consistency 가드 self-wire 만, 본 T-0700 블록은
+    // consistency 가드 self-wire 만 각각 격리 검증해 두 가드가 공존(각 자기 축에서
+    // 1회씩 배선)함은 보이지만, 두 가드의 **상대 호출 순서**는 못박지 않는다. producer
+    // L132 BodyConsistent(plan 내부 cross 정합, 컴포저 self-wire) → L150
+    // ConsistentWithInputs(plan↔inputs 재유도) 순서를 invocationCallOrder 부등식으로
+    // lock 해 silent 재정렬 회귀를 감지한다. result-issue/daily-issue 6 축 + result-
+    // summary-line(T-1042) order-lock 선례의 result-report-plan mirror.
+    //
+    // ⚠️ 주의: body-consistency 가드(`bodyConsistencyModule`)는 컴포저 산출 경로에서
+    // 총 3회 호출된다(T-0648 블록 확인) — (0) L122 descriptor 합성 단계의 builder
+    // self-wire, (1) L132 컴포저 self-wire, (2) L150 ConsistentWithInputs 가드가
+    // single-source 재유도 안에서 descriptor 를 다시 빌드할 때의 builder self-wire.
+    // 반면 ConsistentWithInputs 가드(`reportPlanConsistency`)는 L150 에서 1회.
+    // 따라서 본 순서-lock 이 못박는 대상은 **컴포저 self-wire(index 1)** 와
+    // ConsistentWithInputs(index 0) 의 상대 순서이며(L132 → L150), 이어서
+    // ConsistentWithInputs(index 0) 가 그 내부 재유도 builder self-wire(index 2)
+    // 보다 먼저임까지 못박아 interleaving 을 완전히 고정한다. (T-1042 mirror 는 두
+    // 가드가 각 1회라 index[0] 을 비교했으나, 본 축은 첫 가드 cross-axis 재사용으로
+    // 3회 호출되므로 컴포저 self-wire 인 index[1] 을 비교점으로 삼는다.)
+    describe("호출 순서-lock — BodyConsistent 가드 → ConsistentWithInputs 가드 상대 순서 (T-1043)", () => {
+      it("(순서-lock) 컴포저 self-wire BodyConsistent(L132) 가 ConsistentWithInputs(L150) 보다 먼저(invocationCallOrder)", () => {
+        // 실 구현 pass-through(미mock spy) — 두 가드 실제 실행 + 호출 순서 관찰.
+        const bodyConsistentSpy = jest.spyOn(
+          bodyConsistencyModule,
+          "assertRealDataResultIssueDescriptorBodyConsistent",
+        );
+        const consistentWithInputsSpy = jest.spyOn(
+          reportPlanConsistency,
+          "assertRealDataResultReportPlanConsistentWithInputs",
+        );
+
+        try {
+          const results = [
+            makeResult({ difficulty: "easy", contribution: "low", volume: 3 }),
+            makeResult({ difficulty: "hard", contribution: "high", volume: 7 }),
+          ];
+          const run = makeRun();
+
+          const plan = buildRealDataResultReportPlan(results, run);
+
+          // BodyConsistent 는 3회(builder + 컴포저 self-wire + 재유도 builder),
+          // ConsistentWithInputs 는 1회 — 공존 검증.
+          expect(bodyConsistentSpy).toHaveBeenCalledTimes(3);
+          expect(consistentWithInputsSpy).toHaveBeenCalledTimes(1);
+          // 컴포저 self-wire(L132, index 1)가 ConsistentWithInputs(L150)보다 먼저.
+          expect(bodyConsistentSpy.mock.invocationCallOrder[1]).toBeLessThan(
+            consistentWithInputsSpy.mock.invocationCallOrder[0],
+          );
+          // ConsistentWithInputs(L150)는 그 내부 재유도 builder self-wire(index 2)
+          // 보다 먼저 — interleaving 완전 고정.
+          expect(
+            consistentWithInputsSpy.mock.invocationCallOrder[0],
+          ).toBeLessThan(bodyConsistentSpy.mock.invocationCallOrder[2]);
+          // 실 구현 pass-through 이므로 산출 plan 은 순서 검증 전후 무공유·deep-equal.
+          const expectedSummary = buildRealDataResultSummary(results);
+          const expectedDescriptor = buildRealDataResultIssueDescriptor(
+            expectedSummary,
+            run,
+          );
+          expect(plan.summary).toEqual(expectedSummary);
+          expect(plan.descriptor).toEqual(expectedDescriptor);
+        } finally {
+          bodyConsistentSpy.mockRestore();
+          consistentWithInputsSpy.mockRestore();
+        }
+      });
+
+      it("(fail-fast) 첫 가드(BodyConsistent) throw 시 둘째 가드(ConsistentWithInputs) 미호출", () => {
+        // BodyConsistent 를 throw 하도록 mock — 컴포저 경로 첫 BodyConsistent 호출
+        // (L122 builder self-wire)에서 즉시 throw → ConsistentWithInputs(L150) 미도달.
+        const bodyConsistentSpy = jest
+          .spyOn(
+            bodyConsistencyModule,
+            "assertRealDataResultIssueDescriptorBodyConsistent",
+          )
+          .mockImplementation(() => {
+            throw new RangeError("모의: BodyConsistent 가드 throw");
+          });
+        const consistentWithInputsSpy = jest
+          .spyOn(
+            reportPlanConsistency,
+            "assertRealDataResultReportPlanConsistentWithInputs",
+          )
+          .mockImplementation(() => undefined);
+
+        try {
+          const results = [makeResult()];
+          const run = makeRun();
+
+          expect(() => buildRealDataResultReportPlan(results, run)).toThrow(
+            /모의: BodyConsistent 가드 throw/,
+          );
+          // 첫 가드가 먼저 throw 하므로 ConsistentWithInputs 는 도달조차 못 함(fail-fast).
+          expect(consistentWithInputsSpy).toHaveBeenCalledTimes(0);
+        } finally {
+          bodyConsistentSpy.mockRestore();
+          consistentWithInputsSpy.mockRestore();
+        }
+      });
+
+      it("(guard 우선) 빈 gitSha run → 입력 guard 가 먼저 throw, 두 self-assert 가드 모두 미호출", () => {
+        // L122 descriptor 합성 단계의 assertNonBlank 가 두 self-assert 가드 도달 전에
+        // 먼저 throw — self-wire 추가가 위임 입력 guard 우선순위를 깨지 않음을 못박음.
+        // (기존 T-0648 블록은 BodyConsistent 단독 0 만 assert — 본 test 는 두 가드 동시 0.)
+        const bodyConsistentSpy = jest
+          .spyOn(
+            bodyConsistencyModule,
+            "assertRealDataResultIssueDescriptorBodyConsistent",
+          )
+          .mockImplementation(() => undefined);
+        const consistentWithInputsSpy = jest
+          .spyOn(
+            reportPlanConsistency,
+            "assertRealDataResultReportPlanConsistentWithInputs",
+          )
+          .mockImplementation(() => undefined);
+
+        try {
+          expect(() =>
+            buildRealDataResultReportPlan(
+              [makeResult()],
+              makeRun({ gitSha: "" }),
+            ),
+          ).toThrow(/gitSha 가 비어있습니다/);
+          // 입력 guard(빈 gitSha)가 두 self-assert 도달 전 먼저 throw — 두 가드 모두 미호출.
+          expect(bodyConsistentSpy).toHaveBeenCalledTimes(0);
+          expect(consistentWithInputsSpy).toHaveBeenCalledTimes(0);
+        } finally {
+          bodyConsistentSpy.mockRestore();
+          consistentWithInputsSpy.mockRestore();
+        }
+      });
+    });
   });
 });
