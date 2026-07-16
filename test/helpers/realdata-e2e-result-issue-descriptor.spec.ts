@@ -28,7 +28,9 @@ import * as bodyConsistencyModule from "./realdata-e2e-result-issue-descriptor-b
 import * as identityConsistencyModule from "./realdata-e2e-result-issue-descriptor-identity-consistency";
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
 import { formatRealDataResultSummaryLine } from "./realdata-e2e-result-summary-line";
+import * as summaryLineModule from "./realdata-e2e-result-summary-line";
 import { renderRealDataResultSummaryMarkdown } from "./realdata-e2e-result-summary-markdown";
+import * as summaryMarkdownModule from "./realdata-e2e-result-summary-markdown";
 
 // fixture 빌더 — 슬롯별 카운트를 명시적으로 받아 결정론적 summary descriptor 를 생성.
 function makeSummary(opts: {
@@ -1045,5 +1047,110 @@ describe("buildRealDataResultIssueDescriptor", () => {
       expect(summary.totalVolume).toBe(9);
       expect(run).toEqual(beforeRun);
     });
+  });
+
+  // body 합성 delegate 순서-lock (T-1051) — 컴포저 body 배열 합성 지점의 두 distinct
+  // 위임(formatRealDataResultSummaryLine → renderRealDataResultSummaryMarkdown)의 **상대
+  // 호출 순서**를 invocationCallOrder 부등식으로 못박는다. 위 self-wire 순서-lock(T-1035)이
+  // Body→Identity 가드 쌍 순서를 lock 한 것과 달리, 본 describe 는 body 배열 좌→우 평가
+  // 순서(한 줄 요약 먼저 → markdown 나중)를 lock 한다. 두 위임은 데이터 의존이 없으므로
+  // (둘 다 summary 를 독립 입력받아 body 의 서로 다른 위치에 배치) 순서 부등식이 없으면
+  // 컴포저 본문에서 두 평가 순서를 실수로 재정렬해도 값 대조(byte-identical) test 는
+  // 순서 무관이라 통과한다 — 본 순서-lock 이 그 silent 재정렬 회귀를 catch 한다.
+  //
+  // 호출 횟수 N=2: 컴포저는 body 합성에서 각 위임을 1 회 호출(L137·L139)하고,
+  // 직후 body-consistency self-wire 가드가 기대값 재유도로 각 위임을 1 회 더 호출한다
+  // (realdata-e2e-result-issue-descriptor-body-consistency.ts L142·L143). 따라서 총 2 회.
+  // 순서-lock 은 첫 호출 invocationCallOrder[0](= body 합성 시점)으로 판정하므로 가드
+  // 재유도 횟수와 무관하게 안정하다.
+  describe("body 합성 delegate 순서-lock (formatSummaryLine → renderMarkdown, T-1051)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    // happy-path/flow — 두 위임을 실 구현 pass-through spy(mockImplementation 없음)로
+    // 감싸고 정상 (summary, HAPPY_RUN) 1 회 합성 후, 한 줄 요약 위임의 첫 호출이 markdown
+    // 위임의 첫 호출보다 먼저임을 invocationCallOrder 2 자 부등식으로 못박는다. 방향이
+    // 역전(markdown 먼저)되면 이 assertion 이 fail 한다.
+    it("body 합성 두 위임 호출 순서 보존(formatSummaryLine→renderMarkdown) — formatSummaryLine 이 renderMarkdown 보다 먼저 호출됨(역전 시 fail)", () => {
+      const summaryLineSpy = jest.spyOn(
+        summaryLineModule,
+        "formatRealDataResultSummaryLine",
+      );
+      const summaryMarkdownSpy = jest.spyOn(
+        summaryMarkdownModule,
+        "renderRealDataResultSummaryMarkdown",
+      );
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 2, medium: 1 },
+        byContribution: { low: 1, medium: 1, high: 1 },
+        totalVolume: 42,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+
+      // 호출 횟수 — 각 위임은 body 합성(1) + body-consistency 가드 재유도(1) = 2 회.
+      expect(summaryLineSpy).toHaveBeenCalledTimes(2);
+      expect(summaryMarkdownSpy).toHaveBeenCalledTimes(2);
+      // 각 위임은 정확히 (summary) 단일 인자로 호출된다(두 호출 모두).
+      expect(summaryLineSpy).toHaveBeenCalledWith(summary);
+      expect(summaryMarkdownSpy).toHaveBeenCalledWith(summary);
+      // 순서 보존 — 첫 호출(body 합성 시점) 기준 한 줄 요약 → markdown. 2 자 부등식
+      // 방향이라 순서가 역전되면 이 assertion 이 fail 한다.
+      expect(summaryLineSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        summaryMarkdownSpy.mock.invocationCallOrder[0],
+      );
+      // 실 구현 pass-through spy(호출 통과)이므로 산출 descriptor 가 순서-검증 전후로
+      // byte-identical(무공유; title/marker/body 필드만 보유)임을 재확인한다.
+      const expectedLine = formatRealDataResultSummaryLine(summary);
+      const expectedMarkdown = renderRealDataResultSummaryMarkdown(summary);
+      expect(descriptor).toEqual({
+        title: "실 평가 e2e 결과 2026-06-23@abc1234",
+        marker: "<!-- realdata-e2e-result-issue: 2026-06-23@abc1234 -->",
+        body: [descriptor.marker, "", expectedLine, "", expectedMarkdown].join(
+          "\n",
+        ),
+      });
+      // body 안 한 줄 요약·markdown 블록이 각 spy 반환값과 byte-identical(값 대조 test 정합).
+      expect(descriptor.body.split("\n")[2]).toBe(expectedLine);
+      expect(descriptor.body.split("\n").slice(4).join("\n")).toBe(
+        expectedMarkdown,
+      );
+    });
+
+    // error/negative — guard-우선 fail-fast 분기. descriptor 식별자 guard(assertNonBlank)가
+    // 빈 gitSha / 빈 dateToken 에 throw 하므로 body 합성 위임에 도달하지 못한다. 두 spy 가
+    // 둘 다 0 회 호출됨 + 에러 선전파를 필드별로 각각 cover(단일 negative 부족 방지).
+    it.each([
+      { field: "gitSha", run: { gitSha: "", dateToken: "2026-06-23" } },
+      { field: "dateToken", run: { gitSha: "abc1234", dateToken: "" } },
+    ])(
+      "빈 $field 는 body 합성 전 식별자 guard 에서 throw 하고 두 위임을 호출하지 않는다(guard-우선 fail-fast)",
+      ({ field, run }) => {
+        const summaryLineSpy = jest.spyOn(
+          summaryLineModule,
+          "formatRealDataResultSummaryLine",
+        );
+        const summaryMarkdownSpy = jest.spyOn(
+          summaryMarkdownModule,
+          "renderRealDataResultSummaryMarkdown",
+        );
+        const summary = makeSummary({
+          count: 1,
+          byDifficulty: { easy: 1 },
+          byContribution: { low: 1 },
+          totalVolume: 1,
+        });
+
+        // 식별자 guard 가 먼저 throw → 에러 선전파(fail-fast).
+        expect(() => buildRealDataResultIssueDescriptor(summary, run)).toThrow(
+          new RegExp(field),
+        );
+        // guard-먼저 순서로 인해 body 합성 위임 둘 다 미도달.
+        expect(summaryLineSpy).toHaveBeenCalledTimes(0);
+        expect(summaryMarkdownSpy).toHaveBeenCalledTimes(0);
+      },
+    );
   });
 });
