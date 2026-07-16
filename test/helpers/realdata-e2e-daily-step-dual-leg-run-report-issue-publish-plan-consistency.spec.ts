@@ -1,7 +1,8 @@
 // realdata-e2e-daily-step-dual-leg-run-report-issue-publish-plan-consistency.spec.ts —
 // T-1017 colocated unit spec for
 // `assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource`
-// (요약축 T-0665 spec mirror — single source(report) + 3단 위임에 맞춰 조정).
+// (요약축 T-0665 spec mirror — single source(report) + command-plan ⊂ publish-plan 2층
+// 위임에 맞춰 조정, T-1023 동형화).
 //
 // R-112 cover 구조:
 //   - happy-path: 정상 `report` 로 컴포저(
@@ -11,18 +12,21 @@
 //     비-object / searchArgv 비-배열·원소 비-string → 각 분기 별 TypeError.
 //   - error/negative 충분 cover (RangeError): descriptor.title 변조 / commandArgs.
 //     searchQuery 변형 / searchArgv 위치 swap·길이 변형·원소 변형 → 각 분기 RangeError.
-//   - 위임 throw 전파: report.gitSha/dateToken 빈/공백 → descriptor 재유도 위임 throw 가
-//     가드를 삼키지 않고 그대로 전파(RangeError 아님).
+//   - 위임 throw 전파: report.gitSha/dateToken 빈/공백 → command-plan 컴포저 내부 descriptor
+//     재유도 위임 throw 가 가드를 삼키지 않고 그대로 전파(RangeError 아님).
+//   - command-plan 위임 검증 (T-1023 핵심): 정상 경로에서 가드가 command-plan 컴포저를
+//     정확히 1회·원본 report 인자로 호출(재유도 배선이 실제로 command-plan 경유) + 구조
+//     위반 시 command-plan 재유도 미호출(short-circuit) + command-plan spy throw 주입 시
+//     가드가 재포장 없이 전파 + search-argv 재유도 미호출.
 //   - flow/branch: ① 정합 → void ② 3 구성요소 각각 drift → RangeError(구성요소별 1+)
-//     ③ 구조 결손 분기(TypeError) ④ 재유도 chain throw 전파 ⑤ descriptor throw 시 후속
-//     위임(command-args/search-argv) 미호출(spyOn 순서 검증) — 각 1+ test.
+//     ③ 구조 결손 분기(TypeError) ④ 재유도 chain throw 전파 ⑤ command-plan 위임 throw 시
+//     search-argv 재유도 미호출(spyOn 순서 검증) — 각 1+ test.
 //   - 결정성: 동일 (plan, report) 2 회 호출 → 둘 다 동일 동작.
 //   - 입력 비변형: 가드 호출 후 report / plan 객체 변경 0.
-//   - short-circuit: 구조 위반(TypeError) 시 재유도 위임 미호출(spyOn).
+//   - short-circuit: 구조 위반(TypeError) 시 command-plan 재유도 위임 미호출(spyOn).
 import { buildRealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
 import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
-import * as commandArgsModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
-import * as descriptorModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
+import * as commandPlanModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-plan";
 import { buildRealDataDailyStepDualLegRunReportIssuePublishPlan } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-publish-plan";
 import type { RealDataDailyStepDualLegRunReportIssuePublishPlan } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-publish-plan";
 import { assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-publish-plan-consistency";
@@ -292,7 +296,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithS
   });
 
   describe("재유도 chain throw 전파 — 가드가 삼키지 않음 (branch cover)", () => {
-    it("report.gitSha 빈/공백 → descriptor 재유도 위임 throw 가 전파(RangeError 아님)", () => {
+    it("report.gitSha 빈/공백 → command-plan 내부 descriptor 재유도 위임 throw 가 전파(RangeError 아님)", () => {
       const blankReport: RealDataDailyStepDualLegRunReport = {
         ...HAPPY_REPORT,
         gitSha: "   ",
@@ -319,43 +323,33 @@ describe("assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithS
     });
   });
 
-  describe("위임 순차 순서 / short-circuit (spyOn)", () => {
-    it("descriptor 재유도 throw 시 command-args·search-argv 재유도 미호출", () => {
-      const blankReport: RealDataDailyStepDualLegRunReport = {
-        ...HAPPY_REPORT,
-        gitSha: "   ",
-      };
-      // plan 은 spy 설정 **전**에 미리 만든다 — makePlan() 자체가 컴포저 chain 을 돌려
-      // command-args·search-argv 를 호출하므로, spy 이후에 만들면 그 내부 호출이 잡혀
-      // short-circuit 관측이 오염된다(가드의 재유도 호출만 관측해야 한다).
+  describe("command-plan 컴포저 위임 / short-circuit (spyOn)", () => {
+    it("정상 경로에서 가드가 command-plan 컴포저를 정확히 1회·원본 report 인자로 호출(재유도 배선)", () => {
+      // plan 은 spy 설정 **전**에 미리 만든다 — makePlan() 자체가 publish-plan 컴포저
+      // chain(T-1022 리팩터로 내부에서 command-plan 컴포저 경유)을 돌리므로, spy 이후에
+      // 만들면 그 내부 호출이 잡혀 관측이 오염된다(가드의 재유도 호출만 관측해야 한다).
       const plan = makePlan();
-      const commandArgsSpy = jest.spyOn(
-        commandArgsModule,
-        "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+      const commandPlanSpy = jest.spyOn(
+        commandPlanModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
       );
-      const searchArgvSpy = jest.spyOn(
-        searchArgvModule,
-        "buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv",
+      assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource(
+        plan,
+        HAPPY_REPORT,
       );
-      expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource(
-          plan,
-          blankReport,
-        ),
-      ).toThrow(/gitSha 가 비어있습니다/);
-      expect(commandArgsSpy).not.toHaveBeenCalled();
-      expect(searchArgvSpy).not.toHaveBeenCalled();
+      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      expect(commandPlanSpy).toHaveBeenCalledWith(HAPPY_REPORT);
     });
 
-    it("구조 위반(TypeError) 시 재유도 위임(descriptor) 미호출", () => {
+    it("구조 위반(TypeError) 시 command-plan 재유도 위임 미호출(short-circuit)", () => {
       const plan = makePlan();
       const corrupted = {
         ...plan,
         descriptor: null,
       } as unknown as RealDataDailyStepDualLegRunReportIssuePublishPlan;
-      const descriptorSpy = jest.spyOn(
-        descriptorModule,
-        "buildRealDataDailyStepDualLegRunReportIssueDescriptor",
+      const commandPlanSpy = jest.spyOn(
+        commandPlanModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
       );
       expect(() =>
         assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource(
@@ -363,7 +357,34 @@ describe("assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithS
           HAPPY_REPORT,
         ),
       ).toThrow(TypeError);
-      expect(descriptorSpy).not.toHaveBeenCalled();
+      expect(commandPlanSpy).not.toHaveBeenCalled();
+    });
+
+    it("command-plan 컴포저 throw 주입 시 가드가 재포장 없이 전파 + search-argv 재유도 미호출", () => {
+      // plan 은 spy 설정 전에 미리 만든다(위와 동일 이유 — 내부 chain 호출 관측 오염 방지).
+      const plan = makePlan();
+      const injected = new Error("command-plan 컴포저 주입 실패");
+      const commandPlanSpy = jest
+        .spyOn(
+          commandPlanModule,
+          "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
+        )
+        .mockImplementation(() => {
+          throw injected;
+        });
+      const searchArgvSpy = jest.spyOn(
+        searchArgvModule,
+        "buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv",
+      );
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource(
+          plan,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(injected);
+      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      // command-plan 위임이 throw → search-argv 재유도 미도달(순차 short-circuit).
+      expect(searchArgvSpy).not.toHaveBeenCalled();
     });
   });
 
