@@ -1,4 +1,4 @@
-// realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-consistency.ts —
+// realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-body-consistency.ts —
 // 실 평가 e2e daily-step dual-leg run report 의 issue 박제 descriptor 의 **body 2 블록
 // 구조**(marker 라인 → 빈 줄 → 마크다운 본문) 불변식을 검증하는 순수 가드(T-0988 박제,
 // T-1026 에서 body-focus 로 축소).
@@ -135,7 +135,7 @@ function assertNonBlank(value: string, fieldName: string): void {
  * @throws {Error} report.gitSha/dateToken 빈/공백-only(producer 와 동형).
  * @throws {RangeError} body 2 블록 구조 불변식 (1)~(4) 위반(기대 vs 실측 포함).
  */
-export function assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+export function assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
   report: RealDataDailyStepDualLegRunReport,
   descriptor: RealDataDailyStepDualLegRunReportIssueDescriptor,
   label?: string,

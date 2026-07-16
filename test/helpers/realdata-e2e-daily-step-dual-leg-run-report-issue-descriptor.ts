@@ -69,15 +69,15 @@
 //   - production `src/` 코드 변경 — test helper 단독(타입·렌더 함수 import 재사용만).
 //
 // 🔥 self-wire drift-guard (T-0989): T-0988 이 봉한 독립 oracle 가드
-//   `assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent`
-//   (`-issue-descriptor-consistency.ts`)를 빌더 반환 직전 스스로 호출해 매 산출
+//   `assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent`
+//   (`-issue-descriptor-body-consistency.ts`)를 빌더 반환 직전 스스로 호출해 매 산출
 //   descriptor 를 즉시 자가 검증한다. consistency 모듈은
 //   `RealDataDailyStepDualLegRunReport`·`RealDataDailyStepDualLegRunReportIssueDescriptor`
 //   타입만 `import type` 로 참조하고 본 빌더를 value import 하지 않으므로(consistency →
 //   issue-descriptor value 엣지 0) 런타임 순환 의존이 없다(issue-descriptor →
 //   consistency 만 런타임 엣지). T-0982/T-0983/T-0985/T-0987 self-wire mirror.
 import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
-import { assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-consistency";
+import { assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-body-consistency";
 import { assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-identity-consistency";
 import { renderRealDataDailyStepDualLegRunReportMarkdown } from "./realdata-e2e-daily-step-dual-leg-run-report-markdown";
 
@@ -162,16 +162,16 @@ export function buildRealDataDailyStepDualLegRunReportIssueDescriptor(
   //   동작을 바꾸지 않고, 조립 규칙(prefix 상수·runToken 결합·title/marker 합성·body 2블록
   //   결합)과 oracle 규칙이 어긋나는 순간 모든 호출 경로(unit spec·이슈 박제 재사용)에서
   //   즉시 throw 하는 live 트립와이어가 된다 — spec 커버리지에 의존하지 않는다.
-  assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+  assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
     report,
     descriptor,
   );
 
-  // 🔥 self-wire identity 가드 (T-1025, 요약축 T-0710 mirror): combined 가드 옆에서 산출
+  // 🔥 self-wire identity 가드 (T-1025, 요약축 T-0710 mirror): body-consistency 가드 옆에서 산출
   //   descriptor 의 title·marker 가 run 식별자(`${dateToken}@${gitSha}`)로부터 독립 재유도한
   //   expected 와 byte-identical 정합함을 반환 직전 self-assert 한다(T-1024 identity 가드 짝
   //   닫기). identity 가드는 producer 로부터 type-only import 만 쓰므로 top-level import 에
-  //   circular dep 없음(lazy require 불요). ⚠️ 인자 순서 (descriptor, report) — combined
+  //   circular dep 없음(lazy require 불요). ⚠️ 인자 순서 (descriptor, report) — body-consistency
   //   가드의 (report, descriptor)와 반대다(swap 금지). 정합 산출이면 void 라 반환값·동작
   //   byte-identical 보존, title·marker 식별자 drift(run token 어긋남 / prefix 변형 / marker
   //   가 다른 run token 을 담아 멱등 search-or-update 가 깨짐)가 생기면 손상 descriptor 를

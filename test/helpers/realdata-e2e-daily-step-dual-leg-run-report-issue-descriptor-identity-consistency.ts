@@ -6,9 +6,10 @@
 // 동기: leaf 빌더 `buildRealDataDailyStepDualLegRunReportIssueDescriptor`(T-0896,
 // `realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor.ts`)은 daily-test dual-leg
 // run report 를 rolling-issue 박제용 `{ title, marker, body }` descriptor 로 합성한다.
-// daily 축은 그 descriptor 정합을 `assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent`
-// (T-0988) 단일 **combined** 가드가 `{title, marker, body}` 를 한꺼번에 재유도·대조하는
-// 방식으로 지킨다. 반면 요약축(`result-issue-*`)은 descriptor 정합을 2 개의 disjoint 가드로
+// daily 축은 그 descriptor 정합을 `assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent`
+// (`-issue-descriptor-body-consistency.ts`; T-0988 당시엔 단일 **combined** 가드로 `{title,
+// marker, body}` 를 한꺼번에 재유도·대조했다가 T-1026 에서 body-focus 로 축소·T-1027 에서 개명)
+// 로 지킨다. 반면 요약축(`result-issue-*`)은 descriptor 정합을 2 개의 disjoint 가드로
 // 나눈다:
 //   - `assertRealDataResultIssueDescriptorBodyConsistent`(T-0646) — body 3 블록 구조만.
 //   - `assertRealDataResultIssueDescriptorIdentityConsistent`(T-0709) — title·marker 의
