@@ -1,17 +1,22 @@
 // realdata-e2e-daily-step-dual-leg-run-report-issue-publish-plan.spec.ts —
-// T-1016 colocated unit spec (요약축 T-0595 spec mirror, 3단 위임 조정).
+// T-1016 colocated unit spec (요약축 T-0595 spec mirror → T-1022 command-plan 위임 리팩터
+// 조정, 2단 위임 = command-plan + search-argv).
 //
 // R-112 cover 구조:
 //   - happy-path: (a) 정상 report → descriptor/commandArgs/searchArgv 가 각 위임 helper
 //     직접 호출 결과(buildDescriptor(report) / buildCommandArgs(descriptor) /
-//     buildSearchGhArgv(commandArgs))와 deep-equal, (b) overallStatus 다른 report 동형.
-//   - error path: (a) report.gitSha 빈/공백 → descriptor guard throw 전파(자체 try/catch
-//     0, command-args·search-argv 미도달), (b) report.dateToken 빈/공백 → throw 전파,
-//     (c) jest.spyOn 으로 command-args / search-argv 위임 강제 throw → 컴포저가 그대로
-//     전파 — 각 1+.
-//   - flow/branch: (a) 정상 입력 → 3단 위임 전부 성공 → plan 반환 분기, (b) descriptor
-//     throw 분기는 command-args·search-argv 위임 도달 전 발생(spy not.toHaveBeenCalled),
-//     (c) 세 위임이 각각 정확한 인자로 호출됨(spy) — 각 1+.
+//     buildSearchGhArgv(commandArgs))와 deep-equal(byte-identical 회귀 검증 — 위임 경로가
+//     command-plan 경유로 바뀌어도 산출 동일), (b) overallStatus 다른 report 동형.
+//   - error path: (a) report.gitSha 빈/공백 → command-plan 내부 descriptor guard throw
+//     전파(자체 try/catch 0, search-argv 미도달), (b) report.dateToken 빈/공백 → throw
+//     전파, (c) jest.spyOn 으로 command-plan / search-argv 위임 강제 throw → 컴포저가
+//     그대로 전파 — 각 1+.
+//   - flow/branch: (a) 정상 입력 → command-plan + search-argv 2단 위임 성공 → plan 반환
+//     분기, (b) command-plan throw 분기는 search-argv 위임 도달 전 발생
+//     (spy not.toHaveBeenCalled), (c) 두 위임이 각각 정확한 인자로 호출됨(spy) — 각 1+.
+//   - command-plan 위임 배선(2층 동형화, T-1022 핵심): (a) publish-plan 이 command-plan
+//     컴포저를 정확히 1회, 원본 report 인자로 호출, (b) descriptor/command-args 빌더를
+//     **직접** 호출하지 않음(위임 경로가 command-plan 내부로 이동) — 각 1+.
 //   - negative 충분 cover(단일 negative 금지 — 분기마다): gitSha 빈문자열/공백-only/
 //     탭·개행, dateToken 빈문자열/공백-only 각 throw + 입력 비변형 + 반환 트리 무공유
 //     (descriptor/commandArgs/searchArgv mutate 격리) + searchArgv 새 배열 + 결정성.
@@ -23,6 +28,7 @@
 //     (기존 컴포저 describe 는 가드를 no-op 으로 mock 해 위임 호출 순서·인자 검증을 격리.)
 import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
 import * as commandArgsModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-args";
+import * as commandPlanModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-command-plan";
 import * as descriptorModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
 import { buildRealDataDailyStepDualLegRunReportIssuePublishPlan } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-publish-plan";
 import * as consistencyModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-publish-plan-consistency";
@@ -131,8 +137,8 @@ describe("buildRealDataDailyStepDualLegRunReportIssuePublishPlan — daily-step 
     });
   });
 
-  describe("flow / branch — 3단 위임 순서·인자 정합", () => {
-    it("정상 입력 → 3단 위임 전부 성공 → plan 반환(키 3종)", () => {
+  describe("flow / branch — command-plan + search-argv 2단 위임 순서·인자 정합", () => {
+    it("정상 입력 → 2단 위임(command-plan + search-argv) 성공 → plan 반환(키 3종)", () => {
       const plan =
         buildRealDataDailyStepDualLegRunReportIssuePublishPlan(REPORT);
 
@@ -141,7 +147,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssuePublishPlan — daily-step 
       expect(plan.searchArgv).toBeDefined();
     });
 
-    it("세 위임이 각각 정확한 인자로 순차 호출된다(descriptor→commandArgs→searchArgv)", () => {
+    it("두 위임(command-plan → search-argv)이 각각 정확한 인자로 순차 호출된다", () => {
       // 가드를 no-op 으로 mock — self-wire 재유도가 위임을 재호출하지 않게 해 컴포저
       // 본 합성의 위임 호출 순서·인자·횟수만 격리 검증한다(재유도 호출은 self-wire
       // describe 에서 별도 검증).
@@ -151,13 +157,9 @@ describe("buildRealDataDailyStepDualLegRunReportIssuePublishPlan — daily-step 
           "assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource",
         )
         .mockImplementation(() => {});
-      const descriptorSpy = jest.spyOn(
-        descriptorModule,
-        "buildRealDataDailyStepDualLegRunReportIssueDescriptor",
-      );
-      const commandArgsSpy = jest.spyOn(
-        commandArgsModule,
-        "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+      const commandPlanSpy = jest.spyOn(
+        commandPlanModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
       );
       const searchArgvSpy = jest.spyOn(
         searchArgvModule,
@@ -167,20 +169,79 @@ describe("buildRealDataDailyStepDualLegRunReportIssuePublishPlan — daily-step 
       const plan =
         buildRealDataDailyStepDualLegRunReportIssuePublishPlan(REPORT);
 
-      // descriptor 위임은 report 로 호출.
-      expect(descriptorSpy).toHaveBeenCalledTimes(1);
-      expect(descriptorSpy).toHaveBeenCalledWith(REPORT);
-      // command-args 위임은 산출 descriptor 로 호출.
-      expect(commandArgsSpy).toHaveBeenCalledTimes(1);
-      expect(commandArgsSpy).toHaveBeenCalledWith(plan.descriptor);
-      // search-argv 위임은 산출 commandArgs 로 호출.
+      // command-plan 위임은 원본 report 로 정확히 1회 호출.
+      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      expect(commandPlanSpy).toHaveBeenCalledWith(REPORT);
+      // search-argv 위임은 command-plan 산출 commandArgs 로 정확히 1회 호출.
       expect(searchArgvSpy).toHaveBeenCalledTimes(1);
       expect(searchArgvSpy).toHaveBeenCalledWith(plan.commandArgs);
     });
 
-    it("self-wire 배선됨 — 반환 직전 가드가 재유도로 세 위임을 한 번 더 호출(합성 1 + 재유도 1 = 각 2회)", () => {
-      // 컴포저가 합성에서 세 위임을 1회씩 호출하고, 반환 직전 self-assert 가드가 동일
-      // 세 위임을 재유도로 1회씩 더 호출한다 → 각 위임 총 2회(T-1018 self-wire 배선 증거).
+    it("self-wire 배선됨 — 반환 직전 가드가 search-argv 를 재유도로 한 번 더 호출(합성 1 + 재유도 1 = 2회), command-plan 은 합성에서만 1회", () => {
+      // 컴포저가 합성에서 command-plan 1회 + search-argv 1회를 호출하고, 반환 직전
+      // self-assert 가드가 하위 세 위임(descriptor → command-args → search-argv)으로
+      // expected 를 재유도하므로 search-argv 가 1회 더 호출된다 → search-argv 총 2회
+      // (T-1018 self-wire 배선 증거). command-plan 은 가드가 경유하지 않으므로 합성의
+      // 1회뿐(가드는 하위 빌더로만 재유도 — command-plan 미경유).
+      const commandPlanSpy = jest.spyOn(
+        commandPlanModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
+      );
+      const searchArgvSpy = jest.spyOn(
+        searchArgvModule,
+        "buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv",
+      );
+
+      buildRealDataDailyStepDualLegRunReportIssuePublishPlan(REPORT);
+
+      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      expect(searchArgvSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // T-1022 — command-plan 위임 배선 검증(2층 동형화 핵심). publish-plan 이 앞 2단
+  // (descriptor + command-args)을 command-plan 컴포저(T-1019)에 위임하고 descriptor/
+  // command-args 빌더를 직접 호출하지 않음을 확인한다.
+  describe("command-plan 위임 배선 — 2층 동형화(descriptor/command-args 직접 위임 부재)", () => {
+    it("(a) publish-plan 이 command-plan 컴포저를 정확히 1회, 원본 report 인자로 위임한다", () => {
+      jest
+        .spyOn(
+          consistencyModule,
+          "assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource",
+        )
+        .mockImplementation(() => {});
+      const commandPlanSpy = jest.spyOn(
+        commandPlanModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
+      );
+
+      buildRealDataDailyStepDualLegRunReportIssuePublishPlan(REPORT);
+
+      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      expect(commandPlanSpy).toHaveBeenCalledWith(REPORT);
+    });
+
+    it("(b) descriptor / command-args 빌더를 직접 호출하지 않는다(위임 경로가 command-plan 내부로 이동)", () => {
+      // command-plan 을 통짜 stub 으로 대체 — publish-plan 이 descriptor/command-args
+      // 빌더를 직접 호출한다면 stub 뒤에서도 spy 에 잡히지만, 실제로는 그 구간이
+      // command-plan 내부로 이동했으므로 직접 호출 0 이어야 한다. stub 은 실제
+      // command-plan 산출을 그대로 반환(search-argv 가 유효 commandArgs 를 받도록).
+      const realPlan =
+        commandPlanModule.buildRealDataDailyStepDualLegRunReportIssueCommandPlan(
+          REPORT,
+        );
+      jest
+        .spyOn(
+          consistencyModule,
+          "assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource",
+        )
+        .mockImplementation(() => {});
+      jest
+        .spyOn(
+          commandPlanModule,
+          "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
+        )
+        .mockReturnValue(realPlan);
       const descriptorSpy = jest.spyOn(
         descriptorModule,
         "buildRealDataDailyStepDualLegRunReportIssueDescriptor",
@@ -196,14 +257,39 @@ describe("buildRealDataDailyStepDualLegRunReportIssuePublishPlan — daily-step 
 
       buildRealDataDailyStepDualLegRunReportIssuePublishPlan(REPORT);
 
-      expect(descriptorSpy).toHaveBeenCalledTimes(2);
-      expect(commandArgsSpy).toHaveBeenCalledTimes(2);
-      expect(searchArgvSpy).toHaveBeenCalledTimes(2);
+      // command-plan 을 stub 으로 대체한 상태에서 publish-plan 은 descriptor/command-args
+      // 를 직접 호출하지 않는다(그 구간은 command-plan 내부 책임 — 여기선 stub 됨).
+      expect(descriptorSpy).not.toHaveBeenCalled();
+      expect(commandArgsSpy).not.toHaveBeenCalled();
+      // search-argv 는 stub command-plan 산출 commandArgs 로 정확히 1회 위임.
+      expect(searchArgvSpy).toHaveBeenCalledTimes(1);
+      expect(searchArgvSpy).toHaveBeenCalledWith(realPlan.commandArgs);
+    });
+
+    it("command-plan 위임 강제 throw → 컴포저가 재포장 없이 그대로 전파(search-argv 미도달)", () => {
+      jest
+        .spyOn(
+          commandPlanModule,
+          "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
+        )
+        .mockImplementation(() => {
+          throw new Error("forced command-plan failure");
+        });
+      const searchArgvSpy = jest.spyOn(
+        searchArgvModule,
+        "buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssuePublishPlan(REPORT),
+      ).toThrow(/forced command-plan failure/);
+      // command-plan 단계에서 종료 → search-argv 위임 미호출.
+      expect(searchArgvSpy).not.toHaveBeenCalled();
     });
   });
 
-  describe("error path — descriptor guard throw 전파(자체 try/catch 0)", () => {
-    it("report.gitSha 빈문자열 → descriptor 단계 throw 전파(command-args·search-argv 미도달)", () => {
+  describe("error path — command-plan 내부 descriptor guard throw 전파(자체 try/catch 0)", () => {
+    it("report.gitSha 빈문자열 → command-plan 내부 descriptor 단계 throw 전파(command-args·search-argv 미도달)", () => {
       const commandArgsSpy = jest.spyOn(
         commandArgsModule,
         "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
@@ -218,12 +304,13 @@ describe("buildRealDataDailyStepDualLegRunReportIssuePublishPlan — daily-step 
           makeReport({ gitSha: "" }),
         ),
       ).toThrow(/gitSha 가 비어있습니다/);
-      // descriptor 단계에서 종료 → 후속 위임 미호출(순차 단락).
+      // command-plan 내부 descriptor 단계에서 종료 → command-args(command-plan 내부)·
+      // search-argv(publish-plan) 미호출(순차 단락).
       expect(commandArgsSpy).not.toHaveBeenCalled();
       expect(searchArgvSpy).not.toHaveBeenCalled();
     });
 
-    it("report.dateToken 빈문자열 → descriptor 단계 throw 전파", () => {
+    it("report.dateToken 빈문자열 → command-plan 내부 descriptor 단계 throw 전파", () => {
       expect(() =>
         buildRealDataDailyStepDualLegRunReportIssuePublishPlan(
           makeReport({ dateToken: "" }),
@@ -231,7 +318,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssuePublishPlan — daily-step 
       ).toThrow(/dateToken 가 비어있습니다/);
     });
 
-    it("command-args 위임 강제 throw → 컴포저가 그대로 전파(search-argv 단계 미도달)", () => {
+    it("command-args 위임 강제 throw(command-plan 내부) → 컴포저가 그대로 전파(search-argv 단계 미도달)", () => {
       jest
         .spyOn(
           commandArgsModule,
@@ -248,7 +335,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssuePublishPlan — daily-step 
       expect(() =>
         buildRealDataDailyStepDualLegRunReportIssuePublishPlan(REPORT),
       ).toThrow(/forced command-args failure/);
-      // command-args 단계에서 종료 → search-argv 위임 미호출.
+      // command-args 단계(command-plan 내부)에서 종료 → search-argv 위임 미호출.
       expect(searchArgvSpy).not.toHaveBeenCalled();
     });
 
