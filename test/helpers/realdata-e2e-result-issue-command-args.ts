@@ -56,6 +56,7 @@
 //   - 외부 템플릿/해시/CLI 라이브러리 도입(새 dependency 0, 내장 string 합성만).
 //   - production `src/` 코드 변경 — test helper 단독(타입 import 재사용만).
 import { assertRealDataResultIssueCommandArgsBodyPreservesDescriptor } from "./realdata-e2e-result-issue-command-args-body-marker";
+import { assertRealDataResultIssueCommandArgsConsistent } from "./realdata-e2e-result-issue-command-args-consistency";
 import { assertRealDataResultIssueCommandArgsLabelsTitleConsistent } from "./realdata-e2e-result-issue-command-args-labels-title";
 import type { RealDataResultIssueDescriptor } from "./realdata-e2e-result-issue-descriptor";
 
@@ -158,6 +159,21 @@ export function buildRealDataResultIssueCommandArgs(
     descriptor,
     RESULT_ISSUE_LABELS,
   );
+
+  // self-wire — 합성한 명령-args 전체를 descriptor 만으로 독립 재조립한 expected 와 필드별
+  // byte-identical 대조하는 full-recomposition 오라클로 반환 직전 self-assert
+  // (T-1031 신설 가드의 producer 배선 — daily 축 T-0991 self-wire 의 요약축 mirror, daily
+  // create→self-wire T-1024→T-1025 cadence 를 요약축으로 이식). 자매 body-marker /
+  // labels-title 가 필드별 invariant 를 지킨다면, 본 가드는 전체 객체를 통째로 독립
+  // 재조립·대조해 shape/구조 drift·잉여 필드·조립 규칙 회귀(searchQuery=marker /
+  // create·update body 멱등 / labels 상수 복제 / title·body pass-through)를 잡는 세 번째
+  // 방어 축이다. 정상 합성이면 가드는 void 반환하므로 동작·반환값 byte-identical 보존.
+  // 회귀가 생기면 손상 명령-args 를 caller(live wiring)로 반환하기 전에 한국어 명세형
+  // 에러로 즉시 throw 한다(fail-fast). label 은 error-message context prefix 이지
+  // expectedLabels 가 아니므로(labels 는 가드 내부 재현) 자매 body-marker 처럼 생략한
+  // artifact-first 2-arg `(args, descriptor)` 로 호출한다. 같은 디렉토리 함수 호출이라
+  // runtime cycle 0.
+  assertRealDataResultIssueCommandArgsConsistent(args, descriptor);
 
   return args;
 }
