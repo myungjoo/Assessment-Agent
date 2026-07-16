@@ -2,7 +2,7 @@
 id: T-1040
 title: summary search-parse self-wire 두 가드 호출 순서(hit-shape→OutputConsistent)를 invocationCallOrder 순서-lock test 로 못박기 (search-parse 축 요약축 mirror)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 64
@@ -55,3 +55,7 @@ P5 test-hardening sweep 은 producer 가 자기 return 경로에서 self-assert 
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기 append)
+
+## Result (DONE 2026-07-16T14:56Z)
+
+PR #934 squash merge (547c87a9). 요약축 result-issue search-parse spec 에 순서-lock(⑩ hitShapeSpy.invocationCallOrder[0] < consistencySpy.invocationCallOrder[0]) + fail-fast(⑪ hit-shape throw → OutputConsistent 0회) + 빈 배열 경계(⑫) 3 test 추가(+80/-0), production `.ts` 무변경. 대상 spec 45 test / 전체 404 suites·11003 tests green, coverage line 99.95%/func 100%(≥80 게이트 충족), `git grep invocationCallOrder` 0→4건. reviewer round1 APPROVE(external comment issuecomment-4993265479) 4-게이트 PASS. search-parse 축 순서-lock 이 daily(T-1039)·summary(T-1040) 두 leg 모두 완료. next=T-1041(search-argv 축 요약축 mirror).
