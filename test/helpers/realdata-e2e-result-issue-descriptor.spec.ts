@@ -772,6 +772,77 @@ describe("buildRealDataResultIssueDescriptor", () => {
       expect(identitySpy).toHaveBeenCalledTimes(1);
     });
 
+    // 순서-lock (T-1035, daily descriptor 순서-lock 정본 T-1034 mirror) — 요약축 self-wire
+    // 두 가드의 **상대 호출 순서(Body→Identity)**를 invocationCallOrder 2 자 부등식으로
+    // 못박는다. 위 combined test 는 두 가드가 각 1 회 호출됨만 lock 하고 상대 순서는 lock
+    // 하지 않았다(요약축 spec 에 invocationCallOrder 부재였음 — command-args T-1033·daily
+    // descriptor T-1034 와 동형 parity 확보). Body 인자는 (descriptor, summary), Identity
+    // 인자는 (descriptor, run) 로 두 번째 인자가 다르지만 상대 순서 의미는 daily 와 동일.
+    it("self-wire 두 가드 호출 순서 보존(Body→Identity) — bodySpy 가 identitySpy 보다 먼저 호출됨(역전 시 fail)", () => {
+      const bodySpy = jest.spyOn(
+        bodyConsistencyModule,
+        "assertRealDataResultIssueDescriptorBodyConsistent",
+      );
+      const identitySpy = jest.spyOn(
+        identityConsistencyModule,
+        "assertRealDataResultIssueDescriptorIdentityConsistent",
+      );
+      const summary = makeSummary({
+        count: 3,
+        byDifficulty: { easy: 2, medium: 1 },
+        byContribution: { low: 1, medium: 1, high: 1 },
+        totalVolume: 42,
+      });
+
+      const descriptor = buildRealDataResultIssueDescriptor(summary, HAPPY_RUN);
+
+      // 두 가드 각 정확히 1 회 호출(daily descriptor 순서-lock 정본 T-1034 mirror).
+      expect(bodySpy).toHaveBeenCalledTimes(1);
+      expect(identitySpy).toHaveBeenCalledTimes(1);
+      // 순서 보존 — Body(body 3-블록 구조: marker 라인 → 빈 줄 → markdown 무결성) →
+      // Identity(title·marker 의 run 식별자 재유도 정합). 2 자 부등식 방향이라 순서가
+      // 역전(Identity 먼저)되면 이 assertion 이 fail 한다.
+      expect(bodySpy.mock.invocationCallOrder[0]).toBeLessThan(
+        identitySpy.mock.invocationCallOrder[0],
+      );
+      // 실 구현 spy(호출 pass-through)이므로 산출 descriptor byte-identical 회귀 0 재확인.
+      expect(descriptor.body.startsWith(descriptor.marker)).toBe(true);
+    });
+
+    // Body-first fail-fast (T-1035) — body-consistency 가드가 throw 하면 producer 가 전파하고
+    // identity 가드까지 도달하지 않음을 못박아 Body→Identity 순서의 fail-fast 의미를 결정적이게 한다.
+    it("Body-first fail-fast — body 가드가 throw 하면 producer 전파 + identity 가드 미도달(not.toHaveBeenCalled)", () => {
+      const drift = new RangeError(
+        "정합 위반: body 강제 drift(순서 fail-fast 테스트)",
+      );
+      const bodySpy = jest
+        .spyOn(
+          bodyConsistencyModule,
+          "assertRealDataResultIssueDescriptorBodyConsistent",
+        )
+        .mockImplementation(() => {
+          throw drift;
+        });
+      const identitySpy = jest.spyOn(
+        identityConsistencyModule,
+        "assertRealDataResultIssueDescriptorIdentityConsistent",
+      );
+      const summary = makeSummary({
+        count: 1,
+        byDifficulty: { easy: 1 },
+        byContribution: { low: 1 },
+        totalVolume: 1,
+      });
+
+      expect(() =>
+        buildRealDataResultIssueDescriptor(summary, HAPPY_RUN),
+      ).toThrow(drift);
+
+      // Body 가 먼저 throw 하므로 identity self-assert 까지 흐름이 도달하지 않는다.
+      expect(bodySpy).toHaveBeenCalledTimes(1);
+      expect(identitySpy).not.toHaveBeenCalled();
+    });
+
     // happy-path — 정상 summary(섞임, totalVolume>0) → identity self-guard 통과해 정상
     // descriptor 반환(throw 0).
     it("정상 summary + 정상 run 에서 identity self-guard 통과해 정상 descriptor 를 반환한다(throw 0)", () => {
