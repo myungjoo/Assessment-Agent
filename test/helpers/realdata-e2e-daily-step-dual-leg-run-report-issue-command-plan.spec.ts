@@ -558,4 +558,108 @@ describe("buildRealDataDailyStepDualLegRunReportIssueCommandPlan — daily-step 
       );
     });
   });
+
+  // T-1045 — 컴포저 본문 위임(delegate) 순서-lock (plan 컴포저 daily canonical leg).
+  //
+  // 기존 self-wire describe(L122~180)는 두 위임을 spyOn 하면서도 상대 호출 순서를
+  // invocationCallOrder 부등식으로 못박지 않았다(grep 0). from-output 축(T-1044) canonical
+  // 패턴을 plan 축 daily leg 로 확립해 그 gap 을 해소한다 — descriptor → commandArgs 순서를
+  // invocationCallOrder 부등식으로 못박아 silent 재정렬 회귀를 감지한다.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: descriptor·commandArgs 위임을 실 구현 pass-through spy 로 감싸 정상
+  //     합성 1회 시 descriptor 첫 호출이 commandArgs 첫 호출보다 먼저(invocationCallOrder
+  //     toBeLessThan) + 인자 전파(descriptor(REPORT); commandArgs(plan.descriptor)) +
+  //     self-wire 재유도 포함 각 2회 호출 + 산출 plan deep-equal 검증.
+  //   - error path/negative(fail-fast): descriptor 위임 throw(report.gitSha 빈) 시 commandArgs
+  //     위임 미도달(0회) — descriptor-먼저 순서로 commandArgs 도달 불가를 fail-fast 로 못박음.
+  //   - branch/negative(guard-우선): commandArgs-하위 guard throw 분기에서도 descriptor 위임은
+  //     그 전에 이미 호출됨(descriptor → commandArgs 순서가 commandArgs 단계 실패 시에도 보존).
+  describe("T-1045 — 컴포저 본문 위임 순서-lock(descriptor → commandArgs)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성 시 descriptor 위임이 commandArgs 위임보다 먼저 호출된다(invocationCallOrder 부등식·인자 전파·self-wire 재유도 포함 각 2회)", () => {
+      const descriptorSpy = jest.spyOn(
+        descriptorModule,
+        "buildRealDataDailyStepDualLegRunReportIssueDescriptor",
+      );
+      const commandArgsSpy = jest.spyOn(
+        commandArgsModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+      );
+
+      const plan =
+        buildRealDataDailyStepDualLegRunReportIssueCommandPlan(REPORT);
+
+      // T-1021 self-wire 이후 각 위임은 정확히 2회 호출된다 — (1) 컴포저 본문 합성 1회 +
+      // (2) 반환 직전 self-assert 가드가 single-source 재유도로 1회 더. 컴포저 본문 자체의
+      // 위임 호출 지점은 여전히 각 1개(호출 변경 0)이며, 두 번째는 가드 내부 재유도다.
+      expect(descriptorSpy).toHaveBeenCalledTimes(2);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(2);
+      // 순서: 컴포저 본문의 descriptor(첫 호출)가 commandArgs(첫 호출)보다 먼저 호출.
+      expect(descriptorSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        commandArgsSpy.mock.invocationCallOrder[0],
+      );
+      // 인자 전파: descriptor 는 입력 report, commandArgs 첫 인자 = descriptor 산출물 =
+      // plan.descriptor.
+      expect(descriptorSpy).toHaveBeenCalledWith(REPORT);
+      expect(commandArgsSpy).toHaveBeenCalledWith(plan.descriptor);
+
+      // 실 구현 pass-through spy 이므로 산출 plan 은 손으로 엮은 재유도와 byte-identical
+      // (순서-검증 전후 무변경 — production 무변경 회귀 0).
+      const expectedDescriptor =
+        descriptorModule.buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          REPORT,
+        );
+      const expectedCommandArgs =
+        commandArgsModule.buildRealDataDailyStepDualLegRunReportIssueCommandArgs(
+          expectedDescriptor,
+        );
+      expect(plan.descriptor).toEqual(expectedDescriptor);
+      expect(plan.commandArgs).toEqual(expectedCommandArgs);
+    });
+
+    it("descriptor 위임 throw(report.gitSha 빈) 시 commandArgs 위임은 도달하지 않는다(commandArgs 0회·fail-fast)", () => {
+      const commandArgsSpy = jest.spyOn(
+        commandArgsModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandPlan(
+          makeReport({ gitSha: "" }),
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+
+      // descriptor-먼저 순서로 인해 descriptor throw 가 commandArgs 도달 전에 선전파 →
+      // commandArgs 위임 미호출.
+      expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("commandArgs-하위 guard throw 분기에서도 descriptor 위임은 그 전에 이미 호출된다(descriptor → commandArgs 순서 보존)", () => {
+      const descriptorSpy = jest.spyOn(
+        descriptorModule,
+        "buildRealDataDailyStepDualLegRunReportIssueDescriptor",
+      );
+      // descriptor 는 정상 산출하되 commandArgs 위임을 강제 throw → commandArgs 단계 실패.
+      jest
+        .spyOn(
+          commandArgsModule,
+          "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+        )
+        .mockImplementation(() => {
+          throw new Error("forced command-args failure");
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueCommandPlan(REPORT),
+      ).toThrow(/forced command-args failure/);
+
+      // commandArgs 단계에서 실패해도 그 전에 descriptor 위임이 이미 호출됨(순서 보존).
+      expect(descriptorSpy.mock.invocationCallOrder[0]).toBeDefined();
+      expect(descriptorSpy).toHaveBeenCalledWith(REPORT);
+    });
+  });
 });
