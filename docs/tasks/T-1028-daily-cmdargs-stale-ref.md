@@ -2,7 +2,7 @@
 id: T-1028
 title: daily-step command-args-body-marker 가드 주석의 stale 개명 참조 정정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032]
 estimatedDiff: 2
@@ -48,3 +48,11 @@ implementer → tester
 ## Follow-ups
 
 (비어 있음)
+
+## Result (DONE 2026-07-16)
+
+PR #922 squash 머지(b29fd5e0). 29행 가드 주석의 개명 전 stage명 참조
+(`issue-descriptor-consistency`)를 현행 body 축 명칭(`issue-descriptor-body-consistency`)
+으로 정정 — comment-only 1줄(+1/-1), 코드·로직·공개 심볼·behavior 변경 0.
+전체 unit 403 suite/10927 test green, 전역 cov line≥80 AND function≥80 무회귀.
+reviewer round1 APPROVE(0/0/0) 4-게이트 PASS, 머지-커밋 main CI(29481254744) success.
