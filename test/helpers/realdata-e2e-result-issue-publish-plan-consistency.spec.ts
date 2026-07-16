@@ -17,10 +17,15 @@
 //   - 입력 비변형: 가드 호출 후 results / run / plan 객체 변경 0.
 import type { EvaluationResult } from "../../src/assessment-evaluation/domain/evaluation-result";
 
+// 재유도 위임 순서-lock(T-1057) 을 위해 두 builder 위임을 module namespace 로 import 해
+// `jest.spyOn` 대상 프로퍼티로 삼는다(ts-jest 가 named import 를 module 객체 프로퍼티 접근
+// 으로 컴파일하므로 소비 측 guard 호출이 spy 를 통과 — T-1054/T-1056 선례).
+import * as commandPlanModule from "./realdata-e2e-result-issue-command-plan";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
 import { buildRealDataResultIssuePublishPlan } from "./realdata-e2e-result-issue-publish-plan";
 import type { RealDataResultIssuePublishPlan } from "./realdata-e2e-result-issue-publish-plan";
 import { assertRealDataResultIssuePublishPlanConsistentWithSources } from "./realdata-e2e-result-issue-publish-plan-consistency";
+import * as searchArgvModule from "./realdata-e2e-result-issue-search-argv";
 
 // EvaluationResult fixture — 평가 단위 1 건 모사.
 function makeResult(
@@ -407,6 +412,147 @@ describe("assertRealDataResultIssuePublishPlanConsistentWithSources", () => {
       expect(JSON.stringify(results)).toBe(resultsSnapshot);
       expect(JSON.stringify(run)).toBe(runSnapshot);
       expect(JSON.stringify(plan)).toBe(planSnapshot);
+    });
+  });
+
+  // 현행 spec 은 구조·값 정합·재유도 chain throw 전파·결정성은 검증하나 guard 재유도 본문의
+  // 두 distinct builder(`buildRealDataResultIssueCommandPlan` → 그 산출 `commandArgs` 로
+  // `buildRealDataResultIssueSearchGhArgv`)의 상대 호출 순서 + 데이터-의존 방향(builder ②가
+  // builder ① 산출 `commandArgs` 를 첫 인자로 소비)은 invocationCallOrder 부등식으로 못박지
+  // 않았다(grep 0). guard 본문 L192~195 는 search-gh-argv 재유도가 앞 command-plan 재유도
+  // 산출(expectedCommandArgs)을 첫 인자로 소비하는 데이터-의존 chain 이라 command-plan 이
+  // 반드시 먼저 평가돼야 한다. T-1056(result-issue-command-plan-consistency 의 report-plan
+  // → command-args)을 sibling consistency-guard leg 로 mirror 해 그 gap 을 봉한다.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: 정합 plan 을 spy 설치 前 미리 만든 뒤(makePlan 내부도 두 builder 를
+  //     호출하므로 spy 설치 후 만들면 호출 횟수가 오염된다 — guard 재유도만 격리 계측) 두
+  //     builder 위임을 실 구현 pass-through spy 로 감싸고 guard 재유도 1회 트리거 →
+  //     command-plan 첫 호출이 search-gh-argv 첫 호출보다 먼저(invocationCallOrder
+  //     toBeLessThan) + 각 정확히 1회 + search-gh-argv 첫 인자 === command-plan 위임 반환
+  //     객체의 commandArgs(데이터-의존 reference 페어링).
+  //   - branch/무공유 재확인: pass-through spy 하에서도 guard 가 정상 void 반환 + 입력
+  //     plan/results/run mutate 0(read-only guard).
+  //   - error/negative(a fail-fast): command-plan 위임 강제 throw → search-gh-argv 위임
+  //     미도달(0회) — command-plan-먼저 순서 + builder ②가 builder ① 산출 소비로 도달 불가를
+  //     fail-fast 로 못박음.
+  //   - error/negative(b 후속-위임 throw 전파): search-gh-argv 위임 강제 throw → guard 가 그
+  //     에러를 전파, 이때 command-plan 위임은 이미 호출됨(순서 상 command-plan 이 search-gh-argv
+  //     보다 먼저 평가됨을 negative 경로에서도 재확인).
+  describe("T-1057 — 재유도 위임 순서-lock(command-plan → search-gh-argv)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정합 재유도 시 command-plan 위임이 search-gh-argv 위임보다 먼저 호출된다(invocationCallOrder 부등식·데이터-의존 reference·각 1회)", () => {
+      // plan 은 spy 설치 前 합성 — makePlan 내부도 두 builder 를 호출하므로 spy 설치 후 만들면
+      // 호출 횟수가 오염된다. guard 재유도 호출만 격리 계측한다.
+      const plan = makePlan();
+      const commandPlanSpy = jest.spyOn(
+        commandPlanModule,
+        "buildRealDataResultIssueCommandPlan",
+      );
+      const searchArgvSpy = jest.spyOn(
+        searchArgvModule,
+        "buildRealDataResultIssueSearchGhArgv",
+      );
+
+      assertRealDataResultIssuePublishPlanConsistentWithSources(
+        plan,
+        HAPPY_RESULTS,
+        HAPPY_RUN,
+      );
+
+      // guard 재유도 지점 각 1개 → 각 위임 정확히 1회.
+      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      expect(searchArgvSpy).toHaveBeenCalledTimes(1);
+      // 순서: command-plan 위임(첫 호출)이 search-gh-argv 위임(첫 호출)보다 먼저 호출된다.
+      expect(commandPlanSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        searchArgvSpy.mock.invocationCallOrder[0],
+      );
+      // 데이터-의존: search-gh-argv 위임 첫 인자 = command-plan 위임 반환 객체의 commandArgs
+      // (reference 동일) — builder ②가 builder ① 산출 commandArgs 를 소비하는 chain 방향 lock.
+      const producedCommandPlan = commandPlanSpy.mock.results[0].value;
+      expect(searchArgvSpy.mock.calls[0][0]).toBe(
+        producedCommandPlan.commandArgs,
+      );
+    });
+
+    it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/results/run mutate 0", () => {
+      const plan = makePlan();
+      const planSnapshot = JSON.parse(JSON.stringify(plan));
+      const resultsSnapshot = JSON.parse(JSON.stringify(HAPPY_RESULTS));
+      const runSnapshot = JSON.parse(JSON.stringify(HAPPY_RUN));
+      jest.spyOn(commandPlanModule, "buildRealDataResultIssueCommandPlan");
+      jest.spyOn(searchArgvModule, "buildRealDataResultIssueSearchGhArgv");
+
+      // 정합 경로 → 정상 void(throw 0).
+      expect(
+        assertRealDataResultIssuePublishPlanConsistentWithSources(
+          plan,
+          HAPPY_RESULTS,
+          HAPPY_RUN,
+        ),
+      ).toBeUndefined();
+      // read-only guard — 입력 mutate 0.
+      expect(plan).toEqual(planSnapshot);
+      expect(HAPPY_RESULTS).toEqual(resultsSnapshot);
+      expect(HAPPY_RUN).toEqual(runSnapshot);
+    });
+
+    it("(a fail-fast) command-plan 위임이 throw 하면 search-gh-argv 위임에 도달하지 못한다(search-gh-argv 0회)", () => {
+      const plan = makePlan();
+      jest
+        .spyOn(commandPlanModule, "buildRealDataResultIssueCommandPlan")
+        .mockImplementation(() => {
+          throw new Error("commandplan-boom");
+        });
+      const searchArgvSpy = jest.spyOn(
+        searchArgvModule,
+        "buildRealDataResultIssueSearchGhArgv",
+      );
+
+      expect(() =>
+        assertRealDataResultIssuePublishPlanConsistentWithSources(
+          plan,
+          HAPPY_RESULTS,
+          HAPPY_RUN,
+        ),
+      ).toThrow(/commandplan-boom/);
+
+      // command-plan-먼저 순서 + builder ②가 builder ① 산출 commandArgs 를 소비하므로
+      // command-plan throw 가 search-gh-argv 도달 전에 선전파 → search-gh-argv 미호출.
+      expect(searchArgvSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(b 후속-위임 throw 전파) search-gh-argv 위임이 throw 하면 guard 가 전파, 이때 command-plan 위임은 이미 호출됨(1회·command-plan → search-gh-argv 순서 재확인)", () => {
+      const plan = makePlan();
+      const commandPlanSpy = jest.spyOn(
+        commandPlanModule,
+        "buildRealDataResultIssueCommandPlan",
+      );
+      const searchArgvSpy = jest
+        .spyOn(searchArgvModule, "buildRealDataResultIssueSearchGhArgv")
+        .mockImplementation(() => {
+          throw new Error("searchargv-boom");
+        });
+
+      // 정합 plan·results·run 으로 command-plan 재유도는 통과하고 search-gh-argv 재유도가 throw.
+      expect(() =>
+        assertRealDataResultIssuePublishPlanConsistentWithSources(
+          plan,
+          HAPPY_RESULTS,
+          HAPPY_RUN,
+        ),
+      ).toThrow(/searchargv-boom/);
+
+      // 순서 상 command-plan 이 search-gh-argv 보다 먼저 평가됨 — search-gh-argv 재유도 throw
+      // 시점에 command-plan 은 이미 1회 호출됐고 search-gh-argv 도 1회 진입(그 안의 강제 throw).
+      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      expect(searchArgvSpy).toHaveBeenCalledTimes(1);
+      expect(commandPlanSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        searchArgvSpy.mock.invocationCallOrder[0],
+      );
     });
   });
 });
