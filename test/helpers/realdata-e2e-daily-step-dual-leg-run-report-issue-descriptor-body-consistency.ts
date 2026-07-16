@@ -127,8 +127,8 @@ function assertNonBlank(value: string, fieldName: string): void {
  *   - body 2 블록 구조 불변식 (1)~(4) 위반 → RangeError(기대 vs 실측 노출).
  *   - silent 통과 0, fail-fast. 공백·줄바꿈·대소문자 민감(trim·case-fold 0).
  *
- * @param report descriptor 의 single source. 변형하지 않는다(읽기·비교만).
  * @param descriptor 검증 대상 issue descriptor(producer 산출). 변형하지 않는다(읽기·비교만).
+ * @param report descriptor 의 single source. 변형하지 않는다(읽기·비교만).
  * @param label 선택 — 에러 메시지에 붙일 대조 지점 식별자.
  * @returns body 2 블록 구조 불변식을 모두 만족하면 정상 반환(void).
  * @throws {TypeError} descriptor 구조 결손(null/비-객체·marker/body 비-string).
@@ -136,8 +136,8 @@ function assertNonBlank(value: string, fieldName: string): void {
  * @throws {RangeError} body 2 블록 구조 불변식 (1)~(4) 위반(기대 vs 실측 포함).
  */
 export function assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-  report: RealDataDailyStepDualLegRunReport,
   descriptor: RealDataDailyStepDualLegRunReportIssueDescriptor,
+  report: RealDataDailyStepDualLegRunReport,
   label?: string,
 ): void {
   const ctx = contextPrefix(label);

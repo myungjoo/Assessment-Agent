@@ -161,18 +161,19 @@ export function buildRealDataDailyStepDualLegRunReportIssueDescriptor(
   //   스스로 호출해 산출 즉시 자가 검증한다. 정합 산출이면 tautology(항상 void)라 정상
   //   동작을 바꾸지 않고, 조립 규칙(prefix 상수·runToken 결합·title/marker 합성·body 2블록
   //   결합)과 oracle 규칙이 어긋나는 순간 모든 호출 경로(unit spec·이슈 박제 재사용)에서
-  //   즉시 throw 하는 live 트립와이어가 된다 — spec 커버리지에 의존하지 않는다.
+  //   즉시 throw 하는 live 트립와이어가 된다 — spec 커버리지에 의존하지 않는다. 인자 순서
+  //   (descriptor, report) — identity 가드와 동일 순서로 통일됐다(T-1029 정규화).
   assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
-    report,
     descriptor,
+    report,
   );
 
   // 🔥 self-wire identity 가드 (T-1025, 요약축 T-0710 mirror): body-consistency 가드 옆에서 산출
   //   descriptor 의 title·marker 가 run 식별자(`${dateToken}@${gitSha}`)로부터 독립 재유도한
   //   expected 와 byte-identical 정합함을 반환 직전 self-assert 한다(T-1024 identity 가드 짝
   //   닫기). identity 가드는 producer 로부터 type-only import 만 쓰므로 top-level import 에
-  //   circular dep 없음(lazy require 불요). ⚠️ 인자 순서 (descriptor, report) — body-consistency
-  //   가드의 (report, descriptor)와 반대다(swap 금지). 정합 산출이면 void 라 반환값·동작
+  //   circular dep 없음(lazy require 불요). 인자 순서 (descriptor, report) — body-consistency
+  //   가드와 동일 순서로 통일됐다(T-1029 정규화). 정합 산출이면 void 라 반환값·동작
   //   byte-identical 보존, title·marker 식별자 drift(run token 어긋남 / prefix 변형 / marker
   //   가 다른 run token 을 담아 멱등 search-or-update 가 깨짐)가 생기면 손상 descriptor 를
   //   반환하기 전에 즉시 throw 하는 build-time 트립와이어가 된다(spec 커버리지 무의존).
