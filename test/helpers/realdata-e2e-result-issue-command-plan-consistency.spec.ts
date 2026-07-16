@@ -29,12 +29,17 @@
 //     간접 확인(가드 결과는 void 만 — narrative raw 가 plan 에 부재).
 import type { EvaluationResult } from "../../src/assessment-evaluation/domain/evaluation-result";
 
+// 재유도 위임 순서-lock(T-1056) 을 위해 두 builder 위임을 module namespace 로 import 해
+// `jest.spyOn` 대상 프로퍼티로 삼는다(ts-jest 가 named import 를 module 객체 프로퍼티 접근
+// 으로 컴파일하므로 소비 측 guard 호출이 spy 를 통과 — T-1054 선례).
+import * as resultIssueCommandArgsModule from "./realdata-e2e-result-issue-command-args";
 import {
   buildRealDataResultIssueCommandPlan,
   type RealDataResultIssueCommandPlan,
 } from "./realdata-e2e-result-issue-command-plan";
 import { assertRealDataResultIssueCommandPlanConsistentWithInputs } from "./realdata-e2e-result-issue-command-plan-consistency";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
+import * as resultReportPlanModule from "./realdata-e2e-result-report-plan";
 
 // EvaluationResult fixture — 평가 단위 1 건 모사. 컴포저 spec(T-0594) 패턴 차용.
 function makeResult(
@@ -751,6 +756,160 @@ describe("assertRealDataResultIssueCommandPlanConsistentWithInputs", () => {
           run,
         ),
       ).not.toThrow();
+    });
+  });
+
+  // 현행 spec 은 구조·값 정합·재유도 throw 전파·결정성은 검증하나 guard 재유도 본문의 두
+  // distinct builder(`buildRealDataResultReportPlan` → 그 산출 descriptor 로
+  // `buildRealDataResultIssueCommandArgs`)의 상대 호출 순서 + 데이터-의존 방향(builder ②가
+  // builder ① 산출 `expectedReport.descriptor` 를 첫 인자로 소비)은 invocationCallOrder
+  // 부등식으로 못박지 않았다(grep 0). guard 본문 L291~294 는 command-args 재유도가 앞
+  // report-plan 재유도 산출(expectedReport.descriptor)을 첫 인자로 소비하는 데이터-의존
+  // chain 이라 report-plan 이 반드시 먼저 평가돼야 한다. T-1054(result-report-plan-
+  // consistency 의 summary → descriptor)를 sibling consistency-guard leg 로 mirror 해 그
+  // gap 을 봉한다.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: 정합 plan 을 spy 설치 前 미리 만든 뒤(buildConsistent 내부도 두
+  //     builder 를 호출하므로 spy 설치 후 만들면 호출 횟수가 오염된다 — guard 재유도만 격리
+  //     계측) 두 builder 위임을 실 구현 pass-through spy 로 감싸고 guard 재유도 1회 트리거
+  //     → report-plan 첫 호출이 command-args 첫 호출보다 먼저(invocationCallOrder
+  //     toBeLessThan) + 각 정확히 1회 + command-args 첫 인자 === report-plan 위임 반환
+  //     descriptor(데이터-의존 reference 페어링).
+  //   - branch/무공유 재확인: pass-through spy 하에서도 guard 가 정상 void 반환 + 입력
+  //     plan/results/run mutate 0(read-only guard).
+  //   - error/negative(a fail-fast): report-plan 위임 강제 throw → command-args 위임
+  //     미도달(0회) — report-plan-먼저 순서 + builder ②가 builder ① 산출 소비로 도달 불가를
+  //     fail-fast 로 못박음.
+  //   - error/negative(b 후속-위임 throw 전파): command-args 위임 강제 throw → guard 가 그
+  //     에러를 전파, 이때 report-plan 위임은 이미 호출됨(순서 상 report-plan 이 command-args
+  //     보다 먼저 평가됨을 negative 경로에서도 재확인).
+  describe("T-1056 — 재유도 위임 순서-lock(report-plan → command-args)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정합 재유도 시 report-plan 위임이 command-args 위임보다 먼저 호출된다(invocationCallOrder 부등식·데이터-의존 reference·각 1회)", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      // plan 은 spy 설치 前 합성 — buildConsistent 내부도 두 builder 를 호출하므로 spy
+      // 설치 후 만들면 호출 횟수가 오염된다. guard 재유도 호출만 격리 계측한다.
+      const plan = buildConsistent(results, run);
+      const reportSpy = jest.spyOn(
+        resultReportPlanModule,
+        "buildRealDataResultReportPlan",
+      );
+      const commandArgsSpy = jest.spyOn(
+        resultIssueCommandArgsModule,
+        "buildRealDataResultIssueCommandArgs",
+      );
+
+      assertRealDataResultIssueCommandPlanConsistentWithInputs(
+        plan,
+        results,
+        run,
+      );
+
+      // guard 재유도 지점 각 1개 → 각 위임 정확히 1회.
+      expect(reportSpy).toHaveBeenCalledTimes(1);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(1);
+      // 순서: report-plan 위임(첫 호출)이 command-args 위임(첫 호출)보다 먼저 호출된다.
+      expect(reportSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        commandArgsSpy.mock.invocationCallOrder[0],
+      );
+      // 데이터-의존: command-args 위임 첫 인자 = report-plan 위임 반환 산출의 descriptor
+      // (reference 동일) — builder ②가 builder ① 산출 descriptor 를 소비하는 chain 방향 lock.
+      const producedReport = reportSpy.mock.results[0].value;
+      expect(commandArgsSpy.mock.calls[0][0]).toBe(producedReport.descriptor);
+    });
+
+    it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/results/run mutate 0", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      const plan = buildConsistent(results, run);
+      const planSnapshot = JSON.parse(JSON.stringify(plan));
+      const resultsSnapshot = JSON.parse(JSON.stringify(results));
+      const runSnapshot = JSON.parse(JSON.stringify(run));
+      jest.spyOn(resultReportPlanModule, "buildRealDataResultReportPlan");
+      jest.spyOn(
+        resultIssueCommandArgsModule,
+        "buildRealDataResultIssueCommandArgs",
+      );
+
+      // 정합 경로 → 정상 void(throw 0).
+      expect(
+        assertRealDataResultIssueCommandPlanConsistentWithInputs(
+          plan,
+          results,
+          run,
+        ),
+      ).toBeUndefined();
+      // read-only guard — 입력 mutate 0.
+      expect(plan).toEqual(planSnapshot);
+      expect(results).toEqual(resultsSnapshot);
+      expect(run).toEqual(runSnapshot);
+    });
+
+    it("(a fail-fast) report-plan 위임이 throw 하면 command-args 위임에 도달하지 못한다(command-args 0회)", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      const plan = buildConsistent(results, run);
+      jest
+        .spyOn(resultReportPlanModule, "buildRealDataResultReportPlan")
+        .mockImplementation(() => {
+          throw new Error("report-boom");
+        });
+      const commandArgsSpy = jest.spyOn(
+        resultIssueCommandArgsModule,
+        "buildRealDataResultIssueCommandArgs",
+      );
+
+      expect(() =>
+        assertRealDataResultIssueCommandPlanConsistentWithInputs(
+          plan,
+          results,
+          run,
+        ),
+      ).toThrow(/report-boom/);
+
+      // report-plan-먼저 순서 + builder ②가 builder ① 산출 descriptor 를 소비하므로
+      // report-plan throw 가 command-args 도달 전에 선전파 → command-args 미호출.
+      expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(b 후속-위임 throw 전파) command-args 위임이 throw 하면 guard 가 전파, 이때 report-plan 위임은 이미 호출됨(1회·report-plan → command-args 순서 재확인)", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      const plan = buildConsistent(results, run);
+      const reportSpy = jest.spyOn(
+        resultReportPlanModule,
+        "buildRealDataResultReportPlan",
+      );
+      const commandArgsSpy = jest
+        .spyOn(
+          resultIssueCommandArgsModule,
+          "buildRealDataResultIssueCommandArgs",
+        )
+        .mockImplementation(() => {
+          throw new Error("commandargs-boom");
+        });
+
+      // 정합 plan·results·run 으로 report-plan 재유도는 통과하고 command-args 재유도가 throw.
+      expect(() =>
+        assertRealDataResultIssueCommandPlanConsistentWithInputs(
+          plan,
+          results,
+          run,
+        ),
+      ).toThrow(/commandargs-boom/);
+
+      // 순서 상 report-plan 이 command-args 보다 먼저 평가됨 — command-args 재유도 throw 시점에
+      // report-plan 은 이미 1회 호출됐고 command-args 도 1회 진입(그 안의 강제 throw).
+      expect(reportSpy).toHaveBeenCalledTimes(1);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(1);
+      expect(reportSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        commandArgsSpy.mock.invocationCallOrder[0],
+      );
     });
   });
 });
