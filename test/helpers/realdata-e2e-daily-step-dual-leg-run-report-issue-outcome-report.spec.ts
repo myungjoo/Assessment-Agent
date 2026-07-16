@@ -639,5 +639,76 @@ describe("buildRealDataDailyStepDualLegRunReportIssueOutcomeReport — daily-ste
       expect(summarySpy).toHaveBeenCalledTimes(1);
       expect(outputSpy).toHaveBeenCalledTimes(1);
     });
+
+    // 순서-lock (T-1036, descriptor 순서-lock daily 정본 T-1034 (f) mirror) — self-wire 두
+    // 가드의 **상대 호출 순서(SummaryLine→OutputConsistent)**를 invocationCallOrder 2 자
+    // 부등식으로 못박는다. 기존 ⑩ 은 두 가드가 각 1 회 호출됨만 검증했고 상대 순서는 lock 하지
+    // 않았다 — SummaryLine 가드와 OutputConsistent 가드의 self-wire 순서가 실수로 뒤바뀌어도
+    // 통과했다. 본 test 가 그 gap 을 닫는다.
+    it("⑪ self-wire 두 가드 호출 순서 보존(SummaryLine→OutputConsistent) — summaryLineSpy 가 outputConsistentSpy 보다 먼저 호출됨(역전 시 fail)", () => {
+      const summaryLineSpy = jest.spyOn(
+        summaryLineConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueOutcomeReportSummaryLineConsistent",
+      );
+      const outputConsistentSpy = jest.spyOn(
+        outputConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueOutcomeReportOutputConsistentWithInput",
+      );
+
+      const report = buildRealDataDailyStepDualLegRunReportIssueOutcomeReport(
+        makeOutcome(),
+        makeReport(),
+      );
+
+      // 두 가드 각 정확히 1 회 호출(descriptor 순서-lock daily 정본 T-1034 (f) mirror).
+      expect(summaryLineSpy).toHaveBeenCalledTimes(1);
+      expect(outputConsistentSpy).toHaveBeenCalledTimes(1);
+      // 순서 보존 — SummaryLine(summaryLine 단일 필드 내부 정합) → OutputConsistent(5 필드
+      // 전체 값-정합). 2 자 부등식 방향이라 순서가 역전(OutputConsistent 먼저)되면 fail 한다.
+      expect(summaryLineSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        outputConsistentSpy.mock.invocationCallOrder[0],
+      );
+      // 실 구현 spy(호출 pass-through)이므로 산출 outcomeReport byte-identical 회귀 0 재확인.
+      expect(report).toEqual({
+        issueNumber: 42,
+        url: "https://github.com/acme/repo/issues/42",
+        gitSha: "abc1234",
+        dateToken: "2026-06-23",
+        summaryLine:
+          "[2026-06-23@abc1234] 결과 이슈 #42 박제 → https://github.com/acme/repo/issues/42",
+      });
+    });
+
+    // SummaryLine-first fail-fast (T-1036, descriptor T-1034 (g) mirror) — summary-line 가드가
+    // throw 하면 producer 가 전파하고 output-consistency 가드까지 도달하지 않음을 못박아
+    // SummaryLine→OutputConsistent 순서의 fail-fast 의미를 결정적이게 한다.
+    it("⑫ SummaryLine-first fail-fast — summary-line 가드가 throw 하면 producer 전파 + output-consistency 가드 미도달(not.toHaveBeenCalled)", () => {
+      const drift = new RangeError(
+        "정합 위반: summaryLine 강제 drift(순서 fail-fast 테스트)",
+      );
+      const summaryLineSpy = jest
+        .spyOn(
+          summaryLineConsistency,
+          "assertRealDataDailyStepDualLegRunReportIssueOutcomeReportSummaryLineConsistent",
+        )
+        .mockImplementation(() => {
+          throw drift;
+        });
+      const outputConsistentSpy = jest.spyOn(
+        outputConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueOutcomeReportOutputConsistentWithInput",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueOutcomeReport(
+          makeOutcome(),
+          makeReport(),
+        ),
+      ).toThrow(drift);
+
+      // SummaryLine 이 먼저 throw 하므로 output-consistency self-assert 까지 흐름이 도달하지 않는다.
+      expect(summaryLineSpy).toHaveBeenCalledTimes(1);
+      expect(outputConsistentSpy).not.toHaveBeenCalled();
+    });
   });
 });
