@@ -2,12 +2,16 @@
 id: T-1047
 title: daily-step gh-command-plan 컴포저 본문 위임 순서(parse → resolveAction → buildGhArgv)를 invocationCallOrder 순서-lock test 로 못박기 (gh-command-plan 컴포저 sweep daily canonical leg)
 phase: P5
-status: PENDING
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 100
 estimatedFiles: 1
 created: 2026-07-16
+status: DONE
+prNumber: 941
+mergedAs: 16e41754
+reviewRounds: 1
+completedAt: 2026-07-16T18:41:00Z
 dependsOn: []
 touchesFiles:
   - test/helpers/realdata-e2e-daily-step-dual-leg-run-report-issue-gh-command-plan.spec.ts
