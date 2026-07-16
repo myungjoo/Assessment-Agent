@@ -17,9 +17,11 @@
 //   - R-59: report 가 raw narrative/이슈 body 를 구조적으로 미보유(위임 type 에 그 필드 없음).
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
 import { buildRealDataResultIssueOutcomeReport } from "./realdata-e2e-result-issue-outcome-report";
+import * as outcomeReportModule from "./realdata-e2e-result-issue-outcome-report";
 import { buildRealDataResultIssueOutcomeReportFromOutput } from "./realdata-e2e-result-issue-outcome-report-from-output";
 import * as consistencyModule from "./realdata-e2e-result-issue-outcome-report-from-output-consistency";
 import { parseRealDataResultIssueCreateEditOutput } from "./realdata-e2e-result-issue-output-parse";
+import * as outputParseModule from "./realdata-e2e-result-issue-output-parse";
 
 const RUN: RealDataResultIssueRunRef = {
   gitSha: "abc1234",
@@ -461,6 +463,95 @@ describe("buildRealDataResultIssueOutcomeReportFromOutput — post-실행 단일
 
       expect(stdout).toBe(stdoutBefore);
       expect(run).toEqual(runSnapshot);
+    });
+  });
+
+  // T-1044 — 컴포저 본문 위임(delegate) 순서-lock (daily from-output canonical 요약축 mirror).
+  //
+  // daily leg(realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report-from-output.spec.ts
+  // L122~151)는 컴포저 본문의 위임 순서(parse → build)를 invocationCallOrder 부등식으로
+  // 못박았으나 summary(요약축) mirror 는 부재했다. 본 describe 가 그 비대칭을 해소한다.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: 파서·빌더 위임을 실 구현 pass-through spy 로 감싸 정상 합성 1회 시
+  //     parse 첫 호출이 build 첫 호출보다 먼저(invocationCallOrder toBeLessThan) + 인자 전파
+  //     (parse(stdout); build(parseReturn, run)) + self-wire 재유도 포함 각 2회 호출 검증.
+  //   - error path/negative: 파서 위임 throw(URL 없는 stdout) 시 빌더 위임 미도달(0회) —
+  //     parse-먼저 순서로 build 도달 불가를 fail-fast 로 못박음.
+  //   - branch/negative: 빌더-하위 guard throw(run.gitSha 빈) 분기에서도 파서 위임은 그 전에
+  //     이미 1회 호출됨(parse → build 순서가 build 단계 실패 시에도 보존) + 산출 report deep-equal.
+  describe("T-1044 — 컴포저 본문 위임 순서-lock(parse → build)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성 시 파서 위임(parse)이 빌더 위임(build)보다 먼저 호출된다(invocationCallOrder 부등식·인자 전파·self-wire 재유도 포함 각 2회)", () => {
+      const parseSpy = jest.spyOn(
+        outputParseModule,
+        "parseRealDataResultIssueCreateEditOutput",
+      );
+      const buildSpy = jest.spyOn(
+        outcomeReportModule,
+        "buildRealDataResultIssueOutcomeReport",
+      );
+
+      const report = buildRealDataResultIssueOutcomeReportFromOutput(
+        CREATE_STDOUT,
+        RUN,
+      );
+
+      // T-0664 self-wire 이후 각 위임은 정확히 2회 호출된다 — (1) 컴포저 본문 합성 1회 +
+      // (2) 반환 직전 self-assert 가드가 single-source 재유도로 1회 더. 컴포저 본문 자체의
+      // 위임 호출 지점은 여전히 각 1개(호출 변경 0)이며, 두 번째는 가드 내부 재유도다.
+      expect(parseSpy).toHaveBeenCalledTimes(2);
+      expect(buildSpy).toHaveBeenCalledTimes(2);
+      // 순서: 컴포저 본문의 parse(첫 호출)가 build(첫 호출)보다 먼저 호출.
+      expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        buildSpy.mock.invocationCallOrder[0],
+      );
+      // 인자 전파: parse 는 입력 stdout, build 첫 인자 = parse 반환 outcome, 둘째 = 입력 run.
+      expect(parseSpy).toHaveBeenCalledWith(CREATE_STDOUT);
+      const parseReturn = parseSpy.mock.results[0].value;
+      expect(buildSpy).toHaveBeenCalledWith(parseReturn, RUN);
+
+      // 실 구현 pass-through spy 이므로 산출 report 는 손으로 엮은 재유도와 byte-identical.
+      const reference = buildRealDataResultIssueOutcomeReport(
+        parseRealDataResultIssueCreateEditOutput(CREATE_STDOUT),
+        makeRun(),
+      );
+      expect(report).toEqual(reference);
+    });
+
+    it("파서 위임 throw(URL 없는 stdout) 시 빌더 위임은 도달하지 않는다(build 0회·fail-fast)", () => {
+      const buildSpy = jest.spyOn(
+        outcomeReportModule,
+        "buildRealDataResultIssueOutcomeReport",
+      );
+
+      expect(() =>
+        buildRealDataResultIssueOutcomeReportFromOutput("URL 없음", makeRun()),
+      ).toThrow(/issue URL/);
+
+      // parse-먼저 순서로 인해 파서 throw 가 build 도달 전에 선전파 → 빌더 위임 미호출.
+      expect(buildSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("빌더-하위 guard throw(run.gitSha 빈) 분기에서도 파서 위임은 그 전에 이미 1회 호출된다(parse → build 순서 보존)", () => {
+      const parseSpy = jest.spyOn(
+        outputParseModule,
+        "parseRealDataResultIssueCreateEditOutput",
+      );
+
+      expect(() =>
+        buildRealDataResultIssueOutcomeReportFromOutput(
+          CREATE_STDOUT,
+          makeRun({ gitSha: "" }),
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+
+      // build 단계에서 실패해도 그 전에 parse 위임이 이미 호출됨(순서 보존).
+      expect(parseSpy.mock.invocationCallOrder[0]).toBeDefined();
+      expect(parseSpy).toHaveBeenCalledWith(CREATE_STDOUT);
     });
   });
 });
