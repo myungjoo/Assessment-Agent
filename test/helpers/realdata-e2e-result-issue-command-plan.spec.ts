@@ -21,10 +21,12 @@
 import type { EvaluationResult } from "../../src/assessment-evaluation/domain/evaluation-result";
 
 import { buildRealDataResultIssueCommandArgs } from "./realdata-e2e-result-issue-command-args";
+import * as commandArgsModule from "./realdata-e2e-result-issue-command-args";
 import { buildRealDataResultIssueCommandPlan } from "./realdata-e2e-result-issue-command-plan";
 import * as consistency from "./realdata-e2e-result-issue-command-plan-consistency";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
 import { buildRealDataResultReportPlan } from "./realdata-e2e-result-report-plan";
+import * as reportPlanModule from "./realdata-e2e-result-report-plan";
 
 // EvaluationResult fixture — 평가 단위 1 건 모사. narrative 는 임의 본문(plan 이
 // 통과시키지 않음을 검증하는 데 쓰임 — 위임 summary 가 카운트만 집계).
@@ -501,6 +503,129 @@ describe("buildRealDataResultIssueCommandPlan — post-evaluation 종단 명령 
       expect(a).not.toBe(b);
       expect(a.report).not.toBe(b.report);
       expect(a.commandArgs).not.toBe(b.commandArgs);
+    });
+  });
+
+  // T-1046 위임 순서-lock — 컴포저 본문이 두 위임을 reportPlan
+  // (buildRealDataResultReportPlan) → commandArgs(buildRealDataResultIssueCommandArgs)
+  // 순서로 순차 호출함을 invocationCallOrder 부등식으로 못박는다(commandArgs 는 산출
+  // report.descriptor 를 입력으로 받으므로 순서 의존). plan 컴포저 축 daily leg(T-1045
+  // daily-step-dual-leg-run-report-issue-command-plan)의 요약축 mirror. from-output 컴포저
+  // 축(T-1044, parse → build)의 동형 적용 — 여기서는 reportPlan → commandArgs.
+  //   - happy-path/flow: 실 구현 pass-through spy 로 reportPlan 첫 호출이 commandArgs 첫
+  //     호출보다 앞섬 + 인자 전파(reportPlan=(results, run), commandArgs 첫 인자=
+  //     plan.report.descriptor) + self-wire 재유도 포함 각 2회.
+  //   - error path/negative: reportPlan 위임 throw(run.gitSha 빈) 시 commandArgs 위임
+  //     0회(reportPlan-먼저 순서로 commandArgs 도달 불가)를 fail-fast 로 못박음.
+  //   - branch/negative: commandArgs-단계 guard 우선(commandArgs 위임 mock throw) 분기에서도
+  //     reportPlan 위임은 그 전에 이미 호출됨(reportPlan → commandArgs 순서가 commandArgs
+  //     단계 실패 시에도 보존) + 산출 plan deep-equal.
+  describe("T-1046 — 컴포저 본문 위임 순서-lock(reportPlan → commandArgs)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("정상 합성 시 reportPlan 위임이 commandArgs 위임보다 먼저 호출된다(invocationCallOrder 부등식·인자 전파·self-wire 재유도 포함 각 2회)", () => {
+      const reportPlanSpy = jest.spyOn(
+        reportPlanModule,
+        "buildRealDataResultReportPlan",
+      );
+      const commandArgsSpy = jest.spyOn(
+        commandArgsModule,
+        "buildRealDataResultIssueCommandArgs",
+      );
+
+      const results = [makeResult()];
+      const run = makeRun();
+
+      const plan = buildRealDataResultIssueCommandPlan(results, run);
+
+      // T-0697 self-wire 이후 각 위임은 정확히 2회 호출된다 — (1) 컴포저 본문 합성 1회 +
+      // (2) 반환 직전 self-assert 가드가 (results, run) single-source 재유도로 1회 더.
+      // 컴포저 본문 자체의 위임 호출 지점은 여전히 각 1개(호출 변경 0)이며, 두 번째는 가드
+      // 내부 재유도다.
+      expect(reportPlanSpy).toHaveBeenCalledTimes(2);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(2);
+      // 순서: 컴포저 본문의 reportPlan(첫 호출)이 commandArgs(첫 호출)보다 먼저 호출.
+      expect(reportPlanSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        commandArgsSpy.mock.invocationCallOrder[0],
+      );
+      // 인자 전파: reportPlan 은 (results, run), commandArgs 첫 인자 = 산출
+      // report.descriptor = plan.report.descriptor.
+      expect(reportPlanSpy).toHaveBeenCalledWith(results, run);
+      expect(commandArgsSpy.mock.calls[0][0]).toBe(plan.report.descriptor);
+
+      // 실 구현 pass-through spy 이므로 산출 plan 은 손으로 엮은 재유도와 byte-identical.
+      const expectedReport = buildRealDataResultReportPlan(results, run);
+      const expectedCommandArgs = buildRealDataResultIssueCommandArgs(
+        expectedReport.descriptor,
+      );
+      expect(plan.report).toEqual(expectedReport);
+      expect(plan.commandArgs).toEqual(expectedCommandArgs);
+    });
+
+    it("reportPlan 위임 throw(run.gitSha 빈) 시 commandArgs 위임은 도달하지 않는다(commandArgs 0회·fail-fast)", () => {
+      const commandArgsSpy = jest.spyOn(
+        commandArgsModule,
+        "buildRealDataResultIssueCommandArgs",
+      );
+
+      expect(() =>
+        buildRealDataResultIssueCommandPlan(
+          [makeResult()],
+          makeRun({ gitSha: "" }),
+        ),
+      ).toThrow();
+
+      // reportPlan-먼저 순서로 인해 reportPlan throw 가 commandArgs 도달 전에 선전파 →
+      // commandArgs 위임 미호출.
+      expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("commandArgs-단계 guard 우선(commandArgs 위임 throw) 분기에서도 reportPlan 위임은 그 전에 이미 호출된다(reportPlan → commandArgs 순서 보존)", () => {
+      const reportPlanSpy = jest.spyOn(
+        reportPlanModule,
+        "buildRealDataResultReportPlan",
+      );
+      jest
+        .spyOn(commandArgsModule, "buildRealDataResultIssueCommandArgs")
+        .mockImplementation(() => {
+          throw new RangeError(
+            "commandArgs 단계 모의 throw — descriptor.title/marker guard 회귀 모사.",
+          );
+        });
+
+      expect(() =>
+        buildRealDataResultIssueCommandPlan([makeResult()], makeRun()),
+      ).toThrow(/commandArgs 단계 모의 throw/);
+
+      // commandArgs 단계에서 실패해도 그 전에 reportPlan 위임이 이미 호출됨(순서 보존).
+      expect(reportPlanSpy.mock.invocationCallOrder[0]).toBeDefined();
+      expect(reportPlanSpy).toHaveBeenCalledWith(
+        [expect.objectContaining({ unitId: expect.any(String) })],
+        makeRun(),
+      );
+    });
+
+    it("순서-lock pass-through spy 는 산출 plan 을 변형하지 않는다(순서-검증 전후 deep-equal·무공유)", () => {
+      jest.spyOn(reportPlanModule, "buildRealDataResultReportPlan");
+      jest.spyOn(commandArgsModule, "buildRealDataResultIssueCommandArgs");
+
+      const results = [makeResult(), makeResult({ difficulty: "hard" })];
+      const run = makeRun();
+
+      const withSpy = buildRealDataResultIssueCommandPlan(results, run);
+
+      jest.restoreAllMocks();
+
+      const withoutSpy = buildRealDataResultIssueCommandPlan(results, run);
+
+      // pass-through spy 유무와 무관하게 산출 plan deep-equal(byte-identical).
+      expect(withSpy).toEqual(withoutSpy);
+      // 무공유(매 호출 새 plan/report/commandArgs).
+      expect(withSpy).not.toBe(withoutSpy);
+      expect(withSpy.report).not.toBe(withoutSpy.report);
+      expect(withSpy.commandArgs).not.toBe(withoutSpy.commandArgs);
     });
   });
 });
