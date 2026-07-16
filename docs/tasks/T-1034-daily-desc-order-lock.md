@@ -2,7 +2,7 @@
 id: T-1034
 title: daily descriptor self-wire 두 가드 호출 순서(Body→Identity)를 invocationCallOrder 순서-lock test 로 못박기 (command-args 순서-lock 패턴 mirror, canonical daily 확립)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 45
