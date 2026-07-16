@@ -1,6 +1,6 @@
-// realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-consistency.spec.ts —
+// realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-body-consistency.spec.ts —
 // T-0988 colocated unit spec for
-// `assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent`
+// `assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent`
 // (T-1026 에서 body-focus 로 축소 — title·marker 식별자 재유도·대조는 identity oracle
 // T-1024 로 위임, 본 가드는 body 2 블록 구조[marker 라인 → 빈 줄 → markdown] 만 검증).
 //
@@ -27,7 +27,7 @@ import {
   buildRealDataDailyStepDualLegRunReportIssueDescriptor,
   type RealDataDailyStepDualLegRunReportIssueDescriptor,
 } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
-import { assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-consistency";
+import { assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-body-consistency";
 
 // fixture 빌더 — run 식별자·per-leg {action,status}·overallStatus 를 명시적으로 받아
 // 결정론적 report descriptor 를 생성. summaryLine 은 컴포저(T-0894)와 동형으로 합성.
@@ -68,12 +68,12 @@ function makeDescriptor(
   return buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
 }
 
-describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body-focus)", () => {
+describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (body-focus)", () => {
   describe("happy-path (정합 descriptor↔report → void)", () => {
     it("all-pass — producer 산출 descriptor 를 그대로 넘기면 throw 0(void)", () => {
       const report = makeReport();
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           makeDescriptor(report),
         ),
@@ -83,7 +83,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
     it("정합 쌍이면 void(undefined) 를 반환한다", () => {
       const report = makeReport();
       expect(
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           makeDescriptor(report),
         ),
@@ -97,7 +97,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         overallStatus: "some-fail",
       });
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           makeDescriptor(report),
         ),
@@ -113,7 +113,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         overallStatus: "all-skip",
       });
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           makeDescriptor(report),
         ),
@@ -128,7 +128,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         overallStatus: "partial",
       });
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           makeDescriptor(report),
         ),
@@ -138,7 +138,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
     it("label 을 넘겨도 정합 쌍이면 void", () => {
       const report = makeReport();
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           makeDescriptor(report),
           "daily-issue#1",
@@ -149,7 +149,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
     it("빈 문자열 label 도 정합 쌍이면 void (contextPrefix 빈-label 분기)", () => {
       const report = makeReport();
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           makeDescriptor(report),
           "",
@@ -162,7 +162,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
     it("gitSha 빈 문자열 → 재유도가 producer 와 동형 Error(/gitSha/)", () => {
       const report = makeReport({ gitSha: "" });
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           // descriptor 는 구조상 온전한 더미(재유도 이전 단계에서 report guard 가 먼저 throw).
           { title: "x", marker: "y", body: "z" },
@@ -173,7 +173,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
     it("gitSha 공백-only → producer 동형 Error", () => {
       const report = makeReport({ gitSha: "   " });
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           { title: "x", marker: "y", body: "z" },
         ),
@@ -183,7 +183,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
     it("dateToken 빈 문자열 → producer 동형 Error(/dateToken/)", () => {
       const report = makeReport({ dateToken: "" });
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           { title: "x", marker: "y", body: "z" },
         ),
@@ -193,7 +193,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
     it("dateToken 공백-only → producer 동형 Error", () => {
       const report = makeReport({ dateToken: "\t \n" });
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           { title: "x", marker: "y", body: "z" },
         ),
@@ -204,7 +204,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
   describe("flow/branch — 구조 결손 → TypeError", () => {
     it("descriptor null → TypeError", () => {
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           makeReport(),
           null as unknown as RealDataDailyStepDualLegRunReportIssueDescriptor,
         ),
@@ -213,7 +213,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
 
     it("descriptor 비-객체(문자열) → TypeError", () => {
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           makeReport(),
           "not-an-object" as unknown as RealDataDailyStepDualLegRunReportIssueDescriptor,
         ),
@@ -227,7 +227,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         marker: 42 as unknown as string,
       };
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         ),
@@ -241,7 +241,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         body: null as unknown as string,
       };
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         ),
@@ -255,7 +255,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         body: 7 as unknown as string,
       };
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         ),
@@ -280,13 +280,13 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
       expect(descA.marker).toBe(descB.marker);
       expect(descA.body.split("\n")[0]).toBe(descB.body.split("\n")[0]);
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           reportA,
           descA,
         ),
       ).not.toThrow();
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           reportB,
           descB,
         ),
@@ -302,7 +302,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         body: "single-line-body",
       };
       const run = () =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         );
@@ -318,7 +318,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         body: base.body.replace("- git sha: abc1234", "- git sha: deadbee"),
       };
       const run = () =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         );
@@ -336,7 +336,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         body: base.body.replace(`${base.marker}\n\n`, `${base.marker}\n`),
       };
       const run = () =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         );
@@ -353,7 +353,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         marker: `${base.marker} DRIFT`,
       };
       const run = () =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         );
@@ -371,7 +371,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         body: [markdown, "", base.marker].join("\n"),
       };
       const run = () =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         );
@@ -384,7 +384,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
       const rendered = makeDescriptor(makeReport());
       const mismatched = makeReport({ gitSha: "0000000" });
       const run = () =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           mismatched,
           rendered,
         );
@@ -403,7 +403,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         title: `${base.title} DRIFT`,
       };
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         ),
@@ -424,7 +424,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         body: [wrongMarker, "", markdown].join("\n"),
       };
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         ),
@@ -437,13 +437,13 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
       const report = makeReport();
       const descriptor = makeDescriptor(report);
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         ),
       ).not.toThrow();
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         ),
@@ -458,7 +458,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
         body: base.body.replace(`${base.marker}\n\n`, `${base.marker}\n`),
       };
       const run = () =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         );
@@ -475,7 +475,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
       });
       const descriptor = makeDescriptor(report);
       const snapshot = JSON.stringify(report);
-      assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+      assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
         report,
         descriptor,
       );
@@ -486,7 +486,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
       const report = makeReport();
       const descriptor = makeDescriptor(report);
       const snapshot = JSON.stringify(descriptor);
-      assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+      assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
         report,
         descriptor,
       );
@@ -502,7 +502,7 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent (body
       });
       const descriptor = makeDescriptor(report);
       expect(() =>
-        assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent(
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
           report,
           descriptor,
         ),

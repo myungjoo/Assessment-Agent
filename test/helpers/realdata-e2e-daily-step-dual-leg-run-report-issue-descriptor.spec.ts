@@ -26,7 +26,7 @@ import {
 // consistency 모듈은 namespace 로 import 해 self-wire spy(jest.spyOn) 대상으로 삼는다.
 // ts-jest CommonJS 트랜스파일에서 빌더의 named import 는 이 모듈 객체 프로퍼티 접근으로
 // 컴파일되므로, 이 namespace 의 함수를 spyOn 하면 빌더 내부 self-wire 호출이 가로채진다.
-import * as issueDescriptorConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-consistency";
+import * as issueDescriptorConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-body-consistency";
 // identity 가드 모듈도 namespace 로 import 해 self-wire spy(jest.spyOn) 대상으로 삼는다
 // (combined 가드와 동일 방식) — 빌더 내부 identity self-wire 호출을 가로챈다.
 import * as issueDescriptorIdentityConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-identity-consistency";
@@ -299,7 +299,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor", () => {
 });
 
 // self-wire drift-guard 배선 검증 (T-0989) — 빌더가 반환 직전 consistency oracle 가드
-// `assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent`(T-0988)를 스스로
+// `assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent`(T-0988)를 스스로
 // 호출해 산출 descriptor 를 즉시 자가 검증하는지를 R-112 4종(happy/error/flow/negative)으로
 // 봉한다. self-wire 가 제거되면 flow spy·negative 전파 case 가 fail = de-facto regression guard.
 describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire consistency guard (T-0989)", () => {
@@ -391,7 +391,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire consis
     it("all-pass 경로 → 가드가 (report, 반환된 descriptor) 로 정확히 1 회 호출", () => {
       const spy = jest.spyOn(
         issueDescriptorConsistency,
-        "assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent",
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent",
       );
       const report = makeReport({ overallStatus: "all-pass" });
       const descriptor =
@@ -404,7 +404,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire consis
     it("all-skip 경로(다른 per-leg status·overallStatus) → 가드가 반환 descriptor 인자로 정확히 1 회 호출", () => {
       const spy = jest.spyOn(
         issueDescriptorConsistency,
-        "assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent",
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent",
       );
       const report = makeReport({
         evalAction: "skip",
@@ -428,7 +428,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire consis
       jest
         .spyOn(
           issueDescriptorConsistency,
-          "assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent",
+          "assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent",
         )
         .mockImplementation(() => {
           throw drift;
@@ -446,7 +446,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire consis
       jest
         .spyOn(
           issueDescriptorConsistency,
-          "assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent",
+          "assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent",
         )
         .mockImplementation(() => {
           throw structural;
@@ -643,7 +643,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire identi
     it("(c) combined 가드와 identity 가드가 **둘 다** 반환 직전 1 회씩 호출됨(한쪽만 배선한 회귀 차단)", () => {
       const combinedSpy = jest.spyOn(
         issueDescriptorConsistency,
-        "assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent",
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent",
       );
       const identitySpy = jest.spyOn(
         issueDescriptorIdentityConsistency,
