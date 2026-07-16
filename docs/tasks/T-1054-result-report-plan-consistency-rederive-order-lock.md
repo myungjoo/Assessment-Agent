@@ -2,7 +2,7 @@
 id: T-1054
 title: result-report-plan consistency-guard(assertRealDataResultReportPlanConsistentWithInputs)의 2 distinct builder 재유도 순서(summary → descriptor, 데이터-의존) invocationCallOrder 순서-lock test 로 못박기 (consistency-guard 재유도 delegate 순서-lock leg)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 115
@@ -69,3 +69,9 @@ P5 test-hardening sweep 은 producer / 컴포저 / guard 가 자기 산출·재�
 ## Follow-ups
 
 - (감사 후속) consistency-guard 재유도 순서-lock(본 task) 완결 후 다음 sweep 확장 지점은 나머지 consistency guard 의 재유도 delegate 순서를 pre-check(각 spec `invocationCallOrder` 0건 여부 + guard 본문 재유도 builder 개수 + 데이터-의존 여부)로 판정. 데이터-의존 chain(둘째 builder 가 첫째 산출 소비)을 가진 guard 를 우선, 상호-독립 재유도는 defense-in-depth 가치가 낮으므로 후순위 또는 "order-lock 불요(상호-독립, deep-equal 이 이미 순서-무관 정합 보장)" 확정 기록.
+
+---
+
+## Status: DONE (2026-07-16T22:10:00Z)
+
+PR #948 merged (squash e012c4cb). reviewer round1 APPROVE, 4-게이트 PASS. test-only 1파일 test/helpers/realdata-e2e-result-report-plan-consistency.spec.ts (+142/-0, 기존 spec 확장 4 test), production src 0 LOC. 대상 suite 37 pass(신규 4), 전체 404 suites/11051 tests green, coverageThreshold line≥80 AND function≥80 무회귀. happy-path 순서-lock(summary<descriptor invocationCallOrder 부등식·데이터-의존 reference) + fail-fast negative + guard-throw negative + branch/무공유 재확인. Follow-up: T-1055 (evaluation-plan consistency-guard 재유도 순서-lock).
