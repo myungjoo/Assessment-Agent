@@ -27,6 +27,9 @@ import {
 // ts-jest CommonJS 트랜스파일에서 빌더의 named import 는 이 모듈 객체 프로퍼티 접근으로
 // 컴파일되므로, 이 namespace 의 함수를 spyOn 하면 빌더 내부 self-wire 호출이 가로채진다.
 import * as issueDescriptorConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-consistency";
+// identity 가드 모듈도 namespace 로 import 해 self-wire spy(jest.spyOn) 대상으로 삼는다
+// (combined 가드와 동일 방식) — 빌더 내부 identity self-wire 호출을 가로챈다.
+import * as issueDescriptorIdentityConsistency from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-identity-consistency";
 import { renderRealDataDailyStepDualLegRunReportMarkdown } from "./realdata-e2e-daily-step-dual-leg-run-report-markdown";
 
 // fixture 빌더 — leg status / overallStatus / run 식별자를 명시적으로 받아 결정론적
@@ -483,6 +486,225 @@ describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire consis
         ].join("\n"),
       );
       // 입력 report 및 하위 객체 미변형.
+      expect(report).toEqual(before);
+    });
+  });
+});
+
+// self-wire identity 가드 배선 검증 (T-1025, 요약축 T-0710 mirror) — 빌더가 반환 직전
+// identity oracle 가드 `assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent`
+// (T-1024)를 **(descriptor, report) 인자 순서로** 스스로 호출해 title·marker 식별자 정합을
+// 즉시 자가 검증하는지를 R-112 4종(happy/error/flow/negative)으로 봉한다. combined 가드
+// self-wire(T-0989) describe 와 동형이되, ⚠️ 인자 순서가 반대(identity 는 descriptor-first)
+// 라는 회귀를 spy 인자 대조로 명시 차단한다. self-wire 가 제거되거나 인자가 swap 되면
+// flow spy·negative 전파 case 가 fail = de-facto regression guard.
+describe("buildRealDataDailyStepDualLegRunReportIssueDescriptor self-wire identity guard (T-1025)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe("happy-path (identity self-wire 배선 후에도 정합 descriptor 정상 반환 — throw 0)", () => {
+    it("(i) all-pass → throw 없이 정합 descriptor 반환", () => {
+      const report = makeReport({
+        evalStatus: "pass",
+        collectStatus: "pass",
+        overallStatus: "all-pass",
+      });
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report),
+      ).not.toThrow();
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+      expect(descriptor.body).toContain("- overall status: all-pass");
+    });
+
+    it("(ii) some-fail → throw 없이 정합 descriptor 반환", () => {
+      const report = makeReport({
+        evalStatus: "fail",
+        collectStatus: "pass",
+        overallStatus: "some-fail",
+      });
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report),
+      ).not.toThrow();
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+      expect(descriptor.body).toContain("| eval | run | fail |");
+    });
+
+    it("(iii) 동일 run 이면 leg status/overallStatus 가 달라도 identity self-wire 후에도 title/marker 동일(멱등)", () => {
+      const a = buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+        makeReport({ overallStatus: "all-pass" }),
+      );
+      const b = buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+        makeReport({
+          evalStatus: "fail",
+          collectStatus: "skip",
+          collectAction: "skip",
+          overallStatus: "some-fail",
+        }),
+      );
+      expect(a.title).toBe(b.title);
+      expect(a.marker).toBe(b.marker);
+    });
+  });
+
+  describe("error-path (기존 방어 guard 가 identity self-wire 로 가려지지 않음)", () => {
+    it("gitSha 빈-공백 → 빌더 자체 assertNonBlank 의 Error 를 던진다(identity self-assert 도달 전)", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          makeReport({ gitSha: "  " }),
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+    });
+
+    it("dateToken 빈-공백 → 빌더 자체 assertNonBlank 의 Error 를 던진다(identity self-assert 도달 전)", () => {
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          makeReport({ dateToken: "" }),
+        ),
+      ).toThrow(/dateToken 가 비어있습니다/);
+    });
+  });
+
+  describe("flow/branch (identity self-wire 호출 사실 검증 — spy 로 배선·인자 순서 증명)", () => {
+    it("all-pass 경로 → identity 가드가 (반환된 descriptor, report) 인자 순서로 정확히 1 회 호출(swap 회귀 차단)", () => {
+      const spy = jest.spyOn(
+        issueDescriptorIdentityConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent",
+      );
+      const report = makeReport({ overallStatus: "all-pass" });
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      // ⚠️ 인자 순서 = (descriptor, report) — combined 가드(report, descriptor)와 반대.
+      expect(spy).toHaveBeenCalledWith(descriptor, report);
+    });
+
+    it("all-skip 경로(다른 per-leg status·overallStatus) → identity 가드가 (descriptor, report)로 정확히 1 회 호출", () => {
+      const spy = jest.spyOn(
+        issueDescriptorIdentityConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent",
+      );
+      const report = makeReport({
+        evalAction: "skip",
+        evalStatus: "skip",
+        collectAction: "skip",
+        collectStatus: "skip",
+        overallStatus: "all-skip",
+      });
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(descriptor, report);
+      expect(descriptor.body).toContain("- overall status: all-skip");
+    });
+  });
+
+  describe("negative (예외 상황 분기마다 1+ — drift 전파 · 이중 배선 · 비변형)", () => {
+    it("(a) identity 가드가 drift 감지해 RangeError throw → 빌더가 동일 RangeError 전파(silent 삼킴 0)", () => {
+      const drift = new RangeError("정합 위반: identity 강제 drift(테스트)");
+      jest
+        .spyOn(
+          issueDescriptorIdentityConsistency,
+          "assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent",
+        )
+        .mockImplementation(() => {
+          throw drift;
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          makeReport({ overallStatus: "all-pass" }),
+        ),
+      ).toThrow(drift);
+    });
+
+    it("(b) identity 가드가 TypeError throw → 빌더가 동일 TypeError 전파(구조 결손도 삼키지 않음)", () => {
+      const structural = new TypeError("descriptor 구조 결손(테스트)");
+      jest
+        .spyOn(
+          issueDescriptorIdentityConsistency,
+          "assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent",
+        )
+        .mockImplementation(() => {
+          throw structural;
+        });
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          makeReport({ overallStatus: "all-pass" }),
+        ),
+      ).toThrow(structural);
+    });
+
+    it("(c) combined 가드와 identity 가드가 **둘 다** 반환 직전 1 회씩 호출됨(한쪽만 배선한 회귀 차단)", () => {
+      const combinedSpy = jest.spyOn(
+        issueDescriptorConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorConsistent",
+      );
+      const identitySpy = jest.spyOn(
+        issueDescriptorIdentityConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent",
+      );
+      const report = makeReport({ overallStatus: "all-pass" });
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+
+      expect(combinedSpy).toHaveBeenCalledTimes(1);
+      expect(combinedSpy).toHaveBeenCalledWith(report, descriptor);
+      expect(identitySpy).toHaveBeenCalledTimes(1);
+      // 인자 순서가 서로 반대임을 나란히 못박는다: combined=(report, descriptor), identity=(descriptor, report).
+      expect(identitySpy).toHaveBeenCalledWith(descriptor, report);
+    });
+
+    it("(d) 빈/공백 gitSha·dateToken → assertNonBlank 가 identity self-assert 도달 전에 거부(가드 미호출)", () => {
+      const identitySpy = jest.spyOn(
+        issueDescriptorIdentityConsistency,
+        "assertRealDataDailyStepDualLegRunReportIssueDescriptorIdentityConsistent",
+      );
+
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          makeReport({ gitSha: "   " }),
+        ),
+      ).toThrow(/gitSha 가 비어있습니다/);
+      expect(() =>
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(
+          makeReport({ dateToken: "" }),
+        ),
+      ).toThrow(/dateToken 가 비어있습니다/);
+      // 빈/공백 거부는 return 도달 전 throw 이므로 identity self-assert 는 호출되지 않는다.
+      expect(identitySpy).not.toHaveBeenCalled();
+    });
+
+    it("(e) identity self-wire 가 정상 산출을 mutate 하지 않음 — 반환 descriptor byte-identical, 입력 report 미변형", () => {
+      const report = makeReport({
+        evalStatus: "fail",
+        collectStatus: "skip",
+        collectAction: "skip",
+        overallStatus: "some-fail",
+      });
+      const before = JSON.parse(JSON.stringify(report));
+
+      const descriptor =
+        buildRealDataDailyStepDualLegRunReportIssueDescriptor(report);
+
+      const token = `${report.dateToken}@${report.gitSha}`;
+      const expectedMarker = `<!-- realdata-e2e-daily-step-dual-leg-run-report-issue: ${token} -->`;
+      expect(descriptor.title).toBe(
+        `실 평가 e2e daily-step dual-leg run report ${token}`,
+      );
+      expect(descriptor.marker).toBe(expectedMarker);
+      expect(descriptor.body).toBe(
+        [
+          expectedMarker,
+          "",
+          renderRealDataDailyStepDualLegRunReportMarkdown(report),
+        ].join("\n"),
+      );
       expect(report).toEqual(before);
     });
   });
