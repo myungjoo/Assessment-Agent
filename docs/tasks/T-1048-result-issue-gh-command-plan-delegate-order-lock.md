@@ -2,7 +2,11 @@
 id: T-1048
 title: result-issue(요약축) gh-command-plan 컴포저 본문 위임 순서(parse → resolveAction → buildGhArgv)를 invocationCallOrder 순서-lock test 로 못박기 (gh-command-plan 컴포저 sweep summary mirror leg)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 942
+mergedAs: f7fb96a1
+reviewRounds: 1
+completedAt: 2026-07-16T19:05:00Z
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 100
