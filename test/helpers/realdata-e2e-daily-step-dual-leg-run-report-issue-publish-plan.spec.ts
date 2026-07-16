@@ -177,12 +177,13 @@ describe("buildRealDataDailyStepDualLegRunReportIssuePublishPlan — daily-step 
       expect(searchArgvSpy).toHaveBeenCalledWith(plan.commandArgs);
     });
 
-    it("self-wire 배선됨 — 반환 직전 가드가 search-argv 를 재유도로 한 번 더 호출(합성 1 + 재유도 1 = 2회), command-plan 은 합성에서만 1회", () => {
+    it("self-wire 배선됨 — 반환 직전 가드가 command-plan·search-argv 를 재유도로 한 번 더 호출(각 합성 1 + 재유도 1 = 2회)", () => {
       // 컴포저가 합성에서 command-plan 1회 + search-argv 1회를 호출하고, 반환 직전
-      // self-assert 가드가 하위 세 위임(descriptor → command-args → search-argv)으로
-      // expected 를 재유도하므로 search-argv 가 1회 더 호출된다 → search-argv 총 2회
-      // (T-1018 self-wire 배선 증거). command-plan 은 가드가 경유하지 않으므로 합성의
-      // 1회뿐(가드는 하위 빌더로만 재유도 — command-plan 미경유).
+      // self-assert 가드가 command-plan 컴포저 위임 + search-argv 위임으로 expected 를
+      // 재유도(T-1023 동형화 — 가드도 command-plan ⊂ publish-plan 2층 재유도)하므로
+      // command-plan 과 search-argv 가 각각 1회씩 더 호출된다 → 각 총 2회(T-1018 self-wire
+      // 배선 증거). 가드가 이제 command-plan 을 경유하므로(T-1023 이전에는 하위 빌더 직접
+      // 재유도라 command-plan 은 합성의 1회뿐이었다) command-plan 도 2회다.
       const commandPlanSpy = jest.spyOn(
         commandPlanModule,
         "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
@@ -194,7 +195,7 @@ describe("buildRealDataDailyStepDualLegRunReportIssuePublishPlan — daily-step 
 
       buildRealDataDailyStepDualLegRunReportIssuePublishPlan(REPORT);
 
-      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      expect(commandPlanSpy).toHaveBeenCalledTimes(2);
       expect(searchArgvSpy).toHaveBeenCalledTimes(2);
     });
   });
