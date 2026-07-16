@@ -2,7 +2,10 @@
 id: T-1050
 title: result-issue(요약축) publish-plan 컴포저 본문 위임 순서(commandPlan → searchGhArgv)를 invocationCallOrder 순서-lock test 로 못박기 (publish-plan 컴포저 sweep 요약축 mirror leg)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 944
+mergedAs: d4884b73
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 110
