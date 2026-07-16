@@ -2,7 +2,10 @@
 id: T-1049
 title: daily publish-plan 컴포저 본문 위임 순서(commandPlan → searchGhArgv)를 invocationCallOrder 순서-lock test 로 못박기 (publish-plan 컴포저 sweep daily canonical leg)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 8866c584
+prNumber: 943
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 110
