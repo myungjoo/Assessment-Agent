@@ -2,7 +2,11 @@
 id: T-1039
 title: daily search-parse self-wire 두 가드 호출 순서(hit-shape→OutputConsistent)를 invocationCallOrder 순서-lock test 로 못박기 (search-parse 축 daily canonical 신설)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 5c4883e5
+prNumber: 933
+reviewRounds: 1
+completed: 2026-07-16
 commitMode: pr
 coversReq: [REQ-059, REQ-032]
 estimatedDiff: 64
