@@ -1042,4 +1042,203 @@ describe("assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWit
       );
     });
   });
+
+  describe("T-1076 — 구조-검사 선행성 order-lock(구조 결손 → parse·resolveAction·buildGhArgv 각 0-call)", () => {
+    // 3 재유도 위임(parse → resolveAction → buildGhArgv) spy 를 pass-through 로 설치한다.
+    // 구조 결손 케이스에서는 가드가 5 구조 assert(L219~223) 중 하나에서 재유도(L229~) 前
+    // fail-fast throw 하므로 세 delegate 는 모두 0-call 이어야 한다 — 이 0-call 이 "구조 검사
+    // → 값 재유도" 선행성의 증거다(리팩터가 재유도를 구조 검사 위로 끌어올리면 spy 가 1+ 로
+    // 잡혀 fail). 최상위 afterEach(jest.restoreAllMocks) 가 매 test 후 원 구현 복원으로 격리.
+    function installDelegateSpies() {
+      const parseSpy = jest.spyOn(
+        searchParseModule,
+        "parseRealDataDailyStepDualLegRunReportIssueSearchOutput",
+      );
+      const actionSpy = jest.spyOn(
+        actionModule,
+        "resolveRealDataDailyStepDualLegRunReportIssueAction",
+      );
+      const ghArgvSpy = jest.spyOn(
+        ghArgvModule,
+        "buildRealDataDailyStepDualLegRunReportIssueGhArgv",
+      );
+      return { parseSpy, actionSpy, ghArgvSpy };
+    }
+
+    // 구조 결손 대표 분기 테이블 — 각 케이스는 (plan, stdout, commandArgs) 중 하나를
+    // 구조적으로 손상시켜 assertPlanStructure / assertPlanArgvStructure /
+    // assertPlanActionEnum / assertStdoutStructure / assertCommandArgsStructure 중 하나가
+    // 재유도 前 TypeError throw 하게 만든다. plan null 과 undefined 는 별 case 로 분리
+    // (flow/branch 분기 분리 — 단일 negative 로 묶지 않음).
+    const structureCases: Array<{
+      name: string;
+      errRe: RegExp;
+      make: () => {
+        plan: RealDataDailyStepDualLegRunReportIssueGhCommandPlan;
+        stdout: string;
+        commandArgs: RealDataDailyStepDualLegRunReportIssueCommandArgs;
+      };
+    }> = [
+      {
+        name: "plan=null(assertPlanStructure)",
+        errRe: /plan 이 객체가 아니다.*null/,
+        make: () => ({
+          plan: null as unknown as RealDataDailyStepDualLegRunReportIssueGhCommandPlan,
+          stdout: "[]",
+          commandArgs: makeCommandArgs(),
+        }),
+      },
+      {
+        name: "plan=undefined(assertPlanStructure)",
+        errRe: /plan 이 객체가 아니다.*undefined/,
+        make: () => ({
+          plan: undefined as unknown as RealDataDailyStepDualLegRunReportIssueGhCommandPlan,
+          stdout: "[]",
+          commandArgs: makeCommandArgs(),
+        }),
+      },
+      {
+        name: "plan=배열(assertPlanStructure)",
+        errRe: /plan 이 객체가 아니다.*array/,
+        make: () => ({
+          plan: [] as unknown as RealDataDailyStepDualLegRunReportIssueGhCommandPlan,
+          stdout: "[]",
+          commandArgs: makeCommandArgs(),
+        }),
+      },
+      {
+        name: "plan=원시(string)(assertPlanStructure)",
+        errRe: /plan 이 객체가 아니다.*string/,
+        make: () => ({
+          plan: "not-a-plan" as unknown as RealDataDailyStepDualLegRunReportIssueGhCommandPlan,
+          stdout: "[]",
+          commandArgs: makeCommandArgs(),
+        }),
+      },
+      {
+        name: "plan.argv=비-배열(객체)(assertPlanArgvStructure)",
+        errRe: /plan\.argv 가 배열이 아니다.*object/,
+        make: () => ({
+          plan: {
+            action: { action: "create" },
+            argv: {} as unknown as string[],
+          },
+          stdout: "[]",
+          commandArgs: makeCommandArgs(),
+        }),
+      },
+      {
+        name: "plan.action.action=enum 결손('delete')(assertPlanActionEnum)",
+        errRe: /plan\.action\.action 이 'create'\|'update' 외 값이다.*delete/,
+        make: () => ({
+          plan: {
+            action: { action: "delete" } as unknown as { action: "create" },
+            argv: ["issue", "create"],
+          } as RealDataDailyStepDualLegRunReportIssueGhCommandPlan,
+          stdout: "[]",
+          commandArgs: makeCommandArgs(),
+        }),
+      },
+      {
+        name: "stdout=비-string(number)(assertStdoutStructure)",
+        errRe: /stdout 이 문자열이 아니다.*number/,
+        make: () => ({
+          plan: buildConsistent("[]", makeCommandArgs()),
+          stdout: 42 as unknown as string,
+          commandArgs: makeCommandArgs(),
+        }),
+      },
+      {
+        name: "commandArgs=비-object(number)(assertCommandArgsStructure)",
+        errRe: /commandArgs 가 객체가 아니다.*number/,
+        make: () => ({
+          plan: buildConsistent("[]", makeCommandArgs()),
+          stdout: "[]",
+          commandArgs:
+            7 as unknown as RealDataDailyStepDualLegRunReportIssueCommandArgs,
+        }),
+      },
+    ];
+
+    it.each(structureCases)(
+      "구조 결손 [$name] → TypeError + parse·resolveAction·buildGhArgv 각 0-call(선행 차단)",
+      ({ errRe, make }) => {
+        const { plan, stdout, commandArgs } = make();
+        const { parseSpy, actionSpy, ghArgvSpy } = installDelegateSpies();
+        // 구조 assert 에서 TypeError → 재유도 3층 도달 前 선전파.
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWithInputs(
+            plan,
+            stdout,
+            commandArgs,
+          ),
+        ).toThrow(TypeError);
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWithInputs(
+            plan,
+            stdout,
+            commandArgs,
+          ),
+        ).toThrow(errRe);
+        // 세 재유도 위임 각 0-call — 구조 검사가 값 재유도보다 먼저 수행(선행성)됨을 못박음.
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      },
+    );
+
+    it("(선행성 정상 흐름) 정합 입력 → 구조 통과 후 parse < resolveAction < buildGhArgv 각 1회(재유도 도달)", () => {
+      const stdout = "[]";
+      const commandArgs = makeCommandArgs();
+      const plan = buildConsistent(stdout, commandArgs);
+      const { parseSpy, actionSpy, ghArgvSpy } = installDelegateSpies();
+
+      assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWithInputs(
+        plan,
+        stdout,
+        commandArgs,
+      );
+
+      // 구조 통과 → 재유도 3층 각 1회 도달.
+      expect(parseSpy).toHaveBeenCalledTimes(1);
+      expect(actionSpy).toHaveBeenCalledTimes(1);
+      expect(ghArgvSpy).toHaveBeenCalledTimes(1);
+      // 선행성 정상 흐름의 호출 순서 부등식(구조 결손 케이스의 0-call 과 대비되는 정상 경로).
+      expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        actionSpy.mock.invocationCallOrder[0],
+      );
+      expect(actionSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        ghArgvSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("(구조 vs 값 경계) 값 정합 위반(RangeError)은 구조 통과 후 재유도가 호출된 뒤 발생 → 세 delegate 1+ call", () => {
+      // stdout 후보 0건 → 재유도 create. plan 은 구조상 정상(객체·argv 배열·action enum·
+      // stdout string·commandArgs object)이나 argv[1] 동사만 drift → 구조 검사 통과 후
+      // 재유도 뒤 argv 원소 대조에서 RangeError.
+      const stdout = "[]";
+      const commandArgs = makeCommandArgs();
+      const ok = buildConsistent(stdout, commandArgs);
+      const bad: RealDataDailyStepDualLegRunReportIssueGhCommandPlan = {
+        action: ok.action,
+        argv: [...ok.argv],
+      };
+      bad.argv[1] = "edit"; // create → edit 동사 drift(구조는 정상, 값만 위반)
+      const { parseSpy, actionSpy, ghArgvSpy } = installDelegateSpies();
+
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWithInputs(
+          bad,
+          stdout,
+          commandArgs,
+        ),
+      ).toThrow(RangeError);
+
+      // 구조 결손(TypeError, 세 delegate 0-call)과 대비: 값 위반은 구조 통과 → 재유도 도달 →
+      // 세 delegate 각 1회 호출된 뒤 RangeError. 선행성 경계를 값 관점에서 명확화.
+      expect(parseSpy).toHaveBeenCalledTimes(1);
+      expect(actionSpy).toHaveBeenCalledTimes(1);
+      expect(ghArgvSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });
