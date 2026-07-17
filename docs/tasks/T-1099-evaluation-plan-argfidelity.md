@@ -2,8 +2,12 @@
 id: T-1099
 title: realdata-e2e evaluation-plan 재유도 delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg2
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 991
+mergedAs: 8a0f951d
+reviewRounds: 1
+completedAt: 2026-07-17T23:24:48Z
 coversReq: [REQ-048]
 estimatedDiff: 40
 estimatedFiles: 1
