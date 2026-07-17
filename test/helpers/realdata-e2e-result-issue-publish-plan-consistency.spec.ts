@@ -768,9 +768,10 @@ describe("assertRealDataResultIssuePublishPlanConsistentWithSources", () => {
       ).toThrow(RangeError);
 
       // 구조 통과 → 두 build 위임(L193·L195) 모두 이미 호출된 뒤 report 게이트에서 throw —
-      // 구조(TypeError, build 0-call) 와 대비되는 경계.
-      expect(commandPlanSpy).toHaveBeenCalled();
-      expect(searchArgvSpy).toHaveBeenCalled();
+      // 구조(TypeError, build 0-call) 와 대비되는 경계. 가드 1-invoke 당 각 delegate 정확
+      // 1회 재유도이므로 exactly-1 로 못박아 중복 재유도(invoke 당 build ≥ 2회) 회귀를 차단.
+      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      expect(searchArgvSpy).toHaveBeenCalledTimes(1);
     });
 
     it("(대조 b) 값 정합 위반(commandArgs drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(command-plan spy 1+ call)", () => {
@@ -793,8 +794,10 @@ describe("assertRealDataResultIssuePublishPlanConsistentWithSources", () => {
         ),
       ).toThrow(RangeError);
 
-      expect(commandPlanSpy).toHaveBeenCalled();
-      expect(searchArgvSpy).toHaveBeenCalled();
+      // report 정합(통과) 뒤 commandArgs 게이트에서 throw — 두 build 위임은 각 정확 1회
+      // 재유도된 상태. exactly-1 로 못박아 중복 재유도(invoke 당 build ≥ 2회) 회귀를 차단.
+      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      expect(searchArgvSpy).toHaveBeenCalledTimes(1);
     });
   });
 });
