@@ -661,4 +661,234 @@ describe("assertRealDataResultReportPlanConsistentWithInputs", () => {
       );
     });
   });
+
+  // T-1066 — 구조-검사 선행성 order-lock(구조 검사 5종 → 값 재유도 build 위임).
+  //
+  // 위 T-1054 블록은 값 재유도 두 위임(summary → descriptor)의 **상호** 호출 순서 +
+  // 데이터-의존만 못박고, 가드 본문 L229~233 의 구조 검사 5종(assertPlanStructure →
+  // assertPlanSummaryStructure → assertPlanDescriptorStructure → assertResultsStructure →
+  // assertRunStructure)이 값 재유도(build 위임 L238~242)보다 **먼저** 수행됨(구조 결손 시
+  // build 가 아예 미도달)은 spy 로 lock 하지 않았다. 기존 구조 결손 error-path 테스트도
+  // TypeError throw 여부만 assert 하고 build 위임 0-call 은 미검증이다. 구조 결손 입력을
+  // 주면 두 build 위임 spy 가 모두 toHaveBeenCalledTimes(0) 이어야 하며, 이를 못박아
+  // "구조 검사 → 값 재유도" 순서를 silent 재정렬(예: 리팩터가 build 를 구조 검사 위로
+  // 끌어올림)로부터 방어한다(현 sweep 과 동형의 defense-in-depth).
+  //
+  // R-112 cover 구조(구조-선행성):
+  //   - happy-path: 정합 입력 → 구조 검사 통과 후 값 재유도 도달(두 build spy 각 1회 +
+  //     summary invocationCallOrder < descriptor — 기존 ico 블록과 정합 재확인).
+  //   - error/negative(핵심): 구조 결손 5분기(plan / plan.summary / plan.descriptor /
+  //     results / run) 각각 TypeError + 두 build spy 모두 0회(build 미도달) — 분기별
+  //     테스트로 분리(단일 negative 로 묶지 않음). 각 분기 안에서 유형별(null · undefined ·
+  //     array · primitive / 비-배열 mismatch) 대표 negative 를 배치.
+  //   - 대조(경계 명확화): 값 정합 위반(summary drift / descriptor drift → RangeError)은
+  //     구조 검사를 통과해 build 위임이 호출된 뒤 발생 — build spy 가 1+ call. 구조(TypeError,
+  //     build 0-call) vs 값(RangeError, build 호출됨) 경계를 선행성 관점에서 대조.
+  describe("T-1066 — 구조-검사 선행성 order-lock(구조 → 값 재유도 build 미도달)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("(happy) 정합 입력 → 구조 검사 통과 후 값 재유도 도달(두 build 위임 각 1회 · summary → descriptor 순서)", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      // plan 은 spy 설치 前 합성 — buildConsistent 내부도 두 builder 를 호출하므로 spy
+      // 설치 후 만들면 호출 횟수가 오염된다(격리 계측).
+      const plan = buildConsistent(results, run);
+      const summarySpy = jest.spyOn(
+        resultSummaryModule,
+        "buildRealDataResultSummary",
+      );
+      const descriptorSpy = jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+
+      assertRealDataResultReportPlanConsistentWithInputs(plan, results, run);
+
+      // 구조 검사 통과 → 값 재유도 도달(각 위임 정확히 1회).
+      expect(summarySpy).toHaveBeenCalledTimes(1);
+      expect(descriptorSpy).toHaveBeenCalledTimes(1);
+      expect(summarySpy.mock.invocationCallOrder[0]).toBeLessThan(
+        descriptorSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("(구조 결손 분기 1/5: plan 비-객체) plan=null/undefined/array/primitive → TypeError + 두 build 위임 미도달(0회)", () => {
+      const summarySpy = jest.spyOn(
+        resultSummaryModule,
+        "buildRealDataResultSummary",
+      );
+      const descriptorSpy = jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+      for (const badPlan of [null, undefined, [], "not-a-plan", 7]) {
+        expect(() =>
+          assertRealDataResultReportPlanConsistentWithInputs(
+            badPlan as unknown as RealDataResultReportPlan,
+            [makeResult()],
+            makeRun(),
+          ),
+        ).toThrow(TypeError);
+      }
+      // 구조 검사(assertPlanStructure)가 값 재유도보다 먼저 fail-fast → build 미도달.
+      expect(summarySpy).toHaveBeenCalledTimes(0);
+      expect(descriptorSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 2/5: plan.summary 비-객체) summary=null/undefined/array/primitive → TypeError + build 미도달(0회)", () => {
+      const correct = buildConsistent([makeResult()], makeRun());
+      const summarySpy = jest.spyOn(
+        resultSummaryModule,
+        "buildRealDataResultSummary",
+      );
+      const descriptorSpy = jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+      for (const badSummary of [null, undefined, [], "x", 3]) {
+        const plan = {
+          summary: badSummary,
+          descriptor: correct.descriptor,
+        } as unknown as RealDataResultReportPlan;
+        expect(() =>
+          assertRealDataResultReportPlanConsistentWithInputs(
+            plan,
+            [makeResult()],
+            makeRun(),
+          ),
+        ).toThrow(TypeError);
+      }
+      expect(summarySpy).toHaveBeenCalledTimes(0);
+      expect(descriptorSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 3/5: plan.descriptor 비-객체) descriptor=null/undefined/array/primitive → TypeError + build 미도달(0회)", () => {
+      const correct = buildConsistent([makeResult()], makeRun());
+      const summarySpy = jest.spyOn(
+        resultSummaryModule,
+        "buildRealDataResultSummary",
+      );
+      const descriptorSpy = jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+      for (const badDescriptor of [null, undefined, [], "x", 3]) {
+        const plan = {
+          summary: correct.summary,
+          descriptor: badDescriptor,
+        } as unknown as RealDataResultReportPlan;
+        expect(() =>
+          assertRealDataResultReportPlanConsistentWithInputs(
+            plan,
+            [makeResult()],
+            makeRun(),
+          ),
+        ).toThrow(TypeError);
+      }
+      expect(summarySpy).toHaveBeenCalledTimes(0);
+      expect(descriptorSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 4/5: results 비-배열) results=null/undefined/object/primitive → TypeError + build 미도달(0회)", () => {
+      // plan 은 정합(구조 통과) — results 만 비-배열로 재유도 자체 불가.
+      const plan = buildConsistent([], makeRun());
+      const summarySpy = jest.spyOn(
+        resultSummaryModule,
+        "buildRealDataResultSummary",
+      );
+      const descriptorSpy = jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+      for (const badResults of [null, undefined, {}, "x", 3]) {
+        expect(() =>
+          assertRealDataResultReportPlanConsistentWithInputs(
+            plan,
+            badResults as unknown as EvaluationResult[],
+            makeRun(),
+          ),
+        ).toThrow(TypeError);
+      }
+      expect(summarySpy).toHaveBeenCalledTimes(0);
+      expect(descriptorSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 5/5: run 비-객체) run=null/undefined/array/primitive → TypeError + build 미도달(0회)", () => {
+      // plan · results 는 정합(구조 통과) — run 만 비-객체로 descriptor 재유도 불가.
+      const plan = buildConsistent([], makeRun());
+      const summarySpy = jest.spyOn(
+        resultSummaryModule,
+        "buildRealDataResultSummary",
+      );
+      const descriptorSpy = jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+      for (const badRun of [null, undefined, [], "x", 3]) {
+        expect(() =>
+          assertRealDataResultReportPlanConsistentWithInputs(
+            plan,
+            [],
+            badRun as unknown as RealDataResultIssueRunRef,
+          ),
+        ).toThrow(TypeError);
+      }
+      expect(summarySpy).toHaveBeenCalledTimes(0);
+      expect(descriptorSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(대조 a) 값 정합 위반(summary drift → RangeError)은 구조 검사 통과 후 build 위임 호출된 뒤 발생(build 1+ call)", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      const correct = buildConsistent(results, run);
+      const summarySpy = jest.spyOn(
+        resultSummaryModule,
+        "buildRealDataResultSummary",
+      );
+      const descriptorSpy = jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+      const plan: RealDataResultReportPlan = {
+        summary: { ...correct.summary, count: 999 },
+        descriptor: correct.descriptor,
+      };
+
+      expect(() =>
+        assertRealDataResultReportPlanConsistentWithInputs(plan, results, run),
+      ).toThrow(RangeError);
+
+      // 구조 검사를 통과했으므로 값 재유도(build 위임)가 이미 호출된 뒤 값 대조에서 throw —
+      // 구조(TypeError, build 0-call) 와 대비되는 경계.
+      expect(summarySpy).toHaveBeenCalled();
+      expect(descriptorSpy).toHaveBeenCalled();
+    });
+
+    it("(대조 b) 값 정합 위반(descriptor drift → RangeError)도 구조 통과 후 build 위임 호출된 뒤 발생(build 1+ call)", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      const correct = buildConsistent(results, run);
+      const summarySpy = jest.spyOn(
+        resultSummaryModule,
+        "buildRealDataResultSummary",
+      );
+      const descriptorSpy = jest.spyOn(
+        resultIssueDescriptorModule,
+        "buildRealDataResultIssueDescriptor",
+      );
+      const plan: RealDataResultReportPlan = {
+        summary: correct.summary, // summary 는 정합(통과)
+        descriptor: { ...correct.descriptor, title: "위장 제목" },
+      };
+
+      expect(() =>
+        assertRealDataResultReportPlanConsistentWithInputs(plan, results, run),
+      ).toThrow(RangeError);
+
+      expect(summarySpy).toHaveBeenCalled();
+      expect(descriptorSpy).toHaveBeenCalled();
+    });
+  });
 });
