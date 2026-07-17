@@ -583,6 +583,37 @@ describe("assertRealDataResultReportPlanConsistentWithInputs", () => {
       const producedSummary = summarySpy.mock.results[0].value;
       expect(descriptorSpy.mock.calls[0][0]).toBe(producedSummary);
       expect(descriptorSpy.mock.calls[0][1]).toBe(run);
+
+      // T-1098 — 인자-충실도(argument fidelity) lock. 위 reference-identity 검사(shape
+      // 동일 + 참조 동일)에 더해, 각 위임이 정확히 어떤 payload 로 호출됐는지를 canonical
+      // matcher 로 못박는다. summary 위임은 가드의 정확한 results 입력 배열로, descriptor
+      // 위임은 (산출 summary + 가드의 run) 으로 호출됨을 recursive-equality 로 lock.
+      // 재유도 경로는 단일 분기(happy-path) 조립이라 분기 없음 → flow/branch 항목 생략.
+      expect(summarySpy).toHaveBeenCalledWith(results);
+      expect(descriptorSpy).toHaveBeenCalledWith(producedSummary, run);
+
+      // negative(인자-충실도 축 a) — payload drift 대조. toHaveBeenCalledWith 가 인자
+      // payload 변조를 실제로 잡음을 노출한다. volume 을 변조한 results 사본·빈 배열·다른
+      // run 으로는 매칭되지 않는다(값-drift RangeError 대조 describe 와 별개의 인자-축
+      // negative). 매칭됐다면 matcher 가 payload 를 검사하지 않는다는 뜻이므로 fail.
+      const driftedResults = [
+        { ...results[0], volume: results[0].volume + 999 },
+      ];
+      expect(summarySpy).not.toHaveBeenCalledWith(driftedResults);
+      expect(summarySpy).not.toHaveBeenCalledWith([]);
+      expect(descriptorSpy).not.toHaveBeenCalledWith(
+        producedSummary,
+        makeRun({ gitSha: "deadbeef" }),
+      );
+
+      // negative(인자-충실도 축 b) — 인자 개수/여분 인자. descriptor 는 정확히 2 인자로
+      // 호출됨(여분 인자 0). 셋째 인자를 요구하는 매칭은 실패해야 한다.
+      expect(descriptorSpy.mock.calls[0]).toHaveLength(2);
+      expect(descriptorSpy).not.toHaveBeenCalledWith(
+        producedSummary,
+        run,
+        expect.anything(),
+      );
     });
 
     it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/results/run mutate 0", () => {
