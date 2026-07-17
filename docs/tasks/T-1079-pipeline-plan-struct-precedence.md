@@ -2,8 +2,11 @@
 id: T-1079
 title: realdata-e2e pipeline-plan consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError)이 collect 재유도 위임(buildRealDataCollectCallArgs)보다 먼저 수행됨을 delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 14, T-1078 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 972
+mergedAs: 15d3407f993529105923e93b6b5d47a3c8549337
+completedAt: 2026-07-17T12:21:32Z
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 150
 estimatedFiles: 1
