@@ -2,7 +2,7 @@
 id: T-1065
 title: realdata-e2e delegate 재유도/self-wire 순서-lock sweep 완료 audit — 적격 guard/producer 소진 확정 기록 + "order-lock 불요" 단일-delegate 목록 박제 + 다음 P5 test-hardening 축 pre-check 핸드오프 (sweep leg 12 — 완료 audit)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 110
@@ -58,3 +58,7 @@ T-1064 Follow-up 은 leg 12 를 "나머지 delegate 기반 guard 를 pre-check �
 ## Follow-ups
 
 - (leg 13, 다음 planner turn) 본 audit 의 섹션 D 후보 축 중 pre-check 로 실제 gap 이 확인되는 것을 leg 13 으로 큐잉. 우선순위: (a) 구조-guard 선행성 order-lock 이 미lock 이면 최우선(현 sweep 과 동형의 defense-in-depth, 단일 spec test-only pr 로 clean 하게 scope 가능) → (b) call-count exactly-once 완결성 감사 → (c) e2e 흐름 커버리지. audit 이 "부분 소진" 으로 끝났으면 발견된 적격 guard 를 leg 13 최우선으로.
+
+## Result (DONE — 2026-07-17T04:38Z)
+
+완료. grep 실증: 2+ distinct sub-composer 재유도 consistency-guard 11종 전량 `invocationCallOrder` 배선(ico≥7), producer/aggregator 3축 순서-lock 존재, realdata-e2e ico=0 gap 0건 + non-realdata 2+delegate ico=0 진성 gap 0(prisma-mock false positive만) → delegate 재유도/self-wire 순서-lock 축 **full exhaustion 확정**. audit doc `docs/progress/details/T-1065-order-lock-sweep-completion-audit.md`(113 LOC, 섹션 A/B/C/D) 박제. production·test src 0 LOC, R-112 면제(direct doc-only). 다음 축 leg1 = T-1066(result-report-plan 구조-guard 선행성 order-lock, pr test-only).
