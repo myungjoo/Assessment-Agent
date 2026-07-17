@@ -2,8 +2,12 @@
 id: T-1061
 title: daily-step-dual-leg-run-report-issue-outcome-report-from-output consistency-guard(assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput)의 2 distinct builder 데이터-의존 재유도 순서(parse → buildOutcomeReport) invocationCallOrder 순서-lock + reference-페어링 test 로 못박기 (consistency-guard 재유도 delegate 순서-lock leg 8)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 955
+mergedAs: d228e7f0
+reviewRounds: 1
+completedAt: 2026-07-17T02:02:47Z
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 115
 estimatedFiles: 1
