@@ -2,7 +2,11 @@
 id: T-1085
 title: realdata-e2e result-issue-descriptor-body consistency-guard 구조-검사 선행성 order-lock (clean leg — 신규 namespace import + spyOn 인프라, 상위 구조 결손 error-path 에 2 delegate 0-call 보강) — descriptor/summary 상위 구조 결손(TypeError)이 body 재유도 위임(formatRealDataResultSummaryLine + renderRealDataResultSummaryMarkdown)보다 먼저 수행됨을 delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 20, T-1084 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-17T15:58:00Z
+prNumber: 978
+mergedAs: b0d702e2
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 190
