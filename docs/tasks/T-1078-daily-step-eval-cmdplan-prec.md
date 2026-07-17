@@ -2,7 +2,7 @@
 id: T-1078
 title: realdata-e2e daily-step-eval command-plan consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError)이 gating 재유도 위임(resolveRealDataE2eLiveGating)보다 먼저 수행됨을 delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 13, T-1077 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 150
@@ -58,3 +58,11 @@ planner pre-check(실 grep + read, 2026-07-17)로 확인한 gap: 이 가드는 �
 
 - (구조-선행성 sweep leg 14+) 본 leg 를 mirror 해 남은 적격 daily family 가드를 순차 leg 화. 적격 grep: 각 guard 가 재유도 delegate 모듈을 `import`(`^import \{ (parse|resolve|build)RealData`)하고 구조검사(assert*Structure/TypeError)가 재유도보다 앞서며, spec 에 그 delegate 의 `toHaveBeenCalledTimes(0)` 구조-선행성 assert 가 부재(spyOn 0회 포함)하면 적격. daily family 소진 시 잔여 pipeline-plan / run-plan / seed-collect / step-args family(evaluation-step-args · result-outcome-step-args · result-publish-step-args) 등 delegate-import 가드로 확장.
 - 구조-선행성 축이 소진되면 T-1065 §D 후보 (b) call-count exactly-once 완결성 감사로 전환.
+
+## Result (DONE 2026-07-17T11:52Z)
+
+- PR #971 squash-merged (f67ea1a5), reviewer round 1/7 APPROVE (0 blocker · 0 major · 1 Nit 비필수), 4-게이트 PASS.
+- test-only 1파일(`test/helpers/realdata-e2e-daily-step-eval-command-plan-consistency.spec.ts`, +183/-0), production src·helper `.ts` 0 LOC.
+- 신규 describe 블록: 구조 결손 7 분기(plan null/undefined/array/primitive · env null/array/primitive) 각 `resolveRealDataE2eLiveGating` `toHaveBeenCalledTimes(0)` + happy 1-call(invocationCallOrder>0) + 재유도-후 RangeError 1-call 대조 + 재유도-전 action enum RangeError 0-call 대조. afterEach restoreAllMocks 격리.
+- 대상 spec 39 test(신규 11), 전체 404 suites / 11225 test green, coverage line 99.95% / func 100% / branch 99.25% (line≥80 AND func≥80 무회귀).
+- 후속: nextTask=T-1079 (pipeline-plan consistency 구조-검사 선행성 order-lock, sweep leg 14).
