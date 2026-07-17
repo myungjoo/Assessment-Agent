@@ -476,6 +476,45 @@ describe("assertRealDataResultIssuePublishPlanConsistentWithSources", () => {
       expect(searchArgvSpy.mock.calls[0][0]).toBe(
         producedCommandPlan.commandArgs,
       );
+
+      // T-1100 — 인자-충실도(argument fidelity) lock(§D 후보 2 leg3). 위 횟수·순서·
+      // reference-threading lock 에 더해, 각 위임이 정확히 어떤 payload 로 호출됐는지를
+      // canonical matcher 로 못박는다. command-plan 위임은 가드의 정확한 results 배열 +
+      // run 식별자(2 인자)로, search-gh-argv 위임은 command-plan 산출 commandArgs(1 인자)
+      // 로 호출됨을 recursive-equality 로 lock. 가드가 command-plan 산출 commandArgs 를
+      // 그대로 search-gh-argv 첫 인자로 threading 함을 값-충실도까지 포함해 producedCommandArgs
+      // 를 spy 반환값에서 캡처한다. 재유도 경로는 단일 분기(happy-path) 조립이라 분기 없음
+      // → flow/branch 항목 생략.
+      const producedCommandArgs = producedCommandPlan.commandArgs;
+      expect(commandPlanSpy).toHaveBeenCalledWith(HAPPY_RESULTS, HAPPY_RUN);
+      expect(searchArgvSpy).toHaveBeenCalledWith(producedCommandArgs);
+
+      // negative(인자-충실도 축 a) — payload drift 대조. toHaveBeenCalledWith 가 인자
+      // payload 변조를 실제로 잡음을 노출한다. 빈 results·drift 시킨 run 으로는 command-plan
+      // 매칭 안 됨, 다른 commandArgs 로는 search-gh-argv 매칭 안 됨(값-drift RangeError 대조
+      // describe 와 별개의 인자-축 negative). 매칭됐다면 matcher 가 payload 를 검사하지
+      // 않는다는 뜻이므로 fail.
+      expect(commandPlanSpy).not.toHaveBeenCalledWith([], HAPPY_RUN);
+      expect(commandPlanSpy).not.toHaveBeenCalledWith(HAPPY_RESULTS, {
+        ...HAPPY_RUN,
+        gitSha: "drifted-sha",
+      });
+      expect(searchArgvSpy).not.toHaveBeenCalledWith([]);
+
+      // negative(인자-충실도 축 b) — 인자 개수/여분 인자. command-plan 은 정확히 2 인자,
+      // search-gh-argv 는 정확히 1 인자로 호출됨(여분 인자 0). 셋째/둘째 여분 인자를 요구
+      // 하는 매칭은 실패해야 한다.
+      expect(commandPlanSpy.mock.calls[0]).toHaveLength(2);
+      expect(searchArgvSpy.mock.calls[0]).toHaveLength(1);
+      expect(commandPlanSpy).not.toHaveBeenCalledWith(
+        HAPPY_RESULTS,
+        HAPPY_RUN,
+        expect.anything(),
+      );
+      expect(searchArgvSpy).not.toHaveBeenCalledWith(
+        producedCommandArgs,
+        expect.anything(),
+      );
     });
 
     it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/results/run mutate 0", () => {
