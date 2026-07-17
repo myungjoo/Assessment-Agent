@@ -744,7 +744,7 @@ describe("assertRealDataResultIssuePublishPlanConsistentWithSources", () => {
       expect(searchArgvSpy).toHaveBeenCalledTimes(0);
     });
 
-    it("(대조 a) 값 정합 위반(report drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(command-plan spy 1+ call)", () => {
+    it("(대조 a) 값 정합 위반(report drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(command-plan spy 정확히 1회 호출)", () => {
       const plan = makePlan();
       const { commandPlanSpy, searchArgvSpy } = spyOnBuilders();
       // 구조는 온전 — report summary 값만 drift 시켜 RangeError.
@@ -774,7 +774,7 @@ describe("assertRealDataResultIssuePublishPlanConsistentWithSources", () => {
       expect(searchArgvSpy).toHaveBeenCalledTimes(1);
     });
 
-    it("(대조 b) 값 정합 위반(commandArgs drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(command-plan spy 1+ call)", () => {
+    it("(대조 b) 값 정합 위반(commandArgs drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(command-plan spy 정확히 1회 호출)", () => {
       const plan = makePlan();
       const { commandPlanSpy, searchArgvSpy } = spyOnBuilders();
       // report 정합(게이트 통과) · commandArgs.searchQuery 만 drift → commandArgs 게이트 throw.
