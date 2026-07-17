@@ -2,7 +2,11 @@
 id: T-1076
 title: realdata-e2e daily-step-dual-leg run-report-issue-gh-command-plan consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError) 이 3 재유도 위임(parse → resolveAction → buildGhArgv)보다 먼저 수행됨을 세 delegate 각 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 11, T-1075 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 12dd1546
+prNumber: 969
+reviewRounds: 1
+completedAt: 2026-07-17T10:52:00Z
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 180
