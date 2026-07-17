@@ -1,0 +1,61 @@
+---
+id: T-1082
+title: realdata-e2e evaluation-step-args consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError)이 evaluation-plan 재유도 위임(buildRealDataEvaluationPlan)보다 먼저 수행됨을 delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 17, T-1081 Follow-up)
+phase: P5
+status: PENDING
+commitMode: pr
+coversReq: [REQ-032, REQ-059]
+estimatedDiff: 170
+estimatedFiles: 1
+created: 2026-07-17
+dependsOn: []
+touchesFiles:
+  - test/helpers/realdata-e2e-evaluation-step-args-consistency.spec.ts
+independentStream: realdata-e2e-structure-precedence-sweep
+plannerNote: "P5 구조-guard 선행성 sweep leg 17 — seed-collect-call-args(leg 16, T-1081) 소진 후 T-1081 Follow-up 이 우선 후보로 지목한 step-args family 의 evaluation-step-args consistency 가드(step-args layer seam, 단일 재유도 delegate=buildRealDataEvaluationPlan). pre-check 실증(grep+read, 2026-07-17, HEAD c95bbbe1=T-1081 머지 포함): 가드가 3 구조 assert(assertPlanStructure L231 / assertRunPlanStructure L232 / assertActivitiesStructure L233)를 evaluation-plan 재유도 위임(buildRealDataEvaluationPlan L239)보다 먼저 수행하나, spec(553줄)은 delegate 를 value import·spyOn 조차 안 하고(spyOn 0 / toHaveBeenCalled 0 / toHaveBeenCalledTimes(0) 0 / invocationCallOrder 0, delegate 는 type-only import L28) 구조 error-path(L327 null/undefined·L282 이후 type 위반)는 .toThrow(TypeError) 만. 구조 결손 시 delegate 0-call 미검증 = gap. 구조와 delegate 사이 RangeError 없음(inputs drift L246 / callArgs drift L253 / reference 페어링 L264 전부 재유도 후). pr test-only 1파일, src 0 LOC, file-disjoint dep[] stage5b."
+---
+
+# T-1082 — evaluation-step-args 구조-검사 선행성 order-lock
+
+## Why
+
+P5 test-hardening 의 realdata-e2e 구조-guard 선행성 sweep(T-1065 §D 후보 (a))은 leg 1 result-report-plan(T-1066) → … → leg 15 run-plan(T-1080) → leg 16 seed-collect-call-args(T-1081)으로 이어졌다. T-1081 Follow-up 이 **우선 후보**(step-args family)로 지목한 evaluation-step-args consistency 가드를 leg 17 로 삼는다. 이 가드 `assertRealDataEvaluationStepArgsConsistentWithSources`(`test/helpers/realdata-e2e-evaluation-step-args-consistency.ts`)는 실 평가 e2e build-time chain 의 **step-args layer seam** `buildRealDataEvaluationStepArgs(runPlan, activities)` 산출 evaluation plan `{ inputs, callArgs }` 을 single source `(activities, runPlan.pipeline.modelId)` 로 위임 종단 컴포저 `buildRealDataEvaluationPlan(activities, modelId)` 재유도해 deep-equal 대조하고 reference 페어링(`callArgs[i].input === inputs[i]`)을 identity 로 강제하는 seam 무결성 가드다(README.md 109행 step ②→③ 실 평가 e2e build-time chain 의 step-args layer 무결성 / REQ-032·REQ-059). 앞선 seed-collect-call-args leg(T-1081)와 동형이며 재유도 delegate 는 **1개**(`buildRealDataEvaluationPlan`).
+
+planner pre-check(실 grep + read, 2026-07-17, HEAD c95bbbe1 = T-1081 머지 포함)로 확인한 gap: 이 가드는 본문에서 **3 구조 assert**(`assertPlanStructure(plan)` L231 — plan null/undefined·비-object·`plan.inputs`/`plan.callArgs` 비-배열 → TypeError; `assertRunPlanStructure(runPlan)` L232 — runPlan null/undefined·`runPlan.pipeline` 비-object·`runPlan.pipeline.modelId` 비-string → TypeError; `assertActivitiesStructure(activities)` L233 — activities null/undefined·비-배열 → TypeError)를 **evaluation-plan 재유도 위임**(`buildRealDataEvaluationPlan(activities, runPlan.pipeline.modelId)` L239)보다 **먼저** 수행한다(구조검사 L231~233 < 재유도 L239). seed-collect-call-args(T-1081)와 마찬가지로 구조 검사와 재유도 **사이에 RangeError 분기가 없다** — 값 정합 위반 RangeError(inputs drift L246 / callArgs drift L253 / reference 페어링 깨짐 L264)는 전부 재유도 **뒤**에 온다. 그러나 대응 spec(총 553 line)은 delegate `buildRealDataEvaluationPlan` 를 **value 로 import 하지 않으며**(L28 은 `RealDataEvaluationPlan` type-only import) `spyOn`·`toHaveBeenCalled`·`toHaveBeenCalledTimes(0)`·`invocationCallOrder` 가 **0회** 다 — 구조 error-path 블록(L327 `구조 결손 — null/undefined → TypeError`, 이후 구성요소 type 위반 블록)은 `.toThrow(TypeError)` / 라벨 regex 만 assert 하고 delegate 호출 횟수를 못박지 않는다. 즉 **구조 결손 입력을 주면 evaluation-plan 재유도 delegate 가 `toHaveBeenCalledTimes(0)` 이어야 한다는 선행성**이 spy 로 못박혀 있지 않다. 이를 구조 결손 대표 분기(plan null·plan undefined·plan 비-object·plan.inputs 비-배열·plan.callArgs 비-배열·runPlan null·runPlan.pipeline 비-object·modelId 비-string·activities null·activities 비-배열)에 delegate `buildRealDataEvaluationPlan` `toHaveBeenCalledTimes(0)` 으로 못박아 "구조 검사 → 값 재유도" 순서를 silent 재정렬(예: 리팩터가 재유도를 구조 검사 위로 끌어올림)로부터 방어한다(T-1066~T-1081 와 동형 defense-in-depth, delegate 1개). test-only 1파일, production `src`·helper `.ts` 로직 무변경.
+
+## Required Reading
+
+- `test/helpers/realdata-e2e-evaluation-step-args-consistency.ts` — 대상 가드. 메인 함수 `assertRealDataEvaluationStepArgsConsistentWithSources`(L224~) 본문의 3 구조 assert(`assertPlanStructure(plan)` L231 / `assertRunPlanStructure(runPlan)` L232 / `assertActivitiesStructure(activities)` L233)가 evaluation-plan 재유도 위임(`buildRealDataEvaluationPlan(activities, runPlan.pipeline.modelId)` L239)보다 앞섬을 확인(구조검사 L231~233 < 재유도 L239). 각 구조 assert 함수 본문(assertPlanStructure L93~116 → plan null/undefined·비-object·inputs/callArgs 비-배열 TypeError / assertRunPlanStructure L124~142 → runPlan null/undefined·pipeline 비-object·modelId 비-string TypeError / assertActivitiesStructure L147~160 → activities null/undefined·비-배열 TypeError)의 TypeError 분기를 확인. 값 정합 위반 RangeError(inputs drift L246 / callArgs drift L253 / reference 페어링 L264)는 재유도 **뒤**에 위치함을 확인(구조 검사와 재유도 사이 RangeError 분기 없음 — seed-collect-call-args T-1081 과 동일 단순 구조). delegate import 라인(L67 `import { buildRealDataEvaluationPlan } from "./realdata-e2e-evaluation-plan"`) 확인. **광범위 read 금지 — 해당 함수 + 3 구조 assert 본문 + import 라인만.**
+- `test/helpers/realdata-e2e-evaluation-step-args-consistency.spec.ts` — colocated spec(추가 대상, 신규 파일 아님, 총 553줄). 기존 구조 error-path 블록(L327 `구조 결손 — null/undefined → TypeError`: plan/runPlan/activities null·undefined; 이후 구성요소 type 위반 블록: plan 비-object·inputs/callArgs 비-배열·pipeline 비-object·modelId 비-string·activities 비-배열)은 `.toThrow(TypeError)` / 라벨 regex 만 assert 하고 **spy 부재**임을 확인. spec 이 delegate `buildRealDataEvaluationPlan` 를 **value 로 import 조차 안 함**을 확인(L28 은 `RealDataEvaluationPlan` type-only import; grep: spyOn 0 / toHaveBeenCalled 0 / toHaveBeenCalledTimes(0) 0 / invocationCallOrder 0). 기존 happy-path 블록(L122~)·값 정합 위반(inputs drift L189~ / callArgs drift L253~ / reference 페어링 L295~) RangeError 블록·구조 결손 TypeError 블록(L327~)·비변형/순수성 블록 은 유지 — **새 describe 블록으로 구조-선행성만 추가**. spy target 은 evaluation-plan 모듈의 `buildRealDataEvaluationPlan` — 신규 `import * as evaluationPlanModule from "./realdata-e2e-evaluation-plan"` namespace import 후 `jest.spyOn(evaluationPlanModule, "buildRealDataEvaluationPlan")`. 새 describe 블록의 `afterEach` 에 `jest.restoreAllMocks()` 를 두어 신규 spyOn 격리 보장(기존 블록이 실 delegate 를 fixture 재유도/합성에 쓰므로 leak 방지 필수). **happy-path delegate-1-call test 주의**: 정합 plan fixture 는 `buildRealDataEvaluationStepArgs`(L29 import)가 내부에서 `buildRealDataEvaluationPlan` 를 호출해 합성하므로, fixture 합성을 **spyOn 설정 이전**에 수행해 fixture-합성 call 이 spy count 에 포함되지 않게 한 뒤 spy 를 걸고 가드를 호출 → 정확히 1회를 확인한다(그렇지 않으면 count 가 2가 됨). spy 는 실 구현 call-through(`jest.spyOn` 기본 동작 — mockImplementation 미지정) 로 두어 재유도 정합이 성립하게 한다.
+- `docs/tasks/T-1081-seed-collect-call-args-struct-precedence.md` — 본 축 leg 16(패턴 precedent, 단일 delegate). 동일 패턴(구조 결손 → 재유도 delegate 0-call spy + 구조 vs 값 경계 대조)을 mirror 하되, 본 leg 는 (a) delegate 가 **1개**(`buildRealDataEvaluationPlan`)이고, (b) 구조 검사와 재유도 **사이에 RangeError 분기가 없어** 값-boundary 대조를 재유도-후 RangeError(inputs drift / callArgs drift / reference 페어링 중 아무거나) 로 바로 쓸 수 있으며, (c) 구조 assert 가 **3개**(plan / runPlan / activities — T-1081 은 2개)라 구조 결손 대표 분기가 plan(null·undefined·비-object·inputs 비-배열·callArgs 비-배열) + runPlan(null·pipeline 비-object·modelId 비-string) + activities(null·비-배열)로 넓다. spec 이 delegate 를 **value 로 아직 import 조차 안 함**(type-only import)은 T-1081 과 동일 차이점.
+
+## Acceptance Criteria
+
+본 task 는 `commitMode: pr` test-only leg 이므로 R-112 test 4종 + coverage 를 아래에 매핑한다(production 신규 symbol 0 — 검증 대상은 추가하는 spy-기반 선행성 테스트 자체의 완결성).
+
+- [ ] **happy-path(선행성 정상 흐름)**: 정합 `plan`/`runPlan`/`activities` 입력에서 가드가 void 반환하고, `buildRealDataEvaluationPlan` spy 가 정확히 1회 호출됨을 재확인 — 구조 검사(assertPlanStructure·assertRunPlanStructure·assertActivitiesStructure)가 통과한 뒤에 delegate 가 호출되는 정상 도달 경로. delegate call 이 1회이고 happy 결과 void 임을 확인(가능하면 spy 가 정확히 `activities, runPlan.pipeline.modelId` 인자로 호출됨도 함께 못박는다). fixture 합성은 spyOn 이전에 수행(위 Required Reading 의 주의 참조), spy 는 실 구현 call-through 로 둔다.
+- [ ] **error path — 구조-선행성 fail-fast(핵심)**: 구조 결손 입력 각각(`plan` null, `plan` undefined, `plan` 비-object(예: array/number), `plan.inputs` 비-배열, `plan.callArgs` 비-배열, `runPlan` null, `runPlan.pipeline` 비-object(null), `runPlan.pipeline.modelId` 비-string(number), `activities` null, `activities` 비-배열(object))에서 가드가 `TypeError`(한국어 라벨) throw 하고 **`buildRealDataEvaluationPlan` spy 가 `toHaveBeenCalledTimes(0)`** 임을 assert — 구조 검사가 evaluation-plan 재유도보다 먼저 수행(선행 차단)됨을 delegate spy 로 못박는다(기존 spec 은 구조 error-path 에서 delegate 호출 횟수 미검증 → 본 leg 가 신설 완결).
+- [ ] **flow/branch cover**: 3 구조 assert 의 각 분기(plan 존재 / plan object 여부 / inputs 배열 여부 / callArgs 배열 여부 / runPlan 존재 / pipeline object 여부 / modelId string 여부 / activities 존재 / activities 배열 여부) 각각에 대해 위 "TypeError + delegate 0-call" 테스트 1+ 로 분기 분리(단일 negative 로 묶지 않음). plan null 과 undefined, runPlan null 과 activities null 은 별 case 로 분리.
+- [ ] **negative cases 충분 cover**: 구조 결손 유형별(null · undefined · 비-object · 비-배열 · 비-string · type mismatch)을 plan/plan.inputs/plan.callArgs/runPlan/pipeline/modelId/activities 각 구성요소에 대표 negative 로 배치하고, 추가로 **값 정합 위반(RangeError)은 구조 검사를 통과해 evaluation-plan 재유도가 호출된 뒤 발생**함(즉 inputs drift·callArgs drift·reference 페어링 깨짐 중 어느 RangeError 경로든 `buildRealDataEvaluationPlan` spy 가 1회 call)을 대조 테스트로 1+ 추가 — 재유도 **후** RangeError(예: inputs drift L246 또는 callArgs drift L253 또는 reference 페어링 L264)를 사용해 delegate 1-call 을 확인. 구조(TypeError, delegate 0-call) vs 값(재유도-후 RangeError, delegate 1-call) 경계를 선행성 관점에서 명확화. (참고: 본 가드는 seed-collect-call-args T-1081 과 같이 구조 검사와 재유도 사이 RangeError 분기가 없으므로 모든 RangeError 가 delegate 호출을 수반한다.)
+- [ ] **coverage 유지**: `pnpm test:cov` 통과(line ≥ 80% / function ≥ 80% 무회귀). 본 leg 는 test 추가만이라 커버리지 하락 없어야 함.
+- [ ] **재현 grep 갱신 확인**: `grep -c "toHaveBeenCalledTimes(0)" test/helpers/realdata-e2e-evaluation-step-args-consistency.spec.ts` 값이 기존(0)보다 증가하고, 새 describe 블록에 구조-선행성 spy assert(`toHaveBeenCalledTimes(0)`)가 구조 결손 대표 분기 전량(plan null/undefined · plan 비-object · inputs 비-배열 · callArgs 비-배열 · runPlan null · pipeline 비-object · modelId 비-string · activities null · activities 비-배열)에 delegate `buildRealDataEvaluationPlan` 각각 존재.
+- [ ] **spy 격리 확인**: 새 describe 블록에서만 `import * as evaluationPlanModule` namespace import 로 `jest.spyOn` 하고 `afterEach(() => jest.restoreAllMocks())` 로 복원 — 기존 블록(실 delegate 를 fixture 합성/재유도에 사용)이 spy 오염 없이 통과함을 확인.
+- [ ] **test-only 확인**: `src/`·`prisma/`·helper `.ts`(production 로직) diff 0. 오직 대상 spec 1파일만 추가 변경(≤300 LOC diff / 1파일).
+- [ ] **CI green**: `pnpm lint && pnpm build && pnpm test` 및 CI 의 unit/smoke/e2e 전량 통과, suites 무회귀.
+
+## Out of Scope
+
+- 다른 consistency-guard 의 구조-선행성 order-lock — 본 leg 는 evaluation-step-args **1개** 만(leg 17). 나머지 적격 잔여 가드(step-args family 의 `result-outcome-step-args` · `result-publish-step-args`)는 후속 leg 로 mirror(Follow-ups 참조).
+- 가드 `.ts` production 로직 변경(구조 검사 순서 재배치·에러 메시지 수정 등) — 코드 무변경, spec 추가만.
+- 기존 happy-path(L122~)·값 정합 위반 RangeError(inputs L189~ / callArgs L253~ / reference L295~)·구조 결손 TypeError(L327~)·비변형/순수성 블록의 삭제·재작성 — 유지하고 새 describe 로 확장 추가만.
+- T-1065 §D 후보 (b) call-count exactly-once 완결성·(c) e2e 흐름 커버리지 — 별도 후속 leg.
+- `docs/architecture/*`·ADR 신설, `docs/PLAN.md`·`docs/STATE.json` phase/bullet 변경 — 본 task 범위 밖(driver/planner 소관).
+
+## Suggested Sub-agents
+
+`implementer → tester`. architect 불요(신규 결정 없음 — T-1066~T-1081 defense-in-depth 패턴의 evaluation-step-args mirror, 단일 delegate). tester 는 R-112 test 4종 + coverage 무회귀 + 구조 위반 대표 분기 각 delegate 0-call spy + 재유도-후 RangeError delegate 1-call 대조 + spy 격리(namespace import + restoreAllMocks) + happy-path fixture 합성 순서(spyOn 이전 합성) 검증.
+
+## Follow-ups
+
+- (구조-선행성 sweep leg 18+) 본 leg 를 mirror 해 남은 적격 step-args family 가드를 순차 leg 화. 적격 grep(2026-07-17 실증, t0=0 ico=0): `realdata-e2e-result-outcome-step-args-consistency` · `realdata-e2e-result-publish-step-args-consistency`. 각 guard 가 재유도 delegate 모듈을 `import`(`^import \{ (parse|resolve|build)RealData`)하고 구조검사(assert*Structure/TypeError)가 재유도보다 앞서며, spec 에 그 delegate 의 `toHaveBeenCalledTimes(0)` 구조-선행성 assert 가 부재(spyOn 0회 포함)하면 적격. result-outcome-step-args 를 leg 18 후보로 우선.
+- 구조-선행성 축이 소진되면 T-1065 §D 후보 (b) call-count exactly-once 완결성 감사로 전환.
