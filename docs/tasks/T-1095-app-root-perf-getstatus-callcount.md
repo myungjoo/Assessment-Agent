@@ -2,7 +2,7 @@
 id: T-1095
 title: app-root-read perf-spec getStatus call-count exactly-1 완결 — health-read(GET /api) happy-path 의 loose toHaveBeenCalled() 1건을 정확 횟수(toHaveBeenCalledTimes(1))로 못박아 중복 재호출 회귀 차단, 이로써 test 트리 전량의 positive-loose call-count 소진 (call-count 완결성 sweep leg 30 = tree-wide 마감)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 3
