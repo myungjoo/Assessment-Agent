@@ -2,8 +2,12 @@
 id: T-1074
 title: realdata-e2e daily-step-dual-leg run-report-issue-outcome-report-from-output consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError) 분기가 값 재유도(parse → buildOutcomeReport 2 위임)보다 먼저 수행됨을 재유도-delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 9, T-1073 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 967
+mergedAs: 536b607b
+reviewRounds: 1
+completedAt: 2026-07-17T09:38:31Z
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 130
 estimatedFiles: 1
