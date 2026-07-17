@@ -912,4 +912,276 @@ describe("assertRealDataResultIssueCommandPlanConsistentWithInputs", () => {
       );
     });
   });
+
+  // T-1068 — 구조-검사 선행성 order-lock(구조 검사 → 값 재유도 build 위임) · leg 3.
+  //
+  // 가드 본문(L278~285)은 구조 검사 7분기(assertPlanStructure → …ReportStructure →
+  // …CommandArgsStructure → …CreateArgsStructure → …UpdateArgsStructure →
+  // assertResultsStructure → assertRunStructure)를 값 재유도 위임(buildRealDataResultReportPlan
+  // L291 → buildRealDataResultIssueCommandArgs L292)보다 먼저 수행한다. 그러나 기존 구조
+  // error-path 테스트(line 126~313)는 오직 .toThrow(TypeError) 만 assert 하고, 위 T-1056
+  // 순서-lock 블록의 유일 toHaveBeenCalledTimes(0)(report-plan throw → command-args 0)은
+  // 값-재유도 fail-fast 만 못박아 "구조 위반 시 build 위임이 아예 호출되지 않는(선행
+  // fail-fast) 선행성" 은 미검증이다. 구조 결손 입력 7분기 각각에서 두 build 위임 spy 가
+  // 모두 0-call 임을 못박아 "구조 검사 → 값 재유도" 순서를 silent 재정렬(리팩터가 build 를
+  // 구조 검사 위로 끌어올림)로부터 방어한다(T-1066 leg 1 / T-1067 leg 2 동형 defense-in-depth).
+  //
+  // 이 가드는 T-1067 과 달리 두 build 위임을 먼저 연달아 호출(L291~292)한 뒤 report →
+  // commandArgs 순으로 두 deep-equal 게이트를 평가한다(interleave 아님). 따라서 값 정합
+  // 위반(report/commandArgs drift → RangeError) 대조에서는 두 build 위임이 모두 이미 호출된
+  // 뒤 게이트가 throw 한다 — 구조 결손(TypeError, build 0-call) 과의 경계가 "build 호출 여부"
+  // 로 선명하다.
+  describe("T-1068 — 구조-검사 선행성 order-lock(구조 → 값 재유도 build 미도달)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    // 두 build 위임을 pass-through spy 로 감싼다(구조-선행성 계측 공용 — mock 미설치 시
+    // 실 구현 통과).
+    function spyOnBuilders(): {
+      reportSpy: jest.SpyInstance;
+      commandArgsSpy: jest.SpyInstance;
+    } {
+      return {
+        reportSpy: jest.spyOn(
+          resultReportPlanModule,
+          "buildRealDataResultReportPlan",
+        ),
+        commandArgsSpy: jest.spyOn(
+          resultIssueCommandArgsModule,
+          "buildRealDataResultIssueCommandArgs",
+        ),
+      };
+    }
+
+    // 구조 게이트 전량 통과하는 최소 정합 plan — results/run 결손 분기 격리에 사용.
+    const structurallyValidPlan = (): RealDataResultIssueCommandPlan =>
+      ({
+        report: {},
+        commandArgs: {
+          searchQuery: "",
+          createArgs: { title: "", body: "", labels: [] },
+          updateArgs: { title: "", body: "" },
+        },
+      }) as unknown as RealDataResultIssueCommandPlan;
+
+    it("(happy) 정합 입력 → 구조 검사 통과 후 값 재유도 도달(두 build 위임 각 1회 · report-plan → command-args 순서)", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      // plan 은 spy 설치 前 합성(buildConsistent 내부도 두 builder 호출 — 격리 계측).
+      const plan = buildConsistent(results, run);
+      const { reportSpy, commandArgsSpy } = spyOnBuilders();
+
+      assertRealDataResultIssueCommandPlanConsistentWithInputs(
+        plan,
+        results,
+        run,
+      );
+
+      // 구조 검사 통과 → 값 재유도 도달(각 위임 정확히 1회 · report-plan 먼저).
+      expect(reportSpy).toHaveBeenCalledTimes(1);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(1);
+      expect(reportSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        commandArgsSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("(구조 결손 분기 1/7: plan 비-객체) plan=null/undefined/array/primitive → TypeError + 두 build 위임 0회", () => {
+      const { reportSpy, commandArgsSpy } = spyOnBuilders();
+      for (const badPlan of [null, undefined, [], "not-a-plan", 7]) {
+        expect(() =>
+          assertRealDataResultIssueCommandPlanConsistentWithInputs(
+            badPlan as unknown as RealDataResultIssueCommandPlan,
+            [makeResult()],
+            makeRun(),
+          ),
+        ).toThrow(TypeError);
+      }
+      // assertPlanStructure 가 값 재유도보다 먼저 fail-fast → build 미도달.
+      expect(reportSpy).toHaveBeenCalledTimes(0);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 2/7: plan.report 비-객체) report=null/undefined/array/primitive → TypeError + build 0회", () => {
+      const { reportSpy, commandArgsSpy } = spyOnBuilders();
+      // commandArgs 는 객체(정합)로 두고 report 만 비-객체 — report 게이트 격리.
+      for (const badReport of [null, undefined, [], "x", 3]) {
+        const plan = {
+          report: badReport,
+          commandArgs: {
+            searchQuery: "",
+            createArgs: { title: "", body: "", labels: [] },
+            updateArgs: { title: "", body: "" },
+          },
+        } as unknown as RealDataResultIssueCommandPlan;
+        expect(() =>
+          assertRealDataResultIssueCommandPlanConsistentWithInputs(
+            plan,
+            [makeResult()],
+            makeRun(),
+          ),
+        ).toThrow(/plan\.report 가 객체가 아니다/);
+      }
+      expect(reportSpy).toHaveBeenCalledTimes(0);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 3/7: plan.commandArgs 비-객체) commandArgs=null/undefined/array/primitive → TypeError + build 0회", () => {
+      const { reportSpy, commandArgsSpy } = spyOnBuilders();
+      // report 는 객체(정합)로 두고 commandArgs 만 비-객체 — commandArgs 게이트 격리.
+      for (const badCommandArgs of [null, undefined, [], "x", 3]) {
+        const plan = {
+          report: {},
+          commandArgs: badCommandArgs,
+        } as unknown as RealDataResultIssueCommandPlan;
+        expect(() =>
+          assertRealDataResultIssueCommandPlanConsistentWithInputs(
+            plan,
+            [makeResult()],
+            makeRun(),
+          ),
+        ).toThrow(/plan\.commandArgs 가 객체가 아니다/);
+      }
+      expect(reportSpy).toHaveBeenCalledTimes(0);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 4/7: plan.commandArgs.createArgs 비-객체) createArgs=null/undefined/array/primitive → TypeError + build 0회", () => {
+      const { reportSpy, commandArgsSpy } = spyOnBuilders();
+      // updateArgs 는 객체(정합)로 두고 createArgs 만 비-객체 — createArgs 게이트 격리.
+      for (const badCreateArgs of [null, undefined, [], "x", 3]) {
+        const plan = {
+          report: {},
+          commandArgs: {
+            searchQuery: "",
+            createArgs: badCreateArgs,
+            updateArgs: { title: "", body: "" },
+          },
+        } as unknown as RealDataResultIssueCommandPlan;
+        expect(() =>
+          assertRealDataResultIssueCommandPlanConsistentWithInputs(
+            plan,
+            [makeResult()],
+            makeRun(),
+          ),
+        ).toThrow(/plan\.commandArgs\.createArgs 가 객체가 아니다/);
+      }
+      expect(reportSpy).toHaveBeenCalledTimes(0);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 5/7: plan.commandArgs.updateArgs 비-객체) updateArgs=null/undefined/array/primitive → TypeError + build 0회", () => {
+      const { reportSpy, commandArgsSpy } = spyOnBuilders();
+      // createArgs 는 객체(정합)로 두고 updateArgs 만 비-객체 — updateArgs 게이트 격리.
+      for (const badUpdateArgs of [null, undefined, [], "x", 3]) {
+        const plan = {
+          report: {},
+          commandArgs: {
+            searchQuery: "",
+            createArgs: { title: "", body: "", labels: [] },
+            updateArgs: badUpdateArgs,
+          },
+        } as unknown as RealDataResultIssueCommandPlan;
+        expect(() =>
+          assertRealDataResultIssueCommandPlanConsistentWithInputs(
+            plan,
+            [makeResult()],
+            makeRun(),
+          ),
+        ).toThrow(/plan\.commandArgs\.updateArgs 가 객체가 아니다/);
+      }
+      expect(reportSpy).toHaveBeenCalledTimes(0);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 6/7: results 비-배열) results=null/undefined/object/primitive → TypeError + build 0회", () => {
+      const { reportSpy, commandArgsSpy } = spyOnBuilders();
+      // plan 은 구조 정합으로 두고 results 만 비-배열 — assertResultsStructure 격리.
+      const plan = structurallyValidPlan();
+      for (const badResults of [null, undefined, {}, "x", 3]) {
+        expect(() =>
+          assertRealDataResultIssueCommandPlanConsistentWithInputs(
+            plan,
+            badResults as unknown as EvaluationResult[],
+            makeRun(),
+          ),
+        ).toThrow(/results 가 배열이 아니다/);
+      }
+      expect(reportSpy).toHaveBeenCalledTimes(0);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 7/7: run 비-객체) run=null/undefined/array/primitive → TypeError + build 0회", () => {
+      const { reportSpy, commandArgsSpy } = spyOnBuilders();
+      // plan 구조 정합 · results 배열(정합) · run 만 비-객체 — assertRunStructure 격리
+      // (results 검사 다음 마지막 구조 게이트).
+      const plan = structurallyValidPlan();
+      for (const badRun of [null, undefined, [], "x", 3]) {
+        expect(() =>
+          assertRealDataResultIssueCommandPlanConsistentWithInputs(
+            plan,
+            [],
+            badRun as unknown as RealDataResultIssueRunRef,
+          ),
+        ).toThrow(/run 이 객체가 아니다/);
+      }
+      expect(reportSpy).toHaveBeenCalledTimes(0);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(대조 a) 값 정합 위반(report drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(각 1+ call)", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      const correct = buildConsistent(results, run);
+      const { reportSpy, commandArgsSpy } = spyOnBuilders();
+      // 구조는 온전 — report summary 값만 drift 시켜 RangeError.
+      const plan: RealDataResultIssueCommandPlan = {
+        report: {
+          ...correct.report,
+          summary: { ...correct.report.summary, count: 999 },
+        },
+        commandArgs: correct.commandArgs,
+      };
+
+      expect(() =>
+        assertRealDataResultIssueCommandPlanConsistentWithInputs(
+          plan,
+          results,
+          run,
+        ),
+      ).toThrow(RangeError);
+
+      // 구조 통과 → 두 build 위임(L291~292) 모두 이미 호출된 뒤 report 게이트에서 throw —
+      // 구조(TypeError, build 0-call) 와 대비되는 경계.
+      expect(reportSpy).toHaveBeenCalled();
+      expect(commandArgsSpy).toHaveBeenCalled();
+    });
+
+    it("(대조 b) 값 정합 위반(commandArgs drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(각 1+ call)", () => {
+      const results = [makeResult()];
+      const run = makeRun();
+      const correct = buildConsistent(results, run);
+      const { reportSpy, commandArgsSpy } = spyOnBuilders();
+      // report 는 정합(게이트 통과) · commandArgs.searchQuery 만 drift → commandArgs 게이트 throw.
+      const plan: RealDataResultIssueCommandPlan = {
+        report: correct.report,
+        commandArgs: {
+          ...correct.commandArgs,
+          searchQuery: "<!-- 잘못된 검색 토큰 -->",
+        },
+      };
+
+      expect(() =>
+        assertRealDataResultIssueCommandPlanConsistentWithInputs(
+          plan,
+          results,
+          run,
+        ),
+      ).toThrow(RangeError);
+
+      // report 게이트 통과 후 commandArgs 게이트에서 throw — 두 build 위임 모두 호출됨.
+      expect(reportSpy).toHaveBeenCalled();
+      expect(commandArgsSpy).toHaveBeenCalled();
+    });
+  });
 });
