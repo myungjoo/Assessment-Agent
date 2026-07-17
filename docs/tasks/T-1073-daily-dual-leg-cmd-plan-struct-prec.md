@@ -2,7 +2,12 @@
 id: T-1073
 title: realdata-e2e daily-step-dual-leg run-report-issue-command-plan consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError) 분기가 값 재유도(descriptor → command-args 2 위임)보다 먼저 수행됨을 재유도-delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 8, T-1072 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-17T09:01:18Z
+prNumber: 966
+mergedAs: 1b91cae9
+reviewRounds: 1
+result: "DONE — PR #966 round1 APPROVE 4-게이트 PASS squash 1b91cae9. 신규 describe 구조-검사 선행성 order-lock(happy 1 + 구조 결손 8분기 각 2 delegate 0-call spy + RangeError 대조 2). test-only 1파일 +240/-0, 404 suites/11175 green, cov line 99.95/func 100 무회귀, zerocall grep 1→18."
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 130
