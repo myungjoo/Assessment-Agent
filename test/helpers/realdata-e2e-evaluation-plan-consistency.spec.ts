@@ -514,6 +514,44 @@ describe("assertRealDataEvaluationPlanConsistentWithSources", () => {
       expect(inputsSpy.mock.invocationCallOrder[0]).toBeLessThan(
         callArgsSpy.mock.invocationCallOrder[0],
       );
+
+      // T-1099 — 인자-충실도(argument fidelity) lock(§D 후보 2 leg2). 위 횟수·순서
+      // lock 에 더해, 각 위임이 정확히 어떤 payload 로 호출됐는지를 canonical matcher
+      // 로 못박는다. inputs 위임은 가드의 정확한 activities 입력 배열로, callArgs 위임은
+      // (산출 inputs + 가드의 modelId) 로 호출됨을 recursive-equality 로 lock. 가드가
+      // inputs 산출을 그대로 callArgs 첫 인자로 threading 함을 참조-충실도까지 포함해
+      // producedInputs 를 spy 반환값으로 캡처한다. 재유도 경로는 단일 분기(happy-path)
+      // 조립이라 분기 없음 → flow/branch 항목 생략.
+      const producedInputs = inputsSpy.mock.results[0].value;
+      expect(inputsSpy).toHaveBeenCalledWith(activities);
+      expect(callArgsSpy).toHaveBeenCalledWith(producedInputs, MODEL_ID);
+
+      // negative(인자-충실도 축 a) — payload drift 대조. toHaveBeenCalledWith 가 인자
+      // payload 변조를 실제로 잡음을 노출한다. externalId 를 변조한 activities 사본·빈
+      // 배열로는 inputs 매칭 안 됨, 잘못된 modelId 로는 callArgs 매칭 안 됨(값-drift
+      // RangeError 대조 describe 와 별개의 인자-축 negative). 매칭됐다면 matcher 가
+      // payload 를 검사하지 않는다는 뜻이므로 fail.
+      const driftedActivities = [
+        { ...activities[0], externalId: "drifted-id" },
+        ...activities.slice(1),
+      ];
+      expect(inputsSpy).not.toHaveBeenCalledWith(driftedActivities);
+      expect(inputsSpy).not.toHaveBeenCalledWith([]);
+      expect(callArgsSpy).not.toHaveBeenCalledWith(
+        producedInputs,
+        "wrong-model-id",
+      );
+
+      // negative(인자-충실도 축 b) — 인자 개수/여분 인자. inputs 는 정확히 1 인자,
+      // callArgs 는 정확히 2 인자로 호출됨(여분 인자 0). 셋째 인자를 요구하는 매칭은
+      // 실패해야 한다.
+      expect(inputsSpy.mock.calls[0]).toHaveLength(1);
+      expect(callArgsSpy.mock.calls[0]).toHaveLength(2);
+      expect(callArgsSpy).not.toHaveBeenCalledWith(
+        producedInputs,
+        MODEL_ID,
+        expect.anything(),
+      );
     });
 
     it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/activities mutate 0", () => {
