@@ -1129,7 +1129,7 @@ describe("assertRealDataResultIssueCommandPlanConsistentWithInputs", () => {
       expect(commandArgsSpy).toHaveBeenCalledTimes(0);
     });
 
-    it("(대조 a) 값 정합 위반(report drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(각 1+ call)", () => {
+    it("(대조 a) 값 정합 위반(report drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(각 exact 1 call)", () => {
       const results = [makeResult()];
       const run = makeRun();
       const correct = buildConsistent(results, run);
@@ -1153,11 +1153,13 @@ describe("assertRealDataResultIssueCommandPlanConsistentWithInputs", () => {
 
       // 구조 통과 → 두 build 위임(L291~292) 모두 이미 호출된 뒤 report 게이트에서 throw —
       // 구조(TypeError, build 0-call) 와 대비되는 경계.
-      expect(reportSpy).toHaveBeenCalled();
-      expect(commandArgsSpy).toHaveBeenCalled();
+      // 가드 1-invoke × 각 delegate 무조건 1-재유도 = exact 1 — loose(≥1) 가 아닌 정확 횟수로
+      // 못박아 값 대조 과정에서 동일 delegate 를 중복 재유도(build ≥ 2회/invoke)하는 회귀를 차단.
+      expect(reportSpy).toHaveBeenCalledTimes(1);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(1);
     });
 
-    it("(대조 b) 값 정합 위반(commandArgs drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(각 1+ call)", () => {
+    it("(대조 b) 값 정합 위반(commandArgs drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(각 exact 1 call)", () => {
       const results = [makeResult()];
       const run = makeRun();
       const correct = buildConsistent(results, run);
@@ -1180,8 +1182,10 @@ describe("assertRealDataResultIssueCommandPlanConsistentWithInputs", () => {
       ).toThrow(RangeError);
 
       // report 게이트 통과 후 commandArgs 게이트에서 throw — 두 build 위임 모두 호출됨.
-      expect(reportSpy).toHaveBeenCalled();
-      expect(commandArgsSpy).toHaveBeenCalled();
+      // 가드 1-invoke × 각 delegate 무조건 1-재유도 = exact 1 — 정확 횟수로 못박아
+      // 중복 재유도(delegate ≥ 2회/invoke) 회귀 시 fail 하도록 한다.
+      expect(reportSpy).toHaveBeenCalledTimes(1);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(1);
     });
   });
 });
