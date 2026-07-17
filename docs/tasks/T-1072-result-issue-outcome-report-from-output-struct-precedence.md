@@ -2,7 +2,9 @@
 id: T-1072
 title: realdata-e2e result-issue-outcome-report-from-output consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError) 분기가 값 재유도(parse → buildOutcomeReport 2 위임)보다 먼저 수행됨을 재유도-delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 7, T-1071 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-17T08:09:00Z
+result: "PR #965 merged (squash 27432b4b). test-only 1파일 +232/-0, 구조 결손 분기별 2 재유도 delegate 0-call spy + happy-path parse<buildOutcomeReport ico + RangeError 값-경계 대조. 404 suites/11164 tests green, coverage 무회귀. reviewer round1 APPROVE 4-게이트 PASS."
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 130
