@@ -2,7 +2,11 @@
 id: T-1062
 title: result-issue-outcome-report-from-output consistency-guard(assertRealDataResultIssueOutcomeReportConsistentWithOutput)의 2 distinct builder 데이터-의존 재유도 순서(parse → buildOutcomeReport) invocationCallOrder 순서-lock + reference-페어링 test 로 못박기 (consistency-guard 재유도 delegate 순서-lock leg 9)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-17T02:20:00Z
+mergedAs: cb182a5e
+prNumber: 956
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 115
