@@ -2,7 +2,11 @@
 id: T-1086
 title: realdata-e2e daily-step-dual-leg-run-report-issue-descriptor-body consistency-guard 구조-검사 선행성 order-lock (clean leg — 신규 namespace import + spyOn 인프라, 상위 구조·비식별 식별자 error-path 에 delegate 0-call 보강) — descriptor 구조 결손(TypeError) 및 report 식별자 빈-공백(Error)이 body 마크다운 재유도 위임(renderRealDataDailyStepDualLegRunReportMarkdown)보다 먼저 수행됨을 delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 21, T-1085 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 979
+mergedAs: fc6d6b53
+reviewRounds: 1
+completedAt: 2026-07-17T16:20:41Z
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 185
