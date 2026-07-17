@@ -30,6 +30,10 @@ import {
   type RealDataDailyStepDualLegRunReportIssueDescriptor,
 } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor";
 import { assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-descriptor-body-consistency";
+// 선행성(구조·비식별 검사 → body 마크다운 재유도) 방어를 delegate 0-call spy 로 못박기 위한
+// namespace import 신설(clean-leg — 기존 spec 은 delegate 를 value import 조차 안 함). 가드가
+// named import 로 호출해도 동일 모듈 객체를 가리켜 spy 에 잡힌다(T-1082/T-1083/T-1085 동형).
+import * as dailyStepMarkdownModule from "./realdata-e2e-daily-step-dual-leg-run-report-markdown";
 
 // fixture 빌더 — run 식별자·per-leg {action,status}·overallStatus 를 명시적으로 받아
 // 결정론적 report descriptor 를 생성. summaryLine 은 컴포저(T-0894)와 동형으로 합성.
@@ -514,6 +518,245 @@ describe("assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent (
       expect(descriptor.body).not.toMatch(/Bearer\s/i);
       expect(descriptor.body).not.toMatch(/authorization/i);
       expect(descriptor.body).not.toMatch(/password/i);
+    });
+  });
+
+  // T-1086 — 구조-guard 선행성 order-lock(defense-in-depth, sweep leg 21). 가드 본문은 상위
+  // 구조 assert(assertDescriptorStructure L146, descriptor null/비-object·marker/body 비-string
+  // → TypeError)와 비식별 식별자 guard(assertNonBlank gitSha L151 / dateToken L152, 빈/공백-only
+  // → producer 동형 Error) **둘 다를** body 마크다운 재유도 위임(renderRealDataDailyStepDualLeg
+  // RunReportMarkdown(report) L157)보다 **먼저** 수행한다. 재유도-앞 error(구조 TypeError 5 분기
+  // + 비식별 Error 4 분기)를 주면 delegate 가 toHaveBeenCalledTimes(0) 이어야 한다는 선행성을
+  // spy 로 못박아 "구조·비식별 검사 → body 재유도" 순서를 silent 재정렬로부터 방어한다. 값 정합
+  // 위반 RangeError(불변식 (1)~(4))는 재유도 **뒤**에 오므로 delegate 1-call — 값-boundary 대조에
+  // 사용한다(0-call 범위 밖). 신규 namespace import + spyOn 인프라 신설 clean-leg.
+  describe("구조·비식별 검사 선행성 — 재유도-앞 error → delegate 0-call (T-1086)", () => {
+    // 본 블록 전용 spy 격리 — 신규 spyOn 이 기존 블록(실 delegate 를 byte-identical 대조·
+    // 결정성 검증에 사용)으로 leak 되지 않도록 매 test 후 복원한다.
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    // 구조상 온전한 더미 descriptor(모든 슬롯 string) — 비식별 식별자 branch 에서 구조 검사를
+    // 통과시킨 뒤 재유도 이전에 report guard 가 throw 함을 확인하는 데 쓴다.
+    function structurallyValidDummy(): RealDataDailyStepDualLegRunReportIssueDescriptor {
+      return { title: "x", marker: "y", body: "z" };
+    }
+
+    it("happy-path(선행성 정상 흐름) — 구조·비식별 통과 후 delegate 가 정확히 report 인자로 1회 호출", () => {
+      const report = makeReport();
+      // fixture 합성(producer 내부에서 delegate 를 호출)을 spyOn **이전**에 수행해 합성 call 이
+      // spy count 에 포함되지 않게 한 뒤 spy 를 걸고 가드를 호출 → delegate 정확히 1회 확인.
+      const descriptor = makeDescriptor(report);
+      const spy = jest.spyOn(
+        dailyStepMarkdownModule,
+        "renderRealDataDailyStepDualLegRunReportMarkdown",
+      );
+      const result =
+        assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+          descriptor,
+          report,
+        );
+      expect(result).toBeUndefined();
+      // spy 는 실 구현 call-through(mockImplementation 미지정) — byte-identical 대조가 통과한다.
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(report);
+    });
+
+    describe("descriptor 구조 결손(TypeError) → delegate 0-call", () => {
+      it("descriptor null → throw + delegate 0-call", () => {
+        const report = makeReport();
+        const spy = jest.spyOn(
+          dailyStepMarkdownModule,
+          "renderRealDataDailyStepDualLegRunReportMarkdown",
+        );
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+            null as unknown as RealDataDailyStepDualLegRunReportIssueDescriptor,
+            report,
+          ),
+        ).toThrow(TypeError);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("descriptor 비-object(문자열) → throw + delegate 0-call", () => {
+        const report = makeReport();
+        const spy = jest.spyOn(
+          dailyStepMarkdownModule,
+          "renderRealDataDailyStepDualLegRunReportMarkdown",
+        );
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+            "not-an-object" as unknown as RealDataDailyStepDualLegRunReportIssueDescriptor,
+            report,
+          ),
+        ).toThrow(/descriptor 가 객체가 아니다/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("descriptor.marker 비-string(숫자) → throw + delegate 0-call", () => {
+        const report = makeReport();
+        const descriptor = {
+          ...makeDescriptor(report),
+          marker: 42 as unknown as string,
+        };
+        const spy = jest.spyOn(
+          dailyStepMarkdownModule,
+          "renderRealDataDailyStepDualLegRunReportMarkdown",
+        );
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+            descriptor,
+            report,
+          ),
+        ).toThrow(/descriptor\.marker 가 string 이 아니다/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("descriptor.body null → throw + delegate 0-call", () => {
+        const report = makeReport();
+        const descriptor = {
+          ...makeDescriptor(report),
+          body: null as unknown as string,
+        };
+        const spy = jest.spyOn(
+          dailyStepMarkdownModule,
+          "renderRealDataDailyStepDualLegRunReportMarkdown",
+        );
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+            descriptor,
+            report,
+          ),
+        ).toThrow(/descriptor\.body 가 string 이 아니다/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("descriptor.body 비-string(숫자) → throw + delegate 0-call", () => {
+        const report = makeReport();
+        const descriptor = {
+          ...makeDescriptor(report),
+          body: 7 as unknown as string,
+        };
+        const spy = jest.spyOn(
+          dailyStepMarkdownModule,
+          "renderRealDataDailyStepDualLegRunReportMarkdown",
+        );
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+            descriptor,
+            report,
+          ),
+        ).toThrow(/descriptor\.body 가 string 이 아니다/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("비식별 식별자(producer 동형 Error) → delegate 0-call", () => {
+      it("report.gitSha 빈 문자열 → throw + delegate 0-call", () => {
+        const report = makeReport({ gitSha: "" });
+        const spy = jest.spyOn(
+          dailyStepMarkdownModule,
+          "renderRealDataDailyStepDualLegRunReportMarkdown",
+        );
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+            structurallyValidDummy(),
+            report,
+          ),
+        ).toThrow(/gitSha/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("report.gitSha 공백-only → throw + delegate 0-call", () => {
+        const report = makeReport({ gitSha: "   " });
+        const spy = jest.spyOn(
+          dailyStepMarkdownModule,
+          "renderRealDataDailyStepDualLegRunReportMarkdown",
+        );
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+            structurallyValidDummy(),
+            report,
+          ),
+        ).toThrow(/gitSha/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("report.dateToken 빈 문자열 → throw + delegate 0-call", () => {
+        const report = makeReport({ dateToken: "" });
+        const spy = jest.spyOn(
+          dailyStepMarkdownModule,
+          "renderRealDataDailyStepDualLegRunReportMarkdown",
+        );
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+            structurallyValidDummy(),
+            report,
+          ),
+        ).toThrow(/dateToken/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("report.dateToken 공백-only → throw + delegate 0-call", () => {
+        const report = makeReport({ dateToken: "\t \n" });
+        const spy = jest.spyOn(
+          dailyStepMarkdownModule,
+          "renderRealDataDailyStepDualLegRunReportMarkdown",
+        );
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+            structurallyValidDummy(),
+            report,
+          ),
+        ).toThrow(/dateToken/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("경계 대조 — 재유도-후 값 위반(RangeError)은 delegate 1-call(0-call 범위 밖)", () => {
+      it("body 마크다운 블록 값 변조(불변식 (4)) → RangeError + delegate 정확히 1회", () => {
+        // 구조·비식별 검사를 통과(정합 report + 구조 온전 descriptor)하므로 delegate 가 호출된
+        // 뒤 byte-identical 대조에서 RangeError — 재유도-앞 0-call 과 대비되는 값-boundary.
+        const report = makeReport();
+        const base = makeDescriptor(report);
+        const descriptor = {
+          ...base,
+          body: base.body.replace("- git sha: abc1234", "- git sha: deadbee"),
+        };
+        const spy = jest.spyOn(
+          dailyStepMarkdownModule,
+          "renderRealDataDailyStepDualLegRunReportMarkdown",
+        );
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+            descriptor,
+            report,
+          ),
+        ).toThrow(RangeError);
+        expect(spy).toHaveBeenCalledTimes(1);
+      });
+
+      it("body 라인 수 3 미달(불변식 (1)) → RangeError + delegate 정확히 1회", () => {
+        // 최소-라인 불변식도 재유도 뒤(expectedMarkdown 산출 후 bodyLines.length 검사)에 발생 —
+        // 재유도-앞 error 와 달리 delegate 를 수반함을 못박아 선행성 경계를 명확히 한다.
+        const report = makeReport();
+        const descriptor = {
+          ...makeDescriptor(report),
+          body: "single-line-body",
+        };
+        const spy = jest.spyOn(
+          dailyStepMarkdownModule,
+          "renderRealDataDailyStepDualLegRunReportMarkdown",
+        );
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueDescriptorBodyConsistent(
+            descriptor,
+            report,
+          ),
+        ).toThrow(/최소 3 라인/);
+        expect(spy).toHaveBeenCalledTimes(1);
+      });
     });
   });
 });
