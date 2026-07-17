@@ -30,6 +30,12 @@ import {
 import { assertRealDataResultIssueDescriptorBodyConsistent } from "./realdata-e2e-result-issue-descriptor-body-consistency";
 import type { RealDataResultSummary } from "./realdata-e2e-result-summary";
 import { formatRealDataResultSummaryLine } from "./realdata-e2e-result-summary-line";
+// namespace import 신설(T-1085) — 재유도 delegate 2개에 jest.spyOn 을 걸기 위한 모듈
+// 객체 참조. 기존 named import(formatRealDataResultSummaryLine / renderRealData
+// ResultSummaryMarkdown)는 expected-value 계산용으로 유지하되, spy 는 namespace 멤버
+// 를 target 으로 건다(named import 와 동일 모듈 객체를 가리켜 가드 호출이 spy 에 잡힘).
+import * as summaryLineModule from "./realdata-e2e-result-summary-line";
+import * as summaryMarkdownModule from "./realdata-e2e-result-summary-markdown";
 import { renderRealDataResultSummaryMarkdown } from "./realdata-e2e-result-summary-markdown";
 
 // fixture 빌더 — 슬롯별 카운트를 명시적으로 받아 결정론적 summary descriptor 를
@@ -447,5 +453,181 @@ describe("assertRealDataResultIssueDescriptorBodyConsistent", () => {
     expect(() =>
       assertRealDataResultIssueDescriptorBodyConsistent(descriptor, summary),
     ).not.toThrow();
+  });
+
+  // T-1085 — 구조-검사 선행성 order-lock. 가드는 2 상위 구조 assert(assertDescriptor
+  // Structure L136 / assertSummaryStructure L137)를 body 재유도 위임 2개(format
+  // RealDataResultSummaryLine L142 / renderRealDataResultSummaryMarkdown L143)보다 먼저
+  // 수행한다. 기존 상위 구조 error-path it 6건은 .toThrow(TypeError) 만 assert 하고
+  // delegate 호출 횟수를 못박지 않았다(clean-leg). 본 블록이 상위 구조 결손 6 분기에서
+  // delegate 2개 각각 toHaveBeenCalledTimes(0)(선행 차단)을, 정합 경로에서 각각 1-call
+  // 을, 재유도-후 RangeError 경계에서 각각 1-call 을 못박아 "구조 검사 → body 재유도"
+  // 순서를 silent 재정렬로부터 방어한다(T-1066~T-1084 defense-in-depth clean-leg mirror,
+  // delegate 2개).
+  describe("구조-검사 선행성 order-lock(구조 결손 → 재유도 delegate 2개 0-call)", () => {
+    afterEach(() => {
+      // 신규 spyOn 격리 — 기존 블록(실 delegate 를 fixture 합성·byte-identical 대조·
+      // 결정성 등에 사용)으로 mock 이 누수되지 않도록 매 test 후 복원.
+      jest.restoreAllMocks();
+    });
+
+    // 상위 구조 결손 6 분기 fixture. 결손 아닌 인자는 정합(makeHappyFixture 산출)으로 두어
+    // 결손 인자에서 fail-fast 됨을 격리 확인한다. makeHappyFixture 는 내부에서 delegate 를
+    // 호출해 정합 descriptor 를 합성하므로 반드시 spyOn **전**에 호출(계측 오염 차단).
+    const STRUCTURE_DEFICIENT_CASES: Array<{
+      label: string;
+      makeDescriptorArg: (
+        base: RealDataResultIssueDescriptor,
+      ) => RealDataResultIssueDescriptor;
+      makeSummaryArg: (base: RealDataResultSummary) => RealDataResultSummary;
+      messagePattern: RegExp;
+    }> = [
+      {
+        label: "descriptor null",
+        makeDescriptorArg: () =>
+          null as unknown as RealDataResultIssueDescriptor,
+        makeSummaryArg: (base) => base,
+        messagePattern: /descriptor 가 null\/undefined/,
+      },
+      {
+        label: "descriptor undefined",
+        makeDescriptorArg: () =>
+          undefined as unknown as RealDataResultIssueDescriptor,
+        makeSummaryArg: (base) => base,
+        messagePattern: /descriptor 가 null\/undefined/,
+      },
+      {
+        label: "descriptor.body 비-string(숫자)",
+        makeDescriptorArg: (base) =>
+          ({
+            ...base,
+            body: 123,
+          }) as unknown as RealDataResultIssueDescriptor,
+        makeSummaryArg: (base) => base,
+        messagePattern: /descriptor\.body 가 문자열이 아니다/,
+      },
+      {
+        label: "descriptor.marker 비-string(null)",
+        makeDescriptorArg: (base) =>
+          ({
+            ...base,
+            marker: null,
+          }) as unknown as RealDataResultIssueDescriptor,
+        makeSummaryArg: (base) => base,
+        messagePattern: /descriptor\.marker 가 문자열이 아니다/,
+      },
+      {
+        label: "summary null",
+        makeDescriptorArg: (base) => base,
+        makeSummaryArg: () => null as unknown as RealDataResultSummary,
+        messagePattern: /summary 가 null\/undefined/,
+      },
+      {
+        label: "summary undefined",
+        makeDescriptorArg: (base) => base,
+        makeSummaryArg: () => undefined as unknown as RealDataResultSummary,
+        messagePattern: /summary 가 null\/undefined/,
+      },
+    ];
+
+    STRUCTURE_DEFICIENT_CASES.forEach(
+      ({ label, makeDescriptorArg, makeSummaryArg, messagePattern }) => {
+        it(`구조 결손[${label}] → TypeError + 재유도 delegate 2개 0-call(선행 차단)`, () => {
+          // 정합 base fixture 를 spy 설치 前 합성 — makeHappyFixture 내부의 delegate
+          // 호출이 계측을 오염시키지 않도록 격리.
+          const { descriptor: base, summary: baseSummary } = makeHappyFixture();
+          const descriptor = makeDescriptorArg(base);
+          const summary = makeSummaryArg(baseSummary);
+          const lineSpy = jest.spyOn(
+            summaryLineModule,
+            "formatRealDataResultSummaryLine",
+          );
+          const markdownSpy = jest.spyOn(
+            summaryMarkdownModule,
+            "renderRealDataResultSummaryMarkdown",
+          );
+
+          // 상위 구조 결손이므로 TypeError(한국어 라벨) throw.
+          expect(() =>
+            assertRealDataResultIssueDescriptorBodyConsistent(
+              descriptor,
+              summary,
+            ),
+          ).toThrow(TypeError);
+          expect(() =>
+            assertRealDataResultIssueDescriptorBodyConsistent(
+              descriptor,
+              summary,
+            ),
+          ).toThrow(messagePattern);
+
+          // 핵심: 상위 구조 검사가 body 재유도보다 먼저 차단 → delegate 2개 미호출(0-call).
+          expect(lineSpy).toHaveBeenCalledTimes(0);
+          expect(markdownSpy).toHaveBeenCalledTimes(0);
+        });
+      },
+    );
+
+    it("구조 검사 통과(정합 descriptor/summary) → 재유도 delegate 2개 각 1회(summary 인자) 도달 후 void", () => {
+      // fixture 는 spy 설치 前 합성 — makeHappyFixture(buildRealDataResultIssueDescriptor)
+      // 내부도 delegate 를 호출하므로 spy 설치 후 만들면 호출 횟수가 오염된다. 가드 재유도
+      // 호출만 격리 계측한다.
+      const { descriptor, summary } = makeHappyFixture();
+      const lineSpy = jest.spyOn(
+        summaryLineModule,
+        "formatRealDataResultSummaryLine",
+      );
+      const markdownSpy = jest.spyOn(
+        summaryMarkdownModule,
+        "renderRealDataResultSummaryMarkdown",
+      );
+
+      const result = assertRealDataResultIssueDescriptorBodyConsistent(
+        descriptor,
+        summary,
+      );
+
+      // 2 상위 구조 assert 통과 → delegate 2개 각각 정확히 1회 도달(정확히 summary 인자로),
+      // 가드는 void. invocationCallOrder(>0)로 구조 검사 통과 뒤 호출됨을 못박는다.
+      expect(result).toBeUndefined();
+      expect(lineSpy).toHaveBeenCalledTimes(1);
+      expect(lineSpy).toHaveBeenCalledWith(summary);
+      expect(markdownSpy).toHaveBeenCalledTimes(1);
+      expect(markdownSpy).toHaveBeenCalledWith(summary);
+      expect(lineSpy.mock.invocationCallOrder[0]).toBeGreaterThan(0);
+      expect(markdownSpy.mock.invocationCallOrder[0]).toBeGreaterThan(0);
+    });
+
+    it("경계 대조(재유도-후 RangeError) — 한 줄 요약 라인 drift 는 구조 통과 후 delegate 2개 도달 뒤 발생(구조 0-call vs 값 1-call)", () => {
+      // 구조 온전(descriptor object·body/marker string·summary object) → 재유도 도달 →
+      // 불변식(4) 한 줄 요약 라인 drift 검출 RangeError. fixture 는 spy 설치 前 합성해
+      // 계측 오염 차단.
+      const { descriptor, summary } = makeHappyFixture();
+      const lines = descriptor.body.split("\n");
+      lines[2] = "실 평가 e2e 결과: drifted line";
+      const corrupted: RealDataResultIssueDescriptor = {
+        ...descriptor,
+        body: lines.join("\n"),
+      };
+      const lineSpy = jest.spyOn(
+        summaryLineModule,
+        "formatRealDataResultSummaryLine",
+      );
+      const markdownSpy = jest.spyOn(
+        summaryMarkdownModule,
+        "renderRealDataResultSummaryMarkdown",
+      );
+
+      expect(() =>
+        assertRealDataResultIssueDescriptorBodyConsistent(corrupted, summary),
+      ).toThrow(RangeError);
+
+      // 값 정합 위반은 구조 통과 뒤 재유도 delegate 도달 후 검출 → 구조(0-call)와 달리
+      // delegate 2개 모두 1-call(재유도가 값 비교 직전에 이미 수행됨).
+      expect(lineSpy).toHaveBeenCalledTimes(1);
+      expect(lineSpy).toHaveBeenCalledWith(summary);
+      expect(markdownSpy).toHaveBeenCalledTimes(1);
+      expect(markdownSpy).toHaveBeenCalledWith(summary);
+    });
   });
 });
