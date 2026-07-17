@@ -2,7 +2,7 @@
 id: T-1082
 title: realdata-e2e evaluation-step-args consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError)이 evaluation-plan 재유도 위임(buildRealDataEvaluationPlan)보다 먼저 수행됨을 delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 17, T-1081 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 170
