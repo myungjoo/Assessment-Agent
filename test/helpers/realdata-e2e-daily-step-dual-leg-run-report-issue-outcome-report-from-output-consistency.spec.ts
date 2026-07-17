@@ -18,9 +18,11 @@
 //     본문 저장 0.
 import { buildRealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
 import type { RealDataDailyStepDualLegRunReport } from "./realdata-e2e-daily-step-dual-leg-run-report";
+import * as outcomeReportModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report";
 import type { RealDataDailyStepDualLegRunReportIssueOutcomeReport } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report";
 import { buildRealDataDailyStepDualLegRunReportIssueOutcomeReportFromOutput } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report-from-output";
 import { assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput } from "./realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report-from-output-consistency";
+import * as outputParseModule from "./realdata-e2e-daily-step-dual-leg-run-report-issue-output-parse";
 
 // 정상 fixture — 유효 issue URL 1건을 담은 stdout + 정상 run 식별자로 빌드한 run report.
 const HAPPY_STDOUT = "https://github.com/octo/repo/issues/42\n";
@@ -46,6 +48,10 @@ function makeHappyOutcomeReport(): RealDataDailyStepDualLegRunReportIssueOutcome
 }
 
 describe("assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe("happy-path (정합 outcomeReport → void)", () => {
     it("컴포저 산출 outcomeReport 를 그대로 넘기면 throw 0(void)", () => {
       const outcomeReport = makeHappyOutcomeReport();
@@ -323,6 +329,152 @@ describe("assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWit
           makeHappyOutcomeReport(),
         ),
       ).toThrow(/dateToken 가 비어있습니다/);
+    });
+  });
+
+  // 현행 spec 은 구조·값 정합·재유도 chain throw 전파·결정성·비변형은 검증하나, guard 재유도
+  // 본문의 두 distinct builder(`parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput`
+  // → 그 산출 outcome 으로 `buildRealDataDailyStepDualLegRunReportIssueOutcomeReport`)의 상대
+  // 호출 순서 + 데이터-의존 방향(builder ②가 builder ① 산출 outcome 을 첫 인자로 소비)은
+  // invocationCallOrder 부등식으로 못박지 않았다(grep 0). guard 본문 L190~193 은
+  // buildOutcomeReport 재유도가 앞 parse 재유도 산출(outcome)을 첫 인자로 소비하는 데이터-의존
+  // chain 이라 parse 가 반드시 먼저 평가돼야 한다. T-1058/T-1059(daily-leg command-plan /
+  // publish-plan 2-builder 순서-lock)를 daily-leg sibling consistency-guard leg 8 로 mirror 해
+  // 그 gap 을 봉한다.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: 정합 outcomeReport 를 spy 설치 前 미리 만든 뒤(makeHappyOutcomeReport
+  //     내부 컴포저도 두 builder 를 호출하므로 spy 설치 後 만들면 호출 횟수가 오염된다 — guard
+  //     재유도만 격리 계측) 두 builder 위임을 실 구현 pass-through spy 로 감싸고 guard 재유도
+  //     1회 트리거 → parse 첫 호출이 buildOutcomeReport 첫 호출보다 먼저(invocationCallOrder
+  //     toBeLessThan) + 각 정확히 1회 + buildOutcomeReport 첫 인자 === parse 위임 반환 outcome
+  //     (데이터-의존 reference 페어링).
+  //   - branch/무공유 재확인: pass-through spy 하에서도 guard 가 정상 void 반환 + 입력
+  //     stdout/report/outcomeReport mutate 0(read-only guard).
+  //   - error/negative(a fail-fast): parse 위임 강제 throw → buildOutcomeReport 위임 미도달
+  //     (0회) — parse-먼저 순서 + builder ②가 builder ① 산출 소비로 도달 불가를 fail-fast 로
+  //     못박음.
+  //   - error/negative(b 후속-위임 throw 전파): buildOutcomeReport 위임 강제 throw → guard 가
+  //     그 에러를 전파, 이때 parse 위임은 이미 호출됨(순서 상 parse 가 buildOutcomeReport 보다
+  //     먼저 평가됨을 negative 경로에서도 재확인).
+  describe("T-1061 — 재유도 위임 순서-lock(parse → buildOutcomeReport)", () => {
+    it("정합 재유도 시 parse 위임이 buildOutcomeReport 위임보다 먼저 호출된다(invocationCallOrder 부등식·데이터-의존 reference·각 1회)", () => {
+      // outcomeReport 는 spy 설치 前 합성 — makeHappyOutcomeReport 내부 컴포저도 두 builder 를
+      // 호출하므로 spy 설치 後 만들면 호출 횟수가 오염된다. guard 재유도 호출만 격리 계측한다.
+      const outcomeReport = makeHappyOutcomeReport();
+      const parseSpy = jest.spyOn(
+        outputParseModule,
+        "parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput",
+      );
+      const buildOutcomeSpy = jest.spyOn(
+        outcomeReportModule,
+        "buildRealDataDailyStepDualLegRunReportIssueOutcomeReport",
+      );
+
+      assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput(
+        HAPPY_STDOUT,
+        HAPPY_REPORT,
+        outcomeReport,
+      );
+
+      // guard 재유도 지점 각 1개 → 각 위임 정확히 1회.
+      expect(parseSpy).toHaveBeenCalledTimes(1);
+      expect(buildOutcomeSpy).toHaveBeenCalledTimes(1);
+      // 순서: parse 위임(첫 호출)이 buildOutcomeReport 위임(첫 호출)보다 먼저 호출된다.
+      expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        buildOutcomeSpy.mock.invocationCallOrder[0],
+      );
+      // 데이터-의존: buildOutcomeReport 위임 첫 인자 = parse 위임 반환 outcome(reference 동일)
+      // — builder ②가 builder ① 산출 outcome 을 소비하는 chain 방향 lock.
+      const producedOutcome = parseSpy.mock.results[0].value;
+      expect(buildOutcomeSpy.mock.calls[0][0]).toBe(producedOutcome);
+    });
+
+    it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + stdout/report/outcomeReport mutate 0", () => {
+      const outcomeReport = makeHappyOutcomeReport();
+      const reportSnapshot = JSON.parse(JSON.stringify(HAPPY_REPORT));
+      const outcomeReportSnapshot = JSON.parse(JSON.stringify(outcomeReport));
+      jest.spyOn(
+        outputParseModule,
+        "parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput",
+      );
+      jest.spyOn(
+        outcomeReportModule,
+        "buildRealDataDailyStepDualLegRunReportIssueOutcomeReport",
+      );
+
+      // 정합 경로 → 정상 void(throw 0).
+      expect(
+        assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput(
+          HAPPY_STDOUT,
+          HAPPY_REPORT,
+          outcomeReport,
+        ),
+      ).toBeUndefined();
+      // read-only guard — 입력 mutate 0.
+      expect(HAPPY_REPORT).toEqual(reportSnapshot);
+      expect(outcomeReport).toEqual(outcomeReportSnapshot);
+    });
+
+    it("(a fail-fast) parse 위임이 throw 하면 buildOutcomeReport 위임에 도달하지 못한다(buildOutcomeReport 0회)", () => {
+      const outcomeReport = makeHappyOutcomeReport();
+      jest
+        .spyOn(
+          outputParseModule,
+          "parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput",
+        )
+        .mockImplementation(() => {
+          throw new Error("parse-boom");
+        });
+      const buildOutcomeSpy = jest.spyOn(
+        outcomeReportModule,
+        "buildRealDataDailyStepDualLegRunReportIssueOutcomeReport",
+      );
+
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput(
+          HAPPY_STDOUT,
+          HAPPY_REPORT,
+          outcomeReport,
+        ),
+      ).toThrow(/parse-boom/);
+
+      // parse-먼저 순서 + builder ②가 builder ① 산출 outcome 을 소비하므로 parse throw 가
+      // buildOutcomeReport 도달 전에 선전파 → buildOutcomeReport 미호출.
+      expect(buildOutcomeSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(b 후속-위임 throw 전파) buildOutcomeReport 위임이 throw 하면 guard 가 전파, 이때 parse 위임은 이미 호출됨(1회·parse → buildOutcomeReport 순서 재확인)", () => {
+      const outcomeReport = makeHappyOutcomeReport();
+      const parseSpy = jest.spyOn(
+        outputParseModule,
+        "parseRealDataDailyStepDualLegRunReportIssueCreateEditOutput",
+      );
+      const buildOutcomeSpy = jest
+        .spyOn(
+          outcomeReportModule,
+          "buildRealDataDailyStepDualLegRunReportIssueOutcomeReport",
+        )
+        .mockImplementation(() => {
+          throw new Error("build-boom");
+        });
+
+      // 정합 stdout·report 로 parse 재유도는 통과하고 buildOutcomeReport 재유도가 throw.
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWithOutput(
+          HAPPY_STDOUT,
+          HAPPY_REPORT,
+          outcomeReport,
+        ),
+      ).toThrow(/build-boom/);
+
+      // 순서 상 parse 가 buildOutcomeReport 보다 먼저 평가됨 — buildOutcomeReport 재유도 throw
+      // 시점에 parse 는 이미 1회 호출됐고 buildOutcomeReport 도 1회 진입(그 안의 강제 throw).
+      expect(parseSpy).toHaveBeenCalledTimes(1);
+      expect(buildOutcomeSpy).toHaveBeenCalledTimes(1);
+      expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        buildOutcomeSpy.mock.invocationCallOrder[0],
+      );
     });
   });
 
