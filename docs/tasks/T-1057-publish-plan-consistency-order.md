@@ -2,7 +2,10 @@
 id: T-1057
 title: result-issue-publish-plan consistency-guard(assertRealDataResultIssuePublishPlanConsistentWithSources)의 2 distinct builder 데이터-의존 재유도 순서(command-plan → search-gh-argv) invocationCallOrder 순서-lock test 로 못박기 (consistency-guard 재유도 delegate 순서-lock leg 4)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 1e1bd516
+prNumber: 951
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 120
