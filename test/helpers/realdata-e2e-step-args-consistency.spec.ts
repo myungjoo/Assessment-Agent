@@ -19,8 +19,15 @@ import type { GithubActivity } from "../../src/assessment-collection/domain/acti
 import type { Activity } from "../../src/assessment-collection/domain/activity";
 import type { EvaluationResult } from "../../src/assessment-evaluation/domain/evaluation-result";
 
+// T-1064 순서-lock leg 11 — guard 재유도가 직접 호출하는 2 distinct sub-composer 를
+// namespace 로 잡아 jest.spyOn 배선(정합-경로 상대 호출 순서 invocationCallOrder 부등식
+// 1개 + fail-fast 양방향 계측). 두 프로퍼티에 pass-through spy 를 건다. reference-페어링
+// 없음 — 두 sub-composer 는 각각 runPlan 을 독립 소비(데이터-의존 chain 아님, aggregator
+// fail-fast-sequential).
+import * as evaluationStepArgsModule from "./realdata-e2e-evaluation-step-args";
 import type { RealDataPipelinePlan } from "./realdata-e2e-pipeline-plan";
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
+import * as publishStepArgsModule from "./realdata-e2e-result-publish-step-args";
 import type { RealDataE2eRunPlan } from "./realdata-e2e-run-plan";
 import { buildRealDataE2eStepArgs } from "./realdata-e2e-step-args";
 import type { RealDataE2eStepArgs } from "./realdata-e2e-step-args";
@@ -125,6 +132,12 @@ function makeStepArgs(
 }
 
 describe("assertRealDataE2eStepArgsConsistentWithSources", () => {
+  // T-1064 spy 격리 — 순서-lock describe 의 jest.spyOn 이 후속 test 로 새지 않도록
+  // 최상위 afterEach 에서 모든 mock 복원(신규 spyOn 격리 필수 — 없으면 관측 오염).
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe("happy-path (정합 stepArgs → void)", () => {
     it("다수 activities·results aggregator 산출 stepArgs 를 그대로 넘기면 throw 0(void)", () => {
       const runPlan = makeRunPlan();
@@ -601,6 +614,147 @@ describe("assertRealDataE2eStepArgsConsistentWithSources", () => {
       expect(JSON.stringify(runPlan)).toBe(runPlanSnapshot);
       expect(JSON.stringify(activities)).toBe(activitiesSnapshot);
       expect(JSON.stringify(results)).toBe(resultsSnapshot);
+    });
+  });
+
+  // T-1064 — consistency-guard 재유도 위임 순서-lock leg 11(step-args aggregator
+  // fail-fast-sequential). guard(`assert…StepArgsConsistentWithSources`)는 2 distinct
+  // sub-composer 를 순차 statement 로 재유도한다: buildRealDataEvaluationStepArgs(runPlan,
+  // activities) → buildRealDataResultPublishStepArgs(runPlan, results). 두 위임은 서로의
+  // 산출을 소비하지 않고(둘 다 runPlan 을 독립 인자로 받음 — ① activities, ② results) 데이터상
+  // 병렬이라 reference-페어링(뒤 builder 첫 인자 === 앞 builder 산출) assert 는 적용하지
+  // 않는다. 대신 guard 본문의 순차 fail-fast 계약을 못박는다 — evaluation 재유도가 publish
+  // 재유도보다 먼저 평가되므로(JS statement 순차 평가) eval 위임 throw 시 publish 위임은
+  // 도달조차 하지 않는다. 현행 spec 은 두 재유도를 실 입력 throw 전파(L~488)로만 검증
+  // (spec invocationCallOrder=0)해, guard 본문에서 두 재유도를 재정렬(publish 를 먼저 재호출)
+  // 해도 검출 못 한다. T-1063 의 3-builder 순서-lock 선례를 2-sub-composer(1-edge) aggregator
+  // fail-fast 로 축소 적용해 그 gap 을 봉한다(reference-페어링 2개는 데이터-의존 아니므로 미적용).
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: 정합 stepArgs 를 spy 설치 前 미리 만든 뒤(makeStepArgs 자체가
+  //     aggregator 를 돌려 두 sub-composer 를 호출하므로 spy 설치 후 만들면 호출 횟수 오염 —
+  //     guard 재유도만 격리 계측) 두 위임을 실 구현 pass-through spy 로 감싸고 guard 재유도
+  //     1회 트리거 → evaluation < publish invocationCallOrder 부등식(edge 1개·toBeLessThan)
+  //     + 각 정확히 1회.
+  //   - branch/무공유 재확인: pass-through spy 하에서도 guard 가 정상 void 반환 + 입력
+  //     stepArgs/runPlan/activities/results mutate 0(read-only guard).
+  //   - error/negative(a fail-fast edge): evaluation 위임 강제 throw → publish 미도달(0회) —
+  //     첫 sub-composer throw 가 뒤 sub-composer 도달 전에 선전파.
+  //   - error/negative(b 종단 throw 순서 재확인): publish 위임 강제 throw → evaluation 은
+  //     이미 1회(순서 상 evaluation 이 publish 보다 먼저 평가됨을 negative 경로에서도 재확인).
+  describe("T-1064 — 재유도 위임 순서-lock(evaluation → publish)", () => {
+    it("정합 재유도 시 evaluation < publish 순으로 호출된다(invocationCallOrder 부등식 1개·각 1회)", () => {
+      // stepArgs 는 spy 설치 前 합성 — makeStepArgs 도 두 sub-composer 를 호출하므로 spy 설치
+      // 후 만들면 호출 횟수가 오염된다. guard 재유도 호출만 격리 계측한다.
+      const runPlan = makeRunPlan();
+      const stepArgs = makeStepArgs(runPlan);
+      const evalSpy = jest.spyOn(
+        evaluationStepArgsModule,
+        "buildRealDataEvaluationStepArgs",
+      );
+      const publishSpy = jest.spyOn(
+        publishStepArgsModule,
+        "buildRealDataResultPublishStepArgs",
+      );
+
+      assertRealDataE2eStepArgsConsistentWithSources(
+        stepArgs,
+        runPlan,
+        HAPPY_ACTIVITIES,
+        HAPPY_RESULTS,
+      );
+
+      // guard 재유도 지점 각 1개 → 각 위임 정확히 1회.
+      expect(evalSpy).toHaveBeenCalledTimes(1);
+      expect(publishSpy).toHaveBeenCalledTimes(1);
+      // 순서 edge 1개: evaluation(첫 호출) < publish(첫 호출).
+      expect(evalSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        publishSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + stepArgs/runPlan/activities/results mutate 0", () => {
+      const runPlan = makeRunPlan();
+      const stepArgs = makeStepArgs(runPlan);
+      const stepArgsSnapshot = JSON.stringify(stepArgs);
+      const runPlanSnapshot = JSON.stringify(runPlan);
+      const activitiesSnapshot = JSON.stringify(HAPPY_ACTIVITIES);
+      const resultsSnapshot = JSON.stringify(HAPPY_RESULTS);
+      jest.spyOn(evaluationStepArgsModule, "buildRealDataEvaluationStepArgs");
+      jest.spyOn(publishStepArgsModule, "buildRealDataResultPublishStepArgs");
+
+      // 정합 경로 → 정상 void(throw 0).
+      expect(
+        assertRealDataE2eStepArgsConsistentWithSources(
+          stepArgs,
+          runPlan,
+          HAPPY_ACTIVITIES,
+          HAPPY_RESULTS,
+        ),
+      ).toBeUndefined();
+      // read-only guard — 입력 mutate 0.
+      expect(JSON.stringify(stepArgs)).toBe(stepArgsSnapshot);
+      expect(JSON.stringify(runPlan)).toBe(runPlanSnapshot);
+      expect(JSON.stringify(HAPPY_ACTIVITIES)).toBe(activitiesSnapshot);
+      expect(JSON.stringify(HAPPY_RESULTS)).toBe(resultsSnapshot);
+    });
+
+    it("(a fail-fast edge) evaluation 위임이 throw 하면 publish 재유도에 도달하지 못한다(0회)", () => {
+      const runPlan = makeRunPlan();
+      const stepArgs = makeStepArgs(runPlan);
+      jest
+        .spyOn(evaluationStepArgsModule, "buildRealDataEvaluationStepArgs")
+        .mockImplementation(() => {
+          throw new Error("eval-boom");
+        });
+      const publishSpy = jest.spyOn(
+        publishStepArgsModule,
+        "buildRealDataResultPublishStepArgs",
+      );
+
+      expect(() =>
+        assertRealDataE2eStepArgsConsistentWithSources(
+          stepArgs,
+          runPlan,
+          HAPPY_ACTIVITIES,
+          HAPPY_RESULTS,
+        ),
+      ).toThrow(/eval-boom/);
+
+      // 첫 sub-composer throw 가 뒤 sub-composer 도달 전 선전파 → publish 미호출.
+      expect(publishSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(b 종단 throw 순서 재확인) publish 위임이 throw 하면 evaluation 은 이미 1회 호출됨", () => {
+      const runPlan = makeRunPlan();
+      const stepArgs = makeStepArgs(runPlan);
+      const evalSpy = jest.spyOn(
+        evaluationStepArgsModule,
+        "buildRealDataEvaluationStepArgs",
+      );
+      const publishSpy = jest
+        .spyOn(publishStepArgsModule, "buildRealDataResultPublishStepArgs")
+        .mockImplementation(() => {
+          throw new Error("publish-boom");
+        });
+
+      // 정합 입력으로 앞 재유도(evaluation)는 통과하고 둘째 재유도(publish)가 throw.
+      expect(() =>
+        assertRealDataE2eStepArgsConsistentWithSources(
+          stepArgs,
+          runPlan,
+          HAPPY_ACTIVITIES,
+          HAPPY_RESULTS,
+        ),
+      ).toThrow(/publish-boom/);
+
+      // 순서 상 evaluation 이 publish 보다 먼저 평가됨 — publish 재유도 throw 시점에
+      // evaluation 은 이미 1회 호출됐고 publish 도 1회 진입(그 안의 강제 throw).
+      expect(evalSpy).toHaveBeenCalledTimes(1);
+      expect(publishSpy).toHaveBeenCalledTimes(1);
+      expect(evalSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        publishSpy.mock.invocationCallOrder[0],
+      );
     });
   });
 });
