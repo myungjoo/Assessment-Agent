@@ -869,4 +869,290 @@ describe("assertRealDataResultIssueGhCommandPlanConsistentWithInputs", () => {
       );
     });
   });
+
+  // T-1071 — 구조-검사 선행성 order-lock(구조 결손 → 3 재유도 위임 0-call).
+  //
+  // 가드 본문(`assertRealDataResultIssueGhCommandPlanConsistentWithInputs`)은 구조 검사
+  // 5 호출(`assertPlanStructure` → `assertPlanArgvStructure` → `assertPlanActionEnum` →
+  // `assertStdoutStructure` → `assertCommandArgsStructure`, line 215~219)을 값 재유도 3 위임
+  // (`parseRealDataResultIssueSearchOutput` 224 → `resolveRealDataResultIssueAction` 225 →
+  // `buildRealDataResultIssueGhArgv` 229)보다 **먼저** 수행한다(구조검사 라인 < 첫 재유도 라인).
+  // 기존 구조 error-path 블록(위 "error path — 구조 결손(TypeError)")은 각 분기 `.toThrow`
+  // (TypeError) 만 assert 하고, 구조 위반 시 3 재유도 위임이 아예 호출되지 않는(선행 fail-fast)
+  // 선행성은 검증하지 않았다. 기존 T-1063 순서-lock 블록은 정합-경로 invocationCallOrder 부등식과
+  // 값-재유도 fail-fast(parse throw → action/ghArgv 0-call)만 못박아 구조 error-path 는 미커버다.
+  // 본 블록은 구조 결손 6분기 각각에서 3 재유도 위임 spy 가 모두 `toHaveBeenCalledTimes(0)` 임을
+  // 못박아, 리팩터가 재유도를 구조 검사 위로 끌어올리는 silent 재정렬로부터 방어한다(T-1066~T-1070
+  // mirror). 기존 블록은 유지하고 새 describe 만 추가. test-only 1파일, 가드 `.ts` 무변경.
+  describe("T-1071 — 구조-검사 선행성 order-lock(구조 결손 → 3 재유도 위임 0-call)", () => {
+    // 3 재유도 위임 pass-through spy 설치(mockImplementation 없이 실 구현 계측만). 구조 결손
+    // 케이스는 plan 을 미리 만들 필요 없이 malformed 입력을 직접 주므로 spy 만 설치한다.
+    function installSpies(): {
+      parseSpy: jest.SpyInstance;
+      actionSpy: jest.SpyInstance;
+      ghArgvSpy: jest.SpyInstance;
+    } {
+      const parseSpy = jest.spyOn(
+        searchParseModule,
+        "parseRealDataResultIssueSearchOutput",
+      );
+      const actionSpy = jest.spyOn(
+        actionModule,
+        "resolveRealDataResultIssueAction",
+      );
+      const ghArgvSpy = jest.spyOn(
+        ghArgvModule,
+        "buildRealDataResultIssueGhArgv",
+      );
+      return { parseSpy, actionSpy, ghArgvSpy };
+    }
+
+    describe("happy-path (구조 통과 → 3 재유도 위임 각 1회, parse → resolveAction → buildGhArgv 순)", () => {
+      it("정합 구조 입력이면 3 재유도 위임이 각 1회 호출되고 parse < resolveAction < buildGhArgv 선행(invocationCallOrder 부등식 2개)", () => {
+        // plan 은 spy 설치 前 합성 — buildConsistent 도 3 delegate 를 호출하므로 spy 설치 후
+        // 만들면 호출 횟수가 오염된다(guard 재유도만 격리 계측).
+        const stdout = stdoutOf([{ number: 42 }]);
+        const commandArgs = makeCommandArgs();
+        const plan = buildConsistent(stdout, commandArgs);
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+
+        expect(
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            plan,
+            stdout,
+            commandArgs,
+          ),
+        ).toBeUndefined();
+
+        // 구조 통과 → 3 재유도 도달, 각 정확히 1회.
+        expect(parseSpy).toHaveBeenCalledTimes(1);
+        expect(actionSpy).toHaveBeenCalledTimes(1);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(1);
+        expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+          actionSpy.mock.invocationCallOrder[0],
+        );
+        expect(actionSpy.mock.invocationCallOrder[0]).toBeLessThan(
+          ghArgvSpy.mock.invocationCallOrder[0],
+        );
+      });
+    });
+
+    describe("구조 결손 6분기 — TypeError + 3 재유도 위임 0-call(선행성 fail-fast)", () => {
+      // (분기 1) plan 비-object — null/undefined/배열/string 대표값 각각 구조 검사가 값
+      // 재유도보다 앞서 fail-fast 함을 3 delegate 0-call 로 못박는다.
+      it("plan=null → TypeError + parse·resolveAction·buildGhArgv 0-call", () => {
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            null as unknown as RealDataResultIssueGhCommandPlan,
+            "[]",
+            makeCommandArgs(),
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("plan=undefined → TypeError + 3 재유도 위임 0-call", () => {
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            undefined as unknown as RealDataResultIssueGhCommandPlan,
+            "[]",
+            makeCommandArgs(),
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("plan=배열 → TypeError + 3 재유도 위임 0-call", () => {
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            [] as unknown as RealDataResultIssueGhCommandPlan,
+            "[]",
+            makeCommandArgs(),
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("plan=string(원시값) → TypeError + 3 재유도 위임 0-call", () => {
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            "not-a-plan" as unknown as RealDataResultIssueGhCommandPlan,
+            "[]",
+            makeCommandArgs(),
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // (분기 2) plan.argv 비-배열.
+      it("plan.argv=비-배열(객체) → TypeError + 3 재유도 위임 0-call", () => {
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        const plan: RealDataResultIssueGhCommandPlan = {
+          action: { action: "create" },
+          argv: {} as unknown as string[],
+        };
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            plan,
+            "[]",
+            makeCommandArgs(),
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // (분기 3) plan.action 비-object.
+      it("plan.action=null(비-object) → TypeError + 3 재유도 위임 0-call", () => {
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        const plan = {
+          action: null as unknown as { action: "create" },
+          argv: ["issue", "create"],
+        } as RealDataResultIssueGhCommandPlan;
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            plan,
+            "[]",
+            makeCommandArgs(),
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // (분기 4) plan.action.action enum 결손('delete').
+      it("plan.action.action='delete'(enum 결손) → TypeError + 3 재유도 위임 0-call", () => {
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        const plan = {
+          action: { action: "delete" } as unknown as { action: "create" },
+          argv: ["issue", "create"],
+        } as RealDataResultIssueGhCommandPlan;
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            plan,
+            "[]",
+            makeCommandArgs(),
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // (분기 5) stdout 비-string — null/number 대표. 구조 검사(assertStdoutStructure, line
+      // 218)가 첫 재유도(parse, line 224) 직전에 놓여 있어도, malformed stdout 이면 parse 에
+      // 도달하기 전에 fail-fast 함을 0-call 로 확인.
+      it("stdout=null → TypeError + 3 재유도 위임 0-call", () => {
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        const plan = buildConsistent("[]", makeCommandArgs());
+        parseSpy.mockClear();
+        actionSpy.mockClear();
+        ghArgvSpy.mockClear();
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            plan,
+            null as unknown as string,
+            makeCommandArgs(),
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("stdout=number(비-string) → TypeError + 3 재유도 위임 0-call", () => {
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        const plan = buildConsistent("[]", makeCommandArgs());
+        parseSpy.mockClear();
+        actionSpy.mockClear();
+        ghArgvSpy.mockClear();
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            plan,
+            42 as unknown as string,
+            makeCommandArgs(),
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // (분기 6) commandArgs 비-object — null/배열 대표.
+      it("commandArgs=null → TypeError + 3 재유도 위임 0-call", () => {
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        const plan = buildConsistent("[]", makeCommandArgs());
+        parseSpy.mockClear();
+        actionSpy.mockClear();
+        ghArgvSpy.mockClear();
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            plan,
+            "[]",
+            null as unknown as RealDataResultIssueCommandArgs,
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("commandArgs=배열 → TypeError + 3 재유도 위임 0-call", () => {
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        const plan = buildConsistent("[]", makeCommandArgs());
+        parseSpy.mockClear();
+        actionSpy.mockClear();
+        ghArgvSpy.mockClear();
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            plan,
+            "[]",
+            [] as unknown as RealDataResultIssueCommandArgs,
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(actionSpy).toHaveBeenCalledTimes(0);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("대조 — 값 정합 위반(RangeError)은 구조 통과 후 3 재유도 위임 호출 뒤 발생", () => {
+      // 구조는 정상이므로 3 재유도가 모두 도달(호출됨)한 뒤 값 매핑 단계에서 RangeError 가
+      // 난다. 구조 결손(TypeError, 0-call)과 값 drift(RangeError, 호출됨)의 선행성 경계 대조.
+      it("action 분기 drift → RangeError + 3 재유도 위임 모두 호출됨(각 ≥1)", () => {
+        // stdout=[](재유도=create)인데 plan 이 update → 구조는 통과하고 매핑에서 RangeError.
+        const commandArgs = makeCommandArgs();
+        const plan: RealDataResultIssueGhCommandPlan = {
+          action: { action: "update", issueNumber: 7 },
+          argv: ["issue", "edit", "7", "--title", "x", "--body", "y"],
+        };
+        const { parseSpy, actionSpy, ghArgvSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+            plan,
+            "[]",
+            commandArgs,
+          ),
+        ).toThrow(RangeError);
+        // 구조 통과 → 3 재유도 모두 도달(매핑 RangeError 는 재유도 이후 단계).
+        expect(parseSpy).toHaveBeenCalledTimes(1);
+        expect(actionSpy).toHaveBeenCalledTimes(1);
+        expect(ghArgvSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
 });
