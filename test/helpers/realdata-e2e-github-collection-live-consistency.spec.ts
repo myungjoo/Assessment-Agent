@@ -14,6 +14,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+// T-1088 구조-검사 선행성 spy 인프라(신규 namespace import). 가드가 named import 로
+// resolveGithubApiBaseUrl 를 호출해도 동일 모듈 객체를 가리키므로 jest.spyOn 에 잡힌다.
+import * as githubRequestBuilderModule from "../../src/github/github-request.builder";
+
 import { buildRealDataGithubCollectionPlan } from "./realdata-e2e-github-collection-live";
 import type { RealDataE2eGithubCollectionPlan } from "./realdata-e2e-github-collection-live";
 import { assertRealDataGithubCollectionPlanConsistent } from "./realdata-e2e-github-collection-live-consistency";
@@ -555,6 +559,232 @@ describe("assertRealDataGithubCollectionPlanConsistent", () => {
       expect(JSON.stringify(GATING_ENABLED_WITH_PAT)).toBe(beforeGating);
       expect(JSON.stringify(SEEDS)).toBe(beforeSeeds);
       expect(JSON.stringify(plan)).toBe(beforePlan);
+    });
+  });
+
+  // T-1088 — 구조-검사 선행성 order-lock(clean leg). 가드는 상위 구조 assert 3개
+  // (assertGatingStructure / assertSeedsStructure / assertPlanStructure — 각 TypeError)를
+  // 요소별 재유도 위임 deriveExpectedPlan(내부 seeds.map → resolveGithubApiBaseUrl per-seed)
+  // 보다 **먼저** 수행한다. 재유도-앞 구조 error 입력(gating/seeds/plan 결손)을 주면 delegate
+  // resolveGithubApiBaseUrl 가 toHaveBeenCalledTimes(0) 이어야 한다는 선행성을 spy 로 못박아
+  // "구조 검사 → 요소별 재유도" 순서를 silent 재정렬로부터 방어한다(defense-in-depth). 값 정합
+  // 위반 RangeError(enabled/entries 길이/슬롯 drift)는 재유도 **뒤**에 오므로 delegate 는 per-seed
+  // map 이라 gating.enabled=true 면 seeds.length 회 호출 — 값-boundary 대조에 사용한다(0-call
+  // 범위 밖). 신규 namespace import + spyOn 인프라 신설 clean-leg. per-seed map + gating.enabled
+  // early-return 특이점: 정상 도달 call 횟수는 1 아니라 seeds.length(gating disabled 면 0).
+  describe("구조-검사 선행성 — 재유도-앞 구조 error → delegate 0-call (T-1088)", () => {
+    // 본 블록 전용 spy 격리 — 신규 spyOn 이 기존 블록(실 delegate 를 정합 대조에 사용)으로
+    // leak 되지 않도록 매 test 후 복원한다.
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    describe("happy-path(선행성 정상 흐름) — 구조 통과 후 요소별 재유도 delegate 호출", () => {
+      it("gating.enabled=true + seeds.length ≥ 1 → delegate 정확히 seeds.length 회 호출", () => {
+        // plan 합성(내부에서 delegate 를 호출)을 spyOn **이전**에 수행해 producer 의 합성 call 이
+        // spy count 에 포함되지 않게 한 뒤 spy 를 걸고 가드를 호출 → 가드가 요소별 재유도에서
+        // delegate 를 정확히 seeds.length 회 호출함을 확인. per-seed map 특이점: 1 아님.
+        const plan = buildRealDataGithubCollectionPlan(
+          GATING_ENABLED_WITH_PAT,
+          SEEDS,
+        );
+        expect(SEEDS.length).toBeGreaterThanOrEqual(1);
+        const spy = jest.spyOn(
+          githubRequestBuilderModule,
+          "resolveGithubApiBaseUrl",
+        );
+        const result = assertRealDataGithubCollectionPlanConsistent(
+          GATING_ENABLED_WITH_PAT,
+          SEEDS,
+          plan,
+        );
+        expect(result).toBeUndefined();
+        // spy 는 실 구현 call-through(mockImplementation 미지정) — byte-identical 대조가 통과한다.
+        expect(spy).toHaveBeenCalledTimes(SEEDS.length);
+      });
+
+      it("gating.enabled≠true(disabled) → early-return 으로 delegate 0-call(seed map 미실행)", () => {
+        // gating disabled 면 deriveExpectedPlan 이 seed 를 읽기 전 early-return → delegate 미호출.
+        const plan = buildRealDataGithubCollectionPlan(GATING_DISABLED, SEEDS);
+        const spy = jest.spyOn(
+          githubRequestBuilderModule,
+          "resolveGithubApiBaseUrl",
+        );
+        const result = assertRealDataGithubCollectionPlanConsistent(
+          GATING_DISABLED,
+          SEEDS,
+          plan,
+        );
+        expect(result).toBeUndefined();
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("plan 구조 결손(TypeError) → delegate 0-call", () => {
+      it("(i) plan=null → throw(TypeError) + delegate 0-call", () => {
+        const spy = jest.spyOn(
+          githubRequestBuilderModule,
+          "resolveGithubApiBaseUrl",
+        );
+        expect(() =>
+          assertRealDataGithubCollectionPlanConsistent(
+            GATING_ENABLED_WITH_PAT,
+            SEEDS,
+            null as unknown as RealDataE2eGithubCollectionPlan,
+          ),
+        ).toThrow(TypeError);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("(ii) plan=비객체(number) → throw(TypeError) + delegate 0-call", () => {
+        const spy = jest.spyOn(
+          githubRequestBuilderModule,
+          "resolveGithubApiBaseUrl",
+        );
+        expect(() =>
+          assertRealDataGithubCollectionPlanConsistent(
+            GATING_ENABLED_WITH_PAT,
+            SEEDS,
+            7 as unknown as RealDataE2eGithubCollectionPlan,
+          ),
+        ).toThrow(/plan 이 객체가 아니다/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("(iii) plan.enabled 비-boolean → throw(TypeError) + delegate 0-call", () => {
+        const bad = {
+          enabled: "yes",
+          entries: [],
+        } as unknown as RealDataE2eGithubCollectionPlan;
+        const spy = jest.spyOn(
+          githubRequestBuilderModule,
+          "resolveGithubApiBaseUrl",
+        );
+        expect(() =>
+          assertRealDataGithubCollectionPlanConsistent(
+            GATING_ENABLED_WITH_PAT,
+            SEEDS,
+            bad,
+          ),
+        ).toThrow(/plan.enabled 가 boolean 이 아니다/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("(iv) plan.entries 비-배열 → throw(TypeError) + delegate 0-call", () => {
+        const bad = {
+          enabled: true,
+          entries: {},
+        } as unknown as RealDataE2eGithubCollectionPlan;
+        const spy = jest.spyOn(
+          githubRequestBuilderModule,
+          "resolveGithubApiBaseUrl",
+        );
+        expect(() =>
+          assertRealDataGithubCollectionPlanConsistent(
+            GATING_ENABLED_WITH_PAT,
+            SEEDS,
+            bad,
+          ),
+        ).toThrow(/plan.entries 가 배열이 아니다/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("gating 구조 결손(TypeError) → delegate 0-call", () => {
+      it("(v) gating=null(비-객체) → throw(TypeError) + delegate 0-call", () => {
+        // plan 은 구조상 온전한 정합 plan 으로 두어 gating 구조 검사(assertGatingStructure)가
+        // 재유도-앞 차단 지점임을 격리 확인한다.
+        const plan = buildRealDataGithubCollectionPlan(
+          GATING_ENABLED_WITH_PAT,
+          SEEDS,
+        );
+        const spy = jest.spyOn(
+          githubRequestBuilderModule,
+          "resolveGithubApiBaseUrl",
+        );
+        expect(() =>
+          assertRealDataGithubCollectionPlanConsistent(
+            null as unknown as RealDataE2eLiveGating,
+            SEEDS,
+            plan,
+          ),
+        ).toThrow(/gating 이 객체가 아니다/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("seeds 구조 결손(TypeError) → delegate 0-call", () => {
+      it("(vi) seeds=비배열(string) → throw(TypeError) + delegate 0-call", () => {
+        const plan = buildRealDataGithubCollectionPlan(
+          GATING_ENABLED_WITH_PAT,
+          SEEDS,
+        );
+        const spy = jest.spyOn(
+          githubRequestBuilderModule,
+          "resolveGithubApiBaseUrl",
+        );
+        expect(() =>
+          assertRealDataGithubCollectionPlanConsistent(
+            GATING_ENABLED_WITH_PAT,
+            "nope" as unknown as RealDataSeedDescriptor[],
+            plan,
+          ),
+        ).toThrow(/seeds 가 배열이 아니다/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("경계 대조 — 재유도-후 값 위반(RangeError)은 delegate seeds.length 회(0-call 범위 밖)", () => {
+      it("슬롯 drift(host 오염) → RangeError + delegate 정확히 seeds.length 회(gating.enabled=true)", () => {
+        // 상위 구조 검사(gating/seeds/plan)를 통과하므로 delegate 가 source seed 전량에 대해
+        // 호출된 뒤 슬롯 대조에서 RangeError — 재유도-앞 0-call 과 대비되는 값-boundary
+        // (per-seed map 이라 seeds.length 회, 1 아님).
+        const plan = buildRealDataGithubCollectionPlan(
+          GATING_ENABLED_WITH_PAT,
+          SEEDS,
+        );
+        const tampered: RealDataE2eGithubCollectionPlan = {
+          enabled: plan.enabled,
+          entries: plan.entries.map((entry, i) =>
+            i === 0 ? { ...entry, host: "evil.example" } : { ...entry },
+          ),
+        };
+        const spy = jest.spyOn(
+          githubRequestBuilderModule,
+          "resolveGithubApiBaseUrl",
+        );
+        expect(() =>
+          assertRealDataGithubCollectionPlanConsistent(
+            GATING_ENABLED_WITH_PAT,
+            SEEDS,
+            tampered,
+          ),
+        ).toThrow(RangeError);
+        expect(spy).toHaveBeenCalledTimes(SEEDS.length);
+      });
+
+      it("entries 길이 불일치(누락) → RangeError + delegate 정확히 seeds.length 회(gating.enabled=true)", () => {
+        const plan = buildRealDataGithubCollectionPlan(
+          GATING_ENABLED_WITH_PAT,
+          SEEDS,
+        );
+        const tampered: RealDataE2eGithubCollectionPlan = {
+          enabled: true,
+          entries: [plan.entries[0]],
+        };
+        const spy = jest.spyOn(
+          githubRequestBuilderModule,
+          "resolveGithubApiBaseUrl",
+        );
+        expect(() =>
+          assertRealDataGithubCollectionPlanConsistent(
+            GATING_ENABLED_WITH_PAT,
+            SEEDS,
+            tampered,
+          ),
+        ).toThrow(/plan.entries 길이가 재유도 expected/);
+        expect(spy).toHaveBeenCalledTimes(SEEDS.length);
+      });
     });
   });
 });
