@@ -2,7 +2,7 @@
 id: T-1059
 title: daily-step-dual-leg-run-report-issue-publish-plan consistency-guard(assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource)의 2 distinct builder 데이터-의존 재유도 순서(command-plan → search-gh-argv) invocationCallOrder 순서-lock + reference-페어링 test 로 못박기 (consistency-guard 재유도 delegate 순서-lock leg 6)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 115
@@ -65,3 +65,10 @@ P5 test-hardening sweep 은 producer / 컴포저 / consistency-guard 가 자기 
 ## Follow-ups
 
 - (감사 후속) 본 task(daily-step-dual-leg publish-plan-consistency 재유도 순서-lock) 완결 후 나머지 daily-step-dual-leg 계열 consistency guard 를 pre-check(각 spec `invocationCallOrder` 0건 여부 + guard 본문 재유도 builder 개수 + fail-fast 게이트/데이터-의존 여부)로 재판정. 남은 2+ distinct builder 데이터-의존 chain 후보: `realdata-e2e-daily-step-dual-leg-run-report-issue-gh-command-plan-consistency.ts`(action → argv 3-단계 재유도, resolveAction → buildGhArgv 데이터-의존) · `realdata-e2e-daily-step-dual-leg-run-report-issue-outcome-report-from-output-consistency.ts`(parse-output → outcome-report 2-단계) 등을 각 guard 본문의 재유도 데이터-의존 여부로 우선순위 재판정. 단일 builder 재유도·게이트 없는 상호-독립 병렬 재유도는 "order-lock 불요" 확정 기록.
+
+## Result (DONE — 2026-07-17T00:38Z)
+
+- PR #953 squash 머지(5dc85d93), reviewer round1 APPROVE(4-게이트 PASS), branch delete.
+- test-only 1파일 `test/helpers/realdata-e2e-daily-step-dual-leg-run-report-issue-publish-plan-consistency.spec.ts` +145/-0, production src 0 LOC.
+- 재유도 순서-lock(command-plan → search-gh-argv invocationCallOrder toBeLessThan) + 데이터-의존 reference-페어링(searchArgv 첫 인자 === command-plan 반환 commandArgs) + fail-fast negative + 후속-위임 throw negative + branch/무공유 재확인 4 test.
+- 전체 404 suite / 11071 test green, pnpm lint·build 통과, coverageThreshold line/func ≥80% 무회귀.
