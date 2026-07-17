@@ -2,7 +2,9 @@
 id: T-1087
 title: realdata-e2e evaluation-inputs consistency 구조-검사 선행성 order-lock (clean leg — 신규 namespace import + spyOn 인프라, 상위 배열-구조 error-path 에 mapper delegate 0-call 보강) — evaluationInputs/activities 배열-구조 결손(TypeError)이 요소별 재유도 위임(mapActivityToEvaluationInput per-element map)보다 먼저 수행됨을 delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 22, T-1086 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: c648818
+prNumber: 980
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 140
