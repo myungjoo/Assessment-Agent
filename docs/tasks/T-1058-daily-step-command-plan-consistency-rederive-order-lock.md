@@ -2,7 +2,10 @@
 id: T-1058
 title: daily-step-dual-leg-run-report-issue-command-plan consistency-guard(assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource)의 2 distinct builder 데이터-의존 재유도 순서(descriptor → command-args) invocationCallOrder 순서-lock + reference-페어링 test 로 못박기 (consistency-guard 재유도 delegate 순서-lock leg 5)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 952
+mergedAs: 1a408e35
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 110
