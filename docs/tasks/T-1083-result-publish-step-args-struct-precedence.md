@@ -2,7 +2,11 @@
 id: T-1083
 title: realdata-e2e result-publish-step-args consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError)이 publish-plan 재유도 위임(buildRealDataResultIssuePublishPlan)보다 먼저 수행됨을 delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 18, T-1082 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 976
+mergedAs: 23c576b9
+reviewRounds: 1
+completedAt: 2026-07-17T14:15:00Z
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 170
