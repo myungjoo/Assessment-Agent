@@ -2,7 +2,7 @@
 id: T-1064
 title: step-args consistency-guard(assertRealDataE2eStepArgsConsistentWithSources)의 2 distinct sub-composer 재유도 fail-fast 순서(evaluation → publish) invocationCallOrder 순서-lock test 로 못박기 (consistency-guard 재유도 delegate 순서-lock leg 11 — aggregator fail-fast-sequential)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 110
