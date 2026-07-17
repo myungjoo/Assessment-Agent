@@ -24,12 +24,18 @@
 //     입력 두 번 호출 → 항상 void / 동일 손상 두 번 호출 → 항상 동일 메시지.
 //   - R-59: argv 가 commandArgs 의 title/body(marker 라인 포함) 만 옮길 뿐 narrative 본문
 //     미접촉 — 정합 검증이 본문을 보지 않음을 간접 확인(가드 결과는 void 만).
+import * as actionModule from "./realdata-e2e-result-issue-action";
 import type { RealDataResultIssueCommandArgs } from "./realdata-e2e-result-issue-command-args";
+import * as ghArgvModule from "./realdata-e2e-result-issue-gh-argv";
 import {
   resolveRealDataResultIssueGhCommandPlan,
   type RealDataResultIssueGhCommandPlan,
 } from "./realdata-e2e-result-issue-gh-command-plan";
 import { assertRealDataResultIssueGhCommandPlanConsistentWithInputs } from "./realdata-e2e-result-issue-gh-command-plan-consistency";
+// T-1063 순서-lock leg 10 — guard 재유도가 호출하는 3 delegate 를 namespace 로 잡아
+// jest.spyOn 배선(정합-경로 상대 호출 순서 invocationCallOrder 부등식 2개 + 데이터-의존
+// reference 페어링 2개 계측). 세 프로퍼티에 pass-through spy 를 건다.
+import * as searchParseModule from "./realdata-e2e-result-issue-search-parse";
 
 const MARKER = "<!-- realdata-e2e-result-issue: 2026-06-23@abc1234 -->";
 
@@ -81,6 +87,12 @@ function buildConsistent(
 }
 
 describe("assertRealDataResultIssueGhCommandPlanConsistentWithInputs", () => {
+  // T-1063 spy 격리 — 순서-lock describe 의 jest.spyOn 이 후속 test 로 새지 않도록
+  // 최상위 afterEach 에서 모든 mock 복원(신규 spyOn 격리 필수 — 없으면 관측 오염).
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe("happy path (정합 → void)", () => {
     it("후보 0건 stdout('[]') → create plan 정합 → void", () => {
       const stdout = "[]";
@@ -686,6 +698,175 @@ describe("assertRealDataResultIssueGhCommandPlanConsistentWithInputs", () => {
         }
       };
       expect(collect()).toBe(collect());
+    });
+  });
+
+  // T-1063 — consistency-guard 재유도 위임 순서-lock leg 10(result-issue gh-command-plan
+  // 3-stage, T-1060 daily-leg gh-command-plan 3-stage 의 result-issue mirror). guard
+  // (`assert…GhCommandPlanConsistentWithInputs`)는 3 distinct builder 를 데이터-의존 chain
+  // (2 order-edge)으로 재유도한다: parse(builder ①, stdout → hits) → resolveAction(builder ②,
+  // hits + searchQuery → action) → buildGhArgv(builder ③, action + commandArgs → argv).
+  // builder ②가 builder ① 산출 hits 를, builder ③이 builder ② 산출 action 을 각 첫 인자로
+  // 소비하므로 반드시 parse → resolveAction → buildGhArgv 순으로 완료돼야 한다. 현행 spec 은
+  // 세 재유도를 실 입력 throw 로만 검증(spec invocationCallOrder=0)해, guard 본문에서 세 재유도를
+  // 재정렬하거나 어느 builder 인자를 앞 산출이 아닌 값으로 바꿔도(deep-equal 은 순서-무관) 검출
+  // 못 한다. T-1060 의 3-builder 순서-lock 선례를 result-issue 식별자로(edge 2개·reference-페어링
+  // 2개) 옮겨 그 gap 을 봉한다.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: 정합 plan 을 spy 설치 前 미리 만든 뒤(buildConsistent 자체가 컴포저
+  //     chain 을 돌려 세 delegate 를 호출하므로 spy 설치 후 만들면 호출 횟수 오염 — guard 재유도만
+  //     격리 계측) 세 위임을 실 구현 pass-through spy 로 감싸고 guard 재유도 1회 트리거 →
+  //     parse < resolveAction < buildGhArgv 두 invocationCallOrder 부등식(edge 2개·toBeLessThan)
+  //     + 각 정확히 1회 + resolveAction 첫 인자 === parse 반환값 + buildGhArgv 첫 인자 ===
+  //     resolveAction 반환값(데이터-의존 reference 페어링 2개).
+  //   - branch/무공유 재확인: pass-through spy 하에서도 guard 가 정상 void 반환 + 입력
+  //     plan/stdout/commandArgs mutate 0(read-only guard).
+  //   - error/negative(a fail-fast edge): parse 위임 강제 throw → resolveAction·buildGhArgv
+  //     미도달(각 0회) — 첫 stage throw 가 뒤 두 stage 도달 전에 선전파.
+  //   - error/negative(b 종단 throw 순서 재확인): buildGhArgv 위임 강제 throw → parse·
+  //     resolveAction 은 이미 각 1회(순서 상 두 앞 stage 가 buildGhArgv 보다 먼저 평가됨을
+  //     negative 경로에서도 재확인).
+  describe("T-1063 — 재유도 위임 순서-lock(parse → resolveAction → buildGhArgv)", () => {
+    it("정합 재유도 시 parse < resolveAction < buildGhArgv 순으로 호출된다(invocationCallOrder 부등식 2개·데이터-의존 reference 2개·각 1회)", () => {
+      // plan 은 spy 설치 前 합성 — buildConsistent 도 세 delegate 를 호출하므로 spy 설치 후 만들면
+      // 호출 횟수가 오염된다. guard 재유도 호출만 격리 계측한다.
+      const stdout = "[]";
+      const commandArgs = makeCommandArgs();
+      const plan = buildConsistent(stdout, commandArgs);
+      const parseSpy = jest.spyOn(
+        searchParseModule,
+        "parseRealDataResultIssueSearchOutput",
+      );
+      const actionSpy = jest.spyOn(
+        actionModule,
+        "resolveRealDataResultIssueAction",
+      );
+      const ghArgvSpy = jest.spyOn(
+        ghArgvModule,
+        "buildRealDataResultIssueGhArgv",
+      );
+
+      assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+        plan,
+        stdout,
+        commandArgs,
+      );
+
+      // guard 재유도 지점 각 1개 → 각 위임 정확히 1회.
+      expect(parseSpy).toHaveBeenCalledTimes(1);
+      expect(actionSpy).toHaveBeenCalledTimes(1);
+      expect(ghArgvSpy).toHaveBeenCalledTimes(1);
+      // 순서 edge 2개: parse(첫 호출) < resolveAction(첫 호출) < buildGhArgv(첫 호출).
+      expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        actionSpy.mock.invocationCallOrder[0],
+      );
+      expect(actionSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        ghArgvSpy.mock.invocationCallOrder[0],
+      );
+      // 데이터-의존 reference 페어링 2개:
+      // (i) resolveAction 첫 인자 === parse 반환값(hits 배열) — builder ②가 builder ① 산출 소비.
+      const producedHits = parseSpy.mock.results[0].value;
+      expect(actionSpy.mock.calls[0][0]).toBe(producedHits);
+      // (ii) buildGhArgv 첫 인자 === resolveAction 반환값(action 객체) — builder ③이 builder ②
+      // 산출 소비.
+      const producedAction = actionSpy.mock.results[0].value;
+      expect(ghArgvSpy.mock.calls[0][0]).toBe(producedAction);
+    });
+
+    it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/stdout/commandArgs mutate 0", () => {
+      const stdout = stdoutOf([{ number: 42 }]);
+      const commandArgs = makeCommandArgs();
+      const plan = buildConsistent(stdout, commandArgs);
+      const planSnapshot = JSON.stringify(plan);
+      const argsSnapshot = JSON.stringify(commandArgs);
+      jest.spyOn(searchParseModule, "parseRealDataResultIssueSearchOutput");
+      jest.spyOn(actionModule, "resolveRealDataResultIssueAction");
+      jest.spyOn(ghArgvModule, "buildRealDataResultIssueGhArgv");
+
+      // 정합 경로 → 정상 void(throw 0).
+      expect(
+        assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+          plan,
+          stdout,
+          commandArgs,
+        ),
+      ).toBeUndefined();
+      // read-only guard — 입력 mutate 0.
+      expect(JSON.stringify(plan)).toBe(planSnapshot);
+      expect(JSON.stringify(commandArgs)).toBe(argsSnapshot);
+      expect(stdout).toBe(stdoutOf([{ number: 42 }]));
+    });
+
+    it("(a fail-fast edge) parse 위임이 throw 하면 resolveAction·buildGhArgv 에 도달하지 못한다(각 0회)", () => {
+      const stdout = "[]";
+      const commandArgs = makeCommandArgs();
+      const plan = buildConsistent(stdout, commandArgs);
+      jest
+        .spyOn(searchParseModule, "parseRealDataResultIssueSearchOutput")
+        .mockImplementation(() => {
+          throw new Error("parse-boom");
+        });
+      const actionSpy = jest.spyOn(
+        actionModule,
+        "resolveRealDataResultIssueAction",
+      );
+      const ghArgvSpy = jest.spyOn(
+        ghArgvModule,
+        "buildRealDataResultIssueGhArgv",
+      );
+
+      expect(() =>
+        assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+          plan,
+          stdout,
+          commandArgs,
+        ),
+      ).toThrow(/parse-boom/);
+
+      // 첫 stage throw 가 뒤 두 stage 도달 전 선전파 → 둘 다 미호출.
+      expect(actionSpy).toHaveBeenCalledTimes(0);
+      expect(ghArgvSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(b 종단 throw 순서 재확인) buildGhArgv 위임이 throw 하면 parse·resolveAction 은 이미 각 1회 호출됨", () => {
+      const stdout = "[]";
+      const commandArgs = makeCommandArgs();
+      const plan = buildConsistent(stdout, commandArgs);
+      const parseSpy = jest.spyOn(
+        searchParseModule,
+        "parseRealDataResultIssueSearchOutput",
+      );
+      const actionSpy = jest.spyOn(
+        actionModule,
+        "resolveRealDataResultIssueAction",
+      );
+      const ghArgvSpy = jest
+        .spyOn(ghArgvModule, "buildRealDataResultIssueGhArgv")
+        .mockImplementation(() => {
+          throw new Error("argv-boom");
+        });
+
+      // 정합 입력으로 앞 두 재유도는 통과하고 셋째 재유도가 throw.
+      expect(() =>
+        assertRealDataResultIssueGhCommandPlanConsistentWithInputs(
+          plan,
+          stdout,
+          commandArgs,
+        ),
+      ).toThrow(/argv-boom/);
+
+      // 순서 상 parse·resolveAction 이 buildGhArgv 보다 먼저 평가됨 — buildGhArgv 재유도 throw
+      // 시점에 두 앞 stage 는 이미 각 1회 호출됐고 buildGhArgv 도 1회 진입(그 안의 강제 throw).
+      expect(parseSpy).toHaveBeenCalledTimes(1);
+      expect(actionSpy).toHaveBeenCalledTimes(1);
+      expect(ghArgvSpy).toHaveBeenCalledTimes(1);
+      expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        actionSpy.mock.invocationCallOrder[0],
+      );
+      expect(actionSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        ghArgvSpy.mock.invocationCallOrder[0],
+      );
     });
   });
 });
