@@ -2,7 +2,10 @@
 id: T-1097
 title: realdata-e2e 종단 시퀀스(collect→evaluate→result→publish) order-lock flow-level smoke — §D 후보 (c) leg1
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: eed6b67a
+prNumber: 989
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 150
