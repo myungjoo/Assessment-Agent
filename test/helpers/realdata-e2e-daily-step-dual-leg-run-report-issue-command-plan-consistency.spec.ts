@@ -690,4 +690,244 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithS
       );
     });
   });
+
+  // 구조-검사 선행성 order-lock(T-1073) — guard 본문(L184~195)은 구조 검사
+  // (`assertPlanStructure(plan)` L186: plan null/undefined → TypeError, plan.descriptor/
+  // plan.commandArgs 비-object → TypeError)를 값 재유도 위임 2 호출
+  // (`buildRealDataDailyStepDualLegRunReportIssueDescriptor`(L193) →
+  // `buildRealDataDailyStepDualLegRunReportIssueCommandArgs`(L195))보다 **먼저** 수행한다
+  // (구조검사 L186 < 첫 재유도 L193). 기존 구조 error-path 블록(위 "구조 결손 —
+  // null/undefined → TypeError" / "구성요소 type 위반 → TypeError")은 각 분기
+  // `.toThrow(TypeError)` 만 assert 하고, 구조 위반 시 2 재유도 위임이 아예 호출되지 않는
+  // (선행 fail-fast) 선행성은 검증하지 않았다. 기존 T-1058 순서-lock 블록은 정합-경로
+  // invocationCallOrder 부등식과 값-재유도 fail-fast(descriptor throw → command-args 0-call)
+  // 만 못박아 구조 error-path 는 미커버다(전역 zerocall 1 = 그것). 본 블록은 구조 결손 각
+  // 분기에서 2 재유도 위임 spy 가 모두 `toHaveBeenCalledTimes(0)` 임을 못박아, 리팩터가
+  // 재유도를 구조 검사 위로 끌어올리는 silent 재정렬로부터 방어한다(T-1066~T-1072 mirror,
+  // daily family 첫 leg). 기존 블록은 유지하고 새 describe 만 추가. test-only 1파일, 가드
+  // `.ts` 무변경.
+  describe("T-1073 — 구조-검사 선행성 order-lock(구조 결손 → 2 재유도 위임 0-call)", () => {
+    // 2 재유도 위임 pass-through spy 설치(mockImplementation 없이 실 구현 계측만). descriptor/
+    // commandArgs type 위반 케이스는 makePlan() 산출을 복제 후 한 구성요소만 변조하므로 spy
+    // 설치 前에 plan 을 만든다(컴포저 chain 이 두 builder 를 호출하므로 spy 후 만들면 호출
+    // 횟수가 오염된다 — guard 재유도만 격리 계측).
+    function installSpies(): {
+      descriptorSpy: jest.SpyInstance;
+      commandArgsSpy: jest.SpyInstance;
+    } {
+      const descriptorSpy = jest.spyOn(
+        descriptorModule,
+        "buildRealDataDailyStepDualLegRunReportIssueDescriptor",
+      );
+      const commandArgsSpy = jest.spyOn(
+        commandArgsModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+      );
+      return { descriptorSpy, commandArgsSpy };
+    }
+
+    describe("happy-path (구조 통과 → 2 재유도 위임 각 1회, descriptor → command-args 순)", () => {
+      it("정합 구조 입력이면 2 재유도 위임이 각 1회 호출되고 descriptor < command-args 선행(invocationCallOrder 부등식)", () => {
+        // plan 은 spy 설치 前 합성 — makePlan 내부 컴포저도 2 delegate 를 호출하므로 spy 설치
+        // 후 만들면 호출 횟수가 오염된다(guard 재유도만 격리 계측).
+        const plan = makePlan();
+        const { descriptorSpy, commandArgsSpy } = installSpies();
+
+        expect(
+          assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+            plan,
+            HAPPY_REPORT,
+          ),
+        ).toBeUndefined();
+
+        // 구조 통과 → 2 재유도 도달, 각 정확히 1회.
+        expect(descriptorSpy).toHaveBeenCalledTimes(1);
+        expect(commandArgsSpy).toHaveBeenCalledTimes(1);
+        expect(descriptorSpy.mock.invocationCallOrder[0]).toBeLessThan(
+          commandArgsSpy.mock.invocationCallOrder[0],
+        );
+      });
+    });
+
+    describe("구조 결손 분기 — TypeError + 2 재유도 위임 0-call(선행성 fail-fast)", () => {
+      // (분기 1) plan null/undefined — assertPlanStructure L108~112 가 값 재유도보다 앞서
+      // fail-fast 함을 2 delegate 0-call 로 못박는다.
+      it("plan=null → TypeError + descriptor·command-args 0-call", () => {
+        const { descriptorSpy, commandArgsSpy } = installSpies();
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+            null as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan,
+            HAPPY_REPORT,
+          ),
+        ).toThrow(TypeError);
+        expect(descriptorSpy).toHaveBeenCalledTimes(0);
+        expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("plan=undefined → TypeError + 2 재유도 위임 0-call", () => {
+        const { descriptorSpy, commandArgsSpy } = installSpies();
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+            undefined as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan,
+            HAPPY_REPORT,
+          ),
+        ).toThrow(TypeError);
+        expect(descriptorSpy).toHaveBeenCalledTimes(0);
+        expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // (분기 2) plan.descriptor 비-object — assertPlanStructure L113~117 이 값 재유도보다
+      // 앞섬. null/배열/primitive(문자열) 3 대표 negative 각각 2 delegate 0-call.
+      it("plan.descriptor=null(비-object) → TypeError + 2 재유도 위임 0-call", () => {
+        const plan = makePlan();
+        const corrupted = {
+          ...plan,
+          descriptor: null,
+        } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+        const { descriptorSpy, commandArgsSpy } = installSpies();
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+            corrupted,
+            HAPPY_REPORT,
+          ),
+        ).toThrow(TypeError);
+        expect(descriptorSpy).toHaveBeenCalledTimes(0);
+        expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("plan.descriptor=배열(비-object) → TypeError + 2 재유도 위임 0-call", () => {
+        const plan = makePlan();
+        const corrupted = {
+          ...plan,
+          descriptor: [],
+        } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+        const { descriptorSpy, commandArgsSpy } = installSpies();
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+            corrupted,
+            HAPPY_REPORT,
+          ),
+        ).toThrow(TypeError);
+        expect(descriptorSpy).toHaveBeenCalledTimes(0);
+        expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("plan.descriptor=primitive 문자열(비-object) → TypeError + 2 재유도 위임 0-call", () => {
+        const plan = makePlan();
+        const corrupted = {
+          ...plan,
+          descriptor: "not-an-object",
+        } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+        const { descriptorSpy, commandArgsSpy } = installSpies();
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+            corrupted,
+            HAPPY_REPORT,
+          ),
+        ).toThrow(TypeError);
+        expect(descriptorSpy).toHaveBeenCalledTimes(0);
+        expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // (분기 3) plan.commandArgs 비-object — assertPlanStructure L118~122 가 값 재유도보다
+      // 앞섬. null/배열/primitive(숫자) 3 대표 negative 각각 2 delegate 0-call. descriptor 는
+      // object 이나 commandArgs 만 결손이라 두 번째 구조 분기에서 throw(재유도 전).
+      it("plan.commandArgs=null(비-object) → TypeError + 2 재유도 위임 0-call", () => {
+        const plan = makePlan();
+        const corrupted = {
+          ...plan,
+          commandArgs: null,
+        } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+        const { descriptorSpy, commandArgsSpy } = installSpies();
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+            corrupted,
+            HAPPY_REPORT,
+          ),
+        ).toThrow(TypeError);
+        expect(descriptorSpy).toHaveBeenCalledTimes(0);
+        expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("plan.commandArgs=배열(비-object) → TypeError + 2 재유도 위임 0-call", () => {
+        const plan = makePlan();
+        const corrupted = {
+          ...plan,
+          commandArgs: [],
+        } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+        const { descriptorSpy, commandArgsSpy } = installSpies();
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+            corrupted,
+            HAPPY_REPORT,
+          ),
+        ).toThrow(TypeError);
+        expect(descriptorSpy).toHaveBeenCalledTimes(0);
+        expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("plan.commandArgs=primitive 숫자(비-object) → TypeError + 2 재유도 위임 0-call", () => {
+        const plan = makePlan();
+        const corrupted = {
+          ...plan,
+          commandArgs: 42,
+        } as unknown as RealDataDailyStepDualLegRunReportIssueCommandPlan;
+        const { descriptorSpy, commandArgsSpy } = installSpies();
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+            corrupted,
+            HAPPY_REPORT,
+          ),
+        ).toThrow(TypeError);
+        expect(descriptorSpy).toHaveBeenCalledTimes(0);
+        expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("대조 — 값 정합 위반(RangeError)은 구조 통과 후 2 재유도 위임 호출 뒤 발생", () => {
+      // 구조는 정상이므로 2 재유도가 모두 도달(호출됨)한 뒤 값 구성요소 비교 단계에서
+      // RangeError 가 난다. 구조 결손(TypeError, 0-call)과 값 drift(RangeError, 호출됨)의
+      // 선행성 경계 대조.
+      it("descriptor drift(title 변조) → RangeError + 2 재유도 위임 모두 호출됨(각 1)", () => {
+        const plan = makePlan();
+        const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+          ...plan,
+          descriptor: {
+            ...plan.descriptor,
+            title: `${plan.descriptor.title}-변조`,
+          },
+        };
+        const { descriptorSpy, commandArgsSpy } = installSpies();
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+            corrupted,
+            HAPPY_REPORT,
+          ),
+        ).toThrow(RangeError);
+        // 구조 통과 → 2 재유도 모두 도달(구성요소 비교 RangeError 는 재유도 이후 단계).
+        expect(descriptorSpy).toHaveBeenCalledTimes(1);
+        expect(commandArgsSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it("commandArgs drift(searchQuery 변형) → RangeError + 2 재유도 위임 모두 호출됨(각 1)", () => {
+        const plan = makePlan();
+        const corrupted: RealDataDailyStepDualLegRunReportIssueCommandPlan = {
+          ...plan,
+          commandArgs: {
+            ...plan.commandArgs,
+            searchQuery: `${plan.commandArgs.searchQuery}-변조`,
+          },
+        };
+        const { descriptorSpy, commandArgsSpy } = installSpies();
+        expect(() =>
+          assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+            corrupted,
+            HAPPY_REPORT,
+          ),
+        ).toThrow(RangeError);
+        expect(descriptorSpy).toHaveBeenCalledTimes(1);
+        expect(commandArgsSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
 });
