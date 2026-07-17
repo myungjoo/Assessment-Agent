@@ -2,8 +2,12 @@
 id: T-1066
 title: realdata-e2e result-report-plan consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError) 분기가 값 재유도(build 위임)보다 먼저 수행됨을 spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 1, T-1065 §D 후보 a)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 959
+mergedAs: 33c3a943
+reviewRounds: 1
+completedAt: 2026-07-17T05:29:00Z
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 110
 estimatedFiles: 1
