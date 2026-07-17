@@ -16,6 +16,11 @@ import type {
 } from "../../src/assessment-collection/domain/activity";
 import type { EvaluationInput } from "../../src/assessment-evaluation/domain/evaluation-input";
 import { mapActivityToEvaluationInput } from "../../src/assessment-evaluation/domain/evaluation-input.mapper";
+// namespace import 신설 — 선행성 order-lock 블록(T-1087)에서 delegate
+// `mapActivityToEvaluationInput` 를 spyOn 하기 위한 spy target. 가드가 named import 로
+// 호출해도 동일 모듈 객체를 가리키므로 spy 에 잡힌다(clean-leg — 기존 named value import 은
+// fixture 합성 전용으로 유지).
+import * as evaluationInputMapperModule from "../../src/assessment-evaluation/domain/evaluation-input.mapper";
 
 import { assertRealDataEvaluationInputsConsistentWithSources } from "./realdata-e2e-evaluation-inputs-consistency";
 
@@ -262,6 +267,164 @@ describe("assertRealDataEvaluationInputsConsistentWithSources", () => {
       assertRealDataEvaluationInputsConsistentWithSources(inputs, activities);
       expect(activities).toEqual(before);
       expect(activities[0]).toBe(before[0]);
+    });
+  });
+
+  // T-1087 — 구조-검사 선행성 order-lock(defense-in-depth, sweep leg 22). 가드 본문은 상위
+  // 배열-구조 assert 2개(assertEvaluationInputsStructure L156 — evaluationInputs 비-배열 →
+  // TypeError / assertActivitiesStructure L157 — activities 비-배열 → TypeError) **둘 다를**
+  // 요소별 재유도 위임(activities.map((a) => mapActivityToEvaluationInput(a)) L163~164)보다
+  // **먼저** 수행한다. 재유도-앞 배열-구조 error(5 분기: evaluationInputs null/undefined/비-배열,
+  // activities null/비-배열)를 주면 delegate 가 toHaveBeenCalledTimes(0) 이어야 한다는 선행성을
+  // spy 로 못박아 "배열-구조 검사 → 요소별 재유도" 순서를 silent 재정렬로부터 방어한다. 값 정합
+  // 위반 RangeError(길이 불일치 L170 / 원소 drift L177)는 재유도 **뒤**에 오므로 delegate 는
+  // per-element map 이라 activities.length 회 호출 — 값-boundary 대조에 사용한다(0-call 범위 밖).
+  // 신규 namespace import + spyOn 인프라 신설 clean-leg. per-element map 특이점: 정상/값-drift
+  // 경로 call 횟수는 1 아니라 activities.length.
+  describe("구조-검사 선행성 — 재유도-앞 배열-구조 error → delegate 0-call (T-1087)", () => {
+    // 본 블록 전용 spy 격리 — 신규 spyOn 이 기존 블록(실 delegate 를 fixture 합성·byte-identical
+    // 대조·비변형 검증에 사용)으로 leak 되지 않도록 매 test 후 복원한다.
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("happy-path(선행성 정상 흐름) — 구조 통과 후 delegate 가 정확히 activities.length 회 호출", () => {
+      // fixture 합성(내부에서 delegate 를 호출)을 spyOn **이전**에 수행해 합성 call 이 spy count 에
+      // 포함되지 않게 한 뒤 spy 를 걸고 가드를 호출 → delegate 정확히 activities.length 회 확인.
+      const inputs = buildConsistent(MIXED);
+      const spy = jest.spyOn(
+        evaluationInputMapperModule,
+        "mapActivityToEvaluationInput",
+      );
+      const result = assertRealDataEvaluationInputsConsistentWithSources(
+        inputs,
+        MIXED,
+      );
+      expect(result).toBeUndefined();
+      // spy 는 실 구현 call-through(mockImplementation 미지정) — byte-identical 대조가 통과한다.
+      // per-element map 특이점: 1 아니라 source activities 전량(길이 4).
+      expect(spy).toHaveBeenCalledTimes(MIXED.length);
+    });
+
+    it("happy-path(단일 원소) — delegate 가 정확히 1회(activities.length=1) 호출", () => {
+      const inputs = buildConsistent([COMMIT]);
+      const spy = jest.spyOn(
+        evaluationInputMapperModule,
+        "mapActivityToEvaluationInput",
+      );
+      assertRealDataEvaluationInputsConsistentWithSources(inputs, [COMMIT]);
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    describe("evaluationInputs 구조 결손(TypeError) → delegate 0-call", () => {
+      it("evaluationInputs=null → throw(TypeError) + delegate 0-call", () => {
+        const spy = jest.spyOn(
+          evaluationInputMapperModule,
+          "mapActivityToEvaluationInput",
+        );
+        expect(() =>
+          assertRealDataEvaluationInputsConsistentWithSources(
+            null as unknown as EvaluationInput[],
+            MIXED,
+          ),
+        ).toThrow(TypeError);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("evaluationInputs=undefined → throw(TypeError) + delegate 0-call", () => {
+        const spy = jest.spyOn(
+          evaluationInputMapperModule,
+          "mapActivityToEvaluationInput",
+        );
+        expect(() =>
+          assertRealDataEvaluationInputsConsistentWithSources(
+            undefined as unknown as EvaluationInput[],
+            MIXED,
+          ),
+        ).toThrow(TypeError);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("evaluationInputs 비-배열(object) → throw(TypeError) + delegate 0-call", () => {
+        const spy = jest.spyOn(
+          evaluationInputMapperModule,
+          "mapActivityToEvaluationInput",
+        );
+        expect(() =>
+          assertRealDataEvaluationInputsConsistentWithSources(
+            {} as unknown as EvaluationInput[],
+            MIXED,
+          ),
+        ).toThrow(/evaluationInputs 가 배열이 아니다/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("activities 구조 결손(TypeError) → delegate 0-call", () => {
+      it("activities=null → throw(TypeError) + delegate 0-call", () => {
+        // evaluationInputs 는 구조상 온전한 배열로 두어 activities 구조 검사(L157)가 재유도-앞
+        // 차단 지점임을 격리 확인한다.
+        const inputs = buildConsistent(MIXED);
+        const spy = jest.spyOn(
+          evaluationInputMapperModule,
+          "mapActivityToEvaluationInput",
+        );
+        expect(() =>
+          assertRealDataEvaluationInputsConsistentWithSources(
+            inputs,
+            null as unknown as Activity[],
+          ),
+        ).toThrow(TypeError);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+
+      it("activities 비-배열(string) → throw(TypeError) + delegate 0-call", () => {
+        const inputs = buildConsistent(MIXED);
+        const spy = jest.spyOn(
+          evaluationInputMapperModule,
+          "mapActivityToEvaluationInput",
+        );
+        expect(() =>
+          assertRealDataEvaluationInputsConsistentWithSources(
+            inputs,
+            "nope" as unknown as Activity[],
+          ),
+        ).toThrow(/activities 가 배열이 아니다/);
+        expect(spy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("경계 대조 — 재유도-후 값 위반(RangeError)은 delegate activities.length 회(0-call 범위 밖)", () => {
+      it("길이 불일치(원소 누락) → RangeError + delegate 정확히 activities.length 회", () => {
+        // 배열-구조 검사(evaluationInputs 배열 · activities 배열)를 통과하므로 delegate 가
+        // source activities 전량에 대해 호출된 뒤 길이 비교에서 RangeError — 재유도-앞 0-call 과
+        // 대비되는 값-boundary(per-element map 이라 activities.length 회, 1 아님).
+        const inputs = buildConsistent(MIXED).slice(0, 3);
+        const spy = jest.spyOn(
+          evaluationInputMapperModule,
+          "mapActivityToEvaluationInput",
+        );
+        expect(() =>
+          assertRealDataEvaluationInputsConsistentWithSources(inputs, MIXED),
+        ).toThrow(RangeError);
+        expect(spy).toHaveBeenCalledTimes(MIXED.length);
+      });
+
+      it("원소-내용 drift(특정 index unitId 변조) → RangeError + delegate 정확히 activities.length 회", () => {
+        const inputs = buildConsistent(MIXED);
+        inputs[1] = {
+          ...inputs[1],
+          unitId: "github:com:WRONG",
+        } as EvaluationInput;
+        const spy = jest.spyOn(
+          evaluationInputMapperModule,
+          "mapActivityToEvaluationInput",
+        );
+        expect(() =>
+          assertRealDataEvaluationInputsConsistentWithSources(inputs, MIXED),
+        ).toThrow(RangeError);
+        expect(spy).toHaveBeenCalledTimes(MIXED.length);
+      });
     });
   });
 });
