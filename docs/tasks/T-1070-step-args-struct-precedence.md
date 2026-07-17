@@ -2,7 +2,7 @@
 id: T-1070
 title: realdata-e2e step-args(aggregator) consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError) 분기가 값 재유도(evaluation/publish sub-composer build 위임)보다 먼저 수행됨을 build-delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 5, T-1065 §D 후보 a)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 120
