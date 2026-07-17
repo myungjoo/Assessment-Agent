@@ -15,8 +15,13 @@
 //   - 입력 비변형: 가드 호출 후 run / report 객체 변경 0.
 import type { RealDataResultIssueRunRef } from "./realdata-e2e-result-issue-descriptor";
 import type { RealDataResultIssueOutcomeReport } from "./realdata-e2e-result-issue-outcome-report";
+// 순서-lock(T-1062) 용 namespace import — guard 재유도의 두 distinct builder 위임
+// (parse → buildOutcomeReport)에 pass-through jest.spyOn 을 걸어 상대 호출 순서 +
+// 데이터-의존 방향을 계측한다.
+import * as outcomeReportModule from "./realdata-e2e-result-issue-outcome-report";
 import { buildRealDataResultIssueOutcomeReportFromOutput } from "./realdata-e2e-result-issue-outcome-report-from-output";
 import { assertRealDataResultIssueOutcomeReportConsistentWithOutput } from "./realdata-e2e-result-issue-outcome-report-from-output-consistency";
+import * as outputParseModule from "./realdata-e2e-result-issue-output-parse";
 
 // 정상 fixture — 유효 issue URL 1건을 담은 stdout + 정상 run 식별자.
 const HAPPY_STDOUT = "https://github.com/octo/repo/issues/42\n";
@@ -35,6 +40,12 @@ function makeHappyReport(): RealDataResultIssueOutcomeReport {
 }
 
 describe("assertRealDataResultIssueOutcomeReportConsistentWithOutput", () => {
+  // 순서-lock test 의 spyOn 격리 — 매 test 후 spy 를 원 구현으로 복원해 후속 test 관측
+  // 오염을 차단한다(T-1062 신규 spyOn 도입에 필수).
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe("happy-path (정합 report → void)", () => {
     it("컴포저 산출 report 를 그대로 넘기면 throw 0(void)", () => {
       const report = makeHappyReport();
@@ -325,6 +336,139 @@ describe("assertRealDataResultIssueOutcomeReportConsistentWithOutput", () => {
       );
       expect(JSON.stringify(run)).toBe(runSnapshot);
       expect(JSON.stringify(report)).toBe(reportSnapshot);
+    });
+  });
+
+  // 순서-lock(T-1062) — guard 재유도 본문(L168~171)의 두 distinct builder
+  // (`parseRealDataResultIssueCreateEditOutput` → 그 산출 outcome 으로
+  // `buildRealDataResultIssueOutcomeReport`)의 상대 호출 순서 + 데이터-의존 방향(builder ②가
+  // builder ① 산출 outcome 을 첫 인자로 소비)은 invocationCallOrder 부등식으로 못박지
+  // 않았다(grep 0). guard 본문은 buildOutcomeReport 재유도가 앞 parse 재유도 산출(outcome)을
+  // 첫 인자로 소비하는 데이터-의존 chain 이라 parse 가 반드시 먼저 평가돼야 한다.
+  // T-1061(daily-leg outcome-report-from-output 2-builder 순서-lock)의 result-issue mirror 로
+  // 그 gap 을 봉한다.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: 정합 report 를 spy 설치 前 미리 만든 뒤(makeHappyReport 내부 컴포저도
+  //     두 builder 를 호출하므로 spy 설치 後 만들면 호출 횟수가 오염된다 — guard 재유도만 격리
+  //     계측) 두 builder 위임을 실 구현 pass-through spy 로 감싸고 guard 재유도 1회 트리거 →
+  //     parse 첫 호출이 buildOutcomeReport 첫 호출보다 먼저(invocationCallOrder toBeLessThan) +
+  //     각 정확히 1회 + buildOutcomeReport 첫 인자 === parse 위임 반환 outcome(데이터-의존
+  //     reference 페어링).
+  //   - branch/무공유 재확인: pass-through spy 하에서도 guard 가 정상 void 반환 + 입력
+  //     stdout/run/report mutate 0(read-only guard).
+  //   - error/negative(a fail-fast): parse 위임 강제 throw → buildOutcomeReport 위임 미도달
+  //     (0회) — parse-먼저 순서 + builder ②가 builder ① 산출 소비로 도달 불가를 fail-fast 로
+  //     못박음.
+  //   - error/negative(b 후속-위임 throw 전파): buildOutcomeReport 위임 강제 throw → guard 가
+  //     그 에러를 전파, 이때 parse 위임은 이미 호출됨(순서 상 parse 가 buildOutcomeReport 보다
+  //     먼저 평가됨을 negative 경로에서도 재확인).
+  describe("T-1062 — 재유도 위임 순서-lock(parse → buildOutcomeReport)", () => {
+    it("정합 재유도 시 parse 위임이 buildOutcomeReport 위임보다 먼저 호출된다(invocationCallOrder 부등식·데이터-의존 reference·각 1회)", () => {
+      // report 는 spy 설치 前 합성 — makeHappyReport 내부 컴포저도 두 builder 를 호출하므로
+      // spy 설치 後 만들면 호출 횟수가 오염된다. guard 재유도 호출만 격리 계측한다.
+      const report = makeHappyReport();
+      const parseSpy = jest.spyOn(
+        outputParseModule,
+        "parseRealDataResultIssueCreateEditOutput",
+      );
+      const buildOutcomeSpy = jest.spyOn(
+        outcomeReportModule,
+        "buildRealDataResultIssueOutcomeReport",
+      );
+
+      assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+        HAPPY_STDOUT,
+        HAPPY_RUN,
+        report,
+      );
+
+      // guard 재유도 지점 각 1개 → 각 위임 정확히 1회.
+      expect(parseSpy).toHaveBeenCalledTimes(1);
+      expect(buildOutcomeSpy).toHaveBeenCalledTimes(1);
+      // 순서: parse 위임(첫 호출)이 buildOutcomeReport 위임(첫 호출)보다 먼저 호출된다.
+      expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        buildOutcomeSpy.mock.invocationCallOrder[0],
+      );
+      // 데이터-의존: buildOutcomeReport 위임 첫 인자 = parse 위임 반환 outcome(reference 동일)
+      // — builder ②가 builder ① 산출 outcome 을 소비하는 chain 방향 lock.
+      const producedOutcome = parseSpy.mock.results[0].value;
+      expect(buildOutcomeSpy.mock.calls[0][0]).toBe(producedOutcome);
+    });
+
+    it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + stdout/run/report mutate 0", () => {
+      const report = makeHappyReport();
+      const runSnapshot = JSON.parse(JSON.stringify(HAPPY_RUN));
+      const reportSnapshot = JSON.parse(JSON.stringify(report));
+      jest.spyOn(outputParseModule, "parseRealDataResultIssueCreateEditOutput");
+      jest.spyOn(outcomeReportModule, "buildRealDataResultIssueOutcomeReport");
+
+      // 정합 경로 → 정상 void(throw 0).
+      expect(
+        assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+          HAPPY_STDOUT,
+          HAPPY_RUN,
+          report,
+        ),
+      ).toBeUndefined();
+      // read-only guard — 입력 mutate 0.
+      expect(HAPPY_RUN).toEqual(runSnapshot);
+      expect(report).toEqual(reportSnapshot);
+    });
+
+    it("(a fail-fast) parse 위임이 throw 하면 buildOutcomeReport 위임에 도달하지 못한다(buildOutcomeReport 0회)", () => {
+      const report = makeHappyReport();
+      jest
+        .spyOn(outputParseModule, "parseRealDataResultIssueCreateEditOutput")
+        .mockImplementation(() => {
+          throw new Error("parse-boom");
+        });
+      const buildOutcomeSpy = jest.spyOn(
+        outcomeReportModule,
+        "buildRealDataResultIssueOutcomeReport",
+      );
+
+      expect(() =>
+        assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+          HAPPY_STDOUT,
+          HAPPY_RUN,
+          report,
+        ),
+      ).toThrow(/parse-boom/);
+
+      // parse-먼저 순서 + builder ②가 builder ① 산출 outcome 을 소비하므로 parse throw 가
+      // buildOutcomeReport 도달 전에 선전파 → buildOutcomeReport 미호출.
+      expect(buildOutcomeSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(b 후속-위임 throw 전파) buildOutcomeReport 위임이 throw 하면 guard 가 전파, 이때 parse 위임은 이미 호출됨(1회·parse → buildOutcomeReport 순서 재확인)", () => {
+      const report = makeHappyReport();
+      const parseSpy = jest.spyOn(
+        outputParseModule,
+        "parseRealDataResultIssueCreateEditOutput",
+      );
+      const buildOutcomeSpy = jest
+        .spyOn(outcomeReportModule, "buildRealDataResultIssueOutcomeReport")
+        .mockImplementation(() => {
+          throw new Error("build-boom");
+        });
+
+      // 정합 stdout·run 으로 parse 재유도는 통과하고 buildOutcomeReport 재유도가 throw.
+      expect(() =>
+        assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+          HAPPY_STDOUT,
+          HAPPY_RUN,
+          report,
+        ),
+      ).toThrow(/build-boom/);
+
+      // 순서 상 parse 가 buildOutcomeReport 보다 먼저 평가됨 — buildOutcomeReport 재유도 throw
+      // 시점에 parse 는 이미 1회 호출됐고 buildOutcomeReport 도 1회 진입(그 안의 강제 throw).
+      expect(parseSpy).toHaveBeenCalledTimes(1);
+      expect(buildOutcomeSpy).toHaveBeenCalledTimes(1);
+      expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        buildOutcomeSpy.mock.invocationCallOrder[0],
+      );
     });
   });
 });
