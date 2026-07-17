@@ -19,6 +19,9 @@
 import { buildRealDataPipelinePlan } from "./realdata-e2e-pipeline-plan";
 import type { RealDataPipelinePlan } from "./realdata-e2e-pipeline-plan";
 import { assertRealDataPipelinePlanConsistentWithSources } from "./realdata-e2e-pipeline-plan-consistency";
+// T-1079 구조-선행성 spy 용 namespace import — 가드의 유일 재유도 delegate
+// (buildRealDataCollectCallArgs)를 jest.spyOn 으로 계측하기 위함(구조 결손 시 0-call 못박기).
+import * as collectModule from "./realdata-e2e-seed-collect-call-args";
 import { buildRealDataE2eSeed } from "./realdata-e2e-seed-fixture";
 import type { RealDataSeedDescriptor } from "./realdata-e2e-seed-fixture";
 
@@ -393,6 +396,229 @@ describe("assertRealDataPipelinePlanConsistentWithSources", () => {
       );
       expect(JSON.stringify(pipelinePlan)).toBe(pipelinePlanSnapshot);
       expect(JSON.stringify(seeds)).toBe(seedsSnapshot);
+    });
+  });
+
+  // ── T-1079 구조-검사 선행성 order-lock (구조 결손 → collect 재유도 delegate 0-call) ──
+  // Why: 가드 본문은 2 구조 assert(assertPipelinePlanStructure L176 / assertSourcesStructure
+  // L177)를 collect 재유도 위임(buildRealDataCollectCallArgs L183)보다 **먼저** 수행한다.
+  // 기존 구조 error-path 블록(L205 구조 결손 null/undefined / L238 구성요소 type 위반)은
+  // .toThrow(TypeError) 만 assert 하고 재유도 delegate 호출 횟수를 못박지 않았다(spec 이
+  // delegate 를 import 조차 안 함 — spyOn 0 / toHaveBeenCalledTimes(0) 0). 즉 구조 결손 입력
+  // 시 delegate 가 toHaveBeenCalledTimes(0) 이어야 한다는 선행성이 미검증이었다. 본 블록은
+  // 그 gap 을 구조 결손 대표 7 분기(pipelinePlan null·undefined · collectCallArgs 비-배열
+  // (null/object) · seeds 비-배열 · modelId 비-string(number/null)) 각각 delegate 0-call 로
+  // 확장 완결해, "구조 검사 → 값 재유도" 순서가 silent 재정렬(리팩터가 재유도를 구조 검사
+  // 위로 끌어올림)로 깨지면 반드시 fail 하도록 못박는다(T-1066~T-1078 defense-in-depth 의
+  // pipeline-plan mirror, 단일 delegate buildRealDataCollectCallArgs).
+  //
+  // R-112 cover 구조(구조-선행성):
+  //   - error/negative(핵심): 구조 결손 7 분기 각각 → TypeError(한국어 라벨) + 재유도
+  //     delegate 0-call. 분기 분리(단일 negative 로 묶지 않음), pipelinePlan null 과 undefined 는
+  //     별 case, collectCallArgs 비-배열은 null·object, modelId 비-string 은 number·null 로 분리.
+  //   - happy/flow: 정합 pipelinePlan/seeds/modelId 는 구조 검사 통과 후 delegate 에 도달
+  //     (정확히 1회, seeds 인자)하고 void.
+  //   - 경계 대조(negative 보강): 값 정합 위반(재유도-후 RangeError, collectCallArgs drift 또는
+  //     modelId mismatch)은 구조 통과 → delegate 도달 **뒤** 발생(delegate 호출됨) — 구조
+  //     (TypeError, 0-call) vs 값(재유도-후 RangeError, 1-call) 경계를 선행성 관점에서 명확화.
+  //     본 가드는 구조 검사와 재유도 사이 RangeError 분기가 없어 모든 RangeError 가 delegate
+  //     호출을 수반한다(daily-step-eval 의 "재유도-전 RangeError" 대조 불필요).
+  describe("T-1079 — 구조-검사 선행성 order-lock(구조 결손 → collect 재유도 delegate 0-call)", () => {
+    afterEach(() => {
+      // 신규 spyOn 격리 — 최상위 다른 블록으로 mock 누수 방지.
+      jest.restoreAllMocks();
+    });
+
+    // 구조 결손 7 분기 fixture. 결손 아닌 인자는 정합(makeSeeds/MODEL_ID/정합 pipelinePlan)으로
+    // 둔다 — 결손 아닌 인자는 구조 통과해야 결손 인자에서 fail-fast 됨을 격리 확인. makeX 는
+    // spyOn **전** 에 호출(정합 pipelinePlan 합성이 내부에서 delegate 를 호출하므로 계측 오염 차단).
+    const STRUCTURE_DEFICIENT_CASES: Array<{
+      label: string;
+      makePipelinePlan: () => RealDataPipelinePlan;
+      makeSeedsArg: () => RealDataSeedDescriptor[];
+      makeModelId: () => string;
+      messagePattern: RegExp;
+    }> = [
+      {
+        label: "pipelinePlan null",
+        makePipelinePlan: () => null as unknown as RealDataPipelinePlan,
+        makeSeedsArg: () => makeSeeds(),
+        makeModelId: () => MODEL_ID,
+        messagePattern: /pipelinePlan 이 null\/undefined/,
+      },
+      {
+        label: "pipelinePlan undefined",
+        makePipelinePlan: () => undefined as unknown as RealDataPipelinePlan,
+        makeSeedsArg: () => makeSeeds(),
+        makeModelId: () => MODEL_ID,
+        messagePattern: /pipelinePlan 이 null\/undefined/,
+      },
+      {
+        label: "collectCallArgs 비-배열(null)",
+        makePipelinePlan: () =>
+          ({
+            collectCallArgs: null,
+            modelId: MODEL_ID,
+          }) as unknown as RealDataPipelinePlan,
+        makeSeedsArg: () => makeSeeds(),
+        makeModelId: () => MODEL_ID,
+        messagePattern:
+          /pipelinePlan\.collectCallArgs 가 배열이 아니다\(타입: null\)/,
+      },
+      {
+        label: "collectCallArgs 비-배열(object)",
+        makePipelinePlan: () =>
+          ({
+            collectCallArgs: {},
+            modelId: MODEL_ID,
+          }) as unknown as RealDataPipelinePlan,
+        makeSeedsArg: () => makeSeeds(),
+        makeModelId: () => MODEL_ID,
+        messagePattern:
+          /pipelinePlan\.collectCallArgs 가 배열이 아니다\(타입: object\)/,
+      },
+      {
+        label: "seeds 비-배열(object)",
+        makePipelinePlan: () =>
+          buildRealDataPipelinePlan(makeSeeds(), MODEL_ID),
+        makeSeedsArg: () => ({}) as unknown as RealDataSeedDescriptor[],
+        makeModelId: () => MODEL_ID,
+        messagePattern: /seeds 가 배열이 아니다\(타입: object\)/,
+      },
+      {
+        label: "modelId 비-string(number)",
+        makePipelinePlan: () =>
+          buildRealDataPipelinePlan(makeSeeds(), MODEL_ID),
+        makeSeedsArg: () => makeSeeds(),
+        makeModelId: () => 7 as unknown as string,
+        messagePattern: /modelId 가 문자열이 아니다\(타입: number\)/,
+      },
+      {
+        label: "modelId 비-string(null)",
+        makePipelinePlan: () =>
+          buildRealDataPipelinePlan(makeSeeds(), MODEL_ID),
+        makeSeedsArg: () => makeSeeds(),
+        makeModelId: () => null as unknown as string,
+        messagePattern: /modelId 가 문자열이 아니다\(타입: null\)/,
+      },
+    ];
+
+    STRUCTURE_DEFICIENT_CASES.forEach(
+      ({
+        label,
+        makePipelinePlan,
+        makeSeedsArg,
+        makeModelId,
+        messagePattern,
+      }) => {
+        it(`구조 결손[${label}] → TypeError + buildRealDataCollectCallArgs 재유도 0-call(선행 차단)`, () => {
+          // 결손 아닌 인자는 spy 설치 전 합성 — 정합 pipelinePlan 합성 내부의 delegate 호출이
+          // 계측을 오염시키지 않도록 격리.
+          const pipelinePlan = makePipelinePlan();
+          const seeds = makeSeedsArg();
+          const modelId = makeModelId();
+          const collectSpy = jest.spyOn(
+            collectModule,
+            "buildRealDataCollectCallArgs",
+          );
+
+          // 구조 결손이므로 TypeError(한국어 라벨) throw.
+          expect(() =>
+            assertRealDataPipelinePlanConsistentWithSources(
+              pipelinePlan,
+              seeds,
+              modelId,
+            ),
+          ).toThrow(TypeError);
+          expect(() =>
+            assertRealDataPipelinePlanConsistentWithSources(
+              pipelinePlan,
+              seeds,
+              modelId,
+            ),
+          ).toThrow(messagePattern);
+
+          // 핵심: 구조 검사가 재유도보다 먼저 차단 → delegate 미호출(0-call).
+          expect(collectSpy).toHaveBeenCalledTimes(0);
+        });
+      },
+    );
+
+    it("구조 검사 통과(정합 pipelinePlan/seeds/modelId) → 재유도 delegate 도달(정확히 1회, seeds 인자) 후 void", () => {
+      // pipelinePlan 은 spy 설치 前 합성 — buildRealDataPipelinePlan 내부도 delegate 를 호출하므로
+      // spy 설치 후 만들면 호출 횟수가 오염된다. 가드 재유도 호출만 격리 계측한다.
+      const seeds = makeSeeds();
+      const pipelinePlan = buildRealDataPipelinePlan(seeds, MODEL_ID);
+      const collectSpy = jest.spyOn(
+        collectModule,
+        "buildRealDataCollectCallArgs",
+      );
+
+      const result = assertRealDataPipelinePlanConsistentWithSources(
+        pipelinePlan,
+        seeds,
+        MODEL_ID,
+      );
+
+      // 구조 통과 → delegate 정확히 1회 도달(정확히 seeds 인자로), 가드는 void.
+      // invocationCallOrder 는 구조 검사 통과 뒤 호출된 유일 delegate 의 순번(>0)으로 도달을 못박는다.
+      expect(result).toBeUndefined();
+      expect(collectSpy).toHaveBeenCalledTimes(1);
+      expect(collectSpy).toHaveBeenCalledWith(seeds);
+      expect(collectSpy.mock.invocationCallOrder[0]).toBeGreaterThan(0);
+    });
+
+    it("경계 대조(재유도-후 RangeError) — collectCallArgs drift 는 구조 통과 후 delegate 도달 뒤 발생(구조 0-call vs 값 1-call)", () => {
+      // 구조 온전(collectCallArgs 배열) → 재유도 도달 → drift 검출 RangeError.
+      // pipelinePlan 은 spy 설치 前 합성해 계측 오염 차단.
+      const seeds = makeSeeds();
+      const pipelinePlan = buildRealDataPipelinePlan(seeds, MODEL_ID);
+      const corrupted: RealDataPipelinePlan = {
+        ...pipelinePlan,
+        collectCallArgs: pipelinePlan.collectCallArgs.slice(0, -1),
+      };
+      const collectSpy = jest.spyOn(
+        collectModule,
+        "buildRealDataCollectCallArgs",
+      );
+
+      expect(() =>
+        assertRealDataPipelinePlanConsistentWithSources(
+          corrupted,
+          seeds,
+          MODEL_ID,
+        ),
+      ).toThrow(RangeError);
+
+      // 구조(TypeError, 0-call) 와 대조: 값 경로는 구조를 통과해 delegate 가 정확히 1회 호출됨.
+      expect(collectSpy).toHaveBeenCalledTimes(1);
+      expect(collectSpy).toHaveBeenCalledWith(seeds);
+    });
+
+    it("경계 대조(재유도-후 RangeError) — modelId mismatch 도 구조 통과 후 delegate 도달 뒤 발생(값 1-call)", () => {
+      // collectCallArgs 정합 → 재유도 도달 + collectCallArgs 통과 → modelId === 대조에서 RangeError.
+      const seeds = makeSeeds();
+      const pipelinePlan = buildRealDataPipelinePlan(seeds, MODEL_ID);
+      const corrupted: RealDataPipelinePlan = {
+        ...pipelinePlan,
+        modelId: "다른-모델:7b",
+      };
+      const collectSpy = jest.spyOn(
+        collectModule,
+        "buildRealDataCollectCallArgs",
+      );
+
+      expect(() =>
+        assertRealDataPipelinePlanConsistentWithSources(
+          corrupted,
+          seeds,
+          MODEL_ID,
+        ),
+      ).toThrow(/pipelinePlan\.modelId/);
+
+      // modelId RangeError 도 재유도-후 이므로 delegate 호출됨(구조 0-call 과 경계 분리).
+      expect(collectSpy).toHaveBeenCalledTimes(1);
+      expect(collectSpy).toHaveBeenCalledWith(seeds);
     });
   });
 });
