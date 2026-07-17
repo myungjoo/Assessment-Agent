@@ -2,7 +2,7 @@
 id: T-1093
 title: realdata-e2e evaluation-plan consistency 재유도 2-delegate call-count exactly-N 완결 — 값-drift(inputs/callArgs drift RangeError) 대조 test 2건의 loose toHaveBeenCalled() 3건을 정확 횟수(buildRealDataEvaluationInputs·buildRealDataScoringCallArgs 각 exactly-1)로 못박아 중복 재유도 회귀 차단 (call-count 완결성 sweep leg 28)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 12
