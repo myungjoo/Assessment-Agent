@@ -2,8 +2,12 @@
 id: T-1071
 title: realdata-e2e result-issue-gh-command-plan consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError) 분기가 값 재유도(parse/resolveAction/buildGhArgv 3 위임)보다 먼저 수행됨을 재유도-delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 6, T-1070 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 964
+mergedAs: ec535c54
+reviewRounds: 1
+completedAt: 2026-07-17T07:59:37Z
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 130
 estimatedFiles: 1
