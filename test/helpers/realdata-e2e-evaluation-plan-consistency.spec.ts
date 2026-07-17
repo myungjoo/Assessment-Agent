@@ -594,4 +594,264 @@ describe("assertRealDataEvaluationPlanConsistentWithSources", () => {
       );
     });
   });
+
+  // T-1067 — 구조-검사 선행성 order-lock(구조 검사 → 값 재유도 build 위임).
+  //
+  // 가드 본문(L201~202)은 구조 검사(assertPlanStructure → assertSourcesStructure)를 값
+  // 재유도 위임(buildRealDataEvaluationInputs L207 → buildRealDataScoringCallArgs L221)
+  // 보다 먼저 수행한다. 그러나 기존 spec 의 구조 error-path 테스트(plan null/undefined/
+  // 비-object · plan.inputs 비-배열 · plan.callArgs 비-배열 · activities 비-배열 · modelId
+  // 비-string)는 오직 .toThrow(TypeError) 만 assert 하고, 위 T-1055 순서-lock 블록의 유일
+  // toHaveBeenCalledTimes(0)(inputs throw → callArgs 0)은 값-재유도 fail-fast 만 못박아
+  // "구조 위반 시 build 위임이 아예 호출되지 않는(선행 fail-fast) 선행성" 은 미검증이다.
+  // 구조 결손 입력을 주면 두 build 위임 spy 가 모두 toHaveBeenCalledTimes(0) 이어야 하며,
+  // 이를 못박아 "구조 검사 → 값 재유도" 순서를 silent 재정렬(리팩터가 build 를 구조 검사
+  // 위로 끌어올림)로부터 방어한다(T-1066 result-report-plan leg 1 과 동형 defense-in-depth).
+  //
+  // R-112 cover 구조(구조-선행성):
+  //   - happy: 정합 입력 → 구조 검사 통과 후 값 재유도 도달(두 build 위임 각 1회 · inputs
+  //     → callArgs 순서 재확인 — 기존 ico 블록과 정합).
+  //   - error/negative(핵심): 구조 결손 5분기(plan 비-객체 / plan.inputs 비-배열 /
+  //     plan.callArgs 비-배열 / activities 비-배열 / modelId 비-string) 각각 TypeError +
+  //     두 build 위임 spy 0-call(선행 차단). 분기마다 유형별 negative(null/undefined/배열
+  //     /원시/비-배열·비-string mismatch)를 배치.
+  //   - 대조(경계 명확화): 값 정합 위반(inputs drift → RangeError · callArgs drift →
+  //     RangeError)은 구조 검사를 통과해 build 위임이 호출된 뒤 발생 — 구조(TypeError,
+  //     build 0-call) vs 값(RangeError, build 호출됨) 경계를 선행성 관점에서 대조.
+  describe("T-1067 — 구조-검사 선행성 order-lock(구조 → 값 재유도 build 미도달)", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("(happy) 정합 입력 → 구조 검사 통과 후 값 재유도 도달(두 build 위임 각 1회 · inputs → callArgs 순서)", () => {
+      const activities = mixedActivities();
+      // plan 은 spy 설치 前 합성 — buildRealDataEvaluationPlan 내부도 두 builder 를 호출하므로
+      // spy 설치 후 만들면 호출 횟수가 오염된다(격리 계측).
+      const plan = buildRealDataEvaluationPlan(activities, MODEL_ID);
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const callArgsSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+
+      assertRealDataEvaluationPlanConsistentWithSources(
+        plan,
+        activities,
+        MODEL_ID,
+      );
+
+      // 구조 검사 통과 → 값 재유도 도달(각 위임 정확히 1회 · inputs 먼저).
+      expect(inputsSpy).toHaveBeenCalledTimes(1);
+      expect(callArgsSpy).toHaveBeenCalledTimes(1);
+      expect(inputsSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        callArgsSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("(구조 결손 분기 1/5: plan 비-객체) plan=null/undefined/array/primitive → TypeError + 두 build 위임 미도달(0회)", () => {
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const callArgsSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+      for (const badPlan of [null, undefined, [], "not-a-plan", 7]) {
+        expect(() =>
+          assertRealDataEvaluationPlanConsistentWithSources(
+            badPlan as unknown as RealDataEvaluationPlan,
+            mixedActivities(),
+            MODEL_ID,
+          ),
+        ).toThrow(TypeError);
+      }
+      // 구조 검사(assertPlanStructure)가 값 재유도보다 먼저 fail-fast → build 미도달.
+      expect(inputsSpy).toHaveBeenCalledTimes(0);
+      expect(callArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 2/5: plan.inputs 비-배열) inputs=null/undefined/object/primitive → TypeError + build 미도달(0회)", () => {
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const callArgsSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+      // plan.callArgs 는 배열(정합)로 두고 inputs 만 비-배열 — assertPlanStructure 의
+      // inputs 분기가 fail-fast 하는지 격리.
+      for (const badInputs of [null, undefined, {}, "x", 3]) {
+        const plan = {
+          inputs: badInputs,
+          callArgs: [],
+        } as unknown as RealDataEvaluationPlan;
+        expect(() =>
+          assertRealDataEvaluationPlanConsistentWithSources(
+            plan,
+            mixedActivities(),
+            MODEL_ID,
+          ),
+        ).toThrow(/plan\.inputs 가 배열이 아니다/);
+      }
+      expect(inputsSpy).toHaveBeenCalledTimes(0);
+      expect(callArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 3/5: plan.callArgs 비-배열) callArgs=null/undefined/object/primitive → TypeError + build 미도달(0회)", () => {
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const callArgsSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+      // plan.inputs 는 배열(정합)로 두고 callArgs 만 비-배열 — assertPlanStructure 의
+      // callArgs 분기가 fail-fast 하는지 격리.
+      for (const badCallArgs of [null, undefined, {}, "x", 3]) {
+        const plan = {
+          inputs: [],
+          callArgs: badCallArgs,
+        } as unknown as RealDataEvaluationPlan;
+        expect(() =>
+          assertRealDataEvaluationPlanConsistentWithSources(
+            plan,
+            mixedActivities(),
+            MODEL_ID,
+          ),
+        ).toThrow(/plan\.callArgs 가 배열이 아니다/);
+      }
+      expect(inputsSpy).toHaveBeenCalledTimes(0);
+      expect(callArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 4/5: activities 비-배열) activities=null/undefined/object/primitive → TypeError + build 미도달(0회)", () => {
+      // plan 은 구조 정합(inputs/callArgs 배열)으로 두고 activities 만 비-배열 —
+      // assertSourcesStructure 의 activities 분기가 값 재유도 전에 fail-fast 하는지 격리.
+      const plan = {
+        inputs: [],
+        callArgs: [],
+      } as unknown as RealDataEvaluationPlan;
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const callArgsSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+      for (const badActivities of [null, undefined, {}, "x", 3]) {
+        expect(() =>
+          assertRealDataEvaluationPlanConsistentWithSources(
+            plan,
+            badActivities as unknown as Activity[],
+            MODEL_ID,
+          ),
+        ).toThrow(/activities 가 배열이 아니다/);
+      }
+      expect(inputsSpy).toHaveBeenCalledTimes(0);
+      expect(callArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(구조 결손 분기 5/5: modelId 비-string) modelId=null/undefined/array/object/number → TypeError + build 미도달(0회)", () => {
+      // plan · activities 는 구조 정합으로 두고 modelId 만 비-string —
+      // assertSourcesStructure 의 modelId 분기가 값 재유도 전에 fail-fast 하는지 격리.
+      const plan = {
+        inputs: [],
+        callArgs: [],
+      } as unknown as RealDataEvaluationPlan;
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const callArgsSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+      for (const badModelId of [null, undefined, [], {}, 7]) {
+        expect(() =>
+          assertRealDataEvaluationPlanConsistentWithSources(
+            plan,
+            [],
+            badModelId as unknown as string,
+          ),
+        ).toThrow(/modelId 가 문자열이 아니다/);
+      }
+      expect(inputsSpy).toHaveBeenCalledTimes(0);
+      expect(callArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(대조 a) 값 정합 위반(inputs drift → RangeError)은 구조 검사 통과 후 inputs build 위임 호출된 뒤 발생(inputs 1+ call)", () => {
+      const activities = mixedActivities();
+      const plan = buildRealDataEvaluationPlan(activities, MODEL_ID);
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const callArgsSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+      // 구조는 온전(inputs/callArgs 배열) — inputs 값만 drift 시켜 RangeError.
+      const corrupted: RealDataEvaluationPlan = {
+        ...plan,
+        inputs: [
+          { ...plan.inputs[0], unitId: "tampered:unit:id" },
+          ...plan.inputs.slice(1),
+        ],
+      };
+
+      expect(() =>
+        assertRealDataEvaluationPlanConsistentWithSources(
+          corrupted,
+          activities,
+          MODEL_ID,
+        ),
+      ).toThrow(RangeError);
+
+      // 구조 검사를 통과했으므로 inputs 재유도(build 위임)가 이미 호출된 뒤 값 대조에서
+      // throw — 구조(TypeError, build 0-call) 와 대비되는 경계. inputs drift 는 inputs
+      // 게이트에서 fail-fast 하므로 callArgs 위임은 미도달(0회).
+      expect(inputsSpy).toHaveBeenCalled();
+      expect(callArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(대조 b) 값 정합 위반(callArgs drift → RangeError)은 구조 통과 후 두 build 위임 호출된 뒤 발생(inputs·callArgs 각 1+ call)", () => {
+      const activities = mixedActivities();
+      const plan = buildRealDataEvaluationPlan(activities, MODEL_ID);
+      const inputsSpy = jest.spyOn(
+        evaluationInputsModule,
+        "buildRealDataEvaluationInputs",
+      );
+      const callArgsSpy = jest.spyOn(
+        scoringCallArgsModule,
+        "buildRealDataScoringCallArgs",
+      );
+      // inputs 는 정합(게이트 통과) · callArgs 값만 drift → callArgs 게이트에서 RangeError.
+      const corrupted: RealDataEvaluationPlan = {
+        ...plan,
+        callArgs: [
+          { input: plan.inputs[0], options: { modelId: "다른-모델:7b" } },
+          ...plan.callArgs.slice(1),
+        ],
+      };
+
+      expect(() =>
+        assertRealDataEvaluationPlanConsistentWithSources(
+          corrupted,
+          activities,
+          MODEL_ID,
+        ),
+      ).toThrow(RangeError);
+
+      // inputs 게이트 통과 후 callArgs 재유도까지 도달 — 두 build 위임 모두 호출됨.
+      expect(inputsSpy).toHaveBeenCalled();
+      expect(callArgsSpy).toHaveBeenCalled();
+    });
+  });
 });
