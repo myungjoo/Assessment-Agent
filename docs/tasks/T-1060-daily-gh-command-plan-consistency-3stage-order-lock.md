@@ -2,7 +2,9 @@
 id: T-1060
 title: daily-step-dual-leg-run-report-issue-gh-command-plan consistency-guard(assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWithInputs)의 3 distinct builder 데이터-의존 재유도 순서(parse → resolveAction → buildGhArgv) invocationCallOrder 순서-lock + reference-페어링 test 로 못박기 (consistency-guard 재유도 delegate 순서-lock leg 7)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-17T01:22:32Z
+result: "PR #954 squash 3bc9f010 merged. test-only 1파일 +232/-0(production 0 LOC), 3-stage(parse→resolveAction→buildGhArgv) invocationCallOrder 순서-lock 2 edge + reference-페어링 2 + fail-fast + 종단 throw + 무공유 test 5종. 대상 suite 47 green, 전체 404 suites/11076 tests green, coverage 무회귀. reviewer round1 APPROVE 4-게이트 PASS."
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 135
