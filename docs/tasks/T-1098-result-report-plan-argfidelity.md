@@ -2,8 +2,12 @@
 id: T-1098
 title: realdata-e2e result-report-plan 재유도 delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg1
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 990
+mergedAs: 218b58ab
+reviewRounds: 1
+completedAt: 2026-07-17T23:00:26Z
 coversReq: [REQ-048]
 estimatedDiff: 35
 estimatedFiles: 1
