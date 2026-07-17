@@ -2,7 +2,7 @@
 id: T-1084
 title: realdata-e2e result-outcome-step-args consistency-guard 구조-검사 선행성 order-lock (variant leg — 기존 spy 블록 재사용, 구조 결손 error-path 에 delegate 0-call 보강) — 구조 결손(TypeError)이 outcome-report 재유도 위임(buildRealDataResultIssueOutcomeReportFromOutput)보다 먼저 수행됨을 delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 19, T-1083 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 140
@@ -62,3 +62,11 @@ planner pre-check(실 grep + read, 2026-07-17, HEAD f3dc6f58 = T-1083 머지 포
 
 - (구조-선행성 sweep leg 20+) step-args family 가드 소진 후 잔여 적격 축 pre-check. 2026-07-17 시점 step-args layer 4종(seed-collect T-1081·evaluation T-1082·result-publish T-1083·result-outcome T-1084 본 leg)이 소진되면, T-1065 §D 후보 (a) 구조-guard 선행성 축의 잔여 가드(broader realdata-e2e producer/aggregator layer 중 spyOn 부재 또는 구조 error-path 0-call 결손분)를 grep 실증으로 재감사해 leg 화하거나, 소진 확정 시 §D 후보 (b) call-count exactly-once 완결성 감사로 전환.
 - 구조-선행성 축이 소진되면 T-1065 §D 후보 (b) call-count exactly-once 완결성 감사로 전환(각 재유도 delegate 가 정합 경로에서 정확히 1회만 호출됨을 exactly-once 로 못박는 축 — 현재는 legs 가 0-call/1-call 선행성 위주라 exactly-once 완결성은 부분 커버).
+
+## Result (DONE)
+
+- 완료: 2026-07-17T15:00Z (cron@AKIHA-30224, fineGrainedConcurrency stage5b claim-pickup)
+- PR #977 squash 머지 `6c55a4f9`, feature branch delete.
+- test-only 1파일 `+214/-0` — 신규 describe "T-1084 구조-검사 선행성 order-lock": 구조 결손 10 분기 forEach + delegate `buildRealDataResultIssueOutcomeReportFromOutput` `toHaveBeenCalledTimes(0)` 0-call spy, happy-path 1-call(인자 stdout·runPlan.run) + 재유도-후 RangeError 경계 대조, 기존 namespace import(L24)+spyOn 인프라 재사용(신규 import 0). 자체 afterEach restoreAllMocks 격리. production `src`·helper `.ts` 0 LOC.
+- 검증: 404 suites / 11289 tests pass, line 99.95% / function 100% / branch 99.25% — coverageThreshold(line≥80 AND func≥80) 무회귀.
+- reviewer round1 APPROVE (8-check 전 항목 통과, BLOCKER/MAJOR 0, nit=vacuous invocationCallOrder assert 비차단). 4-게이트 PASS (external comment approval-gate; 첫 pull_request run reviewer-gate step 단독 fail=comment-post 前 race, issue_comment run 29589756652 success 로 게이트d 평가; ADR-0036 §8(c) head 최신 main 포함, rebase noop).
