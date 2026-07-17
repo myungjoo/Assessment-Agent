@@ -2,7 +2,10 @@
 id: T-1075
 title: realdata-e2e daily-step-dual-leg run-report-issue-publish-plan consistency-guard 구조-검사 선행성 order-lock 확장 — 구조 결손(TypeError) 6 분기가 값 재유도(command-plan → search-gh-argv 2 위임)보다 먼저 수행됨을 두 재유도-delegate 각 0-call spy 로 전량 못박는 defense-in-depth (구조-guard 선행성 sweep leg 10 expansion, T-1074 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 968
+mergedAs: 72d7b68b
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 150
