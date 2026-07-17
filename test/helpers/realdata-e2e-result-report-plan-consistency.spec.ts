@@ -861,9 +861,11 @@ describe("assertRealDataResultReportPlanConsistentWithInputs", () => {
       ).toThrow(RangeError);
 
       // 구조 검사를 통과했으므로 값 재유도(build 위임)가 이미 호출된 뒤 값 대조에서 throw —
-      // 구조(TypeError, build 0-call) 와 대비되는 경계.
-      expect(summarySpy).toHaveBeenCalled();
-      expect(descriptorSpy).toHaveBeenCalled();
+      // 구조(TypeError, build 0-call) 와 대비되는 경계. 단일 invocation 기준 각 delegate 는
+      // 단일 재유도이므로 정확히 1회(summary 재유도 L238 → descriptor 재유도 L239 → summary
+      // 값 대조에서 throw). exactly-1 로 못박아 중복 재유도(build 2회) 회귀가 발생하면 fail.
+      expect(summarySpy).toHaveBeenCalledTimes(1);
+      expect(descriptorSpy).toHaveBeenCalledTimes(1);
     });
 
     it("(대조 b) 값 정합 위반(descriptor drift → RangeError)도 구조 통과 후 build 위임 호출된 뒤 발생(build 1+ call)", () => {
@@ -887,8 +889,11 @@ describe("assertRealDataResultReportPlanConsistentWithInputs", () => {
         assertRealDataResultReportPlanConsistentWithInputs(plan, results, run),
       ).toThrow(RangeError);
 
-      expect(summarySpy).toHaveBeenCalled();
-      expect(descriptorSpy).toHaveBeenCalled();
+      // summary 정합 통과 후 descriptor 값 대조에서 throw — 두 delegate 모두 재유도된
+      // 뒤이므로 정확히 1회씩(단일 재유도). exactly-1 로 못박아 중복 재유도(build 2회)
+      // 회귀 시 fail 하도록 완결.
+      expect(summarySpy).toHaveBeenCalledTimes(1);
+      expect(descriptorSpy).toHaveBeenCalledTimes(1);
     });
   });
 });
