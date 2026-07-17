@@ -142,7 +142,11 @@ describe("S2 조회 latency perf-spec — AppController health-read(GET /api) �
       expect(res.text).toBe("Assessment-Agent");
       // import /modes(T-0857) 의 service-무의존 derive 와 달리, getRoot 는 getStatus 를
       // 실호출한다(단, 예외 없는 순수 상수 반환) — mock 발화 확인.
-      expect(service.getStatus).toHaveBeenCalled();
+      // 단일 request 1회 × getRoot 의 getStatus 1회 재호출 = exact 1. beforeEach 의
+      // jest.clearAllMocks() 로 test 별 mock 이 초기화되므로 정확 횟수는 1 이 확정이다.
+      // loose toHaveBeenCalled() 대신 exactly-1 로 못박아, getRoot 가 향후 리팩터링에서
+      // getStatus 를 1-request 당 2회 이상 중복 호출하는 회귀를 이 assert 가 잡도록 한다.
+      expect(service.getStatus).toHaveBeenCalledTimes(1);
     });
   });
 
