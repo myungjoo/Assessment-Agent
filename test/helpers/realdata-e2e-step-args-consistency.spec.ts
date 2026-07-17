@@ -757,4 +757,270 @@ describe("assertRealDataE2eStepArgsConsistentWithSources", () => {
       );
     });
   });
+
+  // T-1070 — 구조-검사 선행성 order-lock(구조 결손 → 두 build 위임 0-call).
+  // 가드(`assert…StepArgsConsistentWithSources`)는 본문에서 구조 검사
+  // (assertStepArgsStructure → assertRunPlanStructure, 6분기)를 값 재유도 위임
+  // (buildRealDataEvaluationStepArgs → buildRealDataResultPublishStepArgs)보다 **먼저**
+  // 수행한다. 기존 구조 error-path 테스트(구조 결손 → TypeError)들은 `.toThrow(TypeError)`
+  // 만 assert 하고 "구조 위반 시 두 build 위임이 아예 호출되지 않는(선행 fail-fast) 선행성"
+  // 은 검증하지 않았다. 본 블록은 구조 결손 6분기 각각에서 두 sub-composer spy 가 모두
+  // `toHaveBeenCalledTimes(0)` 임을 못박아, 리팩터가 build 위임을 구조 검사 위로 끌어올리는
+  // silent 재정렬로부터 "구조 검사 → 값 재유도" 순서를 방어한다(T-1066~T-1069 defense-in-depth
+  // step-args mirror). 대조로 값 정합 위반(RangeError)은 구조 검사를 통과해 build 위임이
+  // 호출된 뒤 발생함을 2 케이스로 명확화한다(구조=TypeError·build 0-call vs 값=RangeError·
+  // build 호출됨 경계). spy 는 기존 T-1064 블록의 두 모듈(pass-through)을 재사용하며 최상위
+  // afterEach 가 복원 격리한다.
+  describe("T-1070 — 구조-검사 선행성 order-lock(구조 결손 → 두 build 위임 0-call)", () => {
+    // installBuildSpies — 두 sub-composer 를 pass-through spy 로 감싼다. 구조 결손 케이스는
+    // 구조 검사에서 선차단되므로 두 spy 모두 0-call 이어야 한다. 반드시 stepArgs 를 spy 설치
+    // 前에 합성해야 makeStepArgs 내부 aggregator 호출이 관측을 오염시키지 않는다.
+    function installBuildSpies() {
+      const evalSpy = jest.spyOn(
+        evaluationStepArgsModule,
+        "buildRealDataEvaluationStepArgs",
+      );
+      const publishSpy = jest.spyOn(
+        publishStepArgsModule,
+        "buildRealDataResultPublishStepArgs",
+      );
+      return { evalSpy, publishSpy };
+    }
+
+    describe("happy-path (구조 통과 → 두 build 위임 각 1회, evaluation → publish 순)", () => {
+      it("정합 구조 입력이면 두 build 위임이 각 1회 호출되고 evaluation < publish 선행(invocationCallOrder 부등식)", () => {
+        // stepArgs 는 spy 설치 前 합성(aggregator 내부 호출 격리).
+        const runPlan = makeRunPlan();
+        const stepArgs = makeStepArgs(runPlan);
+        const { evalSpy, publishSpy } = installBuildSpies();
+
+        assertRealDataE2eStepArgsConsistentWithSources(
+          stepArgs,
+          runPlan,
+          HAPPY_ACTIVITIES,
+          HAPPY_RESULTS,
+        );
+
+        // 구조 검사 통과 후 값 재유도 도달 — 각 위임 정확히 1회 + evaluation 선행.
+        expect(evalSpy).toHaveBeenCalledTimes(1);
+        expect(publishSpy).toHaveBeenCalledTimes(1);
+        expect(evalSpy.mock.invocationCallOrder[0]).toBeLessThan(
+          publishSpy.mock.invocationCallOrder[0],
+        );
+      });
+    });
+
+    describe("구조 결손 6분기 — TypeError + 두 build 위임 0-call(선행성 fail-fast)", () => {
+      // 분기 ① stepArgs 컨테이너 null/undefined — evaluation/publish 접근 前 선차단.
+      it("stepArgs=null → TypeError + evaluation·publish build 0-call", () => {
+        const { evalSpy, publishSpy } = installBuildSpies();
+        expect(() =>
+          assertRealDataE2eStepArgsConsistentWithSources(
+            null as unknown as RealDataE2eStepArgs,
+            makeRunPlan(),
+            HAPPY_ACTIVITIES,
+            HAPPY_RESULTS,
+          ),
+        ).toThrow(/stepArgs 가 null\/undefined/);
+        expect(evalSpy).toHaveBeenCalledTimes(0);
+        expect(publishSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("stepArgs=undefined → TypeError + evaluation·publish build 0-call", () => {
+        const { evalSpy, publishSpy } = installBuildSpies();
+        expect(() =>
+          assertRealDataE2eStepArgsConsistentWithSources(
+            undefined as unknown as RealDataE2eStepArgs,
+            makeRunPlan(),
+            HAPPY_ACTIVITIES,
+            HAPPY_RESULTS,
+          ),
+        ).toThrow(TypeError);
+        expect(evalSpy).toHaveBeenCalledTimes(0);
+        expect(publishSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // 분기 ② stepArgs.evaluation 비-object — 구조 검사 2단계서 선차단.
+      it("stepArgs.evaluation=null(비-object) → TypeError + build 0-call", () => {
+        const stepArgs = makeStepArgs();
+        const corrupted = {
+          ...stepArgs,
+          evaluation: null,
+        } as unknown as RealDataE2eStepArgs;
+        const { evalSpy, publishSpy } = installBuildSpies();
+        expect(() =>
+          assertRealDataE2eStepArgsConsistentWithSources(
+            corrupted,
+            makeRunPlan(),
+            HAPPY_ACTIVITIES,
+            HAPPY_RESULTS,
+          ),
+        ).toThrow(/stepArgs\.evaluation 이 객체가 아니다/);
+        expect(evalSpy).toHaveBeenCalledTimes(0);
+        expect(publishSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("stepArgs.evaluation=원시값 string(비-object) → TypeError + build 0-call", () => {
+        const stepArgs = makeStepArgs();
+        const corrupted = {
+          ...stepArgs,
+          evaluation: "not-an-object",
+        } as unknown as RealDataE2eStepArgs;
+        const { evalSpy, publishSpy } = installBuildSpies();
+        expect(() =>
+          assertRealDataE2eStepArgsConsistentWithSources(
+            corrupted,
+            makeRunPlan(),
+            HAPPY_ACTIVITIES,
+            HAPPY_RESULTS,
+          ),
+        ).toThrow(/stepArgs\.evaluation 이 객체가 아니다/);
+        expect(evalSpy).toHaveBeenCalledTimes(0);
+        expect(publishSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // 분기 ③ stepArgs.publish 비-object(배열) — 구조 검사 3단계서 선차단.
+      it("stepArgs.publish=배열(비-object) → TypeError + build 0-call", () => {
+        const stepArgs = makeStepArgs();
+        const corrupted = {
+          ...stepArgs,
+          publish: [],
+        } as unknown as RealDataE2eStepArgs;
+        const { evalSpy, publishSpy } = installBuildSpies();
+        expect(() =>
+          assertRealDataE2eStepArgsConsistentWithSources(
+            corrupted,
+            makeRunPlan(),
+            HAPPY_ACTIVITIES,
+            HAPPY_RESULTS,
+          ),
+        ).toThrow(/stepArgs\.publish 가 객체가 아니다/);
+        expect(evalSpy).toHaveBeenCalledTimes(0);
+        expect(publishSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // 분기 ④ runPlan 컨테이너 null/undefined — assertRunPlanStructure 선차단.
+      it("runPlan=null → TypeError + build 0-call", () => {
+        const stepArgs = makeStepArgs();
+        const { evalSpy, publishSpy } = installBuildSpies();
+        expect(() =>
+          assertRealDataE2eStepArgsConsistentWithSources(
+            stepArgs,
+            null as unknown as RealDataE2eRunPlan,
+            HAPPY_ACTIVITIES,
+            HAPPY_RESULTS,
+          ),
+        ).toThrow(/runPlan 이 null\/undefined/);
+        expect(evalSpy).toHaveBeenCalledTimes(0);
+        expect(publishSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("runPlan=undefined → TypeError + build 0-call", () => {
+        const stepArgs = makeStepArgs();
+        const { evalSpy, publishSpy } = installBuildSpies();
+        expect(() =>
+          assertRealDataE2eStepArgsConsistentWithSources(
+            stepArgs,
+            undefined as unknown as RealDataE2eRunPlan,
+            HAPPY_ACTIVITIES,
+            HAPPY_RESULTS,
+          ),
+        ).toThrow(TypeError);
+        expect(evalSpy).toHaveBeenCalledTimes(0);
+        expect(publishSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // 분기 ⑤ runPlan.pipeline 비-object — 재유도 前 선차단.
+      it("runPlan.pipeline=null(비-object) → TypeError + build 0-call", () => {
+        const stepArgs = makeStepArgs();
+        const corrupted = {
+          pipeline: null,
+          run: { gitSha: "abc1234", dateToken: "2026-06-26" },
+        } as unknown as RealDataE2eRunPlan;
+        const { evalSpy, publishSpy } = installBuildSpies();
+        expect(() =>
+          assertRealDataE2eStepArgsConsistentWithSources(
+            stepArgs,
+            corrupted,
+            HAPPY_ACTIVITIES,
+            HAPPY_RESULTS,
+          ),
+        ).toThrow(/runPlan\.pipeline 이 객체가 아니다/);
+        expect(evalSpy).toHaveBeenCalledTimes(0);
+        expect(publishSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // 분기 ⑥ runPlan.run 비-object — 재유도 前 선차단.
+      it("runPlan.run=null(비-object) → TypeError + build 0-call", () => {
+        const stepArgs = makeStepArgs();
+        const corrupted = {
+          pipeline: makePipeline(),
+          run: null,
+        } as unknown as RealDataE2eRunPlan;
+        const { evalSpy, publishSpy } = installBuildSpies();
+        expect(() =>
+          assertRealDataE2eStepArgsConsistentWithSources(
+            stepArgs,
+            corrupted,
+            HAPPY_ACTIVITIES,
+            HAPPY_RESULTS,
+          ),
+        ).toThrow(/runPlan\.run 이 객체가 아니다/);
+        expect(evalSpy).toHaveBeenCalledTimes(0);
+        expect(publishSpy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("대조 — 값 정합 위반(RangeError)은 구조 통과 후 build 위임 호출 뒤 발생", () => {
+      // 구조는 온전(evaluation/publish object)하나 값이 drift — 구조 검사를 통과해
+      // build 위임이 호출된 뒤 deep-equal 비교에서 RangeError. 구조(build 0-call) vs
+      // 값(build 호출됨) 경계를 선행성 관점에서 대조.
+      it("evaluation drift → RangeError + evaluation build 위임은 호출됨(≥1)", () => {
+        const runPlan = makeRunPlan();
+        const stepArgs = makeStepArgs(runPlan);
+        const corrupted: RealDataE2eStepArgs = {
+          ...stepArgs,
+          evaluation: {
+            ...stepArgs.evaluation,
+            callArgs: stepArgs.evaluation.callArgs.slice(0, -1),
+          },
+        };
+        const { evalSpy } = installBuildSpies();
+        expect(() =>
+          assertRealDataE2eStepArgsConsistentWithSources(
+            corrupted,
+            runPlan,
+            HAPPY_ACTIVITIES,
+            HAPPY_RESULTS,
+          ),
+        ).toThrow(RangeError);
+        // 구조 통과 → 값 재유도 도달: evaluation build 위임이 최소 1회 호출됐다.
+        expect(evalSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it("publish drift → RangeError + 두 build 위임 모두 호출됨(evaluation 통과 후 publish 도달)", () => {
+        const runPlan = makeRunPlan();
+        const stepArgs = makeStepArgs(runPlan);
+        const corrupted: RealDataE2eStepArgs = {
+          ...stepArgs,
+          publish: {
+            ...stepArgs.publish,
+            searchArgv: [...stepArgs.publish.searchArgv].reverse(),
+          },
+        };
+        const { evalSpy, publishSpy } = installBuildSpies();
+        expect(() =>
+          assertRealDataE2eStepArgsConsistentWithSources(
+            corrupted,
+            runPlan,
+            HAPPY_ACTIVITIES,
+            HAPPY_RESULTS,
+          ),
+        ).toThrow(/stepArgs\.publish/);
+        // evaluation 비교 통과 후 publish 재유도까지 도달 → 두 위임 모두 호출됨.
+        expect(evalSpy).toHaveBeenCalledTimes(1);
+        expect(publishSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
 });
