@@ -2,7 +2,11 @@
 id: T-1063
 title: result-issue-gh-command-plan consistency-guard(assertRealDataResultIssueGhCommandPlanConsistentWithInputs)의 3 distinct builder 데이터-의존 재유도 순서(parse → resolveAction → buildGhArgv) invocationCallOrder 순서-lock + reference-페어링 test 로 못박기 (consistency-guard 재유도 delegate 순서-lock leg 10)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-17T03:08:30Z
+mergedAs: 4dbb279b
+prNumber: 957
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 135
