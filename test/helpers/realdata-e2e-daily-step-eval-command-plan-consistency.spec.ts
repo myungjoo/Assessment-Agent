@@ -624,7 +624,10 @@ describe("assertRealDataDailyStepEvalCommandPlanConsistentWithGating", () => {
       ).toThrow(/plan\.action 이 gating\.enabled 와 어긋난다/);
 
       // 구조(TypeError, 0-call) 와 대조: 값 경로는 구조를 통과해 delegate 가 호출됨.
-      expect(resolveSpy).toHaveBeenCalled();
+      // 정확 횟수로 못박는다 — 위 2회 invoke(두 toThrow) × 재유도 delegate 1회/invoke = exact 2.
+      // loose 호출-여부 assert 이면 가드가 invoke 당 delegate 를 중복 재유도(build ≥2회)해도
+      // 통과하므로, exactly-2 로 중복 재유도 회귀를 fail 시킨다(delegate ≥3-call for 2-invoke → fail).
+      expect(resolveSpy).toHaveBeenCalledTimes(2);
     });
 
     it("재유도-전 RangeError 대조(action enum 위반) — 구조 통과했으나 재유도 前 enum 검사에서 throw → delegate 0-call", () => {
