@@ -2,8 +2,11 @@
 id: T-1080
 title: realdata-e2e run-plan consistency-guard 구조-검사 선행성 order-lock — 구조 결손(TypeError)이 pipeline 재유도 위임(buildRealDataPipelinePlan)보다 먼저 수행됨을 delegate 0-call spy 로 못박는 defense-in-depth (구조-guard 선행성 sweep leg 15, T-1079 Follow-up)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 973
+mergedAs: 232e6fdf
+completedAt: 2026-07-17T12:52:00Z
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 160
 estimatedFiles: 1

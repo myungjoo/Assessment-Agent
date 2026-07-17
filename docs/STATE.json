@@ -7,7 +7,7 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-1080",
+  "nextTask": "T-1081",
   "backlogNoteResolved": "▶ **T-0880 BLOCKED (ci-repeat-fail) — PR #774 OPEN, 머지 보류; T-0881 이 unblock 선행** — S2 measure→confirm-or-compare 를 SummaryController GET /api/summaries?personId 에 배선한 두 번째 통합 perf-spec(구현 commit 27693524, cron@cloud-6ba9 가 4h 전 구현·push 했으나 PR open 전 사망 → 본 fire cron@aa-local-2ff3 가 orphan claim reclaim 후 PR #774 open). reviewer APPROVE + 게이트 (a)(b)(c) PASS, **게이트 (d) CI FAIL**: `test:perf` 가 2회(초회+rerun) 연속 fail. 실패 지점은 T-0880 신규 spec 이 아니라 **pre-existing `test/perf/app-root-measure-confirm.perf-spec.ts:217`**(T-0877 compared 분기 `regressed=false` wall-clock 비결정 단언) — 동일 head_sha main CI 는 green 이므로 T-0880 코드 결함 0, T-0880 이 추가한 perf-spec 부하가 T-0877 timing-fragile 단언을 노출. self-heal 불가(fix 대상이 T-0880 touchesFiles/Out-of-Scope 밖). **처리**: planner 가 **T-0881**(pr-mode, app-root compared 분기를 주입 clock=stepClock 으로 결정론화) 큐잉, T-0880 claim prune(release — pr-mode T-0881 이 0-active-claim gate 통과하도록), PR #774 는 OPEN 유지 + T-0880 task frontmatter 에 prNumber:774 박제(향후 fire 가 LOOP [2] frontmatter-prNumber resume 로 중복 PR 없이 rebase+re-CI). **시퀀스**: T-0881 merge → 그 fire 가 T-0880 을 nextTask 로 재큐잉 → PR #774 rebase+re-CI → 4-게이트 재확인 → merge. `close+reopen`/`--admin` bypass 금지.",
   "backlogNoteT0881": "▶ **T-0881 DONE (PR #775 merged, squash 67955a76) — T-0880 unblock 완결; 다음 fire 가 T-0880/PR #774 resume** — app-root compared 분기 perf-spec(test/perf/app-root-measure-confirm.perf-spec.ts) 의 compared happy-path(b) 1차·2차 measure 에 stepClock(50) 주입해 regressed 비결정성 제거(+13/-6, 1 file). 이로써 T-0880 PR #774 를 2회 fail 시킨 T-0877 timing-fragile 단언(:217 wall-clock regressed=false)이 결정론화됨. reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR), 4-게이트 PASS(reviewer comment external, CI test:perf 포함 green, ADR-0036 §8(c) head 최신 main 포함), squash 67955a76 + branch delete. R-112: compared happy-path 결정론(ok) + 회귀 분기는 기존 flow(336~356)/negative(414~433) 가 stepClock+tolerance:0 로 이미 커버, src 0 LOC 변경이라 test:cov 무영향. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-33f5). **다음 시퀀스**: nextTask=T-0880 → 다음 fire 가 currentTask 로 옮겨 LOOP [2] frontmatter-prNumber(774) resume 분기로 PR #774 checkout+rebase(최신 main 이제 T-0881 fix 포함)+re-CI(test:perf 이제 green 기대)+4-게이트 재확인 → merge. 중복 PR 금지(prNumber:774 resume).",
   "backlogNoteT0880": "▶ **T-0880 DONE (PR #774 merged, squash effb2b6c) — S2 조회 endpoint 두 번째 통합 perf-spec 배선 완결** — SummaryController GET /api/summaries?personId 를 measureAndConfirmBaseline top loop 에 배선한 두 번째 통합 perf-spec. T-0881→T-0880 unblock 시퀀스 완결.",
@@ -24,11 +24,11 @@
   },
   "lastCommit": "72d7b68b",
   "mostRecentTasks": [
+    "T-1080",
     "T-1079",
     "T-1078",
     "T-1077",
-    "T-1076",
-    "T-1075"
+    "T-1076"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -38,10 +38,10 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-17T12:21:32Z",
+    "lastRun": "2026-07-17T12:52:00Z",
     "status": "green",
     "consecutiveFails": 0,
-    "note": "T-1079 DONE (PR #972 merged, squash 15d3407f) — realdata-e2e pipeline-plan consistency-guard 구조-검사 선행성 order-lock (구조-guard 선행성 sweep leg 14, T-1078 Follow-up; daily family 소진 후 잔여 축 첫 leg). 가드 assertRealDataPipelinePlanConsistentWithSources 의 2 구조 assert(assertPipelinePlanStructure L176 / assertSourcesStructure L177)가 collect 재유도 위임(buildRealDataCollectCallArgs L183)보다 먼저 수행됨을, 구조 결손 7 분기(pipelinePlan null/undefined · collectCallArgs 비-배열 null/object · seeds 비-배열 · modelId 비-string number/null) 각각 delegate toHaveBeenCalledTimes(0) spy 로 못박아 defense-in-depth 완결. namespace import(collectModule) + jest.spyOn. happy 1-call(seeds 인자)+void + 재유도-후 RangeError 1-call 경계 대조 2종(collectCallArgs drift / modelId mismatch). 신규 describe afterEach restoreAllMocks 격리. test-only 1파일 +226/-0, production src·helper .ts 0 LOC. 대상 spec 34 test(신규 10), 전체 404 suites/11235 test green, coverageThreshold(line≥80 AND func≥80) 무회귀. reviewer round1 APPROVE(0 blocker·0 major·1 Nit 비필수) 4-게이트 PASS(external comment approval-gate step success, CI 기본검사+배포산출물검증 green, ADR-0036 §8(c) head 최신 main 포함 UP-TO-DATE) squash 15d3407f branch delete. fineGrainedConcurrency ON(stage5b) claim-pickup fire(cron@aa-local15-7283a8). 실행 시퀀스: fetch→origin/main 293e1557(T-1078 bookkeeping)→lock free(tombstone)→acquire-lock(tip 606bf23b)→reclaim noop(claims[])→active claim 0<max2 & pr-mode 0-active gate PASS→validate-claim-candidate T-1079 PASS→select-claim T-1079 atomic(CLAIM_NOW 12:04:58Z fresh 非midnight, lock release atomic)→lock-free executor(claude/T-1079-pipeline-plan-struct-precedence, implementer+tester, head 8f88105e)→push feature→PR #972 open(driver gh, ADR-0005)→re-acquire lock(tip b22a2b8a)→sync-claim-pr(prNumber 972 PR_OPEN)→release→integrator round1 reviewer APPROVE 4-게이트 PASS→squash 15d3407f branch delete→claim prune([] tip 4963954c)→bookkeeping(direct main). counters 1069→1070. dup-PR 0. 다음: nextTask=T-1080 (run-plan consistency 구조-검사 선행성 order-lock, sweep leg 15, delegate=buildRealDataPipelinePlan, pr test-only 1파일 dep[])."
+    "note": "T-1080 DONE (PR #973 merged, squash 232e6fdf) — realdata-e2e run-plan consistency-guard 구조-검사 선행성 order-lock (구조-guard 선행성 sweep leg 15, T-1079 Follow-up; 최외곽 컴포저 seam). 가드 assertRealDataE2eRunPlanConsistentWithSources 의 2 구조 assert(assertRunPlanStructure/assertSourcesStructure)가 pipeline 재유도 위임(buildRealDataPipelinePlan)보다 먼저 수행됨을 구조 결손 7분기 각 delegate toHaveBeenCalledTimes(0) spy 로 못박고, happy 1-call(seeds·modelId 인자) + 재유도-후 RangeError(pipeline/run drift) 1-call 대조로 구조 vs 값 경계 명확화. test-only 1파일 +231. reviewer round1 APPROVE, 4-게이트 PASS, 404 suites/11245 test green."
   },
   "reviewRounds": {
     "T-1075": 1,
@@ -1517,7 +1517,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 1070,
+    "tasksCompleted": 1071,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1545,5 +1545,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-07-17T12:21:32Z"
+  "lastActivity": "2026-07-17T12:52:00Z"
 }
