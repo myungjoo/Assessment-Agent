@@ -817,7 +817,9 @@ describe("assertRealDataEvaluationPlanConsistentWithSources", () => {
       // 구조 검사를 통과했으므로 inputs 재유도(build 위임)가 이미 호출된 뒤 값 대조에서
       // throw — 구조(TypeError, build 0-call) 와 대비되는 경계. inputs drift 는 inputs
       // 게이트에서 fail-fast 하므로 callArgs 위임은 미도달(0회).
-      expect(inputsSpy).toHaveBeenCalled();
+      // 가드 1-invoke × inputs 위임 1-재유도 = exact 1 — loose 대신 정확 횟수로 못박아
+      // 값 대조 과정에서 inputs 를 중복 재유도(build ≥ 2회/invoke)하는 회귀를 차단.
+      expect(inputsSpy).toHaveBeenCalledTimes(1);
       expect(callArgsSpy).toHaveBeenCalledTimes(0);
     });
 
@@ -850,8 +852,10 @@ describe("assertRealDataEvaluationPlanConsistentWithSources", () => {
       ).toThrow(RangeError);
 
       // inputs 게이트 통과 후 callArgs 재유도까지 도달 — 두 build 위임 모두 호출됨.
-      expect(inputsSpy).toHaveBeenCalled();
-      expect(callArgsSpy).toHaveBeenCalled();
+      // 가드 1-invoke × 각 위임 1-재유도 = 각 exact 1 — loose 대신 정확 횟수로 못박아
+      // 어느 한 위임을 중복 재유도(build ≥ 2회/invoke)하는 회귀를 차단.
+      expect(inputsSpy).toHaveBeenCalledTimes(1);
+      expect(callArgsSpy).toHaveBeenCalledTimes(1);
     });
   });
 });
