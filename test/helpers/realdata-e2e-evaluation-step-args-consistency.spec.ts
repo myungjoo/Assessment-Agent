@@ -26,6 +26,9 @@ import type {
 import type { EvaluationInput } from "../../src/assessment-evaluation/domain/evaluation-input";
 
 import type { RealDataEvaluationPlan } from "./realdata-e2e-evaluation-plan";
+// T-1082 구조-선행성 spy 용 namespace import — 가드의 유일 재유도 delegate
+// (buildRealDataEvaluationPlan)를 jest.spyOn 으로 계측하기 위함(구조 결손 시 0-call 못박기).
+import * as evaluationPlanModule from "./realdata-e2e-evaluation-plan";
 import { buildRealDataEvaluationStepArgs } from "./realdata-e2e-evaluation-step-args";
 import { assertRealDataEvaluationStepArgsConsistentWithSources } from "./realdata-e2e-evaluation-step-args-consistency";
 import type { RealDataPipelinePlan } from "./realdata-e2e-pipeline-plan";
@@ -548,6 +551,232 @@ describe("assertRealDataEvaluationStepArgsConsistentWithSources", () => {
       expect(JSON.stringify(plan)).toBe(planSnapshot);
       expect(JSON.stringify(runPlan)).toBe(runPlanSnapshot);
       expect(JSON.stringify(activities)).toBe(activitiesSnapshot);
+    });
+  });
+
+  // 구조-검사 선행성 order-lock — 구조 결손(TypeError)이 evaluation-plan 재유도 위임
+  // (buildRealDataEvaluationPlan)보다 먼저 수행됨을 delegate spy 로 못박는다(T-1066~T-1081
+  // defense-in-depth 의 evaluation-step-args mirror, 단일 delegate). 기존 구조 error-path
+  // 블록(L327 이후)은 .toThrow(TypeError) 만 assert 하고 delegate 호출 횟수를 못박지 않아,
+  // "구조 검사 → 값 재유도" 순서를 silent 재정렬(리팩터가 재유도를 구조 검사 위로 끌어올림)
+  // 로부터 방어하지 못했다(그 블록은 delegate 를 value 로 import 조차 안 함).
+  //   - 구조 결손 10 분기(plan null/undefined · plan 비-object(array) · plan.inputs 비-배열 ·
+  //     plan.callArgs 비-배열 · runPlan null · runPlan.pipeline 비-object(null) · modelId
+  //     비-string(number) · activities null · activities 비-배열(object))마다 TypeError +
+  //     delegate 0-call. plan null 과 undefined, runPlan null 과 activities null 은 별 case 로
+  //     분리(단일 negative 로 묶지 않음).
+  //   - happy/flow: 정합 plan/runPlan/activities 는 3 구조 assert(plan/runPlan/activities)
+  //     통과 후 delegate 에 도달(정확히 1회, activities·runPlan.pipeline.modelId 인자)하고 void.
+  //   - 경계 대조(negative 보강): 값 정합 위반(재유도-후 RangeError, inputs drift)은 구조 통과
+  //     → delegate 도달 **뒤** 발생(delegate 1-call) — 구조(TypeError, 0-call) vs 값(재유도-후
+  //     RangeError, 1-call) 경계를 선행성 관점에서 명확화. 본 가드는 구조 검사와 재유도 사이
+  //     RangeError 분기가 없어 모든 RangeError 가 delegate 호출을 수반한다.
+  describe("T-1082 — 구조-검사 선행성 order-lock(구조 결손 → buildRealDataEvaluationPlan 재유도 delegate 0-call)", () => {
+    afterEach(() => {
+      // 신규 spyOn 격리 — 기존 블록(실 delegate 를 fixture 합성/재유도에 사용)으로 mock
+      // 누수 방지.
+      jest.restoreAllMocks();
+    });
+
+    // 구조 결손 10 분기 fixture. 결손 아닌 인자는 정합(makePlan/makeRunPlan/mixedActivities
+    // 산출)으로 둔다 — 결손 아닌 인자는 구조 통과해야 결손 인자에서 fail-fast 됨을 격리 확인.
+    // 각 factory(특히 makePlanArg 의 makePlan)는 내부에서 delegate 를 호출해 정합 fixture 를
+    // 합성하므로 반드시 spyOn **전** 에 호출(계측 오염 차단).
+    const STRUCTURE_DEFICIENT_CASES: Array<{
+      label: string;
+      makePlanArg: () => RealDataEvaluationPlan;
+      makeRunPlanArg: () => RealDataE2eRunPlan;
+      makeActivitiesArg: () => Activity[];
+      messagePattern: RegExp;
+    }> = [
+      {
+        label: "plan null",
+        makePlanArg: () => null as unknown as RealDataEvaluationPlan,
+        makeRunPlanArg: () => makeRunPlan(),
+        makeActivitiesArg: () => mixedActivities(),
+        messagePattern: /plan 이 null\/undefined/,
+      },
+      {
+        label: "plan undefined",
+        makePlanArg: () => undefined as unknown as RealDataEvaluationPlan,
+        makeRunPlanArg: () => makeRunPlan(),
+        makeActivitiesArg: () => mixedActivities(),
+        messagePattern: /plan 이 null\/undefined/,
+      },
+      {
+        label: "plan 비-object(array)",
+        makePlanArg: () => [] as unknown as RealDataEvaluationPlan,
+        makeRunPlanArg: () => makeRunPlan(),
+        makeActivitiesArg: () => mixedActivities(),
+        messagePattern: /plan 이 객체가 아니다.*array/,
+      },
+      {
+        label: "plan.inputs 비-배열(object)",
+        makePlanArg: () =>
+          ({
+            ...makePlan(),
+            inputs: { 0: "x" },
+          }) as unknown as RealDataEvaluationPlan,
+        makeRunPlanArg: () => makeRunPlan(),
+        makeActivitiesArg: () => mixedActivities(),
+        messagePattern: /plan\.inputs 가 배열이 아니다/,
+      },
+      {
+        label: "plan.callArgs 비-배열(object)",
+        makePlanArg: () =>
+          ({
+            ...makePlan(),
+            callArgs: { 0: "x" },
+          }) as unknown as RealDataEvaluationPlan,
+        makeRunPlanArg: () => makeRunPlan(),
+        makeActivitiesArg: () => mixedActivities(),
+        messagePattern: /plan\.callArgs 가 배열이 아니다/,
+      },
+      {
+        label: "runPlan null",
+        makePlanArg: () => makePlan(),
+        makeRunPlanArg: () => null as unknown as RealDataE2eRunPlan,
+        makeActivitiesArg: () => mixedActivities(),
+        messagePattern: /runPlan 이 null\/undefined/,
+      },
+      {
+        label: "runPlan.pipeline 비-object(null)",
+        makePlanArg: () => makePlan(),
+        makeRunPlanArg: () =>
+          ({
+            pipeline: null,
+            run: { gitSha: "abc1234", dateToken: "2026-06-23" },
+          }) as unknown as RealDataE2eRunPlan,
+        makeActivitiesArg: () => mixedActivities(),
+        messagePattern: /runPlan\.pipeline 이 객체가 아니다.*null/,
+      },
+      {
+        label: "runPlan.pipeline.modelId 비-string(number)",
+        makePlanArg: () => makePlan(),
+        makeRunPlanArg: () =>
+          ({
+            pipeline: { collectCallArgs: [], modelId: 42 },
+            run: { gitSha: "abc1234", dateToken: "2026-06-23" },
+          }) as unknown as RealDataE2eRunPlan,
+        makeActivitiesArg: () => mixedActivities(),
+        messagePattern: /runPlan\.pipeline\.modelId 가 문자열이 아니다.*number/,
+      },
+      {
+        label: "activities null",
+        makePlanArg: () => makePlan(),
+        makeRunPlanArg: () => makeRunPlan(),
+        makeActivitiesArg: () => null as unknown as Activity[],
+        messagePattern: /activities 가 null\/undefined/,
+      },
+      {
+        label: "activities 비-배열(object)",
+        makePlanArg: () => makePlan(),
+        makeRunPlanArg: () => makeRunPlan(),
+        makeActivitiesArg: () => ({ 0: COMMIT }) as unknown as Activity[],
+        messagePattern: /activities 가 배열이 아니다/,
+      },
+    ];
+
+    STRUCTURE_DEFICIENT_CASES.forEach(
+      ({
+        label,
+        makePlanArg,
+        makeRunPlanArg,
+        makeActivitiesArg,
+        messagePattern,
+      }) => {
+        it(`구조 결손[${label}] → TypeError + buildRealDataEvaluationPlan 재유도 0-call(선행 차단)`, () => {
+          // 결손 아닌 인자는 spy 설치 전 합성 — 정합 fixture 합성 내부의 delegate 호출이
+          // 계측을 오염시키지 않도록 격리.
+          const plan = makePlanArg();
+          const runPlan = makeRunPlanArg();
+          const activities = makeActivitiesArg();
+          const planSpy = jest.spyOn(
+            evaluationPlanModule,
+            "buildRealDataEvaluationPlan",
+          );
+
+          // 구조 결손이므로 TypeError(한국어 라벨) throw.
+          expect(() =>
+            assertRealDataEvaluationStepArgsConsistentWithSources(
+              plan,
+              runPlan,
+              activities,
+            ),
+          ).toThrow(TypeError);
+          expect(() =>
+            assertRealDataEvaluationStepArgsConsistentWithSources(
+              plan,
+              runPlan,
+              activities,
+            ),
+          ).toThrow(messagePattern);
+
+          // 핵심: 구조 검사가 재유도보다 먼저 차단 → delegate 미호출(0-call).
+          expect(planSpy).toHaveBeenCalledTimes(0);
+        });
+      },
+    );
+
+    it("구조 검사 통과(정합 plan/runPlan/activities) → 재유도 delegate 도달(정확히 1회, activities·modelId 인자) 후 void", () => {
+      // plan 은 spy 설치 前 합성 — buildRealDataEvaluationStepArgs 내부도 delegate 를 호출
+      // 하므로 spy 설치 후 만들면 호출 횟수가 오염된다. 가드 재유도 호출만 격리 계측한다.
+      const runPlan = makeRunPlan();
+      const activities = mixedActivities();
+      const plan = buildRealDataEvaluationStepArgs(runPlan, activities);
+      const planSpy = jest.spyOn(
+        evaluationPlanModule,
+        "buildRealDataEvaluationPlan",
+      );
+
+      const result = assertRealDataEvaluationStepArgsConsistentWithSources(
+        plan,
+        runPlan,
+        activities,
+      );
+
+      // 3 구조 assert 통과 → delegate 정확히 1회 도달(정확히 activities, runPlan.pipeline.
+      // modelId 인자로), 가드는 void. invocationCallOrder 는 구조 검사 통과 뒤 호출된 유일
+      // delegate 의 순번(>0)으로 도달을 못박는다.
+      expect(result).toBeUndefined();
+      expect(planSpy).toHaveBeenCalledTimes(1);
+      expect(planSpy).toHaveBeenCalledWith(
+        activities,
+        runPlan.pipeline.modelId,
+      );
+      expect(planSpy.mock.invocationCallOrder[0]).toBeGreaterThan(0);
+    });
+
+    it("경계 대조(재유도-후 RangeError) — inputs drift 는 구조 통과 후 delegate 도달 뒤 발생(구조 0-call vs 값 1-call)", () => {
+      // 구조 온전(plan object·inputs/callArgs 배열·runPlan/activities 정합) → 재유도 도달 →
+      // inputs drift 검출 RangeError. plan 은 spy 설치 前 합성해 계측 오염 차단.
+      const runPlan = makeRunPlan();
+      const activities = mixedActivities();
+      const plan = makePlan(runPlan, activities);
+      const corrupted: RealDataEvaluationPlan = {
+        ...plan,
+        inputs: plan.inputs.slice(0, -1),
+      };
+      const planSpy = jest.spyOn(
+        evaluationPlanModule,
+        "buildRealDataEvaluationPlan",
+      );
+
+      expect(() =>
+        assertRealDataEvaluationStepArgsConsistentWithSources(
+          corrupted,
+          runPlan,
+          activities,
+        ),
+      ).toThrow(/plan\.inputs.*byte-identical/s);
+
+      // 구조(TypeError, 0-call) 와 대조: 값 경로는 3 구조 assert 를 통과해 delegate 가
+      // 정확히 1회 호출됨(activities, runPlan.pipeline.modelId 인자).
+      expect(planSpy).toHaveBeenCalledTimes(1);
+      expect(planSpy).toHaveBeenCalledWith(
+        activities,
+        runPlan.pipeline.modelId,
+      );
     });
   });
 });
