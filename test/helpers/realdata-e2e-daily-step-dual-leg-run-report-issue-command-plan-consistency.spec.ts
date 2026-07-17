@@ -547,4 +547,147 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithS
       expect(JSON.stringify(plan)).toBe(planSnapshot);
     });
   });
+
+  // 현행 spec 은 구조·값 정합·재유도 throw 전파·fail-fast short-circuit·결정성은 검증하나
+  // guard 재유도 본문의 두 distinct builder(`buildRealDataDailyStepDualLegRunReportIssue
+  // Descriptor` → 그 산출 descriptor 로 `buildRealDataDailyStepDualLegRunReportIssue
+  // CommandArgs`)의 정합-경로 상대 호출 순서 + 데이터-의존 방향(builder ②가 builder ① 산출
+  // descriptor 를 첫 인자로 소비)은 invocationCallOrder 부등식으로 못박지 않았다(grep 0).
+  // guard 본문 L192~195 는 command-args 재유도가 앞 descriptor 재유도 산출(expectedDescriptor)
+  // 을 첫 인자로 소비하는 데이터-의존 chain 이라 descriptor 가 반드시 먼저 평가돼야 한다.
+  // T-1056(result-issue-command-plan-consistency 의 report-plan → command-args)을 daily-leg
+  // sibling consistency-guard leg 로 mirror 해 그 gap 을 봉한다.
+  //
+  // R-112 cover 구조(순서-lock):
+  //   - happy-path/flow: 정합 plan 을 spy 설치 前 미리 만든 뒤(makePlan 내부도 두 builder 를
+  //     호출하므로 spy 설치 후 만들면 호출 횟수가 오염된다 — guard 재유도만 격리 계측) 두
+  //     builder 위임을 실 구현 pass-through spy 로 감싸고 guard 재유도 1회 트리거 → descriptor
+  //     첫 호출이 command-args 첫 호출보다 먼저(invocationCallOrder toBeLessThan) + 각 정확히
+  //     1회 + command-args 첫 인자 === descriptor 위임 반환값(데이터-의존 reference 페어링).
+  //   - branch/무공유 재확인: pass-through spy 하에서도 guard 가 정상 void 반환 + 입력
+  //     plan/report mutate 0(read-only guard).
+  //   - error/negative(a fail-fast): descriptor 위임 강제 throw → command-args 위임 미도달
+  //     (0회) — descriptor-먼저 순서 + builder ②가 builder ① 산출 소비로 도달 불가를 fail-fast
+  //     로 못박음(기존 report-경로 test 와 병존).
+  //   - error/negative(b 후속-위임 throw 전파): command-args 위임 강제 throw → guard 가 그
+  //     에러를 전파, 이때 descriptor 위임은 이미 호출됨(순서 상 descriptor 가 command-args
+  //     보다 먼저 평가됨을 negative 경로에서도 재확인).
+  describe("T-1058 — 재유도 위임 순서-lock(descriptor → command-args)", () => {
+    it("정합 재유도 시 descriptor 위임이 command-args 위임보다 먼저 호출된다(invocationCallOrder 부등식·데이터-의존 reference·각 1회)", () => {
+      // plan 은 spy 설치 前 합성 — makePlan 내부도 두 builder 를 호출하므로 spy 설치 후 만들면
+      // 호출 횟수가 오염된다. guard 재유도 호출만 격리 계측한다.
+      const plan = makePlan();
+      const descriptorSpy = jest.spyOn(
+        descriptorModule,
+        "buildRealDataDailyStepDualLegRunReportIssueDescriptor",
+      );
+      const commandArgsSpy = jest.spyOn(
+        commandArgsModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+      );
+
+      assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+        plan,
+        HAPPY_REPORT,
+      );
+
+      // guard 재유도 지점 각 1개 → 각 위임 정확히 1회.
+      expect(descriptorSpy).toHaveBeenCalledTimes(1);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(1);
+      // 순서: descriptor 위임(첫 호출)이 command-args 위임(첫 호출)보다 먼저 호출된다.
+      expect(descriptorSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        commandArgsSpy.mock.invocationCallOrder[0],
+      );
+      // 데이터-의존: command-args 위임 첫 인자 = descriptor 위임 반환값(builder ①은 descriptor
+      // 객체를 직접 반환하므로 반환값 전체가 인자) — reference 동일. builder ②가 builder ① 산출
+      // descriptor 를 소비하는 chain 방향 lock.
+      const producedDescriptor = descriptorSpy.mock.results[0].value;
+      expect(commandArgsSpy.mock.calls[0][0]).toBe(producedDescriptor);
+    });
+
+    it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/report mutate 0", () => {
+      const report = makeReport();
+      const plan = makePlan(report);
+      const planSnapshot = JSON.stringify(plan);
+      const reportSnapshot = JSON.stringify(report);
+      jest.spyOn(
+        descriptorModule,
+        "buildRealDataDailyStepDualLegRunReportIssueDescriptor",
+      );
+      jest.spyOn(
+        commandArgsModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+      );
+
+      // 정합 경로 → 정상 void(throw 0).
+      expect(
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          plan,
+          report,
+        ),
+      ).toBeUndefined();
+      // read-only guard — 입력 mutate 0.
+      expect(JSON.stringify(plan)).toBe(planSnapshot);
+      expect(JSON.stringify(report)).toBe(reportSnapshot);
+    });
+
+    it("(a fail-fast) descriptor 위임이 throw 하면 command-args 위임에 도달하지 못한다(command-args 0회)", () => {
+      const plan = makePlan();
+      jest
+        .spyOn(
+          descriptorModule,
+          "buildRealDataDailyStepDualLegRunReportIssueDescriptor",
+        )
+        .mockImplementation(() => {
+          throw new Error("descriptor-boom");
+        });
+      const commandArgsSpy = jest.spyOn(
+        commandArgsModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+      );
+
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          plan,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/descriptor-boom/);
+
+      // descriptor-먼저 순서 + builder ②가 builder ① 산출 descriptor 를 소비하므로 descriptor
+      // throw 가 command-args 도달 전에 선전파 → command-args 미호출.
+      expect(commandArgsSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it("(b 후속-위임 throw 전파) command-args 위임이 throw 하면 guard 가 전파, 이때 descriptor 위임은 이미 호출됨(1회·descriptor → command-args 순서 재확인)", () => {
+      const plan = makePlan();
+      const descriptorSpy = jest.spyOn(
+        descriptorModule,
+        "buildRealDataDailyStepDualLegRunReportIssueDescriptor",
+      );
+      const commandArgsSpy = jest
+        .spyOn(
+          commandArgsModule,
+          "buildRealDataDailyStepDualLegRunReportIssueCommandArgs",
+        )
+        .mockImplementation(() => {
+          throw new Error("commandargs-boom");
+        });
+
+      // 정합 plan·report 로 descriptor 재유도는 통과하고 command-args 재유도가 throw.
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithSource(
+          plan,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(/commandargs-boom/);
+
+      // 순서 상 descriptor 가 command-args 보다 먼저 평가됨 — command-args 재유도 throw 시점에
+      // descriptor 는 이미 1회 호출됐고 command-args 도 1회 진입(그 안의 강제 throw).
+      expect(descriptorSpy).toHaveBeenCalledTimes(1);
+      expect(commandArgsSpy).toHaveBeenCalledTimes(1);
+      expect(descriptorSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        commandArgsSpy.mock.invocationCallOrder[0],
+      );
+    });
+  });
 });
