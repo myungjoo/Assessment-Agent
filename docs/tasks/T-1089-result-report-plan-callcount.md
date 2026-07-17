@@ -2,12 +2,16 @@
 id: T-1089
 title: realdata-e2e result-report-plan consistency 재유도 delegate call-count exactly-N 완결성 — 값-drift RangeError 대조 test 2건의 loose toHaveBeenCalled() 을 정확 횟수(buildRealDataResultSummary / buildRealDataResultIssueDescriptor 각 exactly-1)로 못박아 중복 재유도 회귀 차단 (call-count 완결성 sweep leg 24 = §D 후보 (b) 첫 전환, imported-delegate 구조-선행성 축 소진 후)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 40
 estimatedFiles: 1
 created: 2026-07-18
+completed: 2026-07-17T17:40:00Z
+mergedAs: 47b2f3ef
+prNumber: 982
+reviewRounds: 1
 dependsOn: []
 touchesFiles:
   - test/helpers/realdata-e2e-result-report-plan-consistency.spec.ts
