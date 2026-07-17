@@ -2,7 +2,10 @@
 id: T-1091
 title: realdata-e2e daily-step-eval-command-plan consistency 재유도 gating delegate call-count exactly-N 완결 — 값-drift(재유도-후 RangeError) 대조 test 1건의 loose toHaveBeenCalled() 을 정확 횟수(resolveRealDataE2eLiveGating exactly-2)로 못박아 중복 재유도 회귀 차단 (call-count 완결성 sweep leg 26)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-17T18:55:00Z
+prNumber: 984
+mergeSquash: c72878ae
 commitMode: pr
 coversReq: [REQ-032, REQ-059]
 estimatedDiff: 20
