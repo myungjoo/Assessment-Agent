@@ -533,6 +533,181 @@ describe("assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithS
     });
   });
 
+  // T-1075 — 구조-검사 선행성 order-lock(구조 결손 6 분기 × 2 재유도 delegate 각 0-call).
+  //
+  // 가드 본문은 `assertPlanStructure(plan)`(L206) 를 두 재유도 위임(command-plan L217 →
+  // search-gh-argv L219) **앞**에서 평가하므로, 구조 결손 입력이면 어떤 재유도 delegate 도
+  // 호출되지 않는다(선행 차단·fail-fast). 기존 short-circuit 블록(L344)은 descriptor:null
+  // 단일 분기에서 첫 delegate(command-plan)만 0-call 을 못박고, 나머지 5 구조 분기와 2nd
+  // delegate(search-gh-argv)의 구조-선행 0-call 은 미검증이었다. 본 블록은 그 부분
+  // short-circuit 을 6 구조 분기(plan null·plan undefined·descriptor 비-object·commandArgs
+  // 비-object·searchArgv 비-배열·searchArgv 원소 비-string) × 2 delegate 각각
+  // `toHaveBeenCalledTimes(0)` 로 확장 완결해, "구조 검사 → 값 재유도" 순서가 silent
+  // 재정렬(예: 리팩터가 재유도를 구조 검사 위로 끌어올림)로 깨지면 반드시 fail 하도록
+  // 못박는다(T-1066~T-1074 defense-in-depth 의 daily publish-plan mirror).
+  //
+  // R-112 cover 구조(구조-선행성):
+  //   - error/negative(핵심): 구조 결손 6 분기 각각 → TypeError(한국어 라벨) + 두 재유도
+  //     delegate(command-plan·search-gh-argv) 각 0-call. 분기 분리(단일 negative 로 묶지 않음),
+  //     plan null 과 undefined 는 별 case.
+  //   - happy/flow: 정합 plan 은 구조 검사 통과 후 두 delegate 에 도달하며 command-plan 이
+  //     search-gh-argv 보다 먼저(invocationCallOrder 부등식·각 1회) — 구조 통과 → 값 재유도
+  //     도달 경로 재확인(기존 T-1059 ico 블록과 정합).
+  //   - 경계 대조(negative 보강): 값 정합 위반(RangeError, descriptor drift)은 구조 검사를
+  //     통과해 두 delegate 가 모두 호출된 **뒤** 발생 — 구조(TypeError, 0-call) vs 값
+  //     (RangeError, delegate 호출됨) 경계를 선행성 관점에서 명확화.
+  describe("T-1075 — 구조-검사 선행성 order-lock(구조 결손 → 두 재유도 delegate 각 0-call)", () => {
+    // 구조 결손 6 분기 fixture — 각 makeInput() 는 spyOn **전** 에 호출돼(내부 makePlan 의
+    // 두 builder 호출이 계측되지 않도록) 손상 입력만 만든다. messagePattern 은 해당 분기의
+    // 한국어 TypeError 메시지를 못박는다.
+    const STRUCTURE_DEFICIENT_CASES: Array<{
+      label: string;
+      makeInput: () => RealDataDailyStepDualLegRunReportIssuePublishPlan;
+      messagePattern: RegExp;
+    }> = [
+      {
+        label: "plan null",
+        makeInput: () =>
+          null as unknown as RealDataDailyStepDualLegRunReportIssuePublishPlan,
+        messagePattern: /plan 이 null\/undefined/,
+      },
+      {
+        label: "plan undefined",
+        makeInput: () =>
+          undefined as unknown as RealDataDailyStepDualLegRunReportIssuePublishPlan,
+        messagePattern: /plan 이 null\/undefined/,
+      },
+      {
+        label: "descriptor 비-object(null)",
+        makeInput: () =>
+          ({
+            ...makePlan(),
+            descriptor: null,
+          }) as unknown as RealDataDailyStepDualLegRunReportIssuePublishPlan,
+        messagePattern: /plan\.descriptor 가 객체가 아니다/,
+      },
+      {
+        label: "commandArgs 비-object(배열)",
+        makeInput: () =>
+          ({
+            ...makePlan(),
+            commandArgs: [],
+          }) as unknown as RealDataDailyStepDualLegRunReportIssuePublishPlan,
+        messagePattern: /plan\.commandArgs 가 객체가 아니다/,
+      },
+      {
+        label: "searchArgv 비-배열(object)",
+        makeInput: () =>
+          ({
+            ...makePlan(),
+            searchArgv: { 0: "search" },
+          }) as unknown as RealDataDailyStepDualLegRunReportIssuePublishPlan,
+        messagePattern: /plan\.searchArgv 가 배열이 아니다/,
+      },
+      {
+        label: "searchArgv 원소 비-string(숫자)",
+        makeInput: () => {
+          const plan = makePlan();
+          return {
+            ...plan,
+            searchArgv: [...plan.searchArgv.slice(0, -1), 30],
+          } as unknown as RealDataDailyStepDualLegRunReportIssuePublishPlan;
+        },
+        messagePattern: /plan\.searchArgv\[\d+\] 가 문자열이 아니다/,
+      },
+    ];
+
+    STRUCTURE_DEFICIENT_CASES.forEach(
+      ({ label, makeInput, messagePattern }) => {
+        it(`구조 결손[${label}] → TypeError + command-plan·search-gh-argv 재유도 각 0-call(선행 차단)`, () => {
+          const input = makeInput();
+          const commandPlanSpy = jest.spyOn(
+            commandPlanModule,
+            "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
+          );
+          const searchArgvSpy = jest.spyOn(
+            searchArgvModule,
+            "buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv",
+          );
+
+          // 구조 결손이므로 TypeError(한국어 라벨) throw.
+          expect(() =>
+            assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource(
+              input,
+              HAPPY_REPORT,
+            ),
+          ).toThrow(TypeError);
+          expect(() =>
+            assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource(
+              input,
+              HAPPY_REPORT,
+            ),
+          ).toThrow(messagePattern);
+
+          // 핵심: 구조 검사가 재유도보다 먼저 차단 → 두 delegate 모두 미호출(각 0-call).
+          expect(commandPlanSpy).toHaveBeenCalledTimes(0);
+          expect(searchArgvSpy).toHaveBeenCalledTimes(0);
+        });
+      },
+    );
+
+    it("구조 검사 통과(정합 plan) → 두 재유도 delegate 도달, command-plan 이 search-gh-argv 보다 먼저(invocationCallOrder 부등식·각 1회)", () => {
+      // plan 은 spy 설치 前 합성 — makePlan 내부도 두 builder 를 호출하므로 spy 설치 후 만들면
+      // 호출 횟수가 오염된다. guard 재유도 호출만 격리 계측한다.
+      const plan = makePlan();
+      const commandPlanSpy = jest.spyOn(
+        commandPlanModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
+      );
+      const searchArgvSpy = jest.spyOn(
+        searchArgvModule,
+        "buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv",
+      );
+
+      assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource(
+        plan,
+        HAPPY_REPORT,
+      );
+
+      // 구조 통과 → 두 delegate 각 정확히 1회 도달, command-plan 이 먼저.
+      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      expect(searchArgvSpy).toHaveBeenCalledTimes(1);
+      expect(commandPlanSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        searchArgvSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("경계 대조 — 값 정합 위반(RangeError, descriptor drift)은 구조 통과 후 두 delegate 도달 뒤 발생(구조 0-call vs 값 호출됨)", () => {
+      const plan = makePlan();
+      const corrupted: RealDataDailyStepDualLegRunReportIssuePublishPlan = {
+        ...plan,
+        descriptor: {
+          ...plan.descriptor,
+          title: `${plan.descriptor.title}-변조`,
+        },
+      };
+      const commandPlanSpy = jest.spyOn(
+        commandPlanModule,
+        "buildRealDataDailyStepDualLegRunReportIssueCommandPlan",
+      );
+      const searchArgvSpy = jest.spyOn(
+        searchArgvModule,
+        "buildRealDataDailyStepDualLegRunReportIssueSearchGhArgv",
+      );
+
+      // 값 정합 위반은 구조가 온전하므로 재유도(두 delegate)까지 도달한 뒤 비교 단계에서 throw.
+      expect(() =>
+        assertRealDataDailyStepDualLegRunReportIssuePublishPlanConsistentWithSource(
+          corrupted,
+          HAPPY_REPORT,
+        ),
+      ).toThrow(RangeError);
+      // 구조(TypeError) 0-call 과 대조: 값 경로는 두 delegate 가 모두 호출됨(각 1회).
+      expect(commandPlanSpy).toHaveBeenCalledTimes(1);
+      expect(searchArgvSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("결정성 / 비변형", () => {
     it("동일 입력 2 회 호출 → 둘 다 동일 동작(정합이면 둘 다 void)", () => {
       const plan = makePlan();
