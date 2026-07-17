@@ -2,7 +2,7 @@
 id: T-1096
 title: call-count 완결성 sweep 완료 audit + 다음 축(§D 후보 (c) e2e 흐름 커버리지) pre-check 핸드오프 — positive-loose toHaveBeenCalled() tree-wide 소진(0) 실증 기록 + realdata 상위 flow(collect→evaluate→result→publish) 종단 시퀀스 커버리지 gap-map 박제 + 다음 planner turn 이 재유도 없이 첫 (c) leg 를 큐잉하도록 durable 핸드오프
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 110

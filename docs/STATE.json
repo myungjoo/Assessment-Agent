@@ -7,7 +7,7 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-1096",
+  "nextTask": null,
   "backlogNoteResolved": "▶ **T-0880 BLOCKED (ci-repeat-fail) — PR #774 OPEN, 머지 보류; T-0881 이 unblock 선행** — S2 measure→confirm-or-compare 를 SummaryController GET /api/summaries?personId 에 배선한 두 번째 통합 perf-spec(구현 commit 27693524, cron@cloud-6ba9 가 4h 전 구현·push 했으나 PR open 전 사망 → 본 fire cron@aa-local-2ff3 가 orphan claim reclaim 후 PR #774 open). reviewer APPROVE + 게이트 (a)(b)(c) PASS, **게이트 (d) CI FAIL**: `test:perf` 가 2회(초회+rerun) 연속 fail. 실패 지점은 T-0880 신규 spec 이 아니라 **pre-existing `test/perf/app-root-measure-confirm.perf-spec.ts:217`**(T-0877 compared 분기 `regressed=false` wall-clock 비결정 단언) — 동일 head_sha main CI 는 green 이므로 T-0880 코드 결함 0, T-0880 이 추가한 perf-spec 부하가 T-0877 timing-fragile 단언을 노출. self-heal 불가(fix 대상이 T-0880 touchesFiles/Out-of-Scope 밖). **처리**: planner 가 **T-0881**(pr-mode, app-root compared 분기를 주입 clock=stepClock 으로 결정론화) 큐잉, T-0880 claim prune(release — pr-mode T-0881 이 0-active-claim gate 통과하도록), PR #774 는 OPEN 유지 + T-0880 task frontmatter 에 prNumber:774 박제(향후 fire 가 LOOP [2] frontmatter-prNumber resume 로 중복 PR 없이 rebase+re-CI). **시퀀스**: T-0881 merge → 그 fire 가 T-0880 을 nextTask 로 재큐잉 → PR #774 rebase+re-CI → 4-게이트 재확인 → merge. `close+reopen`/`--admin` bypass 금지.",
   "backlogNoteT0881": "▶ **T-0881 DONE (PR #775 merged, squash 67955a76) — T-0880 unblock 완결; 다음 fire 가 T-0880/PR #774 resume** — app-root compared 분기 perf-spec(test/perf/app-root-measure-confirm.perf-spec.ts) 의 compared happy-path(b) 1차·2차 measure 에 stepClock(50) 주입해 regressed 비결정성 제거(+13/-6, 1 file). 이로써 T-0880 PR #774 를 2회 fail 시킨 T-0877 timing-fragile 단언(:217 wall-clock regressed=false)이 결정론화됨. reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR), 4-게이트 PASS(reviewer comment external, CI test:perf 포함 green, ADR-0036 §8(c) head 최신 main 포함), squash 67955a76 + branch delete. R-112: compared happy-path 결정론(ok) + 회귀 분기는 기존 flow(336~356)/negative(414~433) 가 stepClock+tolerance:0 로 이미 커버, src 0 LOC 변경이라 test:cov 무영향. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-33f5). **다음 시퀀스**: nextTask=T-0880 → 다음 fire 가 currentTask 로 옮겨 LOOP [2] frontmatter-prNumber(774) resume 분기로 PR #774 checkout+rebase(최신 main 이제 T-0881 fix 포함)+re-CI(test:perf 이제 green 기대)+4-게이트 재확인 → merge. 중복 PR 금지(prNumber:774 resume).",
   "backlogNoteT0880": "▶ **T-0880 DONE (PR #774 merged, squash effb2b6c) — S2 조회 endpoint 두 번째 통합 perf-spec 배선 완결** — SummaryController GET /api/summaries?personId 를 measureAndConfirmBaseline top loop 에 배선한 두 번째 통합 perf-spec. T-0881→T-0880 unblock 시퀀스 완결.",
@@ -22,13 +22,13 @@
     "holder": null,
     "since": ""
   },
-  "lastCommit": "521a80c7",
+  "lastCommit": "34568f08",
   "mostRecentTasks": [
+    "T-1096",
     "T-1095",
     "T-1094",
     "T-1093",
-    "T-1092",
-    "T-1091"
+    "T-1092"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -38,10 +38,10 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-17T20:12:00Z",
-    "status": "running",
+    "lastRun": "2026-07-17T21:05:00Z",
+    "status": "green",
     "consecutiveFails": 0,
-    "note": "T-1094 DONE (PR #987 merged, squash fa70b234) — realdata-e2e result-issue-command-plan consistency 재유도 2-delegate call-count exactly-N 완결 (call-count 완결성 sweep leg 29 = T-1065 §D 후보 (b), T-1093 leg 28 후속). 가드(assertRealDataResultIssueCommandPlanConsistentWithInputs) 값-drift 대조 test 2건((대조 a) report drift · (대조 b) commandArgs drift)의 loose toHaveBeenCalled() 4건을 두 build delegate(buildRealDataResultReportPlan·buildRealDataResultIssueCommandArgs) 각 toHaveBeenCalledTimes(1) 로 tighten. 두 delegate 는 값 게이트 이전 무조건 각 1회 재유도되므로 exact N=1 확정 — 중복 재유도 회귀 차단. test-only 1파일 +10/-6, production src·helper .ts 0 LOC. 전체 404 suites/11328 tests green, coverage line/func ≥80 무회귀. reviewer round1 APPROVE(0 finding)→4-게이트 PASS(external comment, CI run 29610225179 reviewer-approval-gate success) squash fa70b234 branch delete. fineGrainedConcurrency ON(stage5b) claim-pickup fire(cron@aa-local15-f1f3c1, server-time 20:04:28Z fresh 非midnight claim, 매시15분 트리거로 정각/30/45분 충돌 회피). 시퀀스: fetch→ff origin/main f1f37dc7(T-1093 머지+T-1094 큐잉 반영)→lock free(tombstone)→acquire-lock(tip b7fdc729)→reclaim noop(claims[])→validate-claim-candidate T-1094 PASS→active claim 0<max2 & pr-mode 0-active gate PASS→select-claim T-1094 atomic(CLAIM_NOW 20:04:28Z, lock release atomic)→lock-free executor(claude/T-1094-result-issue-command-plan-callcount, implementer+tester, commit cb210826)→push feature→PR #987 open(driver gh, ADR-0005)→re-acquire lock(tip af0c8d3c)→sync-claim-pr(prNumber 987 PR_OPEN)→release(tip cc7c8ff4)→integrator round1 reviewer APPROVE 4-게이트 PASS→squash fa70b234 branch delete→bookkeeping(direct main)+claim prune→lock release. counters 1084→1085. dup-PR 0. 머지-커밋 main CI(fa70b234 run 29610601670) in_progress — 다음 turn conclusion 확인(R-114). 다음: nextTask=T-1095 (call-count 완결성 sweep leg 30 = tree-wide 마감, app-root-read perf-spec getStatus loose toHaveBeenCalled()→toHaveBeenCalledTimes(1), pr test-only 1파일 dep[])."
+    "note": "T-1096 DONE (direct commit 34568f08 main push) — call-count 완결성 sweep 완료 audit + §D 후보 (c) e2e-flow 핸드오프. 재현 grep 3종(realdata consistency 55개 / test-helpers / test 트리)으로 positive-loose toHaveBeenCalled()(.not. 제외) tree-wide 소진(0) 실증 기록, §D 후보 (a) struct-precede(legs T-1080~T-1088)/(b) call-count exactly-N(legs 24~30 = T-1089~T-1095) 소진 확정. 남은 유일 후보 (c) e2e 흐름 gap-map 을 threading 17-way + base assembly + shell-runner step-order 3축으로 박제, 종단-시퀀스 order spec 부재(smoke invocationCallOrder=0)를 thin-gap 판정 → leg1 후보(종단 order-lock flow-level spec) + 대안(toHaveBeenCalledWith 인자-충실도) pre-check durable 핸드오프. direct doc-only 1파일(+158/-0), production·test 코드 0 LOC. fineGrainedConcurrency ON(stage5b) claim-pickup fire(cron@aa-local15-b4c292fe, 매시15분 트리거로 정각/30/45분 충돌 회피, CLAIM_NOW 21:05:16Z fresh 非midnight). 시퀀스: fetch→ff origin/main 48e86c85(T-1095 머지+T-1096 큐잉 반영, 6453d3bf→48e86c85 2 commit ff)→lock free(tombstone)→acquire-lock(tip b1f799b9)→reclaim noop(claims[])→validate-claim-candidate T-1096 PASS→active claim 0<max2 direct-only gate PASS→select-claim T-1096 atomic(lock tombstone release atomic)→lock-free executor(implementer, doc audit staged)→content commit 34568f08 direct main push(rebase noop base==remote)→bookkeeping(direct main)+claim prune→lock release. R-114: 48e86c85·521a80c7(#988) main CI success(직전 stale in_progress 해소), 34568f08 doc-only push run 은 다음 turn conclusion 확인. counters 1086→1087. dup-PR 0. 이전 T-1094 DONE (PR #987 merged, squash fa70b234) — realdata-e2e result-issue-command-plan consistency 재유도 2-delegate call-count exactly-N 완결 (call-count 완결성 sweep leg 29 = T-1065 §D 후보 (b), T-1093 leg 28 후속). 가드(assertRealDataResultIssueCommandPlanConsistentWithInputs) 값-drift 대조 test 2건((대조 a) report drift · (대조 b) commandArgs drift)의 loose toHaveBeenCalled() 4건을 두 build delegate(buildRealDataResultReportPlan·buildRealDataResultIssueCommandArgs) 각 toHaveBeenCalledTimes(1) 로 tighten. 두 delegate 는 값 게이트 이전 무조건 각 1회 재유도되므로 exact N=1 확정 — 중복 재유도 회귀 차단. test-only 1파일 +10/-6, production src·helper .ts 0 LOC. 전체 404 suites/11328 tests green, coverage line/func ≥80 무회귀. reviewer round1 APPROVE(0 finding)→4-게이트 PASS(external comment, CI run 29610225179 reviewer-approval-gate success) squash fa70b234 branch delete. fineGrainedConcurrency ON(stage5b) claim-pickup fire(cron@aa-local15-f1f3c1, server-time 20:04:28Z fresh 非midnight claim, 매시15분 트리거로 정각/30/45분 충돌 회피). 시퀀스: fetch→ff origin/main f1f37dc7(T-1093 머지+T-1094 큐잉 반영)→lock free(tombstone)→acquire-lock(tip b7fdc729)→reclaim noop(claims[])→validate-claim-candidate T-1094 PASS→active claim 0<max2 & pr-mode 0-active gate PASS→select-claim T-1094 atomic(CLAIM_NOW 20:04:28Z, lock release atomic)→lock-free executor(claude/T-1094-result-issue-command-plan-callcount, implementer+tester, commit cb210826)→push feature→PR #987 open(driver gh, ADR-0005)→re-acquire lock(tip af0c8d3c)→sync-claim-pr(prNumber 987 PR_OPEN)→release(tip cc7c8ff4)→integrator round1 reviewer APPROVE 4-게이트 PASS→squash fa70b234 branch delete→bookkeeping(direct main)+claim prune→lock release. counters 1084→1085. dup-PR 0. 머지-커밋 main CI(fa70b234 run 29610601670) in_progress — 다음 turn conclusion 확인(R-114). 다음: nextTask=T-1095 (call-count 완결성 sweep leg 30 = tree-wide 마감, app-root-read perf-spec getStatus loose toHaveBeenCalled()→toHaveBeenCalledTimes(1), pr test-only 1파일 dep[])."
   },
   "reviewRounds": {
     "T-1092": 2,
@@ -1521,7 +1521,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 1086,
+    "tasksCompleted": 1087,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
