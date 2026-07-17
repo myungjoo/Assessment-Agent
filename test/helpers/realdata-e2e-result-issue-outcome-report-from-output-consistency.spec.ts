@@ -471,4 +471,236 @@ describe("assertRealDataResultIssueOutcomeReportConsistentWithOutput", () => {
       );
     });
   });
+
+  // 구조-검사 선행성 order-lock(T-1072) — guard 본문(L156~171)은 구조 검사
+  // (`assertReportStructure(report)` L157 → `assertRunStructure(run)` L158 → `stdout`
+  // 비-string TypeError L159~163)를 값 재유도 위임 2 호출
+  // (`parseRealDataResultIssueCreateEditOutput` + `buildRealDataResultIssueOutcomeReport`
+  // L168~169)보다 **먼저** 수행한다(구조검사 라인 < 첫 재유도 라인). 기존 구조 error-path
+  // 블록(위 "구조 결손 — null/undefined → TypeError" / "report 필드 type 위반 → TypeError")은
+  // 각 분기 `.toThrow(TypeError)` 만 assert 하고, 구조 위반 시 2 재유도 위임이 아예 호출되지
+  // 않는(선행 fail-fast) 선행성은 검증하지 않았다. 기존 T-1062 순서-lock 블록은 정합-경로
+  // invocationCallOrder 부등식과 값-재유도 fail-fast(parse throw → buildOutcomeReport 0-call)
+  // 만 못박아 구조 error-path 는 미커버다. 본 블록은 구조 결손 각 분기에서 2 재유도 위임 spy 가
+  // 모두 `toHaveBeenCalledTimes(0)` 임을 못박아, 리팩터가 재유도를 구조 검사 위로 끌어올리는
+  // silent 재정렬로부터 방어한다(T-1066~T-1071 mirror). 기존 블록은 유지하고 새 describe 만
+  // 추가. test-only 1파일, 가드 `.ts` 무변경.
+  describe("T-1072 — 구조-검사 선행성 order-lock(구조 결손 → 2 재유도 위임 0-call)", () => {
+    // 2 재유도 위임 pass-through spy 설치(mockImplementation 없이 실 구현 계측만). 구조 결손
+    // 케이스는 report 를 미리 만들 필요 없는 경우도 있으나(report null/undefined), 필드 type
+    // 위반·run/stdout 결손 케이스는 makeHappyReport() 산출을 재사용하므로 spy 설치 前에 만든다.
+    function installSpies(): {
+      parseSpy: jest.SpyInstance;
+      buildOutcomeSpy: jest.SpyInstance;
+    } {
+      const parseSpy = jest.spyOn(
+        outputParseModule,
+        "parseRealDataResultIssueCreateEditOutput",
+      );
+      const buildOutcomeSpy = jest.spyOn(
+        outcomeReportModule,
+        "buildRealDataResultIssueOutcomeReport",
+      );
+      return { parseSpy, buildOutcomeSpy };
+    }
+
+    describe("happy-path (구조 통과 → 2 재유도 위임 각 1회, parse → buildOutcomeReport 순)", () => {
+      it("정합 구조 입력이면 2 재유도 위임이 각 1회 호출되고 parse < buildOutcomeReport 선행(invocationCallOrder 부등식)", () => {
+        // report 는 spy 설치 前 합성 — makeHappyReport 내부 컴포저도 2 delegate 를 호출하므로
+        // spy 설치 후 만들면 호출 횟수가 오염된다(guard 재유도만 격리 계측).
+        const report = makeHappyReport();
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+
+        expect(
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            HAPPY_STDOUT,
+            HAPPY_RUN,
+            report,
+          ),
+        ).toBeUndefined();
+
+        // 구조 통과 → 2 재유도 도달, 각 정확히 1회.
+        expect(parseSpy).toHaveBeenCalledTimes(1);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(1);
+        expect(parseSpy.mock.invocationCallOrder[0]).toBeLessThan(
+          buildOutcomeSpy.mock.invocationCallOrder[0],
+        );
+      });
+    });
+
+    describe("구조 결손 분기 — TypeError + 2 재유도 위임 0-call(선행성 fail-fast)", () => {
+      // (분기 1) report null/undefined — assertReportStructure L74~78 이 값 재유도보다 앞서
+      // fail-fast 함을 2 delegate 0-call 로 못박는다.
+      it("report=null → TypeError + parse·buildOutcomeReport 0-call", () => {
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            HAPPY_STDOUT,
+            HAPPY_RUN,
+            null as unknown as RealDataResultIssueOutcomeReport,
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("report=undefined → TypeError + 2 재유도 위임 0-call", () => {
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            HAPPY_STDOUT,
+            HAPPY_RUN,
+            undefined as unknown as RealDataResultIssueOutcomeReport,
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // (분기 2) report 필드 type 위반 — assertReportStructure L79~92(number 1 종 + string
+      // 4 종)이 값 재유도보다 앞섬. issueNumber 문자열 / summaryLine 숫자 / url 누락 대표.
+      it("report.issueNumber 문자열(필드 type) → TypeError + 2 재유도 위임 0-call", () => {
+        const report = {
+          ...makeHappyReport(),
+          issueNumber: "42" as unknown as number,
+        };
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            HAPPY_STDOUT,
+            HAPPY_RUN,
+            report,
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("report.summaryLine 숫자(필드 type) → TypeError + 2 재유도 위임 0-call", () => {
+        const report = {
+          ...makeHappyReport(),
+          summaryLine: 7 as unknown as string,
+        };
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            HAPPY_STDOUT,
+            HAPPY_RUN,
+            report,
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("report.url 누락(undefined·필드 type) → TypeError + 2 재유도 위임 0-call", () => {
+        const report = {
+          ...makeHappyReport(),
+          url: undefined as unknown as string,
+        };
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            HAPPY_STDOUT,
+            HAPPY_RUN,
+            report,
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // (분기 3) run null/undefined — assertRunStructure L101~105 가 값 재유도보다 앞섬.
+      it("run=null → TypeError + 2 재유도 위임 0-call", () => {
+        const report = makeHappyReport();
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            HAPPY_STDOUT,
+            null as unknown as RealDataResultIssueRunRef,
+            report,
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("run=undefined → TypeError + 2 재유도 위임 0-call", () => {
+        const report = makeHappyReport();
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            HAPPY_STDOUT,
+            undefined as unknown as RealDataResultIssueRunRef,
+            report,
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(0);
+      });
+
+      // (분기 4) stdout 비-string — L159~163 stdout type 검사가 값 재유도보다 앞섬.
+      it("stdout=숫자(비-string) → TypeError + 2 재유도 위임 0-call", () => {
+        const report = makeHappyReport();
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            123 as unknown as string,
+            HAPPY_RUN,
+            report,
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(0);
+      });
+
+      it("stdout=null(비-string) → TypeError + 2 재유도 위임 0-call", () => {
+        const report = makeHappyReport();
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            null as unknown as string,
+            HAPPY_RUN,
+            report,
+          ),
+        ).toThrow(TypeError);
+        expect(parseSpy).toHaveBeenCalledTimes(0);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe("대조 — 값 정합 위반(RangeError)은 구조 통과 후 2 재유도 위임 호출 뒤 발생", () => {
+      // 구조는 정상이므로 2 재유도가 모두 도달(호출됨)한 뒤 값 필드 비교 단계에서 RangeError 가
+      // 난다. 구조 결손(TypeError, 0-call)과 값 drift(RangeError, 호출됨)의 선행성 경계 대조.
+      it("gitSha drift → RangeError + 2 재유도 위임 모두 호출됨(각 1)", () => {
+        // 구조는 정상(모든 필드 type 온전)이므로 재유도 도달 후 gitSha 필드 비교에서 RangeError.
+        const report = { ...makeHappyReport(), gitSha: "ffffff0" };
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            HAPPY_STDOUT,
+            HAPPY_RUN,
+            report,
+          ),
+        ).toThrow(RangeError);
+        // 구조 통과 → 2 재유도 모두 도달(필드 비교 RangeError 는 재유도 이후 단계).
+        expect(parseSpy).toHaveBeenCalledTimes(1);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it("issueNumber drift → RangeError + 2 재유도 위임 모두 호출됨(각 1)", () => {
+        const report = { ...makeHappyReport(), issueNumber: 99 };
+        const { parseSpy, buildOutcomeSpy } = installSpies();
+        expect(() =>
+          assertRealDataResultIssueOutcomeReportConsistentWithOutput(
+            HAPPY_STDOUT,
+            HAPPY_RUN,
+            report,
+          ),
+        ).toThrow(RangeError);
+        expect(parseSpy).toHaveBeenCalledTimes(1);
+        expect(buildOutcomeSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
 });
