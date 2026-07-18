@@ -278,6 +278,21 @@ describe("buildRealDataE2eRunPlan — 실 평가 e2e 최외곽 run plan 컴포�
       expect(spy.mock.calls[0][1]).toBe(SINGLE);
       expect(spy.mock.calls[0][2]).toBe(MODEL_ID);
       expect(spy.mock.calls[0][3]).toBe(RUN);
+      // 인자-축 negative payload-drift — 위 positive With(plan, SINGLE, MODEL_ID, RUN) 가
+      // 실제로 인자 drift 를 잡음을 노출. toHaveBeenCalledWith 는 deep-equality 매칭이므로
+      // negative 대상은 값 자체가 실제 주입값과 달라야 한다: (a) seeds 를 빈 배열로 바꾼
+      // drift, (b) modelId 를 다른 문자열로 바꾼 drift 는 매칭되지 않아야 한다.
+      expect(spy).not.toHaveBeenCalledWith(plan, [], MODEL_ID, RUN);
+      expect(spy).not.toHaveBeenCalledWith(
+        plan,
+        SINGLE,
+        MODEL_ID + "-drift",
+        RUN,
+      );
+      // arity 봉함 — 가드가 정확히 4 인자(plan, seeds, modelId, run)로만 호출됨(여분 인자 0).
+      // positional index 접근(위)은 값 대조일 뿐 길이 봉함이 아니므로 별개로 lock.
+      expect(spy.mock.calls[0].length).toBe(4);
+      // flow/분기: 가드 self-wire 는 정상 합성 후 1회 호출되는 단일 경로 — 분기 없음(항목 생략).
     });
 
     it("다수 seed 분기에서도 가드가 (산출 runPlan, seeds, modelId, run) 인자로 정확히 1회 호출됨", () => {
