@@ -2,7 +2,9 @@
 id: T-1107
 title: realdata-e2e daily-step dual-leg run-report-issue-gh-command-plan 재유도 3-delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg10
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-18T04:05:29Z
+result: PR #999 merged (squash 3000a013). 3-delegate(parse 1-arg / resolveAction 2-arg / buildGhArgv 2-arg) toHaveBeenCalledWith 인자-충실도 + 인자-축 negative(payload drift + arity 봉함 1/2/2) lock. test-only +36 LOC. reviewer round1 APPROVE 4-게이트 PASS. grep toHaveBeenCalledWith=7(≥3).
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 42
