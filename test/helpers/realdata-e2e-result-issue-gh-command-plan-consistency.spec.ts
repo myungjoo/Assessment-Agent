@@ -772,6 +772,35 @@ describe("assertRealDataResultIssueGhCommandPlanConsistentWithInputs", () => {
       // 산출 소비.
       const producedAction = actionSpy.mock.results[0].value;
       expect(ghArgvSpy.mock.calls[0][0]).toBe(producedAction);
+
+      // T-1102 — 인자-충실도(argument fidelity) lock: 위 순서-lock·첫-인자 reference threading
+      // 위에, 각 delegate 가 호출된 **완전한 입력 payload**(특히 첫 인자가 아닌 둘째 인자)를
+      // canonical `toHaveBeenCalledWith` 로 못박는다. flow/분기: 본 재유도는 happy-path 단일
+      // 경로 tighten — 새 분기 도입 0(조립 경로에 분기 없음, 항목 생략).
+      //
+      // (1) parse delegate: 가드의 정확한 stdout 문자열로 호출됨(payload 누락/치환 없음).
+      expect(parseSpy).toHaveBeenCalledWith(stdout);
+      // (2) resolveAction delegate: builder ① 산출 hits + 가드의 commandArgs.searchQuery
+      // (둘째 인자 marker payload)까지 두 인자 완전 충실도.
+      expect(actionSpy).toHaveBeenCalledWith(
+        producedHits,
+        commandArgs.searchQuery,
+      );
+      // (3) buildGhArgv delegate: builder ② 산출 action + 가드의 commandArgs 전체(둘째 인자).
+      expect(ghArgvSpy).toHaveBeenCalledWith(producedAction, commandArgs);
+
+      // negative — 인자-축 payload drift 대조: 둘째 인자가 다르면 매칭 안 됨을 노출
+      // (값-drift RangeError 대조 describe 와 별개의 인자-충실도 축 negative).
+      expect(actionSpy).not.toHaveBeenCalledWith(producedHits, "다른-marker");
+      expect(ghArgvSpy).not.toHaveBeenCalledWith(
+        producedAction,
+        expect.objectContaining({ searchQuery: "drift" }),
+      );
+
+      // negative — 인자 개수/여분 인자: 3 delegate 각 arity 봉함(여분 인자 0).
+      expect(parseSpy.mock.calls[0].length).toBe(1);
+      expect(actionSpy.mock.calls[0].length).toBe(2);
+      expect(ghArgvSpy.mock.calls[0].length).toBe(2);
     });
 
     it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/stdout/commandArgs mutate 0", () => {
