@@ -304,6 +304,28 @@ describe("assertRealDataEvaluationInputsConsistentWithSources", () => {
       // spy 는 실 구현 call-through(mockImplementation 미지정) — byte-identical 대조가 통과한다.
       // per-element map 특이점: 1 아니라 source activities 전량(길이 4).
       expect(spy).toHaveBeenCalledTimes(MIXED.length);
+      // 인자-충실도(per-element 순번별) — 재유도 delegate 가 각 source activity 원소를
+      // **정확히 그 순번에** 1-arg 로 받았음을 순번별로 lock(횟수+순번+인자 payload 모두).
+      // 본 seam 은 per-element map 이라 activities.length 회 호출 — toHaveBeenNthCalledWith 로
+      // 순번-원소 대응을 못박는다(command-plan 1-delegate leg 의 인자-충실도 패턴 확장).
+      MIXED.forEach((activity, i) => {
+        expect(spy).toHaveBeenNthCalledWith(i + 1, activity);
+      });
+      // canonical 전체 충실도 — 임의 원소가 인자로 관측됨을 명시(순번 무관 완전 충실도).
+      expect(spy).toHaveBeenCalledWith(MIXED[0]);
+      expect(spy).toHaveBeenCalledWith(MIXED[MIXED.length - 1]);
+      // negative(인자 payload drift 축) — deep-equality 매칭이 payload drift 를 실제로
+      // 잡음을 노출. 빈 activity({})로는 호출된 적 없고(값 drift 미매칭), 1번째 호출이 다른
+      // 원소(MIXED[1])로 오지 않았음을 대조. 기존 값-drift RangeError it 과 별개의 인자-축 negative.
+      expect(spy).not.toHaveBeenCalledWith({});
+      expect(spy).not.toHaveBeenNthCalledWith(1, MIXED[1]);
+      // negative(인자 개수/arity 봉함) — 각 delegate 호출이 정확히 1 인자로만 호출됨(여분 인자 0).
+      // per-element map 의 1-arity 봉함 — 재유도가 activity 외 추가 컨텍스트를 넘기지 않음.
+      spy.mock.calls.forEach((call) => {
+        expect(call.length).toBe(1);
+      });
+      // flow/분기: 본 leg 은 happy-path 선행성 재유도 order-lock it 단일 경로 tighten —
+      // 새 분기 도입 0(요소별 동일 호출로 per-element 재유도 조립에 분기 없음, 항목 생략).
     });
 
     it("happy-path(단일 원소) — delegate 가 정확히 1회(activities.length=1) 호출", () => {
