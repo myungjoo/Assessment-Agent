@@ -2,7 +2,10 @@
 id: T-1103
 title: realdata-e2e step-args 재유도 2-delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg6
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 82785e63
+prNumber: 995
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 38
