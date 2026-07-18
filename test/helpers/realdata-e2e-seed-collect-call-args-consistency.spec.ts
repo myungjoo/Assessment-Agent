@@ -406,6 +406,14 @@ describe("assertRealDataCollectCallArgsConsistentWithSources", () => {
       expect(inputSpy).toHaveBeenCalledTimes(1);
       expect(inputSpy).toHaveBeenCalledWith(SEEDS);
       expect(inputSpy.mock.invocationCallOrder[0]).toBeGreaterThan(0);
+      // 인자-충실도 negative(payload drift) — positive With(SEEDS)가 실제로 인자 drift 를
+      // 잡음을 노출. SINGLE(길이 1)은 실제 주입 SEEDS(길이 2)와 deep-equal 미매칭이므로
+      // 우연 통과 없이 축을 검증한다. [...SEEDS] 같은 얕은 복사본은 deep-equal 매칭되어
+      // negative 로 부적합 — 값 자체가 다른 SINGLE 을 대상으로 삼는다.
+      expect(inputSpy).not.toHaveBeenCalledWith(SINGLE);
+      // arity 봉함 — delegate buildRealDataCollectInput 는 1-arg(seeds)이므로 정확히 1
+      // 인자로만 호출됨(여분 인자 0)을 못박는다. 분기 없음(구조 통과 후 단일-call 경로).
+      expect(inputSpy.mock.calls[0].length).toBe(1);
     });
 
     it("경계 대조(재유도-후 RangeError) — 길이 불일치는 구조 통과 후 delegate 도달 뒤 발생(구조 0-call vs 값 1-call)", () => {
