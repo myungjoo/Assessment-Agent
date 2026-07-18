@@ -511,6 +511,22 @@ describe("buildRealDataResultReportPlan — post-evaluation 종단 plan 컴포�
       expect(spy.mock.calls[0][0]).toBe(plan);
       expect(spy.mock.calls[0][1]).toBe(results);
       expect(spy.mock.calls[0][2]).toBe(run);
+      // negative — 인자 payload drift 대조: 위 With(plan, results=[], run) positive 가
+      // 실제로 인자 drift 를 잡음을 노출. toHaveBeenCalledWith 는 deep-equality 매칭이라
+      // negative 대상은 값 자체가 실제 주입값과 다르도록 구성한다. results 가 빈 배열이
+      // 아닌 [makeResult()] 이면 미매칭(빈↔비어있지-않음), run 이 다른 참조여도 미매칭.
+      expect(spy).not.toHaveBeenCalledWith(plan, [makeResult()], run);
+      expect(spy).not.toHaveBeenCalledWith(
+        plan,
+        results,
+        makeRun({ gitSha: "drift-sha" }),
+      );
+      // negative — arity 봉함: 가드가 정확히 3 인자(plan, results, run)로만 호출되고
+      // 여분 인자가 0 임을 길이로 봉함(positional index 접근은 값 대조일 뿐 길이 봉함 아님).
+      expect(spy.mock.calls[0].length).toBe(3);
+      // 분기 없음 — 본 happy it 은 빈 results 단일 경로 tighten(가드 self-wire 1회 호출)이라
+      // 새 분기 도입 0. 인접한 단일 result 분기 대조 it·다수 result 분기 대조 it 은 별개
+      // 경계로 손대지 않음.
     });
 
     it("(단일 result 분기) 가드가 (산출 plan, results, run) 인자로 정확히 1회 호출됨", () => {
