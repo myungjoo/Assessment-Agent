@@ -671,6 +671,26 @@ describe("assertRealDataE2eStepArgsConsistentWithSources", () => {
       expect(evalSpy.mock.invocationCallOrder[0]).toBeLessThan(
         publishSpy.mock.invocationCallOrder[0],
       );
+
+      // T-1103 — 인자-충실도 lock(2-delegate, 둘째 인자 포함). 위 order-lock 은 횟수+순서만
+      // 못박고 각 위임에 "어떤 완전한 payload" 가 전달됐는지는 미검증이다. 재유도 call site
+      // (helper L210~214)가 sub-composer ①/② 를 정확히 (runPlan, activities)/(runPlan, results)
+      // 두 인자 완전 충실도로 호출함을 canonical matcher 로 봉한다.
+      // 분기 없음(happy-path 재유도 단일 경로 tighten — 새 분기 도입 0), 항목 생략.
+      // evaluation delegate: runPlan + activities 두 인자 완전 충실도.
+      expect(evalSpy).toHaveBeenCalledWith(runPlan, HAPPY_ACTIVITIES);
+      // publish delegate: 동일 runPlan reference + results 두 인자 완전 충실도.
+      expect(publishSpy).toHaveBeenCalledWith(runPlan, HAPPY_RESULTS);
+
+      // negative(인자-축) — 둘째 인자 payload drift 는 매칭되지 않음(toHaveBeenCalledWith 가
+      // 진짜로 둘째 인자를 비교함을 노출). evaluation 에 results 를, publish 에 activities 를
+      // 넣으면(둘째 인자 치환) 매칭 실패해야 한다.
+      expect(evalSpy).not.toHaveBeenCalledWith(runPlan, HAPPY_RESULTS);
+      expect(publishSpy).not.toHaveBeenCalledWith(runPlan, HAPPY_ACTIVITIES);
+
+      // negative(인자 개수) — 각 delegate 가 정확히 2 인자로 호출됨(여분 인자 0, arity 봉함).
+      expect(evalSpy.mock.calls[0]).toHaveLength(2);
+      expect(publishSpy.mock.calls[0]).toHaveLength(2);
     });
 
     it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + stepArgs/runPlan/activities/results mutate 0", () => {
