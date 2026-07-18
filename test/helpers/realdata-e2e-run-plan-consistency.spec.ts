@@ -635,6 +635,14 @@ describe("assertRealDataE2eRunPlanConsistentWithSources", () => {
       expect(pipelineSpy).toHaveBeenCalledTimes(1);
       expect(pipelineSpy).toHaveBeenCalledWith(seeds, MODEL_ID);
       expect(pipelineSpy.mock.invocationCallOrder[0]).toBeGreaterThan(0);
+
+      // 인자-충실도 negative(payload drift) — 위 positive With(seeds, MODEL_ID) 가 실제로
+      // 인자 drift 를 잡음을 노출한다. 빈 seeds·drift modelId 는 실제 주입값과 달라 미매칭이어야.
+      expect(pipelineSpy).not.toHaveBeenCalledWith([], MODEL_ID);
+      expect(pipelineSpy).not.toHaveBeenCalledWith(seeds, `${MODEL_ID}-drift`);
+      // arity 봉함 — 재유도 위임은 정확히 2 인자(seeds, MODEL_ID)로만 호출됨(RUN 등 여분 인자 0).
+      // 구조 통과 후 단일 경로 1회 도달이라 분기 없음 → flow 분기 cover 항목 생략.
+      expect(pipelineSpy.mock.calls[0].length).toBe(2);
     });
 
     it("경계 대조(재유도-후 RangeError) — pipeline drift 는 구조 통과 후 delegate 도달 뒤 발생(구조 0-call vs 값 1-call)", () => {
