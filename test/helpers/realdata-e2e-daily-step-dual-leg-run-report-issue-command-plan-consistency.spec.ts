@@ -603,6 +603,29 @@ describe("assertRealDataDailyStepDualLegRunReportIssueCommandPlanConsistentWithS
       // descriptor 를 소비하는 chain 방향 lock.
       const producedDescriptor = descriptorSpy.mock.results[0].value;
       expect(commandArgsSpy.mock.calls[0][0]).toBe(producedDescriptor);
+
+      // ── 인자-충실도(T-1106): 각 order-locked 위임이 어떤 완전한 payload 로
+      //    호출됐는지를 canonical toHaveBeenCalledWith 로 봉함(횟수·순서·reference 만이
+      //    아니라 인자 전체). 두 delegate 모두 1-arg(mixed arity 아님).
+      // descriptor delegate 인자-충실도: sub-composer ① 위임이 가드의 정확한 report
+      // 객체(HAPPY_REPORT)로 — 누락/치환 없이 — 호출됨.
+      expect(descriptorSpy).toHaveBeenCalledWith(HAPPY_REPORT);
+      // command-args delegate 인자-충실도: sub-composer ② 위임이 descriptor 산출을
+      // 인자로 받아 호출됨(reference .toBe 위와 별도로 canonical matcher 로도 봉함).
+      expect(commandArgsSpy).toHaveBeenCalledWith(producedDescriptor);
+
+      // negative(인자-축 payload drift): toHaveBeenCalledWith 가 payload drift 를 실제로
+      // 잡음을 노출 — descriptor 위임에 산출 descriptor 를(원본 report 대신), command-args
+      // 위임에 원본 report 를(산출 descriptor 대신) 넣으면 매칭되지 않는다. (기존 값-drift
+      // RangeError describe 와 별개의 인자-충실도 축 negative.)
+      expect(descriptorSpy).not.toHaveBeenCalledWith(producedDescriptor);
+      expect(commandArgsSpy).not.toHaveBeenCalledWith(HAPPY_REPORT);
+
+      // negative(인자 개수/arity 봉함): 두 위임 모두 정확히 1 인자로 호출(여분 인자 0).
+      expect(descriptorSpy.mock.calls[0].length).toBe(1);
+      expect(commandArgsSpy.mock.calls[0].length).toBe(1);
+
+      // flow/분기: 본 재유도 경로는 happy-path 단일 경로 — 조립에 분기 없음, 항목 생략.
     });
 
     it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/report mutate 0", () => {
