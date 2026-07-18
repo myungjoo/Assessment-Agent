@@ -821,6 +821,32 @@ describe("assertRealDataResultIssueCommandPlanConsistentWithInputs", () => {
       // (reference 동일) — builder ②가 builder ① 산출 descriptor 를 소비하는 chain 방향 lock.
       const producedReport = reportSpy.mock.results[0].value;
       expect(commandArgsSpy.mock.calls[0][0]).toBe(producedReport.descriptor);
+
+      // === T-1101 인자-충실도(§D 후보 2 leg4) ===
+      // (flow/분기 cover 메모) 본 leg 은 happy-path 재유도 it 단일 경로 tighten —
+      // 새 분기 도입 0, 조립 경로에 분기 없음 → flow/분기 항목 생략(spec 주석 명시).
+      //
+      // happy-path ①: report-plan 위임이 가드의 정확한 results 배열 + run 식별자로
+      // 호출됨(payload 누락/치환 없음)을 canonical matcher 로 lock — 횟수(위 Times(1))에
+      // 더해 인자 payload 까지 못박는다.
+      expect(reportSpy).toHaveBeenCalledWith(results, run);
+      // happy-path ②: command-args 위임이 builder ① 산출 report 의 descriptor payload 로
+      // 호출됨을 canonical matcher 로 lock. reference 동일성(위 .toBe)에 더해 값-충실도까지.
+      expect(commandArgsSpy).toHaveBeenCalledWith(producedReport.descriptor);
+      // negative(shape/payload drift 대조): 빈 results 로는 매칭 안 됨 — toHaveBeenCalledWith
+      // 가 인자 payload drift 를 실제로 잡음을 인자-축에서 노출(값-drift RangeError describe 와 별개).
+      expect(reportSpy).not.toHaveBeenCalledWith([], run);
+      // negative(descriptor drift 대조): command-args 가 다른 descriptor(title 치환)로는
+      // 매칭되지 않음 — 산출 descriptor 이외 payload 로의 위임을 배제.
+      expect(commandArgsSpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: `${producedReport.descriptor.title}__drift`,
+        }),
+      );
+      // negative(인자 개수/여분 인자): report-plan 은 정확히 2 인자(여분 0),
+      // command-args 는 정확히 1 인자 — arity 충실도 lock.
+      expect(reportSpy.mock.calls[0].length).toBe(2);
+      expect(commandArgsSpy.mock.calls[0].length).toBe(1);
     });
 
     it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/results/run mutate 0", () => {
