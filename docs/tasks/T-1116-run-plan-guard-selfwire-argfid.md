@@ -2,7 +2,11 @@
 id: T-1116
 title: realdata-e2e run-plan 컴포저 consistency 가드 self-wire 인자-충실도 negative payload-drift + arity봉함 완결 — §D 후보 2 leg19
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-18T09:04:42Z
+mergedAs: 66a1d65d
+prNumber: 1008
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 14
