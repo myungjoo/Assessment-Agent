@@ -2,7 +2,10 @@
 id: T-1102
 title: realdata-e2e result-issue-gh-command-plan 재유도 3-delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg5
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-18T01:24:02Z
+prNumber: 994
+result: "DONE (PR #994 merged, squash 092ce1c3). test-only +29/-0 — parse/resolveAction/buildGhArgv 3-delegate toHaveBeenCalledWith 인자-충실도(둘째 인자 포함) + 인자-축 negative 2 + arity 3. 대상 spec 53/53·전체 11328 green, cov 무회귀. reviewer round1 APPROVE(0 finding) 4-게이트 PASS."
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 44
