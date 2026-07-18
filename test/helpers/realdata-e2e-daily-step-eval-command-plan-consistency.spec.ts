@@ -646,6 +646,29 @@ describe("assertRealDataDailyStepEvalCommandPlanConsistentWithGating", () => {
       // loose 호출-여부 assert 이면 가드가 invoke 당 delegate 를 중복 재유도(build ≥2회)해도
       // 통과하므로, exactly-2 로 중복 재유도 회귀를 fail 시킨다(delegate ≥3-call for 2-invoke → fail).
       expect(resolveSpy).toHaveBeenCalledTimes(2);
+
+      // T-1112 per-call 인자-충실도(값-정합 2-call, 순번별) — 두 invoke 가 각각 주입된
+      // 정확한 `env` 를 그 순번에 받았음을 순번별 toHaveBeenNthCalledWith 로 lock.
+      // 매 invoke 는 동일 `env` 인스턴스(L626)를 주입하므로 1번·2번 호출 인자 모두 그 `env`.
+      // 횟수(위)+순번(아래)+인자(아래)를 모두 못박아 per-call 인자 누락/치환/부분 복사를 잡는다.
+      // flow/분기: 두 invoke 는 동일 경로(값 매핑 위반) 반복 → 재유도 조립 경로에 분기 없음,
+      // 항목 생략.
+      expect(resolveSpy).toHaveBeenNthCalledWith(1, env);
+      expect(resolveSpy).toHaveBeenNthCalledWith(2, env);
+
+      // canonical 완전 충실도 — 두 호출 모두 그 `env` 로 호출됐음(순번 무관 값 매칭).
+      expect(resolveSpy).toHaveBeenCalledWith(env);
+
+      // negative — 인자 payload drift 대조: deep-equality 매칭이 payload drift 를 실제로
+      // 잡음을 노출. 값이 실제로 다른 env(빈 env / gating 키 값이 "0" 으로 뒤바뀐 env)는
+      // 어느 순번 호출과도 매칭되지 않는다.
+      expect(resolveSpy).not.toHaveBeenCalledWith({});
+      expect(resolveSpy).not.toHaveBeenCalledWith(
+        makeEnabledEnv({ [REALDATA_E2E_LIVE_TEST_ENV]: "0" }),
+      );
+
+      // negative — 인자 개수/arity 봉함: 두 호출 각각 정확히 1 인자로 호출됨(여분 인자 0).
+      resolveSpy.mock.calls.forEach((call) => expect(call.length).toBe(1));
     });
 
     it("재유도-전 RangeError 대조(action enum 위반) — 구조 통과했으나 재유도 前 enum 검사에서 throw → delegate 0-call", () => {
