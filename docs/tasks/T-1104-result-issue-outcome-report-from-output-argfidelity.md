@@ -2,7 +2,10 @@
 id: T-1104
 title: realdata-e2e result-issue-outcome-report-from-output 재유도 2-delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg7
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: e2c44af4
+prNumber: 996
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 35
