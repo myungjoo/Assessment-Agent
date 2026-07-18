@@ -2,7 +2,9 @@
 id: T-1111
 title: realdata-e2e github-collection-live per-element 재유도 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg14
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: e233947b
+prNumber: 1003
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 40
