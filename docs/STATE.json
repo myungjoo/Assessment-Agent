@@ -24,11 +24,11 @@
   },
   "lastCommit": "45105961",
   "mostRecentTasks": [
+    "T-1113",
     "T-1112",
     "T-1111",
     "T-1110",
-    "T-1109",
-    "T-1108"
+    "T-1109"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -38,10 +38,10 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-18T07:16:54Z",
+    "lastRun": "2026-07-18T07:54:42Z",
     "status": "green",
     "consecutiveFails": 0,
-    "note": "T-1112 DONE (PR #1004 merged, squash dad60076) — realdata-e2e daily-step eval-command-plan 값-정합 위반 RangeError 2-call 블록의 delegate resolveRealDataE2eLiveGating(env) 두 invoke 를 순번별 toHaveBeenNthCalledWith(1/2, env) + canonical toHaveBeenCalledWith(env) 로 per-call 인자-충실도 lock + 인자-축 negative(env payload drift 미매칭·1-arity 봉함). 기존 toHaveBeenCalledTimes(2) 유지. §D 후보 2(인자-충실도) sweep leg15 — leg14(T-1111 github-collection-live) 이후 클린 W=0 seam 소진(seed-upsert=0-call isolation 부적격) 확정 후 이미 scalar-locked 된 eval-command-plan spec 의 잔여 multi-call 2-call 블록 완결. test-only 1파일 +23/-0, production src 0 LOC. 전체 404 suites/11328 tests green, cov line 99.95%/func 100%/branch 99.25%(≥80% 무회귀). reviewer round1 APPROVE(0 BLOCKER·0 MAJOR·0 MINOR)→4-게이트 PASS(external comment PR #1004 issuecomment-5010366075, CI green 기본검사+배포산출물검증 pull_request run headSha bb8575ed incl reviewer-approval step race-free, mergeState CLEAN ADR-0036 §8(c) rebase noop)→squash dad60076 branch delete. 직전 T-1111 머지-커밋 main CI(e233947b) 및 bookkeeping(e8ad3222) 이번 turn conclusion=success 확인(R-114 완결). 본 T-1112 머지-커밋 main CI(dad60076 push run) in_progress — 다음 turn conclusion 확인(R-114). fineGrainedConcurrency ON(stage5b) claim-pickup fire(cron@aa-local-8fcad91e, 매시 15분대 트리거로 정각/30/45분 충돌 회피, server-time 07:05:17Z fresh 非midnight). 시퀀스: fetch→main 4-behind(701675ed) ff→origin/main e8ad3222→lock free(tombstone)→acquire-lock(cron tip c9ef67f2)→reclaim noop(claims[] 무대상, RECLAIM_NOW 07:05:17Z server-time)→validate T-1112 PASS→active claim 0<max2 & pr-mode 0-active gate PASS→select-claim T-1112 atomic(CLAIM_NOW 07:05:42Z, lock release atomic)→lock-free executor(claude/T-1112-eval-command-plan-2call-argfid, implementer+tester, commit head bb8575ed)→push feature→PR #1004 open(driver gh, ADR-0005)→re-acquire lock(fb4a779a)→sync-claim-pr(prNumber 1004 PR_OPEN)→release(69f9ee36)→integrator round1 reviewer APPROVE 4-게이트 PASS→squash dad60076 branch delete→claim prune([] tree-preserving CAS lock.json tombstone 보존)→planner T-1113 큐잉(880f01ee)→bookkeeping(direct main)+lock mirror tombstone. counters 1102→1103. dup-PR 0. 다음: T-1113 §D 후보 2 leg16(daily-step collect-command-plan 값-정합 2-call 재유도 delegate resolveRealDataE2eLiveGating(env) per-call 인자-충실도, sweep 계속)."
+    "note": "T-1113 DONE (PR #1005 merged, squash 4235e377) — realdata-e2e daily-step collect-command-plan 값-정합 2-call RangeError 블록의 delegate resolveRealDataE2eLiveGating(env) 2 재유도를 순번별 toHaveBeenNthCalledWith(1/2, env) + canonical toHaveBeenCalledWith(env) + 인자-축 negative(payload drift 미매칭·1-arity 봉함)로 per-call 인자-충실도 lock. 기존 toHaveBeenCalledTimes(2) 유지. §D 후보 2(인자-충실도) sweep leg16 — leg15(T-1112 eval-command-plan)의 sibling 동형 패턴 적용. test-only 1파일 +23/-0, production src 0 LOC. 전체 404 suites/11328 tests green, cov line 99.95%/func 100%(≥80% 무회귀). reviewer round1 APPROVE(0 BLOCKER·0 MAJOR·0 MINOR)→4-게이트 PASS(external reviewer comment PR #1005, CI green run 29636208724 incl reviewer-approval step, mergeState CLEAN ADR-0036 §8(c) head 최신 noop)→squash 4235e377 branch delete. fineGrainedConcurrency ON(stage5b) claim-pickup fire(cron@cloud-3912f773, 매시 30~40분대 트리거로 정각/15/45분 충돌 회피, server-time 07:37:53Z fresh 非midnight). 시퀀스: fetch→main 1-behind(e8ad3222) ff→origin/main bbbea355→lock free(tombstone)→acquire-lock(cron)→reclaim noop(claims[] 무대상, RECLAIM_NOW 07:37:53Z)→validate T-1113 PASS→active claim 0<max2 & pr-mode 0-active gate PASS→select-claim T-1113 atomic(CLAIM_NOW 07:38:10Z, lock release atomic)→lock-free executor(claude/T-1113-collect-2call-argfid, implementer+tester, commit head f7e4b02f)→push feature→PR #1005 open(driver gh)→re-acquire lock→sync-claim-pr(prNumber 1005 PR_OPEN)→release→integrator round1 reviewer APPROVE 4-게이트 PASS→squash 4235e377 branch delete→claim prune([] tree-preserving CAS, lock.json 보존)→planner T-1114 큐잉(9f8f5c40)→bookkeeping(direct main)+lock mirror tombstone. counters 1103→1104. dup-PR 0. 직전 T-1112 머지-커밋 main CI(dad60076) 및 bookkeeping(bbbea355) 이번 turn conclusion=success 확인(R-114 완결). 본 T-1113 머지-커밋 main CI(4235e377 push run) in_progress — 다음 turn conclusion 확인(R-114). 다음: T-1114 §D 후보 2 leg17(pipeline-plan collect 위임 negative payload-drift + arity봉함, Times(2) 다중-call 블록 소진 후 happy-call negative gap)."
   },
   "reviewRounds": {
     "T-1105": 1,
@@ -1526,7 +1526,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 1103,
+    "tasksCompleted": 1104,
     "tasksBlocked": 8,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
@@ -1554,5 +1554,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-07-18T07:17:00Z"
+  "lastActivity": "2026-07-18T07:56:30Z"
 }

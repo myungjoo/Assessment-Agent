@@ -2,7 +2,7 @@
 id: T-1113
 title: realdata-e2e daily-step collect-command-plan 값-정합 2-call 재유도 per-call 인자-충실도 toHaveBeenNthCalledWith 완결 — §D 후보 2 leg16
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 30
@@ -63,3 +63,12 @@ test-only `commitMode: pr` — production src 변경 0 LOC. 기존 spec 1파일(
 ## Follow-ups
 
 - (다음 planner turn) 본 leg16 이 collect-command-plan 값-정합 2-call per-call 인자-충실도를 lock 하면, eval/collect 두 sibling 의 값-정합 2-call 블록이 모두 완결된다. 다음 pre-check 로 realdata-e2e consistency spec 전반에 잔여 multi-call `toHaveBeenCalledTimes(N≥2)` per-call 미lock 블록(예: gh-command-plan 계열의 다-delegate 2-call)이 남았는지 재확인. 잔여 없으면 후보 2 completion-audit(§D candidate-2 소진 확정) 또는 P5 의 다른 §D candidate / PLAN bullet 로 전환.
+
+---
+
+## Result (DONE — 2026-07-18T07:56Z)
+
+- 완료 시각: 2026-07-18 07:56Z. PR [#1005](https://github.com/myungjoo/Assessment-Agent/pull/1005) squash 머지 (4235e377), reviewer round1 APPROVE, 4-게이트 PASS.
+- 변경: `test/helpers/realdata-e2e-daily-step-collect-command-plan-consistency.spec.ts` 값-정합 2-call it 에 순번별 `toHaveBeenNthCalledWith(1/2, env)` + canonical `toHaveBeenCalledWith(env)` + 인자-축 negative(payload drift 미매칭·1-arity 봉함) 추가. test-only +23/-0, production src 0 LOC.
+- 검증: 전체 404 suites / 11328 tests green, cov line 99.95% / func 100% (≥80% 무회귀).
+- Follow-ups: leg17 = T-1114 (pipeline-plan collect 위임 negative payload-drift + arity봉함) — 다중-call `Times(N≥2)` 블록 소진 후 happy-call negative gap 로 sweep 이동.
