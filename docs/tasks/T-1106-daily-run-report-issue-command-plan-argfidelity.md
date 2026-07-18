@@ -2,7 +2,10 @@
 id: T-1106
 title: realdata-e2e daily-step dual-leg run-report-issue-command-plan 재유도 2-delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg9
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 671de38b
+prNumber: 998
+completedAt: 2026-07-18T03:52:48Z
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 30
