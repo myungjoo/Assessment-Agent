@@ -895,6 +895,42 @@ describe("assertRealDataDailyStepDualLegRunReportIssueGhCommandPlanConsistentWit
       // 산출 소비.
       const producedAction = actionSpy.mock.results[0].value;
       expect(ghArgvSpy.mock.calls[0][0]).toBe(producedAction);
+
+      // ── 인자-충실도(T-1107): 각 order-locked 위임이 어떤 완전한 payload 로
+      //    호출됐는지를 canonical toHaveBeenCalledWith 로 봉함(횟수·순서·첫-인자
+      //    reference 만이 아니라 인자 전체). 본 seam 은 3-delegate mixed arity —
+      //    parse 1-arg / resolveAction 2-arg / buildGhArgv 2-arg.
+      //    flow/분기: 본 it 은 happy-path 재유도 단일 경로 tighten — 조립 경로에
+      //    분기 없음(새 분기 도입 0), 분기 cover 항목 생략.
+      // parse delegate 인자-충실도: sub-composer ① 위임이 가드의 정확한 stdout
+      // 문자열 완전 충실도(payload 누락/치환 없음)로 호출됨을 lock.
+      expect(parseSpy).toHaveBeenCalledWith(stdout);
+      // resolveAction delegate 인자-충실도: sub-composer ② 위임이 첫 인자 hits
+      // reference 뿐 아니라 둘째 인자 searchQuery payload 까지 두 인자 완전 충실도로
+      // 호출됨을 lock.
+      expect(actionSpy).toHaveBeenCalledWith(
+        producedHits,
+        commandArgs.searchQuery,
+      );
+      // buildGhArgv delegate 인자-충실도: sub-composer ③ 위임이 첫 인자 action
+      // reference 뿐 아니라 둘째 인자 commandArgs payload 까지 두 인자 완전 충실도로
+      // 호출됨을 lock.
+      expect(ghArgvSpy).toHaveBeenCalledWith(producedAction, commandArgs);
+
+      // negative(인자-축 payload drift): toHaveBeenCalledWith 가 payload drift 를
+      // 실제로 잡음을 노출 — 둘째 인자 searchQuery/commandArgs 를 다른 값으로 치환하면
+      // 매칭 안 됨(값-drift RangeError describe 와 별개의 인자-충실도 축 negative).
+      expect(actionSpy).not.toHaveBeenCalledWith(
+        producedHits,
+        "다른-searchQuery",
+      );
+      expect(ghArgvSpy).not.toHaveBeenCalledWith(producedAction, {});
+
+      // negative(인자 개수/arity 봉함): 세 delegate 의 서로 다른 arity 각각 봉함 —
+      // parse 정확히 1 인자, resolveAction·buildGhArgv 각각 정확히 2 인자(여분 인자 0).
+      expect(parseSpy.mock.calls[0].length).toBe(1);
+      expect(actionSpy.mock.calls[0].length).toBe(2);
+      expect(ghArgvSpy.mock.calls[0].length).toBe(2);
     });
 
     it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + plan/stdout/commandArgs mutate 0", () => {
