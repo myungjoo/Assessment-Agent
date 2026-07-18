@@ -233,6 +233,22 @@ describe("buildRealDataEvaluationPlan", () => {
       expect(spy.mock.calls[0][0]).toBe(plan);
       expect(spy.mock.calls[0][1]).toBe(activities);
       expect(spy.mock.calls[0][2]).toBe(MODEL_ID);
+      // negative — 인자 payload drift 대조: 위 With(plan, activities, MODEL_ID) positive 가
+      // 실제로 인자 drift 를 잡음을 노출. toHaveBeenCalledWith 는 deep-equality 매칭이라
+      // negative 대상은 값 자체가 실제 주입값과 다르도록 구성한다. activities 가 다수 원소가
+      // 아닌 단일 [COMMIT] 이면 미매칭(원소 수 drift), modelId 값이 다르면 미매칭.
+      expect(spy).not.toHaveBeenCalledWith(plan, [COMMIT], MODEL_ID);
+      expect(spy).not.toHaveBeenCalledWith(
+        plan,
+        activities,
+        MODEL_ID + "-drift",
+      );
+      // negative — arity 봉함: 가드가 정확히 3 인자(plan, activities, modelId)로만 호출되고
+      // 여분 인자가 0 임을 길이로 봉함(positional index 접근은 값 대조일 뿐 길이 봉함 아님).
+      expect(spy.mock.calls[0].length).toBe(3);
+      // 분기 없음 — 본 happy it 은 다수 원소 정상 합성 단일 경로 tighten(가드 self-wire 1회
+      // 호출)이라 새 분기 도입 0. 인접한 단일 원소 분기 대조 it·빈 activities 경계 대조 it 은
+      // 별개 경계로 손대지 않음.
     });
 
     it("(분기 단일 원소) 단일 Activity 분기에서도 가드가 (산출 plan, activities, modelId) 로 정확히 1회 호출됨", () => {
