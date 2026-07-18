@@ -2,7 +2,11 @@
 id: T-1112
 title: realdata-e2e daily-step eval-command-plan 값-정합 2-call 재유도 per-call 인자-충실도 toHaveBeenNthCalledWith 완결 — §D 후보 2 leg15
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-18T07:16:00Z
+mergedAs: dad60076
+prNumber: 1004
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 30
