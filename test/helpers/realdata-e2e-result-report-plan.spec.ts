@@ -525,7 +525,8 @@ describe("buildRealDataResultReportPlan — post-evaluation 종단 plan 컴포�
       // 여분 인자가 0 임을 길이로 봉함(positional index 접근은 값 대조일 뿐 길이 봉함 아님).
       expect(spy.mock.calls[0].length).toBe(3);
       // 분기 없음 — 본 happy it 은 빈 results 단일 경로 tighten(가드 self-wire 1회 호출)이라
-      // 새 분기 도입 0. 인접 단일(L520)·다수(L537) result 대조 it 은 별개 경계로 손대지 않음.
+      // 새 분기 도입 0. 인접한 단일 result 분기 대조 it·다수 result 분기 대조 it 은 별개
+      // 경계로 손대지 않음.
     });
 
     it("(단일 result 분기) 가드가 (산출 plan, results, run) 인자로 정확히 1회 호출됨", () => {
