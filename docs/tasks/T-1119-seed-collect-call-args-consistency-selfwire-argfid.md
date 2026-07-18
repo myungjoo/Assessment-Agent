@@ -2,7 +2,10 @@
 id: T-1119
 title: realdata-e2e seed-collect-call-args consistency 가드 재유도 delegate self-wire 인자-충실도 negative payload-drift + arity봉함(1-arg) — §D 후보 2 leg22
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 0b50c49f
+prNumber: 1011
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 12
