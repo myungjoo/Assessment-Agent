@@ -38,10 +38,10 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "lastRun": "2026-07-18T11:49:16Z",
-    "status": "running",
+    "lastRun": "2026-07-18T12:13:04Z",
+    "status": "green",
     "consecutiveFails": 0,
-    "note": "T-1120 DONE (PR #1012 merged, squash 1c265af9) — realdata-e2e seed-collect-call-args 가드 self-wire consistency happy it 에 인자-충실도 negative payload-drift(not.toHaveBeenCalledWith: (seeds,result) swap·(result,[]) empty-drift) + arity봉함(spy.mock.calls[0].length===2) 최초 lock. positive 축(Times(1)·With(result,seeds)·calls[0][0/1] toBe) 유지. §D 후보 2(인자-충실도) sweep leg23 — 2-arg 가드 self-wire seam(T-1119 1-arg 형제). test-only 1파일 +8/-0, production src 0 LOC. 머지 직후 main CI(1c265af9) in_progress — 다음 turn 재확인. PR CI 는 4-게이트에서 green 확인 후 머지."
+    "note": "T-1120 merge commit(b5cc2441) + squash(1c265af9) main CI 모두 conclusion=success 재확인(gh run list). 본 cron fire(15분 trigger)는 currentTask/nextTask 둘 다 null 이라 planner dispatch — planner 가 §D 인자-충실도 leg24 를 realdata-e2e-guard-harness §5 종결룰 위반 make-work 로 판정, task 생성 대신 stand-down + Q-0053(dependency-free-work-exhausted) OPEN 로 escalate(nextTask 그대로 null). 잔여 genuine forward 방향 전부 §5 게이트(github read PAT / k6 새-dep) 또는 owner-deferred. 사람 결정 대기."
   },
   "reviewRounds": {
     "T-1105": 1,
@@ -1521,6 +1521,25 @@
       "processedByPlanner": true,
       "processedAt": "2026-07-07T05:42:15Z",
       "processedNote": "planner 가 오너 승인 옵션 5(권장 착수 1순위, PLAN line 107 overwrite/재평가 DEFERRED 해제)의 ADR-first 첫 slice 를 T-0804(ADR overwrite/reeval mechanism 결정, first-write-wins supersede) 로 큐잉. 옵션 4(P7 Scheduler)·2(실 github e2e)·3(P6 frontend)·1(azure live-LLM 보류) 는 후속 fire 에서 순차 분해(권장 5→4→2, P6 는 stack ADR 후)."
+    },
+    {
+      "id": "Q-0053",
+      "raisedAt": "2026-07-18T12:00:00Z",
+      "raisedBy": "planner (nextTask=null dispatch)",
+      "reason": "dependency-free-work-exhausted",
+      "status": "OPEN",
+      "summary": "realdata-e2e 인자-충실도(§D 후보 2) test-only sweep 이 T-1101~T-1120 23 leg 연속으로 이어졌으나, 이는 이미 가드된 기존 composer leaf 에 assertion(toHaveBeenCalledWith/negative payload-drift/arity봉함)만 덧대는 near-identical make-work 다. realdata-e2e-guard-harness.md §5 가 build-time consistency-guard sweep 을 이미 '종결' 선언하고 '기존 leaf 의 추가 가드는 금지' 룰을 박제했다. 병행 perf S2 조회-latency harness(test/perf 30+ endpoint spec + latency-baseline-io primitive + CI test:perf step)도 이미 완성·CI 배선 완료 — 추가 leg 은 또 다른 treadmill. 남은 genuine forward 방향은 전부 §5 게이트 또는 owner-deferred 라 make-work 날조 금지 standing instruction 준수 위해 stand down + 사람 결정 요청.",
+      "context": "현 상태(main HEAD 94ebe73a, tasksCompleted=1111, blockers 0, open PR 0, CI green, fineGrainedConcurrency ON stage5b): 잔여 PLAN 미체크 bullet 재점검 결과 — (a) P5 line 109 실 github.com myungjoo/leemgs 평가 e2e(Q-0051 옵션 2 owner 승인 완료)의 build-time 가드 harness(T-0584~T-0726)는 완성·종결됐고, 잔여 = 실 LIVE wiring 으로 github read-scope PAT credential(§5) + Ollama LAN 노출 필요 — credential 게이트. (b) P5 line 108 live-LLM azure wire = owner 가 로컬 Ollama 로 대표 실증(Q-0048/0051)해 보류. (c) P7 R-91 배치 1h(REQ-047)·P8 line 148 부하·내성 S1/S3 = 전용 부하 발생기(k6 등) 신규 dependency 필요 — ADR-0054 PROPOSED, owner dep 승인 게이트(§5). R-92 조회 3s(REQ-048) S2 harness 는 이미 shipped+CI. (d) P5 line 106 R-64 잔여 REQ-051 custom 3-model 슬롯 = ADR-0048 §Decision2 후속 ADR prerequisite(deferred). (e) P6 deferred 잔여 = backend 계약(status 필드·bulk mutation) 미shipped defer. Q-0040/0045/0048/0051 과 동형 exhaustion.",
+      "options": [
+        "(1) 실 github.com myungjoo/leemgs 평가 e2e LIVE wiring 진입 승인 + github read-scope PAT 주입(암호화 scripts/encrypt-token.ts → GITHUB_<KEY>_TOKEN_ENC, env/secret 만, §9 실값 git/STATE/journal 금지) + PC Ollama LAN 노출 확인 — Q-0051 옵션 2 의 잔여 LIVE slice. 가장 큰 운영 가치(자율 nightly 실 평가 e2e).",
+        "(2) 부하·내성 harness 도구(k6 권고, ADR-0054) 신규 dependency 도입 승인(§5 새-dep 게이트) — S1 배치 부하(R-91)·S3 동시성 내성 harness 착수 + ADR-0054 PROPOSED→ACCEPTED flip.",
+        "(3) P5 line 106 REQ-051 custom 3-model 슬롯 진입 승인 — ADR-0048 §Decision2 다중-row default 선택 정책 후속 ADR 선행.",
+        "(4) 다른 우선순위 지시(P6 backend 계약 확정 slice / P8 성능 baseline 실측 운영 등).",
+        "(5) 루프 정지(stand-down 유지) — 세 번째 treadmill(§D 24번째 leg 또는 추가 perf-spec) 양산보다 깔끔한 정지가 정직."
+      ],
+      "recommendation": "credential 제공 가능하면 (1) 실 github e2e LIVE wiring 이 최우선(Q-0051 owner 승인 옵션 2 의 잔여 미완 slice, 유일하게 새 방향의 실 운영 가치). credential 불가하면 (2) k6 dep 승인(부하 검증) 또는 (5) 깔끔한 stand-down 권장. §D 인자-충실도 sweep 연장(leg24)·추가 per-endpoint perf-spec 은 harness-doc §5 종결 룰 위반·redundant 라 금지.",
+      "resolutionHint": "docs/STATE.json 의 본 Q-0053 에 resolvedAt(ISO) + decision(선택 옵션 번호 + credential/scope/ADR 승인 세부)을 기입하고 direct commit 한 뒤 다음 cron fire 대기. credential 실값(PAT·api-key)은 코드·STATE·journal·git 에 절대 금지 — env/secret 주입(§9). driver 는 본 HQ 가 OPEN 인 동안 다음 fire 들에서 미해결-HQ 분기로 즉시 no-op 종료한다.",
+      "processedByPlanner": false
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
@@ -1554,5 +1573,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-07-18T11:49:16Z"
+  "lastActivity": "2026-07-18T12:13:04Z"
 }
