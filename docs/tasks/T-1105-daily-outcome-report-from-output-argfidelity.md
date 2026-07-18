@@ -2,7 +2,9 @@
 id: T-1105
 title: realdata-e2e daily-step dual-leg outcome-report-from-output 재유도 2-delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg8
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-18T02:44:00Z
+result: "DONE (PR #997 merged, squash 3bd9ec17) — daily-step dual-leg outcome-report-from-output 2-delegate 인자-충실도 lock 완결. test-only +29 LOC, 404 suites/11328 green, reviewer round1 APPROVE 4-게이트 PASS. §D 후보 2 leg8."
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 32
