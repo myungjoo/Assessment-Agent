@@ -2,7 +2,7 @@
 id: T-1120
 title: realdata-e2e seed-collect-call-args 가드 self-wire 재유도 delegate 인자-충실도 negative payload-drift + arity봉함(2-arg) — §D 후보 2 leg23
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 12
