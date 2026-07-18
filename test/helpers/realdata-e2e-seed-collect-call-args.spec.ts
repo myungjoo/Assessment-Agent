@@ -268,6 +268,14 @@ describe("buildRealDataCollectCallArgs", () => {
       // 가드에 넘어간 첫 인자가 컴포저가 반환한 바로 그 배열 참조여야 한다(검증 대상 일치).
       expect(spy.mock.calls[0][0]).toBe(result);
       expect(spy.mock.calls[0][1]).toBe(seeds);
+      // negative(인자 payload drift) — 위 positive With(result, seeds) 가 실제로 인자
+      // drift 를 잡음을 노출. 인자 순서 뒤바뀜(callArgs↔seeds 구조 상이 deep-equal 미매칭)·
+      // seeds 공배열 drift 어느 쪽으로도 호출된 적 없어야 한다.
+      expect(spy).not.toHaveBeenCalledWith(seeds, result);
+      expect(spy).not.toHaveBeenCalledWith(result, []);
+      // arity봉함 — delegate 는 정확히 2 인자(result, seeds)로만 호출(여분 인자 0).
+      // 분기 없음(정상 합성 단일 경로) — flow 항목 생략.
+      expect(spy.mock.calls[0].length).toBe(2);
     });
 
     it("(분기 단일 seed) 단일 descriptor 분기에서도 가드가 (산출 callArgs, seeds) 로 정확히 1회 호출됨", () => {
