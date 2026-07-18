@@ -601,6 +601,29 @@ describe("assertRealDataGithubCollectionPlanConsistent", () => {
         expect(result).toBeUndefined();
         // spy 는 실 구현 call-through(mockImplementation 미지정) — byte-identical 대조가 통과한다.
         expect(spy).toHaveBeenCalledTimes(SEEDS.length);
+        // 인자-충실도(per-element 순번별) — 재유도 delegate 가 매 호출마다 constant host
+        // literal "github.com" 을 **정확히 그 순번에** 1-arg 로 받았음을 순번별로 lock
+        // (횟수+순번+인자 payload 모두). EXPECTED_GITHUB_COLLECTION_HOST 는 guard 로컬 상수
+        // (미export)이므로 spec 에서는 literal "github.com" 를 직접 대조한다.
+        // 본 seam 은 per-element map 이라 SEEDS.length 회 호출 — 원소별 상이 payload 대신
+        // 매번 동일 host 라서 순번별 동일 host 로 못박는다(evaluation-inputs leg13 패턴 확장).
+        for (let i = 1; i <= SEEDS.length; i++) {
+          expect(spy).toHaveBeenNthCalledWith(i, "github.com");
+        }
+        // canonical 전체 충실도 — host 인자가 관측됨을 명시(순번 무관 완전 충실도).
+        expect(spy).toHaveBeenCalledWith("github.com");
+        // negative(인자 payload drift 축) — deep-equality 매칭이 host payload drift 를 실제로
+        // 잡음을 노출. 오염 host("evil.example")·빈 host("")로는 호출된 적 없음(값 drift 미매칭).
+        // 기존 값-drift RangeError it 과 별개의 인자-축 negative.
+        expect(spy).not.toHaveBeenCalledWith("evil.example");
+        expect(spy).not.toHaveBeenCalledWith("");
+        // negative(인자 개수/arity 봉함) — 각 delegate 호출이 정확히 1 인자로만 호출됨(여분 인자 0).
+        // per-seed map 의 1-arity 봉함 — 재유도가 host 외 추가 컨텍스트를 넘기지 않음.
+        spy.mock.calls.forEach((call) => {
+          expect(call.length).toBe(1);
+        });
+        // flow/분기: 본 leg 은 happy-path 선행성 재유도 order-lock it 단일 경로 tighten —
+        // 새 분기 도입 0(요소별 동일 constant host 호출로 per-seed 재유도 조립에 분기 없음, 항목 생략).
       });
 
       it("gating.enabled≠true(disabled) → early-return 으로 delegate 0-call(seed map 미실행)", () => {
