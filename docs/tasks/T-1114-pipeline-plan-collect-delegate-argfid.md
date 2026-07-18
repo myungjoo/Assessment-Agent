@@ -2,7 +2,7 @@
 id: T-1114
 title: realdata-e2e pipeline-plan collect 위임(buildRealDataCollectCallArgs) 인자-충실도 negative payload-drift + arity봉함 완결 — §D 후보 2 leg17
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 25
@@ -63,3 +63,10 @@ test-only `commitMode: pr` — production src 변경 0 LOC. 기존 spec 1파일(
 ## Follow-ups
 
 - (다음 planner turn) 본 leg17 이 pipeline-plan collect 위임 negative+arity 를 lock 하면, 다음 pre-check 로 `toHaveBeenCalledWith`>0 이지만 `not.toHaveBeenCalledWith`=0(negative payload-drift 미lock) 인 잔여 consistency spec — 예: `run-plan`·`result-report-plan`·`evaluation-plan`·`seed-collect-call-args`·`result-outcome-step-args`·`result-publish-step-args`·`evaluation-step-args`·`result-issue-descriptor-body`·`descriptor-body`·`publish-plan`·`seed-resolve-person-id` 등 — 중 delegate spyOn 을 실제로 쓰는(pure-value 대조 아닌) 곳을 우선순위로 leg18+ 계속. negative 축이 전 spec 소진되면 후보 2 completion-audit(§D candidate-2 소진 확정) 또는 P5 의 다른 §D candidate / PLAN bullet 로 전환.
+
+## Result (DONE — 2026-07-18T08:15Z)
+
+- 완료 시각: 2026-07-18 08:15Z. PR [#1006](https://github.com/myungjoo/Assessment-Agent/pull/1006) squash 머지 (f1253454), reviewer round1 APPROVE(0 BLOCKER·0 MAJOR·0 MINOR), 4-게이트 PASS.
+- 변경: `test/helpers/realdata-e2e-pipeline-plan-consistency.spec.ts` collect 위임 happy it(L547)에 negative payload-drift(`not.toHaveBeenCalledWith([])`·`not.toHaveBeenCalledWith([makeSeed()])`) + arity봉함(`collectSpy.mock.calls[0].length === 1`) 추가. positive 축(Times/With/invocationCallOrder) 유지. test-only +9/-0, production src 0 LOC.
+- 검증: 전체 404 suites / 11328 tests green, cov line 99.95% / func 100% (≥80% 무회귀). 머지-커밋 main CI(f1253454) 는 다음 turn conclusion 확인(R-114 in_progress).
+- Follow-ups: leg18 = T-1115 (run-plan 재유도 위임 `buildRealDataPipelinePlan(seeds, MODEL_ID)` happy it negative payload-drift + arity봉함 2-arg) — sibling delegate seam 로 sweep 이동.
