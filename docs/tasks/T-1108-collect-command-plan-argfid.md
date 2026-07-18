@@ -2,7 +2,11 @@
 id: T-1108
 title: realdata-e2e daily-step collect-command-plan 재유도 1-delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg11
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: 086161ee
+prNumber: 1000
+reviewRounds: 1
+completedAt: 2026-07-18T04:47:00Z
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 30
