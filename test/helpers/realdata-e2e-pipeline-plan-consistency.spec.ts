@@ -566,6 +566,15 @@ describe("assertRealDataPipelinePlanConsistentWithSources", () => {
       expect(collectSpy).toHaveBeenCalledTimes(1);
       expect(collectSpy).toHaveBeenCalledWith(seeds);
       expect(collectSpy.mock.invocationCallOrder[0]).toBeGreaterThan(0);
+
+      // 인자-충실도 negative — payload drift 대조: 위 With(seeds) positive 가 실제로
+      // 인자 값 drift 를 잡음을 노출한다. toHaveBeenCalledWith 는 deep-equality 매칭이라
+      // 실제 주입 seeds 와 값이 다른 배열(빈 배열·단일-seed subset)로는 매칭되지 않아야 한다.
+      expect(collectSpy).not.toHaveBeenCalledWith([]);
+      expect(collectSpy).not.toHaveBeenCalledWith([makeSeed()]);
+      // 인자 개수/arity 봉함 — 위임은 정확히 1 인자(seeds)로만 호출(modelId 등 여분 인자 0).
+      expect(collectSpy.mock.calls[0].length).toBe(1);
+      // flow / 분기: happy 단일 경로 tighten — 재유도 조립에 분기 없음, 항목 생략.
     });
 
     it("경계 대조(재유도-후 RangeError) — collectCallArgs drift 는 구조 통과 후 delegate 도달 뒤 발생(구조 0-call vs 값 1-call)", () => {
