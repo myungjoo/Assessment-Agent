@@ -2,7 +2,7 @@
 id: T-1109
 title: realdata-e2e daily-step eval-command-plan 재유도 1-delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg12
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 30
@@ -62,3 +62,7 @@ test-only `commitMode: pr` — production src 변경 0 LOC. 기존 spec 1파일(
 ## Follow-ups
 
 - (다음 planner turn) 본 leg 이 daily-step eval-command-plan seam 1-delegate 인자-충실도를 lock 하면, daily-step *-command-plan leaf 컴포저 계열(collect·eval)이 소진된다. 다음은 잔여 W=0 & T>0 seam(evaluation-inputs·github-collection-live·seed-upsert 등 non-daily-step 계열; 다음 planner pre-check 로 `toHaveBeenCalledWith` count=0 & `toHaveBeenCalledTimes`>0 재확인) 소진, 없으면 completion-audit(후보 2 소진 확정) 또는 P5 의 다른 PLAN bullet 로 전환.
+
+## Result (DONE 2026-07-18)
+
+PR #1001 merged (squash `2e64cc4a`). daily-step eval-command-plan 가드의 유일 재유도 delegate `resolveRealDataE2eLiveGating(env)` 인자-충실도를 happy-path order-lock it 에 `toHaveBeenCalledWith(env)` 로 lock + 인자-축 negative 2종(payload drift `not.toHaveBeenCalledWith` · arity `calls[0].length===1`). test-only 1파일 +18/-0, production src 0 LOC. 대상 spec `toHaveBeenCalledWith` grep 0→4. reviewer round 1/7 APPROVE(0 finding), 4-게이트 PASS(external comment PR #1001, CI green race-free, mergeState CLEAN ADR-0036 §8(c) rebase noop). fineGrainedConcurrency ON(stage5b) claim-pickup fire(cron@aa-local15-101bae96, 매시 15분 트리거, server-time 05:05:10Z fresh 非midnight). counters 1099→1100. dup-PR 0.
