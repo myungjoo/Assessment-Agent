@@ -2,7 +2,11 @@
 id: T-1101
 title: realdata-e2e result-issue-command-plan 재유도 2-delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg4
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-18T00:54:04Z
+mergedAs: 2f1cf2149c1324bae95beca3df3c8d4c07d36a2b
+prNumber: 993
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 38
