@@ -2,7 +2,10 @@
 id: T-1117
 title: realdata-e2e result-report-plan 컴포저 consistency 가드 self-wire 인자-충실도 negative payload-drift + arity봉함(3-arg) — §D 후보 2 leg20
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: e17d8b46
+prNumber: 1009
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 14
