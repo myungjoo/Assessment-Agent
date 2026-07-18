@@ -624,6 +624,24 @@ describe("assertRealDataDailyStepCollectCommandPlanConsistentWithGating", () => 
       expect(result).toBeUndefined();
       expect(resolveSpy).toHaveBeenCalledTimes(1);
       expect(resolveSpy.mock.invocationCallOrder[0]).toBeGreaterThan(0);
+
+      // T-1108 인자-충실도(happy-path, 1-arg `env`) — 재유도 위임이 가드에 주입된 정확한
+      // `env` 객체 완전 충실도(payload 누락/치환/부분 복사 없음)로 호출됐음을 canonical
+      // matcher 로 lock. 횟수(위)+순번(위)+인자(아래)를 모두 못박는다.
+      // flow/분기: 본 재유도 조립 경로엔 분기 없음(단일 delegate) → "분기 없음, 항목 생략".
+      expect(resolveSpy).toHaveBeenCalledWith(env);
+
+      // negative — 인자 payload drift 대조: `toHaveBeenCalledWith` 가 payload drift 를
+      // 실제로 잡음을 노출. deep-equality 매칭이므로 값이 실제로 다른 env(빈 env / gating
+      // 키 값이 뒤바뀐 env)는 걸리지 않는다(동일 값 다른 인스턴스는 값 매칭이라 걸릴 수
+      // 있으므로 값 자체가 다른 env 로 대조).
+      expect(resolveSpy).not.toHaveBeenCalledWith({});
+      expect(resolveSpy).not.toHaveBeenCalledWith(
+        makeEnabledEnv({ [REALDATA_E2E_LIVE_TEST_ENV]: "0" }),
+      );
+
+      // negative — 인자 개수/arity 봉함: 단일 delegate 가 정확히 1 인자로 호출됨(여분 인자 0).
+      expect(resolveSpy.mock.calls[0].length).toBe(1);
     });
 
     it("경계 대조(재유도-후 RangeError) — action↔gating 매핑 위반은 구조 통과 후 delegate 도달 뒤 발생(구조 0-call vs 값 호출됨)", () => {
