@@ -388,6 +388,35 @@ describe("assertRealDataDailyStepDualLegRunReportIssueOutcomeReportConsistentWit
       // — builder ②가 builder ① 산출 outcome 을 소비하는 chain 방향 lock.
       const producedOutcome = parseSpy.mock.results[0].value;
       expect(buildOutcomeSpy.mock.calls[0][0]).toBe(producedOutcome);
+
+      // T-1105 — 인자-충실도 lock(2-delegate, mixed arity: parse 1-arg / buildOutcome 2-arg).
+      // 위 order-lock 은 횟수+순서+첫-인자 reference 만 못박고 parse 위임 stdout·buildOutcome
+      // 위임 둘째 인자 report payload 충실도는 미검증이다. 재유도 call site(helper L190~193)가
+      // sub-composer ①/② 를 정확히 (stdout)/(outcome, report) 완전 충실도로 호출함을 canonical
+      // matcher 로 봉한다(leg7 T-1104 result-issue 변형의 daily 형제 — 둘째 인자가 run 이 아니라
+      // report(HAPPY_REPORT)). 분기 없음(happy-path 재유도 단일 경로 tighten — 새 분기 도입 0), 항목 생략.
+      // parse delegate: stdout 단일 인자 완전 충실도.
+      expect(parseSpy).toHaveBeenCalledWith(HAPPY_STDOUT);
+      // buildOutcomeReport delegate: 첫 인자 producedOutcome reference + 둘째 인자 report payload
+      // 완전 충실도(두 인자 모두).
+      expect(buildOutcomeSpy).toHaveBeenCalledWith(
+        producedOutcome,
+        HAPPY_REPORT,
+      );
+
+      // negative(인자-축) — payload drift 는 매칭되지 않음(toHaveBeenCalledWith 가 진짜로 인자를
+      // 비교함을 노출). parse 에 report 를(1-arg 를 다른 payload 로), buildOutcome 둘째 인자에
+      // stdout 을(둘째 인자 치환) 넣으면 매칭 실패해야 한다.
+      expect(parseSpy).not.toHaveBeenCalledWith(HAPPY_REPORT);
+      expect(buildOutcomeSpy).not.toHaveBeenCalledWith(
+        producedOutcome,
+        HAPPY_STDOUT,
+      );
+
+      // negative(인자 개수) — 서로 다른 arity 각각 봉함: parse 정확히 1 인자, buildOutcome 정확히
+      // 2 인자(여분 인자 0).
+      expect(parseSpy.mock.calls[0]).toHaveLength(1);
+      expect(buildOutcomeSpy.mock.calls[0]).toHaveLength(2);
     });
 
     it("(branch/무공유 재확인) pass-through spy 하에서도 guard 가 void 반환 + stdout/report/outcomeReport mutate 0", () => {
