@@ -2,7 +2,11 @@
 id: T-1100
 title: realdata-e2e result-issue-publish-plan 재유도 delegate 인자-충실도 toHaveBeenCalledWith 완결 — §D 후보 2 leg3
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-18T00:00:00Z
+mergedAs: ff56eb24
+prNumber: 992
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 42
