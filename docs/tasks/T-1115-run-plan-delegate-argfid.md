@@ -2,7 +2,9 @@
 id: T-1115
 title: realdata-e2e run-plan 재유도 위임(buildRealDataPipelinePlan) 인자-충실도 negative payload-drift + arity봉함 완결 — §D 후보 2 leg18
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-18T08:50:04Z
+result: "PR #1007 merged (squash e9af7c8a) — run-plan 재유도 위임 buildRealDataPipelinePlan(seeds, MODEL_ID) happy it(L615~638)에 negative payload-drift(not.toHaveBeenCalledWith x2) + arity봉함(mock.calls[0].length===2) 최초 lock. positive 축 유지. test-only 1파일 +8/-0. grep not.toHaveBeenCalledWith 0→2. reviewer round1 APPROVE 4-게이트 PASS. 404 suites/11328 tests green."
 commitMode: pr
 coversReq: [REQ-030, REQ-059]
 estimatedDiff: 25
