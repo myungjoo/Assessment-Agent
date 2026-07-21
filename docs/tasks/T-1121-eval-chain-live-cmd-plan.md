@@ -2,7 +2,11 @@
 id: T-1121
 title: realdata-e2e 실 github 평가 full-chain live smoke 의 daily-test command-plan 순수 컴포저 scaffold (skip-guarded LIVE-wiring 1차 slice)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-21T08:54:43Z
+mergedAs: 2e0e830e
+prNumber: 1014
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-037]
 estimatedDiff: 180
