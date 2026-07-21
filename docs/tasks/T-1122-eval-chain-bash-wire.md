@@ -2,12 +2,13 @@
 id: T-1122
 title: realdata-e2e 실 github 평가 full-chain live smoke 를 daily-test.sh step_eval_chain 레그로 배선 + executable bash spec + CI hook
 phase: P5
-status: PENDING
+status: BLOCKED
 commitMode: pr
 coversReq: [REQ-030, REQ-037]
 estimatedDiff: 270
 estimatedFiles: 3
 created: 2026-07-21
+prNumber: 1015
 dependsOn: []
 touchesFiles:
   - deploy/daily-test.sh
@@ -49,6 +50,14 @@ T-1121(PR #1014, squash 2e0e830e)이 full-chain live smoke(`test/smoke/realdata-
 - 본 bash 레그와 T-1121 command-plan helper 의 consistency self-wire 가드(`...-command-plan-consistency.ts` 형제) 추가 — 별도 follow-up slice(collect/rediscovery 형제 존재). 본 task 는 배선 + executable bash spec 까지.
 - `resolveRealDataE2eLiveGating` gating 키·완전성 규칙 수정 — 단독 소유자 불변, 재사용만.
 - `test/jest-smoke.json` / smoke spec 본문 / `package.json` 수정. write-scope credential / 새 gh mutation / 새 외부 dependency 도입. STATE.json counters / lock write.
+
+## Blocker
+
+**BLOCKED (task-too-large) — 2026-07-21, HQ Q-0054 제기.**
+
+executor 가 eval_chain leg 를 정확히 구현(commit 031d80ac, branch `claude/T-1122-eval-chain-bash-wire`, PR #1015 OPEN, reviewer APPROVE 코멘트 게시)했으나, `deploy/daily-test.sh` 에 8번째 leg 를 추가하면 7-leg ORDER/cascade-gate parity 를 하드코딩한 drift-guard smoke spec 3종(T-0791/T-0944/T-0947)이 의도대로 fail 하여 CI smoke red. 이 3종 갱신은 leg 추가에 내재적(형제 T-0943 도 동일)이라 완결 변경이 6파일 > 5-파일 hard cap(CLAUDE.md §0.5 rule 8) + 본 task 의 Out-of-Scope('smoke spec 본문 수정' 금지)와 이중 충돌한다. 근본 원인은 planner 의 3파일 mis-scope.
+
+두 옵션(A: 6파일 cap 예외 + Out-of-Scope 축소 후 PR #1015 round 2 재개 / B: drift-guard 를 leg-count-agnostic 로 선행 리팩터)은 각각 hard rule waive · safety-net semantics 변경 경계를 넘어 사람 판정이 필요하다. 상세 분석·옵션은 `docs/progress/details/T-1122-blocked-parity-guard-scope.md` 참조. PR #1015 는 유효한 부분작업이라 OPEN 유지(resume target).
 
 ## Suggested Sub-agents
 
