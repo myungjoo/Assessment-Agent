@@ -14,6 +14,10 @@
 #   step 7 rediscovery — (gating env 7 종 모두 set 일 때만) realdata-e2e github 재발견 검색 read-only
 #                      live smoke 1 회 spawn(gh search issues read-only, mutation 0). eval/collect 와
 #                      gating 공유 — 부재 시 SKIP(no-op). write publish 는 본 runner 밖(ADR-0045). T-0943.
+#   step 8 eval_chain — (gating env 7 종 모두 set 일 때만) realdata-e2e 실 github 수집 → 실 Ollama
+#                      평가 full-chain live smoke 1 회 spawn. eval/collect/rediscovery 와 gating 공유
+#                      (realdata_eval_gating_enabled) — 부재 시 SKIP(no-op). 정본 argv 는 T-1121
+#                      buildRealDataDailyStepEvalChainCommandPlan 의 run 분기 mirror. T-1122.
 #
 # 운영 이미지는 pnpm prune --prod 로 devDependency(jest 등)가 제거돼 컨테이너 안에서
 # jest 를 못 돌린다. 그래서 daily 검증은 기동된 컨테이너를 :3000 으로 두드리는 black-box
@@ -250,13 +254,37 @@ step_rediscovery() {
   return 1
 }
 
+# step_eval_chain: gating 활성(공유 realdata_eval_gating_enabled = 7 종 모두 set)이면 실
+# github 수집 → 조립 → 실 Ollama 평가 full-chain live smoke(realdata-e2e-eval-chain-live)를
+# 단일-spec bound jest argv 로 1 회 spawn → exit 0 면 PASS(return 0), non-zero 면 FAIL(return 1).
+# gating 부재면 함수 미호출(caller 가 gating 검사 후 분기 — 본 함수는 run leg 만 담당). eval/
+# collect/rediscovery leg 과 동일 7 종 gating(REALDATA_E2E_*) 공유라 새 gating 함수 0
+# (realdata_eval_gating_enabled 재사용). 형제 leg 과 argv 형태 동형이되 spec 경로만 full-chain
+# eval-chain live smoke 로 교체한다(정본은 T-1121 buildRealDataDailyStepEvalChainCommandPlan).
+# 실 credential 값은 argv 미포함 — 자식 jest 프로세스가 상속한 process env 로 전달되며 본
+# 함수는 그 값을 로그/JSON 에 echo 0(§9).
+step_eval_chain() {
+  log "step eval_chain: realdata-e2e 실 github → 실 Ollama full-chain live smoke 실행 (gating env 7 종 set)"
+  # T-1121 plan helper 의 run argv mirror: 단일-spec bound · smoke jest config 재사용.
+  #   ["--config", "./test/jest-smoke.json", "--runTestsByPath",
+  #    "test/smoke/realdata-e2e-eval-chain-live.smoke-spec.ts"]
+  if ( cd "$REPO_DIR" && pnpm exec jest \
+        --config ./test/jest-smoke.json \
+        --runTestsByPath test/smoke/realdata-e2e-eval-chain-live.smoke-spec.ts ) >>"$LOG_FILE" 2>&1; then
+    log "step eval_chain: OK (full-chain live smoke PASS)"
+    return 0
+  fi
+  log "step eval_chain: FAIL (full-chain live smoke non-zero — 로그 참조)"
+  return 1
+}
+
 # --- 실행 ------------------------------------------------------------------
 
 # step 상태 누적·순서·mark 헬퍼는 source 시에도 노출돼야 spec 이 ORDER 순회/JSON 조립
 # 호환(eval 추가로 기존 4 step 회귀 0)을 검증할 수 있으므로 가드 *앞* 에 정의한다.
 declare -A STEP_STATUS=()
 FAILED_STEP="null"
-ORDER=(redeploy health liveness auth eval collect rediscovery)
+ORDER=(redeploy health liveness auth eval collect rediscovery eval_chain)
 
 mark() { # mark <step> <PASS|FAIL|SKIP>
   STEP_STATUS["$1"]="$2"
@@ -354,6 +382,25 @@ elif step_rediscovery; then
   mark rediscovery PASS
 else
   mark rediscovery FAIL
+fi
+
+# step eval_chain(realdata-e2e 실 github → 실 Ollama full-chain live smoke): eval/collect/
+# rediscovery 와 동형 — auth PASS(체인 통과) AND gating env 7 종 set 일 때만 실행. 그 외(체인
+# 미통과 또는 gating 부재)는 mark eval_chain SKIP — cloud CI / 일반 LAN 에서 네트워크 0 /
+# secret 0 / jest spawn 0 의 no-op(기존 7 step 동작 불변). 공유 realdata_eval_gating_enabled
+# 재사용(새 gating 함수 0). 정본 argv 는 T-1121 command-plan helper run 분기 mirror. T-1122.
+if [ "${STEP_STATUS[auth]:-SKIP}" != "PASS" ]; then
+  log "step eval_chain: SKIP (선행 체인 미통과 — auth=${STEP_STATUS[auth]:-SKIP})"
+  mark eval_chain SKIP
+elif ! realdata_eval_gating_enabled; then
+  # gating 부재 — 조용한 SKIP(no-op). gating 진단 로그는 realdata_eval_gating_enabled 가
+  # 부재 env 이름만 출력(실값 echo 0, §9).
+  log "step eval_chain: SKIP (gating env 부재 — cloud CI / 일반 LAN no-op)"
+  mark eval_chain SKIP
+elif step_eval_chain; then
+  mark eval_chain PASS
+else
+  mark eval_chain FAIL
 fi
 
 # 전체 결과: 하나라도 FAIL 이면 FAIL.
