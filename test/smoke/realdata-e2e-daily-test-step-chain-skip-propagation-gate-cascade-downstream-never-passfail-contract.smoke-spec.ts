@@ -7,8 +7,8 @@
 // nightly 모니터링이 파싱하는 step status 가 false-positive/negative 신호를 내지 않도록 cascade 가
 // 구조적으로 차단. cascade 계약 5종(실 소스 gate 앵커): (a) SKIP_REDEPLOY=1 → redeploy SKIP(281행,
 // PASS 아님) · (b) redeploy FAIL → health SKIP(291행 `!= "FAIL"`) · (c) health != PASS → liveness+auth
-// SKIP(297행 `:-SKIP == PASS`) · (d) auth != PASS → eval·collect·rediscovery SKIP(308/326/345행) ·
-// (e) gating 부재 → 3 leg SKIP(311/329/348행 `! realdata_eval_gating_enabled`).
+// SKIP(297행 `:-SKIP == PASS`) · (d) auth != PASS → eval·collect·rediscovery·eval_chain SKIP ·
+// (e) gating 부재 → 4 leg SKIP(`! realdata_eval_gating_enabled`, eval·collect·rediscovery·eval_chain).
 //
 // 전략(T-0944 동형): 5종 gate 표현을 정적 앵커 추출 + bash semantics 를 TS 순수 함수
 // `computeChainedStatuses(outcomes, opts)` 로 동형 모델링해 outcomes→profile cascade 산출 assert.
@@ -30,7 +30,8 @@ type StepStatus = "PASS" | "FAIL" | "SKIP";
 // 채택하고, precondition 이 끊긴 downstream 에는 outcome 을 무시하고 SKIP 을 강제한다.
 type RunOutcome = "PASS" | "FAIL";
 
-// step 순회 정본 ORDER(`deploy/daily-test.sh` 259행) — cascade 산출 순회 source.
+// step 순회 정본 ORDER(`deploy/daily-test.sh` 287행) — cascade 산출 순회 source.
+// T-1122 에서 `eval_chain` 이 8번째 원소로 append 됨(step_eval_chain full-chain bash 배선).
 const ORDER = [
   "redeploy",
   "health",
@@ -39,11 +40,17 @@ const ORDER = [
   "eval",
   "collect",
   "rediscovery",
+  "eval_chain",
 ] as const;
 type StepName = (typeof ORDER)[number];
 
-// realdata-e2e 3 leg(auth PASS + gating 필요) — eval/collect/rediscovery 동형 gate.
-const REALDATA_LEGS: StepName[] = ["eval", "collect", "rediscovery"];
+// realdata-e2e 4 leg(auth PASS + gating 필요) — eval/collect/rediscovery/eval_chain 동형 gate.
+const REALDATA_LEGS: StepName[] = [
+  "eval",
+  "collect",
+  "rediscovery",
+  "eval_chain",
+];
 
 type Outcomes = Partial<Record<StepName, RunOutcome>>;
 interface ChainOpts {
@@ -166,8 +173,8 @@ function extractCascadeGateAnchors(shellSource: string): {
 }
 
 describe("realdata-e2e step④ daily-test.sh step-chaining SKIP-propagation gate cascade contract smoke — downstream 은 precondition 미충족 시 절대 PASS/FAIL 아닌 SKIP (T-0947)", () => {
-  describe("Happy-path: 전부 성공 경로 → 7 step 모두 PASS", () => {
-    it("redeploy·health·liveness·auth 실행 성공 + gating enabled + 3 leg 성공이면 7 step 전부 PASS(정상 nightly)", () => {
+  describe("Happy-path: 전부 성공 경로 → 8 step 모두 PASS", () => {
+    it("redeploy·health·liveness·auth 실행 성공 + gating enabled + 4 leg 성공이면 8 step 전부 PASS(정상 nightly)", () => {
       const profile = computeChainedStatuses(
         {
           redeploy: "PASS",
@@ -177,6 +184,7 @@ describe("realdata-e2e step④ daily-test.sh step-chaining SKIP-propagation gate
           eval: "PASS",
           collect: "PASS",
           rediscovery: "PASS",
+          eval_chain: "PASS",
         },
         { skipRedeploy: false, gatingEnabled: true },
       );
@@ -193,12 +201,12 @@ describe("realdata-e2e step④ daily-test.sh step-chaining SKIP-propagation gate
       expect(anchors.skipRedeploy).toBe(true);
       expect(anchors.healthGate).toBe(true);
       expect(anchors.livenessAuthGate).toBe(true);
-      // auth gate·gating gate 는 3 leg(eval/collect/rediscovery) 에 각각 → 정확히 3회 등장.
-      expect(anchors.authGateCount).toBe(3);
-      expect(anchors.gatingGateCount).toBe(3);
-      // ORDER 7-원소·mark 헬퍼 앵커도 실재(cascade 순회 source).
+      // auth gate·gating gate 는 4 leg(eval/collect/rediscovery/eval_chain) 에 각각 → 정확히 4회 등장.
+      expect(anchors.authGateCount).toBe(4);
+      expect(anchors.gatingGateCount).toBe(4);
+      // ORDER 8-원소·mark 헬퍼 앵커도 실재(cascade 순회 source).
       expect(shellSource).toContain(
-        "ORDER=(redeploy health liveness auth eval collect rediscovery)",
+        "ORDER=(redeploy health liveness auth eval collect rediscovery eval_chain)",
       );
     });
   });
@@ -282,8 +290,8 @@ describe("realdata-e2e step④ daily-test.sh step-chaining SKIP-propagation gate
     });
   });
 
-  describe("branch: auth FAIL → eval·collect·rediscovery 3종 SKIP(308/326/345 동일 gate)", () => {
-    it("앞 체인 PASS·auth=FAIL 이면 eval·collect·rediscovery 3 leg 모두 SKIP(3개 각각 auth!=PASS gate)", () => {
+  describe("branch: auth FAIL → eval·collect·rediscovery·eval_chain 4종 SKIP(동일 auth!=PASS gate)", () => {
+    it("앞 체인 PASS·auth=FAIL 이면 eval·collect·rediscovery·eval_chain 4 leg 모두 SKIP(각각 auth!=PASS gate)", () => {
       const profile = computeChainedStatuses(
         {
           redeploy: "PASS",
@@ -296,15 +304,16 @@ describe("realdata-e2e step④ daily-test.sh step-chaining SKIP-propagation gate
       expect(profile.auth).toBe("FAIL");
       // liveness 는 health PASS 라 실행됨(PASS) — auth 와 병렬 leg, cascade 상 downstream 아님.
       expect(profile.liveness).toBe("PASS");
-      // 3 leg 각각 SKIP.
+      // 4 leg 각각 SKIP.
       expect(profile.eval).toBe("SKIP");
       expect(profile.collect).toBe("SKIP");
       expect(profile.rediscovery).toBe("SKIP");
+      expect(profile.eval_chain).toBe("SKIP");
     });
   });
 
-  describe("branch: auth PASS + gating 부재 → eval·collect·rediscovery SKIP(311/329/348 gate)", () => {
-    it("auth=PASS 지만 gatingEnabled:false 면 3 leg 모두 SKIP(auth PASS 만으로는 leg 실행 불충분)", () => {
+  describe("branch: auth PASS + gating 부재 → eval·collect·rediscovery·eval_chain SKIP(동일 gating gate)", () => {
+    it("auth=PASS 지만 gatingEnabled:false 면 4 leg 모두 SKIP(auth PASS 만으로는 leg 실행 불충분)", () => {
       const profile = computeChainedStatuses(
         {
           redeploy: "PASS",
@@ -314,6 +323,7 @@ describe("realdata-e2e step④ daily-test.sh step-chaining SKIP-propagation gate
           eval: "PASS",
           collect: "PASS",
           rediscovery: "PASS",
+          eval_chain: "PASS",
         },
         { gatingEnabled: false },
       );
@@ -346,7 +356,7 @@ describe("realdata-e2e step④ daily-test.sh step-chaining SKIP-propagation gate
       const realAnchors = extractCascadeGateAnchors(
         readFileSync(DAILY_TEST_SH_PATH, "utf8"),
       );
-      expect(realAnchors.authGateCount).toBe(3);
+      expect(realAnchors.authGateCount).toBe(4);
     });
 
     it("negative (a) — downstream never PASS/FAIL 불변식 위반 변별: health!=PASS 인데 liveness 를 run 시키는 mutant 에서 불변식 assert 실패", () => {
