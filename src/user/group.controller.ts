@@ -110,6 +110,18 @@ export class GroupController {
     return this.service.findPersonsByGroupId(id);
   }
 
+  // GET /api/groups/:id/members — 지정 Group 의 membership row 목록. T-1128 추가.
+  // `@Get(":id/persons")` 와 동일 배선 패턴이나, Person 조인 없이 raw
+  // PersonGroupMembership[] (각 row 의 id/personId/groupId/createdAt) 를 반환한다.
+  // 프론트엔드가 DELETE `:id/members/:membershipId` 배선 시 필요한 membershipId
+  // (= PersonGroupMembership.id) 를 노출하기 위한 endpoint — 기존 `:id/persons` 는
+  // Person[] 만 반환해 membershipId 를 알 수 없던 API gap 을 메운다. Group 부재 시
+  // service 가 404 강제, membership 0 이면 200 + 빈 배열 (404 변환 안 함).
+  @Get(":id/members")
+  async findMembers(@Param("id") id: string): Promise<PersonGroupMembership[]> {
+    return this.service.findMembershipsByGroupId(id);
+  }
+
   // POST /api/groups — 신규 Group 추가. 201 Created. ValidationPipe 가 dto 의 2
   // decorator (IsString / IsNotEmpty) 검증 — 위반 시 400 BadRequest 자동. P2002
   // (unique 위반) 변환 분기 부재 — Group.name 에 @unique 미정의, raw forward.

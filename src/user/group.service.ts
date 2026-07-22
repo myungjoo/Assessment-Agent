@@ -273,4 +273,27 @@ export class GroupService {
     }
     return persons;
   }
+
+  // findMembershipsByGroupId — 지정 Group 소속 membership row 목록 (T-1128 추가).
+  //
+  // findPersonsByGroupId 의 error 정책을 그대로 mirror 하되, Person 조인 없이 raw
+  // PersonGroupMembership[] (각 row 의 id / personId / groupId / createdAt) 를 반환한다.
+  // 프론트엔드가 멤버 제거를 배선할 때 DELETE `:id/members/:membershipId` 에 넘길
+  // membershipId (= PersonGroupMembership.id) 를 노출하기 위한 backend 계약.
+  //
+  // 분기:
+  //   - Group 없음 → findById 의 NotFoundException propagate.
+  //   - Group 있고 membership 0 → 빈 배열 (404 변환 안 함).
+  //   - Group 있고 membership 1+ → membershipRepository.findByGroupId 결과 그대로 반환.
+  //
+  // findPersonsByGroupId 와 달리 PersonRepository loop / null 필터링 없음 — raw
+  // membership row 만 반환 (Person include shape 는 후속 결정, task Out of Scope).
+  async findMembershipsByGroupId(
+    groupId: string,
+  ): Promise<PersonGroupMembership[]> {
+    // Group 존재 검증 — null 시 findById 가 NotFoundException throw.
+    await this.findById(groupId);
+
+    return this.membershipRepository.findByGroupId(groupId);
+  }
 }

@@ -83,6 +83,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | POST | `/api/groups` | UC-03 | group 신설 | Admin+ |
 | PATCH | `/api/groups/:id` | UC-03 | group 수정 | Admin+ |
 | DELETE | `/api/groups/:id` | UC-03 | group 삭제 (소속 인원의 다대다 link 만 제거) | Admin+ |
+| GET | `/api/groups/:id/members` | UC-03 | group 소속 membership 목록 조회 — raw `PersonGroupMembership[]` (각 row `id`/`personId`/`groupId`/`createdAt`) 반환. DELETE `:id/members/:membershipId` 배선용 `membershipId` 노출 (T-1128 박제, REQ-028). Group 부재 시 404, membership 0 시 200 + 빈 배열. | User+ |
 | GET | `/api/parts` | UC-03 | 조직도 파트 목록 (REQ-028) | User+ |
 | POST | `/api/parts` | UC-03 | 파트 신설 | Admin+ |
 | PATCH | `/api/parts/:id` | UC-03 | 파트 수정 — RFC-7396 JSON Merge Patch partial update (T-0075 박제). body shape `UpdatePartDto` (`name?: string`, IsOptional / IsString / IsNotEmpty / MaxLength(255)). response 200 OK + Part row. error: 404 NotFound (P2025 변환, T-0071 박제) / 409 Conflict (P2002 변환 — Part.name `@unique` schema-level enforce, Group 도메인 차별 분기) / 400 BadRequest (ValidationPipe 위반). | Admin+ |
