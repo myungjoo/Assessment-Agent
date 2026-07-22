@@ -2,8 +2,12 @@
 id: T-1128
 title: GroupController 에 GET /api/groups/:id/members 조회 endpoint 추가 (membership id 포함)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1020
+mergedAs: 439917fc
+reviewRounds: 1
+completedAt: 2026-07-22T15:16Z
 coversReq: [REQ-028, REQ-046]
 estimatedDiff: 150
 estimatedFiles: 5
@@ -61,3 +65,7 @@ plannerNote: P6 deferred-wiring(PLAN line123) 언블록 — DELETE :id/members/:
 
 (생성 시 비어 있음. sub-agent 가 관련 작업 발견 시 여기에 append.)
 - (planner note) 본 endpoint 머지 후: `web/src/views/AdminView.tsx` 멤버 remove mutation 배선(DELETE `:id/members/:membershipId`, membershipId 는 본 endpoint 로 조회) + `GroupMemberList` 실 members fetch 전환 — P6 deferred 잔여 후속.
+
+## Result (DONE 2026-07-22T15:16Z)
+
+PR [#1020](https://github.com/myungjoo/Assessment-Agent/pull/1020) merged (squash `439917fc`), reviewer round 1/7 clean APPROVE (0 BLOCKER/0 MAJOR/0 MINOR), 4-게이트 PASS, CI green. `GroupService.findMembershipsByGroupId`(findById 검증 후 `membershipRepository.findByGroupId` 반환, 0 시 빈 배열) + `GroupController @Get(":id/members")` route + `docs/architecture/api.md` row. impl +36/-0 (src 2 + api.md), tester 는 두 spec 확장(happy/error/3분기/negative 충분 cover), 두 src 파일 각 100% cov. 기존 `findByGroupId` 재사용, 새 repo 메서드·schema 변경·dependency 0. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local15-61ac709e, server-time 15:04:38Z fresh 非midnight claim). dup-PR 0.
