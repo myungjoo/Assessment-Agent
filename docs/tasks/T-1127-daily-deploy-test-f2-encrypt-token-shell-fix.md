@@ -2,7 +2,7 @@
 id: T-1127
 title: daily-deploy-test §F-2 encrypt-token 예시 수정 — LLM_APIKEY_ENC_KEY 파이프 scope 버그 + 평문 PAT argv 노출 정정 (issue #1013 C-4 nit)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-044]
 estimatedDiff: 15
