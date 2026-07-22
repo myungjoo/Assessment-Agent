@@ -908,4 +908,97 @@ describe("GroupService", () => {
       await expect(service.findPersonsByGroupId("g-1")).rejects.toBe(dbError);
     });
   });
+
+  // -----------------------------------------------------------------------
+  // findMembershipsByGroupId() — T-1128 추가 (R-112 4 카테고리)
+  //   happy 다수 / Group 없음 → 404 / membership 0 → 빈 배열 / repository throw /
+  //   empty id 경계값. findPersonsByGroupId 의 error 정책 mirror 이나 Person 조인 없이
+  //   raw PersonGroupMembership[] 반환 — PersonRepository 호출 0.
+  // -----------------------------------------------------------------------
+  describe("findMembershipsByGroupId()", () => {
+    it("Group 존재 + membership 다수 시 findByGroupId 결과 그대로 반환 + PersonRepository 호출 0 (happy + branch — non-empty)", async () => {
+      const { service, groupRepoMock, membershipRepoMock, personRepoMock } =
+        buildService();
+      const groupFixture = buildGroupFixture({ id: "g-1" });
+      const memberships = [
+        buildMembershipFixture({ id: "m-1", personId: "p-1", groupId: "g-1" }),
+        buildMembershipFixture({ id: "m-2", personId: "p-2", groupId: "g-1" }),
+        buildMembershipFixture({ id: "m-3", personId: "p-3", groupId: "g-1" }),
+      ];
+      groupRepoMock.findById.mockResolvedValueOnce(groupFixture);
+      membershipRepoMock.findByGroupId.mockResolvedValueOnce(memberships);
+
+      const result = await service.findMembershipsByGroupId("g-1");
+
+      expect(groupRepoMock.findById).toHaveBeenCalledWith("g-1");
+      expect(membershipRepoMock.findByGroupId).toHaveBeenCalledWith("g-1");
+      // Person 조인 없음 — raw membership row 그대로 반환.
+      expect(personRepoMock.findById).not.toHaveBeenCalled();
+      expect(result).toBe(memberships);
+      expect(result).toHaveLength(3);
+    });
+
+    it("Group 존재 + membership 0 시 빈 배열 반환 (branch — empty, 404 변환 안 함)", async () => {
+      const { service, groupRepoMock, membershipRepoMock } = buildService();
+      groupRepoMock.findById.mockResolvedValueOnce(buildGroupFixture());
+      membershipRepoMock.findByGroupId.mockResolvedValueOnce([]);
+
+      const result = await service.findMembershipsByGroupId("g-empty");
+
+      expect(result).toEqual([]);
+      expect(membershipRepoMock.findByGroupId).toHaveBeenCalledWith("g-empty");
+    });
+
+    it("Group 없음 시 NotFoundException + membership repository 호출 0 (error / branch — group missing)", async () => {
+      const { service, groupRepoMock, membershipRepoMock } = buildService();
+      groupRepoMock.findById.mockResolvedValueOnce(null);
+
+      await expect(
+        service.findMembershipsByGroupId("g-missing"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(membershipRepoMock.findByGroupId).not.toHaveBeenCalled();
+    });
+
+    it("Group 없음 시 message 가 'group not found' + id 포함 (error message regex)", async () => {
+      const { service, groupRepoMock } = buildService();
+      groupRepoMock.findById.mockResolvedValueOnce(null);
+
+      await expect(service.findMembershipsByGroupId("g-zzz")).rejects.toThrow(
+        /group not found: g-zzz/,
+      );
+    });
+
+    it("empty string groupId 도 그대로 forward 후 NotFoundException 변환 (negative — empty id 경계값)", async () => {
+      const { service, groupRepoMock, membershipRepoMock } = buildService();
+      groupRepoMock.findById.mockResolvedValueOnce(null);
+
+      await expect(service.findMembershipsByGroupId("")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(groupRepoMock.findById).toHaveBeenCalledWith("");
+      expect(membershipRepoMock.findByGroupId).not.toHaveBeenCalled();
+    });
+
+    it("PersonGroupMembershipRepository.findByGroupId throw 시 그대로 propagate (negative — dependency fail)", async () => {
+      const { service, groupRepoMock, membershipRepoMock } = buildService();
+      groupRepoMock.findById.mockResolvedValueOnce(buildGroupFixture());
+      const dbError = new Error("postgres-connection-lost");
+      membershipRepoMock.findByGroupId.mockRejectedValueOnce(dbError);
+
+      await expect(service.findMembershipsByGroupId("g-1")).rejects.toBe(
+        dbError,
+      );
+    });
+
+    it("Group 존재 검증 throw (Prisma 미지 code) 시 그대로 propagate (negative — findById dependency fail)", async () => {
+      const { service, groupRepoMock, membershipRepoMock } = buildService();
+      const unknownError = buildPrismaError("P9999");
+      groupRepoMock.findById.mockRejectedValueOnce(unknownError);
+
+      await expect(service.findMembershipsByGroupId("g-u")).rejects.toBe(
+        unknownError,
+      );
+      expect(membershipRepoMock.findByGroupId).not.toHaveBeenCalled();
+    });
+  });
 });

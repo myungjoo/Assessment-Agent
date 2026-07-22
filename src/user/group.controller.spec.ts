@@ -125,6 +125,7 @@ function buildGroupServiceMock(): {
     addMember: jest.Mock;
     removeMember: jest.Mock;
     findPersonsByGroupId: jest.Mock;
+    findMembershipsByGroupId: jest.Mock;
   };
 } {
   const serviceMock = {
@@ -136,6 +137,7 @@ function buildGroupServiceMock(): {
     addMember: jest.fn(),
     removeMember: jest.fn(),
     findPersonsByGroupId: jest.fn(),
+    findMembershipsByGroupId: jest.fn(),
   };
   return {
     groupService: serviceMock as unknown as GroupService,
@@ -491,6 +493,59 @@ describe("GroupController (unit)", () => {
     // unit-level 은 raw Error 그대로 propagate — NestJS 500 변환은 e2e/integration 차원.
     await expect(controller.findPersons("g-1")).rejects.toBe(rawError);
   });
+
+  // ---- findMembers (GET /:id/members) — T-1128 추가 -------------------
+  // R-112 4 카테고리 (happy / error / branch / negative). raw PersonGroupMembership[]
+  // 반환 — findPersons 와 달리 Person 조인 없음. controller 는 service forward 만 검증.
+  it("GET /api/groups/:id/members — id 를 service.findMembershipsByGroupId 로 forward, 다중 membership row 반환 (happy)", async () => {
+    const { groupService, serviceMock } = buildGroupServiceMock();
+    const fixture = [
+      buildPersonGroupMembershipFixture({ id: "m-1", personId: "p-1" }),
+      buildPersonGroupMembershipFixture({ id: "m-2", personId: "p-2" }),
+    ];
+    serviceMock.findMembershipsByGroupId.mockResolvedValueOnce(fixture);
+
+    const controller = new GroupController(groupService);
+    const result = await controller.findMembers("g-1");
+
+    expect(serviceMock.findMembershipsByGroupId).toHaveBeenCalledWith("g-1");
+    expect(result).toBe(fixture);
+    expect(result).toHaveLength(2);
+  });
+
+  it("GET /api/groups/:id/members — Group 있고 membership 0 시 빈 배열 반환 (branch — 404 변환 안 함)", async () => {
+    const { groupService, serviceMock } = buildGroupServiceMock();
+    serviceMock.findMembershipsByGroupId.mockResolvedValueOnce([]);
+
+    const controller = new GroupController(groupService);
+    const result = await controller.findMembers("g-empty");
+
+    expect(result).toEqual([]);
+    expect(serviceMock.findMembershipsByGroupId).toHaveBeenCalledWith(
+      "g-empty",
+    );
+  });
+
+  it("GET /api/groups/:id/members — service 의 NotFoundException ('group not found') propagate (error)", async () => {
+    const { groupService, serviceMock } = buildGroupServiceMock();
+    serviceMock.findMembershipsByGroupId.mockRejectedValueOnce(
+      new NotFoundException("group not found: missing"),
+    );
+
+    const controller = new GroupController(groupService);
+    await expect(controller.findMembers("missing")).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it("GET /api/groups/:id/members — service 가 raw Error (HttpException 아님) throw 시 그대로 propagate (negative — NestJS 자동 500 처리는 e2e 차원)", async () => {
+    const { groupService, serviceMock } = buildGroupServiceMock();
+    const rawError = new Error("unexpected DB outage");
+    serviceMock.findMembershipsByGroupId.mockRejectedValueOnce(rawError);
+
+    const controller = new GroupController(groupService);
+    await expect(controller.findMembers("g-1")).rejects.toBe(rawError);
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -510,6 +565,7 @@ describe("GroupController (ValidationPipe integration)", () => {
     addMember: jest.Mock;
     removeMember: jest.Mock;
     findPersonsByGroupId: jest.Mock;
+    findMembershipsByGroupId: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -522,6 +578,7 @@ describe("GroupController (ValidationPipe integration)", () => {
       addMember: jest.fn(),
       removeMember: jest.fn(),
       findPersonsByGroupId: jest.fn(),
+      findMembershipsByGroupId: jest.fn(),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -693,6 +750,49 @@ describe("GroupController (ValidationPipe integration)", () => {
       .expect(200);
 
     expect(res.body).toEqual([]);
+  });
+
+  // T-1128 추가: GET /:id/members routing + 200 sanity (다중 row + 빈 배열).
+  // `:id/persons` 와 라우팅 충돌 없음 검증 (서로 다른 suffix path).
+  it("GET /api/groups/:id/members 정상 시 200 + JSON 배열 (다중 membership row)", async () => {
+    serviceMock.findMembershipsByGroupId.mockResolvedValueOnce([
+      buildPersonGroupMembershipFixture({ id: "m-1", personId: "p-1" }),
+      buildPersonGroupMembershipFixture({ id: "m-2", personId: "p-2" }),
+    ]);
+
+    const res = await request(app.getHttpServer())
+      .get("/api/groups/g-1/members")
+      .expect(200);
+
+    expect(serviceMock.findMembershipsByGroupId).toHaveBeenCalledWith("g-1");
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(2);
+    // membershipId (= PersonGroupMembership.id) 노출 검증 — 본 endpoint 의 핵심 계약.
+    expect(res.body[0].id).toBe("m-1");
+  });
+
+  it("GET /api/groups/:id/members membership 0 시 200 + 빈 배열 (branch)", async () => {
+    serviceMock.findMembershipsByGroupId.mockResolvedValueOnce([]);
+
+    const res = await request(app.getHttpServer())
+      .get("/api/groups/g-empty/members")
+      .expect(200);
+
+    expect(res.body).toEqual([]);
+  });
+
+  it("GET /api/groups/:id/members — service NotFoundException 시 404 (error path)", async () => {
+    serviceMock.findMembershipsByGroupId.mockRejectedValueOnce(
+      new NotFoundException("group not found: missing"),
+    );
+
+    await request(app.getHttpServer())
+      .get("/api/groups/missing/members")
+      .expect(404);
+
+    expect(serviceMock.findMembershipsByGroupId).toHaveBeenCalledWith(
+      "missing",
+    );
   });
 
   // ----- T-0068 추가: UpdateGroupDto (PATCH /:id) ValidationPipe negative cases -----
