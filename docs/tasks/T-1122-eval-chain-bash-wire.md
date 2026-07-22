@@ -2,7 +2,7 @@
 id: T-1122
 title: realdata-e2e 실 github 평가 full-chain live smoke 를 daily-test.sh step_eval_chain 레그로 배선 + executable bash spec + CI hook
 phase: P5
-status: IN_PROGRESS
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-037]
 estimatedDiff: 360
