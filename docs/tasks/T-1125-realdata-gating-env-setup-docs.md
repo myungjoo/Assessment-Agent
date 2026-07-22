@@ -2,7 +2,9 @@
 id: T-1125
 title: REALDATA_E2E gating env 셋업 절차 문서화 (issue #1013 C-3)
 phase: P5
-status: PENDING
+status: DONE
+mergedAs: bc47e01129dd7769d26461a049ef640bec113961
+prNumber: 1018
 commitMode: pr
 coversReq: [REQ-059, TBD]
 estimatedDiff: 95
