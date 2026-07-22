@@ -2,17 +2,22 @@
 id: T-1122
 title: realdata-e2e 실 github 평가 full-chain live smoke 를 daily-test.sh step_eval_chain 레그로 배선 + executable bash spec + CI hook
 phase: P5
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
 coversReq: [REQ-030, REQ-037]
-estimatedDiff: 270
-estimatedFiles: 3
+estimatedDiff: 360
+estimatedFiles: 6
 created: 2026-07-21
+prNumber: 1015
 dependsOn: []
+capException: "Q-0054 옵션 A 승인(2026-07-22) — mechanical drift-guard parity 갱신 3종 동반으로 6파일/§0.5 rule 8 5-파일 cap 1회 waive. leg 추가와 guard 갱신은 분리 불가(중간 red 불가피, 선례 T-0943/c4fb3f92)."
 touchesFiles:
   - deploy/daily-test.sh
   - deploy/daily-test-step-eval-chain.test.sh
   - .github/workflows/ci.yml
+  - test/smoke/realdata-e2e-daily-test-machine-result-json-schema-order-driven-steps-parity-drift.smoke-spec.ts
+  - test/smoke/realdata-e2e-daily-test-machine-result-status-aggregation-skip-nonfailing-failedstep-firstwins-contract.smoke-spec.ts
+  - test/smoke/realdata-e2e-daily-test-step-chain-skip-propagation-gate-cascade-downstream-never-passfail-contract.smoke-spec.ts
 independentStream: realdata-e2e-github-live-eval-wiring
 plannerNote: "PLAN 109행 ④ 잔여 LIVE slice. T-1121 이 신설한 eval-chain command-plan helper 를 daily-test.sh step_eval_chain bash 레그로 mirror 배선(T-0612/T-0888/T-0943 동형) + self-contained executable bash spec + CI hook."
 ---
@@ -48,7 +53,18 @@ T-1121(PR #1014, squash 2e0e830e)이 full-chain live smoke(`test/smoke/realdata-
 - `test/helpers/realdata-e2e-daily-step-eval-chain-command-plan.ts` / spec(T-1121 정본) 수정 — bash 는 그 argv 를 mirror 만 하고 정본 결정 로직은 helper 소유 불변.
 - 본 bash 레그와 T-1121 command-plan helper 의 consistency self-wire 가드(`...-command-plan-consistency.ts` 형제) 추가 — 별도 follow-up slice(collect/rediscovery 형제 존재). 본 task 는 배선 + executable bash spec 까지.
 - `resolveRealDataE2eLiveGating` gating 키·완전성 규칙 수정 — 단독 소유자 불변, 재사용만.
-- `test/jest-smoke.json` / smoke spec 본문 / `package.json` 수정. write-scope credential / 새 gh mutation / 새 외부 dependency 도입. STATE.json counters / lock write.
+- `test/jest-smoke.json` / **eval-chain-live 대상 smoke spec 본문**(`test/smoke/realdata-e2e-eval-chain-live.smoke-spec.ts` 등 T-0975 정본) 수정 / `package.json` 수정. write-scope credential / 새 gh mutation / 새 외부 dependency 도입. STATE.json counters / lock write. (**단 Q-0054 옵션 A 로 위 touchesFiles 의 drift-guard parity spec 3종(T-0791/T-0944/T-0947)은 8-leg ORDER·cascade-gate 4 로의 mechanical parity 갱신에 한해 수정 허용** — 그 외 smoke spec 본문 수정은 여전히 금지.)
+
+## Blocker (RESOLVED — Q-0054 옵션 A 승인 2026-07-22, round 2 재개)
+
+**~~BLOCKED (task-too-large) — 2026-07-21, HQ Q-0054 제기.~~ → 옵션 A 로 해소.** 오너가 6파일 cap 1회 예외 + Out-of-Scope 축소를 승인해 위 touchesFiles 에 drift-guard parity spec 3종(T-0791/T-0944/T-0947)을 추가하고, 같은 branch `claude/T-1122-eval-chain-bash-wire` / PR #1015 에서 round 2 를 재개한다. 옵션 B(guard leg-count-agnostic 리팩터)는 불채택 — drift-guard 의 하드코딩 parity 감시(안전망 semantics)를 유지한다. round 2 잔여 작업: 3 parity guard 를 8-leg ORDER(`eval_chain` 추가)·cascade-gate 4·`REALDATA_LEGS` 에 `eval_chain` 포함으로 mechanical 갱신 → CI smoke green → reviewer round 2 → merge.
+
+<원 blocker 기록 보존>
+executor 가 eval_chain leg 를 정확히 구현(commit 031d80ac)했으나 8번째 leg 추가가 7-leg ORDER/cascade-gate parity 하드코딩 drift-guard 3종을 의도대로 fail 시켜 CI smoke red. 갱신은 leg 추가에 내재적이라 완결 변경이 6파일 > 5-파일 cap + Out-of-Scope('smoke spec 본문 수정' 금지)와 이중 충돌. 상세: `docs/progress/details/T-1122-blocked-parity-guard-scope.md`.
+
+executor 가 eval_chain leg 를 정확히 구현(commit 031d80ac, branch `claude/T-1122-eval-chain-bash-wire`, PR #1015 OPEN, reviewer APPROVE 코멘트 게시)했으나, `deploy/daily-test.sh` 에 8번째 leg 를 추가하면 7-leg ORDER/cascade-gate parity 를 하드코딩한 drift-guard smoke spec 3종(T-0791/T-0944/T-0947)이 의도대로 fail 하여 CI smoke red. 이 3종 갱신은 leg 추가에 내재적(형제 T-0943 도 동일)이라 완결 변경이 6파일 > 5-파일 hard cap(CLAUDE.md §0.5 rule 8) + 본 task 의 Out-of-Scope('smoke spec 본문 수정' 금지)와 이중 충돌한다. 근본 원인은 planner 의 3파일 mis-scope.
+
+두 옵션(A: 6파일 cap 예외 + Out-of-Scope 축소 후 PR #1015 round 2 재개 / B: drift-guard 를 leg-count-agnostic 로 선행 리팩터)은 각각 hard rule waive · safety-net semantics 변경 경계를 넘어 사람 판정이 필요하다. 상세 분석·옵션은 `docs/progress/details/T-1122-blocked-parity-guard-scope.md` 참조. PR #1015 는 유효한 부분작업이라 OPEN 유지(resume target).
 
 ## Suggested Sub-agents
 

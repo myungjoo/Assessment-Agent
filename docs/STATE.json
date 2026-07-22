@@ -6,8 +6,8 @@
     "fineGrainedConcurrency": true,
     "maxConcurrentClaims": 2
   },
-  "currentTask": null,
-  "nextTask": "T-1122",
+  "currentTask": "T-1122",
+  "nextTask": null,
   "backlogNoteResolved": "▶ **T-0880 BLOCKED (ci-repeat-fail) — PR #774 OPEN, 머지 보류; T-0881 이 unblock 선행** — S2 measure→confirm-or-compare 를 SummaryController GET /api/summaries?personId 에 배선한 두 번째 통합 perf-spec(구현 commit 27693524, cron@cloud-6ba9 가 4h 전 구현·push 했으나 PR open 전 사망 → 본 fire cron@aa-local-2ff3 가 orphan claim reclaim 후 PR #774 open). reviewer APPROVE + 게이트 (a)(b)(c) PASS, **게이트 (d) CI FAIL**: `test:perf` 가 2회(초회+rerun) 연속 fail. 실패 지점은 T-0880 신규 spec 이 아니라 **pre-existing `test/perf/app-root-measure-confirm.perf-spec.ts:217`**(T-0877 compared 분기 `regressed=false` wall-clock 비결정 단언) — 동일 head_sha main CI 는 green 이므로 T-0880 코드 결함 0, T-0880 이 추가한 perf-spec 부하가 T-0877 timing-fragile 단언을 노출. self-heal 불가(fix 대상이 T-0880 touchesFiles/Out-of-Scope 밖). **처리**: planner 가 **T-0881**(pr-mode, app-root compared 분기를 주입 clock=stepClock 으로 결정론화) 큐잉, T-0880 claim prune(release — pr-mode T-0881 이 0-active-claim gate 통과하도록), PR #774 는 OPEN 유지 + T-0880 task frontmatter 에 prNumber:774 박제(향후 fire 가 LOOP [2] frontmatter-prNumber resume 로 중복 PR 없이 rebase+re-CI). **시퀀스**: T-0881 merge → 그 fire 가 T-0880 을 nextTask 로 재큐잉 → PR #774 rebase+re-CI → 4-게이트 재확인 → merge. `close+reopen`/`--admin` bypass 금지.",
   "backlogNoteT0881": "▶ **T-0881 DONE (PR #775 merged, squash 67955a76) — T-0880 unblock 완결; 다음 fire 가 T-0880/PR #774 resume** — app-root compared 분기 perf-spec(test/perf/app-root-measure-confirm.perf-spec.ts) 의 compared happy-path(b) 1차·2차 measure 에 stepClock(50) 주입해 regressed 비결정성 제거(+13/-6, 1 file). 이로써 T-0880 PR #774 를 2회 fail 시킨 T-0877 timing-fragile 단언(:217 wall-clock regressed=false)이 결정론화됨. reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR), 4-게이트 PASS(reviewer comment external, CI test:perf 포함 green, ADR-0036 §8(c) head 최신 main 포함), squash 67955a76 + branch delete. R-112: compared happy-path 결정론(ok) + 회귀 분기는 기존 flow(336~356)/negative(414~433) 가 stepClock+tolerance:0 로 이미 커버, src 0 LOC 변경이라 test:cov 무영향. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-33f5). **다음 시퀀스**: nextTask=T-0880 → 다음 fire 가 currentTask 로 옮겨 LOOP [2] frontmatter-prNumber(774) resume 분기로 PR #774 checkout+rebase(최신 main 이제 T-0881 fix 포함)+re-CI(test:perf 이제 green 기대)+4-게이트 재확인 → merge. 중복 PR 금지(prNumber:774 resume).",
   "backlogNoteT0880": "▶ **T-0880 DONE (PR #774 merged, squash effb2b6c) — S2 조회 endpoint 두 번째 통합 perf-spec 배선 완결** — SummaryController GET /api/summaries?personId 를 measureAndConfirmBaseline top loop 에 배선한 두 번째 통합 perf-spec. T-0881→T-0880 unblock 시퀀스 완결.",
@@ -19,16 +19,17 @@
   "backlogNoteT0940": "▶ **T-0940 DONE (PR #834 merged, squash df1d9193) — dual-leg run report cross-publish body stability single-source convergence non-gated smoke 신설 완결; cross-publish 5-medium quintet 봉합** — 같은 run 을 여러 밤 연속 publish 할 때 사람이 이슈 안에서 읽는 본문(descriptor.body=--body argv 값, marker 라인 포함)이 1차 create 와 이후 모든 update 에서 byte-identical 하게 안정하고, hit.body 오염(사람이 이슈 본문 손수 변경, marker 유지) 시에도 매 publish 마다 commandArgs 단일 source 로 재정규화(re-emit)돼 threaded 아님(self-heal)을 박제하는 build-time in-memory smoke(test/smoke/realdata-e2e-daily-step-dual-leg-run-report-cross-publish-body-stability-single-source-convergence-assembly.smoke-spec.ts, +783/-0 test-only 1 file, production 0 LOC, 26 test). title(T-0939)의 content-medium 짝·body 가 issueNumber(T-0922)처럼 threaded 아님을 못 박는 거울상. 이로써 dual-leg run report step④ rolling-issue 멱등의 cross-publish 5-medium 안정성 봉합: marker 검색 anchor(T-0938)·issueNumber 편집 대상 threaded(T-0922)·url 사람 링크(T-0937)·title 사람 제목 re-emit(T-0939)·body 사람 본문 re-emit(본 task). reviewer APPROVE round 1/7, 4-게이트 PASS(reviewer comment external, CI reviewer-gate race 는 gh run rerun --failed self-heal 로 green, ADR-0036 §8(c) head 최신 main 포함 noop), coverageThreshold 무회귀. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-a7b056fe, server-time 00:39Z fresh 非midnight claim). **다음**: nextTask=T-0941 (dual-leg run report rolling-issue publish 를 처음으로 실 gh(search->create/edit)에 도달시키는 env-gated skip-by-default live execute-side round-trip smoke — assembly smoke 35개는 전부 in-memory 이므로 실 gh stdout 을 output parser 에 먹인 spec 0. eval-live(T-0610)/collection-live(T-0806) dormant gated 선례, step_report+credential 배선은 ADR-0045 deferred=Follow-up).",
   "backlogNoteT0935": "▶ **T-0935 DONE (PR #829 merged, squash 500daf19) — dual-leg run report create-branch output-parse issueNumber genesis execute-side single-source closure non-gated smoke 신설 완결** — create 분기(빈 search)에서 갓 생성된 이슈 번호 M 이 오직 `gh issue create` stdout URL 파싱(output-parse, 실행 후)에서만 태어나고(genesis) 실행 이전 create chain(create action.issueNumber 필드 부재·create plan.argv 에 M 원소 전무·argv[0..1]=[\"issue\",\"create\"])에는 어디에도 없음을 박제하는 build-time in-memory smoke (test/smoke/realdata-e2e-daily-step-dual-leg-run-report-create-branch-output-parse-issuenumber-genesis-execute-side-single-source-closure-assembly.smoke-spec.ts, +688/-0 test-only 1 file, production 0 LOC). T-0920 edit-side(N pre-exec 3+지점 관통)의 정확한 거울상 — create 는 M 이 pre-exec 0지점 + post-exec 1지점(output-parse genesis)·M 은 stdout 종속이라 run/leg outcome 무관·검색 미스(create 분기 선택)가 output-parse 경로와 독립·negative(URL 미발견·비양수 M·search stdout 손상 상류 차단·descriptor guard·결정론/no-mutation/credential) 다수. 이로써 issueNumber 축 종결(create genesis + T-0920 update convergence). reviewer APPROVE round 1/7, 4-게이트 PASS, coverageThreshold 무회귀. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-f766974). **다음**: nextTask=T-0936 (output-parse url↔issueNumber intra-outcome cross-field single-source closure smoke — 파서 두 반환 필드 url·issueNumber 가 같은 execStdout URL 한 지점 co-유도(url ⊇ issueNumber) create/edit 두 분기 박제).",
   "lock": {
-    "holder": null,
-    "since": ""
+    "holder": "cron",
+    "since": "2026-07-22T08:39:26Z",
+    "session": "cron@aa-cloud-220635c3-scfire"
   },
   "lastCommit": "0b50c49f",
   "mostRecentTasks": [
+    "T-1122",
     "T-1121",
     "T-1120",
     "T-1119",
-    "T-1118",
-    "T-1117"
+    "T-1118"
   ],
   "loopSession": {
     "turnCount": 1,
@@ -41,7 +42,7 @@
     "lastRun": "2026-07-21T08:54:43Z",
     "status": "green",
     "consecutiveFails": 0,
-    "note": "본 cron fire(cron@aa-local15-325576, 매시 15분 트리거로 정각/30/45분 충돌 회피, server-time 2026-07-21T09:08:32Z)는 currentTask/nextTask 둘 다 null(직전 fire 가 T-1121 머지 후 nextTask 비움) → lock CAS(tip 11275486) 획득 후 planner dispatch. planner 가 T-1122 큐잉(pr, PLAN 109행 ④ 잔여 LIVE slice — T-1121 이 신설한 eval-chain command-plan helper 를 daily-test.sh step_eval_chain bash 레그로 배선 + executable bash spec + CI hook, 3파일 ~270 LOC, 새 dep 0) + nextTask=T-1122. doc-only direct commit. 다음 fire 가 T-1122 claim-pickup."
+    "note": "본 cron fire(cron@aa-cloud-20b53fdd, server-time 2026-07-21T09:39Z): T-1122 claim → executor 가 eval_chain leg 정확 구현(PR #1015 open)했으나 8번째 leg 가 drift-guard 3종(T-0791/T-0944/T-0947) parity 를 내재적으로 강제 → 6파일 >5-파일 cap + Out-of-Scope 충돌로 BLOCKED(task-too-large). PR #1015 open·CI-red(smoke drift-guard, 예상됨) 유지, HQ Q-0054 제기, claim prNumber=1015 동기. ci.status/consecutiveFails 불변(CI regression 아님)."
   },
   "reviewRounds": {
     "T-1105": 1,
@@ -1545,13 +1546,34 @@
       "processedByPlanner": true,
       "processedAt": "2026-07-21T08:05:00Z",
       "processedNote": "옵션1 승인 → 첫 LIVE-wiring slice T-1121 큐잉(commitMode pr). full-chain eval-chain-live smoke(T-0975)의 daily-test command-plan 순수 컴포저 scaffold — step_eval(T-0611)/collect(T-0887)/rediscovery(T-0942) 동형, gating 위임으로 credential 부재 시 action:skip(CI green). deploy/daily-test.sh bash 배선·self-wire 가드는 follow-up. 새 dep 0 / write-scope 0."
+    },
+    {
+      "id": "Q-0054",
+      "raisedAt": "2026-07-21T09:39:00Z",
+      "createdAt": "2026-07-21T09:39:00Z",
+      "raisedBy": "driver/notifier (cron@aa-cloud-20b53fdd)",
+      "reason": "task-too-large",
+      "status": "RESOLVED",
+      "resolvedAt": "2026-07-22T08:00:00Z",
+      "resolvedBy": "human (owner)",
+      "decision": "옵션 A 승인 — [cap 예외] T-1122 의 touchesFiles 에 parity spec 3종(T-0791/T-0944/T-0947)을 추가하고 Out-of-Scope 의 'smoke spec 본문 수정' 금지 문구를 'eval-chain-live 대상 smoke spec 본문 수정 금지'로 좁힌 뒤, 이 mechanical-parity 갱신(7-leg→8-leg ORDER 벡터, cascade-gate 3→4)에 한해 6파일 cap 예외(§0.5 rule 8 1회 waive)를 허용한다. 같은 branch claude/T-1122-eval-chain-bash-wire / PR #1015 에서 round 2 재개(새 PR 생성 금지 — claim prNumber=1015 resume). 옵션 B(guard leg-count-agnostic 리팩터)는 불채택 — drift-guard 의 하드코딩 parity 감시(안전망 semantics)를 유지한다. 근거: guard 가 설계대로 leg 추가를 catch 한 정상 작동 상황이며, leg 추가와 guard 갱신은 분리 불가(중간 red 불가피, 선례 T-0943/commit c4fb3f92). [owner 보충 지시 2026-07-22T08:06:20Z] github issue #1013 이 LIVE-wiring 진행판(checkbox: 오너 B 항목 / loop C 항목)으로 재구성됨(2026-07-22). planner 는 T-1122(PR #1015 round 2) 완결 이후 후속 slice 로 C-1(deploy/daily-test.sh 가 untracked .env.realdata 존재 시 자동 source — 루틴 SSH 커맨드 의존 제거), C-2(gating 활성 시 pnpm install --frozen-lockfile + test-DB prisma migrate deploy 선행 — lockfile/migration drift 자동 복구), C-3(docs/ops/daily-deploy-test.md + deploy/env.prod.example 에 REALDATA_E2E_* gating env 셋업 절차 문서화)를 순서대로 큐잉한다. 각 slice 머지 시 driver 는 gh issue edit 1013 으로 해당 checkbox 를 check 하고 PR 링크를 코멘트한다. 주의: eval/collect live smoke 는 jest-smoke globalSetup 이 DATABASE_URL 대상 DB 를 truncateAll 하므로 반드시 별도 test DB(assessment_test) 전제 — C-2/C-3 설계에 반영(운영 DB 지정 시 매일 02:00 운영 DB 소실). 옵션 A 채택 결과 leg 추가 시 drift-guard parity 동시 갱신이 관례 — C-1/C-2 가 daily-test ORDER 벡터를 늘리는 경우 task 스코핑에 parity spec 갱신을 처음부터 포함할 것(재-BLOCKED 방지).",
+      "blockedTask": "T-1122",
+      "summary": "T-1122(planner 미스코핑) — deploy/daily-test.sh 에 8번째 leg(step_eval_chain) 추가가 order/cascade-gate 를 하드코딩한 drift-guard smoke spec 3종(T-0791/T-0944/T-0947) parity 갱신을 내재적으로 강제 → 완결 변경이 6파일(>5-파일 hard cap, §0.5 rule 8) + task 자체 Out-of-Scope('smoke spec 본문 수정' 금지)와 이중 충돌. task shape 재정의/hard rule waive 는 사람 판정 필요.",
+      "context": "executor 가 eval_chain leg 를 정확히 구현(commit 031d80ac, branch claude/T-1122-eval-chain-bash-wire, PR #1015 OPEN, reviewer APPROVE 코멘트 게시 완료). 그러나 CI smoke red — 8번째 leg 추가가 7-leg ORDER 벡터와 cascade-gate parity(=3)를 하드코딩한 drift-guard 3종을 의도대로 catch. 이 3종 갱신은 leg 추가에 내재적(형제 T-0943 rediscovery 배선도 동일하게 T-0791 갱신, commit c4fb3f92). 갱신 시 6파일 > 5-파일 cap + Out-of-Scope 명시 충돌. 근본 원인: planner 가 T-1122 를 3파일로 mis-scope(inherent guard parity 를 Out-of-Scope 로 배제). 상세 분석·두 옵션: docs/progress/details/T-1122-blocked-parity-guard-scope.md. PR #1015 는 유효한 부분작업이라 OPEN 유지(claim prNumber=1015 동기 완료 — 재개는 중복 PR 대신 #1015 resume).",
+      "options": [
+        "(A) [cap 예외] T-1122 의 touchesFiles 에 parity spec 3종(T-0791/T-0944/T-0947)을 추가하고 Out-of-Scope 의 'smoke spec 본문 수정' 문구를 'eval-chain-live 대상 smoke spec 본문 수정'으로 좁힌 뒤, 이 mechanical-parity 갱신에 한해 6파일 cap 예외를 허용 → 같은 branch/PR #1015 에서 round 2 재개. leg 추가와 그 drift-guard 갱신은 분리 불가(중간 red 불가피)라 split 보다 cap 예외가 적절. 단 §0.5 rule 8(5-파일 hard cap) waive.",
+        "(B) [guard 의미 변경] parity guard 3종을 leg-count-agnostic(data-driven, prefix-slice+targeted-index) 로 먼저 리팩터하는 별도 선행 task 를 배치해 8번째 leg 추가가 더는 그 spec 을 건드리지 않게 만든 뒤 T-1122 를 3파일로 유지·재개. 단 drift-guard 의 safety-net semantics(하드코딩 order/gate parity 감시) 자체가 바뀜 — 안전망 완화 여부 판정 필요."
+      ],
+      "detailDoc": "docs/progress/details/T-1122-blocked-parity-guard-scope.md",
+      "prNumber": 1015,
+      "processedByPlanner": false
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
     "tasksCompleted": 1112,
-    "tasksBlocked": 8,
+    "tasksBlocked": 9,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
   },
@@ -1578,5 +1600,5 @@
     "stage4": "DONE — T-0332 머지(PR #275 squash aedd7be). ci.yml 에 workflow-level concurrency key 추가: group=ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress=${{ github.event_name == 'pull_request' }}. 같은 PR 연속 push 만 직전 run cancel(낭비 절감), main push·issue_comment·pull_request_review 는 비-cancel(R-114 main-push green + §3.3 gate-2 approval-gate rerun 무결성 보존). reviewer round1 APPROVE, 4-게이트 PASS, CI green.",
     "stage5": "IN_PROGRESS — 5b ACTIVE (T-0350: maxConcurrentClaims=2, direct-only 동시 claim — LOOP §1[2] (a2): 두 task 모두 commitMode: direct + validate-claim-candidate (a)(b) PASS 시에만, 판독 불확실 시 no-op, pr-mode 는 활성 claim 0 일 때만 단독). 5a→5b 게이트 충족 실측(T-0349 실사용 fire 무사고 + concurrencyIncidents 4종 0 — journal 2026-06-11 t4). 5b→5c 게이트 = direct-only 동시 claim 실사용에서 이중 claim 0 + bookkeeping 충돌 0 관측(concurrency.md §7) — 5c 별도 task. §D8 (d) 강등 시 토글 자동 OFF 복귀."
   },
-  "lastActivity": "2026-07-21T09:08:32Z"
+  "lastActivity": "2026-07-22T08:40:00Z"
 }
