@@ -325,6 +325,42 @@ source_realdata_env() {
   return 0
 }
 
+# ensure_realdata_deps_and_schema: gating 활성(공유 realdata_eval_gating_enabled = 7 종
+# 모두 set)일 때만 배포 기기 node_modules 최신화(pnpm install --frozen-lockfile)와 test-DB
+# 스키마 적용(pnpm exec prisma migrate deploy)을 자동 선행한다 — Claude Desktop 루틴이 SSH
+# 로 매번 수동 수행하던 의존(항목 B-3)을 제거한다(issue #1013 slice C-2). source_realdata_env
+# (C-1) 가 넘긴 DATABASE_URL / gating env 를 전제로 스키마·의존성을 준비한다. source-guard
+# *앞* 에 정의해 spec 이 함수 단위로 호출 가능하게 하고, 실행 블록에서는 source_realdata_env
+# 직후 첫 step 실행 이전 1 회만 호출한다.
+#   - gating 부재(cloud CI / 일반 LAN)면 no-op return 0 — install/migrate 미수행. 기존
+#     SKIP-guard(realdata_eval_gating_enabled)가 gating 부재를 그대로 처리한다.
+#   - install: pnpm install --frozen-lockfile. 실패면 진단 로그 1 줄 후 return 1(migrate
+#     미실행 — short-circuit).
+#   - migrate: install 성공 시 pnpm exec prisma migrate deploy. 실패면 진단 로그 후 return 1.
+#   - 둘 다 성공이면 완료 로그 1 줄 후 return 0.
+# 호출 결과로 어떤 mark 도 하지 않는다 — 실패 시 caller 가 로그만 남기고 진행하며, gating
+# 활성인데 준비 실패면 후속 eval-group step 이 자연 FAIL 로 신호한다(ORDER/cascade-gate/mark
+# 불변 → drift-guard smoke spec 3 종 계약 보존).
+# §9: 명령·성공여부·실패단계만 로그. DATABASE_URL 등 env 값은 로그/JSON/stdout 어디에도 echo 0.
+ensure_realdata_deps_and_schema() {
+  if ! realdata_eval_gating_enabled; then
+    log "deps/schema: gating 부재 — no-op (install/migrate 미수행)"
+    return 0
+  fi
+  log "deps/schema: pnpm install --frozen-lockfile 실행 (gating 활성)"
+  if ! ( cd "$REPO_DIR" && pnpm install --frozen-lockfile ) >>"$LOG_FILE" 2>&1; then
+    log "deps/schema: FAIL — pnpm install --frozen-lockfile non-zero (migrate 미실행)"
+    return 1
+  fi
+  log "deps/schema: prisma migrate deploy 실행"
+  if ! ( cd "$REPO_DIR" && pnpm exec prisma migrate deploy ) >>"$LOG_FILE" 2>&1; then
+    log "deps/schema: FAIL — prisma migrate deploy non-zero"
+    return 1
+  fi
+  log "deps/schema: OK (install --frozen-lockfile + prisma migrate deploy 완료)"
+  return 0
+}
+
 # 본 스크립트가 source 될 때(executable bash spec 의 함수 단위 검증용)는 아래 실행 블록을
 # 건너뛰어 함수 정의(step_eval / realdata_eval_gating_enabled / mark 등)만 노출한다.
 # 직접 실행(`bash deploy/daily-test.sh`)이면 정상적으로 전체 step 을 수행한다. T-0612 —
@@ -339,6 +375,11 @@ log "=== daily-test 시작 (ts=$TS, base=$BASE_URL) ==="
 # 배포 기기의 untracked .env.realdata(있으면) 를 gating 검사 이전 1 회 자동 source 한다
 # (issue #1013 C-1). 부재 시 no-op — 아래 gating SKIP-guard 가 그대로 부재를 처리한다.
 source_realdata_env
+
+# gating 활성 시 배포 기기 node_modules 최신화 + test-DB 스키마 적용을 자동 선행한다
+# (issue #1013 C-2, B-3 대체). gating 부재면 no-op. 준비 실패해도 mark/ORDER/cascade-gate 를
+# 건드리지 않고 로그만 남긴다 — 준비 실패는 이후 eval-group step 이 자연 FAIL 로 표면화한다.
+ensure_realdata_deps_and_schema || log "deps/schema: 준비 실패 — 이후 eval-group 이 자연 FAIL 로 표면화"
 
 # SKIP_REDEPLOY=1(디버깅·이미 배포된 상태 테스트)은 redeploy 를 SKIP 으로 명확히 표기한다.
 # "PASS"(실제 실행 성공)와 구분해 머신 JSON 이 무인 모니터링에 false 신호를 주지 않게 한다.
