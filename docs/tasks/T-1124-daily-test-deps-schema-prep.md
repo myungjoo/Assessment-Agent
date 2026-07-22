@@ -2,7 +2,11 @@
 id: T-1124
 title: daily-test.sh gating 활성 시 pnpm install --frozen-lockfile + prisma migrate deploy 선행 — B-3 수동 반복 대체 + executable bash spec + CI hook
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-22T11:07:12Z
+mergedAs: af1ba2dcfd20555f95fd2b88eac997b4ca064dd0
+prNumber: 1017
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-030, REQ-037]
 estimatedDiff: 210
