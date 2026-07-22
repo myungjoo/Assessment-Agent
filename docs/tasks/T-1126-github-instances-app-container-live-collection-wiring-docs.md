@@ -2,7 +2,9 @@
 id: T-1126
 title: 앱 컨테이너 LIVE GitHub collection env 셋업 문서화 + env.prod.example 참조블록 (issue #1013 C-4)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1019
+mergedAs: 0b5c21e5
 commitMode: pr
 coversReq: [REQ-044]
 estimatedDiff: 90
