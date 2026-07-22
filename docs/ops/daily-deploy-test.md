@@ -173,3 +173,53 @@ A~D 의 기본 배포·health·liveness·auth 테스트는 gating 과 무관하�
 
 > **§9 준수**: `.env.realdata` 의 실 PAT / LLM endpoint / DB 자격은 git·로그·JSON·journal·PR 어디에도 남기지
 > 않는다. 본 문서와 [`deploy/env.prod.example`](../../deploy/env.prod.example) 의 참조 블록은 `<...>` placeholder 만 담는다.
+
+## F. 앱 컨테이너 LIVE GitHub collection 셋업 (선택 — 실 GitHub 수집 운영자 절차)
+
+본 섹션은 **§E 와 별개 경로**다 — §E 는 `daily-test.sh` 의 smoke live-leg(호스트측 평문 `REALDATA_E2E_GITHUB_READ_PAT` 소비)를
+켜지만, 본 §F 는 **앱 컨테이너 런타임**의 `GithubModule` 이 실 GitHub 활동을 수집하는 경로
+(`resolveGithubInstances` → `decryptGithubInstanceConfigToken` → `GithubInstanceClient` → `GithubCollectionSpecService`)를
+운영자가 켤 수 있게 하는 선택 셋업이다(github issue #1013 LIVE-wiring C-4). 수집 코드 경로는 이미 main 에 shipped 되어
+있으며, 본 셋업은 그것을 **활성화하는 운영 env 주입 절차**만 설명한다. 셋업하지 않으면 활성 instance 0 으로 판정돼
+수집은 no-op 이고, A~E 의 기본 배포·테스트는 그대로 동작한다 — 미셋업 배포에 마찰 0.
+
+> **범위**: 본 셋업은 앱 컨테이너에 env 를 주입하는 것뿐이다. `daily-test.sh` 나 `src/github/*` 수집 코드는 건드리지 않는다.
+> 정본 env 이름 규약은 [`src/github/github-instance-config.ts`](../../src/github/github-instance-config.ts) 의 상수를 따른다.
+
+### F-1. 활성화 env (github.com public 1 instance 예)
+
+`GITHUB_INSTANCES` 가 **활성 instance key 의 comma/space-separated 목록**이다 — 여기 열거된 key 만 활성이며(자동 발견 안 함),
+각 key 마다 접두 변수 `GITHUB_<KEY 대문자>_HOST` / `_ORG` / `_REPOS` / `_TOKEN_ENC` 를 읽는다. 아래는 `public` 이라는 key 로
+github.com 의 `myungjoo` / `leemgs` 공개 활동을 수집하게 하는 예다.
+
+| env 키 | 필수 | 의미 |
+| --- | --- | --- |
+| `GITHUB_INSTANCES=public` | ✅ | 활성 instance key 목록(예: `public`). 여기 열거된 key 만 활성. |
+| `GITHUB_PUBLIC_HOST=github.com` | ✅ | 해당 instance 의 base host. **부재 시 그 instance reject**(수집 no-op). |
+| `GITHUB_PUBLIC_ORG=myungjoo,leemgs` | 선택 | 수집 대상 org(s). comma-separated. 부재 시 빈 배열(reject 사유 아님). |
+| `GITHUB_PUBLIC_REPOS=<org/repo_목록>` | 선택 | 지정 repo allowlist(comma/space). 미설정 시 org 전체 enumerate. |
+| `GITHUB_PUBLIC_TOKEN_ENC=<암호문>` | ✅ | read-scope PAT 의 **AES-256-GCM 암호문**(평문 아님). **부재 시 그 instance reject**. |
+
+### F-2. `_TOKEN_ENC` 암호문 생성 절차
+
+`GITHUB_PUBLIC_TOKEN_ENC` 에는 평문 PAT 를 그대로 넣지 않는다 — [`scripts/encrypt-token.ts`](../../scripts/encrypt-token.ts)
+로 read-scope PAT 를 암호화한 **envelope 문자열**을 넣는다. `LLM_APIKEY_ENC_KEY`(32-byte base64/hex 키, [`deploy/env.prod.example`](../../deploy/env.prod.example)
+참조)를 먼저 세팅한 뒤 아래처럼 실행한다.
+
+```bash
+# 배포 기기에서 — 평문 PAT 는 stdin 파이프로만 전달(argv·history 노출 최소화)
+LLM_APIKEY_ENC_KEY=<32byte_base64_또는_hex_키> \
+  echo <read전용_github_PAT> | pnpm ts-node scripts/encrypt-token.ts
+# 출력된 암호문 한 줄을 GITHUB_PUBLIC_TOKEN_ENC 에 주입한다.
+```
+
+> **§9 준수**: 평문 PAT / `LLM_APIKEY_ENC_KEY` / 생성된 암호문 실값은 git·journal·PR·로그 어디에도 커밋하지 않는다 —
+> env / 컨테이너 주입으로만 전달한다. 본 문서와 [`deploy/env.prod.example`](../../deploy/env.prod.example) 의 참조 블록은
+> `<...>` placeholder 만 담는다.
+
+### F-3. `_HOST` / `_TOKEN_ENC` 부재 시 동작 — 조용한 reject
+
+`resolveGithubInstances`(정본 [`src/github/github-instance-config.ts`](../../src/github/github-instance-config.ts))는 각 key 의
+**필수 변수(`_HOST`·`_TOKEN_ENC`) 가 부재/빈/공백-only 면 그 instance 를 조용히 reject**한다(평문/빈 fallback 금지, fail-fast).
+reject 시 수집은 no-op 이고, 어느 env 가 부재했는지 **이름만** 진단 로그에 남는다(실값 echo 0, §9). `_ORG` / `_REPOS` 는
+선택이라 부재해도 reject 사유가 아니다. `GITHUB_INSTANCES` 자체가 부재/빈이면 활성 instance 0 으로 정상 판정(수집 미설정 분기).

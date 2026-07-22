@@ -71,6 +71,20 @@ const GATED_KEYS = [
 ]; // 주석 처리(# KEY=...)로만 존재해야 하는 선택/gated 키.
 const EXPECTED_DB_USER = "assessment_agent"; // DATABASE_URL credential user == POSTGRES_USER.
 
+// 앱 컨테이너 LIVE GitHub collection 참조블록(issue #1013 C-4, T-1126)의 키 —
+// 모두 주석 처리(# KEY=...)로만 존재해야 하는 optional-commented 규율(active 강제 안 함).
+const GITHUB_LIVE_COMMENTED_KEYS = [
+  "GITHUB_INSTANCES",
+  "GITHUB_PUBLIC_HOST",
+  "GITHUB_PUBLIC_ORG",
+  "GITHUB_PUBLIC_REPOS",
+  "GITHUB_PUBLIC_TOKEN_ENC",
+]; // 정본 이름 규약: src/github/github-instance-config.ts.
+// secret-safety 정규식(§9) — gh 토큰 어휘/authorization 헤더/openai 키 접두 검출.
+// 주석 참조블록의 어떤 값도 이 패턴에 걸리면 실 credential 유출로 간주(case-insensitive).
+const SECRET_SAFETY_PATTERN =
+  /(ghp_|GITHUB_TOKEN|GH_TOKEN|\bBearer\b|Authorization|\bsk-)/i;
+
 // ── TS 동형 pure 함수(정본) — env.prod.example 의 active/commented 대입·placeholder·credential·키셋을 모델링.
 //    입력(문자열)은 mutate 하지 않는다(읽기만). 실 dotenv 로드 0 — 입력은 파라미터.
 //    전체 dotenv 스펙 파싱이 아니라 KEY=value 행 슬라이스 + 필요한 토큰만 추출.
@@ -132,6 +146,30 @@ function isAnglePlaceholder(value: string): boolean {
 // gatedKeyDisciplined(source, key): key 가 주석 처리로만 존재하고 active 로는 존재 안 함(default-on 강제 안 함).
 function gatedKeyDisciplined(source: string, key: string): boolean {
   return hasCommentedKey(source, key) && !hasActiveKey(source, key);
+}
+
+// githubLiveCommentedValues(source): C-4 참조블록 키의 `# KEY=value` 주석 대입 값들을 {key, value} 배열로.
+function githubLiveCommentedValues(
+  source: string,
+): { key: string; value: string }[] {
+  return commentedAssignments(source).filter((a) =>
+    GITHUB_LIVE_COMMENTED_KEYS.includes(a.key),
+  );
+}
+
+// githubLiveBlockDisciplined(source): C-4 참조블록 5종이 모두 주석-규율(주석 존재 + active 부재).
+function githubLiveBlockDisciplined(source: string): boolean {
+  return GITHUB_LIVE_COMMENTED_KEYS.every((k) =>
+    gatedKeyDisciplined(source, k),
+  );
+}
+
+// githubLiveBlockSecretSafe(source): C-4 참조블록의 주석 값 중 어느 것도 secret-safety
+// 정규식에 걸리지 않음(§9). 빈 결과는 성공-위장이므로 명시적 false(블록 부재 시 오통과 0).
+function githubLiveBlockSecretSafe(source: string): boolean {
+  const vals = githubLiveCommentedValues(source);
+  if (vals.length === 0) return false;
+  return vals.every((a) => !SECRET_SAFETY_PATTERN.test(a.value));
 }
 
 // databaseUrlCredentialUser(source): DATABASE_URL 의 postgresql://<user>:... credential user — 부재면 undefined.
@@ -578,6 +616,86 @@ describe("realdata-e2e §109 env.prod.example 내부 env 템플릿 single-source
       expect(unquote(activeValue(env, "DATABASE_URL") as string)).toMatch(
         /postgresql:\/\/assessment_agent:<[^>]*>@postgres:5432\//,
       );
+    });
+  });
+
+  describe("앱 컨테이너 LIVE GitHub collection 주석 참조블록 계약 (issue #1013 C-4, T-1126) — optional-commented 규율 + placeholder-secret-safety", () => {
+    it("branch(required-active): 필수 active 키 6종은 여전히 주석 아닌 active 대입 — C-4 블록 추가가 active 셋을 오염 0", () => {
+      const env = readFileSync(ENV_EXAMPLE_PATH, "utf8");
+      for (const key of REQUIRED_ACTIVE_KEYS) {
+        expect(hasActiveKey(env, key)).toBe(true);
+      }
+      // C-4 블록 키는 active 셋에 절대 등장하지 않음.
+      const activeKeys = activeAssignments(env).map((a) => a.key);
+      for (const key of GITHUB_LIVE_COMMENTED_KEYS) {
+        expect(activeKeys).not.toContain(key);
+      }
+    });
+
+    it("branch(optional-commented) happy: GITHUB_INSTANCES·_HOST·_ORG·_REPOS·_TOKEN_ENC 5종이 주석 처리로만 존재(active 아님)", () => {
+      const env = readFileSync(ENV_EXAMPLE_PATH, "utf8");
+      for (const key of GITHUB_LIVE_COMMENTED_KEYS) {
+        expect(hasCommentedKey(env, key)).toBe(true);
+        expect(hasActiveKey(env, key)).toBe(false);
+        expect(gatedKeyDisciplined(env, key)).toBe(true);
+      }
+      expect(githubLiveBlockDisciplined(env)).toBe(true);
+    });
+
+    it("happy(placeholder-secret-safety): C-4 블록 주석 값이 secret-safety 정규식 미매칭 + GITHUB_PUBLIC_TOKEN_ENC 는 <...> placeholder", () => {
+      const env = readFileSync(ENV_EXAMPLE_PATH, "utf8");
+      expect(githubLiveBlockSecretSafe(env)).toBe(true);
+      // TOKEN_ENC 주석 값은 실 암호문이 아니라 angle-bracket placeholder.
+      const tokenEnc = githubLiveCommentedValues(env).find(
+        (a) => a.key === "GITHUB_PUBLIC_TOKEN_ENC",
+      );
+      expect(tokenEnc).toBeDefined();
+      expect(isAnglePlaceholder((tokenEnc as { value: string }).value)).toBe(
+        true,
+      );
+    });
+
+    it("negative (a) — GITHUB_INSTANCES 주석-해제(활성화) mutant → optional-commented 규율 위반 검출", () => {
+      const env = readFileSync(ENV_EXAMPLE_PATH, "utf8");
+      expect(githubLiveBlockDisciplined(env)).toBe(true);
+      const mutant = env.replace(/# GITHUB_INSTANCES=/, "GITHUB_INSTANCES=");
+      expect(hasActiveKey(mutant, "GITHUB_INSTANCES")).toBe(true);
+      expect(gatedKeyDisciplined(mutant, "GITHUB_INSTANCES")).toBe(false);
+      expect(githubLiveBlockDisciplined(mutant)).toBe(false);
+      // 원본 불변.
+      expect(githubLiveBlockDisciplined(env)).toBe(true);
+    });
+
+    it("negative (b) — GITHUB_PUBLIC_TOKEN_ENC 값을 ghp_ 실토큰 형태로 치환 mutant → secret-safety 정규식 매칭 검출", () => {
+      const env = readFileSync(ENV_EXAMPLE_PATH, "utf8");
+      expect(githubLiveBlockSecretSafe(env)).toBe(true);
+      const mutant = env.replace(
+        /# GITHUB_PUBLIC_TOKEN_ENC=<[^>]*>/,
+        "# GITHUB_PUBLIC_TOKEN_ENC=ghp_realtokenABC1234567890",
+      );
+      const mutValue = githubLiveCommentedValues(mutant).find(
+        (a) => a.key === "GITHUB_PUBLIC_TOKEN_ENC",
+      );
+      expect((mutValue as { value: string }).value).toBe(
+        "ghp_realtokenABC1234567890",
+      );
+      expect(
+        SECRET_SAFETY_PATTERN.test((mutValue as { value: string }).value),
+      ).toBe(true);
+      expect(githubLiveBlockSecretSafe(mutant)).toBe(false);
+      // 원본 불변.
+      expect(githubLiveBlockSecretSafe(env)).toBe(true);
+    });
+
+    it("negative (c) — GITHUB_PUBLIC_HOST 값을 Authorization 헤더 어휘로 치환 mutant → secret-safety 정규식 매칭 검출(2번째 negative 보강)", () => {
+      const env = readFileSync(ENV_EXAMPLE_PATH, "utf8");
+      const mutant = env.replace(
+        /# GITHUB_PUBLIC_HOST=github\.com/,
+        "# GITHUB_PUBLIC_HOST=Authorization: Bearer leaked",
+      );
+      expect(githubLiveBlockSecretSafe(mutant)).toBe(false);
+      // 원본 불변.
+      expect(githubLiveBlockSecretSafe(env)).toBe(true);
     });
   });
 
