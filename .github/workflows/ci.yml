@@ -159,6 +159,14 @@ jobs:
         # /FAIL 분기·eval/collect/rediscovery leg 교차오염 0·§9 echo 0 만 검증.
         run: bash deploy/daily-test-step-eval-chain.test.sh
 
+      - name: daily-test step_env_source(.env.realdata 자동 source) 배선 검증
+        # T-1123 — deploy/daily-test.sh 의 source_realdata_env 배선(untracked .env.realdata
+        # 존재 시 gating env 자동 source, 부재 시 no-op)의 executable spec. eval_chain-leg
+        # 검증(T-1122)과 동형으로 self-contained(네트워크 0 / jest 실 spawn 0 / 실 credential
+        # echo 0)라 credential 불요 — happy(존재+readable → source → gating enabled)·negative
+        # (부재/읽기 불가 → return 0 no-op)·edge(빈 파일)·override 결정론·§9 값 echo 0 만 검증.
+        run: bash deploy/daily-test-step-env-source.test.sh
+
       - name: pnpm 설치
         uses: pnpm/action-setup@v4
         with:
