@@ -293,6 +293,38 @@ mark() { # mark <step> <PASS|FAIL|SKIP>
   fi
 }
 
+# source_realdata_env: 배포 기기의 untracked .env.realdata(chmod 600) 가 존재하면 자동
+# source 해 gating env 7 종(REALDATA_E2E_*) + test-DB DATABASE_URL 을 자식 jest 프로세스로
+# 상속시킨다 — Claude Desktop 루틴이 SSH 커맨드로 매번 수동 source 하던 의존을 제거한다
+# (issue #1013 slice C-1, B-5 대체). source-guard *앞* 에 정의해 spec 이 함수 단위로 호출
+# 가능하게 하고, 실행 블록에서는 gating 검사 이전 1 회만 호출한다.
+#   - 파일 override 가능: ENV_REALDATA_FILE(기본 $REPO_DIR/.env.realdata) — spec 격리용.
+#   - 파일 부재(cloud CI / 일반 LAN)면 진단 로그(경로만) 후 return 0 — run 미실패(no-op).
+#     기존 SKIP-guard(realdata_eval_gating_enabled)가 gating 부재를 그대로 처리한다.
+#   - 파일 존재하나 읽기 불가면 진단 로그(경로만) 후 return 0 — run 미실패(안전 우선).
+#   - 존재+readable 이면 set -a 로 auto-export 후 source → 자식 jest 가 상속. 파일이 같은
+#     키를 정의하면 파일 값이 반영되는 결정론적 override(silently-partial 아님).
+# §9: 파일 경로·"sourced" 여부만 로그. 파일 내용(PAT / Ollama URL / DATABASE_URL 값)은
+# 로그/JSON/stdout 어디에도 echo 0. .env.realdata 는 git 에 추가하지 않는다(untracked 유지).
+source_realdata_env() {
+  local file="${ENV_REALDATA_FILE:-$REPO_DIR/.env.realdata}"
+  if [ ! -e "$file" ]; then
+    log "env source: .env.realdata 부재 — no-op (경로=$file)"
+    return 0
+  fi
+  if [ ! -r "$file" ]; then
+    log "env source: .env.realdata 읽기 불가 — no-op (경로=$file)"
+    return 0
+  fi
+  # set -a: source 로 정의되는 변수를 auto-export → 자식 jest 프로세스 상속.
+  set -a
+  # shellcheck disable=SC1090
+  source "$file"
+  set +a
+  log "env source: .env.realdata sourced (경로=$file)"
+  return 0
+}
+
 # 본 스크립트가 source 될 때(executable bash spec 의 함수 단위 검증용)는 아래 실행 블록을
 # 건너뛰어 함수 정의(step_eval / realdata_eval_gating_enabled / mark 등)만 노출한다.
 # 직접 실행(`bash deploy/daily-test.sh`)이면 정상적으로 전체 step 을 수행한다. T-0612 —
@@ -303,6 +335,10 @@ if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
 fi
 
 log "=== daily-test 시작 (ts=$TS, base=$BASE_URL) ==="
+
+# 배포 기기의 untracked .env.realdata(있으면) 를 gating 검사 이전 1 회 자동 source 한다
+# (issue #1013 C-1). 부재 시 no-op — 아래 gating SKIP-guard 가 그대로 부재를 처리한다.
+source_realdata_env
 
 # SKIP_REDEPLOY=1(디버깅·이미 배포된 상태 테스트)은 redeploy 를 SKIP 으로 명확히 표기한다.
 # "PASS"(실제 실행 성공)와 구분해 머신 JSON 이 무인 모니터링에 false 신호를 주지 않게 한다.
