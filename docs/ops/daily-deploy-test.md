@@ -208,8 +208,10 @@ github.com 의 `myungjoo` / `leemgs` 공개 활동을 수집하게 하는 예다
 
 ```bash
 # 배포 기기에서 — 평문 PAT 는 stdin 파이프로만 전달(argv·history 노출 최소화)
-LLM_APIKEY_ENC_KEY=<32byte_base64_또는_hex_키> \
-  echo <read전용_github_PAT> | pnpm ts-node scripts/encrypt-token.ts
+read -rs GITHUB_PAT   # 평문 read-scope PAT 를 변수로 입력(화면·shell history 노출 없음)
+printf %s "$GITHUB_PAT" \
+  | LLM_APIKEY_ENC_KEY=<32byte_base64_또는_hex_키> pnpm ts-node scripts/encrypt-token.ts
+unset GITHUB_PAT      # 평문 PAT 를 셸 환경에서 즉시 제거
 # 출력된 암호문 한 줄을 GITHUB_PUBLIC_TOKEN_ENC 에 주입한다.
 ```
 
