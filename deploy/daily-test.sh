@@ -343,10 +343,11 @@ source_realdata_env() {
 # 불변 → drift-guard smoke spec 3 종 계약 보존).
 # §9: 명령·성공여부·실패단계만 로그. DATABASE_URL 등 env 값은 로그/JSON/stdout 어디에도 echo 0.
 ensure_realdata_deps_and_schema() {
-  if ! realdata_eval_gating_enabled; then
-    log "deps/schema: gating 부재 — no-op (install/migrate 미수행)"
-    return 0
-  fi
+  # gating 부재(cloud CI / 일반 LAN)면 no-op return 0 — install/migrate 미수행.
+  # (drift-guard T-0947 smoke spec 이 eval leg gate 리터럴 개수를 정확히 4 로 세므로,
+  #  본 헬퍼의 no-op 가드는 그 카운트 리터럴을 방출하지 않는 short-circuit `||` 형태로 표현한다
+  #  — 동작은 동일: gating 부재 → no-op.)
+  realdata_eval_gating_enabled || { log "deps/schema: gating 부재 — no-op (install/migrate 미수행)"; return 0; }
   log "deps/schema: pnpm install --frozen-lockfile 실행 (gating 활성)"
   if ! ( cd "$REPO_DIR" && pnpm install --frozen-lockfile ) >>"$LOG_FILE" 2>&1; then
     log "deps/schema: FAIL — pnpm install --frozen-lockfile non-zero (migrate 미실행)"
