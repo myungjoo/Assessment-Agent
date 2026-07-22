@@ -2,7 +2,11 @@
 id: T-1123
 title: daily-test.sh 가 untracked .env.realdata 존재 시 자동 source — 루틴 SSH env source 의존 제거 + executable bash spec + CI hook
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-22T09:53:54Z
+mergedAs: f888b321
+prNumber: 1016
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-037]
 estimatedDiff: 190
