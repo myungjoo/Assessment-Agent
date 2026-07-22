@@ -3,8 +3,8 @@
 // **result/failedStep 상태-집계 contract** 를 실 shell 파일을 readFileSync 로 읽어(실행/source 0)
 // 정적 검증하는 non-gated build-time smoke (T-0944, PLAN.md 109행 🟢 실 평가 e2e step④).
 //
-// gap: T-0943 이 rediscovery 를 7번째 step 으로 배선하면서 nightly 는 6 개의 SKIP-gated 프로파일을
-// 가진다(cloud CI / 일반 LAN: eval·collect·rediscovery SKIP). 이때 집계 불변식 — (a) SKIP 은
+// gap: T-1122 가 eval_chain 을 8번째 step 으로 배선하면서 nightly 는 SKIP-gated 프로파일을
+// 가진다(cloud CI / 일반 LAN: eval·collect·rediscovery·eval_chain SKIP). 이때 집계 불변식 — (a) SKIP 은
 // result 를 FAIL 로 뒤집지 않음(false 알람 0)·failedStep=null, (b) 실 FAIL 이면 result=FAIL +
 // failedStep 은 첫 FAIL step 만(first-FAIL-wins), (c) SKIP 은 PASS/FAIL 과 구분되는 제3 토큰으로
 // steps 값에 직렬화 — 은 origin/main 검증 0 부재였다(T-0791 parity-drift 는 스키마/직렬화 형식만
@@ -12,7 +12,7 @@
 //
 // 전략(T-0791 동형): daily-test.sh 를 readFileSync 로 읽어 RESULT 루프·mark first-FAIL guard·
 // steps_json 직렬화 표현식을 정적 앵커로 추출하고, 그 bash semantics 를 TS 순수 함수로 동형
-// 모델링해 7-step PASS/FAIL/SKIP 조합의 result/failedStep 산출을 assert.
+// 모델링해 8-step PASS/FAIL/SKIP 조합의 result/failedStep 산출을 assert.
 //   🔥 실 redeploy/HTTP/jest spawn/gh/git 0 — 파일 read + 정적 추출 + 합성 JSON.parse 만.
 //   🔥 gating 분기 0 — non-gated 항상 실행(describe.skip 0). credential 0(§9/REQ-059).
 //   🔥 새 외부 dependency 0(node 내장 fs/path). src 변경 0(test-only). daily-test.sh 읽기만.
@@ -28,8 +28,9 @@ const DAILY_TEST_SH_PATH = path.join(REPO_ROOT, "deploy/daily-test.sh");
 // 구분됨). 미지 토큰(UNKNOWN 등)은 실 shell semantics 상 FAIL 이 아니므로 result 를 뒤집지 않음.
 type StepStatus = "PASS" | "FAIL" | "SKIP" | string;
 
-// step 순회 정본 ORDER(`deploy/daily-test.sh` 259행) — result/steps 집계 순회 source.
+// step 순회 정본 ORDER(`deploy/daily-test.sh` 287행) — result/steps 집계 순회 source.
 // T-0943 에서 `rediscovery` 가 7번째 원소로 append 됨.
+// T-1122 에서 `eval_chain` 이 8번째 원소로 append 됨(step_eval_chain full-chain bash 배선).
 const ORDER = [
   "redeploy",
   "health",
@@ -38,6 +39,7 @@ const ORDER = [
   "eval",
   "collect",
   "rediscovery",
+  "eval_chain",
 ] as const;
 
 // TS 동형 집계 모델(정본) — daily-test.sh 의 bash 집계 semantics 를 순수 함수로 모델링.
@@ -109,7 +111,7 @@ function uniformProfile(
 
 describe("realdata-e2e step④ daily-test.sh 머신 요약 JSON result/failedStep 상태-집계 contract smoke — SKIP 비-failing · first-FAIL-wins · SKIP 제3 토큰 (T-0944)", () => {
   describe("Happy-path: dormant all-SKIP 프로파일 → result=PASS·failedStep=null", () => {
-    it("7-step 이 모두 SKIP 이면 result==='PASS' AND failedStep===null(cloud CI / 일반 LAN 기본 nightly 프로파일이 false 알람 0)", () => {
+    it("8-step 이 모두 SKIP 이면 result==='PASS' AND failedStep===null(cloud CI / 일반 LAN 기본 nightly 프로파일이 false 알람 0)", () => {
       const { result, failedStep } = aggregate(uniformProfile("SKIP"), ORDER);
       expect(result).toBe("PASS");
       expect(failedStep).toBeNull();
@@ -124,6 +126,7 @@ describe("realdata-e2e step④ daily-test.sh 머신 요약 JSON result/failedSte
         eval: "SKIP",
         collect: "SKIP",
         rediscovery: "SKIP",
+        eval_chain: "SKIP",
       };
       const { result, failedStep } = aggregate(mixed, ORDER);
       expect(result).toBe("PASS");
@@ -141,15 +144,15 @@ describe("realdata-e2e step④ daily-test.sh 머신 요약 JSON result/failedSte
       expect(hasMarkFirstFailAnchor(shellSource)).toBe(true);
       // (c) steps_json 직렬화 루프(STEP_STATUS 값 그대로).
       expect(hasStepsJsonSerializationAnchor(shellSource)).toBe(true);
-      // ORDER 7-원소 앵커도 실재(집계 순회 source).
+      // ORDER 8-원소 앵커도 실재(집계 순회 source).
       expect(shellSource).toContain(
-        "ORDER=(redeploy health liveness auth eval collect rediscovery)",
+        "ORDER=(redeploy health liveness auth eval collect rediscovery eval_chain)",
       );
     });
   });
 
   describe("branch: 단일 FAIL → result=FAIL·failedStep=그 step", () => {
-    it("7-step 중 정확히 1개(liveness)만 FAIL(나머지 SKIP/PASS)이면 result==='FAIL' AND failedStep==='liveness'", () => {
+    it("8-step 중 정확히 1개(liveness)만 FAIL(나머지 SKIP/PASS)이면 result==='FAIL' AND failedStep==='liveness'", () => {
       const profile: Record<string, StepStatus> = {
         redeploy: "PASS",
         health: "PASS",
@@ -158,6 +161,7 @@ describe("realdata-e2e step④ daily-test.sh 머신 요약 JSON result/failedSte
         eval: "SKIP",
         collect: "SKIP",
         rediscovery: "SKIP",
+        eval_chain: "SKIP",
       };
       const { result, failedStep } = aggregate(profile, ORDER);
       expect(result).toBe("FAIL");
@@ -185,13 +189,14 @@ describe("realdata-e2e step④ daily-test.sh 머신 요약 JSON result/failedSte
         eval: "SKIP",
         collect: "FAIL",
         rediscovery: "SKIP",
+        eval_chain: "SKIP",
       };
       const { result, failedStep } = aggregate(profile, ORDER);
       expect(result).toBe("FAIL");
       expect(failedStep).toBe("health");
     });
 
-    it("마지막 두 step(collect·rediscovery)만 FAIL 이면 failedStep==='collect'(ORDER 상 먼저)", () => {
+    it("두 step(collect·rediscovery)만 FAIL 이면 failedStep==='collect'(ORDER 상 먼저)", () => {
       const profile: Record<string, StepStatus> = {
         ...uniformProfile("PASS"),
         collect: "FAIL",
@@ -254,6 +259,7 @@ describe("realdata-e2e step④ daily-test.sh 머신 요약 JSON result/failedSte
         eval: "SKIP",
         collect: "SKIP",
         rediscovery: "SKIP",
+        eval_chain: "SKIP",
       };
       const stepsJson = buildStepsJson(profile, ORDER);
       const parsed = JSON.parse(stepsJson) as Record<string, string>;
@@ -261,6 +267,7 @@ describe("realdata-e2e step④ daily-test.sh 머신 요약 JSON result/failedSte
       expect(parsed.eval).toBe("SKIP");
       expect(parsed.collect).toBe("SKIP");
       expect(parsed.rediscovery).toBe("SKIP");
+      expect(parsed.eval_chain).toBe("SKIP");
       // PASS 슬롯은 "PASS" 로 구분 보존.
       expect(parsed.redeploy).toBe("PASS");
       // 키 집합은 ORDER 와 동일.
