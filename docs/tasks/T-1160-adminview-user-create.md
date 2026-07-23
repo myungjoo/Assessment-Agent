@@ -2,8 +2,12 @@
 id: T-1160
 title: AdminView 사용자 생성 mutation 배선 (POST /api/users)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1052
+reviewRounds: 1
+mergedAs: b43dadb9
+completedAt: 2026-07-23T23:29:00Z
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 290
 estimatedFiles: 2
