@@ -80,6 +80,7 @@ import AdminView, {
   runDeleteProvider,
   runAdd,
   runCreateProvider,
+  runUpdateProvider,
   isAdminRole,
 } from './AdminView';
 import type {
@@ -98,6 +99,8 @@ import type {
   AddDeps,
   CreateProviderDeps,
   CreateProviderFields,
+  UpdateProviderDeps,
+  UpdateProviderFields,
 } from './AdminView';
 
 // LLM 조회 두 path 의 기본 성공(빈 데이터) 상태 — 그룹 전용 test 가 LLM path 응답을 명시하지
@@ -1431,6 +1434,324 @@ describe('AdminView — provider 생성 실 POST create mutation (T-1136 runCrea
   });
 });
 
+// R-112 — T-1137 provider 수정 실 PATCH update mutation 본체(runUpdateProvider) 검증. jsdom/렌더러
+// 없이 mutation 본체를 직접 호출하고(runCreateProvider 와 동일 convention), apiClient.request mock
+// 으로 method/path/body 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의
+// 콜백 호출로 관찰한다. happy/error/branch/negative 예외 분기마다 각 1+ cover. 부분 갱신 semantics
+// (빈 필드는 body 제외, apiKey 빈값 시작→입력 시에만 포함)와 secret apiKey 미노출을 별도 negative 로 검증한다.
+describe('AdminView — provider 수정 실 PATCH update mutation (T-1137 runUpdateProvider)', () => {
+  // 수정 폼 4 필드 기본 입력값(prefill 후 provider/endpointUrl/modelId 는 현재 값, apiKey 는 빈 값
+  // 시작) — 각 test 가 필요 시 일부만 덮어 부분 갱신·빈값 분기를 만든다. 기본은 apiKey 를 빈 값으로
+  // 둬 read never-back(입력 시에만 포함) 경로를 default 로 검증한다.
+  const PREFILLED: UpdateProviderFields = {
+    provider: 'openai',
+    endpointUrl: 'https://api.openai.com/v1',
+    apiKey: '',
+    modelId: 'gpt-4o',
+  };
+
+  // 상태 전이를 기록하는 deps harness — updating 초기값·편집 대상 id·request mock 을 주입받아
+  // setUpdating/setUpdateError 호출과 bumpRefresh·closeEdit 호출 횟수를 모두 순서대로 캡처한다.
+  function makeUpdateDeps(updating: boolean, id = 'cfg1') {
+    const calls = {
+      updating: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      close: 0,
+    };
+    const deps: UpdateProviderDeps = {
+      update: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      id,
+      updating,
+      setUpdating: (next) => calls.updating.push(next),
+      setUpdateError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+      closeEdit: () => {
+        calls.close += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — update 트리거 시 request 가 PATCH /api/llm/providers/:id 로 method PATCH + body
+  // (변경 필드만, apiKey 빈값이라 제외)인 인자로 정확히 호출되고, 성공 후 재조회 nonce bump(1 회) +
+  // 편집 종료(closeEdit 1 회) + error 미설정(시작 비움만) + 진행 표시 on→off 로 해제된다.
+  it('PATCH /api/llm/providers/:id 를 method PATCH + 변경 필드만 body 로 호출하고 성공 시 nonce bump + 편집 종료 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 200 OK.
+    const { deps, calls } = makeUpdateDeps(false, 'cfg1');
+    await runUpdateProvider(PREFILLED, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string; body: string },
+    ];
+    expect(path).toBe('/api/llm/providers/cfg1');
+    expect(options.method).toBe('PATCH');
+    // apiKey 는 빈 값이라 body 에서 제외(부분 갱신 — 기존 ciphertext 유지).
+    expect(JSON.parse(options.body)).toEqual({
+      provider: 'openai',
+      endpointUrl: 'https://api.openai.com/v1',
+      modelId: 'gpt-4o',
+    });
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // branch(apiKey 포함) — apiKey 를 입력하면 body 에 포함된다(교체 semantics — 빈값 제외의 반대 분기).
+  it('apiKey 를 입력하면 body 에 포함해 발사한다 (branch — apiKey 입력 시 body 포함)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdateDeps(false, 'cfg1');
+    await runUpdateProvider({ ...PREFILLED, apiKey: 'sk-new-key' }, deps);
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(JSON.parse(options.body)).toEqual({
+      provider: 'openai',
+      endpointUrl: 'https://api.openai.com/v1',
+      apiKey: 'sk-new-key',
+      modelId: 'gpt-4o',
+    });
+  });
+
+  // error path — PATCH 400(검증 실패) 시 error 문구 표면화·throw 없음·nonce 미증가·편집 종료 미호출(편집 유지).
+  it('update 400(검증 실패) 시 error 문구를 표면화하고 nonce·편집 상태를 건드리지 않는다 (error path — 400)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'Bad Request'));
+    const { deps, calls } = makeUpdateDeps(false);
+    await expect(runUpdateProvider(PREFILLED, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 400: Bad Request']);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // error path — 403(Admin+ 미만) 도 동일 안전 경로(throw 없음).
+  it('update 403(Admin+ 미만) 실패 시 안전 문구를 표면화한다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeUpdateDeps(false);
+    await expect(runUpdateProvider(PREFILLED, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+  });
+
+  // error path — 404(미존재 row) 실패 시 동일 안전 경로.
+  it('update 404(미존재 row) 실패 시 안전 문구를 표면화한다 (error path — 404)', async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeUpdateDeps(false, 'ghost');
+    await expect(runUpdateProvider(PREFILLED, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('update 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeUpdateDeps(false);
+    await expect(runUpdateProvider(PREFILLED, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch(a) — 빈/공백/falsy id 는 PATCH 미발사·state 불변(잘못된 path 회피). 경계값 각각 cover.
+  it('빈/공백/falsy id 는 PATCH 를 발사하지 않는다 (branch (a) — id 가드)', async () => {
+    for (const badId of ['', '   ']) {
+      requestMock.mockReset();
+      const { deps, calls } = makeUpdateDeps(false, badId);
+      await expect(runUpdateProvider(PREFILLED, deps)).resolves.toBeUndefined();
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.updating).toEqual([]);
+      expect(calls.bump).toBe(0);
+    }
+    // undefined id 도 안전(런타임 비정상 입력 방어). harness 기본 param 을 우회해 id 를 직접 undefined 로.
+    requestMock.mockReset();
+    const { deps, calls } = makeUpdateDeps(false);
+    (deps as unknown as { id: unknown }).id = undefined;
+    await expect(runUpdateProvider(PREFILLED, deps)).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+  });
+
+  // branch(b) — 이전 update 미완(updating=true) 중 재호출은 PATCH 미발사·state 불변(이중 PATCH 차단).
+  it('이전 update 미완(updating=true) 중 재호출은 PATCH 를 발사하지 않는다 (branch (b) — 이중 PATCH 가드)', async () => {
+    const { deps, calls } = makeUpdateDeps(true); // 이미 in-flight.
+    await runUpdateProvider(PREFILLED, deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch(c) — 변경 필드 0(4 필드 전부 빈/공백)이면 PATCH 미발사(빈 body 회피).
+  it('4 필드 전부 빈/공백이면 변경 필드 0 이라 PATCH 를 발사하지 않는다 (branch (c) — 빈 body 가드)', async () => {
+    const { deps, calls } = makeUpdateDeps(false);
+    await expect(
+      runUpdateProvider(
+        { provider: '  ', endpointUrl: '', apiKey: '   ', modelId: '' },
+        deps,
+      ),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+  });
+
+  // negative(부분 갱신) — 일부 필드만 채워도 채워진 필드만 body 에 실린다(나머지는 부재 → backend 미변경).
+  it('일부 필드만 채우면 채워진 필드만 body 에 싣는다 (negative — 부분 갱신 semantics)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdateDeps(false, 'cfg1');
+    await runUpdateProvider(
+      { provider: '', endpointUrl: '', apiKey: '', modelId: 'gpt-4o-mini' },
+      deps,
+    );
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    // modelId 만 변경 → body 에 modelId 만(나머지 3 필드 부재).
+    expect(JSON.parse(options.body)).toEqual({ modelId: 'gpt-4o-mini' });
+  });
+
+  // negative(trim 정규화) — 각 필드 앞뒤 공백은 trim 되어 body 에 실린다(공백 정규화).
+  it('각 필드 앞뒤 공백을 trim 해 body 에 싣는다 (negative — trim 정규화)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdateDeps(false, 'cfg1');
+    await runUpdateProvider(
+      {
+        provider: '  anthropic  ',
+        endpointUrl: '  https://y  ',
+        apiKey: '  sk-2  ',
+        modelId: '  m2  ',
+      },
+      deps,
+    );
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(JSON.parse(options.body)).toEqual({
+      provider: 'anthropic',
+      endpointUrl: 'https://y',
+      apiKey: 'sk-2',
+      modelId: 'm2',
+    });
+  });
+
+  // negative(id 인코딩) — 비정상 문자가 든 id 는 encodeURIComponent 로 안전 인코딩된다(path 손상 방지).
+  it('id 를 encodeURIComponent 로 안전 인코딩해 path 를 만든다 (negative — id 인코딩)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdateDeps(false, 'cfg 1/x');
+    await runUpdateProvider(PREFILLED, deps);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/llm/providers/cfg%201%2Fx');
+  });
+
+  // negative(secret 미노출) — 실패 시 error 문구에 apiKey 평문이 절대 포함되지 않는다(secret 유출 방어).
+  it('실패 시 error 문구에 apiKey 평문이 포함되지 않는다 (negative — secret 미노출)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'Bad Request'));
+    const { deps, calls } = makeUpdateDeps(false);
+    await runUpdateProvider({ ...PREFILLED, apiKey: 'sk-super-secret' }, deps);
+    for (const msg of calls.error) {
+      expect(msg ?? '').not.toContain('sk-super-secret');
+    }
+  });
+
+  // negative(성공 후 편집 종료 / 실패 후 편집 유지) — closeEdit 호출 유무로 편집 상태 전이를 대비 검증.
+  it('성공 시 편집을 종료하고 실패 시 편집을 유지한다 (negative — 편집 상태 전이)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeUpdateDeps(false);
+    await runUpdateProvider(PREFILLED, ok.deps);
+    expect(ok.calls.close).toBe(1);
+
+    requestMock.mockRejectedValueOnce(new ApiError(409, 'Conflict'));
+    const fail = makeUpdateDeps(false);
+    await runUpdateProvider(PREFILLED, fail.deps);
+    expect(fail.calls.close).toBe(0);
+  });
+
+  // negative(진행 해제) — 성공·실패 어느 경로든 finally 가 setUpdating(false) 로 진행 표시를 복구한다.
+  it('성공·실패 어느 경우든 진행 표시(updating)가 finally 로 해제된다 (negative — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeUpdateDeps(false);
+    await runUpdateProvider(PREFILLED, ok.deps);
+    expect(ok.calls.updating).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeUpdateDeps(false);
+    await runUpdateProvider(PREFILLED, fail.deps);
+    expect(fail.calls.updating).toEqual([true, false]);
+  });
+
+  // negative(시작 정리/재조회 전 안전) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve
+  // 로 캡처한다(재조회 도착 전 상태에서 crash 없음). 해소 후 재조회 bump + 편집 종료 + 진행 off.
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 시작 정리/재조회 전 안전)', async () => {
+    let resolvePatch: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePatch = resolve;
+        }),
+    );
+    const { deps, calls } = makeUpdateDeps(false);
+    const pending = runUpdateProvider(PREFILLED, deps);
+    expect(calls.updating).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+    resolvePatch();
+    await pending;
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // negative(실패 후 재시도) — 실패 후 재발화는 직전 error 를 비우고 정상 재발화한다(시작 비움 → 성공 bump).
+  it('실패 후 재시도는 직전 error 를 비우고 정상 재발화한다 (negative — 실패 후 재시도)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const first = makeUpdateDeps(false);
+    await runUpdateProvider(PREFILLED, first.deps);
+    expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(first.calls.bump).toBe(0);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const second = makeUpdateDeps(false);
+    await runUpdateProvider(PREFILLED, second.deps);
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.bump).toBe(1);
+  });
+
+  // negative(응답 shape 무관) — request 가 예상 밖 값(null)으로 resolve 해도 성공 경로로 안전 처리한다.
+  it('request 가 예상 밖 값(null)으로 resolve 해도 성공 경로로 안전 처리한다 (negative — 응답 shape 무관)', async () => {
+    requestMock.mockResolvedValue(null);
+    const { deps, calls } = makeUpdateDeps(false);
+    await expect(runUpdateProvider(PREFILLED, deps)).resolves.toBeUndefined();
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // branch(c') — 정상 발사 시 PATCH 1 회만(중복 없음).
+  it('정상 발사 시 PATCH 를 1 회만 호출한다 (branch — 단일 발사)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdateDeps(false, 'cfg1');
+    await runUpdateProvider(PREFILLED, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/llm/providers/cfg1');
+  });
+});
+
 // R-112 — T-1130 onRemove 배선 렌더 검증. onRemove 전달 시 GroupMemberList 가 각 멤버 행에 제거
 // 버튼(제거 라벨)을 렌더함을 정적 markup 으로 단언한다(클릭→콜백 호출 자체는 위 runRemove 단위
 // test + GroupMemberList 컴포넌트 test 가 cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트 비검증).
@@ -1773,6 +2094,65 @@ describe('AdminView — provider 생성 폼 배선 (정적 렌더, T-1136)', () 
     const html = renderToStaticMarkup(<AdminView />);
     // "provider 추가" 버튼이 disabled 속성과 함께 렌더된다(빈 필드 4 개 → 버튼 비활성).
     expect(html).toMatch(/<button[^>]*disabled[^>]*>provider 추가<\/button>/);
+  });
+});
+
+// R-112 — T-1137 provider 수정 배선 렌더 검증. Admin 등급에서 목록 각 행에 "수정" 버튼(onEdit=
+// handleEditProvider 배선)이 마운트되고, 초기(편집 미시작, editingProviderId=null)엔 인라인 수정 폼이
+// 미렌더됨을 정적 markup 으로 단언한다(클릭→prefill·러너 호출 자체는 위 runUpdateProvider 단위 test +
+// LlmProviderConfigList 컴포넌트 onEdit test 가 cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트
+// 비검증). 비-Admin 에선 목록 패널·수정 버튼이 미마운트됨도 확인한다.
+describe('AdminView — provider 수정 배선 (정적 렌더, T-1137)', () => {
+  const CONFIG_ROWS: LlmProviderRow[] = [
+    { id: 'cfg1', provider: 'openai', modelId: 'gpt-4o' },
+    { id: 'cfg2', provider: 'anthropic', modelId: 'claude-3' },
+  ];
+  const countOccurrences = (haystack: string, needle: string) =>
+    haystack.split(needle).length - 1;
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — Admin + provider 목록이 있으면 각 행에 "수정" 버튼(onEdit 배선)이 provider 수만큼 렌더된다.
+  it('Admin + provider 목록이 있으면 각 행에 수정 버튼을 렌더한다 (happy-path — onEdit 배선)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: CONFIG_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('수정');
+    // "수정" 버튼이 provider 수만큼 렌더된다(삭제 버튼과 별개).
+    expect(countOccurrences(html, '>수정</button>')).toBe(CONFIG_ROWS.length);
+  });
+
+  // branch — 초기(편집 미시작)엔 인라인 수정 폼(수정 전용 aria-label input)이 미렌더된다(editingProviderId=null).
+  it('초기(편집 미시작)엔 인라인 수정 폼을 렌더하지 않는다 (branch — editingProviderId=null)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: CONFIG_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 수정 폼 전용 input aria-label 은 편집 시작 전에는 등장하지 않는다.
+    expect(html).not.toContain('aria-label="수정할 provider"');
+    expect(html).not.toContain('provider 수정</button>');
+  });
+
+  // negative(gating 경계) — 비-Admin 등급이면 목록 패널·수정 버튼을 마운트하지 않는다(fail-closed).
+  it('비-Admin 등급이면 수정 버튼을 마운트하지 않는다 (negative — gating 경계)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: CONFIG_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).not.toContain('>수정</button>');
   });
 });
 

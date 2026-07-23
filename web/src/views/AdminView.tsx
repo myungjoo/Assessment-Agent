@@ -1237,6 +1237,117 @@ async function runCreateProvider(
   }
 }
 
+// provider 수정 PATCH 4 필드 묶음(T-1137) — 컨테이너의 인라인 수정 폼 4 controlled input 값을
+// 러너에 한 덩어리로 넘긴다. 러너가 각 필드를 trim 해 "명시된 필드만"(빈/공백 제외) body 로
+// JSON 직렬화한다(부분 갱신 semantics — 부재 필드는 backend 가 미변경). secret apiKey 는
+// read never-back 이라 빈 값으로 시작하고, 사용자가 입력했을 때만 body 에 포함해 기존 ciphertext
+// 를 교체한다(빈 apiKey 는 body 에서 제외 → 기존 값 유지). apiKey 는 응답·목록·error 어디에도
+// 재노출되지 않는다.
+interface UpdateProviderFields {
+  provider: string;
+  endpointUrl: string;
+  apiKey: string;
+  modelId: string;
+}
+
+// provider 수정 PATCH + state-전이 로직에 주입하는 deps(T-1137 — runCreateProvider 의
+// CreateProviderDeps 를 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 컨테이너의
+// handleUpdateProvider 는 이 러너에 4 입력값(UpdateProviderFields)·편집 대상 id·현재 in-flight
+// 여부(updating)·상태 setter·재조회 트리거·편집 종료를 주입해 호출만 한다. runCreateProvider 와
+// 달리 path param 이 provider id 하나(PATCH /api/llm/providers/:id)라 id 를 받고, 성공 후
+// resetInput 대신 closeEdit(편집 상태 종료)를 호출한다.
+interface UpdateProviderDeps {
+  // PATCH 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  update: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 편집 대상 provider id — PATCH path 의 :id param. encodeURIComponent 로 안전 인코딩된다.
+  id: string;
+  // 현재 update in-flight 여부 — true 면 미발사(이중 PATCH·경합 가드).
+  updating: boolean;
+  setUpdating: (next: boolean) => void;
+  setUpdateError: (next: string | undefined) => void;
+  // 권위 provider 재조회 트리거 — providersRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+  // 성공 후 편집 상태 종료 트리거(편집 대상 id·폼 입력을 비워 인라인 폼을 닫는다).
+  closeEdit: () => void;
+}
+
+// provider 수정 PATCH /api/llm/providers/:id(body 는 변경 필드만) + state-전이 로직을 캡슐화한
+// 순수 async 러너(T-1137 — runCreateProvider mirror). backend PATCH(llm.controller,
+// UpdateLlmProviderConfigDto 4 필드 전부 optional — 부재=미변경·명시=교체, 미지원 provider →
+// 400, 미존재 → 404, Admin+ 미만 403)를 발사한다. 컨테이너의 handleUpdateProvider 는 이 러너에
+// deps 를 주입해 호출만 한다. 동작:
+//  - 빈/공백/falsy id → 미발사(잘못된 path·불필요 PATCH 회피 — trim 후 빈 문자열도 차단).
+//  - updating(이전 mutation 미완) → 미발사(이중 PATCH·state 경합 차단 — runCreateProvider creating 가드 동형).
+//  - 변경 필드 0(4 필드 전부 빈/공백) → 미발사(빈 body PATCH 회피 — 무의미한 요청 억제).
+//  - 발사 시 진행 on + 직전 error 비움 → PATCH(id 는 encodeURIComponent 안전 인코딩, body 는
+//    trim 후 비어있지 않은 필드만) → 성공(provider 재조회 트리거 + 편집 종료) / 실패(사람-친화
+//    문구 표면화 — throw 없이) → 진행 off(공통).
+async function runUpdateProvider(
+  fields: UpdateProviderFields,
+  deps: UpdateProviderDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/공백/falsy id 는 PATCH 미발사(잘못된 path·불필요 요청 회피). 공백만
+  // 든 id 도 trim 후 빈 문자열이면 차단해(경계값) 무의미한 발사를 막는다.
+  if (!deps.id || deps.id.trim() === '') {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 update 미완 중이면 미발사(이중 PATCH·state 경합 차단).
+  if (deps.updating) {
+    return;
+  }
+  // 부분 갱신 body 조립 — 각 필드 앞뒤 공백 제거 후 비어있지 않은 필드만 담는다("명시된 필드만"
+  // 발사 = 부재 필드는 backend 가 미변경). secret apiKey 도 trim 후 비어있을 때만 제외해(빈 값
+  // 시작 → 기존 ciphertext 유지) 사용자가 입력했을 때만 교체한다.
+  const body: Record<string, string> = {};
+  const provider = fields.provider?.trim();
+  const endpointUrl = fields.endpointUrl?.trim();
+  const apiKey = fields.apiKey?.trim();
+  const modelId = fields.modelId?.trim();
+  if (provider) {
+    body.provider = provider;
+  }
+  if (endpointUrl) {
+    body.endpointUrl = endpointUrl;
+  }
+  if (apiKey) {
+    body.apiKey = apiKey;
+  }
+  if (modelId) {
+    body.modelId = modelId;
+  }
+  // 변경 필드 0 가드 — 담긴 필드가 하나도 없으면 미발사(빈 body PATCH 회피 — 무의미한 요청 억제).
+  if (Object.keys(body).length === 0) {
+    return;
+  }
+  deps.setUpdating(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 update 진행만 남도록).
+  deps.setUpdateError(undefined);
+  try {
+    // PATCH /api/llm/providers/:id — id 는 encodeURIComponent 로 안전 인코딩(비정상 문자가 든 id
+    // 도 path 가 깨지지 않게). body 는 변경 필드만 JSON 직렬화한다(runCreateProvider JSON body
+    // 발사 convention 동형). apiKey 는 교체 시점 평문 전송만 담당하고 응답을 소비하지 않으므로
+    // (성공 사실만 확인) 목록·error 어디에도 재노출되지 않는다.
+    await deps.update(`${LLM_PROVIDERS_PATH}/${encodeURIComponent(deps.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    // 성공 — 권위 provider 재조회 트리거(재조회로 수정된 행이 목록에 반영된다 — 낙관 갱신 없음) +
+    // 편집 상태 종료(인라인 폼 닫힘 + 폼 입력·secret apiKey 잔존 방지).
+    deps.bumpRefresh();
+    deps.closeEdit();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error state 로 안전 표시(throw 없이). 400 검증 실패(미지원 provider·
+    // 빈 필드) / 403 Admin+ 미만 / 404 미존재 / 비-2xx / 네트워크 0 모두 ApiError.status →
+    // toErrorMessage 파생으로 표면화. 재조회 nonce·편집 상태는 건드리지 않는다(실패 시 편집 유지).
+    deps.setUpdateError(deps.describeError(e));
+  } finally {
+    deps.setUpdating(false);
+  }
+}
+
 // Admin 화면 컨테이너. useApiResource 로 GET /api/groups 결과를 소유하고, 선택 그룹 상태를
 // useState 로 보유해 선택 그룹의 멤버를 client-side 파생 후 GroupMemberList 에 props 로
 // 내려보낸다(controlled lift-up — GroupMemberList 는 fetch 를 모른다, ADR-0041 Decision 1).
@@ -1526,6 +1637,106 @@ function AdminView({
   const providerConfigs = useMemo(
     () => deriveProviderConfigs(providerData),
     [providerData],
+  );
+
+  // 편집 대상 provider id(T-1137) — null 이면 편집 안 함(인라인 수정 폼 미렌더). "수정" 버튼
+  // 클릭 시 해당 row.id 로 채우고, 성공/취소 시 null 로 되돌린다. 편집 폼 렌더 분기의 기준값.
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(
+    null,
+  );
+
+  // provider 수정 4 controlled input 상태(T-1137) — 컨테이너 소유. "수정" 클릭 시 해당 row 의
+  // 현재 값으로 prefill 하되, apiKey 는 read never-back 이라 빈 값으로 시작한다(placeholder 로
+  // "변경 시에만 입력" 안내). handleUpdateProvider 가 PATCH body 의 변경 필드로 공급한다.
+  const [editProviderInput, setEditProviderInput] = useState<string>('');
+  const [editEndpointUrlInput, setEditEndpointUrlInput] = useState<string>('');
+  const [editApiKeyInput, setEditApiKeyInput] = useState<string>('');
+  const [editModelIdInput, setEditModelIdInput] = useState<string>('');
+
+  // provider 수정 mutation in-flight 플래그(T-1137) — PATCH 진행 중 true. 진행 표시(입력·버튼
+  // 비활성)와 동시 재호출 가드(이전 mutation 미완 중 재발사 차단)에 함께 쓴다(creatingProvider 동형).
+  const [updatingProvider, setUpdatingProvider] = useState<boolean>(false);
+
+  // provider 수정 mutation 실패 문구(T-1137) — PATCH 실패 시 사람-친화 문구(toErrorMessage 파생)를
+  // 보관해 편집 폼 하단에 안전 표시한다(throw 없음, 삭제/생성 error 와 별도 문구). 성공/재시도/편집
+  // 시작 시 비운다.
+  const [updateProviderError, setUpdateProviderError] = useState<
+    string | undefined
+  >(undefined);
+
+  // 편집 폼 닫기(편집 상태 종료) helper(T-1137) — 편집 대상 id·4 입력을 모두 비운다(secret apiKey
+  // 잔존 방지). 성공 후 closeEdit·취소 버튼 두 경로가 공유한다.
+  const resetEditProviderForm = useCallback(() => {
+    setEditingProviderId(null);
+    setEditProviderInput('');
+    setEditEndpointUrlInput('');
+    setEditApiKeyInput('');
+    setEditModelIdInput('');
+  }, []);
+
+  // "수정" 버튼 클릭 핸들러(T-1137) — LlmProviderConfigList.onEdit 로 내려보낸다. 클릭한 row 의
+  // 현재 값으로 폼을 prefill 하되(providerConfigs 에서 id 매칭), apiKey 는 read never-back 이라
+  // 빈 값으로 시작한다(placeholder 안내). 직전 수정 error 도 비워 새 편집 세션을 깨끗이 시작한다.
+  const handleEditProvider = useCallback(
+    (id: string) => {
+      const row = providerConfigs.find((config) => config.id === id);
+      setEditingProviderId(id);
+      setEditProviderInput(row?.provider ?? '');
+      setEditEndpointUrlInput(row?.endpointUrl ?? '');
+      // apiKey 는 목록에 미노출(read never-back)이라 현재 값을 알 수 없으므로 빈 값으로 시작한다.
+      setEditApiKeyInput('');
+      setEditModelIdInput(row?.modelId ?? '');
+      setUpdateProviderError(undefined);
+    },
+    [providerConfigs],
+  );
+
+  // 편집 취소 핸들러(T-1137) — 인라인 폼을 닫고 입력·error 를 비운다(발사 없이 편집 상태만 종료).
+  // 진행 중(updatingProvider)일 때는 취소를 억제해 PATCH 완료 전 폼이 사라지지 않게 한다(가드는
+  // 버튼 disabled + 핸들러 가드 이중).
+  const handleCancelEditProvider = useCallback(() => {
+    if (updatingProvider) {
+      return;
+    }
+    resetEditProviderForm();
+    setUpdateProviderError(undefined);
+  }, [updatingProvider, resetEditProviderForm]);
+
+  // provider 수정 실 mutation 핸들러(T-1137) — provider 수정 PATCH(/api/llm/providers/:id, body 는
+  // 변경 필드만)를 컨테이너 내부 async 로 발사한다(handleCreateProvider 정합). 빈/falsy id·이전
+  // mutation 미완(updatingProvider)·변경 필드 0 발사 억제 + 성공(provider 재조회 + 편집 종료)/실패
+  // (error 안전 표시, throw 없음) 전이는 runUpdateProvider 가 캡슐화한다. 4 입력값·편집 대상 id·
+  // updatingProvider 를 deps 의존성에 포함해 stale 없이 최신 입력·가드 상태로 발사한다. 재조회는
+  // 기존 setProvidersRefreshNonce 를 재사용한다(신규 nonce 0).
+  const handleUpdateProvider = useCallback(
+    () =>
+      runUpdateProvider(
+        {
+          provider: editProviderInput,
+          endpointUrl: editEndpointUrlInput,
+          apiKey: editApiKeyInput,
+          modelId: editModelIdInput,
+        },
+        {
+          update: request,
+          describeError: toErrorMessage,
+          id: editingProviderId ?? '',
+          updating: updatingProvider,
+          setUpdating: setUpdatingProvider,
+          setUpdateError: setUpdateProviderError,
+          bumpRefresh: () => setProvidersRefreshNonce((n) => n + 1),
+          closeEdit: resetEditProviderForm,
+        },
+      ),
+    [
+      editProviderInput,
+      editEndpointUrlInput,
+      editApiKeyInput,
+      editModelIdInput,
+      editingProviderId,
+      updatingProvider,
+      resetEditProviderForm,
+    ],
   );
 
   // 난이도 매핑 응답 → Record<Difficulty, string | null> 파생 + 낙관적 override 병합(④c).
@@ -1914,13 +2125,77 @@ function AdminView({
               onDelete 로 내려 각 행에 삭제 버튼을 배선한다. loading 은 조회+삭제 in-flight 를 합성
               (providersLoading||deletingProvider — remove 패널 동형), error 는 삭제 실패를 우선 노출
               (deleteProviderError??providersError — mutation 우선). 성공 시 providersRefreshNonce bump
-              로 권위 재조회한다(낙관 제거 없음). 생성/수정 mutation UI 는 후속 slice(Out of Scope). */}
+              로 권위 재조회한다(낙관 제거 없음). 수정(PATCH)은 onEdit 배선 + 아래 인라인 폼(T-1137). */}
           <LlmProviderConfigList
             providers={providerConfigs}
             loading={providersLoading || deletingProvider}
             error={deleteProviderError ?? providersError}
             onDelete={handleDeleteProvider}
+            onEdit={handleEditProvider}
           />
+          {/* provider 수정(T-1137, R-96) — 인라인 수정 폼. LlmProviderConfigList 각 행의 "수정"
+              버튼(onEdit=handleEditProvider)이 편집 대상 id 를 세팅하면(editingProviderId !== null)
+              본 폼이 렌더된다. 4 controlled input(provider/endpointUrl/apiKey/modelId)은 클릭한 row
+              의 현재 값으로 prefill 하되, apiKey 는 read never-back 이라 빈 값으로 시작하고
+              placeholder 로 "변경 시에만 입력" 을 안내한다(입력 시에만 PATCH body 에 포함 → 기존
+              ciphertext 유지). "provider 수정" 클릭 시 handleUpdateProvider 가 PATCH
+              /api/llm/providers/:id(변경 필드만 body)를 발사하고, 성공 시 providersRefreshNonce bump
+              로 권위 재조회 + 편집 종료한다(낙관 갱신 없음 — 생성/삭제 동형). 진행 중(updatingProvider)
+              이면 입력·버튼을 비활성화해 이중 PATCH 를 억제하고(runUpdateProvider 도 동일 조건을 no-op
+              가드로 이중 방어), "취소" 로 발사 없이 편집을 닫을 수 있다. apiKey 는 secret
+              input(type="password")으로 노출을 줄이고 실패 문구(updateProviderError)에도 재노출되지
+              않는다(삭제/생성 error 와 별도 문구). ADR-0041 Decision 1 — presentational 목록은 수정
+              폼을 모르므로 컨테이너가 직접 소유한다(컴포넌트 수정 0). */}
+          {editingProviderId !== null ? (
+            <div>
+              <input
+                aria-label="수정할 provider"
+                type="text"
+                value={editProviderInput}
+                onChange={(event) => setEditProviderInput(event.target.value)}
+                disabled={updatingProvider}
+              />
+              <input
+                aria-label="수정할 provider endpointUrl"
+                type="text"
+                value={editEndpointUrlInput}
+                onChange={(event) => setEditEndpointUrlInput(event.target.value)}
+                disabled={updatingProvider}
+              />
+              <input
+                aria-label="수정할 provider apiKey"
+                type="password"
+                placeholder="변경 시에만 입력"
+                value={editApiKeyInput}
+                onChange={(event) => setEditApiKeyInput(event.target.value)}
+                disabled={updatingProvider}
+              />
+              <input
+                aria-label="수정할 provider modelId"
+                type="text"
+                value={editModelIdInput}
+                onChange={(event) => setEditModelIdInput(event.target.value)}
+                disabled={updatingProvider}
+              />
+              <button
+                type="button"
+                onClick={handleUpdateProvider}
+                disabled={updatingProvider}
+              >
+                provider 수정
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelEditProvider}
+                disabled={updatingProvider}
+              >
+                취소
+              </button>
+              {updateProviderError ? (
+                <p role="alert">{updateProviderError}</p>
+              ) : null}
+            </div>
+          ) : null}
           {/* provider 생성(T-1136, R-96) — 4 controlled input(provider/endpointUrl/apiKey/modelId) +
               "추가" 버튼. LlmProviderConfigList(presentational, 읽기 전용 목록 + 삭제)는 생성 컨트롤을
               모르므로 컨테이너가 직접 소유한다(controlled lift-up, ADR-0041 Decision 1 — 컴포넌트 수정
@@ -2083,6 +2358,7 @@ export {
   runDeleteProvider,
   runAdd,
   runCreateProvider,
+  runUpdateProvider,
   isAdminRole,
 };
 export type {
@@ -2104,5 +2380,7 @@ export type {
   AddDeps,
   CreateProviderFields,
   CreateProviderDeps,
+  UpdateProviderFields,
+  UpdateProviderDeps,
 };
 export default AdminView;
