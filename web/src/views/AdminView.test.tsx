@@ -7944,7 +7944,7 @@ describe('AdminView — resolveSelectedPartIdAfterDelete (순수 함수, T-1157)
 
 // R-112 — T-1157 선택 파트 삭제 시 선택 해제 배선 검증. 컨테이너 handleDeletePart 가 runDeletePart
 // 에 주입하는 bumpRefresh(성공 경로 전용 계약 — 파트 재조회 nonce +1 + functional setSelectedPartId)
-// 를 그대로 mirror 한 harness 로 실 전이를 검증하고(jsdom 미사용 게이트 정합 — 클릭 이벤트 비검증),
+// 를 실물 그대로 주입한 harness 로 실 전이를 검증하고(jsdom 미사용 게이트 정합 — 클릭 이벤트 비검증),
 // 전이 후 화면 상태(미선택 문구 / 사라진 파트 인원 미조회 / 선택 보존)는 정적 렌더로 단언한다.
 describe('AdminView — 선택 파트 삭제 시 선택 해제 배선 (T-1157)', () => {
   const PARTS = '/api/parts';
