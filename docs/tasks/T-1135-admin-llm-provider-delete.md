@@ -2,7 +2,11 @@
 id: T-1135
 title: AdminView LLM provider 삭제 mutation 배선 (DELETE /api/llm/providers/:id)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 9334e275
+prNumber: 1027
+reviewRounds: 1
+completedAt: 2026-07-23T06:40:00Z
 commitMode: pr
 coversReq: [REQ-096]
 estimatedDiff: 230
