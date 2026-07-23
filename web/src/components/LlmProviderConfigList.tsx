@@ -26,6 +26,8 @@ const LOADING_TEXT = '불러오는 중…';
 const DEFAULT_EMPTY_MESSAGE = '등록된 LLM provider 가 없습니다';
 // provider 삭제 버튼 라벨 — onDelete 전달 시에만 각 행에 렌더한다(GroupMemberList REMOVE_LABEL 동형).
 const DELETE_LABEL = '삭제';
+// provider 수정 버튼 라벨(T-1137) — onEdit 전달 시에만 각 행에 렌더한다(DELETE_LABEL 동형).
+const EDIT_LABEL = '수정';
 
 interface LlmProviderConfigListProps {
   // 표시할 provider 목록 — controlled component 라 상위가 이미 fetch·정렬된 배열을 보유한다.
@@ -40,6 +42,11 @@ interface LlmProviderConfigListProps {
   // 미전달 시 버튼 미렌더(읽기 전용 하위 호환 — T-1134 마운트를 깨지 않는다). 실 DELETE 요청·
   // 재조회 배선은 상위 컨테이너 책임(GroupMemberList onRemove 와 동형 controlled 계약).
   onDelete?: (id: string) => void;
+  // provider 수정 콜백(선택, T-1137) — 주어졌을 때만 각 행에 "수정" 버튼을 렌더하고 클릭 시 row.id
+  // 로 호출한다(onDelete 와 동형). 미전달 시 버튼 미렌더(읽기 전용 하위 호환 — T-1134 마운트 보존).
+  // 실 PATCH 요청·인라인 수정 폼·재조회 배선은 상위 컨테이너 책임(controlled 계약 — 목록은
+  // 콜백만 호출하고 수정 폼을 모른다). apiKey 는 여전히 목록 어디에도 미노출.
+  onEdit?: (id: string) => void;
 }
 
 // LLM provider 설정 목록. 실 fetch·생성/수정/삭제 로직은 수행하지 않고 props 의 providers 를
@@ -51,6 +58,7 @@ function LlmProviderConfigList({
   error,
   emptyMessage,
   onDelete,
+  onEdit,
 }: LlmProviderConfigListProps) {
   // loading 우선 정책 — 진행 중이면 error·providers 유무와 무관하게 로딩 표시만 렌더한다.
   if (loading === true) {
@@ -80,6 +88,12 @@ function LlmProviderConfigList({
           {row.modelId ? <span>{row.modelId}</span> : null}
           {/* endpointUrl 은 있을 때만 함께 표시한다(없으면 throw 없이 생략). */}
           {row.endpointUrl ? <span>{row.endpointUrl}</span> : null}
+          {/* onEdit 가 주어졌을 때만 수정 버튼을 렌더하고 클릭 시 row.id 로 콜백 호출(T-1137). */}
+          {onEdit ? (
+            <button type="button" onClick={() => onEdit(row.id)}>
+              {EDIT_LABEL}
+            </button>
+          ) : null}
           {/* onDelete 가 주어졌을 때만 삭제 버튼을 렌더하고 클릭 시 row.id 로 콜백 호출. */}
           {onDelete ? (
             <button type="button" onClick={() => onDelete(row.id)}>
