@@ -346,19 +346,29 @@ function deriveMembers(
   });
 }
 
-// 선택 그룹의 멤버십 조회 path 빌더(순수 helper, T-1129) — GET /api/groups/:id/members(T-1128,
-// api.md 82). 선택 그룹이 있을 때만 path 를 만들고, 미선택(빈/falsy)이면 null 을 반환해
-// useApiResource 의 조건부 조회(path=null → 미조회, idle)를 유발한다(personId 미선택 시 미조회
-// convention 정합 — useApiResource.ts 9~11). groupId 는 encodeURIComponent 로 안전 인코딩해
-// 비정상 문자가 든 id 도 path 가 깨지지 않게 한다(buildExportPath/buildRecentDeletionPath 의
-// 안전 인코딩 convention 정합).
+// 선택 그룹의 멤버십 조회 path 빌더(순수 helper, T-1129 → T-1130 nonce 확장) — GET
+// /api/groups/:id/members(T-1128, api.md 82). 선택 그룹이 있을 때만 path 를 만들고, 미선택
+// (빈/falsy)이면 null 을 반환해 useApiResource 의 조건부 조회(path=null → 미조회, idle)를
+// 유발한다(personId 미선택 시 미조회 convention 정합 — useApiResource.ts 9~11). groupId 는
+// encodeURIComponent 로 안전 인코딩해 비정상 문자가 든 id 도 path 가 깨지지 않게 한다
+// (buildExportPath/buildRecentDeletionPath 의 안전 인코딩 convention 정합).
+// T-1130: ④c remove mutation 성공 후 멤버십 재조회를 유발하기 위해 cache-busting nonce(`_r`)를
+// 받는다(buildMappingsPath 동형). nonce 0(초기 조회)이면 query 없는 깨끗한 path 를 그대로 쓰고
+// (불필요 query 회피), 1+ 면 `?_r=<nonce>` 를 부착해 useApiResource 의 path-변경 재조회를 낸다.
+// `_r` 은 backend GET 핸들러가 @Query 를 받지 않아 무시한다(api.md 82 — 부수효과 0). 선택 그룹
+// 변경 refetch(path 변경)는 selectedGroupId 변화가 그대로 유지한다.
 function buildGroupMembersPath(
   selectedGroupId: string | undefined,
+  refreshNonce = 0,
 ): string | null {
   if (!selectedGroupId) {
     return null;
   }
-  return `/api/groups/${encodeURIComponent(selectedGroupId)}/members`;
+  const base = `/api/groups/${encodeURIComponent(selectedGroupId)}/members`;
+  if (refreshNonce <= 0) {
+    return base;
+  }
+  return `${base}?_r=${refreshNonce}`;
 }
 
 // 멤버십 응답 + 선택 그룹 → GroupMemberList 의 Member[] 파생(순수 helper, T-1129). raw membership
@@ -874,6 +884,68 @@ async function runReEvaluate(
   }
 }
 
+// onRemove 의 멤버 제거 DELETE + state-전이 로직에 주입하는 deps(T-1130 — ④c runAssign /
+// ④e runImport 의 *Deps 주입 convention 차용. jsdom/렌더러 없이 mutation 본체를 직접 검증한다).
+// 컨테이너의 handleRemove 는 이 러너에 선택 groupId·현재 in-flight 여부(removing)·상태 setter·
+// 재조회 트리거를 주입해 호출만 한다.
+interface RemoveDeps {
+  // DELETE 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  remove: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 선택 그룹 id — DELETE path 의 :id param. encodeURIComponent 로 안전 인코딩된다.
+  groupId: string;
+  // 현재 remove in-flight 여부 — true 면 미발사(이중 DELETE·경합 가드).
+  removing: boolean;
+  setRemoving: (next: boolean) => void;
+  setRemoveError: (next: string | undefined) => void;
+  // 권위 멤버십 재조회 트리거 — membersRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+}
+
+// onRemove 의 DELETE /api/groups/:id/members/:membershipId + state-전이 로직을 캡슐화한 순수
+// async 러너(T-1130 — runAssign/runImport 캡슐화 패턴 차용). backend DELETE(group.controller.ts
+// 198~205, 204 No Content, service removeMember(membershipId) — row 부재 시 P2025→NotFoundException)
+// 를 발사한다. 컨테이너의 handleRemove 는 이 러너에 deps 를 주입해 호출만 한다. 동작:
+//  - 빈/falsy membershipId → 미발사(잘못된 path·불필요 DELETE 회피).
+//  - removing(이전 mutation 미완) → 미발사(이중 DELETE·state 경합 차단 — runAssign assigning 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → DELETE(groupId·membershipId 는 encodeURIComponent 안전
+//    인코딩) → 성공(멤버십 재조회 트리거) / 실패(사람-친화 문구 표면화 — throw 없이) → 진행 off(공통).
+async function runRemove(
+  membershipId: string,
+  deps: RemoveDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/falsy membershipId 는 DELETE 미발사(잘못된 path·불필요 요청 회피).
+  if (!membershipId) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 remove 미완 중이면 미발사(이중 DELETE·state 경합 차단).
+  if (deps.removing) {
+    return;
+  }
+  deps.setRemoving(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 remove 진행만 남도록).
+  deps.setRemoveError(undefined);
+  try {
+    // DELETE /api/groups/:id/members/:membershipId — 204 No Content. groupId·membershipId 모두
+    // encodeURIComponent 로 안전 인코딩(비정상 문자가 든 id 도 path 가 깨지지 않게). 응답 body 를
+    // 소비하지 않으므로(No Content) 성공 사실만 확인한다.
+    await deps.remove(
+      `/api/groups/${encodeURIComponent(deps.groupId)}/members/${encodeURIComponent(membershipId)}`,
+      { method: 'DELETE' },
+    );
+    // 성공 — 권위 멤버십 재조회 트리거(재조회로 제거된 행이 목록에서 사라진다 — 낙관 override 없음).
+    deps.bumpRefresh();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 404 NotFound(row 부재) /
+    // 403 Admin+ 미만 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
+    // 재조회 nonce 는 bump 하지 않는다(실패 시 목록 그대로 유지).
+    deps.setRemoveError(deps.describeError(e));
+  } finally {
+    deps.setRemoving(false);
+  }
+}
+
 // Admin 화면 컨테이너. useApiResource 로 GET /api/groups 결과를 소유하고, 선택 그룹 상태를
 // useState 로 보유해 선택 그룹의 멤버를 client-side 파생 후 GroupMemberList 에 props 로
 // 내려보낸다(controlled lift-up — GroupMemberList 는 fetch 를 모른다, ADR-0041 Decision 1).
@@ -926,11 +998,24 @@ function AdminView({
     [groups, selectedGroupId],
   );
 
-  // 선택 그룹의 멤버십 조회 path(T-1129) — 선택이 있을 때만 조건부 path 를 만든다(미선택 시 null →
-  // useApiResource 미조회 idle). 선택 변경 시 path 가 달라져 자동 refetch(path-change refetch).
+  // 멤버십 재조회 nonce(T-1130) — ④c remove DELETE 성공 시 이 값을 +1 해 groupMembersPath 를
+  // 변화시켜 useApiResource 재조회를 유발한다(read-only hook 수정 0 경로 — buildMappingsPath 동형).
+  const [membersRefreshNonce, setMembersRefreshNonce] = useState<number>(0);
+
+  // remove mutation in-flight 플래그(T-1130) — DELETE 진행 중 true. 진행 표시(loading 우선)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다(④c assigning 동형).
+  const [removing, setRemoving] = useState<boolean>(false);
+
+  // remove mutation 실패 문구(T-1130) — DELETE 실패 시 사람-친화 문구(toErrorMessage 파생)를
+  // 보관해 error props 로 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다(④c assignError 동형).
+  const [removeError, setRemoveError] = useState<string | undefined>(undefined);
+
+  // 선택 그룹의 멤버십 조회 path(T-1129 → T-1130 nonce) — 선택이 있을 때만 조건부 path 를 만든다
+  // (미선택 시 null → useApiResource 미조회 idle). 선택 변경 시 path 가 달라져 자동 refetch
+  // (path-change refetch)하고, remove 성공 시 membersRefreshNonce 증가가 `_r` query 로 재조회를 낸다.
   const groupMembersPath = useMemo(
-    () => buildGroupMembersPath(selectedGroupId || undefined),
-    [selectedGroupId],
+    () => buildGroupMembersPath(selectedGroupId || undefined, membersRefreshNonce),
+    [selectedGroupId, membersRefreshNonce],
   );
 
   // 선택 그룹의 멤버십 조회(T-1129) — useApiResource 로 신 endpoint(GET /api/groups/:id/members,
@@ -951,6 +1036,25 @@ function AdminView({
         findGroup(groups, selectedGroupId || undefined),
       ),
     [membershipData, groups, selectedGroupId],
+  );
+
+  // onRemove 실 mutation 핸들러(T-1130) — 멤버 제거 DELETE(/api/groups/:id/members/:membershipId)
+  // 를 컨테이너 내부 async 로 발사한다(신규 mutation hook 미작성 — ④c runAssign 정합). 빈/falsy
+  // membershipId·이전 mutation 미완(removing) 발사 억제 + 성공(멤버십 재조회 트리거)/실패(error props
+  // 안전 표시, throw 없음) 전이는 runRemove 가 캡슐화한다. selectedGroupId(DELETE path param)·removing
+  // 을 deps 의존성에 포함해 stale 없이 최신 그룹·가드 상태로 발사한다.
+  const handleRemove = useCallback(
+    (membershipId: string) =>
+      runRemove(membershipId, {
+        remove: request,
+        describeError: toErrorMessage,
+        groupId: selectedGroupId,
+        removing,
+        setRemoving,
+        setRemoveError,
+        bumpRefresh: () => setMembersRefreshNonce((n) => n + 1),
+      }),
+    [selectedGroupId, removing],
   );
 
   // LLM provider 목록 조회(④b 두 번째 패널) — useApiResource 추가 호출(④a 의 그룹 조회 +
@@ -1322,13 +1426,16 @@ function AdminView({
       </select>
       {/* 그룹 멤버 목록(첫 패널) — 선택 그룹 멤버십 fetch(GET /api/groups/:id/members, T-1129)
           결과에서 파생한 groupMembers(id = membershipId)와 그 fetch 의 loading/error 를 props 로만
-          내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). onRemove 미전달 — 멤버 제거
-          mutation 은 ④c Out of Scope(제거 버튼 미렌더). 컴포넌트 수정 0. */}
+          내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). onRemove 배선(T-1130)으로 각
+          멤버 행에 제거 버튼이 렌더되고, 클릭 시 그 행의 membershipId 로 DELETE :id/members/:membershipId
+          를 발사한다(handleRemove). loading/error 는 멤버십 조회와 remove mutation 을 합성한다
+          (removing||membersLoading / removeError??membersError — mutation 우선). 컴포넌트 수정 0. */}
       <GroupMemberList
         members={groupMembers}
-        loading={membersLoading}
-        error={membersError}
+        loading={removing || membersLoading}
+        error={removeError ?? membersError}
         emptyMessage={emptyMessage}
+        onRemove={handleRemove}
       />
       {/* Admin+ RBAC gating(④h) — Admin/SuperAdmin 등급(isAdmin === true)에게만 Admin 전용 패널
           (DifficultyModelSelector + scope <select> + DataImportExportPanel)을 렌더한다. 세 패널은
@@ -1452,6 +1559,7 @@ export {
   deriveScheduleMessage,
   buildRecentDeletionPath,
   runReEvaluate,
+  runRemove,
   isAdminRole,
 };
 export type {
@@ -1468,5 +1576,6 @@ export type {
   ImportDeps,
   ScheduleMutationDeps,
   ReEvaluationDeps,
+  RemoveDeps,
 };
 export default AdminView;
