@@ -1701,6 +1701,65 @@ async function runDeleteGroup(
   }
 }
 
+// 파트 삭제 DELETE + state-전이 로직에 주입하는 deps(T-1154 — runDeleteGroup 의 DeleteGroupDeps 를
+// 1:1 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). path param 이 part id 하나뿐이라
+// (DELETE /api/parts/:id 는 단일 세그먼트) 별도 필드는 없다. 컨테이너의 handleDeletePart 는 이 러너에
+// 현재 in-flight 여부(deleting)·상태 setter·재조회 트리거를 주입해 호출만 한다.
+interface DeletePartDeps {
+  // DELETE 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  remove: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 삭제 in-flight 여부 — true 면 미발사(이중 DELETE·경합 가드).
+  deleting: boolean;
+  setDeleting: (next: boolean) => void;
+  setDeleteError: (next: string | undefined) => void;
+  // 권위 파트 재조회 트리거 — partsRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+}
+
+// 파트 삭제 DELETE /api/parts/:id + state-전이 로직을 캡슐화한 순수 async 러너(T-1154 —
+// runDeleteGroup 캡슐화 패턴 1:1 mirror). backend DELETE(part.controller @Delete(":id") L131, 204
+// No Content, row 부재 시 404, Admin+ 미만 403)를 발사한다. 컨테이너의 handleDeletePart 는 이 러너에
+// deps 를 주입해 호출만 한다. 동작:
+//  - 빈/공백/falsy id → 미발사(잘못된 path·불필요 DELETE 회피 — trim 후 빈 문자열도 차단).
+//  - deleting(이전 mutation 미완) → 미발사(이중 DELETE·state 경합 차단 — runDeleteGroup 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → DELETE(id 는 encodeURIComponent 안전 인코딩) → 성공(파트
+//    재조회 트리거) / 실패(사람-친화 문구 표면화 — throw 없이) → 진행 off(공통).
+async function runDeletePart(
+  id: string,
+  deps: DeletePartDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/공백/falsy id 는 DELETE 미발사(잘못된 path·불필요 요청 회피). 공백만
+  // 든 id 도 trim 후 빈 문자열이면 차단해(경계값) 무의미한 `/api/parts/%20` 발사를 막는다.
+  if (!id || id.trim() === '') {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 삭제 미완 중이면 미발사(이중 DELETE·state 경합 차단).
+  if (deps.deleting) {
+    return;
+  }
+  deps.setDeleting(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 삭제 진행만 남도록).
+  deps.setDeleteError(undefined);
+  try {
+    // DELETE /api/parts/:id — 204 No Content. id 는 encodeURIComponent 로 안전 인코딩(비정상
+    // 문자가 든 id 도 path 가 깨지지 않게). 응답 body 를 소비하지 않으므로 성공 사실만 확인한다.
+    await deps.remove(`${PARTS_PATH}/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    // 성공 — 권위 파트 재조회 트리거(재조회로 삭제된 행이 목록에서 사라진다 — 낙관 제거 없음).
+    deps.bumpRefresh();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 404 NotFound(row 부재) / 403
+    // Admin+ 미만 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
+    // 재조회 nonce 는 bump 하지 않는다(실패 시 목록 그대로 유지).
+    deps.setDeleteError(deps.describeError(e));
+  } finally {
+    deps.setDeleting(false);
+  }
+}
+
 // 인원 수정 3 필드 묶음(T-1145) — 컨테이너의 인라인 수정 폼 3 controlled input(fullName/email/active)
 // 값이자 편집 시작 시점의 원본 스냅샷 타입. buildPersonPatch 가 input 과 original 을 비교해 "변경된
 // 필드만" 담긴 부분 갱신 body(PersonPatch)를 만든다. active 는 boolean(soft deactivate/reactivate,
@@ -3030,6 +3089,34 @@ function AdminView({
     [partNameInput, creatingPart],
   );
 
+  // 파트 삭제 mutation in-flight 플래그(T-1154) — DELETE 진행 중 true. 진행 표시(loading 우선)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다(deletingGroup 동형).
+  const [deletingPart, setDeletingPart] = useState<boolean>(false);
+
+  // 파트 삭제 mutation 실패 문구(T-1154) — DELETE 실패 시 사람-친화 문구(toErrorMessage 파생)를
+  // 보관해 목록 패널의 error props 로 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
+  const [deletePartError, setDeletePartError] = useState<string | undefined>(
+    undefined,
+  );
+
+  // onDelete 실 mutation 핸들러(T-1154) — 파트 삭제 DELETE(/api/parts/:id)를 컨테이너 내부 async
+  // 로 발사한다(신규 mutation hook 미작성 — runDeleteGroup 정합). 빈/공백/falsy id·이전 mutation
+  // 미완(deletingPart) 발사 억제 + 성공(파트 재조회 트리거)/실패(error 안전 표시, throw 없음) 전이는
+  // runDeletePart 가 캡슐화한다. deletingPart 를 deps 의존성에 포함해 stale 없이 최신 가드 상태로
+  // 발사한다.
+  const handleDeletePart = useCallback(
+    (id: string) =>
+      runDeletePart(id, {
+        remove: request,
+        describeError: toErrorMessage,
+        deleting: deletingPart,
+        setDeleting: setDeletingPart,
+        setDeleteError: setDeletePartError,
+        bumpRefresh: () => setPartsRefreshNonce((n) => n + 1),
+      }),
+    [deletingPart],
+  );
+
   // SchedulePanel 로 내려보낼 안내 message 파생 — apply/trigger 완료 안내 우선, 없으면 GET 상태
   // (loading/빈 목록/이름 목록 요약)를 파생한다(deriveScheduleMessage). 초기 loading 도 안전 안내.
   const schedulePanelMessage = useMemo(
@@ -3655,12 +3742,15 @@ function AdminView({
           onEdit={handleEditGroup}
         />
       </section>
-      {/* 파트 관리(T-1152, REQ-028/REQ-049) — 읽기 전용 파트 목록 섹션. 그룹 마운트(T-1148)와 동형
-          이나 재사용할 기존 파트 fetch 가 없어 useApiResource<PartRow[]>(PARTS_PATH) 신규 조회의
-          data/loading/error 를 PartList 로 내려보낸다(ADR-0041 Decision 1 — 컴포넌트는 fetch 를
-          모른다). data 가 undefined(미조회/진행 중/실패)이면 `?? []` 로 빈 배열을 안전하게 넘겨 throw
-          없이 렌더한다(경계 방어). onDelete/onEdit 는 전달하지 않는다(삭제/수정 mutation 은 후속 slice —
-          읽기 전용, 버튼 미렌더). PartList 의 named PartRow 를 그대로 조회 제네릭·props 타입에 쓴다
+      {/* 파트 관리(T-1152 마운트, T-1153 생성 배선, T-1154 삭제 배선, REQ-028/REQ-049) — 그룹
+          마운트(T-1148)와 동형이나 재사용할 기존 파트 fetch 가 없어 useApiResource<PartRow[]>(PARTS_PATH)
+          신규 조회의 data/loading/error 를 PartList 로 내려보낸다(ADR-0041 Decision 1 — 컴포넌트는 fetch
+          를 모른다). data 가 undefined(미조회/진행 중/실패)이면 `?? []` 로 빈 배열을 안전하게 넘겨 throw
+          없이 렌더한다(경계 방어). onDelete(handleDeletePart)를 내려 각 행에 삭제 버튼을 배선한다(T-1154,
+          GroupList onDelete 동형). loading 은 조회+삭제 in-flight 를 합성(partLoading||deletingPart),
+          error 는 삭제 실패를 우선 노출(deletePartError??partError — mutation 우선). 성공 시
+          partsRefreshNonce bump 로 권위 재조회한다(낙관 제거 없음). onEdit 은 전달하지 않는다(수정 mutation
+          은 후속 slice — 버튼 미렌더). PartList 의 named PartRow 를 그대로 조회 제네릭·props 타입에 쓴다
           (로컬 PartRow 부재 — 이름 충돌 없음). */}
       <section aria-label={PART_HEADING}>
         <h2>{PART_HEADING}</h2>
@@ -3689,8 +3779,9 @@ function AdminView({
         </div>
         <PartList
           parts={partsData ?? []}
-          loading={partLoading}
-          error={partError}
+          loading={partLoading || deletingPart}
+          error={deletePartError ?? partError}
+          onDelete={handleDeletePart}
         />
       </section>
     </section>
@@ -3732,6 +3823,7 @@ export {
   runCreatePart,
   runDeletePerson,
   runDeleteGroup,
+  runDeletePart,
   buildPersonPatch,
   runUpdatePerson,
   runUpdateGroup,
@@ -3765,6 +3857,7 @@ export type {
   CreatePartDeps,
   DeletePersonDeps,
   DeleteGroupDeps,
+  DeletePartDeps,
   PersonPatchInput,
   PersonPatch,
   UpdatePersonDeps,
