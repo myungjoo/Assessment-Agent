@@ -68,6 +68,7 @@ import AdminView, {
   runAssign,
   runExport,
   runImport,
+  formatImportJobDetail,
   runApply,
   runTrigger,
   deriveScheduleMessage,
@@ -2046,8 +2047,13 @@ describe('AdminView — onImportFile 실 POST import (④e runImport)', () => {
   // happy-path — import 트리거(파일 선택) 시 request 가 POST /api/admin/import 로 body 가
   // FormData(선택 File 동봉)인 인자로 정확히 호출되고, 성공 후 완료 message 가 설정되며 진행
   // 표시(busy)가 on→off 로 해제된다.
-  it('POST /api/admin/import 를 FormData(선택 File 동봉) body 로 정확히 호출하고 성공 시 완료 message 를 설정한다 (happy-path)', async () => {
-    requestMock.mockResolvedValue({ imported: 3 });
+  it('POST /api/admin/import 를 FormData(선택 File 동봉) body 로 정확히 호출하고 성공 시 응답 ImportJob 의 id·status·mode 상세 message 를 설정한다 (happy-path)', async () => {
+    // 응답은 생성된 ImportJob(id / status(PENDING) / mode) — 그 상세를 문구로 표면화한다(T-1132).
+    requestMock.mockResolvedValue({
+      id: 'job-42',
+      status: 'PENDING',
+      mode: 'REPLACE',
+    });
     const { deps, calls } = makeImportDeps(false);
     const file = sampleFile();
     await runImport(file, deps);
@@ -2066,8 +2072,11 @@ describe('AdminView — onImportFile 실 POST import (④e runImport)', () => {
     expect((sent as File).name).toBe('assessments.json');
     // 수동 Content-Type 미지정(boundary 자동 — multipart 보장).
     expect(options).not.toHaveProperty('headers');
-    // 성공 → 완료 안내 message 표면화(직전 비움 undefined 후 완료 문구).
-    expect(calls.message).toEqual([undefined, '가져오기 완료']);
+    // 성공 → 응답 ImportJob 의 id·status·mode 를 포함한 상세 message 표면화(정적 '가져오기 완료' 아님).
+    expect(calls.message).toEqual([
+      undefined,
+      '가져오기 요청됨 — job job-42, 상태 PENDING, 모드 REPLACE',
+    ]);
     // 진행 표시 on→off + error 는 시작 시 비움만(실패 문구 미설정).
     expect(calls.importing).toEqual([true, false]);
     expect(calls.error).toEqual([undefined]);
@@ -2200,6 +2209,97 @@ describe('AdminView — onImportFile 실 POST import (④e runImport)', () => {
     await runImport(sampleFile(), second.deps);
     expect(second.calls.error).toEqual([undefined]);
     expect(second.calls.message).toEqual([undefined, '가져오기 완료']);
+  });
+
+  // flow/branch(b) — 응답이 객체이나 id 부재(기대 shape 아님) → 상세 합성 불가, IMPORT_DONE_TEXT
+  // fallback. runImport 경유로 정적 완료 문구가 표면화됨을 확인(방어적 narrowing 통합 회귀).
+  it('응답이 객체이나 id 부재이면 IMPORT_DONE_TEXT 로 fallback 한다 (flow/branch — id 없는 응답)', async () => {
+    requestMock.mockResolvedValue({ status: 'PENDING', mode: 'REPLACE' });
+    const { deps, calls } = makeImportDeps(false);
+    await runImport(sampleFile(), deps);
+    expect(calls.message).toEqual([undefined, '가져오기 완료']);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // flow/branch(c) — status·mode 부재(id 만 존재)여도 안전하게 id 만 담은 상세 문구를 합성한다
+  // (부분 정보 표시 — 누락 필드 생략). runImport 경유 통합 확인.
+  it('id 만 있고 status·mode 부재이면 id 만 담은 상세 문구를 합성한다 (flow/branch — 부분 필드)', async () => {
+    requestMock.mockResolvedValue({ id: 'job-7' });
+    const { deps, calls } = makeImportDeps(false);
+    await runImport(sampleFile(), deps);
+    expect(calls.message).toEqual([undefined, '가져오기 요청됨 — job job-7']);
+  });
+});
+
+// R-112 — formatImportJobDetail 순수 helper 직접 검증(T-1132). backend POST 응답(ImportJob)을
+// 사람-친화 상세 문구로 합성하되, 기대 shape 아니면 정적 IMPORT_DONE_TEXT 로 안전 fallback 하는
+// 방어적 narrowing 을 happy/branch/negative 각 분기마다 cover 한다. throw · '[object Object]' 노출 0.
+describe('AdminView — formatImportJobDetail 상세 문구 합성 helper (T-1132)', () => {
+  // happy — id·status·mode 완비 시 셋을 모두 담은 상세 문구를 합성한다(정적 완료 문구 아님).
+  it('id·status·mode 완비 응답을 id·status·mode 상세 문구로 합성한다 (happy)', () => {
+    expect(
+      formatImportJobDetail({ id: 'abc123', status: 'PENDING', mode: 'MERGE' }),
+    ).toBe('가져오기 요청됨 — job abc123, 상태 PENDING, 모드 MERGE');
+  });
+
+  // branch — status 만 부재(id·mode 존재) → status 생략하고 id·mode 만 표시(누락 필드 생략).
+  it('status 부재 시 status 를 생략하고 id·mode 만 표시한다 (branch — status 누락)', () => {
+    expect(formatImportJobDetail({ id: 'x1', mode: 'REPLACE' })).toBe(
+      '가져오기 요청됨 — job x1, 모드 REPLACE',
+    );
+  });
+
+  // branch — mode 만 부재(id·status 존재) → mode 생략하고 id·status 만 표시.
+  it('mode 부재 시 mode 를 생략하고 id·status 만 표시한다 (branch — mode 누락)', () => {
+    expect(formatImportJobDetail({ id: 'x2', status: 'RUNNING' })).toBe(
+      '가져오기 요청됨 — job x2, 상태 RUNNING',
+    );
+  });
+
+  // branch — status·mode 가 비-string(number 등) 이면 노출하지 않는다(타입 방어 — id 만 표시).
+  it('status·mode 가 비-string 이면 노출하지 않는다 (branch — 비-string 필드)', () => {
+    expect(
+      formatImportJobDetail({ id: 'x3', status: 123, mode: {} }),
+    ).toBe('가져오기 요청됨 — job x3');
+  });
+
+  // negative — 응답 null → fallback(비객체 방어).
+  it('응답 null 이면 IMPORT_DONE_TEXT 로 fallback 한다 (negative — null)', () => {
+    expect(formatImportJobDetail(null)).toBe('가져오기 완료');
+  });
+
+  // negative — 응답 undefined → fallback.
+  it('응답 undefined 이면 IMPORT_DONE_TEXT 로 fallback 한다 (negative — undefined)', () => {
+    expect(formatImportJobDetail(undefined)).toBe('가져오기 완료');
+  });
+
+  // negative — 응답이 string(비객체) → fallback('[object Object]' · throw 없음).
+  it('응답이 string 이면 IMPORT_DONE_TEXT 로 fallback 한다 (negative — 비객체 string)', () => {
+    expect(formatImportJobDetail('가져오기 완료됨')).toBe('가져오기 완료');
+  });
+
+  // negative — 응답이 number(비객체) → fallback.
+  it('응답이 number 이면 IMPORT_DONE_TEXT 로 fallback 한다 (negative — 비객체 number)', () => {
+    expect(formatImportJobDetail(42)).toBe('가져오기 완료');
+  });
+
+  // negative — id 필드 부재(빈 객체) → 상세 합성 불가, fallback.
+  it('id 필드 부재이면 IMPORT_DONE_TEXT 로 fallback 한다 (negative — id 부재)', () => {
+    expect(formatImportJobDetail({})).toBe('가져오기 완료');
+  });
+
+  // negative — id 가 비-string(number) → fallback(타입 방어).
+  it('id 가 비-string 이면 IMPORT_DONE_TEXT 로 fallback 한다 (negative — id 타입 불일치)', () => {
+    expect(formatImportJobDetail({ id: 999, status: 'PENDING' })).toBe(
+      '가져오기 완료',
+    );
+  });
+
+  // negative — id 가 빈 string → 식별자 소비 불가, fallback.
+  it('id 가 빈 string 이면 IMPORT_DONE_TEXT 로 fallback 한다 (negative — 빈 id)', () => {
+    expect(formatImportJobDetail({ id: '', status: 'PENDING' })).toBe(
+      '가져오기 완료',
+    );
   });
 });
 
