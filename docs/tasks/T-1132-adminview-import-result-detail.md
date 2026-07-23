@@ -2,8 +2,12 @@
 id: T-1132
 title: AdminView import 결과 상세 표면화 (POST 응답 ImportJob 소비)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: b6af1f04
+prNumber: 1024
+reviewRounds: 1
+completedAt: 2026-07-23T04:16Z
 coversReq: [REQ-030, REQ-049]
 estimatedDiff: 140
 estimatedFiles: 2
