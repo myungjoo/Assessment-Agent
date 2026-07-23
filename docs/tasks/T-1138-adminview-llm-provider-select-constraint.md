@@ -2,7 +2,10 @@
 id: T-1138
 title: AdminView LLM provider 생성·수정 폼의 provider 입력을 5-provider select 로 constrain
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 5fc39f33
+prNumber: 1030
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-096, REQ-099, REQ-100, REQ-101, REQ-102, REQ-103]
 estimatedDiff: 150
