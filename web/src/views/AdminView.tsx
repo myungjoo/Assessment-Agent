@@ -30,6 +30,11 @@ import type {
 // 컴포넌트는 수정 0 으로 named import 만(ADR-0041 Decision 1 — 패널은 fetch 를 모른다).
 import DataImportExportPanel from '../components/DataImportExportPanel';
 import type { DataImportExportPanelProps } from '../components/DataImportExportPanel';
+// T-1134 — R-96 LLM provider 관리 UI 마운트. 직전 slice(T-1133)가 신설한 순수 presentational
+// LlmProviderConfigList 를 Admin+ 패널에 배선한다. 컴포넌트 수정 0 으로 default import + named
+// type 만(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 기존 providerData 재사용(새 fetch 0).
+import LlmProviderConfigList from '../components/LlmProviderConfigList';
+import type { LlmProviderConfigRow } from '../components/LlmProviderConfigList';
 // T-0885 — P6 deferred wiring 재개(PLAN line120/123). 다섯 번째 패널 SchedulePanel export
 // 배선. presentational 컴포넌트는 수정 0 으로 default import 만(ADR-0041 Decision 1 — 패널은
 // fetch 를 모른다). backend 계약(P7 @Controller("api/schedules"), ADR-0042)이 shipped 되어
@@ -285,6 +290,10 @@ interface LlmProviderRow {
   id?: string;
   provider?: string;
   modelId?: string;
+  // T-1134 — LlmProviderConfigList 파생용 선택 필드. backend sanitize view(api.md 114)의
+  // endpointUrl 후보를 보수적으로 매핑한다(있으면 표시·없으면 생략). DifficultyModelSelector
+  // 는 이 필드를 쓰지 않아 deriveProviders 동작은 불변이다.
+  endpointUrl?: string;
 }
 
 // 난이도 매핑 row 의 frontend-local 최소 타입 — 슬롯 키(difficulty)와 할당된 provider config
@@ -444,6 +453,35 @@ function deriveProviders(rows: LlmProviderRow[] | undefined): ProviderOption[] {
     provider: row.provider ?? '',
     modelId: row.modelId ?? '',
   }));
+}
+
+// provider 응답 row 배열 → LlmProviderConfigList 의 LlmProviderConfigRow[] 파생(순수 helper,
+// T-1134). deriveProviders 와 동형이되 sanitized 읽기 전용 view 계약에 맞춘다 — id/provider 는
+// 필수 매핑(id 누락 row 는 index 기반 합성 key `p<n>` 로 React key 안정성 유지, provider 누락은
+// 빈 문자열), modelId/endpointUrl 은 truthy 일 때만 매핑하고 누락/빈값이면 생략한다(선택 필드는
+// undefined 로 두어 컴포넌트가 없을 때 렌더에서 자연 skip — throw 없음). secret apiKey 는 view
+// 타입에 없어 매핑 대상이 아니다. rows 가 배열이 아니면(undefined/null/조회 전) 빈 배열을
+// 반환한다(빈 상태 위임 — throw 없이).
+function deriveProviderConfigs(
+  rows: LlmProviderRow[] | undefined,
+): LlmProviderConfigRow[] {
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+  return rows.map((row, index) => {
+    const config: LlmProviderConfigRow = {
+      id: row.id ?? `p${index + 1}`,
+      provider: row.provider ?? '',
+    };
+    // modelId/endpointUrl 은 있으면(truthy) 매핑, 없으면 키 자체를 생략한다(선택 필드 계약).
+    if (row.modelId) {
+      config.modelId = row.modelId;
+    }
+    if (row.endpointUrl) {
+      config.endpointUrl = row.endpointUrl;
+    }
+    return config;
+  });
 }
 
 // 난이도 매핑 응답 row 배열 → Record<Difficulty, string | null> 파생(순수 helper). 세 슬롯
@@ -1233,6 +1271,13 @@ function AdminView({
     [providerData],
   );
 
+  // provider 응답 → LlmProviderConfigList 의 읽기 전용 view 파생(T-1134). 같은 providerData 를
+  // 재사용해(새 fetch 0) sanitized LlmProviderConfigRow[] 로 매핑, props 로만 내려보낸다.
+  const providerConfigs = useMemo(
+    () => deriveProviderConfigs(providerData),
+    [providerData],
+  );
+
   // 난이도 매핑 응답 → Record<Difficulty, string | null> 파생 + 낙관적 override 병합(④c).
   // 서버 권위 매핑 위에 진행 중인 재지정 슬롯을 즉시 덮어, 재조회 도착 전에도 새 provider 가
   // DifficultyModelSelector 의 mapping props 로 내려가도록 한다(낙관 반영). override 가 비면
@@ -1614,6 +1659,15 @@ function AdminView({
             loading={llmLoading}
             error={llmError}
           />
+          {/* 등록된 LLM provider 설정 목록(T-1134, R-96) — 읽기 전용 표시. 기존 providerData 를
+              재사용해 sanitized view(providerConfigs)로 파생하고 loading/error 를 그대로 내려보낸다
+              (ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 생성/수정/삭제 mutation UI 는 후속
+              slice(Out of Scope). 컴포넌트 수정 0 — 마운트만. */}
+          <LlmProviderConfigList
+            providers={providerConfigs}
+            loading={providersLoading}
+            error={providersError}
+          />
           {/* export scope 선택 컨트롤(④g) — 컨테이너가 직접 렌더한다(그룹 선택 <select> 동형 —
               presentational DataImportExportPanel 은 scope 를 모른다, ADR-0041 Decision 1). 선택값은
               handleExport 가 buildExportPath 로 GET /api/admin/export?scope= query 에 부착하고, 빈
@@ -1700,6 +1754,7 @@ export {
   buildGroupMembersPath,
   deriveMembersFromMemberships,
   deriveProviders,
+  deriveProviderConfigs,
   deriveDifficultyMapping,
   buildMappingsPath,
   buildExportPath,

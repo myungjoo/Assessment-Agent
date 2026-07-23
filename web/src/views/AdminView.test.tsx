@@ -59,6 +59,7 @@ import AdminView, {
   buildGroupMembersPath,
   deriveMembersFromMemberships,
   deriveProviders,
+  deriveProviderConfigs,
   deriveDifficultyMapping,
   buildMappingsPath,
   buildExportPath,
@@ -1092,6 +1093,107 @@ describe('AdminView — LLM 모델 지정 패널 배선 (④b)', () => {
   });
 });
 
+// R-112 — T-1134 LlmProviderConfigList 마운트 배선 검증. 기존 providerData 재사용(새 fetch 0)
+// → deriveProviderConfigs 파생 → props 배선까지를 renderToStaticMarkup 정적 렌더로 단언한다.
+// happy/error/loading/undefined/비-Admin gating 등 예외 상황을 각 1+ cover 한다.
+describe('AdminView — LLM provider 설정 목록 패널 마운트 (T-1134)', () => {
+  // provider 2 건 샘플 — 첫 건은 modelId/endpointUrl 전 필드, 둘째는 선택 필드 누락(생략 검증).
+  // endpointUrl 은 LlmProviderConfigList 고유 렌더라 다른 패널과 겹치지 않는 discriminator 다.
+  const CONFIG_ROWS: LlmProviderRow[] = [
+    {
+      id: 'cfg1',
+      provider: 'openai',
+      modelId: 'gpt-4o',
+      endpointUrl: 'https://api.openai.com/v1',
+    },
+    { id: 'cfg2', provider: 'anthropic' },
+  ];
+  // 문자열 등장 횟수 카운터 — 빈 상태 문구가 여러 패널에 공유될 때 마운트 존재를 구분한다.
+  const countOccurrences = (haystack: string, needle: string) =>
+    haystack.split(needle).length - 1;
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — provider 배열 주입 시 각 provider 행(provider/modelId/endpointUrl)이 표시된다.
+  it('provider 조회 성공 시 각 provider 행을 읽기 전용 목록으로 표시한다 (happy-path)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: CONFIG_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // provider 라벨 + modelId + endpointUrl(고유) 표시 — LlmProviderConfigList 의 <li><span> 렌더.
+    expect(html).toContain('<span>openai</span>');
+    expect(html).toContain('<span>gpt-4o</span>');
+    expect(html).toContain('https://api.openai.com/v1');
+    // endpointUrl/modelId 없는 두 번째 provider 도 provider 라벨은 표시(누락 필드 생략, throw 없음).
+    expect(html).toContain('<span>anthropic</span>');
+  });
+
+  // error path — provider 조회 error 시 LlmProviderConfigList 가 error(role=alert)를 렌더한다.
+  // providers 빈 상태에서 DifficultyModelSelector 는 빈 상태 status 를 내므로 alert 유일 출처는 본 패널.
+  it('provider 조회 error 시 목록 패널이 error alert 를 안전 표시한다 (error path)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: {
+        data: undefined,
+        loading: false,
+        error: 'HTTP 403: Forbidden',
+      },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('HTTP 403: Forbidden');
+  });
+
+  // flow/branch — providerData undefined(조회 전/누락) → 빈 목록 파생 → 빈 상태 문구 렌더.
+  it('providerData undefined 이면 빈 목록으로 파생해 빈 상태 문구를 렌더한다 (flow/branch — undefined)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: undefined, loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // DifficultyModelSelector + LlmProviderConfigList 둘 다 빈 상태 문구 → 2 회 이상 등장(마운트 존재).
+    expect(
+      countOccurrences(html, '등록된 LLM provider 가 없습니다'),
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  // negative — 비-Admin(isAdmin=false)이면 Admin 전용 패널을 마운트하지 않는다(목록 패널 경계).
+  it('비-Admin 등급이면 provider 목록 패널을 마운트하지 않는다 (negative — gating 경계)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: CONFIG_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // provider 행(endpointUrl·provider span)이 노출되지 않음 — 패널 미마운트(fail-closed).
+    expect(html).not.toContain('https://api.openai.com/v1');
+    expect(html).not.toContain('<span>openai</span>');
+  });
+
+  // negative — loading 중에는 목록 대신 진행 표시(loading 우선 정책 — props 전달 확인).
+  it('provider 조회 loading 중 목록 패널이 진행 표시를 렌더한다 (negative — loading 우선)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: undefined, loading: true, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 불러오는 중 문구 표시 + loading 중엔 provider 행 미렌더.
+    expect(html).toContain('불러오는 중…');
+    expect(html).not.toContain('<span>openai</span>');
+  });
+});
+
 // R-112 — ④b 신규 파생 helper(deriveProviders/deriveDifficultyMapping) 순수 함수 검증.
 // negative 분기(누락 필드·빈 배열·미지의 키·stale 매핑·비배열 입력)를 각 1+ cover.
 describe('AdminView — LLM provider/매핑 파생 (순수 함수)', () => {
@@ -1110,6 +1212,47 @@ describe('AdminView — LLM provider/매핑 파생 (순수 함수)', () => {
     // negative — 비배열/undefined 입력은 빈 배열(throw 없이).
     expect(deriveProviders(undefined)).toEqual([]);
     expect(deriveProviders(null as unknown as undefined)).toEqual([]);
+  });
+
+  // deriveProviderConfigs(T-1134) — happy(전 필드) + 선택 필드 누락 생략 + id/provider fallback
+  // + 빈 배열/비배열 안전. LlmProviderConfigList 의 읽기 전용 view 계약 정합을 각 분기 cover.
+  it('deriveProviderConfigs 가 row 를 LlmProviderConfigRow[] 로 매핑하고 선택 필드 누락/비배열을 안전 처리한다 (helper)', () => {
+    // happy — id/provider 필수 + modelId/endpointUrl 있으면 매핑.
+    const full = deriveProviderConfigs([
+      {
+        id: 'cfg1',
+        provider: 'openai',
+        modelId: 'gpt-4o',
+        endpointUrl: 'https://api.openai.com/v1',
+      },
+    ]);
+    expect(full[0]).toEqual({
+      id: 'cfg1',
+      provider: 'openai',
+      modelId: 'gpt-4o',
+      endpointUrl: 'https://api.openai.com/v1',
+    });
+
+    // negative — modelId/endpointUrl 누락 row 는 두 선택 키를 생략(id/provider 만).
+    const partial = deriveProviderConfigs([{ id: 'cfg2', provider: 'anthropic' }]);
+    expect(partial[0]).toEqual({ id: 'cfg2', provider: 'anthropic' });
+    expect(partial[0]).not.toHaveProperty('modelId');
+    expect(partial[0]).not.toHaveProperty('endpointUrl');
+
+    // negative — 빈 문자열 modelId/endpointUrl 도 falsy 라 생략(경계값).
+    const blank = deriveProviderConfigs([
+      { id: 'cfg3', provider: 'x', modelId: '', endpointUrl: '' },
+    ]);
+    expect(blank[0]).toEqual({ id: 'cfg3', provider: 'x' });
+
+    // negative — id 누락 row 는 index 기반 합성 key(p1), provider 누락은 빈 문자열.
+    const noId = deriveProviderConfigs([{ modelId: 'm' }]);
+    expect(noId[0]).toEqual({ id: 'p1', provider: '', modelId: 'm' });
+
+    // negative — 빈 배열/undefined/비배열 입력은 빈 배열(throw 없이).
+    expect(deriveProviderConfigs([])).toEqual([]);
+    expect(deriveProviderConfigs(undefined)).toEqual([]);
+    expect(deriveProviderConfigs(null as unknown as undefined)).toEqual([]);
   });
 
   // deriveDifficultyMapping — happy + 빈 배열 + 미지의 키 무시 + stale id + 비배열.
