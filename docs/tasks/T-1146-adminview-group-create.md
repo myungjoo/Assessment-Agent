@@ -2,7 +2,7 @@
 id: T-1146
 title: AdminView 그룹 생성 mutation 배선 (POST /api/groups)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 200
@@ -54,3 +54,7 @@ P6 frontend Admin 패널의 그룹 관리(PLAN.md line120, REQ-028 임의 Group 
 ## Follow-ups
 
 (비어 있음)
+
+## Result
+
+DONE (2026-07-23T14:57Z) — PR #1038 squash 머지(b7da3c18). AdminView 그룹 생성 mutation POST /api/groups 배선: `GROUPS_PATH`→`buildGroupsPath(nonce)` 빌더 전환 + `groupsRefreshNonce` state + `runCreateGroup` 러너(trim 빈/공백 가드·in-flight 이중 POST 가드·성공 nonce bump 재조회+입력 초기화·실패 error state no-throw·finally off) + 그룹 관리 섹션(name input + '그룹 추가' 버튼). apiClient/useApiResource/backend 수정 0(ADR-0041 D1). impl +160/-1(AdminView.tsx), web vitest 807 pass, tsc --noEmit + vite build green. reviewer round 1/7 APPROVE, 4-게이트 PASS. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@AKIHA-b2c6).
