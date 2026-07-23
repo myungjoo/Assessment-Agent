@@ -30,6 +30,13 @@ import type { EvaluationMetricItem } from '../components/EvaluationDetailPanel';
 import DashboardPaginationControl from '../components/DashboardPaginationControl';
 import type { DashboardPaginationControlProps } from '../components/DashboardPaginationControl';
 import EvaluationGuardBanner from '../components/EvaluationGuardBanner';
+// T-1140 — R-20/R-33 권한 부족 감지·통지 표면화. 직전 slice(T-1139)가 신설한 순수
+// presentational PermissionDeniedRecordList 를 User+ 랜딩 컨테이너(DashboardView)에 배선한다.
+// 컴포넌트 수정 0 으로 default import + named type 만(ADR-0041 Decision 1 — 컴포넌트는 fetch 를
+// 모른다). audience 차등(Admin 전체 / non-Admin own-instance)은 backend service-layer 가 담당하므로
+// 단일 User+ surface 마운트로 "사용자+관리자 모두 인식 가능" 을 충족한다(REQ-008·REQ-016).
+import PermissionDeniedRecordList from '../components/PermissionDeniedRecordList';
+import type { PermissionDeniedRecordRow } from '../components/PermissionDeniedRecordList';
 
 // 정렬 가능 컬럼 옵션 — EvaluationResultTable/DashboardFilterBar 의 컬럼 키와 정합.
 const SORT_OPTIONS: SortOption[] = [
@@ -51,6 +58,15 @@ const DETAIL_EMPTY_LABEL = '평가 결과를 선택하면 상세가 표시됩니
 // 기본 페이지 크기 — DashboardPaginationControl 의 기본 옵션([10, 20, 50]) 첫 값과 정합.
 // initialPageSize 미주입 시 페이지 slice 의 기본 폭으로 쓴다(③b-3 페이지네이션).
 const DEFAULT_PAGE_SIZE = 10;
+
+// T-1140 — 권한 부족 record 조회 endpoint(GET /api/permission-denied-records, User+, api.md).
+// personId 같은 필수 query 가 없어 무조건 조회한다(audience 차등은 backend service-layer 담당,
+// 미인증은 상위 AuthGate 가 이미 차단). AdminView 의 GROUPS_PATH 규약과 정합하게 상수로 둔다
+// (조건부 가드 불요 — null 분기 없음, 읽기 전용 마운트라 필터/재조회/query param 배선 없음).
+const PERMISSION_DENIED_RECORDS_PATH = '/api/permission-denied-records';
+
+// 권한 부족 record 섹션 heading — 기존 패널과 시각적으로 구분되는 별도 섹션 제목(§12 한국어).
+const PERMISSION_DENIED_HEADING = '권한 부족 기록';
 
 // 정렬 키 — EvaluationResultRow 의 표시 컬럼 키(id 제외)로 제한한다.
 type SortKey = 'subjectName' | 'metricLabel' | 'score';
@@ -373,6 +389,17 @@ function DashboardView({
     error: contributionError,
   } = useApiResource<ContributionRow[]>(contributionsPath);
 
+  // 권한 부족 record 조회(T-1140, R-20/R-33) — 고정 endpoint(GET /api/permission-denied-records)
+  // 를 무조건 조회한다(personId 가드 없음 — audience 차등은 backend service-layer 담당).
+  // 네 번째 useApiResource 호출로 컨테이너가 권한 부족 record 상태를 소유하고, presentational
+  // PermissionDeniedRecordList 에 records/loading/error props 로만 내려보낸다(컴포넌트 수정 0).
+  // 변수명에 permissionDenied prefix 를 붙여 다른 조회의 loading/error 와 섞이지 않게 분리한다.
+  const {
+    data: permissionDeniedData,
+    loading: permissionDeniedLoading,
+    error: permissionDeniedError,
+  } = useApiResource<PermissionDeniedRecordRow[]>(PERMISSION_DENIED_RECORDS_PATH);
+
   // 표시 직전 client-side 필터 → 정렬. data 미도착이면 빈 배열로 간주한다.
   const visibleRows = useMemo(() => {
     const rows = Array.isArray(data) ? data : [];
@@ -592,6 +619,22 @@ function DashboardView({
         error={contributionError}
         emptyLabel={DETAIL_EMPTY_LABEL}
       />
+      {/* 권한 부족 기록(T-1140, R-20/R-33) — backend audit(GET /api/permission-denied-records,
+          service-layer audience 차등)를 사람이 볼 수 있게 읽기 전용 목록으로 표시한다. 기존
+          패널과 시각적으로 구분되는 별도 섹션(heading + 컴포넌트)으로 마운트하고, 권한 부족
+          조회의 loading/error 와 record 배열만 PermissionDeniedRecordList 로 내려보낸다(다른
+          조회 상태와 섞지 않음 — ADR-0041 Decision 1, 컴포넌트는 fetch 를 모른다). data 가
+          undefined(미조회/진행 중/실패)이면 `?? []` 로 빈 배열을 안전하게 넘겨 throw 없이
+          렌더한다(컴포넌트가 loading/error/empty 분기를 자체 처리). 필터/재조회/mutation 은
+          배선하지 않는다(읽기 전용 마운트 — Out of Scope). */}
+      <section aria-label={PERMISSION_DENIED_HEADING}>
+        <h2>{PERMISSION_DENIED_HEADING}</h2>
+        <PermissionDeniedRecordList
+          records={permissionDeniedData ?? []}
+          loading={permissionDeniedLoading}
+          error={permissionDeniedError}
+        />
+      </section>
     </section>
   );
 }

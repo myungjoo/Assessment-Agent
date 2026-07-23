@@ -29,6 +29,7 @@ import DashboardView, {
 } from './DashboardView';
 import type { SummaryRow, ContributionRow } from './DashboardView';
 import type { EvaluationResultRow } from '../components/EvaluationResultTable';
+import type { PermissionDeniedRecordRow } from '../components/PermissionDeniedRecordList';
 
 function setResource<T>(state: ApiResourceState<T>) {
   useApiResourceMock.mockReturnValue(state);
@@ -884,5 +885,171 @@ describe('DashboardView — pageRows 파생 (순수 함수)', () => {
   it('rows 가 비배열/빈 배열이면 빈 slice 를 반환한다 (negative — 비정상 rows)', () => {
     expect(pageRows([], 1, 10)).toEqual([]);
     expect(pageRows(undefined as unknown as { id: number }[], 1, 10)).toEqual([]);
+  });
+});
+
+// 권한 부족 record 샘플(T-1140) — provider/instanceRef/resourceRef/httpStatus/reason/createdAt
+// (+ principal 유무) 조합으로 표면화·안전 처리 분기를 검증한다. pd1 은 reason 있음/principal 없음,
+// pd2 는 reason 없음/principal null(ADR-0022 §1 현 이벤트 principal null), pd3 은 principal 존재
+// (컨테이너 전달 경로 검증용).
+const PD_SAMPLE: PermissionDeniedRecordRow[] = [
+  {
+    id: 'pd1',
+    provider: 'github',
+    instanceRef: 'org/repo',
+    resourceRef: 'issues#12',
+    httpStatus: 403,
+    reason: '토큰 권한 부족',
+    createdAt: '2026-07-20T00:00:00Z',
+  },
+  {
+    id: 'pd2',
+    provider: 'confluence',
+    instanceRef: 'ENGSPACE',
+    resourceRef: 'page/99',
+    httpStatus: 404,
+    createdAt: '2026-07-21T00:00:00Z',
+    principal: null,
+  },
+  {
+    id: 'pd3',
+    provider: 'github',
+    instanceRef: 'org/other',
+    resourceRef: 'pulls#7',
+    httpStatus: 403,
+    createdAt: '2026-07-22T00:00:00Z',
+    principal: 'svc-bot',
+  },
+];
+
+// 권한 부족 조회에만 특정 상태를 주입하고, 나머지 조회(assessments/summaries/contributions)는
+// 배경으로 정상/idle 상태를 반환해 대시보드 본문이 정상 렌더되게 한다. personId 선택 시에만
+// 권한 부족 섹션이 렌더되므로(main return), 아래 테스트는 personId 를 항상 주입한다.
+function setResourcesPD(pd: ApiResourceState<unknown>) {
+  useApiResourceMock.mockImplementation((path: string | null) => {
+    if (
+      typeof path === 'string' &&
+      path.startsWith('/api/permission-denied-records')
+    ) {
+      return pd;
+    }
+    // assessments 는 정상 SAMPLE 로 두어 본문 테이블이 정상 렌더(권한 부족 섹션과 상태 분리 확인).
+    if (typeof path === 'string' && path.startsWith('/api/assessments')) {
+      return { data: SAMPLE, loading: false, error: undefined };
+    }
+    return IDLE;
+  });
+}
+
+describe('DashboardView — 권한 부족 record 섹션 배선 (T-1140, R-20/R-33)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 권한 부족 조회가 record 1+ 를 반환하면 각 record 의 provider/instanceRef/
+  // httpStatus/reason 이 별도 섹션(heading 포함)에 표면화된다.
+  it('record 1+ 반환 시 provider/instanceRef/httpStatus/reason 을 섹션에 표면화한다 (happy-path)', () => {
+    setResourcesPD({ data: PD_SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    // 별도 섹션 heading + 조회 path 사용.
+    expect(html).toContain('권한 부족 기록');
+    expect(useApiResourceMock).toHaveBeenCalledWith('/api/permission-denied-records');
+    // 각 record 의 표시 필드가 표면화된다.
+    expect(html).toContain('github');
+    expect(html).toContain('org/repo');
+    expect(html).toContain('issues#12');
+    expect(html).toContain('403');
+    expect(html).toContain('토큰 권한 부족'); // reason 있는 row.
+    expect(html).toContain('confluence');
+    expect(html).toContain('404');
+    // principal 존재 row(pd3) 는 컨테이너 전달 경로를 거쳐 principal 이 표면화된다.
+    expect(html).toContain('svc-bot');
+  });
+
+  // error path — 조회가 error 를 반환하면 섹션이 role="alert" 에러 표면을 렌더하고 목록은 미렌더.
+  it('조회 실패 시 role="alert" 에러 표면을 렌더하고 record 목록을 미렌더한다 (error path)', () => {
+    setResourcesPD({ data: undefined, loading: false, error: 'HTTP 401: 권한 없음' });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('권한 부족 기록'); // 섹션 heading 은 유지.
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('HTTP 401: 권한 없음');
+    // 에러 분기는 목록(github provider 등)을 렌더하지 않는다.
+    expect(html).not.toContain('org/repo');
+    expect(html).not.toContain('issues#12');
+  });
+
+  // branch — loading 중이면 로딩 표면(role="status" + 로딩 문구)이 우선 렌더된다(목록 미렌더).
+  it('loading=true 면 로딩 표면을 우선 렌더한다 (branch — loading)', () => {
+    setResourcesPD({ data: undefined, loading: true, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('권한 부족 기록');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('불러오는 중…');
+    expect(html).not.toContain('org/repo'); // 로딩 우선 — 목록 미렌더.
+  });
+
+  // branch — 빈 배열이면 기본 빈 상태 문구가 렌더된다(목록 미렌더).
+  it('빈 배열이면 기본 빈 상태 문구를 렌더한다 (branch — empty)', () => {
+    setResourcesPD({ data: [], loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('권한 부족 기록');
+    expect(html).toContain('권한 부족 record 가 없습니다');
+    expect(html).not.toContain('org/repo');
+  });
+
+  // negative — data undefined(미조회/진행 미완/실패 fallback)면 `?? []` 로 throw 없이 빈 상태 렌더.
+  it('data undefined 면 `?? []` 로 throw 없이 빈 상태를 렌더한다 (negative — undefined fallback)', () => {
+    setResourcesPD({ data: undefined, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    // undefined → 빈 배열 → 기본 빈 문구. 렌더 자체가 throw 없이 성공한다.
+    expect(html).toContain('권한 부족 기록');
+    expect(html).toContain('권한 부족 record 가 없습니다');
+  });
+
+  // negative — principal null/생략 record 도 컨테이너 전달 경로를 거쳐 throw 없이 안전 렌더.
+  it('principal null/생략 record 도 안전하게 렌더한다 (negative — principal null)', () => {
+    setResourcesPD({
+      data: [PD_SAMPLE[1]], // pd2: principal null + reason 생략.
+      loading: false,
+      error: undefined,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    // principal null 이어도 provider/instanceRef 는 표면화되고 렌더가 깨지지 않는다.
+    expect(html).toContain('confluence');
+    expect(html).toContain('ENGSPACE');
+    expect(html).toContain('404');
+  });
+
+  // negative — 다건 record 가 중복 없이 모두 렌더된다(id 기반 key 안정성 — 두 github row 공존).
+  it('다건 record 를 중복 없이 모두 렌더한다 (negative — 다건 key 안정성)', () => {
+    setResourcesPD({ data: PD_SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    // provider 가 같은(github) 두 row(pd1/pd3)도 서로 다른 instanceRef 로 각각 표면화된다.
+    expect(html).toContain('org/repo'); // pd1.
+    expect(html).toContain('org/other'); // pd3.
+    expect(html).toContain('pulls#7'); // pd3 resourceRef.
+    // reason 없는 pd2 도 throw 없이 표면화(instanceRef 로 확인).
+    expect(html).toContain('ENGSPACE');
+  });
+
+  // negative — 권한 부족 조회 실패가 본문(assessments) 렌더를 오염시키지 않는다(상태 분리).
+  it('권한 부족 실패가 본문 테이블 렌더를 오염시키지 않는다 (negative — 상태 분리)', () => {
+    setResourcesPD({ data: undefined, loading: false, error: 'HTTP 500: pd boom' });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    // 권한 부족 섹션은 에러, 그러나 본문 결과 테이블(assessments SAMPLE)은 정상 렌더.
+    expect(html).toContain('HTTP 500: pd boom');
+    expect(html).toContain('<table>');
+    expect(html).toContain('김철수');
+  });
+
+  // 조건부 렌더 — personId 미선택 시 권한 부족 섹션(heading)은 미렌더(main return 에만 마운트).
+  it('personId 미선택 시 권한 부족 섹션 heading 을 미렌더한다 (조건부 렌더)', () => {
+    setResourcesPD({ data: PD_SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView />);
+    expect(html).toContain('평가 대상을 선택하면');
+    expect(html).not.toContain('권한 부족 기록');
   });
 });
