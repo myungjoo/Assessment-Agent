@@ -2,7 +2,10 @@
 id: T-1134
 title: AdminView 에 LlmProviderConfigList 마운트 + provider view 파생 (읽기 전용 표시 배선)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1026
+completedAt: 2026-07-23T05:44Z
+result: PR #1026 merged (squash 00b10237). AdminView 에 LlmProviderConfigList 마운트 + deriveProviderConfigs 순수 helper 파생. reviewer round 1/7 APPROVE, 4-게이트 PASS, web vitest 583 pass. impl +198/-0 (2 files).
 commitMode: pr
 coversReq: [REQ-096]
 estimatedDiff: 130
