@@ -63,6 +63,11 @@ import GroupList from '../components/GroupList';
 // 없으므로 named PartRow 를 그대로 조회 제네릭·props 타입에 재사용한다(task Required Reading).
 import PartList from '../components/PartList';
 import type { PartRow } from '../components/PartList';
+// 사용자 목록 마운트 대상(T-1159, T-1158 presentational) — default UserList 와 named UserRow 타입을
+// 함께 가져온다. AdminView 에는 로컬 UserRow 가 없어(사용자 미조회) 이름 충돌이 없으므로 named
+// UserRow 를 그대로 조회 제네릭·props 타입에 재사용한다(PartRow 차용 convention 동형).
+import UserList from '../components/UserList';
+import type { UserRow } from '../components/UserList';
 
 // 그룹 목록 조회 path — 고정 endpoint(GET /api/groups, api.md 81 User+). personId 같은
 // 필수 query 가 없어 무조건 조회한다(미인증은 AuthGate 가 이미 차단). DashboardView 의
@@ -92,6 +97,17 @@ const PARTS_PATH = '/api/parts';
 // 파트 관리 섹션 heading 문구(T-1152) — 파트 목록을 담는 별도 섹션의 제목(GROUP_HEADING 동형).
 // §12 한국어. aria-label 겸 <h2> 로 재사용해 보조기술이 섹션 경계를 인식하게 한다.
 const PART_HEADING = '파트 관리';
+
+// 사용자 조회 path(T-1159) — 고정 endpoint(GET /api/users, user.controller @Get() 이 Admin+ RBAC
+// 로 UserResponseDto[] 를 envelope 없이 직반환). AdminView 는 사용자를 전혀 조회하지 않아 재사용할
+// fetch 가 없으므로 신규 상수로 둔다. 생성·역할 변경 slice 가 아직 없어 refresh nonce 빌더 없이
+// 단순 상수 path 로 조회한다(PARTS_PATH 동형 — nonce-aware buildUsersPath 전환은 후속 mutation
+// slice 책임). personId 같은 필수 query 없음.
+const USERS_PATH = '/api/users';
+
+// 사용자 관리 섹션 heading 문구(T-1159) — 사용자 목록을 담는 별도 섹션의 제목(PART_HEADING 동형).
+// §12 한국어. <h2> 로 렌더하며, 섹션 aria-label 은 다른 섹션과 구분되도록 "… 섹션" 접미를 붙인다.
+const USER_HEADING = '사용자 관리';
 
 // 파트 생성 409(중복 이름) 전용 사람-친화 문구(T-1153) — Part.name 은 prisma schema 에서 @unique
 // 라 중복 이름 POST 시 PartService.create 가 Prisma P2002 → ConflictException(409) 으로 변환한다.
@@ -3267,6 +3283,18 @@ function AdminView({
     [partPersonData],
   );
 
+  // 사용자 목록 조회(GET /api/users, T-1159 마운트, REQ-044/REQ-045) — useApiResource 신규 호출.
+  // 파트처럼 재사용할 기존 사용자 fetch 가 없어(AdminView 사용자 미조회) 신규 단일 호출이 정당하다
+  // (double-fetch 대상 부재). 변수명에 user prefix 를 붙여 인원/그룹/파트/멤버십 등 다른 조회 상태와
+  // 섞이지 않게 분리한다(partLoading/partError 동형). 본 slice 는 읽기 전용이라 mutation 이 없어
+  // refresh nonce 없이 정적 path 를 쓴다(생성·역할 변경 slice 에서 buildUsersPath(nonce) 로 전환).
+  // Admin+ endpoint 라 비-Admin actor 에게는 403 → error 문구로 안전 표시된다(throw 0).
+  const {
+    data: usersData,
+    loading: userLoading,
+    error: userError,
+  } = useApiResource<UserRow[]>(USERS_PATH);
+
   // 파트 생성 controlled input 상태(T-1153) — 컨테이너 소유. "파트 추가" 클릭 시 handleCreatePart
   // 가 POST body 의 name 필드로 공급하고, 성공 후 빈 값으로 되돌린다(연속 생성 편의). 그룹 생성의
   // groupNameInput 패턴 mirror(파트도 name 단일 필드).
@@ -3854,6 +3882,22 @@ function AdminView({
             submitting={reevalSubmitting}
             error={reevalError}
           />
+          {/* 사용자 관리(T-1159 마운트, REQ-044/REQ-045) — 파트 마운트(T-1152)와 동형이나 GET
+              /api/users 가 Admin+ 전용이라 본 섹션만 isAdmin gating 안쪽에 둔다(비-Admin 에게는 아예
+              마운트하지 않아 403 목록이 화면에 남지 않는다 — 위 fail-closed 정책 정합). 신규 조회
+              useApiResource<UserRow[]>(USERS_PATH) 의 data/loading/error 를 그대로 UserList 로 내려
+              보낸다(ADR-0041 Decision 1 — 컴포넌트는 fetch 를 모른다). data 가 undefined(미조회/진행
+              중/실패)이면 `?? []` 로 빈 배열을 안전하게 넘겨 throw 없이 렌더한다(경계 방어). 본 slice
+              는 읽기 전용이라 onChangeRole 같은 mutation 콜백은 전달하지 않는다(생성·역할 변경 배선은
+              후속 slice). UserList 의 named UserRow 를 조회 제네릭에 그대로 쓴다(컴포넌트 수정 0). */}
+          <section aria-label="사용자 관리 섹션">
+            <h2>{USER_HEADING}</h2>
+            <UserList
+              users={usersData ?? []}
+              loading={userLoading}
+              error={userError}
+            />
+          </section>
         </>
       ) : (
         // 비-Admin(또는 등급 불명/조회 중) — Admin 전용 패널 대신 권한 부족 안내 한 줄(fail-closed).
