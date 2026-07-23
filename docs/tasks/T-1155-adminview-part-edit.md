@@ -2,8 +2,12 @@
 id: T-1155
 title: AdminView 파트 수정 mutation 배선 PATCH /api/parts/:id
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1047
+mergedAs: c4c1d7352c0c890290ca3ac8ffd117820f370bfe
+reviewRounds: 1
+completedAt: 2026-07-23T20:22:00Z
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 235
 estimatedFiles: 2
