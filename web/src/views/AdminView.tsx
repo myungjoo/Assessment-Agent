@@ -162,10 +162,38 @@ const ADMIN_IMPORT_PATH = '/api/admin/import';
 // 와 동일하게 api.md 계약 기준 선배선). 컴포넌트/apiClient 수정 0 — native FormData body.
 const IMPORT_FILE_FIELD = 'file';
 
-// import 성공 시 DataImportExportPanel 의 message props 로 내려보낼 사람-친화 완료 안내.
-// import 결과 상세(건수/충돌/검증 리포트) 는 후속 slice 라(Out of Scope), 본 slice 는 import
-// 호출 성공 사실만 표면화한다(응답 형태 미확정이라 단순 완료 문구로 둔다 — EXPORT_DONE_TEXT 동형).
+// import 성공 시 DataImportExportPanel 의 message props 로 내려보낼 사람-친화 안내.
+// POST 응답이 기대 shape(ImportJob) 가 아닐 때의 안전 fallback 문구로도 쓰인다(응답 형태 변화·
+// 비정상 응답 방어 — formatImportJobDetail 참조). 상세 소비는 T-1132 에서 도입.
 const IMPORT_DONE_TEXT = '가져오기 완료';
+
+// import 성공 시 POST /api/admin/import 응답(ImportJob) 을 사람-친화 한국어 상세 문구로 합성하는
+// 순수 helper(T-1132). backend @Post() 은 생성된 ImportJob(id / status(PENDING) / mode) 을
+// 그대로 반환하므로(src/import/import.controller.ts L109~120) 그 job 을 소비해 실제 상태를 표면화한다.
+// job 은 즉시 완료가 아니라 PENDING(비동기 큐잉) 이므로 정적 "가져오기 완료" 대신 상태를 명시한다.
+// apiClient.request 반환 타입은 unknown 이라 응답 형태가 보장되지 않으므로 방어적 narrowing 필수 —
+// 기대 shape(최소 id string) 가 아니면(null · 비객체 · id 부재) 정적 IMPORT_DONE_TEXT 로 안전
+// fallback(throw · '[object Object]' 노출 0). status · mode 는 string 일 때만 노출(누락 시 생략).
+function formatImportJobDetail(job: unknown): string {
+  // 비객체(null · undefined · string · number 등) → 소비 불가, 완료 문구 fallback.
+  if (typeof job !== 'object' || job === null) {
+    return IMPORT_DONE_TEXT;
+  }
+  const record = job as Record<string, unknown>;
+  // 최소 식별자 id(비어있지 않은 string) 부재 → 상세 합성 불가, fallback.
+  if (typeof record.id !== 'string' || record.id.length === 0) {
+    return IMPORT_DONE_TEXT;
+  }
+  // id 는 필수, status · mode 는 있을 때만 덧붙인다(부분 정보라도 안전 표시 — 누락 필드 생략).
+  const parts: string[] = [`job ${record.id}`];
+  if (typeof record.status === 'string' && record.status.length > 0) {
+    parts.push(`상태 ${record.status}`);
+  }
+  if (typeof record.mode === 'string' && record.mode.length > 0) {
+    parts.push(`모드 ${record.mode}`);
+  }
+  return `가져오기 요청됨 — ${parts.join(', ')}`;
+}
 
 // 스케줄 조회/upsert path — 고정 endpoint(GET/PUT /api/schedules, ADR-0042 Admin+). GET 은
 // 등록된 schedule name string[] 을 반환하고, PUT 은 `{ name, cronExpression }` body 로 이름
@@ -690,11 +718,12 @@ async function runImport(file: File, deps: ImportDeps): Promise<void> {
     // .request 가 RequestInit.body 를 native 수용 → apiClient.ts 수정 0.
     const formData = new FormData();
     formData.append(IMPORT_FILE_FIELD, file);
-    // POST /api/admin/import — multipart body. 응답 body 형태(건수/리포트)는 본 slice 가
-    // 소비하지 않으므로(import 결과 상세 표시는 후속) 성공 사실만 확인한다.
-    await deps.post(ADMIN_IMPORT_PATH, { method: 'POST', body: formData });
-    // 성공 — 사람-친화 완료 안내를 message 로 표면화(DataImportExportPanel 의 정상 message 분기).
-    deps.setImportMessage(IMPORT_DONE_TEXT);
+    // POST /api/admin/import — multipart body. 응답은 생성된 ImportJob(id / status(PENDING) /
+    // mode) 이므로(import.controller.ts L109~120) 그 job 을 소비해 상세 문구로 합성한다(T-1132).
+    const job = await deps.post(ADMIN_IMPORT_PATH, { method: 'POST', body: formData });
+    // 성공 — 응답 ImportJob 을 사람-친화 상세 문구로 합성해 message 로 표면화한다(방어적 narrowing —
+    // 기대 shape 아니면 IMPORT_DONE_TEXT 로 안전 fallback). job 은 PENDING 이라 "완료" 대신 상태 명시.
+    deps.setImportMessage(formatImportJobDetail(job));
   } catch (e) {
     // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 400 잘못된
     // 파일 / 404 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
@@ -1680,6 +1709,7 @@ export {
   runAssign,
   runExport,
   runImport,
+  formatImportJobDetail,
   runApply,
   runTrigger,
   deriveScheduleMessage,
