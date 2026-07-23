@@ -86,6 +86,8 @@ import AdminView, {
   runCreateProvider,
   runCreatePerson,
   runDeletePerson,
+  buildPersonPatch,
+  runUpdatePerson,
   runUpdateProvider,
   resolveProviderSelectValue,
   LLM_PROVIDER_OPTIONS,
@@ -110,6 +112,9 @@ import type {
   CreatePersonDeps,
   CreatePersonFields,
   DeletePersonDeps,
+  PersonPatchInput,
+  PersonPatch,
+  UpdatePersonDeps,
   UpdateProviderDeps,
   UpdateProviderFields,
 } from './AdminView';
@@ -5062,5 +5067,386 @@ describe('AdminView — 인원 삭제 배선 (정적 렌더, T-1144)', () => {
     const html = renderToStaticMarkup(<AdminView />);
     expect(html).toContain('등록된 인원이 없습니다');
     expect(countOccurrences(html, '>삭제</button>')).toBe(0);
+  });
+});
+
+// R-112 — T-1145 인원 수정 부분 갱신 body 조립(buildPersonPatch) 순수 helper 검증. 원본 스냅샷 대비
+// "변경된 필드만" 담기는지, 공백-only/미변경/trim/active boolean 분기를 각각 cover 한다. jsdom·렌더러
+// 불요(순수 함수 직접 호출 — buildExportPath convention 정합).
+describe('AdminView — buildPersonPatch 부분 갱신 body 조립 (순수 함수, T-1145)', () => {
+  // 편집 시작 원본 스냅샷 — 모든 test 가 이 값을 기준으로 변경분을 만든다.
+  const ORIGINAL: PersonPatchInput = {
+    fullName: '김철수',
+    email: 'chulsoo@example.com',
+    active: true,
+  };
+
+  // happy-path — 세 필드 모두 변경 시 셋 다 patch 에 담긴다.
+  it('세 필드 모두 변경 시 셋 다 patch 에 담는다 (happy-path)', () => {
+    const patch = buildPersonPatch(
+      { fullName: '김수정', email: 'new@example.com', active: false },
+      ORIGINAL,
+    );
+    expect(patch).toEqual({
+      fullName: '김수정',
+      email: 'new@example.com',
+      active: false,
+    });
+  });
+
+  // branch — fullName 만 변경 시 patch 에 fullName 만(나머지 부재 → backend 미변경).
+  it('fullName 만 변경 시 patch 에 fullName 만 담는다 (branch — 단일 필드)', () => {
+    const patch = buildPersonPatch({ ...ORIGINAL, fullName: '김수정' }, ORIGINAL);
+    expect(patch).toEqual({ fullName: '김수정' });
+  });
+
+  // negative — email 미변경 시 body 에 email 미포함(원본과 동일 → 제외).
+  it('email 미변경 시 patch 에 email 을 포함하지 않는다 (negative — 미변경 필드 제외)', () => {
+    const patch = buildPersonPatch({ ...ORIGINAL, fullName: '김수정' }, ORIGINAL);
+    expect(patch.email).toBeUndefined();
+  });
+
+  // branch — 변경 없음(입력=원본)이면 빈 patch(no-op → 러너가 발사 억제).
+  it('입력이 원본과 동일하면 빈 patch 를 반환한다 (branch — 변경 없음)', () => {
+    const patch = buildPersonPatch({ ...ORIGINAL }, ORIGINAL);
+    expect(patch).toEqual({});
+    expect(Object.keys(patch)).toHaveLength(0);
+  });
+
+  // negative — 공백-only fullName 입력은 patch 에서 제외한다(@IsNotEmpty 위반 방지 — 빈 값 덮어쓰기 차단).
+  it('공백-only fullName 입력은 patch 에서 제외한다 (negative — 공백-only 입력 처리)', () => {
+    const patch = buildPersonPatch({ ...ORIGINAL, fullName: '   ' }, ORIGINAL);
+    expect(patch.fullName).toBeUndefined();
+    expect(patch).toEqual({});
+  });
+
+  // negative — 공백-only email 입력도 patch 에서 제외한다(@IsEmail 위반·빈 email 발사 차단).
+  it('공백-only email 입력은 patch 에서 제외한다 (negative — 공백-only email)', () => {
+    const patch = buildPersonPatch({ ...ORIGINAL, email: '   ' }, ORIGINAL);
+    expect(patch.email).toBeUndefined();
+    expect(patch).toEqual({});
+  });
+
+  // negative(trim 정규화) — 값이 실제로 바뀌었으면 앞뒤 공백을 trim 해 patch 에 담는다.
+  it('변경된 필드는 앞뒤 공백을 trim 해 patch 에 담는다 (negative — trim 정규화)', () => {
+    const patch = buildPersonPatch(
+      { ...ORIGINAL, fullName: '  김수정  ', email: '  new@example.com  ' },
+      ORIGINAL,
+    );
+    expect(patch).toEqual({ fullName: '김수정', email: 'new@example.com' });
+  });
+
+  // negative(trim 후 동일) — 원본에 공백만 덧댄 입력은 trim 후 원본과 같아 제외한다(무의미 변경 차단).
+  it('원본에 공백만 덧댄 입력은 trim 후 동일해 제외한다 (negative — trim 후 미변경)', () => {
+    const patch = buildPersonPatch({ ...ORIGINAL, fullName: '  김철수  ' }, ORIGINAL);
+    expect(patch.fullName).toBeUndefined();
+    expect(patch).toEqual({});
+  });
+
+  // branch — active true→false 전환은 patch 에 active:false 로 담긴다(soft deactivate, falsy 값도 명시 비교).
+  it('active true→false 전환을 patch 에 active:false 로 담는다 (branch — active false 분기)', () => {
+    const patch = buildPersonPatch({ ...ORIGINAL, active: false }, ORIGINAL);
+    expect(patch).toEqual({ active: false });
+  });
+
+  // branch — active false→true 전환은 patch 에 active:true 로 담긴다(reactivate — 반대 분기).
+  it('active false→true 전환을 patch 에 active:true 로 담는다 (branch — active true 분기)', () => {
+    const patch = buildPersonPatch(
+      { fullName: '김철수', email: 'chulsoo@example.com', active: true },
+      { fullName: '김철수', email: 'chulsoo@example.com', active: false },
+    );
+    expect(patch).toEqual({ active: true });
+  });
+
+  // negative — active 미변경(동일 boolean)이면 patch 에 active 미포함(false→false 도 제외).
+  it('active 미변경(동일 boolean)이면 patch 에 active 를 포함하지 않는다 (negative — active 미변경)', () => {
+    const inactiveOriginal: PersonPatchInput = { ...ORIGINAL, active: false };
+    const patch = buildPersonPatch({ ...inactiveOriginal }, inactiveOriginal);
+    expect(patch.active).toBeUndefined();
+    expect(patch).toEqual({});
+  });
+});
+
+// R-112 — T-1145 인원 수정 실 PATCH update mutation 본체(runUpdatePerson) 검증. jsdom/렌더러 없이
+// mutation 본체를 직접 호출하고(runUpdateProvider 와 동일 convention), apiClient.request mock 으로
+// method/path/body 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백
+// 호출로 관찰한다. happy/error(404·409·403·네트워크)/branch(빈 id·in-flight·빈 patch)/negative
+// (특수문자 id 인코딩·이중 PATCH 차단·reject→finally 복구·편집 상태 전이) 예외 분기마다 각 1+ cover.
+describe('AdminView — 인원 수정 실 PATCH update mutation (T-1145 runUpdatePerson)', () => {
+  // 기본 부분 갱신 patch — fullName 한 필드만 담긴 유효 patch(대부분 test 의 default 입력).
+  const PATCH: PersonPatch = { fullName: '김수정' };
+
+  // 상태 전이를 기록하는 deps harness — updating 초기값과 request mock 을 주입받아 setUpdating/
+  // setUpdateError 호출과 bumpRefresh·closeEdit 호출 횟수를 순서대로 캡처한다(runUpdateProvider 동형).
+  // runUpdatePerson 은 id 를 인자로 받으므로 deps 에 id 가 없다(makeUpdateDeps 와의 차이).
+  function makeUpdatePersonDeps(updating: boolean) {
+    const calls = {
+      updating: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      close: 0,
+    };
+    const deps: UpdatePersonDeps = {
+      update: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      updating,
+      setUpdating: (next) => calls.updating.push(next),
+      setUpdateError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+      closeEdit: () => {
+        calls.close += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — update 트리거 시 request 가 PATCH /api/persons/:id 로 method PATCH + 변경 필드 body
+  // 인자로 정확히 호출되고, 성공 후 재조회 nonce bump(1 회) + 편집 종료(closeEdit 1 회) + error 미설정
+  // (시작 비움만) + 진행 표시 on→off 로 해제된다.
+  it('PATCH /api/persons/:id 를 method PATCH + 변경 필드 body 로 호출하고 성공 시 nonce bump + 편집 종료 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 200 OK.
+    const { deps, calls } = makeUpdatePersonDeps(false);
+    await runUpdatePerson('pp1', { fullName: '김수정', active: false }, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string; body: string },
+    ];
+    expect(path).toBe('/api/persons/pp1');
+    expect(options.method).toBe('PATCH');
+    expect(JSON.parse(options.body)).toEqual({ fullName: '김수정', active: false });
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // error path — PATCH 404(미존재 row) 시 error 문구 표면화·throw 없음·nonce 미증가·편집 종료 미호출(편집 유지).
+  it('update 404(미존재 row) 실패 시 error 문구를 표면화하고 nonce·편집 상태를 건드리지 않는다 (error path — 404)', async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeUpdatePersonDeps(false);
+    await expect(runUpdatePerson('ghost', PATCH, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // error path — 409(email 중복) 실패 시 동일 안전 경로(throw 없음).
+  it('update 409(email 중복) 실패 시 안전 문구를 표면화한다 (error path — 409)', async () => {
+    requestMock.mockRejectedValue(new ApiError(409, 'Conflict'));
+    const { deps, calls } = makeUpdatePersonDeps(false);
+    await expect(runUpdatePerson('pp1', { email: 'dup@example.com' }, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 409: Conflict']);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+  });
+
+  // error path — 403(Admin+ 미만) 실패 시 동일 안전 경로.
+  it('update 403(Admin+ 미만) 실패 시 안전 문구를 표면화한다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeUpdatePersonDeps(false);
+    await expect(runUpdatePerson('pp1', PATCH, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('update 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeUpdatePersonDeps(false);
+    await expect(runUpdatePerson('pp1', PATCH, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch(a) — 빈/공백/falsy id 는 PATCH 미발사·state 불변(잘못된 path 회피). 경계값 각각 cover.
+  it('빈/공백/falsy id 는 PATCH 를 발사하지 않는다 (branch (a) — id 가드)', async () => {
+    for (const badId of ['', '   ']) {
+      requestMock.mockReset();
+      const { deps, calls } = makeUpdatePersonDeps(false);
+      await expect(runUpdatePerson(badId, PATCH, deps)).resolves.toBeUndefined();
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.updating).toEqual([]);
+      expect(calls.bump).toBe(0);
+    }
+    // undefined id 도 안전(런타임 비정상 입력 방어).
+    requestMock.mockReset();
+    const { deps, calls } = makeUpdatePersonDeps(false);
+    await expect(
+      runUpdatePerson(undefined as unknown as string, PATCH, deps),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+  });
+
+  // branch(b) — 이전 update 미완(updating=true) 중 재호출은 PATCH 미발사·state 불변(이중 PATCH 차단).
+  it('이전 update 미완(updating=true) 중 재호출은 PATCH 를 발사하지 않는다 (branch (b) — 이중 PATCH 가드)', async () => {
+    const { deps, calls } = makeUpdatePersonDeps(true); // 이미 in-flight.
+    await runUpdatePerson('pp1', PATCH, deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch(c) — 빈 patch(변경 필드 0)면 PATCH 미발사(빈 body 회피 — no-op).
+  it('빈 patch(변경 필드 0)면 PATCH 를 발사하지 않는다 (branch (c) — 빈 body no-op 가드)', async () => {
+    const { deps, calls } = makeUpdatePersonDeps(false);
+    await expect(runUpdatePerson('pp1', {}, deps)).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+  });
+
+  // negative(id 인코딩) — 특수문자가 든 id 는 encodeURIComponent 로 안전 인코딩된다(path 손상 방지).
+  it('id 를 encodeURIComponent 로 안전 인코딩해 path 를 만든다 (negative — 특수문자 id 인코딩)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdatePersonDeps(false);
+    await runUpdatePerson('pp 1/x', PATCH, deps);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/persons/pp%201%2Fx');
+  });
+
+  // negative(이중 PATCH 차단, 순차) — 정상 발사는 request 를 정확히 1 회만 호출한다(중복 없음).
+  it('정상 발사 시 PATCH 를 1 회만 호출한다 (negative — 재클릭 이중 PATCH 차단)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdatePersonDeps(false);
+    await runUpdatePerson('pp1', PATCH, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/persons/pp1');
+  });
+
+  // negative(reject→finally 복구) — 실패 후에도 finally 가 setUpdating(false) 로 진행 표시를 복구한다.
+  it('reject 시에도 finally 로 진행 표시(updating)를 복구한다 (negative — reject→finally 복구)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeUpdatePersonDeps(false);
+    await runUpdatePerson('pp1', PATCH, fail.deps);
+    expect(fail.calls.updating).toEqual([true, false]);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeUpdatePersonDeps(false);
+    await runUpdatePerson('pp1', PATCH, ok.deps);
+    expect(ok.calls.updating).toEqual([true, false]);
+  });
+
+  // negative(편집 상태 전이) — 성공 시 편집 종료(closeEdit), 실패 시 편집 유지(closeEdit 미호출).
+  it('성공 시 편집을 종료하고 실패 시 편집을 유지한다 (negative — 편집 상태 전이)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeUpdatePersonDeps(false);
+    await runUpdatePerson('pp1', PATCH, ok.deps);
+    expect(ok.calls.close).toBe(1);
+
+    requestMock.mockRejectedValueOnce(new ApiError(400, 'Bad Request'));
+    const fail = makeUpdatePersonDeps(false);
+    await runUpdatePerson('pp1', PATCH, fail.deps);
+    expect(fail.calls.close).toBe(0);
+  });
+
+  // negative(시작 정리/재조회 전 안전) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve
+  // 로 캡처한다(재조회 도착 전 상태에서 crash 없음). 해소 후 재조회 bump + 편집 종료 + 진행 off.
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 시작 정리/재조회 전 안전)', async () => {
+    let resolvePatch: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePatch = resolve;
+        }),
+    );
+    const { deps, calls } = makeUpdatePersonDeps(false);
+    const pending = runUpdatePerson('pp1', PATCH, deps);
+    expect(calls.updating).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+    resolvePatch();
+    await pending;
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // negative(응답 shape 무관) — request 가 예상 밖 값(null)으로 resolve 해도 성공 경로로 안전 처리한다.
+  it('request 가 예상 밖 값(null)으로 resolve 해도 성공 경로로 안전 처리한다 (negative — 응답 shape 무관)', async () => {
+    requestMock.mockResolvedValue(null);
+    const { deps, calls } = makeUpdatePersonDeps(false);
+    await expect(runUpdatePerson('pp1', PATCH, deps)).resolves.toBeUndefined();
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+  });
+});
+
+// R-112 — T-1145 인원 수정 배선 렌더 검증. 인원 관리 마운트(PersonList)에 onEdit=handleEditPerson 이
+// 배선돼 각 인원 행에 "수정" 버튼이 person 수만큼 렌더됨을 정적 markup 으로 단언한다(클릭→prefill·러너
+// 호출 자체는 위 runUpdatePerson 단위 test 가 cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트 비검증).
+// 초기(편집 대상 미선택)엔 인라인 수정 폼이 미렌더됨도 확인한다. 비-Admin 등급으로 두어 provider 목록
+// 패널의 "수정" 버튼과 섞이지 않게 격리한다(인원 섹션은 gating 밖이라 비-Admin 에도 렌더된다).
+describe('AdminView — 인원 수정 배선 (정적 렌더, T-1145)', () => {
+  const PERSONS = '/api/persons';
+  const countOccurrences = (haystack: string, needle: string) =>
+    haystack.split(needle).length - 1;
+
+  const PERSON_ROWS: PersonRow[] = [
+    { id: 'pp1', fullName: '김인원', email: 'kim@example.com', active: true },
+    { id: 'pp2', fullName: '이휴직', email: 'lee@example.com', active: false },
+  ];
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 인원 목록이 있으면 각 행에 수정 버튼(onEdit=handleEditPerson 배선)이 person 수만큼
+  // 렌더된다. 비-Admin 이라 provider 목록 패널은 미마운트 → "수정" 버튼의 유일 출처는 인원 목록.
+  it('인원 목록이 있으면 각 행에 수정 버튼을 렌더한다 (happy-path — onEdit 배선)', () => {
+    setRoutes({
+      [PERSONS]: { data: PERSON_ROWS, loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('김인원');
+    expect(countOccurrences(html, '>수정</button>')).toBe(PERSON_ROWS.length);
+  });
+
+  // branch/negative — 초기(편집 대상 미선택, editingPersonId=null)엔 인라인 수정 폼이 미렌더된다.
+  it('초기(편집 미선택)엔 인라인 수정 폼을 렌더하지 않는다 (branch/negative — editingPersonId=null)', () => {
+    setRoutes({
+      [PERSONS]: { data: PERSON_ROWS, loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 인라인 수정 폼의 입력(aria-label)은 편집 대상 선택 전에는 미렌더된다.
+    expect(html).not.toContain('aria-label="수정할 인원 이름"');
+    expect(html).not.toContain('aria-label="수정할 인원 활성 여부"');
+  });
+
+  // branch/negative — 인원이 0 건이면 렌더할 행이 없어 수정 버튼이 미렌더된다(빈 상태 문구만).
+  it('인원이 0 건이면 수정 버튼을 렌더하지 않는다 (branch/negative — 빈 목록)', () => {
+    setRoutes({
+      [PERSONS]: { data: [], loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('등록된 인원이 없습니다');
+    expect(countOccurrences(html, '>수정</button>')).toBe(0);
   });
 });

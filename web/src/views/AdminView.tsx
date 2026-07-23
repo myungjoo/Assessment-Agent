@@ -1440,6 +1440,133 @@ async function runDeletePerson(
   }
 }
 
+// 인원 수정 3 필드 묶음(T-1145) — 컨테이너의 인라인 수정 폼 3 controlled input(fullName/email/active)
+// 값이자 편집 시작 시점의 원본 스냅샷 타입. buildPersonPatch 가 input 과 original 을 비교해 "변경된
+// 필드만" 담긴 부분 갱신 body(PersonPatch)를 만든다. active 는 boolean(soft deactivate/reactivate,
+// UpdatePersonDto), fullName/email 은 string(trim 후 비교).
+interface PersonPatchInput {
+  fullName: string;
+  email: string;
+  active: boolean;
+}
+
+// 인원 부분 갱신 body(T-1145) — UpdatePersonDto(fullName?/email?/active? 전부 optional, 부재=미변경)
+// 정합. buildPersonPatch 가 "변경된 필드만" 채운다(부재 필드는 backend 가 미변경 semantics).
+interface PersonPatch {
+  fullName?: string;
+  email?: string;
+  active?: boolean;
+}
+
+// 편집 입력값 + 편집 시작 원본 스냅샷 → "변경된 필드만" 담긴 PersonPatch 파생(순수 helper, T-1145).
+// runUpdateProvider 가 러너 안에서 body 를 조립하는 것과 달리, 인원 수정은 "원본 대비 변경분만" 이라
+// 원본 비교가 필요해 조립 로직을 JSX·러너 밖 순수 helper 로 분리한다(buildExportPath 등 순수 helper
+// convention 정합 — jsdom 없이 직접 단위 검증). 동작:
+//  - fullName/email 은 앞뒤 공백 제거(trim) 후, 비어있지 않고(공백-only 입력은 제외 — DTO @IsNotEmpty·
+//    @IsEmail 위반 방지) 원본(trim)과 다를 때만 담는다(미변경 필드는 부재 → backend 미변경).
+//  - active 는 boolean 이라 falsy 체크가 불가(false 도 유효 값)하므로 원본과 명시 비교해 다를 때만 담는다.
+// 결과 patch 가 비면(변경 없음) 러너의 빈 body 가드가 PATCH 를 억제한다.
+function buildPersonPatch(
+  input: PersonPatchInput,
+  original: PersonPatchInput,
+): PersonPatch {
+  const patch: PersonPatch = {};
+  const fullName = input.fullName?.trim();
+  const originalFullName = original.fullName?.trim();
+  // fullName: 비어있지 않고(공백-only 제외) 원본과 다를 때만 포함(빈 값 덮어쓰기 방지 — @IsNotEmpty).
+  if (fullName && fullName !== originalFullName) {
+    patch.fullName = fullName;
+  }
+  const email = input.email?.trim();
+  const originalEmail = original.email?.trim();
+  // email: 비어있지 않고(공백-only 제외) 원본과 다를 때만 포함(빈 값·비정상 email 발사 방지 — @IsEmail).
+  if (email && email !== originalEmail) {
+    patch.email = email;
+  }
+  // active: boolean 이라 명시 비교 — 원본과 다를 때만 포함(false 도 유효 값이라 falsy 체크 불가).
+  if (input.active !== original.active) {
+    patch.active = input.active;
+  }
+  return patch;
+}
+
+// 인원 수정 PATCH + state-전이 로직에 주입하는 deps(T-1145 — runUpdateProvider 의 UpdateProviderDeps
+// 를 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 컨테이너의 handleUpdatePerson 은 이
+// 러너에 편집 대상 id·이미 조립된 부분 갱신 patch·현재 in-flight 여부(updating)·상태 setter·재조회
+// 트리거·편집 종료를 주입해 호출만 한다. runUpdateProvider 와 달리 body 조립은 buildPersonPatch 가
+// 러너 밖에서 수행하므로(원본 비교 필요), 러너는 이미 만들어진 patch 를 받아 발사·전이만 책임진다.
+interface UpdatePersonDeps {
+  // PATCH 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  update: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 update in-flight 여부 — true 면 미발사(이중 PATCH·경합 가드).
+  updating: boolean;
+  setUpdating: (next: boolean) => void;
+  setUpdateError: (next: string | undefined) => void;
+  // 권위 인원 재조회 트리거 — personsRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+  // 성공 후 편집 상태 종료 트리거(편집 대상 id·폼 입력을 비워 인라인 폼을 닫는다).
+  closeEdit: () => void;
+}
+
+// 인원 수정 PATCH /api/persons/:id(body 는 변경 필드만) + state-전이 로직을 캡슐화한 순수 async
+// 러너(T-1145 — runUpdateProvider mirror). backend PATCH(person.controller @Patch(":id"),
+// UpdatePersonDto 3 필드 전부 optional — 부재=미변경·명시=교체, active 유무로 deactivate/reactivate/
+// update 분기, 검증 실패 → 400, email 중복 → 409, 미존재 → 404, Admin+ 미만 403)를 발사한다.
+// 컨테이너의 handleUpdatePerson 은 이 러너에 deps 를 주입해 호출만 한다. 동작:
+//  - 빈/공백/falsy id → 미발사(잘못된 path·불필요 PATCH 회피 — trim 후 빈 문자열도 차단).
+//  - updating(이전 mutation 미완) → 미발사(이중 PATCH·state 경합 차단 — runUpdateProvider updating 가드 동형).
+//  - 변경 필드 0(빈 patch) → 미발사(빈 body PATCH 회피 — 무의미한 요청 억제. buildPersonPatch 가
+//    변경 없음/공백-only 를 빈 patch 로 만든다).
+//  - 발사 시 진행 on + 직전 error 비움 → PATCH(id 는 encodeURIComponent 안전 인코딩, body 는 변경
+//    필드만) → 성공(인원 재조회 트리거 + 편집 종료) / 실패(사람-친화 문구 표면화 — throw 없이) →
+//    진행 off(공통).
+async function runUpdatePerson(
+  id: string,
+  patch: PersonPatch,
+  deps: UpdatePersonDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/공백/falsy id 는 PATCH 미발사(잘못된 path·불필요 요청 회피). 공백만
+  // 든 id 도 trim 후 빈 문자열이면 차단해(경계값) 무의미한 발사를 막는다.
+  if (!id || id.trim() === '') {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 update 미완 중이면 미발사(이중 PATCH·state 경합 차단).
+  if (deps.updating) {
+    return;
+  }
+  // 변경 필드 0 가드 — patch 가 비면 미발사(빈 body PATCH 회피 — 무의미한 요청 억제). buildPersonPatch
+  // 가 변경 없음/공백-only 입력을 빈 patch 로 만드므로, 그 경우 여기서 no-op 로 떨어진다.
+  if (Object.keys(patch).length === 0) {
+    return;
+  }
+  deps.setUpdating(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 update 진행만 남도록).
+  deps.setUpdateError(undefined);
+  try {
+    // PATCH /api/persons/:id — id 는 encodeURIComponent 로 안전 인코딩(비정상 문자가 든 id 도 path
+    // 가 깨지지 않게). body 는 변경 필드만 JSON 직렬화한다(runUpdateProvider JSON body 발사 convention
+    // 동형). 응답 body 를 소비하지 않으므로 성공 사실만 확인한다.
+    await deps.update(`${PERSONS_PATH}/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    // 성공 — 권위 인원 재조회 트리거(재조회로 수정된 행이 목록에 반영된다 — 낙관 갱신 없음) +
+    // 편집 상태 종료(인라인 폼 닫힘 + 폼 입력 잔존 방지).
+    deps.bumpRefresh();
+    deps.closeEdit();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error state 로 안전 표시(throw 없이). 400 검증 실패(빈/잘못된 email) /
+    // 403 Admin+ 미만 / 404 미존재 / 409 email 중복 / 비-2xx / 네트워크 0 모두 ApiError.status →
+    // toErrorMessage 파생으로 표면화. 재조회 nonce·편집 상태는 건드리지 않는다(실패 시 편집 유지).
+    deps.setUpdateError(deps.describeError(e));
+  } finally {
+    deps.setUpdating(false);
+  }
+}
+
 // provider 수정 PATCH 4 필드 묶음(T-1137) — 컨테이너의 인라인 수정 폼 4 controlled input 값을
 // 러너에 한 덩어리로 넘긴다. 러너가 각 필드를 trim 해 "명시된 필드만"(빈/공백 제외) body 로
 // JSON 직렬화한다(부분 갱신 semantics — 부재 필드는 backend 가 미변경). secret apiKey 는
@@ -1674,6 +1801,112 @@ function AdminView({
         bumpRefresh: () => setPersonsRefreshNonce((n) => n + 1),
       }),
     [deletingPerson],
+  );
+
+  // 편집 대상 person id(T-1145) — null 이면 편집 안 함(인라인 수정 폼 미렌더). PersonList 각 행의
+  // "수정" 버튼 클릭 시 해당 row.id 로 채우고, 성공/취소 시 null 로 되돌린다. 편집 폼 렌더 분기 기준값
+  // (editingProviderId 동형).
+  const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
+
+  // 인원 수정 3 controlled input 상태(T-1145) — 컨테이너 소유. "수정" 클릭 시 해당 row 의 현재 값으로
+  // prefill 한다(fullName/email 은 text, active 는 boolean — <select> 활성/휴직). handleUpdatePerson 이
+  // buildPersonPatch 로 변경 필드만 PATCH body 로 공급한다(editProviderInput 패턴 mirror).
+  const [editFullNameInput, setEditFullNameInput] = useState<string>('');
+  const [editEmailInput, setEditEmailInput] = useState<string>('');
+  const [editActiveInput, setEditActiveInput] = useState<boolean>(true);
+
+  // 편집 시작 시점의 원본 스냅샷(T-1145) — buildPersonPatch 가 현재 입력과 비교해 "변경된 필드만"
+  // 파생하는 데 쓴다. "수정" 클릭 시 클릭한 row 의 현재 값으로 채우고, 편집 종료 시 기본값으로 되돌린다.
+  const [editPersonOriginal, setEditPersonOriginal] = useState<PersonPatchInput>(
+    { fullName: '', email: '', active: true },
+  );
+
+  // 인원 수정 mutation in-flight 플래그(T-1145) — PATCH 진행 중 true. 진행 표시(입력·버튼 비활성)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재발사 차단)에 함께 쓴다(updatingProvider 동형).
+  const [updatingPerson, setUpdatingPerson] = useState<boolean>(false);
+
+  // 인원 수정 mutation 실패 문구(T-1145) — PATCH 실패 시 사람-친화 문구(toErrorMessage 파생)를 보관해
+  // 편집 폼 하단에 안전 표시한다(throw 없음, 생성/삭제 error 와 별도 문구). 성공/재시도/편집 시작 시 비운다.
+  const [updatePersonError, setUpdatePersonError] = useState<
+    string | undefined
+  >(undefined);
+
+  // 편집 폼 닫기(편집 상태 종료) helper(T-1145) — 편집 대상 id·3 입력·원본 스냅샷을 모두 기본값으로
+  // 되돌린다. 성공 후 closeEdit·취소 버튼 두 경로가 공유한다(resetEditProviderForm 동형).
+  const resetEditPersonForm = useCallback(() => {
+    setEditingPersonId(null);
+    setEditFullNameInput('');
+    setEditEmailInput('');
+    setEditActiveInput(true);
+    setEditPersonOriginal({ fullName: '', email: '', active: true });
+  }, []);
+
+  // "수정" 버튼 클릭 핸들러(T-1145) — PersonList.onEdit 로 내려보낸다. 클릭한 row 의 현재 값으로 폼을
+  // prefill 하고(personData 에서 id 매칭) 원본 스냅샷도 함께 세팅한다(변경분 파생 기준). 직전 수정
+  // error 도 비워 새 편집 세션을 깨끗이 시작한다(handleEditProvider 동형).
+  const handleEditPerson = useCallback(
+    (id: string) => {
+      const row = (personData ?? []).find((person) => person.id === id);
+      const fullName = row?.fullName ?? '';
+      const email = row?.email ?? '';
+      const active = row?.active ?? true;
+      setEditingPersonId(id);
+      setEditFullNameInput(fullName);
+      setEditEmailInput(email);
+      setEditActiveInput(active);
+      setEditPersonOriginal({ fullName, email, active });
+      setUpdatePersonError(undefined);
+    },
+    [personData],
+  );
+
+  // 편집 취소 핸들러(T-1145) — 인라인 폼을 닫고 입력·error 를 비운다(발사 없이 편집 상태만 종료).
+  // 진행 중(updatingPerson)일 때는 취소를 억제해 PATCH 완료 전 폼이 사라지지 않게 한다(버튼 disabled +
+  // 핸들러 가드 이중, handleCancelEditProvider 동형).
+  const handleCancelEditPerson = useCallback(() => {
+    if (updatingPerson) {
+      return;
+    }
+    resetEditPersonForm();
+    setUpdatePersonError(undefined);
+  }, [updatingPerson, resetEditPersonForm]);
+
+  // 인원 수정 실 mutation 핸들러(T-1145) — 인원 수정 PATCH(/api/persons/:id, body 는 변경 필드만)를
+  // 컨테이너 내부 async 로 발사한다(handleUpdateProvider 정합). buildPersonPatch 로 원본 대비 변경분만
+  // 조립하고, 빈/falsy id·이전 mutation 미완(updatingPerson)·변경 필드 0 발사 억제 + 성공(인원 재조회 +
+  // 편집 종료)/실패(error 안전 표시, throw 없음) 전이는 runUpdatePerson 이 캡슐화한다. 3 입력값·원본·
+  // 편집 대상 id·updatingPerson 을 deps 의존성에 포함해 stale 없이 최신 입력·가드 상태로 발사한다.
+  const handleUpdatePerson = useCallback(
+    () =>
+      runUpdatePerson(
+        editingPersonId ?? '',
+        buildPersonPatch(
+          {
+            fullName: editFullNameInput,
+            email: editEmailInput,
+            active: editActiveInput,
+          },
+          editPersonOriginal,
+        ),
+        {
+          update: request,
+          describeError: toErrorMessage,
+          updating: updatingPerson,
+          setUpdating: setUpdatingPerson,
+          setUpdateError: setUpdatePersonError,
+          bumpRefresh: () => setPersonsRefreshNonce((n) => n + 1),
+          closeEdit: resetEditPersonForm,
+        },
+      ),
+    [
+      editingPersonId,
+      editFullNameInput,
+      editEmailInput,
+      editActiveInput,
+      editPersonOriginal,
+      updatingPerson,
+      resetEditPersonForm,
+    ],
   );
 
   // Admin+ 여부 파생(④h) — me 응답의 role 을 isAdminRole 로 판정한다. role 이 Admin/SuperAdmin
@@ -2690,15 +2923,76 @@ function AdminView({
             <p role="alert">{createPersonError}</p>
           ) : null}
         </div>
-        {/* 인원 삭제 배선(T-1144, REQ-049) — 삭제 콜백(handleDeletePerson)을 onDelete 로 내려 각 행에
-            삭제 버튼을 배선한다. loading 은 조회+삭제 in-flight 를 합성(personLoading||deletingPerson —
-            provider 목록 패널 동형), error 는 삭제 실패를 우선 노출(deletePersonError??personError —
-            mutation 우선). 성공 시 personsRefreshNonce bump 로 권위 재조회한다(낙관 제거 없음). */}
+        {/* 인원 수정(T-1145, REQ-049) — 인라인 수정 폼. PersonList 각 행의 "수정" 버튼(onEdit=
+            handleEditPerson)이 편집 대상 id 를 세팅하면(editingPersonId !== null) 본 폼이 렌더된다.
+            3 controlled input(fullName text / email email / active <select> 활성·휴직)은 클릭한 row 의
+            현재 값으로 prefill 되고, 원본 스냅샷(editPersonOriginal)과 함께 저장된다. "인원 수정" 클릭 시
+            handleUpdatePerson 이 buildPersonPatch 로 변경 필드만 조립해 PATCH /api/persons/:id 를 발사하고,
+            성공 시 personsRefreshNonce bump 로 권위 재조회 + 편집 종료한다(낙관 갱신 없음 — 생성/삭제 동형).
+            진행 중(updatingPerson)이면 입력·버튼을 비활성화해 이중 PATCH 를 억제하고(runUpdatePerson 도
+            빈 patch/in-flight 를 no-op 가드로 이중 방어), "취소" 로 발사 없이 편집을 닫을 수 있다. 실패
+            문구(updatePersonError)는 폼 하단에 role="alert" 로 안전 표시한다(생성/삭제 error 와 별도).
+            ADR-0041 Decision 1 — presentational 목록은 수정 폼을 모르므로 컨테이너가 직접 소유한다. */}
+        {editingPersonId !== null ? (
+          <div>
+            <input
+              aria-label="수정할 인원 이름"
+              type="text"
+              value={editFullNameInput}
+              onChange={(event) => setEditFullNameInput(event.target.value)}
+              disabled={updatingPerson}
+            />
+            <input
+              aria-label="수정할 인원 email"
+              type="email"
+              value={editEmailInput}
+              onChange={(event) => setEditEmailInput(event.target.value)}
+              disabled={updatingPerson}
+            />
+            {/* active 는 boolean 이라 <select> 로 활성/휴직 두 값을 controlled 로 노출한다(soft
+                deactivate/reactivate — UpdatePersonDto active). 값은 'active'/'inactive' 문자열이되
+                onChange 에서 boolean 으로 환원해 상태에 저장한다. */}
+            <select
+              aria-label="수정할 인원 활성 여부"
+              value={editActiveInput ? 'active' : 'inactive'}
+              onChange={(event) =>
+                setEditActiveInput(event.target.value === 'active')
+              }
+              disabled={updatingPerson}
+            >
+              <option value="active">활성</option>
+              <option value="inactive">휴직</option>
+            </select>
+            <button
+              type="button"
+              onClick={handleUpdatePerson}
+              disabled={updatingPerson}
+            >
+              인원 수정
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelEditPerson}
+              disabled={updatingPerson}
+            >
+              취소
+            </button>
+            {updatePersonError ? (
+              <p role="alert">{updatePersonError}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {/* 인원 삭제 배선(T-1144, REQ-049) + 인원 수정 배선(T-1145) — 삭제 콜백(handleDeletePerson)을
+            onDelete 로, 수정 콜백(handleEditPerson)을 onEdit 로 내려 각 행에 삭제·수정 버튼을 배선한다.
+            loading 은 조회+삭제 in-flight 를 합성(personLoading||deletingPerson — provider 목록 패널
+            동형), error 는 삭제 실패를 우선 노출(deletePersonError??personError — mutation 우선). 성공
+            시 personsRefreshNonce bump 로 권위 재조회한다(낙관 제거 없음). */}
         <PersonList
           persons={personData ?? []}
           loading={personLoading || deletingPerson}
           error={deletePersonError ?? personError}
           onDelete={handleDeletePerson}
+          onEdit={handleEditPerson}
         />
       </section>
     </section>
@@ -2735,6 +3029,8 @@ export {
   runCreateProvider,
   runCreatePerson,
   runDeletePerson,
+  buildPersonPatch,
+  runUpdatePerson,
   runUpdateProvider,
   resolveProviderSelectValue,
   LLM_PROVIDER_OPTIONS,
@@ -2762,6 +3058,9 @@ export type {
   CreatePersonFields,
   CreatePersonDeps,
   DeletePersonDeps,
+  PersonPatchInput,
+  PersonPatch,
+  UpdatePersonDeps,
   UpdateProviderFields,
   UpdateProviderDeps,
 };
