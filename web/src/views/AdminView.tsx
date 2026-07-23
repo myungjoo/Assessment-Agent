@@ -1973,6 +1973,105 @@ async function runUpdateGroup(
   }
 }
 
+// 파트 수정 PATCH + state-전이 로직에 주입하는 deps(T-1155 — runUpdateGroup 의 UpdateGroupDeps 를
+// mirror + runCreatePart 의 isConflict 주입 결합. jsdom/렌더러 없이 mutation 본체를 직접 검증한다).
+// 컨테이너의 handleUpdatePart 는 이 러너에 편집 대상 id·현재 입력 name·편집 시작 원본 name·현재
+// in-flight 여부(updating)·상태 setter·재조회 트리거·편집 종료를 주입해 호출만 한다. 파트도 편집
+// 필드가 name 하나뿐이라(UpdatePartDto 의 name 단일 partial update — src/user/dto/update-part.dto.ts)
+// buildPersonPatch 같은 다필드 diff 헬퍼가 불요하다. 그룹과의 유일한 차이는 Part.name 이
+// @unique(prisma schema L108)라 rename 이 기존 파트명과 충돌하면 서버가 409(ConflictException)를
+// 던진다는 점 — 그 409 판정을 isConflict 로 주입받아(테스트는 mock 주입, 런타임은 ApiError.status===409
+// 검사 주입) 전용 문구로 구분 표면화한다(runCreatePart 의 409 패턴 재사용).
+interface UpdatePartDeps {
+  // PATCH 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  update: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입). 비-409 에러에 쓴다.
+  describeError: (e: unknown) => string;
+  // throw 표면이 409(중복 이름) 인지 판정 — true 면 PART_DUPLICATE_ERROR 전용 문구를 쓴다.
+  // 런타임은 `(e) => e instanceof ApiError && e.status === 409` 주입(순수 판정 분리 — 테스트 용이).
+  isConflict: (e: unknown) => boolean;
+  // 현재 update in-flight 여부 — true 면 미발사(이중 PATCH·경합 가드).
+  updating: boolean;
+  setUpdating: (next: boolean) => void;
+  setUpdateError: (next: string | undefined) => void;
+  // 권위 파트 재조회 트리거 — partsRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+  // 성공 후 편집 상태 종료 트리거(편집 대상 id·폼 입력을 비워 인라인 폼을 닫는다).
+  closeEdit: () => void;
+}
+
+// 파트 수정 PATCH /api/parts/:id(body `{ name }`) + state-전이 로직을 캡슐화한 순수 async 러너
+// (T-1155 — runUpdateGroup 1:1 mirror + runCreatePart 의 409 전용 문구 분기 결합). backend
+// PATCH(part.controller @Patch(":id") L121, UpdatePartDto name 단일 partial update — 부재=미변경·
+// 명시=교체, 검증 실패(빈/비정상 name) → 400, 미존재 → 404, 동명 파트 존재 → P2002 → 409)를
+// 발사한다. 컨테이너의 handleUpdatePart 는 이 러너에 deps 를 주입해 호출만 한다. 동작:
+//  - 빈/공백/falsy id → 미발사(잘못된 path·불필요 PATCH 회피 — trim 후 빈 문자열도 차단).
+//  - updating(이전 mutation 미완) → 미발사(이중 PATCH·state 경합 차단 — runUpdateGroup 가드 동형).
+//  - 빈/공백-only name → 미발사(빈 body·400 회피 — @IsNotEmpty 위반 방지, trim 후 falsy 면 억제).
+//  - 미변경 name(trim 후 원본과 동일) → 미발사(무의미한 요청 억제 — runUpdateGroup 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → PATCH(id 는 encodeURIComponent 안전 인코딩, body 는 trim 된
+//    name) → 성공(파트 재조회 트리거 + 편집 종료) / 실패 → 진행 off(공통).
+//  - 실패가 409(중복 이름)면 PART_DUPLICATE_ERROR 전용 문구, 그 외(400·403·404·네트워크·비-2xx)는
+//    describeError 파생 일반 문구를 error state 로 표면화한다(throw 없이). 재조회 nonce·편집 상태는
+//    건드리지 않는다(실패 시 편집·목록 유지 — 다른 이름으로 재시도 편의).
+async function runUpdatePart(
+  id: string,
+  name: string,
+  originalName: string,
+  deps: UpdatePartDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/공백/falsy id 는 PATCH 미발사(잘못된 path·불필요 요청 회피). 공백만
+  // 든 id 도 trim 후 빈 문자열이면 차단해(경계값) 무의미한 `/api/parts/%20` 발사를 막는다.
+  if (!id || id.trim() === '') {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 update 미완 중이면 미발사(이중 PATCH·state 경합 차단).
+  if (deps.updating) {
+    return;
+  }
+  // 빈/공백-only name 가드 — trim 후 비면 미발사(빈 body·400 회피 — @IsNotEmpty). 공백만 든 입력도
+  // trim 후 빈 문자열이면 차단한다(경계값).
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    return;
+  }
+  // 미변경 name 가드 — trim 후 원본과 동일하면 미발사(무의미한 PATCH 억제 + 자기 자신과의 409 유발
+  // 회피). 원본도 trim 해 앞뒤 공백만 덧댄 입력을 미변경으로 취급한다.
+  if (trimmed === originalName?.trim()) {
+    return;
+  }
+  deps.setUpdating(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 update 진행만 남도록).
+  // 이 초기 비움 덕에 409 중복 후 다른 이름으로 재시도 시 직전 중복 문구도 함께 정리된다(negative cover).
+  deps.setUpdateError(undefined);
+  try {
+    // PATCH /api/parts/:id — id 는 encodeURIComponent 로 안전 인코딩(비정상 문자가 든 id 도 path
+    // 가 깨지지 않게). body 는 trim 된 name 을 JSON 직렬화한다(runUpdateGroup convention 동형).
+    // UpdatePartDto 는 name 단일 필드라 다른 필드는 미포함. 응답 body 는 소비하지 않는다.
+    await deps.update(`${PARTS_PATH}/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    // 성공 — 권위 파트 재조회 트리거(재조회로 수정된 행이 목록에 반영된다 — 낙관 갱신 없음) +
+    // 편집 상태 종료(인라인 폼 닫힘 + 폼 입력 잔존 방지).
+    deps.bumpRefresh();
+    deps.closeEdit();
+  } catch (e) {
+    // 실패 — throw 없이 error state 로 안전 표시. 409(Part.name @unique 위반 → ConflictException)면
+    // 원인이 분명한 전용 중복 문구를, 그 외(400 검증 실패·403 Admin+ 미만·404 미존재·비-2xx·
+    // 네트워크 0)는 describeError 파생 일반 문구를 쓴다. 그룹(409 없음)과 달리 파트는 409 를 명시
+    // 분기한다. 재조회 nonce·편집 상태는 건드리지 않는다(실패 시 편집 유지).
+    if (deps.isConflict(e)) {
+      deps.setUpdateError(PART_DUPLICATE_ERROR);
+    } else {
+      deps.setUpdateError(deps.describeError(e));
+    }
+  } finally {
+    deps.setUpdating(false);
+  }
+}
+
 // provider 수정 PATCH 4 필드 묶음(T-1137) — 컨테이너의 인라인 수정 폼 4 controlled input 값을
 // 러너에 한 덩어리로 넘긴다. 러너가 각 필드를 trim 해 "명시된 필드만"(빈/공백 제외) body 로
 // JSON 직렬화한다(부분 갱신 semantics — 부재 필드는 backend 가 미변경). secret apiKey 는
@@ -3117,6 +3216,99 @@ function AdminView({
     [deletingPart],
   );
 
+  // 편집 대상 part id(T-1155) — null 이면 편집 안 함(인라인 수정 폼 미렌더). PartList 각 행의
+  // "수정" 버튼 클릭 시 해당 row.id 로 채우고, 성공/취소 시 null 로 되돌린다. 편집 폼 렌더 분기
+  // 기준값(editingGroupId 동형).
+  const [editingPartId, setEditingPartId] = useState<string | null>(null);
+
+  // 파트 수정 name controlled input 상태(T-1155) — 컨테이너 소유. "수정" 클릭 시 해당 row 의 현재
+  // name 으로 prefill 한다(파트도 편집 필드가 name 하나뿐 — UpdatePartDto 계약). handleUpdatePart
+  // 가 편집 시작 원본 name(editPartOriginalName)과 함께 러너에 넘겨 미변경 skip 을 판정한다.
+  const [editPartNameInput, setEditPartNameInput] = useState<string>('');
+
+  // 편집 시작 시점의 원본 name 스냅샷(T-1155) — runUpdatePart 가 현재 입력과 비교해 미변경이면
+  // 발사를 억제하는 데 쓴다(자기 자신과의 409 유발도 함께 회피). "수정" 클릭 시 클릭한 row 의 현재
+  // name 으로 채우고, 편집 종료 시 빈 문자열로 되돌린다.
+  const [editPartOriginalName, setEditPartOriginalName] = useState<string>('');
+
+  // 파트 수정 mutation in-flight 플래그(T-1155) — PATCH 진행 중 true. 진행 표시(입력·버튼 비활성)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재발사 차단)에 함께 쓴다(updatingGroup 동형).
+  const [updatingPart, setUpdatingPart] = useState<boolean>(false);
+
+  // 파트 수정 mutation 실패 문구(T-1155) — PATCH 실패 시 사람-친화 문구를 보관해 편집 폼 하단에 안전
+  // 표시한다(throw 없음, 생성/삭제 error 와 별도 문구). 409(중복 이름)면 PART_DUPLICATE_ERROR 전용
+  // 문구, 그 외는 toErrorMessage 파생 문구. 성공/재시도/편집 시작 시 비운다.
+  const [updatePartError, setUpdatePartError] = useState<string | undefined>(
+    undefined,
+  );
+
+  // 편집 폼 닫기(편집 상태 종료) helper(T-1155) — 편집 대상 id·name 입력·원본 스냅샷을 모두 기본값
+  // 으로 되돌린다. 성공 후 closeEdit·취소 버튼 두 경로가 공유한다(resetEditGroupForm 동형).
+  const resetEditPartForm = useCallback(() => {
+    setEditingPartId(null);
+    setEditPartNameInput('');
+    setEditPartOriginalName('');
+  }, []);
+
+  // "수정" 버튼 클릭 핸들러(T-1155) — PartList.onEdit 로 내려보낸다. 클릭한 row 의 현재 name 으로 폼을
+  // prefill 하고(partsData 에서 id 매칭) 원본 name 스냅샷도 함께 세팅한다(미변경 판정 기준). 직전 수정
+  // error 도 비워 새 편집 세션을 깨끗이 시작한다(handleEditGroup 동형). 매칭 row 가 없으면 빈 문자열
+  // prefill — 러너의 빈 name 가드가 발사를 막는다(throw 없음).
+  const handleEditPart = useCallback(
+    (id: string) => {
+      const row = (partsData ?? []).find((part) => part.id === id);
+      const name = row?.name ?? '';
+      setEditingPartId(id);
+      setEditPartNameInput(name);
+      setEditPartOriginalName(name);
+      setUpdatePartError(undefined);
+    },
+    [partsData],
+  );
+
+  // 편집 취소 핸들러(T-1155) — 인라인 폼을 닫고 입력·error 를 비운다(발사 없이 편집 상태만 종료 —
+  // 입력이 원복된다). 진행 중(updatingPart)일 때는 취소를 억제해 PATCH 완료 전 폼이 사라지지 않게
+  // 한다(버튼 disabled + 핸들러 가드 이중, handleCancelEditGroup 동형).
+  const handleCancelEditPart = useCallback(() => {
+    if (updatingPart) {
+      return;
+    }
+    resetEditPartForm();
+    setUpdatePartError(undefined);
+  }, [updatingPart, resetEditPartForm]);
+
+  // 파트 수정 실 mutation 핸들러(T-1155) — 파트 수정 PATCH(/api/parts/:id, body `{ name }`)를 컨테이너
+  // 내부 async 로 발사한다(handleUpdateGroup 정합). 빈/falsy id·이전 mutation 미완(updatingPart)·빈·
+  // 공백 name·미변경 name 발사 억제 + 성공(파트 재조회 + 편집 종료)/실패(error 안전 표시, throw 없음)/
+  // 409 중복 전용 문구 전이는 runUpdatePart 가 캡슐화한다. 409 판정은 ApiError.status===409 검사를
+  // isConflict 로 주입한다(handleCreatePart 동형). 입력 name·원본·편집 대상 id·updatingPart 를 deps
+  // 의존성에 포함해 stale 없이 최신 입력·가드 상태로 발사한다.
+  const handleUpdatePart = useCallback(
+    () =>
+      runUpdatePart(
+        editingPartId ?? '',
+        editPartNameInput,
+        editPartOriginalName,
+        {
+          update: request,
+          describeError: toErrorMessage,
+          isConflict: (e: unknown) => e instanceof ApiError && e.status === 409,
+          updating: updatingPart,
+          setUpdating: setUpdatingPart,
+          setUpdateError: setUpdatePartError,
+          bumpRefresh: () => setPartsRefreshNonce((n) => n + 1),
+          closeEdit: resetEditPartForm,
+        },
+      ),
+    [
+      editingPartId,
+      editPartNameInput,
+      editPartOriginalName,
+      updatingPart,
+      resetEditPartForm,
+    ],
+  );
+
   // SchedulePanel 로 내려보낼 안내 message 파생 — apply/trigger 완료 안내 우선, 없으면 GET 상태
   // (loading/빈 목록/이름 목록 요약)를 파생한다(deriveScheduleMessage). 초기 loading 도 안전 안내.
   const schedulePanelMessage = useMemo(
@@ -3742,15 +3934,16 @@ function AdminView({
           onEdit={handleEditGroup}
         />
       </section>
-      {/* 파트 관리(T-1152 마운트, T-1153 생성 배선, T-1154 삭제 배선, REQ-028/REQ-049) — 그룹
+      {/* 파트 관리(T-1152 마운트, T-1153 생성 배선, T-1154 삭제 배선, T-1155 수정 배선,
+          REQ-028/REQ-049) — 그룹
           마운트(T-1148)와 동형이나 재사용할 기존 파트 fetch 가 없어 useApiResource<PartRow[]>(PARTS_PATH)
           신규 조회의 data/loading/error 를 PartList 로 내려보낸다(ADR-0041 Decision 1 — 컴포넌트는 fetch
           를 모른다). data 가 undefined(미조회/진행 중/실패)이면 `?? []` 로 빈 배열을 안전하게 넘겨 throw
           없이 렌더한다(경계 방어). onDelete(handleDeletePart)를 내려 각 행에 삭제 버튼을 배선한다(T-1154,
           GroupList onDelete 동형). loading 은 조회+삭제 in-flight 를 합성(partLoading||deletingPart),
           error 는 삭제 실패를 우선 노출(deletePartError??partError — mutation 우선). 성공 시
-          partsRefreshNonce bump 로 권위 재조회한다(낙관 제거 없음). onEdit 은 전달하지 않는다(수정 mutation
-          은 후속 slice — 버튼 미렌더). PartList 의 named PartRow 를 그대로 조회 제네릭·props 타입에 쓴다
+          partsRefreshNonce bump 로 권위 재조회한다(낙관 제거 없음). onEdit(handleEditPart)도 내려 각 행에
+          수정 버튼을 배선한다(T-1155 — 파트 CRUD 완결). PartList 의 named PartRow 를 그대로 조회 제네릭·props 타입에 쓴다
           (로컬 PartRow 부재 — 이름 충돌 없음). */}
       <section aria-label={PART_HEADING}>
         <h2>{PART_HEADING}</h2>
@@ -3777,11 +3970,53 @@ function AdminView({
           </button>
           {createPartError ? <p role="alert">{createPartError}</p> : null}
         </div>
+        {/* 파트 수정(T-1155, REQ-028/REQ-049) — 인라인 수정 폼. PartList 각 행의 "수정" 버튼(onEdit=
+            handleEditPart)이 편집 대상 id 를 세팅하면(editingPartId !== null) 본 폼이 렌더된다. name
+            단일 controlled input 은 클릭한 row 의 현재 name 으로 prefill 되고, 원본 name 스냅샷
+            (editPartOriginalName)과 함께 저장된다. "파트 수정" 클릭 시 handleUpdatePart 가 PATCH
+            /api/parts/:id(body `{ name }`)를 발사하고, 성공 시 partsRefreshNonce bump 로 권위 재조회 +
+            편집 종료한다(낙관 갱신 없음 — 그룹 수정 동형). 진행 중(updatingPart)이면 입력·버튼을
+            비활성화해 이중 PATCH 를 억제하고(runUpdatePart 도 빈·공백·미변경 name/in-flight 를 no-op
+            가드로 이중 방어), "취소" 로 발사 없이 편집을 닫을 수 있다(입력 원복). 실패 문구
+            (updatePartError)는 폼 하단에 role="alert" 로 안전 표시한다 — Part.name @unique 위반 409 는
+            "이미 존재하는 파트 이름입니다" 전용 문구로 구분 표면화한다(그룹과의 차이). ADR-0041
+            Decision 1 — presentational 목록은 수정 폼을 모르므로 컨테이너가 직접 소유한다. */}
+        {editingPartId !== null ? (
+          <div>
+            <input
+              aria-label="수정할 파트 이름"
+              type="text"
+              value={editPartNameInput}
+              onChange={(event) => setEditPartNameInput(event.target.value)}
+              disabled={updatingPart}
+            />
+            <button
+              type="button"
+              onClick={handleUpdatePart}
+              disabled={updatingPart || !editPartNameInput.trim()}
+            >
+              파트 수정
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelEditPart}
+              disabled={updatingPart}
+            >
+              취소
+            </button>
+            {updatePartError ? <p role="alert">{updatePartError}</p> : null}
+          </div>
+        ) : null}
+        {/* onEdit(handleEditPart)를 내려 각 행에 수정 버튼을 배선한다(T-1155, GroupList onEdit 동형 —
+            클릭 시 대상 id 로 위 인라인 수정 폼을 연다). loading 은 조회+삭제 in-flight 합성 그대로
+            둔다(수정 진행 표시는 폼 자체의 비활성화가 담당 — 목록을 로딩으로 가려 수정 폼이 사라지는
+            혼란 방지, 그룹 수정 배선 동형). */}
         <PartList
           parts={partsData ?? []}
           loading={partLoading || deletingPart}
           error={deletePartError ?? partError}
           onDelete={handleDeletePart}
+          onEdit={handleEditPart}
         />
       </section>
     </section>
@@ -3827,6 +4062,7 @@ export {
   buildPersonPatch,
   runUpdatePerson,
   runUpdateGroup,
+  runUpdatePart,
   runUpdateProvider,
   resolveProviderSelectValue,
   LLM_PROVIDER_OPTIONS,
@@ -3862,6 +4098,7 @@ export type {
   PersonPatch,
   UpdatePersonDeps,
   UpdateGroupDeps,
+  UpdatePartDeps,
   UpdateProviderFields,
   UpdateProviderDeps,
 };

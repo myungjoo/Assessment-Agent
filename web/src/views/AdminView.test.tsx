@@ -95,6 +95,7 @@ import AdminView, {
   buildPersonPatch,
   runUpdatePerson,
   runUpdateGroup,
+  runUpdatePart,
   runUpdateProvider,
   resolveProviderSelectValue,
   LLM_PROVIDER_OPTIONS,
@@ -127,6 +128,7 @@ import type {
   PersonPatch,
   UpdatePersonDeps,
   UpdateGroupDeps,
+  UpdatePartDeps,
   UpdateProviderDeps,
   UpdateProviderFields,
 } from './AdminView';
@@ -5509,8 +5511,8 @@ describe('AdminView — 그룹 관리 목록 마운트 (T-1148)', () => {
 // R-112 — T-1152 파트 관리 목록 마운트(신규 GET /api/parts fetch → PartList props 배선) 검증.
 // happy(파트명·인원 수 표면화) / error path(에러 alert + 목록 미렌더) / 분기(loading·빈 배열·
 // populated) / negative(data undefined 시 `?? []` throw 없이 렌더, name 누락 placeholder, 다건 key
-// 중복 없음, onDelete/onEdit 미전달 → 삭제·수정 버튼 미렌더=읽기 전용, loading 이 error 보다 우선,
-// 파트 mock 추가가 기존 그룹 조회 mock 을 깨지 않음)를 각 1+ cover. PartList 고유 출력(인원 수
+// 중복 없음, onDelete(T-1154)·onEdit(T-1155) 배선 → 각 행에 삭제·수정 버튼 렌더, loading 이 error
+// 보다 우선, 파트 mock 추가가 기존 그룹 조회 mock 을 깨지 않음)를 각 1+ cover. PartList 고유 출력(인원 수
 // `인원 N명`·빈 문구 `등록된 파트가 없습니다`·placeholder)으로 다른 섹션과 구분해 마운트를 단언한다.
 // renderToStaticMarkup + useApiResource mock 으로 data/loading/error 시나리오를 통제한다(jsdom/
 // @testing-library 미사용 — ADR-0040 §5 게이트).
@@ -5599,9 +5601,9 @@ describe('AdminView — 파트 관리 목록 마운트 (T-1152)', () => {
   });
 
   // negative — name 누락 파트는 placeholder 로 throw 없이 렌더되고, 다건 파트가 key 충돌 없이 모두
-  // 표면화되며, onDelete 전달(T-1154)이라 각 행에 삭제 버튼이 part 수만큼 렌더되고, onEdit 미전달이라
-  // 수정 버튼은 미렌더된다(파트 수정 mutation 은 후속 slice).
-  it('name 누락·다건 파트를 throw 없이 렌더하고 각 행에 삭제 버튼을 배선하며 수정 버튼은 미렌더한다 (negative — placeholder/다건/onDelete 배선)', () => {
+  // 표면화되며, onDelete(T-1154)·onEdit(T-1155) 둘 다 전달이라 각 행에 삭제·수정 버튼이 part 수만큼
+  // 렌더된다.
+  it('name 누락·다건 파트를 throw 없이 렌더하고 각 행에 삭제·수정 버튼을 배선한다 (negative — placeholder/다건/onDelete·onEdit 배선)', () => {
     const countOccurrences = (haystack: string, needle: string) =>
       haystack.split(needle).length - 1;
     setRoutes({
@@ -5625,8 +5627,9 @@ describe('AdminView — 파트 관리 목록 마운트 (T-1152)', () => {
     // onDelete 전달(T-1154) → 각 파트 행에 삭제 버튼 렌더(part 수만큼). 그룹·인원 목록은 default
     // EMPTY_OK 라 삭제 버튼을 내지 않으므로 삭제 버튼의 유일 출처는 파트 목록(2 건).
     expect(countOccurrences(html, '>삭제</button>')).toBe(2);
-    // onEdit 미전달 → 수정 버튼은 여전히 미렌더(파트 수정 mutation 은 후속 slice).
-    expect(html).not.toContain('>수정</button>');
+    // onEdit 전달(T-1155) → 각 파트 행에 수정 버튼 렌더(part 수만큼). 그룹·인원 목록은 default
+    // EMPTY_OK 라 행이 없어 수정 버튼의 유일 출처도 파트 목록(2 건)이다.
+    expect(countOccurrences(html, '>수정</button>')).toBe(2);
   });
 
   // negative — loading 과 error 가 동시에 truthy 면 loading 이 우선한다(PartList loading 우선 정책).
@@ -7140,6 +7143,467 @@ describe('AdminView — 그룹 수정 배선 (정적 렌더, T-1150)', () => {
     });
     const html = renderToStaticMarkup(<AdminView />);
     expect(html).toContain('등록된 그룹이 없습니다');
+    expect(countOccurrences(html, '>수정</button>')).toBe(0);
+  });
+});
+
+// R-112 — T-1155 파트 수정 실 PATCH update mutation 본체(runUpdatePart) 검증. jsdom/렌더러 없이
+// mutation 본체를 직접 호출하고(runUpdateGroup 과 동일 convention), apiClient.request mock 으로
+// method/path/body(name-only)를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의
+// 콜백 호출로 관찰한다. happy/error(409 중복 전용·404·400·403·네트워크)/branch(빈 id·in-flight·빈·
+// 공백 name·미변경 name·isConflict true/false)/negative(특수문자 id 인코딩·name trim·단일 필드 body
+// 경계·이중 PATCH 차단·reject→finally 복구·편집 상태 전이·재조회 전 상태 안전·응답 shape 무관·409 후
+// 재시도 error 초기화) 예외 분기마다 각 1+ cover. runUpdateGroup 과 동형이되 Part.name @unique 라
+// 409 를 전용 문구(PART_DUPLICATE_ERROR)로 구분 표면화하는 분기를 추가 검증한다.
+describe('AdminView — 파트 수정 실 PATCH update mutation (T-1155 runUpdatePart)', () => {
+  // 409 전용 문구 — runUpdatePart 가 ConflictException(409) 시 표면화하는 상수와 정합.
+  const DUP = '이미 존재하는 파트 이름입니다';
+
+  // 상태 전이를 기록하는 deps harness — updating 초기값과 request mock 을 주입받아 setUpdating/
+  // setUpdateError 호출과 bumpRefresh·closeEdit 호출 횟수를 순서대로 캡처한다(makeUpdateGroupDeps
+  // 동형). isConflict 는 런타임과 동일하게 ApiError.status===409 판정을 주입한다(409 전용 분기 검증).
+  function makeUpdatePartDeps(updating: boolean) {
+    const calls = {
+      updating: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      close: 0,
+    };
+    const deps: UpdatePartDeps = {
+      update: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구(비-409 경로).
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      isConflict: (e: unknown) => e instanceof ApiError && e.status === 409,
+      updating,
+      setUpdating: (next) => calls.updating.push(next),
+      setUpdateError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+      closeEdit: () => {
+        calls.close += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — update 트리거 시 request 가 PATCH /api/parts/:id 로 method PATCH + name-only body
+  // 인자로 정확히 호출되고, 성공 후 재조회 nonce bump(1 회) + 편집 종료(closeEdit 1 회) + error 미설정
+  // (시작 비움만) + 진행 표시 on→off 로 해제된다.
+  it('PATCH /api/parts/:id 를 method PATCH + name-only body 로 호출하고 성공 시 nonce bump + 편집 종료 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 200 OK.
+    const { deps, calls } = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', '플랫폼파트', '개발파트', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string; body: string },
+    ];
+    expect(path).toBe('/api/parts/pt1');
+    expect(options.method).toBe('PATCH');
+    expect(JSON.parse(options.body)).toEqual({ name: '플랫폼파트' });
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // happy-path(prefill flow) — "수정" 클릭 시 prefill 되는 값은 해당 row 의 현재 name 이며 원본
+  // 스냅샷과 같다. 그 상태로 저장하면 미변경이라 미발사고(no-op), 입력을 바꿔 저장해야 새 name 이
+  // body 로 발사된다(onEdit → prefill → 저장 flow 를 러너 인자 계약으로 검증 — jsdom 미사용).
+  it('prefill 값 그대로 저장하면 미발사, 입력을 바꿔 저장하면 새 name 이 발사된다 (happy-path — onEdit prefill flow)', async () => {
+    const prefilled = '개발파트'; // handleEditPart 가 row.name 으로 채우는 값 = 원본 스냅샷.
+    const noop = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', prefilled, prefilled, noop.deps);
+    expect(requestMock).not.toHaveBeenCalled();
+
+    requestMock.mockResolvedValue(undefined);
+    const edited = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', '보안파트', prefilled, edited.deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const options = requestMock.mock.calls[0]?.[1] as { body: string };
+    expect(JSON.parse(options.body)).toEqual({ name: '보안파트' });
+    expect(edited.calls.close).toBe(1);
+  });
+
+  // negative — body 는 name 단일 필드만 담는다(UpdatePartDto 계약 — 다른 필드 미포함 경계).
+  it('body 에 name 외 다른 필드를 포함하지 않는다 (negative — UpdatePartDto 단일 필드 경계)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', '보안파트', '개발파트', deps);
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(Object.keys(JSON.parse(options.body))).toEqual(['name']);
+  });
+
+  // error path(409 전용 분기) — 중복 이름(Part.name @unique 위반 → ConflictException) 시 일반
+  // "HTTP 409: …" 가 아니라 전용 중복 문구를 표면화한다(그룹 수정과 구분되는 핵심 분기). 실패라
+  // 재조회·편집 종료는 없다(편집·목록 유지 — 다른 이름으로 재시도 편의).
+  it('update 409(중복 이름) 시 일반 문구 대신 전용 중복 문구를 표면화한다 (error path — 409 중복 전용)', async () => {
+    requestMock.mockRejectedValue(new ApiError(409, 'Conflict'));
+    const { deps, calls } = makeUpdatePartDeps(false);
+    await expect(
+      runUpdatePart('pt1', '보안파트', '개발파트', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, DUP]);
+    expect(calls.error).not.toContain('HTTP 409: Conflict');
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // error path — PATCH 404(미존재 row) 시 일반 문구 표면화·throw 없음·nonce 미증가·편집 유지
+  // (비-409 분기 — 전용 중복 문구가 아니다).
+  it('update 404(미존재 row) 실패 시 일반 문구를 표면화하고 nonce·편집 상태를 건드리지 않는다 (error path — 404)', async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeUpdatePartDeps(false);
+    await expect(
+      runUpdatePart('ghost', '보안파트', '개발파트', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+    expect(calls.error).not.toContain(DUP);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // error path — 400(빈/비정상 name — backend 검증 실패) 실패 시 동일 안전 경로(throw 없음).
+  it('update 400(비정상 name 검증 실패) 실패 시 안전 문구를 표면화한다 (error path — 400)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'Bad Request'));
+    const { deps, calls } = makeUpdatePartDeps(false);
+    await expect(
+      runUpdatePart('pt1', '보안파트', '개발파트', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 400: Bad Request']);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+  });
+
+  // error path — 403(Admin+ 미만 권한 부족) 실패 시 동일 안전 경로(비-409 분기).
+  it('update 403(권한 부족) 실패 시 전용 중복 문구가 아니라 일반 문구를 표면화한다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeUpdatePartDeps(false);
+    await expect(
+      runUpdatePart('pt1', '보안파트', '개발파트', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.error).not.toContain(DUP);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음, 비-409 경로).
+  it('update 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeUpdatePartDeps(false);
+    await expect(
+      runUpdatePart('pt1', '보안파트', '개발파트', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+  });
+
+  // error path(비-ApiError) — ApiError 가 아닌 표면(TypeError 등)도 isConflict false 라 일반 문구로
+  // 안전 표면화한다(throw 없음 — 예상 밖 throw 표면 경계).
+  it('ApiError 가 아닌 throw 표면도 일반 문구로 안전 표면화한다 (error path — 비-ApiError 경계)', async () => {
+    requestMock.mockRejectedValue(new TypeError('boom'));
+    const { deps, calls } = makeUpdatePartDeps(false);
+    await expect(
+      runUpdatePart('pt1', '보안파트', '개발파트', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '알 수 없는 오류']);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // branch(isConflict 분기) — 동일 409 응답이라도 isConflict 가 false 를 내면 전용 문구가 아니라
+  // describeError 일반 문구를 쓴다(409 판정이 주입 의존임을 방증 — true/false 두 분기 cover).
+  it('isConflict 가 false 를 내면 409 여도 일반 문구를 쓴다 (branch — isConflict true/false 분기)', async () => {
+    requestMock.mockRejectedValue(new ApiError(409, 'Conflict'));
+    const { deps, calls } = makeUpdatePartDeps(false);
+    // 항상 false 를 내는 판정으로 교체(주입 의존 검증).
+    deps.isConflict = () => false;
+    await expect(
+      runUpdatePart('pt1', '보안파트', '개발파트', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 409: Conflict']);
+    expect(calls.error).not.toContain(DUP);
+  });
+
+  // branch(a) — 빈/공백/falsy id 는 PATCH 미발사·state 불변(잘못된 path 회피). 경계값 각각 cover.
+  it('빈/공백/falsy id 는 PATCH 를 발사하지 않는다 (branch (a) — id 가드)', async () => {
+    for (const badId of ['', '   ']) {
+      requestMock.mockReset();
+      const { deps, calls } = makeUpdatePartDeps(false);
+      await expect(
+        runUpdatePart(badId, '보안파트', '개발파트', deps),
+      ).resolves.toBeUndefined();
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.updating).toEqual([]);
+      expect(calls.bump).toBe(0);
+    }
+    // undefined id 도 안전(런타임 비정상 입력 방어).
+    requestMock.mockReset();
+    const { deps, calls } = makeUpdatePartDeps(false);
+    await expect(
+      runUpdatePart(undefined as unknown as string, '보안파트', '개발파트', deps),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+  });
+
+  // branch(b) — 이전 update 미완(updating=true) 중 재호출은 PATCH 미발사·state 불변(이중 PATCH 차단).
+  it('이전 update 미완(updating=true) 중 재호출은 PATCH 를 발사하지 않는다 (branch (b) — 이중 PATCH 가드)', async () => {
+    const { deps, calls } = makeUpdatePartDeps(true); // 이미 in-flight.
+    await runUpdatePart('pt1', '보안파트', '개발파트', deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch(c) — 빈/공백-only name 은 PATCH 미발사(빈 body·400 회피 — @IsNotEmpty). 경계값 각각 cover.
+  it('빈/공백-only name 은 PATCH 를 발사하지 않는다 (branch (c) — 빈·공백 name 가드)', async () => {
+    for (const badName of ['', '   ']) {
+      requestMock.mockReset();
+      const { deps, calls } = makeUpdatePartDeps(false);
+      await expect(
+        runUpdatePart('pt1', badName, '개발파트', deps),
+      ).resolves.toBeUndefined();
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.updating).toEqual([]);
+      expect(calls.bump).toBe(0);
+      expect(calls.close).toBe(0);
+    }
+    // undefined name(런타임 비정상 입력)도 optional chaining 으로 안전 no-op.
+    requestMock.mockReset();
+    const { deps } = makeUpdatePartDeps(false);
+    await expect(
+      runUpdatePart('pt1', undefined as unknown as string, '개발파트', deps),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+
+  // branch(d) — 미변경 name(입력 trim 후 원본과 동일)이면 PATCH 미발사(무의미한 요청 억제 + 자기
+  // 자신과의 409 유발 회피 — no-op).
+  it('미변경 name(원본과 동일)이면 PATCH 를 발사하지 않는다 (branch (d) — 미변경 name no-op 가드)', async () => {
+    const { deps, calls } = makeUpdatePartDeps(false);
+    // 동일 name(앞뒤 공백만 덧댄 입력도 trim 후 동일 → 미변경 취급).
+    await expect(
+      runUpdatePart('pt1', '  개발파트  ', '개발파트', deps),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+  });
+
+  // negative(id 인코딩) — 특수문자가 든 id 는 encodeURIComponent 로 안전 인코딩된다(path 손상 방지).
+  it('id 를 encodeURIComponent 로 안전 인코딩해 path 를 만든다 (negative — 특수문자 id 인코딩)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdatePartDeps(false);
+    await runUpdatePart('pt 1/x', '보안파트', '개발파트', deps);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/parts/pt%201%2Fx');
+  });
+
+  // negative(name trim) — 발사되는 body 의 name 은 앞뒤 공백을 trim 한 값이다(공백 오염 방지).
+  it('발사되는 body 의 name 은 앞뒤 공백을 trim 한 값이다 (negative — name trim)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', '  보안파트  ', '개발파트', deps);
+    const options = requestMock.mock.calls[0]?.[1] as { body: string };
+    expect(JSON.parse(options.body)).toEqual({ name: '보안파트' });
+  });
+
+  // negative(이중 PATCH 차단, 순차) — 정상 발사는 request 를 정확히 1 회만 호출한다(중복 없음).
+  it('정상 발사 시 PATCH 를 1 회만 호출한다 (negative — 재클릭 이중 PATCH 차단)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', '보안파트', '개발파트', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/parts/pt1');
+  });
+
+  // negative(reject→finally 복구) — 실패 후에도 finally 가 setUpdating(false) 로 진행 표시를 복구한다.
+  it('reject 시에도 finally 로 진행 표시(updating)를 복구한다 (negative — reject→finally 복구)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(409, 'Conflict'));
+    const fail = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', '보안파트', '개발파트', fail.deps);
+    expect(fail.calls.updating).toEqual([true, false]);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', '보안파트', '개발파트', ok.deps);
+    expect(ok.calls.updating).toEqual([true, false]);
+  });
+
+  // negative(편집 상태 전이) — 성공 시 편집 종료(closeEdit), 409 실패 시 편집 유지(closeEdit 미호출 —
+  // 사용자가 다른 이름으로 즉시 재시도할 수 있어야 한다).
+  it('성공 시 편집을 종료하고 409 실패 시 편집을 유지한다 (negative — 편집 상태 전이)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', '보안파트', '개발파트', ok.deps);
+    expect(ok.calls.close).toBe(1);
+
+    requestMock.mockRejectedValueOnce(new ApiError(409, 'Conflict'));
+    const fail = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', '보안파트', '개발파트', fail.deps);
+    expect(fail.calls.close).toBe(0);
+  });
+
+  // negative(409 후 재시도 error 초기화) — 중복으로 실패한 뒤 다른 이름으로 재발사하면 시작 시점에
+  // 직전 중복 문구가 비워진다(잔존 문구 오독 방지).
+  it('409 실패 후 다른 이름으로 재시도하면 직전 중복 문구를 먼저 비운다 (negative — 재시도 error 초기화)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(409, 'Conflict'));
+    const first = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', '보안파트', '개발파트', first.deps);
+    expect(first.calls.error).toEqual([undefined, DUP]);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const second = makeUpdatePartDeps(false);
+    await runUpdatePart('pt1', '인프라파트', '개발파트', second.deps);
+    // 성공 경로 — 시작 비움만 남고 실패 문구는 설정되지 않는다.
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.bump).toBe(1);
+  });
+
+  // negative(시작 정리/재조회 전 안전) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve
+  // 로 캡처한다(재조회 도착 전 상태에서 crash 없음 — unmount race 방어). 해소 후 재조회 bump + 편집
+  // 종료 + 진행 off.
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 재조회 전 상태 안전)', async () => {
+    let resolvePatch: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePatch = resolve;
+        }),
+    );
+    const { deps, calls } = makeUpdatePartDeps(false);
+    const pending = runUpdatePart('pt1', '보안파트', '개발파트', deps);
+    expect(calls.updating).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+    resolvePatch();
+    await pending;
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // negative(응답 shape 무관) — request 가 예상 밖 값(null)으로 resolve 해도 성공 경로로 안전 처리한다.
+  it('request 가 예상 밖 값(null)으로 resolve 해도 성공 경로로 안전 처리한다 (negative — 응답 shape 무관)', async () => {
+    requestMock.mockResolvedValue(null);
+    const { deps, calls } = makeUpdatePartDeps(false);
+    await expect(
+      runUpdatePart('pt1', '보안파트', '개발파트', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+  });
+});
+
+// R-112 — T-1155 파트 수정 배선 렌더 검증. 파트 관리 마운트(PartList)에 onEdit=handleEditPart 가
+// 배선돼 각 파트 행에 "수정" 버튼이 part 수만큼 렌더됨을 정적 markup 으로 단언한다(클릭→prefill·러너
+// 호출 자체는 위 runUpdatePart 단위 test 가 cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트 비검증).
+// 초기(편집 대상 미선택)엔 인라인 수정 폼이 미렌더됨도 확인한다. 비-Admin 등급으로 두어 provider 목록
+// 패널의 "수정" 버튼과 섞이지 않게 격리한다(파트 섹션은 gating 밖이라 비-Admin 에도 렌더된다).
+describe('AdminView — 파트 수정 배선 (정적 렌더, T-1155)', () => {
+  const PARTS = '/api/parts';
+  const countOccurrences = (haystack: string, needle: string) =>
+    haystack.split(needle).length - 1;
+
+  // 파트 2 건 샘플 — 각 행에 수정 버튼이 배선됨을 part 수(2)로 단언한다.
+  const PART_ROWS = [
+    { id: 'pt1', name: '개발파트', persons: [{}, {}] },
+    { id: 'pt2', name: '디자인파트', persons: [{}] },
+  ];
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 파트 목록이 있으면 각 행에 수정 버튼(onEdit=handleEditPart 배선)이 part 수만큼
+  // 렌더된다. 비-Admin 이라 provider 목록 패널은 미마운트 + 인원/그룹은 빈 목록 → "수정" 버튼의
+  // 유일 출처는 파트 목록.
+  it('파트 목록이 있으면 각 행에 수정 버튼을 렌더한다 (happy-path — onEdit 배선)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('개발파트');
+    expect(countOccurrences(html, '>수정</button>')).toBe(PART_ROWS.length);
+  });
+
+  // branch/negative — 초기(편집 대상 미선택, editingPartId=null)엔 인라인 수정 폼이 미렌더된다.
+  it('초기(편집 미선택)엔 인라인 수정 폼을 렌더하지 않는다 (branch/negative — editingPartId=null)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 인라인 수정 폼의 입력(aria-label)은 편집 대상 선택 전에는 미렌더된다.
+    expect(html).not.toContain('aria-label="수정할 파트 이름"');
+    // "파트 수정" 저장 버튼도 편집 폼 안에만 있어 미렌더된다(생성 폼의 "파트 추가" 와 구분).
+    expect(html).not.toContain('>파트 수정</button>');
+    // 편집 미시작이라 수정 실패 문구도 없다.
+    expect(html).not.toContain('이미 존재하는 파트 이름입니다');
+  });
+
+  // branch/negative — 파트가 0 건이면 렌더할 행이 없어 수정 버튼이 미렌더된다(빈 상태 문구만).
+  it('파트가 0 건이면 수정 버튼을 렌더하지 않는다 (branch/negative — 빈 목록)', () => {
+    setRoutes({
+      [PARTS]: { data: [], loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('등록된 파트가 없습니다');
+    expect(countOccurrences(html, '>수정</button>')).toBe(0);
+  });
+
+  // negative — id 없는 파트 행은 콜백 인자가 없어 수정·삭제 버튼이 미렌더된다(PartList rowId 가드
+  // 경계 — 배선 후에도 유지).
+  it('id 없는 파트 행은 수정 버튼을 렌더하지 않는다 (negative — rowId 가드 경계)', () => {
+    setRoutes({
+      [PARTS]: {
+        data: [{ name: '무id파트', persons: [] }],
+        loading: false,
+        error: undefined,
+      },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('무id파트');
+    expect(countOccurrences(html, '>수정</button>')).toBe(0);
+    expect(countOccurrences(html, '>삭제</button>')).toBe(0);
+  });
+
+  // negative — 파트 조회가 error 면 목록 대신 alert 만 렌더돼 수정 버튼이 미렌더된다(에러 표면에서
+  // 편집 진입 불가 — fail-closed 경계).
+  it('파트 조회 실패 시 수정 버튼을 렌더하지 않는다 (negative — error 표면 경계)', () => {
+    setRoutes({
+      [PARTS]: { data: undefined, loading: false, error: 'HTTP 500: parts boom' },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('HTTP 500: parts boom');
     expect(countOccurrences(html, '>수정</button>')).toBe(0);
   });
 });
