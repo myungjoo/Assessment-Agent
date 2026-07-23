@@ -2,7 +2,7 @@
 id: T-1157
 title: AdminView 선택 파트 삭제 시 selectedPartId reset (404 alert·select 값 불일치 결함 수정)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-045]
 estimatedDiff: 240
@@ -13,6 +13,10 @@ touchesFiles:
   - web/src/views/AdminView.tsx
   - web/src/views/AdminView.test.tsx
 created: 2026-07-24
+prNumber: 1049
+mergedAs: 53777801f782fc12d242b914edb4868b78a78cd5
+reviewRounds: 3
+completedAt: 2026-07-23T21:32:00Z
 plannerNote: T-1156 reviewer MINOR (2) UX 결함 수정 — 선택 파트 삭제 후 selectedPartId 잔존 → 404 alert·select 불일치, pr web 2파일
 ---
 
