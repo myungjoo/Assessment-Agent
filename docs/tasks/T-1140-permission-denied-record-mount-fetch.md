@@ -2,8 +2,11 @@
 id: T-1140
 title: DashboardView 에 PermissionDeniedRecordList 마운트 + GET /api/permission-denied-records 실 fetch 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1032
+mergedAs: cf0c8572
+reviewRounds: 1
 coversReq: [REQ-008, REQ-016]
 estimatedDiff: 220
 estimatedFiles: 2
