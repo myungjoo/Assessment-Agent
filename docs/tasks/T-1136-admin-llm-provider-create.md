@@ -2,8 +2,12 @@
 id: T-1136
 title: AdminView LLM provider 생성 mutation 배선 (POST /api/llm/providers)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1028
+mergedAs: 06934d89
+reviewRounds: 1
+completedAt: 2026-07-23T07:56:30Z
 coversReq: [REQ-096]
 estimatedDiff: 240
 estimatedFiles: 2
