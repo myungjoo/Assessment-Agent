@@ -2,8 +2,11 @@
 id: T-1145
 title: AdminView 인원 수정 mutation 배선 (PATCH /api/persons/:id)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1037
+mergedAs: ada26b61
+reviewRounds: 1
 coversReq: [REQ-049]
 estimatedDiff: 240
 estimatedFiles: 4
