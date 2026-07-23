@@ -2,7 +2,7 @@
 id: T-1158
 title: UserList presentational 컴포넌트 신설 (Admin 사용자 관리 목록 UI 첫 slice)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 280
@@ -13,6 +13,10 @@ touchesFiles:
   - web/src/components/UserList.tsx
   - web/src/components/UserList.test.tsx
 created: 2026-07-24
+completedAt: 2026-07-23T22:20:00Z
+prNumber: 1050
+mergedAs: c9e99901
+reviewRounds: 1
 plannerNote: P6 line120 Admin 사용자 관리 arc 첫 slice — 인원/그룹/파트 CRUD 완결 후 남은 UI 공백(README 84행), PartList T-1151 mirror, pr web 2파일
 ---
 
