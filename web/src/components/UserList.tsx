@@ -2,7 +2,8 @@
 // User) 사용자 목록을 읽기 전용으로 렌더하는 순수 presentational controlled component 다
 // (REQ-044 사용자 추가·승급 · REQ-045 역할 표시). backend 는 이미 완결(GET /api/users Admin+
 // 목록, POST /api/users 생성, PATCH /api/users/:id/role 승강)이나 web 목록 UI 가 부재했다.
-// 실제 fetch(GET /api/users)·mount·생성 폼·역할 변경 콜백 배선은 후속 slice 책임(Out of Scope).
+// 역할 변경은 onChangeRole 콜백 표면(T-1161)까지 열려 있고, 실제 fetch(GET /api/users)·생성 폼·
+// PATCH /api/users/:id/role 요청 배선은 상위 컨테이너 몫의 후속 slice 책임(Out of Scope).
 // 직전 PartList(T-1151)·GroupList(T-1147)·PersonList(T-1141) 와 동일한 props/분기
 // (loading 우선 → error → empty → populated)/named·default export convention 을 차용한다.
 
