@@ -73,6 +73,7 @@ import AdminView, {
   deriveScheduleMessage,
   buildRecentDeletionPath,
   runReEvaluate,
+  runRemove,
   isAdminRole,
 } from './AdminView';
 import type {
@@ -86,6 +87,7 @@ import type {
   ImportDeps,
   ScheduleMutationDeps,
   ReEvaluationDeps,
+  RemoveDeps,
 } from './AdminView';
 
 // LLM 조회 두 path 의 기본 성공(빈 데이터) 상태 — 그룹 전용 test 가 LLM path 응답을 명시하지
@@ -468,6 +470,265 @@ describe('AdminView — 멤버십 조회 path/파생 (순수 함수, T-1129)', (
       undefined,
     );
     expect(noGroup[0]).toEqual({ id: 'm1', name: '이름 미상', role: undefined });
+  });
+});
+
+// R-112 — T-1130 buildGroupMembersPath nonce 확장 branch 검증(0 → 깨끗한 path, >0 → `_r` 부착).
+// buildMappingsPath 의 nonce 분기 검증과 동형. selectedGroupId 조건부 null·안전 인코딩은 유지.
+describe('AdminView — buildGroupMembersPath nonce 확장 (순수 함수, T-1130)', () => {
+  it('nonce 0/기본값은 깨끗한 path, >0 은 _r query 를 부착한다 (branch — cache-busting)', () => {
+    // 기본값(인자 생략) = nonce 0 → 깨끗한 path(기존 T-1129 계약 불변).
+    expect(buildGroupMembersPath('g1')).toBe('/api/groups/g1/members');
+    // 명시 0 → 깨끗한 path.
+    expect(buildGroupMembersPath('g1', 0)).toBe('/api/groups/g1/members');
+    // >0 → cache-busting `_r` query 부착(useApiResource path-변경 재조회 유발).
+    expect(buildGroupMembersPath('g1', 1)).toBe('/api/groups/g1/members?_r=1');
+    expect(buildGroupMembersPath('g1', 7)).toBe('/api/groups/g1/members?_r=7');
+    // negative — 음수 nonce 도 0 이하로 간주해 깨끗한 path(경계값 안전).
+    expect(buildGroupMembersPath('g1', -1)).toBe('/api/groups/g1/members');
+    // 미선택(falsy)이면 nonce 와 무관하게 null(조건부 미조회 — nonce 가 조회를 강제하지 않음).
+    expect(buildGroupMembersPath(undefined, 3)).toBeNull();
+    expect(buildGroupMembersPath('', 3)).toBeNull();
+    // 비정상 문자가 든 groupId 도 nonce 부착과 함께 안전 인코딩(path 안 깨짐).
+    expect(buildGroupMembersPath('a b', 2)).toBe('/api/groups/a%20b/members?_r=2');
+  });
+});
+
+// R-112 — T-1130 onRemove 실 DELETE remove mutation 본체(runRemove) 검증. jsdom/렌더러 없이
+// mutation 본체를 직접 호출하고(④c runAssign / ④e runImport 와 동일 convention), apiClient.request
+// mock 으로 method/path 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의
+// 콜백 호출로 관찰한다. happy/error/branch/negative 예외 분기마다 각 1+ cover.
+describe('AdminView — onRemove 실 DELETE remove mutation (T-1130 runRemove)', () => {
+  // 상태 전이를 기록하는 deps harness — groupId·removing 초기값과 request mock 을 주입받아
+  // setRemoving/setRemoveError 호출과 bumpRefresh 호출 횟수를 모두 순서대로 캡처한다(④e 동형).
+  function makeRemoveDeps(removing: boolean, groupId = 'g1') {
+    const calls = {
+      removing: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+    };
+    const deps: RemoveDeps = {
+      remove: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      groupId,
+      removing,
+      setRemoving: (next) => calls.removing.push(next),
+      setRemoveError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — remove 트리거 시 request 가 DELETE /api/groups/<gid>/members/<mid> 로 method
+  // DELETE 인 인자로 정확히 호출되고, 성공 후 재조회 nonce 를 bump(bumpRefresh 1 회) + error
+  // 미설정(시작 비움만) + 진행 표시(removing) on→off 로 해제된다.
+  it('DELETE /api/groups/<gid>/members/<mid> 를 method DELETE 로 정확히 호출하고 성공 시 재조회 nonce 를 bump 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 204 No Content — body 없음.
+    const { deps, calls } = makeRemoveDeps(false, 'g1');
+    await runRemove('m1', deps);
+    // request 가 remove path 로 1 회 호출(method DELETE).
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string },
+    ];
+    expect(path).toBe('/api/groups/g1/members/m1');
+    expect(options.method).toBe('DELETE');
+    // 성공 → 재조회 nonce bump 1 회 + error 시작 비움만(실패 문구 미설정).
+    expect(calls.bump).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    // 진행 표시 on→off(finally 공통 해제).
+    expect(calls.removing).toEqual([true, false]);
+  });
+
+  // error path — remove 404(NotFound, row 부재) 실패 시 error 문구가 표면화되고 throw 없이
+  // 처리되며 재조회 nonce 는 bump 되지 않는다(목록 그대로 유지).
+  it('remove 404(NotFound, row 부재) 실패 시 error 문구를 표면화하고 nonce 를 bump 하지 않는다 (error path — 404)', async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeRemoveDeps(false, 'g1');
+    await expect(runRemove('ghost', deps)).resolves.toBeUndefined();
+    // 사람-친화 문구 표면화(시작 비움 → HTTP 404) + 재조회 nonce 미bump(실패 시 목록 유지).
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+    expect(calls.bump).toBe(0);
+    // 진행 표시는 성공·실패 공통으로 off.
+    expect(calls.removing).toEqual([true, false]);
+  });
+
+  // error path — 403(Admin+ 미만) 도 동일 안전 경로로 문구 표면화(throw 없음).
+  it('remove 403(Admin+ 미만) 실패 시 안전 문구를 표면화한다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeRemoveDeps(false, 'g1');
+    await expect(runRemove('m1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('remove 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeRemoveDeps(false, 'g1');
+    await expect(runRemove('m1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (a) — 빈/falsy membershipId → DELETE 미발사·state 불변·throw 없음(잘못된 path 회피).
+  it('빈/falsy membershipId 이면 DELETE 를 발사하지 않는다 (branch (a) — 빈 membershipId)', async () => {
+    const { deps, calls } = makeRemoveDeps(false, 'g1');
+    await expect(runRemove('', deps)).resolves.toBeUndefined();
+    await expect(
+      runRemove(undefined as unknown as string, deps),
+    ).resolves.toBeUndefined();
+    // request 미호출 + 어떤 state 전이·bump 도 없음(빈 선택 방어).
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.removing).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (b) — 이전 remove 미완(removing=true) 중 재호출은 DELETE 미발사·state 불변(이중
+  // DELETE·경합 차단 — ④c assigning 가드 동형).
+  it('이전 remove 미완(removing=true) 중 재호출은 DELETE 를 발사하지 않는다 (branch (b) — 이중 DELETE 가드)', async () => {
+    const { deps, calls } = makeRemoveDeps(true, 'g1'); // 이미 in-flight.
+    await runRemove('m1', deps);
+    // request 미호출 + 어떤 state 전이·bump 도 없음(이중 DELETE·state 깨짐 차단).
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.removing).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (c) — 정상 발사 시 DELETE 1 회만(중복 없음). happy-path 와 짝을 이루는 발사 횟수 단언.
+  it('정상 발사 시 DELETE 를 1 회만 호출한다 (branch (c) — 단일 발사)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeRemoveDeps(false, 'g1');
+    await runRemove('m2', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/groups/g1/members/m2');
+  });
+
+  // negative — groupId·membershipId 에 특수문자 포함 시 encodeURIComponent 로 path 안전 인코딩됨
+  // (path 가 깨지거나 주입되지 않도록 방어).
+  it('groupId·membershipId 특수문자를 encodeURIComponent 로 안전 인코딩한다 (negative — 특수문자 인코딩)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeRemoveDeps(false, 'a b/c');
+    await runRemove('m 1/x', deps);
+    // 공백/슬래시가 percent-encoding 되어 path segment 가 안전하게 유지된다.
+    expect(requestMock.mock.calls[0]?.[0]).toBe(
+      '/api/groups/a%20b%2Fc/members/m%201%2Fx',
+    );
+  });
+
+  // negative — 성공·실패 어느 경로든 finally 가 setRemoving(false) 로 진행 표시를 복구한다.
+  it('성공·실패 어느 경우든 진행 표시(removing)가 finally 로 해제된다 (negative — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeRemoveDeps(false, 'g1');
+    await runRemove('m1', ok.deps);
+    expect(ok.calls.removing).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeRemoveDeps(false, 'g1');
+    await runRemove('m1', fail.deps);
+    expect(fail.calls.removing).toEqual([true, false]);
+  });
+
+  // negative(시작 정리) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve 로 캡처
+  // 한다(재조회 도착 전 상태에서 crash 없음 + 실패 후 재시도 시 직전 error 가 진행 중 남지 않음).
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 시작 정리/재조회 전 안전)', async () => {
+    let resolveDelete: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveDelete = resolve;
+        }),
+    );
+    const { deps, calls } = makeRemoveDeps(false, 'g1');
+    const pending = runRemove('m1', deps);
+    // 발사 직후(해소 전) — 진행 on + error 시작 비움(undefined) + 재조회 아직 미bump(crash 없음).
+    expect(calls.removing).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    // 해소 후 — 재조회 bump + 진행 off.
+    resolveDelete();
+    await pending;
+    expect(calls.bump).toBe(1);
+    expect(calls.removing).toEqual([true, false]);
+  });
+
+  // negative — 실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다(시작 비움 → 성공
+  // bump). 첫 호출 실패 → 두 번째 호출 성공의 두 deps 흐름으로 확인.
+  it('실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다 (negative — 실패 후 재시도)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const first = makeRemoveDeps(false, 'g1');
+    await runRemove('m1', first.deps);
+    expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(first.calls.bump).toBe(0);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const second = makeRemoveDeps(false, 'g1');
+    await runRemove('m1', second.deps);
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.bump).toBe(1);
+  });
+});
+
+// R-112 — T-1130 onRemove 배선 렌더 검증. onRemove 전달 시 GroupMemberList 가 각 멤버 행에 제거
+// 버튼(제거 라벨)을 렌더함을 정적 markup 으로 단언한다(클릭→콜백 호출 자체는 위 runRemove 단위
+// test + GroupMemberList 컴포넌트 test 가 cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트 비검증).
+// 멤버가 없거나 loading/error 분기에서는 버튼이 미렌더됨(GroupMemberList 분기)도 함께 확인한다.
+describe('AdminView — onRemove 제거 버튼 배선 (정적 렌더, T-1130)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('그룹 선택 시 각 멤버 행에 제거 버튼을 렌더한다 (happy-path — onRemove 전달)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined }, MEMBERS_OK_G1);
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // 멤버 목록(<ul>) + 각 행 제거 버튼(제거 라벨) 렌더 — g1 은 2 멤버라 제거 버튼 2 개.
+    expect(html).toContain('<ul>');
+    expect(html).toContain('제거');
+    const buttonCount = html.split('제거').length - 1;
+    expect(buttonCount).toBe(2);
+  });
+
+  it('membership 0 건이면 제거 버튼을 렌더하지 않는다 (negative — 빈 목록)', () => {
+    setResource(
+      { data: SAMPLE, loading: false, error: undefined },
+      { data: [], loading: false, error: undefined },
+    );
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // 빈 상태 문구만, 제거 버튼·<ul> 미렌더.
+    expect(html).toContain('이 그룹에 속한 인원이 없습니다');
+    expect(html).not.toContain('제거');
+    expect(html).not.toContain('<ul>');
+  });
+
+  it('멤버십 loading 중에는 제거 버튼을 렌더하지 않는다 (negative — loading 우선)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined }, MEMBERS_LOADING);
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // loading 우선 — 로딩 문구만, 제거 버튼 미렌더.
+    expect(html).toContain('불러오는 중…');
+    expect(html).not.toContain('제거');
   });
 });
 
