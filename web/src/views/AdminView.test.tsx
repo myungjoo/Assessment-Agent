@@ -94,6 +94,7 @@ import AdminView, {
   runDeleteGroup,
   runDeletePart,
   resolveSelectedPartIdAfterDelete,
+  buildDeletePartBumpRefresh,
   buildPersonPatch,
   runUpdatePerson,
   runUpdateGroup,
@@ -7872,24 +7873,23 @@ describe('AdminView — 파트 소속 인원 조회 배선 (T-1156)', () => {
 // id(선택 보존) / 빈·공백·undefined-like 비정상 입력(throw 0 안전 fallback) 분기를 각각 cover
 // 한다. jsdom·렌더러 불요(순수 함수 직접 호출 — buildPartPersonsPath convention 정합).
 describe('AdminView — resolveSelectedPartIdAfterDelete (순수 함수, T-1157)', () => {
-  // happy/분기 — 삭제된 파트가 현재 선택 중이면 빈 문자열로 선택을 해제한다(사라진 파트의 소속
-  // 인원 404 재조회 + <select> 표시값 불일치 차단).
-  it('삭제된 파트가 선택 중이면 빈 문자열로 선택을 해제한다 (happy — 동일 id 분기)', () => {
+  // happy/분기 — 삭제된 파트가 현재 선택 중이면 빈 문자열로 선택을 해제하고(사라진 파트의 소속
+  // 인원 404 재조회 + <select> 표시값 불일치 차단), 선택하지 않은 다른 파트를 삭제했으면 현재
+  // 선택을 그대로 보존한다(무관한 선택 초기화 0). current 가 빈 문자열(미선택)이면 그대로 유지.
+  it('동일 id 는 선택을 해제하고 다른 id 는 선택을 보존한다 (happy/분기)', () => {
     expect(resolveSelectedPartIdAfterDelete('pt1', 'pt1')).toBe('');
-  });
-
-  // 분기 — 선택하지 않은 다른 파트를 삭제했으면 현재 선택을 그대로 보존한다(무관한 선택 초기화 0).
-  // current 가 빈 문자열(미선택)이면 빈 문자열을 그대로 유지한다.
-  it('다른 파트를 삭제하면 현재 선택을 그대로 보존한다 (분기 — 다른 id/미선택)', () => {
     expect(resolveSelectedPartIdAfterDelete('pt1', 'pt2')).toBe('pt1');
     expect(resolveSelectedPartIdAfterDelete('', 'pt2')).toBe('');
   });
 
-  // negative — 빈 문자열·공백·undefined-like 비정상 입력도 throw 없이 안전 fallback 한다
-  // (deletedId 가 비면 선택 미변경, current 가 falsy 면 빈 문자열로 정규화).
+  // negative — 빈 문자열·공백·undefined-like 비정상 입력도 throw 없이 안전 fallback 한다.
+  // deletedId 가 비거나 공백뿐이면 runDeletePart 의 미발사 가드와 같은 의미로 "삭제 대상 없음"
+  // 취급해 선택을 건드리지 않고, current 가 falsy 면 빈 문자열로 정규화한다.
   it('빈·공백·undefined-like 입력도 throw 없이 안전 fallback 한다 (negative — 경계값)', () => {
     expect(resolveSelectedPartIdAfterDelete('', '')).toBe('');
     expect(resolveSelectedPartIdAfterDelete('pt1', '')).toBe('pt1');
+    // 공백뿐인 id 는 무시된다 — 선택 중인 값이 공백이어도 해제되지 않는다(러너 가드와 동의미).
+    expect(resolveSelectedPartIdAfterDelete('   ', '   ')).toBe('   ');
     expect(resolveSelectedPartIdAfterDelete('pt1', '   ')).toBe('pt1');
     expect(() =>
       resolveSelectedPartIdAfterDelete(
@@ -7900,6 +7900,45 @@ describe('AdminView — resolveSelectedPartIdAfterDelete (순수 함수, T-1157)
     expect(
       resolveSelectedPartIdAfterDelete(undefined as unknown as string, 'pt1'),
     ).toBe('');
+  });
+
+  // R-112 회귀 방어(round 2 reviewer MAJOR (1)) — 컨테이너가 runDeletePart 에 주입하는 bumpRefresh
+  // 콜백 "실물"(buildDeletePartBumpRefresh)을 fake setter 2 개로 직접 호출해 nonce +1 과 선택 전이를
+  // 단언한다. 배선 라인이 미래에 제거·변형되면 본 test 가 fail 한다(harness 자기검증 아님).
+  it('bumpRefresh 실물이 nonce +1 과 선택 전이를 functional setter 로 수행한다 (배선 회귀 방어)', () => {
+    const calls: Array<'nonce' | 'selected'> = [];
+    const run = (selected: string, deletedId: string) => {
+      const state = { nonce: 0, selected };
+      buildDeletePartBumpRefresh(
+        (updater) => {
+          calls.push('nonce');
+          state.nonce = updater(state.nonce);
+        },
+        (updater) => {
+          calls.push('selected');
+          state.selected = updater(state.selected);
+        },
+        deletedId,
+      )();
+      return state;
+    };
+    // 동일 id — 선택 해제 + 재조회 nonce bump. 두 setter 모두 functional updater 로 호출된다.
+    expect(run('pt1', 'pt1')).toEqual({ nonce: 1, selected: '' });
+    expect(calls).toEqual(['nonce', 'selected']);
+    // 다른 id — 선택 보존, nonce 는 그래도 bump(파트 목록 재조회는 항상 필요).
+    expect(run('pt1', 'pt2')).toEqual({ nonce: 1, selected: 'pt1' });
+    // 생성만 하고 호출하지 않으면 setter 가 하나도 불리지 않는다(실패 경로 미호출 계약 정합).
+    const untouched = { nonce: 0, selected: 'pt1' };
+    buildDeletePartBumpRefresh(
+      (u) => {
+        untouched.nonce = u(untouched.nonce);
+      },
+      (u) => {
+        untouched.selected = u(untouched.selected);
+      },
+      'pt1',
+    );
+    expect(untouched).toEqual({ nonce: 0, selected: 'pt1' });
   });
 });
 
@@ -7920,9 +7959,10 @@ describe('AdminView — 선택 파트 삭제 시 선택 해제 배선 (T-1157)',
     { id: 'pp1', fullName: '한소속', email: 'soso@example.com', active: true },
   ];
 
-  // 컨테이너 배선 mirror harness — handleDeletePart 의 deps 를 그대로 재현한다(bumpRefresh 안에서
-  // nonce bump + resolveSelectedPartIdAfterDelete 로 선택 전이). 실패 시 bumpRefresh 미호출로
-  // 선택 보존이 자동 보장되는지도 같은 harness 로 관찰한다.
+  // 컨테이너 배선 harness — handleDeletePart 의 deps 를 재현하되, bumpRefresh 는 구현을 복제하지
+  // 않고 컨테이너가 쓰는 것과 **같은 실물** buildDeletePartBumpRefresh 를 fake setter 2 개로 조립해
+  // 주입한다(round 2 reviewer MAJOR (1) — 배선 라인이 사라지면 아래 test 들이 fail 한다). 실패 시
+  // bumpRefresh 미호출로 선택 보존이 자동 보장되는지도 같은 harness 로 관찰한다.
   function makeWiredDeps(selected: string, id: string) {
     const state = { selected, nonce: 0 };
     const deps: DeletePartDeps = {
@@ -7932,10 +7972,15 @@ describe('AdminView — 선택 파트 삭제 시 선택 해제 배선 (T-1157)',
       deleting: false,
       setDeleting: () => {},
       setDeleteError: () => {},
-      bumpRefresh: () => {
-        state.nonce += 1;
-        state.selected = resolveSelectedPartIdAfterDelete(state.selected, id);
-      },
+      bumpRefresh: buildDeletePartBumpRefresh(
+        (updater) => {
+          state.nonce = updater(state.nonce);
+        },
+        (updater) => {
+          state.selected = updater(state.selected);
+        },
+        id,
+      ),
     };
     return { deps, state };
   }
@@ -7985,18 +8030,23 @@ describe('AdminView — 선택 파트 삭제 시 선택 해제 배선 (T-1157)',
       new ApiError(403, 'Forbidden'),
       new ApiError(0, 'fetch failed'),
     ];
+    let survived = '';
     for (const err of failures) {
       requestMock.mockRejectedValueOnce(err);
       const { deps, state } = makeWiredDeps('pt1', 'pt1');
       await expect(runDeletePart('pt1', deps)).resolves.toBeUndefined();
       expect(state.selected).toBe('pt1');
       expect(state.nonce).toBe(0);
+      survived = state.selected;
     }
     setRoutes({
       [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
       [PT1_PERSONS]: { data: PT1_ROWS, loading: false, error: undefined },
     });
-    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    // 실패 후 "실제로 남은" 선택값으로 렌더해 인과를 잇는다(하드코딩 id 미사용 — round 2 MINOR (2)).
+    const html = renderToStaticMarkup(
+      <AdminView initialSelectedPartId={survived} />,
+    );
     expect(html).toContain('한소속');
   });
 
@@ -8018,7 +8068,9 @@ describe('AdminView — 선택 파트 삭제 시 선택 해제 배선 (T-1157)',
       [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
       [PT1_PERSONS]: { data: PT1_ROWS, loading: false, error: undefined },
     });
-    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    const html = renderToStaticMarkup(
+      <AdminView initialSelectedPartId={state.selected} />,
+    );
     expect(html).toContain('aria-label="추가할 파트 이름"');
     expect(html).toContain('aria-label="그룹 선택"');
     expect(html).toContain('한소속');
