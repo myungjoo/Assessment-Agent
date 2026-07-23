@@ -34,6 +34,8 @@ const DEFAULT_EMPTY_MESSAGE = '등록된 인원이 없습니다';
 // active 여부를 사람-친화 한국어로 표시할 라벨.
 const ACTIVE_LABEL = '활성';
 const INACTIVE_LABEL = '휴직';
+// 인원 삭제 버튼 라벨 — onDelete 전달 시에만 각 행에 렌더한다(LlmProviderConfigList DELETE_LABEL 동형).
+const DELETE_LABEL = '삭제';
 
 interface PersonListProps {
   // 표시할 인원 목록 — controlled component 라 상위가 이미 fetch·정렬된 배열을 보유한다.
@@ -44,11 +46,15 @@ interface PersonListProps {
   error?: string;
   // 빈 상태 문구(선택). 빈 문자열이면 기본 문구로 fallback(의미 없는 빈 메시지 방지).
   emptyMessage?: string;
+  // 인원 삭제 콜백(선택) — 주어졌을 때만 각 행에 삭제 버튼을 렌더하고 클릭 시 row.id 로 호출한다.
+  // 미전달 시 버튼 미렌더(읽기 전용 하위 호환 — T-1142 마운트 보존, LlmProviderConfigList onDelete 동형).
+  // 실 DELETE 요청·전역 상태는 상위 컨테이너 몫이라 presentational 책임(콜백 호출)만 진다.
+  onDelete?: (id: string) => void;
 }
 
-// 인원 목록. 실 fetch·필터·전역 상태는 수행하지 않고 props 의 persons 를 그대로 표시하는
-// presentational 책임만 진다 — 실제 조회·배선은 backend·상위 컨테이너 몫이다.
-function PersonList({ persons, loading, error, emptyMessage }: PersonListProps) {
+// 인원 목록. 실 fetch·필터·전역 상태·삭제 요청은 수행하지 않고 props 의 persons 를 그대로 표시하며
+// onDelete 콜백만 호출하는 presentational 책임만 진다 — 실제 조회·삭제·배선은 backend·상위 컨테이너 몫이다.
+function PersonList({ persons, loading, error, emptyMessage, onDelete }: PersonListProps) {
   // loading 우선 정책 — 진행 중이면 error·persons 유무와 무관하게 로딩 표시만 렌더한다.
   if (loading === true) {
     return <div role="status">{LOADING_TEXT}</div>;
@@ -81,6 +87,12 @@ function PersonList({ persons, loading, error, emptyMessage }: PersonListProps) 
           {row.partId ? <span>{row.partId}</span> : null}
           {/* createdAt 은 있을 때만 함께 표시한다(없으면 throw 없이 생략). */}
           {row.createdAt ? <span>{row.createdAt}</span> : null}
+          {/* onDelete 가 주어졌을 때만 삭제 버튼을 렌더하고 클릭 시 row.id 로 콜백 호출. */}
+          {onDelete ? (
+            <button type="button" onClick={() => onDelete(row.id)}>
+              {DELETE_LABEL}
+            </button>
+          ) : null}
         </li>
       ))}
     </ul>

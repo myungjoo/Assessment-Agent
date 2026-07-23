@@ -1381,6 +1381,65 @@ async function runCreatePerson(
   }
 }
 
+// 인원 삭제 DELETE + state-전이 로직에 주입하는 deps(T-1144 — runDeleteProvider 의 DeleteProviderDeps
+// 를 1:1 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). path param 이 person id 하나뿐이라
+// (DELETE /api/persons/:id 는 단일 세그먼트) groupId 는 없다. 컨테이너의 handleDeletePerson 은 이 러너에
+// 현재 in-flight 여부(deleting)·상태 setter·재조회 트리거를 주입해 호출만 한다.
+interface DeletePersonDeps {
+  // DELETE 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  remove: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 삭제 in-flight 여부 — true 면 미발사(이중 DELETE·경합 가드).
+  deleting: boolean;
+  setDeleting: (next: boolean) => void;
+  setDeleteError: (next: string | undefined) => void;
+  // 권위 인원 재조회 트리거 — personsRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+}
+
+// 인원 삭제 DELETE /api/persons/:id + state-전이 로직을 캡슐화한 순수 async 러너(T-1144 —
+// runDeleteProvider 캡슐화 패턴 1:1 mirror). backend DELETE(person.controller, 204 No Content, row
+// 부재 시 P2025→404, Admin+ 미만 403)를 발사한다. 컨테이너의 handleDeletePerson 은 이 러너에 deps 를
+// 주입해 호출만 한다. 동작:
+//  - 빈/공백/falsy id → 미발사(잘못된 path·불필요 DELETE 회피 — trim 후 빈 문자열도 차단).
+//  - deleting(이전 mutation 미완) → 미발사(이중 DELETE·state 경합 차단 — runDeleteProvider 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → DELETE(id 는 encodeURIComponent 안전 인코딩) → 성공(인원
+//    재조회 트리거) / 실패(사람-친화 문구 표면화 — throw 없이) → 진행 off(공통).
+async function runDeletePerson(
+  id: string,
+  deps: DeletePersonDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/공백/falsy id 는 DELETE 미발사(잘못된 path·불필요 요청 회피). 공백만
+  // 든 id 도 trim 후 빈 문자열이면 차단해(경계값) 무의미한 `/api/persons/%20` 발사를 막는다.
+  if (!id || id.trim() === '') {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 삭제 미완 중이면 미발사(이중 DELETE·state 경합 차단).
+  if (deps.deleting) {
+    return;
+  }
+  deps.setDeleting(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 삭제 진행만 남도록).
+  deps.setDeleteError(undefined);
+  try {
+    // DELETE /api/persons/:id — 204 No Content. id 는 encodeURIComponent 로 안전 인코딩(비정상
+    // 문자가 든 id 도 path 가 깨지지 않게). 응답 body 를 소비하지 않으므로 성공 사실만 확인한다.
+    await deps.remove(`${PERSONS_PATH}/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    // 성공 — 권위 인원 재조회 트리거(재조회로 삭제된 행이 목록에서 사라진다 — 낙관 제거 없음).
+    deps.bumpRefresh();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 404 NotFound(row 부재) / 403
+    // Admin+ 미만 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
+    // 재조회 nonce 는 bump 하지 않는다(실패 시 목록 그대로 유지).
+    deps.setDeleteError(deps.describeError(e));
+  } finally {
+    deps.setDeleting(false);
+  }
+}
+
 // provider 수정 PATCH 4 필드 묶음(T-1137) — 컨테이너의 인라인 수정 폼 4 controlled input 값을
 // 러너에 한 덩어리로 넘긴다. 러너가 각 필드를 trim 해 "명시된 필드만"(빈/공백 제외) body 로
 // JSON 직렬화한다(부분 갱신 semantics — 부재 필드는 backend 가 미변경). secret apiKey 는
@@ -1587,6 +1646,34 @@ function AdminView({
         },
       ),
     [fullNameInput, emailInput, creatingPerson],
+  );
+
+  // 인원 삭제 mutation in-flight 플래그(T-1144) — DELETE 진행 중 true. 진행 표시(loading 우선)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다(deletingProvider 동형).
+  const [deletingPerson, setDeletingPerson] = useState<boolean>(false);
+
+  // 인원 삭제 mutation 실패 문구(T-1144) — DELETE 실패 시 사람-친화 문구(toErrorMessage 파생)를
+  // 보관해 목록 패널의 error props 로 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
+  const [deletePersonError, setDeletePersonError] = useState<
+    string | undefined
+  >(undefined);
+
+  // onDelete 실 mutation 핸들러(T-1144) — 인원 삭제 DELETE(/api/persons/:id)를 컨테이너 내부 async
+  // 로 발사한다(신규 mutation hook 미작성 — runDeleteProvider 정합). 빈/공백/falsy id·이전 mutation
+  // 미완(deletingPerson) 발사 억제 + 성공(인원 재조회 트리거)/실패(error 안전 표시, throw 없음) 전이는
+  // runDeletePerson 이 캡슐화한다. deletingPerson 을 deps 의존성에 포함해 stale 없이 최신 가드 상태로
+  // 발사한다.
+  const handleDeletePerson = useCallback(
+    (id: string) =>
+      runDeletePerson(id, {
+        remove: request,
+        describeError: toErrorMessage,
+        deleting: deletingPerson,
+        setDeleting: setDeletingPerson,
+        setDeleteError: setDeletePersonError,
+        bumpRefresh: () => setPersonsRefreshNonce((n) => n + 1),
+      }),
+    [deletingPerson],
   );
 
   // Admin+ 여부 파생(④h) — me 응답의 role 을 isAdminRole 로 판정한다. role 이 Admin/SuperAdmin
@@ -2603,10 +2690,15 @@ function AdminView({
             <p role="alert">{createPersonError}</p>
           ) : null}
         </div>
+        {/* 인원 삭제 배선(T-1144, REQ-049) — 삭제 콜백(handleDeletePerson)을 onDelete 로 내려 각 행에
+            삭제 버튼을 배선한다. loading 은 조회+삭제 in-flight 를 합성(personLoading||deletingPerson —
+            provider 목록 패널 동형), error 는 삭제 실패를 우선 노출(deletePersonError??personError —
+            mutation 우선). 성공 시 personsRefreshNonce bump 로 권위 재조회한다(낙관 제거 없음). */}
         <PersonList
           persons={personData ?? []}
-          loading={personLoading}
-          error={personError}
+          loading={personLoading || deletingPerson}
+          error={deletePersonError ?? personError}
+          onDelete={handleDeletePerson}
         />
       </section>
     </section>
@@ -2642,6 +2734,7 @@ export {
   runAdd,
   runCreateProvider,
   runCreatePerson,
+  runDeletePerson,
   runUpdateProvider,
   resolveProviderSelectValue,
   LLM_PROVIDER_OPTIONS,
@@ -2668,6 +2761,7 @@ export type {
   CreateProviderDeps,
   CreatePersonFields,
   CreatePersonDeps,
+  DeletePersonDeps,
   UpdateProviderFields,
   UpdateProviderDeps,
 };

@@ -1,7 +1,41 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { isValidElement } from 'react';
+import type { ReactNode } from 'react';
 import PersonList from './PersonList';
 import type { PersonRow } from './PersonList';
+
+// 삭제 버튼 라벨 (구현의 DELETE_LABEL 과 정합, T-1144).
+const DELETE_LABEL = '삭제';
+
+// renderToStaticMarkup 은 이벤트를 발화하지 않으므로(jsdom 미도입 — ADR-0040 §5 게이트) onDelete
+// 클릭 콜백은 컴포넌트가 반환한 React element 트리를 순회해 button 의 onClick 을 수동 호출하는
+// 방식으로 검증한다(LlmProviderConfigList.test.tsx collectButtons 동형). React element 는
+// { type, props } 평문 객체라 트리 walk 로 button 노드를 수집할 수 있다.
+function collectButtons(node: ReactNode): Array<{ onClick?: () => void }> {
+  const found: Array<{ onClick?: () => void }> = [];
+  const walk = (current: ReactNode): void => {
+    if (Array.isArray(current)) {
+      current.forEach(walk);
+      return;
+    }
+    if (!isValidElement(current)) {
+      return;
+    }
+    const element = current as {
+      type: unknown;
+      props: { children?: ReactNode; onClick?: () => void };
+    };
+    if (element.type === 'button') {
+      found.push({ onClick: element.props.onClick });
+    }
+    if (element.props && element.props.children !== undefined) {
+      walk(element.props.children);
+    }
+  };
+  walk(node);
+  return found;
+}
 
 // R-112 — P6 Admin 인원(Person) 관리 UI(REQ-049·REQ-023) 목록 컴포넌트 검증.
 // PermissionDeniedRecordList.test.tsx 와 동일 패턴: jsdom·@testing-library 없이
@@ -190,5 +224,68 @@ describe('PersonList', () => {
     ];
     const html = renderToStaticMarkup(<PersonList persons={many} />);
     expect((html.match(/<li>/g) ?? []).length).toBe(3);
+  });
+
+  // happy-path(onDelete) — onDelete 전달 시 각 행에 삭제 버튼(<button>)이 person 수만큼 렌더된다.
+  it('onDelete 전달 시 각 행에 삭제 버튼을 person 수만큼 렌더한다 (happy-path — onDelete 전달)', () => {
+    const html = renderToStaticMarkup(
+      <PersonList persons={samplePersons} onDelete={() => undefined} />,
+    );
+    expect(html).toContain('<button');
+    expect(html).toContain(DELETE_LABEL);
+    // 삭제 버튼 수 = person 수(각 행 1 버튼).
+    const btnCount = (html.match(/<button/g) ?? []).length;
+    expect(btnCount).toBe(2);
+  });
+
+  // happy-path(콜백) — 삭제 버튼 클릭 시 해당 행의 row.id 로 onDelete 가 호출된다(element 트리 순회).
+  it('삭제 버튼 클릭 시 해당 행 id 로 onDelete 를 호출한다 (happy-path — 콜백 발화)', () => {
+    const onDelete = vi.fn();
+    const tree = PersonList({ persons: samplePersons, onDelete });
+    const buttons = collectButtons(tree);
+    // 버튼이 person 수만큼 수집되고, 각 버튼 클릭이 대응 row.id 로 콜백을 호출한다(순서 보존).
+    expect(buttons).toHaveLength(2);
+    buttons[0]?.onClick?.();
+    expect(onDelete).toHaveBeenLastCalledWith('p1');
+    buttons[1]?.onClick?.();
+    expect(onDelete).toHaveBeenLastCalledWith('p2');
+    expect(onDelete).toHaveBeenCalledTimes(2);
+  });
+
+  // branch/negative — onDelete 미전달 시 삭제 버튼 미렌더(읽기 전용 하위 호환 — T-1142 마운트 보존).
+  it('onDelete 미전달 시 삭제 버튼을 렌더하지 않는다 (branch/negative — onDelete 미전달 하위 호환)', () => {
+    const html = renderToStaticMarkup(<PersonList persons={samplePersons} />);
+    expect(html).not.toContain('<button');
+    expect(html).not.toContain(DELETE_LABEL);
+    // 읽기 전용 목록은 그대로 렌더된다(마운트 보존).
+    expect(html).toContain('<ul>');
+    expect(html).toContain('김철수');
+  });
+
+  // negative — loading 우선 정책은 onDelete 전달과 무관하다(loading=true 면 버튼도 미렌더).
+  it('onDelete 전달 + loading=true → 목록/삭제 버튼 대신 로딩 표시 우선 (negative — loading 우선)', () => {
+    const html = renderToStaticMarkup(
+      <PersonList persons={samplePersons} loading={true} onDelete={() => undefined} />,
+    );
+    expect(html).toContain('role="status"');
+    expect(html).toContain(LOADING_TOKEN);
+    expect(html).not.toContain('<button');
+  });
+
+  // negative — error 우선 정책은 onDelete 전달과 무관하다(error truthy 면 버튼도 미렌더).
+  it('onDelete 전달 + error truthy → 목록/삭제 버튼 대신 alert 우선 (negative — error 우선)', () => {
+    const html = renderToStaticMarkup(
+      <PersonList persons={samplePersons} error="삭제에 실패했습니다" onDelete={() => undefined} />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('삭제에 실패했습니다');
+    expect(html).not.toContain('<button');
+  });
+
+  // negative — 빈 배열 + onDelete 전달 → 삭제 버튼 미렌더(빈 상태 문구만, 렌더할 행 없음).
+  it('빈 배열 + onDelete 전달 → 삭제 버튼 미렌더·빈 상태 문구만 렌더한다 (negative — 빈 목록)', () => {
+    const html = renderToStaticMarkup(<PersonList persons={[]} onDelete={() => undefined} />);
+    expect(html).not.toContain('<button');
+    expect(html).toContain(DEFAULT_EMPTY);
   });
 });
