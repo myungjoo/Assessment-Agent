@@ -2,7 +2,7 @@
 id: T-1148
 title: AdminView 에 GroupList 마운트 (기존 GET /api/groups fetch 재사용, 읽기 전용 그룹 목록 섹션)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-028]
 estimatedDiff: 180
