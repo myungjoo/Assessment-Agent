@@ -91,6 +91,7 @@ import AdminView, {
   runDeleteGroup,
   buildPersonPatch,
   runUpdatePerson,
+  runUpdateGroup,
   runUpdateProvider,
   resolveProviderSelectValue,
   LLM_PROVIDER_OPTIONS,
@@ -120,6 +121,7 @@ import type {
   PersonPatchInput,
   PersonPatch,
   UpdatePersonDeps,
+  UpdateGroupDeps,
   UpdateProviderDeps,
   UpdateProviderFields,
 } from './AdminView';
@@ -5204,13 +5206,13 @@ describe('AdminView — 그룹 관리 목록 마운트 (T-1148)', () => {
   });
 
   // negative — name 누락 그룹은 placeholder 로 throw 없이 렌더되고, 다건 그룹이 key 충돌 없이 모두
-  // 표면화되며, onEdit 미전달이라 각 행에 수정 버튼은 렌더되지 않는다(그룹 수정 PATCH 배선은 후속
-  // T-1150 — Out of Scope). onDelete(handleDeleteGroup)는 T-1149 로 배선돼 삭제 버튼은 렌더된다.
-  it('name 누락·다건 그룹을 throw 없이 렌더하고 수정 버튼은 미렌더한다 (negative — placeholder/다건/onEdit 미배선)', () => {
+  // 표면화되며, onEdit(handleEditGroup, T-1150) 배선으로 id 있는 각 행에 수정 버튼이 렌더된다.
+  // onDelete(handleDeleteGroup)는 T-1149 로 배선돼 삭제 버튼도 렌더된다(두 mutation 배선 공존).
+  it('name 누락·다건 그룹을 throw 없이 렌더하고 id 있는 각 행에 수정 버튼을 렌더한다 (negative — placeholder/다건/onEdit 배선)', () => {
     setRoutes({
       [GROUPS]: {
         data: [
-          // name 누락 그룹 → placeholder 로 안전 렌더(members 로 멤버 수는 표시).
+          // name 누락 그룹 → placeholder 로 안전 렌더(members 로 멤버 수는 표시). id 는 있어 수정 버튼 렌더.
           { id: 'gg9', members: [{}] },
           // 정상 그룹 → 다건 key 충돌 없이 함께 렌더.
           { id: 'gg8', name: '보안팀', members: [{}, {}, {}] },
@@ -5225,9 +5227,8 @@ describe('AdminView — 그룹 관리 목록 마운트 (T-1148)', () => {
     expect(html).toContain('보안팀');
     expect(html).toContain('멤버 1명');
     expect(html).toContain('멤버 3명');
-    // onEdit 미전달 — GroupList 행에 수정 버튼은 렌더되지 않는다(그룹 수정은 후속 slice).
-    // 정확한 버튼 markup(`>수정</button>`)으로 판별한다.
-    expect(html).not.toContain('>수정</button>');
+    // onEdit(handleEditGroup) 배선 — id 있는 각 행(gg9/gg8)에 수정 버튼이 렌더된다(T-1150).
+    expect(html.split('>수정</button>').length - 1).toBe(2);
   });
 
   // negative — loading 과 error 가 동시에 truthy 면 loading 이 우선한다(GroupList loading 우선 정책).
@@ -6103,6 +6104,330 @@ describe('AdminView — 인원 수정 배선 (정적 렌더, T-1145)', () => {
     });
     const html = renderToStaticMarkup(<AdminView />);
     expect(html).toContain('등록된 인원이 없습니다');
+    expect(countOccurrences(html, '>수정</button>')).toBe(0);
+  });
+});
+
+// R-112 — T-1150 그룹 수정 실 PATCH update mutation 본체(runUpdateGroup) 검증. jsdom/렌더러 없이
+// mutation 본체를 직접 호출하고(runUpdatePerson 와 동일 convention), apiClient.request mock 으로
+// method/path/body(name-only)를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의
+// 콜백 호출로 관찰한다. happy/error(404·400·403·네트워크)/branch(빈 id·in-flight·빈·공백 name·미변경
+// name)/negative(특수문자 id 인코딩·name trim·이중 PATCH 차단·reject→finally 복구·편집 상태 전이·
+// 응답 shape 무관) 예외 분기마다 각 1+ cover. runUpdateGroup 은 (id, name, originalName, deps) 를 받아
+// name 단일 필드라 buildPersonPatch 같은 다필드 diff 없이 러너 안에서 trim·미변경 비교로 발사 여부를 판정.
+describe('AdminView — 그룹 수정 실 PATCH update mutation (T-1150 runUpdateGroup)', () => {
+  // 상태 전이를 기록하는 deps harness — updating 초기값과 request mock 을 주입받아 setUpdating/
+  // setUpdateError 호출과 bumpRefresh·closeEdit 호출 횟수를 순서대로 캡처한다(makeUpdatePersonDeps 동형).
+  function makeUpdateGroupDeps(updating: boolean) {
+    const calls = {
+      updating: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      close: 0,
+    };
+    const deps: UpdateGroupDeps = {
+      update: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      updating,
+      setUpdating: (next) => calls.updating.push(next),
+      setUpdateError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+      closeEdit: () => {
+        calls.close += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — update 트리거 시 request 가 PATCH /api/groups/:id 로 method PATCH + name-only body
+  // 인자로 정확히 호출되고, 성공 후 재조회 nonce bump(1 회) + 편집 종료(closeEdit 1 회) + error 미설정
+  // (시작 비움만) + 진행 표시 on→off 로 해제된다.
+  it('PATCH /api/groups/:id 를 method PATCH + name-only body 로 호출하고 성공 시 nonce bump + 편집 종료 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 200 OK.
+    const { deps, calls } = makeUpdateGroupDeps(false);
+    await runUpdateGroup('gg1', '플랫폼팀', '데브옵스팀', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string; body: string },
+    ];
+    expect(path).toBe('/api/groups/gg1');
+    expect(options.method).toBe('PATCH');
+    expect(JSON.parse(options.body)).toEqual({ name: '플랫폼팀' });
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // error path — PATCH 404(미존재 row) 시 error 문구 표면화·throw 없음·nonce 미증가·편집 종료 미호출(편집 유지).
+  it('update 404(미존재 row) 실패 시 error 문구를 표면화하고 nonce·편집 상태를 건드리지 않는다 (error path — 404)', async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeUpdateGroupDeps(false);
+    await expect(
+      runUpdateGroup('ghost', '새이름', '옛이름', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // error path — 400(빈/비정상 name — backend 검증 실패) 실패 시 동일 안전 경로(throw 없음).
+  it('update 400(비정상 name 검증 실패) 실패 시 안전 문구를 표면화한다 (error path — 400)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'Bad Request'));
+    const { deps, calls } = makeUpdateGroupDeps(false);
+    await expect(
+      runUpdateGroup('gg1', '새이름', '옛이름', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 400: Bad Request']);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+  });
+
+  // error path — 403(Admin+ 미만) 실패 시 동일 안전 경로.
+  it('update 403(Admin+ 미만) 실패 시 안전 문구를 표면화한다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeUpdateGroupDeps(false);
+    await expect(
+      runUpdateGroup('gg1', '새이름', '옛이름', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('update 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeUpdateGroupDeps(false);
+    await expect(
+      runUpdateGroup('gg1', '새이름', '옛이름', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch(a) — 빈/공백/falsy id 는 PATCH 미발사·state 불변(잘못된 path 회피). 경계값 각각 cover.
+  it('빈/공백/falsy id 는 PATCH 를 발사하지 않는다 (branch (a) — id 가드)', async () => {
+    for (const badId of ['', '   ']) {
+      requestMock.mockReset();
+      const { deps, calls } = makeUpdateGroupDeps(false);
+      await expect(
+        runUpdateGroup(badId, '새이름', '옛이름', deps),
+      ).resolves.toBeUndefined();
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.updating).toEqual([]);
+      expect(calls.bump).toBe(0);
+    }
+    // undefined id 도 안전(런타임 비정상 입력 방어).
+    requestMock.mockReset();
+    const { deps, calls } = makeUpdateGroupDeps(false);
+    await expect(
+      runUpdateGroup(undefined as unknown as string, '새이름', '옛이름', deps),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+  });
+
+  // branch(b) — 이전 update 미완(updating=true) 중 재호출은 PATCH 미발사·state 불변(이중 PATCH 차단).
+  it('이전 update 미완(updating=true) 중 재호출은 PATCH 를 발사하지 않는다 (branch (b) — 이중 PATCH 가드)', async () => {
+    const { deps, calls } = makeUpdateGroupDeps(true); // 이미 in-flight.
+    await runUpdateGroup('gg1', '새이름', '옛이름', deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch(c) — 빈/공백-only name 은 PATCH 미발사(빈 body·400 회피 — @IsNotEmpty). 경계값 각각 cover.
+  it('빈/공백-only name 은 PATCH 를 발사하지 않는다 (branch (c) — 빈·공백 name 가드)', async () => {
+    for (const badName of ['', '   ']) {
+      requestMock.mockReset();
+      const { deps, calls } = makeUpdateGroupDeps(false);
+      await expect(
+        runUpdateGroup('gg1', badName, '옛이름', deps),
+      ).resolves.toBeUndefined();
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.updating).toEqual([]);
+      expect(calls.bump).toBe(0);
+      expect(calls.close).toBe(0);
+    }
+  });
+
+  // branch(d) — 미변경 name(입력 trim 후 원본과 동일)이면 PATCH 미발사(무의미한 요청 억제 — no-op).
+  it('미변경 name(원본과 동일)이면 PATCH 를 발사하지 않는다 (branch (d) — 미변경 name no-op 가드)', async () => {
+    const { deps, calls } = makeUpdateGroupDeps(false);
+    // 동일 name(앞뒤 공백만 덧댄 입력도 trim 후 동일 → 미변경 취급).
+    await expect(
+      runUpdateGroup('gg1', '  데브옵스팀  ', '데브옵스팀', deps),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.updating).toEqual([]);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+  });
+
+  // negative(id 인코딩) — 특수문자가 든 id 는 encodeURIComponent 로 안전 인코딩된다(path 손상 방지).
+  it('id 를 encodeURIComponent 로 안전 인코딩해 path 를 만든다 (negative — 특수문자 id 인코딩)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdateGroupDeps(false);
+    await runUpdateGroup('gg 1/x', '새이름', '옛이름', deps);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/groups/gg%201%2Fx');
+  });
+
+  // negative(name trim) — 발사되는 body 의 name 은 앞뒤 공백을 trim 한 값이다(빈 값·공백 오염 방지).
+  it('발사되는 body 의 name 은 앞뒤 공백을 trim 한 값이다 (negative — name trim)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdateGroupDeps(false);
+    await runUpdateGroup('gg1', '  플랫폼팀  ', '데브옵스팀', deps);
+    const options = requestMock.mock.calls[0]?.[1] as { body: string };
+    expect(JSON.parse(options.body)).toEqual({ name: '플랫폼팀' });
+  });
+
+  // negative(이중 PATCH 차단, 순차) — 정상 발사는 request 를 정확히 1 회만 호출한다(중복 없음).
+  it('정상 발사 시 PATCH 를 1 회만 호출한다 (negative — 재클릭 이중 PATCH 차단)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUpdateGroupDeps(false);
+    await runUpdateGroup('gg1', '플랫폼팀', '데브옵스팀', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/groups/gg1');
+  });
+
+  // negative(reject→finally 복구) — 실패 후에도 finally 가 setUpdating(false) 로 진행 표시를 복구한다.
+  it('reject 시에도 finally 로 진행 표시(updating)를 복구한다 (negative — reject→finally 복구)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeUpdateGroupDeps(false);
+    await runUpdateGroup('gg1', '새이름', '옛이름', fail.deps);
+    expect(fail.calls.updating).toEqual([true, false]);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeUpdateGroupDeps(false);
+    await runUpdateGroup('gg1', '새이름', '옛이름', ok.deps);
+    expect(ok.calls.updating).toEqual([true, false]);
+  });
+
+  // negative(편집 상태 전이) — 성공 시 편집 종료(closeEdit), 실패 시 편집 유지(closeEdit 미호출).
+  it('성공 시 편집을 종료하고 실패 시 편집을 유지한다 (negative — 편집 상태 전이)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeUpdateGroupDeps(false);
+    await runUpdateGroup('gg1', '새이름', '옛이름', ok.deps);
+    expect(ok.calls.close).toBe(1);
+
+    requestMock.mockRejectedValueOnce(new ApiError(400, 'Bad Request'));
+    const fail = makeUpdateGroupDeps(false);
+    await runUpdateGroup('gg1', '새이름', '옛이름', fail.deps);
+    expect(fail.calls.close).toBe(0);
+  });
+
+  // negative(시작 정리/재조회 전 안전) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve
+  // 로 캡처한다(재조회 도착 전 상태에서 crash 없음). 해소 후 재조회 bump + 편집 종료 + 진행 off.
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 시작 정리/재조회 전 안전)', async () => {
+    let resolvePatch: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePatch = resolve;
+        }),
+    );
+    const { deps, calls } = makeUpdateGroupDeps(false);
+    const pending = runUpdateGroup('gg1', '새이름', '옛이름', deps);
+    expect(calls.updating).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    expect(calls.close).toBe(0);
+    resolvePatch();
+    await pending;
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.updating).toEqual([true, false]);
+  });
+
+  // negative(응답 shape 무관) — request 가 예상 밖 값(null)으로 resolve 해도 성공 경로로 안전 처리한다.
+  it('request 가 예상 밖 값(null)으로 resolve 해도 성공 경로로 안전 처리한다 (negative — 응답 shape 무관)', async () => {
+    requestMock.mockResolvedValue(null);
+    const { deps, calls } = makeUpdateGroupDeps(false);
+    await expect(
+      runUpdateGroup('gg1', '새이름', '옛이름', deps),
+    ).resolves.toBeUndefined();
+    expect(calls.bump).toBe(1);
+    expect(calls.close).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+  });
+});
+
+// R-112 — T-1150 그룹 수정 배선 렌더 검증. 그룹 관리 마운트(GroupList)에 onEdit=handleEditGroup 이
+// 배선돼 각 그룹 행에 "수정" 버튼이 group 수만큼 렌더됨을 정적 markup 으로 단언한다(클릭→prefill·러너
+// 호출 자체는 위 runUpdateGroup 단위 test 가 cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트 비검증).
+// 초기(편집 대상 미선택)엔 인라인 수정 폼이 미렌더됨도 확인한다. 비-Admin 등급으로 두어 provider 목록
+// 패널의 "수정" 버튼과 섞이지 않게 격리한다(그룹 섹션은 gating 밖이라 비-Admin 에도 렌더된다). persons
+// 는 기본 빈 목록이라 인원 수정 버튼과도 분리한다.
+describe('AdminView — 그룹 수정 배선 (정적 렌더, T-1150)', () => {
+  const countOccurrences = (haystack: string, needle: string) =>
+    haystack.split(needle).length - 1;
+
+  // 그룹 2 건 샘플 — 각 행에 수정 버튼이 배선됨을 group 수(2)로 단언한다.
+  const GROUP_ROWS = [
+    { id: 'gg1', name: '데브옵스팀', members: [{}, {}] },
+    { id: 'gg2', name: '디자인팀', members: [{}] },
+  ];
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 그룹 목록이 있으면 각 행에 수정 버튼(onEdit=handleEditGroup 배선)이 group 수만큼
+  // 렌더된다. 비-Admin 이라 provider 목록 패널은 미마운트 + persons 빈 목록 → "수정" 버튼의 유일
+  // 출처는 그룹 목록.
+  it('그룹 목록이 있으면 각 행에 수정 버튼을 렌더한다 (happy-path — onEdit 배선)', () => {
+    setRoutes({
+      [GROUPS]: { data: GROUP_ROWS, loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('데브옵스팀');
+    expect(countOccurrences(html, '>수정</button>')).toBe(GROUP_ROWS.length);
+  });
+
+  // branch/negative — 초기(편집 대상 미선택, editingGroupId=null)엔 인라인 수정 폼이 미렌더된다.
+  it('초기(편집 미선택)엔 인라인 수정 폼을 렌더하지 않는다 (branch/negative — editingGroupId=null)', () => {
+    setRoutes({
+      [GROUPS]: { data: GROUP_ROWS, loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 인라인 수정 폼의 입력(aria-label)은 편집 대상 선택 전에는 미렌더된다.
+    expect(html).not.toContain('aria-label="수정할 그룹 이름"');
+    // "그룹 수정" 저장 버튼도 편집 폼 안에만 있어 미렌더된다.
+    expect(html).not.toContain('>그룹 수정</button>');
+  });
+
+  // branch/negative — 그룹이 0 건이면 렌더할 행이 없어 수정 버튼이 미렌더된다(빈 상태 문구만).
+  it('그룹이 0 건이면 수정 버튼을 렌더하지 않는다 (branch/negative — 빈 목록)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('등록된 그룹이 없습니다');
     expect(countOccurrences(html, '>수정</button>')).toBe(0);
   });
 });

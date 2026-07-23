@@ -1714,6 +1714,92 @@ async function runUpdatePerson(
   }
 }
 
+// 그룹 수정 PATCH + state-전이 로직에 주입하는 deps(T-1150 — runUpdatePerson 의 UpdatePersonDeps 를
+// mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 컨테이너의 handleUpdateGroup 은 이 러너에
+// 편집 대상 id·현재 입력 name·편집 시작 원본 name·현재 in-flight 여부(updating)·상태 setter·재조회
+// 트리거·편집 종료를 주입해 호출만 한다. 그룹은 편집 필드가 name 하나뿐이라(UpdateGroupDto 의 name
+// 단일 partial update — src/user/dto/update-group.dto.ts) buildPersonPatch 같은 다필드 diff 헬퍼가
+// 불요하고, 러너 안에서 trim·미변경 비교로 발사 여부를 직접 판정한다.
+interface UpdateGroupDeps {
+  // PATCH 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  update: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 update in-flight 여부 — true 면 미발사(이중 PATCH·경합 가드).
+  updating: boolean;
+  setUpdating: (next: boolean) => void;
+  setUpdateError: (next: string | undefined) => void;
+  // 권위 그룹 재조회 트리거 — groupsRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+  // 성공 후 편집 상태 종료 트리거(편집 대상 id·폼 입력을 비워 인라인 폼을 닫는다).
+  closeEdit: () => void;
+}
+
+// 그룹 수정 PATCH /api/groups/:id(body `{ name }`) + state-전이 로직을 캡슐화한 순수 async 러너
+// (T-1150 — runUpdatePerson mirror). backend PATCH(group.controller @Patch(":id") L176, UpdateGroupDto
+// name 단일 partial update — 부재=미변경·명시=교체, 검증 실패(빈/비정상 name) → 400, 미존재 → 404,
+// Admin+ 미만 403)를 발사한다. 컨테이너의 handleUpdateGroup 은 이 러너에 deps 를 주입해 호출만 한다.
+// 그룹은 name 단일 필드라 원본 비교(미변경 skip)를 러너 안에서 직접 수행한다(다필드 diff 헬퍼 불요).
+// 동작:
+//  - 빈/공백/falsy id → 미발사(잘못된 path·불필요 PATCH 회피 — trim 후 빈 문자열도 차단).
+//  - updating(이전 mutation 미완) → 미발사(이중 PATCH·state 경합 차단 — runUpdatePerson updating 가드 동형).
+//  - 빈/공백-only name → 미발사(빈 body·400 회피 — @IsNotEmpty 위반 방지, trim 후 falsy 면 억제).
+//  - 미변경 name(trim 후 원본과 동일) → 미발사(무의미한 요청 억제 — buildPersonPatch 의 미변경 skip 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → PATCH(id 는 encodeURIComponent 안전 인코딩, body 는 trim 된
+//    name) → 성공(그룹 재조회 트리거 + 편집 종료) / 실패(사람-친화 문구 표면화 — throw 없이) →
+//    진행 off(공통).
+async function runUpdateGroup(
+  id: string,
+  name: string,
+  originalName: string,
+  deps: UpdateGroupDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/공백/falsy id 는 PATCH 미발사(잘못된 path·불필요 요청 회피). 공백만
+  // 든 id 도 trim 후 빈 문자열이면 차단해(경계값) 무의미한 발사를 막는다.
+  if (!id || id.trim() === '') {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 update 미완 중이면 미발사(이중 PATCH·state 경합 차단).
+  if (deps.updating) {
+    return;
+  }
+  // 빈/공백-only name 가드 — trim 후 비면 미발사(빈 body·400 회피 — @IsNotEmpty). 공백만 든 입력도
+  // trim 후 빈 문자열이면 차단한다(경계값).
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    return;
+  }
+  // 미변경 name 가드 — trim 후 원본과 동일하면 미발사(무의미한 PATCH 억제 — buildPersonPatch 의
+  // "변경된 필드만" skip 동형). 원본도 trim 해 앞뒤 공백만 덧댄 입력을 미변경으로 취급한다.
+  if (trimmed === originalName?.trim()) {
+    return;
+  }
+  deps.setUpdating(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 update 진행만 남도록).
+  deps.setUpdateError(undefined);
+  try {
+    // PATCH /api/groups/:id — id 는 encodeURIComponent 로 안전 인코딩(비정상 문자가 든 id 도 path
+    // 가 깨지지 않게). body 는 trim 된 name 을 JSON 직렬화한다(runUpdatePerson JSON body 발사
+    // convention 동형). 응답 body 를 소비하지 않으므로 성공 사실만 확인한다.
+    await deps.update(`${GROUPS_PATH}/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    // 성공 — 권위 그룹 재조회 트리거(재조회로 수정된 행이 목록에 반영된다 — 낙관 갱신 없음) +
+    // 편집 상태 종료(인라인 폼 닫힘 + 폼 입력 잔존 방지).
+    deps.bumpRefresh();
+    deps.closeEdit();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error state 로 안전 표시(throw 없이). 400 검증 실패(빈/비정상 name) /
+    // 403 Admin+ 미만 / 404 미존재 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage
+    // 파생으로 표면화. 재조회 nonce·편집 상태는 건드리지 않는다(실패 시 편집 유지).
+    deps.setUpdateError(deps.describeError(e));
+  } finally {
+    deps.setUpdating(false);
+  }
+}
+
 // provider 수정 PATCH 4 필드 묶음(T-1137) — 컨테이너의 인라인 수정 폼 4 controlled input 값을
 // 러너에 한 덩어리로 넘긴다. 러너가 각 필드를 trim 해 "명시된 필드만"(빈/공백 제외) body 로
 // JSON 직렬화한다(부분 갱신 semantics — 부재 필드는 backend 가 미변경). secret apiKey 는
@@ -2030,6 +2116,95 @@ function AdminView({
         bumpRefresh: () => setGroupsRefreshNonce((n) => n + 1),
       }),
     [deletingGroup],
+  );
+
+  // 편집 대상 group id(T-1150) — null 이면 편집 안 함(인라인 수정 폼 미렌더). GroupList 각 행의
+  // "수정" 버튼 클릭 시 해당 row.id 로 채우고, 성공/취소 시 null 로 되돌린다. 편집 폼 렌더 분기
+  // 기준값(editingPersonId 동형).
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+
+  // 그룹 수정 name controlled input 상태(T-1150) — 컨테이너 소유. "수정" 클릭 시 해당 row 의 현재
+  // name 으로 prefill 한다(그룹은 편집 필드가 name 하나뿐 — 인원의 3 입력 대비 단순). handleUpdateGroup
+  // 이 편집 시작 원본 name(editGroupOriginalName)과 함께 러너에 넘겨 미변경 skip 을 판정한다.
+  const [editGroupNameInput, setEditGroupNameInput] = useState<string>('');
+
+  // 편집 시작 시점의 원본 name 스냅샷(T-1150) — runUpdateGroup 이 현재 입력과 비교해 미변경이면
+  // 발사를 억제하는 데 쓴다(buildPersonPatch 의 원본 스냅샷 역할을 name 단일 필드로 축소). "수정"
+  // 클릭 시 클릭한 row 의 현재 name 으로 채우고, 편집 종료 시 빈 문자열로 되돌린다.
+  const [editGroupOriginalName, setEditGroupOriginalName] = useState<string>('');
+
+  // 그룹 수정 mutation in-flight 플래그(T-1150) — PATCH 진행 중 true. 진행 표시(입력·버튼 비활성)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재발사 차단)에 함께 쓴다(updatingPerson 동형).
+  const [updatingGroup, setUpdatingGroup] = useState<boolean>(false);
+
+  // 그룹 수정 mutation 실패 문구(T-1150) — PATCH 실패 시 사람-친화 문구(toErrorMessage 파생)를 보관해
+  // 편집 폼 하단에 안전 표시한다(throw 없음, 생성/삭제 error 와 별도 문구). 성공/재시도/편집 시작 시 비운다.
+  const [updateGroupError, setUpdateGroupError] = useState<string | undefined>(
+    undefined,
+  );
+
+  // 편집 폼 닫기(편집 상태 종료) helper(T-1150) — 편집 대상 id·name 입력·원본 스냅샷을 모두 기본값으로
+  // 되돌린다. 성공 후 closeEdit·취소 버튼 두 경로가 공유한다(resetEditPersonForm 동형).
+  const resetEditGroupForm = useCallback(() => {
+    setEditingGroupId(null);
+    setEditGroupNameInput('');
+    setEditGroupOriginalName('');
+  }, []);
+
+  // "수정" 버튼 클릭 핸들러(T-1150) — GroupList.onEdit 로 내려보낸다. 클릭한 row 의 현재 name 으로 폼을
+  // prefill 하고(data 에서 id 매칭) 원본 name 스냅샷도 함께 세팅한다(미변경 판정 기준). 직전 수정
+  // error 도 비워 새 편집 세션을 깨끗이 시작한다(handleEditPerson 동형).
+  const handleEditGroup = useCallback(
+    (id: string) => {
+      const row = (data ?? []).find((group) => group.id === id);
+      const name = row?.name ?? '';
+      setEditingGroupId(id);
+      setEditGroupNameInput(name);
+      setEditGroupOriginalName(name);
+      setUpdateGroupError(undefined);
+    },
+    [data],
+  );
+
+  // 편집 취소 핸들러(T-1150) — 인라인 폼을 닫고 입력·error 를 비운다(발사 없이 편집 상태만 종료).
+  // 진행 중(updatingGroup)일 때는 취소를 억제해 PATCH 완료 전 폼이 사라지지 않게 한다(버튼 disabled +
+  // 핸들러 가드 이중, handleCancelEditPerson 동형).
+  const handleCancelEditGroup = useCallback(() => {
+    if (updatingGroup) {
+      return;
+    }
+    resetEditGroupForm();
+    setUpdateGroupError(undefined);
+  }, [updatingGroup, resetEditGroupForm]);
+
+  // 그룹 수정 실 mutation 핸들러(T-1150) — 그룹 수정 PATCH(/api/groups/:id, body `{ name }`)를 컨테이너
+  // 내부 async 로 발사한다(handleUpdatePerson 정합). 빈/falsy id·이전 mutation 미완(updatingGroup)·빈·
+  // 공백 name·미변경 name 발사 억제 + 성공(그룹 재조회 + 편집 종료)/실패(error 안전 표시, throw 없음)
+  // 전이는 runUpdateGroup 이 캡슐화한다. 입력 name·원본·편집 대상 id·updatingGroup 을 deps 의존성에
+  // 포함해 stale 없이 최신 입력·가드 상태로 발사한다.
+  const handleUpdateGroup = useCallback(
+    () =>
+      runUpdateGroup(
+        editingGroupId ?? '',
+        editGroupNameInput,
+        editGroupOriginalName,
+        {
+          update: request,
+          describeError: toErrorMessage,
+          updating: updatingGroup,
+          setUpdating: setUpdatingGroup,
+          setUpdateError: setUpdateGroupError,
+          bumpRefresh: () => setGroupsRefreshNonce((n) => n + 1),
+          closeEdit: resetEditGroupForm,
+        },
+      ),
+    [
+      editingGroupId,
+      editGroupNameInput,
+      editGroupOriginalName,
+      updatingGroup,
+      resetEditGroupForm,
+    ],
   );
 
   // 편집 대상 person id(T-1145) — null 이면 편집 안 함(인라인 수정 폼 미렌더). PersonList 각 행의
@@ -3250,6 +3425,44 @@ function AdminView({
           </button>
           {createGroupError ? <p role="alert">{createGroupError}</p> : null}
         </div>
+        {/* 그룹 수정(T-1150, REQ-028/REQ-049) — 인라인 수정 폼. GroupList 각 행의 "수정" 버튼(onEdit=
+            handleEditGroup)이 편집 대상 id 를 세팅하면(editingGroupId !== null) 본 폼이 렌더된다. name
+            단일 controlled input 은 클릭한 row 의 현재 name 으로 prefill 되고, 원본 name 스냅샷
+            (editGroupOriginalName)과 함께 저장된다. "그룹 수정" 클릭 시 handleUpdateGroup 이 PATCH
+            /api/groups/:id(body `{ name }`)를 발사하고, 성공 시 groupsRefreshNonce bump 로 권위 재조회 +
+            편집 종료한다(낙관 갱신 없음 — 인원 수정 동형). 진행 중(updatingGroup)이면 입력·버튼을
+            비활성화해 이중 PATCH 를 억제하고(runUpdateGroup 도 빈·공백·미변경 name/in-flight 를 no-op
+            가드로 이중 방어), "취소" 로 발사 없이 편집을 닫을 수 있다. 실패 문구(updateGroupError)는 폼
+            하단에 role="alert" 로 안전 표시한다(생성/삭제 error 와 별도). ADR-0041 Decision 1 —
+            presentational 목록은 수정 폼을 모르므로 컨테이너가 직접 소유한다. */}
+        {editingGroupId !== null ? (
+          <div>
+            <input
+              aria-label="수정할 그룹 이름"
+              type="text"
+              value={editGroupNameInput}
+              onChange={(event) => setEditGroupNameInput(event.target.value)}
+              disabled={updatingGroup}
+            />
+            <button
+              type="button"
+              onClick={handleUpdateGroup}
+              disabled={updatingGroup || !editGroupNameInput.trim()}
+            >
+              그룹 수정
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelEditGroup}
+              disabled={updatingGroup}
+            >
+              취소
+            </button>
+            {updateGroupError ? (
+              <p role="alert">{updateGroupError}</p>
+            ) : null}
+          </div>
+        ) : null}
         {/* 그룹 목록 카드(T-1148 마운트, T-1149 삭제 배선, REQ-028/REQ-049) — 기존 그룹 조회
             (useApiResource<GroupRow[]>)의 data/loading/error 를 재사용해(새 fetch 추가 없음 —
             double-fetch 회피) GroupList 로 내려보낸다. data 가 undefined(미조회/진행 중/실패)이면
@@ -3257,15 +3470,16 @@ function AdminView({
             를 내려 각 행에 삭제 버튼을 배선한다(T-1149, PersonList onDelete 동형). loading 은 조회+삭제
             in-flight 를 합성(groupLoading||deletingGroup), error 는 삭제 실패를 우선 노출
             (deleteGroupError??groupError — mutation 우선). 성공 시 groupsRefreshNonce bump 로 권위
-            재조회한다(낙관 제거 없음). onEdit 는 아직 전달하지 않아 수정 버튼은 미렌더한다(그룹 수정
-            PATCH 배선은 후속 slice T-1150). 로컬 GroupRow 를 그대로 넘긴다(GroupList 의 named GroupRow
-            미import — 구조적 타입 호환). ADR-0041 Decision 1 — presentational 컴포넌트는 fetch 를
-            모른다. */}
+            재조회한다(낙관 제거 없음). onEdit(handleEditGroup)를 내려 각 행에 수정 버튼을 배선한다
+            (T-1150, PersonList onEdit 동형 — 클릭 시 대상 id 로 인라인 수정 폼을 연다). 로컬 GroupRow 를
+            그대로 넘긴다(GroupList 의 named GroupRow 미import — 구조적 타입 호환). ADR-0041 Decision 1 —
+            presentational 컴포넌트는 fetch 를 모른다. */}
         <GroupList
           groups={data ?? []}
           loading={groupLoading || deletingGroup}
           error={deleteGroupError ?? groupError}
           onDelete={handleDeleteGroup}
+          onEdit={handleEditGroup}
         />
       </section>
     </section>
@@ -3307,6 +3521,7 @@ export {
   runDeleteGroup,
   buildPersonPatch,
   runUpdatePerson,
+  runUpdateGroup,
   runUpdateProvider,
   resolveProviderSelectValue,
   LLM_PROVIDER_OPTIONS,
@@ -3339,6 +3554,7 @@ export type {
   PersonPatchInput,
   PersonPatch,
   UpdatePersonDeps,
+  UpdateGroupDeps,
   UpdateProviderFields,
   UpdateProviderDeps,
 };
