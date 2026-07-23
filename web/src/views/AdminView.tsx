@@ -58,6 +58,11 @@ import type { PersonRow } from '../components/PersonList';
 // 자체 GroupRow 를 named export 하지만 여기서는 import 하지 않고 AdminView 로컬 GroupRow(L327)를
 // 그대로 props 로 넘긴다(구조적 타입 호환 — 중복 식별자·이름 충돌 회피, task Required Reading).
 import GroupList from '../components/GroupList';
+// 파트 목록 마운트 대상(T-1152, T-1151 presentational) — default PartList 와 named PartRow 타입을
+// 함께 가져온다. AdminView 에는 로컬 PartRow 가 없어(파트 미조회) GroupRow 때와 달리 이름 충돌이
+// 없으므로 named PartRow 를 그대로 조회 제네릭·props 타입에 재사용한다(task Required Reading).
+import PartList from '../components/PartList';
+import type { PartRow } from '../components/PartList';
 
 // 그룹 목록 조회 path — 고정 endpoint(GET /api/groups, api.md 81 User+). personId 같은
 // 필수 query 가 없어 무조건 조회한다(미인증은 AuthGate 가 이미 차단). DashboardView 의
@@ -77,6 +82,16 @@ const PERSON_HEADING = '인원 관리';
 // 그룹 관리 섹션 heading 문구(T-1146) — 그룹 생성 폼을 담는 별도 섹션의 제목(PERSON_HEADING 동형).
 // §12 한국어. aria-label 겸 <h2> 로 재사용해 보조기술이 섹션 경계를 인식하게 한다.
 const GROUP_HEADING = '그룹 관리';
+
+// 파트 조회 path — 고정 endpoint(GET /api/parts, part.controller @Get() 파트 배열 반환). 그룹과
+// 달리 AdminView 는 파트를 전혀 조회하지 않아 재사용할 fetch 가 없으므로 신규 상수로 둔다. 파트
+// 생성 slice 가 아직 없어 refresh nonce 빌더 없이 단순 상수 path 로 조회한다(SCHEDULES_PATH 동형 —
+// nonce-aware buildPartsPath 전환은 후속 create slice 책임). personId 같은 필수 query 없음.
+const PARTS_PATH = '/api/parts';
+
+// 파트 관리 섹션 heading 문구(T-1152) — 파트 목록을 담는 별도 섹션의 제목(GROUP_HEADING 동형).
+// §12 한국어. aria-label 겸 <h2> 로 재사용해 보조기술이 섹션 경계를 인식하게 한다.
+const PART_HEADING = '파트 관리';
 
 // 현재 사용자 등급 조회 path — 고정 endpoint(GET /api/auth/me, api.md 71 User+, JwtAuthGuard
 // 단독). 응답 5 필드 `{ id, email, role, createdAt, updatedAt }` 중 본 slice 는 role 만
@@ -2857,6 +2872,16 @@ function AdminView({
     error: scheduleGetError,
   } = useApiResource<string[]>(SCHEDULES_PATH);
 
+  // 파트 목록 조회(GET /api/parts, T-1152) — 신규 useApiResource 호출. 그룹처럼 재사용할 기존
+  // 파트 fetch 가 없어(AdminView 파트 미조회) 신규 호출이 정당하다(double-fetch 대상 부재). 변수명에
+  // part prefix 를 붙여 인원/그룹/멤버십/스케줄 등 다른 조회 상태와 섞이지 않게 분리한다(groupLoading/
+  // groupError 동형). data 가 undefined(미조회/진행 중/실패)이면 렌더 시 `?? []` 로 안전 방어한다.
+  const {
+    data: partsData,
+    loading: partLoading,
+    error: partError,
+  } = useApiResource<PartRow[]>(PARTS_PATH);
+
   // SchedulePanel 로 내려보낼 안내 message 파생 — apply/trigger 완료 안내 우선, 없으면 GET 상태
   // (loading/빈 목록/이름 목록 요약)를 파생한다(deriveScheduleMessage). 초기 loading 도 안전 안내.
   const schedulePanelMessage = useMemo(
@@ -3480,6 +3505,21 @@ function AdminView({
           error={deleteGroupError ?? groupError}
           onDelete={handleDeleteGroup}
           onEdit={handleEditGroup}
+        />
+      </section>
+      {/* 파트 관리(T-1152, REQ-028/REQ-049) — 읽기 전용 파트 목록 섹션. 그룹 마운트(T-1148)와 동형
+          이나 재사용할 기존 파트 fetch 가 없어 useApiResource<PartRow[]>(PARTS_PATH) 신규 조회의
+          data/loading/error 를 PartList 로 내려보낸다(ADR-0041 Decision 1 — 컴포넌트는 fetch 를
+          모른다). data 가 undefined(미조회/진행 중/실패)이면 `?? []` 로 빈 배열을 안전하게 넘겨 throw
+          없이 렌더한다(경계 방어). onDelete/onEdit 는 전달하지 않는다(삭제/수정 mutation 은 후속 slice —
+          읽기 전용, 버튼 미렌더). PartList 의 named PartRow 를 그대로 조회 제네릭·props 타입에 쓴다
+          (로컬 PartRow 부재 — 이름 충돌 없음). */}
+      <section aria-label={PART_HEADING}>
+        <h2>{PART_HEADING}</h2>
+        <PartList
+          parts={partsData ?? []}
+          loading={partLoading}
+          error={partError}
         />
       </section>
     </section>

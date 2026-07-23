@@ -5243,6 +5243,157 @@ describe('AdminView — 그룹 관리 목록 마운트 (T-1148)', () => {
   });
 });
 
+// R-112 — T-1152 파트 관리 목록 마운트(신규 GET /api/parts fetch → PartList props 배선) 검증.
+// happy(파트명·인원 수 표면화) / error path(에러 alert + 목록 미렌더) / 분기(loading·빈 배열·
+// populated) / negative(data undefined 시 `?? []` throw 없이 렌더, name 누락 placeholder, 다건 key
+// 중복 없음, onDelete/onEdit 미전달 → 삭제·수정 버튼 미렌더=읽기 전용, loading 이 error 보다 우선,
+// 파트 mock 추가가 기존 그룹 조회 mock 을 깨지 않음)를 각 1+ cover. PartList 고유 출력(인원 수
+// `인원 N명`·빈 문구 `등록된 파트가 없습니다`·placeholder)으로 다른 섹션과 구분해 마운트를 단언한다.
+// renderToStaticMarkup + useApiResource mock 으로 data/loading/error 시나리오를 통제한다(jsdom/
+// @testing-library 미사용 — ADR-0040 §5 게이트).
+describe('AdminView — 파트 관리 목록 마운트 (T-1152)', () => {
+  const PARTS = '/api/parts';
+
+  // 파트 2 건 샘플 — PartList 고유 출력(인원 수)까지 검증하도록 persons 배열을 포함한다. 이름은
+  // 그룹/인원 SAMPLE 과 겹치지 않는 값으로 두어 마운트 경로를 분리 관찰한다.
+  const PART_LIST_ROWS = [
+    { id: 'pt1', name: '개발파트', persons: [{}, {}] },
+    { id: 'pt2', name: '디자인파트', persons: [{}] },
+  ];
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 파트 1+ 반환 시 파트 관리 섹션에 각 파트 name + PartList 고유 인원 수(`인원 N명`)가
+  // 표면화되고, GET /api/parts 는 정확히 한 번만 조회된다(신규 단일 fetch — double-fetch 없음).
+  it('파트 fetch 성공 시 파트 관리 섹션에 각 파트 name·인원 수를 목록으로 렌더한다 (happy-path)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_LIST_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // GET /api/parts 를 정확히 한 번 조회한다(신규 useApiResource 단일 호출 — double-fetch 없음).
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(paths.filter((p) => p === PARTS)).toHaveLength(1);
+    // 파트 관리 heading + 각 파트 name 이 표면화된다.
+    expect(html).toContain('파트 관리');
+    expect(html).toContain('개발파트');
+    expect(html).toContain('디자인파트');
+    // PartList 고유 출력 — persons(2)·persons(1) 각각 인원 수 badge.
+    expect(html).toContain('인원 2명');
+    expect(html).toContain('인원 1명');
+  });
+
+  // error path — 파트 fetch 가 error(예: 401)를 반환하면 파트 관리 섹션이 role="alert" 에러를
+  // 렌더하고 목록(파트 name·인원 수)은 미렌더한다.
+  it('파트 fetch error 시 에러 alert 를 렌더하고 목록은 미렌더한다 (error path)', () => {
+    setRoutes({
+      [PARTS]: { data: undefined, loading: false, error: 'HTTP 401: parts boom' },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 에러 문구가 alert 로 표면화된다(PartList error 분기).
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('HTTP 401: parts boom');
+    // error 분기라 파트 목록(인원 수)·파트명은 렌더되지 않는다.
+    expect(html).not.toContain('인원 2명');
+    expect(html).not.toContain('개발파트');
+  });
+
+  // 분기 — loading 중이면 로딩 표면(role="status" + 로딩 문구) 우선, 목록·에러 미렌더.
+  it('파트 fetch loading 중이면 로딩 표면을 우선 렌더한다 (분기 — loading)', () => {
+    setRoutes({
+      [PARTS]: { data: undefined, loading: true, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('불러오는 중…');
+    // loading 우선 — 목록(인원 수) 미렌더.
+    expect(html).not.toContain('인원 2명');
+  });
+
+  // 분기 — 빈 배열이면 PartList 빈 상태 문구를 렌더한다(populated 분기와 대비).
+  it('파트가 0 건이면 빈 상태 문구를 렌더한다 (분기 — 빈 배열)', () => {
+    setRoutes({
+      [PARTS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('등록된 파트가 없습니다');
+    expect(html).not.toContain('인원 2명');
+  });
+
+  // negative — data 가 undefined(미조회, loading/error 아님)여도 `partsData ?? []` 로 throw 없이
+  // 빈 상태를 렌더한다(경계 방어 — PartList 가 undefined.length 로 throw 하지 않도록).
+  it('data 가 undefined 여도 `partsData ?? []` 로 throw 없이 빈 상태를 렌더한다 (negative — undefined 경계)', () => {
+    setRoutes({
+      [PARTS]: { data: undefined, loading: false, error: undefined },
+    });
+    // renderToStaticMarkup 이 throw 하지 않고 빈 상태 문구를 낸다.
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('파트 관리');
+    expect(html).toContain('등록된 파트가 없습니다');
+  });
+
+  // negative — name 누락 파트는 placeholder 로 throw 없이 렌더되고, 다건 파트가 key 충돌 없이 모두
+  // 표면화되며, onDelete/onEdit 미전달이므로 각 행에 삭제·수정 버튼이 렌더되지 않는다(읽기 전용 마운트).
+  it('name 누락·다건 파트를 throw 없이 렌더하고 삭제·수정 버튼은 미렌더한다 (negative — placeholder/다건/읽기 전용)', () => {
+    setRoutes({
+      [PARTS]: {
+        data: [
+          // name 누락 파트 → placeholder 로 안전 렌더(persons 로 인원 수는 표시).
+          { id: 'pt9', persons: [{}] },
+          // 정상 파트 → 다건 key 충돌 없이 함께 렌더.
+          { id: 'pt8', name: '보안파트', persons: [{}, {}, {}] },
+        ],
+        loading: false,
+        error: undefined,
+      },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // name 누락 행은 placeholder 로, 정상 행은 name 으로 함께 렌더(다건 key 중복 없이).
+    expect(html).toContain('(이름 없음)');
+    expect(html).toContain('보안파트');
+    expect(html).toContain('인원 1명');
+    expect(html).toContain('인원 3명');
+    // onDelete/onEdit 미전달 → 삭제·수정 버튼 미렌더(읽기 전용). 그룹·인원 목록도 default EMPTY_OK 라
+    // 버튼을 내지 않으므로 전체 html 에 삭제·수정 버튼 텍스트가 0 개여야 한다.
+    expect(html).not.toContain('>삭제</button>');
+    expect(html).not.toContain('>수정</button>');
+  });
+
+  // negative — loading 과 error 가 동시에 truthy 면 loading 이 우선한다(PartList loading 우선 정책).
+  it('loading 과 error 가 동시 truthy 면 loading 표면을 우선 렌더한다 (negative — loading 우선)', () => {
+    setRoutes({
+      [PARTS]: { data: undefined, loading: true, error: 'HTTP 500: parts boom' },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // loading 우선 — 로딩 문구만 렌더, error 문구는 미렌더.
+    expect(html).toContain('불러오는 중…');
+    expect(html).not.toContain('HTTP 500: parts boom');
+  });
+
+  // negative — 파트 조회 mock 추가가 기존 그룹 조회 mock 을 깨지 않는다(공존 회귀). 파트·그룹 route 를
+  // 동시에 주입하면 두 섹션(파트명·인원 수 / 그룹명)이 각자 정상 표면화된다.
+  it('파트·그룹 route 를 동시 주입해도 두 섹션이 각자 정상 렌더된다 (negative — 기존 mock 비파괴)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_LIST_ROWS, loading: false, error: undefined },
+      [GROUPS]: {
+        data: [{ id: 'gg7', name: '플랫폼팀', members: [{}, {}] }],
+        loading: false,
+        error: undefined,
+      },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 파트 섹션 — 파트명·인원 수 표면화.
+    expect(html).toContain('개발파트');
+    expect(html).toContain('인원 2명');
+    // 그룹 섹션 — 그룹명·멤버 수 표면화(파트 mock 추가로 깨지지 않음).
+    expect(html).toContain('플랫폼팀');
+    expect(html).toContain('멤버 2명');
+  });
+});
+
 // R-112 — T-1144 인원 삭제 실 DELETE mutation 본체(runDeletePerson) 검증. jsdom/렌더러 없이
 // mutation 본체를 직접 호출하고(runDeleteProvider 와 동일 convention), apiClient.request mock 으로
 // method/path 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백
