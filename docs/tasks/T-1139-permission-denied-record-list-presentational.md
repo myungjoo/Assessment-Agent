@@ -2,8 +2,12 @@
 id: T-1139
 title: PermissionDeniedRecordList presentational 컴포넌트 신설 (권한 부족 audit 표면화)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-07-23T10:16:36Z
+mergedAs: 04bfaa0a
+prNumber: 1031
+reviewRounds: 1
 coversReq: [REQ-008, REQ-016]
 estimatedDiff: 260
 estimatedFiles: 2
