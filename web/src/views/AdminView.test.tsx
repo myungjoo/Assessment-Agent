@@ -93,6 +93,7 @@ import AdminView, {
   runDeletePerson,
   runDeleteGroup,
   runDeletePart,
+  resolveSelectedPartIdAfterDelete,
   buildPersonPatch,
   runUpdatePerson,
   runUpdateGroup,
@@ -7864,5 +7865,185 @@ describe('AdminView — 파트 소속 인원 조회 배선 (T-1156)', () => {
     expect(html).toContain('디자인파트');
     // 그룹 섹션(다른 조회)도 그대로 유지된다.
     expect(html).toContain('aria-label="그룹 선택"');
+  });
+});
+
+// R-112 — T-1157 파트 삭제 성공 후 선택 파트 id 결정 순수 helper 검증. 동일 id(선택 해제) / 다른
+// id(선택 보존) / 빈·공백·undefined-like 비정상 입력(throw 0 안전 fallback) 분기를 각각 cover
+// 한다. jsdom·렌더러 불요(순수 함수 직접 호출 — buildPartPersonsPath convention 정합).
+describe('AdminView — resolveSelectedPartIdAfterDelete (순수 함수, T-1157)', () => {
+  // happy/분기 — 삭제된 파트가 현재 선택 중이면 빈 문자열로 선택을 해제한다(사라진 파트의 소속
+  // 인원 404 재조회 + <select> 표시값 불일치 차단).
+  it('삭제된 파트가 선택 중이면 빈 문자열로 선택을 해제한다 (happy — 동일 id 분기)', () => {
+    expect(resolveSelectedPartIdAfterDelete('pt1', 'pt1')).toBe('');
+  });
+
+  // 분기 — 선택하지 않은 다른 파트를 삭제했으면 현재 선택을 그대로 보존한다(무관한 선택 초기화 0).
+  // current 가 빈 문자열(미선택)이면 빈 문자열을 그대로 유지한다.
+  it('다른 파트를 삭제하면 현재 선택을 그대로 보존한다 (분기 — 다른 id/미선택)', () => {
+    expect(resolveSelectedPartIdAfterDelete('pt1', 'pt2')).toBe('pt1');
+    expect(resolveSelectedPartIdAfterDelete('', 'pt2')).toBe('');
+  });
+
+  // negative — 빈 문자열·공백·undefined-like 비정상 입력도 throw 없이 안전 fallback 한다
+  // (deletedId 가 비면 선택 미변경, current 가 falsy 면 빈 문자열로 정규화).
+  it('빈·공백·undefined-like 입력도 throw 없이 안전 fallback 한다 (negative — 경계값)', () => {
+    expect(resolveSelectedPartIdAfterDelete('', '')).toBe('');
+    expect(resolveSelectedPartIdAfterDelete('pt1', '')).toBe('pt1');
+    expect(resolveSelectedPartIdAfterDelete('pt1', '   ')).toBe('pt1');
+    expect(() =>
+      resolveSelectedPartIdAfterDelete(
+        undefined as unknown as string,
+        undefined as unknown as string,
+      ),
+    ).not.toThrow();
+    expect(
+      resolveSelectedPartIdAfterDelete(undefined as unknown as string, 'pt1'),
+    ).toBe('');
+  });
+});
+
+// R-112 — T-1157 선택 파트 삭제 시 선택 해제 배선 검증. 컨테이너 handleDeletePart 가 runDeletePart
+// 에 주입하는 bumpRefresh(성공 경로 전용 계약 — 파트 재조회 nonce +1 + functional setSelectedPartId)
+// 를 그대로 mirror 한 harness 로 실 전이를 검증하고(jsdom 미사용 게이트 정합 — 클릭 이벤트 비검증),
+// 전이 후 화면 상태(미선택 문구 / 사라진 파트 인원 미조회 / 선택 보존)는 정적 렌더로 단언한다.
+describe('AdminView — 선택 파트 삭제 시 선택 해제 배선 (T-1157)', () => {
+  const PARTS = '/api/parts';
+  const PT1_PERSONS = '/api/parts/pt1/persons';
+  // 파트 인원 path 매칭 정규식 — 삭제된 파트 재조회 0 단언에 쓴다.
+  const PART_PERSONS_RE = /^\/api\/parts\/[^/]+\/persons/;
+  const PART_ROWS = [
+    { id: 'pt1', name: '개발파트' },
+    { id: 'pt2', name: '디자인파트' },
+  ];
+  const PT1_ROWS: PersonRow[] = [
+    { id: 'pp1', fullName: '한소속', email: 'soso@example.com', active: true },
+  ];
+
+  // 컨테이너 배선 mirror harness — handleDeletePart 의 deps 를 그대로 재현한다(bumpRefresh 안에서
+  // nonce bump + resolveSelectedPartIdAfterDelete 로 선택 전이). 실패 시 bumpRefresh 미호출로
+  // 선택 보존이 자동 보장되는지도 같은 harness 로 관찰한다.
+  function makeWiredDeps(selected: string, id: string) {
+    const state = { selected, nonce: 0 };
+    const deps: DeletePartDeps = {
+      remove: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) =>
+        e instanceof ApiError ? `HTTP ${e.status}: ${e.message}` : '알 수 없는 오류',
+      deleting: false,
+      setDeleting: () => {},
+      setDeleteError: () => {},
+      bumpRefresh: () => {
+        state.nonce += 1;
+        state.selected = resolveSelectedPartIdAfterDelete(state.selected, id);
+      },
+    };
+    return { deps, state };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 선택 중인 파트 삭제가 성공하면 선택이 해제되고(빈 문자열) 재조회 nonce 도 bump
+  // 된다. 해제 후 화면은 미선택 문구를 표시하고 사라진 파트의 인원 endpoint 를 재조회하지 않는다
+  // (404 alert 잔존 0).
+  it('선택 파트 삭제 성공 시 선택이 해제되고 미선택 화면으로 되돌아간다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 204 No Content.
+    const { deps, state } = makeWiredDeps('pt1', 'pt1');
+    await runDeletePart('pt1', deps);
+    expect(state.selected).toBe('');
+    expect(state.nonce).toBe(1);
+    // 선택 해제 상태의 화면 — 삭제된 파트가 빠진 목록 + 미선택 안내 + 인원 재조회 0.
+    setRoutes({
+      [PARTS]: {
+        data: [{ id: 'pt2', name: '디자인파트' }],
+        loading: false,
+        error: undefined,
+      },
+    });
+    const html = renderToStaticMarkup(
+      <AdminView initialSelectedPartId={state.selected} />,
+    );
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(
+      paths.filter((p) => typeof p === 'string' && PART_PERSONS_RE.test(p)),
+    ).toHaveLength(0);
+    expect(html).toContain('파트를 선택하면 소속 인원을 표시합니다');
+    expect(html).not.toContain('role="alert"');
+  });
+
+  // error path — 삭제 DELETE 가 실패(404/403/네트워크)하면 성공 전용 bumpRefresh 가 호출되지 않아
+  // 선택이 유지되고 예외도 throw 되지 않는다. 선택이 유지된 화면은 그 파트의 소속 인원을 그대로
+  // 표시한다.
+  it('삭제 실패 시 선택이 유지되고 throw 하지 않는다 (error path — 404/403/네트워크)', async () => {
+    const failures = [
+      new ApiError(404, 'Not Found'),
+      new ApiError(403, 'Forbidden'),
+      new ApiError(0, 'fetch failed'),
+    ];
+    for (const err of failures) {
+      requestMock.mockRejectedValueOnce(err);
+      const { deps, state } = makeWiredDeps('pt1', 'pt1');
+      await expect(runDeletePart('pt1', deps)).resolves.toBeUndefined();
+      expect(state.selected).toBe('pt1');
+      expect(state.nonce).toBe(0);
+    }
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [PT1_PERSONS]: { data: PT1_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    expect(html).toContain('한소속');
+  });
+
+  // 분기/negative — 선택하지 않은 다른 파트를 삭제하면 선택이 보존된다(무관한 선택 초기화 0).
+  // in-flight(deleting=true) 중복 삭제는 러너 가드로 미발사라 선택·nonce 전이가 0 이고, 선택 보존
+  // 화면의 기존 파트 CRUD·그룹 섹션도 회귀 없이 렌더된다.
+  it('다른 파트를 삭제하면 선택이 보존되고 in-flight 중복 삭제는 전이 0 이다 (분기 — 선택 보존/가드)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps, state } = makeWiredDeps('pt1', 'pt2');
+    await runDeletePart('pt2', deps);
+    expect(state.selected).toBe('pt1');
+    expect(state.nonce).toBe(1);
+    const guarded = makeWiredDeps('pt1', 'pt1');
+    await runDeletePart('pt1', { ...guarded.deps, deleting: true });
+    expect(requestMock).toHaveBeenCalledTimes(1); // 가드로 추가 DELETE 미발사.
+    expect(guarded.state.selected).toBe('pt1');
+    expect(guarded.state.nonce).toBe(0);
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [PT1_PERSONS]: { data: PT1_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    expect(html).toContain('aria-label="추가할 파트 이름"');
+    expect(html).toContain('aria-label="그룹 선택"');
+    expect(html).toContain('한소속');
+  });
+
+  // negative(T-1156 reviewer MINOR (1)) — 파트 목록 row 의 id 가 누락돼도 <option> 이 fallback
+  // key/value="" 로 안전 렌더되고(throw 0), 그 값이 선택돼도 빈 문자열이라 소속 인원 조회가
+  // 발사되지 않는다(`/api/parts//persons` 같은 깨진 path 방지).
+  it('id 누락 파트 row 도 안전 렌더되고 선택해도 조회를 발사하지 않는다 (negative — id 누락 fallback)', () => {
+    setRoutes({
+      [PARTS]: {
+        data: [{ name: '아이디없는파트' }],
+        loading: false,
+        error: undefined,
+      },
+    });
+    let html = '';
+    expect(() => {
+      html = renderToStaticMarkup(<AdminView initialSelectedPartId="" />);
+    }).not.toThrow();
+    // id 누락 row 는 value="" fallback 으로 렌더된다(미선택과 같은 빈 값 — 깨진 path 미생성).
+    expect(html).toContain('<option value="" selected="">아이디없는파트</option>');
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(
+      paths.filter((p) => typeof p === 'string' && PART_PERSONS_RE.test(p)),
+    ).toHaveLength(0);
   });
 });
