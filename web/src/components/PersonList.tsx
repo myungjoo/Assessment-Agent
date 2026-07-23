@@ -36,6 +36,8 @@ const ACTIVE_LABEL = '활성';
 const INACTIVE_LABEL = '휴직';
 // 인원 삭제 버튼 라벨 — onDelete 전달 시에만 각 행에 렌더한다(LlmProviderConfigList DELETE_LABEL 동형).
 const DELETE_LABEL = '삭제';
+// 인원 수정 버튼 라벨 — onEdit 전달 시에만 각 행에 렌더한다(T-1145, DELETE_LABEL 동형).
+const EDIT_LABEL = '수정';
 
 interface PersonListProps {
   // 표시할 인원 목록 — controlled component 라 상위가 이미 fetch·정렬된 배열을 보유한다.
@@ -50,11 +52,15 @@ interface PersonListProps {
   // 미전달 시 버튼 미렌더(읽기 전용 하위 호환 — T-1142 마운트 보존, LlmProviderConfigList onDelete 동형).
   // 실 DELETE 요청·전역 상태는 상위 컨테이너 몫이라 presentational 책임(콜백 호출)만 진다.
   onDelete?: (id: string) => void;
+  // 인원 수정 콜백(선택, T-1145) — 주어졌을 때만 각 행에 수정 버튼을 렌더하고 클릭 시 row.id 로 호출한다.
+  // 미전달 시 버튼 미렌더(읽기 전용 하위 호환 — T-1142 마운트·T-1144 삭제 버튼 보존, onDelete 동형).
+  // 실 PATCH 요청·인라인 수정 폼·전역 상태는 상위 컨테이너 몫이라 presentational 책임(콜백 호출)만 진다.
+  onEdit?: (id: string) => void;
 }
 
-// 인원 목록. 실 fetch·필터·전역 상태·삭제 요청은 수행하지 않고 props 의 persons 를 그대로 표시하며
-// onDelete 콜백만 호출하는 presentational 책임만 진다 — 실제 조회·삭제·배선은 backend·상위 컨테이너 몫이다.
-function PersonList({ persons, loading, error, emptyMessage, onDelete }: PersonListProps) {
+// 인원 목록. 실 fetch·필터·전역 상태·수정/삭제 요청은 수행하지 않고 props 의 persons 를 그대로 표시하며
+// onDelete/onEdit 콜백만 호출하는 presentational 책임만 진다 — 실제 조회·수정·삭제·배선은 backend·상위 컨테이너 몫이다.
+function PersonList({ persons, loading, error, emptyMessage, onDelete, onEdit }: PersonListProps) {
   // loading 우선 정책 — 진행 중이면 error·persons 유무와 무관하게 로딩 표시만 렌더한다.
   if (loading === true) {
     return <div role="status">{LOADING_TEXT}</div>;
@@ -87,6 +93,12 @@ function PersonList({ persons, loading, error, emptyMessage, onDelete }: PersonL
           {row.partId ? <span>{row.partId}</span> : null}
           {/* createdAt 은 있을 때만 함께 표시한다(없으면 throw 없이 생략). */}
           {row.createdAt ? <span>{row.createdAt}</span> : null}
+          {/* onEdit 가 주어졌을 때만 수정 버튼을 렌더하고 클릭 시 row.id 로 콜백 호출(T-1145). */}
+          {onEdit ? (
+            <button type="button" onClick={() => onEdit(row.id)}>
+              {EDIT_LABEL}
+            </button>
+          ) : null}
           {/* onDelete 가 주어졌을 때만 삭제 버튼을 렌더하고 클릭 시 row.id 로 콜백 호출. */}
           {onDelete ? (
             <button type="button" onClick={() => onDelete(row.id)}>

@@ -7,6 +7,8 @@ import type { PersonRow } from './PersonList';
 
 // 삭제 버튼 라벨 (구현의 DELETE_LABEL 과 정합, T-1144).
 const DELETE_LABEL = '삭제';
+// 수정 버튼 라벨 (구현의 EDIT_LABEL 과 정합, T-1145).
+const EDIT_LABEL = '수정';
 
 // renderToStaticMarkup 은 이벤트를 발화하지 않으므로(jsdom 미도입 — ADR-0040 §5 게이트) onDelete
 // 클릭 콜백은 컴포넌트가 반환한 React element 트리를 순회해 button 의 onClick 을 수동 호출하는
@@ -285,6 +287,105 @@ describe('PersonList', () => {
   // negative — 빈 배열 + onDelete 전달 → 삭제 버튼 미렌더(빈 상태 문구만, 렌더할 행 없음).
   it('빈 배열 + onDelete 전달 → 삭제 버튼 미렌더·빈 상태 문구만 렌더한다 (negative — 빈 목록)', () => {
     const html = renderToStaticMarkup(<PersonList persons={[]} onDelete={() => undefined} />);
+    expect(html).not.toContain('<button');
+    expect(html).toContain(DEFAULT_EMPTY);
+  });
+
+  // happy-path(onEdit) — onEdit 전달 시 각 행에 수정 버튼(<button>)이 person 수만큼 렌더된다(T-1145).
+  it('onEdit 전달 시 각 행에 수정 버튼을 person 수만큼 렌더한다 (happy-path — onEdit 전달)', () => {
+    const html = renderToStaticMarkup(
+      <PersonList persons={samplePersons} onEdit={() => undefined} />,
+    );
+    expect(html).toContain('<button');
+    expect(html).toContain(EDIT_LABEL);
+    // 수정 버튼 수 = person 수(각 행 1 버튼).
+    const btnCount = (html.match(/<button/g) ?? []).length;
+    expect(btnCount).toBe(2);
+  });
+
+  // happy-path(콜백) — 수정 버튼 클릭 시 해당 행의 row.id 로 onEdit 가 호출된다(element 트리 순회).
+  it('수정 버튼 클릭 시 해당 행 id 로 onEdit 를 호출한다 (happy-path — 콜백 발화)', () => {
+    const onEdit = vi.fn();
+    const tree = PersonList({ persons: samplePersons, onEdit });
+    const buttons = collectButtons(tree);
+    // 버튼이 person 수만큼 수집되고, 각 버튼 클릭이 대응 row.id 로 콜백을 호출한다(순서 보존).
+    expect(buttons).toHaveLength(2);
+    buttons[0]?.onClick?.();
+    expect(onEdit).toHaveBeenLastCalledWith('p1');
+    buttons[1]?.onClick?.();
+    expect(onEdit).toHaveBeenLastCalledWith('p2');
+    expect(onEdit).toHaveBeenCalledTimes(2);
+  });
+
+  // branch/negative — onEdit 미전달 시 수정 버튼 미렌더(읽기 전용 하위 호환 — T-1142 마운트·T-1144 삭제 보존).
+  it('onEdit 미전달 시 수정 버튼을 렌더하지 않는다 (branch/negative — onEdit 미전달 하위 호환)', () => {
+    const html = renderToStaticMarkup(<PersonList persons={samplePersons} />);
+    expect(html).not.toContain(EDIT_LABEL);
+    // 읽기 전용 목록은 그대로 렌더된다(마운트 보존).
+    expect(html).toContain('<ul>');
+    expect(html).toContain('김철수');
+  });
+
+  // branch — onEdit + onDelete 동시 전달 시 각 행에 수정·삭제 버튼이 함께 렌더된다(버튼 수 = person×2).
+  it('onEdit + onDelete 동시 전달 시 각 행에 수정·삭제 버튼을 함께 렌더한다 (branch — 두 콜백 공존)', () => {
+    const html = renderToStaticMarkup(
+      <PersonList
+        persons={samplePersons}
+        onEdit={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+    expect(html).toContain(EDIT_LABEL);
+    expect(html).toContain(DELETE_LABEL);
+    // 각 행에 수정 1 + 삭제 1 = person 수 × 2.
+    const btnCount = (html.match(/<button/g) ?? []).length;
+    expect(btnCount).toBe(samplePersons.length * 2);
+  });
+
+  // negative — onEdit + onDelete 동시 전달 시 두 콜백이 각각 대응 row.id 로 호출된다(수정=짝수 index,
+  // 삭제=홀수 index — JSX 순서상 각 행이 수정→삭제 순으로 버튼을 낸다).
+  it('onEdit + onDelete 동시 전달 시 각 콜백이 대응 row.id 로 호출된다 (negative — 콜백 분리 발화)', () => {
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    const tree = PersonList({ persons: samplePersons, onEdit, onDelete });
+    const buttons = collectButtons(tree);
+    // 각 행이 수정→삭제 순 2 버튼 → 총 4 버튼.
+    expect(buttons).toHaveLength(4);
+    buttons[0]?.onClick?.(); // 첫 행 수정.
+    expect(onEdit).toHaveBeenLastCalledWith('p1');
+    buttons[1]?.onClick?.(); // 첫 행 삭제.
+    expect(onDelete).toHaveBeenLastCalledWith('p1');
+    buttons[2]?.onClick?.(); // 둘째 행 수정.
+    expect(onEdit).toHaveBeenLastCalledWith('p2');
+    buttons[3]?.onClick?.(); // 둘째 행 삭제.
+    expect(onDelete).toHaveBeenLastCalledWith('p2');
+    expect(onEdit).toHaveBeenCalledTimes(2);
+    expect(onDelete).toHaveBeenCalledTimes(2);
+  });
+
+  // negative — loading 우선 정책은 onEdit 전달과 무관하다(loading=true 면 수정 버튼도 미렌더).
+  it('onEdit 전달 + loading=true → 목록/수정 버튼 대신 로딩 표시 우선 (negative — loading 우선)', () => {
+    const html = renderToStaticMarkup(
+      <PersonList persons={samplePersons} loading={true} onEdit={() => undefined} />,
+    );
+    expect(html).toContain('role="status"');
+    expect(html).toContain(LOADING_TOKEN);
+    expect(html).not.toContain('<button');
+  });
+
+  // negative — error 우선 정책은 onEdit 전달과 무관하다(error truthy 면 수정 버튼도 미렌더).
+  it('onEdit 전달 + error truthy → 목록/수정 버튼 대신 alert 우선 (negative — error 우선)', () => {
+    const html = renderToStaticMarkup(
+      <PersonList persons={samplePersons} error="수정 목록 조회 실패" onEdit={() => undefined} />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('수정 목록 조회 실패');
+    expect(html).not.toContain('<button');
+  });
+
+  // negative — 빈 배열 + onEdit 전달 → 수정 버튼 미렌더(빈 상태 문구만, 렌더할 행 없음).
+  it('빈 배열 + onEdit 전달 → 수정 버튼 미렌더·빈 상태 문구만 렌더한다 (negative — 빈 목록)', () => {
+    const html = renderToStaticMarkup(<PersonList persons={[]} onEdit={() => undefined} />);
     expect(html).not.toContain('<button');
     expect(html).toContain(DEFAULT_EMPTY);
   });
