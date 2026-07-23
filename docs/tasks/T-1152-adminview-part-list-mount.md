@@ -2,7 +2,9 @@
 id: T-1152
 title: AdminView 에 PartList 마운트 (GET /api/parts 조회 추가, 읽기 전용 파트 목록 섹션)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: d6a1cd63
+prNumber: 1044
 commitMode: pr
 coversReq: [REQ-049, REQ-028]
 estimatedDiff: 180
