@@ -2,7 +2,10 @@
 id: T-1133
 title: LlmProviderConfigList presentational 컴포넌트 (LLM provider 설정 목록 읽기 전용 렌더)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-23T04:54Z
+prNumber: 1025
+mergeCommit: 956a9c02
 commitMode: pr
 coversReq: [REQ-096]
 estimatedDiff: 200
