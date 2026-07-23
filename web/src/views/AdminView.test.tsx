@@ -88,6 +88,7 @@ import AdminView, {
   runCreatePerson,
   runCreateGroup,
   runDeletePerson,
+  runDeleteGroup,
   buildPersonPatch,
   runUpdatePerson,
   runUpdateProvider,
@@ -115,6 +116,7 @@ import type {
   CreatePersonFields,
   CreateGroupDeps,
   DeletePersonDeps,
+  DeleteGroupDeps,
   PersonPatchInput,
   PersonPatch,
   UpdatePersonDeps,
@@ -5202,8 +5204,9 @@ describe('AdminView — 그룹 관리 목록 마운트 (T-1148)', () => {
   });
 
   // negative — name 누락 그룹은 placeholder 로 throw 없이 렌더되고, 다건 그룹이 key 충돌 없이 모두
-  // 표면화되며, onDelete/onEdit 미전달이라 각 행에 삭제·수정 버튼이 렌더되지 않는다(읽기 전용).
-  it('name 누락·다건 그룹을 throw 없이 렌더하고 삭제·수정 버튼은 미렌더한다 (negative — placeholder/다건/읽기 전용)', () => {
+  // 표면화되며, onEdit 미전달이라 각 행에 수정 버튼은 렌더되지 않는다(그룹 수정 PATCH 배선은 후속
+  // T-1150 — Out of Scope). onDelete(handleDeleteGroup)는 T-1149 로 배선돼 삭제 버튼은 렌더된다.
+  it('name 누락·다건 그룹을 throw 없이 렌더하고 수정 버튼은 미렌더한다 (negative — placeholder/다건/onEdit 미배선)', () => {
     setRoutes({
       [GROUPS]: {
         data: [
@@ -5222,10 +5225,8 @@ describe('AdminView — 그룹 관리 목록 마운트 (T-1148)', () => {
     expect(html).toContain('보안팀');
     expect(html).toContain('멤버 1명');
     expect(html).toContain('멤버 3명');
-    // 읽기 전용 마운트 — onDelete/onEdit 미전달이라 GroupList 행에 삭제·수정 버튼이 렌더되지
-    // 않는다. 정확한 버튼 markup(`>삭제</button>`/`>수정</button>`)으로 판별한다(원문 '삭제'는
-    // 재평가 경고문 '…결과를 삭제한 뒤…'에도 등장하므로 부적합).
-    expect(html).not.toContain('>삭제</button>');
+    // onEdit 미전달 — GroupList 행에 수정 버튼은 렌더되지 않는다(그룹 수정은 후속 slice).
+    // 정확한 버튼 markup(`>수정</button>`)으로 판별한다.
     expect(html).not.toContain('>수정</button>');
   });
 
@@ -5479,6 +5480,248 @@ describe('AdminView — 인원 삭제 배선 (정적 렌더, T-1144)', () => {
     });
     const html = renderToStaticMarkup(<AdminView />);
     expect(html).toContain('등록된 인원이 없습니다');
+    expect(countOccurrences(html, '>삭제</button>')).toBe(0);
+  });
+});
+
+// R-112 — T-1149 그룹 삭제 실 DELETE mutation 본체(runDeleteGroup) 검증. jsdom/렌더러 없이
+// mutation 본체를 직접 호출하고(runDeletePerson 과 동일 convention), apiClient.request mock 으로
+// method/path 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백
+// 호출로 관찰한다. happy/error(404·403·네트워크)/branch(빈·공백·in-flight·단일 발사)/negative
+// 예외 분기마다 각 1+ cover.
+describe('AdminView — 그룹 삭제 실 DELETE mutation (T-1149 runDeleteGroup)', () => {
+  // 상태 전이를 기록하는 deps harness — deleting 초기값과 request mock 을 주입받아
+  // setDeleting/setDeleteError 호출과 bumpRefresh 호출 횟수를 순서대로 캡처한다(runDeletePerson 동형).
+  function makeDeleteDeps(deleting: boolean) {
+    const calls = {
+      deleting: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+    };
+    const deps: DeleteGroupDeps = {
+      remove: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      deleting,
+      setDeleting: (next) => calls.deleting.push(next),
+      setDeleteError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 삭제 트리거 시 request 가 DELETE /api/groups/<id> 로 method DELETE 인 인자로
+  // 정확히 호출되고, 성공 후 재조회 nonce 를 bump(bumpRefresh 1 회) + error 미설정(시작 비움만) +
+  // 진행 표시(deleting) on→off 로 해제된다.
+  it('DELETE /api/groups/<id> 를 method DELETE 로 정확히 호출하고 성공 시 재조회 nonce 를 bump 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 204 No Content — body 없음.
+    const { deps, calls } = makeDeleteDeps(false);
+    await runDeleteGroup('gg1', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string },
+    ];
+    expect(path).toBe('/api/groups/gg1');
+    expect(options.method).toBe('DELETE');
+    // 성공 → 재조회 nonce bump 1 회 + error 시작 비움만(실패 문구 미설정).
+    expect(calls.bump).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    // 진행 표시 on→off(finally 공통 해제).
+    expect(calls.deleting).toEqual([true, false]);
+  });
+
+  // error path — 404(NotFound, row 부재) 실패 시 error 문구가 표면화되고 throw 없이 처리되며
+  // 재조회 nonce 는 bump 되지 않는다(목록 그대로 유지).
+  it('삭제 404(NotFound, row 부재) 실패 시 error 문구를 표면화하고 nonce 를 bump 하지 않는다 (error path — 404)', async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeDeleteDeps(false);
+    await expect(runDeleteGroup('ghost', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+    expect(calls.bump).toBe(0);
+    expect(calls.deleting).toEqual([true, false]);
+  });
+
+  // error path — 403(Admin+ 미만) 실패 시 안전 문구 표면화(throw 없음).
+  it('삭제 403(Admin+ 미만) 실패 시 안전 문구를 표면화한다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeDeleteDeps(false);
+    await expect(runDeleteGroup('gg1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('삭제 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeDeleteDeps(false);
+    await expect(runDeleteGroup('gg1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (a) — 빈/falsy id → DELETE 미발사·state 불변·throw 없음(잘못된 path 회피).
+  it('빈/falsy id 이면 DELETE 를 발사하지 않는다 (branch (a) — 빈 id)', async () => {
+    const { deps, calls } = makeDeleteDeps(false);
+    await expect(runDeleteGroup('', deps)).resolves.toBeUndefined();
+    await expect(
+      runDeleteGroup(undefined as unknown as string, deps),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.deleting).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (a2)/negative — 공백만 든 id(trim 후 빈 문자열) 도 DELETE 미발사(경계값 방어).
+  it('공백만 든 id 이면 trim 후 빈 문자열로 판정해 DELETE 를 발사하지 않는다 (negative — 공백 id 경계값)', async () => {
+    const { deps, calls } = makeDeleteDeps(false);
+    await expect(runDeleteGroup('   ', deps)).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.deleting).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (b) — 이전 삭제 미완(deleting=true) 중 재호출은 DELETE 미발사·state 불변(이중 DELETE·
+  // 경합 차단 — runDeletePerson deleting 가드 동형).
+  it('이전 삭제 미완(deleting=true) 중 재호출은 DELETE 를 발사하지 않는다 (branch (b) — 이중 DELETE 가드)', async () => {
+    const { deps, calls } = makeDeleteDeps(true); // 이미 in-flight.
+    await runDeleteGroup('gg1', deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.deleting).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (c) — 정상 발사 시 DELETE 1 회만(중복 없음). happy-path 와 짝을 이루는 발사 횟수 단언.
+  it('정상 발사 시 DELETE 를 1 회만 호출한다 (branch (c) — 단일 발사)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeDeleteDeps(false);
+    await runDeleteGroup('gg2', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/groups/gg2');
+  });
+
+  // negative — id 특수문자 포함 시 encodeURIComponent 로 path 안전 인코딩됨(path 주입 방어).
+  it('id 특수문자를 encodeURIComponent 로 안전 인코딩한다 (negative — 특수문자 인코딩)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeDeleteDeps(false);
+    await runDeleteGroup('gg 1/x', deps);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/groups/gg%201%2Fx');
+  });
+
+  // negative — 성공·실패 어느 경로든 finally 가 setDeleting(false) 로 진행 표시를 복구한다.
+  it('성공·실패 어느 경우든 진행 표시(deleting)가 finally 로 해제된다 (negative — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeDeleteDeps(false);
+    await runDeleteGroup('gg1', ok.deps);
+    expect(ok.calls.deleting).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeDeleteDeps(false);
+    await runDeleteGroup('gg1', fail.deps);
+    expect(fail.calls.deleting).toEqual([true, false]);
+  });
+
+  // negative(시작 정리) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve 로 캡처한다
+  // (재조회 도착 전 crash 없음 + 실패 후 재시도 시 직전 error 가 진행 중 남지 않음).
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 시작 정리/재조회 전 안전)', async () => {
+    let resolveDelete: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveDelete = resolve;
+        }),
+    );
+    const { deps, calls } = makeDeleteDeps(false);
+    const pending = runDeleteGroup('gg1', deps);
+    // 발사 직후(해소 전) — 진행 on + error 시작 비움 + 재조회 아직 미bump(crash 없음).
+    expect(calls.deleting).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    // 해소 후 — 재조회 bump + 진행 off.
+    resolveDelete();
+    await pending;
+    expect(calls.bump).toBe(1);
+    expect(calls.deleting).toEqual([true, false]);
+  });
+
+  // negative — 실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다(시작 비움 → 성공 bump).
+  it('실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다 (negative — 실패 후 재시도)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const first = makeDeleteDeps(false);
+    await runDeleteGroup('gg1', first.deps);
+    expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(first.calls.bump).toBe(0);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const second = makeDeleteDeps(false);
+    await runDeleteGroup('gg1', second.deps);
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.bump).toBe(1);
+  });
+});
+
+// R-112 — T-1149 그룹 삭제 배선 렌더 검증. 그룹 관리 마운트(GroupList)에 onDelete=handleDeleteGroup
+// 이 배선돼 각 그룹 행에 "삭제" 버튼이 group 수만큼 렌더됨을 정적 markup 으로 단언한다(클릭→러너
+// 호출 자체는 위 runDeleteGroup 단위 test 가 cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트
+// 비검증). 비-Admin 등급으로 두어 provider 목록 패널의 "삭제" 버튼과 섞이지 않게 격리한다(그룹
+// 섹션은 gating 밖이라 비-Admin 에도 렌더된다). persons 는 기본 빈 목록이라 인원 삭제 버튼과도 분리.
+describe('AdminView — 그룹 삭제 배선 (정적 렌더, T-1149)', () => {
+  const countOccurrences = (haystack: string, needle: string) =>
+    haystack.split(needle).length - 1;
+
+  // 그룹 2 건 샘플 — 각 행에 삭제 버튼이 배선됨을 group 수(2)로 단언한다.
+  const GROUP_ROWS = [
+    { id: 'gg1', name: '데브옵스팀', members: [{}, {}] },
+    { id: 'gg2', name: '디자인팀', members: [{}] },
+  ];
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 그룹 목록이 있으면 각 행에 삭제 버튼(onDelete=handleDeleteGroup 배선)이 group
+  // 수만큼 렌더된다. 비-Admin 이라 provider 목록 패널은 미마운트 + persons 빈 목록 → "삭제" 버튼의
+  // 유일 출처는 그룹 목록.
+  it('그룹 목록이 있으면 각 행에 삭제 버튼을 렌더한다 (happy-path — onDelete 배선)', () => {
+    setRoutes({
+      [GROUPS]: { data: GROUP_ROWS, loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 삭제 버튼이 group 수만큼 렌더된다(그룹명과 함께).
+    expect(html).toContain('데브옵스팀');
+    expect(countOccurrences(html, '>삭제</button>')).toBe(GROUP_ROWS.length);
+  });
+
+  // branch/negative — 그룹이 0 건이면 렌더할 행이 없어 삭제 버튼이 미렌더된다(빈 상태 문구만).
+  it('그룹이 0 건이면 삭제 버튼을 렌더하지 않는다 (branch/negative — 빈 목록)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('등록된 그룹이 없습니다');
     expect(countOccurrences(html, '>삭제</button>')).toBe(0);
   });
 });

@@ -1528,6 +1528,65 @@ async function runDeletePerson(
   }
 }
 
+// 그룹 삭제 DELETE + state-전이 로직에 주입하는 deps(T-1149 — runDeletePerson 의 DeletePersonDeps 를
+// 1:1 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). path param 이 group id 하나뿐이라
+// (DELETE /api/groups/:id 는 단일 세그먼트) 별도 필드는 없다. 컨테이너의 handleDeleteGroup 은 이 러너에
+// 현재 in-flight 여부(deleting)·상태 setter·재조회 트리거를 주입해 호출만 한다.
+interface DeleteGroupDeps {
+  // DELETE 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  remove: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 삭제 in-flight 여부 — true 면 미발사(이중 DELETE·경합 가드).
+  deleting: boolean;
+  setDeleting: (next: boolean) => void;
+  setDeleteError: (next: string | undefined) => void;
+  // 권위 그룹 재조회 트리거 — groupsRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+}
+
+// 그룹 삭제 DELETE /api/groups/:id + state-전이 로직을 캡슐화한 순수 async 러너(T-1149 —
+// runDeletePerson 캡슐화 패턴 1:1 mirror). backend DELETE(group.controller @Delete(":id") L187, 204
+// No Content, row 부재 시 404, Admin+ 미만 403)를 발사한다. 컨테이너의 handleDeleteGroup 은 이 러너에
+// deps 를 주입해 호출만 한다. 동작:
+//  - 빈/공백/falsy id → 미발사(잘못된 path·불필요 DELETE 회피 — trim 후 빈 문자열도 차단).
+//  - deleting(이전 mutation 미완) → 미발사(이중 DELETE·state 경합 차단 — runDeletePerson 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → DELETE(id 는 encodeURIComponent 안전 인코딩) → 성공(그룹
+//    재조회 트리거) / 실패(사람-친화 문구 표면화 — throw 없이) → 진행 off(공통).
+async function runDeleteGroup(
+  id: string,
+  deps: DeleteGroupDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/공백/falsy id 는 DELETE 미발사(잘못된 path·불필요 요청 회피). 공백만
+  // 든 id 도 trim 후 빈 문자열이면 차단해(경계값) 무의미한 `/api/groups/%20` 발사를 막는다.
+  if (!id || id.trim() === '') {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 삭제 미완 중이면 미발사(이중 DELETE·state 경합 차단).
+  if (deps.deleting) {
+    return;
+  }
+  deps.setDeleting(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 삭제 진행만 남도록).
+  deps.setDeleteError(undefined);
+  try {
+    // DELETE /api/groups/:id — 204 No Content. id 는 encodeURIComponent 로 안전 인코딩(비정상
+    // 문자가 든 id 도 path 가 깨지지 않게). 응답 body 를 소비하지 않으므로 성공 사실만 확인한다.
+    await deps.remove(`${GROUPS_PATH}/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    // 성공 — 권위 그룹 재조회 트리거(재조회로 삭제된 행이 목록에서 사라진다 — 낙관 제거 없음).
+    deps.bumpRefresh();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 404 NotFound(row 부재) / 403
+    // Admin+ 미만 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
+    // 재조회 nonce 는 bump 하지 않는다(실패 시 목록 그대로 유지).
+    deps.setDeleteError(deps.describeError(e));
+  } finally {
+    deps.setDeleting(false);
+  }
+}
+
 // 인원 수정 3 필드 묶음(T-1145) — 컨테이너의 인라인 수정 폼 3 controlled input(fullName/email/active)
 // 값이자 편집 시작 시점의 원본 스냅샷 타입. buildPersonPatch 가 input 과 original 을 비교해 "변경된
 // 필드만" 담긴 부분 갱신 body(PersonPatch)를 만든다. active 는 boolean(soft deactivate/reactivate,
@@ -1943,6 +2002,34 @@ function AdminView({
         bumpRefresh: () => setPersonsRefreshNonce((n) => n + 1),
       }),
     [deletingPerson],
+  );
+
+  // 그룹 삭제 mutation in-flight 플래그(T-1149) — DELETE 진행 중 true. 진행 표시(loading 우선)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다(deletingPerson 동형).
+  const [deletingGroup, setDeletingGroup] = useState<boolean>(false);
+
+  // 그룹 삭제 mutation 실패 문구(T-1149) — DELETE 실패 시 사람-친화 문구(toErrorMessage 파생)를
+  // 보관해 목록 패널의 error props 로 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
+  const [deleteGroupError, setDeleteGroupError] = useState<string | undefined>(
+    undefined,
+  );
+
+  // onDelete 실 mutation 핸들러(T-1149) — 그룹 삭제 DELETE(/api/groups/:id)를 컨테이너 내부 async
+  // 로 발사한다(신규 mutation hook 미작성 — runDeletePerson 정합). 빈/공백/falsy id·이전 mutation
+  // 미완(deletingGroup) 발사 억제 + 성공(그룹 재조회 트리거)/실패(error 안전 표시, throw 없음) 전이는
+  // runDeleteGroup 이 캡슐화한다. deletingGroup 을 deps 의존성에 포함해 stale 없이 최신 가드 상태로
+  // 발사한다.
+  const handleDeleteGroup = useCallback(
+    (id: string) =>
+      runDeleteGroup(id, {
+        remove: request,
+        describeError: toErrorMessage,
+        deleting: deletingGroup,
+        setDeleting: setDeletingGroup,
+        setDeleteError: setDeleteGroupError,
+        bumpRefresh: () => setGroupsRefreshNonce((n) => n + 1),
+      }),
+    [deletingGroup],
   );
 
   // 편집 대상 person id(T-1145) — null 이면 편집 안 함(인라인 수정 폼 미렌더). PersonList 각 행의
@@ -3163,17 +3250,22 @@ function AdminView({
           </button>
           {createGroupError ? <p role="alert">{createGroupError}</p> : null}
         </div>
-        {/* 그룹 목록 카드(T-1148, REQ-028/REQ-049) — 읽기 전용 마운트. 기존 그룹 조회
+        {/* 그룹 목록 카드(T-1148 마운트, T-1149 삭제 배선, REQ-028/REQ-049) — 기존 그룹 조회
             (useApiResource<GroupRow[]>)의 data/loading/error 를 재사용해(새 fetch 추가 없음 —
             double-fetch 회피) GroupList 로 내려보낸다. data 가 undefined(미조회/진행 중/실패)이면
-            `?? []` 로 빈 배열을 안전하게 넘겨 throw 없이 렌더한다(경계 방어). onDelete/onEdit 는
-            전달하지 않아 각 행에 삭제·수정 버튼이 렌더되지 않는다(읽기 전용 — 삭제/수정 mutation
-            배선은 후속 slice). 로컬 GroupRow 를 그대로 넘긴다(GroupList 의 named GroupRow 미import
-            — 구조적 타입 호환). ADR-0041 Decision 1 — presentational 컴포넌트는 fetch 를 모른다. */}
+            `?? []` 로 빈 배열을 안전하게 넘겨 throw 없이 렌더한다(경계 방어). onDelete(handleDeleteGroup)
+            를 내려 각 행에 삭제 버튼을 배선한다(T-1149, PersonList onDelete 동형). loading 은 조회+삭제
+            in-flight 를 합성(groupLoading||deletingGroup), error 는 삭제 실패를 우선 노출
+            (deleteGroupError??groupError — mutation 우선). 성공 시 groupsRefreshNonce bump 로 권위
+            재조회한다(낙관 제거 없음). onEdit 는 아직 전달하지 않아 수정 버튼은 미렌더한다(그룹 수정
+            PATCH 배선은 후속 slice T-1150). 로컬 GroupRow 를 그대로 넘긴다(GroupList 의 named GroupRow
+            미import — 구조적 타입 호환). ADR-0041 Decision 1 — presentational 컴포넌트는 fetch 를
+            모른다. */}
         <GroupList
           groups={data ?? []}
-          loading={groupLoading}
-          error={groupError}
+          loading={groupLoading || deletingGroup}
+          error={deleteGroupError ?? groupError}
+          onDelete={handleDeleteGroup}
         />
       </section>
     </section>
@@ -3212,6 +3304,7 @@ export {
   runCreatePerson,
   runCreateGroup,
   runDeletePerson,
+  runDeleteGroup,
   buildPersonPatch,
   runUpdatePerson,
   runUpdateProvider,
@@ -3242,6 +3335,7 @@ export type {
   CreatePersonDeps,
   CreateGroupDeps,
   DeletePersonDeps,
+  DeleteGroupDeps,
   PersonPatchInput,
   PersonPatch,
   UpdatePersonDeps,
