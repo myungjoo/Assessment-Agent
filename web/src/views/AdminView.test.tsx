@@ -8099,3 +8099,188 @@ describe('AdminView — 선택 파트 삭제 시 선택 해제 배선 (T-1157)',
     ).toHaveLength(0);
   });
 });
+
+// R-112 — T-1159 사용자 관리 목록 마운트(신규 GET /api/users fetch → UserList props 배선) 검증.
+// happy(email·역할 표면화 + 단일 fetch) / error path(alert + 목록 미렌더) / 분기(loading 우선 ·
+// 빈 배열 · isAdmin=false 미렌더) / negative(data undefined 시 `?? []` throw 0, email 누락 row
+// placeholder, me 조회 loading 중 미렌더, 기존 인원·그룹·파트 fetch 횟수 회귀 0)를 각 1+ cover.
+// UserList 고유 출력(`역할 …` 보조 라벨 · 빈 문구 `등록된 사용자가 없습니다` · `(이메일 없음)`
+// placeholder)으로 다른 섹션과 구분해 마운트를 단언한다. renderToStaticMarkup + useApiResource
+// mock 으로 data/loading/error/등급 시나리오를 통제한다(jsdom 미사용 — ADR-0040 §5 게이트).
+describe('AdminView — 사용자 관리 목록 마운트 (T-1159)', () => {
+  const USERS = '/api/users';
+  // 섹션 경계 단언용 aria-label — gating 분기에서 섹션 자체의 유무를 관찰한다.
+  const USER_SECTION = 'aria-label="사용자 관리 섹션"';
+
+  // 사용자 2 건 샘플 — email 은 다른 섹션 샘플과 겹치지 않는 값으로 두어 마운트 경로를 분리 관찰
+  // 하고, role 은 3 등급 중 둘(Admin/User)을 써 보조 라벨 렌더를 함께 검증한다(README 84 3 등급).
+  const USER_LIST_ROWS = [
+    { id: 'u1', email: 'user-a@example.com', role: 'Admin' },
+    { id: 'u2', email: 'user-b@example.com', role: 'User' },
+  ];
+
+  // 비-Admin(User 등급) me 응답 — isAdmin=false 분기 통제용(fail-closed gating).
+  const USER_ME_OK = {
+    data: { role: 'User' },
+    loading: false,
+    error: undefined,
+  };
+
+  // 사용자 관리 섹션 경계 안쪽 HTML 만 잘라내는 helper(round 2 MINOR (3)) — 로딩 문구처럼 다른
+  // 섹션과 공유되는 문자열은 문서 전역 매칭이 false-positive 를 낳으므로(다른 섹션 기본값이
+  // loading 으로 바뀌면 본 test 가 의미 없이 통과) 단언 범위를 섹션 안으로 좁힌다. UserList 는
+  // 중첩 <section> 을 렌더하지 않아 첫 닫는 태그까지가 정확히 본 섹션이다.
+  function userSection(html: string): string {
+    const start = html.indexOf(USER_SECTION);
+    expect(start).toBeGreaterThanOrEqual(0);
+    return html.slice(start, html.indexOf('</section>', start));
+  }
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 사용자 1+ 반환 시 사용자 관리 섹션에 각 email + UserList 고유 보조 라벨(`역할 …`)이
+  // 표면화되고, GET /api/users 는 정확히 한 번만 조회된다(신규 단일 fetch — double-fetch 없음).
+  it('사용자 fetch 성공 시 사용자 관리 섹션에 각 email·역할을 목록으로 렌더한다 (happy-path)', () => {
+    setRoutes({
+      [USERS]: { data: USER_LIST_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // GET /api/users 를 정확히 한 번 조회한다(신규 useApiResource 단일 호출 — double-fetch 없음).
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(paths.filter((p) => p === USERS)).toHaveLength(1);
+    // 섹션 경계 + heading + 각 사용자 email·역할이 표면화된다.
+    expect(html).toContain(USER_SECTION);
+    expect(html).toContain('사용자 관리');
+    expect(html).toContain('user-a@example.com');
+    expect(html).toContain('user-b@example.com');
+    expect(html).toContain('역할 Admin');
+    expect(html).toContain('역할 User');
+  });
+
+  // error path — 사용자 fetch 가 error(예: 403 권한 부족)를 반환하면 사용자 섹션이 role="alert"
+  // 에러를 렌더하고 목록(email)은 미렌더한다.
+  it('사용자 fetch error 시 에러 alert 를 렌더하고 목록은 미렌더한다 (error path)', () => {
+    setRoutes({
+      [USERS]: {
+        data: undefined,
+        loading: false,
+        error: 'HTTP 403: users boom',
+      },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('HTTP 403: users boom');
+    // error 분기라 목록(email·역할)은 렌더되지 않는다.
+    expect(html).not.toContain('user-a@example.com');
+    expect(html).not.toContain('역할 Admin');
+  });
+
+  // 분기(a) — loading 중이면 로딩 표면(UserList LOADING_TEXT)이 우선이고 목록·에러는 미렌더한다.
+  it('사용자 fetch loading 중이면 로딩 표면을 우선 렌더한다 (분기 — loading 우선)', () => {
+    setRoutes({
+      [USERS]: { data: USER_LIST_ROWS, loading: true, error: 'HTTP 403: 무시' },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 로딩 문구는 여러 List 컴포넌트가 공유하므로 사용자 관리 섹션 경계 안쪽에서만 단언한다.
+    const section = userSection(html);
+    expect(section).toContain('불러오는 중…');
+    // 섹션 밖의 다른 섹션들은 로딩 상태가 아니다 — 전역 매칭 false-positive 차단(MINOR (3)).
+    expect(html.replace(section, '')).not.toContain('불러오는 중…');
+    // loading 우선 — 목록(email)·에러 문구 미렌더.
+    expect(section).not.toContain('user-a@example.com');
+    expect(html).not.toContain('HTTP 403: 무시');
+  });
+
+  // 분기(b) — 빈 배열이면 UserList 빈 상태 문구를 렌더한다(populated 분기와 대비).
+  it('사용자가 0 건이면 빈 상태 문구를 렌더한다 (분기 — 빈 배열)', () => {
+    setRoutes({
+      [USERS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('등록된 사용자가 없습니다');
+    expect(html).not.toContain('user-a@example.com');
+  });
+
+  // 분기(c) + negative(c) — isAdmin gating 회귀 0. me 가 User 등급이거나 아직 조회 중(loading)이면
+  // 사용자 관리 섹션 자체가 렌더되지 않고(fail-closed), 권한 부족 안내만 노출된다. 사용자 데이터가
+  // 이미 도착해 있어도(가장 불리한 조건) 섹션은 열리지 않는다.
+  it.each([
+    ['User 등급이면', USER_ME_OK],
+    [
+      'me 조회 loading 중이면',
+      { data: undefined, loading: true, error: undefined },
+    ],
+  ])(
+    '%s 사용자 관리 섹션을 렌더하지 않는다 (분기/negative — isAdmin gating)',
+    (_label, meState) => {
+      setRoutes({
+        [AUTH_ME]: meState,
+        [USERS]: { data: USER_LIST_ROWS, loading: false, error: undefined },
+      });
+      const html = renderToStaticMarkup(<AdminView />);
+      expect(html).not.toContain(USER_SECTION);
+      expect(html).not.toContain('user-a@example.com');
+      expect(html).not.toContain('역할 Admin');
+      // 비-Admin 안내는 그대로 노출된다(기존 gating 동작 회귀 0).
+      expect(html).toContain(
+        'Admin 권한이 필요한 기능입니다 (현재 등급으로는 표시되지 않습니다)',
+      );
+    },
+  );
+
+  // negative(a) — data 가 undefined(미조회 idle, loading/error 아님)여도 `usersData ?? []` 로 throw
+  // 없이 빈 상태를 렌더한다(경계 방어 — UserList 가 undefined.length 로 깨지지 않도록).
+  it('data 가 undefined 여도 `usersData ?? []` 로 throw 없이 빈 상태를 렌더한다 (negative — undefined 경계)', () => {
+    setRoutes({
+      [USERS]: { data: undefined, loading: false, error: undefined },
+    });
+    let html = '';
+    expect(() => {
+      html = renderToStaticMarkup(<AdminView />);
+    }).not.toThrow();
+    expect(html).toContain(USER_SECTION);
+    expect(html).toContain('등록된 사용자가 없습니다');
+  });
+
+  // negative(b) — email/role 이 누락된 row 가 섞여도 throw 없이 placeholder 로 안전 렌더한다.
+  it('email 누락 row 가 섞여도 throw 없이 placeholder 로 렌더한다 (negative — 필드 누락)', () => {
+    setRoutes({
+      [USERS]: {
+        data: [
+          { id: 'u3', role: 'SuperAdmin' },
+          { email: 'user-c@example.com' },
+        ],
+        loading: false,
+        error: undefined,
+      },
+    });
+    let html = '';
+    expect(() => {
+      html = renderToStaticMarkup(<AdminView />);
+    }).not.toThrow();
+    // email 누락 row 는 placeholder + 역할 보조 라벨, role 누락 row 는 email 만 렌더된다.
+    expect(html).toContain('(이메일 없음)');
+    expect(html).toContain('역할 SuperAdmin');
+    expect(html).toContain('user-c@example.com');
+  });
+
+  // negative(d) — 사용자 조회 추가가 기존 섹션의 조회 횟수를 늘리지 않는다(회귀 방지). 인원·그룹·
+  // 파트 path 는 각각 정확히 한 번씩만 조회되고, 기존 섹션 표면(그룹 선택 <select>)도 그대로다.
+  it('사용자 조회 추가로 기존 인원·그룹·파트 fetch 횟수가 늘지 않는다 (negative — 회귀 0)', () => {
+    setRoutes({
+      [USERS]: { data: USER_LIST_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(paths.filter((p) => p === '/api/persons')).toHaveLength(1);
+    expect(paths.filter((p) => p === '/api/groups')).toHaveLength(1);
+    expect(paths.filter((p) => p === '/api/parts')).toHaveLength(1);
+    expect(html).toContain('aria-label="그룹 선택"');
+    expect(html).toContain('aria-label="추가할 파트 이름"');
+  });
+});
