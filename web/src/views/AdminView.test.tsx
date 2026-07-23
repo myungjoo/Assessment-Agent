@@ -68,6 +68,7 @@ import AdminView, {
   buildProvidersPath,
   buildPersonsPath,
   buildGroupsPath,
+  buildPartsPath,
   buildExportPath,
   mergeMapping,
   parseFilename,
@@ -87,6 +88,7 @@ import AdminView, {
   runCreateProvider,
   runCreatePerson,
   runCreateGroup,
+  runCreatePart,
   runDeletePerson,
   runDeleteGroup,
   buildPersonPatch,
@@ -116,6 +118,7 @@ import type {
   CreatePersonDeps,
   CreatePersonFields,
   CreateGroupDeps,
+  CreatePartDeps,
   DeletePersonDeps,
   DeleteGroupDeps,
   PersonPatchInput,
@@ -4864,6 +4867,27 @@ describe('AdminView — buildGroupsPath (순수 함수, T-1146)', () => {
   });
 });
 
+// R-112 — T-1153 파트 조회 path 빌더(buildPartsPath) 검증. buildGroupsPath 와 동형이되 base 가
+// /api/parts. nonce 0/양수/음수 분기를 각 1+ cover(경계·happy·negative). 파트 생성 성공 시
+// partsRefreshNonce bump 로 이 빌더가 `_r` query 를 붙여 재조회를 유발함을 방증한다.
+describe('AdminView — buildPartsPath (순수 함수, T-1153)', () => {
+  // 경계 — nonce 0 이면 query 없는 base path(T-1152 마운트 path 와 동일 — 회귀 0).
+  it('nonce 0 이면 base path 를 그대로 반환한다 (경계 — 초기 마운트/회귀 0)', () => {
+    expect(buildPartsPath(0)).toBe('/api/parts');
+  });
+
+  // happy — nonce 양수면 `_r=<nonce>` query 를 부착해 path 를 변화시킨다(재조회 트리거).
+  it('nonce 양수면 `_r` query 를 부착한 path 를 반환한다 (happy — 재조회 트리거)', () => {
+    expect(buildPartsPath(1)).toBe('/api/parts?_r=1');
+    expect(buildPartsPath(5)).toBe('/api/parts?_r=5');
+  });
+
+  // negative — 음수 nonce(비정상)도 <=0 분기라 base path 로 안전 fallback(query 미부착).
+  it('음수 nonce 는 base path 로 안전 fallback 한다 (negative — 음수 방어)', () => {
+    expect(buildPartsPath(-1)).toBe('/api/parts');
+  });
+});
+
 // R-112 — T-1146 그룹 생성 실 POST create mutation 본체(runCreateGroup) 검증. jsdom/렌더러 없이
 // mutation 본체를 직접 호출하고(runCreatePerson 과 동일 convention), apiClient.request mock 으로
 // method/path/body 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백
@@ -5075,6 +5099,243 @@ describe('AdminView — 그룹 생성 실 POST create mutation (T-1146 runCreate
     requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
     const fail = makeCreateDeps(false);
     await runCreateGroup(VALID, fail.deps);
+    expect(fail.calls.creating).toEqual([true, false]);
+  });
+});
+
+// R-112 — T-1153 파트 생성 실 POST create mutation 본체(runCreatePart) 검증. jsdom/렌더러 없이
+// mutation 본체를 직접 호출하고(runCreateGroup 과 동일 convention), apiClient.request mock 으로
+// method/path/body 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백
+// 호출로 관찰한다. happy/error(400·409 중복 전용·403·네트워크)/branch(빈·공백·in-flight·단일
+// 발사·409 vs 비-409)/negative(trim 정규화·이중 POST 차단·finally 진행 off·입력 초기화·409 후
+// 재시도 error 초기화) 각 1+ cover. name 단일 필드(CreatePartDto)라 그룹과 동형이되 Part.name
+// @unique 라 409 를 전용 문구(PART_DUPLICATE_ERROR)로 구분 표면화하는 분기를 추가 검증한다.
+describe('AdminView — 파트 생성 실 POST create mutation (T-1153 runCreatePart)', () => {
+  // 유효한 name 기본 입력값 — 각 test 가 필요 시 빈/공백으로 덮어 가드 분기를 만든다.
+  const VALID = '개발파트';
+  // 409 전용 문구 — runCreatePart 가 ConflictException(409) 시 표면화하는 상수와 정합.
+  const DUP = '이미 존재하는 파트 이름입니다';
+
+  // 상태 전이를 기록하는 deps harness — creating 초기값과 request mock 을 주입받아
+  // setCreating/setCreateError 호출과 bumpRefresh·resetInput 호출 횟수를 순서대로 캡처한다.
+  // isConflict 는 런타임과 동일하게 ApiError.status===409 판정을 주입한다(409 전용 분기 검증).
+  function makeCreateDeps(creating: boolean) {
+    const calls = {
+      creating: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      reset: 0,
+    };
+    const deps: CreatePartDeps = {
+      create: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구(비-409 경로).
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      isConflict: (e: unknown) => e instanceof ApiError && e.status === 409,
+      creating,
+      setCreating: (next) => calls.creating.push(next),
+      setCreateError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+      resetInput: () => {
+        calls.reset += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — create 트리거 시 request 가 POST /api/parts 로 method POST + body `{ name }`
+  // 인자로 정확히 호출되고, 성공 후 재조회 nonce bump(1 회) + 입력 초기화(1 회) + error 미설정
+  // (시작 비움만) + 진행 표시(creating) on→off 로 해제된다.
+  it('POST /api/parts 를 method POST + body `{ name }` 로 정확히 호출하고 성공 시 재조회 nonce bump + 입력 초기화 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 201 Created.
+    const { deps, calls } = makeCreateDeps(false);
+    await runCreatePart(VALID, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string; body: string },
+    ];
+    expect(path).toBe('/api/parts');
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({ name: '개발파트' });
+    // 성공 → 재조회 nonce bump 1 회 + 입력 초기화 1 회 + error 시작 비움만(실패 문구 미설정).
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    // 진행 표시 on→off(finally 공통 해제).
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // negative — body 는 name 단일 필드만 담는다(CreatePartDto 계약 — 다른 필드 미포함 경계).
+  it('body 에 name 외 다른 필드를 포함하지 않는다 (negative — CreatePartDto 단일 필드 경계)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeCreateDeps(false);
+    await runCreatePart(VALID, deps);
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    const parsed = JSON.parse(options.body);
+    expect(Object.keys(parsed)).toEqual(['name']);
+  });
+
+  // error path — create 400(검증 실패, 빈 name) 시 error 문구가 표면화되고 throw 없이 처리되며
+  // 재조회 nonce·입력 초기화는 일어나지 않는다(입력 유지 — 재시도 편의).
+  it('create 400(검증 실패) 시 error 문구를 표면화하고 nonce·입력을 건드리지 않는다 (error path — 400)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'Bad Request'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreatePart(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 400: Bad Request']);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // error path (409 전용 분기) — 중복 이름(Part.name @unique 위반 → ConflictException) 시 일반
+  // "HTTP 409: …" 가 아니라 전용 중복 문구(PART_DUPLICATE_ERROR)를 표면화한다(그룹과 구분되는 핵심 분기).
+  it('create 409(중복 이름) 시 일반 문구 대신 전용 중복 문구를 표면화한다 (error path — 409 중복 전용)', async () => {
+    requestMock.mockRejectedValue(new ApiError(409, 'Conflict'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreatePart(VALID, deps)).resolves.toBeUndefined();
+    // 전용 문구 — 일반 "HTTP 409: Conflict" 가 아니다.
+    expect(calls.error).toEqual([undefined, DUP]);
+    expect(calls.error).not.toContain('HTTP 409: Conflict');
+    // 실패라 재조회·입력 초기화는 없다(입력 유지 — 다른 이름으로 재시도 편의).
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // error path (비-409 분기) — 403(Admin+ 미만) 은 409 전용 문구가 아니라 describeError 일반 문구로
+  // 표면화한다(409 vs 비-409 분기가 정확히 갈림을 방증).
+  it('create 403 실패 시 전용 중복 문구가 아니라 일반 문구를 표면화한다 (error path — 비-409 분기)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreatePart(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.error).not.toContain(DUP);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음, 비-409 경로).
+  it('create 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreatePart(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (a) — name 이 빈값이면 POST 미발사·state 불변·throw 없음(잘못된 body 회피).
+  it('name 이 빈값이면 POST 를 발사하지 않는다 (branch (a) — 빈값 가드)', async () => {
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreatePart('', deps)).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.creating).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+  });
+
+  // negative — 공백만인 name 은 trim 후 빈 값이라 POST 미발사(빈 값 방어 — 경계값).
+  it('공백만 있는 name 은 trim 후 빈 값이라 POST 를 발사하지 않는다 (negative — 공백 가드)', async () => {
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreatePart('   ', deps)).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.creating).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (b) — 이전 create 미완(creating=true) 중 재호출은 POST 미발사·state 불변(이중 POST·경합 차단).
+  it('이전 create 미완(creating=true) 중 재호출은 POST 를 발사하지 않는다 (branch (b) — 이중 POST 가드)', async () => {
+    const { deps, calls } = makeCreateDeps(true); // 이미 in-flight.
+    await runCreatePart(VALID, deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.creating).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (c) — 정상 발사 시 POST 1 회만(중복 없음 — 단일 POST 보장).
+  it('정상 발사 시 POST 를 1 회만 호출한다 (branch (c) — 단일 발사)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeCreateDeps(false);
+    await runCreatePart(VALID, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/parts');
+  });
+
+  // negative — name 앞뒤 공백은 trim 되어 body 에 실린다(공백 정규화).
+  it('name 앞뒤 공백을 trim 해 body 에 싣는다 (negative — trim 정규화)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeCreateDeps(false);
+    await runCreatePart('  개발파트  ', deps);
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(JSON.parse(options.body)).toEqual({ name: '개발파트' });
+  });
+
+  // negative(시작 정리) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve 로 캡처한다
+  // (재조회 도착 전 상태에서 crash 없음). 해소 후 재조회 bump + 입력 초기화 + 진행 off.
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 시작 정리/재조회 전 안전)', async () => {
+    let resolvePost: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePost = resolve;
+        }),
+    );
+    const { deps, calls } = makeCreateDeps(false);
+    const pending = runCreatePart(VALID, deps);
+    expect(calls.creating).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    resolvePost();
+    await pending;
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // negative — 409 중복 후 재입력·재시도는 직전 중복 문구를 비우고(시작 비움) 정상 재발화한다
+  // (성공 시 bump). 409 잔존 문구가 다음 시도에 스며들지 않음을 방증한다(error 초기화).
+  it('409 중복 후 재시도는 직전 중복 문구를 비우고 정상 재발화한다 (negative — 409 후 재시도 error 초기화)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(409, 'Conflict'));
+    const first = makeCreateDeps(false);
+    await runCreatePart(VALID, first.deps);
+    expect(first.calls.error).toEqual([undefined, DUP]);
+    expect(first.calls.bump).toBe(0);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const second = makeCreateDeps(false);
+    await runCreatePart('보안파트', second.deps);
+    // 재시도 시작 시 error 를 비우고(undefined) 성공 → 잔존 중복 문구 없음 + bump.
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.bump).toBe(1);
+  });
+
+  // negative — 성공·실패 어느 경로든 finally 가 setCreating(false) 로 진행 표시를 복구한다.
+  it('성공·실패 어느 경우든 진행 표시(creating)가 finally 로 해제된다 (negative — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeCreateDeps(false);
+    await runCreatePart(VALID, ok.deps);
+    expect(ok.calls.creating).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeCreateDeps(false);
+    await runCreatePart(VALID, fail.deps);
     expect(fail.calls.creating).toEqual([true, false]);
   });
 });
@@ -5391,6 +5652,47 @@ describe('AdminView — 파트 관리 목록 마운트 (T-1152)', () => {
     // 그룹 섹션 — 그룹명·멤버 수 표면화(파트 mock 추가로 깨지지 않음).
     expect(html).toContain('플랫폼팀');
     expect(html).toContain('멤버 2명');
+  });
+});
+
+// R-112 — T-1153 파트 생성 폼 배선 렌더 검증. 파트 관리 섹션에 name input(aria-label) + "파트 추가"
+// 버튼이 마운트되고, 초기(빈 필드)엔 버튼이 disabled 로 렌더됨을 정적 markup 으로 단언한다(클릭→러너
+// 호출 자체는 위 runCreatePart 단위 test 가 cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트 비검증).
+// 초기엔 실패 문구 alert(createPartError) 가 미렌더됨도 확인한다(그룹 생성 폼 배선 test 동형).
+describe('AdminView — 파트 생성 폼 배선 (정적 렌더, T-1153)', () => {
+  const PARTS = '/api/parts';
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 파트 관리 섹션에 name input(aria-label) + "파트 추가" 버튼이 마운트된다.
+  it('파트 관리 섹션에 name input + "파트 추가" 버튼을 렌더한다 (happy-path)', () => {
+    setRoutes({ [PARTS]: { data: [], loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('aria-label="추가할 파트 이름"');
+    expect(html).toContain('파트 추가</button>');
+  });
+
+  // branch — 초기(빈 필드) 마운트 시 생성 버튼이 disabled 로 렌더된다(빈 필드 발사 억제 UI 반영).
+  it('초기(빈 필드) 마운트 시 파트 추가 버튼이 disabled 로 렌더된다 (branch — 빈 필드 버튼 비활성)', () => {
+    setRoutes({ [PARTS]: { data: [], loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>파트 추가<\/button>/);
+  });
+
+  // negative — 초기엔 생성 실패 문구(createPartError=undefined)라 파트 폼 하단 alert 이 미렌더된다.
+  // (파트·그룹 목록이 빈 배열이라 목록 error alert 도 없음 — 폼/목록 통틀어 alert 부재).
+  it('초기엔 파트 생성 실패 alert 을 렌더하지 않는다 (negative — createPartError 미설정)', () => {
+    setRoutes({
+      [PARTS]: { data: [], loading: false, error: undefined },
+      [GROUPS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).not.toContain('role="alert"');
   });
 });
 

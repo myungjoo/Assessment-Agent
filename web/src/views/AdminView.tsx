@@ -17,7 +17,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useApiResource, toErrorMessage } from '../api/useApiResource';
-import { request, requestRaw } from '../api/apiClient';
+import { request, requestRaw, ApiError } from '../api/apiClient';
 import type { RequestOptions } from '../api/apiClient';
 import GroupMemberList from '../components/GroupMemberList';
 import type { Member } from '../components/GroupMemberList';
@@ -92,6 +92,13 @@ const PARTS_PATH = '/api/parts';
 // 파트 관리 섹션 heading 문구(T-1152) — 파트 목록을 담는 별도 섹션의 제목(GROUP_HEADING 동형).
 // §12 한국어. aria-label 겸 <h2> 로 재사용해 보조기술이 섹션 경계를 인식하게 한다.
 const PART_HEADING = '파트 관리';
+
+// 파트 생성 409(중복 이름) 전용 사람-친화 문구(T-1153) — Part.name 은 prisma schema 에서 @unique
+// 라 중복 이름 POST 시 PartService.create 가 Prisma P2002 → ConflictException(409) 으로 변환한다.
+// 그룹(Group.name @unique 미정의라 409 없음)과 달리 파트는 이 409 를 일반 error 문구("HTTP 409:
+// …")가 아니라 원인이 분명한 전용 문구로 표면화해, 사용자가 중복 이름임을 즉시 알고 다른 이름으로
+// 재시도하게 한다. §12 한국어. runCreatePart 의 catch 분기가 409 판정 시 이 상수를 error state 로 쓴다.
+const PART_DUPLICATE_ERROR = '이미 존재하는 파트 이름입니다';
 
 // 현재 사용자 등급 조회 path — 고정 endpoint(GET /api/auth/me, api.md 71 User+, JwtAuthGuard
 // 단독). 응답 5 필드 `{ id, email, role, createdAt, updatedAt }` 중 본 slice 는 role 만
@@ -639,6 +646,19 @@ function buildGroupsPath(refreshNonce: number): string {
     return GROUPS_PATH;
   }
   return `${GROUPS_PATH}?_r=${refreshNonce}`;
+}
+
+// 파트 목록 조회 path 빌더(순수 helper, T-1153 — buildGroupsPath 동형) — 파트 생성 POST
+// (/api/parts) 성공 시 GET /api/parts 재조회를 유발하기 위해 컨테이너의 partsRefreshNonce 를
+// cache-busting query(`_r`)로 실어 path 문자열을 변화시킨다. useApiResource 는 path 변경 시에만
+// 재조회하므로(read-only hook 수정 0), nonce 증가가 곧 재조회 트리거다. nonce 0(초기 조회)이면
+// query 없는 깨끗한 base path(PARTS_PATH — T-1152 마운트 path 와 동일 유지, 회귀 0)를 그대로 쓴다.
+// `_r` 은 backend GET 핸들러가 @Query 를 받지 않아 무시한다(part.controller @Get() — 부수효과 0).
+function buildPartsPath(refreshNonce: number): string {
+  if (refreshNonce <= 0) {
+    return PARTS_PATH;
+  }
+  return `${PARTS_PATH}?_r=${refreshNonce}`;
 }
 
 // 서버 파생 매핑 위에 낙관적 override 를 덮는 순수 helper — ④c PATCH 발사 직후 재조회 도착
@@ -1479,6 +1499,85 @@ async function runCreateGroup(
     // / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화. Group.name 은
     // @unique 미정의라 409 특수 분기 없이 일반 error 로 표면화한다. 재조회 nonce·입력은 유지(재시도 편의).
     deps.setCreateError(deps.describeError(e));
+  } finally {
+    deps.setCreating(false);
+  }
+}
+
+// 파트 생성 POST + state-전이 로직에 주입하는 deps(T-1153 — runCreateGroup 의 CreateGroupDeps 를
+// mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 컨테이너의 handleCreatePart 는 이 러너에
+// 현재 입력 name·in-flight 여부(creating)·상태 setter·재조회 트리거·입력 초기화를 주입해 호출만 한다.
+// 파트 생성 payload 는 name 단일 필드(CreatePartDto — src/user/dto/create-part.dto.ts)라 그룹과 동형.
+// 단, Part.name 은 @unique(prisma schema)라 서버가 중복 이름에 409(ConflictException) 를 던지므로,
+// 그룹과 달리 409 를 전용 문구로 구분 표면화한다. 그 409 판정은 isConflict 로 주입받아(테스트는 mock
+// 주입, 런타임은 ApiError.status===409 검사 주입) 러너를 순수하게 유지한다(describeError 주입 convention 동형).
+interface CreatePartDeps {
+  // POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  create: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입). 비-409 에러에 쓴다.
+  describeError: (e: unknown) => string;
+  // throw 표면이 409(중복 이름) 인지 판정 — true 면 PART_DUPLICATE_ERROR 전용 문구를 쓴다.
+  // 런타임은 `(e) => e instanceof ApiError && e.status === 409` 주입(순수 판정 분리 — 테스트 용이).
+  isConflict: (e: unknown) => boolean;
+  // 현재 create in-flight 여부 — true 면 미발사(이중 POST·경합 가드).
+  creating: boolean;
+  setCreating: (next: boolean) => void;
+  setCreateError: (next: string | undefined) => void;
+  // 권위 파트 재조회 트리거 — partsRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+  // 성공 후 name 입력 초기화 트리거(빈 값으로 되돌림 — 연속 생성 편의).
+  resetInput: () => void;
+}
+
+// 파트 생성 POST /api/parts(body `{ name }`) + state-전이 로직을 캡슐화한 순수 async 러너(T-1153 —
+// runCreateGroup mirror). backend create(part.controller @Post(), 201 Created, CreatePartDto name
+// 단일 필드, 검증 실패 → 400. Part.name @unique 라 중복 이름 → P2002 → ConflictException 409)를
+// 발사한다. 컨테이너의 handleCreatePart 는 이 러너에 deps 를 주입해 호출만 한다. 동작:
+//  - name 이 빈/공백만 → 미발사(잘못된 body·400 회피 — trim 후 falsy 면 억제).
+//  - creating(이전 mutation 미완) → 미발사(이중 POST·state 경합 차단 — runCreateGroup 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → POST(trim 된 name JSON body) → 성공(파트 재조회 트리거 +
+//    입력 초기화) / 실패 → 진행 off(공통).
+//  - 실패가 409(중복 이름)면 PART_DUPLICATE_ERROR 전용 문구, 그 외(400·403·네트워크·비-2xx)는
+//    describeError 파생 일반 문구를 error state 로 표면화한다(throw 없이). 재조회 nonce·입력은 유지(재시도 편의).
+async function runCreatePart(
+  name: string,
+  deps: CreatePartDeps,
+): Promise<void> {
+  // 필수 name 빈/공백 방어 — 앞뒤 공백 제거 후 비면 POST 미발사(잘못된 body·400 회피). 공백만 든
+  // 입력도 trim 후 빈 문자열이면 차단해(경계값) 무의미한 생성 요청을 억제한다(runCreateGroup 동형).
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 create 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.creating) {
+    return;
+  }
+  deps.setCreating(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 create 진행만 남도록).
+  // 이 초기 비움 덕에 409 중복 후 재입력·재시도 시 직전 중복 문구도 함께 정리된다(negative cover).
+  deps.setCreateError(undefined);
+  try {
+    // POST /api/parts — 201 Created. trim 된 name 을 JSON body 로 전송한다(runCreateGroup 의 JSON
+    // body 발사 convention 동형). CreatePartDto 는 name 단일 필드라 다른 필드는 미포함.
+    await deps.create(PARTS_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    // 성공 — 권위 파트 재조회 트리거(재조회로 생성된 파트가 목록에 나타난다 — 낙관 추가 없음) +
+    // 입력 초기화(연속 생성 시 직전 값 잔존 방지).
+    deps.bumpRefresh();
+    deps.resetInput();
+  } catch (e) {
+    // 실패 — throw 없이 error state 로 안전 표시. 409(Part.name @unique 위반 → ConflictException)면
+    // 원인이 분명한 전용 중복 문구를, 그 외(400 검증 실패·403 Admin+ 미만·비-2xx·네트워크 0)는
+    // describeError 파생 일반 문구를 쓴다. 그룹(409 없음)과 달리 파트는 409 를 명시 분기한다.
+    if (deps.isConflict(e)) {
+      deps.setCreateError(PART_DUPLICATE_ERROR);
+    } else {
+      deps.setCreateError(deps.describeError(e));
+    }
   } finally {
     deps.setCreating(false);
   }
@@ -2872,15 +2971,64 @@ function AdminView({
     error: scheduleGetError,
   } = useApiResource<string[]>(SCHEDULES_PATH);
 
-  // 파트 목록 조회(GET /api/parts, T-1152) — 신규 useApiResource 호출. 그룹처럼 재사용할 기존
-  // 파트 fetch 가 없어(AdminView 파트 미조회) 신규 호출이 정당하다(double-fetch 대상 부재). 변수명에
-  // part prefix 를 붙여 인원/그룹/멤버십/스케줄 등 다른 조회 상태와 섞이지 않게 분리한다(groupLoading/
-  // groupError 동형). data 가 undefined(미조회/진행 중/실패)이면 렌더 시 `?? []` 로 안전 방어한다.
+  // 파트 재조회 nonce(T-1153) — 파트 생성 POST 성공 시 이 값을 +1 해 parts path 를 변화시켜
+  // useApiResource 재조회를 유발한다(read-only hook 수정 0 경로 — groupsRefreshNonce 동형).
+  // nonce 0 초기 마운트는 base path(PARTS_PATH) 그대로다(T-1152 마운트와 동일 — 회귀 0).
+  const [partsRefreshNonce, setPartsRefreshNonce] = useState<number>(0);
+
+  // 파트 목록 조회 path(T-1153) — nonce-aware 빌더로 전환(buildPartsPath). nonce 0 이면 base
+  // path(T-1152 마운트와 동일), 생성 성공 후 nonce 증가가 `_r` query 로 재조회를 낸다.
+  const partsPath = useMemo(
+    () => buildPartsPath(partsRefreshNonce),
+    [partsRefreshNonce],
+  );
+
+  // 파트 목록 조회(GET /api/parts, T-1152 마운트 → T-1153 nonce 전환) — useApiResource 호출.
+  // 그룹처럼 재사용할 기존 파트 fetch 가 없어(AdminView 파트 미조회) 신규 호출이 정당하다(double-fetch
+  // 대상 부재). 변수명에 part prefix 를 붙여 인원/그룹/멤버십/스케줄 등 다른 조회 상태와 섞이지 않게
+  // 분리한다(groupLoading/groupError 동형). data 가 undefined(미조회/진행 중/실패)이면 렌더 시 `?? []`
+  // 로 안전 방어한다. 생성 성공 시 partsRefreshNonce bump 로 이 조회를 권위 재조회한다(낙관 추가 없음).
   const {
     data: partsData,
     loading: partLoading,
     error: partError,
-  } = useApiResource<PartRow[]>(PARTS_PATH);
+  } = useApiResource<PartRow[]>(partsPath);
+
+  // 파트 생성 controlled input 상태(T-1153) — 컨테이너 소유. "파트 추가" 클릭 시 handleCreatePart
+  // 가 POST body 의 name 필드로 공급하고, 성공 후 빈 값으로 되돌린다(연속 생성 편의). 그룹 생성의
+  // groupNameInput 패턴 mirror(파트도 name 단일 필드).
+  const [partNameInput, setPartNameInput] = useState<string>('');
+
+  // 파트 생성 mutation in-flight 플래그(T-1153) — POST 진행 중 true. 진행 표시(입력·버튼 비활성)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재발사 차단)에 함께 쓴다(creatingGroup 동형).
+  const [creatingPart, setCreatingPart] = useState<boolean>(false);
+
+  // 파트 생성 mutation 실패 문구(T-1153) — POST 실패 시 사람-친화 문구를 보관해 폼 하단에 안전
+  // 표시한다(throw 없음). 409(중복 이름)면 PART_DUPLICATE_ERROR 전용 문구, 그 외는 toErrorMessage
+  // 파생 문구. 성공/재시도 시작 시 비운다.
+  const [createPartError, setCreatePartError] = useState<string | undefined>(
+    undefined,
+  );
+
+  // 파트 생성 실 mutation 핸들러(T-1153) — 파트 생성 POST(/api/parts, body `{ name }`)를 컨테이너
+  // 내부 async 로 발사한다(handleCreateGroup 정합). 빈/공백 name·이전 mutation 미완(creatingPart)
+  // 발사 억제 + 성공(파트 재조회 + 입력 초기화)/실패(error 안전 표시, throw 없음)/409 중복 전용 문구
+  // 전이는 runCreatePart 가 캡슐화한다. 409 판정은 ApiError.status===409 검사를 isConflict 로 주입한다.
+  // 입력값·creatingPart 를 deps 의존성에 포함해 stale 없이 최신 입력·가드 상태로 발사한다.
+  const handleCreatePart = useCallback(
+    () =>
+      runCreatePart(partNameInput, {
+        create: request,
+        describeError: toErrorMessage,
+        isConflict: (e: unknown) => e instanceof ApiError && e.status === 409,
+        creating: creatingPart,
+        setCreating: setCreatingPart,
+        setCreateError: setCreatePartError,
+        bumpRefresh: () => setPartsRefreshNonce((n) => n + 1),
+        resetInput: () => setPartNameInput(''),
+      }),
+    [partNameInput, creatingPart],
+  );
 
   // SchedulePanel 로 내려보낼 안내 message 파생 — apply/trigger 완료 안내 우선, 없으면 GET 상태
   // (loading/빈 목록/이름 목록 요약)를 파생한다(deriveScheduleMessage). 초기 loading 도 안전 안내.
@@ -3516,6 +3664,29 @@ function AdminView({
           (로컬 PartRow 부재 — 이름 충돌 없음). */}
       <section aria-label={PART_HEADING}>
         <h2>{PART_HEADING}</h2>
+        {/* 파트 생성(T-1153, REQ-028/REQ-049) — 그룹 생성 폼(T-1146)을 mirror. name 단일 controlled
+            input + "파트 추가" 버튼으로 POST /api/parts(body `{ name }`)를 발사하고, name 이 빈·공백
+            이거나 진행 중이면 버튼을 비활성화해 발사를 억제한다(runCreatePart 도 no-op 가드로 이중 방어),
+            입력도 진행 중엔 비활성화한다. 성공 시 partsRefreshNonce bump 로 위 파트 조회를 권위 재조회한다
+            (별도 낙관 추가 없음). 실패 문구(createPartError)는 폼 하단에 role="alert" 로 안전 표시한다 —
+            Part.name @unique 위반 409 는 "이미 존재하는 파트 이름입니다" 전용 문구로 구분 표면화한다. */}
+        <div>
+          <input
+            aria-label="추가할 파트 이름"
+            type="text"
+            value={partNameInput}
+            onChange={(event) => setPartNameInput(event.target.value)}
+            disabled={creatingPart}
+          />
+          <button
+            type="button"
+            onClick={handleCreatePart}
+            disabled={creatingPart || !partNameInput.trim()}
+          >
+            파트 추가
+          </button>
+          {createPartError ? <p role="alert">{createPartError}</p> : null}
+        </div>
         <PartList
           parts={partsData ?? []}
           loading={partLoading}
@@ -3538,6 +3709,7 @@ export {
   buildProvidersPath,
   buildPersonsPath,
   buildGroupsPath,
+  buildPartsPath,
   buildExportPath,
   mergeMapping,
   parseFilename,
@@ -3557,6 +3729,7 @@ export {
   runCreateProvider,
   runCreatePerson,
   runCreateGroup,
+  runCreatePart,
   runDeletePerson,
   runDeleteGroup,
   buildPersonPatch,
@@ -3589,6 +3762,7 @@ export type {
   CreatePersonFields,
   CreatePersonDeps,
   CreateGroupDeps,
+  CreatePartDeps,
   DeletePersonDeps,
   DeleteGroupDeps,
   PersonPatchInput,
