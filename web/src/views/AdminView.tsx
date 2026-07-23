@@ -100,6 +100,45 @@ const EXPORT_SCOPE_OPTIONS: ScopeOption[] = [
   { value: 'persons', label: '인원' },
 ];
 
+// LLM provider 생성·수정 폼의 <select> 옵션(T-1138) — canonical source 는 server 의
+// `src/llm/llm-gateway.interface.ts` 의 `LlmProvider` enum 5 멤버(R-99~103,
+// custom/azure_openai/anthropic/google_gemini/openai). web 은 별도 SPA 빌드라 server
+// 코드를 import 하지 않고(Required Reading — 읽기 전용 참조), 동일 snake_case 식별자를
+// frontend-local 상수로 재정의해 동기 유지한다. server enum 값이 바뀌면 본 배열도 함께
+// 갱신해야 한다(수동 동기 — import 불가 trade-off). value 는 backend body 로 그대로 보낼
+// canonical 식별자, label 은 사람-친화 표기. placeholder(빈 value) 는 컨테이너가 선두에
+// 배치해 미선택 시 생성/수정 가드에 걸리게 한다(본 상수는 실 provider 만 담는다).
+interface LlmProviderOption {
+  // backend 로 전송할 canonical provider 식별자(snake_case, LlmProvider enum 값 그대로).
+  value: string;
+  // <select> 옵션에 노출할 사람-친화 라벨.
+  label: string;
+}
+const LLM_PROVIDER_OPTIONS: LlmProviderOption[] = [
+  { value: 'custom', label: 'custom (OpenAI 호환)' },
+  { value: 'azure_openai', label: 'azure_openai (Azure OpenAI)' },
+  { value: 'anthropic', label: 'anthropic (Anthropic)' },
+  { value: 'google_gemini', label: 'google_gemini (Google Gemini)' },
+  { value: 'openai', label: 'openai (OpenAI)' },
+];
+// provider <select> 의 placeholder(빈 value) 라벨 — 미선택 상태를 나타낸다. 선택 시 빈
+// value 라 생성/수정 가드(trim 후 빈 문자열 차단)가 그대로 발화한다.
+const LLM_PROVIDER_PLACEHOLDER_LABEL = 'provider 선택';
+
+// provider <select> 의 controlled value 를 결정하는 순수 helper(T-1138). 인자가 5-provider
+// 목록(LLM_PROVIDER_OPTIONS)의 값 중 하나면 그대로(그 option 선택), 아니면 빈 문자열(placeholder
+// fallback)을 반환한다. 수정 폼이 편집 대상 row 의 provider 값으로 prefill 될 때, 지원 목록에
+// 없는 레거시/비정상 값(예: 과거 free-text 로 저장된 값)이면 placeholder 로 안전 fallback 하기
+// 위한 분기 로직을 JSX 밖으로 분리해 jsdom 없이 직접 단위 검증할 수 있게 한다(deriveProviders /
+// buildExportPath 등 순수 helper convention 정합). 생성 폼은 providerInput 이 항상 select 로만
+// 세팅돼 이 helper 없이도 안전하나, 계약 일관성을 위해 동일 helper 로 좁힐 수 있다.
+function resolveProviderSelectValue(value: string | undefined): string {
+  if (value && LLM_PROVIDER_OPTIONS.some((option) => option.value === value)) {
+    return value;
+  }
+  return '';
+}
+
 // export 성공 시 DataImportExportPanel 의 message props 로 내려보낼 사람-친화 완료 안내.
 // ④f(T-0390)부터 응답 Blob 을 실제 파일로 저장(다운로드 트리거)하므로 message 의 의미가
 // "호출 성공"에서 "파일 저장 완료"로 강화된다(데이터 건수/scope 요약은 응답 형태 미확정이라
@@ -2148,13 +2187,24 @@ function AdminView({
               폼을 모르므로 컨테이너가 직접 소유한다(컴포넌트 수정 0). */}
           {editingProviderId !== null ? (
             <div>
-              <input
+              {/* provider 입력을 5-provider select 로 constrain(T-1138, R-99~103). 편집 대상 row 의
+                  provider 값(editProviderInput)이 5 개 중 하나면 그 option 이 선택되고, 목록에 없는
+                  레거시/비정상 값이면 placeholder(빈 value)로 fallback 렌더된다(브라우저는 매칭 option
+                  부재 시 첫 option 을 선택). value/onChange 계약은 기존 text input 과 동일해 PATCH body
+                  조립·가드는 수정 0. */}
+              <select
                 aria-label="수정할 provider"
-                type="text"
-                value={editProviderInput}
+                value={resolveProviderSelectValue(editProviderInput)}
                 onChange={(event) => setEditProviderInput(event.target.value)}
                 disabled={updatingProvider}
-              />
+              >
+                <option value="">{LLM_PROVIDER_PLACEHOLDER_LABEL}</option>
+                {LLM_PROVIDER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
               <input
                 aria-label="수정할 provider endpointUrl"
                 type="text"
@@ -2206,13 +2256,23 @@ function AdminView({
               input(type="password")으로 화면 노출을 줄이되 생성 body 전송만 담당하고, 실패 문구
               (createProviderError)에도 재노출되지 않는다(삭제 error 와 별도 문구). */}
           <div>
-            <input
+            {/* provider 입력을 5-provider select 로 constrain(T-1138, R-99~103). placeholder(빈
+                value) 를 선두 배치해 미선택 시 생성 버튼 가드(!providerInput.trim())가 그대로 발화한다
+                (POST 미호출). value/onChange 계약은 기존 text input 과 동일해 POST body 조립은 수정 0 —
+                선택 불가능한 지원 외 값은 option 부재로 제출 자체가 봉쇄된다. */}
+            <select
               aria-label="생성할 provider"
-              type="text"
               value={providerInput}
               onChange={(event) => setProviderInput(event.target.value)}
               disabled={creatingProvider}
-            />
+            >
+              <option value="">{LLM_PROVIDER_PLACEHOLDER_LABEL}</option>
+              {LLM_PROVIDER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
             <input
               aria-label="생성할 provider endpointUrl"
               type="text"
@@ -2359,6 +2419,8 @@ export {
   runAdd,
   runCreateProvider,
   runUpdateProvider,
+  resolveProviderSelectValue,
+  LLM_PROVIDER_OPTIONS,
   isAdminRole,
 };
 export type {
