@@ -2,7 +2,10 @@
 id: T-1131
 title: AdminView 멤버 추가 mutation 배선 POST :id/members (personId 입력)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 48dce4e2
+prNumber: 1023
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 200
@@ -57,3 +60,9 @@ PLAN.md line 123 의 P6 deferred 잔여 항목 "GroupMember **add**·remove muta
 ## Follow-ups
 
 (없음 — sub-agent 가 관련 작업 발견 시 여기 append. 후보: person 선택 드롭다운으로 add UX 개선.)
+
+## Result
+
+- **DONE** 2026-07-23T03:07Z — PR #1023 squash merge `48dce4e2`, reviewer round 1/7 APPROVE, 4-게이트 전부 통과, CI green(run 29976505473).
+- `runAdd`/`handleAdd`(runRemove 1:1 mirror) + personId input·"추가" 버튼 배선. POST `/api/groups/:id/members` body `{ personId }`, 성공 시 nonce bump 재조회 + 입력 초기화, 실패 시 setAddError(no-throw), 가드 3종(그룹 미선택·빈/공백 trim·in-flight). web 2파일 +388/-0, vitest 549 pass + build green, R-112 16 unit tests.
+- P6 line123 deferred GroupMember add·remove 쌍 완결(add=T-1131, remove=T-1130).
