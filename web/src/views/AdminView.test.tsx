@@ -8126,6 +8126,16 @@ describe('AdminView — 사용자 관리 목록 마운트 (T-1159)', () => {
     error: undefined,
   };
 
+  // 사용자 관리 섹션 경계 안쪽 HTML 만 잘라내는 helper(round 2 MINOR (3)) — 로딩 문구처럼 다른
+  // 섹션과 공유되는 문자열은 문서 전역 매칭이 false-positive 를 낳으므로(다른 섹션 기본값이
+  // loading 으로 바뀌면 본 test 가 의미 없이 통과) 단언 범위를 섹션 안으로 좁힌다. UserList 는
+  // 중첩 <section> 을 렌더하지 않아 첫 닫는 태그까지가 정확히 본 섹션이다.
+  function userSection(html: string): string {
+    const start = html.indexOf(USER_SECTION);
+    expect(start).toBeGreaterThanOrEqual(0);
+    return html.slice(start, html.indexOf('</section>', start));
+  }
+
   beforeEach(() => {
     useApiResourceMock.mockReset();
   });
@@ -8176,9 +8186,13 @@ describe('AdminView — 사용자 관리 목록 마운트 (T-1159)', () => {
       [USERS]: { data: USER_LIST_ROWS, loading: true, error: 'HTTP 403: 무시' },
     });
     const html = renderToStaticMarkup(<AdminView />);
-    expect(html).toContain('불러오는 중…');
+    // 로딩 문구는 여러 List 컴포넌트가 공유하므로 사용자 관리 섹션 경계 안쪽에서만 단언한다.
+    const section = userSection(html);
+    expect(section).toContain('불러오는 중…');
+    // 섹션 밖의 다른 섹션들은 로딩 상태가 아니다 — 전역 매칭 false-positive 차단(MINOR (3)).
+    expect(html.replace(section, '')).not.toContain('불러오는 중…');
     // loading 우선 — 목록(email)·에러 문구 미렌더.
-    expect(html).not.toContain('user-a@example.com');
+    expect(section).not.toContain('user-a@example.com');
     expect(html).not.toContain('HTTP 403: 무시');
   });
 

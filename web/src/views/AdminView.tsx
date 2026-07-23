@@ -3288,7 +3288,10 @@ function AdminView({
   // (double-fetch 대상 부재). 변수명에 user prefix 를 붙여 인원/그룹/파트/멤버십 등 다른 조회 상태와
   // 섞이지 않게 분리한다(partLoading/partError 동형). 본 slice 는 읽기 전용이라 mutation 이 없어
   // refresh nonce 없이 정적 path 를 쓴다(생성·역할 변경 slice 에서 buildUsersPath(nonce) 로 전환).
-  // Admin+ endpoint 라 비-Admin actor 에게는 403 → error 문구로 안전 표시된다(throw 0).
+  // Admin+ endpoint 라 비-Admin actor 의 요청은 403 이 되지만, 그 error 문구가 화면에 노출되지는
+  // 않는다 — 아래 사용자 관리 섹션이 isAdmin gating 안쪽이라 렌더 자체가 차단되고 권한 부족 안내만
+  // 남는다(fail-closed, 아래 섹션 주석 정합). 조회 hook 은 등급과 무관하게 호출되므로 요청은 나가되
+  // 실패는 error state 로 흡수되어 throw 0 이다(Admin 에게만 error 문구가 표면화된다).
   const {
     data: usersData,
     loading: userLoading,
