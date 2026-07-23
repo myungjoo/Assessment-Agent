@@ -1156,6 +1156,87 @@ async function runAdd(personId: string, deps: AddDeps): Promise<void> {
   }
 }
 
+// provider 생성 POST 4 필드 묶음(T-1136) — 컨테이너의 4 controlled input 값을 러너에 한 덩어리로
+// 넘긴다. 러너가 각 필드를 trim 해 빈/공백 가드에 쓰고, 유효 시 body 로 JSON 직렬화한다. secret
+// apiKey 는 생성 body 전송만 담당하며 응답·목록·error 어디에도 재노출되지 않는다.
+interface CreateProviderFields {
+  provider: string;
+  endpointUrl: string;
+  apiKey: string;
+  modelId: string;
+}
+
+// provider 생성 POST + state-전이 로직에 주입하는 deps(T-1136 — runAdd 의 AddDeps 를 mirror.
+// jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 컨테이너의 handleCreateProvider 는 이 러너에
+// 4 입력값(CreateProviderFields)·현재 in-flight 여부(creating)·상태 setter·재조회 트리거·입력
+// 초기화를 주입해 호출만 한다. path param 이 없어(POST /api/llm/providers) groupId 는 없다.
+interface CreateProviderDeps {
+  // POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  create: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 create in-flight 여부 — true 면 미발사(이중 POST·경합 가드).
+  creating: boolean;
+  setCreating: (next: boolean) => void;
+  setCreateError: (next: string | undefined) => void;
+  // 권위 provider 재조회 트리거 — providersRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+  // 성공 후 4 입력 초기화 트리거(빈 값으로 되돌림 — 연속 생성 편의 + secret apiKey 잔존 방지).
+  resetInput: () => void;
+}
+
+// provider 생성 POST /api/llm/providers(body `{ provider, endpointUrl, apiKey, modelId }`) +
+// state-전이 로직을 캡슐화한 순수 async 러너(T-1136 — runAdd mirror). backend createProvider
+// (llm.controller, 201 Created, CreateLlmProviderDto 4 필드, isLlmProvider 미지원 provider →
+// 400, 중복 → 409, Admin+ 미만 403)를 발사한다. 컨테이너의 handleCreateProvider 는 이 러너에
+// deps 를 주입해 호출만 한다. 동작:
+//  - 4 필드 중 하나라도 빈/공백만 → 미발사(잘못된 body·400 회피 — 각 필드 trim 후 falsy 면 억제).
+//  - creating(이전 mutation 미완) → 미발사(이중 POST·state 경합 차단 — runAdd adding 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → POST(trim 된 4 필드 JSON body) → 성공(provider 재조회
+//    트리거 + 입력 초기화) / 실패(사람-친화 문구 표면화 — throw 없이) → 진행 off(공통).
+async function runCreateProvider(
+  fields: CreateProviderFields,
+  deps: CreateProviderDeps,
+): Promise<void> {
+  // 필수 4 필드 빈/공백 방어 — 각 필드 앞뒤 공백 제거 후 하나라도 비면 POST 미발사(잘못된 body·
+  // 400 회피). secret apiKey 도 동일하게 trim 후 빈값이면 차단한다(무의미한 생성 요청 억제).
+  const provider = fields.provider?.trim();
+  const endpointUrl = fields.endpointUrl?.trim();
+  const apiKey = fields.apiKey?.trim();
+  const modelId = fields.modelId?.trim();
+  if (!provider || !endpointUrl || !apiKey || !modelId) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 create 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.creating) {
+    return;
+  }
+  deps.setCreating(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 create 진행만 남도록).
+  deps.setCreateError(undefined);
+  try {
+    // POST /api/llm/providers — 201 Created. trim 된 4 필드를 JSON body 로 전송한다(runAdd 의
+    // JSON body 발사 convention 동형). apiKey 는 생성 시점 평문 전송만 담당하고 응답을 소비하지
+    // 않으므로(성공 사실만 확인) 목록·error 어디에도 재노출되지 않는다.
+    await deps.create(LLM_PROVIDERS_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, endpointUrl, apiKey, modelId }),
+    });
+    // 성공 — 권위 provider 재조회 트리거(재조회로 생성된 행이 목록에 나타난다 — 낙관 추가 없음) +
+    // 입력 초기화(연속 생성 시 직전 값·secret apiKey 잔존 방지).
+    deps.bumpRefresh();
+    deps.resetInput();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error state 로 안전 표시(throw 없이). 400 검증 실패(미지원 provider·
+    // 빈 필드) / 409 중복 / 403 Admin+ 미만 / 비-2xx / 네트워크 0 모두 ApiError.status →
+    // toErrorMessage 파생으로 표면화. 재조회 nonce·입력은 건드리지 않는다(실패 시 입력 유지).
+    deps.setCreateError(deps.describeError(e));
+  } finally {
+    deps.setCreating(false);
+  }
+}
+
 // Admin 화면 컨테이너. useApiResource 로 GET /api/groups 결과를 소유하고, 선택 그룹 상태를
 // useState 로 보유해 선택 그룹의 멤버를 client-side 파생 후 GroupMemberList 에 props 로
 // 내려보낸다(controlled lift-up — GroupMemberList 는 fetch 를 모른다, ADR-0041 Decision 1).
@@ -1346,6 +1427,62 @@ function AdminView({
         bumpRefresh: () => setProvidersRefreshNonce((n) => n + 1),
       }),
     [deletingProvider],
+  );
+
+  // provider 생성 4 controlled input 상태(T-1136) — 컨테이너 소유. "추가" 클릭 시
+  // handleCreateProvider 가 POST body 의 4 필드로 공급하고, 성공 후 모두 빈 값으로 되돌린다
+  // (연속 생성 편의 + secret apiKey 잔존 방지). runAdd 의 personIdInput 패턴 mirror.
+  const [providerInput, setProviderInput] = useState<string>('');
+  const [endpointUrlInput, setEndpointUrlInput] = useState<string>('');
+  const [apiKeyInput, setApiKeyInput] = useState<string>('');
+  const [modelIdInput, setModelIdInput] = useState<string>('');
+
+  // provider 생성 mutation in-flight 플래그(T-1136) — POST 진행 중 true. 진행 표시(입력·버튼
+  // 비활성)와 동시 재호출 가드(이전 mutation 미완 중 재발사 차단)에 함께 쓴다(adding 동형).
+  const [creatingProvider, setCreatingProvider] = useState<boolean>(false);
+
+  // provider 생성 mutation 실패 문구(T-1136) — POST 실패 시 사람-친화 문구(toErrorMessage 파생)를
+  // 보관해 폼 하단에 안전 표시한다(throw 없음, 삭제 error 와 별도 문구). 성공/재시도 시작 시 비운다.
+  const [createProviderError, setCreateProviderError] = useState<
+    string | undefined
+  >(undefined);
+
+  // provider 생성 실 mutation 핸들러(T-1136) — provider 생성 POST(/api/llm/providers, body 4 필드)를
+  // 컨테이너 내부 async 로 발사한다(handleAdd 정합). 빈/공백 필드·이전 mutation 미완(creatingProvider)
+  // 발사 억제 + 성공(provider 재조회 + 4 입력 초기화)/실패(error 안전 표시, throw 없음) 전이는
+  // runCreateProvider 가 캡슐화한다. 4 입력값·creatingProvider 를 deps 의존성에 포함해 stale 없이
+  // 최신 입력·가드 상태로 발사한다. 재조회는 기존 setProvidersRefreshNonce 를 재사용한다(신규 nonce 0).
+  const handleCreateProvider = useCallback(
+    () =>
+      runCreateProvider(
+        {
+          provider: providerInput,
+          endpointUrl: endpointUrlInput,
+          apiKey: apiKeyInput,
+          modelId: modelIdInput,
+        },
+        {
+          create: request,
+          describeError: toErrorMessage,
+          creating: creatingProvider,
+          setCreating: setCreatingProvider,
+          setCreateError: setCreateProviderError,
+          bumpRefresh: () => setProvidersRefreshNonce((n) => n + 1),
+          resetInput: () => {
+            setProviderInput('');
+            setEndpointUrlInput('');
+            setApiKeyInput('');
+            setModelIdInput('');
+          },
+        },
+      ),
+    [
+      providerInput,
+      endpointUrlInput,
+      apiKeyInput,
+      modelIdInput,
+      creatingProvider,
+    ],
   );
 
   // 재조회 nonce(④c) — DifficultyModelSelector.onAssign PATCH 성공 시 이 값을 +1 해
@@ -1784,6 +1921,61 @@ function AdminView({
             error={deleteProviderError ?? providersError}
             onDelete={handleDeleteProvider}
           />
+          {/* provider 생성(T-1136, R-96) — 4 controlled input(provider/endpointUrl/apiKey/modelId) +
+              "추가" 버튼. LlmProviderConfigList(presentational, 읽기 전용 목록 + 삭제)는 생성 컨트롤을
+              모르므로 컨테이너가 직접 소유한다(controlled lift-up, ADR-0041 Decision 1 — 컴포넌트 수정
+              0). 클릭 시 handleCreateProvider 가 POST /api/llm/providers(body 4 필드)를 발사하고, 성공
+              시 providersRefreshNonce bump 로 권위 재조회한다(낙관 추가 없음 — 삭제/추가 동형). 4 필드
+              중 하나라도 빈·공백이거나 진행 중이면 버튼을 비활성화해 발사를 억제하고(runCreateProvider
+              도 동일 조건을 no-op 가드로 이중 방어), 입력은 진행 중에도 비활성화한다. apiKey 는 secret
+              input(type="password")으로 화면 노출을 줄이되 생성 body 전송만 담당하고, 실패 문구
+              (createProviderError)에도 재노출되지 않는다(삭제 error 와 별도 문구). */}
+          <div>
+            <input
+              aria-label="생성할 provider"
+              type="text"
+              value={providerInput}
+              onChange={(event) => setProviderInput(event.target.value)}
+              disabled={creatingProvider}
+            />
+            <input
+              aria-label="생성할 provider endpointUrl"
+              type="text"
+              value={endpointUrlInput}
+              onChange={(event) => setEndpointUrlInput(event.target.value)}
+              disabled={creatingProvider}
+            />
+            <input
+              aria-label="생성할 provider apiKey"
+              type="password"
+              value={apiKeyInput}
+              onChange={(event) => setApiKeyInput(event.target.value)}
+              disabled={creatingProvider}
+            />
+            <input
+              aria-label="생성할 provider modelId"
+              type="text"
+              value={modelIdInput}
+              onChange={(event) => setModelIdInput(event.target.value)}
+              disabled={creatingProvider}
+            />
+            <button
+              type="button"
+              onClick={handleCreateProvider}
+              disabled={
+                creatingProvider ||
+                !providerInput.trim() ||
+                !endpointUrlInput.trim() ||
+                !apiKeyInput.trim() ||
+                !modelIdInput.trim()
+              }
+            >
+              provider 추가
+            </button>
+            {createProviderError ? (
+              <p role="alert">{createProviderError}</p>
+            ) : null}
+          </div>
           {/* export scope 선택 컨트롤(④g) — 컨테이너가 직접 렌더한다(그룹 선택 <select> 동형 —
               presentational DataImportExportPanel 은 scope 를 모른다, ADR-0041 Decision 1). 선택값은
               handleExport 가 buildExportPath 로 GET /api/admin/export?scope= query 에 부착하고, 빈
@@ -1890,6 +2082,7 @@ export {
   runRemove,
   runDeleteProvider,
   runAdd,
+  runCreateProvider,
   isAdminRole,
 };
 export type {
@@ -1909,5 +2102,7 @@ export type {
   RemoveDeps,
   DeleteProviderDeps,
   AddDeps,
+  CreateProviderFields,
+  CreateProviderDeps,
 };
 export default AdminView;

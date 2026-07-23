@@ -79,6 +79,7 @@ import AdminView, {
   runRemove,
   runDeleteProvider,
   runAdd,
+  runCreateProvider,
   isAdminRole,
 } from './AdminView';
 import type {
@@ -95,6 +96,8 @@ import type {
   RemoveDeps,
   DeleteProviderDeps,
   AddDeps,
+  CreateProviderDeps,
+  CreateProviderFields,
 } from './AdminView';
 
 // LLM 조회 두 path 의 기본 성공(빈 데이터) 상태 — 그룹 전용 test 가 LLM path 응답을 명시하지
@@ -1136,6 +1139,298 @@ describe('AdminView — 멤버 추가 실 POST add mutation (T-1131 runAdd)', ()
   });
 });
 
+// R-112 — T-1136 provider 생성 실 POST create mutation 본체(runCreateProvider) 검증. jsdom/렌더러
+// 없이 mutation 본체를 직접 호출하고(runAdd 와 동일 convention), apiClient.request mock 으로
+// method/path/body 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백
+// 호출로 관찰한다. happy/error/branch/negative 예외 분기마다 각 1+ cover. secret apiKey 는 body 로만
+// 실리고 error 문구에 재노출되지 않음을 별도 negative 로 검증한다.
+describe('AdminView — provider 생성 실 POST create mutation (T-1136 runCreateProvider)', () => {
+  // 유효한 4 필드 기본 입력값 — 각 test 가 필요 시 일부만 덮어 빈/공백 분기를 만든다.
+  const VALID: CreateProviderFields = {
+    provider: 'openai',
+    endpointUrl: 'https://api.openai.com/v1',
+    apiKey: 'sk-secret-123',
+    modelId: 'gpt-4o',
+  };
+
+  // 상태 전이를 기록하는 deps harness — creating 초기값과 request mock 을 주입받아
+  // setCreating/setCreateError 호출과 bumpRefresh·resetInput 호출 횟수를 모두 순서대로 캡처한다.
+  function makeCreateDeps(creating: boolean) {
+    const calls = {
+      creating: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      reset: 0,
+    };
+    const deps: CreateProviderDeps = {
+      create: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      creating,
+      setCreating: (next) => calls.creating.push(next),
+      setCreateError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+      resetInput: () => {
+        calls.reset += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — create 트리거 시 request 가 POST /api/llm/providers 로 method POST + body 4 필드
+  // 인 인자로 정확히 호출되고, 성공 후 재조회 nonce bump(1 회) + 입력 초기화(1 회) + error 미설정
+  // (시작 비움만) + 진행 표시(creating) on→off 로 해제된다.
+  it('POST /api/llm/providers 를 method POST + body 4 필드로 정확히 호출하고 성공 시 재조회 nonce bump + 입력 초기화 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 201 Created.
+    const { deps, calls } = makeCreateDeps(false);
+    await runCreateProvider(VALID, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string; body: string },
+    ];
+    expect(path).toBe('/api/llm/providers');
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({
+      provider: 'openai',
+      endpointUrl: 'https://api.openai.com/v1',
+      apiKey: 'sk-secret-123',
+      modelId: 'gpt-4o',
+    });
+    // 성공 → 재조회 nonce bump 1 회 + 입력 초기화 1 회 + error 시작 비움만(실패 문구 미설정).
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    // 진행 표시 on→off(finally 공통 해제).
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // error path — create 400(미지원 provider·검증 실패) 시 error 문구가 표면화되고 throw 없이
+  // 처리되며 재조회 nonce·입력 초기화는 일어나지 않는다(입력 유지 — 재시도 편의).
+  it('create 400(검증 실패) 시 error 문구를 표면화하고 nonce·입력을 건드리지 않는다 (error path — 400)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'Bad Request'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreateProvider(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 400: Bad Request']);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // error path — 403(Admin+ 미만) 도 동일 안전 경로로 문구 표면화(throw 없음).
+  it('create 403(Admin+ 미만) 실패 시 안전 문구를 표면화한다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreateProvider(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 409(중복 provider) 실패 시 동일 안전 경로.
+  it('create 409(중복 provider) 실패 시 안전 문구를 표면화한다 (error path — 409)', async () => {
+    requestMock.mockRejectedValue(new ApiError(409, 'Conflict'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreateProvider(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 409: Conflict']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('create 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreateProvider(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (a) — 각 필드가 빈값이면 POST 미발사·state 불변·throw 없음(잘못된 body 회피). 4 필드
+  // 각각을 비워 필드별 가드를 개별 cover 한다(단일 negative 로 부족 — 필드마다).
+  it('4 필드 중 하나라도 빈값이면 POST 를 발사하지 않는다 (branch (a) — 필드별 빈값 가드)', async () => {
+    const fieldKeys: (keyof CreateProviderFields)[] = [
+      'provider',
+      'endpointUrl',
+      'apiKey',
+      'modelId',
+    ];
+    for (const key of fieldKeys) {
+      requestMock.mockReset();
+      const { deps, calls } = makeCreateDeps(false);
+      await expect(
+        runCreateProvider({ ...VALID, [key]: '' }, deps),
+      ).resolves.toBeUndefined();
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.creating).toEqual([]);
+      expect(calls.error).toEqual([]);
+      expect(calls.bump).toBe(0);
+      expect(calls.reset).toBe(0);
+    }
+  });
+
+  // negative — 각 필드가 공백만이면 trim 후 빈 값이라 POST 미발사(빈 값 방어 — 필드별).
+  it('공백만 있는 필드는 trim 후 빈 값이라 POST 를 발사하지 않는다 (negative — 필드별 공백)', async () => {
+    const fieldKeys: (keyof CreateProviderFields)[] = [
+      'provider',
+      'endpointUrl',
+      'apiKey',
+      'modelId',
+    ];
+    for (const key of fieldKeys) {
+      requestMock.mockReset();
+      const { deps, calls } = makeCreateDeps(false);
+      await expect(
+        runCreateProvider({ ...VALID, [key]: '   ' }, deps),
+      ).resolves.toBeUndefined();
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.creating).toEqual([]);
+      expect(calls.bump).toBe(0);
+    }
+  });
+
+  // branch (b) — 이전 create 미완(creating=true) 중 재호출은 POST 미발사·state 불변(이중 POST·경합 차단).
+  it('이전 create 미완(creating=true) 중 재호출은 POST 를 발사하지 않는다 (branch (b) — 이중 POST 가드)', async () => {
+    const { deps, calls } = makeCreateDeps(true); // 이미 in-flight.
+    await runCreateProvider(VALID, deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.creating).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (c) — 정상 발사 시 POST 1 회만(중복 없음).
+  it('정상 발사 시 POST 를 1 회만 호출한다 (branch (c) — 단일 발사)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeCreateDeps(false);
+    await runCreateProvider(VALID, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/llm/providers');
+  });
+
+  // negative — 각 필드 앞뒤 공백은 trim 되어 body 에 실린다(공백 정규화). secret apiKey 도 trim 된다.
+  it('각 필드 앞뒤 공백을 trim 해 body 에 싣는다 (negative — trim 정규화)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeCreateDeps(false);
+    await runCreateProvider(
+      {
+        provider: '  openai  ',
+        endpointUrl: '  https://x  ',
+        apiKey: '  sk-1  ',
+        modelId: '  m1  ',
+      },
+      deps,
+    );
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(JSON.parse(options.body)).toEqual({
+      provider: 'openai',
+      endpointUrl: 'https://x',
+      apiKey: 'sk-1',
+      modelId: 'm1',
+    });
+  });
+
+  // negative(secret 미노출) — 실패 시 error 문구에 apiKey 평문이 절대 포함되지 않는다(secret 유출 방어).
+  // describeError 는 ApiError.status/message 만 파생하므로 apiKey 는 error state 에 흘러들지 않는다.
+  it('실패 시 error 문구에 apiKey 평문이 포함되지 않는다 (negative — secret 미노출)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'Bad Request'));
+    const { deps, calls } = makeCreateDeps(false);
+    await runCreateProvider({ ...VALID, apiKey: 'sk-super-secret' }, deps);
+    for (const msg of calls.error) {
+      expect(msg ?? '').not.toContain('sk-super-secret');
+    }
+  });
+
+  // negative — 성공 후 입력 초기화(resetInput 1 회) + 실패 시 입력 유지(resetInput 0 회) 대비 검증.
+  it('성공 시 입력을 초기화하고 실패 시 입력을 유지한다 (negative — 성공 후 초기화)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeCreateDeps(false);
+    await runCreateProvider(VALID, ok.deps);
+    expect(ok.calls.reset).toBe(1);
+
+    requestMock.mockRejectedValueOnce(new ApiError(409, 'Conflict'));
+    const fail = makeCreateDeps(false);
+    await runCreateProvider(VALID, fail.deps);
+    expect(fail.calls.reset).toBe(0);
+  });
+
+  // negative — 성공·실패 어느 경로든 finally 가 setCreating(false) 로 진행 표시를 복구한다.
+  it('성공·실패 어느 경우든 진행 표시(creating)가 finally 로 해제된다 (negative — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeCreateDeps(false);
+    await runCreateProvider(VALID, ok.deps);
+    expect(ok.calls.creating).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeCreateDeps(false);
+    await runCreateProvider(VALID, fail.deps);
+    expect(fail.calls.creating).toEqual([true, false]);
+  });
+
+  // negative(시작 정리) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve 로 캡처한다
+  // (재조회 도착 전 상태에서 crash 없음). 해소 후 재조회 bump + 입력 초기화 + 진행 off.
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 시작 정리/재조회 전 안전)', async () => {
+    let resolvePost: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePost = resolve;
+        }),
+    );
+    const { deps, calls } = makeCreateDeps(false);
+    const pending = runCreateProvider(VALID, deps);
+    expect(calls.creating).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    resolvePost();
+    await pending;
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // negative — 실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다(시작 비움 → 성공 bump).
+  it('실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다 (negative — 실패 후 재시도)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const first = makeCreateDeps(false);
+    await runCreateProvider(VALID, first.deps);
+    expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(first.calls.bump).toBe(0);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const second = makeCreateDeps(false);
+    await runCreateProvider(VALID, second.deps);
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.bump).toBe(1);
+  });
+
+  // negative(잘못된 응답 shape) — request 가 예상 밖 값(예: null)로 resolve 해도 성공 경로로 처리하고
+  // (응답 body 를 소비하지 않으므로) 재조회 bump + 입력 초기화 + throw 없음이 유지된다.
+  it('request 가 예상 밖 값(null)으로 resolve 해도 성공 경로로 안전 처리한다 (negative — 응답 shape 무관)', async () => {
+    requestMock.mockResolvedValue(null);
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreateProvider(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+  });
+});
+
 // R-112 — T-1130 onRemove 배선 렌더 검증. onRemove 전달 시 GroupMemberList 가 각 멤버 행에 제거
 // 버튼(제거 라벨)을 렌더함을 정적 markup 으로 단언한다(클릭→콜백 호출 자체는 위 runRemove 단위
 // test + GroupMemberList 컴포넌트 test 가 cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트 비검증).
@@ -1411,6 +1706,73 @@ describe('AdminView — LLM provider 설정 목록 패널 마운트 (T-1134)', (
     // 삭제 버튼이 provider 수만큼 렌더된다(provider 라벨과 함께).
     expect(html).toContain('삭제');
     expect(countOccurrences(html, '>삭제</button>')).toBe(CONFIG_ROWS.length);
+  });
+});
+
+// R-112 — T-1136 provider 생성 폼(4 controlled input + "provider 추가" 버튼) 배선 렌더 검증.
+// Admin 등급에서 폼이 마운트되고 4 필드 aria-label + 생성 버튼이 렌더됨을 정적 markup 으로 단언한다
+// (클릭→러너 호출 자체는 위 runCreateProvider 단위 test 가 cover — 본 파일은 jsdom 미사용 정적
+// 렌더라 이벤트 비검증). apiKey 는 type="password" 로 렌더되고, 비-Admin 에선 폼이 미마운트됨도 확인.
+describe('AdminView — provider 생성 폼 배선 (정적 렌더, T-1136)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — Admin 등급이면 4 필드 input(aria-label) + "provider 추가" 버튼이 마운트된다.
+  it('Admin 등급이면 4 필드 input + "provider 추가" 버튼을 렌더한다 (happy-path)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: [], loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('aria-label="생성할 provider"');
+    expect(html).toContain('aria-label="생성할 provider endpointUrl"');
+    expect(html).toContain('aria-label="생성할 provider apiKey"');
+    expect(html).toContain('aria-label="생성할 provider modelId"');
+    expect(html).toContain('provider 추가</button>');
+  });
+
+  // negative(secret input) — apiKey 필드는 type="password" 로 렌더돼 화면 노출을 줄인다.
+  it('apiKey 필드는 type="password" 로 렌더된다 (negative — secret input)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: [], loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // apiKey input 이 password 타입임을 단언(aria-label 인접 type 속성).
+    expect(html).toMatch(
+      /aria-label="생성할 provider apiKey"[^>]*type="password"|type="password"[^>]*aria-label="생성할 provider apiKey"/,
+    );
+  });
+
+  // negative(gating 경계) — 비-Admin 등급이면 생성 폼을 마운트하지 않는다(fail-closed).
+  it('비-Admin 등급이면 생성 폼을 마운트하지 않는다 (negative — gating 경계)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: [], loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).not.toContain('aria-label="생성할 provider"');
+    expect(html).not.toContain('provider 추가</button>');
+  });
+
+  // branch — 빈 필드(초기 마운트)면 생성 버튼이 disabled 로 렌더된다(빈 필드 발사 억제 UI 반영).
+  it('초기(빈 필드) 마운트 시 생성 버튼이 disabled 로 렌더된다 (branch — 빈 필드 버튼 비활성)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: [], loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // "provider 추가" 버튼이 disabled 속성과 함께 렌더된다(빈 필드 4 개 → 버튼 비활성).
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>provider 추가<\/button>/);
   });
 });
 
