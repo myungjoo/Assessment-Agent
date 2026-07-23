@@ -946,6 +946,76 @@ async function runRemove(
   }
 }
 
+// 멤버 추가 POST + state-전이 로직에 주입하는 deps(T-1131 — runRemove 의 RemoveDeps 를 1:1 mirror.
+// jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 컨테이너의 handleAdd 는 이 러너에 선택
+// groupId·입력 personId·현재 in-flight 여부(adding)·상태 setter·재조회 트리거·입력 초기화를
+// 주입해 호출만 한다.
+interface AddDeps {
+  // POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  add: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 선택 그룹 id — POST path 의 :id param. encodeURIComponent 로 안전 인코딩된다.
+  groupId: string;
+  // 현재 add in-flight 여부 — true 면 미발사(이중 POST·경합 가드).
+  adding: boolean;
+  setAdding: (next: boolean) => void;
+  setAddError: (next: string | undefined) => void;
+  // 권위 멤버십 재조회 트리거 — membersRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+  // 성공 후 personId 입력 초기화 트리거(빈 값으로 되돌림 — 연속 추가 편의).
+  resetInput: () => void;
+}
+
+// 멤버 추가 POST /api/groups/:id/members(body `{ personId }`) + state-전이 로직을 캡슐화한 순수
+// async 러너(T-1131 — runRemove mirror). backend addMember(group.controller.ts, 201 Created,
+// AddMemberDto `{ personId }`, @@unique([personId, groupId]) 위반 시 P2002→409) 를 발사한다.
+// 컨테이너의 handleAdd 는 이 러너에 deps 를 주입해 호출만 한다. 동작:
+//  - 빈/공백만 personId → 미발사(잘못된 body·400 회피 — trim 후 falsy 면 억제).
+//  - 선택 그룹 미선택(빈 groupId) → 미발사(잘못된 path·불필요 POST 회피).
+//  - adding(이전 mutation 미완) → 미발사(이중 POST·state 경합 차단 — runRemove removing 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → POST(groupId 는 encodeURIComponent 안전 인코딩, body 는
+//    trim 된 personId) → 성공(멤버십 재조회 트리거 + 입력 초기화) / 실패(사람-친화 문구 표면화 —
+//    throw 없이) → 진행 off(공통).
+async function runAdd(personId: string, deps: AddDeps): Promise<void> {
+  // 빈/공백 방어 — 앞뒤 공백을 제거한 뒤 비어 있으면 POST 미발사(잘못된 body·400 회피).
+  const trimmed = personId?.trim();
+  if (!trimmed) {
+    return;
+  }
+  // 그룹 미선택 가드 — 선택 그룹이 없으면 path 의 :id 가 비므로 미발사(불필요 POST·잘못된 path 회피).
+  if (!deps.groupId) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 add 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.adding) {
+    return;
+  }
+  deps.setAdding(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 add 진행만 남도록).
+  deps.setAddError(undefined);
+  try {
+    // POST /api/groups/:id/members — 201 Created. groupId 는 encodeURIComponent 로 안전 인코딩하고,
+    // body 는 trim 된 personId 를 JSON 으로 전송한다(runApply 의 JSON body 발사 convention 동형).
+    await deps.add(`/api/groups/${encodeURIComponent(deps.groupId)}/members`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ personId: trimmed }),
+    });
+    // 성공 — 권위 멤버십 재조회 트리거(재조회로 추가된 행이 목록에 나타난다 — 낙관 override 없음) +
+    // 입력 초기화(연속 추가 시 직전 값 잔존 방지).
+    deps.bumpRefresh();
+    deps.resetInput();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 409 중복 멤버(@@unique) /
+    // 403 Admin+ 미만 / 404 group 부재 / 400 빈 personId / 비-2xx / 네트워크 0 모두 ApiError.status
+    // → toErrorMessage 파생으로 표면화. 재조회 nonce·입력은 건드리지 않는다(실패 시 입력 유지).
+    deps.setAddError(deps.describeError(e));
+  } finally {
+    deps.setAdding(false);
+  }
+}
+
 // Admin 화면 컨테이너. useApiResource 로 GET /api/groups 결과를 소유하고, 선택 그룹 상태를
 // useState 로 보유해 선택 그룹의 멤버를 client-side 파생 후 GroupMemberList 에 props 로
 // 내려보낸다(controlled lift-up — GroupMemberList 는 fetch 를 모른다, ADR-0041 Decision 1).
@@ -1055,6 +1125,38 @@ function AdminView({
         bumpRefresh: () => setMembersRefreshNonce((n) => n + 1),
       }),
     [selectedGroupId, removing],
+  );
+
+  // 추가할 멤버 personId 입력 상태(T-1131) — controlled input(컨테이너 소유). "추가" 클릭 시
+  // handleAdd 가 POST body 의 personId 로 공급하고, 성공 후 빈 값으로 되돌린다(연속 추가 편의).
+  const [personIdInput, setPersonIdInput] = useState<string>('');
+
+  // add mutation in-flight 플래그(T-1131) — POST 진행 중 true. 진행 표시(입력·버튼 비활성)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다(remove removing 동형).
+  const [adding, setAdding] = useState<boolean>(false);
+
+  // add mutation 실패 문구(T-1131) — POST 실패 시 사람-친화 문구(toErrorMessage 파생)를 보관해
+  // 입력 하단에 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다(remove removeError 동형).
+  const [addError, setAddError] = useState<string | undefined>(undefined);
+
+  // 멤버 추가 실 mutation 핸들러(T-1131) — 멤버 추가 POST(/api/groups/:id/members, body
+  // `{ personId }`)를 컨테이너 내부 async 로 발사한다(handleRemove 정합). 빈/공백 personId·그룹
+  // 미선택·이전 mutation 미완(adding) 발사 억제 + 성공(멤버십 재조회 + 입력 초기화)/실패(error 안전
+  // 표시, throw 없음) 전이는 runAdd 가 캡슐화한다. personIdInput(POST body)·selectedGroupId(POST
+  // path param)·adding 을 deps 의존성에 포함해 stale 없이 최신 입력·그룹·가드 상태로 발사한다.
+  const handleAdd = useCallback(
+    () =>
+      runAdd(personIdInput, {
+        add: request,
+        describeError: toErrorMessage,
+        groupId: selectedGroupId,
+        adding,
+        setAdding,
+        setAddError,
+        bumpRefresh: () => setMembersRefreshNonce((n) => n + 1),
+        resetInput: () => setPersonIdInput(''),
+      }),
+    [personIdInput, selectedGroupId, adding],
   );
 
   // LLM provider 목록 조회(④b 두 번째 패널) — useApiResource 추가 호출(④a 의 그룹 조회 +
@@ -1437,6 +1539,30 @@ function AdminView({
         emptyMessage={emptyMessage}
         onRemove={handleRemove}
       />
+      {/* 멤버 추가(T-1131) — personId 입력 + "추가" 버튼. GroupMemberList(presentational)는 display +
+          onRemove 만 책임지므로 add 컨트롤은 컨테이너가 직접 소유한다(controlled lift-up, ADR-0041
+          Decision 1 — 컴포넌트 수정 0). 클릭 시 handleAdd 가 POST /api/groups/:id/members(body
+          `{ personId }`)를 발사하고, 성공 시 membersRefreshNonce bump 로 권위 재조회한다(낙관 override
+          없음 — remove 동형). 선택 그룹 미선택/진행 중/빈·공백 입력일 때는 버튼을 비활성화해 발사를 억제
+          하고(runAdd 도 동일 조건을 no-op 가드로 이중 방어), 입력은 미선택/진행 중에도 비활성화한다.
+          실패 문구(addError)는 입력 하단에 안전 표시한다(throw 없음). */}
+      <div>
+        <input
+          aria-label="추가할 멤버 personId"
+          type="text"
+          value={personIdInput}
+          onChange={(event) => setPersonIdInput(event.target.value)}
+          disabled={!selectedGroupId || adding}
+        />
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={!selectedGroupId || adding || !personIdInput.trim()}
+        >
+          추가
+        </button>
+        {addError ? <p role="alert">{addError}</p> : null}
+      </div>
       {/* Admin+ RBAC gating(④h) — Admin/SuperAdmin 등급(isAdmin === true)에게만 Admin 전용 패널
           (DifficultyModelSelector + scope <select> + DataImportExportPanel)을 렌더한다. 세 패널은
           모두 Admin+ endpoint(GET /api/llm/providers·/difficulty-mappings·/admin/export·/admin/import,
@@ -1560,6 +1686,7 @@ export {
   buildRecentDeletionPath,
   runReEvaluate,
   runRemove,
+  runAdd,
   isAdminRole,
 };
 export type {
@@ -1577,5 +1704,6 @@ export type {
   ScheduleMutationDeps,
   ReEvaluationDeps,
   RemoveDeps,
+  AddDeps,
 };
 export default AdminView;
