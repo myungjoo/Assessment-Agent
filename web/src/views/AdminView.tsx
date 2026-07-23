@@ -238,6 +238,17 @@ interface GroupRow {
   persons?: GroupMemberRow[];
 }
 
+// 멤버십 row 의 frontend-local 최소 타입(T-1129) — 신 endpoint(GET /api/groups/:id/members,
+// T-1128 findMembershipsByGroupId)가 반환하는 raw PersonGroupMembership row 의 세 후보 필드만
+// 보수적으로 매핑한다. id = membershipId(후속 ④c remove mutation 의 DELETE :id/members/:membershipId
+// 인자), personId = 표시명을 기존 그룹 응답 person 에서 매칭할 키. 모든 필드를 선택적으로 두어
+// 누락/비정상 row 도 throw 없이 받는다(createdAt 등 잔여 필드는 무시).
+interface MembershipRow {
+  id?: string;
+  personId?: string;
+  groupId?: string;
+}
+
 // LLM provider row 의 frontend-local 최소 타입 — backend sanitize view(api.md 114 6 필드)
 // 중 DifficultyModelSelector 가 쓰는 id/provider/modelId 세 후보만 보수적으로 매핑한다.
 // 모든 필드를 선택적으로 두어 누락/비정상 row 도 throw 없이 받는다(③a~④a frontend-local
@@ -331,6 +342,50 @@ function deriveMembers(
       id: member.id ?? `m${index + 1}`,
       name: name || FALLBACK_MEMBER_NAME,
       role: member.role,
+    };
+  });
+}
+
+// 선택 그룹의 멤버십 조회 path 빌더(순수 helper, T-1129) — GET /api/groups/:id/members(T-1128,
+// api.md 82). 선택 그룹이 있을 때만 path 를 만들고, 미선택(빈/falsy)이면 null 을 반환해
+// useApiResource 의 조건부 조회(path=null → 미조회, idle)를 유발한다(personId 미선택 시 미조회
+// convention 정합 — useApiResource.ts 9~11). groupId 는 encodeURIComponent 로 안전 인코딩해
+// 비정상 문자가 든 id 도 path 가 깨지지 않게 한다(buildExportPath/buildRecentDeletionPath 의
+// 안전 인코딩 convention 정합).
+function buildGroupMembersPath(
+  selectedGroupId: string | undefined,
+): string | null {
+  if (!selectedGroupId) {
+    return null;
+  }
+  return `/api/groups/${encodeURIComponent(selectedGroupId)}/members`;
+}
+
+// 멤버십 응답 + 선택 그룹 → GroupMemberList 의 Member[] 파생(순수 helper, T-1129). raw membership
+// row 배열에서 Member[] 를 만들되, 각 Member.id 를 membership 의 id(membershipId)로 설정한다 —
+// 후속 ④c remove mutation(DELETE :id/members/:membershipId)의 인자를 노출하기 위함. 표시명은 기존
+// 그룹 응답의 person(group.members ?? group.persons, id = personId)에서 membership.personId 매칭으로
+// 채우고, 매칭 부재/이름 누락/빈 이름이면 FALLBACK_MEMBER_NAME 으로 안전 fallback 한다(backend person
+// include shape 변경은 Out of Scope). memberships 가 배열이 아니면 빈 배열(빈 상태 위임 — throw 없이).
+// id 누락 membership 은 index 기반 합성 key 로 안전 매핑해 React key 안정성을 유지한다(deriveMembers 동형).
+function deriveMembersFromMemberships(
+  memberships: MembershipRow[] | undefined,
+  group: GroupRow | undefined,
+): Member[] {
+  if (!Array.isArray(memberships)) {
+    return [];
+  }
+  const rawPersons = group?.members ?? group?.persons;
+  const persons = Array.isArray(rawPersons) ? rawPersons : [];
+  return memberships.map((membership, index) => {
+    const person = membership.personId
+      ? persons.find((candidate) => candidate.id === membership.personId)
+      : undefined;
+    const name = person?.name ?? person?.fullName ?? FALLBACK_MEMBER_NAME;
+    return {
+      id: membership.id ?? `m${index + 1}`,
+      name: name || FALLBACK_MEMBER_NAME,
+      role: person?.role,
     };
   });
 }
@@ -835,9 +890,12 @@ function AdminView({
     initialSelectedGroupId,
   );
 
-  // 그룹 목록 조회 — useApiResource 를 단 한 번만 호출한다(④a 책임 경계). loading/error 는
-  // 컨테이너가 받아 GroupMemberList 의 loading/error props 로 그대로 내려보낸다(Decision 1).
-  const { data, loading, error } = useApiResource<GroupRow[]>(GROUPS_PATH);
+  // 그룹 목록 조회 — useApiResource 로 그룹 <select> 옵션의 원천을 조회한다(④a 책임 경계).
+  // T-1129 부터 GroupMemberList 의 loading/error 는 그룹 조회가 아니라 선택 그룹 멤버십 조회
+  // (아래 useApiResource<MembershipRow[]>)가 소유하므로, 그룹 조회의 loading/error 는 별도로
+  // 구독하지 않고 data 만 소비한다(그룹 조회 실패 시 옵션 빈 목록으로 안전 표시 — 그룹 조회
+  // 실패 표면화는 본 slice Out of Scope).
+  const { data } = useApiResource<GroupRow[]>(GROUPS_PATH);
 
   // 현재 사용자 등급 조회(④h) — useApiResource 네 번째 호출(GET /api/auth/me, User+). 응답
   // role 만 소비해 Admin+ 여부를 파생한다. 조회 실패/loading/응답 누락은 모두 isAdmin=false
@@ -859,11 +917,40 @@ function AdminView({
   // 표시용 그룹 목록 — data 미도착이면 빈 배열로 간주한다(<select> 옵션·파생의 안전 기준).
   const groups = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
-  // 선택 그룹의 멤버 파생 — 선택 그룹의 members(또는 persons) 를 Member[] 로 매핑한다.
-  // 미선택/미발견(stale)/멤버 미포함이면 빈 배열(GroupMemberList 가 빈 상태 렌더).
+  // 선택 그룹의 멤버 파생(client-side, id = personId) — T-1129 부터 GroupMemberList 는 아래 신
+  // endpoint fetch 결과(groupMembers, id = membershipId)를 쓰므로, 본 client-side 파생은 재평가
+  // 인원 선택 <select> 의 personOptions 전용으로 남는다(재평가 POST 는 personId 를 path param 으로
+  // 쓰므로 membershipId 부적합). 미선택/미발견/멤버 미포함이면 빈 배열.
   const members = useMemo(
     () => deriveMembers(groups, selectedGroupId || undefined),
     [groups, selectedGroupId],
+  );
+
+  // 선택 그룹의 멤버십 조회 path(T-1129) — 선택이 있을 때만 조건부 path 를 만든다(미선택 시 null →
+  // useApiResource 미조회 idle). 선택 변경 시 path 가 달라져 자동 refetch(path-change refetch).
+  const groupMembersPath = useMemo(
+    () => buildGroupMembersPath(selectedGroupId || undefined),
+    [selectedGroupId],
+  );
+
+  // 선택 그룹의 멤버십 조회(T-1129) — useApiResource 로 신 endpoint(GET /api/groups/:id/members,
+  // T-1128 findMembershipsByGroupId)를 조건부 fetch 한다. loading/error 는 컨테이너가 받아
+  // GroupMemberList 의 대응 props 로 내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를 모른다).
+  const {
+    data: membershipData,
+    loading: membersLoading,
+    error: membersError,
+  } = useApiResource<MembershipRow[]>(groupMembersPath);
+
+  // 멤버십 응답 → GroupMemberList 의 Member[] 파생(T-1129) — 각 Member.id 를 membershipId 로
+  // 설정하고, 표시명은 선택 그룹 응답의 person(personId 매칭)에서 채운다. 미선택/미도착/비정상이면 빈 배열.
+  const groupMembers = useMemo(
+    () =>
+      deriveMembersFromMemberships(
+        membershipData,
+        findGroup(groups, selectedGroupId || undefined),
+      ),
+    [membershipData, groups, selectedGroupId],
   );
 
   // LLM provider 목록 조회(④b 두 번째 패널) — useApiResource 추가 호출(④a 의 그룹 조회 +
@@ -1233,13 +1320,14 @@ function AdminView({
           </option>
         ))}
       </select>
-      {/* 그룹 멤버 목록(첫 패널) — 파생 members 와 그룹 조회의 loading/error 를 props 로만
-          내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). onRemove 미전달 — 멤버
-          제거 mutation 은 ④b Out of Scope(제거 버튼 미렌더). 컴포넌트 수정 0. */}
+      {/* 그룹 멤버 목록(첫 패널) — 선택 그룹 멤버십 fetch(GET /api/groups/:id/members, T-1129)
+          결과에서 파생한 groupMembers(id = membershipId)와 그 fetch 의 loading/error 를 props 로만
+          내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). onRemove 미전달 — 멤버 제거
+          mutation 은 ④c Out of Scope(제거 버튼 미렌더). 컴포넌트 수정 0. */}
       <GroupMemberList
-        members={members}
-        loading={loading}
-        error={error}
+        members={groupMembers}
+        loading={membersLoading}
+        error={membersError}
         emptyMessage={emptyMessage}
       />
       {/* Admin+ RBAC gating(④h) — Admin/SuperAdmin 등급(isAdmin === true)에게만 Admin 전용 패널
@@ -1347,6 +1435,8 @@ function AdminView({
 export {
   findGroup,
   deriveMembers,
+  buildGroupMembersPath,
+  deriveMembersFromMemberships,
   deriveProviders,
   deriveDifficultyMapping,
   buildMappingsPath,
@@ -1368,6 +1458,7 @@ export type {
   AdminViewProps,
   GroupRow,
   GroupMemberRow,
+  MembershipRow,
   LlmProviderRow,
   DifficultyMappingRow,
   MeRow,

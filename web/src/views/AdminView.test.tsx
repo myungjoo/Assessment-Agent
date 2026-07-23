@@ -56,6 +56,8 @@ import { ApiError } from '../api/apiClient';
 import AdminView, {
   findGroup,
   deriveMembers,
+  buildGroupMembersPath,
+  deriveMembersFromMemberships,
   deriveProviders,
   deriveDifficultyMapping,
   buildMappingsPath,
@@ -75,6 +77,7 @@ import AdminView, {
 } from './AdminView';
 import type {
   GroupRow,
+  MembershipRow,
   LlmProviderRow,
   DifficultyMappingRow,
   AssignDeps,
@@ -105,13 +108,21 @@ const ADMIN_ME_OK: ApiResourceState<unknown> = {
 
 const AUTH_ME = '/api/auth/me';
 
-// 그룹 path 만 주입하는 단순 setter — 기존 그룹 패널 test 호환용. 그룹 path 는 주어진 state 를,
-// auth/me path 는 ADMIN_ME_OK(Admin 등급 default — ④h gating 회귀 0), 나머지 LLM 두 path 는
-// EMPTY_OK(빈 성공) 를 반환한다.
-function setResource<T>(state: ApiResourceState<T>) {
-  useApiResourceMock.mockImplementation((path: string) => {
+// 선택 그룹 멤버십 조회 path 매칭 정규식(T-1129) — GET /api/groups/:id/members.
+const MEMBERS_PATH_RE = /^\/api\/groups\/[^/]+\/members$/;
+
+// 그룹 path + (T-1129) 멤버십 path 를 주입하는 setter — 그룹 path 는 state 를, 멤버십 path 는
+// membersState(기본 EMPTY_OK)를, auth/me 는 ADMIN_ME_OK(Admin default), 나머지는 EMPTY_OK 를 낸다.
+function setResource<T>(
+  state: ApiResourceState<T>,
+  membersState: ApiResourceState<unknown> = EMPTY_OK,
+) {
+  useApiResourceMock.mockImplementation((path: string | null) => {
     if (path === '/api/groups') {
       return state;
+    }
+    if (typeof path === 'string' && MEMBERS_PATH_RE.test(path)) {
+      return membersState;
     }
     if (path === AUTH_ME) {
       return ADMIN_ME_OK;
@@ -120,13 +131,26 @@ function setResource<T>(state: ApiResourceState<T>) {
   });
 }
 
-// path 별 응답을 한 번에 주입하는 라우터 setter — LLM 패널 test 용. 명시 안 된 path 는
-// auth/me 면 ADMIN_ME_OK(Admin default — ④h gating 회귀 0), 그 외는 EMPTY_OK 로 fallback.
+// path 별 응답을 한 번에 주입하는 라우터 setter — LLM 패널 test 용. 명시 route 가 우선하고,
+// 명시 안 된 멤버십 path(T-1129)는 SAMPLE 그룹 기본 membership 으로 fallback(g1→MEMBERS_OK_G1,
+// g2→MEMBERSHIPS_G2, 그 외→빈)해 GroupMemberList 가 멤버를 렌더하도록 한다(gating/배선 test 회귀 0).
+// 나머지 명시 안 된 path 는 auth/me 면 ADMIN_ME_OK(Admin default), 그 외는 EMPTY_OK 로 fallback.
 function setRoutes(routes: Record<string, ApiResourceState<unknown>>) {
-  useApiResourceMock.mockImplementation(
-    (path: string) =>
-      routes[path] ?? (path === AUTH_ME ? ADMIN_ME_OK : EMPTY_OK),
-  );
+  useApiResourceMock.mockImplementation((path: string | null) => {
+    if (typeof path === 'string' && path in routes) {
+      return routes[path];
+    }
+    if (typeof path === 'string' && MEMBERS_PATH_RE.test(path)) {
+      if (path === '/api/groups/g1/members') {
+        return MEMBERS_OK_G1;
+      }
+      if (path === '/api/groups/g2/members') {
+        return { data: MEMBERSHIPS_G2, loading: false, error: undefined };
+      }
+      return EMPTY_OK;
+    }
+    return path === AUTH_ME ? ADMIN_ME_OK : EMPTY_OK;
+  });
 }
 
 const GROUPS = '/api/groups';
@@ -163,6 +187,19 @@ const SAMPLE: GroupRow[] = [
   },
 ];
 
+// 선택 그룹 멤버십 응답 샘플(T-1129) — 신 endpoint(GET /api/groups/:id/members)의 raw
+// PersonGroupMembership row. id = membershipId, personId 는 SAMPLE 그룹 person id 와 매칭돼 표시명을 채운다.
+const MEMBERSHIPS_G1: MembershipRow[] = [
+  { id: 'm1', personId: 'p1', groupId: 'g1' },
+  { id: 'm2', personId: 'p2', groupId: 'g1' },
+];
+const MEMBERSHIPS_G2: MembershipRow[] = [{ id: 'm3', personId: 'p3', groupId: 'g2' }];
+
+// 멤버십 조회의 성공/loading/error 상태 헬퍼(T-1129 container test 용).
+const MEMBERS_OK_G1: ApiResourceState<unknown> = { data: MEMBERSHIPS_G1, loading: false, error: undefined };
+const MEMBERS_LOADING: ApiResourceState<unknown> = { data: undefined, loading: true, error: undefined };
+const MEMBERS_ERROR: ApiResourceState<unknown> = { data: undefined, loading: false, error: 'HTTP 500: members boom' };
+
 describe('AdminView — 컨테이너 렌더', () => {
   beforeEach(() => {
     useApiResourceMock.mockReset();
@@ -171,14 +208,15 @@ describe('AdminView — 컨테이너 렌더', () => {
     vi.restoreAllMocks();
   });
 
-  // happy-path — 그룹 조회 성공 + 그룹 선택 시 그 그룹의 멤버가 GroupMemberList 로 렌더되고
-  // 그룹 <select> 가 모든 그룹 옵션을 노출한다.
-  it('그룹 선택 시 그 그룹의 멤버를 렌더하고 select 가 모든 그룹 옵션을 노출한다 (happy-path)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
-    const html = renderToStaticMarkup(
-      <AdminView initialSelectedGroupId="g1" />,
-    );
-    // 선택 그룹(g1, 백엔드팀)의 멤버가 목록으로 렌더된다.
+  // happy-path — 그룹 선택 시 신 endpoint 를 실 fetch 해 membership 파생 멤버(표시명은 그룹 응답
+  // person 을 personId 매칭)를 렌더하고, 그룹 <select> 가 모든 그룹 옵션을 노출한다.
+  it('그룹 선택 시 멤버십 endpoint 를 실 fetch 해 멤버를 렌더하고 select 가 모든 그룹 옵션을 노출한다 (happy-path)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined }, MEMBERS_OK_G1);
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // 멤버십 endpoint 를 정확한 path 로 호출한다(선택 그룹 g1).
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(paths).toContain('/api/groups/g1/members');
+    // 선택 그룹(g1, 백엔드팀)의 멤버 표시명(그룹 응답 person 매칭)이 목록으로 렌더된다.
     expect(html).toContain('김철수');
     expect(html).toContain('이영희');
     expect(html).toContain('리더');
@@ -190,12 +228,9 @@ describe('AdminView — 컨테이너 렌더', () => {
     expect(html).toContain('<ul>');
   });
 
-  // error path — 그룹 조회 loading 중 GroupMemberList 가 loading 표시(props 로 loading 전달).
-  it('그룹 조회 loading 중 멤버 패널이 진행 표시를 렌더한다 (error path — loading)', () => {
-    setResource({ data: undefined, loading: true, error: undefined });
-    const html = renderToStaticMarkup(
-      <AdminView initialSelectedGroupId="g1" />,
-    );
+  it('멤버십 조회 loading 중 멤버 패널이 진행 표시를 렌더한다 (error path — loading)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined }, MEMBERS_LOADING);
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
     // loading 우선 정책 — GroupMemberList 가 role="status" + 로딩 문구를 렌더한다.
     expect(html).toContain('role="status"');
     expect(html).toContain('불러오는 중…');
@@ -203,21 +238,39 @@ describe('AdminView — 컨테이너 렌더', () => {
     expect(html).not.toContain('<ul>');
   });
 
-  // error path — 그룹 조회 error 시 GroupMemberList 가 error alert 표시(props 로 error 전달).
-  it('그룹 조회 error 시 멤버 패널이 에러 alert 를 렌더한다 (error path — error)', () => {
-    setResource({ data: undefined, loading: false, error: 'HTTP 500: groups boom' });
-    const html = renderToStaticMarkup(
-      <AdminView initialSelectedGroupId="g1" />,
-    );
+  it('멤버십 조회 error 시 멤버 패널이 에러 alert 를 렌더한다 (error path — error)', () => {
+    setResource({ data: SAMPLE, loading: false, error: undefined }, MEMBERS_ERROR);
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
     expect(html).toContain('role="alert"');
-    expect(html).toContain('HTTP 500: groups boom');
+    expect(html).toContain('HTTP 500: members boom');
     expect(html).not.toContain('<ul>');
   });
 
-  // flow/branch — 그룹 미선택(!selectedGroupId) 분기에서 빈 상태/선택 안내를 렌더한다.
-  it('그룹 미선택이면 선택 안내 빈 상태를 렌더한다 (flow/branch — 미선택)', () => {
+  // error path — membership personId 가 그룹 person 과 매칭되지 않으면 fallback 명으로 렌더.
+  it('멤버십 personId 가 그룹 person 과 매칭되지 않으면 fallback 명으로 렌더한다 (error path — 매칭 실패)', () => {
+    setResource(
+      { data: SAMPLE, loading: false, error: undefined },
+      {
+        data: [{ id: 'mX', personId: 'ghost', groupId: 'g1' }],
+        loading: false,
+        error: undefined,
+      },
+    );
+    const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
+    // 매칭 person 부재 → fallback 라벨(이름 미상)로 안전 렌더(throw/undefined 렌더 없음).
+    expect(html).toContain('이름 미상');
+    expect(html).toContain('<ul>');
+  });
+
+  // flow/branch (a) — 그룹 미선택이면 멤버 endpoint 미호출(path=null) + 선택 안내를 렌더한다.
+  it('그룹 미선택이면 멤버 endpoint 미호출(path=null) + 선택 안내 빈 상태를 렌더한다 (flow/branch — 미선택)', () => {
     setResource({ data: SAMPLE, loading: false, error: undefined });
     const html = renderToStaticMarkup(<AdminView />);
+    // 미선택 → 멤버 endpoint(/api/groups/:id/members) 미호출(useApiResource 에 real path 미전달).
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(
+      paths.some((p) => typeof p === 'string' && MEMBERS_PATH_RE.test(p)),
+    ).toBe(false);
     // 미선택이면 멤버 빈 상태(role="status") + 그룹 선택 안내 문구.
     expect(html).toContain('role="status"');
     expect(html).toContain('그룹을 선택하면 인원이 표시됩니다');
@@ -226,16 +279,33 @@ describe('AdminView — 컨테이너 렌더', () => {
     expect(html).toContain('백엔드팀');
   });
 
-  // flow/branch — 다른 그룹을 선택하면 멤버 집합이 달라진다(g1 vs g2 멤버 차이).
-  it('다른 그룹을 선택하면 멤버 집합이 달라진다 (flow/branch — 그룹 전환)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
+  it('다른 그룹을 선택하면 그 그룹의 멤버십을 fetch 해 멤버 집합이 달라진다 (flow/branch — 그룹 전환)', () => {
+    setResource(
+      { data: SAMPLE, loading: false, error: undefined },
+      { data: MEMBERSHIPS_G2, loading: false, error: undefined },
+    );
     // g2(프론트팀) 선택 → 박민수만, g1 멤버(김철수/이영희) 는 미렌더.
     const html = renderToStaticMarkup(
       <AdminView initialSelectedGroupId="g2" />,
     );
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(paths).toContain('/api/groups/g2/members');
     expect(html).toContain('박민수');
     expect(html).not.toContain('김철수');
     expect(html).not.toContain('이영희');
+  });
+
+  it('선택 그룹의 membership 이 0 건이면 빈 상태 문구를 렌더한다 (flow/branch — membership 0)', () => {
+    setResource(
+      { data: SAMPLE, loading: false, error: undefined },
+      { data: [], loading: false, error: undefined },
+    );
+    const html = renderToStaticMarkup(
+      <AdminView initialSelectedGroupId="g1" />,
+    );
+    // membership 0 건 → 선택했으므로 "이 그룹에 속한 인원이 없습니다" 빈 상태.
+    expect(html).toContain('이 그룹에 속한 인원이 없습니다');
+    expect(html).not.toContain('<ul>');
   });
 
   // negative — 그룹 응답이 빈 배열(그룹 0 건)일 때 안전 표시(throw 없음).
@@ -245,32 +315,6 @@ describe('AdminView — 컨테이너 렌더', () => {
     // 그룹 0 건 → 옵션은 빈 선택지(그룹을 선택하세요)만, 멤버는 빈 상태(미선택 안내).
     expect(html).toContain('그룹을 선택하세요');
     expect(html).toContain('그룹을 선택하면 인원이 표시됩니다');
-    expect(html).not.toContain('<ul>');
-  });
-
-  // negative — selectedGroupId 가 목록에 없을 때(stale 선택) 빈 멤버 안전 표시(throw 없음).
-  it('선택 그룹이 목록에 없으면(stale) 빈 멤버를 안전 표시한다 (negative — stale 선택)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
-    const html = renderToStaticMarkup(
-      <AdminView initialSelectedGroupId="없는그룹" />,
-    );
-    // stale 선택 → 멤버 빈 배열 → 선택했으므로 "이 그룹에 속한 인원이 없습니다" 빈 상태.
-    expect(html).toContain('이 그룹에 속한 인원이 없습니다');
-    expect(html).not.toContain('<ul>');
-    expect(html).not.toContain('김철수');
-  });
-
-  // negative — 선택 그룹이 멤버를 포함하지 않으면(members 누락) 빈 멤버 안전 표시(④b fetch 대상).
-  it('선택 그룹에 members 가 없으면 빈 멤버를 안전 표시한다 (negative — 멤버 미포함)', () => {
-    setResource({
-      data: [{ id: 'g9', name: '신규팀' }], // members/persons 누락.
-      loading: false,
-      error: undefined,
-    });
-    const html = renderToStaticMarkup(
-      <AdminView initialSelectedGroupId="g9" />,
-    );
-    expect(html).toContain('이 그룹에 속한 인원이 없습니다');
     expect(html).not.toContain('<ul>');
   });
 
@@ -334,6 +378,96 @@ describe('AdminView — 선택 그룹/멤버 파생 (순수 함수)', () => {
       'g5',
     );
     expect(emptyName[0]).toMatchObject({ id: 'p5', name: '이름 미상' });
+  });
+});
+
+// R-112 — T-1129 신규 멤버십 파생 helper(buildGroupMembersPath/deriveMembersFromMemberships)
+// 순수 함수 검증. 조건부 조회 path·membershipId 노출·person 매칭 표시명·매칭 실패 fallback·id
+// 누락 합성 key·빈/undefined/비배열 안전 처리 등 happy/branch/negative 를 각 1+ cover.
+describe('AdminView — 멤버십 조회 path/파생 (순수 함수, T-1129)', () => {
+  it('buildGroupMembersPath 가 선택 그룹이 있을 때만 path 를, 없으면 null 을 낸다 (helper)', () => {
+    expect(buildGroupMembersPath('g1')).toBe('/api/groups/g1/members');
+    // negative — 미선택(undefined/빈 문자열)이면 null(조건부 미조회).
+    expect(buildGroupMembersPath(undefined)).toBeNull();
+    expect(buildGroupMembersPath('')).toBeNull();
+    // 비정상 문자(공백/슬래시)가 든 id 도 encodeURIComponent 로 안전 인코딩(path 안 깨짐).
+    expect(buildGroupMembersPath('a b/c')).toBe('/api/groups/a%20b%2Fc/members');
+  });
+
+  it('membership 응답에서 Member.id 를 membershipId 로 두고 표시명을 person 매칭으로 채운다 (happy)', () => {
+    const derived = deriveMembersFromMemberships(MEMBERSHIPS_G1, SAMPLE[0]);
+    expect(derived).toHaveLength(2);
+    // id 는 membershipId(m1/m2), 표시명·role 은 그룹 응답 person(p1/p2) 매칭에서 채운다.
+    expect(derived[0]).toEqual({ id: 'm1', name: '김철수', role: '리더' });
+    expect(derived[1]).toEqual({ id: 'm2', name: '이영희', role: undefined });
+    // membershipId 가 서로 달라 React key 안정(중복 없음).
+    expect(new Set(derived.map((m) => m.id)).size).toBe(derived.length);
+  });
+
+  it('그룹 응답의 persons 키 + fullName 을 표시명으로 매칭한다 (branch — 대체 키/이름 후보)', () => {
+    const group: GroupRow = {
+      id: 'g3',
+      name: '데브옵스',
+      persons: [{ id: 'p9', fullName: '최강록', role: '리더' }],
+    };
+    const derived = deriveMembersFromMemberships(
+      [{ id: 'mm', personId: 'p9', groupId: 'g3' }],
+      group,
+    );
+    // name 없고 fullName 만 있으면 fullName 을 표시명으로, id 는 membershipId(mm).
+    expect(derived[0]).toEqual({ id: 'mm', name: '최강록', role: '리더' });
+  });
+
+  it('person 매칭 실패/이름 누락/빈 이름은 fallback 라벨로 보정한다 (negative — 매칭 실패)', () => {
+    // personId 미매칭 → fallback 명 + role undefined.
+    const noMatch = deriveMembersFromMemberships(
+      [{ id: 'm1', personId: 'ghost', groupId: 'g1' }],
+      SAMPLE[0],
+    );
+    expect(noMatch[0]).toEqual({ id: 'm1', name: '이름 미상', role: undefined });
+
+    // personId 누락 membership 도 매칭 없이 fallback 명(throw 없음).
+    const noPersonId = deriveMembersFromMemberships(
+      [{ id: 'm2', groupId: 'g1' }],
+      SAMPLE[0],
+    );
+    expect(noPersonId[0]).toEqual({ id: 'm2', name: '이름 미상', role: undefined });
+
+    // 매칭 person 의 이름이 빈 문자열이면 fallback 라벨로 보정.
+    const emptyName = deriveMembersFromMemberships(
+      [{ id: 'm3', personId: 'pe', groupId: 'g1' }],
+      { id: 'g1', name: '팀', members: [{ id: 'pe', name: '' }] },
+    );
+    expect(emptyName[0]).toMatchObject({ id: 'm3', name: '이름 미상' });
+  });
+
+  it('id 누락 membership 은 index 기반 합성 key 로 안전 매핑한다 (negative — membershipId 누락)', () => {
+    const derived = deriveMembersFromMemberships(
+      [
+        { personId: 'p1', groupId: 'g1' },
+        { personId: 'p2', groupId: 'g1' },
+      ],
+      SAMPLE[0],
+    );
+    // membershipId 누락 → 합성 key(m1/m2), 표시명은 person 매칭 유지 + 중복 없음(React key 안정).
+    expect(derived[0]).toMatchObject({ id: 'm1', name: '김철수' });
+    expect(derived[1]).toMatchObject({ id: 'm2', name: '이영희' });
+    expect(new Set(derived.map((m) => m.id)).size).toBe(2);
+  });
+
+  it('빈/undefined/비배열 membership·group 부재를 안전 처리한다 (negative — 비정상 입력)', () => {
+    // 빈 배열/undefined/비배열 → 빈 배열(throw 없이 빈 상태 위임).
+    expect(deriveMembersFromMemberships([], SAMPLE[0])).toEqual([]);
+    expect(deriveMembersFromMemberships(undefined, SAMPLE[0])).toEqual([]);
+    expect(
+      deriveMembersFromMemberships(null as unknown as undefined, SAMPLE[0]),
+    ).toEqual([]);
+    // group undefined(선택 그룹 미발견)여도 membership 은 fallback 명으로 매핑(throw 없음).
+    const noGroup = deriveMembersFromMemberships(
+      [{ id: 'm1', personId: 'p1', groupId: 'g1' }],
+      undefined,
+    );
+    expect(noGroup[0]).toEqual({ id: 'm1', name: '이름 미상', role: undefined });
   });
 });
 
