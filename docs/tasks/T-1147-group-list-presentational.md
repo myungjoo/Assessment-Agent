@@ -2,7 +2,11 @@
 id: T-1147
 title: GroupList presentational 컴포넌트 신설 (Admin 그룹 관리 목록 카드 UI 첫 slice)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-24T00:50:27+09:00
+mergedAs: 1bd73d74ae732455cd353caf8bfca3cca3cae720
+prNumber: 1039
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 250
