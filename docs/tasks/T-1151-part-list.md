@@ -2,7 +2,10 @@
 id: T-1151
 title: PartList presentational 컴포넌트 신설 (Admin 파트 관리 UI 첫 slice)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 2ee621b3
+prNumber: 1043
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 270
