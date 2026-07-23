@@ -47,11 +47,28 @@ import SchedulePanel from '../components/SchedulePanel';
 // (SchedulePanel) 의 짝.
 import ReEvaluationTriggerPanel from '../components/ReEvaluationTriggerPanel';
 import type { ReEvaluationWindow } from '../components/ReEvaluationTriggerPanel';
+// T-1142 — P6 line120 Admin "인원(Person)" 관리 UI 마운트. 직전 slice(T-1141)가 신설한 순수
+// presentational PersonList 를 AdminView 에 배선한다. 컴포넌트 수정 0 으로 default import +
+// named type(PersonRow)만(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 실 fetch(GET
+// /api/persons)는 아래 useApiResource 로 컨테이너가 소유하고, data/loading/error 를 props 로만
+// 내려보낸다(T-1140 DashboardView 마운트 패턴 mirror — 읽기 전용, mutation/nonce 불요).
+import PersonList from '../components/PersonList';
+import type { PersonRow } from '../components/PersonList';
 
 // 그룹 목록 조회 path — 고정 endpoint(GET /api/groups, api.md 81 User+). personId 같은
 // 필수 query 가 없어 무조건 조회한다(미인증은 AuthGate 가 이미 차단). DashboardView 의
 // path 파생 helper 규약과 정합하게 상수로 둔다(조건부 가드 불요 — null 분기 없음).
 const GROUPS_PATH = '/api/groups';
+
+// 인원(Person) 목록 조회 path — 고정 endpoint(GET /api/persons, active 인원 Person[] 반환,
+// PersonController T-0036). personId 같은 필수 query 가 없어 무조건 조회한다(미인증은 AuthGate
+// 가 이미 차단). 읽기 전용 마운트라 필터/재조회 nonce 불요 — T-1140 PERMISSION_DENIED_RECORDS_PATH
+// 규약과 정합하게 상수로 둔다(조건부 가드 없음 — null 분기 불요). buildXxxPath helper 불요.
+const PERSONS_PATH = '/api/persons';
+
+// 인원 관리 섹션 heading 문구(T-1142) — 기존 패널들과 시각적으로 구분되는 별도 섹션의 제목.
+// §12 한국어. aria-label 겸 <h2> 로 재사용해 보조기술이 섹션 경계를 인식하게 한다.
+const PERSON_HEADING = '인원 관리';
 
 // 현재 사용자 등급 조회 path — 고정 endpoint(GET /api/auth/me, api.md 71 User+, JwtAuthGuard
 // 단독). 응답 5 필드 `{ id, email, role, createdAt, updatedAt }` 중 본 slice 는 role 만
@@ -1417,6 +1434,17 @@ function AdminView({
   const { data: meData, loading: meLoading } =
     useApiResource<MeRow>(AUTH_ME_PATH);
 
+  // 인원 목록 조회(T-1142) — useApiResource 로 GET /api/persons(active 인원 Person[])를 조회한다.
+  // 컨테이너가 인원 목록 상태를 소유하고, 그 data/loading/error 를 presentational PersonList 에
+  // props 로만 내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 변수명에 person prefix 를
+  // 붙여 그룹/멤버십/LLM 조회의 loading/error 와 섞이지 않게 분리한다(T-1140 permissionDenied prefix
+  // 동형). 읽기 전용 마운트라 mutation/재조회 nonce 는 배선하지 않는다(Out of Scope).
+  const {
+    data: personData,
+    loading: personLoading,
+    error: personError,
+  } = useApiResource<PersonRow[]>(PERSONS_PATH);
+
   // Admin+ 여부 파생(④h) — me 응답의 role 을 isAdminRole 로 판정한다. role 이 Admin/SuperAdmin
   // 으로 확정될 때만 true 이고, 조회 전(meData undefined)/loading/실패/role 누락/비-Admin 은 모두
   // false 다(fail-closed). loading 중에도 false 라 등급 확정 전에는 Admin 패널이 노출되지 않는다
@@ -2387,6 +2415,21 @@ function AdminView({
         // 비-Admin(또는 등급 불명/조회 중) — Admin 전용 패널 대신 권한 부족 안내 한 줄(fail-closed).
         <p role="status">{NOT_ADMIN_NOTICE_TEXT}</p>
       )}
+      {/* 인원 관리(T-1142, REQ-049/REQ-023) — backend Person API(GET /api/persons, active 인원
+          Person[] 반환)를 사람이 볼 수 있게 읽기 전용 목록으로 표시한다. 기존 패널과 시각적으로
+          구분되는 별도 섹션(heading + 컴포넌트)으로 마운트하고, 인원 조회의 loading/error 와
+          인원 배열만 PersonList 로 내려보낸다(다른 조회 상태와 섞지 않음 — ADR-0041 Decision 1,
+          컴포넌트는 fetch 를 모른다). data 가 undefined(미조회/진행 중/실패)이면 `?? []` 로 빈
+          배열을 안전하게 넘겨 throw 없이 렌더한다(컴포넌트가 loading/error/empty 분기를 자체
+          처리). 필터/재조회/mutation 은 배선하지 않는다(읽기 전용 마운트 — T-1140 동형). */}
+      <section aria-label={PERSON_HEADING}>
+        <h2>{PERSON_HEADING}</h2>
+        <PersonList
+          persons={personData ?? []}
+          loading={personLoading}
+          error={personError}
+        />
+      </section>
     </section>
   );
 }

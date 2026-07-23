@@ -52,6 +52,9 @@ vi.mock('../api/apiClient', async (importOriginal) => {
 });
 
 import { ApiError } from '../api/apiClient';
+// T-1142 — 인원 관리 마운트 test 의 인원 샘플 row 타입. PersonList 가 named export 하는
+// PersonRow 를 그대로 재사용해(컴포넌트 계약 정합) mock data shape 을 통제한다.
+import type { PersonRow } from '../components/PersonList';
 
 import AdminView, {
   findGroup,
@@ -4374,5 +4377,120 @@ describe('AdminView — buildRecentDeletionPath (순수 함수, T-0886)', () => 
     expect(buildRecentDeletionPath('a b/c')).toBe(
       '/api/schedules/recent-deletion/a%20b%2Fc',
     );
+  });
+});
+
+// R-112 — T-1142 인원 관리 마운트(GET /api/persons 실 fetch → PersonList props 배선) 검증.
+// happy(인원 표면화) / error path(에러 alert + 목록 미렌더) / 분기(loading·빈 배열·populated) /
+// negative(data undefined 시 `?? []` throw 없이 렌더, active=false 라벨, partId 없는 행 안전
+// 렌더, 다건 표시명 중복 없음)를 각 1+ cover. renderToStaticMarkup + useApiResource mock 으로
+// data/loading/error 시나리오를 통제한다(jsdom/@testing-library 미사용 — ADR-0040 §5 게이트).
+describe('AdminView — 인원 관리 마운트 (T-1142)', () => {
+  const PERSONS = '/api/persons';
+
+  // 인원 2 건 샘플 — Person model(id/fullName/email/active/partId?/createdAt?) 정합.
+  // p1 은 active + partId 보유, p2 는 active=false(휴직) + partId 누락(선택 필드 생략 경로).
+  const PERSON_ROWS: PersonRow[] = [
+    { id: 'pp1', fullName: '김인원', email: 'kim@example.com', active: true, partId: 'part-a' },
+    { id: 'pp2', fullName: '이휴직', email: 'lee@example.com', active: false },
+  ];
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 인원 1+ 반환 시 각 인원의 fullName·email·active 라벨이 렌더에 표면화된다.
+  it('인원 fetch 성공 시 fullName·email·active 라벨을 목록으로 렌더한다 (happy-path)', () => {
+    setRoutes({ [PERSONS]: { data: PERSON_ROWS, loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    // GET /api/persons 를 정확한 path 로 조회한다.
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(paths).toContain(PERSONS);
+    // 인원 관리 섹션 heading + 두 인원의 표시명/이메일이 표면화된다.
+    expect(html).toContain('인원 관리');
+    expect(html).toContain('김인원');
+    expect(html).toContain('kim@example.com');
+    expect(html).toContain('이휴직');
+    expect(html).toContain('lee@example.com');
+    // active=true 는 "활성", active=false 는 "휴직" 라벨로 사람-친화 표시된다.
+    expect(html).toContain('활성');
+    expect(html).toContain('휴직');
+  });
+
+  // error path — fetch 가 error(예: 401)를 반환하면 role="alert" 에러만 렌더하고 목록은 미렌더.
+  it('인원 fetch error 시 에러 alert 를 렌더하고 목록(인원명)은 미렌더한다 (error path)', () => {
+    setRoutes({
+      [PERSONS]: { data: undefined, loading: false, error: 'HTTP 401: persons boom' },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 에러 문구가 alert 로 표면화된다.
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('HTTP 401: persons boom');
+    // error 분기라 목록(인원 표시명)은 렌더되지 않는다.
+    expect(html).not.toContain('김인원');
+    expect(html).not.toContain('이휴직');
+  });
+
+  // 분기 — loading 중이면 로딩 표면(role="status" + 로딩 문구) 우선, 목록·에러 미렌더.
+  it('인원 fetch loading 중이면 로딩 표면을 우선 렌더한다 (분기 — loading)', () => {
+    setRoutes({
+      [PERSONS]: { data: undefined, loading: true, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('불러오는 중…');
+    // loading 우선 — 목록 표시명 미렌더.
+    expect(html).not.toContain('김인원');
+  });
+
+  // 분기 — 빈 배열이면 빈 상태 문구를 렌더한다(populated 분기와 대비).
+  it('인원이 0 건이면 빈 상태 문구를 렌더한다 (분기 — 빈 배열)', () => {
+    setRoutes({
+      [PERSONS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('등록된 인원이 없습니다');
+    expect(html).not.toContain('김인원');
+  });
+
+  // negative — data 가 undefined(미조회/진행 중 아님, error 없음)여도 `?? []` 로 throw 없이 렌더.
+  // (loading=false + error=undefined + data=undefined 경계 — 빈 상태로 안전 fallback.)
+  it('data 가 undefined 여도 `?? []` 로 throw 없이 빈 상태를 렌더한다 (negative — undefined 경계)', () => {
+    setRoutes({
+      [PERSONS]: { data: undefined, loading: false, error: undefined },
+    });
+    // renderToStaticMarkup 이 throw 하지 않고 빈 상태 문구를 낸다.
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('인원 관리');
+    expect(html).toContain('등록된 인원이 없습니다');
+  });
+
+  // negative — active=false 인원 단독이면 "휴직" 라벨이 표시되고(상태 라벨 분기), partId 누락
+  // 행도 throw 없이 렌더된다(선택 필드 생략 경로). 다건 표시명이 모두 렌더돼 key 충돌 없음.
+  it('active=false·partId 누락·다건 인원을 throw 없이 안전 렌더한다 (negative — 경계/선택 필드/다건)', () => {
+    setRoutes({
+      [PERSONS]: {
+        data: [
+          // partId·createdAt 모두 누락 + active=false → 휴직 라벨 + 선택 필드 생략.
+          { id: 'x1', fullName: '박경계', email: 'park@example.com', active: false },
+          // active=true + partId=null(nullable) → 활성 라벨 + partId 미표시(throw 없음).
+          { id: 'x2', fullName: '최다건', email: 'choi@example.com', active: true, partId: null },
+        ] as PersonRow[],
+        loading: false,
+        error: undefined,
+      },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 두 인원(서로 다른 key)이 모두 렌더 — key 중복 없이 다건 안전 처리.
+    expect(html).toContain('박경계');
+    expect(html).toContain('최다건');
+    // active=false → 휴직, active=true → 활성 라벨.
+    expect(html).toContain('휴직');
+    expect(html).toContain('활성');
+    // partId 누락/null 이어도 throw 없이 이메일·표시명이 표면화된다.
+    expect(html).toContain('park@example.com');
+    expect(html).toContain('choi@example.com');
   });
 });
