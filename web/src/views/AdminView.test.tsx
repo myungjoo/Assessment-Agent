@@ -81,6 +81,8 @@ import AdminView, {
   runAdd,
   runCreateProvider,
   runUpdateProvider,
+  resolveProviderSelectValue,
+  LLM_PROVIDER_OPTIONS,
   isAdminRole,
 } from './AdminView';
 import type {
@@ -2153,6 +2155,186 @@ describe('AdminView — provider 수정 배선 (정적 렌더, T-1137)', () => {
     });
     const html = renderToStaticMarkup(<AdminView />);
     expect(html).not.toContain('>수정</button>');
+  });
+});
+
+// R-112 — T-1138 provider 입력 5-provider select constraint 검증. 생성·수정 폼의 provider 입력이
+// free-text 가 아니라 5-provider <select> 로 constrain 됨을 (1) LLM_PROVIDER_OPTIONS 상수 정합
+// (2) resolveProviderSelectValue 순수 helper 의 분기(지원값→그대로 / 미지원·빈값→placeholder
+// fallback) (3) 정적 렌더 markup 에 select+option 이 등장하고 provider text input 은 사라짐
+// (4) 선택값이 runCreateProvider/runUpdateProvider 를 통해 POST/PATCH body 로 그대로 전달됨,
+// 네 축으로 단언한다. jsdom 미사용 정적 렌더 harness 라 select onChange 이벤트 자체는 순수 helper +
+// mutation 러너로 대체 검증한다(기존 T-1136/T-1137 convention 정합).
+describe('AdminView — provider 5-provider select constraint (T-1138)', () => {
+  // canonical allowlist — src/llm/llm-gateway.interface.ts LlmProvider(R-99~103) 5 멤버.
+  const CANONICAL_PROVIDERS = [
+    'custom',
+    'azure_openai',
+    'anthropic',
+    'google_gemini',
+    'openai',
+  ];
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // 상수 정합 — LLM_PROVIDER_OPTIONS 의 value 집합이 canonical allowlist 와 정확히 일치한다
+  // (누락·초과·오타 방지 — server enum 과의 수동 동기 회귀 가드).
+  it('LLM_PROVIDER_OPTIONS 는 canonical 5-provider allowlist 와 정확히 일치한다 (상수 정합)', () => {
+    expect(LLM_PROVIDER_OPTIONS.map((o) => o.value)).toEqual(
+      CANONICAL_PROVIDERS,
+    );
+    // 각 option 은 비어있지 않은 사람-친화 라벨을 갖는다.
+    for (const option of LLM_PROVIDER_OPTIONS) {
+      expect(option.label.length).toBeGreaterThan(0);
+    }
+  });
+
+  // branch (a) — resolveProviderSelectValue 는 5 개 중 하나인 값을 그대로 반환한다(그 option 선택).
+  it('지원 provider 값은 그대로 반환한다 (branch (a) — 5 개 중 하나 → 선택 유지)', () => {
+    for (const value of CANONICAL_PROVIDERS) {
+      expect(resolveProviderSelectValue(value)).toBe(value);
+    }
+  });
+
+  // branch (b) — 목록에 없는 레거시/비정상 값은 빈 문자열(placeholder fallback)로 좁힌다.
+  it('미지원(레거시/비정상) provider 값은 placeholder(빈 문자열)로 fallback 한다 (branch (b) — 목록 밖 → placeholder)', () => {
+    expect(resolveProviderSelectValue('legacy_provider')).toBe('');
+    expect(resolveProviderSelectValue('OpenAI')).toBe(''); // 대소문자 불일치도 미매칭.
+    expect(resolveProviderSelectValue('gpt-4o')).toBe('');
+  });
+
+  // negative — 빈/undefined/공백 입력도 placeholder 로 안전 fallback(throw 없이).
+  it('빈·undefined·공백 값은 placeholder 로 fallback 한다 (negative — 빈/누락 입력)', () => {
+    expect(resolveProviderSelectValue('')).toBe('');
+    expect(resolveProviderSelectValue(undefined)).toBe('');
+    expect(resolveProviderSelectValue('   ')).toBe('');
+  });
+
+  // 정적 렌더 — 생성 폼의 provider 입력이 <select aria-label="생성할 provider"> 로 렌더되고 5 개
+  // provider option 값 + placeholder 라벨을 포함하며, 더 이상 free-text input 이 아니다.
+  it('생성 폼 provider 입력을 5-provider option select 로 렌더한다 (정적 렌더 — 지원 외 값 제출 봉쇄)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: [], loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // select 로 렌더(aria-label 유지) + provider free-text input 은 사라짐.
+    expect(html).toContain('<select aria-label="생성할 provider"');
+    expect(html).not.toMatch(
+      /aria-label="생성할 provider"[^>]*type="text"|type="text"[^>]*aria-label="생성할 provider"/,
+    );
+    // 5 개 provider option 값이 모두 등장(지원 외 값은 option 부재로 제출 봉쇄).
+    for (const value of CANONICAL_PROVIDERS) {
+      expect(html).toContain(`value="${value}"`);
+    }
+    // placeholder(빈 value) option 도 선두에 렌더된다(미선택 시 생성 가드 발화).
+    expect(html).toContain('provider 선택</option>');
+  });
+
+  // 정적 렌더(초기 placeholder 가드) — 빈 provider 선택 상태로는 생성 버튼이 disabled 라 POST 가
+  // 발사되지 않는다(placeholder 빈 value → !providerInput.trim() 가드 그대로 발화).
+  it('placeholder(빈 provider) 상태에선 생성 버튼이 disabled 다 (error path — 빈 선택 가드)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: [], loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>provider 추가<\/button>/);
+  });
+
+  // happy-path(생성 body 전달) — select 로 고른 각 지원 provider 값이 그대로 POST body 의
+  // provider 로 전달된다(5 값 모두 iterate — 값 왜곡 없음). deps 는 경량 record harness.
+  it('select 로 고른 지원 provider 값이 POST body 의 provider 로 전달된다 (happy-path — 생성)', async () => {
+    for (const value of CANONICAL_PROVIDERS) {
+      requestMock.mockReset();
+      requestMock.mockResolvedValue(undefined);
+      const deps: CreateProviderDeps = {
+        create: (...args: unknown[]) => requestMock(...args),
+        describeError: () => '오류',
+        creating: false,
+        setCreating: () => {},
+        setCreateError: () => {},
+        bumpRefresh: () => {},
+        resetInput: () => {},
+      };
+      await runCreateProvider(
+        {
+          provider: value,
+          endpointUrl: 'https://x',
+          apiKey: 'sk-1',
+          modelId: 'm1',
+        },
+        deps,
+      );
+      const [, options] = requestMock.mock.calls[0] as [
+        string,
+        { body: string },
+      ];
+      expect(JSON.parse(options.body).provider).toBe(value);
+    }
+  });
+
+  // happy-path(수정 body 반영) — 수정 폼 select 로 고른 provider 값이 PATCH body 에 반영된다.
+  it('select 로 고른 지원 provider 값이 PATCH body 의 provider 로 반영된다 (happy-path — 수정)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const deps: UpdateProviderDeps = {
+      update: (...args: unknown[]) => requestMock(...args),
+      describeError: () => '오류',
+      id: 'cfg1',
+      updating: false,
+      setUpdating: () => {},
+      setUpdateError: () => {},
+      bumpRefresh: () => {},
+      closeEdit: () => {},
+    };
+    await runUpdateProvider(
+      {
+        provider: 'anthropic',
+        endpointUrl: 'https://x',
+        apiKey: '',
+        modelId: 'm1',
+      },
+      deps,
+    );
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(JSON.parse(options.body).provider).toBe('anthropic');
+  });
+
+  // negative(수정 미변경 유지) — 수정 폼 provider 를 바꾸지 않으면 기존 값이 그대로 PATCH body 에
+  // 실린다(runUpdateProvider 의 부분 갱신 semantics — provider 필드는 비어있지 않으면 항상 포함).
+  it('수정 폼 provider 를 바꾸지 않으면 기존 값을 그대로 유지해 발사한다 (negative — 미변경 유지)', async () => {
+    requestMock.mockReset();
+    requestMock.mockResolvedValue(undefined);
+    const deps: UpdateProviderDeps = {
+      update: (...args: unknown[]) => requestMock(...args),
+      describeError: () => '오류',
+      id: 'cfg2',
+      updating: false,
+      setUpdating: () => {},
+      setUpdateError: () => {},
+      bumpRefresh: () => {},
+      closeEdit: () => {},
+    };
+    // prefill 된 기존 값(openai)을 그대로 두고 발사 — body 에 동일 값이 실린다.
+    await runUpdateProvider(
+      {
+        provider: 'openai',
+        endpointUrl: 'https://api.openai.com/v1',
+        apiKey: '',
+        modelId: 'gpt-4o',
+      },
+      deps,
+    );
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(JSON.parse(options.body).provider).toBe('openai');
   });
 });
 
