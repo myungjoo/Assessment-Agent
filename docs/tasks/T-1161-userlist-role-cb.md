@@ -2,7 +2,10 @@
 id: T-1161
 title: UserList 에 역할 변경 콜백 prop 추가 (onChangeRole)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-23T23:44:00Z
+prNumber: 1053
+mergeCommit: 37b4125f
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 210
@@ -67,3 +70,10 @@ T-1158 은 cap 준수를 위해 UserList 에 콜백 props 를 의도적으로 �
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+
+## 결과 (2026-07-23T23:44Z)
+
+- `web/src/components/UserList.tsx` 에 `onChangeRole?: (id, nextRole) => void` optional prop + `PROMOTE_LABEL`/`DEMOTE_LABEL` 상수 + `resolveRoleAction` 순수 판정 헬퍼 추가. stateless — 승급/강등 버튼만 렌더하고 상태·요청은 컨테이너 몫.
+- role 별 렌더 규칙: User → 승급 버튼, Admin → 강등 버튼, SuperAdmin·미지 값 → 미렌더. `onChangeRole` 미전달 또는 loading/error 분기에서는 버튼 0.
+- test 9건 추가(기존 17건 유지, `it.each` 6행 포함) — happy/error/분기/negative(빈 목록·소문자 미지 값·혼합 목록·id 누락) cover. web vitest 1058 test green, web build green, 루트 lint clean.
+- PR #1053 round 2/7 APPROVE + CI green → 4-게이트 PASS → squash `37b4125f`. diff 253 LOC / 2 파일로 cap 내.
