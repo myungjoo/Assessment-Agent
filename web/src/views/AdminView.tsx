@@ -100,6 +100,20 @@ const PART_HEADING = '파트 관리';
 // 재시도하게 한다. §12 한국어. runCreatePart 의 catch 분기가 409 판정 시 이 상수를 error state 로 쓴다.
 const PART_DUPLICATE_ERROR = '이미 존재하는 파트 이름입니다';
 
+// 파트 선택 <select> 의 빈 선택지 라벨(T-1156) — selectedPartId 미선택 시 첫 옵션으로 노출한다
+// (그룹의 NO_SELECTION_LABEL 동형이되 파트 전용 문구로 분리 — 두 select 를 화면·test 에서 구분).
+const PART_NO_SELECTION_LABEL = '파트를 선택하세요';
+
+// 파트 미선택 시 소속 인원 목록 자리에 노출할 안내 문구(T-1156) — NO_GROUP_SELECTED_TEXT 동형.
+// 미선택은 "조회 결과 0" 이 아니라 "아직 조회하지 않음"(useApiResource 미조회 idle)이므로 인원 0
+// 문구와 구분되는 별도 안내를 쓴다(사용자가 다음 행동을 알 수 있게). §12 한국어.
+const NO_PART_SELECTED_TEXT = '파트를 선택하면 소속 인원을 표시합니다';
+
+// 파트를 선택했으나 소속 인원이 0 인 경우의 빈 상태 문구(T-1156) — backend 는 Part 가 존재하고
+// 인원이 0 이면 200 + 빈 배열을 반환한다(part.controller findPersons). 위 미선택 안내와 구분해,
+// "조회는 했고 결과가 비었다" 를 명시한다. §12 한국어.
+const EMPTY_PART_PERSON_TEXT = '이 파트에 속한 인원이 없습니다';
+
 // 현재 사용자 등급 조회 path — 고정 endpoint(GET /api/auth/me, api.md 71 User+, JwtAuthGuard
 // 단독). 응답 5 필드 `{ id, email, role, createdAt, updatedAt }` 중 본 slice 는 role 만
 // 소비한다(④h). User+ 라 인증된 사용자는 403 없이 자기 등급을 받는다(미인증은 AuthGate 가
@@ -417,6 +431,9 @@ interface AdminViewProps {
   // 초기 재평가 submitting 상태(선택, T-0886) — 재평가 in-flight 시 패널이 진행 표시로 컨트롤을
   // 억제하는 분기를 정적 렌더로 검증하기 위한 초기값 주입 affordance. 미주입 시 false.
   initialReevalSubmitting?: boolean;
+  // 초기 선택 파트 id(선택, T-1156) — 정적 렌더 검증용 초기값 주입 affordance(initialSelectedGroupId
+  // 동형). 미주입 시 파트 미선택으로 시작해 소속 인원을 조회하지 않는다(조건부 조회 idle).
+  initialSelectedPartId?: string;
 }
 
 // 등급 문자열 → Admin+ 여부 파생(순수 helper, ④h). backend role enum(api.md 71 —
@@ -659,6 +676,30 @@ function buildPartsPath(refreshNonce: number): string {
     return PARTS_PATH;
   }
   return `${PARTS_PATH}?_r=${refreshNonce}`;
+}
+
+// 선택 파트의 소속 인원 조회 path 빌더(순수 helper, T-1156 — buildGroupMembersPath 동형) — GET
+// /api/parts/:id/persons(part.controller findPersons, Part 부재 시 404 / 인원 0 이면 200 + 빈 배열).
+// 선택 파트가 있을 때만 path 를 만들고, 미선택(빈/falsy)이면 null 을 반환해 useApiResource 의
+// 조건부 조회(path=null → 미조회, idle)를 유발한다(useApiResource.ts 9~11 convention 정합) —
+// 미선택 상태에서 `/api/parts//persons` 같은 깨진 path 로 404 를 유발하지 않기 위한 컨테이너 가드다.
+// partId 는 encodeURIComponent 로 안전 인코딩해 비정상 문자가 든 id 도 path 가 깨지지 않게 한다.
+// nonce 0(초기 조회)이면 query 없는 깨끗한 base path 를 쓰고, 1+ 면 `?_r=<nonce>` 를 부착해
+// useApiResource 의 path-변경 재조회를 낸다(파트 CRUD 성공 후 소속 인원도 함께 권위 재조회).
+// `_r` 은 backend GET 핸들러가 @Query 를 받지 않아 무시한다(부수효과 0). 선택 파트 변경 refetch
+// (path 변경)는 selectedPartId 변화가 그대로 유지한다.
+function buildPartPersonsPath(
+  selectedPartId: string | undefined,
+  refreshNonce = 0,
+): string | null {
+  if (!selectedPartId) {
+    return null;
+  }
+  const base = `/api/parts/${encodeURIComponent(selectedPartId)}/persons`;
+  if (refreshNonce <= 0) {
+    return base;
+  }
+  return `${base}?_r=${refreshNonce}`;
 }
 
 // 서버 파생 매핑 위에 낙관적 override 를 덮는 순수 helper — ④c PATCH 발사 직후 재조회 도착
@@ -2193,6 +2234,7 @@ function AdminView({
   initialSelectedPersonId = '',
   initialSelectedDays = 0,
   initialReevalSubmitting = false,
+  initialSelectedPartId = '',
 }: AdminViewProps) {
   // 선택 그룹 상태 — controlled lift-up(컨테이너 소유). <select> 선택이 이 값을 갱신한다.
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
@@ -3152,6 +3194,38 @@ function AdminView({
     error: partError,
   } = useApiResource<PartRow[]>(partsPath);
 
+  // 선택 파트 상태(T-1156) — controlled lift-up(컨테이너 소유). 파트 관리 섹션의 파트 선택
+  // <select> 가 이 값을 갱신하고, 값이 있을 때만 소속 인원을 조건부 조회한다(selectedGroupId 동형).
+  const [selectedPartId, setSelectedPartId] = useState<string>(
+    initialSelectedPartId,
+  );
+
+  // 선택 파트의 소속 인원 조회 path(T-1156) — 선택이 있을 때만 조건부 path 를 만든다(미선택이면
+  // null → useApiResource 미조회 idle). 선택 변경 시 path 가 달라져 자동 refetch 하고(이전 파트의
+  // 인원이 잔존하지 않는다 — hook 이 path 변경마다 state 를 초기화), 파트 CRUD 성공으로
+  // partsRefreshNonce 가 증가하면 `_r` query 로 소속 인원도 함께 권위 재조회한다(별도 nonce 미도입).
+  const partPersonsPath = useMemo(
+    () => buildPartPersonsPath(selectedPartId || undefined, partsRefreshNonce),
+    [selectedPartId, partsRefreshNonce],
+  );
+
+  // 선택 파트의 소속 인원 조회(T-1156) — GET /api/parts/:id/persons 를 조건부 fetch 한다.
+  // loading/error 는 컨테이너가 받아 PersonList 의 대응 props 로 내려보낸다(ADR-0041 Decision 1 —
+  // 컴포넌트는 fetch 를 모른다). 404(파트 부재)/500/네트워크 실패는 모두 error 문구로 안전 표시된다.
+  const {
+    data: partPersonData,
+    loading: partPersonLoading,
+    error: partPersonError,
+  } = useApiResource<PersonRow[]>(partPersonsPath);
+
+  // 표시용 소속 인원 목록(T-1156) — 응답이 배열이 아닌 비정상 payload(객체·null·문자열 등)이거나
+  // 미조회/진행 중/실패로 undefined 여도 빈 배열로 안전 방어한다(throw 0 — PersonList 가
+  // undefined.length 로 깨지지 않도록). groups 파생(Array.isArray) convention 정합.
+  const partPersons = useMemo(
+    () => (Array.isArray(partPersonData) ? partPersonData : []),
+    [partPersonData],
+  );
+
   // 파트 생성 controlled input 상태(T-1153) — 컨테이너 소유. "파트 추가" 클릭 시 handleCreatePart
   // 가 POST body 의 name 필드로 공급하고, 성공 후 빈 값으로 되돌린다(연속 생성 편의). 그룹 생성의
   // groupNameInput 패턴 mirror(파트도 name 단일 필드).
@@ -4018,6 +4092,34 @@ function AdminView({
           onDelete={handleDeletePart}
           onEdit={handleEditPart}
         />
+        {/* 파트 소속 인원 조회(T-1156, REQ-049) — 그룹 멤버십 조건부 조회(T-1129) 를 mirror 한다.
+            파트 선택 <select>(컨테이너 소유 selectedPartId)가 값을 가지면 buildPartPersonsPath 가
+            path 를 만들어 GET /api/parts/:id/persons 를 조건부 조회하고, 미선택이면 null → 미조회
+            (idle)로 남는다. 조회 결과는 기존 PersonList 를 읽기 전용으로 재사용해 렌더한다 —
+            onDelete/onEdit 를 전달하지 않아 삭제·수정 버튼이 렌더되지 않는다(소속 인원 배정·해제
+            mutation 은 Out of Scope). 빈 상태 문구는 미선택(NO_PART_SELECTED_TEXT)과 인원 0
+            (EMPTY_PART_PERSON_TEXT)을 구분해 내려보낸다. 컴포넌트 수정 0(ADR-0041 Decision 1). */}
+        <select
+          aria-label="소속 인원을 볼 파트 선택"
+          value={selectedPartId}
+          onChange={(event) => setSelectedPartId(event.target.value)}
+        >
+          <option value="">{PART_NO_SELECTION_LABEL}</option>
+          {(partsData ?? []).map((part, index) => (
+            <option key={part.id ?? `pt${index + 1}`} value={part.id ?? ''}>
+              {/* name 누락 row 도 throw 없이 안전 렌더한다(PartList 의 placeholder 정합). */}
+              {part.name ?? '(이름 없음)'}
+            </option>
+          ))}
+        </select>
+        <PersonList
+          persons={partPersons}
+          loading={partPersonLoading}
+          error={partPersonError}
+          emptyMessage={
+            selectedPartId ? EMPTY_PART_PERSON_TEXT : NO_PART_SELECTED_TEXT
+          }
+        />
       </section>
     </section>
   );
@@ -4036,6 +4138,7 @@ export {
   buildPersonsPath,
   buildGroupsPath,
   buildPartsPath,
+  buildPartPersonsPath,
   buildExportPath,
   mergeMapping,
   parseFilename,
