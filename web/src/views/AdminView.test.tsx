@@ -62,6 +62,7 @@ import AdminView, {
   deriveProviderConfigs,
   deriveDifficultyMapping,
   buildMappingsPath,
+  buildProvidersPath,
   buildExportPath,
   mergeMapping,
   parseFilename,
@@ -76,6 +77,7 @@ import AdminView, {
   buildRecentDeletionPath,
   runReEvaluate,
   runRemove,
+  runDeleteProvider,
   runAdd,
   isAdminRole,
 } from './AdminView';
@@ -91,6 +93,7 @@ import type {
   ScheduleMutationDeps,
   ReEvaluationDeps,
   RemoveDeps,
+  DeleteProviderDeps,
   AddDeps,
 } from './AdminView';
 
@@ -693,6 +696,208 @@ describe('AdminView — onRemove 실 DELETE remove mutation (T-1130 runRemove)',
   });
 });
 
+// R-112 — T-1135 provider 삭제 실 DELETE mutation 본체(runDeleteProvider) 검증. jsdom/렌더러
+// 없이 mutation 본체를 직접 호출하고(runRemove 와 동일 convention), apiClient.request mock 으로
+// method/path 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백
+// 호출로 관찰한다. happy/error/branch/negative 예외 분기마다 각 1+ cover.
+describe('AdminView — provider 삭제 실 DELETE mutation (T-1135 runDeleteProvider)', () => {
+  // 상태 전이를 기록하는 deps harness — deleting 초기값과 request mock 을 주입받아
+  // setDeleting/setDeleteError 호출과 bumpRefresh 호출 횟수를 순서대로 캡처한다(runRemove 동형).
+  function makeDeleteDeps(deleting: boolean) {
+    const calls = {
+      deleting: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+    };
+    const deps: DeleteProviderDeps = {
+      remove: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      deleting,
+      setDeleting: (next) => calls.deleting.push(next),
+      setDeleteError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 삭제 트리거 시 request 가 DELETE /api/llm/providers/<id> 로 method DELETE 인
+  // 인자로 정확히 호출되고, 성공 후 재조회 nonce 를 bump(bumpRefresh 1 회) + error 미설정(시작
+  // 비움만) + 진행 표시(deleting) on→off 로 해제된다.
+  it('DELETE /api/llm/providers/<id> 를 method DELETE 로 정확히 호출하고 성공 시 재조회 nonce 를 bump 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 204 No Content — body 없음.
+    const { deps, calls } = makeDeleteDeps(false);
+    await runDeleteProvider('cfg1', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string },
+    ];
+    expect(path).toBe('/api/llm/providers/cfg1');
+    expect(options.method).toBe('DELETE');
+    // 성공 → 재조회 nonce bump 1 회 + error 시작 비움만(실패 문구 미설정).
+    expect(calls.bump).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    // 진행 표시 on→off(finally 공통 해제).
+    expect(calls.deleting).toEqual([true, false]);
+  });
+
+  // error path — 404(NotFound, config 부재) 실패 시 error 문구가 표면화되고 throw 없이 처리되며
+  // 재조회 nonce 는 bump 되지 않는다(목록 그대로 유지).
+  it('삭제 404(NotFound, config 부재) 실패 시 error 문구를 표면화하고 nonce 를 bump 하지 않는다 (error path — 404)', async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeDeleteDeps(false);
+    await expect(runDeleteProvider('ghost', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+    expect(calls.bump).toBe(0);
+    expect(calls.deleting).toEqual([true, false]);
+  });
+
+  // error path — 409(in-use, 참조 중 삭제 거부) 도 동일 안전 경로로 문구 표면화(throw 없음).
+  it('삭제 409(in-use, 참조 중) 실패 시 안전 문구를 표면화한다 (error path — 409)', async () => {
+    requestMock.mockRejectedValue(new ApiError(409, 'Conflict'));
+    const { deps, calls } = makeDeleteDeps(false);
+    await expect(runDeleteProvider('cfg1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 409: Conflict']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 403(Admin+ 미만) 실패 시 안전 문구 표면화(throw 없음).
+  it('삭제 403(Admin+ 미만) 실패 시 안전 문구를 표면화한다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeDeleteDeps(false);
+    await expect(runDeleteProvider('cfg1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('삭제 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeDeleteDeps(false);
+    await expect(runDeleteProvider('cfg1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (a) — 빈/falsy id → DELETE 미발사·state 불변·throw 없음(잘못된 path 회피).
+  it('빈/falsy id 이면 DELETE 를 발사하지 않는다 (branch (a) — 빈 id)', async () => {
+    const { deps, calls } = makeDeleteDeps(false);
+    await expect(runDeleteProvider('', deps)).resolves.toBeUndefined();
+    await expect(
+      runDeleteProvider(undefined as unknown as string, deps),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.deleting).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (a2)/negative — 공백만 든 id(trim 후 빈 문자열) 도 DELETE 미발사(경계값 방어).
+  it('공백만 든 id 이면 trim 후 빈 문자열로 판정해 DELETE 를 발사하지 않는다 (negative — 공백 id 경계값)', async () => {
+    const { deps, calls } = makeDeleteDeps(false);
+    await expect(runDeleteProvider('   ', deps)).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.deleting).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (b) — 이전 삭제 미완(deleting=true) 중 재호출은 DELETE 미발사·state 불변(이중 DELETE·
+  // 경합 차단 — runRemove removing 가드 동형).
+  it('이전 삭제 미완(deleting=true) 중 재호출은 DELETE 를 발사하지 않는다 (branch (b) — 이중 DELETE 가드)', async () => {
+    const { deps, calls } = makeDeleteDeps(true); // 이미 in-flight.
+    await runDeleteProvider('cfg1', deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.deleting).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (c) — 정상 발사 시 DELETE 1 회만(중복 없음). happy-path 와 짝을 이루는 발사 횟수 단언.
+  it('정상 발사 시 DELETE 를 1 회만 호출한다 (branch (c) — 단일 발사)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeDeleteDeps(false);
+    await runDeleteProvider('cfg2', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/llm/providers/cfg2');
+  });
+
+  // negative — id 특수문자 포함 시 encodeURIComponent 로 path 안전 인코딩됨(path 주입 방어).
+  it('id 특수문자를 encodeURIComponent 로 안전 인코딩한다 (negative — 특수문자 인코딩)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeDeleteDeps(false);
+    await runDeleteProvider('cfg 1/x', deps);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/llm/providers/cfg%201%2Fx');
+  });
+
+  // negative — 성공·실패 어느 경로든 finally 가 setDeleting(false) 로 진행 표시를 복구한다.
+  it('성공·실패 어느 경우든 진행 표시(deleting)가 finally 로 해제된다 (negative — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeDeleteDeps(false);
+    await runDeleteProvider('cfg1', ok.deps);
+    expect(ok.calls.deleting).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeDeleteDeps(false);
+    await runDeleteProvider('cfg1', fail.deps);
+    expect(fail.calls.deleting).toEqual([true, false]);
+  });
+
+  // negative(시작 정리) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve 로 캡처한다
+  // (재조회 도착 전 crash 없음 + 실패 후 재시도 시 직전 error 가 진행 중 남지 않음).
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 시작 정리/재조회 전 안전)', async () => {
+    let resolveDelete: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveDelete = resolve;
+        }),
+    );
+    const { deps, calls } = makeDeleteDeps(false);
+    const pending = runDeleteProvider('cfg1', deps);
+    // 발사 직후(해소 전) — 진행 on + error 시작 비움 + 재조회 아직 미bump(crash 없음).
+    expect(calls.deleting).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    // 해소 후 — 재조회 bump + 진행 off.
+    resolveDelete();
+    await pending;
+    expect(calls.bump).toBe(1);
+    expect(calls.deleting).toEqual([true, false]);
+  });
+
+  // negative — 실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다(시작 비움 → 성공 bump).
+  it('실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다 (negative — 실패 후 재시도)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const first = makeDeleteDeps(false);
+    await runDeleteProvider('cfg1', first.deps);
+    expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(first.calls.bump).toBe(0);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const second = makeDeleteDeps(false);
+    await runDeleteProvider('cfg1', second.deps);
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.bump).toBe(1);
+  });
+});
+
 // R-112 — T-1131 멤버 추가 실 POST add mutation 본체(runAdd) 검증. jsdom/렌더러 없이 mutation
 // 본체를 직접 호출하고(runRemove 와 동일 convention), apiClient.request mock 으로 method/path/body
 // 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백 호출로 관찰한다.
@@ -1192,6 +1397,21 @@ describe('AdminView — LLM provider 설정 목록 패널 마운트 (T-1134)', (
     expect(html).toContain('불러오는 중…');
     expect(html).not.toContain('<span>openai</span>');
   });
+
+  // happy-path(T-1135) — Admin + provider 목록이 있으면 각 행에 삭제 버튼(onDelete=handleDeleteProvider
+  // 배선)이 provider 수만큼 렌더된다. DifficultyModelSelector 는 삭제 버튼을 렌더하지 않으므로 삭제
+  // 라벨 버튼의 유일 출처는 provider 목록 패널이다.
+  it('Admin + provider 목록이 있으면 각 행에 삭제 버튼을 렌더한다 (happy-path — onDelete 배선, T-1135)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: CONFIG_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 삭제 버튼이 provider 수만큼 렌더된다(provider 라벨과 함께).
+    expect(html).toContain('삭제');
+    expect(countOccurrences(html, '>삭제</button>')).toBe(CONFIG_ROWS.length);
+  });
 });
 
 // R-112 — ④b 신규 파생 helper(deriveProviders/deriveDifficultyMapping) 순수 함수 검증.
@@ -1517,6 +1737,16 @@ describe('AdminView — ④c 재조회 path/낙관 병합 helper (순수 함수)
     expect(buildMappingsPath(5)).toBe('/api/llm/difficulty-mappings?_r=5');
     // negative — 음수 nonce 도 깨끗한 path(0 이하 가드).
     expect(buildMappingsPath(-1)).toBe('/api/llm/difficulty-mappings');
+  });
+
+  // buildProvidersPath(T-1135) — nonce 0 은 깨끗한 base path(T-1134 초기 마운트와 동일), 1+ 는
+  // cache-busting `_r` query 부착. buildMappingsPath 동형.
+  it('buildProvidersPath 가 nonce 0 은 깨끗한 path, 1+ 는 _r query 를 부착한다 (helper, T-1135)', () => {
+    expect(buildProvidersPath(0)).toBe('/api/llm/providers');
+    expect(buildProvidersPath(1)).toBe('/api/llm/providers?_r=1');
+    expect(buildProvidersPath(3)).toBe('/api/llm/providers?_r=3');
+    // negative — 음수 nonce 도 깨끗한 path(0 이하 가드).
+    expect(buildProvidersPath(-2)).toBe('/api/llm/providers');
   });
 
   // mergeMapping — override 슬롯만 base 위에 덮고, undefined/빈 override 는 base 유지.

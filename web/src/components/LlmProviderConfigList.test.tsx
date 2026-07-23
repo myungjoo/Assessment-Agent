@@ -1,7 +1,42 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { isValidElement } from 'react';
+import type { ReactNode } from 'react';
 import LlmProviderConfigList from './LlmProviderConfigList';
 import type { LlmProviderConfigRow } from './LlmProviderConfigList';
+
+// 삭제 버튼 라벨 (구현의 DELETE_LABEL 과 정합).
+const DELETE_LABEL = '삭제';
+
+// renderToStaticMarkup 은 이벤트를 발화하지 않으므로(jsdom 미도입 — ADR-0040 §5 게이트) onDelete
+// 콜백의 실 클릭은 컴포넌트를 함수로 직접 호출해 반환 element 트리에서 <button> 을 찾아 그
+// onClick 을 수동 호출하는 방식으로 검증한다. React element 는 { type, props } 평문 객체라
+// 신규 dep 없이 순회 가능하다. 아래 helper 는 element 트리를 깊이우선 순회해 type==='button'
+// 인 element 만 모은다.
+function collectButtons(node: ReactNode): Array<{ onClick?: () => void }> {
+  const found: Array<{ onClick?: () => void }> = [];
+  const walk = (current: ReactNode): void => {
+    if (Array.isArray(current)) {
+      current.forEach(walk);
+      return;
+    }
+    if (!isValidElement(current)) {
+      return;
+    }
+    const element = current as {
+      type: unknown;
+      props: { children?: ReactNode; onClick?: () => void };
+    };
+    if (element.type === 'button') {
+      found.push({ onClick: element.props.onClick });
+    }
+    if (element.props && element.props.children !== undefined) {
+      walk(element.props.children);
+    }
+  };
+  walk(node);
+  return found;
+}
 
 // R-112 — REQ-096 LLM provider 설정 목록(ADR-0040 §1) 검증.
 // GroupMemberList.test.tsx / DifficultyModelSelector.test.tsx 와 동일 패턴:
@@ -168,5 +203,69 @@ describe('LlmProviderConfigList', () => {
     expect(html).toContain('openai');
     expect(html).toContain('gpt-4o');
     expect(html).not.toContain('http');
+  });
+
+  // happy-path(onDelete) — onDelete 전달 시 각 행에 삭제 버튼(<button>)이 provider 수만큼 렌더된다.
+  it('onDelete 전달 시 각 행에 삭제 버튼을 provider 수만큼 렌더한다 (happy-path — onDelete 전달)', () => {
+    const html = renderToStaticMarkup(
+      <LlmProviderConfigList providers={sampleProviders} onDelete={() => undefined} />,
+    );
+    expect(html).toContain('<button');
+    expect(html).toContain(DELETE_LABEL);
+    // 삭제 버튼 수 = provider 수.
+    const btnCount = (html.match(/<button/g) ?? []).length;
+    expect(btnCount).toBe(2);
+  });
+
+  // happy-path(콜백) — 삭제 버튼 클릭 시 해당 행의 row.id 로 onDelete 가 호출된다(element 트리 순회).
+  it('삭제 버튼 클릭 시 해당 행 id 로 onDelete 를 호출한다 (happy-path — 콜백 발화)', () => {
+    const onDelete = vi.fn();
+    const tree = LlmProviderConfigList({ providers: sampleProviders, onDelete });
+    const buttons = collectButtons(tree);
+    // 버튼이 provider 수만큼 수집되고, 각 버튼 클릭이 대응 row.id 로 콜백을 호출한다(순서 보존).
+    expect(buttons).toHaveLength(2);
+    buttons[0]?.onClick?.();
+    expect(onDelete).toHaveBeenLastCalledWith('p1');
+    buttons[1]?.onClick?.();
+    expect(onDelete).toHaveBeenLastCalledWith('p2');
+    expect(onDelete).toHaveBeenCalledTimes(2);
+  });
+
+  // branch/negative — onDelete 미전달 시 삭제 버튼 미렌더(읽기 전용 하위 호환 — T-1134 마운트 보존).
+  it('onDelete 미전달 시 삭제 버튼을 렌더하지 않는다 (branch/negative — onDelete 미전달 하위 호환)', () => {
+    const html = renderToStaticMarkup(<LlmProviderConfigList providers={sampleProviders} />);
+    expect(html).not.toContain('<button');
+    expect(html).not.toContain(DELETE_LABEL);
+    // 읽기 전용 목록은 그대로 렌더된다(마운트 보존).
+    expect(html).toContain('<ul>');
+    expect(html).toContain('openai');
+  });
+
+  // negative — loading 우선 정책은 onDelete 전달과 무관하다(loading=true 면 버튼도 미렌더).
+  it('onDelete 전달 + loading=true → 목록/삭제 버튼 대신 로딩 표시 우선 (negative — loading 우선)', () => {
+    const html = renderToStaticMarkup(
+      <LlmProviderConfigList
+        providers={sampleProviders}
+        loading={true}
+        onDelete={() => undefined}
+      />,
+    );
+    expect(html).toContain('role="status"');
+    expect(html).toContain(LOADING_TOKEN);
+    expect(html).not.toContain('<button');
+  });
+
+  // negative — error 우선 정책은 onDelete 전달과 무관하다(error truthy 면 버튼도 미렌더).
+  it('onDelete 전달 + error truthy → 목록/삭제 버튼 대신 alert 우선 (negative — error 우선)', () => {
+    const html = renderToStaticMarkup(
+      <LlmProviderConfigList
+        providers={sampleProviders}
+        error="삭제에 실패했습니다"
+        onDelete={() => undefined}
+      />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('삭제에 실패했습니다');
+    expect(html).not.toContain('<button');
   });
 });

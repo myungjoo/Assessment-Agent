@@ -24,6 +24,8 @@ interface LlmProviderConfigRow {
 const LOADING_TEXT = '불러오는 중…';
 // providers 가 빈 배열일 때 노출할 기본 한국어 문구 (emptyMessage 미전달/빈 문자열 시 fallback).
 const DEFAULT_EMPTY_MESSAGE = '등록된 LLM provider 가 없습니다';
+// provider 삭제 버튼 라벨 — onDelete 전달 시에만 각 행에 렌더한다(GroupMemberList REMOVE_LABEL 동형).
+const DELETE_LABEL = '삭제';
 
 interface LlmProviderConfigListProps {
   // 표시할 provider 목록 — controlled component 라 상위가 이미 fetch·정렬된 배열을 보유한다.
@@ -34,15 +36,21 @@ interface LlmProviderConfigListProps {
   error?: string;
   // 빈 상태 문구(선택). 빈 문자열이면 기본 문구로 fallback(의미 없는 빈 메시지 방지).
   emptyMessage?: string;
+  // provider 삭제 콜백(선택) — 주어졌을 때만 각 행에 삭제 버튼을 렌더하고 클릭 시 row.id 로 호출한다.
+  // 미전달 시 버튼 미렌더(읽기 전용 하위 호환 — T-1134 마운트를 깨지 않는다). 실 DELETE 요청·
+  // 재조회 배선은 상위 컨테이너 책임(GroupMemberList onRemove 와 동형 controlled 계약).
+  onDelete?: (id: string) => void;
 }
 
 // LLM provider 설정 목록. 실 fetch·생성/수정/삭제 로직은 수행하지 않고 props 의 providers 를
-// 그대로 표시하는 presentational 책임만 진다 — 실제 요청·전역 상태는 상위 컨테이너가 수행한다.
+// 그대로 표시하며 onDelete 콜백만 호출하는 presentational 책임만 진다 — 실제 삭제 요청·전역
+// 상태는 상위 컨테이너가 수행한다.
 function LlmProviderConfigList({
   providers,
   loading,
   error,
   emptyMessage,
+  onDelete,
 }: LlmProviderConfigListProps) {
   // loading 우선 정책 — 진행 중이면 error·providers 유무와 무관하게 로딩 표시만 렌더한다.
   if (loading === true) {
@@ -72,6 +80,12 @@ function LlmProviderConfigList({
           {row.modelId ? <span>{row.modelId}</span> : null}
           {/* endpointUrl 은 있을 때만 함께 표시한다(없으면 throw 없이 생략). */}
           {row.endpointUrl ? <span>{row.endpointUrl}</span> : null}
+          {/* onDelete 가 주어졌을 때만 삭제 버튼을 렌더하고 클릭 시 row.id 로 콜백 호출. */}
+          {onDelete ? (
+            <button type="button" onClick={() => onDelete(row.id)}>
+              {DELETE_LABEL}
+            </button>
+          ) : null}
         </li>
       ))}
     </ul>

@@ -523,6 +523,19 @@ function buildMappingsPath(refreshNonce: number): string {
   return `${LLM_MAPPINGS_PATH}?_r=${refreshNonce}`;
 }
 
+// provider 목록 조회 path 빌더(순수 helper, T-1135 — buildMappingsPath 동형) — 삭제 DELETE 성공
+// 시 GET /api/llm/providers 재조회를 유발하기 위해 컨테이너의 refreshNonce 를 cache-busting
+// query(`_r`)로 실어 path 문자열을 변화시킨다. useApiResource 는 path 변경 시에만 재조회하므로
+// (수정 0 — read-only hook), nonce 증가가 곧 재조회 트리거다. nonce 0(초기 조회)이면 query 없는
+// 깨끗한 base path 를 그대로 쓴다(불필요 query 회피 — T-1134 초기 마운트 path 와 동일 유지).
+// `_r` 은 backend GET 핸들러가 @Query 를 받지 않아 무시한다(api.md 114 — 부수효과 0).
+function buildProvidersPath(refreshNonce: number): string {
+  if (refreshNonce <= 0) {
+    return LLM_PROVIDERS_PATH;
+  }
+  return `${LLM_PROVIDERS_PATH}?_r=${refreshNonce}`;
+}
+
 // 서버 파생 매핑 위에 낙관적 override 를 덮는 순수 helper — ④c PATCH 발사 직후 재조회 도착
 // 전까지 재지정한 슬롯이 즉시 새 provider 를 반영하도록 한다. override 의 각 슬롯값이 정의돼
 // 있으면(undefined 가 아니면) base 를 덮고, undefined 슬롯은 base 를 유지한다(부분 override).
@@ -1013,6 +1026,66 @@ async function runRemove(
   }
 }
 
+// provider 삭제 DELETE + state-전이 로직에 주입하는 deps(T-1135 — runRemove 의 RemoveDeps 를
+// 1:1 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). RemoveDeps 와 달리 path param 이
+// provider id 하나뿐이라 groupId 는 없다(DELETE /api/llm/providers/:id 는 단일 세그먼트). 컨테이너의
+// handleDeleteProvider 는 이 러너에 현재 in-flight 여부(deleting)·상태 setter·재조회 트리거를 주입해
+// 호출만 한다.
+interface DeleteProviderDeps {
+  // DELETE 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  remove: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 삭제 in-flight 여부 — true 면 미발사(이중 DELETE·경합 가드).
+  deleting: boolean;
+  setDeleting: (next: boolean) => void;
+  setDeleteError: (next: string | undefined) => void;
+  // 권위 provider 재조회 트리거 — providersRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+}
+
+// provider 삭제 DELETE /api/llm/providers/:id + state-전이 로직을 캡슐화한 순수 async 러너(T-1135 —
+// runRemove 캡슐화 패턴 1:1 mirror). backend DELETE(llm.controller, 204 No Content, config row 부재
+// 시 P2025→NotFoundException, in-use 시 409, Admin+ 미만 403)를 발사한다. 컨테이너의
+// handleDeleteProvider 는 이 러너에 deps 를 주입해 호출만 한다. 동작:
+//  - 빈/공백/falsy id → 미발사(잘못된 path·불필요 DELETE 회피 — trim 후 빈 문자열도 차단).
+//  - deleting(이전 mutation 미완) → 미발사(이중 DELETE·state 경합 차단 — runRemove removing 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → DELETE(id 는 encodeURIComponent 안전 인코딩) → 성공(provider
+//    재조회 트리거) / 실패(사람-친화 문구 표면화 — throw 없이) → 진행 off(공통).
+async function runDeleteProvider(
+  id: string,
+  deps: DeleteProviderDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/공백/falsy id 는 DELETE 미발사(잘못된 path·불필요 요청 회피). 공백만
+  // 든 id 도 trim 후 빈 문자열이면 차단해(경계값) 무의미한 `/api/llm/providers/%20` 발사를 막는다.
+  if (!id || id.trim() === '') {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 삭제 미완 중이면 미발사(이중 DELETE·state 경합 차단).
+  if (deps.deleting) {
+    return;
+  }
+  deps.setDeleting(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 삭제 진행만 남도록).
+  deps.setDeleteError(undefined);
+  try {
+    // DELETE /api/llm/providers/:id — 204 No Content. id 는 encodeURIComponent 로 안전 인코딩(비정상
+    // 문자가 든 id 도 path 가 깨지지 않게). 응답 body 를 소비하지 않으므로 성공 사실만 확인한다.
+    await deps.remove(`${LLM_PROVIDERS_PATH}/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    // 성공 — 권위 provider 재조회 트리거(재조회로 삭제된 행이 목록에서 사라진다 — 낙관 제거 없음).
+    deps.bumpRefresh();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 404 NotFound(row 부재) / 409
+    // in-use / 403 Admin+ 미만 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로
+    // 표면화. 재조회 nonce 는 bump 하지 않는다(실패 시 목록 그대로 유지).
+    deps.setDeleteError(deps.describeError(e));
+  } finally {
+    deps.setDeleting(false);
+  }
+}
+
 // 멤버 추가 POST + state-전이 로직에 주입하는 deps(T-1131 — runRemove 의 RemoveDeps 를 1:1 mirror.
 // jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 컨테이너의 handleAdd 는 이 러너에 선택
 // groupId·입력 personId·현재 in-flight 여부(adding)·상태 setter·재조회 트리거·입력 초기화를
@@ -1226,6 +1299,18 @@ function AdminView({
     [personIdInput, selectedGroupId, adding],
   );
 
+  // provider 재조회 nonce(T-1135) — LlmProviderConfigList.onDelete DELETE 성공 시 이 값을 +1 해
+  // providers path 를 변화시켜 useApiResource 재조회를 유발한다(read-only hook 수정 0 경로 —
+  // buildMappingsPath/membersRefreshNonce 동형). nonce 0 초기 마운트는 base path 그대로다.
+  const [providersRefreshNonce, setProvidersRefreshNonce] = useState<number>(0);
+
+  // provider 목록 조회 path(T-1135) — nonce-aware 빌더로 전환(buildProvidersPath). nonce 0 이면
+  // base path(T-1134 마운트와 동일), 삭제 성공 후 nonce 증가가 `_r` query 로 재조회를 낸다.
+  const providersPath = useMemo(
+    () => buildProvidersPath(providersRefreshNonce),
+    [providersRefreshNonce],
+  );
+
   // LLM provider 목록 조회(④b 두 번째 패널) — useApiResource 추가 호출(④a 의 그룹 조회 +
   // 본 slice 두 번 = 총 세 번). loading/error 는 컨테이너가 받아 DifficultyModelSelector 의
   // props 로 내려보낸다(Decision 1 — 패널은 fetch 를 모른다). Admin+ 라 User 는 403→error.
@@ -1233,7 +1318,35 @@ function AdminView({
     data: providerData,
     loading: providersLoading,
     error: providersError,
-  } = useApiResource<LlmProviderRow[]>(LLM_PROVIDERS_PATH);
+  } = useApiResource<LlmProviderRow[]>(providersPath);
+
+  // provider 삭제 mutation in-flight 플래그(T-1135) — DELETE 진행 중 true. 진행 표시(loading 우선)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다(remove removing 동형).
+  const [deletingProvider, setDeletingProvider] = useState<boolean>(false);
+
+  // provider 삭제 mutation 실패 문구(T-1135) — DELETE 실패 시 사람-친화 문구(toErrorMessage 파생)를
+  // 보관해 목록 패널의 error props 로 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
+  const [deleteProviderError, setDeleteProviderError] = useState<
+    string | undefined
+  >(undefined);
+
+  // onDelete 실 mutation 핸들러(T-1135) — provider 삭제 DELETE(/api/llm/providers/:id)를 컨테이너
+  // 내부 async 로 발사한다(신규 mutation hook 미작성 — runRemove 정합). 빈/공백/falsy id·이전
+  // mutation 미완(deletingProvider) 발사 억제 + 성공(provider 재조회 트리거)/실패(error 안전 표시,
+  // throw 없음) 전이는 runDeleteProvider 가 캡슐화한다. deletingProvider 를 deps 의존성에 포함해
+  // stale 없이 최신 가드 상태로 발사한다.
+  const handleDeleteProvider = useCallback(
+    (id: string) =>
+      runDeleteProvider(id, {
+        remove: request,
+        describeError: toErrorMessage,
+        deleting: deletingProvider,
+        setDeleting: setDeletingProvider,
+        setDeleteError: setDeleteProviderError,
+        bumpRefresh: () => setProvidersRefreshNonce((n) => n + 1),
+      }),
+    [deletingProvider],
+  );
 
   // 재조회 nonce(④c) — DifficultyModelSelector.onAssign PATCH 성공 시 이 값을 +1 해
   // mappings path 를 변화시켜 useApiResource 재조회를 유발한다(read-only hook 수정 0 경로).
@@ -1659,14 +1772,17 @@ function AdminView({
             loading={llmLoading}
             error={llmError}
           />
-          {/* 등록된 LLM provider 설정 목록(T-1134, R-96) — 읽기 전용 표시. 기존 providerData 를
-              재사용해 sanitized view(providerConfigs)로 파생하고 loading/error 를 그대로 내려보낸다
-              (ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 생성/수정/삭제 mutation UI 는 후속
-              slice(Out of Scope). 컴포넌트 수정 0 — 마운트만. */}
+          {/* 등록된 LLM provider 설정 목록(T-1134 마운트 + T-1135 삭제 배선, R-96). 기존 providerData 를
+              재사용해 sanitized view(providerConfigs)로 파생하고, 삭제 콜백(handleDeleteProvider)을
+              onDelete 로 내려 각 행에 삭제 버튼을 배선한다. loading 은 조회+삭제 in-flight 를 합성
+              (providersLoading||deletingProvider — remove 패널 동형), error 는 삭제 실패를 우선 노출
+              (deleteProviderError??providersError — mutation 우선). 성공 시 providersRefreshNonce bump
+              로 권위 재조회한다(낙관 제거 없음). 생성/수정 mutation UI 는 후속 slice(Out of Scope). */}
           <LlmProviderConfigList
             providers={providerConfigs}
-            loading={providersLoading}
-            error={providersError}
+            loading={providersLoading || deletingProvider}
+            error={deleteProviderError ?? providersError}
+            onDelete={handleDeleteProvider}
           />
           {/* export scope 선택 컨트롤(④g) — 컨테이너가 직접 렌더한다(그룹 선택 <select> 동형 —
               presentational DataImportExportPanel 은 scope 를 모른다, ADR-0041 Decision 1). 선택값은
@@ -1757,6 +1873,7 @@ export {
   deriveProviderConfigs,
   deriveDifficultyMapping,
   buildMappingsPath,
+  buildProvidersPath,
   buildExportPath,
   mergeMapping,
   parseFilename,
@@ -1771,6 +1888,7 @@ export {
   buildRecentDeletionPath,
   runReEvaluate,
   runRemove,
+  runDeleteProvider,
   runAdd,
   isAdminRole,
 };
@@ -1789,6 +1907,7 @@ export type {
   ScheduleMutationDeps,
   ReEvaluationDeps,
   RemoveDeps,
+  DeleteProviderDeps,
   AddDeps,
 };
 export default AdminView;
