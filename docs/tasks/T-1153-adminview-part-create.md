@@ -2,7 +2,10 @@
 id: T-1153
 title: AdminView 파트 생성 mutation 배선 (POST /api/parts)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1045
+mergedAs: f4a66bf5a9e174a2a0441887de7980f80e32cca2
+completedAt: 2026-07-23T19:05:14Z
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 210
