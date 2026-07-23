@@ -2,7 +2,7 @@
 id: T-1159
 title: AdminView 에 UserList 읽기 전용 사용자 목록 섹션 마운트
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 200
@@ -13,6 +13,8 @@ touchesFiles:
   - web/src/views/AdminView.tsx
   - web/src/views/AdminView.test.tsx
 created: 2026-07-24
+completedAt: 2026-07-23T22:52:00Z
+prNumber: 1051
 plannerNote: P6 line120 Admin 사용자 관리 arc 2번째 slice — T-1158 UserList 가 미마운트 상태, T-1152 PartList mount 1:1 mirror, pr web 2파일
 ---
 
@@ -66,3 +68,10 @@ PLAN.md P6 line 120 (Admin 패널) 의 사용자 관리 arc 2번째 slice 다. T
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+
+## 결과 (2026-07-23 완료)
+
+- PR [#1051](https://github.com/myungjoo/Assessment-Agent/pull/1051) squash 머지 `0163de4a`. reviewer round 1/7 APPROVE (BLOCKER 0 / MAJOR 0 / MINOR 3), round 2 에서 §3 Nit-in-PR closure 로 MINOR (2)(3) 마감.
+- `USERS_PATH` / `USER_HEADING` 상수 + `useApiResource<UserRow[]>` 단일 정적 path 조회 1건 추가, `isAdmin` 분기 안쪽에 `aria-label="사용자 관리 섹션"` 으로 `UserList` 마운트 (mutation 콜백 미전달 — 읽기 전용 slice).
+- 누적 +232 / -0 LOC · 2 파일 (cap 300/5 내), 신규 test 9건. web vitest 1029 pass · 루트 jest 11363 pass · `tsc --noEmit` + `vite build` + 루트 lint clean. CI run 30051241100 두 job 모두 pass.
+- 잔여 MINOR (1) (Admin+ 4종 endpoint 를 `isAdmin` 무관하게 무조건 조회) 은 공통 convention 사안이라 T-1160 Out of Scope 로 이월.
