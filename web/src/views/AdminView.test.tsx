@@ -67,6 +67,7 @@ import AdminView, {
   buildMappingsPath,
   buildProvidersPath,
   buildPersonsPath,
+  buildGroupsPath,
   buildExportPath,
   mergeMapping,
   parseFilename,
@@ -85,6 +86,7 @@ import AdminView, {
   runAdd,
   runCreateProvider,
   runCreatePerson,
+  runCreateGroup,
   runDeletePerson,
   buildPersonPatch,
   runUpdatePerson,
@@ -111,6 +113,7 @@ import type {
   CreateProviderFields,
   CreatePersonDeps,
   CreatePersonFields,
+  CreateGroupDeps,
   DeletePersonDeps,
   PersonPatchInput,
   PersonPatch,
@@ -4825,6 +4828,277 @@ describe('AdminView — 인원 생성 폼 배선 (정적 렌더, T-1143)', () =>
     expect(html).toMatch(
       /aria-label="추가할 인원 email"[^>]*type="email"|type="email"[^>]*aria-label="추가할 인원 email"/,
     );
+  });
+});
+
+// R-112 — T-1146 buildGroupsPath 순수 helper 검증. nonce 0(초기 마운트)이면 base path(T-1129
+// 이전 마운트와 동일 — 회귀 0), nonce > 0 이면 `_r` cache-busting query 로 재조회를 유발하는 path 를
+// 낸다(buildPersonsPath 동형). 경계(0)·정상(양수)·음수 방어를 각 1+ cover.
+describe('AdminView — buildGroupsPath (순수 함수, T-1146)', () => {
+  // 경계 — nonce 0 이면 query 없는 base path(T-1129 이전 마운트 path 와 동일 — 회귀 0).
+  it('nonce 0 이면 base path 를 그대로 반환한다 (경계 — 초기 마운트/회귀 0)', () => {
+    expect(buildGroupsPath(0)).toBe('/api/groups');
+  });
+
+  // happy — nonce 양수면 `_r=<nonce>` query 를 부착해 path 를 변화시킨다(재조회 트리거).
+  it('nonce 양수면 `_r` query 를 부착한 path 를 반환한다 (happy — 재조회 트리거)', () => {
+    expect(buildGroupsPath(1)).toBe('/api/groups?_r=1');
+    expect(buildGroupsPath(9)).toBe('/api/groups?_r=9');
+  });
+
+  // negative — 음수 nonce(비정상)도 <=0 분기라 base path 로 안전 fallback(query 미부착).
+  it('음수 nonce 는 base path 로 안전 fallback 한다 (negative — 음수 방어)', () => {
+    expect(buildGroupsPath(-1)).toBe('/api/groups');
+  });
+});
+
+// R-112 — T-1146 그룹 생성 실 POST create mutation 본체(runCreateGroup) 검증. jsdom/렌더러 없이
+// mutation 본체를 직접 호출하고(runCreatePerson 과 동일 convention), apiClient.request mock 으로
+// method/path/body 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백
+// 호출로 관찰한다. happy/error(400·409·네트워크)/branch(빈·공백·in-flight·단일 발사)/negative
+// 예외 분기마다 각 1+ cover. name 단일 필드(CreateGroupDto)라 person 2 필드 대신 name 하나만 다룬다.
+describe('AdminView — 그룹 생성 실 POST create mutation (T-1146 runCreateGroup)', () => {
+  // 유효한 name 기본 입력값 — 각 test 가 필요 시 빈/공백으로 덮어 가드 분기를 만든다.
+  const VALID = '플랫폼팀';
+
+  // 상태 전이를 기록하는 deps harness — creating 초기값과 request mock 을 주입받아
+  // setCreating/setCreateError 호출과 bumpRefresh·resetInput 호출 횟수를 순서대로 캡처한다.
+  function makeCreateDeps(creating: boolean) {
+    const calls = {
+      creating: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      reset: 0,
+    };
+    const deps: CreateGroupDeps = {
+      create: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      creating,
+      setCreating: (next) => calls.creating.push(next),
+      setCreateError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+      resetInput: () => {
+        calls.reset += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — create 트리거 시 request 가 POST /api/groups 로 method POST + body `{ name }`
+  // 인자로 정확히 호출되고, 성공 후 재조회 nonce bump(1 회) + 입력 초기화(1 회) + error 미설정
+  // (시작 비움만) + 진행 표시(creating) on→off 로 해제된다.
+  it('POST /api/groups 를 method POST + body `{ name }` 로 정확히 호출하고 성공 시 재조회 nonce bump + 입력 초기화 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 201 Created.
+    const { deps, calls } = makeCreateDeps(false);
+    await runCreateGroup(VALID, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string; body: string },
+    ];
+    expect(path).toBe('/api/groups');
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({ name: '플랫폼팀' });
+    // 성공 → 재조회 nonce bump 1 회 + 입력 초기화 1 회 + error 시작 비움만(실패 문구 미설정).
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    // 진행 표시 on→off(finally 공통 해제).
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // negative — body 는 name 단일 필드만 담는다(CreateGroupDto 계약 — 다른 필드 미포함 경계).
+  it('body 에 name 외 다른 필드를 포함하지 않는다 (negative — CreateGroupDto 단일 필드 경계)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeCreateDeps(false);
+    await runCreateGroup(VALID, deps);
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    const parsed = JSON.parse(options.body);
+    expect(Object.keys(parsed)).toEqual(['name']);
+  });
+
+  // error path — create 400(검증 실패, 빈 name) 시 error 문구가 표면화되고 throw 없이 처리되며
+  // 재조회 nonce·입력 초기화는 일어나지 않는다(입력 유지 — 재시도 편의).
+  it('create 400(검증 실패) 시 error 문구를 표면화하고 nonce·입력을 건드리지 않는다 (error path — 400)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'Bad Request'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreateGroup(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 400: Bad Request']);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // error path — 드문 409(동명 그룹) 실패도 특수 분기 없이 동일 안전 경로로 문구 표면화(throw 없음).
+  // Group.name 은 @unique 미정의라 서버가 409 를 거의 안 던지지만, 던져도 일반 error 로 흡수함을 방증.
+  it('create 409 실패 시 특수 분기 없이 일반 error 문구를 표면화한다 (error path — 409 일반 흡수)', async () => {
+    requestMock.mockRejectedValue(new ApiError(409, 'Conflict'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreateGroup(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 409: Conflict']);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('create 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreateGroup(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (a) — name 이 빈값이면 POST 미발사·state 불변·throw 없음(잘못된 body 회피).
+  it('name 이 빈값이면 POST 를 발사하지 않는다 (branch (a) — 빈값 가드)', async () => {
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreateGroup('', deps)).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.creating).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+  });
+
+  // negative — 공백만인 name 은 trim 후 빈 값이라 POST 미발사(빈 값 방어 — 경계값).
+  it('공백만 있는 name 은 trim 후 빈 값이라 POST 를 발사하지 않는다 (negative — 공백 가드)', async () => {
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreateGroup('   ', deps)).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.creating).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (b) — 이전 create 미완(creating=true) 중 재호출은 POST 미발사·state 불변(이중 POST·경합 차단).
+  it('이전 create 미완(creating=true) 중 재호출은 POST 를 발사하지 않는다 (branch (b) — 이중 POST 가드)', async () => {
+    const { deps, calls } = makeCreateDeps(true); // 이미 in-flight.
+    await runCreateGroup(VALID, deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.creating).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (c) — 정상 발사 시 POST 1 회만(중복 없음 — 단일 POST 보장).
+  it('정상 발사 시 POST 를 1 회만 호출한다 (branch (c) — 단일 발사)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeCreateDeps(false);
+    await runCreateGroup(VALID, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/groups');
+  });
+
+  // negative — name 앞뒤 공백은 trim 되어 body 에 실린다(공백 정규화).
+  it('name 앞뒤 공백을 trim 해 body 에 싣는다 (negative — trim 정규화)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeCreateDeps(false);
+    await runCreateGroup('  플랫폼팀  ', deps);
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(JSON.parse(options.body)).toEqual({ name: '플랫폼팀' });
+  });
+
+  // negative(시작 정리) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve 로 캡처한다
+  // (재조회 도착 전 상태에서 crash 없음). 해소 후 재조회 bump + 입력 초기화 + 진행 off.
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 시작 정리/재조회 전 안전)', async () => {
+    let resolvePost: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePost = resolve;
+        }),
+    );
+    const { deps, calls } = makeCreateDeps(false);
+    const pending = runCreateGroup(VALID, deps);
+    expect(calls.creating).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    resolvePost();
+    await pending;
+    // 해소 후 재조회 bump(nonce 증가 → 기존 목록 재 fetch 트리거) + 입력 초기화 + 진행 off.
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // negative — 실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다(시작 비움 → 성공 bump).
+  it('실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다 (negative — 실패 후 재시도)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const first = makeCreateDeps(false);
+    await runCreateGroup(VALID, first.deps);
+    expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(first.calls.bump).toBe(0);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const second = makeCreateDeps(false);
+    await runCreateGroup(VALID, second.deps);
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.bump).toBe(1);
+  });
+
+  // negative — 성공·실패 어느 경로든 finally 가 setCreating(false) 로 진행 표시를 복구한다.
+  it('성공·실패 어느 경우든 진행 표시(creating)가 finally 로 해제된다 (negative — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeCreateDeps(false);
+    await runCreateGroup(VALID, ok.deps);
+    expect(ok.calls.creating).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeCreateDeps(false);
+    await runCreateGroup(VALID, fail.deps);
+    expect(fail.calls.creating).toEqual([true, false]);
+  });
+});
+
+// R-112 — T-1146 그룹 생성 폼 배선 렌더 검증. 그룹 관리 섹션에 name input(aria-label) + "그룹 추가"
+// 버튼이 마운트되고, 초기(빈 필드)엔 버튼이 disabled 로 렌더됨을 정적 markup 으로 단언한다(클릭→러너
+// 호출 자체는 위 runCreateGroup 단위 test 가 cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트
+// 비검증). 초기엔 실패 문구 alert(createGroupError) 가 미렌더됨도 확인한다.
+describe('AdminView — 그룹 생성 폼 배선 (정적 렌더, T-1146)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 그룹 관리 섹션에 name input(aria-label) + "그룹 추가" 버튼이 마운트된다.
+  it('그룹 관리 섹션에 name input + "그룹 추가" 버튼을 렌더한다 (happy-path)', () => {
+    setRoutes({ [GROUPS]: { data: [], loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('aria-label="추가할 그룹 이름"');
+    expect(html).toContain('그룹 추가</button>');
+  });
+
+  // branch — 초기(빈 필드) 마운트 시 생성 버튼이 disabled 로 렌더된다(빈 필드 발사 억제 UI 반영).
+  it('초기(빈 필드) 마운트 시 그룹 추가 버튼이 disabled 로 렌더된다 (branch — 빈 필드 버튼 비활성)', () => {
+    setRoutes({ [GROUPS]: { data: [], loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>그룹 추가<\/button>/);
+  });
+
+  // negative — 초기엔 생성 실패 문구(createGroupError=undefined)라 그룹 폼 하단 alert 이 미렌더된다.
+  it('초기엔 그룹 생성 실패 alert 을 렌더하지 않는다 (negative — createGroupError 미설정)', () => {
+    setRoutes({ [GROUPS]: { data: [], loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).not.toContain('role="alert"');
   });
 });
 

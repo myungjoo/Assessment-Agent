@@ -70,6 +70,10 @@ const PERSONS_PATH = '/api/persons';
 // §12 한국어. aria-label 겸 <h2> 로 재사용해 보조기술이 섹션 경계를 인식하게 한다.
 const PERSON_HEADING = '인원 관리';
 
+// 그룹 관리 섹션 heading 문구(T-1146) — 그룹 생성 폼을 담는 별도 섹션의 제목(PERSON_HEADING 동형).
+// §12 한국어. aria-label 겸 <h2> 로 재사용해 보조기술이 섹션 경계를 인식하게 한다.
+const GROUP_HEADING = '그룹 관리';
+
 // 현재 사용자 등급 조회 path — 고정 endpoint(GET /api/auth/me, api.md 71 User+, JwtAuthGuard
 // 단독). 응답 5 필드 `{ id, email, role, createdAt, updatedAt }` 중 본 slice 는 role 만
 // 소비한다(④h). User+ 라 인증된 사용자는 403 없이 자기 등급을 받는다(미인증은 AuthGate 가
@@ -603,6 +607,19 @@ function buildPersonsPath(refreshNonce: number): string {
     return PERSONS_PATH;
   }
   return `${PERSONS_PATH}?_r=${refreshNonce}`;
+}
+
+// 그룹 목록 조회 path 빌더(순수 helper, T-1146 — buildPersonsPath 동형) — 그룹 생성 POST
+// (/api/groups) 성공 시 GET /api/groups 재조회를 유발하기 위해 컨테이너의 groupsRefreshNonce 를
+// cache-busting query(`_r`)로 실어 path 문자열을 변화시킨다. useApiResource 는 path 변경 시에만
+// 재조회하므로(read-only hook 수정 0), nonce 증가가 곧 재조회 트리거다. nonce 0(초기 조회)이면
+// query 없는 깨끗한 base path(GROUPS_PATH — T-1129 이전 마운트 path 와 동일 유지, 회귀 0)를 그대로
+// 쓴다. `_r` 은 backend GET 핸들러가 @Query 를 받지 않아 무시한다(api.md — 부수효과 0).
+function buildGroupsPath(refreshNonce: number): string {
+  if (refreshNonce <= 0) {
+    return GROUPS_PATH;
+  }
+  return `${GROUPS_PATH}?_r=${refreshNonce}`;
 }
 
 // 서버 파생 매핑 위에 낙관적 override 를 덮는 순수 helper — ④c PATCH 발사 직후 재조회 도착
@@ -1381,6 +1398,73 @@ async function runCreatePerson(
   }
 }
 
+// 그룹 생성 POST + state-전이 로직에 주입하는 deps(T-1146 — runCreatePerson 의 CreatePersonDeps 를
+// mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 컨테이너의 handleCreateGroup 은 이 러너에
+// 현재 입력 name·in-flight 여부(creating)·상태 setter·재조회 트리거·입력 초기화를 주입해 호출만 한다.
+// 그룹 생성 payload 는 name 단일 필드(CreateGroupDto — src/user/dto/create-group.dto.ts)라 인원 생성의
+// 2 필드 대신 name 하나만 다룬다. Group.name 은 @unique 미정의라 409 특수 분기 없이 일반 error 표면화.
+interface CreateGroupDeps {
+  // POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  create: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 create in-flight 여부 — true 면 미발사(이중 POST·경합 가드).
+  creating: boolean;
+  setCreating: (next: boolean) => void;
+  setCreateError: (next: string | undefined) => void;
+  // 권위 그룹 재조회 트리거 — groupsRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+  // 성공 후 name 입력 초기화 트리거(빈 값으로 되돌림 — 연속 생성 편의).
+  resetInput: () => void;
+}
+
+// 그룹 생성 POST /api/groups(body `{ name }`) + state-전이 로직을 캡슐화한 순수 async 러너(T-1146 —
+// runCreatePerson mirror). backend create(group.controller, 201 Created, CreateGroupDto name 단일
+// 필드, 검증 실패 → 400. Group.name @unique 미정의라 409 는 거의 없음 — raw forward)를 발사한다.
+// 컨테이너의 handleCreateGroup 은 이 러너에 deps 를 주입해 호출만 한다. 동작:
+//  - name 이 빈/공백만 → 미발사(잘못된 body·400 회피 — trim 후 falsy 면 억제).
+//  - creating(이전 mutation 미완) → 미발사(이중 POST·state 경합 차단 — runCreatePerson 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → POST(trim 된 name JSON body) → 성공(그룹 재조회 트리거 +
+//    입력 초기화) / 실패(사람-친화 문구 표면화 — throw 없이) → 진행 off(공통).
+async function runCreateGroup(
+  name: string,
+  deps: CreateGroupDeps,
+): Promise<void> {
+  // 필수 name 빈/공백 방어 — 앞뒤 공백 제거 후 비면 POST 미발사(잘못된 body·400 회피). 공백만 든
+  // 입력도 trim 후 빈 문자열이면 차단해(경계값) 무의미한 생성 요청을 억제한다.
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 create 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.creating) {
+    return;
+  }
+  deps.setCreating(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 create 진행만 남도록).
+  deps.setCreateError(undefined);
+  try {
+    // POST /api/groups — 201 Created. trim 된 name 을 JSON body 로 전송한다(runCreatePerson 의 JSON
+    // body 발사 convention 동형). CreateGroupDto 는 name 단일 필드라 다른 필드는 미포함.
+    await deps.create(GROUPS_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    // 성공 — 권위 그룹 재조회 트리거(재조회로 생성된 그룹이 select 옵션에 나타난다 — 낙관 추가 없음) +
+    // 입력 초기화(연속 생성 시 직전 값 잔존 방지).
+    deps.bumpRefresh();
+    deps.resetInput();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error state 로 안전 표시(throw 없이). 400 검증 실패(빈 name) / 드문 409
+    // / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화. Group.name 은
+    // @unique 미정의라 409 특수 분기 없이 일반 error 로 표면화한다. 재조회 nonce·입력은 유지(재시도 편의).
+    deps.setCreateError(deps.describeError(e));
+  } finally {
+    deps.setCreating(false);
+  }
+}
+
 // 인원 삭제 DELETE + state-전이 로직에 주입하는 deps(T-1144 — runDeleteProvider 의 DeleteProviderDeps
 // 를 1:1 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). path param 이 person id 하나뿐이라
 // (DELETE /api/persons/:id 는 단일 세그먼트) groupId 는 없다. 컨테이너의 handleDeletePerson 은 이 러너에
@@ -1699,7 +1783,19 @@ function AdminView({
   // (아래 useApiResource<MembershipRow[]>)가 소유하므로, 그룹 조회의 loading/error 는 별도로
   // 구독하지 않고 data 만 소비한다(그룹 조회 실패 시 옵션 빈 목록으로 안전 표시 — 그룹 조회
   // 실패 표면화는 본 slice Out of Scope).
-  const { data } = useApiResource<GroupRow[]>(GROUPS_PATH);
+  // 그룹 재조회 nonce(T-1146) — 그룹 생성 POST 성공 시 이 값을 +1 해 groups path 를 변화시켜
+  // useApiResource 재조회를 유발한다(read-only hook 수정 0 경로 — personsRefreshNonce 동형).
+  // nonce 0 초기 마운트는 base path(GROUPS_PATH) 그대로다(T-1129 이전 마운트와 동일 — 회귀 0).
+  const [groupsRefreshNonce, setGroupsRefreshNonce] = useState<number>(0);
+
+  // 그룹 목록 조회 path(T-1146) — nonce-aware 빌더로 전환(buildGroupsPath). nonce 0 이면 base
+  // path, 생성 성공 후 nonce 증가가 `_r` query 로 재조회를 낸다(buildPersonsPath mirror).
+  const groupsPath = useMemo(
+    () => buildGroupsPath(groupsRefreshNonce),
+    [groupsRefreshNonce],
+  );
+
+  const { data } = useApiResource<GroupRow[]>(groupsPath);
 
   // 현재 사용자 등급 조회(④h) — useApiResource 네 번째 호출(GET /api/auth/me, User+). 응답
   // role 만 소비해 Admin+ 여부를 파생한다. 조회 실패/loading/응답 누락은 모두 isAdmin=false
@@ -1773,6 +1869,39 @@ function AdminView({
         },
       ),
     [fullNameInput, emailInput, creatingPerson],
+  );
+
+  // 그룹 생성 controlled input 상태(T-1146) — 컨테이너 소유. "그룹 추가" 클릭 시 handleCreateGroup
+  // 이 POST body 의 name 필드로 공급하고, 성공 후 빈 값으로 되돌린다(연속 생성 편의). 인원 생성의
+  // fullNameInput 패턴 mirror(그룹은 name 단일 필드).
+  const [groupNameInput, setGroupNameInput] = useState<string>('');
+
+  // 그룹 생성 mutation in-flight 플래그(T-1146) — POST 진행 중 true. 진행 표시(입력·버튼 비활성)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재발사 차단)에 함께 쓴다(creatingPerson 동형).
+  const [creatingGroup, setCreatingGroup] = useState<boolean>(false);
+
+  // 그룹 생성 mutation 실패 문구(T-1146) — POST 실패 시 사람-친화 문구(toErrorMessage 파생)를
+  // 보관해 폼 하단에 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
+  const [createGroupError, setCreateGroupError] = useState<string | undefined>(
+    undefined,
+  );
+
+  // 그룹 생성 실 mutation 핸들러(T-1146) — 그룹 생성 POST(/api/groups, body `{ name }`)를 컨테이너
+  // 내부 async 로 발사한다(handleCreatePerson 정합). 빈/공백 name·이전 mutation 미완(creatingGroup)
+  // 발사 억제 + 성공(그룹 재조회 + 입력 초기화)/실패(error 안전 표시, throw 없음) 전이는 runCreateGroup
+  // 이 캡슐화한다. 입력값·creatingGroup 을 deps 의존성에 포함해 stale 없이 최신 입력·가드 상태로 발사한다.
+  const handleCreateGroup = useCallback(
+    () =>
+      runCreateGroup(groupNameInput, {
+        create: request,
+        describeError: toErrorMessage,
+        creating: creatingGroup,
+        setCreating: setCreatingGroup,
+        setCreateError: setCreateGroupError,
+        bumpRefresh: () => setGroupsRefreshNonce((n) => n + 1),
+        resetInput: () => setGroupNameInput(''),
+      }),
+    [groupNameInput, creatingGroup],
   );
 
   // 인원 삭제 mutation in-flight 플래그(T-1144) — DELETE 진행 중 true. 진행 표시(loading 우선)와
@@ -2995,6 +3124,33 @@ function AdminView({
           onEdit={handleEditPerson}
         />
       </section>
+      {/* 그룹 관리(T-1146, REQ-028/REQ-049) — 그룹 생성 폼을 담는 별도 섹션. 그룹 목록은 기존 select
+          조회부(useApiResource<GroupRow[]>)가 소유하므로 본 slice 는 생성 성공 시 groupsRefreshNonce
+          bump 로 그 조회를 권위 재조회만 갱신한다(별도 목록 카드 UI 는 Out of Scope). name 단일
+          controlled input + "그룹 추가" 버튼으로 POST /api/groups(body `{ name }`)를 발사하고, name 이
+          빈·공백이거나 진행 중이면 버튼을 비활성화해 발사를 억제한다(runCreateGroup 도 no-op 가드로 이중
+          방어), 입력은 진행 중에도 비활성화한다. 실패 문구(createGroupError)는 폼 하단에 role="alert" 로
+          안전 표시한다. Group.name 은 @unique 미정의라 409 특수 분기 없이 일반 error 로 표면화한다. */}
+      <section aria-label={GROUP_HEADING}>
+        <h2>{GROUP_HEADING}</h2>
+        <div>
+          <input
+            aria-label="추가할 그룹 이름"
+            type="text"
+            value={groupNameInput}
+            onChange={(event) => setGroupNameInput(event.target.value)}
+            disabled={creatingGroup}
+          />
+          <button
+            type="button"
+            onClick={handleCreateGroup}
+            disabled={creatingGroup || !groupNameInput.trim()}
+          >
+            그룹 추가
+          </button>
+          {createGroupError ? <p role="alert">{createGroupError}</p> : null}
+        </div>
+      </section>
     </section>
   );
 }
@@ -3010,6 +3166,7 @@ export {
   buildMappingsPath,
   buildProvidersPath,
   buildPersonsPath,
+  buildGroupsPath,
   buildExportPath,
   mergeMapping,
   parseFilename,
@@ -3028,6 +3185,7 @@ export {
   runAdd,
   runCreateProvider,
   runCreatePerson,
+  runCreateGroup,
   runDeletePerson,
   buildPersonPatch,
   runUpdatePerson,
@@ -3057,6 +3215,7 @@ export type {
   CreateProviderDeps,
   CreatePersonFields,
   CreatePersonDeps,
+  CreateGroupDeps,
   DeletePersonDeps,
   PersonPatchInput,
   PersonPatch,
