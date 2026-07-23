@@ -54,6 +54,10 @@ import type { ReEvaluationWindow } from '../components/ReEvaluationTriggerPanel'
 // 내려보낸다(T-1140 DashboardView 마운트 패턴 mirror — 읽기 전용, mutation/nonce 불요).
 import PersonList from '../components/PersonList';
 import type { PersonRow } from '../components/PersonList';
+// 그룹 목록 마운트 대상(T-1148, T-1147 presentational) — default export 만 가져온다. GroupList 도
+// 자체 GroupRow 를 named export 하지만 여기서는 import 하지 않고 AdminView 로컬 GroupRow(L327)를
+// 그대로 props 로 넘긴다(구조적 타입 호환 — 중복 식별자·이름 충돌 회피, task Required Reading).
+import GroupList from '../components/GroupList';
 
 // 그룹 목록 조회 path — 고정 endpoint(GET /api/groups, api.md 81 User+). personId 같은
 // 필수 query 가 없어 무조건 조회한다(미인증은 AuthGate 가 이미 차단). DashboardView 의
@@ -1795,7 +1799,16 @@ function AdminView({
     [groupsRefreshNonce],
   );
 
-  const { data } = useApiResource<GroupRow[]>(groupsPath);
+  // 그룹 목록 조회(T-1146 select·생성 폼 원천, T-1148 목록 카드 마운트로 loading/error 재사용).
+  // 기존엔 data 만 소비했으나, 본 slice 가 GroupList 를 마운트하며 새 useApiResource 호출을
+  // 추가하지 않고(double-fetch 회피) 같은 조회의 loading/error 를 함께 destructure 해 GroupList
+  // props 로 내려보낸다. 변수명에 group prefix 를 붙여 인원/멤버십/LLM 조회 상태와 섞이지 않게
+  // 분리한다(personLoading/personError 동형). select 드롭다운·파생은 그대로 data 만 소비한다.
+  const {
+    data,
+    loading: groupLoading,
+    error: groupError,
+  } = useApiResource<GroupRow[]>(groupsPath);
 
   // 현재 사용자 등급 조회(④h) — useApiResource 네 번째 호출(GET /api/auth/me, User+). 응답
   // role 만 소비해 Admin+ 여부를 파생한다. 조회 실패/loading/응답 누락은 모두 isAdmin=false
@@ -3150,6 +3163,18 @@ function AdminView({
           </button>
           {createGroupError ? <p role="alert">{createGroupError}</p> : null}
         </div>
+        {/* 그룹 목록 카드(T-1148, REQ-028/REQ-049) — 읽기 전용 마운트. 기존 그룹 조회
+            (useApiResource<GroupRow[]>)의 data/loading/error 를 재사용해(새 fetch 추가 없음 —
+            double-fetch 회피) GroupList 로 내려보낸다. data 가 undefined(미조회/진행 중/실패)이면
+            `?? []` 로 빈 배열을 안전하게 넘겨 throw 없이 렌더한다(경계 방어). onDelete/onEdit 는
+            전달하지 않아 각 행에 삭제·수정 버튼이 렌더되지 않는다(읽기 전용 — 삭제/수정 mutation
+            배선은 후속 slice). 로컬 GroupRow 를 그대로 넘긴다(GroupList 의 named GroupRow 미import
+            — 구조적 타입 호환). ADR-0041 Decision 1 — presentational 컴포넌트는 fetch 를 모른다. */}
+        <GroupList
+          groups={data ?? []}
+          loading={groupLoading}
+          error={groupError}
+        />
       </section>
     </section>
   );

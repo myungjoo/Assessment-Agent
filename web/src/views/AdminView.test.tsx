@@ -268,8 +268,10 @@ describe('AdminView — 컨테이너 렌더', () => {
     // loading 우선 정책 — GroupMemberList 가 role="status" + 로딩 문구를 렌더한다.
     expect(html).toContain('role="status"');
     expect(html).toContain('불러오는 중…');
-    // loading 중에는 멤버 <ul> 미렌더.
-    expect(html).not.toContain('<ul>');
+    // loading 중에는 멤버 목록 <ul> 미렌더. T-1148 이후 그룹 관리 섹션 GroupList 가 populated
+    // 그룹(SAMPLE)의 <ul> 을 별도 렌더하므로 <ul> 부재로 판별할 수 없다 — 전체 <ul> 이 정확히
+    // 1개(그룹 목록뿐, 멤버 <ul> 미렌더)임으로 판별한다(멤버 person 명은 재평가 select 에도 등장).
+    expect(html.split('<ul>').length - 1).toBe(1);
   });
 
   it('멤버십 조회 error 시 멤버 패널이 에러 alert 를 렌더한다 (error path — error)', () => {
@@ -277,7 +279,9 @@ describe('AdminView — 컨테이너 렌더', () => {
     const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
     expect(html).toContain('role="alert"');
     expect(html).toContain('HTTP 500: members boom');
-    expect(html).not.toContain('<ul>');
+    // error 분기 — 멤버 목록 <ul> 미렌더. 전체 <ul> 이 정확히 1개(그룹 목록뿐)임으로 판별한다
+    // (T-1148 GroupList <ul> 공존 대응 — 멤버 person 명은 재평가 select 에도 등장).
+    expect(html.split('<ul>').length - 1).toBe(1);
   });
 
   // error path — membership personId 가 그룹 person 과 매칭되지 않으면 fallback 명으로 렌더.
@@ -308,8 +312,9 @@ describe('AdminView — 컨테이너 렌더', () => {
     // 미선택이면 멤버 빈 상태(role="status") + 그룹 선택 안내 문구.
     expect(html).toContain('role="status"');
     expect(html).toContain('그룹을 선택하면 인원이 표시됩니다');
-    // 멤버 목록(<ul>) 은 미렌더 — 그러나 그룹 옵션은 노출된다.
-    expect(html).not.toContain('<ul>');
+    // 멤버 목록 <ul> 은 미렌더 — 전체 <ul> 이 정확히 1개(그룹 목록뿐)임으로 판별한다(T-1148
+    // GroupList <ul> 공존 대응). 그러나 그룹 옵션(백엔드팀)은 노출된다.
+    expect(html.split('<ul>').length - 1).toBe(1);
     expect(html).toContain('백엔드팀');
   });
 
@@ -339,7 +344,9 @@ describe('AdminView — 컨테이너 렌더', () => {
     );
     // membership 0 건 → 선택했으므로 "이 그룹에 속한 인원이 없습니다" 빈 상태.
     expect(html).toContain('이 그룹에 속한 인원이 없습니다');
-    expect(html).not.toContain('<ul>');
+    // 멤버 목록 <ul> 미렌더 — 전체 <ul> 이 정확히 1개(그룹 목록뿐)임으로 판별한다(T-1148
+    // GroupList <ul> 공존 대응).
+    expect(html.split('<ul>').length - 1).toBe(1);
   });
 
   // negative — 그룹 응답이 빈 배열(그룹 0 건)일 때 안전 표시(throw 없음).
@@ -1799,10 +1806,11 @@ describe('AdminView — onRemove 제거 버튼 배선 (정적 렌더, T-1130)', 
       { data: [], loading: false, error: undefined },
     );
     const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
-    // 빈 상태 문구만, 제거 버튼·<ul> 미렌더.
+    // 빈 상태 문구만, 제거 버튼 미렌더. 멤버 목록 <ul> 도 미렌더 — 전체 <ul> 이 정확히 1개
+    // (그룹 목록뿐)임으로 판별한다(T-1148 GroupList <ul> 공존 대응).
     expect(html).toContain('이 그룹에 속한 인원이 없습니다');
     expect(html).not.toContain('제거');
-    expect(html).not.toContain('<ul>');
+    expect(html.split('<ul>').length - 1).toBe(1);
   });
 
   it('멤버십 loading 중에는 제거 버튼을 렌더하지 않는다 (negative — loading 우선)', () => {
@@ -5099,6 +5107,137 @@ describe('AdminView — 그룹 생성 폼 배선 (정적 렌더, T-1146)', () =>
     setRoutes({ [GROUPS]: { data: [], loading: false, error: undefined } });
     const html = renderToStaticMarkup(<AdminView />);
     expect(html).not.toContain('role="alert"');
+  });
+});
+
+// R-112 — T-1148 그룹 관리 목록 마운트(기존 GET /api/groups fetch 재사용 → GroupList props 배선)
+// 검증. happy(그룹명·멤버 수 표면화) / error path(에러 alert + 목록 미렌더) / 분기(loading·빈
+// 배열·populated) / negative(data undefined 시 `?? []` throw 없이 렌더, name 누락 placeholder,
+// 다건 key 중복 없음, onDelete/onEdit 미전달 → 삭제·수정 버튼 미렌더=읽기 전용, loading 이 error
+// 보다 우선)를 각 1+ cover. GroupList 고유 출력(멤버 수 `멤버 N명`·빈 문구·placeholder)으로
+// select 드롭다운과 구분해 마운트를 단언한다. renderToStaticMarkup + useApiResource mock 으로
+// data/loading/error 시나리오를 통제한다(jsdom/@testing-library 미사용 — ADR-0040 §5 게이트).
+describe('AdminView — 그룹 관리 목록 마운트 (T-1148)', () => {
+  // 그룹 2 건 샘플 — GroupList 고유 출력(멤버 수)까지 검증하도록 멤버 배열을 포함한다. gg1 은
+  // members(2)로, gg2 는 persons(1) fallback 키로 멤버 수 후보를 노출한다(응답 키 다양성 수용).
+  // 이름은 select SAMPLE 과 겹치지 않는 값으로 두어 마운트 경로를 분리 관찰한다.
+  const GROUP_LIST_ROWS = [
+    { id: 'gg1', name: '데브옵스팀', members: [{}, {}] },
+    { id: 'gg2', name: '디자인팀', persons: [{}] },
+  ];
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 그룹 1+ 반환 시 그룹 관리 섹션에 각 그룹 name + GroupList 고유 멤버 수(`멤버 N명`)가
+  // 표면화된다(기존 groups fetch 재사용 — 새 useApiResource 호출 추가 없음도 함께 단언).
+  it('그룹 fetch 성공 시 그룹 관리 섹션에 각 그룹 name·멤버 수를 목록으로 렌더한다 (happy-path)', () => {
+    setRoutes({
+      [GROUPS]: { data: GROUP_LIST_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // GET /api/groups 를 조회하되, 그룹 목록 조회는 정확히 한 번만 등장한다(double-fetch 회피 —
+    // GroupList 마운트가 새 useApiResource 호출을 추가하지 않는다).
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(paths.filter((p) => p === GROUPS)).toHaveLength(1);
+    // 그룹 관리 heading + 각 그룹 name 이 표면화된다.
+    expect(html).toContain('그룹 관리');
+    expect(html).toContain('데브옵스팀');
+    expect(html).toContain('디자인팀');
+    // GroupList 고유 출력 — members(2)·persons(1) fallback 각각 멤버 수 badge.
+    expect(html).toContain('멤버 2명');
+    expect(html).toContain('멤버 1명');
+  });
+
+  // error path — 그룹 fetch 가 error(예: 401)를 반환하면 그룹 관리 섹션이 role="alert" 에러를
+  // 렌더하고 목록(그룹 name·멤버 수)은 미렌더한다.
+  it('그룹 fetch error 시 에러 alert 를 렌더하고 목록은 미렌더한다 (error path)', () => {
+    setRoutes({
+      [GROUPS]: { data: undefined, loading: false, error: 'HTTP 401: groups boom' },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 에러 문구가 alert 로 표면화된다(GroupList error 분기).
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('HTTP 401: groups boom');
+    // error 분기라 그룹 목록(멤버 수)·그룹명은 렌더되지 않는다(data undefined → select 옵션도 없음).
+    expect(html).not.toContain('멤버 2명');
+    expect(html).not.toContain('데브옵스팀');
+  });
+
+  // 분기 — loading 중이면 로딩 표면(role="status" + 로딩 문구) 우선, 목록·에러 미렌더.
+  it('그룹 fetch loading 중이면 로딩 표면을 우선 렌더한다 (분기 — loading)', () => {
+    setRoutes({
+      [GROUPS]: { data: undefined, loading: true, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('불러오는 중…');
+    // loading 우선 — 목록(멤버 수) 미렌더.
+    expect(html).not.toContain('멤버 2명');
+  });
+
+  // 분기 — 빈 배열이면 GroupList 빈 상태 문구를 렌더한다(populated 분기와 대비).
+  it('그룹이 0 건이면 빈 상태 문구를 렌더한다 (분기 — 빈 배열)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('등록된 그룹이 없습니다');
+    expect(html).not.toContain('멤버 2명');
+  });
+
+  // negative — data 가 undefined(미조회, loading/error 아님)여도 `data ?? []` 로 throw 없이 빈
+  // 상태를 렌더한다(경계 방어 — GroupList 가 undefined.length 로 throw 하지 않도록).
+  it('data 가 undefined 여도 `data ?? []` 로 throw 없이 빈 상태를 렌더한다 (negative — undefined 경계)', () => {
+    setRoutes({
+      [GROUPS]: { data: undefined, loading: false, error: undefined },
+    });
+    // renderToStaticMarkup 이 throw 하지 않고 빈 상태 문구를 낸다.
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('그룹 관리');
+    expect(html).toContain('등록된 그룹이 없습니다');
+  });
+
+  // negative — name 누락 그룹은 placeholder 로 throw 없이 렌더되고, 다건 그룹이 key 충돌 없이 모두
+  // 표면화되며, onDelete/onEdit 미전달이라 각 행에 삭제·수정 버튼이 렌더되지 않는다(읽기 전용).
+  it('name 누락·다건 그룹을 throw 없이 렌더하고 삭제·수정 버튼은 미렌더한다 (negative — placeholder/다건/읽기 전용)', () => {
+    setRoutes({
+      [GROUPS]: {
+        data: [
+          // name 누락 그룹 → placeholder 로 안전 렌더(members 로 멤버 수는 표시).
+          { id: 'gg9', members: [{}] },
+          // 정상 그룹 → 다건 key 충돌 없이 함께 렌더.
+          { id: 'gg8', name: '보안팀', members: [{}, {}, {}] },
+        ],
+        loading: false,
+        error: undefined,
+      },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // name 누락 행은 placeholder 로, 정상 행은 name 으로 함께 렌더(다건 key 중복 없이).
+    expect(html).toContain('(이름 없음)');
+    expect(html).toContain('보안팀');
+    expect(html).toContain('멤버 1명');
+    expect(html).toContain('멤버 3명');
+    // 읽기 전용 마운트 — onDelete/onEdit 미전달이라 GroupList 행에 삭제·수정 버튼이 렌더되지
+    // 않는다. 정확한 버튼 markup(`>삭제</button>`/`>수정</button>`)으로 판별한다(원문 '삭제'는
+    // 재평가 경고문 '…결과를 삭제한 뒤…'에도 등장하므로 부적합).
+    expect(html).not.toContain('>삭제</button>');
+    expect(html).not.toContain('>수정</button>');
+  });
+
+  // negative — loading 과 error 가 동시에 truthy 면 loading 이 우선한다(GroupList loading 우선 정책).
+  it('loading 과 error 가 동시 truthy 면 loading 표면을 우선 렌더한다 (negative — loading 우선)', () => {
+    setRoutes({
+      [GROUPS]: { data: undefined, loading: true, error: 'HTTP 500: groups boom' },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    // loading 우선 — 로딩 문구만 렌더, error 문구는 미렌더.
+    expect(html).toContain('불러오는 중…');
+    expect(html).not.toContain('HTTP 500: groups boom');
   });
 });
 
