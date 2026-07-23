@@ -2,7 +2,10 @@
 id: T-1129
 title: AdminView 멤버 목록을 GET /api/groups/:id/members 로 fetch + membershipId 노출
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 622681e6
+prNumber: 1021
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-049]
 independentStream: p6-frontend-composition
