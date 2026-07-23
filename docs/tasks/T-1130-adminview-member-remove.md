@@ -2,8 +2,11 @@
 id: T-1130
 title: AdminView 멤버 제거 mutation 배선 (DELETE :id/members/:membershipId)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-07-23T01:44Z
+prNumber: 1022
+mergeCommit: 340d50a2
 coversReq: [REQ-049]
 independentStream: p6-frontend-composition
 dependsOn: [T-1129]
