@@ -27,6 +27,25 @@ const LOADING_TEXT = '불러오는 중…';
 const DEFAULT_EMPTY_MESSAGE = '등록된 사용자가 없습니다';
 // email 이 누락된 사용자 행에 표시할 사람-친화 placeholder (throw 없이 안전 렌더).
 const EMAIL_PLACEHOLDER = '(이메일 없음)';
+// 승급(User → Admin) 버튼 라벨 — onChangeRole 전달 시에만 해당 행에 렌더한다(PartList EDIT_LABEL 동형).
+const PROMOTE_LABEL = 'Admin 으로 승급';
+// 강등(Admin → User) 버튼 라벨 — onChangeRole 전달 시에만 해당 행에 렌더한다(PROMOTE_LABEL 동형).
+const DEMOTE_LABEL = 'User 로 강등';
+
+// 현재 역할에서 노출할 역할 변경 액션 1건을 판정한다 — 'User' → 승급(Admin), 'Admin' → 강등(User).
+// 'SuperAdmin' 은 backend self-demote 금지 정책상 노출하지 않고, role 누락·소문자 'admin' 같은
+// 미지 값도 판정 불가라 보수적으로 null(버튼 미렌더) 을 반환한다. 대소문자 관대 처리는 하지 않는다.
+function resolveRoleAction(
+  role: string | undefined,
+): { nextRole: string; label: string } | null {
+  if (role === 'User') {
+    return { nextRole: 'Admin', label: PROMOTE_LABEL };
+  }
+  if (role === 'Admin') {
+    return { nextRole: 'User', label: DEMOTE_LABEL };
+  }
+  return null;
+}
 
 interface UserListProps {
   // 표시할 사용자 목록 — controlled component 라 상위가 이미 fetch·정렬된 배열을 보유한다.
@@ -37,12 +56,24 @@ interface UserListProps {
   error?: string;
   // 빈 상태 문구(선택). 빈 문자열이면 기본 문구로 fallback(의미 없는 빈 메시지 방지).
   emptyMessage?: string;
+  // 역할 변경 콜백(선택) — 주어졌을 때만 각 행에 역할 변경 버튼을 렌더하고 클릭 시
+  // (row.id, 다음 역할) 로 호출한다. 미전달 시 버튼 미렌더(읽기 전용 하위 호환 — T-1159 마운트
+  // 회귀 0, PartList onDelete 동형). 실 PATCH /api/users/:id/role 요청 · SuperAdmin gating ·
+  // 진행/에러 상태는 상위 컨테이너 몫이라 presentational 책임(콜백 호출)만 진다.
+  onChangeRole?: (id: string, nextRole: string) => void;
 }
 
 // 사용자 목록. 실 fetch·필터·전역 상태·생성/역할 변경 요청은 수행하지 않고 props 의 users 를
-// 그대로 표시하는 presentational 책임만 진다 — 실제 조회·생성·승급 배선은 backend·상위 컨테이너
-// 몫이다(ADR-0041 Decision 1 presentational-first 경계).
-function UserList({ users, loading, error, emptyMessage }: UserListProps) {
+// 그대로 표시하며 onChangeRole 콜백만 호출하는 presentational 책임만 진다 — 실제 조회·생성·승급
+// 배선은 backend·상위 컨테이너 몫이다(ADR-0041 Decision 1 presentational-first 경계).
+// 로컬 state 를 두지 않는 stateless 컴포넌트 convention 도 그대로 유지한다.
+function UserList({
+  users,
+  loading,
+  error,
+  emptyMessage,
+  onChangeRole,
+}: UserListProps) {
   // loading 우선 정책 — 진행 중이면 error·users 유무와 무관하게 로딩 표시만 렌더한다.
   if (loading === true) {
     return <div role="status">{LOADING_TEXT}</div>;
@@ -70,12 +101,26 @@ function UserList({ users, loading, error, emptyMessage }: UserListProps) {
         const label = row.email ? row.email : EMAIL_PLACEHOLDER;
         // 역할은 있을 때만 보조 라벨로 표시한다(없으면 throw 없이 생략).
         const role = row.role;
+        // 버튼 콜백은 row.id 를 요구한다 — id 없는 row 는 콜백 인자가 없으므로 버튼을 렌더하지 않는다.
+        const rowId = row.id;
+        // 현재 역할로 판정한 역할 변경 액션(없으면 null → 버튼 미렌더).
+        const roleAction = resolveRoleAction(role);
         return (
           <li key={key}>
             {/* email 은 항상 표시한다(주 라벨, 누락 시 placeholder). */}
             <span>{label}</span>
             {/* 역할은 role 이 있을 때만 보조 라벨로 표시한다(없으면 생략). */}
             {role ? <span>{`역할 ${role}`}</span> : null}
+            {/* onChangeRole + row.id + 판정된 액션이 모두 있을 때만 역할 변경 버튼 1개를 렌더하고
+                클릭 시 (row.id, 다음 역할) 로 콜백을 호출한다. */}
+            {onChangeRole && rowId && roleAction ? (
+              <button
+                type="button"
+                onClick={() => onChangeRole(rowId, roleAction.nextRole)}
+              >
+                {roleAction.label}
+              </button>
+            ) : null}
           </li>
         );
       })}
