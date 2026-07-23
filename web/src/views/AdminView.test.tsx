@@ -74,6 +74,7 @@ import AdminView, {
   buildRecentDeletionPath,
   runReEvaluate,
   runRemove,
+  runAdd,
   isAdminRole,
 } from './AdminView';
 import type {
@@ -88,6 +89,7 @@ import type {
   ScheduleMutationDeps,
   ReEvaluationDeps,
   RemoveDeps,
+  AddDeps,
 } from './AdminView';
 
 // LLM 조회 두 path 의 기본 성공(빈 데이터) 상태 — 그룹 전용 test 가 LLM path 응답을 명시하지
@@ -689,6 +691,244 @@ describe('AdminView — onRemove 실 DELETE remove mutation (T-1130 runRemove)',
   });
 });
 
+// R-112 — T-1131 멤버 추가 실 POST add mutation 본체(runAdd) 검증. jsdom/렌더러 없이 mutation
+// 본체를 직접 호출하고(runRemove 와 동일 convention), apiClient.request mock 으로 method/path/body
+// 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의 콜백 호출로 관찰한다.
+// happy/error/branch/negative 예외 분기마다 각 1+ cover.
+describe('AdminView — 멤버 추가 실 POST add mutation (T-1131 runAdd)', () => {
+  // 상태 전이를 기록하는 deps harness — groupId·adding 초기값과 request mock 을 주입받아
+  // setAdding/setAddError 호출과 bumpRefresh·resetInput 호출 횟수를 모두 순서대로 캡처한다.
+  function makeAddDeps(adding: boolean, groupId = 'g1') {
+    const calls = {
+      adding: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      reset: 0,
+    };
+    const deps: AddDeps = {
+      add: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      groupId,
+      adding,
+      setAdding: (next) => calls.adding.push(next),
+      setAddError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+      resetInput: () => {
+        calls.reset += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — add 트리거 시 request 가 POST /api/groups/<gid>/members 로 method POST + body
+  // `{ personId }` 인 인자로 정확히 호출되고, 성공 후 재조회 nonce bump(1 회) + 입력 초기화(1 회) +
+  // error 미설정(시작 비움만) + 진행 표시(adding) on→off 로 해제된다.
+  it('POST /api/groups/<gid>/members 를 method POST + body { personId } 로 정확히 호출하고 성공 시 재조회 nonce bump + 입력 초기화 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 201 Created.
+    const { deps, calls } = makeAddDeps(false, 'g1');
+    await runAdd('p1', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string; body: string },
+    ];
+    expect(path).toBe('/api/groups/g1/members');
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({ personId: 'p1' });
+    // 성공 → 재조회 nonce bump 1 회 + 입력 초기화 1 회 + error 시작 비움만(실패 문구 미설정).
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    // 진행 표시 on→off(finally 공통 해제).
+    expect(calls.adding).toEqual([true, false]);
+  });
+
+  // error path — add 409(중복 멤버, @@unique 위반) 실패 시 error 문구가 표면화되고 throw 없이
+  // 처리되며 재조회 nonce·입력 초기화는 일어나지 않는다(입력 유지 — 재시도 편의).
+  it('add 409(중복 멤버, @@unique 위반) 실패 시 error 문구를 표면화하고 nonce·입력을 건드리지 않는다 (error path — 409)', async () => {
+    requestMock.mockRejectedValue(new ApiError(409, 'Conflict'));
+    const { deps, calls } = makeAddDeps(false, 'g1');
+    await expect(runAdd('p1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 409: Conflict']);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    expect(calls.adding).toEqual([true, false]);
+  });
+
+  // error path — 403(Admin+ 미만) 도 동일 안전 경로로 문구 표면화(throw 없음).
+  it('add 403(Admin+ 미만) 실패 시 안전 문구를 표면화한다 (error path — 403)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeAddDeps(false, 'g1');
+    await expect(runAdd('p1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 404(group 부재) 실패 시 동일 안전 경로.
+  it('add 404(group 부재) 실패 시 안전 문구를 표면화한다 (error path — 404)', async () => {
+    requestMock.mockRejectedValue(new ApiError(404, 'Not Found'));
+    const { deps, calls } = makeAddDeps(false, 'g1');
+    await expect(runAdd('p1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 404: Not Found']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('add 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeAddDeps(false, 'g1');
+    await expect(runAdd('p1', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (a) — 빈/falsy personId → POST 미발사·state 불변·throw 없음(잘못된 body 회피).
+  it('빈/falsy personId 이면 POST 를 발사하지 않는다 (branch (a) — 빈 personId)', async () => {
+    const { deps, calls } = makeAddDeps(false, 'g1');
+    await expect(runAdd('', deps)).resolves.toBeUndefined();
+    await expect(
+      runAdd(undefined as unknown as string, deps),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.adding).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+  });
+
+  // negative — 공백만 있는 personId → trim 후 빈 값이므로 POST 미발사(빈 값 방어).
+  it('공백만 있는 personId 는 trim 후 빈 값이라 POST 를 발사하지 않는다 (negative — 공백 personId)', async () => {
+    const { deps, calls } = makeAddDeps(false, 'g1');
+    await expect(runAdd('   ', deps)).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.adding).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // negative — 선택 그룹 미선택(빈 groupId) → POST 미발사(잘못된 path 회피).
+  it('선택 그룹 미선택(빈 groupId)이면 POST 를 발사하지 않는다 (negative — 그룹 미선택)', async () => {
+    const { deps, calls } = makeAddDeps(false, '');
+    await expect(runAdd('p1', deps)).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.adding).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (b) — 이전 add 미완(adding=true) 중 재호출은 POST 미발사·state 불변(이중 POST·경합 차단).
+  it('이전 add 미완(adding=true) 중 재호출은 POST 를 발사하지 않는다 (branch (b) — 이중 POST 가드)', async () => {
+    const { deps, calls } = makeAddDeps(true, 'g1'); // 이미 in-flight.
+    await runAdd('p1', deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.adding).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (c) — 정상 발사 시 POST 1 회만(중복 없음).
+  it('정상 발사 시 POST 를 1 회만 호출한다 (branch (c) — 단일 발사)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeAddDeps(false, 'g1');
+    await runAdd('p2', deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/groups/g1/members');
+  });
+
+  // negative — groupId 특수문자 포함 시 encodeURIComponent 로 path 안전 인코딩됨(path 주입 방어).
+  // 또한 personId 앞뒤 공백은 trim 되어 body 에 실린다(공백 정규화).
+  it('groupId 특수문자를 encodeURIComponent 로 안전 인코딩하고 personId 는 trim 해 body 에 싣는다 (negative — 특수문자 인코딩 + trim)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeAddDeps(false, 'a b/c');
+    await runAdd('  p 1/x  ', deps);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { body: string },
+    ];
+    expect(path).toBe('/api/groups/a%20b%2Fc/members');
+    expect(JSON.parse(options.body)).toEqual({ personId: 'p 1/x' });
+  });
+
+  // negative — 성공 후 입력 초기화(resetInput 1 회) + 실패 시 입력 유지(resetInput 0 회) 대비 검증.
+  it('성공 시 입력을 초기화하고 실패 시 입력을 유지한다 (negative — 성공 후 초기화)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeAddDeps(false, 'g1');
+    await runAdd('p1', ok.deps);
+    expect(ok.calls.reset).toBe(1);
+
+    requestMock.mockRejectedValueOnce(new ApiError(409, 'Conflict'));
+    const fail = makeAddDeps(false, 'g1');
+    await runAdd('p1', fail.deps);
+    expect(fail.calls.reset).toBe(0);
+  });
+
+  // negative — 성공·실패 어느 경로든 finally 가 setAdding(false) 로 진행 표시를 복구한다.
+  it('성공·실패 어느 경우든 진행 표시(adding)가 finally 로 해제된다 (negative — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeAddDeps(false, 'g1');
+    await runAdd('p1', ok.deps);
+    expect(ok.calls.adding).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeAddDeps(false, 'g1');
+    await runAdd('p1', fail.deps);
+    expect(fail.calls.adding).toEqual([true, false]);
+  });
+
+  // negative(시작 정리) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve 로 캡처한다
+  // (재조회 도착 전 상태에서 crash 없음). 해소 후 재조회 bump + 입력 초기화 + 진행 off.
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 시작 정리/재조회 전 안전)', async () => {
+    let resolvePost: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePost = resolve;
+        }),
+    );
+    const { deps, calls } = makeAddDeps(false, 'g1');
+    const pending = runAdd('p1', deps);
+    expect(calls.adding).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    resolvePost();
+    await pending;
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.adding).toEqual([true, false]);
+  });
+
+  // negative — 실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다(시작 비움 → 성공 bump).
+  it('실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다 (negative — 실패 후 재시도)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const first = makeAddDeps(false, 'g1');
+    await runAdd('p1', first.deps);
+    expect(first.calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(first.calls.bump).toBe(0);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const second = makeAddDeps(false, 'g1');
+    await runAdd('p1', second.deps);
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.bump).toBe(1);
+  });
+});
+
 // R-112 — T-1130 onRemove 배선 렌더 검증. onRemove 전달 시 GroupMemberList 가 각 멤버 행에 제거
 // 버튼(제거 라벨)을 렌더함을 정적 markup 으로 단언한다(클릭→콜백 호출 자체는 위 runRemove 단위
 // test + GroupMemberList 컴포넌트 test 가 cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트 비검증).
@@ -729,6 +969,26 @@ describe('AdminView — onRemove 제거 버튼 배선 (정적 렌더, T-1130)', 
     // loading 우선 — 로딩 문구만, 제거 버튼 미렌더.
     expect(html).toContain('불러오는 중…');
     expect(html).not.toContain('제거');
+  });
+
+  // T-1131 — 멤버 추가 컨트롤 렌더. 그룹 선택 시 personId 입력 + "추가" 버튼이 컨테이너에 렌더된다
+  // (GroupMemberList 는 수정 0 — add 컨트롤은 컨테이너 소유). 그룹 미선택 시 입력은 disabled.
+  it('그룹 선택 시 personId 입력 + 추가 버튼을 렌더하고 미선택 시 입력을 비활성으로 렌더한다 (T-1131 add 컨트롤)', () => {
+    setResource(
+      { data: SAMPLE, loading: false, error: undefined },
+      { data: [], loading: false, error: undefined },
+    );
+    const selected = renderToStaticMarkup(
+      <AdminView initialSelectedGroupId="g1" />,
+    );
+    // personId 입력 + "추가" 버튼 노출. 빈 입력이라 버튼은 disabled(발사 억제).
+    expect(selected).toContain('aria-label="추가할 멤버 personId"');
+    expect(selected).toContain('추가');
+    expect(selected).toContain('disabled');
+    // 그룹 미선택 — 입력은 존재하되 disabled(잘못된 path·발사 억제 가드).
+    const unselected = renderToStaticMarkup(<AdminView />);
+    expect(unselected).toContain('aria-label="추가할 멤버 personId"');
+    expect(unselected).toContain('disabled');
   });
 });
 
