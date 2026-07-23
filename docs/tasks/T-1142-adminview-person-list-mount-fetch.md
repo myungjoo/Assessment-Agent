@@ -2,7 +2,7 @@
 id: T-1142
 title: AdminView 에 PersonList 마운트 + GET /api/persons 실 fetch 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-023]
 estimatedDiff: 200
