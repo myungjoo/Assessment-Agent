@@ -69,6 +69,7 @@ import AdminView, {
   buildPersonsPath,
   buildGroupsPath,
   buildPartsPath,
+  buildPartPersonsPath,
   buildExportPath,
   mergeMapping,
   parseFilename,
@@ -7605,5 +7606,263 @@ describe('AdminView — 파트 수정 배선 (정적 렌더, T-1155)', () => {
     const html = renderToStaticMarkup(<AdminView />);
     expect(html).toContain('HTTP 500: parts boom');
     expect(countOccurrences(html, '>수정</button>')).toBe(0);
+  });
+});
+
+// R-112 — T-1156 선택 파트 소속 인원 조회 path 빌더(buildPartPersonsPath) 검증.
+// buildGroupMembersPath 와 동형이되 base 가 /api/parts/:id/persons 다. 미선택(null 조건부 조회)/
+// nonce 0(base)/nonce 1+(`_r` 부착)/특수문자 id(encodeURIComponent)/빈 문자열·음수 negative 를
+// 각 1+ cover 한다(순수 함수라 렌더러 없이 직접 호출 — jsdom 미사용 게이트 정합).
+describe('AdminView — buildPartPersonsPath (순수 함수, T-1156)', () => {
+  // 분기 — 미선택(undefined)이면 null 을 반환해 useApiResource 조건부 미조회(idle)를 유발한다.
+  it('파트 미선택(undefined)이면 null 을 반환한다 (분기 — 조건부 미조회)', () => {
+    expect(buildPartPersonsPath(undefined)).toBeNull();
+  });
+
+  // negative — 빈 문자열 partId(비정상/미선택 잔재)도 falsy 라 null 로 안전 fallback 한다
+  // (`/api/parts//persons` 같은 깨진 path 로 404 를 유발하지 않는다).
+  it('빈 문자열 partId 도 null 로 안전 fallback 한다 (negative — 깨진 path 방지)', () => {
+    expect(buildPartPersonsPath('')).toBeNull();
+  });
+
+  // happy/경계 — 선택 + nonce 기본값(인자 생략 = 0)이면 query 없는 base path 를 반환한다.
+  it('선택 + nonce 생략이면 query 없는 base path 를 반환한다 (happy — 기본 인자 경계)', () => {
+    expect(buildPartPersonsPath('pt1')).toBe('/api/parts/pt1/persons');
+    expect(buildPartPersonsPath('pt1', 0)).toBe('/api/parts/pt1/persons');
+  });
+
+  // 분기 — nonce 1+ 면 `_r=<nonce>` 를 부착해 path 를 변화시킨다(재조회 트리거).
+  it('nonce 1+ 이면 `_r` query 를 부착한 path 를 반환한다 (분기 — 재조회 트리거)', () => {
+    expect(buildPartPersonsPath('pt1', 1)).toBe('/api/parts/pt1/persons?_r=1');
+    expect(buildPartPersonsPath('pt2', 7)).toBe('/api/parts/pt2/persons?_r=7');
+  });
+
+  // negative — 특수문자가 든 id 도 encodeURIComponent 로 안전 인코딩해 path 가 깨지지 않는다.
+  it('특수문자 id 를 encodeURIComponent 로 안전 인코딩한다 (negative — 비정상 id 경계)', () => {
+    expect(buildPartPersonsPath('a b/c?d')).toBe(
+      '/api/parts/a%20b%2Fc%3Fd/persons',
+    );
+  });
+
+  // negative — 음수 nonce(비정상)도 <=0 분기라 base path 로 안전 fallback 한다(query 미부착).
+  it('음수 nonce 는 base path 로 안전 fallback 한다 (negative — 음수 방어)', () => {
+    expect(buildPartPersonsPath('pt1', -3)).toBe('/api/parts/pt1/persons');
+  });
+});
+
+// R-112 — T-1156 파트 소속 인원 조회 섹션 배선(선택 <select> + 조건부 GET /api/parts/:id/persons →
+// PersonList 읽기 전용 렌더) 검증. happy(선택 시 실 조회 + 인원 이름 렌더) / error path(404·500·
+// 네트워크 → role="alert", throw 0) / 분기(loading 우선·빈 배열 empty 문구·미선택 미조회) /
+// negative(빈 문자열 partId 미조회, 비배열 payload 안전 처리, 선택 변경 시 이전 파트 인원 잔존 0,
+// 읽기 전용이라 삭제·수정 버튼 미렌더, 기존 파트 CRUD 폼 회귀 0)를 각 1+ cover 한다.
+// renderToStaticMarkup + useApiResource mock 으로 시나리오를 통제한다(jsdom 미사용 게이트 정합).
+describe('AdminView — 파트 소속 인원 조회 배선 (T-1156)', () => {
+  const PARTS = '/api/parts';
+  const PT1_PERSONS = '/api/parts/pt1/persons';
+  const PT2_PERSONS = '/api/parts/pt2/persons';
+  // 파트 인원 path 매칭 정규식 — 조건부 미조회(호출 0) 단언에 쓴다.
+  const PART_PERSONS_RE = /^\/api\/parts\/[^/]+\/persons/;
+
+  // 파트 목록 샘플 — 파트 선택 <select> 옵션의 원천. 소속 인원 이름과 겹치지 않는 값으로 둔다.
+  const PART_ROWS = [
+    { id: 'pt1', name: '개발파트' },
+    { id: 'pt2', name: '디자인파트' },
+  ];
+
+  // 파트별 소속 인원 샘플 — PersonRow 계약 그대로(읽기 전용 렌더 대상). 이름은 다른 섹션 샘플
+  // (김철수/이영희 등)과 겹치지 않게 두어 파트 소속 인원 경로만 분리 관찰한다.
+  const PT1_ROWS: PersonRow[] = [
+    { id: 'pp1', fullName: '한소속', email: 'soso@example.com', active: true },
+    { id: 'pp2', fullName: '두번원', email: 'dubun@example.com', active: false },
+  ];
+  const PT2_ROWS: PersonRow[] = [
+    { id: 'pp3', fullName: '디자이너갑', email: 'gap@example.com', active: true },
+  ];
+
+  // markup 안 특정 조각의 등장 횟수를 세는 헬퍼(읽기 전용 — 버튼 미렌더 단언용).
+  const countOccurrences = (haystack: string, needle: string) =>
+    haystack.split(needle).length - 1;
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 파트 선택 시 GET /api/parts/:id/persons 를 정확한 path 로 조회하고, 응답 인원의
+  // 이름·이메일이 화면에 렌더된다. 파트 선택 <select>(aria-label)도 옵션과 함께 마운트된다.
+  it('파트 선택 시 소속 인원 endpoint 를 실 조회해 인원 이름을 렌더한다 (happy-path)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [PT1_PERSONS]: { data: PT1_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    // 조건부 조회가 선택 파트 path 로 정확히 한 번 발사된다.
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(paths.filter((p) => p === PT1_PERSONS)).toHaveLength(1);
+    // 파트 선택 <select> + 빈 선택지 라벨이 마운트된다.
+    expect(html).toContain('aria-label="소속 인원을 볼 파트 선택"');
+    expect(html).toContain('파트를 선택하세요');
+    // 응답 인원의 이름·이메일이 PersonList 로 렌더된다.
+    expect(html).toContain('한소속');
+    expect(html).toContain('두번원');
+    expect(html).toContain('soso@example.com');
+  });
+
+  // error path — 404(파트 부재)면 PersonList 의 error 영역(role="alert")이 렌더되고 목록은 미렌더,
+  // 렌더 자체는 throw 하지 않는다(안전 표시).
+  it('소속 인원 조회 404 시 alert 를 렌더하고 목록은 미렌더한다 (error path — 404)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [PT1_PERSONS]: {
+        data: undefined,
+        loading: false,
+        error: 'HTTP 404: part not found',
+      },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('HTTP 404: part not found');
+    expect(html).not.toContain('한소속');
+  });
+
+  // error path — 500 / 네트워크 실패(status 0 문구)도 동일하게 alert 로 안전 표시되고 throw 0.
+  it('소속 인원 조회 500·네트워크 실패도 alert 로 안전 표시한다 (error path — 500/네트워크)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [PT1_PERSONS]: {
+        data: undefined,
+        loading: false,
+        error: 'HTTP 500: persons boom',
+      },
+    });
+    expect(() =>
+      renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />),
+    ).not.toThrow();
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [PT1_PERSONS]: {
+        data: undefined,
+        loading: false,
+        error: '네트워크 오류: failed to fetch',
+      },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    expect(html).toContain('네트워크 오류: failed to fetch');
+    expect(html).not.toContain('한소속');
+  });
+
+  // 분기 — loading 중이면 loading 우선 정책으로 로딩 표면만 렌더되고 인원 목록은 미렌더된다.
+  it('소속 인원 조회 loading 중이면 로딩 표면을 우선 렌더한다 (분기 — loading 우선)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [PT1_PERSONS]: { data: PT1_ROWS, loading: true, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    expect(html).toContain('불러오는 중…');
+    expect(html).not.toContain('한소속');
+  });
+
+  // 분기 — 파트는 있으나 인원 0(200 + 빈 배열)이면 인원 0 전용 빈 문구를 렌더한다(미선택 안내와 구분).
+  it('선택 파트의 인원이 0 이면 인원 0 전용 빈 문구를 렌더한다 (분기 — 빈 배열)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [PT1_PERSONS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    expect(html).toContain('이 파트에 속한 인원이 없습니다');
+    expect(html).not.toContain('파트를 선택하면 소속 인원을 표시합니다');
+  });
+
+  // 분기 — 미선택(초기값 미주입)이면 path=null 로 미조회(idle)하고 미선택 안내를 렌더한다.
+  it('파트 미선택이면 소속 인원 endpoint 를 조회하지 않고 미선택 안내를 렌더한다 (분기 — 조건부 미조회)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    // 어떤 파트 인원 path 도 호출되지 않는다(조건부 미조회) — null 로만 호출된다.
+    expect(
+      paths.filter((p) => typeof p === 'string' && PART_PERSONS_RE.test(p)),
+    ).toHaveLength(0);
+    expect(paths).toContain(null);
+    expect(html).toContain('파트를 선택하면 소속 인원을 표시합니다');
+  });
+
+  // negative — 빈 문자열 초기 partId(비정상 잔재)도 미선택과 동일하게 미조회를 유지한다.
+  it('빈 문자열 partId 는 미조회를 유지한다 (negative — 빈 입력 경계)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+    });
+    renderToStaticMarkup(<AdminView initialSelectedPartId="" />);
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(
+      paths.filter((p) => typeof p === 'string' && PART_PERSONS_RE.test(p)),
+    ).toHaveLength(0);
+  });
+
+  // negative — 응답이 배열이 아닌 비정상 payload(객체 등)여도 빈 목록으로 안전 처리하고 throw 하지
+  // 않는다(PersonList 가 undefined.length 로 깨지지 않도록 하는 경계 방어).
+  it('비배열 payload 는 빈 목록으로 안전 처리하고 throw 하지 않는다 (negative — 비정상 payload)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [PT1_PERSONS]: {
+        data: { unexpected: true },
+        loading: false,
+        error: undefined,
+      },
+    });
+    let html = '';
+    expect(() => {
+      html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    }).not.toThrow();
+    expect(html).toContain('이 파트에 속한 인원이 없습니다');
+  });
+
+  // negative — 선택 파트가 다르면 그 파트의 인원만 렌더되고 다른 파트 인원은 잔존하지 않는다
+  // (path 가 선택마다 달라져 useApiResource 가 새 조회 결과로 교체 — stale 표시 0).
+  it('선택 파트를 바꾸면 이전 파트 인원이 잔존하지 않는다 (negative — stale 표시 방지)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [PT1_PERSONS]: { data: PT1_ROWS, loading: false, error: undefined },
+      [PT2_PERSONS]: { data: PT2_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt2" />);
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(paths).toContain(PT2_PERSONS);
+    expect(paths).not.toContain(PT1_PERSONS);
+    expect(html).toContain('디자이너갑');
+    expect(html).not.toContain('한소속');
+  });
+
+  // negative — 읽기 전용 재사용이라 소속 인원 행에 삭제·수정 버튼이 렌더되지 않는다(onDelete/onEdit
+  // 미전달). 비-Admin 등급 + 파트 목록 빈 배열로 다른 섹션의 버튼을 배제해 소속 인원 목록만 남긴다.
+  it('소속 인원 목록에 삭제·수정 버튼을 렌더하지 않는다 (negative — 읽기 전용 재사용)', () => {
+    setRoutes({
+      [PARTS]: { data: [], loading: false, error: undefined },
+      [PT1_PERSONS]: { data: PT1_ROWS, loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    expect(html).toContain('한소속');
+    expect(countOccurrences(html, '>삭제</button>')).toBe(0);
+    expect(countOccurrences(html, '>수정</button>')).toBe(0);
+  });
+
+  // negative — 기존 파트 CRUD 폼·목록과 그룹 섹션이 회귀 없이 그대로 렌더된다(본 slice 는 추가만).
+  it('기존 파트 CRUD 폼·목록이 회귀 없이 함께 렌더된다 (negative — 회귀 0)', () => {
+    setRoutes({
+      [PARTS]: { data: PART_ROWS, loading: false, error: undefined },
+      [PT1_PERSONS]: { data: PT1_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView initialSelectedPartId="pt1" />);
+    expect(html).toContain('파트 관리');
+    expect(html).toContain('aria-label="추가할 파트 이름"');
+    expect(html).toContain('파트 추가</button>');
+    expect(html).toContain('개발파트');
+    expect(html).toContain('디자인파트');
+    // 그룹 섹션(다른 조회)도 그대로 유지된다.
+    expect(html).toContain('aria-label="그룹 선택"');
   });
 });
