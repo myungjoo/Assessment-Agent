@@ -2,7 +2,9 @@
 id: T-1143
 title: AdminView 인원 생성 mutation 배선 POST /api/persons
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-23T12:40:00Z
+result: PR #1035 머지(squash b5285a2f, round 1/7). AdminView 인원 생성 폼 + runCreatePerson/buildPersonsPath 배선, web 732 tests green, 4-게이트 PASS.
 commitMode: pr
 coversReq: [REQ-049, REQ-023]
 estimatedDiff: 220
