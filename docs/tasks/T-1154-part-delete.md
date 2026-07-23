@@ -2,7 +2,11 @@
 id: T-1154
 title: AdminView 파트 삭제 mutation 배선 (DELETE /api/parts/:id)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-23T19:54:00Z
+mergedAs: c8a3138e70ee4fd122e0864182f7ee6e9b8534ed
+prNumber: 1046
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 200
