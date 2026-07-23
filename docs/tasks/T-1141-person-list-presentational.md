@@ -2,7 +2,7 @@
 id: T-1141
 title: PersonList presentational 컴포넌트 신설 (Admin 인원 관리 UI 첫 slice)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-023]
 estimatedDiff: 250
