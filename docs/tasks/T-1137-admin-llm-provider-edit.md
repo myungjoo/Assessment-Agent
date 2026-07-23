@@ -2,7 +2,11 @@
 id: T-1137
 title: AdminView LLM provider 수정 mutation 배선 (PATCH /api/llm/providers/:id)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-23T08:30:15Z
+mergedAs: 3076e74f
+prNumber: 1029
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-096]
 estimatedDiff: 270
