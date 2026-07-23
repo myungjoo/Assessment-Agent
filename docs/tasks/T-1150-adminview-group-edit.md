@@ -2,7 +2,7 @@
 id: T-1150
 title: AdminView 그룹 수정 mutation 배선 PATCH /api/groups/:id
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-028]
 estimatedDiff: 210
