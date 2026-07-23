@@ -2,8 +2,11 @@
 id: T-1144
 title: AdminView 인원 삭제 mutation 배선 DELETE /api/persons/:id
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1036
+mergedAs: 2707432a
+completedAt: 2026-07-23T13:25Z
 coversReq: [REQ-049]
 estimatedDiff: 300
 estimatedFiles: 4
