@@ -69,6 +69,7 @@ import AdminView, {
   buildPersonsPath,
   buildGroupsPath,
   buildPartsPath,
+  buildUsersPath,
   buildPartPersonsPath,
   buildExportPath,
   mergeMapping,
@@ -90,6 +91,7 @@ import AdminView, {
   runCreatePerson,
   runCreateGroup,
   runCreatePart,
+  runCreateUser,
   runDeletePerson,
   runDeleteGroup,
   runDeletePart,
@@ -124,6 +126,7 @@ import type {
   CreatePersonFields,
   CreateGroupDeps,
   CreatePartDeps,
+  CreateUserDeps,
   DeletePersonDeps,
   DeleteGroupDeps,
   DeletePartDeps,
@@ -8282,5 +8285,172 @@ describe('AdminView — 사용자 관리 목록 마운트 (T-1159)', () => {
     expect(paths.filter((p) => p === '/api/parts')).toHaveLength(1);
     expect(html).toContain('aria-label="그룹 선택"');
     expect(html).toContain('aria-label="추가할 파트 이름"');
+  });
+});
+
+// R-112 — T-1160 사용자 생성 POST 러너(runCreateUser) + 폼 배선 검증(runCreatePart describe mirror,
+// payload 만 email+password 2 필드). happy(POST 1 회·body·bump/reset)/error(409 전용·400·비-ApiError)
+// /branch(nonce·isConflict·진행 전이·초기 disabled)/negative(빈 입력·in-flight·trim·회귀 0) 각 1+.
+describe('AdminView — 사용자 생성 실 POST create mutation (T-1160 runCreateUser)', () => {
+  const EMAIL = 'new-user@example.com';
+  const PASSWORD = 'pass1234';
+  // 409 전용 문구 — runCreateUser 가 ConflictException(409) 시 표면화하는 상수와 정합.
+  const DUP = '이미 존재하는 이메일입니다';
+
+  // 상태 전이 기록 deps harness(makeCreateDeps mirror) — describeError 호출 횟수도 센다(409 분기).
+  function makeUserDeps(creating: boolean) {
+    const calls = {
+      creating: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      reset: 0,
+      describe: 0,
+    };
+    const deps: CreateUserDeps = {
+      create: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        calls.describe += 1;
+        return e instanceof ApiError && e.status !== 0
+          ? `HTTP ${e.status}: ${e.message}`
+          : `네트워크 오류: ${(e as Error).message}`;
+      },
+      isConflict: (e: unknown) => e instanceof ApiError && e.status === 409,
+      creating,
+      setCreating: (next) => calls.creating.push(next),
+      setCreateError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+      resetInput: () => {
+        calls.reset += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — POST 1 회 + body 2 필드 + 성공 후 bump(1)/reset(1)/error 시작 비움만/진행 on→off.
+  it('POST /api/users 를 body `{ email, password }` 로 1 회 호출하고 성공 시 nonce bump + 입력 초기화 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 201 Created.
+    const { deps, calls } = makeUserDeps(false);
+    await runCreateUser(EMAIL, PASSWORD, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string; body: string },
+    ];
+    expect(path).toBe('/api/users');
+    expect(options.method).toBe('POST');
+    const parsed = JSON.parse(options.body);
+    expect(parsed).toEqual({ email: EMAIL, password: PASSWORD });
+    // AddUserDto 계약 — email/password 외 다른 필드는 담지 않는다(경계).
+    expect(Object.keys(parsed).sort()).toEqual(['email', 'password']);
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // error path + branch(isConflict true) — 409 는 전용 문구, describeError 파생은 미사용.
+  it('409(중복 이메일) 시 전용 문구를 쓰고 describeError 를 사용하지 않는다 (error path — 409 전용 분기)', async () => {
+    requestMock.mockRejectedValue(new ApiError(409, 'Conflict'));
+    const { deps, calls } = makeUserDeps(false);
+    await expect(runCreateUser(EMAIL, PASSWORD, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, DUP]);
+    expect(calls.describe).toBe(0);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // error path + branch(isConflict false) — 비-409(400 검증 실패·네트워크·비-ApiError)는 throw 없이
+  // describeError 파생 문구만 남기고 nonce·입력을 유지하며 진행 플래그는 finally 로 해제된다.
+  it.each([
+    ['400(검증 실패)', new ApiError(400, 'Bad Request'), 'HTTP 400: Bad Request'],
+    ['status 0 네트워크', new ApiError(0, 'offline'), '네트워크 오류: offline'],
+    ['비-ApiError throw', new TypeError('fetch failed'), '네트워크 오류: fetch failed'],
+  ])(
+    '%s 시 throw 없이 describeError 파생 문구만 표면화한다 (error path — 비-409 분기)',
+    async (_label, thrown, expected) => {
+      requestMock.mockRejectedValue(thrown);
+      const { deps, calls } = makeUserDeps(false);
+      await expect(
+        runCreateUser(EMAIL, PASSWORD, deps),
+      ).resolves.toBeUndefined();
+      expect(calls.error).toEqual([undefined, expected]);
+      expect(calls.describe).toBe(1);
+      expect(calls.bump).toBe(0);
+      expect(calls.reset).toBe(0);
+      expect(calls.creating).toEqual([true, false]);
+    },
+  );
+
+  // negative — 빈/공백 email·빈 password·in-flight 는 모두 미발사(POST 0) + 상태 전이 0.
+  it.each([
+    ['email 빈 문자열', '', PASSWORD, false],
+    ['email 공백만', '   ', PASSWORD, false],
+    ['password 빈 문자열', EMAIL, '', false],
+    ['creating in-flight 재호출', EMAIL, PASSWORD, true],
+  ])(
+    '%s 이면 POST 를 발사하지 않는다 (negative — 발사 억제 가드)',
+    async (_label, email, password, creating) => {
+      requestMock.mockResolvedValue(undefined);
+      const { deps, calls } = makeUserDeps(creating);
+      await runCreateUser(email, password, deps);
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.creating).toEqual([]);
+      expect(calls.error).toEqual([]);
+      expect(calls.bump).toBe(0);
+    },
+  );
+
+  // negative — email 은 trim, password 는 공백도 유효 문자라 원문 그대로 실린다(정규화 경계).
+  it('email 은 trim 하고 password 는 trim 하지 않는다 (negative — 정규화 경계)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeUserDeps(false);
+    await runCreateUser(`  ${EMAIL}  `, ' pw with space ', deps);
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(JSON.parse(options.body)).toEqual({
+      email: EMAIL,
+      password: ' pw with space ',
+    });
+  });
+
+  // 분기 — nonce 0/음수면 base path 문자열 그대로(T-1159 회귀 0), 양수면 `_r` query 를 붙인다.
+  it.each([
+    [0, '/api/users'],
+    [-1, '/api/users'],
+    [3, '/api/users?_r=3'],
+  ])(
+    'buildUsersPath(%s) === %s (분기 — nonce 0/음수 base vs 양수 `_r` query)',
+    (nonce, expected) => expect(buildUsersPath(nonce as number)).toBe(expected),
+  );
+
+  // happy-path(렌더) + 분기 — 두 input·버튼이 마운트되고 초기(빈 필드)엔 버튼이 disabled 다.
+  it('사용자 관리 섹션에 email·password input + "사용자 추가" 버튼을 렌더하고 초기엔 disabled 다 (happy-path/분기 — 정적 렌더)', () => {
+    setRoutes({ '/api/users': { data: [], loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('aria-label="추가할 사용자 이메일"');
+    expect(html).toContain('aria-label="추가할 사용자 비밀번호"');
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>사용자 추가<\/button>/);
+    expect(html).not.toContain('role="alert"');
+  });
+
+  // negative — 생성 폼 배선으로 다른 섹션 조회 횟수가 늘지 않는다(회귀 0. 사용자도 base path 1 회).
+  it('생성 폼 배선으로 다른 섹션 fetch 횟수가 늘지 않는다 (negative — 회귀 0)', () => {
+    setRoutes({ '/api/users': { data: [], loading: false, error: undefined } });
+    renderToStaticMarkup(<AdminView />);
+    const paths = useApiResourceMock.mock.calls.map((c) => c[0]);
+    expect(paths.filter((p) => p === '/api/users')).toHaveLength(1);
+    expect(paths.filter((p) => p === '/api/persons')).toHaveLength(1);
+    expect(paths.filter((p) => p === '/api/groups')).toHaveLength(1);
+    expect(paths.filter((p) => p === '/api/parts')).toHaveLength(1);
   });
 });

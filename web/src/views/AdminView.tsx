@@ -109,6 +109,9 @@ const USERS_PATH = '/api/users';
 // §12 한국어. <h2> 로 렌더하며, 섹션 aria-label 은 다른 섹션과 구분되도록 "… 섹션" 접미를 붙인다.
 const USER_HEADING = '사용자 관리';
 
+// 사용자 생성 409(중복 이메일) 전용 문구(T-1160 — PART_DUPLICATE_ERROR mirror. User.email @unique).
+const USER_DUPLICATE_ERROR = '이미 존재하는 이메일입니다';
+
 // 파트 생성 409(중복 이름) 전용 사람-친화 문구(T-1153) — Part.name 은 prisma schema 에서 @unique
 // 라 중복 이름 POST 시 PartService.create 가 Prisma P2002 → ConflictException(409) 으로 변환한다.
 // 그룹(Group.name @unique 미정의라 409 없음)과 달리 파트는 이 409 를 일반 error 문구("HTTP 409:
@@ -692,6 +695,15 @@ function buildPartsPath(refreshNonce: number): string {
     return PARTS_PATH;
   }
   return `${PARTS_PATH}?_r=${refreshNonce}`;
+}
+
+// 사용자 목록 조회 path 빌더(T-1160 — buildPartsPath 동형. nonce 를 `_r` 로 실어 재조회를 내되,
+// backend 는 @Query 미수신이라 부수효과 0. nonce 0 이면 T-1159 초기 조회와 같은 base path).
+function buildUsersPath(refreshNonce: number): string {
+  if (refreshNonce <= 0) {
+    return USERS_PATH;
+  }
+  return `${USERS_PATH}?_r=${refreshNonce}`;
 }
 
 // 선택 파트의 소속 인원 조회 path 빌더(순수 helper, T-1156 — buildGroupMembersPath 동형) — GET
@@ -1632,6 +1644,54 @@ async function runCreatePart(
     // describeError 파생 일반 문구를 쓴다. 그룹(409 없음)과 달리 파트는 409 를 명시 분기한다.
     if (deps.isConflict(e)) {
       deps.setCreateError(PART_DUPLICATE_ERROR);
+    } else {
+      deps.setCreateError(deps.describeError(e));
+    }
+  } finally {
+    deps.setCreating(false);
+  }
+}
+
+// 사용자 생성 POST + state-전이 deps(T-1160 — 위 CreatePartDeps 1:1 mirror, 필드 의미는 그쪽 주석).
+interface CreateUserDeps {
+  create: (path: string, options: RequestOptions) => Promise<unknown>;
+  describeError: (e: unknown) => string;
+  isConflict: (e: unknown) => boolean;
+  creating: boolean;
+  setCreating: (next: boolean) => void;
+  setCreateError: (next: string | undefined) => void;
+  bumpRefresh: () => void;
+  resetInput: () => void;
+}
+
+// 사용자 생성 POST /api/users(body `{ email, password }`) + state-전이를 캡슐화한 순수 async 러너
+// (T-1160 — 위 runCreatePart mirror). backend(user.controller @Post(), guard 없는 Public tier, 201
+// Created, AddUserDto 검증 실패 → 400, email 중복 → 409)를 발사한다. 동작: 빈 입력·in-flight 면
+// 미발사 / 발사 시 진행 on + 직전 error 비움 / 성공 시 재조회 bump + 입력 초기화 / 실패는 throw
+// 없이 error state(409 전용 문구, 그 외 describeError 파생, 입력·nonce 유지) / off 는 finally 공통.
+async function runCreateUser(
+  email: string,
+  password: string,
+  deps: CreateUserDeps,
+): Promise<void> {
+  // 발사 억제 가드(no-op — 상태 전이 0). password 는 공백도 유효 문자라 빈 문자열만 차단한다.
+  const trimmedEmail = email?.trim();
+  if (!trimmedEmail || !password || deps.creating) {
+    return;
+  }
+  deps.setCreating(true);
+  deps.setCreateError(undefined);
+  try {
+    await deps.create(USERS_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: trimmedEmail, password }),
+    });
+    deps.bumpRefresh();
+    deps.resetInput();
+  } catch (e) {
+    if (deps.isConflict(e)) {
+      deps.setCreateError(USER_DUPLICATE_ERROR);
     } else {
       deps.setCreateError(deps.describeError(e));
     }
@@ -3286,17 +3346,52 @@ function AdminView({
   // 사용자 목록 조회(GET /api/users, T-1159 마운트, REQ-044/REQ-045) — useApiResource 신규 호출.
   // 파트처럼 재사용할 기존 사용자 fetch 가 없어(AdminView 사용자 미조회) 신규 단일 호출이 정당하다
   // (double-fetch 대상 부재). 변수명에 user prefix 를 붙여 인원/그룹/파트/멤버십 등 다른 조회 상태와
-  // 섞이지 않게 분리한다(partLoading/partError 동형). 본 slice 는 읽기 전용이라 mutation 이 없어
-  // refresh nonce 없이 정적 path 를 쓴다(생성·역할 변경 slice 에서 buildUsersPath(nonce) 로 전환).
+  // 섞이지 않게 분리한다(partLoading/partError 동형). T-1160 에서 생성 mutation 이 붙어 정적 path
+  // 대신 nonce-aware buildUsersPath 조회로 전환했다(nonce 0 이면 문자열 동일 — 초기 조회 회귀 0).
   // Admin+ endpoint 라 비-Admin actor 의 요청은 403 이 되지만, 그 error 문구가 화면에 노출되지는
   // 않는다 — 아래 사용자 관리 섹션이 isAdmin gating 안쪽이라 렌더 자체가 차단되고 권한 부족 안내만
   // 남는다(fail-closed, 아래 섹션 주석 정합). 조회 hook 은 등급과 무관하게 호출되므로 요청은 나가되
   // 실패는 error state 로 흡수되어 throw 0 이다(Admin 에게만 error 문구가 표면화된다).
+  // 사용자 재조회 nonce + nonce-aware 조회 path(T-1160 — partsRefreshNonce/partsPath 동형).
+  const [usersRefreshNonce, setUsersRefreshNonce] = useState<number>(0);
+
+  const usersPath = useMemo(
+    () => buildUsersPath(usersRefreshNonce),
+    [usersRefreshNonce],
+  );
+
   const {
     data: usersData,
     loading: userLoading,
     error: userError,
-  } = useApiResource<UserRow[]>(USERS_PATH);
+  } = useApiResource<UserRow[]>(usersPath);
+
+  // 사용자 생성 input·in-flight·실패 문구 상태(T-1160 — 파트 생성 state mirror, 입력만 2 필드).
+  const [userEmailInput, setUserEmailInput] = useState<string>('');
+  const [userPasswordInput, setUserPasswordInput] = useState<string>('');
+  const [creatingUser, setCreatingUser] = useState<boolean>(false);
+  const [createUserError, setCreateUserError] = useState<string | undefined>(
+    undefined,
+  );
+
+  // 사용자 생성 실 mutation 핸들러(T-1160 — handleCreatePart mirror. 전이는 러너가 캡슐화).
+  const handleCreateUser = useCallback(
+    () =>
+      runCreateUser(userEmailInput, userPasswordInput, {
+        create: request,
+        describeError: toErrorMessage,
+        isConflict: (e: unknown) => e instanceof ApiError && e.status === 409,
+        creating: creatingUser,
+        setCreating: setCreatingUser,
+        setCreateError: setCreateUserError,
+        bumpRefresh: () => setUsersRefreshNonce((n) => n + 1),
+        resetInput: () => {
+          setUserEmailInput('');
+          setUserPasswordInput('');
+        },
+      }),
+    [userEmailInput, userPasswordInput, creatingUser],
+  );
 
   // 파트 생성 controlled input 상태(T-1153) — 컨테이너 소유. "파트 추가" 클릭 시 handleCreatePart
   // 가 POST body 의 name 필드로 공급하고, 성공 후 빈 값으로 되돌린다(연속 생성 편의). 그룹 생성의
@@ -3895,6 +3990,34 @@ function AdminView({
               후속 slice). UserList 의 named UserRow 를 조회 제네릭에 그대로 쓴다(컴포넌트 수정 0). */}
           <section aria-label="사용자 관리 섹션">
             <h2>{USER_HEADING}</h2>
+            {/* 사용자 생성(T-1160, REQ-044/REQ-045) — 파트 생성 폼(T-1153) mirror, 입력만 2 필드.
+                빈 입력·진행 중엔 버튼·입력 비활성으로 발사 억제(러너도 no-op 가드로 이중 방어). */}
+            <div>
+              <input
+                aria-label="추가할 사용자 이메일"
+                type="text"
+                value={userEmailInput}
+                onChange={(event) => setUserEmailInput(event.target.value)}
+                disabled={creatingUser}
+              />
+              <input
+                aria-label="추가할 사용자 비밀번호"
+                type="password"
+                value={userPasswordInput}
+                onChange={(event) => setUserPasswordInput(event.target.value)}
+                disabled={creatingUser}
+              />
+              <button
+                type="button"
+                onClick={handleCreateUser}
+                disabled={
+                  creatingUser || !userEmailInput.trim() || !userPasswordInput
+                }
+              >
+                사용자 추가
+              </button>
+              {createUserError ? <p role="alert">{createUserError}</p> : null}
+            </div>
             <UserList
               users={usersData ?? []}
               loading={userLoading}
@@ -4235,6 +4358,7 @@ export {
   buildPersonsPath,
   buildGroupsPath,
   buildPartsPath,
+  buildUsersPath,
   buildPartPersonsPath,
   buildExportPath,
   mergeMapping,
@@ -4256,6 +4380,7 @@ export {
   runCreatePerson,
   runCreateGroup,
   runCreatePart,
+  runCreateUser,
   runDeletePerson,
   runDeleteGroup,
   runDeletePart,
@@ -4293,6 +4418,7 @@ export type {
   CreatePersonDeps,
   CreateGroupDeps,
   CreatePartDeps,
+  CreateUserDeps,
   DeletePersonDeps,
   DeleteGroupDeps,
   DeletePartDeps,
