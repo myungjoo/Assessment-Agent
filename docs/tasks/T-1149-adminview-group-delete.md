@@ -2,7 +2,8 @@
 id: T-1149
 title: AdminView 그룹 삭제 mutation 배선 DELETE /api/groups/:id
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1041
 commitMode: pr
 coversReq: [REQ-049, REQ-028]
 estimatedDiff: 200
