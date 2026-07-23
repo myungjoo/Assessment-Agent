@@ -1801,6 +1801,47 @@ async function runDeletePart(
   }
 }
 
+// 파트 삭제 성공 후의 선택 파트 id 를 결정하는 순수 helper(T-1157) — 삭제된 파트가 현재 선택
+// 중이었으면 선택을 해제(빈 문자열)하고, 아니면 현재 선택을 그대로 유지한다. 컨테이너의
+// handleDeletePart 가 성공 경로 전용 bumpRefresh 안에서 functional setState 로 호출한다. 선택이
+// 잔존하면 (a) buildPartPersonsPath 가 사라진 파트의 /api/parts/<deletedId>/persons 를 재조회해
+// 404 문구가 소속 인원 패널에 표시되고 (b) <select value={selectedPartId}> 가 없는 option 을
+// 가리켜 표시값과 state 가 불일치한다 — 본 helper 가 그 비정상 시퀀스를 정상화한다.
+// 빈 문자열·공백·undefined-like 입력에서도 throw 하지 않는다(경계 방어): current 가 falsy 면
+// 빈 문자열로, deletedId 가 falsy 거나 공백뿐이면(비정상 호출) 현재 선택을 보존한 채 안전 반환한다
+// — 공백 판정은 runDeletePart 의 미발사 가드(`id.trim() === ''`)와 같은 의미로 맞춘다(T-1157 round 2
+// reviewer MINOR (1): 두 함수의 공백 의미 불일치 해소).
+function resolveSelectedPartIdAfterDelete(
+  current: string,
+  deletedId: string,
+): string {
+  const cur = current ?? '';
+  const deleted = deletedId?.trim() ?? '';
+  // 삭제 대상 id 가 비었으면(비정상) 선택을 건드리지 않는다 — 의도치 않은 선택 해제 회피.
+  if (!deleted) {
+    return cur;
+  }
+  return cur === deleted ? '' : cur;
+}
+
+// 파트 삭제 성공 경로 전용 bumpRefresh 콜백을 조립하는 순수 factory(T-1157 round 2 — reviewer
+// MAJOR (1) 해소). 컨테이너 handleDeletePart 가 runDeletePart 에 주입하는 콜백의 본문을 인라인
+// 화살표가 아니라 본 함수로 뽑아, test 가 fake setter 2 개를 주입해 "실물 배선"(파트 재조회 nonce
+// +1 + 선택 전이)을 직접 호출·단언할 수 있게 한다. 두 setter 는 functional updater 로만 호출해
+// 최신 state 를 읽는다(stale closure 회피 — selectedPartId 를 useCallback deps 에 넣지 않는다).
+// 본 콜백은 runDeletePart 의 성공 경로에서만 호출되므로(T-1154 계약) 실패 시 선택 유지는 자동
+// 보장된다.
+function buildDeletePartBumpRefresh(
+  setRefreshNonce: (updater: (prev: number) => number) => void,
+  setSelected: (updater: (prev: string) => string) => void,
+  deletedId: string,
+): () => void {
+  return () => {
+    setRefreshNonce((n) => n + 1);
+    setSelected((cur) => resolveSelectedPartIdAfterDelete(cur, deletedId));
+  };
+}
+
 // 인원 수정 3 필드 묶음(T-1145) — 컨테이너의 인라인 수정 폼 3 controlled input(fullName/email/active)
 // 값이자 편집 시작 시점의 원본 스냅샷 타입. buildPersonPatch 가 input 과 original 을 비교해 "변경된
 // 필드만" 담긴 부분 갱신 body(PersonPatch)를 만든다. active 는 boolean(soft deactivate/reactivate,
@@ -3276,7 +3317,12 @@ function AdminView({
   // 로 발사한다(신규 mutation hook 미작성 — runDeleteGroup 정합). 빈/공백/falsy id·이전 mutation
   // 미완(deletingPart) 발사 억제 + 성공(파트 재조회 트리거)/실패(error 안전 표시, throw 없음) 전이는
   // runDeletePart 가 캡슐화한다. deletingPart 를 deps 의존성에 포함해 stale 없이 최신 가드 상태로
-  // 발사한다.
+  // 발사한다. 성공 경로 전용 bumpRefresh(T-1154 계약 — 실패 시 미호출)에서 파트 재조회 nonce bump
+  // 와 함께 선택 해제도 처리한다(T-1157): 선택 중인 파트를 삭제하면 selectedPartId 를 비워 사라진
+  // 파트의 소속 인원 재조회(404 문구)와 <select> 표시값 불일치를 막는다. functional setState 로
+  // 최신 선택값을 읽어 selectedPartId 를 deps 에 넣지 않는다(stale closure 회피 + deps 유지).
+  // 실패 시 선택 유지는 bumpRefresh 미호출로 자동 보장된다(러너 시그니처 변경 0). 콜백 본문은
+  // buildDeletePartBumpRefresh 순수 factory 가 소유해 test 가 실물 배선을 직접 호출·검증한다.
   const handleDeletePart = useCallback(
     (id: string) =>
       runDeletePart(id, {
@@ -3285,7 +3331,11 @@ function AdminView({
         deleting: deletingPart,
         setDeleting: setDeletingPart,
         setDeleteError: setDeletePartError,
-        bumpRefresh: () => setPartsRefreshNonce((n) => n + 1),
+        bumpRefresh: buildDeletePartBumpRefresh(
+          setPartsRefreshNonce,
+          setSelectedPartId,
+          id,
+        ),
       }),
     [deletingPart],
   );
@@ -4162,6 +4212,8 @@ export {
   runDeletePerson,
   runDeleteGroup,
   runDeletePart,
+  resolveSelectedPartIdAfterDelete,
+  buildDeletePartBumpRefresh,
   buildPersonPatch,
   runUpdatePerson,
   runUpdateGroup,
