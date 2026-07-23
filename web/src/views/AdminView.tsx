@@ -60,10 +60,10 @@ import type { PersonRow } from '../components/PersonList';
 // path 파생 helper 규약과 정합하게 상수로 둔다(조건부 가드 불요 — null 분기 없음).
 const GROUPS_PATH = '/api/groups';
 
-// 인원(Person) 목록 조회 path — 고정 endpoint(GET /api/persons, active 인원 Person[] 반환,
+// 인원(Person) 목록 조회 base path — 고정 endpoint(GET /api/persons, active 인원 Person[] 반환,
 // PersonController T-0036). personId 같은 필수 query 가 없어 무조건 조회한다(미인증은 AuthGate
-// 가 이미 차단). 읽기 전용 마운트라 필터/재조회 nonce 불요 — T-1140 PERMISSION_DENIED_RECORDS_PATH
-// 규약과 정합하게 상수로 둔다(조건부 가드 없음 — null 분기 불요). buildXxxPath helper 불요.
+// 가 이미 차단). T-1143 부터 인원 생성 POST 성공 시 권위 재조회를 유발해야 하므로, 고정 상수
+// 대신 buildPersonsPath(refreshNonce) nonce-aware 빌더의 base 로 쓴다(buildProvidersPath 동형).
 const PERSONS_PATH = '/api/persons';
 
 // 인원 관리 섹션 heading 문구(T-1142) — 기존 패널들과 시각적으로 구분되는 별도 섹션의 제목.
@@ -590,6 +590,19 @@ function buildProvidersPath(refreshNonce: number): string {
     return LLM_PROVIDERS_PATH;
   }
   return `${LLM_PROVIDERS_PATH}?_r=${refreshNonce}`;
+}
+
+// 인원 목록 조회 path 빌더(순수 helper, T-1143 — buildProvidersPath 동형) — 인원 생성 POST
+// (/api/persons) 성공 시 GET /api/persons 재조회를 유발하기 위해 컨테이너의 personsRefreshNonce 를
+// cache-busting query(`_r`)로 실어 path 문자열을 변화시킨다. useApiResource 는 path 변경 시에만
+// 재조회하므로(read-only hook 수정 0), nonce 증가가 곧 재조회 트리거다. nonce 0(초기 조회)이면
+// query 없는 깨끗한 base path 를 그대로 쓴다(T-1142 마운트 path 와 동일 유지 — 회귀 0). `_r` 은
+// backend GET 핸들러가 @Query 를 받지 않아 무시한다(api.md — 부수효과 0).
+function buildPersonsPath(refreshNonce: number): string {
+  if (refreshNonce <= 0) {
+    return PERSONS_PATH;
+  }
+  return `${PERSONS_PATH}?_r=${refreshNonce}`;
 }
 
 // 서버 파생 매핑 위에 낙관적 override 를 덮는 순수 helper — ④c PATCH 발사 직후 재조회 도착
@@ -1293,6 +1306,81 @@ async function runCreateProvider(
   }
 }
 
+// 인원 생성 POST 2 필드 묶음(T-1143) — 컨테이너의 2 controlled input(fullName/email) 값을 러너에
+// 한 덩어리로 넘긴다. 러너가 각 필드를 trim 해 빈/공백 가드에 쓰고, 유효 시 body 로 JSON 직렬화한다.
+// active 는 Prisma default(true)라 body 에서 제외한다(CreatePersonDto 2 필드만 — src/user/dto).
+interface CreatePersonFields {
+  fullName: string;
+  email: string;
+}
+
+// 인원 생성 POST + state-전이 로직에 주입하는 deps(T-1143 — runCreateProvider 의 CreateProviderDeps
+// 를 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 컨테이너의 handleCreatePerson 은 이
+// 러너에 2 입력값(CreatePersonFields)·현재 in-flight 여부(creating)·상태 setter·재조회 트리거·입력
+// 초기화를 주입해 호출만 한다. path param 이 없어(POST /api/persons) id 는 없다.
+interface CreatePersonDeps {
+  // POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  create: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 create in-flight 여부 — true 면 미발사(이중 POST·경합 가드).
+  creating: boolean;
+  setCreating: (next: boolean) => void;
+  setCreateError: (next: string | undefined) => void;
+  // 권위 인원 재조회 트리거 — personsRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+  // 성공 후 2 입력 초기화 트리거(빈 값으로 되돌림 — 연속 생성 편의).
+  resetInput: () => void;
+}
+
+// 인원 생성 POST /api/persons(body `{ fullName, email }`) + state-전이 로직을 캡슐화한 순수 async
+// 러너(T-1143 — runCreateProvider mirror). backend create(person.controller, 201 Created,
+// CreatePersonDto 2 필드, email 중복 → 409 Conflict, 검증 실패 → 400)를 발사한다. 컨테이너의
+// handleCreatePerson 은 이 러너에 deps 를 주입해 호출만 한다. 동작:
+//  - 2 필드 중 하나라도 빈/공백만 → 미발사(잘못된 body·400 회피 — 각 필드 trim 후 falsy 면 억제).
+//  - creating(이전 mutation 미완) → 미발사(이중 POST·state 경합 차단 — runCreateProvider 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → POST(trim 된 2 필드 JSON body) → 성공(인원 재조회
+//    트리거 + 입력 초기화) / 실패(사람-친화 문구 표면화 — throw 없이) → 진행 off(공통).
+async function runCreatePerson(
+  fields: CreatePersonFields,
+  deps: CreatePersonDeps,
+): Promise<void> {
+  // 필수 2 필드 빈/공백 방어 — 각 필드 앞뒤 공백 제거 후 하나라도 비면 POST 미발사(잘못된 body·
+  // 400 회피). fullName/email 어느 쪽이든 trim 후 빈 값이면 차단한다(무의미한 생성 요청 억제).
+  const fullName = fields.fullName?.trim();
+  const email = fields.email?.trim();
+  if (!fullName || !email) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 create 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.creating) {
+    return;
+  }
+  deps.setCreating(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 create 진행만 남도록).
+  deps.setCreateError(undefined);
+  try {
+    // POST /api/persons — 201 Created. trim 된 2 필드를 JSON body 로 전송한다(runCreateProvider 의
+    // JSON body 발사 convention 동형). active 는 backend Prisma default(true)가 채우므로 미포함.
+    await deps.create(PERSONS_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fullName, email }),
+    });
+    // 성공 — 권위 인원 재조회 트리거(재조회로 생성된 행이 목록에 나타난다 — 낙관 추가 없음) +
+    // 입력 초기화(연속 생성 시 직전 값 잔존 방지).
+    deps.bumpRefresh();
+    deps.resetInput();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error state 로 안전 표시(throw 없이). 400 검증 실패(빈/잘못된 email)
+    // / 409 email 중복 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로
+    // 표면화. 재조회 nonce·입력은 건드리지 않는다(실패 시 입력 유지 — 재시도 편의).
+    deps.setCreateError(deps.describeError(e));
+  } finally {
+    deps.setCreating(false);
+  }
+}
+
 // provider 수정 PATCH 4 필드 묶음(T-1137) — 컨테이너의 인라인 수정 폼 4 controlled input 값을
 // 러너에 한 덩어리로 넘긴다. 러너가 각 필드를 trim 해 "명시된 필드만"(빈/공백 제외) body 로
 // JSON 직렬화한다(부분 갱신 semantics — 부재 필드는 backend 가 미변경). secret apiKey 는
@@ -1434,16 +1522,72 @@ function AdminView({
   const { data: meData, loading: meLoading } =
     useApiResource<MeRow>(AUTH_ME_PATH);
 
-  // 인원 목록 조회(T-1142) — useApiResource 로 GET /api/persons(active 인원 Person[])를 조회한다.
-  // 컨테이너가 인원 목록 상태를 소유하고, 그 data/loading/error 를 presentational PersonList 에
-  // props 로만 내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 변수명에 person prefix 를
-  // 붙여 그룹/멤버십/LLM 조회의 loading/error 와 섞이지 않게 분리한다(T-1140 permissionDenied prefix
-  // 동형). 읽기 전용 마운트라 mutation/재조회 nonce 는 배선하지 않는다(Out of Scope).
+  // 인원 재조회 nonce(T-1143) — 인원 생성 POST 성공 시 이 값을 +1 해 persons path 를 변화시켜
+  // useApiResource 재조회를 유발한다(read-only hook 수정 0 경로 — providersRefreshNonce 동형).
+  // nonce 0 초기 마운트는 base path 그대로다(T-1142 마운트와 동일 — 회귀 0).
+  const [personsRefreshNonce, setPersonsRefreshNonce] = useState<number>(0);
+
+  // 인원 목록 조회 path(T-1143) — nonce-aware 빌더로 전환(buildPersonsPath). nonce 0 이면
+  // base path(T-1142 마운트와 동일), 생성 성공 후 nonce 증가가 `_r` query 로 재조회를 낸다.
+  const personsPath = useMemo(
+    () => buildPersonsPath(personsRefreshNonce),
+    [personsRefreshNonce],
+  );
+
+  // 인원 목록 조회(T-1142, T-1143 nonce 전환) — useApiResource 로 GET /api/persons(active 인원
+  // Person[])를 조회한다. 컨테이너가 인원 목록 상태를 소유하고, 그 data/loading/error 를
+  // presentational PersonList 에 props 로만 내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를
+  // 모른다). 변수명에 person prefix 를 붙여 그룹/멤버십/LLM 조회의 loading/error 와 섞이지 않게
+  // 분리한다(T-1140 permissionDenied prefix 동형).
   const {
     data: personData,
     loading: personLoading,
     error: personError,
-  } = useApiResource<PersonRow[]>(PERSONS_PATH);
+  } = useApiResource<PersonRow[]>(personsPath);
+
+  // 인원 생성 2 controlled input 상태(T-1143) — 컨테이너 소유. "추가" 클릭 시 handleCreatePerson
+  // 이 POST body 의 2 필드(fullName/email)로 공급하고, 성공 후 모두 빈 값으로 되돌린다(연속 생성
+  // 편의). runCreateProvider 의 providerInput 패턴 mirror.
+  const [fullNameInput, setFullNameInput] = useState<string>('');
+  const [emailInput, setEmailInput] = useState<string>('');
+
+  // 인원 생성 mutation in-flight 플래그(T-1143) — POST 진행 중 true. 진행 표시(입력·버튼 비활성)와
+  // 동시 재호출 가드(이전 mutation 미완 중 재발사 차단)에 함께 쓴다(creatingProvider 동형).
+  const [creatingPerson, setCreatingPerson] = useState<boolean>(false);
+
+  // 인원 생성 mutation 실패 문구(T-1143) — POST 실패 시 사람-친화 문구(toErrorMessage 파생)를
+  // 보관해 폼 하단에 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
+  const [createPersonError, setCreatePersonError] = useState<
+    string | undefined
+  >(undefined);
+
+  // 인원 생성 실 mutation 핸들러(T-1143) — 인원 생성 POST(/api/persons, body 2 필드)를 컨테이너
+  // 내부 async 로 발사한다(handleCreateProvider 정합). 빈/공백 필드·이전 mutation 미완(creatingPerson)
+  // 발사 억제 + 성공(인원 재조회 + 2 입력 초기화)/실패(error 안전 표시, throw 없음) 전이는
+  // runCreatePerson 이 캡슐화한다. 2 입력값·creatingPerson 을 deps 의존성에 포함해 stale 없이 최신
+  // 입력·가드 상태로 발사한다.
+  const handleCreatePerson = useCallback(
+    () =>
+      runCreatePerson(
+        {
+          fullName: fullNameInput,
+          email: emailInput,
+        },
+        {
+          create: request,
+          describeError: toErrorMessage,
+          creating: creatingPerson,
+          setCreating: setCreatingPerson,
+          setCreateError: setCreatePersonError,
+          bumpRefresh: () => setPersonsRefreshNonce((n) => n + 1),
+          resetInput: () => {
+            setFullNameInput('');
+            setEmailInput('');
+          },
+        },
+      ),
+    [fullNameInput, emailInput, creatingPerson],
+  );
 
   // Admin+ 여부 파생(④h) — me 응답의 role 을 isAdminRole 로 판정한다. role 이 Admin/SuperAdmin
   // 으로 확정될 때만 true 이고, 조회 전(meData undefined)/loading/실패/role 누락/비-Admin 은 모두
@@ -2415,15 +2559,50 @@ function AdminView({
         // 비-Admin(또는 등급 불명/조회 중) — Admin 전용 패널 대신 권한 부족 안내 한 줄(fail-closed).
         <p role="status">{NOT_ADMIN_NOTICE_TEXT}</p>
       )}
-      {/* 인원 관리(T-1142, REQ-049/REQ-023) — backend Person API(GET /api/persons, active 인원
-          Person[] 반환)를 사람이 볼 수 있게 읽기 전용 목록으로 표시한다. 기존 패널과 시각적으로
-          구분되는 별도 섹션(heading + 컴포넌트)으로 마운트하고, 인원 조회의 loading/error 와
-          인원 배열만 PersonList 로 내려보낸다(다른 조회 상태와 섞지 않음 — ADR-0041 Decision 1,
-          컴포넌트는 fetch 를 모른다). data 가 undefined(미조회/진행 중/실패)이면 `?? []` 로 빈
-          배열을 안전하게 넘겨 throw 없이 렌더한다(컴포넌트가 loading/error/empty 분기를 자체
-          처리). 필터/재조회/mutation 은 배선하지 않는다(읽기 전용 마운트 — T-1140 동형). */}
+      {/* 인원 관리(T-1142 목록 + T-1143 생성, REQ-049/REQ-023) — backend Person API(GET /api/persons
+          active 인원 Person[] 반환)를 사람이 볼 수 있게 목록으로 표시하고, POST /api/persons 로 신규
+          인원을 추가하는 생성 폼을 함께 배선한다. 기존 패널과 시각적으로 구분되는 별도 섹션(heading +
+          폼 + 컴포넌트)으로 마운트하고, 인원 조회의 loading/error 와 인원 배열만 PersonList 로
+          내려보낸다(다른 조회 상태와 섞지 않음 — ADR-0041 Decision 1, 컴포넌트는 fetch 를 모른다).
+          data 가 undefined(미조회/진행 중/실패)이면 `?? []` 로 빈 배열을 안전하게 넘겨 throw 없이
+          렌더한다. 생성 성공 시 personsRefreshNonce bump 로 권위 재조회한다(낙관 추가 없음). */}
       <section aria-label={PERSON_HEADING}>
         <h2>{PERSON_HEADING}</h2>
+        {/* 인원 생성 폼(T-1143, REQ-023) — 2 controlled input(fullName/email) + "인원 추가" 버튼.
+            PersonList(presentational 읽기 전용 목록)는 생성 컨트롤을 모르므로 컨테이너가 직접 소유한다
+            (controlled lift-up, ADR-0041 Decision 1 — 컴포넌트 수정 0). 클릭 시 handleCreatePerson 이
+            POST /api/persons(body 2 필드)를 발사하고, 성공 시 personsRefreshNonce bump 로 권위
+            재조회한다(낙관 추가 없음). 2 필드 중 하나라도 빈·공백이거나 진행 중이면 버튼을 비활성화해
+            발사를 억제하고(runCreatePerson 도 동일 조건을 no-op 가드로 이중 방어), 입력은 진행 중에도
+            비활성화한다. 실패 문구(createPersonError)는 폼 하단에 role="alert" 로 안전 표시한다. */}
+        <div>
+          <input
+            aria-label="추가할 인원 이름"
+            type="text"
+            value={fullNameInput}
+            onChange={(event) => setFullNameInput(event.target.value)}
+            disabled={creatingPerson}
+          />
+          <input
+            aria-label="추가할 인원 email"
+            type="email"
+            value={emailInput}
+            onChange={(event) => setEmailInput(event.target.value)}
+            disabled={creatingPerson}
+          />
+          <button
+            type="button"
+            onClick={handleCreatePerson}
+            disabled={
+              creatingPerson || !fullNameInput.trim() || !emailInput.trim()
+            }
+          >
+            인원 추가
+          </button>
+          {createPersonError ? (
+            <p role="alert">{createPersonError}</p>
+          ) : null}
+        </div>
         <PersonList
           persons={personData ?? []}
           loading={personLoading}
@@ -2444,6 +2623,7 @@ export {
   deriveDifficultyMapping,
   buildMappingsPath,
   buildProvidersPath,
+  buildPersonsPath,
   buildExportPath,
   mergeMapping,
   parseFilename,
@@ -2461,6 +2641,7 @@ export {
   runDeleteProvider,
   runAdd,
   runCreateProvider,
+  runCreatePerson,
   runUpdateProvider,
   resolveProviderSelectValue,
   LLM_PROVIDER_OPTIONS,
@@ -2485,6 +2666,8 @@ export type {
   AddDeps,
   CreateProviderFields,
   CreateProviderDeps,
+  CreatePersonFields,
+  CreatePersonDeps,
   UpdateProviderFields,
   UpdateProviderDeps,
 };

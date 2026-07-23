@@ -66,6 +66,7 @@ import AdminView, {
   deriveDifficultyMapping,
   buildMappingsPath,
   buildProvidersPath,
+  buildPersonsPath,
   buildExportPath,
   mergeMapping,
   parseFilename,
@@ -83,6 +84,7 @@ import AdminView, {
   runDeleteProvider,
   runAdd,
   runCreateProvider,
+  runCreatePerson,
   runUpdateProvider,
   resolveProviderSelectValue,
   LLM_PROVIDER_OPTIONS,
@@ -104,6 +106,8 @@ import type {
   AddDeps,
   CreateProviderDeps,
   CreateProviderFields,
+  CreatePersonDeps,
+  CreatePersonFields,
   UpdateProviderDeps,
   UpdateProviderFields,
 } from './AdminView';
@@ -4492,5 +4496,327 @@ describe('AdminView — 인원 관리 마운트 (T-1142)', () => {
     // partId 누락/null 이어도 throw 없이 이메일·표시명이 표면화된다.
     expect(html).toContain('park@example.com');
     expect(html).toContain('choi@example.com');
+  });
+});
+
+// R-112 — T-1143 buildPersonsPath 순수 helper 검증. nonce 0(초기 마운트)이면 base path(T-1142
+// 마운트와 동일 — 회귀 0), nonce > 0 이면 `_r` cache-busting query 로 재조회를 유발하는 path 를
+// 낸다(buildProvidersPath 동형). 경계(0)·정상(양수)·음수 방어를 각 1+ cover.
+describe('AdminView — buildPersonsPath (순수 함수, T-1143)', () => {
+  // 경계 — nonce 0 이면 query 없는 base path(T-1142 마운트 path 와 동일 — 회귀 0).
+  it('nonce 0 이면 base path 를 그대로 반환한다 (경계 — 초기 마운트/회귀 0)', () => {
+    expect(buildPersonsPath(0)).toBe('/api/persons');
+  });
+
+  // happy — nonce 양수면 `_r=<nonce>` query 를 부착해 path 를 변화시킨다(재조회 트리거).
+  it('nonce 양수면 `_r` query 를 부착한 path 를 반환한다 (happy — 재조회 트리거)', () => {
+    expect(buildPersonsPath(1)).toBe('/api/persons?_r=1');
+    expect(buildPersonsPath(7)).toBe('/api/persons?_r=7');
+  });
+
+  // negative — 음수 nonce(비정상)도 <=0 분기라 base path 로 안전 fallback(query 미부착).
+  it('음수 nonce 는 base path 로 안전 fallback 한다 (negative — 음수 방어)', () => {
+    expect(buildPersonsPath(-1)).toBe('/api/persons');
+  });
+});
+
+// R-112 — T-1143 인원 생성 실 POST create mutation 본체(runCreatePerson) 검증. jsdom/렌더러
+// 없이 mutation 본체를 직접 호출하고(runCreateProvider 와 동일 convention), apiClient.request mock
+// 으로 method/path/body 를 단언하며 성공/실패 분기 응답을 주입한다. 상태 전이는 record harness 의
+// 콜백 호출로 관찰한다. happy/error(400·409·네트워크)/branch(빈·공백·in-flight·단일 발사)/negative
+// 예외 분기마다 각 1+ cover. 409 email 중복과 일반 실패를 각각 cover한다.
+describe('AdminView — 인원 생성 실 POST create mutation (T-1143 runCreatePerson)', () => {
+  // 유효한 2 필드 기본 입력값 — 각 test 가 필요 시 일부만 덮어 빈/공백 분기를 만든다.
+  const VALID: CreatePersonFields = {
+    fullName: '김신규',
+    email: 'kim.new@example.com',
+  };
+
+  // 상태 전이를 기록하는 deps harness — creating 초기값과 request mock 을 주입받아
+  // setCreating/setCreateError 호출과 bumpRefresh·resetInput 호출 횟수를 순서대로 캡처한다.
+  function makeCreateDeps(creating: boolean) {
+    const calls = {
+      creating: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      reset: 0,
+    };
+    const deps: CreatePersonDeps = {
+      create: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return '알 수 없는 오류';
+      },
+      creating,
+      setCreating: (next) => calls.creating.push(next),
+      setCreateError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+      resetInput: () => {
+        calls.reset += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — create 트리거 시 request 가 POST /api/persons 로 method POST + body 2 필드
+  // 인 인자로 정확히 호출되고, 성공 후 재조회 nonce bump(1 회) + 입력 초기화(1 회) + error 미설정
+  // (시작 비움만) + 진행 표시(creating) on→off 로 해제된다.
+  it('POST /api/persons 를 method POST + body 2 필드로 정확히 호출하고 성공 시 재조회 nonce bump + 입력 초기화 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 201 Created.
+    const { deps, calls } = makeCreateDeps(false);
+    await runCreatePerson(VALID, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [
+      string,
+      { method: string; body: string },
+    ];
+    expect(path).toBe('/api/persons');
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({
+      fullName: '김신규',
+      email: 'kim.new@example.com',
+    });
+    // 성공 → 재조회 nonce bump 1 회 + 입력 초기화 1 회 + error 시작 비움만(실패 문구 미설정).
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    // 진행 표시 on→off(finally 공통 해제).
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // negative — active 필드는 body 에서 제외된다(Prisma default true 위임 — CreatePersonDto 2 필드).
+  it('body 에 active 필드를 포함하지 않는다 (negative — CreatePersonDto 2 필드 경계)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeCreateDeps(false);
+    await runCreatePerson(VALID, deps);
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    const parsed = JSON.parse(options.body);
+    expect(parsed).not.toHaveProperty('active');
+    expect(Object.keys(parsed).sort()).toEqual(['email', 'fullName']);
+  });
+
+  // error path — create 400(검증 실패, 잘못된 email) 시 error 문구가 표면화되고 throw 없이
+  // 처리되며 재조회 nonce·입력 초기화는 일어나지 않는다(입력 유지 — 재시도 편의).
+  it('create 400(검증 실패) 시 error 문구를 표면화하고 nonce·입력을 건드리지 않는다 (error path — 400)', async () => {
+    requestMock.mockRejectedValue(new ApiError(400, 'Bad Request'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreatePerson(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 400: Bad Request']);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // error path — 409(email 중복) 실패 시 동일 안전 경로로 문구 표면화(throw 없음). Person 은
+  // email @unique 라 중복 등록은 409 Conflict 로 매핑된다(person.controller L65).
+  it('create 409(email 중복) 실패 시 안전 문구를 표면화하고 목록·입력을 유지한다 (error path — 409)', async () => {
+    requestMock.mockRejectedValue(new ApiError(409, 'Conflict'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreatePerson(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 409: Conflict']);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+  });
+
+  // error path — 네트워크 실패(ApiError(0)) 시 네트워크 오류 문구(throw 없음).
+  it('create 네트워크 실패(ApiError 0) 시 네트워크 오류 문구를 표면화한다 (error path — 네트워크)', async () => {
+    requestMock.mockRejectedValue(new ApiError(0, 'fetch failed'));
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(runCreatePerson(VALID, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, '네트워크 오류: fetch failed']);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (a) — 각 필드가 빈값이면 POST 미발사·state 불변·throw 없음(잘못된 body 회피). 2 필드
+  // 각각을 비워 필드별 가드를 개별 cover 한다(단일 negative 로 부족 — 필드마다).
+  it('2 필드 중 하나라도 빈값이면 POST 를 발사하지 않는다 (branch (a) — 필드별 빈값 가드)', async () => {
+    const fieldKeys: (keyof CreatePersonFields)[] = ['fullName', 'email'];
+    for (const key of fieldKeys) {
+      requestMock.mockReset();
+      const { deps, calls } = makeCreateDeps(false);
+      await expect(
+        runCreatePerson({ ...VALID, [key]: '' }, deps),
+      ).resolves.toBeUndefined();
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.creating).toEqual([]);
+      expect(calls.error).toEqual([]);
+      expect(calls.bump).toBe(0);
+      expect(calls.reset).toBe(0);
+    }
+  });
+
+  // negative — 각 필드가 공백만이면 trim 후 빈 값이라 POST 미발사(빈 값 방어 — 필드별). fullName
+  // 만 채우고 email 을 비운/공백 경우도 개별 cover 한다(경계 조합).
+  it('공백만 있는 필드는 trim 후 빈 값이라 POST 를 발사하지 않는다 (negative — 필드별 공백)', async () => {
+    const fieldKeys: (keyof CreatePersonFields)[] = ['fullName', 'email'];
+    for (const key of fieldKeys) {
+      requestMock.mockReset();
+      const { deps, calls } = makeCreateDeps(false);
+      await expect(
+        runCreatePerson({ ...VALID, [key]: '   ' }, deps),
+      ).resolves.toBeUndefined();
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.creating).toEqual([]);
+      expect(calls.bump).toBe(0);
+    }
+  });
+
+  // negative — fullName 만 채우고 email 이 빈 경우 미발사(부분 입력 경계 — 폼 버튼 disabled 와 정합).
+  it('fullName 만 채우고 email 이 비면 POST 를 발사하지 않는다 (negative — 부분 입력 경계)', async () => {
+    const { deps, calls } = makeCreateDeps(false);
+    await expect(
+      runCreatePerson({ fullName: '김신규', email: '' }, deps),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (b) — 이전 create 미완(creating=true) 중 재호출은 POST 미발사·state 불변(이중 POST·경합 차단).
+  it('이전 create 미완(creating=true) 중 재호출은 POST 를 발사하지 않는다 (branch (b) — 이중 POST 가드)', async () => {
+    const { deps, calls } = makeCreateDeps(true); // 이미 in-flight.
+    await runCreatePerson(VALID, deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.creating).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.bump).toBe(0);
+  });
+
+  // branch (c) — 정상 발사 시 POST 1 회만(중복 없음 — 단일 POST 보장).
+  it('정상 발사 시 POST 를 1 회만 호출한다 (branch (c) — 단일 발사)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeCreateDeps(false);
+    await runCreatePerson(VALID, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0]?.[0]).toBe('/api/persons');
+  });
+
+  // negative — 각 필드 앞뒤 공백은 trim 되어 body 에 실린다(공백 정규화).
+  it('각 필드 앞뒤 공백을 trim 해 body 에 싣는다 (negative — trim 정규화)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeCreateDeps(false);
+    await runCreatePerson(
+      { fullName: '  김신규  ', email: '  kim.new@example.com  ' },
+      deps,
+    );
+    const [, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(JSON.parse(options.body)).toEqual({
+      fullName: '김신규',
+      email: 'kim.new@example.com',
+    });
+  });
+
+  // negative(시작 정리) — 발사 직후 진행 표시 on + 직전 error 즉시 비움을 지연 resolve 로 캡처한다
+  // (재조회 도착 전 상태에서 crash 없음). 해소 후 재조회 bump + 입력 초기화 + 진행 off.
+  it('발사 직후 진행 표시 on + 직전 error 를 즉시 비운다 (negative — 시작 정리/재조회 전 안전)', async () => {
+    let resolvePost: () => void = () => {};
+    requestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePost = resolve;
+        }),
+    );
+    const { deps, calls } = makeCreateDeps(false);
+    const pending = runCreatePerson(VALID, deps);
+    expect(calls.creating).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.bump).toBe(0);
+    expect(calls.reset).toBe(0);
+    resolvePost();
+    await pending;
+    // 해소 후 재조회 bump(nonce 증가 → 기존 목록 재 fetch 트리거) + 입력 초기화 + 진행 off.
+    expect(calls.bump).toBe(1);
+    expect(calls.reset).toBe(1);
+    expect(calls.creating).toEqual([true, false]);
+  });
+
+  // negative — 실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다(시작 비움 → 성공 bump).
+  it('실패 후 재시도(재클릭)는 직전 error 를 비우고 정상 재발화한다 (negative — 실패 후 재시도)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(409, 'Conflict'));
+    const first = makeCreateDeps(false);
+    await runCreatePerson(VALID, first.deps);
+    expect(first.calls.error).toEqual([undefined, 'HTTP 409: Conflict']);
+    expect(first.calls.bump).toBe(0);
+
+    requestMock.mockResolvedValueOnce(undefined);
+    const second = makeCreateDeps(false);
+    await runCreatePerson(VALID, second.deps);
+    expect(second.calls.error).toEqual([undefined]);
+    expect(second.calls.bump).toBe(1);
+  });
+
+  // negative — 성공·실패 어느 경로든 finally 가 setCreating(false) 로 진행 표시를 복구한다.
+  it('성공·실패 어느 경우든 진행 표시(creating)가 finally 로 해제된다 (negative — 진행 해제)', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    const ok = makeCreateDeps(false);
+    await runCreatePerson(VALID, ok.deps);
+    expect(ok.calls.creating).toEqual([true, false]);
+
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const fail = makeCreateDeps(false);
+    await runCreatePerson(VALID, fail.deps);
+    expect(fail.calls.creating).toEqual([true, false]);
+  });
+});
+
+// R-112 — T-1143 인원 생성 폼 배선 렌더 검증. 인원 관리 섹션에 2 필드 input(aria-label) +
+// "인원 추가" 버튼이 마운트되고, 초기(빈 필드)엔 버튼이 disabled 로 렌더됨을 정적 markup 으로
+// 단언한다(클릭→러너 호출 자체는 위 runCreatePerson 단위 test 가 cover — 본 파일은 jsdom 미사용
+// 정적 렌더라 이벤트 비검증). 초기엔 실패 문구 alert(createPersonError) 가 미렌더됨도 확인한다.
+describe('AdminView — 인원 생성 폼 배선 (정적 렌더, T-1143)', () => {
+  const PERSONS = '/api/persons';
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 인원 관리 섹션에 2 필드 input(aria-label) + "인원 추가" 버튼이 마운트된다.
+  it('인원 관리 섹션에 2 필드 input + "인원 추가" 버튼을 렌더한다 (happy-path)', () => {
+    setRoutes({ [PERSONS]: { data: [], loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('aria-label="추가할 인원 이름"');
+    expect(html).toContain('aria-label="추가할 인원 email"');
+    expect(html).toContain('인원 추가</button>');
+  });
+
+  // branch — 초기(빈 필드) 마운트 시 생성 버튼이 disabled 로 렌더된다(빈 필드 발사 억제 UI 반영).
+  it('초기(빈 필드) 마운트 시 인원 추가 버튼이 disabled 로 렌더된다 (branch — 빈 필드 버튼 비활성)', () => {
+    setRoutes({ [PERSONS]: { data: [], loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>인원 추가<\/button>/);
+  });
+
+  // negative — 초기엔 생성 실패 문구(createPersonError=undefined)라 생성 폼 하단 alert 이 미렌더된다.
+  // (인원 조회는 성공 상태라 조회 error alert 도 없음 — 생성/조회 error 표면이 분리됨을 방증.)
+  it('초기엔 생성 실패 alert 을 렌더하지 않는다 (negative — createPersonError 미설정)', () => {
+    setRoutes({ [PERSONS]: { data: [], loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    // 조회 성공 + 생성 미발사라 어떤 role="alert" 도 등장하지 않는다.
+    expect(html).not.toContain('role="alert"');
+  });
+
+  // negative(email input 타입) — email 필드는 type="email" 로 렌더돼 형식 힌트를 준다(HTML5 시맨틱).
+  it('email 필드는 type="email" 로 렌더된다 (negative — email input 타입)', () => {
+    setRoutes({ [PERSONS]: { data: [], loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toMatch(
+      /aria-label="추가할 인원 email"[^>]*type="email"|type="email"[^>]*aria-label="추가할 인원 email"/,
+    );
   });
 });
