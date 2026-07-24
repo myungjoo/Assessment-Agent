@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -8937,5 +8938,39 @@ describe('AdminView — 역할 변경 in-flight ref gate (T-1165 createInFlightI
     const gate: InFlightIdGate = createInFlightIdGate(ref, () => undefined);
     gate.write('u9');
     expect(gate.read()).toBe('u9');
+  });
+});
+
+// T-1165 reviewer MINOR-1 — 컨테이너 배선 drift guard. 위 test 들은 helper 와 러너를 직접
+// 호출할 뿐, 둘을 잇는 AdminView 컨테이너의 주입 줄은 실행하지 않는다(RTL 도입은 Out of Scope).
+// 그래서 소스 문자열을 읽어 배선이 render state 캡처 방식으로 되돌아가는 회귀를 막는다
+// (test/smoke 의 소스 문자열 계약 spec 선례와 동형 — 새 dependency 0).
+describe('AdminView — 역할 변경 가드 컨테이너 배선 drift guard (T-1165)', () => {
+  const source = readFileSync(
+    new URL('./AdminView.tsx', import.meta.url),
+    'utf8',
+  );
+  const start = source.indexOf('const handleChangeRole = useCallback(');
+  // useCallback 블록 = 선언부터 deps 배열을 닫는 최초의 "\n  );" 까지.
+  const handlerBlock =
+    start === -1 ? '' : source.slice(start, source.indexOf('\n  );', start) + 5);
+
+  it('러너에 주입되는 진행 id 가 gate 의 호출 시점 읽기다 (drift guard — 배선)', () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(handlerBlock).toContain('changingId: changingRoleGate.read(),');
+    expect(handlerBlock).toContain('setChangingId: changingRoleGate.write,');
+    expect(handlerBlock).not.toContain('changingId: changingRoleId');
+  });
+
+  it('handleChangeRole useCallback deps 에 changingRoleId 가 없다 (drift guard — deps)', () => {
+    const deps = handlerBlock.slice(
+      handlerBlock.lastIndexOf('['),
+      handlerBlock.lastIndexOf(']') + 1,
+    );
+    expect(deps).toBe('[changingRoleGate]');
+  });
+
+  it('진행 표면은 여전히 state 값을 UserList 로 내려보낸다 (drift guard — 렌더 표면)', () => {
+    expect(source).toContain('changingRoleId={changingRoleId}');
   });
 });
