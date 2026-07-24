@@ -2,7 +2,11 @@
 id: T-1166
 title: AdminView 에 사용자 인스턴스 접근 권한 부여 배선 (POST /api/users/:id/instance-access)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1058
+mergedAs: ea7af71a
+reviewRounds: 1
+completedAt: 2026-07-24T02:52:00Z
 commitMode: pr
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 285
@@ -72,4 +76,10 @@ PLAN.md P6 line 120 (Admin 패널) 사용자 관리 arc 의 9번째 slice 다. T
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+- `handleGrantInstanceAccess` 의 in-flight 가드를 T-1165 `createInFlightIdGate` ref 패턴으로 전환 (같은 tick 이중 발사 창 제거) — grant + revoke 동시 sweep 이 효율적이라 T-1167 이후 별도 task.
+- revoke (`DELETE /api/users/:id/instance-access`) 배선 — T-1167 로 큐잉됨.
+
+## 결과 (2026-07-24 DONE)
+
+- PR [#1058](https://github.com/myungjoo/Assessment-Agent/pull/1058) round 1/7 reviewer APPROVE(nit 4 건 비차단) + CI run 30062754557 green → squash `ea7af71a`, feature branch 삭제.
+- 변경 +297/-0, 2 파일 (cap 300 LOC / 5 파일 내). web vitest 1143 pass, web build green, 루트 lint clean, backend test:cov 기준선 유지.
