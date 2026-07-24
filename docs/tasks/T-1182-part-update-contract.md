@@ -2,8 +2,12 @@
 id: T-1182
 title: 파트 수정 endpoint web↔backend 계약 drift-guard spec (PATCH /api/parts/:id · api/parts base + @Patch(":id") path param 1 합성 + UpdatePartDto name 단일 optional partial(required ∅) + PATCH body 존재 축)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1074
+mergedAs: 6d1428c5833cbf26b5aad1505ed8237f6be7471e
+reviewRounds: 1
+completedAt: 2026-07-24T10:55:44Z
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 290
 estimatedFiles: 1
