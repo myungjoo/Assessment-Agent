@@ -2,7 +2,11 @@
 id: T-1201
 title: contract-guard 공용 정규식 추출기(stripComments/extractControllerRoute/extractHandlerMethods/extractHandlerParams/composeRoute/stripQuery 등) 를 web/src/views/__contract-guard__/ 공용 helper 모듈로 추출 + 콜로케이트 단위 test (refactor split slice 1 — 소비 spec 미이관, helper 신설·자체 test 만)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 8abaf0d3
+prNumber: 1093
+reviewRounds: 1
+completedAt: 2026-07-24T22:51:38Z
 commitMode: pr
 coversReq: [REQ-060]
 estimatedDiff: 240
