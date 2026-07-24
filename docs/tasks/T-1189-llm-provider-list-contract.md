@@ -2,7 +2,7 @@
 id: T-1189
 title: LLM provider 목록 조회 endpoint web↔backend 계약 drift-guard spec 추가 (GET /api/llm/providers · bare @Get() findAll vs @Get(":id") findById 판별 축 + ?_r nonce 무해)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-096]
 estimatedDiff: 240
@@ -70,3 +70,11 @@ T-1188 이 난이도-모델 매핑 **조회(GET /api/llm/difficulty-mappings)** 
 
 - (carry-forward) contract-guard test 20+ 파일이 공유하는 정규식 추출기/대조기(`stripComments`, `extractControllerRoute`, `extractHandlerMethods`, `composeRoute`, `diffContract`, `toFire`)를 `web/src/views/__contract-guard__/` 공용 helper 로 추출하는 refactor slice — 중복 제거 + 단일 유지보수 지점. provider CRUD+list · difficulty-mapping · person/group/part 등 주요 mutation/read 계약 guard 가 거의 완결된 시점이라 추출 ROI 재평가 적기. helper 추출 자체가 다수 파일을 건드려 5-파일 cap 을 넘으므로 planner 가 split 필요.
 - (후보) provider **단건 조회(GET /api/llm/providers/:id, findById)** 계약 guard — web 에 단건 GET call site 가 도입되면 본 task 의 GET-vs-GET 판별 축을 findById 발사에 mirror.
+
+## Result (DONE)
+
+- 완료: 2026-07-24T14:15:50Z (PR #1081 squash-merge `19175505`).
+- 산출: `web/src/views/AdminView.llm-provider-list-contract.test.ts` 1파일 (+250 LOC, 21 test). production 코드 0 변경.
+- 검증: web vitest 1568 통과(신규 21 포함) · backend test:cov 11363 통과(line/func ≥80% 유지) · lint/build/web build green · PR CI + main post-merge CI green.
+- review: round 1/7 4-게이트 APPROVE (0 BLOCKER / 0 MAJOR / 1 NIT non-actionable — negative (e) mutation 대조 접근에 `?? null` guard 미부여, CI red 는 유지되어 조치 불요).
+- 신규 축: bare `@Get()` findAll(세그먼트 0) 을 `@Get(":id")` findById(세그먼트 1) 대조군에서 정확히 판별(GET-vs-GET path-param 판별).
