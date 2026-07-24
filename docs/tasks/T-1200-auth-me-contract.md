@@ -2,8 +2,9 @@
 id: T-1200
 title: 현재 사용자 조회(GET /api/auth/me) endpoint web↔backend 계약 drift-guard spec 추가 (AUTH_ME_PATH 2-세그먼트 base+literal subpath + method GET + 무-body·무-param(@Req 배제) + @Get("me") vs 형제 @Post("login"/"logout"/"refresh") method+세그먼트 판별)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1092
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 250
 estimatedFiles: 1
