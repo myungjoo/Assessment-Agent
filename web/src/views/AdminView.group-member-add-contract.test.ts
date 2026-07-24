@@ -211,6 +211,13 @@ describe('AdminView — 그룹 멤버 추가 web↔backend 계약 drift guard (T
     expect([...DTO_FIELDS.required].sort()).toEqual(['personId']);
     expect(DTO_FIELDS.optional.size).toBe(0);
   });
+  it('extractDtoFields 가 `x?` 표기 필드를 optional 집합으로 수집한다 (분기 — optional 수집, 합성 DTO)', () => {
+    // 실 AddMemberDto 는 optional 0 이라 optional-수집 분기가 미실행 → 합성 소스로 분기 직접 구동.
+    const synthetic = ['export class SyntheticDto {', '  personId!: string;', '  note?: string;', '}'].join('\n');
+    const fields = extractDtoFields(synthetic, 'SyntheticDto');
+    expect([...fields.required].sort()).toEqual(['personId']);
+    expect([...fields.optional].sort()).toEqual(['note']);
+  });
   it('options.body 부재면 JSON.parse SyntaxError 없이 빈 키 집합으로 매핑된다 (분기 — body 부재)', () => {
     expect(toFire('/api/groups/grp-1/members', { method: 'POST' } as RequestOptions).bodyKeys.size).toBe(0);
   });
