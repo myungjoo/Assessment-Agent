@@ -2,7 +2,12 @@
 id: T-1180
 title: 인원 삭제 endpoint web↔backend 계약 drift-guard spec (DELETE /api/persons/:id · api/persons base + @Delete(":id") 단일 path param + body 부재 축(@Body 없음) + @HttpCode(204))
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-24T09:52:59Z
+mergedAs: 57f9c9d97a40d3fae0912bcee5532a919adc344e
+prNumber: 1072
+reviewRounds: 1
+result: PR #1072 round1 APPROVE(0 BLOCKER/MAJOR/MINOR) → squash 57f9c9d9. 신규 spec 18 test + web 41파일 1386 test green + build + 루트 lint clean. base api/persons 변조→6 fail→revert 실측(guard 실효). backend/production 무변경. 인원 CRUD guard(POST/PATCH/DELETE) 완결.
 commitMode: pr
 coversReq: [REQ-026, REQ-049]
 estimatedDiff: 275
