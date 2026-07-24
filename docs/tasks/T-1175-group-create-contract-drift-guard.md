@@ -2,7 +2,7 @@
 id: T-1175
 title: 그룹 생성 endpoint web↔backend 계약 drift-guard spec (POST /api/groups bare-route on api/groups base · CreateGroupDto name 단일 required body 축)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 270
@@ -69,3 +69,7 @@ PLAN.md P6 line 120 (Admin 패널) 사용자·그룹 관리 arc 의 후속 slice
 ## Follow-ups
 
 (작성 시 비어 있음. sub-agent 가 관련 작업 발견 시 여기에 추가. 특히 계약 guard use site 가 6 곳 도달 — 공용 helper 추출 ROI 가 임계를 넘어섰으므로 6 개 파일 동시 수정 refactor slice 후보를 명시 박제할 것.)
+
+## Result (DONE 2026-07-24T07:14Z)
+
+PR #1067 squash-merge(8d012148) 완료. web/src/views/AdminView.group-create-contract.test.ts 신규 1파일(+300/-0, production 무변경, 파일-disjoint). 계약 3축(base+bare @Post() 세그먼트 0 합성·CreateGroupDto name 단일 required 부분집합·POST body/Content-Type 존재) 실 backend 소스 라이브 로드 대조. R-112 happy/error/branch/negative(a~g) 18 tests. base flip 실측 6 fail→revert 로 guard 유효 검증. web vitest 1290 pass + tsc --noEmit + vite build green. reviewer round 1/7 APPROVE(0 BLOCKER/0 MAJOR/0 MINOR, 1 NIT informational=공용 helper 추출 Out-of-Scope refactor 이연), 4-게이트 PASS(reviewer comment external #issuecomment-5067162772, CI green run 30074570487, mergeState CLEAN). counters 1165→1166.
