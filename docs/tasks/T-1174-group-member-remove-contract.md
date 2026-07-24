@@ -2,7 +2,11 @@
 id: T-1174
 title: 그룹 멤버 제거 endpoint web↔backend 계약 drift-guard spec (DELETE :id/members/:membershipId two-path-param 합성·body 부재·membershipId 축)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 290b0bc6
+prNumber: 1066
+reviewRounds: 1
+completedAt: 2026-07-24T06:57:20Z
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 270
