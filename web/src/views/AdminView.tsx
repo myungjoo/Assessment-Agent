@@ -125,6 +125,10 @@ const USER_ROLE_FORBIDDEN_ERROR = '역할을 변경할 권한이 없습니다';
 const INSTANCE_ACCESS_DUPLICATE_ERROR = '이미 부여된 인스턴스 접근 권한입니다';
 const INSTANCE_ACCESS_GRANTED_TEXT = '인스턴스 접근 권한을 부여했습니다';
 const INSTANCE_ACCESS_NO_USER_LABEL = '사용자를 선택하세요'; // 대상 select 빈 선택지.
+// 회수 성공 문구(T-1167). revoke 는 부재 binding 도 idempotent no-op(삭제 count 0 이어도 에러 없이
+// 204, ADR-0027 §4)이라 "원래 없던 권한" 을 회수해도 이 문구가 뜬다 — 최종 상태(그 권한 없음)가
+// 사용자가 원한 상태와 같으므로 성공 표면으로 통일한다(별도 "이미 없음" 분기 신설 0).
+const INSTANCE_ACCESS_REVOKED_TEXT = '인스턴스 접근 권한을 회수했습니다';
 
 // 파트 생성 409(중복 이름) 전용 사람-친화 문구(T-1153) — Part.name 은 prisma schema 에서 @unique
 // 라 중복 이름 POST 시 PartService.create 가 Prisma P2002 → ConflictException(409) 으로 변환한다.
@@ -1766,6 +1770,52 @@ async function runGrantInstanceAccess(
     }
   } finally {
     deps.setGranting(false);
+  }
+}
+
+// 회수 DELETE + state-전이 deps(T-1167 — 위 GrantInstanceAccessDeps 1:1 mirror, 필드 의미는 그쪽
+// 주석). 차이는 isConflict 부재 하나뿐 — service.revoke 는 부재 binding 을 idempotent 성공(204)
+// 으로 처리해 409 자체가 발생하지 않으므로(ADR-0027 §4) 전용 분기·전용 문구를 두지 않는다.
+interface RevokeInstanceAccessDeps {
+  revoke: (path: string, options: RequestOptions) => Promise<unknown>;
+  describeError: (e: unknown) => string;
+  revoking: boolean;
+  setRevoking: (next: boolean) => void;
+  setRevokeError: (next: string | undefined) => void;
+  setRevokeNotice: (next: string | undefined) => void;
+  resetInput: () => void;
+}
+
+// 회수 DELETE(body `{ instanceRef }`) + state-전이를 캡슐화한 순수 async 러너(T-1167 — 위
+// runGrantInstanceAccess mirror. backend user-instance-access.controller @Delete() 은 grant 와
+// 같은 path·같은 DTO 이고 @HttpCode(204) 라 성공 body 가 없어 반환값을 쓰지 않는다). 403(self-revoke)
+// /404(대상 부재)/400 은 전용 문구 없이 전부 describeError 일반 경로로 표면화한다.
+async function runRevokeInstanceAccess(
+  userId: string,
+  instanceRef: string,
+  deps: RevokeInstanceAccessDeps,
+): Promise<void> {
+  // 발사 억제 가드(no-op — 상태 전이 0). 공백만 instanceRef 는 DTO @IsNotEmpty 로 400 확정.
+  const trimmedId = userId?.trim();
+  const trimmedRef = instanceRef?.trim();
+  if (!trimmedId || !trimmedRef || deps.revoking) {
+    return;
+  }
+  deps.setRevoking(true);
+  deps.setRevokeError(undefined);
+  deps.setRevokeNotice(undefined);
+  try {
+    await deps.revoke(buildInstanceAccessPath(trimmedId), {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instanceRef: trimmedRef }),
+    });
+    deps.setRevokeNotice(INSTANCE_ACCESS_REVOKED_TEXT);
+    deps.resetInput();
+  } catch (e) {
+    deps.setRevokeError(deps.describeError(e));
+  } finally {
+    deps.setRevoking(false);
   }
 }
 
@@ -3608,6 +3658,10 @@ function AdminView({
   const [instanceAccessError, setInstanceAccessError] = useState<string>();
   const [instanceAccessNotice, setInstanceAccessNotice] = useState<string>();
 
+  // 회수 진행 플래그(T-1167) — 부여와 별개의 in-flight 축. 대상 select·주소 input·error·notice 는
+  // T-1166 것을 그대로 재사용한다(같은 폼의 두 방향 action — 새 상태 뭉치 신설 0).
+  const [revokingInstanceAccess, setRevokingInstanceAccess] = useState(false);
+
   // 인스턴스 접근 권한 부여 실 mutation 핸들러(T-1166 — handleCreateUser mirror).
   const handleGrantInstanceAccess = useCallback(
     () =>
@@ -3623,6 +3677,26 @@ function AdminView({
       }),
     [instanceAccessUserId, instanceRefInput, grantingInstanceAccess],
   );
+
+  // 인스턴스 접근 권한 회수 실 mutation 핸들러(T-1167 — handleGrantInstanceAccess mirror).
+  // isConflict 주입이 없다(revoke 는 409 분기 부재 — 위 러너 주석).
+  const handleRevokeInstanceAccess = useCallback(
+    () =>
+      runRevokeInstanceAccess(instanceAccessUserId, instanceRefInput, {
+        revoke: request,
+        describeError: toErrorMessage,
+        revoking: revokingInstanceAccess,
+        setRevoking: setRevokingInstanceAccess,
+        setRevokeError: setInstanceAccessError,
+        setRevokeNotice: setInstanceAccessNotice,
+        resetInput: () => setInstanceRefInput(''),
+      }),
+    [instanceAccessUserId, instanceRefInput, revokingInstanceAccess],
+  );
+
+  // 부여·회수 통합 in-flight(T-1167) — 어느 한쪽이라도 진행 중이면 폼 전체(select·input·두 버튼)를
+  // 비활성화한다. 러너 자체 가드(각자 진행 플래그)에 더한 교차 발사 이중 방어다.
+  const instanceAccessBusy = grantingInstanceAccess || revokingInstanceAccess;
 
   // 파트 생성 controlled input 상태(T-1153) — 컨테이너 소유. "파트 추가" 클릭 시 handleCreatePart
   // 가 POST body 의 name 필드로 공급하고, 성공 후 빈 값으로 되돌린다(연속 생성 편의). 그룹 생성의
@@ -4269,7 +4343,7 @@ function AdminView({
                 aria-label="접근 권한을 부여할 사용자"
                 value={instanceAccessUserId}
                 onChange={(ev) => setInstanceAccessUserId(ev.target.value)}
-                disabled={grantingInstanceAccess}
+                disabled={instanceAccessBusy}
               >
                 <option value="">{INSTANCE_ACCESS_NO_USER_LABEL}</option>
                 {/* 조회 중이면 옵션을 비운다(권위 아닌 목록으로 대상 선택 유도 금지 — UserList 의
@@ -4285,14 +4359,24 @@ function AdminView({
                 type="text"
                 value={instanceRefInput}
                 onChange={(event) => setInstanceRefInput(event.target.value)}
-                disabled={grantingInstanceAccess}
+                disabled={instanceAccessBusy}
               />
               <button
                 type="button"
                 onClick={handleGrantInstanceAccess}
-                disabled={grantingInstanceAccess || !instanceAccessUserId || !instanceRefInput.trim()}
+                disabled={instanceAccessBusy || !instanceAccessUserId || !instanceRefInput.trim()}
               >
                 인스턴스 접근 권한 부여
+              </button>
+              {/* 회수(T-1167, REQ-016/REQ-044) — 같은 폼(대상 select + 주소 input)의 반대 방향
+                  action. DELETE 는 부재 binding 도 성공(204)이라 확인 다이얼로그 없이 즉시 발사한다.
+                  비활성 조건은 부여 버튼과 동일(미선택·공백·부여/회수 어느 쪽이든 진행 중). */}
+              <button
+                type="button"
+                onClick={handleRevokeInstanceAccess}
+                disabled={instanceAccessBusy || !instanceAccessUserId || !instanceRefInput.trim()}
+              >
+                인스턴스 접근 권한 회수
               </button>
               {instanceAccessError ? <p role="alert">{instanceAccessError}</p> : null}
               {instanceAccessNotice ? <p role="status">{instanceAccessNotice}</p> : null}
@@ -4658,6 +4742,7 @@ export {
   runChangeRole,
   buildInstanceAccessPath,
   runGrantInstanceAccess,
+  runRevokeInstanceAccess,
   createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
@@ -4699,6 +4784,7 @@ export type {
   CreateUserDeps,
   ChangeRoleDeps,
   GrantInstanceAccessDeps,
+  RevokeInstanceAccessDeps,
   InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,
