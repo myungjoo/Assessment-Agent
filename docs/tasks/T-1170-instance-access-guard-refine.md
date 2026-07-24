@@ -2,7 +2,10 @@
 id: T-1170
 title: 인스턴스 접근 계약 drift-guard 정밀화 (decorator 인자·optional 필드·body 진단)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 40b34a21
+prNumber: 1062
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 55
