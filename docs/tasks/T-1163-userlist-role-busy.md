@@ -2,7 +2,9 @@
 id: T-1163
 title: UserList 에 역할 변경 진행 표면 추가 (changingRoleId → 행별 disabled + aria-busy)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-24T00:56:45Z
+prNumber: 1055
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 180
