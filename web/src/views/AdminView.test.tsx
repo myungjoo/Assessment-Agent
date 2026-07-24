@@ -92,6 +92,7 @@ import AdminView, {
   runCreateGroup,
   runCreatePart,
   runCreateUser,
+  runChangeRole,
   runDeletePerson,
   runDeleteGroup,
   runDeletePart,
@@ -127,6 +128,7 @@ import type {
   CreateGroupDeps,
   CreatePartDeps,
   CreateUserDeps,
+  ChangeRoleDeps,
   DeletePersonDeps,
   DeleteGroupDeps,
   DeletePartDeps,
@@ -8452,5 +8454,193 @@ describe('AdminView — 사용자 생성 실 POST create mutation (T-1160 runCre
     expect(paths.filter((p) => p === '/api/persons')).toHaveLength(1);
     expect(paths.filter((p) => p === '/api/groups')).toHaveLength(1);
     expect(paths.filter((p) => p === '/api/parts')).toHaveLength(1);
+  });
+});
+
+// R-112 — T-1162 사용자 역할 변경 PATCH 러너(runChangeRole) + SuperAdmin gating 검증(runCreateUser
+// describe mirror, payload 는 role 단일 필드). happy(승급·강등·인코딩)/error(403 전용·500·404·
+// 네트워크·비-ApiError)/분기(빈 인자·in-flight·gating true/false)/negative(등급 fail-closed 4종·
+// error 잔류 0·finally off·읽기 목록 회귀 0) 각 1+.
+describe('AdminView — 사용자 역할 변경 실 PATCH mutation (T-1162 runChangeRole)', () => {
+  // 403 전용 문구(러너 상수와 정합) + 역할 변경 버튼 라벨(UserList PROMOTE/DEMOTE_LABEL —
+  // gating 렌더 단언 기준) + 승급/강등 대상이 각 1 명씩 든 목록(role 별 버튼 1개 판정).
+  const FORBIDDEN = '역할을 변경할 권한이 없습니다';
+  const PROMOTE = 'Admin 으로 승급';
+  const DEMOTE = 'User 로 강등';
+  const ROLE_USERS = [
+    { id: 'u1', email: 'a@example.com', role: 'User' },
+    { id: 'u2', email: 'b@example.com', role: 'Admin' },
+  ];
+
+  // 상태 전이 기록 deps harness(makeUserDeps mirror) — describeError 호출 횟수도 센다(403 분기).
+  function makeRoleDeps(changing: boolean) {
+    const calls = {
+      changing: [] as boolean[],
+      error: [] as (string | undefined)[],
+      bump: 0,
+      describe: 0,
+    };
+    const deps: ChangeRoleDeps = {
+      patch: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => {
+        calls.describe += 1;
+        return e instanceof ApiError && e.status !== 0
+          ? `HTTP ${e.status}: ${e.message}`
+          : `네트워크 오류: ${(e as Error).message}`;
+      },
+      isForbidden: (e: unknown) => e instanceof ApiError && e.status === 403,
+      changing,
+      setChanging: (next) => calls.changing.push(next),
+      setChangeError: (next) => calls.error.push(next),
+      bumpRefresh: () => {
+        calls.bump += 1;
+      },
+    };
+    return { deps, calls };
+  }
+
+  // me 응답을 주입해 사용자 목록을 렌더한다(등급별 gating 분기 검증용).
+  function renderWithMe(role: unknown, loading = false) {
+    setRoutes({
+      '/api/users': { data: ROLE_USERS, loading: false, error: undefined },
+      [AUTH_ME]: {
+        data: role === undefined ? undefined : { role },
+        loading,
+        error: undefined,
+      },
+    });
+    return renderToStaticMarkup(<AdminView />);
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path(승급·강등 양방향) + 분기(id encodeURIComponent 안전 인코딩·인자 trim) — PATCH 1 회
+  // + path/body + bump(1)/error 시작 비움만/진행 on→off.
+  it.each([
+    ['승급', 'u1', 'Admin', '/api/users/u1/role', 'Admin'],
+    ['강등', 'u2', 'User', '/api/users/u2/role', 'User'],
+    ['공백·특수문자 id', ' u/1 ', ' Admin ', '/api/users/u%2F1/role', 'Admin'],
+  ])(
+    '%s 시 PATCH /api/users/:id/role 을 body `{ role }` 로 1 회 호출하고 nonce bump 한다 (happy-path)',
+    async (_label, id, nextRole, expectedPath, expectedRole) => {
+      requestMock.mockResolvedValue(undefined); // 200 OK(UserResponseDto).
+      const { deps, calls } = makeRoleDeps(false);
+      await runChangeRole(id, nextRole, deps);
+      expect(requestMock).toHaveBeenCalledTimes(1);
+      const [path, options] = requestMock.mock.calls[0] as [
+        string,
+        { method: string; body: string },
+      ];
+      expect(path).toBe(expectedPath);
+      expect(options.method).toBe('PATCH');
+      const parsed = JSON.parse(options.body);
+      expect(parsed).toEqual({ role: expectedRole });
+      // ChangeRoleDto 계약 — role 외 다른 필드는 담지 않는다(경계).
+      expect(Object.keys(parsed)).toEqual(['role']);
+      expect(calls.bump).toBe(1);
+      expect(calls.error).toEqual([undefined]);
+      expect(calls.changing).toEqual([true, false]);
+    },
+  );
+
+  // error path + 분기(isForbidden true) — 403 은 전용 문구, describeError 파생은 미사용.
+  it('403(권한 부족) 시 전용 문구를 쓰고 describeError 를 사용하지 않는다 (error path — 403 전용 분기)', async () => {
+    requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
+    const { deps, calls } = makeRoleDeps(false);
+    await expect(runChangeRole('u1', 'Admin', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, FORBIDDEN]);
+    expect(calls.describe).toBe(0);
+    expect(calls.bump).toBe(0);
+    expect(calls.changing).toEqual([true, false]);
+  });
+
+  // error path + 분기(isForbidden false) — 비-403 은 throw 없이 describeError 파생 문구만 남기고
+  // 진행 플래그는 finally 로 반드시 해제된다(negative — UI 영구 잠김 방지).
+  it.each([
+    ['500(서버 오류)', new ApiError(500, 'Server Error'), 'HTTP 500: Server Error'],
+    ['404(대상 부재)', new ApiError(404, 'Not Found'), 'HTTP 404: Not Found'],
+    ['status 0 네트워크', new ApiError(0, 'offline'), '네트워크 오류: offline'],
+    ['비-ApiError throw', new TypeError('fetch failed'), '네트워크 오류: fetch failed'],
+  ])(
+    '%s 시 throw 없이 describeError 파생 문구만 표면화한다 (error path — 비-403 분기)',
+    async (_label, thrown, expected) => {
+      requestMock.mockRejectedValue(thrown);
+      const { deps, calls } = makeRoleDeps(false);
+      await expect(runChangeRole('u1', 'Admin', deps)).resolves.toBeUndefined();
+      expect(calls.error).toEqual([undefined, expected]);
+      expect(calls.describe).toBe(1);
+      expect(calls.bump).toBe(0);
+      expect(calls.changing).toEqual([true, false]);
+    },
+  );
+
+  // negative — 빈/공백 id·빈 nextRole·in-flight 는 모두 미발사(PATCH 0) + 상태 전이 0.
+  it.each([
+    ['id 빈 문자열', '', 'Admin', false],
+    ['id 공백만', '   ', 'Admin', false],
+    ['nextRole 빈 문자열', 'u1', '', false],
+    ['nextRole 공백만', 'u1', '  ', false],
+    ['changing in-flight 재호출', 'u1', 'Admin', true],
+  ])(
+    '%s 이면 PATCH 를 발사하지 않는다 (negative — 발사 억제 가드)',
+    async (_label, id, nextRole, changing) => {
+      requestMock.mockResolvedValue(undefined);
+      const { deps, calls } = makeRoleDeps(changing);
+      await runChangeRole(id, nextRole, deps);
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(calls.changing).toEqual([]);
+      expect(calls.error).toEqual([]);
+      expect(calls.bump).toBe(0);
+    },
+  );
+
+  // negative — 실패 후 재호출이 정상 발사되며 직전 error 가 비워진다(잔류 금지) + 진행 flag 복구.
+  it('실패 후 재호출이 직전 error 를 비우고 정상 발사된다 (negative — error 잔류 0)', async () => {
+    requestMock
+      .mockRejectedValueOnce(new ApiError(500, 'Server Error'))
+      .mockResolvedValueOnce(undefined);
+    const { deps, calls } = makeRoleDeps(false);
+    await runChangeRole('u1', 'Admin', deps);
+    await runChangeRole('u1', 'Admin', deps);
+    expect(requestMock).toHaveBeenCalledTimes(2);
+    expect(calls.error).toEqual([undefined, 'HTTP 500: Server Error', undefined]);
+    expect(calls.bump).toBe(1);
+    expect(calls.changing).toEqual([true, false, true, false]);
+  });
+
+  // 분기(gating) — SuperAdmin 일 때만 콜백이 내려가 역할 변경 버튼이 렌더된다.
+  it('SuperAdmin 등급이면 목록에 승급·강등 버튼을 렌더한다 (분기 — isSuperAdmin true)', () => {
+    const html = renderWithMe('SuperAdmin');
+    expect(html).toContain(PROMOTE);
+    expect(html).toContain(DEMOTE);
+  });
+
+  // negative — 등급 fail-closed 4종(Admin/소문자/loading/me 부재 → 콜백 undefined → 버튼 0).
+  it.each([
+    ['Admin 등급', 'Admin', false],
+    ['소문자 superadmin(enum 불일치)', 'superadmin', false],
+    ['me loading 중', undefined, true],
+    ['me 응답 부재', undefined, false],
+  ])(
+    '%s 이면 역할 변경 버튼을 렌더하지 않는다 (negative — isSuperAdmin fail-closed)',
+    (_label, role, loading) => {
+      const html = renderWithMe(role, loading as boolean);
+      expect(html).not.toContain(PROMOTE);
+      expect(html).not.toContain(DEMOTE);
+    },
+  );
+
+  // negative — 콜백 미전달(Admin 등급)에서도 기존 읽기 전용 목록 렌더는 그대로다(T-1159/T-1161 회귀 0).
+  it('Admin 등급에서도 사용자 목록 읽기 렌더는 유지된다 (negative — 회귀 0)', () => {
+    const html = renderWithMe('Admin');
+    expect(html).toContain('a@example.com');
+    expect(html).toContain('역할 Admin');
+    expect(html).not.toContain('role="alert"');
   });
 });
