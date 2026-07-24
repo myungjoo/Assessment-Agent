@@ -2,7 +2,7 @@
 id: T-1181
 title: 파트 생성 endpoint web↔backend 계약 drift-guard spec (POST /api/parts · api/parts base + bare @Post() 세그먼트 0 합성 + CreatePartDto name 단일 required body 부분집합 + POST body/Content-Type 존재 축 + @HttpCode(201))
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 290
