@@ -32,6 +32,9 @@ const EMAIL_PLACEHOLDER = '(이메일 없음)';
 const PROMOTE_LABEL = 'Admin 으로 승급';
 // 강등(Admin → User) 버튼 라벨 — onChangeRole 전달 시에만 해당 행에 렌더한다(PROMOTE_LABEL 동형).
 const DEMOTE_LABEL = 'User 로 강등';
+// 역할 변경 요청이 진행 중인 행에만 함께 노출할 한국어 진행 문구(role="status").
+// 버튼 라벨은 그대로 두고 별도 문구로만 진행을 알린다(라벨 교체 금지 — 기존 문구 계약 회귀 0).
+const CHANGING_ROLE_TEXT = '역할 변경 중…';
 
 // 현재 역할에서 노출할 역할 변경 액션 1건을 판정한다 — 'User' → 승급(Admin), 'Admin' → 강등(User).
 // 'SuperAdmin' 은 backend self-demote 금지 정책상 노출하지 않고, role 누락·소문자 'admin' 같은
@@ -62,6 +65,11 @@ interface UserListProps {
   // 회귀 0, PartList onDelete 동형). 실 PATCH /api/users/:id/role 요청 · SuperAdmin gating ·
   // 진행/에러 상태는 상위 컨테이너 몫이라 presentational 책임(콜백 호출)만 진다.
   onChangeRole?: (id: string, nextRole: string) => void;
+  // 역할 변경 요청이 진행 중인 사용자 id(선택) — 상위 컨테이너의 단일 in-flight 상태를 그대로
+  // 표현한다(한 번에 한 요청만 — 러너가 두 번째 발사를 no-op 하는 정책의 정직한 표면). truthy 면
+  // 모든 역할 변경 버튼을 비활성화하고, 이 id 와 일치하는 행에만 aria-busy·진행 문구를 붙인다.
+  // 미전달·빈 문자열이면 진행 없음으로 보아 모든 버튼이 활성인 하위 호환 default 다(T-1161 회귀 0).
+  changingRoleId?: string;
 }
 
 // 사용자 목록. 실 fetch·필터·전역 상태·생성/역할 변경 요청은 수행하지 않고 props 의 users 를
@@ -74,7 +82,11 @@ function UserList({
   error,
   emptyMessage,
   onChangeRole,
+  changingRoleId,
 }: UserListProps) {
+  // 진행 판정 — changingRoleId 가 truthy 일 때만 성립한다(빈 문자열·undefined 는 진행 없음).
+  // 목록에 없는 id 여도 in-flight 사실 자체가 우선이라 전 행을 잠근다(fail-closed).
+  const changing = Boolean(changingRoleId);
   // loading 우선 정책 — 진행 중이면 error·users 유무와 무관하게 로딩 표시만 렌더한다.
   if (loading === true) {
     return <div role="status">{LOADING_TEXT}</div>;
@@ -106,6 +118,8 @@ function UserList({
         const rowId = row.id;
         // 현재 역할로 판정한 역할 변경 액션(없으면 null → 버튼 미렌더).
         const roleAction = resolveRoleAction(role);
+        // 이 행이 진행 중인 행인지 — changing 이 true 일 때만 id 일치를 따진다(빈 문자열 오탐 차단).
+        const rowBusy = changing && rowId === changingRoleId;
         return (
           <li key={key}>
             {/* email 은 항상 표시한다(주 라벨, 누락 시 placeholder). */}
@@ -113,14 +127,22 @@ function UserList({
             {/* 역할은 role 이 있을 때만 보조 라벨로 표시한다(없으면 생략). */}
             {role ? <span>{`역할 ${role}`}</span> : null}
             {/* onChangeRole + row.id + 판정된 액션이 모두 있을 때만 역할 변경 버튼 1개를 렌더하고
-                클릭 시 (row.id, 다음 역할) 로 콜백을 호출한다. */}
+                클릭 시 (row.id, 다음 역할) 로 콜백을 호출한다. 진행 중이면 전 행 버튼을 비활성화하고
+                (disabled — DashboardFilterBar boolean attribute convention), 진행 중인 행에만
+                aria-busy 를 붙인다(false 렌더 방지 위해 미해당 행은 undefined). */}
             {onChangeRole && rowId && roleAction ? (
               <button
                 type="button"
+                disabled={changing}
+                aria-busy={rowBusy ? 'true' : undefined}
                 onClick={() => onChangeRole(rowId, roleAction.nextRole)}
               >
                 {roleAction.label}
               </button>
+            ) : null}
+            {/* 진행 문구는 버튼이 실제로 렌더된 진행 중 행에만 1개 노출한다(버튼 0 인 행은 진행 표면도 0). */}
+            {onChangeRole && rowId && roleAction && rowBusy ? (
+              <span role="status">{CHANGING_ROLE_TEXT}</span>
             ) : null}
           </li>
         );
