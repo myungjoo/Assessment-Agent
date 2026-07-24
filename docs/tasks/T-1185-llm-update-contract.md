@@ -2,7 +2,7 @@
 id: T-1185
 title: LLM provider 수정 endpoint web↔backend 계약 drift-guard spec (PATCH /api/llm/providers/:id · api/llm/providers 3-세그먼트 base + @Patch(":id") path param 합성 + UpdateLlmProviderConfigDto 4 all-optional subset + PATCH partial body/Content-Type 존재 축)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-096]
 estimatedDiff: 290
@@ -69,3 +69,11 @@ LLM provider 수정은 web `runUpdateProvider` 러너(`AdminView.tsx` 2500~2588,
 ## Follow-ups
 
 (작성 시 비어 있음. sub-agent 가 관련 작업 발견 시 여기에 추가. 특히 계약 guard use site 가 17 곳 도달 — 공용 helper 추출 ROI 가 임계를 **강하게** 넘어섰으므로 17 개 파일 동시 수정 refactor slice 후보를 명시 박제할 것(별도 slice — 파일-disjoint 동시 claim 안전성을 깨므로 본 arc 확산과 분리). LLM provider 수정 완결 후 마지막 확산 대상은 LLM provider 삭제(DELETE /api/llm/providers/:id, `runDeleteProvider` L1286) — LLM provider CRUD arc 마무리.)
+
+## Result (DONE)
+
+- 완료: 2026-07-24T12:19:40Z (PR #1077 merged, squash 1e0da3d3)
+- test-only 1파일 +300/-0 (AdminView.llm-provider-update-contract.test.ts), production 소스 무변경. 23 test green.
+- 실측: backend base `api/llm/providers`→`api/llm/provider` 변조 시 12 fail 확인 후 revert (green commit).
+- reviewer round 1/7 APPROVE (0 BLOCKER/0 MAJOR/0 MINOR/0 NIT), 4-게이트 PASS.
+- 다음: T-1186 (LLM provider 삭제 DELETE 계약 drift-guard — LLM provider CRUD guard arc 완결).
