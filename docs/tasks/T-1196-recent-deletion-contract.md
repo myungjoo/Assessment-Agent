@@ -2,7 +2,11 @@
 id: T-1196
 title: 재평가(최근 N일 delete→재수집) 트리거 endpoint web↔backend 계약 drift-guard spec 추가 (POST /api/schedules/recent-deletion/:personId · buildRecentDeletionPath literal recent-deletion + :personId path-param + @Body RecentDeletionDto{instants,days?} + encodeURIComponent + falsy-personId 미발사 guard, 형제 api/schedules controller 판별)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-24T18:12:00Z
+mergedAs: aeb941c9
+prNumber: 1088
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-041, REQ-045]
 estimatedDiff: 288
