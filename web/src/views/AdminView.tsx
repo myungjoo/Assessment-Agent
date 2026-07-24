@@ -15,7 +15,7 @@
 // 없으면 빈 배열(빈 상태) 로 안전 표시한다 — 별도 GET /api/groups/:id/members 신규 fetch 는
 // ④b Out of Scope(본 컨테이너는 useApiResource 를 그룹 목록 조회에 단 한 번만 호출한다).
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useApiResource, toErrorMessage } from '../api/useApiResource';
 import { request, requestRaw, ApiError } from '../api/apiClient';
 import type { RequestOptions } from '../api/apiClient';
@@ -1766,6 +1766,35 @@ async function runChangeRole(
   }
 }
 
+// 진행 중인 id 를 읽고 쓰는 gate(T-1165). 위 러너에 주입되는 changingId 의 "출처" 만 바꾸는
+// 장치이며 러너 본체·ChangeRoleDeps 계약은 무변경이다.
+interface InFlightIdGate {
+  // 가드가 참조할 현재 진행 id — 호출 시점 값(render 시점 캡처 값이 아니다).
+  read: () => string | undefined;
+  // 진행 id 갱신 — ref 동기 반영이 먼저, 렌더 표면 state 갱신이 뒤다(순서가 계약).
+  write: (next: string | undefined) => void;
+}
+
+// (a) 결함: 진행 id 를 useState 로만 들면 setState 가 비동기 re-render 뒤에야 새 closure 를
+// 만들어, 첫 클릭 직후 re-render 전에 들어온 두 번째 클릭이 여전히 stale 한 undefined 를 읽고
+// PATCH 를 2회 발사한다(단일 in-flight 정책이 새는 창).
+// (b) 그래서 가드 읽기는 ref(동기 반영), 렌더 표면은 state(리렌더 트리거)로 이중 보관한다 — ref 는
+// 렌더를 트리거하지 않아 state 를 대체할 수 없고, state 는 동기 반영이 안 돼 가드를 대체할 수 없다.
+function createInFlightIdGate(
+  ref: { current: string | undefined },
+  setState: (next: string | undefined) => void,
+): InFlightIdGate {
+  return {
+    // 항상 ref 의 현재 값을 그대로 돌려준다(같은 tick 의 두 번째 호출도 방금 켜진 값을 본다).
+    read: () => ref.current,
+    // ref 를 먼저 동기 갱신해야 위 창이 닫힌다. setState 는 진행 표면 렌더용으로 뒤이어 호출한다.
+    write: (next: string | undefined) => {
+      ref.current = next;
+      setState(next);
+    },
+  };
+}
+
 // 인원 삭제 DELETE + state-전이 로직에 주입하는 deps(T-1144 — runDeleteProvider 의 DeleteProviderDeps
 // 를 1:1 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). path param 이 person id 하나뿐이라
 // (DELETE /api/persons/:id 는 단일 세그먼트) groupId 는 없다. 컨테이너의 handleDeletePerson 은 이 러너에
@@ -3479,20 +3508,32 @@ function AdminView({
     undefined,
   );
 
+  // 진행 id 의 동기 사본(T-1165) — 위 state 는 UserList 로 내려보내는 렌더 표면이라 같은 tick 의
+  // 두 번째 발사가 stale 값을 본다. 가드는 이 ref 를 읽고, 둘은 아래 gate 가 함께 갱신한다.
+  const changingRoleIdRef = useRef<string | undefined>(undefined);
+  const changingRoleGate = useMemo(
+    () => createInFlightIdGate(changingRoleIdRef, setChangingRoleId),
+    [],
+  );
+
   // 사용자 역할 변경 실 mutation 핸들러(T-1162 — handleCreateUser mirror. 전이는 러너가 캡슐화).
   // UserList 가 (row.id, 다음 역할)로 호출한다.
+  // deps 에서 changingRoleId 를 뺐다(T-1165) — 가드가 render state 를 더는 읽지 않아 재생성이
+  // 불필요하고, 남는 참조는 모두 stable 하다(request·toErrorMessage 는 모듈 import, setChangeRoleError
+  // ·setUsersRefreshNonce 는 useState setter, changingRoleGate 는 deps [] 인 useMemo).
   const handleChangeRole = useCallback(
     (id: string, nextRole: string) =>
       runChangeRole(id, nextRole, {
         patch: request,
         describeError: toErrorMessage,
         isForbidden: (e: unknown) => e instanceof ApiError && e.status === 403,
-        changingId: changingRoleId,
-        setChangingId: setChangingRoleId,
+        // 호출 시점 읽기 — render 시점에 캡처된 값이 아니다(이중 발사 창 차단의 핵심).
+        changingId: changingRoleGate.read(),
+        setChangingId: changingRoleGate.write,
         setChangeError: setChangeRoleError,
         bumpRefresh: () => setUsersRefreshNonce((n) => n + 1),
       }),
-    [changingRoleId],
+    [changingRoleGate],
   );
 
   // 파트 생성 controlled input 상태(T-1153) — 컨테이너 소유. "파트 추가" 클릭 시 handleCreatePart
@@ -4491,6 +4532,7 @@ export {
   runCreatePart,
   runCreateUser,
   runChangeRole,
+  createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
   runDeletePart,
@@ -4530,6 +4572,7 @@ export type {
   CreatePartDeps,
   CreateUserDeps,
   ChangeRoleDeps,
+  InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,
   DeletePartDeps,

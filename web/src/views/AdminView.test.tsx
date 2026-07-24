@@ -93,6 +93,7 @@ import AdminView, {
   runCreatePart,
   runCreateUser,
   runChangeRole,
+  createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
   runDeletePart,
@@ -129,6 +130,7 @@ import type {
   CreatePartDeps,
   CreateUserDeps,
   ChangeRoleDeps,
+  InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,
   DeletePartDeps,
@@ -8730,5 +8732,210 @@ describe('AdminView — 역할 변경 진행 id 배선 (T-1164 changingRoleId)',
     expect(html).toContain('a@example.com');
     expect(html).toContain('사용자 추가');
     expect(html).toContain('Admin 으로 승급');
+  });
+});
+
+// R-112 — T-1165 ref 기반 in-flight gate 전용 검증. 위 두 describe 가 PATCH 계약과 진행 id 표현을
+// 이미 덮으므로 여기서는 (a) write 의 ref 동기 선반영, (b) 같은 tick 연속 2회 발사의 이중 PATCH
+// 차단(핵심 regression), (c) 실패 후 ref 정리로 영구 잠금 0 만 좁게 본다.
+describe('AdminView — 역할 변경 in-flight ref gate (T-1165 createInFlightIdGate)', () => {
+  const ROLE_USERS = [
+    { id: 'u1', email: 'a@example.com', role: 'User' },
+    { id: 'u2', email: 'b@example.com', role: 'Admin' },
+  ];
+
+  // 컨테이너 handleChangeRole 을 그대로 흉내내는 harness — 매 발사마다 deps 를 새로 만들고
+  // changingId 에 **호출 시점의** gate.read() 를 넣는다(useCallback closure 재생성 없이도 최신
+  // 진행 id 를 보는 구조가 본 task 의 전부). initial 로 진행 중 상태를 선주입할 수 있다.
+  function makeGateHarness(initial: string | undefined = undefined) {
+    const ref = { current: initial };
+    const setStateCalls: (string | undefined)[] = [];
+    const calls = { error: [] as (string | undefined)[], bump: 0 };
+    const gate = createInFlightIdGate(ref, (next) => setStateCalls.push(next));
+    const fire = (id: string, nextRole: string) =>
+      runChangeRole(id, nextRole, {
+        patch: (...args: unknown[]) => requestMock(...args),
+        describeError: (e: unknown) => `오류: ${(e as Error).message}`,
+        isForbidden: (e: unknown) => e instanceof ApiError && e.status === 403,
+        changingId: gate.read(),
+        setChangingId: gate.write,
+        setChangeError: (next: string | undefined) => calls.error.push(next),
+        bumpRefresh: () => {
+          calls.bump += 1;
+        },
+      });
+    return { ref, gate, setStateCalls, calls, fire };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — write 는 await 없이(같은 tick) ref 에 반영되고 setState 도 그 값으로 1회 호출된다.
+  it('write 직후 await 없이 read 가 그 값을 돌려주고 setState 가 1회 호출된다 (happy-path — 동기 선반영)', () => {
+    const { gate, ref, setStateCalls } = makeGateHarness();
+    gate.write('u1');
+    expect(gate.read()).toBe('u1');
+    expect(ref.current).toBe('u1');
+    expect(setStateCalls).toEqual(['u1']);
+  });
+
+  // happy-path — 비우기 경로도 동형(진행 없음 복귀).
+  it('write(undefined) 로 비우면 read 가 undefined 를 돌려준다 (happy-path — 진행 해제)', () => {
+    const { gate, setStateCalls } = makeGateHarness('u1');
+    gate.write(undefined);
+    expect(gate.read()).toBeUndefined();
+    expect(setStateCalls).toEqual([undefined]);
+  });
+
+  // regression(본 task 핵심) — await 없이 연속 2회 발사해도 PATCH 는 1회다. 대조축으로 render-state
+  // 캡처 방식(고정 changingId: undefined)은 같은 시나리오에서 2회 발사된다 — 이 대조가 본 fix 가
+  // 무엇을 막는지 증언한다.
+  it('await 없이 연속 2회 발사해도 PATCH 는 1회다 (regression — stale closure 이중 발사 차단)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { fire, setStateCalls } = makeGateHarness();
+    await Promise.all([fire('u1', 'Admin'), fire('u1', 'Admin')]);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(setStateCalls).toEqual(['u1', undefined]);
+  });
+
+  it('대조 — render-state 캡처(고정 changingId: undefined)는 같은 시나리오에서 2회 발사된다 (regression 비교축)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    // 고정 undefined = T-1164 의 useCallback closure 가 re-render 전에 보던 값 그대로.
+    const stale: ChangeRoleDeps = {
+      patch: (...args: unknown[]) => requestMock(...args),
+      describeError: () => '오류',
+      isForbidden: () => false,
+      changingId: undefined,
+      setChangingId: () => undefined,
+      setChangeError: () => undefined,
+      bumpRefresh: () => undefined,
+    };
+    await Promise.all([
+      runChangeRole('u1', 'Admin', stale),
+      runChangeRole('u1', 'Admin', stale),
+    ]);
+    expect(requestMock).toHaveBeenCalledTimes(2);
+  });
+
+  // error path — PATCH 실패(403 / 비-403) 후에도 finally 의 write(undefined) 로 ref 가 비워져
+  // 다음 발사가 정상 통과한다(진행 id 영구 잔류로 인한 영구 잠금 0).
+  it.each([
+    ['403(권한 부족)', new ApiError(403, 'Forbidden')],
+    ['500(서버 오류)', new ApiError(500, 'Server Error')],
+  ])(
+    '%s 로 실패해도 ref 가 비워져 다음 발사가 통과한다 (error path — 영구 잠금 0)',
+    async (_label, thrown) => {
+      requestMock.mockRejectedValueOnce(thrown).mockResolvedValueOnce(undefined);
+      const { fire, ref } = makeGateHarness();
+      await fire('u1', 'Admin');
+      expect(ref.current).toBeUndefined();
+      await fire('u1', 'Admin');
+      expect(requestMock).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  // error path — setState 가 throw 하는 비정상 setter 라도 ref 는 이미 갱신돼 있다(ref 우선 순서 계약).
+  it('setState 가 throw 해도 ref 는 이미 갱신돼 있다 (error path — ref 우선 순서)', () => {
+    const ref = { current: undefined as string | undefined };
+    const gate = createInFlightIdGate(ref, () => {
+      throw new Error('setState 실패');
+    });
+    expect(() => gate.write('u1')).toThrow('setState 실패');
+    expect(ref.current).toBe('u1');
+  });
+
+  // 분기 — gate 가 진행 없음일 때만 발사되고, 진행 중(같은 id·다른 id)·빈 인자는 모두 no-op 이다.
+  // no-op 경로에서는 patch·setChangeError·setState 호출이 모두 0 이어야 한다.
+  it.each([
+    ['진행 없음', undefined, 'u1', 'Admin', 1],
+    ['같은 id 진행 중', 'u1', 'u1', 'Admin', 0],
+    ['다른 id 진행 중', 'u2', 'u1', 'Admin', 0],
+    ['빈 id', undefined, '', 'Admin', 0],
+    ['공백만 든 id', undefined, '   ', 'Admin', 0],
+    ['빈 role', undefined, 'u1', '', 0],
+  ])(
+    '%s 이면 발사 억제 가드가 기대대로 동작한다 (분기 — gate.read 기반)',
+    async (_label, initial, id, role, expected) => {
+      requestMock.mockResolvedValue(undefined);
+      const { fire, setStateCalls, calls } = makeGateHarness(
+        initial as string | undefined,
+      );
+      await fire(id as string, role as string);
+      expect(requestMock).toHaveBeenCalledTimes(expected as number);
+      if (expected === 0) {
+        expect(setStateCalls).toEqual([]);
+        expect(calls.error).toEqual([]);
+        expect(calls.bump).toBe(0);
+      }
+    },
+  );
+
+  // negative — 공백 padding id 의 원본/trim 분리 계약(T-1164)이 gate 경로에서도 그대로다.
+  it('공백 padding id 는 ref 에 원본이 박제되고 PATCH path 는 trim 값을 쓴다 (negative — 원본/trim 분리 회귀 0)', async () => {
+    const seen: (string | undefined)[] = [];
+    const { fire, ref } = makeGateHarness();
+    requestMock.mockImplementation(() => {
+      seen.push(ref.current);
+      return Promise.resolve(undefined);
+    });
+    await fire('  u1  ', 'Admin');
+    expect(seen).toEqual(['  u1  ']);
+    expect(requestMock.mock.calls[0][0]).toBe('/api/users/u1/role');
+  });
+
+  // negative — 첫 발사 완료 후의 두 번째 발사는 정상 통과하고 ref 시퀀스가 켜짐→꺼짐 쌍으로 쌓인다.
+  it('완료 후 재발사는 정상 통과하고 진행 id 가 켜짐→꺼짐 쌍으로 누적된다 (negative — 순차 재발사)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { fire, setStateCalls, calls } = makeGateHarness();
+    await fire('u1', 'Admin');
+    await fire('u2', 'User');
+    expect(requestMock).toHaveBeenCalledTimes(2);
+    expect(setStateCalls).toEqual(['u1', undefined, 'u2', undefined]);
+    expect(calls.bump).toBe(2);
+  });
+
+  // negative — 같은 값으로 write 를 2회 연속 호출해도 ref·setState 가 그 값으로 일관되게 남는다(멱등).
+  it('같은 값으로 write 를 2회 호출해도 ref·setState 가 일관되다 (negative — 멱등)', () => {
+    const { gate, ref, setStateCalls } = makeGateHarness();
+    gate.write('u1');
+    gate.write('u1');
+    expect(ref.current).toBe('u1');
+    expect(gate.read()).toBe('u1');
+    expect(setStateCalls).toEqual(['u1', 'u1']);
+  });
+
+  // negative — 비-ApiError(순수 Error) throw 에서도 throw 가 새어나오지 않고 ref 가 정리된다.
+  it('비-ApiError throw 에서도 throw 가 새지 않고 ref 가 정리된다 (negative — 비-ApiError 경로)', async () => {
+    requestMock.mockRejectedValue(new Error('boom'));
+    const { fire, ref, calls } = makeGateHarness();
+    await expect(fire('u1', 'Admin')).resolves.toBeUndefined();
+    expect(ref.current).toBeUndefined();
+    expect(calls.error).toEqual([undefined, '오류: boom']);
+  });
+
+  // negative — 컨테이너 초기 렌더 회귀 0(ref·gate 도입으로 진행 표면·목록·생성 폼이 바뀌지 않는다).
+  it('초기 렌더에 aria-busy 가 없고 사용자 목록·생성 폼 렌더가 유지된다 (negative — 회귀 0)', () => {
+    setRoutes({
+      '/api/users': { data: ROLE_USERS, loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'SuperAdmin' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).not.toContain('aria-busy');
+    expect(html).toContain('a@example.com');
+    expect(html).toContain('사용자 추가');
+    expect(html).toContain('Admin 으로 승급');
+  });
+
+  // 타입 계약 — export 된 InFlightIdGate 로 gate 를 받아도 read/write 시그니처가 맞는다.
+  it('InFlightIdGate 타입으로 gate 를 다룰 수 있다 (분기 — 타입 export 계약)', () => {
+    const ref = { current: undefined as string | undefined };
+    const gate: InFlightIdGate = createInFlightIdGate(ref, () => undefined);
+    gate.write('u9');
+    expect(gate.read()).toBe('u9');
   });
 });
