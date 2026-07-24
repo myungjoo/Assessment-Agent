@@ -2,7 +2,7 @@
 id: T-1193
 title: 그룹 목록 조회 endpoint web↔backend 계약 drift-guard spec 추가 (GET /api/groups · bare @Get() findAll vs @Get(":id") findById vs @Get(":id/persons") findPersons vs @Get(":id/members") findMembers 4-way GET 판별 축 + ?_r nonce 무해)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-026, REQ-049]
 estimatedDiff: 280
