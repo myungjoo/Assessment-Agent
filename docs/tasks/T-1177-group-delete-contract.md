@@ -2,7 +2,7 @@
 id: T-1177
 title: 그룹 삭제 endpoint web↔backend 계약 drift-guard spec (DELETE /api/groups/:id · 단일 :id path param + body 부재 축 + 204 No Content)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 275
@@ -69,3 +69,8 @@ PLAN.md P6 line 120 (Admin 패널) 사용자·그룹 관리 arc 의 후속 slice
 ## Follow-ups
 
 (작성 시 비어 있음. sub-agent 가 관련 작업 발견 시 여기에 추가. 특히 계약 guard use site 가 8 곳 도달 — 공용 helper 추출 ROI 가 임계를 강하게 넘어섰으므로 8 개 파일 동시 수정 refactor slice 후보를 명시 박제할 것.)
+
+
+## 결과 (DONE 2026-07-24T08:12Z)
+
+PR #1069 round 1/7 APPROVE -> squash merge 62a60e32. 신규 test 파일 1개(web/src/views/AdminView.group-delete-contract.test.ts, +273 LOC, 18 test) 추가. DELETE /api/groups/:id web↔backend 계약 drift-guard(단일 :id path param + @Body 부재 축 + DELETE method). vitest 1327 pass + build/lint green, backend base 임시변경 시 guard 6 fail 실측 후 revert. CI(기본검사+배포산출물) green. next: T-1178(인원 생성 POST /api/persons contract).
