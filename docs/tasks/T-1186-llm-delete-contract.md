@@ -2,7 +2,7 @@
 id: T-1186
 title: LLM provider 삭제 endpoint web↔backend 계약 drift-guard spec 추가
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-096]
 estimatedDiff: 220
