@@ -2,7 +2,9 @@
 id: T-1165
 title: AdminView 역할 변경 in-flight 가드를 ref 기반으로 전환해 stale closure 이중 발사 차단
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1057
+completedAt: 2026-07-24T02:05:00Z
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 190

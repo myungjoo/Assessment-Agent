@@ -122,6 +122,7 @@ P3 진행 중 발견된 진척 status quo + P4 진입 trigger 의사결정 가�
 - **composition-wiring 전환 (완결)** — presentational 분해 완료(15 컴포넌트, T-0361~T-0375). [ADR-0041](decisions/ADR-0041-frontend-composition-wiring.md)(ACCEPTED, T-0377 flip) 이 App.tsx 조립 구조(AppShell→인증 게이트→화면 컨테이너→presentational, controlled lift-up)·무라우터 view 전환 라우팅·native fetch hook data-fetch 경계·non-parallel single-claim shape 를 박제했고, 후속 wiring chain ①~⑥(T-0378~T-0394)이 `independentStream: p6-frontend-composition` 단일-claim 순차로 **완결**됐다(②AuthGate→③DashboardView→④AdminView→⑤EvaluationGuardBanner→⑥SuperAdminSetupForm, PR #325 squash b152181 로 마무리).
   - **deferred 잔여 (backend 계약 확정 후 배선)** — 다음은 make-work 가 아니라 backend-contract 미shipped 로 의도적 defer: ReEvaluationTriggerPanel·SchedulePanel 미마운트(api.md 94~97 `/run`·bulk DELETE·`/reeval`·`/reset` 미구현; SchedulePanel 은 SchedulerModule = P7 + `@nestjs/schedule` 새 dep) / EvaluationGuardBanner 자동 polling(assessments rows status 필드 부재) / GroupMember add·remove mutation / import 결과 상세. backend 계약 확정 후 배선한다.
   - **게이트된 backlog** — web vitest CI 배선(T-0355)은 `onHold: credential-workflow-scope`(token workflow scope 부재)로 게이트됨 — 진입 시 게이트 상태 재확인 필요.
+  - **게이트된 backlog — web coverage threshold (T-1165 reviewer MINOR-2)** — `web/package.json` 의 vitest 에 `coverageThreshold` 가 없어 web 쪽은 R-112 의 line/function ≥ 80% 가 기계적으로 강제되지 않는다(`vitest run` 만 존재, coverage provider 미설치). 도입하려면 `@vitest/coverage-v8` **새 외부 dependency** 가 필요해 CLAUDE.md §5 새-dep 게이트 대상 — 사용자 승인 후 ADR 없이도 진행 가능한 devDependency 인지 판단 필요. P6 web 코드가 계속 늘고 있어 승인 시 우선 처리 권장.
 
 ---
 
