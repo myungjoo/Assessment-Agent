@@ -112,6 +112,12 @@ const USER_HEADING = '사용자 관리';
 // 사용자 생성 409(중복 이메일) 전용 문구(T-1160 — PART_DUPLICATE_ERROR mirror. User.email @unique).
 const USER_DUPLICATE_ERROR = '이미 존재하는 이메일입니다';
 
+// 역할 변경 403(권한 부족) 전용 문구(T-1162 — USER_DUPLICATE_ERROR 동형). PATCH /api/users/:id/role
+// 은 @Roles("SuperAdmin") 이라 비-SuperAdmin actor 는 403 이 확정이다. UI 는 SuperAdmin 에게만
+// 콜백을 내려 사전 차단하지만(gating), 등급 stale·backend self-demote 금지 같은 잔여 403 은
+// "HTTP 403: …" 일반 문구 대신 원인이 분명한 전용 문구로 표면화한다. §12 한국어.
+const USER_ROLE_FORBIDDEN_ERROR = '역할을 변경할 권한이 없습니다';
+
 // 파트 생성 409(중복 이름) 전용 사람-친화 문구(T-1153) — Part.name 은 prisma schema 에서 @unique
 // 라 중복 이름 POST 시 PartService.create 가 Prisma P2002 → ConflictException(409) 으로 변환한다.
 // 그룹(Group.name @unique 미정의라 409 없음)과 달리 파트는 이 409 를 일반 error 문구("HTTP 409:
@@ -1700,6 +1706,58 @@ async function runCreateUser(
   }
 }
 
+// 사용자 역할 변경 PATCH + state-전이 deps(T-1162 — 위 CreateUserDeps 1:1 mirror, 필드 의미는 그쪽
+// 주석). 생성과 달리 입력 폼이 없어 resetInput 이 없고, 409(중복) 대신 403(권한 부족)을 분기한다.
+interface ChangeRoleDeps {
+  patch: (path: string, options: RequestOptions) => Promise<unknown>;
+  describeError: (e: unknown) => string;
+  isForbidden: (e: unknown) => boolean;
+  changing: boolean;
+  setChanging: (next: boolean) => void;
+  setChangeError: (next: string | undefined) => void;
+  bumpRefresh: () => void;
+}
+
+// 사용자 역할 변경 PATCH /api/users/:id/role(body `{ role }`) + state-전이를 캡슐화한 순수 async
+// 러너(T-1162 — 위 runCreateUser mirror). backend(user.controller @Patch(":id/role"), @Roles
+// ("SuperAdmin"), ChangeRoleDto 검증 실패 → 400, 비-SuperAdmin·self-demote → 403, 대상 부재 →
+// 404, 응답 UserResponseDto)를 발사한다. 동작: 빈 인자·in-flight 면 미발사 / 발사 시 진행 on +
+// 직전 error 비움 / 성공 시 재조회 bump(낙관 갱신 금지 — 권위 재조회) / 실패는 throw 없이 error
+// state(403 전용 문구, 그 외 describeError 파생) / off 는 finally 공통.
+async function runChangeRole(
+  id: string,
+  nextRole: string,
+  deps: ChangeRoleDeps,
+): Promise<void> {
+  // 발사 억제 가드(no-op — 상태 전이 0). id·nextRole 이 빈 값이면 `/api/users//role` 같은 깨진
+  // path 나 400 확정 body 를 만들지 않는다.
+  const trimmedId = id?.trim();
+  const trimmedRole = nextRole?.trim();
+  if (!trimmedId || !trimmedRole || deps.changing) {
+    return;
+  }
+  deps.setChanging(true);
+  deps.setChangeError(undefined);
+  try {
+    // id 는 encodeURIComponent 로 안전 인코딩(비정상 문자가 든 id 도 path 가 깨지지 않게).
+    await deps.patch(`${USERS_PATH}/${encodeURIComponent(trimmedId)}/role`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: trimmedRole }),
+    });
+    // 권위 재조회 — 응답 body 로 목록을 낙관 갱신하지 않고 nonce bump 로 GET 을 다시 발사한다.
+    deps.bumpRefresh();
+  } catch (e) {
+    if (deps.isForbidden(e)) {
+      deps.setChangeError(USER_ROLE_FORBIDDEN_ERROR);
+    } else {
+      deps.setChangeError(deps.describeError(e));
+    }
+  } finally {
+    deps.setChanging(false);
+  }
+}
+
 // 인원 삭제 DELETE + state-전이 로직에 주입하는 deps(T-1144 — runDeleteProvider 의 DeleteProviderDeps
 // 를 1:1 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). path param 이 person id 하나뿐이라
 // (DELETE /api/persons/:id 는 단일 세그먼트) groupId 는 없다. 컨테이너의 handleDeletePerson 은 이 러너에
@@ -2754,6 +2812,15 @@ function AdminView({
     [meData, meLoading],
   );
 
+  // SuperAdmin 여부 파생(T-1162 — 위 isAdmin 동형, 판정만 최상위 등급 정확 매칭). PATCH
+  // /api/users/:id/role 이 @Roles("SuperAdmin") 이므로 이 파생이 true 일 때만 역할 변경 콜백을
+  // UserList 로 내려 확정 403 요청을 사전 차단한다. loading / 조회 실패 / meData 부재 / role
+  // 누락 / 'superadmin' 같은 enum 불일치는 모두 false(fail-closed — 대소문자 관대 처리 없음).
+  const isSuperAdmin = useMemo(
+    () => !meLoading && meData?.role === 'SuperAdmin',
+    [meData, meLoading],
+  );
+
   // 표시용 그룹 목록 — data 미도착이면 빈 배열로 간주한다(<select> 옵션·파생의 안전 기준).
   const groups = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
@@ -3393,6 +3460,29 @@ function AdminView({
     [userEmailInput, userPasswordInput, creatingUser],
   );
 
+  // 사용자 역할 변경 in-flight·실패 문구 상태(T-1162 — 생성 state mirror. 입력 폼이 없어 2종만).
+  // 생성 실패 문구(createUserError)와 별개 상태라 두 alert 가 섞이지 않는다.
+  const [changingRole, setChangingRole] = useState<boolean>(false);
+  const [changeRoleError, setChangeRoleError] = useState<string | undefined>(
+    undefined,
+  );
+
+  // 사용자 역할 변경 실 mutation 핸들러(T-1162 — handleCreateUser mirror. 전이는 러너가 캡슐화).
+  // UserList 가 (row.id, 다음 역할)로 호출한다.
+  const handleChangeRole = useCallback(
+    (id: string, nextRole: string) =>
+      runChangeRole(id, nextRole, {
+        patch: request,
+        describeError: toErrorMessage,
+        isForbidden: (e: unknown) => e instanceof ApiError && e.status === 403,
+        changing: changingRole,
+        setChanging: setChangingRole,
+        setChangeError: setChangeRoleError,
+        bumpRefresh: () => setUsersRefreshNonce((n) => n + 1),
+      }),
+    [changingRole],
+  );
+
   // 파트 생성 controlled input 상태(T-1153) — 컨테이너 소유. "파트 추가" 클릭 시 handleCreatePart
   // 가 POST body 의 name 필드로 공급하고, 성공 후 빈 값으로 되돌린다(연속 생성 편의). 그룹 생성의
   // groupNameInput 패턴 mirror(파트도 name 단일 필드).
@@ -3985,9 +4075,10 @@ function AdminView({
               마운트하지 않아 403 목록이 화면에 남지 않는다 — 위 fail-closed 정책 정합). 신규 조회
               useApiResource<UserRow[]>(USERS_PATH) 의 data/loading/error 를 그대로 UserList 로 내려
               보낸다(ADR-0041 Decision 1 — 컴포넌트는 fetch 를 모른다). data 가 undefined(미조회/진행
-              중/실패)이면 `?? []` 로 빈 배열을 안전하게 넘겨 throw 없이 렌더한다(경계 방어). 본 slice
-              는 읽기 전용이라 onChangeRole 같은 mutation 콜백은 전달하지 않는다(생성·역할 변경 배선은
-              후속 slice). UserList 의 named UserRow 를 조회 제네릭에 그대로 쓴다(컴포넌트 수정 0). */}
+              중/실패)이면 `?? []` 로 빈 배열을 안전하게 넘겨 throw 없이 렌더한다(경계 방어). 생성
+              (T-1160)·역할 변경(T-1162) mutation 이 배선돼 있고, onChangeRole 은 isSuperAdmin 일
+              때만 내려간다(비-SuperAdmin 에겐 undefined → 버튼 미렌더로 확정 403 사전 차단).
+              UserList 의 named UserRow 를 조회 제네릭에 그대로 쓴다(컴포넌트 수정 0). */}
           <section aria-label="사용자 관리 섹션">
             <h2>{USER_HEADING}</h2>
             {/* 사용자 생성(T-1160, REQ-044/REQ-045) — 파트 생성 폼(T-1153) mirror, 입력만 2 필드.
@@ -4018,10 +4109,13 @@ function AdminView({
               </button>
               {createUserError ? <p role="alert">{createUserError}</p> : null}
             </div>
+            {/* 역할 변경 실패 문구(T-1162) — 생성 실패 alert 와 별개 상태라 서로 섞이지 않는다. */}
+            {changeRoleError ? <p role="alert">{changeRoleError}</p> : null}
             <UserList
               users={usersData ?? []}
               loading={userLoading}
               error={userError}
+              onChangeRole={isSuperAdmin ? handleChangeRole : undefined}
             />
           </section>
         </>
@@ -4381,6 +4475,7 @@ export {
   runCreateGroup,
   runCreatePart,
   runCreateUser,
+  runChangeRole,
   runDeletePerson,
   runDeleteGroup,
   runDeletePart,
@@ -4419,6 +4514,7 @@ export type {
   CreateGroupDeps,
   CreatePartDeps,
   CreateUserDeps,
+  ChangeRoleDeps,
   DeletePersonDeps,
   DeleteGroupDeps,
   DeletePartDeps,
