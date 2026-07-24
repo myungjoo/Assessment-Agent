@@ -1723,6 +1723,39 @@ function buildInstanceAccessPath(userId: string): string {
   return `${USERS_PATH}/${encodeURIComponent(userId)}/instance-access`;
 }
 
+// 인스턴스 접근 폼 비활성 파생 입력(T-1168) — 부여 POST·회수 DELETE 의 in-flight 플래그와 폼 입력
+// 2 개(userId 미선택 / instanceRef 공백만은 각각 빈 값과 동치).
+interface InstanceAccessFormInput {
+  granting: boolean;
+  revoking: boolean;
+  userId: string;
+  instanceRef: string;
+}
+
+// 파생 결과(T-1168) — select·input 은 busy(어느 방향이든 진행 중)를, 부여·회수 버튼은 공통
+// actionDisabled(busy 또는 미선택 또는 주소 미입력)를 쓴다.
+interface InstanceAccessFormFlags {
+  busy: boolean;
+  actionDisabled: boolean;
+}
+
+// (a) 결함: 이 파생을 컨테이너 본문·markup 안 인라인 식으로 두면(`granting || revoking` 과 버튼마다
+// 반복되는 `busy || !userId || !instanceRef.trim()`) 한쪽 진행 플래그 누락·`||`→`&&` 오타·trim 누락이
+// 어떤 test 도 깨지 않고 지나간다 — 실제 결과는 부여 발사 중에 회수 버튼이 살아 있어 같은 사용자에게
+// 두 방향 mutation 이 동시에 나가는 교차 발사 창이다(러너 자체 가드는 각자 방향만 막는다).
+// (b) 그래서 파생만 인자 → 반환 순수 helper 로 뽑는다 — ADR-0040 §5 로 jsdom/RTL 상태 구동 렌더
+// test 가 불가한 현 harness 에서는 helper 직접 호출만이 진리표 전량을 고정할 수 있고, 컨테이너가 그
+// 결과를 실제로 쓰는지는 소스 문자열 drift guard(T-1165 선례)가 받친다. React import·state·부수효과
+// 0 이라 같은 인자면 항상 같은 결과다(인자 객체도 변형하지 않는다).
+function deriveInstanceAccessFormFlags(input: InstanceAccessFormInput): InstanceAccessFormFlags {
+  const busy = input.granting || input.revoking;
+  return {
+    busy,
+    // 두 버튼은 이 한 값을 공유한다(비활성 조건 분화 금지 — 한쪽만 살아나는 창을 원천 차단).
+    actionDisabled: busy || !input.userId || !input.instanceRef.trim(),
+  };
+}
+
 // 부여 POST + state-전이 deps(T-1166 — 위 CreateUserDeps 1:1 mirror, 필드 의미는 그쪽 주석). 조회
 // endpoint 부재라 bumpRefresh 대신 성공 안내 setter(setGrantNotice — error 와 상호 배타)를 두고,
 // resetInput 은 인스턴스 입력만 비운다(선택 사용자 유지 — 연속 부여 편의).
@@ -3694,9 +3727,16 @@ function AdminView({
     [instanceAccessUserId, instanceRefInput, revokingInstanceAccess],
   );
 
-  // 부여·회수 통합 in-flight(T-1167) — 어느 한쪽이라도 진행 중이면 폼 전체(select·input·두 버튼)를
-  // 비활성화한다. 러너 자체 가드(각자 진행 플래그)에 더한 교차 발사 이중 방어다.
-  const instanceAccessBusy = grantingInstanceAccess || revokingInstanceAccess;
+  // 부여·회수 통합 in-flight + 버튼 비활성(T-1167 도입, T-1168 helper 추출) — 파생 진리표는
+  // module-scope 순수 helper 가 소유한다(근거·계약은 deriveInstanceAccessFormFlags 주석). 어느
+  // 한쪽이라도 진행 중이면 폼 전체를 잠그는 교차 발사 이중 방어 계약은 그대로다.
+  const { busy: instanceAccessBusy, actionDisabled: instanceAccessActionDisabled } =
+    deriveInstanceAccessFormFlags({
+      granting: grantingInstanceAccess,
+      revoking: revokingInstanceAccess,
+      userId: instanceAccessUserId,
+      instanceRef: instanceRefInput,
+    });
 
   // 파트 생성 controlled input 상태(T-1153) — 컨테이너 소유. "파트 추가" 클릭 시 handleCreatePart
   // 가 POST body 의 name 필드로 공급하고, 성공 후 빈 값으로 되돌린다(연속 생성 편의). 그룹 생성의
@@ -4364,17 +4404,17 @@ function AdminView({
               <button
                 type="button"
                 onClick={handleGrantInstanceAccess}
-                disabled={instanceAccessBusy || !instanceAccessUserId || !instanceRefInput.trim()}
+                disabled={instanceAccessActionDisabled}
               >
                 인스턴스 접근 권한 부여
               </button>
               {/* 회수(T-1167, REQ-016/REQ-044) — 같은 폼(대상 select + 주소 input)의 반대 방향
                   action. DELETE 는 부재 binding 도 성공(204)이라 확인 다이얼로그 없이 즉시 발사한다.
-                  비활성 조건은 부여 버튼과 동일(미선택·공백·부여/회수 어느 쪽이든 진행 중). */}
+                  비활성은 부여 버튼과 같은 파생 값을 공유한다(조건 분화 금지 — T-1168). */}
               <button
                 type="button"
                 onClick={handleRevokeInstanceAccess}
-                disabled={instanceAccessBusy || !instanceAccessUserId || !instanceRefInput.trim()}
+                disabled={instanceAccessActionDisabled}
               >
                 인스턴스 접근 권한 회수
               </button>
@@ -4743,6 +4783,7 @@ export {
   buildInstanceAccessPath,
   runGrantInstanceAccess,
   runRevokeInstanceAccess,
+  deriveInstanceAccessFormFlags,
   createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
@@ -4785,6 +4826,8 @@ export type {
   ChangeRoleDeps,
   GrantInstanceAccessDeps,
   RevokeInstanceAccessDeps,
+  InstanceAccessFormInput,
+  InstanceAccessFormFlags,
   InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,

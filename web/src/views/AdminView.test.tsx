@@ -97,6 +97,7 @@ import AdminView, {
   buildInstanceAccessPath,
   runGrantInstanceAccess,
   runRevokeInstanceAccess,
+  deriveInstanceAccessFormFlags,
   createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
@@ -136,6 +137,8 @@ import type {
   ChangeRoleDeps,
   GrantInstanceAccessDeps,
   RevokeInstanceAccessDeps,
+  InstanceAccessFormInput,
+  InstanceAccessFormFlags,
   InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,
@@ -9301,5 +9304,132 @@ describe('AdminView — 인스턴스 접근 권한 회수 실 DELETE mutation (T
     setRoutes({ [AUTH_ME]: USER_ME, [USERS]: { data: USER_ROWS, loading: false, error: undefined } });
     const html = renderToStaticMarkup(<AdminView />);
     expect(html).not.toContain(REVOKE_LABEL);
+  });
+});
+
+// R-112 — T-1168 인스턴스 접근 폼 교차 비활성 파생 helper. happy(진행 0 + 선택·입력 충족) /
+// error·방어(부여·회수·양쪽 진행) / 분기(busy 2 분기 × actionDisabled 3 원인 진리표) /
+// negative(공백만·padding·조합·진행 우선·인자 불변) 각 1+. 기대값은 표에 명시해 계산식 재구현을
+// 피한다(재구현하면 guard 가 아니라 거울이 된다).
+describe('AdminView — 인스턴스 접근 폼 교차 비활성 파생 (T-1168 deriveInstanceAccessFormFlags)', () => {
+  const INSTANCE = 'https://gerrit.example.com';
+
+  // happy-path — 진행 0 + 사용자 선택 + 주소 입력이면 폼도 버튼도 활성이다.
+  it('진행 0 + 사용자 선택 + 주소 입력이면 둘 다 false 다 (happy-path)', () => {
+    expect(
+      deriveInstanceAccessFormFlags({ granting: false, revoking: false, userId: 'u1', instanceRef: INSTANCE }),
+    ).toEqual({ busy: false, actionDisabled: false });
+  });
+
+  // error path / 방어 경로 — 한쪽 진행이 반대 방향 버튼까지 잠근다(교차 발사 이중 방어 계약).
+  it.each<[string, boolean, boolean]>([
+    ['부여 진행 중', true, false],
+    ['회수 진행 중', false, true],
+    ['양쪽 진행 중', true, true],
+  ])('%s 이면 busy·actionDisabled 가 모두 true 다 (error path — 교차 방어)', (_label, granting, revoking) => {
+    expect(deriveInstanceAccessFormFlags({ granting, revoking, userId: 'u1', instanceRef: INSTANCE }))
+      .toEqual({ busy: true, actionDisabled: true });
+  });
+
+  // 분기 — busy 2 분기(진행 있음/없음) × actionDisabled 3 원인(busy / 빈 userId / 빈 instanceRef).
+  // negative(a)(c)(d)(e) 겸함: 공백만 instanceRef · 빈 userId 조합 · 빈 instanceRef 조합 · 진행 우선.
+  it.each<[string, boolean, boolean, string, string, boolean, boolean]>([
+    ['진행 0·선택·입력 모두 충족', false, false, 'u1', INSTANCE, false, false],
+    ['busy 원인(부여 진행)', true, false, 'u1', INSTANCE, true, true],
+    ['busy 원인(회수 진행)', false, true, 'u1', INSTANCE, true, true],
+    ['빈 userId 원인(주소는 유효)', false, false, '', INSTANCE, false, true],
+    ['빈 instanceRef 원인(사용자는 선택)', false, false, 'u1', '', false, true],
+    ['공백만 instanceRef 원인(trim 계약)', false, false, 'u1', '   ', false, true],
+    ['빈 userId + 빈 instanceRef 동시', false, false, '', '', false, true],
+    ['진행 우선(선택·입력 모두 유효해도 잠금)', true, true, 'u1', INSTANCE, true, true],
+  ])(
+    '%s → busy·actionDisabled 를 표에 명시한 기대값대로 반환한다 (분기 — 진리표)',
+    (_label, granting, revoking, userId, instanceRef, busy, actionDisabled) => {
+      expect(deriveInstanceAccessFormFlags({ granting, revoking, userId, instanceRef }))
+        .toEqual({ busy, actionDisabled });
+    },
+  );
+
+  // negative(b) — 공백 padding 이 있어도 실 내용이 있으면 활성이다(trim 이 내용을 지우지 않는다).
+  it.each([`  ${INSTANCE}`, `${INSTANCE}  `, `\t${INSTANCE}\n`])(
+    'padding 이 있어도 실 내용이 있으면 actionDisabled 는 false 다 (negative — trim 경계 %#)', (instanceRef) => {
+      expect(deriveInstanceAccessFormFlags({ granting: false, revoking: false, userId: 'u1', instanceRef }))
+        .toEqual({ busy: false, actionDisabled: false });
+    });
+
+  // negative(f) — 순수성: 인자 객체를 변형하지 않고, 같은 인자면 항상 같은 결과다.
+  it('인자 객체를 변형하지 않는다 (negative — 순수성)', () => {
+    const input: InstanceAccessFormInput = { granting: false, revoking: true, userId: 'u1', instanceRef: '  x  ' };
+    const first: InstanceAccessFormFlags = deriveInstanceAccessFormFlags(input);
+    const second = deriveInstanceAccessFormFlags(input);
+    expect(input).toEqual({ granting: false, revoking: true, userId: 'u1', instanceRef: '  x  ' });
+    expect(first).toEqual(second);
+    expect(first).toEqual({ busy: true, actionDisabled: true });
+  });
+});
+
+// T-1168 — 컨테이너 배선 drift guard(T-1165 선례와 동형 readFileSync 패턴). 위 helper test 는
+// 파생만 직접 호출할 뿐 markup 의 disabled 배선은 실행하지 않으므로(ADR-0040 §5 로 RTL 부재),
+// 소스 문자열로 인라인 식 복귀 회귀를 막는다.
+describe('AdminView — 인스턴스 접근 폼 비활성 배선 drift guard (T-1168)', () => {
+  const source = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+
+  it('두 버튼의 disabled 가 helper 파생 값을 참조한다 (drift guard — markup 인라인 식 부재)', () => {
+    // 부여·회수 버튼 2 개가 같은 파생 값 한 개를 공유한다(조건 분화 금지).
+    const hits = source.match(/disabled=\{instanceAccessActionDisabled\}/g) ?? [];
+    expect(hits).toHaveLength(2);
+    // select·input 은 여전히 busy 만 본다(사용자 선택/입력 여부는 보지 않는다).
+    expect((source.match(/disabled=\{instanceAccessBusy\}/g) ?? [])).toHaveLength(2);
+    // 인라인 조건식이 markup 으로 되돌아오면 fail 한다.
+    expect(source).not.toContain('!instanceAccessUserId');
+    expect(source).not.toContain('!instanceRefInput.trim()');
+    expect(source).not.toContain('grantingInstanceAccess || revokingInstanceAccess');
+  });
+
+  it('컨테이너가 helper 를 호출해 두 값을 얻는다 (drift guard — 배선)', () => {
+    const start = source.indexOf('const { busy: instanceAccessBusy, actionDisabled: instanceAccessActionDisabled }');
+    expect(start).toBeGreaterThan(-1);
+    const block = source.slice(start, source.indexOf('});', start) + 3);
+    expect(block).toContain('deriveInstanceAccessFormFlags({');
+    expect(block).toContain('granting: grantingInstanceAccess,');
+    expect(block).toContain('revoking: revokingInstanceAccess,');
+    expect(block).toContain('userId: instanceAccessUserId,');
+    expect(block).toContain('instanceRef: instanceRefInput,');
+  });
+});
+
+// T-1168 초기 렌더 회귀 — 파생 helper 추출 후에도 폼 4 요소(select·input·부여·회수)가 그대로이고
+// 비-Admin 은 전부 미노출(fail-closed)이다. selector 문자열은 T-1166/T-1167 test 와 동일하다.
+describe('AdminView — 인스턴스 접근 폼 초기 렌더 회귀 (T-1168)', () => {
+  const USERS = '/api/users';
+  const USER_SECTION = 'aria-label="사용자 관리 섹션"';
+  const USER_ROWS = [{ id: 'u1', email: 'user-a@example.com', role: 'User' }];
+  const USER_ME = { data: { role: 'User' }, loading: false, error: undefined };
+  const SELECTORS = [
+    'aria-label="접근 권한을 부여할 사용자"',
+    'aria-label="부여할 인스턴스 주소"',
+    '인스턴스 접근 권한 부여',
+    '인스턴스 접근 권한 회수',
+  ];
+
+  beforeEach(() => { requestMock.mockReset(); useApiResourceMock.mockReset(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('Admin 렌더에서 폼 4 요소가 그대로 존재하고 두 버튼은 초기 disabled 다 (happy-path — 정적 렌더)', () => {
+    setRoutes({ [USERS]: { data: USER_ROWS, loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    const start = html.indexOf(USER_SECTION);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const section = html.slice(start);
+    SELECTORS.forEach((selector) => expect(section).toContain(selector));
+    // 초기엔 사용자 미선택 + 주소 미입력 → actionDisabled true 라 두 버튼 모두 disabled.
+    expect(section).toMatch(/<button[^>]*disabled[^>]*>인스턴스 접근 권한 부여<\/button>/);
+    expect(section).toMatch(/<button[^>]*disabled[^>]*>인스턴스 접근 권한 회수<\/button>/);
+  });
+
+  it('비-Admin 렌더에서는 폼 4 요소가 모두 미노출이다 (negative — fail-closed)', () => {
+    setRoutes({ [AUTH_ME]: USER_ME, [USERS]: { data: USER_ROWS, loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    SELECTORS.forEach((selector) => expect(html).not.toContain(selector));
   });
 });
