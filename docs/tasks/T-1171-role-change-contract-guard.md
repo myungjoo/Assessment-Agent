@@ -2,7 +2,7 @@
 id: T-1171
 title: 역할 변경 endpoint web↔backend 계약 drift-guard spec (route·method·body·role enum 부분집합)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 285
