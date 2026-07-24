@@ -2,7 +2,11 @@
 id: T-1192
 title: 파트 소속 인원 조회 endpoint web↔backend 계약 drift-guard spec 추가 (GET /api/parts/:id/persons · buildPartPersonsPath path-param + literal-segment 축 + 조건부 null 발사 + ?_r nonce 무해)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 1266cca1
+prNumber: 1084
+reviewRounds: 1
+completedAt: 2026-07-24T15:40:00Z
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 280
