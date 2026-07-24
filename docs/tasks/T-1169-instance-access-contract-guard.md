@@ -2,12 +2,14 @@
 id: T-1169
 title: 인스턴스 접근 web↔backend 계약 drift-guard spec 추가
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 190
 estimatedFiles: 1
 created: 2026-07-24
+completedAt: 2026-07-24T04:24:30Z
+prNumber: 1061
 independentStream: web-admin-user
 dependsOn: [T-1168]
 touchesFiles:
@@ -68,3 +70,11 @@ PLAN.md P6 line 120 (Admin 패널) 사용자 관리 arc 의 12번째 slice 이�
 `implementer → tester`
 
 ## Follow-ups
+
+- **(1) handler decorator 인자를 route 에 합성해 대조** (reviewer round 1 MINOR 1) — `extractHandlerMethods` 가 `@Post(...)` 의 **인자를 읽지 않아**, backend 가 `@Post()` → `@Post('grant')` 로 바꿔 실제 route 가 `/api/users/:id/instance-access/grant` 가 되어도 guard 가 green 을 유지한다(런타임 404 silent pass). ~10 LOC 수정이나 본 PR 이 298/300 LOC 라 cap 초과로 이월.
+- **(2) DTO optional 필드 구분해 부분집합 대조로 완화** (reviewer round 1 MINOR 2) — `extractDtoFields` 가 `instanceRef!` 와 `note?` 를 구분하지 않고 정렬 문자열 정확 일치를 요구해, backend 가 하위호환 optional 필드를 추가하면 web 이 유효한데도 CI 가 red 가 된다(정상 진화를 막는 오탐). `fired ⊆ declared` + `required ⊆ fired` 로 완화가 계약에 더 정확.
+- **(3) body 미전송 시 진단 메시지 개선** (reviewer round 1 NIT 1) — `toFire` 가 `JSON.parse(String(undefined))` 로 `SyntaxError` 를 내 원인 파악이 한 단계 느려진다. `options.body` 부재를 빈 키 집합으로 매핑하면 "body 키 불일치" 로 떨어져 진단이 명확해진다. cap 여유 2 LOC 라 in-PR nit-closure 불가로 이월.
+
+## 결과 요약
+
+PR [#1061](https://github.com/myungjoo/Assessment-Agent/pull/1061) squash 머지 (`fd136ead`, 2026-07-24T04:24:30Z). web↔backend 인스턴스 접근 계약 drift-guard spec 1 파일 신규 (+298 LOC, test-only, production 변경 0). 신규 15 test — happy 3 · error path 1 · grant/revoke 분기 각 1 · body 키 집합 2 · negative 6종 8. web 1197/1197 · backend 11363/11363 green, method·필드명 drift 주입 실측으로 9 fail 확인 후 되돌림. reviewer round 1 APPROVE (BLOCKER 0 / MAJOR 0 / MINOR 2 / NIT 1 — 전부 cap 사유로 위 Follow-ups 이월), 4-게이트 모두 PASS.
