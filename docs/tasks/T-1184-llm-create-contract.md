@@ -2,7 +2,7 @@
 id: T-1184
 title: LLM provider 생성 endpoint web↔backend 계약 drift-guard spec (POST /api/llm/providers · api/llm/providers 신규 3-세그먼트 base + bare @Post() 세그먼트0 합성 + CreateLlmProviderConfigDto 4 required 부분집합 + POST body 존재 축)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-096]
 estimatedDiff: 290
