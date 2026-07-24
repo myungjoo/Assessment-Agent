@@ -2,7 +2,7 @@
 id: T-1164
 title: AdminView 역할 변경 진행 상태를 boolean → 진행 id 로 전환하고 UserList 에 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 200
@@ -68,4 +68,11 @@ PLAN.md P6 line 120 (Admin 패널) 사용자 관리 arc 의 7번째 slice 다. T
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+- **(T-1165 로 큐잉됨)** reviewer round 1 MINOR-2 — `handleChangeRole` 이 `useCallback([changingRoleId])` 로 memo 되어, 첫 클릭의 `setChangingRoleId(id)` 가 리렌더로 반영되기 전 도착한 두 번째 클릭이 `changingId: undefined` 인 stale closure 로 실행돼 PATCH 가 2회 발사될 수 있다. ref 기반 동기 가드로 닫는다.
+- **(이월 — 새 dependency 라 §5 BLOCKED 대상)** reviewer round 2 NIT-1 — `AdminView.userlist-wiring.test.tsx` 의 pass-down 단언은 "키 존재 + 초기값 `undefined`" 까지만 잠근다. 값 경로까지 잠그려면 state 를 변화시키는 상호작용 렌더(RTL) 가 필요하다. RTL 도입 task 가 별도로 생기면 그때 승격 검토.
+
+## 완료 기록
+
+- 완료: 2026-07-24T01:38Z (cron fire `aa-local-15`, session `cron@aa-local-15-4cd57b05-59536`)
+- PR: #1056, review round 2/7 APPROVE, CI green(head 6153bec1), squash merge `e786ae46`
+- 결과: `ChangeRoleDeps` 를 `changingId`/`setChangingId` 로 전환(원본 id 박제 + PATCH path 는 `encodeURIComponent(trimmed)`), `finally` 정리, 컨테이너 state·`useCallback` deps 갱신, `<UserList changingRoleId={...} />` 배선. 누적 257 LOC / 3 파일(round 1 MAJOR-1 closure 로 `AdminView.userlist-wiring.test.tsx` 추가 — AC 의 "파일 2개" 목표는 초과하나 §3 전역 cap 300 LOC / 5 파일 이내).
