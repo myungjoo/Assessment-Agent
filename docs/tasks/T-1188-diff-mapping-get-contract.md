@@ -2,7 +2,7 @@
 id: T-1188
 title: 난이도-모델 매핑 조회 endpoint web↔backend 계약 drift-guard spec 추가
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-050, REQ-096]
 estimatedDiff: 230
@@ -69,3 +69,7 @@ T-1187 이 난이도-모델 매핑 **지정(PATCH /api/llm/difficulty-mappings/:
 
 - (carry-forward) contract-guard test 19+ 파일이 공유하는 정규식 추출기/대조기(`stripComments`, `extractControllerRoute`, `extractHandlerMethods`, `composeRoute`, `diffContract`, `toFire`)를 `web/src/views/__contract-guard__/` 공용 helper 로 추출하는 refactor slice — 중복 제거 + 단일 유지보수 지점. AdminView 주요 mutation/read 계약 guard 가 거의 완결된 시점이라 추출 ROI 재평가 적기. helper 추출 자체가 다수 파일을 건드려 5-파일 cap 을 넘으므로 planner 가 split 필요.
 - (후보) LLM provider **목록 조회(GET /api/llm/providers)** GET-side 계약 guard — 본 task 의 GET 패턴(bare 발사·query-무해 축)을 `buildProvidersPath`/provider `@Get()` findAll 에 mirror.
+
+## Result (2026-07-24 DONE)
+
+PR #1080 머지(squash `696d0494`, 4-게이트 round1 APPROVE). test-only 1파일 `web/src/views/AdminView.difficulty-mapping-list-contract.test.ts` (+228 LOC, 20 신규 test green). GET method·bare `@Get()` 세그먼트 0·핸들러 인자 0·`?_r` nonce cache-buster 무해성 축 커버. negative (a)base 오타 (b)method drift (c)세그먼트 추가 (d)query vs 세그먼트 구분 (e)대조군 혼동 (f)주석 false-positive + 소스 유실/발사 override drift 방어. web vitest 49파일 1547 tests green, tsc+build+lint green. main post-merge CI(696d0494) green. counters 1178→1179. claim prune([]).
