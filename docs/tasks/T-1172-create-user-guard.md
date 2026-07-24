@@ -2,7 +2,11 @@
 id: T-1172
 title: 사용자 생성 endpoint web↔backend 계약 drift-guard spec (bare route·method·body 부분집합)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 5816b281
+prNumber: 1064
+reviewRounds: 1
+completed: 2026-07-24T05:55:14Z
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 270
