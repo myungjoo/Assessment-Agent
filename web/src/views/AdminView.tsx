@@ -118,6 +118,14 @@ const USER_DUPLICATE_ERROR = '이미 존재하는 이메일입니다';
 // "HTTP 403: …" 일반 문구 대신 원인이 분명한 전용 문구로 표면화한다. §12 한국어.
 const USER_ROLE_FORBIDDEN_ERROR = '역할을 변경할 권한이 없습니다';
 
+// 인스턴스 접근 권한 부여 문구 3종(T-1166 — USER_DUPLICATE_ERROR 동형). 409 는 prisma 의 model
+// UserInstanceAccess @@unique([userId, instanceRef]) → P2002 → ConflictException 확정이라 전용 문구.
+// 조회 계약 부재 — instance-access 는 GET(목록) endpoint 가 없어 재조회 nonce bump 로 결과를 보여줄
+// 수 없으므로 성공은 role="status" 안내 문구로만 피드백한다(usersRefreshNonce 는 건드리지 않는다).
+const INSTANCE_ACCESS_DUPLICATE_ERROR = '이미 부여된 인스턴스 접근 권한입니다';
+const INSTANCE_ACCESS_GRANTED_TEXT = '인스턴스 접근 권한을 부여했습니다';
+const INSTANCE_ACCESS_NO_USER_LABEL = '사용자를 선택하세요'; // 대상 select 빈 선택지.
+
 // 파트 생성 409(중복 이름) 전용 사람-친화 문구(T-1153) — Part.name 은 prisma schema 에서 @unique
 // 라 중복 이름 POST 시 PartService.create 가 Prisma P2002 → ConflictException(409) 으로 변환한다.
 // 그룹(Group.name @unique 미정의라 409 없음)과 달리 파트는 이 409 를 일반 error 문구("HTTP 409:
@@ -1703,6 +1711,61 @@ async function runCreateUser(
     }
   } finally {
     deps.setCreating(false);
+  }
+}
+
+// 부여 path 빌더(T-1166) — runChangeRole 의 role path 조립 동형(id 는 encodeURIComponent 인코딩).
+function buildInstanceAccessPath(userId: string): string {
+  return `${USERS_PATH}/${encodeURIComponent(userId)}/instance-access`;
+}
+
+// 부여 POST + state-전이 deps(T-1166 — 위 CreateUserDeps 1:1 mirror, 필드 의미는 그쪽 주석). 조회
+// endpoint 부재라 bumpRefresh 대신 성공 안내 setter(setGrantNotice — error 와 상호 배타)를 두고,
+// resetInput 은 인스턴스 입력만 비운다(선택 사용자 유지 — 연속 부여 편의).
+interface GrantInstanceAccessDeps {
+  grant: (path: string, options: RequestOptions) => Promise<unknown>;
+  describeError: (e: unknown) => string;
+  isConflict: (e: unknown) => boolean;
+  granting: boolean;
+  setGranting: (next: boolean) => void;
+  setGrantError: (next: string | undefined) => void;
+  setGrantNotice: (next: string | undefined) => void;
+  resetInput: () => void;
+}
+
+// 부여 POST(body `{ instanceRef }`) + state-전이를 캡슐화한 순수 async 러너(T-1166 — 위
+// runCreateUser mirror. backend user-instance-access.controller @Post() 은 @Roles("Admin") 이며
+// 400/403(self-grant)/404/409(중복) 를 낸다). 성공 시 bump 대신 안내 문구 set 만 다르다.
+async function runGrantInstanceAccess(
+  userId: string,
+  instanceRef: string,
+  deps: GrantInstanceAccessDeps,
+): Promise<void> {
+  // 발사 억제 가드(no-op — 상태 전이 0). 공백만 instanceRef 는 DTO @IsNotEmpty 로 400 확정.
+  const trimmedId = userId?.trim();
+  const trimmedRef = instanceRef?.trim();
+  if (!trimmedId || !trimmedRef || deps.granting) {
+    return;
+  }
+  deps.setGranting(true);
+  deps.setGrantError(undefined);
+  deps.setGrantNotice(undefined);
+  try {
+    await deps.grant(buildInstanceAccessPath(trimmedId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instanceRef: trimmedRef }),
+    });
+    deps.setGrantNotice(INSTANCE_ACCESS_GRANTED_TEXT);
+    deps.resetInput();
+  } catch (e) {
+    if (deps.isConflict(e)) {
+      deps.setGrantError(INSTANCE_ACCESS_DUPLICATE_ERROR);
+    } else {
+      deps.setGrantError(deps.describeError(e));
+    }
+  } finally {
+    deps.setGranting(false);
   }
 }
 
@@ -3536,6 +3599,31 @@ function AdminView({
     [changingRoleGate],
   );
 
+  // 부여 상태 5종(T-1166 — 생성 state mirror). 다른 mutation 과 섞이지 않게 instance-access 전용
+  // 이름으로 분리한다(실패 alert 2 개가 서로를 덮어쓰지 않게). notice 는 조회 endpoint 부재 때문에
+  // 성공을 알릴 유일한 표면이다(재조회 nonce bump 없음).
+  const [instanceAccessUserId, setInstanceAccessUserId] = useState<string>('');
+  const [instanceRefInput, setInstanceRefInput] = useState<string>('');
+  const [grantingInstanceAccess, setGrantingInstanceAccess] = useState(false);
+  const [instanceAccessError, setInstanceAccessError] = useState<string>();
+  const [instanceAccessNotice, setInstanceAccessNotice] = useState<string>();
+
+  // 인스턴스 접근 권한 부여 실 mutation 핸들러(T-1166 — handleCreateUser mirror).
+  const handleGrantInstanceAccess = useCallback(
+    () =>
+      runGrantInstanceAccess(instanceAccessUserId, instanceRefInput, {
+        grant: request,
+        describeError: toErrorMessage,
+        isConflict: (e: unknown) => e instanceof ApiError && e.status === 409,
+        granting: grantingInstanceAccess,
+        setGranting: setGrantingInstanceAccess,
+        setGrantError: setInstanceAccessError,
+        setGrantNotice: setInstanceAccessNotice,
+        resetInput: () => setInstanceRefInput(''),
+      }),
+    [instanceAccessUserId, instanceRefInput, grantingInstanceAccess],
+  );
+
   // 파트 생성 controlled input 상태(T-1153) — 컨테이너 소유. "파트 추가" 클릭 시 handleCreatePart
   // 가 POST body 의 name 필드로 공급하고, 성공 후 빈 값으로 되돌린다(연속 생성 편의). 그룹 생성의
   // groupNameInput 패턴 mirror(파트도 name 단일 필드).
@@ -4173,6 +4261,42 @@ function AdminView({
               onChangeRole={isSuperAdmin ? handleChangeRole : undefined}
               changingRoleId={changingRoleId}
             />
+            {/* 인스턴스 접근 권한 부여(T-1166, REQ-016/REQ-044) — 생성 폼 mirror. 대상은 이미 조회한
+                목록에서 고르고(추가 fetch 0) 주소만 자유 입력한다. 성공은 role="status" 안내로만
+                피드백(조회 endpoint 부재 — 위 상수 주석). 미선택·공백·진행 중이면 컨트롤 비활성. */}
+            <div>
+              <select
+                aria-label="접근 권한을 부여할 사용자"
+                value={instanceAccessUserId}
+                onChange={(ev) => setInstanceAccessUserId(ev.target.value)}
+                disabled={grantingInstanceAccess}
+              >
+                <option value="">{INSTANCE_ACCESS_NO_USER_LABEL}</option>
+                {/* 조회 중이면 옵션을 비운다(권위 아닌 목록으로 대상 선택 유도 금지 — UserList 의
+                    loading 우선 계약 정합). id 없는 행은 제외, 라벨은 email 없으면 id fallback. */}
+                {(userLoading ? [] : (usersData ?? []))
+                  .filter((user) => Boolean(user.id))
+                  .map((user) => (
+                    <option key={user.id} value={user.id}>{user.email ?? user.id}</option>
+                  ))}
+              </select>
+              <input
+                aria-label="부여할 인스턴스 주소"
+                type="text"
+                value={instanceRefInput}
+                onChange={(event) => setInstanceRefInput(event.target.value)}
+                disabled={grantingInstanceAccess}
+              />
+              <button
+                type="button"
+                onClick={handleGrantInstanceAccess}
+                disabled={grantingInstanceAccess || !instanceAccessUserId || !instanceRefInput.trim()}
+              >
+                인스턴스 접근 권한 부여
+              </button>
+              {instanceAccessError ? <p role="alert">{instanceAccessError}</p> : null}
+              {instanceAccessNotice ? <p role="status">{instanceAccessNotice}</p> : null}
+            </div>
           </section>
         </>
       ) : (
@@ -4532,6 +4656,8 @@ export {
   runCreatePart,
   runCreateUser,
   runChangeRole,
+  buildInstanceAccessPath,
+  runGrantInstanceAccess,
   createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
@@ -4572,6 +4698,7 @@ export type {
   CreatePartDeps,
   CreateUserDeps,
   ChangeRoleDeps,
+  GrantInstanceAccessDeps,
   InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,
