@@ -2,7 +2,7 @@
 id: T-1190
 title: 인원 목록 조회 endpoint web↔backend 계약 drift-guard spec 추가 (GET /api/persons · bare @Get() findActive vs @Get(":id") findOne 판별 축 + ?_r nonce 무해)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-026, REQ-049]
 estimatedDiff: 245
