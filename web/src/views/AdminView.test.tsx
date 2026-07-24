@@ -96,6 +96,7 @@ import AdminView, {
   runChangeRole,
   buildInstanceAccessPath,
   runGrantInstanceAccess,
+  runRevokeInstanceAccess,
   createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
@@ -134,6 +135,7 @@ import type {
   CreateUserDeps,
   ChangeRoleDeps,
   GrantInstanceAccessDeps,
+  RevokeInstanceAccessDeps,
   InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,
@@ -9142,5 +9144,162 @@ describe('AdminView — 인스턴스 접근 권한 부여 실 POST mutation (T-1
     expect(html).not.toContain('aria-label="접근 권한을 부여할 사용자"');
     expect(html).not.toContain('aria-label="부여할 인스턴스 주소"');
     expect(html).not.toContain('인스턴스 접근 권한 부여');
+  });
+});
+
+describe('AdminView — 인스턴스 접근 권한 회수 실 DELETE mutation (T-1167 runRevokeInstanceAccess)', () => {
+  const USERS = '/api/users';
+  const USER_SECTION = 'aria-label="사용자 관리 섹션"';
+  const USER_ID = 'u1';
+  const INSTANCE = 'https://gerrit.example.com';
+  const REVOKE_PATH = '/api/users/u1/instance-access';
+  const REVOKED = '인스턴스 접근 권한을 회수했습니다'; // 성공 안내 문구(role="status").
+  const REVOKE_LABEL = '인스턴스 접근 권한 회수';
+  const USER_ROWS = [{ id: 'u1', email: 'user-a@example.com', role: 'User' }];
+  // 비-Admin(User 등급) me 응답 — isAdmin=false fail-closed 분기 통제용.
+  const USER_ME = { data: { role: 'User' }, loading: false, error: undefined };
+
+  // 상태 전이 기록 deps harness(makeGrantDeps mirror) — isConflict 가 없다(409 분기 부재).
+  function makeRevokeDeps(revoking: boolean) {
+    const calls = { revoking: [] as boolean[], error: [] as (string | undefined)[],
+      notice: [] as (string | undefined)[], reset: 0, describe: 0 };
+    const deps: RevokeInstanceAccessDeps = {
+      revoke: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => { calls.describe += 1;
+        return e instanceof ApiError && e.status !== 0 ? `HTTP ${e.status}: ${e.message}` : `네트워크 오류: ${(e as Error).message}`; },
+      revoking,
+      setRevoking: (next) => calls.revoking.push(next),
+      setRevokeError: (next) => calls.error.push(next),
+      setRevokeNotice: (next) => calls.notice.push(next),
+      resetInput: () => { calls.reset += 1; },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => { requestMock.mockReset(); useApiResourceMock.mockReset(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  // happy-path — DELETE 1 회 + path/body/headers 정확 + 안내 set + 입력 초기화 + 진행 on→off.
+  // negative(d) 겸함 — 성공 직후 error 는 시작 비움만 기록된다(직전 실패 문구 잔류 0).
+  it('DELETE /api/users/:id/instance-access 를 body `{ instanceRef }` 로 1 회 호출하고 회수 안내 + 입력 초기화 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(''); // 204 No Content — parseBody 가 빈 text 로 resolve.
+    const { deps, calls } = makeRevokeDeps(false);
+    await runRevokeInstanceAccess(USER_ID, INSTANCE, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [string, { method: string; headers: Record<string, string>; body: string }];
+    expect(path).toBe(REVOKE_PATH);
+    expect(options.method).toBe('DELETE');
+    expect(options.headers).toEqual({ 'Content-Type': 'application/json' });
+    // GrantInstanceAccessDto 계약(회수도 같은 DTO) — instanceRef 외 필드는 담지 않는다.
+    expect(JSON.parse(options.body)).toEqual({ instanceRef: INSTANCE });
+    expect(calls.notice).toEqual([undefined, REVOKED]);
+    expect(calls.reset).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.revoking).toEqual([true, false]);
+  });
+
+  // negative(e) — 부재 binding(idempotent no-op, ADR-0027 §4)도 204 성공이라 회수 안내가 뜬다.
+  // undefined resolve(본문 없음)로도 같은 전이임을 확인해 반환값 의존 0 을 박제한다.
+  it.each([['빈 body 204', ''], ['undefined resolve', undefined]])(
+    '%s 여도 회수 안내를 set 한다 (negative — idempotent no-op 성공 계약)', async (_label, resolved) => {
+      requestMock.mockResolvedValue(resolved);
+      const { deps, calls } = makeRevokeDeps(false);
+      await runRevokeInstanceAccess(USER_ID, INSTANCE, deps);
+      expect(calls.notice).toEqual([undefined, REVOKED]);
+      expect(calls.error).toEqual([undefined]);
+      expect(calls.reset).toBe(1);
+    });
+
+  // error path — 403(self-revoke)·404(대상 부재)·400·네트워크·비-ApiError 는 throw 없이
+  // describeError 파생 문구만 남긴다(회수 안내·입력 초기화 0). negative(d) 겸함.
+  it.each([
+    ['403(self-revoke)', new ApiError(403, 'Forbidden'), 'HTTP 403: Forbidden'],
+    ['404(대상 부재)', new ApiError(404, 'Not Found'), 'HTTP 404: Not Found'],
+    ['400(검증 실패)', new ApiError(400, 'Bad Request'), 'HTTP 400: Bad Request'],
+    ['status 0 네트워크', new ApiError(0, 'offline'), '네트워크 오류: offline'],
+    ['비-ApiError throw', new TypeError('fetch failed'), '네트워크 오류: fetch failed'],
+    // 409 는 revoke 계약상 발생하지 않지만, 와도 전용 문구 없이 일반 경로임을 박제한다(분기 신설 0).
+    ['409(전용 분기 부재)', new ApiError(409, 'Conflict'), 'HTTP 409: Conflict'],
+  ])('%s 시 throw 없이 describeError 파생 문구만 표면화한다 (error path)', async (_label, thrown, expected) => {
+    requestMock.mockRejectedValue(thrown);
+    const { deps, calls } = makeRevokeDeps(false);
+    await expect(runRevokeInstanceAccess(USER_ID, INSTANCE, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, expected]);
+    expect(calls.describe).toBe(1);
+    expect(calls.notice).toEqual([undefined]);
+    expect(calls.reset).toBe(0);
+    expect(calls.revoking).toEqual([true, false]);
+  });
+
+  // 분기/negative — 빈·공백 userId, 빈·공백 instanceRef, in-flight 는 모두 미발사(DELETE 0) + 전이 0.
+  it.each([
+    ['userId 빈 문자열', '', INSTANCE, false],
+    ['userId 공백만', '   ', INSTANCE, false],
+    ['instanceRef 빈 문자열', USER_ID, '', false],
+    ['instanceRef 공백만', USER_ID, '   ', false],
+    ['revoking in-flight 재호출', USER_ID, INSTANCE, true],
+  ])('%s 이면 DELETE 를 발사하지 않는다 (분기/negative — 발사 억제 가드)', async (_l, userId, instanceRef, revoking) => {
+    requestMock.mockResolvedValue('');
+    const { deps, calls } = makeRevokeDeps(revoking as boolean);
+    await runRevokeInstanceAccess(userId as string, instanceRef as string, deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.revoking).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.notice).toEqual([]);
+    expect(calls.reset).toBe(0);
+  });
+
+  // negative(a)+(b) — 공백 padding 은 trim 돼 body 에 실리고, slash·물음표가 든 id 는 인코딩된 path 로 나간다.
+  it.each([
+    ['  a/b  ', '/api/users/a%2Fb/instance-access'],
+    [' a?b#c ', '/api/users/a%3Fb%23c/instance-access'],
+  ])('사용자 id %s 는 인코딩하고 인스턴스 주소는 trim 해서 발사한다 (negative — 정규화·인코딩 경계)', async (userId, expectedPath) => {
+    requestMock.mockResolvedValue('');
+    const { deps } = makeRevokeDeps(false);
+    await runRevokeInstanceAccess(userId as string, `  ${INSTANCE}  `, deps);
+    const [path, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(path).toBe(expectedPath);
+    expect(JSON.parse(options.body)).toEqual({ instanceRef: INSTANCE });
+  });
+
+  // negative(c) — 실패 후 재발사가 정상 통과한다(finally 로 진행 플래그가 풀려 영구 잠금 0).
+  it('실패 후 재발사가 정상 통과한다 (negative — 진행 플래그 영구 잠금 0)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    requestMock.mockResolvedValueOnce('');
+    const first = makeRevokeDeps(false);
+    await runRevokeInstanceAccess(USER_ID, INSTANCE, first.deps);
+    expect(first.calls.revoking).toEqual([true, false]);
+    const second = makeRevokeDeps(false);
+    await runRevokeInstanceAccess(USER_ID, INSTANCE, second.deps);
+    expect(requestMock).toHaveBeenCalledTimes(2);
+    expect(second.calls.notice).toEqual([undefined, REVOKED]);
+    expect(second.calls.error).toEqual([undefined]);
+  });
+
+  // negative(f) — 회수 버튼이 grant 폼과 같은 컨테이너(사용자 관리 섹션)에 마운트 + 초기 disabled +
+  // 기존 grant 폼·사용자 목록 렌더 회귀 0.
+  it('사용자 관리 섹션 안 부여 폼과 같은 컨테이너에 회수 버튼을 렌더하고 초기엔 disabled 다 (happy-path/negative — 정적 렌더)', () => {
+    setRoutes({ [USERS]: { data: USER_ROWS, loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    const start = html.indexOf(USER_SECTION);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const section = html.slice(start, html.indexOf('</section>', start));
+    expect(section).toMatch(new RegExp(`<button[^>]*disabled[^>]*>${REVOKE_LABEL}</button>`));
+    // 부여 버튼 바로 뒤(같은 div) — 부여 버튼 인덱스 < 회수 버튼 인덱스 이고 그 사이에 다른 폼 없음.
+    expect(section.indexOf('인스턴스 접근 권한 부여')).toBeLessThan(section.indexOf(REVOKE_LABEL));
+    // 기존 grant 폼·목록 렌더 회귀 0 + 성공/실패 표면 미노출.
+    expect(section).toContain('aria-label="접근 권한을 부여할 사용자"');
+    expect(section).toContain('aria-label="부여할 인스턴스 주소"');
+    expect(section).toContain('aria-label="추가할 사용자 이메일"');
+    expect(section).toContain('user-a@example.com');
+    expect(section).not.toContain('role="alert"');
+    expect(section).not.toContain(REVOKED);
+  });
+
+  // negative(f) — 비-Admin 등급이면 섹션 자체가 미마운트라 회수 버튼도 노출되지 않는다(fail-closed).
+  it('비-Admin 등급이면 회수 버튼을 렌더하지 않는다 (negative — isAdmin fail-closed)', () => {
+    setRoutes({ [AUTH_ME]: USER_ME, [USERS]: { data: USER_ROWS, loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).not.toContain(REVOKE_LABEL);
   });
 });
