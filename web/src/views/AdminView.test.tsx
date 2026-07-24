@@ -8473,9 +8473,11 @@ describe('AdminView — 사용자 역할 변경 실 PATCH mutation (T-1162 runCh
   ];
 
   // 상태 전이 기록 deps harness(makeUserDeps mirror) — describeError 호출 횟수도 센다(403 분기).
-  function makeRoleDeps(changing: boolean) {
+  // T-1164 로 진행 상태가 boolean 에서 진행 중인 사용자 id 로 바뀌어, changingId 인자와 calls.changing
+  // 기록이 모두 `string | undefined` 시퀀스다(검증 의도는 그대로 — 표현만 id 화).
+  function makeRoleDeps(changingId: string | undefined) {
     const calls = {
-      changing: [] as boolean[],
+      changing: [] as (string | undefined)[],
       error: [] as (string | undefined)[],
       bump: 0,
       describe: 0,
@@ -8489,8 +8491,8 @@ describe('AdminView — 사용자 역할 변경 실 PATCH mutation (T-1162 runCh
           : `네트워크 오류: ${(e as Error).message}`;
       },
       isForbidden: (e: unknown) => e instanceof ApiError && e.status === 403,
-      changing,
-      setChanging: (next) => calls.changing.push(next),
+      changingId,
+      setChangingId: (next) => calls.changing.push(next),
       setChangeError: (next) => calls.error.push(next),
       bumpRefresh: () => {
         calls.bump += 1;
@@ -8530,7 +8532,7 @@ describe('AdminView — 사용자 역할 변경 실 PATCH mutation (T-1162 runCh
     '%s 시 PATCH /api/users/:id/role 을 body `{ role }` 로 1 회 호출하고 nonce bump 한다 (happy-path)',
     async (_label, id, nextRole, expectedPath, expectedRole) => {
       requestMock.mockResolvedValue(undefined); // 200 OK(UserResponseDto).
-      const { deps, calls } = makeRoleDeps(false);
+      const { deps, calls } = makeRoleDeps(undefined);
       await runChangeRole(id, nextRole, deps);
       expect(requestMock).toHaveBeenCalledTimes(1);
       const [path, options] = requestMock.mock.calls[0] as [
@@ -8545,19 +8547,21 @@ describe('AdminView — 사용자 역할 변경 실 PATCH mutation (T-1162 runCh
       expect(Object.keys(parsed)).toEqual(['role']);
       expect(calls.bump).toBe(1);
       expect(calls.error).toEqual([undefined]);
-      expect(calls.changing).toEqual([true, false]);
+      // T-1164 — 박제되는 진행 id 는 trim 하지 않은 원본 인자다(PATCH path 의 trim·인코딩 값과
+      // 별개 계약). 종료 시 undefined 로 정리된다.
+      expect(calls.changing).toEqual([id, undefined]);
     },
   );
 
   // error path + 분기(isForbidden true) — 403 은 전용 문구, describeError 파생은 미사용.
   it('403(권한 부족) 시 전용 문구를 쓰고 describeError 를 사용하지 않는다 (error path — 403 전용 분기)', async () => {
     requestMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
-    const { deps, calls } = makeRoleDeps(false);
+    const { deps, calls } = makeRoleDeps(undefined);
     await expect(runChangeRole('u1', 'Admin', deps)).resolves.toBeUndefined();
     expect(calls.error).toEqual([undefined, FORBIDDEN]);
     expect(calls.describe).toBe(0);
     expect(calls.bump).toBe(0);
-    expect(calls.changing).toEqual([true, false]);
+    expect(calls.changing).toEqual(['u1', undefined]);
   });
 
   // error path + 분기(isForbidden false) — 비-403 은 throw 없이 describeError 파생 문구만 남기고
@@ -8571,31 +8575,35 @@ describe('AdminView — 사용자 역할 변경 실 PATCH mutation (T-1162 runCh
     '%s 시 throw 없이 describeError 파생 문구만 표면화한다 (error path — 비-403 분기)',
     async (_label, thrown, expected) => {
       requestMock.mockRejectedValue(thrown);
-      const { deps, calls } = makeRoleDeps(false);
+      const { deps, calls } = makeRoleDeps(undefined);
       await expect(runChangeRole('u1', 'Admin', deps)).resolves.toBeUndefined();
       expect(calls.error).toEqual([undefined, expected]);
       expect(calls.describe).toBe(1);
       expect(calls.bump).toBe(0);
-      expect(calls.changing).toEqual([true, false]);
+      // 비-403(describeError 호출) 분기의 진행 id 정리 결과가 403 분기와 동일하다(T-1164).
+      expect(calls.changing).toEqual(['u1', undefined]);
     },
   );
 
   // negative — 빈/공백·undefined id·nextRole·in-flight 는 모두 미발사(PATCH 0) + 상태 전이 0.
   // undefined 2행은 러너의 `id?.trim()` / `nextRole?.trim()` 옵셔널 체이닝 방어를 태운다(`?.` 를
   // `.` 로 단순화하면 TypeError 로 fail — 방어 제거 회귀 감지).
+  // T-1164 — in-flight 행이 2종으로 늘었다: 같은 id 재발사와 **다른 id** 발사 모두 no-op 이어야
+  // 한다(단일 in-flight 정책 보존 — 진행 중인 대상이 누구든 두 번째 발사는 삼킨다).
   it.each([
-    ['id 빈 문자열', '', 'Admin', false],
-    ['id 공백만', '   ', 'Admin', false],
-    ['id undefined', undefined as unknown as string, 'Admin', false],
-    ['nextRole 빈 문자열', 'u1', '', false],
-    ['nextRole 공백만', 'u1', '  ', false],
-    ['nextRole undefined', 'u1', undefined as unknown as string, false],
-    ['changing in-flight 재호출', 'u1', 'Admin', true],
+    ['id 빈 문자열', '', 'Admin', undefined],
+    ['id 공백만', '   ', 'Admin', undefined],
+    ['id undefined', undefined as unknown as string, 'Admin', undefined],
+    ['nextRole 빈 문자열', 'u1', '', undefined],
+    ['nextRole 공백만', 'u1', '  ', undefined],
+    ['nextRole undefined', 'u1', undefined as unknown as string, undefined],
+    ['같은 id in-flight 재호출', 'u1', 'Admin', 'u1'],
+    ['다른 id in-flight 중 발사', 'u1', 'Admin', 'u2'],
   ])(
     '%s 이면 PATCH 를 발사하지 않는다 (negative — 발사 억제 가드)',
-    async (_label, id, nextRole, changing) => {
+    async (_label, id, nextRole, changingId) => {
       requestMock.mockResolvedValue(undefined);
-      const { deps, calls } = makeRoleDeps(changing);
+      const { deps, calls } = makeRoleDeps(changingId);
       await runChangeRole(id, nextRole, deps);
       expect(requestMock).not.toHaveBeenCalled();
       expect(calls.changing).toEqual([]);
@@ -8609,13 +8617,14 @@ describe('AdminView — 사용자 역할 변경 실 PATCH mutation (T-1162 runCh
     requestMock
       .mockRejectedValueOnce(new ApiError(500, 'Server Error'))
       .mockResolvedValueOnce(undefined);
-    const { deps, calls } = makeRoleDeps(false);
+    const { deps, calls } = makeRoleDeps(undefined);
     await runChangeRole('u1', 'Admin', deps);
     await runChangeRole('u1', 'Admin', deps);
     expect(requestMock).toHaveBeenCalledTimes(2);
     expect(calls.error).toEqual([undefined, 'HTTP 500: Server Error', undefined]);
     expect(calls.bump).toBe(1);
-    expect(calls.changing).toEqual([true, false, true, false]);
+    // T-1164 — 연속 2회 호출의 진행 id 가 겹쳐 남지 않고 켜짐→꺼짐 쌍으로 누적된다.
+    expect(calls.changing).toEqual(['u1', undefined, 'u1', undefined]);
   });
 
   // 분기(gating) — SuperAdmin 일 때만 콜백이 내려가 역할 변경 버튼이 렌더된다.
@@ -8648,5 +8657,78 @@ describe('AdminView — 사용자 역할 변경 실 PATCH mutation (T-1162 runCh
     expect(html).toContain('a@example.com');
     expect(html).toContain('역할 Admin');
     expect(html).not.toContain('role="alert"');
+  });
+});
+
+// R-112 — T-1164 진행 상태 id 화(boolean → 진행 중인 사용자 id) 전용 검증. 위 T-1162 describe 가
+// PATCH 계약(path/body/403/bump)을 이미 덮으므로 여기서는 (a) 원본 id 박제와 trim·인코딩 path 의
+// 분리, (b) 발사 시점 진행 표시 선반영, (c) 컨테이너 초기 렌더의 진행 표면 부재만 좁게 본다.
+describe('AdminView — 역할 변경 진행 id 배선 (T-1164 changingRoleId)', () => {
+  const ROLE_USERS = [
+    { id: 'u1', email: 'a@example.com', role: 'User' },
+    { id: 'u2', email: 'b@example.com', role: 'Admin' },
+  ];
+
+  // 진행 id 기록만 남기는 최소 deps. 위 T-1162 describe 의 makeRoleDeps 와 **같은 ChangeRoleDeps
+  // 계약**을 보며, 그쪽이 error/bump/describe 까지 세는 full harness 인 반면 이쪽은 진행 id 시퀀스만
+  // 남기는 축약판이다(계약이 바뀌면 두 harness 모두 컴파일 단계에서 함께 깨진다).
+  function makeDeps(changingId: string | undefined) {
+    const changing: (string | undefined)[] = [];
+    const deps: ChangeRoleDeps = {
+      patch: (...args: unknown[]) => requestMock(...args),
+      describeError: () => '오류',
+      isForbidden: () => false,
+      changingId,
+      setChangingId: (next) => changing.push(next),
+      setChangeError: () => undefined,
+      bumpRefresh: () => undefined,
+    };
+    return { deps, changing };
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // negative(경계) — 공백 padding id 는 진행 id 로는 원본 그대로, PATCH path 로는 trim·인코딩 값이
+  // 쓰인다. 두 계약이 각각 유지돼야 UserList 의 `row.id === changingRoleId` 매칭이 성립한다.
+  it('공백 padding 이 든 id 는 진행 id 로 원본을, PATCH path 로 trim 값을 쓴다 (negative — 원본/trim 분리)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps, changing } = makeDeps(undefined);
+    await runChangeRole('  u1  ', 'Admin', deps);
+    expect(requestMock.mock.calls[0][0]).toBe('/api/users/u1/role');
+    expect(changing).toEqual(['  u1  ', undefined]);
+  });
+
+  // 분기(순서) — 진행 id 는 PATCH 발사 "전" 에 켜진다(요청 중 화면이 잠기지 않는 창 0).
+  it('진행 id 는 PATCH 발사 시점에 이미 켜져 있다 (분기 — 전이 순서)', async () => {
+    const seen: (string | undefined)[][] = [];
+    const { deps, changing } = makeDeps(undefined);
+    requestMock.mockImplementation(() => {
+      seen.push([...changing]);
+      return Promise.resolve(undefined);
+    });
+    await runChangeRole('u1', 'Admin', deps);
+    expect(seen).toEqual([['u1']]);
+    expect(changing).toEqual(['u1', undefined]);
+  });
+
+  // negative — 컨테이너 초기 렌더에는 진행 중인 행이 없으므로 aria-busy 가 0 이고, 사용자 목록·
+  // 생성 폼 렌더는 그대로다(prop 추가로 인한 회귀 0).
+  it('초기 렌더에는 진행 표면이 없고 사용자 목록·생성 폼 렌더가 유지된다 (negative — 회귀 0)', () => {
+    setRoutes({
+      '/api/users': { data: ROLE_USERS, loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'SuperAdmin' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).not.toContain('aria-busy');
+    expect(html).not.toContain('역할 변경 중…');
+    expect(html).toContain('a@example.com');
+    expect(html).toContain('사용자 추가');
+    expect(html).toContain('Admin 으로 승급');
   });
 });

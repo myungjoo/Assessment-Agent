@@ -1712,8 +1712,11 @@ interface ChangeRoleDeps {
   patch: (path: string, options: RequestOptions) => Promise<unknown>;
   describeError: (e: unknown) => string;
   isForbidden: (e: unknown) => boolean;
-  changing: boolean;
-  setChanging: (next: boolean) => void;
+  // 현재 PATCH 진행 중인 사용자 id(T-1164 — 기존 boolean `changing` 을 대체). undefined 는 "진행
+  // 없음" 을 뜻하며, truthy 면 그 id 의 역할 변경 요청이 in-flight 라는 사실을 그대로 표현한다.
+  changingId: string | undefined;
+  // 진행 중인 사용자 id setter — 발사 시작 시 대상 id, 종료 시 undefined("진행 없음")를 넣는다.
+  setChangingId: (next: string | undefined) => void;
   setChangeError: (next: string | undefined) => void;
   bumpRefresh: () => void;
 }
@@ -1733,10 +1736,14 @@ async function runChangeRole(
   // path 나 400 확정 body 를 만들지 않는다.
   const trimmedId = id?.trim();
   const trimmedRole = nextRole?.trim();
-  if (!trimmedId || !trimmedRole || deps.changing) {
+  // 단일 in-flight 정책 — 진행 중인 id 가 무엇이든(다른 사용자 행이어도) 새 발사는 no-op.
+  if (!trimmedId || !trimmedRole || deps.changingId) {
     return;
   }
-  deps.setChanging(true);
+  // 진행 id 로는 trim 하지 않은 원본 id 를 박제한다(T-1164) — UserList 는 `row.id === changingRoleId`
+  // 원본 동등 비교로 진행 행을 찾으므로 trim 값을 넣으면 진행 표시가 매칭되지 않는다. 아래 PATCH
+  // path 의 encodeURIComponent(trimmedId) 와 값이 의도적으로 다를 수 있다(각각 별개 계약).
+  deps.setChangingId(id);
   deps.setChangeError(undefined);
   try {
     // id 는 encodeURIComponent 로 안전 인코딩(비정상 문자가 든 id 도 path 가 깨지지 않게).
@@ -1754,7 +1761,8 @@ async function runChangeRole(
       deps.setChangeError(deps.describeError(e));
     }
   } finally {
-    deps.setChanging(false);
+    // 성공·실패 무관하게 진행 id 를 비운다(진행 표시 영구 잔류 0 — 기존 setChanging(false) 동형).
+    deps.setChangingId(undefined);
   }
 }
 
@@ -3462,7 +3470,11 @@ function AdminView({
 
   // 사용자 역할 변경 in-flight·실패 문구 상태(T-1162 — 생성 state mirror. 입력 폼이 없어 2종만).
   // 생성 실패 문구(createUserError)와 별개 상태라 두 alert 가 섞이지 않는다.
-  const [changingRole, setChangingRole] = useState<boolean>(false);
+  // in-flight 는 boolean 이 아니라 진행 중인 사용자 id 로 들고 있다(T-1164) — UserList 가 그 id 로
+  // 진행 행을 짚어 aria-busy·진행 문구를 렌더하기 때문. undefined 는 "진행 없음".
+  const [changingRoleId, setChangingRoleId] = useState<string | undefined>(
+    undefined,
+  );
   const [changeRoleError, setChangeRoleError] = useState<string | undefined>(
     undefined,
   );
@@ -3475,12 +3487,12 @@ function AdminView({
         patch: request,
         describeError: toErrorMessage,
         isForbidden: (e: unknown) => e instanceof ApiError && e.status === 403,
-        changing: changingRole,
-        setChanging: setChangingRole,
+        changingId: changingRoleId,
+        setChangingId: setChangingRoleId,
         setChangeError: setChangeRoleError,
         bumpRefresh: () => setUsersRefreshNonce((n) => n + 1),
       }),
-    [changingRole],
+    [changingRoleId],
   );
 
   // 파트 생성 controlled input 상태(T-1153) — 컨테이너 소유. "파트 추가" 클릭 시 handleCreatePart
@@ -4111,11 +4123,14 @@ function AdminView({
             </div>
             {/* 역할 변경 실패 문구(T-1162) — 생성 실패 alert 와 별개 상태라 서로 섞이지 않는다. */}
             {changeRoleError ? <p role="alert">{changeRoleError}</p> : null}
+            {/* changingRoleId(T-1164) — 진행 중인 역할 변경 대상 id 를 내려보낸다. 그 행에만
+                aria-busy·진행 문구가 붙고 진행 중에는 모든 역할 변경 버튼이 비활성화된다. */}
             <UserList
               users={usersData ?? []}
               loading={userLoading}
               error={userError}
               onChangeRole={isSuperAdmin ? handleChangeRole : undefined}
+              changingRoleId={changingRoleId}
             />
           </section>
         </>
