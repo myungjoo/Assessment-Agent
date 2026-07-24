@@ -2,7 +2,7 @@
 id: T-1195
 title: 사용자 목록 조회 endpoint web↔backend 계약 drift-guard spec 추가 (GET /api/users · buildUsersPath bare @Get() list vs @Get(":id") detail 2-way GET 판별 + `?_r` nonce 무해 + `:id/role` mutation 대조군)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 280
@@ -73,3 +73,7 @@ AdminView 는 사용자 관리 섹션에서 `useApiResource<UserRow[]>(usersPath
 - (carry-forward) contract-guard test 26+ 파일이 공유하는 정규식 추출기/대조기(`stripComments`, `extractControllerRoute`, `extractHandlerMethods`, `composeRoute`, `diffContract`, `stripQuery`)를 `web/src/views/__contract-guard__/` 공용 helper 로 추출하는 refactor slice — 중복 제거 + 단일 유지보수 지점. 사용자 read 표면(목록)이 봉합된 시점이라 추출 ROI 재평가 적기. helper 추출 자체가 다수 파일을 건드려 5-파일 cap 초과 → planner split 필요.
 - (후보) 최근 삭제 조회(GET, `buildRecentDeletionPath`) 계약 guard — recent-deletion controller 로 mirror. 순차 slice.
 - (후보) 사용자 단건 조회(GET /api/users/:id, detail) 계약 guard — web 에 단건 GET call site 가 도입되면 2-way 판별의 세그먼트 1 축을 발사 대상으로 승격.
+
+## Result (DONE 2026-07-24T17:45Z)
+
+PR #1087 squash `4b567ad3` merged. reviewer round 1/7 APPROVE(0 BLOCKER/0 MAJOR/2 MINOR 비차단), 4-게이트 PASS(reviewer comment external #issuecomment-5072798280, CI green tool=gh, ADR-0036 §8(c) head 최신 main 포함 CLEAN rebase noop). 신규 `web/src/views/AdminView.users-list-contract.test.ts` 1파일(+274/-0, production 0 LOC), 22 신규 test + web 전체 56 files/1702 tests + tsc green, coverageThreshold 무회귀. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-ba7f78c3, 매시 30분경 트리거로 정각/15/45분 충돌 회피, server-time 17:38:33Z fresh 非midnight claim), pr-mode 라 활성 claim 0 gate 통과 후 단독 claim. counters 1185→1186. dup-PR 0. MINOR 2건(응답 shape 미단언=ADR-0040 §5 의도적 Out-of-Scope·helper 중복=5파일 cap 초과 refactor Follow-up)은 Nit-in-PR closure 대상 아님.
