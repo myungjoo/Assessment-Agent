@@ -2,7 +2,11 @@
 id: T-1202
 title: contract-guard 소비 spec 이관 slice 1 — AdminView.schedules-list-contract.test.ts 의 inline invariant 추출기 8종을 web/src/views/__contract-guard__/contract-extractors.ts import 로 교체(per-spec 발사기·타입·diffContract 는 inline 유지, 동작 무변경)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: cfe79997
+prNumber: 1094
+reviewRounds: 1
+completedAt: 2026-07-24T23:12:00Z
 commitMode: pr
 coversReq: [REQ-060]
 estimatedDiff: 95
