@@ -2,7 +2,7 @@
 id: T-1183
 title: 파트 삭제 endpoint web↔backend 계약 drift-guard spec (DELETE /api/parts/:id · api/parts base + @Delete(":id") 단일 path param + body 부재 축(@Body 없음) + @HttpCode(204))
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 280
@@ -68,3 +68,11 @@ PLAN.md P6 line 120 (Admin 패널) 인원·그룹·파트 관리 arc 의 후속 
 ## Follow-ups
 
 (작성 시 비어 있음. sub-agent 가 관련 작업 발견 시 여기에 추가. 특히 계약 guard use site 가 15 곳 도달 — 공용 helper 추출 ROI 가 임계를 **강하게** 넘어섰으므로 15 개 파일 동시 수정 refactor slice 후보를 명시 박제할 것(별도 slice — 파일-disjoint 동시 claim 안전성을 깨므로 본 arc 확산과 분리). 파트 CRUD 3 endpoint 완결 후 다음 확산 대상은 LLM provider mutation(POST/DELETE /api/llm/providers).)
+
+## Result (DONE)
+
+- 완료: 2026-07-24 (PR #1075 squash merge `4883bc6b`, branch delete).
+- 신규 파일 1개 `web/src/views/AdminView.part-delete-contract.test.ts` (+276 LOC, 18 test green — it.each 5 포함). production 소스 불변(`test:cov` 기준선 유지).
+- 실측: `@Delete(":id")`→`@Delete()` 변이 시 6 test fail 확인 후 되돌림(drift 검출력 검증).
+- reviewer round 1/7 APPROVE(0 BLOCKER/MAJOR/MINOR, NIT 2 조치 불요). 4-게이트 PASS, CI green(기본 검사 pass incl 승인 게이트 + 배포 산출물 검증 pass).
+- 파트 CRUD(생성 POST T-1181 · 수정 PATCH T-1182 · 삭제 DELETE T-1183) 계약 guard arc 완결. 다음 확산 대상: LLM provider mutation(T-1184 큐잉).
