@@ -2,7 +2,10 @@
 id: T-1197
 title: 수동 재평가 즉시 실행(manual trigger) endpoint web↔backend 계약 drift-guard spec 추가 (POST /api/schedules/trigger · SCHEDULE_TRIGGER_PATH literal trigger + method POST + body 없음(fire-and-forget 202) + busy 이중발사 guard + 형제 api/schedules controller(list/upsert/remove/recent-deletion/backfill) 판별)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: e08066c9
+prNumber: 1089
+completedAt: 2026-07-24T19:03:36Z
 commitMode: pr
 coversReq: [REQ-040, REQ-045]
 estimatedDiff: 250
