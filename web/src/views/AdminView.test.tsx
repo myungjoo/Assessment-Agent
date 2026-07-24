@@ -94,6 +94,8 @@ import AdminView, {
   runCreatePart,
   runCreateUser,
   runChangeRole,
+  buildInstanceAccessPath,
+  runGrantInstanceAccess,
   createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
@@ -131,6 +133,7 @@ import type {
   CreatePartDeps,
   CreateUserDeps,
   ChangeRoleDeps,
+  GrantInstanceAccessDeps,
   InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,
@@ -8972,5 +8975,172 @@ describe('AdminView — 역할 변경 가드 컨테이너 배선 drift guard (T-
 
   it('진행 표면은 여전히 state 값을 UserList 로 내려보낸다 (drift guard — 렌더 표면)', () => {
     expect(source).toContain('changingRoleId={changingRoleId}');
+  });
+});
+
+// R-112 — T-1166 부여 러너(runGrantInstanceAccess) + path 빌더 + 폼 마운트 검증(runCreateUser
+// describe mirror). happy(POST 1 회·path·body·안내·초기화) / error(409 전용·403·404·400·네트워크·
+// 비-ApiError) / 분기(빈 인자 4종·in-flight·409 vs 비-409) / negative(trim·인코딩·재발사·두 표면
+// 상호 배타·정적 렌더·비-Admin fail-closed) 각 1+.
+describe('AdminView — 인스턴스 접근 권한 부여 실 POST mutation (T-1166 runGrantInstanceAccess)', () => {
+  const USERS = '/api/users';
+  const USER_SECTION = 'aria-label="사용자 관리 섹션"';
+  const USER_ID = 'u1';
+  const INSTANCE = 'https://gerrit.example.com';
+  const GRANT_PATH = '/api/users/u1/instance-access';
+  const DUP = '이미 부여된 인스턴스 접근 권한입니다'; // 409 전용 문구(러너 상수와 정합).
+  const GRANTED = '인스턴스 접근 권한을 부여했습니다'; // 성공 안내 문구(role="status").
+  const USER_ROWS = [{ id: 'u1', email: 'user-a@example.com', role: 'User' }];
+  // 비-Admin(User 등급) me 응답 — isAdmin=false fail-closed 분기 통제용.
+  const USER_ME = { data: { role: 'User' }, loading: false, error: undefined };
+
+  // 상태 전이 기록 deps harness(makeUserDeps mirror) — describeError 호출 수도 센다(409 분기 배타).
+  function makeGrantDeps(granting: boolean) {
+    const calls = { granting: [] as boolean[], error: [] as (string | undefined)[],
+      notice: [] as (string | undefined)[], reset: 0, describe: 0 };
+    const deps: GrantInstanceAccessDeps = {
+      grant: (...args: unknown[]) => requestMock(...args),
+      describeError: (e: unknown) => { calls.describe += 1;
+        return e instanceof ApiError && e.status !== 0 ? `HTTP ${e.status}: ${e.message}` : `네트워크 오류: ${(e as Error).message}`; },
+      isConflict: (e: unknown) => e instanceof ApiError && e.status === 409,
+      granting,
+      setGranting: (next) => calls.granting.push(next),
+      setGrantError: (next) => calls.error.push(next),
+      setGrantNotice: (next) => calls.notice.push(next),
+      resetInput: () => { calls.reset += 1; },
+    };
+    return { deps, calls };
+  }
+
+  beforeEach(() => { requestMock.mockReset(); useApiResourceMock.mockReset(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  // happy-path — POST 1 회 + path/body/headers 정확 + 안내 set + 입력 초기화 + 진행 on→off.
+  // negative(d) 겸함 — 성공 직후 error 는 시작 비움만 기록된다(직전 실패 문구 잔류 0).
+  it('POST /api/users/:id/instance-access 를 body `{ instanceRef }` 로 1 회 호출하고 성공 안내 + 입력 초기화 한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(undefined); // 201 Created.
+    const { deps, calls } = makeGrantDeps(false);
+    await runGrantInstanceAccess(USER_ID, INSTANCE, deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [string, { method: string; headers: Record<string, string>; body: string }];
+    expect(path).toBe(GRANT_PATH);
+    expect(options.method).toBe('POST');
+    expect(options.headers).toEqual({ 'Content-Type': 'application/json' });
+    // GrantInstanceAccessDto 계약 — instanceRef 외 다른 필드는 담지 않는다(toEqual 정확 매칭).
+    expect(JSON.parse(options.body)).toEqual({ instanceRef: INSTANCE });
+    expect(calls.notice).toEqual([undefined, GRANTED]);
+    expect(calls.reset).toBe(1);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.granting).toEqual([true, false]);
+  });
+
+  // error path + 분기(isConflict true) — 409 는 전용 문구, describeError 미사용. negative(d)
+  // 겸함 — 실패 직후 성공 안내는 시작 비움만 기록되고 set 되지 않는다(두 표면 상호 배타).
+  it('409(중복 부여) 시 전용 문구를 쓰고 describeError 를 사용하지 않는다 (error path — 409 전용 분기)', async () => {
+    requestMock.mockRejectedValue(new ApiError(409, 'Conflict'));
+    const { deps, calls } = makeGrantDeps(false);
+    await expect(runGrantInstanceAccess(USER_ID, INSTANCE, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, DUP]);
+    expect(calls.describe).toBe(0);
+    expect(calls.notice).toEqual([undefined]);
+    expect(calls.reset).toBe(0);
+    expect(calls.granting).toEqual([true, false]);
+  });
+
+  // error path + 분기(isConflict false) — 403(self-grant)·404·400·네트워크·비-ApiError 는 throw
+  // 없이 describeError 파생 문구만 남긴다(성공 안내·입력 초기화 0).
+  it.each([
+    ['403(self-grant)', new ApiError(403, 'Forbidden'), 'HTTP 403: Forbidden'],
+    ['404(대상 부재)', new ApiError(404, 'Not Found'), 'HTTP 404: Not Found'],
+    ['400(검증 실패)', new ApiError(400, 'Bad Request'), 'HTTP 400: Bad Request'],
+    ['status 0 네트워크', new ApiError(0, 'offline'), '네트워크 오류: offline'],
+    ['비-ApiError throw', new TypeError('fetch failed'), '네트워크 오류: fetch failed'],
+  ])('%s 시 throw 없이 describeError 파생 문구만 표면화한다 (error path — 비-409 분기)', async (_label, thrown, expected) => {
+    requestMock.mockRejectedValue(thrown);
+    const { deps, calls } = makeGrantDeps(false);
+    await expect(runGrantInstanceAccess(USER_ID, INSTANCE, deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, expected]);
+    expect(calls.describe).toBe(1);
+    expect(calls.notice).toEqual([undefined]);
+    expect(calls.reset).toBe(0);
+    expect(calls.granting).toEqual([true, false]);
+  });
+
+  // 분기/negative — 빈·공백 userId, 빈·공백 instanceRef, in-flight 는 모두 미발사(POST 0) + 전이 0.
+  it.each([
+    ['userId 빈 문자열', '', INSTANCE, false],
+    ['userId 공백만', '   ', INSTANCE, false],
+    ['instanceRef 빈 문자열', USER_ID, '', false],
+    ['instanceRef 공백만', USER_ID, '   ', false],
+    ['granting in-flight 재호출', USER_ID, INSTANCE, true],
+  ])('%s 이면 POST 를 발사하지 않는다 (분기/negative — 발사 억제 가드)', async (_l, userId, instanceRef, granting) => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps, calls } = makeGrantDeps(granting as boolean);
+    await runGrantInstanceAccess(userId as string, instanceRef as string, deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.granting).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.notice).toEqual([]);
+    expect(calls.reset).toBe(0);
+  });
+
+  // negative(a)+(b) — 공백 padding 은 trim 돼 body 에 실리고, slash 가 든 id 는 인코딩된 path 로 나간다.
+  it('인스턴스 주소는 trim 하고 사용자 id 는 인코딩해서 발사한다 (negative — 정규화·인코딩 경계)', async () => {
+    requestMock.mockResolvedValue(undefined);
+    const { deps } = makeGrantDeps(false);
+    await runGrantInstanceAccess('  a/b  ', `  ${INSTANCE}  `, deps);
+    const [path, options] = requestMock.mock.calls[0] as [string, { body: string }];
+    expect(path).toBe('/api/users/a%2Fb/instance-access');
+    expect(JSON.parse(options.body)).toEqual({ instanceRef: INSTANCE });
+  });
+
+  // negative(b) — path 빌더 단독. 정상 id/slash/물음표·해시가 든 id 모두 encodeURIComponent 경계.
+  it.each([
+    ['u1', '/api/users/u1/instance-access'],
+    ['a/b', '/api/users/a%2Fb/instance-access'],
+    ['a?b#c', '/api/users/a%3Fb%23c/instance-access'],
+  ])('buildInstanceAccessPath(%s) === %s (negative — id 인코딩 경계)', (userId, expected) =>
+    expect(buildInstanceAccessPath(userId as string)).toBe(expected));
+
+  // negative(c) — 실패 후 재발사가 정상 통과한다(finally 로 진행 플래그가 풀려 영구 잠금 0).
+  it('실패 후 재발사가 정상 통과한다 (negative — 진행 플래그 영구 잠금 0)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    requestMock.mockResolvedValueOnce(undefined);
+    const first = makeGrantDeps(false);
+    await runGrantInstanceAccess(USER_ID, INSTANCE, first.deps);
+    expect(first.calls.granting).toEqual([true, false]);
+    const second = makeGrantDeps(false);
+    await runGrantInstanceAccess(USER_ID, INSTANCE, second.deps);
+    expect(requestMock).toHaveBeenCalledTimes(2);
+    expect(second.calls.notice).toEqual([undefined, GRANTED]);
+    expect(second.calls.error).toEqual([undefined]);
+  });
+
+  // negative(e)+happy(렌더) — 새 컨트롤이 섹션 안에 마운트 + 초기 disabled + 기존 렌더 회귀 0.
+  it('사용자 관리 섹션 안에 부여 select·input·버튼을 렌더하고 초기엔 disabled 다 (happy-path/negative — 정적 렌더)', () => {
+    setRoutes({ [USERS]: { data: USER_ROWS, loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    const start = html.indexOf(USER_SECTION);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const section = html.slice(start, html.indexOf('</section>', start));
+    expect(section).toContain('aria-label="접근 권한을 부여할 사용자"');
+    expect(section).toContain('aria-label="부여할 인스턴스 주소"');
+    expect(section).toMatch(/<button[^>]*disabled[^>]*>인스턴스 접근 권한 부여<\/button>/);
+    // 대상 옵션은 조회된 행 + 미선택 기본 옵션. 이어서 기존 폼·목록 회귀 0 과 표면 미노출.
+    expect(section).toContain('사용자를 선택하세요');
+    expect(section).toContain('value="u1"');
+    expect(section).toContain('aria-label="추가할 사용자 이메일"');
+    expect(section).toContain('user-a@example.com');
+    expect(section).not.toContain('role="alert"');
+    expect(section).not.toContain(GRANTED);
+  });
+
+  // negative(e) — 비-Admin 등급이면 섹션 자체가 미마운트라 새 폼도 노출되지 않는다(fail-closed).
+  it('비-Admin 등급이면 부여 폼을 렌더하지 않는다 (negative — isAdmin fail-closed)', () => {
+    setRoutes({ [AUTH_ME]: USER_ME, [USERS]: { data: USER_ROWS, loading: false, error: undefined } });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).not.toContain('aria-label="접근 권한을 부여할 사용자"');
+    expect(html).not.toContain('aria-label="부여할 인스턴스 주소"');
+    expect(html).not.toContain('인스턴스 접근 권한 부여');
   });
 });
