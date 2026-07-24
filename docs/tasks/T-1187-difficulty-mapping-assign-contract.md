@@ -2,7 +2,10 @@
 id: T-1187
 title: 난이도-모델 매핑 지정 endpoint web↔backend 계약 drift-guard spec 추가
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 1783b33d
+prNumber: 1079
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-049, REQ-050, REQ-096, REQ-097]
 estimatedDiff: 240
