@@ -8580,12 +8580,16 @@ describe('AdminView — 사용자 역할 변경 실 PATCH mutation (T-1162 runCh
     },
   );
 
-  // negative — 빈/공백 id·빈 nextRole·in-flight 는 모두 미발사(PATCH 0) + 상태 전이 0.
+  // negative — 빈/공백·undefined id·nextRole·in-flight 는 모두 미발사(PATCH 0) + 상태 전이 0.
+  // undefined 2행은 러너의 `id?.trim()` / `nextRole?.trim()` 옵셔널 체이닝 방어를 태운다(`?.` 를
+  // `.` 로 단순화하면 TypeError 로 fail — 방어 제거 회귀 감지).
   it.each([
     ['id 빈 문자열', '', 'Admin', false],
     ['id 공백만', '   ', 'Admin', false],
+    ['id undefined', undefined as unknown as string, 'Admin', false],
     ['nextRole 빈 문자열', 'u1', '', false],
     ['nextRole 공백만', 'u1', '  ', false],
+    ['nextRole undefined', 'u1', undefined as unknown as string, false],
     ['changing in-flight 재호출', 'u1', 'Admin', true],
   ])(
     '%s 이면 PATCH 를 발사하지 않는다 (negative — 발사 억제 가드)',
@@ -8622,6 +8626,8 @@ describe('AdminView — 사용자 역할 변경 실 PATCH mutation (T-1162 runCh
   });
 
   // negative — 등급 fail-closed 4종(Admin/소문자/loading/me 부재 → 콜백 undefined → 버튼 0).
+  // 주의 — 소문자 superadmin·me loading·me 부재 3행은 상위 isAdmin gating 이 Admin 패널 자체를
+  // 미렌더해 선차단되는 경로이고, isSuperAdmin === false 분기를 실제로 태우는 것은 'Admin' 행이다.
   it.each([
     ['Admin 등급', 'Admin', false],
     ['소문자 superadmin(enum 불일치)', 'superadmin', false],
