@@ -2,7 +2,7 @@
 id: T-1194
 title: 그룹 멤버십 조회 endpoint web↔backend 계약 drift-guard spec 추가 (GET /api/groups/:id/members · @Get(":id/members") findMembers path-param + literal 세그먼트 발사 vs @Get(":id/persons") findPersons literal 판별 축 + 조건부 null idle + encodeURIComponent)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-026, REQ-049]
 estimatedDiff: 285
@@ -75,3 +75,11 @@ AdminView 는 그룹 관리 섹션에서 선택 그룹의 멤버십을 `useApiRe
 - (carry-forward) contract-guard test 25+ 파일이 공유하는 정규식 추출기/대조기(`stripComments`, `extractControllerRoute`, `extractHandlerMethods`, `composeRoute`, `diffContract`, `stripQuery`)를 `web/src/views/__contract-guard__/` 공용 helper 로 추출하는 refactor slice — 중복 제거 + 단일 유지보수 지점. 그룹 read 표면(목록+멤버십)이 봉합된 시점이라 추출 ROI 재평가 적기. helper 추출 자체가 다수 파일을 건드려 5-파일 cap 초과 → planner split 필요.
 - (후보) 사용자 목록 GET(`buildUsersPath`) 계약 guard — GET-list 판별 축을 user controller 로 mirror. 순차 slice.
 - (후보) 그룹 단건 조회(GET /api/groups/:id, findById) 계약 guard — web 에 단건 GET call site 가 도입되면 4-way 판별의 세그먼트 1 축을 발사 대상으로 승격.
+
+---
+
+## Result (DONE 2026-07-24)
+
+- PR #1086 merged (squash `d7e547a7`), branch deleted. reviewer round 1/7 APPROVE (0 BLOCKER/0 MAJOR/0 MINOR, #issuecomment-5072290140), 4-게이트 PASS, CI green (run 30110643897, tool=gh).
+- 신규 test-only 1파일 `web/src/views/AdminView.group-members-contract.test.ts` (+300/-0, production src 0 LOC). group.controller `@Get(":id/members")` findMembers 와 web `buildGroupMembersPath` 발사 계약 대조. 핵심 축: `:id/members`(findMembers) vs `:id/persons`(findPersons) literal 판별. R-112 happy/error/branch/negative(a~g) 25 tests, coverageThreshold 무회귀.
+- fineGrainedConcurrency ON(stage 5b) claim-pickup fire (cron@aa-local-7f36, server-time 16:38:48Z). counters 1184→1185. claim prune(claims.json=[]). dup-PR 0.
