@@ -2,8 +2,11 @@
 id: T-1198
 title: 스케줄 주기 등록/교체(apply·upsert) endpoint web↔backend 계약 drift-guard spec 추가 (PUT /api/schedules · SCHEDULES_PATH bare-base + method PUT + @Body UpsertCronScheduleDto{name,cronExpression} + falsy-cron 미발사 guard + 형제 api/schedules controller(list/remove/trigger/recent-deletion/backfill) 판별)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+mergedAs: 138ea784
+prNumber: 1090
+reviewRounds: 1
 coversReq: [REQ-040, REQ-045]
 estimatedDiff: 260
 estimatedFiles: 1
@@ -12,26 +15,11 @@ independentStream: web-contract-guard
 dependsOn: []
 touchesFiles: [web/src/views/AdminView.schedule-apply-contract.test.ts]
 plannerNote: "P6 contract-guard arc 다음 slice — 스케줄 주기 apply/upsert(PUT /api/schedules, SCHEDULES_PATH). T-1197 trigger 형제 controller 의 body-보유 mutation(같은 cron-schedule.controller 의 @Put upsert). 핵심 축: bare-base(subPath 없음) + method PUT + @Body UpsertCronScheduleDto{name,cronExpression} + falsy-cron 미발사 guard + 형제 controller(@Get list/@Delete remove/@Post trigger/recent-deletion/backfill) 판별. pr web test-only 1파일, AdminView.tsx 파일-disjoint."
-resumeBranch: claude/T-1198-schedule-apply-contract
-resumeBranchSha: cfafdde4
-resumeState: "구현+테스트+push 완료(cfafdde4). PR open 만 남음 — 2026-07-24T19:5xZ cron fire(cron@aa-cloud-31ae4960)가 GitHub PR-create write-path 일시 장애(GraphQL/REST 둘 다 500·empty, reads 정상)로 PR 을 열지 못함. 다음 fire 재진입 시 아래 ## RESUME 섹션 절차를 따른다(재구현 금지)."
 ---
 
 # T-1198 — 스케줄 주기 등록/교체(apply·upsert) endpoint web↔backend 계약 drift-guard spec 추가
 
-## RESUME (다음 fire 필독 — 재구현 금지)
-
-**상태: 구현·테스트·push 완료. PR open + 4-gate 만 남음.**
-
-2026-07-24 cron fire(cron@aa-cloud-31ae4960)가 본 spec 을 완성해 feature branch `claude/T-1198-schedule-apply-contract`(tip `cfafdde4`, +300/-0, `web/src/views/AdminView.schedule-apply-contract.test.ts` 1파일)에 commit·push 까지 마쳤으나, **GitHub PR-create write-path 일시 장애**(`gh pr create` GraphQL + REST `POST /pulls` 모두 500/empty, reads 정상)로 PR 을 열지 못하고 종료했다. task 코드에는 결함이 없다(로컬 web 전체 1767 green + tsc clean).
-
-다음 fire(GitHub write-path 복구 후) 재진입 절차:
-
-1. **재구현하지 말 것.** 원격 브랜치 `claude/T-1198-schedule-apply-contract`(`cfafdde4`)가 완성 spec 을 이미 보유. `git fetch` 후 이 브랜치가 살아있는지 확인. 살아있으면 그대로 사용.
-2. 그 브랜치에서 **PR open**(제목: `test(web): 스케줄 주기 등록/교체(PUT /api/schedules) endpoint web↔backend 계약 drift-guard spec 추가 (T-1198)`, 본문에 task 링크 + Acceptance 체크리스트).
-3. integrator dispatch → reviewer 4-gate(§3.3) → CI green → squash merge + branch delete.
-4. merge 후 본 ## RESUME 섹션과 frontmatter 의 `resumeBranch`/`resumeBranchSha`/`resumeState` 를 bookkeeping 에서 제거(cleanup).
-5. **브랜치가 소실됐거나(정리 스크립트가 삭제) reopen 불가하면** 그때만 재구현으로 fallback — 동일 Acceptance Criteria 로 새로 작성.
+> **DONE** — PR #1090 round 1/7 APPROVE, 4-게이트 PASS, squash merge `138ea784`. 직전 cron fire(cron@aa-cloud-31ae4960)가 GitHub PR-create write-path 일시 장애로 브랜치 `cfafdde4` 만 보존하고 종료했던 것을, 2026-07-24T20:40Z cron fire(cron@aa-local-7d5a)가 orphan claim 회수(60분 초과) 후 재구현 없이 그 브랜치에서 PR 을 열어 완결했다.
 
 ## Why
 
