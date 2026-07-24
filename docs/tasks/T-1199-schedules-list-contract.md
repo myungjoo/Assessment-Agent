@@ -2,7 +2,7 @@
 id: T-1199
 title: 스케줄 목록 조회(GET /api/schedules) endpoint web↔backend 계약 drift-guard spec 추가 (SCHEDULES_PATH bare-base + method GET + 무-body/무-param + @Get() list vs @Put() upsert 형제 method 판별 + 형제 api/schedules controller(remove/trigger/recent-deletion/backfill) 판별)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-039, REQ-045]
 estimatedDiff: 250
