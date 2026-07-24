@@ -2,7 +2,10 @@
 id: T-1173
 title: 그룹 멤버 추가 endpoint web↔backend 계약 drift-guard spec (api/groups base·:id/members 합성·personId body)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 52856f66
+prNumber: 1065
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 275
