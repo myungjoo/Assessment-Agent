@@ -15,6 +15,19 @@ import { describe, expect, it } from 'vitest';
 //     `whitelist + forbidNonWhitelisted` ValidationPipe 가 미지 키를 거부)이 된다. 여기서는 backend
 //     소스에서 계약을 추출해 web 이 **실제로 발사하는** 인자와 대조한다.
 //
+// (c) T-1170 정밀화(3건, T-1169 reviewer round 1 지적 집행):
+//     (1) method decorator 의 **인자까지 파싱**해 base @Controller route 와 합성한다 —
+//         `@Post('grant')` 는 `.../instance-access/grant` 로 합성돼 실 route shape 를 재구성한다
+//         (인자 없는 `@Post()` 는 base 그대로). 이전엔 인자를 무시해 sub-path 추가가 런타임 404 로
+//         빠져도 green 이었다.
+//     (2) DTO 필드를 `required`(`!`)/`optional`(`?`) 로 구분해, body 키 대조를 정확-일치가 아니라
+//         **`fired ⊆ declared`(초과 키 없음 — forbidNonWhitelisted 근거) AND `required ⊆ fired`
+//         (필수 누락 없음)** 부분집합으로 완화한다. 이는 assertion 약화가 아니라 계약 정정이다 —
+//         backend 가 하위호환 optional 필드를 추가해도 web 이 유효하면 통과시켜 정상 진화의 오탐을
+//         제거한다(초과·누락은 여전히 fail).
+//     (3) `options.body` 부재 시 `JSON.parse(String(undefined))` 로 SyntaxError 를 던지지 않고
+//         **빈 키 집합** 으로 매핑해, 실패가 "body 필수 누락" 으로 명확히 떨어지게 한다.
+//
 // 추출기는 공용 helper 로 빼지 않고 본 파일 로컬 함수로 둔다(사용처 1곳 — YAGNI). AST 파서 대신
 // 문자열/정규식만 쓰고(새 devDependency 0) 주석을 먼저 제거해 false-positive 를 막는다.
 
@@ -27,7 +40,7 @@ import {
 } from './AdminView';
 
 // ── backend 계약 추출기(로컬) ───────────────────────────────────────────────────────────────
-// 줄 주석 / 블록 주석 제거 — 추출이 주석 문구를 잡으면 guard 가 무력해진다(아래 negative (e)).
+// 줄 주석 / 블록 주석 제거 — 추출이 주석 문구를 잡으면 guard 가 무력해진다(아래 negative (f)).
 function stripComments(source: string): string {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -42,14 +55,22 @@ function extractControllerRoute(source: string): string | null {
   return matched ? matched[1] : null;
 }
 
-// handler 이름 → HTTP method decorator 매핑(`grant` → `POST`). decorator 없는 handler 는 미수록.
-function extractHandlerMethods(source: string): Record<string, string> {
-  const found: Record<string, string> = {};
-  let pending: string | null = null;
+// method decorator 1건 — HTTP method 와 그 인자 sub-path(`@Post('grant')` 의 `'grant'`; 인자
+// 없으면 `''`). Follow-up (1): 인자를 route 합성에 써야 실 route shape 를 재구성한다.
+interface HandlerDecorator {
+  method: string;
+  subPath: string;
+}
+
+// handler 이름 → {method, subPath} 매핑(`grant` → {POST, ''}). decorator 없는 handler 는 미수록.
+function extractHandlerMethods(source: string): Record<string, HandlerDecorator> {
+  const found: Record<string, HandlerDecorator> = {};
+  let pending: HandlerDecorator | null = null;
   for (const line of stripComments(source).split('\n')) {
-    const decorator = /^[ \t]*@(Get|Post|Put|Patch|Delete)\s*\(/.exec(line);
+    // 인자 없는 `@Post()` 는 subPath ''(그룹 미매칭), `@Post('grant')` 는 'grant' 를 캡처한다.
+    const decorator = /^[ \t]*@(Get|Post|Put|Patch|Delete)\s*\(\s*(?:['"`]([^'"`]*)['"`]\s*)?\)/.exec(line);
     if (decorator) {
-      pending = decorator[1].toUpperCase();
+      pending = { method: decorator[1].toUpperCase(), subPath: decorator[2] ?? '' };
       continue;
     }
     // 그 외 decorator(@HttpCode/@UseGuards/@Roles …)는 handler 로 오인하지 않고 건너뛴다.
@@ -65,30 +86,39 @@ function extractHandlerMethods(source: string): Record<string, string> {
   return found;
 }
 
-// DTO 클래스 본문의 필드명 집합(`instanceRef`). 클래스가 없으면 빈 집합.
-function extractDtoFields(source: string, className: string): Set<string> {
+// DTO 필드 집합 — `required`(`instanceRef!` 또는 표기 없음)와 `optional`(`note?`) 로 나눈다.
+// Follow-up (2): 부분집합 대조의 입력. 클래스가 없으면 둘 다 빈 집합.
+interface DtoFields {
+  required: Set<string>;
+  optional: Set<string>;
+}
+
+function extractDtoFields(source: string, className: string): DtoFields {
   const body = new RegExp(`class\\s+${className}\\s*\\{([\\s\\S]*?)\\n\\}`).exec(stripComments(source));
-  const fields = new Set<string>();
+  const required = new Set<string>();
+  const optional = new Set<string>();
   if (!body) {
-    return fields;
+    return { required, optional };
   }
   for (const line of body[1].split('\n')) {
     if (/^[ \t]*@/.test(line)) {
       continue;
     }
-    const field = /^[ \t]*(?:readonly\s+)?([A-Za-z_$][\w$]*)[!?]?\s*[:=]/.exec(line);
+    const field = /^[ \t]*(?:readonly\s+)?([A-Za-z_$][\w$]*)([!?]?)\s*[:=]/.exec(line);
     if (field) {
-      fields.add(field[1]);
+      (field[2] === '?' ? optional : required).add(field[1]);
     }
   }
-  return fields;
+  return { required, optional };
 }
 
 // ── 대조기(로컬) ───────────────────────────────────────────────────────────────────────────
 interface BackendContract {
   route: string | null;
   method: string | null;
-  fields: Set<string>;
+  subPath: string;
+  required: Set<string>;
+  optional: Set<string>;
 }
 
 interface WebFire {
@@ -99,27 +129,42 @@ interface WebFire {
 
 const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
 
+// base route 에 handler decorator 인자(sub-path)를 합성한다 — Follow-up (1). subPath 가 비면
+// base 그대로, 있으면 `<base>/<subPath>`(중복 `/` 정리).
+function composeRoute(route: string, subPath: string): string {
+  const base = normalizeRoute(route);
+  const trimmed = subPath.replace(/^\//, '');
+  return trimmed ? `${base}/${trimmed}` : base;
+}
+
 // backend route 의 `:id` 자리에 사용자 id 를 넣은 기대 path(선행 `/` 유무 차이만 정규화).
-function expectedPath(route: string, userId: string): string {
-  return normalizeRoute(route).replace(':id', encodeURIComponent(userId));
+function expectedPath(route: string, subPath: string, userId: string): string {
+  return composeRoute(route, subPath).replace(':id', encodeURIComponent(userId));
 }
 
 // 불일치 사유 목록을 돌려준다 — 빈 배열이 곧 "계약 일치". 추출 실패도 통과가 아니라 사유 1건이다.
 function diffContract(fire: WebFire, backend: BackendContract, userId: string): string[] {
-  if (!backend.route || !backend.method || backend.fields.size === 0) {
+  const declaredCount = backend.required.size + backend.optional.size;
+  if (!backend.route || !backend.method || declaredCount === 0) {
     return ['backend 계약 추출 실패'];
   }
   const issues: string[] = [];
-  if (fire.path !== expectedPath(backend.route, userId)) {
+  if (fire.path !== expectedPath(backend.route, backend.subPath, userId)) {
     issues.push(`path 불일치: ${fire.path}`);
   }
   if (fire.method !== backend.method) {
     issues.push(`method 불일치: ${fire.method}`);
   }
-  const fired = [...fire.bodyKeys].sort().join(',');
-  const declared = [...backend.fields].sort().join(',');
-  if (fired !== declared) {
-    issues.push(`body 키 불일치: ${fired} ≠ ${declared}`);
+  // Follow-up (2) 부분집합 대조: 초과 키(fired ⊄ declared) — forbidNonWhitelisted 400 예방.
+  const declared = new Set([...backend.required, ...backend.optional]);
+  const extras = [...fire.bodyKeys].filter((key) => !declared.has(key)).sort();
+  if (extras.length > 0) {
+    issues.push(`body 초과 키: ${extras.join(',')}`);
+  }
+  // 필수 누락(required ⊄ fired) — DTO @IsNotEmpty 검증 실패(400) 예방.
+  const missing = [...backend.required].filter((key) => !fire.bodyKeys.has(key)).sort();
+  if (missing.length > 0) {
+    issues.push(`body 필수 누락: ${missing.join(',')}`);
   }
   return issues;
 }
@@ -137,15 +182,36 @@ const DTO_SOURCE = readFileSync(
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLER_METHODS = extractHandlerMethods(CONTROLLER_SOURCE);
 const DTO_FIELDS = extractDtoFields(DTO_SOURCE, 'GrantInstanceAccessDto');
-const GRANT_CONTRACT: BackendContract = { route: ROUTE, method: HANDLER_METHODS.grant ?? null, fields: DTO_FIELDS };
-const REVOKE_CONTRACT: BackendContract = { route: ROUTE, method: HANDLER_METHODS.revoke ?? null, fields: DTO_FIELDS };
+const GRANT_HANDLER = HANDLER_METHODS.grant ?? null;
+const REVOKE_HANDLER = HANDLER_METHODS.revoke ?? null;
+const GRANT_CONTRACT: BackendContract = {
+  route: ROUTE,
+  method: GRANT_HANDLER?.method ?? null,
+  subPath: GRANT_HANDLER?.subPath ?? '',
+  required: DTO_FIELDS.required,
+  optional: DTO_FIELDS.optional,
+};
+const REVOKE_CONTRACT: BackendContract = {
+  route: ROUTE,
+  method: REVOKE_HANDLER?.method ?? null,
+  subPath: REVOKE_HANDLER?.subPath ?? '',
+  required: DTO_FIELDS.required,
+  optional: DTO_FIELDS.optional,
+};
 
 const USER_ID = 'u-1';
 const INSTANCE = 'https://gerrit.example.com';
 
+// Follow-up (3): options.body 부재/undefined 는 SyntaxError 대신 빈 키 집합으로 매핑한다.
 function toFire(path: string, options: RequestOptions): WebFire {
-  const parsed = JSON.parse(String(options.body)) as Record<string, unknown>;
-  return { path, method: String(options.method), bodyKeys: new Set(Object.keys(parsed)) };
+  const bodyKeys = new Set<string>();
+  if (options.body !== undefined && options.body !== null) {
+    const parsed = JSON.parse(String(options.body)) as Record<string, unknown>;
+    for (const key of Object.keys(parsed)) {
+      bodyKeys.add(key);
+    }
+  }
+  return { path, method: String(options.method), bodyKeys };
 }
 
 // 러너를 mock deps 로 직접 호출해 **실제 발사 인자** 를 캡처한다(ADR-0040 §5 — RTL/jsdom 없음).
@@ -190,28 +256,35 @@ async function fireRevoke(userId: string): Promise<WebFire> {
   return fired;
 }
 
-describe('AdminView — 인스턴스 접근 web↔backend 계약 drift guard (T-1169)', () => {
+describe('AdminView — 인스턴스 접근 web↔backend 계약 drift guard (T-1169/T-1170)', () => {
   // error path — 추출기가 깨지면 대조가 "전부 통과" 로 보이므로, 추출 결과 자체를 먼저 못박는다.
   it('backend route / method / DTO 필드 추출이 하나도 비어있지 않다 (error path — 추출기 무력화 방어)', () => {
     expect(ROUTE).not.toBeNull();
     expect(ROUTE).not.toBe('');
     expect(GRANT_CONTRACT.method).not.toBeNull();
     expect(REVOKE_CONTRACT.method).not.toBeNull();
-    expect(DTO_FIELDS.size).toBeGreaterThan(0);
+    expect(DTO_FIELDS.required.size).toBeGreaterThan(0);
+  });
+
+  // 현재 backend 는 인자 없는 decorator(@Post()/@Delete()) 라 subPath 는 '' 여야 한다(base route).
+  it('현재 backend grant/revoke decorator 는 인자 없이 base route 를 그대로 쓴다 (Follow-up (1) — base)', () => {
+    expect(GRANT_CONTRACT.subPath).toBe('');
+    expect(REVOKE_CONTRACT.subPath).toBe('');
+    expect(composeRoute(String(ROUTE), '')).toBe(normalizeRoute(String(ROUTE)));
   });
 
   // happy-path — web 이 조립하는 path 가 backend route 의 `:id` 치환형과 같다.
   it('buildInstanceAccessPath 가 backend @Controller route 의 :id 치환형과 같다 (happy-path)', () => {
-    expect(buildInstanceAccessPath(USER_ID)).toBe(expectedPath(String(ROUTE), USER_ID));
+    expect(buildInstanceAccessPath(USER_ID)).toBe(expectedPath(String(ROUTE), '', USER_ID));
   });
 
   // 분기 cover(grant 방향) — POST 발사가 backend grant decorator 계약과 완전 일치.
-  it('부여 발사(POST)가 backend grant handler 계약과 일치한다 (분기 — grant 방향)', async () => {
+  it('부여 발사(POST)가 backend grant handler 계약과 일치한다 (happy-path — grant 방향)', async () => {
     expect(diffContract(await fireGrant(USER_ID), GRANT_CONTRACT, USER_ID)).toEqual([]);
   });
 
   // 분기 cover(revoke 방향) — DELETE 발사가 backend revoke decorator 계약과 완전 일치.
-  it('회수 발사(DELETE)가 backend revoke handler 계약과 일치한다 (분기 — revoke 방향)', async () => {
+  it('회수 발사(DELETE)가 backend revoke handler 계약과 일치한다 (happy-path — revoke 방향)', async () => {
     expect(diffContract(await fireRevoke(USER_ID), REVOKE_CONTRACT, USER_ID)).toEqual([]);
   });
 
@@ -224,23 +297,86 @@ describe('AdminView — 인스턴스 접근 web↔backend 계약 drift guard (T-
     expect(grant.method).not.toBe(revoke.method);
   });
 
-  // body 키 집합 정확 일치 — 부족(400 검증 실패)도 초과(forbidNonWhitelisted 400)도 허용 안 된다.
+  // 현재 상태(단일 required 필드)에서 web 발사 body 는 declared 부분집합 계약을 만족한다.
   it.each<[string, (userId: string) => Promise<WebFire>]>([
     ['부여', fireGrant],
     ['회수', fireRevoke],
-  ])('%s body 키 집합이 GrantInstanceAccessDto 필드 집합과 정확히 같다', async (_label, fire) => {
+  ])('%s body 키가 declared 부분집합 계약을 만족한다(초과 0 · 필수 누락 0)', async (_label, fire) => {
     const fired = await fire(USER_ID);
-    expect([...fired.bodyKeys].sort()).toEqual([...DTO_FIELDS].sort());
+    const declared = new Set([...DTO_FIELDS.required, ...DTO_FIELDS.optional]);
+    expect([...fired.bodyKeys].every((key) => declared.has(key))).toBe(true);
+    expect([...DTO_FIELDS.required].every((key) => fired.bodyKeys.has(key))).toBe(true);
   });
 
-  // negative (a) — web 이 필드명을 snake_case 로 바꾼 가짜 발사는 대조에서 반드시 fail 한다.
-  it('body 필드명이 instance_ref 로 바뀐 가짜 발사는 대조에서 불일치로 잡힌다 (negative — DTO 필드 rename)', async () => {
+  // ── Follow-up (1) — decorator 인자 합성 분기 ──────────────────────────────────────────────
+  // 인자 있음(sub-path 합성): `@Post('grant')` 는 `.../instance-access/grant` 로 합성된다.
+  it('method decorator 인자 @Post(\'grant\') 를 파싱해 base route 와 합성한다 (Follow-up (1) — 인자 있음)', () => {
+    const fake = ["  @Post('grant')", '  async grant() {}'].join('\n');
+    const handler = extractHandlerMethods(fake).grant;
+    expect(handler).toEqual({ method: 'POST', subPath: 'grant' });
+    expect(composeRoute(String(ROUTE), handler.subPath)).toBe(`${normalizeRoute(String(ROUTE))}/grant`);
+  });
+
+  // negative (a) — backend 가 sub-path(@Post('grant')) 를 붙였는데 web 은 base path 로 발사 → 불일치.
+  it('backend 가 @Post(\'grant\') sub-path 를 붙였는데 web 은 base path 로 발사하면 path 불일치로 잡힌다 (negative — sub-path drift, 런타임 404 예방)', async () => {
+    const fake = ["  @Post('grant')", '  async grant() {}'].join('\n');
+    const handler = extractHandlerMethods(fake).grant;
+    const drifted: BackendContract = { ...GRANT_CONTRACT, method: handler.method, subPath: handler.subPath };
+    expect(diffContract(await fireGrant(USER_ID), drifted, USER_ID)).toEqual([
+      expect.stringContaining('path 불일치'),
+    ]);
+  });
+
+  // ── Follow-up (2) — 부분집합 대조 분기 ───────────────────────────────────────────────────
+  // negative (b) — web 이 declared 에 없는 초과 키를 보내면 fired ⊄ declared 위반으로 fail.
+  it('web 이 DTO 에 없는 초과 키(instance_ref 오타 등)를 보내면 body 초과 키로 잡힌다 (negative — forbidNonWhitelisted 400 예방)', async () => {
     const fired = await fireGrant(USER_ID);
-    const drifted: WebFire = { ...fired, bodyKeys: new Set(['instance_ref']) };
-    expect(diffContract(drifted, GRANT_CONTRACT, USER_ID)).toEqual([expect.stringContaining('body 키 불일치')]);
+    const drifted: WebFire = { ...fired, bodyKeys: new Set([...fired.bodyKeys, 'instance_ref']) };
+    expect(diffContract(drifted, GRANT_CONTRACT, USER_ID)).toEqual([
+      expect.stringContaining('body 초과 키'),
+    ]);
   });
 
-  // negative (b) — backend route 가 옮겨진 가짜 소스면 대조가 path 불일치를 보고한다(런타임 404 예방).
+  // negative (c) — web 이 required 필드를 누락하면 required ⊄ fired 위반으로 fail.
+  it('web 이 required instanceRef 를 누락하면 body 필수 누락으로 잡힌다 (negative — @IsNotEmpty 400 예방)', async () => {
+    const fired = await fireGrant(USER_ID);
+    const drifted: WebFire = { ...fired, bodyKeys: new Set<string>() };
+    expect(diffContract(drifted, GRANT_CONTRACT, USER_ID)).toEqual([
+      expect.stringContaining('body 필수 누락'),
+    ]);
+  });
+
+  // negative (d) — backend 가 하위호환 optional 필드를 추가해도 web 발사는 유효 → 통과(오탐 제거).
+  it('backend 가 하위호환 optional 필드(note?)를 추가해도 web 의 기존 발사는 유효해 통과한다 (negative — 정상 진화 오탐 제거)', async () => {
+    const withOptional: BackendContract = { ...GRANT_CONTRACT, optional: new Set(['note']) };
+    expect(diffContract(await fireGrant(USER_ID), withOptional, USER_ID)).toEqual([]);
+  });
+
+  // extractDtoFields 가 required(`!`)/optional(`?`) 를 실제로 구분하는지 직접 못박는다.
+  it('extractDtoFields 가 instanceRef!(required) 와 note?(optional) 를 분리한다 (Follow-up (2) — 표기 구분)', () => {
+    const fake = 'class D {\n  @IsString()\n  instanceRef!: string;\n  note?: string;\n}';
+    const fields = extractDtoFields(fake, 'D');
+    expect([...fields.required]).toEqual(['instanceRef']);
+    expect([...fields.optional]).toEqual(['note']);
+  });
+
+  // ── Follow-up (3) — body 미전송 진단 분기 ────────────────────────────────────────────────
+  // options.body 부재면 SyntaxError 없이 빈 키 집합으로 매핑된다.
+  it('options.body 부재면 JSON.parse SyntaxError 없이 빈 키 집합으로 매핑된다 (Follow-up (3) — body 부재)', () => {
+    const fire = toFire(buildInstanceAccessPath(USER_ID), { method: 'POST' } as RequestOptions);
+    expect(fire.bodyKeys.size).toBe(0);
+  });
+
+  // negative (e) — body 부재 발사는 SyntaxError 가 아니라 "body 필수 누락" 으로 명확히 판정된다.
+  it('body 부재 발사는 SyntaxError 없이 body 필수 누락으로 판정된다 (negative — body 부재 진단)', () => {
+    const fire = toFire(buildInstanceAccessPath(USER_ID), { method: 'POST' } as RequestOptions);
+    expect(diffContract(fire, GRANT_CONTRACT, USER_ID)).toEqual([
+      expect.stringContaining('body 필수 누락'),
+    ]);
+  });
+
+  // ── 기존 T-1169 계약 회귀 방어(유효 assertion 유지) ───────────────────────────────────────
+  // negative — backend route 가 옮겨진 가짜 소스면 대조가 path 불일치를 보고한다(런타임 404 예방).
   it('backend route 가 달라진 가짜 소스에 대해 path 불일치를 보고한다 (negative — route 이동)', async () => {
     const fake = '@Controller("api/users/:id/instances")\nexport class C {}\n';
     const drifted: BackendContract = { ...GRANT_CONTRACT, route: extractControllerRoute(fake) };
@@ -250,48 +386,52 @@ describe('AdminView — 인스턴스 접근 web↔backend 계약 drift guard (T-
     ]);
   });
 
-  // negative (c) — grant/revoke decorator 가 뒤바뀐 가짜 소스면 method 불일치로 판정된다.
+  // negative — grant/revoke decorator 가 뒤바뀐 가짜 소스면 method 불일치로 판정된다.
   it('grant/revoke method 가 뒤바뀐 가짜 소스를 불일치로 판정한다 (negative — POST↔DELETE swap)', async () => {
     const fake = ['  @Delete()', '  async grant() {}', '  @Post()', '  async revoke() {}'].join('\n');
     const swapped = extractHandlerMethods(fake);
-    expect(swapped).toEqual({ grant: 'DELETE', revoke: 'POST' });
-    const drifted: BackendContract = { ...GRANT_CONTRACT, method: swapped.grant };
+    expect(swapped).toEqual({ grant: { method: 'DELETE', subPath: '' }, revoke: { method: 'POST', subPath: '' } });
+    const drifted: BackendContract = { ...GRANT_CONTRACT, method: swapped.grant.method };
     expect(diffContract(await fireGrant(USER_ID), drifted, USER_ID)).toEqual([
       expect.stringContaining('method 불일치'),
     ]);
   });
 
-  // negative (d) — id 에 `/` · 공백 등이 섞여도 encodeURIComponent 로 안전 조립된다(경로 주입 방어).
+  // negative — id 에 `/` · 공백 등이 섞여도 encodeURIComponent 로 안전 조립된다(경로 주입 방어).
   it.each([
     ['슬래시', 'a/../b'],
     ['공백', 'u 1'],
     ['물음표', 'u?x=1'],
   ])('사용자 id 의 %s 를 encodeURIComponent 로 escape 해 path 를 조립한다 (negative — 경로 주입)', async (_label, rawId) => {
     const fired = await fireGrant(rawId);
-    expect(fired.path).toBe(expectedPath(String(ROUTE), rawId));
+    expect(fired.path).toBe(expectedPath(String(ROUTE), '', rawId));
     expect(fired.path).toBe(buildInstanceAccessPath(rawId));
     // 사용자 입력이 path segment 경계를 새로 만들지 못한다 — segment 수가 원본 route 와 같다.
     expect(fired.path.split('/').length).toBe(normalizeRoute(String(ROUTE)).split('/').length);
     expect(diffContract(fired, GRANT_CONTRACT, rawId)).toEqual([]);
   });
 
-  // negative (e) — 주석 줄에만 method 문구가 있고 decorator 가 없으면 추출은 실패해야 한다.
+  // negative (f) — 주석 줄에만 method 문구가 있고 decorator 가 없으면 추출은 실패해야 한다.
   it('주석 줄의 "POST /api/users/:id/instance-access" 를 method 로 오인하지 않는다 (negative — 주석 false-positive)', async () => {
     const fake = ['  // POST /api/users/:id/instance-access — 주석뿐, decorator 없음', '  async grant() {}'].join('\n');
     expect(extractHandlerMethods(fake).grant).toBeUndefined();
-    const drifted: BackendContract = { ...GRANT_CONTRACT, method: extractHandlerMethods(fake).grant ?? null };
+    const drifted: BackendContract = { ...GRANT_CONTRACT, method: extractHandlerMethods(fake).grant?.method ?? null };
     expect(diffContract(await fireGrant(USER_ID), drifted, USER_ID)).toEqual(['backend 계약 추출 실패']);
   });
 
-  // negative (f) — 빈 소스면 추출기가 null / 빈 집합을 돌려주고 대조는 통과하지 않는다.
+  // negative — 빈 소스면 추출기가 null / 빈 집합을 돌려주고 대조는 통과하지 않는다.
   it('빈 소스 입력이면 추출기가 null·빈 집합을 반환하고 대조가 통과하지 않는다 (negative — 소스 유실)', async () => {
     expect(extractControllerRoute('')).toBeNull();
     expect(extractHandlerMethods('')).toEqual({});
-    expect(extractDtoFields('', 'GrantInstanceAccessDto').size).toBe(0);
+    const emptyFields = extractDtoFields('', 'GrantInstanceAccessDto');
+    expect(emptyFields.required.size).toBe(0);
+    expect(emptyFields.optional.size).toBe(0);
     const empty: BackendContract = {
       route: extractControllerRoute(''),
-      method: extractHandlerMethods('').grant ?? null,
-      fields: extractDtoFields('', 'GrantInstanceAccessDto'),
+      method: extractHandlerMethods('').grant?.method ?? null,
+      subPath: '',
+      required: emptyFields.required,
+      optional: emptyFields.optional,
     };
     expect(diffContract(await fireGrant(USER_ID), empty, USER_ID)).toEqual(['backend 계약 추출 실패']);
   });
