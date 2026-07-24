@@ -8669,7 +8669,9 @@ describe('AdminView — 역할 변경 진행 id 배선 (T-1164 changingRoleId)',
     { id: 'u2', email: 'b@example.com', role: 'Admin' },
   ];
 
-  // 진행 id 기록만 남기는 최소 deps(T-1162 makeRoleDeps 축약 — 여기서 보는 건 진행 id 뿐).
+  // 진행 id 기록만 남기는 최소 deps. 위 T-1162 describe 의 makeRoleDeps 와 **같은 ChangeRoleDeps
+  // 계약**을 보며, 그쪽이 error/bump/describe 까지 세는 full harness 인 반면 이쪽은 진행 id 시퀀스만
+  // 남기는 축약판이다(계약이 바뀌면 두 harness 모두 컴파일 단계에서 함께 깨진다).
   function makeDeps(changingId: string | undefined) {
     const changing: (string | undefined)[] = [];
     const deps: ChangeRoleDeps = {
