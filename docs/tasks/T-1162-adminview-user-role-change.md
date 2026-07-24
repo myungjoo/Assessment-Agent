@@ -2,7 +2,9 @@
 id: T-1162
 title: AdminView 에 사용자 역할 변경 PATCH 배선 (runChangeRole + SuperAdmin gating)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-24T00:30:52Z
+prNumber: 1054
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 estimatedDiff: 280
@@ -70,4 +72,8 @@ PLAN.md P6 line 120 (Admin 패널) 사용자 관리 arc 의 5번째 slice 다. T
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+reviewer round 1/7 이 남긴 이월 3건 (round 2/7 에서 MINOR-1 / NIT-1 은 본 PR 안에서 마감 — CLAUDE.md §3 Nit-in-PR closure):
+
+- **MINOR-2 (이월)** — 버튼 클릭 → `handleChangeRole` → `runChangeRole` 접합부를 검증하는 test 가 없다. gating test 는 `renderToStaticMarkup` 이라 버튼 **존재**만 보고 콜백 **신원**은 못 본다 → 오배선(`onChangeRole={isSuperAdmin ? handleCreateUser : undefined}`)이나 인자 순서 뒤바뀜을 어떤 test 도 잡지 못한다. 러너와 gating 이 각각 완비돼 잔여 위험은 접합부 1점에 한정. RTL harness (`@testing-library/react`) 도입은 **새 외부 dependency 라 CLAUDE.md §5 BLOCKED 대상** — 도입 결정 시 ADR 선행 필요하며, 도입 후 **첫 검증 대상**으로 본 접합부를 삼는다.
+- **NIT-3 (이월)** — 403 전용 문구 `USER_ROLE_FORBIDDEN_ERROR` ("역할을 변경할 권한이 없습니다") 가 api.md L74 의 두 403 원인 중 self-demote 쪽에 부정확하다. 다만 현 UI 에서 self-demote 는 도달 불가 경로(SuperAdmin 에게만 콜백 전달 + `UserList` 가 SuperAdmin 행에 버튼 0)라 실사용 영향 0 — 후속 self-demote 가드 task 에서 문구 분화를 함께 검토.
+- **NIT-4 → T-1163 으로 큐잉됨** — `changingRole` 이 목록 전역 단일 flag 라 한 행의 PATCH in-flight 동안 다른 행 클릭이 무피드백 no-op 이 된다. `UserList` 에 행별 `disabled` / `aria-busy` 표면이 없어 본 slice 에서 해결 불가(컴포넌트 수정 0 제약). presentational 층 해소를 T-1163 이 담당한다.
