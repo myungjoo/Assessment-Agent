@@ -2,7 +2,7 @@
 id: T-1176
 title: 그룹 수정 endpoint web↔backend 계약 drift-guard spec (PATCH /api/groups/:id · UpdateGroupDto name 단일 optional partial body 축 + encodeURIComponent :id path)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 285
@@ -70,3 +70,12 @@ PLAN.md P6 line 120 (Admin 패널) 사용자·그룹 관리 arc 의 후속 slice
 ## Follow-ups
 
 (작성 시 비어 있음. sub-agent 가 관련 작업 발견 시 여기에 추가. 특히 계약 guard use site 가 7 곳 도달 — 공용 helper 추출 ROI 가 임계를 강하게 넘어섰으므로 7 개 파일 동시 수정 refactor slice 후보를 명시 박제할 것.)
+
+---
+
+## 완료 기록
+
+- Status: DONE (2026-07-24T08:00:48Z)
+- PR: [#1068](https://github.com/myungjoo/Assessment-Agent/pull/1068) squash `ce122029` + branch delete
+- 결과: test-only 신규 1파일 `web/src/views/AdminView.group-update-contract.test.ts` (+300 LOC). 신규 spec 19 test green, web 전체 1309 pass, build/lint green. drift 실측(@Patch(":id")→@Patch() 6 test fail → revert) 확인. reviewer round 1/7 APPROVE (0 BLOCKER/0 MAJOR/0 MINOR/1 NIT informational — non-route decorator 스킵 분기 명시 assert 부재, cap 300/300 이라 follow-up 권장·비차단), 4-게이트 PASS.
+- fineGrainedConcurrency ON(stage 5b) claim-pickup fire (cron@cloud-429d35aa, claimedAt 2026-07-24T07:38:39Z ≈ server-time).
