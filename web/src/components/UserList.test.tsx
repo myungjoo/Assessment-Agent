@@ -380,8 +380,11 @@ describe('UserList', () => {
 
   // --- T-1163 changingRoleId (역할 변경 진행 표면 — 행별 disabled + aria-busy) ---
 
-  // 진행 문구 식별 토큰(구현의 CHANGING_ROLE_TEXT 정합 — 말줄임표 U+2026 …).
+  // 진행 문구 식별 토큰(구현의 CHANGING_ROLE_TEXT prefix — 부재 단언·등장 횟수 카운트용).
   const CHANGING_TOKEN = '역할 변경 중';
+  // 구현 상수 CHANGING_ROLE_TEXT 의 전체 문자열. prefix 관용으로는 잡히지 않는
+  // 말줄임표(U+2026 …) 유실을 happy-path 에서 정확히 detect 한다.
+  const CHANGING_TEXT = '역할 변경 중…';
   // 버튼 렌더 조건만 만족시키는 no-op 콜백(호출 검증은 위 T-1161 describe 가 이미 cover).
   const noop = () => undefined;
   // renderToStaticMarkup 결과의 attribute 등장 횟수 카운터(DashboardFilterBar.test.tsx convention).
@@ -401,7 +404,10 @@ describe('UserList', () => {
     const rows = html.split('<li>');
     expect(rows[1]).toContain('disabled');
     expect(rows[1]).toContain('aria-busy="true"');
-    expect(rows[1]).toContain(CHANGING_TOKEN);
+    // 진행 문구는 말줄임표까지 포함한 구현 상수 전체와 일치해야 한다(MINOR-2).
+    expect(rows[1]).toContain(CHANGING_TEXT);
+    // 진행 문구는 스크린리더에 알려지도록 role="status" 로 감싼다(MINOR-1).
+    expect(rows[1]).toContain('role="status"');
     expect(rows[2]).toContain('disabled');
     expect(rows[2]).not.toContain('aria-busy');
     expect(rows[2]).not.toContain(CHANGING_TOKEN);
