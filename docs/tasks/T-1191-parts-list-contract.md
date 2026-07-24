@@ -2,7 +2,7 @@
 id: T-1191
 title: 파트 목록 조회 endpoint web↔backend 계약 drift-guard spec 추가 (GET /api/parts · bare @Get() findAll vs @Get(":id") findById vs @Get(":id/persons") findPersons 3-way 판별 축 + ?_r nonce 무해)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 260
@@ -74,3 +74,8 @@ AdminView 는 파트 관리 섹션 mount 시 `useApiResource<PartRow[]>(partsPat
 - (carry-forward) contract-guard test 22+ 파일이 공유하는 정규식 추출기/대조기(`stripComments`, `extractControllerRoute`, `extractHandlerMethods`, `composeRoute`, `diffContract`, `stripQuery`)를 `web/src/views/__contract-guard__/` 공용 helper 로 추출하는 refactor slice — 중복 제거 + 단일 유지보수 지점. 주요 mutation/read 계약 guard 가 거의 완결된 시점이라 추출 ROI 재평가 적기. helper 추출 자체가 다수 파일을 건드려 5-파일 cap 을 넘으므로 planner 가 split 필요.
 - (후보) 파트 **소속 인원 조회(GET /api/parts/:id/persons, findPersons)** 계약 guard — `buildPartPersonsPath`(path-param `:id` + literal `persons` 세그먼트, `encodeURIComponent` 인코딩) 발사를 findPersons 계약과 대조. path-param+2-세그먼트 발사 축은 mutation `:id` 발사(T-1183 delete)와 read GET 을 결합한 새 조합.
 - (후보) 그룹/사용자 목록 GET(`buildGroupsPath`/`buildUsersPath`) 계약 guard — 본 task 의 다-way GET 판별 축을 각 controller 로 mirror. 순차 slice.
+
+## Result
+
+- Status: DONE (2026-07-24T15:05:21Z claim → 15:14:32Z merge)
+- PR #1083 squash-merged (26e247fe). 신규 파일 `web/src/views/AdminView.parts-list-contract.test.ts` +267 LOC, 21 신규 test green (web 전체 1610 통과). reviewer round1 4-게이트 APPROVE(0 BLOCKER/0 MAJOR/0 MINOR/1 NIT non-actionable). PR CI green(CLEAN). 3-way GET 판별 축(findAll vs findById vs findPersons) 커버.
