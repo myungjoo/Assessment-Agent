@@ -1,5 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1202 이관 slice 1).
+// 이 spec 이 실제 참조하는 export 만 골라 import(HandlerDecorator·normalizeRoute 는 삭제된 추출기 안에서만
+// 쓰이던 것이라 미참조 → unused-import 방지 위해 제외). per-spec 발사기·타입·diffContract 는 아래 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  extractHandlerMethods,
+  extractHandlerParams,
+  pathSegments,
+  stripComments,
+  stripQuery,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 스케줄 목록 조회(GET /api/schedules) web↔backend **계약 drift guard**. mirror 선례
 // AdminView.schedule-apply-contract.test.ts(T-1198, 같은 cron-schedule.controller.ts 형제 handler)를
@@ -12,60 +24,6 @@ import { describe, expect, it } from 'vitest';
 // @Post trigger · 별도 파일 recent-deletion · backfill)도 base-혼동 대조군으로 함께 고정. 정규식
 // 추출기만 — 새 devDependency 0, 공용 helper 추출은 Out of Scope refactor slice.
 
-function stripComments(source: string): string { // 주석 제거 — 추출이 주석 문구를 잡으면 guard 무력화(negative (g)).
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
-interface HandlerDecorator {
-  method: string;
-  subPath: string;
-}
-function extractHandlerMethods(source: string): Record<string, HandlerDecorator> {
-  const found: Record<string, HandlerDecorator> = {};
-  let pending: HandlerDecorator | null = null;
-  for (const line of stripComments(source).split('\n')) {
-    const decorator = /^[ \t]*@(Get|Post|Put|Patch|Delete)\s*\(\s*(?:['"`]([^'"`]*)['"`]\s*)?\)/.exec(line);
-    if (decorator) {
-      pending = { method: decorator[1].toUpperCase(), subPath: decorator[2] ?? '' };
-      continue;
-    }
-    if (/^[ \t]*@/.test(line)) {
-      continue; // 그 외 decorator(@HttpCode/@UseGuards/@Roles)는 handler 로 오인하지 않는다.
-    }
-    const handler = /^[ \t]*(?:public\s+|private\s+|protected\s+)?(?:async\s+)?([A-Za-z_$][\w$]*)\s*\(/.exec(line);
-    if (handler && pending) {
-      found[handler[1]] = pending;
-      pending = null;
-    }
-  }
-  return found;
-}
-// handler 파라미터를 균형 괄호 매칭으로 슬라이스 — @Body/@Param 을 handler 서명 안에서만 판정. 부재 null.
-// list() 는 인자 0 이라 빈 문자열('')을 반환 → hasBody/hasParam 둘 다 false(형제 upsert @Body·remove @Param 과 대조).
-function extractHandlerParams(source: string, handlerName: string): string | null {
-  const stripped = stripComments(source);
-  const m = new RegExp(`(?:public\\s+|private\\s+|protected\\s+)?(?:async\\s+)?\\b${handlerName}\\s*\\(`).exec(stripped);
-  if (!m) {
-    return null;
-  }
-  let depth = 0;
-  const start = m.index + m[0].length;
-  for (let i = start - 1; i < stripped.length; i++) {
-    if (stripped[i] === '(') {
-      depth++;
-    } else if (stripped[i] === ')' && --depth === 0) {
-      return stripped.slice(start, i);
-    }
-  }
-  return null;
-}
 // AdminView 조회 call site 의 발사 method 추론. `useApiResource<string[]>(SCHEDULES_PATH)` 를 옵션
 // 인자 없이(단일 인자) 호출 → request→fetch default GET. 인자 2+ (options 전달)면 non-GET 가능.
 // 주석 속 "GET /api/schedules" 문자열(소스 다수)·deps.request(SCHEDULES_PATH, {...}) mutation 발사와
@@ -90,13 +48,6 @@ interface WebFire {
   method: string;
   hasParamSegment: boolean;
 }
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
-}
-const pathSegments = (route: string): string[] => route.split('/').filter(Boolean);
-const stripQuery = (path: string): string => path.split('?')[0]; // `?_r=n` cache-buster 제거 — base 만 대조.
 // 불일치 사유 목록 — 빈 배열=계약 일치. 추출 실패도 통과가 아니라 사유 1건(선단언 방어). GET 조회는 body/param
 // 계약이 없으므로 base 경로 + method 만 대조하되, backend 가 @Body/@Param 을 보유(무-body·무-param read 위반)하거나
 // web 발사에 : 동적 세그먼트가 있으면 인자 계약 불일치로 잡는다(mutation 으로 오변질 방지). query 는 strip 후 base 대조.
