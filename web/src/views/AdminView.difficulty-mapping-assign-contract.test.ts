@@ -261,8 +261,8 @@ describe('AdminView — 난이도-모델 매핑 지정 web↔backend 계약 drif
     ['(e) required 필드 rename(llmProviderConfigId→providerConfigId)', (f) => f, (c) => ({ ...c, required: new Set(['providerConfigId']) }), 'required 누락'],
     ['(f) web 이 allow-set 밖 provider 키 발사', (f) => ({ ...f, bodyKeys: new Set([...f.bodyKeys, 'provider']) }), (c) => c, 'body 초과 키'],
     ['(f) web 이 required llmProviderConfigId 를 누락', (f) => ({ ...f, bodyKeys: new Set<string>() }), (c) => c, 'required 누락'],
-    ['(g) @Body decorator 제거(body-less)', (f) => f, (c) => ({ ...c, hasBody: false }), 'body 존재 정합 위반'],
-  ])('%s 면 대조가 fail 한다 (negative (d)(e)(f)(g) — drift 잡힘)', async (_label, mutateFire, mutateContract, expected) => {
+    ['(i) @Body decorator 제거(body-less)', (f) => f, (c) => ({ ...c, hasBody: false }), 'body 존재 정합 위반'],
+  ])('%s 면 대조가 fail 한다 (negative (d)(e)(f)(i) — drift 잡힘)', async (_label, mutateFire, mutateContract, expected) => {
     const fired = await fireAssign(DIFFICULTY);
     // rename drift 처럼 한 변조가 복수 사유(초과 키 + required 누락)를 유발할 수 있으므로 arrayContaining 으로 해당 drift 포착만 단언.
     expect(diffContract(mutateFire(fired), mutateContract(ASSIGN_CONTRACT), DIFFICULTY)).toEqual(
