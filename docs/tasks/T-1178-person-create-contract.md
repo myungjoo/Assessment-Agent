@@ -2,8 +2,12 @@
 id: T-1178
 title: 인원 생성 endpoint web↔backend 계약 drift-guard spec (POST /api/persons · api/persons 신규 base + bare @Post() route 합성 + fullName+email 2 required body 부분집합 축)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1070
+mergedAs: b7107e68
+reviewRounds: 1
+completedAt: 2026-07-24T08:50:00Z
 coversReq: [REQ-026, REQ-045]
 estimatedDiff: 285
 estimatedFiles: 1
