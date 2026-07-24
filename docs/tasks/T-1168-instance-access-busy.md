@@ -2,8 +2,12 @@
 id: T-1168
 title: 인스턴스 접근 폼 교차 비활성 파생을 순수 helper 로 분리 + 단위 test
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1060
+reviewRounds: 1
+mergedAs: 8feffda5
+completedAt: 2026-07-24T03:57:00Z
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 200
 estimatedFiles: 2
