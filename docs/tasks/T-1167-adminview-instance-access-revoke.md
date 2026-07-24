@@ -2,7 +2,11 @@
 id: T-1167
 title: AdminView 에 사용자 인스턴스 접근 권한 회수 배선 (DELETE /api/users/:id/instance-access)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1059
+mergedAs: 733f91e8
+reviewRounds: 1
+completedAt: 2026-07-24T03:26:33Z
 commitMode: pr
 coversReq: [REQ-016, REQ-044]
 estimatedDiff: 230
@@ -73,4 +77,6 @@ PLAN.md P6 line 120 (Admin 패널) 사용자 관리 arc 의 10번째 slice 다. 
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+- reviewer MINOR-1 — `instanceAccessBusy` 교차 비활성 파생(`AdminView.tsx:3699` 인라인)에 대한 직접 test 부재. 두 러너의 자체 가드는 각자의 진행 플래그만 보므로 grant 진행 중 revoke 발사 차단은 UI 비활성 단독에 의존하며, 이 라인이 회귀해도 red 가 나지 않는다. 현 spec harness 가 ADR-0040 §5 게이트로 jsdom/RTL 을 쓰지 않아 상태 구동 렌더가 불가한 제약 하의 우회로, 순수 helper 추출 + 진리표 test 로 고정 → **T-1168 로 큐잉됨**.
+- reviewer MINOR-2 — web↔backend 계약 drift guard 부재. `REVOKE_PATH` / `'DELETE'` / `{ instanceRef }` 가 backend 와 공유 source 없이 문자열 literal 로 고정돼 있어 backend 가 path·DTO 필드명을 바꿔도 web 스위트는 green 을 유지한다. 교차 패키지 소스 읽기라는 새 패턴이라 별도 slice 후보 (T-1168 Follow-ups 에도 박제).
+- reviewer NIT-1 — `AdminView.tsx` 실 diff 가 task 목표 배분(≤80 LOC)을 초과. 하드 게이트(300 LOC / 5 파일)는 통과했고 초과분 대부분이 ADR-0027 §4 근거 주석이라 별도 조치 없음.
