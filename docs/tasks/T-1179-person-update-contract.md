@@ -2,7 +2,9 @@
 id: T-1179
 title: 인원 수정 endpoint web↔backend 계약 drift-guard spec (PATCH /api/persons/:id · api/persons base + @Patch(":id") path param 1 합성 + UpdatePersonDto 전-필드 optional partial(required ∅) allowed-field 부분집합 축)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-24T09:29:36Z
+result: PR #1071 round1 APPROVE(0 BLOCKER/MAJOR/MINOR, 1 informational NIT) → squash df783e1e. web 40파일 1368 test green + build + 루트 lint clean. 신규 spec 21 test. backend 무변경.
 commitMode: pr
 coversReq: [REQ-026, REQ-045]
 estimatedDiff: 290
