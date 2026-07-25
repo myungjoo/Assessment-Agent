@@ -2,7 +2,7 @@
 id: T-1215
 title: person-create-contract spec 의 char-identical 추출기 4종을 공용 helper import 로 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060]
 independentStream: web-contract-guard
@@ -59,3 +59,9 @@ implementer → tester
 ## Follow-ups
 
 - mutation contract-guard spec 이관 stream 계속. 남은 후보: person-update/delete·part-create/update/delete·llm-provider-create/update/delete·schedule-trigger/apply·role-change·instance-access·recent-deletion·difficulty-mapping-assign·group-members·part-persons·auth-me 등. 각 파일의 char-identical subset(공용과 함수 본문+주석까지 byte-identical 한 것만)을 개별 검증해 파일당 slice 로 이관. extractHandlerMethods 는 spec 별 inline 주석·시그니처(hasBody 등) 편차가 커 대부분 제외 대상 — subset 크기는 3~5종 편차이므로 확인 필요.
+
+## Result
+
+**Status: DONE** — 완료 2026-07-25T08:06:42Z (PR #1107 squash-merge 24e45cb7, branch delete).
+
+`AdminView.person-create-contract.test.ts` 의 char-identical inline 추출기 4종(`composeRoute`·`extractControllerRoute`·`normalizeRoute`·`stripComments`)을 공용 helper(`./__contract-guard__/contract-extractors`) alphabetical named import 로 교체(+9/-17, 1 파일). `extractHandlerMethods`·`HandlerDecorator`(hasBody 시그니처·주석 상이)·전용 타입/추출기는 inline 유지, 공용 수정 0. 4종 모두 잔여 직접 참조 유지 → tsc noUnusedLocals(TS6133) 무발생. web 1836 test green(person-create 20 test 불변), tsc --noEmit + vite build clean. reviewer round1 APPROVE, 4-게이트 PASS(CI 기본검사 초회 fail 은 reviewer approval 검증 step 이 approve comment post 前 실행된 ordering — rerun 으로 해소, 코드 변경 0). counters 1205→1206.
