@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { UpdateGroupDeps } from './AdminView';
 import { runUpdateGroup } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1211 이관 slice, mutation stream group-update).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 4종만** import(stripQuery 제외 — PATCH fire 라 부재). richer
+// extractHandlerMethods(주석 상이)·HandlerDecorator·DtoFields·extractDtoFields·BackendContract/WebFire·pathParams·diffContract 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 그룹 수정(PATCH /api/groups/:id) web↔backend **계약 drift guard**. 추출기/대조기 패턴은 선례
 // role-change(T-1171, `:id`+PATCH+encodeURIComponent) · group-create(T-1175, `api/groups` base+body/헤더)
@@ -10,19 +19,6 @@ import { runUpdateGroup } from './AdminView';
 // 신규 축: (1) `@Controller("api/groups")` + `@Patch(":id")` → path param 1(T-1175 bare 0 과 대조; id
 // encodeURIComponent). (2) `UpdateGroupDto` name **단일 optional — required ∅**. (3) PATCH + body/헤더 존재.
 
-// 주석 제거 — 추출이 주석 문구를 잡으면 guard 가 무력해진다(아래 negative (h)).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-// `@Controller("api/groups")` 인자 route. 없으면 null.
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 // method decorator — HTTP method + 인자 sub-path(`@Patch(":id")`→':id'; 없으면 ''). 인자 부재=bare
 // route(세그먼트 0), `:id`=path param 1 세그먼트 정규화 근거. 사이 decorator 는 pending 유지 continue.
 interface HandlerDecorator {
@@ -88,12 +84,6 @@ interface WebFire {
   hasBody: boolean;
   contentType: string | undefined;
   body: Record<string, unknown>;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-// base route 에 sub-path 합성(빈 subPath 는 base 그대로 — bare route 정규화 핵심).
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 // route template 의 `:param` 세그먼트 목록(`:id` 정확히 1개 검증용).
 const pathParams = (route: string): string[] => route.split('/').filter((seg) => seg.startsWith(':'));
