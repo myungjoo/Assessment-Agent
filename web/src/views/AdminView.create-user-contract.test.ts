@@ -3,6 +3,19 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { CreateUserDeps } from './AdminView';
 import { runCreateUser } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1210 이관 slice, mutation).
+// inline 추출기 5종(stripComments·extractControllerRoute·extractHandlerMethods·normalizeRoute·composeRoute)을
+// 삭제했다(extractHandlerMethods 포함 — 함수 본문+inline 주석까지 byte-identical). 그중 normalizeRoute 는 이
+// spec 에서 직접 참조가 없고 composeRoute 내부에서만 쓰이므로(공용 composeRoute 가 공용 normalizeRoute 를
+// 전이적으로 사용) import 하지 않는다 — HandlerDecorator 와 동일한 "잔여 참조 없으면 미import" 규칙(tsc 검증).
+// 전용 extractDtoFields/diffContract·per-spec 타입은 inline 유지. stripQuery·extractHandlerParams·pathSegments
+// 는 이 spec 에 부재/미사용이라 import 하지 않는다.
+import {
+  composeRoute,
+  extractControllerRoute,
+  extractHandlerMethods,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 사용자 생성(POST /api/users) web↔backend **계약 drift guard**. 선례
 // AdminView.role-change-contract.test.ts(T-1171) · AdminView.instance-access-contract.test.ts
@@ -13,47 +26,6 @@ import { runCreateUser } from './AdminView';
 // 부재 → base route 정규화를 대조한다. backend 가 실수로 `@Post(":id")`/`@Post("signup")` 를 붙이면
 // route 불일치 fail. 또 required 가 2개(email+password)라 `required ⊆ fired` 다중 필드 대조가 실효.
 
-// 주석 제거 — 추출이 주석 문구를 잡으면 guard 가 무력해진다(아래 negative (g)).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-// `@Controller("api/users")` 인자 route. 없으면 null.
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
-// method decorator — HTTP method + 인자 sub-path(`@Post()`→''; `@Post(":id")`→':id'). 인자 부재가 곧
-// bare route(param 위치 0) 정규화의 근거다.
-interface HandlerDecorator {
-  method: string;
-  subPath: string;
-}
-// handler 이름 → {method, subPath}(`signup`→{POST, ''}). decorator 없는 handler 미수록. @HttpCode 등
-// 사이 decorator 는 pending 을 리셋하지 않고 continue.
-function extractHandlerMethods(source: string): Record<string, HandlerDecorator> {
-  const found: Record<string, HandlerDecorator> = {};
-  let pending: HandlerDecorator | null = null;
-  for (const line of stripComments(source).split('\n')) {
-    const decorator = /^[ \t]*@(Get|Post|Put|Patch|Delete)\s*\(\s*(?:['"`]([^'"`]*)['"`]\s*)?\)/.exec(line);
-    if (decorator) {
-      pending = { method: decorator[1].toUpperCase(), subPath: decorator[2] ?? '' };
-      continue;
-    }
-    if (/^[ \t]*@/.test(line)) {
-      continue; // 그 외 decorator(@HttpCode/@UseGuards/@Roles)는 handler 로 오인하지 않는다.
-    }
-    const handler = /^[ \t]*(?:public\s+|private\s+|protected\s+)?(?:async\s+)?([A-Za-z_$][\w$]*)\s*\(/.exec(line);
-    if (handler && pending) {
-      found[handler[1]] = pending;
-      pending = null;
-    }
-  }
-  return found;
-}
 // DTO 필드 — required(`email!`/표기 없음)/optional(`x?`). 클래스 없으면 둘 다 빈 집합.
 interface DtoFields {
   required: Set<string>;
@@ -90,12 +62,6 @@ interface WebFire {
   method: string;
   bodyKeys: Set<string>;
   body: Record<string, unknown>;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-// base route 에 sub-path 합성(빈 subPath 는 base 그대로 — bare route 정규화의 핵심).
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 // 불일치 사유 목록 — 빈 배열이 곧 "계약 일치". 추출 실패도 통과가 아니라 사유 1건이다.
 function diffContract(fire: WebFire, backend: BackendContract): string[] {
