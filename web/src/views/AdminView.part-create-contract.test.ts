@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { CreatePartDeps } from './AdminView';
 import { runCreatePart } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1218 이관 slice, mutation stream part-create).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 4종만** import(stripQuery/extractHandlerParams/pathSegments 제외 — 부재/미사용). richer
+// extractHandlerMethods(hasBody·주석 상이)·HandlerDecorator·extractDtoFields·BackendContract/WebFire·pathParams·diffContract·toFire 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 파트 생성(POST /api/parts) web↔backend **계약 drift guard**. 추출기/대조기 상세 주석은 선례
 // person-create(T-1178, api base + bare @Post() 세그먼트 0 + POST body/헤더 존재) · group-create(T-1175,
@@ -10,18 +19,6 @@ import { runCreatePart } from './AdminView';
 // base + bare `@Post()` → `/api/parts`(세그먼트 0). (2) `CreatePartDto` name **단일 required** body 부분집합
 // (required=allowed={name}). (3) POST body/Content-Type ↔ `@Body` 존재 정합. (4) POST method ↔ `@Post`.
 
-// 주석 제거 — 추출이 주석 문구를 잡으면 guard 무력화(negative (h)).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 // HTTP method + sub-path + 시그니처 `@Body` 존재. 인자 부재가 bare route(세그먼트 0) 정규화 근거. 상세는 선례 참조.
 interface HandlerDecorator {
   method: string;
@@ -85,11 +82,6 @@ interface WebFire {
   bodyKeys: Set<string>;
   hasBody: boolean;
   contentType: string | undefined;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 const pathParams = (route: string): string[] => route.split('/').filter((seg) => seg.startsWith(':'));
 // 불일치 사유 목록 — 빈 배열=계약 일치. 추출 실패도 통과가 아니라 사유 1건(선단언 방어).
