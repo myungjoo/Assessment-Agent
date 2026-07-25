@@ -2,7 +2,7 @@
 id: T-1204
 title: contract-guard 소비 spec 이관 slice 3 — AdminView.users-list-contract.test.ts 의 inline invariant 추출기 중 공용 helper 와 글자-동일한 5종(stripComments·extractControllerRoute·normalizeRoute·composeRoute·stripQuery)만 __contract-guard__/contract-extractors.ts import 로 교체(richer extractHandlerMethods·pathParams 등 변형은 inline 유지, 동작 무변경)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060]
 estimatedDiff: 25
@@ -64,3 +64,11 @@ users-list 는 persons-list 와 동형인 GET-list spec 으로, **일부 추출�
 - (이관 후속 slice) 남은 contract-guard spec 을 하나씩 같은 방식으로 이관 — 다음 후보는 `AdminView.groups-list-contract.test.ts`, 이어서 `parts-list`·`llm-provider-list`. 이들 GET-list spec 은 users-list 와 동형(richer `extractHandlerMethods` + `pathParams`)이라 **본 slice 와 동일한 부분-이관 패턴**(글자-동일 subset 만 import)을 적용할 가능성이 높다 — 각 spec 대조로 확정.
 - (설계 결정 후보) 공용 helper enrich 검토 — GET-list spec 다수가 `extractHandlerMethods` 의 richer 변형(멀티라인 시그니처 + `hasBody/hasParam/hasQuery`)과 `pathParams`(`:` 세그먼트) export 를 공유한다. 공용 helper 에 이 richer 변형을 추가(또는 옵션화)하면 더 완전한 dedup 이 가능하나, simple 소비처(schedules-list)의 2-field 사용과의 하위호환·API 표면 증가 trade-off 가 있어 별도 refactor 결정 필요. 본 이관 slice 와 무관.
 - (미해결 실 drift — 사람 확인 필요) T-1201/T-1202 에서 이월된 export 계약 drift(web `runExport` 가 bare `@Get()` 없는 `api/admin/export` 호출)·import 계약 drift(web `runImport` multipart vs backend `@Body` JSON). 도메인 오너 결정 필요(humanQuestion 후보) — 이관 refactor 와 무관하니 별도 처리.
+
+## Result (DONE)
+
+- 완료: 2026-07-25T00:23:33Z (PR #1096 squash merge `60abeddb`)
+- `web/src/views/AdminView.users-list-contract.test.ts` +10/-17 (파일 1개) — 글자-동일 추출기 5종(stripComments·extractControllerRoute·normalizeRoute·composeRoute·stripQuery) inline 삭제 후 공용 helper `./__contract-guard__/contract-extractors` import(알파벳 정렬) 교체. richer `extractHandlerMethods`(5-field)·`pathParams`·per-spec 로직은 inline 유지.
+- reviewer round 1/7 APPROVE(0 finding — 삭제 5종이 공용 export 와 byte-identical 대조 확인), CI green(run 30135830270), 4-게이트 PASS.
+- web vitest 1836 tests green(users-list spec 22 무변경), build clean.
+- Follow-up: contract-guard 이관 계속 — 다음 slice = T-1205(groups-list).
