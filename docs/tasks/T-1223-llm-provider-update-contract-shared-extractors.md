@@ -2,7 +2,10 @@
 id: T-1223
 title: llm-provider-update-contract spec 의 char-identical 추출기 4종을 공용 helper import 로 교체
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: PR-1115
+mergeCommit: 3bf25f05
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-060]
 independentStream: web-contract-guard
