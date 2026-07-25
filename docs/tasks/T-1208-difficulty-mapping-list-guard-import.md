@@ -2,7 +2,8 @@
 id: T-1208
 title: difficulty-mapping-list-contract spec 의 char-identical 추출기 5종을 공용 helper import 로 교체
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1100
 commitMode: pr
 coversReq: [REQ-060]
 independentStream: web-contract-guard
