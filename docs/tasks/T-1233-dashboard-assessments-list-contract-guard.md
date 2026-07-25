@@ -2,7 +2,7 @@
 id: T-1233
 title: DashboardView GET /api/assessments 시계열 조회 web↔backend 계약 drift-guard spec 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-038]
 estimatedDiff: 210
@@ -59,4 +59,11 @@ PLAN.md line 119 의 시각화 대시보드(REQ-038) 는 `DashboardView` 가 소
 
 ## Follow-ups
 
-(없음 — sub-agent 가 관련 작업 발견 시 여기 append. 후보: DashboardView 나머지 3 GET endpoint drift-guard slice(`/api/summaries`·`/api/contributions`·`/api/permission-denied-records`), 4종 공통 추출 패턴이 반복되면 helper 확장 검토.)
+- 후보: DashboardView 나머지 3 GET endpoint drift-guard slice(`/api/summaries`·`/api/contributions`·`/api/permission-denied-records`), 4종 공통 추출 패턴이 반복되면 helper 확장 검토.
+- reviewer nit(비차단, PR #1125 R1): spec 의 `extractPathQueryParams` 의 `if (!query) return []` 방어 분기와 `assessmentsFire` 의 `?? ''` fallback 이 어떤 fire 경로에서도 호출 안 됨(personId 항상 truthy). 파일이 이미 299/300 LOC cap 근접이라 §3 Nit-in-PR closure 예외(cap-초과 risk) → 본 PR 에서 안 고치고 별도 slice(no-query fire 케이스)에서 흡수 권장.
+
+## Result
+
+- **Status: DONE** (2026-07-25T23:16:08Z, PR [#1125](https://github.com/myungjoo/Assessment-Agent/pull/1125) squash merged `c7c9d6cd`).
+- test-only 1파일 신설(`web/src/views/DashboardView.assessments-list-contract.test.ts`, +299/-0, production 0). 공용 helper 8종 named import 재사용. vitest 25 신규 pass / 1861 전체 무회귀, tsc + vite build green, root eslint green.
+- reviewer round 1/7 APPROVE(0 BLOCKER/0 MAJOR, nit 2건 Follow-up 이관), 4-게이트 PASS(reviewer comment external, CI 기본검사+배포산출물검증 green). counters 1223→1224.
