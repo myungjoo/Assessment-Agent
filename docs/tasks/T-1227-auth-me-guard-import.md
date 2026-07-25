@@ -2,8 +2,11 @@
 id: T-1227
 title: auth-me 계약 guard spec char-identical 추출기 5종 공용 helper import 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1119
+mergedAs: 1424977a
+reviewRounds: 1
 coversReq: [REQ-112]
 estimatedDiff: 15
 estimatedFiles: 1
