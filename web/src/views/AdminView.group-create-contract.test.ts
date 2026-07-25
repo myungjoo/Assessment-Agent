@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { CreateGroupDeps } from './AdminView';
 import { runCreateGroup } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1209 이관 slice, mutation stream 첫 slice).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 4종만** import(stripQuery 제외 — POST fire 라 부재). richer
+// extractHandlerMethods(주석 상이)·HandlerDecorator·DtoFields·extractDtoFields·BackendContract/WebFire·diffContract 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 그룹 생성(POST /api/groups) web↔backend **계약 drift guard**. 선례
 // AdminView.create-user-contract.test.ts(T-1172, bare-route + 단일 required body) ·
@@ -15,19 +24,6 @@ import { runCreateGroup } from './AdminView';
 // Content-Type 헤더 존재(T-1174 의 DELETE body 부재 축과 대비). backend 가 base 를 `api/group`(오타)
 // 로, `@Post()` 에 세그먼트를 붙이거나, method/DTO 를 바꾸면 fail.
 
-// 주석 제거 — 추출이 주석 문구를 잡으면 guard 가 무력해진다(아래 negative (g)).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-// `@Controller("api/groups")` 인자 route. 없으면 null.
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 // method decorator — HTTP method + 인자 sub-path(`@Post()`→''; `@Post(":id")`→':id'). 인자 부재가 곧
 // bare route(추가 세그먼트 0) 정규화의 근거다. @HttpCode 등 사이 decorator 는 pending 리셋 없이 continue.
 interface HandlerDecorator {
@@ -92,12 +88,6 @@ interface WebFire {
   bodyKeys: Set<string>;
   hasBody: boolean;
   contentType: string | undefined;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-// base route 에 sub-path 합성(빈 subPath 는 base 그대로 — bare route 정규화의 핵심).
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 // 불일치 사유 목록 — 빈 배열이 곧 "계약 일치". 추출 실패도 통과가 아니라 사유 1건이다.
 function diffContract(fire: WebFire, backend: BackendContract): string[] {
