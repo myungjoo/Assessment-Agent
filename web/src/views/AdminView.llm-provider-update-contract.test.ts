@@ -3,22 +3,20 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { UpdateProviderDeps, UpdateProviderFields } from './AdminView';
 import { runUpdateProvider } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1223 이관 slice, mutation stream llm-provider-update).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 4종만** import(stripQuery/extractHandlerParams/pathSegments 제외 — 부재/미사용). richer
+// extractHandlerMethods(hasBody·주석 상이)·HandlerDecorator·extractDtoFields·BackendContract/WebFire·pathParams·diffContract·toFire 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — LLM provider 수정(PATCH /api/llm/providers/:id) web↔backend **계약 drift guard**. 추출기 상세는 선례
 // part-update(T-1182) · llm-provider-create(T-1184) 참조(정규식만 → 새 dep 0). 신규 축: 3-세그먼트 base +
 // `@Patch(":id")` path param 결합 · 4 all-optional allowed-subset(required ∅ PATCH partial) · body/헤더 ↔ @Body 정합.
 
-function stripComments(source: string): string { // 주석 제거 — 추출이 주석 문구를 잡으면 guard 무력화(negative (h)).
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 interface HandlerDecorator {
   method: string;
   subPath: string;
@@ -91,11 +89,6 @@ interface WebFire {
   bodyKeys: Set<string>;
   hasBody: boolean;
   contentType: string | undefined;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 const pathParams = (route: string): string[] => route.split('/').filter((seg) => seg.startsWith(':'));
 // `:id`→실 id(web 과 동일 encodeURIComponent).
