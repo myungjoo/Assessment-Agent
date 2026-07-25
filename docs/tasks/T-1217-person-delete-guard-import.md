@@ -2,8 +2,11 @@
 id: T-1217
 title: person-delete-contract spec 의 char-identical 추출기 4종을 공용 helper import 로 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1109
+mergedAs: 76fd992d
+completedAt: 2026-07-25T09:17:25Z
 coversReq: [REQ-060]
 independentStream: web-contract-guard
 dependsOn: [T-1201]
