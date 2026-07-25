@@ -2,7 +2,7 @@
 id: T-1221
 title: part-persons-contract spec 의 char-identical 추출기 5종을 공용 helper import 로 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060]
 independentStream: web-contract-guard
@@ -67,3 +67,8 @@ implementer → tester
 ## Follow-ups
 
 - mutation/GET contract-guard spec 이관 stream 계속. 남은 후보: llm-provider-create·llm-provider-update·llm-provider-delete·schedule-trigger·schedule-apply·role-change·instance-access·recent-deletion·difficulty-mapping-assign·group-members·auth-me 등. 각 파일의 char-identical subset(공용과 함수 본문+주석까지 byte-identical 한 것만)을 개별 검증해 파일당 slice 로 이관. GET 계열은 stripQuery 포함 5종, mutation 계열은 4종이 통상 subset 크기(extractHandlerMethods 는 spec 별 inline 편차가 커 대부분 제외 대상).
+
+## 완료 (2026-07-25T13:14:04Z)
+
+- PR #1113 squash merge (b2ab5460), branch delete. reviewer round1 APPROVE(0 finding). 4-게이트 PASS.
+- AdminView.part-persons-contract.test.ts char-identical 추출기 5종 → 공용 helper alphabetical named import 교체 (+10/-17, 1 파일). web 1836 test green, tsc TS6133 0, build clean.
