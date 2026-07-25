@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { CreatePersonDeps } from './AdminView';
 import { runCreatePerson } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1215 이관 slice, mutation stream person-create).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 4종만** import(stripQuery/extractHandlerParams/pathSegments 제외 — 부재/미사용). richer
+// extractHandlerMethods(hasBody·주석 상이)·HandlerDecorator·DtoFields/extractDtoFields·BackendContract/WebFire·diffContract·toFire 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 인원 생성(POST /api/persons) web↔backend **계약 drift guard**. 추출기/대조기 상세 주석은
 // 선례 AdminView.create-user-contract.test.ts(T-1172, 다중 required) · AdminView.group-create-
@@ -12,18 +21,6 @@ import { runCreatePerson } from './AdminView';
 // (3) POST JSON body + Content-Type 존재 ↔ backend `@Body` 존재 정합(T-1177 DELETE body 부재와 대비).
 // (4) POST method ↔ `@Post`. base 오타·세그먼트 추가·method/DTO/`@Body` 변경 시 fail.
 
-// 주석 제거 — 추출이 주석 문구를 잡으면 guard 무력화(negative (h)).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 // method decorator — HTTP method + sub-path(`@Post()`→''; `@Post(":id")`→':id') + 시그니처의
 // `@Body` 존재 여부(body-요구 핸들러 대조 근거). 인자 부재가 bare route(세그먼트 0) 정규화 근거.
 interface HandlerDecorator {
@@ -88,11 +85,6 @@ interface WebFire {
   bodyKeys: Set<string>;
   hasBody: boolean;
   contentType: string | undefined;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 function diffContract(fire: WebFire, backend: BackendContract): string[] {
   if (!backend.route || !backend.method || backend.required.size + backend.optional.size === 0) {
