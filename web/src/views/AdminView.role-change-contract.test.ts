@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { ChangeRoleDeps } from './AdminView';
 import { runChangeRole } from './AdminView';
+import { composeRoute, extractControllerRoute, stripComments } from './__contract-guard__/contract-extractors';
 
 // R-112 — 역할 변경(PATCH /api/users/:id/role) web↔backend **계약 drift guard**. 선례
 // AdminView.instance-access-contract.test.ts(T-1169+T-1170)의 "backend 소스에서 계약을 추출해 web
@@ -10,19 +11,6 @@ import { runChangeRole } from './AdminView';
 // AST 대신 정규식만 — 새 devDependency 0). endpoint-특화 신규 축(enum 부분집합): ChangeRoleDto
 // `@IsIn(VALID_ROLE_VALUES)` 상 web fired-role 이 backend enum 부분집합 아니면 런타임 400 → ⊆ 단언.
 
-// 주석 제거 — 추출이 주석 문구를 잡으면 guard 가 무력해진다(아래 negative (g)).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-// `@Controller("api/users")` 인자 route. 없으면 null.
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 // method decorator — HTTP method + 인자 sub-path(`@Patch(':id/role')`→`':id/role'`; 없으면 '').
 interface HandlerDecorator {
   method: string;
@@ -104,12 +92,6 @@ interface WebFire {
   method: string;
   bodyKeys: Set<string>;
   body: Record<string, unknown>;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-// base route 에 sub-path 합성(빈 subPath 는 base 그대로).
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 // backend route 의 `:id` 를 사용자 id 로 치환한 기대 path.
 function expectedPath(route: string, subPath: string, userId: string): string {
