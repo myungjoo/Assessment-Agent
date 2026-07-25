@@ -2,7 +2,7 @@
 id: T-1212
 title: group-delete-contract spec 의 char-identical 추출기 4종을 공용 helper import 로 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060]
 independentStream: web-contract-guard
