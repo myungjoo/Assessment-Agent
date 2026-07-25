@@ -1,5 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1227 이관 slice).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일하고 잔여 참조가 남는 5종만** import. handler 추출기
+// (extractHandlerMethods/HandlerDecorator/extractHandlerParams/extractMeFireMethod)·per-spec 발사기/타입/
+// diffContract 는 inline 유지. normalizeRoute 는 helper composeRoute 내부 전용이라 import 하지 않는다(TS6133 방지).
+import {
+  composeRoute,
+  extractControllerRoute,
+  pathSegments,
+  stripComments,
+  stripQuery,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 현재 사용자 조회(GET /api/auth/me) web↔backend **계약 drift guard**. mirror 선례
 // AdminView.schedules-list-contract.test.ts(T-1199, cron-schedule.controller.ts read-side guard)를
@@ -14,17 +25,6 @@ import { describe, expect, it } from 'vitest';
 // 아니므로 hasBody === false && hasParam === false — @Req 를 body/param 으로 오분류하지 않는 판별을
 // 새 축으로 고정. 정규식 추출기만 — 새 devDependency 0, 공용 helper 추출은 Out of Scope refactor slice.
 
-function stripComments(source: string): string { // 주석 제거 — 추출이 주석 문구를 잡으면 guard 무력화(negative (g)).
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 interface HandlerDecorator {
   method: string;
   subPath: string;
@@ -93,13 +93,6 @@ interface WebFire {
   method: string;
   hasParamSegment: boolean;
 }
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
-}
-const pathSegments = (route: string): string[] => route.split('/').filter(Boolean);
-const stripQuery = (path: string): string => path.split('?')[0]; // `?_r=n` cache-buster 제거 — base 만 대조.
 // 불일치 사유 목록 — 빈 배열=계약 일치. 추출 실패도 통과가 아니라 사유 1건(선단언 방어). GET 조회는 body/param
 // 계약이 없으므로 base 경로 + method 만 대조하되, backend 가 @Body/@Param 을 보유(무-body·무-param read 위반)하거나
 // web 발사에 : 동적 세그먼트가 있으면 인자 계약 불일치로 잡는다(mutation 으로 오변질 방지). query 는 strip 후 base 대조.
