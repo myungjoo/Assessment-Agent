@@ -3,22 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { ScheduleMutationDeps } from './AdminView';
 import { runTrigger } from './AdminView';
+import { composeRoute, extractControllerRoute, pathSegments, stripComments } from './__contract-guard__/contract-extractors';
 
 // R-112 — 수동 재평가 즉시 실행 트리거(POST /api/schedules/trigger) web↔backend **계약 drift
 // guard**. mirror 선례 AdminView.recent-deletion-contract.test.ts(T-1196)를 대상만 trigger(POST +
 // body·param 없는 202 fire-and-forget)로 교체. 판별 축: method=POST · literal `trigger` 단일
 // 세그먼트(path-param 없음) · @Body·@Param 부재 · busy 이중발사 미발사 guard · 형제 controller base-혼동. 정규식 추출기만(새 devDependency 0).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 interface HandlerDecorator {
   method: string;
   subPath: string;
@@ -90,12 +80,6 @@ interface WebFire {
   bodyKeys: Set<string>;
   hasParamSegment: boolean;
 }
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
-}
-const pathSegments = (route: string): string[] => route.split('/').filter(Boolean);
 // 불일치 사유 목록 — 빈 배열이 곧 "계약 일치". 추출 실패도 통과 아닌 사유 1건(선단언 방어). trigger 는 body 필드 대신 인자 부재를 대조.
 function diffContract(fire: WebFire, backend: BackendContract): string[] {
   if (!backend.route || !backend.method) {
