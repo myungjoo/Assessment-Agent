@@ -1,6 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildGroupMembersPath } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1225 이관 slice).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 5종만** import. richer extractHandlerMethods(5-field
+// hasBody/hasParam/hasQuery)·HandlerDecorator(5-field)·pathParams·extractMembersFireMethod/per-spec 타입/diffContract 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+  stripQuery,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 그룹 멤버십 조회(GET /api/groups/:id/members) web↔backend **계약 drift guard**. 직접 mirror
 // 선례 part-persons(T-1192) 재적용 — findPersons(/api/parts/:id/persons)에서 findMembers 로 대상 교체.
@@ -9,17 +19,6 @@ import { buildGroupMembersPath } from './AdminView';
 // findMembers(literal members)를 추출기가 같은 깊이·다른 literal 로 판별해 web 멤버십 발사(:id/members)를
 // findMembers 에 매칭하고 findPersons 와 **혼동하지 않아야** 한다. mutation(@Post/@Delete :id/members) 은 대조군.
 
-function stripComments(source: string): string { // 주석 제거 — 추출이 주석 문구를 잡으면 guard 무력화(negative (f)).
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 interface HandlerDecorator {
   method: string;
   subPath: string;
@@ -86,13 +85,7 @@ interface WebFire {
   path: string;
   method: string;
 }
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
-}
 const pathParams = (route: string): string[] => route.split('/').filter((seg) => seg.startsWith(':'));
-const stripQuery = (path: string): string => path.split('?')[0]; // `?_r=n` cache-buster 제거 — base 만 대조.
 // route template 의 `:id` 를 web 과 동일하게 encodeURIComponent 로 치환한 기대 path(`/`→`%2F` 라 literal `members` 세그먼트를 안 삼킴).
 function expectedPath(route: string, subPath: string, id: string): string {
   return composeRoute(route, subPath).replace(':id', encodeURIComponent(id));
