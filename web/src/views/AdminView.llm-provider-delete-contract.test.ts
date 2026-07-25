@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { DeleteProviderDeps } from './AdminView';
 import { runDeleteProvider } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1224 이관 slice, mutation stream llm-provider-delete).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 4종만** import(stripQuery/extractHandlerParams/pathSegments 제외 — 부재/미사용). richer
+// extractHandlerMethods(hasBody·주석 상이)·HandlerDecorator·handlerHasBody·BackendContract/WebFire·pathParams·expectedPath·diffContract·toFire 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — LLM provider 삭제(DELETE /api/llm/providers/:id) web↔backend **계약 drift guard**. 추출기/대조기
 // 패턴은 선례 part-delete(T-1183, `api/parts` base + `@Delete(":id")` 단일 path param + `@Body` 부재 + DELETE
@@ -13,19 +22,6 @@ import { runDeleteProvider } from './AdminView';
 // (2) DELETE + body/Content-Type 부재 AND backend `@Body` decorator **부재**(같은 소스의 update 핸들러 @Body
 // 존재 축과 대비). (3) `@Delete` method + `@HttpCode(204)` 사이 decorator 무시. 핸들러 이름은 `delete`.
 
-// 주석 제거 — 추출이 주석 문구를 잡으면 guard 가 무력해진다(아래 negative (h)).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-// `@Controller("api/llm/providers")` 인자 route. 없으면 null.
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 // method decorator — HTTP method + 인자 sub-path(`@Delete(":id")`→':id'; bare `@Delete()`→''). 인자
 // 부재=세그먼트 0, `:id`=path param 1 세그먼트 정규화 근거. 사이 decorator(@HttpCode/@UseGuards/@Roles)는
 // pending 유지 continue.
@@ -80,12 +76,6 @@ interface WebFire {
   method: string;
   bodyKeys: Set<string>;
   hasContentType: boolean;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-// base route 에 sub-path 합성(빈 subPath 는 base 그대로 — bare route 정규화 핵심).
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 // route template 의 `:param` 세그먼트 목록(`:id` 정확히 1개 검증용).
 const pathParams = (route: string): string[] => route.split('/').filter((seg) => seg.startsWith(':'));
