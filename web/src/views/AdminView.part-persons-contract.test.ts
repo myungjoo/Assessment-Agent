@@ -1,6 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildPartPersonsPath } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1221 이관 slice).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 5종만** import. richer extractHandlerMethods(5-field
+// hasBody/hasParam/hasQuery)·HandlerDecorator(5-field)·pathParams·extractPersonsFireMethod/per-spec 타입/diffContract 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+  stripQuery,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 파트 소속 인원 조회(GET /api/parts/:id/persons) web↔backend **계약 drift guard**.
 // 직전 파트 GET-list slice(T-1191, @Get() findAll · bare base)의 mirror — 발사 대상을 findAll →
@@ -13,17 +23,6 @@ import { buildPartPersonsPath } from './AdminView';
 // 를 추출기가 정확히 판별해야 한다. mutation(create/update/delete)은 method drift 대조군. 정규식 추출기만
 // — 새 devDependency 0, 공용 helper 추출은 Out of Scope refactor slice.
 
-function stripComments(source: string): string { // 주석 제거 — 추출이 주석 문구를 잡으면 guard 무력화(negative (g)).
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 interface HandlerDecorator {
   method: string;
   subPath: string;
@@ -92,13 +91,7 @@ interface WebFire {
   path: string;
   method: string;
 }
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
-}
 const pathParams = (route: string): string[] => route.split('/').filter((seg) => seg.startsWith(':'));
-const stripQuery = (path: string): string => path.split('?')[0]; // `?_r=n` cache-buster 제거 — base 만 대조.
 // route template 의 `:id` 를 실 id(web 과 동일하게 encodeURIComponent)로 치환한 기대 path. encodeURIComponent
 // 는 `:`→`%3A`·`/`→`%2F` 로 인코딩하므로 치환 후 param 값이 literal `persons` 세그먼트를 삼키지 않는다.
 function expectedPath(route: string, subPath: string, id: string): string {
