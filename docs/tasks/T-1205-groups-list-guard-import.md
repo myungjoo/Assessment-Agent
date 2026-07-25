@@ -2,7 +2,7 @@
 id: T-1205
 title: contract-guard 소비 spec 이관 slice 4 — AdminView.groups-list-contract.test.ts 의 inline invariant 추출기 중 공용 helper 와 글자-동일한 5종(stripComments·extractControllerRoute·normalizeRoute·composeRoute·stripQuery)만 __contract-guard__/contract-extractors.ts import 로 교체(richer extractHandlerMethods·pathParams 등 변형은 inline 유지, 동작 무변경)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060]
 estimatedDiff: 25
