@@ -2,8 +2,9 @@
 id: T-1218
 title: part-create-contract spec 의 char-identical 추출기 4종을 공용 helper import 로 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1110
 coversReq: [REQ-060]
 independentStream: web-contract-guard
 dependsOn: [T-1201]
@@ -57,6 +58,10 @@ T-1201 이 신설한 공용 추출기 모듈(`web/src/views/__contract-guard__/c
 ## Suggested Sub-agents
 
 implementer → tester
+
+## Result
+
+**DONE 2026-07-25T10:13:53Z** — PR #1110 merged (squash 49adf1a1, branch delete). char-identical 추출기 4종(`composeRoute`·`extractControllerRoute`·`normalizeRoute`·`stripComments`) inline 삭제 → `./__contract-guard__/contract-extractors` alphabetical named import 교체 (+9/-17, 1파일). `extractHandlerMethods`(hasBody)·전용 타입 inline 유지. 4종 잔여 참조로 TS6133 미발생. web 1836 test green + build pass, test case 수 불변. reviewer round 1/7 APPROVE(0 finding), 4-게이트 PASS(reviewer comment external issuecomment-5078105360, CI 기본검사+배포산출물검증 green, mergeState CLEAN). fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local15-7f3c). counters 1208→1209. dup-PR 0.
 
 ## Follow-ups
 
