@@ -2,7 +2,7 @@
 id: T-1207
 title: llm-provider-list-contract spec 의 char-identical 추출기 5종을 공용 helper import 로 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060]
 independentStream: web-contract-guard
@@ -11,6 +11,9 @@ touchesFiles: [web/src/views/AdminView.llm-provider-list-contract.test.ts]
 estimatedDiff: 25
 estimatedFiles: 1
 created: 2026-07-25
+completedAt: 2026-07-25T01:57:26Z
+mergedAs: 4f9623b7
+prNumber: 1099
 plannerNote: P6 contract-guard dedup stream — T-1206 Follow-up llm-provider-list; inline 5종을 T-1201 공용 helper import 로 교체(변형 inline 유지), behavior-preserving.
 ---
 
