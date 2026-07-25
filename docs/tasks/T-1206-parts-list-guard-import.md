@@ -2,7 +2,7 @@
 id: T-1206
 title: parts-list-contract spec 의 char-identical 추출기 5종을 공용 helper import 로 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060]
 independentStream: web-contract-guard
@@ -56,3 +56,9 @@ implementer → tester
 ## Follow-ups
 
 - 남은 GET-list contract-guard spec 이관 후보: `AdminView.llm-provider-list-contract.test.ts`, `AdminView.difficulty-mapping-list-contract.test.ts` (각각 char-identical subset 검증 후 scope).
+
+## Result
+
+Status: DONE (2026-07-25T01:13Z, cron@aa-local15-d5c2)
+
+parts-list-contract spec 의 글자-동일 추출기 5종(`stripComments`·`extractControllerRoute`·`normalizeRoute`·`composeRoute`·`stripQuery`)을 T-1201 공용 helper import 로 교체. richer 변형(5-field `extractHandlerMethods`·`extractPartsFireMethod`·`pathParams` 등) inline 유지. +10/-17 (1 파일), web test 1836 green, build clean, test case 수 14 불변. reviewer round1 APPROVE(0 finding) 4-게이트 PASS, CI green(기본 검사 + Docker smoke). PR #1098 squash merge c9212243, branch delete. counters 1196→1197.
