@@ -2,7 +2,7 @@
 id: T-1210
 title: create-user-contract spec 의 char-identical 추출기 5종을 공용 helper import 로 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060]
 independentStream: web-contract-guard
@@ -58,3 +58,12 @@ implementer → tester
 ## Follow-ups
 
 - mutation contract-guard spec 이관 stream 계속. 남은 후보: group-update·group-delete·group-member-add/remove·person-create/update/delete·part-create/update/delete·llm-provider-create/update/delete·schedule-trigger/apply·role-change·instance-access·recent-deletion·difficulty-mapping-assign·group-members·part-persons·auth-me 등. 각 파일의 char-identical subset(공용과 함수 본문+주석까지 byte-identical 한 것만)을 개별 검증해 파일당 slice 로 이관. mutation spec 은 richer 변형·전용 추출기 비중이 커 slice 별 char-identical subset 크기가 4~6종으로 편차가 있으므로 확인 필요.
+
+## Result (DONE)
+
+- 완료: 2026-07-25T04:15:43Z (PR #1102 squash f0ca15bc merge). cron@aa-local15-116f fire.
+- `AdminView.create-user-contract.test.ts` inline 추출기 5종 정의 삭제, 실 참조 4종(composeRoute·extractControllerRoute·extractHandlerMethods·stripComments) 공용 helper alphabetical named import 교체. +13/-47, 1파일.
+- `normalizeRoute`·`HandlerDecorator`: 삭제 후 코드 참조 0(공용 composeRoute 가 normalizeRoute 를 전이 사용, spec 직접 참조 없음) → import 시 tsc noUnusedLocals(TS6133) fail 이므로 미import. task 의 HandlerDecorator "잔여 참조 없으면 미import" 규칙을 normalizeRoute 에 동형 적용,근거 주석 명시. AC #1 의 5종 import 예시와 편차이나 tsc-검증 조건부 규칙으로 충족(inline 5종 정의는 전부 삭제).
+- 전용 추출기·타입(extractDtoFields·DtoFields·BackendContract·WebFire·diffContract) inline 유지. stripQuery·extractHandlerParams·pathSegments 미추가.
+- web vitest 62파일/1836 test green, tsc --noEmit + vite build 통과, 15/15 create-user-contract test·describe/it 문자열·단언 불변. production src 0 LOC.
+- reviewer round 1/7 APPROVE(0 finding). 4-게이트 PASS. dup-PR 0.
