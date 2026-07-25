@@ -3,23 +3,13 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { ReEvaluationDeps } from './AdminView';
 import { buildRecentDeletionPath, runReEvaluate } from './AdminView';
+import { composeRoute, extractControllerRoute, pathSegments, stripComments } from './__contract-guard__/contract-extractors';
 
 // R-112 — 재평가 트리거(POST /api/schedules/recent-deletion/:personId) web↔backend **계약 drift
 // guard**. mirror 선례 AdminView.role-change-contract.test.ts(T-1171)를 대상만 recentDeletion(POST +
 // @Body RecentDeletionDto)으로 교체. 판별 축: method=POST · @Body{instants 필수/days optional} ·
 // literal `recent-deletion` + `:personId` 합성 · encodeURIComponent · falsy-personId 미발사 guard ·
 // 형제 api/schedules base-혼동. 정규식 추출기만 — 새 devDependency 0(공용 helper 추출은 Out of Scope).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 interface HandlerDecorator {
   method: string;
   subPath: string;
@@ -95,12 +85,6 @@ interface WebFire {
   bodyKeys: Set<string>;
   body: Record<string, unknown>;
 }
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
-}
-const pathSegments = (route: string): string[] => route.split('/').filter(Boolean);
 const expectedPath = (route: string, subPath: string, personId: string): string =>
   composeRoute(route, subPath).replace(':personId', encodeURIComponent(personId));
 // 불일치 사유 목록 — 빈 배열이 곧 "계약 일치". 추출 실패도 통과가 아니라 사유 1건이다(선단언 방어).
