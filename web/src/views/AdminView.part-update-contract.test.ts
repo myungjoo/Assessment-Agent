@@ -3,23 +3,21 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { UpdatePartDeps } from './AdminView';
 import { runUpdatePart } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1219 이관 slice, mutation stream part-update).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 4종만** import(stripQuery/extractHandlerParams/pathSegments 제외 — 부재/미사용). richer
+// extractHandlerMethods(hasBody·주석 상이)·HandlerDecorator·extractDtoFields·BackendContract/WebFire·pathParams·diffContract·toFire 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 파트 수정(PATCH /api/parts/:id) web↔backend **계약 drift guard**. 추출기/대조기 상세 주석은 선례
 // person-update(T-1179, `@Patch(":id")` param 1 + encodeURIComponent + partial(required ∅)) · group-update
 // (T-1176, name 단일 optional) · part-create(T-1181, `api/parts` base) 참조(정규식만 — 새 dep 0). 신규 축:
 // `api/parts` base + `@Patch(":id")`(param 1) · name **단일 optional**(required ∅ → PATCH partial) ·
 // PATCH body/헤더 ↔ `@Body` 정합. required ∅(partial) 를 명시 대조(required≠∅ → partial 위반).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 interface HandlerDecorator {
   method: string;
   subPath: string;
@@ -91,11 +89,6 @@ interface WebFire {
   bodyKeys: Set<string>;
   hasBody: boolean;
   contentType: string | undefined;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 const pathParams = (route: string): string[] => route.split('/').filter((seg) => seg.startsWith(':'));
 function expectedPath(route: string, subPath: string, id: string): string { // `:id`→실 id(web 과 동일 encodeURIComponent)
