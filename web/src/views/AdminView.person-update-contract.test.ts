@@ -3,22 +3,20 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { PersonPatch, UpdatePersonDeps } from './AdminView';
 import { runUpdatePerson } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1216 이관 slice, mutation stream person-update).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 4종만** import(stripQuery/extractHandlerParams/pathSegments 제외 — 부재/미사용). richer
+// extractHandlerMethods(hasBody·주석 상이)·HandlerDecorator·DtoFields/extractDtoFields·BackendContract/WebFire·diffContract·toFire 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 인원 수정(PATCH /api/persons/:id) web↔backend **계약 drift guard**. 추출기/대조기 상세 주석은 선례
 // group-update(T-1176, `@Patch(":id")` param 1 + encodeURIComponent + partial) · person-create(T-1178, base +
 // `@Body` hasBody) 참조(정규식만 — 새 dep 0). 신규 축: `api/persons`+`@Patch(":id")`(param 1) · 다중 optional
 // {fullName,email,active}(required ∅ + `active` boolean) · PATCH body/헤더 ↔ `@Body` 정합.
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 interface HandlerDecorator {
   method: string;
   subPath: string;
@@ -91,11 +89,6 @@ interface WebFire {
   hasBody: boolean;
   contentType: string | undefined;
   body: Record<string, unknown>;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 const pathParams = (route: string): string[] => route.split('/').filter((seg) => seg.startsWith(':'));
 function expectedPath(route: string, subPath: string, id: string): string { // `:id`→실 id(web 과 동일 encodeURIComponent)
