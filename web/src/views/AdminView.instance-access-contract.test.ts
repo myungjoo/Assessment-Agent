@@ -38,23 +38,16 @@ import {
   runGrantInstanceAccess,
   runRevokeInstanceAccess,
 } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1228 이관 slice).
+// 공용과 글자-동일한 3종만 import. handler 추출기 family(extractHandlerMethods·extractDtoFields)·
+// per-spec 발사기/타입·변형 composeRoute(const base) 는 inline 유지.
+import {
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // ── backend 계약 추출기(로컬) ───────────────────────────────────────────────────────────────
-// 줄 주석 / 블록 주석 제거 — 추출이 주석 문구를 잡으면 guard 가 무력해진다(아래 negative (f)).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-
-// `@Controller("api/users/:id/instance-access")` 의 인자 route. 없으면 null.
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
-
 // method decorator 1건 — HTTP method 와 그 인자 sub-path(`@Post('grant')` 의 `'grant'`; 인자
 // 없으면 `''`). Follow-up (1): 인자를 route 합성에 써야 실 route shape 를 재구성한다.
 interface HandlerDecorator {
@@ -126,8 +119,6 @@ interface WebFire {
   method: string;
   bodyKeys: Set<string>;
 }
-
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
 
 // base route 에 handler decorator 인자(sub-path)를 합성한다 — Follow-up (1). subPath 가 비면
 // base 그대로, 있으면 `<base>/<subPath>`(중복 `/` 정리).
