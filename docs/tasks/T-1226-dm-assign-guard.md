@@ -2,7 +2,7 @@
 id: T-1226
 title: difficulty-mapping-assign 계약 guard spec char-identical 추출기 4종 공용 helper import 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-112]
 estimatedDiff: 12
@@ -60,3 +60,7 @@ invariant 추출기를 파일당 하나씩 이관한다. LLM provider CRUD 4종(
 ## Follow-ups
 
 - 남은 INLINE mutation/기타 contract-guard spec: auth-me·instance-access·recent-deletion·role-change·schedule-apply·schedule-trigger — 각각 char-identical subset 검증 후 후속 slice 로.
+
+## Result
+
+**DONE** 2026-07-25T17:50Z — PR [#1118](https://github.com/myungjoo/Assessment-Agent/pull/1118) squash-merge(`e6210a40`). char-identical 추출기 4종(composeRoute·extractControllerRoute·normalizeRoute·stripComments) inline 정의 삭제 후 T-1201 공용 helper alphabetical named import 로 교체. 1 파일 +9/-16, production 0 LOC. 대상 spec 전부 green, tsc clean(TS6133 0). reviewer APPROVE round 1/7(0 findings), 4-게이트 all PASS, CI green.
