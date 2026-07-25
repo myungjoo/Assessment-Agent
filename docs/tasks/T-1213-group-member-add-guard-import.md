@@ -2,7 +2,7 @@
 id: T-1213
 title: group-member-add-contract spec 의 char-identical 추출기 4종을 공용 helper import 로 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060]
 independentStream: web-contract-guard
@@ -59,3 +59,11 @@ implementer → tester
 ## Follow-ups
 
 - mutation contract-guard spec 이관 stream 계속. 남은 후보: group-member-remove·person-create/update/delete·part-create/update/delete·llm-provider-create/update/delete·schedule-trigger/apply·role-change·instance-access·recent-deletion·difficulty-mapping-assign·group-members·part-persons·auth-me 등. 각 파일의 char-identical subset(공용과 함수 본문+주석까지 byte-identical 한 것만)을 개별 검증해 파일당 slice 로 이관. extractHandlerMethods 는 spec 별 inline 주석 편차가 커 대부분 제외 대상 — subset 크기는 3~5종 편차이므로 확인 필요.
+
+---
+
+## Result
+
+Status: DONE (2026-07-25T06:13:18Z)
+
+PR #1105 squash-merged (merge commit 70edaecc). reviewer round 1/7 APPROVE (0 finding), 4-게이트 PASS(reviewer comment external issuecomment-5077261141 + CI green [기본 검사 pass 4m15s · 배포 산출물 검증 pass] + acceptance ok + mergeState CLEAN). char-identical 추출기 4종(composeRoute·extractControllerRoute·normalizeRoute·stripComments) inline 삭제→공용 helper alphabetical named import 교체 +9/-19 1파일. extractHandlerMethods(주석 상이)·전용 추출기/타입 inline 유지. web test 1836 green, tsc+build clean(TS6133 무). dup-PR 0.
