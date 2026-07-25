@@ -2,7 +2,7 @@
 id: T-1231
 title: schedule-apply 계약 guard spec char-identical 추출기 공용 helper import 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-112]
 estimatedDiff: 12
