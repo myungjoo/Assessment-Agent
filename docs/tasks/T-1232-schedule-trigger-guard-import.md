@@ -2,7 +2,7 @@
 id: T-1232
 title: schedule-trigger 계약 guard spec char-identical 추출기 공용 helper import 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-112]
 estimatedDiff: 12
