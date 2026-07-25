@@ -4,22 +4,20 @@ import type { RequestOptions } from '../api/apiClient';
 import type { Difficulty } from '../components/DifficultyModelSelector';
 import type { AssignDeps } from './AdminView';
 import { runAssign } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1226 이관 slice).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 4종만** import(stripQuery 제외 — PATCH-with-body fire 라 부재). richer
+// extractHandlerMethods(hasBody 판정·멀티라인 시그니처, 주석 상이)·HandlerDecorator(hasBody 필드)·DtoFields·extractDtoFields·BackendContract/WebFire·diffContract 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 난이도-모델 매핑 지정(PATCH /api/llm/difficulty-mappings/:difficulty) web↔backend **계약 drift guard**.
 // 추출기 상세는 선례 llm-provider-update(T-1185) 참조(정규식만 → 새 dep 0). 신규 축: 3-세그먼트 base `api/llm/difficulty-mappings`
 // + `@Patch(":difficulty")` semantic path param + 단일 required body `llmProviderConfigId`(부분갱신 아닌 필수 지정) + 200 with-body.
 
-function stripComments(source: string): string { // 주석 제거 — 추출이 주석 문구를 잡으면 guard 무력화(negative (h)).
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 interface HandlerDecorator {
   method: string;
   subPath: string;
@@ -92,11 +90,6 @@ interface WebFire {
   bodyKeys: Set<string>;
   hasBody: boolean;
   contentType: string | undefined;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 const pathParams = (route: string): string[] => route.split('/').filter((seg) => seg.startsWith(':'));
 // `:difficulty`→실 난이도(web 과 동일 encodeURIComponent — runAssign 이 `${difficulty}` 를 그대로 삽입하므로 정합 확인).
