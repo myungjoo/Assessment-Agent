@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { RemoveDeps } from './AdminView';
 import { runRemove } from './AdminView';
+// 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1214 이관 slice, mutation stream group-member-remove).
+// 이 spec 이 참조하는 export 중 **공용과 글자-동일한 4종만** import(stripQuery/extractHandlerParams/pathSegments 제외 — 부재/미사용). richer
+// extractHandlerMethods(주석 상이)·HandlerDecorator·BackendContract/WebFire·subPathSegments·fillParams·diffContract·toFire 는 inline 유지.
+import {
+  composeRoute,
+  extractControllerRoute,
+  normalizeRoute,
+  stripComments,
+} from './__contract-guard__/contract-extractors';
 
 // R-112 — 그룹 멤버 제거(DELETE /api/groups/:id/members/:membershipId) web↔backend **계약 drift
 // guard**. 선례 AdminView.group-member-add-contract.test.ts(T-1173) 등 4 slice 의 "backend 소스에서
@@ -13,19 +22,6 @@ import { runRemove } from './AdminView';
 // guard. (2) DELETE + body 완전 부재 — 발사 init 에 body 키가 없어야(빈 집합) 정상, 붙으면 초과 fail.
 // (3) :membershipId(≠:personId) param 명 대조 — 원안 :personId 회귀를 잡는다.
 
-// 주석 제거 — 추출이 주석 문구를 잡으면 guard 가 무력해진다(아래 negative (h)).
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-}
-// `@Controller("api/groups")` 인자 route. 없으면 null.
-function extractControllerRoute(source: string): string | null {
-  const matched = /^[ \t]*@Controller\(\s*['"`]([^'"`]+)['"`]\s*\)/m.exec(stripComments(source));
-  return matched ? matched[1] : null;
-}
 // method decorator — HTTP method + 인자 sub-path(`@Delete(":id/members/:membershipId")` →
 // {DELETE, ':id/members/:membershipId'}). @HttpCode 등 사이 decorator 는 pending 을 리셋하지 않고 continue.
 interface HandlerDecorator {
@@ -65,13 +61,6 @@ interface WebFire {
   method: string;
   bodyKeys: Set<string>;
   hasContentType: boolean;
-}
-const normalizeRoute = (route: string): string => (route.startsWith('/') ? route : `/${route}`);
-// base route 에 sub-path 합성(`api/groups` + `:id/members/:membershipId` →
-// `/api/groups/:id/members/:membershipId`).
-function composeRoute(route: string, subPath: string): string {
-  const trimmed = subPath.replace(/^\//, '');
-  return trimmed ? `${normalizeRoute(route)}/${trimmed}` : normalizeRoute(route);
 }
 // subPath 의 세그먼트 배열(`:id/members/:membershipId` → [':id','members',':membershipId']). param(`:`)/
 // static 순서를 세그먼트 단위로 검증하기 위한 helper — 다중 param + 중간 static 구조 대조의 핵심.
