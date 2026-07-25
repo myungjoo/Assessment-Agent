@@ -2,7 +2,7 @@
 id: T-1229
 title: recent-deletion 계약 guard spec char-identical 추출기 4종 공용 helper import 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-112]
 estimatedDiff: 12
@@ -56,3 +56,10 @@ implementer → tester
 ## Follow-ups
 
 (없음 — 생성 시 비움)
+
+## Result (DONE)
+
+- 완료: 2026-07-25T20:xxZ (cron@aa-local15-a1f92003 fire)
+- PR #1121 squash-merge `10d813e2` + branch delete. reviewer round 1/7 APPROVE(0 finding), 4-게이트 PASS(reviewer comment issuecomment-5080389015, CI green run 30172958324, mergeState CLEAN).
+- 변경: `AdminView.recent-deletion-contract.test.ts` +1/-17 (inline 추출기 4종 삭제 → alphabetical named import 1줄, normalizeRoute inline 삭제·미import). production 0 LOC.
+- 검증: recent-deletion spec 22/22 green, 전체 web suite green, tsc --noEmit clean(TS6133=0). counters 1219→1220.
