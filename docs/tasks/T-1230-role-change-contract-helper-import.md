@@ -2,8 +2,10 @@
 id: T-1230
 title: role-change 계약 guard spec char-identical 추출기 공용 helper import 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1122
+completedAt: 2026-07-25T21:12:00Z
 coversReq: [REQ-112]
 estimatedDiff: 12
 estimatedFiles: 1
