@@ -2,7 +2,11 @@
 id: T-1244
 title: exportJobFlow terminal-token drift-guard spec 신설 — web 종결 상수 ↔ prisma JobStatus enum 기계 검증
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-26T08:05:00Z
+mergedAs: 9a8bd464
+prNumber: 1136
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-057, REQ-030, REQ-032]
 estimatedDiff: 130
