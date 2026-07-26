@@ -2,7 +2,9 @@
 id: T-1237
 title: GroupMemberList 에 멤버 추가(onAdd) presentational UI slice 신설 — 후보 select + 추가 버튼
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-26T03:18:33Z
+prNumber: 1129
 commitMode: pr
 coversReq: [REQ-046, REQ-047]
 estimatedDiff: 190
