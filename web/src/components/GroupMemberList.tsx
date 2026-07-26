@@ -35,11 +35,45 @@ const ADD_LABEL = '추가';
 const ADD_PLACEHOLDER = '추가할 인원 선택';
 // 추가 후보가 0개일 때 노출할 한국어 안내 — select 를 disabled 로 두고 함께 표시한다(throw 없이 안전 표시).
 const NO_CANDIDATES_TEXT = '추가할 인원이 없습니다';
+// 추가 후보 검색 입력의 aria-label — 대량 후보(수백 인원) 시 부분일치로 옵션을 좁히는 검색 입력.
+const SEARCH_LABEL = '추가 후보 검색';
+// 원본 후보는 ≥1개이나 필터 결과가 0개일 때 노출할 한국어 안내(검색어 미매칭) — throw 없이 안전 표시.
+const NO_RESULTS_TEXT = '검색 결과 없음';
 
 // 추가 버튼 비활성 판정(순수) — 후보 미선택(빈 personId)이거나 후보가 0개면 비활성이다.
 // 잘못된 빈 personId 전송·빈 후보 상태의 오발사를 렌더 단계에서 원천 차단한다.
 function isAddDisabled(selectedPersonId: string, candidateCount: number): boolean {
   return selectedPersonId === '' || candidateCount === 0;
+}
+
+// 후보 필터링(순수) — filterText 를 trim + toLowerCase 한 질의어로 각 후보의 name(및 존재 시
+// role)에 대해 case-insensitive 부분일치(includes)한 후보만 남긴 배열을 반환한다. 질의어가
+// 빈 문자열/공백뿐이면 필터를 적용하지 않고 후보 전체를 그대로 반환한다. candidates 가 배열이
+// 아니면(undefined 등) 빈 배열을 반환한다(throw 없음 — isAddDisabled/submitAdd 와 동형 방어).
+// 대량 후보(수백 인원) 시 특정 인원 선택 사용성을 위한 client-side 단순 부분일치 1종이다.
+function filterCandidates(
+  candidates: Member[] | undefined,
+  filterText: string,
+): Member[] {
+  // 비배열 방어 — undefined/비배열이면 빈 배열 반환(throw 없이 안전).
+  if (!Array.isArray(candidates)) {
+    return [];
+  }
+  // 질의어 정규화 — 앞뒤 공백 제거 후 소문자화. 빈 질의어면 필터 미적용(후보 전체 반환).
+  const query = filterText.trim().toLowerCase();
+  if (query === '') {
+    return candidates;
+  }
+  // name(항상) 또는 role(존재 시)에 질의어가 부분일치하면 남긴다(case-insensitive).
+  return candidates.filter((candidate) => {
+    if (candidate.name.toLowerCase().includes(query)) {
+      return true;
+    }
+    if (candidate.role && candidate.role.toLowerCase().includes(query)) {
+      return true;
+    }
+    return false;
+  });
 }
 
 // 추가 제출 로직(순수) — 선택된 personId 가 비어있지 않고 onAdd 가 주어졌을 때만 정확히
@@ -90,6 +124,10 @@ function GroupMemberList({
   // 데이터 fetch state 는 두지 않는다(순수 controlled 유지 — ADR-0040 §1, ADR-0041 §5).
   const [selectedPersonId, setSelectedPersonId] = useState('');
 
+  // 추가 후보 검색어 — 로컬 useState 로 controlled. 초기값은 빈 문자열(필터 미적용 → 후보 전체).
+  // 필터는 옵션 렌더만 좁히며(원본 candidates 는 후보 유무 판정에 그대로 사용), 순수 controlled 를 유지한다.
+  const [filterText, setFilterText] = useState('');
+
   // 후보 배열 정규화 — 미전달이면 빈 배열로 취급(빈 후보 안전 표시 경로로 진입).
   const candidates = addCandidates ?? [];
 
@@ -106,6 +144,12 @@ function GroupMemberList({
 
   // 추가 form 영역 — onAdd 가 주어졌을 때만 렌더한다(미전달 시 null → 기존 렌더와 byte 동등).
   // 후보 0개면 안내 문구 + disabled select 로 안전 표시하고, 미선택이면 추가 버튼을 disabled 로 둔다.
+  // 옵션 소스 — 필터 결과로 좁힌 후보. 원본 candidates 는 후보 유무 판정(빈 후보 안내·select
+  // disabled·추가 버튼 disabled)에 그대로 쓰고, <option> 렌더만 filtered 를 사용한다.
+  const filtered = filterCandidates(candidates, filterText);
+  // 검색 결과 없음 분기 — 원본 후보는 ≥1개이나 필터 결과가 0개일 때만 안내(빈 후보 안내와 구분).
+  const showNoResults = candidates.length > 0 && filtered.length === 0;
+
   const addForm = onAdd ? (
     <form
       onSubmit={(event) => {
@@ -116,6 +160,17 @@ function GroupMemberList({
     >
       {/* 후보가 0개면 한국어 안내를 함께 표시한다(select 도 disabled — 이중 안전 표시). */}
       {candidates.length === 0 ? <span>{NO_CANDIDATES_TEXT}</span> : null}
+      {/* 추가 후보 검색 입력 — 이름/역할 부분일치로 옵션을 좁힌다(대량 후보 사용성). onAdd
+          있을 때만(addForm 안) 렌더되므로 onAdd 미전달 렌더는 byte 동등을 유지한다. */}
+      <input
+        type="search"
+        aria-label={SEARCH_LABEL}
+        value={filterText}
+        onChange={(event) => setFilterText(event.target.value)}
+      />
+      {/* 필터 결과가 0개(원본 후보는 있음)면 한국어 안내를 표시하고 select 는 placeholder 만
+          남긴다(throw 없이 안전 표시). 미선택 유지로 추가 버튼은 disabled 다. */}
+      {showNoResults ? <span>{NO_RESULTS_TEXT}</span> : null}
       <select
         name="addCandidate"
         value={selectedPersonId}
@@ -124,7 +179,7 @@ function GroupMemberList({
       >
         {/* 미선택 placeholder 옵션 — value 는 빈 문자열이라 추가를 트리거하지 않는다. */}
         <option value="">{ADD_PLACEHOLDER}</option>
-        {candidates.map((candidate) => (
+        {filtered.map((candidate) => (
           <option key={candidate.id} value={candidate.id}>
             {/* 이름은 항상, role 은 있을 때만 괄호로 함께 표시(없으면 이름만). */}
             {candidate.role ? `${candidate.name} (${candidate.role})` : candidate.name}
@@ -185,6 +240,6 @@ function GroupMemberList({
   );
 }
 
-export { isAddDisabled, submitAdd };
+export { isAddDisabled, submitAdd, filterCandidates };
 export type { Member, GroupMemberListProps };
 export default GroupMemberList;
