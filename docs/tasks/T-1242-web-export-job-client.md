@@ -2,7 +2,7 @@
 id: T-1242
 title: web export-job API client 모듈 신설 — job 기반 POST 계약(api.md 124)에 맞춘 순수 client helper
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-057, REQ-030, REQ-032]
 estimatedDiff: 230
@@ -60,6 +60,12 @@ plannerNote: P6 — T-1241 Follow-up(export 계약 drift). web 은 GET /api/admi
 ## Suggested Sub-agents
 
 `implementer → tester`
+
+## Result (DONE 2026-07-26T06:19Z)
+
+- PR #1134 squash merge(`c6651794`), reviewer round2/7 APPROVE(round1 NIT — 전체 필드 pass-through 앵커 부재 — §3 nit-in-PR closure `ef6194d3` 로 완결), 4-게이트 PASS(APPROVE+external comment+AC+CI green).
+- `web/src/api/exportJob.ts`+`.test.ts` 신설(+234/-0). `createExportJob`(POST)/`getExportJob`/`listRunningExportJobs`/`downloadExportJob`, `request`/`requestRaw` 위임(정책 재구현 0), id `encodeURIComponent`. web 2010 test green + build green. AdminView·backend 무접촉(file-disjoint).
+- 후속: T-1243(export-job orchestration 헬퍼) 큐잉.
 
 ## Follow-ups
 
