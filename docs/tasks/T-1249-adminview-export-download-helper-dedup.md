@@ -2,8 +2,12 @@
 id: T-1249
 title: AdminView 죽은 parseFilename/triggerDownload 제거(exportJobDownload dedup)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1141
+mergedAs: 9b0b3545
+reviewRounds: 1
+completedAt: 2026-07-26T11:15:38Z
 coversReq: [REQ-057]
 estimatedDiff: -170
 estimatedFiles: 2
