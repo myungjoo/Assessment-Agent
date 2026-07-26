@@ -2,7 +2,10 @@
 id: T-1246
 title: AdminView handleExport 를 job-flow 로 배선 — runAdminExportJob 헬퍼 신설로 구 GET 모델 runExport 를 대체(구 코드 제거는 후속 slice)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: f07da887
+prNumber: 1138
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-057, REQ-030, REQ-032]
 estimatedDiff: 200
