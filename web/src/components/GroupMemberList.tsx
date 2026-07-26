@@ -76,6 +76,33 @@ function filterCandidates(
   });
 }
 
+// 유효 선택 파생(순수) — 로컬 selectedPersonId 가 현재 후보 집합(candidates) 안에 여전히
+// 존재하면 그 값을 그대로 반환하고, 존재하지 않으면(추가 성공으로 후보에서 사라짐·후보 교체
+// 등) 빈 문자열('')을 반환한다. selectedPersonId 가 ''(미선택)이거나 candidates 가 배열이
+// 아니면(undefined 등) ''를 반환한다(throw 없음 — isAddDisabled/filterCandidates/submitAdd 와
+// 동형 방어). 판정 기준은 원본 candidates(필터 미적용) 라 검색어로 옵션에서 가려졌을 뿐 후보
+// 집합에는 남아있는 선택은 유효로 유지된다(필터 변경만으로 선택이 리셋되지 않음 — T-1239 결정
+// 보존). select value·추가 버튼 disabled·submitAdd 세 소비처가 stale id 대신 유효 선택만 보게
+// 해 후보에서 사라진 id 의 phantom 재발사를 렌더 단계에서 원천 차단한다.
+function resolveActiveSelection(
+  selectedPersonId: string,
+  candidates: Member[] | undefined,
+): string {
+  // 미선택 경계값 — 빈 선택은 그대로 빈 값(추가 버튼 비활성 유지).
+  if (selectedPersonId === '') {
+    return '';
+  }
+  // 비배열 방어 — undefined/비배열이면 유효 후보 없음으로 간주해 빈 값 반환(throw 없이 안전).
+  if (!Array.isArray(candidates)) {
+    return '';
+  }
+  // 선택 id 가 후보 집합에 여전히 존재하면 유지, 사라졌으면 빈 값으로 리셋한다.
+  const stillPresent = candidates.some(
+    (candidate) => candidate.id === selectedPersonId,
+  );
+  return stillPresent ? selectedPersonId : '';
+}
+
 // 추가 제출 로직(순수) — 선택된 personId 가 비어있지 않고 onAdd 가 주어졌을 때만 정확히
 // 그 personId 로 콜백을 1회 호출한다. 빈 선택/onAdd 미전달 시에는 아무 것도 하지 않는다
 // (빈 personId 전송 차단). form 의 onSubmit·버튼 onClick 이 본 함수에 위임한다.
@@ -149,13 +176,17 @@ function GroupMemberList({
   const filtered = filterCandidates(candidates, filterText);
   // 검색 결과 없음 분기 — 원본 후보는 ≥1개이나 필터 결과가 0개일 때만 안내(빈 후보 안내와 구분).
   const showNoResults = candidates.length > 0 && filtered.length === 0;
+  // 유효 선택 파생 — selectedPersonId 가 후보 집합에서 사라졌으면('' 로 리셋) 아래 세 소비처
+  // (select value·isAddDisabled·submitAdd)가 stale id 대신 유효 선택만 보게 한다. 판정은 원본
+  // candidates 기준이라 필터로 가려졌을 뿐 남아있는 선택은 유지된다(T-1239 결정 보존).
+  const activeSelectedId = resolveActiveSelection(selectedPersonId, candidates);
 
   const addForm = onAdd ? (
     <form
       onSubmit={(event) => {
         // 폼 default 제출(페이지 reload)을 막고 추가 제출 로직에 위임한다.
         event.preventDefault();
-        submitAdd(selectedPersonId, onAdd);
+        submitAdd(activeSelectedId, onAdd);
       }}
     >
       {/* 후보가 0개면 한국어 안내를 함께 표시한다(select 도 disabled — 이중 안전 표시). */}
@@ -173,7 +204,7 @@ function GroupMemberList({
       {showNoResults ? <span>{NO_RESULTS_TEXT}</span> : null}
       <select
         name="addCandidate"
-        value={selectedPersonId}
+        value={activeSelectedId}
         disabled={candidates.length === 0}
         onChange={(event) => setSelectedPersonId(event.target.value)}
       >
@@ -186,7 +217,7 @@ function GroupMemberList({
           </option>
         ))}
       </select>
-      <button type="submit" disabled={isAddDisabled(selectedPersonId, candidates.length)}>
+      <button type="submit" disabled={isAddDisabled(activeSelectedId, candidates.length)}>
         {ADD_LABEL}
       </button>
     </form>
@@ -240,6 +271,6 @@ function GroupMemberList({
   );
 }
 
-export { isAddDisabled, submitAdd, filterCandidates };
+export { isAddDisabled, submitAdd, filterCandidates, resolveActiveSelection };
 export type { Member, GroupMemberListProps };
 export default GroupMemberList;
