@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import GroupMemberList from './GroupMemberList';
+import GroupMemberList, { isAddDisabled, submitAdd } from './GroupMemberList';
 import type { Member } from './GroupMemberList';
 
 // R-112 — REQ-046/REQ-047 그룹 인원 목록(ADR-0040 §1) 검증.
@@ -18,11 +18,25 @@ const LOADING_TOKEN = '불러오는 중';
 const DEFAULT_EMPTY = '표시할 인원이 없습니다';
 // 제거 버튼 라벨 (구현의 REMOVE_LABEL 과 정합).
 const REMOVE_LABEL = '제거';
+// 추가 버튼 라벨 (구현의 ADD_LABEL 과 정합).
+const ADD_LABEL = '추가';
+// 추가 후보 select 의 placeholder 라벨 (구현의 ADD_PLACEHOLDER 와 정합) — 추가 form 존재 식별 토큰.
+const ADD_PLACEHOLDER = '추가할 인원 선택';
+// 후보 0개 안내 문구 (구현의 NO_CANDIDATES_TEXT 와 정합).
+const NO_CANDIDATES_TEXT = '추가할 인원이 없습니다';
+// 추가 후보 select 의 name 속성 — 추가 form(<select name="addCandidate">) 존재 식별에 쓴다.
+const ADD_SELECT_MARKER = 'name="addCandidate"';
 
 // 테스트용 멤버 — role 포함 2명 + role 미포함 1명(throw 없이 name 만 렌더 검증용).
 const sampleMembers: Member[] = [
   { id: 'm1', name: '홍길동', role: '관리자' },
   { id: 'm2', name: '김철수', role: '평가자' },
+];
+
+// 테스트용 추가 후보 — 컨테이너가 persons − 현재 members 로 파생해 주입한다고 가정.
+const sampleCandidates: Member[] = [
+  { id: 'p10', name: '박신입', role: '평가자' },
+  { id: 'p11', name: '최신규' },
 ];
 
 describe('GroupMemberList', () => {
@@ -179,5 +193,188 @@ describe('GroupMemberList', () => {
     expect(html).not.toContain('role="alert"');
     expect(html).toContain('<ul>');
     expect(html).toContain('홍길동');
+  });
+
+  // ── T-1237: onAdd 추가 slice ─────────────────────────────────────────────
+  // renderToStaticMarkup 은 이벤트를 발화하지 않으므로(위 파일 헤더 주석) onAdd 콜백 자체의
+  // "선택 → 클릭 → 호출" 은 정적 렌더로는 검증 불가하다. 대신 추가 결정 로직을 순수 함수
+  // (submitAdd / isAddDisabled) 로 분리·export 해 그 happy-path·negative 를 직접 호출로 검증하고,
+  // 렌더 분기(추가 form 노출/부재·disabled·빈 후보 안내)는 정적 markup 으로 assert 한다.
+
+  // happy-path(render) — onAdd + addCandidates 주입 시 후보 select + "추가" 버튼을 렌더한다.
+  it('onAdd + addCandidates 주입 시 후보 select(옵션) + "추가" 버튼을 렌더한다 (happy-path — 추가 form 렌더)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList
+        members={sampleMembers}
+        onAdd={() => undefined}
+        addCandidates={sampleCandidates}
+      />,
+    );
+    expect(html).toContain(ADD_SELECT_MARKER);
+    expect(html).toContain(ADD_PLACEHOLDER);
+    // 후보 이름이 <option> 으로 렌더된다(role 있으면 괄호로 함께).
+    expect(html).toContain('박신입');
+    expect(html).toContain('최신규');
+    expect(html).toContain('평가자');
+    expect(html).toContain(ADD_LABEL);
+    // 추가 버튼(type="submit") 이 존재한다.
+    expect(html).toContain('type="submit"');
+  });
+
+  // happy-path(callback) — submitAdd 는 비어있지 않은 personId 로 onAdd 를 정확히 1회 호출한다.
+  it('submitAdd(personId, onAdd) → onAdd 를 선택 personId 인자로 정확히 1회 호출한다 (happy-path — 콜백)', () => {
+    const onAdd = vi.fn();
+    submitAdd('p10', onAdd);
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd).toHaveBeenCalledWith('p10');
+  });
+
+  // negative(callback) — 후보 미선택(빈 personId)이면 submitAdd 는 onAdd 를 호출하지 않는다.
+  it('submitAdd("", onAdd) → 빈 personId 이면 onAdd 미호출 (negative — 빈 personId 전송 차단)', () => {
+    const onAdd = vi.fn();
+    submitAdd('', onAdd);
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  // negative(callback) — onAdd 미전달 시 submitAdd 는 throw 없이 no-op 이다.
+  it('submitAdd(personId, undefined) → throw 없이 no-op (negative — onAdd 미전달 안전성)', () => {
+    expect(() => submitAdd('p10', undefined)).not.toThrow();
+  });
+
+  // branch(pure) — isAddDisabled: 미선택 또는 후보 0개면 true, 선택+후보 있으면 false.
+  it('isAddDisabled — 미선택/후보0개 → true, 선택+후보있음 → false (branch — 추가 버튼 활성/비활성)', () => {
+    // 미선택(빈 personId) → 비활성.
+    expect(isAddDisabled('', 2)).toBe(true);
+    // 후보 0개 → 비활성(선택값 무관).
+    expect(isAddDisabled('p10', 0)).toBe(true);
+    expect(isAddDisabled('', 0)).toBe(true);
+    // 선택 + 후보 있음 → 활성(false).
+    expect(isAddDisabled('p10', 2)).toBe(false);
+  });
+
+  // negative(render) — onAdd 미전달 시 추가 form(select/추가 버튼) 이 렌더되지 않는다(추가 UI 부재).
+  it('onAdd 미전달 → 추가 form(select/추가 버튼) 미렌더 (negative — 추가 UI 부재)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList members={sampleMembers} addCandidates={sampleCandidates} />,
+    );
+    expect(html).not.toContain(ADD_SELECT_MARKER);
+    expect(html).not.toContain(ADD_PLACEHOLDER);
+    expect(html).not.toContain('<form');
+  });
+
+  // no-regression(byte 동등) — onAdd 미전달 시 기존 slice 와 byte 수준 동등한 markup 을 유지한다.
+  it('onAdd 미전달 시 기존 렌더와 byte 동등 (no-regression — 추가 UI 0)', () => {
+    const withCandidatesProp = renderToStaticMarkup(
+      <GroupMemberList members={sampleMembers} addCandidates={sampleCandidates} />,
+    );
+    const baseline = renderToStaticMarkup(<GroupMemberList members={sampleMembers} />);
+    expect(withCandidatesProp).toBe(baseline);
+  });
+
+  // negative(render) — addCandidates 빈 배열 + onAdd → 안내 문구 + disabled select, 후보 옵션 부재.
+  it('addCandidates 빈 배열 + onAdd → "추가할 인원이 없습니다" 안내 + disabled select (negative — 빈 후보 안전 표시)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList members={sampleMembers} onAdd={() => undefined} addCandidates={[]} />,
+    );
+    expect(html).toContain(NO_CANDIDATES_TEXT);
+    // select 는 존재하되 disabled 이고 placeholder 외 후보 옵션은 없다.
+    expect(html).toContain(ADD_SELECT_MARKER);
+    expect(html).toContain('disabled');
+    expect(html).not.toContain('박신입');
+  });
+
+  // negative(render) — addCandidates 미전달 + onAdd → 빈 후보와 동형(안내 + disabled).
+  it('addCandidates 미전달 + onAdd → 빈 후보와 동형 안내 + disabled select (negative — 후보 미전달 안전 표시)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList members={sampleMembers} onAdd={() => undefined} />,
+    );
+    expect(html).toContain(NO_CANDIDATES_TEXT);
+    expect(html).toContain('disabled');
+  });
+
+  // negative(render) — loading=true + onAdd → 추가 form 미렌더(전이 상태 우선).
+  it('loading=true + onAdd → 추가 form 미렌더, 로딩 표시 우선 (negative — loading 우선, 추가 form 억제)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList
+        members={[]}
+        loading={true}
+        onAdd={() => undefined}
+        addCandidates={sampleCandidates}
+      />,
+    );
+    expect(html).toContain('role="status"');
+    expect(html).toContain(LOADING_TOKEN);
+    expect(html).not.toContain(ADD_SELECT_MARKER);
+    expect(html).not.toContain('<form');
+  });
+
+  // negative(render) — error + onAdd → 추가 form 미렌더(전이 상태 우선).
+  it('error + onAdd → 추가 form 미렌더, alert 우선 (negative — error 우선, 추가 form 억제)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList
+        members={sampleMembers}
+        error="조회 실패"
+        onAdd={() => undefined}
+        addCandidates={sampleCandidates}
+      />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).not.toContain(ADD_SELECT_MARKER);
+    expect(html).not.toContain('<form');
+  });
+
+  // branch(flow) — members 빈 배열 + onAdd → 빈 상태 메시지 와 추가 form 이 함께 렌더된다(첫 멤버 추가).
+  it('members 빈 배열 + onAdd → 빈 상태 메시지 + 추가 form 함께 렌더 (branch — 빈 목록에서도 추가 가능)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList members={[]} onAdd={() => undefined} addCandidates={sampleCandidates} />,
+    );
+    expect(html).toContain(DEFAULT_EMPTY);
+    expect(html).toContain(ADD_SELECT_MARKER);
+    expect(html).toContain(ADD_PLACEHOLDER);
+    expect(html).toContain('박신입');
+  });
+
+  // branch(flow) — members 1+ + onAdd → 목록(<ul>) 과 추가 form 이 함께 렌더된다.
+  it('members 1+ + onAdd → 목록 + 추가 form 함께 렌더 (branch — 목록과 추가 form 공존)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList
+        members={sampleMembers}
+        onAdd={() => undefined}
+        addCandidates={sampleCandidates}
+      />,
+    );
+    expect(html).toContain('<ul>');
+    expect(html).toContain('홍길동');
+    expect(html).toContain(ADD_SELECT_MARKER);
+    expect(html).toContain(ADD_PLACEHOLDER);
+  });
+
+  // branch(render) — 초기 미선택 상태에서는 추가 버튼이 disabled(빈 personId 전송 차단 — 렌더 단계).
+  it('초기 미선택 상태 → 추가 버튼 disabled (branch — 미선택 시 추가 버튼 비활성)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList
+        members={sampleMembers}
+        onAdd={() => undefined}
+        addCandidates={sampleCandidates}
+      />,
+    );
+    // 후보가 있어 select 는 enabled 지만(초기 선택값 ''), 추가 버튼은 미선택이라 disabled 여야 한다.
+    expect(html).toContain('type="submit"');
+    expect(html).toContain('disabled');
+  });
+
+  // no-regression — onRemove + onAdd 동시 전달 → 제거 버튼과 추가 form 이 공존한다.
+  it('onRemove + onAdd 동시 전달 → 제거 버튼 + 추가 form 공존 (no-regression — remove/add 공존)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList
+        members={sampleMembers}
+        onRemove={() => undefined}
+        onAdd={() => undefined}
+        addCandidates={sampleCandidates}
+      />,
+    );
+    expect(html).toContain(REMOVE_LABEL);
+    expect(html).toContain(ADD_LABEL);
+    expect(html).toContain(ADD_SELECT_MARKER);
   });
 });
