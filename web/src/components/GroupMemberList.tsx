@@ -11,7 +11,7 @@
 // 낙관적 업데이트·후보 파생(persons − 현재 members)·재조회 nonce 는 컨테이너(AdminView)
 // 책임이라 본 slice 의 Out of Scope 다 — 여기서는 로컬 select 선택값만 useState 로 controlled 한다.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 // 멤버 옵션 — backend sanitize view 와 정합한 비밀 미포함 형태(password/secret 등 제외).
 interface Member {
@@ -106,13 +106,27 @@ function resolveActiveSelection(
 // 추가 제출 로직(순수) — 선택된 personId 가 비어있지 않고 onAdd 가 주어졌을 때만 정확히
 // 그 personId 로 콜백을 1회 호출한다. 빈 선택/onAdd 미전달 시에는 아무 것도 하지 않는다
 // (빈 personId 전송 차단). form 의 onSubmit·버튼 onClick 이 본 함수에 위임한다.
+// 반환값(T-1241) — 실제로 콜백을 발사했으면 true, 미발사(빈 선택 또는 onAdd 미전달)면 false.
+// 호출부(onSubmit)는 이 boolean 을 reset gate 로 재사용해 발사됐을 때만 검색어·선택값을
+// 초기화하고 검색 입력에 focus 를 준다(발사 판정 로직 중복 없이 순수 helper 에서 단일화).
 function submitAdd(
   selectedPersonId: string,
   onAdd?: (personId: string) => void,
-): void {
+): boolean {
   if (selectedPersonId !== '' && onAdd) {
     onAdd(selectedPersonId);
+    return true;
   }
+  return false;
+}
+
+// 검색 입력 focus(부수효과 helper, T-1241) — ref.current 가 존재하면 .focus() 를 호출하고,
+// null(마운트 전·비정상)이면 optional chaining 으로 throw 없이 안전 no-op 한다. 추가 발사
+// 성공 후 검색 입력에 커서를 돌려줘 연속 추가 UX 를 완결한다. 순수 helper 로 분리해 ref 주입만으로
+// 단위 test 가능하게 한다(jsdom 없이 focus spy 로 호출 여부 검증 — ADR-0040 §5 dep 표면 최소화 보존).
+// 인자는 최소 구조 타입({ current: HTMLInputElement | null })이라 useRef 결과와 구조 호환된다.
+function focusSearchInput(ref: { current: HTMLInputElement | null }): void {
+  ref.current?.focus();
 }
 
 interface GroupMemberListProps {
@@ -155,6 +169,10 @@ function GroupMemberList({
   // 필터는 옵션 렌더만 좁히며(원본 candidates 는 후보 유무 판정에 그대로 사용), 순수 controlled 를 유지한다.
   const [filterText, setFilterText] = useState('');
 
+  // 검색 입력 DOM 참조(T-1241) — 추가 발사 성공 후 검색 입력에 focus 를 돌려주기 위한 ref.
+  // useRef 는 렌더 계산이라 마크업에 나타나지 않아 onAdd 미전달 렌더 byte-동등은 불변이다.
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   // 후보 배열 정규화 — 미전달이면 빈 배열로 취급(빈 후보 안전 표시 경로로 진입).
   const candidates = addCandidates ?? [];
 
@@ -186,7 +204,17 @@ function GroupMemberList({
       onSubmit={(event) => {
         // 폼 default 제출(페이지 reload)을 막고 추가 제출 로직에 위임한다.
         event.preventDefault();
-        submitAdd(activeSelectedId, onAdd);
+        // submitAdd 는 실제 발사(유효 선택 + onAdd 존재) 시에만 true 를 반환한다. 발사됐을
+        // 때만(fired) 로컬 검색어·선택값을 초기화하고 검색 입력에 focus 를 돌려줘(연속 추가 UX)
+        // 다음 인원을 깨끗한 상태에서 이어 추가하게 한다. 미발사(빈 선택 등)면 세 부수효과 모두
+        // skip — 아무 것도 추가 안 됐는데 검색어가 지워지지 않는다. useEffect 없이 이벤트 핸들러
+        // 안에서만 처리해 state 이중-진실원을 회피한다(T-1240 결정 계승).
+        const fired = submitAdd(activeSelectedId, onAdd);
+        if (fired) {
+          setFilterText('');
+          setSelectedPersonId('');
+          focusSearchInput(searchInputRef);
+        }
       }}
     >
       {/* 후보가 0개면 한국어 안내를 함께 표시한다(select 도 disabled — 이중 안전 표시). */}
@@ -194,6 +222,7 @@ function GroupMemberList({
       {/* 추가 후보 검색 입력 — 이름/역할 부분일치로 옵션을 좁힌다(대량 후보 사용성). onAdd
           있을 때만(addForm 안) 렌더되므로 onAdd 미전달 렌더는 byte 동등을 유지한다. */}
       <input
+        ref={searchInputRef}
         type="search"
         aria-label={SEARCH_LABEL}
         value={filterText}
@@ -271,6 +300,12 @@ function GroupMemberList({
   );
 }
 
-export { isAddDisabled, submitAdd, filterCandidates, resolveActiveSelection };
+export {
+  isAddDisabled,
+  submitAdd,
+  filterCandidates,
+  resolveActiveSelection,
+  focusSearchInput,
+};
 export type { Member, GroupMemberListProps };
 export default GroupMemberList;
