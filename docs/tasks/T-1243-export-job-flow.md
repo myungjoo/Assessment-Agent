@@ -2,8 +2,12 @@
 id: T-1243
 title: export-job orchestration 헬퍼 신설 — create→poll status→download 를 단일 순수 함수로 합성
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+completed: 2026-07-26T06:40:00Z
+mergedAs: 2ea4040b
+prNumber: 1135
+reviewRounds: 1
 coversReq: [REQ-057, REQ-030, REQ-032]
 estimatedDiff: 250
 estimatedFiles: 2
