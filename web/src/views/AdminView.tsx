@@ -239,37 +239,6 @@ function resolveProviderSelectValue(value: string | undefined): string {
   return '';
 }
 
-// Content-Disposition 헤더에서 filename 을 추출하는 순수 helper(④f). RFC 6266 의 두 형태를
-// 보수적으로 받는다: (1) filename*=UTF-8''<percent-encoded>(우선 — 비-ASCII 안전), (2) 일반
-// filename="..." 또는 filename=.... 따옴표·앞뒤 공백을 벗기고, 빈/누락이면 undefined 를 낸다
-// (호출측이 DEFAULT_EXPORT_FILENAME 로 fallback). header 가 null/빈 문자열이어도 throw 없이
-// undefined 를 반환한다(안전 파싱 — 비정상 헤더에 다운로드가 깨지지 않도록).
-function parseFilename(disposition: string | null): string | undefined {
-  if (!disposition) {
-    return undefined;
-  }
-  // (1) filename*=UTF-8''... (RFC 5987 ext-value) 우선 — percent-decode 시도.
-  const extMatch = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(disposition);
-  if (extMatch && extMatch[1]) {
-    const raw = extMatch[1].trim();
-    try {
-      const decoded = decodeURIComponent(raw);
-      if (decoded) {
-        return decoded;
-      }
-    } catch {
-      // 잘못된 percent-encoding — 일반 filename 분기로 fallthrough(throw 없이).
-    }
-  }
-  // (2) 일반 filename="..." 또는 filename=... — 따옴표/공백 제거.
-  const match = /filename=("?)([^";]+)\1/i.exec(disposition);
-  if (match && match[2]) {
-    const name = match[2].trim();
-    return name || undefined;
-  }
-  return undefined;
-}
-
 // 평가 자료 import path — 고정 endpoint(POST /api/admin/import, api.md 123 Admin+, multipart
 // file upload). Admin+ 라 User 등급은 403 — 그 403 은 runImport 의 catch 가 error props 로 안전
 // 표시(throw 없음). backup/restore(api.md 124·125) 는 본 slice Out of Scope(import 만).
@@ -841,9 +810,9 @@ async function runAssign(
 // 가상 <a download> 클릭으로 실제 파일 저장을 수행하는 부수효과 추상화(④f). DOM/URL primitive
 // (createObjectURL/revokeObjectURL/anchor 생성·클릭)을 주입 가능한 한 객체로 묶어 jsdom 없이
 // 직접 검증한다(④c~④e 의 *Deps 주입 convention 정합 — 테스트는 mock 주입, 런타임은 기본
-// 브라우저 구현 주입). triggerDownload 는 blob → objectURL → anchor click → revokeObjectURL
-// 정리까지 한 단위로 수행하되, click 도중 예외가 나도 revokeObjectURL 정리가 누락되지 않도록
-// finally 로 자원을 회수한다(자원 누수 방지).
+// 브라우저 구현 주입). blob → objectURL → anchor click → revokeObjectURL 정리까지의 한 단위
+// 실행은 이제 web/src/api/exportJobDownload.ts 활성본이 담당하고(click 예외 시에도 finally 로
+// object URL 을 회수해 자원 누수를 막는다), AdminView 는 이 DownloadDeps 를 handleExport 에 주입만 한다.
 interface DownloadDeps {
   // Blob → object URL 생성(런타임 기본: URL.createObjectURL). 다운로드 anchor 의 href.
   createObjectURL: (blob: Blob) => string;
@@ -852,23 +821,6 @@ interface DownloadDeps {
   // anchor 생성·download 속성 설정·DOM 부착·click·제거를 수행하는 부수효과(런타임 기본:
   // document.createElement('a') + body append/click/remove). 테스트는 호출만 단언한다.
   clickAnchor: (url: string, filename: string) => void;
-}
-
-// blob 을 가상 <a download> 클릭으로 저장하는 순수 부수효과 러너(④f). createObjectURL 로
-// object URL 을 만들고 clickAnchor 로 다운로드를 트리거한 뒤, 성공·예외 어느 경우든 finally 로
-// revokeObjectURL 정리를 보장한다(createObjectURL 후 click 예외 시에도 URL 누수 없음).
-function triggerDownload(
-  blob: Blob,
-  filename: string,
-  deps: DownloadDeps,
-): void {
-  const url = deps.createObjectURL(blob);
-  try {
-    deps.clickAnchor(url, filename);
-  } finally {
-    // click 성공·실패 무관하게 object URL 정리(자원 누수 방지).
-    deps.revokeObjectURL(url);
-  }
 }
 
 // 런타임 기본 DownloadDeps — 브라우저 표준 URL/DOM API 로 구현(④f). 컨테이너 handleExport 가
@@ -4781,8 +4733,6 @@ export {
   buildExportInput,
   runAdminExportJob,
   mergeMapping,
-  parseFilename,
-  triggerDownload,
   runAssign,
   runImport,
   formatImportJobDetail,

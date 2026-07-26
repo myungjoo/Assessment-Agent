@@ -78,8 +78,6 @@ import AdminView, {
   buildExportInput,
   runAdminExportJob,
   mergeMapping,
-  parseFilename,
-  triggerDownload,
   runAssign,
   runImport,
   formatImportJobDetail,
@@ -122,7 +120,6 @@ import type {
   LlmProviderRow,
   DifficultyMappingRow,
   AssignDeps,
-  DownloadDeps,
   RunAdminExportJobDeps,
   ImportDeps,
   ScheduleMutationDeps,
@@ -2791,110 +2788,6 @@ describe('AdminView — ④c 배선 회귀 (정적 렌더)', () => {
     expect(html).toContain('name="easy"');
     expect(html).toContain('name="medium"');
     expect(html).toContain('name="hard"');
-  });
-});
-
-// R-112 — ④f parseFilename 순수 helper 검증(Content-Disposition filename 추출). RFC 5987
-// ext-value(filename*=) 우선·일반 filename="..."·따옴표/공백 제거·누락/비정상 헤더 undefined
-// fallback 등 분기를 각 1+ cover.
-describe('AdminView — parseFilename (순수 함수, ④f)', () => {
-  it('일반 filename="..." 을 따옴표 제거해 추출한다 (happy)', () => {
-    expect(parseFilename('attachment; filename="export.json"')).toBe(
-      'export.json',
-    );
-  });
-
-  it('따옴표 없는 filename=... 도 추출한다 (happy — 따옴표 생략)', () => {
-    expect(parseFilename('attachment; filename=data.csv')).toBe('data.csv');
-  });
-
-  it('filename*=UTF-8\'\'<percent-encoded> 을 우선 디코딩해 추출한다 (branch — RFC 5987 우선)', () => {
-    // 비-ASCII 파일명(평가.json)을 percent-encoding 한 ext-value 우선 적용.
-    const encoded = encodeURIComponent('평가.json');
-    expect(
-      parseFilename(`attachment; filename="fallback.json"; filename*=UTF-8''${encoded}`),
-    ).toBe('평가.json');
-  });
-
-  it('null/빈 헤더면 undefined 를 반환한다 (negative — 누락)', () => {
-    expect(parseFilename(null)).toBeUndefined();
-    expect(parseFilename('')).toBeUndefined();
-  });
-
-  it('filename 토큰이 없으면 undefined 를 반환한다 (negative — 비정상 헤더)', () => {
-    expect(parseFilename('attachment')).toBeUndefined();
-    expect(parseFilename('inline; size=10')).toBeUndefined();
-  });
-
-  it('잘못된 percent-encoding 의 ext-value 는 일반 filename 으로 안전 fallback 한다 (negative — 깨진 인코딩)', () => {
-    // filename*=UTF-8''%E0%A4%A 는 불완전 — decodeURIComponent throw → 일반 filename fallback.
-    expect(
-      parseFilename("attachment; filename=\"ok.json\"; filename*=UTF-8''%E0%A4%A"),
-    ).toBe('ok.json');
-  });
-});
-
-// R-112 — ④f triggerDownload 순수 부수효과 러너 검증. createObjectURL → clickAnchor →
-// revokeObjectURL 순서·인자·예외 시에도 revokeObjectURL 정리 보장(자원 누수 방지)을 mock
-// 으로 단언한다(jsdom 없이 — DownloadDeps 직접 주입).
-describe('AdminView — triggerDownload (부수효과 러너, ④f)', () => {
-  function makeDownloadDeps() {
-    const order: string[] = [];
-    const deps: DownloadDeps = {
-      createObjectURL: (blob: Blob) => {
-        order.push(`create:${blob.size}`);
-        return 'blob:mock-url';
-      },
-      revokeObjectURL: (url: string) => {
-        order.push(`revoke:${url}`);
-      },
-      clickAnchor: (url: string, filename: string) => {
-        order.push(`click:${url}:${filename}`);
-      },
-    };
-    return { deps, order };
-  }
-
-  it('createObjectURL → clickAnchor → revokeObjectURL 순서로 호출한다 (happy)', () => {
-    const { deps, order } = makeDownloadDeps();
-    triggerDownload(new Blob(['ab']), 'export.json', deps);
-    expect(order).toEqual([
-      'create:2',
-      'click:blob:mock-url:export.json',
-      'revoke:blob:mock-url',
-    ]);
-  });
-
-  it('clickAnchor 예외 시에도 revokeObjectURL 로 정리한다 (negative — 자원 누수 방지)', () => {
-    const order: string[] = [];
-    const deps: DownloadDeps = {
-      createObjectURL: () => {
-        order.push('create');
-        return 'blob:x';
-      },
-      revokeObjectURL: () => {
-        order.push('revoke');
-      },
-      clickAnchor: () => {
-        order.push('click');
-        throw new Error('click boom');
-      },
-    };
-    // 예외는 호출측으로 전파되나(runExport 의 catch 가 안전 처리), revoke 는 finally 로 보장.
-    expect(() => triggerDownload(new Blob(['x']), 'f.json', deps)).toThrow(
-      'click boom',
-    );
-    expect(order).toEqual(['create', 'click', 'revoke']);
-  });
-
-  it('빈/0-byte Blob 도 throw 없이 다운로드를 트리거한다 (negative — 빈 blob)', () => {
-    const { deps, order } = makeDownloadDeps();
-    triggerDownload(new Blob([]), 'empty.json', deps);
-    expect(order).toEqual([
-      'create:0',
-      'click:blob:mock-url:empty.json',
-      'revoke:blob:mock-url',
-    ]);
   });
 });
 
