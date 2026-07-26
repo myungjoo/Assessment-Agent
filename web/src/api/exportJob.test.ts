@@ -59,6 +59,26 @@ describe('createExportJob', () => {
     requestMock.mockRejectedValueOnce(new Error('HTTP 403'));
     await expect(createExportJob({ scope: 'all' })).rejects.toThrow('HTTP 403');
   });
+
+  // 계약 앵커(reviewer round1 NIT closure) — CreateExportInput 의 optional dateRange /
+  // entitySelector 를 포함한 전체 body 가 손실·변형 없이 request body 로 pass-through
+  // 되는지 단언한다. 세 필드(scope/dateRange/entitySelector)를 모두 담아 호출했을 때
+  // 직렬화된 body 가 입력과 정확히 일치해야 backend CreateExportDto 계약이 깨지지 않는다.
+  it('scope/dateRange/entitySelector 전체 필드를 body 로 손실 없이 pass-through (계약 앵커)', async () => {
+    requestMock.mockResolvedValueOnce({ id: 'job-3', status: 'PENDING' });
+    const input = {
+      scope: 'selected',
+      dateRange: { from: '2026-01-01', to: '2026-07-26' },
+      entitySelector: { userIds: ['u-1', 'u-2'], groupIds: ['g-1'] },
+    };
+    await createExportJob(input);
+    const [path, options] = requestMock.mock.calls[0];
+    expect(path).toBe(EXPORT_BASE_PATH);
+    expect(options?.method).toBe('POST');
+    expect(options?.headers).toEqual({ 'Content-Type': 'application/json' });
+    // 세 필드가 전부 원형 그대로 직렬화됐는지 — 부분 누락/변형 회귀 방어.
+    expect(JSON.parse(options?.body as string)).toEqual(input);
+  });
 });
 
 describe('getExportJob', () => {
