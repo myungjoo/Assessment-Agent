@@ -17,8 +17,21 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useApiResource, toErrorMessage } from '../api/useApiResource';
-import { request, requestRaw, ApiError } from '../api/apiClient';
+import { request, ApiError } from '../api/apiClient';
 import type { RequestOptions } from '../api/apiClient';
+// P6 export 계약 정합 배선(T-1246) — handleExport 를 구 GET 모델 runExport 에서 job-flow(POST
+// create → poll → download)로 교체하는 격리 모듈들(T-1242/T-1243/T-1245). 구 runExport 는
+// dead-but-exported 로 남긴다(제거는 후속 slice T-1247).
+import { runExportJobDownload } from '../api/exportJobDownload';
+import type { RunExportJobDownloadDeps } from '../api/exportJobDownload';
+import { runExportJob } from '../api/exportJobFlow';
+import type { RunExportJobOptions } from '../api/exportJobFlow';
+import {
+  createExportJob,
+  getExportJob,
+  downloadExportJob,
+} from '../api/exportJob';
+import type { CreateExportInput, ExportJob } from '../api/exportJob';
 import GroupMemberList from '../components/GroupMemberList';
 import type { Member } from '../components/GroupMemberList';
 import DifficultyModelSelector from '../components/DifficultyModelSelector';
@@ -974,6 +987,74 @@ const browserDownloadDeps: DownloadDeps = {
     document.body.removeChild(anchor);
   },
 };
+
+// scope 선택값 → export job 생성 입력(CreateExportInput) 매퍼(T-1246, 순수 helper). 구
+// buildExportPath 의 job-flow 판 — job 계약은 scope 를 query 대신 POST body(api.md 124
+// CreateExportDto)로 싣는다. truthy → { scope }, 빈 문자열(전체 선택) → {}(미부착, backend 기본
+// scope 위임 = 구 ④f 동작 유지). CreateExportInput 은 ../api/exportJob 에서 import(재정의 금지).
+function buildExportInput(selectedScope: string): CreateExportInput {
+  if (!selectedScope) {
+    return {};
+  }
+  return { scope: selectedScope };
+}
+
+// runAdminExportJob 주입 의존성(T-1246) — client 3-primitive(create/get/download)와 파일 저장
+// 부수효과(DownloadDeps 동형 createObjectURL/revokeObjectURL/clickAnchor) + error 문구 파생 +
+// export state setter 를 받는다. delay/options 는 poll 제어 passthrough(테스트가 실 타이머
+// 대기를 회피하도록 주입, 미주입 시 job-flow 기본).
+interface RunAdminExportJobDeps {
+  createExportJob: (input: CreateExportInput) => Promise<ExportJob>;
+  getExportJob: (id: string) => Promise<ExportJob>;
+  downloadExportJob: (id: string) => Promise<Response>;
+  createObjectURL: (blob: Blob) => string;
+  revokeObjectURL: (url: string) => void;
+  clickAnchor: (url: string, filename: string) => void;
+  describeError: (e: unknown) => string;
+  exporting: boolean;
+  setExporting: (next: boolean) => void;
+  setExportError: (next: string | undefined) => void;
+  setExportMessage: (next: string | undefined) => void;
+  // poll 제어 passthrough(테스트는 delay 즉시 resolve 로 실 타이머 미대기). 미주입 시 job-flow 기본.
+  delay?: (ms: number) => Promise<void>;
+  options?: RunExportJobOptions;
+}
+
+// export job-flow 배선 헬퍼(T-1246) — 구 runExport(GET Blob 모델)를 대체하는 실 배선 지점.
+// handleExport 는 이 헬퍼를 1회 호출로 축약한다(useCallback 내부 로직을 exported 순수 async 로
+// 뽑아 렌더 없이 R-112 full cover). 조립: buildExportInput(selectedScope)를 입력으로, T-1245
+// runExportJobDownload 의 runJob dep 에 runExportJob(client 3-primitive 주입)을 bind 한다. 가드·
+// 진행 on/off·error·완료 message 전이는 runExportJobDownload 담당(재구현 0). backend GET 부재
+// 404 버그를 job 계약(POST create→poll→download)로 해소한다.
+async function runAdminExportJob(
+  selectedScope: string,
+  deps: RunAdminExportJobDeps,
+): Promise<void> {
+  const downloadDeps: RunExportJobDownloadDeps = {
+    // runExportJob 을 client 3-primitive + poll 제어와 함께 bind — runExportJobDownload 는
+    // 이 runJob 이 내는 다운로드 Response 만 소비한다(create/poll 세부는 몰라도 됨 — 관심사 분리).
+    runJob: (input) =>
+      runExportJob(
+        input,
+        {
+          createExportJob: deps.createExportJob,
+          getExportJob: deps.getExportJob,
+          downloadExportJob: deps.downloadExportJob,
+          delay: deps.delay,
+        },
+        deps.options,
+      ),
+    createObjectURL: deps.createObjectURL,
+    revokeObjectURL: deps.revokeObjectURL,
+    clickAnchor: deps.clickAnchor,
+    describeError: deps.describeError,
+    exporting: deps.exporting,
+    setExporting: deps.setExporting,
+    setExportError: deps.setExportError,
+    setExportMessage: deps.setExportMessage,
+  };
+  return runExportJobDownload(buildExportInput(selectedScope), downloadDeps);
+}
 
 // onImportFile 의 POST(multipart) + state-전이 로직을 캡슐화한 순수 async 러너(④e — ④d
 // runExport 캡슐화 패턴 차용. jsdom/렌더러 없이 import 본체를 직접 검증한다 — ExportDeps 와
@@ -3473,15 +3554,18 @@ function AdminView({
   // scope 가 stale 없이 반영되도록 한다(이전 선택값 캡처 방지).
   const handleExport = useCallback(
     () =>
-      runExport(buildExportPath(selectedScope), {
-        getRaw: requestRaw,
+      runAdminExportJob(selectedScope, {
+        // job 계약 client 3-primitive(POST create → poll status → download) 주입.
+        createExportJob,
+        getExportJob,
+        downloadExportJob,
+        // 브라우저 표준 URL/DOM 부수효과 — 런타임 기본 구현 주입(테스트는 mock 주입).
+        ...browserDownloadDeps,
         describeError: toErrorMessage,
         exporting,
         setExporting,
         setExportError,
         setExportMessage,
-        // 브라우저 표준 URL/DOM 부수효과 — 런타임 기본 구현 주입(테스트는 mock 주입).
-        ...browserDownloadDeps,
       }),
     [exporting, selectedScope],
   );
@@ -4791,6 +4875,8 @@ export {
   buildUsersPath,
   buildPartPersonsPath,
   buildExportPath,
+  buildExportInput,
+  runAdminExportJob,
   mergeMapping,
   parseFilename,
   triggerDownload,
@@ -4842,6 +4928,7 @@ export type {
   AssignDeps,
   DownloadDeps,
   ExportDeps,
+  RunAdminExportJobDeps,
   ImportDeps,
   ScheduleMutationDeps,
   ReEvaluationDeps,
