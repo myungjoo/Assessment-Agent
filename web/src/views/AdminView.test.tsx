@@ -53,6 +53,9 @@ vi.mock('../api/apiClient', async (importOriginal) => {
 });
 
 import { ApiError } from '../api/apiClient';
+// T-1246 — job-flow 배선 test 가 검증하는 export job 생성 입력 타입. buildExportInput 이 내는
+// CreateExportInput({scope?}) 를 계약 그대로 재사용해 mock 입력 shape 을 통제한다.
+import type { CreateExportInput } from '../api/exportJob';
 // T-1142 — 인원 관리 마운트 test 의 인원 샘플 row 타입. PersonList 가 named export 하는
 // PersonRow 를 그대로 재사용해(컴포넌트 계약 정합) mock data shape 을 통제한다.
 import type { PersonRow } from '../components/PersonList';
@@ -73,6 +76,8 @@ import AdminView, {
   buildUsersPath,
   buildPartPersonsPath,
   buildExportPath,
+  buildExportInput,
+  runAdminExportJob,
   mergeMapping,
   parseFilename,
   triggerDownload,
@@ -121,6 +126,7 @@ import type {
   AssignDeps,
   DownloadDeps,
   ExportDeps,
+  RunAdminExportJobDeps,
   ImportDeps,
   ScheduleMutationDeps,
   ReEvaluationDeps,
@@ -3178,6 +3184,208 @@ describe('AdminView — buildExportPath (순수 함수, ④g)', () => {
     expect(buildExportPath('평가')).toBe(
       `/api/admin/export?scope=${encodeURIComponent('평가')}`,
     );
+  });
+});
+
+// R-112 — T-1246 buildExportInput 순수 매퍼 검증(scope 선택값 → CreateExportInput). 구
+// buildExportPath 의 job-flow 판 — query string 대신 POST body 필드로 scope 를 싣는다. truthy →
+// { scope }, 빈 문자열(전체 선택) → {}(미부착 = backend 기본 scope 위임). jsdom 없이 직접 검증.
+describe('AdminView — buildExportInput (순수 함수, T-1246 job-flow 매퍼)', () => {
+  it('scope 가 truthy 면 { scope } 로 싣는다 (happy)', () => {
+    expect(buildExportInput('persons')).toEqual({ scope: 'persons' });
+    expect(buildExportInput('assessments')).toEqual({ scope: 'assessments' });
+  });
+
+  it('빈 문자열(전체 선택) 이면 {} 를 반환한다 (branch — 미선택 = scope 미부착)', () => {
+    expect(buildExportInput('')).toEqual({});
+  });
+});
+
+// R-112 — T-1246 runAdminExportJob job-flow 배선 헬퍼 검증. 구 runExport 를 대체하는 실 배선
+// 지점을 jsdom 없이 직접 호출한다(makeExportDeps 동형 deps 주입). client 3-primitive mock 으로
+// job lifecycle 을 통제하고 다운로드 부수효과 호출을 캡처 단언한다. delay mock 으로 실 타이머
+// 미대기. happy/각 error/scope 분기/가드/filename fallback/poll 각 1+ (경로별 it 분리).
+describe('AdminView — runAdminExportJob (job-flow 배선, T-1246)', () => {
+  // 다운로드 Response mock — blob()/headers.get(content-disposition) 만 제공(runExportJobDownload
+  // 이 소비하는 최소 표면). disposition 인자로 filename 헤더 유무 분기를 통제한다.
+  function mockDownloadResponse(blobBytes: string, disposition: string | null) {
+    return {
+      blob: async () => new Blob([blobBytes]),
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === 'content-disposition' ? disposition : null,
+      },
+    } as unknown as Response;
+  }
+
+  // deps harness — client 3-primitive + 다운로드 부수효과 + state setter 호출을 캡처한다.
+  // 기본 createExportJob 은 입력을 캡처하며 즉시 SUCCEEDED job 을 resolve(poll 미진입 happy),
+  // 기본 downloadExportJob 은 filename 헤더 포함 Response 를 resolve 한다. overrides 로 각
+  // primitive·exporting 을 시나리오별 교체한다. delay 는 즉시 resolve(실 타이머 미대기).
+  function makeAdminExportDeps(overrides: Partial<RunAdminExportJobDeps> = {}) {
+    const calls = {
+      createInputs: [] as CreateExportInput[],
+      downloadIds: [] as string[],
+      exporting: [] as boolean[],
+      error: [] as (string | undefined)[],
+      message: [] as (string | undefined)[],
+      created: [] as number[],
+      clicked: [] as { url: string; filename: string }[],
+      revoked: [] as string[],
+    };
+    const base: RunAdminExportJobDeps = {
+      createExportJob: async (input) => {
+        calls.createInputs.push(input);
+        return { id: 'job-1', status: 'SUCCEEDED' };
+      },
+      getExportJob: async () => ({ id: 'job-1', status: 'SUCCEEDED' }),
+      downloadExportJob: async (id) => {
+        calls.downloadIds.push(id);
+        return mockDownloadResponse('payload', 'attachment; filename="export.json"');
+      },
+      describeError: (e: unknown) => {
+        // toErrorMessage stub 정합 — ApiError.status → 문구 / Error → message.
+        if (e instanceof ApiError) {
+          return e.status === 0
+            ? `네트워크 오류: ${e.message}`
+            : `HTTP ${e.status}: ${e.message}`;
+        }
+        return e instanceof Error ? e.message : '알 수 없는 오류';
+      },
+      exporting: false,
+      setExporting: (next) => calls.exporting.push(next),
+      setExportError: (next) => calls.error.push(next),
+      setExportMessage: (next) => calls.message.push(next),
+      createObjectURL: (blob) => {
+        calls.created.push(blob.size);
+        return 'blob:mock-url';
+      },
+      revokeObjectURL: (url) => calls.revoked.push(url),
+      clickAnchor: (url, filename) => calls.clicked.push({ url, filename }),
+      // poll 간 대기 즉시 resolve — 실 setTimeout 대기 회피.
+      delay: async () => {},
+    };
+    return { deps: { ...base, ...overrides }, calls };
+  }
+
+  // happy-path — runAdminExportJob('', deps): createExportJob 가 buildExportInput('')={} 로 1회
+  // 호출 + blob → createObjectURL + clickAnchor(파일저장) + 완료 message + 진행 on→off + error 미설정.
+  it("runAdminExportJob('', deps) 는 createExportJob({})→다운로드→완료 message (happy-path)", async () => {
+    const { deps, calls } = makeAdminExportDeps();
+    await runAdminExportJob('', deps);
+    // buildExportInput('') = {} 로 createExportJob 1회 호출(scope 미부착).
+    expect(calls.createInputs).toEqual([{}]);
+    // SUCCEEDED job → download → blob(payload=7byte) → createObjectURL + click + revoke.
+    expect(calls.downloadIds).toEqual(['job-1']);
+    expect(calls.created).toEqual([7]);
+    expect(calls.clicked).toEqual([
+      { url: 'blob:mock-url', filename: 'export.json' },
+    ]);
+    expect(calls.revoked).toEqual(['blob:mock-url']);
+    // 성공 → 완료 안내 + 진행 on→off + 시작 시 error 비움(문구 미설정).
+    expect(calls.message).toEqual([undefined, '내보내기 완료']);
+    expect(calls.exporting).toEqual([true, false]);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // flow/branch — scope 매핑 분기: 'persons' 선택 시 createExportJob 이 { scope: 'persons' } 로 호출.
+  it("runAdminExportJob('persons', deps) 는 createExportJob({ scope: 'persons' }) 로 호출한다 (flow/branch — scope 매핑)", async () => {
+    const { deps, calls } = makeAdminExportDeps();
+    await runAdminExportJob('persons', deps);
+    expect(calls.createInputs).toEqual([{ scope: 'persons' }]);
+    // scope 부착 경로에서도 다운로드·완료 message 동작 동일.
+    expect(calls.clicked).toHaveLength(1);
+    expect(calls.message).toEqual([undefined, '내보내기 완료']);
+  });
+
+  // flow/branch — poll 경로: 첫 job 이 PENDING 이면 getExportJob 재조회로 SUCCEEDED 도달 후 다운로드.
+  it('첫 job 이 PENDING 이면 poll(getExportJob) 로 SUCCEEDED 도달 후 다운로드한다 (flow/branch — poll)', async () => {
+    const { deps, calls } = makeAdminExportDeps({
+      createExportJob: async () => ({ id: 'job-2', status: 'PENDING' }),
+      getExportJob: async () => ({ id: 'job-2', status: 'SUCCEEDED' }),
+    });
+    await runAdminExportJob('', deps);
+    // poll 후 종결 → download(job-2) + 완료 message.
+    expect(calls.downloadIds).toEqual(['job-2']);
+    expect(calls.message).toEqual([undefined, '내보내기 완료']);
+    expect(calls.exporting).toEqual([true, false]);
+  });
+
+  // error path (a) — createExportJob reject(403): error 문구 표면화 + 파일저장 미호출 + 진행 off.
+  it('createExportJob 이 403 reject 시 error 문구 표면화 + 다운로드 미호출 + 진행 off (error path — a create 403)', async () => {
+    const { deps, calls } = makeAdminExportDeps({
+      createExportJob: async () => {
+        throw new ApiError(403, 'Forbidden');
+      },
+    });
+    await expect(runAdminExportJob('', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 403: Forbidden']);
+    expect(calls.message).toEqual([undefined]);
+    expect(calls.exporting).toEqual([true, false]);
+    // create 실패라 download·파일저장 부수효과는 일절 미호출.
+    expect(calls.downloadIds).toEqual([]);
+    expect(calls.created).toEqual([]);
+    expect(calls.clicked).toEqual([]);
+  });
+
+  // error path (b) — poll 결과 terminal FAILED: error 표면화 + download 미호출 + 진행 off.
+  it('poll 결과가 FAILED 로 종결되면 error 표면화 + 다운로드 미호출 + 진행 off (error path — b FAILED)', async () => {
+    const { deps, calls } = makeAdminExportDeps({
+      createExportJob: async () => ({ id: 'job-3', status: 'PENDING' }),
+      getExportJob: async () => ({ id: 'job-3', status: 'FAILED' }),
+    });
+    await expect(runAdminExportJob('', deps)).resolves.toBeUndefined();
+    // runExportJob 이 FAILED throw → describeError 파생 문구 표면화(throw 없이).
+    expect(calls.error).toEqual([
+      undefined,
+      'export job 이 FAILED 상태로 종결되었습니다',
+    ]);
+    expect(calls.message).toEqual([undefined]);
+    expect(calls.exporting).toEqual([true, false]);
+    // FAILED → download 미시도.
+    expect(calls.downloadIds).toEqual([]);
+    expect(calls.clicked).toEqual([]);
+  });
+
+  // error path (c) — downloadExportJob reject: error 표면화 + 진행 off(SUCCEEDED 후 다운로드 실패).
+  it('downloadExportJob 이 reject 시 error 표면화 + 진행 off (error path — c download reject)', async () => {
+    const { deps, calls } = makeAdminExportDeps({
+      downloadExportJob: async () => {
+        throw new ApiError(500, 'boom');
+      },
+    });
+    await expect(runAdminExportJob('', deps)).resolves.toBeUndefined();
+    expect(calls.error).toEqual([undefined, 'HTTP 500: boom']);
+    expect(calls.message).toEqual([undefined]);
+    expect(calls.exporting).toEqual([true, false]);
+    // download 실패 → 파일저장 부수효과 미호출.
+    expect(calls.created).toEqual([]);
+    expect(calls.clicked).toEqual([]);
+  });
+
+  // negative — 동시 재호출 가드: exporting=true 로 호출 시 createExportJob·setter 전부 미호출(즉시 return).
+  it('exporting=true 로 호출 시 createExportJob·setter 전부 미호출(즉시 return) (negative — 동시 재호출 가드)', async () => {
+    const { deps, calls } = makeAdminExportDeps({ exporting: true });
+    await runAdminExportJob('', deps);
+    // runExportJobDownload 가드 전파 — job 발사·state 전이·다운로드 일절 없음.
+    expect(calls.createInputs).toEqual([]);
+    expect(calls.downloadIds).toEqual([]);
+    expect(calls.exporting).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.message).toEqual([]);
+    expect(calls.clicked).toEqual([]);
+  });
+
+  // negative — filename fallback: download Response 에 content-disposition 없으면 기본 파일명 사용.
+  it('content-disposition 이 없으면 기본 파일명(export.json)으로 clickAnchor 호출 (negative — filename fallback)', async () => {
+    const { deps, calls } = makeAdminExportDeps({
+      downloadExportJob: async () => mockDownloadResponse('x', null),
+    });
+    await runAdminExportJob('', deps);
+    expect(calls.clicked).toEqual([
+      { url: 'blob:mock-url', filename: 'export.json' },
+    ]);
+    expect(calls.message).toEqual([undefined, '내보내기 완료']);
   });
 });
 
