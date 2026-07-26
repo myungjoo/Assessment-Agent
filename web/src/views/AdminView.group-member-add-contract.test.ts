@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
-import type { AddDeps } from './AdminView';
-import { runAdd } from './AdminView';
+import type { AddDeps, MembershipRow } from './AdminView';
+import { deriveAddCandidates, runAdd } from './AdminView';
+import type { PersonRow } from '../components/PersonList';
+import type { Member } from '../components/GroupMemberList';
 // 공용 invariant 추출기(T-1201 신설) import — inline 복사본 삭제·동작 무변경(T-1213 이관 slice, mutation stream group-member-add).
 // 이 spec 이 참조하는 export 중 **공용과 글자-동일한 4종만** import(stripQuery/extractHandlerParams/pathSegments 제외 — 부재/미사용). richer
 // extractHandlerMethods(주석 상이)·HandlerDecorator·BackendContract/WebFire·fillParams·diffContract·toFire 는 inline 유지.
@@ -282,5 +284,157 @@ describe('AdminView — 그룹 멤버 추가 web↔backend 계약 drift guard (T
       optional: emptyFields.optional,
     };
     expect(diffContract(await fireAddMember('person-9'), empty, PARAMS)).toEqual(['backend 계약 추출 실패']);
+  });
+});
+
+// ── T-1238 — AdminView 멤버 추가 컨테이너 배선 (deriveAddCandidates 파생 + onAdd 주입) ─────────────
+// T-1237 이 신설한 presentational onAdd/addCandidates 계약을 컨테이너가 소비한다. 본 블록은 (1) 순수
+// helper deriveAddCandidates(persons − 현재 멤버) 파생과 (2) 그 후보를 선택해 onAdd 로 넘겼을 때의 실
+// 발사(runAdd)를 RTL/jsdom 없이 pure-function 으로 검증한다(ADR-0040 §5 — 위 drift-guard 와 동일 관례).
+
+// PersonRow 팩토리 — 필수 4 필드를 채운다(id/fullName/email/active). 후보 파생은 id/fullName 만 쓴다.
+function person(id: string, fullName: string): PersonRow {
+  return { id, fullName, email: `${id}@example.com`, active: true };
+}
+// membership 팩토리 — 제외 키로 쓰는 personId 만 관심 대상(id/groupId 는 편의 채움).
+function membership(personId: string): MembershipRow {
+  return { id: `mem-${personId}`, personId, groupId: GROUP_ID };
+}
+
+// onAdd → runAdd 발사 캡처(가드로 미발사되는 negative 도 수용 — fireAddMember 와 달리 throw 없음).
+async function tryAdd(
+  personId: string,
+  opts: { groupId?: string; adding?: boolean; failAdd?: boolean } = {},
+): Promise<{ fired: boolean; firedBody: unknown; addError: string | undefined }> {
+  let fired = false;
+  let firedBody: unknown;
+  let addError: string | undefined;
+  const deps: AddDeps = {
+    add: async (_path, options) => {
+      fired = true;
+      firedBody =
+        options.body !== undefined && options.body !== null
+          ? (JSON.parse(String(options.body)) as unknown)
+          : undefined;
+      if (opts.failAdd) {
+        throw new Error('네트워크 0'); // 비-2xx/네트워크 실패 시뮬 — catch 경로 진입.
+      }
+      return undefined;
+    },
+    describeError: () => '멤버 추가에 실패했습니다',
+    groupId: opts.groupId ?? GROUP_ID,
+    adding: opts.adding ?? false,
+    setAdding: () => {},
+    setAddError: (next) => {
+      addError = next;
+    },
+    bumpRefresh: () => {},
+    resetInput: () => {},
+  };
+  await runAdd(personId, deps);
+  return { fired, firedBody, addError };
+}
+
+describe('AdminView — deriveAddCandidates 파생 (T-1238)', () => {
+  it('전체 인원 중 1인이 멤버면 나머지 2인만 후보로 남긴다(멤버 제외, id=personId, name=fullName) (happy-path)', () => {
+    const candidates = deriveAddCandidates(
+      [person('p1', '김하나'), person('p2', '이두리'), person('p3', '박세찬')],
+      [membership('p2')],
+    );
+    expect(candidates).toEqual<Member[]>([
+      { id: 'p1', name: '김하나' },
+      { id: 'p3', name: '박세찬' },
+    ]);
+  });
+  it('전체 인원 중 일부만 멤버면 후보는 비멤버만이다 (flow/branch — 제외 로직 분기)', () => {
+    const candidates = deriveAddCandidates(
+      [person('p1', 'A'), person('p2', 'B'), person('p3', 'C'), person('p4', 'D')],
+      [membership('p1'), membership('p3')],
+    );
+    expect(candidates.map((c) => c.id)).toEqual(['p2', 'p4']);
+  });
+  it('모든 인원이 이미 멤버면 후보는 빈 배열이다 (flow/branch — 빈 후보 안전 표시 분기)', () => {
+    const candidates = deriveAddCandidates(
+      [person('p1', 'A'), person('p2', 'B')],
+      [membership('p1'), membership('p2')],
+    );
+    expect(candidates).toEqual([]);
+  });
+  it('membershipData 가 undefined 면 전원이 후보다(제외 집합 없음) (분기 — 멤버십 미도착)', () => {
+    const candidates = deriveAddCandidates([person('p1', 'A'), person('p2', 'B')], undefined);
+    expect(candidates.map((c) => c.id)).toEqual(['p1', 'p2']);
+  });
+  it('personData 가 undefined/비배열이면 빈 배열을 반환한다(throw 없음) (negative (d) — 조회 전 안전 수용)', () => {
+    expect(deriveAddCandidates(undefined, [membership('p1')])).toEqual([]);
+    expect(deriveAddCandidates(null as unknown as PersonRow[], undefined)).toEqual([]);
+    expect(deriveAddCandidates({} as unknown as PersonRow[], undefined)).toEqual([]);
+  });
+  it('membershipData 가 비배열이면 제외 없이 전원 후보다(throw 없음) (negative — 비정상 멤버십)', () => {
+    const candidates = deriveAddCandidates(
+      [person('p1', 'A')],
+      'oops' as unknown as MembershipRow[],
+    );
+    expect(candidates.map((c) => c.id)).toEqual(['p1']);
+  });
+  it('personId 가 빈/누락인 membership 은 제외 키로 쓰지 않는다(정상 인원 유실 방지) (negative — 잘못된 제외 키)', () => {
+    const candidates = deriveAddCandidates(
+      [person('p1', 'A'), person('p2', 'B')],
+      [
+        { id: 'm1', personId: '', groupId: GROUP_ID },
+        { id: 'm2', groupId: GROUP_ID }, // personId 누락
+      ],
+    );
+    expect(candidates.map((c) => c.id)).toEqual(['p1', 'p2']);
+  });
+  it('id 누락 인원은 index 기반 합성 key(p<n>)로 안전 매핑한다 (negative — id 누락)', () => {
+    const candidates = deriveAddCandidates(
+      [{ fullName: '무명' } as unknown as PersonRow],
+      undefined,
+    );
+    expect(candidates).toEqual<Member[]>([{ id: 'p1', name: '무명' }]);
+  });
+  it('fullName 누락/빈 문자열 인원은 FALLBACK 이름으로 안전 매핑한다 (negative — 이름 누락)', () => {
+    const candidates = deriveAddCandidates(
+      [
+        { id: 'p1' } as unknown as PersonRow,
+        { id: 'p2', fullName: '' } as unknown as PersonRow,
+      ],
+      undefined,
+    );
+    expect(candidates).toEqual<Member[]>([
+      { id: 'p1', name: '이름 미상' },
+      { id: 'p2', name: '이름 미상' },
+    ]);
+  });
+});
+
+describe('AdminView — onAdd 주입(handleAdd → runAdd) 발사 (T-1238)', () => {
+  it('후보 선택 → onAdd(personId) 시 POST body {personId} 가 정확히 1회 발사된다 (happy-path)', async () => {
+    const candidates = deriveAddCandidates(
+      [person('p1', 'A'), person('p2', 'B'), person('p3', 'C')],
+      [membership('p2')],
+    );
+    const selected = candidates[0].id; // 후보에서 첫 인원 선택(p1).
+    const result = await tryAdd(selected);
+    expect(result.fired).toBe(true);
+    expect(result.firedBody).toEqual({ personId: 'p1' });
+  });
+  it('그룹 미선택(빈 groupId)이면 add 미발사(POST 0) (negative (a) — 그룹 미선택 가드)', async () => {
+    const result = await tryAdd('p1', { groupId: '' });
+    expect(result.fired).toBe(false);
+  });
+  it('후보 미선택(빈 personId)이면 add 미발사(POST 0) (negative (b) — 빈 personId 차단)', async () => {
+    const result = await tryAdd('');
+    expect(result.fired).toBe(false);
+    expect((await tryAdd('   ')).fired).toBe(false); // 공백만도 차단.
+  });
+  it('POST 실패(네트워크/비-2xx) 시 addError 를 사람-친화 문구로 안전 표시하고 throw 하지 않는다 (negative (c) — 실패 안전 표시)', async () => {
+    const result = await tryAdd('p1', { failAdd: true });
+    expect(result.fired).toBe(true);
+    expect(result.addError).toBe('멤버 추가에 실패했습니다');
+  });
+  it('add in-flight(adding=true) 중 재발사는 미발사(이중 POST 미발사) (flow/branch — adding 가드)', async () => {
+    const result = await tryAdd('p1', { adding: true });
+    expect(result.fired).toBe(false);
   });
 });

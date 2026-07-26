@@ -577,6 +577,41 @@ function deriveMembersFromMemberships(
   });
 }
 
+// 전체 인원(personData) − 현재 그룹 멤버(membershipData 의 personId) → GroupMemberList 의 추가 후보
+// Member[] 파생(순수 helper, T-1238). deriveMembers/deriveMembersFromMemberships 와 동형이라 배열이
+// 아니면 빈 배열을 반환하고(throw 없이 — 조회 전/비정상 응답도 안전 수용), 각 후보의 id 는 person 의
+// personId, 이름은 fullName(없으면 FALLBACK_MEMBER_NAME)로 매핑한다. 멤버십의 personId 집합을 만들어
+// 그 집합에 든 인원을 제외하므로, 이미 멤버인 인원은 후보에서 빠진다(중복 추가 방지 — 서버 @@unique
+// 위반 이전에 UI 에서 1차 차단). id 누락 인원은 index 기반 합성 key 로 안전 매핑해 React key 안정성을
+// 유지한다. 후보의 role 은 add 후보에 불필요하고 personData 계약에 없어 매핑하지 않는다(있어도 무해).
+function deriveAddCandidates(
+  personData: PersonRow[] | undefined,
+  membershipData: MembershipRow[] | undefined,
+): Member[] {
+  if (!Array.isArray(personData)) {
+    return [];
+  }
+  // 현재 멤버의 personId 집합 — membershipData 가 배열이 아니면 빈 집합(전원 후보). 빈/비문자열
+  // personId 는 제외 키로 부적합해 걸러낸다(잘못된 제외로 정상 인원이 사라지는 것 방지).
+  const memberPersonIds = new Set(
+    (Array.isArray(membershipData) ? membershipData : [])
+      .map((membership) => membership.personId)
+      .filter(
+        (personId): personId is string =>
+          typeof personId === 'string' && personId !== '',
+      ),
+  );
+  return personData
+    .filter((person) => !memberPersonIds.has(person.id))
+    .map((person, index) => {
+      const name = person.fullName ?? FALLBACK_MEMBER_NAME;
+      return {
+        id: person.id ?? `p${index + 1}`,
+        name: name || FALLBACK_MEMBER_NAME,
+      };
+    });
+}
+
 // 난이도 슬롯 고정 3 키 — deriveDifficultyMapping 의 기본 골격(미지의 키 무시 + 누락 슬롯 null).
 const DIFFICULTY_KEYS: Difficulty[] = ['easy', 'medium', 'hard'];
 
@@ -3075,26 +3110,24 @@ function AdminView({
     [selectedGroupId, removing],
   );
 
-  // 추가할 멤버 personId 입력 상태(T-1131) — controlled input(컨테이너 소유). "추가" 클릭 시
-  // handleAdd 가 POST body 의 personId 로 공급하고, 성공 후 빈 값으로 되돌린다(연속 추가 편의).
-  const [personIdInput, setPersonIdInput] = useState<string>('');
-
-  // add mutation in-flight 플래그(T-1131) — POST 진행 중 true. 진행 표시(입력·버튼 비활성)와
-  // 동시 재호출 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다(remove removing 동형).
+  // add mutation in-flight 플래그(T-1131) — POST 진행 중 true. 동시 재호출 가드(이전 mutation 미완
+  // 중 재발사 차단 — 이중 POST 방지)에 쓴다(remove removing 동형). T-1238: 후보 select 가 컴포넌트
+  // 로컬 state 로 이동해 컨테이너는 입력값을 더 이상 보유하지 않고, 이 플래그만 남아 in-flight 가드를 한다.
   const [adding, setAdding] = useState<boolean>(false);
 
   // add mutation 실패 문구(T-1131) — POST 실패 시 사람-친화 문구(toErrorMessage 파생)를 보관해
-  // 입력 하단에 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다(remove removeError 동형).
+  // GroupMemberList 근처에 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다(remove removeError 동형).
   const [addError, setAddError] = useState<string | undefined>(undefined);
 
-  // 멤버 추가 실 mutation 핸들러(T-1131) — 멤버 추가 POST(/api/groups/:id/members, body
-  // `{ personId }`)를 컨테이너 내부 async 로 발사한다(handleRemove 정합). 빈/공백 personId·그룹
-  // 미선택·이전 mutation 미완(adding) 발사 억제 + 성공(멤버십 재조회 + 입력 초기화)/실패(error 안전
-  // 표시, throw 없음) 전이는 runAdd 가 캡슐화한다. personIdInput(POST body)·selectedGroupId(POST
-  // path param)·adding 을 deps 의존성에 포함해 stale 없이 최신 입력·그룹·가드 상태로 발사한다.
+  // 멤버 추가 실 mutation 핸들러(T-1131 → T-1238 컨테이너 배선) — GroupMemberList 의 onAdd 콜백으로
+  // 넘어가 선택된 후보의 personId 를 인자로 받아 멤버 추가 POST(/api/groups/:id/members, body
+  // `{ personId }`)를 발사한다(handleRemove 정합). 빈/공백 personId·그룹 미선택·이전 mutation 미완
+  // (adding) 발사 억제 + 성공(멤버십 재조회)/실패(error 안전 표시, throw 없음) 전이는 runAdd 가
+  // 캡슐화한다. selectedGroupId(POST path param)·adding 을 deps 에 포함해 stale 없이 최신 그룹·가드
+  // 상태로 발사한다. 후보 선택값은 컴포넌트 로컬 state 라 resetInput 은 무해화(no-op — 컨테이너 미보유).
   const handleAdd = useCallback(
-    () =>
-      runAdd(personIdInput, {
+    (personId: string) =>
+      runAdd(personId, {
         add: request,
         describeError: toErrorMessage,
         groupId: selectedGroupId,
@@ -3102,9 +3135,18 @@ function AdminView({
         setAdding,
         setAddError,
         bumpRefresh: () => setMembersRefreshNonce((n) => n + 1),
-        resetInput: () => setPersonIdInput(''),
+        resetInput: () => {},
       }),
-    [personIdInput, selectedGroupId, adding],
+    [selectedGroupId, adding],
+  );
+
+  // 추가 후보(persons − 현재 멤버) 파생(T-1238) — deriveAddCandidates 로 전체 인원에서 현재 그룹
+  // 멤버(membershipData 의 personId)를 제외한 Member[](id = personId)를 만든다. GroupMemberList 의
+  // addCandidates prop 으로 내려보내 컴포넌트의 select 옵션이 된다(정렬/검색은 Out of Scope). deps 에
+  // selectedGroupId 를 포함해(membershipData 는 이미 그룹별이지만) 그룹 전환 시 파생을 명시적으로 재평가한다.
+  const addCandidates = useMemo(
+    () => deriveAddCandidates(personData, membershipData),
+    [personData, membershipData, selectedGroupId],
   );
 
   // provider 재조회 nonce(T-1135) — LlmProviderConfigList.onDelete DELETE 성공 시 이 값을 +1 해
@@ -3158,7 +3200,7 @@ function AdminView({
 
   // provider 생성 4 controlled input 상태(T-1136) — 컨테이너 소유. "추가" 클릭 시
   // handleCreateProvider 가 POST body 의 4 필드로 공급하고, 성공 후 모두 빈 값으로 되돌린다
-  // (연속 생성 편의 + secret apiKey 잔존 방지). runAdd 의 personIdInput 패턴 mirror.
+  // (연속 생성 편의 + secret apiKey 잔존 방지). runCreatePerson 의 입력 초기화 패턴 mirror.
   const [providerInput, setProviderInput] = useState<string>('');
   const [endpointUrlInput, setEndpointUrlInput] = useState<string>('');
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
@@ -4049,37 +4091,26 @@ function AdminView({
           멤버 행에 제거 버튼이 렌더되고, 클릭 시 그 행의 membershipId 로 DELETE :id/members/:membershipId
           를 발사한다(handleRemove). loading/error 는 멤버십 조회와 remove mutation 을 합성한다
           (removing||membersLoading / removeError??membersError — mutation 우선). 컴포넌트 수정 0. */}
+      {/* 멤버 추가 배선(T-1238) — T-1237 이 신설한 presentational onAdd/addCandidates 계약을 주입한다.
+          addCandidates(persons − 현재 멤버)로 컴포넌트의 후보 select 를 채우고, onAdd 로 선택된 후보의
+          personId 를 handleAdd 에 넘겨 POST /api/groups/:id/members(body `{ personId }`)를 발사한다.
+          성공 시 membersRefreshNonce bump 로 권위 재조회(낙관 override 없음 — remove 동형). 선택값은
+          컴포넌트 로컬 state 라 컨테이너는 값을 보유하지 않고, 후보 미선택/빈 후보는 컴포넌트가 버튼
+          disabled 로 1차 차단, runAdd 가 빈 personId·그룹 미선택·in-flight 를 2차 방어한다. */}
       <GroupMemberList
         members={groupMembers}
         loading={removing || membersLoading}
         error={removeError ?? membersError}
         emptyMessage={emptyMessage}
         onRemove={handleRemove}
+        onAdd={handleAdd}
+        addCandidates={addCandidates}
       />
-      {/* 멤버 추가(T-1131) — personId 입력 + "추가" 버튼. GroupMemberList(presentational)는 display +
-          onRemove 만 책임지므로 add 컨트롤은 컨테이너가 직접 소유한다(controlled lift-up, ADR-0041
-          Decision 1 — 컴포넌트 수정 0). 클릭 시 handleAdd 가 POST /api/groups/:id/members(body
-          `{ personId }`)를 발사하고, 성공 시 membersRefreshNonce bump 로 권위 재조회한다(낙관 override
-          없음 — remove 동형). 선택 그룹 미선택/진행 중/빈·공백 입력일 때는 버튼을 비활성화해 발사를 억제
-          하고(runAdd 도 동일 조건을 no-op 가드로 이중 방어), 입력은 미선택/진행 중에도 비활성화한다.
-          실패 문구(addError)는 입력 하단에 안전 표시한다(throw 없음). */}
-      <div>
-        <input
-          aria-label="추가할 멤버 personId"
-          type="text"
-          value={personIdInput}
-          onChange={(event) => setPersonIdInput(event.target.value)}
-          disabled={!selectedGroupId || adding}
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!selectedGroupId || adding || !personIdInput.trim()}
-        >
-          추가
-        </button>
-        {addError ? <p role="alert">{addError}</p> : null}
-      </div>
+      {/* 멤버 추가 실패 문구(T-1131 → T-1238) — 기존 free-text 입력 블록을 은퇴(add UX 를
+          presentational 컴포넌트로 일원화)하고, 실패 문구만 GroupMemberList 근처에 남겨 안전 표시한다.
+          error props 경로가 아니라 별도 alert 로 두는 이유: 컴포넌트의 error 분기는 목록·추가 form 을
+          모두 감춰 add 실패 후 재시도 form 이 사라지기 때문(add 진행 중 form 유지). throw 없음. */}
+      {addError ? <p role="alert">{addError}</p> : null}
       {/* Admin+ RBAC gating(④h) — Admin/SuperAdmin 등급(isAdmin === true)에게만 Admin 전용 패널
           (DifficultyModelSelector + scope <select> + DataImportExportPanel)을 렌더한다. 세 패널은
           모두 Admin+ endpoint(GET /api/llm/providers·/difficulty-mappings·/admin/export·/admin/import,
@@ -4748,6 +4779,7 @@ export {
   deriveMembers,
   buildGroupMembersPath,
   deriveMembersFromMemberships,
+  deriveAddCandidates,
   deriveProviders,
   deriveProviderConfigs,
   deriveDifficultyMapping,
