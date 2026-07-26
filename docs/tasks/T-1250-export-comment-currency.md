@@ -12,6 +12,10 @@ touchesFiles: [web/src/api/exportJobDownload.ts]
 dependsOn: []
 independentStream: p6-export-contract-fix
 plannerNote: P6 export-contract-fix stream 잔여 nit — exportJobDownload.ts 가 T-1247/T-1249 로 삭제된 AdminView 소스를 mirror 로 참조하는 stale 주석 현행화(comment-only)
+status: DONE
+completedAt: 2026-07-26
+completedCommit: becf1572
+completedNote: comment-only 6종 stale mirror 주석 현행화(+9/-9, 1 file, 로직 diff 0). scheduled-task 오너 지시(코멘트 변경은 PR·리뷰 없이 direct)에 따라 pr-mode 대신 direct commit becf1572 로 main 머지. web 70 file·2020 test + tsc/vite build green. commitMode:pr 은 planner 분류 기록으로 보존.
 ---
 
 # T-1250 — exportJobDownload.ts 삭제된 AdminView 소스 참조 stale 주석 현행화
