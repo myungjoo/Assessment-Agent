@@ -2,7 +2,10 @@
 id: T-1245
 title: export job-flow 다운로드 러너 신설 — runExportJob 결과 Response 를 blob→파일저장 + state 전이로 합성(격리 순수 함수)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 4a58f7da
+prNumber: 1137
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-057, REQ-030, REQ-032]
 estimatedDiff: 250
