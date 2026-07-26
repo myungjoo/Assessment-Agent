@@ -1,18 +1,18 @@
 // export job-flow 다운로드 러너(T-1245) — T-1243 `runExportJob`(create→poll→download)이 내는
 // 다운로드 `Response` 를 blob → 파일명 파싱 → 파일 저장 + export state 전이로 합성하는 격리
-// deps-주입 순수 async 러너. AdminView.tsx(hub) 무접촉 file-disjoint 로 R-112 완전 cover(실
-// 배선 slice 후속). 구 `runExport`(AdminView L924~957) mirror — GET 대신 job-flow(`runJob` deps
-// 주입, 강결합 금지)로 Response 획득만 다르다. filename helper·기본명·완료문구는 hub import 대신
-// 로컬(hub 무접촉 — dedup 은 배선 slice Follow-up).
+// deps-주입 순수 async 러너. AdminView.tsx(hub) 무접촉 file-disjoint 로 R-112 완전 cover. 구 GET
+// 모델 `runExport`(T-1247 로 AdminView 에서 삭제)를 대체한 job-flow 다운로드 러너 — GET 대신
+// job-flow(`runJob` deps 주입, 강결합 금지)로 Response 획득만 다르다. filename helper·기본명·
+// 완료문구는 본 파일이 canonical 정의처(구 AdminView 사본은 T-1249 로 삭제 완료 — dedup 종결).
 
 import type { CreateExportInput } from './exportJob';
 
-// export 성공 message·filename 부재 시 기본명(각각 AdminView EXPORT_DONE_TEXT/
-// DEFAULT_EXPORT_FILENAME mirror — hub import 대신 로컬).
+// export 성공 message·filename 부재 시 기본명(각각 EXPORT_DONE_TEXT/DEFAULT_EXPORT_FILENAME
+// 의 canonical 정의처 — 구 AdminView 상수는 T-1247 로 삭제됨).
 const EXPORT_DONE_TEXT = '내보내기 완료';
 const DEFAULT_EXPORT_FILENAME = 'export.json';
 
-// Content-Disposition 에서 filename 추출(AdminView parseFilename mirror). RFC 6266 두 형태:
+// Content-Disposition 에서 filename 추출(본 파일이 parseFilename 의 canonical 정의처). RFC 6266 두 형태:
 // (1) filename*=UTF-8''<percent-encoded> 우선(비-ASCII 안전) (2) 일반 filename="...". 빈/누락/
 // null 은 throw 없이 undefined(호출측이 기본명 fallback — 안전 파싱).
 function parseFilename(disposition: string | null): string | undefined {
@@ -54,7 +54,7 @@ interface RunExportJobDownloadDeps {
   setExportMessage: (next: string | undefined) => void;
 }
 
-// blob 을 가상 <a download> 클릭으로 저장(AdminView triggerDownload mirror). click 성공·예외
+// blob 을 가상 <a download> 클릭으로 저장(본 파일이 triggerDownload 의 canonical 정의처). click 성공·예외
 // 무관 finally 로 revokeObjectURL 정리 보장(URL 누수 0).
 function triggerDownload(
   blob: Blob,
@@ -72,7 +72,7 @@ function triggerDownload(
   }
 }
 
-// export job-flow 다운로드 러너 — 구 runExport mirror(GET→job-flow 만 교체): (1) exporting →
+// export job-flow 다운로드 러너 — 구 GET 모델 runExport 를 대체(GET→job-flow 만 교체): (1) exporting →
 // 미발사(이중 job·중복 다운로드 차단) (2) 진행 on + 직전 error·message 비움 (3) runJob→blob→
 // filename(없으면 기본명)→파일 저장→완료 message (4) catch: error throw 없이 표면화 (5) finally:
 // 진행 off(공통).
