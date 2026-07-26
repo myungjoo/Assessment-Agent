@@ -2,8 +2,12 @@
 id: T-1248
 title: exportJobDownload parseFilename malformed-percent-encoding fallthrough 테스트 보강
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1140
+mergedAs: e1a72bf4758231f9f75eb99c8c7d3bec4500b321
+reviewRounds: 1
+completedAt: 2026-07-26T10:51:00Z
 coversReq: [REQ-057]
 estimatedDiff: 45
 estimatedFiles: 1
