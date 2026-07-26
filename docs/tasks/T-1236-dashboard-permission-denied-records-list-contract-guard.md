@@ -2,7 +2,7 @@
 id: T-1236
 title: DashboardView GET /api/permission-denied-records 권한 부족 감사 조회 web↔backend 계약 drift-guard spec 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-038, REQ-008]
 estimatedDiff: 240
