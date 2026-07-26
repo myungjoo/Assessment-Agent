@@ -1851,24 +1851,38 @@ describe('AdminView — onRemove 제거 버튼 배선 (정적 렌더, T-1130)', 
     expect(html).not.toContain('제거');
   });
 
-  // T-1131 — 멤버 추가 컨트롤 렌더. 그룹 선택 시 personId 입력 + "추가" 버튼이 컨테이너에 렌더된다
-  // (GroupMemberList 는 수정 0 — add 컨트롤은 컨테이너 소유). 그룹 미선택 시 입력은 disabled.
-  it('그룹 선택 시 personId 입력 + 추가 버튼을 렌더하고 미선택 시 입력을 비활성으로 렌더한다 (T-1131 add 컨트롤)', () => {
-    setResource(
-      { data: SAMPLE, loading: false, error: undefined },
-      { data: [], loading: false, error: undefined },
-    );
+  // T-1131 → T-1238 — 멤버 추가 컨트롤 렌더. 컨테이너 소유 free-text personId 입력은 은퇴하고,
+  // T-1237 이 신설한 presentational select 기반 추가 form(GroupMemberList onAdd/addCandidates 주입)
+  // 으로 일원화됐다. 후보 = persons − 현재 멤버(deriveAddCandidates). 그룹 미선택 시에도 free-text 는 없다.
+  it('그룹 선택 시 select 기반 추가 form(후보 = persons − 멤버)을 렌더하고 free-text 입력은 은퇴했다 (T-1238 add 배선)', () => {
+    // 전체 인원 4명 중 g1 멤버(MEMBERSHIPS_G1 = p1,p2)를 제외한 2명(p5,p6)이 후보로 노출돼야 한다.
+    setRoutes({
+      '/api/groups': { data: SAMPLE, loading: false, error: undefined },
+      '/api/persons': {
+        data: [
+          { id: 'p1', fullName: '김철수', email: 'p1@x.io', active: true },
+          { id: 'p2', fullName: '이영희', email: 'p2@x.io', active: true },
+          { id: 'p5', fullName: '최수빈', email: 'p5@x.io', active: true },
+          { id: 'p6', fullName: '한지민', email: 'p6@x.io', active: true },
+        ],
+        loading: false,
+        error: undefined,
+      },
+    });
     const selected = renderToStaticMarkup(
       <AdminView initialSelectedGroupId="g1" />,
     );
-    // personId 입력 + "추가" 버튼 노출. 빈 입력이라 버튼은 disabled(발사 억제).
-    expect(selected).toContain('aria-label="추가할 멤버 personId"');
+    // free-text personId 입력은 은퇴 — 더 이상 렌더되지 않는다(add UX 일원화).
+    expect(selected).not.toContain('aria-label="추가할 멤버 personId"');
+    // select 기반 추가 form 렌더(GroupMemberList onAdd 주입) + "추가" 버튼.
+    expect(selected).toContain('name="addCandidate"');
     expect(selected).toContain('추가');
-    expect(selected).toContain('disabled');
-    // 그룹 미선택 — 입력은 존재하되 disabled(잘못된 path·발사 억제 가드).
+    // 후보 = persons − 현재 멤버(p1,p2 제외) → p5/p6(최수빈/한지민)만 후보 옵션으로 노출.
+    expect(selected).toContain('최수빈');
+    expect(selected).toContain('한지민');
+    // 그룹 미선택 — free-text 입력은 여전히 없다(은퇴 확인).
     const unselected = renderToStaticMarkup(<AdminView />);
-    expect(unselected).toContain('aria-label="추가할 멤버 personId"');
-    expect(unselected).toContain('disabled');
+    expect(unselected).not.toContain('aria-label="추가할 멤버 personId"');
   });
 });
 
