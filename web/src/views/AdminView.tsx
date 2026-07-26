@@ -3437,23 +3437,25 @@ function AdminView({
   const [exportError, setExportError] = useState<string | undefined>(undefined);
 
   // export scope 선택 상태(④g) — controlled lift-up(컨테이너 소유). 컨테이너가 직접 렌더하는
-  // scope <select> 가 이 값을 갱신하고, handleExport 가 buildExportPath 로 path 에 반영한다.
-  // 빈 문자열(전체) 이 초기값 = scope query 미부착(④f 동작 유지). DataImportExportPanel 은 scope
+  // scope <select> 가 이 값을 갱신하고, handleExport 가 runAdminExportJob 으로 넘겨 job-flow
+  // 입력(CreateExportInput)에 반영한다. 빈 문자열(전체) 이 초기값 = scope 미부착 POST body {}
+  // (④f 동작 유지). DataImportExportPanel 은 scope
   // 를 모른다(ADR-0041 Decision 1 — scope 선택은 컨테이너 책임, 패널 props 계약 불변).
   const [selectedScope, setSelectedScope] = useState<string>('');
 
-  // onExport 실 핸들러(④d, ④g 확장) — export GET 을 컨테이너 내부 async 로 발사한다
+  // onExport 실 핸들러(④d, ④g 확장) — export job-flow 를 컨테이너 내부 async 로 발사한다
   // (신규 fetch hook 미작성 — ④c runAssign 정합, useApiResource 는 read-on-mount 라 클릭 발화에
-  // 부적합). 동작:
+  // 부적합). 동작(runAdminExportJob 위임):
   //  1) 이전 export 미완(exporting) 중 재호출이면 미발사(이중 호출·state 깨짐 차단).
   //  2) 진행 표시 on + 직전 error·message 비움(실패 후 재시도 시 직전 error 정리).
-  //  3) GET 성공 → response.blob() → Content-Disposition filename(없으면 기본명) → 가상 <a download>
-  //     클릭으로 실제 파일 저장(createObjectURL/revokeObjectURL/anchor 부수효과 deps 주입) → 완료 message.
-  //  4) GET 실패 → toErrorMessage 문구를 error props 로 안전 표시(403/404/비-2xx/네트워크 0 모두, throw 없음).
+  //  3) POST create → status poll → download 성공 → response.blob() → Content-Disposition filename
+  //     (없으면 기본명) → 가상 <a download> 클릭으로 실제 파일 저장(createObjectURL/revokeObjectURL/anchor
+  //     부수효과 deps 주입) → 완료 message.
+  //  4) job-flow 실패 → toErrorMessage 문구를 error props 로 안전 표시(403/404/비-2xx/네트워크 0 모두, throw 없음).
   //  5) 마지막에 진행 표시 off(성공·실패 공통).
-  // ④g: buildExportPath(selectedScope) 로 현재 scope 선택값을 path 에 반영해 주입한다(scope
-  // 미선택 시 ADMIN_EXPORT_PATH 그대로 = ④f 동작). selectedScope 를 deps 의존성에 포함해 변경된
-  // scope 가 stale 없이 반영되도록 한다(이전 선택값 캡처 방지).
+  // ④g: buildExportInput(selectedScope) 로 현재 scope 선택값을 POST body 에 반영해 주입한다(scope
+  // 미선택 시 빈 body {} = backend 기본 scope 위임 = ④f 동작). selectedScope 를 deps 의존성에 포함해
+  // 변경된 scope 가 stale 없이 반영되도록 한다(이전 선택값 캡처 방지).
   const handleExport = useCallback(
     () =>
       runAdminExportJob(selectedScope, {
@@ -4273,8 +4275,8 @@ function AdminView({
           </div>
           {/* export scope 선택 컨트롤(④g) — 컨테이너가 직접 렌더한다(그룹 선택 <select> 동형 —
               presentational DataImportExportPanel 은 scope 를 모른다, ADR-0041 Decision 1). 선택값은
-              handleExport 가 buildExportPath 로 GET /api/admin/export?scope= query 에 부착하고, 빈
-              선택(전체) 시에는 query 없이 호출한다(④f 동작 유지). scope 후보는 frontend-local 보수
+              handleExport 가 runAdminExportJob 으로 POST job-flow(create→poll→download) 입력의 scope
+              에 반영하고, 빈 선택(전체) 시에는 scope 없이 호출한다(④f 동작 유지). scope 후보는 frontend-local 보수
               목록(EXPORT_SCOPE_OPTIONS) — backend 확정 enum 정합은 후속. */}
           <select
             aria-label="export 범위 선택"
