@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import GroupMemberList, { isAddDisabled, submitAdd } from './GroupMemberList';
+import GroupMemberList, {
+  isAddDisabled,
+  submitAdd,
+  filterCandidates,
+} from './GroupMemberList';
 import type { Member } from './GroupMemberList';
 
 // R-112 — REQ-046/REQ-047 그룹 인원 목록(ADR-0040 §1) 검증.
@@ -26,6 +30,10 @@ const ADD_PLACEHOLDER = '추가할 인원 선택';
 const NO_CANDIDATES_TEXT = '추가할 인원이 없습니다';
 // 추가 후보 select 의 name 속성 — 추가 form(<select name="addCandidate">) 존재 식별에 쓴다.
 const ADD_SELECT_MARKER = 'name="addCandidate"';
+// 추가 후보 검색 입력의 aria-label (구현의 SEARCH_LABEL 과 정합) — 검색 입력 존재 식별 토큰.
+const SEARCH_LABEL = '추가 후보 검색';
+// 검색 결과 없음 안내 문구 (구현의 NO_RESULTS_TEXT 와 정합).
+const NO_RESULTS_TEXT = '검색 결과 없음';
 
 // 테스트용 멤버 — role 포함 2명 + role 미포함 1명(throw 없이 name 만 렌더 검증용).
 const sampleMembers: Member[] = [
@@ -376,5 +384,148 @@ describe('GroupMemberList', () => {
     expect(html).toContain(REMOVE_LABEL);
     expect(html).toContain(ADD_LABEL);
     expect(html).toContain(ADD_SELECT_MARKER);
+  });
+
+  // ── T-1239: 추가 후보 검색/필터 slice ─────────────────────────────────────
+  // renderToStaticMarkup 은 이벤트를 발화하지 않아 검색 입력에 타이핑한 뒤의 필터된 옵션·
+  // "검색 결과 없음" 렌더는 정적 렌더로 재현 불가하다(filterText useState 는 항상 초기값 '').
+  // 그래서 필터 결정 로직을 순수 함수 filterCandidates 로 분리·export 해 매칭·부분일치·
+  // case-insensitivity·빈 질의어·비배열 방어·대량 목록을 직접 호출로 검증하고, 렌더 분기
+  // (검색 입력 노출/부재·초기 미필터 옵션·byte 동등)는 정적 markup 으로 assert 한다.
+
+  // 5인 후보 — happy-path 부분일치용(이름에 "김" 2인, "박"/"이"/"최" 각 1인).
+  const fiveCandidates: Member[] = [
+    { id: 'c1', name: '김하나', role: '평가자' },
+    { id: 'c2', name: '김두리' },
+    { id: 'c3', name: '박세찬', role: '관리자' },
+    { id: 'c4', name: '이넷째' },
+    { id: 'c5', name: '최다섯' },
+  ];
+
+  // happy-path(pure) — 부분일치 질의어로 매칭 후보만 남기고 그 personId 로 submitAdd → onAdd 1회.
+  it('filterCandidates("김", 5인) → 매칭 2인만 남고 그 personId 로 submitAdd 시 onAdd 1회 (happy-path — 필터 후 추가)', () => {
+    const matched = filterCandidates(fiveCandidates, '김');
+    expect(matched.map((m) => m.id)).toEqual(['c1', 'c2']);
+    // 매칭된 후보 하나를 선택해 추가하면 onAdd 가 그 personId 로 정확히 1회 호출된다.
+    const onAdd = vi.fn();
+    submitAdd(matched[0].id, onAdd);
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd).toHaveBeenCalledWith('c1');
+  });
+
+  // happy-path(render) — onAdd + addCandidates 주입 시 검색 입력(aria-label)이 select 위에 렌더된다.
+  it('onAdd + addCandidates 주입 시 검색 입력(aria-label "추가 후보 검색") 렌더 (happy-path — 검색 입력 렌더)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList
+        members={sampleMembers}
+        onAdd={() => undefined}
+        addCandidates={fiveCandidates}
+      />,
+    );
+    expect(html).toContain(`aria-label="${SEARCH_LABEL}"`);
+    expect(html).toContain('type="search"');
+    // 초기 filterText='' 이므로 필터 미적용 — 모든 후보 옵션이 그대로 렌더된다.
+    expect(html).toContain('김하나');
+    expect(html).toContain('최다섯');
+    // 초기(미필터) 상태에서는 "검색 결과 없음" 안내가 없다.
+    expect(html).not.toContain(NO_RESULTS_TEXT);
+  });
+
+  // negative(pure) — undefined 입력 시 빈 배열 반환(throw 없음).
+  it('filterCandidates(undefined, "김") → 빈 배열 반환·throw 없음 (negative — 비배열 방어 undefined)', () => {
+    expect(() => filterCandidates(undefined, '김')).not.toThrow();
+    expect(filterCandidates(undefined, '김')).toEqual([]);
+  });
+
+  // negative(pure) — 비배열(런타임 오용) 입력도 throw 없이 빈 배열 반환.
+  it('filterCandidates(비배열, "김") → 빈 배열 반환·throw 없음 (negative — 비배열 방어 non-array)', () => {
+    // 런타임 오용 시나리오 — 타입 계약 밖의 값이 들어와도 방어한다.
+    const bogus = 'not-an-array' as unknown as Member[];
+    expect(() => filterCandidates(bogus, '김')).not.toThrow();
+    expect(filterCandidates(bogus, '김')).toEqual([]);
+  });
+
+  // negative(pure) — 매칭 0건 질의어 → 빈 배열(원본은 비지 않음 → 렌더 시 "검색 결과 없음" 분기).
+  it('filterCandidates(5인, "존재하지않는이름") → 빈 배열 (negative — 매칭 0건)', () => {
+    const matched = filterCandidates(fiveCandidates, '존재하지않는이름');
+    expect(matched).toEqual([]);
+    // 원본 후보는 여전히 ≥1개이므로 렌더는 "검색 결과 없음" 분기(showNoResults)로 간다.
+    expect(fiveCandidates.length).toBeGreaterThan(0);
+  });
+
+  // negative/edge(pure) — case-insensitivity: 소문자 질의 vs 대문자 이름 매칭.
+  it('filterCandidates — 소문자 질의 "abc" 가 대문자 이름 "ABCDEF" 에 매칭 (negative — 대소문자 불일치 case-insensitive)', () => {
+    const cand: Member[] = [
+      { id: 'u1', name: 'ABCDEF' },
+      { id: 'u2', name: 'XYZ' },
+    ];
+    expect(filterCandidates(cand, 'abc').map((m) => m.id)).toEqual(['u1']);
+    // 반대 방향 — 대문자 질의 vs 소문자 이름도 매칭한다.
+    const cand2: Member[] = [{ id: 'u3', name: 'abcdef' }];
+    expect(filterCandidates(cand2, 'ABC').map((m) => m.id)).toEqual(['u3']);
+  });
+
+  // branch(pure) — 빈 질의어 → 후보 전체 반환(필터 미적용 분기).
+  it('filterCandidates(5인, "") → 후보 전체 반환 (branch — 빈 질의어 필터 미적용)', () => {
+    expect(filterCandidates(fiveCandidates, '')).toBe(fiveCandidates);
+  });
+
+  // branch/edge(pure) — 공백뿐인 질의어 → trim 후 빈 질의어로 간주, 후보 전체 반환.
+  it('filterCandidates(5인, "   ") → trim 후 빈 질의어 → 후보 전체 반환 (branch/edge — 공백 질의어)', () => {
+    expect(filterCandidates(fiveCandidates, '   ')).toBe(fiveCandidates);
+  });
+
+  // branch(pure) — role 매칭: name 에는 없고 role 에만 있는 질의어로 role 있는 후보만 남는다.
+  it('filterCandidates — role 부분일치 매칭(name 미포함) + role 없는 후보 제외 (branch — role 있음/없음 매칭)', () => {
+    const cand: Member[] = [
+      { id: 'r1', name: '홍길동', role: '관리자' },
+      { id: 'r2', name: '김철수', role: '평가자' },
+      { id: 'r3', name: '이영희' }, // role 없음 — 질의어가 role 매칭이면 제외됨
+    ];
+    // "관리" 는 어느 이름에도 없고 r1 의 role 에만 있다.
+    expect(filterCandidates(cand, '관리').map((m) => m.id)).toEqual(['r1']);
+    // role 없는 후보는 name 매칭이 아니면 role undefined 로 인해 제외된다(throw 없음).
+    expect(filterCandidates(cand, '평가').map((m) => m.id)).toEqual(['r2']);
+  });
+
+  // branch(pure) — name 매칭: role 있는 후보와 role 없는 후보 각각 name 으로 매칭된다.
+  it('filterCandidates — name 부분일치는 role 유무 무관하게 매칭 (branch — name 매칭 role 유/무)', () => {
+    const cand: Member[] = [
+      { id: 'n1', name: '박신입', role: '평가자' }, // role 있음
+      { id: 'n2', name: '박신규' }, // role 없음
+      { id: 'n3', name: '최다른' },
+    ];
+    expect(filterCandidates(cand, '박신').map((m) => m.id)).toEqual(['n1', 'n2']);
+  });
+
+  // negative(pure, large) — 대량 후보(200인)에서도 부분일치가 정확히 좁혀지고 throw 없다(R-91 규모).
+  it('filterCandidates — 200인 대량 후보에서 특정 부분일치만 정확히 좁힌다 (negative — 대량 목록 사용성)', () => {
+    const large: Member[] = Array.from({ length: 200 }, (_, i) => ({
+      id: `p${i}`,
+      name: `사원${i}`,
+    }));
+    // "사원199" 는 정확히 1인만 매칭된다.
+    expect(filterCandidates(large, '사원199').map((m) => m.id)).toEqual(['p199']);
+    // 빈 질의어면 200인 전체가 그대로 유지된다(대량에서도 필터 미적용 분기 안전).
+    expect(filterCandidates(large, '')).toHaveLength(200);
+  });
+
+  // negative(render) — onAdd 미전달 시 검색 입력이 렌더되지 않는다(byte 동등 유지 — 필터 UI 부재).
+  it('onAdd 미전달 → 검색 입력 미렌더 (negative — onAdd 없으면 필터 UI 부재)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList members={sampleMembers} addCandidates={fiveCandidates} />,
+    );
+    expect(html).not.toContain(`aria-label="${SEARCH_LABEL}"`);
+    expect(html).not.toContain('type="search"');
+  });
+
+  // no-regression(byte 동등) — 필터 입력은 addForm(onAdd 있을 때만) 안에만 있어 onAdd 미전달
+  // 렌더는 addCandidates 유무와 무관하게 여전히 byte 동등하다(T-1239 후에도 무회귀).
+  it('onAdd 미전달 시 addCandidates 주입해도 기존 렌더와 byte 동등 (no-regression — 필터 UI 0)', () => {
+    const withCandidatesProp = renderToStaticMarkup(
+      <GroupMemberList members={sampleMembers} addCandidates={fiveCandidates} />,
+    );
+    const baseline = renderToStaticMarkup(<GroupMemberList members={sampleMembers} />);
+    expect(withCandidatesProp).toBe(baseline);
   });
 });
