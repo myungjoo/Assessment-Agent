@@ -87,6 +87,38 @@ describe('로컬 상수/parseFilename (hub import 0)', () => {
     expect(parseFilename('')).toBeUndefined();
     expect(parseFilename('attachment')).toBeUndefined();
   });
+
+  it('malformed percent-encoding → 일반 filename="..." 로 fallthrough(throw 없이)', () => {
+    // decodeURIComponent 가 throw 하는 %E4%A% 여도 catch(line 30) 후 일반 filename 분기로
+    // 넘어가 fallback.json 을 반환 — 예외가 표면화되지 않는 안전 파싱.
+    expect(() =>
+      parseFilename("attachment; filename*=UTF-8''%E4%A%; filename=\"fallback.json\""),
+    ).not.toThrow();
+    expect(
+      parseFilename("attachment; filename*=UTF-8''%E4%A%; filename=\"fallback.json\""),
+    ).toBe('fallback.json');
+  });
+
+  it('malformed percent-encoding + 일반 filename 부재 → throw 없이 undefined', () => {
+    // filename*= 만 malformed 이고 뒤에 filename= 이 없으면 catch fallthrough 후 undefined.
+    expect(() =>
+      parseFilename("attachment; filename*=UTF-8''%E4%A%"),
+    ).not.toThrow();
+    expect(parseFilename("attachment; filename*=UTF-8''%E4%A%")).toBeUndefined();
+  });
+
+  it('decode 결과 빈 문자열(line 27 false) → 일반 filename= 분기로 fallthrough', () => {
+    // extMatch[1] 이 공백뿐이면 trim 후 '' → decoded falsy → 일반 filename 분기로 넘어가
+    // fallback.json 반환.
+    expect(parseFilename('attachment; filename*= ; filename="fallback.json"')).toBe(
+      'fallback.json',
+    );
+  });
+
+  it('decode 결과 빈 문자열 + 일반 filename 부재 → undefined', () => {
+    // 빈-decode fallthrough 인데 뒤에 filename= 도 없으면 undefined(throw 없이).
+    expect(parseFilename('attachment; filename*= ')).toBeUndefined();
+  });
 });
 
 describe('runExportJobDownload — happy-path', () => {
