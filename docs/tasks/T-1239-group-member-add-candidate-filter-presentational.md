@@ -2,7 +2,9 @@
 id: T-1239
 title: GroupMemberList 추가 후보 검색/필터 presentational slice — 대량 후보(수백 인원) 시 select 필터 입력
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 820c0005
+prNumber: 1131
 commitMode: pr
 coversReq: [REQ-046, REQ-047]
 estimatedDiff: 150
