@@ -4,6 +4,7 @@ import GroupMemberList, {
   isAddDisabled,
   submitAdd,
   filterCandidates,
+  resolveActiveSelection,
 } from './GroupMemberList';
 import type { Member } from './GroupMemberList';
 
@@ -524,6 +525,93 @@ describe('GroupMemberList', () => {
   it('onAdd 미전달 시 addCandidates 주입해도 기존 렌더와 byte 동등 (no-regression — 필터 UI 0)', () => {
     const withCandidatesProp = renderToStaticMarkup(
       <GroupMemberList members={sampleMembers} addCandidates={fiveCandidates} />,
+    );
+    const baseline = renderToStaticMarkup(<GroupMemberList members={sampleMembers} />);
+    expect(withCandidatesProp).toBe(baseline);
+  });
+
+  // ── T-1240: 선택 후보 stale 자동 무효화 slice ─────────────────────────────
+  // renderToStaticMarkup 은 이벤트를 발화하지 않아 "후보 선택 → 추가 성공(재조회로 후보에서
+  // 사라짐) → select placeholder 복귀" 의 state 전이를 정적 렌더로 재현할 수 없다(selectedPersonId
+  // useState 는 항상 초기값 ''). 그래서 유효-선택 판정을 순수 함수 resolveActiveSelection 으로
+  // 분리·export 해 유지/리셋/필터-숨김 보존/비배열·미선택 방어 분기를 직접 호출로 검증하고,
+  // stale 상태의 phantom 재발사 차단은 resolveActiveSelection 결과를 submitAdd 로 합성해 검증한다
+  // (T-1237/T-1239 가 이벤트 한계를 순수 함수 검증으로 우회한 관례 mirror).
+
+  // happy-path(pure, 유지 분기) — 선택 id 가 후보 집합에 존재하면 그대로 반환한다.
+  it('resolveActiveSelection — 선택 id 가 후보에 존재 → 그대로 반환 (happy-path — 유지 분기)', () => {
+    expect(resolveActiveSelection('p10', sampleCandidates)).toBe('p10');
+    expect(resolveActiveSelection('p11', sampleCandidates)).toBe('p11');
+  });
+
+  // happy-path(합성) — 후보를 선택해 추가 성공 시 그 인원이 후보에서 사라지면 유효 선택은 ''
+  // 로 복귀하고(리셋), 이어 남은 다른 후보를 재선택해 추가하면 onAdd 가 그 새 personId 로 정확히
+  // 1회 호출된다("추가 성공 후 재선택" UX — AC happy-path).
+  it('추가 성공(후보에서 사라짐) → 유효 선택 "" 복귀 후 다른 후보 재선택 시 onAdd 1회 (happy-path — 재선택 흐름)', () => {
+    // 초기: p10 선택 상태 → 유효.
+    expect(resolveActiveSelection('p10', sampleCandidates)).toBe('p10');
+    // 추가 성공으로 p10 이 후보에서 사라진 재조회 결과.
+    const afterAdd: Member[] = [{ id: 'p11', name: '최신규' }];
+    // stale 한 p10 선택은 '' 로 리셋된다(placeholder 복귀).
+    expect(resolveActiveSelection('p10', afterAdd)).toBe('');
+    // 남은 후보 p11 을 재선택해 추가하면 onAdd 가 p11 로 정확히 1회 호출된다.
+    const onAdd = vi.fn();
+    submitAdd(resolveActiveSelection('p11', afterAdd), onAdd);
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd).toHaveBeenCalledWith('p11');
+  });
+
+  // negative(pure, 리셋 분기) — 선택 id 가 후보 집합에 없으면 '' 를 반환한다.
+  it('resolveActiveSelection — 선택 id 가 후보에서 사라짐 → "" 반환 (negative — 리셋 분기)', () => {
+    const without: Member[] = [{ id: 'p11', name: '최신규' }];
+    expect(resolveActiveSelection('p10', without)).toBe('');
+    // 후보가 아예 빈 배열이어도 '' 로 리셋(존재하는 후보 0).
+    expect(resolveActiveSelection('p10', [])).toBe('');
+  });
+
+  // negative(pure, 비배열 방어) — undefined/비배열 candidates 입력 시 throw 없이 '' 반환.
+  it('resolveActiveSelection — undefined/비배열 candidates → throw 없이 "" 반환 (negative — 비배열 방어)', () => {
+    expect(() => resolveActiveSelection('p10', undefined)).not.toThrow();
+    expect(resolveActiveSelection('p10', undefined)).toBe('');
+    const bogus = 'not-an-array' as unknown as Member[];
+    expect(() => resolveActiveSelection('p10', bogus)).not.toThrow();
+    expect(resolveActiveSelection('p10', bogus)).toBe('');
+  });
+
+  // negative(pure, 경계값) — selectedPersonId 가 ''(미선택)이면 후보와 무관하게 '' 반환.
+  it('resolveActiveSelection — 미선택("") → 후보 무관하게 "" 반환 (negative — 경계값)', () => {
+    expect(resolveActiveSelection('', sampleCandidates)).toBe('');
+    expect(resolveActiveSelection('', [])).toBe('');
+    expect(resolveActiveSelection('', undefined)).toBe('');
+  });
+
+  // negative(합성) — 선택 인원이 후보에서 사라진 stale 상태에서 "추가" 제출 시 유효 선택이 ''
+  // 로 파생되어 submitAdd 가 no-op → onAdd 미발사(phantom 재발사 차단 — backend 409 이전 단계에서 원천 차단).
+  it('stale 선택(후보에서 사라짐)으로 추가 제출 → onAdd 미발사 (negative — phantom 재발사 차단)', () => {
+    const onAdd = vi.fn();
+    const afterAdd: Member[] = [{ id: 'p11', name: '최신규' }];
+    // 소비처가 보는 유효 선택은 '' 이므로 submitAdd 는 아무 것도 하지 않는다.
+    submitAdd(resolveActiveSelection('p10', afterAdd), onAdd);
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  // branch(pure, 필터-숨김 보존) — 판정 기준은 원본 candidates 이므로, 검색 필터로 옵션에서
+  // 가려졌을 뿐 후보 집합에는 여전히 존재하는 선택은 유효로 유지된다(필터 변경만으로 리셋 금지 —
+  // T-1239 결정 보존). filterCandidates 결과가 아니라 원본 candidates 를 넘긴다.
+  it('resolveActiveSelection — 필터로 옵션 숨김이나 candidates 에 존재 → 유지 (branch — 필터-숨김 선택 보존)', () => {
+    // 검색어 "박" 으로 옵션은 p10(박신입)만 남아 p11 은 화면에서 가려지지만,
+    const filtered = filterCandidates(sampleCandidates, '박');
+    expect(filtered.map((m) => m.id)).toEqual(['p10']);
+    // 판정 기준은 원본 candidates 라 가려진 p11 선택도 유효로 유지된다(리셋되지 않음).
+    expect(resolveActiveSelection('p11', sampleCandidates)).toBe('p11');
+  });
+
+  // no-regression(byte 동등) — 유효-선택 파생은 순수 렌더 계산이라 마크업을 바꾸지 않는다.
+  // 초기 selectedPersonId 는 항상 ''(정적 렌더) → activeSelectedId 도 '' → 추가 form 렌더는
+  // T-1239 이전과 byte 동등하고, onAdd 미전달 렌더도 여전히 byte 동등하다.
+  it('T-1240 후에도 onAdd 미전달 렌더는 기존과 byte 동등 (no-regression — 유효선택 파생 무회귀)', () => {
+    const withCandidatesProp = renderToStaticMarkup(
+      <GroupMemberList members={sampleMembers} addCandidates={sampleCandidates} />,
     );
     const baseline = renderToStaticMarkup(<GroupMemberList members={sampleMembers} />);
     expect(withCandidatesProp).toBe(baseline);
