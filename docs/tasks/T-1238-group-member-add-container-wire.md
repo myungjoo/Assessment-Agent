@@ -2,7 +2,7 @@
 id: T-1238
 title: AdminView 멤버 추가 컨테이너 배선 — addCandidates(persons−members) 파생 + GroupMemberList onAdd/addCandidates 주입
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-046, REQ-047]
 estimatedDiff: 230
@@ -60,3 +60,7 @@ PLAN.md line 123 의 **deferred 잔여** 중 "GroupMember add mutation" 는 back
 
 - 후보: add 성공 후 select 재선택 UX(추가 직후 다음 후보로 focus/초기화) — presentational 로컬 처리 여지 검토(GroupMemberList 로컬 state 라 컨테이너 무관일 수 있음).
 - 후보: 후보 목록 대량(수백 인원) 시 select 검색/필터 — 별도 slice.
+
+## Result — DONE (2026-07-26T04:04:18Z)
+
+PR #1130 squash merge(`1502b893`, branch delete). deriveAddCandidates(persons−members) 순수 helper 신설 + useMemo 파생, GroupMemberList 에 onAdd/addCandidates 주입, handleAdd (personId)=>void 리팩터, free-text personId input 블록 은퇴. production 변경 AdminView.tsx 1파일 한정(+73/-41), test 2파일 확장. web lint+build+test green(1966 pass), diff 256/-56 3파일(cap 이내). reviewer round 1/7 APPROVE, 4-게이트 PASS(CI unit+smoke green). MINOR(non-blocking): frontmatter touchesFiles 가 AdminView.test.tsx 를 under-declare — free-text 마크업 제거에 따른 불가피한 test 갱신이라 fold-in 불요.
