@@ -5,6 +5,7 @@ import GroupMemberList, {
   submitAdd,
   filterCandidates,
   resolveActiveSelection,
+  focusSearchInput,
 } from './GroupMemberList';
 import type { Member } from './GroupMemberList';
 
@@ -615,5 +616,130 @@ describe('GroupMemberList', () => {
     );
     const baseline = renderToStaticMarkup(<GroupMemberList members={sampleMembers} />);
     expect(withCandidatesProp).toBe(baseline);
+  });
+
+  // ── T-1241: 추가 성공 후 검색어·선택 자동 초기화 + 검색 입력 auto-focus slice ────────
+  // renderToStaticMarkup 은 이벤트를 발화하지 않고 DOM/focus 도 없으므로(ADR-0040 §5 —
+  // web test infra 는 jsdom·@testing-library 없이 정적 렌더 문자열만 검증해 dep 표면 최소화)
+  // "후보 선택 → 제출 → 검색 input value 초기화 → document.activeElement 이동" 의 실 DOM 전이는
+  // 정적 렌더로 재현 불가하다. 그래서 T-1237/T-1239/T-1240 관례를 mirror 해 (1) 발사 판정을
+  // 담는 순수 helper submitAdd 의 boolean 반환(reset gate)과 (2) focus 부수효과 helper
+  // focusSearchInput(ref) 를 각각 직접 호출로 검증하고, 렌더 분기(검색 input ref 배선의 byte
+  // 동등·form 무회귀)는 정적 markup 으로 assert 한다. 리셋 세 부수효과(setFilterText('')·
+  // setSelectedPersonId('')·focus)는 fired===true 게이트 하에 실행되며, 그 게이트 자체가
+  // submitAdd boolean 으로 완전 cover 된다.
+
+  // happy-path(pure, reset gate 발사 분기) — 유효 선택 + onAdd → submitAdd 는 onAdd 를 그
+  // personId 로 1회 호출하고 true 를 반환한다(반환 true 가 검색어·선택 리셋+focus 를 트리거).
+  it('submitAdd(personId, onAdd) → onAdd 1회 호출 + true 반환 (happy-path — 발사 시 reset gate true)', () => {
+    const onAdd = vi.fn();
+    const fired = submitAdd('p10', onAdd);
+    expect(fired).toBe(true);
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd).toHaveBeenCalledWith('p10');
+  });
+
+  // negative(pure, 미발사 분기 — 빈 선택) — 빈 personId 면 onAdd 미호출 + false 반환(리셋 skip).
+  it('submitAdd("", onAdd) → false 반환 + onAdd 미호출 (negative — 빈 선택 미발사, 리셋 skip)', () => {
+    const onAdd = vi.fn();
+    const fired = submitAdd('', onAdd);
+    expect(fired).toBe(false);
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  // negative(pure, 미발사 분기 — onAdd 미전달) — onAdd 없으면 throw 없이 false 반환(리셋 skip).
+  it('submitAdd(personId, undefined) → false 반환 + throw 없음 (negative — onAdd 미전달 미발사)', () => {
+    let fired: boolean | undefined;
+    expect(() => {
+      fired = submitAdd('p10', undefined);
+    }).not.toThrow();
+    expect(fired).toBe(false);
+  });
+
+  // happy-path(pure, focus 부수효과) — ref.current 존재 시 focusSearchInput 은 .focus() 를 1회 호출한다.
+  it('focusSearchInput(ref) — ref.current 존재 → .focus() 정확히 1회 호출 (happy-path — 발사 후 auto-focus)', () => {
+    const focus = vi.fn();
+    const ref = { current: { focus } as unknown as HTMLInputElement };
+    focusSearchInput(ref);
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  // negative(pure, focus 안전성) — ref.current 가 null 이면 optional chaining 으로 throw 없이 no-op.
+  it('focusSearchInput({ current: null }) → throw 없이 no-op (negative — ref null 안전성)', () => {
+    expect(() => focusSearchInput({ current: null })).not.toThrow();
+  });
+
+  // branch(합성, 발사 → 리셋 실행) — 유효 선택으로 발사되면 fired===true 이므로 리셋+focus 게이트에
+  // 진입한다. focusSearchInput 이 그 게이트 하에서 호출됨을 합성으로 검증(발사 성공 후 auto-focus 흐름).
+  it('발사 성공(fired=true) → focusSearchInput 게이트 진입·focus 호출 (branch — 발사 시 리셋+focus 실행)', () => {
+    const onAdd = vi.fn();
+    const focus = vi.fn();
+    const ref = { current: { focus } as unknown as HTMLInputElement };
+    const fired = submitAdd('p10', onAdd);
+    if (fired) {
+      // onSubmit 핸들러의 리셋 게이트를 합성 재현 — fired 시에만 focus.
+      focusSearchInput(ref);
+    }
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  // branch(합성, 미발사 → 리셋 skip) — 빈 선택이면 fired===false 라 focus 게이트에 진입하지 않는다.
+  // (검색어 리셋도 동일 게이트 하 → 아무 것도 추가 안 됐는데 검색어가 지워지지 않음 — 회귀 방지.)
+  it('미발사(fired=false, 빈 선택) → focus 게이트 미진입·focus 미호출 (branch — 미발사 시 리셋 skip)', () => {
+    const onAdd = vi.fn();
+    const focus = vi.fn();
+    const ref = { current: { focus } as unknown as HTMLInputElement };
+    const fired = submitAdd('', onAdd);
+    if (fired) {
+      focusSearchInput(ref);
+    }
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(focus).not.toHaveBeenCalled();
+  });
+
+  // negative(합성, 검색어 잔여 필터 제거 회귀 방지) — 검색어가 있는 상태에서 매칭 후보를 발사하면
+  // fired===true → 검색어 리셋 게이트 진입. 순수 조합으로 "필터 후 발사 → 리셋 트리거" 를 검증한다
+  // (실 setFilterText('') state 전이는 DOM 필요라 ADR-0040 §5 범위 밖 — fired 게이트로 cover).
+  it('검색어("김")로 좁힌 후보 발사 → fired=true (검색어 리셋 게이트 진입) (negative — 잔여 필터 제거 회귀 방지)', () => {
+    const filtered = filterCandidates(
+      [
+        { id: 'k1', name: '김하나' },
+        { id: 'k2', name: '박두리' },
+      ],
+      '김',
+    );
+    expect(filtered.map((m) => m.id)).toEqual(['k1']);
+    const onAdd = vi.fn();
+    const fired = submitAdd(filtered[0].id, onAdd);
+    // fired true 는 onSubmit 에서 setFilterText('')·setSelectedPersonId('')·focus 를 트리거한다.
+    expect(fired).toBe(true);
+    expect(onAdd).toHaveBeenCalledWith('k1');
+  });
+
+  // no-regression(byte 동등) — searchInputRef(useRef) 와 ref 배선은 순수 렌더 계산이라 정적 markup 에
+  // 나타나지 않는다. onAdd 미전달 렌더는 addCandidates 유무와 무관하게 여전히 byte 동등하다.
+  it('T-1241 후에도 onAdd 미전달 렌더는 기존과 byte 동등 (no-regression — ref 배선 무회귀)', () => {
+    const withCandidatesProp = renderToStaticMarkup(
+      <GroupMemberList members={sampleMembers} addCandidates={sampleCandidates} />,
+    );
+    const baseline = renderToStaticMarkup(<GroupMemberList members={sampleMembers} />);
+    expect(withCandidatesProp).toBe(baseline);
+  });
+
+  // no-regression(render) — onAdd + addCandidates 주입 시 검색 input(ref 배선 후에도) 이 여전히
+  // type="search" + aria-label 로 렌더되고 추가 form(select/추가 버튼)이 정상 공존한다.
+  it('T-1241 후 onAdd + addCandidates → 검색 input + 추가 form 정상 렌더 (no-regression — 추가 UI 무회귀)', () => {
+    const html = renderToStaticMarkup(
+      <GroupMemberList
+        members={sampleMembers}
+        onAdd={() => undefined}
+        addCandidates={sampleCandidates}
+      />,
+    );
+    expect(html).toContain('type="search"');
+    expect(html).toContain(`aria-label="${SEARCH_LABEL}"`);
+    expect(html).toContain(ADD_SELECT_MARKER);
+    expect(html).toContain(ADD_LABEL);
   });
 });
