@@ -2,7 +2,9 @@
 id: T-1247
 title: AdminView 구 GET 모델 export 죽은코드 제거 — runExport/ExportDeps/buildExportPath 및 그 dead unit test 물리 삭제(src+test atomic)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-26T10:26:15Z
+result: PR #1139 squash-merge(2c22b0ad). 구 GET export runExport/ExportDeps/buildExportPath(+getRaw) 및 dead unit test 삭제, newly-unused const 4종 sweep — −541 LOC 2파일. reviewer round1 APPROVE(MINOR stale 주석) → nit-closure round2(주석 정정) → round2 APPROVE. CI green(build/test/smoke/e2e/perf). counters 1237→1238.
 commitMode: pr
 coversReq: [REQ-057, REQ-030, REQ-032]
 estimatedDiff: 490
