@@ -182,17 +182,6 @@ const LLM_PROVIDERS_PATH = '/api/llm/providers';
 // Admin+, 3 난이도 슬롯 배열, 빈 배열 seed 전 정상). Admin+ 라 User 등급은 403.
 const LLM_MAPPINGS_PATH = '/api/llm/difficulty-mappings';
 
-// 평가 자료 export path — 고정 endpoint(GET /api/admin/export, api.md 122 Admin+, raw 미포함
-// REQ-032·REQ-030). ④g(T-0391)부터 scope 선택 UI 의 선택값을 buildExportPath 로 `?scope=`
-// query 에 부착한다 — 빈 선택(전체) 시에는 query 없이 본 상수 그대로 호출(④f 동작 유지 =
-// backend 기본 scope 위임). Admin+ 라 User 등급은 403 — 그 403 은 runExport 의 catch 가 error
-// props 로 안전 표시(throw 없음).
-const ADMIN_EXPORT_PATH = '/api/admin/export';
-
-// export scope 선택 query 키(api.md 122 의 `scope` query). buildExportPath 가 선택값을 이
-// 키로 부착한다(`?scope=<선택값>`). backend 가 다른 키를 요구하면 후속 정정(api.md 122 명시 키).
-const EXPORT_SCOPE_QUERY_KEY = 'scope';
-
 // export scope 선택 옵션 — frontend-local 보수 후보 목록(④g). api.md 122 가 scope 의 enum
 // 값/기본값을 명시하지 않으므로, 빈 선택(전체 = query 미부착, ④f 동작 유지) + 의미 있는 보편
 // 후보(평가 자료 export 의 자연스러운 범위 분할 — 평가 결과/문항/인원)를 둔다. backend 가
@@ -248,31 +237,6 @@ function resolveProviderSelectValue(value: string | undefined): string {
     return value;
   }
   return '';
-}
-
-// export 성공 시 DataImportExportPanel 의 message props 로 내려보낼 사람-친화 완료 안내.
-// ④f(T-0390)부터 응답 Blob 을 실제 파일로 저장(다운로드 트리거)하므로 message 의 의미가
-// "호출 성공"에서 "파일 저장 완료"로 강화된다(데이터 건수/scope 요약은 응답 형태 미확정이라
-// 단순 완료 문구로 둔다 — 다운로드 자체는 부수효과 deps 가 수행).
-const EXPORT_DONE_TEXT = '내보내기 완료';
-
-// export 응답에 Content-Disposition filename 이 없을 때 쓸 기본 파일명(④f). backend 가
-// Content-Disposition 헤더를 내려주면 그 filename 을 우선하고, 없으면 본 fallback 을 쓴다.
-// api.md 122 가 export 형식을 명시하지 않으므로(형식은 backend 가 Content-Type 으로 결정)
-// 확장자는 가장 보편적인 .json 으로 둔다 — 형식 협상/확장자 결정은 후속 slice(Out of Scope).
-const DEFAULT_EXPORT_FILENAME = 'export.json';
-
-// export scope 선택값 → export 호출 path 빌더(순수 helper, ④g). scope 가 truthy 면
-// `${ADMIN_EXPORT_PATH}?scope=${encodeURIComponent(scope)}` 로 query 를 부착하고, 빈/falsy
-// scope(전체 선택) 면 query 없는 ADMIN_EXPORT_PATH 상수를 그대로 반환한다(④f 동작 유지 —
-// backend 기본 scope 위임). buildMappingsPath 의 순수 path-빌더 convention 정합(jsdom 없이
-// 직접 검증). encodeURIComponent 로 공백/특수문자가 든 scope 값도 query 가 깨지지 않게 안전
-// 인코딩한다(비정상 문자 방어). runExport 가 이 helper 결과를 getRaw 에 넘긴다.
-function buildExportPath(scope: string | undefined): string {
-  if (!scope) {
-    return ADMIN_EXPORT_PATH;
-  }
-  return `${ADMIN_EXPORT_PATH}?${EXPORT_SCOPE_QUERY_KEY}=${encodeURIComponent(scope)}`;
 }
 
 // Content-Disposition 헤더에서 filename 을 추출하는 순수 helper(④f). RFC 6266 의 두 형태를
@@ -904,68 +868,6 @@ function triggerDownload(
   } finally {
     // click 성공·실패 무관하게 object URL 정리(자원 누수 방지).
     deps.revokeObjectURL(url);
-  }
-}
-
-// onExport 의 GET + Blob 다운로드 + state-전이 로직을 캡슐화한 순수 async 러너(④f — ④d 의
-// runExport 를 확장. jsdom/렌더러 없이 export·다운로드 본체를 직접 검증한다 — *Deps 주입).
-// 컨테이너의 handleExport 는 이 러너에 현재 in-flight 여부(exporting)와 상태 setter·부수효과
-// deps 를 주입해 호출만 한다. 동작:
-//  - exporting(이전 export 미완) → 미발사(이중 GET·중복 다운로드 차단 — runAssign assigning 가드 동형).
-//  - 발사 시 진행 on + 이전 error·message 비움 → GET <path>(raw) → 성공 시 response.blob()
-//    → Content-Disposition filename(없으면 기본명) → triggerDownload(파일 저장) + 완료 message 설정 /
-//    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
-// ④g: 호출 path 를 인자(path)로 주입받도록 확장한다(고정 ADMIN_EXPORT_PATH 상수 직접 참조 제거).
-// 이유: scope 선택값을 컨테이너가 buildExportPath 로 path 에 반영해 주입하므로, 러너는 어느
-// scope 든 무관하게 주어진 path 로 GET 만 발사한다(scope 결정 책임은 컨테이너 — 관심사 분리).
-// path 를 ExportDeps 에 두지 않고 별도 인자로 둔 이유: deps 는 setter/부수효과(불변 의존)이고
-// path 는 호출마다 달라지는 입력값이라(runAssign(difficulty, providerId, deps) 의 입력 인자
-// 분리 convention 정합) 인자화가 회귀·가독성 면에서 적다.
-interface ExportDeps extends DownloadDeps {
-  // export GET 발사 primitive — apiClient.requestRaw 를 주입한다(raw Response 반환 — body
-  // 미소비라 blob() 가능). 테스트는 mock 주입.
-  getRaw: (path: string, options?: RequestOptions) => Promise<Response>;
-  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
-  describeError: (e: unknown) => string;
-  // 현재 export in-flight 여부 — true 면 미발사(동시 재호출 가드).
-  exporting: boolean;
-  setExporting: (next: boolean) => void;
-  setExportError: (next: string | undefined) => void;
-  setExportMessage: (next: string | undefined) => void;
-}
-
-async function runExport(path: string, deps: ExportDeps): Promise<void> {
-  // 동시 재호출 가드 — 이전 export 미완 중이면 미발사(이중 GET·중복 다운로드 차단).
-  if (deps.exporting) {
-    return;
-  }
-  deps.setExporting(true);
-  // 재발화 시작 시 직전 error·message 를 비운다(실패 후 재시도 시 직전 error 정리 + 직전 완료
-  // 안내 정리 — 새 export 의 진행 표시만 남도록).
-  deps.setExportError(undefined);
-  deps.setExportMessage(undefined);
-  try {
-    // GET <path> — raw Response 수신(옵션 생략 = 기본 GET). path 는 컨테이너가 buildExportPath
-    // 로 scope 를 반영해 주입한다(scope 미선택 시 ADMIN_EXPORT_PATH 그대로 = ④f 동작). raw
-    // 반환이라 body 를 미소비 → response.blob() 으로 이진/임의 형식을 그대로 받는다.
-    const response = await deps.getRaw(path);
-    // 응답 본문을 Blob 으로 — 형식(Content-Type)은 backend 결정, 빈/0-byte body 도 빈 Blob 으로
-    // 안전 수용(throw 없이). 파일명은 Content-Disposition 의 filename 우선, 없으면 기본명 fallback.
-    const blob = await response.blob();
-    const filename =
-      parseFilename(response.headers.get('content-disposition')) ??
-      DEFAULT_EXPORT_FILENAME;
-    // 실제 파일 저장 — createObjectURL → 가상 <a download> 클릭 → revokeObjectURL 정리.
-    triggerDownload(blob, filename, deps);
-    // 성공 — 파일 저장 완료 안내를 message 로 표면화(DataImportExportPanel 의 정상 message 분기).
-    deps.setExportMessage(EXPORT_DONE_TEXT);
-  } catch (e) {
-    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 404 /
-    // 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화. 다운로드 부수효과
-    // 는 try 블록의 GET 성공 후에만 진입하므로 실패 시 createObjectURL 등은 호출되지 않는다.
-    deps.setExportError(deps.describeError(e));
-  } finally {
-    deps.setExporting(false);
   }
 }
 
@@ -4874,14 +4776,12 @@ export {
   buildPartsPath,
   buildUsersPath,
   buildPartPersonsPath,
-  buildExportPath,
   buildExportInput,
   runAdminExportJob,
   mergeMapping,
   parseFilename,
   triggerDownload,
   runAssign,
-  runExport,
   runImport,
   formatImportJobDetail,
   runApply,
@@ -4927,7 +4827,6 @@ export type {
   MeRow,
   AssignDeps,
   DownloadDeps,
-  ExportDeps,
   RunAdminExportJobDeps,
   ImportDeps,
   ScheduleMutationDeps,
