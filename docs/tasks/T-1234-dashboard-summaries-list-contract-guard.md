@@ -2,7 +2,7 @@
 id: T-1234
 title: DashboardView GET /api/summaries 시계열 요약 조회 web↔backend 계약 drift-guard spec 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-038]
 estimatedDiff: 260
@@ -62,3 +62,10 @@ PLAN.md line 119 의 시각화 대시보드(REQ-038) 를 소유하는 `Dashboard
 
 - 후보: DashboardView 나머지 2 GET endpoint drift-guard slice(`/api/contributions`·`/api/permission-denied-records`). 4종 공통 추출 패턴이 반복되면 `__contract-guard__` helper 확장(assessments/summaries 의 null-gate list 추출 공통화) 검토.
 - T-1233 R1 nit 참조: no-query fire 케이스(`?? ''` fallback·`if (!query) return []`) 가 실제 fire 경로에서 미호출인 방어 분기. summaries 도 동일 패턴이면 본 spec 에서 해당 방어 분기를 실제로 cover 하는 test 를 넣어 dead-branch 를 실효화할지 검토.
+
+## Result (DONE — 2026-07-26)
+
+- PR #1126 squash merge `18f12484` + branch delete. reviewer round 2/7 APPROVE(round1 nit 1건 → §3 Nit-in-PR closure round+1 마감, round2 nit 0).
+- 산출물: `web/src/views/DashboardView.summaries-list-contract.test.ts` (test-only, +300 LOC, production 무변경). T-1201 공용 helper 8종 재사용(중복 추출기 0), `buildSummariesPath` null-gate 분기 축 대조 + `extractPathQueryParams` null-query 방어분기 cover.
+- 검증: vitest 26 신규 pass / web 전체 1887 무회귀, tsc/build green. 4-게이트 PASS(reviewer external comment issuecomment-5081182711, CI 기본검사 approval-gate pass + 배포산출물검증 pass).
+- Follow-up: DashboardView 잔여 2 GET slice — `GET /api/contributions`, `GET /api/permission-denied-records` drift-guard spec.
