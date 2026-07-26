@@ -2,7 +2,9 @@
 id: T-1235
 title: DashboardView GET /api/contributions 평가 상세 조회 web↔backend 계약 drift-guard spec 신설
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1127
+completedAt: 2026-07-26T01:13:16Z
 commitMode: pr
 coversReq: [REQ-033]
 estimatedDiff: 260
