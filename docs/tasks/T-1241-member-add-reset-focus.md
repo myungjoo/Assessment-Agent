@@ -2,7 +2,7 @@
 id: T-1241
 title: GroupMemberList 추가 성공 후 검색어·선택 자동 초기화 + 검색 입력 auto-focus
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-046, REQ-047]
 estimatedDiff: 120
@@ -57,3 +57,7 @@ plannerNote: P6 — T-1240 명시 Follow-up(b). 추가 발사 성공 시 filterT
 
 - 후보: admin export/import 계약 drift(web `runExport` GET vs backend `POST /api/admin/export` job-기반 모델 — src/export/export.controller.ts) — 설계-수준 정합 필요, 별도 조사·결정 task(단순 test-only slice 아님).
 - 후보: 남은 P6 deferred 배선(ReEvaluationTriggerPanel·SchedulePanel·EvaluationGuardBanner 자동 polling) — 각 backend 계약 shipped 여부 재확인 후 별도 wiring stream.
+
+## 완료 (2026-07-26T06:02Z)
+
+Status: DONE — PR #1133 squash merge(1c74c0ad). `submitAdd` 를 `void`→`boolean`(발사 시 true) 확장 + 검색 input `useRef` 배선 + `focusSearchInput` 순수 helper 신설. `onSubmit` 에서 `fired===true` 일 때만 `setFilterText('')`·`setSelectedPersonId('')`·검색 input `.focus()`, 미발사 skip. onAdd 미전달 렌더 byte-동등 무회귀. web 1997 test green + build TS6133 0. reviewer round1/7 APPROVE(0 BLOCKER/0 MAJOR/0 MINOR), 4-게이트 PASS. GroupMemberList.tsx(+43/-4)+test 2파일(AdminView file-disjoint).
