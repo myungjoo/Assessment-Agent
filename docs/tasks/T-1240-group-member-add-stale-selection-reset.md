@@ -2,7 +2,9 @@
 id: T-1240
 title: GroupMemberList 선택 후보 stale 자동 무효화 — 후보에서 사라진 selectedPersonId 오발사 차단(추가 성공 후)
 phase: P6
-status: PENDING
+status: DONE
+mergedAs: 920f7062
+prNumber: 1132
 commitMode: pr
 coversReq: [REQ-046, REQ-047]
 estimatedDiff: 110
