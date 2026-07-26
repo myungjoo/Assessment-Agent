@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildSummariesPath } from './DashboardView';
-// 공용 invariant 추출기(T-1201 신설) 를 alphabetical named import 로 재사용(중복 inline 정의 0).
-// summaries-전용 추출(query param 집합·발사 method·diffContract·null-gate)만 spec 로컬 정의.
+// 공용 invariant 추출기(T-1201)를 alphabetical named import 로 재사용(중복 inline 0); summaries-전용 추출만 spec 로컬 정의.
 import {
   composeRoute,
   extractControllerRoute,
@@ -188,7 +187,6 @@ describe('DashboardView — 시계열 요약 조회(GET /api/summaries) web↔ba
     expect(LIST_CONTRACT.method).toBe('GET'); // backend 는 @Get(POST/DELETE 아님)
     expect(summariesFire().method).toBe(LIST_CONTRACT.method); // 양측 method == GET
   });
-  // ── null-gate 분기 (buildSummariesPath 조건부 조회 가드) ──
   it('personId truthy 면 /api/summaries?... 문자열을 반환(조회 fire)하고, 그 base 는 backend 계약과 일치한다 (branch — personId 有 → fire)', () => {
     const fired = buildSummariesPath('p1', 'week');
     expect(fired).not.toBeNull();
@@ -219,7 +217,10 @@ describe('DashboardView — 시계열 요약 조회(GET /api/summaries) web↔ba
     // period 는 optional 이므로 personId 만 fire 해도 web param 은 backend @Query 집합의 부분집합.
     expect(withoutPeriod.queryParams.every((p) => BACKEND_QUERY_PARAMS.includes(p))).toBe(true);
   });
-  // ── Negative cases 충분 cover ──
+  it('extractPathQueryParams 는 ? query 가 없는 path 에 빈 배열을 반환한다 (branch — null-query 방어 분기)', () => {
+    expect(extractPathQueryParams(BASE)).toEqual([]); // query 부재 → 빈 집합(방어 분기 cover)
+    expect(extractPathQueryParams(`${BASE}?personId=p1`)).toEqual(['personId']); // query 有 → 정상 추출
+  });
   it.each<[string, () => BackendContract]>([
     ['(a) base 를 api/summary(단수 오타)로', () => ({ ...LIST_CONTRACT, route: 'api/summary' })],
     ['(a) base 를 api/digests(오리엔트 drift)로', () => ({ ...LIST_CONTRACT, route: 'api/digests' })],
