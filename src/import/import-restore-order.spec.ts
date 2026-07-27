@@ -11,6 +11,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 
+import { exportEntityPrismaModel } from "../export/export-entity-sources";
 import {
   VALID_EXPORT_ENTITIES,
   type ExportEntity,
@@ -283,16 +284,9 @@ describe("orderImportRestoreEntities — negative cases", () => {
 // Assessment.personId → Person") 를 test 로 고정하는 것 — schema 에 새 edge 가 생기면 아래 test 가
 // fail 해 INSERT_RANK 재검토를 강제한다. DB 접속 0, Prisma client import 0 (schema 원문만 읽는다).
 
-// ExportEntity → prisma model 이름 매핑. production 파일 머리 주석 (순서 근거 단락) 이 근거로 삼은
-// 5 model 과 정확히 같은 대응이며, LlmConfig / AuditLog 두 개만 model 이름이 다르다
-// (`export-entity-full-record-select.ts` 의 delegate 매핑과 동형).
-const ENTITY_TO_PRISMA_MODEL: Readonly<Record<ExportEntity, string>> = {
-  Person: "Person",
-  Group: "Group",
-  LlmConfig: "LlmProviderConfig",
-  AuditLog: "PermissionDeniedRecord",
-  Assessment: "Assessment",
-};
+// ExportEntity → prisma model 이름은 `export-entity-sources.ts` 의 EXPORT_ENTITY_SOURCES 매핑표가
+// single-source 다 (T-1263 추출). 과거 본 spec 에 있던 사본 (ENTITY_TO_PRISMA_MODEL) 은 제거하고
+// 공용 helper 로 model 이름을 얻는다 — 매핑이 바뀌면 본 test 도 자동으로 새 사실을 본다 (drift 0).
 
 // 주석 (`//` 이후) 을 걷어내고, `@relation(...)` 이 여러 줄에 걸쳐도 괄호 균형이 맞을 때까지 이어붙여
 // "선언 1 개 = 문자열 1 개" 로 만든다. 줄바꿈 위치에 취약한 정규식이 되지 않게 하는 전처리다.
@@ -395,9 +389,7 @@ describe("prisma/schema.prisma FK 사실 고정 (INSERT_RANK 의 근거)", () =>
     "utf8",
   );
   const exportModels = new Set<string>(
-    (Object.keys(ENTITY_TO_PRISMA_MODEL) as ExportEntity[]).map(
-      (entity) => ENTITY_TO_PRISMA_MODEL[entity],
-    ),
+    VALID_EXPORT_ENTITIES.map((entity) => exportEntityPrismaModel(entity)),
   );
 
   it("parser 가 export 5 entity 에 대응하는 model 블록을 모두 찾는다", () => {
@@ -435,7 +427,7 @@ describe("prisma/schema.prisma FK 사실 고정 (INSERT_RANK 의 근거)", () =>
   it("schema 의 FK edge 방향이 INSERT_RANK 순서와 정합이다 (참조 대상이 먼저 삽입)", () => {
     const rankOf = (model: string): number =>
       IMPORT_RESTORE_INSERT_ORDER.findIndex(
-        (entity) => ENTITY_TO_PRISMA_MODEL[entity] === model,
+        (entity) => exportEntityPrismaModel(entity) === model,
       );
     const edges = collectDirectFkEdges(schema, exportModels);
     expect(edges.length).toBeGreaterThan(0);

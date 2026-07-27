@@ -64,6 +64,14 @@ import {
 // 의 full-record projection-only read 에 배선한다(secret apiKey 는 상수에 부재 — projection
 // 단계 deny).
 import { getExportEntityFullRecordSelect } from "./export-entity-full-record-select";
+// EXPORT_ENTITY_SOURCES(T-1263) — 5 ExportEntity → Prisma delegate accessor · model 이름 ·
+// instant 컬럼 매핑표. 과거 본 service 의 module-private 상수였으나 하류 복원 엔진
+// (ADR-0044 §3 $transaction slice)이 같은 지식을 필요로 해 공용 module 로 승격했다 —
+// 본 service 는 단일 source-of-truth 를 import 해 소비만 한다(런타임 동작 변경 0).
+import {
+  EXPORT_ENTITY_SOURCES,
+  type ExportEntitySource,
+} from "./export-entity-sources";
 // buildFullExportDump(T-0517) 순수 builder + FullExportDump 타입을 same-folder 경로로 import 해
 // collectFullExportRecords 산출 FullExportRecord[] 를 fields 보존 dump envelope 로 조립한다.
 import { buildFullExportDump, type FullExportDump } from "./export-full-dump";
@@ -134,43 +142,6 @@ const SCOPE_ENUM_TO_PAYLOAD: Record<ExportScope, string> = {
   [ExportScope.RANGE]: "range",
   [ExportScope.PARTIAL]: "partial",
 };
-
-// EXPORT_ENTITY_SOURCES — 5 ExportEntity(UC-07 §6.1 entitySelector 목록) → Prisma
-// model delegate accessor + instant 컬럼 매핑표 (T-0497 architect 결정, ADR-0044 §1
-// dump 대상 entity 정합). ExportEntity union 의 5 literal 과 Prisma model 이름이 일부
-// 다른(LlmConfig→LlmProviderConfig, AuditLog→PermissionDeniedRecord) 차이를 본 표가
-// 흡수한다(schema·helper 변경 0 — SCOPE_ENUM_TO_PAYLOAD 패턴 mirror).
-//
-// instant 컬럼 결정(UC-07 §6.1 range scope [start,end) 판정의 "record 가 생성/발생한
-// 시각" 의미 정합): 5 model 모두 `createdAt`(row 생성 시각)을 instant 로 쓴다 —
-// Assessment 는 평가 record 생성, Person/Group/LlmProviderConfig 는 master record 생성,
-// PermissionDeniedRecord(=AuditLog) 는 감사 사건 발생 시각으로 모두 createdAt 이 자연.
-//
-// Record<ExportEntity, ...> 타입 강제 — ExportEntity union 에 새 entity 가 추가되면
-// 본 표가 컴파일 단계에서 누락을 catch(R-112 negative — entity 확장 회귀 방지).
-//
-// 🔥 REQ-032 projection-only — value 의 `instantColumn` 만 Prisma `select` 로 read 하고
-// 전체 row·raw 본문 컬럼은 select 하지 않는다(아래 previewSelection 의 findMany select).
-const EXPORT_ENTITY_SOURCES: Record<
-  ExportEntity,
-  { delegate: ExportEntityDelegate; instantColumn: string }
-> = {
-  Assessment: { delegate: "assessment", instantColumn: "createdAt" },
-  Person: { delegate: "person", instantColumn: "createdAt" },
-  Group: { delegate: "group", instantColumn: "createdAt" },
-  LlmConfig: { delegate: "llmProviderConfig", instantColumn: "createdAt" },
-  AuditLog: { delegate: "permissionDeniedRecord", instantColumn: "createdAt" },
-};
-
-// previewSelection 이 read 하는 PrismaService delegate 이름 union — findMany({ select })
-// projection-only read 만 사용한다. 본 union 으로 EXPORT_ENTITY_SOURCES 의 delegate 값을
-// 컴파일 차원에서 PrismaService 의 실 accessor 로 제약한다.
-type ExportEntityDelegate =
-  | "assessment"
-  | "person"
-  | "group"
-  | "llmProviderConfig"
-  | "permissionDeniedRecord";
 
 // DEFAULT_EXPORT_CHUNK_SIZE_BYTES — chunked streaming 분할 단위(1 MB). buildExportChunkPlan
 // (T-0469)이 chunkSizeBytes 를 필수 양의 정수 인자로 요구하므로 본 service 가 module-level
@@ -507,7 +478,7 @@ export class ExportJobService {
   // 분류 정상 반환(throw 0, 경계).
   private async collectExportRecords(): Promise<ExportRecord[]> {
     const entries = Object.entries(EXPORT_ENTITY_SOURCES) as Array<
-      [ExportEntity, { delegate: ExportEntityDelegate; instantColumn: string }]
+      [ExportEntity, ExportEntitySource]
     >;
 
     const perEntity = await Promise.all(
@@ -551,7 +522,7 @@ export class ExportJobService {
   // Promise.all 이 그대로 propagate(swallow 0 — collectExportRecords 정책 mirror).
   private async collectFullExportRecords(): Promise<FullExportRecord[]> {
     const entries = Object.entries(EXPORT_ENTITY_SOURCES) as Array<
-      [ExportEntity, { delegate: ExportEntityDelegate; instantColumn: string }]
+      [ExportEntity, ExportEntitySource]
     >;
 
     const perEntity = await Promise.all(
