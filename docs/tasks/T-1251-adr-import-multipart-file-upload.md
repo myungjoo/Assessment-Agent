@@ -2,7 +2,11 @@
 id: T-1251
 title: ADR — Import canonical = multipart 파일 업로드 (multer/FileInterceptor, 영속 저장 0, 크기 제한, 새 dependency 0)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T03:20:44Z
+mergedAs: 7236b046
+prNumber: 1142
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 150
@@ -59,4 +63,4 @@ plannerNote: "P5 import chain — Q-0055 옵션(A) 승인 후 ADR-우선 첫 ste
 
 ## Follow-ups
 
-(비어있음 — sub-agent 가 관련 작업 발견 시 append.)
+- **reviewer NIT-1 (PR #1142 round 1/7) 인계**: ADR-0055 Decision §3 의 "multer 상한 초과 → exception filter 4xx(413) 변환" 서술은 다소 낙관적 — multer `LIMIT_FILE_SIZE`(`MulterError`)는 default exception filter 하에서 별도 매핑 없으면 **500** 으로 표면화된다. 크기 제한 config 를 구현하는 후속 slice (§Follow-ups (c)) 의 Acceptance Criteria 에 `MulterError → 4xx(413)` 예외 필터 매핑을 명시할 것 (구현자가 자동 4xx 가정하지 않도록). planner 가 (c) slice 분해 시 반영.
