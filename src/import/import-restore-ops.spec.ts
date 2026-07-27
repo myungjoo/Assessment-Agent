@@ -371,6 +371,59 @@ describe("groupImportRestoreOperations — error path (negative cases)", () => {
   });
 });
 
+describe("groupImportRestoreOperations — 의도적 무검증 계약 (pinning)", () => {
+  it("record 의 instant 는 undefined 든 Invalid Date 든 무검증 통과시켜 정상 그룹핑한다", () => {
+    // 의도적 divergence: 본 helper 는 (phase, entity, records) 로 접는 순수 변환이라 entity 이름만
+    // 읽고 instant 를 전혀 보지 않는다 — instant 유효성은 상류 buildImportRestorePlan 의
+    // assertValidDate 가 이미 걸러낸 책임이라 같은 검증을 두 겹 두지 않는다.
+    const missingInstant = { entity: "Person" };
+    const invalidInstant = {
+      entity: "Assessment",
+      instant: new Date(Number.NaN),
+    };
+
+    const operations = callWithAny({
+      toDelete: [invalidInstant],
+      toInsert: [missingInstant, invalidInstant],
+    });
+
+    expect(shapeOf(operations)).toEqual([
+      ["delete", "Assessment"],
+      ["insert", "Person"],
+      ["insert", "Assessment"],
+    ]);
+    expect(operations[1].records).toEqual([missingInstant]);
+    expect(operations[2].records[0].instant.getTime()).toBeNaN();
+  });
+
+  it("toKeep 은 누락되거나 비-배열이어도 통과한다 (toDelete·toInsert 와 비대칭)", () => {
+    // 의도적 divergence: toKeep 은 operation 을 만들지 않아 결과에 전혀 기여하지 않으므로 순회조차
+    // 하지 않는다 — 반면 toDelete·toInsert 는 그룹 조립에 실제로 쓰이므로 비-배열이면 TypeError.
+    const withoutKeep = callWithAny({
+      toDelete: [rec("Person", 1)],
+      toInsert: [rec("Person", 2)],
+    });
+    const withStringKeep = callWithAny({
+      toDelete: [rec("Person", 1)],
+      toInsert: [rec("Person", 2)],
+      toKeep: "not-an-array",
+    });
+
+    expect(shapeOf(withoutKeep)).toEqual([
+      ["delete", "Person"],
+      ["insert", "Person"],
+    ]);
+    expect(shapeOf(withStringKeep)).toEqual(shapeOf(withoutKeep));
+    // 같은 자리에 놓인 비-배열이 toDelete·toInsert 였다면 TypeError 였음을 나란히 고정한다.
+    expect(() =>
+      callWithAny({ toDelete: "not-an-array", toInsert: [] }),
+    ).toThrow(TypeError);
+    expect(() =>
+      callWithAny({ toDelete: [], toInsert: "not-an-array" }),
+    ).toThrow(TypeError);
+  });
+});
+
 describe("groupImportRestoreOperations — 순수성 (non-mutating)", () => {
   it("freeze 된 plan · 배열 · 원소로 호출해도 정상 동작한다", () => {
     const frozen = Object.freeze({
