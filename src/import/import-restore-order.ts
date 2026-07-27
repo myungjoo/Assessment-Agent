@@ -27,6 +27,11 @@
 // 위치라 verdict wrapper 를 한 겹 더 두지 않는다 (throw 흡수는 하류 `$transaction` slice 책임).
 import { type ExportEntity } from "../export/export-scope-select";
 
+// 복원 실행 phase — 삭제 단계 / 삽입 단계 2 종. 하류 slice (operation 그룹핑 · 실 `$transaction`)
+// 가 `"insert" | "delete"` literal union 을 각자 재선언하지 않도록 named type 으로 승격했다
+// (T-1261 reviewer NIT-1 회수). 타입 명명일 뿐 런타임 동작 변경 0 이다.
+export type ImportRestorePhase = "insert" | "delete";
+
 // FK 안전 **삽입** rank 의 단일 source-of-truth. `Record<ExportEntity, number>` 라 `ExportEntity`
 // union 에 새 entity 가 추가되면 본 객체의 키 누락이 컴파일 error 로 드러난다 (silent 누락 차단).
 // 유일한 FK 제약은 `Person` < `Assessment` 이며, 나머지 상대 순서 (`Group` / `LlmConfig` /
@@ -72,7 +77,7 @@ function isExportEntity(value: unknown): value is ExportEntity {
 //     RangeError. 검증을 전부 마친 뒤에야 결과를 만들므로 **부분 결과를 돌려주는 경로가 없다**.
 export function orderImportRestoreEntities(
   entities: ReadonlyArray<ExportEntity>,
-  phase: "insert" | "delete",
+  phase: ImportRestorePhase,
 ): ExportEntity[] {
   if (phase !== "insert" && phase !== "delete") {
     throw new RangeError(
