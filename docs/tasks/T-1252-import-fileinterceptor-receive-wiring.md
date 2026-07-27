@@ -2,7 +2,7 @@
 id: T-1252
 title: Import multipart 수신 배선 — FileInterceptor + @UploadedFile (ADR-0055 §Follow-up a)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 165
