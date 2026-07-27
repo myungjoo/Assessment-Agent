@@ -187,6 +187,26 @@ describe("prepareImportRestorePlan", () => {
     });
   });
 
+  describe("Prisma ImportMode enum drift 감지", () => {
+    // MODE_MAP 은 REPLACE / MERGE 두 멤버만 매핑한다. Prisma schema 에 멤버가 추가되면 그
+    // 멤버는 매핑이 없어 stage "mode" 로 거부되는데, 아래 it.each 가 enum 전 멤버를 순회하므로
+    // 매핑 누락이 곧바로 fail 로 드러난다 (drift 를 조용히 통과시키지 않는다).
+    it.each(Object.values(ImportMode))(
+      "enum 멤버 %s 는 MODE_MAP 에 매핑돼 정상 dump + 빈 existing 에서 ok: true 를 낸다",
+      (mode) => {
+        let result!: ImportRestorePlanPrepareResult;
+        expect(() => {
+          result = prepareImportRestorePlan(toBuffer(sampleDump), [], mode);
+        }).not.toThrow();
+
+        const success = expectSuccess(result);
+        expect(success.records).toHaveLength(5);
+        expect(success.plan.toInsert).toHaveLength(5);
+        expect(success.plan.toDelete).toEqual([]);
+      },
+    );
+  });
+
   describe("mode 실패 분기 (stage: mode · negative)", () => {
     it.each([
       ["소문자 replace", "replace"],
@@ -197,6 +217,8 @@ describe("prepareImportRestorePlan", () => {
       ["number", 1],
       ["객체", { mode: "REPLACE" }],
       ["빈 문자열", ""],
+      ["boolean", true],
+      ["bigint", BigInt(2)],
     ])("%s 는 stage: mode 로 즉시 거부한다", (_label, mode) => {
       let result!: ImportRestorePlanPrepareResult;
       expect(() => {
@@ -214,6 +236,51 @@ describe("prepareImportRestorePlan", () => {
       // 실패 verdict 는 부분 결과를 절대 포함하지 않는다.
       expect(failure).not.toHaveProperty("plan");
       expect(failure).not.toHaveProperty("records");
+    });
+
+    // 문자열화 자체가 throw 하는 mode — 거부 message 를 만들다가 helper 가 throw 하면 verdict
+    // 계약 (throw 0) 이 깨진다. 아래 두 test 가 그 hazard 를 직접 겨냥한다.
+    it("prototype 이 없는 mode (Object.create(null)) 여도 throw 없이 stage: mode 로 거부한다", () => {
+      const bareMode = Object.create(null) as ImportMode;
+
+      let result!: ImportRestorePlanPrepareResult;
+      expect(() => {
+        result = prepareImportRestorePlan(
+          toBuffer(sampleDump),
+          existingPair(),
+          bareMode,
+        );
+      }).not.toThrow();
+
+      const failure = expectFailure(result);
+      expect(failure.stage).toBe("mode");
+      expect(failure.issues).toHaveLength(1);
+      expect(failure.issues[0]).toContain("REPLACE 또는 MERGE");
+      expect(failure.issues[0]).toContain("object");
+    });
+
+    it("toString 이 throw 하는 mode 객체여도 throw 없이 stage: mode 로 거부한다", () => {
+      const explosiveMode = {
+        toString() {
+          throw new Error("toString 폭발");
+        },
+      } as unknown as ImportMode;
+
+      let result!: ImportRestorePlanPrepareResult;
+      expect(() => {
+        result = prepareImportRestorePlan(
+          toBuffer(sampleDump),
+          existingPair(),
+          explosiveMode,
+        );
+      }).not.toThrow();
+
+      const failure = expectFailure(result);
+      expect(failure.stage).toBe("mode");
+      expect(failure.issues).toHaveLength(1);
+      expect(failure.issues[0]).toContain("REPLACE 또는 MERGE");
+      // 표기 실패는 종류만 알리고 raw 객체 / stack 을 흘리지 않는다.
+      expect(failure.issues[0]).not.toContain("폭발");
     });
 
     it("mode 실패 시 복원 입력 준비를 호출하지 않는다 (단락 평가)", () => {
@@ -313,7 +380,10 @@ describe("prepareImportRestorePlan", () => {
         expect(failure.issues).toHaveLength(1);
         expect(typeof failure.issues[0]).toBe("string");
         expect(failure.issues[0]).toMatch(/[가-힣]/);
-        expect(failure.issues[0]).not.toContain("at ");
+        // stack frame ("\n    at fn (file.ts:12:34)") 형태가 섞여 들어오지 않았는지 확인한다.
+        expect(failure.issues[0]).not.toMatch(/\n\s+at .+:\d+:\d+/);
+        // message 는 한 줄 — 개행이 있으면 stack 이 붙었다는 신호다.
+        expect(failure.issues[0]).not.toContain("\n");
         expect(failure).not.toHaveProperty("plan");
         expect(failure).not.toHaveProperty("records");
       },
@@ -332,6 +402,36 @@ describe("prepareImportRestorePlan", () => {
 
       expect(failure.stage).toBe("plan");
       expect(failure.issues).toEqual(["문자열 throw"]);
+    });
+
+    it("toString 이 throw 하는 비-Error 가 throw 돼도 흡수해 stage: plan 으로 종료한다", () => {
+      jest
+        .spyOn(planModule, "buildImportRestorePlan")
+        .mockImplementation(() => {
+          // 문자열화 자체가 폭발하는 값 — 흡수 helper 가 그대로 String() 하면 verdict 대신
+          // 예외가 새어 나간다.
+          throw {
+            toString() {
+              throw new Error("toString 폭발");
+            },
+          };
+        });
+
+      let result!: ImportRestorePlanPrepareResult;
+      expect(() => {
+        result = prepareImportRestorePlan(
+          toBuffer(sampleDump),
+          [],
+          ImportMode.REPLACE,
+        );
+      }).not.toThrow();
+
+      const failure = expectFailure(result);
+      expect(failure.stage).toBe("plan");
+      expect(failure.issues).toHaveLength(1);
+      expect(typeof failure.issues[0]).toBe("string");
+      expect(failure.issues[0]).toContain("object");
+      expect(failure.issues[0]).not.toContain("폭발");
     });
   });
 

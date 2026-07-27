@@ -64,10 +64,40 @@ const MODE_MAP: ReadonlyMap<ImportMode, ImportRestoreMode> = new Map<
   [ImportMode.MERGE, "merge"],
 ]);
 
+// 임의 값의 **안전한** 문자열 표기 — `String(value)` 는 primitive 변환이 불가능한 값
+// (`Object.create(null)` · `Symbol.toPrimitive` / `toString` 이 throw 하는 객체 등) 에서 자체적으로
+// throw 하므로, 본 helper 의 "어떤 입력에서도 throw 하지 않는다" 계약을 깨뜨린다. 그래서
+// 문자열은 그대로, 그 밖의 primitive 는 String 변환, 객체류는 try/catch 로 감싸 실패 시
+// `typeof` 표기로 대체한다 (표기 실패가 verdict 실패를 throw 로 바꾸지 않도록).
+function describeUnknown(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === null) {
+    return "null";
+  }
+  if (value === undefined) {
+    return "undefined";
+  }
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return String(value);
+  }
+  try {
+    return String(value);
+  } catch {
+    // 문자열화 자체가 실패한 값 — 종류만 알린다 (raw 객체 · stack 미노출, REQ-032 정합).
+    return `[문자열화 불가 ${typeof value} 값]`;
+  }
+}
+
 // throw → issue 문자열 흡수 — message 만 취하고 stack / Error 객체는 노출하지 않는다 (REQ-032
-// 정합). Error 가 아닌 값이 throw 돼도 문자열화해 계약 (issues: string[]) 을 유지한다.
+// 정합). Error 가 아닌 값이 throw 돼도 안전 표기로 바꿔 계약 (issues: string[]) 을 유지한다.
 function toIssue(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return describeUnknown(error instanceof Error ? error.message : error);
 }
 
 // prepareImportRestorePlan — 업로드 dump buffer + 메모리에 올라온 기존 record 배열 + Prisma
@@ -97,7 +127,7 @@ export function prepareImportRestorePlan(
       ok: false,
       stage: "mode",
       issues: [
-        `prepareImportRestorePlan: mode 는 REPLACE 또는 MERGE 여야 합니다 (받음: ${String(mode)})`,
+        `prepareImportRestorePlan: mode 는 REPLACE 또는 MERGE 여야 합니다 (받음: ${describeUnknown(mode)})`,
       ],
     };
   }
