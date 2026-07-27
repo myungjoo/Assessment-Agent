@@ -2,7 +2,11 @@
 id: T-1261
 title: Import 복원 FK 안전 실행 순서 helper (insert 순서 상수 + phase 별 정렬)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T11:28:00Z
+prNumber: 1152
+mergeCommit: dbbd0c88
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 320
@@ -14,7 +18,7 @@ touchesFiles:
   - src/import/import-restore-order.ts
   - src/import/import-restore-order.spec.ts
 sizeExempt: true
-exemptReason: R-112 backbone (production ~80 + spec ~240, 실측 spec:production 3:1) — 본 chain 최근 4 slice 실측 289/398/432/639 대비 최소 규모이며 2 파일 유지. 20 LOC 초과분은 spec 밀도 때문.
+exemptReason: R-112 backbone (production ~80 + spec ~240, 실측 spec:production 3:1) — 본 chain 최근 4 slice 실측 289/398/432/639 대비 최소 규모이며 2 파일 유지. 20 LOC 초과분은 spec 밀도 때문. **실측 갱신 (2026-07-27, reviewer round 2 MINOR-1 반영)**: production 106 / spec 489 (round 2 nit-closure +221 포함) / 총 595 — 위 근거 320 의 약 1.9 배. nit-closure 분량이 추정 밖이었던 것이 초과의 주 원인이며, estimate-model.md sub-multiplier 후속에 합산 대상.
 plannerNote: P5 ADR-0055 §Follow-up(b) 일곱 번째 slice — $transaction 복원의 FK 안전 실행 순서만 순수 상수+정렬로 분리 (그룹핑/DB 는 다음 slice)
 ---
 
@@ -63,3 +67,6 @@ plannerNote: P5 ADR-0055 §Follow-up(b) 일곱 번째 slice — $transaction 복
 - (T-1258 reviewer round 2 지적, T-1259 · T-1260 미회수 이월) [src/export/import-dump-validate.ts](../../src/export/import-dump-validate.ts) 53 행 주석 / 93 행 issue 메시지가 `generatedAt` 을 "ISO 파싱 가능한 string" 이라고 표현하지만 실제 판정은 `new Date(value)` 기준이라 ISO 8601 이 아닌 형식 (RFC 2822 등) 도 통과한다 — 문구 부정확. comment / 메시지 문구만 정정하는 fix 로 회수 (해당 spec 의 문구 assertion 동반 갱신 필요, 2 파일). 인접 slice 의 PR nit-closure 로 흡수하거나 별도 소형 task 로 큐잉.
 - (T-1260 reviewer 권고) planner 의 `estimatedDiff` 산정 heuristic — 본 chain 실측 spec:production 비율이 대략 3:1 이라 production 120 LOC 초과 slice 는 총 diff 가 cap 을 넘는다. 본 task 부터 production ≤ ~80 LOC 로 쪼개 적용 중이며, 누적 3 회차 실측 후 `docs/architecture/estimate-model.md` 에 sub-multiplier 로 박제.
 - ADR-0055 §Follow-up (b) 잔여 slice = plan → entity 별 operation 그룹핑 → delegate 매핑 공용화 → ADR-0044 §3 `$transaction` 복원 엔진 → controller interim guard 교체 재배선.
+- (본 task reviewer round 1 NIT-1) `orderImportRestoreEntities` 의 `"insert" | "delete"` union 을 named type (`ImportRestorePhase`) 으로 export 해 다음 slice 들이 손으로 재선언하지 않게 한다 — sibling `ImportRestoreMode` ([src/export/import-restore-plan.ts](../../src/export/import-restore-plan.ts) 25 행) 패턴 정합. production 변경이라 본 PR nit-closure 4 종 밖이므로 다음 slice 에서 흡수.
+- (본 task reviewer round 2 NIT-1) [src/import/import-restore-order.spec.ts](../../src/import/import-restore-order.spec.ts) 의 `ENTITY_TO_PRISMA_MODEL` 은 `src/export/export-job.service.ts` private `EXPORT_ENTITY_SOURCES` 의 손복사본이라 매핑이 다른 model 로 바뀌면 조용히 drift 한다. delegate 매핑 공용 module 추출 slice 의 acceptance 에 "본 spec 이 공용 상수를 import 하도록 전환" 을 포함한다.
+- (본 task reviewer round 2 MINOR-1) 위 T-1260 권고의 estimate heuristic 후속에 본 회차 실측 합산 — production 106 / spec 489 / 총 595, `sizeExempt` 근거 320 의 약 1.9 배. **nit-closure 분량 (+221) 이 추정 밖이었던 것이 초과의 주 원인** 이므로 sub-multiplier 박제 시 "nit-closure 예상 분량도 estimatedDiff 에 포함" 항목을 함께 넣는다.
