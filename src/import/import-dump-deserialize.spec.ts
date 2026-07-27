@@ -7,6 +7,9 @@ import {
 // (정상 · 비-Buffer · 빈·whitespace · 손상 JSON) 기준으로 나눠 검증한다. helper 는 순수
 // 함수이므로 DB / repository / mock 없이 buffer 만 넘긴다.
 describe("deserializeDumpBuffer", () => {
+  // UTF-8 BOM (U+FEFF) — 소스에 보이지 않는 문자를 직접 넣지 않도록 code point 로 만든다.
+  const BOM = String.fromCharCode(0xfeff);
+
   // 정상 dump envelope 유사 object — buildExportDump 결과(ExportDump)의 축소판.
   const sampleDump = {
     schemaVersion: "1",
@@ -56,6 +59,25 @@ describe("deserializeDumpBuffer", () => {
     it("한글 등 멀티바이트 UTF-8 본문을 손실 없이 decode 한다", () => {
       const payload = { note: "평가 대상자 목록", emoji: "✅" };
       const buffer = Buffer.from(JSON.stringify(payload), "utf-8");
+
+      const result = deserializeDumpBuffer(buffer);
+
+      expect(result).toEqual({ ok: true, value: payload });
+    });
+
+    // T-1255 reviewer MINOR nit 회수 (T-1256) — Windows 계열 도구가 저장한 dump 는 선두에
+    // BOM 이 붙는다. strip 전에는 "손상된 dump JSON" 으로 오탐됐다.
+    it("선두 UTF-8 BOM 이 붙은 정상 dump 도 ok: true 로 파싱한다", () => {
+      const buffer = Buffer.from(BOM + JSON.stringify(sampleDump), "utf-8");
+
+      const result = deserializeDumpBuffer(buffer);
+
+      expect(result).toEqual({ ok: true, value: sampleDump });
+    });
+
+    it("본문 중간의 U+FEFF 는 strip 하지 않는다 (선두 1 개만 제거)", () => {
+      const payload = { note: `앞${BOM}뒤` };
+      const buffer = Buffer.from(BOM + JSON.stringify(payload), "utf-8");
 
       const result = deserializeDumpBuffer(buffer);
 
@@ -149,6 +171,21 @@ describe("deserializeDumpBuffer", () => {
 
       expect(reason).toContain("빈 dump 파일");
     });
+
+    it.each([
+      ["BOM 만", ""],
+      ["BOM + space", "  "],
+      ["BOM + 개행", "\n\t"],
+    ])(
+      "%s 담긴 buffer 는 손상이 아니라 빈 dump 파일로 분류한다",
+      (_label, tail) => {
+        const reason = expectFailure(
+          deserializeDumpBuffer(Buffer.from(BOM + tail, "utf-8")),
+        );
+
+        expect(reason).toContain("빈 dump 파일");
+      },
+    );
 
     it("빈 buffer 와 whitespace-only 는 서로 다른 reason 으로 구분한다", () => {
       const emptyReason = expectFailure(deserializeDumpBuffer(Buffer.alloc(0)));

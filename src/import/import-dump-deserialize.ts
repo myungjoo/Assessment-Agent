@@ -33,10 +33,19 @@ function describeInput(value: unknown): string {
   return typeof value;
 }
 
-// deserializeDumpBuffer — 업로드된 dump 본문 buffer 를 UTF-8 로 decode 한 뒤 `JSON.parse`
-// 한다. 분기는 4 개다:
+// UTF-8 BOM (`U+FEFF`) 선두 1 개 strip (T-1256 — T-1255 reviewer MINOR nit 회수). Windows 계열
+// 도구가 저장한 dump 는 본문 앞에 BOM 이 붙는데, Node 의 utf-8 decode 는 이를 문자로 그대로
+// 남기고 `JSON.parse` 는 거부한다 — 즉 정상 dump 가 "손상된 dump JSON" 으로 **오탐** 된다.
+// 선두 1 개만 제거하며 본문 중간의 `U+FEFF` 는 건드리지 않는다 (JSON string 값 안의 정당한
+// 문자일 수 있으므로).
+function stripLeadingBom(text: string): string {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+// deserializeDumpBuffer — 업로드된 dump 본문 buffer 를 UTF-8 로 decode 하고 선두 BOM 을 제거한
+// 뒤 `JSON.parse` 한다. 분기는 4 개다:
 //   (1) 입력이 Buffer 가 아님 (`Buffer.isBuffer` false) → { ok: false, reason }
-//   (2) 빈 buffer (length 0) 또는 whitespace-only 본문 → { ok: false, reason }
+//   (2) 빈 buffer (length 0) 또는 (선두 BOM 제거 후) whitespace-only 본문 → { ok: false, reason }
 //   (3) 손상 JSON (SyntaxError) → catch 해서 { ok: false, reason } (throw 하지 않음)
 //   (4) 정상 → { ok: true, value: <파싱 결과> }
 // 파싱 결과가 primitive / array 여도 (예: `123`, `"x"`, `[]`) 본 helper 는 `ok: true` 로
@@ -55,7 +64,9 @@ export function deserializeDumpBuffer(buffer: Buffer): DumpDeserializeResult {
   if (buffer.length === 0) {
     return { ok: false, reason: "빈 dump 파일입니다 (본문이 비어 있습니다)" };
   }
-  const text = buffer.toString("utf-8");
+  // BOM 은 decode 직후 제거한다 — whitespace 판정과 파싱 모두 BOM 없는 본문 기준이어야
+  // BOM-only / BOM + whitespace buffer 가 "손상" 이 아니라 "빈 dump 파일" 로 분류된다.
+  const text = stripLeadingBom(buffer.toString("utf-8"));
   if (text.trim().length === 0) {
     return {
       ok: false,
