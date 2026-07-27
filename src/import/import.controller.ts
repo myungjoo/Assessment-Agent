@@ -8,9 +8,13 @@
 //
 // endpoint surface:
 //   - POST /api/admin/import          → createJob (생성된 job status=PENDING 반환).
-//     **multipart 파일 수신 0 — JSON CreateImportDto body 만**. 실 artifact upload
-//     (multer / FileInterceptor) 는 새 infra 표면이라 T-0489 §Out of Scope — 본
-//     controller 는 mode + actor 결합으로 job record 만 생성한다.
+//     **multipart 파일 수신 배선 완료 (ADR-0055 §Decision 1, T-1252)** — `mode` form
+//     field + dump artifact 파일 1 개 (`file`) 를 `FileInterceptor("file")` (multer
+//     bundled in @nestjs/platform-express, 새 dep 0) + `@UploadedFile()` 로 받는다.
+//     파일 누락 시 BadRequestException(400). 단 **interim** — 받은 buffer 는 아직
+//     복원 엔진에 넘기지 않고 (§Follow-up b slice) 수신만 검증하며, controller 는
+//     여전히 mode + actor 결합으로 job record (status=PENDING) 만 생성한다
+//     (ADR-0055 §Consequences 의 chain 완주 전 interim false-success 상태 그대로).
 //   - GET  /api/admin/import/running  → findRunning (RUNNING 목록, UC-07 §8 status polling).
 //   - GET  /api/admin/import/modes    → describeModes (import mode 선택 dialog 의 사람-친화
 //     설명 목록, UC-07 §5 step 2 + §6.2 — describeImportMode helper 를 REPLACE/MERGE 두
@@ -49,15 +53,19 @@
 //   - 신규 auth-flow / RBAC 정책 변경 0 — 기존 guard stack 적용만.
 //   - 응답 envelope 표준화 / pagination / sort — service return 그대로 forward.
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { ImportMode, type ImportJob } from "@prisma/client";
 
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -72,6 +80,7 @@ import type { ImportRestoreMode } from "../export/import-restore-plan";
 
 import { CreateImportDto } from "./dto/create-import.dto";
 import { ImportJobService } from "./import-job.service";
+import type { UploadedDumpFile } from "./uploaded-dump-file";
 
 // Prisma ImportMode enum(uppercase REPLACE/MERGE) ↔ describeImportMode helper 가
 // 요구하는 lowercase ImportRestoreMode("replace"/"merge") 매핑. prisma/schema.prisma
@@ -94,25 +103,45 @@ const IMPORT_MODE_ENUM_TO_PAYLOAD: Record<ImportMode, ImportRestoreMode> = {
 export class ImportController {
   constructor(private readonly service: ImportJobService) {}
 
-  // POST /api/admin/import — import job 생성 (REQ-030 Import). @CurrentUser("sub") 로
-  // 추출한 actor.sub 를 requestedById 로 결합해 (client 임의 발화자 위장 불가, REQ-045)
-  // dto.mode 와 함께 service.createJob 로 forward. 생성된 job (status=PENDING) 을
-  // 그대로 반환. mode 미지정 시 dto.mode 가 undefined 로 forward 되어 service 가 schema
-  // @default(REPLACE) 를 적용한다. mode invariant 위반은 service 가
-  // BadRequestException(400) raw forward — controller 자체 분기 없음.
+  // POST /api/admin/import — import job 생성 (REQ-030 Import). multipart/form-data 로
+  // dump artifact 파일 1 개 (`file`) + `mode` form field 를 받는다 (ADR-0055 §Decision 1).
+  //   - @UseInterceptors(FileInterceptor("file")) — multer (memoryStorage default,
+  //     ADR-0055 §Decision 2) 가 파일을 in-memory buffer 로 파싱. FileInterceptor 는
+  //     @nestjs/platform-express (multer bundled) 제공 → 새 runtime dep 0 (package.json 불변).
+  //   - @UploadedFile() file — 수신한 파일 (UploadedDumpFile local 타입, ADR-0055
+  //     §Decision 4 로 @types/multer 없이 typing). 파일 누락 시 file 은 undefined.
+  //   - @CurrentUser("sub") actorSub — 인증 actor.sub 를 requestedById 로 결합
+  //     (client 임의 발화자 위장 불가, REQ-045). @Body() dto 의 mode 를 forward.
   //
-  // 본 endpoint 는 JSON body 만 받는다 — multipart 파일 수신·실 artifact upload 는
-  // T-0489 §Out of Scope (새 infra 표면, 후속 slice).
+  // 파일 누락 분기 (ADR-0055 §Follow-up a): file 이 undefined 면 BadRequestException(400)
+  // 으로 거부한다 (dump artifact 없이 import 진행 불가). 파일 수신 시에는 기존대로
+  // service.createJob({ mode, requestedById }) 로 진행하고 생성된 job (status=PENDING)
+  // 을 반환한다. mode 미지정 시 dto.mode 가 undefined 로 forward 되어 service 가 schema
+  // @default(REPLACE) 를 적용한다. mode invariant 위반은 service 가 BadRequestException
+  // raw forward — controller 는 파일 누락 외 추가 분기를 두지 않는다.
+  //
+  // **interim (ADR-0055 §Consequences 부정)**: 받은 file.buffer 는 아직 소비하지 않는다
+  // — 파싱→실 복원 엔진 배선은 §Follow-up (b) slice, 크기 제한은 (c) slice. 본 slice 는
+  // 파일을 *받는 입구* 만 연다 (buffer 미소비, createJob 시그니처 보존).
   //
   // RBAC — Admin+ tier. @Roles("Admin") → Admin / SuperAdmin 통과 (RolesGuard
-  // escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
+  // escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401. guard 는
+  // FileInterceptor 보다 먼저 실행되므로 미인증/권한 미달 요청은 파일 파싱 전에 차단된다.
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("Admin")
+  @UseInterceptors(FileInterceptor("file"))
   async create(
+    @UploadedFile() file: UploadedDumpFile | undefined,
     @Body() dto: CreateImportDto,
     @CurrentUser("sub") actorSub: string,
   ): Promise<ImportJob> {
+    if (file === undefined) {
+      throw new BadRequestException(
+        "dump artifact 파일(file) 업로드가 필요합니다 (multipart/form-data).",
+      );
+    }
+
     return this.service.createJob({
       mode: dto.mode,
       requestedById: actorSub,

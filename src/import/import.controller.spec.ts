@@ -55,6 +55,7 @@ import * as describeImportModeModule from "../export/import-mode-description";
 
 import { ImportJobService } from "./import-job.service";
 import { ImportController } from "./import.controller";
+import type { UploadedDumpFile } from "./uploaded-dump-file";
 /* eslint-enable import/first */
 
 // ImportJob fixture — create / findJob 이 반환하는 row shape (import-job.service.spec
@@ -73,6 +74,21 @@ function buildImportJobFixture(overrides: Partial<ImportJob> = {}): ImportJob {
     restoredRowCount: null,
     ...overrides,
   } as ImportJob;
+}
+
+// UploadedDumpFile fixture — @UploadedFile() 가 넘기는 multipart 파일 객체 shape
+// (ADR-0055 §Decision 4 local 타입, memoryStorage in-memory buffer). 본 slice (T-1252)
+// 는 buffer 를 소비하지 않으므로 진단용 최소 필드만 채운다.
+function buildUploadedFile(
+  overrides: Partial<UploadedDumpFile> = {},
+): UploadedDumpFile {
+  return {
+    buffer: Buffer.from("dump-artifact-bytes"),
+    originalname: "dump.json",
+    size: 19,
+    mimetype: "application/json",
+    ...overrides,
+  };
 }
 
 // ImportJobService mock factory — create / findRunning / findJob jest.fn().
@@ -101,7 +117,7 @@ describe("ImportController (unit)", () => {
   // dto.mode forward) + branch (mode 지정/미지정) + error/negative (service throw
   // raw propagate). controller 자체 분기 없음 — service raw forward.
   // -----------------------------------------------------------------------
-  it("POST create — actor.sub 를 requestedById 로 결합해 service.createJob 호출 + 반환 forward (happy, mode 지정)", async () => {
+  it("POST create — actor.sub 를 requestedById 로 결합해 service.createJob 호출 + 반환 forward (happy, mode 지정 + 파일 수신)", async () => {
     const { service, serviceMock } = buildServiceMock();
     const fixture = buildImportJobFixture({
       id: "ij-1",
@@ -112,7 +128,11 @@ describe("ImportController (unit)", () => {
     const dto = { mode: ImportMode.MERGE };
 
     const controller = new ImportController(service);
-    const result = await controller.create(dto, "admin-actor");
+    const result = await controller.create(
+      buildUploadedFile(),
+      dto,
+      "admin-actor",
+    );
 
     // service.createJob 가 actor.sub 결합 + dto.mode forward 로 정확히 1 회 호출됨 검증.
     expect(serviceMock.createJob).toHaveBeenCalledTimes(1);
@@ -130,13 +150,25 @@ describe("ImportController (unit)", () => {
     const dto = {};
 
     const controller = new ImportController(service);
-    await controller.create(dto, "admin-actor");
+    await controller.create(buildUploadedFile(), dto, "admin-actor");
 
     // mode 미지정 → undefined forward (service 가 schema @default(REPLACE) 적용).
     expect(serviceMock.createJob).toHaveBeenCalledWith({
       mode: undefined,
       requestedById: "admin-actor",
     });
+  });
+
+  it("POST create — 파일 누락 (file undefined) 시 BadRequestException(400) 으로 거부 + service 미호출 (error path — ADR-0055 §Follow-up a 파일 누락 분기)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+
+    const controller = new ImportController(service);
+    await expect(
+      controller.create(undefined, { mode: ImportMode.REPLACE }, "admin-actor"),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    // 파일 누락 시 service.createJob 은 호출되지 않는다 (수신 입구에서 차단).
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
   });
 
   it("POST create — service 의 BadRequestException (mode invariant 위반) 을 삼키지 않고 raw propagate (negative — mode invariant)", async () => {
@@ -148,7 +180,11 @@ describe("ImportController (unit)", () => {
 
     const controller = new ImportController(service);
     await expect(
-      controller.create({ mode: ImportMode.REPLACE }, "admin-actor"),
+      controller.create(
+        buildUploadedFile(),
+        { mode: ImportMode.REPLACE },
+        "admin-actor",
+      ),
     ).rejects.toBe(badRequest);
   });
 
@@ -158,7 +194,9 @@ describe("ImportController (unit)", () => {
     serviceMock.createJob.mockRejectedValueOnce(rawError);
 
     const controller = new ImportController(service);
-    await expect(controller.create({}, "admin-actor")).rejects.toBe(rawError);
+    await expect(
+      controller.create(buildUploadedFile(), {}, "admin-actor"),
+    ).rejects.toBe(rawError);
   });
 
   // -----------------------------------------------------------------------
@@ -384,8 +422,8 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
 
   // == POST /api/admin/import — create endpoint =====================================
 
-  // -- happy — Admin 통과 시 201 + actor.sub 를 requestedById 로 결합 위임 -----------
-  it("POST — Admin role 통과 시 201 + actor.sub 를 requestedById 로 결합해 service.createJob 위임 (happy — Admin+ tier)", async () => {
+  // -- happy — Admin 통과 시 201 + 파일 수신 + actor.sub 를 requestedById 로 결합 위임 --
+  it("POST — Admin role 통과 시 201 + multipart 파일 수신 + actor.sub 를 requestedById 로 결합해 service.createJob 위임 (happy — Admin+ tier + 파일 수신)", async () => {
     app = await buildApp({
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
@@ -396,11 +434,13 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
 
     const res = await request(app.getHttpServer())
       .post("/api/admin/import")
-      .send(VALID_BODY)
+      .field("mode", "REPLACE")
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
       .expect(201);
 
     expect(serviceMock.createJob).toHaveBeenCalledTimes(1);
-    // actor.sub (JwtAuthGuard 가 박제) 가 requestedById 로 결합됨 검증.
+    // actor.sub (JwtAuthGuard 가 박제) 가 requestedById 로 결합됨 검증. mode 는
+    // multipart form field (문자열 "REPLACE") 로 도착 → ValidationPipe(transform) 통과.
     expect(serviceMock.createJob).toHaveBeenCalledWith({
       mode: "REPLACE",
       requestedById: "admin-1",
@@ -408,8 +448,24 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     expect(res.body.id).toBe("ij-c");
   });
 
-  // -- happy/branch — mode 미지정 (빈 body) 도 201 + mode: undefined forward ---------
-  it("POST — mode 미지정 (빈 body) 시 201 + mode: undefined forward (branch — service default 위임)", async () => {
+  // -- error path — 파일 누락 (multipart 이나 file 필드 없음) 시 400 + service 미호출 --
+  it("POST — 파일 누락 시 400 + service 미호출 (error path — ADR-0055 §Follow-up a 파일 누락 분기)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    // file 첨부 없이 mode form field 만 → controller 의 file undefined 분기 → 400.
+    await request(app.getHttpServer())
+      .post("/api/admin/import")
+      .field("mode", "REPLACE")
+      .expect(400);
+
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+  });
+
+  // -- happy/branch — mode 미지정 (form field 없음) + 파일 수신 시 201 + undefined forward -
+  it("POST — mode 미지정 (form field 없음) + 파일 수신 시 201 + mode: undefined forward (branch — service default 위임)", async () => {
     app = await buildApp({
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
@@ -418,7 +474,7 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
 
     await request(app.getHttpServer())
       .post("/api/admin/import")
-      .send({})
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
       .expect(201);
 
     expect(serviceMock.createJob).toHaveBeenCalledWith({
@@ -439,42 +495,30 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
 
     await request(app.getHttpServer())
       .post("/api/admin/import")
-      .send(VALID_BODY)
+      .field("mode", "REPLACE")
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
       .expect(400);
   });
 
-  // -- negative — ValidationPipe: 잘못된 mode enum 값 → 400 + service 미호출 --------
-  it("POST — 잘못된 mode enum 값 (PATCH) 시 400 + service 미호출 (negative — invalid enum)", async () => {
+  // -- negative — ValidationPipe: 잘못된 mode enum 값 (form field) → 400 + service 미호출 --
+  it("POST — 잘못된 mode enum 값 (form field PATCH) 시 400 + service 미호출 (negative — invalid enum, multipart form field 검증)", async () => {
     app = await buildApp({
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
     });
 
+    // 파일은 정상 첨부하되 mode form field 가 비유효 → ValidationPipe 가 400 (파일 누락 아님).
     await request(app.getHttpServer())
       .post("/api/admin/import")
-      .send({ mode: "PATCH" })
-      .expect(400);
-
-    expect(serviceMock.createJob).not.toHaveBeenCalled();
-  });
-
-  // -- negative — ValidationPipe: 정의되지 않은 raw 본문 키 → 400 + service 미호출 ---
-  it("POST — 정의되지 않은 extra body 키 (raw payload) 포함 시 400 + service 미호출 (negative — forbidNonWhitelisted, ADR-0044 §2)", async () => {
-    app = await buildApp({
-      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
-      roles: ALLOW_ALL_ROLES,
-    });
-
-    await request(app.getHttpServer())
-      .post("/api/admin/import")
-      .send({ ...VALID_BODY, rawPayload: "secret-leak" })
+      .field("mode", "PATCH")
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
       .expect(400);
 
     expect(serviceMock.createJob).not.toHaveBeenCalled();
   });
 
-  // -- negative — ValidationPipe: requestedById 를 body 로 위장 시도 → 400 ----------
-  it("POST — body 에 requestedById 위장 키 포함 시 400 + service 미호출 (negative — actor 위장 차단)", async () => {
+  // -- negative — ValidationPipe: 정의되지 않은 raw 본문 키 (form field) → 400 + service 미호출 --
+  it("POST — 정의되지 않은 extra form field (raw payload) 포함 시 400 + service 미호출 (negative — forbidNonWhitelisted, ADR-0044 §2)", async () => {
     app = await buildApp({
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
@@ -482,7 +526,26 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
 
     await request(app.getHttpServer())
       .post("/api/admin/import")
-      .send({ ...VALID_BODY, requestedById: "spoofed-victim" })
+      .field("mode", "REPLACE")
+      .field("rawPayload", "secret-leak")
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
+      .expect(400);
+
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+  });
+
+  // -- negative — ValidationPipe: requestedById 를 form field 로 위장 시도 → 400 ----------
+  it("POST — form field 에 requestedById 위장 키 포함 시 400 + service 미호출 (negative — actor 위장 차단)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/import")
+      .field("mode", "REPLACE")
+      .field("requestedById", "spoofed-victim")
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
       .expect(400);
 
     expect(serviceMock.createJob).not.toHaveBeenCalled();
@@ -532,7 +595,8 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
 
     await request(app.getHttpServer())
       .post("/api/admin/import")
-      .send(VALID_BODY)
+      .field("mode", "REPLACE")
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
       .expect(500);
   });
 
@@ -774,7 +838,8 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
 
       await request(app.getHttpServer())
         .post("/api/admin/import")
-        .send(VALID_BODY)
+        .field("mode", "REPLACE")
+        .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
         .expect(201);
 
       expect(serviceMock.createJob).toHaveBeenCalledTimes(1);
