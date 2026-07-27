@@ -2,7 +2,11 @@
 id: T-1255
 title: Import dump buffer 역직렬화 순수 helper 신설 (parse-only, DB·검증 0)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T07:05:00Z
+mergedAs: 490205a9
+prNumber: 1146
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 90
