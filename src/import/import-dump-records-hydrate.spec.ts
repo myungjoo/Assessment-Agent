@@ -672,6 +672,120 @@ describe("hydrateImportDumpRecords", () => {
     });
   });
 
+  // T-1265 reviewer NIT-2 — 좁힌 plain object 판정의 **적용 경계** 를 값 수준까지 명시 pinning.
+  // 판정은 `fields` **자체** 에만 적용되고 `fields` 의 **값** 에는 적용되지 않는다 (값은 불투명
+  // 이동 — REQ-032). 위 spec 의 allowedFields() 는 값을 전부 string 으로 채우므로, 미래에 누군가
+  // 판정을 값에까지 재귀 적용해 nested object / Date 값을 거부하게 만들어도 감지되지 않는다.
+  // 아래 test 들이 그 경계를 (a) 거부 0 · (b) 값 identity 보존 두 축으로 못 박는다.
+  describe("plain object 판정의 적용 경계 (fields 자체만 — 값에는 미적용)", () => {
+    // 값 자리에 들어갈 사용자 정의 class instance — 값 수준에서는 판정 대상이 아니다.
+    class ValueBox {
+      public constructor(public readonly inner: string) {}
+    }
+
+    it.each([
+      ["nested plain object", { deep: { deeper: 1 } }],
+      ["Date instance", new Date("2026-07-27T00:00:00.000Z")],
+      ["null", null],
+      ["undefined", undefined],
+      ["배열", [1, "a", { b: 2 }]],
+      ["Map", new Map([["k", "v"]])],
+      ["class instance", new ValueBox("x")],
+      [
+        "Object.create(null) 객체",
+        Object.create(null) as Record<string, unknown>,
+      ],
+      ["number", 0],
+      ["boolean", false],
+    ])(
+      "allow-list key 의 값이 %s 여도 거부되지 않고 값 identity 그대로 보존된다",
+      (_label, value) => {
+        const records = expectSuccess(
+          hydrateImportDumpRecords({
+            records: [
+              { entity: "Group", instant: ISO[0], fields: { name: value } },
+            ],
+          }),
+        );
+
+        // (a) 거부 0 — 값 종류는 판정에 전혀 관여하지 않는다.
+        expect(records).toHaveLength(1);
+        expect(Object.keys(records[0].fields)).toEqual(["name"]);
+        // (b) 변환 0 — 복사도 재생성도 아닌 같은 참조/같은 값 (Object.is 동등).
+        expect(records[0].fields.name).toBe(value);
+      },
+    );
+
+    it("fields 자체가 Date 면 거부되지만 값 자리의 Date 는 통과한다 (판정 적용 지점 대비)", () => {
+      const asFields = hydrateImportDumpRecords({
+        records: [{ entity: "Group", instant: ISO[0], fields: new Date() }],
+      });
+      expect(expectFailure(asFields)[0]).toContain("records[0].fields");
+
+      const createdAt = new Date("2026-07-27T00:00:00.000Z");
+      const records = expectSuccess(
+        hydrateImportDumpRecords({
+          records: [
+            { entity: "Group", instant: ISO[0], fields: { createdAt } },
+          ],
+        }),
+      );
+
+      // 값 자리의 Date 는 instant 처럼 재생성되지도, 문자열로 직렬화되지도 않는다.
+      expect(records[0].fields.createdAt).toBe(createdAt);
+      expect(records[0].fields.createdAt).toBeInstanceOf(Date);
+    });
+
+    it("한 fields 안에 이질적인 값 종류가 섞여도 전부 통과하고 각 값이 identity 로 보존된다", () => {
+      const nested = { profile: { tags: ["a"] } };
+      const createdAt = new Date("2026-01-01T00:00:00.000Z");
+      const fields: Record<string, unknown> = {
+        id: nested,
+        name: createdAt,
+        createdAt: null,
+        updatedAt: undefined,
+      };
+
+      const records = expectSuccess(
+        hydrateImportDumpRecords({
+          records: [{ entity: "Group", instant: ISO[0], fields }],
+        }),
+      );
+
+      expect(Object.keys(records[0].fields).sort()).toEqual([
+        "createdAt",
+        "id",
+        "name",
+        "updatedAt",
+      ]);
+      expect(records[0].fields.id).toBe(nested);
+      expect(records[0].fields.name).toBe(createdAt);
+      expect(records[0].fields.createdAt).toBeNull();
+      expect(records[0].fields.updatedAt).toBeUndefined();
+      // shallow copy 라 컨테이너는 새 객체지만 값은 원본 참조 그대로다.
+      expect(records[0].fields).not.toBe(fields);
+    });
+
+    it("값이 무엇이든 allow-list 밖 key 는 여전히 거부된다 (값 수준 완화가 key 검사를 무르게 하지 않는다)", () => {
+      const issues = expectFailure(
+        hydrateImportDumpRecords({
+          records: [
+            {
+              entity: "Group",
+              instant: ISO[0],
+              fields: { name: { deep: 1 }, secret: { deep: 2 } },
+            },
+          ],
+        }),
+      );
+
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toContain("secret");
+      // 값(중첩 객체)의 내용은 issue 에 실리지 않는다 (REQ-032).
+      expect(issues[0]).not.toContain("deep");
+    });
+  });
+
   describe("순수성 계약", () => {
     it("freeze 된 dump/records/원소/fields 로 호출해도 통과하고 원본을 변형하지 않는다", () => {
       const fields = Object.freeze({ name: "g" });
