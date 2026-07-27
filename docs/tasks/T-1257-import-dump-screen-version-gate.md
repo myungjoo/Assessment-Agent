@@ -2,7 +2,9 @@
 id: T-1257
 title: Import dump screening helper (파싱 pipeline + schema version gate 배선)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T08:53:12Z
+prNumber: 1148
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 250
