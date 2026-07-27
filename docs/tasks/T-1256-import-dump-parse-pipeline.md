@@ -2,7 +2,11 @@
 id: T-1256
 title: Import dump parse pipeline helper (역직렬화→구조검증 합성) + BOM strip 보정
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T07:58:00Z
+mergedAs: 5e3f54ce
+prNumber: 1147
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 280
