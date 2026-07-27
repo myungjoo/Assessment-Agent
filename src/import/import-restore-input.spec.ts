@@ -27,12 +27,33 @@ describe("prepareImportRestoreInput", () => {
       AuditLog: 1,
     },
     recordCount: 5,
+    // T-1265 이후 hydrate 는 `fields` 를 필수로 요구한다 (allow-list 안 key 만 허용).
     records: [
-      { entity: "Assessment", instant: "2026-01-01T00:00:00.000Z" },
-      { entity: "Person", instant: "2026-02-02T01:02:03.000Z" },
-      { entity: "Group", instant: "2026-03-03T04:05:06.000Z" },
-      { entity: "LlmConfig", instant: "2026-04-04T07:08:09.000Z" },
-      { entity: "AuditLog", instant: "2026-05-05T10:11:12.000Z" },
+      {
+        entity: "Assessment",
+        instant: "2026-01-01T00:00:00.000Z",
+        fields: { id: "a1" },
+      },
+      {
+        entity: "Person",
+        instant: "2026-02-02T01:02:03.000Z",
+        fields: { id: "p1", fullName: "홍길동" },
+      },
+      {
+        entity: "Group",
+        instant: "2026-03-03T04:05:06.000Z",
+        fields: { id: "g1", name: "1팀" },
+      },
+      {
+        entity: "LlmConfig",
+        instant: "2026-04-04T07:08:09.000Z",
+        fields: { id: "c1", provider: "openai" },
+      },
+      {
+        entity: "AuditLog",
+        instant: "2026-05-05T10:11:12.000Z",
+        fields: { id: "l1", principal: "system" },
+      },
     ],
   };
   // 빈 dump — records 0 개 (복원할 게 없는 정상 dump).
@@ -67,7 +88,11 @@ describe("prepareImportRestoreInput", () => {
       AuditLog: 0,
     },
     recordCount: instants.length,
-    records: instants.map((instant) => ({ entity: "Person", instant })),
+    records: instants.map((instant) => ({
+      entity: "Person",
+      instant,
+      fields: { id: "p1" },
+    })),
   });
 
   // verdict 를 좁히는 helper — 기대와 다른 분기가 나오면 그 자리에서 실패시킨다.
