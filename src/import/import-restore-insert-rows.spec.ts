@@ -10,6 +10,7 @@ import { EXPORT_SCHEMA_VERSION } from "../export/export-dump";
 import { buildFullExportRecord } from "../export/export-full-record";
 import type { ExportEntity, ExportRecord } from "../export/export-scope-select";
 
+import { hydrateImportDumpRecords } from "./import-dump-records-hydrate";
 import { buildImportRestoreInsertRows } from "./import-restore-insert-rows";
 import { groupImportRestoreOperations } from "./import-restore-ops";
 import { prepareImportRestorePlan } from "./import-restore-plan-prepare";
@@ -200,16 +201,37 @@ describe("buildImportRestoreInsertRows — negative cases", () => {
         buildFullExportRecord("Person", new Date(0), value as never),
       ).toThrow(TypeError);
     }
-    // 반대 방향 — Object.create(null) 은 양쪽 모두 수용한다.
+    // 반대 방향 (수용) — 원본이 받는 값은 본 helper 도 받아야 한다: 일반 객체 리터럴 · nested 값
+    // 보유 객체 · Object.create(null).
     const nullProto = Object.assign(Object.create(null) as object, {
       id: "p1",
     }) as Record<string, unknown>;
-    expect(() =>
-      buildFullExportRecord("Person", new Date(0), nullProto),
-    ).not.toThrow();
-    expect(callWithAny(step([rec("Person", nullProto)]))).toEqual([
-      { id: "p1" },
-    ]);
+    const ACCEPTED: Array<[string, Record<string, unknown>]> = [
+      ["객체 리터럴", { id: "p1" }],
+      ["다중 key 객체", { id: "p1", fullName: "홍길동", active: true }],
+      ["nested 값 보유 객체", { id: "p1", createdAt: { deep: [1, 2] } }],
+      ["Object.create(null)", nullProto],
+    ];
+    for (const [, value] of ACCEPTED) {
+      expect(() =>
+        buildFullExportRecord("Person", new Date(0), value),
+      ).not.toThrow();
+      expect(callWithAny(step([rec("Person", value)]))).toEqual([value]);
+    }
+  });
+
+  it("(a2) drift 감시 — 빈 fields 는 상류가 수용하지만 본 helper 는 의도적으로 거부한다", () => {
+    // 상류 2 곳은 빈 fields 를 정상 통과시킨다.
+    expect(buildFullExportRecord("Person", new Date(0), {}).fields).toEqual({});
+    expect(
+      hydrateImportDumpRecords({
+        records: [
+          { entity: "Person", instant: "2026-01-01T00:00:00.000Z", fields: {} },
+        ],
+      }).ok,
+    ).toBe(true);
+    // 하류 경계인 본 helper 만 거부한다 — 컬럼 0 짜리 row 가 DB 로 새지 않도록.
+    expect(() => callWithAny(step([rec("Person", {})]))).toThrow(RangeError);
   });
 
   it("(b) own enumerable key 0 개인 빈 fields → RangeError (빈 row 미생성)", () => {
@@ -337,5 +359,19 @@ describe("buildImportRestoreInsertRows — negative cases", () => {
     expect(() => callWithAny(step(undefined, { records: "leak-me" }))).toThrow(
       /받음: string/,
     );
+  });
+
+  it("REQ-032 되돌림 감지 — record 원소가 raw string 이어도 그 값이 메시지에 실리지 않는다", () => {
+    let message = "";
+    try {
+      callWithAny(step([rec("Person", { id: "p1" }), "leak-me"]));
+    } catch (error) {
+      message = (error as Error).message;
+    }
+
+    // 종류 이름만 (`describeReceived` 로 되돌리면 값이 그대로 실려 본 단언이 깨진다).
+    expect(message).toMatch(/step\.records\[1\] 는 객체여야 합니다/);
+    expect(message).toContain("받음: string");
+    expect(message).not.toContain("leak-me");
   });
 });

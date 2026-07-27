@@ -43,9 +43,10 @@ function describeReceived(value: unknown): string {
   return typeof value;
 }
 
-// `fields` 전용 종류 표기 — payload 자리라 string 값을 그대로 실으면 dump 내용이 메시지 · 로그로
-// 샌다 (REQ-032). 값은 절대 싣지 않고 종류 이름만 노출하되, `typeof` 로는 둘 다 "object" 인 배열 ·
-// Date 는 따로 표기한다 (`import-dump-records-hydrate.describeFieldsKind` 와 동형 규칙).
+// payload 자리 (record 원소 · 그 `fields`) 전용 종류 표기 — 그 자리 값을 그대로 실으면 dump 내용이
+// 메시지 · 로그로 샌다 (REQ-032). 값은 절대 싣지 않고 종류 이름만 노출하되, `typeof` 로는 둘 다
+// "object" 인 배열 · Date 는 따로 표기한다 (`import-dump-records-hydrate.describeFieldsKind` 와
+// 동형 규칙).
 function describeFieldsKind(value: unknown): string {
   if (value === null) {
     return "null";
@@ -57,7 +58,7 @@ function describeFieldsKind(value: unknown): string {
 }
 
 // plain object 판정 — null / 배열 / Date / 함수 / primitive / class instance (Map 등) 거부, 순수
-// 객체와 `Object.create(null)` 만 허용. 🔥 `export-full-record.isPlainObject` (그리고 그 짝인
+// 객체와 `Object.create(null)` 만 허용. `export-full-record.isPlainObject` (그리고 그 짝인
 // `import-dump-records-hydrate` 의 사본) 와 **문자 그대로 같은 엄격도** 의 사본이다 (두 helper 모두
 // module-export 되지 않아 규칙만 로컬 mirror — 공용 module 추출은 별도 위생 slice). 느슨한 판정이면
 // `fields: new Date()` 가 통과해 **빈 row 가 조용히 DB 로 들어가 데이터가 소실** 된다. drift 는
@@ -125,9 +126,11 @@ function narrowRecordFields(
   candidate: unknown,
   index: number,
 ): Record<string, unknown> {
+  // record 도 payload 자리다 — `describeReceived` (string 을 값 그대로 노출) 를 쓰면 raw string
+  // record 가 error 메시지로 새므로 종류 이름만 싣는다 (REQ-032).
   if (typeof candidate !== "object" || candidate === null) {
     throw new TypeError(
-      `buildImportRestoreInsertRows: step.records[${index}] 는 객체여야 합니다 (받음: ${describeReceived(candidate)})`,
+      `buildImportRestoreInsertRows: step.records[${index}] 는 객체여야 합니다 (받음: ${describeFieldsKind(candidate)})`,
     );
   }
 
@@ -139,6 +142,9 @@ function narrowRecordFields(
     );
   }
 
+  // 상류 비대칭 (의도된 것) — `export-full-record.buildFullExportRecord` 와 `hydrateImportDump
+  // Records` 는 빈 `fields` 를 정상 허용하지만, 본 helper 는 마지막 경계라 거부한다: 빈 row 를
+  // `createMany` 로 보내면 컬럼 0 짜리 레코드가 조용히 DB 에 생긴다. drift 는 colocated spec 이 pin.
   if (Object.keys(fields).length === 0) {
     throw new RangeError(
       `buildImportRestoreInsertRows: step.records[${index}].fields 는 1 개 이상의 컬럼을 가져야 합니다 (빈 row 는 만들지 않습니다)`,
