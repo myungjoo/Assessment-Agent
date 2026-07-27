@@ -2,7 +2,7 @@
 id: T-1265
 title: Import dump record `fields` 보존 hydrate
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 380
@@ -13,8 +13,14 @@ dependsOn: [T-1264]
 touchesFiles:
   - src/import/import-dump-records-hydrate.ts
   - src/import/import-dump-records-hydrate.spec.ts
+  - src/import/import-restore-input.spec.ts
+  - src/import/import-restore-plan-prepare.spec.ts
 sizeExempt: true
 exemptReason: R-112 backbone slice — production 은 기존 helper 에 fields 검증·보존 ~70 LOC 증분이라 cap 안이고 초과분은 전량 spec (fields 부재/비-object/allow-list 위반/prototype key/불변성/기존 계약 회귀 negative 다수). 동일 chain 실측 선례 T-1261 총 595(prod 106/spec 489), T-1262 총 628(prod 154/spec 474), T-1264 도 동형.
+completedAt: 2026-07-27T16:05:00Z
+prNumber: 1156
+mergedAs: 4f85ae87
+reviewRounds: 3
 plannerNote: "cap-bend pre-justified: R-112 backbone x 1.5 = 380 LOC, 선례 T-1262 실측 628 — ADR-0055 §Follow-up(b) 11 번째 slice"
 ---
 
@@ -78,3 +84,17 @@ T-1264 로 step 계획 (`planImportRestoreTransactionSteps`) 까지 닫히면서
 - (T-1264 reviewer NIT-3 이월) `ImportRestoreStepMethod` 의 `"deleteMany" | "createMany"` 가 실 Prisma delegate 메서드 이름과 컴파일 차원으로 묶여있지 않음 — **다음 `$transaction` 실행 slice 의 Acceptance Criteria 로 회수** (`Pick<Prisma.TransactionClient, ExportEntityDelegate>` 기반 타입 제약 + 5 delegate × 2 method 존재 drift test).
 - (T-1261 reviewer round 2 MINOR-1 이월) `docs/architecture/estimate-model.md` sub-multiplier 박제에 chain 실측치 합산 — T-1261 총 595 (prod 106 / spec 489), T-1262 총 628 (prod 154 / spec 474). `sizeExempt` 근거 추정치의 약 1.3~1.9 배이며 **nit-closure 분량도 추정에 포함해야 한다** 는 항목 추가.
 - 후속 slice 후보 (chain 잔여): ① `FullExportRecord` 타입 전파 (input → plan → ops → steps), ② 실 `$transaction` 실행 helper (replace = entity 별 `deleteMany` + `createMany({ data: fields })`, ADR-0044 §3), ③ merge mode 의 delete 타게팅 — `toDelete` record 가 row 식별 key 를 갖지 않아 targeted delete 가 불가능한 문제 (ADR 대상 가능성), ④ controller interim guard 교체.
+- (본 slice reviewer round 1 MINOR-3) `import.controller.ts` 배선 slice **이전에** legacy dump(`fields` 부재) 정책을 결정한다 — 본 slice 가 `fields` 를 필수로 두므로, controller 가 배선되는 순간 구버전 dump 복원이 전량 `stage: "records"` 로 거부된다. 거부를 유지한다면 사용자向 메시지 문구를, 완화한다면 별도 ADR 을 만든다.
+- (본 slice reviewer round 1 NIT-1) 위 `describeReceived` 공용 module 추출 slice 대상에 본 slice 가 새로 추가한 `describeFieldsKind`(`src/import/import-dump-records-hydrate.ts`) 도 포함한다 — 같은 "받은 값 종류 표기" 로직의 4 번째 사본이다.
+- (본 slice reviewer round 3 비차단 관찰) `import-dump-records-hydrate.spec.ts` 의 `it.each` `%s` 치환으로 test 명 조사가 어색하다("배열 여도"). 가독성 수준이며 §12 위반은 아니라 별도 round 를 소비하지 않았다.
+
+## 결과 (2026-07-27)
+
+`ImportDumpRecordsHydration` 의 성공 갈래를 `FullExportRecord[]` 로 좁히고, dump record 의 `fields` 를 필수 plain object 로 검증한 뒤 shallow copy 로 보존하도록 완결했다. key 멤버십은 export 측 `getExportEntityFullRecordSelect` allow-list 를 single-source 로 재사용해 엄격 거부하며(사본 0), 값은 검사·변환하지 않아 secret 이 issue 로 새지 않는다.
+
+reviewer round 1 APPROVE (MINOR 3 / NIT 1) 후 §3 nit-in-PR closure 로 2 round 를 본 PR 안에서 완결했다 — round 2 에서 MINOR-1(`isPlainObject` 가 느슨해 `fields: new Date()` 가 `{}` 로 조용히 hydrate 되던 silent 데이터 소실)을 export 측과 동일한 prototype 규칙으로 좁히고 export/import 대칭 drift 감시 test 를 추가, round 3 에서 NIT-2(값 수준에는 판정이 적용되지 않는다는 경계의 pinning 부재)를 test 14 건으로 박제했다. round 3 재검토는 신규 finding 0.
+
+- PR: #1156 (round 3/7, squash merge `4f85ae87`)
+- CI: run 30282558541 (head `891a6765`) — `기본 검사` · `배포 산출물 검증` 두 job 모두 success
+- 변경: production `src/import/import-dump-records-hydrate.ts` 단일, 나머지 3 파일은 spec
+- coverage: 변경 production 파일 statement/branch/function/line 4 지표 100% (임계 80% 충족)
