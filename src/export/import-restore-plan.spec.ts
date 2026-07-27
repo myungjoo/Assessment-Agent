@@ -10,6 +10,12 @@
 // 그대로 통과시키며, (3) 런타임 동작·throw 메시지에 회귀 0 임을 고정한다. 컴파일 타임 pinning
 // (추론 좁힘 + toDelete 의 fields 접근 불가)은 ts-jest 의 type-check 가 강제하므로 타입이 다시
 // 넓어지면 본 spec 이 컴파일 단계에서 깨진다.
+// T-1267 추가분 — conflictKey 구분자를 raw NUL 바이트에서 `\u0000` 이스케이프 표기로 바꾼
+// 위생 전환이 (1) 소스에 raw 제어 문자를 0 개로 유지하고(다시 들어오면 fail), (2) 산출 key 에는
+// U+0000 이 그대로 들어가 충돌 판정 동작이 바이트 단위로 보존됨을 고정한다.
+import { readFileSync } from "fs";
+import { join } from "path";
+
 import { FullExportRecord } from "./export-full-record";
 import { ExportRecord } from "./export-scope-select";
 import {
@@ -614,5 +620,158 @@ describe("buildImportRestorePlan — fields 경계·불변 (T-1266, negative)", 
     expect(second).toEqual(first);
     // 원소 참조까지 동일 — 두 호출 모두 복제 0.
     expect(second.toInsert[0]).toBe(first.toInsert[0]);
+  });
+});
+
+describe("buildImportRestorePlan — 구분자 표기 위생 (T-1267, 회귀 pinning)", () => {
+  const SOURCE_PATH = join(__dirname, "import-restore-plan.ts");
+
+  it("소스에 raw 제어 문자가 0 개 — git binary 오탐 회귀 방지", () => {
+    // checkout 이 CRLF 여도 false-fail 하지 않도록 CRLF 줄바꿈만 먼저 정규화한다.
+    // (`.gitattributes` 의 `*.ts text eol=lf` 에 test 가 의존하지 않게 하려는 것 — 정규화
+    // 후에도 홀로 남은 CR(U+000D) 은 offender 로 잡히므로 raw 제어 바이트 0 개 보증은
+    // 그대로다.)
+    const source = readFileSync(SOURCE_PATH, "utf8").replace(/\r\n/g, "\n");
+    const offenders: Array<{ index: number; code: number }> = [];
+    for (let index = 0; index < source.length; index += 1) {
+      const code = source.charCodeAt(index);
+      // 줄바꿈(LF) 과 탭만 허용 — 그 외 C0 제어 문자(U+0000 포함) 가 있으면 git 이 이 파일을
+      // binary 로 오탐해 PR diff 가 GitHub UI 에서 보이지 않는다.
+      if (code < 0x20 && code !== 0x0a && code !== 0x09) {
+        offenders.push({ index, code });
+      }
+    }
+    expect(offenders).toEqual([]);
+    expect(source.includes(String.fromCharCode(0))).toBe(false);
+  });
+
+  it("conflictKey 구분자는 이스케이프 표기로 남아 있고 그 표기는 U+0000 1 문자를 만든다", () => {
+    const source = readFileSync(SOURCE_PATH, "utf8");
+    // 표기 자체가 사라지면(다른 구분자로 교체 등) fail — 본 slice 는 표기 전환일 뿐이다.
+    expect(source).toContain(
+      "`${record.entity}\\u0000${record.instant.getTime()}`",
+    );
+    // 그 이스케이프가 런타임에 만드는 문자는 정확히 U+0000 1 개 — key 산출 문자열은 이전과
+    // 바이트 단위로 동일하다(entity + U+0000 + instant millis).
+    const separator = "\u0000";
+    expect(separator).toHaveLength(1);
+    expect(separator.charCodeAt(0)).toBe(0);
+    const producedKey = `Person${separator}${new Date(123).getTime()}`;
+    expect(producedKey.charCodeAt("Person".length)).toBe(0);
+    expect(producedKey).toBe("Person" + separator + "123");
+  });
+});
+
+describe("buildImportRestorePlan — 구분자 동작 보존 (T-1267, happy / negative)", () => {
+  // ExportEntity 는 닫힌 union 이라 아래 경계 entity 는 캐스팅으로만 만들 수 있다. 구분자가
+  // 사라지면(naive 이어붙이기) 충돌로 오판하는 조합을 만들기 위한 fixture 다.
+  const boundaryEntity = "Person1" as unknown as ExportRecord["entity"];
+  // millis 23 / 123 — 구분자 없이 이어붙이면 둘 다 "Person123" 이 된다.
+  const boundaryExisting: ExportRecord[] = [
+    { entity: boundaryEntity, instant: new Date(23) },
+  ];
+  const boundaryIncoming: ExportRecord[] = [
+    { entity: "Person", instant: new Date(123) },
+  ];
+
+  it("happy: entity + instant 가 같으면 이전과 동일하게 충돌 판정 (merge)", () => {
+    const iso = "2026-08-08T08:08:08Z";
+    const existing = [rec("Assessment", iso), rec("Person", iso)];
+    const incoming = [rec("Assessment", iso)];
+    const plan = buildImportRestorePlan(existing, incoming, "merge");
+    expect(plan.toDelete).toEqual([existing[0]]);
+    expect(plan.toKeep).toEqual([existing[1]]);
+    expect(plan.toInsert).toEqual(incoming);
+  });
+
+  it("happy: merge 의 비충돌 incoming 이 순서 보존해 toInsert 에 그대로 실린다", () => {
+    const existing = [rec("Assessment", "2026-01-01T00:00:00Z")];
+    const incoming = [
+      rec("Person", "2026-02-01T00:00:00Z"),
+      rec("Group", "2026-02-02T00:00:00Z"),
+      rec("AuditLog", "2026-02-03T00:00:00Z"),
+    ];
+    const plan = buildImportRestorePlan(existing, incoming, "merge");
+    expect(plan.toInsert).toEqual(incoming);
+    expect(plan.toInsert.map((r) => r.entity)).toEqual([
+      "Person",
+      "Group",
+      "AuditLog",
+    ]);
+    expect(plan.toKeep).toEqual(existing);
+    expect(plan.toDelete).toEqual([]);
+  });
+
+  it("negative(a): 구분자 없이 이어붙이면 같아지는 조합도 충돌로 오판하지 않는다", () => {
+    const plan = buildImportRestorePlan(
+      boundaryExisting,
+      boundaryIncoming,
+      "merge",
+    );
+    // 구분자가 있으므로 두 key 는 다르다 — 기존은 보존, incoming 은 신규 삽입.
+    expect(plan.toDelete).toEqual([]);
+    expect(plan.toKeep).toEqual(boundaryExisting);
+    expect(plan.toInsert).toEqual(boundaryIncoming);
+  });
+
+  it("negative(a'): replace 분기는 key 를 보지 않으므로 모호 조합도 전부 삭제 + 삽입", () => {
+    const plan = buildImportRestorePlan(
+      boundaryExisting,
+      boundaryIncoming,
+      "replace",
+    );
+    expect(plan.toDelete).toEqual(boundaryExisting);
+    expect(plan.toInsert).toEqual(boundaryIncoming);
+    expect(plan.toKeep).toEqual([]);
+  });
+
+  it("negative(b): 같은 entity + 같은 millis 면 서로 다른 Date instance 라도 충돌", () => {
+    const millis = 1767225600000;
+    const existing: ExportRecord[] = [
+      { entity: "Group", instant: new Date(millis) },
+    ];
+    const incoming: ExportRecord[] = [
+      { entity: "Group", instant: new Date(millis) },
+    ];
+    expect(existing[0].instant).not.toBe(incoming[0].instant);
+    const plan = buildImportRestorePlan(existing, incoming, "merge");
+    expect(plan.toDelete).toEqual(existing);
+    expect(plan.toKeep).toEqual([]);
+  });
+
+  it("negative(c): millis 가 1 ms 만 달라도 비충돌 (경계)", () => {
+    const millis = 1767225600000;
+    const existing: ExportRecord[] = [
+      { entity: "Group", instant: new Date(millis) },
+    ];
+    const incoming: ExportRecord[] = [
+      { entity: "Group", instant: new Date(millis + 1) },
+    ];
+    const plan = buildImportRestorePlan(existing, incoming, "merge");
+    expect(plan.toDelete).toEqual([]);
+    expect(plan.toKeep).toEqual(existing);
+    expect(plan.toInsert).toEqual(incoming);
+  });
+
+  it("negative(e/g): freeze 된 모호 조합으로 2 회 호출해도 throw 0 · 동일 결과 · 입력 불변", () => {
+    const frozenExisting = Object.freeze([
+      Object.freeze({ entity: boundaryEntity, instant: new Date(23) }),
+    ]) as unknown as ExportRecord[];
+    const frozenIncoming = Object.freeze([
+      Object.freeze({ entity: "Person", instant: new Date(123) }),
+    ]) as unknown as ExportRecord[];
+    let first: ImportRestorePlan;
+    expect(() => {
+      first = buildImportRestorePlan(frozenExisting, frozenIncoming, "merge");
+    }).not.toThrow();
+    const second = buildImportRestorePlan(
+      frozenExisting,
+      frozenIncoming,
+      "merge",
+    );
+    expect(second).toEqual(first!);
+    expect(second.toKeep[0]).toBe(frozenExisting[0]);
+    expect(frozenExisting).toHaveLength(1);
+    expect(frozenIncoming).toHaveLength(1);
   });
 });
