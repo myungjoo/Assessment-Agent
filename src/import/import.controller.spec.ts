@@ -37,6 +37,7 @@ jest.mock("../persistence/prisma.service", () => ({
 /* eslint-disable import/first */
 import {
   BadRequestException,
+  ConflictException,
   NotFoundException,
   UnauthorizedException,
   type ExecutionContext,
@@ -56,6 +57,7 @@ import * as describeImportModeModule from "../export/import-mode-description";
 import { ImportJobService } from "./import-job.service";
 import {
   ImportController,
+  INTERIM_RESTORE_UNWIRED_MESSAGE,
   MAX_IMPORT_FILE_SIZE_BYTES,
 } from "./import.controller";
 import { MulterExceptionFilter } from "./multer-exception.filter";
@@ -100,12 +102,14 @@ function buildServiceMock(): {
   service: ImportJobService;
   serviceMock: {
     createJob: jest.Mock;
+    markFailed: jest.Mock;
     findRunning: jest.Mock;
     findJob: jest.Mock;
   };
 } {
   const serviceMock = {
     createJob: jest.fn(),
+    markFailed: jest.fn(),
     findRunning: jest.fn(),
     findJob: jest.fn(),
   };
@@ -121,14 +125,24 @@ describe("ImportController (unit)", () => {
   // dto.mode forward) + branch (mode 지정/미지정) + error/negative (service throw
   // raw propagate). controller 자체 분기 없음 — service raw forward.
   // -----------------------------------------------------------------------
-  it("POST create — actor.sub 를 requestedById 로 결합해 service.createJob 호출 + 반환 forward (happy, mode 지정 + 파일 수신)", async () => {
+  it("POST create — createJob → markFailed 순서로 호출하고 FAILED + interim 메시지 담긴 job 반환 (happy — interim guard, mode 지정 + 파일 수신)", async () => {
     const { service, serviceMock } = buildServiceMock();
-    const fixture = buildImportJobFixture({
+    const pending = buildImportJobFixture({
       id: "ij-1",
       requestedById: "admin-actor",
       mode: "MERGE",
+      status: "PENDING",
     });
-    serviceMock.createJob.mockResolvedValueOnce(fixture);
+    const failed = buildImportJobFixture({
+      id: "ij-1",
+      requestedById: "admin-actor",
+      mode: "MERGE",
+      status: "FAILED",
+      error: INTERIM_RESTORE_UNWIRED_MESSAGE,
+      finishedAt: new Date("2026-06-18T00:00:01.000Z"),
+    });
+    serviceMock.createJob.mockResolvedValueOnce(pending);
+    serviceMock.markFailed.mockResolvedValueOnce(failed);
     const dto = { mode: ImportMode.MERGE };
 
     const controller = new ImportController(service);
@@ -138,32 +152,63 @@ describe("ImportController (unit)", () => {
       "admin-actor",
     );
 
-    // service.createJob 가 actor.sub 결합 + dto.mode forward 로 정확히 1 회 호출됨 검증.
+    // createJob 가 actor.sub 결합 + dto.mode forward 로 정확히 1 회 호출됨 검증.
     expect(serviceMock.createJob).toHaveBeenCalledTimes(1);
     expect(serviceMock.createJob).toHaveBeenCalledWith({
       mode: ImportMode.MERGE,
       requestedById: "admin-actor",
     });
-    // 생성된 job (status=PENDING) 을 그대로 forward.
-    expect(result).toBe(fixture);
+    // 생성된 job.id 로 interim 메시지와 함께 markFailed 가 이어서 호출됨 검증.
+    expect(serviceMock.markFailed).toHaveBeenCalledTimes(1);
+    expect(serviceMock.markFailed).toHaveBeenCalledWith(
+      "ij-1",
+      INTERIM_RESTORE_UNWIRED_MESSAGE,
+    );
+    // createJob invocation order 가 markFailed 보다 앞섬 (호출 순서 검증).
+    expect(serviceMock.createJob.mock.invocationCallOrder[0]).toBeLessThan(
+      serviceMock.markFailed.mock.invocationCallOrder[0],
+    );
+    // 반환은 markFailed 결과 (status=FAILED + interim 사유) — createJob 의 PENDING 아님.
+    expect(result).toBe(failed);
+    expect(result.status).toBe("FAILED");
+    expect(result.error).toBe(INTERIM_RESTORE_UNWIRED_MESSAGE);
   });
 
-  it("POST create — mode 미지정 시 mode: undefined 로 forward (branch — service default 위임)", async () => {
+  it("POST create — mode 미지정 시 mode: undefined 로 createJob forward + markFailed 로 FAILED 반환 (branch — service default 위임 + guard)", async () => {
     const { service, serviceMock } = buildServiceMock();
-    serviceMock.createJob.mockResolvedValueOnce(buildImportJobFixture());
+    serviceMock.createJob.mockResolvedValueOnce(
+      buildImportJobFixture({ id: "ij-2", status: "PENDING" }),
+    );
+    serviceMock.markFailed.mockResolvedValueOnce(
+      buildImportJobFixture({
+        id: "ij-2",
+        status: "FAILED",
+        error: INTERIM_RESTORE_UNWIRED_MESSAGE,
+      }),
+    );
     const dto = {};
 
     const controller = new ImportController(service);
-    await controller.create(buildUploadedFile(), dto, "admin-actor");
+    const result = await controller.create(
+      buildUploadedFile(),
+      dto,
+      "admin-actor",
+    );
 
     // mode 미지정 → undefined forward (service 가 schema @default(REPLACE) 적용).
     expect(serviceMock.createJob).toHaveBeenCalledWith({
       mode: undefined,
       requestedById: "admin-actor",
     });
+    // 생성된 job.id 로 markFailed 호출 (guard 는 mode 지정 여부와 무관하게 적용).
+    expect(serviceMock.markFailed).toHaveBeenCalledWith(
+      "ij-2",
+      INTERIM_RESTORE_UNWIRED_MESSAGE,
+    );
+    expect(result.status).toBe("FAILED");
   });
 
-  it("POST create — 파일 누락 (file undefined) 시 BadRequestException(400) 으로 거부 + service 미호출 (error path — ADR-0055 §Follow-up a 파일 누락 분기)", async () => {
+  it("POST create — 파일 누락 (file undefined) 시 BadRequestException(400) 으로 거부 + createJob/markFailed 미호출 (error path — ADR-0055 §Follow-up a, guard 진입 전 차단)", async () => {
     const { service, serviceMock } = buildServiceMock();
 
     const controller = new ImportController(service);
@@ -171,11 +216,12 @@ describe("ImportController (unit)", () => {
       controller.create(undefined, { mode: ImportMode.REPLACE }, "admin-actor"),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    // 파일 누락 시 service.createJob 은 호출되지 않는다 (수신 입구에서 차단).
+    // 파일 누락 시 createJob/markFailed 는 호출되지 않는다 (수신 입구에서 차단).
     expect(serviceMock.createJob).not.toHaveBeenCalled();
+    expect(serviceMock.markFailed).not.toHaveBeenCalled();
   });
 
-  it("POST create — service 의 BadRequestException (mode invariant 위반) 을 삼키지 않고 raw propagate (negative — mode invariant)", async () => {
+  it("POST create — createJob 이 BadRequestException (mode invariant 위반) throw 시 삼키지 않고 raw propagate + markFailed 미호출 (negative — createJob 실패)", async () => {
     const { service, serviceMock } = buildServiceMock();
     const badRequest = new BadRequestException(
       "mode 는 REPLACE 또는 MERGE 여야 합니다",
@@ -190,9 +236,25 @@ describe("ImportController (unit)", () => {
         "admin-actor",
       ),
     ).rejects.toBe(badRequest);
+
+    // createJob 실패 시 markFailed 는 호출되지 않는다 (생성된 job 이 없음).
+    expect(serviceMock.markFailed).not.toHaveBeenCalled();
   });
 
-  it("POST create — service 가 던진 raw Error (의존성 fail) 를 그대로 propagate (error path)", async () => {
+  it("POST create — createJob 이 ConflictException (진행 중 race 409) throw 시 markFailed 로 삼키지 않고 raw propagate (negative — race 예외 propagate)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const conflict = new ConflictException("이미 진행 중인 import 가 있습니다");
+    serviceMock.createJob.mockRejectedValueOnce(conflict);
+
+    const controller = new ImportController(service);
+    await expect(
+      controller.create(buildUploadedFile(), {}, "admin-actor"),
+    ).rejects.toBe(conflict);
+
+    expect(serviceMock.markFailed).not.toHaveBeenCalled();
+  });
+
+  it("POST create — createJob 이 던진 raw Error (의존성 fail) 를 그대로 propagate + markFailed 미호출 (error path)", async () => {
     const { service, serviceMock } = buildServiceMock();
     const rawError = new Error("unexpected DB outage");
     serviceMock.createJob.mockRejectedValueOnce(rawError);
@@ -201,6 +263,62 @@ describe("ImportController (unit)", () => {
     await expect(
       controller.create(buildUploadedFile(), {}, "admin-actor"),
     ).rejects.toBe(rawError);
+
+    expect(serviceMock.markFailed).not.toHaveBeenCalled();
+  });
+
+  it("POST create — 반환 job status 가 PENDING/SUCCEEDED 로 오표기되지 않음 + interim 메시지가 raw stack 미포함 (negative — false-success 차단 회귀)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.createJob.mockResolvedValueOnce(
+      buildImportJobFixture({ id: "ij-3", status: "PENDING" }),
+    );
+    serviceMock.markFailed.mockResolvedValueOnce(
+      buildImportJobFixture({
+        id: "ij-3",
+        status: "FAILED",
+        error: INTERIM_RESTORE_UNWIRED_MESSAGE,
+      }),
+    );
+
+    const controller = new ImportController(service);
+    const result = await controller.create(
+      buildUploadedFile(),
+      { mode: ImportMode.REPLACE },
+      "admin-actor",
+    );
+
+    // false-success 차단 불변: 반환 status 는 절대 PENDING/SUCCEEDED 가 아니다.
+    expect(result.status).not.toBe("PENDING");
+    expect(result.status).not.toBe("SUCCEEDED");
+    expect(result.status).toBe("FAILED");
+    // interim 메시지는 사람-친화 short message — raw stack (예: " at " frame) 미포함.
+    expect(INTERIM_RESTORE_UNWIRED_MESSAGE).not.toMatch(/\bat\s+\S+:\d+/);
+    expect(INTERIM_RESTORE_UNWIRED_MESSAGE).not.toContain("Error:");
+    expect(INTERIM_RESTORE_UNWIRED_MESSAGE.length).toBeGreaterThan(0);
+  });
+
+  it("POST create — buffer(file.buffer) 를 소비하지 않음 (negative — REQ-032 buffer 미소비 유지)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.createJob.mockResolvedValueOnce(
+      buildImportJobFixture({ id: "ij-4", status: "PENDING" }),
+    );
+    serviceMock.markFailed.mockResolvedValueOnce(
+      buildImportJobFixture({ id: "ij-4", status: "FAILED" }),
+    );
+    // buffer 접근을 감지하는 spy — controller 가 file.buffer 를 읽으면 getter 가 호출된다.
+    const file = buildUploadedFile();
+    const backingBuffer = Buffer.from("dump-artifact-bytes");
+    const bufferSpy = jest.fn(() => backingBuffer);
+    Object.defineProperty(file, "buffer", {
+      get: bufferSpy,
+      configurable: true,
+    });
+
+    const controller = new ImportController(service);
+    await controller.create(file, { mode: ImportMode.REPLACE }, "admin-actor");
+
+    // controller 는 file.buffer 를 읽지 않는다 (파싱·복원 배선은 §Follow-up b).
+    expect(bufferSpy).not.toHaveBeenCalled();
   });
 
   // -----------------------------------------------------------------------
@@ -395,6 +513,7 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
   let app: INestApplication;
   let serviceMock: {
     createJob: jest.Mock;
+    markFailed: jest.Mock;
     findRunning: jest.Mock;
     findJob: jest.Mock;
   };
@@ -424,6 +543,7 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
   }): Promise<INestApplication> {
     serviceMock = {
       createJob: jest.fn(),
+      markFailed: jest.fn(),
       findRunning: jest.fn(),
       findJob: jest.fn(),
     };
@@ -451,13 +571,25 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
   // == POST /api/admin/import — create endpoint =====================================
 
   // -- happy — Admin 통과 시 201 + 파일 수신 + actor.sub 를 requestedById 로 결합 위임 --
-  it("POST — Admin role 통과 시 201 + multipart 파일 수신 + actor.sub 를 requestedById 로 결합해 service.createJob 위임 (happy — Admin+ tier + 파일 수신)", async () => {
+  it("POST — Admin role 통과 시 201 + 파일 수신 + createJob 위임 후 interim guard 로 FAILED 반환 (happy — Admin+ tier + 파일 수신 + false-success 차단)", async () => {
     app = await buildApp({
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
     });
     serviceMock.createJob.mockResolvedValueOnce(
-      buildImportJobFixture({ id: "ij-c", requestedById: "admin-1" }),
+      buildImportJobFixture({
+        id: "ij-c",
+        requestedById: "admin-1",
+        status: "PENDING",
+      }),
+    );
+    serviceMock.markFailed.mockResolvedValueOnce(
+      buildImportJobFixture({
+        id: "ij-c",
+        requestedById: "admin-1",
+        status: "FAILED",
+        error: INTERIM_RESTORE_UNWIRED_MESSAGE,
+      }),
     );
 
     const res = await request(app.getHttpServer())
@@ -473,7 +605,14 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
       mode: "REPLACE",
       requestedById: "admin-1",
     });
+    // interim guard 로 markFailed 가 이어서 호출되고 응답 body 는 FAILED + 사유.
+    expect(serviceMock.markFailed).toHaveBeenCalledWith(
+      "ij-c",
+      INTERIM_RESTORE_UNWIRED_MESSAGE,
+    );
     expect(res.body.id).toBe("ij-c");
+    expect(res.body.status).toBe("FAILED");
+    expect(res.body.error).toBe(INTERIM_RESTORE_UNWIRED_MESSAGE);
   });
 
   // -- error path — 파일 누락 (multipart 이나 file 필드 없음) 시 400 + service 미호출 --
@@ -498,9 +637,18 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
     });
-    serviceMock.createJob.mockResolvedValueOnce(buildImportJobFixture());
+    serviceMock.createJob.mockResolvedValueOnce(
+      buildImportJobFixture({ id: "ij-d", status: "PENDING" }),
+    );
+    serviceMock.markFailed.mockResolvedValueOnce(
+      buildImportJobFixture({
+        id: "ij-d",
+        status: "FAILED",
+        error: INTERIM_RESTORE_UNWIRED_MESSAGE,
+      }),
+    );
 
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post("/api/admin/import")
       .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
       .expect(201);
@@ -509,6 +657,8 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
       mode: undefined,
       requestedById: "admin-1",
     });
+    // guard 는 mode 지정 여부와 무관 — FAILED 반환.
+    expect(res.body.status).toBe("FAILED");
   });
 
   // -- negative — service BadRequestException (mode invariant) → 400 (raw propagate) -
@@ -794,6 +944,7 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
   let app: INestApplication;
   let serviceMock: {
     createJob: jest.Mock;
+    markFailed: jest.Mock;
     findRunning: jest.Mock;
     findJob: jest.Mock;
   };
@@ -820,6 +971,7 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
   ): Promise<INestApplication> {
     serviceMock = {
       createJob: jest.fn(),
+      markFailed: jest.fn(),
       findRunning: jest.fn(),
       findJob: jest.fn(),
     };
@@ -862,7 +1014,15 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
     "POST — %s actor 는 Admin+ tier 통과 (201, escalation hierarchy descent)",
     async (role) => {
       app = await buildAppWithRealRolesGuard(role);
-      serviceMock.createJob.mockResolvedValueOnce(buildImportJobFixture());
+      serviceMock.createJob.mockResolvedValueOnce(
+        buildImportJobFixture({ status: "PENDING" }),
+      );
+      serviceMock.markFailed.mockResolvedValueOnce(
+        buildImportJobFixture({
+          status: "FAILED",
+          error: INTERIM_RESTORE_UNWIRED_MESSAGE,
+        }),
+      );
 
       await request(app.getHttpServer())
         .post("/api/admin/import")
@@ -871,6 +1031,7 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
         .expect(201);
 
       expect(serviceMock.createJob).toHaveBeenCalledTimes(1);
+      expect(serviceMock.markFailed).toHaveBeenCalledTimes(1);
     },
   );
 
