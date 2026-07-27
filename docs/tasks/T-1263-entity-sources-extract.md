@@ -2,12 +2,14 @@
 id: T-1263
 title: ExportEntity → Prisma delegate·model 매핑 공용 module 추출
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 380
 estimatedFiles: 4
 created: 2026-07-27
+completedAt: 2026-07-27T12:58:57Z
+prNumber: 1154
 independentStream: import-restore-engine
 dependsOn: [T-1262]
 touchesFiles:
@@ -69,3 +71,11 @@ plannerNote: "cap-bend pre-justified: R-112 backbone x 1.5 = 380 LOC, 선례 T-1
 
 - (T-1261 reviewer round 2 MINOR-1 이월) `docs/architecture/estimate-model.md` sub-multiplier 박제 follow-up 에 T-1261 / T-1262 실측치 합산 — T-1261 총 595 (production 106 / spec 489, nit-closure +221 포함), T-1262 총 628 (production 154 / spec 474). `sizeExempt` 근거 추정치의 약 1.3~1.9 배이며 **nit-closure 분량도 추정에 포함해야 한다**는 항목 추가.
 - (T-1259~T-1262 이월, 미회수) `src/export/import-dump-validate.ts` 53 / 93행의 `generatedAt` issue 메시지가 "ISO 파싱 가능한 string" 이라고 적혀 있으나 실제 판정은 `new Date()` 파싱 기준 — 문구 정합 필요.
+
+## 결과 (2026-07-27 완료)
+
+- PR #1154 squash merge (`e3dde526`), feature branch `claude/T-1263-entity-sources-extract` 삭제.
+- `src/export/export-entity-sources.ts` 신설 (129 LOC, 4 심볼 export) — `model` 은 파생 아닌 명시 값 박제, `Object.freeze` 이중 + 한국어 `TypeError`/`RangeError` 계약.
+- `export-job.service.ts` 의 로컬 상수·타입 삭제 → import 전환, `import-restore-order.spec.ts` 의 `ENTITY_TO_PRISMA_MODEL` 손복사본 제거 (T-1261 round 2 NIT-1 회수).
+- 신규 module coverage stmt/branch/func/line 100%, 전체 416 suite / 11688 test green. reviewer round 1 APPROVE(MINOR-1) → round 2 nit closure(`6f2d76c1`, 주석 3줄) → 재 APPROVE.
+- 총 diff +394/-53 (production 129 / spec 249 / 사본 제거). cap 초과분은 전량 spec 이라 머지 차단 아님 — 동일 chain 선례 T-1261/T-1262 동형.
