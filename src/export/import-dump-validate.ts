@@ -50,7 +50,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 //   - top-level 가 plain object 아님(null/배열/비-object) → invalid + 명시 issue(이후 검증 중단,
 //     하위 field 접근 불가).
 //   - schemaVersion 이 비어있지 않은 string 아님 → issue(string-shape 만, 호환 판정 0).
-//   - generatedAt 이 ISO 파싱 가능한 string 아님(빈/비-string/Invalid Date) → issue.
+//   - generatedAt 이 `new Date()` 로 파싱 가능한 string 아님(빈/비-string/Invalid Date) → issue.
 //   - records 가 배열 아님 → issue. 배열이면 각 원소가 { entity, instant } shape 이고 entity 가
 //     5 허용 값(ALL_ENTITIES)인지 검증, 위반 원소는 그 index 를 담은 issue.
 //   - entityCounts 가 5 entity 전부 key 를 가진 number map 아님 → issue.
@@ -82,7 +82,9 @@ export function validateImportDumpStructure(
     );
   }
 
-  // generatedAt — ISO 파싱 가능한 string(비-string / 빈 / Invalid Date 거부).
+  // generatedAt — `new Date(...)` 로 파싱 가능한 string(ISO 8601 이 정상 경로지만 RFC 2822 등
+  // 런타임이 파싱하는 다른 형식도 수용 — sibling import-dump-records-hydrate.ts 의 instant 판정과
+  // 동형 표현). 비-string / 빈 문자열 / Invalid Date 만 거부한다.
   const generatedAt = dump.generatedAt;
   if (
     typeof generatedAt !== "string" ||
@@ -90,7 +92,7 @@ export function validateImportDumpStructure(
     Number.isNaN(new Date(generatedAt).getTime())
   ) {
     issues.push(
-      `generatedAt 은 ISO 파싱 가능한 string 이어야 합니다 (받음: ${typeof generatedAt})`,
+      `generatedAt 은 Date 로 파싱 가능한 string 이어야 합니다 (받음: ${typeof generatedAt})`,
     );
   }
 

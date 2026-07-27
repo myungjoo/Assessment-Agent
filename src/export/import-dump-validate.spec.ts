@@ -132,6 +132,24 @@ describe("validateImportDumpStructure — generatedAt (negative)", () => {
     );
     expect(v.issues.some((i) => /generatedAt/.test(i))).toBe(true);
   });
+
+  // T-1264 동반 회수 — issue 문구와 실제 판정의 정합 pinning. 판정은 `new Date()` 파싱 기준이라
+  // ISO 8601 이 아닌 RFC 2822 형식도 통과해야 하며, 문구가 다시 "ISO 파싱" 으로 좁혀지면 아래
+  // 두 test 가 그 drift 를 잡는다 (판정식 · issue 개수 변경 0 — 문구만 정정했음을 고정).
+  it("RFC 2822 형식(ISO 아님)이지만 new Date() 로 파싱되는 string → issue 없음", () => {
+    const v = validateImportDumpStructure(
+      corrupt({ generatedAt: "Tue, 16 Jun 2026 00:00:00 GMT" }),
+    );
+    expect(v.issues.some((i) => /generatedAt/.test(i))).toBe(false);
+    expect(v.valid).toBe(true);
+  });
+
+  it("issue 문구가 실제 판정(Date 파싱 기준)과 일치 — ISO 한정 표현 아님", () => {
+    const v = validateImportDumpStructure(corrupt({ generatedAt: 12345 }));
+    const issue = v.issues.find((i) => /generatedAt/.test(i));
+    expect(issue).toMatch(/Date 로 파싱 가능한 string/);
+    expect(issue).not.toMatch(/ISO 파싱/);
+  });
 });
 
 describe("validateImportDumpStructure — records (negative)", () => {
