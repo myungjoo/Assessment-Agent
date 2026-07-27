@@ -2,7 +2,8 @@
 // [ADR-0055](../../docs/decisions/ADR-0055-import-multipart-file-upload.md) §Follow-up (b) 복원
 // 엔진 chain (역직렬화 → 구조 검증 → version gate → records hydrate → 복원 입력 합성 →
 // **복원 plan 산출** → ADR-0044 §3 atomic `$transaction` 복원 → controller 재배선) 의 **여섯 번째
-// slice** 다. T-1259 의 `prepareImportRestoreInput` (buffer → `ExportRecord[]` + version 판정) 과
+// slice** 다. T-1259 의 `prepareImportRestoreInput` (buffer → `FullExportRecord[]` + version 판정,
+// T-1268 이 `ExportRecord[]` 에서 좁힘) 과
 // T-0442 의 `buildImportRestorePlan` (기존 + incoming + mode → plan) 은 각각 머지됐지만 서로
 // 배선되지 않았고, Prisma `ImportMode` (REPLACE / MERGE) ↔ `ImportRestoreMode` (replace / merge)
 // 를 잇는 경로도 없었다. 게다가 `buildImportRestorePlan` 은 **throw 계약** 이라 verdict 계약인
@@ -18,6 +19,7 @@
 // 노출하지 않는다.
 import { ImportMode } from "@prisma/client";
 
+import type { FullExportRecord } from "../export/export-full-record";
 import type { ExportRecord } from "../export/export-scope-select";
 import {
   buildImportRestorePlan,
@@ -44,11 +46,19 @@ export type ImportRestorePlanStage = ImportRestoreInputStage | "mode" | "plan";
 // 소비할 plan 과 그 근거 (복원된 records + version 호환 판정) 를 함께 돌려주고, 실패면 실패
 // stage 와 한국어 위반 목록만 돌려준다 (throw 0 — sibling 순수 helper 패턴 mirror). 실패 시
 // 부분 결과 (plan / records) 는 돌려주지 않는다 (복원은 all-or-nothing).
+//
+// T-1269 증분 — 성공 갈래를 `plan: ImportRestorePlan<FullExportRecord>` + `records:
+// FullExportRecord[]` 로 **좁힌다** (chain 타입 전파 leg 2/2). 런타임에는 T-1265 이후 이미 그 값이
+// 흐르지만 (상류 T-1268 이 `prepareImportRestoreInput` 을 `FullExportRecord[]` 로 좁혔고, T-1266 이
+// plan 을 `ImportRestorePlan<TInsert>` 로 일반화했다) 여기서 다시 넓게 선언돼 `fields` 가 타입 상
+// 사라졌다. 좁혀야 다음 slice 의 `$transaction` 이 `plan.toInsert[i].fields` 를 캐스팅 없이
+// `createMany({ data })` 에 넣을 수 있다. `FullExportRecord` 는 `ExportRecord` 의 구조적 subtype 이라
+// 넓힘 대입 (covariance) 으로 기존 소비처는 한 줄도 고치지 않고 그대로 컴파일된다.
 export type ImportRestorePlanPrepareResult =
   | {
       ok: true;
-      plan: ImportRestorePlan;
-      records: ExportRecord[];
+      plan: ImportRestorePlan<FullExportRecord>;
+      records: FullExportRecord[];
       version: SchemaVersionCompat;
     }
   | { ok: false; stage: ImportRestorePlanStage; issues: string[] };
@@ -139,7 +149,7 @@ export function prepareImportRestorePlan(
   }
 
   // (3) plan 산출 — throw 계약을 verdict 로 흡수 (stack / raw error 미노출).
-  let plan: ImportRestorePlan;
+  let plan: ImportRestorePlan<FullExportRecord>;
   try {
     plan = buildImportRestorePlan(existing, input.records, restoreMode);
   } catch (error) {
