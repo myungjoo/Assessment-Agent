@@ -1,5 +1,8 @@
 import { EXPORT_ENTITY_FULL_RECORD_SELECT } from "../export/export-entity-full-record-select";
-import type { FullExportRecord } from "../export/export-full-record";
+import {
+  buildFullExportRecord,
+  type FullExportRecord,
+} from "../export/export-full-record";
 import type { ExportEntity } from "../export/export-scope-select";
 
 import {
@@ -545,6 +548,126 @@ describe("hydrateImportDumpRecords", () => {
           );
           expect(issues[0]).toContain(foreign);
         }
+      });
+    });
+  });
+
+  // T-1265 reviewer MINOR-1 — plain object 판정이 `typeof === "object"` 만 보면 `new Date()` 가
+  // "plain object" 로 통과해 Object.keys 가 빈 배열 → allow-list 위반 0 → `{}` 로 조용히 hydrate
+  // 되어 데이터가 소실됐다. 판정을 export 측 `buildFullExportRecord` 와 동일한 prototype 검사로
+  // 좁혔고, 아래 test 들이 그 계약 (거부 대상 / 허용 대상) 을 명시적으로 pinning 한다.
+  describe("plain object 판정 (export 측과 동일한 prototype 검사)", () => {
+    // 사용자 정의 class instance — prototype 이 Object.prototype 도 null 도 아니다.
+    class FakeFields {
+      public name = "g";
+    }
+
+    it.each([
+      ["Date instance", new Date("2026-07-27T00:00:00.000Z"), "Date"],
+      ["Map", new Map([["name", "g"]]), "object"],
+      ["class instance", new FakeFields(), "object"],
+    ])(
+      "fields 가 %s 이면 plain object 가 아니므로 거부한다 (silent 데이터 소실 차단)",
+      (_label, fields, kind) => {
+        const result = hydrateImportDumpRecords({
+          records: [{ entity: "Group", instant: ISO[0], fields }],
+        });
+
+        const issues = expectFailure(result);
+        expect(issues).toHaveLength(1);
+        expect(issues[0]).toContain("records[0].fields");
+        expect(issues[0]).toContain(`받음: ${kind}`);
+        // 조용히 `{}` 로 hydrate 되지 않는다 (회귀 감시 — 부분 결과 0).
+        expect(result).not.toHaveProperty("records");
+      },
+    );
+
+    it("fields 가 Date 여도 throw 하지 않고 verdict 로만 답한다", () => {
+      expect(() =>
+        hydrateImportDumpRecords({
+          records: [{ entity: "Group", instant: ISO[0], fields: new Date() }],
+        }),
+      ).not.toThrow();
+    });
+
+    it("Object.create(null) fields 는 허용한다 (export 측과 동일한 계약 — 명시적 pinning)", () => {
+      const fields = Object.create(null) as Record<string, unknown>;
+      fields.name = "g";
+
+      const records = expectSuccess(
+        hydrateImportDumpRecords({
+          records: [{ entity: "Group", instant: ISO[0], fields }],
+        }),
+      );
+
+      expect(records).toHaveLength(1);
+      expect(records[0].fields).toEqual({ name: "g" });
+      // 복사본은 평범한 객체라 이후 소비처에서 prototype 부재로 놀라지 않는다.
+      expect(Object.getPrototypeOf(records[0].fields)).toBe(Object.prototype);
+    });
+
+    it("Object.create(null) fields 도 allow-list 검사를 똑같이 받는다", () => {
+      const fields = Object.create(null) as Record<string, unknown>;
+      fields.apiKey = "sk-live-DO-NOT-LEAK-0003";
+
+      const issues = expectFailure(
+        hydrateImportDumpRecords({
+          records: [{ entity: "LlmConfig", instant: ISO[0], fields }],
+        }),
+      );
+
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toContain("apiKey");
+      expect(issues.join(" ")).not.toMatch(/DO-NOT-LEAK/);
+    });
+
+    it.each([
+      ["Date instance", new Date("2026-07-27T00:00:00.000Z")],
+      ["Map", new Map()],
+      ["class instance", new FakeFields()],
+    ])("records 원소가 %s 여도 같은 판정으로 거부한다", (_label, record) => {
+      expect(
+        expectFailure(hydrateImportDumpRecords({ records: [record] })),
+      ).toEqual([
+        "records[0] 는 { entity, instant } 형태의 object 여야 합니다",
+      ]);
+    });
+
+    it("export 측 buildFullExportRecord 와 수용/거부가 대칭이다 (drift 감시)", () => {
+      const instant = new Date(ISO[0]);
+      const nullProto = Object.create(null) as Record<string, unknown>;
+      nullProto.name = "g";
+
+      // 거부 대상 — export 는 throw, import 는 issue (둘 다 통과시키지 않는다).
+      [new Date(), new Map(), new FakeFields()].forEach((fields) => {
+        expect(() =>
+          buildFullExportRecord(
+            "Group",
+            instant,
+            fields as unknown as Record<string, unknown>,
+          ),
+        ).toThrow(TypeError);
+        expect(
+          expectFailure(
+            hydrateImportDumpRecords({
+              records: [{ entity: "Group", instant: ISO[0], fields }],
+            }),
+          )[0],
+        ).toContain("records[0].fields");
+      });
+
+      // 허용 대상 — 양쪽 모두 통과한다 ({} · Object.create(null)).
+      [{ name: "g" }, nullProto].forEach((fields) => {
+        expect(buildFullExportRecord("Group", instant, fields).fields).toEqual({
+          name: "g",
+        });
+        expect(
+          expectSuccess(
+            hydrateImportDumpRecords({
+              records: [{ entity: "Group", instant: ISO[0], fields }],
+            }),
+          )[0].fields,
+        ).toEqual({ name: "g" });
       });
     });
   });

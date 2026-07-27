@@ -18,6 +18,8 @@
 // payload `fields` 를 싣는데 본 helper 가 그것을 버려, 하류 `$transaction` step 의 `createMany`
 // 에 넣을 row 값이 사라지는 gap 이 있었다. 이제 `fields` 를 **검증하고 보존** 한다:
 //   - `fields` 는 필수이며 plain object 여야 한다 (legacy 하위호환 없음 — 완화는 별도 ADR).
+//     plain object 판정은 export 측 `buildFullExportRecord` 와 **동일한 prototype 검사** 라
+//     `Date` · `Map` · class instance 는 거부하고 `Object.create(null)` 은 허용한다.
 //   - key 는 해당 entity 의 allow-list (`getExportEntityFullRecordSelect`) 안에만 있어야 한다.
 //     ADR-0047 §Decision 2(b) 엄격 거부의 **import 방향 mirror** 로, `LlmConfig.apiKey` 같은
 //     secret 이 복원 경로로 들어오는 것을 조립 단계에서 차단한다 (REQ-032).
@@ -50,9 +52,26 @@ export type ImportDumpRecordsHydration =
   | { ok: true; records: FullExportRecord[] }
   | { ok: false; issues: string[] };
 
-// plain object(null/배열/비-object 아님) 판정 — dump 자체와 records 원소 검사에 쓴다.
+// plain object 판정 — null / 배열 / Date / class instance (Map 등) 를 거부하고 순수 객체만
+// 통과시킨다. dump 자체 · records 원소 · `fields` 검사에 공통으로 쓴다.
+//
+// 🔥 export 측 짝인 `buildFullExportRecord` 의 동명 helper 와 **동일한 prototype 검사** 다
+// (T-1265 reviewer MINOR-1). `typeof === "object"` 만 보는 느슨한 판정이면 `fields: new Date()`
+// 가 plain object 로 통과해 `Object.keys` 가 빈 배열 → allow-list 위반 0 → `{}` 로 조용히
+// hydrate 되어 **데이터가 소실** 된다. `hydrateImportDumpRecords` 는 export 된 public helper 라
+// 직접 caller 에게 노출되므로 export→import round-trip 의 판정 규칙 대칭이 곧 안전장치다.
+// export 측 helper 는 module-export 되지 않고 export 파일 수정은 본 slice 의 Out of Scope 라
+// 판정 규칙만 로컬 mirror 한다 (ALL_ENTITIES 와 동일한 선례 정합 — 공용 module 추출은 Follow-ups).
+// `Object.create(null)` (proto 없음) 은 export 측과 동일하게 **허용** 한다.
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  if (Array.isArray(value) || value instanceof Date) {
+    return false;
+  }
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
 }
 
 // 위반 메시지에 담을 값 종류 표기 — null 만 typeof 로 구분되지 않아 별도 처리한다.
@@ -60,13 +79,19 @@ function describeKind(value: unknown): string {
   return value === null ? "null" : typeof value;
 }
 
-// `fields` 전용 종류 표기 — 배열도 `typeof` 로는 "object" 라 위 describeKind 로는 구분되지
-// 않는다. 기존 issue 문구 (entity / instant / records) 를 바꾸지 않으려고 별도 helper 를 둔다.
+// `fields` 전용 종류 표기 — 배열 · Date 도 `typeof` 로는 "object" 라 위 describeKind 로는
+// 구분되지 않는다. 기존 issue 문구 (entity / instant / records) 를 바꾸지 않으려고 별도 helper
+// 를 둔다. Date 를 따로 표기하는 이유는 그것이 실제로 관측된 오용 (직렬화 전 Date 를 그대로
+// 넘김) 이라 "object" 라는 모호한 안내로는 원인을 짚기 어렵기 때문이다. Map / class instance
+// 는 "object" 로 남긴다 (종류 이름만 — 값은 절대 싣지 않는다, REQ-032).
 function describeFieldsKind(value: unknown): string {
   if (value === null) {
     return "null";
   }
-  return Array.isArray(value) ? "array" : typeof value;
+  if (Array.isArray(value)) {
+    return "array";
+  }
+  return value instanceof Date ? "Date" : typeof value;
 }
 
 // `fields` 의 allow-list 밖 own enumerable key 목록 — `Object.keys` 로 **own enumerable** 만
