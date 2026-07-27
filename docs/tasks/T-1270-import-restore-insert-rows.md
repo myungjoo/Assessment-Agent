@@ -2,7 +2,10 @@
 id: T-1270
 title: 복원 insert step 의 createMany data row 순수 builder (실행 slice 1/3)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T20:07:00Z
+prNumber: 1161
+mergeCommit: 3254c75f
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 340
