@@ -2,7 +2,8 @@
 id: T-1272
 title: 복원 delete step 의 Prisma where 절 조립 (실행 slice 2b/3)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T21:57:34Z
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 190
