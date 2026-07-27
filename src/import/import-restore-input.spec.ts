@@ -289,7 +289,11 @@ describe("prepareImportRestoreInput", () => {
         "records[0].entity",
       ],
       ["instant 누락", [{ entity: "Person" }], "records[0].instant"],
-      ["원소가 object 아님", ["nope"], "records[0]"],
+      [
+        "원소가 object 아님",
+        ["nope"],
+        "records[0] 는 { entity, instant } 형태의 object",
+      ],
       ["records 가 배열 아님", "not-an-array", "records 는 배열"],
     ])(
       "screening 을 통과한 dump 라도 hydrate 가 %s 로 거부하면 stage: records 다",
