@@ -4,6 +4,13 @@
 // existing/incoming · instant Invalid/비-Date · 잘못된 mode)별 error + 경계(빈 입력 조합 · 같은
 // instant 다른 entity 비충돌 · 완전 동일 set 전부 교체 · incoming 중복) + non-mutating(freeze
 // 통과 + 원본 length/원소 불변)을 검증한다(import-restore-preview.spec.ts mirror).
+//
+// T-1266 추가분 — insert record 타입 파라미터화(ImportRestorePlan<TInsert>)가 (1) FullExportRecord
+// 의 fields 를 참조 identity 까지 보존해 toInsert 로 전달하고, (2) 타입 인자 없는 기존 사용법을
+// 그대로 통과시키며, (3) 런타임 동작·throw 메시지에 회귀 0 임을 고정한다. 컴파일 타임 pinning
+// (추론 좁힘 + toDelete 의 fields 접근 불가)은 ts-jest 의 type-check 가 강제하므로 타입이 다시
+// 넓어지면 본 spec 이 컴파일 단계에서 깨진다.
+import { FullExportRecord } from "./export-full-record";
 import { ExportRecord } from "./export-scope-select";
 import {
   buildImportRestorePlan,
@@ -14,6 +21,17 @@ import {
 // 간단한 record 생성 헬퍼 — entity + ISO instant.
 function rec(entity: ExportRecord["entity"], iso: string): ExportRecord {
   return { entity, instant: new Date(iso) };
+}
+
+// fields 를 실은 dump record 생성 헬퍼 — 상류 hydrate(T-1265)가 돌려주는 형태를 흉내낸다.
+// buildFullExportRecord 를 쓰지 않는 이유: 본 spec 은 allow-list 정책이 아니라 타입 전달만
+// 검증하므로 임의 fields(secret 유사 문자열 포함)를 자유롭게 넣을 수 있어야 한다.
+function full(
+  entity: ExportRecord["entity"],
+  iso: string,
+  fields: Record<string, unknown>,
+): FullExportRecord {
+  return { entity, instant: new Date(iso), fields };
 }
 
 describe("buildImportRestorePlan — replace mode (happy / branch)", () => {
@@ -301,5 +319,300 @@ describe("buildImportRestorePlan — non-mutating (freeze 통과 + 원본 불변
     plan.toDelete.push(rec("AuditLog", "2026-03-01T00:00:00Z"));
     // 입력 배열 length 불변.
     expect(existing).toHaveLength(1);
+  });
+});
+
+describe("buildImportRestorePlan — insert record 타입 전달 (T-1266, happy)", () => {
+  it("replace: FullExportRecord incoming 의 fields 가 참조 identity 까지 그대로 toInsert 로 전달", () => {
+    const existing = [rec("Person", "2026-01-01T00:00:00Z")];
+    const incoming = [
+      full("Person", "2026-02-01T00:00:00Z", { id: "p-1", fullName: "홍길동" }),
+      full("Group", "2026-02-02T00:00:00Z", { id: "g-1", name: "1반" }),
+    ];
+    const plan = buildImportRestorePlan(existing, incoming, "replace");
+    // 원소 자체가 같은 참조 — slice 는 참조만 옮기므로 복제/변환 0.
+    expect(plan.toInsert[0]).toBe(incoming[0]);
+    expect(plan.toInsert[1]).toBe(incoming[1]);
+    // fields 객체도 같은 참조(얕은 복제조차 하지 않음).
+    expect(plan.toInsert[0].fields).toBe(incoming[0].fields);
+    expect(plan.toInsert[0].fields).toEqual({ id: "p-1", fullName: "홍길동" });
+    // 기존 계약 회귀 0 — replace 는 기존 전부 삭제 + 보존 없음.
+    expect(plan.toDelete).toEqual(existing);
+    expect(plan.toKeep).toEqual([]);
+  });
+
+  it("merge: toInsert 가 incoming 전부를 순서 보존해 싣고 각 원소 fields 손실 0", () => {
+    const existing = [rec("Assessment", "2026-01-01T00:00:00Z")];
+    const incoming = [
+      full("Assessment", "2026-01-01T00:00:00Z", { id: "a-1", score: 1 }),
+      full("AuditLog", "2026-03-03T00:00:00Z", { id: "l-1", action: "IMPORT" }),
+      full("LlmConfig", "2026-03-04T00:00:00Z", { id: "c-1", model: "gpt" }),
+    ];
+    const plan = buildImportRestorePlan(existing, incoming, "merge");
+    expect(plan.toInsert).toHaveLength(3);
+    expect(plan.toInsert.map((r) => r.entity)).toEqual([
+      "Assessment",
+      "AuditLog",
+      "LlmConfig",
+    ]);
+    expect(plan.toInsert.map((r) => r.fields)).toEqual([
+      { id: "a-1", score: 1 },
+      { id: "l-1", action: "IMPORT" },
+      { id: "c-1", model: "gpt" },
+    ]);
+    // 충돌한 기존 1건은 삭제(entity + instant 동일).
+    expect(plan.toDelete).toEqual(existing);
+    expect(plan.toKeep).toEqual([]);
+  });
+
+  it("타입 인자 없이 ExportRecord[] 로 호출한 기존 사용법이 그대로 동작 (하위호환)", () => {
+    const existing: ExportRecord[] = [rec("Group", "2026-01-01T00:00:00Z")];
+    const incoming: ExportRecord[] = [rec("Person", "2026-02-01T00:00:00Z")];
+    // 기본 타입 파라미터가 채워져 ImportRestorePlan(인자 0)으로 그대로 받는다.
+    const plan: ImportRestorePlan = buildImportRestorePlan(
+      existing,
+      incoming,
+      "merge",
+    );
+    expect(plan.toKeep).toEqual(existing);
+    expect(plan.toInsert).toEqual(incoming);
+    expect(plan.toDelete).toEqual([]);
+  });
+});
+
+describe("buildImportRestorePlan — 컴파일 타임 pinning (T-1266)", () => {
+  it("추론이 ImportRestorePlan<FullExportRecord> 로 좁혀지고 toInsert[0].fields 를 캐스팅 없이 읽는다", () => {
+    const existing: ExportRecord[] = [rec("Person", "2026-01-01T00:00:00Z")];
+    const incoming: FullExportRecord[] = [
+      full("Person", "2026-02-01T00:00:00Z", { id: "p-1" }),
+    ];
+    // 타입이 다시 넓어지면(toInsert: ExportRecord[]) 아래 대입이 컴파일 오류가 된다.
+    const plan: ImportRestorePlan<FullExportRecord> = buildImportRestorePlan(
+      existing,
+      incoming,
+      "replace",
+    );
+    // as 캐스팅 없이 fields 접근 — 타입 전달이 끊기면 이 문장이 컴파일되지 않는다.
+    const fields: Record<string, unknown> = plan.toInsert[0].fields;
+    expect(fields).toEqual({ id: "p-1" });
+
+    // @ts-expect-error toDelete 는 ExportRecord[] 라 fields 접근은 타입 오류여야 한다(파라미터화 대상 아님).
+    const deletedFields: unknown = plan.toDelete[0].fields;
+    // 런타임에도 기존 record 에는 fields 가 없다.
+    expect(deletedFields).toBeUndefined();
+  });
+
+  it("좁혀진 plan 을 타입 인자 없는 ImportRestorePlan 으로 넓혀 받을 수 있다 (넓힘 방향)", () => {
+    const existing: ExportRecord[] = [rec("Group", "2026-01-01T00:00:00Z")];
+    const fullIncoming: FullExportRecord[] = [
+      full("Person", "2026-02-01T00:00:00Z", { id: "p-1" }),
+      full("Group", "2026-02-02T00:00:00Z", { id: "g-1" }),
+    ];
+    // 추론은 ImportRestorePlan<FullExportRecord> 지만 기본 파라미터 타입 변수에 그대로 대입된다.
+    // 다음 slice 가 좁혀진 plan 을 기존 소비처(summarizeRestorePlan / import-restore-ops 등 —
+    // 전부 타입 인자 없는 ImportRestorePlan 을 받는다)로 넘기는 배선의 컴파일 근거이며, 이
+    // 대입이 깨지면(예: TInsert 가 invariant 위치로 이동) 본 spec 이 컴파일 단계에서 잡는다.
+    const widened: ImportRestorePlan = buildImportRestorePlan(
+      existing,
+      fullIncoming,
+      "replace",
+    );
+    expect(widened.toInsert).toHaveLength(2);
+    // 넓혀도 원소는 같은 참조 — 순서·내용 손실 0 (대입이 형태만 바꾸지 값은 건드리지 않는다).
+    expect(widened.toInsert.map((r) => r.entity)).toEqual(["Person", "Group"]);
+    expect(widened.toInsert[0]).toBe(fullIncoming[0]);
+    expect(widened.toDelete).toEqual(existing);
+
+    // 인자 위치에서도 동일 — 소비처가 ImportRestorePlan 을 받아도 좁혀진 plan 을 그대로 넘긴다.
+    const countInserts = (plan: ImportRestorePlan): number =>
+      plan.toInsert.length;
+    expect(countInserts(widened)).toBe(2);
+    expect(
+      countInserts(buildImportRestorePlan(existing, fullIncoming, "merge")),
+    ).toBe(2);
+  });
+});
+
+describe("buildImportRestorePlan — 메시지 회귀 pinning (T-1266, negative)", () => {
+  it("비-배열 existing → 기존과 동일한 TypeError 전문", () => {
+    expect(() =>
+      buildImportRestorePlan(
+        null as unknown as ExportRecord[],
+        [full("Person", "2026-01-01T00:00:00Z", { id: "p-1" })],
+        "replace",
+      ),
+    ).toThrow(
+      new TypeError(
+        "buildImportRestorePlan: existing 는 배열이어야 합니다 (받음: object)",
+      ),
+    );
+  });
+
+  it("비-배열 incoming(string) → 기존과 동일한 TypeError 전문", () => {
+    expect(() =>
+      buildImportRestorePlan(
+        [],
+        "nope" as unknown as FullExportRecord[],
+        "merge",
+      ),
+    ).toThrow(
+      new TypeError(
+        "buildImportRestorePlan: incoming 는 배열이어야 합니다 (받음: string)",
+      ),
+    );
+  });
+
+  it("fields 를 가진 incoming 원소의 instant 가 Invalid Date → index 를 담은 TypeError 전문", () => {
+    const incoming = [
+      { entity: "Person", instant: new Date("nope"), fields: { id: "p-1" } },
+    ] as FullExportRecord[];
+    expect(() => buildImportRestorePlan([], incoming, "replace")).toThrow(
+      new TypeError(
+        "buildImportRestorePlan: incoming[0].instant 은(는) 유효한 Date instance 여야 합니다",
+      ),
+    );
+  });
+
+  it("fields 를 가진 incoming 원소의 instant 가 비-Date(number) → 동일 TypeError", () => {
+    const incoming = [
+      { entity: "Person", instant: 1735689600000, fields: { id: "p-1" } },
+    ] as unknown as FullExportRecord[];
+    expect(() => buildImportRestorePlan([], incoming, "merge")).toThrow(
+      TypeError,
+    );
+  });
+
+  it("fields 는 있는데 instant 가 누락된 원소 → 그 index(1) 를 담은 TypeError 전문", () => {
+    const incoming = [
+      full("Person", "2026-01-01T00:00:00Z", { id: "p-1" }),
+      { entity: "Group", fields: { id: "g-1" } },
+    ] as unknown as FullExportRecord[];
+    expect(() => buildImportRestorePlan([], incoming, "merge")).toThrow(
+      new TypeError(
+        "buildImportRestorePlan: incoming[1].instant 은(는) 유효한 Date instance 여야 합니다",
+      ),
+    );
+  });
+
+  it("mode 가 객체 → RangeError 전문(대소문자 mismatch/null/숫자와 동형)", () => {
+    expect(() =>
+      buildImportRestorePlan([], [], {} as unknown as ImportRestoreMode),
+    ).toThrow(
+      new RangeError(
+        "buildImportRestorePlan: mode 는 replace/merge 중 하나여야 합니다 (받음: [object Object])",
+      ),
+    );
+  });
+
+  it("error 메시지에 fields 의 값이 실리지 않는다 (secret 유사 문자열 미노출)", () => {
+    const secret = "sk-live-SUPER-SECRET-0123456789";
+    const incoming = [
+      { entity: "LlmConfig", instant: new Date("nope"), fields: { secret } },
+    ] as FullExportRecord[];
+    let message = "";
+    try {
+      buildImportRestorePlan([], incoming, "replace");
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/incoming\[0\]\.instant/);
+    // fields 의 값·key 어느 쪽도 메시지에 실리지 않는다.
+    expect(message).not.toMatch(/sk-live/);
+    expect(message).not.toMatch(/SECRET/i);
+    expect(message).not.toMatch(/fields/);
+  });
+});
+
+describe("buildImportRestorePlan — fields 경계·불변 (T-1266, negative)", () => {
+  it("freeze 된 배열·원소·fields 로 호출해도 throw 0 이고 결과가 동일하다", () => {
+    const frozenFields = Object.freeze({ id: "p-1", note: "동결" });
+    const incoming = Object.freeze([
+      Object.freeze({
+        entity: "Person",
+        instant: new Date("2026-02-01T00:00:00Z"),
+        fields: frozenFields,
+      }),
+    ]) as unknown as FullExportRecord[];
+    const existing = Object.freeze([
+      Object.freeze(rec("Person", "2026-01-01T00:00:00Z")),
+    ]) as unknown as ExportRecord[];
+
+    let plan: ImportRestorePlan<FullExportRecord>;
+    expect(() => {
+      plan = buildImportRestorePlan(existing, incoming, "replace");
+    }).not.toThrow();
+    expect(plan!.toInsert[0].fields).toBe(frozenFields);
+    expect(plan!.toDelete).toEqual([...existing]);
+    // 입력 배열 length 불변.
+    expect(existing).toHaveLength(1);
+    expect(incoming).toHaveLength(1);
+  });
+
+  it("반환 plan 배열을 push/pop 해도 입력 배열은 불변 (fields 입력에서도 동형)", () => {
+    const existing = [rec("Person", "2026-01-01T00:00:00Z")];
+    const incoming = [full("Group", "2026-02-01T00:00:00Z", { id: "g-1" })];
+    const plan = buildImportRestorePlan(existing, incoming, "merge");
+    plan.toInsert.push(full("AuditLog", "2026-03-01T00:00:00Z", { id: "l-1" }));
+    plan.toKeep.pop();
+    expect(incoming).toHaveLength(1);
+    expect(existing).toHaveLength(1);
+    expect(existing[0].entity).toBe("Person");
+  });
+
+  it("existing 은 fields 없는 ExportRecord, incoming 은 FullExportRecord 인 혼합 호출이 정상 동작", () => {
+    const existing: ExportRecord[] = [
+      rec("Person", "2026-01-01T00:00:00Z"),
+      rec("Group", "2026-01-02T00:00:00Z"),
+    ];
+    const incoming: FullExportRecord[] = [
+      full("Person", "2026-01-01T00:00:00Z", { id: "p-1" }),
+    ];
+    const plan = buildImportRestorePlan(existing, incoming, "merge");
+    // 충돌한 Person 은 삭제, 비충돌 Group 은 보존.
+    expect(plan.toDelete).toEqual([existing[0]]);
+    expect(plan.toKeep).toEqual([existing[1]]);
+    expect(plan.toInsert[0].fields).toEqual({ id: "p-1" });
+  });
+
+  it("fields 가 서로 달라도 entity + instant 가 같으면 충돌 (fields 는 key 에 영향 0)", () => {
+    const iso = "2026-07-07T07:07:07Z";
+    const existing = [rec("Assessment", iso)];
+    const incoming = [full("Assessment", iso, { id: "a-1", score: 99 })];
+    const plan = buildImportRestorePlan(existing, incoming, "merge");
+    expect(plan.toDelete).toEqual(existing);
+    expect(plan.toKeep).toEqual([]);
+    expect(plan.toInsert).toEqual(incoming);
+  });
+
+  it("빈 incoming / 빈 existing 경계 — fields 유무와 무관하게 기존 동작", () => {
+    const emptyIncoming: FullExportRecord[] = [];
+    const keepPlan = buildImportRestorePlan(
+      [rec("Person", "2026-01-01T00:00:00Z")],
+      emptyIncoming,
+      "merge",
+    );
+    expect(keepPlan.toInsert).toEqual([]);
+    expect(keepPlan.toKeep).toHaveLength(1);
+
+    const seedPlan = buildImportRestorePlan(
+      [],
+      [full("Person", "2026-01-01T00:00:00Z", { id: "p-1" })],
+      "replace",
+    );
+    expect(seedPlan.toDelete).toEqual([]);
+    expect(seedPlan.toInsert[0].fields).toEqual({ id: "p-1" });
+  });
+
+  it("같은 입력으로 두 번 호출하면 동일 결과 (idempotent)", () => {
+    const existing = [rec("Person", "2026-01-01T00:00:00Z")];
+    const incoming = [
+      full("Person", "2026-01-01T00:00:00Z", { id: "p-1" }),
+      full("Group", "2026-05-05T00:00:00Z", { id: "g-1" }),
+    ];
+    const first = buildImportRestorePlan(existing, incoming, "merge");
+    const second = buildImportRestorePlan(existing, incoming, "merge");
+    expect(second).toEqual(first);
+    // 원소 참조까지 동일 — 두 호출 모두 복제 0.
+    expect(second.toInsert[0]).toBe(first.toInsert[0]);
   });
 });
