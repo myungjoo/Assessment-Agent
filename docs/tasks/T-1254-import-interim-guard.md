@@ -2,7 +2,11 @@
 id: T-1254
 title: Import interim false-success guard — 복원 미배선 동안 성공 오표기 차단 (ADR-0055 §Follow-up d)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T06:27:16Z
+mergedAs: f1d26bfe
+prNumber: 1145
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 95
