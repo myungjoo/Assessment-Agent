@@ -2,7 +2,7 @@
 id: T-1262
 title: Import 복원 operation 그룹핑 helper (plan → entity·phase 별 실행 단위)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 500
@@ -16,6 +16,12 @@ touchesFiles:
   - src/import/import-restore-ops.spec.ts
 sizeExempt: true
 exemptReason: R-112 backbone slice — production ~120 LOC 는 cap 안이고 초과분은 전량 spec(4 분기 × negative 다수). 동일 chain 선례 T-1255~T-1261 이 모두 spec 초과로 머지됐고 T-1261 실측은 총 595 LOC(production 106 / spec 489).
+prNumber: 1153
+reviewRounds: 2
+mergedAs: 3686e34f
+completedAt: 2026-07-27T12:23:00Z
+actualDiff: 628
+actualFiles: 3
 plannerNote: "cap-bend pre-justified: R-112 backbone x 1.5 = 500 LOC, 선례 T-1261 실측 595(prod 106/spec 489) — ADR-0055 §Follow-up(b) 여덟 번째 slice"
 ---
 
