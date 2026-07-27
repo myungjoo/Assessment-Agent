@@ -445,20 +445,34 @@ describe("prepareImportRestoreInput", () => {
     // 실 배선에서는 쓰이지 않지만 값 노출 여부를 검사하기 위한 secret 유사 문자열.
     const SECRET = "sk-live-이-값은-issue-에-절대-실리면-안-된다";
 
-    // records 만 갈아끼운 dump — entityCounts 합계 / recordCount 정합은 유지해 구조 검증을
-    // 통과시키고 hydrate 단계의 fields 분기만 재현한다.
-    const dumpWithRecords = (records: unknown[]) => ({
-      ...sampleDump,
-      entityCounts: {
+    // records 만 갈아끼운 dump — entityCounts 는 **실제 record 의 entity 분포** 를 세어 싣고
+    // (fixture 자체 모순 제거), 합계 == recordCount 정합은 그대로 유지해 구조 검증을 통과시키고
+    // hydrate 단계의 fields 분기만 재현한다. entity 를 읽을 수 없는 원소 (object 아님 / 5-union
+    // 밖) 는 AuditLog 로 몰아 합계만 맞춘다 — 구조 검증은 per-entity 분포를 보지 않는다.
+    const dumpWithRecords = (records: unknown[]) => {
+      const entityCounts: Record<ExportRecord["entity"], number> = {
         Assessment: 0,
         Person: 0,
         Group: 0,
         LlmConfig: 0,
-        AuditLog: records.length,
-      },
-      recordCount: records.length,
-      records,
-    });
+        AuditLog: 0,
+      };
+      records.forEach((record) => {
+        const entity = (record as { entity?: unknown } | null)?.entity;
+        const key =
+          typeof entity === "string" && entity in entityCounts
+            ? (entity as ExportRecord["entity"])
+            : "AuditLog";
+        entityCounts[key] += 1;
+      });
+
+      return {
+        ...sampleDump,
+        entityCounts,
+        recordCount: records.length,
+        records,
+      };
+    };
 
     it("fields 가 없는 legacy dump record 는 stage: records 로 거부되고 부분 결과가 없다", () => {
       const failure = expectFailure(
@@ -521,9 +535,11 @@ describe("prepareImportRestoreInput", () => {
       expect(failure.stage).toBe("records");
       expect(joined).toContain("records[0].instant");
       expect(joined).not.toContain(SECRET);
-      // Error 객체 / stack 흔적 미노출 (REQ-032 정합).
-      expect(joined).not.toContain("Error");
-      expect(joined).not.toContain("    at ");
+      // Error 객체 / stack 흔적 미노출 (REQ-032 정합). "Error" 부분 문자열 금지는 정상 한국어
+      // 안내 문구에도 걸릴 수 있어 오탐 여지가 있으므로, stack 형태 자체 (V8 frame 의
+      // " at <파일>:<줄>:<열>") 와 Error toString prefix ("<Name>Error: ") 의 부재로 단언한다.
+      expect(joined).not.toMatch(/ at .+:\d+:\d+/);
+      expect(joined).not.toMatch(/\w*Error:\s/);
     });
 
     it("빈 records 경계에서도 ok: true + 빈 FullExportRecord[] 다", () => {
@@ -633,16 +649,23 @@ describe("prepareImportRestoreInput", () => {
       ["deserialize", Buffer.from("{oops", "utf-8")],
       ["structure", Buffer.from("[]", "utf-8")],
       ["version", Buffer.from(JSON.stringify(legacyDump), "utf-8")],
+      // 비-Buffer 입력도 같은 방식으로 문구까지 pin 한다 — 위 "비-Buffer string" test 는 stage 와
+      // issues.length 만 봐서 상류 문구가 바뀌어도 회귀를 잡지 못했다.
+      ["비-Buffer string", "not-a-buffer"],
     ])(
       "screening 실패 (%s) 는 상류 verdict 의 stage · issues 와 완전히 동일하다 (재가공 0)",
-      (_label, buffer) => {
-        // 같은 buffer 로 상류 helper 를 직접 호출해 기준선을 만든 뒤 문자열 배열까지 비교한다.
-        const direct = screenModule.screenImportDumpBuffer(buffer);
+      (_label, input) => {
+        // 같은 입력으로 상류 helper 를 직접 호출해 기준선을 만든 뒤 문자열 배열까지 비교한다.
+        const direct = screenModule.screenImportDumpBuffer(
+          input as unknown as Buffer,
+        );
         if (direct.ok) {
           throw new Error("상류 screening 실패를 기대했으나 성공했습니다");
         }
 
-        const failure = expectFailure(prepareImportRestoreInput(buffer));
+        const failure = expectFailure(
+          prepareImportRestoreInput(input as unknown as Buffer),
+        );
 
         expect(failure.stage).toBe(direct.stage);
         expect(failure.issues).toEqual(direct.issues);
