@@ -2,7 +2,10 @@
 id: T-1269
 title: 복원 plan 준비 verdict 를 FullExportRecord 로 전파 (하류 leg 2/2)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1160
+mergedAs: 592c672a
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 330
@@ -67,3 +70,12 @@ plannerNote: "cap-bend pre-justified: R-112 backbone x 1.5 = 330 LOC, 선례 T-1
 ## Follow-ups
 
 - T-1268 reviewer NIT-5 (비차단 이월) — [src/import/import-restore-input.spec.ts](../../src/import/import-restore-input.spec.ts) fixture helper 의 `entity in entityCounts` 를 `Object.prototype.hasOwnProperty.call(entityCounts, entity)` 로 바꾸면 prototype chain key (`toString` 등) 오탐을 피할 수 있다. 본 task 의 touchesFiles 밖이라 별도 위생 slice 에서 처리.
+- reviewer round 1 NIT-1 (비차단) — 본 spec 의 `dumpWithRecords` fixture helper 가 [src/import/import-restore-input.spec.ts](../../src/import/import-restore-input.spec.ts) / [src/import/import-dump-records-hydrate.spec.ts](../../src/import/import-dump-records-hydrate.spec.ts) 의 동형 helper 와 거의 같은 3 번째 사본이다. 본 사본은 T-1268 NIT-5 권고대로 `Object.prototype.hasOwnProperty.call` 을 이미 쓰고 있어 조치 불요지만, 사본 간 판정 규칙 drift 전에 test fixture 공용 module 추출을 별도 위생 slice 로 잡아두는 편이 좋다.
+- reviewer round 1 MINOR-1 (비차단, planner 앞) — 실측 +344 가 사전 정당화치 `estimatedDiff: 330` 을 약 4% 초과했다. 초과분이 전량 spec 이라 머지를 막지 않았으나, 본 chain 이 3 slice 연속 cap-bend 중이므로 다음 slice (실 `$transaction` 실행) 는 production 비중이 커질 것을 감안해 planner 가 estimate 를 spec 실측 기반으로 재보정할 것.
+- reviewer round 1 NIT-2 / NIT-3 (조치 불요) — 상류 stage pinning 의 self-consistency 성격 (문구 회귀는 상류 spec 이 잡고, `records` stage · allow-list 위반은 리터럴로도 고정돼 실질 공백 0), 넓힘 test 의 `sizeOf === 7` magic number (같은 test 안에서 분류가 함께 단언됨).
+
+## 결과 요약 (2026-07-27)
+
+- PR [#1160](https://github.com/myungjoo/Assessment-Agent/pull/1160) squash merge (`592c672a`). reviewer round 1 APPROVE (BLOCKER 0 / MAJOR 0 / MINOR 1 / NIT 3) — reviewer 가 §3 nit-in-PR closure 4 종 (test 추가 / style / typo / describe 명확화) 해당 없음을 명시 판정해 round 2 없이 마감.
+- 실측 +344/-4, 2 파일. production 증분은 `import type { FullExportRecord }` 1 줄 + verdict 성공 갈래 타입 표기 + 142 행 `let plan` annotation + 상단 주석 stale 동기 (T-1268 NIT-4 회수) 뿐이며 실행 문장 변경 0, 하류 파일 0 수정 (배열 covariance + generic 추론 흡수).
+- 4-게이트 (reviewer APPROVE + PR comment 외부 1 건 + integrator 자체 점검 6 항목 + CI green) 모두 통과. ADR-0036 §D8(c): head 가 origin/main `41703f1a` 를 미포함이라 `gh pr update-branch` 로 갱신 (새 head `f9b3108d`) 후 재-CI (run 30295865038) green 재확인하고 머지.
