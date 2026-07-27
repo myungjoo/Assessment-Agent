@@ -8,13 +8,17 @@
 //
 // endpoint surface:
 //   - POST /api/admin/import          → createJob (생성된 job status=PENDING 반환).
-//     **multipart 파일 수신 배선 완료 (ADR-0055 §Decision 1, T-1252)** — `mode` form
-//     field + dump artifact 파일 1 개 (`file`) 를 `FileInterceptor("file")` (multer
-//     bundled in @nestjs/platform-express, 새 dep 0) + `@UploadedFile()` 로 받는다.
-//     파일 누락 시 BadRequestException(400). 단 **interim** — 받은 buffer 는 아직
-//     복원 엔진에 넘기지 않고 (§Follow-up b slice) 수신만 검증하며, controller 는
-//     여전히 mode + actor 결합으로 job record (status=PENDING) 만 생성한다
-//     (ADR-0055 §Consequences 의 chain 완주 전 interim false-success 상태 그대로).
+//     **multipart 파일 수신 배선 완료 (ADR-0055 §Decision 1, T-1252) + 크기 상한 강제
+//     (ADR-0055 §Decision 3, T-1253)** — `mode` form field + dump artifact 파일 1 개
+//     (`file`) 를 `FileInterceptor("file", { limits: { fileSize: MAX_IMPORT_FILE_SIZE_BYTES } })`
+//     (multer bundled in @nestjs/platform-express, 새 dep 0) + `@UploadedFile()` 로 받는다.
+//     크기 상한 초과 시 multer 가 `MulterError(LIMIT_FILE_SIZE)` 를 던지고
+//     `MulterExceptionFilter` 가 이를 413 Payload Too Large 로 매핑한다 (상한 없는
+//     memoryStorage 의 DoS 표면 차단 — ADR-0055 §Decision 2/3). 파일 누락 시
+//     BadRequestException(400). 단 **interim** — 받은 buffer 는 아직 복원 엔진에 넘기지
+//     않고 (§Follow-up b slice) 수신·크기만 검증하며, controller 는 여전히 mode + actor
+//     결합으로 job record (status=PENDING) 만 생성한다 (ADR-0055 §Consequences 의 chain
+//     완주 전 interim false-success 상태 그대로 — buffer 미소비 유지).
 //   - GET  /api/admin/import/running  → findRunning (RUNNING 목록, UC-07 §8 status polling).
 //   - GET  /api/admin/import/modes    → describeModes (import mode 선택 dialog 의 사람-친화
 //     설명 목록, UC-07 §5 step 2 + §6.2 — describeImportMode helper 를 REPLACE/MERGE 두
@@ -60,6 +64,7 @@ import {
   Param,
   Post,
   UploadedFile,
+  UseFilters,
   UseGuards,
   UseInterceptors,
   UsePipes,
@@ -80,7 +85,20 @@ import type { ImportRestoreMode } from "../export/import-restore-plan";
 
 import { CreateImportDto } from "./dto/create-import.dto";
 import { ImportJobService } from "./import-job.service";
+import { MulterExceptionFilter } from "./multer-exception.filter";
 import type { UploadedDumpFile } from "./uploaded-dump-file";
+
+// MAX_IMPORT_FILE_SIZE_BYTES — import dump artifact 업로드의 크기 상한(bytes).
+// ADR-0055 §Decision 3 이 박제한 "limits.fileSize 상한이 반드시 강제된다" invariant 의
+// 구체 수치다. 상한 없는 memoryStorage(§Decision 2)는 무제한 업로드가 프로세스 메모리를
+// 소진시키는 DoS 표면이므로 상한 강제가 memoryStorage 채택의 안전 전제다.
+//
+// 근거(50 MiB): 평가 자료 dump 는 JSON 직렬화 DB 스냅샷이라 현실적 규모(사용자·평가·응답
+// 로우)에서 대체로 수 MiB~수십 MiB 수준이다. 50 MiB 는 현실적 export 에 충분한 여유를
+// 주면서도 단일 요청이 메모리에 올릴 수 있는 최대치를 제한해 DoS 표면을 좁힌다.
+// env override / 동적 config 는 본 slice 범위 밖 — 분기 있는 env parsing 도입 없이 단순
+// 상수로 둔다(배포 환경별 조정 필요 시 별도 follow-up 로 env parsing helper + spec 박제).
+export const MAX_IMPORT_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
 // Prisma ImportMode enum(uppercase REPLACE/MERGE) ↔ describeImportMode helper 가
 // 요구하는 lowercase ImportRestoreMode("replace"/"merge") 매핑. prisma/schema.prisma
@@ -105,9 +123,15 @@ export class ImportController {
 
   // POST /api/admin/import — import job 생성 (REQ-030 Import). multipart/form-data 로
   // dump artifact 파일 1 개 (`file`) + `mode` form field 를 받는다 (ADR-0055 §Decision 1).
-  //   - @UseInterceptors(FileInterceptor("file")) — multer (memoryStorage default,
-  //     ADR-0055 §Decision 2) 가 파일을 in-memory buffer 로 파싱. FileInterceptor 는
-  //     @nestjs/platform-express (multer bundled) 제공 → 새 runtime dep 0 (package.json 불변).
+  //   - @UseInterceptors(FileInterceptor("file", { limits: { fileSize:
+  //     MAX_IMPORT_FILE_SIZE_BYTES } })) — multer (memoryStorage default, ADR-0055
+  //     §Decision 2) 가 파일을 in-memory buffer 로 파싱하되 limits.fileSize 상한을 강제
+  //     (§Decision 3, DoS 표면 차단). FileInterceptor 는 @nestjs/platform-express
+  //     (multer bundled) 제공 → 새 runtime dep 0 (package.json 불변).
+  //   - @UseFilters(MulterExceptionFilter) — 크기 상한 초과 시 multer 가 던진
+  //     MulterError(LIMIT_FILE_SIZE) 를 413 Payload Too Large 로 매핑 (기타 MulterError
+  //     400, HttpException passthrough, unknown 500). 명시적 4xx 매핑이 없으면 상한 초과가
+  //     500 으로 표면화될 수 있어 구현이 자동 4xx 를 가정할 수 없다 (reviewer NIT-1 회수).
   //   - @UploadedFile() file — 수신한 파일 (UploadedDumpFile local 타입, ADR-0055
   //     §Decision 4 로 @types/multer 없이 typing). 파일 누락 시 file 은 undefined.
   //   - @CurrentUser("sub") actorSub — 인증 actor.sub 를 requestedById 로 결합
@@ -121,8 +145,9 @@ export class ImportController {
   // raw forward — controller 는 파일 누락 외 추가 분기를 두지 않는다.
   //
   // **interim (ADR-0055 §Consequences 부정)**: 받은 file.buffer 는 아직 소비하지 않는다
-  // — 파싱→실 복원 엔진 배선은 §Follow-up (b) slice, 크기 제한은 (c) slice. 본 slice 는
-  // 파일을 *받는 입구* 만 연다 (buffer 미소비, createJob 시그니처 보존).
+  // — 파싱→실 복원 엔진 배선은 §Follow-up (b) slice. 본 (c) slice 는 크기 상한 강제 +
+  // 초과 거부 매핑만 추가하며, buffer 는 여전히 미소비다 (파일을 *받는 입구* + 크기
+  // 게이트만 열고 createJob 시그니처는 보존).
   //
   // RBAC — Admin+ tier. @Roles("Admin") → Admin / SuperAdmin 통과 (RolesGuard
   // escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401. guard 는
@@ -130,7 +155,12 @@ export class ImportController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("Admin")
-  @UseInterceptors(FileInterceptor("file"))
+  @UseFilters(MulterExceptionFilter)
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: MAX_IMPORT_FILE_SIZE_BYTES },
+    }),
+  )
   async create(
     @UploadedFile() file: UploadedDumpFile | undefined,
     @Body() dto: CreateImportDto,
