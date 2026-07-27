@@ -1,7 +1,20 @@
+import type { ExportEntity } from "../export/export-scope-select";
+
 import {
   hydrateImportDumpRecords,
   type ImportDumpRecordsHydration,
 } from "./import-dump-records-hydrate";
+
+// ExportEntity union drift 감시 상수 — helper 는 union 값을 로컬 mirror(ALL_ENTITIES)로 들고
+// 있어 union 이 확장돼도 조용히 어긋날 수 있다. 이 `Record<ExportEntity, true>` 는 union 확장
+// 시 key 누락으로 **컴파일이 즉시 fail** 하고, mirror 가 따라오지 않으면 아래 test 가 fail 한다.
+const ENTITY_EXHAUSTIVE: Record<ExportEntity, true> = {
+  Assessment: true,
+  Person: true,
+  Group: true,
+  LlmConfig: true,
+  AuditLog: true,
+};
 
 // 본 spec 은 R-112 4 종 (happy / error / flow·branch / negative 충분 cover) 을 helper 의 3 분기
 // ((1) 비-배열 records · (2) 원소 위반 누적 · (3) 성공 복원) 기준으로 검증한다. 상류 helper
@@ -75,6 +88,40 @@ describe("hydrateImportDumpRecords", () => {
 
       expect(records[0].instant.getTime()).toBe(original.getTime());
       expect(records[0].instant).not.toBe(original);
+    });
+
+    it("ExportEntity union 의 5 값이 모두 수용된다 (union drift 감시)", () => {
+      const entities = Object.keys(ENTITY_EXHAUSTIVE);
+      const records = expectSuccess(
+        hydrateImportDumpRecords({
+          records: entities.map((entity) => ({ entity, instant: ISO[0] })),
+        }),
+      );
+
+      expect(records.map((record) => record.entity)).toEqual(entities);
+    });
+
+    it("raw 원소의 여분 field 는 버리고 { entity, instant } 만 담는다", () => {
+      const records = expectSuccess(
+        hydrateImportDumpRecords({
+          records: [
+            { entity: "Person", instant: ISO[0], id: 7, payload: { a: 1 } },
+          ],
+        }),
+      );
+
+      expect(Object.keys(records[0]).sort()).toEqual(["entity", "instant"]);
+    });
+
+    it("비-ISO 이지만 Date 로 파싱 가능한 string 도 수용한다 (RFC 2822)", () => {
+      const rfc2822 = "Mon, 27 Jul 2026 00:00:00 GMT";
+      const records = expectSuccess(
+        hydrateImportDumpRecords({
+          records: [{ entity: "Group", instant: rfc2822 }],
+        }),
+      );
+
+      expect(records[0].instant.getTime()).toBe(new Date(rfc2822).getTime());
     });
   });
 

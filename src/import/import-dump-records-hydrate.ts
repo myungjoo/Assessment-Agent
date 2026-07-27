@@ -44,7 +44,8 @@ function describeKind(value: unknown): string {
   return value === null ? "null" : typeof value;
 }
 
-// instant 복원 — ISO 파싱 가능한 string 또는 유효한 `Date` instance 만 허용하고, 어느 쪽이든
+// instant 복원 — `new Date(...)` 로 파싱 가능한 string (ISO 8601 이 정상 경로지만 RFC 2822 등
+// 런타임이 파싱하는 다른 형식도 수용) 또는 유효한 `Date` instance 만 허용하고, 어느 쪽이든
 // **새 Date 객체** 로 복사한다 (입력 원소의 Date 를 그대로 공유하지 않음 — non-mutating 보강).
 // 빈 문자열 · 파싱 불가 문자열 · Invalid Date · number · null · 누락은 전부 null 로 거부한다.
 function toInstant(value: unknown): Date | null {
@@ -108,7 +109,7 @@ export function hydrateImportDumpRecords(
     const instant = toInstant(record.instant);
     if (instant === null) {
       issues.push(
-        `records[${index}].instant 는 ISO 파싱 가능한 string 또는 유효한 Date instance 여야 합니다 (받음: ${describeKind(
+        `records[${index}].instant 는 Date 로 파싱 가능한 string 또는 유효한 Date instance 여야 합니다 (받음: ${describeKind(
           record.instant,
         )})`,
       );
