@@ -2,7 +2,9 @@
 id: T-1259
 title: Import 복원 입력 준비 helper (screen + records hydrate 합성)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T09:57:30Z
+prNumber: 1150
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 285
@@ -58,4 +60,10 @@ plannerNote: P5 ADR-0055 §Follow-up(b) 다섯 번째 slice — screen + hydrate
 ## Follow-ups
 
 - (T-1258 reviewer round 2 지적, 별건) [src/export/import-dump-validate.ts](../../src/export/import-dump-validate.ts) 53 행 주석 / 93 행 issue 메시지가 `generatedAt` 을 "ISO 파싱 가능한 string" 이라고 표현하지만 실제 판정은 `new Date(value)` 파싱 기준이라 ISO 8601 이 아닌 형식 (RFC 2822 등) 도 통과한다 — 문구 부정확. 문구만 정정하는 doc/comment-level fix task 로 회수 (본 task Out of Scope).
-- ADR-0055 §Follow-up (b) 잔여 slice = ADR-0044 §3 `$transaction` 복원 엔진 → controller interim guard 교체 재배선.
+- ADR-0055 §Follow-up (b) 잔여 slice = ADR-0044 §3 `$transaction` 복원 엔진 → controller interim guard 교체 재배선. (다음 slice 는 T-1260 으로 큐잉됨 — 복원 plan 준비 helper.)
+
+## Result (2026-07-27)
+
+- PR [#1150](https://github.com/myungjoo/Assessment-Agent/pull/1150) squash merge `7a897954`. reviewer round 1 APPROVE + MINOR nit 1 건을 CLAUDE.md §3 nit-in-PR closure 로 같은 PR round 2 commit 에서 마감, round 2 재검토 finding 0 APPROVE. 4-게이트 전부 PASS.
+- 신규 2 파일 `src/import/import-restore-input.ts` (+75) / `src/import/import-restore-input.spec.ts` (+357) — 신규 파일 line/branch/function 100%, 전체 suite green.
+- 첫 CI run 의 `배포 산출물 검증` job fail 은 Docker Hub registry timeout 인프라 flake 였고 nit fix push 후 run 에서 자연 해소 (코드 결함 0).
