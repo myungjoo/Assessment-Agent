@@ -1,8 +1,10 @@
 import { ImportMode } from "@prisma/client";
 
 import { EXPORT_SCHEMA_VERSION } from "../export/export-dump";
+import type { FullExportRecord } from "../export/export-full-record";
 import type { ExportRecord } from "../export/export-scope-select";
 import * as planModule from "../export/import-restore-plan";
+import type { ImportRestorePlan } from "../export/import-restore-plan";
 
 import * as inputModule from "./import-restore-input";
 import {
@@ -505,6 +507,334 @@ describe("prepareImportRestorePlan", () => {
       expect(options).toEqual({
         currentVersion: EXPORT_SCHEMA_VERSION,
         allowMigrationFrom: [OLD],
+      });
+    });
+  });
+
+  // ─── T-1269 — plan / records 를 FullExportRecord 축으로 좁힌 증분 ────────────────────
+  // ts-jest 는 diagnostics 가 켜져 있어 아래 대입이 타입 오류가 되면 suite 자체가 fail 한다.
+  // 그래서 타입 pin test 들은 컴파일 계약과 런타임 값을 동시에 고정한다 (vacuous pin 방지 —
+  // 모든 pin 이 런타임 단언을 동반한다).
+
+  // dump 원문의 fields 기대값 — 순서까지 그대로 plan.toInsert 로 실려 나와야 한다.
+  const expectedFields: Record<string, unknown>[] = [
+    { id: "a1" },
+    { id: "p1", fullName: "홍길동" },
+    { id: "g1", name: "1팀" },
+    { id: "c1", provider: "openai" },
+    { id: "l1", principal: "system" },
+  ];
+
+  // records 만 갈아끼운 dump — entityCounts 는 **실제 record 의 entity 분포** 를 세어 싣고 합계 ==
+  // recordCount 정합을 유지해 구조 검증을 통과시킨 뒤 hydrate 단계의 fields 분기만 재현한다.
+  // key 존재 판정은 `in` 이 아니라 hasOwnProperty 로 한다 (prototype chain key 오탐 차단 —
+  // T-1268 reviewer NIT-5 권고 반영).
+  const dumpWithRecords = (records: unknown[]) => {
+    const entityCounts: Record<ExportRecord["entity"], number> = {
+      Assessment: 0,
+      Person: 0,
+      Group: 0,
+      LlmConfig: 0,
+      AuditLog: 0,
+    };
+    records.forEach((record) => {
+      const entity = (record as { entity?: unknown } | null)?.entity;
+      const key =
+        typeof entity === "string" &&
+        Object.prototype.hasOwnProperty.call(entityCounts, entity)
+          ? (entity as ExportRecord["entity"])
+          : "AuditLog";
+      entityCounts[key] += 1;
+    });
+
+    return {
+      ...sampleDump,
+      entityCounts,
+      recordCount: records.length,
+      records,
+    };
+  };
+
+  describe("타입 pin (컴파일 타임 계약)", () => {
+    it("성공 갈래의 plan / records 는 assertion 없이 좁은 타입에 대입된다 (좁힘)", () => {
+      const result = expectSuccess(
+        prepareImportRestorePlan(toBuffer(sampleDump), [], ImportMode.REPLACE),
+      );
+
+      // 좁힘 방향 — 다음 slice 의 `$transaction` 이 `createMany({ data })` 로 쓸 row payload 를
+      // 타입 상으로 볼 수 있어야 한다.
+      const narrowedPlan: ImportRestorePlan<FullExportRecord> = result.plan;
+      const narrowedRecords: FullExportRecord[] = result.records;
+
+      expect(narrowedPlan.toInsert).toHaveLength(5);
+      // 캐스팅 없이 fields 를 읽는다 — 타입이 다시 넓어지면 이 문장이 컴파일 오류가 된다.
+      expect(narrowedPlan.toInsert[0].fields).toEqual({ id: "a1" });
+      expect(narrowedPlan.toInsert[1].fields.fullName).toBe("홍길동");
+      expect(narrowedRecords[3].fields.provider).toBe("openai");
+    });
+
+    it("같은 값이 기본 파라미터 ImportRestorePlan / ExportRecord[] 변수·인자 위치에도 대입된다 (넓힘)", () => {
+      const result = expectSuccess(
+        prepareImportRestorePlan(
+          toBuffer(sampleDump),
+          existingPair(),
+          ImportMode.MERGE,
+        ),
+      );
+
+      // 변수 위치 — 좁힌 타입이 기본 파라미터 타입에 그대로 들어간다 (covariance). 기존 소비처
+      // (import-restore-plan-summary / import-merge-conflict / import-restore-ops) 가 한 줄도
+      // 고쳐지지 않아야 함을 spec 이 먼저 잡는다.
+      const widenedPlan: ImportRestorePlan = result.plan;
+      const widenedRecords: ExportRecord[] = result.records;
+      // 인자 위치 — 하류 소비처와 동형 파라미터 배선.
+      const sizeOf = (plan: ImportRestorePlan): number =>
+        plan.toDelete.length + plan.toInsert.length + plan.toKeep.length;
+      const entitiesOf = (records: ReadonlyArray<ExportRecord>): string[] =>
+        records.map((record) => record.entity);
+
+      expect(sizeOf(result.plan)).toBe(sizeOf(widenedPlan));
+      expect(sizeOf(widenedPlan)).toBe(7);
+      expect(entitiesOf(result.records)).toEqual(entitiesOf(widenedRecords));
+      expect(entitiesOf(widenedRecords)).toEqual([
+        "Assessment",
+        "Person",
+        "Group",
+        "LlmConfig",
+        "AuditLog",
+      ]);
+    });
+
+    it("실패 갈래에는 plan / records 가 타입 상으로도 존재하지 않는다", () => {
+      const failure = expectFailure(
+        prepareImportRestorePlan(
+          Buffer.from("{oops", "utf-8"),
+          [],
+          ImportMode.REPLACE,
+        ),
+      );
+
+      // @ts-expect-error 실패 verdict 는 plan 을 갖지 않는다 (부분 결과 미반환 계약의 타입 pin).
+      const absentPlan: unknown = failure.plan;
+      // @ts-expect-error 실패 verdict 는 records 도 갖지 않는다.
+      const absentRecords: unknown = failure.records;
+
+      expect(absentPlan).toBeUndefined();
+      expect(absentRecords).toBeUndefined();
+      expect(failure).not.toHaveProperty("plan");
+      expect(failure).not.toHaveProperty("records");
+    });
+  });
+
+  describe("fields payload 끝까지 전달 (happy path 증분)", () => {
+    it("REPLACE 는 dump 원문 fields 를 순서 보존해 plan.toInsert 까지 실어 보낸다", () => {
+      const result = expectSuccess(
+        prepareImportRestorePlan(
+          toBuffer(sampleDump),
+          existingPair(),
+          ImportMode.REPLACE,
+        ),
+      );
+
+      expect(result.plan.toInsert.map((record) => record.fields)).toEqual(
+        expectedFields,
+      );
+      expect(result.records.map((record) => record.fields)).toEqual(
+        expectedFields,
+      );
+      // toDelete / toKeep 은 기존 row 축이라 fields 를 갖지 않는다 (T-1266 결정 유지).
+      expect(result.plan.toDelete).toEqual(existingPair());
+      expect(result.plan.toKeep).toEqual([]);
+    });
+
+    it("MERGE 도 fields 를 보존하며 분류만 달라진다", () => {
+      const result = expectSuccess(
+        prepareImportRestorePlan(
+          toBuffer(sampleDump),
+          existingPair(),
+          ImportMode.MERGE,
+        ),
+      );
+
+      expect(result.plan.toInsert.map((record) => record.fields)).toEqual(
+        expectedFields,
+      );
+      expect(result.plan.toDelete).toEqual([conflicting]);
+      expect(result.plan.toKeep).toEqual([untouched]);
+    });
+
+    // 빈 records (0 개) 경계 자체는 위 "성공 분기" it.each 가 이미 cover 하므로 여기서는 그
+    // 경계에서도 좁은 타입이 유지되는지만 덧붙인다.
+    it("빈 records 경계에서도 toInsert 가 FullExportRecord[] 로 유지된다", () => {
+      const result = expectSuccess(
+        prepareImportRestorePlan(toBuffer(emptyDump), [], ImportMode.REPLACE),
+      );
+      const narrowed: FullExportRecord[] = result.plan.toInsert;
+
+      expect(narrowed).toEqual([]);
+      expect(result.records).toEqual([]);
+    });
+
+    it("두 번 호출하면 값은 같지만 records 배열은 서로 다른 instance 다", () => {
+      const buffer = toBuffer(sampleDump);
+      const first = expectSuccess(
+        prepareImportRestorePlan(buffer, [], ImportMode.REPLACE),
+      );
+      const second = expectSuccess(
+        prepareImportRestorePlan(buffer, [], ImportMode.REPLACE),
+      );
+
+      expect(second.records).toEqual(first.records);
+      expect(second.records).not.toBe(first.records);
+      expect(second.records[0].fields).not.toBe(first.records[0].fields);
+    });
+  });
+
+  describe("stage · issues 문구 회귀 pinning (error path)", () => {
+    it("mode 실패 issues 는 helper 자신의 한국어 문구 그대로다", () => {
+      const failure = expectFailure(
+        prepareImportRestorePlan(
+          toBuffer(sampleDump),
+          [],
+          "replace" as unknown as ImportMode,
+        ),
+      );
+
+      expect(failure.issues).toEqual([
+        "prepareImportRestorePlan: mode 는 REPLACE 또는 MERGE 여야 합니다 (받음: replace)",
+      ]);
+    });
+
+    it.each([
+      ["손상 JSON buffer", Buffer.from('{"records": ['), "deserialize"],
+      ["array top-level", Buffer.from("[]", "utf-8"), "structure"],
+      ["호환 불가 schemaVersion", toBuffer(legacyDump), "version"],
+      ["instant 위반 record", toBuffer(badInstantDump), "records"],
+    ])(
+      "%s 는 상류 verdict 의 stage 와 issues 배열을 재가공 0 으로 전달한다",
+      (_label, buffer, stage) => {
+        const upstream = inputModule.prepareImportRestoreInput(
+          buffer as Buffer,
+        );
+        if (upstream.ok) {
+          throw new Error("상류가 실패 verdict 를 낼 입력이어야 합니다");
+        }
+
+        const failure = expectFailure(
+          prepareImportRestorePlan(
+            buffer as Buffer,
+            existingPair(),
+            ImportMode.REPLACE,
+          ),
+        );
+
+        expect(failure.stage).toBe(stage);
+        expect(failure.stage).toBe(upstream.stage);
+        expect(failure.issues).toEqual(upstream.issues);
+        expect(failure.issues.every((issue) => typeof issue === "string")).toBe(
+          true,
+        );
+      },
+    );
+
+    it("plan throw 흡수 issues 는 buildImportRestorePlan 의 message 와 동일하다", () => {
+      let expected = "";
+      try {
+        planModule.buildImportRestorePlan(
+          "not-an-array" as unknown as ExportRecord[],
+          [],
+          "replace",
+        );
+      } catch (error) {
+        expected = (error as Error).message;
+      }
+
+      const failure = expectFailure(
+        prepareImportRestorePlan(
+          toBuffer(sampleDump),
+          "not-an-array" as unknown as ExportRecord[],
+          ImportMode.REPLACE,
+        ),
+      );
+
+      expect(expected).toContain("배열이어야 합니다");
+      expect(failure.stage).toBe("plan");
+      expect(failure.issues).toEqual([expected]);
+    });
+  });
+
+  describe("fields 규칙 negative · 값 비노출 (REQ-032)", () => {
+    // 실 배선에서는 쓰이지 않지만 값 노출 여부를 검사하기 위한 secret 유사 문자열.
+    const SECRET = "sk-live-이-값은-issue-에-절대-실리면-안-된다";
+
+    it("fields 가 없는 legacy dump record 는 stage: records 로 거부되고 부분 결과가 없다", () => {
+      const failure = expectFailure(
+        prepareImportRestorePlan(
+          toBuffer(
+            dumpWithRecords([
+              { entity: "Person", instant: "2026-02-02T01:02:03.000Z" },
+            ]),
+          ),
+          existingPair(),
+          ImportMode.REPLACE,
+        ),
+      );
+
+      expect(failure.stage).toBe("records");
+      expect(failure.issues).toEqual([
+        "records[0].fields 는 컬럼명→값 map 인 object 여야 합니다 (받음: undefined)",
+      ]);
+      expect(failure).not.toHaveProperty("plan");
+      expect(failure).not.toHaveProperty("records");
+    });
+
+    it("allow-list 밖 key (apiKey) 가 섞이면 stage: records 로 거부하고 값은 싣지 않는다", () => {
+      const failure = expectFailure(
+        prepareImportRestorePlan(
+          toBuffer(
+            dumpWithRecords([
+              {
+                entity: "LlmConfig",
+                instant: "2026-04-04T07:08:09.000Z",
+                fields: { id: "c1", apiKey: SECRET },
+              },
+            ]),
+          ),
+          [],
+          ImportMode.MERGE,
+        ),
+      );
+
+      expect(failure.stage).toBe("records");
+      expect(failure.issues).toEqual([
+        "records[0].fields 에 LlmConfig allow-list 밖 key 가 있습니다 (받음: apiKey) — " +
+          "secret / 미정의 컬럼은 복원할 수 없습니다",
+      ]);
+      // key 이름만 알리고 값은 절대 노출하지 않는다.
+      expect(failure.issues[0]).not.toContain(SECRET);
+    });
+
+    it("실패 issues 에 fields 안 값이나 stack 이 실리지 않는다", () => {
+      const failure = expectFailure(
+        prepareImportRestorePlan(
+          toBuffer(
+            dumpWithRecords([
+              {
+                entity: "Person",
+                instant: "not-a-date",
+                fields: { id: SECRET, fullName: SECRET },
+              },
+            ]),
+          ),
+          [],
+          ImportMode.REPLACE,
+        ),
+      );
+
+      expect(failure.stage).toBe("records");
+      failure.issues.forEach((issue) => {
+        expect(issue).not.toContain(SECRET);
+        expect(issue).not.toMatch(/\n\s+at .+:\d+:\d+/);
       });
     });
   });
