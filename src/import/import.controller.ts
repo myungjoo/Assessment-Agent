@@ -7,7 +7,7 @@
 // 채워진다.
 //
 // endpoint surface:
-//   - POST /api/admin/import          → createJob (생성된 job status=PENDING 반환).
+//   - POST /api/admin/import          → createJob 후 interim guard 로 FAILED 반환.
 //     **multipart 파일 수신 배선 완료 (ADR-0055 §Decision 1, T-1252) + 크기 상한 강제
 //     (ADR-0055 §Decision 3, T-1253)** — `mode` form field + dump artifact 파일 1 개
 //     (`file`) 를 `FileInterceptor("file", { limits: { fileSize: MAX_IMPORT_FILE_SIZE_BYTES } })`
@@ -15,10 +15,13 @@
 //     크기 상한 초과 시 multer 가 `MulterError(LIMIT_FILE_SIZE)` 를 던지고
 //     `MulterExceptionFilter` 가 이를 413 Payload Too Large 로 매핑한다 (상한 없는
 //     memoryStorage 의 DoS 표면 차단 — ADR-0055 §Decision 2/3). 파일 누락 시
-//     BadRequestException(400). 단 **interim** — 받은 buffer 는 아직 복원 엔진에 넘기지
-//     않고 (§Follow-up b slice) 수신·크기만 검증하며, controller 는 여전히 mode + actor
-//     결합으로 job record (status=PENDING) 만 생성한다 (ADR-0055 §Consequences 의 chain
-//     완주 전 interim false-success 상태 그대로 — buffer 미소비 유지).
+//     BadRequestException(400). **interim false-success guard (ADR-0055 §Follow-up d,
+//     T-1254)** — 받은 buffer 는 아직 복원 엔진에 넘기지 않으나 (§Follow-up b slice 미배선),
+//     controller 는 mode + actor 결합으로 job 을 생성한 뒤 **곧바로 markFailed 로 FAILED
+//     전이해 반환**한다. 미배선 PENDING job 은 처리 runner 가 없어 영원히 PENDING 이 되어
+//     UI 가 이를 성공/진행 중으로 오표기하는 false-success 표면이 되므로, 명시 FAILED +
+//     사람-친화 사유로 그 표면을 닫는다 (ADR-0055 §Consequences 부정 close — buffer 미소비
+//     유지). 본 guard 는 reversible — (b) 착수 시 실 복원 pipeline 으로 교체된다.
 //   - GET  /api/admin/import/running  → findRunning (RUNNING 목록, UC-07 §8 status polling).
 //   - GET  /api/admin/import/modes    → describeModes (import mode 선택 dialog 의 사람-친화
 //     설명 목록, UC-07 §5 step 2 + §6.2 — describeImportMode helper 를 REPLACE/MERGE 두
@@ -100,6 +103,17 @@ import type { UploadedDumpFile } from "./uploaded-dump-file";
 // 상수로 둔다(배포 환경별 조정 필요 시 별도 follow-up 로 env parsing helper + spec 박제).
 export const MAX_IMPORT_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
+// INTERIM_RESTORE_UNWIRED_MESSAGE — 복원 엔진 미배선 동안 import job 을 명시적으로
+// FAILED 로 전이시킬 때 기록하는 사람-친화 한국어 사유 상수 (ADR-0055 §Consequences 부정
+// "chain 완주 전 import UI false-success 상태" 의 직접 close). multipart 수신(§Follow-up
+// a, T-1252) + 크기 상한(§Follow-up c, T-1253) 은 배선됐으나 dump 파싱→실 복원 엔진
+// (§Follow-up b) 이 아직 미배선이라, 생성된 PENDING job 을 처리할 runner 가 없어 영원히
+// PENDING 으로 방치되면 UI 가 이를 "접수/진행 중" 으로 낙관 해석하는 false-success 표면이
+// 된다. 본 상수 message 로 곧바로 FAILED 전이해 그 표면을 원천 차단한다. raw stack/외부
+// 본문을 포함하지 않는 short message 만 (REQ-032 raw 미저장 정합).
+export const INTERIM_RESTORE_UNWIRED_MESSAGE =
+  "복원 엔진 미배선 — dump 파일은 수신됐으나 실제 복원이 아직 구현되지 않았습니다 (ADR-0055 §Follow-up b 대기).";
+
 // Prisma ImportMode enum(uppercase REPLACE/MERGE) ↔ describeImportMode helper 가
 // 요구하는 lowercase ImportRestoreMode("replace"/"merge") 매핑. prisma/schema.prisma
 // 의 enum ImportMode 가 source 이고, helper 는 import-restore-plan.ts 의
@@ -139,15 +153,20 @@ export class ImportController {
   //
   // 파일 누락 분기 (ADR-0055 §Follow-up a): file 이 undefined 면 BadRequestException(400)
   // 으로 거부한다 (dump artifact 없이 import 진행 불가). 파일 수신 시에는 기존대로
-  // service.createJob({ mode, requestedById }) 로 진행하고 생성된 job (status=PENDING)
-  // 을 반환한다. mode 미지정 시 dto.mode 가 undefined 로 forward 되어 service 가 schema
-  // @default(REPLACE) 를 적용한다. mode invariant 위반은 service 가 BadRequestException
-  // raw forward — controller 는 파일 누락 외 추가 분기를 두지 않는다.
+  // service.createJob({ mode, requestedById }) 로 job 을 생성한다. mode 미지정 시 dto.mode
+  // 가 undefined 로 forward 되어 service 가 schema @default(REPLACE) 를 적용한다. mode
+  // invariant 위반·진행 중 race(409) 는 service 가 예외 raw forward — controller 는 파일
+  // 누락 외 추가 분기를 두지 않으며 그 예외를 아래 guard 로 삼키지 않는다.
   //
-  // **interim (ADR-0055 §Consequences 부정)**: 받은 file.buffer 는 아직 소비하지 않는다
-  // — 파싱→실 복원 엔진 배선은 §Follow-up (b) slice. 본 (c) slice 는 크기 상한 강제 +
-  // 초과 거부 매핑만 추가하며, buffer 는 여전히 미소비다 (파일을 *받는 입구* + 크기
-  // 게이트만 열고 createJob 시그니처는 보존).
+  // **interim false-success guard (ADR-0055 §Follow-up d, T-1254)**: createJob 이 만든
+  // job(status=PENDING)은 이를 처리할 복원 runner 가 §Follow-up (b) 미배선이라 영원히
+  // PENDING 으로 방치되어 UI 가 성공/진행 중으로 오표기하는 false-success 표면이 된다.
+  // 그래서 생성 직후 service.markFailed(job.id, INTERIM_RESTORE_UNWIRED_MESSAGE) 로 FAILED
+  // 전이해 그 결과를 반환한다 — 반환 status 는 절대 PENDING/SUCCEEDED 가 아니라 FAILED +
+  // 명시 사유(ADR-0055 §Consequences 부정 close). 받은 file.buffer 는 여전히 소비하지
+  // 않는다 (파싱→실 복원 엔진 배선은 §Follow-up (b) slice). 본 guard 는 reversible — (b)
+  // 착수 시 이 markFailed 라인이 실 복원 pipeline(markRunning → buffer 파싱 → ADR-0044
+  // §3 $transaction → markSucceeded/markFailed)으로 교체된다.
   //
   // RBAC — Admin+ tier. @Roles("Admin") → Admin / SuperAdmin 통과 (RolesGuard
   // escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401. guard 는
@@ -172,10 +191,26 @@ export class ImportController {
       );
     }
 
-    return this.service.createJob({
+    // 파일 수신·크기 검증 통과 후 job record (status=PENDING) 를 생성한다. createJob 이
+    // ConflictException(진행 중 race) / BadRequestException(mode invariant) 등을 던지면
+    // 아래 markFailed 로 삼키지 않고 그대로 raw propagate 된다 (guard 는 정상 생성된 job
+    // 에만 적용).
+    const job = await this.service.createJob({
       mode: dto.mode,
       requestedById: actorSub,
     });
+
+    // interim false-success guard (ADR-0055 §Follow-up d) — 복원 엔진(§Follow-up b)이
+    // 아직 미배선이라 PENDING job 은 처리 runner 가 없어 영원히 PENDING 이며 UI 가 이를
+    // 성공/진행 중으로 오표기하는 false-success 표면이 된다. 생성 직후 명시 사유와 함께
+    // FAILED 로 전이해 반환함으로써 그 표면을 원천 차단한다 — 반환 ImportJob 의 status 는
+    // 절대 PENDING/SUCCEEDED 가 아니라 FAILED + 사람-친화 사유다.
+    //
+    // reversible — §Follow-up (b) 착수 시 본 markFailed 라인이 실 복원 pipeline
+    // (markRunning → buffer 파싱 → ADR-0044 §3 atomic $transaction → markSucceeded/
+    // markFailed) 으로 **교체**된다. 본 slice 는 buffer(file.buffer) 를 절대 소비하지
+    // 않는다 (파싱·복원 배선은 (b) — buffer 미소비 유지, REQ-032).
+    return this.service.markFailed(job.id, INTERIM_RESTORE_UNWIRED_MESSAGE);
   }
 
   // GET /api/admin/import/running — 진행 중 (status=RUNNING) import job 목록
