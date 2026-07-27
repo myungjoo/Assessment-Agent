@@ -130,17 +130,17 @@ describe("collectImportRestoreDeleteInstants — error path · negative cases", 
     ["records 가 객체", () => withRecords({ 0: 1 }), TypeError],
     ["records 원소가 null", () => callWithAny(step([null])), TypeError],
     ["records 원소가 원시값", () => callWithAny(step([7])), TypeError],
-    ["instant 이 undefined", () => withInstant(undefined), TypeError],
-    ["instant 이 null", () => withInstant(null), TypeError],
-    ["instant 이 문자열", () => withInstant("2026-01-01"), TypeError],
-    ["instant 이 number(millis)", () => withInstant(1767225600000), TypeError],
-    ["instant 이 Invalid Date", () => withInstant(new Date("x")), TypeError],
-    ["instant 이 Date-like 객체", () => withInstant(dateLike), TypeError],
+    ["instant 가 undefined", () => withInstant(undefined), TypeError],
+    ["instant 가 null", () => withInstant(null), TypeError],
+    ["instant 가 문자열", () => withInstant("2026-01-01"), TypeError],
+    ["instant 가 number(millis)", () => withInstant(1767225600000), TypeError],
+    ["instant 가 Invalid Date", () => withInstant(new Date("x")), TypeError],
+    ["instant 가 Date-like 객체", () => withInstant(dateLike), TypeError],
     ["entity 가 다른 유효 entity", () => withEntity("Group"), RangeError],
     ["entity 가 비-string", () => withEntity(7), RangeError],
     ["entity 가 null", () => withEntity(null), RangeError],
     ["entity 가 미지 literal", () => withEntity("Nope"), RangeError],
-  ])("%s 면 거부한다", (_label, call, expected) => {
+  ])("%s 인 경우 거부한다", (_label, call, expected) => {
     expect(call).toThrow(expected);
   });
 
