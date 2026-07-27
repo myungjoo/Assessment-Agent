@@ -627,7 +627,11 @@ describe("buildImportRestorePlan — 구분자 표기 위생 (T-1267, 회귀 pin
   const SOURCE_PATH = join(__dirname, "import-restore-plan.ts");
 
   it("소스에 raw 제어 문자가 0 개 — git binary 오탐 회귀 방지", () => {
-    const source = readFileSync(SOURCE_PATH, "utf8");
+    // checkout 이 CRLF 여도 false-fail 하지 않도록 CRLF 줄바꿈만 먼저 정규화한다.
+    // (`.gitattributes` 의 `*.ts text eol=lf` 에 test 가 의존하지 않게 하려는 것 — 정규화
+    // 후에도 홀로 남은 CR(U+000D) 은 offender 로 잡히므로 raw 제어 바이트 0 개 보증은
+    // 그대로다.)
+    const source = readFileSync(SOURCE_PATH, "utf8").replace(/\r\n/g, "\n");
     const offenders: Array<{ index: number; code: number }> = [];
     for (let index = 0; index < source.length; index += 1) {
       const code = source.charCodeAt(index);
