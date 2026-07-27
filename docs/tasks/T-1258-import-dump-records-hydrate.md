@@ -2,8 +2,12 @@
 id: T-1258
 title: Import dump records 역직렬화 helper (ISO instant → Date, ExportRecord[] 복원)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1149
+mergedAs: 5bfdc90f
+reviewRounds: 2
+completedAt: 2026-07-27T09:29:00Z
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 250
 estimatedFiles: 2
