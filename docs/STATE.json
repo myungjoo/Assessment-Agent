@@ -50,7 +50,7 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastRun": "2026-07-27T15:21:00Z",
-    "note": "driver fire(cron@aa-local-15-19923530, 매시 15분 로컬 스케줄 트리거). T-1264 PR #1155: reviewer round 1 APPROVE(MINOR 1 / NIT 3) → 같은 PR round 2 에서 nit closure(1443e6e0 — MINOR-1 배열-shape error 메시지의 payload 노출을 typeof 로 전환 + 되돌림 감지 negative test 2 건, NIT-1 헤더 주석 shallow copy 명시; export 심볼·타입 변경 0) → round 2 재 APPROVE(신규 finding 0). 4-게이트(reviewer APPROVE + PR comment 외부 존재 2건 + integrator 자체 점검 + CI green run 30278409004) 모두 통과해 squash merge(8b51b620) + feature branch 삭제. ADR-0036 §D8(c): head 가 origin/main 199239b5 포함 + mergeStateStatus=CLEAN 이라 update-branch 불요. R-114: 머지 커밋 8b51b620 과 본 bookkeeping 커밋의 main CI 는 push 후 확인."
+    "note": "driver fire(cron@aa-local-15-19923530, 매시 15분 로컬 스케줄 트리거). T-1264 PR #1155: reviewer round 1 APPROVE(MINOR 1 / NIT 3) → 같은 PR round 2 에서 nit closure(1443e6e0 — MINOR-1 배열-shape error 메시지의 payload 노출을 typeof 로 전환 + 되돌림 감지 negative test 2 건, NIT-1 헤더 주석 shallow copy 명시; export 심볼·타입 변경 0) → round 2 재 APPROVE(신규 finding 0). 4-게이트(reviewer APPROVE + PR comment 외부 존재 2건 + integrator 자체 점검 + CI green run 30278409004) 모두 통과해 squash merge(8b51b620) + feature branch 삭제. ADR-0036 §D8(c): head 가 origin/main 199239b5 포함 + mergeStateStatus=CLEAN 이라 update-branch 불요. R-114 종료 전 검증 완료: 본 fire 의 main 커밋 2건을 fire 안에서 gh run watch 로 끝까지 확인 — 머지 커밋 8b51b620(run 30278926241) conclusion=success, bookkeeping 커밋 ee1c99e1(run 30279763061) conclusion=success. 다음 fire 로 이월되는 CI 미확인 건은 본 정정 커밋 자신뿐."
   },
   "reviewRounds": {
     "T-1259": 2,
