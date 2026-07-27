@@ -2,7 +2,7 @@
 id: T-1253
 title: Import 업로드 크기 제한 + MulterError→4xx 예외 필터 (ADR-0055 §Follow-up c)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 180
@@ -72,3 +72,10 @@ plannerNote: "P5 import chain — ADR-0055 §Follow-up (c) slice: FileIntercepto
 
 - **env override 이월**: `MAX_IMPORT_FILE_SIZE_BYTES` 를 배포 환경별로 조정하려면 env parsing helper (분기 있음 → 별도 함수 + spec, CLAUDE.md §3.2 entrypoint 예외) 가 필요 — 실 필요 실측 시 별도 task 로 박제.
 - **§Follow-up (b) 상류 note**: 복원 엔진 slice 는 본 task 가 확정한 상한 이하 buffer 만 받는다는 전제로 파싱 로직을 설계할 것 (상한 초과는 필터가 이미 413 으로 차단).
+
+## Result
+
+- **DONE** 2026-07-27T05:38:36Z — PR [#1144](https://github.com/myungjoo/Assessment-Agent/pull/1144) squash merge `d0e30938`.
+- `FileInterceptor("file")` 에 `limits.fileSize=MAX_IMPORT_FILE_SIZE_BYTES`(50MiB 상수) + `@UseFilters(MulterExceptionFilter)`. 필터는 zero-dep duck typing 으로 `LIMIT_FILE_SIZE`→413 / 기타 MulterError→400 / HttpException passthrough / unknown→500 매핑.
+- reviewer round1 APPROVE (0 BLOCKER / 0 MAJOR / 3 MINOR·NIT 전부 justified). NIT(PR body 죽은 링크)은 body metadata edit 로 closure. 대상 2파일 coverage 100%, CI green (4-게이트 PASS).
+- Follow-up: env override(§Follow-ups), buffer 파싱 실복원 엔진(ADR-0055 §Follow-up b), interim false-success guard(§Follow-up d) 각 별도 task 이월.
