@@ -2,7 +2,9 @@
 id: T-1266
 title: 복원 plan 의 insert record 타입 일반화
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1157
+completedAt: 2026-07-27T16:44:00Z
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 300
@@ -77,4 +79,7 @@ T-1265 로 `hydrateImportDumpRecords` 가 `FullExportRecord[]` (= `ExportRecord`
 - (T-1264 reviewer NIT-2 + T-1265 reviewer NIT-1 이월) `describeReceived` 가 `import-restore-steps.ts` · `import-restore-ops.ts` · `export-job-status-view.ts` 에, 동형 `describeFieldsKind` 가 `import-dump-records-hydrate.ts` 에 — 같은 "받은 값 종류 표기" 로직 4 사본. 공용 module 추출 refactor slice 후보 (T-1263 의 `EXPORT_ENTITY_SOURCES` 승격과 동형 패턴).
 - (T-1264 reviewer NIT-3 이월) `ImportRestoreStepMethod` 의 `"deleteMany" | "createMany"` 가 실 Prisma delegate 메서드 이름과 컴파일 차원으로 묶여있지 않음 — `$transaction` 실행 slice 의 Acceptance Criteria 로 회수.
 - (T-1265 reviewer round 1 MINOR-3 이월) controller 배선 slice **이전에** legacy dump (`fields` 부재) 정책을 결정한다 — 현재 `fields` 가 필수라 구버전 dump 복원이 전량 `stage: "records"` 로 거부된다.
-- (T-1261 reviewer round 2 MINOR-1 이월) `docs/architecture/estimate-model.md` sub-multiplier 박제에 chain 실측치 합산 — T-1261 총 595, T-1262 총 628, T-1265 총 805. nit-closure 분량도 추정에 포함해야 한다는 항목 추가.
+- (T-1261 reviewer round 2 MINOR-1 이월) `docs/architecture/estimate-model.md` sub-multiplier 박제에 chain 실측치 합산 — T-1261 총 595, T-1262 총 628, T-1265 총 805, T-1266 총 342. nit-closure 분량도 추정에 포함해야 한다는 항목 추가.
+- (T-1266 integrator 관측 → T-1267 로 큐잉됨) `src/export/import-restore-plan.ts` 가 `conflictKey` 구분자로 raw NUL 바이트를 소스에 직접 품어 git 이 파일을 binary 로 취급 — GitHub UI 에서 production diff 가 표시되지 않아 reviewer 가 코드 변경을 눈으로 못 본다 (§3.3 게이트 품질 직결). origin/main 기준선의 선행 조건이며 본 slice 유래 아님.
+- (T-1266 planner 관측) tracked 파일 중 raw NUL 보유가 총 10 개 (assessment-evaluation 6 + test 2 + 본 chain 2). T-1267 은 chain 파일만 정리하며, 나머지 일괄 정리 + 제어 바이트 금지 CI 가드는 별도 slice.
+- (T-1266 reviewer round 1 NIT-2 이월) `import-restore-plan.spec.ts` 의 `full()` fixture 가 `buildFullExportRecord` allow-list 를 우회해 임의 key 를 넣는다 — 상류 allow-list 계약이 바뀌어도 본 spec 은 detect 0. 본 layer 책임이 아니라 수용했으나 인지 항목으로 박제.
