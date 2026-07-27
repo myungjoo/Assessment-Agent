@@ -49,8 +49,8 @@
   "ci": {
     "status": "green",
     "consecutiveFails": 0,
-    "lastRun": "2026-07-27T10:40:00Z",
-    "note": "driver fire(cron@aa-local-15-3272de38, 매시 15분 로컬 트리거). T-1260 PR #1151 CI green(run 30257808397, headSha a1487efb — 기본 검사 전 step success + reviewer agent approval 검증 success + 배포 산출물 검증 success) 확인. integrator 가 squash 직전 head BEHIND 를 감지해 update-branch 후 새 head f84984b8 의 CI(run 30258239124) 재확인 뒤 머지(7e541f29). 머지 커밋 7e541f29 와 본 bookkeeping 커밋의 main CI 는 본 fire 안에서 conclusion 확인 예정."
+    "lastRun": "2026-07-27T10:55:00Z",
+    "note": "driver fire(cron@aa-local-15-3272de38, 매시 15분 로컬 트리거). T-1260 PR #1151 CI green(run 30257808397, headSha a1487efb) 확인 후 integrator 가 head BEHIND 감지 → update-branch → 새 head f84984b8 CI(run 30258239124) 재확인 뒤 squash merge(7e541f29). 머지 커밋 7e541f29(run 30258535184) 와 bookkeeping 커밋 13899502(run 30258935293) 의 main CI 를 본 fire 안에서 끝까지 확인, 둘 다 conclusion=success. 13899502 의 초회 `배포 산출물 검증` fail 은 Docker Hub registry timeout(registry-1.docker.io context deadline exceeded) 인프라 flake 로 `기본 검사` 는 초회부터 success 였고 rerun --failed 로 자연 해소(docs-only 커밋이라 코드 결함 0). 다음 fire 로 이월되는 CI 미확인 건 없음(R-114 종료 전 검증 충족)."
   },
   "reviewRounds": {
     "T-1259": 2,
