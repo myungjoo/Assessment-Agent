@@ -2,8 +2,10 @@
 id: T-1273
 title: 복원 step → Prisma 호출 인자 조립 (실행 slice 3a/3)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T23:05:29Z
 commitMode: pr
+prNumber: 1164
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 245
 estimatedFiles: 2
