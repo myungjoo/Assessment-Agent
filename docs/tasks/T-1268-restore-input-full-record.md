@@ -2,7 +2,9 @@
 id: T-1268
 title: 복원 입력 verdict 의 records 타입을 FullExportRecord[] 로 좁힘
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T18:28:00Z
+prNumber: 1159
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 350
@@ -64,4 +66,12 @@ plannerNote: "cap-bend pre-justified: R-112 backbone x 1.5 = 350 LOC, 선례 T-1
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **NIT-5 (reviewer round 2, 비차단)** — `src/import/import-restore-input.spec.ts` 의 fixture helper 가 `entity in entityCounts` 로 key 존재를 판정한다. `in` 은 프로토타입 체인까지 보므로, 향후 `entity: "toString"` 같은 negative fixture 를 넣으면 카운트가 `NaN` 이 되어 의도한 records stage 대신 structure stage 로 떨어질 수 있다. `Object.prototype.hasOwnProperty.call(entityCounts, entity)` 로 교체 권고 (1 줄). 현 3 개 call site 는 `"Person"` / `"LlmConfig"` 만 넘겨 실 결함 0 이라 merge 를 막지 않았다.
+- **NIT-4 (reviewer round 1, 본 task Out of Scope)** — `src/import/import-restore-plan-prepare.ts` 상단 주석의 "buffer → `ExportRecord[]` + version 판정" 표기가 본 변경으로 stale. 하류 전파 slice(T-1269)에서 함께 동기한다.
+- **NIT-1 (reviewer round 1, 조치 불요)** — 빈 `records` 경계 · buffer 비변형 · idempotent 신규 test 3 건이 기존 test 와 중복도가 높다. 동작상 문제 0.
+
+## 결과 요약 (2026-07-27)
+
+- PR [#1159](https://github.com/myungjoo/Assessment-Agent/pull/1159) squash merge (`34ea18bd`). reviewer round 1 APPROVE (BLOCKER 0 / MAJOR 0 / MINOR 1 / NIT 4) → §3 nit-in-PR closure 로 round 2 commit `6313b8ec` (spec only, +40/-17) 에서 MINOR-1(비-Buffer 문구 회귀 pinning) · NIT-2(stack 단언 정규식화) · NIT-3(fixture entityCounts 정합) 3 건을 같은 PR 안에서 닫음 → round 2 재검토 APPROVE.
+- 실측 +311/-9, 2 파일. production 증분은 타입 표기 + type-only import + 주석뿐이며 실행 문장 변경 0, 하류 파일 0 수정 (배열 covariance + generic 추론 흡수).
+- 4-게이트 (reviewer APPROVE 2 회 + PR comment 외부 2 건 + integrator 자체 점검 6 항목 + CI run 30293528095 green) 모두 통과.
