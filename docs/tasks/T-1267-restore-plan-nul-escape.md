@@ -2,8 +2,12 @@
 id: T-1267
 title: 복원 plan 의 conflictKey 구분자 NUL 이스케이프 표기 전환
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-07-27T17:35:00Z
+mergedAs: dcc374fd
+prNumber: 1158
+reviewRounds: 2
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 80
 estimatedFiles: 2
@@ -33,17 +37,17 @@ plannerNote: "review 위생 slice — conflictKey 의 raw NUL 1 바이트가 파
 
 ## Acceptance Criteria
 
-- [ ] `conflictKey` 의 구분자를 **소스상 `\u0000` 이스케이프 표기** 로 바꾼다. 산출 문자열은 이전과 **바이트 단위로 동일** 해야 하며 (`entity` + U+0000 + instant millis), 다른 문자 (예: `|`, `:`) 로 바꾸지 않는다 — 본 slice 는 표기 전환일 뿐 key 설계 변경이 아니다. 왜 이스케이프 표기를 쓰는지 (git binary 오탐 방지 / review diff 가시성) 를 주석 1~2 줄로 남긴다.
-- [ ] 변경 후 `src/export/import-restore-plan.ts` 에 **raw 제어 바이트가 0 개** 임을 확인한다 — `git diff` 가 이 파일을 텍스트로 표시하고 (`Bin` 표기 소멸) 라인 단위 diff 가 나와야 한다.
-- [ ] **런타임 동작 0 변경** — replace/merge 분기, 충돌 판정 결과, 입력 순서 보존, 새 배열 반환, non-mutating 계약, throw 계약 (비-배열 `existing`/`incoming` → TypeError, 원소 `instant` 가 비-Date/Invalid Date → index 를 담은 TypeError, mode 가 replace/merge 밖 → RangeError) 과 한국어 메시지 문구가 모두 그대로다. `conflictKey` 외 실행 문장 변경 0.
-- [ ] T-1266 이 도입한 `ImportRestorePlan<TInsert>` 타입 파라미터·기본값은 건드리지 않는다. 다른 소비처 파일은 **한 파일도 수정하지 않는다** (`pnpm build` 가 다른 파일 변경 없이 통과).
-- [ ] **happy-path unit test 1+** — (a) `entity` + `instant` 가 같은 replace/merge 입력에서 충돌 판정이 이전과 동일함을 단언, (b) merge 에서 비충돌 원소가 그대로 `toInsert` 에 순서 보존되어 실림을 단언.
-- [ ] **회귀 test (소스 위생 pinning) 1+** — spec 이 `import-restore-plan.ts` 소스를 읽어 **U+0000 을 포함한 raw 제어 문자가 존재하지 않음** 을 단언한다 (다시 raw 바이트가 들어오면 test 가 fail 하도록). 동시에 `conflictKey` 산출 문자열에는 U+0000 이 **실제로 들어있음** 을 (동작 보존) 별도 test 로 단언해, 위생 test 가 동작을 바꾸는 방향으로 오독되지 않게 한다.
-- [ ] **error path unit test 1+** — 비-배열 `existing` / 비-배열 `incoming` / `incoming` 원소의 `instant` 가 Invalid Date / 비-Date 각각이 기존과 **동일한 error 종류와 동일한 한국어 메시지** 로 throw 됨을 단언 (메시지 문자열 회귀 pinning).
-- [ ] **분기 cover** — replace / merge 2 분기, merge 의 충돌/비충돌 2 분기, mode 무효 분기, `existing` / `incoming` 각각의 배열 판정 분기 각 1+ test.
-- [ ] **negative cases 충분 cover** — 예외 · 경계 분기마다 1+: (a) 구분자 모호성 — naive 문자열 이어붙이기라면 충돌로 오판할 `entity`/`instant` 조합 (예: entity 문자열 끝이 숫자와 이어붙는 경우) 이 **충돌로 판정되지 않음**, (b) 같은 `entity` + 같은 millis 지만 서로 다른 Date instance 는 여전히 충돌, (c) millis 가 다르면 (1 ms 차이 경계) 비충돌, (d) 빈 `incoming` / 빈 `existing` 경계, (e) freeze 된 배열·원소로 호출해도 throw 0 · 결과 동일 · 입력 불변, (f) mode 가 `null` / `"REPLACE"` (대소문자 mismatch) / 숫자 / 객체일 때 RangeError 와 메시지, (g) 같은 입력 2 회 호출 시 동일 결과 (idempotent), (h) error 메시지에 record payload 값이 실리지 않음.
-- [ ] `pnpm lint && pnpm build && pnpm test` 통과, `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%). 변경 파일은 statement/branch/function/line 100% 목표 (동일 chain 선례 T-1255~T-1266 동형).
-- [ ] `scripts/check-spec-presence.sh` 통과, `prettier --check` 통과.
+- [x] `conflictKey` 의 구분자를 **소스상 `\u0000` 이스케이프 표기** 로 바꾼다. 산출 문자열은 이전과 **바이트 단위로 동일** 해야 하며 (`entity` + U+0000 + instant millis), 다른 문자 (예: `|`, `:`) 로 바꾸지 않는다 — 본 slice 는 표기 전환일 뿐 key 설계 변경이 아니다. 왜 이스케이프 표기를 쓰는지 (git binary 오탐 방지 / review diff 가시성) 를 주석 1~2 줄로 남긴다.
+- [x] 변경 후 `src/export/import-restore-plan.ts` 에 **raw 제어 바이트가 0 개** 임을 확인한다 — `git diff` 가 이 파일을 텍스트로 표시하고 (`Bin` 표기 소멸) 라인 단위 diff 가 나와야 한다.
+- [x] **런타임 동작 0 변경** — replace/merge 분기, 충돌 판정 결과, 입력 순서 보존, 새 배열 반환, non-mutating 계약, throw 계약 (비-배열 `existing`/`incoming` → TypeError, 원소 `instant` 가 비-Date/Invalid Date → index 를 담은 TypeError, mode 가 replace/merge 밖 → RangeError) 과 한국어 메시지 문구가 모두 그대로다. `conflictKey` 외 실행 문장 변경 0.
+- [x] T-1266 이 도입한 `ImportRestorePlan<TInsert>` 타입 파라미터·기본값은 건드리지 않는다. 다른 소비처 파일은 **한 파일도 수정하지 않는다** (`pnpm build` 가 다른 파일 변경 없이 통과).
+- [x] **happy-path unit test 1+** — (a) `entity` + `instant` 가 같은 replace/merge 입력에서 충돌 판정이 이전과 동일함을 단언, (b) merge 에서 비충돌 원소가 그대로 `toInsert` 에 순서 보존되어 실림을 단언.
+- [x] **회귀 test (소스 위생 pinning) 1+** — spec 이 `import-restore-plan.ts` 소스를 읽어 **U+0000 을 포함한 raw 제어 문자가 존재하지 않음** 을 단언한다 (다시 raw 바이트가 들어오면 test 가 fail 하도록). 동시에 `conflictKey` 산출 문자열에는 U+0000 이 **실제로 들어있음** 을 (동작 보존) 별도 test 로 단언해, 위생 test 가 동작을 바꾸는 방향으로 오독되지 않게 한다.
+- [x] **error path unit test 1+** — 비-배열 `existing` / 비-배열 `incoming` / `incoming` 원소의 `instant` 가 Invalid Date / 비-Date 각각이 기존과 **동일한 error 종류와 동일한 한국어 메시지** 로 throw 됨을 단언 (메시지 문자열 회귀 pinning).
+- [x] **분기 cover** — replace / merge 2 분기, merge 의 충돌/비충돌 2 분기, mode 무효 분기, `existing` / `incoming` 각각의 배열 판정 분기 각 1+ test.
+- [x] **negative cases 충분 cover** — 예외 · 경계 분기마다 1+: (a) 구분자 모호성 — naive 문자열 이어붙이기라면 충돌로 오판할 `entity`/`instant` 조합 (예: entity 문자열 끝이 숫자와 이어붙는 경우) 이 **충돌로 판정되지 않음**, (b) 같은 `entity` + 같은 millis 지만 서로 다른 Date instance 는 여전히 충돌, (c) millis 가 다르면 (1 ms 차이 경계) 비충돌, (d) 빈 `incoming` / 빈 `existing` 경계, (e) freeze 된 배열·원소로 호출해도 throw 0 · 결과 동일 · 입력 불변, (f) mode 가 `null` / `"REPLACE"` (대소문자 mismatch) / 숫자 / 객체일 때 RangeError 와 메시지, (g) 같은 입력 2 회 호출 시 동일 결과 (idempotent), (h) error 메시지에 record payload 값이 실리지 않음.
+- [x] `pnpm lint && pnpm build && pnpm test` 통과, `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%). 변경 파일은 statement/branch/function/line 100% 목표 (동일 chain 선례 T-1255~T-1266 동형).
+- [x] `scripts/check-spec-presence.sh` 통과, `prettier --check` 통과.
 
 ## Out of Scope
 
@@ -65,3 +69,7 @@ plannerNote: "review 위생 slice — conflictKey 의 raw NUL 1 바이트가 파
 - (T-1265 reviewer round 1 MINOR-3 이월) controller 배선 slice 이전에 legacy dump (`fields` 부재) 정책 결정.
 - (T-1264 reviewer NIT-2 이월) `describeReceived` / `describeFieldsKind` 4 사본의 공용 module 추출.
 - (T-1261 reviewer round 2 MINOR-1 이월) `docs/architecture/estimate-model.md` 에 chain 실측치 합산 (T-1261 595, T-1262 628, T-1265 805) + nit-closure 분량 포함 항목.
+- (reviewer round 1 NIT-5 유래) 나머지 9 개 파일 정리 slice 를 설계할 때, `.gitattributes` 에 `*.ts diff` 를 넣는 대안을 함께 저울질한다 — `text` attribute 는 EOL 정규화만 제어하고 diff 판정은 `diff` attribute 소관이라, **소스를 건드리지 않고도** UI diff 가시성이 회복될 수 있다.
+- (reviewer round 1 MINOR-2 유래) 위생 pinning test 의 구분자 단언 일부가 production 을 호출하지 않는 tautology 다. `conflictKey` 가 module-private 이라 직접 단언이 불가한 사정은 인정되며, 관측 가능한 동작(비충돌 판정)으로 간접 증명하는 현 방향을 유지하되 향후 정리 시 재검토.
+- (reviewer round 2 NIT-6 유래) 위생 test 를 `readFileSync(SOURCE_PATH)` Buffer + `buffer.includes(0)` 방식으로 바꾸면 eol 무관하면서 더 정확하다. 현 방식은 CRLF 쌍으로 나타나는 raw CR 을 예외로 흘리는데, 실패 모드가 NUL 기반이라 실질 영향은 0 이므로 후속 정리 항목.
+- (본 fire 운영 관측) PR body / 코멘트에 raw NUL 을 그대로 넣으면 GitHub 이 caret notation(`^@`) 으로 sanitize 한다. 이 계열 slice 의 PR 본문에서는 반드시 `U+0000` 또는 `\u0000` 처럼 **코드포인트 표기**로 적는다.
