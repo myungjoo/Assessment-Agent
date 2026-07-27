@@ -401,6 +401,36 @@ describe("buildImportRestorePlan — 컴파일 타임 pinning (T-1266)", () => {
     // 런타임에도 기존 record 에는 fields 가 없다.
     expect(deletedFields).toBeUndefined();
   });
+
+  it("좁혀진 plan 을 타입 인자 없는 ImportRestorePlan 으로 넓혀 받을 수 있다 (넓힘 방향)", () => {
+    const existing: ExportRecord[] = [rec("Group", "2026-01-01T00:00:00Z")];
+    const fullIncoming: FullExportRecord[] = [
+      full("Person", "2026-02-01T00:00:00Z", { id: "p-1" }),
+      full("Group", "2026-02-02T00:00:00Z", { id: "g-1" }),
+    ];
+    // 추론은 ImportRestorePlan<FullExportRecord> 지만 기본 파라미터 타입 변수에 그대로 대입된다.
+    // 다음 slice 가 좁혀진 plan 을 기존 소비처(summarizeRestorePlan / import-restore-ops 등 —
+    // 전부 타입 인자 없는 ImportRestorePlan 을 받는다)로 넘기는 배선의 컴파일 근거이며, 이
+    // 대입이 깨지면(예: TInsert 가 invariant 위치로 이동) 본 spec 이 컴파일 단계에서 잡는다.
+    const widened: ImportRestorePlan = buildImportRestorePlan(
+      existing,
+      fullIncoming,
+      "replace",
+    );
+    expect(widened.toInsert).toHaveLength(2);
+    // 넓혀도 원소는 같은 참조 — 순서·내용 손실 0 (대입이 형태만 바꾸지 값은 건드리지 않는다).
+    expect(widened.toInsert.map((r) => r.entity)).toEqual(["Person", "Group"]);
+    expect(widened.toInsert[0]).toBe(fullIncoming[0]);
+    expect(widened.toDelete).toEqual(existing);
+
+    // 인자 위치에서도 동일 — 소비처가 ImportRestorePlan 을 받아도 좁혀진 plan 을 그대로 넘긴다.
+    const countInserts = (plan: ImportRestorePlan): number =>
+      plan.toInsert.length;
+    expect(countInserts(widened)).toBe(2);
+    expect(
+      countInserts(buildImportRestorePlan(existing, fullIncoming, "merge")),
+    ).toBe(2);
+  });
 });
 
 describe("buildImportRestorePlan — 메시지 회귀 pinning (T-1266, negative)", () => {
