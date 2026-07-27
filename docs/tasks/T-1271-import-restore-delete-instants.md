@@ -2,7 +2,9 @@
 id: T-1271
 title: 복원 delete step 의 대상 instant 목록 산출 (실행 slice 2a/3)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-27T21:01:32Z
+prNumber: 1162
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 285
@@ -74,3 +76,11 @@ plannerNote: "R-112 backbone x 1.5 = 285 LOC. T-1270 실측 573(prod 196 : spec 
 - (예고) 실행 slice **3/3** — 실 `$transaction` runner. Prisma client 주입 + step 순회 + rollback regression. 여기서 처음 DB 를 잡으므로 그 전에 slice 크기를 다시 산정한다.
 - (이월, 비차단) `src/import/import-restore-input.spec.ts` fixture helper 의 `entity in entityCounts` → `Object.prototype.hasOwnProperty.call` (T-1268 reviewer NIT-5).
 - (이월, 비차단) `dumpWithRecords` 계열 spec fixture helper 가 chain 안에서 5 번째 사본에 가까워졌다 — 판정 규칙 drift 전에 test fixture 공용 module 추출을 위생 slice 로 잡을 것 (T-1269 reviewer NIT-1).
+
+## 결과 (2026-07-27T21:01:32Z, DONE)
+
+- PR [#1162](https://github.com/myungjoo/AA_S1/pull/1162) squash merge `a81bb2c3` — reviewer round 1 APPROVE(BLOCKER 0), 4-게이트 모두 통과.
+- 신설 [src/import/import-restore-delete-instants.ts](../../src/import/import-restore-delete-instants.ts) 의 `collectImportRestoreDeleteInstants` — 계약 검증(phase / method / 빈 records / entity 일치 / instant 유효성) 을 전 원소에 대해 마친 뒤에야 조립하는 2-pass 순수 함수. 중복 millis 는 첫 등장만 남기고 순서 보존, Date 는 입력 instance 를 그대로 옮긴다(복제 0). Prisma · `instantColumn` 접촉 0.
+- 실측 **297 LOC / 2 파일**(production 120 : spec 177 = 1:1.48) — cap 300 안. T-1270 의 573 초과 이후 diff 규율 회복.
+- 신규 파일 stmt/branch/func/line 100%, 전체 419 suite / 11923 test green. `test:cov` 임계(line·function 80%) · `check-spec-presence` · `prettier --check` 통과.
+- 잔여 NIT-2(reviewer): `tokenOf` / `kindOf` 가 T-1270 helper 의 사본이라 chain 상 사본이 누적된다 — 아래 Follow-ups 의 공용 module 추출 위생 slice 우선순위 상향.
