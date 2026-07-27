@@ -22,11 +22,12 @@
 // 순서를 조용히 고쳐주면 상류 그룹핑의 회귀가 숨어버리므로 알리기만 한다.
 //
 // 순수 · non-mutating — 입력 배열 / operation / records 를 변형하지 않고 (freeze 된 입력으로
-// 호출해도 통과) 항상 새 배열 · 새 step 객체를 돌려준다. `records` 도 새 배열로 복사해 호출자가
-// 반환값을 바꿔도 입력이 오염되지 않는다. Prisma client · `$transaction` 실행 · DB · repository ·
+// 호출해도 통과) 항상 새 배열 · 새 step 객체를 돌려준다. 단 복사는 **shallow** 다 — `records` 는
+// 새 배열로 만들지만 그 안의 record 객체는 입력과 그대로 공유한다 (T-1264 는 payload 를 들여다보지
+// 않으므로 불투명하게 옮기기만 한다). Prisma client · `$transaction` 실행 · DB · repository ·
 // file I/O · REST 배선 0 이며, 순서 상수 · 그룹핑 규칙 · 매핑표를 재구현하지 않는다 (DRY).
 // REQ-032 (raw 미저장) 정합: record 를 **불투명하게** 옮기기만 하고 payload 를 들여다보지 않으며,
-// error 메시지에도 record 원본 · `instant` 를 싣지 않는다 (비-string 값은 타입 이름만 노출).
+// error 메시지에도 record 원본 · `instant` 를 싣지 않는다 (배열-shape 판정은 타입 이름만 노출).
 //
 // 입력 방어는 sibling `groupImportRestoreOperations` 와 **동형 throw 계약** (한국어 TypeError /
 // RangeError) 을 택했다 — 상류가 이미 verdict 로 걸러낸 성공분을 받는 위치라 verdict wrapper 를 한
@@ -118,9 +119,12 @@ function assertOperation(candidate: unknown, index: number): void {
     );
   }
 
+  // 배열-shape 판정은 `typeof` 만 노출한다 — `records` 는 payload 를 담는 필드라
+  // `describeReceived` 로 string 값을 그대로 실으면 malformed 입력의 내용이 메시지 · 로그로 샌다
+  // (REQ-032). sibling `assertPhaseRecords` (import-restore-ops) 와 동형 계약.
   if (!Array.isArray(operation.records)) {
     throw new TypeError(
-      `planImportRestoreTransactionSteps: operations[${index}].records 는 배열이어야 합니다 (받음: ${describeReceived(operation.records)})`,
+      `planImportRestoreTransactionSteps: operations[${index}].records 는 배열이어야 합니다 (받음: ${typeof operation.records})`,
     );
   }
 
@@ -167,9 +171,10 @@ export function planImportRestoreTransactionSteps(
 ): ImportRestoreTransactionStep[] {
   // 타입 우회로 들어온 비-배열을 잡기 위해 unknown 으로 낮춰 판정한다.
   const candidate: unknown = operations;
+  // 위 records 판정과 같은 이유로 배열-shape 은 `typeof` 만 노출한다 (payload 비노출).
   if (!Array.isArray(candidate)) {
     throw new TypeError(
-      `planImportRestoreTransactionSteps: operations 는 배열이어야 합니다 (받음: ${describeReceived(candidate)})`,
+      `planImportRestoreTransactionSteps: operations 는 배열이어야 합니다 (받음: ${typeof candidate})`,
     );
   }
 

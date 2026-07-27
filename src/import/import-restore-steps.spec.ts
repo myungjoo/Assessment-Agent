@@ -236,6 +236,28 @@ describe("planImportRestoreTransactionSteps — error path (입력 방어)", () 
     ).toThrow(RangeError);
   });
 
+  it("records 가 문자열이면 그 값이 error 메시지로 새지 않는다 (REQ-032)", () => {
+    expect(() =>
+      callWithAny([{ phase: "insert", entity: "Person", records: "leak-me" }]),
+    ).toThrow(/받음: string/);
+    try {
+      callWithAny([{ phase: "insert", entity: "Person", records: "leak-me" }]);
+      throw new Error("throw 하지 않았습니다");
+    } catch (error) {
+      expect((error as Error).message).not.toContain("leak-me");
+    }
+  });
+
+  it("operations 자체가 문자열이면 그 값이 error 메시지로 새지 않는다 (REQ-032)", () => {
+    expect(() => callWithAny("leak-me")).toThrow(/받음: string/);
+    try {
+      callWithAny("leak-me");
+      throw new Error("throw 하지 않았습니다");
+    } catch (error) {
+      expect((error as Error).message).not.toContain("leak-me");
+    }
+  });
+
   it("error 메시지에 위반 index 가 담긴다", () => {
     expect(() =>
       callWithAny([
