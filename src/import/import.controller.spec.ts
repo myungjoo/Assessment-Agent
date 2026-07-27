@@ -54,7 +54,11 @@ import { RolesGuard } from "../auth/roles.guard";
 import * as describeImportModeModule from "../export/import-mode-description";
 
 import { ImportJobService } from "./import-job.service";
-import { ImportController } from "./import.controller";
+import {
+  ImportController,
+  MAX_IMPORT_FILE_SIZE_BYTES,
+} from "./import.controller";
+import { MulterExceptionFilter } from "./multer-exception.filter";
 import type { UploadedDumpFile } from "./uploaded-dump-file";
 /* eslint-enable import/first */
 
@@ -355,6 +359,30 @@ describe("ImportController (guard/@Roles metadata)", () => {
       expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
     },
   );
+});
+
+// -----------------------------------------------------------------------
+// T-1253 — 크기 상한 상수 + MulterExceptionFilter 배선 (ADR-0055 §Decision 3).
+// create() 핸들러에 @UseFilters(MulterExceptionFilter) 가 부착돼 multer 예외를 4xx 로
+// 매핑함 + 업로드 크기 상한 상수가 정의됨을 metadata/상수 수준에서 단언한다. 필터의
+// 실 매핑 분기 (413/400/passthrough/500) 는 multer-exception.filter.spec.ts 가 cover.
+// -----------------------------------------------------------------------
+describe("ImportController (T-1253 크기 상한 + 예외 필터 배선)", () => {
+  it("create 핸들러에 @UseFilters(MulterExceptionFilter) 부착 (multer 예외 4xx 매핑 gate)", () => {
+    const filters = Reflect.getMetadata(
+      "__exceptionFilters__",
+      ImportController.prototype.create,
+    ) as unknown[];
+    // @UseFilters 는 필터 클래스(또는 인스턴스)를 metadata 로 부착한다.
+    expect(filters).toContain(MulterExceptionFilter);
+  });
+
+  it("MAX_IMPORT_FILE_SIZE_BYTES 크기 상한 상수가 양의 정수로 정의됨 (DoS 표면 차단 상한 강제 — ADR-0055 §Decision 3)", () => {
+    expect(Number.isInteger(MAX_IMPORT_FILE_SIZE_BYTES)).toBe(true);
+    expect(MAX_IMPORT_FILE_SIZE_BYTES).toBeGreaterThan(0);
+    // 50 MiB — 현실적 dump 규모에 충분한 여유 + memoryStorage 메모리 상한.
+    expect(MAX_IMPORT_FILE_SIZE_BYTES).toBe(50 * 1024 * 1024);
+  });
 });
 
 // -----------------------------------------------------------------------
