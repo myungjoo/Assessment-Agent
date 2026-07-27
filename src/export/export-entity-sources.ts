@@ -49,6 +49,9 @@ export interface ExportEntitySource {
 // 🔥 model 은 delegate 문자열에서 파생(첫 글자 대문자화 등)시키지 않고 **명시 값**으로
 // 박제한다 — Prisma 의 delegate↔model naming convention 이 바뀌거나 예외 model 이 생기면
 // 파생식이 조용히 틀린 이름을 만들어내기 때문이다(오타·convention 변경 취약성 제거).
+// 명시 값이라 오타 위험이 남는데, 그 그물은 `src/import/import-restore-order.spec.ts` 의
+// "prisma/schema.prisma FK 사실 고정" describe 다 — schema 원문을 파싱해 본 표의 5 model 이
+// 실재 model 블록인지 단언하므로, 여기 model 이름이 틀리면 그 test 가 fail 한다.
 //
 // instant 컬럼 결정(UC-07 §6.1 range scope [start,end) 판정의 "record 가 생성/발생한
 // 시각" 의미 정합): 5 model 모두 `createdAt`(row 생성 시각)을 instant 로 쓴다 —
