@@ -3,8 +3,8 @@
 // 엔진 chain (역직렬화 → 구조 검증 → schema version gate → 복원 plan 입력 복원 → ADR-0044 §3
 // atomic `$transaction` 복원 → controller 재배선) 의 **다섯 번째 slice** 다. T-1257 의
 // `screenImportDumpBuffer` (buffer → 복원 시도 가능 여부 + dump + version 판정) 와 T-1258 의
-// `hydrateImportDumpRecords` (dump → `ExportRecord[]`) 는 각각 머지됐지만 서로 배선되지 않아,
-// 업로드 buffer 하나에서 `$transaction` 복원 입력 (`ExportRecord[]` + version 판정) 까지 한 번에
+// `hydrateImportDumpRecords` (dump → `FullExportRecord[]`) 는 각각 머지됐지만 서로 배선되지 않아,
+// 업로드 buffer 하나에서 `$transaction` 복원 입력 (`FullExportRecord[]` + version 판정) 까지 한 번에
 // 얻을 방법이 없었다 — 본 helper 가 그 합성 한 겹만 닫아 다음 slice (실 `$transaction` 복원) 가
 // 소비할 **단일 진입 계약** 을 만든다.
 //
@@ -13,7 +13,7 @@
 // records 타입 복원) 을 재구현하지 않고 **호출 순서와 실패 stage 분류만** 담당한다 (DRY — 각
 // 규칙의 source-of-truth 는 각 helper). REQ-032 (raw 미저장) 정합: 변환 결과를 어디에도 영속
 // 저장하지 않는다.
-import { ExportRecord } from "../export/export-scope-select";
+import type { FullExportRecord } from "../export/export-full-record";
 import type {
   SchemaVersionCompat,
   SchemaVersionCompatOptions,
@@ -31,11 +31,18 @@ import {
 export type ImportRestoreInputStage = ImportDumpScreenStage | "records";
 
 // 복원 입력 verdict — discriminated union. 성공이면 ADR-0044 §3 `$transaction` 복원이 그대로
-// 소비할 `ExportRecord[]` 와 version 호환 판정을 함께 돌려주고 (accept / migrate 구분은 호출측
-// 몫), 실패면 실패 stage 와 한국어 위반 목록을 돌려준다 (throw 0 — sibling 순수 helper 패턴
-// mirror). 실패 시 부분 결과는 돌려주지 않는다 (복원은 all-or-nothing).
+// 소비할 `FullExportRecord[]` 와 version 호환 판정을 함께 돌려주고 (accept / migrate 구분은
+// 호출측 몫), 실패면 실패 stage 와 한국어 위반 목록을 돌려준다 (throw 0 — sibling 순수 helper
+// 패턴 mirror). 실패 시 부분 결과는 돌려주지 않는다 (복원은 all-or-nothing).
+//
+// T-1268 증분 — `records` 를 `ExportRecord[]` 에서 `FullExportRecord[]` (= `ExportRecord` +
+// `fields` payload) 로 **좁힌다**. 런타임에는 T-1265 이후 `hydrateImportDumpRecords` 가 이미
+// `fields` 를 실어 보내고 있었지만 타입 경계에서 사라져, 하류 `$transaction` 복원이
+// `createMany({ data: fields })` 에 넣을 row 값을 타입 상 볼 수 없었다. `FullExportRecord` 는
+// `ExportRecord` 의 구조적 subtype 이라 넓힘 대입 (covariance) 으로 기존 소비처
+// (`import-restore-plan-prepare.ts` 등) 는 한 줄도 고치지 않고 그대로 컴파일된다.
 export type ImportRestoreInputResult =
-  | { ok: true; records: ExportRecord[]; version: SchemaVersionCompat }
+  | { ok: true; records: FullExportRecord[]; version: SchemaVersionCompat }
   | { ok: false; stage: ImportRestoreInputStage; issues: string[] };
 
 // prepareImportRestoreInput — 업로드 dump buffer 하나를 `$transaction` 복원 입력까지 준비한다.
@@ -62,8 +69,9 @@ export function prepareImportRestoreInput(
     return { ok: false, stage: screened.stage, issues: screened.issues };
   }
 
-  // (2) 2 단계 — dump.records → ExportRecord[] 타입 복원 (instant 를 Date 로). 위반이 있으면
-  // 부분 결과 없이 누적 issues 만 "records" stage 로 분류해 돌려준다.
+  // (2) 2 단계 — dump.records → FullExportRecord[] 타입 복원 (instant 를 Date 로, fields 는 값
+  // 변환 0 으로 보존). 위반이 있으면 부분 결과 없이 누적 issues 만 "records" stage 로 분류해
+  // 돌려준다.
   const hydrated = hydrateImportDumpRecords(screened.dump);
   if (!hydrated.ok) {
     return { ok: false, stage: "records", issues: hydrated.issues };
