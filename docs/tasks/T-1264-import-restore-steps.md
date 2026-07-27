@@ -2,12 +2,14 @@
 id: T-1264
 title: Import 복원 $transaction step 계획 helper 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 500
 estimatedFiles: 4
 created: 2026-07-27
+completedAt: 2026-07-27T15:13:08Z
+prNumber: 1155
 independentStream: import-restore-engine
 dependsOn: [T-1263]
 touchesFiles:
@@ -69,4 +71,16 @@ plannerNote: "cap-bend pre-justified: R-112 backbone x 1.5 = 500 LOC, 선례 T-1
 
 ## Follow-ups
 
-- (T-1261 reviewer round 2 MINOR-1 이월) `docs/architecture/estimate-model.md` sub-multiplier 박제 follow-up 에 chain 실측치 합산 — T-1261 총 595 (prod 106 / spec 489), T-1262 총 628 (prod 154 / spec 474). `sizeExempt` 근거 추정치의 약 1.3~1.9 배이며 **nit-closure 분량도 추정에 포함해야 한다** 는 항목 추가.
+- (T-1261 reviewer round 2 MINOR-1 이월) `docs/architecture/estimate-model.md` sub-multiplier 박제 follow-up 에 chain 실측치 합산 — T-1261 총 595 (prod 106 / spec 489), T-1262 총 628 (prod 154 / spec 474), T-1264 총 679 (prod 213 / spec 466, nit-closure +32 포함). `sizeExempt` 근거 추정치의 약 1.3~1.9 배이며 **nit-closure 분량도 추정에 포함해야 한다** 는 항목 추가.
+- (T-1264 reviewer round 1 NIT-2) `describeReceived` 가 `src/import/import-restore-steps.ts` · `src/import/import-restore-ops.ts` · `src/export/export-job-status-view.ts` 3 곳에 사본으로 존재 (본 slice 가 3 번째를 늘렸다). 공용 module 추출은 `import-restore-ops.ts` 수정을 요구해 본 task Out of Scope — T-1263 의 `EXPORT_ENTITY_SOURCES` 승격과 동형인 별도 refactor slice 후보로 T-1265 Follow-ups 에 이월.
+- (T-1264 reviewer round 1 NIT-3) `ImportRestoreStepMethod` 의 `"deleteMany" | "createMany"` 가 자유 literal union 이라 실제 Prisma delegate 메서드 이름과 컴파일 차원으로 묶여 있지 않다. 본 slice 는 "Prisma client import 0" 이 Out of Scope 계약이라 여기서 고칠 것이 아니고, **다음 `$transaction` 실행 slice** 의 Acceptance Criteria 로 회수 (T-1265 Follow-ups 에 구체안 박제 — 타입 제약 + 5 delegate × 2 method drift test).
+- (T-1264 reviewer round 2 참고, merge 게이트 아님) `import-restore-steps.ts` 의 원소 object-shape 분기는 여전히 `describeReceived` 를 써서 `["raw-string"]` 같은 입력의 원소 문자열이 메시지에 실린다. sibling `import-restore-ops.ts` 가 main 에서 이미 동일 패턴이라 한쪽만 바꾸면 두 모듈 계약이 갈린다 — 손대려면 두 모듈을 함께 정리하는 별도 task 로.
+
+## 결과 (2026-07-27 완료)
+
+- PR #1155 squash merge (`8b51b620`), feature branch `claude/T-1264-import-restore-steps` 삭제.
+- `src/import/import-restore-steps.ts` 신설 (3 심볼 export: `planImportRestoreTransactionSteps` · `ImportRestoreTransactionStep` · `ImportRestoreStepMethod`) — delegate · model 은 T-1263 이 승격한 `EXPORT_ENTITY_SOURCES` 조회만 (매핑 사본 0), phase → method 는 delete → `deleteMany` / insert → `createMany`.
+- 순서 계약은 **검증만** — insert 뒤 delete 가 오면 위반 index 를 담은 `RangeError`, 재정렬은 하지 않는다. 순수 · non-mutating (freeze 입력 통과, `records` 는 새 배열로 shallow copy — record 객체는 불투명하게 공유).
+- (동반 회수) `import-dump-validate.ts` 의 `generatedAt` 주석 2 곳 + issue 문구 1 곳을 sibling hydrate 와 동형인 "`Date` 로 파싱 가능한 string" 으로 정정 — 판정식 · 분기 · issue 개수 변경 0. T-1259~T-1263 이 다섯 번 이월한 follow-up 마감.
+- 신규 module coverage stmt/branch/func/line 100%, 전체 417 suite / 11742 test green. reviewer round 1 APPROVE(MINOR 1 / NIT 3) → **§3 Nit-in-PR closure** round 2 (`1443e6e0`) 에서 MINOR-1 (배열-shape error 메시지의 payload 노출 → `typeof` 전환 + 되돌림 감지 negative test 2 건) + NIT-1 (헤더 주석의 shallow copy 명시) 마감 → 재 APPROVE (신규 finding 0).
+- 총 diff +679/-3 (production 213 / spec 466). cap 초과분은 전량 spec 이라 머지 차단 아님 — 동일 chain 선례 T-1261~T-1263 동형.
