@@ -2,7 +2,7 @@
 id: T-1274
 title: 복원 step 배열을 tx client 위에서 실행 (실행 slice 3b-1/3)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 275
@@ -14,6 +14,10 @@ touchesFiles:
   - src/import/import-restore-run-steps.ts
   - src/import/import-restore-run-steps.spec.ts
 plannerNote: "R-112 backbone x 1.5 = 275 LOC. T-1273 실측 280(prod 88 : spec 192) 역산 — cap 안, sizeExempt 없음"
+completedAt: 2026-07-28
+mergedAs: 0aa2850c7dd20e95dcee760493a6c30dd8e4e7d2
+prNumber: 1165
+reviewRounds: 1
 ---
 
 # T-1274 — 복원 step 배열을 tx client 위에서 실행 (실행 slice 3b-1/3)
@@ -72,6 +76,9 @@ T-1273 Follow-ups 는 3b 를 "`tx[delegate][method](args)` 배선 + rollback reg
 ## Follow-ups
 
 - (예고) 실행 slice **3b-2/3** — `PrismaService.$transaction` 안에서 본 runner 를 1 회 호출하는 service 배선 + tx client 캐스팅 + rollback regression (실패 step 이후 DB 원상 복귀). 여기서 처음 DB 를 잡으므로 mock unit 과 e2e 분리를 그때 재산정한다.
+- (이월, 비차단, 3b-2 로 지정) [src/import/import-restore-run-steps.ts](../../src/import/import-restore-run-steps.ts) 의 tx surface guard 가 step 별 lazy 검사라 `steps[1]` 의 delegate 결함이 `steps[0]` 실행 **후** 에 드러난다 (T-1274 reviewer NIT-1). negative AC 의 "그 step 이전 호출만 일어났음" 과는 정합하며 실제 안전성은 3b-2 의 `$transaction` rollback 이 담보 — 3b-2 에서 그 전제를 주석/test 로 이어 박제한다.
+- (이월, 비차단, 3b-2 로 지정) 같은 파일의 `typeof table !== "object"` 가 함수형 tx 와 배열을 통과시켜 tx 메시지 대신 delegate 메시지로 거부된다 — 진단이 한 단계 늦을 뿐 기능 영향 0 (T-1274 reviewer NIT-2). 본 PR 에서 in-PR fix 하지 않은 이유는 diff 가 이미 299/300 이라 cap 초과.
+- (planner 조치 요청) 본 chain 의 실측 production : spec 비율이 **1 : 2.1** 로 안정화됐다 (T-1272 58:170, T-1273 88:192, T-1274 96:203). 이후 slice 의 spec LOC 가이드를 그 비율로 재산정할 것 — 가이드가 계속 과소면 매 slice 형식 위반이 반복된다 (T-1274 reviewer MINOR-1: 가이드 285 대비 실측 299, CLAUDE.md §3 hard cap 300 은 준수).
 - (예고) 실행 slice **3c** — `import-job.service.ts` / `import.controller.ts` 재배선 (T-1254 interim `markFailed` guard 를 실 복원 pipeline 으로 교체) + import UI false-success 상태 해소.
 - (이월, 비차단) `tokenOf` / `kindOf` / `describeReceived` / `describeFieldsKind` 사본이 chain 안에서 6 개째 — 공용 module 추출 위생 slice 우선순위 상향 (T-1271 NIT-2, T-1265 NIT-1).
 - (이월, 비차단) [src/import/import-restore-insert-rows.spec.ts](../../src/import/import-restore-insert-rows.spec.ts) 199 · 215 행의 `for (const [, value] of ...)` 가 표의 label 을 버려 실패 case 식별 불가 (T-1270 reviewer 잔여 NIT). touchesFiles 밖이라 위생 slice 대기.
