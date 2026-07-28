@@ -2,7 +2,13 @@
 id: T-1278
 title: 복원 service 에 Prisma error → HTTP exception 매핑 배선 (실행 slice 3b-2c-2)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-28T06:03:10Z
+mergedAs: 57b862f3
+prNumber: 1169
+reviewRounds: 1
+actualDiff: 217
+actualFiles: 3
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 170
@@ -79,4 +85,6 @@ implementer 는 다음 중 하나를 **명시적으로 선택** 하고, 선택 �
 
 ## Follow-ups
 
-- (예고) 실행 slice **3c** — `import.module.ts` provider 등록 + `import-job.service.ts` / `import.controller.ts` 재배선 (T-1254 interim `markFailed` guard → 실 복원 pipeline) + HTTP 경계 e2e (409 / 400 응답 body 확인) + import UI false-success 해소.
+- (예고) 실행 slice **3c** — `import.module.ts` provider 등록 + `import-job.service.ts` / `import.controller.ts` 재배선 (T-1254 interim `markFailed` guard → 실 복원 pipeline) + HTTP 경계 e2e (409 / 400 응답 body 확인) + import UI false-success 해소. 3c-1 = T-1279 (provider 등록) 로 큐잉됨.
+- (이월, PR #1169 reviewer MINOR-1) 매핑 unit test 가 `$transaction` **자체**를 reject 시키는 `makeService(undefined, thrown)` 경로라 콜백이 실행되지 않는다 — 따라서 negative case (e) 의 `expect(calls).toEqual([])` 는 항상 참인 **공허한 단언**이다 (결함 아님: service 에 보상 로직 자체가 0). 본 PR 은 잔여 diff cap 이 3 LOC 뿐이라 CLAUDE.md §3 Nit-in-PR closure 의 "cap 초과 risk" 예외를 적용해 **T-1279 (3c-1)** 로 이월했다. 보강 방향: `reply` 경로로 중간 delegate 를 P2002 reject 시켜 "매핑 후 이후 step 호출 0 · 보상 delete 0" 을 실행 sequence 로 실단언.
+- (정정 기록, PR #1169 reviewer MINOR-2) PR body 의 "헤더 주석 19 행" 표기가 실제 20 행이라 `gh pr edit` 로 body 를 정정했다 (코드 변경 0).
