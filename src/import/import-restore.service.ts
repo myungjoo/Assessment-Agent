@@ -22,10 +22,8 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { type ImportMode } from "@prisma/client";
 
-import {
-  collectFullExportRecords,
-  type ExportFullRecordReadClient,
-} from "../export/export-full-record-collect";
+import { collectFullExportRecords } from "../export/export-full-record-collect";
+import { asExportFullRecordReadClient } from "../export/export-full-record-read-client";
 import { PrismaService } from "../persistence/prisma.service";
 
 import { prepareImportRestorePlan } from "./import-restore-plan-prepare";
@@ -42,8 +40,9 @@ export class ImportRestoreService {
   ) {}
 
   // restoreFromDump — dump buffer + Prisma `ImportMode` 를 받아 복원 1 회를 끝까지 실행한다.
-  //   (1) 기존 record 로딩 — 실 Prisma → 좁은 read client 캐스팅은 **호출자 몫** 이라 본
-  //       service 의 이 한 줄에서만 일어난다 (export-job.service 의 선례 mirror).
+  //   (1) 기존 record 로딩 — 실 Prisma → 좁은 read client 좁히기는 이름 있는 helper
+  //       `asExportFullRecordReadClient` (T-1283) 경유다. 캐스팅 근거는 그 module 헤더가
+  //       단일 source 로 소유하며 본 service 는 호출만 한다 (근거 사본 0).
   //   (2) plan 준비 — verdict 계약이라 throw 를 기대하지 않는다.
   //   (3) 실패 verdict → 400 으로 단락 (아래 (4) 미도달 = DB 변경 0).
   //   (4) 성공 verdict → 준비된 plan **인스턴스 그대로** atomic 실행에 넘기고 결과를 재가공
@@ -53,7 +52,7 @@ export class ImportRestoreService {
     mode: ImportMode,
   ): Promise<ImportRestoreTransactionResult> {
     const existing = await collectFullExportRecords(
-      this.prisma as unknown as ExportFullRecordReadClient,
+      asExportFullRecordReadClient(this.prisma),
     );
 
     const prepared = prepareImportRestorePlan(buffer, existing, mode);

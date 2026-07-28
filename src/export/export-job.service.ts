@@ -73,13 +73,12 @@ import { buildFullExportDump, type FullExportDump } from "./export-full-dump";
 // FullExportRecord 타입(T-0515) — 아래 private 메서드의 반환 원소 타입. 조립 builder
 // (buildFullExportRecord) 자체는 T-1280 추출로 helper 안으로 옮겨져 본 파일에서 미사용.
 import { type FullExportRecord } from "./export-full-record";
-// collectFullExportRecords(T-1280) 공용 helper + 좁은 read client 타입을 same-folder 경로로
-// import 해 아래 동명 private 메서드가 그대로 위임한다(사본 0 — 본 service 에는 read 본문이
-// 더 이상 없다). 실 PrismaService → client 캐스팅은 호출자인 본 service 몫이다.
-import {
-  collectFullExportRecords,
-  type ExportFullRecordReadClient,
-} from "./export-full-record-collect";
+// collectFullExportRecords(T-1280) 공용 helper 를 same-folder 경로로 import 해 아래 동명
+// private 메서드가 그대로 위임한다(사본 0 — 본 service 에는 read 본문이 더 이상 없다).
+// 실 PrismaService → 좁은 read client 좁히기는 이름 있는 helper
+// asExportFullRecordReadClient(T-1283) 가 단일 source 로 소유한다.
+import { collectFullExportRecords } from "./export-full-record-collect";
+import { asExportFullRecordReadClient } from "./export-full-record-read-client";
 // buildExportJobPlan(T-0467) + ExportJobPlan 타입을 same-folder 경로(`./export-job-plan`)로
 // import 해 previewSelection 응답에 deliveryPlan 으로 surface 한다(barrel re-export·alias 신설
 // 0). ExportJobPlan 은 service interface(ExportSelectionPreview) 가 그대로 재노출한다.
@@ -511,13 +510,11 @@ export class ExportJobService {
   // projection · buildFullExportRecord 조립 · 평탄화 · 빈 DB 경계 · 예외 raw-forward)은 전부
   // helper 헤더 주석에 있다.
   //
-  // 실 PrismaService → 좁은 read client 캐스팅은 **호출자(본 service)** 몫이다(helper 는
-  // Prisma 타입을 모른다 — ImportRestoreTxClient 규약 mirror). delegate 별 Prisma findMany
-  // 시그니처가 model 마다 달라(union) unknown 경유로 좁은 projection-only 형태로 좁힌다.
+  // 실 PrismaService → 좁은 read client 좁히기는 이름 있는 helper
+  // asExportFullRecordReadClient(T-1283) 경유다 — 캐스팅이 왜 필요하고 왜 안전한지의 근거는
+  // 그 module 헤더가 단일 source 로 소유하며(사본 0), 본 메서드는 호출만 한다(identity).
   private async collectFullExportRecords(): Promise<FullExportRecord[]> {
-    return collectFullExportRecords(
-      this.prisma as unknown as ExportFullRecordReadClient,
-    );
+    return collectFullExportRecords(asExportFullRecordReadClient(this.prisma));
   }
 
   // toScopePayload — CreateExportJobInput 을 validateExportScope helper 가 요구하는
