@@ -2,7 +2,7 @@
 id: T-1283
 title: PrismaService → ExportFullRecordReadClient 캐스팅을 이름 있는 helper 로 통합 (실행 slice 3c-2d)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 190
@@ -68,3 +68,11 @@ plannerNote: "cap-bend 없음: R-112 backbone x1.5 = 190 LOC / 4 파일 — T-12
 ## Follow-ups
 
 - (예고) 실행 slice **3c-3** — `import.controller.ts` / `import-job.service.ts` 재배선 (T-1254 interim guard → 실 복원 pipeline, `markRunning` / `markSucceeded` / `markFailed` 전이 + `restoredRowCount`) + HTTP 경계 e2e (400 / 409 응답 body) + import UI false-success 해소. `ImportRestoreService` 가 T-1282 로 DI 등록을 마쳤으므로 inject 만 하면 착수 가능하다. 규모상 (controller + job service + 두 spec + e2e) cap 초과가 예상되니 planner 가 3c-3a (service 배선) / 3c-3b (controller · HTTP 경계) 로 쪼갤 것.
+
+## 결과 (2026-07-28 완료)
+
+- PR [#1174](https://github.com/myungjoo/Assessment-Agent/pull/1174) → squash merge `d062519e`. reviewer round **1/7** APPROVE, §3.3 4-게이트 전부 통과 (reviewer comment 외부 존재 · CI 2 check pass · acceptance 재점검).
+- 실측 **+210/-20 (210 LOC) / 4 파일** — 자체 sub-limit(210) 안, cap(300 LOC / 5 파일) 안. 신규 [src/export/export-full-record-read-client.ts](../../src/export/export-full-record-read-client.ts) 의 `asExportFullRecordReadClient` 는 캐스팅 1 줄 + return 뿐 — 검증 · 복제 · Proxy · 캐시 · 로깅 0 이라 런타임 identity 이고 **동작 변화 0**.
+- T-1281 이월 nit 3 건 중 마지막 (iii) closure: `export-job.service.ts` · `import-restore.service.ts` 두 곳으로 갈라져 있던 `as unknown as ExportFullRecordReadClient` 를 helper 호출로 교체해 production 캐스팅 grep 이 정확히 **1 건**으로 수렴했다. 미사용이 된 type import 도 함께 제거.
+- 신규 helper line/branch/function **100%**, 전체 **427 suite / 12161 test** green. 기존 export / import spec 은 **0 수정**으로 통과 — identity 보존의 외부 증거.
+- 본 task 는 cron multi-task fire(N=2, `FIRE-BATCH: T-1282+T-1283`)의 두 번째 task 로 수행됐다.
