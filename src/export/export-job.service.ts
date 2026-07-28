@@ -419,21 +419,31 @@ export class ExportJobService {
     };
   }
 
-  // materializeFullExportDownload — scope → full-record DB-read → fields 보존 envelope →
-  // Node `Readable` stream 의 in-process 다운로드 materialization 을 service 차원에서 완결한다
-  // (T-0518, ADR-0047 §Follow-ups[2], REQ-030 Export / REQ-032 raw 미저장). 셋을 묶는 배선:
+  // materializeFullExportDownload — scope → full-record DB-read → scope 선별 → fields 보존
+  // envelope → Node `Readable` stream 의 in-process 다운로드 materialization 을 service 차원에서
+  // 완결한다 (T-0518 + T-1291, ADR-0047 §Follow-ups[2], REQ-030 Export / REQ-032 raw 미저장).
+  // 넷을 묶는 배선:
   //   (1) collectFullExportRecords() 로 5 entity allow-list full-record read → FullExportRecord[]
   //       (T-0516 impure DB-read — projection-only / secret apiKey 부재 / 조립 2 차 그물).
-  //   (2) buildFullExportDump(records, { scope, generatedAt: new Date() }) 로 FullExportDump
+  //   (2) selectExportRecords(scope, records) 로 UC-07 §6.1 3 차원 옵션(full / range [start, end)
+  //       반열림 / partial entitySelector 멤버십, range+entitySelector 는 AND) 선별 (T-0437 순수
+  //       helper).
+  //   (3) buildFullExportDump(selected, { scope, generatedAt: new Date() }) 로 FullExportDump
   //       envelope 조립 (T-0517 순수 builder — schema version 헤더 + entityCounts + recordCount +
   //       `fields` 보존, 재필터 0 — ADR-0047 §Decision3(i) descriptor single-source).
-  //   (3) materializeExportDump(dump) 로 JSON.stringify + Readable.from → Node `Readable` 반환
+  //   (4) materializeExportDump(dump) 로 JSON.stringify + Readable.from → Node `Readable` 반환
   //       (T-0506 순수 함수 — 새 외부 dependency 0, Node 내장 stream 만).
   //
+  // 🔥 scope 선별 배선(T-1291) — envelope 에는 `selected` 만 담고 `excluded` 는 버린다(선별의
+  // 정의 — 다운로드 artifact 는 선별 결과물이다). builder 가 입력 records 를 1 회 순회해 집계
+  // 하므로 `entityCounts` / `recordCount` 는 자동으로 **선별 후 기준** 이 되고, envelope 의
+  // `scope` metadata 와 body 가 같은 선별 기준을 본다. `FullExportRecord[]` 는 T-1290 이 연
+  // `selectExportRecords<TRecord extends ExportRecord = ExportRecord>` 제네릭 덕분에 **캐스팅 0**
+  // 으로 흘러 `fields` 가 타입에서 지워지지 않는다(`as` / `unknown` 경유 0). REQ-032 는 상류
+  // projection-only read 가 강제하므로 본 선별로 약화되지 않는다 — 내려가는 데이터가 줄기만 한다.
+  //
   // ADD-only — 기존 previewSelection / collectExportRecords / collectFullExportRecords / mark* /
-  // find* 는 불변. scope 선별 필터링(selectExportRecords)을 추가하지 않는다 — collectFullExportRecords
-  // 는 5 entity 전체를 allow-list read 하며 envelope `scope` 는 meta context 로만 박제된다(§Out of
-  // Scope — scope 기반 record 선별 결합은 별도 task).
+  // find* 는 불변.
   //
   // 🔥 타입 정합(Acceptance §2): FullExportDump 는 ExportDump 의 records 원소 타입만 FullExportRecord
   // (= ExportRecord + fields 구조적 superset)로 좁힌 구조적 superset 이라 직렬화 의미가 동일하다.
@@ -445,22 +455,28 @@ export class ExportJobService {
   // 예외 전파(swallow 0): collectFullExportRecords 의 delegate.findMany reject(의존성 실패)는
   // Promise.all 이 그대로 propagate; row 의 instant(createdAt)가 비-Date/누락이면 buildFullExportRecord/
   // buildFullExportDump 의 TypeError; allow-list 외 key(상류 select 결함 시뮬 apiKey 등)는
-  // buildFullExportRecord 의 RangeError 가 본 메서드를 통해 그대로 propagate 한다(controller 가
-  // 변환 책임 — service 는 raw-forward).
+  // buildFullExportRecord 의 RangeError; 손상 scope(RANGE 인데 dateRange 부재 · PARTIAL 인데
+  // entitySelector 부재 · 허용 외 scope 값)는 selectExportRecords 의 RangeError 가 본 메서드를
+  // 통해 **변환 없이** 그대로 propagate 한다(controller 가 변환 책임 — service 는 raw-forward).
   async materializeFullExportDownload(
     scope: ExportScopePayload,
   ): Promise<Readable> {
     // (1) full-record allow-list DB-read — FullExportRecord[] (projection-only, secret 부재).
     const records = await this.collectFullExportRecords();
 
-    // (2) fields 보존 dump envelope 조립 — generatedAt 은 materialization 시각, schemaVersion 은
-    //     builder default(EXPORT_SCHEMA_VERSION). scope 는 meta context 로만 박제(선별 결합 0).
-    const dump: FullExportDump = buildFullExportDump(records, {
+    // (2) scope 선별 — 캐스팅 0(T-1290 제네릭이 FullExportRecord 를 그대로 전달). excluded 는
+    //     artifact 에 담지 않으므로 버린다. scope 손상 시 helper 의 RangeError/TypeError raw-forward.
+    const { selected } = selectExportRecords(scope, records);
+
+    // (3) fields 보존 dump envelope 조립 — generatedAt 은 materialization 시각, schemaVersion 은
+    //     builder default(EXPORT_SCHEMA_VERSION). 입력이 선별 후 records 라 entityCounts /
+    //     recordCount 가 자동으로 선별 기준이 되고, scope metadata 와 body 가 일치한다.
+    const dump: FullExportDump = buildFullExportDump(selected, {
       scope,
       generatedAt: new Date(),
     });
 
-    // (3) FullExportDump → Node Readable. FullExportRecord 가 ExportRecord 를 extends 하므로
+    // (4) FullExportDump → Node Readable. FullExportRecord 가 ExportRecord 를 extends 하므로
     //     FullExportDump 는 ExportDump 에 구조적으로 assignable 하다(records 원소 fields 추가뿐,
     //     상류 필드 동일) — 안전한 upcast 로 전달한다(직렬화 의미 보존, 재필터 0).
     const exportDump: ExportDump = dump;
