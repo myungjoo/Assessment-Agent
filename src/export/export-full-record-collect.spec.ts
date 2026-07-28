@@ -2,7 +2,7 @@
 // REQ-030 / REQ-032). 실 DB 0 — mock client 만 쓴다(PrismaService 인스턴스 · $transaction 0).
 // R-112 4 종:
 //   - happy: 5 delegate row → entity 별 평탄화 순서 · 총 건수 · fields 보존.
-//   - error: (a) findMany reject 인스턴스 동일성 전파, (b) 비-Date/누락 instant → TypeError,
+//   - error: (a) findMany reject·동기 throw 인스턴스 동일 전파, (b) 비-Date/누락 instant → TypeError,
 //     (c) allow-list 외 key(apiKey) → RangeError. 모두 swallow 0.
 //   - branch/flow: 빈 DB → [], 일부 entity 만 row, 전 entity row 세 분기.
 //   - negative 충분: allow-list select 정확 일치 · 무인자 findMany 0 · 호출 횟수 · delegate 누락
@@ -105,6 +105,16 @@ describe("collectFullExportRecords", () => {
     await expect(collectFullExportRecords(client)).rejects.toBe(boom);
   });
 
+  // error (a') — findMany 가 동기 throw(Prisma proxy 오설정) 해도 reject 경로와 동형 전파.
+  it("error — delegate findMany 동기 throw 도 인스턴스 그대로 전파", async () => {
+    const { client, mock } = buildClient();
+    const boom = new Error("delegate 오설정");
+    delegateOf(mock, "Person").mockImplementation(() => {
+      throw boom;
+    });
+    await expect(collectFullExportRecords(client)).rejects.toBe(boom);
+  });
+
   // error (b) — instant 컬럼이 비-Date 면 buildFullExportRecord 의 TypeError 가 그대로 전파.
   it("error — instant 가 비-Date 면 TypeError 전파", async () => {
     const { client, mock } = buildClient();
@@ -204,9 +214,11 @@ describe("collectFullExportRecords", () => {
   });
 
   // negative (e) — 입력 client 를 변형하지 않으며(key 추가 · 함수 교체 0) 같은 client 로 두 번
-  // 호출하면 매번 새 배열 인스턴스를 반환한다.
+  // 호출하면 내용 동등하되 새 배열 인스턴스 반환. seed 는 캡처 전(함수 인스턴스 비변경) — vacuous 비교 방지.
   it("negative — client 비변형 + 매 호출 새 배열 인스턴스 반환", async () => {
     const { client, mock } = buildClient();
+    const seeded = [{ id: "g1", name: "팀A", createdAt: INSTANT }];
+    delegateOf(mock, "Group").mockResolvedValue(seeded);
     const keysBefore = Object.keys(mock).sort();
     const fnsBefore = ENTITY_ORDER.map((entity) => delegateOf(mock, entity));
 
@@ -218,7 +230,8 @@ describe("collectFullExportRecords", () => {
     expect(ENTITY_ORDER.map((entity) => delegateOf(mock, entity))).toEqual(
       fnsBefore,
     );
-    // 매 호출 새 배열(공유 캐시 0).
+    // 매 호출 새 배열(내용 동등 · 인스턴스 상이 — 공유 캐시 0).
+    expect(first).not.toHaveLength(0);
     expect(first).toEqual(second);
     expect(first).not.toBe(second);
   });
