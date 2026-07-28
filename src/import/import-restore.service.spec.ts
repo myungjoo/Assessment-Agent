@@ -90,6 +90,21 @@ function makeService(
 const reject = (stage: ImportRestorePlanStage, issues: string[]) =>
   ({ ok: false, stage, issues }) as const;
 
+// 실패 stage table — 문자열 리터럴 배열이 아니라 `Record<ImportRestorePlanStage, true>` 로
+// 선언해 union 에 stage 가 추가/삭제되면 **tsc 가 fail** 한다 (T-1281 이월 nit (i) — 리터럴
+// 배열은 union 이 늘어도 아무 test 도 깨지지 않아 exhaustiveness 공백이 있었다).
+const STAGE_TABLE: Record<ImportRestorePlanStage, true> = {
+  deserialize: true,
+  structure: true,
+  version: true,
+  records: true,
+  mode: true,
+  plan: true,
+};
+const STAGES = Object.keys(STAGE_TABLE) as ImportRestorePlanStage[];
+// it.each 가 실제로 돌린 stage 기록 — union 크기와 일치하는지 아래 negative 에서 단언한다.
+const visitedStages: ImportRestorePlanStage[] = [];
+
 // 거부 경로 공통 — resolve 되면 그 자체가 실패이므로 instanceof 를 여기서 한 번에 단언하고
 // 좁혀진 exception 을 돌려준다 (호출부마다 try/catch 를 반복하지 않기 위한 축약).
 async function denied(
@@ -167,22 +182,27 @@ describe("ImportRestoreService.restoreFromDump", () => {
   });
 
   // 실패 stage 6 종 — 각 토큰이 message 에 드러나고 전부 400 이다 (stage 당 개별 it 금지).
-  it.each<ImportRestorePlanStage>([
-    "deserialize",
-    "structure",
-    "version",
-    "records",
-    "mode",
-    "plan",
-  ])("분기 — stage %s 실패는 토큰과 함께 400 이 된다", async (stage) => {
-    const { service, restore } = makeService({
-      verdict: reject(stage, [`${stage} 단계 위반`]),
-    });
-    const error = await denied(service);
-    expect(error.getStatus()).toBe(400);
-    expect(error.message).toContain(`stage: ${stage}`);
-    expect(error.message).toContain(`${stage} 단계 위반`);
-    expect(restore).not.toHaveBeenCalled();
+  // table 은 STAGE_TABLE 에서 파생되므로 union 이 바뀌면 컴파일 단계에서 걸린다.
+  it.each<ImportRestorePlanStage>(STAGES)(
+    "분기 — stage %s 실패는 토큰과 함께 400 이 된다",
+    async (stage) => {
+      visitedStages.push(stage);
+      const { service, restore } = makeService({
+        verdict: reject(stage, [`${stage} 단계 위반`]),
+      });
+      const error = await denied(service);
+      expect(error.getStatus()).toBe(400);
+      expect(error.message).toContain(`stage: ${stage}`);
+      expect(error.message).toContain(`${stage} 단계 위반`);
+      expect(restore).not.toHaveBeenCalled();
+    },
+  );
+
+  // negative (f): 파생 table 이 union 6 종을 누락 없이 돌렸는지 — 실행된 case 집합이 STAGE_TABLE
+  // 의 key 집합과 정확히 같아야 한다 (파생이 일부만 흘리는 회귀 차단).
+  it("negative — stage table 파생이 union 전체를 누락 없이 돌린다", () => {
+    expect(STAGES).toHaveLength(6);
+    expect([...visitedStages].sort()).toEqual([...STAGES].sort());
   });
 
   it("negative — issues 가 여러 개면 전부 구분자로 이어져 message 에 담긴다", async () => {
@@ -195,11 +215,24 @@ describe("ImportRestoreService.restoreFromDump", () => {
     );
   });
 
-  it("negative — issues 가 빈 배열이어도 조립이 깨지지 않고 400 이다", async () => {
+  // 분기 (b) — issues 가 비면 꼬리 구분자 (": ") 를 남기지 않는다 (T-1281 이월 nit (ii)).
+  it("분기 — issues 가 빈 배열이면 꼬리 구분자 없이 stage 토큰만 담고 400 이다", async () => {
     const { service } = makeService({ verdict: reject("plan", []) });
     const error = await denied(service);
     expect(error.getStatus()).toBe(400);
-    expect(error.message).toBe("import 복원 거부 (stage: plan): ");
+    expect(error.message).toBe("import 복원 거부 (stage: plan)");
+    expect(error.message).not.toMatch(/[:;]\s*$/);
+  });
+
+  // negative (e) — 빈 issues 조립에 잡음이 섞이지 않는다 (REQ-032 부정 단언).
+  it("negative — 빈 issues message 에 dump 원문 · fields 값 · undefined · null 잡음이 없다", async () => {
+    const { service } = makeService({ verdict: reject("mode", []) });
+    const error = await denied(service);
+    expect(error.message).not.toContain("dump-원문-비밀-payload");
+    expect(error.message).not.toContain("주민등록번호-880101");
+    expect(error.message).not.toContain("undefined");
+    expect(error.message).not.toContain("null");
+    expect((error as { cause?: unknown }).cause).toBeUndefined();
   });
 
   it("negative — 거부 message 에 dump 원문 · record fields 값이 실리지 않는다 (REQ-032)", async () => {

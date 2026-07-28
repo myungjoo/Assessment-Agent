@@ -2,7 +2,7 @@
 id: T-1282
 title: ImportModule 에 복원 orchestrator provider 등록 + T-1281 이월 nit 2 건 해소 (실행 slice 3c-2c)
 phase: P5
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 170

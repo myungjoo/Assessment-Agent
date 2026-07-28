@@ -15,6 +15,9 @@
 // instance 동작이 아닌 module compile 만 검증.
 // $transaction 은 ImportRestoreTransactionService (T-1279 등록) 의 유일한 사용 surface —
 // jest.fn 으로 두어 "compile 만으로 트랜잭션이 열리지 않는다" 를 negative 로 단언한다.
+// person delegate 는 ImportRestoreService (T-1282 등록) 의 read 경로
+// (collectFullExportRecords) 가 쓰는 surface — compile 만으로 DB read 가 0 임을 negative 로
+// 단언하기 위해 jest.fn 으로 둔다.
 jest.mock("../persistence/prisma.service", () => ({
   PrismaService: class MockPrismaService {
     importJob = {
@@ -23,6 +26,7 @@ jest.mock("../persistence/prisma.service", () => ({
       findMany: jest.fn(),
       update: jest.fn(),
     };
+    person = { findMany: jest.fn() };
     $transaction = jest.fn();
     onModuleInit = jest.fn().mockResolvedValue(undefined);
     enableShutdownHooks = jest.fn();
@@ -30,6 +34,7 @@ jest.mock("../persistence/prisma.service", () => ({
 }));
 
 /* eslint-disable import/first */
+import { Module } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 
 import { PersistenceModule } from "../persistence/persistence.module";
@@ -37,6 +42,7 @@ import { PrismaService } from "../persistence/prisma.service";
 
 import { ImportJobService } from "./import-job.service";
 import { ImportRestoreTransactionService } from "./import-restore-transaction.service";
+import { ImportRestoreService } from "./import-restore.service";
 import { ImportController } from "./import.controller";
 import { ImportModule } from "./import.module";
 /* eslint-enable import/first */
@@ -208,5 +214,97 @@ describe("ImportModule — ImportRestoreTransactionService 등록 (3c-1)", () =>
 
     await expect(moduleRef.close()).resolves.toBeUndefined();
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+// ImportModule 을 import 하는 외부 module 대역 — exports 누락을 잡기 위한 wrapper (T-1282
+// negative (d)). ImportModule 이 ImportRestoreService 를 export 하지 않으면 여기서 resolve 가
+// 실패한다 (providers 에만 있으면 module 밖에서는 보이지 않는다).
+@Module({ imports: [PersistenceModule, ImportModule] })
+class RestoreConsumerModule {}
+
+// T-1282 (실행 slice 3c-2c) — ImportRestoreService 의 DI 등록 한 겹. 3c-1 describe 와 동형으로
+// "등록됐는가 · dep 그래프가 닫히는가 · 등록만으로 부수효과가 없는가" 만 본다 (service 자체
+// 동작은 import-restore.service.spec.ts 책임).
+describe("ImportModule — ImportRestoreService 등록 (3c-2c)", () => {
+  // Happy path (a): compile 하면 신규 orchestrator provider 가 정상 resolve 된다.
+  it("compile 시 ImportRestoreService provider 가 resolve 된다", async () => {
+    const moduleRef = await compile();
+
+    const service = moduleRef.get(ImportRestoreService);
+    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(ImportRestoreService);
+
+    await moduleRef.close();
+  });
+
+  // Happy path (b): dep 그래프가 실제로 닫힌다 — 공개 method 가 노출되고, 주입된
+  // ImportRestoreTransactionService 가 같은 container 의 인스턴스와 동일하다.
+  it("resolve 된 인스턴스가 restoreFromDump 를 노출하고 같은 container 의 transaction service 를 주입받는다", async () => {
+    const moduleRef = await compile();
+    const service = moduleRef.get(ImportRestoreService);
+    const injected = (
+      service as unknown as { transaction: ImportRestoreTransactionService }
+    ).transaction;
+
+    expect(typeof service.restoreFromDump).toBe("function");
+    expect(injected).toBe(moduleRef.get(ImportRestoreTransactionService));
+
+    await moduleRef.close();
+  });
+
+  // Error path: 공급자 없이 ImportRestoreService 만 등록하면 DI 가 **조용히 통과하지 않고**
+  // reject 한다. ImportModule 통째 compile 대신 최소 module 로 좁힌 이유는 3c-1 describe 와
+  // 동일 (PersistenceModule 을 뺀 full-graph compile 은 jest worker 를 crash 시킨다).
+  it("공급자 없이 ImportRestoreService 를 등록하면 compile 이 실패한다 (DI 실패가 조용히 통과하지 않음)", async () => {
+    const build = Test.createTestingModule({
+      providers: [ImportRestoreService],
+    }).compile();
+
+    await expect(build).rejects.toThrow(/PrismaService/);
+  });
+
+  // Negative (a) + (b): 등록은 부수효과를 만들지 않는다 — compile 만으로 $transaction 도
+  // DB read (person.findMany — collectFullExportRecords 의 surface) 도 0 회다.
+  it("negative: compile 만으로 $transaction · DB read 가 0 회다", async () => {
+    const moduleRef = await compile();
+    const prisma = moduleRef.get(PrismaService) as unknown as {
+      $transaction: jest.Mock;
+      person: { findMany: jest.Mock };
+    };
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.person.findMany).not.toHaveBeenCalled();
+
+    await moduleRef.close();
+  });
+
+  // Negative (c): 두 번 get 해도 같은 싱글턴 — provider 가 중복 등록되지 않았다.
+  it("negative: 두 번 resolve 해도 같은 싱글턴 인스턴스다 (중복 등록 0)", async () => {
+    const moduleRef = await compile();
+
+    expect(moduleRef.get(ImportRestoreService)).toBe(
+      moduleRef.get(ImportRestoreService),
+    );
+
+    await moduleRef.close();
+  });
+
+  // Negative (d): ImportModule 을 import 하는 외부 module 에서도 resolve 된다 — exports 누락
+  // 검증 (providers 에만 있으면 여기서 실패). 기존 등록 2 종도 함께 살아있는지 확인한다.
+  it("negative: ImportModule 을 import 하는 외부 module 에서도 resolve 된다 (exports 누락 검증)", async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [RestoreConsumerModule],
+    }).compile();
+
+    expect(moduleRef.get(ImportRestoreService)).toBeInstanceOf(
+      ImportRestoreService,
+    );
+    expect(moduleRef.get(ImportRestoreTransactionService)).toBeInstanceOf(
+      ImportRestoreTransactionService,
+    );
+    expect(moduleRef.get(ImportJobService)).toBeInstanceOf(ImportJobService);
+
+    await moduleRef.close();
   });
 });

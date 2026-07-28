@@ -15,9 +15,10 @@
 // 는 **인스턴스 그대로** 전파한다 (재랩핑 · 흡수 0). REQ-032: 거부 message 는 stage 토큰 +
 // 상류가 이미 정제한 한국어 issue 만 조립하고 dump 원문 · record `fields` · plan payload ·
 // stack 을 싣지 않으며 원본 verdict 를 `cause` 로도 붙이지 않는다.
-// 하지 않는 것 (task §Out of Scope): `import.module.ts` provider 등록 0 (slice 3c-2c) ·
-// controller / `import-job.service.ts` 재배선 0 (3c-3) · `SchemaVersionCompatOptions` 노출 0
-// (기본값 호출 + verdict 준수). 본 commit 시점의 호출처는 0 이라 런타임 동작 변화도 0 이다.
+// 하지 않는 것 (task §Out of Scope): controller / `import-job.service.ts` 재배선 0 (3c-3) ·
+// `SchemaVersionCompatOptions` 노출 0 (기본값 호출 + verdict 준수). T-1282 (slice 3c-2c) 가
+// 본 service 를 `import.module.ts` 의 providers · exports 에 등록했으나 **호출처는 여전히 0**
+// 이라 런타임 동작 변화는 없다 (실 배선은 3c-3).
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { type ImportMode } from "@prisma/client";
 
@@ -57,8 +58,13 @@ export class ImportRestoreService {
 
     const prepared = prepareImportRestorePlan(buffer, existing, mode);
     if (!prepared.ok) {
+      // 거부 message 조립 — stage 토큰이 본체이고 issue 목록은 **있을 때만** 꼬리로 붙인다.
+      // issues 가 비면 구분자 (": ") 만 남아 "stage: plan): " 처럼 끝나던 결함 (T-1281 이월
+      // nit (ii)) 을 여기서 닫는다. 실리는 것은 여전히 stage 토큰 + 상류가 정제한 issue
+      // 문자열뿐 — dump 원문 · record fields · plan payload · cause 는 0 (REQ-032).
+      const detail = prepared.issues.join("; ");
       throw new BadRequestException(
-        `import 복원 거부 (stage: ${prepared.stage}): ${prepared.issues.join("; ")}`,
+        `import 복원 거부 (stage: ${prepared.stage})${detail ? `: ${detail}` : ""}`,
       );
     }
 
