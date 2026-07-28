@@ -9,6 +9,13 @@
 // [start, end) PeriodRange 분류 + assertValidDate/assertValidRange + non-mutating + 입력
 // 순서 보존 + 빈 배열 정상. dateRange 표현은 새 타입을 신설하지 않고 common 의 PeriodRange
 // 를 재사용한다(UC-07 §6.1 dateRange 차원).
+//
+// 제네릭 확장(T-1290) — ExportSelection / selectExportRecords 는 record 타입 파라미터
+// TRecord(default = ExportRecord)를 받는다. full-record dump 의 FullExportRecord(= ExportRecord
+// + fields)를 scope 선별에 통과시켜도 `fields` 가 타입에서 지워지지 않게 하려는 **타입-only**
+// 확장이며 런타임 동작은 0 변경이다(분류 규칙 · 경계 해석 · 에러 메시지 · 순서 전부 불변 —
+// 이미 원소 참조를 그대로 옮기고 있었다). import 측 buildImportRestorePlan<TInsert>(T-1266)의
+// default 타입 인자 선례와 동형이라 기존 호출처 · 소비처는 무수정으로 컴파일된다.
 import { PeriodRange } from "../common/period-boundary";
 
 // UC-07 §6.1 entitySelector 목록 — Export 가 dump 하는 5 entity (Assessment + 인원 master +
@@ -39,9 +46,16 @@ export interface ExportScope {
 
 // 선별 결과 — 입력 records 를 scope 규칙으로 분류한 두 배열. 두 배열 모두 입력 순서를 보존
 // 하며, 둘의 합집합은 입력 records 와 동일(중복/누락 0), 입력 배열을 변형하지 않는다.
-export interface ExportSelection {
-  selected: ExportRecord[];
-  excluded: ExportRecord[];
+//
+// 타입 파라미터 TRecord (T-1290) — 입력 record 의 실제 타입이 그대로 두 결과 배열까지 전달된다.
+// full-record dump(FullExportRecord = ExportRecord + fields)를 scope 선별에 통과시켜도 `fields`
+// 가 타입에서 지워지지 않게 하려는 **타입-only 확장** 이며, 런타임 동작은 0 변경이다(이미
+// 원소 **참조** 를 그대로 옮긴다). import 측 buildImportRestorePlan<TInsert>(T-1266)의 default
+// 타입 인자 형태를 mirror 하므로 기존 `ExportSelection` 표기(export-dump-size-estimate.ts ·
+// export-selection-summary.ts · export-job.service.ts)는 한 글자도 고치지 않고 컴파일된다.
+export interface ExportSelection<TRecord extends ExportRecord = ExportRecord> {
+  selected: TRecord[];
+  excluded: TRecord[];
 }
 
 // UC-07 §6.1 의 scope 차원·entitySelector 차원 단일 source-of-truth (T-0445 통합). 본 두
@@ -103,10 +117,19 @@ function assertValidRange(range: PeriodRange): void {
 // 빈 records 입력은 빈 분류(error 아님). scope 가 허용 외 값이면 RangeError, records 가
 // 배열이 아니면 TypeError, 원소 instant 가 비-Date/Invalid Date 면 그 index 를 메시지에
 // 담아 TypeError 를 throw 한다.
-export function selectExportRecords(
+//
+// 타입 파라미터 TRecord (T-1290) — 입력 원소 타입이 그대로 selected/excluded 까지 전달된다.
+// 분기 순서 · 검증 순서 · 에러 메시지 · 결과 순서 · non-mutating 계약은 전부 현행 그대로이며
+// 내부 지역 배열의 원소 타입만 TRecord 로 좁힌 **타입-only 확장** 이다(런타임 0 변경).
+// 목적: materializeFullExportDownload 가 만드는 FullExportRecord[](= ExportRecord + fields)를
+// 본 helper 에 통과시켜도 `fields` 를 캐스팅 없이 읽을 수 있게 하는 것 — 다음 slice 의 scope
+// 배선이 캐스팅 표면을 만들지 않도록 미리 타입만 연다(T-1266 buildImportRestorePlan 동형).
+export function selectExportRecords<
+  TRecord extends ExportRecord = ExportRecord,
+>(
   scope: ExportScope,
-  records: ReadonlyArray<ExportRecord>,
-): ExportSelection {
+  records: ReadonlyArray<TRecord>,
+): ExportSelection<TRecord> {
   if (!scope || !VALID_SCOPES.has(scope.scope)) {
     throw new RangeError(
       `selectExportRecords: scope 는 full/range/partial 중 하나여야 합니다 (받음: ${String(
@@ -157,8 +180,9 @@ export function selectExportRecords(
       ? new Set(scope.entitySelector)
       : null;
 
-  const selected: ExportRecord[] = [];
-  const excluded: ExportRecord[] = [];
+  // 지역 배열 원소 타입만 TRecord 로 좁힌다(T-1290) — push 하는 값은 입력 원소 **참조** 그대로.
+  const selected: TRecord[] = [];
+  const excluded: TRecord[] = [];
 
   for (let index = 0; index < records.length; index += 1) {
     const record = records[index];
