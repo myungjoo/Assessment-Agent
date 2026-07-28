@@ -3,6 +3,7 @@
 // 경계 + non-mutating + 예외 분기를 검증한다(deletion-window-select.spec.ts mirror).
 import { PeriodRange } from "../common/period-boundary";
 
+import { estimateExportDumpSize } from "./export-dump-size-estimate";
 import { buildFullExportRecord, FullExportRecord } from "./export-full-record";
 import {
   ExportRecord,
@@ -603,5 +604,20 @@ describe("selectExportRecords<TRecord> — default 타입 인자 회귀 방지 (
     ]);
     expect(widened.excluded).toEqual([]);
     expect(widened.selected).toHaveLength(1);
+  });
+
+  it("결과가 실 consumer estimateExportDumpSize 에 캐스팅 없이 전달된다", () => {
+    const records: FullExportRecord[] = [
+      full("Person", "2026-06-11T00:00:00Z", { id: "p-1" }),
+      full("Group", "2026-06-11T00:00:00Z", { id: "g-1" }),
+    ];
+    // ExportSelection<FullExportRecord> 를 `as` 없이 그대로 기존 consumer 에 전달 —
+    // 컴파일(타입 호환) + 런타임(정상 산출) 둘 다 통과해야 한다.
+    const estimate = estimateExportDumpSize(
+      selectExportRecords({ scope: "full" }, records),
+    );
+    expect(Number.isInteger(estimate.estimatedBytes)).toBe(true);
+    expect(estimate.estimatedBytes).toBeGreaterThan(0);
+    expect(estimate.recordTotal).toBe(records.length);
   });
 });
