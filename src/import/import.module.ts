@@ -3,7 +3,7 @@
 // ImportJobService (T-0487) provider + ImportController (T-0489) controller 를 DI
 // container 에 등록해 `/api/admin/import` endpoint 를 NestJS 런타임에 살린다.
 //
-// 책임 범위 (본 task):
+// 책임 범위 (T-0489 배선 + T-1279 등록):
 //   - ImportJobService provider 등록 — ImportController 가 inject (T-0487 머지된
 //     service 그대로 주입만, 로직 변경 0). 후속 45-helper / 실 복원 배선 task 가 본
 //     service 를 재사용할 수 있도록 export 도 함께 박제.
