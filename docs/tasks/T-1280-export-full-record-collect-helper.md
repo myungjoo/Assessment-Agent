@@ -2,7 +2,7 @@
 id: T-1280
 title: full-record DB-read 를 공용 helper 로 추출 (실행 slice 3c-2a)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 320
@@ -71,3 +71,11 @@ plannerNote: "cap-bend pre-justified: R-112 backbone x1.5 = 320 LOC, T-1263 선�
 
 - (예고) 실행 slice **3c-2b** — buffer → plan → 복원 orchestrator 신설 (`collectFullExportRecords` 로 기존 record 로딩 → `prepareImportRestorePlan` verdict 처리 (실패 stage → 4xx) → `ImportRestoreTransactionService.restore()` 호출 → 건수 합계 반환).
 - (예고) 실행 slice **3c-3** — `import.controller.ts` / `import-job.service.ts` 재배선 (T-1254 interim guard → 실 복원 pipeline, `markRunning` / `markSucceeded` / `markFailed` 전이) + HTTP 경계 e2e (409 / 400 응답 body) + import UI false-success 해소.
+
+## 결과 (2026-07-28 완료)
+
+- PR [#1171](https://github.com/myungjoo/Assessment-Agent/pull/1171) → squash merge `45d02094`. reviewer round **2/7** (round 1 APPROVE + Nit 2 건 → §3 Nit-in-PR closure 로 `67574ffa` 에서 종결, round 2 APPROVE finding 0), 4-게이트 전부 통과.
+- 실측 **347 insertions / 3 파일** (production: helper 신설 + service delegate 교체, 나머지 전량 spec). helper 본문은 원본 `export-job.service.ts` 의 record 로딩 구간과 line-for-line 동치 — 필터·정렬·재시도·캐시 신규 로직 0, 동작 변경 0.
+- 신규 helper line/branch/function 100%, 전체 line 99.95% / function 100% (R-112 임계 80% 충족). `export-job.service.spec.ts` 무수정 green (회귀 무손상).
+
+- (기록) 실측 diff 가 AC 상한 **340 LOC 를 7 LOC 초과**(347)했다. 초과분은 전량 reviewer 가 round 1 에서 요구한 spec 강화분(production 0 LOC, 파일 3 개 불변)이며, AC 의 "초과 시 negative (e)→(d) 제거" 지시는 R-112(예외 분기마다 negative 1+)와 충돌해 따르지 않고 reviewer round 2 가 `sizeExempt` 근거로 명시 수용했다. 후속 task 는 불요 — 본 줄이 판단 근거의 박제다.
