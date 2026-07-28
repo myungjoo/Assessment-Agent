@@ -2757,8 +2757,9 @@ describe("ExportJobService", () => {
     //   - happy: partial(entitySelector=[Group]) → Group 만 + fields 보존.
     //   - branch: full 무회귀 / range [start, end) 반열림 경계 / range+entitySelector AND.
     //   - error: selectExportRecords throw 가 변환 없이 raw propagate.
-    //   - negative 충분: dateRange 부재 · 역전 구간 · 허용 외 scope · 비-Date instant ·
-    //     빈 선별 결과 정상 envelope · 선별 후에도 secret(apiKey) 부재.
+    //   - negative 충분: dateRange 부재 · 역전 구간 · 허용 외 scope · 비-Date instant(상류에서
+    //     선차단) · 빈 선별 결과 정상 envelope · 선별 후에도 secret(apiKey) 부재 ·
+    //     선별 단계 Invalid Date(assertValidRange) → TypeError.
     // -------------------------------------------------------------------------
     interface ParsedEnvelope {
       scope: ExportScopePayload;
@@ -2780,7 +2781,7 @@ describe("ExportJobService", () => {
       typeof buildMaterializeService
     >["prisma"];
 
-    // 5 entity 전부 row 가 있는 mock 상태 (선별 전 8 record).
+    // 5 entity 전부 row 가 있는 mock 상태 (선별 전 6 record — 1+1+2+1+1).
     function seedFiveEntities(prisma: MaterializePrisma): void {
       prisma.assessment.findMany.mockResolvedValue([
         { id: "a1", personId: "p1", narrative: "평가", createdAt: INSTANT },
@@ -2953,8 +2954,10 @@ describe("ExportJobService", () => {
       ).rejects.toThrow(RangeError);
     });
 
-    // negative (d) — 비-Date instant 는 선별 경로에서도 TypeError 가 호출자에게 도달.
-    it("negative — partial 경로에서도 비-Date instant 면 TypeError 가 호출자에 도달", async () => {
+    // negative (d) — row 의 비-Date instant 는 선별에 도달하기 전 상류(collectFullExportRecords /
+    // buildFullExportRecord)에서 먼저 TypeError 로 차단되며, 그 TypeError 가 선별 배선을 거쳐도
+    // 변환 없이 호출자에게 도달한다(배선이 상류 예외를 삼키지 않음을 단언).
+    it("negative — row instant 가 비-Date 면 선별 도달 전 상류에서 TypeError 가 나 호출자에 도달", async () => {
       const { service, prisma } = buildMaterializeService();
       prisma.group.findMany.mockResolvedValue([
         { id: "g1", name: "팀A", createdAt: "2026-03-01" as unknown as Date },
@@ -2994,6 +2997,23 @@ describe("ExportJobService", () => {
       expect(parsed.recordCount).toBe(1);
       expect(parsed.records[0].fields).not.toHaveProperty("apiKey");
       expect(parsed.records[0].fields.provider).toBe("openai");
+    });
+
+    // negative (g) — 선별 **단계 자체**의 TypeError 분기(assertValidRange 의 Invalid Date). (d) 와
+    // 달리 row 는 전부 유효 Date 라 상류 collect/build 를 통과하고, dateRange 의 Invalid Date 가
+    // selectExportRecords 에서 처음 잡힌다. 도달 가능한 실 경로다 — 손상 job row 의 dateRange Json
+    // 을 controller 의 coerceDateRange 가 `new Date(...)` 로 coerce 하면 Invalid Date 가 된다.
+    // 즉 "coerceDateRange 의 Date coerce 가 assertValidRange 통과 전제" 가 깨지면 본 test 가 지킨다.
+    it("negative — dateRange 가 Invalid Date 면 선별 단계에서 TypeError 가 변환 없이 propagate", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedFiveEntities(prisma); // row 는 전부 유효 Date — 상류는 통과한다.
+
+      await expect(
+        service.materializeFullExportDownload({
+          scope: "range",
+          dateRange: { start: new Date("garbage"), end: RANGE_END },
+        }),
+      ).rejects.toThrow(TypeError);
     });
   });
 });
