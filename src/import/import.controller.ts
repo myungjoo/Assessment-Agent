@@ -7,21 +7,20 @@
 // 채워진다.
 //
 // endpoint surface:
-//   - POST /api/admin/import          → createJob 후 interim guard 로 FAILED 반환.
-//     **multipart 파일 수신 배선 완료 (ADR-0055 §Decision 1, T-1252) + 크기 상한 강제
-//     (ADR-0055 §Decision 3, T-1253)** — `mode` form field + dump artifact 파일 1 개
-//     (`file`) 를 `FileInterceptor("file", { limits: { fileSize: MAX_IMPORT_FILE_SIZE_BYTES } })`
-//     (multer bundled in @nestjs/platform-express, 새 dep 0) + `@UploadedFile()` 로 받는다.
-//     크기 상한 초과 시 multer 가 `MulterError(LIMIT_FILE_SIZE)` 를 던지고
-//     `MulterExceptionFilter` 가 이를 413 Payload Too Large 로 매핑한다 (상한 없는
-//     memoryStorage 의 DoS 표면 차단 — ADR-0055 §Decision 2/3). 파일 누락 시
-//     BadRequestException(400). **interim false-success guard (ADR-0055 §Follow-up d,
-//     T-1254)** — 받은 buffer 는 아직 복원 엔진에 넘기지 않으나 (§Follow-up b slice 미배선),
-//     controller 는 mode + actor 결합으로 job 을 생성한 뒤 **곧바로 markFailed 로 FAILED
-//     전이해 반환**한다. 미배선 PENDING job 은 처리 runner 가 없어 영원히 PENDING 이 되어
-//     UI 가 이를 성공/진행 중으로 오표기하는 false-success 표면이 되므로, 명시 FAILED +
-//     사람-친화 사유로 그 표면을 닫는다 (ADR-0055 §Consequences 부정 close — buffer 미소비
-//     유지). 본 guard 는 reversible — (b) 착수 시 실 복원 pipeline 으로 교체된다.
+//   - POST /api/admin/import          → createJob 후 job runner 로 실 복원을 실행하고
+//     그 결과 job 을 반환. **multipart 파일 수신 배선 완료 (ADR-0055 §Decision 1, T-1252)
+//     + 크기 상한 강제 (ADR-0055 §Decision 3, T-1253)** — `mode` form field + dump
+//     artifact 파일 1 개 (`file`) 를 `FileInterceptor("file", { limits: { fileSize:
+//     MAX_IMPORT_FILE_SIZE_BYTES } })` (multer bundled in @nestjs/platform-express,
+//     새 dep 0) + `@UploadedFile()` 로 받는다. 크기 상한 초과 시 multer 가
+//     `MulterError(LIMIT_FILE_SIZE)` 를 던지고 `MulterExceptionFilter` 가 이를 413
+//     Payload Too Large 로 매핑한다 (상한 없는 memoryStorage 의 DoS 표면 차단 —
+//     ADR-0055 §Decision 2/3). 파일 누락 시 BadRequestException(400). **복원 엔진 배선
+//     완료 (ADR-0055 §Follow-up b, T-1286)** — 받은 buffer 를 `ImportJobRunnerService`
+//     에 그대로 넘겨 markRunning → 복원 → markSucceeded 를 요청-응답 안에서 완주하고,
+//     그 반환 job (status=SUCCEEDED + restoredRowCount) 을 재가공 없이 돌려준다. 이로써
+//     T-1254 의 interim FAILED guard 는 제거됐고 ADR-0055 §Consequences 의 false-success
+//     표면은 실 복원 결과로 닫힌다.
 //   - GET  /api/admin/import/running  → findRunning (RUNNING 목록, UC-07 §8 status polling).
 //   - GET  /api/admin/import/modes    → describeModes (import mode 선택 dialog 의 사람-친화
 //     설명 목록, UC-07 §5 step 2 + §6.2 — describeImportMode helper 를 REPLACE/MERGE 두
@@ -53,10 +52,13 @@
 //   - Admin / SuperAdmin 통과 (RolesGuard escalation), User actor 403 (tier 미달).
 //   - 인증 부재 (cookie 없음 / invalid JWT) → JwtAuthGuard 가 401.
 //
-// 책임 경계 (Out of Scope — T-0489 §Out of Scope):
-//   - multipart 파일 수신 / 실 artifact upload·파싱 (multer · FileInterceptor) — 후속 slice.
-//   - 실 atomic transaction 복원 로직 (REPLACE $transaction / MERGE conflict) — 후속 task.
-//   - 45 helper 실호출 배선 — 후속 chain. 본 controller 는 job record 생성·조회만.
+// 책임 경계:
+//   - 실 atomic transaction 복원 로직 (REPLACE $transaction / MERGE conflict) 은
+//     ImportRestoreService 소유 — controller 는 runner 호출만 한다.
+//   - 실패 사유 기록·정제 (markFailed) 는 runner 소유 — controller 는 예외를 삼키지
+//     않고 raw propagate 만 한다 (REQ-032 raw 미저장 정합).
+//   - 비동기 queue / background worker / 진행률 스트리밍 0 — runner 를 요청-응답 안에서
+//     동기적으로 await 한다.
 //   - 신규 auth-flow / RBAC 정책 변경 0 — 기존 guard stack 적용만.
 //   - 응답 envelope 표준화 / pagination / sort — service return 그대로 forward.
 import {
@@ -87,6 +89,7 @@ import {
 import type { ImportRestoreMode } from "../export/import-restore-plan";
 
 import { CreateImportDto } from "./dto/create-import.dto";
+import { ImportJobRunnerService } from "./import-job-runner.service";
 import { ImportJobService } from "./import-job.service";
 import { MulterExceptionFilter } from "./multer-exception.filter";
 import type { UploadedDumpFile } from "./uploaded-dump-file";
@@ -102,17 +105,6 @@ import type { UploadedDumpFile } from "./uploaded-dump-file";
 // env override / 동적 config 는 본 slice 범위 밖 — 분기 있는 env parsing 도입 없이 단순
 // 상수로 둔다(배포 환경별 조정 필요 시 별도 follow-up 로 env parsing helper + spec 박제).
 export const MAX_IMPORT_FILE_SIZE_BYTES = 50 * 1024 * 1024;
-
-// INTERIM_RESTORE_UNWIRED_MESSAGE — 복원 엔진 미배선 동안 import job 을 명시적으로
-// FAILED 로 전이시킬 때 기록하는 사람-친화 한국어 사유 상수 (ADR-0055 §Consequences 부정
-// "chain 완주 전 import UI false-success 상태" 의 직접 close). multipart 수신(§Follow-up
-// a, T-1252) + 크기 상한(§Follow-up c, T-1253) 은 배선됐으나 dump 파싱→실 복원 엔진
-// (§Follow-up b) 이 아직 미배선이라, 생성된 PENDING job 을 처리할 runner 가 없어 영원히
-// PENDING 으로 방치되면 UI 가 이를 "접수/진행 중" 으로 낙관 해석하는 false-success 표면이
-// 된다. 본 상수 message 로 곧바로 FAILED 전이해 그 표면을 원천 차단한다. raw stack/외부
-// 본문을 포함하지 않는 short message 만 (REQ-032 raw 미저장 정합).
-export const INTERIM_RESTORE_UNWIRED_MESSAGE =
-  "복원 엔진 미배선 — dump 파일은 수신됐으나 실제 복원이 아직 구현되지 않았습니다 (ADR-0055 §Follow-up b 대기).";
 
 // Prisma ImportMode enum(uppercase REPLACE/MERGE) ↔ describeImportMode helper 가
 // 요구하는 lowercase ImportRestoreMode("replace"/"merge") 매핑. prisma/schema.prisma
@@ -133,7 +125,13 @@ const IMPORT_MODE_ENUM_TO_PAYLOAD: Record<ImportMode, ImportRestoreMode> = {
   }),
 )
 export class ImportController {
-  constructor(private readonly service: ImportJobService) {}
+  // ImportJobRunnerService 는 **값 import** 로 주입한다 (`import type` 금지 — DI
+  // 메타데이터가 소거되어 Nest 가 의존을 해석하지 못한다). 등록은 T-1285 가 이미
+  // import.module.ts 의 providers·exports 에 마쳤다.
+  constructor(
+    private readonly service: ImportJobService,
+    private readonly runner: ImportJobRunnerService,
+  ) {}
 
   // POST /api/admin/import — import job 생성 (REQ-030 Import). multipart/form-data 로
   // dump artifact 파일 1 개 (`file`) + `mode` form field 를 받는다 (ADR-0055 §Decision 1).
@@ -151,22 +149,25 @@ export class ImportController {
   //   - @CurrentUser("sub") actorSub — 인증 actor.sub 를 requestedById 로 결합
   //     (client 임의 발화자 위장 불가, REQ-045). @Body() dto 의 mode 를 forward.
   //
-  // 파일 누락 분기 (ADR-0055 §Follow-up a): file 이 undefined 면 BadRequestException(400)
-  // 으로 거부한다 (dump artifact 없이 import 진행 불가). 파일 수신 시에는 기존대로
-  // service.createJob({ mode, requestedById }) 로 job 을 생성한다. mode 미지정 시 dto.mode
-  // 가 undefined 로 forward 되어 service 가 schema @default(REPLACE) 를 적용한다. mode
-  // invariant 위반·진행 중 race(409) 는 service 가 예외 raw forward — controller 는 파일
-  // 누락 외 추가 분기를 두지 않으며 그 예외를 아래 guard 로 삼키지 않는다.
+  // 본문 3 단계 (ADR-0055 §Follow-up b 배선 완료, T-1286):
+  //   (1) 파일 검증 — file 이 undefined 면 BadRequestException(400) 으로 거부한다 (dump
+  //       artifact 없이 import 진행 불가). **controller 자체 분기는 이 하나뿐**이며
+  //       createJob · runJob 은 둘 다 미호출로 남는다.
+  //   (2) createJob({ mode: dto.mode, requestedById }) — job record(PENDING) 생성. mode
+  //       미지정 시 dto.mode 가 undefined 로 forward 되어 service 가 schema
+  //       @default(REPLACE) 를 적용한다.
+  //   (3) runner.runJob({ jobId, buffer, mode, artifactRef }) — markRunning → dump 복원
+  //       → markSucceeded 를 runner 가 합성하고, 그 반환 job(status=SUCCEEDED +
+  //       restoredRowCount) 을 재가공 없이 돌려준다. `artifactRef` 는 업로드 파일명
+  //       (file.originalname), `mode` 는 dto 가 아니라 **생성된 job row 의 확정값**
+  //       (job.mode — schema @default 적용 후) 을 쓴다. buffer 는 복사·slice 없이 같은
+  //       인스턴스로 넘긴다.
   //
-  // **interim false-success guard (ADR-0055 §Follow-up d, T-1254)**: createJob 이 만든
-  // job(status=PENDING)은 이를 처리할 복원 runner 가 §Follow-up (b) 미배선이라 영원히
-  // PENDING 으로 방치되어 UI 가 성공/진행 중으로 오표기하는 false-success 표면이 된다.
-  // 그래서 생성 직후 service.markFailed(job.id, INTERIM_RESTORE_UNWIRED_MESSAGE) 로 FAILED
-  // 전이해 그 결과를 반환한다 — 반환 status 는 절대 PENDING/SUCCEEDED 가 아니라 FAILED +
-  // 명시 사유(ADR-0055 §Consequences 부정 close). 받은 file.buffer 는 여전히 소비하지
-  // 않는다 (파싱→실 복원 엔진 배선은 §Follow-up (b) slice). 본 guard 는 reversible — (b)
-  // 착수 시 이 markFailed 라인이 실 복원 pipeline(markRunning → buffer 파싱 → ADR-0044
-  // §3 $transaction → markSucceeded/markFailed)으로 교체된다.
+  // 예외 정책 — createJob 의 mode invariant 400 / 진행 중 race 409, runJob 의 dump 파싱
+  // 실패 400 등은 전부 **raw propagate** 한다 (재랩핑·try/catch 0). 실패 사유 기록은
+  // runner 의 recordFailure 몫이라 controller 는 markFailed 를 호출하지 않는다.
+  //
+  // 동기 실행 — runJob 을 요청-응답 안에서 await 한다 (queue / background worker 0).
   //
   // RBAC — Admin+ tier. @Roles("Admin") → Admin / SuperAdmin 통과 (RolesGuard
   // escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401. guard 는
@@ -193,24 +194,24 @@ export class ImportController {
 
     // 파일 수신·크기 검증 통과 후 job record (status=PENDING) 를 생성한다. createJob 이
     // ConflictException(진행 중 race) / BadRequestException(mode invariant) 등을 던지면
-    // 아래 markFailed 로 삼키지 않고 그대로 raw propagate 된다 (guard 는 정상 생성된 job
-    // 에만 적용).
+    // 아래 runJob 은 미도달이며 예외가 그대로 raw propagate 된다.
     const job = await this.service.createJob({
       mode: dto.mode,
       requestedById: actorSub,
     });
 
-    // interim false-success guard (ADR-0055 §Follow-up d) — 복원 엔진(§Follow-up b)이
-    // 아직 미배선이라 PENDING job 은 처리 runner 가 없어 영원히 PENDING 이며 UI 가 이를
-    // 성공/진행 중으로 오표기하는 false-success 표면이 된다. 생성 직후 명시 사유와 함께
-    // FAILED 로 전이해 반환함으로써 그 표면을 원천 차단한다 — 반환 ImportJob 의 status 는
-    // 절대 PENDING/SUCCEEDED 가 아니라 FAILED + 사람-친화 사유다.
-    //
-    // reversible — §Follow-up (b) 착수 시 본 markFailed 라인이 실 복원 pipeline
-    // (markRunning → buffer 파싱 → ADR-0044 §3 atomic $transaction → markSucceeded/
-    // markFailed) 으로 **교체**된다. 본 slice 는 buffer(file.buffer) 를 절대 소비하지
-    // 않는다 (파싱·복원 배선은 (b) — buffer 미소비 유지, REQ-032).
-    return this.service.markFailed(job.id, INTERIM_RESTORE_UNWIRED_MESSAGE);
+    // 실 복원 실행 (ADR-0055 §Follow-up b) — runner 가 markRunning → restoreFromDump →
+    // markSucceeded 를 합성한다. mode 는 dto.mode 가 아니라 생성된 row 의 job.mode 를
+    // 쓴다 (schema @default(REPLACE) 가 적용된 확정값이 source). buffer 는 재가공 없이
+    // 같은 인스턴스로, artifactRef 는 업로드 파일명 그대로 넘긴다. 반환은 runner 결과를
+    // 재가공 없이 forward — 복원 실패 시 runner 가 사유를 기록한 뒤 원본 error 를 재
+    // throw 하므로 controller 는 삼키지 않는다.
+    return this.runner.runJob({
+      jobId: job.id,
+      buffer: file.buffer,
+      mode: job.mode,
+      artifactRef: file.originalname,
+    });
   }
 
   // GET /api/admin/import/running — 진행 중 (status=RUNNING) import job 목록
