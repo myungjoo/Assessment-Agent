@@ -207,7 +207,10 @@ describe("ImportRestoreTransactionService.restore — Prisma error 매핑 (3b-2c
   const prismaError = (code: string, over: Obj = {}) =>
     Object.assign(new Error(`db 실패 ${code}`), { code, ...over });
   const failing = (thrown: unknown) => makeService(undefined, thrown);
-  // 실패 주입 후 던져진 값을 돌려주는 helper — 매 호출마다 재시도 0 · 추가 delegate 호출 0 단언.
+  // 실패 주입 후 던져진 값을 돌려주는 helper — 매 호출마다 재시도 0 단언.
+  // 주의: 본 helper 는 `txReject` 경로 **전용** 이라 콜백 자체가 실행되지 않는다. 따라서 아래
+  // `calls` 단언은 "트랜잭션을 열자마자 실패했다" 는 뜻일 뿐 보상 로직 부재의 증거가 아니다
+  // (T-1278 이월 nit). 실 delegate 를 돌린 뒤 실패하는 경로는 아래 별도 test 가 덮는다.
   const caught = async (thrown: unknown): Promise<unknown> => {
     const { service, $transaction, calls } = failing(thrown);
     const err = await service.restore(one()).catch((e: unknown) => e);
@@ -288,6 +291,28 @@ describe("ImportRestoreTransactionService.restore — Prisma error 매핑 (3b-2c
       () => "rejected",
     );
     expect(done).toBe("rejected");
+  });
+
+  // regression (T-1279, T-1278 이월 nit) — 실 step 을 돌린 뒤 **트랜잭션 안의 delegate** 가
+  // P2002 로 reject 하는 실제 실패 형태. `caught()` 의 txReject 경로와 달리 콜백이 실행되므로
+  // "매핑이 붙어도 실패 이후 호출 0 · 보상 delete 0" 이 공허하지 않게 검증된다.
+  it("regression: 중간 delegate 가 P2002 로 실패하면 409 매핑 · 실행 sequence 그대로 · 보상 0", async () => {
+    const boom = prismaError("P2002", { meta: { target: ["email"] } });
+    const { service, $transaction, calls } = makeService((k) =>
+      k === "person.createMany" ? Promise.reject(boom) : { count: 1 },
+    );
+    const input = pl({ toDelete: [P], toInsert: [P, rec("Group")] });
+
+    const err = (await service
+      .restore(input)
+      .catch((e: unknown) => e)) as HttpException;
+
+    expect(err).toBeInstanceOf(ConflictException);
+    expect(err.getStatus()).toBe(409);
+    expect(err.message).not.toContain("P2002"); // 원본 code 문구 재사용 0
+    // 실패 지점까지의 호출만 남고 이후 step (group.createMany) · 보상 delete 는 0.
+    expect(calls).toEqual(["person.deleteMany", "person.createMany"]);
+    expect($transaction).toHaveBeenCalledTimes(1); // 재시도 0
   });
 
   // negative (f) 설계 결정 (A) pin — helper 를 자체 try/catch 로 감싸지 않으므로 계약 밖 입력의
