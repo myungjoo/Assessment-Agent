@@ -2,12 +2,14 @@
 id: T-1288
 title: import 업로드 거부 경계 e2e (401 / 403 / 400 / 409, 실행 slice 3c-3d2)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 280
 estimatedFiles: 1
 created: 2026-07-28
+completedAt: 2026-07-28T17:51:48Z
+prNumber: 1179
 independentStream: import-restore-engine
 dependsOn: [T-1287]
 touchesFiles:
