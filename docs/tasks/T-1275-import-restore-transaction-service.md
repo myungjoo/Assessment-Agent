@@ -2,7 +2,7 @@
 id: T-1275
 title: 복원 step 을 단일 $transaction 안에서 실행하는 service (실행 slice 3b-2a)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 265
@@ -14,7 +14,12 @@ touchesFiles:
   - src/import/import-restore-transaction.service.ts
   - src/import/import-restore-transaction.service.spec.ts
 plannerNote: "실측 1:2.1 재산정 (prod 85 : spec 180) = 265 LOC. 3b-2 를 2a/2b 로 split — 실 DB rollback regression 은 2b"
+completedAt: 2026-07-28
+mergedAs: 5f49df59
+prNumber: 1166
 ---
+
+> **완료** — 2026-07-28T01:07:48Z PR #1166 squash merge (`5f49df59`). 실측 278 LOC (prod 87 : spec 191) / 2 파일 — 가이드 265 대비 +13, CLAUDE.md §3 hard cap 300 준수. reviewer APPROVE (잔여 NIT 4 + MINOR 노트 1 은 아래 Follow-ups 로 이월).
 
 # T-1275 — 복원 step 을 단일 $transaction 안에서 실행하는 service (실행 slice 3b-2a)
 
@@ -74,6 +79,14 @@ T-1274 Follow-ups 는 3b-2 를 "`PrismaService.$transaction` 배선 + tx client 
 `implementer → tester`
 
 ## Follow-ups
+
+**PR #1166 reviewer 잔여 finding 처리 결정 (planner, 2026-07-28)** — 4 NIT + MINOR 노트 1 을 검토한 결과 **별도 follow-up task 를 만들지 않는다**. 셋은 이미 큐잉된 위생 slice / 후속 slice 에 흡수되고, 하나는 [T-1276](T-1276-import-restore-rollback-e2e.md) (3b-2b) 의 Acceptance Criteria 로 직접 편입했다. 단독 task 를 만들 만한 기능 영향 · 회귀 위험이 있는 항목은 0 이다.
+
+- (이월, 비차단, **노트만**) NIT-1 — spec 실측 191 행이 본 task 의 spec sub-limit 190 을 1 행 초과했다 (총 278 / 자체 상한 278 / hard cap 300 은 모두 준수). 결정: 수정 task 0. 다음 slice 의 LOC 가이드 보정 입력으로만 쓴다 (1:2.1 비율 자체는 유효).
+- (이월, 비차단, **위생 slice 로 지정**) NIT-2 — [src/import/import-restore-transaction.service.spec.ts](../../src/import/import-restore-transaction.service.spec.ts) 98~109 행의 1 회차 ↔ 2 회차 결과 동등성 단언이 약하다 (동일 입력 2 회 호출의 동등성을 느슨하게 봐 회귀 감도가 낮음). 결정: 단독 task 0 — spec fixture 공용 module 추출 위생 slice 에서 그 spec 을 만질 때 단언을 강화한다.
+- (이월, 비차단, **위생 slice 로 지정**) NIT-3 — 같은 spec 의 fixture 가 `as unknown as` 로 캐스팅돼 상류 타입 shape drift 를 숨긴다 (`FullExportRecord` / plan 형태가 바뀌어도 spec 이 컴파일 통과). 결정: 단독 task 0 — 위 위생 slice 에서 타입 안전 factory 로 함께 해소 (chain 전반의 fixture 사본 8 개와 같은 뿌리).
+- (이월, **T-1276 으로 편입 완료**) NIT-4 — `IMPORT_RESTORE_TRANSACTION_OPTIONS.timeout` (120s) 이 Prisma 커넥션 풀 크기 · DB `statement_timeout` 과 어떻게 상호작용하는지 기록이 없다. 결정: [T-1276](T-1276-import-restore-rollback-e2e.md) 의 "timeout 관측 기록" Acceptance Criteria 로 편입 — 실 DB 를 처음 왕복하는 그 slice 에서 관측 사실을 주석으로 박제한다 (값 변경은 하지 않음).
+- (이월, **T-1276 으로 편입 완료**) MINOR-1 노트 — 본 task AC (b) 의 "`$transaction` 0 회" 단언은 **조립 단계 결함에만** 성립하며, 실행 단계 (콜백 진입 후) 실패에는 적용되지 않는다 (그때는 트랜잭션이 이미 열렸고 rollback 이 안전을 담보). 결정: 단독 task 0 — [T-1276](T-1276-import-restore-rollback-e2e.md) negative (c) 가 실 DB 쪽에서 이 경계를 보완 박제한다.
 
 - (예고) 실행 slice **3b-2b** — 실 DB rollback regression (실패 step 이후 원상 복귀 실증) + Prisma error → HTTP exception 매핑 + `import.module.ts` provider 등록. 여기서 처음 실 DB 를 잡으므로 mock unit 과 e2e 분리를 그때 재산정한다 (jest-e2e globalSetup 이 `DATABASE_URL` 대상 DB 를 truncate 하므로 별도 test DB 전제 — Q-0054 주의사항 정합).
 - (예고) 실행 slice **3c** — `import-job.service.ts` / `import.controller.ts` 재배선 (T-1254 interim `markFailed` guard 를 실 복원 pipeline 으로 교체) + import UI false-success 상태 해소.
