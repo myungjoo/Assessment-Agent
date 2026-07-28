@@ -173,10 +173,10 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
     // (a)(b) HTTP 201 + job status.
     expect(response.status).toBe(201);
     expect(response.body.status).toBe("SUCCEEDED");
-    // (c) restoredRowCount 는 dump record 수 = runner 의 `inserted` 와 일치한다.
+    // (c) + negative (b) — restoredRowCount 는 runner 계약대로 `inserted` 만이며 REPLACE 의
+    // 선삭제분 (남아 있던 Person 1 건) 이 합산되지 않는다. 합산했다면 recordCount + 1 (= 3) 이
+    // 되므로 아래 정확 일치 단언 하나가 그 회귀를 그대로 잡는다 (별도 상한 단언은 동어반복).
     expect(response.body.restoredRowCount).toBe(recordCount);
-    // negative (b) — REPLACE 의 선삭제분 (기존 Person 1 건) 이 합산되지 않는다 (초과 0).
-    expect(response.body.restoredRowCount).toBeLessThanOrEqual(recordCount);
     // (d)(e) artifactRef 는 업로드 파일명 그대로, error 는 비어 있다.
     expect(response.body.artifactRef).toBe("dump.json");
     expect(response.body.error).toBeNull();
@@ -210,8 +210,11 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
     expect(job.error).toEqual(expect.any(String));
     expect(job.error?.length).toBeGreaterThan(0);
     expect(job.restoredRowCount).toBeNull();
-    // (c) REQ-032 — 업로드 raw 본문이 job row 에도 응답 body 에도 실리지 않는다.
+    // (c) REQ-032 — 업로드 raw 본문이 job row 에도 응답 body 에도 실리지 않는다. 전체 sentinel
+    // 만 보면 `JSON.parse` 가 앞부분만 잘라 실은 message (예: `"not-json-T"...`) 를 통과시키므로
+    // **접두 조각** 도 함께 막는다 (reviewer round 1 MINOR — 절단 누출 회귀).
     expect(job.error).not.toContain(CORRUPT_DUMP_BODY);
+    expect(job.error).not.toContain("not-json");
     // negative (c) — 응답은 사람-친화 message 만이며 stack trace 조각이 없다.
     expect(JSON.stringify(response.body)).not.toContain(CORRUPT_DUMP_BODY);
     expect(response.body).not.toHaveProperty("stack");
