@@ -2,7 +2,10 @@
 id: T-1287
 title: import 업로드 → 실 복원 HTTP 경계 e2e (성공 경로, 실행 slice 3c-3d1)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-28T16:38:47Z
+prNumber: 1178
+mergedAs: d4b7bc56
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 300
