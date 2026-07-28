@@ -29,9 +29,10 @@
 // 책임 경계 (Out of Scope — T-0489 / T-1279 / T-1282 / T-1285 §Out of Scope):
 //   - multipart 파일 수신 / 실 artifact upload·파싱 (multer · FileInterceptor) — 후속 slice.
 //   - 복원 chain 3 종 (ImportRestoreTransactionService · ImportRestoreService ·
-//     ImportJobRunnerService) 의 호출처는 아직 0 — 셋 다 등록만 됐고 controller /
-//     import-job.service 어느 쪽도 inject 하지 않는다 (실 배선 · interim guard 교체는 3c-3c,
-//     HTTP 경계 e2e 는 3c-3d).
+//     ImportJobRunnerService) 의 **진입 호출처** 는 아직 0 — 셋 다 등록만 됐고 controller /
+//     import-job.service 어느 쪽도 inject 하지 않는다 (chain 내부 호출은 이미 닫혀 있다 —
+//     runner → restore → transaction). 실 배선 · interim guard 교체는 3c-3c,
+//     HTTP 경계 e2e 는 3c-3d.
 //   - 45 helper 실호출·실 복원 배선 — 후속 chain.
 import { Module } from "@nestjs/common";
 

@@ -221,8 +221,9 @@ describe("ImportModule — ImportRestoreTransactionService 등록 (3c-1)", () =>
 });
 
 // ImportModule 을 import 하는 외부 module 대역 — exports 누락을 잡기 위한 wrapper (T-1282
-// negative (d)). ImportModule 이 ImportRestoreService 를 export 하지 않으면 여기서 resolve 가
-// 실패한다 (providers 에만 있으면 module 밖에서는 보이지 않는다).
+// negative (d) / T-1285 3c-3b 공용). ImportModule 이 ImportRestoreService ·
+// ImportJobRunnerService 를 export 하지 않으면 여기서 resolve 가 실패한다 (providers 에만
+// 있으면 module 밖에서는 보이지 않는다).
 @Module({ imports: [PersistenceModule, ImportModule] })
 class RestoreConsumerModule {}
 
