@@ -3013,7 +3013,9 @@ describe("ExportJobService", () => {
           scope: "range",
           dateRange: { start: new Date("garbage"), end: RANGE_END },
         }),
-      ).rejects.toThrow(TypeError);
+        // throw 지점을 선별 단계(assertValidRange)로 고정 — 메시지 regex 로 좁혀야 상류
+        // buildFullExportRecord 의 TypeError 로도 통과해버리는 느슨함이 사라진다(T-1292).
+      ).rejects.toThrow(/selectExportRecords: dateRange\.start/);
     });
   });
 });
