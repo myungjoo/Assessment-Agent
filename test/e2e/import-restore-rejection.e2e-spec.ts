@@ -171,6 +171,9 @@ describe("E2E: POST /api/admin/import 거부 경계 (T-1288)", () => {
     // 사유는 기록되되 업로드 raw 는 실리지 않는다 (REQ-032).
     expect(job.error).toEqual(expect.any(String));
     expect(job.error).not.toContain(UPLOAD_SENTINEL);
+    // 접두 조각도 막는다 — `JSON.parse` SyntaxError message 는 입력 앞부분만 잘라 싣기
+    // 때문에 전체 sentinel 단언만으로는 절단 누출 회귀를 놓친다 (T-1287 reviewer MINOR-1).
+    expect(job.error).not.toContain("not-json");
     expectNoRawLeak(response.body);
     // 파싱 실패는 `$transaction` 이전 단락이라 도메인 row 수가 그대로다.
     expect(await counts()).toEqual(before);
