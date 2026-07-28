@@ -2750,5 +2750,270 @@ describe("ExportJobService", () => {
       expect(llm.fields).not.toHaveProperty("apiKey");
       expect(llm.fields.provider).toBe("openai");
     });
+
+    // -------------------------------------------------------------------------
+    // scope 선별 배선 (T-1291) — collectFullExportRecords 결과가 selectExportRecords 를 거쳐
+    // selected 만 envelope 에 담기는지. R-112 4 종:
+    //   - happy: partial(entitySelector=[Group]) → Group 만 + fields 보존.
+    //   - branch: full 무회귀 / range [start, end) 반열림 경계 / range+entitySelector AND.
+    //   - error: selectExportRecords throw 가 변환 없이 raw propagate.
+    //   - negative 충분: dateRange 부재 · 역전 구간 · 허용 외 scope · 비-Date instant(상류에서
+    //     선차단) · 빈 선별 결과 정상 envelope · 선별 후에도 secret(apiKey) 부재 ·
+    //     선별 단계 Invalid Date(assertValidRange) → TypeError.
+    // -------------------------------------------------------------------------
+    interface ParsedEnvelope {
+      scope: ExportScopePayload;
+      entityCounts: Record<string, number>;
+      recordCount: number;
+      records: Array<{ entity: string; fields: Record<string, unknown> }>;
+    }
+
+    // 다운로드를 끝까지 소비해 envelope 로 parse (모든 선별 test 의 공용 경로).
+    async function materializeParsed(
+      service: ExportJobService,
+      scope: ExportScopePayload,
+    ): Promise<ParsedEnvelope> {
+      const stream = await service.materializeFullExportDownload(scope);
+      return JSON.parse(await drain(stream)) as ParsedEnvelope;
+    }
+
+    type MaterializePrisma = ReturnType<
+      typeof buildMaterializeService
+    >["prisma"];
+
+    // 5 entity 전부 row 가 있는 mock 상태 (선별 전 6 record — 1+1+2+1+1).
+    function seedFiveEntities(prisma: MaterializePrisma): void {
+      prisma.assessment.findMany.mockResolvedValue([
+        { id: "a1", personId: "p1", narrative: "평가", createdAt: INSTANT },
+      ]);
+      prisma.person.findMany.mockResolvedValue([
+        { id: "p1", fullName: "홍길동", createdAt: INSTANT },
+      ]);
+      prisma.group.findMany.mockResolvedValue([
+        { id: "g1", name: "팀A", createdAt: INSTANT },
+        { id: "g2", name: "팀B", createdAt: INSTANT },
+      ]);
+      prisma.llmProviderConfig.findMany.mockResolvedValue([
+        { id: "l1", provider: "openai", modelId: "gpt", createdAt: INSTANT },
+      ]);
+      prisma.permissionDeniedRecord.findMany.mockResolvedValue([
+        {
+          id: "d1",
+          provider: "confluence",
+          httpStatus: 403,
+          createdAt: INSTANT,
+        },
+      ]);
+    }
+
+    const RANGE_START = new Date("2026-03-01T00:00:00.000Z");
+    const RANGE_MID = new Date("2026-03-15T00:00:00.000Z");
+    const RANGE_END = new Date("2026-04-01T00:00:00.000Z");
+    const PARTIAL_GROUP: ExportScopePayload = {
+      scope: "partial",
+      entitySelector: ["Group"],
+    };
+    const RANGE_SCOPE: ExportScopePayload = {
+      scope: "range",
+      dateRange: { start: RANGE_START, end: RANGE_END },
+    };
+
+    // range 경계 mock — start 시각 / 구간 내 / end 시각 record 를 각 1 건씩 심는다.
+    function seedRangeBoundary(prisma: MaterializePrisma): void {
+      prisma.group.findMany.mockResolvedValue([
+        { id: "g-start", name: "경계-시작", createdAt: RANGE_START },
+        { id: "g-mid", name: "구간-내", createdAt: RANGE_MID },
+        { id: "g-end", name: "경계-끝", createdAt: RANGE_END },
+      ]);
+      prisma.person.findMany.mockResolvedValue([
+        { id: "p-mid", fullName: "구간내인원", createdAt: RANGE_MID },
+      ]);
+    }
+
+    // happy — partial 선별이 실 artifact 에 반영 (Group 만, 나머지 4 entity 0, fields 보존).
+    it("happy — partial(entitySelector=[Group]) 이면 envelope 에 Group record 만 담긴다", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedFiveEntities(prisma);
+
+      const parsed = await materializeParsed(service, PARTIAL_GROUP);
+
+      expect(parsed.records.every((r) => r.entity === "Group")).toBe(true);
+      expect(parsed.recordCount).toBe(2);
+      expect(parsed.entityCounts.Group).toBe(2);
+      expect(parsed.entityCounts.Assessment).toBe(0);
+      expect(parsed.entityCounts.Person).toBe(0);
+      expect(parsed.entityCounts.LlmConfig).toBe(0);
+      expect(parsed.entityCounts.AuditLog).toBe(0);
+      // fields 손실 0 — 선별을 거쳐도 record 본문이 그대로 보존된다.
+      expect(parsed.records[0].fields.name).toBe("팀A");
+    });
+
+    // branch (a) — full 은 선별 후에도 5 entity 전부 유지 (기존 동작 무회귀).
+    it("branch — full scope 는 선별 후에도 5 entity 전부를 담는다 (무회귀)", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedFiveEntities(prisma);
+
+      const parsed = await materializeParsed(service, FULL_SCOPE);
+
+      expect(parsed.recordCount).toBe(6);
+      for (const entity of VALID_EXPORT_ENTITIES) {
+        expect(parsed.entityCounts[entity]).toBeGreaterThan(0);
+      }
+    });
+
+    // branch (b) — range [start, end) 반열림: start 시각 포함 / end 시각 배타.
+    it("branch — range 는 [start, end) 반열림 경계대로 선별 (start 포함 / end 배타)", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedRangeBoundary(prisma);
+
+      const parsed = await materializeParsed(service, RANGE_SCOPE);
+
+      const ids = parsed.records.map((r) => r.fields.id);
+      expect(ids).toContain("g-start"); // start 시각 record 는 포함.
+      expect(ids).toContain("g-mid");
+      expect(ids).not.toContain("g-end"); // end 시각 record 는 배타.
+      expect(parsed.recordCount).toBe(3);
+      expect(parsed.entityCounts.Group).toBe(2);
+      expect(parsed.entityCounts.Person).toBe(1);
+    });
+
+    // branch (c) — range + entitySelector 동시 지정 시 두 조건 AND.
+    it("branch — range + entitySelector 동시 지정이면 두 조건 AND 결과만 선별", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedRangeBoundary(prisma);
+
+      const parsed = await materializeParsed(service, {
+        ...RANGE_SCOPE,
+        entitySelector: ["Group"],
+      });
+
+      expect(parsed.recordCount).toBe(2);
+      expect(parsed.entityCounts.Group).toBe(2);
+      expect(parsed.entityCounts.Person).toBe(0); // 구간 내여도 entity 조건 불만족.
+    });
+
+    // 선별 후 메타 일관성 — metadata 와 body 가 같은 선별 기준을 본다.
+    it("선별 후 메타 일관성 — recordCount === records.length, sum(entityCounts) === recordCount, scope 박제", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedFiveEntities(prisma);
+
+      const parsed = await materializeParsed(service, PARTIAL_GROUP);
+
+      expect(parsed.recordCount).toBe(parsed.records.length);
+      const sum = VALID_EXPORT_ENTITIES.reduce(
+        (acc, entity) => acc + parsed.entityCounts[entity],
+        0,
+      );
+      expect(sum).toBe(parsed.recordCount);
+      // envelope metadata 의 scope 는 입력 scope 를 그대로 박제 (회귀 없음).
+      expect(parsed.scope).toEqual(PARTIAL_GROUP);
+    });
+
+    // error path — selectExportRecords 의 throw 가 변환 없이 raw propagate (service 는 raw-forward).
+    it("error — partial 인데 entitySelector 부재면 RangeError 를 변환 없이 propagate", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedFiveEntities(prisma);
+
+      await expect(
+        service.materializeFullExportDownload({ scope: "partial" }),
+      ).rejects.toThrow(RangeError);
+    });
+
+    // negative (a) — range 인데 dateRange 누락.
+    it("negative — range 인데 dateRange 부재면 RangeError propagate", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedFiveEntities(prisma);
+
+      await expect(
+        service.materializeFullExportDownload({ scope: "range" }),
+      ).rejects.toThrow(RangeError);
+    });
+
+    // negative (b) — start >= end 역전/빈 구간.
+    it("negative — range 의 start >= end(역전 구간)면 RangeError propagate", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedFiveEntities(prisma);
+
+      await expect(
+        service.materializeFullExportDownload({
+          scope: "range",
+          dateRange: { start: RANGE_END, end: RANGE_START },
+        }),
+      ).rejects.toThrow(RangeError);
+    });
+
+    // negative (c) — 허용 외 scope 값.
+    it("negative — 허용 외 scope 값이면 RangeError propagate", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedFiveEntities(prisma);
+
+      await expect(
+        service.materializeFullExportDownload({
+          scope: "bogus",
+        } as unknown as ExportScopePayload),
+      ).rejects.toThrow(RangeError);
+    });
+
+    // negative (d) — row 의 비-Date instant 는 선별에 도달하기 전 상류(collectFullExportRecords /
+    // buildFullExportRecord)에서 먼저 TypeError 로 차단되며, 그 TypeError 가 선별 배선을 거쳐도
+    // 변환 없이 호출자에게 도달한다(배선이 상류 예외를 삼키지 않음을 단언).
+    it("negative — row instant 가 비-Date 면 선별 도달 전 상류에서 TypeError 가 나 호출자에 도달", async () => {
+      const { service, prisma } = buildMaterializeService();
+      prisma.group.findMany.mockResolvedValue([
+        { id: "g1", name: "팀A", createdAt: "2026-03-01" as unknown as Date },
+      ]);
+
+      await expect(
+        service.materializeFullExportDownload(PARTIAL_GROUP),
+      ).rejects.toThrow(TypeError);
+    });
+
+    // negative (e) — 아무 record 도 매칭 안 되는 선별은 error 가 아니라 빈 envelope.
+    it("negative — 선별 결과가 빈 배열이면 error 없이 빈 envelope 가 직렬화", async () => {
+      const { service, prisma } = buildMaterializeService();
+      prisma.person.findMany.mockResolvedValue([
+        { id: "p1", fullName: "홍길동", createdAt: INSTANT },
+      ]);
+
+      const parsed = await materializeParsed(service, PARTIAL_GROUP);
+
+      expect(parsed.recordCount).toBe(0);
+      expect(parsed.records).toEqual([]);
+      for (const entity of VALID_EXPORT_ENTITIES) {
+        expect(parsed.entityCounts[entity]).toBe(0);
+      }
+    });
+
+    // negative (f) — 선별 배선이 상류 projection(secret deny)을 우회하지 않는다.
+    it("negative — LlmConfig 를 선별해도 fields 에 apiKey 부재 (secret deny 회귀)", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedFiveEntities(prisma);
+
+      const parsed = await materializeParsed(service, {
+        scope: "partial",
+        entitySelector: ["LlmConfig"],
+      });
+
+      expect(parsed.recordCount).toBe(1);
+      expect(parsed.records[0].fields).not.toHaveProperty("apiKey");
+      expect(parsed.records[0].fields.provider).toBe("openai");
+    });
+
+    // negative (g) — 선별 **단계 자체**의 TypeError 분기(assertValidRange 의 Invalid Date). (d) 와
+    // 달리 row 는 전부 유효 Date 라 상류 collect/build 를 통과하고, dateRange 의 Invalid Date 가
+    // selectExportRecords 에서 처음 잡힌다. 도달 가능한 실 경로다 — 손상 job row 의 dateRange Json
+    // 을 controller 의 coerceDateRange 가 `new Date(...)` 로 coerce 하면 Invalid Date 가 된다.
+    // 즉 "coerceDateRange 의 Date coerce 가 assertValidRange 통과 전제" 가 깨지면 본 test 가 지킨다.
+    it("negative — dateRange 가 Invalid Date 면 선별 단계에서 TypeError 가 변환 없이 propagate", async () => {
+      const { service, prisma } = buildMaterializeService();
+      seedFiveEntities(prisma); // row 는 전부 유효 Date — 상류는 통과한다.
+
+      await expect(
+        service.materializeFullExportDownload({
+          scope: "range",
+          dateRange: { start: new Date("garbage"), end: RANGE_END },
+        }),
+      ).rejects.toThrow(TypeError);
+    });
   });
 });

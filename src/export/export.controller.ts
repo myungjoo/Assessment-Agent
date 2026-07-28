@@ -283,8 +283,10 @@ export class ExportController {
   // (Json 컬럼)를 materializeFullExportDownload 가 받는 lowercase ExportScopePayload 로 합성한다
   // (describeScope/previewSelection 이 CreateExportDto 에서 합성하던 SCOPE_ENUM_TO_PAYLOAD +
   // coerceDateRange 패턴을 job row 입력으로 mirror — 신규 helper 신설 0, 기존 변환 재사용).
-  // job 의 scope 는 materialize 의 dump envelope meta context 로만 박제되며 record 선별과 결합
-  // 되지 않는다(§Out of Scope — materializeFullExportDownload 는 5 entity 전체 read).
+  // 합성된 payload 는 T-1291 이후 dump envelope 의 meta context 이자 **실 record 선별 기준** 이다
+  // — materializeFullExportDownload 가 이 payload 를 selectExportRecords 에 넘겨 RANGE 는
+  // dateRange [start, end) 반열림, PARTIAL 은 entitySelector 멤버십으로 선별한다. 그래서
+  // coerceDateRange 의 ISO string → Date coerce 가 helper 의 assertValidRange 통과 전제가 된다.
   private buildScopePayload(job: ExportJob): ExportScopePayload {
     return {
       scope: SCOPE_ENUM_TO_PAYLOAD[job.scope],
