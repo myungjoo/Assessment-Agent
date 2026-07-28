@@ -3,6 +3,8 @@
 // 경계 + non-mutating + 예외 분기를 검증한다(deletion-window-select.spec.ts mirror).
 import { PeriodRange } from "../common/period-boundary";
 
+import { estimateExportDumpSize } from "./export-dump-size-estimate";
+import { buildFullExportRecord, FullExportRecord } from "./export-full-record";
 import {
   ExportRecord,
   ExportScope,
@@ -377,5 +379,245 @@ describe("selectExportRecords — negative cases 충분 cover (경계값/특이 
     const at = rec("Group", "1970-01-01T00:00:00.000Z"); // t=0, [-2000, 2000) 안
     const result = selectExportRecords(wideRange, [at]);
     expect(result.selected).toEqual([at]);
+  });
+});
+
+// ─── T-1290 제네릭 확장 (ExportSelection<TRecord> / selectExportRecords<TRecord>) ───
+// full-record dump 의 FullExportRecord(= ExportRecord + fields)를 통과시켜도 `fields` 가 타입에서
+// 지워지지 않는지(타입) + 런타임 동작이 0 변경인지(원소 참조 동일 · 분류 결과 동일)를 단언한다.
+// 기존 test 는 수정하지 않고 덧붙이기만 한다.
+
+// FullExportRecord factory — allow-list 안의 컬럼만 fields 로 담는다(builder 가 allow-list 밖
+// key 를 RangeError 로 거부하므로 entity 별 실제 컬럼명을 쓴다).
+const full = (
+  entity: ExportRecord["entity"],
+  iso: string,
+  fields: Record<string, unknown>,
+): FullExportRecord => buildFullExportRecord(entity, d(iso), fields);
+
+describe("selectExportRecords<TRecord> — happy (FullExportRecord 인스턴스화, T-1290)", () => {
+  it("fields 보유 record 를 넘기면 selected[0].fields 를 캐스팅 없이 읽을 수 있다", () => {
+    const person = full("Person", "2026-06-11T00:00:00Z", {
+      id: "p-1",
+      fullName: "홍길동",
+      email: "gildong@example.com",
+    });
+    const result = selectExportRecords({ scope: "full" }, [person]);
+    // 타입: result.selected 는 FullExportRecord[] — `as` 캐스팅 없이 fields 접근.
+    expect(result.selected[0].fields.fullName).toBe("홍길동");
+    expect(result.selected[0].fields.email).toBe("gildong@example.com");
+  });
+
+  it("반환 selected 원소는 입력 원소와 동일 참조다 (런타임 0 변경 — 복제 아님)", () => {
+    const group = full("Group", "2026-06-11T00:00:00Z", {
+      id: "g-1",
+      name: "플랫폼",
+    });
+    const result = selectExportRecords({ scope: "full" }, [group]);
+    expect(result.selected[0]).toBe(group);
+    expect(result.selected[0].fields).toBe(group.fields);
+  });
+
+  it("excluded 원소도 동일 참조로 옮겨진다 (fields 보존)", () => {
+    const outOfRange = full("Assessment", "2026-01-01T00:00:00Z", {
+      id: "a-1",
+      narrative: "요약",
+    });
+    const result = selectExportRecords({ scope: "range", dateRange: range }, [
+      outOfRange,
+    ]);
+    expect(result.excluded[0]).toBe(outOfRange);
+    expect(result.excluded[0].fields.narrative).toBe("요약");
+  });
+});
+
+describe("selectExportRecords<TRecord> — 분기 cover (full/range/partial, T-1290)", () => {
+  const a = full("Assessment", "2026-06-11T00:00:00Z", { id: "a-1" });
+  const p = full("Person", "2026-06-09T00:00:00Z", { id: "p-1" });
+  const g = full("Group", "2026-06-13T00:00:00Z", { id: "g-1" });
+  const records: FullExportRecord[] = [a, p, g];
+
+  it("full — 제네릭 입력도 전부 selected, 순서 보존, 합집합 = 입력", () => {
+    const result = selectExportRecords({ scope: "full" }, records);
+    expect(result.selected).toEqual([a, p, g]);
+    expect(result.excluded).toEqual([]);
+    expect([...result.selected, ...result.excluded]).toHaveLength(
+      records.length,
+    );
+  });
+
+  it("range — [start, end) 반열림 경계가 제네릭 입력에서도 동일하다", () => {
+    const result = selectExportRecords(
+      { scope: "range", dateRange: range },
+      records,
+    );
+    expect(result.selected).toEqual([a]); // 06-11 만 구간 내
+    expect(result.excluded).toEqual([p, g]); // 06-09 / 06-13 는 밖 — 입력 순서 보존
+    expect(result.selected.length + result.excluded.length).toBe(3);
+  });
+
+  it("partial — entitySelector 멤버십 분류가 제네릭 입력에서도 동일하다", () => {
+    const result = selectExportRecords(
+      { scope: "partial", entitySelector: ["Assessment", "Group"] },
+      records,
+    );
+    expect(result.selected).toEqual([a, g]);
+    expect(result.excluded).toEqual([p]);
+    // 합집합이 입력과 일치(중복/누락 0) — 참조 동일성까지 확인.
+    for (const record of records) {
+      const inSelected = result.selected.includes(record);
+      const inExcluded = result.excluded.includes(record);
+      expect(inSelected !== inExcluded).toBe(true);
+    }
+  });
+});
+
+describe("selectExportRecords<TRecord> — error path (제네릭 인스턴스화, T-1290)", () => {
+  const records: FullExportRecord[] = [
+    full("Person", "2026-06-11T00:00:00Z", { id: "p-1" }),
+  ];
+
+  it("(a) 허용 외 scope → RangeError, 메시지 문구 현행 유지", () => {
+    const bad = { scope: "everything" } as unknown as ExportScope;
+    expect(() => selectExportRecords(bad, records)).toThrow(RangeError);
+    expect(() => selectExportRecords(bad, records)).toThrow(
+      "selectExportRecords: scope 는 full/range/partial 중 하나여야 합니다 (받음: everything)",
+    );
+  });
+
+  it("(b) records 가 배열이 아니면 TypeError, 메시지 문구 현행 유지", () => {
+    expect(() =>
+      selectExportRecords(
+        { scope: "full" },
+        {} as unknown as FullExportRecord[],
+      ),
+    ).toThrow(TypeError);
+    expect(() =>
+      selectExportRecords(
+        { scope: "full" },
+        {} as unknown as FullExportRecord[],
+      ),
+    ).toThrow(
+      "selectExportRecords: records 는 배열이어야 합니다 (받음: object)",
+    );
+  });
+
+  it("(c) 원소 instant 가 Invalid Date 면 그 index 를 담은 TypeError", () => {
+    const arr = [
+      ...records,
+      { entity: "Group", instant: new Date("nope"), fields: {} },
+    ] as FullExportRecord[];
+    expect(() => selectExportRecords({ scope: "full" }, arr)).toThrow(
+      TypeError,
+    );
+    expect(() => selectExportRecords({ scope: "full" }, arr)).toThrow(
+      "selectExportRecords: records[1].instant 은(는) 유효한 Date instance 여야 합니다",
+    );
+  });
+
+  it("(c') 원소 instant 가 비-Date(문자열) 면 TypeError", () => {
+    const arr = [
+      { entity: "Group", instant: "2026-06-11", fields: {} },
+    ] as unknown as FullExportRecord[];
+    expect(() => selectExportRecords({ scope: "full" }, arr)).toThrow(
+      TypeError,
+    );
+  });
+});
+
+describe("selectExportRecords<TRecord> — negative cases 충분 cover (T-1290)", () => {
+  const records: FullExportRecord[] = [
+    full("Assessment", "2026-06-11T00:00:00Z", { id: "a-1" }),
+  ];
+
+  it("(a) partial + entitySelector 부재/빈 배열 → RangeError", () => {
+    expect(() => selectExportRecords({ scope: "partial" }, records)).toThrow(
+      RangeError,
+    );
+    expect(() =>
+      selectExportRecords({ scope: "partial", entitySelector: [] }, records),
+    ).toThrow(RangeError);
+  });
+
+  it("(b) range + dateRange 누락 → RangeError", () => {
+    expect(() => selectExportRecords({ scope: "range" }, records)).toThrow(
+      RangeError,
+    );
+    expect(() => selectExportRecords({ scope: "range" }, records)).toThrow(
+      "selectExportRecords: scope=range 에는 dateRange 가 필요합니다",
+    );
+  });
+
+  it("(c) 빈 records(제네릭 입력) 는 error 가 아니라 빈 분류 2 개", () => {
+    const empty: FullExportRecord[] = [];
+    const result = selectExportRecords({ scope: "full" }, empty);
+    expect(result.selected).toEqual([]);
+    expect(result.excluded).toEqual([]);
+  });
+
+  it("(d) freeze 된 배열·원소를 넘겨도 throw 없이 통과하고 입력이 변형되지 않는다", () => {
+    // buildFullExportRecord 반환 record 와 그 fields 는 이미 frozen — 배열까지 freeze 한다.
+    const first = full("Person", "2026-06-11T00:00:00Z", { id: "p-1" });
+    const second = full("Group", "2026-06-20T00:00:00Z", { id: "g-1" });
+    const frozen = Object.freeze([first, second]);
+    const scope: ExportScope = { scope: "range", dateRange: range };
+
+    expect(() => selectExportRecords(scope, frozen)).not.toThrow();
+    const result = selectExportRecords(scope, frozen);
+    expect(result.selected).toEqual([first]);
+    expect(result.excluded).toEqual([second]);
+    // 입력 비변형 — 길이·원소 참조 동일.
+    expect(frozen).toHaveLength(2);
+    expect(frozen[0]).toBe(first);
+    expect(frozen[1]).toBe(second);
+    expect(result.selected).not.toBe(frozen);
+  });
+
+  it("(e) fields 있는 record 와 없는 record 를 섞어도 분류가 깨지지 않는다 (구조적 superset)", () => {
+    const withFields = full("Assessment", "2026-06-11T00:00:00Z", {
+      id: "a-1",
+    });
+    const withoutFields = rec("Assessment", "2026-06-13T00:00:00Z");
+    const mixed: ExportRecord[] = [withFields, withoutFields];
+    const result = selectExportRecords(
+      { scope: "range", dateRange: range },
+      mixed,
+    );
+    expect(result.selected).toEqual([withFields]);
+    expect(result.excluded).toEqual([withoutFields]);
+    expect(result.selected[0]).toBe(withFields);
+  });
+});
+
+describe("selectExportRecords<TRecord> — default 타입 인자 회귀 방지 (T-1290)", () => {
+  it("타입 인자 없이 선언한 ExportSelection 변수에 결과를 대입해도 컴파일된다", () => {
+    // 기존 consumer(export-dump-size-estimate.ts · export-selection-summary.ts) 표기 형태.
+    const legacy: ExportSelection = selectExportRecords({ scope: "full" }, [
+      rec("Group", "2026-06-11T00:00:00Z"),
+    ]);
+    expect(legacy.selected).toHaveLength(1);
+  });
+
+  it("ExportSelection<FullExportRecord> 결과도 타입 인자 없는 ExportSelection 에 대입된다", () => {
+    const widened: ExportSelection = selectExportRecords({ scope: "full" }, [
+      full("Group", "2026-06-11T00:00:00Z", { id: "g-1" }),
+    ]);
+    expect(widened.excluded).toEqual([]);
+    expect(widened.selected).toHaveLength(1);
+  });
+
+  it("결과가 실 consumer estimateExportDumpSize 에 캐스팅 없이 전달된다", () => {
+    const records: FullExportRecord[] = [
+      full("Person", "2026-06-11T00:00:00Z", { id: "p-1" }),
+      full("Group", "2026-06-11T00:00:00Z", { id: "g-1" }),
+    ];
+    // ExportSelection<FullExportRecord> 를 `as` 없이 그대로 기존 consumer 에 전달 —
+    // 컴파일(타입 호환) + 런타임(정상 산출) 둘 다 통과해야 한다.
+    const estimate = estimateExportDumpSize(
+      selectExportRecords({ scope: "full" }, records),
+    );
+    expect(Number.isInteger(estimate.estimatedBytes)).toBe(true);
+    expect(estimate.estimatedBytes).toBeGreaterThan(0);
+    expect(estimate.recordTotal).toBe(records.length);
   });
 });
