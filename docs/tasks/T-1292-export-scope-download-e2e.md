@@ -2,12 +2,14 @@
 id: T-1292
 title: scope 반영 다운로드 e2e (PARTIAL / RANGE dump 가 실 DB·HTTP 경로에서 선별됨) + (g) 단언 협소화
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 200
 estimatedFiles: 2
 created: 2026-07-28
+completedAt: 2026-07-28T21:55:04Z
+prNumber: 1183
 independentStream: export-scope-materialization
 dependsOn: [T-1291]
 touchesFiles:
@@ -82,3 +84,11 @@ plannerNote: "cap-bend 없음: R-112 backbone x1.5 = 200 LOC / 2 파일. T-1291 
 - (유지, 3c-3d3) 크기 상한 413 e2e — 50 MiB 초과 업로드. **선행 확인 의무**: supertest 가 multer mid-stream abort 를 어떻게 표면화하는지 (ECONNRESET / EPIPE) 국소 확인 후, flaky 하면 기존 `multer-exception.filter.spec.ts` 의 실 파이프라인 경계 (10 bytes 상한) 로 만족시키고 e2e 는 포기하는 선택지를 planner 에 보고한다.
 - (미해결 정책, T-1287 → T-1291 이월) `LlmProviderConfig` 왕복 불가 — export full-record select 가 `apiKey` 를 제외 (ADR-0047 secret deny) 하는데 schema 의 `apiKey` 는 not-null 이라, 실 운영 dump 에 그 entity 가 1 건이라도 있으면 REPLACE / MERGE 어느 mode 든 복원 `$transaction` 이 통째로 실패할 것으로 예상된다. **복원 정책 (해당 entity skip / 재입력 요구 / 부분 실패 안내) 은 secret 처리 결정이라 CLAUDE.md §5 상 사람 결정 대상** — driver 가 `humanQuestion` 으로 escalate 하는 것이 적절하다.
 - (관측, 이월) UC-07 §8 (b)(e) 가 요구하는 **Export / Import Audit log row 영속화 0** — 순수 helper `buildExportImportAuditEntry` (T-0443) 는 있으나 실 insert 경로가 없고, Prisma 에 범용 `AuditLog` model 자체가 없다. 도입은 schema migration 이라 §5 사람 결정 대상.
+
+## Result (2026-07-28)
+
+[T-1291](T-1291-export-scope-materialize-wiring.md) 이 배선한 `selectExportRecords` 가 **실 PostgreSQL·실 HTTP 왕복**에서도 dump 를 선별함을 e2e 로 닫았다. `export-download.e2e-spec.ts` 의 `createExportJob` 을 scope 선택 인자를 받도록 넓히고 `downloadRaw` / `downloadDump` 공용 helper 를 추가해 기존 6 test 의 단언·`afterEach` 정리는 **무수정**으로 유지했다 (production 0 LOC — test-only). `PARTIAL(entitySelector)` happy · full / range / partial / range+selector 4 분기 · 선별 후 `entityCounts`·`recordCount` 메타 일관성 · 생성 단계 게이트 400 + job row 0 error path · negative (a)~(f) 를 모두 박제했고, 이월 nit (g) 의 `.rejects.toThrow(TypeError)` 를 throw 지점 고정 단언으로 협소화했다.
+
+실측 **+240/-4 LOC / 2 파일** (cap 300 안). test 10 건 추가 (e2e 7 + `it.each` 4 케이스). PR [#1183](https://github.com/myungjoo/Assessment-Agent/pull/1183) round 1/7 reviewer APPROVE → §3.3 4-게이트 전부 PASS → squash merge `56d6041e`, 머지 커밋 main CI(run 30402577600) conclusion=success. 로컬 lint / build / test(12216) / test:cov / prettier / check-spec-presence 전부 green.
+
+이로써 REQ-030 의 scope 3 차원이 **실 artifact 사실**로 닫혔고, UC-07 §6.2 의 "부분 dump + MERGE = cross-instance migration" 조합 계약을 잇는 [T-1293](T-1293-partial-dump-merge-migration-e2e.md) 의 전제가 성립했다.
