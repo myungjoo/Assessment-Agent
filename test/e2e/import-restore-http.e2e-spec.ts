@@ -34,6 +34,17 @@
 //     afterEach 마지막에 `reseedAuthenticatedActors` 로 **원본 id / email / role** 그대로 재
 //     삽입한다 — JWT 의 sub claim (= 원 User id) 이 그대로 유효해 token 재발급이 불필요하다.
 //
+// T-1289 (실행 slice **3c-3d4**) — 위 A~D 는 전부 `mode = REPLACE` 만 지난다. 아래 **section E**
+// 가 `ImportMode.MERGE` 경로 (plan 의 merge 분기 → `buildImportRestoreDeleteWhere` 의 targeted
+// delete → 실 `$transaction`) 를 실 DB 위에서 닫는다. 책임 3 가지:
+//   - MERGE 는 dump 에 없는 **비충돌 기존 row 를 보존** 하면서 dump 의 row 를 추가한다 (UC-07
+//     §6.2 — merge = 기존 보존 + file row 추가, conflict 시 file 우선).
+//   - **같은 seed · 같은 dump 에 mode 만 바꾼** REPLACE test 를 나란히 두어 두 결과가 실제로
+//     다름을 증거로 남긴다 — targeted delete 가 전면 삭제로 흘러 REPLACE 와 같아지는 회귀의 그물.
+//   - 보존 대상 row 의 `createdAt` 은 **명시 고정 상수** 로 심는다. 충돌 판정 key 가
+//     `(entity, instant)` 라, dump 안 어떤 record 와 같은 밀리초로 태어나면 보존이 삭제로 뒤집혀
+//     test 가 간헐 실패한다 — 상수 지정이 그 경로를 원천 차단한다.
+//
 // 실 DB 미가용 환경 (로컬 — `DATABASE_URL` 부재) 에서는 globalSetup 이 fail-fast 하며 CI 의
 // `pnpm test:e2e` step 에서만 실행된다 (다른 e2e 동일, 본 spec 만의 skip 분기 0). 파일은
 // test/jest-e2e.json 의 `testRegex` 가 자동 picking 하므로 config 변경이 없다.
@@ -59,6 +70,17 @@ const ADMIN_EMAIL = "import-http-admin@e2e.test";
 const CORRUPT_DUMP_BODY = "not-json-T1287-raw-must-not-be-stored";
 // 구조 위반 dump 의 payload sentinel — 유효 JSON 이지만 `records` 키가 없다.
 const STRUCTURE_DUMP_SENTINEL = "T1287-structure-raw-must-not-be-stored";
+
+// -- section E (T-1289, MERGE mode) 전용 상수 -----------------------------------------
+// 보존 대상 Group 의 이름 · 생성 시각. `createdAt` 은 dump 생성 시각보다 확실히 이전인 **고정
+// 상수** 다 — 충돌 판정 key 가 `(entity, instant)` 라 dump 안 record 와 같은 밀리초로 태어나면
+// 보존 대상이 충돌로 분류돼 삭제된다 (머리 주석 T-1289 참조).
+const PRESERVED_GROUP_NAME = "머지보존그룹";
+const PRESERVED_GROUP_CREATED_AT = new Date("2020-01-02T03:04:05.678Z");
+// MERGE 거부 경로의 sentinel 2 종 — 위 REPLACE 용과 같은 형식이되 값을 분리해 두 경로의 누출을
+// 서로 구분해 잡는다.
+const MERGE_CORRUPT_DUMP_BODY = "not-json-T1289-merge-raw-must-not-be-stored";
+const MERGE_STRUCTURE_SENTINEL = "T1289-merge-structure-raw-must-not-be-stored";
 
 describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)", () => {
   let ctx: AuthenticatedE2EContext;
@@ -266,5 +288,152 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
     );
     // 구조 검증 역시 transaction 이전 단락이라 row 수가 그대로다.
     expect(await counts()).toEqual(before);
+  });
+
+  // -- E. MERGE mode (보존 vs 전면교체 분기, T-1289) ------------------------------------
+
+  // seedGroupAbsentFromDump — dump 에 **들어가지 않은** 기존 Group 1 건을 심는다. `createdAt` 을
+  // 고정 상수로 지정해 dump 안 어떤 record 의 instant 와도 겹치지 않게 한다 (밀리초 충돌로 보존이
+  // 삭제로 뒤집히는 간헐 실패 차단). DB 가 돌려준 row 를 그대로 반환한다.
+  async function seedGroupAbsentFromDump() {
+    return prisma.group.create({
+      data: {
+        name: PRESERVED_GROUP_NAME,
+        createdAt: PRESERVED_GROUP_CREATED_AT,
+      },
+    });
+  }
+
+  // arrangeMergeFixture — MERGE / REPLACE 두 test 가 공유하는 **동일 출발 상태** 를 만든다:
+  // (1) Group G1 + Person P1 seed → (2) 실 export 왕복으로 dump 획득 (record 2 건) → (3) G1 삭제 +
+  // dump 에 없는 Group G2 생성. 이후 두 test 는 mode 만 다르게 업로드하므로, 결과 차이가 곧 mode
+  // 분기의 증거가 된다.
+  async function arrangeMergeFixture() {
+    const { group, person } = await seedRestorableEntities();
+    const dump = await downloadDump(await createExportJob());
+    expect(recordCountOf(dump)).toBe(2);
+
+    await prisma.group.delete({ where: { id: group.id } });
+    const preserved = await seedGroupAbsentFromDump();
+    // 출발 상태 확정 — Group 은 보존 대상 G2 1 건뿐이고 dump 의 G1 은 부재다.
+    expect(await prisma.group.count()).toBe(1);
+    return { dump, group, person, preserved };
+  }
+
+  it("MERGE 업로드 시 201 + SUCCEEDED + 비충돌 기존 Group 보존 + dump 의 Group 부활 (happy)", async () => {
+    const { dump, group, person, preserved } = await arrangeMergeFixture();
+
+    const response = await uploadDump(dump, "MERGE");
+
+    // (a)(b)(c) HTTP 201 + job status + mode 가 요청대로 MERGE 다.
+    expect(response.status).toBe(201);
+    expect(response.body.status).toBe("SUCCEEDED");
+    expect(response.body.mode).toBe("MERGE");
+    // negative (b) — restoredRowCount 는 dump 의 record 수와 **정확히 일치** 한다 (보존된 G2 를
+    // 합산하지 않는다 — 합산했다면 3 이 되므로 이 정확 일치 단언이 그대로 잡는다).
+    expect(response.body.restoredRowCount).toBe(recordCountOf(dump));
+
+    // (d) 삭제됐던 G1 이 동일 id 로 부활한다 (merge 는 incoming 전부 삽입).
+    const restored = await prisma.group.findUnique({ where: { id: group.id } });
+    expect(restored?.name).toBe(group.name);
+    // (e) 보존 대상 G2 는 id · name 그대로 살아 있다 (targeted delete 가 건드리지 않았다).
+    const kept = await prisma.group.findUnique({
+      where: { id: preserved.id },
+    });
+    expect(kept?.name).toBe(PRESERVED_GROUP_NAME);
+    // negative (c) — createdAt 이 seed 값과 동일: 보존이 "삭제 후 재삽입" 이 아니라 무손상이다.
+    expect(kept?.createdAt.toISOString()).toBe(
+      PRESERVED_GROUP_CREATED_AT.toISOString(),
+    );
+    // (f) 결과 집계 — Group 은 부활분 + 보존분 2 건, Person 은 중복 없이 1 건 (id 보존).
+    expect(await prisma.group.count()).toBe(2);
+    expect(await prisma.person.count()).toBe(1);
+    expect((await prisma.person.findFirst())?.id).toBe(person.id);
+    // (g) 실 DB 의 ImportJob row 도 MERGE 이며, negative (d) — 요청 1 회당 job 은 정확히 1 건.
+    const job = await prisma.importJob.findFirstOrThrow();
+    expect(job.mode).toBe("MERGE");
+    expect(await prisma.importJob.count()).toBe(1);
+  });
+
+  it("같은 dump·같은 상태에 REPLACE 를 보내면 보존 대상 Group 이 사라진다 (branch)", async () => {
+    const { dump, group, preserved } = await arrangeMergeFixture();
+
+    const response = await uploadDump(dump, "REPLACE");
+
+    expect(response.status).toBe(201);
+    expect(response.body.status).toBe("SUCCEEDED");
+    expect(response.body.mode).toBe("REPLACE");
+    // 위 happy test 와 **입력이 같고 mode 만 다르다** — 그런데 G2 는 사라지고 dump 의 G1 만 남는다.
+    // 이 대비가 mode 분기를 DB 결과로 구분하는 증거다.
+    expect(
+      await prisma.group.findUnique({ where: { id: preserved.id } }),
+    ).toBeNull();
+    expect(await prisma.group.count()).toBe(1);
+    expect((await prisma.group.findFirst())?.id).toBe(group.id);
+  });
+
+  it("MERGE 로 손상 dump 업로드 시 400 + FAILED + raw 미저장 + 보존분 포함 DB 변경 0 (error)", async () => {
+    const { preserved } = await arrangeMergeFixture();
+    const before = await counts();
+
+    const response = await uploadDump(
+      Buffer.from(MERGE_CORRUPT_DUMP_BODY, "utf-8"),
+      "MERGE",
+    );
+
+    // (a) 파싱 실패는 mode 와 무관하게 `$transaction` 이전에 400 으로 거부된다.
+    expect(response.status).toBe(400);
+    // (b) job row 는 FAILED + restoredRowCount 미기록 + mode 는 요청대로 MERGE 다.
+    const job = await prisma.importJob.findFirstOrThrow();
+    expect(job.status).toBe("FAILED");
+    expect(job.mode).toBe("MERGE");
+    expect(job.restoredRowCount).toBeNull();
+    // negative (a) — REQ-032: 업로드 raw 도 그 **접두 조각** 도 job row · 응답에 실리지 않는다.
+    expect(job.error).not.toContain(MERGE_CORRUPT_DUMP_BODY);
+    expect(job.error).not.toContain("not-json");
+    expect(JSON.stringify(response.body)).not.toContain(
+      MERGE_CORRUPT_DUMP_BODY,
+    );
+    // (c) 거부는 transaction 이전 단락 — 보존 대상 G2 를 포함해 row 수가 그대로다.
+    expect(await counts()).toEqual(before);
+    const kept = await prisma.group.findUnique({
+      where: { id: preserved.id },
+    });
+    expect(kept?.createdAt.toISOString()).toBe(
+      PRESERVED_GROUP_CREATED_AT.toISOString(),
+    );
+    // negative (d) — 거부 요청도 job row 는 정확히 1 건이다.
+    expect(await prisma.importJob.count()).toBe(1);
+  });
+
+  it("MERGE 로 records 키 없는 dump 업로드 시 400 + FAILED + 보존 대상 무손상 (negative)", async () => {
+    const { preserved } = await arrangeMergeFixture();
+    const before = await counts();
+    const malformed = Buffer.from(
+      JSON.stringify({
+        schemaVersion: "1.0.0",
+        generatedAt: new Date().toISOString(),
+        note: MERGE_STRUCTURE_SENTINEL,
+      }),
+      "utf-8",
+    );
+
+    const response = await uploadDump(malformed, "MERGE");
+
+    // 구조 위반은 파싱 실패와 다른 stage 지만 거부 지점은 같다 (transaction 이전 단락).
+    expect(response.status).toBe(400);
+    const job = await prisma.importJob.findFirstOrThrow();
+    expect(job.status).toBe("FAILED");
+    expect(job.mode).toBe("MERGE");
+    expect(job.restoredRowCount).toBeNull();
+    // 구조 위반 안내에도 dump payload 는 실리지 않는다 (종류 이름만 — REQ-032).
+    expect(job.error).not.toContain(MERGE_STRUCTURE_SENTINEL);
+    expect(JSON.stringify(response.body)).not.toContain(
+      MERGE_STRUCTURE_SENTINEL,
+    );
+    expect(await counts()).toEqual(before);
+    expect(
+      await prisma.group.findUnique({ where: { id: preserved.id } }),
+    ).not.toBeNull();
   });
 });
