@@ -2,7 +2,13 @@
 id: T-1279
 title: ImportModule 에 복원 트랜잭션 service provider 등록 + T-1278 이월 nit 보강 (실행 slice 3c-1)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-28T06:51:33Z
+mergedAs: bc327eaa
+prNumber: 1170
+reviewRounds: 1
+actualDiff: 150
+actualFiles: 3
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 150
