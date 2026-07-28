@@ -2,8 +2,9 @@
 id: T-1285
 title: ImportModule 에 job runner service provider 등록 (실행 slice 3c-3b)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1176
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 170
 estimatedFiles: 2
@@ -67,3 +68,10 @@ plannerNote: "cap-bend 없음: R-112 backbone x1.5 = 170 LOC / 2 파일 — T-12
 
 - (예고) 실행 slice **3c-3c** — [import.controller.ts](../../src/import/import.controller.ts) 의 T-1254 interim guard 를 `ImportJobRunnerService.runJob` 호출로 **교체** + `INTERIM_RESTORE_UNWIRED_MESSAGE` 제거 + `artifactRef` 값 정책 확정 + controller spec 갱신 (import UI false-success 해소).
 - (예고) 실행 slice **3c-3d** — HTTP 경계 e2e (파일 누락 400 · 복원 거부 400 · 충돌 409 · 성공 시 `status=SUCCEEDED` + `restoredRowCount` 응답 body) 실 DB 왕복 실증.
+
+## 결과 (2026-07-28 완료)
+
+- PR [#1176](https://github.com/myungjoo/Assessment-Agent/pull/1176) → squash merge `99e85d68`. reviewer round **1/7** APPROVE (8 check 전부 PASS, BLOCKER 0 / MAJOR 0), §3.3 4-게이트 전부 통과 (reviewer comment PR 외부 존재 · CI 2 check pass · integrator 자체 acceptance 재점검 · 머지 직전 `origin/main` ancestor 확인).
+- 실측 **+132/-5 (137 LOC) / 2 파일** — 자체 sub-limit 200 LOC 이내. `providers` · `exports` 에 `ImportJobRunnerService` 를 값 import 로 1 원소씩 추가했고 `imports` · `controllers` · 기존 3 원소는 **순서 포함 변경 0**. 본 commit 시점에도 `runJob` 의 production 참조는 자기 정의 1 곳뿐이라 **호출처 0 · 런타임 동작 변화 0** 유지 (T-1279 / T-1282 리듬 mirror).
+- R-112 4 종 cover **7 case** — happy 2 (providers resolve + 주입 인스턴스 동일성 `toBe`) · error 1 (최소 module compile reject) · 분기 1 (sentinel override) · negative 3 (exports wrapper module resolve · 기존 배선 4 종 생존 · `$transaction` 0 / DB read 0 / `importJob.update` 0 부수효과 pin + 싱글턴). 전체 **428 suite / 12181 test** green, All files line **99.95%** · function **100%**.
+- reviewer 의 MINOR 1 (`import.module.ts` "책임 경계" 의 `호출처 0` 서술이 chain 내부 호출을 무시해 오독 유발) + NIT 1 (spec wrapper 주석의 T-1282 전용 표기) 은 §3 Nit-in-PR closure 의무에 따라 follow-up task 없이 본 PR 의 commit `43d5180f` (+7/-5, 주석 텍스트 전용) 로 완결. 남은 NIT 1 (error path index 1 dep 미커버) 은 T-1279 / T-1282 선례 동형이라 유지.
