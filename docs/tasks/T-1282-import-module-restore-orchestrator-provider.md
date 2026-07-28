@@ -2,7 +2,7 @@
 id: T-1282
 title: ImportModule 에 복원 orchestrator provider 등록 + T-1281 이월 nit 2 건 해소 (실행 slice 3c-2c)
 phase: P5
-status: IN_PROGRESS
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 170
@@ -71,3 +71,10 @@ plannerNote: "cap-bend 없음: R-112 backbone x1.5 = 170 LOC / 4 파일 — T-12
 
 - (예고) 실행 slice **3c-2d** — T-1281 이월 nit (iii): `PrismaService` → `ExportFullRecordReadClient` 캐스팅을 `export-full-record-collect.ts` 의 이름 있는 helper (예: `asExportFullRecordReadClient`) 로 통합하고 `export-job.service.ts` · `import-restore.service.ts` 두 호출처를 그 helper 로 교체 (3~5 파일, 동작 변화 0 refactor).
 - (예고) 실행 slice **3c-3** — `import.controller.ts` / `import-job.service.ts` 재배선 (interim guard → 실 복원 pipeline, `markRunning` / `markSucceeded` / `markFailed` 전이 + `restoredRowCount`) + HTTP 경계 e2e (400 / 409 응답 body) + import UI false-success 해소.
+
+## 결과 (2026-07-28 완료)
+
+- PR [#1173](https://github.com/myungjoo/Assessment-Agent/pull/1173) → squash merge `e57034ab`. reviewer round **1/7** APPROVE, §3.3 4-게이트 전부 통과 (reviewer comment 외부 존재 · CI 2 check pass · acceptance 재점검).
+- 실측 **+180/-29 (207 LOC) / 4 파일** — cap(300 LOC / 5 파일) 안. `ImportModule` 의 `providers` · `exports` 에 `ImportRestoreService` 를 1 원소씩 추가했고 `imports` · `controllers` 변경은 0, production 호출처도 0 을 유지해 런타임 동작 변화가 없다 (배선은 slice 3c-3 에서).
+- T-1281 이월 nit 2 건 동반 closure: (i) stage 목록을 `Record` 파생으로 바꿔 union 이 늘면 `tsc` 가 실패하도록 exhaustiveness 를 강제, (ii) 빈 `issues` 일 때 거부 message 꼬리에 남던 구분자를 detail 유무 분기로 제거 (REQ-032 계약 불변).
+- 전체 **426 suite / 12143 test** green, `test:cov` All files line **99.95%** · function **100%** (임계 80% 상회). `import-restore.service.ts` 는 line/branch/function 100%.
