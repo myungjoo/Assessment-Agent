@@ -2,8 +2,9 @@
 id: T-1284
 title: job status 전이 + 복원 실행을 잇는 runner service 신설 (실행 slice 3c-3a)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1175
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 290
 estimatedFiles: 2
@@ -72,3 +73,11 @@ plannerNote: "cap-bend 없음: R-112 backbone x1.5 = 290 LOC / 2 파일 — 3c-3
 - (예고) 실행 slice **3c-3b** — `ImportJobRunnerService` 를 [import.module.ts](../../src/import/import.module.ts) 의 providers · exports 에 등록 (T-1279 / T-1282 와 동형, 2 파일).
 - (예고) 실행 slice **3c-3c** — [import.controller.ts](../../src/import/import.controller.ts) 의 T-1254 interim guard 를 `runJob` 호출로 **교체** + `INTERIM_RESTORE_UNWIRED_MESSAGE` 제거 + `artifactRef` 값 정책 확정 + controller spec 갱신 (import UI false-success 해소).
 - (예고) 실행 slice **3c-3d** — HTTP 경계 e2e (파일 누락 400 · 복원 거부 400 · 충돌 409 · 성공 시 `status=SUCCEEDED` + `restoredRowCount` 응답 body) 실 DB 왕복 실증.
+
+## 결과 (2026-07-28 완료)
+
+- PR [#1175](https://github.com/myungjoo/Assessment-Agent/pull/1175) → squash merge `66ff4a92`. reviewer round **3/7** APPROVE, §3.3 4-게이트 전부 통과 (reviewer comment 3 건 PR 외부 존재 · CI 2 check pass · integrator 자체 acceptance 재점검 · 머지 직전 `origin/main` ancestor 확인).
+- 실측 **+285 LOC / 2 파일** — cap (300 LOC / 5 파일) 안. 신규 [src/import/import-job-runner.service.ts](../../src/import/import-job-runner.service.ts) 는 `ImportJobService` + `ImportRestoreService` 두 주입만 받는 얇은 합성 service 이고, 본 commit 시점의 **호출처는 0** 이라 런타임 동작 변화 **0**.
+- `restoredRowCount` 는 `inserted` 만 사용 (UC-07 §8 (e) — REPLACE 선삭제분 미합산, 근거 주석 박제). 실패 경로는 `HttpException` 이면 message 원문을 기록하고 그 외에는 고정 상수만 기록한 뒤 **원본 error 인스턴스를 재throw** (REQ-032 raw 미저장).
+- R-112 4 종 cover 총 **13 case** — happy(REPLACE/MERGE) · `markRunning` 실패 시 `restoreFromDump` 미호출 · 400/409 원문 기록 · 비-HttpException 4 종 · `markFailed` reject 흡수 · `markSucceeded` reject 전파 · `inserted=0` pin. 신규 파일 line/branch/function **100%**, 전체 **428 suite / 12174 test** green.
+- round 2 에서 reviewer 가 nit 흡수 commit 의 주석("명시 타입을 붙이면 TS2454") 이 **거짓**임을 MAJOR 로 지적 — integrator 가 `tsc --noEmit` exit 0 으로 독립 재현해 사실을 확인한 뒤 evolving-any 를 실제 명시 타입으로 좁히고 주석을 교정했다 (round 3 APPROVE). 잘못된 근거가 코드에 박제되는 것을 4-게이트가 차단한 사례.
