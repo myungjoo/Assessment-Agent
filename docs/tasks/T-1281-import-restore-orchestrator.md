@@ -2,7 +2,7 @@
 id: T-1281
 title: buffer → plan → 복원 orchestrator service 신설 (실행 slice 3c-2b)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 290
@@ -69,3 +69,16 @@ plannerNote: "cap-bend 없음: R-112 backbone x1.5 = 290 LOC / 2 파일 — 3c-2
 
 - (예고) 실행 slice **3c-2c** — `ImportRestoreService` 를 `import.module.ts` 의 providers · exports 에 등록 (T-1279 와 동형, 1~3 파일).
 - (예고) 실행 slice **3c-3** — `import.controller.ts` / `import-job.service.ts` 재배선 (interim guard → 실 복원 pipeline, `markRunning` / `markSucceeded` / `markFailed` 전이 + `restoredRowCount`) + HTTP 경계 e2e (400 / 409 응답 body) + import UI false-success 해소.
+- (이월 nit, reviewer round 1) spec 의 실패 stage `it.each` 가 실제 verdict stage 열거를 다 덮는지 exhaustiveness 를 고정 — 현재는 6 종 하드코딩이라 stage 가 늘면 조용히 새 분기를 놓친다. → **T-1282 에서 동반 closure**.
+- (이월 nit, reviewer round 1) 빈 `issues` 배열일 때 거부 message 꼬리가 어색하게 남는다 (stage 토큰 뒤 구분자만). → **T-1282 에서 동반 closure**.
+- (이월 nit, reviewer round 1) `as unknown as` 캐스팅이 본 service 와 `src/export/**` 양쪽에 흩어져 있다 — 좁은 read client 타입을 공용 helper 로 통합. `src/export/**` 3 파일을 더 여는 cap 초과라 별도 slice **3c-2d** 로 분리 (T-1282 범위 밖).
+
+> 위 nit 3 건은 본 PR 의 diff 가 정확히 **300/300 LOC** 로 cap 을 소진해 CLAUDE.md §3 "cap 초과 risk" 예외에 해당 — Nit-in-PR closure 대신 이월했고, 그 판단을 PR [#1172](https://github.com/myungjoo/Assessment-Agent/pull/1172) comment 에 박제했다.
+
+## 결과 (2026-07-28 완료)
+
+- PR [#1172](https://github.com/myungjoo/Assessment-Agent/pull/1172) → squash merge `be2edf8a`. reviewer round **1/7** APPROVE (BLOCKER 0 / MAJOR 0 / MINOR 0 / NIT 3 — 위 Follow-ups 로 이월), §3.3 4-게이트 전부 통과.
+- 실측 **+300 insertions / 2 파일** (`src/import/import-restore.service.ts` +67, `src/import/import-restore.service.spec.ts` +233) — cap 300 LOC 정확히 소진, 기존 파일 수정 0.
+- `ImportRestoreService.restore(buffer, mode)` 가 (1) 기존 record 로딩 → (2) plan 준비 → (3) 실패 verdict 400 거부 → (4) `restore()` 호출 4 단계를 순서대로 합성. 실패 시 `ImportRestoreTransactionService.restore` 호출 0 이 spec 으로 고정돼 UC-07 §7.4 "트랜잭션 시작 전 reject, DB 변경 0" 계약이 코드로 강제된다.
+- 신규 spec 17 test, 신규 service line/branch/function **100%**. 전체 12135 test green (426 suite). 실 DB 0 — helper 2 개 module mock + 좁은 transaction mock, smoke/e2e 는 CI 위임.
+- (기록) CI 게이트 (d) 는 초회 run 30344047217 이 `reviewer agent approval 검증` step 단독 fail (알려진 reviewer-gate race — reviewer comment 이전에 run 이 시작). comment-triggered 재실행 run 30344424217 이 lint/build/test:cov/smoke/e2e/perf/approval 전부 success. 해당 재실행 run 은 `headBranch=main` 으로 기록되므로 `gh run list --branch <feature>` 로는 조회되지 않는다 — `gh run list --workflow=ci.yml` 에서 `event=issue_comment` run 을 찾아야 한다.
