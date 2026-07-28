@@ -2,12 +2,14 @@
 id: T-1291
 title: materializeFullExportDownload 에 scope 선별 배선 (dump 가 RANGE/PARTIAL 을 실제로 반영)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 220
 estimatedFiles: 3
 created: 2026-07-28
+completedAt: 2026-07-28T21:02:13Z
+prNumber: 1182
 independentStream: export-scope-materialization
 dependsOn: [T-1290]
 touchesFiles:
@@ -77,3 +79,11 @@ plannerNote: "cap-bend 없음: R-112 backbone x1.5 = 220 LOC / 3 파일. T-1290 
 - (유지, 3c-3d3) 크기 상한 413 e2e — 50 MiB 초과 업로드. **선행 확인 의무**: supertest 가 multer mid-stream abort 를 어떻게 표면화하는지 (ECONNRESET / EPIPE) 국소 확인 후, flaky 하면 기존 `multer-exception.filter.spec.ts` 의 실 파이프라인 경계 (10 bytes 상한) 로 만족시키고 e2e 는 포기하는 선택지를 planner 에 보고한다.
 - (미해결 정책, T-1287 → T-1290 이월) `LlmProviderConfig` 왕복 불가 — export full-record select 가 `apiKey` 를 제외 (ADR-0047 secret deny) 하는데 schema 의 `apiKey` 는 not-null 이라, 실 운영 dump 에 그 entity 가 1 건이라도 있으면 REPLACE / MERGE 어느 mode 든 복원 `$transaction` 이 통째로 실패할 것으로 예상된다. **복원 정책 (해당 entity skip / 재입력 요구 / 부분 실패 안내) 은 secret 처리 결정이라 CLAUDE.md §5 상 사람 결정 대상** — driver 가 `humanQuestion` 으로 escalate 하는 것이 적절하다.
 - (관측, 이월) UC-07 §8 (b)(e) 가 요구하는 **Export / Import Audit log row 영속화 0** — 순수 helper `buildExportImportAuditEntry` (T-0443) 는 있으나 실 insert 경로가 없고, Prisma 에 범용 `AuditLog` model 자체가 없다. 도입은 schema migration 이라 §5 사람 결정 대상.
+
+## Result (2026-07-28)
+
+`materializeFullExportDownload` 가 `collectFullExportRecords` 결과를 그대로 dump 로 흘리던 경로에 `selectExportRecords(scope, records)` 를 배선했다 — [T-1290](T-1290-export-scope-select-generic.md) 이 연 제네릭 덕에 **캐스팅 0** 으로 `FullExportRecord[]` 가 통과하고, `selected` 만 envelope 에 담기며 `excluded` 는 폐기한다. `buildFullExportDump` 가 입력 records 를 1 회 순회해 집계하므로 `entityCounts` / `recordCount` 도 **자동으로 선별 후 기준**이 된다 (추가 작업 0). 시그니처 불변, `export.controller.ts` 는 stale 주석만 교체 (코드 0 수정).
+
+실측 **+299/-16 LOC / 3 파일** (cap 300 안, nit closure 포함). spec 12 case 추가 — happy PARTIAL 선별 · 분기 cover (full / range / partial / range+entitySelector) · 선별 후 메타 일관성 · error path (findMany reject, selectExportRecords raw propagate) · negative (a)~(f). PR [#1182](https://github.com/myungjoo/Assessment-Agent/pull/1182) round 2/7 reviewer APPROVE → §3.3 4-게이트 전부 PASS → squash merge `9ef5eaf6`. 로컬 428 suite / 12215 test green, `test:cov` 전역 line 99.95% / function 100%.
+
+이로써 UC-07 §6.1 의 scope 3 차원 옵션이 실 artifact 에 반영된다 (REQ-030 전반부 gap 해소) — 예고돼 있던 **부분 dump + MERGE cross-instance migration e2e** 의 전제가 성립했고, [T-1292](T-1292-export-scope-download-e2e.md) 가 그 실 DB 확증을 잇는다.
