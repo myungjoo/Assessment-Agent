@@ -2,12 +2,14 @@
 id: T-1290
 title: selectExportRecords / ExportSelection 제네릭 확장 (full-record fields 보존 타입 열기)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 120
 estimatedFiles: 2
 created: 2026-07-28
+completedAt: 2026-07-28T20:01:18Z
+prNumber: 1181
 independentStream: export-scope-materialization
 dependsOn: []
 touchesFiles:
@@ -71,3 +73,11 @@ plannerNote: "cap-bend 없음: R-112 backbone x1.5 = 120 LOC / 2 파일. export 
 - (유지, 3c-3d3) 크기 상한 413 e2e — 50 MiB 초과 업로드. **선행 확인 의무**: supertest 가 multer mid-stream abort 를 어떻게 표면화하는지 (ECONNRESET / EPIPE) 국소 확인 후, flaky 하면 기존 `multer-exception.filter.spec.ts` 의 실 파이프라인 경계 (10 bytes 상한) 로 만족시키고 e2e 는 포기하는 선택지를 planner 에 보고한다.
 - (미해결 정책, T-1287 → T-1289 이월) `LlmProviderConfig` 왕복 불가 — export full-record select 가 `apiKey` 를 제외 (ADR-0047 secret deny) 하는데 schema 의 `apiKey` 는 not-null 이라, 실 운영 dump 에 그 entity 가 1 건이라도 있으면 REPLACE / MERGE 어느 mode 든 복원 `$transaction` 이 통째로 실패할 것으로 예상된다 (`deploy/seed-llm-config.sh` 가 운영 인스턴스에 그 row 를 심으므로 실사용에서 거의 확실히 발생). **복원 정책 (해당 entity skip / 재입력 요구 / 부분 실패 안내) 은 secret 처리 결정이라 CLAUDE.md §5 상 사람 결정 대상** — driver 가 `humanQuestion` 으로 escalate 하는 것이 적절하다.
 - (관측, 본 task 조사 중 확인) UC-07 §8 (b)(e) 가 요구하는 **Export / Import Audit log row 영속화 0** — 순수 helper `buildExportImportAuditEntry` (T-0443) 는 있으나 실 insert 경로가 없고, Prisma 에 범용 `AuditLog` model 자체가 없다 (`AuditLog` export entity 는 `PermissionDeniedRecord` 매핑). 도입은 schema migration 이라 §5 사람 결정 대상.
+
+## Result (2026-07-28)
+
+`ExportSelection<TRecord extends ExportRecord = ExportRecord>` + `selectExportRecords` 를 제네릭화해 `FullExportRecord[]` 의 `fields` 를 캐스팅 없이 흘릴 수 있게 열었다 ([T-1266](T-1266-restore-plan-generic.md) 동형). 지역 배열 원소 타입만 `TRecord` 로 좁혔고 **런타임 본문 변경 0** — `filter`/`push` 가 원소 참조를 그대로 옮기던 기존 동작 불변 (spec 이 `toBe` 동일 참조로 실증).
+
+실측 **+282 LOC / 2 파일** (cap 300 안, nit closure 로 실 consumer 호출 test +16 LOC 포함). PR [#1181](https://github.com/myungjoo/Assessment-Agent/pull/1181) round 2/7 reviewer APPROVE → §3.3 4-게이트 전부 PASS → squash merge `09aab817`. 로컬 428 suite / 12202 test green, `test:cov` threshold (line·function ≥ 80%) 통과.
+
+**defer 합의 (round 1 MINOR A)** — `export-scope-select.ts` 의 `selected` / `excluded` 지역 배열이 가변 `TRecord[]` 라 `ExportSelection<FullExportRecord>` → `ExportSelection` 대입 시 TS 배열 공변 unsoundness 가 열린다. 현 소비처가 read-only 라 실 피해 0 이며, `readonly TRecord[]` 전환은 소비처 3 곳 동반 수정이 필요해 본 task Out of Scope("소비처 0 수정")와 충돌 → [T-1291](T-1291-export-download-scope-select-wire.md) Follow-ups 로 이관했다.
