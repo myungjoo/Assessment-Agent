@@ -18,6 +18,7 @@ import { HttpException, Injectable } from "@nestjs/common";
 import { type ImportJob, type ImportMode } from "@prisma/client";
 
 import { ImportJobService } from "./import-job.service";
+import { type ImportRestoreTransactionResult } from "./import-restore-transaction.service";
 import { ImportRestoreService } from "./import-restore.service";
 
 // 예기치 못한 실패의 **고정** 기록 문구 (REQ-032 raw 미저장). `HttpException` 이 아닌 error
@@ -55,9 +56,9 @@ export class ImportJobRunnerService {
   async runJob(input: RunImportJobInput): Promise<ImportJob> {
     await this.jobs.markRunning(input.jobId);
 
-    // 명시 타입 주석 (`let restored: ImportRestoreTransactionResult;`) 을 붙이면 catch 경로 때문에
-    // TS2454 (사용 전 미할당) 로 깨지므로, try 안 할당으로 좁혀지는 evolving-any 추론을 의도적으로 쓴다.
-    let restored;
+    // catch 가 항상 재throw 로 끝나므로 try 이후 지점의 definite assignment 가 보존된다
+    // (명시 타입을 붙여도 TS2454 가 나지 않는다 — evolving-any 에 기댈 이유가 없다).
+    let restored: ImportRestoreTransactionResult;
     try {
       restored = await this.restore.restoreFromDump(input.buffer, input.mode);
     } catch (error) {
