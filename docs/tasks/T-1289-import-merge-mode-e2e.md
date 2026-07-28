@@ -2,12 +2,14 @@
 id: T-1289
 title: import MERGE mode 실 DB 왕복 e2e (보존 vs 전면교체 분기, 실행 slice 3c-3d4)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 170
 estimatedFiles: 1
 created: 2026-07-28
+completedAt: 2026-07-28T18:48:51Z
+prNumber: 1180
 independentStream: import-restore-engine
 dependsOn: [T-1288]
 touchesFiles:
