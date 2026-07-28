@@ -2,7 +2,10 @@
 id: T-1293
 title: 부분 dump + MERGE cross-instance migration e2e (UC-07 §6.2 조합 계약, 실행 slice 3c-3d5)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-28T22:54:45Z
+prNumber: 1184
+mergeCommit: d2f976b1
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 200
