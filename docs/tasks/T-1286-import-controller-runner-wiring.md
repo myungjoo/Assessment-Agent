@@ -2,7 +2,10 @@
 id: T-1286
 title: import controller 의 interim guard 를 job runner 호출로 교체 (실행 slice 3c-3c)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-28T12:57:01Z
+prNumber: 1177
+mergeCommit: 61b007e2
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 330
@@ -69,3 +72,14 @@ plannerNote: "cap-bend pre-justified: R-112 backbone x1.5 = 330 LOC / 2 파일, 
 
 - (예고) 실행 slice **3c-3d** — HTTP 경계 e2e 실 DB 왕복 실증 (파일 누락 400 · dump 파싱 실패 400 · 진행 중 충돌 409 · 성공 시 `status=SUCCEEDED` + `restoredRowCount` 응답 body + 복원된 row 실검증).
 - (검토 대상) 대용량 dump 의 동기 처리 지연 — 본 slice 는 요청-응답 안에서 복원을 완주한다. 50 MiB 상한 (`MAX_IMPORT_FILE_SIZE_BYTES`) 내에서도 응답 지연이 문제가 되면 비동기 job 처리 전환을 별도 ADR 로 검토.
+
+## 결과 (2026-07-28 12:57Z DONE)
+
+- PR [#1177](https://github.com/myungjoo/Assessment-Agent/pull/1177) squash merge `61b007e2`. reviewer round 2/7 APPROVE, §3.3 4-게이트 전부 PASS.
+- 실측 **+306/-203 / 5 파일** — 자체 sub-limit (380 LOC) 이내이나 **파일 수는 예상 2 → 실측 5**. 초과분 3 개는 `test/perf/import-detail-read.perf-spec.ts` · `import-modes-read.perf-spec.ts` · `import-running-read.perf-spec.ts` 로, controller 생성자 확장이 이 3 종의 `controllers: [ImportController]` 조립 spec 의 DI 해석을 깨뜨려 CI `test:perf` 가 fail → round 2 에서 provider 1 줄씩 parity 보정. cap 5 이내라 규율 위반은 아니며 근거는 PR comment 에 박제.
+- 배선 계약 충족: 생성자 값 import 주입 → `create()` 를 파일검증 → `createJob` → `runJob` 3 단계로 교체, `mode` 는 job row 확정값, `buffer` 는 동일 인스턴스 전달, `artifactRef = file.originalname`. **interim 잔재 0** (`INTERIM_RESTORE_UNWIRED_MESSAGE` 상수 · `markFailed` 호출 · stale 주석 전량 제거, `git grep` 0 건).
+- R-112: `import.controller.spec.ts` 55 → 59 test (happy / error path 2 종 / 분기 3 종 / negative 충분 cover). `import.controller.ts` line·branch·function **100%**, 전역 line 99.95% · function 100%. unit 428 suite / 12185 test + perf 34 suite / 268 test green.
+
+## Follow-ups (추가)
+
+- **DI 확장 task 의 perf-spec parity 관례** — controller 생성자를 늘리는 task 는 `test/perf/` 의 조립 spec 과 parity 를 요구한다. 향후 estimate 산정 시 `grep -rn "controllers: \[<Name>\]" test/` 결과를 파일 수에 포함시킬 것 (본 task 가 2 → 5 로 벌어진 직접 원인).
