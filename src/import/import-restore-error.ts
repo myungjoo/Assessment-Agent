@@ -9,7 +9,8 @@
 // 원본 error 를 `cause` 로도 붙이지 않는다 (직렬화 경로로 Prisma 문구가 새는 것 차단).
 // 유일한 예외가 `meta.target` 이 `string[]` 인 경우의 **컬럼명** 인데, 이는 위반한 값이 아니라
 // 스키마 이름이라 노출해도 안전하며 사용자가 dump 를 고치는 데 필요한 최소 단서다.
-// 순수성 계약: 입력 비변형 · 부수효과 0 · 매 호출 새 exception 인스턴스 (공유 싱글턴 0).
+// 순수성 계약: 입력 비변형 · 부수효과 0 · 매 호출 새 exception 인스턴스 (공유 싱글턴 0) ·
+// Prisma known error 형태의 입력에는 throw 0 (접근자가 throw 하는 입력은 계약 밖 — 아래 참조).
 import {
   BadRequestException,
   ConflictException,
@@ -63,13 +64,18 @@ function readTargetColumns(error: unknown): string[] | undefined {
 }
 
 // 컬럼명 단서 접미사 — 없으면 빈 문자열이라 문구가 자연스럽게 닫힌다.
+// 안전 가정: target 원소를 길이 제한 · 정제 없이 그대로 싣는 것은 **호출처가 실제 Prisma error 만
+// 넘긴다** 는 전제 위에 있다 (Prisma 는 여기에 스키마 컬럼명만 채운다). 임의 사용자 입력이 이
+// 자리에 흘러드는 호출처가 생기면 그 전제가 깨지므로 정제 계층을 그때 추가한다.
 function columnHint(error: unknown): string {
   const columns = readTargetColumns(error);
   return columns === undefined ? "" : ` (관련 컬럼: ${columns.join(", ")})`;
 }
 
 // toImportRestoreHttpException — 매핑 대상이면 **새** HTTP exception 인스턴스를, 아니면
-// `undefined` 를 돌려준다. 어떤 입력에도 throw 하지 않는다.
+// `undefined` 를 돌려준다. Prisma known error 형태의 입력 (plain data property) 에는 throw 0 —
+// `code` / `meta` / `meta.target` 접근자 자체가 throw 하는 입력은 **계약 밖** 이라 그 throw 가
+// 그대로 전파된다 (방어적으로 삼키지 않는다 — 삼키면 진짜 결함이 undefined 로 위장된다).
 export function toImportRestoreHttpException(
   error: unknown,
 ): HttpException | undefined {

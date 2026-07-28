@@ -163,6 +163,26 @@ describe("toImportRestoreHttpException", () => {
     expect(toImportRestoreHttpException(input)).toBeUndefined();
   });
 
+  // 계약 밖 입력 pin — 접근자가 스스로 throw 하면 helper 는 삼키지 않고 그대로 전파한다.
+  // 방어적으로 흡수하면 진짜 결함이 undefined 로 위장되므로 현 동작이 의도된 계약이다.
+  it("negative: code/meta/target 접근자가 throw 하면 그대로 전파된다 (계약 밖)", () => {
+    const boom = (): never => {
+      throw new Error("accessor boom");
+    };
+    const throwingAt = (base: object, key: string): object =>
+      Object.defineProperty(base, key, { get: boom });
+    const inputs: unknown[] = [
+      throwingAt({}, "code"),
+      throwingAt({ code: "P2002" }, "meta"),
+      { code: "P2002", meta: throwingAt({}, "target") },
+    ];
+    for (const input of inputs) {
+      expect(() => toImportRestoreHttpException(input)).toThrow(
+        /accessor boom/,
+      );
+    }
+  });
+
   it("negative: prototype 상속 code 도 문자열일 때만 매핑된다", () => {
     expect(
       toImportRestoreHttpException(Object.create({ code: "P2002" }) as object),
