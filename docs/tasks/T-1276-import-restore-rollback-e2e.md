@@ -2,8 +2,10 @@
 id: T-1276
 title: 복원 트랜잭션의 실 DB rollback regression e2e (실행 slice 3b-2b)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1167
+completedAt: 2026-07-28T01:56:04Z
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 255
 estimatedFiles: 1
@@ -77,3 +79,7 @@ plannerNote: "3b-2b = test-only e2e 1 파일 (prod 0). 실 DB rollback 실증. �
 
 - (예고) 실행 slice **3b-2c** — Prisma error (P2002 중복 · P2003 FK · P2025 부재) → HTTP exception 매핑 + 그 매핑의 unit spec. 본 e2e 의 "감싸지 않음" 단언을 그 slice 가 의도적으로 갱신한다.
 - (예고) 실행 slice **3c** — `import.module.ts` provider 등록 + `import-job.service.ts` / `import.controller.ts` 재배선 (T-1254 interim `markFailed` guard 를 실 복원 pipeline 으로 교체) + import UI false-success 상태 해소.
+
+## 결과 (2026-07-28 01:56Z, DONE)
+
+PR [#1167](https://github.com/myungjoo/Assessment-Agent/pull/1167) squash merge `5d47552d` (round 1/7 APPROVE, 4-게이트 PASS). 실측 **+259 LOC / 1 파일** (production 0). `Test.createTestingModule({ providers: [PrismaService, ImportRestoreTransactionService] })` 최소 부트스트랩으로 AppModule·supertest·JWT 없이 실 DB 를 붙였고, `toDelete[].instant` 는 DB 가 돌려준 `createdAt` 을 그대로 써 정밀도 불일치로 인한 0 건 삭제 함정을 차단했다. happy 1 · rollback regression 1 · error path 1 · 분기 4 종 (혼합 / 빈 plan / delete-only / 중간 실패) · negative 7 종 (unique 위반 2 · Prisma 거부 fields 2 · 조립 결함 2 · 무존재 instant 1). reviewer NIT 3 건은 모두 판단 근거 확인 성격이라 fix 대상 0 — follow-up 이월 없음.
