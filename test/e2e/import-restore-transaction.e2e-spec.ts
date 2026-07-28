@@ -5,8 +5,10 @@
 // mock unit (`import-restore-transaction.service.spec.ts`) 과의 분업: 호출 횟수 · 순서 · 입력
 // 비변형처럼 **흉내로 증명 가능한 것** 은 그쪽이 이미 덮었다. 본 spec 은 mock 으로 증명
 // **불가능** 한 것만 본다 — 실 rollback · 실 Prisma 제약 거부 · 실 row 상태. 하지 않는 것:
-// HTTP · RBAC · module provider 등록 (3c) / Prisma error → HTTP exception 매핑 (3b-2c — 본
-// spec 은 매핑이 **없다**는 사실을 pin 한다) / production 코드 수정 0.
+// HTTP · RBAC · module provider 등록 (3c) / production 코드 수정 0.
+// 매핑 pin 갱신 (T-1278, 실행 조각 **3b-2c-2**): 아래 매핑 test 는 원래 "본 service 가 감싸지
+// 않는다 (매핑 부재)" 를 pin 했고 스스로 갱신을 예고했다 — 배선이 닫힌 지금은 실 P2002 가 실제로
+// `ConflictException` 409 로 나오는지를 **실 DB 사실** 로 본다 (mock 은 실 제약 code 를 못 만든다).
 // 실 DB 전략: AppModule · supertest · JWT 없이 `Test.createTestingModule` 로 PrismaService +
 // 본 service 만 올린다 (truncate 후 actor User re-seed 부담 0 — T-0520 사고 회피). CI 의
 // `pnpm test:e2e` step + `services.postgres` 에서 실행되고, 로컬은 `DATABASE_URL` 부재 시
@@ -15,6 +17,7 @@
 // timeout 관측 (PR #1166 NIT-4 회수): 본 규모 (row 10 건 미만) 왕복은 수백 ms 로 끝나
 // `IMPORT_RESTORE_TRANSACTION_OPTIONS` 의 `maxWait` 10s · `timeout` 120s 어디에도 닿지 않고,
 // 실 Prisma 커넥션 풀 대기 · Postgres `statement_timeout` 과도 경합하지 않았다 (값 조정 0).
+import { ConflictException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 
 import { type FullExportRecord } from "../../src/export/export-full-record";
@@ -161,7 +164,7 @@ describe("E2E: ImportRestoreTransactionService.restore 실 DB 원자성 (T-1276)
     expect(await counts()).toEqual(before);
   });
 
-  it("전파된 error 는 본 service 가 감싼 것이 아니다 (Prisma → HTTP 매핑 부재 pin)", async () => {
+  it("실 PK 중복 (실 P2002) 은 ConflictException 409 로 매핑된다 (3b-2c-2 갱신)", async () => {
     const { groupA, groupB } = await seed();
     const error: unknown = await service
       .restore(
@@ -171,13 +174,18 @@ describe("E2E: ImportRestoreTransactionService.restore 실 DB 원자성 (T-1276)
         ),
       )
       .catch((caught: unknown) => caught);
-    expect(error).toBeInstanceOf(Error);
-    expect((error as Error).name).toMatch(/^PrismaClient/);
-    expect((error as { code?: string }).code).toBe("P2002");
-    // 본 service · runner 발 prefix 0 — 3b-2c 매핑 slice 가 본 단언을 의도적으로 갱신한다.
-    expect((error as Error).message).not.toMatch(
-      /ImportRestoreTransactionService|runImportRestoreSteps/,
-    );
+    expect(error).toBeInstanceOf(ConflictException);
+    expect((error as ConflictException).getStatus()).toBe(409);
+    expect((error as Error).message).toMatch(/고유 제약을 위반/);
+    // 원본 Prisma error 는 매핑에 흡수되고 code · 이름이 응답 객체로 새어 나오지 않는다.
+    expect((error as Error).name).not.toMatch(/^PrismaClient/);
+    expect((error as { code?: string }).code).toBeUndefined();
+    // REQ-032 — 메시지에도 `getResponse()` 직렬화에도 원본 문구 · payload sentinel 0.
+    const dump = `${(error as Error).message} ${JSON.stringify(
+      (error as ConflictException).getResponse(),
+    )}`;
+    expect(dump).not.toContain(MARKER);
+    expect(dump).not.toMatch(/PrismaClient|Unique constraint/);
   });
 
   it.each<[string, "group" | "person"]>([

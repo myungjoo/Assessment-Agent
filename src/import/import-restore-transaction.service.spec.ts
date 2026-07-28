@@ -1,5 +1,12 @@
-// import-restore-transaction.service.spec — T-1275. R-112 4 종 (happy / error / 분기 / negative
-// 충분 cover). 실 DB 0 — `$transaction` 콜백을 mock tx 로 실행하는 factory 1 개 + `it.each` 표.
+// import-restore-transaction.service.spec — T-1275 (실행 배선) + T-1278 (Prisma error → HTTP
+// exception 매핑 배선). R-112 4 종 (happy / error / 분기 / negative 충분 cover). 실 DB 0 —
+// `$transaction` 콜백을 mock tx 로 실행하는 factory 1 개 + `it.each` 표.
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+} from "@nestjs/common";
+
 import { EXPORT_ENTITY_SOURCES } from "../export/export-entity-sources";
 import type { FullExportRecord } from "../export/export-full-record";
 import type { ImportRestorePlan } from "../export/import-restore-plan";
@@ -168,8 +175,8 @@ describe("ImportRestoreTransactionService.restore — error · negative", () => 
     expect(err.message).not.toMatch(/leak-me/);
     expect(calls).toEqual(["person.deleteMany"]);
   });
-  // (d) `$transaction` 자체 실패 — Prisma error 를 HTTP exception 으로 바꾸지 않고 instance 그대로
-  // 전파 (매핑은 3b-2b 몫) · 재시도 0 · 결과 미반환.
+  // (d) `$transaction` 자체 실패 — `P1001` 은 매핑 표 밖이라 catch 를 지나도 instance 그대로
+  // 전파된다 (적중 표는 아래 3b-2c-2 describe) · 재시도 0 · 결과 미반환.
   it("$transaction 이 reject 하면 그대로 전파 · 재시도 0", async () => {
     const boom = Object.assign(new Error("커넥션 실패"), { code: "P1001" });
     const { service, $transaction, calls } = makeService(undefined, boom);
@@ -178,7 +185,8 @@ describe("ImportRestoreTransactionService.restore — error · negative", () => 
     expect(calls).toEqual([]);
   });
   // (e) 콜백 중간 step reject — 이후 호출 0 · 보상 delete 0 (되돌리기는 `$transaction` 몫이고 그
-  // rollback 이 lazy guard 의 부분 적용까지 무해화 — 실 DB 실증은 3b-2b).
+  // rollback 이 lazy guard 의 부분 적용까지 무해화 — 실 DB 실증은 T-1276 e2e). code 없는 error 라
+  // 매핑도 미적중이라 instance 가 그대로 나온다.
   it("중간 step 이 reject 하면 이후 호출 0 · 되돌리기 0", async () => {
     const boom = new Error("delegate 실패");
     const { service, calls } = makeService((k) =>
@@ -187,5 +195,110 @@ describe("ImportRestoreTransactionService.restore — error · negative", () => 
     const input = pl({ toDelete: [P], toInsert: [P, rec("Group")] });
     await expect(service.restore(input)).rejects.toBe(boom);
     expect(calls.join(" ")).toBe("person.deleteMany person.createMany");
+  });
+});
+
+// T-1278 (3b-2c-2) — 매핑 배선 한 겹. 어떤 code 가 어떤 exception 인지의 판정 표는 helper spec
+// (`import-restore-error.spec.ts`) 이 이미 덮으므로, 여기선 "catch 가 helper 를 정확히 그 결과대로
+// 반영하는가" 와 매핑이 기존 계약 (재시도 0 · 보상 0 · REQ-032) 을 깨지 않는가만 본다.
+describe("ImportRestoreTransactionService.restore — Prisma error 매핑 (3b-2c-2)", () => {
+  type HttpCtor = new (m?: string) => HttpException;
+  const one = () => pl({ toDelete: [P] });
+  const prismaError = (code: string, over: Obj = {}) =>
+    Object.assign(new Error(`db 실패 ${code}`), { code, ...over });
+  const failing = (thrown: unknown) => makeService(undefined, thrown);
+  // 실패 주입 후 던져진 값을 돌려주는 helper — 매 호출마다 재시도 0 · 추가 delegate 호출 0 단언.
+  const caught = async (thrown: unknown): Promise<unknown> => {
+    const { service, $transaction, calls } = failing(thrown);
+    const err = await service.restore(one()).catch((e: unknown) => e);
+    expect($transaction).toHaveBeenCalledTimes(1);
+    expect(calls).toEqual([]);
+    return err;
+  };
+
+  // happy — 표 3 종이 각각 지정 exception · status 로 바뀐다.
+  it.each<[string, HttpCtor, number]>([
+    ["P2002", ConflictException, 409],
+    ["P2003", BadRequestException, 400],
+    ["P2025", ConflictException, 409],
+  ])("%s 는 매핑된 HTTP exception 으로 거부", async (code, ctor, status) => {
+    const err = (await caught(prismaError(code))) as HttpException;
+    expect(err).toBeInstanceOf(ctor);
+    expect(err.getStatus()).toBe(status);
+    expect(err.message).not.toContain(code); // 원본 code 문구 재사용 0
+  });
+
+  // 분기 — 매핑 미적중이면 원본 instance 동일성 (`toBe`) 을 유지한 채 그대로 전파한다.
+  it.each<[string, unknown]>([
+    ["P2028 (표 밖)", prismaError("P2028")],
+    ["P1001 (표 밖)", prismaError("P1001")],
+    ["code 없는 평범한 Error", new Error("평범한 실패")],
+    ["code 가 비-문자열", prismaError("x", { code: 2002 })],
+  ])("미적중 %s 는 원본 instance 그대로 전파", async (_l, boom) => {
+    expect(await caught(boom)).toBe(boom);
+  });
+
+  // catch 범위 pin — 조립은 트랜잭션 밖이라 매핑을 거치지 않는다 (열기 전이라 catch 미진입).
+  it("상류 조립 throw 는 매핑 대상이 아니다 (catch 밖)", async () => {
+    const { service, $transaction } = failing(prismaError("P2002"));
+    const err = await rejects(service, pl({ toDelete: "leak-me" }), TE, GRP);
+    expect(err).not.toBeInstanceOf(HttpException);
+    expect($transaction).not.toHaveBeenCalled();
+  });
+
+  // 분기 — 빈 step 단락은 트랜잭션 자체를 열지 않아 실패 주입이 있어도 catch 에 닿지 않는다.
+  it("빈 step 단락은 트랜잭션 미개시라 매핑 catch 미진입", async () => {
+    const { service, $transaction } = failing(prismaError("P2002"));
+    await expect(service.restore(pl({ toKeep: [P] }))).resolves.toEqual({
+      outcomes: [],
+      deleted: 0,
+      inserted: 0,
+    });
+    expect($transaction).not.toHaveBeenCalled();
+  });
+
+  // negative (a)(b) REQ-032 — 원본 문구 · `meta.cause` 가 메시지 · 직렬화 어디에도 새지 않고
+  // 원본이 `cause` 로도 붙지 않는다. 컬럼명 단서 (스키마 이름) 만 허용.
+  it("negative: 원본 Prisma 문구 · meta 가 매핑 결과로 새지 않는다", async () => {
+    const boom = prismaError("P2002", {
+      message: "Unique constraint failed leak-me",
+      meta: { cause: "leak-me", target: ["email"] },
+    });
+    const err = (await caught(boom)) as HttpException;
+    const dump = `${err.message} ${JSON.stringify(err.getResponse())} ${JSON.stringify(err)}`;
+    expect(dump).not.toMatch(/leak-me|Unique constraint/);
+    expect(err.message).toMatch(/고유 제약/);
+    expect(err.message).toContain("email");
+    expect((err as { cause?: unknown }).cause).toBeUndefined();
+  });
+
+  // negative (c) 공유 싱글턴 0 — 같은 error 로 두 번 실패해도 매번 새 instance.
+  it("negative: 같은 error 2 회 실패는 매번 새 exception instance", async () => {
+    const boom = prismaError("P2025");
+    const [a, b] = [await caught(boom), await caught(boom)];
+    expect(a).not.toBe(b);
+    expect((a as Error).message).toBe((b as Error).message);
+  });
+
+  // negative (d) 매핑이 실패를 성공으로 둔갑시키지 않는다 — resolve 경로 0.
+  it("negative: 매핑돼도 부분 성공 결과를 resolve 하지 않는다", async () => {
+    const { service } = failing(prismaError("P2003"));
+    const done = await service.restore(one()).then(
+      () => "resolved",
+      () => "rejected",
+    );
+    expect(done).toBe("rejected");
+  });
+
+  // negative (f) 설계 결정 (A) pin — helper 를 자체 try/catch 로 감싸지 않으므로 계약 밖 입력의
+  // accessor throw 가 원본 실패를 덮고 그대로 전파된다 (원본 유실은 알려진 trade-off).
+  it("negative: code 접근자가 throw 하는 계약 밖 error 는 그 throw 가 전파 (결정 A)", async () => {
+    const accessor = new Error("accessor boom");
+    const boom = Object.defineProperty(new Error("원본 실패"), "code", {
+      get: (): never => {
+        throw accessor;
+      },
+    });
+    expect(await caught(boom)).toBe(accessor);
   });
 });
