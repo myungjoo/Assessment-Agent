@@ -11,29 +11,36 @@
 //     (GET running / GET :id) endpoint.
 //   - AuthModule import — controller 의 @UseGuards(JwtAuthGuard, RolesGuard) 주입을
 //     위해 (ExportModule 동형). AuthModule 이 JwtAuthGuard / RolesGuard 를 export.
+//   - ImportRestoreTransactionService provider 등록·export (T-1279, 실행 slice 3c-1) —
+//     ADR-0055 §Follow-up (b) 복원 엔진 chain 의 DI 등록 한 겹만. 등록만 하고 호출처는
+//     만들지 않는다 (controller / import-job.service 재배선은 3c-2 이후).
 //
 // PersistenceModule (`@Global()`) 이 PrismaService 를 application-wide 로 export
 // 하므로 본 module 은 PersistenceModule 을 imports 에 명시할 필요가 없다 (ExportModule
 // 동형 — ImportJobService 의 PrismaService 생성자 주입은 global scope 에서 해소됨).
 //
-// 책임 경계 (Out of Scope — T-0489 §Out of Scope):
+// 책임 경계 (Out of Scope — T-0489 / T-1279 §Out of Scope):
 //   - multipart 파일 수신 / 실 artifact upload·파싱 (multer · FileInterceptor) — 후속 slice.
-//   - 실 atomic transaction 복원 로직 (REPLACE $transaction / MERGE conflict) — 후속 task.
+//   - 복원 service 의 호출처는 아직 0 — ImportRestoreTransactionService 는 등록만 됐고
+//     controller / import-job.service 어느 쪽도 inject 하지 않는다 (3c-2 이후 배선).
 //   - 45 helper 실호출·실 복원 배선 — 후속 chain.
 import { Module } from "@nestjs/common";
 
 import { AuthModule } from "../auth/auth.module";
 
 import { ImportJobService } from "./import-job.service";
+import { ImportRestoreTransactionService } from "./import-restore-transaction.service";
 import { ImportController } from "./import.controller";
 
 @Module({
   // AuthModule import — controller 의 JwtAuthGuard / RolesGuard 주입 (ExportModule 동형).
+  // PrismaService 는 PersistenceModule (@Global) 공급이라 imports 추가 0.
   imports: [AuthModule],
   // ImportController 등록 (T-0489) — import job 생성·status polling 조회 endpoint.
   controllers: [ImportController],
   // ImportJobService 등록·export — controller 가 inject + 후속 배선 task 재사용.
-  providers: [ImportJobService],
-  exports: [ImportJobService],
+  // ImportRestoreTransactionService 등록·export (T-1279) — 후속 3c-2 orchestrator 재사용.
+  providers: [ImportJobService, ImportRestoreTransactionService],
+  exports: [ImportJobService, ImportRestoreTransactionService],
 })
 export class ImportModule {}
