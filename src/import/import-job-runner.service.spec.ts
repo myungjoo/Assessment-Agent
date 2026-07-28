@@ -156,6 +156,7 @@ describe("ImportJobRunnerService.runJob", () => {
     async (_label, value) => {
       const t = makeRunner({ restore: { v: value } });
       expect(await thrown(run(t.service))).toBe(value);
+      expect(t.order).toEqual(FAIL_ORDER);
       expect(t.markFailed).toHaveBeenCalledTimes(1);
       const recorded = t.markFailed.mock.calls[0][1];
       expect(recorded).toBe(IMPORT_RESTORE_UNEXPECTED_FAILURE_MESSAGE);

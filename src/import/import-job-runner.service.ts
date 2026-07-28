@@ -55,6 +55,8 @@ export class ImportJobRunnerService {
   async runJob(input: RunImportJobInput): Promise<ImportJob> {
     await this.jobs.markRunning(input.jobId);
 
+    // 명시 타입 주석 (`let restored: ImportRestoreTransactionResult;`) 을 붙이면 catch 경로 때문에
+    // TS2454 (사용 전 미할당) 로 깨지므로, try 안 할당으로 좁혀지는 evolving-any 추론을 의도적으로 쓴다.
     let restored;
     try {
       restored = await this.restore.restoreFromDump(input.buffer, input.mode);
