@@ -2,7 +2,13 @@
 id: T-1277
 title: 복원 Prisma error → HTTP exception 매핑 순수 helper (실행 slice 3b-2c-1)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-28T02:38:58Z
+mergedAs: d8f94a3e
+prNumber: 1168
+reviewRounds: 2
+actualDiff: 292
+actualFiles: 2
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 260
@@ -69,3 +75,5 @@ plannerNote: "3b-2c 를 둘로 쪼갠 앞 절반 — 순수 매핑 helper + spec
 
 - (예고) 실행 slice **3b-2c-2** — `ImportRestoreTransactionService.restore()` 가 본 helper 를 호출하도록 배선 (매핑되면 그 exception 을, 아니면 원본을 전파) + mock unit 갱신 + T-1276 e2e 의 "감싸지 않음" pin 단언을 "매핑된다" 로 의도적 갱신.
 - (예고) 실행 slice **3c** — `import.module.ts` provider 등록 + `import-job.service.ts` / `import.controller.ts` 재배선 (T-1254 interim `markFailed` guard → 실 복원 pipeline) + import UI false-success 해소.
+- (완료 기록) **자체 sub-limit 270 초과** — 실측 누적 **292 LOC / 2 파일**. round 1 은 266 LOC 로 sub-limit 이내였고, 초과분 26 LOC 는 전부 round 2 의 reviewer MINOR-1 / MINOR-2 대응 (CLAUDE.md §3 Nit-in-PR closure 가 본 PR 안 처리를 의무화한 4 종 중 test 추가 + 주석 정밀화) 이다. CLAUDE.md §3 cap (300 LOC / 5 파일) 이내이며 AC 52 행이 요구한 대로 PR body 에도 박제했다. 단언을 덜어내는 대신 pin test 를 `Object.defineProperty` 조립으로 압축해 negative cover 를 유지했다.
+- (관측, PR #1168 reviewer MINOR-3) Prisma 실 `meta` 형태는 code 마다 다르다 — 컬럼명을 `target` 에 채우는 것은 사실상 `P2002` 뿐이고 `P2003` 은 `field_name`, `P2025` 는 `cause` 를 쓴다. 따라서 `columnHint` 의 컬럼명 접미사는 P2002 전용으로 동작하고 P2003 / P2025 는 항상 일반 안내로 떨어진다 (기능 결함 아님 — 안전측 fallback). 3b-2c-2 배선 후 실 error 표본으로 확인해, 필요하면 code 별 meta 독해 (`P2003` → `field_name`) 를 추가하는 별도 slice 를 연다.
