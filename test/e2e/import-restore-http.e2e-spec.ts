@@ -45,6 +45,16 @@
 //     `(entity, instant)` 라, dump 안 어떤 record 와 같은 밀리초로 태어나면 보존이 삭제로 뒤집혀
 //     test 가 간헐 실패한다 — 상수 지정이 그 경로를 원천 차단한다.
 //
+// T-1293 (실행 slice **3c-3d5**) — 아래 **section F** 가 UC-07 §6.2 의 나머지 절반, 곧 **부분
+// dump (§6.1 PARTIAL) 와 mode 의 조합** (staging seed / cross-instance migration) 을 닫는다.
+// 전제: T-1291 이 다운로드 경로에 scope 선별을 배선하고 T-1292 가 "PARTIAL dump 는 실제로 부분"
+// 을 실 사실로 닫기 전까지 dump 는 scope 와 무관하게 늘 5 entity 전부여서 이 조합을 관측할 실
+// 경로 자체가 없었다. 대조 축은 복원 service 가 기존 record 를 `collectFullExportRecords` 로
+// **DB 전체** 에서 읽는다는 점이다 — dump 가 Group 만 담아도 REPLACE 의 삭제 범위는 기존 전부라
+// 비선별 Person 까지 지우고, MERGE 만이 그것을 보존한다. 그래서 **같은 부분 dump 에 mode 만
+// 바꾸는** 구성이 §6.2 문장을 실 사실로 박제하는 동시에, 보존이 전면 삭제로 흐르는 회귀의 그물이
+// 된다.
+//
 // 실 DB 미가용 환경 (로컬 — `DATABASE_URL` 부재) 에서는 globalSetup 이 fail-fast 하며 CI 의
 // `pnpm test:e2e` step 에서만 실행된다 (다른 e2e 동일, 본 spec 만의 skip 분기 0). 파일은
 // test/jest-e2e.json 의 `testRegex` 가 자동 picking 하므로 config 변경이 없다.
@@ -81,6 +91,17 @@ const PRESERVED_GROUP_CREATED_AT = new Date("2020-01-02T03:04:05.678Z");
 // 서로 구분해 잡는다.
 const MERGE_CORRUPT_DUMP_BODY = "not-json-T1289-merge-raw-must-not-be-stored";
 const MERGE_STRUCTURE_SENTINEL = "T1289-merge-structure-raw-must-not-be-stored";
+
+// -- section F (T-1293, 부분 dump + mode 조합) 전용 상수 --------------------------------
+// PARTIAL 선별 job 의 생성 body — entity 축 하나 (`Group`) 로 좁힌 부분 dump 를 만든다
+// (T-1292 가 export e2e 에서 쓴 body shape 그대로).
+const PARTIAL_GROUP_ONLY_BODY = {
+  scope: "PARTIAL",
+  entitySelector: ["Group"],
+};
+// 부분 dump 거부 경로의 sentinel — 위 두 종과 같은 형식이되 값을 분리해 경로별 누출을 구분한다.
+const PARTIAL_CORRUPT_DUMP_BODY =
+  "not-json-T1293-partial-raw-must-not-be-stored";
 
 describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)", () => {
   let ctx: AuthenticatedE2EContext;
@@ -126,12 +147,16 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
     return { group, person };
   }
 
-  // createExportJob — POST /api/admin/export 로 FULL scope job 을 만들고 그 id 를 돌려준다.
-  async function createExportJob(): Promise<string> {
+  // createExportJob — POST /api/admin/export 로 job 을 만들고 그 id 를 돌려준다. 인자를 생략하면
+  // 기존 그대로 FULL scope 이며 (section A~E 호출부 무변경), section F 만 PARTIAL scope body 를
+  // 넘겨 부분 dump 를 얻는다 (T-1293 — T-1292 가 export e2e 에서 쓴 선택 인자화 형식 그대로).
+  async function createExportJob(
+    body: Record<string, unknown> = { scope: "FULL" },
+  ): Promise<string> {
     const response = await request(app.getHttpServer())
       .post(EXPORT_BASE)
       .set("Cookie", adminCookie)
-      .send({ scope: "FULL" });
+      .send(body);
     expect(response.status).toBe(201);
     return response.body.id as string;
   }
@@ -435,5 +460,135 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
     expect(
       await prisma.group.findUnique({ where: { id: preserved.id } }),
     ).not.toBeNull();
+  });
+
+  // -- F. 부분 dump + mode 조합 (UC-07 §6.2 migration 계약, T-1293) ---------------------
+
+  // dump 본문의 entity 목록 — 부분성 (선별이 실제로 반영됐는가) 단언 전용 파싱.
+  function recordEntitiesOf(dump: Buffer): string[] {
+    return (
+      JSON.parse(dump.toString("utf-8")) as {
+        records: Array<{ entity: string }>;
+      }
+    ).records.map((record) => record.entity);
+  }
+
+  // arrangePartialDumpFixture — F 의 MERGE / REPLACE 두 test 가 공유하는 **동일 출발 상태**:
+  // (1) Group G1 + Person P1 seed → (2) PARTIAL([Group]) job 으로 **부분 dump** 획득 → (3) 부분성
+  // 확정 (record 1 건이고 전부 Group) → (4) G1 만 삭제하고 **P1 은 그대로 둔다**. dump 에 없는
+  // 비선별 entity 의 운명이 본 section 의 관측 대상이라, 두 test 는 여기서 mode 만 달리한다.
+  async function arrangePartialDumpFixture() {
+    const { group, person } = await seedRestorableEntities();
+    const dump = await downloadDump(
+      await createExportJob(PARTIAL_GROUP_ONLY_BODY),
+    );
+    expect(recordCountOf(dump)).toBe(1);
+    expect(recordEntitiesOf(dump)).toEqual(["Group"]);
+
+    await prisma.group.delete({ where: { id: group.id } });
+    // 출발 상태 확정 — dump 의 G1 은 부재이고 dump 에 없는 P1 만 남아 있다.
+    expect(await prisma.group.count()).toBe(0);
+    expect(await prisma.person.count()).toBe(1);
+    return { dump, group, person };
+  }
+
+  it("부분 dump + MERGE 는 비선별 Person 을 보존한 채 Group 만 복원한다 (happy — §6.2 조합)", async () => {
+    const { dump, group, person } = await arrangePartialDumpFixture();
+
+    const response = await uploadDump(dump, "MERGE");
+
+    // (a)(b)(c) HTTP 201 + job status + mode 가 요청대로 MERGE 다.
+    expect(response.status).toBe(201);
+    expect(response.body.status).toBe("SUCCEEDED");
+    expect(response.body.mode).toBe("MERGE");
+    // negative (b) — restoredRowCount 는 **부분 dump 의 record 수 (= 1) 와 정확히 일치** 하며
+    // 보존된 P1 을 합산하지 않는다 (합산했다면 2 — 이 정확 일치 단언이 그 회귀를 그대로 잡는다).
+    expect(response.body.restoredRowCount).toBe(recordCountOf(dump));
+    expect(response.body.restoredRowCount).toBe(1);
+
+    // (d) 부분 dump 의 G1 이 **동일 id** 로 부활하고 name 도 seed 값 그대로다.
+    const restored = await prisma.group.findUnique({ where: { id: group.id } });
+    expect(restored?.name).toBe(group.name);
+    // (e) dump 에 없던 P1 이 무손상으로 남는다 — id · email 그대로. negative (c) — createdAt 도
+    // 요청 전후 동일해, 보존이 "삭제 후 재삽입" 이 아니라 진짜 손대지 않음을 확인한다.
+    const kept = await prisma.person.findUnique({ where: { id: person.id } });
+    expect(kept?.email).toBe(person.email);
+    expect(kept?.createdAt.toISOString()).toBe(person.createdAt.toISOString());
+    // (f) 결과 집계 — 부활한 Group 1 건 + 보존된 Person 1 건.
+    expect(await prisma.group.count()).toBe(1);
+    expect(await prisma.person.count()).toBe(1);
+    // (g) 실 DB 의 job row 도 MERGE 이며, negative (d) — 요청 1 회당 job 은 정확히 1 건.
+    const job = await prisma.importJob.findFirstOrThrow();
+    expect(job.mode).toBe("MERGE");
+    expect(await prisma.importJob.count()).toBe(1);
+  });
+
+  it("같은 부분 dump 에 REPLACE 를 보내면 비선별 Person 이 사라진다 (branch — 현행 계약 박제)", async () => {
+    const { dump, group } = await arrangePartialDumpFixture();
+
+    const response = await uploadDump(dump, "REPLACE");
+
+    expect(response.status).toBe(201);
+    expect(response.body.status).toBe("SUCCEEDED");
+    expect(response.body.mode).toBe("REPLACE");
+    // 위 happy 와 **입력이 같고 mode 만 다르다** — 그런데 dump 에 없던 P1 까지 사라진다. 복원
+    // service 가 기존 record 를 DB 전체에서 읽어 REPLACE 의 삭제 범위가 "기존 전부" 이기 때문이다.
+    // 본 test 는 현행 계약을 박제할 뿐 그것이 바람직하다고 주장하지 않는다 (부분 dump 에 REPLACE
+    // 를 막을지 · 경고할지는 제품 결정이라 task Follow-ups 의 사람 판단 대상).
+    expect(await prisma.person.count()).toBe(0);
+    expect(await prisma.group.count()).toBe(1);
+    expect((await prisma.group.findFirst())?.id).toBe(group.id);
+  });
+
+  it("Group row 0 상태의 빈 부분 dump 를 MERGE 해도 복원 0 + Person 무손상 (branch — 빈 선별)", async () => {
+    const person = await prisma.person.create({
+      data: {
+        fullName: "비선별보존",
+        email: `import-http-partial-${Date.now()}@e2e.test`,
+      },
+    });
+    const dump = await downloadDump(
+      await createExportJob(PARTIAL_GROUP_ONLY_BODY),
+    );
+    // Group row 가 하나도 없으니 선별 결과가 빈 dump — 그 자체는 정상 dump 다 (T-1292 가 export
+    // 측에서 닫은 사실).
+    expect(recordCountOf(dump)).toBe(0);
+
+    const response = await uploadDump(dump, "MERGE");
+
+    expect(response.status).toBe(201);
+    expect(response.body.status).toBe("SUCCEEDED");
+    expect(response.body.restoredRowCount).toBe(0);
+    // 빈 dump 가 wipe 로 흐르지 않는다 — MERGE 의 삭제 대상은 충돌분뿐이라 P1 이 그대로 남는다.
+    expect(await prisma.person.count()).toBe(1);
+    expect((await prisma.person.findFirst())?.id).toBe(person.id);
+  });
+
+  it("부분 dump 자리에 손상 본문을 MERGE 로 올리면 400 + FAILED + raw 미저장 + DB 변경 0 (error)", async () => {
+    await arrangePartialDumpFixture();
+    const before = await counts();
+
+    const response = await uploadDump(
+      Buffer.from(PARTIAL_CORRUPT_DUMP_BODY, "utf-8"),
+      "MERGE",
+    );
+
+    // (a) 파싱 실패는 dump 의 부분성과 무관하게 `$transaction` 이전에 400 으로 거부된다.
+    expect(response.status).toBe(400);
+    // (b) job row 는 FAILED + mode MERGE + restoredRowCount 미기록.
+    const job = await prisma.importJob.findFirstOrThrow();
+    expect(job.status).toBe("FAILED");
+    expect(job.mode).toBe("MERGE");
+    expect(job.restoredRowCount).toBeNull();
+    // negative (a) — REQ-032: 업로드 raw 도 그 **접두 조각** 도 job row · 응답에 실리지 않는다.
+    expect(job.error).not.toContain(PARTIAL_CORRUPT_DUMP_BODY);
+    expect(job.error).not.toContain("not-json");
+    expect(JSON.stringify(response.body)).not.toContain(
+      PARTIAL_CORRUPT_DUMP_BODY,
+    );
+    // (c) 거부는 transaction 이전 단락 — Group / Person row 수가 요청 전과 동일하다.
+    expect(await counts()).toEqual(before);
+    // negative (d) — 거부 요청도 job row 는 정확히 1 건이다 (중복 job 0).
+    expect(await prisma.importJob.count()).toBe(1);
   });
 });
