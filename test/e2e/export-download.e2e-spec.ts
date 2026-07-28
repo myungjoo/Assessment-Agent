@@ -43,6 +43,11 @@
 //     seed 한다 — JWT sub claim (= 원 User id) 이 그대로 유효하고 FK 대상이 매 test 직전
 //     존재한다 (token 재발급 불요).
 //
+// scope 축 추가 (T-1292) — T-1291 이 materializeFullExportDownload 에 selectExportRecords 를
+// 배선해 dump 가 job 의 scope (RANGE dateRange / PARTIAL entitySelector) 를 실제로 반영하게
+// 됐다. 아래 §E describe 가 그 배선을 실 PostgreSQL + HTTP 왕복으로 확증한다 (job row 의
+// Prisma enum/Json → buildScopePayload/coerceDateRange → 선별 → 응답 body).
+//
 // 실 DB 미가용 환경 (로컬 — DATABASE_URL 부재) 에서는 CI 에서만 실행 (다른 e2e 동일).
 // 본 spec 은 CI 의 `pnpm test:e2e` step 에서 자동 실행 (test/jest-e2e.json 의 testRegex
 // `.*\.e2e-spec\.ts$` 가 본 파일 picking — 설정 변경 불요).
@@ -178,13 +183,17 @@ describe("E2E: GET /api/admin/export/:id/download full-record download (T-0520)"
     return { personId: person.id, personEmail, groupName };
   }
 
-  // createExportJob — POST /api/admin/export 로 FULL scope export job 생성 후 그 id 반환.
+  // createExportJob — POST /api/admin/export 로 export job 생성 후 그 id 반환.
   // controller 가 actor.sub (Admin) 를 requestedById 로 결합 — 실 User FK 충족.
-  async function createExportJob(): Promise<string> {
+  // body 는 선택 인자 (T-1292) — 기본값 FULL 이라 기존 호출부 (인자 없음) 는 그대로 동작하고,
+  // scope 선별 test 만 RANGE / PARTIAL body 를 넘긴다.
+  async function createExportJob(
+    body: Record<string, unknown> = { scope: "FULL" },
+  ): Promise<string> {
     const response = await request(app.getHttpServer())
       .post(BASE)
       .set("Cookie", adminCookie)
-      .send({ scope: "FULL" });
+      .send(body);
     expect(response.status).toBe(201);
     expect(response.body.id).toBeDefined();
     return response.body.id as string;
@@ -352,5 +361,230 @@ describe("E2E: GET /api/admin/export/:id/download full-record download (T-0520)"
     // DB-read 경로를 통과했음에도 누출 0 임을 보강 — false-negative 방지).
     const stored = await prisma.llmProviderConfig.findFirst();
     expect(stored?.apiKey).toBe(SEED_API_KEY);
+  });
+
+  // -- E. scope 선별 (T-1292 — T-1291 배선의 실 DB·HTTP 확증) ------------------------
+
+  // 본 절이 실증하는 사슬 (unit mock 이 우회하던 구간):
+  //   (1) 생성 body 의 dateRange.start/end 는 ISO string 이라 job row 의 Json 컬럼에 그대로
+  //       저장되고, download 시 controller 의 buildScopePayload → coerceDateRange 가
+  //       new Date(...) 로 coerce 해야 selectExportRecords 의 assertValidRange 를 통과한다.
+  //   (2) RANGE 는 [start, end) 반열림 — start 포함 · end 배타 — 로 실 row 의 createdAt 을 본다.
+  //   (3) entityCounts / recordCount 는 **선별 후** 기준이라 metadata 와 body 가 같은 기준을 본다.
+  //   (4) 손상 scope 는 생성 단계 (createJob 의 validateExportScope) 에서 400 으로 막혀
+  //       download 경로가 그런 job 을 만날 실 경로 자체가 없다.
+
+  // 선별 test 가 읽는 dump 최소 형태 (A.1 의 인라인 타입과 동형 — records/meta 구조).
+  interface Dump {
+    entityCounts: Record<string, number>;
+    recordCount: number;
+    records: Array<{ entity: string; fields: Record<string, unknown> }>;
+  }
+
+  // RANGE 경계 window — 실 row 의 createdAt 을 명시 지정해 반열림 판정을 확증한다.
+  const RANGE_START = new Date("2026-05-01T00:00:00.000Z");
+  const RANGE_END = new Date("2026-06-01T00:00:00.000Z");
+  const BEFORE_START = new Date("2026-04-30T23:00:00.000Z");
+  const RANGE_BODY = {
+    scope: "RANGE",
+    dateRange: {
+      start: RANGE_START.toISOString(),
+      end: RANGE_END.toISOString(),
+    },
+  };
+
+  // downloadRaw — StreamableFile (octet-stream) 응답을 raw 문자열로 받는다 (A.1 의 parse
+  // 블록과 동일 방식 — 기존 test 는 그대로 두고 새 test 만 본 helper 를 쓴다).
+  async function downloadRaw(jobId: string, cookie: string = adminCookie) {
+    return request(app.getHttpServer())
+      .get(`${BASE}/${jobId}/download`)
+      .set("Cookie", cookie)
+      .buffer(true)
+      .parse((res, callback) => {
+        let data = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk: string) => (data += chunk));
+        res.on("end", () => callback(null, data));
+      });
+  }
+
+  // downloadDump — 200 단언 + JSON 파싱 + 선별 후 메타 일관성 (recordCount === records.length,
+  // entityCounts 합 === recordCount) 을 매 호출마다 확인한다.
+  async function downloadDump(jobId: string): Promise<Dump> {
+    const response = await downloadRaw(jobId);
+    expect(response.status).toBe(200);
+    const dump = JSON.parse(response.body as string) as Dump;
+    expect(dump.recordCount).toBe(dump.records.length);
+    expect(
+      Object.values(dump.entityCounts).reduce((sum, n) => sum + n, 0),
+    ).toBe(dump.recordCount);
+    return dump;
+  }
+
+  // seedRangeBoundaryPersons — Person 3 row 를 경계 세 지점 (start-1h / start 정각 / end 정각)
+  // 의 createdAt 으로 seed. email 은 서로 달라 P2002 회피. window 안은 start 정각 1 건뿐이다.
+  async function seedRangeBoundaryPersons(): Promise<void> {
+    const stamp = Date.now();
+    await prisma.person.createMany({
+      data: [
+        {
+          fullName: "경계이전",
+          email: `range-before-${stamp}@e2e.test`,
+          createdAt: BEFORE_START,
+        },
+        {
+          fullName: "경계시작",
+          email: `range-start-${stamp}@e2e.test`,
+          createdAt: RANGE_START,
+        },
+        {
+          fullName: "경계끝",
+          email: `range-end-${stamp}@e2e.test`,
+          createdAt: RANGE_END,
+        },
+      ],
+    });
+  }
+
+  // E.1 happy — PARTIAL(entitySelector=["Group"]) 은 5 entity 중 Group 만 담는다.
+  it("GET :id/download — PARTIAL([Group]) job 은 Group record 만 담긴 dump (happy — 선별 반영)", async () => {
+    const { groupName } = await seedFiveEntities();
+    const jobId = await createExportJob({
+      scope: "PARTIAL",
+      entitySelector: ["Group"],
+    });
+
+    const dump = await downloadDump(jobId);
+
+    expect(dump.records.every((r) => r.entity === "Group")).toBe(true);
+    expect(dump.recordCount).toBe(1);
+    expect(dump.entityCounts.Group).toBe(1);
+    for (const entity of ["Assessment", "Person", "LlmConfig", "AuditLog"]) {
+      expect(dump.entityCounts[entity]).toBe(0);
+    }
+    // 선별돼 내려온 record 도 full-record 그대로 — allow-list 컬럼 name 이 보존된다.
+    expect(dump.records[0].fields.name).toBe(groupName);
+  });
+
+  // E.2 branch — RANGE 는 [start, end) 반열림. ISO string → Json → Date coerce 왕복 실증.
+  it("GET :id/download — RANGE job 은 [start, end) 반열림에 든 row 만 담는다 (branch — 실 DB·ISO 왕복)", async () => {
+    await seedRangeBoundaryPersons();
+    const jobId = await createExportJob(RANGE_BODY);
+
+    const dump = await downloadDump(jobId);
+
+    // start 정각 1 건만 — start-1h 는 이전, end 정각은 배타 경계라 제외.
+    expect(dump.recordCount).toBe(1);
+    expect(dump.records[0].entity).toBe("Person");
+    expect(dump.records[0].fields.fullName).toBe("경계시작");
+  });
+
+  // E.3 branch — RANGE + entitySelector 동시 지정은 두 조건 AND.
+  it("GET :id/download — RANGE + entitySelector 는 AND (branch — window 안 + 선택 entity 만)", async () => {
+    await seedRangeBoundaryPersons();
+    await prisma.group.create({
+      data: { name: "윈도우안그룹", createdAt: RANGE_START },
+    });
+
+    const jobId = await createExportJob({
+      ...RANGE_BODY,
+      entitySelector: ["Group"],
+    });
+    const dump = await downloadDump(jobId);
+
+    expect(dump.recordCount).toBe(1);
+    expect(dump.records[0].entity).toBe("Group");
+    // window 안 Person (경계시작) 은 entity 축에서 탈락 — AND 임을 보인다.
+    expect(dump.entityCounts.Person).toBe(0);
+  });
+
+  // E.4 error/negative — 손상 scope 는 생성 단계에서 400 이고 job row 가 만들어지지 않는다.
+  // (a) RANGE + dateRange 부재 / (b) start >= end 역전 / (c) 허용 외 entity /
+  // (d) PARTIAL + entitySelector 부재 — 400 shape 이 같아 it.each 로 묶는다.
+  it.each([
+    ["PARTIAL + entitySelector 부재", { scope: "PARTIAL" }],
+    ["RANGE + dateRange 부재", { scope: "RANGE" }],
+    [
+      "RANGE + start >= end 역전",
+      {
+        scope: "RANGE",
+        dateRange: {
+          start: RANGE_END.toISOString(),
+          end: RANGE_START.toISOString(),
+        },
+      },
+    ],
+    [
+      "PARTIAL + 허용 외 entity",
+      { scope: "PARTIAL", entitySelector: ["NotAnEntity"] },
+    ],
+  ])(
+    "POST /api/admin/export — %s 는 400 + job row 0 (negative — 생성 단계 게이트)",
+    async (_label, body) => {
+      const response = await request(app.getHttpServer())
+        .post(BASE)
+        .set("Cookie", adminCookie)
+        .send(body);
+
+      expect(response.status).toBe(400);
+      // download 경로가 손상 scope job 을 만날 실 경로 자체가 없다.
+      expect(await prisma.exportJob.count()).toBe(0);
+    },
+  );
+
+  // E.5 negative — 선별 결과가 비면 error 가 아니라 0-record dump (정상 200).
+  it("GET :id/download — Group row 0 인 PARTIAL([Group]) 은 200 + 0-record dump (negative — 빈 선별 경계)", async () => {
+    await prisma.person.create({
+      data: {
+        fullName: "그룹아님",
+        email: `only-person-${Date.now()}@e2e.test`,
+      },
+    });
+    const jobId = await createExportJob({
+      scope: "PARTIAL",
+      entitySelector: ["Group"],
+    });
+
+    const dump = await downloadDump(jobId);
+
+    expect(dump.recordCount).toBe(0);
+    expect(dump.records).toEqual([]);
+    for (const count of Object.values(dump.entityCounts)) {
+      expect(count).toBe(0);
+    }
+  });
+
+  // E.6 negative — 선별 배선이 상류 allow-list projection (secret deny) 을 우회하지 않는다.
+  it("GET :id/download — PARTIAL([LlmConfig]) 선별도 apiKey 를 누출하지 않는다 (negative — REQ-032 회귀)", async () => {
+    await seedFiveEntities();
+    const jobId = await createExportJob({
+      scope: "PARTIAL",
+      entitySelector: ["LlmConfig"],
+    });
+
+    const response = await downloadRaw(jobId);
+
+    expect(response.status).toBe(200);
+    const bodyText = response.body as string;
+    expect(bodyText).not.toContain(SEED_API_KEY);
+    const dump = JSON.parse(bodyText) as Dump;
+    expect(dump.recordCount).toBe(1);
+    expect(dump.records[0].fields).not.toHaveProperty("apiKey");
+    expect(dump.records[0].fields).toHaveProperty("provider");
+  });
+
+  // E.7 negative — 새 scope job 도 인증 축 회귀 확인 (RolesGuard tier 미달 403).
+  it("GET :id/download — PARTIAL job 을 User 역할 토큰으로 호출 시 403 (negative — RolesGuard tier 미달)", async () => {
+    await seedFiveEntities();
+    const jobId = await createExportJob({
+      scope: "PARTIAL",
+      entitySelector: ["Group"],
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`${BASE}/${jobId}/download`)
+      .set("Cookie", userCookie);
+
+    expect(response.status).toBe(403);
   });
 });
