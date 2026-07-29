@@ -2,7 +2,7 @@
 id: T-1304
 title: api.md UC-07 표에 shipped 조회·download endpoint 4 행 신설 (import 조회 3 종 + export download)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 60
@@ -75,3 +75,13 @@ plannerNote: "doc-only enumerated-section x1.6 x inline-amend 0.4 = 약 60 LOC /
 - (T-1291 → 이월) `selectExportRecords` 의 `RangeError` (손상 job row) 가 download 경로에서 **500** 으로 나간다 — 사용자 대면 status (409/422) 매핑 여부 판단 필요.
 - (미해결 정책, T-1287 → 이월) `LlmProviderConfig` 왕복 불가 — export 가 `apiKey` 를 제외 (ADR-0047 secret deny) 하는데 schema 의 `apiKey` 는 not-null 이라 복원 `$transaction` 이 통째로 실패할 것으로 예상. **secret 처리 결정이라 §5 사람 결정 대상**.
 - (관측, 이월) UC-07 §8 (b)(e) 의 Export / Import Audit log row 영속화 0 — 범용 `AuditLog` model 부재. schema migration 이라 §5 사람 결정 대상.
+
+
+## Result (2026-07-29)
+
+- **Status: DONE** — commit `e122b6fc` (direct, main). CI run 30440622423 = success.
+- api.md UC-07 표에 `GET /api/admin/import/running` · `/modes` · `/:id` + `GET /api/admin/export/:id/download` 4 행 신설 (preview 행 뒤), §7 traceability 행에 download 추가 + import 조회 3 종 제외 근거 각주 1 문장. 기존 5 행 0 수정.
+- diff `+7/-1` / 1 파일 — cap (300 LOC / 5 파일) 안.
+- controller 문자 대조 grep 4 종 통과: `running|modes|download` 6 hit (>=3) · `ImportModeDescription` 1 · `StreamableFile` 1 · UC-07 10 행 모두 파이프 6 개 (5 열 무결).
+- 코드 0 LOC 이라 R-110/R-112 면제 — 대체 검증은 위 grep 대조.
+- 이월: export 잔여 route 5 행은 T-1305 로 큐잉.
