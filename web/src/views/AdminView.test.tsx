@@ -83,6 +83,7 @@ import AdminView, {
   formatImportJobDetail,
   runImportPreview,
   formatRestorePlanConfirmText,
+  formatRestoreTotalsPhrase,
   runConfirmedImport,
   clearImportConfirm,
   runApply,
@@ -3262,6 +3263,47 @@ describe('AdminView — onImportFile 실 POST import (④e runImport)', () => {
     await runImport(sampleFile(), deps);
     expect(calls.message).toEqual([undefined, '가져오기 요청됨 — job job-7']);
   });
+
+  // R-112 왕복(T-1310) — 응답 envelope 가 T-1296 의 `{ ...job, restoreSummary }` 이면 결과
+  // message 에 실제 반영 수치 조각이 함께 실린다(runImport 본문 0 수정 — 응답을 그대로 helper 에
+  // 넘기는 기존 배선이 요약까지 소비함을 통합 확인). importing 전이 [true,false] · throw 0.
+  it('응답에 restoreSummary 가 있으면 반영 결과 조각을 포함한 message 를 1 회 설정한다 (happy — T-1310 왕복)', async () => {
+    requestMock.mockResolvedValue({
+      id: 'j1',
+      status: 'PENDING',
+      mode: 'MERGE',
+      restoreSummary: {
+        deleted: { total: 3, perEntity: {} },
+        inserted: { total: 5, perEntity: {} },
+        kept: { total: 2, perEntity: {} },
+      },
+    });
+    const { deps, calls } = makeImportDeps(false);
+    await expect(runImport(sampleFile(), deps)).resolves.toBeUndefined();
+    expect(calls.message).toEqual([
+      undefined,
+      '가져오기 요청됨 — job j1, 상태 PENDING, 모드 MERGE (반영 결과 — 삭제 3 건 / 삽입 5 건 / 보존 2 건)',
+    ]);
+    // 진행 표시는 on→off 로 정확히 1 왕복, 실패 표시 0(시작 비움만).
+    expect(calls.importing).toEqual([true, false]);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // flow/branch(T-1310) — 응답에 restoreSummary key 자체가 없으면 기존 상세 문구가 한 글자도
+  // 바뀌지 않는다(요약 append 는 additive — 하위 호환 0 회귀의 러너 경유 증거).
+  it('응답에 restoreSummary 가 없으면 기존 상세 문구를 그대로 설정한다 (flow/branch — 요약 부재)', async () => {
+    requestMock.mockResolvedValue({
+      id: 'j2',
+      status: 'PENDING',
+      mode: 'REPLACE',
+    });
+    const { deps, calls } = makeImportDeps(false);
+    await runImport(sampleFile(), deps);
+    expect(calls.message).toEqual([
+      undefined,
+      '가져오기 요청됨 — job j2, 상태 PENDING, 모드 REPLACE',
+    ]);
+  });
 });
 
 // R-112 — formatImportJobDetail 순수 helper 직접 검증(T-1132). backend POST 응답(ImportJob)을
@@ -3522,6 +3564,143 @@ describe('AdminView — formatRestorePlanConfirmText 요약 문구 helper (T-130
       PREVIEW_UNKNOWN,
     );
   });
+});
+
+// R-112 — T-1310 공유 helper(formatRestoreTotalsPhrase) + 실행 결과 문구의 요약 append 분기 검증.
+// preview(확인 단계)와 실행 결과가 같은 3 그룹 스캔을 공유하므로 helper 를 직접 호출해 규약
+// (a)~(e) 를 전수 cover 하고, formatImportJobDetail 쪽은 append/no-append 분기를 각각 단언한다.
+describe('AdminView — formatRestoreTotalsPhrase 공유 요약 조각 helper (T-1310)', () => {
+  // 구현 상수 IMPORT_RESULT_SUMMARY_PREFIX 와 문자 그대로 같아야 하는 접두 문구(상수 미export 라
+  // spec 이 계약 값을 박제해 drift 를 잡는다).
+  const RESULT_SUMMARY_PREFIX = '반영 결과 — ';
+  const g = (total: unknown) => ({ total, perEntity: {} });
+  // 3 그룹 완비 요약 — 여러 케이스가 공유하는 정상 fixture(실 응답 envelope 형태 그대로).
+  const fullSummary = { deleted: g(3), inserted: g(5), kept: g(2) };
+  const fullPhrase = '삭제 3 건 / 삽입 5 건 / 보존 2 건';
+
+  // happy(1) + 규약 (b)(c) 분기 + negative 경계값을 입력 → 기대 조각 표로 각 1 행씩 cover:
+  // (1) happy — 3 그룹 완비, (2) 경계값 0 — 0 이 falsy 로 사라지지 않음, (3) 일부 그룹만 판독
+  // 가능(inserted 만 number), (4) 그룹이 null → 그 그룹만 생략하고 나머지 표기, (5) 그룹이 비객체
+  // (문자열)·(6) 그룹이 배열 → 그 그룹만 생략.
+  it.each([
+    [fullSummary, fullPhrase],
+    [
+      { deleted: g(0), inserted: g(0), kept: g(0) },
+      '삭제 0 건 / 삽입 0 건 / 보존 0 건',
+    ],
+    [{ deleted: g('3'), inserted: g(5), kept: g(null) }, '삽입 5 건'],
+    [{ deleted: null, inserted: g(1), kept: g(2) }, '삽입 1 건 / 보존 2 건'],
+    [{ deleted: g(4), inserted: 'broken', kept: g(6) }, '삭제 4 건 / 보존 6 건'],
+    [{ deleted: g(4), inserted: [], kept: undefined }, '삭제 4 건'],
+  ])('요약 %o 를 "%s" 조각으로 합성한다 (happy/branch/경계값)', (input, expected) => {
+    expect(formatRestoreTotalsPhrase(input)).toBe(expected);
+  });
+
+  // negative(b)(c) — total 이 NaN · Infinity · -Infinity · 문자열 · boolean 이면 수치로 신뢰할 수
+  // 없어 그 그룹을 생략한다. 세 그룹 모두 그러면 규약 (d) 로 undefined(조각 부재).
+  it.each([
+    [Number.NaN],
+    [Number.POSITIVE_INFINITY],
+    [Number.NEGATIVE_INFINITY],
+    ['3'],
+    [true],
+  ])('total 이 %p 인 그룹은 생략한다 (negative — 비유한/타입 불일치)', (bad) => {
+    // 해당 그룹만 생략되고 나머지 정상 그룹은 그대로 표기된다.
+    expect(
+      formatRestoreTotalsPhrase({ deleted: g(bad), inserted: g(7) }),
+    ).toBe('삽입 7 건');
+    // 세 그룹 전부 같은 손상값이면 읽을 수치가 0 개 → undefined.
+    expect(
+      formatRestoreTotalsPhrase({
+        deleted: g(bad),
+        inserted: g(bad),
+        kept: g(bad),
+      }),
+    ).toBeUndefined();
+  });
+
+  // negative 규약 (a)(d)(e) — 비객체 · 배열 · 3 그룹 key 부재는 모두 undefined(throw 0).
+  it('비객체 · 배열 · 3 그룹 key 부재이면 undefined 를 반환한다 (negative — 소비 불가 입력)', () => {
+    for (const bad of [null, undefined, 'ok', 42, true, [], [{ kept: 1 }]]) {
+      expect(formatRestoreTotalsPhrase(bad)).toBeUndefined();
+    }
+    expect(formatRestoreTotalsPhrase({})).toBeUndefined();
+    expect(formatRestoreTotalsPhrase({ mode: 'REPLACE' })).toBeUndefined();
+  });
+
+  // 리팩터 안전성 — 확인 단계 문구가 helper 조각을 그대로 감싼 형태임을 두 함수 왕복으로 확인
+  // (T-1308 기존 spec 무수정 통과와 함께 외부 동작 변경 0 의 증거).
+  it('확인 단계 문구는 helper 조각을 그대로 감싼다 (branch — 두 소비자 정합)', () => {
+    expect(formatRestorePlanConfirmText({ ...fullSummary, mode: 'MERGE' })).toBe(
+      `가져오기 영향 범위 — ${fullPhrase} (모드 MERGE)`,
+    );
+  });
+
+  // happy(2) — 실행 응답(job 필드 + restoreSummary) → 상세 문구 + 반영 결과 조각이 둘 다 포함된
+  // 정확 문자열. api.md 의 실 envelope(`{ ...job, restoreSummary }`) 그대로를 입력한다.
+  it('job 상세와 반영 결과 조각을 함께 담은 문구를 합성한다 (happy — 요약 append)', () => {
+    expect(
+      formatImportJobDetail({
+        id: 'x1',
+        status: 'PENDING',
+        mode: 'REPLACE',
+        restoreSummary: fullSummary,
+      }),
+    ).toBe(
+      `가져오기 요청됨 — job x1, 상태 PENDING, 모드 REPLACE (${RESULT_SUMMARY_PREFIX}${fullPhrase})`,
+    );
+  });
+
+  // flow/branch(b)(c)(d) — 요약 key 부재 · 3 그룹 전부 판독 불가 · 일부 그룹만 판독 가능.
+  it.each([
+    // (b) 요약 key 자체가 없음 → 기존 문구 그대로(append 0).
+    [undefined as unknown, '가져오기 요청됨 — job x2, 상태 PENDING'],
+    // (c) 요약은 있으나 3 그룹 모두 판독 불가 → append 0(빈 괄호 노출 금지).
+    [
+      { deleted: g('3'), inserted: g(Number.NaN), kept: g(null) },
+      '가져오기 요청됨 — job x2, 상태 PENDING',
+    ],
+    // (d) 일부 그룹(inserted) 만 number → 그 그룹만 표기.
+    [
+      { deleted: g('x'), inserted: g(9), kept: null },
+      `가져오기 요청됨 — job x2, 상태 PENDING (${RESULT_SUMMARY_PREFIX}삽입 9 건)`,
+    ],
+  ])(
+    'restoreSummary %o 이면 "%s" 를 합성한다 (flow/branch — append 유무)',
+    (summary, expected) => {
+      expect(
+        formatImportJobDetail({
+          id: 'x2',
+          status: 'PENDING',
+          ...(summary === undefined ? {} : { restoreSummary: summary }),
+        }),
+      ).toBe(expected);
+    },
+  );
+
+  // error path(a)(b) — restoreSummary 가 비객체(문자열 · 숫자 · null · boolean) 또는 배열이면
+  // 예외 없이 job 상세만 반환한다(throw 0 · '[object Object]' 노출 0).
+  it.each([['ok'], [42], [null], [true], [[]], [[{ deleted: { total: 1 } }]]])(
+    'restoreSummary 가 %p 이면 job 상세만 반환한다 (error path — 손상 요약)',
+    (bad) => {
+      expect(
+        formatImportJobDetail({ id: 'x3', mode: 'MERGE', restoreSummary: bad }),
+      ).toBe('가져오기 요청됨 — job x3, 모드 MERGE');
+    },
+  );
+
+  // flow/branch(e) + negative(e) — id 부재 · 빈 id 는 정상 요약이 있어도 IMPORT_DONE_TEXT 만
+  // 반환한다(job 식별 불가 상태에서 수치만 표시하면 어느 실행의 결과인지 오독된다).
+  it.each([
+    [{ status: 'PENDING', restoreSummary: fullSummary }],
+    [{ id: '', status: 'PENDING', restoreSummary: fullSummary }],
+    [{ id: 7, restoreSummary: fullSummary }],
+  ])(
+    'id 를 읽을 수 없는 응답 %o 은 요약이 있어도 완료 문구만 반환한다 (negative — 식별 불가 + 요약)',
+    (input) => {
+      expect(formatImportJobDetail(input)).toBe('가져오기 완료');
+    },
+  );
 });
 
 // R-112 — T-1309 확인 단계 확정 러너(runConfirmedImport) + 취소 helper(clearImportConfirm) 검증.
