@@ -83,6 +83,8 @@ import AdminView, {
   formatImportJobDetail,
   runImportPreview,
   formatRestorePlanConfirmText,
+  runConfirmedImport,
+  clearImportConfirm,
   runApply,
   runTrigger,
   deriveScheduleMessage,
@@ -125,6 +127,7 @@ import type {
   RunAdminExportJobDeps,
   ImportDeps,
   ImportPreviewDeps,
+  ConfirmImportDeps,
   ScheduleMutationDeps,
   ReEvaluationDeps,
   RemoveDeps,
@@ -3518,6 +3521,182 @@ describe('AdminView — formatRestorePlanConfirmText 요약 문구 helper (T-130
     expect(formatRestorePlanConfirmText({ mode: 'REPLACE' })).toBe(
       PREVIEW_UNKNOWN,
     );
+  });
+});
+
+// R-112 — T-1309 확인 단계 확정 러너(runConfirmedImport) + 취소 helper(clearImportConfirm) 검증.
+// jsdom/렌더러 없이 러너를 직접 호출하고(runImport/runImportPreview spec 과 동일 convention)
+// request mock 으로 실행 경로가 그대로 재사용됨을 단언한다. happy/error/branch/negative 각 1+ cover.
+describe('AdminView — import 확정/취소 배선 (T-1309 runConfirmedImport/clearImportConfirm)', () => {
+  // 상태 전이를 기록하는 deps harness — makePreviewDeps 동형에 보관 파일 setter 를 더한다.
+  function makeConfirmDeps(importing: boolean) {
+    const calls = {
+      importing: [] as boolean[],
+      error: [] as (string | undefined)[],
+      message: [] as (string | undefined)[],
+      confirm: [] as (string | undefined)[],
+      pending: [] as (File | undefined)[],
+    };
+    const deps: ConfirmImportDeps = {
+      post: (...args: unknown[]) => requestMock(...args),
+      // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+      describeError: (e) =>
+        e instanceof ApiError ? `HTTP ${e.status}: ${e.message}` : '알 수 없는 오류',
+      importing,
+      setImporting: (next) => calls.importing.push(next),
+      setImportError: (next) => calls.error.push(next),
+      setImportMessage: (next) => calls.message.push(next),
+      setImportConfirmText: (next) => calls.confirm.push(next),
+      setPendingImportFile: (next) => calls.pending.push(next),
+    };
+    return { deps, calls };
+  }
+
+  const sampleFile = () =>
+    new File(['{"k":1}'], 'assessments.json', { type: 'application/json' });
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+
+  // happy-path — 확정 시 확인 단계를 닫고 기존 실행 경로(POST /api/admin/import, FormData)를
+  // 그대로 재사용해 완료 상세 문구까지 표면화한다.
+  it('확정 시 확인 문구·보관 파일을 비우고 POST /api/admin/import 를 FormData body 로 발사해 완료 상세 문구를 설정한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue({
+      id: 'job-9',
+      status: 'PENDING',
+      mode: 'REPLACE',
+    });
+    const { deps, calls } = makeConfirmDeps(false);
+    await runConfirmedImport(sampleFile(), deps);
+    // 확인 단계 종료 — 두 slot 을 각각 undefined 로 1 회씩만 비운다.
+    expect(calls.confirm).toEqual([undefined]);
+    expect(calls.pending).toEqual([undefined]);
+    // 실행 경로는 runImport 그대로 — path/method/body(FormData 의 file field) 재사용.
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/api/admin/import');
+    expect(options.method).toBe('POST');
+    expect(options.body).toBeInstanceOf(FormData);
+    expect(((options.body as FormData).get('file') as File).name).toBe(
+      'assessments.json',
+    );
+    expect(calls.message).toEqual([
+      undefined,
+      '가져오기 요청됨 — job job-9, 상태 PENDING, 모드 REPLACE',
+    ]);
+    expect(calls.importing).toEqual([true, false]);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // error path — 403(Admin+ 미만) ApiError 와 비-ApiError(네트워크/예상 밖) 실패 모두 문구를
+  // 표면화하고 throw 하지 않는다. 확인 상태는 확정 시점에 이미 비워진 채로 유지된다(재설정 0).
+  it.each([
+    [new ApiError(403, 'Forbidden'), 'HTTP 403: Forbidden'],
+    [new TypeError('fetch failed'), '알 수 없는 오류'],
+  ])(
+    '확정 실행 실패 시 error 문구 "%s" 를 표면화하고 throw 하지 않는다 (error path)',
+    async (thrown, expected) => {
+      requestMock.mockRejectedValue(thrown);
+      const { deps, calls } = makeConfirmDeps(false);
+      await expect(
+        runConfirmedImport(sampleFile(), deps),
+      ).resolves.toBeUndefined();
+      expect(calls.error).toEqual([undefined, expected]);
+      expect(calls.message).toEqual([undefined]);
+      expect(calls.importing).toEqual([true, false]);
+      // 실패해도 확인 단계는 되살아나지 않는다(비움 1 회 그대로 — 실패 문구는 error 로 표시).
+      expect(calls.confirm).toEqual([undefined]);
+      expect(calls.pending).toEqual([undefined]);
+    },
+  );
+
+  // negative(a) — 보관 파일 없음(undefined) 확정 시도는 POST 미발사 + setter 전부 미호출.
+  it('보관 파일이 없으면 POST 를 발사하지 않고 어떤 setter 도 호출하지 않는다 (negative — 파일 미보관)', async () => {
+    const { deps, calls } = makeConfirmDeps(false);
+    await expect(runConfirmedImport(undefined, deps)).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.importing).toEqual([]);
+    expect(calls.error).toEqual([]);
+    expect(calls.message).toEqual([]);
+    expect(calls.confirm).toEqual([]);
+    expect(calls.pending).toEqual([]);
+  });
+
+  // negative(b) — 이중 확정(in-flight 중 재확정)은 미발사이고 확인 상태를 보존한다(회귀 위험 지점:
+  // 여기서 확인 문구를 비우면 진행 중인데 확인 화면만 사라진다).
+  it('이전 import 미완(in-flight) 중 재확정은 POST 를 발사하지 않고 확인 상태를 보존한다 (negative — 이중 확정)', async () => {
+    const { deps, calls } = makeConfirmDeps(true);
+    await expect(
+      runConfirmedImport(sampleFile(), deps),
+    ).resolves.toBeUndefined();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.confirm).toEqual([]);
+    expect(calls.pending).toEqual([]);
+    expect(calls.importing).toEqual([]);
+  });
+
+  // branch(e) — 취소 helper 는 두 slot 만 비우고 POST 는 0 회, error·message 도 건드리지 않는다.
+  it('취소 helper 는 확인 문구·보관 파일만 비우고 POST 를 발사하지 않는다 (branch — 취소)', () => {
+    const { deps, calls } = makeConfirmDeps(false);
+    clearImportConfirm(deps);
+    expect(calls.confirm).toEqual([undefined]);
+    expect(calls.pending).toEqual([undefined]);
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(calls.error).toEqual([]);
+    expect(calls.message).toEqual([]);
+    expect(calls.importing).toEqual([]);
+  });
+});
+
+// R-112 — T-1309 확인 단계 배선의 정적 렌더 증명. 컨테이너가 3 props(importConfirmText /
+// onConfirmImport / onCancelImport)를 실제로 패널에 전달했는지를 markup 으로 확인한다
+// (initialImportConfirmText 주입 affordance 로 preview 성공 후 상태를 재현).
+describe('AdminView — import 확인 단계 배선 (T-1309 정적 렌더)', () => {
+  const CONFIRM_SUMMARY =
+    '가져오기 영향 범위 — 삭제 3 건 / 삽입 5 건 / 보존 2 건 (모드 REPLACE)';
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+    setRoutes({
+      [GROUPS]: { data: SAMPLE, loading: false, error: undefined },
+    });
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // (1) 주입 시 — 확인 단계 렌더 + 요약 문구 노출 + 실행/취소 버튼 활성(콜백 2 개 전달 증거).
+  it('확인 문구가 있으면 alertdialog 와 요약 문구를 렌더하고 실행·취소 버튼이 활성이다 (happy-path — 3 props 전달)', () => {
+    const html = renderToStaticMarkup(
+      <AdminView initialImportConfirmText={CONFIRM_SUMMARY} />,
+    );
+    expect(html).toContain('role="alertdialog"');
+    expect(html).toContain(CONFIRM_SUMMARY);
+    // 파괴적 경고 + 실행/취소 버튼이 disabled 없이 렌더 → onConfirmImport/onCancelImport 전달됨.
+    expect(html).toContain('되돌릴 수 없습니다');
+    expect(html).toContain('<button type="button">실행</button>');
+    expect(html).toContain('<button type="button">취소</button>');
+    // negative(e) — 확인 대기 중에는 파일 입력·export 버튼이 미렌더(트리거 억제 배선 회귀).
+    expect(html).not.toContain('type="file"');
+    expect(html).not.toContain('<button type="button">내보내기</button>');
+  });
+
+  // (2) 미주입 — 확인 단계 미진입 + 기존 파일 입력·export 버튼 그대로(회귀 0).
+  it('확인 문구 미주입이면 확인 단계에 진입하지 않고 기존 export/import 컨트롤이 그대로다 (회귀 0)', () => {
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).not.toContain('role="alertdialog"');
+    expect(html).toContain('<button type="button">내보내기</button>');
+    // 파일 입력이 활성(onImportFile 배선 유지 — disabled 아님).
+    expect(html).toContain('<input type="file"/>');
+  });
+
+  // (3) negative(d) — 빈 문자열 경계값은 falsy 라 확인 단계 미진입, 기본 패널 렌더.
+  it('확인 문구가 빈 문자열이면 확인 단계에 진입하지 않고 기본 패널을 렌더한다 (negative — 경계값)', () => {
+    const html = renderToStaticMarkup(<AdminView initialImportConfirmText="" />);
+    expect(html).not.toContain('role="alertdialog"');
+    expect(html).toContain('<button type="button">내보내기</button>');
+    expect(html).toContain('<input type="file"/>');
   });
 });
 
