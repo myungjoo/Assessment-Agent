@@ -2,6 +2,8 @@
 // → 실패 400 단락 → atomic 실행) 의 R-112 4 종 (happy / error / 분기 / negative 충분 cover).
 // 실 DB 0 · 실 PrismaService 0 — 재료 helper 둘은 module mock, 트랜잭션 service 는 좁은 mock 으로
 // 주입해 **호출 순서 · 인스턴스 전달 · 단락 지점** 만 본다 (각 helper 내부 규칙은 각자 spec 소유).
+// T-1297 이 요약 helper 를 하나 더 감쌌으나 그것은 **실 구현을 그대로 실행하는 passthrough spy**
+// 라 집계 결과는 실측 그대로다 (mock 은 셋, 동작을 갈아끼우는 mock 은 여전히 둘).
 import { BadRequestException, ConflictException } from "@nestjs/common";
 import { ImportMode } from "@prisma/client";
 
