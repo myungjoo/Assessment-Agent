@@ -2,7 +2,9 @@
 id: T-1299
 title: POST /api/admin/import/preview 배선 — 복원 실행 없이 영향 요약만 반환 (controller slice 3c-5b)
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1189
+completedAt: 2026-07-29T05:06:18Z
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 255
