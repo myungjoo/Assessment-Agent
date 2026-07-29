@@ -468,6 +468,10 @@ interface AdminViewProps {
   // 초기 선택 파트 id(선택, T-1156) — 정적 렌더 검증용 초기값 주입 affordance(initialSelectedGroupId
   // 동형). 미주입 시 파트 미선택으로 시작해 소속 인원을 조회하지 않는다(조건부 조회 idle).
   initialSelectedPartId?: string;
+  // 초기 import 확인 문구(선택, T-1309) — preview 성공 후의 확인 단계 분기를 정적 렌더로 검증하기
+  // 위한 초기값 주입 affordance(initialScheduleBusy 동형). 미주입 시 undefined 라 확인 단계에
+  // 진입하지 않는다 — 즉 실제 사용 경로의 초기 상태와 완전히 동일하다(회귀 0).
+  initialImportConfirmText?: string;
 }
 
 // 등급 문자열 → Admin+ 여부 파생(순수 helper, ④h). backend role enum(api.md 71 —
@@ -1070,6 +1074,44 @@ async function runImportPreview(
   } finally {
     deps.setImporting(false);
   }
+}
+
+// 확인 단계에서 "실행" 을 누른 뒤 실제 import 를 발사하는 확정 러너의 주입 계약(T-1309).
+// 실행 본체는 기존 runImport 가 그대로 담당하므로 ImportDeps 를 확장(extends)해 재구현을 0 으로
+// 두고, 확인 단계를 닫는 데 필요한 setter 2 개만 더한다.
+interface ConfirmImportDeps extends ImportDeps {
+  // 확인 문구 slot — 확정 직전 undefined 로 비워 확인 단계를 닫는다(패널은 falsy 면 기본 패널).
+  setImportConfirmText: (next: string | undefined) => void;
+  // 보관 파일 slot — 확정 직전 undefined 로 비워 같은 파일의 재확정(이중 실행)을 막는다.
+  setPendingImportFile: (next: File | undefined) => void;
+}
+
+// 확인 단계 확정 러너(T-1309) — 보관 파일로 실제 import 를 발사한다. 동작:
+//  - 보관 파일 없음(!file) 또는 in-flight(importing) → 아무 setter 도 호출하지 않고 즉시 return
+//    (확인 상태 보존 + 이중 확정 차단 — 여기서 확인 문구를 비우면 사용자가 확인 화면을 잃는다).
+//  - 확인 단계 종료 — 확인 문구·보관 파일을 비운다(패널이 기본 패널로 복귀).
+//  - 실행은 기존 runImport 에 위임한다 — 진행 표시·완료 문구·에러 표면화·finally 해제 전부
+//    기존 러너 책임이라 재구현 0 이고, throw 도 그쪽에서 흡수한다(본 러너도 throw 0).
+async function runConfirmedImport(
+  file: File | undefined,
+  deps: ConfirmImportDeps,
+): Promise<void> {
+  if (!file || deps.importing) {
+    return;
+  }
+  deps.setImportConfirmText(undefined);
+  deps.setPendingImportFile(undefined);
+  return runImport(file, deps);
+}
+
+// 확인 단계 취소 helper(T-1309) — 확인 문구·보관 파일만 비운다(POST 0). error·message 는 건드리지
+// 않는다(직전 안내를 지울 이유가 없다 — 취소는 아무것도 실행하지 않은 상태로의 복귀일 뿐).
+// deps 타입을 두 setter 로 좁혀 실행 관련 필드가 실수로 흘러드는 오용을 막는다.
+function clearImportConfirm(
+  deps: Pick<ConfirmImportDeps, 'setImportConfirmText' | 'setPendingImportFile'>,
+): void {
+  deps.setImportConfirmText(undefined);
+  deps.setPendingImportFile(undefined);
 }
 
 // SchedulePanel 의 apply(PUT)·manual trigger(POST) mutation + state-전이 로직에 주입하는 deps
@@ -2669,6 +2711,7 @@ function AdminView({
   initialSelectedDays = 0,
   initialReevalSubmitting = false,
   initialSelectedPartId = '',
+  initialImportConfirmText,
 }: AdminViewProps) {
   // 선택 그룹 상태 — controlled lift-up(컨테이너 소유). <select> 선택이 이 값을 갱신한다.
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
@@ -3552,6 +3595,20 @@ function AdminView({
   // props 로 안전 표시한다(throw 없음). 재발화 시작 시 비운다(④d exportError 동형).
   const [importError, setImportError] = useState<string | undefined>(undefined);
 
+  // import 확인 문구(T-1309) — preview 성공 시 영향 범위 요약 1 줄을 보관해 패널의 확인 단계
+  // props 로 내려보낸다. 컨테이너가 소유하는 이유: 확인 단계 진입 여부를 판정하는 유일한 근거이고
+  // (truthy → 패널이 alertdialog 분기), preview 러너·확정 러너·취소 helper 세 곳이 함께 쓰는
+  // 상태라 패널이 아닌 컨테이너에 있어야 한다(controlled lift-up — 패널은 표시만 한다).
+  const [importConfirmText, setImportConfirmText] = useState<string | undefined>(
+    initialImportConfirmText,
+  );
+
+  // 확인 대기 중인 선택 파일(T-1309) — 확정 시 파일 재선택 없이 그대로 실행 러너에 넘기기 위해
+  // 컨테이너가 보관한다. File 객체는 렌더에 쓰이지 않고 확정 시점의 실행 인자로만 소비된다.
+  const [pendingImportFile, setPendingImportFile] = useState<File | undefined>(
+    undefined,
+  );
+
   // onImportFile 실 핸들러(④e) — import POST(/api/admin/import, multipart) 를 컨테이너 내부
   // async 로 발사한다(신규 fetch hook 미작성 — ④d runExport 정합, useApiResource 는 read-on-mount
   // 라 파일 선택 발화에 부적합). 동작:
@@ -3561,17 +3618,49 @@ function AdminView({
   //  3) FormData 에 file append → POST 성공 → 완료 안내(message) 표면화.
   //  4) POST 실패 → toErrorMessage 문구를 error props 로 안전 표시(403/400/404/비-2xx/네트워크 0 모두, throw 없음).
   //  5) 마지막에 진행 표시 off(성공·실패 공통).
+  // T-1309 부터 파일 선택은 실행이 아니라 preview 를 먼저 발사한다(UC-07 §5 64 — 파괴적 복원은
+  // 영향 범위 표시 + 명시 확인 후에만 실행). 선택 파일은 확정 시 재선택 없이 넘기려고 보관하고,
+  // 실제 POST /api/admin/import 는 확인 단계의 실행 버튼(handleConfirmImport)에서만 나간다.
   const handleImport = useCallback(
-    (file: File) =>
-      runImport(file, {
+    (file: File) => {
+      // 선택 파일 보관 — 확인 단계 진입 여부는 오직 importConfirmText 가 결정하므로, preview 가
+      // 실패하거나 가드로 no-op 이면 보관 파일은 도달 불가한 채로 남고(확정 버튼 자체가 렌더되지
+      // 않는다 — 무해) 다음 파일 선택 시 덮어써진다.
+      setPendingImportFile(file);
+      return runImportPreview(file, {
         post: request,
         describeError: toErrorMessage,
         importing,
         setImporting,
         setImportError,
         setImportMessage,
-      }),
+        setImportConfirmText,
+      });
+    },
     [importing],
+  );
+
+  // 확인 단계 실행(확정) 핸들러(T-1309) — 보관 파일로 실제 import 를 발사한다. 확인 문구·보관
+  // 파일을 비운 뒤 기존 runImport 에 위임하므로 실행 경로는 T-1309 이전과 동일하다.
+  const handleConfirmImport = useCallback(
+    () =>
+      runConfirmedImport(pendingImportFile, {
+        post: request,
+        describeError: toErrorMessage,
+        importing,
+        setImporting,
+        setImportError,
+        setImportMessage,
+        setImportConfirmText,
+        setPendingImportFile,
+      }),
+    [importing, pendingImportFile],
+  );
+
+  // 확인 단계 취소 핸들러(T-1309) — 확인 문구·보관 파일만 비워 기본 패널로 복귀한다(POST 0).
+  const handleCancelImport = useCallback(
+    () => clearImportConfirm({ setImportConfirmText, setPendingImportFile }),
+    [],
   );
 
   // DataImportExportPanel 의 busy/error/message props — busy 우선 → error → message 순으로
@@ -3585,13 +3674,25 @@ function AdminView({
   // props 에서 파생해 시그니처 정합을 강제한다(컴포넌트 props 재정의 금지).
   const importExportPanelProps: Pick<
     DataImportExportPanelProps,
-    'onExport' | 'onImportFile' | 'busy' | 'error' | 'message'
+    | 'onExport'
+    | 'onImportFile'
+    | 'busy'
+    | 'error'
+    | 'message'
+    | 'importConfirmText'
+    | 'onConfirmImport'
+    | 'onCancelImport'
   > = {
     onExport: handleExport,
     onImportFile: handleImport,
     busy: exporting || importing,
     error: exportError ?? importError,
     message: exportMessage ?? importMessage,
+    // 확인 단계 3 props(T-1309) — 문구가 truthy 일 때만 패널이 확인 단계로 분기하고, 콜백 2 개가
+    // 전달되므로 실행/취소 버튼이 활성 렌더된다(패널은 콜백 미전달 시 버튼을 비활성화한다).
+    importConfirmText,
+    onConfirmImport: handleConfirmImport,
+    onCancelImport: handleCancelImport,
   };
 
   // === 스케줄 패널 배선(T-0885) — 다섯 번째 패널 ==========================================
@@ -4844,6 +4945,8 @@ export {
   formatImportJobDetail,
   runImportPreview,
   formatRestorePlanConfirmText,
+  runConfirmedImport,
+  clearImportConfirm,
   runApply,
   runTrigger,
   deriveScheduleMessage,
@@ -4890,6 +4993,7 @@ export type {
   RunAdminExportJobDeps,
   ImportDeps,
   ImportPreviewDeps,
+  ConfirmImportDeps,
   ScheduleMutationDeps,
   ReEvaluationDeps,
   RemoveDeps,
