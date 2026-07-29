@@ -2,7 +2,9 @@
 id: T-1301
 title: import preview endpoint 계약 문서 동기 — api.md UC-07 표 row + UC-07 §6.5 dry-run alt flow (doc slice 3c-5d)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-29T06:52:00Z
+resultCommit: 5d573b22
 commitMode: direct
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 70
