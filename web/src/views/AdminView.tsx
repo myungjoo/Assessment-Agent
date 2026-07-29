@@ -244,6 +244,16 @@ function resolveProviderSelectValue(value: string | undefined): string {
 // 표시(throw 없음). backup/restore(api.md 124·125) 는 본 slice Out of Scope(import 만).
 const ADMIN_IMPORT_PATH = '/api/admin/import';
 
+// import dry-run(preview) path — 고정 endpoint(POST /api/admin/import/preview, api.md 126
+// Admin+). 복원 미실행으로 영향 요약만 산출하며(DB write 0 · ImportJob row 미생성) 요청은 실행
+// 경로와 동일한 multipart, 응답 201 key 집합은 정확히 deleted/inserted/kept/mode 4 개.
+const ADMIN_IMPORT_PREVIEW_PATH = '/api/admin/import/preview';
+
+// preview 응답이 기대 shape 이 아닐 때(비객체 · 3 그룹 total 이 하나도 number 아님) 쓰는 fallback
+// 문구 — 미확인 사실 + 진행 시 대체 경고를 함께 명시해 수치 부재가 "안전"으로 오독되지 않게 한다.
+const IMPORT_PREVIEW_UNKNOWN_TEXT =
+  '영향 범위를 확인할 수 없습니다 — 그대로 진행하면 기존 데이터가 파일 내용으로 대체될 수 있습니다.';
+
 // import multipart FormData 의 file field 이름 — api.md 123 이 multipart field 키를 명시하지
 // 않으므로 가장 표준적인 'file' 을 쓴다(NestJS FileInterceptor 의 기본 field 명 관례 정합).
 // backend import controller 가 다른 키를 요구하면 후속 정정한다(현 src/ 에 미구현 — ④d export
@@ -281,6 +291,47 @@ function formatImportJobDetail(job: unknown): string {
     parts.push(`모드 ${record.mode}`);
   }
   return `가져오기 요청됨 — ${parts.join(', ')}`;
+}
+
+// preview 응답(RestorePlanSummary 3 그룹 + 해석된 mode) 을 사람-친화 한국어 요약 1 줄로 합성하는
+// 순수 helper(T-1308). DataImportExportPanel 의 importConfirmText props 로 내려가 확인 단계의
+// "영향 범위" 문구가 된다(T-1307 신설분). request 반환 타입이 unknown 이라 응답 형태가 보장되지
+// 않으므로 formatImportJobDetail 의 방어적 narrowing 을 따른다 — 비객체·배열이거나 3 그룹 total
+// 이 하나도 number 가 아니면 fallback 문구로 안전 회피(throw 0). perEntity 는 미노출.
+function formatRestorePlanConfirmText(preview: unknown): string {
+  // 비객체(null · undefined · string · number) 및 배열 → 소비 불가, 경고 fallback.
+  if (
+    typeof preview !== 'object' ||
+    preview === null ||
+    Array.isArray(preview)
+  ) {
+    return IMPORT_PREVIEW_UNKNOWN_TEXT;
+  }
+  const record = preview as Record<string, unknown>;
+  const parts: string[] = [];
+  // 3 그룹 key ↔ 한국어 라벨 — api.md 126 의 deleted/inserted/kept 순서 그대로 표기한다.
+  for (const [key, label] of [
+    ['deleted', '삭제'],
+    ['inserted', '삽입'],
+    ['kept', '보존'],
+  ] as const) {
+    // 그룹이 비객체면 그 그룹만 생략(부분 정보라도 안전 표시 — 다른 그룹은 계속 합성).
+    const group = record[key] as Record<string, unknown> | null;
+    const total = group && typeof group === 'object' ? group.total : undefined;
+    // total 이 유한 number 일 때만 노출 — 0 은 유효 수치라 falsy 로 흘리지 않는다(경계값).
+    if (typeof total === 'number' && Number.isFinite(total)) {
+      parts.push(`${label} ${total} 건`);
+    }
+  }
+  // 어느 그룹도 수치를 못 읽었으면 수치 없는 요약은 오독 위험 → 경고 fallback.
+  if (parts.length === 0) {
+    return IMPORT_PREVIEW_UNKNOWN_TEXT;
+  }
+  // mode 는 요약 수치가 어느 mode 기준인지를 알려주는 값 — 비어있지 않은 string 일 때만 덧붙인다.
+  const mode = record.mode;
+  const modeSuffix =
+    typeof mode === 'string' && mode.length > 0 ? ` (모드 ${mode})` : '';
+  return `가져오기 영향 범위 — ${parts.join(' / ')}${modeSuffix}`;
 }
 
 // 스케줄 조회/upsert path — 고정 endpoint(GET/PUT /api/schedules, ADR-0042 Admin+). GET 은
@@ -961,6 +1012,61 @@ async function runImport(file: File, deps: ImportDeps): Promise<void> {
     // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 400 잘못된
     // 파일 / 404 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
     deps.setImportError(deps.describeError(e));
+  } finally {
+    deps.setImporting(false);
+  }
+}
+
+// 파일 선택 시 실행 전 dry-run(preview) 을 발사하는 러너의 주입 계약(T-1308 — ImportDeps 동형).
+// 실행 러너(runImport)와 같은 in-flight 슬롯(importing)·error·message 를 공유하되 산출한 확인
+// 문구를 내려보낼 setImportConfirmText 하나가 더 있다. 컨테이너 배선은 후속 slice 책임.
+interface ImportPreviewDeps {
+  // preview POST 발사 primitive — apiClient.request 주입(테스트는 mock). 실패 문구 파생은
+  // describeError(toErrorMessage 주입), importing 은 in-flight 여부(true 면 미발사 가드).
+  post: (path: string, options: RequestOptions) => Promise<unknown>;
+  describeError: (e: unknown) => string;
+  importing: boolean;
+  setImporting: (next: boolean) => void;
+  setImportError: (next: string | undefined) => void;
+  setImportMessage: (next: string | undefined) => void;
+  setImportConfirmText: (next: string | undefined) => void;
+}
+
+// 선택 파일을 실행하지 않고 영향 범위만 조회하는 preview 러너(T-1308 — runImport 골격 차용).
+// 가드 2 종(빈 file · in-flight)과 시작 정리·finally 해제는 runImport 와 동형이고 종착만 다르다:
+// 성공 시 message 대신 확인 문구를 설정하고, 실패 시 error 표면화와 함께 확인 문구를 비워 확인
+// 단계에 진입하지 않는다(throw 0). mode field 미부착 — 미지정 = backend REPLACE 해석(api.md
+// 126)이라 실행 경로(runImport 도 mode 미지정)와 같은 기준의 수치가 나온다.
+async function runImportPreview(
+  file: File,
+  deps: ImportPreviewDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/falsy file 은 POST 미발사(빈 선택 방어 — 잘못된 body 회피).
+  // 동시 재호출 가드 — 이전 import/preview 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (!file || deps.importing) {
+    return;
+  }
+  deps.setImporting(true);
+  // 재발화 시작 시 직전 error·message·확인 문구를 비운다(직전 결과가 새 preview 진행 중 남지
+  // 않도록 — runImport 의 시작 정리에 확인 문구 정리를 더한 형태).
+  deps.setImportError(undefined);
+  deps.setImportMessage(undefined);
+  deps.setImportConfirmText(undefined);
+  try {
+    // 선택 File 을 multipart FormData 로 동봉 — 실행 경로와 동일한 계약(file 필드, 수동 헤더 0).
+    const formData = new FormData();
+    formData.append(IMPORT_FILE_FIELD, file);
+    const preview = await deps.post(ADMIN_IMPORT_PREVIEW_PATH, {
+      method: 'POST',
+      body: formData,
+    });
+    // 성공 — 3 그룹 total + mode 를 요약 1 줄로 합성해 확인 단계 문구로 표면화(방어적 narrowing).
+    deps.setImportConfirmText(formatRestorePlanConfirmText(preview));
+  } catch (e) {
+    // 실패 — 문구를 error 로 안전 표시(throw 없이) + 확인 단계 미진입(문구 비움). 400 손상 dump /
+    // 401 / 403 비-Admin / 413 크기 초과 / 네트워크 0 모두 같은 경로로 표면화한다.
+    deps.setImportError(deps.describeError(e));
+    deps.setImportConfirmText(undefined);
   } finally {
     deps.setImporting(false);
   }
@@ -4736,6 +4842,8 @@ export {
   runAssign,
   runImport,
   formatImportJobDetail,
+  runImportPreview,
+  formatRestorePlanConfirmText,
   runApply,
   runTrigger,
   deriveScheduleMessage,
@@ -4781,6 +4889,7 @@ export type {
   DownloadDeps,
   RunAdminExportJobDeps,
   ImportDeps,
+  ImportPreviewDeps,
   ScheduleMutationDeps,
   ReEvaluationDeps,
   RemoveDeps,
