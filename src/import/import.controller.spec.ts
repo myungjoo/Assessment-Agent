@@ -54,6 +54,10 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import * as describeImportModeModule from "../export/import-mode-description";
+import type {
+  RestorePlanGroupBreakdown,
+  RestorePlanSummary,
+} from "../export/import-restore-plan-summary";
 
 import { ImportJobRunnerService } from "./import-job-runner.service";
 import { ImportJobService } from "./import-job.service";
@@ -96,6 +100,42 @@ function buildUploadedFile(
     mimetype: "application/json",
     ...overrides,
   };
+}
+
+// 복원 영향 요약 fixture — runner 가 T-1295 부터 `{ job, summary }` 를 resolve 하므로
+// runJob mock 도 그 shape 를 흉내낸다. 집계 규칙은 `summarizeRestorePlan` 소유라 여기서는
+// 0-init 5 entity map 위에 지정분만 얹은 plain 값을 쓴다.
+function buildSummaryFixture(
+  over: Partial<Record<string, number>> = {},
+): RestorePlanSummary {
+  const group = (
+    perEntity: Record<string, number>,
+  ): RestorePlanGroupBreakdown =>
+    ({
+      total: Object.values(perEntity).reduce((sum, n) => sum + n, 0),
+      perEntity,
+    }) as RestorePlanGroupBreakdown;
+  const zero = {
+    Assessment: 0,
+    Person: 0,
+    Group: 0,
+    LlmConfig: 0,
+    AuditLog: 0,
+  };
+  return {
+    deleted: group({ ...zero }),
+    inserted: group({ ...zero, ...over }),
+    kept: group({ ...zero, Person: 2 }),
+  };
+}
+
+// runJob mock 의 resolve 값 — controller 가 `result.job` 만 forward 하는지 보기 위해
+// job row 와 요약을 함께 감싼다 (T-1295 반환 shape).
+function buildRunResult(
+  job: ImportJob,
+  summary: RestorePlanSummary = buildSummaryFixture(),
+): { job: ImportJob; summary: RestorePlanSummary } {
+  return { job, summary };
 }
 
 // ImportJobService + ImportJobRunnerService mock factory — 두 의존을 jest.fn() mock 으로
@@ -154,7 +194,8 @@ describe("ImportController (unit)", () => {
       finishedAt: new Date("2026-06-18T00:00:01.000Z"),
     });
     serviceMock.createJob.mockResolvedValueOnce(pending);
-    runnerMock.runJob.mockResolvedValueOnce(succeeded);
+    const summary = buildSummaryFixture({ Assessment: 42 });
+    runnerMock.runJob.mockResolvedValueOnce(buildRunResult(succeeded, summary));
     const file = buildUploadedFile();
     const dto = { mode: ImportMode.MERGE };
 
@@ -180,10 +221,18 @@ describe("ImportController (unit)", () => {
     expect(serviceMock.createJob.mock.invocationCallOrder[0]).toBeLessThan(
       runnerMock.runJob.mock.invocationCallOrder[0],
     );
-    // 반환은 runJob 결과 (status=SUCCEEDED + restoredRowCount 보존) — PENDING 아님.
+    // 반환은 runJob 결과의 job (status=SUCCEEDED + restoredRowCount 보존) — PENDING 아님.
+    // T-1295: runner 가 `{ job, summary }` 를 줘도 controller 는 job **인스턴스만** forward
+    // 하며 응답에 summary key 가 새로 나타나지 않는다 (외부 계약 무변화의 unit 증거).
     expect(result).toBe(succeeded);
     expect(result.status).toBe("SUCCEEDED");
     expect(result.restoredRowCount).toBe(42);
+    expect(Object.keys(result)).not.toContain("summary");
+    expect(
+      (result as unknown as { summary?: unknown }).summary,
+    ).toBeUndefined();
+    // 요약은 runner 가 만든 인스턴스 그대로 존재하지만 응답에는 실리지 않는다.
+    expect(summary.inserted.total).toBe(42);
     // 실패 기록은 runner 몫 — controller 는 markFailed 를 호출하지 않는다.
     expect(serviceMock.markFailed).not.toHaveBeenCalled();
   });
@@ -196,7 +245,13 @@ describe("ImportController (unit)", () => {
       buildImportJobFixture({ id: "ij-2", mode: "MERGE", status: "PENDING" }),
     );
     runnerMock.runJob.mockResolvedValueOnce(
-      buildImportJobFixture({ id: "ij-2", mode: "MERGE", status: "SUCCEEDED" }),
+      buildRunResult(
+        buildImportJobFixture({
+          id: "ij-2",
+          mode: "MERGE",
+          status: "SUCCEEDED",
+        }),
+      ),
     );
     const dto = {};
 
@@ -317,11 +372,13 @@ describe("ImportController (unit)", () => {
       buildImportJobFixture({ id: "ij-3", status: "PENDING" }),
     );
     runnerMock.runJob.mockResolvedValueOnce(
-      buildImportJobFixture({
-        id: "ij-3",
-        status: "SUCCEEDED",
-        restoredRowCount: 7,
-      }),
+      buildRunResult(
+        buildImportJobFixture({
+          id: "ij-3",
+          status: "SUCCEEDED",
+          restoredRowCount: 7,
+        }),
+      ),
     );
 
     const result = await controller.create(
@@ -342,7 +399,9 @@ describe("ImportController (unit)", () => {
       buildImportJobFixture({ id: "ij-4", status: "PENDING" }),
     );
     runnerMock.runJob.mockResolvedValueOnce(
-      buildImportJobFixture({ id: "ij-4", status: "SUCCEEDED" }),
+      buildRunResult(
+        buildImportJobFixture({ id: "ij-4", status: "SUCCEEDED" }),
+      ),
     );
     const file = buildUploadedFile();
     // 복사·문자열화 감지 spy — controller 가 buffer 를 재가공하면 여기서 잡힌다.
@@ -617,13 +676,16 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
       }),
     );
     runnerMock.runJob.mockResolvedValueOnce(
-      buildImportJobFixture({
-        id: "ij-c",
-        requestedById: "admin-1",
-        status: "SUCCEEDED",
-        artifactRef: "dump.json",
-        restoredRowCount: 12,
-      }),
+      buildRunResult(
+        buildImportJobFixture({
+          id: "ij-c",
+          requestedById: "admin-1",
+          status: "SUCCEEDED",
+          artifactRef: "dump.json",
+          restoredRowCount: 12,
+        }),
+        buildSummaryFixture({ Assessment: 12 }),
+      ),
     );
 
     const res = await request(app.getHttpServer())
@@ -650,6 +712,11 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     expect(res.body.id).toBe("ij-c");
     expect(res.body.status).toBe("SUCCEEDED");
     expect(res.body.restoredRowCount).toBe(12);
+    // T-1295 외부 계약 무변화 — runner 가 `{ job, summary }` 를 줘도 응답 body 에
+    // summary / restoreSummary 필드가 새로 나타나지 않는다 (envelope 확장은 다음 slice).
+    expect(res.body).not.toHaveProperty("summary");
+    expect(res.body).not.toHaveProperty("restoreSummary");
+    expect(res.body).not.toHaveProperty("job");
   });
 
   // -- error path — 파일 누락 (multipart 이나 file 필드 없음) 시 400 + service 미호출 --
@@ -679,7 +746,13 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
       buildImportJobFixture({ id: "ij-d", mode: "MERGE", status: "PENDING" }),
     );
     runnerMock.runJob.mockResolvedValueOnce(
-      buildImportJobFixture({ id: "ij-d", mode: "MERGE", status: "SUCCEEDED" }),
+      buildRunResult(
+        buildImportJobFixture({
+          id: "ij-d",
+          mode: "MERGE",
+          status: "SUCCEEDED",
+        }),
+      ),
     );
 
     const res = await request(app.getHttpServer())
@@ -1105,7 +1178,9 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
         buildImportJobFixture({ status: "PENDING" }),
       );
       runnerMock.runJob.mockResolvedValueOnce(
-        buildImportJobFixture({ status: "SUCCEEDED", restoredRowCount: 3 }),
+        buildRunResult(
+          buildImportJobFixture({ status: "SUCCEEDED", restoredRowCount: 3 }),
+        ),
       );
 
       await request(app.getHttpServer())

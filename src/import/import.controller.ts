@@ -203,15 +203,22 @@ export class ImportController {
     // 실 복원 실행 (ADR-0055 §Follow-up b) — runner 가 markRunning → restoreFromDump →
     // markSucceeded 를 합성한다. mode 는 dto.mode 가 아니라 생성된 row 의 job.mode 를
     // 쓴다 (schema @default(REPLACE) 가 적용된 확정값이 source). buffer 는 재가공 없이
-    // 같은 인스턴스로, artifactRef 는 업로드 파일명 그대로 넘긴다. 반환은 runner 결과를
-    // 재가공 없이 forward — 복원 실패 시 runner 가 사유를 기록한 뒤 원본 error 를 재
-    // throw 하므로 controller 는 삼키지 않는다.
-    return this.runner.runJob({
+    // 같은 인스턴스로, artifactRef 는 업로드 파일명 그대로 넘긴다. 복원 실패 시 runner 가
+    // 사유를 기록한 뒤 원본 error 를 재throw 하므로 controller 는 삼키지 않는다.
+    const result = await this.runner.runJob({
       jobId: job.id,
       buffer: file.buffer,
       mode: job.mode,
       artifactRef: file.originalname,
     });
+
+    // runner 는 T-1295 부터 `{ job, summary }` 를 돌려주지만 여기서는 `job` **만** forward
+    // 한다 — 응답 body 는 종전과 완전히 동일하며 `summary` 는 HTTP 로 새어나가지 않는다.
+    // 응답 envelope 확장 (복원 영향 요약을 body 에 싣기 · 필드명 확정 · e2e 박제) 은 외부
+    // 계약 변경이라 다음 slice (3c-4c) 로 분리한다 — 그래야 그 변경이 e2e 와 함께 자기
+    // diff 안에서 완결되고, 본 slice 는 외부 관측 가능한 변화 0 으로 남는다 (UC-07 §5
+    // step 12 의 "영향 요약" 이 외부 사실이 되는 지점은 그 slice 다).
+    return result.job;
   }
 
   // GET /api/admin/import/running — 진행 중 (status=RUNNING) import job 목록
