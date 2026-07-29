@@ -116,7 +116,7 @@ Import 는 두 mode 지원 (옵션 enum 만 박제): **replace mode (default)** 
 
 ### 6.5 실행 전 preview (dry-run)
 
-§5 sequence 64 행의 강한 confirmation dialog 가 요구하는 **"영향 범위"** 를 채우는 것이 본 경로다 — Admin 이 확정을 누르기 전에 같은 dump 를 preview 로 한 번 올리면 복원이 무엇을 삭제 / 삽입 / 보존할지 entity 별 수치로 먼저 본다. 계약은 두 가지: (i) 같은 dump · 같은 mode 로 preview 가 낸 수치는 **이어진 실행 응답의 `restoreSummary` 와 정확히 일치** 하고, (ii) preview 요청은 **DB 를 한 row 도 바꾸지 않는다** — entity row 수 무변화는 물론 `ImportJob` row 도 남지 않고 (`transaction` 자체를 열지 않는다), 그래서 사용자가 취소해도 되돌릴 상태가 없다. 이 두 계약은 실 HTTP 왕복 e2e (`T-1300`) 로 박제됐다. 구체 route · 요청 multipart · 응답 shape 는 [api.md](../architecture/api.md) 의 UC-07 표를 정본으로 삼는다 (§6.1 과 같은 관례 — UC 문서에 endpoint 스펙을 복제하지 않는다). `mode` 를 지정하지 않으면 실행 경로의 default 와 같은 mode 로 해석되므로 preview 와 실행이 조용히 어긋나지 않는다.
+§5 sequence 64 행의 강한 confirmation dialog 가 요구하는 **"영향 범위"** 를 채우는 것이 본 경로다 — Admin 이 확정을 누르기 전에 같은 dump 를 preview 로 한 번 올리면 복원이 무엇을 삭제 / 삽입 / 보존할지 entity 별 수치로 먼저 본다. 계약은 세 가지: (i) 같은 dump · 같은 mode 로 preview 가 낸 수치는 **이어진 실행 응답의 `restoreSummary` 와 정확히 일치** 하고, (ii) preview 요청은 **DB 를 한 row 도 바꾸지 않는다** — entity row 수 무변화는 물론 `ImportJob` row 도 남지 않고 (`transaction` 자체를 열지 않는다), 그래서 사용자가 취소해도 되돌릴 상태가 없다. (iii) preview 응답은 **산출 기준 mode 를 함께 되돌려준다** (`mode` key) — 사용자가 mode 를 지정하지 않아 `REPLACE` 로 해석된 경우에도 confirmation dialog 가 **어느 mode 기준의 파괴 범위인지** 를 응답만으로 표시할 수 있다. (i)(ii) 는 실 HTTP 왕복 e2e (`T-1300`) 로, (iii) 는 `T-1302` 로 박제됐다. 구체 route · 요청 multipart · 응답 shape 는 [api.md](../architecture/api.md) 의 UC-07 표를 정본으로 삼는다 (§6.1 과 같은 관례 — UC 문서에 endpoint 스펙을 복제하지 않는다). `mode` 를 지정하지 않으면 실행 경로의 default 와 같은 mode 로 해석되므로 preview 와 실행이 조용히 어긋나지 않으며, 그 해석 결과 자체가 (iii) 의 echo 로 응답에 드러나 client 가 default 를 추측할 필요도 없다.
 
 ## 7. Error flows
 
