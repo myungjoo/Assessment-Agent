@@ -2,8 +2,11 @@
 id: T-1300
 title: import preview 실 HTTP 왕복 e2e — preview 수치 ↔ 실행 restoreSummary 일치 + DB write 0 (e2e slice 3c-5c)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-29T05:51:18Z
 commitMode: pr
+prNumber: 1190
+mergeCommit: 49d22709bf4bd7aea0c42d29df2b00bcb6a55963
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 280
 estimatedFiles: 1
@@ -65,6 +68,14 @@ plannerNote: "cap-bend 없음: e2e-only x1.3 = 약 280 LOC / 1 파일. T-1299 Fo
 ## Suggested Sub-agents
 
 `tester → implementer` (본 slice 는 test-only — tester 가 주도하고 필요 시 implementer 는 harness 정리만)
+
+## 결과 (2026-07-29 완료)
+
+PR [#1190](https://github.com/myungjoo/Assessment-Agent/pull/1190) reviewer APPROVE round 1/7 → §3.3 4-게이트 전부 PASS → squash 머지 `49d22709`. 실측 **+193/-0, 1 파일** (cap 300/5 안, production 코드 0 수정). 기존 `test/e2e/import-restore-http.e2e-spec.ts` describe 안에 preview dry-run 구간 7 케이스 + `uploadPreview` helper 추가 — preview↔실행 `restoreSummary` `toEqual` 일치 (REPLACE · MERGE), mode 미지정 == REPLACE fallback 실 HTTP 증거, DB write 0 (`counts()` 무변화 + `importJob.count() === 0` + `exportJob` 무변화), negative 4 종 (파일 미첨부 400 / 미인증 401 / 손상 dump 400 + raw 미노출 / whitelist 400). 기존 section 및 `afterEach` actor FK 재 seed 순서 **무수정**.
+
+**명명 이탈 1 건** — task 정의서가 지정한 `section G` 는 T-1296 이 이미 선점한 상태여서 신규 구간을 **section H** 로 명명했다. 사유는 파일 머리 주석 · PR body · review 코멘트에 박제. 계약 내용은 정의서 그대로.
+
+coverage 는 종전과 동일 (line 99.95% / function 100%) — production 0 수정이라 회귀 신호 없음. smoke·e2e 는 로컬에 `DATABASE_URL` 이 없어 fail-fast, PR CI 의 e2e leg success 로 확인.
 
 ## Follow-ups
 
