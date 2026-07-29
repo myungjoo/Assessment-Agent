@@ -17,6 +17,17 @@ const BUSY_TOKEN = '처리 중';
 const DEFAULT_EXPORT = '내보내기';
 // import 기본 라벨 (구현의 DEFAULT_IMPORT_LABEL 과 정합).
 const DEFAULT_IMPORT = '가져오기';
+// import 확인 단계 기본 경고 문구의 식별 토큰 (구현의 DEFAULT_IMPORT_CONFIRM_TEXT 와 정합).
+const CONFIRM_WARNING_TOKEN = '되돌릴 수 없습니다';
+// 확인 단계 실행 버튼 라벨 — 기본 경고 문구의 '실행하면' 과 부분 일치해 위양성이 나지 않도록
+// button element 경계(닫는 태그)까지 포함한 토큰으로 좁힌다.
+const CONFIRM_BUTTON = '>실행</button>';
+// 확인 단계 취소 버튼 라벨 — 위와 같은 이유로 element 경계까지 포함한다.
+const CANCEL_BUTTON = '>취소</button>';
+// 확인 단계 컨테이너 role 토큰.
+const ALERTDIALOG = 'role="alertdialog"';
+// 컨테이너가 preview 응답으로 합성했다고 가정하는 영향 범위 요약 문구 샘플.
+const SUMMARY_TEXT = '전체 교체(REPLACE) — Person 12건 · Group 3건이 대체됩니다';
 
 const noop = () => undefined;
 // onImportFile 시그니처용 noop (File 인자 — 정적 렌더라 실제 호출되진 않는다).
@@ -200,5 +211,162 @@ describe('DataImportExportPanel', () => {
     );
     expect(html).toContain('<button');
     expect(html).not.toContain('role="status"');
+  });
+
+  // --- T-1307 import 실행 전 확인 단계 (UC-07 38행 "강한 confirmation") ---
+
+  // happy-path — importConfirmText + 두 콜백 전달 → 확인 단계 렌더(경고 + 요약 + 실행/취소
+  // 활성), 기본 패널의 트리거(export 버튼 라벨·파일 입력)는 미렌더.
+  it('importConfirmText + 두 콜백 전달 → 확인 단계를 활성 버튼과 함께 렌더한다 (happy-path — 확인 단계)', () => {
+    const html = renderToStaticMarkup(
+      <DataImportExportPanel
+        onExport={noop}
+        onImportFile={noopFile}
+        importConfirmText={SUMMARY_TEXT}
+        onConfirmImport={noop}
+        onCancelImport={noop}
+      />,
+    );
+    expect(html).toContain(ALERTDIALOG);
+    expect(html).toContain(CONFIRM_WARNING_TOKEN);
+    expect(html).toContain(SUMMARY_TEXT);
+    expect(html).toContain(CONFIRM_BUTTON);
+    expect(html).toContain(CANCEL_BUTTON);
+    // 확인 단계의 버튼은 실행·취소 정확히 2개다(추가 트리거가 섞이지 않는다).
+    expect((html.match(/<button/g) ?? []).length).toBe(2);
+    // 두 콜백이 모두 전달됐으므로 어떤 disabled 속성도 렌더되지 않는다(활성).
+    expect(html).not.toContain('disabled');
+    // 확인 대기 중에는 새 파일 선택·동시 export 트리거를 차단한다.
+    expect(html).not.toContain('type="file"');
+    expect(html).not.toContain(DEFAULT_EXPORT);
+  });
+
+  // error path — busy 우선 정책 보존: busy=true 가 확인 단계보다 우선한다.
+  it('busy=true + importConfirmText 동시 전달 → 진행 표시만·확인 단계 미렌더 (error path — busy 우선 보존)', () => {
+    const html = renderToStaticMarkup(
+      <DataImportExportPanel
+        busy={true}
+        importConfirmText={SUMMARY_TEXT}
+        onConfirmImport={noop}
+        onCancelImport={noop}
+      />,
+    );
+    expect(html).toContain('role="status"');
+    expect(html).toContain(BUSY_TOKEN);
+    expect(html).not.toContain(ALERTDIALOG);
+    expect(html).not.toContain(SUMMARY_TEXT);
+  });
+
+  // error path — error 우선 정책 보존: error truthy 가 확인 단계보다 우선한다.
+  it('error truthy + importConfirmText 동시 전달 → alert 만·확인 단계 미렌더 (error path — error 우선 보존)', () => {
+    const html = renderToStaticMarkup(
+      <DataImportExportPanel
+        error="미리보기에 실패했습니다"
+        importConfirmText={SUMMARY_TEXT}
+        onConfirmImport={noop}
+        onCancelImport={noop}
+      />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('미리보기에 실패했습니다');
+    expect(html).not.toContain(ALERTDIALOG);
+    expect(html).not.toContain(SUMMARY_TEXT);
+  });
+
+  // flow/branch — onConfirmImport 미전달 → 실행 버튼만 비활성(취소는 활성).
+  it('onConfirmImport 미전달 → 실행 버튼을 비활성으로 렌더한다 (branch — 확정 콜백 미전달)', () => {
+    const html = renderToStaticMarkup(
+      <DataImportExportPanel importConfirmText={SUMMARY_TEXT} onCancelImport={noop} />,
+    );
+    expect(html).toContain(ALERTDIALOG);
+    expect(html).toContain(CONFIRM_BUTTON);
+    expect(html).toContain(CANCEL_BUTTON);
+    // 실행 버튼 1개만 비활성이므로 disabled 는 정확히 1회 렌더된다.
+    expect((html.match(/disabled/g) ?? []).length).toBe(1);
+  });
+
+  // flow/branch — onCancelImport 미전달 → 취소 버튼만 비활성(실행은 활성).
+  it('onCancelImport 미전달 → 취소 버튼을 비활성으로 렌더한다 (branch — 취소 콜백 미전달)', () => {
+    const html = renderToStaticMarkup(
+      <DataImportExportPanel importConfirmText={SUMMARY_TEXT} onConfirmImport={noop} />,
+    );
+    expect(html).toContain(ALERTDIALOG);
+    expect(html).toContain(CONFIRM_BUTTON);
+    expect(html).toContain(CANCEL_BUTTON);
+    expect((html.match(/disabled/g) ?? []).length).toBe(1);
+  });
+
+  // flow/branch — 두 콜백 모두 미전달 → 실행·취소 버튼 모두 비활성(disabled 2회).
+  it('확인 단계 콜백 둘 다 미전달 → 실행·취소 버튼 모두 비활성 (branch — 콜백 전부 미전달)', () => {
+    const html = renderToStaticMarkup(<DataImportExportPanel importConfirmText={SUMMARY_TEXT} />);
+    expect(html).toContain(ALERTDIALOG);
+    expect((html.match(/<button/g) ?? []).length).toBe(2);
+    expect((html.match(/disabled/g) ?? []).length).toBe(2);
+  });
+
+  // flow/branch — importConfirmText 미전달(undefined) → 기존 기본 패널 분기 그대로(하위 호환).
+  it('importConfirmText 미전달 → 기존 기본 패널을 그대로 렌더한다 (branch — 하위 호환 0 회귀)', () => {
+    const html = renderToStaticMarkup(<DataImportExportPanel onExport={noop} onImportFile={noopFile} />);
+    expect(html).not.toContain(ALERTDIALOG);
+    expect(html).toContain('<button');
+    expect(html).toContain(DEFAULT_EXPORT);
+    expect(html).toContain('type="file"');
+    expect(html).not.toContain('disabled');
+  });
+
+  // negative/edge — 빈 문자열 importConfirmText(falsy) → 확인 단계 미진입·기본 패널 렌더.
+  it('importConfirmText="" (falsy) → 확인 단계 미진입·기본 패널 렌더 (negative — 빈 문자열 경계값)', () => {
+    const html = renderToStaticMarkup(
+      <DataImportExportPanel importConfirmText="" onExport={noop} onImportFile={noopFile} />,
+    );
+    expect(html).not.toContain(ALERTDIALOG);
+    expect(html).toContain(DEFAULT_EXPORT);
+    expect(html).toContain('type="file"');
+  });
+
+  // negative — message 동시 전달 → 확인 단계 우선, 직전 안내 문구는 노출하지 않는다.
+  it('importConfirmText + message 동시 전달 → 확인 단계 우선·message 미노출 (negative — 문구 혼선 차단)', () => {
+    const html = renderToStaticMarkup(
+      <DataImportExportPanel
+        importConfirmText={SUMMARY_TEXT}
+        message="3건을 내보냈습니다"
+        onConfirmImport={noop}
+        onCancelImport={noop}
+      />,
+    );
+    expect(html).toContain(ALERTDIALOG);
+    expect(html).not.toContain('3건을 내보냈습니다');
+    expect(html).not.toContain('role="status"');
+  });
+
+  // negative — 기본 패널 콜백(onExport/onImportFile) 미전달이어도 확인 단계는 그대로 렌더된다.
+  it('importConfirmText 만 전달(기본 패널 콜백 0) → 확인 단계를 정상 렌더한다 (negative — 기본 콜백 무관)', () => {
+    const html = renderToStaticMarkup(
+      <DataImportExportPanel
+        importConfirmText={SUMMARY_TEXT}
+        onConfirmImport={noop}
+        onCancelImport={noop}
+      />,
+    );
+    expect(html).toContain(ALERTDIALOG);
+    expect(html).toContain(SUMMARY_TEXT);
+    expect(html).not.toContain('type="file"');
+    expect(html).not.toContain('disabled');
+  });
+
+  // negative — 요약 문구의 특수문자(<, &)는 React 기본 escape 로 안전하게 렌더된다(주입 0).
+  it('요약 문구에 <,& 포함 → escape 되어 렌더된다 (negative — raw HTML 주입 방지)', () => {
+    const html = renderToStaticMarkup(
+      <DataImportExportPanel
+        importConfirmText={'<script>alert(1)</script> & 12건'}
+        onConfirmImport={noop}
+        onCancelImport={noop}
+      />,
+    );
+    expect(html).toContain(ALERTDIALOG);
+    // raw 태그가 그대로 들어가면 안 된다 — escape 된 형태로만 존재해야 한다.
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('&amp; 12건');
   });
 });
