@@ -2,8 +2,10 @@
 id: T-1310
 title: import 실행 결과 문구에 실제 복원 영향 요약 반영 (restoreSummary 소비)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1195
+completedAt: 2026-07-29T14:48:52Z
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 230
 estimatedFiles: 2
@@ -85,3 +87,9 @@ plannerNote: "P6 deferred 'import 결과 상세' — T-1296 restoreSummary 의 w
 - (미해결 정책, T-1287 이월) `LlmProviderConfig` 왕복 불가 — export 가 `apiKey` 를 제외하는데 schema 는 not-null. **§5 사람 결정 대상**.
 - (관측, 이월) UC-07 §8 (b)(e) Export/Import Audit log row 영속화 0 — schema migration 이라 §5 사람 결정 대상.
 - (PLAN 게이트 backlog) `web/package.json` vitest `coverageThreshold` 도입 — 새 dep 필요라 §5 승인 게이트.
+
+## 결과 (2026-07-29 DONE)
+
+- PR [#1195](https://github.com/myungjoo/Assessment-Agent/pull/1195) — reviewer round 1 `APPROVE`, 4-게이트 충족 후 squash merge `36cdbaa7` @14:48:52Z. `+233/-27` / 2 파일 (cap 준수).
+- 공유 helper `formatRestoreTotalsPhrase` 신설 → `formatRestorePlanConfirmText`(T-1308) 를 그 helper 호출로 재작성(외부 동작 0 변경) + `formatImportJobDetail` 에 실제 반영 수치 append 분기 1 + 접두 상수 1 + named export 1. `runImport` 본문 0 수정.
+- 검증: web 2082 test 전량 green + lint / build / web build green. 기존 T-1132 · T-1308 spec 무수정 통과가 리팩터 안전성의 증거.
