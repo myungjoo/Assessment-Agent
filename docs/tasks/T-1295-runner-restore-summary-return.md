@@ -2,7 +2,10 @@
 id: T-1295
 title: runner 가 복원 요약을 결과로 함께 반환 (runJob 반환 shape 확장, 실행 slice 3c-4b)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-29T00:53:19Z
+prNumber: 1186
+mergeCommit: 55b08476
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 220
