@@ -2,7 +2,7 @@
 id: T-1302
 title: import preview 응답에 해석된 mode echo — 수치의 기준 mode 를 client 가 알 수 있게 (계약 slice 3c-5e)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 200
@@ -14,6 +14,8 @@ touchesFiles:
   - src/import/import.controller.ts
   - src/import/import.controller.spec.ts
   - test/e2e/import-restore-http.e2e-spec.ts
+prNumber: 1191
+completedAt: 2026-07-29T08:02:29Z
 plannerNote: "R-112 backbone x1.5 = 약 200 LOC / 3 파일. T-1300 Follow-up 3 — preview 응답에 해석된 mode echo (3c-5e)"
 ---
 
@@ -78,3 +80,9 @@ plannerNote: "R-112 backbone x1.5 = 약 200 LOC / 3 파일. T-1300 Follow-up 3 �
 - (T-1291 → 이월) `selectExportRecords` 의 `RangeError` (손상 job row) 가 download 경로에서 **500** 으로 나간다 — 사용자 대면 status (409/422) 매핑 여부 판단 필요.
 - (미해결 정책, T-1287 → 이월) `LlmProviderConfig` 왕복 불가 — export 가 `apiKey` 를 제외 (ADR-0047 secret deny) 하는데 schema 의 `apiKey` 는 not-null 이라 복원 `$transaction` 이 통째로 실패할 것으로 예상. **secret 처리 결정이라 §5 사람 결정 대상**.
 - (관측, 이월) UC-07 §8 (b)(e) 의 Export / Import Audit log row 영속화 0 — 범용 `AuditLog` model 부재. schema migration 이라 §5 사람 결정 대상.
+
+## 완료 기록
+
+- **Status: DONE** — 2026-07-29 08:02:29Z, PR [#1191](https://github.com/myungjoo/Assessment-Agent/pull/1191) round 1 squash merge (`8bdc8f2e`).
+- 결과: preview 응답을 `PreviewImportResponse` (`RestorePlanSummary` + `mode`) 로 확장 — `{ ...summary, mode }` additive spread 라 기존 3 그룹 수치 key 는 불변. `mode` 상수 1 개가 service 인자와 응답 key 양쪽의 유일 source 라 두 값이 갈릴 수 없다. 실행 응답 (`restoreSummary`) · `RestorePlanSummary` 정의 · service 는 0 수정.
+- 검증: +173/-29 · 3 파일 (cap 이내). unit 428 suite / 12271 test green, smoke·e2e·perf 포함 CI conclusion=success. `import.controller.ts` line·branch·function 100% 유지 (global 99.95 / 99.31 / 100). reviewer VERDICT=APPROVE (PR comment 외화) + 4-게이트 PASS.
