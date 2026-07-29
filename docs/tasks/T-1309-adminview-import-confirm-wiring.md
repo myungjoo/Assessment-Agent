@@ -2,7 +2,7 @@
 id: T-1309
 title: AdminView import 확인 배선 마감 — preview 우선 전환 + pendingFile 보관 + 패널 3 props 전달
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 220
@@ -89,3 +89,10 @@ plannerNote: "R-112 backbone x1.5 = 약 220 LOC / 2 파일. T-1308 순수 러너
 - (미해결 정책, T-1287 이월) `LlmProviderConfig` 왕복 불가 — export 가 `apiKey` 를 제외하는데 schema 는 not-null. **§5 사람 결정 대상**.
 - (관측, 이월) UC-07 §8 (b)(e) Export/Import Audit log row 영속화 0 — schema migration 이라 §5 사람 결정 대상.
 - (PLAN 게이트 backlog) `web/package.json` vitest `coverageThreshold` 도입 — 새 dep 필요라 §5 승인 게이트.
+
+## Result (2026-07-29T13:49:24Z DONE)
+
+- PR [#1194](https://github.com/myungjoo/Assessment-Agent/pull/1194) — reviewer round 1 `APPROVE`, 4-게이트 충족 후 squash merge `b8b8cf14`. PR CI 2 check pass, merge 후 main CI run 30457813346 = **success**.
+- `AdminView.tsx` 에 `ConfirmImportDeps`(기존 `ImportDeps` extends) + `runConfirmedImport` + `clearImportConfirm` 신설, state 2 개(`importConfirmText` / `pendingImportFile`) + `initialImportConfirmText` props 추가, `handleImport` 를 preview 우선으로 전환하고 패널에 확인 3 props 전달. +287/-4 (291 LOC / 2 파일 — cap 준수).
+- test 9 케이스(happy 1 / error 2 / branch 5 / negative 5 + 정적 렌더 3) 추가, web 2054 · backend 12271 전량 green. 기존 spec 0 수정(하위 호환 회귀 0).
+- UC-07 §5 64 행 confirmation gap 종결 — T-1297~T-1302 의 `POST /api/admin/import/preview` 계약이 처음으로 실사용 소비자를 얻었다.
