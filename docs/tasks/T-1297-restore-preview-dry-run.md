@@ -2,7 +2,10 @@
 id: T-1297
 title: 복원 실행 없이 영향 요약만 산출하는 dry-run preview 경로 (service slice 3c-5a)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-29T02:50:59Z
+prNumber: 1188
+mergeCommit: 642f95f5
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 210
