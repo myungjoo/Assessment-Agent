@@ -2,7 +2,7 @@
 id: T-1298
 title: executor 계약에 PR-open 직후 claim prNumber 동기 의무 + main 복귀 ff-only 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 70
@@ -74,3 +74,7 @@ plannerNote: "doc-only inline-amend x0.64 = 약 70 LOC / 1 파일. 4 fire 연속
 - (유지, T-1293~T-1297) 부분 dump + REPLACE 의 비선별 entity 삭제 — 차단/경고 여부는 제품 결정(사람 판단 대상).
 - (유지, 3c-3d3) 크기 상한 413 e2e — supertest 의 multer mid-stream abort 표면화 확인 선행.
 - (미해결 정책, 이월) `LlmProviderConfig` 왕복 불가(`apiKey` not-null vs ADR-0047 secret deny) — §5 secret 결정 대상.
+
+## 결과 (2026-07-29T03:44Z DONE)
+
+`.claude/agents/executor.md` **1 파일 +31/-4** 로 완결. Workflow 3/7 정합 수정 + "PR 흐름 흡수 시" 절 신설(reviewer 호출 전 `scripts/sync-claim-pr.sh <T-NNNN> <PR> <owner>` 자체 호출 의무 · owner 도출 규칙(driver 전달값 우선 → 없으면 claims.json 조회, 날조 금지) · inert 조건(토글 OFF / 대상 entry 부재 / driver 자체 PR open) · fail-safe(non-zero 는 BLOCKED 아님, PR close·branch 삭제 금지)) + 반환 계약 보강(SUMMARY `pr=<N>`, INTEGRATOR trail `sync=ok|warn`) + §9 정합 Hard rule 추가(`git reset --hard` 금지 → `git pull --ff-only` 복귀, T-1295 fire 근거). LOOP.md / CLAUDE.md / `scripts/*` 수정 0(참조·인용만, 인자 순서·exit 의미를 script 헤더와 대조 검증). doc-only direct commit 이라 §3.2 R-110/R-112 면제 — grep 검증(`sync-claim-pr` 3 hit · `ff-only` 1 hit · `reset --hard` 는 금지 문맥 1 hit)으로 갈음. direct commit `9d0107b5`, main CI conclusion=success.
