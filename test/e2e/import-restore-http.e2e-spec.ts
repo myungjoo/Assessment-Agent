@@ -591,4 +591,73 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
     // negative (d) — 거부 요청도 job row 는 정확히 1 건이다 (중복 job 0).
     expect(await prisma.importJob.count()).toBe(1);
   });
+
+  // -- G. 응답 envelope 의 복원 영향 요약 (restoreSummary, T-1296) -----------------------
+  //
+  // 여기까지의 A~F 는 응답의 `status` / `mode` / `restoredRowCount` 만 관측했다. T-1296 이
+  // `create` 를 `{ ...job, restoreSummary }` spread 로 넓혔으므로, 그 요약이 **실 HTTP 왕복
+  // body 로 관측된다** 는 사실을 여기서 박제한다. 두 case 는 `arrangeMergeFixture` 의 동일
+  // 출발 상태에 mode 만 달리해, 요약 수치가 mode 분기를 그대로 반영함을 대비로 보인다.
+  //
+  // 출발 상태 (arrangeMergeFixture): 기존 DB = 보존 대상 Group G2 + Person P1, dump = 삭제된
+  // Group G1 + Person P1 (record 2 건). 충돌 판정 key 는 (entity, instant) 라 —
+  //   - MERGE: P1 만 충돌 → deleted = Person 1, kept = Group 1 (G2 보존), inserted = 2.
+  //   - REPLACE: 기존 전부 삭제 → deleted = Group 1 + Person 1, kept = 0, inserted = 2.
+
+  it("MERGE 응답 body 에 restoreSummary 가 실려 보존·삽입 수치가 관측된다 (happy — envelope 확장)", async () => {
+    const { dump, preserved } = await arrangeMergeFixture();
+
+    const response = await uploadDump(dump, "MERGE");
+
+    // (a) 기존 필드는 종전 그대로다 — 요약은 additive 로만 얹혔다 (무변화의 실 왕복 증거).
+    expect(response.status).toBe(201);
+    expect(response.body.status).toBe("SUCCEEDED");
+    expect(response.body.mode).toBe("MERGE");
+    expect(response.body.restoredRowCount).toBe(recordCountOf(dump));
+    // (b) 보존된 Group G2 가 kept 수치로 관측된다 (MERGE 가 비충돌 기존을 지우지 않음).
+    expect(response.body.restoreSummary.kept.total).toBe(1);
+    expect(response.body.restoreSummary.kept.perEntity.Group).toBe(1);
+    // (c) 삽입 수치는 dump 의 record 수와 정합한다 (incoming 전부 삽입).
+    expect(response.body.restoreSummary.inserted.total).toBe(
+      recordCountOf(dump),
+    );
+    // (d) MERGE 의 삭제는 **충돌분뿐** — dump 와 같은 (entity, instant) 인 Person 1 건이며
+    //     비충돌 Group 은 0 이다 (전면 삭제로 흐르면 여기서 잡힌다).
+    expect(response.body.restoreSummary.deleted.perEntity.Group).toBe(0);
+    expect(response.body.restoreSummary.deleted.perEntity.Person).toBe(1);
+    expect(response.body.restoreSummary.deleted.total).toBe(1);
+    // (e) 요약 수치는 실 DB 결과와 정합하다 — 보존분 G2 가 실제로 남아 있다.
+    expect(
+      await prisma.group.findUnique({ where: { id: preserved.id } }),
+    ).not.toBeNull();
+    // negative — 중첩 envelope 가 아니라 spread 다 (`summary` / `job` key 부재).
+    expect(response.body).not.toHaveProperty("summary");
+    expect(response.body).not.toHaveProperty("job");
+  });
+
+  it("같은 dump 를 REPLACE 로 올리면 restoreSummary.deleted 에 entity 별 삭제 수치가 잡히고 kept 가 0 이다 (branch)", async () => {
+    const { dump } = await arrangeMergeFixture();
+
+    const response = await uploadDump(dump, "REPLACE");
+
+    // 기존 필드 무변화 — 위 MERGE case 와 입력이 같고 mode 만 다르다.
+    expect(response.status).toBe(201);
+    expect(response.body.status).toBe("SUCCEEDED");
+    expect(response.body.mode).toBe("REPLACE");
+    expect(response.body.restoredRowCount).toBe(recordCountOf(dump));
+    // REPLACE 는 기존 전부 삭제 — 보존 대상 Group G2 + Person P1 이 entity 별로 잡힌다.
+    expect(response.body.restoreSummary.deleted.perEntity.Group).toBe(1);
+    expect(response.body.restoreSummary.deleted.perEntity.Person).toBe(1);
+    expect(response.body.restoreSummary.deleted.total).toBe(2);
+    // 보존은 0 — 위 MERGE 의 kept 1 과의 대비가 mode 분기를 요약 수치로 구분하는 증거다.
+    expect(response.body.restoreSummary.kept.total).toBe(0);
+    expect(response.body.restoreSummary.inserted.total).toBe(
+      recordCountOf(dump),
+    );
+    // negative — 0 값 entity key 도 직렬화 왕복에서 보존된다 (key 누락 0).
+    expect(
+      Object.keys(response.body.restoreSummary.kept.perEntity).sort(),
+    ).toEqual(["Assessment", "AuditLog", "Group", "LlmConfig", "Person"]);
+    expect(response.body.restoreSummary.deleted.perEntity.Assessment).toBe(0);
+  });
 });
