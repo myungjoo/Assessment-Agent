@@ -19,10 +19,11 @@ const DEFAULT_EXPORT = '내보내기';
 const DEFAULT_IMPORT = '가져오기';
 // import 확인 단계 기본 경고 문구의 식별 토큰 (구현의 DEFAULT_IMPORT_CONFIRM_TEXT 와 정합).
 const CONFIRM_WARNING_TOKEN = '되돌릴 수 없습니다';
-// 확인 단계 실행 버튼 라벨 (구현의 CONFIRM_LABEL 과 정합).
-const CONFIRM_LABEL = '실행';
-// 확인 단계 취소 버튼 라벨 (구현의 CANCEL_LABEL 과 정합).
-const CANCEL_LABEL = '취소';
+// 확인 단계 실행 버튼 라벨 — 기본 경고 문구의 '실행하면' 과 부분 일치해 위양성이 나지 않도록
+// button element 경계(닫는 태그)까지 포함한 토큰으로 좁힌다.
+const CONFIRM_BUTTON = '>실행</button>';
+// 확인 단계 취소 버튼 라벨 — 위와 같은 이유로 element 경계까지 포함한다.
+const CANCEL_BUTTON = '>취소</button>';
 // 확인 단계 컨테이너 role 토큰.
 const ALERTDIALOG = 'role="alertdialog"';
 // 컨테이너가 preview 응답으로 합성했다고 가정하는 영향 범위 요약 문구 샘플.
@@ -229,8 +230,10 @@ describe('DataImportExportPanel', () => {
     expect(html).toContain(ALERTDIALOG);
     expect(html).toContain(CONFIRM_WARNING_TOKEN);
     expect(html).toContain(SUMMARY_TEXT);
-    expect(html).toContain(CONFIRM_LABEL);
-    expect(html).toContain(CANCEL_LABEL);
+    expect(html).toContain(CONFIRM_BUTTON);
+    expect(html).toContain(CANCEL_BUTTON);
+    // 확인 단계의 버튼은 실행·취소 정확히 2개다(추가 트리거가 섞이지 않는다).
+    expect((html.match(/<button/g) ?? []).length).toBe(2);
     // 두 콜백이 모두 전달됐으므로 어떤 disabled 속성도 렌더되지 않는다(활성).
     expect(html).not.toContain('disabled');
     // 확인 대기 중에는 새 파일 선택·동시 export 트리거를 차단한다.
@@ -276,7 +279,8 @@ describe('DataImportExportPanel', () => {
       <DataImportExportPanel importConfirmText={SUMMARY_TEXT} onCancelImport={noop} />,
     );
     expect(html).toContain(ALERTDIALOG);
-    expect(html).toContain(CONFIRM_LABEL);
+    expect(html).toContain(CONFIRM_BUTTON);
+    expect(html).toContain(CANCEL_BUTTON);
     // 실행 버튼 1개만 비활성이므로 disabled 는 정확히 1회 렌더된다.
     expect((html.match(/disabled/g) ?? []).length).toBe(1);
   });
@@ -287,7 +291,8 @@ describe('DataImportExportPanel', () => {
       <DataImportExportPanel importConfirmText={SUMMARY_TEXT} onConfirmImport={noop} />,
     );
     expect(html).toContain(ALERTDIALOG);
-    expect(html).toContain(CANCEL_LABEL);
+    expect(html).toContain(CONFIRM_BUTTON);
+    expect(html).toContain(CANCEL_BUTTON);
     expect((html.match(/disabled/g) ?? []).length).toBe(1);
   });
 
@@ -295,6 +300,7 @@ describe('DataImportExportPanel', () => {
   it('확인 단계 콜백 둘 다 미전달 → 실행·취소 버튼 모두 비활성 (branch — 콜백 전부 미전달)', () => {
     const html = renderToStaticMarkup(<DataImportExportPanel importConfirmText={SUMMARY_TEXT} />);
     expect(html).toContain(ALERTDIALOG);
+    expect((html.match(/<button/g) ?? []).length).toBe(2);
     expect((html.match(/disabled/g) ?? []).length).toBe(2);
   });
 
