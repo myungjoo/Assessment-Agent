@@ -2,7 +2,10 @@
 id: T-1296
 title: POST /api/admin/import 응답에 복원 영향 요약 동봉 (envelope 확장, 실행 slice 3c-4c)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-29T02:07:53Z
+prNumber: 1187
+mergeCommit: 788e9d9a
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 250
