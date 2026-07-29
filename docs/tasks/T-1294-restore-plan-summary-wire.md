@@ -2,7 +2,10 @@
 id: T-1294
 title: 복원 결과에 plan 영향 breakdown 요약 동봉 (summarizeRestorePlan 첫 production 배선, 실행 slice 3c-4a)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-29T00:01:09Z
+prNumber: 1185
+mergeCommit: aff1c489
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 150
