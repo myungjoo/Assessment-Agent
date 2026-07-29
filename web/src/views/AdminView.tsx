@@ -265,6 +265,42 @@ const IMPORT_FILE_FIELD = 'file';
 // 비정상 응답 방어 — formatImportJobDetail 참조). 상세 소비는 T-1132 에서 도입.
 const IMPORT_DONE_TEXT = '가져오기 완료';
 
+// 실행 응답의 restoreSummary 를 결과 문구 뒤에 덧붙일 때 쓰는 접두 문구(T-1310). 확인 단계의
+// preview 문구('가져오기 영향 범위 — ')와 구분되도록 "반영 결과" 로 실행 후 사실임을 명시한다.
+// 상수로 박제해 spec 이 같은 문자열을 참조하도록 한다(문구 drift 차단).
+const IMPORT_RESULT_SUMMARY_PREFIX = '반영 결과 — ';
+
+// RestorePlanSummary 3 그룹(deleted / inserted / kept)의 total 을 훑어 `삭제 N 건 / 삽입 N 건 /
+// 보존 N 건` 조각을 만드는 공유 순수 helper(T-1310 — T-1308 formatRestorePlanConfirmText 안의
+// 스캔 루프를 추출한 것. 확인 단계 preview 와 실행 결과 두 소비자가 같은 스캔을 공유해 복제 0).
+// 규약: (a) 비객체 · null · 배열 → undefined(소비 불가), (b) 그룹이 비객체면 그 그룹만 생략,
+// (c) total 이 유한 number 일 때만 노출, (d) 어느 그룹도 못 읽으면 undefined, (e) throw 0.
+function formatRestoreTotalsPhrase(value: unknown): string | undefined {
+  // (a) 비객체(null · undefined · string · number) 및 배열 → 요약 envelope 아님, 소비 불가.
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  const record = value as Record<string, unknown>;
+  const parts: string[] = [];
+  // 3 그룹 key ↔ 한국어 라벨 — api.md 126 의 deleted/inserted/kept 순서 그대로 표기한다.
+  for (const [key, label] of [
+    ['deleted', '삭제'],
+    ['inserted', '삽입'],
+    ['kept', '보존'],
+  ] as const) {
+    // (b) 그룹이 비객체면 그 그룹만 생략(부분 정보라도 안전 표시 — 다른 그룹은 계속 합성).
+    const group = record[key] as Record<string, unknown> | null;
+    const total = group && typeof group === 'object' ? group.total : undefined;
+    // (c) total 이 유한 number 일 때만 노출 — 0 은 유효 수치라 falsy 로 흘리지 않는다(경계값).
+    // NaN · Infinity · 문자열 '3' 은 수치로 신뢰할 수 없으므로 그 그룹만 생략한다.
+    if (typeof total === 'number' && Number.isFinite(total)) {
+      parts.push(`${label} ${total} 건`);
+    }
+  }
+  // (d) 어느 그룹도 수치를 못 읽었으면 수치 없는 조각은 오독 위험 → 호출자에게 부재를 알린다.
+  return parts.length === 0 ? undefined : parts.join(' / ');
+}
+
 // import 성공 시 POST /api/admin/import 응답(ImportJob) 을 사람-친화 한국어 상세 문구로 합성하는
 // 순수 helper(T-1132). backend @Post() 은 생성된 ImportJob(id / status(PENDING) / mode) 을
 // 그대로 반환하므로(src/import/import.controller.ts L109~120) 그 job 을 소비해 실제 상태를 표면화한다.
@@ -290,7 +326,17 @@ function formatImportJobDetail(job: unknown): string {
   if (typeof record.mode === 'string' && record.mode.length > 0) {
     parts.push(`모드 ${record.mode}`);
   }
-  return `가져오기 요청됨 — ${parts.join(', ')}`;
+  const detail = `가져오기 요청됨 — ${parts.join(', ')}`;
+  // T-1296 이 응답에 additive 로 실은 restoreSummary(3 그룹 수치) 를 실제 반영 결과 한 조각으로
+  // 덧붙인다(T-1310) — 사용자가 확인 단계에서 본 preview 수치와 실행 후 실제 수치를 대조할 수 있다.
+  const phrase = formatRestoreTotalsPhrase(record.restoreSummary);
+  // 요약이 없거나 판독 불가면 아무것도 덧붙이지 않는다 — preview 와 달리 경고 fallback 을 쓰지
+  // 않는 이유는, 실행은 이미 발사된 뒤라 수치 부재가 사용자에게 위험 신호가 아니기 때문이다
+  // (되돌릴 판단 지점이 아님 — 경고 문구는 오히려 실패로 오독된다).
+  if (phrase === undefined) {
+    return detail;
+  }
+  return `${detail} (${IMPORT_RESULT_SUMMARY_PREFIX}${phrase})`;
 }
 
 // preview 응답(RestorePlanSummary 3 그룹 + 해석된 mode) 을 사람-친화 한국어 요약 1 줄로 합성하는
@@ -299,39 +345,19 @@ function formatImportJobDetail(job: unknown): string {
 // 않으므로 formatImportJobDetail 의 방어적 narrowing 을 따른다 — 비객체·배열이거나 3 그룹 total
 // 이 하나도 number 가 아니면 fallback 문구로 안전 회피(throw 0). perEntity 는 미노출.
 function formatRestorePlanConfirmText(preview: unknown): string {
-  // 비객체(null · undefined · string · number) 및 배열 → 소비 불가, 경고 fallback.
-  if (
-    typeof preview !== 'object' ||
-    preview === null ||
-    Array.isArray(preview)
-  ) {
+  // 3 그룹 스캔은 공유 helper 에 위임한다(T-1310 추출 — 외부 동작 변경 0). 비객체 · 배열이거나
+  // 어느 그룹도 수치를 못 읽으면 undefined 가 돌아오고, 수치 없는 요약은 오독 위험이라 경고
+  // fallback 으로 안전 회피한다(추출 전 두 분기가 같은 fallback 을 쓰던 것과 동일 결과).
+  const phrase = formatRestoreTotalsPhrase(preview);
+  if (phrase === undefined) {
     return IMPORT_PREVIEW_UNKNOWN_TEXT;
   }
   const record = preview as Record<string, unknown>;
-  const parts: string[] = [];
-  // 3 그룹 key ↔ 한국어 라벨 — api.md 126 의 deleted/inserted/kept 순서 그대로 표기한다.
-  for (const [key, label] of [
-    ['deleted', '삭제'],
-    ['inserted', '삽입'],
-    ['kept', '보존'],
-  ] as const) {
-    // 그룹이 비객체면 그 그룹만 생략(부분 정보라도 안전 표시 — 다른 그룹은 계속 합성).
-    const group = record[key] as Record<string, unknown> | null;
-    const total = group && typeof group === 'object' ? group.total : undefined;
-    // total 이 유한 number 일 때만 노출 — 0 은 유효 수치라 falsy 로 흘리지 않는다(경계값).
-    if (typeof total === 'number' && Number.isFinite(total)) {
-      parts.push(`${label} ${total} 건`);
-    }
-  }
-  // 어느 그룹도 수치를 못 읽었으면 수치 없는 요약은 오독 위험 → 경고 fallback.
-  if (parts.length === 0) {
-    return IMPORT_PREVIEW_UNKNOWN_TEXT;
-  }
   // mode 는 요약 수치가 어느 mode 기준인지를 알려주는 값 — 비어있지 않은 string 일 때만 덧붙인다.
   const mode = record.mode;
   const modeSuffix =
     typeof mode === 'string' && mode.length > 0 ? ` (모드 ${mode})` : '';
-  return `가져오기 영향 범위 — ${parts.join(' / ')}${modeSuffix}`;
+  return `가져오기 영향 범위 — ${phrase}${modeSuffix}`;
 }
 
 // 스케줄 조회/upsert path — 고정 endpoint(GET/PUT /api/schedules, ADR-0042 Admin+). GET 은
@@ -4945,6 +4971,7 @@ export {
   formatImportJobDetail,
   runImportPreview,
   formatRestorePlanConfirmText,
+  formatRestoreTotalsPhrase,
   runConfirmedImport,
   clearImportConfirm,
   runApply,
