@@ -81,6 +81,8 @@ import AdminView, {
   runAssign,
   runImport,
   formatImportJobDetail,
+  runImportPreview,
+  formatRestorePlanConfirmText,
   runApply,
   runTrigger,
   deriveScheduleMessage,
@@ -122,6 +124,7 @@ import type {
   AssignDeps,
   RunAdminExportJobDeps,
   ImportDeps,
+  ImportPreviewDeps,
   ScheduleMutationDeps,
   ReEvaluationDeps,
   RemoveDeps,
@@ -3326,6 +3329,194 @@ describe('AdminView — formatImportJobDetail 상세 문구 합성 helper (T-113
   it('id 가 빈 string 이면 IMPORT_DONE_TEXT 로 fallback 한다 (negative — 빈 id)', () => {
     expect(formatImportJobDetail({ id: '', status: 'PENDING' })).toBe(
       '가져오기 완료',
+    );
+  });
+});
+
+// 구현 상수 IMPORT_PREVIEW_UNKNOWN_TEXT 와 문자 그대로 같아야 하는 fallback 문구(상수 미export
+// 라 spec 이 계약 값을 박제해 drift 를 잡는다).
+const PREVIEW_UNKNOWN =
+  '영향 범위를 확인할 수 없습니다 — 그대로 진행하면 기존 데이터가 파일 내용으로 대체될 수 있습니다.';
+
+// R-112 — T-1308 실행 전 dry-run(runImportPreview) 러너 검증. jsdom/렌더러 없이 러너를 직접 호출
+// 하고(runImport spec 과 동일 convention) request mock 으로 path/method/body(FormData)를 단언하며
+// 성공/실패 분기를 주입한다. happy/error/branch/negative 각 1+ cover.
+describe('AdminView — 실행 전 dry-run preview 러너 (T-1308 runImportPreview)', () => {
+  // 상태 전이를 기록하는 deps harness — makeImportDeps 동형에 확인 문구 setter 를 더한다.
+  function makePreviewDeps(importing: boolean) {
+    const calls = {
+      importing: [] as boolean[],
+      error: [] as (string | undefined)[],
+      message: [] as (string | undefined)[],
+      confirm: [] as (string | undefined)[],
+    };
+    const deps: ImportPreviewDeps = {
+      post: (...args: unknown[]) => requestMock(...args),
+      // toErrorMessage stub 과 정합 — ApiError.status → 문구.
+      describeError: (e) =>
+        e instanceof ApiError ? `HTTP ${e.status}: ${e.message}` : '알 수 없는 오류',
+      importing,
+      setImporting: (next) => calls.importing.push(next),
+      setImportError: (next) => calls.error.push(next),
+      setImportMessage: (next) => calls.message.push(next),
+      setImportConfirmText: (next) => calls.confirm.push(next),
+    };
+    return { deps, calls };
+  }
+
+  // 테스트용 File 샘플(node 전역 File — jsdom 불요) + api.md 126 계약 형태의 성공 응답 샘플.
+  const sampleFile = () =>
+    new File(['{"k":1}'], 'assessments.json', { type: 'application/json' });
+  const previewResponse = () => ({
+    deleted: { total: 3, perEntity: { person: 3 } },
+    inserted: { total: 5, perEntity: { person: 5 } },
+    kept: { total: 2, perEntity: { person: 2 } },
+    mode: 'REPLACE',
+  });
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+
+  // happy-path — preview path 로 FormData POST 1 회 + 확인 문구 설정 + 진행 표시 on→off.
+  it('POST /api/admin/import/preview 를 FormData body 로 호출하고 성공 시 삭제·삽입·보존 수치와 모드를 담은 확인 문구를 설정한다 (happy-path)', async () => {
+    requestMock.mockResolvedValue(previewResponse());
+    const { deps, calls } = makePreviewDeps(false);
+    await runImportPreview(sampleFile(), deps);
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [path, options] = requestMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/api/admin/import/preview');
+    expect(options.method).toBe('POST');
+    // body 는 FormData 이고 'file' field 에 선택 File 동봉(실행 경로와 동일 계약). mode field 는
+    // 미부착 — 미지정 = backend REPLACE 해석이라 실행 후 수치와 같은 기준이다. 수동 헤더 0.
+    expect(options.body).toBeInstanceOf(FormData);
+    const body = options.body as FormData;
+    expect((body.get('file') as File).name).toBe('assessments.json');
+    expect(body.get('mode')).toBeNull();
+    // 확인 문구 — 시작 비움 → 3 그룹 수치 + 모드. 진행 표시 on→off. preview 는 완료 message 0.
+    expect(calls.confirm).toEqual([
+      undefined,
+      '가져오기 영향 범위 — 삭제 3 건 / 삽입 5 건 / 보존 2 건 (모드 REPLACE)',
+    ]);
+    expect(calls.importing).toEqual([true, false]);
+    expect(calls.error).toEqual([undefined]);
+  });
+
+  // error path — 403(Admin+ 미만) ApiError 와 비-ApiError(네트워크/예상 밖) 실패 모두 error 문구를
+  // 표면화하고 확인 문구를 비운다(확인 단계 미진입 — truthy 설정 0). throw 0 + 진행 표시 해제.
+  it.each([
+    [new ApiError(403, 'Forbidden'), 'HTTP 403: Forbidden'],
+    [new TypeError('fetch failed'), '알 수 없는 오류'],
+  ])(
+    'preview 실패 시 error 문구 "%s" 를 표면화하고 확인 문구를 비운다 (error path)',
+    async (thrown, expected) => {
+      requestMock.mockRejectedValue(thrown);
+      const { deps, calls } = makePreviewDeps(false);
+      await expect(
+        runImportPreview(sampleFile(), deps),
+      ).resolves.toBeUndefined();
+      expect(calls.error).toEqual([undefined, expected]);
+      expect(calls.confirm).toEqual([undefined, undefined]);
+      expect(calls.importing).toEqual([true, false]);
+    },
+  );
+
+  // flow/branch(시작 정리) — 발사 직후 진행 on + 직전 error·message·확인 문구 즉시 비움을 지연
+  // resolve 로 캡처(직전 결과가 새 preview 진행 중 남지 않음).
+  it('발사 직후 진행 표시 on + 직전 error·message·확인 문구를 즉시 비운다 (flow/branch — 시작 정리)', async () => {
+    let resolvePost: (value: unknown) => void = () => {};
+    requestMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePost = resolve;
+      }),
+    );
+    const { deps, calls } = makePreviewDeps(false);
+    const pending = runImportPreview(sampleFile(), deps);
+    // 해소 전 — 진행 on + 세 slot 모두 시작 비움(undefined). 해소 후 — 확인 문구 설정 + 진행 off.
+    expect(calls.importing).toEqual([true]);
+    expect(calls.error).toEqual([undefined]);
+    expect(calls.message).toEqual([undefined]);
+    expect(calls.confirm).toEqual([undefined]);
+    resolvePost(previewResponse());
+    await pending;
+    expect(calls.confirm[1]).toContain('삭제 3 건');
+    expect(calls.importing).toEqual([true, false]);
+  });
+
+  // negative(가드 a·b) — 빈/falsy file 과 in-flight 중 재선택은 둘 다 미발사·state 불변·throw 0.
+  it('빈/falsy file 과 이전 import 미완 중 재선택은 POST 를 발사하지 않고 state 를 바꾸지 않는다 (negative — 가드 2 종)', async () => {
+    const empty = makePreviewDeps(false);
+    const busy = makePreviewDeps(true);
+    await runImportPreview(undefined as unknown as File, empty.deps);
+    await runImportPreview(sampleFile(), busy.deps);
+    expect(requestMock).not.toHaveBeenCalled();
+    for (const calls of [empty.calls, busy.calls]) {
+      expect(calls.importing).toEqual([]);
+      expect(calls.error).toEqual([]);
+      expect(calls.message).toEqual([]);
+      expect(calls.confirm).toEqual([]);
+    }
+  });
+
+  // negative — 손상 응답(비객체)도 러너 경유로 fallback 확인 문구 설정(throw 0 — 통합 회귀).
+  it('손상 응답(비객체)이어도 fallback 확인 문구를 설정하고 throw 하지 않는다 (negative — 손상 응답)', async () => {
+    requestMock.mockResolvedValue('not-an-object');
+    const { deps, calls } = makePreviewDeps(false);
+    await runImportPreview(sampleFile(), deps);
+    expect(calls.confirm).toEqual([undefined, PREVIEW_UNKNOWN]);
+    expect(calls.error).toEqual([undefined]);
+  });
+});
+
+// R-112 — formatRestorePlanConfirmText 순수 helper 직접 검증(T-1308). 요약 1 줄 합성과 기대
+// shape 아닐 때의 fallback(방어적 narrowing) 을 happy/branch/negative 분기마다 cover 한다.
+describe('AdminView — formatRestorePlanConfirmText 요약 문구 helper (T-1308)', () => {
+  // 수치를 읽어내는 성공/분기 경로를 입력 → 기대 문구 표로 각 1 행씩 cover: (1) happy — 3 그룹 +
+  // mode 완비, (2) 경계값 0 — 0 을 falsy 로 흘리면 fallback 으로 새는 회귀 위험 지점, (3~5) mode
+  // 누락 · 빈 string · 비-string → 모드 표기만 생략, (6) 부분 그룹 — 읽힌 그룹만 표기.
+  const g = (total: unknown) => ({ total, perEntity: {} });
+  const twoGroups = '가져오기 영향 범위 — 삭제 1 건 / 삽입 2 건';
+  it.each([
+    [
+      { deleted: g(12), inserted: g(7), kept: g(1), mode: 'MERGE' },
+      '가져오기 영향 범위 — 삭제 12 건 / 삽입 7 건 / 보존 1 건 (모드 MERGE)',
+    ],
+    [
+      { deleted: g(0), inserted: g(0), kept: g(0), mode: 'REPLACE' },
+      '가져오기 영향 범위 — 삭제 0 건 / 삽입 0 건 / 보존 0 건 (모드 REPLACE)',
+    ],
+    [{ deleted: g(1), inserted: g(2) }, twoGroups],
+    [{ deleted: g(1), inserted: g(2), mode: '' }, twoGroups],
+    [{ deleted: g(1), inserted: g(2), mode: 9 }, twoGroups], // 비-string mode.
+    [
+      { deleted: g(4), inserted: null, kept: 'broken', mode: 'REPLACE' },
+      '가져오기 영향 범위 — 삭제 4 건 (모드 REPLACE)',
+    ],
+  ])('preview %o 를 "%s" 로 합성한다 (happy/branch)', (input, expected) => {
+    expect(formatRestorePlanConfirmText(input)).toBe(expected);
+  });
+
+  // negative(a)(b)(c) — null·undefined·문자열·숫자 같은 비객체와 배열(응답 envelope 아님) →
+  // fallback('[object Object]' 노출 0 · throw 0).
+  it('비객체(null·undefined·문자열·숫자)와 배열이면 fallback 문구를 반환한다 (negative — 비객체/배열)', () => {
+    for (const bad of [null, undefined, 'deleted: 3', 42, [], [{ kept: 1 }]]) {
+      expect(formatRestorePlanConfirmText(bad)).toBe(PREVIEW_UNKNOWN);
+    }
+  });
+
+  // negative(d)(e) — total 이 모두 비-number 이거나 3 그룹 key 자체가 없으면 fallback.
+  it('total 이 모두 비-number 이거나 3 그룹 key 가 없으면 fallback 문구를 반환한다 (negative — 손상/빈 응답)', () => {
+    expect(
+      formatRestorePlanConfirmText({
+        deleted: { total: '3' },
+        inserted: { total: Number.NaN },
+        kept: { total: null },
+        mode: 'REPLACE',
+      }),
+    ).toBe(PREVIEW_UNKNOWN);
+    expect(formatRestorePlanConfirmText({})).toBe(PREVIEW_UNKNOWN);
+    expect(formatRestorePlanConfirmText({ mode: 'REPLACE' })).toBe(
+      PREVIEW_UNKNOWN,
     );
   });
 });
