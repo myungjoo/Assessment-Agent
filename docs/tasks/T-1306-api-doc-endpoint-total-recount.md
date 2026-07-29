@@ -2,7 +2,8 @@
 id: T-1306
 title: api.md §5 합계 수치 재집계 — 56 → 72 endpoint · prefix 14 → 16 drift 교정 + 재집계 규칙 각주 박제
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-29T11:05:00Z
 commitMode: direct
 coversReq: [REQ-030, REQ-032, REQ-040, REQ-045]
 estimatedDiff: 22
