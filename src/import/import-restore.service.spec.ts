@@ -2,12 +2,15 @@
 // → 실패 400 단락 → atomic 실행) 의 R-112 4 종 (happy / error / 분기 / negative 충분 cover).
 // 실 DB 0 · 실 PrismaService 0 — 재료 helper 둘은 module mock, 트랜잭션 service 는 좁은 mock 으로
 // 주입해 **호출 순서 · 인스턴스 전달 · 단락 지점** 만 본다 (각 helper 내부 규칙은 각자 spec 소유).
+// T-1297 이 요약 helper 를 하나 더 감쌌으나 그것은 **실 구현을 그대로 실행하는 passthrough spy**
+// 라 집계 결과는 실측 그대로다 (mock 은 셋, 동작을 갈아끼우는 mock 은 여전히 둘).
 import { BadRequestException, ConflictException } from "@nestjs/common";
 import { ImportMode } from "@prisma/client";
 
 import type { FullExportRecord } from "../export/export-full-record";
 import { collectFullExportRecords } from "../export/export-full-record-collect";
 import type { ImportRestorePlan } from "../export/import-restore-plan";
+import { summarizeRestorePlan } from "../export/import-restore-plan-summary";
 import type { PrismaService } from "../persistence/prisma.service";
 
 import {
@@ -26,6 +29,18 @@ jest.mock("../export/export-full-record-collect", () => ({
 jest.mock("./import-restore-plan-prepare", () => ({
   prepareImportRestorePlan: jest.fn(),
 }));
+// T-1297 — 요약 helper 는 **실 구현을 그대로 실행** 하는 spy 로만 감싼다 (동작 변화 0 — 기존
+// 단언의 실측 표 MERGE_SUMMARY / EMPTY_SUMMARY 가 그대로 성립한다). 감싸는 이유는 단 둘:
+// 호출 횟수와 **반환 인스턴스 동일성** (복제 · 재계산 0) 을 preview 경로에서 관측하기 위함이다.
+jest.mock("../export/import-restore-plan-summary", () => {
+  const actual = jest.requireActual<
+    typeof import("../export/import-restore-plan-summary")
+  >("../export/import-restore-plan-summary");
+  return {
+    ...actual,
+    summarizeRestorePlan: jest.fn(actual.summarizeRestorePlan),
+  };
+});
 
 type Plan = ImportRestorePlan<FullExportRecord>;
 const collect = collectFullExportRecords as jest.MockedFunction<
@@ -33,6 +48,9 @@ const collect = collectFullExportRecords as jest.MockedFunction<
 >;
 const prepare = prepareImportRestorePlan as jest.MockedFunction<
   typeof prepareImportRestorePlan
+>;
+const summarize = summarizeRestorePlan as jest.MockedFunction<
+  typeof summarizeRestorePlan
 >;
 
 // fixture — plan / result 는 인스턴스 동일성만 보므로 내용은 최소로 둔다.
@@ -159,10 +177,13 @@ const visitedStages: ImportRestorePlanStage[] = [];
 
 // 거부 경로 공통 — resolve 되면 그 자체가 실패이므로 instanceof 를 여기서 한 번에 단언하고
 // 좁혀진 exception 을 돌려준다 (호출부마다 try/catch 를 반복하지 않기 위한 축약).
+// T-1297 — 호출 대상을 두 번째 인자로 받아 preview 경로도 같은 축약을 쓴다 (기본값은 종전 그대로).
 async function denied(
   service: ImportRestoreService,
+  invoke: (target: ImportRestoreService) => Promise<unknown> = (target) =>
+    target.restoreFromDump(BUF, ImportMode.REPLACE),
 ): Promise<BadRequestException> {
-  const caught = await service.restoreFromDump(BUF, ImportMode.REPLACE).then(
+  const caught = await invoke(service).then(
     () => undefined,
     (error: unknown) => error,
   );
@@ -433,5 +454,170 @@ describe("ImportRestoreService.restoreFromDump — plan 영향 breakdown 요약 
     expect(second.summary).toEqual(first.summary);
     // 매 호출 새 객체 — 요약을 캐시하거나 공유 상태에 쌓지 않는다.
     expect(second.summary).not.toBe(first.summary);
+  });
+});
+
+// T-1297 (실행 slice 3c-5a) — 복원을 **실행하지 않는** dry-run preview 경로. 요약 집계 규칙은
+// helper spec 이, 단락 message 규칙은 위 describe 가 소유하므로 여기서는 **restore · $transaction
+// 미개시 · 요약 인스턴스 전달 · 인자 forward · 상태 누적 0** 만 본다.
+describe("ImportRestoreService.previewFromDump", () => {
+  // preview 의 it.each 가 실제로 돌린 stage 기록 (위 실행 경로의 배열과 섞지 않는다).
+  const previewStages: ImportRestorePlanStage[] = [];
+
+  it("happy — MERGE plan 의 세 그룹 breakdown 을 실측대로 내고 restore 는 0 회다", async () => {
+    const { service, restore, planned, prisma } = makeService({
+      verdict: accept(MERGE_PLAN),
+    });
+    await expect(
+      service.previewFromDump(BUF, ImportMode.MERGE),
+    ).resolves.toEqual(MERGE_SUMMARY);
+    // dry-run 의 본질 — 실행 단계에 아예 진입하지 않는다 (DB write 0).
+    expect(restore).not.toHaveBeenCalled();
+    expect(planned).toHaveLength(0);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("happy — 빈 plan 은 total 0 + 5 entity key 가 전부 0 인 요약이다", async () => {
+    const { service, prisma, restore } = makeService();
+    const summary = await service.previewFromDump(BUF, ImportMode.REPLACE);
+    expect(summary).toEqual(EMPTY_SUMMARY);
+    expect(collect).toHaveBeenCalledTimes(1);
+    expect(collect).toHaveBeenCalledWith(prisma);
+    expect(restore).not.toHaveBeenCalled();
+  });
+
+  it("error — read 단계 reject 는 인스턴스 그대로 전파되고 prepare · restore 는 0 회다", async () => {
+    const boom = new TypeError("delegate 가 객체가 아닙니다");
+    const { service, restore } = makeService({ collectReject: boom });
+    await expect(service.previewFromDump(BUF, ImportMode.MERGE)).rejects.toBe(
+      boom,
+    );
+    expect(prepare).not.toHaveBeenCalled();
+    expect(restore).not.toHaveBeenCalled();
+  });
+
+  it("error — 요약 helper 의 TypeError 는 재랩핑 · 흡수 없이 전파되고 restore 미호출이다", async () => {
+    const { service, restore } = makeService({
+      verdict: accept({ toDelete: [], toInsert: [], toKeep: 42 } as never),
+    });
+    const caught = await service.previewFromDump(BUF, ImportMode.MERGE).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(caught).toBeInstanceOf(TypeError);
+    // 400 으로 바꿔 달지 않는다 (전파 계약).
+    expect(caught).not.toBeInstanceOf(BadRequestException);
+    expect((caught as TypeError).message).toContain("plan.toKeep");
+    expect(restore).not.toHaveBeenCalled();
+  });
+
+  it("error — 실패 verdict 는 400 으로 단락되고 restore 호출 0 이다 (DB 변경 0)", async () => {
+    const { service, restore } = makeService({
+      verdict: reject("version", ["schema version 이 호환되지 않습니다"]),
+    });
+    const error = await denied(service, (target) =>
+      target.previewFromDump(BUF, ImportMode.REPLACE),
+    );
+    expect(error.getStatus()).toBe(400);
+    expect(restore).not.toHaveBeenCalled();
+    // 요약 파생 이전에 끊겼다는 증거 — helper 자체가 불리지 않는다.
+    expect(summarize).not.toHaveBeenCalled();
+  });
+
+  // 분기 (b) — 실패 stage 6 종 전부를 preview 에서도 순회한다 (union 이 늘면 컴파일 단계에서 걸림).
+  it.each<ImportRestorePlanStage>(STAGES)(
+    "분기 — stage %s 실패는 preview 에서도 토큰과 함께 400 이 된다",
+    async (stage) => {
+      previewStages.push(stage);
+      const { service, restore } = makeService({
+        verdict: reject(stage, [`${stage} 단계 위반`]),
+      });
+      const error = await denied(service, (target) =>
+        target.previewFromDump(BUF, ImportMode.MERGE),
+      );
+      expect(error.getStatus()).toBe(400);
+      expect(error.message).toContain(`stage: ${stage}`);
+      expect(restore).not.toHaveBeenCalled();
+    },
+  );
+
+  it("negative — preview stage table 파생도 union 전체를 누락 없이 돌린다", () => {
+    expect([...previewStages].sort()).toEqual([...STAGES].sort());
+  });
+
+  // 분기 (c) — mode 두 값이 변환 · 기본값 주입 없이 3 번째 인자로 그대로 흐른다.
+  it.each<ImportMode>([ImportMode.REPLACE, ImportMode.MERGE])(
+    "분기 — mode %s 를 prepare 의 3 번째 인자로 그대로 forward 한다",
+    async (mode) => {
+      const { service } = makeService();
+      await service.previewFromDump(BUF, mode);
+      const args = prepare.mock.calls[0];
+      expect(args).toHaveLength(3);
+      expect(args[2]).toBe(mode);
+    },
+  );
+
+  it("negative — 거부 message 에 dump 원문 · fields 값 · stack 이 실리지 않는다 (REQ-032)", async () => {
+    const { service } = makeService({
+      verdict: reject("deserialize", ["dump 를 역직렬화할 수 없습니다"]),
+    });
+    const error = await denied(service, (target) =>
+      target.previewFromDump(BUF, ImportMode.REPLACE),
+    );
+    expect(error.message).not.toContain("dump-원문-비밀-payload");
+    expect(error.message).not.toContain("주민등록번호-880101");
+    expect(error.message).not.toContain("at ");
+    expect(JSON.stringify(error.getResponse())).not.toContain("880101");
+    expect((error as { cause?: unknown }).cause).toBeUndefined();
+  });
+
+  it("분기 — issues 가 빈 배열이면 꼬리 구분자 없이 stage 토큰만 담는다", async () => {
+    const { service } = makeService({ verdict: reject("plan", []) });
+    const error = await denied(service, (target) =>
+      target.previewFromDump(BUF, ImportMode.MERGE),
+    );
+    expect(error.message).toBe("import 복원 거부 (stage: plan)");
+    expect(error.message).not.toMatch(/[:;]\s*$/);
+  });
+
+  it("negative — 요약 helper 가 돌려준 인스턴스를 그대로 반환한다 (복제 · 재계산 0)", async () => {
+    const { service } = makeService({ verdict: accept(MERGE_PLAN) });
+    const summary = await service.previewFromDump(BUF, ImportMode.MERGE);
+    expect(summarize).toHaveBeenCalledTimes(1);
+    expect(summarize).toHaveBeenCalledWith(MERGE_PLAN);
+    const returned = summarize.mock.results[0];
+    expect(returned.type).toBe("return");
+    expect(summary).toBe(returned.value);
+  });
+
+  it("negative — 연속 2 회 호출해도 상태 누적 0 이고 restore 는 여전히 0 회다", async () => {
+    const { service, restore } = makeService({ verdict: accept(MERGE_PLAN) });
+    const first = await service.previewFromDump(BUF, ImportMode.MERGE);
+    const second = await service.previewFromDump(BUF, ImportMode.MERGE);
+    expect(second).toEqual(first);
+    // 캐시 0 — 매 호출 새로 읽고 새로 집계한다.
+    expect(second).not.toBe(first);
+    expect(collect).toHaveBeenCalledTimes(2);
+    expect(restore).not.toHaveBeenCalled();
+  });
+
+  it("negative — preview 직후 같은 service 로 복원하면 그때 비로소 restore 가 1 회 불린다", async () => {
+    const { service, restore, planned } = makeService({
+      verdict: accept(MERGE_PLAN),
+    });
+    const preview = await service.previewFromDump(BUF, ImportMode.MERGE);
+    const restored = await service.restoreFromDump(BUF, ImportMode.MERGE);
+    expect(restore).toHaveBeenCalledTimes(1);
+    // preview 가 plan 을 소비 · 변형하지 않았다 — 같은 인스턴스가 그대로 실행에 넘어간다.
+    expect(planned[0]).toBe(MERGE_PLAN);
+    expect(restored.summary).toEqual(preview);
+    expect(restored).toEqual({ ...RESULT, summary: MERGE_SUMMARY });
+  });
+
+  it("negative — buffer 를 복사 · slice 없이 같은 인스턴스로 prepare 에 넘긴다", async () => {
+    const { service, existing } = makeService();
+    await service.previewFromDump(BUF, ImportMode.REPLACE);
+    expect(prepare.mock.calls[0][0]).toBe(BUF);
+    expect(prepare.mock.calls[0][1]).toBe(existing);
   });
 });
