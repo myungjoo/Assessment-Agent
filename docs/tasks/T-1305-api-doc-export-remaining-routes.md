@@ -2,7 +2,8 @@
 id: T-1305
 title: api.md UC-07 표에 export 잔여 route 5 행 신설 (running · describe-scope · preview-selection · :id/status-view · :id)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-29T10:52:00Z
 commitMode: direct
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 45
