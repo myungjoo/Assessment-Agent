@@ -55,6 +55,19 @@
 // 바꾸는** 구성이 §6.2 문장을 실 사실로 박제하는 동시에, 보존이 전면 삭제로 흐르는 회귀의 그물이
 // 된다.
 //
+// T-1300 (실행 slice **3c-5c**) — 아래 **section H** 가 T-1299 이 배선한 `POST /api/admin/
+// import/preview` (복원을 **실행하지 않고** 영향 요약만 내는 dry-run) 의 계약을 실 HTTP 왕복으로
+// 닫는다. 그때까지 그 endpoint 의 증거는 controller unit + mock 경계 supertest 뿐이었고 실
+// PostgreSQL 위의 export → download → preview → 실행 왕복은 한 번도 돌지 않았다. 책임 2 가지:
+//   - **preview 수치 ↔ 실행 후 `restoreSummary` 정확 일치** — 같은 dump 를 preview 로 한 번,
+//     실행으로 한 번 올려 두 요약을 `toEqual` 로 맞춘다. preview 가 DB 를 바꿨다면 실행 시 plan
+//     이 달라져 이 단언이 깨지므로 두 계약이 한 단언에 함께 묶인다.
+//   - **DB write 0** — preview 뒤 entity row 수 무변화 + `ImportJob` row **0 건** + `ExportJob`
+//     row 는 dump 생성분 그대로임을 실 DB 조회로 확인한다. 이것이 UC-07 §5 sequence 64 행
+//     confirmation 의 "영향 범위" 가 실사용에서 신뢰 가능한 수치라는 마지막 증거다.
+// 명명 주의 — task 정의서는 새 구간을 "section G" 로 적었으나 그 이름은 T-1296 (restoreSummary
+// envelope) 이 이미 쓰고 있어 **section H** 로 이어 붙인다 (기존 A~G 는 한 줄도 수정 0).
+//
 // 실 DB 미가용 환경 (로컬 — `DATABASE_URL` 부재) 에서는 globalSetup 이 fail-fast 하며 CI 의
 // `pnpm test:e2e` step 에서만 실행된다 (다른 e2e 동일, 본 spec 만의 skip 분기 0). 파일은
 // test/jest-e2e.json 의 `testRegex` 가 자동 picking 하므로 config 변경이 없다.
@@ -102,6 +115,10 @@ const PARTIAL_GROUP_ONLY_BODY = {
 // 부분 dump 거부 경로의 sentinel — 위 두 종과 같은 형식이되 값을 분리해 경로별 누출을 구분한다.
 const PARTIAL_CORRUPT_DUMP_BODY =
   "not-json-T1293-partial-raw-must-not-be-stored";
+
+// -- section H (T-1300, preview dry-run) 전용 상수 --------------------------------------
+// whitelist 밖 form field 의 값 — DTO 에 없는 키가 400 으로 막히는지만 보므로 본문 의미는 없다.
+const PREVIEW_NON_WHITELISTED_SENTINEL = "T1300-preview-non-whitelisted";
 
 describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)", () => {
   let ctx: AuthenticatedE2EContext;
@@ -659,5 +676,181 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
       Object.keys(response.body.restoreSummary.kept.perEntity).sort(),
     ).toEqual(["Assessment", "AuditLog", "Group", "LlmConfig", "Person"]);
     expect(response.body.restoreSummary.deleted.perEntity.Assessment).toBe(0);
+  });
+
+  // -- H. preview dry-run (복원 미실행 + 영향 요약만, T-1300) ---------------------------
+  //
+  // A~G 는 전부 실행 경로 (`POST /api/admin/import`) 다. 아래는 T-1299 이 연 dry-run
+  // (`POST ${IMPORT_BASE}/preview`) 을 같은 harness 위에서 닫는다. 관측 축 2 개 — 수치 일치
+  // (preview ↔ 실행) 와 DB 무변화 (entity row · ImportJob row 0 · ExportJob row) 이며, 둘은
+  // 서로를 보강한다: preview 가 DB 를 건드렸다면 이어지는 실행의 plan 이 달라져 `toEqual` 이
+  // 깨진다. 성공 응답이 200 이 아니라 **201** 인 것은 handler 가 `@Post` 이고 `@HttpCode` 를
+  // 쓰지 않기 때문이다 (controller 계약 그대로 박제).
+
+  // uploadPreview — preview multipart 업로드 1 회. `uploadDump` 와 같은 형식이며 (mode 미지정
+  // 시 form field 자체를 보내지 않는다 — controller 의 `?? ImportMode.REPLACE` fallback 을 실제로
+  // 타게 하려면 빈 문자열도 보내면 안 된다) 목적지만 `${IMPORT_BASE}/preview` 다.
+  function uploadPreview(dump: Buffer, mode?: "REPLACE" | "MERGE") {
+    const pending = request(app.getHttpServer())
+      .post(`${IMPORT_BASE}/preview`)
+      .set("Cookie", adminCookie);
+    if (mode !== undefined) {
+      pending.field("mode", mode);
+    }
+    return pending.attach("file", dump, "dump.json");
+  }
+
+  it("preview 는 201 + 요약 3 그룹을 내고 DB 를 한 row 도 바꾸지 않으며 이어진 실행의 restoreSummary 와 정확히 일치한다 (happy)", async () => {
+    const { group } = await seedRestorableEntities();
+    const dump = await downloadDump(await createExportJob());
+    await prisma.group.delete({ where: { id: group.id } });
+    const before = await counts();
+    const exportJobsBefore = await prisma.exportJob.count();
+
+    const preview = await uploadPreview(dump, "REPLACE");
+
+    // (a) 201 + body 는 `RestorePlanSummary` **그대로** 다 — 3 그룹 각각 `{total, perEntity}` 이고
+    //     wrapper key 가 없다 (아래 toEqual 이 key 집합까지 정확히 고정한다).
+    expect(preview.status).toBe(201);
+    const breakdownShape = {
+      total: expect.any(Number),
+      perEntity: expect.any(Object),
+    };
+    expect(preview.body).toEqual({
+      deleted: breakdownShape,
+      inserted: breakdownShape,
+      kept: breakdownShape,
+    });
+    // (b) 삽입 수치는 dump 의 record 수와 정합 — 실행 **전** 에 이미 관측된다.
+    expect(preview.body.inserted.total).toBe(recordCountOf(dump));
+    // (c) REPLACE 라 남아 있던 Person 1 건이 삭제 대상으로 잡히고 보존은 0 이다.
+    expect(preview.body.deleted.perEntity.Person).toBe(1);
+    expect(preview.body.kept.total).toBe(0);
+
+    // (d) DB write 0 — entity row 수 무변화 + ImportJob row **0 건** (dry-run 이 job 을 남기지
+    //     않는다는 것이 본 slice 의 핵심 계약) + ExportJob 은 dump 생성분 그대로다.
+    expect(await counts()).toEqual(before);
+    expect(await prisma.importJob.count()).toBe(0);
+    expect(await prisma.exportJob.count()).toBe(exportJobsBefore);
+
+    // (e) 이제 **같은 dump** 를 실행하면 그 restoreSummary 가 preview body 와 정확히 같다.
+    //     preview 가 DB 를 바꿨다면 plan 이 달라져 여기서 깨진다 — 수치 일치와 DB 무변화가 한
+    //     단언에 함께 묶이는 지점이다.
+    const executed = await uploadDump(dump, "REPLACE");
+    expect(executed.status).toBe(201);
+    expect(executed.body.status).toBe("SUCCEEDED");
+    expect(executed.body.restoreSummary).toEqual(preview.body);
+  });
+
+  it("MERGE preview 도 실행 후 restoreSummary 와 일치하며 보존 수치가 0 이 아니다 (happy — mode 반영)", async () => {
+    const { dump } = await arrangeMergeFixture();
+    const before = await counts();
+
+    const preview = await uploadPreview(dump, "MERGE");
+
+    expect(preview.status).toBe(201);
+    // 보존 대상 G2 가 실행 **전** 에 kept 수치로 보인다 — MERGE 가 비충돌 기존을 지우지 않는다는
+    // 사실이 confirmation 시점에 이미 관측 가능하다는 뜻이다 (kept 가 늘 0 이면 여기서 깨진다).
+    expect(preview.body.kept.total).toBe(1);
+    expect(preview.body.kept.perEntity.Group).toBe(1);
+    expect(preview.body.inserted.total).toBe(recordCountOf(dump));
+    expect(await counts()).toEqual(before);
+    expect(await prisma.importJob.count()).toBe(0);
+
+    const executed = await uploadDump(dump, "MERGE");
+    expect(executed.status).toBe(201);
+    expect(executed.body.status).toBe("SUCCEEDED");
+    expect(executed.body.restoreSummary).toEqual(preview.body);
+  });
+
+  it("mode form field 를 생략한 preview 는 REPLACE preview 와 완전히 동일한 요약을 낸다 (branch — default mirror)", async () => {
+    const { dump } = await arrangeMergeFixture();
+
+    const implicit = await uploadPreview(dump);
+    const explicit = await uploadPreview(dump, "REPLACE");
+    const merged = await uploadPreview(dump, "MERGE");
+
+    expect(implicit.status).toBe(201);
+    // controller 의 `dto.mode ?? ImportMode.REPLACE` 가 실행 경로가 타는 schema `@default(REPLACE)`
+    // 를 실제로 mirror 한다는 **실 HTTP 증거** 다. 한쪽 default 만 바뀌면 두 경로가 조용히 어긋
+    // 나는데 (controller 주석이 지목한 drift 지점), 그때 본 단언이 깨져 그것을 잡는다.
+    expect(implicit.body).toEqual(explicit.body);
+    // 대비 — 같은 출발 상태에서 MERGE 는 다른 수치를 낸다 (보존 대상 G2 가 kept 로 잡힘). 그래서
+    // 위 일치가 "mode 를 아예 안 보는" 동어반복이 아니다.
+    expect(merged.body).not.toEqual(implicit.body);
+    expect(implicit.body.kept.total).toBe(0);
+    // preview 를 세 번 보내도 job row 는 0 이다 (반복 호출이 흔적을 남기지 않는다).
+    expect(await prisma.importJob.count()).toBe(0);
+  });
+
+  it("파싱 불가 본문을 preview 로 올리면 400 + raw 미노출 + DB 변경 0 + job row 0 (error)", async () => {
+    await seedRestorableEntities();
+    const before = await counts();
+
+    const response = await uploadPreview(
+      Buffer.from(CORRUPT_DUMP_BODY, "utf-8"),
+      "REPLACE",
+    );
+
+    // (a) 거부 verdict 는 400 이며 `$transaction` 은 애초에 열리지 않는다 (previewFromDump 계약).
+    expect(response.status).toBe(400);
+    // (b) REQ-032 — 업로드 raw 도 그 **접두 조각** 도 응답에 실리지 않는다. 실행 경로와 달리
+    //     저장될 job row 자체가 없어 누출 표면은 응답 body 하나뿐이다.
+    expect(JSON.stringify(response.body)).not.toContain(CORRUPT_DUMP_BODY);
+    expect(JSON.stringify(response.body)).not.toContain("not-json");
+    expect(response.body).not.toHaveProperty("stack");
+    // (c) 거부 요청도 DB 를 바꾸지 않고 job row 를 남기지 않는다.
+    expect(await counts()).toEqual(before);
+    expect(await prisma.importJob.count()).toBe(0);
+  });
+
+  it("파일 미첨부 preview 는 400 + DB 변경 0 + job row 0 (negative — 파일 누락)", async () => {
+    await seedRestorableEntities();
+    const before = await counts();
+
+    const response = await request(app.getHttpServer())
+      .post(`${IMPORT_BASE}/preview`)
+      .set("Cookie", adminCookie)
+      .field("mode", "REPLACE");
+
+    expect(response.status).toBe(400);
+    expect(await counts()).toEqual(before);
+    expect(await prisma.importJob.count()).toBe(0);
+  });
+
+  it("미인증 preview 는 401 이고 요약이 새지 않는다 (negative — guard 가 파일 파싱보다 먼저)", async () => {
+    await seedRestorableEntities();
+    const dump = await downloadDump(await createExportJob());
+    const before = await counts();
+
+    const response = await request(app.getHttpServer())
+      .post(`${IMPORT_BASE}/preview`)
+      .field("mode", "REPLACE")
+      .attach("file", dump, "dump.json");
+
+    // 유효한 dump 를 실어 보내도 guard 가 먼저 차단하므로 요약 필드가 응답에 없다.
+    expect(response.status).toBe(401);
+    expect(response.body).not.toHaveProperty("inserted");
+    expect(await counts()).toEqual(before);
+    expect(await prisma.importJob.count()).toBe(0);
+  });
+
+  it("DTO 에 없는 form field 를 실은 preview 는 400 (negative — forbidNonWhitelisted)", async () => {
+    await seedRestorableEntities();
+    const dump = await downloadDump(await createExportJob());
+    const before = await counts();
+
+    const response = await request(app.getHttpServer())
+      .post(`${IMPORT_BASE}/preview`)
+      .set("Cookie", adminCookie)
+      .field("mode", "REPLACE")
+      .field("rawBody", PREVIEW_NON_WHITELISTED_SENTINEL)
+      .attach("file", dump, "dump.json");
+
+    // whitelist 차단이라 dry-run 조차 시작되지 않는다 — 요약도 job row 도 생기지 않는다.
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty("inserted");
+    expect(await counts()).toEqual(before);
+    expect(await prisma.importJob.count()).toBe(0);
   });
 });
