@@ -2,7 +2,9 @@
 id: T-1308
 title: AdminView 에 import preview 러너 + 영향 범위 요약 문구 helper 신설 (배선 전 순수 slice)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1193
+completedAt: 2026-07-29T13:00:14Z
 commitMode: pr
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 200
@@ -82,3 +84,14 @@ backend 는 이미 준비돼 있다 — `POST /api/admin/import/preview` 가 **D
 - (미해결 정책, T-1287 이월) `LlmProviderConfig` 왕복 불가 — export 가 `apiKey` 를 제외하는데 schema 는 not-null. **§5 사람 결정 대상**.
 - (관측, 이월) UC-07 §8 (b)(e) Export/Import Audit log row 영속화 0 — schema migration 이라 §5 사람 결정 대상.
 - (PLAN 게이트 backlog) `web/package.json` vitest `coverageThreshold` 도입 — 새 dep 필요라 §5 승인 게이트.
+
+---
+
+## 결과 (2026-07-29 DONE)
+
+PR [#1193](https://github.com/myungjoo/Assessment-Agent/pull/1193) squash merge `3516c228` (13:00:14Z), merge 후 main CI run `30454043419` = success.
+
+- `AdminView.tsx` 에 상수 2(`ADMIN_IMPORT_PREVIEW_PATH` · `IMPORT_PREVIEW_UNKNOWN_TEXT`) + `ImportPreviewDeps` interface + 순수 러너 `runImportPreview` + 문구 helper `formatRestorePlanConfirmText` 신설, named export 추가. 기존 심볼 수정 0 (배선은 후속 slice T-1309).
+- `AdminView.test.tsx` 에 러너 6 · helper 8 = 14 케이스 추가 (falsy file · in-flight 가드 · total narrowing · parts 공집합 · mode 표기 · fallback 1:1 cover). web vitest 2045 pass, backend jest 12271 pass, lint/build green.
+- 초기 구현이 410 LOC 로 cap 초과라 spec 을 `it.each` 표 기반으로 통합하고 주석을 압축해 정확히 +300 LOC / 2 파일로 축소 — AC 가 요구한 분기·negative 케이스 누락 0.
+- reviewer round 1 APPROVE, 4-게이트(APPROVE + PR comment 외화 + integrator 자체 점검 + CI green) 전부 충족.
