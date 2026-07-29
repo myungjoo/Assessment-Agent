@@ -106,8 +106,12 @@ function buildUploadedFile(
 // 복원 영향 요약 fixture — runner 가 T-1295 부터 `{ job, summary }` 를 resolve 하므로
 // runJob mock 도 그 shape 를 흉내낸다. 집계 규칙은 `summarizeRestorePlan` 소유라 여기서는
 // 0-init 5 entity map 위에 지정분만 얹은 plain 값을 쓴다.
+// `keptOver` (T-1296) — kept 그룹의 지정분. 기본값을 종전 하드코딩 값 (`{ Person: 2 }`) 으로
+// 두어 기존 호출부는 그대로 두고, `{}` 를 넘기면 세 그룹이 전부 total 0 인 **빈 요약** 이 된다
+// (negative 케이스 전용 — 새 fixture helper 를 중복 신설하지 않기 위한 인자화).
 function buildSummaryFixture(
   over: Partial<Record<ExportEntity, number>> = {},
+  keptOver: Partial<Record<ExportEntity, number>> = { Person: 2 },
 ): RestorePlanSummary {
   const group = (
     over2: Partial<Record<ExportEntity, number>>,
@@ -128,7 +132,7 @@ function buildSummaryFixture(
   return {
     deleted: group({}),
     inserted: group(over),
-    kept: group({ Person: 2 }),
+    kept: group(keptOver),
   };
 }
 
@@ -225,19 +229,64 @@ describe("ImportController (unit)", () => {
       runnerMock.runJob.mock.invocationCallOrder[0],
     );
     // 반환은 runJob 결과의 job (status=SUCCEEDED + restoredRowCount 보존) — PENDING 아님.
-    // T-1295: runner 가 `{ job, summary }` 를 줘도 controller 는 job **인스턴스만** forward
-    // 하며 응답에 summary key 가 새로 나타나지 않는다 (외부 계약 무변화의 unit 증거).
-    expect(result).toBe(succeeded);
+    // T-1296: runner 의 `{ job, summary }` 를 job 필드 spread + `restoreSummary` 1 key 로
+    // 조립한다 (additive envelope).
+    // (a) 기존 필드는 이름·값 전부 불변 — restoreSummary 를 떼어낸 나머지가 job row 와 정확히
+    //     일치한다 (필드 삭제·개명 0 + spread 가 기존 필드를 덮어쓰지 않음).
+    const { restoreSummary, ...jobFields } = result;
+    expect(jobFields).toEqual(succeeded);
     expect(result.status).toBe("SUCCEEDED");
     expect(result.restoredRowCount).toBe(42);
+    // (b) 요약은 runner 가 준 **인스턴스 그대로** 실린다 (복제 · 재계산 · 필드 pick 0).
+    expect(restoreSummary).toBe(summary);
+    expect(restoreSummary).toEqual(summary);
+    expect(restoreSummary.inserted.total).toBe(42);
+    // restoredRowCount 를 inserted.total 로 덮어쓰지 않는다 — 두 값이 우연히 같아도 출처는
+    // 각각 job row / 요약이며 일치를 강제하는 배선이 없다.
+    expect(result.restoredRowCount).toBe(succeeded.restoredRowCount);
+    // (c) 중첩 envelope 가 아니라 spread 라는 증거 — `summary` / `job` key 는 여전히 없다.
     expect(Object.keys(result)).not.toContain("summary");
-    expect(
-      (result as unknown as { summary?: unknown }).summary,
-    ).toBeUndefined();
-    // 요약은 runner 가 만든 인스턴스 그대로 존재하지만 응답에는 실리지 않는다.
-    expect(summary.inserted.total).toBe(42);
+    expect(Object.keys(result)).not.toContain("job");
     // 실패 기록은 runner 몫 — controller 는 markFailed 를 호출하지 않는다.
     expect(serviceMock.markFailed).not.toHaveBeenCalled();
+  });
+
+  it("POST create — 세 그룹이 전부 total 0 인 빈 요약도 restoreSummary 로 그대로 실린다 (negative — undefined · {} 로 뭉개짐 0)", async () => {
+    const { serviceMock, runnerMock, controller } = buildServiceMock();
+    const succeeded = buildImportJobFixture({
+      id: "ij-empty",
+      status: "SUCCEEDED",
+      restoredRowCount: 0,
+    });
+    // 삭제·삽입·보존이 모두 0 건인 복원 (빈 dump 를 MERGE 한 경우 등) 의 요약.
+    const emptySummary = buildSummaryFixture({}, {});
+    serviceMock.createJob.mockResolvedValueOnce(
+      buildImportJobFixture({ id: "ij-empty", status: "PENDING" }),
+    );
+    runnerMock.runJob.mockResolvedValueOnce(
+      buildRunResult(succeeded, emptySummary),
+    );
+
+    const result = await controller.create(
+      buildUploadedFile(),
+      { mode: ImportMode.MERGE },
+      "admin-actor",
+    );
+
+    // 0 뿐인 요약도 falsy 취급으로 뭉개지지 않고 인스턴스 그대로 실린다.
+    expect(result.restoreSummary).toBe(emptySummary);
+    expect(result.restoreSummary).not.toEqual({});
+    expect(result.restoreSummary.deleted.total).toBe(0);
+    expect(result.restoreSummary.inserted.total).toBe(0);
+    expect(result.restoreSummary.kept.total).toBe(0);
+    // perEntity 의 0 값 key 도 5 종 전부 남는다 (0 이라고 지워지지 않음).
+    expect(Object.keys(result.restoreSummary.kept.perEntity).sort()).toEqual([
+      "Assessment",
+      "AuditLog",
+      "Group",
+      "LlmConfig",
+      "Person",
+    ]);
   });
 
   it("POST create — mode 미지정 시 createJob 엔 undefined forward, runJob 엔 job row 의 확정 mode 전달 (branch — schema @default 적용값이 source)", async () => {
@@ -274,6 +323,8 @@ describe("ImportController (unit)", () => {
     expect(runArg.mode).toBe("MERGE");
     expect(runArg.mode).not.toBeUndefined();
     expect(result.status).toBe("SUCCEEDED");
+    // 분기 (c) — mode 미지정 경로에서도 응답 envelope 는 같다 (restoreSummary 동봉, T-1296).
+    expect(result.restoreSummary.kept.perEntity.Person).toBe(2);
   });
 
   it("POST create — 파일 누락 (file undefined) 시 BadRequestException(400) 으로 거부 + createJob/runJob 미호출 (error path — ADR-0055 §Follow-up a, 수신 입구 차단)", async () => {
@@ -628,6 +679,10 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
   // 유효 body — mode 미지정 (빈 body) 도 유효 (선택 필드). 명시 시 REPLACE/MERGE.
   const VALID_BODY = { mode: "REPLACE" };
 
+  // 업로드 raw 본문 sentinel (T-1296) — 응답 envelope 가 넓어져도 업로드 원문 조각이 body 로
+  // 새지 않음 (REQ-032) 을 확인하는 고유 문자열.
+  const UPLOAD_RAW_SENTINEL = "T1296-upload-raw-must-not-be-in-body";
+
   async function buildApp(opts: {
     jwt: { canActivate: (ctx: ExecutionContext) => boolean };
     roles: { canActivate: (ctx: ExecutionContext) => boolean };
@@ -678,6 +733,7 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
         status: "PENDING",
       }),
     );
+    const summary = buildSummaryFixture({ Assessment: 12 });
     runnerMock.runJob.mockResolvedValueOnce(
       buildRunResult(
         buildImportJobFixture({
@@ -687,7 +743,7 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
           artifactRef: "dump.json",
           restoredRowCount: 12,
         }),
-        buildSummaryFixture({ Assessment: 12 }),
+        summary,
       ),
     );
 
@@ -715,11 +771,61 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     expect(res.body.id).toBe("ij-c");
     expect(res.body.status).toBe("SUCCEEDED");
     expect(res.body.restoredRowCount).toBe(12);
-    // T-1295 외부 계약 무변화 — runner 가 `{ job, summary }` 를 줘도 응답 body 에
-    // summary / restoreSummary 필드가 새로 나타나지 않는다 (envelope 확장은 다음 slice).
+    // T-1296 응답 envelope 확장 — 요약이 `restoreSummary` 한 key 로 실 HTTP body 에 실린다.
+    // 값은 runner 가 준 요약과 deep-equal (직렬화 왕복에서 수치 손실 0).
+    expect(res.body.restoreSummary).toEqual(summary);
+    // 중첩 envelope 가 아니라 spread 라는 증거 — `summary` / `job` key 는 나타나지 않는다.
     expect(res.body).not.toHaveProperty("summary");
-    expect(res.body).not.toHaveProperty("restoreSummary");
     expect(res.body).not.toHaveProperty("job");
+  });
+
+  // -- negative — 직렬화 왕복에서 perEntity 0 값 key 보존 + 기존 필드 무충돌 + raw 미포함 --
+  it("POST — restoreSummary 가 직렬화 왕복에서 0 값 perEntity key 를 보존하고 기존 job 필드와 충돌하지 않는다 (negative — 필드 누락 0 + REQ-032)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    const job = buildImportJobFixture({
+      id: "ij-sum",
+      requestedById: "admin-1",
+      mode: "MERGE",
+      status: "SUCCEEDED",
+      artifactRef: "dump.json",
+      restoredRowCount: 3,
+    });
+    serviceMock.createJob.mockResolvedValueOnce(
+      buildImportJobFixture({ id: "ij-sum", mode: "MERGE", status: "PENDING" }),
+    );
+    // deleted 는 전부 0, inserted 는 Group 3, kept 는 Person 1 — 0 값 key 가 섞인 요약.
+    const summary = buildSummaryFixture({ Group: 3 }, { Person: 1 });
+    runnerMock.runJob.mockResolvedValueOnce(buildRunResult(job, summary));
+
+    const res = await request(app.getHttpServer())
+      .post("/api/admin/import")
+      .field("mode", "MERGE")
+      .attach("file", Buffer.from(UPLOAD_RAW_SENTINEL), "dump.json")
+      .expect(201);
+
+    // (a) 0 값 entity key 가 JSON 왕복 후에도 5 종 전부 남는다 (0 이라고 누락되지 않음).
+    expect(
+      Object.keys(res.body.restoreSummary.deleted.perEntity).sort(),
+    ).toEqual(["Assessment", "AuditLog", "Group", "LlmConfig", "Person"]);
+    expect(res.body.restoreSummary.deleted.total).toBe(0);
+    expect(res.body.restoreSummary.inserted.perEntity.Group).toBe(3);
+    expect(res.body.restoreSummary.inserted.perEntity.Assessment).toBe(0);
+    expect(res.body.restoreSummary.kept.perEntity.Person).toBe(1);
+    // (b) 기존 job 필드는 mock job 값과 정확히 일치한다 (spread 충돌 · 덮어쓰기 0).
+    expect(res.body.id).toBe(job.id);
+    expect(res.body.mode).toBe("MERGE");
+    expect(res.body.status).toBe("SUCCEEDED");
+    expect(res.body.restoredRowCount).toBe(3);
+    expect(res.body.artifactRef).toBe("dump.json");
+    expect(res.body.error).toBeNull();
+    // restoredRowCount 는 inserted.total(3) 과 우연히 같아도 job row 값 그대로다 — 요약으로
+    // 덮어쓰는 배선이 없다 (의미 변경 0).
+    expect(res.body.restoreSummary.inserted.total).toBe(3);
+    // (c) REQ-032 — 업로드 raw 본문 조각이 응답 body 어디에도 실리지 않는다.
+    expect(JSON.stringify(res.body)).not.toContain(UPLOAD_RAW_SENTINEL);
   });
 
   // -- error path — 파일 누락 (multipart 이나 file 필드 없음) 시 400 + service 미호출 --
@@ -730,13 +836,15 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     });
 
     // file 첨부 없이 mode form field 만 → controller 의 file undefined 분기 → 400.
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post("/api/admin/import")
       .field("mode", "REPLACE")
       .expect(400);
 
     expect(serviceMock.createJob).not.toHaveBeenCalled();
     expect(runnerMock.runJob).not.toHaveBeenCalled();
+    // 조립 지점에 도달하지 못하므로 400 body 에 restoreSummary 가 실리지 않는다 (T-1296).
+    expect(res.body).not.toHaveProperty("restoreSummary");
   });
 
   // -- happy/branch — mode 미지정 (form field 없음) + 파일 수신 시 201 + undefined forward -
@@ -770,6 +878,8 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     // 복원은 dto 가 아닌 job row 의 확정 mode 로 실행된다.
     expect(runnerMock.runJob.mock.calls[0][0].mode).toBe("MERGE");
     expect(res.body.status).toBe("SUCCEEDED");
+    // 분기 (c) — mode 미지정 경로의 응답 shape 도 동일하다 (restoreSummary 동봉, T-1296).
+    expect(res.body.restoreSummary.kept.perEntity.Person).toBe(2);
   });
 
   // -- negative — service BadRequestException (mode invariant) → 400 (raw propagate) -
@@ -804,7 +914,7 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
       new BadRequestException("dump 형식이 올바르지 않습니다"),
     );
 
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post("/api/admin/import")
       .field("mode", "REPLACE")
       .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
@@ -812,6 +922,9 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
 
     // 실패 기록은 runner 몫 — controller 는 자체 markFailed 를 부르지 않는다.
     expect(serviceMock.markFailed).not.toHaveBeenCalled();
+    // reject 는 조립 이전에 raw propagate 되므로 요약이 실리지 않는다 (T-1296 — 실패 응답의
+    // envelope 는 종전 그대로).
+    expect(res.body).not.toHaveProperty("restoreSummary");
   });
 
   // -- error path — runJob raw Error reject → 500 표면화 (재랩핑 0) -------------------
@@ -897,13 +1010,15 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
       roles: ALLOW_ALL_ROLES,
     });
 
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post("/api/admin/import")
       .send(VALID_BODY)
       .expect(401);
 
     expect(serviceMock.createJob).not.toHaveBeenCalled();
     expect(runnerMock.runJob).not.toHaveBeenCalled();
+    // 미인증 응답에도 요약은 없다 (guard 가 조립 이전에 차단 — T-1296).
+    expect(res.body).not.toHaveProperty("restoreSummary");
   });
 
   // -- negative — 403 (RolesGuard reject — Admin+ tier 미달, User actor) ----------
@@ -913,13 +1028,15 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
       roles: { canActivate: () => false },
     });
 
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post("/api/admin/import")
       .send(VALID_BODY)
       .expect(403);
 
     expect(serviceMock.createJob).not.toHaveBeenCalled();
     expect(runnerMock.runJob).not.toHaveBeenCalled();
+    // 권한 미달 응답에도 요약은 없다 (tier 미달이 조립 이전에 차단 — T-1296).
+    expect(res.body).not.toHaveProperty("restoreSummary");
   });
 
   // -- error path — service reject (DB 장애) → 500 (raw propagate) ----------------

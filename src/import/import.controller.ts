@@ -20,7 +20,11 @@
 //     에 그대로 넘겨 markRunning → 복원 → markSucceeded 를 요청-응답 안에서 완주하고,
 //     그 반환 job (status=SUCCEEDED + restoredRowCount) 을 재가공 없이 돌려준다. 이로써
 //     T-1254 의 interim FAILED guard 는 제거됐고 ADR-0055 §Consequences 의 false-success
-//     표면은 실 복원 결과로 닫힌다.
+//     표면은 실 복원 결과로 닫힌다. **응답 envelope 확장 완료 (T-1296)** — 응답 body 는
+//     job row 의 필드 전부 + `restoreSummary` (복원 영향 요약) 한 key 로 구성된다
+//     (CreateImportResponse). 기존 필드 (`id` / `status` / `mode` / `restoredRowCount` /
+//     `artifactRef` / `error`) 는 이름·위치·값 전부 불변이고 요약만 additive 로 얹힌다 —
+//     이로써 UC-07 §5 의 "복원 row count + 영향 요약" 이 처음으로 외부 사실이 된다.
 //   - GET  /api/admin/import/running  → findRunning (RUNNING 목록, UC-07 §8 status polling).
 //   - GET  /api/admin/import/modes    → describeModes (import mode 선택 dialog 의 사람-친화
 //     설명 목록, UC-07 §5 step 2 + §6.2 — describeImportMode helper 를 REPLACE/MERGE 두
@@ -87,6 +91,7 @@ import {
   type ImportModeDescription,
 } from "../export/import-mode-description";
 import type { ImportRestoreMode } from "../export/import-restore-plan";
+import type { RestorePlanSummary } from "../export/import-restore-plan-summary";
 
 import { CreateImportDto } from "./dto/create-import.dto";
 import { ImportJobRunnerService } from "./import-job-runner.service";
@@ -115,6 +120,22 @@ const IMPORT_MODE_ENUM_TO_PAYLOAD: Record<ImportMode, ImportRestoreMode> = {
   [ImportMode.REPLACE]: "replace",
   [ImportMode.MERGE]: "merge",
 };
+
+// CreateImportResponse — POST /api/admin/import 의 응답 shape (T-1296). 마감된 job row 의
+// 필드를 그대로 펼친 위에 복원 영향 요약 (`restoreSummary`) 한 key 만 **추가** 한 additive
+// envelope 다.
+//
+// `{ job, summary }` 중첩 대신 spread 를 택한 근거: 중첩은 기존 client 와 e2e 3 종이 읽던
+// `body.status` / `body.restoredRowCount` 를 전부 `body.job.*` 로 옮기는 breaking change 라
+// 파급이 크다. spread 는 기존 필드의 이름·위치·값을 하나도 건드리지 않으므로 요약을 모르는
+// 소비자는 종전과 동일하게 동작한다 (additive 확장).
+//
+// `restoreSummary` 는 runner 가 준 인스턴스 그대로다 — 복제 · 재계산 · 필드 pick · 반올림 0.
+// `restoredRowCount` 도 job row 의 값 그대로이며 `restoreSummary.inserted.total` 로 덮어쓰거나
+// 두 값의 일치를 강제하지 않는다 (조용한 의미 변경 금지 — T-1294 / T-1295 판단 유지).
+export interface CreateImportResponse extends ImportJob {
+  restoreSummary: RestorePlanSummary;
+}
 
 @Controller("api/admin/import")
 @UsePipes(
@@ -157,8 +178,8 @@ export class ImportController {
   //       미지정 시 dto.mode 가 undefined 로 forward 되어 service 가 schema
   //       @default(REPLACE) 를 적용한다.
   //   (3) runner.runJob({ jobId, buffer, mode, artifactRef }) — markRunning → dump 복원
-  //       → markSucceeded 를 runner 가 합성하고, 그 반환 job(status=SUCCEEDED +
-  //       restoredRowCount) 을 재가공 없이 돌려준다. `artifactRef` 는 업로드 파일명
+  //       → markSucceeded 를 runner 가 합성하고, 그 반환 `{ job, summary }` 를 spread 로
+  //       조립해 돌려준다 (CreateImportResponse). `artifactRef` 는 업로드 파일명
   //       (file.originalname), `mode` 는 dto 가 아니라 **생성된 job row 의 확정값**
   //       (job.mode — schema @default 적용 후) 을 쓴다. buffer 는 복사·slice 없이 같은
   //       인스턴스로 넘긴다.
@@ -185,7 +206,7 @@ export class ImportController {
     @UploadedFile() file: UploadedDumpFile | undefined,
     @Body() dto: CreateImportDto,
     @CurrentUser("sub") actorSub: string,
-  ): Promise<ImportJob> {
+  ): Promise<CreateImportResponse> {
     if (file === undefined) {
       throw new BadRequestException(
         "dump artifact 파일(file) 업로드가 필요합니다 (multipart/form-data).",
@@ -212,13 +233,14 @@ export class ImportController {
       artifactRef: file.originalname,
     });
 
-    // runner 는 T-1295 부터 `{ job, summary }` 를 돌려주지만 여기서는 `job` **만** forward
-    // 한다 — 응답 body 는 종전과 완전히 동일하며 `summary` 는 HTTP 로 새어나가지 않는다.
-    // 응답 envelope 확장 (복원 영향 요약을 body 에 싣기 · 필드명 확정 · e2e 박제) 은 외부
-    // 계약 변경이라 다음 slice (3c-4c) 로 분리한다 — 그래야 그 변경이 e2e 와 함께 자기
-    // diff 안에서 완결되고, 본 slice 는 외부 관측 가능한 변화 0 으로 남는다 (UC-07 §5
-    // step 12 의 "영향 요약" 이 외부 사실이 되는 지점은 그 slice 다).
-    return result.job;
+    // 응답 조립 (T-1296) — runner 가 준 `{ job, summary }` 를 job 필드 spread + 요약 1 key
+    // 로 펼친다. 기존 필드는 이름·값 그대로이고 `restoreSummary` 만 additive 로 얹히므로
+    // 요약을 모르는 client 는 종전과 동일하게 동작한다 (중첩 envelope 를 택하지 않은 근거는
+    // CreateImportResponse 선언부 주석). 요약은 runner 인스턴스를 그대로 싣는다 — 복제 ·
+    // 재계산 0. runner 계약상 `summary` 는 성공 경로에서 항상 존재하므로 fallback 분기
+    // (`?? {}` · optional chaining) 를 두지 않는다 (controller 자체 분기는 파일 누락 400
+    // 하나뿐이라는 계약 유지). 이 지점이 UC-07 §5 의 "영향 요약" 이 외부 사실이 되는 곳이다.
+    return { ...result.job, restoreSummary: result.summary };
   }
 
   // GET /api/admin/import/running — 진행 중 (status=RUNNING) import job 목록
