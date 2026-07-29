@@ -2,7 +2,9 @@
 id: T-1307
 title: DataImportExportPanel 에 import 실행 전 확인 단계 추가 — 영향 범위 요약 + 실행/취소 (presentational)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1192
+completedAt: 2026-07-29T11:50:15Z
 commitMode: pr
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 160
