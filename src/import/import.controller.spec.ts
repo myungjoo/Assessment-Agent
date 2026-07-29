@@ -53,6 +53,7 @@ import request from "supertest";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import type { ExportEntity } from "../export/export-scope-select";
 import * as describeImportModeModule from "../export/import-mode-description";
 import type {
   RestorePlanGroupBreakdown,
@@ -106,26 +107,28 @@ function buildUploadedFile(
 // runJob mock 도 그 shape 를 흉내낸다. 집계 규칙은 `summarizeRestorePlan` 소유라 여기서는
 // 0-init 5 entity map 위에 지정분만 얹은 plain 값을 쓴다.
 function buildSummaryFixture(
-  over: Partial<Record<string, number>> = {},
+  over: Partial<Record<ExportEntity, number>> = {},
 ): RestorePlanSummary {
   const group = (
-    perEntity: Record<string, number>,
-  ): RestorePlanGroupBreakdown =>
-    ({
+    over2: Partial<Record<ExportEntity, number>>,
+  ): RestorePlanGroupBreakdown => {
+    const perEntity: Record<ExportEntity, number> = {
+      Assessment: 0,
+      Person: 0,
+      Group: 0,
+      LlmConfig: 0,
+      AuditLog: 0,
+      ...over2,
+    };
+    return {
       total: Object.values(perEntity).reduce((sum, n) => sum + n, 0),
       perEntity,
-    }) as RestorePlanGroupBreakdown;
-  const zero = {
-    Assessment: 0,
-    Person: 0,
-    Group: 0,
-    LlmConfig: 0,
-    AuditLog: 0,
+    };
   };
   return {
-    deleted: group({ ...zero }),
-    inserted: group({ ...zero, ...over }),
-    kept: group({ ...zero, Person: 2 }),
+    deleted: group({}),
+    inserted: group(over),
+    kept: group({ Person: 2 }),
   };
 }
 

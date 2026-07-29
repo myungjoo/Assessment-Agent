@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { ImportMode, type ImportJob } from "@prisma/client";
 
+import type { ExportEntity } from "../export/export-scope-select";
 import type {
   RestorePlanGroupBreakdown,
   RestorePlanSummary,
@@ -35,9 +36,9 @@ const FAILED = { id: JOB_ID, status: "FAILED" } as unknown as ImportJob;
 // (`summarizeRestorePlan` 산출 shape 와 동형; 본 spec 은 집계 규칙을 재검증하지 않고
 // **runner 가 그 인스턴스를 그대로 싣는지** 만 본다).
 function group(
-  over: Partial<Record<string, number>> = {},
+  over: Partial<Record<ExportEntity, number>> = {},
 ): RestorePlanGroupBreakdown {
-  const perEntity = {
+  const perEntity: Record<ExportEntity, number> = {
     Assessment: 0,
     Person: 0,
     Group: 0,
