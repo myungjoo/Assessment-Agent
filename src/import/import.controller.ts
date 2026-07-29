@@ -27,9 +27,12 @@
 //     이로써 UC-07 §5 의 "복원 row count + 영향 요약" 이 처음으로 외부 사실이 된다.
 //   - POST /api/admin/import/preview  → **복원을 실행하지 않고** 영향 요약만 반환하는
 //     dry-run (T-1299). create 와 **똑같은 업로드 수신 stack** 위에서 previewFromDump 만
-//     호출한다 — job row 0 · runner 호출 0 · DB write 0. 반환 타입이 실행 응답의
-//     `restoreSummary` 와 같아 preview ↔ 실행 수치 비교가 성립한다 (UC-07 §5 64 행
-//     confirmation 의 "영향 범위"). 실 HTTP 왕복 e2e 는 다음 slice (3c-5c).
+//     호출한다 — job row 0 · runner 호출 0 · DB write 0. **응답 envelope 확장 완료
+//     (T-1302)** — 응답 body 는 요약 3 그룹 (`deleted`/`inserted`/`kept`) + 해석된
+//     `mode` 한 key 로 구성된다 (PreviewImportResponse). 요약 수치는 실행 응답의
+//     `restoreSummary` 와 같은 타입·같은 값이라 preview ↔ 실행 비교가 그대로 성립하고
+//     (UC-07 §5 64 행 confirmation 의 "영향 범위"), client 는 그 수치가 어느 mode 기준인지를
+//     응답만으로 알 수 있다 (mode 생략 시 REPLACE 로 조용히 해석되던 것이 외부 사실이 됨).
 //   - GET  /api/admin/import/running  → findRunning (RUNNING 목록, UC-07 §8 status polling).
 //   - GET  /api/admin/import/modes    → describeModes (import mode 선택 dialog 의 사람-친화
 //     설명 목록, UC-07 §5 step 2 + §6.2 — describeImportMode helper 를 REPLACE/MERGE 두
@@ -150,6 +153,23 @@ export interface CreateImportResponse extends ImportJob {
   restoreSummary: RestorePlanSummary;
 }
 
+// PreviewImportResponse — POST /api/admin/import/preview 의 응답 shape (T-1302).
+// `RestorePlanSummary` 3 그룹을 그대로 펼친 위에 **해석된 mode** 한 key 만 추가한 additive
+// envelope 다 (key 집합은 정확히 deleted/inserted/kept/mode 4 개).
+//
+// `{ mode, summary }` 중첩 대신 spread 를 택한 근거: preview 응답은 실행 응답의
+// `restoreSummary` 와 **타입이 대응** 해야 한다 — e2e 가 두 수치를 직접 비교하고 (section H),
+// client 도 confirmation 에서 같은 reader 로 두 값을 읽는다. 중첩은 그 대응을 깨서
+// `preview.body.summary.deleted` vs `executed.body.restoreSummary.deleted` 로 경로를
+// 갈라놓는다. spread 는 요약 key 의 이름·위치·값을 하나도 건드리지 않으므로 mode 를 모르는
+// 소비자는 종전과 동일하게 동작한다 (CreateImportResponse 의 additive spread 선례 정합).
+//
+// 요약 3 그룹은 service 인스턴스에서 온 값 그대로다 — 복제 후 필드 pick · 재계산 · 반올림 ·
+// 개명 0. `mode` 가 요약 key 를 덮지 않으며 wrapper 도 추가하지 않는다.
+export interface PreviewImportResponse extends RestorePlanSummary {
+  mode: ImportMode;
+}
+
 @Controller("api/admin/import")
 @UsePipes(
   new ValidationPipe({
@@ -267,10 +287,11 @@ export class ImportController {
   // @CurrentUser 미결합 (발화자를 기록할 row 자체가 없다. 인증·RBAC 는 guard 가 강제).
   //
   // 본문 3 단계 — (1) file 이 undefined 면 400 (create 와 같은 상수 문구), (2) mode 해석
-  // (아래 REPLACE fallback 근거 참조), (3) previewFromDump(file.buffer, mode) 반환. 반환은
-  // service 인스턴스 **그대로** 다 (복제 · 재계산 · 필드 pick · wrapper 조립 0) — 실행
-  // 응답의 `restoreSummary` 와 같은 타입이어야 preview ↔ 실행 비교가 성립한다. 거부
-  // verdict 400 · read 단계 TypeError 는 **raw propagate** (재랩핑 · try/catch 0).
+  // (아래 REPLACE fallback 근거 참조), (3) previewFromDump(file.buffer, mode) 의 요약에
+  // 해석된 mode 를 얹어 반환 (T-1302). 요약 3 그룹의 **값** 은 service 가 준 그대로다
+  // (재계산 · 필드 pick · 반올림 0) — 실행 응답의 `restoreSummary` 와 같은 수치여야
+  // preview ↔ 실행 비교가 성립한다. 거부 verdict 400 · read 단계 TypeError 는 **raw
+  // propagate** (재랩핑 · try/catch 0 — echo 조립은 성공 경로에만 있다).
   @Post("preview")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("Admin")
@@ -283,7 +304,7 @@ export class ImportController {
   async preview(
     @UploadedFile() file: UploadedDumpFile | undefined,
     @Body() dto: CreateImportDto,
-  ): Promise<RestorePlanSummary> {
+  ): Promise<PreviewImportResponse> {
     if (file === undefined) {
       throw new BadRequestException(MISSING_DUMP_FILE_MESSAGE);
     }
@@ -294,9 +315,19 @@ export class ImportController {
     // preview 수치와 실행 후 수치가 **같은 mode 기준** 이 된다. 즉 본 fallback 은
     // prisma/schema.prisma 의 `enum ImportMode` default mirror 이며, schema default 가
     // 바뀌는데 여기가 안 바뀌면 두 경로가 조용히 어긋난다 (drift 지점 — 함께 고칠 것).
+    // 이 `mode` 상수 하나가 service 인자와 응답 key 양쪽의 **유일한 source** 다 (T-1302) —
+    // 아래에서 dto.mode 를 다시 참조하거나 문자열로 재조립하지 않는다. 두 곳이 각자 해석하면
+    // "요약의 기준 mode" 와 "응답이 주장하는 mode" 가 어긋날 수 있는데, 같은 변수를 쓰는 한
+    // 그 어긋남은 구조적으로 불가능하다.
     const mode = dto.mode ?? ImportMode.REPLACE;
 
-    return this.restore.previewFromDump(file.buffer, mode);
+    const summary = await this.restore.previewFromDump(file.buffer, mode);
+
+    // 응답 조립 (T-1302) — 요약 3 그룹을 펼친 뒤 해석된 mode 1 key 만 얹는다. 요약 값은
+    // 손대지 않으므로 `restoreSummary` 와의 수치 비교 계약이 그대로 유지된다 (근거는
+    // PreviewImportResponse 선언부 주석). spread 는 얕은 복사라 각 그룹 객체는 service
+    // 인스턴스를 그대로 참조한다 — 그룹 내부 재계산 0.
+    return { ...summary, mode };
   }
 
   // GET /api/admin/import/running — 진행 중 (status=RUNNING) import job 목록

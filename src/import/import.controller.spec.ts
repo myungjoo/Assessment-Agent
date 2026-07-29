@@ -591,11 +591,12 @@ describe("ImportController (unit)", () => {
   });
 
   // -----------------------------------------------------------------------
-  // preview (POST /api/admin/import/preview) — T-1299. happy / branch (mode 해석 3 종 ·
-  // 파일 누락) / error (거부 verdict · TypeError raw propagate). 모든 경로에서 createJob ·
-  // runJob 0 회 — dry-run 은 job row 도 복원 실행도 남기지 않는다 (DB write 0).
+  // preview (POST /api/admin/import/preview) — T-1299 + mode echo (T-1302). happy /
+  // branch (mode 해석 3 종 · 파일 누락) / error (거부 verdict · TypeError raw propagate).
+  // 모든 경로에서 createJob · runJob 0 회 — dry-run 은 job row 도 복원 실행도 남기지
+  // 않는다 (DB write 0).
   // -----------------------------------------------------------------------
-  it("POST preview — previewFromDump 결과 요약을 인스턴스 그대로 반환하고 buffer·mode 를 재가공 없이 forward (happy — dry-run 배선)", async () => {
+  it("POST preview — 요약 3 그룹 값 그대로 + 해석된 mode 1 key 를 반환하고 buffer·mode 를 재가공 없이 forward (happy — mode echo)", async () => {
     const { serviceMock, runnerMock, restoreMock, controller } =
       buildServiceMock();
     const summary = buildSummaryFixture({ Assessment: 7 });
@@ -604,9 +605,22 @@ describe("ImportController (unit)", () => {
 
     const result = await controller.preview(file, { mode: ImportMode.MERGE });
 
-    // 반환은 service 인스턴스 그대로 (복제 · 필드 pick · wrapper 0) + previewFromDump 1 회
-    // (buffer 는 복사 · slice 없이 동일 인스턴스) + job 생성 · 복원 실행 경로 0 회.
-    expect(result).toBe(summary);
+    // T-1302: 종전의 인스턴스 동일성 (`toBe(summary)`) 단언은 응답이 `{ ...summary, mode }`
+    // 라는 **새 객체** 가 되면서 성립하지 않는다 — 구조 동등성 + mode key 단언으로 교체한다.
+    // (a) 요약 3 그룹은 mock 이 준 값과 정확히 같다 (재계산 · 필드 pick · 반올림 0).
+    expect(result).toEqual({ ...summary, mode: ImportMode.MERGE });
+    expect(result.deleted).toEqual(summary.deleted);
+    expect(result.inserted).toEqual(summary.inserted);
+    expect(result.kept).toEqual(summary.kept);
+    // (b) key 집합은 정확히 4 개 — wrapper 신설 0, 요약 key 덮어쓰기 0.
+    expect(Object.keys(result).sort()).toEqual([
+      "deleted",
+      "inserted",
+      "kept",
+      "mode",
+    ]);
+    // previewFromDump 1 회 (buffer 는 복사 · slice 없이 동일 인스턴스) + job 생성 · 복원
+    // 실행 경로 0 회.
     expect(restoreMock.previewFromDump).toHaveBeenCalledTimes(1);
     const [bufferArg, modeArg] = restoreMock.previewFromDump.mock.calls[0];
     expect(bufferArg).toBe(file.buffer);
@@ -617,21 +631,43 @@ describe("ImportController (unit)", () => {
 
   // mode 분기 — 지정 두 종은 그대로, 미지정은 REPLACE. preview 는 job row 를 만들지 않아
   // schema @default(REPLACE) 가 적용될 자리가 없어 실행 경로와 같은 수치를 내려면 명시가 필요.
+  // T-1302: forward 인자와 응답 echo 를 **한 쌍** 으로 묶어 단언한다 — 둘이 어긋나면 fail.
   it.each([
     ["REPLACE 지정", { mode: ImportMode.REPLACE }, ImportMode.REPLACE],
     ["MERGE 지정", { mode: ImportMode.MERGE }, ImportMode.MERGE],
     ["미지정 (schema default mirror)", {}, ImportMode.REPLACE],
   ])(
-    "POST preview — dto.mode %s → %s 로 forward (branch — mode 해석)",
+    "POST preview — dto.mode %s → %s 로 forward + 같은 값을 응답에 echo (branch — mode 해석)",
     async (_label, dto, expected) => {
       const { restoreMock, controller } = buildServiceMock();
       restoreMock.previewFromDump.mockResolvedValueOnce(buildSummaryFixture());
 
-      await controller.preview(buildUploadedFile(), dto);
+      const result = await controller.preview(buildUploadedFile(), dto);
 
-      expect(restoreMock.previewFromDump.mock.calls[0][1]).toBe(expected);
+      const forwarded = restoreMock.previewFromDump.mock.calls[0][1];
+      expect(forwarded).toBe(expected);
+      expect(result.mode).toBe(expected);
+      // echo 가 forward 값과 같은 source 에서 왔다는 증거 — 별도 재해석이 있으면 여기가 깨진다.
+      expect(result.mode).toBe(forwarded);
     },
   );
+
+  it("POST preview — 요약 3 그룹이 전부 비어 있어도 mode 만 추가되고 구조가 변형되지 않는다 (negative — 경계값 빈 요약)", async () => {
+    const { restoreMock, controller } = buildServiceMock();
+    // deleted/inserted/kept 전부 total 0 + perEntity 0-init (keptOver `{}`).
+    const emptySummary = buildSummaryFixture({}, {});
+    restoreMock.previewFromDump.mockResolvedValueOnce(emptySummary);
+
+    const result = await controller.preview(buildUploadedFile(), {});
+
+    expect(result).toEqual({ ...emptySummary, mode: ImportMode.REPLACE });
+    // 0 값 entity key 도 pick·정리되지 않고 그대로 남는다 (key 누락 0).
+    expect(Object.keys(result.deleted.perEntity).sort()).toEqual(
+      Object.keys(emptySummary.deleted.perEntity).sort(),
+    );
+    expect(result.inserted.total).toBe(0);
+    expect(result.kept.total).toBe(0);
+  });
 
   it("POST preview — 파일 누락 시 BadRequestException + previewFromDump 미호출 (branch — controller 자체 분기)", async () => {
     const { serviceMock, runnerMock, restoreMock, controller } =
@@ -943,6 +979,14 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     expect(res.body.restoreSummary.inserted.total).toBe(3);
     // (c) REQ-032 — 업로드 raw 본문 조각이 응답 body 어디에도 실리지 않는다.
     expect(JSON.stringify(res.body)).not.toContain(UPLOAD_RAW_SENTINEL);
+    // (d) T-1302 회귀 방지 — preview 의 mode echo 가 실행 응답으로 새지 않는다.
+    //     `restoreSummary` 는 3 그룹뿐이며 mode 는 여전히 top-level job 필드 하나뿐이다.
+    expect(res.body.restoreSummary).not.toHaveProperty("mode");
+    expect(Object.keys(res.body.restoreSummary).sort()).toEqual([
+      "deleted",
+      "inserted",
+      "kept",
+    ]);
   });
 
   // -- error path — 파일 누락 (multipart 이나 file 필드 없음) 시 400 + service 미호출 --
@@ -1158,7 +1202,7 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
 
   // == POST /api/admin/import/preview — dry-run endpoint (T-1299) ===================
 
-  it("POST preview — Admin 통과 시 요약을 응답 body 로 그대로 반환하고 job 생성·복원 경로는 0 회 (happy — DB write 0)", async () => {
+  it("POST preview — Admin 통과 시 요약 + 해석된 mode 를 응답 body 로 반환하고 job 생성·복원 경로는 0 회 (happy — DB write 0 + mode echo)", async () => {
     app = await buildApp({
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
@@ -1172,8 +1216,11 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
       .attach("file", Buffer.from(UPLOAD_RAW_SENTINEL), "dump.json")
       .expect(201);
 
-    // 응답은 RestorePlanSummary 그대로 — wrapper (`{ mode, summary }` · job 필드) 0.
-    expect(res.body).toEqual(summary);
+    // 응답은 요약 3 그룹 + mode 1 key — 중첩 wrapper (`{ mode, summary }`) · job 필드 0
+    // (T-1302). 요약 수치는 wire 왕복 후에도 mock 값 그대로다.
+    expect(res.body).toEqual({ ...summary, mode: "MERGE" });
+    expect(res.body.mode).toBe("MERGE");
+    expect(res.body).not.toHaveProperty("summary");
     expect(res.body).not.toHaveProperty("id");
     expect(restoreMock.previewFromDump).toHaveBeenCalledTimes(1);
     expect(restoreMock.previewFromDump.mock.calls[0][1]).toBe("MERGE");
@@ -1220,6 +1267,43 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     expect(restoreMock.previewFromDump).not.toHaveBeenCalled();
   });
 
+  it("POST preview — mode 에 비유효 enum 문자열을 보내면 400 이고 그 문자열이 응답에 echo 되지 않는다 (negative — ValidationPipe 선차단, 날조 echo 0)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    const res = await request(app.getHttpServer())
+      .post("/api/admin/import/preview")
+      .field("mode", "PATCH_MODE_SENTINEL")
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
+      .expect(400);
+
+    // ValidationPipe 가 핸들러 진입 **전** 에 거부하므로 echo 조립 자체가 도달하지 않는다 —
+    // 임의 문자열이 `mode` 로 되돌아오는 표면이 없다 (T-1302).
+    expect(restoreMock.previewFromDump).not.toHaveBeenCalled();
+    expect(res.body).not.toHaveProperty("mode");
+    expect(res.body).not.toHaveProperty("inserted");
+    expect(JSON.stringify(res.body)).not.toContain("PATCH_MODE_SENTINEL");
+  });
+
+  it("POST preview — 파일 미첨부 시 400 + previewFromDump 미호출 + 응답에 mode key 0 (error path — echo 는 성공 경로에만)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    const res = await request(app.getHttpServer())
+      .post("/api/admin/import/preview")
+      .field("mode", "MERGE")
+      .expect(400);
+
+    expect(restoreMock.previewFromDump).not.toHaveBeenCalled();
+    // 요청이 mode 를 실어 보냈어도 실패 응답은 그것을 되돌려주지 않는다 (성공 경로 전용 echo).
+    expect(res.body).not.toHaveProperty("mode");
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+  });
+
   it("POST preview — 거부 verdict 400 응답 body 에 dump 원문·plan payload·stack 이 실리지 않는다 (negative — REQ-032)", async () => {
     app = await buildApp({
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
@@ -1238,6 +1322,8 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     expect(JSON.stringify(res.body)).not.toContain(UPLOAD_RAW_SENTINEL);
     expect(res.body).not.toHaveProperty("stack");
     expect(res.body).not.toHaveProperty("toDelete");
+    // reject 는 재랩핑 없이 그대로 전파되므로 echo 조립이 끼어들 자리가 없다 (T-1302).
+    expect(res.body).not.toHaveProperty("mode");
     expect(serviceMock.createJob).not.toHaveBeenCalled();
   });
 

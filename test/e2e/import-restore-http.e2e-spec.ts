@@ -709,8 +709,8 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
 
     const preview = await uploadPreview(dump, "REPLACE");
 
-    // (a) 201 + body 는 `RestorePlanSummary` **그대로** 다 — 3 그룹 각각 `{total, perEntity}` 이고
-    //     wrapper key 가 없다 (아래 toEqual 이 key 집합까지 정확히 고정한다).
+    // (a) 201 + body 는 요약 3 그룹 (각각 `{total, perEntity}`) + 해석된 `mode` 1 key 다
+    //     (T-1302). 중첩 wrapper 는 없다 — 아래 toEqual 이 key 집합까지 정확히 고정한다.
     expect(preview.status).toBe(201);
     const breakdownShape = {
       total: expect.any(Number),
@@ -720,6 +720,7 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
       deleted: breakdownShape,
       inserted: breakdownShape,
       kept: breakdownShape,
+      mode: "REPLACE",
     });
     // (b) 삽입 수치는 dump 의 record 수와 정합 — 실행 **전** 에 이미 관측된다.
     expect(preview.body.inserted.total).toBe(recordCountOf(dump));
@@ -739,7 +740,14 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
     const executed = await uploadDump(dump, "REPLACE");
     expect(executed.status).toBe(201);
     expect(executed.body.status).toBe("SUCCEEDED");
-    expect(executed.body.restoreSummary).toEqual(preview.body);
+    // T-1302: preview body 는 이제 요약 + `mode` 라 방향을 뒤집어 비교한다 — 수치 일치 계약은
+    // 그대로 유지되면서 (`restoreSummary` 전개) echo 값까지 한 단언에 고정된다. 실행 응답의
+    // `restoreSummary` 에는 mode 가 없으므로 (그쪽은 top-level job 필드) 여기 spread 가
+    // preview 의 mode 를 덮지 않는다.
+    expect(preview.body).toEqual({
+      mode: "REPLACE",
+      ...executed.body.restoreSummary,
+    });
   });
 
   it("MERGE preview 도 실행 후 restoreSummary 와 일치하며 보존 수치가 0 이 아니다 (happy — mode 반영)", async () => {
@@ -760,7 +768,13 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
     const executed = await uploadDump(dump, "MERGE");
     expect(executed.status).toBe(201);
     expect(executed.body.status).toBe("SUCCEEDED");
-    expect(executed.body.restoreSummary).toEqual(preview.body);
+    // T-1302 — REPLACE case 와 같은 뒤집힌 비교. mode 는 요청한 MERGE 가 그대로 돌아온다.
+    expect(preview.body).toEqual({
+      mode: "MERGE",
+      ...executed.body.restoreSummary,
+    });
+    // 실행 응답 쪽 요약에는 mode 가 섞이지 않는다 (echo 는 preview 응답 envelope 전용).
+    expect(executed.body.restoreSummary).not.toHaveProperty("mode");
   });
 
   it("mode form field 를 생략한 preview 는 REPLACE preview 와 완전히 동일한 요약을 낸다 (branch — default mirror)", async () => {
@@ -775,9 +789,22 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
     // 를 실제로 mirror 한다는 **실 HTTP 증거** 다. 한쪽 default 만 바뀌면 두 경로가 조용히 어긋
     // 나는데 (controller 주석이 지목한 drift 지점), 그때 본 단언이 깨져 그것을 잡는다.
     expect(implicit.body).toEqual(explicit.body);
-    // 대비 — 같은 출발 상태에서 MERGE 는 다른 수치를 낸다 (보존 대상 G2 가 kept 로 잡힘). 그래서
-    // 위 일치가 "mode 를 아예 안 보는" 동어반복이 아니다.
-    expect(merged.body).not.toEqual(implicit.body);
+    // T-1302 — 그 해석 결과가 응답에 **명시** 된다. mode 를 보내지 않은 client 도 눈앞의 수치가
+    // REPLACE (파괴적) 기준임을 body 만으로 알 수 있다는 실 HTTP 증거다.
+    expect(implicit.body.mode).toBe("REPLACE");
+    expect(explicit.body.mode).toBe("REPLACE");
+    expect(merged.body.mode).toBe("MERGE");
+    // 대비 — 같은 출발 상태에서 MERGE 는 다른 **수치** 를 낸다 (보존 대상 G2 가 kept 로 잡힘).
+    // 그래서 위 일치가 "mode 를 아예 안 보는" 동어반복이 아니다. T-1302 이후로는 mode key 만
+    // 달라도 body 전체가 불일치하므로, 대비를 mode 를 뺀 요약끼리로 좁혀 강도를 유지한다.
+    const summaryOf = (
+      body: Record<string, unknown>,
+    ): Record<string, unknown> => ({
+      deleted: body.deleted,
+      inserted: body.inserted,
+      kept: body.kept,
+    });
+    expect(summaryOf(merged.body)).not.toEqual(summaryOf(implicit.body));
     expect(implicit.body.kept.total).toBe(0);
     // preview 를 세 번 보내도 job row 는 0 이다 (반복 호출이 흔적을 남기지 않는다).
     expect(await prisma.importJob.count()).toBe(0);
