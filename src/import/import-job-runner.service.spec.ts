@@ -9,13 +9,21 @@ import {
 } from "@nestjs/common";
 import { ImportMode, type ImportJob } from "@prisma/client";
 
+import type { ExportEntity } from "../export/export-scope-select";
+import type {
+  RestorePlanGroupBreakdown,
+  RestorePlanSummary,
+} from "../export/import-restore-plan-summary";
+
 import {
   ImportJobRunnerService,
   IMPORT_RESTORE_UNEXPECTED_FAILURE_MESSAGE,
 } from "./import-job-runner.service";
 import type { ImportJobService } from "./import-job.service";
-import type { ImportRestoreTransactionResult } from "./import-restore-transaction.service";
-import type { ImportRestoreService } from "./import-restore.service";
+import type {
+  ImportRestoreResult,
+  ImportRestoreService,
+} from "./import-restore.service";
 
 const JOB_ID = "job-1";
 const ARTIFACT = "dump-2026-07-28.json";
@@ -23,10 +31,44 @@ const BUF = Buffer.from("dump-원문-비밀-payload");
 const RUNNING = { id: JOB_ID, status: "RUNNING" } as unknown as ImportJob;
 const SUCCEEDED = { id: JOB_ID, status: "SUCCEEDED" } as unknown as ImportJob;
 const FAILED = { id: JOB_ID, status: "FAILED" } as unknown as ImportJob;
-const RESULT: ImportRestoreTransactionResult = {
+
+// 요약 fixture — 5 entity 전부 key 인 perEntity map 을 0-init 후 지정분만 채운다
+// (`summarizeRestorePlan` 산출 shape 와 동형; 본 spec 은 집계 규칙을 재검증하지 않고
+// **runner 가 그 인스턴스를 그대로 싣는지** 만 본다).
+function group(
+  over: Partial<Record<ExportEntity, number>> = {},
+): RestorePlanGroupBreakdown {
+  const perEntity: Record<ExportEntity, number> = {
+    Assessment: 0,
+    Person: 0,
+    Group: 0,
+    LlmConfig: 0,
+    AuditLog: 0,
+    ...over,
+  };
+  return {
+    total: Object.values(perEntity).reduce((sum, n) => sum + n, 0),
+    perEntity,
+  };
+}
+
+// MERGE 성격 요약 — 보존 (`kept`) 이 비어있지 않고 삭제 breakdown 이 entity 별로 갈린다.
+const SUMMARY: RestorePlanSummary = {
+  deleted: group({ Person: 2, Group: 1 }),
+  inserted: group({ Assessment: 4, Person: 3 }),
+  kept: group({ Person: 5, AuditLog: 1 }),
+};
+// 세 그룹이 모두 total 0 인 빈 요약 (negative — 빈 복원도 정상 반환).
+const EMPTY_SUMMARY: RestorePlanSummary = {
+  deleted: group(),
+  inserted: group(),
+  kept: group(),
+};
+const RESULT: ImportRestoreResult = {
   outcomes: [],
   deleted: 3,
   inserted: 7,
+  summary: SUMMARY,
 };
 const RAW = { code: "P2002", message: "Unique constraint failed: (`name`)" };
 const DENIED = new BadRequestException("import 복원 거부 (stage: records)");
@@ -47,7 +89,7 @@ function makeRunner(
     restore?: Box;
     succeeded?: Box;
     failed?: Box;
-    result?: ImportRestoreTransactionResult;
+    result?: ImportRestoreResult;
   } = {},
 ) {
   const order: string[] = [];
@@ -92,7 +134,16 @@ describe("ImportJobRunnerService.runJob", () => {
     "happy — %s: 세 호출이 순서대로 각 1 회이고 markSucceeded 반환을 그대로 돌려준다",
     async (mode) => {
       const t = makeRunner();
-      expect(await run(t.service, mode)).toBe(SUCCEEDED);
+      // 반환 shape 는 `{ job, summary }` (T-1295) — job 은 markSucceeded 반환 **인스턴스
+      // 그대로**, summary 는 restoreFromDump 결과의 summary **인스턴스 그대로** 다.
+      const out = await run(t.service, mode);
+      expect(out.job).toBe(SUCCEEDED);
+      expect(out.summary).toBe(SUMMARY);
+      // MERGE 가 보존한 건수 (kept) 가 요약에 살아있다 — 지역 변수에서 사라지지 않는다.
+      expect(out.summary.kept.total).toBe(6);
+      expect(out.summary.kept.perEntity.Person).toBe(5);
+      expect(out.summary.deleted.perEntity.Group).toBe(1);
+      expect(Object.keys(out).sort()).toEqual(["job", "summary"]);
       expect(t.order).toEqual(OK_ORDER);
       expect(t.markRunning).toHaveBeenCalledTimes(1);
       expect(t.markRunning).toHaveBeenCalledWith(JOB_ID);
@@ -116,10 +167,56 @@ describe("ImportJobRunnerService.runJob", () => {
 
   it("negative — deleted 가 많아도 inserted 가 0 이면 restoredRowCount 는 0 이다", async () => {
     const t = makeRunner({
-      result: { outcomes: [], deleted: 12, inserted: 0 },
+      result: { outcomes: [], deleted: 12, inserted: 0, summary: SUMMARY },
     });
     await run(t.service);
     expect(t.markSucceeded).toHaveBeenCalledWith(JOB_ID, ARTIFACT, 0);
+  });
+
+  it("negative — restoredRowCount 는 summary.inserted.total 이 아니라 inserted 를 쓴다 (의미 변경 0)", async () => {
+    // 두 수치를 일부러 어긋나게 둔다 — 규칙이 summary 로 갈아탔다면 7 대신 7(=4+3) 이
+    // 아닌 값이 기록되므로 여기서 잡힌다.
+    const summary: RestorePlanSummary = {
+      deleted: group(),
+      inserted: group({ Assessment: 99 }),
+      kept: group(),
+    };
+    const t = makeRunner({
+      result: { outcomes: [], deleted: 0, inserted: 7, summary },
+    });
+    const out = await run(t.service);
+    expect(t.markSucceeded).toHaveBeenCalledWith(JOB_ID, ARTIFACT, 7);
+    expect(summary.inserted.total).toBe(99);
+    // 반환에는 그 어긋난 요약이 재계산 없이 그대로 실린다.
+    expect(out.summary).toBe(summary);
+  });
+
+  it("negative — 세 그룹이 모두 total 0 인 빈 요약도 그대로 반환된다 (undefined 로 뭉개지지 않음)", async () => {
+    const t = makeRunner({
+      result: { outcomes: [], deleted: 0, inserted: 0, summary: EMPTY_SUMMARY },
+    });
+    const out = await run(t.service);
+    expect(out.summary).toBe(EMPTY_SUMMARY);
+    expect(out.summary).toBeDefined();
+    expect(out.summary.deleted.total).toBe(0);
+    expect(out.summary.inserted.total).toBe(0);
+    expect(out.summary.kept.total).toBe(0);
+    expect(t.markSucceeded).toHaveBeenCalledWith(JOB_ID, ARTIFACT, 0);
+  });
+
+  it("negative — runner 는 summary 객체를 변형하지 않는다 (non-mutating)", async () => {
+    const summary: RestorePlanSummary = {
+      deleted: group({ Person: 2 }),
+      inserted: group({ Assessment: 4 }),
+      kept: group({ Group: 3 }),
+    };
+    const before = JSON.parse(JSON.stringify(summary)) as RestorePlanSummary;
+    const t = makeRunner({
+      result: { outcomes: [], deleted: 2, inserted: 4, summary },
+    });
+    const out = await run(t.service);
+    expect(summary).toEqual(before);
+    expect(out.summary).toBe(summary);
   });
 
   it("error — markRunning 전이 실패는 그대로 전파되고 이후 호출이 모두 0 이다", async () => {
