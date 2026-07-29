@@ -114,6 +114,10 @@ Import 는 두 mode 지원 (옵션 enum 만 박제): **replace mode (default)** 
 
 [UC-01](UC-01-evaluation-execution.md) 평가 파이프라인 또는 [UC-06](UC-06-evaluation-delete-reeval.md) destructive operation 진행 중 본 UC Import 호출 시 두 선택 (사용자 결정 위임, [UC-06](UC-06-evaluation-delete-reeval.md) §6.3 와 동일 정책): **(i) default — 진행 중 작업 완료 후 본 UC 실행**, **(ii) 진행 중 작업 중단 후 본 UC 실행** — conceptual level 만, 구체 cancellation protocol 은 P5 (Out of Scope). 본 UC 는 (i) default 박제.
 
+### 6.5 실행 전 preview (dry-run)
+
+§5 sequence 64 행의 강한 confirmation dialog 가 요구하는 **"영향 범위"** 를 채우는 것이 본 경로다 — Admin 이 확정을 누르기 전에 같은 dump 를 preview 로 한 번 올리면 복원이 무엇을 삭제 / 삽입 / 보존할지 entity 별 수치로 먼저 본다. 계약은 두 가지: (i) 같은 dump · 같은 mode 로 preview 가 낸 수치는 **이어진 실행 응답의 `restoreSummary` 와 정확히 일치** 하고, (ii) preview 요청은 **DB 를 한 row 도 바꾸지 않는다** — entity row 수 무변화는 물론 `ImportJob` row 도 남지 않고 (`transaction` 자체를 열지 않는다), 그래서 사용자가 취소해도 되돌릴 상태가 없다. 이 두 계약은 실 HTTP 왕복 e2e (`T-1300`) 로 박제됐다. 구체 route · 요청 multipart · 응답 shape 는 [api.md](../architecture/api.md) 의 UC-07 표를 정본으로 삼는다 (§6.1 과 같은 관례 — UC 문서에 endpoint 스펙을 복제하지 않는다). `mode` 를 지정하지 않으면 실행 경로의 default 와 같은 mode 로 해석되므로 preview 와 실행이 조용히 어긋나지 않는다.
+
 ## 7. Error flows
 
 본 UC 의 error path 는 다음 6 종.
@@ -121,7 +125,7 @@ Import 는 두 mode 지원 (옵션 enum 만 박제): **replace mode (default)** 
 - **7.1 인증 실패 ([REQ-043](../requirements.md))** — AuthModule guard 가 session / JWT 검증 실패 (만료 / 위조 / 미존재) → 401 → WebUI 가 login 페이지로 redirect. 본 UC main flow 진입 차단, DB 변경 0.
 - **7.2 권한 부족 ([REQ-044](../requirements.md), [REQ-045](../requirements.md))** — User 등급이 본 UC trigger 호출 시 AuthModule guard 가 403 + WebUI 가 "Admin 권한 필요" 안내.
 - **7.3 payload 검증 실패 ([REQ-030](../requirements.md), [REQ-032](../requirements.md))** — AssessmentModule 의 payload 검증에서 다음 중 하나 → 400 + 검증 메시지: Export 의 scope 옵션 / dateRange / entitySelector 부적합, Import 의 file schema version 부적합 (§6.3 default reject), file 크기 한계 초과, payload 무결성 hash 검증 실패. WebUI 는 form field-level error.
-- **7.4 Import file 손상** — 업로드된 file 이 본 시스템의 dump 포맷 아님 또는 partial corruption → 400 + 사용자에게 file 재확인 안내, **transaction 시작 전 reject** (DB 변경 0). schema header parse 실패 / payload 무결성 hash 불일치 / 압축 archive 해제 실패 등.
+- **7.4 Import file 손상** — 업로드된 file 이 본 시스템의 dump 포맷 아님 또는 partial corruption → 400 + 사용자에게 file 재확인 안내, **transaction 시작 전 reject** (DB 변경 0). schema header parse 실패 / payload 무결성 hash 불일치 / 압축 archive 해제 실패 등. **§6.5 preview (dry-run) 경로도 동일 정책** — 손상 dump 는 같은 400 으로 reject 되고, preview 는 애초에 `transaction` 을 열지 않으므로 DB 변경 0 이 자연 유지된다 (job row 도 남지 않는다).
 - **7.5 DB write fail (Import)** — PersistenceModule 의 connection 끊김 / timeout / transaction rollback / cascade constraint 위반 시 5xx + WebUI 의 재시도 안내. 본 UC Import 의 transaction 은 **atomic — all-or-nothing** — 기존 row 삭제와 file snapshot 재구성이 함께 rollback (부분 복원 상태 없음). 구체 transaction 로직은 P5 service layer 책임.
 - **7.6 UC-01 / UC-06 race timeout ([REQ-037](../requirements.md), §6.4)** — §6.4 (i) default 흐름에서 진행 중 작업이 비정상 timeout / hang → 본 UC 도 timeout 전파 → 5xx + WebUI 의 재시도 안내. 구체 timeout 임계값은 P5.
 
@@ -153,7 +157,7 @@ Import 는 두 mode 지원 (옵션 enum 만 박제): **replace mode (default)** 
 
 | REQ | 요약 | 본 UC 의 cover 위치 |
 | --- | --- | --- |
-| REQ-030 | Export / Import / Restore | §1 / §3 trigger 1·2 / §5 step 5·7 / §6.1 / §6.2 / §7.3 / §7.4 / §8 / §9 AssessmentModule |
+| REQ-030 | Export / Import / Restore | §1 / §3 trigger 1·2 / §5 step 5·7 / §6.1 / §6.2 / §6.5 / §7.3 / §7.4 / §8 / §9 AssessmentModule |
 | REQ-032 | Raw data 저장 금지 — 평가 결과만 보유 | §1 invariant / §5 PersistenceModule Note (Export·Import 분기 모두) / §8 (a) Export·(b) Import — 본 UC 가 raw 미저장 의 Export payload 자연 전파 + Import 자연 유지 invariant 의 박제 |
 | REQ-045 | Admin 권한 (재작성/Reset/Import/Export/인원편집/Group편집) | §2 actor / §4 precondition 2 / §5 step 5 / §7.2 — 본 UC 는 Import / Export 권한 박제 |
 | REQ-037 (인접) | 평가 없는 부분 일괄 평가 + Reset & Reeval | §5 step 11 Note conceptual reference / §8 (c) — UC-01 자동 재수집 |
