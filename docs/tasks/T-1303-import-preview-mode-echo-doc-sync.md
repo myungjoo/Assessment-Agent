@@ -2,7 +2,9 @@
 id: T-1303
 title: import preview 응답의 mode echo 를 문서 정본에 동기 (계약 slice 3c-5f)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-29T08:50:00Z
+resultCommit: 49fafc2e
 commitMode: direct
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 40
@@ -62,6 +64,10 @@ plannerNote: "doc-only enumerated-section x1.6 x inline-amend 0.4 = 약 40 LOC /
 ## Suggested Sub-agents
 
 `implementer` (doc-only — tester 미호출, R-110 면제 근거는 Acceptance Criteria 에 명시)
+
+## Result (2026-07-29)
+
+`DONE` — direct commit `49fafc2e` (main), doc-only **+2/-2 · 2 파일**. `docs/architecture/api.md` 의 preview row 응답 절을 `PreviewImportResponse` (3 그룹 수치 + `mode`) 로 교체하고 `docs/use-cases/UC-07-export-import.md` §6.5 에 계약 (iii) 을 추가해 T-1302 (PR [#1191](https://github.com/myungjoo/Assessment-Agent/pull/1191)) 가 shipped 시킨 응답 shape 와 문서 사이 drift 를 닫았다. 실행 응답 서술·`RestorePlanSummary` 정의·REQ traceability 는 0 수정. R-110/R-112 는 direct doc-only (코드 0 LOC) 로 면제, 대체 검증으로 grep 3 종 (controller 철자 일치 / 옛 문구 0 hit / 표 열 무결) 통과. main CI run 30436458337 = **success**.
 
 ## Follow-ups
 
