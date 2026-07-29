@@ -61,6 +61,7 @@ import { JwtAuthGuard } from "../../src/auth/jwt-auth.guard";
 import { RolesGuard } from "../../src/auth/roles.guard";
 import { ImportJobRunnerService } from "../../src/import/import-job-runner.service";
 import { ImportJobService } from "../../src/import/import-job.service";
+import { ImportRestoreService } from "../../src/import/import-restore.service";
 import { ImportController } from "../../src/import/import.controller";
 
 import {
@@ -123,6 +124,12 @@ describe("S2 조회 latency perf-spec — ImportController running-read 배선 (
         // ImportController 가 T-1286 에서 주입받게 된 runner — 본 perf-spec 의 조회
         // 경로는 호출하지 않으므로 DI 해석만 만족시키는 빈 mock 을 둔다 (계측 대상 불변).
         { provide: ImportJobRunnerService, useValue: { runJob: jest.fn() } },
+        // T-1299 preview 배선으로 추가된 restore 의존 — 본 조회 경로는 호출하지 않으므로
+        // DI 해석만 만족시키는 빈 mock 을 둔다 (계측 대상 불변).
+        {
+          provide: ImportRestoreService,
+          useValue: { previewFromDump: jest.fn() },
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
