@@ -62,6 +62,7 @@ import type {
 
 import { ImportJobRunnerService } from "./import-job-runner.service";
 import { ImportJobService } from "./import-job.service";
+import { ImportRestoreService } from "./import-restore.service";
 import {
   ImportController,
   MAX_IMPORT_FILE_SIZE_BYTES,
@@ -158,6 +159,7 @@ function buildServiceMock(): {
     findJob: jest.Mock;
   };
   runnerMock: { runJob: jest.Mock };
+  restoreMock: { previewFromDump: jest.Mock };
   controller: ImportController;
 } {
   const serviceMock = {
@@ -167,12 +169,17 @@ function buildServiceMock(): {
     findJob: jest.fn(),
   };
   const runnerMock = { runJob: jest.fn() };
+  // ImportRestoreService mock (T-1299) — preview 핸들러의 3 번째 의존. 기존 조립부에
+  // 최소 확장만 하고 새 harness 를 신설하지 않는다.
+  const restoreMock = { previewFromDump: jest.fn() };
   const service = serviceMock as unknown as ImportJobService;
   const runner = runnerMock as unknown as ImportJobRunnerService;
+  const restore = restoreMock as unknown as ImportRestoreService;
   return {
     serviceMock,
     runnerMock,
-    controller: new ImportController(service, runner),
+    restoreMock,
+    controller: new ImportController(service, runner, restore),
   };
 }
 
@@ -582,6 +589,85 @@ describe("ImportController (unit)", () => {
 
     expect(reasons).toEqual(["replace", "merge"]);
   });
+
+  // -----------------------------------------------------------------------
+  // preview (POST /api/admin/import/preview) — T-1299. happy / branch (mode 해석 3 종 ·
+  // 파일 누락) / error (거부 verdict · TypeError raw propagate). 모든 경로에서 createJob ·
+  // runJob 0 회 — dry-run 은 job row 도 복원 실행도 남기지 않는다 (DB write 0).
+  // -----------------------------------------------------------------------
+  it("POST preview — previewFromDump 결과 요약을 인스턴스 그대로 반환하고 buffer·mode 를 재가공 없이 forward (happy — dry-run 배선)", async () => {
+    const { serviceMock, runnerMock, restoreMock, controller } =
+      buildServiceMock();
+    const summary = buildSummaryFixture({ Assessment: 7 });
+    restoreMock.previewFromDump.mockResolvedValueOnce(summary);
+    const file = buildUploadedFile();
+
+    const result = await controller.preview(file, { mode: ImportMode.MERGE });
+
+    // 반환은 service 인스턴스 그대로 (복제 · 필드 pick · wrapper 0) + previewFromDump 1 회
+    // (buffer 는 복사 · slice 없이 동일 인스턴스) + job 생성 · 복원 실행 경로 0 회.
+    expect(result).toBe(summary);
+    expect(restoreMock.previewFromDump).toHaveBeenCalledTimes(1);
+    const [bufferArg, modeArg] = restoreMock.previewFromDump.mock.calls[0];
+    expect(bufferArg).toBe(file.buffer);
+    expect(modeArg).toBe(ImportMode.MERGE);
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+    expect(runnerMock.runJob).not.toHaveBeenCalled();
+  });
+
+  // mode 분기 — 지정 두 종은 그대로, 미지정은 REPLACE. preview 는 job row 를 만들지 않아
+  // schema @default(REPLACE) 가 적용될 자리가 없어 실행 경로와 같은 수치를 내려면 명시가 필요.
+  it.each([
+    ["REPLACE 지정", { mode: ImportMode.REPLACE }, ImportMode.REPLACE],
+    ["MERGE 지정", { mode: ImportMode.MERGE }, ImportMode.MERGE],
+    ["미지정 (schema default mirror)", {}, ImportMode.REPLACE],
+  ])(
+    "POST preview — dto.mode %s → %s 로 forward (branch — mode 해석)",
+    async (_label, dto, expected) => {
+      const { restoreMock, controller } = buildServiceMock();
+      restoreMock.previewFromDump.mockResolvedValueOnce(buildSummaryFixture());
+
+      await controller.preview(buildUploadedFile(), dto);
+
+      expect(restoreMock.previewFromDump.mock.calls[0][1]).toBe(expected);
+    },
+  );
+
+  it("POST preview — 파일 누락 시 BadRequestException + previewFromDump 미호출 (branch — controller 자체 분기)", async () => {
+    const { serviceMock, runnerMock, restoreMock, controller } =
+      buildServiceMock();
+
+    await expect(
+      controller.preview(undefined, { mode: ImportMode.REPLACE }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(restoreMock.previewFromDump).not.toHaveBeenCalled();
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+    expect(runnerMock.runJob).not.toHaveBeenCalled();
+  });
+
+  // 거부 verdict 도 read 단계 TypeError 도 인스턴스 그대로 전파 (try/catch · 재랩핑 0).
+  it.each([
+    ["BadRequestException (거부 verdict)", new BadRequestException("거부됨")],
+    [
+      "TypeError (read 단계)",
+      new TypeError("plan.toDelete 는 배열이어야 합니다"),
+    ],
+  ])(
+    "POST preview — previewFromDump 의 %s reject 를 인스턴스 그대로 전파 (error path — 재랩핑·흡수 0)",
+    async (_label, rejected) => {
+      const { serviceMock, runnerMock, restoreMock, controller } =
+        buildServiceMock();
+      restoreMock.previewFromDump.mockRejectedValueOnce(rejected);
+
+      await expect(controller.preview(buildUploadedFile(), {})).rejects.toBe(
+        rejected,
+      );
+
+      expect(serviceMock.createJob).not.toHaveBeenCalled();
+      expect(runnerMock.runJob).not.toHaveBeenCalled();
+    },
+  );
 });
 
 // -----------------------------------------------------------------------
@@ -595,6 +681,7 @@ describe("ImportController (guard/@Roles metadata)", () => {
 
   it.each([
     ["create", ImportController.prototype.create],
+    ["preview", ImportController.prototype.preview],
     ["findRunning", ImportController.prototype.findRunning],
     ["describeModes", ImportController.prototype.describeModes],
     ["findJob", ImportController.prototype.findJob],
@@ -608,6 +695,7 @@ describe("ImportController (guard/@Roles metadata)", () => {
 
   it.each([
     ["create", ImportController.prototype.create],
+    ["preview", ImportController.prototype.preview],
     ["findRunning", ImportController.prototype.findRunning],
     ["describeModes", ImportController.prototype.describeModes],
     ["findJob", ImportController.prototype.findJob],
@@ -636,6 +724,32 @@ describe("ImportController (T-1253 크기 상한 + 예외 필터 배선)", () =>
     expect(filters).toContain(MulterExceptionFilter);
   });
 
+  // T-1299 — preview 도 create 와 같은 업로드 수신 stack 을 쓰므로 413 매핑 필터와 크기 상한
+  // interceptor 가 동일 부착돼야 한다 (dry-run 이 상한 우회 경로가 되면 DoS 표면 재개방).
+  it("preview 핸들러에도 @UseFilters(MulterExceptionFilter) 부착 (413 매핑이 dry-run 에도 적용)", () => {
+    const filters = Reflect.getMetadata(
+      "__exceptionFilters__",
+      ImportController.prototype.preview,
+    ) as unknown[];
+
+    expect(filters).toContain(MulterExceptionFilter);
+  });
+
+  // FileInterceptor 는 mixin class 로 부착된다 — 부착 여부/개수만 단언하고 상한 초과의 실
+  // 413 매핑은 multer-exception.filter.spec 이 cover (상한 값은 두 핸들러가 상수 1 개 공유).
+  it.each([
+    ["create", ImportController.prototype.create],
+    ["preview", ImportController.prototype.preview],
+  ])("%s 핸들러에 FileInterceptor(크기 상한 적용) 1 개 부착", (_n, handler) => {
+    const interceptors = Reflect.getMetadata(
+      "__interceptors__",
+      handler,
+    ) as unknown[];
+
+    expect(interceptors).toHaveLength(1);
+    expect(typeof interceptors[0]).toBe("function");
+  });
+
   it("MAX_IMPORT_FILE_SIZE_BYTES 크기 상한 상수가 양의 정수로 정의됨 (DoS 표면 차단 상한 강제 — ADR-0055 §Decision 3)", () => {
     expect(Number.isInteger(MAX_IMPORT_FILE_SIZE_BYTES)).toBe(true);
     expect(MAX_IMPORT_FILE_SIZE_BYTES).toBeGreaterThan(0);
@@ -659,6 +773,7 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     findJob: jest.Mock;
   };
   let runnerMock: { runJob: jest.Mock };
+  let restoreMock: { previewFromDump: jest.Mock };
 
   // 통과 JwtAuthGuard mock — req.user 박제 + true 반환 (@CurrentUser("sub") 가 읽음).
   function makeAllowingJwtGuard(sub: string, role: string) {
@@ -694,11 +809,13 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
       findJob: jest.fn(),
     };
     runnerMock = { runJob: jest.fn() };
+    restoreMock = { previewFromDump: jest.fn() };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [ImportController],
       providers: [
         { provide: ImportJobService, useValue: serviceMock },
         { provide: ImportJobRunnerService, useValue: runnerMock },
+        { provide: ImportRestoreService, useValue: restoreMock },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -1039,6 +1156,91 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     expect(res.body).not.toHaveProperty("restoreSummary");
   });
 
+  // == POST /api/admin/import/preview — dry-run endpoint (T-1299) ===================
+
+  it("POST preview — Admin 통과 시 요약을 응답 body 로 그대로 반환하고 job 생성·복원 경로는 0 회 (happy — DB write 0)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    const summary = buildSummaryFixture({ Group: 5 }, { Person: 1 });
+    restoreMock.previewFromDump.mockResolvedValueOnce(summary);
+
+    const res = await request(app.getHttpServer())
+      .post("/api/admin/import/preview")
+      .field("mode", "MERGE")
+      .attach("file", Buffer.from(UPLOAD_RAW_SENTINEL), "dump.json")
+      .expect(201);
+
+    // 응답은 RestorePlanSummary 그대로 — wrapper (`{ mode, summary }` · job 필드) 0.
+    expect(res.body).toEqual(summary);
+    expect(res.body).not.toHaveProperty("id");
+    expect(restoreMock.previewFromDump).toHaveBeenCalledTimes(1);
+    expect(restoreMock.previewFromDump.mock.calls[0][1]).toBe("MERGE");
+    // DB write 0 — prisma 는 controller 의 provider graph 에 없으므로 (service · runner ·
+    // restore 전부 mock) controller 층 write 경로 3 곳의 0 회가 관측 가능한 증거다.
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+    expect(runnerMock.runJob).not.toHaveBeenCalled();
+    expect(serviceMock.markFailed).not.toHaveBeenCalled();
+    // REQ-032 — 업로드 raw 본문 조각이 응답 body 어디에도 실리지 않는다.
+    expect(JSON.stringify(res.body)).not.toContain(UPLOAD_RAW_SENTINEL);
+  });
+
+  it("POST preview — JwtAuthGuard reject 시 401 + previewFromDump 미호출 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/import/preview")
+      .send(VALID_BODY)
+      .expect(401);
+
+    expect(restoreMock.previewFromDump).not.toHaveBeenCalled();
+  });
+
+  it("POST preview — 정의되지 않은 extra form field 포함 시 400 + previewFromDump 미호출 (negative — forbidNonWhitelisted, REQ-032)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/import/preview")
+      .field("mode", "REPLACE")
+      .field("rawPayload", "secret-leak")
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
+      .expect(400);
+
+    expect(restoreMock.previewFromDump).not.toHaveBeenCalled();
+  });
+
+  it("POST preview — 거부 verdict 400 응답 body 에 dump 원문·plan payload·stack 이 실리지 않는다 (negative — REQ-032)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    restoreMock.previewFromDump.mockRejectedValueOnce(
+      new BadRequestException("복원 계획 준비 단계에서 거부되었습니다"),
+    );
+
+    const res = await request(app.getHttpServer())
+      .post("/api/admin/import/preview")
+      .field("mode", "REPLACE")
+      .attach("file", Buffer.from(UPLOAD_RAW_SENTINEL), "dump.json")
+      .expect(400);
+
+    expect(JSON.stringify(res.body)).not.toContain(UPLOAD_RAW_SENTINEL);
+    expect(res.body).not.toHaveProperty("stack");
+    expect(res.body).not.toHaveProperty("toDelete");
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+  });
+
   // -- error path — service reject (DB 장애) → 500 (raw propagate) ----------------
   it("POST — service reject (DB 장애) 시 500 + raw propagate (error path)", async () => {
     app = await buildApp({
@@ -1225,6 +1427,7 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
     findJob: jest.Mock;
   };
   let runnerMock: { runJob: jest.Mock };
+  let restoreMock: { previewFromDump: jest.Mock };
 
   const VALID_BODY = { mode: "REPLACE" };
 
@@ -1253,11 +1456,13 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
       findJob: jest.fn(),
     };
     runnerMock = { runJob: jest.fn() };
+    restoreMock = { previewFromDump: jest.fn() };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [ImportController],
       providers: [
         { provide: ImportJobService, useValue: serviceMock },
         { provide: ImportJobRunnerService, useValue: runnerMock },
+        { provide: ImportRestoreService, useValue: restoreMock },
         RolesGuard,
       ],
     })
@@ -1311,6 +1516,38 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
 
       expect(serviceMock.createJob).toHaveBeenCalledTimes(1);
       expect(runnerMock.runJob).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  // POST preview Admin+ tier — 파일을 실제로 첨부해도 guard 가 파일 파싱 전에 차단한다.
+  it("POST preview — User actor 는 Admin+ tier 미달 → 403 + previewFromDump 미호출 (실 RolesGuard escalation)", async () => {
+    app = await buildAppWithRealRolesGuard("User");
+
+    await request(app.getHttpServer())
+      .post("/api/admin/import/preview")
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
+      .expect(403);
+
+    expect(restoreMock.previewFromDump).not.toHaveBeenCalled();
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+  });
+
+  it.each(["Admin", "SuperAdmin"])(
+    "POST preview — %s actor 는 Admin+ tier 통과 (201, escalation hierarchy descent)",
+    async (role) => {
+      app = await buildAppWithRealRolesGuard(role);
+      restoreMock.previewFromDump.mockResolvedValueOnce(buildSummaryFixture());
+
+      await request(app.getHttpServer())
+        .post("/api/admin/import/preview")
+        .field("mode", "REPLACE")
+        .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
+        .expect(201);
+
+      // 통과해도 dry-run 이라 job 생성·복원 실행 경로는 여전히 0 회.
+      expect(restoreMock.previewFromDump).toHaveBeenCalledTimes(1);
+      expect(serviceMock.createJob).not.toHaveBeenCalled();
+      expect(runnerMock.runJob).not.toHaveBeenCalled();
     },
   );
 

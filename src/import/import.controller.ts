@@ -25,6 +25,11 @@
 //     (CreateImportResponse). 기존 필드 (`id` / `status` / `mode` / `restoredRowCount` /
 //     `artifactRef` / `error`) 는 이름·위치·값 전부 불변이고 요약만 additive 로 얹힌다 —
 //     이로써 UC-07 §5 의 "복원 row count + 영향 요약" 이 처음으로 외부 사실이 된다.
+//   - POST /api/admin/import/preview  → **복원을 실행하지 않고** 영향 요약만 반환하는
+//     dry-run (T-1299). create 와 **똑같은 업로드 수신 stack** 위에서 previewFromDump 만
+//     호출한다 — job row 0 · runner 호출 0 · DB write 0. 반환 타입이 실행 응답의
+//     `restoreSummary` 와 같아 preview ↔ 실행 수치 비교가 성립한다 (UC-07 §5 64 행
+//     confirmation 의 "영향 범위"). 실 HTTP 왕복 e2e 는 다음 slice (3c-5c).
 //   - GET  /api/admin/import/running  → findRunning (RUNNING 목록, UC-07 §8 status polling).
 //   - GET  /api/admin/import/modes    → describeModes (import mode 선택 dialog 의 사람-친화
 //     설명 목록, UC-07 §5 step 2 + §6.2 — describeImportMode helper 를 REPLACE/MERGE 두
@@ -96,6 +101,7 @@ import type { RestorePlanSummary } from "../export/import-restore-plan-summary";
 import { CreateImportDto } from "./dto/create-import.dto";
 import { ImportJobRunnerService } from "./import-job-runner.service";
 import { ImportJobService } from "./import-job.service";
+import { ImportRestoreService } from "./import-restore.service";
 import { MulterExceptionFilter } from "./multer-exception.filter";
 import type { UploadedDumpFile } from "./uploaded-dump-file";
 
@@ -110,6 +116,13 @@ import type { UploadedDumpFile } from "./uploaded-dump-file";
 // env override / 동적 config 는 본 slice 범위 밖 — 분기 있는 env parsing 도입 없이 단순
 // 상수로 둔다(배포 환경별 조정 필요 시 별도 follow-up 로 env parsing helper + spec 박제).
 export const MAX_IMPORT_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
+// MISSING_DUMP_FILE_MESSAGE — dump artifact 파일 누락 400 의 문구 (T-1299). create 와
+// preview 가 같은 업로드 수신 stack 을 쓰므로 문구도 같아야 하는데, 리터럴 사본을 두면
+// 한쪽만 고쳐지는 drift 표면이 생긴다 — 상수 1 개를 양쪽이 참조한다. 값은 create 가 종전에
+// 쓰던 문구 **그대로** 라 기존 spec · e2e 단언은 한 글자도 바뀌지 않는다.
+const MISSING_DUMP_FILE_MESSAGE =
+  "dump artifact 파일(file) 업로드가 필요합니다 (multipart/form-data).";
 
 // Prisma ImportMode enum(uppercase REPLACE/MERGE) ↔ describeImportMode helper 가
 // 요구하는 lowercase ImportRestoreMode("replace"/"merge") 매핑. prisma/schema.prisma
@@ -146,12 +159,14 @@ export interface CreateImportResponse extends ImportJob {
   }),
 )
 export class ImportController {
-  // ImportJobRunnerService 는 **값 import** 로 주입한다 (`import type` 금지 — DI
-  // 메타데이터가 소거되어 Nest 가 의존을 해석하지 못한다). 등록은 T-1285 가 이미
-  // import.module.ts 의 providers·exports 에 마쳤다.
+  // ImportJobRunnerService · ImportRestoreService 는 **값 import** 로 주입한다
+  // (`import type` 금지 — DI 메타데이터가 소거되어 Nest 가 의존을 해석하지 못한다).
+  // 등록은 T-1285 (runner) · T-1282 (restore) 가 이미 import.module.ts 의
+  // providers·exports 에 마쳤다 (본 slice 의 module 수정 0).
   constructor(
     private readonly service: ImportJobService,
     private readonly runner: ImportJobRunnerService,
+    private readonly restore: ImportRestoreService,
   ) {}
 
   // POST /api/admin/import — import job 생성 (REQ-030 Import). multipart/form-data 로
@@ -208,9 +223,7 @@ export class ImportController {
     @CurrentUser("sub") actorSub: string,
   ): Promise<CreateImportResponse> {
     if (file === undefined) {
-      throw new BadRequestException(
-        "dump artifact 파일(file) 업로드가 필요합니다 (multipart/form-data).",
-      );
+      throw new BadRequestException(MISSING_DUMP_FILE_MESSAGE);
     }
 
     // 파일 수신·크기 검증 통과 후 job record (status=PENDING) 를 생성한다. createJob 이
@@ -241,6 +254,49 @@ export class ImportController {
     // (`?? {}` · optional chaining) 를 두지 않는다 (controller 자체 분기는 파일 누락 400
     // 하나뿐이라는 계약 유지). 이 지점이 UC-07 §5 의 "영향 요약" 이 외부 사실이 되는 곳이다.
     return { ...result.job, restoreSummary: result.summary };
+  }
+
+  // POST /api/admin/import/preview — 복원을 실행하지 않고 영향 요약만 내는 dry-run
+  // (T-1299, UC-07 §5 sequence 64 행 confirmation 의 "영향 범위"). decorator stack 과
+  // 업로드 수신 계약은 create 와 **동일** 하므로 그 근거 (FileInterceptor 상한 ·
+  // MulterExceptionFilter 413 매핑 · @UploadedFile 타이핑 · Admin+ tier) 를 반복하지
+  // 않는다 — create 의 주석이 정본이다. 차이만 적는다: job row 미생성 (`createJob` 미호출
+  // — dry-run 이 ImportJob 을 남길 이유가 없다, T-1297 판단 유지) · runner 미호출
+  // (markRunning/markSucceeded 전이 0) · transaction 미개시 (previewFromDump 가
+  // `$transaction` 을 아예 열지 않는다 — UC-07 §7.4 "transaction 시작 전 reject" 와 동형) ·
+  // @CurrentUser 미결합 (발화자를 기록할 row 자체가 없다. 인증·RBAC 는 guard 가 강제).
+  //
+  // 본문 3 단계 — (1) file 이 undefined 면 400 (create 와 같은 상수 문구), (2) mode 해석
+  // (아래 REPLACE fallback 근거 참조), (3) previewFromDump(file.buffer, mode) 반환. 반환은
+  // service 인스턴스 **그대로** 다 (복제 · 재계산 · 필드 pick · wrapper 조립 0) — 실행
+  // 응답의 `restoreSummary` 와 같은 타입이어야 preview ↔ 실행 비교가 성립한다. 거부
+  // verdict 400 · read 단계 TypeError 는 **raw propagate** (재랩핑 · try/catch 0).
+  @Post("preview")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  @UseFilters(MulterExceptionFilter)
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: MAX_IMPORT_FILE_SIZE_BYTES },
+    }),
+  )
+  async preview(
+    @UploadedFile() file: UploadedDumpFile | undefined,
+    @Body() dto: CreateImportDto,
+  ): Promise<RestorePlanSummary> {
+    if (file === undefined) {
+      throw new BadRequestException(MISSING_DUMP_FILE_MESSAGE);
+    }
+
+    // mode 미지정 시 ImportMode.REPLACE 로 해석한다. create 경로는 mode 를 undefined 로
+    // forward 해 job row 생성 시 schema 의 `@default(REPLACE)` 가 적용되지만, preview 는
+    // row 를 만들지 않아 그 default 가 적용될 자리가 없다 — 여기서 같은 값을 명시해야
+    // preview 수치와 실행 후 수치가 **같은 mode 기준** 이 된다. 즉 본 fallback 은
+    // prisma/schema.prisma 의 `enum ImportMode` default mirror 이며, schema default 가
+    // 바뀌는데 여기가 안 바뀌면 두 경로가 조용히 어긋난다 (drift 지점 — 함께 고칠 것).
+    const mode = dto.mode ?? ImportMode.REPLACE;
+
+    return this.restore.previewFromDump(file.buffer, mode);
   }
 
   // GET /api/admin/import/running — 진행 중 (status=RUNNING) import job 목록
