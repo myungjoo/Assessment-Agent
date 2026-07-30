@@ -1,7 +1,7 @@
 // import-restore-result — UC-07 Import 복원 완료 결과 메시지 조립 순수 helper (T-0455,
 // P7 R-57 / REQ-030 / REQ-032 / REQ-037). T-0437 selectExportRecords → … → T-0448
 // summarizeRestorePlan → T-0453 buildRestoreConfirmation(실행 *전* 강한 confirmation) →
-// T-0454 formatAuditLogLine 다음의 게이트-free building block 이다. UC-07 §5 step 13
+// T-0454 formatAuditLogLine 다음의 게이트-free building block 이다. UC-07 §5 step 17
 // (`결과 표시 … Import: 복원 완료 + "다음 평가 진행 시 비어있는 시간 구간 자동 재수집" 안내`)
 // + §8 (a) `복원 row count + 영향 요약` 응답 + §8 (c) `UC-01 의 다음 발화가 복원된 master +
 // 비어있는 시간 구간 자동 감지 → 재수집`(REQ-037)은 Import transaction commit *이후* Admin 에게
@@ -136,7 +136,7 @@ function appendGroupLines(
 
 // buildRestoreResult — 이미 산출된 RestorePlanSummary(T-0448)와 import mode 를 받아 Import
 // transaction commit *이후* Admin 에게 보여줄 복원 완료 결과 메시지 모델을 순수 합성한다(UC-07
-// §5 step 13 + §8 (a)(c) 정합):
+// §5 step 17 (결과 표시) + §8 (a)(c) 정합):
 //   - headline — "복원 완료" + mode(replace/merge 한국어 표기) + 삭제/삽입/보존 핵심 count 한 줄.
 //   - restoredCounts — summary.deleted/inserted/kept 의 total 을 그대로 옮긴 요약 수치.
 //   - impactLines — deleted → inserted → kept 순 각 그룹 total 라인 + 0 아닌 perEntity 라인.

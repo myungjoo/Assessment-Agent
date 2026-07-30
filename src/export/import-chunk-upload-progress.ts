@@ -51,7 +51,8 @@ export interface ImportChunkUploadProgressInput {
 // (0~100 정수, expectedTotalBytes 0 이면 100), complete 는 전 chunk·전 byte 수신 여부, status 는 진행
 // taxonomy, resumeOffset 은 업로드 재개 시 다음에 받아야 할 byte offset(정렬된 수신 chunk 를 offset 0 부터
 // 끊김 없이 따라갔을 때 첫 끊김/끝 offset — 완전하면 expectedTotalBytes, 미시작이면 0), headline 은 한국어
-// 한 줄 요약이다. 후속 import controller / WebUI 업로드 진행 표시(UC-07 §5 step 13)가 그대로 사용한다.
+// 한 줄 요약이다. 후속 import controller / WebUI 업로드 진행 표시(UC-07 §5 step 17 (결과 표시 —
+// 복원 완료) 직전의 진행 안내)가 그대로 사용한다.
 // 불변: receivedBytes >= expectedTotalBytes ⟹ remainingBytes === 0, 0 <= percentComplete <= 100,
 // complete ⟺ status === "complete", receivedChunkCount === 0 ⟺ status === "not-started",
 // 0 <= resumeOffset <= expectedTotalBytes, complete ⟹ (resumeOffset === expectedTotalBytes &&

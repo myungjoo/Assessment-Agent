@@ -5,15 +5,16 @@
 // T-0442 buildImportRestorePlan(복원 plan) 다음의 자연 building block 이다. 위 6 개 단추는
 // Export 선별·조립과 Import 검증·복원 plan 까지 cover 했으나, UC-07 §8 (b) Export Audit row 와
 // §8 (e) Import Audit row — 두 분기 모두에서 의무인 "Audit log 1 row 생성(operation 종류 +
-// actor + scope/file source + row count)"(§5 step 12)은 아직 어떤 helper 도 cover 하지 않는다.
+// actor + scope/file source + row count)"(§5 step 14 (Audit log row insert))은 아직 어떤
+// helper 도 cover 하지 않는다.
 // 본 helper 는 그 audit 항목을 순수 derivation 으로 박제한다 — operation 종류(export/import) +
 // actor 식별자 + 권한 등급 + scope/source context + row count + 발생 시각(instant)을 받아
 // 직렬화 가능한 plain audit entry 객체를 조립하는 순수 함수다.
 //
-// 실 Audit log row insert / repository / Prisma / transaction / DB 호출 0 이며(UC-07 §5 step 12,
-// §8 (b)(e) 게이트된 후속 sub-slice 책임), file parse / source 의 실 hash·무결성 검증도 본
-// helper 0 이다 — source 는 식별 문자열로만 받아 박제한다. dump query / 복원 transaction 도 본
-// helper 0 — T-0438 / T-0442 가 산출한 dump·plan 을 소비만 하고 재계산하지 않는다.
+// 실 Audit log row insert / repository / Prisma / transaction / DB 호출 0 이며(UC-07 §5 step 14
+// (Audit log row insert), §8 (b)(e) 게이트된 후속 sub-slice 책임), file parse / source 의 실
+// hash·무결성 검증도 본 helper 0 이다 — source 는 식별 문자열로만 받아 박제한다. dump query / 복원
+// transaction 도 본 helper 0 — T-0438 / T-0442 가 산출한 dump·plan 을 소비만 하고 재계산하지 않는다.
 // 코드 골격은 export-dump.ts / import-restore-plan.ts 의 순수-helper 패턴(plain 결과 interface +
 // non-mutating + assertValidDate 한국어 메시지 convention + VALID set 입력 방어)을 mirror 하고,
 // 타입은 새로 신설하지 않고 export-scope-select.ts 의 ExportScope, export-dump.ts 의 ExportDump,
@@ -88,8 +89,8 @@ function assertValidDate(value: unknown, label: string): asserts value is Date {
 }
 
 // buildExportImportAuditEntry — operation(export/import) + actor + occurredAt + 분기 sub-payload 를
-// 받아 직렬화 가능한 audit entry 를 순수 derivation 으로 조립한다. UC-07 §5 step 12 / §8 (b)(e)
-// 정합:
+// 받아 직렬화 가능한 audit entry 를 순수 derivation 으로 조립한다. UC-07 §5 step 14
+// (Audit log row insert) / §8 (b)(e) 정합:
 //   - export 분기: rowCount = dump.recordCount(dump 와 동일한 ground truth 1 개 선택),
 //     detail.scope 는 dump.scope 가 아니라 입력 export.scope 박제, detail.entityCounts 는
 //     dump.entityCounts 박제.
