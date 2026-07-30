@@ -2,7 +2,9 @@
 id: T-1317
 title: UC-07 §5 step 참조 주석 sweep slice 1 — export chunk streaming 5 파일의 step 13 → step 17 이름 병기
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T11:48:55Z
+prNumber: 1198
 commitMode: pr
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 24
@@ -69,6 +71,12 @@ origin/main `e8a77f3d` 실측: `git grep -oE "§5 step [0-9]+" -- "src/export/*"
 ## Suggested Sub-agents
 
 `implementer` (11 곳 국소 주석 치환 — §5.1 표 기준 이름 병기) → `tester` (R-110 의무: `pnpm lint && pnpm build && pnpm test` + `pnpm test:cov`, 신규 spec 추가 0 이 정당한지 diff 로 확인).
+
+## Result (2026-07-30 11:48Z, DONE)
+
+pr-mode — PR [#1198](https://github.com/myungjoo/Assessment-Agent/pull/1198) squash 머지 (`8f2bb78d`), reviewer APPROVE round 1/7, 4-게이트 PASS, PR CI green. export chunk streaming 5 파일 주석 **11 곳** 을 §5.1 대응표 기준 `§5 step 17` 이름 병기로 교체 (+22/-19, 주석-only — 비주석 diff 줄 0). 병기 형태는 헤더 5 곳 `결과 표시 — 다운로드 완료`, 반복 인용 4 곳 `결과 표시`, 진행 표시 문맥 2 곳 `직전의 진행 안내` 로 갈라 의미 보존 — **기계적 +2(15) 미사용** (§5.1 판정 규약 준수). `남은 시간` · `전송 속도` 리터럴과 §8 관련 주장은 글자 그대로 유지, 재줄바꿈은 같은 주석 블록 인접 줄에 한정.
+
+검증: `step 13` grep 0 hit · `step 17` 11 hit, export-chunk 11 suite / 383 test + 전체 428 suite / 12271 test pass, line 99.95% · function 100%. 신규·변경 public symbol 0 이라 신규 spec 불요 (주석-only 선례 — 본 task 본문 `Suggested Sub-agents` 의 tester 판단 기준과 동형).
 
 ## Follow-ups
 
