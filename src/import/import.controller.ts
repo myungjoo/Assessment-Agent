@@ -78,6 +78,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   UploadedFile,
@@ -292,7 +294,16 @@ export class ImportController {
   // (재계산 · 필드 pick · 반올림 0) — 실행 응답의 `restoreSummary` 와 같은 수치여야
   // preview ↔ 실행 비교가 성립한다. 거부 verdict 400 · read 단계 TypeError 는 **raw
   // propagate** (재랩핑 · try/catch 0 — echo 조립은 성공 경로에만 있다).
+  //
+  // 성공 status — job row · transaction · DB write 가 전부 0 인 dry-run 이라 **200 OK**
+  // (`@HttpCode(HttpStatus.OK)`, T-1332). `@Post` 의 NestJS 기본값 201 Created 는 새
+  // resource 생성을 뜻하는데 여기서 생성되는 resource 는 0 이라 사실과 어긋났다. 같은
+  // UC-07 §5 step 4 confirmation 을 채우는 export preview 2 종 (T-1331) 과 **같은 계약**
+  // 이다. 예외 경로 status 는 영향 없음 — guard(401/403) · ValidationPipe(400) ·
+  // MulterExceptionFilter(413) 는 @HttpCode 보다 우선한다. create (@Post()) 는 실 job row
+  // 를 만드는 mutation 이라 201 유지 (미부착이 정답).
   @Post("preview")
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("Admin")
   @UseFilters(MulterExceptionFilter)

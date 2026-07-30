@@ -684,8 +684,9 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
   // (`POST ${IMPORT_BASE}/preview`) 을 같은 harness 위에서 닫는다. 관측 축 2 개 — 수치 일치
   // (preview ↔ 실행) 와 DB 무변화 (entity row · ImportJob row 0 · ExportJob row) 이며, 둘은
   // 서로를 보강한다: preview 가 DB 를 건드렸다면 이어지는 실행의 plan 이 달라져 `toEqual` 이
-  // 깨진다. 성공 응답이 200 이 아니라 **201** 인 것은 handler 가 `@Post` 이고 `@HttpCode` 를
-  // 쓰지 않기 때문이다 (controller 계약 그대로 박제).
+  // 깨진다. 성공 응답은 **200** 이다 (T-1332) — handler 가 `@Post` 이지만 job row · transaction ·
+  // DB write 가 전부 0 인 dry-run 이라 `@HttpCode(HttpStatus.OK)` 를 부착해 export preview 2 종
+  // (T-1331) 과 같은 계약으로 맞췄다. 반면 아래 `uploadDump` (실 실행) 는 여전히 201 이다.
 
   // uploadPreview — preview multipart 업로드 1 회. `uploadDump` 와 같은 형식이며 (mode 미지정
   // 시 form field 자체를 보내지 않는다 — controller 의 `?? ImportMode.REPLACE` fallback 을 실제로
@@ -700,7 +701,7 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
     return pending.attach("file", dump, "dump.json");
   }
 
-  it("preview 는 201 + 요약 3 그룹을 내고 DB 를 한 row 도 바꾸지 않으며 이어진 실행의 restoreSummary 와 정확히 일치한다 (happy)", async () => {
+  it("preview 는 200 (dry-run, T-1332) + 요약 3 그룹을 내고 DB 를 한 row 도 바꾸지 않으며 이어진 실행의 restoreSummary 와 정확히 일치한다 (happy)", async () => {
     const { group } = await seedRestorableEntities();
     const dump = await downloadDump(await createExportJob());
     await prisma.group.delete({ where: { id: group.id } });
@@ -709,9 +710,11 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
 
     const preview = await uploadPreview(dump, "REPLACE");
 
-    // (a) 201 + body 는 요약 3 그룹 (각각 `{total, perEntity}`) + 해석된 `mode` 1 key 다
+    // (a) 200 + body 는 요약 3 그룹 (각각 `{total, perEntity}`) + 해석된 `mode` 1 key 다
     //     (T-1302). 중첩 wrapper 는 없다 — 아래 toEqual 이 key 집합까지 정확히 고정한다.
-    expect(preview.status).toBe(201);
+    //     status 200 은 dry-run 계약의 실 HTTP 증거다 (T-1332) — 아래 (e) 의 실행 응답 201
+    //     과 한 test 안에서 대조되므로, 두 status 가 같아지는 회귀는 여기서 잡힌다.
+    expect(preview.status).toBe(200);
     const breakdownShape = {
       total: expect.any(Number),
       perEntity: expect.any(Object),
@@ -756,7 +759,8 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
 
     const preview = await uploadPreview(dump, "MERGE");
 
-    expect(preview.status).toBe(201);
+    // MERGE 분기도 같은 200 (T-1332 — 성공 status 가 mode 해석과 무관).
+    expect(preview.status).toBe(200);
     // 보존 대상 G2 가 실행 **전** 에 kept 수치로 보인다 — MERGE 가 비충돌 기존을 지우지 않는다는
     // 사실이 confirmation 시점에 이미 관측 가능하다는 뜻이다 (kept 가 늘 0 이면 여기서 깨진다).
     expect(preview.body.kept.total).toBe(1);
@@ -784,7 +788,8 @@ describe("E2E: POST /api/admin/import 업로드 → 실 복원 왕복 (T-1287)",
     const explicit = await uploadPreview(dump, "REPLACE");
     const merged = await uploadPreview(dump, "MERGE");
 
-    expect(implicit.status).toBe(201);
+    // mode 미지정 (REPLACE fallback) 분기도 200 (T-1332).
+    expect(implicit.status).toBe(200);
     // controller 의 `dto.mode ?? ImportMode.REPLACE` 가 실행 경로가 타는 schema `@default(REPLACE)`
     // 를 실제로 mirror 한다는 **실 HTTP 증거** 다. 한쪽 default 만 바뀌면 두 경로가 조용히 어긋
     // 나는데 (controller 주석이 지목한 drift 지점), 그때 본 단언이 깨져 그것을 잡는다.

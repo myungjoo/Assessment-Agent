@@ -40,6 +40,7 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  PayloadTooLargeException,
   UnauthorizedException,
   type ExecutionContext,
   type INestApplication,
@@ -1202,7 +1203,9 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
 
   // == POST /api/admin/import/preview — dry-run endpoint (T-1299) ===================
 
-  it("POST preview — Admin 통과 시 요약 + 해석된 mode 를 응답 body 로 반환하고 job 생성·복원 경로는 0 회 (happy — DB write 0 + mode echo)", async () => {
+  // 성공 status 는 200 — job row · transaction · DB write 가 0 인 dry-run 이라
+  // @HttpCode(HttpStatus.OK) 를 부착했다 (T-1332, export preview 2 종 T-1331 과 같은 계약).
+  it("POST preview — Admin 통과 시 200 + 요약 + 해석된 mode 를 응답 body 로 반환하고 job 생성·복원 경로는 0 회 (happy — dry-run 200 + DB write 0 + mode echo)", async () => {
     app = await buildApp({
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
@@ -1214,7 +1217,7 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
       .post("/api/admin/import/preview")
       .field("mode", "MERGE")
       .attach("file", Buffer.from(UPLOAD_RAW_SENTINEL), "dump.json")
-      .expect(201);
+      .expect(200);
 
     // 응답은 요약 3 그룹 + mode 1 key — 중첩 wrapper (`{ mode, summary }`) · job 필드 0
     // (T-1302). 요약 수치는 wire 왕복 후에도 mock 값 그대로다.
@@ -1231,6 +1234,83 @@ describe("ImportController (RBAC guard + ValidationPipe integration)", () => {
     expect(serviceMock.markFailed).not.toHaveBeenCalled();
     // REQ-032 — 업로드 raw 본문 조각이 응답 body 어디에도 실리지 않는다.
     expect(JSON.stringify(res.body)).not.toContain(UPLOAD_RAW_SENTINEL);
+  });
+
+  // -- branch — mode 미지정 (REPLACE fallback) 도 같은 200 (T-1332) ------------------
+  // @HttpCode 는 handler 반환 경로 전체에 걸리므로 mode 해석 분기 (지정 / 미지정) 어느
+  // 쪽으로 가도 200 이어야 한다. 위 happy 가 (a) mode 지정 (MERGE) 를 덮으므로 여기서는
+  // (b) form field 자체를 보내지 않는 fallback 분기를 실 HTTP 로 덮고, echo 값이 종전대로
+  // REPLACE 임을 함께 고정한다 (status 정합이 mode 해석을 건드리지 않았다는 증거).
+  it("POST preview — mode form field 미지정 (REPLACE fallback) 도 200 + mode echo 는 REPLACE (branch — status 가 mode 해석 분기와 무관)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    const summary = buildSummaryFixture({ Group: 2 }, {});
+    restoreMock.previewFromDump.mockResolvedValueOnce(summary);
+
+    const res = await request(app.getHttpServer())
+      .post("/api/admin/import/preview")
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
+      .expect(200);
+
+    expect(res.body).toEqual({ ...summary, mode: "REPLACE" });
+    expect(restoreMock.previewFromDump.mock.calls[0][1]).toBe("REPLACE");
+    expect(serviceMock.createJob).not.toHaveBeenCalled();
+    expect(runnerMock.runJob).not.toHaveBeenCalled();
+  });
+
+  // -- negative — 크기 상한 413 이 200 으로 오염되지 않음 (T-1332) --------------------
+  // MulterExceptionFilter 가 매핑하는 413 은 예외 경로라 @HttpCode(200) 이 덮지 않는다.
+  // 실 50 MiB 업로드는 unit 비용이 과해 (multer-exception.filter.spec 이 매핑 분기를
+  // 이미 cover) 같은 status 의 예외가 preview handler 를 통과할 때 413 그대로 나가는지를
+  // 실 HTTP 왕복으로 실증한다 — 성공 status 200 화가 예외 status 를 삼키지 않는다는 증거.
+  it("POST preview — 413 PayloadTooLargeException 은 그대로 413 (negative — @HttpCode(200) 이 예외 status 를 덮지 않음)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    restoreMock.previewFromDump.mockRejectedValueOnce(
+      new PayloadTooLargeException("업로드 파일이 허용 크기를 초과했습니다"),
+    );
+
+    const res = await request(app.getHttpServer())
+      .post("/api/admin/import/preview")
+      .field("mode", "REPLACE")
+      .attach("file", Buffer.from(UPLOAD_RAW_SENTINEL), "dump.json")
+      .expect(413);
+
+    expect(res.body).not.toHaveProperty("mode");
+    expect(JSON.stringify(res.body)).not.toContain(UPLOAD_RAW_SENTINEL);
+  });
+
+  // -- negative — 실 job 생성 경로는 여전히 201 (T-1332 회귀) -------------------------
+  // preview 만 200 으로 내렸고 create 는 ImportJob row 를 실제로 만드는 mutation 이라
+  // @Post 기본값 201 Created 가 정답이다. 두 경로가 같은 controller 에 있으므로 한쪽
+  // 부착이 다른 쪽으로 번지지 않았음을 실 HTTP status 로 고정한다.
+  it("POST /api/admin/import — 실 job 생성은 여전히 201 (negative — preview 200 화가 mutation status 로 번지지 않음)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.createJob.mockResolvedValueOnce(
+      buildImportJobFixture({ id: "ij-201", status: "PENDING" }),
+    );
+    runnerMock.runJob.mockResolvedValueOnce(
+      buildRunResult(
+        buildImportJobFixture({ id: "ij-201", status: "SUCCEEDED" }),
+        buildSummaryFixture(),
+      ),
+    );
+
+    await request(app.getHttpServer())
+      .post("/api/admin/import")
+      .field("mode", "REPLACE")
+      .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
+      .expect(201);
+
+    expect(serviceMock.createJob).toHaveBeenCalledTimes(1);
+    expect(runnerMock.runJob).toHaveBeenCalledTimes(1);
   });
 
   it("POST preview — JwtAuthGuard reject 시 401 + previewFromDump 미호출 (negative — 인증 부재)", async () => {
@@ -1619,7 +1699,7 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
   });
 
   it.each(["Admin", "SuperAdmin"])(
-    "POST preview — %s actor 는 Admin+ tier 통과 (201, escalation hierarchy descent)",
+    "POST preview — %s actor 는 Admin+ tier 통과 (200 dry-run, escalation hierarchy descent)",
     async (role) => {
       app = await buildAppWithRealRolesGuard(role);
       restoreMock.previewFromDump.mockResolvedValueOnce(buildSummaryFixture());
@@ -1628,7 +1708,8 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
         .post("/api/admin/import/preview")
         .field("mode", "REPLACE")
         .attach("file", Buffer.from("dump-artifact-bytes"), "dump.json")
-        .expect(201);
+        // T-1332 — escalation 으로 통과한 actor 도 같은 200 (성공 status 는 role 무관).
+        .expect(200);
 
       // 통과해도 dry-run 이라 job 생성·복원 실행 경로는 여전히 0 회.
       expect(restoreMock.previewFromDump).toHaveBeenCalledTimes(1);
@@ -1683,6 +1764,43 @@ describe("ImportController (real RolesGuard escalation 분기)", () => {
         .expect(200);
 
       expect(serviceMock.findJob).toHaveBeenCalledTimes(1);
+    },
+  );
+});
+
+// -----------------------------------------------------------------------
+// T-1332 — import preview dry-run 응답의 성공 status 200 정합.
+// preview 는 ImportJob row 미생성 · $transaction 미개시 · DB write 0 인 dry-run 이라
+// @Post 기본값 201 Created 가 사실과 어긋났다 (생성된 resource 0). export preview 2 종
+// (T-1331) 과 같은 계약으로 맞춘 뒤, 그 부착이 **preview 하나에만** 있고 실 job 을
+// 만드는 create 등 나머지 핸들러로 번지지 않았음을 metadata 수준에서 대조 단언한다
+// (기존 @UseFilters / @UseInterceptors 부착 단언과 같은 스타일).
+// -----------------------------------------------------------------------
+describe("ImportController (T-1332 preview dry-run 성공 status 200 정합)", () => {
+  it("preview 핸들러에 @HttpCode(200) 부착 (dry-run read-only status 계약)", () => {
+    const httpCode = Reflect.getMetadata(
+      "__httpCode__",
+      ImportController.prototype.preview,
+    ) as number | undefined;
+
+    expect(httpCode).toBe(200);
+  });
+
+  it.each([
+    ["create", ImportController.prototype.create],
+    ["findRunning", ImportController.prototype.findRunning],
+    ["describeModes", ImportController.prototype.describeModes],
+    ["findJob", ImportController.prototype.findJob],
+  ])(
+    "negative — %s 핸들러에는 @HttpCode 미부착 (기본 status 계약 불변)",
+    (_name, handler) => {
+      const httpCode = Reflect.getMetadata("__httpCode__", handler) as
+        | number
+        | undefined;
+
+      // create 는 실 ImportJob row 를 만드는 mutation 이라 @Post 기본값 201 Created 유지
+      // (회귀 방지). GET 3 종은 애초에 기본값이 200 이라 부착이 불요하다.
+      expect(httpCode).toBeUndefined();
     },
   );
 });
