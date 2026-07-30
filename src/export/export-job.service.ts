@@ -171,9 +171,9 @@ const DEFAULT_EXPORT_CHUNK_SIZE_BYTES = 1024 * 1024;
 //     recommendation)를 입력으로 "그럼 실제로 어떻게 전달할 것인가" 의 실행 plan 을 derive
 //     한다(mode('sync-download'|'async-job')/chunked/pollingRequired/statusFlow/headline/
 //     instructionLines). UC-07 §8 NFR(대량 dump 는 async job + status polling + chunked
-//     streaming) + §3 trigger 1 confirmation dialog + §5 step 13 다운로드 완료 안내가 요구하는
-//     "sync 다운로드인가 async job 인가, 어떤 단계를 거치는가" 를 처음 노출한다. helper 는
-//     sizeEstimate 만 derivation 하므로 추가 DB read 0(REQ-032 derivation-only 자연 유지).
+//     streaming) + §3 trigger 1 confirmation dialog + §5 step 17 (결과 표시 — 다운로드 완료)
+//     안내가 요구하는 "sync 다운로드인가 async job 인가, 어떤 단계를 거치는가" 를 처음 노출한다.
+//     helper 는 sizeEstimate 만 derivation 하므로 추가 DB read 0(REQ-032 derivation-only 자연 유지).
 //     append-only 확장 — 기존 5 필드는 불변(backward-compat).
 export interface ExportSelectionPreview {
   selectedCount: number;
@@ -184,25 +184,27 @@ export interface ExportSelectionPreview {
   deliveryPlan: ExportJobPlan;
   // completionResult 는 buildExportResult(T-0456) 산출 — 이미 산출된 summary 와 인자 scope 를
   // 그대로 forward 해 "이 scope 로 무엇이 export 되는가" 의 사람-친화 완료 결과(headline/
-  // exportedCounts/impactLines/scopeLine)를 derive 한다(UC-07 §5 step 13 + §8 (a) 정합).
+  // exportedCounts/impactLines/scopeLine)를 derive 한다(UC-07 §5 step 17 (결과 표시) + §8 (a) 정합).
   // helper 는 summary/scope 만 derivation 하므로 추가 DB read 0(REQ-032 derivation-only).
   // append-only 확장 — 기존 6 필드는 불변(backward-compat).
   completionResult: ExportResult;
   // chunkPlan 은 buildExportChunkPlan(T-0469) 산출 — deliveryPlan.chunked === true(대량 dump)
   // 일 때만 sizeEstimate 의 estimatedBytes 를 DEFAULT_EXPORT_CHUNK_SIZE_BYTES 단위로 분할한
   // chunk 경계 plan(totalBytes/chunkSizeBytes/chunkCount/chunks/lastChunkSizeBytes/headline)을
-  // derive 하고, chunked === false(sync 다운로드 — chunk 불요)면 null 이다(UC-07 §5 step 13 +
-  // §8 NFR chunked streaming chunk 경계 정합). helper 는 sizeEstimate + 상수만 derivation 하므로
-  // 추가 DB read 0(REQ-032 derivation-only). append-only 확장 — 기존 7 필드는 불변(backward-compat).
+  // derive 하고, chunked === false(sync 다운로드 — chunk 불요)면 null 이다(UC-07 §5 step 17
+  // (결과 표시 — 다운로드 완료) 직전의 진행 안내 + §8 NFR chunked streaming chunk 경계 정합).
+  // helper 는 sizeEstimate + 상수만 derivation 하므로 추가 DB read 0(REQ-032 derivation-only).
+  // append-only 확장 — 기존 7 필드는 불변(backward-compat).
   chunkPlan: ExportChunkPlan | null;
   // streamProgress 는 describeExportChunkStreamProgress(T-0470) 산출 — chunkPlan !== null(대량
   // dump → chunk 경계 plan 존재)일 때만 deliveredChunks=0(미시작 — preview 시점)으로 호출해
   // chunked streaming 의 초기 진행 상태(totalChunks/deliveredChunks/remainingChunks/
   // transferredBytes/totalBytes/remainingBytes/percentComplete/complete/currentChunk/
   // currentRange/headline)를 derive 하고, chunkPlan === null(sync 다운로드 — chunk 불요)이면
-  // null 이다(UC-07 §5 step 13 + §8 NFR chunked streaming progress bar / resume offset 안내
-  // 정합). helper 는 chunkPlan + 상수 0 만 derivation 하므로 추가 DB read 0(REQ-032
-  // derivation-only). append-only 확장 — 기존 8 필드는 불변(backward-compat).
+  // null 이다(UC-07 §5 step 17 (결과 표시 — 다운로드 완료) 직전의 진행 안내 + §8 NFR chunked
+  // streaming progress bar / resume offset 안내 정합). helper 는 chunkPlan + 상수 0 만
+  // derivation 하므로 추가 DB read 0(REQ-032 derivation-only). append-only 확장 — 기존 8 필드는
+  // 불변(backward-compat).
   streamProgress: ExportChunkStreamProgress | null;
 }
 
@@ -338,8 +340,8 @@ export class ExportJobService {
     // buildExportJobPlan 실호출(T-0467 helper 배선) — 위에서 산출된 sizeEstimate 를 그대로
     // forward 해 Export 다운로드 실행 plan(mode/chunked/pollingRequired/statusFlow/headline/
     // instructionLines)을 derive 한다(UC-07 §8 NFR sync 다운로드 vs async job + status polling
-    // + chunked streaming + §3 trigger 1 confirmation dialog / §5 step 13 다운로드 완료 안내
-    // 정합). chunk 임계 / poll 간격은 helper default(options 미전달 — DEFAULT_CHUNK_THRESHOLD_
+    // + chunked streaming + §3 trigger 1 confirmation dialog / §5 step 17 (결과 표시 — 다운로드 완료)
+    // 안내 정합). chunk 임계 / poll 간격은 helper default(options 미전달 — DEFAULT_CHUNK_THRESHOLD_
     // BYTES 5MB / DEFAULT_POLL_INTERVAL_SECONDS 3s)로 호출한다(정책 row · ENV 기반 동적 주입은
     // 별도 task §Follow-ups). helper 는 입력 sizeEstimate 만 derivation 하므로 추가 DB read 0
     // (REQ-032 derivation-only 자연 유지 — estimate descriptor 만 derive, raw payload 0). 입력
@@ -351,9 +353,9 @@ export class ExportJobService {
     // buildExportResult 실호출(T-0456 helper 배선) — 이미 산출된 summary(ExportSelectionSummary)
     // 와 인자로 받은 scope 를 그대로 forward 해 "이 scope 로 무엇이 실제로 export 되는가" 의
     // 사람-친화 완료 결과(headline 다운로드 완료 메시지 / exportedCounts / entity-별 impactLines /
-    // scopeLine)를 derive 한다(UC-07 §5 step 13 다운로드 완료 결과 + §8 (a) Export postcondition
-    // scope 요약·entity-별 영향·row count 정합). scope 인자는 ExportScopePayload 가 ExportScope
-    // (T-0437)의 별칭(line 48)이라 추가 변환·매핑 없이 그대로 전달 가능(buildExportResult 가
+    // scopeLine)를 derive 한다(UC-07 §5 step 17 (결과 표시 — 다운로드 완료) 결과 + §8 (a) Export
+    // postcondition scope 요약·entity-별 영향·row count 정합). scope 인자는 ExportScopePayload 가
+    // ExportScope(T-0437)의 별칭(line 48)이라 추가 변환·매핑 없이 그대로 전달 가능(buildExportResult 가
     // 기대하는 ExportScope 와 동일 타입). helper 는 입력 summary/scope 만 derivation 하므로 추가
     // DB read 0(REQ-032 derivation-only 자연 유지 — result message 만 derive, raw payload 0).
     // 입력 summary 는 항상 summarizeExportSelection 통과 산출(selected/excluded 두 그룹의 total +
@@ -363,8 +365,9 @@ export class ExportJobService {
 
     // buildExportChunkPlan 실호출(T-0469 helper 배선) — deliveryPlan.chunked === true(대량 dump)
     // 일 때만 sizeEstimate 를 DEFAULT_EXPORT_CHUNK_SIZE_BYTES 단위로 분할한 chunk 경계 plan 을
-    // derive 하고, chunked === false(sync 다운로드 — chunk 불요)면 null 로 둔다(UC-07 §5 step 13
-    // 다운로드 + §8 NFR chunked streaming chunk 경계 정합). chunkSizeBytes 는 default 상수 사용
+    // derive 하고, chunked === false(sync 다운로드 — chunk 불요)면 null 로 둔다(UC-07 §5 step 17
+    // (결과 표시 — 다운로드 완료) 직전의 진행 안내 + §8 NFR chunked streaming chunk 경계 정합).
+    // chunkSizeBytes 는 default 상수 사용
     // (정책 row · ENV 기반 동적 주입은 별도 task §Follow-ups — 직전 step T-0501 의 default 상수
     // 패턴 mirror). helper 는 입력 sizeEstimate + 상수만 derivation 하므로 추가 DB read 0
     // (REQ-032 derivation-only 자연 유지 — chunk 경계만 산술 derive, raw payload 0). 입력
@@ -378,8 +381,9 @@ export class ExportJobService {
     // describeExportChunkStreamProgress 실호출(T-0470 helper 배선) — chunkPlan !== null(대량
     // dump → chunk 경계 plan 존재)일 때만 deliveredChunks 상수 0(미시작 — preview 시점)으로
     // 호출해 chunked streaming 의 초기 진행 상태(0% · 첫 chunk 의 content-range)를 derive 하고,
-    // chunkPlan === null(sync 다운로드 — chunk 불요)이면 null 로 둔다(UC-07 §5 step 13 + §8 NFR
-    // chunked streaming progress bar / resume offset 안내 정합). deliveredChunks 는 preview 시점
+    // chunkPlan === null(sync 다운로드 — chunk 불요)이면 null 로 둔다(UC-07 §5 step 17
+    // (결과 표시 — 다운로드 완료) 직전의 진행 안내 + §8 NFR chunked streaming progress bar /
+    // resume offset 안내 정합). deliveredChunks 는 preview 시점
     // streaming 시작 전이라 상수 0(미시작 초기 view — transferredBytes 0 · percentComplete 0 ·
     // currentChunk chunks[0] · currentRange 첫 chunk content-range)으로 고정 전달하며, runtime
     // 실 전송 chunk 수 기반 동적 progress 주입은 별도 task(§Follow-ups — 실 chunked streaming
