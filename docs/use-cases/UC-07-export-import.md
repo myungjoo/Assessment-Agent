@@ -100,33 +100,7 @@ sequenceDiagram
     Note over AssessmentModule: 이후 별도 흐름 — UC-01 의 다음 cron 발화 시<br/>평가 파이프라인이 "비어있는 시간 구간" 자동 감지 → 재수집 (REQ-037)
 ```
 
-위 step 번호는 mermaid `autonumber` 가 매기는 **arrow 순번** 이라 arrow 를 하나 삽입하면 그 뒤 번호가 통째로 밀린다 (`Note over ...` 는 번호 대상 아님). 따라서 다른 문서 · 코드 주석이 본 §5 를 참조할 때는 **번호와 step 이름을 병기** 한다 — 예: `§5 step 17 (결과 표시 — 다운로드 완료)`.
-
-### 5.1 step 번호 · 이름 대응표
-
-[T-1311](../tasks/T-1311-uc07-sequence-preview-step-sync.md) 이 §6.5 Import preview 왕복 arrow 2 개를 삽입해 arrow 가 15 → 17 로 늘었고, 그 뒤 번호가 모두 +2 밀렸다. 옛 번호로 본 §5 를 참조하는 코드 주석 · 문서를 고칠 때 아래 표만 읽고 판정한다.
-
-| 현 번호 | step 이름 (화자 → 수신자 요지) | T-1311 이전 번호 |
-| --- | --- | --- |
-| 1 | Admin → WebUI: 평가 자료 관리 화면 접근 · action 선택 | 1 |
-| 2 | WebUI → BackendAPI: import preview 요청 (dry-run) | 신설 |
-| 3 | BackendAPI → WebUI: preview 영향 요약 응답 (3 그룹 + mode) | 신설 |
-| 4 | WebUI → Admin: confirmation dialog (Export scope 선택 / Import 강한 confirmation) | 2 |
-| 5 | Admin → WebUI: confirmation 응답 (확정 / 취소) | 3 |
-| 6 | WebUI → Admin: 취소 시 화면 복귀 (변경 없음) | 4 |
-| 7 | WebUI → BackendAPI: Export / Import 본 요청 | 5 |
-| 8 | BackendAPI → AuthModule: 인증 · 권한 검증 | 6 |
-| 9 | BackendAPI → AssessmentModule: exportDump / importRestore 호출 | 7 |
-| 10 | AssessmentModule → PersistenceModule: Export read-only query | 8 |
-| 11 | PersistenceModule → AssessmentModule: 대상 row 집합 반환 | 9 |
-| 12 | AssessmentModule → PersistenceModule: Import transaction (삭제 → 재구성 → commit) | 10 |
-| 13 | PersistenceModule → AssessmentModule: 복원 row count 또는 rollback error | 11 |
-| 14 | AssessmentModule → PersistenceModule: Audit log row insert | 12 |
-| 15 | AssessmentModule → BackendAPI: 결과 응답 (file stream / row count) | 13 |
-| 16 | BackendAPI → WebUI: 응답 전달 (download / JSON) | 14 |
-| 17 | WebUI → Admin: 결과 표시 (다운로드 완료 / 복원 완료 + 재수집 안내) | 15 |
-
-**판정 규약** — 옛 참조를 고칠 때 **기계적 +2 를 적용하지 말고 주석이 가리키는 의도 (step 이름) 로 판정** 한다. T-1311 이전부터 어긋난 선행 drift 가 섞여 있어서다 — 실례로 `src/export/import-restore-preview.ts` 의 `step 7 강한 confirmation` 은 실제 confirmation dialog 가 현 step 4 (옛 번호로도 7 이 아닌 2) 라 +2 규칙이 성립하지 않는다. 본 표는 코드 주석 sweep 완결 후 제거 가능한 **과도기 표** 다.
+위 step 번호는 mermaid `autonumber` 가 매기는 **arrow 순번** 이라 arrow 를 하나 삽입하면 그 뒤 번호가 통째로 밀린다 (`Note over ...` 는 번호 대상 아님). 따라서 다른 문서 · 코드 주석이 본 §5 를 참조할 때는 **번호와 step 이름을 병기** 한다 — 예: `§5 step 17 (결과 표시 — 다운로드 완료)`. 과도기였던 `§5.1 step 번호 · 이름 대응표` ([T-1316](../tasks/T-1316-uc07-step-count-and-mapping-table.md) 박제) 는 옛 번호를 쓰던 코드 주석 sweep 이 [T-1324](../tasks/T-1324-uc07-step-ref-comment-sweep-final-modes.md) 로 완결돼 소임을 다했으므로 제거했다 — 옛 번호 ↔ 현 번호 매핑이 다시 필요하면 git history 를 참조한다.
 
 step 수 17 (autonumber 기준 — 103 행 규약과 같은 기준으로 **arrow 만 계수하고 `Note over ...` 는 포함하지 않는다**). 이는 [T-0027](../tasks/T-0027-uc-07-export-import.md) 101 행의 P2 자기점검 범위 `8 이상 14 이하` 를 3 초과하는데, §6.5 Import preview 왕복 arrow 2 개를 shipped 현실에 맞춰 반영한 결과 (T-1311) 이므로 은폐하지 않고 사실로 기재한다. 본 다이어그램의 의존성 방향 (Web UI → Backend API → {AuthModule, AssessmentModule} → PersistenceModule) 은 [components.md](../architecture/components.md) + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합. UC-01 의 다음 발화에 의한 자동 재수집은 **본 UC sequence 단계가 아니라 UC-01 영역** — 마지막 Note 로만 conceptual reference ([UC-06](UC-06-evaluation-delete-reeval.md) 와 동일 패턴).
 
