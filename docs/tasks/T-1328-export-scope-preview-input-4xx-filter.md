@@ -2,7 +2,9 @@
 id: T-1328
 title: Export scope preview 2 종의 잘못된 입력을 500 → 400 으로 매핑하는 ScopeInputExceptionFilter 배선
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1206
+completedAt: 2026-07-30T17:55:12Z
 commitMode: pr
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 255
@@ -66,3 +68,10 @@ plannerNote: "T-1305 이월 결함 — describe-scope · preview-selection 의 c
 `implementer → tester`
 
 ## Follow-ups
+
+- **`docs/architecture/api.md` 132·133 행 stale 정정** — 두 endpoint 실패 status 서술이 아직 "500" 이다. planner 가 **T-1329**(direct, doc-only) 로 큐잉 완료.
+- **400 매핑의 e2e 실증 slice** — 본 task 는 filter unit + controller metadata 로만 cover 했다. HTTP 왕복 400 단언은 별도 e2e slice 로 분리 (미큐잉).
+
+## 결과 (2026-07-30 완료)
+
+`ScopeInputExceptionFilter` 신설(`HttpException` passthrough → `RangeError`/`TypeError` 400 → unknown 500) + `describeScope` · `previewSelection` 두 핸들러에만 `@UseFilters` 배선. helper throw 타입 변경 0, 새 dependency 0. +293/-7 · 4 파일(cap 이내). 신규 필터 spec 13 test + controller metadata 4 test(positive 2 / negative 2), 기존 500 단언 1 건을 400 계약으로 정정. 신규 필터 line·branch·function 100%, 전역 line 99.95% · function 100%. reviewer APPROVE round 1/7, 4-게이트 PASS, PR #1206 squash merge `a10ae22d`.
