@@ -2,7 +2,9 @@
 id: T-1320
 title: UC-07 §5 step 참조 주석 sweep slice 4 — 잔여 step 13 완결 + audit step 12 계열 5 파일 9 곳
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T13:26:06Z
+prNumber: 1201
 commitMode: pr
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 32
@@ -74,6 +76,14 @@ origin/main `3332dea5` 실측 결과 위 두 묶음이 정확히 **5 파일 9 �
 ## Suggested Sub-agents
 
 `implementer` (9 곳 국소 주석 치환 — 판정 A 5 곳 / 판정 C 4 곳, 붙어쓰기 `step13` 2 곳 + 이름 중복 병기 회피 1 곳 주의) → `tester` (R-110 의무: `pnpm lint && pnpm build && pnpm test` + `pnpm test:cov`, 신규 spec 추가 0 이 정당한지 diff 로 확인).
+
+## Result (2026-07-30 13:26Z, DONE)
+
+pr-mode — PR [#1201](https://github.com/myungjoo/Assessment-Agent/pull/1201) squash 머지 (`f385534c`), reviewer APPROVE round 1/7 (BLOCKER · MAJOR 0, MINOR 2 — 둘 다 Acceptance Criteria 준수의 결과라 변경 요구 없음), 4-게이트 PASS, PR CI green (headSha `5be00d42`). 5 파일 **9 곳** 을 [T-1316](T-1316-uc07-step-count-and-mapping-table.md) §5.1 대응표 기준으로 정정 (+16/-13, 주석-only — 비주석 diff 줄 0). 판정 A **5 곳** (붙어쓰기 `§5 step13` 2 곳 공백 정규화 포함) → `§5 step 17` + 이름 병기, 판정 C **4 곳** `§5 step 12` → `§5 step 14 (Audit log row insert)`. `import-restore-result.ts` 4 행은 다음 줄에 step 이름이 이미 인용돼 있어 **번호만** 교체했고, `import-chunk-upload-progress.ts` 54 행은 `직전의 진행 안내` 앵커 선례를 적용했다. Out of Scope 로 격리한 `src/import/import-restore.service.ts:54` · `import-job-runner.service.ts:55` 의 선행 drift 2 곳은 손대지 않았다.
+
+검증: 본 slice 5 파일 grep `step 12` · `step 13` 0 hit / `step 17` 5 hit · `step 14` 4 hit, **저장소 `src/` 전체 `§5 step 13` hit 0** 으로 판정 A 계열 완결. 전체 428 suite / 12271 test pass, line 99.95% · function 100%. 신규·변경 public symbol 0 이라 신규 spec 불요.
+
+본 task 는 [7.5] cron multi-task chain 의 두 번째이자 마지막 task 로 [T-1319](T-1319-uc07-step-ref-comment-sweep-export-service-controller.md) 와 같은 fire 에서 수행됐다 (`FIRE-BATCH: T-1319+T-1320`).
 
 ## Follow-ups
 
