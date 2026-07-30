@@ -2,12 +2,14 @@
 id: T-1329
 title: api.md 의 export scope preview 2 종 실패 status 서술을 500 → 400 실측 정합
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 14
 estimatedFiles: 1
 created: 2026-07-30
+completedAt: 2026-07-30T18:39:09Z
+commit: b4908b35
 independentStream: export-scope-input-4xx
 dependsOn: [T-1328]
 touchesFiles:
@@ -31,14 +33,14 @@ plannerNote: "T-1328(PR #1206, main a10ae22d) 이 400 매핑을 박제해 api.md
 
 ## Acceptance Criteria
 
-- [ ] **132 행 (`describe-scope`) 정합** — "현재는 500 으로 나간다 (사용자 대면 4xx 매핑 미도입 — 현재 동작 그대로의 기술이며 개선은 별건)" 서술을 **400 매핑 사실** 로 교체: 잘못된 scope 조합 (RANGE + `dateRange` 누락 · `start>=end` · PARTIAL + 빈 `entitySelector` · 허용 외 entity) 의 helper `RangeError` 와 Invalid Date 의 `TypeError` 를 `ScopeInputExceptionFilter` (T-1328) 가 **400 BadRequest** 로 매핑하며, 그 외 unknown 예외는 **500 을 보존** 한다는 점을 함께 적는다. 근거 파일 링크 [src/export/scope-input-exception.filter.ts](../../src/export/scope-input-exception.filter.ts) 1 개 추가.
-- [ ] **133 행 (`preview-selection`) 정합** — "오류 전파는 describe-scope 와 동형 (helper `RangeError` / `TypeError` raw propagate → 500)" 을 "동형 — 같은 `ScopeInputExceptionFilter` 로 400 매핑" 취지로 교체.
-- [ ] **두 행의 실패 status 목록 갱신** — 꼬리의 "실패 401 / 403" 을 "실패 **400** (scope 입력 결함) / 401 / 403 / 500 (그 외 unknown 보존)" 형태로 보강. 401/403 이 filter 의 `HttpException` passthrough 분기로 **원 status 그대로 유지** 된다는 사실도 한 구절로 명시 (재매핑 0).
-- [ ] **박제 task 번호 표기** — 두 행 모두 기존 "T-1305 문서화" 표기는 유지하되 본 갱신분에 `T-1328` 을 함께 병기해 어느 commit 이 동작을 바꿨는지 추적 가능하게 한다.
-- [ ] **stale 문구 0 확인** — `grep -n "raw propagate 해 \*\*현재는 500" docs/architecture/api.md` 와 `grep -n "raw propagate → 500" docs/architecture/api.md` 가 **각각 0 hit**.
-- [ ] **범위 확인** — `git diff --stat` 결과가 `docs/architecture/api.md` **1 파일** 이고 변경 행이 132·133 두 행뿐 (다른 행·다른 endpoint 서술 0 수정).
-- [ ] **표 구조 무손상** — 두 행 모두 markdown 표의 `|` 컬럼 개수가 변경 전과 동일 (method / path / UC / 비고 / 권한 5 컬럼). 파일을 열어 표가 깨지지 않았는지 육안 확인.
-- [ ] **언어 규율 (§12)** — 본문 서술은 한국어, HTTP status·식별자·경로·클래스명은 영어 유지.
+- [x] **132 행 (`describe-scope`) 정합** — "현재는 500 으로 나간다 (사용자 대면 4xx 매핑 미도입 — 현재 동작 그대로의 기술이며 개선은 별건)" 서술을 **400 매핑 사실** 로 교체: 잘못된 scope 조합 (RANGE + `dateRange` 누락 · `start>=end` · PARTIAL + 빈 `entitySelector` · 허용 외 entity) 의 helper `RangeError` 와 Invalid Date 의 `TypeError` 를 `ScopeInputExceptionFilter` (T-1328) 가 **400 BadRequest** 로 매핑하며, 그 외 unknown 예외는 **500 을 보존** 한다는 점을 함께 적는다. 근거 파일 링크 [src/export/scope-input-exception.filter.ts](../../src/export/scope-input-exception.filter.ts) 1 개 추가.
+- [x] **133 행 (`preview-selection`) 정합** — "오류 전파는 describe-scope 와 동형 (helper `RangeError` / `TypeError` raw propagate → 500)" 을 "동형 — 같은 `ScopeInputExceptionFilter` 로 400 매핑" 취지로 교체.
+- [x] **두 행의 실패 status 목록 갱신** — 꼬리의 "실패 401 / 403" 을 "실패 **400** (scope 입력 결함) / 401 / 403 / 500 (그 외 unknown 보존)" 형태로 보강. 401/403 이 filter 의 `HttpException` passthrough 분기로 **원 status 그대로 유지** 된다는 사실도 한 구절로 명시 (재매핑 0).
+- [x] **박제 task 번호 표기** — 두 행 모두 기존 "T-1305 문서화" 표기는 유지하되 본 갱신분에 `T-1328` 을 함께 병기해 어느 commit 이 동작을 바꿨는지 추적 가능하게 한다.
+- [x] **stale 문구 0 확인** — `grep -n "raw propagate 해 \*\*현재는 500" docs/architecture/api.md` 와 `grep -n "raw propagate → 500" docs/architecture/api.md` 가 **각각 0 hit**.
+- [x] **범위 확인** — `git diff --stat` 결과가 `docs/architecture/api.md` **1 파일** 이고 변경 행이 132·133 두 행뿐 (다른 행·다른 endpoint 서술 0 수정).
+- [x] **표 구조 무손상** — 두 행 모두 markdown 표의 `|` 컬럼 개수가 변경 전과 동일 (method / path / UC / 비고 / 권한 5 컬럼). 파일을 열어 표가 깨지지 않았는지 육안 확인.
+- [x] **언어 규율 (§12)** — 본문 서술은 한국어, HTTP status·식별자·경로·클래스명은 영어 유지.
 
 ## Out of Scope
 
@@ -54,3 +56,7 @@ plannerNote: "T-1328(PR #1206, main a10ae22d) 이 400 매핑을 박제해 api.md
 `implementer` (doc-only — architect/tester 불요. direct-mode 이므로 §3.2 R-110 면제 대상)
 
 ## Follow-ups
+
+## 완료 요약 (2026-07-30)
+
+main direct commit `b4908b35` (+2/-2, `docs/architecture/api.md` 1 파일). [api.md](../architecture/api.md) 132·133 행의 export scope preview 2 종(`describe-scope` · `preview-selection`) 실패 서술을 [T-1328](T-1328-export-scope-preview-input-4xx-filter.md) 의 `ScopeInputExceptionFilter` 실동작에 정합 — 입력 결함(`RangeError` / `TypeError`)은 **400**, 그 외 unknown 은 **500 보존**, `HttpException`(401 / 403) 은 passthrough 로 **재매핑 0**. 실패 status 목록을 `400 / 401 / 403 / 500` 으로 보강하고 `T-1305` 표기 유지 + `T-1328` 병기. stale 문구 grep 각각 0 hit, 표 5 컬럼 무손상, 코드·spec 0 수정.
