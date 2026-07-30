@@ -61,6 +61,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Res,
@@ -212,7 +214,13 @@ export class ExportController {
   //
   // RBAC — Admin+ tier (create 동일). @Roles("Admin") → Admin / SuperAdmin 통과
   // (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
+  //
+  // 성공 status — read-only 조회라 **200 OK**(`@HttpCode(HttpStatus.OK)`, T-1331).
+  // `@Post` 의 NestJS 기본값 201 Created 는 새 resource 생성을 뜻해 본 경로(DB write 0)
+  // 에 맞지 않고, api.md 132 행 계약도 "응답 200" 이라 코드를 문서에 정합시켰다.
+  // 예외 경로의 status 는 영향 없음 — 필터/guard 가 @HttpCode 보다 우선한다.
   @Post("describe-scope")
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @UseFilters(ScopeInputExceptionFilter)
   @Roles("Admin")
@@ -252,7 +260,13 @@ export class ExportController {
   //
   // RBAC — Admin+ tier (create 동일). @Roles("Admin") → Admin / SuperAdmin 통과
   // (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
+  //
+  // 성공 status — read-only 조회라 **200 OK**(`@HttpCode(HttpStatus.OK)`, T-1331 —
+  // describeScope 와 동일 근거). count 요약만 반환하고 job record 생성 0 이라 201 Created
+  // 는 부적합하며, api.md 133 행 계약도 "응답 200" 이다. 필터가 매핑하는 400 · guard 의
+  // 401/403 은 @HttpCode 와 무관하게 그대로 유지된다.
   @Post("preview-selection")
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @UseFilters(ScopeInputExceptionFilter)
   @Roles("Admin")

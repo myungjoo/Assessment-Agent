@@ -1792,10 +1792,11 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
 
   // == POST /api/admin/export/describe-scope — describeScope endpoint ===============
 
-  // -- happy — Admin 통과 시 201 + helper 산출 ExportScopeDescription body 반환 --------
+  // -- happy — Admin 통과 시 200 + helper 산출 ExportScopeDescription body 반환 --------
   // describe-scope 가 POST 라 GET `:id` 와 충돌하지 않음을 실 HTTP 경로로 단언
   // (describe-scope segment 가 findJob 의 :id 로 포착 안 됨).
-  it("POST describe-scope — Admin role 통과 시 201 + ExportScopeDescription 반환 (happy — POST/GET :id 충돌 없음)", async () => {
+  // status 는 read-only 조회라 200 — @HttpCode(HttpStatus.OK) (T-1331, api.md 132 행 계약).
+  it("POST describe-scope — Admin role 통과 시 200 + ExportScopeDescription 반환 (happy — read-only 200 / POST/GET :id 충돌 없음)", async () => {
     app = await buildApp({
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
@@ -1804,13 +1805,49 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
     const res = await request(app.getHttpServer())
       .post("/api/admin/export/describe-scope")
       .send({ scope: "FULL" })
-      .expect(201);
+      .expect(200);
 
     expect(res.body.scopeKind).toBe("full");
     expect(res.body.readOnly).toBe(true);
     // describe-scope 는 read-only — service(createJob/findJob) 미호출.
     expect(serviceMock.createJob).not.toHaveBeenCalled();
     expect(serviceMock.findJob).not.toHaveBeenCalled();
+  });
+
+  // -- negative — helper RangeError → 400 (필터가 @HttpCode(200) 보다 우선, T-1331) ----
+  // @HttpCode 는 "핸들러가 정상 반환했을 때"의 status 만 정한다. helper 가 throw 하면
+  // ScopeInputExceptionFilter(T-1328) 가 응답을 만들므로 성공 status 200 화 후에도 입력
+  // 결함은 그대로 400 이다 (200 으로 조용히 바뀌지 않음을 실 HTTP 경로로 실증).
+  it("POST describe-scope — RANGE + dateRange 누락 → 400 매핑 (negative — @HttpCode(200) 이 필터 status 를 덮지 않음)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    const res = await request(app.getHttpServer())
+      .post("/api/admin/export/describe-scope")
+      .send({ scope: "RANGE" })
+      .expect(400);
+
+    expect(JSON.stringify(res.body)).toContain(
+      "Export scope 입력이 올바르지 않습니다",
+    );
+  });
+
+  // -- negative — helper TypeError(Invalid Date) → 400 (T-1331 status 정합 후에도 유지) --
+  it("POST describe-scope — dateRange 가 Invalid Date(잘못된 ISO string) → 400 매핑 (negative — TypeError 경로도 200 화 영향 없음)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/admin/export/describe-scope")
+      .send({
+        scope: "RANGE",
+        dateRange: { start: "not-a-date", end: "2026-03-01T00:00:00.000Z" },
+      })
+      .expect(400);
   });
 
   // -- negative — ValidationPipe: 정의되지 않은 raw 본문 키 → 400 ------------------
@@ -1871,8 +1908,9 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
 
   // == POST /api/admin/export/preview-selection — previewSelection endpoint ========
 
-  // -- happy — Admin 통과 시 201 + count 요약 body 반환 (POST/GET :id 충돌 없음) -------
-  it("POST preview-selection — Admin role 통과 시 201 + count 요약 반환 (happy — POST/GET :id 충돌 없음)", async () => {
+  // -- happy — Admin 통과 시 200 + count 요약 body 반환 (POST/GET :id 충돌 없음) -------
+  // status 는 read-only 조회라 200 — @HttpCode(HttpStatus.OK) (T-1331, api.md 133 행 계약).
+  it("POST preview-selection — Admin role 통과 시 200 + count 요약 반환 (happy — read-only 200 / POST/GET :id 충돌 없음)", async () => {
     app = await buildApp({
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
@@ -1959,7 +1997,7 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
     const res = await request(app.getHttpServer())
       .post("/api/admin/export/preview-selection")
       .send({ scope: "FULL" })
-      .expect(201);
+      .expect(200);
 
     expect(res.body.selectedCount).toBe(5);
     expect(res.body.excludedCount).toBe(0);
@@ -2343,6 +2381,44 @@ describe("ExportController (T-1328 scope 입력 400 매핑 필터 배선)", () =
         | undefined;
 
       expect(filters ?? []).not.toContain(ScopeInputExceptionFilter);
+    },
+  );
+});
+
+// -----------------------------------------------------------------------
+// T-1331 — scope preview 2 종 read-only 응답의 성공 status 200 정합.
+// describeScope · previewSelection 은 DB write 0 인 조회라 @Post 기본값 201 Created 가
+// 부적합했고, api.md 132·133 행 계약도 "응답 200" 이었다. 두 핸들러에만
+// @HttpCode(HttpStatus.OK) 를 부착했음을 metadata 수준에서 단언하고, negative 로
+// create (job 생성 mutation) 에는 미부착 = 여전히 201 임을 회귀 확인한다.
+// -----------------------------------------------------------------------
+describe("ExportController (T-1331 scope preview 성공 status 200 정합)", () => {
+  it.each([
+    ["describeScope", ExportController.prototype.describeScope],
+    ["previewSelection", ExportController.prototype.previewSelection],
+  ])(
+    "%s 핸들러에 @HttpCode(200) 부착 (read-only 조회 status 계약)",
+    (_name, handler) => {
+      const httpCode = Reflect.getMetadata("__httpCode__", handler) as
+        | number
+        | undefined;
+
+      expect(httpCode).toBe(200);
+    },
+  );
+
+  it.each([
+    ["create", ExportController.prototype.create],
+    ["download", ExportController.prototype.download],
+  ])(
+    "negative — %s 핸들러에는 @HttpCode 미부착 (mutation/stream 경로의 기본 status 계약 불변)",
+    (_name, handler) => {
+      const httpCode = Reflect.getMetadata("__httpCode__", handler) as
+        | number
+        | undefined;
+
+      // create 는 @Post 기본값 201 Created 유지 (새 job resource 생성 — 회귀 방지).
+      expect(httpCode).toBeUndefined();
     },
   );
 });
