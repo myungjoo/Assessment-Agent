@@ -8,7 +8,7 @@
 // 메모리에 올라온 기존 record 배열 + import dump 의 record 배열 + mode 를 받아
 // {toDelete, toInsert, toKeep} plan 을 산출하는 순수 함수다.
 //
-// 실 transaction / repository / DB delete-insert / Prisma 호출 0 이며(UC-07 §5 step 7·11, §6.2,
+// 실 transaction / repository / DB delete-insert / Prisma 호출 0 이며(UC-07 §5 step 9·13, §6.2,
 // §8 (a) 게이트된 후속 sub-slice 책임), file parse / JSON.parse / 무결성 hash 도 본 helper 0
 // 이다 — 본 helper 는 이미 메모리에 올라온 record 배열만 다룬다. schema version 호환 판정
 // (T-0439)도 구조 무결성 전체 검증(T-0440)도 본 helper 0 이며, transaction 전 안전을 위해

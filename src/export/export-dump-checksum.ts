@@ -2,7 +2,7 @@
 // R-57 / REQ-030 / REQ-032). T-0437(scope select) → T-0438(dump envelope 조립) → T-0439(version
 // gate) → T-0440(구조 gate) → T-0441(영향 요약) → T-0442(복원 plan) → T-0443(audit 항목) →
 // T-0444(scope validate) → T-0445(상수 DRY) 9 building block 다음, 그들이 cover 못 한 UC-07
-// §5 step 5 Note("Import: file 무결성 hash — REQ-030, REQ-032") + §7.4("payload 무결성 hash
+// §5 step 9 Note("Import: file 무결성 hash — REQ-030, REQ-032") + §7.4("payload 무결성 hash
 // 검증 실패 → 400, transaction 시작 전 reject") 의 **결정적 checksum 산출·검증 로직**을 순수
 // 함수로 박제한다. validateImportDumpStructure(T-0440)는 구조(필드 shape·entityCounts cross-
 // check)만 보므로 payload 가 전송 중 byte-level 로 손상·변조됐는지는 검출 불가 — 결정적
@@ -165,7 +165,7 @@ function canonicalize(dump: ExportDump): string {
 }
 
 // computeDumpChecksum — ExportDump 의 결정적 정규화 직렬화 후 sha256 hex digest(64자 소문자
-// hex)를 산출한다. UC-07 §5 step 5 Note / §7.4 정합:
+// hex)를 산출한다. UC-07 §5 step 9 Note / §7.4 정합:
 //   - 같은 논리 입력 → 항상 같은 digest(결정성). field/record 가 한 가지라도 다르면 다른 digest.
 //   - record 순서는 dump 의미의 일부이므로 보존(순서가 다르면 다른 digest).
 //   - 잘못된 입력(null dump / 누락 헤더 / records 비-배열 / Invalid Date instant 등)은 결정적
