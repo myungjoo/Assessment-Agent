@@ -14,8 +14,9 @@
 // 는 그와 직교(orthogonal) — 이미 산출된 무결성 reconcile 결과의 failedChunks(index 오름차순 보장)를
 // 받아 *연속 index 의 실패 chunk 들을 하나의 byte 범위로 병합*한 재요청 batch plan 을 순수 산술로
 // derive 한다(실 재전송·byte slice·HTTP Range·헤더 직렬화 0). 비연속 실패(예: chunk 1·4)는 분리된
-// 2 개 범위로, 연속 실패(예: chunk 1·2·3)는 하나의 병합 범위로 derive 한다. UC-07 §5 step 13(Export
-// 다운로드) + §8 chunked streaming 의 효율적 부분 손상 복구(재요청 요청 수 최소화)를 채운다.
+// 2 개 범위로, 연속 실패(예: chunk 1·2·3)는 하나의 병합 범위로 derive 한다. UC-07 §5 step 17 (결과
+// 표시 — 다운로드 완료) + §8 chunked streaming 의 효율적 부분 손상 복구(재요청 요청 수 최소화)를
+// 채운다.
 //
 // 실 digest / checksum 계산 / chunk 무결성 검증 재실행 / 실 재전송 / byte slice 추출 / HTTP Range
 // 요청·206 Partial Content / Content-Range·Range 헤더 직렬화 / multipart / 재시도 정책·backoff·상태
@@ -149,9 +150,10 @@ function mergeGroup(group: ExportChunk[]): ExportChunkRefetchRange {
 
 // coalesceExportChunkRefetch — 이미 산출된 ExportChunkIntegrityReconcile(T-0472)의 failedChunks
 // (index 오름차순)를 index 가 연속(인접)한 그룹으로 분할해 각 그룹을 하나의 ExportChunkRefetchRange
-// 로 병합한다(UC-07 §8 NFR + §5 step 13 정합). 그룹화 규칙: failedChunks 를 순회하며 직전 chunk 의
-// index + 1 === 현재 chunk.index 이면 같은 그룹, 아니면 새 그룹 시작(연속 index 만 병합 — chunk
-// index 인접성 기준; ExportChunkPlan 의 chunk 는 gap/overlap 0 이므로 index 연속 ⟺ byte 연속).
+// 로 병합한다(UC-07 §8 NFR + §5 step 17 (결과 표시) 정합). 그룹화 규칙: failedChunks 를 순회하며
+// 직전 chunk 의 index + 1 === 현재 chunk.index 이면 같은 그룹, 아니면 새 그룹 시작(연속 index 만
+// 병합 — chunk index 인접성 기준; ExportChunkPlan 의 chunk 는 gap/overlap 0 이므로 index 연속 ⟺
+// byte 연속).
 //
 // 산정:
 //   - ranges = 연속 그룹마다 mergeGroup(그룹). firstBytePos 오름차순(failedChunks 가 오름차순이므로).

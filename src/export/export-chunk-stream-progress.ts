@@ -9,8 +9,8 @@
 // chunkProgress|contentRange|ExportStreamProgress src/export → 0 매칭).
 //
 // describeExportJobStatus 가 job-level 진행 view 라면, 본 helper 는 한 단계 안쪽 — chunk-stream
-// 단위의 진행률을 렌더한다(job-level 과 chunk-level 의 view 분리). UC-07 §5 step 13(Export
-// 다운로드) + §8 chunked streaming 이 필요로 하는 진행 표시(WebUI progress bar / resume offset
+// 단위의 진행률을 렌더한다(job-level 과 chunk-level 의 view 분리). UC-07 §5 step 17 (결과 표시 —
+// 다운로드 완료) + §8 chunked streaming 이 필요로 하는 진행 표시(WebUI progress bar / resume offset
 // 안내)를 채운다.
 //
 // 실 chunked streaming / byte slice 추출 / HTTP Range·Content-Range 헤더 직렬화(실 "Content-Range:
@@ -44,8 +44,8 @@ export interface ExportChunkContentRange {
 // content-range 수치(currentChunk null 이면 null), headline 은 한국어 한 줄 진행 요약이다.
 // 불변: transferredBytes + remainingBytes === totalBytes, deliveredChunks + remainingChunks ===
 // totalChunks, complete ⟺ (remainingChunks === 0 && remainingBytes === 0), currentChunk === null
-// ⟺ complete, complete 일 때 percentComplete === 100. 후속 WebUI 진행 표시(UC-07 §5 step 13)가 이
-// 모델을 그대로 렌더한다.
+// ⟺ complete, complete 일 때 percentComplete === 100. 후속 WebUI 진행 표시(UC-07 §5 step 17 (결과
+// 표시 — 다운로드 완료) 직전의 진행 안내)가 이 모델을 그대로 렌더한다.
 export interface ExportChunkStreamProgress {
   totalChunks: number;
   deliveredChunks: number;
@@ -84,7 +84,7 @@ function isValidNonNegativeInteger(value: unknown): value is number {
 
 // describeExportChunkStreamProgress — 이미 산출된 ExportChunkPlan 과 deliveredChunks(전달 완료
 // chunk 개수)로부터 chunked streaming 의 전송 진행 상태를 순수 산술로 산정한다(UC-07 §8 NFR +
-// §5 step 13 정합):
+// §5 step 17 (결과 표시) 정합):
 //   - totalChunks = plan.chunkCount, remainingChunks = totalChunks - deliveredChunks.
 //   - transferredBytes = plan.chunks[0..deliveredChunks-1] 의 sizeBytes 합(deliveredChunks=0 이면 0).
 //   - totalBytes = plan.totalBytes, remainingBytes = totalBytes - transferredBytes.
