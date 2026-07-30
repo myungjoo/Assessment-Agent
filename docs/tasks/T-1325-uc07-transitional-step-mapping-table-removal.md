@@ -2,7 +2,7 @@
 id: T-1325
 title: UC-07 §5.1 과도기 step 번호·이름 대응표 제거 (sweep 완결로 수명 종료) + 제거 근거 한 줄 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 28
@@ -93,5 +93,15 @@ planner 가 origin/main `0b5bfc2b` 에서 `git grep -n "5\.1" -- docs/ src/ test
 ## Suggested Sub-agents
 
 `implementer`
+
+## Result (2026-07-30T15:40Z, DONE)
+
+- direct commit `4a8a0709` (main push 완료) — `docs/use-cases/UC-07-export-import.md` **1 파일 +1/-27**.
+- 105~130 행(`### 5.1` heading · 도입 · 표 header+17 행 · 129 행 판정 규약)을 **연속 삭제**, 실행 중 범위 재판정 0.
+- 103 행 영속 규약은 같은 한 줄로 유지하고 제거 근거 정본 문장 1 개만 append — 새 소절 · 표 · 목록 신설 0.
+- 131 행 `step 수 17` 문단 · §5 mermaid(arrow 17) · §6 이하 전 구간 **글자 그대로 보존**.
+- 검증 grep 5 종 실측 일치 — `### 5.1` / `T-1311 이전 번호` / `과도기 표` **0 hit**, `step 수 17` / `번호와 step 이름을 병기` 각 **1 hit**.
+- doc-only 라 R-110 tester 면제 (production 0 LOC) — 링크 6 개 실존 + 구조 self-check 로 대체.
+- `uc07-step-ref-comment-sweep` stream (T-1316~T-1325) 의 **마감 항목** — 과도기 장치까지 회수해 UC-07 §5 가 정상 상태로 복귀했다.
 
 ## Follow-ups
