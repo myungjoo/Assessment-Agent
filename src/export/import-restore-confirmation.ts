@@ -3,10 +3,10 @@
 // T-0439 checkSchemaVersionCompat → T-0440 validateImportDumpStructure → T-0441
 // summarizeImportImpact → T-0442 buildImportRestorePlan → … → T-0448 summarizeRestorePlan →
 // T-0451 detectImportMergeConflicts → T-0452 summarizeImportPreflight 의 다음 게이트-free
-// building block 이다. UC-07 §3 trigger 2 + §5 step 4 (confirmation dialog — Import 강한
-// confirmation) 는 Import / Restore 가 "가장 destructive 한 흐름 — 강한 confirmation dialog
-// 필수(destructive 명시 + 영향 범위 표시 + 기존 데이터 삭제 경고 + 사용자 명시 확인)" 을 요구한다.
-// T-0437~T-0452 의 15 building block 은
+// building block 이다. UC-07 §3 trigger 2 + §5 step 4 (confirmation dialog — Import
+// 강한 confirmation) 는 Import / Restore 가 "가장 destructive 한 흐름 — 강한
+// confirmation dialog 필수(destructive 명시 + 영향 범위 표시 + 기존 데이터 삭제
+// 경고 + 사용자 명시 확인)" 을 요구한다. T-0437~T-0452 의 15 building block 은
 // 영향 범위를 *구조화 데이터*(RestorePlanSummary{deleted/inserted/kept × total/perEntity})로
 // 박제했으나, 그 데이터를 사용자에게 보여줄 confirmation dialog *메시지 모델* 로 조립하는
 // helper 는 0 회 cover 된 gap 이다 — 실 controller / WebUI 배선이 RestorePlanSummary 를 매번
