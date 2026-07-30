@@ -52,7 +52,7 @@ export interface RunImportJobInput {
 //   - `job`     : `markSucceeded` 가 돌려준 row 그 자체 (status=SUCCEEDED + restoredRowCount).
 //   - `summary` : `restoreFromDump` 결과의 `summary` 그 자체 — MERGE 가 보존한 건수 (`kept`)
 //                 와 REPLACE 가 entity 별로 지운 건수 (`deleted.perEntity`) 를 담은 요약
-//                 (UC-07 §5 step 12 "복원 row count + 영향 요약" 의 요약 쪽).
+//                 (UC-07 §5 step 15 "복원 row count + 영향 요약" 의 요약 쪽).
 // 요약을 job row 에 합치지 않고 별도 필드로 두는 이유: row 는 Prisma model 그대로여야
 // 하고 (영속 shape 오염 0), 요약은 in-memory 전달값이기 때문이다.
 export interface RunImportJobResult {
