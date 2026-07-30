@@ -65,6 +65,7 @@ import {
   Post,
   Res,
   StreamableFile,
+  UseFilters,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -106,6 +107,7 @@ import type {
   ExportEntity,
   ExportScope as ExportScopePayload,
 } from "./export-scope-select";
+import { ScopeInputExceptionFilter } from "./scope-input-exception.filter";
 
 // Prisma ExportScope enum(uppercase FULL/RANGE/PARTIAL) ↔ describeExportScope helper 가
 // 요구하는 lowercase scope kind("full"/"range"/"partial") 매핑. prisma/schema.prisma 의
@@ -197,8 +199,11 @@ export class ExportController {
   // controller 자체 분기 0 (helper raw forward — create/findJob 정책 동일):
   //   - RANGE+dateRange 누락 / start>=end / PARTIAL+빈 entitySelector / 허용 외 entity
   //     섞임 → helper 의 RangeError, dateRange 비-Date/Invalid → helper 의 TypeError 가
-  //     swallow 없이 raw propagate(NestjS default exception filter 가 500 으로 매핑 —
-  //     본 controller 는 try/catch·status 변환 신설 0, helper 가 입력 방어 책임).
+  //     swallow 없이 raw propagate → **400 매핑(`ScopeInputExceptionFilter`, T-1328)**.
+  //     본 controller 는 여전히 try/catch·status 변환 신설 0 이고(helper 가 입력 방어
+  //     책임), 매핑은 핸들러 단위 `@UseFilters` 경계에서만 일어난다. 필터 미부착 시의
+  //     과거 동작은 default exception filter 의 500 이었다(호출자 입력 결함이 5xx 로
+  //     표면화 — T-1305 이월 결함). unknown 예외는 필터에서도 500 을 그대로 보존한다.
   //   - persistence / DB write 0 — describeScope 는 순수 합성(read-only). job record
   //     생성·status 변경 0 (REQ-032 raw 미저장 자연 유지 — 입력 scope 만 다룸).
   //
@@ -209,6 +214,7 @@ export class ExportController {
   // (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
   @Post("describe-scope")
   @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseFilters(ScopeInputExceptionFilter)
   @Roles("Admin")
   describeScope(@Body() dto: CreateExportDto): ExportScopeDescription {
     // enum→lowercase scope kind 변환 + dateRange ISO→Date coerce + entitySelector
@@ -234,7 +240,10 @@ export class ExportController {
   // controller 자체 분기 0 (service/helper raw forward — describeScope/findJob 정책 동일):
   //   - RANGE+dateRange 누락 / start>=end / PARTIAL+빈 entitySelector / 허용 외 entity →
   //     service 안의 selectExportRecords 가 RangeError, dateRange Invalid Date → TypeError
-  //     를 swallow 없이 raw propagate(controller 는 형 변환만, 판정은 helper).
+  //     를 swallow 없이 raw propagate → **400 매핑(`ScopeInputExceptionFilter`, T-1328 —
+  //     describeScope 와 동일 필터)**. controller 는 여전히 형 변환만 하고 판정은 helper
+  //     가 하며, 매핑만 핸들러 단위 `@UseFilters` 경계에서 일어난다(과거에는 default
+  //     exception filter 의 500 이었다). unknown 예외는 필터에서도 500 보존.
   //   - DB read-only — 5 entity `{instant}` projection 만 select(전체 row·raw 미조회,
   //     REQ-032). job record 생성·status 변경 0 / 실 record payload 반환 0(count 요약만).
   //
@@ -245,6 +254,7 @@ export class ExportController {
   // (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
   @Post("preview-selection")
   @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseFilters(ScopeInputExceptionFilter)
   @Roles("Admin")
   async previewSelection(
     @Body() dto: CreateExportDto,
