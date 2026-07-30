@@ -91,11 +91,11 @@ describe("E2E: export scope preview 2 종의 400 매핑 (T-1330)", () => {
     await prisma.$disconnect();
   });
 
-  // 성공 status 가 201 인 이유: 두 handler 는 `@Post` 이고 `@HttpCode` 를 부착하지 않아
-  // NestJS 기본값 201 Created 로 응답한다(read-only 조회임에도 201). 본 spec 은 실 동작을
-  // 그대로 박제한다 — 200 으로 바꾸려면 controller 에 `@HttpCode(200)` 를 붙이는
-  // production 변경이 필요하고, 그것은 본 task 의 Out of Scope 이라 §Follow-ups 로 남긴다.
-  const OK_STATUS = 201;
+  // 성공 status 가 200 인 이유: 두 handler 는 DB write 0 인 read-only 조회라
+  // `@HttpCode(HttpStatus.OK)` 를 부착했다(T-1331 — @Post 기본값 201 Created 는 새 resource
+  // 생성을 뜻해 부적합). api.md 132·133 행의 "응답 200" 계약과 실 동작이 이로써 일치하며,
+  // 아래 happy 2 개가 실 HTTP 왕복으로 200 수신을 실증한다.
+  const OK_STATUS = 200;
 
   describe("happy-path — Admin 이 정상 scope 로 호출하면 성공 응답", () => {
     it("describe-scope 는 scope 설명 모델을 성공 status 로 반환한다", async () => {
