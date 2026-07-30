@@ -9,8 +9,8 @@
 // UC-07 §8 NFR 은 대량 dump 를 "async job + status polling + chunked streaming" 으로 처리하라
 // 명시한다. T-0467 의 plan 이 "어떤 경로로 다운로드할지" 를 정한다면, 본 helper 는 그 async 경로
 // 에서 매 poll 응답마다 "지금 어디까지 왔는지" 를 사용자에게 보여줄 view descriptor 를 순수 합성
-// 으로 박제한다. UC-07 §5 step 13(Export 다운로드 완료) 직전의 진행 안내가 필요로 하는 모델을
-// 채운다.
+// 으로 박제한다. UC-07 §5 step 17 (결과 표시 — 다운로드 완료) 직전의 진행 안내가 필요로 하는
+// 모델을 채운다.
 //
 // 실 polling endpoint / status store / job lifecycle / job id 조회 / SSE·long-poll 배선 0 — 입력
 // 으로 받은 status enum 하나만으로 view 를 derive 한다(buildExportJobPlan 재호출 0 — DRY). 실
@@ -26,8 +26,8 @@ import { ExportJobStatus } from "./export-job-plan";
 // (ready/failed 는 다음이 없어 null), terminal 은 종단 여부(ready/failed=true), downloadable 은
 // 다운로드 가능 여부(ready 만 true), message 는 현재 진행을 담은 한국어 한 줄이다.
 // 불변: downloadable === true ⟹ status === "ready", terminal === (status === "ready" || status ===
-// "failed"), nextStatus === null ⟺ terminal === true. 후속 WebUI polling 진행 표시(UC-07 §5 step
-// 13)가 이 모델을 그대로 렌더한다.
+// "failed"), nextStatus === null ⟺ terminal === true. 후속 WebUI polling 진행 표시(UC-07
+// §5 step 17 (결과 표시 — 다운로드 완료) 직전의 진행 안내)가 이 모델을 그대로 렌더한다.
 export interface ExportJobStatusView {
   status: ExportJobStatus;
   phaseLabel: string;
@@ -119,7 +119,7 @@ function describeReceived(value: unknown): string {
 }
 
 // describeExportJobStatus — 현재 ExportJobStatus 하나를 받아 async Export job 진행 view 를 순수
-// derivation 으로 조립한다(UC-07 §8 NFR + §5 step 13 정합):
+// derivation 으로 조립한다(UC-07 §8 NFR + §5 step 17 (결과 표시) 정합):
 //   - queued → stepIndex=0 · nextStatus="running" · terminal=false · downloadable=false (대기 중).
 //   - running → stepIndex=1 · nextStatus="ready" · terminal=false · downloadable=false (처리 중).
 //   - ready → stepIndex=2 · nextStatus=null · terminal=true · downloadable=true (다운로드 가능).

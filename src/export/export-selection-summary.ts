@@ -6,8 +6,9 @@
 // dump 입력 / summarizeRestorePlan — plan 의 3 배열 입력)가 있지만, Export 측의 대칭 helper 는
 // 부재였다 — selectExportRecords(T-0437)가 산출한 ExportSelection({selected, excluded} 두 배열)은
 // 두 배열을 통째로 들고 있을 뿐, UC-07 §3 trigger 1 의 confirmation dialog(scope 옵션 선택) +
-// §5 step 2(scope 옵션 확인) + §8 (b) Audit row(Export 종류 + actor + scope + row count)가
-// 필요로 하는 선별/제외 row 의 entity-별 + 전체 breakdown + instant 시간 범위를 0회 derive 한다.
+// §5 step 4 (confirmation dialog — Export scope 선택) + §8 (b) Audit row(Export 종류 + actor +
+// scope + row count)가 필요로 하는 선별/제외 row 의 entity-별 + 전체 breakdown + instant 시간
+// 범위를 0회 derive 한다.
 // buildExportDump(T-0438)는 envelope entityCounts(selected 만) + recordCount 단일 metadata 만
 // 노출하고 excluded 분포·instant 범위는 노출 0 이다. 본 helper 는 그 gap 을 순수 derivation 으로
 // 박제한다 — ExportSelection 을 받아 {selected, excluded} 각각의 total + perEntity(5 entity)
@@ -41,7 +42,8 @@ export interface ExportSelectionGroupBreakdown {
 
 // Export 선별 결과 영향 breakdown 요약 verdict — plain object. selection 의 두 배열(selected/
 // excluded)을 각각 그룹 breakdown 으로 집계한다. 후속 confirmation dialog(UC-07 §3 trigger 1 /
-// §5 step 2)와 Audit row(§8 (b) row count)가 이 요약을 그대로 사용한다.
+// §5 step 4 (confirmation dialog — Export scope 선택))와 Audit row(§8 (b) row count)가 이 요약을
+// 그대로 사용한다.
 export interface ExportSelectionSummary {
   selected: ExportSelectionGroupBreakdown;
   excluded: ExportSelectionGroupBreakdown;

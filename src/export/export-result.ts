@@ -1,8 +1,8 @@
 // export-result — UC-07 Export 완료 결과 메시지 조립 순수 helper (T-0456, P7 R-57 / REQ-030 /
 // REQ-032). T-0437 selectExportRecords → T-0438 buildExportDump → … → T-0449
 // summarizeExportSelection → … → T-0454 formatAuditLogLine → T-0455 buildRestoreResult(Import
-// 실행 *후* 결과) 다음의 게이트-free building block 이다. UC-07 §5 step 13
-// (`결과 표시 (Export: 다운로드 완료 …)`) + §8 (a) Export postcondition(DB 무변화 read-only +
+// 실행 *후* 결과) 다음의 게이트-free building block 이다. UC-07 §5 step 17
+// (결과 표시 — 다운로드 완료) + §8 (a) Export postcondition(DB 무변화 read-only +
 // Audit row(Export 종류 + actor + scope + row count) + file artifact 전달)은 Export 직렬화
 // *이후* Admin 에게 보여줄 **Export 완료 결과 메시지** 조립을 박제한다. 그러나 18 building
 // block(T-0437~T-0455)의 result/message 조립 helper 는 전부 Import 측 흐름만 cover 했다 —
@@ -175,8 +175,8 @@ function buildScopeLine(scope: ExportScope): string {
 }
 
 // buildExportResult — 이미 산출된 ExportSelectionSummary(T-0449)와 ExportScope(T-0437)를 받아
-// Export 직렬화 *이후* Admin 에게 보여줄 Export 완료 결과 메시지 모델을 순수 합성한다(UC-07 §5
-// step 13 + §8 (a) 정합):
+// Export 직렬화 *이후* Admin 에게 보여줄 Export 완료 결과 메시지 모델을 순수 합성한다(UC-07
+// §5 step 17 (결과 표시) + §8 (a) 정합):
 //   - headline — "다운로드 완료" + selected 핵심 row count 한 줄.
 //   - exportedCounts — summary.selected/excluded 의 total 을 그대로 옮긴 요약 수치.
 //   - impactLines — selected total 라인 + 0 아닌 perEntity 라인. excluded.total>0 면 제외 요약

@@ -10,8 +10,8 @@
 // chunked streaming" 을 명시한다. T-0466 의 size estimate 가 "이 dump 는 대량" 까지만 판정한다면,
 // 본 helper 는 그 추정(ExportDumpSizeEstimate)을 입력으로만 받아(estimateExportDumpSize 재호출 0
 // — DRY) "그럼 어떻게 전달할 것인가(즉시 다운로드 vs job 생성 후 polling)" 의 실행 plan 을 순수
-// 합성으로 박제한다. UC-07 §5 step 13(Export 다운로드 완료) + §3 trigger 1(scope confirmation
-// dialog)의 다운로드 방식 안내가 필요로 하는 plan descriptor 를 채운다.
+// 합성으로 박제한다. UC-07 §5 step 17 (결과 표시 — 다운로드 완료) + §3 trigger 1(scope
+// confirmation dialog)의 다운로드 방식 안내가 필요로 하는 plan descriptor 를 채운다.
 //
 // 실 async job 생성 / job queue / job id 발급 / status store / status polling endpoint / chunked
 // streaming 직렬화 / resumable upload 배선 0 — 입력 estimate 의 recommendation / large /
@@ -36,8 +36,8 @@ export type ExportJobStatus = "queued" | "running" | "ready" | "failed";
 // 여부, statusFlow 는 async 면 [queued, running, ready] 순·sync 면 빈 배열, headline 은 plan 을
 // 담은 한국어 한 줄, instructionLines 는 한국어 단계 안내 목록이다.
 // 불변: mode === "async-job" ⟺ pollingRequired === true ⟺ statusFlow.length > 0.
-// 후속 WebUI confirmation dialog(UC-07 §3 trigger 1) / 다운로드 완료 안내(§5 step 13)가 이
-// 모델을 그대로 렌더한다.
+// 후속 WebUI confirmation dialog(UC-07 §3 trigger 1) / 다운로드 완료 안내(§5 step 17 (결과
+// 표시))가 이 모델을 그대로 렌더한다.
 export interface ExportJobPlan {
   mode: ExportJobMode;
   chunked: boolean;
