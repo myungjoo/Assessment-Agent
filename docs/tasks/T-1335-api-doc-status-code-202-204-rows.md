@@ -2,7 +2,8 @@
 id: T-1335
 title: api.md § 6 표에 202 Accepted row 신설 + 204 No Content 적용 범위 실측 정합
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T23:47:00Z
 commitMode: direct
 coversReq: [REQ-027, REQ-039, REQ-040, REQ-041]
 estimatedDiff: 18
@@ -62,4 +63,13 @@ plannerNote: "T-1334 가 Out of Scope 로 미룬 § 6 잔여 2 행 회수 — 20
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- 실패(4xx/5xx) 계열에 같은 형태의 row-부재 gap 이 1 건 남아 있다 — `src/import/multer-exception.filter.ts` 가 `MulterError(LIMIT_FILE_SIZE)` → `PayloadTooLargeException` 으로 매핑하고 import 업로드 2 종에 `@UseFilters` 로 붙어 있는데 § 6 표에 `413` row 가 없다 → **[T-1336](T-1336-api-doc-status-code-413-row.md)** 으로 큐잉됨.
+
+## Result
+
+- **DONE** (2026-07-30T23:47:00Z) — direct-mode, main direct commit `c6656280`. `docs/architecture/api.md` 1 파일 +2/-1 (167 행에 202 행 1 개 삽입 + 168 행 204 의 `적용 범위` 컬럼만 inline amend, cap 준수).
+- § 6 표에 없던 `202 Accepted` 행을 201 과 204 사이에 신설해 실측 3 종 (`POST /api/schedules/trigger` · `/backfill/:personId` · `/recent-deletion/:personId`) 과 runner 위임 근거를 박제했다 — § 5 표 149~151 행과의 서술 불일치 해소.
+- 204 행 적용 범위를 "DELETE 계열 일부" 에서 실측 11 종 (`@Delete` **10 종 전량** + `POST /api/auth/logout`) 서술로 교체했다. 기존 서술은 '전량인데 일부' · 'DELETE 아닌 204 존재' 두 방향으로 틀려 있었다.
+- `발화 조건` 컬럼과 165 · 166 행 (T-1334 가 방금 정합한 200/201) 은 글자 그대로 보존. `src/` · `test/` · `web/` 무수정.
+- doc-only 라 R-110 tester 면제 (production code 0 LOC · 신규 symbol 0). 대체 검증: 실측 grep 3 종 (202→3 / 204→11 / `@Delete`→10) 재확인 + 표 구조 (헤더 2 행 + status 10 행, 전 행 파이프 4 개) · 숫자 오름차순 self-check + 검증 grep 2 종 통과.
+- main CI run `30591162206` **success** (R-114 fire 안에서 확인 완료).
