@@ -2,7 +2,7 @@
 id: T-1322
 title: UC-07 §5 step 참조 주석 sweep slice 6 — 강한 confirmation dialog 계열 8 곳 (옛 step 7 · step 2 → 현 step 4)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030]
 estimatedDiff: 26
@@ -77,3 +77,9 @@ origin/main `f385534c` 실측 기준 위 두 묶음이 정확히 **4 파일 8 �
 ## Follow-ups
 
 <!-- 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 append -->
+
+## 완료 기록
+
+- **완료**: 2026-07-30T14:05Z — PR [#1203](https://github.com/myungjoo/Assessment-Agent/pull/1203) reviewer APPROVE + 4-게이트 PASS + squash 머지 `4398ae31` + branch delete (round 2/7 — round 1 재줄바꿈이 남긴 짧은 줄을 Nit-in-PR closure 로 본 PR 안에서 정리).
+- **결과**: 4 파일 8 곳 정정 (+12/-10, 주석-only). 판정 F 6 곳 `§5 step 7` → `step 4` (기계적 +2 = 9 오답 회피), 판정 H 2 곳 `§5 step 2·step 7` 동시 인용 → 같은 현 `step 4` 로 붕괴해 단일 참조로 합침. 이름 병기는 문맥이 dialog 를 드러내지 않는 2 곳만, 나머지는 번호만 교체. Out of Scope 오답 함정 3 종 무변경.
+- **test**: 428 suite / 12271 test 전량 pass, line 99.95% · function 100%. 신규 public symbol 0 이라 신규 spec 추가 없음.
