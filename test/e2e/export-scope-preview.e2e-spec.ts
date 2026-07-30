@@ -91,13 +91,19 @@ describe("E2E: export scope preview 2 종의 400 매핑 (T-1330)", () => {
     await prisma.$disconnect();
   });
 
-  describe("happy-path — Admin 이 정상 scope 로 호출하면 200", () => {
-    it("describe-scope 는 scope 설명 모델을 200 으로 반환한다", async () => {
+  // 성공 status 가 201 인 이유: 두 handler 는 `@Post` 이고 `@HttpCode` 를 부착하지 않아
+  // NestJS 기본값 201 Created 로 응답한다(read-only 조회임에도 201). 본 spec 은 실 동작을
+  // 그대로 박제한다 — 200 으로 바꾸려면 controller 에 `@HttpCode(200)` 를 붙이는
+  // production 변경이 필요하고, 그것은 본 task 의 Out of Scope 이라 §Follow-ups 로 남긴다.
+  const OK_STATUS = 201;
+
+  describe("happy-path — Admin 이 정상 scope 로 호출하면 성공 응답", () => {
+    it("describe-scope 는 scope 설명 모델을 성공 status 로 반환한다", async () => {
       const response = await request(app.getHttpServer())
         .post(DESCRIBE_PATH)
         .set("Cookie", adminCookie)
         .send({ scope: "FULL" })
-        .expect(200);
+        .expect(OK_STATUS);
 
       // 사람-친화 설명 필드(headline / scopeLine / entityLines) + read-only 표식.
       expect(response.body.scopeKind).toBe("full");
@@ -108,12 +114,12 @@ describe("E2E: export scope preview 2 종의 400 매핑 (T-1330)", () => {
       expect(response.body.readOnly).toBe(true);
     });
 
-    it("preview-selection 은 count 요약 3 키를 200 으로 반환한다", async () => {
+    it("preview-selection 은 count 요약 3 키를 성공 status 로 반환한다", async () => {
       const response = await request(app.getHttpServer())
         .post(PREVIEW_PATH)
         .set("Cookie", adminCookie)
         .send({ scope: "FULL" })
-        .expect(200);
+        .expect(OK_STATUS);
 
       // 빈 DB 라 count 값 자체는 0 이어도 무방 — 키 존재 + 타입만 단언한다.
       expect(typeof response.body.selectedCount).toBe("number");
@@ -268,19 +274,23 @@ describe("E2E: export scope preview 2 종의 400 매핑 (T-1330)", () => {
   });
 
   describe("read-only 계약 — 두 endpoint 는 DB 에 쓰지 않는다", () => {
-    it("호출 후에도 exportJob row 가 0 이다 (REQ-032 raw 미저장 정합)", async () => {
+    it("호출 전후로 exportJob row 수가 변하지 않는다 (REQ-032 raw 미저장 정합)", async () => {
+      // 절대값 0 대신 호출 전후 delta 0 을 단언한다 — `truncateAll` 은 ExportJob 를
+      // 비우지 않아(TRUNCATE_TABLES 미포함) 선행 e2e 의 잔여 row 에 영향받지 않기 위함.
+      const countBefore = await prisma.exportJob.count();
+
       await request(app.getHttpServer())
         .post(DESCRIBE_PATH)
         .set("Cookie", adminCookie)
         .send({ scope: "FULL" })
-        .expect(200);
+        .expect(OK_STATUS);
       await request(app.getHttpServer())
         .post(PREVIEW_PATH)
         .set("Cookie", adminCookie)
         .send({ scope: "FULL" })
-        .expect(200);
+        .expect(OK_STATUS);
 
-      expect(await prisma.exportJob.count()).toBe(0);
+      expect(await prisma.exportJob.count()).toBe(countBefore);
     });
   });
 });
