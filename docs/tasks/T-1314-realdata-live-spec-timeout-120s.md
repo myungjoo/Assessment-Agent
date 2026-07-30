@@ -2,7 +2,7 @@
 id: T-1314
 title: realdata live smoke spec 3종의 jest.setTimeout 을 120s 로 상향 (Ollama 콜드 로드 64.5s 대응)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-061]
 estimatedDiff: 16
@@ -39,15 +39,15 @@ plannerNote: "PLAN.md 운영 backlog 오너 결정 항목(2026-07-30 ff57cce9) �
 
 ## Acceptance Criteria
 
-- [ ] 위 3개 live smoke spec 의 `jest.setTimeout` 값이 모두 정확히 `120000` 이다. `grep -n "jest.setTimeout" test/smoke/realdata-e2e-live.smoke-spec.ts test/smoke/realdata-e2e-github-collection-live.smoke-spec.ts test/smoke/realdata-e2e-eval-chain-live.smoke-spec.ts` 결과 3줄 모두 `120000`.
-- [ ] 각 `jest.setTimeout` 위의 한국어 주석이 상향 근거를 담는다 — **콜드 로드 실측 64.5s (warm 8.8s) 대비 2배 여유 + publish/rediscovery live spec 과 동일 컨벤션** 이 읽히면 충분 (§12 한국어). 주석은 각 spec 2줄 이내 유지.
-- [ ] `docs/ops/daily-deploy-test.md` §G-4 의 `jest.setTimeout(45000)` 인용이 `jest.setTimeout(120000)` 으로 갱신되고, **예열이 여전히 필수라는 결론이 유지** 된다 (120s 여유는 보험이지 예열 생략 허가가 아니다 — 이 취지가 문장에 남아야 한다).
-- [ ] gating 판정 구조 (`describeLive = gating.enabled ? describe : describe.skip`) 는 세 spec 모두 **한 글자도 변경되지 않는다** — public CI 에서 여전히 전 it skip 이라 CI 시간 증가 0. `git diff` 에 `describeLive` / `resolveRealDataE2eLiveGating` 관련 변경 라인이 0 이어야 한다.
-- [ ] **신규/수정 public symbol 0 · 분기 추가 0** 이므로 R-112 의 happy-path / error-path / branch / negative 4항목은 **신규 test 작성 대상이 없다** — 본 task 는 기존 spec 의 timeout 리터럴만 조정한다. 이 근거를 PR 본문에 명시하고, 대신 아래 3줄 검증으로 R-110 을 충족한다.
-- [ ] `pnpm lint` 통과 (변경 3 spec 의 prettier 포맷 유지).
-- [ ] `pnpm build` 통과.
-- [ ] `pnpm test` 통과 + `pnpm test:smoke` 통과 — gating env 부재 상태에서 세 live describe 가 **skip 으로 집계** 됨을 smoke 출력으로 확인 (fail·error 0).
-- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — production code 변경 0 이라 커버리지 수치 변동이 없어야 한다.
+- [x] 위 3개 live smoke spec 의 `jest.setTimeout` 값이 모두 정확히 `120000` 이다. `grep -n "jest.setTimeout" test/smoke/realdata-e2e-live.smoke-spec.ts test/smoke/realdata-e2e-github-collection-live.smoke-spec.ts test/smoke/realdata-e2e-eval-chain-live.smoke-spec.ts` 결과 3줄 모두 `120000`.
+- [x] 각 `jest.setTimeout` 위의 한국어 주석이 상향 근거를 담는다 — **콜드 로드 실측 64.5s (warm 8.8s) 대비 2배 여유 + publish/rediscovery live spec 과 동일 컨벤션** 이 읽히면 충분 (§12 한국어). 주석은 각 spec 2줄 이내 유지.
+- [x] `docs/ops/daily-deploy-test.md` §G-4 의 `jest.setTimeout(45000)` 인용이 `jest.setTimeout(120000)` 으로 갱신되고, **예열이 여전히 필수라는 결론이 유지** 된다 (120s 여유는 보험이지 예열 생략 허가가 아니다 — 이 취지가 문장에 남아야 한다).
+- [x] gating 판정 구조 (`describeLive = gating.enabled ? describe : describe.skip`) 는 세 spec 모두 **한 글자도 변경되지 않는다** — public CI 에서 여전히 전 it skip 이라 CI 시간 증가 0. `git diff` 에 `describeLive` / `resolveRealDataE2eLiveGating` 관련 변경 라인이 0 이어야 한다.
+- [x] **신규/수정 public symbol 0 · 분기 추가 0** 이므로 R-112 의 happy-path / error-path / branch / negative 4항목은 **신규 test 작성 대상이 없다** — 본 task 는 기존 spec 의 timeout 리터럴만 조정한다. 이 근거를 PR 본문에 명시하고, 대신 아래 3줄 검증으로 R-110 을 충족한다.
+- [x] `pnpm lint` 통과 (변경 3 spec 의 prettier 포맷 유지).
+- [x] `pnpm build` 통과.
+- [x] `pnpm test` 통과 + `pnpm test:smoke` 통과 — gating env 부재 상태에서 세 live describe 가 **skip 으로 집계** 됨을 smoke 출력으로 확인 (fail·error 0).
+- [x] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — production code 변경 0 이라 커버리지 수치 변동이 없어야 한다.
 
 ## Out of Scope
 
@@ -64,4 +64,11 @@ plannerNote: "PLAN.md 운영 backlog 오너 결정 항목(2026-07-30 ff57cce9) �
 
 ## Follow-ups
 
-(작성 시점 비어 있음)
+- (본 slice 관측) `PLAN.md` 운영 backlog 의 realdata live timeout 항목 checkbox 가 아직 미체크 — shipped(`6b0b2aee`) 반영은 다음 doc 정합 slice 에서.
+- (본 slice 관측) 로컬 `pnpm test:smoke` 는 postgres/docker 부재로 실행 불가해 CI 집계로만 검증했다. 로컬 smoke 실행 가능 조건 문서화는 별도 slice 후보.
+
+## 완료 기록
+
+- 완료: 2026-07-30T07:51Z. PR [#1196](https://github.com/myungjoo/Assessment-Agent/pull/1196) squash merge `6b0b2aee`, reviewer VERDICT=APPROVE (round 1), CI green (PR run 30524026366 · main run 30524361840).
+- 결과: live spec 3종 (`realdata-e2e-live` 30s · `realdata-e2e-github-collection-live` 30s · `realdata-e2e-eval-chain-live` 45s) 의 `jest.setTimeout` 을 모두 **120000** 으로 상향 + 상향 근거 한국어 주석 2줄씩 교체. `docs/ops/daily-deploy-test.md` §G-4 의 `45000` 인용 리터럴 정합 + "120s 여유는 보험이지 예열 생략 허가가 아니다" 취지 명문화로 예열 필수 결론 유지. 4 파일 +13/-11.
+- gating 구조 (`describeLive` / `resolveRealDataE2eLiveGating`) 변경 라인 0 — 신규 public symbol·분기 0 이라 R-112 신규 test 대상 없음 (근거 PR 본문 명시).
