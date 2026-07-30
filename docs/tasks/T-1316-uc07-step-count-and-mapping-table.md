@@ -2,7 +2,8 @@
 id: T-1316
 title: UC-07 §5 step 수 선언을 실측 17 로 정합 + 주석 sweep 용 step 번호·이름 대응표 박제
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T10:41:00Z
 commitMode: direct
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 34
@@ -49,6 +50,12 @@ plannerNote: "T-1312 Follow-up 2 건 마감 — step 수 13→실측 17 정합 +
 ## Suggested Sub-agents
 
 `implementer` (문서 편집 · git 대조로 표 유도) → 검증은 위 Acceptance Criteria 의 `awk` · `grep` · `git diff --stat` 명령으로 충분 (코드 변경 0 이라 `tester` 불요 — direct doc-only, CLAUDE.md §3.2 R-110 면제 경로).
+
+## Result (2026-07-30 10:41Z, DONE)
+
+direct doc-only commit `e8a77f3d` main 머지 (CI green). `docs/use-cases/UC-07-export-import.md` 1 파일 +27/-1 — 105 행 `step 수: 약 13` 선언을 실측 **17** 기반 문장으로 교체(계수 기준 = arrow 만, `Note over` 제외 명시 / [T-0027](T-0027-uc-07-export-import.md) 101 행 자기점검 범위 8~14 초과 사실과 사유를 은폐 없이 1 줄 기재) + 103 행 규약 직후 `### 5.1 step 번호 · 이름 대응표` 소절 신설(17 행 표 — preview 왕복 2 개는 `신설`, 나머지 현 N = 이전 N−2) + 판정 규약(기계적 +2 금지, 이름 기준 판정 / 과도기 표 수명).
+
+**편차 1 건 (실경로 정정)**: 판정 규약의 선행 drift 실례 파일 경로를 본 task 본문의 `src/import/import-restore-preview.ts` 대신 **실측 경로 `src/export/import-restore-preview.ts`** 로 기재했다 (`src/import/` 에 해당 파일 부재 — 존재하지 않는 경로를 권위 문서에 박제하지 않기 위함). 후속 sweep slice 는 이 실경로를 따른다.
 
 ## Follow-ups
 
