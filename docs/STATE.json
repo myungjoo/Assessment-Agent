@@ -49,8 +49,8 @@
   "ci": {
     "status": "green",
     "consecutiveFails": 0,
-    "lastRun": "2026-07-30T16:41:07Z",
-    "note": "driver fire(cron@aa-local-7bcbddee-1462, 매시 30분대 로컬 스케줄) — **T-1327 DONE 단일 task fire**. 진입: fetch → working tree clean·`7bcbddee` = origin/main → lock free(tombstone)·claims=`[]` → server-time `16:37:04Z` 확보 (`gh api -i rate_limit` Date 헤더) → acquire-lock CAS(tip `d4fb98f1`) → reclaim 회수 대상 0 → maxConcurrentClaims 게이트(활성 claim 0 < 2) → select-claim T-1327(claimedAt `16:37:24Z` = server-time, midnight fallback 아님 확인) + lock tombstone 동일 commit release → lock-free executor 1 회 → direct commit `6bd51d76` main push. main CI(headSha `6bd51d76`) 는 본 turn 종료 시점 **in_progress** — 다음 fire [1] 에서 conclusion 재확인(R-114 이월 1 건). 직전 fire 의 `7bcbddee` main CI 는 본 turn [1] 에서 **success** 확인. **[7.5] chain 미진입** — planner 가 큐잉한 T-1328 이 `pr` 이라 §2.5 (e) commitMode 동일 조건(direct+direct) 불충족 → 두 번째 task 진입 없이 종료."
+    "lastRun": "2026-07-30T16:48:18Z",
+    "note": "driver fire(cron@aa-local-7bcbddee-1462, 매시 30분대 로컬 스케줄) — **T-1327 DONE 단일 task fire**. 진입: fetch → working tree clean·`7bcbddee` = origin/main → lock free(tombstone)·claims=`[]` → server-time `16:37:04Z` 확보 (`gh api -i rate_limit` Date 헤더) → acquire-lock CAS(tip `d4fb98f1`) → reclaim 회수 대상 0 → maxConcurrentClaims 게이트(활성 claim 0 < 2) → select-claim T-1327(claimedAt `16:37:24Z` = server-time, midnight fallback 아님 확인) + lock tombstone 동일 commit release → lock-free executor 1 회 → direct commit `6bd51d76` main push. main CI(headSha `6bd51d76`) conclusion **success** 를 본 fire 안에서 확인(R-114 이월 0 — bookkeeping commit `30bf7538` 의 doc-only CI 만 종료 시점 in_progress). 직전 fire 의 `7bcbddee` main CI 는 본 turn [1] 에서 **success** 확인. **[7.5] chain 미진입** — planner 가 큐잉한 T-1328 이 `pr` 이라 §2.5 (e) commitMode 동일 조건(direct+direct) 불충족 → 두 번째 task 진입 없이 종료."
   },
   "reviewRounds": {
     "T-1314": 1,
