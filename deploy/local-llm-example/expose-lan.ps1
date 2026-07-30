@@ -61,7 +61,7 @@ else {
 Write-Host "서버 재기동(새 bind 적용)..." -ForegroundColor Cyan
 $exe = Get-OllamaExe
 if ($exe) {
-    Get-Process -Name 'ollama app', 'ollama', 'ollama_llama_server' -ErrorAction SilentlyContinue |
+    Get-Process -Name 'ollama app', 'ollama', 'ollama_llama_server', 'llama-server' -ErrorAction SilentlyContinue |
         Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
     Start-Process -FilePath $exe -ArgumentList 'serve' -WindowStyle Hidden | Out-Null

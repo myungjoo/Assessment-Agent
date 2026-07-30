@@ -86,7 +86,7 @@ if ($NoAutostart) {
 # 세션 env(OLLAMA_KEEP_ALIVE/HOST)를 그대로 상속해 정책이 즉시 반영된다. 재부팅
 # 후에는 [3/5] 의 자동시작(트레이 앱)이 동일 user env 로 서버를 띄운다.
 Write-Host "[4/5] 서버 재기동(환경변수 반영) 후 대기..." -ForegroundColor Yellow
-Get-Process -Name 'ollama app', 'ollama', 'ollama_llama_server' -ErrorAction SilentlyContinue |
+Get-Process -Name 'ollama app', 'ollama', 'ollama_llama_server', 'llama-server' -ErrorAction SilentlyContinue |
     Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 Start-Process -FilePath $exe -ArgumentList 'serve' -WindowStyle Hidden | Out-Null

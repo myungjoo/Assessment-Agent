@@ -113,7 +113,7 @@ function Start-OllamaServerIfNeeded {
     }
 
     # (2) 폴백: 멈춘 인스턴스 정리 후 serve 직접 기동
-    Get-Process -Name 'ollama app', 'ollama', 'ollama_llama_server' -ErrorAction SilentlyContinue |
+    Get-Process -Name 'ollama app', 'ollama', 'ollama_llama_server', 'llama-server' -ErrorAction SilentlyContinue |
         Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
     Start-Process -FilePath $exe -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
