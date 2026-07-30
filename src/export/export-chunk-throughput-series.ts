@@ -30,7 +30,8 @@ import { ExportChunkStreamThroughput } from "./export-chunk-stream-throughput";
 // 불변: 0 <= minBytesPerSecond <= averageBytesPerSecond <= peakBytesPerSecond (sampleCount ≥ 1),
 // 0 <= stalledWindowCount <= stalledSampleCount <= sampleCount, everStalled === (stalledSampleCount
 // > 0), stalledSampleCount === 0 ⟹ stalledWindowCount === 0, sampleCount <= 1 ⟹ monotonicProgress
-// === true. 후속 WebUI 진행 표시(UC-07 §5 step 13)가 그대로 사용한다.
+// === true. 후속 WebUI 진행 표시(UC-07 §5 step 17 (결과 표시 — 다운로드 완료) 직전의 진행
+// 안내)가 그대로 사용한다.
 export interface ExportChunkThroughputSeries {
   sampleCount: number;
   averageBytesPerSecond: number;
