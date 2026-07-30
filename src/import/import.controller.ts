@@ -35,7 +35,7 @@
 //     응답만으로 알 수 있다 (mode 생략 시 REPLACE 로 조용히 해석되던 것이 외부 사실이 됨).
 //   - GET  /api/admin/import/running  → findRunning (RUNNING 목록, UC-07 §8 status polling).
 //   - GET  /api/admin/import/modes    → describeModes (import mode 선택 dialog 의 사람-친화
-//     설명 목록, UC-07 §5 step 2 + §6.2 — describeImportMode helper 를 REPLACE/MERGE 두
+//     설명 목록, UC-07 §5 step 4 + §6.2 — describeImportMode helper 를 REPLACE/MERGE 두
 //     mode 에 호출, DB write 0 / raw 미접근).
 //   - GET  /api/admin/import/:id      → findJob (단건 polling, 부재 시 service 가
 //     P2025 → NotFoundException → 404 raw forward).
@@ -344,7 +344,7 @@ export class ImportController {
   }
 
   // GET /api/admin/import/modes — import mode(replace/merge) 선택 dialog 의 사람-친화
-  // 설명 목록 조회 (UC-07 §5 step 2 + §6.2, REQ-030 Import mode 선택). 고정 2 mode
+  // 설명 목록 조회 (UC-07 §5 step 4 + §6.2, REQ-030 Import mode 선택). 고정 2 mode
   // (Prisma ImportMode enum REPLACE/MERGE) 를 lowercase ImportRestoreMode 로 변환해
   // describeImportMode helper 에 넘기고, 각 mode 의 ImportModeDescription 을 그대로
   // 반환한다 (2 원소: REPLACE→destructive=true / MERGE→destructive=false). client 입력
