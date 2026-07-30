@@ -3,7 +3,7 @@
 // T-0439 의 checkSchemaVersionCompat → T-0440 의 validateImportDumpStructure → T-0441 의
 // summarizeImportImpact → T-0442 의 buildImportRestorePlan 다음의 자연 building block 이다.
 // buildImportRestorePlan(T-0442)이 산출한 {toDelete, toInsert, toKeep} plan 은 세 배열을 통째로
-// 들고 있을 뿐, UC-07 §5 step 7 의 강한 confirmation dialog(destructive 명시 + 영향 범위)와
+// 들고 있을 뿐, UC-07 §5 step 4 의 강한 confirmation dialog(destructive 명시 + 영향 범위)와
 // §8 (e) Audit row 가 필요로 하는 삭제/삽입/보존 row 의 entity-별 + 전체 breakdown 을 derive
 // 하지 않는다 — buildExportImportAuditEntry(T-0443)도 plan.toInsert.length 단일 rowCount 만 쓰고
 // delete/keep 분포는 노출하지 않는다. 본 helper 는 그 gap 을 순수 derivation 으로 박제한다 —
@@ -30,7 +30,7 @@ export interface RestorePlanGroupBreakdown {
 
 // 복원 plan 영향 breakdown 요약 verdict — plain object. plan 의 세 배열(toDelete/toInsert/
 // toKeep)을 각각 deleted/inserted/kept 그룹 breakdown 으로 집계한다. 후속 confirmation
-// dialog(UC-07 §5 step 7)와 Audit row(§8 (e))가 이 요약을 그대로 사용한다.
+// dialog(UC-07 §5 step 4)와 Audit row(§8 (e))가 이 요약을 그대로 사용한다.
 export interface RestorePlanSummary {
   deleted: RestorePlanGroupBreakdown;
   inserted: RestorePlanGroupBreakdown;

@@ -5,7 +5,7 @@
 // → T-0445 상수 DRY → T-0446 computeDumpChecksum/verifyDumpChecksum → T-0448 summarizeRestorePlan
 // → T-0449 summarizeExportSelection → T-0450 validateImportDumpSize 의 다음 게이트-free 단추다.
 // UC-07 §6.2 가 명시한 merge mode 의 "conflict 시 file 우선 또는 reject" 정책 중 reject 경로 +
-// §5 step 7 강한 confirmation dialog(영향 범위 표시)는 기존 13 helper 중 0 회 cover —
+// §5 step 4 강한 confirmation dialog(영향 범위 표시)는 기존 13 helper 중 0 회 cover —
 // buildImportRestorePlan(T-0442)은 merge 충돌을 **항상 file 우선으로 해결**해 {toDelete, toInsert,
 // toKeep} plan 만 산출할 뿐, 어떤 record 가 / 몇 건이 충돌했는지를 별도로 보고하지 않는다.
 // 본 helper 는 그 gap 을 순수 derivation 으로 박제한다 — 기존 ExportRecord[] + import dump 의

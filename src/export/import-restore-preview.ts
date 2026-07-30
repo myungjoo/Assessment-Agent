@@ -5,7 +5,7 @@
 // 구조 검증을 통과한 dump 가 **transaction 시작 전에** 사용자에게 보여줄 **영향 범위 요약**
 // (restore 시 entity 별 복원 row 수 · 전체 row 수 · instant 시간 범위)을 산출하는 순수 helper
 // 로, buildExportDump 가 만든 ExportDump envelope 의 metadata/records 에서 **순수 derivation**
-// 만 한다(UC-07 §5 step 7 "강한 confirmation — destructive 명시 + 영향 범위", §8 (e) Audit
+// 만 한다(UC-07 §5 step 4 "강한 confirmation — destructive 명시 + 영향 범위", §8 (e) Audit
 // metadata "복원된 row count").
 //
 // persistence / repository / DB query · file parse · JSON.parse · transaction · REST 배선
@@ -22,7 +22,7 @@ import { ExportEntity, ExportRecord } from "./export-scope-select";
 
 // restore 영향 범위 요약 verdict — plain object. totalRecords(전체 복원 row 수) + perEntity
 // (5 entity 전부 key 인 number map, records 실측 집계) + instantRange(records 의 instant 시간
-// 범위, 빈 records 면 null). 후속 confirmation dialog(UC-07 §5 step 7) 가 이 요약을 그대로
+// 범위, 빈 records 면 null). 후속 confirmation dialog(UC-07 §5 step 4) 가 이 요약을 그대로
 // 사용자에게 안내한다(destructive 경고 + 영향 범위).
 export interface ImportImpact {
   totalRecords: number;
@@ -46,7 +46,8 @@ function assertValidDate(value: unknown, label: string): asserts value is Date {
 }
 
 // summarizeImportImpact — 구조 검증을 통과한 ExportDump envelope 를 받아 restore 영향 범위
-// 요약(ImportImpact)을 순수 derivation 으로 산출한다. UC-07 §5 step 7 / §8 (e) 정합:
+// 요약(ImportImpact)을 순수 derivation 으로 산출한다. UC-07 §5 step 4 (confirmation dialog —
+// Import 강한 confirmation) / §8 (e) 정합:
 //   - totalRecords = dump.records.length(records 실측). 빈 dump 시 0.
 //   - perEntity = 5 entity 전부 key 인 number map — records 1 회 순회로 entity 별
 //     집계(0 초기화 후 +1). entityCounts metadata 와 별개로 records 가 ground truth.
