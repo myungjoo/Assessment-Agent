@@ -2,7 +2,9 @@
 id: T-1312
 title: UC-07 잔여 §5 step 참조 +2 재정렬 + 재발 차단 규약 한 줄 박제
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T03:06:00Z
+commit: 8bf9a382
 commitMode: direct
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 26
@@ -57,6 +59,14 @@ plannerNote: "T-1311 +2 재정렬의 문서층 잔여 6 참조 마감 + step 참
 - **ADR-0046 의 status · 본문 재작성 0** — 참조 한 줄만 고친다.
 - **`deploy/daily-test.sh` leg 추가 0** — leg 추가는 drift-guard smoke spec 3 종 동반 수정으로 cap 이 깨진 Q-0054 선례가 있다.
 
+## 결과 (2026-07-30 완료)
+
+- direct commit `8bf9a382` (main), +9/-7 / 2 파일 — cap 준수. main CI run 30509989304 = **success** (본 fire 안에서 conclusion 확정, R-114 이월 0).
+- UC-07 49·166·168·169·171 행 + ADR-0046 128 행 참조를 T-1311 의 +2 재정렬에 맞춰 교정했고, pre-check 가 못 잡은 ADR-0046 13 행 1 곳을 추가로 정규화했다 (총 7 곳).
+- 169 행 REQ-037 참조는 기계적 +2 가 아니라 의미 판정으로 처리 — 옛 step 11 의 `atomic all-or-nothing` Note 대신 마지막 `UC-01 자동 재수집` Note 를 이름 기반으로 가리키게 교정.
+- §5 mermaid 직후에 step 참조 규약 2 줄을 박아 같은 drift 의 재발 경로를 닫았다 (소절 신설 0).
+- 검증 4 종 통과: 잔여 옛 참조 0 hit / arrow 총수 17 불변 / 과잉 치환 오탐 차단(UC-06 §5 step 11 은 1 hit 생존) / §10 표 3 열 유지 + 링크 실재.
+
 ## Suggested Sub-agents
 
 `implementer`
@@ -74,3 +84,4 @@ plannerNote: "T-1311 +2 재정렬의 문서층 잔여 6 참조 마감 + step 참
 - (미해결 정책, T-1287 이월) `LlmProviderConfig` 왕복 불가 — export 가 `apiKey` 를 제외하는데 schema 는 not-null. **§5 사람 결정 대상**.
 - (관측, 이월) UC-07 §8 (b)(e) Export / Import Audit log row 영속화 0 — schema migration 이라 §5 사람 결정 대상.
 - (PLAN 게이트 backlog) `web/package.json` vitest `coverageThreshold` 도입 — 새 dep 필요라 §5 승인 게이트.
+- (본 task 관측) UC-07 103 행 `step 수: 약 13` 이 실제 arrow 17 과 불일치 — AC 목록 밖이라 미수정. 다음 문서 slice 후보.
