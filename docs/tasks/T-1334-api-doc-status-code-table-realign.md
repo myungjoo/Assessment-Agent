@@ -2,7 +2,8 @@
 id: T-1334
 title: api.md § 6 표준 status code 표의 200/201 적용 범위를 실측 controller 기준으로 정합
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T22:52:30Z
 commitMode: direct
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 22
@@ -62,4 +63,13 @@ T-1333 은 이 표 수정을 자기 Out of Scope 에 "별도 slice" 로 명시�
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- § 6 표에 `202 Accepted` row 자체가 부재 — 실측으로 `POST /api/schedules/trigger` · `/backfill/:personId` · `/recent-deletion/:personId` 3 종이 `@HttpCode(202)` 다. 표 행 추가는 구조 변경이라 본 task 의 touchesFiles 1 파일 inline-amend 범위를 넘어 별도 slice 로 분리했다 → **[T-1335](T-1335-api-doc-status-code-202-204-rows.md)** 로 큐잉됨 (204 적용 범위 실측 정합도 같은 slice 에 포함).
+
+## Result
+
+- **DONE** (2026-07-30T22:52:30Z) — direct-mode, main direct commit `9246619a`. `docs/architecture/api.md` 1 파일 +2/-2 (165 · 166 두 행의 `적용 범위` 컬럼만 inline amend, cap 준수).
+- 166 행 `201 Created` 적용 범위를 실측 **13 종** (명시 `@HttpCode(201)` 9 종 / `@Post` 기본값 201 4 종) 으로 교체하고, 같은 문서 96 행이 "never-built" 로 박제한 `POST /api/assessments/run` 을 목록에서 제거해 문서 내부 모순을 해소했다.
+- 165 행 `200 OK` 의 "POST (action)" 에 [T-1331](T-1331-export-scope-preview-httpcode-200.md) · [T-1332](T-1332-import-preview-httpcode-200.md) 가 200 으로 박제한 read-only POST 3 종 (`describe-scope` · `preview-selection` · `import/preview`) 실례를 병기했다.
+- `발화 조건` 컬럼과 표 파이프 구조는 글자 그대로 보존 (163~173 이 11 행 · 각 행 파이프 4 개 유지). `src/` · `test/` · `web/` 무수정.
+- doc-only 라 R-110 tester 면제 (production code 0 LOC · 신규 symbol 0). 대체 검증: 실측 명령 2 종 재실행 결과가 본문 13 종 목록과 완전 일치 (불일치 0) + grep 가드 2 종 + 표 구조 self-check 통과.
+- 본 task 는 한 cron fire 안에서 T-1333 과 함께 처리됐다 (LOOP.md §7.5 chain, `FIRE-BATCH: T-1333+T-1334`).
