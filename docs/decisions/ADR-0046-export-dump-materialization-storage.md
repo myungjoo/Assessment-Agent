@@ -10,7 +10,7 @@ supersedes: null
 
 # ADR-0046 — ExportDump materialization + artifact 저장 위치 결정
 
-> 본 ADR 은 사용자가 [Q-0042](../STATE.json) 를 **게이트1 (실 chunked-streaming / build service-layer chain 승인)** 으로 결정한 직후, 그 chain 의 **ADR-우선 첫 step** 이다. [T-0437](../tasks/T-0437.md)~[T-0473](../tasks/T-0473.md) 의 preview-side (dependency-free) export helper 잔여가 소진됐고, [UC-07 §5 step5·13](../use-cases/UC-07-export-import.md) + §8 NFR 이 요구하는 **실 service-layer 배선** 으로 진입하는데, 그 배선은 (1) 직렬화된 `ExportDump` envelope 를 실제 byte stream / 다운로드 본문으로 만드는 **materialization 전략**, (2) 만들어진 artifact 를 어디에 두는지 결정하는 **artifact 저장 위치** 라는 두 신규 infra 결정을 동반한다. [CLAUDE.md §1](../../CLAUDE.md) "코드보다 ADR 이 먼저" + [§3.1](../../CLAUDE.md) rule 4 (새 ADR = pr) 에 따라 이 chain 의 첫 산출물이 본 ADR 이며, 본 ADR 은 **결정 전용 0 LOC** — 실 materialization 실행 함수·streaming pipe·REST controller·repository 구현은 본 ADR ACCEPTED 후 별도 후속 task (§Out of scope / §Follow-ups) 다.
+> 본 ADR 은 사용자가 [Q-0042](../STATE.json) 를 **게이트1 (실 chunked-streaming / build service-layer chain 승인)** 으로 결정한 직후, 그 chain 의 **ADR-우선 첫 step** 이다. [T-0437](../tasks/T-0437.md)~[T-0473](../tasks/T-0473.md) 의 preview-side (dependency-free) export helper 잔여가 소진됐고, [UC-07 §5 step 7·15](../use-cases/UC-07-export-import.md) + §8 NFR 이 요구하는 **실 service-layer 배선** 으로 진입하는데, 그 배선은 (1) 직렬화된 `ExportDump` envelope 를 실제 byte stream / 다운로드 본문으로 만드는 **materialization 전략**, (2) 만들어진 artifact 를 어디에 두는지 결정하는 **artifact 저장 위치** 라는 두 신규 infra 결정을 동반한다. [CLAUDE.md §1](../../CLAUDE.md) "코드보다 ADR 이 먼저" + [§3.1](../../CLAUDE.md) rule 4 (새 ADR = pr) 에 따라 이 chain 의 첫 산출물이 본 ADR 이며, 본 ADR 은 **결정 전용 0 LOC** — 실 materialization 실행 함수·streaming pipe·REST controller·repository 구현은 본 ADR ACCEPTED 후 별도 후속 task (§Out of scope / §Follow-ups) 다.
 >
 > **Status `ACCEPTED` 의 근거와 한계**: 사용자 Q-0042 게이트1 승인이 본 두 결정 (새 dependency 0 옵션) 의 진행을 허가했으므로 `ACCEPTED` 다. 단 **외부 object-storage (S3 / MinIO 등) 로의 전환은 본 ADR 이 내리지 않으며, 그 도입은 새 외부 dependency 이므로 [CLAUDE.md §5](../../CLAUDE.md) 에 따라 반드시 별도 사용자 게이트 결정으로 남긴다** (§Decision 2 / §Alternatives A). 본 ADR 은 어떤 새 dependency 도 추가하지 않는다.
 >
@@ -125,7 +125,7 @@ dump artifact 를 S3-호환 object storage 에 써 두고 pre-signed URL 로 Adm
 
 ## References
 
-- [docs/use-cases/UC-07-export-import.md](../use-cases/UC-07-export-import.md) — §5 step5·13 (Export 다운로드) / §8 NFR (async/chunked/resumable "별도 설계" — 본 ADR 이 그 materialization·저장 부분)
+- [docs/use-cases/UC-07-export-import.md](../use-cases/UC-07-export-import.md) — §5 step 7·15 (Export 다운로드) / §8 NFR (async/chunked/resumable "별도 설계" — 본 ADR 이 그 materialization·저장 부분)
 - [docs/decisions/ADR-0044-export-import-job-persistence.md](ADR-0044-export-import-job-persistence.md) — ExportJob/ImportJob 영속 entity + `artifactRef` pointer + §Out of scope 이 deferred 한 "materialization·저장소" (본 ADR 의 직접 상류)
 - [docs/decisions/ADR-0033-evaluation-result-persistence.md](ADR-0033-evaluation-result-persistence.md) — "새 dep 0 / 새 credential 0" 선례 + ADR template
 - [docs/decisions/ADR-0003-deployment.md](ADR-0003-deployment.md) — §1 monolithic in-process (외부 storage 미전제) / §4 corporate-host 가정 (object-storage 전환 시 영향)

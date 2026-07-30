@@ -46,7 +46,7 @@ User 등급은 Export · Import 의 어떤 sub-trigger 도 발화 불가. **fine
 3. **DB Persistence 가용** — PostgreSQL connection pool 정상. connection 끊김 / timeout 시 §7.5.
 4. **Import / Restore 전용** — (a) 업로드된 file artifact 가 본 시스템의 dump 포맷 (schema version 일치 또는 §6.3 의 version mismatch alt 적용), (b) [UC-01](UC-01-evaluation-execution.md) 평가 실행 또는 [UC-06](UC-06-evaluation-delete-reeval.md) destructive operation 진행 중 아님 또는 사용자 결정 (§6.4 — race 정책 [UC-06](UC-06-evaluation-delete-reeval.md) §6.3 와 동일).
 
-본 UC 의 핵심 invariant **"raw 미저장 ([REQ-032](../requirements.md)) 이 Export payload 에 자연 전파"** 와 **"Import atomic transaction — 부분 복원 상태 없음"** 과 **"UC-01 의 다음 발화가 복원된 master + 비어있는 시간 구간 자동 재수집"** 은 §5 step 7·11 / §7.5 / §8 (b)(c) 로 단단히 박제.
+본 UC 의 핵심 invariant **"raw 미저장 ([REQ-032](../requirements.md)) 이 Export payload 에 자연 전파"** 와 **"Import atomic transaction — 부분 복원 상태 없음"** 과 **"UC-01 의 다음 발화가 복원된 master + 비어있는 시간 구간 자동 재수집"** 은 §5 step 9·13 / §7.5 / §8 (b)(c) 로 단단히 박제.
 
 ## 5. Main flow (sequence diagram)
 
@@ -99,6 +99,8 @@ sequenceDiagram
 
     Note over AssessmentModule: 이후 별도 흐름 — UC-01 의 다음 cron 발화 시<br/>평가 파이프라인이 "비어있는 시간 구간" 자동 감지 → 재수집 (REQ-037)
 ```
+
+위 step 번호는 mermaid `autonumber` 가 매기는 **arrow 순번** 이라 arrow 를 하나 삽입하면 그 뒤 번호가 통째로 밀린다 (`Note over ...` 는 번호 대상 아님). 따라서 다른 문서 · 코드 주석이 본 §5 를 참조할 때는 **번호와 step 이름을 병기** 한다 — 예: `§5 step 17 (결과 표시 — 다운로드 완료)`.
 
 step 수: 약 13 (autonumber 기준 — alt 사용자 취소 + alt Export/Import 2 분기 + 1 conceptual Note 포함, 8 ≤ 13 ≤ 14 범위 안). 본 다이어그램의 의존성 방향 (Web UI → Backend API → {AuthModule, AssessmentModule} → PersistenceModule) 은 [components.md](../architecture/components.md) + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합. UC-01 의 다음 발화에 의한 자동 재수집은 **본 UC sequence 단계가 아니라 UC-01 영역** — 마지막 Note 로만 conceptual reference ([UC-06](UC-06-evaluation-delete-reeval.md) 와 동일 패턴).
 
@@ -163,12 +165,12 @@ Import 는 두 mode 지원 (옵션 enum 만 박제): **replace mode (default)** 
 
 | REQ | 요약 | 본 UC 의 cover 위치 |
 | --- | --- | --- |
-| REQ-030 | Export / Import / Restore | §1 / §3 trigger 1·2 / §5 step 5·7 / §6.1 / §6.2 / §6.5 / §7.3 / §7.4 / §8 / §9 AssessmentModule |
+| REQ-030 | Export / Import / Restore | §1 / §3 trigger 1·2 / §5 step 7·9 / §6.1 / §6.2 / §6.5 / §7.3 / §7.4 / §8 / §9 AssessmentModule |
 | REQ-032 | Raw data 저장 금지 — 평가 결과만 보유 | §1 invariant / §5 PersistenceModule Note (Export·Import 분기 모두) / §8 (a) Export·(b) Import — 본 UC 가 raw 미저장 의 Export payload 자연 전파 + Import 자연 유지 invariant 의 박제 |
-| REQ-045 | Admin 권한 (재작성/Reset/Import/Export/인원편집/Group편집) | §2 actor / §4 precondition 2 / §5 step 5 / §7.2 — 본 UC 는 Import / Export 권한 박제 |
-| REQ-037 (인접) | 평가 없는 부분 일괄 평가 + Reset & Reeval | §5 step 11 Note conceptual reference / §8 (c) — UC-01 자동 재수집 |
+| REQ-045 | Admin 권한 (재작성/Reset/Import/Export/인원편집/Group편집) | §2 actor / §4 precondition 2 / §5 step 7 / §7.2 — 본 UC 는 Import / Export 권한 박제 |
+| REQ-037 (인접) | 평가 없는 부분 일괄 평가 + Reset & Reeval | §5 마지막 Note (step 17 뒤 — UC-01 자동 재수집) conceptual reference / §8 (c) — UC-01 자동 재수집 |
 | REQ-038 (인접) | 평가 결과 schema (조회·sort·filter·시계열) | §8 (d) — UC-02 의 다음 조회 영향 |
-| REQ-043 (인접) | 모든 기능 ID/Password 보호 | §4 precondition 1 / §5 step 5 / §7.1 / §9 AuthModule |
+| REQ-043 (인접) | 모든 기능 ID/Password 보호 | §4 precondition 1 / §5 step 7 / §7.1 / §9 AuthModule |
 | REQ-044 (인접) | SuperAdmin 첫 로긴 + 3 등급 + 승급·강등 규칙 | §2 actor / §4 precondition 2 — 본 UC 의 등급 source ([UC-04](UC-04-account-auth.md) 책임) |
 
 본 task 는 production code 0 LOC + 분기 0 + 새 public symbol 추가 0 — [CLAUDE.md](../../CLAUDE.md) §3.2 R-112 의 4 항목 (happy / error / branch / negative) 모두 N/A. mermaid sequence 의 alt block 3 개 가 §6 의 사용자 취소 + Export 분기 + Import 분기를 박제하며, error flow 6 종 (§7.1~§7.6) 이 인증 실패 / 권한 부족 / payload 검증 실패 / Import file 손상 / DB write fail / race timeout 의 negative path 를 cover.
