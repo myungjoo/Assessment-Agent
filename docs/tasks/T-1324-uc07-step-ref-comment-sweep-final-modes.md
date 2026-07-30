@@ -2,7 +2,7 @@
 id: T-1324
 title: UC-07 §5 step 참조 주석 sweep 종결 slice — import mode 설명 endpoint 주석 2 곳 (옛 step 2 → 현 4)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030]
 estimatedDiff: 6
@@ -78,3 +78,11 @@ plannerNote: "T-1321~T-1323 이 3연속 격리한 미확정 2 곳을 blame 근�
 ## Follow-ups
 
 - (planner 사전 기록) sweep 완결 후 `UC-07 §5.1 step 번호 · 이름 대응표` 는 129 행이 스스로 밝힌 **과도기 표** 로서 제거 후보다. 제거 시 §5 103 행의 "번호와 step 이름 병기" 규약은 남겨야 한다 — 별도 task 로 판단할 것.
+
+## 완료 기록
+
+- **완료 시각**: 2026-07-30T15:08:05Z (PR [#1205](https://github.com/myungjoo/Assessment-Agent/pull/1205) squash merge `0b5bfc2b`)
+- **결과**: `src/import/import.controller.ts` 38 행(route 요약 블록) · 347 행(`describeModes` 핸들러) 의 `§5 step 2` → `§5 step 4` (+2/-2, diff 전량 `//` 주석 줄, production 로직 0 LOC). 판정 K 정본 그대로 적용했고, 문맥이 이미 dialog 를 말하므로 이름 병기 없이 번호만 교체 · 인접 인용(`+ §6.2`, `REQ-030`) 과 줄 폭은 무변경.
+- **검증**: reviewer APPROVE round 1 + PR comment 외부 존재 + integrator 자체 점검 + CI green = 4-게이트 PASS. 428 suite / 12271 test 전량 pass, `test:cov` threshold(line · function 80%) 통과.
+- **종결 게이트**: AC 의 grep 기대치 5 종이 실측과 **전부 일치** — `src/` 전역 `§5 step 2` · `step 5` · `step 7` **0 hit**, `step 4` 19 곳(그중 `src/import/` 4 곳). `uc07-step-ref-comment-sweep` stream (T-1316 ~ T-1324, 9 slice) **완전 종결**.
+- **이월**: `docs/use-cases/UC-07-export-import.md` §5.1 과도기 대응표 제거 조건이 본 merge 로 최초 충족 — [T-1325](T-1325-uc07-transitional-step-mapping-table-removal.md) 가 이어받는다.
