@@ -246,7 +246,8 @@ const ADMIN_IMPORT_PATH = '/api/admin/import';
 
 // import dry-run(preview) path — 고정 endpoint(POST /api/admin/import/preview, api.md 126
 // Admin+). 복원 미실행으로 영향 요약만 산출하며(DB write 0 · ImportJob row 미생성) 요청은 실행
-// 경로와 동일한 multipart, 응답 201 key 집합은 정확히 deleted/inserted/kept/mode 4 개.
+// 경로와 동일한 multipart, 응답 200(T-1332 — dry-run 이라 201 Created 가 아님) key 집합은
+// 정확히 deleted/inserted/kept/mode 4 개.
 const ADMIN_IMPORT_PREVIEW_PATH = '/api/admin/import/preview';
 
 // preview 응답이 기대 shape 이 아닐 때(비객체 · 3 그룹 total 이 하나도 number 아님) 쓰는 fallback
