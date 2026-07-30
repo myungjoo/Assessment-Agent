@@ -2,7 +2,7 @@
 id: T-1326
 title: UC-06 · UC-08 §5 step 수 선언을 실측(12 / 16)으로 정합 + arrow-only 계수 기준 통일
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-008, REQ-016, REQ-037, REQ-041]
 estimatedDiff: 10
@@ -64,6 +64,15 @@ PLAN P5 잔여 3 항목 중 line 108 (live-LLM 재검증) · line 109 (실 githu
 - **§5.1 형태의 step 번호 · 이름 대응표 신설** — UC-06 · UC-08 을 참조하는 `§5 step N` 코드 주석은 실측상 **0 곳** (`git grep -n "UC-06" -- src` 4 파일은 모두 operation 라벨 · 책임 경계 서술이고 step 번호 인용 없음, `UC-08` 은 `src`/`web`/`test` 전역 0 hit) 이라 sweep 도 대응표도 불요하다.
 - **drift-guard smoke 신설** (step 수 선언이 다시 어긋나면 fail 하는 spec) — 별건. `deploy/daily-test.sh` leg 추가는 drift-guard smoke 3 종 동기 수정을 강제해 5 파일 cap 을 넘긴다 (Q-0054 선례).
 - `docs/architecture/*` · `docs/PLAN.md` · `docs/STATE.json` 갱신 (driver bookkeeping 영역) · 과거 task 파일 · journal 안의 step 수 언급 개서 (이력 기록이라 보존).
+
+## Result (2026-07-30T15:54Z, DONE)
+
+- direct commit `0694d4f6` (main push 완료) — `docs/use-cases/UC-06-evaluation-delete-reeval.md` 95 행 · `docs/use-cases/UC-08-permission-denied.md` 105 행 **2 파일 +2/-2**.
+- 각 파일의 `step 수` 선언 **1 줄만** 실측값으로 교체 — UC-06 `약 13` → **12**, UC-08 `약 14` → **16**. planner 가 박제한 arrow-only 계수 기준을 그대로 적용해 executor 재판정 0.
+- 자기점검 범위 판정을 함께 기재 — UC-06 은 T-0026 범위 **안**, UC-08 은 T-0028 의 `8 이상 14 이하` 를 **2 초과** 하므로 사유(emit phase 7 arrow + display phase 9 arrow 두 국면 · audience 분기 alt block 2 개)를 은폐 없이 명시(T-1316 · UC-07 선례).
+- **mermaid 는 1 줄도 변경하지 않았다** (arrow 12 / 16 유지) — 선언을 실측에 맞추는 방향만. 뒤 문단도 그대로 보존.
+- 검증 grep 전 항목 기대값 일치, 링크 3 개 실존 확인. doc-only 라 R-110 tester 면제(production 0 LOC), lint · build · 기존 428 suite/12271 test 무회귀로 대체.
+- 본 fire 의 두 번째 task — `FIRE-BATCH: T-1325+T-1326` 을 code commit trail 에 박제.
 
 ## Suggested Sub-agents
 
