@@ -162,8 +162,8 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 
 | status | 발화 조건 | 적용 범위 |
 | --- | --- | --- |
-| **200 OK** | GET / PATCH / POST (action) 의 정상 완료 — body 동반 | 모든 read / mutation |
-| **201 Created** | POST 가 새 resource 생성 시 — body 동반 (또는 `Location` header) | POST `/api/persons`, `/api/groups`, `/api/parts`, `/api/users`, `/api/llm/providers`, `/api/assessments/run` (run row 생성) |
+| **200 OK** | GET / PATCH / POST (action) 의 정상 완료 — body 동반 | 모든 read / mutation. "POST (action)" 의 정본 실례는 read-only POST 3 종 — POST `/api/admin/export/describe-scope` · POST `/api/admin/export/preview-selection` (T-1331) · POST `/api/admin/import/preview` (T-1332). 셋 다 새 row 를 만들지 않는 dry-run / 조회라 `@HttpCode(HttpStatus.OK)` 를 명시해 `@Post` 기본값 201 을 200 으로 되돌린다 |
+| **201 Created** | POST 가 새 resource 생성 시 — body 동반 (또는 `Location` header) | 실측 13 종 (`src/**/*.controller.ts` 기준). **명시 `@HttpCode(201)` 9 종** — POST `/api/persons`, `/api/groups`, `/api/groups/:id/members`, `/api/parts`, `/api/users`, `/api/assessments`, `/api/contributions`, `/api/summaries`, `/api/assessment-collection/collect`. **`@Post` 기본값 201 인 4 종** (decorator 미부착이 곧 의도적 default — 명시 부착 리팩터는 별도 slice) — POST `/api/admin/export`, `/api/admin/import`, `/api/llm/providers`, `/api/users/:id/instance-access`. 옛 표기였던 `POST /api/assessments` 아래의 `/run` 하위 path (run row 생성) 는 제거 — § 5 표 96 행이 박제한 대로 그 path 는 **shipped 아님 (never-built)** 이고 capability 는 `POST /api/assessment-collection/collect` 로 이관됐다 |
 | **204 No Content** | DELETE / mutation 성공 시 body 불필요한 경우 | DELETE 계열 일부 |
 | **400 Bad Request** | payload validation 실패 / required 필드 누락 / 타입 불일치 | 모든 POST / PATCH |
 | **401 Unauthorized** | 미인증 (login 안 함 / 세션 만료 / JWT invalid) — REQ-043 | Public 외 전체 |
