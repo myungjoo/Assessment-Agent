@@ -2,7 +2,9 @@
 id: T-1311
 title: UC-07 §5 sequence 에 확정 전 preview 왕복 반영 + step 참조 재정렬
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T02:44:00Z
+commit: e141fbfb
 commitMode: direct
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 45
@@ -59,6 +61,13 @@ plannerNote: "P5 문서 정본 drift — §5 sequence 에 preview 왕복 0. doc-
 - **mermaid 를 leg-count-agnostic 하게 만드는 리팩터 0** — step 번호 참조를 이름 기반 anchor 로 전면 전환하는 작업은 부피가 본 slice 를 넘는다. 본 task 는 (a) 신설 지점의 행 번호 참조 2 곳만 제거하고 (b) 나머지는 +2 재정렬로 맞춘다.
 - **web 결과 화면 문구 변경 0** — 결과 표시 arrow (기존 15 → 17) 문구는 0 수정. `restoreSummary` 표시는 T-1310 으로 shipped 이며 문서화가 더 필요하면 별도 slice.
 - **`deploy/daily-test.sh` leg 추가 0** — leg 추가는 drift-guard smoke spec 3 종 동반 수정으로 cap 이 깨진 Q-0054 선례가 있다.
+
+## 결과 (2026-07-30 완료)
+
+- direct commit `e141fbfb` (main), +16/-10 / 2 파일 — cap(300 LOC / 5 파일) 준수. main CI run 30509097121 = **success** (본 fire 안에서 conclusion 확정, R-114 이월 0).
+- UC-07 §5 mermaid 에 `opt(Import 확정 전 preview)` 블록 + arrow 2 개 삽입(총 17). confirmation dialog arrow 에 §6.5 3 그룹 수치 출처 명시, 요청 arrow endpoint 를 shipped 정본(`POST /api/admin/export` · `POST /api/admin/import`)으로 교체 — `POST /api/admin/restore` 혼재 오독 제거.
+- api.md 의 §5 step 참조 +2 재정렬 (step 2→4 3 곳 · 13→15 · 189 행 traceability cell · 192 행 각주), 행 번호 참조 2 곳을 step 4 안정 참조로 교체.
+- 검증 4 종 통과: arrow 총수 17 / 옛 문자열 0 hit / preview arrow 2 개가 opt~end 안이며 Export alt 0 수정 / 표 열 무결(NF=7 · NF=5).
 
 ## Suggested Sub-agents
 
