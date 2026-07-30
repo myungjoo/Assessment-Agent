@@ -2,7 +2,9 @@
 id: T-1332
 title: import preview dry-run 응답을 @HttpCode(200) 으로 정합
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T21:52:12Z
+prNumber: 1209
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 110
@@ -64,3 +66,16 @@ plannerNote: "T-1331 후속 — 같은 UC-07 §5 step 4 preview 가족인 import
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## Result
+
+- **DONE** (2026-07-30T21:52:12Z) — pr-mode, PR [#1209](https://github.com/myungjoo/Assessment-Agent/pull/1209) squash merge `14adc440`. 4 파일 +147/-12 (cap 준수 — 300 LOC / 5 파일 이내).
+- `POST /api/admin/import/preview` handler 에 `@HttpCode(HttpStatus.OK)` + 한국어 근거 주석 부착 (`HttpCode` / `HttpStatus` import 추가). 실 import 실행 `POST /api/admin/import` 는 **201 그대로 유지** — dry-run 만 200 으로 갈랐다.
+- [T-1331](T-1331-export-scope-preview-httpcode-200.md) 이 export preview 2 종을 200 으로 맞춘 데 이어, 같은 [UC-07 §5](../use-cases/UC-07-export-import.md#5-main-flow-sequence-diagram) step 4 preview 가족의 성공 status 계약이 **200 / 200 / 200** 으로 통일됐다.
+- colocated spec: T-1332 metadata describe 1 개(preview 200 부착 / create·GET 3 종 미부착 대조) + branch/negative 3 개 추가. e2e `import-restore-http.e2e-spec.ts` section H 의 status 단언 3 곳(REPLACE / MERGE / mode 미지정)을 200 으로 갱신. web `AdminView.tsx` 는 주석 1 줄만 정정 (로직·테스트 무변경 — `apiClient` 가 `response.ok` 판정이라 status 값 의존 0).
+- R-112: happy 200 · error path (`previewFromDump` reject 400 · 파일 누락 400) · flow/branch (mode 지정 MERGE / 미지정 REPLACE fallback 양쪽 200) · negative 충분 cover (401 · 403 · 400 파일누락 · 400 whitelist · 413 · create 201 회귀). unit 429 suite / 12302 test pass, `test:cov` line·function 80% 통과. web 2082 pass + vite build.
+- reviewer round 1/7 APPROVE, 4-게이트 PASS (reviewer comment 외부 존재를 driver 가 직접 확인), PR CI green. merge 후 main CI `14adc440` 도 **success**.
+
+## Follow-ups (실행 후 추가)
+
+- `docs/architecture/api.md` 126 행의 "응답 201" 문구가 아직 stale — [T-1333](T-1333-api-doc-import-preview-200-sync.md) (`direct`) 으로 큐잉됨.
