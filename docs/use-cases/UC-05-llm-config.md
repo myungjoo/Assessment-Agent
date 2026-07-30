@@ -89,7 +89,7 @@ sequenceDiagram
     WebUI->>Admin: 결과 표시 (성공 / 검증 실패 / 권한 부족 / health check 경고)
 ```
 
-step 수: 약 12 (autonumber 기준 — 2 alt block 분기 포함, 8 ≤ 12 ≤ 14 범위 안). 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Web UI → Backend API, Backend API → {AuthModule, LlmModule}, LlmModule → {LLMGateway, PersistenceModule} 의 방향이 모두 의존성 그래프에서 허용된 방향. API key 의 암호화 방식 (envelope encryption / KMS / 환경변수) 은 P3 또는 P4 의 별도 ADR 책임 — 본 UC 는 "암호화 저장" + "마스킹 반환" 의 conceptual level 만.
+step 수 11 (autonumber 기준 — [UC-07](UC-07-export-import.md) §5 103 행 규약과 같은 기준으로 **arrow 만 계수하고 `Note over ...` 는 계수 대상에서 제외한다**; alt block 2 개 중 `provider 추가·수정 + health check 옵션` 만 arrow 2 개를 더하고 `검증 실패` 는 내부가 Note 뿐이라 0 개다). 이는 [T-0025](../tasks/T-0025-uc-05-llm-config.md) 94 행의 P2 자기점검 범위 `8 이상 14 이하` **안** 이다. 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Web UI → Backend API, Backend API → {AuthModule, LlmModule}, LlmModule → {LLMGateway, PersistenceModule} 의 방향이 모두 의존성 그래프에서 허용된 방향. API key 의 암호화 방식 (envelope encryption / KMS / 환경변수) 은 P3 또는 P4 의 별도 ADR 책임 — 본 UC 는 "암호화 저장" + "마스킹 반환" 의 conceptual level 만.
 
 ## 6. Alternative flows
 

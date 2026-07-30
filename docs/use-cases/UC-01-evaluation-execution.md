@@ -89,7 +89,7 @@ sequenceDiagram
     Note over AssessmentModule: UC-02 (조회) 가 결과 표시 가능 상태
 ```
 
-step 수: 약 13 (autonumber 기준 — par/alt block 안의 호출 포함). 각 step 의 라벨은 한국어 + 관련 REQ ID 인라인 인용. 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Scheduler → AssessmentModule, AssessmentModule → {Github, Confluence, Llm, Persistence} 의 방향이 모두 module 의존성 그래프에서 허용된 방향.
+step 수 11 (autonumber 기준 — [UC-07](UC-07-export-import.md) §5 103 행 규약과 같은 기준으로 **arrow 만 계수하고 `Note over ...` 는 계수 대상에서 제외한다**; trigger 분기 alt block [cron / manual] 의 arrow 2 개와 3 GitHub instance 수집 par block 의 arrow 3 개는 모두 계수에 들어간다). 이는 [T-0020](../tasks/T-0020-uc-01-evaluation-execution.md) 92 행의 P2 자기점검 범위 `10 이상 18 이하` **안** 이다. 각 step 의 라벨은 한국어 + 관련 REQ ID 인라인 인용. 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Scheduler → AssessmentModule, AssessmentModule → {Github, Confluence, Llm, Persistence} 의 방향이 모두 module 의존성 그래프에서 허용된 방향.
 
 ## 6. Alternative flows
 

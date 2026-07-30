@@ -87,7 +87,7 @@ sequenceDiagram
     WebUI->>Admin: 결과 표시 + 화면 재로드
 ```
 
-step 수: 약 11 (autonumber 기준 — alt block 안의 분기 포함, 8 ≤ 11 ≤ 14 범위 안). 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Web UI → Backend API, Backend API → {AuthModule, UserModule}, UserModule → PersistenceModule, UserModule -event-> AssessmentModule 의 방향이 모두 의존성 그래프에서 허용된 방향. AssessmentModule 은 본 UC 에서 직접 호출 아닌 event 기반 receiver — UC-01 의 책임으로 위임.
+step 수 10 (autonumber 기준 — [UC-07](UC-07-export-import.md) §5 103 행 규약과 같은 기준으로 **arrow 만 계수하고 `Note over ...` 는 계수 대상에서 제외한다**; alt block 2 개 중 `신규 인원 추가 성공` 만 arrow 1 개를 더하고 `검증 실패` 는 내부가 Note 뿐이라 0 개다). 이는 [T-0023](../tasks/T-0023-uc-03-person-crud.md) 91 행의 P2 자기점검 범위 `8 이상 14 이하` **안** 이다. 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Web UI → Backend API, Backend API → {AuthModule, UserModule}, UserModule → PersistenceModule, UserModule -event-> AssessmentModule 의 방향이 모두 의존성 그래프에서 허용된 방향. AssessmentModule 은 본 UC 에서 직접 호출 아닌 event 기반 receiver — UC-01 의 책임으로 위임.
 
 ## 6. Alternative flows
 

@@ -89,7 +89,7 @@ sequenceDiagram
     WebUI->>Actor: 결과 표시 (성공 / 검증 실패 안내 / 권한 부족 안내)
 ```
 
-step 수: 약 11 (autonumber 기준 — alt block 안의 분기 포함, 8 ≤ 11 ≤ 14 범위 안). 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Web UI → Backend API, Backend API → {AuthModule, UserModule}, UserModule → PersistenceModule 의 방향이 모두 의존성 그래프에서 허용된 방향. Password hash 알고리즘은 P3 의 별도 ADR 책임 — 본 UC 는 "Password 는 hash 저장 (schema-level 강제)" 의 conceptual level 만.
+step 수 10 (autonumber 기준 — [UC-07](UC-07-export-import.md) §5 103 행 규약과 같은 기준으로 **arrow 만 계수하고 `Note over ...` 는 계수 대상에서 제외한다**; alt block 2 개 [`검증 실패` / `첫 로긴 trigger`] 는 둘 다 내부가 Note 뿐이라 계수에 더해지는 arrow 가 없다). 이는 [T-0024](../tasks/T-0024-uc-04-account-auth.md) 88 행의 P2 자기점검 범위 `8 이상 14 이하` **안** 이다. 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Web UI → Backend API, Backend API → {AuthModule, UserModule}, UserModule → PersistenceModule 의 방향이 모두 의존성 그래프에서 허용된 방향. Password hash 알고리즘은 P3 의 별도 ADR 책임 — 본 UC 는 "Password 는 hash 저장 (schema-level 강제)" 의 conceptual level 만.
 
 ## 6. Alternative flows
 

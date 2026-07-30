@@ -80,7 +80,7 @@ sequenceDiagram
     WebUI->>User: 표·차트 표시 (필요 시 경고 배너)
 ```
 
-step 수: 약 12 (autonumber 기준 — alt block 안의 분기 포함). 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Web UI → Backend API, Backend API → {AuthModule, AssessmentModule}, AssessmentModule → PersistenceModule 의 방향이 모두 의존성 그래프에서 허용된 방향. 외부 시스템 호출 없음 — read-only flow 의 자연스러운 귀결.
+step 수 11 (autonumber 기준 — [UC-07](UC-07-export-import.md) §5 103 행 규약과 같은 기준으로 **arrow 만 계수하고 `Note over ...` 는 계수 대상에서 제외한다**; `AssessmentRun.status = 'RUNNING'` alt block 은 내부가 Note 1 개뿐이라 계수에 더해지는 arrow 가 없다). 이는 [T-0022](../tasks/T-0022-uc-02-evaluation-query.md) 89 행의 P2 자기점검 범위 `8 이상 14 이하` **안** 이다. 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Web UI → Backend API, Backend API → {AuthModule, AssessmentModule}, AssessmentModule → PersistenceModule 의 방향이 모두 의존성 그래프에서 허용된 방향. 외부 시스템 호출 없음 — read-only flow 의 자연스러운 귀결.
 
 ## 6. Alternative flows
 
