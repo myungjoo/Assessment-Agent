@@ -289,8 +289,10 @@ v=$(cat | tr -d '\000-\037\357\273\277')
 
 ### G-4. gating 활성 후에는 LLM 예열이 필수
 
-live spec 은 `jest.setTimeout(45000)` 인데 로컬 Ollama 의 **콜드 로드가 약 64s**(예열 후 warm 은 약 9s)라, 예열 없이
-02:00 에 돌면 첫 평가 leg 이 타임아웃난다. Ollama `keep_alive` 는 5 분이라 매 fire 마다 예열이 필요하다. 따라서
+live spec 상한은 T-1314 에서 `jest.setTimeout(120000)` 으로 올렸다(로컬 Ollama **콜드 로드 실측 64.5s** — 예열 후
+warm 은 8.8s — 대비 2배 여유). 다만 이 여유는 예열이 빠진 fire 를 타임아웃 노이즈에서 구하는 **보험이지 예열 생략
+허가가 아니다** — 콜드 로드가 붙으면 live leg 마다 1 분 넘게 늘어지고 daily-test 전체가 길어진다. Ollama
+`keep_alive` 는 5 분이라 매 fire 마다 예열이 필요하다. 따라서
 **gating 이 활성인 동안 루틴 [1] 단계는 `-NoWarm` 없이** `start-llm.ps1` 을 호출한다(예열까지 수행).
 
 ### G-5. 준비 완료 판정 / 롤백

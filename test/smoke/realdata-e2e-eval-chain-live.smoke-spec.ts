@@ -59,9 +59,9 @@ const CONFIG_ID = "cfg-realdata-e2e-eval-chain-live-ollama";
 describeLive(
   "Smoke(live): 실 평가 e2e full-chain — 실 github 수집 → 실 Ollama LLM 평가 round-trip",
   () => {
-    // live endpoint hang 위험 대비 — jest 기본보다 넉넉한 상한(T-0610/T-0806 동형).
-    // gating skip 시 미발화. 수집 + 평가 2 leg round-trip 이라 여유를 둔다.
-    jest.setTimeout(45000);
+    // 수집 + 평가 2 leg round-trip — Ollama 콜드 로드 실측 64.5s(warm 8.8s) 대비 2배 여유.
+    // publish/rediscovery live spec 과 동일한 120s 컨벤션. gating skip 시 미발화.
+    jest.setTimeout(120000);
 
     // 실 LlmHttpGateway 구성 — T-0610 makeLiveGateway() mirror. Ollama(openai-compatible)
     // provider config 를 live base URL 로 가리키는 repository stub + cipher stub. 실 DB /
