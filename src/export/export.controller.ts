@@ -14,9 +14,10 @@
 //     기록 (task §AC create endpoint 항목의 "POST 가 자연스러우면 근거 1줄 명시" 정합).
 //   - GET  /api/admin/export/running  → findRunning (RUNNING 목록, UC-07 §8 status polling).
 //   - POST /api/admin/export/describe-scope → describeScope (선택 scope 의 사람-친화
-//     설명 모델, UC-07 §5 step 2 + §6.1 + §8 (a) read-only — describeExportScope(T-0462)
-//     helper 를 실호출 배선, DB write 0 / raw 미접근). CreateExportDto body 를 받아
-//     enum→lowercase scope kind 변환 + dateRange ISO→Date coerce 후 helper 호출.
+//     설명 모델, UC-07 §5 step 4 (confirmation dialog — Export scope 선택) + §6.1 +
+//     §8 (a) read-only — describeExportScope(T-0462) helper 를 실호출 배선, DB write 0 /
+//     raw 미접근). CreateExportDto body 를 받아 enum→lowercase scope kind 변환 + dateRange
+//     ISO→Date coerce 후 helper 호출.
 //     POST 메서드라 `@Get(":id")` 동적 segment 와 충돌 없음 (메서드 분리 — Import 측
 //     describeModes 는 GET segment 라 `:id` 위에 선언했으나, 본 endpoint 는 POST 라
 //     순서 무관). Import 측 GET /modes (T-0493) 의 export 측 대칭.
@@ -183,8 +184,9 @@ export class ExportController {
   }
 
   // POST /api/admin/export/describe-scope — 선택 scope 의 사람-친화 설명 모델 조회
-  // (UC-07 §5 step 2 + §6.1 + §8 (a) read-only, REQ-030/032/045). 사용자가 Export 를
-  // *확정하기 전* "내가 무엇을 내보내는지" 를 보여줄 scope preview dialog 의 정보 source —
+  // (UC-07 §5 step 4 (confirmation dialog — Export scope 선택) + §6.1 + §8 (a) read-only,
+  // REQ-030/032/045). 사용자가 Export 를 *확정하기 전* "내가 무엇을 내보내는지" 를 보여줄 scope
+  // preview dialog 의 정보 source —
   // Import 측 describeModes(T-0493) 의 export 측 대칭이다. CreateExportDto 를 그대로
   // request body 로 재사용해 받고(create 와 동일 DTO), Prisma ExportScope enum →
   // lowercase scope kind 변환(SCOPE_ENUM_TO_PAYLOAD) + dateRange 의 ISO string → Date
@@ -337,7 +339,7 @@ export class ExportController {
   }
 
   // GET /api/admin/export/:id/download — 저장된 export job 의 full-record dump 를 단일
-  // stream 으로 다운로드한다 (UC-07 §5 step13 다운로드 완료 + §8 (c) file artifact 전달,
+  // stream 으로 다운로드한다 (UC-07 §5 step 17 (결과 표시 — 다운로드 완료) + §8 (c) file artifact 전달,
   // REQ-030 Export / REQ-032 raw 미저장 / REQ-045 Admin 전용). ADR-0047 §Follow-ups[3] chain
   // 의 HTTP 표면 — 직전 T-0518 이 service 차원에서 완결한 materializeFullExportDownload(scope)
   // Readable 을 사용자에게 내려주는 진입점이다. 배선 3 단계:
@@ -414,8 +416,8 @@ export class ExportController {
   }
 
   // GET /api/admin/export/:id/status-view — async Export job 의 사람-친화 진행 view 조회
-  // (UC-07 §8 NFR async job + status polling + §5 step 13 다운로드 완료 직전 진행 안내,
-  // REQ-030/032/045). findJob(id) 로 조회한 job 의 Prisma JobStatus 를 helper 가 요구하는
+  // (UC-07 §8 NFR async job + status polling + §5 step 17 (결과 표시 — 다운로드 완료) 직전의
+  // 진행 안내, REQ-030/032/045). findJob(id) 로 조회한 job 의 Prisma JobStatus 를 helper 가 요구하는
   // lowercase ExportJobStatus 로 JOB_STATUS_TO_VIEW 매핑한 뒤 describeExportJobStatus(T-0468)
   // 를 실호출해 ExportJobStatusView(phaseLabel·stepIndex·totalSteps·nextStatus·terminal·
   // downloadable·한국어 message)를 200 으로 반환한다. raw ExportJob 만 주던 GET :id 와 달리
