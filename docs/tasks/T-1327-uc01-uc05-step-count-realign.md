@@ -2,7 +2,9 @@
 id: T-1327
 title: UC-01 ~ UC-05 §5 step 수 선언을 실측(11 / 11 / 10 / 10 / 11)으로 정합 + arrow-only 계수 기준 통일
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T16:41:07Z
+resultCommit: 6bd51d76
 commitMode: direct
 coversReq: [REQ-039, REQ-042, REQ-023, REQ-044, REQ-050]
 estimatedDiff: 10
