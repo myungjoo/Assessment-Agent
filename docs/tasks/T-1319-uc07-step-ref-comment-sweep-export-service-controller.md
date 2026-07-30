@@ -2,7 +2,9 @@
 id: T-1319
 title: UC-07 §5 step 참조 주석 sweep slice 3 — export job service/controller 2 파일 12 곳 이름 병기
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T12:54:17Z
+prNumber: 1200
 commitMode: pr
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 34
@@ -64,6 +66,14 @@ T-1318 Follow-ups 는 `export-job.service.ts` 8 곳을 "단일 파일 slice" 로
 ## Suggested Sub-agents
 
 `implementer` (12 곳 국소 주석 치환 — 판정 A 10 곳 / 판정 B 2 곳, 붙어쓰기 `step13` 1 곳 주의) → `tester` (R-110 의무: `pnpm lint && pnpm build && pnpm test` + `pnpm test:cov`, 신규 spec 추가 0 이 정당한지 diff 로 확인).
+
+## Result (2026-07-30 12:54Z, DONE)
+
+pr-mode — PR [#1200](https://github.com/myungjoo/Assessment-Agent/pull/1200) squash 머지 (`3332dea5`), reviewer APPROVE round 1/7, 4-게이트 PASS, PR CI green (headSha `21c6c226`). `export-job.service.ts` + `export.controller.ts` 2 파일 **12 곳** 을 [T-1316](T-1316-uc07-step-count-and-mapping-table.md) §5.1 대응표 기준으로 정정 (+33/-27, 주석-only — 비주석 diff 줄 0). 판정 A **10 곳** `§5 step 13` (붙어쓰기 `step13` 1 곳 포함) → `§5 step 17 (결과 표시 — 다운로드 완료)`, 판정 B **2 곳** `§5 step 2` → `§5 step 4 (confirmation dialog — Export scope 선택)`. 진행 표시 4 문맥은 `직전의 진행 안내` 앵커를 유지해 의미를 보존했고, 기계적 +2 (15) 는 쓰지 않았다 (§5.1 판정 규약). §6.1 · §8 (a) 인용은 글자 그대로 무변경.
+
+검증: grep old 형태 0 hit / `step 17` 10 hit · `step 4` 2 hit, 전체 428 suite / 12271 test pass, line 99.95% · function 100% (임계 80/80 유지). 신규·변경 public symbol 0 이라 신규 spec 불요.
+
+본 task 는 [7.5] cron multi-task chain 의 첫 번째 task 로 [T-1320](T-1320-uc07-step-ref-comment-sweep-artifact-audit.md) 과 같은 fire 에서 수행됐다 (`FIRE-BATCH: T-1319+T-1320`).
 
 ## Follow-ups
 
