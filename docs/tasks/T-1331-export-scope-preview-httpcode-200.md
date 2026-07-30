@@ -2,7 +2,9 @@
 id: T-1331
 title: export scope preview 2 종 read-only 응답을 @HttpCode(200) 으로 정합
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T20:49:08Z
+prNumber: 1208
 commitMode: pr
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 80
@@ -57,3 +59,11 @@ plannerNote: "T-1330 Follow-up — read-only 조회가 201 로 응답. api.md 13
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## Result
+
+- **DONE** (2026-07-30T20:49:08Z) — pr-mode, PR [#1208](https://github.com/myungjoo/Assessment-Agent/pull/1208) squash merge `f682efa9`. 3 파일 +101/-11 (cap 준수 — 300 LOC / 5 파일 이내).
+- `describeScope` · `previewSelection` 두 handler 에 `@HttpCode(HttpStatus.OK)` 부착 + 한국어 근거 주석. `HttpCode` / `HttpStatus` import 추가. [api.md](../architecture/api.md) 132·133 행 계약("응답 200")과 실동작이 정합됐다 — **문서 변경 0**.
+- colocated spec 의 happy-path 단언을 201 → 200 으로 갱신(body 단언 유지), `test/e2e/export-scope-preview.e2e-spec.ts` 의 `OK_STATUS` 를 200 으로 바꾸고 "201 인 이유" 주석을 200 근거로 재작성.
+- R-112: happy 200 · `RangeError`/`TypeError` 400 우선 유지 · 401/403 분기 불변 · job 생성 `POST` 는 여전히 **201 회귀 test** · whitelist 400 까지 negative 충분 cover. unit 429 suite / 12294 test pass, `test:cov` line·function 80% 통과.
+- reviewer round 1/7 APPROVE, 4-게이트 PASS (reviewer comment 외부 존재 확인), PR CI green. merge 후 main CI `f682efa9` 도 **success**.
