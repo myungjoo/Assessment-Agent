@@ -2,7 +2,7 @@
 id: T-1315
 title: 로컬 LLM 스크립트 3종의 stale 런너 kill 목록에 llama-server 추가 + 목록 parity smoke 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-060, REQ-061]
 estimatedDiff: 215
@@ -10,6 +10,7 @@ estimatedFiles: 4
 created: 2026-07-30
 independentStream: local-llm-runner-hygiene
 dependsOn: []
+prNumber: 1197
 touchesFiles:
   - deploy/local-llm-example/_common.ps1
   - deploy/local-llm-example/expose-lan.ps1
@@ -35,17 +36,17 @@ plannerNote: "PLAN.md 운영 backlog 오너 실측 항목(2026-07-30 b5cf8346) �
 
 ## Acceptance Criteria
 
-- [ ] `deploy/local-llm-example/_common.ps1` 116 행의 `Get-Process -Name` 목록에 `'llama-server'` 를 추가한다. 기존 3 이름(`'ollama app'` · `'ollama'` · `'ollama_llama_server'`)은 구버전 호환을 위해 **글자 그대로 유지**하고, `-ErrorAction SilentlyContinue` 도 유지한다.
-- [ ] `deploy/local-llm-example/expose-lan.ps1` 64 행 · `deploy/local-llm-example/install.ps1` 89 행의 동일 목록에도 같은 방식으로 `'llama-server'` 를 추가해 세 파일의 목록을 동일하게 맞춘다 (파일당 1 줄 수정, 다른 로직 변경 0).
-- [ ] 신설 spec `test/smoke/realdata-e2e-local-llm-example-orphan-runner-killlist-single-source-parity-contract.smoke-spec.ts` 를 추가한다. 실 PowerShell 실행 0 · 실 프로세스 종료 0 — 세 실 파일을 `fs.readFileSync` 로 읽고 정적 텍스트 앵커 + TS 동형 pure helper(예: `parseKillList(text)` → 이름 배열, `hasSilentlyContinue(text)`)로만 검증한다. spec 본문은 **≤ 220 LOC** 로 유지(전체 diff 300 LOC cap 보호).
-- [ ] happy-path test 1+ — `parseKillList` 가 세 파일 각각에서 `'llama-server'` 를 포함한 목록을 돌려준다(파일별 1 it 또는 `it.each` 3 케이스).
-- [ ] error path test 1+ — `Get-Process -Name` 라인이 없는 입력·빈 문자열 입력에 대해 `parseKillList` 가 빈 배열을 돌려주고 throw 하지 않는다(정적 helper 의 방어 경로).
-- [ ] flow / branch cover — helper 의 분기마다 test 분리: (a) 목록 라인 존재 분기, (b) 부재 분기, (c) 주석(`#`) 처리된 라인은 유효 목록으로 세지 않는 분기.
-- [ ] negative cases 충분 cover (각 1+ test) — (a) 세 파일 중 하나라도 `'llama-server'` 가 빠지면 fail 하는 **회귀 방지** assert(본 결함이 되돌아오면 red), (b) 레거시 3 이름 중 하나라도 사라지면 fail 하는 assert, (c) `ollama*` 같은 wildcard 과잉 매칭 토큰이 목록에 없음을 assert, (d) 세 파일 목록이 서로 다르면 fail 하는 parity assert(집합 동일), (e) `-ErrorAction SilentlyContinue` 누락 시 fail 하는 assert, (f) `stop-llm.ps1` 의 정상 경로가 여전히 `keep_alive=0` 언로드이고 강제 kill 로 대체되지 않았음을 assert.
-- [ ] `pnpm lint && pnpm build` 통과.
-- [ ] `pnpm test` 통과 + `pnpm test:smoke` 통과 (신설 spec 은 env gating 없이 상시 실행되는 정적 spec 이어야 한다 — CI 에서 자동 수행, R-113).
-- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — production `src/` 변경 0 이므로 threshold 회귀가 없음을 확인.
-- [ ] 기존 spec 무회귀 확인 — `realdata-e2e-local-llm-example-*` 계열 8 spec 이 모두 green(특히 stop-llm-ps1 contract 의 `Get-Process` 정규식).
+- [x] `deploy/local-llm-example/_common.ps1` 116 행의 `Get-Process -Name` 목록에 `'llama-server'` 를 추가한다. 기존 3 이름(`'ollama app'` · `'ollama'` · `'ollama_llama_server'`)은 구버전 호환을 위해 **글자 그대로 유지**하고, `-ErrorAction SilentlyContinue` 도 유지한다.
+- [x] `deploy/local-llm-example/expose-lan.ps1` 64 행 · `deploy/local-llm-example/install.ps1` 89 행의 동일 목록에도 같은 방식으로 `'llama-server'` 를 추가해 세 파일의 목록을 동일하게 맞춘다 (파일당 1 줄 수정, 다른 로직 변경 0).
+- [x] 신설 spec `test/smoke/realdata-e2e-local-llm-example-orphan-runner-killlist-single-source-parity-contract.smoke-spec.ts` 를 추가한다. 실 PowerShell 실행 0 · 실 프로세스 종료 0 — 세 실 파일을 `fs.readFileSync` 로 읽고 정적 텍스트 앵커 + TS 동형 pure helper(예: `parseKillList(text)` → 이름 배열, `hasSilentlyContinue(text)`)로만 검증한다. spec 본문은 **≤ 220 LOC** 로 유지(전체 diff 300 LOC cap 보호).
+- [x] happy-path test 1+ — `parseKillList` 가 세 파일 각각에서 `'llama-server'` 를 포함한 목록을 돌려준다(파일별 1 it 또는 `it.each` 3 케이스).
+- [x] error path test 1+ — `Get-Process -Name` 라인이 없는 입력·빈 문자열 입력에 대해 `parseKillList` 가 빈 배열을 돌려주고 throw 하지 않는다(정적 helper 의 방어 경로).
+- [x] flow / branch cover — helper 의 분기마다 test 분리: (a) 목록 라인 존재 분기, (b) 부재 분기, (c) 주석(`#`) 처리된 라인은 유효 목록으로 세지 않는 분기.
+- [x] negative cases 충분 cover (각 1+ test) — (a) 세 파일 중 하나라도 `'llama-server'` 가 빠지면 fail 하는 **회귀 방지** assert(본 결함이 되돌아오면 red), (b) 레거시 3 이름 중 하나라도 사라지면 fail 하는 assert, (c) `ollama*` 같은 wildcard 과잉 매칭 토큰이 목록에 없음을 assert, (d) 세 파일 목록이 서로 다르면 fail 하는 parity assert(집합 동일), (e) `-ErrorAction SilentlyContinue` 누락 시 fail 하는 assert, (f) `stop-llm.ps1` 의 정상 경로가 여전히 `keep_alive=0` 언로드이고 강제 kill 로 대체되지 않았음을 assert.
+- [x] `pnpm lint && pnpm build` 통과.
+- [x] `pnpm test` 통과 + `pnpm test:smoke` 통과 (신설 spec 은 env gating 없이 상시 실행되는 정적 spec 이어야 한다 — CI 에서 자동 수행, R-113).
+- [x] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — production `src/` 변경 0 이므로 threshold 회귀가 없음을 확인.
+- [x] 기존 spec 무회귀 확인 — `realdata-e2e-local-llm-example-*` 계열 8 spec 이 모두 green(특히 stop-llm-ps1 contract 의 `Get-Process` 정규식).
 
 ## Out of Scope
 
@@ -63,3 +64,10 @@ plannerNote: "PLAN.md 운영 backlog 오너 실측 항목(2026-07-30 b5cf8346) �
 ## Follow-ups
 
 - (planner 관찰) `docs/PLAN.md` 160 행(realdata live timeout 120s — T-1314 `6b0b2aee` 로 shipped)과 161 행(본 task) 의 checkbox `[ ] → [x]` + shipped 근거 박제는 direct doc-only slice 로 별도 큐잉 필요.
+
+## 완료 기록
+
+- 완료: 2026-07-30T08:51Z. PR [#1197](https://github.com/myungjoo/Assessment-Agent/pull/1197) squash merge `f4cd5da2`, reviewer VERDICT=APPROVE (round 1), CI green (PR run + main run `30528338777`).
+- `_common.ps1` 116 · `expose-lan.ps1` 64 · `install.ps1` 89 세 곳의 `Get-Process -Name` 목록에 `'llama-server'` append — 레거시 3 이름과 `-ErrorAction SilentlyContinue` 글자 그대로 유지, 다른 로직 변경 0. 4 파일 +209/-3.
+- 신설 parity smoke 15 test (happy 4 · error 2 · branch 3 · negative 6) green. 실 PowerShell·실 프로세스 종료·실 `nvidia-smi` 0 — 정적 텍스트 앵커 + TS 동형 pure helper 만. `local-llm-example` 계열 smoke 10 suite / 277 test 무회귀.
+- Follow-up (본 fire 흡수): `docs/PLAN.md` 160 · 161 행 checkbox `[ ] → [x]` + shipped 근거 박제를 본 bookkeeping direct commit 에서 함께 처리 — 별도 task 큐잉 불요.
