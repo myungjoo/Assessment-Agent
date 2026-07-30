@@ -47,9 +47,9 @@ const describeLive = gating.enabled ? describe : describe.skip;
 describeLive(
   "Smoke(live): 실 평가 e2e github.com 공개 활동 수집 leg round-trip",
   () => {
-    // live endpoint hang 위험 대비 — jest 기본보다 넉넉한 상한(github-live.smoke 동형).
-    // gating skip 시 미발화.
-    jest.setTimeout(30000);
+    // live endpoint hang 위험 대비 — Ollama 콜드 로드 실측 64.5s(warm 8.8s) 대비 2배 여유.
+    // publish/rediscovery live spec 과 동일한 120s 컨벤션. gating skip 시 미발화.
+    jest.setTimeout(120000);
 
     // 수집 요청 plan — gating(enabled/githubPat) + seed(myungjoo/leemgs)로부터 순수 helper
     // 가 결정론적으로 조립. describeLive 활성 = enabled 이므로 entries 1+ 임이 보장된다.

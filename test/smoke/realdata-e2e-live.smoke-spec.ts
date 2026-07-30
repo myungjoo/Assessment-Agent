@@ -67,9 +67,9 @@ const CONFIG_ID = "cfg-realdata-e2e-live-ollama";
 describeLive(
   "Smoke(live): 실 평가 e2e 조립된 step-args 의 실 LLM 평가 leg round-trip",
   () => {
-    // live endpoint hang 위험 대비 — jest 기본보다 넉넉한 상한(period-bridge-live 동형).
-    // gating skip 시 미발화.
-    jest.setTimeout(30000);
+    // live endpoint hang 위험 대비 — Ollama 콜드 로드 실측 64.5s(warm 8.8s) 대비 2배 여유.
+    // publish/rediscovery live spec 과 동일한 120s 컨벤션. gating skip 시 미발화.
+    jest.setTimeout(120000);
 
     // synthetic Activity fixture 가 매칭할 author identity — 실 github 수집 배선
     // (후속 slice)이 들어오기 전까지 seed 의 첫 github username 을 author 로 bound.
