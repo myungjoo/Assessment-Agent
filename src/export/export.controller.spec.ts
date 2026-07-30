@@ -62,6 +62,7 @@ import * as describeExportJobStatusModule from "./export-job-status-view";
 import { ExportJobService } from "./export-job.service";
 import * as describeExportScopeModule from "./export-scope-description";
 import { ExportController } from "./export.controller";
+import { ScopeInputExceptionFilter } from "./scope-input-exception.filter";
 /* eslint-enable import/first */
 
 // ExportJob fixture — create / findJob 이 반환하는 row shape (export-job.service.spec
@@ -1998,8 +1999,11 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
     expect(serviceMock.findJob).not.toHaveBeenCalled();
   });
 
-  // -- negative — service RangeError (scope invariant 위반) → 500 (raw propagate) -----
-  it("POST preview-selection — service RangeError(scope invariant) → 500 raw propagate (negative — swallow 0)", async () => {
+  // -- negative — service RangeError (scope invariant 위반) → 400 (T-1328 필터 매핑) ----
+  // T-1328 이전에는 raw propagate 로 500 이었으나(호출자 입력 결함이 5xx 로 표면화),
+  // ScopeInputExceptionFilter 배선 후 400 + 한국어 안내 message 로 매핑된다(swallow 0 —
+  // 원 helper message 도 body 에 보존).
+  it("POST preview-selection — service RangeError(scope invariant) → 400 매핑 (negative — swallow 0)", async () => {
     app = await buildApp({
       jwt: makeAllowingJwtGuard("admin-1", "Admin"),
       roles: ALLOW_ALL_ROLES,
@@ -2008,10 +2012,15 @@ describe("ExportController (RBAC guard + ValidationPipe integration)", () => {
       new RangeError("scope=range 에는 dateRange 가 필요합니다"),
     );
 
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post("/api/admin/export/preview-selection")
       .send({ scope: "RANGE" })
-      .expect(500);
+      .expect(400);
+
+    expect(JSON.stringify(res.body)).toContain(
+      "Export scope 입력이 올바르지 않습니다",
+    );
+    expect(JSON.stringify(res.body)).toContain("dateRange 가 필요합니다");
   });
 
   // -- negative — ValidationPipe: 정의되지 않은 raw 본문 키 → 400 ------------------
@@ -2295,6 +2304,45 @@ describe("ExportController (real RolesGuard escalation 분기)", () => {
         .expect(200);
 
       expect(serviceMock.findJob).toHaveBeenCalledTimes(1);
+    },
+  );
+});
+
+// -----------------------------------------------------------------------
+// T-1328 — scope preview 2 종의 입력 결함 400 매핑 필터 배선 (T-1305 이월 결함 회수).
+// describeScope · previewSelection 두 핸들러에만 @UseFilters(ScopeInputExceptionFilter)
+// 가 부착돼 helper 의 RangeError/TypeError 를 400 으로 매핑함을 metadata 수준에서 단언하고,
+// negative 로 create · download 에는 미부착임을 확인한다(다른 경로의 status 계약 불변).
+// 필터의 실 매핑 분기 (passthrough/400/500) 는 scope-input-exception.filter.spec.ts 가 cover.
+// -----------------------------------------------------------------------
+describe("ExportController (T-1328 scope 입력 400 매핑 필터 배선)", () => {
+  it.each([
+    ["describeScope", ExportController.prototype.describeScope],
+    ["previewSelection", ExportController.prototype.previewSelection],
+  ])(
+    "%s 핸들러에 @UseFilters(ScopeInputExceptionFilter) 부착 (입력 결함 400 매핑 gate)",
+    (_name, handler) => {
+      const filters = Reflect.getMetadata(
+        "__exceptionFilters__",
+        handler,
+      ) as unknown[];
+
+      // @UseFilters 는 필터 클래스(또는 인스턴스)를 metadata 로 부착한다.
+      expect(filters).toContain(ScopeInputExceptionFilter);
+    },
+  );
+
+  it.each([
+    ["create", ExportController.prototype.create],
+    ["download", ExportController.prototype.download],
+  ])(
+    "negative — %s 핸들러에는 필터 미부착 (다른 경로의 status 계약 불변)",
+    (_name, handler) => {
+      const filters = Reflect.getMetadata("__exceptionFilters__", handler) as
+        | unknown[]
+        | undefined;
+
+      expect(filters ?? []).not.toContain(ScopeInputExceptionFilter);
     },
   );
 });
