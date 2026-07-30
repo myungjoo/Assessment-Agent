@@ -2,7 +2,8 @@
 id: T-1333
 title: api.md 의 import preview 응답 status 서술을 201 → 200 으로 실측 정합
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T22:39:10Z
 commitMode: direct
 coversReq: [REQ-030, REQ-032]
 estimatedDiff: 12
@@ -58,3 +59,12 @@ T-1332 는 CLAUDE.md §3.1 rule 3 (direct + pr 혼합 금지) 에 따라 이 문
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## Result
+
+- **DONE** (2026-07-30T22:39:10Z) — direct-mode, main direct commit `304975cb`. `docs/architecture/api.md` 1 파일 +1/-1 (cap 준수 — 300 LOC / 5 파일 이내). PR·reviewer 없음 (§3.1 direct 컬럼).
+- 126 행의 "응답 **201** + `PreviewImportResponse`" 를 "응답 **200**" 으로 교체하고, `ImportJob` row 를 만들지 않는 dry-run 이라 `@HttpCode(HttpStatus.OK)` 를 부착했다는 근거 1 문장을 병기했다 (실 job 을 만드는 `POST /api/admin/import` 는 여전히 201). 4-key envelope (`deleted`/`inserted`/`kept`/`mode`) 서술과 실패 status `400 / 401 / 403 / 413` 은 글자 그대로 보존.
+- 행 끝 박제 목록에 `T-1332 (PR #1209) 200 정합 박제` 를 기존 항목 (T-1299 · T-1300 · T-1302) 뒤에 병기.
+- 이로써 [UC-07 §5](../use-cases/UC-07-export-import.md#5-main-flow-sequence-diagram) step 4 preview 가족 3 종 (export `describe-scope` · `preview-selection` · import `preview`) 의 성공 status 가 **코드·문서 양쪽 모두 200** 으로 통일됐다 — [T-1331](T-1331-export-scope-preview-httpcode-200.md) → [T-1332](T-1332-import-preview-httpcode-200.md) → 본 task 로 이어진 코드-먼저·문서-나중 시퀀스의 마지막 조각.
+- doc-only 라 R-110 tester 면제 (production code 0 LOC). 대체 검증: grep 2 종 (`"응답 201"` 잔존 행에 import preview 없음 · `T-1332` 1 hit) + 표 5 컬럼 구조 self-check (파이프 개수 유지, 파일 227 행 불변) 통과. `src/` · `test/` · `web/` 무수정.
+- main CI (run `30587889368`, headSha `304975cb`) conclusion **success**.
