@@ -4,7 +4,8 @@
 // summarizeImportImpact → T-0442 buildImportRestorePlan → T-0443 buildExportImportAuditEntry → …
 // → T-0453 buildRestoreConfirmation 다음의 게이트-free building block 이다. UC-07 §8 (b) Export·
 // (e) Import 두 분기는 모두 "Audit log 1 row 생성(operation 종류 + actor + scope/file source +
-// row count)"(§5 step 12)을 의무로 박제하고, T-0443 의 buildExportImportAuditEntry 가 그 audit
+// row count)"(§5 step 14 (Audit log row insert))을 의무로 박제하고, T-0443 의
+// buildExportImportAuditEntry 가 그 audit
 // 항목을 직렬화 가능한 구조화 객체(ExportImportAuditEntry)로 박제했다. 그러나 그 구조화 entry 를
 // 사람(Admin·운영자)이 읽을 단일 로그 메시지 라인으로 조립하는 helper 는 0 회 cover 된 gap 이다
 // — 실 controller / audit viewer / WebUI 배선이 매번 entry 를 풀어 "export by admin@... (scope=

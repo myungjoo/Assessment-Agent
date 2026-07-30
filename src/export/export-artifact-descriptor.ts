@@ -3,7 +3,7 @@
 // envelope(schemaVersion/generatedAt/scope/entityCounts/recordCount/records)만 조립했다면,
 // 본 helper 는 그 envelope 를 받아 사람·브라우저에 **다운로드 가능한 파일**로 전달할 때 필요한
 // artifact 메타데이터(파일명·content-type·byte size 추정·content-disposition 헤더 값·scope
-// 토큰)를 조립만 한다. UC-07 §5 step13(`Export: 다운로드 완료`) + §8 (a)(c) Export
+// 토큰)를 조립만 한다. UC-07 §5 step 17 (결과 표시 — 다운로드 완료) + §8 (a)(c) Export
 // postcondition(`Admin 에게 file artifact 전달 완료`)의 다운로드 artifact descriptor 0회-cover
 // gap 을 박제한다.
 //
@@ -110,7 +110,7 @@ function estimateByteSize(dump: ExportDump): number {
 }
 
 // buildExportArtifactDescriptor — dump envelope(T-0438)를 받아 다운로드 artifact descriptor 를
-// 순수 조립한다(UC-07 §5 step13 + §8 (a)(c) 정합):
+// 순수 조립한다(UC-07 §5 step 17 (결과 표시) + §8 (a)(c) 정합):
 //   - scopeToken — dump.scope.scope(full/range/partial) 토큰.
 //   - fileName — `export-<scopeToken>-<timestampToken>.json`(안전 charset — path traversal 0).
 //   - contentType — `application/json`.
