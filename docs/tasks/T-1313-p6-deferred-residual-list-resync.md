@@ -2,7 +2,7 @@
 id: T-1313
 title: P6 deferred 잔여 목록 정합 — shipped 2 항목 (GroupMember add·remove mutation / import 결과 상세) 제거
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049, REQ-038, REQ-045]
 estimatedDiff: 20
@@ -15,6 +15,9 @@ touchesFiles:
   - docs/architecture/modules.md
   - docs/architecture/directory.md
 plannerNote: "P6 deferred 잔여 3 곳이 이미 shipped 된 2 항목을 defer 로 박제 중 — doc-only inline-amend x0.64 = 약 20 LOC / 3 파일"
+completedAt: 2026-07-30T04:45:00Z
+commit: b3ce7d69
+resultSummary: "P6 deferred 잔여 목록 3 곳(PLAN.md 123 · modules.md 239 · directory.md 164)에서 shipped 2 항목(GroupMember add·remove mutation / import 결과 상세) 제거 + modules.md 에 shipped 근거(squash 340d50a2 · 36cdbaa7) 2 bullet 박제. 잔여 유효 2 항목(재평가·스케줄 패널 / polling)은 글자 그대로 유지. direct 1 commit, 3 파일 +6/-3."
 ---
 
 # T-1313 — P6 deferred 잔여 목록 정합 (shipped 2 항목 제거)
