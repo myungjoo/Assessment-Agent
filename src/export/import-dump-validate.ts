@@ -3,7 +3,7 @@
 // (dump envelope 조립, 직렬화 방향) → T-0439 의 checkSchemaVersionCompat(Import 입구 version
 // gate) 다음의 자연 building block 이다. version gate 를 통과한 업로드 dump 가 **transaction
 // 시작 전에** 본 시스템 dump 포맷의 구조 무결성을 갖췄는지 판정하는 순수 helper 로,
-// buildExportDump 가 만든 ExportDump envelope 의 **역방향 검증** 이다(UC-07 §5 step 7 payload
+// buildExportDump 가 만든 ExportDump envelope 의 **역방향 검증** 이다(UC-07 §5 step 9 payload
 // 검증, §7.4 "Import file 손상 → transaction 시작 전 reject, DB 변경 0"). persistence /
 // repository / DB query · file parse · JSON.parse · 압축 archive 해제 · 무결성 hash · transaction
 // · REST 배선 호출 0 이며(이미 파싱된 plain object 의 **구조** 만 검증), schema version 호환

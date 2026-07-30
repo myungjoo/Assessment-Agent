@@ -4,7 +4,7 @@
 // buildRestoreFailureMessage → T-0462 describeExportScope → T-0463 buildExportScopeRejection
 // 다음의 게이트-free building block 이다. UC-07 §7.1 은 인증 실패 시(미인증) main flow 진입을
 // 401 + login redirect 로 막고, §7.2 는 인증은 됐으나 권한 부족(Admin 미만) 시 403 + "Admin 권한
-// 필요" 안내로 막는다(§4 precondition 1·2, §5 step 5 AuthModule guard). 기존 helper 들은 payload
+// 필요" 안내로 막는다(§4 precondition 1·2, §5 step 8 (인증 · 권한 검증)). 기존 helper 들은 payload
 // 검증 실패(§7.3 buildExportScopeRejection) / dump 구조 실패(§7.4 buildDumpValidationMessage) /
 // DB write 실패(§7.5 buildRestoreFailureMessage) / race timeout(§7.6 evaluateImportRaceGuard) 의
 // 사람-친화 안내까지 모두 cover 하나, 진입 자체를 막는 §7.1(인증)/§7.2(권한) 거부 안내 메시지는

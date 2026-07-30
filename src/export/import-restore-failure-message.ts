@@ -6,7 +6,7 @@
 // Import 복원 중 PersistenceModule 의 connection 끊김 / timeout / transaction rollback / cascade
 // constraint 위반 시 5xx + WebUI 재시도 안내를 박제하며, 그 핵심 invariant 는 "atomic —
 // all-or-nothing — 기존 row 삭제와 file snapshot 재구성이 함께 rollback (부분 복원 상태 없음)"
-// 이다(§5 step 7·11 / §8 (b)(c) 정합). T-0455 buildRestoreResult 가 transaction commit *이후*
+// 이다(§5 step 9·13 / §8 (b)(c) 정합). T-0455 buildRestoreResult 가 transaction commit *이후*
 // 성공 결과 메시지를 조립했으나, 그 실패측 대칭 — DB write fail 시 Admin 에게 보여줄 rollback
 // 보장(부분 복원 상태 없음 안심) + 사유 분류 + 재시도 actionable 안내 메시지 — 는 24+ helper 중
 // 0 회 cover 된 gap 이다.
