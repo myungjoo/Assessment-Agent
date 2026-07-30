@@ -9,7 +9,7 @@
 // UC-07 §8 NFR 은 "본 UC 의 응답 시간은 dump size 에 비례. read 한정 SLA[REQ-048]의 3 초는 일반적
 // dump 에 적용, 대량 dump 는 long-running operation 가능 — async job + status polling + chunked
 // streaming" 을 명시한다. 본 helper 는 그 §8 NFR + §3 trigger 1(scope 옵션 confirmation dialog) +
-// §5 step 2(scope 옵션 확인)가 필요로 하는 "선택한 scope 의 예상 다운로드 규모 + 대량 시
+// §5 step 4(scope 옵션 확인)가 필요로 하는 "선택한 scope 의 예상 다운로드 규모 + 대량 시
 // long-running 경고" 를 순수 합성으로 박제한다 — ExportSelection.selected 를 받아 entity-별 byte
 // weight × record 수로 추정 byte 와 async 임계 판정만 한다.
 //
@@ -49,7 +49,8 @@ export interface ExportDumpSizeEstimateOptions {
 // perEntityBytes 는 5 entity 전부 key 인 byte map, large 는 estimatedBytes > asyncThresholdBytes,
 // recommendation 은 large 와 동치인 "sync" | "async-streaming", guidanceLines 는 한국어 안내 줄.
 // 불변: large === (recommendation === "async-streaming"). WebUI confirmation dialog / Audit row 가
-// 이 결과를 그대로 사용한다(UC-07 §3 trigger 1 / §5 step 2 / §8 NFR).
+// 이 결과를 그대로 사용한다(UC-07 §3 trigger 1 / §5 step 4 (confirmation dialog — Export scope
+// 선택) / §8 NFR).
 export interface ExportDumpSizeEstimate {
   estimatedBytes: number;
   humanSize: string;

@@ -104,7 +104,7 @@ function entityLine(entity: ExportEntity): string {
 }
 
 // describeExportScope — 검증 통과한 ExportScope 를 받아 Export scope 옵션 dialog 의 설명 메시지
-// 모델을 순수 합성한다(UC-07 §5 step 2 + §6.1 + §8 (a) 정합):
+// 모델을 순수 합성한다(UC-07 §5 step 4 + §6.1 + §8 (a) 정합):
 //   - scope "full"    → headline(전체) + scopeLine(전체 entity · 전 기간) + dateRangeLine 부재 +
 //                       entityLines 는 5 entity 전체. readOnly=true.
 //   - scope "range"   → dateRange(start/end)를 ISO 로 담은 dateRangeLine 생성 + entityLines 는

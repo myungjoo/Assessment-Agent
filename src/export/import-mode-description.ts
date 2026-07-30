@@ -2,7 +2,7 @@
 // 순수 helper (T-0465, P7 R-57 / REQ-030 / REQ-032 / REQ-045). T-0437~T-0464 의 28 building
 // block 은 Import mode 의 *판정·계획·결과*는 cover 했으나(buildImportRestorePlan 계획,
 // summarizeImportImpact 영향, buildRestoreConfirmation 실행 직전 destructive 경고,
-// buildRestoreResult 완료 결과), 사용자가 mode 를 *선택하는 dialog 단계*(UC-07 §5 step 2)에서
+// buildRestoreResult 완료 결과), 사용자가 mode 를 *선택하는 dialog 단계*(UC-07 §5 step 4)에서
 // "이 mode 가 DB 에 무엇을 하는가" 를 row count 없이 설명하는 메시지는 0 회 cover 된 gap 이다.
 //
 // 본 helper 는 직전 T-0462 describeExportScope(Export 측 scope 선택 설명)의 정확한 Import 측
@@ -43,7 +43,7 @@ const VALID_MODES: ReadonlySet<string> = new Set<ImportRestoreMode>([
 ]);
 
 // describeImportMode — 이미 선택된 ImportRestoreMode 를 받아 Import mode 선택 dialog 의 설명
-// 메시지 모델을 순수 합성한다(UC-07 §6.2 + §5 step 2 정합):
+// 메시지 모델을 순수 합성한다(UC-07 §6.2 + §5 step 4 정합):
 //   - mode "replace" (default) → headline(전체 교체) + "기존 row 모두 삭제 후 file snapshot 으로
 //     복원" 의미 detailLine + destructive=true + mergeStrategy=null + reason="replace".
 //   - mode "merge" → headline(병합) + "기존 row 보존 + file artifact 의 row 추가" 의미 detailLine

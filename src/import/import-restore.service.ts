@@ -51,7 +51,7 @@ import {
 } from "./import-restore-transaction.service";
 
 // 복원 1 회의 결과 — 실행 결과 (`outcomes` / `deleted` / `inserted`) 에 plan 영향 breakdown
-// 요약 한 필드만 더한다 (T-1294, UC-07 §5 step 12 "복원 row count + 영향 요약" 의 첫 배선).
+// 요약 한 필드만 더한다 (T-1294, UC-07 §5 step 15 "복원 row count + 영향 요약" 의 첫 배선).
 // 기존 3 필드의 이름 · 타입 · 값은 그대로라 `restored.inserted` 만 읽는 상류
 // (`ImportJobRunnerService`) 는 한 줄도 고치지 않고 컴파일 · 동작한다.
 export interface ImportRestoreResult extends ImportRestoreTransactionResult {
