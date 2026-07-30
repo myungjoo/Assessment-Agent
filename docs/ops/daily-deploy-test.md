@@ -140,7 +140,10 @@ REALDATA_E2E_LLM_PROVIDER=<custom_또는_openai>
 REALDATA_E2E_LLM_API_VERSION=<API_버전_문자열>
 REALDATA_E2E_GITHUB_READ_PAT=<읽기전용_github_PAT>
 # ⚠️ 아래 test-DB 경고(E-4) 를 반드시 읽고 assessment_test 를 가리킬 것.
-DATABASE_URL=postgresql://assessment_agent:<비밀번호>@postgres:5432/assessment_test?schema=public
+# ⚠️ host 는 반드시 localhost — jest 는 컨테이너 *안* 이 아니라 배포 기기 **호스트**에서 돌기 때문에
+#    docker 네트워크 이름 `postgres` 는 호스트에서 해석되지 않는다(compose 가 5432 를 0.0.0.0 로 publish).
+#    비밀번호에 URL 예약문자가 있으면 퍼센트 인코딩한다(예: node -e 'encodeURIComponent').
+DATABASE_URL=postgresql://assessment_agent:<비밀번호>@localhost:5432/assessment_test?schema=public
 EOF
 chmod 600 /opt/assessment-agent/.env.realdata
 ```
@@ -225,3 +228,73 @@ unset GITHUB_PAT      # 평문 PAT 를 셸 환경에서 즉시 제거
 **필수 변수(`_HOST`·`_TOKEN_ENC`) 가 부재/빈/공백-only 면 그 instance 를 조용히 reject**한다(평문/빈 fallback 금지, fail-fast).
 reject 시 수집은 no-op 이고, 어느 env 가 부재했는지 **이름만** 진단 로그에 남는다(실값 echo 0, §9). `_ORG` / `_REPOS` 는
 선택이라 부재해도 reject 사유가 아니다. `GITHUB_INSTANCES` 자체가 부재/빈이면 활성 instance 0 으로 정상 판정(수집 미설정 분기).
+
+## G. 배포 기기 일회성 준비 — §E gating 을 실제로 켤 때 (2026-07-30 적용 완료)
+
+§E 는 `.env.realdata` 파일 하나만 설명하지만, 실제로 gating 을 켜면 `daily-test.sh` 가 **호스트에서** `pnpm` 과
+jest 를 돌리기 때문에 기기 쪽 전제 3 가지가 더 필요하다. 아래는 192.168.0.7 에 **이미 적용된** 절차이며, 기기를
+재구축하거나 다른 기기로 옮길 때 그대로 재현한다. 전부 idempotent — 이미 돼 있으면 no-op 이다.
+
+### G-1. `pnpm` 을 비대화 ssh 셸에서 해석되게 만들기
+
+`ensure_realdata_deps_and_schema` 가 bare `pnpm` 을 호출하는데, 루틴은 `ssh host "bash deploy/daily-test.sh"` 로
+**비대화 셸**을 쓴다. Ubuntu 기본 `~/.bashrc` 는 비대화 셸에서 즉시 `return` 하므로 PATH 주입을 **그 가드보다 위**에
+넣어야 한다. 배포 계정은 `sudo` 에 비밀번호가 필요하고 `/usr/local/bin` 도 쓰기 불가라 사용자 디렉터리를 쓴다.
+
+```bash
+mkdir -p ~/.local/bin
+COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack enable --install-directory ~/.local/bin pnpm
+cd /opt/assessment-agent && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack prepare pnpm@9.12.0 --activate
+# ~/.bashrc 최상단(비대화 early-return 가드보다 위)에 아래 2 줄을 넣는다. 마커로 중복 삽입을 막는다.
+#   # AA-DAILY-TEST-PATH
+#   export PATH="$HOME/.local/bin:$PATH"
+#   export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+```
+
+검증(이게 통과해야 함 — 대화형 셸에서 되는 것으로는 부족): `ssh deploy@192.168.0.7 'cd /opt/assessment-agent && pnpm -v'`
+→ `packageManager` 핀과 같은 `9.12.0`.
+
+### G-2. test DB 생성
+
+`.env.realdata` 의 `DATABASE_URL` 이 가리킬 DB 를 미리 만든다(스키마는 gating 활성 후 `daily-test.sh` 가
+`prisma migrate deploy` 로 자동 적용). 운영 DB 와 **반드시 분리** — §E-4 경고 참조.
+
+```bash
+docker exec assessment-agent-postgres psql -U assessment_agent -d postgres \
+  -c "CREATE DATABASE assessment_test"
+```
+
+### G-2b. `gh` CLI — rediscovery leg 전용 전제
+
+eval / collect / eval_chain 세 leg 은 Node 내장 fetch 로 도지만, **rediscovery leg 만 `gh` 를 execFile 로 shell-out**
+한다([`test/smoke/realdata-e2e-daily-step-dual-leg-run-report-rediscovery-search-live.smoke-spec.ts`](../../test/smoke/realdata-e2e-daily-step-dual-leg-run-report-rediscovery-search-live.smoke-spec.ts)).
+기기에 `gh` 가 없으면 이 leg 만 `spawn gh ENOENT` 로 FAIL 한다(2026-07-30 첫 활성 실행에서 실제로 발생 —
+나머지 3 leg 은 PASS). 또한 그 spec 은 **ambient auth**(환경 상속)만 쓰므로 `gh` 설치만으로는 부족하고
+`.env.realdata` 에 `GH_TOKEN` 을 같은 PAT 값으로 함께 두어야 한다(`daily-test.sh` 가 `set -a` 로 source 하므로
+자식 jest → gh 로 상속된다). gating 7 종 판정에는 영향이 없다(추가 키는 무시된다).
+
+### G-3. PAT 를 기기로 옮길 때의 함정 (BOM · CR)
+
+PAT 값은 argv 에 싣지 않고 stdin 으로만 보낸다(§9). 이때 **Windows PowerShell 파이프는 값 앞에 UTF-8 BOM
+(`EF BB BF`) 을 붙이고 CR 이 끼기도 한다** — 그대로 저장하면 `Authorization: Bearer` 헤더가 깨져 curl 이 `000`
+또는 `401` 을 낸다(값 길이만 40→41·42 로 늘어 눈에 잘 안 띈다). 수신 측에서 제어문자와 BOM 바이트를 제거한다.
+
+```bash
+# 기기 측 수신 스니펫 — 토큰은 순수 ASCII 라 아래 바이트 삭제로 값이 손상되지 않는다.
+v=$(cat | tr -d '\000-\037\357\273\277')
+```
+
+주입 후 검증(값 미출력): `curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $v" https://api.github.com/rate_limit`
+→ `200` 이고 `core.limit` 이 `5000`(무인증이면 60)이어야 한다.
+
+### G-4. gating 활성 후에는 LLM 예열이 필수
+
+live spec 은 `jest.setTimeout(45000)` 인데 로컬 Ollama 의 **콜드 로드가 약 64s**(예열 후 warm 은 약 9s)라, 예열 없이
+02:00 에 돌면 첫 평가 leg 이 타임아웃난다. Ollama `keep_alive` 는 5 분이라 매 fire 마다 예열이 필요하다. 따라서
+**gating 이 활성인 동안 루틴 [1] 단계는 `-NoWarm` 없이** `start-llm.ps1` 을 호출한다(예열까지 수행).
+
+### G-5. 준비 완료 판정 / 롤백
+
+판정: `ssh` 로 `set -a; . ./.env.realdata; set +a; . ./deploy/daily-test.sh; realdata_eval_gating_enabled` 가 참이면
+gating 활성이다(스크립트 정본 함수로 판정 — 이름 목록을 손으로 재확인하지 않는다).
+롤백: 기기에서 `.env.realdata` 를 지우면 즉시 §E-5 의 조용한 SKIP 으로 돌아간다(A~D 는 그대로 동작).
