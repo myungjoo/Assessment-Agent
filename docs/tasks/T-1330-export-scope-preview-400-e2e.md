@@ -2,7 +2,9 @@
 id: T-1330
 title: export scope preview 2 종의 400 매핑을 실 HTTP 왕복 e2e 로 실증
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-30T19:54:11Z
+prNumber: 1207
 commitMode: pr
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 260
@@ -67,3 +69,11 @@ pre-check (issue-still-relevant): `git grep -l "describe-scope\|preview-selectio
 `implementer → tester` (architect 불요 — 새 결정 0, T-1328 이 박제한 계약의 실증일 뿐)
 
 ## Follow-ups
+
+- **`describeScope` · `previewSelection` 의 응답 status 201 → 200 정합** — 두 handler 는 read-only 조회인데 `@HttpCode` 미부착이라 NestJS 기본값인 **201 Created** 로 응답한다 (본 e2e 가 실측). reviewer 가 round 1 에서 task 정의서의 "200" 단언을 실동작 201 로 정정하게 한 지점. production code (`@HttpCode(200)`) + 문서 동기가 섞이므로 §3.1 rule 3 에 따라 별도 task — [T-1331](T-1331-export-scope-preview-httpcode-200.md) 로 큐잉됨.
+
+## Result
+
+- **DONE** (2026-07-30T19:54:11Z) — pr-mode, PR [#1207](https://github.com/myungjoo/Assessment-Agent/pull/1207) squash merge `59a14755`. 신규 `test/e2e/export-scope-preview.e2e-spec.ts` 1 파일 +296/-0, `src/` 변경 0 (cap 준수).
+- Acceptance Criteria 13 항목 전량 ok — happy-path 2 · `RangeError` 4 종 400 · `TypeError`(Invalid Date) 400 · `preview-selection` 동일 필터 공유 · 401/403 passthrough (400 오분류 0) · `ValidationPipe` 400 message 보존 + `forbidNonWhitelisted` · 경계값 `start == end` 400 · DB write 0 · spec 골격 규율.
+- reviewer round 2/7 APPROVE (round 1 에서 성공 status 오단언 BLOCKER + `exportJob` count 절대값 단언 MINOR 지적 → round 2 수정). 4-게이트 PASS, CI unit 12288 · smoke 2954 · e2e 312 · perf 268 green.
