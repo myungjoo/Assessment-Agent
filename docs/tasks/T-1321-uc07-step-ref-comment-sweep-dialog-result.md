@@ -2,7 +2,7 @@
 id: T-1321
 title: UC-07 §5 step 참조 주석 sweep slice 5 — dialog step 2→4 5 곳 + import 결과 step 12→15 2 곳
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030]
 estimatedDiff: 24
@@ -78,3 +78,9 @@ origin/main `f385534c` 실측 기준 위 두 묶음이 정확히 **5 파일 7 �
 ## Follow-ups
 
 <!-- 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 append -->
+
+## 완료 기록
+
+- **완료**: 2026-07-30T13:45Z — PR [#1202](https://github.com/myungjoo/Assessment-Agent/pull/1202) reviewer APPROVE round 1/7 + 4-게이트 PASS + squash 머지 `52454d55` + branch delete.
+- **결과**: 5 파일 7 곳 정정 (+8/-7, 주석-only). 판정 D 5 곳 `§5 step 2` → `step 4` (문맥이 이미 dialog 를 말하는 4 곳은 번호만, 짧은 나열 참조 1 곳만 이름 병기), 판정 E 2 곳 `§5 step 12` → `step 15` (축자 인용 `복원 row count + 영향 요약` 보존). 검증 grep 옛 참조 0 hit / `step 4` 5 hit / `step 15` 2 hit.
+- **test**: 428 suite / 12271 test 전량 pass, `test:cov` threshold (line·function ≥ 80%) 통과. 신규 public symbol 0 이라 신규 spec 추가 없음.
