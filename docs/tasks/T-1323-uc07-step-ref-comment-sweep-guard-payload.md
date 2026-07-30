@@ -2,7 +2,7 @@
 id: T-1323
 title: UC-07 §5 step 참조 주석 sweep slice 7 — AuthModule guard · payload 검증 Note · 복합 인용 6 곳 (옛 step 5 · 7 · 7·11 → 현 8 · 9 · 9·13)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030]
 estimatedDiff: 22
@@ -102,3 +102,11 @@ plannerNote: "T-1322 Out of Scope 잔여 — guard/payload/복합 6 곳(옛 5·7
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+
+## 완료 기록
+
+- **완료 시각**: 2026-07-30T14:50:42Z (PR [#1204](https://github.com/myungjoo/Assessment-Agent/pull/1204) squash merge `cf6d230c`)
+- **결과**: 5 파일 6 곳 주석 전용 정정 (+6/-6, production 로직 0 LOC). 판정 I (`export-access-denial-message.ts:7` guard → 현 **8**) 1 곳 · 판정 G (payload 검증 Note 계열 → 현 **9**) 3 곳 · 판정 J (복합 인용 `step 7·11` → 현 **9·13**) 2 곳. 축자 인용과 `·` 결합 형태를 보존했고, 문맥이 이름을 이미 말하는 5 곳은 번호만 교체했다.
+- **검증**: reviewer APPROVE round 1 + PR comment 외부 post + integrator 자체 점검 + CI green = 4-게이트 PASS. 428 suite / 12271 test 전량 pass, line 99.95% · function 100%.
+- **AC 문구 주석**: 검증 grep 의 `§5 step ?9` 기대치 "3 hit" 은 실측 **5 hit** — 같은 정규식이 판정 J 의 `step 9·13` 2 곳을 함께 매칭하기 때문 (5 = 3 + 2). 편집 누락·초과가 아니라 AC 문구의 정규식 해상도 문제이며, PR 본문·reviewer comment 에 자진 박제했다.
+- **잔여**: `src/import/import.controller.ts` 38 · 347 행의 `§5 step 2` 2 곳 — 종결 slice [T-1324](T-1324-uc07-step-ref-comment-sweep-final-modes.md) 가 blame 근거로 판정 확정해 닫는다.
