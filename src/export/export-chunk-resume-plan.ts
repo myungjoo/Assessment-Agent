@@ -11,8 +11,8 @@
 //
 // describeExportChunkStreamProgress 가 진행 *상태* 를 보여주는 read-only view 라면, 본 helper 는 그로부터
 // 한 단계 앞 — 중단 지점에서 *무엇을 다시 해야 하는가* 의 actionable plan 을 순수 산술로 derive 한다
-// (progress view 와 resume directive 의 책임 분리). UC-07 §5 step 13(Export 다운로드) + §8 chunked
-// streaming 이 필요로 하는 resumable 전송(재시도·재개 offset 안내)을 채운다.
+// (progress view 와 resume directive 의 책임 분리). UC-07 §5 step 17 (결과 표시 — 다운로드 완료) +
+// §8 chunked streaming 이 필요로 하는 resumable 전송(재시도·재개 offset 안내)을 채운다.
 //
 // 실 재전송 / byte slice 추출 / HTTP Range 요청·206 Partial Content / Content-Range 헤더 직렬화 /
 // SSE·long-poll·resumable upload 프로토콜 배선 / 재시도 정책·backoff·상태 머신 0 — 입력으로 받은
@@ -76,8 +76,8 @@ function isValidNonNegativeInteger(value: unknown): value is number {
 }
 
 // buildExportChunkResumePlan — 이미 산출된 ExportChunkPlan 과 acknowledgedChunks(수신측이 ack 한
-// chunk 개수)로부터 chunked streaming 의 재개 지시를 순수 산술로 산정한다(UC-07 §8 NFR + §5 step 13
-// 정합):
+// chunk 개수)로부터 chunked streaming 의 재개 지시를 순수 산술로 산정한다(UC-07 §8 NFR + §5 step 17
+// (결과 표시) 정합):
 //   - acknowledgedBytes = plan.chunks[0..acknowledgedChunks-1] 의 sizeBytes 합(acknowledgedChunks=0
 //     이면 0). resumeFromByte = acknowledgedBytes.
 //   - resumeNeeded = (acknowledgedChunks < plan.chunkCount).

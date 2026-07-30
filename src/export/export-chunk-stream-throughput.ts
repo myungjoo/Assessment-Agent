@@ -37,7 +37,8 @@ import { ExportChunkStreamProgress } from "./export-chunk-stream-progress";
 // etaKnown === false ⟹ etaMillis === 0, remainingBytes === 0 ⟹ etaMillis === 0 && etaKnown === true,
 // complete ⟹ remainingBytes === 0 && etaMillis === 0 && etaKnown === true && stalled === false,
 // transferredBytes + remainingBytes === totalBytes, stalled === true ⟹ bytesPerMillisecond === 0 &&
-// !complete. 후속 WebUI 진행 표시(UC-07 §5 step 13 의 "남은 시간"·"전송 속도")가 그대로 사용한다.
+// !complete. 후속 WebUI 진행 표시(UC-07 §5 step 17 (결과 표시 — 다운로드 완료) 직전의 진행 안내에
+// 나오는 "남은 시간"·"전송 속도")가 그대로 사용한다.
 export interface ExportChunkStreamThroughput {
   complete: boolean;
   transferredBytes: number;
@@ -76,7 +77,7 @@ function isValidNonNegativeInteger(value: unknown): value is number {
 
 // estimateExportChunkStreamThroughput — 이미 산출된 ExportChunkStreamProgress(T-0470)와 caller 가
 // 측정한 비-음수정수 elapsedMillis 로부터 전송 처리율·잔여 ETA·정체 여부를 순수 산술로 derive 한다
-// (UC-07 §8 NFR + §5 step 13 정합):
+// (UC-07 §8 NFR + §5 step 17 (결과 표시) 정합):
 //   - bytesPerMillisecond = elapsedMillis === 0 ? 0 : transferredBytes / elapsedMillis.
 //   - bytesPerSecond = bytesPerMillisecond * 1000.
 //   - etaKnown = remainingBytes === 0 || bytesPerMillisecond > 0.

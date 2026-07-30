@@ -13,8 +13,8 @@
 // buildExportChunkResumePlan 이 *연속* ack 경계 기준 forward resume 이라면, 본 helper 는 그와
 // 직교(orthogonal) — 임의(비연속) chunk 집합의 무결성 실패를 받아 *그 chunk 들만* 골라 재요청
 // plan 을 순수 산술로 derive 한다(연속 forward resume 과 비연속 무결성 재요청의 책임 분리).
-// UC-07 §5 step 13(Export 다운로드) + §8 chunked streaming 이 필요로 하는 신뢰성 있는 전송(부분
-// 손상 복구)을 채운다.
+// UC-07 §5 step 17 (결과 표시 — 다운로드 완료) + §8 chunked streaming 이 필요로 하는 신뢰성 있는
+// 전송(부분 손상 복구)을 채운다.
 //
 // 실 digest / checksum 계산 / chunk 내용 비교 / 실 재전송 / byte slice 추출 / HTTP Range 요청·206
 // Partial Content / Content-Range 헤더 직렬화(실 "Content-Range: bytes a-b/c" 문자열) / 재시도
@@ -76,7 +76,7 @@ function isValidNonNegativeInteger(value: unknown): value is number {
 
 // reconcileExportChunkIntegrity — 이미 산출된 ExportChunkPlan 과 chunkIntegrity(chunk 별 무결성
 // 결과 boolean 배열 — chunkIntegrity[i] === true 이면 chunk i 무결, false 이면 손상)로부터 chunked
-// streaming 의 재요청 지시를 순수 산술로 산정한다(UC-07 §8 NFR + §5 step 13 정합):
+// streaming 의 재요청 지시를 순수 산술로 산정한다(UC-07 §8 NFR + §5 step 17 (결과 표시) 정합):
 //   - failedChunks = plan.chunks.filter((_, i) => chunkIntegrity[i] === false) 의 복사(원본 chunk
 //     객체 mutate·공유 금지 — 새 객체로; filter 가 index 오름차순을 보존).
 //   - failedChunkCount = failedChunks.length, intactChunkCount = plan.chunkCount - failedChunkCount.
