@@ -102,7 +102,7 @@ sequenceDiagram
     WebUI->>Admin: "Confluence SPACE X 접근권 부족 — 관리자 운영 필요" (REQ-016)
 ```
 
-step 수: 약 14 (autonumber 기준 — trigger origin Note + audience 분기 alt block (emit) + display 분기 alt block + 1 conceptual Note 포함, 8 ≤ 14 ≤ 14 범위 안). 본 다이어그램의 의존성 방향은 [components.md](../architecture/components.md) + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Adapter → AssessmentModule (event emit) → PersistenceModule (write) / WebUI → BackendAPI → PersistenceModule (read) 의 두 경로가 emit phase 와 display phase 의 분리를 박제. UC-01 평가 파이프라인의 외부 호출 자체는 **본 UC sequence 단계가 아니라 UC-01 영역** — 본 UC 는 그 4xx 응답을 trigger 로 받아 emit 부터 시작.
+step 수 16 (autonumber 기준 — [UC-07](UC-07-export-import.md) §5 103 행 규약과 같은 기준으로 **arrow 만 계수하고 `Note over ...` 는 계수 대상에서 제외한다**; emit phase arrow 7 개 + display phase arrow 9 개 구성이며 두 국면의 audience 분기 alt block 2 개 안의 arrow 도 모두 들어간다). 이는 [T-0028](../tasks/T-0028-uc-08-permission-denied.md) 101 행의 P2 자기점검 범위 `8 이상 14 이하` 를 2 초과하는데, 본 UC 가 emit phase (외부 4xx → event emit → 영속) 와 display phase (별도 read path) 두 국면을 한 다이어그램에 담고 각 국면의 audience 분기 (REQ-008 user / REQ-016 admin) 를 alt block 으로 전개하기 때문이므로 [UC-07](UC-07-export-import.md) §5 선례대로 은폐하지 않고 사실로 기재한다. 본 다이어그램의 의존성 방향은 [components.md](../architecture/components.md) + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Adapter → AssessmentModule (event emit) → PersistenceModule (write) / WebUI → BackendAPI → PersistenceModule (read) 의 두 경로가 emit phase 와 display phase 의 분리를 박제. UC-01 평가 파이프라인의 외부 호출 자체는 **본 UC sequence 단계가 아니라 UC-01 영역** — 본 UC 는 그 4xx 응답을 trigger 로 받아 emit 부터 시작.
 
 ## 6. Alternative flows
 

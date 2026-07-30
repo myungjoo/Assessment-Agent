@@ -92,7 +92,7 @@ sequenceDiagram
     Note over AssessmentModule: 이후 별도 흐름 — UC-01 의 다음 cron 발화 시<br/>평가 파이프라인이 "비어있는 시간 구간" 자동 감지 → 재수집 (REQ-037)
 ```
 
-step 수: 약 13 (autonumber 기준 — 2 alt block 분기 + 1 conceptual Note 포함, 8 ≤ 13 ≤ 14 범위 안). 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Web UI → Backend API, Backend API → {AuthModule, AssessmentModule}, AssessmentModule → PersistenceModule 의 방향이 모두 의존성 그래프에서 허용된 방향. UC-01 의 다음 발화에 의한 자동 재수집은 **본 UC 의 sequence 단계가 아니라 UC-01 의 영역** — 마지막 Note 로만 conceptual reference.
+step 수 12 (autonumber 기준 — [UC-07](UC-07-export-import.md) §5 103 행 규약과 같은 기준으로 **arrow 만 계수하고 `Note over ...` 는 계수 대상에서 제외한다**; 2 alt block [사용자 취소 / 검증 실패·race 거부] 안의 분기 arrow 는 계수에 들어간다). 이는 [T-0026](../tasks/T-0026-uc-06-evaluation-delete-reeval.md) 100 행의 P2 자기점검 범위 `8 이상 14 이하` **안** 이다. 본 다이어그램은 [components.md](../architecture/components.md) 의 Component diagram + [modules.md](../architecture/modules.md) 의 의존성 그래프와 정합 — Web UI → Backend API, Backend API → {AuthModule, AssessmentModule}, AssessmentModule → PersistenceModule 의 방향이 모두 의존성 그래프에서 허용된 방향. UC-01 의 다음 발화에 의한 자동 재수집은 **본 UC 의 sequence 단계가 아니라 UC-01 의 영역** — 마지막 Note 로만 conceptual reference.
 
 ## 6. Alternative flows
 
