@@ -236,7 +236,10 @@ ADR 신설 불필요 — module 분해 수준의 결정이고 외부 dependency 
 
 composition-wiring 스트림 (T-0353~T-0394, [ADR-0041](../decisions/ADR-0041-frontend-composition-wiring.md)) 은 15 개 presentational 컴포넌트 + `AppShell` (전역 레이아웃 + 무라우터 view enum 전환 + R-78 배너 슬롯 + 인증 게이트) + 2 view 컨테이너 (`DashboardView` / `AdminView`) 를 `web/` 에 조립·배선 완료했다 — controlled lift-up (컨테이너가 상태 소유, presentational 은 props 소비) + thin fetch hook (JWT cookie 자동 동반) 경계로 SuperAdmin 셋업 · 로그인 · 대시보드 시각화 · Admin 패널을 모두 cover 한다.
 
-**의도적 defer (make-work 아님 — backend 계약 확정 후 배선)**: 일부 잔여 표면은 backend endpoint 미shipped 라 의도적으로 미배선으로 둔다 — `ReEvaluationTriggerPanel` · `SchedulePanel` 미마운트 / `EvaluationGuardBanner` 자동 polling / `GroupMember` add·remove mutation / import 결과 상세. 근거: [api.md](api.md) 94~97 (`/run` · bulk DELETE · `/reeval` · `/reset` 미구현) + SchedulerModule (P7, `@nestjs/schedule` 새 dep). 이 잔여는 backend 계약 확정 후 별도 wiring task 의 책임이며, 본 doc 에 defer 사실을 박제해 다음 planner 가 미배선을 결함으로 재발견하지 않도록 한다.
+**의도적 defer (make-work 아님 — backend 계약 확정 후 배선)**: 일부 잔여 표면은 backend endpoint 미shipped 라 의도적으로 미배선으로 둔다 — `ReEvaluationTriggerPanel` · `SchedulePanel` 미마운트 / `EvaluationGuardBanner` 자동 polling. 근거: [api.md](api.md) 94~97 (`/run` · bulk DELETE · `/reeval` · `/reset` 미구현) + SchedulerModule (P7, `@nestjs/schedule` 새 dep). 이 잔여는 backend 계약 확정 후 별도 wiring task 의 책임이며, 본 doc 에 defer 사실을 박제해 다음 planner 가 미배선을 결함으로 재발견하지 않도록 한다. 이 박제의 취지는 **양방향** 이다 — 미배선을 결함으로 오판하지 않게 하는 동시에, 이미 shipped 된 표면을 미배선으로 오판해 중복 task 로 큐잉하지 않게 한다. 그래서 종전 나열에 있던 다음 2 항목은 shipped 확인 후 본 목록에서 **내렸다** ([T-1313](../tasks/T-1313-p6-deferred-residual-list-resync.md)):
+
+- `GroupMember` add·remove mutation — remove 는 [T-1130](../tasks/T-1130-adminview-member-remove.md) (`runRemove` + `handleRemove`, squash `340d50a2`), add 는 [T-1131](../tasks/T-1131-adminview-member-add.md) (`runAdd` 러너) + [T-1238](../tasks/T-1238-group-member-add-container-wire.md) (컨테이너 `handleAdd` · `onAdd` 배선) 으로 완결.
+- import 결과 상세 — [T-1132](../tasks/T-1132-adminview-import-result-detail.md) (`formatImportJobDetail` 로 id · status · mode 표면화) + [T-1296](../tasks/T-1296-import-response-restore-summary.md) (backend `restoreSummary` additive) + [T-1310](../tasks/T-1310-import-result-restore-summary-detail.md) (web 소비, squash `36cdbaa7`) 으로 완결.
 
 ## References
 
