@@ -21,9 +21,9 @@
 | REQ-002 | 6 | Web Interface 를 제공하는 Agent System | FR | P6 / P3 | smoke + e2e | IN_PROGRESS |
 | REQ-003 | 7 | 개발자 기여 양·질 평가 / 저장 / 표시 | FR | P3 + P5 + P6 | unit + smoke | PLANNED |
 | REQ-004 | 9 | 수치 지표 + LLM 평가 코멘트 (사용자 지정 기간) | FR | P5 | unit + e2e | PLANNED |
-| REQ-005 | 16 | github.com 평가 | FR | P4 | unit (provider) + e2e | PLANNED |
-| REQ-006 | 17 | github.sec.samsung.net 평가 | FR | P4 | unit + e2e | PLANNED |
-| REQ-007 | 18 | github.ecodesamsung.com 평가 | FR | P4 | unit + e2e | PLANNED |
+| REQ-005 | 16 | github.com 평가 | FR | P4 | unit (provider) + e2e | DONE (단일 GithubAdapter + instance-keyed env config 배선, public 은 api.github.com 라우팅 특례 — live 호출은 env-gated) |
+| REQ-006 | 17 | github.sec.samsung.net 평가 | FR | P4 | unit + e2e | DONE (같은 GithubAdapter 의 sec instance 경로, GITHUB_LIVE_HOST_SPECS 사양 박제 — live 호출은 env-gated) |
+| REQ-007 | 18 | github.ecodesamsung.com 평가 | FR | P4 | unit + e2e | DONE (같은 GithubAdapter 의 ecode instance 경로, GITHUB_LIVE_HOST_SPECS 사양 박제 — live 호출은 env-gated) |
 | REQ-008 | 20 | 접근 권한(read) 부족 시 인식·통지 | FR | P4 | unit + smoke | PLANNED |
 | REQ-009 | 21 | Fork/Rebase/Meld 중복 제거 + 시간적 중복 (earlier date 우선) | FR | P5 | unit | PLANNED |
 | REQ-010 | 24 | 코드 기여 양·질 평가 | FR | P5 | unit | PLANNED |
