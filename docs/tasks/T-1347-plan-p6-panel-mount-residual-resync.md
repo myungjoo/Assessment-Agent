@@ -2,7 +2,8 @@
 id: T-1347
 title: PLAN.md P6 의 재평가·스케줄 패널 "미마운트 defer" 서술을 실 배선과 정합 (120 · 123 행)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-31T11:47:00Z
 commitMode: direct
 coversReq: [REQ-049, REQ-039, REQ-040, REQ-041]
 estimatedDiff: 20
