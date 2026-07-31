@@ -114,6 +114,8 @@ P3 진행 중 발견된 진척 status quo + P4 진입 trigger 의사결정 가�
 ## Phase P6 — Web UI
 
 > **오너 승인 (2026-07-07, Q-0051)**: frontend stack = **React + Vite** 확정. Vite 는 React 를 대체하는 게 아니라 JSX/TSX transpile + 번들 + dev-server(HMR) 를 담당하는 하부 빌드 도구다(오너 질문 "Vite 왜 필요?" 에 대한 설명 후 채택). SSR 불요 정적 SPA(NestJS backend 뒤). deferred 잔여 배선(ReEvaluationTriggerPanel·SchedulePanel·polling 등) 재개 승인 — P6 진입 시 frontend stack ADR(React+Vite) 선행. 단 우선순위상 P6 는 옵션 5·4·2 뒤.
+>
+> **편집 주 (2026-07-31, T-1351)**: 위 인용문의 `deferred 잔여 배선(...)` 열거는 **승인 시점(2026-07-07)의 서술**이다. 이후 `SchedulePanel` 은 [T-0885](tasks/T-0885-wire-schedule-panel-adminview.md), `ReEvaluationTriggerPanel` 은 [T-0886](tasks/T-0886-wire-reevaluation-trigger-panel-adminview.md) 로 **배선 완료**돼 두 패널은 더 이상 defer 대상이 아니다(AdminView 마운트 실측). 현재 실 defer 잔여는 **`EvaluationGuardBanner` 자동 polling 1 항목**뿐 — 근거는 아래 120 · 123 행. 승인 자체(P6 재개 승인 · React+Vite 확정 · 우선순위 서술)는 그대로 유효하다.
 
 - [x] 로그인 / SuperAdmin 초기 셋업 흐름 **(완료)** — composition-wiring ②(AuthGate, T-0379)·⑥(SuperAdminSetupForm 배선, T-0394)로 조립 완료. 인증 게이트 + 최초 SuperAdmin 셋업 폼이 AppShell 에 배선됨(REQ-044 3 권한 로그인 UI / REQ-038).
 - [x] 시각화 대시보드 (정렬·필터·시계열) **(완료)** — DashboardView(③a~③b-3, T-0381~T-0384) + presentational(필터바·시계열·분포·페이지네이션 등, T-0361~T-0375) 조립 완료(REQ-038).
