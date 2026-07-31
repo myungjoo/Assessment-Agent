@@ -2,7 +2,9 @@
 id: T-1343
 title: api.md § 5 75 행 PATCH /api/users/:id/password 를 conceptual placeholder 로 표기 + 153·155 합계 동기
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-31T07:55:00Z
+commit: e3e04b69
 commitMode: direct
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 6
