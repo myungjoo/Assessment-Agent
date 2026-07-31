@@ -40,15 +40,15 @@ plannerNote: "P6 120·123 행이 이미 마운트된 SchedulePanel·ReEvaluation
 
 ## Acceptance Criteria
 
-- [ ] **120 행 끝 문장 교체** — `단 **재평가(…)·스케줄(…) 은 backend 계약 미shipped 로 미마운트 defer**(아래 deferred 잔여 참조).` 를 **배선 완료 서술** 로 바꾼다: 두 패널이 AdminView 에 마운트됐다는 사실 + 배선 task 링크 (`T-0885` SchedulePanel / `T-0886` ReEvaluationTriggerPanel) + 소비 endpoint (`PUT·GET /api/schedules` · `POST /api/schedules/trigger` · `POST /api/schedules/recent-deletion/:personId`) + defer 사유 소멸 근거 pointer (`P7 133~135 행 shipped`) 를 한 문장으로 인라인 박제. **행 분할 금지** — 120 행은 편집 후에도 **한 줄**.
-- [ ] **`(부분 완료 — shipped 계약 범위)` 마커 불변** — 120 행의 이 마커는 건드리지 않는다. LLM provider 관리 UI mutation 등 다른 미판정 잔여가 있을 수 있어 마커 재평가는 별도 축이다 (Out of Scope, 필요 시 Follow-ups 한 줄).
-- [ ] **123 행 3 요소 수정** — (a) 잔여 목록에서 `ReEvaluationTriggerPanel·SchedulePanel 미마운트(…)` 항목과 그 괄호 사유 (`api.md 94~97 /run·bulk DELETE·/reeval·/reset 미구현; SchedulePanel 은 SchedulerModule = P7 + @nestjs/schedule 새 dep`) 를 **삭제**, (b) `**목록에서 내린 항목 (배선 완료)**` 나열에 두 패널을 [T-0885](T-0885-wire-schedule-panel-adminview.md) · [T-0886](T-0886-wire-reevaluation-trigger-panel-adminview.md) 링크와 함께 **추가** (기존 멤버 mutation · import 결과 상세 나열과 링크는 불변), (c) 끝 집계를 `남은 2 항목만이 실제 defer 다` → `남은 1 항목(EvaluationGuardBanner 자동 polling)만이 실제 defer 다` 로 갱신. **행 분할 금지** — 123 행도 편집 후 **한 줄**.
-- [ ] **polling 잔여 존치** — 편집 후 123 행에 `EvaluationGuardBanner 자동 polling(assessments rows status 필드 부재)` 항목이 **그대로 남아 있고**, `grep -c "자동 polling" docs/PLAN.md` 가 편집 전후 동일하다 (121 행 + 123 행). polling 을 shipped 로 적는 것은 **명백한 오기** — `DashboardView.tsx` 94 행이 반증한다.
-- [ ] **구조 무손상** — 편집 후 `wc -l docs/PLAN.md` 가 **173** 으로 편집 전과 동일하고, `grep -c "^- \[x\]\|^- \[ \]" docs/PLAN.md` 가 편집 전후 동일 (체크박스 증감 0 · bullet 병합/분할 0). 120 행 `- [x]` · 123 행 들여쓴 `  - ` 접두는 그대로.
-- [ ] **검증 grep** — (a) `grep -n "미마운트" docs/PLAN.md` 가 **0 hit**, (b) `grep -c "남은 1 항목" docs/PLAN.md` = **1** 이고 `grep -c "남은 2 항목" docs/PLAN.md` = **0**, (c) `grep -c "T-0885\|T-0886" docs/PLAN.md` ≥ **2** (배선 task 링크 박제), (d) `git diff --stat` 이 `docs/PLAN.md` · 본 task 파일 **2 개만** 보이고 PLAN 의 `git diff` hunk 가 **120 행 · 123 행 2 개뿐** 이다.
-- [ ] **다른 절 불변** — 87 행 · 116 행 · 118 · 119 행 · 121 행 · 122 행 · 124 · 125 행 · P7 133 ~ 135 행 · 운영 정책 review backlog (157 ~ 163 행) 는 diff 에 등장하지 않는다.
-- [ ] `src/` · `web/` · `test/` · `prisma/` · `docs/architecture/*` · `docs/use-cases/*` · `docs/requirements.md` · `docs/STATE.json` 은 수정하지 않는다 (§3.1 rule 3 — direct task 는 doc 만, STATE 는 driver 소관). `git status --porcelain` 결과가 위 2 파일뿐 (driver 의 STATE/journal bookkeeping 제외).
-- [ ] doc-only 라 R-110 tester 면제 (production code 0 LOC · 신규 symbol/분기 0 → R-112 신규 test 대상 없음, [T-1313](T-1313-p6-deferred-residual-list-resync.md) · [T-1340](T-1340-api-doc-uc07-crossref-placeholder.md) ~ [T-1346](T-1346-uc05-difficulty-mapping-route-parity.md) 선례) — 대신 위 검증 grep + 구조 self-check 로 대체한다. `pnpm lint` 는 doc 변경 무영향이라 실행 불요.
+- [x] **120 행 끝 문장 교체** — `단 **재평가(…)·스케줄(…) 은 backend 계약 미shipped 로 미마운트 defer**(아래 deferred 잔여 참조).` 를 **배선 완료 서술** 로 바꾼다: 두 패널이 AdminView 에 마운트됐다는 사실 + 배선 task 링크 (`T-0885` SchedulePanel / `T-0886` ReEvaluationTriggerPanel) + 소비 endpoint (`PUT·GET /api/schedules` · `POST /api/schedules/trigger` · `POST /api/schedules/recent-deletion/:personId`) + defer 사유 소멸 근거 pointer (`P7 133~135 행 shipped`) 를 한 문장으로 인라인 박제. **행 분할 금지** — 120 행은 편집 후에도 **한 줄**.
+- [x] **`(부분 완료 — shipped 계약 범위)` 마커 불변** — 120 행의 이 마커는 건드리지 않는다. LLM provider 관리 UI mutation 등 다른 미판정 잔여가 있을 수 있어 마커 재평가는 별도 축이다 (Out of Scope, 필요 시 Follow-ups 한 줄).
+- [x] **123 행 3 요소 수정** — (a) 잔여 목록에서 `ReEvaluationTriggerPanel·SchedulePanel 미마운트(…)` 항목과 그 괄호 사유 (`api.md 94~97 /run·bulk DELETE·/reeval·/reset 미구현; SchedulePanel 은 SchedulerModule = P7 + @nestjs/schedule 새 dep`) 를 **삭제**, (b) `**목록에서 내린 항목 (배선 완료)**` 나열에 두 패널을 [T-0885](T-0885-wire-schedule-panel-adminview.md) · [T-0886](T-0886-wire-reevaluation-trigger-panel-adminview.md) 링크와 함께 **추가** (기존 멤버 mutation · import 결과 상세 나열과 링크는 불변), (c) 끝 집계를 `남은 2 항목만이 실제 defer 다` → `남은 1 항목(EvaluationGuardBanner 자동 polling)만이 실제 defer 다` 로 갱신. **행 분할 금지** — 123 행도 편집 후 **한 줄**.
+- [x] **polling 잔여 존치** — 편집 후 123 행에 `EvaluationGuardBanner 자동 polling(assessments rows status 필드 부재)` 항목이 **그대로 남아 있고**, `grep -c "자동 polling" docs/PLAN.md` 가 편집 전후 동일하다 (121 행 + 123 행). polling 을 shipped 로 적는 것은 **명백한 오기** — `DashboardView.tsx` 94 행이 반증한다.
+- [x] **구조 무손상** — 편집 후 `wc -l docs/PLAN.md` 가 **173** 으로 편집 전과 동일하고, `grep -c "^- \[x\]\|^- \[ \]" docs/PLAN.md` 가 편집 전후 동일 (체크박스 증감 0 · bullet 병합/분할 0). 120 행 `- [x]` · 123 행 들여쓴 `  - ` 접두는 그대로.
+- [x] **검증 grep** — (a) `grep -n "미마운트" docs/PLAN.md` 가 **0 hit**, (b) `grep -c "남은 1 항목" docs/PLAN.md` = **1** 이고 `grep -c "남은 2 항목" docs/PLAN.md` = **0**, (c) `grep -c "T-0885\|T-0886" docs/PLAN.md` ≥ **2** (배선 task 링크 박제), (d) `git diff --stat` 이 `docs/PLAN.md` · 본 task 파일 **2 개만** 보이고 PLAN 의 `git diff` hunk 가 **120 행 · 123 행 2 개뿐** 이다.
+- [x] **다른 절 불변** — 87 행 · 116 행 · 118 · 119 행 · 121 행 · 122 행 · 124 · 125 행 · P7 133 ~ 135 행 · 운영 정책 review backlog (157 ~ 163 행) 는 diff 에 등장하지 않는다.
+- [x] `src/` · `web/` · `test/` · `prisma/` · `docs/architecture/*` · `docs/use-cases/*` · `docs/requirements.md` · `docs/STATE.json` 은 수정하지 않는다 (§3.1 rule 3 — direct task 는 doc 만, STATE 는 driver 소관). `git status --porcelain` 결과가 위 2 파일뿐 (driver 의 STATE/journal bookkeeping 제외).
+- [x] doc-only 라 R-110 tester 면제 (production code 0 LOC · 신규 symbol/분기 0 → R-112 신규 test 대상 없음, [T-1313](T-1313-p6-deferred-residual-list-resync.md) · [T-1340](T-1340-api-doc-uc07-crossref-placeholder.md) ~ [T-1346](T-1346-uc05-difficulty-mapping-route-parity.md) 선례) — 대신 위 검증 grep + 구조 self-check 로 대체한다. `pnpm lint` 는 doc 변경 무영향이라 실행 불요.
 
 ## Out of Scope
 
@@ -65,4 +65,6 @@ plannerNote: "P6 120·123 행이 이미 마운트된 SchedulePanel·ReEvaluation
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **120 행 `(부분 완료 — shipped 계약 범위)` 마커 재판정** — 본 slice 로 P6 Admin 패널의 deferred 잔여가 0 이 됐으나 마커는 Out of Scope 라 그대로 뒀다. LLM provider 관리 UI mutation 등 다른 미판정 잔여 유무를 전수 확인한 뒤 `(완료)` 승격 여부를 판단하는 별도 축이 필요하다.
+- **실측 행 번호 drift 없음** — Required Reading 이 지목한 120 · 123 행이 편집 전후 모두 실제 대상 행과 일치했다 (`wc -l` 173 불변, PLAN hunk 2 개).
+- **같은 부류 stale 후보 (P6 116 행)** — 오너 승인 인용문이 아직 `deferred 잔여 배선(ReEvaluationTriggerPanel·SchedulePanel·polling 등) 재개 승인` 으로 세 항목을 나열한다. 오너 발화 원문이라 본 slice 에서 손대지 않았으나, 원문 보존과 stale 표기 정합 중 무엇을 우선할지 별도 판단이 필요하다.
