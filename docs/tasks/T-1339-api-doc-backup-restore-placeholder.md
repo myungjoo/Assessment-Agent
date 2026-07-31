@@ -2,7 +2,7 @@
 id: T-1339
 title: api.md § 5 136~137 행 backup·restore 를 conceptual placeholder 로 표기 + 합계 shipped 동기
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-030]
 estimatedDiff: 10
@@ -12,6 +12,8 @@ independentStream: api-status-code-table
 dependsOn: [T-1338]
 touchesFiles:
   - docs/architecture/api.md
+completedAt: 2026-07-31T03:39:25Z
+resultSummary: "api.md § 5 136·137 행에 conceptual placeholder 3 요소 표기 + 153·155 행 합계 shipped 70→68 동기. 1 파일 +4/-4, commit f593116b. 실측: api/admin controller 2 종(export·import) 뿐, backup·restore route 0 · prisma model 0."
 plannerNote: "T-1338 Out of Scope 이월분 — 136~137 행은 미구현인데 placeholder 표기 0 이라 shipped 70 이 실제 68 과 어긋난다"
 ---
 
@@ -66,3 +68,5 @@ plannerNote: "T-1338 Out of Scope 이월분 — 136~137 행은 미구현인데 p
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+- **§ 7 cross-reference 표 191 행 UC-07 동기** — `POST /api/admin/backup` · `POST /api/admin/restore` 가 미구현 표기 없이 열거 중. § 5 136·137 행이 placeholder 로 바뀐 뒤 두 절이 어긋난다 → [T-1340](T-1340-api-doc-uc07-crossref-placeholder.md) 로 큐잉됨.
