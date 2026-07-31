@@ -2,7 +2,7 @@
 id: T-1354
 title: PLAN P7 140~142 행 성능 검증 bullet 에 REQ-048 조회 latency harness shipped 근거 박제
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 12
@@ -34,14 +34,19 @@ plannerNote: "P7 140~142 성능 검증 bullet 이 근거 0 — test/perf 34 perf
 
 ## Acceptance Criteria
 
-- [ ] 편집은 [docs/PLAN.md](../PLAN.md) **141 · 142 행 두 곳뿐** — 140 행 헤더(`- [ ] **성능 검증**:`) 는 글자 무수정, checkbox `[ ]` 유지. 확인: `grep -n '^- \[ \] \*\*성능 검증\*\*:$' docs/PLAN.md` 가 **정확히 1 hit**.
-- [ ] 142 행(R-92)에 shipped 근거를 **순수 추가**(기존 문구·수치 보존): (a) [test/perf/](../../test/perf/) 의 `*.perf-spec.ts` **34 개** + primitive 3 파일, (b) [ci.yml](../../.github/workflows/ci.yml) `perf test` step 의 `pnpm test:perf` 로 CI 강제(T-0878), (c) 임계 = p95 **3000ms**(REQ-048), (d) 근거 pointer([test/perf/README.md](../../test/perf/README.md)).
-- [ ] 142 행에 **잔여**도 함께 명시 — service 계층 mock + guard override 라 실 DB round-trip baseline 은 미실측([load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) §5 잔여), 그래서 checkbox 미승격.
-- [ ] 141 행(R-91)에 한 구절 추가 — 배치 1h 축은 측정 harness·실측 **모두 미착수**(REQ-047 미검증) 임을 명시해 140 행 `[ ]` 의 근거를 행 안에서 읽히게 한다.
-- [ ] 실측 재확인(편집 전 executor 가 직접 수행, 결과를 commit trail 에 박제): `ls test/perf/*.perf-spec.ts | wc -l` = **34**, `grep -c 'run: pnpm test:perf' .github/workflows/ci.yml` = **1**, `grep -c '"test:perf"' package.json` = **1**. 수치가 다르면 **문서를 실측에 맞추고** 그 사실을 trail 에 남긴다.
-- [ ] 구조 무손상: `grep -c "" docs/PLAN.md` = **175**(줄 수 불변 — 같은 줄 안 편집), `grep -c '^- \[x\]' docs/PLAN.md` = **60**, `grep -c '^- \[ \]' docs/PLAN.md` = **6** 모두 편집 전후 불변.
-- [ ] `git diff --name-only` 결과가 [docs/PLAN.md](../PLAN.md) 와 본 task 파일 **2 개뿐** — `src/` · `web/` · `test/` · `.github/` · `docs/architecture/` · `docs/requirements.md` · `docs/STATE.json` 무수정.
-- [ ] doc-only `commitMode: direct` 라 R-110 tester 면제 — 위 grep 검증으로 대체하고 그 사실을 commit trail 에 명시.
+- [x] 편집은 [docs/PLAN.md](../PLAN.md) **141 · 142 행 두 곳뿐** — 140 행 헤더(`- [ ] **성능 검증**:`) 는 글자 무수정, checkbox `[ ]` 유지. 확인: `grep -n '^- \[ \] \*\*성능 검증\*\*:$' docs/PLAN.md` 가 **정확히 1 hit**.
+- [x] 142 행(R-92)에 shipped 근거를 **순수 추가**(기존 문구·수치 보존): (a) [test/perf/](../../test/perf/) 의 `*.perf-spec.ts` **34 개** + primitive 3 파일, (b) [ci.yml](../../.github/workflows/ci.yml) `perf test` step 의 `pnpm test:perf` 로 CI 강제(T-0878), (c) 임계 = p95 **3000ms**(REQ-048), (d) 근거 pointer([test/perf/README.md](../../test/perf/README.md)).
+- [x] 142 행에 **잔여**도 함께 명시 — service 계층 mock + guard override 라 실 DB round-trip baseline 은 미실측([load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) §5 잔여), 그래서 checkbox 미승격.
+- [x] 141 행(R-91)에 한 구절 추가 — 배치 1h 축은 측정 harness·실측 **모두 미착수**(REQ-047 미검증) 임을 명시해 140 행 `[ ]` 의 근거를 행 안에서 읽히게 한다.
+- [x] 실측 재확인(편집 전 executor 가 직접 수행, 결과를 commit trail 에 박제): `ls test/perf/*.perf-spec.ts | wc -l` = **34**, `grep -c 'run: pnpm test:perf' .github/workflows/ci.yml` = **1**, `grep -c '"test:perf"' package.json` = **1**. 수치가 다르면 **문서를 실측에 맞추고** 그 사실을 trail 에 남긴다.
+  - 실측 결과 3 개 모두 기대치와 일치(34 / 1 / 1). 단 **primitive 파일 수는 Why 절의 3 이 아니라 4** — `test/perf/` 의 non-spec `.ts` 는 `latency-metrics.ts`·`latency-collector.ts`·`latency-baseline.ts` 외에 `latency-baseline-io.ts` 가 더 있어, PLAN 142 행은 실측대로 **4 파일**로 적었다.
+- [x] 구조 무손상: `grep -c "" docs/PLAN.md` = **175**(줄 수 불변 — 같은 줄 안 편집), `grep -c '^- \[x\]' docs/PLAN.md` = **60**, `grep -c '^- \[ \]' docs/PLAN.md` = **6** 모두 편집 전후 불변.
+- [x] `git diff --name-only` 결과가 [docs/PLAN.md](../PLAN.md) 와 본 task 파일 **2 개뿐** — `src/` · `web/` · `test/` · `.github/` · `docs/architecture/` · `docs/requirements.md` · `docs/STATE.json` 무수정.
+- [x] doc-only `commitMode: direct` 라 R-110 tester 면제 — 위 grep 검증으로 대체하고 그 사실을 commit trail 에 명시.
+
+## 결과 (2026-08-01 DONE)
+
+PLAN.md 141 · 142 행 두 줄만 같은 줄 안에서 확장. 141 행은 REQ-047 배치 1h 축이 harness·실측 모두 미착수(ADR-0054 PROPOSED 대기)임을, 142 행은 REQ-048 조회 latency harness 가 perf-spec 34 개 + primitive 4 파일 + CI `pnpm test:perf` 강제로 shipped 이나 실 DB round-trip baseline 미실측이라 checkbox 미승격임을 박제. 140 행 헤더·checkbox·줄 수(175)·마커 수(60/6) 전부 불변.
 
 ## Out of Scope
 
