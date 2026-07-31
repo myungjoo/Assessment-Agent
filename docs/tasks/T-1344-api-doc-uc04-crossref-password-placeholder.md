@@ -2,7 +2,9 @@
 id: T-1344
 title: api.md § 7 188 행 UC-04 의 PATCH /api/users/:id/password 를 conceptual placeholder 로 표기
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-31T08:45:00Z
+commit: a8dcfebd
 commitMode: direct
 coversReq: [REQ-043, REQ-044]
 estimatedDiff: 4
