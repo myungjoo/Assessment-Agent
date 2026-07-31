@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assessment-Agent 개발 현황 대시보드</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:           #f9f9f7;
+    --surface-1:      #fcfcfb;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --seq-450:        #2a78d6;  /* 진행률 bar (sequential blue) */
+    --seq-track:      #e9e8e2;
+    --status-good:    #0ca30c;
+    --good-text:      #006300;
+    --status-warning: #fab219;
+    --warning-text:   #8a5b00;
+    --status-serious: #ec835a;
+    --serious-text:   #9c3d18;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page:           #0d0d0d;
+      --surface-1:      #1a1a19;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --seq-450:        #3987e5;
+      --seq-track:      #2c2c2a;
+      --good-text:      #0ca30c;
+      --warning-text:   #fab219;
+      --serious-text:   #ec835a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:           #0d0d0d;
+    --surface-1:      #1a1a19;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --seq-450:        #3987e5;
+    --seq-track:      #2c2c2a;
+    --good-text:      #0ca30c;
+    --warning-text:   #fab219;
+    --serious-text:   #ec835a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 56px; }
+
+  header h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  header .meta { color: var(--text-muted); font-size: 0.85rem; }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 4px; }
+  .sub { color: var(--text-secondary); font-size: 0.85rem; margin: 0 0 16px; }
+
+  /* ── hero row ─────────────────────────── */
+  .hero-row { display: grid; grid-template-columns: 300px 1fr; gap: 16px; margin: 24px 0 16px; }
+  @media (max-width: 760px) { .hero-row { grid-template-columns: 1fr; } }
+
+  .hero-num { font-size: 3.4rem; font-weight: 700; line-height: 1.1; }
+  .hero-num small { font-size: 1.6rem; font-weight: 600; color: var(--text-secondary); }
+  .hero-label { color: var(--text-secondary); font-size: 0.9rem; margin-top: 2px; }
+  .hero-bar { height: 10px; border-radius: 5px; background: var(--seq-track); margin-top: 14px; overflow: hidden; }
+  .hero-bar > div { height: 100%; border-radius: 5px 4px 4px 5px; background: var(--seq-450); }
+  .hero-note { color: var(--text-muted); font-size: 0.78rem; margin-top: 10px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .tile {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .tile .v { font-size: 1.55rem; font-weight: 700; }
+  .tile .k { color: var(--text-secondary); font-size: 0.8rem; margin-top: 2px; }
+
+  /* ── 기능 가용성 ───────────────────────── */
+  .feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  @media (max-width: 760px) { .feat-grid { grid-template-columns: 1fr; } }
+  .feat {
+    display: grid; grid-template-columns: 22px 1fr; gap: 10px;
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+  }
+  .feat .ic { font-size: 0.95rem; line-height: 1.5; }
+  .feat .t { font-weight: 600; font-size: 0.92rem; }
+  .feat .d { color: var(--text-secondary); font-size: 0.82rem; margin-top: 1px; }
+  .badge {
+    display: inline-block; font-size: 0.72rem; font-weight: 700;
+    padding: 0 6px; border-radius: 6px; margin-left: 6px; vertical-align: 1px;
+  }
+  .b-good    { color: var(--good-text); }
+  .b-warn    { color: var(--warning-text); }
+  .b-serious { color: var(--serious-text); }
+
+  .legend { color: var(--text-secondary); font-size: 0.8rem; margin: 0 0 14px; }
+  .legend b { font-weight: 700; }
+
+  /* ── phase bar chart ───────────────────── */
+  .phase-chart { display: grid; grid-template-columns: 210px 1fr 96px; gap: 8px 12px; align-items: center; }
+  @media (max-width: 640px) { .phase-chart { grid-template-columns: 130px 1fr 90px; } }
+  .p-name { font-size: 0.86rem; color: var(--text-primary); text-align: right; }
+  .p-name span { color: var(--text-muted); }
+  .p-track { height: 18px; background: var(--seq-track); border-radius: 4px; overflow: hidden; }
+  .p-fill { height: 100%; background: var(--seq-450); border-radius: 4px 3px 3px 4px; }
+  .p-val { font-size: 0.84rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .p-val b { color: var(--text-primary); }
+
+  /* ── 잔여 목록 ─────────────────────────── */
+  ul.todo { margin: 0; padding-left: 20px; }
+  ul.todo li { margin: 6px 0; font-size: 0.9rem; }
+  ul.todo .why { color: var(--text-secondary); font-size: 0.83rem; }
+
+  section { margin-top: 16px; }
+  footer { margin-top: 28px; color: var(--text-muted); font-size: 0.78rem; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Assessment-Agent 개발 현황 대시보드</h1>
+  <div class="meta">기준: 2026-07-31 · main <code>8e8dc93</code> · 출처: docs/PLAN.md 체크리스트 + docs/STATE.json</div>
+</header>
+
+<div class="hero-row">
+  <div class="card">
+    <div class="hero-num">91<small>%</small></div>
+    <div class="hero-label">전체 진도 (PLAN 기능 항목 58개 기준)</div>
+    <div class="hero-bar" role="img" aria-label="전체 진도 91퍼센트"><div style="width:91%"></div></div>
+    <div class="hero-note">완료 52 · 부분 완료 2 · 대기/보류 2 · 미착수 2</div>
+  </div>
+  <div class="tiles">
+    <div class="tile"><div class="v">1,327</div><div class="k">완료된 task (누적)</div></div>
+    <div class="tile"><div class="v">53</div><div class="k">아키텍처 결정 기록 (ADR)</div></div>
+    <div class="tile"><div class="v">23</div><div class="k">e2e 테스트 시나리오</div></div>
+    <div class="tile"><div class="v">≥80%</div><div class="k">커버리지 게이트 (CI 강제)</div></div>
+    <div class="tile"><div class="v" style="color:var(--good-text)">green</div><div class="k">main CI 상태</div></div>
+  </div>
+</div>
+
+<section class="card">
+  <h2>사용자 입장에서 지금 쓸 수 있는 기능</h2>
+  <p class="legend">
+    <b class="b-good">✅ 사용 가능</b> — UI 포함 완결 &nbsp;·&nbsp;
+    <b class="b-warn">🟡 부분 / 전제 필요</b> — 동작하나 일부 수동·운영 전제 잔여 &nbsp;·&nbsp;
+    <b class="b-serious">⏳ 준비 중</b> — 아직 미완
+  </p>
+  <div class="feat-grid">
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">로그인 · 계정 · 권한<span class="badge b-good">사용 가능</span></div>
+      <div class="d">최초 접속 시 SuperAdmin 자동 지정, SuperAdmin/Admin/User 3단계 권한, self-demote 차단</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">인원 · 그룹 · 파트 관리<span class="badge b-good">사용 가능</span></div>
+      <div class="d">CRUD·휴직 숨김·다중 그룹 소속·조직도 파트 1개 규칙·서비스별 ID 매핑(GitHub 3종 + Confluence)</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">평가 실행 파이프라인<span class="badge b-good">사용 가능</span></div>
+      <div class="d">GitHub 3 인스턴스 + Confluence 지정 SPACE 수집 → LLM 평가(난이도·기여도·양). raw 미저장(R-59) 스키마 강제</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">시각화 대시보드<span class="badge b-good">사용 가능</span></div>
+      <div class="d">정렬·필터·시계열·점수 분포·페이지네이션 (React SPA)</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">일 / 주 / 월 자동 요약 평가<span class="badge b-good">사용 가능</span></div>
+      <div class="d">KST 자정 경계 준수(당일 미평가·주간은 다음 주·월간은 다음 달), LLM 정성 + metric 수치</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">사용자 지정 기간 평가문<span class="badge b-good">사용 가능</span></div>
+      <div class="d">Admin은 영속 저장, User는 본인 한정 임시 조회. 재평가(overwrite) 모드 지원</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">재평가 · 최근 N일 삭제→재수집<span class="badge b-good">사용 가능</span></div>
+      <div class="d">Admin 패널에 재평가 트리거 패널 배선 완료, 1/7/30일 삭제 후 재수집</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">스케줄링 (cron · 수동 트리거 · 백필)<span class="badge b-good">사용 가능</span></div>
+      <div class="d">cron 주기 지정(예: KST 02:00)·즉시 실행·신규 인원 1년치 1회 백필. Admin 패널 배선 완료</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">Export / Import / Restore<span class="badge b-good">사용 가능</span></div>
+      <div class="d">평가 자료 백업 dump 생성·스트리밍 다운로드·복원 preview·결과 상세 UI</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">LLM provider 관리<span class="badge b-good">사용 가능</span></div>
+      <div class="d">5 provider(custom OpenAI 호환·Azure·Anthropic·Gemini·OpenAI) CRUD + API 키 암호화 저장 + 3 난이도 모델 라우팅, Admin UI 포함</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">권한 부족 감지 · 통지<span class="badge b-good">사용 가능</span></div>
+      <div class="d">수집 중 4xx를 자동 기록, 관리자는 전체 · 사용자는 본인 범위 audit 조회</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">✅</div><div>
+      <div class="t">평가 품질 보정 (자동 내장)<span class="badge b-good">사용 가능</span></div>
+      <div class="d">fork/rebase·시간적 중복 제거, abusing 방지, 문서 update 횟수 중립화, zero-contribution 분류, 저성과자·주목 기여 식별</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">🟡</div><div>
+      <div class="t">평가 진행 중 화면 보호<span class="badge b-warn">부분</span></div>
+      <div class="d">진행 중 경고 배너 표시는 동작. 자동 갱신(polling)은 backend status 계약 미비로 수동 새로고침 필요</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">🟡</div><div>
+      <div class="t">실 데이터 운영 (nightly 실 평가)<span class="badge b-warn">전제 필요</span></div>
+      <div class="d">로컬 Ollama LAN 경로 실증 완료. 남은 전제는 GitHub read PAT 암호화 주입 1건 (오너 승인 완료)</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">🟡</div><div>
+      <div class="t">평가 재실행 · 부분 reset<span class="badge b-warn">부분</span></div>
+      <div class="d">미평가분 일괄 채움(fill-run)과 재평가(overwrite)는 완결. 전체 reset 경로만 잔여</div>
+    </div></div>
+
+    <div class="feat"><div class="ic">⏳</div><div>
+      <div class="t">성능 보증<span class="badge b-serious">준비 중</span></div>
+      <div class="d">100~200명 / 1h 배치(R-91)·조회 3초(R-92) 실측 검증 및 부하·내성 harness 미구현 (계획 문서는 확정)</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="card">
+  <h2>Phase별 진도</h2>
+  <p class="sub">docs/PLAN.md 체크리스트 기준 (부분 완료 항목은 0.5로 집계)</p>
+  <div class="phase-chart">
+    <div class="p-name">P0 <span>부트스트랩</span></div>          <div class="p-track"><div class="p-fill" style="width:100%"></div></div><div class="p-val"><b>100%</b> 완료</div>
+    <div class="p-name">P0.5 <span>테스트·CI 인프라</span></div>  <div class="p-track"><div class="p-fill" style="width:100%"></div></div><div class="p-val"><b>100%</b> 완료</div>
+    <div class="p-name">P1 <span>아키텍처</span></div>            <div class="p-track"><div class="p-fill" style="width:100%"></div></div><div class="p-val"><b>100%</b> 완료</div>
+    <div class="p-name">P2 <span>유스케이스 분해</span></div>     <div class="p-track"><div class="p-fill" style="width:100%"></div></div><div class="p-val"><b>100%</b> 5/5</div>
+    <div class="p-name">P3 <span>도메인 코어</span></div>         <div class="p-track"><div class="p-fill" style="width:100%"></div></div><div class="p-val"><b>100%</b> 14/14</div>
+    <div class="p-name">P4 <span>외부 연동</span></div>           <div class="p-track"><div class="p-fill" style="width:100%"></div></div><div class="p-val"><b>100%</b> 10/10</div>
+    <div class="p-name">P5 <span>평가 파이프라인</span></div>     <div class="p-track"><div class="p-fill" style="width:83%"></div></div><div class="p-val"><b>83%</b> 12.5/15</div>
+    <div class="p-name">P6 <span>웹 UI</span></div>               <div class="p-track"><div class="p-fill" style="width:88%"></div></div><div class="p-val"><b>88%</b> 3.5/4</div>
+    <div class="p-name">P7 <span>스케줄링·운영</span></div>       <div class="p-track"><div class="p-fill" style="width:83%"></div></div><div class="p-val"><b>83%</b> 5/6</div>
+    <div class="p-name">P8 <span>하드닝·런칭</span></div>         <div class="p-track"><div class="p-fill" style="width:75%"></div></div><div class="p-val"><b>75%</b> 3/4</div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>남은 일 (사용 가능 100%까지)</h2>
+  <ul class="todo">
+    <li><b>성능 검증 (P7)</b> — <span class="why">100~200명 / 50~100 repo / ~1000 page 배치 1h 이내(R-91), 조회·시각화 3초 이내(R-92) 실측</span></li>
+    <li><b>부하·내성 테스트 harness (P8)</b> — <span class="why">시나리오 3종 계획 문서는 확정, 도구 도입(신규 dependency ADR) 후 구현</span></li>
+    <li><b>실 평가 e2e 운영 가동</b> — <span class="why">github.com 공개 활동 + 로컬 Ollama nightly 실 평가. 잔여 전제 = GitHub read PAT 암호화 주입 1건</span></li>
+    <li><b>평가 진행 중 배너 자동 polling (P6)</b> — <span class="why">assessments status 필드(backend 계약) 확정 후 배선</span></li>
+    <li><b>평가 전체 reset 경로 (P5)</b> — <span class="why">fill-run·overwrite 재평가는 완결, reset-and-recreate 잔여</span></li>
+    <li><b>web 커버리지 게이트</b> — <span class="why">@vitest/coverage-v8 신규 dependency 승인 대기 (backend은 ≥80% CI 강제 중)</span></li>
+  </ul>
+</section>
+
+<footer>
+  본 대시보드는 docs/PLAN.md 체크리스트·docs/STATE.json·web/src 배선 상태를 기준으로 생성된 정적 스냅샷입니다.
+  최신 상태는 <a href="../PLAN.md">PLAN.md</a> · <a href="../STATE.json">STATE.json</a> 참조.
+</footer>
+
+</div>
+</body>
+</html>
