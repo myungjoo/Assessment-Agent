@@ -68,4 +68,7 @@ planner 가 세 행을 실측 대조한 결과 **shipped 여부 gap 은 0** 이�
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append. 186 · 187 행 재검증 결과는 Acceptance Criteria 3 번째 항목에 따라 여기에 기록한다.)
+- **186 행 재검증 (실측, gap 0)** — `src/user/assessment.controller.ts` · `contribution.controller.ts` · `summary.controller.ts` 각각 `@Get()` · `@Get(":id")` · `@Post()` · `@Delete(":id")` 4 종 실재. 186 행이 열거한 `GET /api/assessments` · `GET /api/assessments/:id` · `/api/contributions` · `/api/summaries` 는 전부 shipped 이며 표기 gap 0 → api.md 무수정.
+- **187 행 재검증 (실측, gap 0)** — `person.controller.ts` 는 `@Get()` · `@Get(":id")` · `@Post()` · `@Patch(":id")` · `@Delete(":id")` 5 종, `group.controller.ts` · `part.controller.ts` 는 그 5 종에 더해 `@Get(":id/persons")` 등 하위 route 까지 실재. 187 행의 `POST/GET/PATCH/DELETE /api/persons[/:id]` · `/api/groups` · `/api/parts` 표기는 실측과 일치하며 (표기가 오히려 보수적) gap 0 → api.md 무수정.
+- **189 행 실측 (본 slice 가 닫은 실 gap)** — `difficulty-mapping.controller.ts` 는 `@Get()` (75 행) · `@Patch(":difficulty")` (92 행) **2 종뿐**, `llm-provider-config.controller.ts` 는 `@Get()` · `@Get(":id")` · `@Post()` · `@Patch(":id")` · `@Delete(":id")` **5 종**. planner 주장과 실측이 완전히 일치해 189 행 셋째 셀에 method 범위 구절 1 개만 append 했다 (행 번호 drift 없음 — 편집 전후 파일 229 행 불변).
+- **§ 7 route 실재 재검증 축 종결** — 185 ~ 192 행 8 행 전수가 T-1340 ~ T-1345 로 확정됐다. 후속 planner 는 같은 축 (§ 7 표 route 실재 대조) 을 다시 열지 않는다. 잔여 관심사가 있다면 `docs/use-cases/UC-05-llm-config.md` step 2 서술이 매핑 신설을 전제하는지 여부 (별도 use-case 문서 slice) 뿐이다.
