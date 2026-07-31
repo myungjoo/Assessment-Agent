@@ -2,7 +2,7 @@
 id: T-1349
 title: components.md 113 행 Web UI 행의 "ReEval/Schedule 마운트 잔여" 서술을 실 배선과 정합
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-038, REQ-026, REQ-044, REQ-049]
 estimatedDiff: 10
@@ -38,15 +38,15 @@ plannerNote: "T-1347(PLAN)·T-1348(modules·directory) 이후 남은 마지막 s
 
 ## Acceptance Criteria
 
-- [ ] **(a) shipped 열거 보강** — 113 행 "책임" 컬럼의 `AdminView` 괄호 안 열거에 **`SchedulePanel` · `ReEvaluationTriggerPanel` 마운트** 를 추가한다 (기존 `GroupMemberList` 조회 · `DifficultyModelSelector` · export/import · RBAC gating 항목은 문구 그대로 보존, 추가만). 근거 task 링크 [T-0885](../tasks/T-0885-wire-schedule-panel-adminview.md) · [T-0886](../tasks/T-0886-wire-reevaluation-trigger-panel-adminview.md) 를 함께 박제한다.
-- [ ] **(b) 잔여 문장 축소** — `일부 잔여 표면 (ReEval/Schedule 마운트 · auto-polling 등) 은 backend 계약 확정 후 배선` 을 **잔여가 `EvaluationGuardBanner` 자동 polling 1 항목뿐** 이라는 서술로 교체한다. 끝의 위임 절 (`— [modules.md](modules.md) 의 defer 서술 참조`) 은 **불변 유지** (링크 텍스트 · 상대 경로 모두 그대로).
-- [ ] **표 구조 무손상** — 편집 후 `awk -F'|' 'NR==113{print NF}' docs/architecture/components.md` = **7** (5 컬럼 · 파이프 6 개 불변), 113 행은 여전히 **한 줄** (행 분할 · 셀 안 개행 금지), 셀 안에 **파이프 문자 신규 도입 금지** (표가 깨진다).
-- [ ] **polling 잔여 존치** — 편집 후 `grep -c "polling" docs/architecture/components.md` ≥ **1**. polling 을 shipped 로 적는 것은 **명백한 오기** — `web/src/views/DashboardView.tsx` 94 행이 반증한다.
-- [ ] **검증 grep** — (a) `grep -c "ReEval/Schedule 마운트" docs/architecture/components.md` = **0**, (b) `grep -c "SchedulePanel" docs/architecture/components.md` ≥ **1** (잔여 목록에서 shipped 열거로 **이동** — 완전 삭제 아님), (c) `grep -c "ReEvaluationTriggerPanel" docs/architecture/components.md` ≥ **1**, (d) `grep -c "T-0885\|T-0886" docs/architecture/components.md` ≥ **1**, (e) `grep -c "modules.md" docs/architecture/components.md` = **2 불변** (위임 링크 보존 확인).
-- [ ] **파일 구조 무손상** — 편집 후 `wc -l docs/architecture/components.md` = **190 불변** (줄 증감 0), `grep -c "^| " docs/architecture/components.md` = **29 불변**, `grep -c "^## " docs/architecture/components.md` = **7 불변**.
-- [ ] **diff 축 한정** — `git diff --stat` 이 `docs/architecture/components.md` · 본 task 파일 **2 개만** 보이고, components.md hunk 는 **113 행 1 개뿐** (114 행 이하 Backend API / Worker / DB Persistence 행은 diff 에 등장하지 않는다).
-- [ ] `src/` · `web/` · `test/` · `prisma/` · `docs/PLAN.md` · `docs/architecture/modules.md` · `docs/architecture/directory.md` · `docs/architecture/api.md` · `docs/use-cases/*` · `docs/requirements.md` · `docs/STATE.json` 은 수정하지 않는다 (§3.1 rule 3 — direct task 는 doc 만, STATE 는 driver 소관). `git status --porcelain` 결과가 위 2 파일뿐 (driver 의 STATE/journal bookkeeping 제외).
-- [ ] doc-only 라 R-110 tester 면제 (production code 0 LOC · 신규 symbol/분기 0 → R-112 신규 test 대상 없음, [T-1313](T-1313-p6-deferred-residual-list-resync.md) · [T-1347](T-1347-plan-p6-panel-mount-residual-resync.md) · [T-1348](T-1348-modules-doc-defer-list-resync.md) 선례) — 대신 위 검증 grep + 구조 self-check 로 대체한다. `pnpm lint` 는 doc 변경 무영향이라 실행 불요.
+- [x] **(a) shipped 열거 보강** — 113 행 "책임" 컬럼의 `AdminView` 괄호 안 열거에 **`SchedulePanel` · `ReEvaluationTriggerPanel` 마운트** 를 추가한다 (기존 `GroupMemberList` 조회 · `DifficultyModelSelector` · export/import · RBAC gating 항목은 문구 그대로 보존, 추가만). 근거 task 링크 [T-0885](../tasks/T-0885-wire-schedule-panel-adminview.md) · [T-0886](../tasks/T-0886-wire-reevaluation-trigger-panel-adminview.md) 를 함께 박제한다.
+- [x] **(b) 잔여 문장 축소** — `일부 잔여 표면 (ReEval/Schedule 마운트 · auto-polling 등) 은 backend 계약 확정 후 배선` 을 **잔여가 `EvaluationGuardBanner` 자동 polling 1 항목뿐** 이라는 서술로 교체한다. 끝의 위임 절 (`— [modules.md](modules.md) 의 defer 서술 참조`) 은 **불변 유지** (링크 텍스트 · 상대 경로 모두 그대로).
+- [x] **표 구조 무손상** — 편집 후 `awk -F'|' 'NR==113{print NF}' docs/architecture/components.md` = **7** (5 컬럼 · 파이프 6 개 불변), 113 행은 여전히 **한 줄** (행 분할 · 셀 안 개행 금지), 셀 안에 **파이프 문자 신규 도입 금지** (표가 깨진다).
+- [x] **polling 잔여 존치** — 편집 후 `grep -c "polling" docs/architecture/components.md` ≥ **1**. polling 을 shipped 로 적는 것은 **명백한 오기** — `web/src/views/DashboardView.tsx` 94 행이 반증한다.
+- [x] **검증 grep** — (a) `grep -c "ReEval/Schedule 마운트" docs/architecture/components.md` = **0**, (b) `grep -c "SchedulePanel" docs/architecture/components.md` ≥ **1** (잔여 목록에서 shipped 열거로 **이동** — 완전 삭제 아님), (c) `grep -c "ReEvaluationTriggerPanel" docs/architecture/components.md` ≥ **1**, (d) `grep -c "T-0885\|T-0886" docs/architecture/components.md` ≥ **1**, (e) `grep -c "modules.md" docs/architecture/components.md` = **2 불변** (위임 링크 보존 확인).
+- [x] **파일 구조 무손상** — 편집 후 `wc -l docs/architecture/components.md` = **190 불변** (줄 증감 0), `grep -c "^| " docs/architecture/components.md` = **29 불변**, `grep -c "^## " docs/architecture/components.md` = **7 불변**.
+- [x] **diff 축 한정** — `git diff --stat` 이 `docs/architecture/components.md` · 본 task 파일 **2 개만** 보이고, components.md hunk 는 **113 행 1 개뿐** (114 행 이하 Backend API / Worker / DB Persistence 행은 diff 에 등장하지 않는다).
+- [x] `src/` · `web/` · `test/` · `prisma/` · `docs/PLAN.md` · `docs/architecture/modules.md` · `docs/architecture/directory.md` · `docs/architecture/api.md` · `docs/use-cases/*` · `docs/requirements.md` · `docs/STATE.json` 은 수정하지 않는다 (§3.1 rule 3 — direct task 는 doc 만, STATE 는 driver 소관). `git status --porcelain` 결과가 위 2 파일뿐 (driver 의 STATE/journal bookkeeping 제외).
+- [x] doc-only 라 R-110 tester 면제 (production code 0 LOC · 신규 symbol/분기 0 → R-112 신규 test 대상 없음, [T-1313](T-1313-p6-deferred-residual-list-resync.md) · [T-1347](T-1347-plan-p6-panel-mount-residual-resync.md) · [T-1348](T-1348-modules-doc-defer-list-resync.md) 선례) — 대신 위 검증 grep + 구조 self-check 로 대체한다. `pnpm lint` 는 doc 변경 무영향이라 실행 불요.
 
 ## Out of Scope
 
@@ -62,3 +62,14 @@ plannerNote: "T-1347(PLAN)·T-1348(modules·directory) 이후 남은 마지막 s
 `implementer` (doc-only · architecture doc 표 1 행 인라인 수정 — architect · tester 불요, [T-1313](T-1313-p6-deferred-residual-list-resync.md) · [T-1347](T-1347-plan-p6-panel-mount-residual-resync.md) · [T-1348](T-1348-modules-doc-defer-list-resync.md) 선례)
 
 ## Follow-ups
+
+- `components.md` **113 행 Web UI 행의 `관련 REQ` · `관련 ADR / 문서` 컬럼** 은 이번에도 불변으로 뒀다 (Out of Scope 그대로). REQ-072 ~ REQ-074 · ADR-0042 보강 타당성은 별도 slice 판단 대상.
+- 실측 시점 행 번호 drift 없음 — `components.md` 113 행 · `AdminView.tsx` 4493 · 4525 행 · `DashboardView.tsx` 94 행 모두 task 본문 서술과 일치했다.
+
+## 결과 요약 (2026-07-31T13:38Z DONE)
+
+- [docs/architecture/components.md](../architecture/components.md) **113 행 1 줄만** 수정 (`+1/-1`, hunk 1 개 `@@ -113 +113 @@`). (a) `AdminView` 괄호 열거에 `SchedulePanel` 마운트 ([T-0885](T-0885-wire-schedule-panel-adminview.md)) · `ReEvaluationTriggerPanel` 마운트 ([T-0886](T-0886-wire-reevaluation-trigger-panel-adminview.md)) 를 근거 링크와 함께 추가, (b) `일부 잔여 표면 (ReEval/Schedule 마운트 · auto-polling 등) …` 을 `남은 잔여 표면은 EvaluationGuardBanner 자동 polling 1 항목뿐 …` 으로 교체하고 위임 절 `— [modules.md](modules.md) 의 defer 서술 참조.` 는 그대로 보존했다.
+- 실측 3 종 재확인 (실측 = 정본): `<SchedulePanel` · `<ReEvaluationTriggerPanel` 2 hit (AdminView.tsx 4493 · 4525 행), `자동 polling` 1 hit (DashboardView.tsx 94 행 — polling defer 존치 근거), 편집 전 `ReEval/Schedule 마운트` 1 hit (113 행).
+- 구조 self-check 전부 통과: `awk NR==113 NF` = 7, `wc -l` = 190, `^| ` = 29, `^## ` = 7, `modules.md` = 2 (위임 링크 보존), `polling` = 1, `ReEval/Schedule 마운트` = 0, `SchedulePanel` · `ReEvaluationTriggerPanel` · `T-0885|T-0886` 각 ≥ 1. 파이프 신규 도입 0 · 행 분할 0.
+- doc-only 라 R-110 tester 면제 (production code 0 LOC) — 위 grep + 구조 검증으로 대체. `docs/STATE.json` · `docs/progress/journal-*.md` 는 driver 소관이라 미수정 (§9 STATE single-writer).
+- 이로써 P6 잔여-서술 stream ([T-1313](T-1313-p6-deferred-residual-list-resync.md) → [T-1347](T-1347-plan-p6-panel-mount-residual-resync.md) → [T-1348](T-1348-modules-doc-defer-list-resync.md) → 본 slice) 의 마지막 stale locus 가 닫혔다 — PLAN · modules · directory · components 네 문서가 "실 defer = `EvaluationGuardBanner` 자동 polling 1 항목" 으로 일치한다.
