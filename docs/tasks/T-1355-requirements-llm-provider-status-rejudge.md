@@ -2,7 +2,7 @@
 id: T-1355
 title: requirements.md 70~74 행 REQ-051~055 LLM provider 상태 컬럼을 실측 shipped 로 재판정
 phase: P4
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-051, REQ-052, REQ-053, REQ-054, REQ-055]
 estimatedDiff: 12
@@ -34,18 +34,18 @@ plannerNote: "requirements 표 5 LLM provider row 가 PLANNED stale — adapter 
 
 ## Acceptance Criteria
 
-- [ ] 편집은 [docs/requirements.md](../requirements.md) **70 · 71 · 72 · 73 · 74 행 5 줄뿐**이며, 각 줄에서 바뀌는 것은 **마지막 `상태` 컬럼 1 개**다. `REQ` / `README 행` / `요약` / `kind` / `구현 위치` / `검증 위치` 6 컬럼은 **글자 무수정**.
-- [ ] 5 row 의 상태를 `PLANNED` → `DONE (adapter·gateway 배선, live 는 env-gated)` 로 재판정. 괄호 부기는 61 행 REQ-042 의 표기 선례를 따르고, "mocked unit 은 통과했으나 실 credential live run 은 gating 뒤" 라는 사실을 한 구절로 읽히게 한다.
-- [ ] **실측 선행**(편집 전 executor 가 직접 수행, 결과를 commit trail 에 박제):
+- [x] 편집은 [docs/requirements.md](../requirements.md) **70 · 71 · 72 · 73 · 74 행 5 줄뿐**이며, 각 줄에서 바뀌는 것은 **마지막 `상태` 컬럼 1 개**다. `REQ` / `README 행` / `요약` / `kind` / `구현 위치` / `검증 위치` 6 컬럼은 **글자 무수정**.
+- [x] 5 row 의 상태를 `PLANNED` → `DONE (adapter·gateway 배선, live 는 env-gated)` 로 재판정. 괄호 부기는 61 행 REQ-042 의 표기 선례를 따르고, "mocked unit 은 통과했으나 실 credential live run 은 gating 뒤" 라는 사실을 한 구절로 읽히게 한다.
+- [x] **실측 선행**(편집 전 executor 가 직접 수행, 결과를 commit trail 에 박제):
   - `ls src/llm/providers/*.adapter.ts | wc -l` = **4**
   - `ls src/llm/providers/*.adapter.spec.ts | wc -l` = **4**
   - `grep -c 'from "./providers/' src/llm/llm-http-gateway.service.ts` = **4**
   - `grep -cE '^  (Custom|AzureOpenai|Anthropic|GoogleGemini|Openai) = "' src/llm/llm-gateway.interface.ts` = **5**
   - 수치가 위와 다르면 **문서를 실측에 맞추고**(예: 근거 부족 row 는 `DONE` 대신 `IN_PROGRESS` 로 두고 사유 한 구절) 그 사실을 trail 에 남긴다. 실측 없이 flip 금지.
-- [ ] 구조 무손상: `grep -c "" docs/requirements.md` = **97**(줄 수 불변 — 같은 줄 안 편집), `grep -c '^| REQ-' docs/requirements.md` = **66**(row 수 불변), 편집 대상 5 행 각각의 `|` 개수 = **8**(컬럼 수 불변) 모두 편집 전후 동일.
-- [ ] 잔여 stale 이 남았다는 사실을 **날조하지 않고** 확인만: 편집 후 `grep -c 'PLANNED' docs/requirements.md` 가 **50 → 45** 로 줄었음을 trail 에 기록(9 행의 enum 정의 1 hit 포함 수치). 다른 row 는 본 slice 에서 손대지 않는다.
-- [ ] `git diff --name-only` 결과가 [docs/requirements.md](../requirements.md) 와 본 task 파일 **2 개뿐** — `src/` · `web/` · `test/` · `.github/` · `docs/PLAN.md` · `docs/architecture/` · `docs/STATE.json` 무수정.
-- [ ] doc-only `commitMode: direct` 라 R-110 tester 면제 — 위 grep 검증으로 대체하고 그 사실을 commit trail 에 명시.
+- [x] 구조 무손상: `grep -c "" docs/requirements.md` = **97**(줄 수 불변 — 같은 줄 안 편집), `grep -c '^| REQ-' docs/requirements.md` = **66**(row 수 불변), 편집 대상 5 행 각각의 `|` 개수 = **8**(컬럼 수 불변) 모두 편집 전후 동일.
+- [x] 잔여 stale 이 남았다는 사실을 **날조하지 않고** 확인만: 편집 후 `grep -c 'PLANNED' docs/requirements.md` 가 **50 → 45** 로 줄었음을 trail 에 기록(9 행의 enum 정의 1 hit 포함 수치). 다른 row 는 본 slice 에서 손대지 않는다.
+- [x] `git diff --name-only` 결과가 [docs/requirements.md](../requirements.md) 와 본 task 파일 **2 개뿐** — `src/` · `web/` · `test/` · `.github/` · `docs/PLAN.md` · `docs/architecture/` · `docs/STATE.json` 무수정.
+- [x] doc-only `commitMode: direct` 라 R-110 tester 면제 — 위 grep 검증으로 대체하고 그 사실을 commit trail 에 명시.
 
 ## Out of Scope
 
@@ -62,4 +62,14 @@ plannerNote: "requirements 표 5 LLM provider row 가 PLANNED stale — adapter 
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+- 나머지 45 개 `PLANNED` row 중 동형 판정 묶음(예: P6 web 표시 축 · P0 CI/policy 축)을 찾아 같은 방식의 실측-선행 status 재판정 slice 를 이어간다.
+
+## 완료 기록
+
+- 완료: 2026-08-01 (`commitMode: direct`, doc-only 단일 commit)
+- 실측 결과 (편집 **전** 수행, 4 항목 전부 task 파일 기대치와 일치 → 문서 하향 조정 불요):
+  `*.adapter.ts` = **4**, `*.adapter.spec.ts` = **4**, gateway 의 `from "./providers/` import = **4**, `LlmProvider` enum 멤버 = **5**.
+  adapter 4 개가 provider 5 종을 cover 하는 이유는 `custom` 과 `openai` 가 `openai-compatible.adapter.ts` 를 공유하기 때문 — `llm-http-gateway.service.ts` 131~135 행의 허용 집합 검사와 155~176 · 210~216 행 provider 분기가 5 값 전부에 도달함을 확인했다.
+- 편집: [docs/requirements.md](../requirements.md) 70~74 행 상태 컬럼만 `PLANNED` → `DONE (adapter·gateway 배선, live 는 env-gated)`. 다른 6 컬럼 · 다른 row 무수정.
+- 구조 불변 검증(편집 후): 줄 수 **97**, `^| REQ-` row **66**, 대상 5 행 `|` 개수 각 **8**, `PLANNED` hit **50 → 45**(9 행 enum 정의 1 hit 포함).
+- R-110 은 doc-only direct commit 이라 면제 — 위 grep 기반 구조 검증으로 대체했다.

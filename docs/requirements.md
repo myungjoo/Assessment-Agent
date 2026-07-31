@@ -67,11 +67,11 @@
 | REQ-048 | 92 | 조회·시각화 3초 이내 | NFR | P6 + P7 | perf test | PLANNED |
 | REQ-049 | 96 | Admin 이 LLM 모델 지정 | FR | P4 + P6 | e2e | DONE |
 | REQ-050 | 97 | 3가지 난이도 모델 + 어떤 항목이 어떤 난이도인지 결정 | Constraint | P4 (ADR 필수) | policy + unit | PLANNED |
-| REQ-051 | 99 | custom LLM (OpenAI 호환, 내부 서버, proxy, 3 model 슬롯) | FR | P4 | unit | PLANNED |
-| REQ-052 | 100 | Azure OpenAI provider | FR | P4 | unit | PLANNED |
-| REQ-053 | 101 | Anthropic provider | FR | P4 | unit | PLANNED |
-| REQ-054 | 102 | Google Gemini provider | FR | P4 | unit | PLANNED |
-| REQ-055 | 103 | OpenAI provider | FR | P4 | unit | PLANNED |
+| REQ-051 | 99 | custom LLM (OpenAI 호환, 내부 서버, proxy, 3 model 슬롯) | FR | P4 | unit | DONE (adapter·gateway 배선, live 는 env-gated) |
+| REQ-052 | 100 | Azure OpenAI provider | FR | P4 | unit | DONE (adapter·gateway 배선, live 는 env-gated) |
+| REQ-053 | 101 | Anthropic provider | FR | P4 | unit | DONE (adapter·gateway 배선, live 는 env-gated) |
+| REQ-054 | 102 | Google Gemini provider | FR | P4 | unit | DONE (adapter·gateway 배선, live 는 env-gated) |
+| REQ-055 | 103 | OpenAI provider | FR | P4 | unit | DONE (adapter·gateway 배선, live 는 env-gated) |
 | REQ-056 | 108 | Well-known library / 중복 import 금지 / version mismatch 방지 | Constraint | P0 + 모든 phase | policy + CI | PLANNED |
 | REQ-057 | 109 | 한 commit = 한 주제 | Constraint | (정책) CLAUDE.md §3 | policy | DONE |
 | REQ-058 | 110 | commit/PR 후 코드 검토 + test 작성 + test 수행 | Constraint | CLAUDE.md §3.2 R-110 + agents | policy | DONE |
