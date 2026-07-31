@@ -2,7 +2,7 @@
 id: T-1358
 title: requirements.md 31 · 40 행 REQ-012 · REQ-021 abusing 방지 상태를 실측 기반 DONE 으로 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-012, REQ-021]
 estimatedDiff: 12
@@ -37,21 +37,21 @@ plannerNote: "PLAN 101 행 한 bullet 이 R-26·R-40 을 [x] implemented-on-main
 
 ## Acceptance Criteria
 
-- [ ] 편집은 [docs/requirements.md](../requirements.md) **31 행과 40 행 두 줄뿐**이며, 각 줄에서 바뀌는 것은 **마지막 `상태` 컬럼 1 개**다. `REQ` / `README 행` / `요약` / `kind` / `구현 위치` / `검증 위치` 6 컬럼은 **글자 무수정** (특히 `구현 위치` 의 `P5` 와 `검증 위치` 의 `unit` 은 그대로 둔다).
-- [ ] 두 행 상태를 `PLANNED` → 다음 문자열로 재판정 (`|` 문자를 넣지 않는다):
+- [x] 편집은 [docs/requirements.md](../requirements.md) **31 행과 40 행 두 줄뿐**이며, 각 줄에서 바뀌는 것은 **마지막 `상태` 컬럼 1 개**다. `REQ` / `README 행` / `요약` / `kind` / `구현 위치` / `검증 위치` 6 컬럼은 **글자 무수정** (특히 `구현 위치` 의 `P5` 와 `검증 위치` 의 `unit` 은 그대로 둔다).
+- [x] 두 행 상태를 `PLANNED` → 다음 문자열로 재판정 (`|` 문자를 넣지 않는다):
   - 31 행 REQ-012: `DONE (computeAbuseSignal 반복 부풀리기 신호 + applyAbuseSignalToVolume volume 감점, adjustments pipeline 1 순위 배선)`
   - 40 행 REQ-021: `DONE (같은 computeAbuseSignal 의 R-40 문서 abusing 경로 — 코드 abusing 과 동일 심볼 쌍으로 cover)`
-- [ ] **실측 선행** (편집 전 executor 가 직접 수행, 결과를 commit trail 에 박제). 아래 6 개가 모두 기대치와 일치할 때만 flip 하고, 하나라도 어긋나면 flip 하지 않고 Follow-ups 에 근거와 함께 남긴다:
+- [x] **실측 선행** (편집 전 executor 가 직접 수행, 결과를 commit trail 에 박제). 아래 6 개가 모두 기대치와 일치할 때만 flip 하고, 하나라도 어긋나면 flip 하지 않고 Follow-ups 에 근거와 함께 남긴다:
   - `grep -n "export function computeAbuseSignal" src/assessment-evaluation/domain/evaluation-abuse-signal.ts` → **1 hit (120 행)**
   - `grep -n "export function applyAbuseSignalToVolume" src/assessment-evaluation/domain/evaluation-abuse-adjust.ts` → **1 hit (78 행)**
   - `grep -n "abuse: computeAbuseSignal(deduped)" src/assessment-evaluation/domain/evaluation-detection-signals-pipeline.ts` → **1 hit (106 행)**
   - `grep -n "applyAbuseSignalToVolume(entries, signals.abuse);" src/assessment-evaluation/domain/evaluation-adjustments-pipeline.ts` → **1 hit (199 행)**
   - `ls src/assessment-evaluation/domain/evaluation-abuse-*.spec.ts` → **2 개** (`evaluation-abuse-signal.spec.ts` · `evaluation-abuse-adjust.spec.ts` — `검증 위치` 컬럼의 `unit` 충족 근거)
   - `grep -n "R-40" src/assessment-evaluation/domain/evaluation-abuse-signal.ts` → **1+ hit** (같은 심볼이 문서 abusing 까지 cover 한다는 근거. 0 이면 REQ-021 은 flip 하지 않고 REQ-012 만 처리한 뒤 Follow-ups 에 남긴다)
-- [ ] **구조 무손상**: 편집 후 `wc -l docs/requirements.md` = **97**, `grep -c "^| REQ-" docs/requirements.md` = **66**, 편집한 31 행 · 40 행의 `|` 개수 = **각 8**.
-- [ ] **잔여 stale 정직 보고**: 편집 후 `grep -c "PLANNED" docs/requirements.md` = **39** (41 − 2). 이 수치를 commit trail 에 적어 남은 stale 규모를 다음 planner 가 그대로 이어받게 한다. 날조 금지 — 실제 출력값을 적는다.
-- [ ] 변경 파일은 **2 개뿐** ([docs/requirements.md](../requirements.md) + 본 task 파일). `src/` · `web/` · `test/` · [PLAN.md](../PLAN.md) · `STATE.json` 무수정.
-- [ ] doc-only direct commit 이라 R-110 tester 면제 — 그 사유를 commit trail `TESTER.coverage` 에 한 줄 명시하고, 위 grep 검증 결과로 대체한다.
+- [x] **구조 무손상**: 편집 후 `wc -l docs/requirements.md` = **97**, `grep -c "^| REQ-" docs/requirements.md` = **66**, 편집한 31 행 · 40 행의 `|` 개수 = **각 8**.
+- [x] **잔여 stale 정직 보고**: 편집 후 `grep -c "PLANNED" docs/requirements.md` = **39** (41 − 2). 이 수치를 commit trail 에 적어 남은 stale 규모를 다음 planner 가 그대로 이어받게 한다. 날조 금지 — 실제 출력값을 적는다.
+- [x] 변경 파일은 **2 개뿐** ([docs/requirements.md](../requirements.md) + 본 task 파일). `src/` · `web/` · `test/` · [PLAN.md](../PLAN.md) · `STATE.json` 무수정.
+- [x] doc-only direct commit 이라 R-110 tester 면제 — 그 사유를 commit trail `TESTER.coverage` 에 한 줄 명시하고, 위 grep 검증 결과로 대체한다.
 
 ## Out of Scope
 
@@ -72,3 +72,18 @@ plannerNote: "PLAN 101 행 한 bullet 이 R-26·R-40 을 [x] implemented-on-main
 - **REQ-022 (41 행, 문서 update 횟수 중립화) 상태 재판정** — [PLAN.md](../PLAN.md) **102 행**이 `[x] implemented-on-main` (`computeUpdateCountNeutralization` + `applyUpdateCountNeutralization`). 근거 심볼이 본 slice 와 다르므로 별도 slice 로 남긴다.
 - **REQ-018 / REQ-019 (37 · 38 행, 품질 분류)** — [PLAN.md](../PLAN.md) **103 행** 한 bullet 이 R-37 · R-38 을 함께 `[x]` 로 박제해 본 slice 와 동형 구조다. 다음 묶음 후보 1 순위.
 - **REQ-030 (49 행)** — 복원 엔진 완결 여부가 정리된 뒤에야 판정 가능 (Q-0055 chain 참조). T-1357 Follow-ups 에서 이월.
+
+## Result (2026-08-01, DONE)
+
+실측 6 개가 모두 기대치와 일치해 두 row 를 그대로 flip 했다.
+
+| 검증 | 기대 | 실측 |
+| --- | --- | --- |
+| `computeAbuseSignal` 정의 | 1 hit (120 행) | 1 hit — 120 행 |
+| `applyAbuseSignalToVolume` 정의 | 1 hit (78 행) | 1 hit — 78 행 |
+| `abuse: computeAbuseSignal(deduped)` 배선 | 1 hit (106 행) | 1 hit — 106 행 |
+| `applyAbuseSignalToVolume(entries, signals.abuse);` 배선 | 1 hit (199 행) | 1 hit — 199 행 |
+| `evaluation-abuse-*.spec.ts` | 2 개 | 2 개 (`-signal` · `-adjust`) |
+| `R-40` 주석 | 1+ hit | 2 hit — 2 행 · 94 행 |
+
+구조 무손상: `wc -l` = 97, `^| REQ-` = 66, 31 · 40 행 `|` = 각 8. 잔여 stale: `PLANNED` = **39** (41 − 2). 변경 파일 2 개 ([docs/requirements.md](../requirements.md) + 본 파일), `src/` · [PLAN.md](../PLAN.md) · `STATE.json` 무수정. doc-only direct 라 R-110 tester 면제 — 위 grep 표로 대체.

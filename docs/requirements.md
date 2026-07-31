@@ -28,7 +28,7 @@
 | REQ-009 | 21 | Fork/Rebase/Meld 중복 제거 + 시간적 중복 (earlier date 우선) | FR | P5 | unit | PLANNED |
 | REQ-010 | 24 | 코드 기여 양·질 평가 | FR | P5 | unit | PLANNED |
 | REQ-011 | 25 | 중요·어려운 기여 → 높은 점수 ("어렵고 남이 못할 일") | FR | P5 | manual + unit | PLANNED |
-| REQ-012 | 26 | 코드 abusing 방지 (commit/PR 숫자만 늘리기) | FR | P5 | unit | PLANNED |
+| REQ-012 | 26 | 코드 abusing 방지 (commit/PR 숫자만 늘리기) | FR | P5 | unit | DONE (computeAbuseSignal 반복 부풀리기 신호 + applyAbuseSignalToVolume volume 감점, adjustments pipeline 1 순위 배선) |
 | REQ-013 | 27 | 저성과자 식별 | FR | P5 | unit | PLANNED |
 | REQ-014 | 30 | Issue 평가 (본인 follow-up 소비 제외) | FR | P4 + P5 | unit | PLANNED |
 | REQ-015 | 31 | Confluence 지정 SPACE 평가 | FR | P4 | unit + e2e | PLANNED |
@@ -37,7 +37,7 @@
 | REQ-018 | 37 | 단순 보고·copy-paste 로그 = zero-contribution | FR | P5 | unit | PLANNED |
 | REQ-019 | 38 | 새 알고리즘·외부 연구 소개 = 높은 contribution | FR | P5 | unit + manual | PLANNED |
 | REQ-020 | 39 | 조직 기여 큰 인원 → 높은 점수 | FR | P5 | manual + unit | PLANNED |
-| REQ-021 | 40 | 문서 abusing 방지 (의미 없는 기여 단순 반복) | FR | P5 | unit | PLANNED |
+| REQ-021 | 40 | 문서 abusing 방지 (의미 없는 기여 단순 반복) | FR | P5 | unit | DONE (같은 computeAbuseSignal 의 R-40 문서 abusing 경로 — 코드 abusing 과 동일 심볼 쌍으로 cover) |
 | REQ-022 | 41 | 문서 update 횟수 중립화 (advantage/disadvantage 둘 다 없음) | FR | P5 | unit | DONE (implemented-on-main — T-0524 `computeUpdateCountNeutralization` PR #437 + T-0525 `applyUpdateCountNeutralizationToVolume` PR #438; volume 산출이 version 미사용 → advantage 0, 중립 보존 → disadvantage 0. ADR-0049 group-by-collapse 안은 미채택 — Q-0046 옵션1) |
 | REQ-023 | 45-46 | 서비스별 ID 매핑 (1 인물 ↔ N 서비스 ID) | FR | P3 | unit | PLANNED |
 | REQ-024 | 47 | Primary key 역할 ID 지정 (서비스 중 1개) | Constraint | P3 (ADR 필수) | policy + unit | PLANNED |
