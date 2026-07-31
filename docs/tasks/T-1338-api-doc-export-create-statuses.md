@@ -2,7 +2,9 @@
 id: T-1338
 title: api.md § 5 124 행에 POST /api/admin/export 의 성공·실패 status 실측 보강
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-31T02:45:00Z
+resultCommit: 60206fa6
 commitMode: direct
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 14
@@ -69,4 +71,4 @@ plannerNote: "T-1337 Out of Scope 가 이월한 § 5 export slice — 124 행은
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **본 task 정의서의 행 번호 drift (실측 정정)** — Required Reading·Acceptance Criteria 가 `describe-scope`/`preview-selection` 을 **135~136 행** 으로 적었으나 실측은 **132~133 행** 이다 (135 행 = `GET /api/admin/export/:id`, 136 행 = `POST /api/admin/backup`). executor 는 실측값 132~133 을 정본으로 삼아 본문을 작성했다. § 6 `201 Created` 의 166 행 표기는 정확했다. 이후 planner 는 task 정의서에 행 번호를 적을 때 반드시 파일을 열어 실측한다.
