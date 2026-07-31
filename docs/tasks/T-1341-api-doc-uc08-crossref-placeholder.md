@@ -2,7 +2,9 @@
 id: T-1341
 title: api.md § 7 192 행 UC-08 cross-reference 의 permission-denied 2 종을 미구현 placeholder 로 표기
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-31T05:45:00Z
+resultCommit: 16d6e71b
 commitMode: direct
 coversReq: [REQ-008, REQ-016]
 estimatedDiff: 4
@@ -63,4 +65,9 @@ plannerNote: "T-1340 이월분 — § 7 192 행 UC-08 이 § 5 139~140 placehold
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **§ 7 표에 `GET /api/permission-denied-records` 를 독립 항목으로 승격할지** — 본 task 는 placeholder 구절 안의 pointer 로만 언급했다. § 5 141 행 · UC-08 §5 sequence 재독이 필요한 별개 판단이라 이월한다.
+- **185 행 (UC-01) · 190 행 (UC-06) never-built 표기** — Out of Scope 로 이월한 마지막 § 7 gap. planner 가 [T-1342](T-1342-api-doc-crossref-never-built-marking.md) 로 큐잉했다 (`**shipped 아님 (never-built)**` 토큰으로 placeholder 와 분리).
+
+## 결과 요약 (2026-07-31 driver fire)
+
+`docs/architecture/api.md` 192 행 셋째 셀 나열 끝에 conceptual placeholder 구절 1 개를 append (+1/-1, 1 파일, main direct commit `16d6e71b`). 사유 전문은 § 5 139~140 행에 두고 pointer 만, 실 대체 경로는 `GET /api/permission-denied-records` (단일 endpoint 가 `actor.role` 로 audience 차등) 를 한 번만 언급했다. 검증 grep 6 종 (conceptual placeholder 7→8 · METHOD 행 72 불변 · permission-denied-records 3→4 · `shipped 기준 68` 1 hit 불변 · 192 행 pipe 4 불변 · diff hunk 192 행 단 1 개) 전부 기대치 일치. § 7 표의 미구현-표기 gap 중 placeholder 부류는 이로써 전부 닫혔다 (never-built 부류는 T-1342 소관).
