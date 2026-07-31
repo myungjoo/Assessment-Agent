@@ -68,4 +68,6 @@ plannerNote: "T-1342 이월 '전수 shipped 재검증' 의 § 5 축 결과 — 7
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **§ 7 188 행 (UC-04 cross-reference) 동기** — 188 행이 `PATCH /api/users/:id/password` 를 여전히 표기 0 으로 나열한다. 본 task 가 § 5 75 행을 확정했으므로 T-1339 → T-1340 · T-1341 순서대로 다음 slice 에서 § 7 축을 닫는다 (direct, 1 파일).
+- **`src/user/user.controller.ts` 주석 stale 2 건** (`pr` 소관 — 본 doc-only task 밖) — (a) 36 행이 가리키는 `api.md L72` 는 현재 **75 행** 이라 행 번호가 어긋난다, (b) 37~38 행의 `GET /api/users` · `GET /api/users/:id` "부재" 서술은 그 사이 shipped 되어 (같은 파일 203 · 253 행 `@Get()` · `@Get(":id")`) stale 하다.
+- 실측 4 종은 task 본문 주장과 **전부 일치** — 불일치 0 (route 4 개뿐 · password 심볼 0 hit · PATCH route 목록에 password 없음 · METHOD 행 72).
