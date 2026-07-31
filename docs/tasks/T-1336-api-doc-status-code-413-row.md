@@ -2,7 +2,8 @@
 id: T-1336
 title: api.md § 6 표에 413 Payload Too Large row 신설 (import 업로드 상한 실측 2 종)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-31T00:50:00Z
 commitMode: direct
 coversReq: [REQ-030, REQ-045]
 estimatedDiff: 12
@@ -64,4 +65,13 @@ plannerNote: "T-1335 가 닫은 202 gap 과 동형 — 실측 413(MulterExceptio
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- § 5 **125 행**(`POST /api/admin/import`)은 성공·실패 status 를 한 개도 적지 않아 바로 아래 126 행(preview)과 비대칭이다 — 본 task 의 Out of Scope 가 명시 이월한 slice 로 **[T-1337](T-1337-api-doc-import-create-failure-statuses.md)** 큐잉됨.
+
+## Result
+
+- **DONE** (2026-07-31T00:50:00Z) — direct-mode, main direct commit `5c1d7414`. `docs/architecture/api.md` 1 파일 +1/-0 (§ 6 표 409 행과 500 행 사이에 `413` 행 1 개 삽입, 순수 1 줄 추가).
+- 발화 조건 · 적용 범위 2 종(`POST /api/admin/import` · `/api/admin/import/preview`) · 상한 근거([ADR-0055](../decisions/ADR-0055-import-multipart-file-upload.md) §Decision 3 DoS 표면 차단) 를 한 행에 박제하고, preview 의 `@HttpCode(200)` 보다 `MulterExceptionFilter`(413) 가 우선한다는 점도 함께 적었다.
+- 기존 165~174 행과 § 5 126 행은 글자 그대로 보존. `src/` · `test/` · `web/` 무수정.
+- doc-only 라 R-110 tester 면제 (production code 0 LOC · 신규 symbol 0). 대체 검증: 실측 3 종 재확인 + 표 구조(전 행 파이프 4 · bold status 행 11) · 숫자 오름차순(200→201→202→204→400→401→403→404→409→**413**→500) self-check + 검증 grep(1 hit / api.md 총 2 hit) 통과.
+- 실측 nuance: `@UseFilters(MulterExceptionFilter)` raw grep 은 3 hit 이나 `src/import/import.controller.ts:201` 은 설명 주석이고 실 decorator 부착은 236(create) · 309(preview) **2 종** — task 본문의 "2 종" 과 실질 일치.
+- main CI run `30594153899` **success** (R-114 fire 안에서 확인 완료).
