@@ -2,7 +2,7 @@
 id: T-1346
 title: UC-05 문서의 difficulty-mapping route 표기를 실 controller 와 정합 (67 · 184 행)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049, REQ-050]
 estimatedDiff: 8
