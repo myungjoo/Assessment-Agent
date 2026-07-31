@@ -43,7 +43,7 @@
 | REQ-024 | 47 | Primary key 역할 ID 지정 (서비스 중 1개) | Constraint | P3 (ADR 필수) | policy + unit | PLANNED |
 | REQ-025 | 48 | 일부 서비스 ID NULL 허용 | FR | P3 | unit | PLANNED |
 | REQ-026 | 49 | 인원 CRUD + Deactivate/Activate (휴직 시 숨김) | FR | P3 | unit + e2e | PLANNED |
-| REQ-027 | 50 | 신규 인원 1년치 평가 1회 (일반은 1주 단위) | FR | P7 + P5 | unit + e2e | PLANNED |
+| REQ-027 | 50 | 신규 인원 1년치 평가 1회 (일반은 1주 단위) | FR | P7 + P5 | unit + e2e | DONE (POST /api/schedules/backfill/:personId · buildBackfillPlan DEFAULT_WEEKS=52 · unit spec 3종 — e2e 미보유) |
 | REQ-028 | 51 | Group 정책 (다중 임의 group + 단일 조직도 파트) | FR | P3 | unit | PLANNED |
 | REQ-029 | 56 | 평가 자료 non-volatile 저장 | NFR | P3 | unit | PLANNED |
 | REQ-030 | 57 | Export/backup + Restore | FR | P7 | e2e | PLANNED |

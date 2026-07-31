@@ -2,7 +2,7 @@
 id: T-1357
 title: requirements.md 46 행 REQ-027 신규 인원 backfill 상태를 실측 기반 DONE 으로 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-027]
 estimatedDiff: 10
@@ -35,19 +35,19 @@ plannerNote: "P7 138 행이 이미 [x] implemented-on-main 인데 requirements 4
 
 ## Acceptance Criteria
 
-- [ ] 편집은 [docs/requirements.md](../requirements.md) **46 행 1 줄뿐**이며, 그 줄에서 바뀌는 것은 **마지막 `상태` 컬럼 1 개**다. `REQ` / `README 행` / `요약` / `kind` / `구현 위치` / `검증 위치` 6 컬럼은 **글자 무수정** (특히 `구현 위치` 의 `P7 + P5` 와 `검증 위치` 의 `unit + e2e` 는 그대로 둔다).
-- [ ] 46 행 상태를 `PLANNED` → 다음 문자열로 재판정 (`|` 문자를 넣지 않는다):
+- [x] 편집은 [docs/requirements.md](../requirements.md) **46 행 1 줄뿐**이며, 그 줄에서 바뀌는 것은 **마지막 `상태` 컬럼 1 개**다. `REQ` / `README 행` / `요약` / `kind` / `구현 위치` / `검증 위치` 6 컬럼은 **글자 무수정** (특히 `구현 위치` 의 `P7 + P5` 와 `검증 위치` 의 `unit + e2e` 는 그대로 둔다).
+- [x] 46 행 상태를 `PLANNED` → 다음 문자열로 재판정 (`|` 문자를 넣지 않는다):
   - `DONE (POST /api/schedules/backfill/:personId · buildBackfillPlan DEFAULT_WEEKS=52 · unit spec 3종 — e2e 미보유)`
-- [ ] **실측 선행** (편집 전 executor 가 직접 수행, 결과를 commit trail 에 박제). 아래 5 개가 모두 기대치와 일치할 때만 flip 하고, 하나라도 어긋나면 flip 하지 않고 Follow-ups 에 근거와 함께 남긴다:
+- [x] **실측 선행** (편집 전 executor 가 직접 수행, 결과를 commit trail 에 박제). 아래 5 개가 모두 기대치와 일치할 때만 flip 하고, 하나라도 어긋나면 flip 하지 않고 Follow-ups 에 근거와 함께 남긴다:
   - `grep -n "@Post(\"backfill/:personId\")" src/scheduling/backfill.controller.ts` → **1 hit (69 행)**
   - `grep -n "DEFAULT_WEEKS = 52" src/scheduling/backfill-plan.ts` → **1 hit (17 행)**
   - `grep -n "async runBackfill(" src/scheduling/backfill-runner.service.ts` → **1 hit (80 행)**
   - `ls src/scheduling/backfill*.spec.ts` → **3 개** (`backfill-plan.spec.ts` · `backfill-runner.service.spec.ts` · `backfill.controller.spec.ts`)
   - `grep -rl "backfill" test/e2e/ | wc -l` → **0** (e2e 부재 — 상태 문자열의 `e2e 미보유` 부기 근거. 0 이 아니면 그 부기를 빼고 flip)
-- [ ] **구조 무손상**: 편집 후 `wc -l docs/requirements.md` = **97**, `grep -c "^| REQ-" docs/requirements.md` = **66**, 편집한 46 행의 `|` 개수 = **8**.
-- [ ] **잔여 stale 정직 보고**: 편집 후 `grep -c "PLANNED" docs/requirements.md` = **41** (42 − 1). 이 수치를 commit trail 에 적어 남은 stale 규모를 다음 planner 가 그대로 이어받게 한다. 날조 금지 — 실제 출력값을 적는다.
-- [ ] 변경 파일은 **2 개뿐** ([docs/requirements.md](../requirements.md) + 본 task 파일). `src/` · `web/` · `test/` · [PLAN.md](../PLAN.md) · [api.md](../architecture/api.md) · `STATE.json` 무수정.
-- [ ] doc-only direct commit 이라 R-110 tester 면제 — 그 사유를 commit trail `TESTER.coverage` 에 한 줄 명시하고, 위 grep 검증 결과로 대체한다.
+- [x] **구조 무손상**: 편집 후 `wc -l docs/requirements.md` = **97**, `grep -c "^| REQ-" docs/requirements.md` = **66**, 편집한 46 행의 `|` 개수 = **8**.
+- [x] **잔여 stale 정직 보고**: 편집 후 `grep -c "PLANNED" docs/requirements.md` = **41** (42 − 1). 이 수치를 commit trail 에 적어 남은 stale 규모를 다음 planner 가 그대로 이어받게 한다. 날조 금지 — 실제 출력값을 적는다.
+- [x] 변경 파일은 **2 개뿐** ([docs/requirements.md](../requirements.md) + 본 task 파일). `src/` · `web/` · `test/` · [PLAN.md](../PLAN.md) · [api.md](../architecture/api.md) · `STATE.json` 무수정.
+- [x] doc-only direct commit 이라 R-110 tester 면제 — 그 사유를 commit trail `TESTER.coverage` 에 한 줄 명시하고, 위 grep 검증 결과로 대체한다.
 
 ## Out of Scope
 
