@@ -2,7 +2,9 @@
 id: T-1345
 title: api.md § 7 189 행 UC-05 의 difficulty-mappings method 범위 명확화 + 186·187 행 재검증 결과 박제
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-31T09:52:00Z
+commit: f5316187
 commitMode: direct
 coversReq: [REQ-049, REQ-050]
 estimatedDiff: 6
