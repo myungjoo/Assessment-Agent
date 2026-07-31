@@ -2,7 +2,7 @@
 id: T-1350
 title: PLAN.md 120 행 Admin 패널 bullet 의 "(부분 완료)" 마커 재판정 + shipped 열거 실측 보강
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049, REQ-038]
 estimatedDiff: 12
@@ -63,4 +63,13 @@ plannerNote: "T-1347 Follow-up ①이 이월한 축 — 120 행 마커·열거�
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+- `docs/PLAN.md` **116 행** 오너 승인 인용문 안의 stale 패널 열거(`ReEvaluationTriggerPanel·SchedulePanel·polling 등` 이 아직 deferred 인 것처럼 읽힘)는 본 slice Out of Scope 로 그대로 남았다 — 인용문 원문 보존 vs 편집 주 부기 판단이 걸린 별도 축.
+- `docs/architecture/components.md` · `modules.md` · `directory.md` 는 T-1348 · T-1349 가 이미 defer 축으로 정합시켰고, 본 slice 가 PLAN 120 행에 추가한 **패널 10 종 · mutation 러너 26 개** 열거와의 대조는 수행하지 않았다(Out of Scope). 필요 판단 시 별도 slice.
+
+## 완료 요약 (2026-07-31)
+
+- **실측 4 종 재확인 — 전부 본문 수치와 일치**: 마운트 grep **11 hit**(구별 패널 10 종, `PersonList` 2 회) · `run*` 러너 **26** · CRUD 배선 grep hit(`AdminView.tsx` 56 줄, 기준 7 이상 충족) · 편집 전 `부분 완료` **2 hit**(106 · 120 행). 불일치 0 이라 Acceptance (a) 의 승격 조건을 충족했다.
+- **(a) 마커 승격** — 120 행 `**(부분 완료 — shipped 계약 범위)**` → `**(완료)**`. 승격 근거(패널 10 종 마운트 · mutation 러너 26 개 배선 · 이 bullet 소관 defer 잔여 0, 자동 갱신 잔여는 121 행 R-78 소관)를 같은 행 한 구절로 박제.
+- **(b) 열거 보강** — 기존 5 항목 문구는 그대로 두고 `PersonList` · `GroupList` · `PartList` · `UserList` · `LlmProviderConfigList` + 인원/그룹/파트/사용자 CRUD · 멤버 add/remove · provider CRUD · 역할 변경 · 인스턴스 접근 grant/revoke 를 추가만 했다. 링크는 실재 확인된 [T-1130](T-1130-adminview-member-remove.md) · [T-1131](T-1131-adminview-member-add.md) · [T-1133](T-1133-llm-provider-list.md) 3 종.
+- **검증 결과** — `wc -l` **173 불변**, `^- \[x\]` **60**, `^- \[ \]` **6**, `T-0885|T-0886` **2 불변**, `REQ-049` **1 불변**, T-1347 박제 문장 문구 그대로 잔존, `부분 완료` **1**(106 행만), `PersonList`/`LlmProviderConfigList` 각 **1**, `polling` 매칭 행은 116 · 121 · 123 뿐(120 행 미등장). `git diff -U0` hunk **1 개(@@ -120 +120 @@)**, `git status --porcelain` 은 PLAN.md · 본 task 파일 2 개뿐. 120 행은 여전히 한 줄.
+- doc-only 라 R-110 tester 면제(production code 0 LOC) — 위 grep + 구조 self-check 로 대체.
