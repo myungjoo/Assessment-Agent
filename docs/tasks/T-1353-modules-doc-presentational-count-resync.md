@@ -2,7 +2,7 @@
 id: T-1353
 title: modules.md 237 행 `15 개 presentational 컴포넌트` 수치를 현행 실측(21 종)과 정합
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049, REQ-038]
 estimatedDiff: 12
@@ -60,6 +60,19 @@ plannerNote: "T-1352 Follow-up — modules 237 행이 presentational 을 15 개�
 
 `implementer` (doc-only · 문단 1 곳 인라인 수정 — architect 불요, tester 면제. [T-1349](T-1349-components-doc-panel-mount-resync.md) · [T-1350](T-1350-plan-admin-panel-marker-rejudge.md) · [T-1351](T-1351-plan-owner-quote-editorial-note.md) · [T-1352](T-1352-components-doc-adminview-panel-enum.md) 선례)
 
+## 완료 요약 (2026-08-01)
+
+`p6-plan-residual-resync` stream 의 마지막 locus 인 **수치 축**을 닫았다. [modules.md](../architecture/modules.md) 237 행의 기존 문장은 **문구 그대로 보존**하고 두 곳을 **추가만** 했다 — (a) `15 개 presentational 컴포넌트` 뒤에 `(스트림 조립 시점 T-0361~T-0375 의 수치 — ADR-0041 14 행 열거가 정본)` 인라인 주기, (b) 문단 끝에 **편집 주 (T-1353)** 로 현행 실측 21 종 + 후속 6 종(T-1133 `LlmProviderConfigList` · T-1139 `PermissionDeniedRecordList` · T-1141 `PersonList` · T-1147 `GroupList` · T-1151 `PartList` · T-1158 `UserList`) 과 T-1350 AdminView 패널 10 종 마운트 귀속. `15` → `21` 단순 치환은 하지 않았다([T-1351](T-1351-plan-owner-quote-editorial-note.md) 편집 주 선례 동형).
+
+**실측 재확인**: `ls web/src/components/*.tsx | grep -v '\.test\.tsx' | wc -l` = **21**, `ls web/src/components/*.test.tsx | wc -l` = **21** — 둘 다 task 기대값과 일치해 편집을 진행했다.
+
+**R-110 면제 근거 + self-check 결과** (production code 0 LOC doc-only direct commit — 신규 symbol · 분기 0 이라 R-112 4 종 해당 없음, `pnpm lint` 는 doc 변경 무영향이라 미실행):
+
+- 구조 무손상 — `wc -l` = **256 불변**, `grep -c "^| "` = **38 불변**, `grep -c "ADR-0041"` = **3**(≥3 충족 — 인라인 링크를 같은 237 행에 추가해 행 기준 count 불변), 237 행은 여전히 **한 줄**.
+- defer 서술 불변 — `grep -c "polling"` = **1 불변**([T-1348](T-1348-modules-doc-defer-list-resync.md) 박제 239 행 무수정).
+- 검증 grep — `T-1141` = **1**(전 0), `UserList` = **1**(전 0), `15 개 presentational` = **1 불변**, `21` 매칭 행 = **5**(≥1).
+- diff 축 한정 — `git diff -U0 -- docs/architecture/modules.md` hunk 헤더가 `@@ -237 +237 @@` **1 개뿐**, `git status --porcelain` 은 modules.md · 본 task 파일 **2 개만**. `src/` · `web/` · `test/` · `prisma/` · PLAN · components.md · directory.md · `docs/decisions/*` · STATE · journal 무수정.
+
 ## Follow-ups
 
-(생성 시점 없음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+- (없음) [docs/PLAN.md](../PLAN.md) 124 행 `presentational 분해 완료(15 컴포넌트, T-0361~T-0375)` 는 귀속 chain 이 문장 안에 명시돼 오독 여지가 낮아 Out of Scope 판단 그대로 유지한다. 본 slice 로 `p6-plan-residual-resync` stream(T-1347~T-1353) 은 종결.
