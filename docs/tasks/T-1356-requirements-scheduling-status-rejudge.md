@@ -2,7 +2,8 @@
 id: T-1356
 title: requirements.md 58~60 행 REQ-039~041 스케줄링 상태 컬럼을 실측 shipped 로 재판정
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-01
 commitMode: direct
 coversReq: [REQ-039, REQ-040, REQ-041]
 estimatedDiff: 12
@@ -48,6 +49,21 @@ plannerNote: "P7 135~137 행이 이미 [x] implemented-on-main 인데 requiremen
 - [ ] **잔여 stale 정직 보고**: 편집 후 `grep -c "PLANNED" docs/requirements.md` = **42** (45 − 3). 이 수치를 commit trail 에 적어 남은 stale 규모를 다음 planner 가 그대로 이어받게 한다. 날조 금지 — 실제 출력값을 적는다.
 - [ ] 변경 파일은 **2 개뿐** ([docs/requirements.md](../requirements.md) + 본 task 파일). `src/` · `web/` · `test/` · [PLAN.md](../PLAN.md) · `STATE.json` 무수정.
 - [ ] doc-only direct commit 이라 R-110 tester 면제 — 그 사유를 commit trail `TESTER.coverage` 에 한 줄 명시하고, 위 grep 검증 결과로 대체한다.
+
+## Result (2026-08-01)
+
+**DONE.** [requirements.md](../requirements.md) 58 · 59 · 60 행의 `상태` 컬럼 1 개씩만 `PLANNED` → `DONE (…)` 로 재판정했다. 나머지 6 컬럼과 다른 65 row 는 무수정.
+
+실측 선행 결과 (4/4 기대치 일치 — 전 row flip 조건 충족):
+
+- `cron-schedule.controller.ts` `@Get()` / `@Put()` / `@Delete(":name")` → **3 hit (90 · 103 · 120 행)**
+- `cron-schedule.controller.ts` `@Post("trigger")` → **1 hit (140 행)**
+- `recent-deletion.controller.ts` `@Post("recent-deletion/:personId")` → **1 hit (96 행)**
+- [PLAN.md](../PLAN.md) R-72 / R-73 / R-74 `- [x]` → **3 hit (135 · 136 · 137 행, 모두 `implemented-on-main`)**
+
+구조 무손상 확인: `wc -l` = **97**, `^| REQ-` = **66**, 편집 3 행의 `|` 개수 = **8 / 8 / 8**.
+
+잔여 stale 정직 보고: `grep -c "PLANNED"` = **42** (45 − 3). 남은 42 row 는 근거가 row 마다 달라 다음 slice 로 이월한다 — 최우선 후보는 아래 Follow-ups 의 REQ-027 · REQ-030.
 
 ## Out of Scope
 

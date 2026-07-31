@@ -55,9 +55,9 @@
 | REQ-036 | 63 | 상대 비교 가능 + LLM 정성 + Metric 수치 | FR | P3 + P5 | unit | PLANNED |
 | REQ-037 | 64 | 평가 없는 부분 일괄 평가 + Reset & Reeval | FR | P5 | e2e | PLANNED |
 | REQ-038 | 68-71 | UI 조회 / sort / filter / 시계열 | FR | P6 | smoke + e2e | DONE |
-| REQ-039 | 72 | Admin cron 주기 지정 | FR | P7 | unit + e2e | PLANNED |
-| REQ-040 | 73 | Admin manual trigger | FR | P7 | e2e | PLANNED |
-| REQ-041 | 74 | Admin 최근 N일 결과 manual delete → 재수집 | FR | P7 | unit + e2e | PLANNED |
+| REQ-039 | 72 | Admin cron 주기 지정 | FR | P7 | unit + e2e | DONE (GET·PUT·DELETE /api/schedules 런타임 cron registry) |
+| REQ-040 | 73 | Admin manual trigger | FR | P7 | e2e | DONE (POST /api/schedules/trigger 즉시 1회 발화) |
+| REQ-041 | 74 | Admin 최근 N일 결과 manual delete → 재수집 | FR | P7 | unit + e2e | DONE (POST /api/schedules/recent-deletion/:personId delete→재수집) |
 | REQ-042 | 78 | 평가 진행 중 시각화 보호 (기존 자료 + 경고 배너) | FR | P6 | smoke + e2e | DONE (배선 완료, 자동 polling defer) |
 | REQ-043 | 83 | 모든 기능 ID/Password 보호 | NFR | P3 + P6 | e2e | PLANNED |
 | REQ-044 | 84 | 첫 로그인 SuperAdmin / 3 등급 / 승급 / SuperAdmin 만 Admin→User | FR | P3 + P6 | unit + e2e | DONE |
