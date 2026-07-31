@@ -2,7 +2,8 @@
 id: T-1337
 title: api.md § 5 125 행에 POST /api/admin/import 의 성공·실패 status 실측 보강
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-31T01:40:00Z
 commitMode: direct
 coversReq: [REQ-030, REQ-032, REQ-045]
 estimatedDiff: 16
@@ -69,3 +70,11 @@ plannerNote: "T-1336 Out of Scope 가 명시 이월한 § 5 slice — 125 행만
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## Result (2026-07-31 완료)
+
+- direct-mode main direct commit `dd8d1e82` — [api.md](../architecture/api.md) 125 행 단 1 행 amend (+1/-1, 1 파일).
+- 채운 내용: 성공 **201** (`@HttpCode` 미부착 = `@Post` 기본값, 실 `ImportJob` row 생성) + 실패 **400 / 401 / 403 / 409 / 413** 5 종 + **409 가 create 전용** 이라는 비대칭 1 구절 + 매핑 표 밖 error raw 전파 → **500**. 기존 `restoreSummary` 응답 조립 서술과 `T-1296 박제 (PR #1187)` 출처 표기는 문장 삭제 0 으로 보존.
+- 126 행 (preview) · § 6 표 (163~176 행) · `src/` · `test/` · `web/` 무수정 — Out of Scope 준수 (`git status` 1 파일).
+- doc-only 라 R-110 tester 면제 — 실측 4 종 재확인 (`@HttpCode` grep 은 주석 2 + decorator 1 = 3 hit 이나 create 미부착 사실 동일, `ConflictException` 2 계열 · P2003 → 400 · "실패" 19→20) + 표 구조 self-check + 검증 grep 3 종 (409@125 1 hit · `T-1296 박제` 1 hit · 126 행 diff 미등장) 으로 대체.
+- Follow-ups: 없음 (§ 5 의 남은 UC-07 행 중 `POST /api/admin/export` 124 행은 [T-1338](T-1338-api-doc-export-create-statuses.md) 로 큐잉됨).
