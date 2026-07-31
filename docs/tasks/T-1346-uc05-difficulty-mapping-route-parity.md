@@ -66,4 +66,6 @@ UC-05 는 67 행 (§ 5 sequence diagram 의 WebUI→BackendAPI 화살표) 과 18
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 작업 중 발견한 관련 작업을 여기에 append)
+- 실측 결과 행 번호 drift 0 — 편집 전 `difficulty-mapping` 2 hit 이 정확히 67 · 184 행이었고, controller 실측도 `@Controller("api/llm/difficulty-mappings")` · `@Get()` · `@Patch(":difficulty")` 3 개뿐 (`@Post` · `@Delete` 0) 으로 Why 본문 주장과 일치했다. 편집 후 단수형 잔재 0 · 복수형 2 hit · 225 행 · mermaid 블록 1 · 184 행 pipe 4 유지.
+- **72 행 `3 슬롯 모두 채움` invariant 문구** 는 Out of Scope 대로 손대지 않았다. `PATCH /:difficulty` 가 슬롯 단위 재지정인 점과 그 invariant 서술의 관계는 여전히 미판단 잔여 — 필요하면 별도 task 로 다룬다 (실 gap 확인 안 됨, 낮은 우선순위).
+- UC-05 안에서는 같은 부류 (단복수 · path parameter 누락) route 표기 gap 이 더 발견되지 않았다. 다른 UC 문서 전수 재검증은 여전히 별개 축.

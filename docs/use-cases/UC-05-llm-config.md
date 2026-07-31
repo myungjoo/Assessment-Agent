@@ -64,7 +64,7 @@ sequenceDiagram
     participant LLMGateway
 
     Admin->>WebUI: LLM 설정 화면 접근 / action 선택 (provider 추가·수정·삭제 / 난이도 매핑)
-    WebUI->>BackendAPI: POST·PATCH·DELETE /api/llm/providers 또는 PATCH /api/llm/difficulty-mapping + payload
+    WebUI->>BackendAPI: POST·PATCH·DELETE /api/llm/providers 또는 PATCH /api/llm/difficulty-mappings/:difficulty + payload
     BackendAPI->>AuthModule: 인증·권한 검증 (REQ-043, REQ-044, REQ-045)
     Note over AuthModule: 미인증 시 §7.1 (401)<br/>권한 부족 시 §7.2 (403)
 
@@ -181,7 +181,7 @@ WebUI 는 응답 메시지를 form 의 field-level error 로 표시.
 | component (T-A3) | module (T-A4) | 본 UC 에서의 책임 |
 | --- | --- | --- |
 | Web UI | WebModule | LLM 설정 화면 SPA — provider 목록 표 / 추가·수정·삭제 form / 난이도 슬롯 매핑 form (REQ-049, REQ-050). API key 는 마스킹 표시 (§6.4). |
-| Backend API | AuthModule (guard) + LlmModule (controller + service) | `POST·PATCH·DELETE /api/llm/providers` / `PATCH /api/llm/difficulty-mapping` endpoint 노출 + 인증·권한 guard + payload 검증 + invariant enforcement (REQ-043, REQ-044, REQ-045, REQ-049, REQ-050, REQ-051~055). **LlmModule 의 service layer (provider·매핑 CRUD + 선택적 health check) 가 본 UC 의 중심** — 다른 UC 는 LlmModule 의 LLMGateway 호출 wrapper 만 사용. |
+| Backend API | AuthModule (guard) + LlmModule (controller + service) | `POST·PATCH·DELETE /api/llm/providers` / `GET·PATCH /api/llm/difficulty-mappings[/:difficulty]` endpoint 노출 + 인증·권한 guard + payload 검증 + invariant enforcement (REQ-043, REQ-044, REQ-045, REQ-049, REQ-050, REQ-051~055). **LlmModule 의 service layer (provider CRUD · 매핑 재지정 + 선택적 health check) 가 본 UC 의 중심** — 다른 UC 는 LlmModule 의 LLMGateway 호출 wrapper 만 사용. 매핑 쪽은 CRUD 전량이 아니라 조회 (`GET`) 와 슬롯 재지정 (`PATCH /:difficulty`) **2 종뿐** 이고 신설 (`POST`) · 삭제 (`DELETE`) 는 없다 — 난이도 슬롯 easy/medium/hard 3 개가 고정이라 생성 · 삭제 개념이 없기 때문 (`api.md` § 5 121~122 행이 정본). |
 | LLM Gateway | LlmModule (gateway sub-service) | §6.3 health check 옵션 사용 시 새 endpoint·key reachable 여부 확인. 실제 평가 routing 의 consumer 는 [UC-01](UC-01-evaluation-execution.md). |
 | DB Persistence | PersistenceModule | LlmProviderConfig / DifficultyMapping row CRUD + API key 암호화 저장 + Audit log row insert (REQ-049, REQ-050). |
 
