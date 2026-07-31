@@ -2,7 +2,7 @@
 id: T-1352
 title: components.md 113 행 AdminView shipped 열거를 PLAN 122 행 실측(패널 10 종·러너 26)과 정합
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049, REQ-038]
 estimatedDiff: 10
@@ -37,14 +37,14 @@ plannerNote: "T-1351 Follow-up ① — components 113 행 AdminView 열거가 5 
 
 ## Acceptance Criteria
 
-- [ ] **실측 재확인** — 위 2 종 grep 이 각각 **11** · **26**. 하나라도 어긋나면 편집하지 말고 실측값을 Follow-ups 에 적고 종료한다.
-- [ ] **열거 보강(추가만)** — 113 행 `AdminView (...)` 괄호 안의 기존 6 항목(`GroupMemberList` 조회 · `DifficultyModelSelector` · export/import · RBAC gating · `SchedulePanel` 마운트 · `ReEvaluationTriggerPanel` 마운트)은 **링크 포함 문구 그대로 보존**하고, 누락된 `PersonList` · `GroupList` · `PartList` · `UserList` · `LlmProviderConfigList` 마운트와 mutation 러너 배선(인원/그룹/파트/사용자 CRUD · 멤버 add/remove · provider CRUD)을 **추가만** 한다. 구별 패널 **10 종** · 러너 **26** 두 수치를 명시하고, 근거로 PLAN 122 행 또는 [T-1350](T-1350-plan-admin-panel-marker-rejudge.md) 를 pointer 로 건다.
-- [ ] **defer 서술 불변** — 113 행 뒤쪽의 `남은 잔여 표면은 `EvaluationGuardBanner` 자동 polling 1 항목뿐이며 backend status 계약 확정 후 배선한다 — [modules.md](modules.md) 의 defer 서술 참조.` 문장이 **문구 그대로** 남는다([T-1349](T-1349-components-doc-panel-mount-resync.md) 박제). 편집 후 `grep -c "polling" docs/architecture/components.md` = **1 불변**.
-- [ ] **구조 무손상** — 편집 후 `wc -l < docs/architecture/components.md` = **190 불변**, `grep -c "^| " docs/architecture/components.md` = **29 불변**, 113 행의 pipe 개수 = **6 불변**(`sed -n '113p' … | tr -cd '|' | wc -c`), 113 행은 여전히 **한 줄**(행 분할·중간 개행 금지 — 표가 깨진다).
-- [ ] **검증 grep** — (a) `grep -c "PersonList" docs/architecture/components.md` ≥ **1**(편집 전 0), (b) `grep -c "LlmProviderConfigList" docs/architecture/components.md` ≥ **1**(편집 전 0), (c) `grep -c "T-0885\|T-0886" docs/architecture/components.md` = **1 불변**, (d) `grep -c "REQ-049" docs/architecture/components.md` = **5 불변**, (e) `grep -c "AdminView" docs/architecture/components.md` ≥ **1**.
-- [ ] **diff 축 한정** — `git diff --stat` 이 `docs/architecture/components.md` · 본 task 파일 **2 개만** 보이고, components.md hunk 는 **113 행 1 개뿐**(`git diff -U0 -- docs/architecture/components.md` 의 hunk 헤더가 `@@ -113 +113 @@` 형태 1 개).
-- [ ] **경계 준수** — `src/` · `web/` · `test/` · `prisma/` · `docs/PLAN.md` · `docs/architecture/modules.md` · `docs/architecture/directory.md` · `docs/use-cases/*` · `docs/requirements.md` · `docs/STATE.json` · `docs/progress/*` 무수정(§3.1 rule 3 · §9 STATE single-writer — STATE/journal 은 driver 소관). `git status --porcelain` 결과가 위 2 파일뿐.
-- [ ] **R-110 tester 면제 근거 명시** — production code **0 LOC** doc-only direct commit 이라 tester 를 호출하지 않는다(R-112 4 종은 신규 symbol·분기 **0** 이라 해당 없음 — 분기 없음). 위 검증 grep + 구조 self-check 로 대체하고 결과를 task 파일 완료 요약에 박제한다([T-1313](T-1313-p6-deferred-residual-list-resync.md) · [T-1347](T-1347-plan-p6-panel-mount-residual-resync.md) ~ [T-1351](T-1351-plan-owner-quote-editorial-note.md) 선례). `pnpm lint` 는 doc 변경 무영향이라 실행 불요.
+- [x] **실측 재확인** — 위 2 종 grep 이 각각 **11** · **26**. 하나라도 어긋나면 편집하지 말고 실측값을 Follow-ups 에 적고 종료한다.
+- [x] **열거 보강(추가만)** — 113 행 `AdminView (...)` 괄호 안의 기존 6 항목(`GroupMemberList` 조회 · `DifficultyModelSelector` · export/import · RBAC gating · `SchedulePanel` 마운트 · `ReEvaluationTriggerPanel` 마운트)은 **링크 포함 문구 그대로 보존**하고, 누락된 `PersonList` · `GroupList` · `PartList` · `UserList` · `LlmProviderConfigList` 마운트와 mutation 러너 배선(인원/그룹/파트/사용자 CRUD · 멤버 add/remove · provider CRUD)을 **추가만** 한다. 구별 패널 **10 종** · 러너 **26** 두 수치를 명시하고, 근거로 PLAN 122 행 또는 [T-1350](T-1350-plan-admin-panel-marker-rejudge.md) 를 pointer 로 건다.
+- [x] **defer 서술 불변** — 113 행 뒤쪽의 `남은 잔여 표면은 `EvaluationGuardBanner` 자동 polling 1 항목뿐이며 backend status 계약 확정 후 배선한다 — [modules.md](modules.md) 의 defer 서술 참조.` 문장이 **문구 그대로** 남는다([T-1349](T-1349-components-doc-panel-mount-resync.md) 박제). 편집 후 `grep -c "polling" docs/architecture/components.md` = **1 불변**.
+- [x] **구조 무손상** — 편집 후 `wc -l < docs/architecture/components.md` = **190 불변**, `grep -c "^| " docs/architecture/components.md` = **29 불변**, 113 행의 pipe 개수 = **6 불변**(`sed -n '113p' … | tr -cd '|' | wc -c`), 113 행은 여전히 **한 줄**(행 분할·중간 개행 금지 — 표가 깨진다).
+- [x] **검증 grep** — (a) `grep -c "PersonList" docs/architecture/components.md` ≥ **1**(편집 전 0), (b) `grep -c "LlmProviderConfigList" docs/architecture/components.md` ≥ **1**(편집 전 0), (c) `grep -c "T-0885\|T-0886" docs/architecture/components.md` = **1 불변**, (d) `grep -c "REQ-049" docs/architecture/components.md` = **5 불변**, (e) `grep -c "AdminView" docs/architecture/components.md` ≥ **1**.
+- [x] **diff 축 한정** — `git diff --stat` 이 `docs/architecture/components.md` · 본 task 파일 **2 개만** 보이고, components.md hunk 는 **113 행 1 개뿐**(`git diff -U0 -- docs/architecture/components.md` 의 hunk 헤더가 `@@ -113 +113 @@` 형태 1 개).
+- [x] **경계 준수** — `src/` · `web/` · `test/` · `prisma/` · `docs/PLAN.md` · `docs/architecture/modules.md` · `docs/architecture/directory.md` · `docs/use-cases/*` · `docs/requirements.md` · `docs/STATE.json` · `docs/progress/*` 무수정(§3.1 rule 3 · §9 STATE single-writer — STATE/journal 은 driver 소관). `git status --porcelain` 결과가 위 2 파일뿐.
+- [x] **R-110 tester 면제 근거 명시** — production code **0 LOC** doc-only direct commit 이라 tester 를 호출하지 않는다(R-112 4 종은 신규 symbol·분기 **0** 이라 해당 없음 — 분기 없음). 위 검증 grep + 구조 self-check 로 대체하고 결과를 task 파일 완료 요약에 박제한다([T-1313](T-1313-p6-deferred-residual-list-resync.md) · [T-1347](T-1347-plan-p6-panel-mount-residual-resync.md) ~ [T-1351](T-1351-plan-owner-quote-editorial-note.md) 선례). `pnpm lint` 는 doc 변경 무영향이라 실행 불요.
 
 ## Out of Scope
 
@@ -59,6 +59,31 @@ plannerNote: "T-1351 Follow-up ① — components 113 행 AdminView 열거가 5 
 
 `implementer` (doc-only · 표 행 1 곳 인라인 수정 — architect 불요, tester 면제. [T-1349](T-1349-components-doc-panel-mount-resync.md) · [T-1350](T-1350-plan-admin-panel-marker-rejudge.md) · [T-1351](T-1351-plan-owner-quote-editorial-note.md) 선례)
 
+## 완료 요약 (2026-08-01)
+
+`docs/architecture/components.md` **113 행** `AdminView (...)` 괄호 열거 **1 locus** 만 추가 편집(기존 6 항목 · 링크 문구 그대로 보존)해 `PersonList` · `GroupList` · `PartList` · `UserList` · `LlmProviderConfigList` 마운트와 인원/그룹/파트/사용자 CRUD · 멤버 add/remove · provider CRUD mutation 러너 배선을 반영하고, 구별 패널 **10 종** · mutation 러너 **26 개** 수치와 근거 pointer([PLAN.md](../PLAN.md) 122 행 · [T-1350](T-1350-plan-admin-panel-marker-rejudge.md))를 명시했다. 이로써 `p6-plan-residual-resync` stream(T-1347~T-1352)의 **열거 축** 마지막 locus 가 닫혔다.
+
+**실측 재확인**(편집 전, `web/src/views/AdminView.tsx` 읽기 전용): 패널 마운트 grep = **11 hit / 구별 10 종**(`PersonList` 2 회, 나머지 9 종 각 1 회), `^async function run…` grep = **26**. 둘 다 task 명세 기대값과 일치 → 편집 진행.
+
+**검증 결과**(편집 후 실측):
+
+| 항목 | 기대 | 실측 |
+| --- | --- | --- |
+| `wc -l` | 190 불변 | 190 |
+| 표 행 수 (파이프로 시작하는 행) | 29 불변 | 29 |
+| 113 행 pipe 개수 | 6 불변 | 6 |
+| 113 행 행 분할 | 없음(한 줄) | 한 줄 유지 |
+| `grep -c "polling"` | 1 불변 | 1 (defer 문장 문구 그대로) |
+| `grep -c "PersonList"` | ≥ 1 (편집 전 0) | 1 |
+| `grep -c "LlmProviderConfigList"` | ≥ 1 (편집 전 0) | 1 |
+| `T-0885` / `T-0886` 언급 행 수 | 1 불변 | 1 |
+| `grep -c "REQ-049"` | 5 불변 | 5 |
+| `grep -c "AdminView"` | ≥ 1 | 1 |
+| components.md hunk | `@@ -113 +113 @@` 1 개 | 동일 1 개 |
+| `git status --porcelain` | 2 파일 | components.md + 본 task 파일 |
+
+**R-110 tester 면제 근거**: production code **0 LOC** doc-only direct commit — 신규 symbol · 분기 0 이라 R-112 4 종 해당 없음. 위 검증 grep + 구조 self-check 로 대체(T-1313 · T-1347~T-1351 선례). `pnpm lint` 는 doc 변경 무영향이라 미실행. `src/` · `web/` · `test/` · `prisma/` · `docs/PLAN.md` · `docs/architecture/modules.md` · `docs/architecture/directory.md` · `docs/STATE.json` · `docs/progress/*` 무수정 확인.
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+- **`docs/architecture/modules.md` 237 행 `15 개 presentational 컴포넌트` 수치 미검증** — `web/src/components/` 실측과의 대조는 본 slice 의 축(AdminView 마운트 열거)과 근거·판정 기준이 달라 Out of Scope 로 두었다. 필요 시 별도 `direct` slice 1 개로 처리 가능.
