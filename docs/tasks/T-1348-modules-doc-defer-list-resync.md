@@ -2,7 +2,8 @@
 id: T-1348
 title: modules.md 239 행 · directory.md 164 행의 "패널 미마운트 defer" 서술을 실 배선과 정합
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-07-31T12:47:00Z
 commitMode: direct
 coversReq: [REQ-049, REQ-042, REQ-039, REQ-041]
 estimatedDiff: 22
