@@ -171,6 +171,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 | **403 Forbidden** | 인증은 됐으나 권한 부족 (예: User 가 mutation 시도 — REQ-045·046, SuperAdmin self-demote — REQ-044) | mutation endpoint 전반 |
 | **404 Not Found** | resource (`:id`) 존재 안 함 | 모든 `:id` path |
 | **409 Conflict** | invariant 위반 (예: SuperAdmin self-demote / part 삭제 시 소속 인원 잔존 / provider 삭제 시 difficulty-mapping 참조) | 일부 mutation — 구체 분기는 P3 |
+| **413 Payload Too Large** | multipart 업로드 파일이 `limits.fileSize` 상한 (`MAX_IMPORT_FILE_SIZE_BYTES` = 50 MiB) 을 초과 — multer 가 던진 raw `MulterError(LIMIT_FILE_SIZE)` 를 `MulterExceptionFilter` 매핑 분기 (2) 가 `PayloadTooLargeException` 으로 변환한다. Nest 가 `FileInterceptor` 안에서 이미 `PayloadTooLargeException` 으로 선변환한 경우는 같은 filter 의 분기 (1) `HttpException` passthrough 로 413 이 보존되므로 **두 경로 모두 결과 413**. 상한 강제 자체는 [ADR-0055](../decisions/ADR-0055-import-multipart-file-upload.md) §Decision 3 이 박제한 계약 (상한 없는 memoryStorage 의 DoS 표면 차단) | **파일 업로드를 받는 endpoint 에만** 해당 — 실측 2 종 (`@UseFilters(MulterExceptionFilter)` 부착 핸들러 전량): POST `/api/admin/import` · POST `/api/admin/import/preview`. preview 는 성공 status 가 200 (`@HttpCode(HttpStatus.OK)`, T-1332) 이지만 **filter 가 `@HttpCode` 보다 우선** 하므로 상한 초과 시 200 이 아니라 413 을 돌려준다 ([src/import/import.controller.ts](../../src/import/import.controller.ts) 303 행 주석이 정본) |
 | **500 Internal Server Error** | 서버 측 미처리 예외 — 본문은 generic 메시지 (스택 미노출, 보안) | 전 endpoint fallback |
 
 **race / concurrency 관련 status (예: optimistic lock 의 412 Precondition Failed)** 는 본 표의 default 가 아님 — P3+ 의 concurrency 정책 ADR 시 본 § 6 갱신.
