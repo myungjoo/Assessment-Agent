@@ -2,7 +2,9 @@
 id: T-1342
 title: api.md § 7 185·190 행 UC-01·UC-06 cross-reference 의 never-built route 4 종을 미shipped 로 표기
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-31T06:45:00Z
+resultCommit: b2c90d5c
 commitMode: direct
 coversReq: [REQ-037, REQ-040, REQ-041]
 estimatedDiff: 4
@@ -39,16 +41,16 @@ plannerNote: "T-1341 Out of Scope 이월 — § 7 185·190 행이 never-built ro
 
 ## Acceptance Criteria
 
-- [ ] **185 행 세 번째 셀** — `` `POST /api/assessments/run` `` 을 **삭제하지 말고** (UC-01 §5 alt block 이 호명하는 개념 step 이라 빠지면 cross-reference 가 끊긴다) 나열 끝에 한 구절을 이어 붙인다: bold `**shipped 아님 (never-built)**` 토큰 + 사유의 정본이 § 5 **96 행** 임을 pointer 로 명시 + 실 capability 가 `` `POST /api/assessment-collection/collect` `` + `` `POST /api/assessment-evaluation/period` `` 로 이관됐음을 한 구절로 밝힌다.
-- [ ] **190 행 세 번째 셀** — 기존 3 route 나열을 **삭제·순서 변경 없이** 보존한 뒤 같은 형식의 구절을 이어 붙인다: `**shipped 아님 (never-built)**` 토큰 + § 5 **97~99 행** pointer + route 별 대체 경로 3 종 (`DELETE /api/assessments` → `` `POST /api/schedules/recent-deletion/:personId` ``, `reeval` → `` `POST /api/assessment-evaluation/unevaluated-fill-run` ``, `reset` → `` `POST /api/assessment-evaluation/period` `` 의 `reevaluate` flag).
-- [ ] **부류 구분 유지** — 두 행 어디에도 `conceptual placeholder` 토큰을 쓰지 않는다 (191·192 행의 backup/restore·permission-denied 와 성격이 다르다 — 본 4 종은 capability 이관 완료 경로). 반대로 191·192 행에 `never-built` 토큰을 역주입하지도 않는다.
-- [ ] **중복 서술 금지** — ADR 링크 전문 · T-NNNN 박제 번호 · REQ 번호 같은 상세는 § 5 96~99 행에만 두고 § 7 에 복제하지 않는다 (중복은 다음 갱신 때 두 절이 다시 어긋나는 원인). § 7 셀에는 route 이름과 § 5 행 pointer 만 남긴다.
-- [ ] **첫 셀 · 둘째 셀 불변** — 185 행의 `[UC-01](../use-cases/UC-01-evaluation-execution.md#5-main-flow-sequence-diagram)` · `manual trigger 의 alt block (Admin→AssessmentModule)`, 190 행의 `[UC-06](../use-cases/UC-06-evaluation-delete-reeval.md#5-main-flow-sequence-diagram)` · `step 1 (DELETE 또는 POST reeval/reset)` 는 한 글자도 바뀌지 않는다.
-- [ ] 실측 재확인 — Required Reading 의 실측 명령 4 종을 실제로 실행하고 본 task 본문의 주장 (`assessment.controller.ts` route 4 개뿐 · 대체 경로 4 종 전부 shipped · 185/190 행 pipe 4) 과 일치함을 확인한 뒤 문장을 확정한다. 불일치 시 **실측을 따르고** 그 차이를 Follow-ups 에 1 줄 기록한다.
-- [ ] 표 구조 무손상 — 편집 후 `awk 'NR==185{print gsub(/\|/,"|")} NR==190{print gsub(/\|/,"|")}' docs/architecture/api.md` 가 **4 / 4** 로 편집 전과 동일하고 (행 병합 · 줄바꿈 삽입 · 컬럼 추가 금지), `wc -l docs/architecture/api.md` 가 편집 전후 모두 **229** 다.
-- [ ] 검증 grep — (a) `git grep -c "never-built" -- docs/architecture/api.md` 가 편집 전 **6** → 편집 후 **8**, (b) `git grep -c "conceptual placeholder" -- docs/architecture/api.md` 가 편집 전후 모두 **8** (본 task 는 placeholder 부류를 건드리지 않는다), (c) `grep -cE '^\| (GET|POST|PATCH|PUT|DELETE) \|' docs/architecture/api.md` 가 편집 전후 모두 **72** (§ 7 행은 첫 셀이 METHOD 가 아니라 집계 불변), (d) `git grep -n "shipped 기준 68" -- docs/architecture/api.md` 가 여전히 **1 hit** (153 행 합계 불변), (e) `git diff --stat` 이 `docs/architecture/api.md` **1 파일** 만 보이고 `git diff` 의 변경 행이 **185 · 190 행 정확히 2 개** 다 (96~99 · 153 · 155 · 186~189 · 191 · 192 · 194 행은 diff 에 등장하지 않는다).
-- [ ] `src/` · `test/` · `web/` · `prisma/` · `docs/requirements.md` · `docs/use-cases/UC-01-*` · `docs/use-cases/UC-06-*` · `docs/decisions/ADR-0031-*` · `ADR-0038-*` · 그 외 어떤 파일도 수정하지 않는다 (§3.1 rule 3 — direct task 는 doc 만). `git status --porcelain` 결과가 `docs/architecture/api.md` 단 1 개 (driver 의 STATE/journal bookkeeping 제외).
-- [ ] doc-only 라 R-110 tester 면제 (production code 0 LOC · 신규 symbol/분기 0 → R-112 신규 test 대상 없음, [T-1339](T-1339-api-doc-backup-restore-placeholder.md)·[T-1340](T-1340-api-doc-uc07-crossref-placeholder.md)·[T-1341](T-1341-api-doc-uc08-crossref-placeholder.md) 선례) — 대신 위 검증 grep 5 종 + 표 구조 self-check 로 대체한다. `pnpm lint` 는 doc 변경 무영향이라 실행 불요.
+- [x] **185 행 세 번째 셀** — `` `POST /api/assessments/run` `` 을 **삭제하지 말고** (UC-01 §5 alt block 이 호명하는 개념 step 이라 빠지면 cross-reference 가 끊긴다) 나열 끝에 한 구절을 이어 붙인다: bold `**shipped 아님 (never-built)**` 토큰 + 사유의 정본이 § 5 **96 행** 임을 pointer 로 명시 + 실 capability 가 `` `POST /api/assessment-collection/collect` `` + `` `POST /api/assessment-evaluation/period` `` 로 이관됐음을 한 구절로 밝힌다.
+- [x] **190 행 세 번째 셀** — 기존 3 route 나열을 **삭제·순서 변경 없이** 보존한 뒤 같은 형식의 구절을 이어 붙인다: `**shipped 아님 (never-built)**` 토큰 + § 5 **97~99 행** pointer + route 별 대체 경로 3 종 (`DELETE /api/assessments` → `` `POST /api/schedules/recent-deletion/:personId` ``, `reeval` → `` `POST /api/assessment-evaluation/unevaluated-fill-run` ``, `reset` → `` `POST /api/assessment-evaluation/period` `` 의 `reevaluate` flag).
+- [x] **부류 구분 유지** — 두 행 어디에도 `conceptual placeholder` 토큰을 쓰지 않는다 (191·192 행의 backup/restore·permission-denied 와 성격이 다르다 — 본 4 종은 capability 이관 완료 경로). 반대로 191·192 행에 `never-built` 토큰을 역주입하지도 않는다.
+- [x] **중복 서술 금지** — ADR 링크 전문 · T-NNNN 박제 번호 · REQ 번호 같은 상세는 § 5 96~99 행에만 두고 § 7 에 복제하지 않는다 (중복은 다음 갱신 때 두 절이 다시 어긋나는 원인). § 7 셀에는 route 이름과 § 5 행 pointer 만 남긴다.
+- [x] **첫 셀 · 둘째 셀 불변** — 185 행의 `[UC-01](../use-cases/UC-01-evaluation-execution.md#5-main-flow-sequence-diagram)` · `manual trigger 의 alt block (Admin→AssessmentModule)`, 190 행의 `[UC-06](../use-cases/UC-06-evaluation-delete-reeval.md#5-main-flow-sequence-diagram)` · `step 1 (DELETE 또는 POST reeval/reset)` 는 한 글자도 바뀌지 않는다.
+- [x] 실측 재확인 — Required Reading 의 실측 명령 4 종을 실제로 실행하고 본 task 본문의 주장 (`assessment.controller.ts` route 4 개뿐 · 대체 경로 4 종 전부 shipped · 185/190 행 pipe 4) 과 일치함을 확인한 뒤 문장을 확정한다. 불일치 시 **실측을 따르고** 그 차이를 Follow-ups 에 1 줄 기록한다.
+- [x] 표 구조 무손상 — 편집 후 `awk 'NR==185{print gsub(/\|/,"|")} NR==190{print gsub(/\|/,"|")}' docs/architecture/api.md` 가 **4 / 4** 로 편집 전과 동일하고 (행 병합 · 줄바꿈 삽입 · 컬럼 추가 금지), `wc -l docs/architecture/api.md` 가 편집 전후 모두 **229** 다.
+- [x] 검증 grep — (a) `git grep -c "never-built" -- docs/architecture/api.md` 가 편집 전 **6** → 편집 후 **8**, (b) `git grep -c "conceptual placeholder" -- docs/architecture/api.md` 가 편집 전후 모두 **8** (본 task 는 placeholder 부류를 건드리지 않는다), (c) `grep -cE '^\| (GET|POST|PATCH|PUT|DELETE) \|' docs/architecture/api.md` 가 편집 전후 모두 **72** (§ 7 행은 첫 셀이 METHOD 가 아니라 집계 불변), (d) `git grep -n "shipped 기준 68" -- docs/architecture/api.md` 가 여전히 **1 hit** (153 행 합계 불변), (e) `git diff --stat` 이 `docs/architecture/api.md` **1 파일** 만 보이고 `git diff` 의 변경 행이 **185 · 190 행 정확히 2 개** 다 (96~99 · 153 · 155 · 186~189 · 191 · 192 · 194 행은 diff 에 등장하지 않는다).
+- [x] `src/` · `test/` · `web/` · `prisma/` · `docs/requirements.md` · `docs/use-cases/UC-01-*` · `docs/use-cases/UC-06-*` · `docs/decisions/ADR-0031-*` · `ADR-0038-*` · 그 외 어떤 파일도 수정하지 않는다 (§3.1 rule 3 — direct task 는 doc 만). `git status --porcelain` 결과가 `docs/architecture/api.md` 단 1 개 (driver 의 STATE/journal bookkeeping 제외).
+- [x] doc-only 라 R-110 tester 면제 (production code 0 LOC · 신규 symbol/분기 0 → R-112 신규 test 대상 없음, [T-1339](T-1339-api-doc-backup-restore-placeholder.md)·[T-1340](T-1340-api-doc-uc07-crossref-placeholder.md)·[T-1341](T-1341-api-doc-uc08-crossref-placeholder.md) 선례) — 대신 위 검증 grep 5 종 + 표 구조 self-check 로 대체한다. `pnpm lint` 는 doc 변경 무영향이라 실행 불요.
 
 ## Out of Scope
 
@@ -67,4 +69,9 @@ plannerNote: "T-1341 Out of Scope 이월 — § 7 185·190 행이 never-built ro
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **§ 7 세 번째 셀의 대체 route 를 독립 항목으로 승격할지** — 본 task 는 이관 pointer 를 구절 안에서 한 번만 언급했다. UC-01 · UC-06 §5 sequence 재독이 필요한 별개 판단이라 이월한다 (T-1341 의 동형 Follow-up 과 같은 성격).
+- **186~189 행 (UC-02~UC-05) route 전수 shipped 재검증** — 본 task 는 185 · 190 행만 다뤘다. planner 가 이 이월분을 § 5 축에서 먼저 수행해 실 gap 1 건 (`PATCH /api/users/:id/password` 미구현인데 표기 0) 을 찾아 [T-1343](T-1343-api-doc-password-endpoint-placeholder.md) 으로 큐잉했다. § 7 188 행 동기는 § 5 확정 후 별도 slice.
+
+## 결과 요약 (2026-07-31 driver fire)
+
+`docs/architecture/api.md` § 7 cross-reference 표 185 행 (UC-01) · 190 행 (UC-06) 셋째 셀 나열 끝에 `**shipped 아님 (never-built)**` 구절을 각각 append (+2/-2, 1 파일, main direct commit `b2c90d5c`, CI success). 사유 정본은 § 5 96 / 97~99 행 pointer 로만 가리키고, 실 이관 route (185: `POST /api/assessment-collection/collect` + `POST /api/assessment-evaluation/period` / 190: `POST /api/schedules/recent-deletion/:personId` · `POST /api/assessment-evaluation/unevaluated-fill-run` · `POST /api/assessment-evaluation/period` 의 `reevaluate` flag) 를 한 구절로 병기해 "UC-01 · UC-06 이 통째로 미구현" 오독을 차단했다. 191 · 192 행의 conceptual placeholder 부류와 토큰을 분리해 두 부류가 섞이지 않게 유지 (never-built 6→8, conceptual placeholder 8 불변, METHOD 행 72 불변, 총 229 행 불변). **이로써 § 7 표의 미shipped-표기 gap 은 두 부류 모두 닫혔다.**
