@@ -69,3 +69,5 @@ plannerNote: "T-1347 이 PLAN 을 정합시켰으나 modules.md 239·directory.m
 `implementer` (doc-only · architecture doc 2 행 인라인 수정 + bullet 1 줄 추가 — architect · tester 불요, [T-1313](T-1313-p6-deferred-residual-list-resync.md) · [T-1340](T-1340-api-doc-uc07-crossref-placeholder.md) ~ [T-1347](T-1347-plan-p6-panel-mount-residual-resync.md) 선례)
 
 ## Follow-ups
+
+- **구조 무손상 기준치 off-by-one (실측이 정본)** — AC 가 인용한 편집 전 `wc -l` 값 (modules.md 256 · directory.md 182) 은 실측과 1 씩 어긋났다. 실측 편집 전 = modules.md **255** · directory.md **181** (파일 끝 개행 유무 차이). 본 slice 편집 후 실측 = modules.md **256** (bullet 1 줄 추가) · directory.md **181** (불변) 으로, AC 가 의도한 "bullet 1 줄만 증가 · directory 불변" 조건은 그대로 충족한다. 이후 slice 가 같은 문단을 인용할 때는 실측 값을 기준으로 쓴다.

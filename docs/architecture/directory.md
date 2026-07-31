@@ -161,7 +161,7 @@ repo-root `web/src/` 의 실제 구조 (디렉토리 단위 — composition-wiri
 - `web/src/AppShell.tsx` — 전역 레이아웃 + 무라우터 view enum 전환 + R-78 배너 슬롯.
 - `web/src/AuthGate.tsx` — 인증 게이트, `web/src/main.tsx` — Vite 진입점.
 
-backend endpoint 미shipped 로 의도적 defer 된 잔여 (`ReEvaluationTriggerPanel` · `SchedulePanel` 미마운트, auto-polling) 는 [modules.md](modules.md) "WebModule 의 frontend 분리" 단락이 이미 박제 — 본 directory.md 범위 밖이라 중복 박제하지 않는다.
+backend endpoint 미shipped 로 의도적 defer 된 잔여 (auto-polling) 는 [modules.md](modules.md) "WebModule 의 frontend 분리" 단락이 이미 박제 — 본 directory.md 범위 밖이라 중복 박제하지 않는다.
 
 ## References
 
