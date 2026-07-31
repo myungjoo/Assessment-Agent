@@ -2,7 +2,9 @@
 id: T-1340
 title: api.md § 7 191 행 UC-07 cross-reference 의 backup·restore 를 미구현 placeholder 로 표기
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-07-31T04:45:00Z
+resultCommit: 10715686
 commitMode: direct
 coversReq: [REQ-030]
 estimatedDiff: 4
@@ -62,4 +64,4 @@ plannerNote: "T-1339 Follow-up 이월분 — § 5 136·137 이 placeholder 로 �
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- executor 가 발견: § 7 **192 행**(UC-08)의 `GET /api/me/permission-denied` · `GET /api/admin/permission-denied` 도 § 5 139~140 행 기준 미구현 placeholder 인데 § 7 표기가 0 이라 두 절이 어긋난다 → **T-1341 로 이월**(planner 큐잉 완료, direct·1 파일).
