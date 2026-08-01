@@ -2,7 +2,9 @@
 id: T-1367
 title: requirements.md 55 행 REQ-036 상대 비교·LLM 정성·Metric 수치 보유 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-01T11:43:00Z
+result: "REQ-036 상태를 PLANNED → IN_PROGRESS 로 실측 재판정. LLM 정성 축(Summary.narrative)·Metric 수치 축(metricScore)은 schema 361~380 행 + narrative service 54/96/106 행 + summary-aggregate 84 행 + persist 105/110/119/192 행으로 실재 확인, 상대 비교(순위·백분위·person 간) 산출 심볼은 grep 부재 → 미충족으로 IN_PROGRESS. 2 파일 +4/-2, spec commit 5ba64189(direct→main)."
 commitMode: direct
 coversReq: [REQ-036]
 estimatedDiff: 18
