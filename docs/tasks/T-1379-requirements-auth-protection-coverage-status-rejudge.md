@@ -2,7 +2,7 @@
 id: T-1379
 title: requirements.md 62 행 REQ-043 모든 기능 ID/Password 보호 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043]
 estimatedDiff: 28
@@ -63,4 +63,19 @@ plannerNote: "requirements-status-resync 25 번째 slice — 하위 REQ-044/045/
 
 ## Follow-ups
 
-(생성 시점에는 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가한다.)
+- `src/user/group.controller.ts` (9 route) · `src/user/part.controller.ts` (6 route) · `src/user/person.controller.ts` (5 route) 의 guard 미적용 20 route — 코드 주석 (group 51 행 · part 28 행 · person 19 행) 이 "후속 task 책임" 으로 미완임을 명시. 보호 적용 여부는 인증 흐름 변경이라 CLAUDE.md §5 상 별도 ADR / 구현 slice 대상.
+- `src/app.controller.ts` 15 행 `@Get()` 의 공개 의도 명시 부재 — 1~2 행 주석이 "sanity 용도" 라고만 적어 의도적 public 선언이 없다. 명시 박제 또는 보호 적용 판단은 별도 slice.
+- e2e 가 group · part · person 의 미보호를 fail 로 잡지 못함 — 전 route 보호 적용률을 강제하는 drift-guard spec 도입 검토 (별도 slice).
+
+## 완료 기록
+
+- 완료 시각: 2026-08-02 (UTC)
+- 결과: `docs/requirements.md` 62 행 REQ-043 의 상태 컬럼을 `PLANNED` → `IN_PROGRESS (자격증명 축 · guard wiring 축 · 프런트 진입 차단 축 실재 / 전 기능 보호 적용률 축 미완 …)` 으로 재판정.
+- 실측 요약:
+  - **자격증명 축 (충족)** — `src/auth/dto/login.dto.ts` 28~30 행 `email!: string` (`@IsEmail()` + `@IsNotEmpty()`) + 36~38 행 `password!: string` (`@IsString()` + `@IsNotEmpty()`). 검증은 `src/auth/auth.service.ts` 84~85 행 `verifyPassword` 의 `bcrypt.compare` (hash 산출 75~76 행 `hashPassword`, 상수 52 행 `BCRYPT_ROUNDS`). 발급물은 92 행 `issueAccessToken` · 106 행 `issueRefreshToken` 의 JWT 2 종이며 `src/auth/auth.controller.ts` 173~174 행에서 HttpOnly cookie (83~84 행 이름 상수, 90 행 `httpOnly: true`) 로 저장.
+  - **wiring 축 (충족)** — `jwt-auth.guard.ts` 22 행 → `jwt.strategy.ts` 60 행 `jwtFromRequest: cookieExtractor` (36 행) → 76~88 행 `validate` 의 401 3 분기. `roles.guard.ts` 51 행 `canActivate` 의 69 · 73 행 401 / 86 행 403. 등록은 `auth.module.ts` 81~82 행 providers / exports, controller 참조 실재.
+  - **적용률 축 (미충족)** — controller 20 개 중 `@UseGuards` 보유 16 개. route 74 개 중 보호 49 개 / 미보호 25 개. `APP_GUARD` grep 0 건 = 전역 등록 **없음**. 미적용 controller 4 개: `src/app.controller.ts` · `src/user/group.controller.ts` · `src/user/part.controller.ts` · `src/user/person.controller.ts` (합 21 route). 잔여 미보호 4 route = auth login / logout / refresh (148 · 194 · 218 행) + `src/user/user.controller.ts` 156 행 signup (142~144 행 주석이 Public tier 로 의도 명시).
+  - **프런트 진입 축 (충족)** — `web/src/AppShell.tsx` 136 행 `<AuthGate>` 배선 (37 행 `const onLogin = authLogin`), 차단 지점 `web/src/AuthGate.tsx` 81~83 행, 입력 필드 2 개 `web/src/components/LoginForm.tsx` 56~57 행 (`type="text" name="username"`) · 66~68 행 (`type="password" name="password"`).
+  - **검증 위치 실측** — `test/e2e/auth.e2e-spec.ts` `it(` 27 개 · `src/auth/jwt-auth.guard.spec.ts` 6 개 · `src/auth/roles.guard.spec.ts` 24 개. e2e 641 행이 미인증 (cookie 부재) 401 경로를 cover.
+- 표 무결성: `wc -l docs/requirements.md` = 97 (편집 전후 동일), `grep -c "^| REQ-"` = 66 (동일), 61 · 62 · 63 행 `|` 필드 수 = 8 로 동일. 상태 문자열에 리터럴 `|` 없음.
+- 코드 · schema 변경 0 (doc-only direct commit).
