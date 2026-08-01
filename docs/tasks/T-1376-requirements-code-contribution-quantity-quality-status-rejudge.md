@@ -2,7 +2,7 @@
 id: T-1376
 title: requirements.md 29 행 REQ-010 코드 기여 양·질 평가 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-010]
 estimatedDiff: 26
@@ -65,4 +65,14 @@ plannerNote: "requirements-status-resync 22 번째 slice — REQ-010 (README 24 
 
 ## Follow-ups
 
-- (실측 후 추가)
+- **양 축이 코드 규모를 보지 않는다** — `calculateEvaluationVolume` (evaluation-volume.ts 31 행) 이 `metadata.titleLength` 1 신호만 쓴다. 변경 라인 수 · 변경 파일 수 metric 은 `ActivityMetadata` 자체에 부재라, 양 지표 강화는 collection-side metadata enrich 가 선행돼야 한다 (별도 ADR slice 대상).
+- **질 축의 결정적 층이 양 축과 동일 신호를 공유** — `computeContributionQualitySignal` 도 같은 `titleLength` 를 임계 비교한다 (evaluation-quality-signal.ts 137 행). 두 축의 독립성 확보는 metadata enrich 후 재검토.
+- **질 축 결정적 경로의 상향 부재** — `applyContributionQualityFloor` 는 강등(floor) 방향만 있다 (evaluation-quality-adjust.ts 143~145 행). 상향은 LLM 등급에만 의존하며, REQ-011 의 중요기여도 narrative marker 접두에 그친다.
+- **두 축 합성 지점 부재** — `evaluation-result.persist.mapper.ts` 183 / 190 / 200 행이 volume 합 · contributionScore 평균 · difficulty 최대를 축별로 따로 집계할 뿐 축 간 가중치가 없다. "양·질 종합 점수" 가 필요하면 별도 ADR 로 수식·가중치를 먼저 박제해야 한다.
+- **산출 경로의 non-live 검증 부재** — 두 축 산출 helper 를 발화시키는 경로는 env-gated live smoke 2 종뿐이고 public CI 기본 조건에서는 skip 된다. mock LLM 기반 orchestrator e2e 도입 여부는 별도 slice.
+- **옛 번호 체계 잔재** — `src/assessment-collection/domain/page-dedup.ts` 4 행 주석의 `REQ-010(구조적/시간적 중복 제거)` 은 현 표의 REQ-010 (코드 기여 양·질) 이 아니라 중복 제거를 가리키는 옛 번호다. 본 task 는 코드 주석을 손대지 않았다 (Out of Scope). 옛 번호 잔재 일괄 정리는 별도 slice 판단 대상.
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-02 (UTC)
+- **결과 요약**: REQ-010 (requirements.md 29 행) 상태를 `PLANNED` → `DONE (implemented-on-main — ...)` 로 재판정했다. 실측 근거 — 양 축 `calculateEvaluationVolume` (evaluation-volume.ts 30 행, `metadata.titleLength` 단일 신호 → `Math.floor` + 음수 절하로 ≥ 0 정수), 질 축 2 층 (LLM 등급 `classifyNarrative` evaluation-prompt.ts 155 행 + default 32/33 행 `"medium"` / `"low"`, 결정적 신호 `computeContributionQualitySignal` evaluation-quality-signal.ts 115 행 + 임계 52 행 `CONTRIBUTION_QUALITY_TITLE_FLOOR = 1`, 소비 `applyContributionQualityFloor` evaluation-quality-adjust.ts 119 행 → 62 행 `CONTRIBUTION_QUALITY_FLOOR_LEVEL = "zero"` 강등), 두 축 병존 (`EvaluationResult` evaluation-result.ts 54 행 5 필드 + `model Contribution` schema.prisma 329 행의 335~337 행 3 컬럼), wiring (detection-pipeline 108 행 3 번째 필드 · adjustments-pipeline 211 행 5-adjuster 중 3 번째 · orchestrator 158/164/177 행), 검증 근거 domain unit 5 spec 123 it (21+20+24+37+21) + e2e `contributions.e2e-spec.ts` 19 it (노출 축만). 한계는 상태 문자열에 "한계 —" 2 절로 부기했다 (양 축이 코드 규모 미참조 · 두 축 동일 신호 공유 · 상수 calibration 부재 · 합성 가중치 부재 · 오탐 개입 경로 부재 · 산출 경로 e2e/smoke 는 env-gated live 뿐). 표 무결성 확인 — `wc -l` 97 행 불변, `grep -c "^| REQ-"` 66 행 불변, REQ-010 행 `|` 8 개로 REQ-009 · REQ-011 과 동일.
