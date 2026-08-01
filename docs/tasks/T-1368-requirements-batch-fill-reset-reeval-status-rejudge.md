@@ -2,7 +2,7 @@
 id: T-1368
 title: requirements.md 56 행 REQ-037 평가 없는 부분 일괄 평가 + Reset & Reeval 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-037]
 estimatedDiff: 18
@@ -58,6 +58,21 @@ plannerNote: "requirements-status-resync 14 번째 slice — T-1367 Follow-ups �
 
 `implementer` (doc-only 실측 + 표 갱신). 코드 변경이 0 이므로 tester 는 생략한다 (CLAUDE.md §3.2 R-110 의 direct-mode doc-only 면제).
 
+## 결과 (2026-08-01 완료)
+
+REQ-037 (56 행) 상태를 `PLANNED` → **`IN_PROGRESS`** 로 재판정했다 — 2 축 중 일괄 평가 축은 충족, Reset & Reeval 축은 Reeval 만 충족이고 디버깅용 명시적 Reset 은 외부 호출 불가라 `DONE` 이 아니다.
+
+실측값:
+
+- **일괄 평가 축 (충족)** — `assessment-evaluation.controller.ts` 538 행 `@Post("unevaluated-fill-plan")` (handler `planUnevaluatedFill`) · 599 행 `@Post("unevaluated-fill-run")` (handler `runUnevaluatedFill`), 둘 다 `@Roles("Admin")` Admin+ gate. plan 은 `EvaluationUnevaluatedFillPlanner` (planner service 38 행) 의 64 행 `planUnevaluatedFill` → `composeUnevaluatedFillPlan` (`domain/evaluation-unevaluated-fill-plan.ts` 90 행), run 은 `UnevaluatedFillRunOrchestratorService` (orchestrator 61 행) 의 107 행 `run(rawBridges, requestModelId, defaultModelId)` → `runUnevaluatedFillRunCore`.
+- **"평가 결과가 없는 부분" 판별** — `domain/evaluation-unevaluated-period-select.ts` 128 행 `selectUnevaluatedPeriods(intended, persisted)`. 판정 기준은 값의 null 여부가 아니라 **좌표의 영속 레코드 부재** — 63 행 `coordinateKey` 의 (personId, period, scope, periodStart) 4-tuple 키 차집합. periodStart 는 epoch ms 정규화, 문자열 3 축은 exact match, intended 중복은 dedup 안 함.
+- **Reset 축 (미충족)** — `grep -rn "deleteMany" src/assessment-evaluation --include=*.ts | grep -v spec` 결과는 정확히 2 건: `evaluation-result-persist.service.ts:147` · `summary-persist.service.ts:146`, 둘 다 `resetByPeriod(personId, period)` 안이다. 두 심볼의 전체 참조는 자기 service + 자기 spec 뿐 (`grep -rn resetByPeriod src test` = 4 파일 19 건, controller/orchestrator 0) → **명시적 reset endpoint 부재**, 내부 reset-and-recreate 로만 충족.
+- **Reeval 경로 (충족)** — controller 241 행 `dto.mode === "reeval" ? "reeval" : "fill"` (208 행 `@Post("evaluate")`) · 500 행 `dto.reevaluate` pass-through (339 행 `@Post("period")`, 393 행 비-Admin 403 fail-closed). 덮어쓰기 실체는 `summary-persist.service.ts` 153 행 `persistInTransaction` — `findUnique` 후 fill 이면 no-op, reeval 이면 177 행 `tx.summary.delete` → `createSummary`.
+- **검증 위치 `e2e` 근거** — `unevaluated-fill-plan.e2e-spec.ts` 9 it · `unevaluated-fill-run.e2e-spec.ts` 9 it · `period-bridge-reevaluate.e2e-spec.ts` 9 it (계 27 it). Reset 축 전용 cover 는 unit 뿐 — `summary-persist.service.spec.ts` 367 행 `describe("resetByPeriod (partial-reset)")` 3 it, e2e 0 (한계에 부기).
+- **표 무결성** — 편집 전후 `wc -l docs/requirements.md` = 97 불변, `grep -c "^| REQ-"` = 66 불변, 55~57 행 (REQ-036 · REQ-037 · REQ-038) `|` 개수 모두 8 로 동일.
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+- 디버깅 목적의 **명시적 Reset endpoint 신설** (`resetByPeriod` 두 service 메서드를 controller 에 wiring — Admin+ gate + e2e) 은 별도 `pr` task. 본 doc-only task 범위 밖이며, 이것이 REQ-037 을 `DONE` 으로 올리는 잔여 조건이다.
+- REQ-037 검증 위치 컬럼 (`e2e`) 자체의 재판정 — Reset 축 e2e 가 0 이므로 향후 `unit + e2e` 등으로의 정정 여부는 검증 위치 재판정 slice 에서 판단.
+- `requirements-status-resync` stream 다음 slice 후보: 남은 `PLANNED` row 재판정 (본 task 는 REQ-037 단일 row 만 다뤘다).
