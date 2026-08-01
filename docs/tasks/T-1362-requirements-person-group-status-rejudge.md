@@ -2,7 +2,7 @@
 id: T-1362
 title: requirements.md 45 · 47 행 REQ-026 · REQ-028 인원/그룹 관리 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-026, REQ-028]
 estimatedDiff: 12
@@ -33,7 +33,7 @@ plannerNote: "requirements-status-resync 8 번째 slice — src/user 인원·그
 
 ## Acceptance Criteria
 
-- [ ] **실측 선행** — 아래 7 항목을 먼저 grep/ls 로 확인하고 결과 수치를 commit body 에 남긴다. 기대치와 어긋나면 **문서를 실측에 맞춘다**(반대 금지, 날조 금지 — 주석 hit 포함으로 수치가 커지면 실측값 채택).
+- [x] **실측 선행** — 아래 7 항목을 먼저 grep/ls 로 확인하고 결과 수치를 commit body 에 남긴다. 기대치와 어긋나면 **문서를 실측에 맞춘다**(반대 금지, 날조 금지 — 주석 hit 포함으로 수치가 커지면 실측값 채택).
   - `grep -nE "@(Get|Post|Patch|Delete)\(" src/user/person.controller.ts` → **5 endpoint**
   - `grep -n "async deactivate\|async reactivate" src/user/person.service.ts` → **2 hit**
   - `ls test/e2e/persons.e2e-spec.ts test/e2e/groups.e2e-spec.ts` → **2 파일 존재** (+ 각 파일 `grep -c "it("` 수치 기록)
@@ -41,11 +41,11 @@ plannerNote: "requirements-status-resync 8 번째 slice — src/user 인원·그
   - `grep -n "partId String?" prisma/schema.prisma` → **1 hit** (조직도 파트 FK 가 **nullable**)
   - `ls src/user/part.service.ts src/user/group.service.ts src/user/person-group-membership.repository.ts` → **3 파일 존재**
   - `grep -n "^- \[x\] 평가 대상 인원 관리\|^- \[x\] \*\*Group 정책" docs/PLAN.md` → **2 hit** (행 번호는 실측값 기록)
-- [ ] [docs/requirements.md](../requirements.md) **45 행 REQ-026** 의 **상태 컬럼 1 개**를 `PLANNED` → `DONE (...)` 으로 치환. 근거는 `PersonService` CRUD + `deactivate`/`reactivate`(휴직 숨김) 를 `PersonController` 5 endpoint 가 forward + `persons.e2e-spec.ts`(검증 위치 `unit + e2e` 와 정합). **한계 부기 의무** — 전용 `POST /:id/deactivate` endpoint 가 없고 활성 토글이 `PATCH :id` 경유라면 그 사실을 상태 문자열에 그대로 적는다(실측으로 확인, 과장 금지).
-- [ ] **47 행 REQ-028** 의 상태 컬럼 1 개를 `DONE (...)` 으로 치환. 근거는 `PersonGroupMembership` 중간 테이블(`@@unique([personId, groupId])`)의 N:M 다중 group 소속 + `Person.partId` 단일 FK 의 조직도 파트 1 개. **한계 부기 의무** — `partId` 가 **nullable** 이라 "정확히 1 파트" invariant 가 DB 제약이 아니라는 사실(schema 23~26 행 주석의 박제)을 상태 문자열에 명시한다.
-- [ ] **구조 무손상 검증** — 편집 후 `wc -l docs/requirements.md` · `grep -c "^| REQ-" docs/requirements.md` = **66** 이 불변이고, 45 · 47 행의 `|` 개수가 각각 편집 전과 동일(**8**)함을 확인.
-- [ ] **잔여 카운트 정직성** — 편집 후 `grep -c PLANNED docs/requirements.md` 가 **31 → 29** (REQ row 기준 29 → 27). 이 수치를 commit body 에 남긴다.
-- [ ] 두 row 의 **나머지 6 컬럼**(REQ / README 행 / 요약 / kind / 구현 위치 / 검증 위치)과 **다른 64 row** 는 무수정.
+- [x] [docs/requirements.md](../requirements.md) **45 행 REQ-026** 의 **상태 컬럼 1 개**를 `PLANNED` → `DONE (...)` 으로 치환. 근거는 `PersonService` CRUD + `deactivate`/`reactivate`(휴직 숨김) 를 `PersonController` 5 endpoint 가 forward + `persons.e2e-spec.ts`(검증 위치 `unit + e2e` 와 정합). **한계 부기 의무** — 전용 `POST /:id/deactivate` endpoint 가 없고 활성 토글이 `PATCH :id` 경유라면 그 사실을 상태 문자열에 그대로 적는다(실측으로 확인, 과장 금지).
+- [x] **47 행 REQ-028** 의 상태 컬럼 1 개를 `DONE (...)` 으로 치환. 근거는 `PersonGroupMembership` 중간 테이블(`@@unique([personId, groupId])`)의 N:M 다중 group 소속 + `Person.partId` 단일 FK 의 조직도 파트 1 개. **한계 부기 의무** — `partId` 가 **nullable** 이라 "정확히 1 파트" invariant 가 DB 제약이 아니라는 사실(schema 23~26 행 주석의 박제)을 상태 문자열에 명시한다.
+- [x] **구조 무손상 검증** — 편집 후 `wc -l docs/requirements.md` · `grep -c "^| REQ-" docs/requirements.md` = **66** 이 불변이고, 45 · 47 행의 `|` 개수가 각각 편집 전과 동일(**8**)함을 확인.
+- [x] **잔여 카운트 정직성** — 편집 후 `grep -c PLANNED docs/requirements.md` 가 **31 → 29** (REQ row 기준 29 → 27). 이 수치를 commit body 에 남긴다.
+- [x] 두 row 의 **나머지 6 컬럼**(REQ / README 행 / 요약 / kind / 구현 위치 / 검증 위치)과 **다른 64 row** 는 무수정.
 
 ## Out of Scope
 
@@ -59,8 +59,23 @@ plannerNote: "requirements-status-resync 8 번째 slice — src/user 인원·그
 
 `implementer` (doc-only 편집 — 실측 grep 선행 후 상태 컬럼 2 개 치환). doc-only 라 R-110 tester 면제 — 대신 위 실측 grep + 구조 self-check 로 대체한다.
 
+## 완료 기록 (2026-08-01)
+
+실측값 (7 항목 전부 기대치 일치):
+
+- `person.controller.ts` endpoint **5** (53 `@Get()` / 60 `@Get(":id")` / 68 `@Post()` / 81 `@Patch(":id")` / 91 `@Delete(":id")`)
+- `person.service.ts` `async deactivate` 143 행 · `async reactivate` 155 행 → **2 hit** (둘 다 controller 미노출 — 활성 토글은 `PATCH :id` 의 `{active}` 경유)
+- e2e spec **2 파일 존재** — `persons.e2e-spec.ts` `it(` **11**, `groups.e2e-spec.ts` `it(` **15**
+- `@@unique([personId, groupId])` 선언 **1** (schema 140 행; 18 · 125 · 217 행은 주석 hit)
+- `partId String?` **1 hit** (schema 74 행 — nullable 확정)
+- `part.service.ts` · `group.service.ts` · `person-group-membership.repository.ts` **3 파일 존재** (+ 각 unit spec 보유)
+- PLAN.md `[x]` bullet **2 hit** — 53 행(인원 관리) · 56 행(Group 정책)
+
+편집 후 구조: `wc -l` **97** 불변, `^| REQ-` **66** 불변, 45 · 47 행 `|` 개수 각각 **8** 불변, `PLANNED` 전체 **31 → 29** (REQ row 기준 **29 → 27**). diff `+2/-2` (1 파일).
+
 ## Follow-ups
 
+- **REQ-028 검증 위치 컬럼 stale 의심** — 현재 `unit` 이나 `test/e2e/groups.e2e-spec.ts` (15 it) 가 실재한다. 상태 컬럼 외 수정은 본 task Out of Scope 라 손대지 않았다 — 검증 위치 컬럼 재판정은 별도 slice 후보.
 - **다음 slice 후보: REQ-029 (48 행, 평가 자료 non-volatile 저장) + REQ-032 (51 행, raw data 저장 금지).** 둘 다 P3 저장 정책 축이라 근거(`prisma/schema.prisma` + 관련 ADR)가 겹친다 — 단 REQ-032 는 `ADR 필수` Constraint 라 ADR 존재 여부 실측이 선행돼야 한다.
 - **REQ-028 의 결핍 1 종** — `Person.partId` nullable 로 인한 "정확히 1 파트" 미강제(schema 23~26 행이 후속 service-layer 책임으로 defer). 강제 도입은 별도 task 후보이며 data migration 을 동반하므로 CLAUDE.md §5 BLOCKED 대상 검토 필요.
 - **잔여 `PLANNED` 27 개 REQ row** — 상태 stale 해소는 계속 slice 단위로.
