@@ -62,4 +62,6 @@ plannerNote: "requirements-status-resync 13 번째 slice — T-1366 Follow-ups �
 
 ## Follow-ups
 
-(작성 시점 비어있음 — sub-agent 가 관련 작업 발견 시 append)
+- **REQ-036 상대 비교 축 미충족 (본 재판정 결과 `IN_PROGRESS`)** — 순위 · 백분위 · person 간 비교 산출 심볼이 `src/` 전체에 부재하고 `summary.controller.ts` 100~105 행 findAll 은 `personId`/`period` filter + `periodStart desc` 정렬만 제공한다. 같은 `(period, periodStart)` 좌표의 다중 person `metricScore` 를 비교 가능한 조회 경로 (예: metricScore sort 또는 person 간 순위/백분위 산출) 를 별도 `pr` task 로 설계·구현해야 REQ-036 이 `DONE` 이 된다.
+- **다음 slice 후보: REQ-037 (56 행, 평가 없는 부분 일괄 평가 + Reset & Reeval)** — `summary-persist.service.ts` 146 행 deleteMany 기반 reset-and-recreate 와 summary batch orchestrator 가 실재해 `PLANNED` stale 의심. `requirements-status-resync` stream 14 번째 slice 로.
+- **일별(day) 요약의 축 구성 미확인** — README 63 행은 주간/월간만 두 축 보유를 지시하나 현 구현은 period 무관하게 같은 Summary model 을 쓴다. day 좌표의 `narrative`/`metricScore` 의미 차이를 별도로 확인할 가치가 있다 (REQ-034 row 와 교차).
