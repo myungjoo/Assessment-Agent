@@ -2,7 +2,7 @@
 id: T-1378
 title: requirements.md 22 행 REQ-003 기여 양·질 평가 / 저장 / 표시 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-003]
 estimatedDiff: 28
@@ -63,4 +63,15 @@ plannerNote: "requirements-status-resync 24 번째 slice — T-1377 Out of Scope
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- `model Contribution` (`prisma/schema.prisma` 329~349 행) 에 narrative 컬럼이 없어 단위별 LLM 평가문이 Assessment 303 행 `narrative` 로 join 되어서만 남는다 — 단위별 정성 근거의 개별 조회를 지원할지 여부는 schema 변경 판단이 필요하므로 별도 ADR slice.
+
+## 완료 기록
+
+- 완료 시각: 2026-08-02 (UTC)
+- 판정: REQ-003 (22 행) `PLANNED` → `IN_PROGRESS (평가 축 · 저장 축 · 표시 축 API 실재 / 표시 축 프런트 렌더 부재)`.
+- 평가 축 실측: `src/assessment-evaluation/evaluation-orchestrator.service.ts` 139~142 행 `evaluateActivities` → 164 행 `scoreUnit` 순차 호출. 양 축 = `evaluation-scoring.service.ts` 107 행 `calculateEvaluationVolume` (정의 `domain/evaluation-volume.ts` 30 행), 질 축 = 99~101 행 `gateway.generate` 의 `narrative` + 104 행 `classifyNarrative` (정의 `domain/evaluation-prompt.ts` 155 행). 두 축 모두 실재.
+- 저장 축 실측: `evaluation-result-persist.service.ts` 103 행 `persist` → 108 행 매퍼 → 213 행 `tx.assessment.create` nested create (reset-and-recreate insert, upsert 아님). 양 축 → Contribution 337 행 · Assessment 302 행 `volume Int`, 질 축 → `difficulty` (335 / 300 행) + 수치 변환된 `contributionScore Decimal` (336 / 301 행) + Assessment 303 행 `narrative` 만. Contribution 에는 narrative 컬럼 부재.
+- 표시 축 실측: API 는 `src/user/assessment.controller.ts` 93~96 행 → service 99~106 행 → repository 134~148 행 `findMany` (select 절 없음) 로 4 필드 전량 노출. 프런트는 `web/src/views/DashboardView.tsx` 368~369 행이 소비하는 `EvaluationResultRow` (`EvaluationResultTable.tsx` 9~18 행) 가 `id` 외 backend 필드와 0 개 일치, `volume` · `difficulty` 참조 0 → 미충족.
+- wiring 축: 전수 참조에서 orchestrator 3 곳 · persist 2 곳 생성자 주입 실재, controller 208~211 행 `@Post("evaluate")` → 220 행 → 243 행 chain 확인 (호출 0 심볼 없음).
+- 검증 근거: 행두 `it(` 기준 119 + 18 + 35 = 172 it. smoke 150 파일 중 REQ-003 저장·표시 축 cover 0, 평가 축만 `test/smoke/period-bridge-live.smoke-spec.ts` 2 it (env-gated `describe.skip`).
+- 표 불변 확인: `wc -l` 97 행 · `grep -c "^| REQ-"` 66 행 편집 전후 동일, 21~23 행 `|` 필드 수 모두 9 로 동일.
