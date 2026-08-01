@@ -56,4 +56,6 @@ plannerNote: "requirements-status-resync 11 번째 slice — T-1364 Follow-ups �
 
 ## Follow-ups
 
-- (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가한다.)
+- 실측 중 확인된 gap (본 task 범위 밖, 구현 금지): `scheduling.module.ts` 의 `CRON_TICK_HANDLER` 기본 provider 가 logging no-op stub 이라 주기 수집이 실 평가 pipeline 에 미결선이다. 자동 주기 재수집 결선은 별도 pr-mode task 로 분리 필요.
+- window (기본 7 일) 밖에서 뒤늦게 push 된 과거 자료를 잡는 보정 경로가 부재하다 — 현재는 manual `backfill.controller.ts` 호출 의존. 보정 정책은 ADR-first 로 다룰 후보.
+- 다음 `requirements-status-resync` slice 후보: REQ-033 (58 행 인접, 건별 기여도·난이도·양) 이 여전히 `PLANNED` 인지 실측 재판정.
