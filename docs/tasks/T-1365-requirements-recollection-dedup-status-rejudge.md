@@ -2,7 +2,7 @@
 id: T-1365
 title: requirements.md 50 행 REQ-031 재수집 중복 방지 + 최근 1주 재수집 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-031]
 estimatedDiff: 16
@@ -59,3 +59,16 @@ plannerNote: "requirements-status-resync 11 번째 slice — T-1364 Follow-ups �
 - 실측 중 확인된 gap (본 task 범위 밖, 구현 금지): `scheduling.module.ts` 의 `CRON_TICK_HANDLER` 기본 provider 가 logging no-op stub 이라 주기 수집이 실 평가 pipeline 에 미결선이다. 자동 주기 재수집 결선은 별도 pr-mode task 로 분리 필요.
 - window (기본 7 일) 밖에서 뒤늦게 push 된 과거 자료를 잡는 보정 경로가 부재하다 — 현재는 manual `backfill.controller.ts` 호출 의존. 보정 정책은 ADR-first 로 다룰 후보.
 - 다음 `requirements-status-resync` slice 후보: REQ-033 (58 행 인접, 건별 기여도·난이도·양) 이 여전히 `PLANNED` 인지 실측 재판정.
+
+## Result (완료 기록)
+
+- 완료 시각: 2026-08-01 (UTC)
+- 실측값:
+  - `commit-dedup.ts` — `dedupGithubActivities()`, 키 = commit 은 `commit:<externalId>`(SHA) earliest-wins / pr·issue 는 `<kind>:<repoRef>:<externalId>`.
+  - `page-dedup.ts` — `dedupConfluenceActivities()`, 키 = page-id + 최대 `version` latest-wins.
+  - `recollection-window.ts` — `applyRecollectionWindow(since, windowDays)` + `RECOLLECTION_WINDOW_DAYS = 7`.
+  - 배선 — `github-collection.service.ts` 32·115 행, `confluence-collection.service.ts` 41·90 행, `since-derivation.service.ts` 25·59 행(`deriveSinceWithRecollectionWindow`) → `collection-trigger.service.ts` 67 행.
+  - spec 4 개 합계 76 it (31 / 9 / 17 / 19).
+- 판정: REQ-031 상태 `PLANNED` → `DONE (implemented-on-main — ...)` + "한계 —" 부기 (window 밖 late-arriving 보정 경로 부재 · `CRON_TICK_HANDLER` 기본 provider 가 no-op stub 이라 자동 주기 재수집 미결선).
+- 표 무결성: `wc -l` 97 불변, `grep -c "^| REQ-"` 66 불변, 49/50/51 행 모두 7 필드 유지.
+- commit: `4d4166b6` (direct, main). CI run 30694215314 — fire 종료 시점 in_progress.
