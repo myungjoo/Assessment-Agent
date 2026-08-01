@@ -2,7 +2,7 @@
 id: T-1374
 title: requirements.md 38 행 REQ-019 새 알고리즘·외부 연구 소개 = 높은 contribution 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-019]
 estimatedDiff: 22
@@ -63,4 +63,18 @@ plannerNote: "requirements-status-resync 20 번째 slice — T-1373 Out of Scope
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+- 두 quality 파일 (`src/assessment-evaluation/domain/evaluation-quality-signal.ts` 2~3 행 · `src/assessment-evaluation/domain/evaluation-quality-adjust.ts` 2~3 행) 주석의 `REQ-037 / REQ-038` 표기는 본 표의 실제 REQ-037 (64 행 일괄 평가 + Reset & Reeval) · REQ-038 (68-71 행 UI 조회) 과 다른 대상을 가리키는 **오기** 다 (README 행 번호 `R-37 / R-38` 을 REQ ID 로 잘못 적음). 올바른 대응은 `REQ-018 / REQ-019` 다. 주석 수정은 코드 변경이라 `commitMode: pr` slice 로 별도 박제 필요 (같은 오기가 다른 domain 파일에도 있는지 전수 확인 포함).
+- R-38 상향 축의 결정적 helper (예: `computeHighContributionSignal`) 신규 구현 여부 결정 — 현재 상향은 LLM 산출 단일 경로라 비결정적이고 marker 미인식 시 `"low"` 로 조용히 소실된다. 결정적 상향 신호를 도입할지, LLM 단일 경로를 유지하되 marker 미인식을 관측 가능하게 (로그 · 카운터) 만들지 ADR 로 판단.
+- REQ-019 검증 위치 컬럼 (`unit + manual`) 재판정 — `manual` 축을 뒷받침하는 문서화된 수동 검증 절차가 `docs/` 에 부재함을 본 task 가 실측했다. 절차를 문서화하거나 컬럼 값을 조정하는 별도 slice.
+
+## 완료 기록
+
+- 완료 시각: 2026-08-01T18:40Z
+- 결과: `docs/requirements.md` 38 행 REQ-019 상태를 `PLANNED` → `IN_PROGRESS (등급 정의 축 · LLM 산출 축 · 점수 영속 축 실재 / 상향을 결정하는 결정적 식별 축 · 부여 축 부재 ...)` 로 갱신.
+- 실측 요약:
+  - 식별 축 = **부재**. `computeContributionQualitySignal` (`evaluation-quality-signal.ts` 115 행) 의 판정식은 137 행 `titleLength <= CONTRIBUTION_QUALITY_TITLE_FLOOR` (52 행 상수 `= 1`) 로 `metadata.titleLength` 단일 필드의 **임계 이하** 만 세므로 zero-contribution 후보 식별 (R-37 하향) 전용. high 후보 식별 분기는 domain 전수 0.
+  - 부여 축 = **강등 전용**. `applyContributionQualityFloor` (`evaluation-quality-adjust.ts` 119 행) 의 대입 값은 62 행 `CONTRIBUTION_QUALITY_FLOOR_LEVEL = "zero"` 뿐 (단조 비상향), 37 · 60 · 110~111 행 주석이 상향 비담당을 자인. `high` 상향은 `evaluation-prompt.ts` 109 행 지시 + 155~170 행 `classifyNarrative` marker 파싱의 LLM 경로뿐이고 미인식 시 33 행 `DEFAULT_CONTRIBUTION = "low"` 로 환원 (task 가설의 `"medium"` default 는 **오류** — 실측값은 `"low"`). `evaluation-result.ts` 28 행 `"high"` 의미 정의는 문서 주석뿐, 실행 로직은 32 · 37 · 48 행 멤버십 검증까지.
+  - wiring 축 = 실재. detection `evaluation-detection-signals-pipeline.ts` 51 · 108 행 → adjustments `evaluation-adjustments-pipeline.ts` 74 · 211~214 행 (5-adjuster 중 3 번째) → 본류 `evaluation-orchestrator.service.ts` 158 · 177 행. 상향의 실 배선은 `evaluation-scoring.service.ts` 104 행.
+  - 영속 = R-38 전용 컬럼 없음. `high` 는 `evaluation-result.persist.mapper.ts` 147 행 → 70~78 행 매핑 (high 3) 을 거쳐 `Contribution.contributionScore Decimal` (schema 336 행) 숫자로만 남음.
+  - 검증 위치 실 근거 = `evaluation-quality-signal.spec.ts` 20 it · `evaluation-quality-adjust.spec.ts` 24 it · `evaluation-prompt.spec.ts` 37 it. `manual` 축 문서 절차 부재, e2e / smoke 0.
+- 표 불변 검증: `wc -l docs/requirements.md` = 97 (편집 전후 동일), `grep -c "^| REQ-"` = 66 (동일), REQ-018 · REQ-019 · REQ-020 의 `|` 필드 수 = 9 로 동일. 상태 문자열에 리터럴 `|` 없음.
