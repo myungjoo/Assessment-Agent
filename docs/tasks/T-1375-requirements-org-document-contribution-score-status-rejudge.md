@@ -65,4 +65,20 @@ plannerNote: "requirements-status-resync 21 번째 slice — T-1374 Out of Scope
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — 실측 중 발견한 후속 작업을 여기에 append 한다.)
+- 문서 축 조직 기여 신호 (예: `computeDocumentContributionSignal` — author 별 `contributionKind === "document"` 단위 수 상대 비교) 도입 여부를 ADR 로 판단. 현재 상대 비교 신호 2 종 (`computeNotableContributionSignal` · `computeUnderPerformerSignal`) 이 모두 `"code"` 단위만 세어 문서 기여만 많은 인원은 식별·marker 대상에서 구조적으로 제외된다.
+- `EvaluationResult` 에 `contributionKind` 를 전파할지 결정 — 현재 집계 층 (`summary-aggregate.ts`) 이 code/document 를 구분할 수 없어 문서 전용 가중치·문서 축 관측이 불가능하다. 타입 변경 + persist mapper + schema 영향 범위가 커 별도 ADR + `commitMode: pr` slice 필요.
+- 옛 번호 체계 잔재 정리 — `docs/decisions/ADR-0003-deployment.md` 22 · 55 · 88 · 168 · 173 행과 `docs/tasks/T-0015-adr-0003-deployment-rest.md` 의 `REQ-020` 언급은 현 표의 REQ-020 (39 행 조직 기여) 이 아니라 "권한 부족 통지 (README 19~22 행)" 를 가리킨다. ADR 본문 정정은 이력 보존 정책과 충돌 가능 — 표기 정정 vs 각주 부기 중 어느 쪽인지 별도 판단.
+- REQ-020 검증 위치 컬럼 (`manual + unit`) 재판정 — `manual` 축을 뒷받침하는 문서화된 수동 검증 절차가 `docs/` 에 부재함을 본 task 가 실측했다. 절차를 문서화하거나 컬럼 값을 조정하는 별도 slice.
+
+## 완료 기록
+
+- 완료 시각: 2026-08-02T02:20Z
+- 결과: `docs/requirements.md` 39 행 REQ-020 상태를 `PLANNED` → `IN_PROGRESS (문서 기여의 결과 반영 축 · 등급→점수 영속 축 · LLM 정성 코멘트 산출 축 실재 / 문서 축 조직 기여 식별 축 · 결정적 점수 상향 축 · 문서 기반 코멘트 상향 축 부재 …)` 로 갱신.
+- 실측 요약:
+  - 식별 축 = **부재**. `src` 이하 `*.ts` (spec 제외) 에서 `R-39` · `REQ-020` · "39 행" 검색 0 행. 최근접 `computeNotableContributionSignal` (`evaluation-notable-contribution-signal.ts` 128~130 행) 은 150~152 행 `if (input.contributionKind === "code")` 로 code 단위만 세고 21~23 · 77 행 주석이 document 제외를 자인. 판정식 167~173 행 (71 행 `NOTABLE_RELATIVE_CEILING = 1.5` 초과), 대칭 하향 `evaluation-underperformer-signal.ts` 146 행 · 67 행 (`= 0.5`) 도 동일하게 document 제외.
+  - 점수 축 = **간접 효과뿐**. 5-adjuster 중 상향 0 (adjust 파일 30~32 행이 "점수 반영은 별도 task" 자인). `summary-aggregate.ts` 84 행 · 110~113 행 수식 (57~59 행 가중치 모두 1, 108 행 `Math.log1p`) 의 입력 `EvaluationResult` (`evaluation-result.ts` 54~71 행) 에 `contributionKind` 필드 부재 → 문서 전용 가중치 0. `calculateEvaluationVolume` (`evaluation-volume.ts` 30~42 행) 도 `titleLength` 기반 kind 무관.
+  - 코멘트 축 = **marker 접두까지**. `applyNotableContributionAnnotation` (adjust 파일 130~133 · 147~161 · 169~174 행) 이 78 행 `NOTABLE_CONTRIBUTION_NARRATIVE_MARKER = "[중요기여] "` 를 멱등 접두 (문장 생성 아님), 대상이 code 단위 수 기반이라 문서 기여만 많은 인원 제외. 문서 기반 상향은 LLM 경로뿐 — `evaluation-prompt.ts` 109 행 지시 + 170 행 미인식 시 33 행 `DEFAULT_CONTRIBUTION = "low"` 환원 (재실측값).
+  - wiring 축 = 실재 (dead code 아님). detection `evaluation-detection-signals-pipeline.ts` 50 · 110 행 → adjustments `evaluation-adjustments-pipeline.ts` 72 · 230~233 행 (5-adjuster 중 5 번째) → 본류 `evaluation-orchestrator.service.ts` 158 · 177 행, summary 집계 `summary-persist.service.ts` 35 · 105 행.
+  - 영속 = REQ-020 전용 컬럼 0. `prisma/schema.prisma` 329~349 행 `Contribution` 에 332 `sourceType` · 335 `difficulty` · 336 `contributionScore` · 337 `volume` 만 있고 `contributionKind` 컬럼 부재, 361~368 행 `Summary` 는 366 `narrative` · 367 `metricScore`.
+  - 검증 위치 실 근거 = `evaluation-notable-contribution-signal.spec.ts` 19 it · `evaluation-notable-contribution-adjust.spec.ts` 19 it · `summary-aggregate.spec.ts` 15 it (합 53 it). `manual` 축 문서 절차 부재, e2e / smoke 0.
+- 표 불변 검증: `wc -l docs/requirements.md` = 97 (편집 전후 동일), `grep -c "^| REQ-"` = 66 (동일), REQ-019 · REQ-020 · REQ-021 의 `|` 필드 수 = 9 로 동일. 상태 문자열에 리터럴 `|` 없음 (1 차 편집에서 grep 패턴의 `\|` 로 필드 수가 11 로 부풀어 즉시 문자열 서술로 교체).
