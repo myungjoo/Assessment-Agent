@@ -2,7 +2,7 @@
 id: T-1360
 title: requirements.md 53 · 54 행 REQ-034 · REQ-035 일/주/월 요약 평가 상태를 실측 기반 DONE 으로 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-034, REQ-035]
 estimatedDiff: 14
@@ -38,11 +38,11 @@ plannerNote: "PLAN 97 행 한 bullet 이 R-61 일/주/월 요약을 [x] implemen
 
 ## Acceptance Criteria
 
-- [ ] 편집은 [docs/requirements.md](../requirements.md) **53 · 54 행 두 줄뿐** 이며, 각 줄에서 바뀌는 것은 **마지막 `상태` 컬럼 1 개** 다. `REQ` / `README 행` / `요약` / `kind` / `구현 위치` / `검증 위치` 6 컬럼은 **글자 무수정** (특히 `구현 위치` 의 `P5` 와 `검증 위치` 의 `unit` 은 그대로 둔다).
-- [ ] 두 행 상태를 `PLANNED` → 다음 문자열로 재판정 (`|` 문자를 넣지 않는다):
+- [x] 편집은 [docs/requirements.md](../requirements.md) **53 · 54 행 두 줄뿐** 이며, 각 줄에서 바뀌는 것은 **마지막 `상태` 컬럼 1 개** 다. `REQ` / `README 행` / `요약` / `kind` / `구현 위치` / `검증 위치` 6 컬럼은 **글자 무수정** (특히 `구현 위치` 의 `P5` 와 `검증 위치` 의 `unit` 은 그대로 둔다).
+- [x] 두 행 상태를 `PLANNED` → 다음 문자열로 재판정 (`|` 문자를 넣지 않는다):
   - 53 행 REQ-034: `DONE (isPeriodEvaluable/computePeriodEnd 의 day 경로 — 다음 KST 자정 이후에만 Summary 생성 허용, enumerateSummaryDueCoordinates → SummaryBatchOrchestrator 배선)`
   - 54 행 REQ-035: `DONE (같은 심볼의 week/month 경로 — 다음 KST 월요일 00:00 · 다음 달 1 일 00:00 이후 허용, ADR-0035 aggregate summary 평가로 cover)`
-- [ ] **실측 선행** (편집 전 executor 가 직접 수행, 결과를 commit trail 에 박제). 아래 7 개가 모두 기대치와 일치할 때만 flip 하고, 하나라도 어긋나면 flip 하지 않고 Follow-ups 에 실제 출력값과 함께 남긴다:
+- [x] **실측 선행** (편집 전 executor 가 직접 수행, 결과를 commit trail 에 박제). 아래 7 개가 모두 기대치와 일치할 때만 flip 하고, 하나라도 어긋나면 flip 하지 않고 Follow-ups 에 실제 출력값과 함께 남긴다:
   - `grep -c "^| REQ-" docs/requirements.md` → **66**, `wc -l < docs/requirements.md` → **97** (편집 전후 동일)
   - `grep -n "export function computePeriodEnd" src/assessment-evaluation/domain/period-evaluable.ts` → **1 hit (51 행)**
   - `grep -n "export function isPeriodEvaluable" src/assessment-evaluation/domain/period-evaluable.ts` → **1 hit (72 행)**
@@ -50,11 +50,11 @@ plannerNote: "PLAN 97 행 한 bullet 이 R-61 일/주/월 요약을 [x] implemen
   - `grep -n "export class SummaryBatchOrchestratorService" src/assessment-evaluation/summary-batch-orchestrator.service.ts` → **1 hit (146 행)** — day 전용이 아니라 batch 배선까지 shipped 라는 근거
   - `grep -n "evaluateAndPersist(" src/assessment-evaluation/summary-aggregate-orchestrator.service.ts` → **104 행 포함 1 hit 이상** (LLM 정성 + metric 산출·영속 경로 존재 근거)
   - `ls src/assessment-evaluation/domain/period-evaluable.spec.ts src/assessment-evaluation/domain/summary-due-coordinates.spec.ts src/assessment-evaluation/summary-batch-orchestrator.service.spec.ts src/assessment-evaluation/summary-aggregate-orchestrator.service.spec.ts` → **4 파일 모두 존재** (`검증 위치` 컬럼 `unit` 충족 근거). 하나라도 없으면 그 사실을 상태 문자열에 정직하게 반영하거나 flip 을 보류한다.
-- [ ] **day/week/month 3 분기 cover 확인** — `grep -c '"day"' src/assessment-evaluation/domain/period-evaluable.spec.ts` · `'"week"'` · `'"month"'` 가 **각 1 hit 이상** (planner 실측 시점 값 17 · 8 · 13). 한 granularity 라도 0 이면 그 granularity 를 담당하는 row 는 flip 하지 않고 Follow-ups 로 넘긴다 — REQ-035 는 week 와 month 둘 다 필요하다.
-- [ ] **구조 무손상**: 편집 후 `wc -l docs/requirements.md` = **97**, `grep -c "^| REQ-" docs/requirements.md` = **66**, 편집한 53 · 54 행의 `|` 개수 = **각 8**.
-- [ ] **잔여 stale 정직 보고**: 편집 후 `grep -c "PLANNED" docs/requirements.md` = **34** (36 − 2). 이 중 2 hit 은 row 가 아니라 **9 행 상태 enum 정의** 와 **96 행 planner 지침** 이므로 실제 잔여 `PLANNED` **row 는 32 개** 다. 두 수치를 모두 commit trail 에 적어 다음 planner 가 규모를 오독하지 않게 한다. 날조 금지 — 실제 출력값을 적는다.
-- [ ] 변경 파일은 **2 개뿐** ([docs/requirements.md](../requirements.md) + 본 task 파일). `src/` · `web/` · `test/` · [PLAN.md](../PLAN.md) · `docs/architecture/` · `STATE.json` 무수정.
-- [ ] doc-only direct commit 이라 R-110 tester 면제 — 그 사유를 commit trail `TESTER.coverage` 에 한 줄 명시하고, 위 grep 검증 결과로 대체한다.
+- [x] **day/week/month 3 분기 cover 확인** — `grep -c '"day"' src/assessment-evaluation/domain/period-evaluable.spec.ts` · `'"week"'` · `'"month"'` 가 **각 1 hit 이상** (planner 실측 시점 값 17 · 8 · 13). 한 granularity 라도 0 이면 그 granularity 를 담당하는 row 는 flip 하지 않고 Follow-ups 로 넘긴다 — REQ-035 는 week 와 month 둘 다 필요하다.
+- [x] **구조 무손상**: 편집 후 `wc -l docs/requirements.md` = **97**, `grep -c "^| REQ-" docs/requirements.md` = **66**, 편집한 53 · 54 행의 `|` 개수 = **각 8**.
+- [x] **잔여 stale 정직 보고**: 편집 후 `grep -c "PLANNED" docs/requirements.md` = **34** (36 − 2). 이 중 2 hit 은 row 가 아니라 **9 행 상태 enum 정의** 와 **96 행 planner 지침** 이므로 실제 잔여 `PLANNED` **row 는 32 개** 다. 두 수치를 모두 commit trail 에 적어 다음 planner 가 규모를 오독하지 않게 한다. 날조 금지 — 실제 출력값을 적는다.
+- [x] 변경 파일은 **2 개뿐** ([docs/requirements.md](../requirements.md) + 본 task 파일). `src/` · `web/` · `test/` · [PLAN.md](../PLAN.md) · `docs/architecture/` · `STATE.json` 무수정.
+- [x] doc-only direct commit 이라 R-110 tester 면제 — 그 사유를 commit trail `TESTER.coverage` 에 한 줄 명시하고, 위 grep 검증 결과로 대체한다.
 
 ## Out of Scope
 
@@ -71,4 +71,10 @@ plannerNote: "PLAN 97 행 한 bullet 이 R-61 일/주/월 요약을 [x] implemen
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견한 인접 작업을 여기 적는다.)
+- **다음 slice 후보: REQ-036 (55 행, 상대 비교 + LLM 정성 + Metric 수치).** 본 slice 의 심볼로 덮이지 않아 별도 근거 수집 필요 — `검증 위치` 가 `unit` 이라 수집 범위는 본 slice 와 동형.
+- **잔여 `PLANNED` row 32 개** (`grep -c "PLANNED"` = 34 중 9 행 enum 정의 · 96 행 planner 지침 2 hit 제외). requirements 상태 stale 해소 축은 계속 slice 단위로.
+
+## 완료 요약 (2026-08-01)
+
+- 실측 7 종 + granularity 3 종 전부 기대치 일치 (`REQ-` row 66 / 97 행 / `computePeriodEnd` 51 행 / `isPeriodEvaluable` 72 행 / `enumerateSummaryDueCoordinates` 95 행 / `SummaryBatchOrchestratorService` 146 행 / `evaluateAndPersist` 104 행 1 hit / spec 4 파일 존재 / `"day"` 17 · `"week"` 8 · `"month"` 13) → 53 · 54 행 상태 컬럼만 `PLANNED` → `DONE (…)` flip.
+- 편집 후 구조 무손상 확인: 97 행 · `REQ-` row 66 · 편집 2 행의 `|` 각 8 · `PLANNED` 36 → 34 (실 row 32).

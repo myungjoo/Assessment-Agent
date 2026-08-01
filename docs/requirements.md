@@ -50,8 +50,8 @@
 | REQ-031 | 58 | 재수집 중복 방지 + 최근 1주 재수집 OK | FR | P5 | unit | PLANNED |
 | REQ-032 | 59 | 🔥 Raw data 저장 금지 — 평가 결과만 보유 | Constraint | P3 (ADR 필수) | policy + reviewer 점검 | PLANNED |
 | REQ-033 | 60 | commit/문서 별 기여도·난이도·양 보유 | FR | P3 + P5 | unit | PLANNED |
-| REQ-034 | 61 | 일별 활동 요약 평가문 (당일은 자정까지 안 함) | FR | P5 | unit | PLANNED |
-| REQ-035 | 62 | 주간/월간 요약 평가문 (다음주/다음달 시작 시) | FR | P5 | unit | PLANNED |
+| REQ-034 | 61 | 일별 활동 요약 평가문 (당일은 자정까지 안 함) | FR | P5 | unit | DONE (isPeriodEvaluable/computePeriodEnd 의 day 경로 — 다음 KST 자정 이후에만 Summary 생성 허용, enumerateSummaryDueCoordinates → SummaryBatchOrchestrator 배선) |
+| REQ-035 | 62 | 주간/월간 요약 평가문 (다음주/다음달 시작 시) | FR | P5 | unit | DONE (같은 심볼의 week/month 경로 — 다음 KST 월요일 00:00 · 다음 달 1 일 00:00 이후 허용, ADR-0035 aggregate summary 평가로 cover) |
 | REQ-036 | 63 | 상대 비교 가능 + LLM 정성 + Metric 수치 | FR | P3 + P5 | unit | PLANNED |
 | REQ-037 | 64 | 평가 없는 부분 일괄 평가 + Reset & Reeval | FR | P5 | e2e | PLANNED |
 | REQ-038 | 68-71 | UI 조회 / sort / filter / 시계열 | FR | P6 | smoke + e2e | DONE |
