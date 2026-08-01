@@ -32,19 +32,19 @@ plannerNote: "requirements-status-resync 7 번째 slice — 단일 model Service
 
 ## Acceptance Criteria
 
-- [ ] **실측 선행** — 아래 6 항목을 먼저 grep 으로 확인하고 결과 수치를 commit body 에 남긴다. 기대치와 어긋나면 **문서를 실측에 맞춘다**(반대 금지, 날조 금지).
+- [x] **실측 선행** — 아래 6 항목을 먼저 grep 으로 확인하고 결과 수치를 commit body 에 남긴다. 기대치와 어긋나면 **문서를 실측에 맞춘다**(반대 금지, 날조 금지). → 실측 결과는 아래 "완료 요약" 참조 (주석 hit 포함으로 기대치보다 큰 항목 3 개는 **실측값을 채택**).
   - `grep -n "model ServiceIdentity" prisma/schema.prisma` → **1 hit**
   - `grep -n "@@unique(\[personId, service\])" prisma/schema.prisma` → **1 hit** (서비스당 1 매핑 invariant)
   - `grep -n "isPrimary" prisma/schema.prisma` → **1 hit** (`Boolean @default(false)`)
   - `grep -n "setPrimary" src/user/service-identity.repository.ts` → **1 hit** (`$transaction` 으로 updateMany(false) → update(true))
   - `ls src/user/service-identity.*` → 구현 1 + colocated spec 1 (**service/controller 는 부재**)
   - `grep -n "^- \[x\] \*\*서비스별 ID 매핑\|^- \[x\] \*\*Primary key" docs/PLAN.md` → **2 hit** (53 · 54 행)
-- [ ] [docs/requirements.md](../requirements.md) **42 행 REQ-023** 의 **상태 컬럼 1 개**를 `PLANNED` → `DONE (...)` 으로 치환. 근거는 `model ServiceIdentity` 의 1 Person ↔ N `service`/`externalId` 매핑 + `@@unique([personId, service])`, 검증은 `service-identity.repository.spec.ts`(검증 위치 `unit` 과 정합).
-- [ ] **43 행 REQ-024** 의 상태 컬럼 1 개를 `DONE (...)` 으로 치환. 근거는 `ServiceIdentity.isPrimary` + `setPrimary` 트랜잭션(1 Person 당 정확히 1 primary 강제). **한계 부기 의무** — 본 row 의 검증 위치가 `policy + unit` 이고 kind 가 `ADR 필수` Constraint 인데 **전용 ADR 이 없고 [ADR-0002](../decisions/ADR-0002-db.md) 에 귀속**돼 있으며 **HTTP 노출(service/controller) 미보유** 이므로, 상태 문자열에 그 한계를 그대로 적는다(T-1357 의 `e2e 미보유` 부기 선례 동형 — 과장 금지).
-- [ ] **44 행 REQ-025** 의 상태 컬럼 1 개를 `DONE (...)` 으로 치환. 근거는 "미등록 서비스는 row 부재로 NULL 표현"(nullable 컬럼이 아니라 관계 부재로 표현한다는 설계 사실을 명시).
-- [ ] **구조 무손상 검증** — 편집 후 `wc -l docs/requirements.md` = **97**, `grep -c "^| REQ-" docs/requirements.md` = **66**, 42 · 43 · 44 행의 `|` 개수 각 **8** 이 모두 불변.
-- [ ] **잔여 카운트 정직성** — 편집 후 `grep -c PLANNED docs/requirements.md` 가 **34 → 31** (REQ row 기준 32 → 29). 이 수치를 commit body 에 남긴다.
-- [ ] 세 row 의 **나머지 6 컬럼**(REQ / README 행 / 요약 / kind / 구현 위치 / 검증 위치)과 **다른 63 row** 는 무수정.
+- [x] [docs/requirements.md](../requirements.md) **42 행 REQ-023** 의 **상태 컬럼 1 개**를 `PLANNED` → `DONE (...)` 으로 치환. 근거는 `model ServiceIdentity` 의 1 Person ↔ N `service`/`externalId` 매핑 + `@@unique([personId, service])`, 검증은 `service-identity.repository.spec.ts`(검증 위치 `unit` 과 정합).
+- [x] **43 행 REQ-024** 의 상태 컬럼 1 개를 `DONE (...)` 으로 치환. 근거는 `ServiceIdentity.isPrimary` + `setPrimary` 트랜잭션(1 Person 당 정확히 1 primary 강제). **한계 부기 의무** — 본 row 의 검증 위치가 `policy + unit` 이고 kind 가 `ADR 필수` Constraint 인데 **전용 ADR 이 없고 [ADR-0002](../decisions/ADR-0002-db.md) 에 귀속**돼 있으며 **HTTP 노출(service/controller) 미보유** 이므로, 상태 문자열에 그 한계를 그대로 적는다(T-1357 의 `e2e 미보유` 부기 선례 동형 — 과장 금지).
+- [x] **44 행 REQ-025** 의 상태 컬럼 1 개를 `DONE (...)` 으로 치환. 근거는 "미등록 서비스는 row 부재로 NULL 표현"(nullable 컬럼이 아니라 관계 부재로 표현한다는 설계 사실을 명시).
+- [x] **구조 무손상 검증** — 편집 후 `wc -l docs/requirements.md` = **97**, `grep -c "^| REQ-" docs/requirements.md` = **66**, 42 · 43 · 44 행의 `|` 개수 각 **8** 이 모두 불변.
+- [x] **잔여 카운트 정직성** — 편집 후 `grep -c PLANNED docs/requirements.md` 가 **34 → 31** (REQ row 기준 32 → 29). 이 수치를 commit body 에 남긴다.
+- [x] 세 row 의 **나머지 6 컬럼**(REQ / README 행 / 요약 / kind / 구현 위치 / 검증 위치)과 **다른 63 row** 는 무수정.
 
 ## Out of Scope
 
@@ -60,4 +60,18 @@ plannerNote: "requirements-status-resync 7 번째 slice — 단일 model Service
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+- **다음 slice 후보: REQ-026 (45 행, 인원 CRUD + Deactivate/Activate).** `검증 위치` 가 `unit + e2e` 라 근거 수집 범위가 본 slice 보다 넓다 — person service/controller + e2e spec 실측이 선행돼야 한다.
+- **REQ-024 의 결핍 2 종은 별도 task 후보** — (1) "정확히 1 primary" service-layer 강제(T-0036 미착수) + HTTP 노출, (2) 전용 ADR 부재(현재 [ADR-0002](../decisions/ADR-0002-db.md) 귀속). 본 slice 는 결핍을 메우지 않고 상태 문자열에 한계로만 부기했다.
+- **잔여 `PLANNED` 29 개 REQ row** — 상태 stale 해소는 계속 slice 단위로.
+
+## 완료 요약 (2026-08-01)
+
+- 실측 6 종 (기대치와 다른 3 항목은 **주석 hit 포함**이 원인 — 실측값 채택, 문서를 실측에 맞춤):
+  - `model ServiceIdentity` 1 hit (schema.prisma 257 행) — 기대치 일치.
+  - `@@unique([personId, service])` **2 hit** (273 행 실제 선언 + 3 행 파일 header 주석) — 실 선언은 1.
+  - `isPrimary` in schema **2 hit** (262 행 `Boolean @default(false)` + 251 행 주석) — 실 필드는 1.
+  - `setPrimary` in repository **5 hit** (68 행 메서드 정의 + 주석 4) — 실 메서드는 1, `$transaction` 으로 updateMany(false) → update(true).
+  - `ls src/user/service-identity.*` → `service-identity.repository.ts` + `service-identity.repository.spec.ts` **2 파일** (service · controller 부재 확인).
+  - PLAN.md bullet 2 hit — 단 실제 행 번호는 **54 · 55 행** (task 본문의 "53 · 54 행" 은 off-by-one, 실측 채택).
+- 편집 후 구조 무손상 확인: 97 행 · `^| REQ-` row 66 · 42 · 43 · 44 행의 `|` 각 8 · `PLANNED` 34 → 31 (REQ row 32 → 29).
+- 변경 파일 2 개 ([docs/requirements.md](../requirements.md) 3 행 + 본 task 파일). doc-only direct commit 이라 R-110 tester 면제 — 위 grep self-check 로 대체.

@@ -39,9 +39,9 @@
 | REQ-020 | 39 | 조직 기여 큰 인원 → 높은 점수 | FR | P5 | manual + unit | PLANNED |
 | REQ-021 | 40 | 문서 abusing 방지 (의미 없는 기여 단순 반복) | FR | P5 | unit | DONE (같은 computeAbuseSignal 의 R-40 문서 abusing 경로 — 코드 abusing 과 동일 심볼 쌍으로 cover) |
 | REQ-022 | 41 | 문서 update 횟수 중립화 (advantage/disadvantage 둘 다 없음) | FR | P5 | unit | DONE (implemented-on-main — T-0524 `computeUpdateCountNeutralization` PR #437 + T-0525 `applyUpdateCountNeutralizationToVolume` PR #438; volume 산출이 version 미사용 → advantage 0, 중립 보존 → disadvantage 0. ADR-0049 group-by-collapse 안은 미채택 — Q-0046 옵션1) |
-| REQ-023 | 45-46 | 서비스별 ID 매핑 (1 인물 ↔ N 서비스 ID) | FR | P3 | unit | PLANNED |
-| REQ-024 | 47 | Primary key 역할 ID 지정 (서비스 중 1개) | Constraint | P3 (ADR 필수) | policy + unit | PLANNED |
-| REQ-025 | 48 | 일부 서비스 ID NULL 허용 | FR | P3 | unit | PLANNED |
+| REQ-023 | 45-46 | 서비스별 ID 매핑 (1 인물 ↔ N 서비스 ID) | FR | P3 | unit | DONE (implemented-on-main — `schema.prisma` `model ServiceIdentity` 의 1 Person ↔ N `service`/`externalId` 매핑 + `@@unique([personId, service])` 서비스당 1 매핑 invariant; 검증은 `service-identity.repository.spec.ts` 의 findByPersonId / create 케이스 — service·controller 미보유라 e2e 없음) |
+| REQ-024 | 47 | Primary key 역할 ID 지정 (서비스 중 1개) | Constraint | P3 (ADR 필수) | policy + unit | DONE (implemented-on-main — `ServiceIdentity.isPrimary Boolean @default(false)` + repository `setPrimary` 의 `$transaction` updateMany(false) → update(true) 로 primary 1 row transition 보장, unit spec 3 종 cover. 한계 — 전용 ADR 없이 [ADR-0002](decisions/ADR-0002-db.md) 에 귀속돼 policy 축은 간접 cover 이고, "정확히 1 primary" service-layer 강제와 HTTP 노출(service·controller) 은 미보유) |
+| REQ-025 | 48 | 일부 서비스 ID NULL 허용 | FR | P3 | unit | DONE (implemented-on-main — 미등록 서비스는 nullable 컬럼이 아니라 `ServiceIdentity` row 부재로 NULL 을 표현하는 설계; `findByPersonId` 가 row 부재 시 빈 배열 반환 spec 으로 검증 — service·controller 미보유라 e2e 없음) |
 | REQ-026 | 49 | 인원 CRUD + Deactivate/Activate (휴직 시 숨김) | FR | P3 | unit + e2e | PLANNED |
 | REQ-027 | 50 | 신규 인원 1년치 평가 1회 (일반은 1주 단위) | FR | P7 + P5 | unit + e2e | DONE (POST /api/schedules/backfill/:personId · buildBackfillPlan DEFAULT_WEEKS=52 · unit spec 3종 — e2e 미보유) |
 | REQ-028 | 51 | Group 정책 (다중 임의 group + 단일 조직도 파트) | FR | P3 | unit | PLANNED |
