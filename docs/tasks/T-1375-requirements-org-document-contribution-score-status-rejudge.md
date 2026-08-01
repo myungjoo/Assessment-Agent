@@ -2,7 +2,8 @@
 id: T-1375
 title: requirements.md 39 행 REQ-020 조직 기여 큰 인원 → 높은 점수·높은 평가 코멘트 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-01T19:52:00Z
 commitMode: direct
 coversReq: [REQ-020]
 estimatedDiff: 24
