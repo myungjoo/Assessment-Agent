@@ -2,7 +2,8 @@
 id: T-1361
 title: requirements.md 42~44 행 REQ-023~025 서비스 ID 매핑 상태를 실측 기반 DONE 으로 재판정
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-01T01:45:55Z
 commitMode: direct
 coversReq: [REQ-023, REQ-024, REQ-025]
 estimatedDiff: 14
