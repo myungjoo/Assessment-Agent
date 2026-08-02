@@ -2,7 +2,7 @@
 id: T-1387
 title: requirements.md 75 행 REQ-056 well-known library·중복 import 금지·version mismatch 방지 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-056]
 estimatedDiff: 30
@@ -37,15 +37,15 @@ plannerNote: "requirements-status-resync 33 번째 slice — T-1386 Out of Scope
 
 ## Acceptance Criteria
 
-- [ ] **정책 축** 을 실측한다 — `CLAUDE.md` §5 · §9 의 새 dependency BLOCKED 문장과 §1 스택 표, `.claude/agents/reviewer.md` 의 library 추가 check 항목을 각각 행 번호 (또는 § 번호) 와 함께 인용한다.
-- [ ] **중복 library 축** 을 실측한다 — `package.json` 의 `dependencies` · `devDependencies` 항목 수를 각각 세고, 동일 기능군에 2 개 이상 들어온 사례가 있는지 판정해 "중복 N 건 (구체 항목 또는 0)" 으로 적는다. `overrides` / `resolutions` 필드 유무도 한 줄로 적는다.
-- [ ] **version pin / mismatch 방지 축** 을 실측한다 — `packageManager` 값 (7 행), root `pnpm-lock.yaml` 단일성 (`ls web/pnpm-lock.yaml` 결과 포함), `pnpm-workspace.yaml` 의 workspace 목록을 인용해 backend / web 이 한 lockfile 아래 해석되는지를 적는다.
-- [ ] **CI 자동 검증 축** 을 실측한다 — `.github/workflows/ci.yml` 191 행 `pnpm install --frozen-lockfile` 을 인용하고, 그와 별개로 **중복 library / version mismatch 를 직접 판정(fail)하는 전용 step 건수** 를 grep 결과로 적는다. 0 이면 0 으로 적고 축을 부분 충족 이상으로 판정하지 않는다.
-- [ ] **검증 위치 컬럼 (`policy + CI`) 의 실 근거** 를 확인한다 — `policy` 축은 위 정책 축 인용으로, `CI` 축은 위 CI 축 실측으로 각각 충족 / 부분 충족 / 부재를 명시한다.
-- [ ] REQ-056 (75 행) 의 상태 컬럼을 실측 결과에 따라 `DONE (implemented-on-main — <근거>)`, 일부 축만 충족 시 `IN_PROGRESS (<충족 축> 실재 / <미충족 축> 부재)`, 근거 부족 시 `PLANNED` 유지 + 유지 사유 부기 중 하나로 갱신한다. **어느 판정이든 근거에 실재하는 파일 경로 3 개 이상** 이 포함돼야 한다.
-- [ ] 실측으로 확인되지 않은 부분 (예: transitive dependency 중복은 lockfile 전수 분석 없이는 판정 불가 · `--frozen-lockfile` 은 중복 탐지가 아님 · well-maintained 여부는 정적 판정 불가 등) 은 상태 문자열 안에 "한계 —" 로 1~2 절 부기한다.
-- [ ] `grep -n "REQ-056" docs/requirements.md` 결과에서 해당 행의 상태 컬럼이 갱신 (또는 사유 부기) 됐고, 표의 컬럼 수 (`|` 필드 수) 가 인접 행 (REQ-055 · REQ-057) 과 동일하게 유지됨을 확인한다. 상태 문자열 안에 리터럴 `|` 문자를 넣지 않는다 (T-1370 · T-1375 사고 재발 방지). `wc -l docs/requirements.md` = 97 과 `grep -c "^| REQ-" docs/requirements.md` = 66 이 편집 전후 불변임도 확인한다.
-- [ ] 본 task 파일의 `status` 를 `DONE` 으로 바꾸고 완료 시각 · 결과 요약 (실측값 포함) 을 추가한다.
+- [x] **정책 축** 을 실측한다 — `CLAUDE.md` §5 · §9 의 새 dependency BLOCKED 문장과 §1 스택 표, `.claude/agents/reviewer.md` 의 library 추가 check 항목을 각각 행 번호 (또는 § 번호) 와 함께 인용한다.
+- [x] **중복 library 축** 을 실측한다 — `package.json` 의 `dependencies` · `devDependencies` 항목 수를 각각 세고, 동일 기능군에 2 개 이상 들어온 사례가 있는지 판정해 "중복 N 건 (구체 항목 또는 0)" 으로 적는다. `overrides` / `resolutions` 필드 유무도 한 줄로 적는다.
+- [x] **version pin / mismatch 방지 축** 을 실측한다 — `packageManager` 값 (7 행), root `pnpm-lock.yaml` 단일성 (`ls web/pnpm-lock.yaml` 결과 포함), `pnpm-workspace.yaml` 의 workspace 목록을 인용해 backend / web 이 한 lockfile 아래 해석되는지를 적는다.
+- [x] **CI 자동 검증 축** 을 실측한다 — `.github/workflows/ci.yml` 191 행 `pnpm install --frozen-lockfile` 을 인용하고, 그와 별개로 **중복 library / version mismatch 를 직접 판정(fail)하는 전용 step 건수** 를 grep 결과로 적는다. 0 이면 0 으로 적고 축을 부분 충족 이상으로 판정하지 않는다.
+- [x] **검증 위치 컬럼 (`policy + CI`) 의 실 근거** 를 확인한다 — `policy` 축은 위 정책 축 인용으로, `CI` 축은 위 CI 축 실측으로 각각 충족 / 부분 충족 / 부재를 명시한다.
+- [x] REQ-056 (75 행) 의 상태 컬럼을 실측 결과에 따라 `DONE (implemented-on-main — <근거>)`, 일부 축만 충족 시 `IN_PROGRESS (<충족 축> 실재 / <미충족 축> 부재)`, 근거 부족 시 `PLANNED` 유지 + 유지 사유 부기 중 하나로 갱신한다. **어느 판정이든 근거에 실재하는 파일 경로 3 개 이상** 이 포함돼야 한다.
+- [x] 실측으로 확인되지 않은 부분 (예: transitive dependency 중복은 lockfile 전수 분석 없이는 판정 불가 · `--frozen-lockfile` 은 중복 탐지가 아님 · well-maintained 여부는 정적 판정 불가 등) 은 상태 문자열 안에 "한계 —" 로 1~2 절 부기한다.
+- [x] `grep -n "REQ-056" docs/requirements.md` 결과에서 해당 행의 상태 컬럼이 갱신 (또는 사유 부기) 됐고, 표의 컬럼 수 (`|` 필드 수) 가 인접 행 (REQ-055 · REQ-057) 과 동일하게 유지됨을 확인한다. 상태 문자열 안에 리터럴 `|` 문자를 넣지 않는다 (T-1370 · T-1375 사고 재발 방지). `wc -l docs/requirements.md` = 97 과 `grep -c "^| REQ-" docs/requirements.md` = 66 이 편집 전후 불변임도 확인한다.
+- [x] 본 task 파일의 `status` 를 `DONE` 으로 바꾸고 완료 시각 · 결과 요약 (실측값 포함) 을 추가한다.
 
 ## Out of Scope
 
@@ -64,4 +64,19 @@ plannerNote: "requirements-status-resync 33 번째 slice — T-1386 Out of Scope
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견 사항을 여기에 append 한다.)
+- **중복 library / version mismatch 판정 CI step 도입** — `.github/workflows/ci.yml` 에 `pnpm install --frozen-lockfile` (191 행) 외에 중복 · 복수 version 을 fail 로 판정하는 전용 step 이 0 건이다. `pnpm dedupe --check` 는 신규 dependency 없이 pnpm 내장 명령으로 가능하나 CI workflow 수정은 `commitMode: pr` 이라 별도 slice 가 필요하다. depcheck 등 외부 도구는 CLAUDE.md §5 상 owner 승인 대상.
+- **transitive dependency 중복 감사 절차 박제** — top-level manifest 만으로는 REQ-056 의 "다른 version 을 다시 import" 를 완전히 판정할 수 없다. lockfile 전수 분석을 사람이 주기적으로 수행할 절차를 `docs/ops/runbook.md` 에 추가하거나 CI step 으로 자동화하는 안 (별도 slice).
+- **well-maintained 판정 기준 부재** — README 108 행의 "well-maintained" 는 현재 어떤 문서에도 판정 기준 (최근 릴리스 간격 · 유지보수 상태 등) 이 없다. ADR 또는 CLAUDE.md §5 보강으로 기준을 박제할지 검토 (별도 slice).
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-02
+- **판정**: REQ-056 (75 행) 상태 컬럼을 `PLANNED` → `IN_PROGRESS (정책 축 · 중복 library 축 · version pin 축 실재 / CI 중복·mismatch 전용 판정 step 부재)` 로 갱신했다. 4 축 중 3 축이 실재하지만 검증 위치 컬럼의 `CI` 축이 lockfile 정합 강제에 그쳐 `DONE` 승격 근거가 없다.
+- **실측값**:
+  - 정책 축 (충족) — `CLAUDE.md` 246 행 (§5) "새 외부 dependency 추가" BLOCKED · 310 행 (§9) "새 dependency 추가는 BLOCKED. 사용자 승인 후 ADR 작성 → 추가" · 31 행 §1 기술 스택 확정 표. `.claude/agents/reviewer.md` **82 행** "library 추가" 를 새 ADR 필요 신호로 나열. `ADR-0001-stack.md` 4 행 `status: ACCEPTED` · `ADR-0040-frontend-stack.md` 4 행 `status: ACCEPTED`.
+  - 중복 library 축 (충족) — root `package.json` `dependencies` **19** (25~44 행) · `devDependencies` **25** (46~71 행), 동일 기능군 중복 **0 건** (prisma 계열 단일 + `pg` 는 adapter 드라이버 · `class-validator` / `class-transformer` 상보 · `@nestjs/schedule` / `cron` 은 wrapper·엔진 · 테스트 러너 `jest` 단일, `supertest` 는 HTTP assertion). `overrides` / `resolutions` 는 root · `web/package.json` (deps **2** · devDeps **6**) 양쪽 **부재**.
+  - version pin 축 (충족) — `package.json` 7 행 `packageManager` = `pnpm@9.12.0`, 8~9 행 `engines.node` `>=20.11.0`. lockfile 은 root `pnpm-lock.yaml` 단일, `ls web/pnpm-lock.yaml` = No such file. `pnpm-workspace.yaml` 3~4 행 `packages:` / `- web`. 공통 항목 version 정렬 확인 — `typescript` root · web 모두 `5.6.2`.
+  - CI 자동 검증 축 (부분 충족) — `.github/workflows/ci.yml` 179~182 행 `pnpm/action-setup@v4` `version: 9.12.0`, 184~188 행 `actions/setup-node@v4` `cache: 'pnpm'`, 190~191 행 `의존성 설치` / `pnpm install --frozen-lockfile`. 중복 · mismatch 판정 전용 step 은 dedupe · depcheck · npm ls · why · licenses 5 패턴 grep 결과 **0 건**, `package.json` `scripts` 블록에도 dedupe · depcheck · npm ls · licenses · audit 계열 **0 건**.
+  - 검증 위치 `policy + CI` — `policy` **충족** / `CI` **부분 충족** (lockfile 정합 강제만).
+- **표 무결성**: `wc -l docs/requirements.md` = 97, `grep -c "^| REQ-"` = 66 (편집 전후 불변), 74 · 75 · 76 행 `|` 필드 수 = 9 로 동일. 상태 문자열에 리터럴 `|` 미사용 (초안의 grep alternation `\|` 4 개를 중점 나열로 치환해 필드 수 13 → 9 로 교정).
+- **한계**: top-level manifest 기준 정적 실측이라 lockfile 전수 분석 미수행 → transitive 복수 version 판정 불가. `pnpm install` / `dedupe` / `why` 는 lockfile 재작성 위험으로 미실행 (Out of Scope). "well-maintained" 는 외부 조회 없이 정적 판정 불가. backend `jest` 와 web `vitest` 는 workspace package 분리 (ADR-0040) 라 중복에 미포함.
