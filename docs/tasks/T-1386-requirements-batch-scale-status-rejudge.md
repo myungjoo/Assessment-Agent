@@ -2,7 +2,7 @@
 id: T-1386
 title: requirements.md 66 행 REQ-047 평가 배치 scale·1시간 임계 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 32
@@ -63,4 +63,20 @@ plannerNote: "requirements-status-resync 32 번째 slice — T-1385 Out of Scope
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+- **S1 배치 측정 harness 도입** — `test/perf` 에 평가 작성(write) 배치 경로 소요시간 spec 이 0 건이다. 계획 문서 131 행 follow-up 3 과 동일 항목이며, ADR-0054 가 ACCEPTED 로 승격돼 harness dependency 가 도입된 뒤에야 착수 가능하다 (owner 승인 필요 — CLAUDE.md §5).
+- **1h 절대 임계 assertion 박제** — `latency-collector.ts` 의 `DEFAULT_P95_MAX_MS = 3000` (REQ-048 축) 에 대응하는 배치용 3600s 임계 상수·판정 함수가 없다. harness 도입 후 S2 와 동형으로 박제.
+- **scale seed 스크립트 도입** — 100~200명 · 50~100 repo · ~1000 confluence page 규모 fixture / seed 가 0 건이다. `prisma/schema.prisma` 433~434 행이 이미 "3 row seed 자동화는 Follow-up" 으로 소규모 seed 공백도 남겨둔 상태라 함께 설계 필요.
+- **manual 배치 부하 실행 절차 박제** — 검증 위치 컬럼의 `manual` 축 근거가 `docs/ops/runbook.md` 14 행 cross-link 뿐이다. runbook 에 사람이 따라 할 배치 부하 실행 절차 섹션 추가 (별도 doc-only slice).
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-02
+- **판정**: REQ-047 (66 행) 상태 컬럼을 `PLANNED` 유지 + 유지 사유 부기로 갱신했다. 4 축 중 **계획 축만 충족**, 측정 3 축은 전부 부재라 `IN_PROGRESS` 승격 근거가 없다 (상태 enum 9 행의 `IN_PROGRESS` = "대응 task 진행 중" 인데 대응 구현 task 가 착수되지 않았다).
+- **실측값**:
+  - 계획 축 (충족) — `docs/ops/load-resilience-test-plan.md` 45 행 S1 헤더 · 47~48 행 부하 규모 · 49 행 "완료 시간 ≤ 1h" · 81 행 임계 표 S1 행. `ADR-0054` frontmatter 4 행 `status: PROPOSED`, 7 행 `relatedReq: [REQ-047, REQ-048]` → **권고 단계, 미채택**.
+  - 배치 측정 harness 축 (부재) — `ls test/perf` 44 entry, batch · write · eval 패턴 매치 **0 건**, 실재 perf-spec 은 `read.perf-spec.ts` 30 개 (전부 조회 경로). `grep -rn "REQ-047" test/ --include=*.ts` = **2 건** 이나 둘 다 smoke 의 author 귀속 key 정합 주석으로 무관.
+  - 1시간 절대 임계 축 (부재) — `grep -rn "3600" test/perf --include=*.ts` = **0 건**. `test/smoke` = 6 건이나 전부 systemd `RandomizedDelaySec=3600` mutant → 판정(expect / throw)용 정의 **0 건**.
+  - scale seed 축 (부재) — `ls prisma/` = 2 entry (`migrations` · `schema.prisma`), `ls scripts/` = 19 entry 에 대규모 seed 없음. `grep -rln "seed" prisma/ scripts/` = **6 건** 중 schema.prisma 주석 1 파일 (25 · 433~434 행) + lock/claim shell test 5 파일 → 무관 6 / 유효 **0**.
+  - 검증 위치 `manual` 축 (미박제) — `docs/ops/runbook.md` 14 행 cross-link 한 줄뿐, 배치 부하 실행 절차 부재.
+- **표 무결성**: `wc -l docs/requirements.md` = 97, `grep -c "^| REQ-"` = 66 (편집 전후 불변), 65 · 66 · 67 행 `|` 필드 수 = 9 로 동일. 상태 문자열에 리터럴 `|` 미사용.
+- **한계**: doc-only 정적 실측이라 `pnpm test:perf` 미실행. full-scale 배치는 실 LLM 호출 비용 · 외부 수집 I/O 의존 (계획 문서 51~52 행) 으로 CI runner 재현 불가.
