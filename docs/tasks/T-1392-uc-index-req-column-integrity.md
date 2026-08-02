@@ -54,6 +54,35 @@ plannerNote: "uc-doc-audit-resync 4 번째 slice — T-1391 Follow-up 1 (REQ 컬
 
 `implementer` (doc 편집 + awk / grep / comm 실측) → 별도 tester 불요 (direct doc-only, R-110 면제 — 코드 변경 0). 단 위 R-112 대체 검증 항목의 명령 출력은 반드시 완료 기록에 박제한다.
 
+## 완료 기록
+
+**인용 ID 추출** — `awk -F'|' '/^\| UC-0/ {print $7}' docs/use-cases/INDEX.md | grep -o "REQ-[0-9]\{3\}"` 결과: 총 인용 건수 (중복 포함) **41 건**, unique ID **33 개**. row 별 인용 건수 — UC-01 13 / UC-02 4 / UC-03 7 / UC-04 2 / UC-05 7 / UC-06 3 / UC-07 3 / UC-08 2 (합 41, 검산 일치).
+
+**실재 대조 (forward)** — 집합 연산 1 회로 수행. 사용 명령 그대로:
+
+```
+comm -23 <(awk -F'|' '/^\| UC-0/ {print $7}' docs/use-cases/INDEX.md | grep -o "REQ-[0-9]\{3\}" | sort -u) \
+         <(grep -o "^| REQ-[0-9]\{3\}" docs/requirements.md | grep -o "REQ-[0-9]\{3\}" | sort -u)
+```
+
+출력: **공백 (0 행)**. 즉 실재 **33 / 33**, dangling **0 건** — 열거할 ID 없음. INDEX.md 26 행 제약 "존재하지 않는 REQ ID 인용 금지" **충족**.
+
+**requirements.md row 수 검산** — `grep -c "^| REQ-" docs/requirements.md` → **66**. 26 행이 선언한 "66 REQ" 문구와 일치 (불일치 없음). unique ID 수도 `grep -o "^| REQ-[0-9]\{3\}" ... | sort -u | wc -l` → **66** 으로 동일 — REQ ID 중복 row 0.
+
+**INDEX.md 부기** — §2 의 T-1391 문단 (45 행) 뒤에 `2026-08-02 REQ 컬럼 정합 대조 (T-1392)` 문단을 신설 (본문 2 줄 + 앞 빈 줄 1 = +3 행). 42 행 원 문단 및 44~45 행 T-1391 문단은 무수정 (diff `3 insertions(+), 0 deletions`).
+
+**표 무결성 검산** — 편집 전후 `grep -c "^| UC-" docs/use-cases/INDEX.md` → **8 / 8** (불변). data row 컬럼 수 `awk -F'|' '/^\| UC-/ {print NF-2}' | sort -u` → **7** 단일값 (8 row 전부 7 컬럼, 불변). 표 셀 안 리터럴 `|` 삽입 0 — 표 row 자체를 건드리지 않았으므로 T-1370 / T-1375 형 사고 재발 여지 없음. dangling 0 이라 REQ 값 수정 대상도 없었다.
+
+**R-112 대체 검증 (doc-only)** — 코드 변경 0. 위 awk / grep / comm 출력값 전건을 본 절에 박제하는 것으로 대체. 추가로 `wc -l docs/use-cases/INDEX.md` → 편집 전 **110** → 편집 후 **113** (+3 행, 상한 +3 이내 충족). 인용 총 건수는 편집 후에도 **41** 로 불변 (부기 문단 안의 수치가 표 컬럼 추출 정규식에 섞이지 않음을 확인).
+
+**한계 —** 본 slice 가 검증하지 않은 축:
+
+1. **의미적 타당성** — 인용된 REQ 가 해당 UC 의 내용과 실제로 맞는 REQ 인지는 판정하지 않았다 (ID 실재 여부만).
+2. **역방향 coverage** — 66 REQ 중 어느 UC row 에도 인용되지 않은 REQ 집합 (41 인용 / 33 unique 이므로 최소 33 개 REQ 는 미인용) 의 집계·판정은 `docs/use-cases/REQ-COVERAGE-AUDIT.md` 소관.
+3. **다른 컬럼 오타** — actor / 주요 component / 주요 module 컬럼이 23~25 행 제약 (허용 값 집합) 을 지키는지는 미검증 (T-1391 Follow-up 2).
+4. **UC 본문 충실도** — 각 UC-NN-*.md 본문이 표 row 의 REQ 인용과 정합한지, 본문 안에서 인용되는 REQ ID 의 실재 여부는 범위 밖 (T-1391 Follow-up 3).
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+1. **역방향 coverage 실측** — 본 slice 가 forward 방향 dangling 0 을 확정했으므로, 남은 축은 "66 REQ 중 §2 표에 인용되지 않은 33 개 (66 − unique 33)" 의 실체 확인. `REQ-COVERAGE-AUDIT.md` 의 기존 판정과 이 수치가 정합하는지 대조하는 slice 가 필요 (본 slice Out of Scope).
+2. **UC 본문 내 REQ 인용 실재 대조** — 본 slice 는 INDEX.md §2 표만 봤다. 8 개 UC 본문 파일 안에서 인용되는 REQ ID 도 같은 방식으로 forward 대조하는 slice.

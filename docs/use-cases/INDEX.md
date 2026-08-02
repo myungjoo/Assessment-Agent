@@ -44,6 +44,9 @@ Phase P2 (Use case decomposition) 의 목표는 [README.md](../../README.md) + P
 **2026-08-02 재판정 (T-1391)** — 위 closure 선언을 2 축으로 실측 재검산 (§5 갱신 룰 3 "UC 본문 task 가 머지될 때 status 컬럼을 `DONE` 으로 갱신" 의 사후 동기 의무 이행). 축 (a) UC 본문 파일 실재 8/8 (`docs/use-cases/UC-01-*.md` ~ `UC-08-*.md`), §3 description 링크 8 건 모두 실제 파일명과 일치 — broken link 0. 축 (b) 본문 task 8 건 (T-0020 / T-0022 ~ T-0028) frontmatter `status` 모두 `DONE` — 8/8.
 판정: **8 row 전부 `DONE` 유지, 표 row 변경 0** (두 축 모두 충족). 미검증 축 — 각 UC 본문의 **내용 충실도**, "관련 REQ" 컬럼과 [requirements.md](../requirements.md) 66 REQ 의 1:1 정합, actor / component / module 컬럼의 오타 0 여부는 본 재판정 범위 밖 (별도 slice).
 
+**2026-08-02 REQ 컬럼 정합 대조 (T-1392)** — 위 T-1391 미검증 축 중 "관련 REQ" 컬럼 정합을 forward (인용 → 실재) 방향으로 실측. 8 row 의 인용 총 **41 건** (UC-01 13 / UC-02 4 / UC-03 7 / UC-04 2 / UC-05 7 / UC-06 3 / UC-07 3 / UC-08 2), unique **33 개**, 대조 대상 [requirements.md](../requirements.md) REQ row **66 건** (unique ID 도 66 — 중복 0).
+판정: dangling (인용됐으나 requirements.md 에 부재) **0 건** — 위 26 행 제약 "존재하지 않는 REQ ID 인용 금지" **충족**, 표 row 변경 0. 미검증 축 — 인용 REQ 가 해당 UC 와 **의미적으로** 맞는지, 어느 row 에도 인용되지 않은 REQ 집합 (역방향 coverage — [REQ-COVERAGE-AUDIT.md](REQ-COVERAGE-AUDIT.md) 소관), actor / component / module 컬럼 오타 여부는 본 대조 범위 밖.
+
 ## 3. 각 UC 별 description
 
 ### UC-01 평가 실행 (자동 cron + manual trigger)
