@@ -2,7 +2,7 @@
 id: T-1391
 title: UC INDEX.md §2 표의 status 컬럼 8 row 를 UC 본문 실재·본문 task 상태 2 축으로 실측 재판정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 40
@@ -32,13 +32,13 @@ plannerNote: "uc-doc-audit-resync 3 번째 slice — T-1390 Follow-up 2 (INDEX �
 
 ## Acceptance Criteria
 
-- [ ] **축 (a) UC 본문 파일 실재 집계** — `ls docs/use-cases/UC-*.md` 로 UC-01 ~ UC-08 각각에 대응하는 본문 파일이 실재하는지 8 건을 1:1 확인하고, 실재 수 (기대 8) 를 완료 기록에 숫자로 적는다. INDEX.md §3 의 각 UC description 끝 링크 (`UC-NN-*.md`) 경로와 실제 파일명이 일치하는지 `grep -o "UC-0[1-8][a-z0-9-]*\.md" docs/use-cases/INDEX.md | sort -u` 로 대조해 broken link 수를 적는다.
-- [ ] **축 (b) 본문 task status 집계** — INDEX.md 42 행이 인용하는 8 task (`T-0020` / `T-0022` ~ `T-0028`) 의 frontmatter `status` 를 `grep -H "^status:" docs/tasks/T-0020-*.md docs/tasks/T-002[2-8]-*.md` 로 일괄 확인하고, `DONE` 개수 (기대 8) 를 숫자로 적는다. 파일이 없는 task ID 가 있으면 그 사실을 적는다.
-- [ ] **8 row 판정** — 위 2 축 결과로 각 row 의 `DONE` 표기가 유지되는지 판정한다. 두 축 모두 충족이면 `DONE` 유지, 어느 한 축이라도 미충족인 row 가 있으면 **그 row 만** 축 정의에 맞는 값으로 재판정하고 사유를 적는다. 판정 결과는 "8/8 유지" 또는 "N row 변경 (UC-XX: DONE→YYY, 사유)" 형태로 완료 기록에 명시한다.
-- [ ] **INDEX.md 부기** — §2 42 행 문단 뒤에 `2026-08-02 재판정 (T-1391)` 한 문단을 **최대 3 줄** 로 신설한다. 내용은 (1) 2 축 실측 결과 요약 수치, (2) 판정 (유지 / 변경), (3) 미검증 축 1 줄. 원 42 행 "P2 UC 본문 분해 8/8 closure" 문단은 역사적 기록으로 **삭제·수정하지 않고** 그대로 보존하며 덧붙이는 형태로만 표현한다.
-- [ ] **표 무결성 검산** — 편집 전후로 `grep -c "^| UC-" docs/use-cases/INDEX.md` 가 **8** 로 불변이고, 표 헤더 컬럼 수 7 이 불변임을 확인해 두 값을 완료 기록에 적는다. 표 셀 안에 리터럴 `|` 를 넣지 않는다 ([T-1370](T-1370-requirements-fork-rebase-dedup-status-rejudge.md) · [T-1375](T-1375-requirements-org-document-contribution-score-status-rejudge.md) 사고 재발 방지). status 컬럼 값 변경이 필요 없으면 표 row 자체는 **1 자도 수정하지 않는다**.
-- [ ] **R-112 대체 검증 (doc-only)** — 코드 변경 0 이므로 unit test 대신 위 grep / ls 명령의 출력값을 완료 기록에 그대로 박제하는 것으로 검증을 대체한다. 추가로 `wc -l docs/use-cases/INDEX.md` 가 편집 전 107 행 대비 +3 행 이내임을 확인해 적는다.
-- [ ] **한계 명시** — 완료 기록에 "한계 —" 절을 두고 본 slice 가 **검증하지 않은 축** (각 UC 본문의 내용 충실도 · "관련 REQ" 컬럼과 `docs/requirements.md` 66 row 정합 · actor / component / module 컬럼의 오타 0 여부) 을 열거한다.
+- [x] **축 (a) UC 본문 파일 실재 집계** — `ls docs/use-cases/UC-*.md` 로 UC-01 ~ UC-08 각각에 대응하는 본문 파일이 실재하는지 8 건을 1:1 확인하고, 실재 수 (기대 8) 를 완료 기록에 숫자로 적는다. INDEX.md §3 의 각 UC description 끝 링크 (`UC-NN-*.md`) 경로와 실제 파일명이 일치하는지 `grep -o "UC-0[1-8][a-z0-9-]*\.md" docs/use-cases/INDEX.md | sort -u` 로 대조해 broken link 수를 적는다.
+- [x] **축 (b) 본문 task status 집계** — INDEX.md 42 행이 인용하는 8 task (`T-0020` / `T-0022` ~ `T-0028`) 의 frontmatter `status` 를 `grep -H "^status:" docs/tasks/T-0020-*.md docs/tasks/T-002[2-8]-*.md` 로 일괄 확인하고, `DONE` 개수 (기대 8) 를 숫자로 적는다. 파일이 없는 task ID 가 있으면 그 사실을 적는다.
+- [x] **8 row 판정** — 위 2 축 결과로 각 row 의 `DONE` 표기가 유지되는지 판정한다. 두 축 모두 충족이면 `DONE` 유지, 어느 한 축이라도 미충족인 row 가 있으면 **그 row 만** 축 정의에 맞는 값으로 재판정하고 사유를 적는다. 판정 결과는 "8/8 유지" 또는 "N row 변경 (UC-XX: DONE→YYY, 사유)" 형태로 완료 기록에 명시한다.
+- [x] **INDEX.md 부기** — §2 42 행 문단 뒤에 `2026-08-02 재판정 (T-1391)` 한 문단을 **최대 3 줄** 로 신설한다. 내용은 (1) 2 축 실측 결과 요약 수치, (2) 판정 (유지 / 변경), (3) 미검증 축 1 줄. 원 42 행 "P2 UC 본문 분해 8/8 closure" 문단은 역사적 기록으로 **삭제·수정하지 않고** 그대로 보존하며 덧붙이는 형태로만 표현한다.
+- [x] **표 무결성 검산** — 편집 전후로 `grep -c "^| UC-" docs/use-cases/INDEX.md` 가 **8** 로 불변이고, 표 헤더 컬럼 수 7 이 불변임을 확인해 두 값을 완료 기록에 적는다. 표 셀 안에 리터럴 `|` 를 넣지 않는다 ([T-1370](T-1370-requirements-fork-rebase-dedup-status-rejudge.md) · [T-1375](T-1375-requirements-org-document-contribution-score-status-rejudge.md) 사고 재발 방지). status 컬럼 값 변경이 필요 없으면 표 row 자체는 **1 자도 수정하지 않는다**.
+- [x] **R-112 대체 검증 (doc-only)** — 코드 변경 0 이므로 unit test 대신 위 grep / ls 명령의 출력값을 완료 기록에 그대로 박제하는 것으로 검증을 대체한다. 추가로 `wc -l docs/use-cases/INDEX.md` 가 편집 전 107 행 대비 +3 행 이내임을 확인해 적는다.
+- [x] **한계 명시** — 완료 기록에 "한계 —" 절을 두고 본 slice 가 **검증하지 않은 축** (각 UC 본문의 내용 충실도 · "관련 REQ" 컬럼과 `docs/requirements.md` 66 row 정합 · actor / component / module 컬럼의 오타 0 여부) 을 열거한다.
 
 ## Out of Scope
 
