@@ -57,8 +57,71 @@ plannerNote: "uc-doc-audit-resync 8 번째 slice — 212 행 미검증 축 잔�
 
 `implementer` (grep 2 축 실측 + doc 편집) → 별도 tester 불요 (direct doc-only, R-110 면제 — 코드 변경 0). 단 위 hunk 국한 검증 항목의 명령 출력은 반드시 완료 기록에 박제한다.
 
+## 완료 기록 (2026-08-03 실측)
+
+### 축 A · B — 13 건 전수 실측표
+
+명령: `grep -n "REQ-009\|REQ-010\|REQ-011\|REQ-012\|REQ-013\|REQ-018\|REQ-019\|REQ-020\|REQ-021\|REQ-022\|REQ-033\|REQ-035\|REQ-036" docs/use-cases/UC-01-evaluation-execution.md` → 출력 **1 행** (`129:- **평가 결과 row N 개 생성** — 각 인원 × 각 commit/문서 단위 (REQ-033) …`). 교차 검증으로 `grep -no "REQ-[0-9]\{3\}"` 전수 목록도 대조했고 결과 동일.
+
+절 경계 실측 (`grep -n "^## " docs/use-cases/UC-01-evaluation-execution.md`): 17(§1) · 23(§2) · 32(§3) · 40(§4) · 51(§5) · 94(§6) · **104(§7)** · 124(§8) · 133(§9) · 153(§10) · 179(§11). Required Reading 이 적은 §7=107 은 실측 104 로 3 행 drift — REQ-033 hit (129 행) 의 §8 귀속 판정에는 영향 0.
+
+| REQ | 본문 hit 행 | 귀속 절 | §10 표 (153~178) hit | 축 B 등급 |
+| --- | --- | --- | --- | --- |
+| REQ-009 | 없음 | — | 0 | 없음 |
+| REQ-010 | 없음 | — | 0 | 없음 |
+| REQ-011 | 없음 | — | 0 | 없음 |
+| REQ-012 | 없음 | — | 0 | 없음 |
+| REQ-013 | 없음 | — | 0 | 없음 |
+| REQ-018 | 없음 | — | 0 | 없음 |
+| REQ-019 | 없음 | — | 0 | 없음 |
+| REQ-020 | 없음 | — | 0 | 없음 |
+| REQ-021 | 없음 | — | 0 | 없음 |
+| REQ-022 | 없음 | — | 0 | 없음 |
+| REQ-033 | 129 | §8 Postconditions (124~132) | 0 | 강 |
+| REQ-035 | 없음 | — | 0 | 없음 |
+| REQ-036 | 없음 | — | 0 | 없음 |
+
+**등급 분포 — 강 1 / 약 0 / 없음 12** (합 13). §10 관련 REQ 표는 primary 13 (REQ-005 · 006 · 007 · 014 · 015 · 039 · 040 · 049 · 051 ~ 055) + 인접 4 (REQ-008 · 031 · 032 · 034) 만 실어 13 건 중 hit 0 이므로, "약" 등급 자체가 발생하지 않았다.
+
+### 종합 판정 — **(가) envelope 선언 유지**
+
+- 근거 1: §5 통계표 123 행이 envelope 을 `15 REQ 가 UC envelope 내부 algorithmic / data-model cover` 로 **정의** 하고, §10 206 · 210 행도 같은 독법 (`미인용 uc-covered 15 건 … 모두 UC-01 envelope (P5 알고리즘 · trigger · 결과 data model)`) 을 쓴다. 즉 envelope-cover 는 처음부터 **개별 ID 본문 명시를 전제하지 않는** label 이라 hit 0 이 선언 위반이 아니다.
+- 근거 2: §4 도입 문장 104 행 (`coversReq frontmatter + 본문 §5 / §6 / §8 가 실제로 cover 하는 REQ 의 ID list`) 과도 충돌 없음 — 13 건은 UC-01 `coversReq` 목록이 아니라 bullet 안의 **제 3 label** 로 분리 표기돼 있어, frontmatter 축 서술을 침범하지 않는다.
+- 근거 3: 본문에 per-ID 는 아니어도 **위임 문장 형태의 envelope anchor 가 실재** — §5 step 10 `assessContributions(items, difficultyRouting)` + 반환 `평가문 + 난이도 + 기여도 + 양` (REQ-010 · 011 · 019 · 020 · 036 의 산정 축), §5 71 · 80 행 Note `중복 제거 … 구체 알고리즘은 P5` (REQ-009), §8 129 · 130 행 결과 row 서술 (REQ-033 · 035 의 data model 축).
+- 유보 부기: 근거 3 의 anchor 는 **위임 1~3 문장** 수준이라 강도가 per-ID 서술보다 약하다. (나)·(다) 로 기울 만큼은 아니지만, "본문 근거 = 강 1 건" 이라는 실측치 자체는 위 §10 bullet 에 그대로 박제했다. 조치 분기는 (가) 이므로 §4 bullet · §3 매트릭스 · 115 행 정합식 · §5 count 전부 무수정.
+
+### 불변 검산 (편집 전후 동일)
+
+| 항목 | 값 | 판정 |
+| --- | --- | --- |
+| (a) `grep -c "^\| REQ-"` | 66 | 불변 |
+| (b) `grep -c "^## "` | 11 | 불변 |
+| (c) §5 표 count 4 값 + 합계 row | `48 / 4 / 13 / 1` + 합계 `**66**` · `**100 %**` | 불변 |
+| (d) §4 115 행 정합식 | `33 + 15 + 4 + 13 + 1 = 66` | 불변 |
+| (e) 106 행 envelope-cover 나열 | 13 건 (REQ-009 · 010 · 011 · 012 · 013 · 018 · 019 · 020 · 021 · 022 · 033 · 035 · 036) | 불변 |
+
+### hunk 국한 검증 (R-112 대체, doc-only)
+
+`git diff -U0 docs/use-cases/REQ-COVERAGE-AUDIT.md` 의 hunk 헤더 **전량**:
+
+```
+@@ -217,0 +218,4 @@
+```
+
+hunk **1 개**, §10 말미 (217 행 뒤) append 1 지점뿐이고 §1 ~ §9 · §11 에 hunk **0**. `git diff --numstat` = `4  0` (추가 4 · 삭제 0) 로 기존 행 수정 0 을 이중 확인. 표 셀은 한 곳도 편집하지 않았으므로 `|` 개수 대조 대상 행이 **없다** (T-1370 · T-1375 사고 유형은 구조적으로 발생 불가).
+
+### 한계 —
+
+- **다른 7 UC (UC-02 ~ UC-08) 의 envelope-cover / adjacent 나열** 은 실측하지 않았다. 107 행 UC-02 의 `envelope-cover: REQ-003 / REQ-013 · 020 의 비교 view` 포함 미검증.
+- **§3 매트릭스 66 row 분류 자체의 재판정** 은 하지 않았다 (Out of Scope).
+- **13 건 REQ 의 구현 실재 여부** (`docs/requirements.md` status 열의 DONE / IN_PROGRESS 판정) 는 본 slice 대상이 아니다 — T-1375 계열 소관.
+- **UC-01 본문이 자기 `coversReq` 13 건을 실제로 cover 하는지** (frontmatter 대비 본문 전수 검증) 는 미실측 — §10 212 행의 잔여 축으로 존속.
+- 축 A 는 **ID 문자열 매칭** 이라, ID 없이 의미만 서술된 cover (예: §5 step 10 의 난이도 routing 이 REQ-011 을 함의) 를 기계적으로는 잡지 못한다. 축 B 의 위임 문장 판정이 이를 사람 판단으로 보완했으나 전수성은 보장하지 않는다.
+
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+- **다른 7 UC 의 envelope-cover 나열 근거 재판정** (미착수) — 본 slice 는 UC-01 13 건만 실측했다. §4 107 ~ 113 행의 UC-02 envelope-cover 나열 (REQ-003 · REQ-013 / 020 비교 view) 부터 같은 2 축 방법론으로 확장하면 212 행 축이 완전 해소된다. doc-only direct 1 slice 규모.
 
 - planner 관측 (2026-08-02, 미착수) — journal 2026-08-02 의 5 fire 연속 `[7.5] chain 미진입` 사유가 모두 §2.5 (a) 미충족 (executor 반환이 ≤200 char SUMMARY + trail blob 범위를 넘어 driver context 로 유입) 이다. 즉 `flags.multiTaskFire=true` 가 실효 0 이다. 교정은 `.claude/agents/executor.md` 반환 계약 (step 7) 강화가 유력하나 **agent 설정 파일 변경이라 본 planner 가 임의로 task 화하지 않는다** — 사람 판단으로 슬라이스 여부를 결정할 사안으로 남긴다.
