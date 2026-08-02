@@ -2,7 +2,7 @@
 id: T-1405
 title: REQ-COVERAGE-AUDIT 유일 잔여 축 (§3 매트릭스 66 row 분류 재판정) 의 범위·기준·cascade·slice 분할 설계를 §12 로 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 140
