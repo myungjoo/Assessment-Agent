@@ -2,7 +2,7 @@
 id: T-1399
 title: UC-04 · UC-08 이 자기 frontmatter coversReq 4 건 (REQ-043 / 044 · REQ-008 / 016) 을 본문 §5 · §6 · §8 로 실제 cover 하는지 4 축 실측 검증
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 75
