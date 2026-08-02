@@ -2,7 +2,7 @@
 id: T-1393
 title: REQ-COVERAGE-AUDIT §4 역방향 coverage 를 8 UC frontmatter · INDEX §2 인용 집합과 실측 대조
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 60
@@ -33,14 +33,14 @@ plannerNote: "uc-doc-audit-resync 5 번째 slice — T-1392 Follow-up 1 (역방�
 
 ## Acceptance Criteria
 
-- [ ] **축 A — INDEX §2 미인용 REQ 집합** — `comm -13 <(INDEX §2 표 인용 unique 정렬) <(requirements.md REQ ID 정렬)` 로 "requirements.md 에 있으나 §2 표 어느 row 에도 인용되지 않은 REQ" 를 산출해 **개수** 와 **ID 전건** 을 완료 기록에 적는다 (T-1392 실측대로면 66 − 33 = 33 건 기대 — 다르면 그 사실을 명시). 사용한 명령을 그대로 박제한다.
-- [ ] **축 A' — 미인용 집합의 분류 분포** — 위 미인용 ID 각각을 §3 매트릭스 row 의 분류 컬럼 (`uc-covered` / `cross-cutting` / `infrastructure` / `gap`) 으로 집계해 4 값 분포를 적는다. 특히 **`uc-covered` 로 분류됐으면서 §2 표에는 미인용인 REQ 수** 를 별도 숫자로 뽑고, 그것이 "§2 표는 요약 index 이고 정답은 UC 본문 frontmatter" (104 행 선언) 와 모순되지 않음을 1 줄로 판정한다.
-- [ ] **축 B — 8 UC frontmatter coversReq 실 union** — `grep -A3 "^coversReq" docs/use-cases/UC-0*.md` 또는 동등한 방법으로 8 개 UC 본문 파일의 frontmatter `coversReq` 를 추출해 **unique union 개수** 를 산출하고, §4 115 행이 선언한 **31** 과 일치하는지 판정한다. 불일치면 차이 나는 ID 를 열거한다 (2026-05-25 PR-28 reviewer 가 MINOR 로 "§4 narrative coversReq union 31→33 수치 오차" 를 이미 지적했으므로 그 지적의 재확인 여부도 1 줄로 적는다).
-- [ ] **축 C — §4 합산식 산술 검산** — 115 행의 `31 + 13 + 4 + 13 + 1` 을 그대로 더한 값을 적고 66 과 같은지 판정한다. 다르면 §5 121 행의 "31 직접 + 17 envelope" 와 대조해 **어느 항이 어긋나는지** (envelope 13 vs 17) 를 1 줄로 특정한다. **본 slice 에서 115 행 · 121 행의 수치를 고치지 않는다.**
-- [ ] **§10 dated 절 신설** — 198 행 `## 10. References` **앞** 에 `## 10. 2026-08-02 역방향 coverage 재검산 (T-1393)` 절을 신설한다. 본문은 **최대 18 줄**, 구성은 (1) 축 A 결과 (미인용 개수 + 분류 분포), (2) 축 B 결과 (union 실측 vs 선언 31), (3) 축 C 결과 (합산식 판정), (4) 종합 판정 1 줄, (5) 미검증 축 열거. 기존 `## 10. References` 헤더는 `## 11. References` 로 **번호만** 변경하고 그 본문 항목은 무수정.
-- [ ] **불변 검산** — 편집 전후로 (a) `grep -c "^| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md` 가 **66** 불변, (b) `grep -c "^## " docs/use-cases/REQ-COVERAGE-AUDIT.md` 가 **10 → 11** (정확히 +1), (c) §1 ~ §9 본문 diff 0 (`git diff` 의 변경 hunk 가 §10 신설 + References 헤더 번호 1 줄에만 국한) 세 값을 완료 기록에 적는다. 표 셀 안에 리터럴 `|` 를 넣지 않는다 ([T-1370](T-1370-requirements-fork-rebase-dedup-status-rejudge.md) · [T-1375](T-1375-requirements-org-document-contribution-score-status-rejudge.md) 사고 재발 방지).
-- [ ] **R-112 대체 검증 (doc-only)** — 코드 변경 0 이므로 unit test 대신 위 comm / grep / awk 명령의 출력값을 완료 기록에 그대로 박제하는 것으로 검증을 대체한다. 추가로 `wc -l docs/use-cases/REQ-COVERAGE-AUDIT.md` 가 편집 전 **211** 행 대비 **+20 행 이내** 임을 확인해 적는다.
-- [ ] **한계 명시** — 완료 기록에 "한계 —" 절을 두고 본 slice 가 검증하지 않은 축 (envelope-cover 판정의 **의미적** 타당성 · `adjacent` 서술의 정확성 · UC 본문 §5 / §6 / §8 가 실제로 frontmatter 대로 cover 하는지 · §3 매트릭스 66 row 의 분류 자체의 재판정 · 발견된 수치 오차의 정정) 을 열거한다.
+- [x] **축 A — INDEX §2 미인용 REQ 집합** — `comm -13 <(INDEX §2 표 인용 unique 정렬) <(requirements.md REQ ID 정렬)` 로 "requirements.md 에 있으나 §2 표 어느 row 에도 인용되지 않은 REQ" 를 산출해 **개수** 와 **ID 전건** 을 완료 기록에 적는다 (T-1392 실측대로면 66 − 33 = 33 건 기대 — 다르면 그 사실을 명시). 사용한 명령을 그대로 박제한다.
+- [x] **축 A' — 미인용 집합의 분류 분포** — 위 미인용 ID 각각을 §3 매트릭스 row 의 분류 컬럼 (`uc-covered` / `cross-cutting` / `infrastructure` / `gap`) 으로 집계해 4 값 분포를 적는다. 특히 **`uc-covered` 로 분류됐으면서 §2 표에는 미인용인 REQ 수** 를 별도 숫자로 뽑고, 그것이 "§2 표는 요약 index 이고 정답은 UC 본문 frontmatter" (104 행 선언) 와 모순되지 않음을 1 줄로 판정한다.
+- [x] **축 B — 8 UC frontmatter coversReq 실 union** — `grep -A3 "^coversReq" docs/use-cases/UC-0*.md` 또는 동등한 방법으로 8 개 UC 본문 파일의 frontmatter `coversReq` 를 추출해 **unique union 개수** 를 산출하고, §4 115 행이 선언한 **31** 과 일치하는지 판정한다. 불일치면 차이 나는 ID 를 열거한다 (2026-05-25 PR-28 reviewer 가 MINOR 로 "§4 narrative coversReq union 31→33 수치 오차" 를 이미 지적했으므로 그 지적의 재확인 여부도 1 줄로 적는다).
+- [x] **축 C — §4 합산식 산술 검산** — 115 행의 `31 + 13 + 4 + 13 + 1` 을 그대로 더한 값을 적고 66 과 같은지 판정한다. 다르면 §5 121 행의 "31 직접 + 17 envelope" 와 대조해 **어느 항이 어긋나는지** (envelope 13 vs 17) 를 1 줄로 특정한다. **본 slice 에서 115 행 · 121 행의 수치를 고치지 않는다.**
+- [x] **§10 dated 절 신설** — 198 행 `## 10. References` **앞** 에 `## 10. 2026-08-02 역방향 coverage 재검산 (T-1393)` 절을 신설한다. 본문은 **최대 18 줄**, 구성은 (1) 축 A 결과 (미인용 개수 + 분류 분포), (2) 축 B 결과 (union 실측 vs 선언 31), (3) 축 C 결과 (합산식 판정), (4) 종합 판정 1 줄, (5) 미검증 축 열거. 기존 `## 10. References` 헤더는 `## 11. References` 로 **번호만** 변경하고 그 본문 항목은 무수정.
+- [x] **불변 검산** — 편집 전후로 (a) `grep -c "^| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md` 가 **66** 불변, (b) `grep -c "^## " docs/use-cases/REQ-COVERAGE-AUDIT.md` 가 **10 → 11** (정확히 +1), (c) §1 ~ §9 본문 diff 0 (`git diff` 의 변경 hunk 가 §10 신설 + References 헤더 번호 1 줄에만 국한) 세 값을 완료 기록에 적는다. 표 셀 안에 리터럴 `|` 를 넣지 않는다 ([T-1370](T-1370-requirements-fork-rebase-dedup-status-rejudge.md) · [T-1375](T-1375-requirements-org-document-contribution-score-status-rejudge.md) 사고 재발 방지).
+- [x] **R-112 대체 검증 (doc-only)** — 코드 변경 0 이므로 unit test 대신 위 comm / grep / awk 명령의 출력값을 완료 기록에 그대로 박제하는 것으로 검증을 대체한다. 추가로 `wc -l docs/use-cases/REQ-COVERAGE-AUDIT.md` 가 편집 전 **211** 행 대비 **+20 행 이내** 임을 확인해 적는다.
+- [x] **한계 명시** — 완료 기록에 "한계 —" 절을 두고 본 slice 가 검증하지 않은 축 (envelope-cover 판정의 **의미적** 타당성 · `adjacent` 서술의 정확성 · UC 본문 §5 / §6 / §8 가 실제로 frontmatter 대로 cover 하는지 · §3 매트릭스 66 row 의 분류 자체의 재판정 · 발견된 수치 오차의 정정) 을 열거한다.
 
 ## Out of Scope
 
@@ -55,6 +55,41 @@ plannerNote: "uc-doc-audit-resync 5 번째 slice — T-1392 Follow-up 1 (역방�
 
 `implementer` (doc 편집 + comm / grep / awk 실측) → 별도 tester 불요 (direct doc-only, R-110 면제 — 코드 변경 0). 단 위 R-112 대체 검증 항목의 명령 출력은 반드시 완료 기록에 박제한다.
 
+## 완료 기록
+
+**사전 anchor 확인** — `grep -rn "COVERAGE-AUDIT.md#" .` 의 유일한 hit 은 본 task 파일 30 행 (명령 자체를 인용한 문장) 뿐. 실제 `#10-...` anchor 링크 **0 건** 확인 후 헤더 번호 변경 진행.
+
+**축 A — INDEX §2 미인용 REQ 집합.** 사용 명령 그대로:
+
+```
+comm -13 <(awk -F'|' '/^\| UC-0[1-8] \|/ {print $7}' docs/use-cases/INDEX.md | grep -o "REQ-[0-9]\{3\}" | sort -u) \
+         <(grep -o "^| REQ-[0-9]\{3\}" docs/requirements.md | grep -o "REQ-[0-9]\{3\}" | sort -u)
+```
+
+출력 **33 행**: REQ-001 REQ-002 REQ-003 REQ-004 REQ-009 REQ-010 REQ-011 REQ-012 REQ-013 REQ-017 REQ-018 REQ-019 REQ-020 REQ-021 REQ-022 REQ-029 REQ-031 REQ-033 REQ-034 REQ-035 REQ-036 REQ-047 REQ-056 REQ-057 REQ-058 REQ-059 REQ-060 REQ-061 REQ-062 REQ-063 REQ-064 REQ-065 REQ-066. 본 slice 재실측값 — 인용 총 **41 건** / unique **33 개** / requirements REQ row **66 건** 으로 T-1392 기록과 **완전 일치** (66 − 33 = 33 기대치 그대로).
+
+**축 A' — 미인용 33 건의 분류 분포.** 각 ID 를 §3 매트릭스 row 의 3 번째 데이터 컬럼으로 집계 (`awk -F'|'` 로 REQ ID 매칭 후 cover 방식 컬럼 추출 → `sort | uniq -c`): `uc-covered` **15** / `cross-cutting` **4** / `infrastructure` **13** / `gap` **1** (합 33, 검산 일치). cross-cutting 4 · infrastructure 13 · gap 1 은 **전건** 미인용이고, 역으로 §2 표가 인용한 33 개는 **전부** `uc-covered` 다. 미인용 `uc-covered` **15 건** = REQ-009 ~ 013 / 018 ~ 022 / 031 / 033 / 034 / 035 / 036. **판정: 모순 없음** — 15 건 전부가 UC-01 envelope (P5 알고리즘 · trigger · 결과 data model) 이고, §2 표가 frontmatter 직접 명시분만 싣는 요약 index 라는 104 행 선언과 정확히 부합한다.
+
+**축 B — 8 UC frontmatter coversReq 실 union.** `grep -n "^coversReq" docs/use-cases/UC-0*.md` → 8 파일 각 **7 행** 에서 배열 1 개씩. 원소 총 **41 건**, unique union **33 개**. §4 115 행 선언 **31 과 불일치 (Δ +2)**. 추가 대조: §4 106 ~ 113 행 bullet 8 줄의 coversReq 를 직접 union 해도 **33** → 오차는 bullet 이 아니라 115 행 요약 수치 1 개에 국한. 또 frontmatter union 과 INDEX §2 인용 unique 를 `comm` 양방향 차집합 하면 **각 0 건** — 두 집합 동일. **2026-05-25 PR-28 reviewer 의 MINOR 지적 ("union 31 → 33") 은 재확인됨** — 15 개월 뒤인 지금도 미정정 상태로 존속한다.
+
+**축 C — §4 합산식 산술 검산.** `31 + 13 + 4 + 13 + 1` = **62**. 66 과 **불일치 (Δ −4)**. §5 121 행 "31 직접 + 17 envelope" 와 대조하면 어긋나는 항은 **둘** — 직접 union 항 31 (실측 33) 과 envelope 항 13 (실측 15) 이 각각 −2. §3 매트릭스 66 row 전수 집계는 `uc-covered` **48** / `cross-cutting` **4** / `infrastructure` **13** / `gap` **1** 이므로 envelope 잔차 = 48 − 33 = **15**. 즉 envelope 을 §4 는 13, §5 는 17, 실측은 15 로 **세 값이 전부 다르다** (실측 15 = §4 나열 UC-01 P5 알고리즘 13 건 + REQ-031 · REQ-034 — §4 는 `adjacent`, §3 매트릭스는 `uc-covered`). 실측 정합식 `33 + 15 + 4 + 13 + 1 = 66`. **115 행 · 121 행 수치는 본 slice 에서 고치지 않았다.**
+
+**§10 신설** — 198 행 `## 10. References` **앞** 에 `## 10. 2026-08-02 역방향 coverage 재검산 (T-1393)` 절 신설 (인용 blockquote 1 + bullet 10 = 본문 **11 줄**, 상한 18 이내). 구성 (1) 축 A 결과 + 분류 분포 → (2) 축 B union 실측 vs 선언 31 → (3) 축 C 합산식 판정 + §5 대조 → (4) 종합 판정 → (5) 미검증 축. 기존 헤더는 `## 11. References` 로 **번호만** 변경, 항목 10 건 본문 무수정.
+
+**불변 검산** — (a) `grep -c "^| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md` → **66 / 66** (편집 전후 불변). (b) `grep -c "^## "` → **10 → 11** (정확히 +1). (c) `git diff -U0` hunk 헤더 **1 개** (`@@ -198 +198,15 @@`), 삭제 줄은 `-## 10. References` **1 줄** 뿐 — §1 ~ §9 본문 diff **0**. diff stat `15 insertions(+), 1 deletion(-)`. 표 셀 안 리터럴 `|` 삽입 **0** (매트릭스·통계 표 row 를 전혀 건드리지 않음 — T-1370 / T-1375 형 사고 재발 여지 없음).
+
+**R-112 대체 검증 (doc-only)** — 코드 변경 0 이므로 위 comm / grep / awk 출력값 전건 박제로 대체. `wc -l docs/use-cases/REQ-COVERAGE-AUDIT.md` → 편집 전 **211** → 편집 후 **225** (**+14 행**, 상한 +20 이내 충족).
+
+**한계 —** 본 slice 가 검증하지 않은 축:
+
+1. **envelope-cover 판정의 의미적 타당성** — REQ-009 ~ 013 / 018 ~ 022 등이 실제로 UC-01 envelope 안에 있는지는 서술을 그대로 수용했고 재판정하지 않았다.
+2. **`adjacent` 서술의 정확성** — 특히 REQ-031 · REQ-034 가 §4 에서 `adjacent`, §3 에서 `uc-covered` 로 갈리는 귀속 문제는 사실 기록만 하고 어느 쪽이 옳은지 판정하지 않았다.
+3. **UC 본문 §5 / §6 / §8 의 실제 cover 여부** — frontmatter `coversReq` 의 union **개수** 만 봤고 본문이 그 REQ 를 실제로 다루는지는 미검증 (T-1392 Follow-up 2 소관).
+4. **§3 매트릭스 66 row 분류 자체의 재판정** — 분류값을 **집계** 만 했고 row 별 `uc-covered` / `cross-cutting` / `infrastructure` 판정의 타당성은 범위 밖.
+5. **발견된 수치 오차 3 건의 정정** — 115 행 union 31 · 115 행 envelope 13 · 121 행 분해 `31 + 17` 은 사실 판정만 하고 미정정 (cascade — 아래 Follow-up 1).
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+1. **수치 오차 3 건 cascade 정정** — §4 115 행 (`union 31 → 33`, `envelope 13 → 15`), §5 121 행 비고 (`31 직접 + 17 envelope` → `33 직접 + 15 envelope`, count 48 은 불변) 정정. 같은 4 값을 반복 인용하는 `docs/use-cases/INDEX.md` 110 행 · `docs/PLAN.md` 36 행 도 동기 대상인지 먼저 실측 확인 필요. 파일 상한 (5) 에 걸릴 수 있으므로 audit 문서 내부 (§4 + §5) 와 외부 인용처를 2 slice 로 나누는 편이 안전.
+2. **REQ-031 · REQ-034 의 adjacent vs uc-covered 귀속 재판정** — §4 는 UC-01 `adjacent`, §3 매트릭스는 `uc-covered` 로 분류해 envelope 잔차 15 의 근원이 된 2 건. 어느 분류가 옳은지 판정하면 envelope 수치의 "정답" 이 13 인지 15 인지가 확정된다 (Follow-up 1 의 선행 조건일 수 있음).
+3. **UC 본문 forward dangling 검사** — T-1392 Follow-up 2 그대로 존속. 8 UC 본문이 인용하는 REQ ID 의 실재 대조는 아직 미수행.
