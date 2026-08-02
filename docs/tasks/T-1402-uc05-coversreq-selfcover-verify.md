@@ -2,7 +2,7 @@
 id: T-1402
 title: UC-05 가 자기 frontmatter coversReq 7 선언 (REQ-049 ~ 055 — union 신규 7 건 전부) 을 본문 §5 · §6 · §8 로 실제 cover 하는지 4 축 실측 검증
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 100
@@ -64,6 +64,57 @@ plannerNote: "uc-doc-audit-resync 14 번째 slice — T-1401 Follow-up 1 번 (UC
 
 `implementer` (grep 4 축 실측 + doc 편집) → 별도 tester 불요 (direct doc-only, R-110 면제 — 코드 변경 0). 단 hunk 국한 검증 항목의 명령 출력은 반드시 완료 기록에 박제한다.
 
+## 결과 요약 (2026-08-03 DONE)
+
+**계수 규약** — UC-05 선언은 **7 (REQ-049 ~ REQ-055)** 이고 T-1398 ~ T-1401 어느 slice 도 실측한 적이 없어 **union 신규 7 · 중복 차감 0**. 다만 그중 **6 (REQ-049 · 051 · 052 · 053 · 054 · 055) 은 UC-01 coversReq 13 에도 동시 소속** 이라 **UC-01 선언 축으로는 잔여 미판정** 이다. 이하 집계는 "선언 7" · "union 신규 7" · "UC-01 축 잔여 6" 을 구분해 쓴다.
+
+**축 A — ID 직접 언급 실측** (`grep -n "REQ-049\|REQ-050\|REQ-051\|REQ-052\|REQ-053\|REQ-054\|REQ-055" docs/use-cases/UC-05-llm-config.md` 1 회). 절 귀속은 Required Reading 의 절 경계 실측값 기준. **range 표기 규약 (본 slice 최초 등장)**: `REQ-051~055` 형태 hit 는 5 선언 각각에 계상하고 `range` 병기. `### ` 제목 줄 안의 ID 는 본문 hit 으로 계상하고 `제목` 병기.
+
+| 선언 | 본문 hit (행 · 절) | 메타 hit | 축 B 등급 | 축 C 판정 |
+| --- | --- | --- | --- | --- |
+| REQ-049 | §1 19 / §2 27 / §3 37 · 38 · 39 / §5 72 (Note over) / §7.3 137 (제목) / §9 183 · 184 · 186 — **10** | fm 7 / §10 표 201 / Refs 225 | **강** (§5 72) | 선언 6 항 전건 일치 (§6.1 은 위임 문장), 실측에만 §2 27 |
+| REQ-050 | §1 19 / §3 40 / §4 51 / §5 72 (Note over) / §6.2 108 (제목) · 115 / §7.3 137 (제목) · 145 / §7.6 158 (제목) · 163 / §9 183 · 184 · 186 — **14** | fm 7 / §10 표 202 / Refs 225 | **강** (§5 72 · §6.2) | 선언 8 항 전건 일치 (§8 은 위임 문장), 실측에만 §4 51 |
+| REQ-051 | §1 19 / §3 37 (range) / §5 72 (range) / §6.1 96 (제목 range) · 100 / §7.3 137 (제목 range) · 141 (range) / §9 184 (range) — **8** | fm 7 / §10 표 203 / Refs 225 | **강** (§5 · §6.1) | 선언 6 항 전건 일치 |
+| REQ-052 | 위와 동형, §6.1 direct 는 101 — **8** | fm 7 / §10 표 204 / Refs 225 | **강** | 선언 6 항 전건 일치 |
+| REQ-053 | 위와 동형, §6.1 direct 는 102 — **8** | fm 7 / §10 표 205 / Refs 225 | **강** | 선언 6 항 전건 일치 |
+| REQ-054 | 위와 동형, §6.1 direct 는 103 — **8** | fm 7 / §10 표 206 / Refs 225 | **강** | 선언 6 항 전건 일치 |
+| REQ-055 | 위와 동형, §6.1 direct 는 104 — **8** | fm 7 / §10 표 207 / Refs 225 | **강** | 선언 6 항 전건 일치 |
+
+본문 hit 합 **64 건**, 메타 hit 합 **21 건** (frontmatter 7 행 7 · §10 표 201 ~ 207 행 7 · Refs 225 행 7) — T-1398 ~ T-1401 축 A 규약대로 별도 컬럼.
+
+**축 B — 근거 강도 분포: 강 7 / 약 0 / 없음 0** (선언 7 기준, union 신규 7 기준도 동일). 7 선언 전부 §5 Main flow 72 행 payload 검증 `Note over LlmModule` 에 ID hit. §8 Postconditions (167 ~ 176 행) 은 ID hit **0** 이나 위임 문장 anchor 실재:
+
+- REQ-050 — 172 행 `**DifficultyMapping row 갱신** — 3 난이도 슬롯의 provider+model 결정. 모든 슬롯이 활성 provider 를 참조하는 invariant 만족 (§7.6).`
+- REQ-049 (API key 취급) — 171 행 `**API key 는 암호화 저장** (schema-level 강제 …)` + 174 행 `**API key 자체는 audit 에 기록 X** — 마스킹 형태로만 기록`, 짝이 되는 §6.4 123 행 `기존 provider 설정 조회 시 API key 는 **마스킹 형태** (예: sk-****abcd) 로만 WebUI 에 반환`.
+
+**축 C — 자기 선언 절 대조** (§10 표 201 ~ 207 행 원문 기준). 선언 항 총수 **44 (6 + 8 + 6 × 5)**, `일치` **44** (그중 ID 없는 `일치 (위임 문장)` **2** — REQ-049 의 §6.1 = 100 ~ 104 행 각 provider 의 `model 식별자` 서술, REQ-050 의 §8 = 172 행), **`선언에만 있음` 0**, **`실측에만 있음` 2 항** (REQ-049 의 §2 27 행 actor 표, REQ-050 의 §4 51 행 precondition invariant 문장) — 선언이 실측보다 좁을 뿐 결함 아님.
+
+**부기 (`§5 step 5` ±1 검산)** — 7 선언 모두 `§5 step 5` 선언. arrow 계수 규약 (§5 92 행 자기 선언 11 step · alt block arrow 포함 · `Note over` 제외; arrow 는 66 · 67 · 68 · 71 · 79 · 80 · 84 · 85 · 87 · 88 · 89 행 = **11 개, 92 행 선언과 일치**) 으로 보면 실측 hit 72 행은 **arrow 4 (71 행) 직후의 Note** 라 선언이 **1 이르다 (편차 +1, ±1 이내)**. Note over 를 계수에 포함하면 정확히 step 5 이므로 원인은 Note 계수 여부다. T-1400 · T-1401 부기와 동형으로 **기록만** (정정 Out of Scope), 절 단위 (§5) 판정에는 영향 없음.
+
+**축 D — §3 매트릭스 근거 셀 정합 (83 ~ 89 행)** — 7 row 모두 분류 `uc-covered`, 근거 셀 전부 `UC-05 coversReq` 지목. 축 A ~ C 실측과 **어긋남 0**.
+
+- 84 행 `| REQ-050 | Constraint | uc-covered | UC-05 (+ P4 ADR) | 3 난이도 모델 슬롯 — UC-05 coversReq, ADR 필수 |` — §6.2 115 행이 난이도 분류를 `P4 의 별도 ADR 책임 (Out of Scope)` 으로 위임한 서술과 정합 (충돌 없음).
+- 83 행 `UC-05, UC-01 (cover)` · 85 ~ 89 행 `UC-05, UC-01` — UC-01 이 같은 6 건을 coversReq 로 중복 선언한 사실의 반영이라 본 slice 실측과 충돌 아님 (UC-01 축 판정은 범위 밖).
+- cascade (§4 115 행 정합식 · §5 count 48 · INDEX 110 행 · PLAN 36 행) 발동 대상 **없음**.
+
+**축 D-2 — REQ-045 dangling 항 종결** — UC-05 frontmatter 8 행이 `adjacentReq: [REQ-043, REQ-044, REQ-045]` 이므로 **REQ-045 는 UC-05 의 coversReq 가 아니라 adjacentReq** 다. 따라서 본 축 (frontmatter `coversReq` ↔ 본문 cover) 의 **모집단에 애초에 속하지 않으며**, T-1400 · T-1401 이 남긴 "79 행 REQ-045 의 UC-05 분 미실측" dangling 항은 **"미실측" 이 아니라 "본 축 대상 아님" 으로 종결** 된다. 다만 79 행 UC 열 `UC-03, UC-05, UC-06, UC-07` 이 77 · 78 행 (`UC-05 (인접)`) 과 달리 `(인접)` 표기 없이 UC-05 를 나열하는 점은 표기 비일관 **후보로 기록만** (정정 금지 — cascade 없음).
+
+**종합 판정 — (가) frontmatter ↔ 본문 정합 확인.** 7 선언이 (강) 등급 또는 위임 문장 anchor 로 §5 / §6 / §8 에서 cover 되고 축 C · D · D-2 어긋남 0 → §10 bullet append 만, 본문 무수정.
+
+**불변 검산** — (a) `grep -c "^| REQ-"` = **66** 불변, (b) `grep -c "^## "` = **11** 불변, (c) §5 표 count `48 / 4 / 13 / 1` + 합계 `**66** | **100 %**` 불변, (d) §4 115 행 `33 + 15 + 4 + 13 + 1 = 66` 불변, (e) `wc -l docs/use-cases/UC-05-llm-config.md` = **225** 불변 (UC read-only 증명).
+
+**hunk 국한 검증 (R-112 대체, doc-only)** — `git diff -U0 docs/use-cases/REQ-COVERAGE-AUDIT.md` hunk 헤더 **1 개뿐**: `@@ -240,0 +241,4 @@` → §10 말미 append 1 지점, §1 ~ §9 · §11 hunk **0**. `git diff --numstat` = `4	0	docs/use-cases/REQ-COVERAGE-AUDIT.md` (삭제 **0**). `git status --porcelain` = 위 `touchesFiles` 2 개 외 변경 파일 **0**. 표 셀을 한 곳도 편집하지 않으므로 `|` 개수 대조 대상 행 **없음** (T-1370 · T-1375 사고 재발 방지).
+
+**한계 —**
+
+- UC-01 13 선언의 자기 `coversReq` cover 검증 (본 slice 범위 밖).
+- 그중 **REQ-049 · 051 ~ 055 6 건의 UC-01 선언 축** 은 본 slice 가 UC-05 축으로만 판정 — UC-01 축은 미판정.
+- UC-05 `adjacentReq` 3 건 (REQ-043 / 044 / 045) 의 인접 서술 정확성.
+- 7 건 REQ 의 **구현** 실재 여부 (`docs/requirements.md` 69 행 REQ-050 은 `IN_PROGRESS` — P4 ADR 미박제).
+- §3 매트릭스 66 row 분류 자체의 재판정.
+- **마지막 UC-01 slice 의 cap 판정 근거** — 본 slice 로 UC-01 13 선언 중 **union 신규는 7 건뿐** (REQ-005 · 006 · 007 · 014 · 015 · 039 · 040) 임이 확정됐으므로, T-1401 Follow-up 2 의 "2 slice 분할" 권고는 **선언 13 기준 본문 hit 수** 로 재판정해야 한다 (union 신규 7 만 보면 본 slice 와 동급 규모 = 단일 slice 로 충분할 가능성이 크다).
+
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+1. **UC-01 coversReq 13 선언의 자기 cover 검증 (마지막 UC)** — union 신규 7 (REQ-005 · 006 · 007 · 014 · 015 · 039 · 040) + UC-01 축 잔여 6 (REQ-049 · 051 ~ 055) = 선언 13 전건. 본 slice 비용 실측 (선언 7 · 본문 hit 64 · diff +4 LOC · bash 4 회) 을 기준으로 단일 slice 가능 여부를 먼저 판정할 것. 완료 시 212 행 "미검증 축" 의 `UC 본문 §5/§6/§8` 항이 **8 UC 전건 (union 33/33) 으로 해소**.
+2. **§3 매트릭스 79 행 REQ-045 의 UC 열 `(인접)` 표기 비일관** — 77 · 78 행은 `UC-05 (인접)`, 79 행은 표기 없음. cascade 없는 표기 정정 1 줄 (본 slice 는 Out of Scope 로 기록만).
