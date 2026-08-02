@@ -65,4 +65,57 @@ S1 을 먼저 하는 이유는 §12.5 표가 근거 (iii) 대상이 architecture
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+1. **S2 실판정 slice** — infrastructure 7 (REQ-001 · 017 · 056 ~ 060) 재판정. 본 slice 와 동형으로 §12.7 append + cascade 는 §12.3 · §12.4 그대로. S1 · S2 는 독립이라 선후 무관.
+2. **cascade 7 번째 지점의 §12.3 표 반영** — §4 117 행 blockquote 가 (c) `15` 항의 부속임을 본 slice 가 §12.6 본문에 기록했으나 §12.3 표에는 넣지 못했다 (append-only 행 번호 invariant). S3 이후 행 번호 제약이 풀리는 시점의 정리 후보.
+3. **cover 위치 셀 종류 규약 정리 (선택)** — REQ-003 의 `기록만` 사유 (cross-cutting 의 cover 위치가 architecture doc / ADR 이 아니라 UC 2 개) 가 §2 25 행 문구의 예시 범위 문제인지 실제 표기 오류인지는 §2 를 건드려야 결론난다. 분류값과 무관하므로 S1 ~ S3 와 독립.
+
+## 완료 기록 (2026-08-03)
+
+**삽입 위치 제약 (선행 항목)** — 판정 기록을 `### 12.6 S1 실판정 — cross-cutting 4 row (T-1406)` 로 **§12.5 마지막 행 (구 324 행) 뒤 · `## 11. References` (구 326 행) 앞** 에만 삽입했고 `###` 이라 `## ` heading count 는 12 그대로다. 근거: 325 행 이전 행 번호가 전건 불변이어야 §10 의 L212 잔여 축 bullet 참조와 §4 115 행 정합식 참조가 깨지지 않는다.
+
+**(1) row 별 근거 3 종 실측** — 축별 grep 4 회 (row 별 아님) 로 갈음했다:
+
+```
+$ grep -n "REQ-002\|REQ-003\|REQ-029\|REQ-047" docs/use-cases/UC-0*.md                                   # (i) + (ii) → hit 0
+$ grep -n "REQ-002\|REQ-003\|REQ-029\|REQ-047" docs/architecture/components.md docs/architecture/modules.md docs/architecture/deployment.md docs/decisions/ADR-0002-db.md   # (iii) 지목 doc
+$ grep -n "Web UI\|WebModule\|DB Persistence" docs/architecture/components.md docs/architecture/modules.md   # ID hit 0 인 REQ-002 · 029 의 지목 대상 실재
+$ awk 'NR==21||NR==22||NR==48||NR==66' docs/requirements.md                                               # (iii) 원문 kind
+```
+
+핵심 실측: 8 UC 전건에서 4 REQ 의 ID hit **0** (→ (i) · (ii) 는 4 row 전건이 `cross-cutting` 과 일치), components.md 113 · 116 행 (`Web UI` · `DB Persistence`) · modules.md 43 · 196 행 (`WebModule`) · deployment.md 67 행 (`### REQ-047 (1 h 처리) 충족 시나리오`) · ADR-0002 27 · 61 행 (REQ-029) 전부 실재, requirements.md kind 4 값 (`FR` / `FR` / `NFR` / `NFR`) 이 §3 셀과 전건 일치.
+
+**(2) 임계 적용 + 분류 판정** — §12.2 288 행 임계 기계 적용: REQ-002 **어긋남 0 → 유지**, REQ-003 **1 → 기록만** (cover 위치 셀이 UC 2 개를 지목 — §2 25 행 예시 장소 밖 표기 경계), REQ-029 **0 → 유지**, REQ-047 **0 → 유지**. 변경 **0 건**. requirements.md status 컬럼 (`IN_PROGRESS` / `DONE` / `PLANNED`) 은 구현 진척 축이라 분류 전이 근거로 쓰지 않았다.
+
+**(3) REQ-003 주의 지점 판정** — §3 37 행 `cross-cutting` 과 §4 107 행 `envelope-cover: REQ-003 (표시)` 는 **모순 아님 — 양립** 으로 1 개 판정을 박제했다. §4 는 UC → REQ 역방향 view (그 UC 가 덮는 부분), §3 은 REQ → cover 정방향 view (REQ 전체를 무엇이 덮는가) 라 나열 기준이 다르며 (T-1395 의 §4 117 행 화법과 동형), REQ-003 3 축 중 UC-02 envelope 안은 표시 축뿐이라 단일 UC 로 전체가 덮이지 않는 것이 곧 §2 25 행 요건이다. 이 축 어긋남 **0** → 무수정.
+
+**(4) cascade 집행 여부** — 분류값 변경 0 건이라 **`cascade (a) ~ (f) 발동 대상 없음`** 을 §12.6 에 박제했다 (T-1400 ~ T-1403 선례 화법). §3 · §4 106 ~ 117 행 · §5 121 ~ 127 행 어느 셀도 치환하지 않았고 INDEX.md · PLAN.md 도 열지 않았다.
+
+**(5) cascade 7 번째 지점** — (c) `15` 항이 움직이면 §4 117 행 blockquote 의 `15` · `13` · `차이 2 건` 도 stale 해진다는 사실을 §12.6 에 **후보 지점 발견 (본 slice 미발동)** 으로 기록했다. §12.3 표는 append-only 규약대로 무수정이며, 본 slice 는 `15` 항 무변이라 117 행도 무수정이다.
+
+**(6) S1 종합 + 잔여** — **유지 3 / 기록만 1 / 변경 0**, 후보 **17 중 4 완료 · 잔여 13** (S2 7 + S3 6). §10 잔여 축 bullet (L212) 문구는 손대지 않았고 closure 가 S3 소관임을 §12.6 말미에 명시했다.
+
+**불변 검산 6 값** (편집 후 실측, 괄호 안이 요구치):
+
+| # | 항목 | 값 |
+| --- | --- | --- |
+| (a) | `grep -c "^\| REQ-"` | **66** (66 불변) |
+| (b) | `grep -c "^## "` | **12** (12 불변 — `###` 추가) |
+| (c) | `grep -n "미검증 축"` 첫 hit / 총 hit | **212** / **10** (212 / 10 불변) |
+| (d) | `grep -c "212 행"` | **9** (9 불변) |
+| (e) | `sed -n '115p'` | `33 + 15 + 4 + 13 + 1 = 66` 이 **여전히 115 행**, 합 **66** |
+| (f) | §5 표 (121 ~ 127 행) | count `48 / 4 / 13 / 1` = **66** · 합계 row `**66**` · `**100 %**` 불변 |
+
+(c) · (d) 불변은 §12.6 본문이 두 검산 대상 문자열을 쓰지 않고 회피 표기 (`L212` · `잔여 축`) 를 쓴 T-1405 선례 승계 결과다.
+
+**hunk 국한 검증 (R-112 대체, doc-only)** — 코드 변경 0. hunk 헤더 전량:
+
+```
+$ git diff -U0 docs/use-cases/REQ-COVERAGE-AUDIT.md | grep '^@@'
+@@ -325,0 +326,85 @@
+$ git diff --numstat
+85      0       docs/use-cases/REQ-COVERAGE-AUDIT.md
+```
+
+삽입 hunk **1 개뿐** · 1 ~ 325 행 hunk **0** · 삭제 열 **0**. (AC 가 예시한 `@@ -324,0 +325,N @@` 대비 anchor 가 1 행 뒤인 것은 삽입 블록이 빈 줄로 시작해 git 이 기존 325 행 빈 줄 뒤로 정렬했기 때문이며, §12.5 와 §11 사이 삽입이라는 사실은 동일하다.) 표 row 치환 **0 건** 이라 `|` 필드 수 변화 대상 자체가 없다 (§3 매트릭스 66 row 및 §5 표 전건 무수정 — (a) · (f) 검산이 이를 이중 확인). `git status --porcelain` 은 `docs/use-cases/REQ-COVERAGE-AUDIT.md` + 본 task 파일 **2 개** 외 변경 0.
+
+**한계** — (1) S2 · S3 배정 13 row 미판정, (2) cascade (e) INDEX.md 110 행 · (f) PLAN.md 36 행 미동기 (분류 변경 0 이라 불요였으나 정합 확인도 미수행), (3) 표기 비일관 3 건 (§3 83 행 `(cover)` · 79 행 `(인접)` · UC §10 표 `§5 step N` 편차) 미정정, (4) 근거 (iii) 의 architecture doc 확인은 grep hit + 절 제목 / 표 row 실재 수준의 정적 실측이라 그 문서가 REQ 를 **충분히** 다루는지의 질적 평가는 하지 않았다.

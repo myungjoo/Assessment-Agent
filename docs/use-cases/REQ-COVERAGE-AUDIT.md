@@ -323,6 +323,91 @@ batch 크기는 T-1398 ~ T-1403 실적 (**UC 1 ~ 2 개 · bullet 2 ~ 5 줄 appen
 
 합 17 row = 4 + 7 + 6 으로 12.1 의 분모와 일치. S1 · S2 는 서로 독립이라 순서 무관이나 **S3 는 반드시 마지막** 이다 — L212 closure 가 앞 두 slice 판정 결과를 인용해야 하기 때문이다.
 
+### 12.6 S1 실판정 — cross-cutting 4 row (T-1406)
+
+> 본 절은 [T-1406](../tasks/T-1406-req-coverage-s1-crosscutting-rejudge.md) 이 §12.5 의 S1 batch (cross-cutting 전건 4 row — REQ-002 · 003 · 029 · 047, §3 36 · 37 · 63 · 81 행) 를 §12.2 근거 3 종 + 2/3 임계로 실판정한 기록이다. **삽입 위치는 §12.5 마지막 행 뒤 · §11 References 앞** 이고 `###` 이라 `## ` heading count 가 불변이다 — 그래야 324 행 이하 전건이 행 번호 불변으로 남아 §10 의 L212 잔여 축 bullet 참조와 §4 115 행 정합식 참조가 그대로 유효하다.
+
+#### 실측 명령 (축별 4 회)
+
+```
+$ grep -n "REQ-002\|REQ-003\|REQ-029\|REQ-047" docs/use-cases/UC-0*.md
+(hit 0 — 8 UC 전건)
+$ grep -n "REQ-002\|REQ-003\|REQ-029\|REQ-047" docs/architecture/components.md docs/architecture/modules.md docs/architecture/deployment.md docs/decisions/ADR-0002-db.md
+docs/architecture/deployment.md:67:### REQ-047 (1 h 처리) 충족 시나리오
+docs/architecture/deployment.md:73: (미충족 시 worker + 외부 큐 도입 검토 조건)
+docs/decisions/ADR-0002-db.md:27 / 61  (REQ-029 non-volatile — WAL + fsync durability)
+docs/decisions/ADR-0002-db.md:32 / 47 / 121 / 127  (REQ-047 처리량 · NFR 충족 가능성 · Refs)
+$ grep -n "Web UI\|WebModule\|DB Persistence" docs/architecture/components.md docs/architecture/modules.md
+components.md:113 | **Web UI** | (45 · 52 다이어그램, 160 · 161 interaction)   components.md:116 | **DB Persistence** |
+modules.md:43 | **WebModule** |   modules.md:196 | **Web UI** | WebModule | 1:1 mapping
+$ awk 'NR==21||NR==22||NR==48||NR==66' docs/requirements.md
+21: REQ-002 | FR  | Web Interface 를 제공하는 Agent System
+22: REQ-003 | FR  | 개발자 기여 양·질 평가 / 저장 / 표시
+48: REQ-029 | NFR | 평가 자료 non-volatile 저장
+66: REQ-047 | NFR | 100~200명 / 50~100 repo / ~1000 confluence / 1h 이내
+```
+
+첫 grep 의 **hit 0** 이 S1 4 row 판정의 축이다 — 4 REQ 중 어느 것도 8 UC 의 `coversReq` / `adjacentReq` 또는 본문 §5 · §6 · §8 의 ID anchor 에 등장하지 않는다. 이는 §2 25 행의 "단일 UC 의 coversReq 에 박제하기 부적합" 과 정확히 부합하므로, 근거 (i) · (ii) 는 4 row **전건에서 현 분류 `cross-cutting` 과 일치** 이며 `uc-covered` 로 끌어올릴 근거는 0 이다.
+
+#### row 별 근거 3 종 실측
+
+| 대상 row | (i) UC frontmatter | (ii) UC 본문 hit | (iii) requirements 원문 + cover 위치 셀 | 어긋남 |
+| --- | --- | --- | --- | --- |
+| 36 행 REQ-002 | hit 0 — 일치 | ID hit 0 — 일치 | 21 행 kind `FR` = 셀 `FR` 일치. 지목 2 곳 실재 — components.md 113 행 `Web UI` component row (React + Vite SPA) + modules.md 43 행 `WebModule` row 및 196 행 `Web UI → WebModule 1:1` mapping. 둘 다 Web Interface 축을 실제로 다룸 — 일치 | **0 종** |
+| 37 행 REQ-003 | hit 0 — 일치 | ID hit 0 — 일치 | 22 행 kind `FR` = 셀 `FR` 일치. 다만 cover 위치 셀이 `UC-01 (생성) + UC-02 (표시)` 로 **UC 2 개** 를 지목 — 두 파일 다 실재하나 §2 25 행이 예시한 박제 장소 (architecture doc / ADR) 밖 종류다 — **어긋남 (표기 경계)** | **1 종** |
+| 63 행 REQ-029 | hit 0 — 일치 | ID hit 0 — 일치 | 48 행 kind `NFR` = 셀 `NFR` 일치. ADR-0002 27 행 (non-volatile 근거) · 61 행 (WAL + fsync 로 충족) 이 REQ-029 를 명시적으로 다루고 components.md 116 행 `DB Persistence` row 실재 — 일치 | **0 종** |
+| 81 행 REQ-047 | hit 0 — 일치 | ID hit 0 — 일치 | 66 행 kind `NFR` = 셀 `NFR` 일치. deployment.md 67 행 절 제목 `### REQ-047 (1 h 처리) 충족 시나리오` 가 셀의 `§REQ-047` 지목과 문자 그대로 일치 (73 행에 미충족 시 재검토 조건 부기). `P7 perf test` 는 66 행 phase `P7` · 검증 `manual + perf test` 와 일치 — 일치 | **0 종** |
+
+#### 임계 적용 + 최종 판정
+
+§12.2 288 행 임계 (2 종 이상 → 분류 변경 / 1 종 → `기록만` / 0 종 → 무수정) 를 기계적으로 적용한다.
+
+| 대상 row | 어긋남 종수 | 판정 |
+| --- | --- | --- |
+| 36 행 REQ-002 | 0 | **유지** (`cross-cutting`) |
+| 37 행 REQ-003 | 1 | **기록만** — 분류 `cross-cutting` 무수정, 본 절 부기로 갈음 |
+| 63 행 REQ-029 | 0 | **유지** (`cross-cutting`) |
+| 81 행 REQ-047 | 0 | **유지** (`cross-cutting`) |
+
+- REQ-003 의 1 종을 `변경` 으로 끌고 가지 않은 이유 — 어긋난 것은 **cover 위치 셀의 지목 종류** 뿐이고 분류 축 자체 (다수 UC 공유 · 단일 UC 박제 부적합) 는 오히려 `UC-01 + UC-02` 병기가 강화한다. §12.2 290 행 부기의 "표기 오류는 임계 계산에서 1 종으로만 센다" 를 그대로 따라 보수적으로 `기록만` 을 택했다.
+- requirements.md 의 status 컬럼 (22 행 `IN_PROGRESS` · 48 행 `DONE (implemented-on-main)` · 66 행 `PLANNED 유지`) 은 **구현 진척 축** 이라 §3 의 **cover 방식 분류 축** 과 무관하다 — 분류 전이 근거로 쓰지 않았다.
+
+#### REQ-003 주의 지점 명시 판정 — §3 37 행 vs §4 107 행
+
+**판정: 모순 아님 — 양립 (분류 무수정).** §4 107 행이 UC-02 bullet 에 `envelope-cover: REQ-003 (표시)` 를 나열하면서 §3 37 행이 같은 REQ 를 `cross-cutting` 으로 분류하는 것은 두 절의 **나열 기준 차이** 다 — §4 는 UC → REQ 역방향 view 라 "그 UC 가 덮는 부분" 을 적고, §3 은 REQ → cover 정방향 view 라 "REQ 전체를 무엇이 덮는가" 를 판정한다 (§4 117 행 blockquote 가 13 vs 15 에 대해 쓴 화법과 동형). REQ-003 의 3 축 (평가 · 저장 · 표시) 중 UC-02 envelope 안에 드는 것은 **표시 축뿐** 이라 단일 UC 로는 REQ 전체가 덮이지 않으며, 이것이 §2 25 행 "다수 UC 가 공유하는 횡단 관심사" 요건 그 자체다. §3 37 행 cover 위치 셀이 이미 `UC-01 (생성) + UC-02 (표시)` 두 UC 를 병기한다는 사실이 두 서술을 같은 사실의 두 시점 표현으로 자기 증명한다. 이 축으로 어긋난 근거 종수는 **0** 이라 임계상 무수정이다.
+
+#### cascade 판정
+
+**분류값 변경 0 건 → cascade (a) ~ (f) 발동 대상 없음.** §12.3 294 행이 규정한 "`무수정` 판정이면 6 지점 전부 발동하지 않는다" 그대로다 (T-1400 ~ T-1403 선례 화법). 특히 §5 124 행 `cross-cutting` 비고 셀이 열거한 4 건 ID 는 본 절 판정 대상 4 row 와 정확히 같은 집합이라 (b) bullet · (c) 정합식 `4` 항 · (d) 통계표 `4` 값이 모두 무변이고, (e) INDEX.md 110 행 · (f) PLAN.md 36 행 도 옮겨 적을 새 수치가 없다.
+
+**cascade 7 번째 후보 지점 (발견 기록 — 본 slice 미발동)** — §12.3 표의 (c) `15` 항 (envelope 잔차) 이 장래 움직이면 §4 **117 행 blockquote** 의 `15` · `13` · `차이 2 건` 서술도 동시에 stale 해진다. 즉 (c) 는 115 행 정합식 1 곳이 아니라 117 행 blockquote 를 부속으로 거느린다. 본 slice 는 `15` 항이 무변이므로 117 행도 무수정이며, §12.3 표 자체는 append-only 규약상 손대지 않는다 (표에 row 를 끼우면 §12.4 · §12.5 의 행 번호가 밀린다).
+
+#### 불변 검산 6 값 (편집 후 실측)
+
+| # | 검산식 | 요구치 | 실측 |
+| --- | --- | --- | --- |
+| (a) | `grep -c "^\| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md` | 66 불변 | **66** |
+| (b) | `grep -c "^## "` | 12 불변 (`###` 추가) | **12** |
+| (c) | 잔여 축 문구 grep 첫 hit / 총 hit | L212 / 10 불변 | **L212 / 10** |
+| (d) | L212 참조 문자열 count | 9 불변 | **9** |
+| (e) | `sed -n '115p'` 정합식 | 여전히 115 행 · 합 66 | **115 행 · `33 + 15 + 4 + 13 + 1 = 66`** |
+| (f) | §5 표 (121 ~ 127 행) count 4 값 + 합계 | 합 66 · `**100 %**` | **48 / 4 / 13 / 1 = 66** · 합계 row `**100 %**` 불변 |
+
+(c) · (d) 가 불변인 것은 본 절이 그 두 검산 대상 문자열을 **의도적으로 쓰지 않고** 회피 표기 (`L212` · `잔여 축`) 를 쓴 T-1405 선례를 승계한 결과다. (f) 의 개별 percentage 4 값 (`73 / 6 / 20 / 2 %`) 합이 101 인 것은 반올림 오차이며 합계 row 표기 `**100 %**` 와 함께 본 slice 에서 무변이다.
+
+#### S1 종합 판정 + 잔여
+
+- **판정 분포 — 유지 3 / 기록만 1 / 변경 0** (REQ-002 · 029 · 047 유지, REQ-003 기록만). cross-cutting 4 row 는 2026-05-25 T-0029 최초 판정 이후 처음으로 근거 3 종 실측을 통과했고, 분류값은 전건 그대로다.
+- **진척 — 후보 17 중 4 완료 · 잔여 13** (S2 infrastructure 7 = REQ-001 · 017 · 056 ~ 060, S3 infrastructure 6 = REQ-061 ~ 066).
+- **§10 의 잔여 축 bullet (L212) 문구는 본 slice 에서 건드리지 않았다** — `유일 잔여 축` closure 는 §12.5 324 행이 못박은 대로 **S3 소관** 이다 (앞 두 slice 판정 결과를 인용해야 하므로).
+
+#### 한계 —
+
+1. **S2 · S3 배정 13 row 미판정** — infrastructure 전건 (REQ-001 · 017 · 056 ~ 066) 의 분류는 본 slice 에서 손대지 않았고 최초 판정값 그대로다.
+2. **cascade (e) `docs/use-cases/INDEX.md` 110 행 · (f) `docs/PLAN.md` 36 행 미동기** — 본 slice 는 분류값 변경 0 이라 동기 자체가 불요였으나, 두 지점의 정합 확인도 수행하지 않았다 (§12.4 311 행의 분리 허용 + T-1404 Follow-up 3 소관).
+3. **표기 비일관 3 건 미정정** — §3 83 행 `(cover)` · 79 행 `(인접)` 표기 편차와 UC §10 표의 `§5 step N` ±1 편차는 분류 축과 무관해 그대로 두었다.
+4. **근거 (iii) 의 architecture doc 확인은 정적 실측** — `grep` hit + 절 제목 / 표 row 실재 수준까지만 대조했고, 그 문서가 해당 REQ 를 **충분히** 다루는지의 질적 평가 (예: components.md `Web UI` 서술이 REQ-002 의 Web Interface 요구를 실제로 만족시키는 깊이인지) 는 하지 않았다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
