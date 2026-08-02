@@ -43,10 +43,10 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "status": "running",
+    "status": "green",
     "consecutiveFails": 0,
-    "lastRun": "2026-08-02T19:58:00Z",
-    "note": "driver fire(cron@aa-local-b13a987c15920, 매시 30분대 로컬 스케줄) — multiTaskFire chain N=2 (T-1401 -> T-1402) 성사, FIRE-BATCH: T-1401+T-1402. flags.multiTaskFire=true + holder=cron 이중 게이트 통과 후 CLAUDE.md 2.5 (a)~(e) 전건 충족((a) executor 반환이 SUMMARY+trail blob 뿐, (b) N=2 상한, (c) 첫 task content commit 377f595d CI conclusion=success 실확인 후 진입, (d) lock since 로부터 약 13 분 < 45 분, (e) direct+direct 동종). stage 5b(fineGrainedConcurrency=true, maxConcurrentClaims=2) 경로 2 회 모두 정상: task 마다 acquire-lock CAS -> server-time(GitHub API Date 헤더; 각 2026-08-02T19:37:44Z / 19:50:37Z) 주입 reclaim(회수 대상 0) -> 활성 claim 0 게이트 통과 -> validate-claim-candidate PASS -> select-claim atomic(claimedAt 각 19:38:01Z / 19:50:44Z 실확인, midnight fallback 0, 이중 claim 0) -> lock tombstone release -> lock-free executor -> direct push. T-1401 content 377f595d CI green 확인 완료. T-1402 content 4a8252ed 는 본 bookkeeping 시점 in_progress 라 conclusion 은 종료 전 재확인 대상."
+    "lastRun": "2026-08-02T20:02:00Z",
+    "note": "driver fire(cron@aa-local-b13a987c15920, 매시 30분대 로컬 스케줄) — multiTaskFire chain N=2 (T-1401 -> T-1402) 성사, FIRE-BATCH: T-1401+T-1402. flags.multiTaskFire=true + holder=cron 이중 게이트 통과 후 CLAUDE.md 2.5 (a)~(e) 전건 충족((a) executor 반환이 SUMMARY+trail blob 뿐, (b) N=2 상한, (c) 첫 task content commit 377f595d CI conclusion=success 실확인 후 진입, (d) lock since 로부터 약 13 분 < 45 분, (e) direct+direct 동종). stage 5b(fineGrainedConcurrency=true, maxConcurrentClaims=2) 경로 2 회 모두 정상: task 마다 acquire-lock CAS -> server-time(GitHub API Date 헤더; 각 2026-08-02T19:37:44Z / 19:50:37Z) 주입 reclaim(회수 대상 0) -> 활성 claim 0 게이트 통과 -> validate-claim-candidate PASS -> select-claim atomic(claimedAt 각 19:38:01Z / 19:50:44Z 실확인, midnight fallback 0, 이중 claim 0) -> lock tombstone release -> lock-free executor -> direct push. chain 두 content commit 의 CI conclusion 을 본 fire 안에서 모두 success 로 확인 — R-114 충족 (T-1401 377f595d run 30764037939, T-1402 4a8252ed run 30764440052). claim prune 완료(claims.json 빈 배열) + lock tombstone 확인. bookkeeping commit 0afef5fa 의 run 30764622373 만 종료 시점 미확정. 본 fire 는 N=2 상한 도달로 세 번째 task 진입 없이 종료."
   },
   "reviewRounds": {
     "T-1314": 1,
