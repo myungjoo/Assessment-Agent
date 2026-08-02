@@ -2,7 +2,7 @@
 id: T-1400
 title: UC-06 · UC-07 이 자기 frontmatter coversReq 6 선언 (unique 5 건 — REQ-037 / 041 / 045 · REQ-030 / 032 / 045) 을 본문 §5 · §6 · §8 로 실제 cover 하는지 4 축 실측 검증
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 90
