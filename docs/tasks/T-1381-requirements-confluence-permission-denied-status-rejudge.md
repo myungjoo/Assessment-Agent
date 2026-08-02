@@ -2,7 +2,7 @@
 id: T-1381
 title: requirements.md 35 행 REQ-016 Confluence 접근 권한 부족 인식·통지 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-016]
 estimatedDiff: 30
@@ -37,16 +37,16 @@ plannerNote: "requirements-status-resync 27 번째 slice — T-1380 Follow-up �
 
 ## Acceptance Criteria
 
-- [ ] **감지 축 (README 33 행 "접근 권한이 모자를 경우")** 을 실측한다 — Confluence 권한 부족을 판정하는 입력 (상태 코드 · 예외 타입) 과 그것을 event 로 바꾸는 심볼을 파일 · 행 인용으로 확정하고, 수집 / traversal 경로에서 그 emit 을 실제 호출하는 지점을 1 개 이상 파일 · 행으로 인용한다. 호출 참조가 0 이면 감지 축을 충족으로 판정하지 않는다.
-- [ ] **권한 부족 SPACE 의 진행 정책** 을 한 줄로 확정한다 — 중단인지 skip-and-continue 인지를 행 인용으로 적고, skip 이면 그 사실이 기록으로 남는지 (emit 동반 여부) 를 함께 적는다.
-- [ ] **기록·영속 축** 을 실측한다 — emitter → record service → repository → Prisma 모델까지의 경로를 행 인용으로 확정하고, 저장되는 `provider` 값의 리터럴을 그대로 인용한다. 모델명은 `prisma/schema.prisma` 에 실재하는 이름만 인용하고 추측하지 않는다. `confluence.module.ts` 의 바인딩 대상이 실 구현인지도 행 인용한다.
-- [ ] **인식 경로 축 (README 33 행 "사용자와 관리자가 인식")** 을 판정한다 — 조회 route 가 Confluence 기록을 노출하는지를 provider 필터 / where 절 행 인용으로 확정하고, 사용자 (non-Admin) 와 관리자 (Admin) 각각의 조회 가능 여부를 한 줄로 적는다. 한쪽만 가능하면 그 사실을 그대로 적는다.
-- [ ] **프런트 노출 축을 별도로 판정한다** — 목록 컴포넌트의 배선 지점 (import + JSX) 을 파일 · 행으로 인용하고, Confluence provider 기록이 렌더 대상에 포함되는지를 provider 분기 유무로 확정한다. 배선 지점이 없으면 미충족으로 적고 근거 없는 서술을 덧붙이지 않는다.
-- [ ] **검증 위치 컬럼의 실 근거** 를 확인한다 — 위 3 spec 파일의 `it(` 개수를 각각 실측해 경로와 개수를 상태 문자열에 인용한다. 표의 `unit` 과 실재 spec 종류가 어긋나면 (예: smoke / e2e 도 cover) 그 사실을 "한계 —" 로만 부기한다 (컬럼 값은 수정하지 않는다).
-- [ ] REQ-016 (35 행) 의 상태 컬럼을 실측 결과에 따라 `PLANNED` → `DONE (implemented-on-main — <근거>)`, 일부 축만 충족 시 `IN_PROGRESS (<충족 축> 실재 / <미충족 축> 부재)`, 근거 부족 시 `PLANNED` 유지 + 유지 사유 부기 중 하나로 갱신한다. 근거에는 실재하는 소스 파일 경로 2 개 이상 + spec 파일 경로 1 개 이상이 포함돼야 한다.
-- [ ] 실측으로 확인되지 않은 부분 (예: 감지가 cover 하지 못하는 4xx 종류 · 프런트 provider 분기 공백 · push 통지 부재) 은 상태 문자열 안에 "한계 —" 로 1~2 절 부기한다.
-- [ ] `grep -n "REQ-016" docs/requirements.md` 결과에서 해당 행의 상태 컬럼이 갱신됐고, 표의 컬럼 수 (`|` 필드 수) 가 인접 행 (REQ-015 · REQ-017) 과 동일하게 유지됨을 확인한다. 상태 문자열 안에 리터럴 `|` 문자를 넣지 않는다 (T-1370 · T-1375 에서 grep 패턴의 `\|` 로 필드 수가 부풀었던 사고 재발 방지). `wc -l docs/requirements.md` = 97 과 `grep -c "^| REQ-" docs/requirements.md` 값이 편집 전후 불변임도 확인한다.
-- [ ] 본 task 파일의 `status` 를 `DONE` 으로 바꾸고 완료 시각 · 결과 요약 (실측값 포함) 을 추가한다.
+- [x] **감지 축 (README 33 행 "접근 권한이 모자를 경우")** 을 실측한다 — Confluence 권한 부족을 판정하는 입력 (상태 코드 · 예외 타입) 과 그것을 event 로 바꾸는 심볼을 파일 · 행 인용으로 확정하고, 수집 / traversal 경로에서 그 emit 을 실제 호출하는 지점을 1 개 이상 파일 · 행으로 인용한다. 호출 참조가 0 이면 감지 축을 충족으로 판정하지 않는다.
+- [x] **권한 부족 SPACE 의 진행 정책** 을 한 줄로 확정한다 — 중단인지 skip-and-continue 인지를 행 인용으로 적고, skip 이면 그 사실이 기록으로 남는지 (emit 동반 여부) 를 함께 적는다.
+- [x] **기록·영속 축** 을 실측한다 — emitter → record service → repository → Prisma 모델까지의 경로를 행 인용으로 확정하고, 저장되는 `provider` 값의 리터럴을 그대로 인용한다. 모델명은 `prisma/schema.prisma` 에 실재하는 이름만 인용하고 추측하지 않는다. `confluence.module.ts` 의 바인딩 대상이 실 구현인지도 행 인용한다.
+- [x] **인식 경로 축 (README 33 행 "사용자와 관리자가 인식")** 을 판정한다 — 조회 route 가 Confluence 기록을 노출하는지를 provider 필터 / where 절 행 인용으로 확정하고, 사용자 (non-Admin) 와 관리자 (Admin) 각각의 조회 가능 여부를 한 줄로 적는다. 한쪽만 가능하면 그 사실을 그대로 적는다.
+- [x] **프런트 노출 축을 별도로 판정한다** — 목록 컴포넌트의 배선 지점 (import + JSX) 을 파일 · 행으로 인용하고, Confluence provider 기록이 렌더 대상에 포함되는지를 provider 분기 유무로 확정한다. 배선 지점이 없으면 미충족으로 적고 근거 없는 서술을 덧붙이지 않는다.
+- [x] **검증 위치 컬럼의 실 근거** 를 확인한다 — 위 3 spec 파일의 `it(` 개수를 각각 실측해 경로와 개수를 상태 문자열에 인용한다. 표의 `unit` 과 실재 spec 종류가 어긋나면 (예: smoke / e2e 도 cover) 그 사실을 "한계 —" 로만 부기한다 (컬럼 값은 수정하지 않는다).
+- [x] REQ-016 (35 행) 의 상태 컬럼을 실측 결과에 따라 `PLANNED` → `DONE (implemented-on-main — <근거>)`, 일부 축만 충족 시 `IN_PROGRESS (<충족 축> 실재 / <미충족 축> 부재)`, 근거 부족 시 `PLANNED` 유지 + 유지 사유 부기 중 하나로 갱신한다. 근거에는 실재하는 소스 파일 경로 2 개 이상 + spec 파일 경로 1 개 이상이 포함돼야 한다.
+- [x] 실측으로 확인되지 않은 부분 (예: 감지가 cover 하지 못하는 4xx 종류 · 프런트 provider 분기 공백 · push 통지 부재) 은 상태 문자열 안에 "한계 —" 로 1~2 절 부기한다.
+- [x] `grep -n "REQ-016" docs/requirements.md` 결과에서 해당 행의 상태 컬럼이 갱신됐고, 표의 컬럼 수 (`|` 필드 수) 가 인접 행 (REQ-015 · REQ-017) 과 동일하게 유지됨을 확인한다. 상태 문자열 안에 리터럴 `|` 문자를 넣지 않는다 (T-1370 · T-1375 에서 grep 패턴의 `\|` 로 필드 수가 부풀었던 사고 재발 방지). `wc -l docs/requirements.md` = 97 과 `grep -c "^| REQ-" docs/requirements.md` 값이 편집 전후 불변임도 확인한다.
+- [x] 본 task 파일의 `status` 를 `DONE` 으로 바꾸고 완료 시각 · 결과 요약 (실측값 포함) 을 추가한다.
 
 ## Out of Scope
 
@@ -63,6 +63,23 @@ plannerNote: "requirements-status-resync 27 번째 slice — T-1380 Follow-up �
 
 `implementer` (doc-only 실측 + 표 갱신). 코드 변경이 0 이므로 tester 는 생략한다 (CLAUDE.md §3.2 R-110 의 direct-mode doc-only 면제).
 
+## 완료 기록
+
+- 완료 시각: 2026-08-02 (UTC)
+- 결과: `docs/requirements.md` 35 행 REQ-016 상태 컬럼을 `PLANNED` → `DONE (implemented-on-main — ...)` 로 갱신. Confluence 축 3 축 + 프런트 축 실측 요약:
+  - **감지** — `src/confluence/confluence-adapter.service.ts` 491 행 `mapNon2xx` 이 497 행 status 401/403 분기에서 498 행 `this.permissionDeniedEmitter.emit({ baseUrl, path, status })` 호출 후 `ConfluenceDomainError("permission-denied")` 반환. 호출 경로는 469 행 `throw this.mapNon2xx(response.status, input)` (326 행 `request` · 353 행 `requestAllPages`) ← traversal 129 행 ← `confluence-collection.service.ts` 54/70 행 ← `collection-orchestrator.service.ts` 59 행.
+  - **진행 정책** — skip-and-continue. `confluence-space-traversal.service.ts` 132~161 행 catch 가 `ConfluenceDomainError` 만 흡수 (135~137 행 비-도메인 error 재 throw), 148~155 행에서 permission-denied 만 emit 후 161 행 `continue` — skip 이 emit 을 동반한다 (단 traversal emitter 는 production DI 에서 no-op, 아래 Follow-up).
+  - **기록·영속** — `persisting-confluence-permission-denied-emitter.ts` 52 행 `emit` → 58~64 행 `recordService.record({ provider: "confluence", instanceRef: event.baseUrl, ... })` (60 행 리터럴 `"confluence"`, 65~75 행 `.catch` + try/catch 흡수, 80~84 행 `warnSwallow`) → `permission-denied-record.service.ts` 109 행 `record()` → `permission-denied-record.repository.ts` 69 행 `prisma.permissionDeniedRecord.create` → `prisma/schema.prisma` 513 행 `model PermissionDeniedRecord`. 바인딩은 `confluence.module.ts` 87~88 행 `useClass: PersistingConfluencePermissionDeniedEmitter` (실 구현), adapter 308 행 `@Inject(CONFLUENCE_PERMISSION_DENIED_EMITTER)`.
+  - **인식 경로** — `permission-denied-record.controller.ts` 78 행 `@Controller("api/permission-denied-records")` + 98~100 행 `@Get()` / guards / `@Roles("User")`, provider 는 104 행 `@Query("provider")` 선택 필터 (111~112 행 조건부) 이고 repository 104~105 행도 미지정 시 where 절 provider 조건 0 → Confluence 기록이 같은 route 로 노출. audience 는 service 163 행 `isAdminBypass` (Admin·SuperAdmin 전체) vs 170~197 행 non-Admin allowlist — 사용자·관리자 모두 조회 가능하되 사용자는 binding 범위 제한.
+  - **프런트** — `web/src/views/DashboardView.tsx` 38 행 import + 630~636 행 JSX + 66 행 endpoint 상수 (provider query 없음). 컴포넌트 `PermissionDeniedRecordList.tsx` 52 행 정의 + 77~81 행 `records.map` / `<span>{row.provider}</span>` — provider 분기 0 이라 Confluence record 도 렌더 대상.
+  - **검증 실측** — unit 3 spec 98 it (`persisting-confluence-permission-denied-emitter.spec.ts` 11, `confluence-space-traversal.service.spec.ts` 14, `confluence-adapter.service.spec.ts` 73, `it.each` 0). 컬럼 밖 실재: smoke `test/smoke/permission-denied-record.smoke-spec.ts` 6 it (102 행 confluence round-trip), e2e `test/e2e/permission-denied-records.e2e-spec.ts` 10 it (182 · 277 행 provider assertion) — "한계 —" 로만 부기, 컬럼 미수정.
+- 표 불변 확인: `wc -l docs/requirements.md` = 97 (편집 전후 동일), `grep -c "^| REQ-"` = 66 (동일), 34·35·36 행 `|` 필드 수 = 9 로 균일. 상태 문자열에 리터럴 `|` 0 (초안의 `||` 표기를 "401 또는 403 분기" 로 치환).
+- 코드 · schema · 주석 변경 0 (doc-only direct).
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+- **traversal emitter production no-op** — `confluence-space-traversal.service.ts` 92 행 emitter 가 `@Optional` + interface type 이라 DI token 바인딩이 없어 149 행 emit 이 production 에서 no-op 이다 (`confluence.module.ts` 77~82 행 주석이 Out of Scope 로 명시). SPACE 순회 맥락 (어느 SPACE 가 skip 됐는지) 은 record 에 남지 않고 adapter emit 의 `/content` path 만 남는다 — 배선 여부 판단은 별도 slice.
+- **404 (권한 비가시) 미기록** — adapter 511~513 행이 404 를 `not-found` 로만 분류해 emit 하지 않아 read 권한 부재로 SPACE 가 비가시인 경우 인식되지 않을 수 있다. 429 (520 행) · 5xx 도 대상 밖. 감지 경계 확정은 보안·권한 모델 인접이라 별도 판단 필요.
+- **push 통지 경로 부재** — REQ-016 의 "인식·대응" 은 현재 pull 조회 (GET endpoint + DashboardView) 뿐이고 mail / webhook 등 push 알림은 `src/` 에 부재 (REQ-008 Follow-up 과 동일 축).
+- **검증 위치 컬럼 drift** — REQ-016 컬럼은 `unit` 인데 smoke 6 it · e2e 10 it 도 Confluence 권한 축을 cover. 검증 위치 컬럼 재판정 slice 에서 일괄 처리 대상 (REQ-008 도 동형 drift).
+- **REQ-015 (SPACE 지정 평가)** — traversal 실측 중 `config.spaceAllowlist` 순회 (`confluence-space-traversal.service.ts` 115 행) + `confluence-instance-config.ts` 의 env 기반 SPACE 지정 경로가 실재함을 확인. REQ-015 재판정 slice 에서 동일 방식 실측 가능.
