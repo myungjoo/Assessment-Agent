@@ -2,7 +2,7 @@
 id: T-1406
 title: REQ-COVERAGE-AUDIT §12.5 S1 실판정 — cross-cutting 4 row (REQ-002 · 003 · 029 · 047) 재판정을 §12.6 으로 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 160
