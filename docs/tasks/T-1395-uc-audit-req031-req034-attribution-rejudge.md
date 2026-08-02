@@ -2,7 +2,7 @@
 id: T-1395
 title: REQ-COVERAGE-AUDIT 의 REQ-031 · REQ-034 `adjacent` vs `uc-covered` 귀속을 3 축 실측으로 재판정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 45
