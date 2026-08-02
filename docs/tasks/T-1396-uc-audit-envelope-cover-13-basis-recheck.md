@@ -2,7 +2,8 @@
 id: T-1396
 title: REQ-COVERAGE-AUDIT §4 UC-01 envelope-cover 13 건의 UC-01 본문 서술 근거를 2 축 실측으로 재판정
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-02T15:42:00Z
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 55
