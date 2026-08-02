@@ -2,7 +2,7 @@
 id: T-1392
 title: UC INDEX.md §2 표 "관련 REQ" 컬럼의 인용 REQ ID 전건을 requirements.md 66 row 와 1:1 정합 대조
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 40
