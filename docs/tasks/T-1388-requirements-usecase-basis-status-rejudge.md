@@ -2,7 +2,7 @@
 id: T-1388
 title: requirements.md 20 행 REQ-001 README = Use Case 문서의 기본·사용 안내 역할 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 30
@@ -65,4 +65,19 @@ plannerNote: "requirements-status-resync 34 번째 slice — T-1387 Out of Scope
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+- **README → UC 파생의 자동 강제 부재** — 정책 축은 `.claude/agents/planner.md` 92 행과 `docs/requirements.md` 7 행의 문서 서술로만 박제돼 있고, `.github/workflows/` · `scripts/` 전수에서 `use-cases` 를 참조하는 것은 `scripts/check-doc-only-pr.sh` 30 행의 doc-only 경로 allowlist 뿐이다. README 변경 시 UC / REQ row 갱신 누락을 CI 가 잡지 못한다. 전용 drift-guard step (예: README mtime 대비 use-cases 갱신 여부 경고) 도입은 `.github/workflows/` 수정이라 `commitMode: pr` 별도 slice.
+- **REQ-004 gap 미해소** — `docs/use-cases/REQ-COVERAGE-AUDIT.md` 18 행이 2026-05-25 audit 시점에 gap 1 건 (REQ-004 — 사용자 지정 기간 임의 평가문 요청 흐름) 을 검출했고 §6 이 follow-up task 를 권장했으나, 본 재판정 시점까지 그 gap 이 해소됐는지는 확인하지 않았다 (Out of Scope 의 UC 내용 전수 대조에 해당). audit 재실행 slice 검토.
+- **UC 문서별 README 인용 편차** — 8/8 파일이 README 를 인용하지만 건수 편차가 크다 (UC-01 · UC-04 · UC-05 각 9 건 vs UC-08 4 건). 인용 0 건 파일은 없어 본 재판정 판정에는 영향이 없으나, UC-08 (permission-denied) 의 README 역추적 밀도가 낮은 것이 실제 근거 부족인지 문서 성격 차이인지는 별도 확인 대상.
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-02
+- **판정**: REQ-001 (20 행) 상태 컬럼을 `PLANNED` → `DONE (implemented-on-main — ...)` 로 갱신했다. 4 축 (UC 문서 실재 · README 역추적 · 사용 안내 · 정책 박제) 이 모두 실측으로 충족됐고, 근거에 실재 파일 경로 3 개 이상 (`docs/use-cases/INDEX.md` · `docs/use-cases/REQ-COVERAGE-AUDIT.md` · 8 개 `UC-NN-*.md` · `.claude/agents/planner.md` · `docs/PLAN.md`) 이 포함된다.
+- **실측값**:
+  - UC 문서 실재 축 (충족) — `ls docs/use-cases/` = `UC-NN-*.md` **8 건** (UC-01-evaluation-execution · UC-02-evaluation-query · UC-03-person-crud · UC-04-account-auth · UC-05-llm-config · UC-06-evaluation-delete-reeval · UC-07-export-import · UC-08-permission-denied) + 부속 문서 **2 건** (`INDEX.md` **106 행** · `REQ-COVERAGE-AUDIT.md` **177 행**). INDEX.md 3 행 = P2 entry artifact 선언 + 목차 역할 규정, 17 행 `## 2. UC 목록 표` = UC ID · title · actor · 주요 component · 주요 module · 관련 REQ · status 컬럼 + 파일 링크. REQ-COVERAGE-AUDIT.md 18 행 결론부 = gap 1 건 (REQ-004) · cross-cutting 4 건 · infrastructure 13 건 · uc-covered 48 건.
+  - README 역추적 축 (충족) — `grep -c "README" docs/use-cases/UC-*.md` → **8/8 파일** 인용 (9 · 6 · 7 · 9 · 9 · 6 · 6 · 4 건). `grep -c "REQ-0"` → **8/8 파일** 인용 (56 · 32 · 49 · 31 · 46 · 42 · 36 · 41 건). **0 건 파일 없음**.
+  - 사용 안내 축 (충족) — `README.md` **4~9 행** (`# Assessment-Agent` 소개 — 평가 · 저장 · 표시 대상 서술), **66~74 행** (`# 평가 자료의 시각화와 UI` — 조회 · sorting · filtering · 기간별 추이 · Admin 주기 지정 · manual trigger · 최근 구간 삭제 7 bullet), **136~139 행** (`# 로컬 빌드 / 테스트` — `pnpm install` 부터의 실행 순서). 한계 부기: "어떠한 사용을 할 수 있는지 안내" 의 충분성 자체는 정성 판정이라 절 실재 수준까지만 실측.
+  - 정책 박제 축 (충족) — `.claude/agents/planner.md` **88 행** `## P2 (Use case decomposition) entry sequence` · **92 행** "**P2-Entry**: Use case 인벤토리 — README → `docs/use-cases/UC-NN-*.md` 1개씩 ... 모든 functional REQ 가 1+ use case 로 cover 되는지 검증." + `docs/requirements.md` **7 행** "**단일 source of truth**: README 의 새 지시 / 수정 / 삭제는 본 문서의 매핑에도 즉시 반영". 두 문장이 README → UC 파생을 planner 운영 규칙으로 강제. **자동 검증은 별개** — `.github/workflows/` · `scripts/` 전수에서 `use-cases` hit 은 `scripts/check-doc-only-pr.sh` 30 행 allowlist (+ 그 test 33 행) 뿐이라 CI 강제 step **0 건**.
+  - 검증 위치 `policy` = **충족** (위 두 정책 문장). 구현 위치 `P2` = **충족** — `docs/PLAN.md` **34 행** (`[x]` UC 발굴, 8 UC backbone + UC-01~08 본문 분해 8/8 closure) · **35 행** (`[x]` UC ↔ component 매핑 8/8 closure) · **43 행** ("Phase P2 fully complete — T-0031 머지 시점").
+- **표 무결성**: `wc -l docs/requirements.md` = **97**, `grep -c "^| REQ-"` = **66** (편집 전후 불변), 18 (헤더) · 19 (구분) · 20 (REQ-001) · 21 (REQ-002) 행의 `|` 필드 수 = **9** 로 동일. 상태 문자열에 리터럴 `|` 및 grep alternation `\|` 미사용 (중점 · 로 나열).
+- **한계**: "Description 역할" 의 충분성은 정성 판정이라 정적 실측 불가. README 본문 ↔ 8 UC 본문의 내용 정합은 문장 단위 전수 대조 없이는 판정 불가 (Out of Scope) — 본 재판정은 파일 실재 · 인용 건수 · index/audit 실재 수준에서 멈춘다. 정책 축 문장은 CI 로 자동 강제되지 않는다. REQ-COVERAGE-AUDIT.md 의 gap 1 건 (REQ-004) 이 audit 일자 (2026-05-25) 이후 해소됐는지는 미확인.
