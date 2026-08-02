@@ -64,4 +64,71 @@ plannerNote: "uc-doc-audit-resync 17 번째 slice — T-1404 Follow-up 1 (유일
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+1. **S1 실판정 slice** — cross-cutting 4 (REQ-002 · 003 · 029 · 047) 재판정. §12.2 근거 3 종 + 임계 규약 적용, cascade 는 §12.3 · §12.4 그대로.
+2. **S2 · S3 실판정 slice** — infrastructure 13 (REQ-001 · 017 · 056 ~ 066) 을 7 + 6 으로 분할 재판정. S3 가 마지막이므로 212 행 `유일 잔여 축` 문구 closure 를 포함한다.
+3. **표기 비일관 3 건 정정 slice** (선택) — §3 83 행 `(cover)` · 79 행 `(인접)` 누락 · UC §10 표 `§5 step N` ±1 편차. cascade 없음 (분류값 무관) 이라 S1 ~ S3 와 독립.
+
+## 완료 기록 (2026-08-03)
+
+**삽입 위치 제약 (선행 항목)** — 새 절을 `## 12.` 로 **§11 References 바로 앞 (구 250 · 251 행 사이)** 에만 삽입했다 (§10 이 §11 앞에 들어간 선례와 동형). 근거: 250 행 이하 행 번호가 전부 불변이어야 §10 의 9 개 bullet 이 거는 `212 행` 참조와 §4 `115 행` 정합식 참조가 유효하게 유지된다.
+
+**(1) 재판정 범위 — 부분집합 안 채택 (후보 17)**. rule (R) = §3 row 중 `cover 방식` 셀이 `cross-cutting` 또는 `infrastructure` 인 row. 제외 근거는 `uc-covered` 48 이 T-1395 ~ T-1403 축 C · D 로 이미 대조됐고 `gap` 1 은 §9.4 가 재판정을 마쳤다는 것 (§12.1 3 줄 근거).
+
+```
+$ grep -c "^| REQ-[0-9]\{3\} | [^|]* | \(cross-cutting\|infrastructure\) |" docs/use-cases/REQ-COVERAGE-AUDIT.md
+17
+```
+
+대조 실측 (같은 형태): `uc-covered` = **48**, `gap` = **1** → 48 + 1 + 17 = **66** 검산 통과. 후보 17 = cross-cutting 4 (REQ-002 · 003 · 029 · 047) + infrastructure 13 (REQ-001 · 017 · 056 ~ 066).
+
+**(2) 판정 기준** — §2 4 enum 을 재정의 없이 참조. 근거 3 종 = (i) UC frontmatter `coversReq` / `adjacentReq` 실측 · (ii) UC 본문 §5 · §6 · §8 hit (위임 문장 anchor 포함) · (iii) `docs/requirements.md` 원문 + cover 위치 셀 실재. 임계 = **2 종 이상 어긋날 때만 분류 변경, 1 종이면 `기록만`**. T-1398 ~ T-1403 의 "어긋남 없으면 무수정 · 표기 비일관은 기록만" 규약 승계를 §12.2 에 1 줄로 못박았다.
+
+**(3) cascade 6 지점** — (a) §3 row 3 셀 / (b) §4 106 ~ 113 행 bullet / (c) §4 115 행 정합식 `33 + 15 + 4 + 13 + 1 = 66` / (d) §5 count `48 / 4 / 13 / 1` + 합계 row / (e) INDEX.md 110 행 / (f) PLAN.md 36 행. 각 지점에 현재 값 + 트리거 조건 병기, §9.4 · §10 이 append-only 규약상 갱신 대상이 아님도 1 줄 명시 (§12.3 표).
+
+**(4) 순서 + 원자성** — (a) → (b) → (c) → (d) → (e) → (f). **(a) ~ (d) 는 한 slice 안에서 원자적** (같은 파일 정합식 — 분리 시 `합 ≠ 66` 중간 상태), (e) · (f) 는 별도 slice 허용 (파일 다름 · 요약 문구). slice 당 2 파일이라 5 파일 cap 의 40 % (§12.4).
+
+**(5) slice 분할안** — S1 cross-cutting 4 (140 ~ 160 LOC) / S2 infrastructure 7 = REQ-001 · 017 · 056 ~ 060 (100 ~ 130 LOC) / S3 infrastructure 6 = REQ-061 ~ 066 (110 ~ 140 LOC). 합 17 로 분모 일치. **S3 가 마지막 slice** — 212 행 잔여 축 문구를 in-place 1 줄 교체로 닫는다 (§12.5 표).
+
+**(6) 판정 0 검증** — §3 매트릭스 row 의 추가 · 삭제 0:
+
+```
+$ git diff -U0 docs/use-cases/REQ-COVERAGE-AUDIT.md | grep -c "^[-+]| REQ-"
+0
+```
+
+**불변 검산 6 값** (편집 후 실측, 괄호 안이 요구치):
+
+| # | 항목 | 값 |
+| --- | --- | --- |
+| (a) | `grep -c "^\| REQ-"` | **66** (66 불변) |
+| (b) | `grep -c "^## "` | **12** (11 → 12, 정확히 +1) |
+| (c) | `grep -n "미검증 축"` 첫 hit / 총 hit | **212** / **10** (212 / 10 불변) |
+| (d) | `grep -c "212 행"` | **9** (9 불변) |
+| (e) | §5 표 count 4 값 + 합계 row (123 ~ 127 행) | `48 / 4 / 13 / 1` + `**66**` · `**100 %**` 불변 |
+| (f) | `sed -n '115p'` | `33 + 15 + 4 + 13 + 1 = 66` 이 **여전히 115 행** |
+
+(c) · (d) 가 불변인 것은 새 §12 본문이 그 두 검산 대상 문자열을 **의도적으로 쓰지 않고** 회피 표기 (`L212` · `잔여 축`) 를 쓴 결과다.
+
+**hunk 국한 검증 (R-112 대체, doc-only — 코드 변경 0 이라 unit test 대신 diff 박제)**:
+
+```
+$ git diff -U0 docs/use-cases/REQ-COVERAGE-AUDIT.md | grep '^@@'
+@@ -250,0 +251,75 @@ REQ 의 cover 방식을 다음 4 enum 으로 분류:
+
+$ git diff --numstat docs/use-cases/REQ-COVERAGE-AUDIT.md
+75	0	docs/use-cases/REQ-COVERAGE-AUDIT.md
+
+$ git status --porcelain
+ M docs/use-cases/REQ-COVERAGE-AUDIT.md
+ M docs/tasks/T-1405-req-coverage-matrix-rejudge-scope-design.md
+```
+
+hunk 는 **삽입 1 개뿐** (`@@ -250,0 +251,75 @@`) 이고 1 ~ 250 행에 hunk **0**, 삭제 열 **0**, touchesFiles 2 개 외 변경 파일 **0**. 본 slice 는 표 row 를 1 개도 건드리지 않으므로 `|` 필드 수 대조는 대상이 아니다 ([T-1370](T-1370-requirements-fork-rebase-dedup-status-rejudge.md) · [T-1375](T-1375-requirements-org-document-contribution-score-status-rejudge.md) 사고 재발 방지 항목의 non-applicable 처리).
+
+**한계 —**
+
+1. **실제 row 재판정 0** — 본 slice 는 설계만이며 17 후보 중 어느 row 의 분류값도 실측 · 판정하지 않았다. 후보 수 17 은 rule 적용 결과일 뿐 "17 건이 틀렸다" 는 뜻이 아니다.
+2. **`docs/use-cases/INDEX.md` 110 행 · `docs/PLAN.md` 36 행 미수정** — cascade 대상으로 열거만 했다 (T-1404 Follow-up 3 소관).
+3. **표기 비일관 후보 3 건 미정정** — §3 83 행 `(cover)` · 79 행 `(인접)` 누락 · UC §10 표 `§5 step N` ±1 편차. 전부 기록만 존속.
+4. **66 REQ 의 구현 실재 여부는 본 문서 소관이 아니다** — `docs/requirements.md` 의 status 축이며, §9.3 이 못박은 "구현 실재 ≠ UC cover" 분리를 그대로 따른다.
+5. **S1 ~ S3 의 LOC 추정은 T-1398 ~ T-1403 실적 기반 외삽** 이라 실판정 시 근거 (iii) 대상 문서가 예상보다 크면 재분할이 필요할 수 있다.

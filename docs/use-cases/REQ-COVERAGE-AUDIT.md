@@ -248,6 +248,81 @@ REQ 의 cover 방식을 다음 4 enum 으로 분류:
 - 축 D — §3 매트릭스 39 · 40 · 41 · 48 · 49 · 73 · 74 행 7 row 가 모두 `uc-covered` 이고 근거 셀이 `github.com 평가` · `github.sec 평가` · `github.ecode 평가` · `Issue 평가 (본인 follow-up 제외)` · `Confluence SPACE 평가` · `Admin cron 주기 지정` · `Admin manual trigger` 뒤에 전부 `— UC-01 coversReq` 를 달아 축 A ~ C 실측과 **어긋남 0**. 39 · 40 · 41 · 48 · 49 행 UC 열의 `UC-01, UC-08 (인접)` 은 UC-01 §7.1 110 행 (`4xx → PermissionDeniedEvent emit, 후속 DB 기록·UI 표시는 UC-08 의 책임`) 및 §4 113 행 bullet (UC-08 adjacent 에 REQ-005 · 006 · 007 · 014 · 015 열거) 과 정합한다. 축 D-2 — 83 · 85 ~ 89 행 6 row 는 UC 열이 `UC-05, UC-01 (cover)` (83) · `UC-05, UC-01` (85 ~ 89) 이고 근거 셀은 전부 `UC-05 coversReq` 인데, 이는 대표 근거 1 개만 적은 표기일 뿐 UC-01 frontmatter 7 행이 같은 6 건을 실제로 선언한 사실 (본 slice 실측) 과 **충돌하지 않는다** — 이로써 T-1402 가 남긴 `REQ-049 · 051 ~ 055 의 UC-01 선언 축 미판정` dangling 항이 **종결** 된다. 83 행만 `(cover)` 를 달고 85 ~ 89 행은 달지 않는 표기 비일관은 **후보로 기록만** 한다 (정정 금지 · cascade 없음). cascade (§4 115 행 정합식 · §5 count 48 · INDEX 110 행 · PLAN 36 행) 발동 대상 없음.
 - **종합 판정 (가) frontmatter ↔ 본문 정합 확인** — 13 선언이 (강) 등급 또는 위임 문장 anchor 로 §5 / §6 / §8 에서 cover 되고 축 C · D · D-2 어긋남이 0 이므로 §3 매트릭스 · §4 106 ~ 113 행 bullet · 115 행 정합식 · §5 count 전부 **무수정**, UC-01 (193 행) 본문도 read-only 불변. 이로써 212 행 "미검증 축" 의 `UC 본문 §5/§6/§8 이 frontmatter 대로 실제 cover 하는지` 는 **UC-02 (T-1398) + UC-04 · UC-08 (T-1399) + UC-06 · UC-07 (T-1400) + UC-03 (T-1401) + UC-05 (T-1402) + UC-01 (본 bullet) = 8 UC 전건 · coversReq union 33 중 33 건 실측** 으로 **해소** 된다 (본 slice union 신규 7 = REQ-005 · 006 · 007 · 014 · 015 · 039 · 040, UC-01 축 신규 판정 6 = REQ-049 · 051 ~ 055). 212 행의 잔여 축은 `§3 매트릭스 66 row 분류 자체의 재판정` (및 envelope-cover 의미적 타당성 · adjacent 서술 정확성 중 미해소분) 만 남으며, 212 행 문장 자체의 갱신은 append-only 규약 보존을 위해 Follow-up 소관이다.
 
+## 12. 2026-08-03 §3 매트릭스 66 row 분류 재판정 설계 (T-1405)
+
+> 본 절은 [T-1405](../tasks/T-1405-req-coverage-matrix-rejudge-scope-design.md) 가 §10 잔여 축 bullet (본 문서 L212 의 `§3 매트릭스 66 row 분류 자체의 재판정`) 을 후속 slice 들이 그대로 집행할 수 있도록 **범위 · 기준 · cascade · batch 분할** 만 박제한 설계 기록이다. **어떤 row 의 분류값도 판정하지 않는다 (판정 0)** — §1 ~ §11 본문은 1 자도 고치지 않았다.
+>
+> **삽입 위치 제약** — 본 절은 §11 References **바로 앞** 에 넣는다 (§10 이 §11 앞에 삽입된 선례와 동형). 그래야 250 행 이하의 행 번호가 전부 불변이라 §10 의 9 개 bullet 이 행 번호로 거는 L212 참조와 §4 `115 행` 정합식 참조가 그대로 유효하다.
+
+### 12.1 재판정 범위 — 부분집합 안 채택 (후보 17 row)
+
+**택한 안**: 전건 66 row 가 아니라 **결정 가능한 rule 로 잘라낸 부분집합 17 row** 만 재판정한다. 근거 3 줄:
+
+1. `uc-covered` **48 row** 는 T-1395 ~ T-1397 의 축 C · T-1398 ~ T-1403 의 축 D 가 §3 근거 셀을 UC 실측과 1:1 대조해 **"어긋남 0" 을 6 회 박제** 했으므로 분류값 재판정이 이미 수행된 것과 동치다.
+2. `gap` **1 row** (REQ-004) 는 §9.4 (2026-08-02) 가 `gap` **유지** 로 명시 재판정을 마쳤다.
+3. 남은 `cross-cutting` 4 + `infrastructure` 13 = **17 row** 만이 2026-05-25 T-0029 최초 판정 이후 어떤 slice 도 분류 축으로 건드리지 않은 잔여다 — 전건 66 재판정은 49 row 의 중복 노동이라 채택하지 않는다.
+
+**rule (R)** — §3 row 중 `cover 방식` 셀이 `cross-cutting` **또는** `infrastructure` 인 row 가 후보. 뒤집으면 `uc-covered` · `gap` row 는 제외. 셀 값이 4 enum 중 정확히 하나라서 rule 은 row 마다 기계적으로 결정된다.
+
+산출 명령 1 회와 출력:
+
+```
+$ grep -c "^| REQ-[0-9]\{3\} | [^|]* | \(cross-cutting\|infrastructure\) |" docs/use-cases/REQ-COVERAGE-AUDIT.md
+17
+```
+
+후보 17 = cross-cutting 4 (REQ-002 · 003 · 029 · 047 — §3 36 · 37 · 63 · 81 행) + infrastructure 13 (REQ-001 · 017 · 056 ~ 066 — §3 35 · 51 · 90 ~ 100 행). 같은 grep 형태로 `uc-covered` = **48** · `gap` = **1** 도 실측해 48 + 1 + 17 = **66** 검산 통과. 이 **17 이 후속 slice 분할의 분모** 다.
+
+### 12.2 판정 기준 — §2 4 enum 참조 (재정의 없음)
+
+재판정은 §2 22 ~ 27 행의 4 enum (`uc-covered` / `cross-cutting` / `infrastructure` / `gap`) 을 **그대로 참조** 한다. 본 절은 enum 을 재정의하지 않고 새 분류값도 신설하지 않는다.
+
+row 1 개 판정에 요구되는 **근거 3 종**:
+
+| 근거 | 무엇을 보는가 | 실측 방법 |
+| --- | --- | --- |
+| (i) UC frontmatter 실측 | 해당 REQ 가 8 UC 의 `coversReq` / `adjacentReq` 에 있는지 (있으면 `uc-covered` 쪽 후보) | `grep -n "REQ-0NN" docs/use-cases/UC-0*.md` |
+| (ii) UC 본문 hit | §5 sequence · §6 alternative · §8 postcondition 의 ID hit 또는 ID 없는 위임 문장 anchor | 같은 grep 결과의 본문 행을 절 단위로 귀속 |
+| (iii) `docs/requirements.md` 원문 + cover 위치 셀 | REQ 원문의 kind (FR / NFR / Constraint) 와 §3 이 지목한 doc / ADR / CLAUDE.md § 가 실재하며 그 REQ 를 실제로 다루는지 | requirements.md 해당 행 read + 지목 파일 직접 read |
+
+**분류 변경 임계** — 근거 3 종 중 **2 종 이상** 이 현 분류와 어긋날 때만 분류값을 바꾼다. **1 종만** 어긋나면 `기록만` (분류 무수정 + 본 절에 bullet append). T-1398 ~ T-1403 이 확립한 **"어긋남이 없으면 무수정 · 표기 비일관은 기록만"** 규약을 그대로 승계한다.
+
+부기 — (iii) 의 링크 rot (지목 파일 부재 · § 번호 밀림) 는 분류 오류가 아니라 **cover 위치 셀의 표기 오류** 이므로 임계 계산에서 1 종 어긋남으로만 세고, 정정은 그 slice 안에서 cascade (a) 의 셀 수정으로 처리한다.
+
+### 12.3 cascade 대상 전수 열거 (6 지점)
+
+분류값이 **실제로 바뀔 때만** 동기화가 강제된다. `무수정` 판정이면 6 지점 전부 발동하지 않는다 (T-1400 ~ T-1403 이 `cascade … 발동 대상 없음` 으로 남긴 선례).
+
+| # | 지점 | 현재 값 | 갱신 트리거 조건 |
+| --- | --- | --- | --- |
+| (a) | §3 해당 row 의 `cover 방식` · `cover 위치` · `참고` 셀 | row 당 분류값 1 개 (66 row) | **모든** enum 전이. 표기 오류만이면 `cover 위치` · `참고` 셀만 |
+| (b) | §4 106 ~ 113 행 8 UC bullet | UC 별 coversReq / adjacent / envelope-cover 나열 8 줄 | `→ uc-covered` 또는 `uc-covered →` 전이일 때만 (해당 UC bullet 의 envelope · adjacent 나열 증감) |
+| (c) | §4 115 행 정합식 | `33 + 15 + 4 + 13 + 1 = 66` | 4 항 중 하나라도 증감하는 전이 전부. 33 (frontmatter union) 은 UC frontmatter 를 고치지 않는 한 불변이라 실제로 움직이는 것은 15 / 4 / 13 / 1 항 |
+| (d) | §5 121 ~ 127 행 표 count 4 값 + 합계 row | `48 / 4 / 13 / 1` · `73 / 6 / 20 / 2 %` · 합계 `**66**` · `**100 %**` + 비고 셀 | (c) 와 동일 트리거. 합계 66 · 100 % 는 row 수 불변이라 **항상 무변**, percentage 4 값은 반올림 재산출 필요 |
+| (e) | `docs/use-cases/INDEX.md` 110 행 | `uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1` | (c) · (d) 발동 후 그 결과 수치를 옮겨 적을 때 |
+| (f) | `docs/PLAN.md` 36 행 | `uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1 = 66` + gap 1 건 서술 | (e) 와 동일. gap count 가 바뀌면 gap 서술 문장도 함께 |
+
+§9.4 · §10 의 이전 요약 문장은 **cascade 갱신 대상이 아니다** — append-only 규약상 각 시점 판정을 그대로 보존하고 이후 상태는 새 bullet 이 가리킨다 (214 행이 200 · 209 행에 대해 쓴 시점 구분 화법이 정본).
+
+### 12.4 cascade 순서 + 원자성 규약
+
+- **순서** — (a) → (b) → (c) → (d) → (e) → (f). 앞 단계 결과가 뒤 단계 입력이다 (row 실측 → bullet 나열 → 정합식 → 통계표 → 외부 요약 2 곳).
+- **원자 묶음** — **(a) ~ (d) 는 반드시 한 slice 안에서 함께** 갱신한다. 넷 다 같은 파일 안의 상호 정합식이라 분리하면 중간 commit 이 `합 ≠ 66` 같은 자기모순 상태로 main 에 남는다.
+- **분리 허용** — (e) · (f) 는 **별도 slice 로 미뤄도 된다**. 파일이 다르고 성격이 요약 문구라 lag 이 모순을 만들지 않으며, 이미 Follow-up 소관으로 분리 운용돼 왔다 (T-1404 Follow-up 3).
+- **5 파일 cap 과의 관계** — 원자 묶음 (a) ~ (d) 는 파일 **1 개** 라 slice 당 변경 파일이 audit 문서 1 + task 파일 1 = **2 개** (cap 5 의 40 %). (e) · (f) 를 같은 slice 에 넣어도 4 개로 cap 안이지만, 그 경우 리스크는 LOC 이 아니라 **판정 축 혼재** 라 분리를 기본으로 한다.
+
+### 12.5 후속 실판정 slice 분할안 (3 slice)
+
+batch 크기는 T-1398 ~ T-1403 실적 (**UC 1 ~ 2 개 · bullet 2 ~ 5 줄 append · 90 ~ 160 LOC**) 을 근거로 산정했다. 각 slice 는 본 audit 문서 1 파일 + 자기 task 파일 1 개 = **2 파일** 만 건드려 cap (300 LOC / 5 파일) 안이다.
+
+| slice | 담당 row batch | 건수 | 예상 diff | 비고 |
+| --- | --- | --- | --- | --- |
+| S1 | cross-cutting 전건 — REQ-002 · 003 · 029 · 047 | 4 | 140 ~ 160 LOC | 근거 (iii) 대상이 architecture doc 3 종 (components / modules / deployment) + ADR-0002 라 row 당 비용 최대. REQ-003 은 T-1397 축 C 가 `cross-cutting` 을 부수 확인한 대조군 |
+| S2 | infrastructure 전반 — REQ-001 · 017 · 056 ~ 060 | 7 | 100 ~ 130 LOC | 지목 대상이 README · CLAUDE.md §1 / §3 / §3.2 R-110 ~ R-112 · ci.yml 로 동종이라 batch 효율 높음. REQ-017 만 `P4 ADR 예정` 미실재 pointer 라 별도 판정 |
+| S3 | infrastructure 후반 — REQ-061 ~ 066 | 6 | 110 ~ 140 LOC | CLAUDE.md §3.2 R-113 / R-114 · §3.3 · §3.1 + agent spec 2 종. **마지막 slice** — 3 slice 종합 판정을 요약하고 §10 잔여 축 bullet (L212) 의 `유일 잔여 축` 문구를 닫는다 (in-place 1 줄 교체, T-1404 선례와 동형) |
+
+합 17 row = 4 + 7 + 6 으로 12.1 의 분모와 일치. S1 · S2 는 서로 독립이라 순서 무관이나 **S3 는 반드시 마지막** 이다 — L212 closure 가 앞 두 slice 판정 결과를 인용해야 하기 때문이다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
