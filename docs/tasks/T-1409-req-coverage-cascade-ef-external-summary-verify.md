@@ -87,6 +87,57 @@ plannerNote: "uc-doc-audit-resync 21 번째 slice — §12.4 가 분리 허용�
 
 `implementer → tester` (doc-only direct — implementer 가 4 축 실측 + §12.9 append + 외부 2 파일 pointer 편집, tester 는 §4 불변 검산 명령 실행과 hunk 국한 확인만 담당)
 
+## 완료 기록 (2026-08-03)
+
+### 4 축 실측 결과 — cascade (e) · (f) **미발동** (수치 갱신 0)
+
+| 축 | 실측 | 판정 |
+| --- | --- | --- |
+| A — (e) 수치 대조 | INDEX.md 110 행 `uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1` ↔ audit §5 표 `48 / 4 / 13 / 1` 합 `**66**` ↔ `grep -c "^\| REQ-"` = **66** ↔ §3 분류 열 tally `48 · 4 · 13 · 1` | **일치 5 / 5 · 불일치 0** |
+| B — (f) 수치 대조 | PLAN.md 36 행 `… gap 1 = 66` 문자열 완전 일치 · gap 서술 REQ-004 가 §6 133 행 · §9.4 188 행 `gap` 유지 판정과 정합 | **일치 5 / 5 · 불일치 0** |
+| C — 시점 pointer | INDEX.md 111 행 = §9 / T-1390 (2026-08-02) 까지 · PLAN.md 36 행 = pointer **부재** (T-0029 원 출처만). §10 (T-1393 ~ T-1404) · §12 (T-1405 ~ T-1408) **둘 다 미반영** | **stale 2 / 2** |
+| D — §12.3 자기정합 | (e) 셀 문자열 ↔ INDEX.md 110 행 substring hit 1 · (f) 셀 문자열 ↔ PLAN.md 36 행 substring hit 1 | **어긋남 0** |
+
+수치 불일치 0 이므로 §12.4 원자 묶음 위반 없이 **pointer 갱신만** 수행. 정정 대상 Follow-up 도 발생하지 않았다.
+
+### 산출물
+
+- `docs/use-cases/REQ-COVERAGE-AUDIT.md` — §12.9 신설 (654 행 이하 삽입 hunk 1 개, 1 ~ 654 행 무편집). (i) 대상·범위 / (ii) 축 A ~ D 표 / (iii) cascade 발동 판정 / (iv) 외부 2 파일 before → after / (v) 불변 검산 표 / (vi) 한계 4 항.
+- `docs/use-cases/INDEX.md` — 111 행 다음 1 줄 삽입 (112 행 신설, 110 행 문자열·행 번호 불변).
+- `docs/PLAN.md` — 36 행 1 행 → 1 행 in-place 교체 (문말 pointer 1 문장 첨가, 기존 문장·링크·수치 무축약).
+
+### 검산 명령 출력 (편집 후)
+
+```
+$ grep -c "^| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md      → 66   (불변)
+$ grep -c "^## "    docs/use-cases/REQ-COVERAGE-AUDIT.md      → 12   (불변, ### / #### 만 추가)
+$ grep -c "212 행"  docs/use-cases/REQ-COVERAGE-AUDIT.md      → 9    (불변)
+$ grep -n "미검증 축" … | head -1 → 212 ;  총 hit → 10        (불변)
+$ sed -n '115p' …   → 33 + 15 + 4 + 13 + 1 = 66 정합식 그대로
+$ sed -n '121,127p' … → 48 / 4 / 13 / 1 · 합 **66** · **100 %** 불변
+$ wc -l docs/PLAN.md              → 175  (불변)
+$ wc -l docs/use-cases/INDEX.md   → 114  (113 → 114, 의도된 유일한 증가)
+```
+
+```
+$ git diff -U0 | grep '^@@'
+@@ -36 +36 @@                (docs/PLAN.md — 1:1 치환)
+@@ -111,0 +112 @@            (docs/use-cases/INDEX.md — 1 줄 삽입)
+@@ -654,0 +655,65 @@         (REQ-COVERAGE-AUDIT.md — §12.9 삽입)
+$ git diff --numstat
+1	1	docs/PLAN.md
+1	0	docs/use-cases/INDEX.md
+65	0	docs/use-cases/REQ-COVERAGE-AUDIT.md
+$ git status --porcelain
+ M docs/PLAN.md
+ M docs/use-cases/INDEX.md
+ M docs/use-cases/REQ-COVERAGE-AUDIT.md      (+ 본 task 파일 — touchesFiles 4 개 외 변경 0)
+```
+
+hunk **정확히 3 개** · 삭제 열 합 **1** (PLAN 치환의 짝) → **순수 삭제 0**. 코드 변경 0 이라 unit test 없음 · 분기 없음 (R-112 flow / branch 해당 없음).
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견 사항을 여기에 append)
+1. **INDEX.md 110 행 · PLAN.md 36 행의 권장 처리 서술 최신성 재판정** — 두 요약이 함께 적은 `UC-09 신설 또는 UC-01 확장 권장` · `follow-up task T-0030+ 책임` 은 본 slice 의 대조 범위 밖이었다. REQ-004 는 `gap` 유지라 권장 자체는 유효하나 T-0030 / T-0031 이 이미 다른 산출물 (api.md / data-model.md) 로 완료돼 책임 task 지목이 stale 일 수 있다 (§12.9 한계 1).
+2. **§12.3 표 보강** — (e) · (f) 행 `현재 값` 셀은 축 D 어긋남 0 이라 무수정이지만, 7 번째 cascade 지점 (§4 117 행 blockquote) 추가는 미착수 (T-1408 Follow-up 2 승계).
+3. **재판정 후보 밖 49 row 취급 결정** · **표기 비일관 3 건 정정** — T-1408 Follow-up 3 그대로 이월.
