@@ -2,7 +2,7 @@
 id: T-1407
 title: REQ-COVERAGE-AUDIT §12.5 S2 실판정 — infrastructure 7 row (REQ-001 · 017 · 056 ~ 060) 재판정을 §12.7 로 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 210
@@ -67,6 +67,59 @@ S1 · S2 는 §12.5 324 행이 명시한 대로 서로 독립이라 순서가 �
 ## Suggested Sub-agents
 
 `implementer` (축별 grep ≤ 5 회 → row 7 건 임계 판정 → REQ-017 · REQ-001 명시 판정 2 건 → §12.7 append → 필요 시 51 행 셀 in-place 치환 → 불변 6 값 · hunk · 파이프 필드 수 검산) → 별도 tester 불요 (direct doc-only, R-110 면제 — 코드 변경 0). 단 실측 grep 명령과 hunk / numstat 출력은 반드시 완료 기록에 박제한다.
+
+## 완료 기록 (2026-08-03)
+
+**삽입 위치 제약 (선행 항목)** — 판정 기록을 `### 12.7 S2 실판정 — infrastructure 7 row (T-1407)` 로 **§12.6 마지막 행 (구 409 행) 뒤 · `## 11. References` (구 411 행) 앞** 에만 삽입했고 `###` 이라 `## ` heading count 는 12 그대로다. 근거: 410 행 이전 행 번호가 전건 불변이어야 §10 의 L212 잔여 축 bullet 참조와 §4 115 행 정합식 참조가 깨지지 않는다 (아래 51 행 셀 치환은 1:1 in-place 라 행 수를 바꾸지 않는다).
+
+**(1) row 별 근거 3 종 실측** — 축별 5 회 (row 별 아님) 로 갈음했고 명령 원문은 §12.7 `실측 명령` 블록에 그대로 박제했다:
+
+```
+$ grep -n "REQ-001\|REQ-017\|REQ-056\|REQ-057\|REQ-058\|REQ-059\|REQ-060" docs/use-cases/UC-0*.md   # (i) + (ii) → hit 0 (exit 1)
+$ awk 'NR==20||NR==36||NR==75||NR==76||NR==77||NR==78||NR==79' docs/requirements.md                  # (iii) 원문 kind (status 는 앞 200 자만)
+$ grep -n "^## 1\.\|^## 3\.\|^### 3\.2\|R-110\|R-111\|R-112" CLAUDE.md                               # (iii) 지목 § 실재
+$ grep -n "^\s*- name:" .github/workflows/ci.yml                                                     # (iii) ci.yml step 실재
+$ ls .claude/agents/ ; sed -n '1p' README.md ; sed -n '1,4p' docs/decisions/ADR-0013-confluence-space-traversal-policy.md
+```
+
+핵심 실측: 8 UC 전건에서 7 REQ 의 ID hit **0** (→ (i) · (ii) 는 7 row 전건이 `infrastructure` 와 일치), requirements.md kind 7 값 전부 `Constraint` 로 §3 셀과 일치, CLAUDE.md 31 행 (`## 1. 기술 스택`) · 112 행 (`## 3. Task / Commit / PR 원칙`) · 147 행 (`### 3.2`) · 151 / 156 / 160 행 (R-110 / R-111 / R-112) 실재, ci.yml step 32 개 중 190 행 `pnpm install --frozen-lockfile` · 193 행 `Lint 검사` · 218 · 223 · 228 행 (unit + smoke + e2e) 실재, `.claude/agents/` 8 종 실재, README 1 행이 `Use Case 문서의 기본` 문구를 문자 그대로 담음, ADR-0013 은 `status: ACCEPTED` · `date: 2026-06-01`.
+
+**(2) 임계 적용 + 분류 판정** — §12.2 288 행 임계 기계 적용: REQ-001 **1 → 기록만** (지목처가 §2 26 행 열거 밖 종류 — 표기 경계), REQ-017 **1 → 기록만** (stale pointer = 링크 rot), REQ-056 · 057 · 058 · 059 · 060 **각 0 → 유지**. 변경 **0 건**. requirements.md status 컬럼 (75 행 `IN_PROGRESS` · 나머지 6 건 `DONE`) 은 구현 진척 축이라 분류 전이 근거로 쓰지 않았다 (§12.6 선례).
+
+**(3) REQ-017 stale pointer 명시 판정** — **stale 로 판정** 했고, §12.2 290 행 부기 (링크 rot = 분류 오류 아님 · 표기 오류 1 종) 를 적용해 분류값 `infrastructure` 는 **무수정** 임을 못박았다. 그 위에서 §12.3 (a) 표기 경로로 **51 행 cover 위치 셀만 in-place 치환했다 (치환함)** — before `P4 ADR 예정 (Confluence 탐색 정책)` → after `[ADR-0013](../decisions/ADR-0013-confluence-space-traversal-policy.md) (Confluence SPACE 탐색 정책, ACCEPTED)`. `참고` 셀은 무수정. **enum 전이가 아니므로 (b) ~ (f) 는 발동하지 않음** 을 §12.7 에 1 줄로 명시했다.
+
+**(4) REQ-001 자기참조 축 판정** — §3 35 행 cover 위치 (`README.md + 본 INDEX.md`) 와 §2 26 행 `UC 영역 밖` 요건은 **모순 아님 — 양립** 으로 1 개 판정을 박제했다. REQ-001 은 UC 의 내용이 아니라 문서 존재·형식을 규정하는 meta 지시라 어떤 UC 시나리오에도 담길 수 없고, 그 사실을 (i) · (ii) 의 hit 0 이 실측으로 증명한다. 남은 어긋남은 지목처 종류의 표기 경계 **1 종** 뿐 → `기록만` (S1 의 REQ-003 판정과 동형 화법).
+
+**(5) cascade 집행 여부** — 분류값 변경 0 건이라 **`cascade (a) ~ (f) 발동 대상 없음`** 을 §12.7 에 박제하고, 같은 줄에서 51 행 셀 치환이 **(a) 의 표기 경로일 뿐 enum cascade 가 아님** 을 구분 표기했다. §4 106 ~ 117 행 · §5 121 ~ 127 행 어느 셀도 치환하지 않았고 INDEX.md · PLAN.md 는 열지 않았다.
+
+**(6) S2 종합 + 잔여** — **유지 5 / 기록만 2 / 변경 0**, 후보 **17 중 11 완료 (S1 4 + S2 7) · 잔여 6** (S3 = REQ-061 ~ 066). §10 잔여 축 bullet (L212) 문구는 손대지 않았고 closure 가 S3 소관임을 §12.7 말미에 명시했다.
+
+**불변 검산 6 값** (편집 후 실측, 괄호 안이 요구치):
+
+| # | 항목 | 값 |
+| --- | --- | --- |
+| (a) | `grep -c "^\| REQ-"` | **66** (66 불변) |
+| (b) | `grep -c "^## "` | **12** (12 불변 — `###` 추가) |
+| (c) | `grep -n "미검증 축"` 첫 hit / 총 hit | **212** / **10** (212 / 10 불변) |
+| (d) | `grep -c "212 행"` | **9** (9 불변) |
+| (e) | `sed -n '115p'` | `33 + 15 + 4 + 13 + 1 = 66` 이 **여전히 115 행**, 합 **66** |
+| (f) | §5 표 (121 ~ 127 행) | count `48 / 4 / 13 / 1` = **66** · 합계 row `**66**` · `**100 %**` 불변 |
+
+51 행 치환은 `cover 방식` 셀을 건드리지 않아 (a) · (f) 가 그대로다. (c) · (d) 불변은 §12.7 본문이 두 검산 대상 문자열을 쓰지 않고 회피 표기 (`L212` · `잔여 축`) 를 쓴 T-1405 · T-1406 선례 승계 결과다.
+
+**hunk 국한 검증 (R-112 대체, doc-only)** — 코드 변경 0. hunk 헤더 전량 + numstat:
+
+```
+$ git diff -U0 docs/use-cases/REQ-COVERAGE-AUDIT.md | grep '^@@'
+@@ -51 +51 @@ REQ 의 cover 방식을 다음 4 enum 으로 분류:
+@@ -410,0 +411,118 @@ $ awk 'NR==21||NR==22||NR==48||NR==66' docs/requirements.md
+$ git diff --numstat
+119     1       docs/use-cases/REQ-COVERAGE-AUDIT.md
+```
+
+hunk **2 개** — (1) 51 행 **1:1 치환** (`-1 / +1`), (2) §12.6 과 §11 References 사이 삽입 118 행. 1 ~ 409 행 중 51 행 외 hunk **0**, 삭제 열 **1** 은 그 치환의 짝이라 순수 삭제 **0**. 치환 row 의 `|` 필드 수는 편집 후 실측 `awk -F'|' '{print NF-1}'` = **6** (5 컬럼 유지 — T-1370 · T-1375 표 파손 재발 방지). 표 무결성은 (a) `66` · (f) `48 / 4 / 13 / 1` 검산이 이중 확인. content commit 시점 `git status --porcelain` 은 `docs/use-cases/REQ-COVERAGE-AUDIT.md` **1 개** 뿐이었고 (본 완료 기록은 driver bookkeeping commit 소관), `touchesFiles` 밖 변경 파일 **0**.
+
+**한계** — (1) S3 배정 6 row (REQ-061 ~ 066) 미판정, (2) cascade (e) INDEX.md 110 행 · (f) PLAN.md 36 행 미동기 (분류 변경 0 이라 불요였으나 정합 확인도 미수행), (3) 표기 비일관 3 건 (§3 83 행 `(cover)` · 79 행 `(인접)` · UC §10 표 `§5 step N` 편차) 미정정, (4) 근거 (iii) 의 `CLAUDE.md` · `ci.yml` · `README.md` 확인은 heading / step `name` / 1 행 문구 실재 수준의 정적 실측이라 그 정책이 REQ 를 **충분히** 집행하는지의 질적 평가 (예: `Lint 검사` rule set 이 REQ-056 의 중복 import 를 실제로 잡는지) 는 하지 않았다.
 
 ## Follow-ups
 
