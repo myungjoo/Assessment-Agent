@@ -59,6 +59,72 @@ plannerNote: "uc-doc-audit-resync 7 번째 slice — T-1394 Follow-up 1 (REQ-031
 
 `implementer` (grep 3 축 실측 + doc 편집) → 별도 tester 불요 (direct doc-only, R-110 면제 — 코드 변경 0). 단 위 hunk 국한 검증 항목의 명령 출력은 반드시 완료 기록에 박제한다.
 
+## 완료 기록 (2026-08-02)
+
+### 축 A — `adjacentReq` 4 건의 처리 차이 (`grep -n "^coversReq" docs/use-cases/UC-0*.md`, 8 파일 각 7 행 hit)
+
+| adjacentReq | 직접 명시 UC | 기대값 일치 |
+| --- | --- | --- |
+| REQ-008 | UC-08 (`coversReq: [REQ-008, REQ-016]`) | 일치 |
+| REQ-031 | **없음** (8 UC 어디에도 미명시) | 일치 |
+| REQ-032 | UC-07 (`coversReq: [REQ-030, REQ-032, REQ-045]`) | 일치 |
+| REQ-034 | **없음** (8 UC 어디에도 미명시) | 일치 |
+
+### 축 B — UC-01 본문 실 서술 근거 (`grep -n "REQ-031\|REQ-034" docs/use-cases/UC-01-evaluation-execution.md`)
+
+| 행 | 절 | 서술 성격 |
+| --- | --- | --- |
+| 8 | frontmatter | `adjacentReq` 선언 (근거 아님) |
+| 71 | §5 Main flow | 흐름 Note — 대상 인원·기간 결정 (REQ-026, REQ-031 최근 1주 재수집 OK) |
+| 80 | §5 Main flow | 흐름 Note — 중복 제거 (REQ-031 인접, 알고리즘은 P5) |
+| 130 | §8 Postconditions | postcondition — 일일 활동 요약 row (REQ-034, 당일 자정 종료 이후만) |
+| 173 | §10 관련 REQ | 표 row — `REQ-031 (인접)` / 근거 = §4 precondition · §5 step 9 |
+| 175 | §10 관련 REQ | 표 row — `REQ-034 (인접)` / 근거 = §8 postcondition (P5 분리) |
+| 193 | §11 References | Refs 나열 (근거 아님) |
+
+본문 근거 건수: REQ-031 **3 건** (71 · 80 · 173) · REQ-034 **2 건** (130 · 175). **본문 근거 0 건인 REQ 는 없음** → "본문 근거 부재" 반례는 성립하지 않는다.
+
+### 축 C — 매트릭스 근거 셀 원문 인용 (65 · 68 행)
+
+```
+| REQ-031 | FR | uc-covered | UC-01 (인접, P5 알고리즘) | 재수집 중복 방지 + 최근 1주 OK — UC-01 adjacentReq + §5 step 9 |
+| REQ-034 | FR | uc-covered | UC-01 (인접, P5 trigger) | 일별 활동 요약 (당일 자정 이후) — UC-01 adjacentReq |
+```
+
+두 row 는 근거 컬럼과 비고 컬럼 **양쪽에서 `인접` / `adjacentReq` 를 근거로 명시** 하면서 분류 컬럼은 `uc-covered` 로 둔다. 즉 §3 분류 체계에서 `adjacent` 는 `uc-covered` 의 **배제 사유가 아니라 하위 근거** 다. 대조군: REQ-032 (66 행) 는 `UC-07, UC-01 (인접), UC-06 (인접)` 로 direct coversReq 와 adjacent 를 한 셀에 병기해 같은 용법을 확인해 준다.
+
+### 종합 판정 — **(가) 매트릭스 유지**
+
+축 C 가 결론의 중심축이다. `adjacent` 가 `uc-covered` 의 하위 근거인 이상 §4 106 행 bullet 의 `adjacent: … 031 … 034` 표기 (UC-01 frontmatter 축) 와 §3 65 · 68 행의 `uc-covered` 분류 (cover 실체 축) 는 **서로 다른 축의 표기이며 모순이 아니다**. 축 B 가 UC-01 본문 실 서술 근거 (§5 흐름 Note 2 · §8 postcondition · §10 표 2) 를 확인해 envelope cover 를 뒷받침하고, 축 A 는 두 REQ 가 어떤 UC 의 `coversReq` 에도 없어 **frontmatter 직접 명시 union 33 에는 들어갈 수 없고 envelope 잔차 15 에 속함** 을 확정한다 — T-1394 가 정정한 `33 + 15` 분해와 정확히 정합. 조치: 117 행 blockquote 마지막 문장을 재판정 결과 문장으로 교체 + §10 말미 bullet 3 줄 append. §4 106 행 bullet · §3 매트릭스 row · §4 115 행 · §5 표 **전부 무수정**.
+
+### 불변 검산
+
+| 항목 | 값 |
+| --- | --- |
+| (a) `grep -c "^\| REQ-"` | 66 (편집 전후 동일) |
+| (b) `grep -c "^## "` | 11 (편집 전후 동일) |
+| (c) §5 count 4 값 + 합계 row | `48 / 4 / 13 / 1` · `**66** \| **100 %**` 불변 |
+| (d) §4 115 행 정합식 | `33 + 15 + 4 + 13 + 1 = 66` 불변 (T-1394 정정값 보존) |
+| (e) `git diff --stat` | `docs/use-cases/REQ-COVERAGE-AUDIT.md \| 5 ++++-` (1 파일, +4/−1) + 본 task 파일 |
+
+### hunk 국한 검증 (R-112 대체, doc-only)
+
+```
+$ git diff -U0 docs/use-cases/REQ-COVERAGE-AUDIT.md | grep '^@@'
+@@ -117 +117 @@
+@@ -214,0 +215,3 @@
+```
+
+hunk 2 개뿐 — 117 행 blockquote 1 줄 교체 (분기 (가)) 와 §10 말미 (214 행 뒤) 3 줄 append. §1 ~ §9 · §11 에 hunk **0**. **표 셀은 한 곳도 편집하지 않았으므로** `|` 개수 대조 대상 행 없음 (T-1370 · T-1375 사고 유형 미해당).
+
+### 한계 —
+
+- §4 106 행 bullet 이 나열한 **envelope-cover 13 건 자체의 의미적 타당성** 은 판정하지 않았다 (본 slice 는 REQ-031 · REQ-034 2 건의 귀속 축만 봤다).
+- **§3 매트릭스 나머지 64 row 의 분류 재판정** 은 미수행 — 2026-05-25 판정값 그대로다.
+- **UC 본문 §5 / §6 / §8 이 frontmatter `coversReq` 대로 실제 cover 하는지의 전수 검증** 은 미수행. 축 B 는 UC-01 의 REQ-031 · REQ-034 2 건에 국한된 표본 실측이다.
+- **REQ-031 · REQ-034 구현 실재 여부** 는 대상 밖 (`docs/requirements.md` 50 · 53 행의 DONE 판정은 T-1375 계열 소관). 본 slice 는 UC cover 귀속만 봤다.
+- `docs/use-cases/INDEX.md` 110 행 · `docs/PLAN.md` 36 행 의 요약 수치는 본 slice 가 열지 않았다 (판정이 (가) 라 cascade 자체가 발생하지 않으므로 정합성 영향 0).
+
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
