@@ -2,7 +2,7 @@
 id: T-1408
 title: REQ-COVERAGE-AUDIT §12.5 S3 실판정 — infrastructure 후반 6 row (REQ-061 ~ 066) 재판정 + S1 ~ S3 종합 + L212 잔여 축 closure
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 215
