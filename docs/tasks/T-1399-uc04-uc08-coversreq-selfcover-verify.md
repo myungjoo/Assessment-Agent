@@ -67,3 +67,73 @@ plannerNote: "uc-doc-audit-resync 11 번째 slice — 212 행 잔여 축의 2 UC
 - **UC-06 + UC-07 묶음 (REQ-037 / 041 / 045 · REQ-030 / 032 / 045 = unique 5 건) 의 자기 coversReq cover 검증** — 본 slice 의 비용 실측 결과를 근거로 cap 판정. REQ-045 가 양 UC 공통이라 중복 실측 회피 규약이 필요하다.
 - **UC-03 (7 건) · UC-05 (7 건) 의 자기 coversReq cover 검증** — 각각 단독 slice 후보.
 - **UC-01 의 자기 `coversReq` 13 건 cover 검증** — 212 행 잔여 축의 최대 slice. §5/§6/§8 축과 §9/§10 축으로 분할 여부를 planner 가 판정할 것.
+
+## 완료 기록 (2026-08-03)
+
+### 축 A · B — UC-04 (`grep -n "REQ-043\|REQ-044" docs/use-cases/UC-04-account-auth.md`)
+
+| REQ | 본문 hit 행 (절 귀속) | 메타 hit 행 | 등급 |
+| --- | --- | --- | --- |
+| REQ-043 | 19 (§1) · 38 · 40 (§3 trigger 2 · 4) · 48 (§4 precondition 3) · 66 · 73 (§5) · 116 · 130 (§7.1 · §7.3 제목) · 166 · 167 · 168 (§9) — 11 건 | 7 (frontmatter) · 182 (§10 표) · 199 (Refs) | **강** (§5 66 · 73) |
+| REQ-044 | 19 (§1) · 27 (§2 actor) · 37 · 38 · 39 (§3 trigger 1 ~ 3) · 48 · 50 (§4) · 69 · 73 · 79 (§5) · 96 (§6.1 제목) · 98 (§6.1) · 120 · 130 · 145 (§7.2 · §7.3 · §7.5 제목) · 166 · 167 · 168 (§9) — 18 건 | 7 (frontmatter) · 183 (§10 표) · 199 (Refs) | **강** (§5 69 · 73 · 79 + §6.1 96 · 98) |
+
+### 축 A · B — UC-08 (`grep -n "REQ-008\|REQ-016" docs/use-cases/UC-08-permission-denied.md`)
+
+| REQ | 본문 hit 행 (절 귀속) | 메타 hit 행 | 등급 |
+| --- | --- | --- | --- |
+| REQ-008 | 19 · 21 (§1) · 29 · 31 (§2 GitHub Adapter · Person) · 40 (§3 trigger 1) · 53 (§4) · 77 · 79 · 101 · 105 (§5) · 120 (§7.2) · 127 · 129 (§8) · 139 · 141 (§9) — 15 건 | 7 (frontmatter) · 156 (§10 표) · 179 (Refs) | **강** (§5 77 · 79 · 101 · 105 + §8 127 · 129) |
+| REQ-016 | 19 · 21 (§1) · 30 · 32 (§2 Confluence Adapter · Admin) · 41 (§3 trigger 2) · 53 (§4) · 77 · 81 · 102 · 105 (§5) · 120 (§7.2) · 127 · 129 (§8) · 140 · 141 (§9) — 15 건 | 7 (frontmatter) · 157 (§10 표) · 179 (Refs) | **강** (§5 77 · 81 · 102 · 105 + §8 127 · 129) |
+
+**등급 분포 (2 UC 합계) — 강 4 / 약 0 / 없음 0.** REQ-043 만 §6 · §8 에 ID hit 이 없으나 §5 hit 2 건으로 이미 (강) 이고, §8 위임 문장 anchor 도 실재한다: 153 행 `Password 는 hash 저장 (schema-level 강제)`, 154 행 `응답 layer 의 hashedPassword 누출 차단 — UserResponseDto 가 HTTP 응답 body 의 whitelist 강제`.
+
+### 축 C — 자기 선언 절 대조 (UC-04 182 · 183 행 / UC-08 156 · 157 행)
+
+| REQ | 선언 절 (원문) | 판정 |
+| --- | --- | --- |
+| REQ-043 | `§1 / §3 trigger 2–4 / §4 precondition 3 / §5 step 3 / §7.1 / §7.3 / §9 AuthModule` | 7 항 전건 일치. trigger 3 (39 행) 은 ID 가 REQ-044 뿐이나 48 행 `(b)~(d) trigger 의 precondition — 인증 완료 (REQ-043)` 가 일괄 지목 → 부분 위임 일치. 실측에만 0 |
+| REQ-044 | `§1 / §2 actor / §3 trigger 1, 3 / §4 precondition 2, 3 / §5 step 4 / §6.1 / §6.2 / §6.3 / §7.2 / §7.5 / §9 AuthModule` | 13 항 전건 일치 (그중 §4 precondition 2 = 47 행 `User 테이블이 비어 있음. 1 회만 발화`, §6.2 = 102 행 `Admin 도 User→Admin 승급 가능 정책 박제`, §6.3 = 106 행 `SuperAdmin 만 수행 가능` + self-demote §7.5 분기 3 항이 `일치 (위임 문장)`). 실측에만 2 항 (§3 trigger 2 = 38, §7.3 = 130) |
+| REQ-008 | `§1 / §2 Person / §3 trigger 1 / §5 alt GitHub 4xx + Person display / §6.1·6.4 / §8 (a)(c)(e) / §9 GithubModule + AssessmentModule + WebModule` | 13 항 전건 일치 (그중 §6.1 = 109 행 `resolvedAt 갱신, WebUI 표시 자동 사라짐`, §6.4 = 112 행 `인원 미매핑 GitHub 4xx → admin audience fallback`, §9 WebModule = 142 행 `audience 별 표시 영역 — Person 영역 / Admin 영역` 3 항이 `일치 (위임 문장)`). 실측에만 3 항 (§2 GitHub Adapter row = 29, §4 = 53, §7.2 = 120) |
+| REQ-016 | `§1 / §2 Admin / §3 trigger 2 / §5 alt Confluence 4xx + Admin display / §6.1 / §8 (a)(d)(e) / §9 ConfluenceModule + AssessmentModule + WebModule` | 12 항 전건 일치 (그중 §6.1 = 109 행, §9 WebModule = 142 행 2 항이 `일치 (위임 문장)`). 실측에만 3 항 (§2 Confluence Adapter row = 30, §4 = 53, §7.2 = 120) |
+
+**합계 — 선언 항 45 (7 + 13 + 13 + 12) 전건 `일치`, `선언에만 있음` 0, `실측에만 있음` 8 항** (절 단위 4 = UC-08 2 건의 §4 · §7.2, 하위 항목 4 = REQ-044 의 §3 trigger 2 · §7.3, REQ-008 · REQ-016 의 §2 Adapter row). 선언이 실측보다 좁은 방향이라 frontmatter ↔ 본문 정합에 결함 아님.
+
+### 축 D — §3 매트릭스 근거 셀 정합
+
+| 행 | 원문 | 판정 |
+| --- | --- | --- |
+| 42 | `\| REQ-008 \| FR \| uc-covered \| UC-08, UC-01 (인접) \| GitHub 권한 부족 — UC-08 coversReq \|` | 어긋남 0 |
+| 50 | `\| REQ-016 \| FR \| uc-covered \| UC-08 \| Confluence 권한 부족 — UC-08 coversReq \|` | 어긋남 0 |
+| 77 | `\| REQ-043 \| NFR \| uc-covered \| UC-04, UC-02 (인접), UC-03 (인접), UC-05 (인접), UC-06 (인접), UC-07 (인접), UC-08 (인접) \| ID/Password 보호 — UC-04 coversReq, 거의 모든 UC 가 adjacent \|` | 어긋남 0 |
+| 78 | `\| REQ-044 \| FR \| uc-covered \| UC-04, UC-02 (인접), UC-03 (인접), UC-05 (인접), UC-06 (인접), UC-07 (인접), UC-08 (인접) \| SuperAdmin / 3 등급 / 승급 — UC-04 coversReq \|` | 어긋남 0 |
+
+4 row 모두 `uc-covered` + 근거 셀이 각 UC 의 `coversReq` 를 지목하며, 축 A 의 본문 hit (4 건 모두 ≥ 11 건) · 축 B (강 4) · 축 C (선언 45 항 전건 일치) 와 어긋나지 않는다. cascade (§4 115 행 정합식 · §5 count 48 · INDEX 110 행 · PLAN 36 행) 는 발동 대상 없음.
+
+### 종합 판정 — (가) frontmatter ↔ 본문 정합 확인
+
+4 건이 모두 (강) 등급으로 §5 / §6 / §8 에서 cover 되고 축 C · D 어긋남이 0 이므로 §10 dated bullet 4 줄 append 만 수행, `docs/use-cases/REQ-COVERAGE-AUDIT.md` 본문 (§1 ~ §9 · §11) 및 UC-04 · UC-08 은 무수정.
+
+### 불변 검산 (편집 전후 동일)
+
+| 항목 | 값 |
+| --- | --- |
+| (a) `grep -c "^\| REQ-" REQ-COVERAGE-AUDIT.md` | **66** 불변 |
+| (b) `grep -c "^## " REQ-COVERAGE-AUDIT.md` | **11** 불변 |
+| (c) §5 표 count 4 값 | `48 / 4 / 13 / 1` + 합계 row `**66** \| **100 %**` 불변 (123 ~ 127 행) |
+| (d) §4 115 행 정합식 | `33 + 15 + 4 + 13 + 1 = 66` 불변 |
+| (e) `wc -l UC-04-account-auth.md` | **199** 불변 |
+| (f) `wc -l UC-08-permission-denied.md` | **179** 불변 |
+
+### hunk 국한 검증 (R-112 대체, doc-only)
+
+- `git diff -U0 docs/use-cases/REQ-COVERAGE-AUDIT.md` hunk 헤더 **1 개뿐**: `@@ -228,0 +229,4 @@` — §10 말미 append 1 지점. §1 ~ §9 · §11 hunk **0**.
+- `git diff --numstat` → `4  0  docs/use-cases/REQ-COVERAGE-AUDIT.md` — 삭제 **0**.
+- `git status --porcelain` → `M docs/use-cases/REQ-COVERAGE-AUDIT.md` (+ 본 task 파일) 외 변경 파일 **0**.
+- 표 셀을 한 곳도 편집하지 않았으므로 `|` 개수 대조 대상 행이 **없다** (T-1370 · T-1375 사고 패턴 미발동).
+
+### 한계 —
+
+- UC-01 (13 건) · UC-03 (7) · UC-05 (7) · UC-06 (3) · UC-07 (3) 의 자기 `coversReq` cover 검증은 미실측 — 212 행 축은 축소된 채 존속.
+- UC-04 `adjacentReq` 2 건 (REQ-045 / 046) 과 UC-08 `adjacentReq` 9 건의 인접 서술 정확성은 판정하지 않았다.
+- 4 건 REQ 의 **구현** 실재 여부는 대상 아님 (`docs/requirements.md` 62 행 기준 REQ-043 은 IN_PROGRESS — 미보호 route 축 재실측 안 함).
+- §3 매트릭스 66 row 분류 자체의 재판정도 대상 아님.
+- **2 UC 묶음 slice 비용 실측** — 본 slice diff `+4 / -0` LOC (audit 문서 기준, 완료 기록 포함 시 약 +80), 축당 grep 호출 4 회 (축 A 2 · 축 B 0 재사용 · 축 C 4 절 인용 read 3 · 축 D 1) 로 T-1398 단독 UC slice 와 실질 동일 비용. → 다음 묶음 UC-06 + UC-07 (unique 5 건, REQ-045 공통) 도 cap 안전.
