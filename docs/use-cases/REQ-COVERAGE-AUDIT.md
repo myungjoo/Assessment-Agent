@@ -209,7 +209,7 @@ REQ 의 cover 방식을 다음 4 enum 으로 분류:
 - **축 C — 115 행 합산식은 산술 불성립.** `31 + 13 + 4 + 13 + 1 = 62 ≠ 66` (Δ −4). 어긋나는 항은 **둘** — 직접 union 항 31 (실측 33, Δ +2) 과 envelope 항 13 (실측 15, Δ +2). 실측 정합식은 `33 + 15 + 4 + 13 + 1 = 66`.
 - 축 C 부기 (§5 121 행 대조): §5 의 `uc-covered` **합계 48 은 정확** 하다 (§3 매트릭스 66 row 실측 분포가 uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1 로 1:1 일치). 그러나 그 내부 분해 "31 직접 + 17 envelope" 은 **양 항 모두 오차** (실측 33 + 15). 요컨대 envelope 을 §4 는 13, §5 는 17 로 적었고 실측은 **15** — 세 값이 전부 다르다. envelope 15 = §4 가 나열한 UC-01 P5 알고리즘 13 건 + REQ-031 · REQ-034 (§4 는 `adjacent` 로 적었으나 §3 매트릭스는 `uc-covered` 로 분류).
 - **종합 판정** — 역방향 축의 **집합·분류 차원 결함은 0 건** (미인용 33 건 전부가 정책상 정상 사유로 설명되고, frontmatter union 과 §2 인용 집합이 완전 일치). 반면 **요약 수치 서술 오차 3 건** 이 존속한다: 115 행 union 31 · 115 행 envelope 13 · 121 행 분해 `31 + 17`. 실체는 건전하고 틀린 것은 숫자 서술뿐이라 본 slice 는 사실 판정만 남기고 정정은 Follow-up 으로 넘긴다 (115 행 / 121 행 / INDEX 110 행 / PLAN 36 행 cascade).
-- **미검증 축** (열거 자체는 T-1393 시점 서술이고, 각 축 뒤 해소 표기는 2026-08-03 (T-1404) 갱신분이다 — 아래 214 행이 200 · 209 행에 대해 쓴 시점 구분 화법과 동형) — envelope-cover 판정의 **의미적** 타당성 → **해소** (221 행 T-1396 UC-01 13 건 + 225 행 T-1397 UC-02 3 건 = label 보유 bullet 2 줄 전량), `adjacent` 서술의 정확성 (REQ-031 · REQ-034 의 adjacent vs uc-covered 귀속 포함) → **해소** (217 행 T-1395), UC 본문 §5 / §6 / §8 이 frontmatter 대로 실제 cover 하는지 → **해소** (228 ~ 249 행 T-1398 ~ T-1403, 8 UC 전건 · coversReq union 33/33), §3 매트릭스 66 row 분류 자체의 재판정 → **미해소 — 유일 잔여 축** (cascade 설계 선행 필요), 위 수치 오차 3 건의 실제 정정 → **해소** (213 행 T-1394).
+- **미검증 축** (열거 자체는 T-1393 시점 서술이고, 각 축 뒤 해소 표기는 2026-08-03 (T-1404 · 4 번째 축은 T-1408) 갱신분이다 — 아래 214 행이 200 · 209 행에 대해 쓴 시점 구분 화법과 동형) — envelope-cover 판정의 **의미적** 타당성 → **해소** (221 행 T-1396 UC-01 13 건 + 225 행 T-1397 UC-02 3 건 = label 보유 bullet 2 줄 전량), `adjacent` 서술의 정확성 (REQ-031 · REQ-034 의 adjacent vs uc-covered 귀속 포함) → **해소** (217 행 T-1395), UC 본문 §5 / §6 / §8 이 frontmatter 대로 실제 cover 하는지 → **해소** (228 ~ 249 행 T-1398 ~ T-1403, 8 UC 전건 · coversReq union 33/33), §3 매트릭스 66 row 분류 자체의 재판정 → **해소** (§12.5 ~ §12.8 T-1405 설계 + T-1406 ~ T-1408 실판정, 후보 17 row 전건 — 유지 12 / 기록만 5 / 분류 변경 0), 위 수치 오차 3 건의 실제 정정 → **해소** (213 행 T-1394).
 - **2026-08-02 정정 반영 (T-1394)** — 위 수치 오차 3 건을 §3 매트릭스 66 row 실측 (uc-covered 48 / frontmatter unique union 33 → envelope 잔차 15) 을 유일한 anchor 로 정정했다: §4 요약 행 union `31 → 33` · envelope `13 → 15` (합산식도 `33 + 15 + 4 + 13 + 1 = 66` 으로 닫힘), §5 `uc-covered` 비고 셀 분해 `31 직접 + 17 envelope → 33 직접 + 15 envelope` (count 48 · 73 % 는 무수정).
 - 따라서 위 200 행 blockquote 의 "정정도 하지 않았다" 와 209 행의 "정정은 Follow-up 으로 넘긴다" 는 **T-1393 시점 (정정 전) 서술** 이며, 본 bullet 이 그 이후 상태 (수치 정정 완료 · 분류 판정은 여전히 미변경) 를 가리킨다.
 - **2026-08-02 귀속 재판정 (T-1395)** — 축 A (`grep -n "^coversReq" docs/use-cases/UC-0*.md`): UC-01 `adjacentReq` 4 건 중 REQ-008 → UC-08 · REQ-032 → UC-07 은 다른 UC 의 `coversReq` 에 직접 명시되고 REQ-031 · REQ-034 는 8 UC 어디에도 직접 명시가 **없다** (기대값과 일치). 축 B (UC-01 본문): REQ-031 은 71 · 80 행 (§5 Main flow 의 sequence Note 2 곳) + 173 행 (§10 관련 REQ 표) **3 건**, REQ-034 는 130 행 (§8 Postconditions) + 175 행 (§10 관련 REQ 표) **2 건** 으로 **양쪽 다 본문 근거 0 건이 아니다**. 축 C (§3 근거 셀 원문): `| REQ-031 | FR | uc-covered | UC-01 (인접, P5 알고리즘) | … — UC-01 adjacentReq + §5 step 9 |` · `| REQ-034 | FR | uc-covered | UC-01 (인접, P5 trigger) | … — UC-01 adjacentReq |` — 두 row 모두 **`인접`(adjacent) 을 근거로 제시한 채 분류는 `uc-covered`** 다.
@@ -525,6 +525,132 @@ hunk 는 **2 개뿐** — (1) 51 행 1:1 치환 (`-1 / +1`, 표 파손 없음), 
 2. **cascade (e) `docs/use-cases/INDEX.md` 110 행 · (f) `docs/PLAN.md` 36 행 미동기** — 분류값 변경 0 이라 동기 자체가 불요였으나 두 지점의 정합 확인도 수행하지 않았다 (T-1404 Follow-up 3 소관).
 3. **표기 비일관 3 건 미정정** — §3 83 행 `(cover)` · 79 행 `(인접)` 표기 편차와 UC §10 표의 `§5 step N` ±1 편차는 분류 축과 무관해 그대로 두었다.
 4. **근거 (iii) 의 `CLAUDE.md` · `ci.yml` · `README.md` 확인은 정적 실측** — heading · step `name` · 1 행 문구 실재 수준까지만 대조했고, 그 정책이 해당 REQ 를 **충분히** 집행하는지의 질적 평가 (예: `Lint 검사` step 의 rule set 이 REQ-056 의 중복 import 금지를 실제로 잡는지, `reviewer agent approval 검증` step 이 REQ-058 의 코드 검토 의무를 실질 강제하는지) 는 하지 않았다.
+
+### 12.8 S3 실판정 — infrastructure 후반 6 row (T-1408)
+
+> 본 절은 [T-1408](../tasks/T-1408-req-coverage-s3-infrastructure-rejudge-l212-closure.md) 이 §12.5 의 S3 batch (infrastructure 후반 6 row — REQ-061 ~ 066, §3 95 ~ 100 행) 를 §12.2 근거 3 종 + 2/3 임계로 실판정하고, §12.5 324 행이 못박은 대로 **마지막 slice** 로서 후보 17 row 전건의 종합과 §10 L212 잔여 축 closure 까지 수행한 기록이다. **삽입 위치는 §12.7 마지막 행 뒤 · §11 References 앞** 이고 `###` 이라 `## ` heading count 는 불변이다.
+> 본 slice 가 528 행 이전에 가한 편집은 **L212 1:1 치환 1 건뿐** 이며 그것이 행 수 불변 (`-1 / +1`) 이라 213 행 이하 전건의 행 번호가 그대로 보존된다 — §10 bullet 9 줄의 L212 참조와 §4 `115 행` 정합식 참조가 계속 유효하다.
+
+#### 실측 명령 (축별 5 회)
+
+```
+$ grep -n "REQ-061\|REQ-062\|REQ-063\|REQ-064\|REQ-065\|REQ-066" docs/use-cases/UC-0*.md
+(hit 0 — 8 UC 전건, exit 1)
+$ awk 'NR>=80&&NR<=85' docs/requirements.md   # kind + 지시 원문 컬럼만, status 는 앞 200 자
+80: REQ-061 | smoke + e2e 도 CI 에서 수행 | Constraint | CLAUDE.md §3.2 R-113 + T-0009/T-0010 | DONE (T-0009/T-0010)
+81: REQ-062 | 활동 후 test 수행 + 종료 전 CI 수행 | Constraint | CLAUDE.md §3.2 R-114 + LOOP §1 [5] | DONE
+82: REQ-063 | PR 만들면 다른 agent 가 review | Constraint | integrator → reviewer | DONE
+83: REQ-064 | Reviewer + Committer 합의로 merge, 7 round | Constraint | CLAUDE.md §3.3 + integrator | DONE
+84: REQ-065 | Reviewer 8 check | Constraint | reviewer.md | DONE
+85: REQ-066 | 코드 commit = PR / 진행상황 doc = direct | Constraint | CLAUDE.md §3.1 | DONE
+$ grep -n "^### 3\.1\|^### 3\.2\|^### 3\.3\|R-113\|R-114" CLAUDE.md
+127: ### 3.1 Commit mode   147: ### 3.2 Test·CI 절대 규칙   184: ### 3.3 Reviewer + Committer 이중 합의
+171: R-113 정의   174: "P0.5 phase 의 T-0009/T-0010 이 smoke/e2e 인프라를 도입"   176: R-114 정의   (18 · 87 행은 §0.5 인덱스 · 본문 인용)
+$ grep -n "^#\{1,3\} " .claude/agents/reviewer.md .claude/agents/integrator.md
+reviewer  34: "# 8 check 구체 sub-check" · 102 Workflow · 111 Post (의무) · 148 4-게이트 #2 충족 박제
+integrator 17 Workflow A · 27 Workflow B · 145 4-게이트 평가 도구 unified   (25 행 = reviewer sub-agent dispatch 의무)
+$ grep -n "\[5\]" docs/LOOP.md ; grep -n "^status:" docs/tasks/T-0009-*.md docs/tasks/T-0010-*.md
+LOOP.md 9: "## 1. 표준 Driver Prompt" / 234: "[5] CI 검증 (push 직후)" (167 · 193 행도 참조)
+T-0009-smoke-test-infra.md status: DONE   T-0010-e2e-test-infra.md status: DONE
+```
+
+첫 grep 의 **hit 0** 이 S3 6 row 판정의 축이다 (S1 · S2 와 동형) — 6 REQ 중 어느 것도 8 UC 의 `coversReq` / `adjacentReq` 또는 본문 §5 · §6 · §8 의 ID anchor 에 등장하지 않는다. 이는 §2 26 행의 "Constraint REQ — UC 영역 밖" 과 정확히 부합하므로 근거 (i) · (ii) 는 6 row **전건에서 현 분류 `infrastructure` 와 일치** 이고 `uc-covered` 로 끌어올릴 근거는 0 이다. `kind` 컬럼도 6 건 전부 `Constraint` 로 §3 셀과 일치한다.
+
+#### row 별 근거 3 종 실측
+
+| 대상 row | (i) UC frontmatter | (ii) UC 본문 hit | (iii) requirements 원문 + cover 위치 셀 | 어긋남 |
+| --- | --- | --- | --- | --- |
+| 95 행 REQ-061 | hit 0 — 일치 | ID hit 0 — 일치 | 80 행 kind `Constraint` = 셀 일치. CLAUDE.md 171 행 R-113 이 unit + smoke + e2e 3 종의 CI 실행을 규정하고, 병기된 T-0009 · T-0010 이 `status: DONE` 으로 실재하며 174 행 R-113 본문이 그 두 task 를 인프라 도입 주체로 직접 지목 — 일치 | **0 종** |
+| 96 행 REQ-062 | hit 0 — 일치 | ID hit 0 — 일치 | 81 행 kind `Constraint` = 셀 일치. CLAUDE.md 176 행 R-114 (commit 후 test 검증 + 종료 전 CI) + LOOP.md 9 행 `## 1.` 안의 234 행 `[5] CI 검증 (push 직후)` 실재 — 셀 지목 `LOOP §1 [5]` 와 문자 그대로 일치 | **0 종** |
+| 97 행 REQ-063 | hit 0 — 일치 | ID hit 0 — 일치 | 82 행 kind `Constraint` = 셀 일치. integrator.md 25 행이 `reviewer sub-agent dispatch (의무) — reviewer 호출 없이 merge 시도 금지` 로 dispatch 경로를 명시하고 reviewer.md 도 실재 — 내용은 일치하나 지목처 종류가 §2 26 행 열거 **밖** (단독 지목) — **어긋남 (표기 경계)** | **1 종** |
+| 98 행 REQ-064 | hit 0 — 일치 | ID hit 0 — 일치 | 83 행 kind `Constraint` = 셀 일치. CLAUDE.md 184 행 §3.3 이 Reviewer + Committer 이중 합의 (4-게이트) 를 규정하고 223 · 251 행이 `review round 7 초과` 를 notifier / BLOCKED 조건으로 못박으며 integrator.md 실재 — 일치 | **0 종** |
+| 99 행 REQ-065 | hit 0 — 일치 | ID hit 0 — 일치 | 84 행 kind `Constraint` = 셀 일치. reviewer.md 34 행 `# 8 check 구체 sub-check` + 105 행 `위 8 check 의 sub-check 들을 순서대로 적용` 실재 — 내용은 일치하나 지목처가 §2 26 행 열거 **밖** (단독 지목) — **어긋남 (표기 경계)** | **1 종** |
+| 100 행 REQ-066 | hit 0 — 일치 | ID hit 0 — 일치 | 85 행 kind `Constraint` = 셀 일치. CLAUDE.md 127 행 §3.1 Commit mode 표가 `direct` (진행 doc) / `pr` (코드) 대상과 절차를 규정 — 셀 지목 `§3.1` 과 일치 | **0 종** |
+
+#### 임계 적용 + 최종 판정
+
+§12.2 288 행 임계 (2 종 이상 → 분류 변경 / 1 종 → `기록만` / 0 종 → 무수정) 를 기계적으로 적용한다.
+
+| 대상 row | 어긋남 종수 | 판정 |
+| --- | --- | --- |
+| 95 행 REQ-061 | 0 | **유지** (`infrastructure`) |
+| 96 행 REQ-062 | 0 | **유지** (`infrastructure`) |
+| 97 행 REQ-063 | 1 | **기록만** — 분류 `infrastructure` 무수정, 본 절 부기로 갈음 (셀 치환 안 함) |
+| 98 행 REQ-064 | 0 | **유지** (`infrastructure`) |
+| 99 행 REQ-065 | 1 | **기록만** — 분류 `infrastructure` 무수정, 본 절 부기로 갈음 (셀 치환 안 함) |
+| 100 행 REQ-066 | 0 | **유지** (`infrastructure`) |
+
+- REQ-061 · 064 의 셀은 `CLAUDE.md § + 보조 지목` 복합 형태인데, §12.7 450 행 REQ-058 (`§3.2 R-110 + agents`) 의 **0 종** 판정과 동형으로 처리했다 — §2 26 행 열거 안 지목 (CLAUDE.md) 이 주 근거로 실재하면 보조 지목 (task ID · agent 이름) 은 표기 경계를 만들지 않는다.
+- 반대로 REQ-063 · 065 는 `.claude/agents/*` **단독 지목** 이라 §12.7 485 행 REQ-001 (README + INDEX 단독 지목) 판정과 동형으로 1 종을 계상했다. 판정이 갈릴 여지가 있는 지점이라 보수적으로 `기록만` 을 택했다 (분류 변경 아님).
+- requirements.md 의 status 컬럼 (6 건 전부 `DONE`) 은 **구현 진척 축** 이라 §3 의 **cover 방식 분류 축** 과 무관하다 — 분류 전이 근거로 쓰지 않았다 (§12.6 · §12.7 선례).
+
+#### REQ-061 task-ID pointer 명시 판정 — §3 95 행
+
+**판정: 충족 — stale 아님, 셀 치환 안 함 (명시적 선택), 분류 `infrastructure` 무수정.** 95 행 cover 위치 셀은 다른 infrastructure row 와 달리 정책 문서 외에 **task ID (T-0009/T-0010)** 를 병기하는데, 두 task 파일이 `status: DONE` 으로 실재하고 CLAUDE.md 174 행 R-113 본문 자체가 그 두 task 를 smoke/e2e 인프라 도입 주체로 지목하므로 근거 (iii) 의 "지목 대상 실재" 는 충족이다. 완료된 task 를 가리키는 것은 §2 26 행이 말하는 `운영 정책 backlog` 의 이력 항목을 가리키는 것이라 정의와도 어긋나지 않는다.
+
+따라서 §12.7 471 ~ 481 행의 REQ-017 처럼 링크 rot 로 볼 사유가 없어 §12.2 290 행 부기를 적용할 대상이 아니고, §12.3 (a) 의 표기 경로도 **발동시키지 않았다** — before → after 없음 (`CLAUDE.md §3.2 R-113 + T-0009/T-0010` 그대로 유지). 이 "치환 안 함" 은 누락이 아니라 명시적 선택이다.
+
+#### REQ-063 · 065 agent spec pointer 명시 판정 — §3 97 · 99 행 vs §2 26 행
+
+**판정: 열거는 폐쇄 목록이 아니라 예시 — 근거 (iii) 의 지목 대상 실재는 충족, 다만 표기 경계 1 종은 계상 (분류 무수정).** §2 26 행은 `ADR / CLAUDE.md / LOOP.md / ci.yml / PLAN.md 의 **운영 정책 backlog 에서 cover**` 형태로, 열거 뒤에 `운영 정책` 이라는 상위 범주를 본체로 두는 구조다. `.claude/agents/*.md` 는 그 상위 범주의 실체 (agent 의 행동 규약 문서) 이고 CLAUDE.md §4 표가 sub-agent dispatch 를 그 문서들에 위임하므로, 문자 그대로 열거되지 않았다는 사실만으로 두 row 를 `infrastructure` 밖으로 밀어낼 근거가 되지 않는다. §2 본문은 재정의하지 않고 본 절의 해석 판정으로만 남긴다.
+
+그럼에도 지목처 종류가 열거 문면 밖이라는 점은 §12.7 485 행 REQ-001 (지목처가 README + INDEX 로 열거 밖) 판정과 동형으로 **표기 경계 1 종** 으로 계상해 두 row 를 `기록만` 으로 뒀다 — 임계상 `기록만` 은 분류 무수정이므로 두 판정 (충족 · 1 종) 은 결론에서 충돌하지 않는다. 셀 치환도 하지 않았다: `.claude/agents/` 경로 지목은 실재·정확하며 고칠 대상이 없기 때문이다.
+
+#### cascade 판정
+
+**분류값 변경 0 건 → cascade (a) ~ (f) 발동 대상 없음** (§12.3 294 행 · T-1400 ~ T-1403 · T-1406 · T-1407 선례 화법). 본 slice 는 §12.7 이 51 행에 가한 것과 같은 **표기-only 셀 치환도 0 건** 이라, (a) 의 표기 경로조차 발동하지 않았다. (b) bullet · (c) 115 행 정합식의 `13` 항 · (d) 통계표 `13` 값 · (e) INDEX.md 110 행 · (f) PLAN.md 36 행 은 옮겨 적을 새 수치가 없다. §5 125 행 `infrastructure` 비고 셀이 열거한 `REQ-001 / REQ-017 / REQ-056 ~ REQ-066` 13 건 중 본 절이 마지막 6 건 (REQ-061 ~ 066) 을 판정해 13 건 전건이 실판정을 마쳤고, 그 결과 비고 셀 자체도 무변이다.
+
+#### 불변 검산 7 값 (편집 후 실측)
+
+| # | 검산식 | 요구치 | 실측 |
+| --- | --- | --- | --- |
+| (a) | `grep -c "^\| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md` | 66 불변 | **66** |
+| (b) | `grep -c "^## "` | 12 불변 (`###` 추가) | **12** |
+| (c) | 잔여 축 열거 문구 grep 첫 hit / 총 hit | L212 / 10 불변 | **L212 / 10** |
+| (d) | L212 참조 문자열 count | 9 불변 | **9** |
+| (e) | `sed -n '115p'` 정합식 | 여전히 115 행 · 합 66 | **115 행 · `33 + 15 + 4 + 13 + 1 = 66`** |
+| (f) | §5 표 (121 ~ 127 행) count 4 값 + 합계 | 합 66 · `**100 %**` | **48 / 4 / 13 / 1 = 66** · 합계 row `**100 %**` 불변 |
+| (g) | closure 대상 문구 count | 4 → **3** (의도된 유일한 감소) | **3** — 잔여 hit 는 §12.5 322 행 · §12.6 402 행 · §12.7 520 행 (전부 append-only 보존 대상) |
+
+(a) · (f) 가 그대로인 것은 본 slice 가 §3 매트릭스의 어떤 셀도 건드리지 않았기 때문이고, (c) · (d) 불변은 본 절이 두 검산 대상 문자열을 **의도적으로 쓰지 않고** 회피 표기 (`L212` · `잔여 축`) 를 쓴 T-1405 ~ T-1407 선례를 승계한 결과다. (g) 는 본 slice 가 의도한 유일한 감소이며, 감소분 1 은 L212 4 번째 축의 해소 표기 교체에서만 나왔다.
+
+#### hunk 국한 검증 (doc-only, R-112 대체)
+
+```
+$ git diff -U0 docs/use-cases/REQ-COVERAGE-AUDIT.md | grep '^@@'
+@@ -212 +212 @@ (§10 잔여 축 bullet — 1:1 치환)
+@@ -528,0 +529,126 @@ (§12.7 마지막 행과 §11 References 사이 삽입)
+$ git diff --numstat docs/use-cases/REQ-COVERAGE-AUDIT.md
+127     1       docs/use-cases/REQ-COVERAGE-AUDIT.md   (삽입 126 행 + L212 치환 +1 / -1)
+```
+
+hunk 는 **정확히 2 개** — (1) L212 1:1 치환 (`-1 / +1`), (2) §12.8 삽입. §3 셀 표기-only 치환이 0 건이라 3 번째 hunk 는 존재하지 않으며, 1 ~ 528 행 중 L212 외 hunk **0** · 삭제 열의 **1** 은 그 치환의 짝이라 순수 삭제 **0** 이다. 매트릭스 표 파손 위험 (T-1370 · T-1375 선례) 도 §3 를 아예 건드리지 않아 원천 차단됐고, 그 사실은 (a) `66` · (f) `48 / 4 / 13 / 1` 검산이 이중 확인한다. `git status --porcelain` 은 `touchesFiles` 2 개 (`docs/use-cases/REQ-COVERAGE-AUDIT.md` · `docs/tasks/T-1408-*.md`) 외 변경 파일 **0**.
+
+#### S1 ~ S3 종합 판정 (후보 17 row 전건)
+
+| slice | batch | 건수 | 유지 | 기록만 | 분류 변경 | 표기-only 셀 치환 |
+| --- | --- | --- | --- | --- | --- | --- |
+| S1 (T-1406) | cross-cutting 4 — REQ-002 · 003 · 029 · 047 | 4 | 3 | 1 | 0 | 0 |
+| S2 (T-1407) | infrastructure 전반 7 — REQ-001 · 017 · 056 ~ 060 | 7 | 5 | 2 | 0 | 1 (§3 51 행) |
+| S3 (T-1408) | infrastructure 후반 6 — REQ-061 ~ 066 | 6 | 4 | 2 | 0 | 0 |
+| **합** | — | **17** | **12** | **5** | **0** | **1** |
+
+검산: `4 + 7 + 6 = 17` 로 §12.1 274 행이 확정한 후보 분모와 닫히고, 판정 열 합도 `12 + 5 = 17` 로 같은 분모에 닫힌다. **3 slice 통틀어 enum 변경 총 0 건 · 표기-only 셀 치환 총 1 건** (S2 의 §3 51 행 REQ-017 stale pointer) 이라 §12.3 의 cascade 6 지점은 한 번도 발동하지 않았다.
+
+cascade 무발동은 곧 **2026-05-25 T-0029 의 최초 분류 판정이 근거 3 종 재실측을 통과했다** 는 뜻이다 — 후보 17 row 어디에도 분류값을 움직일 만한 2 종 이상 어긋남이 없었고, 발견된 어긋남 5 건은 전부 cover 위치 셀의 표기 축 (지목 종류 · 지목 최신성) 에 국한됐다. 다만 §12.1 이 재판정 후보를 **17 row 부분집합** 으로 좁혔으므로 이 결론은 그 부분집합 범위의 것이고, 나머지 49 row (`uc-covered` 48 + `gap` 1) 는 T-1395 ~ T-1403 · §9.4 의 **다른 축 실측** 으로 대체된 것이지 본 재판정이 직접 재검증한 것은 아니다.
+
+#### L212 잔여 축 closure
+
+§10 의 잔여 축 열거 bullet (L212) 4 번째 항목의 해소 표기를 **1 행 → 1 행 in-place 교체** 했다 (T-1404 선례와 동형). 교체 범위는 그 항목의 `미해소` 표기와 괄호 사유뿐이고, 5 축의 문구·순서와 나머지 4 축의 해소 pointer (213 · 217 · 221 · 225 · 228 ~ 249 행) 는 **원문 그대로 보존** 했다 — 편집 후 `grep -n` 으로 5 개 pointer 전건 일치를 확인했다. 새 pointer 는 §12.5 ~ §12.8 (T-1405 설계 + T-1406 ~ T-1408 실판정, 후보 17 row 전건) 을 가리키며 판정 분포 `유지 12 / 기록만 5 / 분류 변경 0` 을 함께 적었다. bullet 머리의 갱신 시점 표기도 같은 1 행 안에서 본 slice 반영으로 갱신했다. before → after 전문은 검산 (g) 의 count 보존을 위해 본 문서에 인용하지 않고 **task 파일 완료 기록에 박제** 했다 (T-1404 선례와 동형).
+
+이 closure 로 T-1393 이 남긴 5 축 전건이 해소되어 해당 열거는 종결된다. 단 그 의미는 `**설계된 범위 (후보 17 row) 의 재판정 완료**` 이지 §3 매트릭스 66 row 전건의 재검증 완료가 아니다 — 아래 한계 (1) 참조.
+
+#### 한계 —
+
+1. **본 재판정은 66 row 전건이 아니다** — §12.1 259 ~ 263 행이 후보를 **17 row 부분집합** 으로 좁혔으므로 나머지 **49 row (`uc-covered` 48 + `gap` 1) 는 본 재판정의 대상이 아니었다**. L212 closure 는 "설계된 범위의 재판정 완료" 를 뜻하며, 49 row 의 분류는 T-1395 ~ T-1403 (축 C · D 의 근거 셀 1:1 대조) 과 §9.4 (REQ-004 `gap` 유지) 라는 **다른 축** 의 실측에 의존한 채로 남는다.
+2. **cascade (e) `docs/use-cases/INDEX.md` 110 행 · (f) `docs/PLAN.md` 36 행 미동기** — 3 slice 통틀어 분류값 변경이 0 이라 수치 동기 자체가 불요였으나, 두 지점의 **정합 확인도 수행하지 않았다** (§12.4 311 행의 분리 허용 + T-1404 Follow-up 3 · T-1407 Follow-up 2 소관).
+3. **표기 비일관 3 건 미정정** — §3 83 행 `(cover)` · 79 행 `(인접)` 표기 편차와 UC §10 표의 `§5 step N` ±1 편차는 분류 축과 무관해 그대로 두었다. 본 slice 가 새로 기록한 표기 경계 2 건 (REQ-063 · 065 의 지목처 종류) 도 정정하지 않았다.
+4. **근거 (iii) 확인은 정적 실측** — `CLAUDE.md` heading · `LOOP.md` step 번호 · agent spec heading · task frontmatter `status` 실재 수준까지만 대조했고, 그 정책이 해당 REQ 를 **충분히** 집행하는지의 질적 평가 (예: reviewer.md 의 8 check sub-check 가 REQ-065 의 review 품질을 실제로 담보하는지, integrator 의 dispatch 의무가 REQ-063 의 "다른 agent 가 review" 를 우회 불가능하게 만드는지) 는 하지 않았다 (§12.7 한계 4 승계).
 
 ## 11. References
 
