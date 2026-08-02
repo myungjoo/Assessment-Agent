@@ -2,7 +2,7 @@
 id: T-1385
 title: requirements.md 67 행 REQ-048 조회·시각화 3초 이내 상태를 실측 기반 재판정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 30
@@ -37,15 +37,15 @@ plannerNote: "requirements-status-resync 31 번째 slice — T-1384 가 남긴 �
 
 ## Acceptance Criteria
 
-- [ ] **조회 측정 harness 축** 을 실측한다 — `ls test/perf | grep -c "read.perf-spec.ts"` 개수와 `test/perf/latency-metrics.ts` 의 primitive 4 함수 정의 행을 인용한다. 개수는 실행 결과 그대로 적고 반올림·추정하지 않는다.
-- [ ] **CI 강제 축** 을 실측한다 — `.github/workflows/ci.yml` 의 `perf test` step 이름 · `run: pnpm test:perf` 행 번호와 `package.json` 의 `test:perf` script 정의 행, `test/perf/jest-perf.json` 실재 여부를 인용한다.
-- [ ] **3 초 절대 임계 축** 을 실측한다 — 대표 perf-spec 2 개 (`person-read` · `summary-read`) 의 p95 비교 expect 행을 인용하고, 비교 대상이 **리터럴 3000ms 임계인지 직전 baseline 상대 비교인지** 를 한 줄로 확정한다. 저장소 전체에서 절대 임계 상수 사용처를 `grep -rn "3000" test/perf --include=*.ts` 로 확인해 건수를 적는다. 절대 임계 assertion 이 0 이면 본 축을 충족으로 판정하지 않는다.
-- [ ] **시각화(web) 축** 을 실측한다 — `web/src` 에 렌더 latency 측정 경로가 실재하는지 grep 결과 건수를 적는다. 0 이면 "시각화 축 부재" 를 상태 문자열에 그대로 적고 상태를 `DONE` 으로 올리지 않는다.
-- [ ] **검증 위치 컬럼 (`perf test`) 의 실 근거** 를 확인한다 — perf 스위트의 test 개수를 `grep -rc "^\s*it(" test/perf/*.perf-spec.ts` 합계 (또는 동등 실측) 로 인용한다. spec 실행 결과 수치를 인용할 경우 실제 실행한 것만 적고, 실행하지 않았으면 정적 개수임을 명시한다.
-- [ ] REQ-048 (67 행) 의 상태 컬럼을 실측 결과에 따라 `DONE (implemented-on-main — <근거>)`, 일부 축만 충족 시 `IN_PROGRESS (<충족 축> 실재 / <미충족 축> 부재)`, 근거 부족 시 `PLANNED` 유지 + 유지 사유 부기 중 하나로 갱신한다. 근거에는 실재하는 파일 경로 4 개 이상 (perf-spec · primitive · ci.yml · package.json) 이 포함돼야 한다.
-- [ ] 실측으로 확인되지 않은 부분 (예: web 시각화 측정 부재 · 절대 임계 미박제 · 실 scale 데이터 부재 · CI runner 성능 편차) 은 상태 문자열 안에 "한계 —" 로 1~2 절 부기한다.
-- [ ] `grep -n "REQ-048" docs/requirements.md` 결과에서 해당 행의 상태 컬럼이 갱신됐고, 표의 컬럼 수 (`|` 필드 수) 가 인접 행 (REQ-047 · REQ-049) 과 동일하게 유지됨을 확인한다. 상태 문자열 안에 리터럴 `|` 문자를 넣지 않는다 (T-1370 · T-1375 사고 재발 방지). `wc -l docs/requirements.md` = 97 과 `grep -c "^| REQ-" docs/requirements.md` = 66 이 편집 전후 불변임도 확인한다.
-- [ ] 본 task 파일의 `status` 를 `DONE` 으로 바꾸고 완료 시각 · 결과 요약 (실측값 포함) 을 추가한다.
+- [x] **조회 측정 harness 축** 을 실측한다 — `ls test/perf | grep -c "read.perf-spec.ts"` 개수와 `test/perf/latency-metrics.ts` 의 primitive 4 함수 정의 행을 인용한다. 개수는 실행 결과 그대로 적고 반올림·추정하지 않는다.
+- [x] **CI 강제 축** 을 실측한다 — `.github/workflows/ci.yml` 의 `perf test` step 이름 · `run: pnpm test:perf` 행 번호와 `package.json` 의 `test:perf` script 정의 행, `test/perf/jest-perf.json` 실재 여부를 인용한다.
+- [x] **3 초 절대 임계 축** 을 실측한다 — 대표 perf-spec 2 개 (`person-read` · `summary-read`) 의 p95 비교 expect 행을 인용하고, 비교 대상이 **리터럴 3000ms 임계인지 직전 baseline 상대 비교인지** 를 한 줄로 확정한다. 저장소 전체에서 절대 임계 상수 사용처를 `grep -rn "3000" test/perf --include=*.ts` 로 확인해 건수를 적는다. 절대 임계 assertion 이 0 이면 본 축을 충족으로 판정하지 않는다.
+- [x] **시각화(web) 축** 을 실측한다 — `web/src` 에 렌더 latency 측정 경로가 실재하는지 grep 결과 건수를 적는다. 0 이면 "시각화 축 부재" 를 상태 문자열에 그대로 적고 상태를 `DONE` 으로 올리지 않는다.
+- [x] **검증 위치 컬럼 (`perf test`) 의 실 근거** 를 확인한다 — perf 스위트의 test 개수를 `grep -rc "^\s*it(" test/perf/*.perf-spec.ts` 합계 (또는 동등 실측) 로 인용한다. spec 실행 결과 수치를 인용할 경우 실제 실행한 것만 적고, 실행하지 않았으면 정적 개수임을 명시한다.
+- [x] REQ-048 (67 행) 의 상태 컬럼을 실측 결과에 따라 `DONE (implemented-on-main — <근거>)`, 일부 축만 충족 시 `IN_PROGRESS (<충족 축> 실재 / <미충족 축> 부재)`, 근거 부족 시 `PLANNED` 유지 + 유지 사유 부기 중 하나로 갱신한다. 근거에는 실재하는 파일 경로 4 개 이상 (perf-spec · primitive · ci.yml · package.json) 이 포함돼야 한다.
+- [x] 실측으로 확인되지 않은 부분 (예: web 시각화 측정 부재 · 절대 임계 미박제 · 실 scale 데이터 부재 · CI runner 성능 편차) 은 상태 문자열 안에 "한계 —" 로 1~2 절 부기한다.
+- [x] `grep -n "REQ-048" docs/requirements.md` 결과에서 해당 행의 상태 컬럼이 갱신됐고, 표의 컬럼 수 (`|` 필드 수) 가 인접 행 (REQ-047 · REQ-049) 과 동일하게 유지됨을 확인한다. 상태 문자열 안에 리터럴 `|` 문자를 넣지 않는다 (T-1370 · T-1375 사고 재발 방지). `wc -l docs/requirements.md` = 97 과 `grep -c "^| REQ-" docs/requirements.md` = 66 이 편집 전후 불변임도 확인한다.
+- [x] 본 task 파일의 `status` 를 `DONE` 으로 바꾸고 완료 시각 · 결과 요약 (실측값 포함) 을 추가한다.
 
 ## Out of Scope
 
@@ -62,6 +62,22 @@ plannerNote: "requirements-status-resync 31 번째 slice — T-1384 가 남긴 �
 
 `implementer` (doc-only 실측 + 표 갱신). 코드 변경이 0 이므로 tester 는 생략한다 (CLAUDE.md §3.2 R-110 의 direct-mode doc-only 면제).
 
+## 완료 기록
+
+- 완료 시각: 2026-08-02 (UTC)
+- 판정: REQ-048 (`docs/requirements.md` 67 행) 상태 `PLANNED` → **`IN_PROGRESS`** (4 축 중 3 축 충족).
+- 실측값 (정적 실측 — `pnpm test:perf` 미실행, Out of Scope):
+  - **조회 측정 harness 축 (충족)** — `ls test/perf` 중 `read.perf-spec.ts` 로 끝나는 파일 **30 개**. 측정 primitive 4 함수는 `test/perf/latency-metrics.ts` 18 행 `percentile` · 62 행 `summarizeLatency` · 78 행 `errorRate` · 112 행 `throughput`, 48 행 `LatencySummary` 가 p50 / p95 / p99 보유.
+  - **CI 강제 축 (충족)** — `.github/workflows/ci.yml` 234 행 `- name: perf test` + 243 행 `run: pnpm test:perf`, `package.json` 22 행 `"test:perf": "jest --config ./test/perf/jest-perf.json"`, `test/perf/jest-perf.json` 실재 (278 bytes).
+  - **3 초 절대 임계 축 (충족)** — `test/perf/latency-collector.ts` 167 행 `const DEFAULT_P95_MAX_MS = 3000` → 182 행 `assertS2Threshold` 기본 상한 → 244~245 행 fail 사유 문자열에 `(REQ-048)` 명시. 대표 spec 2 개가 그 판정을 expect: `test/perf/person-read.perf-spec.ts` 117 행 · 156 행, `test/perf/summary-read.perf-spec.ts` 114 행 · 152 행. 즉 **리터럴 3000ms 절대 임계** 이며 baseline 경로 (`latency-baseline.ts` 270 행 `compareBaselineReports`, `latency-baseline-io.ts` 251 행 `compareBaselineFiles` · 331 행 `ConfirmOrCompareResult` · 381 행 `confirmOrCompareBaseline`) 는 `latency-baseline-io.ts` 362~364 행이 못박은 대로 **상대 회귀 관찰·리포트 전용** (임계 불변, throw 없음). `grep -rn "3000" test/perf --include=*.ts` = **73 건**, 주석 제외 **8 건**, 그 중 판정에 쓰이는 정의는 167 행 1 건.
+  - **시각화(web) 축 (미충족)** — `web/src` 에서 `performance.now` · `p95` · `latency` 3 패턴 grep = **0 건**. `web/src` 자체는 10 entry 로 실재 → web 미구현이 아니라 렌더 latency 측정 미도입.
+  - **검증 위치 `perf test` 근거** — 행두 `it(` 기준 `test/perf/*.perf-spec.ts` **34 파일 268 it** (정적 개수).
+  - **계획 축 정합** — `docs/ops/load-resilience-test-plan.md` 58 행 (목표 p95 < 3s) · 83 행 임계 표 행 (S2 조회 지연 / p95 latency / < 3s / REQ-048).
+- 표 무결성: `wc -l docs/requirements.md` = **97**, `grep -c "^| REQ-"` = **66**, 66 · 67 · 68 행 `|` 필드 수 모두 **9** (7 컬럼) 로 편집 전후 불변. 상태 문자열 안에 리터럴 `|` 없음 (T-1370 · T-1375 재발 방지).
+- 한계 부기: 측정은 mock service 기반 서버 endpoint 배선 latency 뿐 (실 DB · 실 scale 부하 미검증), CI runner 성능 편차 · p95 표본 수 의존성 잔여.
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견 사항을 여기 append)
+- **시각화(web) 렌더 latency 측정 경로 부재** — README 92 행의 "시각화" 절반이 측정 밖이다. `web/src` 에 `performance.now` 기반 렌더 latency 수집 + 3 초 임계 assertion 을 도입하는 별도 slice 필요 (본 task 는 Out of Scope 로 코드 미수정).
+- **perf-spec 의 mock service 의존** — 30 개 read perf-spec 이 모두 mock service 즉시 반환 위에서 p95 를 재므로 실 DB 왕복 · 실 scale 데이터 하의 3 초 충족이 미검증. REQ-047 (100~200명 / 50~100 repo) scale seed 위의 perf 측정 slice 와 함께 다루면 좋다.
+- **REQ-048 상태의 `DONE` 승격 조건** — 위 2 건 (web 측정 도입 + 실 scale 측정) 중 web 축이 충족되면 `DONE` 재판정 slice 를 연다.
