@@ -55,4 +55,18 @@ plannerNote: "uc-doc-audit-resync 3 번째 slice — T-1390 Follow-up 2 (INDEX �
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+1. **§2 "관련 REQ" 컬럼 정합 대조** — 8 row 의 REQ ID 인용 (총 40+ 건) 이 현재 `docs/requirements.md` 66 row 에 모두 실재하는지 1:1 검증. 본 slice 는 status 컬럼만 봤고 REQ 컬럼은 Out of Scope 였다 (doc-only direct, 예상 ≤40 LOC).
+2. **§2 actor / component / module 컬럼 오타 0 검증** — 24~25 행이 선언한 "8 component 명 / 8 module 명만 사용, 오타 0" 제약을 `components.md` · `modules.md` 실제 명칭과 대조. 본 slice 미검증 축.
+3. **각 UC 본문 내용 충실도 재판정** — UC-01 ~ UC-08 본문이 §1 이 예고한 항목 (트리거 / 흐름 / 데이터 / NFR / sequence diagram) 을 실제로 담고 있는지. 파일 실재만으로 `DONE` 을 정당화한 본 slice 의 가장 큰 미검증 축 — UC 8 건이라 slice 분할 필요.
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-02 (UTC)
+- **결과**: `docs/use-cases/INDEX.md` §2 의 42 행 "P2 UC 본문 분해 8/8 closure" 문단 뒤에 `2026-08-02 재판정 (T-1391)` 문단을 2 줄로 신설했다. 원 42 행 문단은 **1 자도 수정하지 않고** 역사적 기록으로 보존했고, §2 표의 8 row 역시 status 컬럼 변경이 불요해 **1 자도 수정하지 않았다**. 본 부기는 INDEX.md §5 갱신 룰 3 ("UC 본문 task 가 머지될 때 — 대응 UC 의 status 컬럼을 `IN_PROGRESS` → `DONE` 으로 갱신") 이 요구하는 living-document 동기 의무의 사후 검증 이행이다.
+- **실측 — 축 (a) UC 본문 파일 실재**: `ls docs/use-cases/UC-*.md` 출력 = `UC-01-evaluation-execution.md` · `UC-02-evaluation-query.md` · `UC-03-person-crud.md` · `UC-04-account-auth.md` · `UC-05-llm-config.md` · `UC-06-evaluation-delete-reeval.md` · `UC-07-export-import.md` · `UC-08-permission-denied.md` — **실재 8 건 / 기대 8 건**. `grep -o "UC-0[1-8][a-z0-9-]*\.md" docs/use-cases/INDEX.md | sort -u` 출력 = 동일 8 개 파일명 (unique 8). 인용 경로 8 건이 실제 파일명과 1:1 일치 — **broken link 0 건**.
+- **실측 — 축 (b) 본문 task status**: `grep -H "^status:" docs/tasks/T-0020-*.md docs/tasks/T-002[2-8]-*.md` 출력 8 줄 = `T-0020-uc-01-evaluation-execution.md:status: DONE` / `T-0022-uc-02-evaluation-query.md:status: DONE` / `T-0023-uc-03-person-crud.md:status: DONE` / `T-0024-uc-04-account-auth.md:status: DONE` / `T-0025-uc-05-llm-config.md:status: DONE` / `T-0026-uc-06-evaluation-delete-reeval.md:status: DONE` / `T-0027-uc-07-export-import.md:status: DONE` / `T-0028-uc-08-permission-denied.md:status: DONE`. **`DONE` 8 건 / 기대 8 건**, 파일 없는 task ID **0 건** (T-0021 은 INDEX 42 행 인용 목록에 없으므로 대상 아님).
+- **8 row 판정**: **8/8 유지** — UC-01 ~ UC-08 각 row 가 축 (a) 본문 파일 실재 + 축 (b) 대응 task `DONE` 두 축을 모두 충족하므로 27 행 정의의 `DONE` (UC 본문 머지) 표기가 그대로 유효하다. 재판정으로 값이 바뀐 row **0 건**. 따라서 표 row 는 수정하지 않았다.
+- **실측 — 표 무결성 검산**: `grep -c "^| UC-" docs/use-cases/INDEX.md` = 편집 전 **8** / 편집 후 **8** (불변). 표 헤더 (29 행) 컬럼 수 = **7**, 8 개 data row 모두 컬럼 수 **7** (`awk -F'|' '{print NF-2}'` 전 row 7) — 불변. 표 셀 안에 리터럴 `|` 추가 **0 건** (편집 지점이 표 밖 산문 문단이라 구조적으로 불가).
+- **실측 — R-112 대체 검증 (doc-only)**: 코드 변경 0 LOC 이므로 위 grep / ls 출력값 박제로 unit test 를 대체한다. `wc -l docs/use-cases/INDEX.md` = 편집 전 **107 행** → 편집 후 **110 행** (+3 행 = 빈 줄 1 + 본문 2 줄, 상한 "+3 행 이내" 충족).
+- **한계 —** 본 slice 가 검증하지 않은 축: (1) 각 `UC-NN-*.md` **본문의 내용 충실도** — 파일 실재만 확인했고 본문이 §1 이 예고한 트리거 / 흐름 / 데이터 / NFR / sequence diagram 을 실제로 담는지는 읽지 않았다 (Required Reading 이 명시적으로 금지). (2) §2 표 "관련 REQ" 컬럼과 `docs/requirements.md` **66 row 의 1:1 정합** — REQ ID 실재 여부 미대조 (Follow-ups 1). (3) actor / **주요 component** / **주요 module** 컬럼의 **오타 0 여부** — 24~25 행이 선언한 8 component / 8 module 명칭과의 대조 미수행 (Follow-ups 2). (4) 축 (b) 는 task frontmatter `status` 값만 신뢰했고 각 task 의 실제 머지 여부 (git history) 는 교차 확인하지 않았다.
+- **변경 파일**: `docs/use-cases/INDEX.md` (+3 행 / -0 행, 표 row · 42 행 원문단 무수정), `docs/tasks/T-1391-uc-index-status-column-rejudge.md` (완료 기록 + Follow-ups).

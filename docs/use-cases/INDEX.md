@@ -41,6 +41,9 @@ Phase P2 (Use case decomposition) 의 목표는 [README.md](../../README.md) + P
 
 **P2 UC 본문 분해 8/8 closure** — UC-01 ~ UC-08 의 본문 분해 (T-0020 / T-0022 / T-0023 / T-0024 / T-0025 / T-0026 / T-0027 / T-0028) 가 모두 완료되어 본 INDEX.md 의 8 UC 모두 `status: DONE`. 후속 P2 task (api.md / data-model.md / Use case 인벤토리 검증) 는 본 backbone 위에서 진행.
 
+**2026-08-02 재판정 (T-1391)** — 위 closure 선언을 2 축으로 실측 재검산 (§5 갱신 룰 3 "UC 본문 task 가 머지될 때 status 컬럼을 `DONE` 으로 갱신" 의 사후 동기 의무 이행). 축 (a) UC 본문 파일 실재 8/8 (`docs/use-cases/UC-01-*.md` ~ `UC-08-*.md`), §3 description 링크 8 건 모두 실제 파일명과 일치 — broken link 0. 축 (b) 본문 task 8 건 (T-0020 / T-0022 ~ T-0028) frontmatter `status` 모두 `DONE` — 8/8.
+판정: **8 row 전부 `DONE` 유지, 표 row 변경 0** (두 축 모두 충족). 미검증 축 — 각 UC 본문의 **내용 충실도**, "관련 REQ" 컬럼과 [requirements.md](../requirements.md) 66 REQ 의 1:1 정합, actor / component / module 컬럼의 오타 0 여부는 본 재판정 범위 밖 (별도 slice).
+
 ## 3. 각 UC 별 description
 
 ### UC-01 평가 실행 (자동 cron + manual trigger)
