@@ -2,7 +2,7 @@
 id: T-1394
 title: REQ-COVERAGE-AUDIT §4 115 행 · §5 121 행의 요약 수치 오차 3 건을 매트릭스 실측값으로 정정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 45
