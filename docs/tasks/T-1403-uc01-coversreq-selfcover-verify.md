@@ -2,7 +2,7 @@
 id: T-1403
 title: UC-01 이 자기 frontmatter coversReq 13 선언 (REQ-005 · 006 · 007 · 014 · 015 · 039 · 040 union 신규 7 + REQ-049 · 051 ~ 055 UC-01 축 잔여 6) 을 본문 §5 · §6 · §8 로 실제 cover 하는지 4 축 실측 검증 — 8 UC 마지막 slice
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 110
@@ -68,6 +68,43 @@ plannerNote: "uc-doc-audit-resync 15 번째 slice — T-1402 Follow-up 1 번 (UC
 
 `implementer` (grep 4 축 실측 + doc 편집) → 별도 tester 불요 (direct doc-only, R-110 면제 — 코드 변경 0). 단 hunk 국한 검증 항목의 명령 출력은 반드시 완료 기록에 박제한다.
 
+## 완료 기록 (2026-08-03)
+
+**계수 규약** — UC-01 선언 **13** 중 **union 신규 7** (REQ-005 · 006 · 007 · 014 · 015 · 039 · 040) 만 union 진행률에 가산하고, **UC-01 축 신규 판정 6** (REQ-049 · 051 ~ 055) 은 T-1402 가 UC-05 축으로 이미 실측한 건이라 진행률 무가산 · 선언 축 판정만 한다. **분할 불요 재판정** — T-1401 Follow-up 2 번의 "2 slice 권장" 은 planner 사전 실측 (ID hit 행 34 = 본문 19 + 메타 15 < UC-03 58 · UC-05 64) 으로 뒤집혔고, 실제 단일 slice 로 cap 안에서 완결됐다 (range 압축 표기 덕).
+
+**축 A — ID 직접 언급 실측** (`grep -n "REQ-005\|REQ-006\|REQ-007\|REQ-014\|REQ-015\|REQ-039\|REQ-040\|REQ-049\|REQ-051\|REQ-052\|REQ-053\|REQ-054\|REQ-055" docs/use-cases/UC-01-evaluation-execution.md` 1 회, hit 행 34 = 본문 19 + 메타 15). **range 확장 규약** — T-1402 의 `REQ-051~055` 규약을 계승하고, 본 slice 최초 등장한 `REQ-005~007` (141 행) 형태에도 동일 적용 (포함된 각 선언에 계상 + `range` 병기).
+
+| 선언 | 본문 hit (행 · 절) | 메타 hit | 축 B 등급 | 축 C 대조 (선언 절 → 판정) |
+| --- | --- | --- | --- | --- |
+| REQ-005 | 74 (§5) · 141 (§9, range) | 7 · 159 · 193 | 강 | `§5 step 5 / §9 GithubModule` → 2 항 일치 |
+| REQ-006 | 75 (§5) · 141 (§9, range) | 7 · 160 · 193 | 강 | `§5 step 6 / §9 GithubModule` → 2 항 일치 |
+| REQ-007 | 76 (§5) · 141 (§9, range) | 7 · 161 · 193 | 강 | `§5 step 7 / §9 GithubModule` → 2 항 일치 |
+| REQ-014 | 74 (§5) · 141 (§9) | 7 · 162 · 193 | 강 | `§5 step 5–7 / §9 GithubModule` → 2 항 일치 (step 6 · 7 은 위임 문장) |
+| REQ-015 | 46 (§4) · 79 (§5) · 142 (§9) | 7 · 163 · 193 | 강 | `§5 step 8 / §9 ConfluenceModule` → 2 항 일치, §4 46 은 실측에만 |
+| REQ-039 | 27 (§2) · 36 (§3) · 64 (§5 alt cron) · 139 (§9) · 183 (§11) | 7 · 164 · 193 | 강 | `§3 trigger 1 / §5 alt cron / §9 Scheduler` → 3 항 일치, §2 · §11 은 실측에만 |
+| REQ-040 | 28 (§2) · 37 (§3) · 66 (§5 alt manual) · 140 (§9) · 183 (§11) | 7 · 165 · 193 | 강 | `§3 trigger 2 / §5 alt manual / §9 Worker` → 3 항 일치, §2 · §11 은 실측에만 |
+| REQ-049 | 47 (§4) · 82 (§5) · 140 · 143 (§9) | 7 · 166 · 193 | 강 | `§4 precondition 4 / §5 step 10 / §9 LlmModule` → 3 항 일치, §9 140 Worker row 는 실측에만 |
+| REQ-051 ~ 055 | 각 47 (§4, range) · 82 (§5, range) · 143 (§9, range) | 7 · 167 ~ 171 · 193 | 강 (각) | `§5 step 10 / §9 LlmModule` → 각 2 항 일치, §4 47 은 실측에만 |
+
+**축 B — 근거 강도 분포**: 선언 13 기준 **강 13 / 약 0 / 없음 0**, union 신규 7 기준 **강 7 / 약 0 / 없음 0** (13 선언 전부 §5 Main flow 에 ID hit). §6 · §8 은 ID hit **0** 이나 위임 문장 anchor 실재 — §6.1 98 행 `cron / manual trigger 의 차이는 AssessmentRun row 의 source metadata 컬럼으로만 표현`, §8 128 행 `source, startedAt, endedAt, trigger 출처 metadata 박제` (REQ-039 · 040), §8 129 행 `각 인원 × 각 commit/문서 단위 (REQ-033) 의 기여도·난이도·양·평가문` (REQ-005 ~ 007 commit 축 · REQ-014 Issue 축 · REQ-015 Confluence 문서 축), §5 84 행 `평가문 + 난이도 + 기여도 + 양` 반환 (REQ-049 · 051 ~ 055).
+
+**축 C 합계** — 선언 항 **29** (2×5 + 3×3 + 2×5), 전건 **일치**, `선언에만 있음` **0**, `실측에만 있음` **11 항**. `§5 step N` arrow 계수 (§5 92 행 규약 = 11 step, arrow 는 65 · 67 · 70 · 74 · 75 · 76 · 79 · 82 · 84 · 86 · 87 행) 검산: REQ-005 ~ 015 선언은 **일괄 +1 이르고** REQ-049 · 051 ~ 055 는 **+2 이르다** — 편차량이 앞선 `Note over` 개수 (71 / 71 + 80) 와 일치해 원인은 Note 계수 여부, `alt cron` · `alt manual` 은 편차 0. **기록만** (정정 Out of Scope).
+
+**축 D** — §3 39 · 40 · 41 · 48 · 49 · 73 · 74 행 7 row 전건 `uc-covered` + 근거 셀 `— UC-01 coversReq`, 축 A ~ C 와 **어긋남 0**. 39 · 40 · 41 · 48 · 49 행 UC 열 `UC-01, UC-08 (인접)` 은 UC-01 §7.1 110 행 (4xx → `PermissionDeniedEvent` emit, 후속 처리는 UC-08 책임) · §4 113 행 bullet 과 정합.
+
+**축 D-2** — 83 (`UC-05, UC-01 (cover)`) · 85 ~ 89 (`UC-05, UC-01`) 6 row 는 근거 셀이 `UC-05 coversReq` 만 지목하나 이는 대표 근거 1 개 표기일 뿐, UC-01 frontmatter 7 행이 같은 6 건을 선언한 실측과 **충돌 없음**. T-1402 dangling 항 (`REQ-049 · 051 ~ 055 의 UC-01 선언 축 미판정`) **종결**. 83 행만 `(cover)` 를 다는 표기 비일관은 **후보 기록만** (cascade 없음).
+
+**종합 판정 — (가) frontmatter ↔ 본문 정합 확인.** §10 말미 bullet 5 줄 append 만 수행, 본문 무수정.
+
+**불변 검산** — (a) `^| REQ-` **66** 불변, (b) `^## ` **11** 불변, (c) §5 count `48 / 4 / 13 / 1` + 합계 `**66** | **100 %**` 불변, (d) §4 115 행 `33 + 15 + 4 + 13 + 1 = 66` 불변, (e) `wc -l` UC-01 **193** 불변 (read-only 증명).
+
+**hunk 국한 검증 (R-112 대체)** — `git diff -U0` hunk 헤더는 `@@ -244,0 +245,5 @@` **1 개뿐** (§10 말미 append 1 지점, §1 ~ §9 · §11 hunk 0). `git diff --numstat` = `5 0 docs/use-cases/REQ-COVERAGE-AUDIT.md` (삭제 **0**). `git status --porcelain` 은 `touchesFiles` 2 개 외 변경 **0**. 표 셀을 한 곳도 편집하지 않아 `|` 개수 대조 대상 행 **없음**.
+
+**한계** — 본 slice 가 판정하지 않은 축: (1) UC-01 `adjacentReq` 4 건 (REQ-008 · 031 · 032 · 034) 의 인접 서술 정확성 중 T-1395 부분 실측분 외, (2) UC-01 envelope-cover 13 건의 **의미적** 타당성 (T-1396 은 ID hit 만), (3) 13 건 REQ 의 **구현** 실재 여부 (`docs/requirements.md` status — T-1375 계열 소관), (4) §3 매트릭스 66 row 분류 자체의 재판정, (5) 212 행 문장 자체의 갱신. **누적 비용 실측** — 본 축 6 slice (T-1398 ~ T-1403) 의 audit 문서 diff 는 `3 + 4 + 4 + 4 + 4 + 5 = 24` 줄 append · 삭제 0 이고 slice 당 bash 호출은 4 ~ 6 회 (축 A grep 1 · 불변/hunk 검산 1 ~ 2 · 보조 read 1 ~ 2) 규모 — 전수 audit 축을 UC 단위로 자르면 slice 당 cap 의 1/10 이하 비용으로 안전하게 진행됨을 보여준다.
+
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+1. **REQ-COVERAGE-AUDIT.md 212 행 문장 갱신** — 본 slice 로 `UC 본문 §5/§6/§8 이 frontmatter 대로 실제 cover 하는지` 축이 8 UC 전건 · union 33/33 으로 해소됐으므로 212 행 열거에서 해당 항을 제거하는 편집 (append-only 규약상 본 slice 는 금지 — 별도 slice 에서 §10 중간 hunk 1 지점만 여는 형태로).
+2. **§3 매트릭스 66 row 분류 자체의 재판정** — 212 행 잔여 축. `uc-covered` / `cross-cutting` / `infrastructure` / `gap` 4 enum 귀속의 타당성 재검토 (본 축과 달리 §5 count · §4 정합식 cascade 를 동반하므로 사전 cascade 설계 필요).
+3. **§3 83 행 `(cover)` 표기 비일관 정정** — 83 행만 `UC-05, UC-01 (cover)`, 85 ~ 89 행은 `UC-05, UC-01`. cascade 없는 표기 통일 (본 slice 는 기록만).
+4. **UC-01 §10 표 `§5 step N` 편차 정정** — 159 ~ 171 행의 step 표기가 arrow 계수 대비 +1 / +2 (Note 계수 차). UC-06 · UC-07 (T-1400) · UC-03 (T-1401) · UC-05 (T-1402) 에서도 같은 편차가 기록돼 있어, 8 UC 의 step 표기 규약을 한 slice 에서 일괄 정합화하는 편이 효율적.
