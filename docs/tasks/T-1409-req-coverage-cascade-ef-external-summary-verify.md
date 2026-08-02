@@ -2,7 +2,7 @@
 id: T-1409
 title: REQ-COVERAGE-AUDIT cascade (e) INDEX.md 110 행 · (f) PLAN.md 36 행 정합 확인 + §12.9 박제 + 두 요약의 시점 pointer 갱신
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-001]
 estimatedDiff: 150
