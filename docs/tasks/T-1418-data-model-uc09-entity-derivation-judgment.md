@@ -2,7 +2,7 @@
 id: T-1418
 title: UC-09 §5·§8·§9 기준 data-model.md §2 신규 entity 필요 여부 실판정 + source UC 병기 + 168 행 잔여 의무 closure + audit §12.16 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 85
