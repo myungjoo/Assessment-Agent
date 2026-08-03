@@ -15,7 +15,7 @@ auditDate: 2026-05-25
 
 본 audit 의 목적은 **gap 검출** — 8 UC 가 [requirements.md](../requirements.md) 의 모든 functional REQ 의 superset 임을 박제하는 것이다. 범위는 66 REQ 전체 (REQ-001 ~ REQ-066, FR / NFR / Constraint 모두 포함). 정책: functional REQ 는 1+ UC 의 `coversReq` frontmatter 로 cover 되어야 하나, NFR / Constraint 는 단일 UC 가 아니라 **cross-cutting (여러 UC 가 공유)** 또는 **infrastructure (UC 영역 밖 — architecture document / ADR / 운영 정책)** 에서 cover 되는 것이 정상이다. 본 audit 의 분류 기준이 "UC 로 cover 안 됨" ≠ "gap" 임을 명확히 한다.
 
-**audit 결과 요약** — 8 UC 의 `coversReq` 합집합이 functional REQ 의 거의 전부를 cover. **gap 1 건** (REQ-004 — 사용자 지정 기간 임의 평가문 요청 흐름) 검출. cross-cutting 4 건 / infrastructure 13 건 / uc-covered 48 건. P2 셋째 bullet closure 안전 — 단, REQ-004 gap 의 follow-up task 권장 (§6 참조). 2026-08-02 재판정: §9 참조.
+**audit 결과 요약** — 8 UC 의 `coversReq` 합집합이 functional REQ 의 거의 전부를 cover. **gap 1 건** (REQ-004 — 사용자 지정 기간 임의 평가문 요청 흐름) 검출. cross-cutting 4 건 / infrastructure 13 건 / uc-covered 48 건. P2 셋째 bullet closure 안전 — 단, REQ-004 gap 의 follow-up task 권장 (§6 참조). 2026-08-02 재판정: §9 참조. 2026-08-03 재분류: UC-09 신설 chain (T-1411 ~ T-1413) 으로 REQ-004 가 `gap` → `uc-covered` 전이해 위 4 값은 **uc-covered 49 / cross-cutting 4 / infrastructure 13 / gap 0 = 66** 으로 갱신 — 근거 §12.11 · §12.15 참조 (본 문장 앞부분의 옛 4 값 · `gap 1 건` 서술은 2026-05-25 시점 기록이라 무편집 보존).
 
 ## 2. 분류 정책
 
@@ -164,6 +164,8 @@ REQ 의 cover 방식을 다음 4 enum 으로 분류:
 - **P2 셋째 bullet (Use case 인벤토리 검증) closure 안전 — gap follow-up 정책 박제 완료**.
 - 후속 P2 artifact (api.md / data-model.md) 진행 가능 — 본 audit 의 8 UC + UC-09 (예정) 를 frontend 로 삼아 endpoint / entity 도출.
 
+**현행 pointer (2026-08-03 append — T-1417)** — 위 5 bullet 은 frontmatter `auditDate: 2026-05-25` 시점 verdict 의 기록이며, §12.3 306 행 append-only 규약대로 수치·판정 문구를 한 글자도 고치지 않고 보존한다. 2026-08-03 현재 사실은 다음과 같이 다르다 — REQ-004 는 `gap` 이 아니라 **`uc-covered` (UC-09) 로 재분류돼 gap 0 건** 이고, UC-09 는 `(예정)` 이 아니라 **실재하는 문서** 이며, `후속 task (T-0030+) 책임` 지목은 **stale** (해당 chain 은 T-1411 ~ T-1416 이 수행) 이다. 본 문단은 수치·근거를 재생산하지 않고 §9 (2026-08-02 재판정) · §12.10 (지목 최신성) · §12.11 (실판정 + cascade) · §12.15 (본 pointer 의 처리 방침) 에 위임한다.
+
 ## 9. 2026-08-02 재판정 (T-1389)
 
 > 본 절은 [T-1389](../tasks/T-1389-uc-coverage-audit-req-004-gap-rejudge.md) 가 **REQ-004 1 건에 한해** 수행한 재판정이다. 위 1~8 절은 `auditDate: 2026-05-25` 시점의 역사적 기록으로 **수치·판정 서술을 그대로 보존** 했고, 본 절만이 2026-08-02 실측을 반영한다. 66 REQ 전수 재audit 는 수행하지 않았다. 절 번호 충돌을 피하려고 기존 References 절은 §10 으로 옮겼다 (내용 불변).
@@ -196,7 +198,7 @@ REQ 의 cover 방식을 다음 4 enum 으로 분류:
 - **UC-09 신설의 정책적 타당성은 판정하지 않았다.** §6 의 권장 (a) 신설 / (b) UC-01 확장 중 어느 쪽이 옳은지는 본 재판정 범위 밖이며, 구현이 UC 없이 선행된 지금은 "UC 를 사후 작성" 하는 셈이라 §6 의 추정 규모 (T-0028 동급) 도 재산정이 필요할 수 있다.
 - **REQ-004 의 프런트 노출 축 · 기간 종료 경계 · 좌표 종합 코멘트 HTTP 진입점** 의 실재 여부는 본 절에서 직접 실측하지 않았고 `docs/requirements.md` 23 행 (T-1377 판정) 인용으로 대체했다.
 - **다른 gap 후보의 전수 재audit 는 수행하지 않았다.** 3 절 66 row 중 REQ-004 1 건만 재판정했으므로, 2026-05-25 이후 다른 REQ 의 분류가 stale 해졌는지는 미확인이다. 5 절 통계표의 `uc-covered` 48 · `cross-cutting` 4 · `infrastructure` 13 수치도 그 시점 값 그대로다.
-- **`docs/use-cases/INDEX.md` 104 행** 의 audit closure 요약은 본 절과 동기화하지 않았다 (본 slice scope 밖 — task Follow-ups 참조).
+- **`docs/use-cases/INDEX.md` 104 행** 의 audit closure 요약은 본 절과 동기화하지 않았다 (본 slice scope 밖 — task Follow-ups 참조). (2026-08-03 부기 — T-1417: 위 `104 행` 은 2026-08-02 시점 표기이고 그 closure 문단은 현재 **118 ~ 121 행** 이다. 미동기 사실 자체는 T-1414 의 cascade (e) 실행으로 **이미 해소** — 근거 §12.12.)
 
 ## 10. 2026-08-02 역방향 coverage 재검산 (T-1393)
 
@@ -996,6 +998,63 @@ api.md 의 **삭제 3 은 전부 in-place 치환의 짝** (104 · 153 · 211 행
 1. **endpoint 신설 0** — 본 slice 는 문서 안 **귀속** 만 바꿨고 실코드 route 신설은 0 이다. `72 endpoint` · `16 resource prefix` 는 무변이며, 늘어난 값은 §7 row 1 행에서 직접 파생한 `9 UC cover` 뿐이다.
 2. **data-model.md §2 entity 축 미판정** — UC-09 가 신규 entity 를 요구하는지 (기존 `Assessment` 좌표로 충분한지) 를 본 slice 는 **판정하지 않았다**. §2 표 · 38 행 `13 entity` · 168 행 잔여 의무 문면은 전부 무편집이다.
 3. **`8 UC` 표기는 153 행 1 곳만 갱신** — api.md 3 · 12 · 64 · 207 · 208 행 · data-model.md 3 · 38 행 · 본 문서 §11 References 2 줄은 여전히 stale 이다. 각 지점이 시점 기록인지 현행 index 서술인지의 일괄 판정이 선행돼야 해 별도 slice 소관이다 (§12.13 한계 ② 존속).
+
+### 12.15 옛 요약 3 지점 forward pointer append + 처리 방침 확정 (T-1417)
+
+> 본 절은 [T-1417](../tasks/T-1417-audit-legacy-summary-forward-pointer.md) 이 [T-1416](../tasks/T-1416-uc09-api-endpoint-attribution.md) 의 **Follow-up 2** (3 회 이월 — T-1413 FU4 · T-1414 FU4 · T-1415 FU3) 와 **Follow-up 4** (4 회 이월 — T-1412 FU4 부터) 를 한 slice 안에서 함께 닫은 기록이다. 둘 다 본 문서 **내부의 pointer 정합** 문제라 판정 축이 같다. 본 절은 수치를 한 건도 재판정·재계산하지 않았고 **pointer 문장만 append** 했다. **삽입 위치는 §12.14 마지막 행 뒤 · §11 References 앞** 이고 `###` 이라 `## ` heading count 12 가 불변이다 — §12.6 ~ §12.14 가 승계해 온 위치 규약 그대로다.
+
+#### 실측 선행 (편집 전 4 값 — 전제 전건 성립)
+
+```
+(i)   $ grep -n "^## 8\." REQ-COVERAGE-AUDIT.md              → 157   (`## 8. 결론`, verdict bullet 5 개 = 161 ~ 165 행)
+      $ awk 'NR>=157 && NR<=166' … | grep -cE "§9|§12"       → 0     (§9 / §12 를 가리키는 pointer 문장 0 개)
+(ii)  $ awk 'NR==18' … | grep -o "재판정: §[0-9.]* 참조"      → 2026-08-02 재판정: §9 참조   (pointer 가 §9 까지뿐 — §12 지목 0)
+(iii) $ grep -n "INDEX.md\` 104 행" …                        → 199   (T-1416 FU4 · 본 task AC 4 의 `198 행` 표기와 1 행 어긋남 — 실측 199 채택)
+      $ grep -n "coverage audit closure" INDEX.md            → 118   (closure 문단 실제 현재 범위 118 ~ 121 행, `Refs:` 123 행, wc -l 123)
+(iv)  $ grep -c "^\| REQ-" REQ-COVERAGE-AUDIT.md             → 66    (baseline)
+      $ grep -c "^## "     REQ-COVERAGE-AUDIT.md             → 12    (baseline, wc -l 1013)
+```
+
+4 값 모두 편집 전제와 일치해 **중단 지점은 없었다**. 유일한 어긋남은 (iii) 의 행 번호 1 행 (198 vs 실측 199) 이며, 이월 Follow-up 표기가 아니라 **실측값 199** 를 편집 대상으로 삼았다.
+
+#### 처리 방침 확정 (정본)
+
+**옛 요약의 수치·판정 문구는 §12.3 306 행 append-only 규약대로 무편집 보존하고, 현행 상태는 pointer 문장 append 로만 가리킨다.** 대상은 날짜·판정 시점이 문장 안에 박혀 있는 **시점 기록** — §1 18 행 · §8 161 ~ 165 행 · §9.4 188 행 · §9 199 행 · INDEX.md 118 행 · PLAN.md 36 행 앞부분이 이에 해당한다. 이는 T-1415 가 §12.13 918 행에서 `api.md` 211 · 223 행 · `data-model.md` 168 행을 **in-place 치환** 한 처리와 성격이 다르다 — 그 3 행은 `Out of scope` 목록 · `References` bullet 처럼 날짜 stamp 가 없는 **living document 의 현행 상태 서술** 이라 보존 대상이 아니었다. 판별 기준은 "그 문장이 어느 시점의 판정을 기록하는가, 아니면 현재 상태를 서술하는가" 하나다.
+
+#### 갱신 3 지점 기록 — 편집 방식은 전부 append
+
+- **§8 결론 (161 ~ 165 행 뒤, 신규 167 행)** — 5 bullet (`gap 1 건` · `T-0030+ 책임` · `8 UC + UC-09 (예정)` 포함) 을 **한 글자도 고치지 않고** 그 뒤에 현행 pointer 문단 1 행을 append 했다. 3 요소 — (i) 위 bullet 이 `auditDate: 2026-05-25` 시점 verdict 의 기록임을 명시, (ii) 2026-08-03 현재 REQ-004 는 `uc-covered` (gap 0) · UC-09 는 실재 · `T-0030+` 지목은 stale 이라는 현행 사실, (iii) 근거를 §9 · §12.10 · §12.11 · 본 절로 위임 (수치 재생산 최소화). `## 8.` · `## 9.` heading 무편집.
+- **§1 18 행** — 4 값 (`uc-covered 48` 등) · `gap 1 건` 서술 · 기존 `2026-08-02 재판정: §9 참조.` 를 전부 보존하고, 그 뒤에 `2026-08-03 재분류: … 근거 §12.11 · §12.15 참조` 문장 1 개만 이어 붙였다 (T-1414 가 PLAN.md 36 행에 쓴 in-line append 화법 승계). **1 행 → 1 행** (행 수 증가 0).
+- **§9 199 행** — `INDEX.md 104 행` 리터럴은 2026-08-02 시점 기록이라 **치환하지 않고**, 같은 행 끝에 괄호 부기 1 구를 append 했다. 2 요소 — (i) closure 문단의 현재 행 번호 118 ~ 121, (ii) 미동기 사실 자체는 T-1414 의 cascade (e) 로 **이미 해소** 됐고 근거는 §12.12 라는 pointer. **1 행 → 1 행**.
+
+#### closure 선언
+
+- **§12.10 790 행 한계 2 의 3 지점 전건 closure** — `api.md` 211 행 · `data-model.md` 168 행은 T-1415 (§12.13) 가, 마지막 잔존 1 건인 **§8 161 행은 본 slice** 가 닫았다. 다만 §8 은 예고된 "정정" 이 아니라 위 방침대로 **원문 보존 + pointer append** 로 닫혔다.
+- **T-1416 Follow-up 2 · 4 closure** — FU2 (§8 · §1 결론 문장 처리 방침 확정, 3 회 이월) 는 위 "처리 방침 확정" 문단이 정본으로 박제하며 집행까지 마쳤고, FU4 (`INDEX.md 104 행` 표기 최신성 점검, 4 회 이월) 는 §9 199 행 부기로 닫혔다. 두 Follow-up 모두 승계 대상이 남지 않는다.
+
+#### 불변 검산 (doc-only, R-112 대체)
+
+```
+$ grep -c "^\| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md    → 66    (불변)
+$ grep -c "^## "     docs/use-cases/REQ-COVERAGE-AUDIT.md    → 12    (불변, `###` 만 추가)
+$ wc -l              docs/use-cases/REQ-COVERAGE-AUDIT.md    → 1013 → 1072
+$ git status --porcelain                                     → M REQ-COVERAGE-AUDIT.md · M T-1417 task 파일  (정확히 2 개)
+$ git diff -U0 | grep '^@@'
+@@ -18 +18 @@          (§1 18 행 — 문장 1 개 in-line append, 1:1)
+@@ -166,0 +167,2 @@    (§8 pointer 문단 — 순수 추가, 신규 167 행)
+@@ -199 +201 @@        (§9 199 행 — 괄호 부기 in-line append, 1:1)
+@@ -999,0 +1002,57 @@  (§12.15 삽입 — §12.14 마지막 행과 §11 References 사이)
+$ git diff --numstat
+61      2       docs/use-cases/REQ-COVERAGE-AUDIT.md
+```
+
+삭제 열 **2** 는 전부 in-place append 의 짝 (§1 18 행 · §9 199 행) 이라 **순수 삭제 0** 이다. `docs/use-cases/INDEX.md` · `docs/PLAN.md` · `docs/architecture/*` · `docs/requirements.md` · `UC-01` ~ `UC-09` 본문 · `src/` · `test/` 는 `git status --porcelain` 에 **미등장** 하고, §3 38 행 · §4 116 행 정합식 · §5 통계표 · §12.3 cascade 6 row 는 hunk 밖이라 무변이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 [CLAUDE.md](../../CLAUDE.md) §3.2 면제 조항으로 R-110 tester 호출도 N/A 다.
+
+#### 한계 —
+
+1. **§9.4 188 행은 무편집 · pointer 도 없다** — `gap 유지` 판정 문장은 위 방침대로 시점 기록이라 보존했고, 그 행에 개별 pointer 를 달지도 않았다 (§9 절 전체를 §12 chain 이 승계하는 구조라 절 단위 pointer 로 충분하다고 판단). §1 · §8 만 pointer 를 받은 이유는 그 둘이 **문서 진입부 / 결론부** 라 독자가 §12 까지 내려오지 않고 오독할 위험이 크기 때문이다.
+2. **§12.x 본문의 옛 행 표기는 여전히 무편집** — §12.6 ~ §12.14 의 `110 행` · `115 행` · `121 ~ 127 행` · `L212` · `104 행` 등은 각 slice 시점의 기록이라 본 절의 방침이 그 보존을 **정본으로 확정** 했다. 앞으로도 정정 대상이 아니다.
+3. **`8 UC` 표기 일괄 갱신은 미착수** — §11 References 2 줄 · `api.md` 3 · 12 · 64 · 207 · 208 행 · `data-model.md` 3 · 38 행은 9 UC 실재와 어긋난 채 남아 있다 (T-1416 Follow-up 3 소관). 이들은 날짜 stamp 가 없어 위 판별 기준상 **in-place 치환 대상** 일 가능성이 높으나, 지점별 판정이 선행돼야 해 본 slice 는 건드리지 않았다.
 
 ## 11. References
 

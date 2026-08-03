@@ -60,4 +60,26 @@ plannerNote: "uc-doc-audit-resync 29 번째 slice — T-1416 Follow-up 2(3 회 �
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+1. **UC-09 §5 기준 `docs/architecture/data-model.md` §2 entity 도출 판정** — T-1416 Follow-up 1 이월 (T-1415 FU2 부터 2 회). 신규 entity 필요 여부를 먼저 판정하고, 필요 시에만 §2 표 row + 38 행 `13 entity` 합계 갱신 + 168 행 잔여 의무 재기술.
+2. **`8 UC` 표기 일괄 갱신** — T-1416 Follow-up 3 이월. audit §11 References 2 줄 · `api.md` 3 · 12 · 64 · 207 · 208 행 · `data-model.md` 3 · 38 행. 본 slice 의 §12.15 방침에 따르면 이들은 날짜 stamp 가 없어 **in-place 치환 대상** 일 가능성이 높다 — 지점별 판정 후 일괄 처리.
+3. **UC-09 ↔ `docs/architecture/modules.md` / `components.md` mapping 점검** — T-1416 Follow-up 5 이월. UC-09 136 행이 `AssessmentModule (controller layer) + AuthModule` 을 지목하는데 두 architecture 문서가 UC-09 를 알지 못한다.
+
+## 완료 기록 (2026-08-03)
+
+**Status: DONE.** 변경 파일 **정확히 2 개** — `docs/use-cases/REQ-COVERAGE-AUDIT.md` (+61/-2) · 본 task 파일. 삭제 2 는 전부 in-place append 의 짝 (§1 18 행 · §9 199 행) 이라 **순수 삭제 0** 이고, 합계 diff 는 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이다 (AC 6).
+
+**AC 1 (실측 선행)** — 4 값 전건 성립, 중단 지점 0. (i) `## 8. 결론` = **157 행** · verdict bullet 5 개 = **161 ~ 165 행** · 그 구간의 `§9` / `§12` pointer 문장 = **0 개**, (ii) §1 18 행 pointer 는 `2026-08-02 재판정: §9 참조.` 로 **§9 까지뿐**, (iii) `INDEX.md 104 행` 리터럴은 **199 행** (T-1416 FU4 · 본 task AC 4 의 `198 행` 표기와 1 행 어긋남 — **실측 199 채택**) 이고 INDEX.md closure 문단의 실제 현재 범위는 **118 ~ 121 행** (`wc -l` 123), (iv) baseline `grep -c "^| REQ-"` = **66** · `grep -c "^## "` = **12** · `wc -l` = **1013**. 4 값 전부 audit `§12.15` 에 그대로 인용했다.
+
+**AC 2 (§8 forward pointer append)** — 5 bullet (`gap 1 건` · `T-0030+ 책임` · `8 UC + UC-09 (예정)`) **한 글자도 무편집**, 마지막 bullet 뒤 신규 **167 행** 에 pointer 문단 1 행 append. 3 요소 충족 — (i) `auditDate: 2026-05-25` 시점 verdict 기록임을 명시, (ii) 2026-08-03 현재 REQ-004 `uc-covered` (gap 0) · UC-09 실재 · `T-0030+` 지목 stale, (iii) 근거를 §9 · §12.10 · §12.11 · §12.15 로 위임. `## 8.` · `## 9.` heading 무편집.
+
+**AC 3 (§1 18 행 pointer 최신화)** — 4 값 · `gap 1 건` 서술 · 기존 `2026-08-02 재판정: §9 참조.` 보존 후 `2026-08-03 재분류: … 근거 §12.11 · §12.15 참조` 문장 1 개만 in-line append (T-1414 의 PLAN.md 36 행 화법 승계). **1 행 → 1 행**.
+
+**AC 4 (§9 199 행 부기)** — `INDEX.md 104 행` 리터럴 **무치환**, 행 끝에 괄호 부기 1 구 append. 2 요소 — (i) closure 문단 현재 행 **118 ~ 121**, (ii) 미동기 사실은 T-1414 cascade (e) 로 **이미 해소**, 근거 §12.12. **1 행 → 1 행**.
+
+**AC 5 (§12.15 신설)** — `## 11. References` 바로 앞에 `### 12.15 옛 요약 3 지점 forward pointer append + 처리 방침 확정 (T-1417)` 절 (**57 행**) 삽입, `grep -c "^## "` = **12 불변**. 구성 7 요소 — (i) 서두 blockquote, (ii) AC 1 실측 4 값 인용, (iii) **처리 방침 정본** (옛 요약은 append-only 무편집 보존 + pointer append 로만 현행 지목 / T-1415 in-place 3 행과의 성격 차이 = 날짜 stamp 유무 · 시점 기록 vs living document), (iv) 갱신 3 지점 기록 각 1 줄, (v) §12.10 한계 2 의 3 지점 **전건 closure** + T-1416 FU 2 · 4 closure 선언, (vi) 불변 검산 출력 블록, (vii) 한계 3 항.
+
+**AC 6 (불변 검산)** — `git status --porcelain` = 2 파일 (위). `docs/use-cases/INDEX.md` · `docs/PLAN.md` · `docs/architecture/*` · `docs/requirements.md` · `UC-01` ~ `UC-09` 본문 · `src/` · `test/` **미등장**. `grep -c "^| REQ-"` = **66** · `grep -c "^## "` = **12** 불변, `wc -l` 1013 → **1072**. `git diff -U0 | grep '^@@'` = **4 hunk** (`-18 +18` · `-166,0 +167,2` · `-199 +201` · `-999,0 +1002,57`) 라 §3 38 행 · §4 116 행 정합식 · §5 통계표 · §12.3 cascade 6 row 는 전부 hunk 밖 무변. `git diff --numstat` = **61 / 2**.
+
+**AC 7 (R-110 / R-112 면제)** — 본 task 는 `commitMode: direct` + production code **0 LOC** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 만 본 규칙 면제" 조항으로 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 **N/A** 다 (분기 0, architect / tester dispatch 0).
+
+**Out of Scope 준수** — §8 5 bullet 본문 · §1 18 행 앞부분 · §9.4 188 행의 수치·판정 문구, `8 UC` 표기 일괄 갱신, `data-model.md` §2 entity 판정, UC-09 ↔ modules / components mapping, `INDEX.md` · `PLAN.md` · `docs/architecture/*` 편집, 66 REQ 전수 재audit, `src/` · `test/` · `web/` · `package.json` · CI workflow 를 **한 글자도 건드리지 않았다**.
