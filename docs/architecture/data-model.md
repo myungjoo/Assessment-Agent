@@ -11,11 +11,11 @@
 - [ADR-0002 — Persistence DB / ORM 선택](../decisions/ADR-0002-db.md) — **PostgreSQL 16+ + Prisma**. 관계형 DB 의 schema-as-code (`schema.prisma`) 가 본 conceptual model 의 실 구현 form.
 - [ADR-0003 — Deployment 토폴로지](../decisions/ADR-0003-deployment.md) §1 — monolithic NestJS process + **단일 DB 인스턴스**. 본 문서의 모든 entity 가 동일 DB 안에 거주, multi-DB 분리 없음.
 - [components.md](components.md) "DB Persistence" component — 본 문서의 entity 들이 거주하는 component 의 책임 정의 (raw text 컬럼 미정의 — REQ-032 schema-level 강제).
-- [modules.md](modules.md) — 8 NestJS module 의 책임 분배. 본 문서의 각 entity 가 어느 module 의 책임인지 매핑 (§ 2 표 "책임 module" 컬럼).
+- [modules.md](modules.md) — 12 NestJS module 의 책임 분배. 본 문서의 각 entity 가 어느 module 의 책임인지 매핑 (§ 2 표 "책임 module" 컬럼).
 
 ## 2. Entity 목록
 
-본 시스템은 다음 **13 entity (+ 1 conceptual mention)** 로 분해된다. 각 entity 의 책임은 1~2 줄로 한정하며, 구체 컬럼 / type / index 는 P3 의 범위.
+본 시스템은 다음 **14 entity (+ 1 conceptual mention)** 로 분해된다. 각 entity 의 책임은 1~2 줄로 한정하며, 구체 컬럼 / type / index 는 P3 의 범위.
 
 | entity | 책임 | source UC | 관련 REQ | 책임 module ([modules.md](modules.md)) |
 | --- | --- | --- | --- | --- |
@@ -35,9 +35,9 @@
 | **ImportJob** | Import / Restore operation (file artifact → DB 복원) 의 비동기 진행 추적·재시도·감사 record. `mode` (replace/merge) / `status` / `requestedBy` / `artifactRef` / `restoredRowCount` / `error`. 기존 row 삭제 + snapshot 재구성이 단일 `$transaction` all-or-nothing (ADR-0033 동형). ([ADR-0044](../decisions/ADR-0044-export-import-job-persistence.md)) | [UC-07](../use-cases/UC-07-export-import.md) | REQ-030, REQ-032, REQ-045 | AssessmentModule |
 | *(conceptual mention)* **AuditLog** | User mutation event (등급 변경 / 평가 삭제 / Import-Export 등) 의 감사 로그. **본 task scope 외** — conceptual mention 만, 구체 schema 는 별도 보안 ADR 책임. | (전 UC cross-cutting) | (cross-cutting) | AuthModule (또는 별도) |
 
-**합계**: 13 entity (+ 1 conceptual mention) / 4 module (UserModule / AuthModule / AssessmentModule / LlmModule) / 9 UC cover ([T-1418](../tasks/T-1418-data-model-uc09-entity-derivation-judgment.md) 판정으로 [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) 가 Assessment row 에 병기 — 신규 entity 0 이라 entity / module 수치는 불변, 근거 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) § 12.16). 본 합계는 [T-0039](../tasks/T-0039-group-part-entity-and-repository.md) (mergeCommit c25a5de) 가 PersonGroupMembership join entity 를 schema-level 박제한 결과 10 → 11 로, 그리고 [ADR-0044](../decisions/ADR-0044-export-import-job-persistence.md) (T-0484, Q-0040 옵션1 승인) 가 ExportJob/ImportJob 영속 entity 를 박제한 결과 11 → 13 으로 shift. ExportJob/ImportJob 의 구체 Prisma schema 코드·migration 은 후속 task (§7 / ADR-0044 §Out of scope). 향후 entity 추가는 본 표 갱신 PR 의 reviewer 점검 대상.
+**합계**: 14 entity (+ 1 conceptual mention) / 4 module (UserModule / AuthModule / AssessmentModule / LlmModule) / 9 UC cover ([T-1418](../tasks/T-1418-data-model-uc09-entity-derivation-judgment.md) 판정으로 [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) 가 Assessment row 에 병기 — 신규 entity 0 이라 entity / module 수치는 불변, 근거 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) § 12.16). 본 합계는 [T-0039](../tasks/T-0039-group-part-entity-and-repository.md) (mergeCommit c25a5de) 가 PersonGroupMembership join entity 를 schema-level 박제한 결과 10 → 11 로, 그리고 [ADR-0044](../decisions/ADR-0044-export-import-job-persistence.md) (T-0484, Q-0040 옵션1 승인) 가 ExportJob/ImportJob 영속 entity 를 박제한 결과 11 → 13 으로 shift. ExportJob/ImportJob 의 구체 Prisma schema 코드·migration 은 후속 task (§7 / ADR-0044 §Out of scope). 그 뒤 [T-1426](../tasks/T-1426-data-model-count-and-module-vocab-resync.md) 실측 (`sed -n '22,36p' … | grep -c '^| \*\*'` = 14) 이 § 2 표 실체 row 를 **14** 로 확인해 앞머리 tally 를 13 → 14 로 정정했다 — 위 이력 chain (10 → 11 → 13) 에 등장하지 않는 유일한 row 인 PermissionDeniedRecord 가 tally 미반영으로 누적된 1 어긋남의 해소이며, § 2 표 row 자체는 무편집이다 (근거 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) § 12.24). 향후 entity 추가는 본 표 갱신 PR 의 reviewer 점검 대상.
 
-**module 명 정합성**: 본 문서의 "책임 module" 컬럼은 [modules.md](modules.md) 의 8 NestJS module 명만 사용 — 신규 module 신설 0. PermissionDeniedRecord 의 책임 module 은 AssessmentModule (event 수신·DB 저장 — [components.md](components.md) "AssessmentModule 이 event 를 받아 DB 에 권한 부족 기록을 남기고").
+**module 명 정합성**: 본 문서의 "책임 module" 컬럼은 [modules.md](modules.md) 의 12 NestJS module 명만 사용 — 신규 module 신설 0 (정본 표 row 수는 [T-1422](../tasks/T-1422-modules-md-module-count-resync.md) 가 12 로 확정했고, [T-1425](../tasks/T-1425-modules-md-shipped-module-inventory-audit.md) 가 [modules.md](modules.md) 47 ~ 48 행에 신설한 미기재 3 module 각주 (`ExportModule` / `ImportModule` / `UserInstanceAccessModule`) 는 그 48 행이 못박은 대로 **카운트 대상이 아니라 본 12 에 포함하지 않는다**). PermissionDeniedRecord 의 책임 module 은 AssessmentModule (event 수신·DB 저장 — [components.md](components.md) "AssessmentModule 이 event 를 받아 DB 에 권한 부족 기록을 남기고").
 
 ## 3. Entity 간 관계 (ER diagram)
 
@@ -176,7 +176,7 @@ erDiagram
 - [docs/architecture/INDEX.md](INDEX.md) — architecture document 목록 + MVA 원칙. 본 문서가 row 갱신 대상.
 - [docs/architecture/api.md](api.md) — T-0030 산출물. resource path prefix (`/api/persons` / `/api/assessments` / `/api/llm` 등) 가 본 문서 entity 이름의 1:1 source.
 - [docs/architecture/components.md](components.md) — T-A3 산출물. "DB Persistence" component 의 책임 + raw 미저장 schema-level 강제 출처.
-- [docs/architecture/modules.md](modules.md) — T-A4 산출물. 본 문서의 "책임 module" 컬럼 값의 source (8 NestJS module 명).
+- [docs/architecture/modules.md](modules.md) — T-A4 산출물. 본 문서의 "책임 module" 컬럼 값의 source (12 NestJS module 명 — T-1422 확정, T-1425 미기재 3 각주는 카운트 외).
 - [docs/use-cases/INDEX.md](../use-cases/INDEX.md) — 9 UC backbone (T-1419 실측 `grep -c "^| UC-"` = 9). 본 문서 entity 의 source UC 출처.
 - [docs/use-cases/UC-01-evaluation-execution.md](../use-cases/UC-01-evaluation-execution.md) ~ [UC-09-user-defined-period-evaluation.md](../use-cases/UC-09-user-defined-period-evaluation.md) — 9 UC 본문. 각 UC §5 / §6 의 entity 호명이 본 문서의 source (UC-09 는 T-1418 판정으로 Assessment row 에 병기 — 신규 entity 0).
 - [docs/use-cases/REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) — T-0029 산출물. uc-covered 48 REQ × entity 매핑 cross-reference.
