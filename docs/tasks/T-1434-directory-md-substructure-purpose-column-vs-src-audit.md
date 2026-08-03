@@ -2,7 +2,7 @@
 id: T-1434
 title: directory.md 표준 sub-structure 표 (68 ~ 75 행) 의 `용도` 컬럼 6 서술 ↔ 실 파일 책임 대조 + 공통 4 항목 산문 (59 ~ 64 행) 보조 축 처리 판정 + audit §12.32
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 190
