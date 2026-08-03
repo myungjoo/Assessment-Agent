@@ -2,7 +2,8 @@
 id: T-1425
 title: modules.md 정본 12 module 표 vs src/ 실 shipped module 실측 3 축 대조 + 미기재 3 module 처리 방식 판정 후 반영 + audit §12.23
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-03T12:45:00Z
 commitMode: direct
 coversReq: [REQ-030, REQ-044, REQ-045]
 estimatedDiff: 150
