@@ -2,7 +2,7 @@
 id: T-1414
 title: cascade (e) INDEX.md 118 행 · (f) PLAN.md 36 행 수치 동기 + §12.3 표 (e) · (f) row 치환
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 90
