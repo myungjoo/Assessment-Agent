@@ -2,7 +2,7 @@
 id: T-1424
 title: INDEX.md 8 UC row (31 ~ 38 행) module 귀속 2 축 대조 실판정 + 처리 방식 판정 후 반영 + audit §12.22
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-038]
 estimatedDiff: 135
