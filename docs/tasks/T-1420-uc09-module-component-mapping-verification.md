@@ -2,7 +2,7 @@
 id: T-1420
 title: UC-09 §9 의 5 component · 6 module mapping 을 modules.md · components.md 와 2 축 대조 실판정 + audit §12.18 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 95
