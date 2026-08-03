@@ -2,7 +2,7 @@
 id: T-1413
 title: REQ-COVERAGE-AUDIT §3 REQ-004 row gap → uc-covered 재분류 + cascade (a) ~ (d) 원자 실행
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 120
