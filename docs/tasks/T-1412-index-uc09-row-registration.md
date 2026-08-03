@@ -2,7 +2,7 @@
 id: T-1412
 title: INDEX.md §2 표에 UC-09 row 등록 + §3 description 신설 + audit §12.3 (e) 행 pointer 동기
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 150
@@ -91,4 +91,23 @@ plannerNote: "uc-doc-audit-resync 24 번째 slice — T-1411 Follow-up 1 (의존
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+1. **audit §3 REQ-004 row `gap` → `uc-covered` 재분류 + cascade (a) ~ (d)** — T-1411 Follow-up 2 이월. §12.4 원자 묶음 규약대로 한 slice 안에서 (§3 셀 · §4 106 ~ 115 행 bullet / 정합식 · §5 121 ~ 127 행 통계 4 값).
+2. **cascade (e) · (f) 수치 동기** — 위 1 확정 후 INDEX.md 118 행 closure 문단 4 값 · gap 서술 + `docs/PLAN.md` 36 행. 본 slice 는 (e) 의 **행 pointer 만** 옮겼고 수치는 무편집.
+3. **`docs/architecture/api.md` 211 행 · `data-model.md` 168 행 pointer 동기** — T-1411 Follow-up 3 이월분 (UC-09 실재 반영).
+4. **audit 198 행 `INDEX.md 104 행` 표기 최신성 점검** — 본 slice 의 §3 description 블록 4 행 삽입으로 104 행 지목이 추가로 밀렸을 가능성 (§9.5 시점 기록 안의 stale 후보, 본 slice 판정 축 밖이었음).
+
+## 완료 기록 (2026-08-03)
+
+**Status: DONE.** 변경 파일 **정확히 3 개** — `docs/use-cases/INDEX.md` (+8/-0) · `docs/use-cases/REQ-COVERAGE-AUDIT.md` (+2/-1) · 본 task 파일 (+21/-2). `git diff --numstat` 합계 **+31/-3 (34 LOC)** — 문서 2 개만 보면 +10/-1 — 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안. `docs/PLAN.md` · `docs/requirements.md` · `UC-01-evaluation-execution.md` · `UC-09-user-defined-period-evaluation.md` 는 `git status --porcelain` **미등장** (무편집).
+
+**AC 1 ~ 2 (INDEX 등록)** — UC-08 row 다음에 UC-09 row 1 행 삽입 → `grep -c "^| UC-"` = **9**. 7 컬럼 값은 UC-09 frontmatter `title` / `actor` 와 §9 표에서 옮겨 적었고 (component 5 종 `Web UI, Backend API, Worker, LLM Gateway, DB Persistence` — 24 행 허용 8 종 안, module 6 종 `WebModule, AssessmentModule, AuthModule, UserModule, LlmModule, PersistenceModule` — 25 행 허용 9 종 안, `(controller layer)` 류 괄호 수식 제거), 관련 REQ 는 `REQ-004` 단독 · status `DONE`. `## 4. References` 직전에 description 블록 1 개 신설 → `grep -c "^### UC-"` = **9**, UC-08 과 동일한 4 줄 구조 + `→ [UC-09-user-defined-period-evaluation.md](...)` 링크 마감 (`ls` 성공 — broken link 0).
+
+**AC 3 (amendment)** — 48 행 T-1392 문단 다음에 `**2026-08-03 UC-09 row 등록 (T-1412)**` 2 줄 문단 1 개 추가 (기존 화법 승계). 4 사실 (룰 1 · 3 이행 / 21 · 40 행은 T-0019 시점 기록이라 보존하되 현재 총계 9 UC / closure 문단 4 값은 후속 slice 소관 / 축 A 의 `^| UC-` = 8 근거 해소) + REQ-004 단독 근거 (`adjacentReq` 9 종은 audit §4 104 행 subset 규칙상 미등재) 박제. `git diff --numstat docs/use-cases/INDEX.md` = **8 / 0** — 삭제 0 이므로 21 · 40 · 110 (현 118) · 114 행 무편집 증명.
+
+**AC 4 (audit (e) pointer)** — 편집 후 `grep -n "uc-covered 48 / cross-cutting 4" docs/use-cases/INDEX.md` 단일 hit **118**, `sed -n "118p"` 가 4 값 문자열 포함 확인. §12.3 302 행 (e) 셀 지목을 `110 행` → **`118 행`** 1:1 치환 (`현재 값` 열 수치 문자열 무편집), 305 행 다음에 각주 1 줄 append. `grep -n "^| (e) |"` 결과 302 행에 `118 행` 포함 · `110 행` 미포함 (394 / 500 / 612 / 692 / 764 행의 §12.6 ~ §12.10 검증표 (e) 행은 `sed -n '115p'` 정합식 축이라 무관 · 무편집). audit `--numstat` = **2 / 1** — 삭제 1 (치환의 짝) · 추가 ≤ 2 충족. 각주는 blank line 없이 305 행 문단에 이어 붙여 추가 열을 2 로 묶었다.
+
+**AC 5 (불변 검산)** — `grep -c "^| REQ-" REQ-COVERAGE-AUDIT.md` = **66** 불변, `grep -c "^## " REQ-COVERAGE-AUDIT.md` = **12** 불변, `wc -l docs/PLAN.md` = **175** 불변.
+
+**AC 6 (R-110 / R-112 면제)** — 본 task 는 `commitMode: direct` + production code **0 LOC** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 만 본 규칙 면제" 조항이 그대로 적용되어 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm lint/build/test:cov` · PR 본문 관련 항목은 전부 **N/A** 다 (분기 없음, architect / tester dispatch 0).
+
+**Out of Scope 준수** — audit §3 REQ-004 재분류 및 cascade (a) ~ (d) 수치, INDEX 118 행 closure 문단 4 값 · gap 서술, `docs/PLAN.md` 36 행, api.md / data-model.md pointer 는 **한 글자도 건드리지 않았다**. 본 fire 는 multi-task chain 의 두 번째 task (직전 T-1411) 로 commit footer 에 `FIRE-BATCH: T-1411+T-1412` marker 박제.

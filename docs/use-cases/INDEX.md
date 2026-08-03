@@ -36,6 +36,7 @@ Phase P2 (Use case decomposition) 의 목표는 [README.md](../../README.md) + P
 | UC-06 | 평가 결과 manual delete + 재수집 | Admin | Web UI, Backend API, DB Persistence | WebModule, AssessmentModule, AuthModule, PersistenceModule | REQ-037, REQ-041, REQ-045 | DONE |
 | UC-07 | Export / Import / Backup / Restore | Admin | Web UI, Backend API, DB Persistence | WebModule, AssessmentModule, AuthModule, PersistenceModule | REQ-030, REQ-032, REQ-045 | DONE |
 | UC-08 | 권한 부족 인식·통지 (GitHub / Confluence) | System (GitHub Adapter / Confluence Adapter emit → Web UI 표시) | GitHub Adapter, Confluence Adapter, Backend API, Web UI | GithubModule, ConfluenceModule, AssessmentModule, WebModule | REQ-008, REQ-016 | DONE |
+| UC-09 | 사용자 지정 기간 임의 평가문 요청 | User / Admin | Web UI, Backend API, Worker, LLM Gateway, DB Persistence | WebModule, AssessmentModule, AuthModule, UserModule, LlmModule, PersistenceModule | REQ-004 | DONE |
 
 총 8 UC. README 의 7 단락 (Assessment Target / 평가 대상 인원 / 평가 자료의 저장 / 평가 자료의 시각화와 UI / 평가 실행 제약 / 보안 특성 / LLM Serving) 에서 추출. functional REQ cover 검증은 후속 task ("Use case 인벤토리 검증", [PLAN.md](../PLAN.md) L84) 에서 본격 수행.
 
@@ -46,6 +47,9 @@ Phase P2 (Use case decomposition) 의 목표는 [README.md](../../README.md) + P
 
 **2026-08-02 REQ 컬럼 정합 대조 (T-1392)** — 위 T-1391 미검증 축 중 "관련 REQ" 컬럼 정합을 forward (인용 → 실재) 방향으로 실측. 8 row 의 인용 총 **41 건** (UC-01 13 / UC-02 4 / UC-03 7 / UC-04 2 / UC-05 7 / UC-06 3 / UC-07 3 / UC-08 2), unique **33 개**, 대조 대상 [requirements.md](../requirements.md) REQ row **66 건** (unique ID 도 66 — 중복 0).
 판정: dangling (인용됐으나 requirements.md 에 부재) **0 건** — 위 26 행 제약 "존재하지 않는 REQ ID 인용 금지" **충족**, 표 row 변경 0. 미검증 축 — 인용 REQ 가 해당 UC 와 **의미적으로** 맞는지, 어느 row 에도 인용되지 않은 REQ 집합 (역방향 coverage — [REQ-COVERAGE-AUDIT.md](REQ-COVERAGE-AUDIT.md) 소관), actor / component / module 컬럼 오타 여부는 본 대조 범위 밖.
+
+**2026-08-03 UC-09 row 등록 (T-1412)** — [T-1411](../tasks/T-1411-uc-09-user-defined-period-evaluation.md) 이 [UC-09 본문](UC-09-user-defined-period-evaluation.md) (174 행) 을 머지함에 따라 §5 갱신 룰 1 (새 UC → 표 row 추가 + 신규 description 단락 추가) · 룰 3 (본문 머지 시 status `DONE`) 을 이행. 위 표에 UC-09 row 1 행 + §3 에 description 블록 1 개 추가 → 현재 총계는 **9 UC** 다. 다만 21 행의 "본 task 시점에 `UC-01` ~ `UC-08` 의 8 개" 와 40 행의 "총 8 UC" 는 [T-0019](../tasks/T-0019-p2-entry-use-case-index.md) 시점 기록이라 **무편집 보존** 한다. 본 row 등록으로 [REQ-COVERAGE-AUDIT.md](REQ-COVERAGE-AUDIT.md) §12.10 축 A 가 "UC-09 미착수" 판정 근거로 든 `grep -c "^| UC-" INDEX.md` = 8 이 **9 로 해소** 됐다.
+관련 REQ 컬럼을 `REQ-004` **단독** 으로 둔 근거 — UC-09 frontmatter `coversReq` 가 `[REQ-004]` 단독이고 `adjacentReq` 9 종 (REQ-035 / 038 / 039 / 040 / 043 / 045 / 046 / 048 / 049) 은 [REQ-COVERAGE-AUDIT.md](REQ-COVERAGE-AUDIT.md) §4 104 행의 subset 규칙 ("INDEX.md 의 `관련 REQ` 컬럼이 본 list 의 subset 인 경우 본문 frontmatter 가 정답") 상 본 표에 올리지 않는다. 아래 110 행 closure 문단의 4 값 · gap 서술은 **본 slice 무편집** — audit §3 의 REQ-004 재분류 cascade 가 확정된 뒤 후속 slice 가 동기한다 ([§12.4](REQ-COVERAGE-AUDIT.md) 311 행 의 (e) · (f) 분리 허용).
 
 ## 3. 각 UC 별 description
 
@@ -80,6 +84,10 @@ Admin 이 저장된 평가 자료 (raw 미포함, REQ-032) 를 Export 하여 bac
 ### UC-08 권한 부족 인식·통지 (GitHub / Confluence)
 
 GitHub Adapter / Confluence Adapter 가 외부 시스템의 4xx 응답을 감지하면 PermissionDeniedEvent 를 emit. AssessmentModule 이 event 를 받아 DB 에 권한 부족 기록을 남기고, Web UI 가 사용자 (REQ-008 — GitHub) 및 관리자 (REQ-016 — Confluence) 모두 인식할 수 있도록 표시. 시스템 자체가 actor 인 use case — 사람이 직접 trigger 하지 않으나 사람이 인식·대응할 수 있어야 함. → [UC-08-permission-denied.md](UC-08-permission-denied.md)
+
+### UC-09 사용자 지정 기간 임의 평가문 요청
+
+로그인한 User / Admin 이 평가 대상 person 과 기간 좌표 (period + periodStart) 를 지정해 `POST /api/assessment-evaluation/period` 를 호출하면 발화. Scheduler cron / Admin manual trigger 로 발화하는 full-period 파이프라인 (UC-01) 과는 **요청자가 기간 좌표를 들고 온다** 는 trigger 축에서, 이미 저장된 결과를 읽는 조회 경로 (UC-02) 와는 **새 LLM 호출을 동반해 결과를 생성한다** 는 축에서 갈린다. 한 route 안에서 role 이 실행 경로를 dispatch — User 는 self-only ephemeral 분기로 단위별 평가 결과만 응답받고 DB write 0, Admin 은 persist 분기로 Assessment 좌표 row 를 영속화하고 좌표 6 키를 응답받는다 (REQ-004). → [UC-09-user-defined-period-evaluation.md](UC-09-user-defined-period-evaluation.md)
 
 ## 4. References
 

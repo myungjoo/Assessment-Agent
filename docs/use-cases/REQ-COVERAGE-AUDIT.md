@@ -299,10 +299,11 @@ row 1 개 판정에 요구되는 **근거 3 종**:
 | (b) | §4 106 ~ 113 행 8 UC bullet | UC 별 coversReq / adjacent / envelope-cover 나열 8 줄 | `→ uc-covered` 또는 `uc-covered →` 전이일 때만 (해당 UC bullet 의 envelope · adjacent 나열 증감) |
 | (c) | §4 115 행 정합식 | `33 + 15 + 4 + 13 + 1 = 66` | 4 항 중 하나라도 증감하는 전이 전부. 33 (frontmatter union) 은 UC frontmatter 를 고치지 않는 한 불변이라 실제로 움직이는 것은 15 / 4 / 13 / 1 항 |
 | (d) | §5 121 ~ 127 행 표 count 4 값 + 합계 row | `48 / 4 / 13 / 1` · `73 / 6 / 20 / 2 %` · 합계 `**66**` · `**100 %**` + 비고 셀 | (c) 와 동일 트리거. 합계 66 · 100 % 는 row 수 불변이라 **항상 무변**, percentage 4 값은 반올림 재산출 필요 |
-| (e) | `docs/use-cases/INDEX.md` 110 행 | `uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1` | (c) · (d) 발동 후 그 결과 수치를 옮겨 적을 때 |
+| (e) | `docs/use-cases/INDEX.md` 118 행 | `uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1` | (c) · (d) 발동 후 그 결과 수치를 옮겨 적을 때 |
 | (f) | `docs/PLAN.md` 36 행 | `uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1 = 66` + gap 1 건 서술 | (e) 와 동일. gap count 가 바뀌면 gap 서술 문장도 함께 |
 
 §9.4 · §10 의 이전 요약 문장은 **cascade 갱신 대상이 아니다** — append-only 규약상 각 시점 판정을 그대로 보존하고 이후 상태는 새 bullet 이 가리킨다 (214 행이 200 · 209 행에 대해 쓴 시점 구분 화법이 정본).
+2026-08-03 (T-1412): INDEX.md 의 UC-09 row · description 등록으로 (e) 지점 행 번호가 110 → 118 로 이동 (수치 문자열 무변). §12.6 ~ §12.10 본문의 `110 행` 표기는 시점 기록이라 append-only 규약대로 보존.
 
 ### 12.4 cascade 순서 + 원자성 규약
 
