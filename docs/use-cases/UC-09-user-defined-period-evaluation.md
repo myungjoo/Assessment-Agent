@@ -128,13 +128,13 @@ step 수 16 (autonumber 기준 — [UC-07](UC-07-export-import.md) §5 103 행 �
 
 ## 9. Component / Module mapping
 
-본 UC 가 거치는 5 component + 6 module. 명칭은 [INDEX.md](INDEX.md) 19 ~ 25 행이 허용한 목록만 사용한다.
+본 UC 가 거치는 5 component + 6 module. 표기 어휘는 [INDEX.md](INDEX.md) 19 ~ 25 행이 허용한 목록만 사용하고, 그 어휘와 **실 shipped layer** 가 갈리는 행은 [modules.md](../architecture/modules.md) 197 · 198 행 정본을 괄호로 **병기** 한다 (병기는 부기라 위 `6 module` 산정 대상이 아니다 — 산정 기준은 표 module 열의 INDEX 허용 어휘 distinct 수). 어휘 교체가 아니라 병기를 택한 근거는 [REQ-COVERAGE-AUDIT.md](REQ-COVERAGE-AUDIT.md) § 12.19 참조.
 
 | component | module | 본 UC 에서의 책임 |
 | --- | --- | --- |
 | Web UI | WebModule | 기간 지정 + 요청 발화의 **의도된** 진입점. 단 §7.5 (b) 대로 현재 화면 경로 0 ([REQ-038](../requirements.md)). |
-| Backend API | AssessmentModule (controller layer) + AuthModule | `POST /api/assessment-evaluation/period` route · guard 2 종 · role dispatch · `periodStart` snap ([REQ-043](../requirements.md)). |
-| Worker (평가 파이프라인) | AssessmentModule (period bridge + orchestrator) | 수집 spec 조립 → 수집 → author 필터 → 평가 orchestration. 두 bridge service 가 ephemeral / persist 로 갈린다. |
+| Backend API | AssessmentModule (controller layer — 실 shipped controller 는 `AssessmentEvaluationController` = AssessmentEvaluationModule, [modules.md](../architecture/modules.md) 197 행 정본) + AuthModule | `POST /api/assessment-evaluation/period` route · guard 2 종 · role dispatch · `periodStart` snap ([REQ-043](../requirements.md)). |
+| Worker (평가 파이프라인) | AssessmentModule (period bridge + orchestrator — 실 shipped layer 는 `AssessmentCollectionModule` (수집) + `AssessmentEvaluationModule` (평가 scoring/orchestration), [modules.md](../architecture/modules.md) 198 행 정본이 종전 `AssessmentModule` 귀속을 stale 로 정정) | 수집 spec 조립 → 수집 → author 필터 → 평가 orchestration. 두 bridge service 가 ephemeral / persist 로 갈린다. |
 | — | UserModule | `personId` → resolved person (`serviceIdentities`) 변환 ([REQ-045](../requirements.md) / [REQ-046](../requirements.md) 의 대상 판정 입력). |
 | LLM Gateway | LlmModule | 단위 기여마다 평가문 1 회 생성 + 난이도 · 기여도 등급 산출 ([REQ-049](../requirements.md)). |
 | DB Persistence | PersistenceModule | **Admin 분기에서만** — 좌표 row 영속 + read-through. User 분기는 write 0. |
