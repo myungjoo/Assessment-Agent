@@ -1240,6 +1240,105 @@ api.md 6 · data-model.md 4 의 **삭제 10 은 전부 in-place 치환의 짝** 
 3. **`data-model.md` 38 행 `13 entity` vs §2 표 실 row 수 14 의 1 어긋남 미정정** — T-1418 Follow-up 4 이월. 누계 서술 (`10 → 11` · `11 → 13`) 이 `PermissionDeniedRecord` 를 빠뜨린 것으로 보이며 UC-09 와 무관한 **선행 불일치** 다. 본 slice AC 4 (c) 가 38 행 무편집을 요구하므로 **사실 기록만** 한다 (별도 slice).
 4. **`api.md` 223 행 링크 범위는 무편집** — `UC-01 … ~ UC-08-permission-denied.md — 본 문서의 endpoint source` 는 `8 UC` 리터럴을 담지 않아 본 slice 의 12 지점 열거에 들지 않았다. 링크 범위만 보면 9 UC 와 어긋나므로 후속 slice 의 정정 후보다 (본 절은 사실 기록만).
 
+### 12.18 UC-09 §9 의 5 component · 6 module mapping 2 축 대조 실판정 (T-1420)
+
+> 본 절은 [T-1420](../tasks/T-1420-uc09-module-component-mapping-verification.md) 이 [T-1419](../tasks/T-1419-eight-uc-notation-bulk-resync.md) 의 **Follow-up 1** (= 본 문서 § 12.17 **한계 2**, [T-1417](../tasks/T-1417-audit-legacy-summary-forward-pointer.md) FU3 → [T-1418](../tasks/T-1418-data-model-uc09-entity-derivation-judgment.md) FU2 → T-1419 FU1 로 **4 회 이월**) 을 닫은 기록이다. [UC-09](UC-09-user-defined-period-evaluation.md) `§9` 는 "본 UC 가 거치는 5 component + 6 module" 을 표로 못 박고 그 명칭이 [INDEX.md](INDEX.md) 19 ~ 25 행이 허용한 목록 안이라고 **스스로 검증 가능한 주장** 을 건다. 본 절은 그 주장을 **(축 A) 명칭 실재** · **(축 B) component ↔ module 조합 정합** 2 축으로 대조한 실판정이며, [modules.md](../architecture/modules.md) · [components.md](../architecture/components.md) 두 문서는 **한 글자도 편집하지 않았다** — § 12.16 이 entity 축에서 `신규 0` 을 기록만 하고 `data-model.md` 를 무편집으로 둔 것과 정확히 동형이다. 삽입 위치는 § 12.17 마지막 행 뒤 · § 11 References 앞이고 `###` 이라 `## ` heading count 12 가 불변이다.
+
+#### 실측 선행 (편집 전 5 축 — 전제 전건 성립)
+
+```
+(i)   UC-09 §9 표 (133 ~ 140 행) — 표 행 6 · component 열 유효값 5 · module 명 6
+      component 5 : Web UI(135) · Backend API(136) · Worker (평가 파이프라인)(137) · LLM Gateway(139) · DB Persistence(140)
+      module    6 : WebModule · AssessmentModule · AuthModule · UserModule · LlmModule · PersistenceModule
+      비대칭 1   : 138 행의 component 열이 `—` (UserModule 행) — 표 행은 6 인데 component 는 5
+(ii)  $ sed -n '26,46p' docs/architecture/modules.md | grep -c "^| \*\*"      → 12  (기대값 일치)
+      AuthModule(32) · PersistenceModule(33) · UserModule(34) · GithubModule(35) · ConfluenceModule(36)
+      · PermissionDeniedRecordModule(37) · LlmModule(38) · AssessmentModule(39)
+      · AssessmentCollectionModule(40) · AssessmentEvaluationModule(41) · SchedulerModule(42) · WebModule(43)
+      $ sed -n '190,229p' docs/architecture/modules.md | grep -c "^| \*\*"    → 8   (기대값 일치)
+(iii) $ sed -n '109,121p' docs/architecture/components.md | grep -c "^| \*\*" → 8   (기대값 일치)
+      Web UI(113) · Backend API(114) · Worker (평가 파이프라인)(115) · DB Persistence(116)
+      · LLM Gateway(117) · GitHub Adapter(118) · Confluence Adapter(119) · Scheduler(120)
+(iv)  $ grep -c "use-cases" docs/architecture/modules.md    → 0    · components.md → 0
+      $ grep -c "UC-0"      docs/architecture/modules.md    → 1    (42 행 SchedulerModule 의 `UC-06 §6.5 · UC-01 §3` 부기 1 곳뿐)
+      $ grep -c "UC-0"      docs/architecture/components.md → 0
+(v)   $ wc -l modules.md → 256 · components.md → 190 · REQ-COVERAGE-AUDIT.md → 1256      (baseline)
+      $ grep -c "^\| REQ-" REQ-COVERAGE-AUDIT.md → 66 · $ grep -c "^## " → 12            (baseline)
+```
+
+5 축 전건이 기대값과 일치해 **중단 지점은 없었다** — 두 축의 판정을 모두 그대로 진행했다.
+
+#### 축 A — 명칭 실재 대조 (11 행, 애매어 0)
+
+| # | UC-09 §9 호명 | 종류 | 정본 목록 | 판정 |
+| --- | --- | --- | --- | --- |
+| 1 | `Web UI` | component | `components.md` `## Component table` | **실재** (113 행) |
+| 2 | `Backend API` | component | 〃 | **실재** (114 행) |
+| 3 | `Worker (평가 파이프라인)` | component | 〃 | **실재** (115 행 — 부기까지 축자 동일) |
+| 4 | `LLM Gateway` | component | 〃 | **실재** (117 행) |
+| 5 | `DB Persistence` | component | 〃 | **실재** (116 행) |
+| 6 | `WebModule` | module | `modules.md` `## Module 목록` | **실재** (43 행) |
+| 7 | `AssessmentModule` | module | 〃 | **실재** (39 행 — 단 본문이 `placeholder (미shipped)` 로 자칭, 축 B 3 · 4 행의 입력) |
+| 8 | `AuthModule` | module | 〃 | **실재** (32 행) |
+| 9 | `UserModule` | module | 〃 | **실재** (34 행) |
+| 10 | `LlmModule` | module | 〃 | **실재** (38 행) |
+| 11 | `PersistenceModule` | module | 〃 | **실재** (33 행) |
+
+**축 A 결과 — 11/11 실재, 미실재 0.** 신설 후보가 0 이므로 새 module / component 신설의 ADR 게이트는 발동하지 않고, escalate 할 Follow-up 도 없다.
+
+#### 축 B — 조합 정합 대조 (UC-09 §9 표 6 행 전건)
+
+| # | UC-09 행 | UC-09 의 component ↔ module | `modules.md` `## Components ↔ Modules mapping` 대응 | 판정 | 근거 1 구 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 135 | Web UI ↔ `WebModule` | 196 행 Web UI ↔ `WebModule` | **일치** | 1:1 축자 동일 |
+| 2 | 136 | Backend API ↔ `AssessmentModule (controller layer)` + `AuthModule` | 197 행 Backend API ↔ 6 module (`AssessmentModule` + `UserModule` + `AuthModule` + `PermissionDeniedRecordModule` + `AssessmentCollectionModule` + `AssessmentEvaluationModule`) | **부분 일치** | 집합으로는 `{AssessmentModule, AuthModule}` ⊂ 6 module 로 부분집합 성립하나, 197 행이 UC-09 의 진입 endpoint `POST /api/assessment-evaluation/period` 를 **`AssessmentEvaluationController` (= AssessmentEvaluationModule)** 소유로 명시해 `(controller layer)` 한정어의 귀속이 어긋난다 |
+| 3 | 137 | Worker (평가 파이프라인) ↔ `AssessmentModule (period bridge + orchestrator)` | 198 행 Worker (수집 + 평가 파이프라인) ↔ `AssessmentCollectionModule` + `AssessmentEvaluationModule` | **어긋남** | 198 행이 "평가 service layer 를 `AssessmentModule` 로 귀속하던 서술은 stale 이라 정정" 을 명문화하고 39 행이 `AssessmentModule` 을 코드 0 · AppModule 등록 0 placeholder 로 못 박는다 — UC-09 가 지목한 두 bridge service (`PeriodBridgeEphemeralService` / `PeriodBridgeAdminPersistService`) 는 41 행 `AssessmentEvaluationModule` 안에 [ADR-0037](../decisions/ADR-0037-period-collection-evaluate-bridge.md) 로 박제돼 있다 |
+| 4 | 138 | `—` ↔ `UserModule` | 197 행 Backend API 의 6 module 중 `UserModule` | **부분 일치** | UC-09 의 component 열 공백은 정본에 대응 항이 없어서가 아니라 UC-09 가 의도적으로 비운 것 — `modules.md` 는 `UserModule` 을 **Backend API** component 에 귀속시킨다 (197 행). 따라서 `—` 행의 귀속처는 **Backend API** 이며, 그 자리를 채우면 2 행과 병합돼 UC-09 §9 의 "5 component" 비대칭이 해소된다 |
+| 5 | 139 | LLM Gateway ↔ `LlmModule` | 200 행 LLM Gateway ↔ `LlmModule` | **일치** | 1:1 축자 동일 |
+| 6 | 140 | DB Persistence ↔ `PersistenceModule` | 199 행 DB Persistence ↔ `PersistenceModule` (+ `PermissionDeniedRecordModule` 의 영속화 slice) | **일치** | 주축 1:1 동일 — 199 행 부기 module 은 권한 거부 audit 영속화라 UC-09 의 책임 범위 밖이고, UC-09 가 이를 생략한 것은 어긋남이 아니다 |
+
+**축 B 결과 — 일치 3 · 부분 일치 2 · 어긋남 1.**
+
+#### 판정 결론 (AC 4 — 1 문장)
+
+> **UC-09 신설이 `modules.md` / `components.md` 에 요구하는 갱신은 `없음` 이다** — 축 A 가 11/11 실재로 미실재 0 이고, 축 B 의 어긋남 1 · 부분 일치 2 는 전부 **UC-09 §9 표 쪽 표기** 가 두 architecture 문서의 정본과 어긋난 방향이지 두 문서 쪽 결손이 아니며, 실측 (iv) 대로 두 문서에는 UC 축 서술이 애초에 0 (`grep -c "use-cases"` = **0** · **0**, `grep -c "UC-0"` = **1** · **0**) 이라 UC 1 건 신설이 row 나 문장을 요구하는 구조 자체가 아니다 (두 문서는 REQ / ADR 축으로 조직).
+
+정정 후보는 반대 방향이라 본 slice 가 손대지 않고 (Out of Scope — UC-09 본문은 판정 대상 원본이라 read-only) 좌표만 박제한다. **정본 = `modules.md` 쪽** (shipped 코드 실재 + [ADR-0032](../decisions/ADR-0032-p5-evaluation-contract.md) / [ADR-0037](../decisions/ADR-0037-period-collection-evaluate-bridge.md) 근거) 이고 정정 대상은 UC-09 `§9` **137 행** (Worker ↔ `AssessmentModule` → `AssessmentCollectionModule` + `AssessmentEvaluationModule`) 과 **136 행** (`(controller layer)` 한정어의 귀속) 2 곳이다 — Follow-up 으로 넘긴다.
+
+#### closure 선언
+
+- **T-1419 Follow-up 1 closure — 4 회 이월 종결.** T-1417 FU3 → T-1418 FU2 → T-1419 FU1 로 이어진 `UC-09 ↔ modules.md / components.md mapping` 항목이 본 절로 닫힌다. 판정 + 기록까지 마쳤고 승계 대상이 남지 않는다 (정정 실행은 UC-09 본문 쪽 별건 — 아래 한계 밖 Follow-up).
+- **§ 12.17 한계 2 소진** — "UC-09 ↔ `modules.md` / `components.md` mapping 미착수" 가 본 절의 2 축 실판정으로 해소된다.
+- **UC-09 cascade 4 축 전건 종결** — endpoint 축 (§ 12.14 / T-1416) · entity 축 (§ 12.16 / T-1418) · 표기 축 (§ 12.17 / T-1419) · module 축 (본 절 / T-1420) 이 모두 판정 + 기록을 마쳐, [T-1411](../tasks/T-1411-uc-09-user-defined-period-evaluation.md) 의 UC-09 신설이 architecture 문서에 남긴 구조 축은 **잔여 0** 이다.
+
+#### 불변 검산 (doc-only, R-112 대체)
+
+```
+$ wc -l docs/architecture/modules.md                         → 256  (불변 — 무편집)
+$ wc -l docs/architecture/components.md                      → 190  (불변 — 무편집)
+$ wc -l docs/use-cases/UC-09-user-defined-period-evaluation.md → 174 (불변 — 무편집)
+$ wc -l docs/use-cases/REQ-COVERAGE-AUDIT.md                 → 1256 → 1355  (§ 12.18 append 99 행)
+$ grep -c "^| \*\*"  docs/architecture/modules.md            → 20   (불변 — 12 + 8)
+$ grep -c "^| \*\*"  docs/architecture/components.md         → 8    (불변)
+$ grep -c "^| REQ-"  docs/use-cases/REQ-COVERAGE-AUDIT.md    → 66   (불변)
+$ grep -c "^## "     docs/use-cases/REQ-COVERAGE-AUDIT.md    → 12   (불변, `###` 만 추가)
+$ git status --porcelain → M REQ-COVERAGE-AUDIT.md · M T-1420 task 파일   (정확히 2 개)
+$ git diff --numstat
+99      0       docs/use-cases/REQ-COVERAGE-AUDIT.md
+16      8       docs/tasks/T-1420-uc09-module-component-mapping-verification.md   (AC 체크 7 + Follow-up 2 + 완료 기록)
+$ git diff -U0 -- docs/use-cases/REQ-COVERAGE-AUDIT.md | grep '^@@'
+@@ -1242,0 +1243,99 @@   (§ 12.18 삽입 — § 12.17 마지막 행과 § 11 References 사이, 순수 추가)
+```
+
+`git diff --numstat` 의 본 문서 삭제 열이 **0** 이라 본 절은 **순수 append** 이고 (task 파일의 삭제 8 은 AC 체크박스 7 줄 + Follow-up 1 줄의 in-place 치환 짝), `docs/architecture/modules.md` · `components.md` · `api.md` · `data-model.md` · [INDEX.md](INDEX.md) · `UC-01` ~ `UC-09` 본문 · `docs/PLAN.md` · `docs/requirements.md` · `prisma/` · `src/` · `test/` 는 `git status --porcelain` 에 **미등장** 한다. 변경 파일 **2 개** · 합계 diff **+115 / -8 LOC** 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 **N/A** 다.
+
+#### 한계 —
+
+1. **`modules.md` 192 행 `8 component 와 본 문서의 11 module` 이 실측 module row 12 와 1 어긋남 — 무편집.** 같은 어긋남이 44 행 (`위 11 module 은 AppModule …`) · 205 행 (`총 8 component → 11 module`) 에도 반복된다. `PermissionDeniedRecordModule` (37 행) 또는 `AssessmentEvaluationModule` (41 행) 신설분이 누계 서술에 반영되지 않은 **UC-09 와 무관한 선행 불일치** 이고, 본 slice 는 두 architecture 문서 무편집 경계 (AC 6) 를 지켜야 하므로 사실 기록만 한다 (별도 slice).
+2. **`INDEX.md` 19 ~ 25 행 column 정의 무편집.** 19 행 `UC-01 ~ UC-08 의 8 개` 는 실 9 UC 와 어긋나고, 25 행 `8 NestJS module 명` 은 괄호 안에 이름을 **9 개** 열거하면서 수치는 `8` 이라 자체 모순이며 `modules.md` 정본 12 와도 어긋난다. 날짜 stamp 없는 column 정의라 § 12.15 방침상 in-place 축 후보지만 본 slice 범위 밖이라 무편집 (별도 slice).
+3. **§ 12.17 한계 3 · 4 잔존** — `data-model.md` 38 행 `13 entity` vs §2 표 실 row 14 의 1 어긋남, `api.md` 223 행 링크 범위 (`UC-01 … ~ UC-08-permission-denied.md`) 가 9 UC 와 어긋나는 건. 둘 다 본 slice Out of Scope 로 그대로 이월된다.
+4. **두 architecture 문서 사이의 Worker 라벨 부기 불일치 — 무편집.** `components.md` 115 행은 `Worker (평가 파이프라인)`, `modules.md` 198 행은 `Worker (수집 + 평가 파이프라인)` 으로 적는다. UC-09 §9 137 행은 전자를 따랐고 축 A 3 행은 그 정본 (`components.md`) 기준으로 **실재** 판정했다 — 축 B 3 행의 어긋남은 이 라벨 차이가 아니라 module 열 귀속에서 비롯한다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
