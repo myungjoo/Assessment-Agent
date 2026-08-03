@@ -2,7 +2,7 @@
 id: T-1416
 title: api.md §5 104 행 UC-09 귀속 + §7 cross-reference row 신설 + 153 행 UC cover 8 → 9 동기
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 80
