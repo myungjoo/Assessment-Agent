@@ -2193,6 +2193,150 @@ $ git diff --numstat -- docs/architecture/data-model.md      →  5  2
 2. **문서 ↔ 코드 대조는 코드가 바뀔 때마다 재-stale** — 본 절이 확정한 `15 vs 14 (+1)` 은 `schema.prisma` 에 model 이 하나 추가되는 순간 다시 틀린다. § 12.24 한계 1 이 산문 tally ↔ 표 row 수에 대해 내린 결론 (사람 규약보다 **CI drift-guard spec** 이 견고) 이 본 축에도 그대로 적용되며, 대조 대상이 `grep -c '^model ' prisma/schema.prisma` 와 `sed -n '22,36p' … | grep -c '^| \*\*'` 두 명령이라 **§ 12.24 Follow-up 2 의 module 축 spec 과 한 spec 으로 묶는 안** 이 자연스럽다 (파생 영향 8). 다만 각주 계상 경계 (미기재 module 3 · 코드 only entity 1 을 카운트에서 빼는 규약) 를 spec 이 어떻게 표현할지가 설계 쟁점으로 남는다.
 3. **채택안이 남긴 미해결** — (a) 각주 채택으로 `UserInstanceAccess` 는 여전히 § 3 mermaid · § 6 REQ → entity coverage 어디에도 등장하지 않아, 그 두 절만 읽는 독자에게는 **존재하지 않는 것과 같다** (row 신설은 ADR 게이트 · 파생 영향 5). (b) 축 B 의 부기는 38 · 174 행을 **더 길게** 만들어, 한 행에 시점 기록이 3 세대 (T-0484 · T-1426 · T-1427) 누적됐다 — § 12.24 한계 3 (a) 가 지적한 "시점 기록에 명시적 marker 규약이 필요" 가 본 절에서 더 뚜렷해졌다. (c) 171 행이 열거한 나머지 항목 (artifact 저장소 · retention 정책 · merge conflict 알고리즘) 의 shipped 여부는 **측정하지 않았다** — 부기 문장이 그 사실을 명시하지만, 미측정 항목이 남은 bullet 은 다음 대조에서 재확인 대상이다.
 
+### 12.26 INDEX.md `AssessmentModule` 귀속 3 지점 문서 ↔ 코드 대조 실판정 (T-1428)
+
+> 본 절은 [T-1428](../tasks/T-1428-index-md-module-attribution-code-resync.md) 이 § 12.25 (T-1427) 의 **파생 영향 1** ([INDEX.md](INDEX.md) **58** · **86** 행 § 3 산문의 `AssessmentModule` 귀속 — T-1424 `Follow-up 1` 이후 **5 회째 이월**) 과 **파생 영향 4** (같은 문서 **37** 행 UC-07 row 가 `ExportModule` / `ImportModule` 을 미사용 — § 12.23 파생 영향 6) 을 **한 파일 · 한 slice 에서 동시에** 닫은 기록이다. 둘은 뿌리가 같다 — 문서가 `AssessmentModule` 하나로 뭉뚱그린 귀속 vs `src/` 의 실 shipped module. **지금 닫힐 수 있게 된 계보** — 37 행의 기존 각주는 "export/import 실 shipped 코드의 module 귀속은 정본 12 표에 아직 미기재라 후속 slice 소관" 이라며 **가리킬 근거 지점의 부재** 를 이월 사유로 들었는데, § 12.23 (T-1425) 이 [modules.md](../architecture/modules.md) **47 ~ 48** 행에 "정본 표 미기재 실 shipped module 3" 각주를 박제하면서 그 전제가 해소됐다. 편집 문서는 [INDEX.md](INDEX.md) **하나** (행 내 부기 3 · 행 수 불변) 이며 `src/` · `test/` · `prisma/` · [modules.md](../architecture/modules.md) · [components.md](../architecture/components.md) · `api.md` · [data-model.md](../architecture/data-model.md) · `UC-01` ~ `UC-09` 본문 · `docs/decisions/ADR-*.md` · [docs/PLAN.md](../PLAN.md) · `docs/requirements.md` 는 **한 글자도 편집하지 않았다** — `src/` 는 존재 확인용 **read-only 대조 입력** 이다. 삽입 위치는 § 12.25 마지막 행 뒤 · § 11 References 앞이고 `###` 이라 `## ` heading count 12 가 불변이다.
+
+#### 실측 선행 (편집 전 6 항)
+
+```
+(i)   $ grep -n 'AssessmentModule' docs/use-cases/INDEX.md
+      → 25 · 31 · 32 · 36 · 37 · 38 · 39 · 58 · 86   (9 지점, 기대값 일치)
+(ii)  $ ls -d src/*/ | wc -l                              → 15
+      $ ls -d src/assessment* src/permission-denied src/export src/import 2>&1
+      → src/assessment-collection  src/assessment-evaluation  src/export
+         src/import  src/permission-denied                    (5 개 전부 실재)
+      $ ls -d src/assessment 2>&1
+      → ls: cannot access 'src/assessment': No such file or directory   (부재 확정)
+(iii) $ grep -n 'ExportModule\|ImportModule' docs/architecture/modules.md   → 47  (1 지점)
+      47: "> **정본 표 미기재 실 shipped module (T-1425 실측 각주)** — … `ExportModule`
+           (`src/export/export.module.ts`, T-0488) · `ImportModule`
+           (`src/import/import.module.ts`, T-0489) · `UserInstanceAccessModule` …"
+      $ grep -n 'PermissionDeniedRecordModule\|AssessmentCollectionModule\|
+                 AssessmentEvaluationModule' docs/architecture/modules.md
+      → 정본 표 row 3 지점 = 37 (PermissionDeniedRecordModule) · 40
+        (AssessmentCollectionModule) · 41 (AssessmentEvaluationModule).
+        나머지 hit (3 · 64 · 65 · 78 · 137 · 138 · 150 · 153 · 154 · 172 · 178 · 179
+        · 200 ~ 208) 은 blockquote / mermaid / 의존성 서술 / mapping 이라 가리킬 좌표 아님.
+      → INDEX 가 가리킬 **근거 행번호 확정**: 37 · 39 (AssessmentModule placeholder) · 40 · 41 · 47
+(iv)  기존 화법 원문 (§ 2 표 병기 완료 row):
+      31 행 → "… AssessmentModule (실 shipped 는 modules.md 39 행 정본 기준 미shipped
+               placeholder — 본 UC 의 수집 축 = AssessmentCollectionModule · 평가 축 =
+               AssessmentEvaluationModule, 같은 문서 40 · 41 행. 병기는 부기라 UC-01 §9 의
+               `6 module` 산정 불변), …"
+      38 행 → "… AssessmentModule (modules.md 39 행 정본 기준 미shipped placeholder — 권한
+               부족 record 영속화·audit 조회의 실 shipped 는 PermissionDeniedRecordModule,
+               같은 문서 37 행. 병기는 부기라 UC-08 §9 의 `4 module` 산정 불변), …"
+      37 행 (미완 문구) → "… — export/import 실 shipped 코드의 module 귀속은 정본 12 표에
+               아직 미기재라 **후속 slice 소관**. 병기는 부기라 UC-07 §9 의 `4 module` 산정 불변) …"
+(v)   § 12.15 판별표 — 아래 표
+(vi)  $ wc -l INDEX.md → 123 · audit → 2209 · modules.md → 259 · data-model.md → 193
+      $ grep -c '^## ' INDEX.md → 5 · $ grep -c '^| UC-' INDEX.md → 9
+      $ grep -c '^## ' audit   → 12 · $ grep -c '^| REQ-' audit  → 66
+      → (vi) 8 값 전부 기대값 일치 (baseline). 축 중단 사유 0.
+```
+
+**§ 12.15 판별표 — (i) ③ ④ 지점**
+
+| 지점 | 성격 | 날짜 · task stamp | 판별 | 처리 |
+| --- | --- | --- | --- | --- |
+| **25** 행 (어휘 계약 — 정본 12 명) | 계약 서술 (living) | 無 | **무편집** | ① 정합 — 채택안이 (B) 부기라 어휘 집합 불변 |
+| **31 · 32 · 36 · 38 · 39** 행 (병기 완료 5 row) | T-1421 / T-1424 병기 | 無 (본문에 slice 명시 없음) | **무편집** | ① 정합 — 재서술 금지 (AC 4) |
+| **37** 행 (UC-07 row 미완 문구) | 이월 선언 (living) | 無 | **원문 보존 + 행 내 부기** | "후속 slice 소관" 은 **그 시점에는 참이던 이월 기록** 이라 치환 대상이 아니고, 근거 지점이 확보된 사실을 바로 뒤에 덧붙인다 |
+| **58** 행 (UC-01 § 3 산문) | **T-0019 시점 산문** | **有** (3 행 blockquote 가 문서 전체를 T-0019 산출물로 선언) | **보존 + 문장 뒤 부기** | 원문 한 글자도 미편집 후 마지막 문장 뒤 · `→ 링크` 앞에 부기 1 문장 |
+| **86** 행 (UC-08 § 3 산문) | **T-0019 시점 산문** | **有** (동상) | **보존 + 문장 뒤 부기** | 동상 |
+| **21 · 40** 행 (`UC-01 ~ UC-08` · `총 8 UC`) | T-0019 시점 기록 | **有** (51 행 T-1412 가 보존 선언) | **보존** | 무편집 (Out of Scope) |
+
+**58 · 86 행 순수-부기 성립 근거** — 두 행은 3 행 blockquote 가 문서 전체를 `T-0019` 산출물로 못박은 § 3 산문이고, 어긋난 부분은 `AssessmentModule 의 평가 파이프라인 service` / `AssessmentModule 이 event 를 받아` **한 구** 인데 이는 **그 시점 (P2, 코드 0) 에는 참이던 설계 서술** 이라 치환 대상이 아니다. 따라서 기존 문자열을 **byte 단위로 그대로 두고** 문장 뒤에 실측 부기를 덧붙이는 방식이 성립하며, 이는 § 12.25 축 B (B') 가 data-model.md 38 · 171 행에서 채택한 선례와 동형이다 (행 수 불변, 독자가 stale 서술 **직후** 에 정정을 읽는다). `→ [UC-NN-*.md]` 링크는 문단 말미의 pointer 라 부기를 그 **앞** 에 넣어 링크가 문단 끝에 남는 기존 구조도 보존했다.
+
+#### 3 축 대조표 (AC 2 — 문서 지점 × 실 shipped 축 × 근거 지점)
+
+| # | INDEX 지점 | 문서 서술 | 실 shipped 축 (`src/` 실측) | 근거 지점 (modules.md) | 구획 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **25** (어휘 계약) | 정본 12 명만 사용 | — (집합 선언) | 정본 12 표 | **① 정합** |
+| 2 | **31** (UC-01 row) | placeholder + 수집·평가 축 병기 | `AssessmentCollectionModule` · `AssessmentEvaluationModule` | 39 · 40 · 41 | **① 정합** |
+| 3 | **32** (UC-02 row) | placeholder (실 코드 0 명시) | — (조회 축 미shipped) | 39 | **① 정합** |
+| 4 | **36** (UC-06 row) | placeholder + 재수집 축 병기 | `SchedulerModule` ④ · `AssessmentCollectionModule` | 39 · 42 | **① 정합** |
+| 5 | **37** (UC-07 row) | placeholder + **"미기재라 후속 slice 소관"** | `ExportModule` (`src/export/`) · `ImportModule` (`src/import/`) | **47** (T-1425 각주) | **② 어긋남 — 근거 확보** |
+| 6 | **38** (UC-08 row) | placeholder + 권한 record 축 병기 | `PermissionDeniedRecordModule` | 39 · 37 | **① 정합** |
+| 7 | **39** (UC-09 row) | placeholder + 평가·수집 축 병기 | `AssessmentEvaluationModule` · `AssessmentCollectionModule` | 197 · 198 | **① 정합** |
+| 8 | **58** (UC-01 산문) | `AssessmentModule 의 평가 파이프라인 service` — **병기 전무** | `AssessmentCollectionModule` (수집) + `AssessmentEvaluationModule` (평가) | 39 · 40 · 41 | **② 어긋남 — 근거 확보** |
+| 9 | **86** (UC-08 산문) | `AssessmentModule 이 event 를 받아` — **병기 전무** | `PermissionDeniedRecordModule` | 39 · 37 | **② 어긋남 — 근거 확보** |
+
+**집계** — ① 정합 **6** · ② 어긋남(근거 확보) **3** (37 · 58 · 86, 기대값 일치) · ③ 어긋남(근거 부재) **0** (기대값 일치). 9 = 6 + 3 + 0 으로 양변이 닫힌다. ③ 이 0 이므로 **무편집 이월로 넘길 지점은 없다**. 대조의 코드 축 근거는 `src/assessment/` **부재** + `src/assessment-collection` · `src/assessment-evaluation` · `src/permission-denied` · `src/export` · `src/import` **5 실재** 이며, `AssessmentModule` 은 문서상 placeholder 로 이미 선언돼 있어 **문서가 미실재를 선언한 상태와 코드의 부재가 일치** 한다 (placeholder 표기 자체는 어긋남 0 — § 12.25 의 AuditLog 처리와 동형).
+
+#### 처리 방식 판정 (4 후보 · 채택 1 · 기각 3)
+
+판정 기준 **4 축** — ① **어휘 계약** (25 행이 못박은 "주요 module = modules.md 의 **12** NestJS module 명" 을 깨는가 — 미기재 module 명을 본문 어휘로 승격시키면 정본 표 row 신설과 동치라 자동 기각), ② **cascade** (`UC-01` / `UC-07` / `UC-08` 본문 § 9 의 module 산정 수치 · [modules.md](../architecture/modules.md) `12 module` 산문 · [components.md](../architecture/components.md) mapping 에 새 stale 을 만드는가), ③ **cap** (≤ 300 LOC · 파일 **3 고정**), ④ **선례 일관성** (같은 표 안 5 row 가 이미 채택한 화법과 다른 규약을 한 문서 안에 공존시키는가).
+
+| 후보 | 판정 | 근거 |
+| --- | --- | --- |
+| **(A) `AssessmentModule` 표기를 실 shipped module 명으로 치환** | **기각** | 축 ① 위배 — 37 행은 `ExportModule` / `ImportModule` 로 치환해야 하는데 둘은 [modules.md](../architecture/modules.md) 48 행이 "정본 표 row 도 카운트 대상도 아니다" 로 못박은 **미기재 module** 이라, 컬럼 값 승격은 정본 표 row 신설 선언과 동치 (ADR 게이트). 축 ② 도 위배 — 58 · 86 행 치환은 각 UC 본문 § 9 의 `6 module` / `4 module` 산정과 modules.md `12 module` 산문을 동시에 흔들어 새 stale 을 만든다. 축 ④ 도 위배 — 31 · 38 행이 **치환 아닌 병기** 를 이미 채택했다 |
+| **(B) 원문 보존 + 문장 뒤 부기 (표 row 31 · 38 화법 승계)** | **채택** | 축 ① 충족 — 미기재 명을 **부기 안의 사실 기록** 으로만 적고 "정본 12 어휘 밖 · 컬럼 값으로 승격하지 않음" 을 명시해 25 행 계약을 그대로 지킨다. 축 ② **0** — 표 row 수 · 컬럼 값 · UC 본문 § 9 산정 · modules.md 산문 전부 불변 (각 부기가 "산정 불변" 을 자기 문장으로 재확인). 축 ③ 충족 — 3 행 in-place, 행 수 증가 0. 축 ④ 충족 — 같은 문서 5 row 의 화법을 문자 그대로 승계 |
+| **(C) `§ 3` 말미에 각주 블록 1 개 신설해 3 지점을 한 곳에서 설명** | **기각** | 축 ④ 위배 — 같은 문서 안에 "행 내 병기" (표 5 row) 와 "말미 각주" 두 규약이 공존하게 된다. 축 ② 도 열위 — 독자가 58 · 86 행 본문을 먼저 읽고 문서 끝에서야 뒤집히는 구조라 § 12.24 가 (A2) 를 기각한 "본문 먼저 읽고 각주에서 뒤집기" 문제가 재발한다. 축 ③ 은 통과하나 (신설 3 ~ 5 행) 다른 두 축의 열위를 상쇄하지 못한다 |
+| **(D) 무편집 이월** | **기각** | 축 ② ③ 어디에도 저촉되지 않는 (B) 가 있고, 실측 6 항이 전부 기대값과 일치해 판정 재료가 완비됐다. 58 · 86 행은 이미 **5 회째 이월** 이고 37 행이 든 이월 사유 (근거 지점 부재) 는 § 12.23 으로 해소됐으므로, 이월 비용 (다음 slice 가 실측을 재수행) 이 편집 비용 (부기 3 문장) 을 명백히 넘는다 |
+
+**채택 = (B).** cap 초과로 자동 기각된 후보가 없어 본 절에 남길 split 제안은 없다. **계상 경계 승계** — 부기가 기록한 `ExportModule` / `ImportModule` 은 25 행 정본 12 어휘에 **포함되지 않으며**, 이는 [modules.md](../architecture/modules.md) 48 행이 미기재 3 module 에 대해 못박은 경계 (각주 = 사실 기록, 정본 카운트 외) 와 같은 원리다.
+
+#### 반영 결과
+
+편집 지점 **3** 행 (AC 4 의 정확히 3 이하), `wc -l` **123 → 123** (+0, AC 4 의 +2 이내), 순수 삭제 **0**.
+
+| 편집 지점 | 처리 | 내용 |
+| --- | --- | --- |
+| **INDEX 37** 행 (UC-07 row) | **행 내 부기** (§ 12.15 판별 — 이월 기록 보존, 문자 삭제 0) | 기존 "후속 slice 소관" 뒤에 T-1428 대조 문장 — 실 shipped 축 = `ExportModule` (`src/export/export.module.ts`) · `ImportModule` (`src/import/import.module.ts`) + [modules.md](../architecture/modules.md) **47** 행 T-1425 각주 좌표 + 48 행 경계상 정본 12 어휘 밖이라 컬럼 값 미승격 + row 신설은 ADR 게이트 소관 |
+| **INDEX 58** 행 (UC-01 § 3 산문) | **문장 뒤 부기** (T-0019 시점 산문 보존 — 판별표 근거) | 원문 무편집 후 `→ 링크` 앞에 부기 1 문장 — `AssessmentModule` 은 39 행 정본 기준 미shipped placeholder (`src/assessment/` 부재), 실 shipped 축 = 수집 `AssessmentCollectionModule` (40 행) · 평가 `AssessmentEvaluationModule` (41 행), § 2 표 31 행 · [UC-01](UC-01-evaluation-execution.md) § 9 의 `6 module` 산정 불변 |
+| **INDEX 86** 행 (UC-08 § 3 산문) | **문장 뒤 부기** (동상) | 원문 무편집 후 `→ 링크` 앞에 부기 1 문장 — 실 shipped 축 = `PermissionDeniedRecordModule` (`src/permission-denied/`, 37 행), § 2 표 38 행 · [UC-08](UC-08-permission-denied.md) § 9 의 `4 module` 산정 불변 |
+
+#### 무편집 경계
+
+`src/` (존재 확인용 read-only 대조 입력) · `test/` · `prisma/` **일체**, [modules.md](../architecture/modules.md) · [components.md](../architecture/components.md) · `api.md` · [data-model.md](../architecture/data-model.md), `UC-01` ~ `UC-09` 본문, `docs/decisions/ADR-*.md`, [docs/PLAN.md](../PLAN.md), `docs/requirements.md` 는 **전부 무편집** 이고 `git status --porcelain` 에 미등장한다. [INDEX.md](INDEX.md) 내부에서도 **21 · 40 행 시점 기록** (T-1412 보존 선언) · **25 행 어휘 계약** · **표 row 31 · 32 · 36 · 38 · 39** · § 3 의 나머지 7 description · **§ 4 References** · **§ 5 갱신 룰** 은 한 글자도 편집하지 않았다 (아래 hunk 목록이 증명).
+
+#### 파생 영향 목록 (본 slice 편집 금지 — 후속 slice 소관)
+
+1. **[api.md](../architecture/api.md) 223 행 `UC-01 ~ UC-08` 링크 범위 vs 9 UC** — § 12.25 파생 영향 2. **후속 slice 소관**.
+2. **[UC-09](UC-09-user-defined-period-evaluation.md) `§ 5` sequence participant 병기 미판정** — T-1421 Follow-up 2 가 **10 회째 이월**. **후속 slice 소관**.
+3. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축 (ADR 선행)** — § 12.25 파생 영향 5. 본 절 (A) 기각 근거가 이 축에 **직접 종속** 한다. **후속 slice 소관**.
+4. **외부 package module (`ScheduleModule.forRoot()`) 계상 규약 미판정** — § 12.25 파생 영향 6. **후속 slice 소관**.
+5. **행 번호 좌표계 → anchor 좌표계 이행** — § 12.23 한계 4 · § 12.24 파생 영향 7 · § 12.25 파생 영향 7 로 근거 **3 회 누적**. 본 절은 INDEX 를 행 내 부기로만 고쳐 좌표 shift 0 이었으나, audit 자신은 § 12.26 append 로 § 11 References 좌표를 밀었다 — **4 회째 발현**. **후속 slice 소관**.
+6. **산문 tally ↔ 표 row 수 CI drift-guard spec 신설** — § 12.25 파생 영향 8 · 한계 2. 본 절의 module 귀속 축 (`ls -d src/*/` vs 문서 module 명) 도 같은 spec 후보다. **후속 slice 소관**.
+7. **각 UC 본문 `§ 9` module 산정 수치가 INDEX 병기와 별개 좌표계** — 한쪽만 갱신되는 이중 관리가 미해소. **후속 slice 소관**.
+
+#### closure 선언
+
+- **§ 12.25 파생 영향 1 closure (5 회째 이월 종료)** — 58 · 86 행 산문의 `AssessmentModule` 귀속은 본 절의 3 축 대조표 (② 3 건) + (B) 부기로 닫힌다. T-1424 `Follow-up 1` 이후 4 개 slice 를 건너뛴 축이 실판정으로 종료됐다.
+- **§ 12.25 파생 영향 4 / § 12.23 파생 영향 6 closure** — 37 행 UC-07 row 의 "미기재라 후속 slice 소관" 은 § 12.23 이 공급한 **47 행 각주 좌표** 를 가리키는 부기로 닫힌다. 이월 사유였던 "가리킬 근거 지점 부재" 가 사실로서 해소됐음을 문서가 스스로 증명한다.
+- **§ 12.23 (module 축) 과의 계보** — 미기재 3 module 중 `ExportModule` / `ImportModule` 2 개가 본 절에서 **UC 축의 소비처** 를 얻었다 (UC-07). 남은 `UserInstanceAccessModule` 은 § 12.25 ③ 이 entity 축에서 잡은 그 module 이며, 세 축 (module · entity · UC) 의 row 신설 판정은 하나의 ADR 게이트 (파생 영향 3) 로 함께 닫아야 한다.
+
+#### 불변 검산
+
+```
+$ wc -l  docs/use-cases/INDEX.md              → 123 → 123  (+0, AC 4 의 +2 이내)
+$ grep -c '^## '   docs/use-cases/INDEX.md    →   5  (불변)
+$ grep -c '^| UC-' docs/use-cases/INDEX.md    →   9  (불변 — 표 row 무신설)
+$ grep -c 'AssessmentModule' INDEX.md         →   9  (불변 — 치환 0, 부기만)
+$ wc -l  modules.md → 259 · data-model.md → 193   (불변 — 무편집 실증)
+$ wc -l  docs/use-cases/REQ-COVERAGE-AUDIT.md → 2209 → 2353  (§ 12.26 append 144 행)
+$ grep -c '^## '   audit → 12  ·  grep -c '^| REQ-' audit → 66   (불변, `###` 만 추가)
+$ git diff -U0 -- docs/use-cases/INDEX.md | grep '^@@'
+@@ -37 +37 @@     @@ -58 +58 @@     @@ -86 +86 @@
+   → hunk **3 개** = 편집 지점 3 행과 1:1. 21 · 25 · 31 · 32 · 36 · 38 · 39 · 40 행,
+     § 3 의 나머지 7 description, § 4 References, § 5 갱신 룰 전부 hunk 밖 = 무편집 증명
+$ git diff --numstat -- docs/use-cases/INDEX.md   →  3  3
+   → 추가 3 · 삭제 3 → 삭제 3 은 전부 부기된 세 행의 in-place 짝 = **순수 삭제 0**
+$ git status --porcelain
+ M docs/use-cases/INDEX.md   M docs/use-cases/REQ-COVERAGE-AUDIT.md
+ M docs/tasks/T-1428-index-md-module-attribution-code-resync.md   → 정확히 3 파일
+```
+
+변경 파일은 [INDEX.md](INDEX.md) · 본 audit · [T-1428 task 파일](../tasks/T-1428-index-md-module-attribution-code-resync.md) (`Follow-ups` 7 항 append — frontmatter `status` 는 STATE single-writer 규약상 driver bookkeeping commit 소관이라 본 commit 에서 무편집) **정확히 3 개** 이며, 합계 diff ≤ 300 LOC 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 **N/A** 다.
+
+#### 한계 —
+
+1. **본 대조는 module 명 축 뿐** — ② 3 지점에 실 shipped module 명을 병기했을 뿐, 각 UC 산문이 서술한 **동작 · 책임** (예: 58 행의 "3 GitHub instance + Confluence + LLM gateway 를 거쳐 … 생성", 86 행의 "event 를 받아 DB 에 기록") 이 해당 module 의 실 코드와 부합하는지는 **검증하지 않았다**. 명칭이 맞아도 책임 서술이 stale 일 수 있으며, 이는 service / controller 단위 대조가 필요한 **별도 판정 slice** 다.
+2. **INDEX 병기와 UC 본문 `§ 9` 산정이 별개 좌표계** — 본 절의 부기는 세 지점 모두 "§ 9 의 `N module` 산정 불변" 을 명시해 수치 충돌을 피했지만, 그 결과 **같은 사실이 두 문서에 서로 다른 형식으로 이중 관리** 된다. 어느 한쪽만 갱신되면 다시 어긋나며 (파생 영향 7), 이는 사람 규약으로는 재발을 막을 수 없어 § 12.25 한계 2 와 같은 CI drift-guard 축 (파생 영향 6) 으로만 닫힌다.
+3. **채택안이 남긴 미해결** — (a) `ExportModule` / `ImportModule` 은 여전히 25 행 어휘 집합 · 정본 12 표 어디에도 없어, § 2 표만 읽는 독자에게는 **존재하지 않는 것과 같다** (row 신설은 ADR 게이트 · 파생 영향 3). (b) 32 행 UC-02 row 는 ① 정합으로 분류됐지만 그 근거가 "조회 축이 아직 미shipped" 라 **코드가 shipped 되는 순간 자동으로 stale** 이 되는 조건부 정합이다. (c) 부기로 58 · 86 행이 더 길어져 한 행에 시점 기록 2 세대 (T-0019 · T-1428) 가 누적됐다 — § 12.25 한계 3 (b) 가 지적한 "시점 기록 marker 규약 부재" 가 § 3 산문에서도 반복된다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source

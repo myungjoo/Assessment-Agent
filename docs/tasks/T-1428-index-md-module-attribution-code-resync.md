@@ -88,4 +88,10 @@ planner 사전 확인 (executor 가 AC 1 에서 재측정) — `grep -n 'Assessm
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append.)
+1. **UC 산문의 동작·책임 서술 대조** — 본 slice 는 **module 명 축** 만 닫았다. 58 행 "3 GitHub instance + Confluence + LLM gateway 를 거쳐 … 생성" · 86 행 "event 를 받아 DB 에 기록" 같은 **책임 서술** 이 실 service / controller 와 부합하는지는 미검증 (`§ 12.26` 한계 1).
+2. **[api.md](../architecture/api.md) 223 행 `UC-01 ~ UC-08` 링크 범위 vs 9 UC** — `§ 12.26` 파생 영향 1 (5 회째 이월 축과 별개 잔여).
+3. **[UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) `§ 5` sequence participant 병기 판정** — `§ 12.26` 파생 영향 2, **10 회째 이월**.
+4. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축 (ADR 게이트)** — `ExportModule` / `ImportModule` / `UserInstanceAccessModule` 3 module 의 정본 계상 판정. module · entity · UC 3 축이 한 ADR 로 닫혀야 한다 (`§ 12.26` 파생 영향 3 · closure 선언 3).
+5. **행 번호 좌표계 → anchor 좌표계 이행** — 근거 **4 회 누적** (`§ 12.26` 파생 영향 5).
+6. **문서 tally ↔ 코드 실측 CI drift-guard spec** — `ls -d src/*/` vs 문서 module 명 축도 같은 spec 후보 (`§ 12.26` 파생 영향 6 · 한계 2).
+7. **INDEX 병기 ↔ 각 UC 본문 `§ 9` 산정 이중 관리 해소** — `§ 12.26` 파생 영향 7.
