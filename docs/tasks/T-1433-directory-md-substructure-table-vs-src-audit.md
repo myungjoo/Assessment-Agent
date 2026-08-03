@@ -2,7 +2,7 @@
 id: T-1433
 title: directory.md `각 module 디렉토리의 표준 sub-structure` 표 (68 ~ 75 행) 6 sub-dir row 의 `채택 module` 컬럼을 실 `src/*/` 하위와 3 축 대조 후 처리 판정 + audit §12.31
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 200
