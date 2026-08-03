@@ -103,3 +103,25 @@ plannerNote: "uc-doc-audit-resync 28 번째 slice — T-1415 Follow-up 1. endpoi
 3. **`8 UC` 표기 일괄 갱신** — api.md 3 · 12 · 64 · 207 · 208 행 · data-model.md 3 · 38 행 · audit §11 References 2 줄. 각 지점이 시점 기록인지 현행 index 서술인지의 판정이 선행 (T-1415 Follow-up 4 이월 + 본 slice 한계 ③).
 4. **audit 198 행 `INDEX.md 104 행` 표기 최신성 점검** — T-1412 Follow-up 4 · T-1413 Follow-up 3 · T-1414 Follow-up 3 · T-1415 Follow-up 5 의 4 회 이월.
 5. **UC-09 ↔ `docs/architecture/modules.md` / `components.md` mapping 점검** — UC-09 136 행이 `AssessmentModule (controller layer) + AuthModule` 을 지목하는데 두 architecture 문서가 UC-09 를 알지 못한다. 본 slice 의 api.md 귀속과 동형 처리가 필요한지 판정.
+
+## 완료 기록 (2026-08-03)
+
+**Status: DONE.** 변경 파일 **정확히 3 개** — `docs/architecture/api.md` (+4/-3) · `docs/use-cases/REQ-COVERAGE-AUDIT.md` (+47/-0) · 본 task 파일. 2 doc 파일 합계 **삽입 51 / 삭제 3** 으로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이며, 삭제 3 은 전부 in-place 치환의 짝 (api.md 104 · 153 · 211 행) 이라 **순수 삭제 0** 이다 (AC 7).
+
+**AC 1 (실측 선행 판정)** — 전제는 **성립했다**. UC-09 §5 sequence (54 ~ 98 행) 가 호명하는 HTTP endpoint 는 70 행의 `POST /api/assessment-evaluation/period` **1 종뿐** 이고 (5 · 36 · 136 행이 같은 route 를 가리키며, 118 행은 같은 route 의 UI 부재 서술, 124 행 `GET /api/assessments` 는 §8 postcondition 의 UC-02 조회 경로 참조라 §5 step 아님), 그 route 는 api.md §5 표 **104 행에 이미 실재** 했다. 없던 것은 **UC 귀속** — 104 행 UC 컬럼이 `[UC-01]` 단독이고 §7 표에 UC-09 row 부재. baseline 재집계: `grep -cE '^\| (GET|POST|PATCH|PUT|DELETE) \|'` = **72** · `grep -c "^| \[UC-"` = **8**. 2 종 이상 호명이 아니므로 중단 없이 진행했고, 임의 endpoint row 신설은 **0** 이다.
+
+**AC 2 (104 행 UC 귀속 병기)** — UC 컬럼만 1:1 in-place 치환 (`[UC-01](…)` → `[UC-01](…) · [UC-09](…)`). METHOD · path · description · auth tier 4 컬럼 무편집 · 행 1 행 유지 · 위치 (104 행) 불변 · 인접 103 · 105 행 무편집. 검산 `grep -cE '^\| (GET|POST|PATCH|PUT|DELETE) \|'` = **72 불변**.
+
+**AC 3 (§7 UC-09 row 신설)** — UC-08 row (192 행) 바로 뒤에 1 행 추가 (신규 193 행). (i) UC 링크 `#5-main-flow-sequence-diagram` anchor 포함, (ii) 호출 step 은 §5 autonumber **step 1** (Requester→BackendAPI, 기간 좌표 body) + role 2 분기 (User self-only ephemeral / Admin full-persist) 1 구, (iii) endpoint group 은 단일 route 이되 계약 정본을 **§5 104 행으로 위임** (description 재생산 0). 표 뒤 보조 문단 3 개와 `## 8.` heading 무편집. 검산 `grep -c "^| \[UC-"` = **9**.
+
+**AC 4 (153 행 합계 동기)** — `8 UC cover` → `9 UC cover` 1 토큰 치환 + 부기 1 구 (`T-1416 박제로 UC-09 귀속 추가 (§5 104 행 UC 컬럼 병기 + §7 UC-09 row 신설) 라 UC cover 8 → 9 — endpoint 신설 0 이라 72 / 16 은 불변`). `72 endpoint 행` · `16 resource prefix` · T-0117 ~ T-1306 누계 서술 무편집 · 1 행 유지. 검산 `grep -c "8 UC"` = **7 → 6** (3 · 12 · 64 · 207 · 208 행은 무편집).
+
+**AC 5 (211 행 재기술)** — 1 행 in-place 치환 (치환 후 212 행). 3 요소 충족 — (i) endpoint 축은 §5 104 행 (실재) + §7 UC-09 row (귀속) 로 본 문서 안에서 **해소**, (ii) 잔여는 본 문서 밖 축 (data-model.md §2 entity 도출 판정 · 프런트 기간 지정 UI 부재 — UC-09 118 행 실측), (iii) 근거를 `REQ-COVERAGE-AUDIT.md §12.13 · §12.14` 로 위임. bullet **삭제 0** (순수 삭제 0) · `## 8. Out of scope` 안 위치 불변 · 인접 bullet 무편집.
+
+**AC 6 (audit §12.14 신설)** — `## 11. References` 바로 앞에 `### 12.14 UC-09 endpoint 귀속 박제 — api.md §5 104 행 · §7 row (T-1416)` 절 (47 행) 삽입, `grep -c "^## "` = **12 불변**. 구성은 §12.13 화법 승계 — (i) 서두 blockquote, (ii) 실측 선행 판정 1 문단 (전제가 부분적으로 사실과 달랐음 + 근거 열거), (iii) 갱신 4 지점 기록 각 1 줄, (iv) §12.13 한계 ① 소진 상태 (endpoint 축 해소 · entity 축 잔존), (v) 불변 검산 출력 블록, (vi) 한계 3 항.
+
+**AC 7 (불변 검산)** — `git status --porcelain` 변경 파일 **3 개** (위 목록) 이고 `docs/architecture/data-model.md` · `docs/use-cases/INDEX.md` · `docs/PLAN.md` · `docs/requirements.md` · `UC-01` ~ `UC-09` 본문 · `CLAUDE.md` **미등장**. `wc -l docs/architecture/api.md` = **229 → 230**. audit 검산 `grep -c "^| REQ-"` = **66** · `grep -c "^## "` = **12** 불변이며 §3 38 행 · §4 116 행 정합식 · §5 표 · §12.3 cascade 6 row 는 hunk 밖 무변 (`git diff -U0 | grep '^@@'` = 5 hunk: api 104 · 153 · 192,0+193 · 211 · audit 952,0+953,47). `git diff --numstat` = api.md **4 / 3** · audit **47 / 0**.
+
+**AC 8 (R-110 / R-112 면제)** — 본 task 는 `commitMode: direct` + production code **0 LOC** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 만 본 규칙 면제" 조항으로 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 **N/A** 다 (분기 0, architect / tester dispatch 0).
+
+**Out of Scope 준수** — `src/` · `test/` · `web/` route 일체, api.md 104 행의 description · auth tier 컬럼, `docs/architecture/data-model.md` 전체, api.md 3 · 12 · 64 · 207 · 208 행 · audit §11 References 의 `8 UC` 표기, audit §1 · §6 · §8 · §9 · §10 · §12.1 ~ §12.13 본문 · §12.3 cascade 표, INDEX.md · PLAN.md · requirements.md · UC 본문, 코드 계열 전부 **한 글자도 건드리지 않았다**.

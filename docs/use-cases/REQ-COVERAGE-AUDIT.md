@@ -950,6 +950,53 @@ $ git diff --numstat
 2. **`8 UC` 표기 stale 은 그대로** — §11 References bullet 의 `8 UC backbone` · `UC-01 ~ UC-08 — 8 UC 본문` 과 api.md 3 · 12 · 64 행 · data-model.md 3 · 38 행의 `8 UC` 표기가 9 UC 실재와 어긋나나, REQ-004 pointer 와 별개 축이고 문서 전반 일괄 판정이 선행돼야 해 **후속 slice 소관** 이다 (§12.12 한계 2 존속, 본 slice 무편집).
 3. **옛 `gap 1 건` 요약은 여전히 무편집** — §1 18 행 · §8 160 ~ 161 행 · §9.4 188 행의 결론 문장은 각 시점 판정의 기록이라 §12.3 306 행 규약대로 보존했다 (§12.12 한계 1 존속). 본 slice 가 in-place 로 고친 3 행은 시점 기록이 아니라 현행 상태 서술이라는 점에서 이들과 성격이 다르다.
 
+### 12.14 UC-09 endpoint 귀속 박제 — api.md §5 104 행 · §7 row (T-1416)
+
+> 본 절은 [T-1416](../tasks/T-1416-uc09-api-endpoint-attribution.md) 이 [T-1415](../tasks/T-1415-arch-doc-req004-pointer-resync.md) 의 **Follow-up 1** (UC-09 §5 sequence → [api.md](../architecture/api.md) §5 Endpoint 표 실박제) 을 집행한 기록이다. 삽입 위치는 §12.13 마지막 행 뒤 · §11 References 앞이고 `###` 이라 `## ` heading count 12 가 불변이다 — §12.6 ~ §12.13 이 승계해 온 위치 규약 그대로다.
+
+#### 실측 선행 판정 — Follow-up 1 의 전제는 부분적으로 사실과 달랐다
+
+Follow-up 1 은 "endpoint 미박제" 를 전제했으나, 실측 결과 **없던 것은 endpoint row 가 아니라 UC 귀속** 이었다. [UC-09](UC-09-user-defined-period-evaluation.md) §5 sequence (54 ~ 98 행 mermaid) 가 호명하는 HTTP endpoint 는 **70 행의 `POST /api/assessment-evaluation/period` 1 종뿐** 이며 (5 행 frontmatter `trigger` · 36 행 입력 계약 `PeriodBridgeDto` 5 키 · 136 행 §9 component mapping 이 모두 같은 route 를 가리킨다 — 118 행의 `POST /period` 는 같은 route 의 UI 부재 서술이고, 124 행 `GET /api/assessments` 는 §8 postcondition 이 조회 경로로 [UC-02](UC-02-evaluation-query.md) 를 참조한 것이라 §5 sequence step 이 아니다), 그 route 는 api.md §5 표 **104 행에 이미 실재** 했다 (T-0315 ~ T-0323 shipped, [ADR-0037](../decisions/ADR-0037-period-collection-evaluate-bridge.md) ACCEPTED). 다만 104 행 UC 컬럼이 `[UC-01]` 단독이고 §7 cross-reference 표에도 UC-09 row 가 없어 UC-09 가 어디에도 연결돼 있지 않았다. 따라서 본 slice 는 **endpoint 신설 0** 이고 `72 endpoint` · `16 resource prefix` 는 무변이며, 바뀐 합계는 `8 UC cover` → `9 UC cover` 하나뿐이다.
+
+#### 갱신 4 지점 기록
+
+- **api.md 104 행** (§5 Endpoint 표) — UC 컬럼만 in-place 치환해 기존 `[UC-01](…)` 을 제거하지 않고 `· [UC-09](…)` 를 **병기** 했다 (같은 route 가 UC-01 manual trigger 의 이관 경로이자 UC-09 의 유일 진입점이라 둘 다 참이다). METHOD · path · description · auth tier 4 컬럼과 인접 103 · 105 행은 무편집.
+- **api.md §7 row 신설** (UC-08 row 바로 뒤 — 신규 193 행) — 3 컬럼을 UC-09 본문 실측에서 채웠다: UC 링크는 `#5-main-flow-sequence-diagram` anchor 포함 (선행 8 row 형식 승계), 호출 step 은 §5 autonumber **step 1** (Requester→BackendAPI) 에 role 2 분기 (User ephemeral / Admin persist) 를 1 구로 덧붙였고, endpoint group 은 단일 route 이되 **계약 서술의 정본을 §5 104 행으로 위임** 해 description 을 재생산하지 않았다 (중복 서술은 drift 원인).
+- **api.md 153 행** (합계) — `8 UC cover` → `9 UC cover` 1 토큰 치환 + 부기 1 구 (`T-1416 박제로 UC-09 귀속 추가 … endpoint 신설 0 이라 72 / 16 은 불변`). `72 endpoint 행` · `16 resource prefix` 와 T-0117 ~ T-1306 누계 서술은 한 글자도 바꾸지 않았다.
+- **api.md 211 행** (`## 8. Out of scope`, 치환 후 212 행) — T-1415 가 적은 "UC-09 §5 sequence 가 호명하는 endpoint 는 아직 §5 표에 미박제" 는 본 실측으로 사실이 아니게 돼 남기지 않고 **1 행 in-place 재기술** 했다: (i) endpoint 축은 §5 104 행 (실재) + §7 UC-09 row (귀속) 로 본 문서 안에서 해소, (ii) out-of-scope 로 남는 잔여는 **본 문서 밖 축** — data-model.md §2 entity 도출 판정 · 프런트 기간 지정 UI 부재 (UC-09 118 행 실측), (iii) 근거는 §12.13 · 본 절로 위임. bullet 을 **삭제하지 않았다** — 잔여 축이 실재하므로 재기술이 맞다.
+
+#### §12.13 한계 ① 의 소진 상태
+
+한계 ① (`UC-09 의 endpoint / entity 실박제는 미완`) 중 **endpoint 축이 본 slice 로 해소** 됐다 (다만 예고와 달리 row 신설이 아니라 **이미 실재하던 route 의 귀속 박제** 로 해소됐다). **entity 축 (data-model.md §2 표 · 38 행 `13 entity` 합계) 은 잔존** 하며 T-1415 Follow-up 2 소관이다 — 본 slice 는 그 축을 판정조차 하지 않았다.
+
+#### 불변 검산 (doc-only, R-112 대체)
+
+```
+$ grep -cE '^\| (GET|POST|PATCH|PUT|DELETE) \|' docs/architecture/api.md → 72   (baseline 72 — endpoint 신설 0)
+$ grep -c "^| \[UC-"  docs/architecture/api.md                           → 9    (baseline 8 — §7 row 1 신설)
+$ grep -c "8 UC"      docs/architecture/api.md                           → 6    (baseline 7 — 153 행 1 곳만 갱신)
+$ wc -l               docs/architecture/api.md                           → 230  (baseline 229 — §7 row 1 행 증가분만)
+$ grep -c "^\| REQ-"  docs/use-cases/REQ-COVERAGE-AUDIT.md               → 66   (불변)
+$ grep -c "^## "      docs/use-cases/REQ-COVERAGE-AUDIT.md               → 12   (불변, `###` 만 추가)
+$ git diff -U0 | grep '^@@'
+@@ -104 +104 @@         (api.md 104 행 — UC 컬럼 in-place)
+@@ -153 +153 @@         (api.md 153 행 — 합계 in-place)
+@@ -192,0 +193 @@       (api.md §7 UC-09 row — 순수 추가)
+@@ -211 +212 @@         (api.md 211 행 — 잔여 의무 재기술 in-place)
+@@ -952,0 +953,47 @@    (§12.14 삽입 — §12.13 마지막 행과 §11 References 사이)
+$ git diff --numstat
+4       3       docs/architecture/api.md
+47      0       docs/use-cases/REQ-COVERAGE-AUDIT.md
+```
+
+api.md 의 **삭제 3 은 전부 in-place 치환의 짝** (104 · 153 · 211 행) 이라 **순수 삭제 0** 이고, audit 는 순수 append 라 삭제 0 이다. 변경 파일은 api.md 1 + audit 1 + 본 task 파일 1 = **3 개** 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 N/A 다.
+
+#### 한계 —
+
+1. **endpoint 신설 0** — 본 slice 는 문서 안 **귀속** 만 바꿨고 실코드 route 신설은 0 이다. `72 endpoint` · `16 resource prefix` 는 무변이며, 늘어난 값은 §7 row 1 행에서 직접 파생한 `9 UC cover` 뿐이다.
+2. **data-model.md §2 entity 축 미판정** — UC-09 가 신규 entity 를 요구하는지 (기존 `Assessment` 좌표로 충분한지) 를 본 slice 는 **판정하지 않았다**. §2 표 · 38 행 `13 entity` · 168 행 잔여 의무 문면은 전부 무편집이다.
+3. **`8 UC` 표기는 153 행 1 곳만 갱신** — api.md 3 · 12 · 64 · 207 · 208 행 · data-model.md 3 · 38 행 · 본 문서 §11 References 2 줄은 여전히 stale 이다. 각 지점이 시점 기록인지 현행 index 서술인지의 일괄 판정이 선행돼야 해 별도 slice 소관이다 (§12.13 한계 ② 존속).
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
