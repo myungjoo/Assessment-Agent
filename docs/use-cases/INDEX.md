@@ -22,7 +22,7 @@ Phase P2 (Use case decomposition) 의 목표는 [README.md](../../README.md) + P
 - **title** — 한국어 짧은 제목.
 - **actor** — User / Admin / SuperAdmin / Scheduler / System 중 하나 또는 `/` 로 구분된 둘 이상. (README L83–86 의 3 권한 등급 + Scheduler in-process cron + System emit.)
 - **주요 component** — [components.md](../architecture/components.md) 의 8 component 명 (Web UI / Backend API / Worker / Scheduler / LLM Gateway / GitHub Adapter / Confluence Adapter / DB Persistence) 만 사용. 오타 0.
-- **주요 module** — [modules.md](../architecture/modules.md) 의 8 NestJS module 명 (WebModule / AssessmentModule / UserModule / GithubModule / ConfluenceModule / LlmModule / AuthModule / SchedulerModule / PersistenceModule) 만 사용. 오타 0.
+- **주요 module** — [modules.md](../architecture/modules.md) 의 12 NestJS module 명 (AuthModule / PersistenceModule / UserModule / GithubModule / ConfluenceModule / PermissionDeniedRecordModule / LlmModule / AssessmentModule / AssessmentCollectionModule / AssessmentEvaluationModule / SchedulerModule / WebModule) 만 사용. 오타 0.
 - **관련 REQ** — [requirements.md](../requirements.md) 의 66 REQ ID 만 사용. 존재하지 않는 REQ ID 인용 금지.
 - **status** — `PLANNED` (본 INDEX.md 에 row 만 존재) / `IN_PROGRESS` (대응 UC-NN-*.md 본문 task 진행 중) / `DONE` (UC 본문 머지) 의 3 값.
 
@@ -36,7 +36,7 @@ Phase P2 (Use case decomposition) 의 목표는 [README.md](../../README.md) + P
 | UC-06 | 평가 결과 manual delete + 재수집 | Admin | Web UI, Backend API, DB Persistence | WebModule, AssessmentModule, AuthModule, PersistenceModule | REQ-037, REQ-041, REQ-045 | DONE |
 | UC-07 | Export / Import / Backup / Restore | Admin | Web UI, Backend API, DB Persistence | WebModule, AssessmentModule, AuthModule, PersistenceModule | REQ-030, REQ-032, REQ-045 | DONE |
 | UC-08 | 권한 부족 인식·통지 (GitHub / Confluence) | System (GitHub Adapter / Confluence Adapter emit → Web UI 표시) | GitHub Adapter, Confluence Adapter, Backend API, Web UI | GithubModule, ConfluenceModule, AssessmentModule, WebModule | REQ-008, REQ-016 | DONE |
-| UC-09 | 사용자 지정 기간 임의 평가문 요청 | User / Admin | Web UI, Backend API, Worker, LLM Gateway, DB Persistence | WebModule, AssessmentModule, AuthModule, UserModule, LlmModule, PersistenceModule | REQ-004 | DONE |
+| UC-09 | 사용자 지정 기간 임의 평가문 요청 | User / Admin | Web UI, Backend API, Worker, LLM Gateway, DB Persistence | WebModule, AssessmentModule (실 shipped 는 평가 축 AssessmentEvaluationModule + 수집 축 AssessmentCollectionModule — [modules.md](../architecture/modules.md) 197 · 198 행 정본. 병기는 부기라 [UC-09](UC-09-user-defined-period-evaluation.md) §9 의 `6 module` 산정 불변), AuthModule, UserModule, LlmModule, PersistenceModule | REQ-004 | DONE |
 
 총 8 UC. README 의 7 단락 (Assessment Target / 평가 대상 인원 / 평가 자료의 저장 / 평가 자료의 시각화와 UI / 평가 실행 제약 / 보안 특성 / LLM Serving) 에서 추출. functional REQ cover 검증은 후속 task ("Use case 인벤토리 검증", [PLAN.md](../PLAN.md) L84) 에서 본격 수행.
 

@@ -2,7 +2,7 @@
 id: T-1423
 title: INDEX.md 25 행 module 허용 어휘 정본 12 동기 + 39 행 UC-09 row 귀속 판정 + audit §12.21
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 105
@@ -88,3 +88,11 @@ plannerNote: "uc-doc-audit-resync 35 번째 slice — T-1422 Follow-up 1. 정본
 4. **`api.md` 223 행 링크 범위 vs 9 UC 어긋남 정정** — T-1421 Follow-up 3 잔여 축 ②.
 5. **UC-09 `§ 5` sequence participant 병기 판정** — T-1421 Follow-up 2 이월 (5 회째).
 6. **13 번째 module shipped 시 5 축 동시 갱신 규약** — modules.md 표 · topological 열거 · mermaid node · 산문 카운트 + **INDEX 25 행 허용 어휘** 를 한 slice 안에서 함께 갱신 (T-1422 `§ 12.20` 한계 1 에 INDEX 축 편입).
+
+## 완료 기록 (2026-08-03)
+
+- 실측 5 축 전건 성립 — 정본 표 row **12** · 25 행 삼중 어긋남 (카운트 `8` ≠ 열거 **9** ≠ 정본 **12**, 차집합 3 = PermissionDeniedRecordModule / AssessmentCollectionModule / AssessmentEvaluationModule) · 39 행 6 값 **미실재 0** · 8 row distinct 9 ⊂ 12 (무효화 row **0**) · baseline 전부 일치 → 중단 지점 없음.
+- **25 행** § 12.15 판별 결과 stamp 없는 living 서술이라 **1 행 → 1 행 in-place** (카운트 + 열거 동시 교체, 골격 · 링크 보존). **24 행** 은 components.md 정본 8 과 정합이라 무편집. **39 행** 은 3 후보 판정에서 **(B) 병기 채택** ((A) 는 UC-09 `§ 9` `6 module` 부정으로 기각 · (C) 는 4 회째 이월 비용으로 기각) → 괄호 부기 1 구 in-place.
+- audit `§ 12.21` 순수 append **108 행** (1518 → 1626, `^## ` 12 · `^| REQ-` 66 불변). INDEX `wc -l` **123** · `^| UC-` **9** · 표 열 수 불변, hunk 는 `@@ -25 +25 @@` · `@@ -39 +39 @@` 2 개뿐 (21 · 41 · 43 · 51 · 58 · 86 행 미등장, 순수 삭제 0). modules.md 256 · UC-09 174 무편집. 변경 파일 **3 개** · diff **110 LOC**.
+- **T-1422 § 12.20 한계 2 + T-1421 § 12.19 한계 2 동시 closure** · T-1421 Follow-up 1 closure. 잔여는 8 row 동종 귀속 · 58 · 86 행 산문 · UC-09 `§ 5` participant (5 회째 이월) · data-model.md 38 행 · api.md 223 행.
+- **R-110 / R-112 N/A** — 본 task 는 `commitMode: direct` + production code **0 LOC** · 분기 0 이므로 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 면제" 조항에 따라 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 해당 없음.

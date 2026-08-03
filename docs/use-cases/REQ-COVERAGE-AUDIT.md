@@ -1502,6 +1502,114 @@ $ git diff -U0 -- docs/architecture/modules.md | grep '^@@'
 3. **UC-09 `§ 5` sequence participant 12 행 병기 여부 미판정** — T-1421 Follow-up 2 (§ 12.19 한계 1) 는 본 slice Out of Scope 로 그대로 남는다. `§ 5` 의 `AssessmentModule` participant 어휘와 `§ 9` 의 병기 화법 사이 표현 밀도 차이도 미해소다.
 4. **T-1421 Follow-up 3 의 잔여 2 축 미해소** — `data-model.md` 38 행 `13 entity` vs 실 row 14 · `api.md` 223 행 링크 범위. 본 절은 `modules.md` 축만 닫았으므로 Follow-up 3 전체 closure 는 **아직 아니다**.
 
+### 12.21 INDEX.md 25 행 module 허용 어휘 정본 12 동기 + 39 행 UC-09 row 귀속 판정 (T-1423)
+
+> 본 절은 [T-1423](../tasks/T-1423-index-module-vocabulary-resync.md) 가 § 12.20 (T-1422) 한계 2 와 § 12.19 (T-1421) 한계 2 가 **동시에 지목** 한 [INDEX.md](INDEX.md) 파생 2 지점 (**25** 행 허용 어휘 · **39** 행 UC-09 row) 을 닫은 기록이다. T-1422 가 정본 [modules.md](../architecture/modules.md) 를 표 · topological 열거 · mermaid node · 산문 카운트 4 축 모두 **12** 로 자기정합시켜 파생 정정의 선행 조건이 충족됐고, [INDEX.md](INDEX.md) **114** 행 §5 갱신 룰 5 ("components.md / modules.md 의 component / module 명이 갱신되면 본 표의 컬럼을 동기") 가 본 절의 발동 근거다. 본 절이 편집한 문서는 [INDEX.md](INDEX.md) **하나** (2 행) 이며 [modules.md](../architecture/modules.md) · [components.md](../architecture/components.md) · `api.md` · `data-model.md` · `UC-01` ~ `UC-09` 본문은 **한 글자도 편집하지 않았다**. 삽입 위치는 § 12.20 마지막 행 뒤 · § 11 References 앞이고 `###` 이라 `## ` heading count 12 가 불변이다.
+
+#### 실측 선행 (편집 전 5 축 — 전제 전건 전부 성립)
+
+```
+(i)   $ sed -n '32,43p' docs/architecture/modules.md | grep -c "^| \*\*"   → 12  (기대값 일치, 정본 표 row)
+      AuthModule · PersistenceModule · UserModule · GithubModule · ConfluenceModule
+      · PermissionDeniedRecordModule · LlmModule · AssessmentModule
+      · AssessmentCollectionModule · AssessmentEvaluationModule · SchedulerModule · WebModule
+(ii)  $ sed -n '25p' docs/use-cases/INDEX.md
+      → 카운트 토큰 `8` · 괄호 `/` 열거 실제 **9** 개 · 정본 **12**  (기대값 일치 — 삼중 어긋남)
+      열거 9 = WebModule / AssessmentModule / UserModule / GithubModule / ConfluenceModule
+              / LlmModule / AuthModule / SchedulerModule / PersistenceModule
+      (i) − (ii) 차집합 3 = PermissionDeniedRecordModule · AssessmentCollectionModule
+                          · AssessmentEvaluationModule
+      (ii) − (i) 차집합 0  → 파생은 정본의 진부분집합, 오타 · 미실재 어휘 0
+(iii) $ sed -n '39p' docs/use-cases/INDEX.md | awk -F'|' '{print $6}'
+      → WebModule, AssessmentModule, AuthModule, UserModule, LlmModule, PersistenceModule  (6 개)
+      6 개 전부 (i) 의 12 개 안에 실재 → **미실재 0** (귀속 어긋남은 "명칭 부재" 형이 아니라 "layer 갈림" 형)
+(iv)  $ sed -n '31,38p' docs/use-cases/INDEX.md — 8 row 의 module 열 distinct  → 9  ((ii) 열거와 동일 집합)
+      9 ⊂ 12 (i) → 25 행 확장으로 무효화되는 row **0** → 본 slice blast radius 는 25 · 39 두 행에 고정
+(v)   $ wc -l INDEX.md → 123 · REQ-COVERAGE-AUDIT.md → 1518 · modules.md → 256 · UC-09 → 174   (baseline)
+      $ grep -c "^| UC-"  INDEX.md              →  9                                            (baseline)
+      $ grep -c "^## "    REQ-COVERAGE-AUDIT.md → 12 · $ grep -c "^\| REQ-" → 66                 (baseline)
+```
+
+5 축이 모두 전제와 일치해 **중단 지점은 없었다**. 특히 (iv) 가 본 slice 의 범위를 사전에 잠갔다 — 8 row 가 쓰는 어휘 9 개가 정본 12 의 부분집합이라, 25 행 확장은 기존 row 를 **하나도** 무효화하지 않는다.
+
+#### 25 행 처리 판정 + 반영
+
+§ 12.15 가 확정한 판별 기준 ("날짜 · task stamp 가 박힌 시점 기록 = 보존 / stamp 없는 현행 상태 서술 = in-place") 을 25 행에 적용하면, 그 행은 "…만 사용. 오타 0." 이라는 **현재 유효한 편집 규칙** 서술이고 날짜 · task stamp 가 없다 → **in-place 치환** 대상이다 (바로 위 21 행이 "본 task 시점에" 로 시작하는 시점 기록인 것과 정확히 대비된다).
+
+- **1 행 → 1 행 in-place**. 문장 골격 (`… 의 N NestJS module 명 (…) 만 사용. 오타 0.`) 과 [modules.md](../architecture/modules.md) 링크는 **보존** 하고, 카운트 토큰 `8` → `12` 와 괄호 열거 9 개 → 12 개를 **한 hunk 에서 동시** 교체했다. 열거 순서는 정본 표 row 순서 (32 ~ 43 행) 를 그대로 따른다. 카운트와 열거를 함께 바꿨으므로 T-1422 가 정본에서 닫은 "카운트 N vs 열거 M" 종류의 모순은 재발하지 않는다.
+- **24 행 (`8 component 명`) 은 무편집** — [components.md](../architecture/components.md) 실측 `grep -c "^| \*\*"` = **8** 이고 그 문서 18 행 산문도 `8 component` 라 정본과 정합이다 (T-1420 축 A 실측 승계). 갱신 룰 5 의 component 축은 발동 대상이 아니다.
+
+#### 39 행 (UC-09 row) 처리 방식 3 후보 판정
+
+판정 축 3 개 — ① [UC-09](UC-09-user-defined-period-evaluation.md) `§ 9` 무모순 (`§ 9` 는 `5 component + 6 module` 을 **산정 기준까지 명시** 해 박제했다 — "산정 대상은 표 module 열의 INDEX 허용 어휘 distinct 수, 병기 괄호는 부기라 산정 제외"), ② blast radius (표 셀 1 개 = 1 행 in-place 로 끝나는가), ③ 나머지 8 row (31 ~ 38 행) 무편집 상태에서 39 행만 바꿀 때 생기는 표기 비대칭의 허용 여부.
+
+| 후보 | ① `§ 9` 무모순 | ② blast radius | ③ 비대칭 | 판정 |
+| --- | --- | --- | --- | --- |
+| **(A) 치환** — `AssessmentModule` → `AssessmentEvaluationModule` (+ `AssessmentCollectionModule`) | **위배** — module 열 distinct 가 6 → 7 로 늘어 `§ 9` 가 박제한 `6 module` 을 직접 부정한다 | 1 행 in-place | 어휘 집합 자체가 8 row 와 갈려 비대칭이 가장 크다 | **기각** — 무편집 경계인 UC-09 본문의 확정 수치를 파생 index 가 부정하는 역전이라 축 ① 단독으로 탈락 |
+| **(B) 병기** — `§ 9` 가 채택한 부기 화법과 동형 | **성립** — 병기는 괄호 부기라 distinct 산정 대상이 아니어서 `6 module` 불변 | 1 행 in-place | 39 행에만 괄호 부기가 붙는 비대칭이 발생하나, 그 행이 가리키는 본문 `§ 9` 가 이미 같은 화법을 쓰므로 **본문 ↔ index 정합** 이 표 내부 균질성보다 우선한다 | **채택** |
+| **(C) 무편집** — 39 행은 후속 slice 로 이월 | 성립 (수치 불변) | 0 | 비대칭 0 | **기각** — 25 행 확장으로 허용 어휘 제약이 풀린 **바로 그 slice** 에서 판정하지 않으면 T-1421 → T-1422 → 본 slice 로 이미 3 회 이월된 같은 모순이 4 회째로 넘어간다. 이월 비용이 비대칭 비용을 넘는다 |
+
+**채택 = (B) 병기.** 39 행 module 열의 `AssessmentModule` 뒤에 괄호 부기 1 구 (평가 축 = `AssessmentEvaluationModule` / 수집 축 = `AssessmentCollectionModule`, [modules.md](../architecture/modules.md) 197 · 198 행 정본 + `6 module` 산정 불변 명시) 를 붙여 **1 행 → 1 행 in-place** 로 반영했다. `|` 를 추가하지 않았으므로 표 열 수 (7 열) · row 수 (9) 는 불변이다.
+
+#### 무편집 경계 (시점 기록 보존)
+
+다음 6 지점은 **전부 무편집** 이고 diff 에 미등장한다.
+
+| 행 | 내용 | 무편집 근거 |
+| --- | --- | --- |
+| **21** | `본 task 시점에 UC-01 ~ UC-08 의 8 개 use case 식별` | T-0019 시점 기록 — **51 행이 이미 "무편집 보존" 으로 판정한 선례를 승계** |
+| **41** | `총 8 UC. README 의 7 단락에서 추출` | 동상 (51 행 선례 승계) |
+| **43** | `P2 UC 본문 분해 8/8 closure` | T-0020 ~ T-0028 시점 closure 기록 |
+| **51** | T-1412 의 UC-09 row 등록 기록 | 그 자체가 위 선례를 담은 시점 기록 |
+| **58 · 86** | §3 description 산문의 `AssessmentModule` 언급 | 표 축과 산문 축은 처리 단위가 달라 별도 slice (아래 파생 영향 ②) |
+
+21 · 41 행의 선례 승계는 § 12.15 판별 기준과도 같은 방향이다 — 두 행 모두 특정 시점의 산출을 기록하며, 현행 총계 **9** 는 51 행과 § 12.17 이 이미 별도로 박제하고 있어 오독 위험이 없다.
+
+#### 파생 영향 목록 (본 slice 편집 금지 — 후속 slice 소관)
+
+본 절이 확정한 허용 어휘 **12** 는 다음 지점을 여전히 stale 로 남긴다. 목록만 남기고 **편집하지 않는다**.
+
+1. **31 · 36 · 37 행 (UC-01 / UC-06 / UC-07) 의 `AssessmentModule` 귀속** — 실 shipped 는 수집 `AssessmentCollectionModule` / 평가 `AssessmentEvaluationModule` 로 갈린다 (T-1421 이 UC-09 에서만 해소한 것과 **같은 종류**). 32 · 38 행 (UC-02 / UC-08) 의 `AssessmentModule` 도 같은 축이나 placeholder 책임과의 대조가 별도로 필요하다. 8 row 동시 재귀속은 blast radius 가 달라 **후속 slice 소관**.
+2. **58 · 86 행 §3 description 산문의 동종 귀속** — 표 셀이 아니라 산문 문장이라 처리 단위가 다르다. **후속 slice 소관**.
+3. **[UC-09](UC-09-user-defined-period-evaluation.md) `§ 5` sequence participant 병기 미판정** — T-1421 Follow-up 2 가 **4 회 이월** 중이다 (§ 12.19 한계 1 · § 12.20 한계 3). `§ 9` 는 병기를 채택했으나 `§ 5` participant 어휘는 그대로다. **후속 slice 소관**.
+
+#### closure 선언
+
+- **§ 12.20 (T-1422) 한계 2 · § 12.19 (T-1421) 한계 2 동시 closure** — 두 절이 같은 문장으로 이월한 "INDEX 25 · 39 행 파생 stale 잔존" 은 본 절로 닫힌다. 25 행은 정본 12 동기로, 39 행은 (B) 병기 채택으로 각각 해소됐고 승계 대상이 남지 않는다.
+- **T-1421 Follow-up 1 closure** — "INDEX 허용 어휘 정본 동기" 는 위 25 행 처리로 이행됐다.
+- **T-1421 Follow-up 3 잔여 2 축은 여전히 미해소** — ① [data-model.md](../architecture/data-model.md) **38** 행 `13 entity` vs 실 row **14**, ② `api.md` **223** 행 링크 범위가 9 UC 와 어긋나는 건. § 12.20 이 `modules.md` 축을, 본 절이 그 **파생 축** 을 닫았을 뿐이라 Follow-up 3 전체 closure 는 아직 아니다. 각각 별도 slice.
+
+#### 불변 검산
+
+```
+$ sed -n '25p' docs/use-cases/INDEX.md | grep -c "12 NestJS module"          →  1   (카운트 8 → 12)
+$ sed -n '25p' docs/use-cases/INDEX.md | grep -o "Module" | wc -l            → 12   (열거 9 → 12, 카운트와 일치)
+$ sed -n '25p' docs/use-cases/INDEX.md | grep -c "8 NestJS module"           →  0   (stale 잔여 0)
+$ sed -n '39p' … | grep -o "AssessmentEvaluationModule\|AssessmentCollectionModule" | wc -l → 2  (병기 반영)
+$ wc -l  docs/use-cases/INDEX.md                                             → 123  (불변 — 2 행 모두 1:1 치환)
+$ grep -c "^| UC-" docs/use-cases/INDEX.md                                   →   9  (불변)
+$ awk -F'|' 'NR>=29 && NR<=39 {print NF}' docs/use-cases/INDEX.md | sort -u   →   9  (표 열 수 불변 = 7 열)
+$ wc -l  docs/architecture/modules.md → 256 · UC-09 → 174                           (불변 — 무편집)
+$ wc -l  docs/use-cases/REQ-COVERAGE-AUDIT.md                                → 1518 → 1626  (§ 12.21 append 108 행)
+$ grep -c "^\| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md                    →  66  (불변)
+$ grep -c "^## "     docs/use-cases/REQ-COVERAGE-AUDIT.md                    →  12  (불변, `###` 만 추가)
+$ git status --porcelain → M INDEX.md · M REQ-COVERAGE-AUDIT.md · M T-1423 task 파일  (정확히 3 개)
+$ git diff -U0 -- docs/use-cases/INDEX.md | grep '^@@'
+@@ -25 +25 @@    @@ -39 +39 @@
+   → 21 · 41 · 43 · 51 · 58 · 86 행 hunk 미등장 = 무편집 증명
+$ git diff --numstat -- docs/use-cases/INDEX.md                              →  2  2
+   → 삭제 2 는 전부 in-place 치환의 짝 → **순수 삭제 0**
+```
+
+[modules.md](../architecture/modules.md) · [components.md](../architecture/components.md) · `api.md` · `data-model.md` · `UC-01` ~ `UC-09` 본문 · `docs/PLAN.md` · `docs/requirements.md` · `prisma/` · `src/` · `test/` 는 `git status --porcelain` 에 **미등장** 한다. 변경 파일 **3 개** · 합계 diff ≤ 300 LOC 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 **N/A** 다.
+
+#### 한계 —
+
+1. **31 ~ 38 행 8 row 의 동종 귀속 어긋남 잔존** — 본 절은 허용 **어휘 목록** 을 12 로 넓혔을 뿐, 실제 귀속 판정은 39 행 (UC-09) 1 개만 수행했다. 어휘가 넓어진 만큼 8 row 의 `AssessmentModule` 귀속은 이제 "허용 어휘 밖" 이 아니라 "허용 어휘 안의 부정확한 선택" 이 됐고, 이는 기계적 검출이 더 어려워졌다는 뜻이기도 하다.
+2. **UC-09 `§ 5` sequence participant 병기 미판정 잔존** — T-1421 Follow-up 2 가 본 slice 에서도 Out of Scope 라 **5 회째 이월** 된다. `§ 9` 병기와 `§ 5` 무병기 사이 표현 밀도 차이도 미해소다.
+3. **25 행은 정본의 열거형 복제라 구조적으로 재-stale 된다** — 본 절이 카운트 · 열거를 동시에 맞췄어도 **13 번째 module 이 shipped 되는 순간** 다시 어긋난다. T-1422 § 12.20 한계 1 이 예고한 "표 · topological 열거 · mermaid node · 산문 카운트 4 축 동시 갱신" 규약에 **INDEX 25 행 허용 어휘를 5 번째 축으로 편입** 해야 같은 사고가 재발하지 않는다.
+4. **39 행 병기로 표 안 표기 비대칭이 실재한다** — 축 ③ 에서 허용으로 판정했으나 해소된 것은 아니다. 향후 8 row 재귀속 slice 가 화법을 통일할 때 39 행 부기 형식을 정본으로 삼을지, 아니면 9 row 전체를 치환형으로 옮길지 함께 결정해야 한다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
