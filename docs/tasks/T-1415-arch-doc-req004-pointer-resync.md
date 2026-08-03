@@ -2,7 +2,7 @@
 id: T-1415
 title: api.md 211 · 223 행 · data-model.md 168 행 REQ-004 gap pointer 동기 + audit §12.13 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 45
