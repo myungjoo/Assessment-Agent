@@ -2,7 +2,8 @@
 id: T-1421
 title: UC-09 §9 136 · 137 행 module 귀속 어긋남의 처리 방식 판정 + shipped 정본 반영 + audit §12.19 기록
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-03T08:45:00Z
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 90
