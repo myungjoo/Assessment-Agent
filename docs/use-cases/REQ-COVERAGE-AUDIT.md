@@ -35,7 +35,7 @@ REQ 의 cover 방식을 다음 4 enum 으로 분류:
 | REQ-001 | Constraint | infrastructure | [README.md](../../README.md) 본문 + 본 [INDEX.md](INDEX.md) | "본 문서는 Use Case 문서의 기본" — meta 지시, doc-level 정책 |
 | REQ-002 | FR | cross-cutting | [components.md](../architecture/components.md) Web UI + [modules.md](../architecture/modules.md) WebModule | UC-02 ~ UC-07 모두 Web UI 필요. 단일 UC 가 cover 하지 않음 |
 | REQ-003 | FR | cross-cutting | UC-01 (생성) + UC-02 (표시) | "기여 양·질 평가 / 저장 / 표시" — UC-01 + UC-02 의 envelope |
-| REQ-004 | FR | gap | — | 사용자 지정 기간 임의 평가문 — UC-01 cron / manual 둘 다 cover 안 함. §6 follow-up · 2026-08-02 재판정: §9 참조 |
+| REQ-004 | FR | uc-covered | UC-09 | 사용자 지정 기간 임의 평가문 — UC-01 cron / manual 둘 다 cover 안 함. §6 follow-up · 2026-08-02 재판정: §9 참조; 2026-08-03 재분류 (T-1413): UC-09 신설로 uc-covered — 근거 §12.11 |
 | REQ-005 | FR | uc-covered | UC-01, UC-08 (인접) | github.com 평가 — UC-01 coversReq |
 | REQ-006 | FR | uc-covered | UC-01, UC-08 (인접) | github.sec 평가 — UC-01 coversReq |
 | REQ-007 | FR | uc-covered | UC-01, UC-08 (인접) | github.ecode 평가 — UC-01 coversReq |
@@ -111,8 +111,9 @@ REQ 의 cover 방식을 다음 4 enum 으로 분류:
 - **UC-06** (평가 결과 delete + 재수집) — coversReq: REQ-037, 041, 045. adjacent: REQ-032, 038, 043, 044.
 - **UC-07** (Export/Import/Backup/Restore) — coversReq: REQ-030, 032, 045. adjacent: REQ-037, 038, 043, 044.
 - **UC-08** (권한 부족 인식·통지) — coversReq: REQ-008, 016. adjacent: REQ-005, 006, 007, 014, 015, 043, 044, 045, 046.
+- **UC-09** (사용자 지정 기간 임의 평가문 요청) — coversReq: REQ-004. adjacent: REQ-035, 038, 039, 040, 043, 045, 046, 048, 049. relatedUc: UC-01, UC-02.
 
-8 UC 의 coversReq union: 33 REQ. envelope 잔차 15 REQ 포함 시 uc-covered 48 REQ. 합 = 33 + 15 + 4 cross-cutting + 13 infrastructure + 1 gap = 66 (역산 일치 → §5 참조).
+9 UC 의 coversReq union: 34 REQ. envelope 잔차 15 REQ 포함 시 uc-covered 49 REQ. 합 = 34 + 15 + 4 cross-cutting + 13 infrastructure + 0 gap = 66 (역산 일치 → §5 참조).
 
 > 위 envelope 잔차 **15** 와 UC-01 bullet 이 나열한 envelope-cover **13** 건의 차이 2 건은 REQ-031 · REQ-034 다 — 106 행 bullet 은 이 둘을 `adjacent` 로 적었으나 §3 매트릭스는 `uc-covered` 로 분류한다. 즉 13 과 15 는 모순이 아니라 나열 기준 (bullet 서술 vs 매트릭스 분류) 의 차이이며, 본 요약 행의 anchor 는 **§3 매트릭스 실측** 이다. 2026-08-02 재판정 (T-1395) 결과 이 anchor 는 **유지** — 65 · 68 행이 `인접` 을 근거로 적으면서 분류는 `uc-covered` 로 두므로 `adjacent` 는 `uc-covered` 의 배제 사유가 아니라 하위 근거이며, bullet 의 `adjacent` 표기와 매트릭스 분류는 양립한다 (§10 참조).
 
@@ -120,10 +121,10 @@ REQ 의 cover 방식을 다음 4 enum 으로 분류:
 
 | 분류 | count | percentage | 비고 |
 | --- | --- | --- | --- |
-| `uc-covered` | 48 | 73 % | 33 REQ 가 1+ UC 의 coversReq 직접 명시 + 15 REQ 가 UC envelope 내부 algorithmic / data-model cover |
+| `uc-covered` | 49 | 74 % | 34 REQ 가 1+ UC 의 coversReq 직접 명시 + 15 REQ 가 UC envelope 내부 algorithmic / data-model cover |
 | `cross-cutting` | 4 | 6 % | REQ-002 (Web Interface) / REQ-003 (생성+저장+표시 meta) / REQ-029 (non-volatile NFR) / REQ-047 (perf NFR) |
 | `infrastructure` | 13 | 20 % | REQ-001 / REQ-017 / REQ-056 ~ REQ-066 (운영·CI·agent 정책) |
-| `gap` | 1 | 2 % | REQ-004 (사용자 지정 기간 임의 평가문) — §6 follow-up · 2026-08-02 재판정: §9 참조 |
+| `gap` | 0 | 0 % | REQ-004 (사용자 지정 기간 임의 평가문) — §6 follow-up · 2026-08-02 재판정: §9 참조 · 2026-08-03 재분류 (T-1413): UC-09 신설로 uc-covered 전이 — §12.11 |
 | **합** | **66** | **100 %** | requirements.md row 수와 일치 — 검산 통과 |
 
 ## 6. gap follow-up
@@ -296,14 +297,15 @@ row 1 개 판정에 요구되는 **근거 3 종**:
 | # | 지점 | 현재 값 | 갱신 트리거 조건 |
 | --- | --- | --- | --- |
 | (a) | §3 해당 row 의 `cover 방식` · `cover 위치` · `참고` 셀 | row 당 분류값 1 개 (66 row) | **모든** enum 전이. 표기 오류만이면 `cover 위치` · `참고` 셀만 |
-| (b) | §4 106 ~ 113 행 8 UC bullet | UC 별 coversReq / adjacent / envelope-cover 나열 8 줄 | `→ uc-covered` 또는 `uc-covered →` 전이일 때만 (해당 UC bullet 의 envelope · adjacent 나열 증감) |
-| (c) | §4 115 행 정합식 | `33 + 15 + 4 + 13 + 1 = 66` | 4 항 중 하나라도 증감하는 전이 전부. 33 (frontmatter union) 은 UC frontmatter 를 고치지 않는 한 불변이라 실제로 움직이는 것은 15 / 4 / 13 / 1 항 |
-| (d) | §5 121 ~ 127 행 표 count 4 값 + 합계 row | `48 / 4 / 13 / 1` · `73 / 6 / 20 / 2 %` · 합계 `**66**` · `**100 %**` + 비고 셀 | (c) 와 동일 트리거. 합계 66 · 100 % 는 row 수 불변이라 **항상 무변**, percentage 4 값은 반올림 재산출 필요 |
+| (b) | §4 106 ~ 114 행 9 UC bullet | UC 별 coversReq / adjacent / envelope-cover 나열 9 줄 | `→ uc-covered` 또는 `uc-covered →` 전이일 때만 (해당 UC bullet 의 envelope · adjacent 나열 증감) |
+| (c) | §4 116 행 정합식 | `34 + 15 + 4 + 13 + 0 = 66` | 4 항 중 하나라도 증감하는 전이 전부. 34 (frontmatter union) 은 UC frontmatter 를 고치지 않는 한 불변이라 실제로 움직이는 것은 15 / 4 / 13 / 0 항 |
+| (d) | §5 122 ~ 128 행 표 count 4 값 + 합계 row | `49 / 4 / 13 / 0` · `74 / 6 / 20 / 0 %` · 합계 `**66**` · `**100 %**` + 비고 셀 | (c) 와 동일 트리거. 합계 66 · 100 % 는 row 수 불변이라 **항상 무변**, percentage 4 값은 반올림 재산출 필요 |
 | (e) | `docs/use-cases/INDEX.md` 118 행 | `uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1` | (c) · (d) 발동 후 그 결과 수치를 옮겨 적을 때 |
 | (f) | `docs/PLAN.md` 36 행 | `uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1 = 66` + gap 1 건 서술 | (e) 와 동일. gap count 가 바뀌면 gap 서술 문장도 함께 |
 
 §9.4 · §10 의 이전 요약 문장은 **cascade 갱신 대상이 아니다** — append-only 규약상 각 시점 판정을 그대로 보존하고 이후 상태는 새 bullet 이 가리킨다 (214 행이 200 · 209 행에 대해 쓴 시점 구분 화법이 정본).
 2026-08-03 (T-1412): INDEX.md 의 UC-09 row · description 등록으로 (e) 지점 행 번호가 110 → 118 로 이동 (수치 문자열 무변). §12.6 ~ §12.10 본문의 `110 행` 표기는 시점 기록이라 append-only 규약대로 보존.
+2026-08-03 (T-1413): §4 에 UC-09 bullet 1 행 삽입으로 편집 전 114 행 이하가 +1 (본 각주 이후 구간은 +2) 이동 — (b) · (c) · (d) 셀의 행 pointer 와 현재 값을 동기했다. §9 · §10 · §12.6 ~ §12.10 본문의 `115 행` · `121 ~ 127 행` · `L212` 등 옛 행 표기는 시점 기록이라 append-only 규약대로 보존.
 
 ### 12.4 cascade 순서 + 원자성 규약
 
@@ -787,6 +789,81 @@ hunk 은 **정확히 2 개** (audit 삽입 1 · PLAN 1:1 치환 1) 이고 삭제
 2. **지목 공백의 다른 3 지점 미정정** — `docs/architecture/api.md` 211 행 · `docs/architecture/data-model.md` 168 행 · §8 161 행의 `후속 task (T-0030+) 책임` 서술은 본 slice 의 대상 파일 밖이거나 append-only 보존 대상이라 그대로 남는다. 승계 task 를 실제로 생성하는 slice 가 한꺼번에 갱신하는 편이 경제적이다.
 3. **REQ-004 의 구현 축은 재실측하지 않았다** — §9.2 가 기록한 `POST /api/assessment-evaluation/period` · ADR-0037 · requirements.md 23 행 `IN_PROGRESS` 는 인용만 하고 본 절에서 다시 확인하지 않았다. 본 절이 계측한 축은 §9.3 의 구분대로 **UC 문서 cover 축** 이다.
 4. **재판정 후보 밖 49 row 는 여전히 미재판정** — §12.8 한계 1 · §12.9 한계 4 가 그대로 유효하다.
+
+### 12.11 REQ-004 `gap` → `uc-covered` 실판정 + cascade (a) ~ (d) 원자 실행 (T-1413)
+
+> 본 절은 [T-1413](../tasks/T-1413-req004-gap-to-uc-covered-reclassification.md) 이 §3 38 행 REQ-004 row 1 건을 §12.2 근거 3 종 + 2/3 임계로 **실판정** 하고, 그 결과 발동한 §12.3 cascade (a) ~ (d) 를 §12.4 원자 묶음 규약대로 **한 slice 안에서** 실행한 기록이다. **삽입 위치는 §12.10 마지막 행 뒤 · §11 References 앞** 이고 `###` 이라 `## ` heading count 가 12 로 불변이다 — §12.6 ~ §12.10 이 승계해 온 위치 규약 그대로다. 판정 대상은 §12.1 의 후보 17 row 밖 (REQ-004 는 `gap` row 라 rule (R) 의 후보가 아니다) 이지만, §9.1 의 3 축이 T-1411 · T-1412 로 전부 뒤집혀 §12.2 임계가 분류 변경을 강제한 건이다.
+
+#### 실측 명령 (축 3 회 + 원문 확인 1 회)
+
+```
+$ ls docs/use-cases/UC-09*.md
+docs/use-cases/UC-09-user-defined-period-evaluation.md          (1 파일 — 2026-08-02 시점 0)
+$ grep -n "^coversReq" docs/use-cases/UC-*.md
+UC-01:7 [REQ-005 …]  UC-02:7 [REQ-038 …]  UC-03:7  UC-04:7  UC-05:7  UC-06:7  UC-07:7  UC-08:7   (8 배열 모두 REQ-004 없음)
+UC-09-user-defined-period-evaluation.md:7:coversReq: [REQ-004]  ← 9 배열 중 1 개 (시점 0 / 8)
+$ grep -c "REQ-004" docs/use-cases/UC-*.md
+UC-01 0 · UC-02 0 · UC-03 0 · UC-04 0 · UC-05 0 · UC-06 0 · UC-07 0 · UC-08 0 · UC-09 **8**
+$ awk 'NR==23' docs/requirements.md            # read only — 무편집
+23: REQ-004 | 9 | 수치 지표 + LLM 평가 코멘트 (사용자 지정 기간) | FR | P5 | unit + e2e | IN_PROGRESS (…)
+```
+
+#### 근거 3 종 환산 + 임계 적용
+
+| 근거 | §9.1 시점 (2026-08-02) | 본 slice 실측 (2026-08-03) | 현 분류 `gap` 과의 대조 |
+| --- | --- | --- | --- |
+| (i) UC frontmatter | `coversReq` 에 REQ-004 포함 UC **0 / 8** | UC-09 7 행 `coversReq: [REQ-004]` — **1 / 9** | **어긋남** — 1+ UC 의 coversReq 명시는 §2 24 행 `uc-covered` 정의 그 자체 |
+| (ii) UC 본문 hit | 8 파일 전건 **0** (합 0) | UC-09 **8 hit** · UC-01 ~ UC-08 은 각 0 그대로 | **어긋남** — 본문 §5 / §6 / §8 anchor 가 실재 |
+| (iii) requirements 원문 + cover 위치 셀 | kind `FR` 일치 · cover 위치 셀 `—` (지목 없음) 이 당시 사실과 부합 | kind `FR` 여전히 일치하나 cover 위치 셀 `—` 는 UC-09 실재로 **stale** | **어긋남** — 지목 공백이 사실과 어긋남 |
+
+**어긋남 3 / 3 → §12.2 288 행 임계 (2 종 이상) 초과 → 분류 변경 확정.** `gap` → **`uc-covered`**, cover 위치 `—` → **`UC-09`**. §9.4 188 행이 `gap` 유지의 근거로 든 3 축 (파일 0 · coversReq 0 / 8 · 본문 0) 이 전부 뒤집혔으므로 그 판정은 **시점 기록으로 보존** 하고 본 절이 이후 상태를 가리킨다 (§12.3 306 행 append-only 규약).
+
+부기 — §9.3 이 못박은 대로 본 판정의 축은 **UC 문서 cover 축** 이다. §9.2 의 구현 실재 (route · ADR-0037 · requirements 상태) 는 판정 입력이 아니며 본 절에서 재실측하지 않았다. 즉 분류를 움직인 것은 코드가 아니라 **T-1411 의 UC-09 본문 + T-1412 의 INDEX 등록** 이다.
+
+또한 §12.10 축 A 가 남긴 **"권장 (a) UC-09 신설 미착수 (0 / 1)"** 판정은 T-1411 의 UC-09 신설로 본 slice 시점에 **해소** 됐다 (해당 §12.10 본문은 시점 기록이라 무편집).
+
+#### cascade 실행 기록 — (a) ~ (d) 원자 실행 / (e) · (f) 이월
+
+- **(a) §3 38 행** — `cover 방식` `gap` → `uc-covered`, `cover 위치` `—` → `UC-09`, `참고` 셀은 기존 문자열 보존 + `; 2026-08-03 재분류 (T-1413): …` 첨가 (append-only). `|` 필드 5 컬럼 불변.
+- **(b) §4** — UC-08 bullet 다음 **114 행** 에 UC-09 bullet 1 행 삽입 → bullet **9 줄**. 나열 값은 UC-09 frontmatter 7 ~ 9 행에서만 옮겨 적었고 (`coversReq: REQ-004` · adjacent 9 종 · relatedUc 2 종), 근거 없는 `envelope-cover` label 은 붙이지 않았다. 기존 8 bullet 은 무편집.
+- **(c) §4 116 행 정합식** — `8 UC … 33 REQ` → `9 UC … 34 REQ`, `uc-covered 48 REQ` → `49 REQ`, 합산식 `33 + 15 + 4 + 13 + 1 = 66` → **`34 + 15 + 4 + 13 + 0 = 66`**. envelope 잔차 `15` 항은 **무변** 이라 §12.6 384 행이 부속으로 지목한 §4 118 행 blockquote 는 무편집이다.
+- **(d) §5 122 ~ 128 행 표** — `uc-covered` 48 → **49** · 73 % → **74 %** (49 / 66 = 74.2 반올림) · 비고 셀 `33 REQ` → `34 REQ`, `gap` 1 → **0** · 2 % → **0 %** · 비고 셀 append (row 자체는 **삭제하지 않음** — 삭제 시 행 이동 + 시점 근거 소실). `cross-cutting` 4 (6 %) · `infrastructure` 13 (20 %) · 합계 `**66**` · `**100 %**` 는 무편집. percentage 합 검산: **74 + 6 + 20 + 0 = 100**.
+- **(e) `docs/use-cases/INDEX.md` 118 행 · (f) `docs/PLAN.md` 36 행** — §12.4 312 행의 **분리 허용** 그대로 **후속 slice 로 명시 이월**. 본 slice 는 두 파일을 한 글자도 건드리지 않았다 (`wc -l` 각 122 · 175 불변 · `git status` 미등장).
+- **§12.3 표 동기** — (b) · (c) · (d) 셀의 행 pointer 와 `현재 값` 을 편집 후 실측값으로 1:1 치환하고 표 아래에 T-1413 각주 1 줄을 append 했다. (a) · (e) · (f) row 는 무편집 — (a) 는 행 pointer 가 없고 (e) · (f) 는 **아직 옛 수치가 실제** 다.
+
+#### 불변 검산 + hunk 국한 검증 (doc-only, R-112 대체)
+
+| # | 검산식 | 요구치 | 실측 |
+| --- | --- | --- | --- |
+| (a) | `grep -c "^\| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md` | 66 불변 | **66** |
+| (b) | `grep -c "^## " docs/use-cases/REQ-COVERAGE-AUDIT.md` | 12 불변 (`###` / `####` 만 추가) | **12** |
+| (c) | `grep -n "^\| REQ-004 \|"` 출력 | `uc-covered` · `UC-09` 포함 · `\| gap \|` 미포함 | **충족** |
+| (d) | §5 표 count 4 값 + 합계 | `49 / 4 / 13 / 0` · 합 `**66**` · `**100 %**` | **49 / 4 / 13 / 0 = 66** · 합계 row 무변 |
+| (e) | `wc -l docs/PLAN.md` | 175 불변 | **175** · `git status` 미등장 |
+| (f) | `wc -l docs/use-cases/INDEX.md` | 122 불변 | **122** · `git status` 미등장 |
+
+```
+$ git diff -U0 | grep '^@@'
+@@ -38 +38 @@        (§3 REQ-004 row — 1:1 치환)
+@@ -113,0 +114 @@    (§4 UC-09 bullet 1 행 삽입)
+@@ -115 +116 @@      (§4 정합식 — 1:1 치환)
+@@ -123 +124 @@      (§5 uc-covered row — 1:1 치환)
+@@ -126 +127 @@      (§5 gap row — 1:1 치환)
+@@ -299,3 +300,3 @@   (§12.3 표 (b) · (c) · (d) 셀 — 3 행 1:1 치환)
+@@ -306,0 +308 @@    (§12.3 각주 1 행 append)
+@@ -790,0 +793,75 @@  (§12.11 삽입 — §12.10 마지막 행과 §11 References 사이)
+$ git diff --numstat
+84      7       docs/use-cases/REQ-COVERAGE-AUDIT.md
+```
+
+audit 파일의 **삭제 열 7 은 전부 in-place 치환의 짝** (38 · 116 · 124 · 127 행 4 건 + §12.3 표 3 행) 이라 **순수 삭제 0** 이고, 삽입 84 중 75 가 본 절 신설분이다. 변경 파일은 audit 1 + 본 task 파일 1 = **2 개** 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 §3.2 의 면제 조항으로 R-110 tester 호출도 N/A 다.
+
+#### 한계 —
+
+1. **cascade (e) · (f) 미동기 lag 존속** — `docs/use-cases/INDEX.md` 118 행 · `docs/PLAN.md` 36 행은 여전히 `uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1` 과 gap 1 건 서술을 담고 있다. 이는 §12.4 312 행이 **명시 허용한 분리** 이며 (파일이 다르고 성격이 요약 문구라 lag 이 모순을 만들지 않음), 후속 slice 가 닫는다.
+2. **옛 요약 문장 무편집** — §1 18 행 · §8 161 · 162 행 · §9.4 188 행의 `gap 1 건` 서술은 각 시점 판정의 기록이라 §12.3 306 행 규약대로 보존했다. §9 · §10 · §12.6 ~ §12.10 본문의 옛 행 표기 (`115 행` · `121 ~ 127 행` · `L212`) 도 같은 이유로 정정하지 않았다.
+3. **재판정 후보 밖 49 row 는 여전히 미재판정** — §12.8 한계 1 · §12.9 한계 4 · §12.10 한계 4 가 그대로 유효하다. 본 slice 도 REQ-004 **1 row** 만 판정했다.
+4. **UC-09 본문의 질적 충분성은 판정하지 않았다** — (i) · (ii) 는 frontmatter 선언과 본문 hit 의 **실재** 까지만 실측했고, UC-09 가 REQ-004 의 미충족 축 (프런트 노출 · 기간 종료 경계 · 좌표 종합 코멘트 — requirements.md 23 행) 까지 서술로 덮는지는 §12.6 한계 4 와 같은 이유로 범위 밖이다.
 
 ## 11. References
 

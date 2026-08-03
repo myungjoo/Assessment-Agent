@@ -109,4 +109,21 @@ plannerNote: "uc-doc-audit-resync 25 번째 slice — T-1412 Follow-up 1 (의존
 
 ## Follow-ups
 
-_(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)_
+1. **cascade (e) · (f) 수치 동기** — `docs/use-cases/INDEX.md` 118 행 closure 문단의 4 값 (`uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1`) + gap 서술, `docs/PLAN.md` 36 행의 같은 4 값 + gap 1 건 서술을 본 slice 확정값 (`uc-covered 49 / cross-cutting 4 / infrastructure 13 / gap 0`) 으로 옮겨 적는다. [§12.4](../use-cases/REQ-COVERAGE-AUDIT.md) 가 **분리 허용** 으로 남긴 지점이며, 동기 후 §12.3 표 (e) · (f) row 의 `현재 값` 열도 함께 치환해야 한다 (본 slice 는 두 row 무편집 — 옛 수치가 아직 실제라서).
+2. **`docs/architecture/api.md` 211 행 · `docs/architecture/data-model.md` 168 행 pointer 동기** — 두 곳의 "UC-09 신설 또는 UC-01 확장 후 추가 예정" 서술이 UC-09 실재 + 본 재분류로 stale. T-1411 Follow-up 3 · T-1412 Follow-up 3 이월분.
+3. **audit 198 행 `INDEX.md 104 행` 표기 최신성 점검** — T-1412 Follow-up 4 이월. §9.5 시점 기록 안의 stale 후보라 append-only 규약과의 관계 판정이 선행돼야 한다.
+4. **§8 161 · 162 행 · §1 18 행의 `gap 1 건` 결론 문장 처리 방침 확정** — 현재는 시점 기록으로 보존했으나, gap 0 이 된 이후 audit 문서 최상단 요약을 읽는 사람이 오독할 여지가 있어 "요약 절 말미에 현 시점 pointer 1 줄 append" 방식의 별도 slice 가 필요한지 판정.
+
+## 완료 기록 (2026-08-03)
+
+**Status: DONE.** 변경 파일 **정확히 2 개** — `docs/use-cases/REQ-COVERAGE-AUDIT.md` (+84/-7) · 본 task 파일. `git status --porcelain` 에 `docs/use-cases/INDEX.md` · `docs/PLAN.md` · `docs/requirements.md` · `UC-01` ~ `UC-09` 본문 · `docs/architecture/api.md` · `data-model.md` **미등장** (AC 8). `wc -l docs/PLAN.md` = **175** · `wc -l docs/use-cases/INDEX.md` = **122** 불변. 합계는 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이며, audit 파일의 **삭제 열 7 은 전부 in-place 치환의 짝** (§3 38 행 · §4 116 행 · §5 124 · 127 행 + §12.3 표 3 행) 이라 **순수 삭제 0** 이다.
+
+**AC 1 (근거 3 종 재실측)** — (a) `ls docs/use-cases/UC-09*.md` → **1 파일** (시점 0), (b) `grep -n "^coversReq" docs/use-cases/UC-*.md` → **9 배열 중 1 개** (UC-09 7 행) 가 REQ-004 포함 (시점 0 / 8), (c) `grep -c "REQ-004" docs/use-cases/UC-*.md` → UC-01 ~ UC-08 **각 0** · UC-09 **8**. `docs/requirements.md` 23 행 (kind `FR`) 은 read only · 무편집. §12.2 frame 환산 결과 **어긋남 3 / 3** 으로 임계 (2 / 3) 초과 → 분류 변경 확정. 3 축 출력 + 환산표는 §12.11 에 박제.
+
+**AC 2 ~ 5 (cascade (a) ~ (d) 원자 실행)** — (a) 38 행 `gap` → `uc-covered` · `—` → `UC-09` · `참고` 셀 append-only 첨가, `grep -c "^| REQ-"` = **66** 불변이고 `grep -n "^| REQ-004 |"` 출력에 `uc-covered` · `UC-09` 포함 · `| gap |` 미포함. (b) UC-08 bullet 다음 **114 행** 에 UC-09 bullet 1 행 삽입 → 9 줄, 기존 8 bullet 무편집. (c) 116 행 정합식 → `9 UC … 34 REQ` · `uc-covered 49 REQ` · `34 + 15 + 4 + 13 + 0 = 66`, 118 행 envelope blockquote 는 `15` 항 무변이라 무편집. (d) §5 122 ~ 128 행 표 — `uc-covered` 49 / 74 % / 비고 `34 REQ`, `gap` 0 / 0 % / 비고 append (row 삭제 0), `cross-cutting` · `infrastructure` · 합계 row 무편집. percentage 합 검산 **74 + 6 + 20 + 0 = 100**.
+
+**AC 6 ~ 7 (§12.3 동기 + §12.11 신설)** — 편집 후 행 번호 재측정 (`grep -n "coversReq union"` = 116 등) 후 (b) `106 ~ 114 행 9 UC bullet` · `9 줄`, (c) `116 행` + `34 + 15 + 4 + 13 + 0 = 66`, (d) `122 ~ 128 행` + `49 / 4 / 13 / 0` · `74 / 6 / 20 / 0 %` 로 1:1 치환하고 (a) · (e) · (f) row 는 무편집. T-1412 각주 다음 줄에 T-1413 각주 1 줄 append (blank line 없이). §11 References 바로 앞에 `### 12.11 …` 절 (75 행) 신설 — `grep -c "^## "` = **12** 불변, 구성은 서두 blockquote / 실측 명령 블록 / 근거 3 종 환산표 + 판정 / cascade 실행 기록 (a) ~ (d) + (e) · (f) 이월 / 불변 검산 6 값 + hunk 국한 검증 / 한계 4 항. §12.10 축 A 의 "권장 (a) UC-09 신설 미착수 (0 / 1)" 해소 사실도 1 줄 기재 (§12.10 본문은 무편집).
+
+**AC 9 (R-110 / R-112 면제)** — 본 task 는 `commitMode: direct` + production code **0 LOC** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 만 본 규칙 면제" 조항으로 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 **N/A** 다 (분기 없음, architect / tester dispatch 0).
+
+**Out of Scope 준수** — cascade (e) INDEX.md 118 행 · (f) PLAN.md 36 행, api.md / data-model.md pointer, §1 18 행 · §6 · §8 · §9 · §10 · §12.6 ~ §12.10 본문, §4 118 행 envelope blockquote, audit frontmatter, 재판정 후보 17 row, UC / requirements 본문, 코드 계열 전부 **한 글자도 건드리지 않았다**.
