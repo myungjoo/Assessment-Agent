@@ -2,7 +2,8 @@
 id: T-1428
 title: INDEX.md 의 `AssessmentModule` 귀속 3 지점 (§3 산문 58 · 86 행 + §2 표 37 행 UC-07 row) 을 실 shipped module 과 문서↔코드 대조 후 audit §12.26 기록
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-03T15:52:00Z
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 190
@@ -95,3 +96,11 @@ planner 사전 확인 (executor 가 AC 1 에서 재측정) — `grep -n 'Assessm
 5. **행 번호 좌표계 → anchor 좌표계 이행** — 근거 **4 회 누적** (`§ 12.26` 파생 영향 5).
 6. **문서 tally ↔ 코드 실측 CI drift-guard spec** — `ls -d src/*/` vs 문서 module 명 축도 같은 spec 후보 (`§ 12.26` 파생 영향 6 · 한계 2).
 7. **INDEX 병기 ↔ 각 UC 본문 `§ 9` 산정 이중 관리 해소** — `§ 12.26` 파생 영향 7.
+
+## 결과 요약 (driver bookkeeping)
+
+- INDEX 의 `AssessmentModule` 귀속 **9 지점** 을 `src/` 실 shipped module 과 대조 → **정합 6 · 근거 확보 후 어긋남 3** (`37` · `58` · `86` 행) 확정, 근거 부재 0.
+- 4 후보 중 **(B) 원문 보존 + in-place 부기** 채택 — (A) 치환은 25 행 어휘 계약, (C) 말미 각주는 선례 일관성, (D) 이월은 근거 완비로 기각.
+- 편집 hunk **3 개**, 순수 삭제 **0**, `wc -l` **123 불변**. audit `§ 12.26` 신설 (References 앞 순수 append, `^## ` 12 불변).
+- 변경 3 파일 / +154-4. doc-only · production code 0 LOC 이라 `§ 3.2` direct-mode 면제 (R-110 tester · R-112 4 항목 · `test:cov` N/A).
+- direct push `1804bcce`, main CI run 30828951824 **conclusion=success** 실확인 (R-114 충족).
