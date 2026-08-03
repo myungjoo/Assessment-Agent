@@ -17,7 +17,7 @@
 - [docs/PLAN.md](../PLAN.md) Phase P3 (L47–66) + Phase P4 (L70–80) — phase boundary 의 1 차 source.
 - [docs/architecture/p3-implementation-plan.md](p3-implementation-plan.md) §6 P3 → P4 전이 조건 — entity 5/11 / module 2/5 / ADR 1/4 / test-quality 4/4 progress 박제 source.
 - [docs/architecture/data-model.md](data-model.md) — 11 entity inventory source (박제 5 + 미박제 6 = 11).
-- [docs/architecture/modules.md](modules.md) — 9 NestJS module 의 source. P3 scope 5 module 중 2 박제 + 3 미박제.
+- [docs/architecture/modules.md](modules.md) — 현행 정본 표 row 기준 **12 NestJS module** 의 source. P3 scope 5 module 중 2 박제 + 3 미박제 (이 tally 는 T-0062 시점 좌표계 — §2 이하 진척 수치와 함께 역사 박제로 보존, [REQ-COVERAGE-AUDIT § 12.29](../use-cases/REQ-COVERAGE-AUDIT.md)).
 - [docs/decisions/ADR-0004-smoke-e2e-db-mode.md](../decisions/ADR-0004-smoke-e2e-db-mode.md) — P3 진행 중 신설된 첫 ADR (T-0051 9109e65 PR-46 ACCEPTED). ADR progress 1/4 박제 source.
 - [docs/progress/journal-2026-05-27.md](../progress/journal-2026-05-27.md) — session #19 turn 1/2/3 의 9-cell closure milestone 박제 source.
 - [CLAUDE.md](../../CLAUDE.md) §3.1 (commitMode 정책) / §5 (HITL — 새 외부 dependency 추가는 BLOCKED) — 본 doc 가 doc-only direct 인 근거 source.
@@ -311,7 +311,7 @@ P3 잔여 backbone task 0 — 즉시 P4 진입, 잔여 work 가 P4 안에서 병
 - [docs/PLAN.md](../PLAN.md) Phase P3 (L47–66) + Phase P4 (L70–80) — phase boundary 의 1 차 source.
 - [docs/architecture/p3-implementation-plan.md](p3-implementation-plan.md) §6 P3 → P4 전이 조건 — entity 5/11 / module 2/5 / ADR 1/4 / test-quality 4/4 progress 박제 source.
 - [docs/architecture/data-model.md](data-model.md) — 11 entity inventory source.
-- [docs/architecture/modules.md](modules.md) — 9 NestJS module source.
+- [docs/architecture/modules.md](modules.md) — module 어휘의 정본 source (현행 정본 표 row **12**; 본문 §2 의 `9` 좌표는 T-0062 시점 박제라 보존 — [REQ-COVERAGE-AUDIT § 12.29](../use-cases/REQ-COVERAGE-AUDIT.md)).
 - [docs/architecture/api.md](api.md) — 9 resource prefix × 35 endpoint source.
 - [docs/architecture/INDEX.md](INDEX.md) — architecture document 목록 + MVA 원칙.
 - [docs/decisions/ADR-0004-smoke-e2e-db-mode.md](../decisions/ADR-0004-smoke-e2e-db-mode.md) — P3 진행 중 신설된 첫 ADR (ADR progress 1/4 박제 source).

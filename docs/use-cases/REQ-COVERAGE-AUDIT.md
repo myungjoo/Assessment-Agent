@@ -2685,6 +2685,127 @@ $ git status --porcelain
 2. **파생이 정본을 복제하는 구조가 잔존** — 파생 4 문서를 정본 12 로 맞췄을 뿐 복제 구조를 없애지 않았다. 정본 표에 row 가 하나 추가되는 순간 (파생 영향 2 의 ADR 통과 시) **같은 4 문서 5 지점 + 본 각주** 가 동시에 재-stale 이 되며, 사람 규약으로는 막을 수 없고 파생 영향 5 의 **CI drift-guard 축** 으로만 닫힌다.
 3. **채택안이 남긴 미해결** — (a) blueprint 성격 문서를 **실측 좌표계로 이행할지** 의 근본 판정은 미착수다. 본 절은 (C) 를 cap 사유로 기각했을 뿐 "P2 시점 blueprint 를 영구 보존할 것인가, 실 트리를 반영할 것인가" 를 결정하지 않았고, 그 미결이 남는 한 표 9 row · tree · 81 · 83 은 계속 각주 의존으로 설명된다. (b) 7 행이 길어져 한 문장 안에 정본값 · 시점 단서 · 각주 pointer 3 개가 공존한다 (가독성 trade-off, 파생 영향 4 소관). (c) 각주가 기록한 ③ 7 개는 **directory.md 표에도 정본 표에도** row 가 없는 3 개 (`export` / `import` / `user-instance-access`) 를 포함해, 두 문서의 미기재가 같은 ADR 게이트에 묶여 있다.
 
+### 12.29 시점 기록성 3 문서의 `modules.md` 파생 pointer 판정 — 4 지점 in-place · 1 지점 보존 (T-1431)
+
+> **본 절의 위치** — `§ 12.28` 은 파생 4 문서 ([INDEX.md](INDEX.md) · [data-model.md](../architecture/data-model.md) · [api.md](../architecture/api.md) · [directory.md](../architecture/directory.md)) 의 module 어휘 축 closure 를 선언하면서, **파생 영향 8** 로 "시점 기록성 module 수치 문서 3 종 ([components.md](../architecture/components.md) · `p3-implementation-plan.md` · `p3-to-p4-transition.md`) 은 `§ 12.15` 상 **보존 후보** 이며 별도 판정 slice 소관" 을 목록만 남겼다. 본 절이 그 위임된 판정을 실행한다. **계보** — `T-1422` (정본 확정 `12`) → `T-1423` → `T-1426` → `T-1429` → `T-1430` → **`T-1431` (본 절 — 정본 파생 문서 축의 마지막 잔여군)**. 본 절은 `§ 12.28` (pointer in-place) 과 `§ 12.15` (시점 기록 append-only) 를 **지점 단위로 병용** 한다.
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력 그대로)
+
+```
+(i) 문서 축 전수 — $ grep -n '[0-9] module\|[0-9] NestJS module' components.md p3-implementation-plan.md p3-to-p4-transition.md
+    components.md → hit 0 | p3-implementation-plan.md → 13 · 52 · 186 · 187 · 188 · 243 |
+    p3-to-p4-transition.md → 10 · 20 · 53 · 55 · 57 · 63 · 128 · 149 · 198 · 314   (= 전수 16 hit)
+    → ① 파생 pointer (정본이 지금 담는 내용을 현재형으로 지목) = 4 지점 — p3-implementation-plan 13 "modules.md —
+    T-A4 산출물. 9 NestJS module (8 application + PersistenceModule) … 의 source" · 243 "… 9 NestJS module. 본 표
+    "책임 module" 컬럼 source." · p3-to-p4-transition 20 "… 9 NestJS module 의 source. P3 scope 5 module 중 2 박제
+    + 3 미박제." · 314 "… 9 NestJS module source." (근거 1 구: 넷 다 modules.md 를 링크로 지목한 References / 기반
+    목록 bullet 이며 "…의 source" 술어로 끝난다).
+    → ② 시점 진척 tally = 12 지점 — p3-implementation-plan 52 ("합계: 25 task … / 1 module") · 186 ("박제 완료
+    2 module (40%)") · 187 · 188 · p3-to-p4-transition 10 · 53 ("progress 2/5 (40%)") · 55 · 57 · 63 · 128 · 149 ·
+    198 (근거 1 구: 전부 `박제 완료 / 미박제 / progress N/5 / 합계` 술어로 그 task 시점의 진척을 센다).
+    → 기대 불일치 1 건 — components.md hit 0 (기대 ① 5 중 11 행 미검출). 11 행은 숫자 없이 module class 명 8 개를
+    괄호 열거할 뿐이라 grep 모집단 밖 → AC 1 중단 규칙대로 components.md 축 편집 중단. 나머지 두 문서의 ① 4 ·
+    ② 12 는 기대값과 정확히 일치 (중단 사유 0).
+(ii) freeze marker 축 — $ sed -n '3p' components.md → "> 본 문서는 P1 T-A3 의 산출물이다. T-0016 가 … 8 component
+    table + contract 표 … 를 박제했다." (완료형 stamp 有) | $ sed -n '1,5p' p3-implementation-plan.md → 3 "> 본 문서는
+    Phase P3 의 entry artifact (T-0032) 의 산출물이다. … doc-only planning artifact" (stamp 有, freeze 문구 無) |
+    $ sed -n '3p;111p;136p;329p' p3-to-p4-transition.md → 3 "> … session #19 turn 4 시점 (T-0062 머지 직후) … 결정
+    신설 0" · 111 "> §2.1–§2.5 의 박제 freeze (…) 는 역사 박제로 유지." · 136 "> §2.1–§2.6 … 역사 박제로 유지." ·
+    329 "> §2.1–§2.7 의 박제 freeze (…) 는 역사 invariant 로 유지 — 본문 수정 0, 본 §7 신설만." → freeze 3 선언의
+    대상이 전부 §2.x 로 문면 명시이며, "본문 수정 0" 은 §2.1–§2.7 를 수식하고 문서 전체를 수식하지 않는다.
+(iii) 정본 축 — $ sed -n '28p;45p;47,48p' modules.md → 28 "본 시스템은 다음 12 NestJS module 로 분해된다." · 45 "위
+    12 module 은 AppModule 의 imports 에 등록되며 …" · 47~48 "정본 표 미기재 실 shipped module (T-1425 실측 각주)
+    … 3 개 … 사실 기록 이지 정본 표 row 도 카운트 대상도 아니다 — 산문의 12 module 은 표 row 12 만 센다." → 대체값
+    15 아닌 12 의 근거. components.md 11 행 열거 8 개는 정본 12 의 부분집합, 차집합 4 = PersistenceModule ·
+    PermissionDeniedRecordModule · AssessmentCollectionModule · AssessmentEvaluationModule (8 + 4 = 12).
+(iv) 선례 축 — § 12.28 은 directory.md 168 행 (References pointer) 을 "본 문서의 9 module 매핑 source." → "… 정본
+    source (현행 정본 표 row 12)." 로 in-place 치환하며 "pointer 의 요약 수치는 대상 문서의 현재값을 가리켜야 하므로
+    시점 보존 대상이 아님" 을 근거로 들었다. § 12.15 는 "옛 요약의 수치·판정 문구는 append-only 로 무편집 보존 …
+    판별 기준은 '어느 시점의 판정을 기록하는가, 아니면 현재 상태를 서술하는가' 하나다" 로 방침을 정본화했다. → 충돌
+    평가: 두 선례는 충돌하지 않는다 — § 12.15 의 기준이 이미 "시점 기록 vs 현재 서술" 이고 § 12.28 의 in-place 는 그중
+    후자에만 적용된 하위 사례라, freeze 보유 문서라도 문면 범위 (§2.x) 밖의 현재형 pointer 는 보존 대상이 아니다.
+(v) baseline — $ wc -l components.md 190 · p3-implementation-plan.md 272 · p3-to-p4-transition.md 364 · audit 2701 ·
+    modules.md 259 · directory.md 184 | $ grep -c '^## ' 7·8·8·audit 12 | $ grep -c '^| REQ-' audit 66 → 11 값 일치
+```
+
+**5 지점 판정표 (AC 2)** — 판정 축 ① 서술 시제 · ② freeze 선언 적용 범위 (행 번호로) · ③ cascade
+
+| 문서 · 행 | 현 서술 1 구 | freeze 선언 | 판정 | 근거 1 구 |
+| --- | --- | --- | --- | --- |
+| `components.md` **11** | `T-A4 (modules.md) — 본 component 분해를 NestJS module class (AssessmentModule / … / WebModule) 로 mapping` | **有** (3 행 `P1 T-A3 의 산출물` 완료형 stamp) | **무편집** | ① "다음 task 들의 책임" 목록의 bullet = **T-A3 시점이 예고한 미래 계획** 이지 정본 현황 서술이 아니며, AC 1 (i) 불성립으로 편집 중단된 축 |
+| `p3-implementation-plan.md` **13** | `modules.md — T-A4 산출물. 9 NestJS module (8 application + PersistenceModule) … 의 source` | **無** (3 행은 시점 stamp 뿐, freeze 문구 0) | **in-place 동기** | ① `…의 source` 현재형 pointer 라 `§ 12.28` 168 행 판별 그대로 대상 문서의 **현재값** 을 가리켜야 함 |
+| `p3-implementation-plan.md` **243** | `modules.md — T-A4 산출물. 9 NestJS module. 본 표 "책임 module" 컬럼 source.` | **無** | **in-place 동기** | ① `## References` bullet = 날짜 stamp 없는 현행 상태 서술 (`§ 12.15` 이 in-place 를 허용한 바로 그 부류) |
+| `p3-to-p4-transition.md` **20** | `modules.md — 9 NestJS module 의 source. P3 scope 5 module 중 2 박제 + 3 미박제.` | 문서에 **有**, 그러나 **범위 밖** (freeze 대상 = §2.1–§2.7, 본 행은 **§1** 기반 목록) | **in-place 동기 (앞 절만)** | ② freeze 문면이 `§2.x` 한정이라 20 행에 미치지 않으며, ③ 뒷 절 tally 는 손대지 않고 시점 단서만 병기해 자기모순 0 |
+| `p3-to-p4-transition.md` **314** | `modules.md — 9 NestJS module source.` | 범위 **밖** (**§6 References**, freeze 는 §2.x) | **in-place 동기** | ① 순수 pointer 라 시점 술어가 아예 없음 — 보존할 "그 시점의 판정" 자체가 부재 |
+
+**괄호 2 지점 별도 판정** — (a) `components.md` **11** 행 8 열거의 **in-place 확장은 자동 기각**: 그 행은 T-A4 가 **앞으로 mapping 할** 대상을 T-A3 시점에 예고한 문장이라, 12 로 늘리면 그 시점에 존재하지도 않던 `AssessmentCollectionModule` · `AssessmentEvaluationModule` · `PermissionDeniedRecordModule` 을 시점 사실로 소급 창작하게 된다 (AC 1 (i) 불성립과 **두 근거가 같은 결론으로 수렴**). (b) `p3-implementation-plan.md` **13** 행 괄호 부연은 **함께 치환**: `8 application + PersistenceModule` 이 `8 + 1 = 9` 자기-검산이라 카운트만 12 로 바꾸면 한 행 안에서 자기모순 (자동 기각 조합) 이고, 정본 표 row 12 − PersistenceModule 1 = **11** 은 산술 도출이라 창작이 아니며 자기-검산 구조 (`11 + 1 = 12`) 도 보존된다 (`§ 12.28` 7 행 판정과 동형).
+
+#### 처리 방식 판정 (AC 3 — 4 후보 · 채택 1 · 기각 3)
+
+판정 축 **4** — ① `§ 12.15` 정합 · ② 독자 오도 risk · ③ cap (≤ 300 LOC · 파일 ≤ 5) · ④ 선례 일관성.
+
+| 후보 | ① § 12.15 정합 | ② 오도 risk | ③ cap | ④ 선례 일관성 | 판정 |
+| --- | --- | --- | --- | --- | --- |
+| (A) 5 지점 전부 12 in-place | **위반** — `components.md` 11 은 시점 예고 열거라 소급 창작 발생 | 해소되나 새 날조 유입 | 안전 | in-place 선례는 pointer 축 전용 | **기각** — 날조 risk |
+| (B) 전 지점 원문 보존 + 각 문서 부기 1 행 | 정합 | **잔존** — 4 지점이 여전히 현재형으로 `9` 를 단언, 부기는 같은 행 밖 | 안전 | `§ 12.28` 이 동일 성격 168 행을 in-place 로 닫은 것과 불일치 | **기각** — 현재형 pointer 를 틀린 채 두는 비용이 더 큼 |
+| **(C) 지점별 혼합 — 현재형 pointer 4 in-place · 시점 예고 열거 1 보존** | 정합 — 판별 기준을 **지점 단위** 로 적용 | 4 지점 해소, 1 지점은 본 절이 근거와 함께 보존 선언 | 4 행 in-place · 파일 3 · 행 증가 +0 | `§ 12.28` + `§ 12.15` **양쪽 승계** | **채택** |
+| (D) 전 지점 무편집 + audit 기록만 | 정합 | **최대** — 파생 문서 축 closure 가 재이월 | 0 LOC | 이월 사유가 (i) ~ (iv) 완비로 소멸 | **기각** |
+
+**채택안 (C) 의 혼합 축 정정** — AC 3 원문은 (C) 를 "**문서별** 혼합 (freeze 선언 없는 문서만 in-place)" 으로 정의했으나, 실측 (ii) 가 freeze 선언의 문면 범위를 `§2.x` 로 확정했으므로 본 절은 혼합 축을 **문서 단위가 아니라 지점 단위 (서술 시제 + freeze 행 범위)** 로 좁혀 채택한다. 그 결과 freeze 선언 3 개를 보유한 `p3-to-p4-transition.md` 도 §1 · §6 의 pointer 2 지점은 in-place 대상이 된다. cap 초과 후보 0 이라 split 제안 없음.
+
+#### 반영 결과 (AC 4) + 무편집 경계
+
+| 지점 | 편집 방식 | before → after |
+| --- | --- | --- |
+| p3-implementation-plan **13** | in-place 치환 (부연 동반) | `9 NestJS module (8 application + PersistenceModule)` → `현행 정본 표 row 기준 **12 NestJS module** (11 application + PersistenceModule)` + 말미에 "본문 §2 · §6 tally 의 `9` 는 T-0057 시점 박제라 보존" 단서 |
+| p3-implementation-plan **243** | in-place 치환 | `9 NestJS module. 본 표 … source.` → `본 표 … 정본 source (현행 정본 표 row **12**; 진척 tally 의 9 는 T-0057 좌표계 보존)` |
+| p3-to-p4-transition **20** | in-place 치환 (앞 절만) | `9 NestJS module 의 source.` → `현행 정본 표 row 기준 **12 NestJS module** 의 source.` — 뒷 절 `P3 scope 5 module 중 2 박제 + 3 미박제` 는 **문자 그대로 보존** + "T-0062 시점 좌표계" 단서 병기 |
+| p3-to-p4-transition **314** | in-place 치환 | `9 NestJS module source.` → `module 어휘의 정본 source (현행 정본 표 row **12**; 본문 §2 의 9 는 T-0062 박제라 보존)` |
+
+편집 행 **정확히 4 행**, 전부 in-place 1:1 치환이라 두 문서 `wc -l` 증가 **+0** (상한 +9 충족) 이고 편집은 모두 References / 기반 목록 bullet 안에서 끝난다. **무편집 경계** — `components.md` **전체** (11 행 포함, AC 1 (i) 중단 축) · ② 시점 진척 tally **12 지점** · freeze blockquote **4 지점** (p3-to-p4-transition 3 · 111 · 136 · 329) · 세 문서의 표 · mermaid · 코드블록 · `Refs:` 말미 · [modules.md](../architecture/modules.md) · [directory.md](../architecture/directory.md) · [api.md](../architecture/api.md) · [data-model.md](../architecture/data-model.md) · `docs/architecture/INDEX.md` · [INDEX.md](INDEX.md) · `UC-01` ~ `UC-09` 본문 · `docs/decisions/ADR-*.md` · [PLAN.md](../PLAN.md) · [requirements.md](../requirements.md) · `src/` · `test/` · `prisma/` · `web/` 는 전부 무편집이며 3 파일 밖이라 diff 에 미등장한다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **[UC-09](UC-09-user-defined-period-evaluation.md) `§ 5` sequence participant 병기 미판정** — **13 회째 이월**. 후속 slice 소관.
+2. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축** — `ExportModule` / `ImportModule` / `UserInstanceAccessModule` 계상은 **ADR 게이트** 선행. 후속 slice 소관.
+3. **외부 package module (`ScheduleModule.forRoot()`) 계상 규약**. 후속 slice 소관.
+4. **행 번호 좌표계 → anchor 좌표계 이행** — **7 회째**. 본 절이 17 개 행 번호에 전면 의존한 것이 그 누적 근거다. 후속 slice 소관.
+5. **산문 tally ↔ 표 row 수 CI drift-guard spec**. 후속 slice 소관.
+6. **각 UC 본문 `§ 9` module 산정 수치의 이중 관리**. 후속 slice 소관.
+7. **[directory.md](../architecture/directory.md) ASCII tree ↔ 실 `src/` 트리 정합** (T-1430 잔여). 후속 slice 소관.
+8. **시점 진척 tally 12 지점의 독자 오도 완화** — 본 slice 판정상 보존. 후속 slice 소관.
+9. **신규 — [components.md](../architecture/components.md) 11 행 8 열거의 forward pointer 부기 여부** — AC 1 (i) 불성립으로 본 절이 편집을 중단한 축. 후속 slice 소관.
+
+#### closure 선언
+
+정본 [modules.md](../architecture/modules.md) 를 **현재형으로 가리키는 파생 pointer 축** 은 본 절로 **닫혔다** — `§ 12.28` 이 닫은 파생 4 문서에 더해 시점 기록성 3 문서가 보유한 pointer **4 지점** 이 정본 12 로 동기됐고 잔여 현재형 pointer 는 **0** 이다. **닫히지 않은 잔여 2**: (a) [components.md](../architecture/components.md) **11** 행 module class 8 열거 — 숫자 없는 열거라 pointer 축 grep 밖이고 시점 예고 서술이라 보존 판정 (파생 영향 9), (b) ② 시점 진척 tally **12 지점** — `§ 12.15` 상 보존이라 stale 잔여가 아니라 **역사 박제** 다.
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l p3-implementation-plan.md 272 → 272 · p3-to-p4-transition.md 364 → 364 · components.md 190 (무편집) ·
+  modules.md 259 · directory.md 184   (전부 불변)
+$ grep -c '^## ' p3-implementation-plan.md 8 · p3-to-p4-transition.md 8 · components.md 7 · audit 12 → 12
+  (`###` 만 추가)   |   $ grep -c '^| REQ-' audit 66 → 66 (불변)
+$ git diff -U0 -- docs/architecture/ | grep '^@@'
+  @@ -13 +13 @@  @@ -243 +243 @@ (p3-implementation-plan)   @@ -20 +20 @@  @@ -314 +314 @@ (p3-to-p4)
+  → hunk 4 개 = 편집 4 행과 1:1. ② tally 12 · freeze blockquote 4 · 표 · mermaid · 코드블록 · `Refs:` 말미
+    전부 hunk 밖 = 무편집 증명
+$ git diff --numstat → 2 2 (p3-implementation-plan) · 2 2 (p3-to-p4) · audit 순수 추가 (삭제 0)
+  → 삭제 4 는 치환된 네 행의 in-place 짝 = 순수 삭제 0
+$ git status --porcelain src/ test/ prisma/ web/ → (빈 출력)   코드 무변경 실증
+$ git status --porcelain → M p3-implementation-plan.md · M p3-to-p4-transition.md · M audit = 3 파일
+  (상한 5, components.md 는 편집 중단 축)
+```
+
+변경 파일은 **3 개** (task 파일 status 갱신은 driver bookkeeping commit 소관) 이며 합계 diff ≤ 300 LOC 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A**, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 **N/A** 다 (AC 8).
+
+#### 한계 —
+
+1. **본 동기는 카운트 · pointer 축 뿐** — 세 문서의 나머지 서술 (task 시퀀스 표 · 전이 trigger 3 옵션 · component contract 표) 이 현 코드와 맞는지는 **미검증** 이다. 본 절은 `modules.md` 를 지목하는 4 bullet 만 열었다.
+2. **시점 기록 문서가 정본을 복제하는 구조는 잔존** — 정본 표에 row 가 하나 추가되는 순간 본 절이 고친 4 지점 + `§ 12.28` 의 파생 4 문서가 **동시에 재-stale** 이 된다. 사람 규약으로는 막을 수 없고 파생 영향 5 의 **CI drift-guard 축** 으로만 닫힌다.
+3. **보존 판정이 남긴 독자 부담** — ② tally 12 지점과 `components.md` 11 행 열거는 그대로라, 독자는 여전히 `9 module` · `2/5` · `8 module class` 를 만나고 그것이 T-0057 / T-0062 / T-A3 좌표계임은 본 절과 편집된 4 행의 시점 단서를 따라가야만 안다 (파생 영향 8 · 9).
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
