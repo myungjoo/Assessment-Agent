@@ -82,11 +82,23 @@ plannerNote: "uc-doc-audit-resync 36 번째 slice — T-1423 Follow-up 1. INDEX 
 
 `implementer` (doc-only, 단독).
 
+## 결과 요약 (2026-08-03)
+
+- **AC 1 실측** — (i) 무-scope `grep -c "^| \*\*" modules.md` = **20** 으로 기대 12 와 불일치. 분해하면 module 목록 표 (32 ~ 43 행) **12** + component ↔ module mapping 표 (196 ~ 203 행) **8** 이라 **정본 축 자체는 12 로 성립** (§ 12.21 (i) 의 sed scope 판과 동일값, 28 · 45 행 산문과도 정합) — 불일치 원인이 문서가 아니라 **AC 1 (i) 명령의 scope 누락** 이라 축을 중단하지 않고 그 사실을 `§ 12.22` (i) · 한계 4 에 그대로 박제했다. (ii) 8 row distinct **9** (기대 일치) · **미실재 0**. (iii) 축 B 어긋남 2 개 — `AssessmentModule` (39 행 미shipped placeholder, row 31 · 32 · 36 · 37 · 38) · `SchedulerModule` (42 행 실 명칭 `SchedulingModule` 부기, row 31). (iv) 33 · 34 · 35 행 편집 대상 **0**. (v) baseline 6 값 전부 기대 일치.
+- **AC 2 판정** — 축 1 `AssessmentModule` = **(B) row 내 병기 채택** (치환은 UC-01 `6 module` 부정 / 각주는 row 별 실 shipped 축이 5 가지라 부정확 + 39 행과 화법 분기 / 무편집은 4 회째 이월). 축 2 `SchedulerModule` = **(D) 무편집 채택** (`SchedulingModule` 은 25 행 허용 12 밖 토큰 · 정본 42 행 표 row 명 자체가 `SchedulerModule` 이라 **정본이 이미 흡수한 축**).
+- **AC 3 반영** — INDEX **31 · 32 · 36 · 37 · 38** 5 행만 1 행 → 1 행 in-place 병기 (`§ 12.15` 판별상 stamp 없는 현행 서술 = in-place). 축 B 지목 집합과 정확히 일치, 지목 밖 row 편집 **0**. 편집 후 top-level module 토큰 수 **6 · 4 · 4 · 4 · 4** 로 5 UC 본문 `§ 9` 산정 전부 보존, distinct **9** 불변.
+- **AC 4 · 7 검산** — 변경 파일 정확히 **3 개**, INDEX `wc -l` **123** 불변 · `^| UC-` **9** · 표 열 수 7 불변, audit `^## ` **12** · `^| REQ-` **66** 불변, modules.md **256** · components.md **190** 무편집. INDEX hunk = `@@ -31,2 +31,2 @@` · `@@ -36,3 +36,3 @@` 2 개뿐 → 21 · 24 · 25 · 33 · 34 · 35 · 39 · 41 · 43 · 51 · 58 · 86 행 미등장. numstat `5 5` → 순수 삭제 **0**. 합계 diff **+133/-5** (≤ 300 LOC · 3 파일).
+- **AC 5 · 6** — 파생 영향 **6 항** (58 · 86 행 산문 / data-model 39 행 / data-model 38 행 / api.md 223 행 / UC-09 `§ 5` / **export·import 코드의 module 귀속 정본 미기재 — 신규 확인**) 을 목록만 기록하고 편집 0. audit `### 12.22` 를 `## 11. References` 앞에 **순수 append 128 행** 삽입 (한계 **5 항**).
+- **AC 8** — `commitMode: direct` + production code **0 LOC** 이라 R-110 tester 호출 · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 전부 **N/A** (CLAUDE.md §3.2 direct-mode doc-only 면제, 분기 0).
+- **closure** — T-1423 `§ 12.21` `AC 5` 파생 영향 ① · 한계 1 · Follow-up 1 동시 closure.
+
 ## Follow-ups
 
-1. **INDEX 58 · 86 행 §3 description 산문의 `AssessmentModule` 귀속 판정** — T-1423 Follow-up 2 이월 (2 회째).
+1. **INDEX 58 · 86 행 §3 description 산문의 `AssessmentModule` 귀속 판정** — T-1423 Follow-up 2 이월 (2 회째). 본 slice 가 표 row 를 병기로 닫아 **표 ↔ 산문 비대칭** 이 새로 생겼으므로 표 화법을 그대로 승계해야 한다 (§ 12.22 한계 1).
 2. **[data-model.md](../architecture/data-model.md) 39 행 `8 NestJS module 명` → 정본 12 동기** — INDEX 25 행 (T-1423) 과 동종 파생 stale.
 3. **[data-model.md](../architecture/data-model.md) 38 행 `13 entity` vs 실 entity row 14 정정** — T-1421 Follow-up 3 잔여 축 ①.
 4. **[api.md](../architecture/api.md) 223 행 `UC-01 ~ UC-08` 링크 범위 vs 9 UC 정정** — T-1421 Follow-up 3 잔여 축 ②.
 5. **UC-09 `§ 5` sequence participant 병기 판정** — T-1421 Follow-up 2 이월 (6 회째).
-6. **정본 module 변경 시 다축 동시 갱신 규약** — modules.md 표 · topological 열거 · mermaid node · 산문 카운트 + INDEX **25 행 어휘** + INDEX **표 row 귀속** 을 한 slice 에서 함께 갱신 (T-1423 Follow-up 6 에 표 row 축 편입).
+6. **정본 module 변경 시 다축 동시 갱신 규약** — modules.md 표 · topological 열거 · mermaid node · 산문 카운트 + INDEX **25 행 어휘** + INDEX **표 row 귀속** 을 한 slice 에서 함께 갱신 (T-1423 Follow-up 6 에 표 row 축 편입 — 본 slice 병기가 `modules.md` **행 번호** 를 인용하므로 정본 row 삽입·삭제 시 즉시 어긋난다, § 12.22 한계 3).
+7. **task 정의서의 정본 module 실측 명령 표준화** — 무-scope `grep -c "^| \*\*" docs/architecture/modules.md` 는 module 목록 표 12 + mapping 표 8 을 합산해 **20** 을 낸다. 후속 task 정의서는 `sed -n '32,43p' … | grep -c "^| \*\*"` 처럼 **scope 를 포함한 형태** 를 복제해야 오탐이 반복되지 않는다 (§ 12.22 한계 4).
+8. **`src/export/` · `src/import/` 실 shipped 코드의 module 귀속을 modules.md 정본 12 표에 기재** — 본 slice 실측 중 신규 확인 (§ 12.22 파생 영향 6). 정본 편집이라 별도 slice.
