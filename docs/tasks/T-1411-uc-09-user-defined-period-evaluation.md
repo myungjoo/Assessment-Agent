@@ -2,8 +2,8 @@
 id: T-1411
 title: REQ-004 gap 해소 — UC-09 (사용자 지정 기간 임의 평가문 요청) 본문 신설
 phase: P5
-status: PENDING
-commitMode: pr
+status: DONE
+commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 210
 estimatedFiles: 2
@@ -14,6 +14,7 @@ touchesFiles:
   - docs/use-cases/UC-09-user-defined-period-evaluation.md
   - docs/tasks/T-1411-uc-09-user-defined-period-evaluation.md
 plannerNote: "uc-doc-audit-resync 23 번째 slice — T-1410 Follow-up 1 채택, 유일 gap REQ-004 를 권장 (a) UC-09 본문 신설로 해소. 신규 UC 본문이라 pr (T-0020~T-0028 동급)"
+driverNote: "commitMode 를 planner 의 pr 에서 direct 로 하향 (driver 판정, 2026-08-03 cron@aa-local-d097040f). 근거 3 가지 — (1) 본 schedule 진입점의 상시 지시 '문서·코멘트 변경은 PR/리뷰 없이 direct commit merge', (2) CLAUDE.md §3.1 pr 컬럼은 docs/architecture/* · docs/decisions/* 추가만 열거하며 docs/use-cases/* 는 미포함, (3) 같은 stream 직전 slice T-1408 · T-1409 · T-1410 이 모두 direct 로 처리된 선례. 변경 대상 2 파일 전부 문서라 동작 변경 0."
 ---
 
 # T-1411 — UC-09 (사용자 지정 기간 임의 평가문 요청) 본문 신설
@@ -96,4 +97,56 @@ PLAN.md Phase P2 셋째 bullet 이 참조하는 gap 1 건이 본 문서로 UC �
 
 ## Follow-ups
 
-작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.
+1. **INDEX.md §2 표에 UC-09 row 추가** — 본 slice Out of Scope (110 행 이후 pointer 밀림 때문). audit §12.3 (e) 셀 pointer 동기와 함께 한 slice 로.
+2. **audit §3 REQ-004 row `gap` → `uc-covered` 재분류 + §5 통계 4 값 갱신 + §12.4 cascade (a) ~ (d)** — 원자성 규약대로 한 slice 안에서.
+3. **`docs/architecture/api.md` 211 행 · `data-model.md` 168 행의 "UC-09 신설 또는 UC-01 확장 후 추가 예정" pointer 동기** — T-1410 Follow-up 2 이월분에 본 UC-09 실재가 더해졌으므로 함께 정정 가능.
+4. **`docs/PLAN.md` 36 행 gap 수치 · 서술 갱신** — 위 2 의 재분류 확정 후.
+
+## 완료 기록 (2026-08-03)
+
+**Status: DONE.** 변경 파일 **정확히 2 개** — 신규 `docs/use-cases/UC-09-user-defined-period-evaluation.md` (174 행) + 본 task 파일. 인접 문서 (INDEX.md / REQ-COVERAGE-AUDIT.md / requirements.md / PLAN.md / UC-01) **무편집**.
+
+### commitMode 하향 + §6 면제 근거
+
+driver 판정으로 `commitMode` 를 planner 의 `pr` → `direct` 로 하향했다 (frontmatter `driverNote:` 참조 — 변경 대상 2 파일 전부 문서라 동작 변경 0). 이에 따라 **Acceptance Criteria §6 (R-110 / R-112) 은 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 만 본 규칙 면제" 조항으로 전항목 N/A** 다 — `pnpm lint && pnpm build && pnpm test:cov` 미실행, PR 본문 항목 미해당. production code 0 LOC · 신규 public symbol 0 · 분기 0 이라 R-112 의 happy / error / branch / negative 4 항목도 원래 해당 없음이며, 그 사실은 UC-09 §10 말미에도 박제했다.
+
+### §1 ~ §4 충족 실측
+
+| 검산식 | 요구치 | 실측 |
+| --- | --- | --- |
+| `grep -c "^## " UC-09` | 11 | **11** |
+| `grep -c "^# " UC-09` | 1 | **1** |
+| ` ```mermaid ` + `sequenceDiagram` 블록 | 1 | **1** (role dispatch `alt` 2 + 영속 `opt` 1 로 User ephemeral / Admin persist 분기 노출) |
+| frontmatter 키 순서 | UC-08 동일 9 키 | **일치** (`id` / `title` / `actor` / `trigger` / `status` / `coversReq` / `adjacentReq` / `relatedUc` / `sourceTask`) |
+| `coversReq` | `[REQ-004]` 단독 | **`[REQ-004]`** (REQ-035 는 §6.5 에서 별도 결정으로 명시 후 제외) |
+| 본문 인용 REQ ID 집합 ↔ `coversReq` + `adjacentReq` | 차집합 양방향 0 | 본문 인용 **10 종** (`REQ-004` + 9) = frontmatter 10 종 — **인용 안 한 ID 0 · 누락 ID 0** |
+| §9 명칭 | INDEX.md 19 ~ 25 행 허용 목록만 | 5 component (Web UI / Backend API / Worker / LLM Gateway / DB Persistence) + 6 module (WebModule / AssessmentModule / AuthModule / UserModule / LlmModule / PersistenceModule) — **허용 목록 밖 0** |
+
+### §3 실코드 근거 실측 (날조 0)
+
+`git grep` / `ls` 로 5 지점 전건 확인 — **origin/main 에 없는 경로 · 심볼 0**.
+
+```
+$ git grep -n '@Post("period")' -- src/assessment-evaluation/assessment-evaluation.controller.ts   → 339 행 (+ 341 @UseGuards(JwtAuthGuard, RolesGuard) · 342 @Roles("User"))
+$ git grep -n 'isAdminRole' -- src/assessment-evaluation/assessment-evaluation.controller.ts       → 126 (정의) · 352 (role dispatch 2 분기)
+$ git grep -n 'personId!\|period!\|scope!\|periodStart!\|reevaluate?:\|@IsISO8601' -- src/assessment-evaluation/dto/period-bridge.dto.ts → 43 · 49 · 55 · 64 · 84 · 63 (5 키 + @IsISO8601)
+$ git grep -n 'persistAndReadThrough' -- src/assessment-evaluation/period-bridge-admin-persist.service.ts → 157 (호출) · 176 (정의) — ephemeral 측 hit 0 (DB write 0)
+$ ls test/e2e/period-bridge-ephemeral.e2e-spec.ts test/e2e/period-bridge-admin-persist.e2e-spec.ts  → 2 파일 실재 (각 9 it)
+```
+
+기간 계약은 왜곡 없이 §3 에 박제 — 입력은 **시작 (`periodStart`) 단독 + `normalizeKstPeriodStart` (controller 277 ~ 287 행) 의 canonical snap**, **종료 경계 입력 필드 부재** (`buildCollectionSpec(person, since?)` 도 시작만 수령).
+
+### §4 한계 3 종
+
+§7.5 에 (a) 종료 경계 입력 부재로 수집 open-ended, (b) `git grep -c "assessment-evaluation" -- web/src` = **0** 이라 프런트 기간 지정 UI 부재, (c) `generateBatchNarrative` chain 의 controller caller **0** (hit 은 `summary-narrative.service.ts` · `summary-persist.service.ts` · module 등록뿐) 을 명시. §10 말미에 **"본 UC 문서의 신설이 REQ-004 의 구현 완료를 뜻하지 않는다 — requirements.md 23 행 status 는 `IN_PROGRESS` 유지"** 를 1 회 박제.
+
+### §5 불변 검산 (편집 후 실측)
+
+| # | 검산식 | 요구치 | 실측 |
+| --- | --- | --- | --- |
+| (a) | `wc -l docs/use-cases/INDEX.md` | 114 | **114** · `git status --porcelain` 미등장 |
+| (b) | `grep -c "^\| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md` | 66 | **66** · 미등장 |
+| (c) | `grep -c "^## " docs/use-cases/REQ-COVERAGE-AUDIT.md` | 12 | **12** |
+| (d) | `wc -l docs/PLAN.md` | 175 | **175** · `docs/requirements.md` 와 함께 미등장 |
+| (e) | `git status --porcelain` 변경 파일 수 | 2 | **2** (`?? UC-09...md` + ` M T-1411...md`) |
+| (f) | `git diff --cached --numstat` 삭제 열 합 | 0 | **3 — 요구치 미달, 사유 박제**: 셋 다 본 task 파일 안의 1:1 치환이다 (driver 의 `commitMode: pr` → `direct` 1 행 + 본 slice 의 `status: PENDING` → `DONE` 1 행 + `## Follow-ups` 의 "작성 시점 비어 있음" placeholder 1 행). 신규 UC-09 본문은 **순수 추가 (`174 0`)** 이고 인접 문서 삭제도 0 이라 §5 의 의도 (인접 문서 무편집 증명) 는 그대로 충족된다. 원 요구치는 task 작성 시점에 자기 파일의 status / placeholder 치환을 계산에 넣지 않은 과소 추정이다. 총 diff `+230 / -3` · 2 파일로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안. |
