@@ -67,4 +67,27 @@ plannerNote: "uc-doc-audit-resync 30 번째 slice — T-1417 Follow-up 1 (4 회 
 
 1. **`8 UC` 표기 일괄 갱신** — T-1417 Follow-up 2 이월 (T-1416 FU3 부터 3 회). `api.md` 3 · 12 · 64 · 208 · 209 · 222 행 · `data-model.md` 3 행 · audit `§11` References. 각 지점을 `§12.15` 방침 (날짜 stamp 유무) 으로 판정한 뒤 in-place 치환 / pointer append 로 분기 처리.
 2. **UC-09 ↔ `docs/architecture/modules.md` / `components.md` mapping 점검** — T-1417 Follow-up 3 이월. UC-09 §9 가 `AssessmentModule (controller layer) + AuthModule` 외 6 module 을 지목하는데 두 architecture 문서가 UC-09 를 알지 못한다.
-3. *(조건부)* AC 2 결론이 `신규 N (N ≥ 1)` 이면 — 신규 entity 의 ADR 선행 task 후보를 여기 1 줄로 남긴다 (§5 DB schema 게이트 해당 여부 함께 판정).
+3. *(조건부)* AC 2 결론이 `신규 N (N ≥ 1)` 이면 — 신규 entity 의 ADR 선행 task 후보를 여기 1 줄로 남긴다 (§5 DB schema 게이트 해당 여부 함께 판정). → **판정 결과가 `신규 0` 이라 발동하지 않음 (후보 생성 0).**
+4. *(신규)* **data-model.md 38 행 `13 entity` 표기 vs §2 표 실 row 수 14 의 1 어긋남 정정** — 실측 `grep -c "^| \*\*"` = 14 인데 누계 서술 (`10 → 11` · `11 → 13`) 이 `PermissionDeniedRecord` 를 빠뜨린 것으로 보인다. UC-09 와 무관한 선행 불일치라 본 slice 는 사실 기록만 했다 (audit §12.16 한계 3).
+
+## 완료 기록 (2026-08-03)
+
+**Status: DONE.** 변경 파일 **정확히 3 개** — `docs/architecture/data-model.md` (+3/-3) · `docs/use-cases/REQ-COVERAGE-AUDIT.md` (+80/-0) · 본 task 파일. data-model 의 삭제 3 은 전부 in-place 치환 / append 의 짝 (28 · 38 · 168 행) 이라 **순수 삭제 0** 이고, 합계 diff 는 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이다 (AC 7).
+
+**AC 1 (실측 선행)** — 4 값 전건 성립, 중단 지점 0. (i) UC-09 §5 · §8 · §9 의 데이터 단위 **9 항목** 을 전수 열거해 §2 표와 1:1 매핑 (대응 있음 5: Person · ServiceIdentity · User · LlmProviderConfig/DifficultyMapping · Assessment / 대응 없음 4: `PeriodBridgeDto` · 수집 `activities` · `EvaluationResult[]` · 요청 principal timezone — 전부 비영속 입력 · raw · in-memory · 컬럼 축), (ii) `grep -c "UC-09" data-model.md` = **1** (168 행 §7 bullet 뿐 — §2 표 `source UC` 등장 **0**, 기대값 일치), (iii) 168 행 = 날짜 stamp **있음** (시점 기록) · 167 행 = stamp **없음** (living document), (iv) baseline `grep -c "^| \*\*"` = **14** · `grep -c "^## "` = **8** · `wc -l` = **190** / audit `grep -c "^| REQ-"` = **66** · `grep -c "^## "` = **12** (`wc -l` 1072). 4 값 전부 audit `§12.16` 에 그대로 인용했다.
+
+**AC 2 (신규 entity 필요 여부 실판정)** — 결론 **`신규 0`** (애매어 0). 근거 3 인용 — §8 (a) User 분기 `DB 상태 변화 0` (영속 표면 자체 부재) · §8 (b) Admin 분기 `Assessment 좌표 row 1 개` 이고 응답 6 키 좌표가 기존 `Assessment.@@unique([personId, period, scope, periodStart])` 그 자체 (`created` 는 row 아닌 응답 flag) · §9 `PersistenceModule` 행이 write 를 "Admin 분기에서만 좌표 row 영속 + read-through" 로 한정. 따라서 §2 표 **row 추가 0**, 18 · 38 행의 `13 entity (+ 1 conceptual mention)` · `4 module` **불변**.
+
+**AC 3 (ADR 게이트)** — **N/A**. 발동 조건 (`신규 N ≥ 1`) 불성립이라 167 행 게이트 미발동 · ADR task 후보 생성 0 (Follow-up 3 조건부 항 종결).
+
+**AC 4 (§2 표 `source UC` 병기)** — **Assessment row (28 행) 1 개만** 병기 (`, [UC-09](…)` — 표 안 첫 등장이라 링크 포함, 기존 UC-01 · UC-02 · UC-06 제거 0). 같은 row 의 `책임` · `관련 REQ` · `책임 module` 3 컬럼 무편집, 표 row 수 · 컬럼 수 불변, 병기 3 row 상한 준수. 제외 근거는 §12.16 에 기록 — Person · ServiceIdentity · User · LlmProviderConfig · DifficultyMapping 은 UC-09 안에서 **단순 read-only 참조**, Contribution · Summary 는 UC-09 본문이 entity 로 **직접 호명하지 않음** (86 행 `contribution` 은 `EvaluationResult` 등급 필드).
+
+**AC 5 (38 행 + 168 행, §12.15 방침 첫 적용)** — (a) 38 행: 병기 1 row ≥ 1 이므로 `8 UC cover` → `9 UC cover` **in-place 치환** + 근거 1 구 (본 task ID · UC-09 · 신규 entity 0 · §12.16 pointer). 날짜 stamp 없는 living-document 합계 → **in-place 축**. `13 entity` · `4 module` · T-0039 / ADR-0044 누계 서술 무편집. (b) 168 행: `2026-08-03 T-1413 재분류` 앞부분 **무편집**, 문장 끝에 괄호 부기 **append** (잔여 의무 해소 선언 + 판정 결론 + §12.16 pointer). 날짜 stamp 있는 시점 기록 → **append 축**. 두 지점 모두 **1 행 → 1 행**.
+
+**AC 6 (audit §12.16 신설)** — `## 11. References` 바로 앞에 `### 12.16 UC-09 기준 data-model §2 신규 entity 필요 여부 실판정 (T-1418)` 절 (**80 행**) 삽입, `grep -c "^## "` = **12 불변**. 구성 7 요소 — (i) 서두 blockquote, (ii) 실측 4 값 (매핑은 9 행 표 + 코드블록), (iii) 판정 결론 1 문단 (근거 3 인용), (iv) 갱신 3 지점 기록 + 각 지점의 §12.15 축 명시, (v) T-1417 FU1 **closure 선언** (4 회 이월 종결 · §12.13 한계 ① · §12.14 한계 ② 동시 소진), (vi) 불변 검산 블록, (vii) 한계 3 항.
+
+**AC 7 (불변 검산)** — `git status --porcelain` = 3 파일 (위). `docs/architecture/api.md` · `modules.md` · `components.md` · `docs/use-cases/INDEX.md` · `docs/PLAN.md` · `docs/requirements.md` · `UC-01` ~ `UC-09` 본문 · `prisma/` · `src/` · `test/` **미등장**. data-model `grep -c "^| \*\*"` = **14** · `grep -c "^## "` = **8** · `wc -l` = **190** 전부 불변 (`grep -c "UC-09"` 만 1 → 3), audit `grep -c "^| REQ-"` = **66** · `grep -c "^## "` = **12** 불변 (`wc -l` 1072 → 1152). `git diff -U0 | grep '^@@'` = **4 hunk** (`-28 +28` · `-38 +38` · `-168 +168` · `-1058,0 +1059,80`) 라 §3 ER diagram · §4 · §5 · §6 은 전부 hunk 밖 무변. `git diff --numstat` = data-model **3/3** · audit **80/0**.
+
+**AC 8 (R-110 / R-112 면제)** — 본 task 는 `commitMode: direct` + production code **0 LOC** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 만 본 규칙 면제" 조항으로 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 **N/A** 다 (분기 0, architect / tester dispatch 0).
+
+**Out of Scope 준수** — §2 표 신규 entity row 추가, `prisma/schema.prisma` · migration, §3 ER diagram · §4 · §5 · §6, `8 UC` 표기 잔여 지점 (data-model 3 행 · api.md 6 지점 · audit §11), UC-09 ↔ `modules.md` / `components.md` mapping, UC-09 본문 · `INDEX.md` · `PLAN.md` · `requirements.md`, 66 REQ 전수 재audit, `src/` · `test/` · `web/` · `package.json` · CI workflow 를 **한 글자도 건드리지 않았다**.

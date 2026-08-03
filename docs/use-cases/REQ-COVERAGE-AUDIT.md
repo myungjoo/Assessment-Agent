@@ -1056,6 +1056,86 @@ $ git diff --numstat
 2. **§12.x 본문의 옛 행 표기는 여전히 무편집** — §12.6 ~ §12.14 의 `110 행` · `115 행` · `121 ~ 127 행` · `L212` · `104 행` 등은 각 slice 시점의 기록이라 본 절의 방침이 그 보존을 **정본으로 확정** 했다. 앞으로도 정정 대상이 아니다.
 3. **`8 UC` 표기 일괄 갱신은 미착수** — §11 References 2 줄 · `api.md` 3 · 12 · 64 · 207 · 208 행 · `data-model.md` 3 · 38 행은 9 UC 실재와 어긋난 채 남아 있다 (T-1416 Follow-up 3 소관). 이들은 날짜 stamp 가 없어 위 판별 기준상 **in-place 치환 대상** 일 가능성이 높으나, 지점별 판정이 선행돼야 해 본 slice 는 건드리지 않았다.
 
+### 12.16 UC-09 기준 data-model §2 신규 entity 필요 여부 실판정 (T-1418)
+
+> 본 절은 [T-1418](../tasks/T-1418-data-model-uc09-entity-derivation-judgment.md) 이 [T-1417](../tasks/T-1417-audit-legacy-summary-forward-pointer.md) 의 **Follow-up 1** ([T-1415](../tasks/T-1415-arch-doc-req004-pointer-resync.md) FU2 부터 **4 회 이월**) 을 닫은 기록이다. 남아 있던 것은 pointer 가 아니라 **판정 자체** 였다 — [data-model.md](../architecture/data-model.md) 168 행이 "UC-09 § 5 기준 entity 도출 (신규 entity 가 필요한지 여부 자체) 은 후속 slice 소관" 이라고 스스로 잔여 의무를 명시했기 때문이다. 본 절은 그 판정을 실측으로 닫고, 편집 방식은 §12.15 가 정본으로 확정한 판별 기준 (날짜 stamp = 시점 기록 → append / stamp 없음 = living document → in-place) 을 **첫 적용** 했다. **삽입 위치는 §12.15 마지막 행 뒤 · §11 References 앞** 이고 `###` 이라 `## ` heading count 12 가 불변이다 — §12.6 ~ §12.15 가 승계해 온 위치 규약 그대로다.
+
+#### 실측 선행 (편집 전 4 값)
+
+**(i) UC-09 §5 · §8 · §9 데이터 단위 전수 ↔ data-model §2 표 1:1 매핑** (§5 = 54 ~ 98 행 mermaid + 100 행 해설, §8 = 121 ~ 127 행, §9 = 129 ~ 142 행)
+
+| UC-09 이 호명하는 데이터 단위 | 호명 위치 | §2 표 대응 row | 성격 |
+| --- | --- | --- | --- |
+| `personId` → resolved person | §5 72 ~ 73 행 · §9 `UserModule` 행 | **Person** | read-only 조회 (write 0) |
+| `serviceIdentities` (author 필터 입력) | §5 72 · 84 행 | **ServiceIdentity** | read-only 조회 |
+| 요청 principal 의 role (guard 2 종 · `isAdminRole` dispatch) | §5 71 · 76 ~ 80 행 · §9 `AuthModule` 행 | **User** (role 필드) | read-only 조회 |
+| LLM provider / 난이도 모델 설정 | §4 precondition 5 · §7.4 · §9 `LlmModule` 행 | **LlmProviderConfig** · **DifficultyMapping** | read-only 참조 (설정 부재 시 reject 전파) |
+| 영속된 좌표 row + `created` flag / 좌표 6 키 응답 | §5 89 ~ 94 행 · **§8 (b)** | **Assessment** | **write** (Admin 분기 한정) |
+| `PeriodBridgeDto` 5 키 (`personId`/`period`/`scope`/`periodStart`/`reevaluate?`) | §3 36 행 · §5 70 행 | **대응 row 없음** | 요청 입력 계약 (비영속 DTO) |
+| 수집 `activities` (GitHub / Confluence) | §5 82 ~ 84 행 | **대응 row 없음** | raw — §4 REQ-032 이 저장 자체를 금지 |
+| `EvaluationResult[]` (`narrative`/`difficulty`/`contribution`/`volume`) | §5 85 ~ 86 행 · **§8 (a)** | **대응 row 없음** (in-memory) | §4 98 행이 이미 `Assessment`/`Contribution` 매핑을 박제 |
+| 요청 principal 의 timezone (snap 해석 zone, 기본 KST) | §3 41 행 · §7.2 113 행 | **대응 row 없음** (User 의 컬럼 축) | 구체 컬럼은 §7 P3 범위 |
+
+대응 row 가 없는 4 항목은 전부 **비영속 입력 / raw / in-memory / 컬럼 축** 이고, **영속 표면을 새로 요구하는 항목은 0** 이다.
+
+```
+(ii)  $ grep -c "UC-09"      docs/architecture/data-model.md        → 1     (168 행 §7 bullet 1 곳뿐 — §2 표 `source UC` 컬럼 등장 0, 기대값과 일치)
+(iii) $ awk 'NR==167||NR==168' docs/architecture/data-model.md
+      167 행 → "새 entity 발굴이 8 UC scope 를 벗어나는 경우 … ADR 없이 신규 entity 결정 금지"   (날짜 stamp 없음 = living document)
+      168 행 → "REQ-004 … 2026-08-03 T-1413 재분류로 … 여전히 out-of-scope · 근거 § 12.11 · § 12.13"  (날짜 stamp 있음 = 시점 기록)
+(iv)  $ grep -c "^| \*\*"    docs/architecture/data-model.md        → 14    (baseline · §2 표 bold entity row)
+      $ grep -c "^## "       docs/architecture/data-model.md        → 8     (baseline)
+      $ wc -l                docs/architecture/data-model.md        → 190   (baseline)
+      $ grep -c "^| REQ-"    docs/use-cases/REQ-COVERAGE-AUDIT.md   → 66    (baseline)
+      $ grep -c "^## "       docs/use-cases/REQ-COVERAGE-AUDIT.md   → 12    (baseline, wc -l 1072)
+```
+
+4 값 모두 편집 전제와 일치해 **중단 지점은 없었다** — 특히 (ii) 가 기대값 **0** 이라 §2 표 병기는 전건 신규 추가다.
+
+#### 판정 — **신규 entity 0**
+
+UC-09 는 §2 표에 없는 새 entity 를 **요구하지 않는다**. 근거는 UC-09 본문 3 인용이다. (a) §8 (a) 는 User 분기를 "응답으로 `EvaluationResult[]` … 를 받고 **DB 상태 변화 0**. 같은 요청을 반복해도 부작용이 없다" 로 못 박아 **영속 표면 자체가 없다**. (b) §8 (b) 는 Admin 분기의 산출을 "**Assessment 좌표 row 1 개** 가 생성 (또는 first-write-wins 로 read-through)" 으로 한정하고 응답 6 키 (`assessmentId`/`personId`/`period`/`scope`/`periodStart`/`created`) 를 열거하는데, 이 좌표는 [data-model.md](../architecture/data-model.md) §3 관계 5 가 이미 박제한 `Assessment.@@unique([personId, period, scope, periodStart])` ([ADR-0006](../decisions/ADR-0006-assessment-data-model.md) / [ADR-0033](../decisions/ADR-0033-evaluation-result-persistence.md)) **그 자체** 라 새 축이 0 이다 — `created` 는 row 가 아니라 응답 flag 다. (c) §9 mapping 표의 `DB Persistence / PersistenceModule` 행은 책임을 "**Admin 분기에서만** — 좌표 row 영속 + read-through. User 분기는 write 0" 으로 적어 write 대상이 Assessment 단일임을 재확인한다. 나머지 호명 단위는 위 (i) 표대로 기존 row 의 read-only 참조이거나 비영속 항목이다. 따라서 §2 표 **row 추가 0**, 18 행 · 38 행의 `13 entity (+ 1 conceptual mention)` · `4 module` 수치 **불변** 이며, AC 3 의 ADR 게이트 (167 행) 는 발동 조건 (`신규 N ≥ 1`) 이 성립하지 않아 **N/A** 다.
+
+#### 갱신 3 지점 기록 — §12.15 판별 기준의 첫 적용
+
+- **data-model.md §2 표 Assessment row (28 행) — `source UC` 컬럼 in-place 병기** — 기존 `UC-01 · UC-02 · UC-06` 을 **제거하지 않고** `[UC-09](UC-09-user-defined-period-evaluation.md)` 를 이어 붙였다 (표 안 첫 등장이라 링크 포함 — 같은 컬럼의 기존 화법 승계). 표 row 수 · 컬럼 수 불변이고 같은 row 의 `책임` · `관련 REQ` · `책임 module` 3 컬럼은 무편집. **병기 대상은 이 1 row 뿐** — Person · ServiceIdentity · User · LlmProviderConfig · DifficultyMapping 은 위 (i) 표대로 UC-09 안에서 **단순 read-only 참조** 에 그쳐 AC 4 의 병기 제외 조항에 해당하고, Contribution · Summary 는 UC-09 본문이 entity 로 **직접 호명하지 않는다** (86 행의 `contribution` 은 `EvaluationResult` 의 등급 필드이지 entity 가 아니다).
+- **data-model.md 38 행 (합계 문장) — in-place 치환** — `8 UC cover` → `9 UC cover` 1 토큰 치환 + 근거 1 구 (본 task ID · UC-09 · 신규 entity 0 · §12.16 pointer). 날짜 stamp 가 없는 **living document 의 현행 합계** 라 §12.15 방침의 **in-place 축**. 같은 문장의 `13 entity (+ 1 conceptual mention)` · `4 module` 과 T-0039 / ADR-0044 누계 서술 (`10 → 11`, `11 → 13`) 은 한 글자도 바꾸지 않았다.
+- **data-model.md 168 행 (§7 Out of scope bullet) — append** — `2026-08-03 T-1413 재분류로 …` 로 시작하는 **앞부분은 무편집** 이고 (날짜 stamp 를 단 시점 기록 → §12.15 방침의 **append 축**), 문장 끝에 괄호 부기 1 구를 이어 붙여 (i) 잔여 의무 `§ 2 표 row 추가 미완` 이 본 slice 로 **해소** 됨, (ii) 판정 결론과 근거 3 인용 요약, (iii) out-of-scope 로 남는 것은 신규 entity 신설 가능성 자체 (167 행 ADR 게이트) 뿐임을 적었다. **1 행 → 1 행**.
+
+#### closure 선언
+
+- **T-1417 Follow-up 1 closure — 4 회 이월 종결.** T-1415 FU2 → T-1416 FU2(entity 축) → T-1417 FU1 로 이어진 `data-model.md §2 entity 도출 판정` 항목은 본 절로 닫힌다. §12.13 한계 ① (`UC-09 의 endpoint / entity 실박제는 미완`) 은 endpoint 축이 §12.14 (T-1416), **entity 축이 본 절** 로 각각 소진돼 **전건 closure** 다. §12.14 한계 ② (`data-model.md §2 entity 축 미판정`) 도 함께 소진된다.
+- 승계 대상은 남지 않는다 — 다만 판정 결과가 `신규 0` 이라 ADR task 후보 (본 task Follow-up 3 조건부 항) 는 **생성하지 않는다**.
+
+#### 불변 검산 (doc-only, R-112 대체)
+
+```
+$ grep -c "^| \*\*"  docs/architecture/data-model.md      → 14   (불변 — row 추가 0)
+$ grep -c "^## "     docs/architecture/data-model.md      → 8    (불변)
+$ wc -l              docs/architecture/data-model.md      → 190  (불변 — 3 지점 모두 1:1)
+$ grep -c "UC-09"    docs/architecture/data-model.md      → 1 → 3  (28 · 38 · 168 행 각 1 행 — 행 계수)
+$ grep -c "13 entity" docs/architecture/data-model.md     → 2    (불변 — 18 · 38 행)
+$ grep -c "^| REQ-"  docs/use-cases/REQ-COVERAGE-AUDIT.md → 66   (불변)
+$ grep -c "^## "     docs/use-cases/REQ-COVERAGE-AUDIT.md → 12   (불변, `###` 만 추가)
+$ git status --porcelain → M data-model.md · M REQ-COVERAGE-AUDIT.md · M T-1418 task 파일  (정확히 3 개)
+$ git diff -U0 | grep '^@@'
+@@ -28 +28 @@          (§2 Assessment row — `source UC` in-place 병기, 1:1)
+@@ -38 +38 @@          (38 행 합계 — in-place 치환, 1:1)
+@@ -168 +168 @@        (168 행 — 괄호 부기 append, 1:1)
+@@ -1058,0 +1059,80 @@ (§12.16 삽입 — §12.15 마지막 행과 §11 References 사이)
+$ git diff --numstat
+3       3       docs/architecture/data-model.md
+80      0       docs/use-cases/REQ-COVERAGE-AUDIT.md
+```
+
+data-model.md 의 **삭제 3 은 전부 in-place 치환 / append 의 짝** (28 · 38 · 168 행) 이라 **순수 삭제 0** 이고, audit 는 순수 append 라 삭제 0 이다. §3 ER diagram (44 ~ 59 행 mermaid) · §4 · §5 · §6 은 hunk 밖 무변이며, `docs/architecture/api.md` · `modules.md` · `components.md` · `docs/use-cases/INDEX.md` · `docs/PLAN.md` · `docs/requirements.md` · `UC-01` ~ `UC-09` 본문 · `prisma/` · `src/` · `test/` 는 `git status --porcelain` 에 **미등장** 한다. 변경 파일 **3 개** 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 N/A 다.
+
+#### 한계 —
+
+1. **`8 UC` 표기 잔여 지점은 미착수** — 본 slice 는 data-model.md **38 행 1 곳만** 갱신했다 (AC 2 판정의 직접 귀결이라 동일 slice 소관). `data-model.md` 3 행 · `api.md` 3 · 12 · 64 · 208 · 209 · 222 행 · 본 문서 §11 References 2 줄은 9 UC 실재와 어긋난 채 남아 있다 (§12.15 한계 3 존속, 별도 slice).
+2. **UC-09 ↔ `modules.md` / `components.md` mapping 미착수** — UC-09 §9 가 6 module 을 지목하는데 두 architecture 문서는 UC-09 를 알지 못한다. 특히 §2 표 `책임 module` 컬럼은 4 module 만 쓰고 **`PersistenceModule` 은 등장하지 않는데**, UC-09 §9 는 영속 책임을 그 이름으로 부른다 — 두 문서의 module 명 층위 차이라 entity 판정과 별개 축이며 본 slice 는 판정하지 않았다 (별도 slice).
+3. **§3 ER diagram · §6 coverage 표 무편집 + §2 row 실수 (14) vs 합계 표기 (13) 미판정** — 판정이 `신규 0` 이라 관계·coverage 가 바뀌지 않아 §3 · §4 · §5 · §6 은 건드리지 않았다. 다만 실측 (iv) 의 `grep -c "^| \*\*"` = **14** 는 38 행의 `13 entity` 표기와 1 어긋나는데 (누계 서술이 `PermissionDeniedRecord` 를 빠뜨린 것으로 보인다), 이는 UC-09 와 무관한 **선행 불일치** 이고 본 slice AC 2 가 수치 불변을 요구하므로 **사실 기록만** 하고 정정하지 않았다 (별도 slice 소관).
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
