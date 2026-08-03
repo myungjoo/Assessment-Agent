@@ -74,6 +74,10 @@ NestJS `nest g module <name>` / `nest g controller <name>` / `nest g service <na
 | `adapters/` | 외부 시스템 instance 별 HTTP client wrapper. github 의 경우 3 instance (`com` / `sec` / `ecode`) 가 단일 adapter + sub-config 로 라우팅 ([components.md](components.md) "GitHub Adapter 묶음 결정"). | github / confluence |
 | `repositories/` | Prisma client wrapping repository (`UserRepository.findActiveByGroupId(...)` 등). domain module 안에 두어 domain-cohesion 유지. | user / assessment (domain module 별로 보유) |
 
+> **sub-structure 표 6 row ↔ 실 `src/*/` 하위 3 축 대조 (T-1433 실측 각주)** — 위 표는 55 행이 규정하듯 [T-0021](../tasks/T-0021-p2-directory-structure.md) 시점의 **blueprint** 이고, 현재 `ls -d src/*/*/` 실측은 **11 경로 / sub-dir 3 종** (`dto` **8** · `domain` **2** · `providers` **1**) 이다. ① 표 · 실재 양쪽에 있는 것 **2 종** (`dto/` · `providers/`) · ② 표에 있으나 디렉토리 미실재 **4 종** (`entities/` · `guards/` · `adapters/` · `repositories/`) · ③ 실재하나 표 미기재 **1 종** (`domain/` — `assessment-collection` / `assessment-evaluation`). 양변 검산 — `6 = 2 + 4` · `3 = 2 + 1`.
+> ② 의 4 종은 성격이 갈린다 — `guards/` (`src/auth/*.guard.ts` **2**) · `repositories/` (`src/*/*.repository.ts` **13**) · `adapters/` (`src/{github,confluence}/*-adapter.service.ts` **2**) 는 **책임이 flat 파일로 이미 실현** 돼 있어 디렉토리로 다시 만들면 **중복** 이고, `entities/` 만 (`ls src/*/*.entity.ts` → **0**) 책임 자체가 미shipped 다 (인접 실현은 ③ 의 `domain/`). `채택 module` 컬럼의 `assessment` · `scheduler` 는 아래 `## 9 module 별 디렉토리 mapping` 표 직후 T-1430 각주가 이미 **미shipped placeholder** · **실 shipped 명 = `SchedulingModule` (`src/scheduling/`)** 으로 판정한 두 이름 그대로이며, 실 `dto/` 보유 8 module 중 표의 `dto/` row 가 열거한 것은 `auth` · `user` **2** 뿐이다.
+> 본 각주는 **사실 기록** 이지 표 재작성이 아니다 — 각 sub-dir 의 `용도` 컬럼 서술 ↔ 실 파일 책임 대조는 실측 근거 없이 창작할 수 없어 별도 slice 소관이고, 아래 `PersistenceModule 의 특수 sub-structure` 가 열거한 3 파일은 실측상 전부 실재라 무편집이다 (판정 근거는 [REQ-COVERAGE-AUDIT § 12.31](../use-cases/REQ-COVERAGE-AUDIT.md)).
+
 PersistenceModule 의 특수 sub-structure:
 
 - `src/persistence/persistence.module.ts` — `@Global()` decorator 적용 + `PrismaService` export ([modules.md](modules.md) "DB Persistence 의 module 분리 결정" 참조).

@@ -80,6 +80,14 @@ planner 사전 확인 (executor 가 AC 1 에서 전부 재측정) — 표 (**68 
 
 `implementer` (doc-only, 단독).
 
+## 완료 기록
+
+- **AC 3 채택안 = (B)** — 표 (68 ~ 75 행) **원문 무편집** + 표 직후 3 축 대조 각주 blockquote **3 행** append ([directory.md](../architecture/directory.md) `wc -l` 187 → **191**, +4, 상한 +6 충족). (A) · (C) 는 3 · 19 · 55 행의 T-0021 시점 blueprint 선언과 자기모순 (`§ 12.15` 위반) + `용도` 컬럼 창작 risk 라 기각, (D) 는 오도 risk 최대 (flat 실현 13 + 2 + 2 파일과의 **중복 신설**) 라 기각.
+- **실측 (AC 1)** — 표 sub-dir **6 종**, 실 `ls -d src/*/*/` **11 경로 / 3 종** (`dto` 8 · `domain` 2 · `providers` 1), 3 축 차집합 **양쪽 2 (`dto/` · `providers/`) · 표 전용 4 (`entities/` · `guards/` · `adapters/` · `repositories/`) · 실재 전용 1 (`domain/`)**, 양변 검산 `6 = 2 + 4` · `3 = 2 + 1`. flat suffix 축 — `*.guard.ts` **2** · `*.repository.ts` **13** · `*.entity.ts` **0** · `*.adapter.ts` **0** (전부 기대 일치). **기대 정정 1** — 보강 측정 `ls src/*/*-adapter.service.ts` = **2** (github · confluence) 로 planner 기대의 "`adapters/` = 책임 미shipped" 가 **불성립**, 표 전용 4 는 **flat 실현 3 (`guards/` · `repositories/` · `adapters/`) + 미shipped 1 (`entities/`)** 로 재분류했다. AC 1 (vi) `ls src/persistence/` 3 파일 전부 실재 → 77 ~ 82 행 **무편집**. baseline 6 값 전부 일치 (중단 지점 0).
+- **audit `### 12.31` 신설** — `## 11. References` 앞 순수 append **120 행** (cap 120 정확히 충족, audit `wc -l` 2943 → **3064** = 절 120 + 구분 빈 줄 1), `^## ` **12** · `^| REQ-` **66** 불변, `modules.md` 259 무편집. 변경 파일 **3** · 순수 삭제 **0** (삭제 1 행 = 본 파일 Follow-ups placeholder 치환 짝) · `git status --porcelain src/ test/ prisma/ web/` 빈 출력.
+- **closure** — directory.md 대조 축이 **표 · pointer · 트리 · sub-structure 4 면 전부** 닫혔다 (`§ 12.31` closure 선언). 잔여는 `용도` 컬럼 ↔ 실 파일 책임 대조 (파생 영향 8) 뿐.
+- **AC 8** — `commitMode: direct` + production code **0 LOC** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 doc-only 면제로 R-110 tester 호출 · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 전부 **N/A** (분기 0).
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
+- **[REQ-COVERAGE-AUDIT § 12.31](../use-cases/REQ-COVERAGE-AUDIT.md) 파생 영향 8 항** 이 정본 목록 — 특히 신규 잔여 ⑧ 표 `용도` 컬럼 서술 ↔ 실 파일 책임 대조 (`providers/` 의 "5 provider" vs 실 `*.adapter.ts` **4** 가 첫 증거), ⑤ sub-dir 종 수 CI drift-guard spec (본 slice 재-stale 을 막는 유일한 축), ④ 행 번호 → anchor 좌표계 이행 (9 회째) 이 우선순위다. 전부 후속 slice 소관 (본 slice 편집 금지).

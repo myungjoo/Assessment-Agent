@@ -2927,6 +2927,127 @@ $ git status --porcelain → M directory.md · M REQ-COVERAGE-AUDIT.md · M T-14
 2. **blueprint 문서가 코드를 복제하는 구조는 잔존** — `src/` 에 디렉토리가 하나 추가되는 순간 본 각주의 `15` · `8 / 3 / 7` · 두 검산식이 **즉시 재-stale** 이 된다. 사람 규약으로 막을 수 없고 파생 영향 5 의 **CI drift-guard 축** 으로만 닫힌다.
 3. **보존 판정이 남긴 독자 부담** — 트리 본문은 그대로라 독자는 여전히 `src/assessment/` · `src/scheduler/` · `src/config/` 를 만나고, 그것이 T-0021 좌표계임은 각주 2 행을 읽어야만 안다. root 17 · 파일 8 미기재도 각주 한 구절로만 노출된다.
 
+### 12.31 directory.md 표준 sub-structure 표 ↔ 실 `src/*/` 하위 3 축 대조 — 원문 보존 + 각주 1 블록 (T-1433)
+
+> **본 절의 위치** — `§ 12.30` 은 트리 축 closure 를 선언하면서 **파생 영향 7** 로 "[directory.md](../architecture/directory.md) `## 각 module 디렉토리의 표준 sub-structure` 의 sub-dir 채택 module 열거 ↔ 실 `src/*/` 하위 실측 대조" 를 목록만 남겼고, 같은 절 **한계 1** 도 "본 대조는 디렉토리 이름 축뿐" 이라고 잔여를 명시했다. 본 절이 그 위임을 실행한다. **계보** — `T-1422` → `T-1423` → `T-1426` → `T-1429` → `T-1430` (같은 문서 **표 축**) → `T-1431` (파생 **pointer 축**) → `T-1432` (**트리 축**) → **`T-1433` (본 절 — **sub-structure 축**, directory.md 의 네 번째이자 마지막 대조 면)**. 판정은 `§ 12.15` (시점 기록 append-only) 와 `§ 12.28` · `§ 12.30` (3 축 대조 각주 화법) 의 병용이다.
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력 그대로)
+
+```
+(i)   표 축 전수 — $ sed -n '68,75p' docs/architecture/directory.md → sub-dir 6 종 + `채택 module` 값:
+      dto/ = "모든 endpoint 가진 module (assessment / user / auth / web / scheduler)" · entities/ = "assessment /
+      user (domain entity 보유)" · guards/ = "**auth** (전용)" · providers/ = "**llm** (전용)" ·
+      adapters/ = "github / confluence" · repositories/ = "user / assessment (domain module 별로 보유)".
+      고유 채택 module 값 8 = assessment · user · auth · web · scheduler · llm · github · confluence.
+(ii)  코드 축 전수 — $ ls -d src/*/*/ | sed 's#/$##' → src/assessment-collection/domain ·
+      src/assessment-collection/dto · src/assessment-evaluation/domain · src/assessment-evaluation/dto ·
+      src/auth/dto · src/export/dto · src/import/dto · src/llm/dto · src/llm/providers · src/scheduling/dto ·
+      src/user/dto  (= 11 경로, 기대 11 일치)
+      $ ls -d src/*/*/ | awk -F/ '{print $3}' | sort | uniq -c → 2 domain · 8 dto · 1 providers (= 3 종, 기대 일치)
+(iii) flat suffix 축 — $ ls src/*/*.guard.ts → src/auth/jwt-auth.guard.ts · src/auth/roles.guard.ts (= 2, 기대 일치)
+      $ ls src/*/*.repository.ts → llm 2 · permission-denied 1 · user-instance-access 1 · user 9 (= 13, 기대 일치)
+      $ ls src/*/*.entity.ts → (빈 출력, = 0 기대 일치)   $ ls src/*/*.adapter.ts → (빈 출력, = 0 기대 일치)
+      보강 2 식 (기대 밖 추가 측정) — $ ls src/*/*-adapter.service.ts → src/confluence/confluence-adapter.service.ts ·
+      src/github/github-adapter.service.ts (= 2, 표의 adapters/ 채택 module 2 와 정확히 일치) ·
+      $ ls src/*/*/*.adapter.ts → src/llm/providers/{anthropic,azure-openai,google-gemini,openai-compatible}.adapter.ts
+      (= 4). ⇒ planner 사전 기대의 "adapters/ = 책임 자체 미shipped" 는 **불성립** — adapter 책임은 `*.adapter.ts`
+      가 아닌 `*-adapter.service.ts` 이름으로 shipped 다. 측정값 자체 (2/13/0/0) 는 전부 기대 일치라 편집 중단 사유
+      아니고, 어긋난 것은 그 값에서 파생시킨 **분류** 뿐이라 아래 AC 2 에서 분류를 실측대로 정정한다.
+(iv)  3 축 차집합 — ① 양쪽 실재 2 종 = dto/ · providers/ · ② 표 전용 (디렉토리 미실재) 4 종 = entities/ ·
+      guards/ · adapters/ · repositories/ · ③ 실재 전용 (표 미기재) 1 종 = domain/.
+      양변 검산 — 6 = 2 + 4 · 3 = 2 + 1 (둘 다 성립).
+      ② 의 flat 실측 부착 → guards/ · repositories/ · adapters/ = **다른 형태로 실현** (각 2 · 13 · 2 파일) ·
+      entities/ = **책임 자체 미shipped** (0, 인접 실현은 ③ domain/ 의 10 + 43 파일).
+(v)   채택 module 값 축 (보조) — 경로 미실재 2 = assessment (정본 modules.md 39 행 "미shipped placeholder") ·
+      scheduler (정본 42 행 "실 shipped module 명 = SchedulingModule (src/scheduling/)").
+      경로는 실재하나 해당 sub-dir 미보유 = web (하위 sub-dir 0) · github · confluence (adapters/ 없음, flat 2) ·
+      auth (guards/ 없음, flat 2) · user (entities/ · repositories/ 없음, flat repository 9).
+      표의 어느 row 에도 없는 실 shipped module 7 (§ 12.30 ③ 과 동일 집합) 중 dto/ 보유 5 =
+      assessment-collection · assessment-evaluation · export · import · scheduling, 미보유 2 =
+      permission-denied · user-instance-access (대신 flat *.repository.ts 각 1). planner 기대 후보 6 은
+      scheduling 을 제외했으므로 "그중 dto/ 보유" 는 4 — scheduling 을 더한 5 가 실측이다.
+      dto 8 검산 — 5 (표 미기재 module) + 3 (auth · llm · user) = 8, 그중 표의 dto/ row 열거와 일치 2 (auth · user).
+(vi)  PersistenceModule 특수 단락 축 (보조) — $ ls src/persistence/ → persistence.module.spec.ts ·
+      persistence.module.ts · prisma.service.spec.ts · prisma.service.ts → 77 ~ 82 행이 열거한 3 파일 전부 실재
+      (미기재 1 = persistence.module.spec.ts). ⇒ **본 단락은 stale 아님 · 무편집** (AC 4 넷째 bullet 전건 불성립).
+(vii) baseline — $ wc -l directory.md 187 · audit 2943 · modules.md 259 | $ grep -c '^## ' directory.md 10 ·
+      audit 12 | $ grep -c '^| REQ-' audit 66 → 6 값 전부 기대 일치, AC 1 중단 지점 0.
+```
+
+**지점 판정표 (AC 2)** — 판정 축 ① **문서 성격** (3 · 19 · 55 행이 본 문서를 T-0021 blueprint 로 규정하는데 표를 고치면 자기모순인가) · ② **`§ 12.15` 정합** (시점 기록 append-only 대상인가) · ③ **선례** (`§ 12.28` 표 축 · `§ 12.30` 트리 축이 같은 문서에서 채택한 "원문 보존 + 실측 각주 blockquote" 화법의 sub-structure 축 적용 가능성).
+
+| 항목 | 축 | 표 서술 / 부재 1 구 | 실측 상태 | 판정 | 근거 1 구 |
+| --- | --- | --- | --- | --- | --- |
+| `entities/` | sub-dir 종 | "domain entity 또는 Prisma generated type 의 re-export wrapper" — 채택 = assessment / user | **미shipped** (`*.entity.ts` 0 · `src/user/entities/` 부재) | 원문 보존 + 각주 부기 | ① 표가 T-0021 blueprint 라 row 삭제는 55 행 선언과 자기모순 — 채택 module 중 `assessment` 는 정본 39 행이 미shipped placeholder 로 규정 |
+| `guards/` | sub-dir 종 | "NestJS RBAC guard (`@UseGuards(RolesGuard)`)" — 채택 = **auth** (전용) | **flat 실현** (`src/auth/jwt-auth.guard.ts` · `roles.guard.ts` = 2) | 원문 보존 + 각주 부기 (**별도 근거**) | ③ 책임은 shipped 이고 **형태만 flat** — row 를 지우면 shipped 책임이 문서에서 사라지고, 그대로 두면 디렉토리 신설 오도라 각주로 형태를 박제 |
+| `adapters/` | sub-dir 종 | "외부 시스템 instance 별 HTTP client wrapper" — 채택 = github / confluence | **flat 실현** (`*-adapter.service.ts` 2 = 채택 module 2 와 일치) | 원문 보존 + 각주 부기 (**별도 근거**) | ③ `guards/` 와 동질 — planner 기대 "미shipped" 를 실측이 뒤집었으므로 각주는 flat 실현으로 기술 |
+| `repositories/` | sub-dir 종 | "Prisma client wrapping repository … domain-cohesion 유지" — 채택 = user / assessment | **flat 실현** (`*.repository.ts` 13, `src/user/` 9) | 원문 보존 + 각주 부기 (**별도 근거**) | ③ 형태만 flat 이며 **중복 신설 위험이 최대** (13 파일을 디렉토리로 재구성하라는 오독) — 각주가 그 위험을 명시 |
+| `domain/` | sub-dir 종 | (표 부재) | 실재 2 (`assessment-collection` 10 · `assessment-evaluation` 43 파일) | 표 무편집 + 각주 열거 | ① P4 / P5 layer 는 T-0021 이후 shipped — 시점 표에 소급 row 삽입은 창작 (`§ 12.30` 실재 전용 7 과 동일 사유) |
+| `assessment` · `scheduler` | 채택 module 값 | 3 row · 1 row 의 채택 module 값 | 경로 미실재 (`scheduler` 실현체 = `src/scheduling/`) | 무편집 | ② 두 이름의 판정은 `§ 12.28` (T-1430 각주) · `§ 12.30` 이 이미 박제 — 재판정 없이 본 각주가 그 판정을 인용만 |
+| `web` · `github` · `confluence` · `auth` · `user` | 채택 module 값 | 각 row 의 채택 module 값 | 경로 실재 · 해당 sub-dir 미보유 | 무편집 | ③ 값 자체는 "어느 module 이 그 책임을 갖는가" 서술이라 **여전히 참** — 어긋난 것은 sub-dir 형태뿐이고 그것은 각주 소관 |
+| 표 미기재 실 shipped 5 (`assessment-collection` · `assessment-evaluation` · `export` · `import` · `scheduling`) | 채택 module 값 | (표 부재, 전부 `dto/` 보유) | 실재 | 무편집 + 각주 1 구 | ① 채택 module 컬럼에 5 이름을 추가하면 T-0021 시점 표를 현재 좌표로 재작성하는 것 — 정본 계상 축 (ADR 게이트) 선행 |
+
+**`guards/` · `repositories/` (+ `adapters/`) 별도 1 구** — 표 전용 4 중 `entities/` 는 `ls src/*/*.entity.ts` 가 **0** 이고 채택 module 인 `assessment` 자체가 미shipped 라 **책임 자체가 미shipped** 인 반면, `guards/` (2) · `repositories/` (13) · `adapters/` (2) 는 **책임이 이미 shipped 이고 형태만 flat 파일** 이다. 같은 "디렉토리 미실재" 라도 전자는 "아직 안 만들었다", 후자 셋은 "다른 형태로 이미 만들었다" 라 근거가 다르며, 후자를 디렉토리로 만들라는 지시로 읽으면 **기존 13 + 2 + 2 파일과 중복** 이 발생한다. 본 구분이 각주 두 번째 행의 존재 이유다.
+
+#### 처리 방식 판정 (AC 3 — 4 후보 · 채택 1 · 기각 3)
+
+판정 축 **4** — ① `§ 12.15` 정합 · ② 독자 오도 risk · ③ cap (≤ 300 LOC · 파일 3 고정) · ④ 선례 일관성.
+
+| 후보 | ① § 12.15 정합 | ② 오도 risk | ③ cap | ④ 선례 일관성 | 판정 |
+| --- | --- | --- | --- | --- | --- |
+| (A) 표 in-place 전면 재작성 (실측 3 종 + flat 축으로 교체) | **위반** — 3 · 19 · 55 행이 문서를 T-0021 blueprint 로 선언해 자기모순 | 해소되나 `domain/` row 의 `용도` 문구를 신설해야 해 **창작 유입** (AC 4 넷째 bullet 금지) | 6 row 치환 + 신설 (cap 자체는 안) | 같은 문서 표 축 (`§ 12.28`) · 트리 축 (`§ 12.30`) 이 보존 + 각주를 채택한 것과 불일치 | **기각** — ① 위반 + 창작 risk |
+| **(B) 표 원문 무편집 + 표 직후 3 축 대조 각주 blockquote 1** | **정합** — 시점 기록은 보존, 사실은 append | **해소** — 각주가 표 바로 아래에서 미실재 4 와 flat 실현 3 을 명시 | +4 행 · 파일 3 | `§ 12.28` · `§ 12.30` 화법의 **동일 문서 내 3 번째 확대 적용** | **채택** |
+| (C) 혼합 (표 전용 4 의 채택 module 컬럼만 주석 병기 + 나머지 각주) | **부분 위반** — 표 셀을 손대는 순간 (A) 와 같은 ① 발생 | 해소 | +4 ~ 8 행 | 한 표 안에서 화법이 둘로 갈려 일관성 하락 | **기각** — ① 위반이 (A) 와 동질 |
+| (D) 전 지점 무편집 + audit 기록만 | 정합 | **최대** — 독자는 directory.md 만 보고 `src/user/entities/` · `src/github/adapters/` · `src/user/repositories/` 를 만들어야 한다고 오인 (특히 flat 13 파일과의 **중복 생성**) | 0 LOC | 표 · 트리 축이 각주로 닫힌 선례와 불일치 — sub-structure 축만 재이월 | **기각** |
+
+cap 초과 후보 **0** 이라 split 제안 없음. 채택안 (B) 는 `§ 12.28` · `§ 12.30` 의 "**사실 기록이지 표 재작성이 아니다**" 화법을 sub-structure 축에 그대로 승계한다.
+
+#### 반영 결과 (AC 4) + 무편집 경계
+
+| 지점 | 편집 방식 | 내용 |
+| --- | --- | --- |
+| [directory.md](../architecture/directory.md) 표 직후 (구 75 행 뒤 → 신 **77 ~ 79** 행) | blockquote **3 행** 순수 append (+ 구분 빈 줄 1) | 3 축 차집합 (**2 / 4 / 1**) + 양변 검산 2 식 + 표 전용 4 의 flat 실현 3 (2 · 13 · 2) vs 미shipped 1 구분 + `채택 module` 값 축 (기존 T-1430 판정 인용 + `dto/` 8 중 표 열거 2) + 보존 선언 |
+
+`wc -l` 187 → **191** (+4, 상한 +6 충족) 이고 표 본문 (68 ~ 75 행) **내부 편집 0** 이다. **무편집 경계** — directory.md 시점 선언 3 지점 (3 · 19 · 55 행) · ASCII 트리 21 ~ 50 행 + T-1432 각주 52 ~ 53 행 · 표 68 ~ 75 행 내부 · `PersistenceModule 의 특수 sub-structure` (구 77 ~ 82 행 — AC 1 (vi) 이 stale 아님을 실증) · `## 9 module 별 디렉토리 mapping` 표 + T-1430 각주 (구 84 ~ 101 행) · 구 105 행 이후 전 구간 · `## References` · `Refs:` 말미, 그리고 [modules.md](../architecture/modules.md) · [components.md](../architecture/components.md) · [api.md](../architecture/api.md) · [data-model.md](../architecture/data-model.md) · `docs/architecture/INDEX.md` · `docs/architecture/p3-*.md` · [INDEX.md](INDEX.md) · `UC-01` ~ `UC-09` 본문 · `docs/decisions/ADR-*.md` · [PLAN.md](../PLAN.md) · [requirements.md](../requirements.md) · `src/` · `test/` · `prisma/` · `web/` · `scripts/` 는 전부 무편집이며 3 파일 밖이라 diff 에 미등장한다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **[UC-09](UC-09-user-defined-period-evaluation.md) `§ 5` sequence participant 병기 미판정** — **15 회째 이월**. 후속 slice 소관.
+2. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축** — `ExportModule` / `ImportModule` / `UserInstanceAccessModule` 계상은 **ADR 게이트** 선행. 후속 slice 소관.
+3. **외부 package module (`ScheduleModule.forRoot()`) 계상 규약**. 후속 slice 소관.
+4. **행 번호 좌표계 → anchor 좌표계 이행** — **9 회째**. 본 절도 20 개 이상 행 번호에 의존했다. 후속 slice 소관.
+5. **산문 tally ↔ 표 row 수 / 트리 항목 수 / sub-dir 종 수 CI drift-guard spec**. 후속 slice 소관.
+6. **각 UC 본문 `§ 9` module 산정 수치의 이중 관리**. 후속 slice 소관.
+7. **[components.md](../architecture/components.md) 11 행 8 열거의 forward pointer 부기 여부** (T-1431 잔여). 후속 slice 소관.
+8. **신규 — 표 `용도` 컬럼 서술 ↔ 실 파일 내용 (책임) 대조** — 본 slice 는 sub-dir **이름 축 + flat suffix 축** 만 닫았다. 예: `providers/` 의 `용도` 가 "5 LLM provider" 인데 실 `src/llm/providers/*.adapter.ts` 는 **4** 파일 (custom 이 `openai-compatible` 에 흡수) 이라 수치 축 재판정이 필요하다. 후속 slice 소관.
+
+#### closure 선언
+
+[directory.md](../architecture/directory.md) 의 정본 대조 축은 **표** (`§ 12.28` / T-1430 각주) · **pointer** (`§ 12.28` in-place) · **트리** (`§ 12.30` / T-1432 각주) · **sub-structure** (본 절 / T-1433 각주) **4 면에서 모두 닫혔다** — 네 면 각각에 실측 기반 3 축 대조가 박제됐고 미판정 축은 **0** 이다. **닫히지 않은 잔여 2**: (a) 각 sub-dir 의 `용도` 컬럼 서술 ↔ 실 파일 책임 대조 (파생 영향 8 — 본 slice 는 이름 축만 다뤘다), (b) 트리 미기재 root **17** 항목 — `§ 12.30` AC 2 에서 전수 **무편집** 판정했으므로 stale 잔여가 아니라 **범위 밖 항목** 이다.
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l directory.md 187 → 191 (+4, 상한 +6) | modules.md 259 → 259 (무편집) | audit 2943 → 3064
+  (+121 = 본 절 120 행 + 구분 빈 줄 1 ⇒ 절 자체가 cap 120 을 정확히 충족)
+$ grep -c '^## ' directory.md → 10 (불변) | audit → 12 (불변, `###` 만 추가) | $ grep -c '^| REQ-' audit → 66 (불변)
+$ git diff -U0 -- docs/architecture/directory.md | grep '^@@' → @@ -76,0 +77,4 @@ ⇒ hunk 1 개 = AC 4 허용 구간
+  (표 직후) 뿐 — 3 · 19 · 55 행 · 68~75 표 내부 · 77~82 Persistence 단락 · 84~101 mapping 표 · 105 행 이후 전부 hunk 밖
+$ git diff --numstat → 4 0 (directory.md) · 121 0 (audit 순수 추가) · 9 1 (task 파일) ⇒ 전체 삭제 1 행 = task 파일
+  `## Follow-ups` placeholder 의 in-place 치환 짝 ⇒ 순수 삭제 0
+$ git status --porcelain src/ test/ prisma/ web/ → (빈 출력)   코드 무변경 실증
+$ git status --porcelain → M directory.md · M REQ-COVERAGE-AUDIT.md · M T-1433 task 파일 = 3 파일 (상한 3)
+```
+
+합계 diff ≤ 300 LOC · 파일 3 으로 [CLAUDE.md](../../CLAUDE.md) §3 상한 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A**, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 **N/A** 다 (AC 8).
+
+#### 한계 —
+
+1. **본 대조는 sub-dir 이름 축 + flat suffix 축뿐** — 각 파일의 **내용 / 책임** 이 표의 `용도` 컬럼 서술과 맞는지는 **미검증** 이다 (파생 영향 8 — `providers/` 5 vs 실 4 가 그 첫 증거).
+2. **blueprint 문서가 코드 layout 을 복제하는 구조는 잔존** — `src/*/` 에 sub-dir 이 하나 추가되는 순간 본 각주의 `11` · `2 / 4 / 1` · 두 검산식 · flat 3 수치가 **즉시 재-stale** 이 된다. 사람 규약으로 막을 수 없고 파생 영향 5 의 **CI drift-guard 축** 으로만 닫힌다.
+3. **보존 판정이 남긴 독자 부담** — 표 본문은 그대로라 P3+ implementer 는 여전히 `entities/` · `guards/` · `adapters/` · `repositories/` 지시를 만나고, 그중 셋이 flat 파일로 이미 실현됐다는 사실은 각주 3 행을 읽어야만 안다.
+4. **flat suffix 축의 탐지 한계** — 본 절의 flat 측정은 **이름 규약 (`*.guard.ts` · `*.repository.ts` · `*-adapter.service.ts`) 에 의존** 한다. AC 1 (iii) 에서 `*.adapter.ts` 0 만 보고 "adapters/ 미shipped" 로 갈 뻔한 것이 그 증거이며, 다른 이름으로 실현된 책임은 여전히 미탐지일 수 있다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
