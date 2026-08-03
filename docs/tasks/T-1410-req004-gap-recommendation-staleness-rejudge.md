@@ -2,8 +2,9 @@
 id: T-1410
 title: REQ-004 gap 권장 처리 서술 (UC-09 신설 · UC-01 확장 · T-0030+ 책임) 최신성 4 축 재판정 + §12.10 박제 + PLAN 36 행 책임 지목 정정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
+completed: 2026-08-03
 coversReq: [REQ-001, REQ-004]
 estimatedDiff: 90
 estimatedFiles: 3
@@ -37,38 +38,38 @@ REQ-004 는 [§9](../use-cases/REQ-COVERAGE-AUDIT.md) (T-1389) 와 §12 S1 ~ S3 
 
 ### 1. 4 축 실측 (판정이 본 slice 의 1 급 산출물)
 
-- [ ] **축 A — 권장 (a) UC-09 신설 착수 여부**: `ls docs/use-cases/UC-*.md` 로 UC 본문 파일 수를 세고 (`UC-09*` hit **0** 기대), `docs/use-cases/INDEX.md` §2 표 row 수 (8) 에 UC-09 가 없음을 확인. 착수 / 미착수를 건수로 판정.
-- [ ] **축 B — 권장 (b) UC-01 확장 착수 여부**: `docs/use-cases/UC-01-evaluation-execution.md` frontmatter `coversReq` 에 `REQ-004` 포함 여부 + 본문의 `사용자 지정 기간` / `임의 기간` / `date-range` grep hit 수를 실측. §9 173 행의 `coversReq 에 REQ-004 를 포함한 UC = 0 / 8` 실측과 일치하는지 대조. 착수 / 미착수를 건수로 판정.
-- [ ] **축 C — 책임 task 지목 최신성**: `T-0030` · `T-0031` 두 task 파일의 frontmatter `title` / `status` 를 실측해 실제 산출물이 `api.md` / `data-model.md` 임을 확인하고, 추가로 `grep -l "REQ-004" docs/tasks/*.md` 로 REQ-004 를 다룬 task 가 있는지 전수 확인. 결과로 **지목 stale 여부** 를 명시 판정 (stale = 지목된 ID 가 다른 산출물로 소진 + 대체 책임 task 부재).
-- [ ] **축 D — 권장 자체의 유효성**: REQ-004 가 §9 (T-1389) · §12.6 ~ §12.8 (S1 ~ S3) 를 거쳐 여전히 `gap` 임을 §3 38 행 · §5 126 행에서 재확인하고, §6 이 (a) 를 우선 권장한 근거 (`UC-01 은 cron/manual full-period 파이프라인이라 분리가 깔끔`) 가 현 UC-01 본문 trigger 서술과 여전히 부합하는지 1 회 확인. 권장 유효 / 무효를 판정.
-- [ ] 4 축 결과로 **정정 대상을 명시 확정**: 권장 (a) / (b) 문구 자체가 유효하면 문구는 손대지 않고, 축 C 가 stale 로 나온 **책임 task 지목만** 정정 대상으로 삼는다. 축 D 가 무효로 나오면 정정하지 말고 Follow-up 으로 올린다 (§6 는 2026-05-25 시점 기록이라 append-only 보존 대상 — §12.3 306 행).
+- [x] **축 A — 권장 (a) UC-09 신설 착수 여부**: `ls docs/use-cases/UC-*.md` 로 UC 본문 파일 수를 세고 (`UC-09*` hit **0** 기대), `docs/use-cases/INDEX.md` §2 표 row 수 (8) 에 UC-09 가 없음을 확인. 착수 / 미착수를 건수로 판정.
+- [x] **축 B — 권장 (b) UC-01 확장 착수 여부**: `docs/use-cases/UC-01-evaluation-execution.md` frontmatter `coversReq` 에 `REQ-004` 포함 여부 + 본문의 `사용자 지정 기간` / `임의 기간` / `date-range` grep hit 수를 실측. §9 173 행의 `coversReq 에 REQ-004 를 포함한 UC = 0 / 8` 실측과 일치하는지 대조. 착수 / 미착수를 건수로 판정.
+- [x] **축 C — 책임 task 지목 최신성**: `T-0030` · `T-0031` 두 task 파일의 frontmatter `title` / `status` 를 실측해 실제 산출물이 `api.md` / `data-model.md` 임을 확인하고, 추가로 `grep -l "REQ-004" docs/tasks/*.md` 로 REQ-004 를 다룬 task 가 있는지 전수 확인. 결과로 **지목 stale 여부** 를 명시 판정 (stale = 지목된 ID 가 다른 산출물로 소진 + 대체 책임 task 부재).
+- [x] **축 D — 권장 자체의 유효성**: REQ-004 가 §9 (T-1389) · §12.6 ~ §12.8 (S1 ~ S3) 를 거쳐 여전히 `gap` 임을 §3 38 행 · §5 126 행에서 재확인하고, §6 이 (a) 를 우선 권장한 근거 (`UC-01 은 cron/manual full-period 파이프라인이라 분리가 깔끔`) 가 현 UC-01 본문 trigger 서술과 여전히 부합하는지 1 회 확인. 권장 유효 / 무효를 판정.
+- [x] 4 축 결과로 **정정 대상을 명시 확정**: 권장 (a) / (b) 문구 자체가 유효하면 문구는 손대지 않고, 축 C 가 stale 로 나온 **책임 task 지목만** 정정 대상으로 삼는다. 축 D 가 무효로 나오면 정정하지 말고 Follow-up 으로 올린다 (§6 는 2026-05-25 시점 기록이라 append-only 보존 대상 — §12.3 306 행).
 
 ### 2. 기록 — audit 문서에 §12.10 append
 
-- [ ] `docs/use-cases/REQ-COVERAGE-AUDIT.md` 의 §12.9 마지막 행 (719 행) 과 `## 11. References` (720 행) **사이에만** `### 12.10` 절을 삽입 (삽입 hunk 1 개). 1 ~ 719 행은 1 자도 변경 금지.
-- [ ] §12.10 은 §12.9 구조를 승계: (i) 대상·범위 1 문단, (ii) 축 A ~ D 실측 표, (iii) 정정 대상 확정 판정, (iv) PLAN.md 36 행 before → after 요지, (v) 불변 검산 표, (vi) 한계 명시.
-- [ ] 새 절은 `## ` 로 시작하는 heading 을 만들지 않는다 (`###` / `####` 만 사용). `212 행` · `미검증 축` 문자열도 쓰지 않는다 (T-1405 ~ T-1409 회피 표기 승계).
+- [x] `docs/use-cases/REQ-COVERAGE-AUDIT.md` 의 §12.9 마지막 행 (719 행) 과 `## 11. References` (720 행) **사이에만** `### 12.10` 절을 삽입 (삽입 hunk 1 개). 1 ~ 719 행은 1 자도 변경 금지.
+- [x] §12.10 은 §12.9 구조를 승계: (i) 대상·범위 1 문단, (ii) 축 A ~ D 실측 표, (iii) 정정 대상 확정 판정, (iv) PLAN.md 36 행 before → after 요지, (v) 불변 검산 표, (vi) 한계 명시.
+- [x] 새 절은 `## ` 로 시작하는 heading 을 만들지 않는다 (`###` / `####` 만 사용). `212 행` · `미검증 축` 문자열도 쓰지 않는다 (T-1405 ~ T-1409 회피 표기 승계).
 
 ### 3. 편집 — PLAN.md 36 행 1 행 → 1 행 in-place 치환
 
-- [ ] `docs/PLAN.md` **36 행만** 1:1 교체 (T-1404 · T-1409 선례 동형) — `follow-up task T-0030+ 책임` 구간을 축 C 실측 결과로 갱신 (T-0030 / T-0031 이 다른 산출물로 소진됐고 REQ-004 해소 task 는 미생성이라는 사실 + 근거는 audit §12.10 위임). 삽입 / 삭제 금지 (파일 행 수 175 불변, 36 행 번호 불변).
-- [ ] 기존 문장·링크·수치 4 값 (`uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1 = 66`) · T-1409 가 덧붙인 2026-08-03 재판정 pointer 문장은 **한 글자도 축약하지 않는다**.
-- [ ] 권장 처리 문구 `UC-09 신설 또는 UC-01 확장 권장` 은 축 D 가 유효 판정이면 **원문 그대로 보존**.
+- [x] `docs/PLAN.md` **36 행만** 1:1 교체 (T-1404 · T-1409 선례 동형) — `follow-up task T-0030+ 책임` 구간을 축 C 실측 결과로 갱신 (T-0030 / T-0031 이 다른 산출물로 소진됐고 REQ-004 해소 task 는 미생성이라는 사실 + 근거는 audit §12.10 위임). 삽입 / 삭제 금지 (파일 행 수 175 불변, 36 행 번호 불변).
+- [x] 기존 문장·링크·수치 4 값 (`uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1 = 66`) · T-1409 가 덧붙인 2026-08-03 재판정 pointer 문장은 **한 글자도 축약하지 않는다**.
+- [x] 권장 처리 문구 `UC-09 신설 또는 UC-01 확장 권장` 은 축 D 가 유효 판정이면 **원문 그대로 보존**.
 
 ### 4. 불변 검산 (편집 후 실측값을 §12.10 표에 박제)
 
-- [ ] `grep -c "^| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md` = **66** 불변.
-- [ ] `grep -c "^## " docs/use-cases/REQ-COVERAGE-AUDIT.md` = **12** 불변.
-- [ ] `grep -c "212 행" docs/use-cases/REQ-COVERAGE-AUDIT.md` = **9** · `grep -c "미검증 축"` = **10** 불변.
-- [ ] `sed -n '115p'` 정합식 `33 + 15 + 4 + 13 + 1 = 66` · §5 표 (121 ~ 127 행) count 4 값 `48 / 4 / 13 / 1` + 합계 `**66**` · `**100 %**` 불변.
-- [ ] `wc -l docs/PLAN.md` = **175** 불변 · `wc -l docs/use-cases/INDEX.md` = **114** 불변 (INDEX.md 는 본 slice 에서 **무편집** — `git status` 에 등장하면 안 됨).
-- [ ] `git diff -U0` 의 hunk 가 정확히 **2 개** (audit 삽입 1 · PLAN 1:1 치환 1), `git diff --numstat` 의 삭제 열 합 = **1** (PLAN 치환의 짝) → **순수 삭제 0**.
-- [ ] `git status --porcelain` 이 `touchesFiles` 3 개 외 변경 파일 **0**.
+- [x] `grep -c "^| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md` = **66** 불변.
+- [x] `grep -c "^## " docs/use-cases/REQ-COVERAGE-AUDIT.md` = **12** 불변.
+- [x] `grep -c "212 행" docs/use-cases/REQ-COVERAGE-AUDIT.md` = **9** · `grep -c "미검증 축"` = **10** 불변.
+- [x] `sed -n '115p'` 정합식 `33 + 15 + 4 + 13 + 1 = 66` · §5 표 (121 ~ 127 행) count 4 값 `48 / 4 / 13 / 1` + 합계 `**66**` · `**100 %**` 불변.
+- [x] `wc -l docs/PLAN.md` = **175** 불변 · `wc -l docs/use-cases/INDEX.md` = **114** 불변 (INDEX.md 는 본 slice 에서 **무편집** — `git status` 에 등장하면 안 됨).
+- [x] `git diff -U0` 의 hunk 가 정확히 **2 개** (audit 삽입 1 · PLAN 1:1 치환 1), `git diff --numstat` 의 삭제 열 합 = **1** (PLAN 치환의 짝) → **순수 삭제 0**.
+- [x] `git status --porcelain` 이 `touchesFiles` 3 개 외 변경 파일 **0**.
 
 ### 5. 검증 (doc-only — R-112 대체)
 
-- [ ] 코드 변경 0 이라 unit test 없음. 대신 4 항의 검산 명령 출력과 `git diff -U0 … | grep '^@@'` / `--numstat` 결과를 task 파일 완료 기록에 박제 (T-1404 · T-1408 · T-1409 선례).
-- [ ] 분기 없음 — R-112 의 flow / branch 항목은 해당 없음.
+- [x] 코드 변경 0 이라 unit test 없음. 대신 4 항의 검산 명령 출력과 `git diff -U0 … | grep '^@@'` / `--numstat` 결과를 task 파일 완료 기록에 박제 (T-1404 · T-1408 · T-1409 선례).
+- [x] 분기 없음 — R-112 의 flow / branch 항목은 해당 없음.
 
 ## Out of Scope
 
@@ -86,4 +87,44 @@ REQ-004 는 [§9](../use-cases/REQ-COVERAGE-AUDIT.md) (T-1389) 와 §12 S1 ~ S3 
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+1. **REQ-004 UC 문서 축 해소 slice** — 축 A · B 가 양쪽 미착수를 확인했고 축 D 가 권장을 유효로 판정했으므로, `UC-09` 신설 (권장 (a)) 또는 UC-01 §3 trigger 확장 (권장 (b)) 중 하나를 실제로 수행하는 slice 가 필요하다. 착수 시 §6 139 행의 규모 추정 (T-0028 동급 ≤180 LOC) 재산정 동반 (§9.5 한계 1 · §12.10 한계 1).
+2. **지목 공백 3 지점 동기** — `docs/architecture/api.md` 211 행 · `docs/architecture/data-model.md` 168 행의 "UC-09 신설 또는 UC-01 확장 후 … 추가 예정" 서술은 위 1 의 승계 task 가 생기는 시점에 함께 갱신하는 편이 경제적이다 (audit §8 161 행은 append-only 보존 대상이라 제외).
+3. **§6 대안 (b) 의 서수 표기 어긋남** — `셋째 entry 로 추가` 는 UC-01 §3 이 3 경로가 된 현재 넷째가 되나, §6 은 시점 기록이라 정정하지 않고 §12.10 축 D 부기로만 남겼다. UC-01 확장을 실제 수행하는 slice 가 참고할 것.
+
+## 완료 기록 (2026-08-03)
+
+### 4 축 판정 결과
+
+| 축 | 판정 | 핵심 실측 |
+| --- | --- | --- |
+| (A) UC-09 신설 | **미착수** | UC 본문 8 파일 (UC-01 ~ UC-08) · `UC-09*` hit 0 · INDEX §2 표 row 8 |
+| (B) UC-01 확장 | **미착수** | `coversReq` 13 원소에 REQ-004 없음 · `사용자 지정 기간` / `임의 기간` / `date-range` / `REQ-004` grep hit 각 0 (§9 173 행 `0 / 8` 과 일치) |
+| (C) 책임 task 지목 | **stale** | T-0030 = api.md / DONE (PR 29) · T-0031 = data-model.md / DONE (PR 30) · 두 task 132 · 148 행이 REQ-004 을 Out of Scope 로 재이관 · REQ-004 언급 task 24 중 UC 문서 축 해소 task 0 |
+| (D) 권장 유효성 | **유효** | §3 38 행 · §5 126 행 모두 `gap` · UC-01 §3 은 cron / manual / 재수집 3 경로이나 사용자 지정 기간 경로 없음 |
+
+정정 대상은 축 C 의 `follow-up task T-0030+ 책임` 1 구간으로 확정, 권장 문구 (`UC-09 신설 또는 UC-01 확장 권장`) 는 원문 보존.
+
+### 검산 명령 출력
+
+```
+$ grep -c "^| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md   → 66
+$ grep -c "^## " docs/use-cases/REQ-COVERAGE-AUDIT.md      → 12
+$ grep -c "212 행" docs/use-cases/REQ-COVERAGE-AUDIT.md    → 9
+$ grep -c "미검증 축" docs/use-cases/REQ-COVERAGE-AUDIT.md  → 10
+$ wc -l docs/PLAN.md                                       → 175
+$ wc -l docs/use-cases/INDEX.md                            → 114 (무편집)
+$ sed -n '115p' …  → 33 + 15 + 4 + 13 + 1 = 66 (불변)
+$ sed -n '121,127p' … → 48 / 4 / 13 / 1 · 합 **66** · **100 %** (불변)
+
+$ git diff -U0 | grep '^@@'
+@@ -36 +36 @@
+@@ -719,0 +720,70 @@
+$ git diff --numstat
+1    1   docs/PLAN.md
+70   0   docs/use-cases/REQ-COVERAGE-AUDIT.md
+$ git status --porcelain
+ M docs/PLAN.md
+ M docs/use-cases/REQ-COVERAGE-AUDIT.md
+```
+
+hunk 2 개 (audit 삽입 1 · PLAN 1:1 치환 1) · 삭제 열 합 1 (PLAN 치환의 짝) → 순수 삭제 0. INDEX.md 는 변경 목록 미등장. 코드 변경 0 이라 unit test 없음 (R-112 flow / branch 항목 해당 없음).
