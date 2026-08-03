@@ -2,7 +2,7 @@
 id: T-1436
 title: directory.md `Frontend (web/) 의 위치` 단락 (183 ~ 195 행) 의 구조 claim ↔ 실 `src/web/` · `web/src/` 대조 + T-1435 유보 (serve-static · SPA fallback) closure + audit §12.34
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 190
