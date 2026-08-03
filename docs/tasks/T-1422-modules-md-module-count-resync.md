@@ -2,7 +2,7 @@
 id: T-1422
 title: modules.md `11 module` 카운트 8 지점 실측 12 대조 판정 + 동기 + audit §12.20 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 110
@@ -45,21 +45,21 @@ plannerNote: "uc-doc-audit-resync 34 번째 slice — T-1421 Follow-up 3 의 첫
 
 ## Acceptance Criteria
 
-- [ ] **AC 1 — 실측 선행 (전제 재측정, 날조 금지)**: 편집 전에 다음을 직접 측정해 `§12.20` 에 그대로 인용한다. 기대값과 **다르면 그 축의 판정을 중단** 하고 불성립 사실을 `§12.20` 에 기록한다.
+- [x] **AC 1 — 실측 선행 (전제 재측정, 날조 금지)**: 편집 전에 다음을 직접 측정해 `§12.20` 에 그대로 인용한다. 기대값과 **다르면 그 축의 판정을 중단** 하고 불성립 사실을 `§12.20` 에 기록한다.
   - (i) `sed -n '32,43p' docs/architecture/modules.md | grep -c "^| \*\*"` = **12** (정본 표 row 수) — 12 개 module 명을 전수 나열.
   - (ii) `grep -n "11 module\|11 NestJS module" docs/architecture/modules.md` 가 **8 행** (22 · 28 · 45 · 133 · 154 · 192 · 205 · 249) 을 반환.
   - (iii) topological order 블록 (145 ~ 153 행) 이 열거하는 module **distinct 수** 를 세어 (i) 의 12 와 일치하는지 대조.
   - (iv) mermaid 다이어그램 (약 60 ~ 129 행) 의 module node distinct 수를 세어 (i) 과 일치하는지 대조 — **불일치면 그 사실을 한계로 기록** 하고 다이어그램 자체는 무편집 (Out of Scope).
   - (v) baseline — `wc -l` modules.md **256** · audit **1433** · INDEX **123**, modules.md `grep -c "^## "` **8**, audit `grep -c "^| REQ-"` **66** · `grep -c "^## "` **12**.
-- [ ] **AC 2 — 지점별 처리 판정 (8 + 1 지점, 애매어 금지)**: AC 1 이 확정한 정본 수치를 기준으로 `11` 표기 **8 지점** + front blockquote **3 행** (`NestJS 8 module 분해`) 각각을 **1 행씩** 판정한 **9 행 표** 를 만든다. 열은 `행 / 현재 표기 / §12.15 판별 (stamp 있는 시점 기록 = append · 없는 living 서술 = in-place) / 처리 (치환 · 무편집) / 근거 1 구`.
+- [x] **AC 2 — 지점별 처리 판정 (8 + 1 지점, 애매어 금지)**: AC 1 이 확정한 정본 수치를 기준으로 `11` 표기 **8 지점** + front blockquote **3 행** (`NestJS 8 module 분해`) 각각을 **1 행씩** 판정한 **9 행 표** 를 만든다. 열은 `행 / 현재 표기 / §12.15 판별 (stamp 있는 시점 기록 = append · 없는 living 서술 = in-place) / 처리 (치환 · 무편집) / 근거 1 구`.
   - **3 행** 은 `T-0017 이 … 8 module 분해` 라는 **과거 task 산출 시점 기록** 이므로 무편집이 예상 결론이나, 실측 후 다르면 근거를 쓴다.
   - **154 행** 은 code block 내부다 — 같은 block 의 열거와 어긋난 상태를 남기지 않는 방향으로 판정한다.
   - **205 행** 은 `총 8 component → 11 module` 과 `Backend API component 의 1:6 분할` 두 수치를 함께 담는다. `8 component` 는 [components.md](../architecture/components.md) 정본이라 **무편집**, `1:6 분할` 은 192 ~ 204 행 mapping 표의 Backend API row 실제 module 수를 세어 정합 여부를 별도 판정한다 (어긋나면 같은 slice 안에서 함께 갱신, 맞으면 불변 근거 1 구).
-- [ ] **AC 3 — 판정 반영 (modules.md 한정)**: AC 2 가 `치환` 으로 판정한 지점만 **1 행 → 1 행 in-place** 로 반영한다. `무편집` 판정 지점은 diff 에 **미등장**. 표 row **12 불변** · 표 열 수 불변 · `^## ` heading **8 불변** · `wc -l` **256 불변** (1:1 치환이므로). mermaid block (약 60 ~ 129 행) 과 module 표 본문 (32 ~ 43 행) 은 **무편집**.
-- [ ] **AC 4 — 파생 문서 영향 범위 명시 (편집은 금지)**: 본 slice 가 확정한 정본 수치가 어느 파생 지점을 stale 로 만드는지 **목록만** `§12.20` 에 남긴다 — 최소 [INDEX.md](../use-cases/INDEX.md) **25** 행 (`8 NestJS module 명` + 9 개 열거) · **39** 행 (UC-09 row module 열 6 값). 목록의 각 항목에 "후속 slice 소관" 을 명시하고 **본 slice 에서는 편집하지 않는다** (AC 6 이 diff 부재로 검증).
-- [ ] **AC 5 — audit §12.20 절 신설**: `## 11. References` 바로 앞 (= `§12.19` 뒤) 에 `### 12.20 …` 절을 **순수 append** 로 삽입한다 (audit `grep -c "^## "` = **12 불변**). 구성은 `§12.18` · `§12.19` 화법 승계 — (i) 서두 blockquote, (ii) AC 1 실측 5 축 인용, (iii) **AC 2 의 9 행 판정 표**, (iv) AC 3 반영 결과 + 불변 수치, (v) AC 4 파생 영향 목록, (vi) [T-1421](../tasks/T-1421-uc09-module-attribution-correction.md) Follow-up 3 의 **modules.md 축 closure 선언** (+ 잔여 축 `data-model.md` 38 행 `13 entity` · `api.md` 223 행 링크 범위 1 줄), (vii) 불변 검산 출력 블록, (viii) **한계 3 항 이상** — 최소: ① mermaid 다이어그램 node 수 축 (AC 1 (iv) 결과) 은 무편집이라 산문과 갈릴 수 있음, ② `INDEX.md` 25 · 39 행 파생 stale 잔존 (후속 slice), ③ UC-09 `§5` sequence participant 12 행 병기 여부 미판정 (T-1421 Follow-up 2) 잔존.
-- [ ] **AC 6 — 무편집 경계 + 불변 검산**: `git status --porcelain` 변경 파일이 **정확히 3 개** (`docs/architecture/modules.md` + `docs/use-cases/REQ-COVERAGE-AUDIT.md` + 본 task 파일) 이고 `docs/use-cases/INDEX.md` · `UC-01` ~ `UC-09` 본문 · `docs/architecture/components.md` · `api.md` · `data-model.md` · `docs/PLAN.md` · `docs/requirements.md` · `prisma/` · `src/` · `test/` 는 diff 에 **미등장**. `git diff -U0 -- docs/architecture/modules.md | grep '^@@'` 로 hunk 목록을 제시해 mermaid block · 표 본문 구간이 없음을 보인다. 합계 diff ≤ 300 LOC · 파일 ≤ 5.
-- [ ] **AC 7 — R-110 / R-112 면제 확인**: 본 task 는 `commitMode: direct` + production code 0 LOC 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 면제" 조항으로 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 **N/A** 임을 완료 기록에 1 줄 명시 (분기 0).
+- [x] **AC 3 — 판정 반영 (modules.md 한정)**: AC 2 가 `치환` 으로 판정한 지점만 **1 행 → 1 행 in-place** 로 반영한다. `무편집` 판정 지점은 diff 에 **미등장**. 표 row **12 불변** · 표 열 수 불변 · `^## ` heading **8 불변** · `wc -l` **256 불변** (1:1 치환이므로). mermaid block (약 60 ~ 129 행) 과 module 표 본문 (32 ~ 43 행) 은 **무편집**.
+- [x] **AC 4 — 파생 문서 영향 범위 명시 (편집은 금지)**: 본 slice 가 확정한 정본 수치가 어느 파생 지점을 stale 로 만드는지 **목록만** `§12.20` 에 남긴다 — 최소 [INDEX.md](../use-cases/INDEX.md) **25** 행 (`8 NestJS module 명` + 9 개 열거) · **39** 행 (UC-09 row module 열 6 값). 목록의 각 항목에 "후속 slice 소관" 을 명시하고 **본 slice 에서는 편집하지 않는다** (AC 6 이 diff 부재로 검증).
+- [x] **AC 5 — audit §12.20 절 신설**: `## 11. References` 바로 앞 (= `§12.19` 뒤) 에 `### 12.20 …` 절을 **순수 append** 로 삽입한다 (audit `grep -c "^## "` = **12 불변**). 구성은 `§12.18` · `§12.19` 화법 승계 — (i) 서두 blockquote, (ii) AC 1 실측 5 축 인용, (iii) **AC 2 의 9 행 판정 표**, (iv) AC 3 반영 결과 + 불변 수치, (v) AC 4 파생 영향 목록, (vi) [T-1421](../tasks/T-1421-uc09-module-attribution-correction.md) Follow-up 3 의 **modules.md 축 closure 선언** (+ 잔여 축 `data-model.md` 38 행 `13 entity` · `api.md` 223 행 링크 범위 1 줄), (vii) 불변 검산 출력 블록, (viii) **한계 3 항 이상** — 최소: ① mermaid 다이어그램 node 수 축 (AC 1 (iv) 결과) 은 무편집이라 산문과 갈릴 수 있음, ② `INDEX.md` 25 · 39 행 파생 stale 잔존 (후속 slice), ③ UC-09 `§5` sequence participant 12 행 병기 여부 미판정 (T-1421 Follow-up 2) 잔존.
+- [x] **AC 6 — 무편집 경계 + 불변 검산**: `git status --porcelain` 변경 파일이 **정확히 3 개** (`docs/architecture/modules.md` + `docs/use-cases/REQ-COVERAGE-AUDIT.md` + 본 task 파일) 이고 `docs/use-cases/INDEX.md` · `UC-01` ~ `UC-09` 본문 · `docs/architecture/components.md` · `api.md` · `data-model.md` · `docs/PLAN.md` · `docs/requirements.md` · `prisma/` · `src/` · `test/` 는 diff 에 **미등장**. `git diff -U0 -- docs/architecture/modules.md | grep '^@@'` 로 hunk 목록을 제시해 mermaid block · 표 본문 구간이 없음을 보인다. 합계 diff ≤ 300 LOC · 파일 ≤ 5.
+- [x] **AC 7 — R-110 / R-112 면제 확인**: 본 task 는 `commitMode: direct` + production code 0 LOC 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 면제" 조항으로 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 **N/A** 임을 완료 기록에 1 줄 명시 (분기 0).
 
 ## Out of Scope
 
@@ -78,4 +78,14 @@ plannerNote: "uc-doc-audit-resync 34 번째 slice — T-1421 Follow-up 3 의 첫
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append.)
+1. **[INDEX.md](../use-cases/INDEX.md) 25 · 39 행 원자 정정** — 25 행 `8 NestJS module 명` + 9 개 열거를 본 slice 가 확정한 정본 **12** 로, 39 행 UC-09 row module 열 6 값을 함께 갱신 (T-1421 Follow-up 1 승계 · audit § 12.19 한계 2 · § 12.20 파생 영향 1·2).
+2. **[data-model.md](../architecture/data-model.md) 38 행 `13 entity` vs 실 row 14 정정** — T-1421 Follow-up 3 잔여 축 ①.
+3. **`api.md` 223 행 링크 범위 vs 9 UC 어긋남 정정** — T-1421 Follow-up 3 잔여 축 ②.
+4. **UC-09 `§ 5` sequence participant 12 행 병기 판정** — T-1421 Follow-up 2 이월 (audit § 12.20 한계 3).
+5. **13 번째 module shipped 시 4 축 동시 갱신 규약** — 표 · topological 열거 · mermaid node · 산문 카운트를 한 slice 안에서 함께 갱신 (audit § 12.20 한계 1).
+
+## 완료 기록 (2026-08-03)
+
+- 실측 5 축 전건 성립 (표 row 12 · `11` 표기 8 행 · topological 열거 12 · mermaid node 12 · baseline 전부 일치) → 정본 = **12**, stale = 산문 `11` 8 지점으로 확정. 9 행 판정 결과 **치환 8 · 무편집 1** (3 행 = T-0017 시점 기록 보존).
+- `modules.md` 8 지점 1:1 in-place 치환 (`wc -l` 256 · `^## ` 8 · 표 row 12 불변, mermaid · 표 본문 hunk 0), audit `§ 12.20` 순수 append 85 행 (1433 → 1518, `^## ` 12 · `^| REQ-` 66 불변), [INDEX.md](../use-cases/INDEX.md) 무편집 (123 행 불변).
+- **R-110 / R-112 N/A** — 본 task 는 `commitMode: direct` + production code **0 LOC** · 분기 0 이므로 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 면제" 조항에 따라 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 해당 없음.

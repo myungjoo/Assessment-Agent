@@ -1417,6 +1417,91 @@ $ git diff -U0 -- docs/use-cases/UC-09-user-defined-period-evaluation.md | grep 
 3. **§ 12.18 한계 1 · 3 잔존** — `modules.md` 192 · 44 · 205 행 `11 module` vs 실측 **12** (T-1420 FU3) · `data-model.md` 38 행 `13 entity` vs 실 row **14** (FU2) · `api.md` 223 행 링크 범위가 9 UC 와 어긋나는 건 (FU1). 셋 다 본 slice Out of Scope 로 이월된다.
 4. **병기 화법의 확산 비용** — 136 · 137 행이 길어져 표 가독성이 떨어진다. 향후 [INDEX.md](INDEX.md) 허용 목록이 12 module 정본으로 확장되면 (FU5 처리 시점) 본 병기는 **전면 치환으로 승격 가능** 하며, 그때 본 절이 그 승격의 근거 기록이 된다.
 
+### 12.20 modules.md `11 module` 8 지점의 실측 12 대조 판정 + 정본 자기정합 동기 (T-1422)
+
+> 본 절은 [T-1422](../tasks/T-1422-modules-md-module-count-resync.md) 가 [T-1421](../tasks/T-1421-uc09-module-attribution-correction.md) **Follow-up 3** 의 세 축 (`modules.md` `11 module` · `data-model.md` `13 entity` · `api.md` 링크 범위) 중 **`modules.md` 축** 만 닫은 기록이다. § 12.19 한계 2 가 [INDEX.md](INDEX.md) 25 행의 자체 모순을 지목하면서 그 행이 스스로 출처를 "`modules.md` 의 8 NestJS module 명" 이라 밝히는 **파생 관계** 를 드러냈으므로, planner 는 파생 (INDEX) 정정보다 **정본 (`modules.md`) 자기정합** 을 앞세웠다 — 정본이 자기모순인 채로 파생을 고치면 "8 이라 쓰고 9 를 열거" 가 "11 이라 쓰고 12 를 열거" 로 이월될 뿐이기 때문이다. 본 절이 편집한 문서는 [modules.md](../architecture/modules.md) **하나** 이며 [INDEX.md](INDEX.md) · [components.md](../architecture/components.md) · `api.md` · `data-model.md` · `UC-01` ~ `UC-09` 본문은 **한 글자도 편집하지 않았다**. 삽입 위치는 § 12.19 마지막 행 뒤 · § 11 References 앞이고 `###` 이라 `## ` heading count 12 가 불변이다.
+
+#### 실측 선행 (편집 전 5 축 — 전제 전건 전부 성립)
+
+```
+(i)   $ sed -n '32,43p' docs/architecture/modules.md | grep -c "^| \*\*"        → 12  (기대값 일치, 정본 표 row)
+      AuthModule · PersistenceModule · UserModule · GithubModule · ConfluenceModule
+      · PermissionDeniedRecordModule · LlmModule · AssessmentModule
+      · AssessmentCollectionModule · AssessmentEvaluationModule · SchedulerModule · WebModule
+(ii)  $ grep -n "11 module\|11 NestJS module" docs/architecture/modules.md      →  8 행 (기대값 일치)
+      22 · 28 · 45 · 133 · 154 · 192 · 205 · 249  — planner 예고 행 번호와 전수 일치
+(iii) $ sed -n '145,153p' … topological order 블록의 distinct module            → 12  ((i) 과 일치)
+      AppModule (154 행 root) 은 열거 대상이 아니라 imports 주체라 카운트 제외
+(iv)  $ sed -n '56,128p' … | grep -o "[A-Za-z]*Module" | sort -u               → 13 → AppModule 제외 12  ((i) 과 일치)
+      → mermaid 다이어그램 node 축도 12 로 정합 — 산문 8 지점만 stale 이었음이 4 축 교차로 확정
+(v)   $ wc -l modules.md → 256 · REQ-COVERAGE-AUDIT.md → 1433 · INDEX.md → 123      (baseline)
+      $ grep -c "^## " modules.md → 8                                               (baseline)
+      $ grep -c "^\| REQ-" REQ-COVERAGE-AUDIT.md → 66 · $ grep -c "^## " → 12       (baseline)
+```
+
+5 축이 모두 전제와 일치해 **중단 지점은 없었다**. 특히 (iii)(iv) 가 § 12.19 · T-1421 Why 의 1 차 추정 ("표·열거 = 정본, 산문 카운트 = stale") 을 **독립 2 축으로 재확인** 했다 — 열거 12 (topological) 와 node 12 (mermaid) 가 표 row 12 와 삼중 일치하므로 정본 수치는 **12**, stale 은 산문 `11` 8 지점이다.
+
+#### 지점별 처리 판정 (8 + 1 = 9 행, § 12.15 판별 기준 적용)
+
+| 행 | 현재 표기 | § 12.15 판별 | 처리 | 근거 |
+| --- | --- | --- | --- | --- |
+| **3** | `T-0017 이 NestJS 8 module 분해 …` | **시점 기록** (task stamp 명시) | **무편집** | T-0017 산출 시점에 8 module 이었다는 서술 자체가 참 — 같은 blockquote 가 9 · 10 · 11 번째 module 증분을 이어 적는 이력 문단이다 |
+| **22** | `모든 11 module 은 동일 NestJS process` | living 서술 | `11` → `12` | 정본 표 row 12 (실측 i) |
+| **28** | `다음 11 NestJS module 로 분해된다` | living 서술 | `11` → `12` | 바로 뒤 30 ~ 43 행 표가 12 row 를 열거 — 같은 문단 안 자기모순 |
+| **45** | `위 11 module 은 AppModule 의 imports 에` | living 서술 | `11` → `12` | 같은 표 12 row 를 지시하는 지시어 |
+| **133** | `11 module 을 imports 로 묶기만 함` | living 서술 (다이어그램 표기 설명) | `11` → `12` | mermaid node distinct 12 (실측 iv) |
+| **154** | `(위 11 module 모두 imports)` | living 서술 (code block 내부) | `11` → `12` | 같은 block 145 ~ 153 행 열거 12 와 어긋난 상태를 해소 — 2 자 → 2 자라 code block 정렬 폭 불변 |
+| **192** | `8 component 와 본 문서의 11 module 의 N:N` | living 서술 | `11` → `12` (`8 component` 무편집) | mapping 표 distinct module 12 · `8 component` 는 [components.md](../architecture/components.md) 정본 |
+| **205** | `총 8 component → 11 module` + `Backend API 의 1:6 분할` | living 서술 | `11` → `12` 만 치환 · `8 component` · `1:6` **무편집** | 192 ~ 204 행 mapping 표 Backend API row 실측 = AssessmentModule · UserModule · AuthModule · PermissionDeniedRecordModule · AssessmentCollectionModule · AssessmentEvaluationModule **6 개** → `1:6` 정합 확인, 갱신 불요 |
+| **249** | `11 module 의 단일 process 결합 (§1)` | living 서술 (References bullet) | `11` → `12` | § 12.13 이 `api.md` References bullet 을 in-place 치환한 선례 승계 |
+
+애매어 없이 **치환 8 · 무편집 1** 로 갈렸다. 무편집 1 건 (3 행) 은 § 12.15 가 확정한 "날짜 · task stamp 가 박힌 시점 기록은 보존, stamp 없는 현행 상태 서술은 in-place" 판별의 전형이다.
+
+#### 반영 결과 + 불변 수치
+
+치환 8 지점은 전부 **1 행 → 1 행 in-place** 이고 무편집 1 지점 (3 행) 은 diff 에 미등장한다. mermaid block (56 ~ 128 행) 과 module 표 본문 (32 ~ 43 행) 도 hunk 가 없다 — 표는 **정본으로 읽기만** 했다. 그 결과 `wc -l` **256 불변** · `^## ` heading **8 불변** · 표 row **12 불변** · 표 열 수 불변이며, `11 module` 잔여 hit 는 **0** 이다.
+
+#### 파생 영향 목록 (본 slice 편집 금지 — 후속 slice 소관)
+
+본 절이 확정한 정본 수치 **12** 는 다음 파생 지점을 stale 로 만든다. 목록만 남기고 **편집하지 않는다**.
+
+1. **[INDEX.md](INDEX.md) 25 행** — `8 NestJS module 명` 이라 적으면서 9 개를 열거한다. 정본 12 와 어긋나는 이중 stale (수치 8 ≠ 열거 9 ≠ 정본 12). **후속 slice 소관** (T-1421 Follow-up 1 승계 · § 12.19 한계 2 이월).
+2. **[INDEX.md](INDEX.md) 39 행** — UC-09 row 의 module 열 6 값. 25 행 허용 목록과 원자 처리해야 하므로 같은 **후속 slice 소관**.
+3. (참고) 위 2 지점 외의 `11 module` 파생 표기는 본 절 실측 범위 (`modules.md`) 밖에서 확인하지 않았다 — 전수 조사는 별도 slice 소관.
+
+#### T-1421 Follow-up 3 — `modules.md` 축 closure 선언
+
+**T-1421 Follow-up 3 의 `modules.md` 축은 본 절로 닫힌다.** 정본 문서가 표 · topological 열거 · mermaid node · 산문 카운트 **4 축 모두 12** 로 자기정합해졌고, 파생 INDEX slice 가 인용할 확정 수치가 생겼다. 잔여 2 축은 미해소로 이월한다 — ① [data-model.md](../architecture/data-model.md) **38 행** `13 entity` vs 실 row **14**, ② `api.md` **223 행** 링크 범위가 9 UC 와 어긋나는 건. 각각 별도 slice 다.
+
+#### 불변 검산
+
+```
+$ grep -c "11 module\|11 NestJS module" docs/architecture/modules.md  →  0    (치환 완료)
+$ grep -c "12 module\|12 NestJS module" docs/architecture/modules.md  →  8    (22·28·45·133·154·192·205·249)
+$ wc -l  docs/architecture/modules.md                                 → 256   (불변 — 1:1 치환)
+$ grep -c "^## "  docs/architecture/modules.md                        →   8   (불변)
+$ sed -n '32,43p' docs/architecture/modules.md | grep -c "^| \*\*"    →  12   (불변 — 표 무편집)
+$ sed -n '3p' … | grep -o "NestJS 8 module 분해"                      → hit   (시점 기록 보존)
+$ wc -l  docs/use-cases/REQ-COVERAGE-AUDIT.md                         → 1433 → 1518  (§ 12.20 append 85 행)
+$ grep -c "^\| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md             →  66   (불변)
+$ grep -c "^## "     docs/use-cases/REQ-COVERAGE-AUDIT.md             →  12   (불변, `###` 만 추가)
+$ wc -l  docs/use-cases/INDEX.md                                      → 123   (불변 — 무편집)
+$ git status --porcelain → M modules.md · M REQ-COVERAGE-AUDIT.md · M T-1422 task 파일  (정확히 3 개)
+$ git diff -U0 -- docs/architecture/modules.md | grep '^@@'
+@@ -22 +22 @@   @@ -28 +28 @@   @@ -45 +45 @@   @@ -133 +133 @@
+@@ -154 +154 @@  @@ -192 +192 @@  @@ -205 +205 @@  @@ -249 +249 @@
+   → mermaid block (56 ~ 128 행) · 표 본문 (32 ~ 43 행) · 3 행 hunk 미등장 = 무편집 증명
+```
+
+[INDEX.md](INDEX.md) · [components.md](../architecture/components.md) · `api.md` · `data-model.md` · `UC-01` ~ `UC-09` 본문 · `docs/PLAN.md` · `docs/requirements.md` · `prisma/` · `src/` · `test/` 는 `git status --porcelain` 에 **미등장** 한다. 변경 파일 **3 개** · 합계 diff ≤ 300 LOC 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 **N/A** 다.
+
+#### 한계 —
+
+1. **mermaid 다이어그램 (56 ~ 128 행) 무편집 존속** — 본 slice 는 node 수를 **읽기만** 했고 (실측 12, 산문과 정합) 다이어그램 자체는 손대지 않았다. 이번엔 갈리지 않았으나 **13 번째 module 이 shipped 되는 시점에는 표 · 열거 · node · 산문 4 축을 한 slice 안에서 함께 갱신** 해야 같은 종류의 어긋남이 재발하지 않는다 — 다이어그램 축은 blast radius 가 달라 그때도 별도 판정이 필요하다.
+2. **[INDEX.md](INDEX.md) 25 · 39 행 파생 stale 잔존** — 본 절이 정본 12 를 확정했지만 파생 2 지점은 `8` / 9 열거 / UC-09 row 6 값 그대로다. § 12.19 한계 2 가 이월한 그 모순은 **아직 해소되지 않았고** 후속 slice 소관이다. 즉 본 절은 그 slice 의 **선행 조건만** 충족시켰다.
+3. **UC-09 `§ 5` sequence participant 12 행 병기 여부 미판정** — T-1421 Follow-up 2 (§ 12.19 한계 1) 는 본 slice Out of Scope 로 그대로 남는다. `§ 5` 의 `AssessmentModule` participant 어휘와 `§ 9` 의 병기 화법 사이 표현 밀도 차이도 미해소다.
+4. **T-1421 Follow-up 3 의 잔여 2 축 미해소** — `data-model.md` 38 행 `13 entity` vs 실 row 14 · `api.md` 223 행 링크 범위. 본 절은 `modules.md` 축만 닫았으므로 Follow-up 3 전체 closure 는 **아직 아니다**.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source

@@ -19,13 +19,13 @@
 
 ## Deployment 컨텍스트
 
-본 문서의 **모든 11 module 은 동일 NestJS process (단일 AppModule 의 imports) 에 등록된다** — [ADR-0003 §1 — Monolithic NestJS process](../decisions/ADR-0003-deployment.md) 가 박제한 결정이다. module 간 경계는 **DI container 내부의 provider visibility 경계** 이지 process 경계가 아니다. module 간 호출은 NestJS DI 가 주입한 service 의 in-process method call 이 default 이며, 외부 시스템 (GitHub / Confluence / LLM provider / DB) 만 HTTPS 또는 DB protocol 경계를 넘는다.
+본 문서의 **모든 12 module 은 동일 NestJS process (단일 AppModule 의 imports) 에 등록된다** — [ADR-0003 §1 — Monolithic NestJS process](../decisions/ADR-0003-deployment.md) 가 박제한 결정이다. module 간 경계는 **DI container 내부의 provider visibility 경계** 이지 process 경계가 아니다. module 간 호출은 NestJS DI 가 주입한 service 의 in-process method call 이 default 이며, 외부 시스템 (GitHub / Confluence / LLM provider / DB) 만 HTTPS 또는 DB protocol 경계를 넘는다.
 
 [ADR-0002 (PostgreSQL + Prisma)](../decisions/ADR-0002-db.md) 는 PersistenceModule 의 기술 선택을 박제했고, [ADR-0003 §3 (`@nestjs/schedule` in-process)](../decisions/ADR-0003-deployment.md) 는 SchedulerModule 의 메커니즘을 박제했다.
 
 ## Module 목록
 
-본 시스템은 다음 11 NestJS module 로 분해된다. 각 module 의 책임은 1~2 줄로 한정하며, 구체 service class / endpoint URL / Prisma model name 등은 P3+ 의 범위.
+본 시스템은 다음 12 NestJS module 로 분해된다. 각 module 의 책임은 1~2 줄로 한정하며, 구체 service class / endpoint URL / Prisma model name 등은 P3+ 의 범위.
 
 | module | 책임 | 주요 dependency (imports) | 관련 component (T-A3) | 관련 REQ | 관련 ADR |
 | --- | --- | --- | --- | --- | --- |
@@ -42,7 +42,7 @@
 | **SchedulerModule** | **P7 스케줄링 & ops backbone** — `@nestjs/schedule` 기반 in-process cron + 동적 `SchedulerRegistry`. **실 shipped module 명 = `SchedulingModule` (src/scheduling/)** — P1 conceptual `SchedulerModule` 명칭의 실현체 (rename refactor 없이 doc 서술만 실 명칭 align). P7 shipped surface (세부 endpoint 본문은 api.md §5 로 위임): ① **cron 주기 동적 CRUD** — `CronScheduleController` / `CronScheduleService` 가 GET / PUT / DELETE `/api/schedules` 로 런타임 등록·교체·삭제 (재배포 없이, [ADR-0042 §Decision2](../decisions/ADR-0042-nestjs-schedule-adoption.md) 동적 registry); ② **manual trigger** — `POST /api/schedules/trigger` 가 주입된 `CRON_TICK_HANDLER` 를 즉시 1회 호출 (cron tick callback 과 동일 실행 추상 공유, duplication 0); ③ **manual backfill** — `BackfillController` / `BackfillRunnerService` 가 `POST /api/schedules/backfill/:personId` 로 1년치 1회 backfill (R-50); ④ **REQ-041 최근 N일 delete→재수집** — `RecentDeletionController` / `RecentDeletionRunnerService` 가 `POST /api/schedules/recent-deletion/:personId` 로 발화 (순수-helper 3 slice `buildRecentDeletionWindow` / `selectInDeletionWindow` / `buildRecentDeletionPlan` 위에서 조립). 한정: 실 `RECENT_DELETION_DELETER` provider 는 미shipped — 주입형 인터페이스 기본 no-op (`deletedCount:0`), 실 Prisma deleter 바인딩은 schema/repository 게이트 동반 별도 sub-slice (UC-06 §6.5 · UC-01 §3 doc-sync 와 정합). | PersistenceModule (cron 설정 load), AssessmentModule (trigger 대상), AuthModule (controller guard — `JwtAuthGuard`+`RolesGuard`), AssessmentCollectionModule (`CollectionTriggerService` 재수집 위임) | Scheduler | REQ-039 (Admin cron 주기), REQ-040 (manual trigger), REQ-041 (최근 N일 delete→재수집) | ADR-0003 §3 (`@nestjs/schedule`), [ADR-0042](../decisions/ADR-0042-nestjs-schedule-adoption.md) (`@nestjs/schedule` 채택 + 동적 registry) |
 | **WebModule** | Frontend SPA build 산출물의 serve-static 진입점. **frontend framework 는 [ADR-0040](../decisions/ADR-0040-frontend-stack.md) 로 React + Vite (TypeScript) 별도 `web/` 패키지 (pnpm workspace) 로 결정·분리됐다** — SPA 소스는 `web/src/`, build 산출물은 `web/dist/`. WebModule 은 `@nestjs/serve-static` 으로 `web/dist/` 를 mount 하고 비-`/api/*` 경로를 SPA `index.html` 로 fallback 하는 serve-static 진입점으로 shipped (T-0354). composition-wiring 전략은 [ADR-0041](../decisions/ADR-0041-frontend-composition-wiring.md) 이 박제 (무라우터 view 전환 · controlled lift-up · thin fetch hook 경계). 운영은 monolithic 단일 NestJS process 가 SPA 를 same-origin serve (CORS 0). | AuthModule (정적 자산 접근 권한 — 필요 시) | Web UI | REQ-038 (UI), REQ-044 (3 등급 로그인 UI), REQ-049 (Admin LLM 설정 UI) | ADR-0001, [ADR-0040](../decisions/ADR-0040-frontend-stack.md) (React+Vite 별도 `web/` 패키지), [ADR-0041](../decisions/ADR-0041-frontend-composition-wiring.md) (composition-wiring) |
 
-위 11 module 은 `AppModule` (root) 의 `imports: [...]` 에 등록되며, AppModule 자체는 root composition 외에 책임을 갖지 않는다.
+위 12 module 은 `AppModule` (root) 의 `imports: [...]` 에 등록되며, AppModule 자체는 root composition 외에 책임을 갖지 않는다.
 
 ## 의존성 그래프 (mermaid)
 
@@ -130,7 +130,7 @@ graph TB
 
 다이어그램 표기:
 
-- **노란 박스 (`AppModule`)** — root composition. 직접적 책임은 없고 11 module 을 `imports` 로 묶기만 함.
+- **노란 박스 (`AppModule`)** — root composition. 직접적 책임은 없고 12 module 을 `imports` 로 묶기만 함.
 - **파란 박스 (leaf modules)** — `PersistenceModule` / `GithubModule` / `ConfluenceModule` / `LlmModule` / `PermissionDeniedRecordModule`. 내부 module 을 import 하지 않는다. 외부 시스템 (PostgreSQL / GitHub / Confluence / LLM provider) 만 호출하거나 (`PermissionDeniedRecordModule` 의 경우) `@Global` PrismaService 만 주입받는다.
 - **회색 박스 (domain modules)** — `AssessmentModule` / `AssessmentCollectionModule` / `AssessmentEvaluationModule` / `UserModule` / `AuthModule` / `SchedulerModule` / `WebModule`. 다른 module 의 provider 를 사용 (`AssessmentEvaluationModule` 은 `LlmModule` + `AuthModule` import).
 - 화살표 방향 = `imports` 방향. cycle 0 (아래 acyclic 검증 참조).
@@ -151,7 +151,7 @@ PersistenceModule
   → AssessmentEvaluationModule                  (LlmModule + AuthModule — adapter/Auth 다음, ADR-0032)
   → AssessmentModule                            (Persistence + Auth — 미shipped placeholder)
   → SchedulerModule                             (Persistence + Assessment)
-  → AppModule                                   (위 11 module 모두 imports)
+  → AppModule                                   (위 12 module 모두 imports)
 ```
 
 위 순서가 존재한다는 사실 자체가 **dependency graph 가 DAG (cycle 0)** 임을 의미한다.
@@ -189,7 +189,7 @@ cycle 회피의 핵심 제약 — 다음 import 방향은 **금지**:
 
 ## Components ↔ Modules mapping
 
-[T-0016](../tasks/T-0016-t-a3-component-view.md) 의 8 component 와 본 문서의 11 module 의 N:N mapping. 1 component 가 여러 module 에 분산되거나 여러 component 가 1 module 에 집약되는 경우를 모두 명시.
+[T-0016](../tasks/T-0016-t-a3-component-view.md) 의 8 component 와 본 문서의 12 module 의 N:N mapping. 1 component 가 여러 module 에 분산되거나 여러 component 가 1 module 에 집약되는 경우를 모두 명시.
 
 | component (T-A3) | mapping module (T-A4) | 비고 |
 | --- | --- | --- |
@@ -202,7 +202,7 @@ cycle 회피의 핵심 제약 — 다음 import 방향은 **금지**:
 | **Confluence Adapter** | ConfluenceModule | 1:1. |
 | **Scheduler** | SchedulerModule | 1:1. `@nestjs/schedule` + dynamic registry. |
 
-총 8 component → 11 module 의 N:N mapping. Backend API component 의 1:6 분할 (assessment 평가 trigger / user / auth / permission-denied audit / collection manual-trigger / evaluation manual-trigger), Worker component 의 1:2 분할 (수집 AssessmentCollectionModule / 평가 AssessmentEvaluationModule, ADR-0029 §1 + ADR-0032), PermissionDeniedRecordModule 이 Backend API (audit) + DB Persistence (영속화) 에 걸치고 AssessmentCollectionModule 이 Backend API (manual trigger, ADR-0031) + Worker (수집) 에, AssessmentEvaluationModule 이 Backend API (평가 manual trigger, ADR-0032) + Worker (평가) 에 걸치는 N:N 이 분기점이며, 나머지 component 는 1:1 mapping.
+총 8 component → 12 module 의 N:N mapping. Backend API component 의 1:6 분할 (assessment 평가 trigger / user / auth / permission-denied audit / collection manual-trigger / evaluation manual-trigger), Worker component 의 1:2 분할 (수집 AssessmentCollectionModule / 평가 AssessmentEvaluationModule, ADR-0029 §1 + ADR-0032), PermissionDeniedRecordModule 이 Backend API (audit) + DB Persistence (영속화) 에 걸치고 AssessmentCollectionModule 이 Backend API (manual trigger, ADR-0031) + Worker (수집) 에, AssessmentEvaluationModule 이 Backend API (평가 manual trigger, ADR-0032) + Worker (평가) 에 걸치는 N:N 이 분기점이며, 나머지 component 는 1:1 mapping.
 
 ### DB Persistence 의 module 분리 결정 (인라인 박제)
 
@@ -246,7 +246,7 @@ composition-wiring 스트림 (T-0353~T-0394, [ADR-0041](../decisions/ADR-0041-fr
 
 - [ADR-0001 — Backend / language / package manager / test / CI 스택](../decisions/ADR-0001-stack.md) — NestJS `@Module` decorator + DI container 가 본 module 분할의 기반.
 - [ADR-0002 — Persistence DB / ORM 선택](../decisions/ADR-0002-db.md) — PersistenceModule 의 기술 선택 (PostgreSQL + Prisma).
-- [ADR-0003 — Deployment 토폴로지 4 결정](../decisions/ADR-0003-deployment.md) — 11 module 의 단일 process 결합 (§1) / SchedulerModule 의 `@nestjs/schedule` 메커니즘 (§3) / 외부 adapter module 의 direct egress (§4).
+- [ADR-0003 — Deployment 토폴로지 4 결정](../decisions/ADR-0003-deployment.md) — 12 module 의 단일 process 결합 (§1) / SchedulerModule 의 `@nestjs/schedule` 메커니즘 (§3) / 외부 adapter module 의 direct egress (§4).
 - [docs/architecture/components.md](components.md) — T-A3 산출물. 본 문서의 mapping 출처.
 - [docs/architecture/deployment.md](deployment.md) — T-A2 산출물. 본 module 들이 동작하는 운영 토폴로지.
 - [docs/architecture/INDEX.md](INDEX.md) — architecture document 인덱스 + MVA 원칙.
