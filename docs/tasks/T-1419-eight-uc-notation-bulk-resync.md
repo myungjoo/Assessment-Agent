@@ -2,7 +2,7 @@
 id: T-1419
 title: api.md · data-model.md · audit §11 References 의 `8 UC` 표기 12 지점을 §12.15 방침으로 판정 후 일괄 동기 + audit §12.17 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 95
@@ -70,3 +70,21 @@ plannerNote: "uc-doc-audit-resync 31 번째 slice — T-1418 Follow-up 1 (5 회 
 1. **UC-09 ↔ `docs/architecture/modules.md` / `components.md` mapping 점검** — T-1418 Follow-up 2 이월 (T-1417 FU3 부터). UC-09 §9 가 `AssessmentModule (controller layer) + AuthModule` 외 6 module 을 지목하는데 두 architecture 문서가 UC-09 를 알지 못한다.
 2. **`data-model.md` 38 행 `13 entity` vs §2 표 실 row 수 14 의 1 어긋남 정정** — T-1418 Follow-up 4 이월. 누계 서술 (`10 → 11` · `11 → 13`) 이 `PermissionDeniedRecord` 를 빠뜨린 것으로 보이며 UC-09 와 무관한 선행 불일치다.
 3. **`api.md` 223 행 링크 범위 (`UC-01 … ~ UC-08-permission-denied.md — 본 문서의 endpoint source`) 정정** — 본 slice 실행 중 신규 발견. 이 행은 `8 UC` 리터럴을 담지 않아 AC 1 의 grep 6 hit 에 들지 않았고 12 지점 열거 밖이라 무편집으로 남겼으나, 링크 범위만 보면 9 UC 실재와 어긋난다 (§ 12.17 한계 4 에 사실 기록). `data-model.md` 181 행 · audit §11 2 줄과 동형 처리 (in-place) 가 유력하다.
+
+## 완료 기록 (2026-08-03)
+
+**Status: DONE.** 변경 파일 **정확히 4 개** — `docs/architecture/api.md` · `docs/architecture/data-model.md` · `docs/use-cases/REQ-COVERAGE-AUDIT.md` · 본 task 파일. 합계 diff **+117/-12** 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이다.
+
+**AC 1 (실측 선행)** — 행 번호 전수 · stamp 유무 · baseline 4 값 전건 성립. 12 지점 = `api.md` **6** · `data-model.md` **4** · audit `§11` References **2** (planner 의 issue-still-relevant 실측과 일치).
+
+**AC 2 (§12.15 판정)** — 12 지점 전건 **in-place** 판정 (애매어 0). 삭제 12 는 전부 치환의 짝이라 **순수 삭제 0**.
+
+**AC 3~5 (지점별 처리)** — `api.md` 6 지점 (208 · 209 행은 UC-09 §5 실조회 선행) · `data-model.md` 4 지점 (167 행 ADR 게이트 문구 **무편집** 경계 준수) · audit `§11` References 2 줄 in-place.
+
+**AC 6 (audit §12.17 신설)** — `## 11. References` 바로 앞에 `### 12.17` 절 **104 행** 순수 append, 8 구성 요소 전건. `###` 이라 `grep -c "^## "` = **12 불변**.
+
+**AC 7 (불변 검산)** — 4 파일 · `230/190` 불변 · `66/12/14/8` 불변 · 순수 삭제 0 · 129 LOC.
+
+**AC 8 (R-110/R-112 면제)** — doc-only · production code 0 LOC 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 direct-mode 면제. 대체 검산은 audit `§12.17` 불변 검산 블록.
+
+**결과** — T-1418 Follow-up 1 (**5 회 이월**) closure. content commit `af17260f`, main CI conclusion=**success** 실확인 (R-114, run 30791215169).
