@@ -46,7 +46,7 @@
     "status": "green",
     "consecutiveFails": 0,
     "lastRun": "2026-08-03T22:56:00Z",
-    "note": "driver fire(cron@aa-local-ccb67880-1789, 매시 30분대 로컬 스케줄) — T-1435 direct doc-only 1 task 수행. 직전 fire bookkeeping push ccb67880 의 main CI conclusion=success 를 본 fire 첫 단계에서 실확인(R-114 이월 충족). 본 fire content push 5630a470 의 main CI run 30860023522 은 fire 종료 시점 in_progress — 다음 fire 첫 단계에서 conclusion 확인(R-114 CI 시작 확인 충족). stage 5b claim 경로 무사고(claimedAt 22:38 정상 · 활성 claim 1 · double-claim 0) · reclaim 대상 0."
+    "note": "driver fire(cron@aa-local-ccb67880-1789, 매시 30분대 로컬 스케줄) — T-1435 direct doc-only 1 task 수행. 직전 fire bookkeeping push ccb67880 의 main CI conclusion=success 를 본 fire 첫 단계에서 실확인(R-114 이월 충족). 본 fire content push 5630a470 의 main CI run 30860023522 conclusion=success 를 fire 종료 전 실확인(R-114 충족). bookkeeping push 64522f4e 의 run 30860306500 은 다음 fire 첫 단계에서 확인. stage 5b claim 경로 무사고(claimedAt 22:38:10Z 정상 · 활성 claim 1 · double-claim 0) · reclaim 대상 0. multiTaskFire chain 미진입 — 로컬 cron 간격 60 분이 CLAUDE.md §10 rule 2 의 (N=2 × 평균 15 분) × 2 = 60 분 하한과 동률이라 여유 0 으로 판단, 직전 fire 들과 동일하게 1 task 로 종료."
   },
   "reviewRounds": {
     "T-1314": 1,
