@@ -3157,6 +3157,121 @@ $ git status --porcelain → M directory.md · M REQ-COVERAGE-AUDIT.md · M T-14
 2. **같은 claim 의 두 번째 사본이 미각주** — 99 행 LlmModule row 는 5 provider 를 **파일명까지** 열거하고 그 파일명 (`custom.provider.ts` 등) 은 실 `*.adapter.ts` 와 이름 규약마저 다르다. mapping 표 소관 (파생 영향 5) 이라 본 slice 가 닫지 않아 **한 문서 안에서 부분적으로만 각주된 상태** 가 남는다.
 3. **blueprint 서술 ↔ 코드 drift 는 시점 기록으로만 흡수** — provider adapter 가 1 개 추가되거나 `findActiveByGroupId` 가 실제로 구현되는 순간 본 각주의 `4` · `0` · `6` 수치가 즉시 재-stale 이 된다. 사람 규약으로 막을 수 없고 파생 영향 4 의 **CI drift-guard 축** 으로만 닫힌다.
 
+### 12.33 directory.md mapping 표 `표준 sub-dir` · `비고` 두 컬럼 ↔ 실 파일 대조 — 원문 보존 + 각주 1 블록 (T-1435)
+
+> **본 절의 위치** — `§ 12.32` 는 sub-structure 서술 축 closure 를 선언하면서 **잔여 (a)** · **파생 영향 5** · **한계 2** 로 "mapping 표 LlmModule row 가 같은 5 provider claim 을 **파일명까지** 열거하는 두 번째 사본이고 그 파일명 규약마저 실 `*.adapter.ts` 와 다르다 — mapping 표 소관" 을 명시 위임했고, `§ 12.28` (T-1430) 각주도 스스로 "`표준 sub-dir` · `비고` 컬럼은 실측 근거 없이 창작할 수 없어 별도 slice 소관" 이라고 적었다. 본 절이 그 위임을 실행해 **mapping 표에 이미 있는 9 row 의 두 컬럼 내용** — 지금까지 어느 축에서도 검증된 적 없는 면 — 을 닫는다. **계보** — `T-1430` (mapping 표 **경로 축**) → `T-1431` (pointer 축) → `T-1432` (트리 축) → `T-1433` (sub-structure 이름 축) → `T-1434` (sub-structure 서술 축) → **`T-1435` (본 절 — mapping 표 **컬럼 내용 축**)**. 판정 enum 은 `§ 12.32` 와 같이 `참 / 부분참 / 거짓` 3 값이며, 경로 미실재 2 row 를 위해 `대상외` 가 더해진다.
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력 그대로)
+
+```
+(i)   표 원문 전수 — $ sed -n '96,106p' docs/architecture/directory.md → header 2 + row 9. 실측으로 참·거짓을
+      가릴 수 있는 claim 은 대상외 2 row 를 뺀 **7 row · 28 개** (디렉토리 존재 12 · 파일명 6 · 개수 3 ·
+      decorator 1 · controller 유무 4 · 외부 pointer 2). **검증 불가 2** 는 판정 제외 — UserModule 비고의
+      "인원 CRUD + group / part 소속" (형태 무관 범주) · LlmModule 비고 "modelId 로 라우팅" 의 **정책 의미**
+      (파일 실재 축만 검증 가능). 대상외 2 row 의 설계 의도 서술 2 도 같은 사유 + 경로 부재로 이중 제외.
+(ii)  `표준 sub-dir` 축 (9 row 일괄, 1 개 명령) — $ ls -d src/*/dto/ src/*/guards/ src/*/entities/
+      src/*/repositories/ src/*/adapters/ src/*/providers/ 2>&1 → `dto/` **8** (assessment-collection ·
+      assessment-evaluation · auth · export · import · llm · scheduling · user) · `providers/` **1** (llm) ·
+      나머지 4 종은 "No such file or directory" (**0**) ⇒ 기대 (`§ 12.31` 승계) 일치. **표가 `dto/` 를 준
+      github · confluence 는 이 8 에 부재.**
+(iii) LlmModule 비고 축 — $ ls src/llm/providers/*.adapter.ts → anthropic · azure-openai · google-gemini ·
+      openai-compatible **4** | $ ls src/llm/providers/*.provider.ts 2>&1 → "No such file or directory" (**0**)
+      ⇒ 표의 5 파일명은 **개수 (−1)** 와 **suffix 규약 (`.provider.ts` ≠ `.adapter.ts`)** 두 축 모두 어긋난다
+      (통합 근거는 재측정 없이 directory.md 82 행 `§ 12.32` 승계). $ ls src/llm/llm.service.ts 2>&1 → "No such
+      file" ⇒ **부재**. 실 진입점 1 회 조회 — $ grep -rln "modelId" src/llm/*.ts | head -3 → difficulty-
+      mapping.service.spec.ts · difficulty-mapping.service.ts · llm-gateway.interface.ts (그 이상 추적 안 함).
+(iv)  Github · Confluence 비고 축 — $ ls src/github/ src/confluence/ | grep -v spec → 각 **7** 파일 · 양쪽
+      controller **0** · 실명은 flat `github-adapter.service.ts` · `confluence-adapter.service.ts` (+ 각
+      `*-instance-config.ts` · `*-request.builder.ts` · `*-token-decrypt.ts` · `*-live-test-gating.ts` 등)
+      ⇒ 표의 `github.adapter.ts` · `confluence.adapter.ts` **부재**. 3 instance key 축은 `§ 12.32` 승계.
+(v)   Auth · Persistence · User · Web 비고 축 (4 개 명령) — $ ls src/auth/*.service.ts src/auth/*.guard.ts →
+      auth.service.ts · jwt-auth.guard.ts · roles.guard.ts | $ grep -n "@Global()" src/persistence/
+      persistence.module.ts → **12 행** hit | $ ls src/user/*.controller.ts 2>&1 → **7** (assessment ·
+      contribution · group · part · person · summary · user) | $ ls src/web/ | grep -v spec → web.module.ts
+      (**1**, controller **0**) ⇒ 표의 `(controller only)` 와 정반대.
+(vi)  대상외 2 row — directory.md 108 행 T-1430 각주가 이미 **경로 부재** 판정이라 두 컬럼 claim 을 실측 제외
+      (없는 디렉토리의 sub-dir 대조는 무의미). 단 $ grep -rn "@nestjs/schedule" src/scheduling/ | wc -l →
+      **5** ⇒ 개명체에서는 그 claim 만 성립.
+(vii) baseline — $ wc -l → directory.md **195** · audit **3173** · modules.md **259** | $ grep -c '^## ' →
+      directory.md **10** · audit **12** | audit $ grep -c '^| REQ-' → **66** · $ grep -c '^### 12\.' → **32**.
+```
+
+#### 지점 판정표 (AC 2 — 검증 가능 claim 28 + 대상외)
+
+판정 기준 3 축 — ① **문서 성격**: directory.md 3 · 19 · 55 행이 스스로 "T-0021 시점 blueprint" 라 규정하므로 서술 수정은 자기규정과 자기모순, ② **`§ 12.15` 정합**: 시점 기록은 append-only 로 사실을 덧붙일 뿐 과거 기술을 사후 재작성하지 않음, ③ **선례**: 같은 문서에서 4 회 채택된 "원문 보존 + 실측 각주" 화법 (`§ 12.28` 표 축 · `§ 12.30` 트리 축 · `§ 12.31` 이름 축 · `§ 12.32` 서술 축).
+
+| module row | 컬럼 | claim 1 구 | 실측 결과 | 판정 | 처리 | 근거 1 구 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Auth · User · Llm** | 표준 sub-dir | `dto/` (3 module) · `providers/` (llm) | (ii) 전부 실재 | 참 (4) | 무편집 | 이름 · 형태 모두 일치 — Llm 은 두 sub-dir 이 다 맞는 유일 row |
+| **Auth · User** | 표준 sub-dir | `guards/` · `repositories/` | 디렉토리 **0** · flat `*.guard.ts` **2** / `*.repository.ts` **13** | 부분참 (2) | 각주 (승계) | 책임은 shipped, **형태만 flat** — 디렉토리 신설은 중복 (77 ~ 79 행 승계) |
+| **UserModule** | 표준 sub-dir | `entities/` | 디렉토리 **0** · `*.entity.ts` **0** | 거짓 | 각주 (승계) | 형태 · 책임 **모두** 미shipped — 위 부분참과 갈리는 지점 |
+| **Github · Confluence** | 표준 sub-dir | `dto/` · `adapters/` | 4 종 모두 디렉토리 **0**, flat adapter 각 **1** | 거짓 (2) / 부분참 (2) | 각주 (신규 사실) | `dto/` 는 대체 flat DTO 도 없어 **책임 부재 (거짓)**, `adapters/` 는 책임 shipped · **형태만 다름 (부분참)** |
+| **WebModule** | 표준 sub-dir | "(controller only)" | `web.module.ts` **1** · controller **0** | 거짓 | 각주 (신규 사실) | 정반대 — "only" 가 지시할 controller 가 0 |
+| **AuthModule** | 비고 | `RolesGuard` · `auth.service.ts` | (v) 두 파일 실재 | 참 (2) | 무편집 | 이름까지 정확 |
+| **PersistenceModule** | 두 컬럼 | "(특수 — `prisma.service.ts` 만)" · "`@Global()` 적용 + PrismaService export" | 파일 실재 · controller 0 · (v) 12 행 hit | 참 (3) | 무편집 | 두 컬럼이 **모두** 참인 유일 row |
+| **UserModule** | 비고 | "controller endpoint 노출" | (v) **7** | 참 | 무편집 | 노출 사실 성립 |
+| **Github · Confluence** | 비고 | "controller 미노출 (adapter only)" · Confluence "사내 sub-config" | (iv) controller **0** · `confluence-instance-config.ts` 실재 | 참 (3) | 무편집 | 실측 일치 |
+| **Github · Confluence** | 비고 | "`github.adapter.ts`" · "`confluence.adapter.ts`" | 그 이름 파일 **0** (실명 flat `*-adapter.service.ts`) | 거짓 (2) | 각주 (파일명 축) | 독자가 **없는 경로를 열게** 되어 부분참보다 거짓 성격이 강함 |
+| **GithubModule** | 비고 | "3 instance (com / sec / ecode)" | 라우팅 shipped · key `com` **0** (실 `public`) | 부분참 | 상위 판정 승계 | `§ 12.32` 가 이미 판정 — **중복 각주 회피** 로 재측정 · 재각주 없음 |
+| **LlmModule** | 비고 | 5 provider **파일명** 열거 (`*.provider.ts`) | `.provider.ts` **0** · `.adapter.ts` **4** | 거짓 | 각주 (**파일명 규약 축만**) | **중복 각주 회피** — 개수 축 (5 vs 4) 은 82 행이 이미 각주했으므로 본 각주는 suffix 규약이라는 **새 사실만** 적고 82 행을 참조 |
+| **LlmModule** | 비고 | "`llm.service.ts` 가 라우팅" | 파일 **부재** | 거짓 | 각주 (파일명 축) | 실 진입점은 `difficulty-mapping.service.ts` · `llm-gateway.interface.ts` — 라우팅 정책 의미는 검증 불가로 제외 |
+| **WebModule** | 비고 | "SPA 소스는 repo-root `web/`" | AC 6 `git status … web/` 이 경로 오류 없이 빈 출력 ⇒ tracked 실재 | 참 | 무편집 | 추가 명령 0 으로 확인 |
+| **WebModule** | 비고 | serve-static + 비-`/api/*` fallback + ADR-0040 | 본 slice 실측 예산 밖 (AC 1 (v) 4 개 명령 한정) | 유보 | 파생 영향 이월 | 미측정을 판정으로 쓰지 않음 (날조 금지) |
+| **Assessment · Scheduler** | 두 컬럼 전체 | — | 108 행 각주 ② **경로 미실재** | 대상외 | 무편집 | 없는 디렉토리의 sub-dir 대조는 무의미 — 단 `@nestjs/schedule` 은 개명체에서 성립 (grep **5**) |
+
+집계 — **참 14 · 부분참 5 · 거짓 8 · 유보 1 = 28** (`거짓 8` 중 5 가 **파일명 / 디렉토리 부재로 독자가 없는 경로를 열게 되는** 유형).
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+판정 기준 4 축 — ① `§ 12.15` 정합, ② 독자 오도 risk, ③ cap (≤ 300 LOC · 파일 3 고정), ④ 선례 일관성.
+
+| 후보 | 판정 | 근거 1 구 |
+| --- | --- | --- |
+| (A) 두 컬럼 in-place 재작성 | 기각 | 3 · 19 · 55 행의 blueprint 자기규정과 자기모순 + `§ 12.15` append-only 위반 (①②), 거짓 8 · 부분참 5 를 실측 서술로 교체하면 표 5 row 재작성이라 diff 도 팽창 |
+| **(B) 표 원문 무편집 + T-1430 각주 (108 ~ 109 행) 뒤 컬럼 축 각주 blockquote 1 개 신설** | **채택** | 시점 원문 보존 + 사실만 덧붙여 ①② 동시 충족, 거짓 claim 바로 아래에서 오도를 차단해 ② risk 해소, +4 행이라 ③ cap 여유, 같은 문서 4 회 화법의 **5 번째 적용** 으로 ④ 일관 |
+| (C) T-1430 각주 블록에 1 ~ 2 행 append | 기각 | T-1430 각주는 **경로 축** 판정문이라 컬럼 축 사실을 그 블록에 넣으면 **misattribution** — `§ 12.32` 가 같은 사유로 기각한 후보와 동형 |
+| (D) 전 지점 무편집 + audit 기록만 | 기각 | ② 가 최대 — P3+ implementer 가 `src/llm/providers/custom.provider.ts` 를 열거나 `src/github/adapters/` 를 신설할 risk 가 audit 문서 1 곳에만 기록돼 현장에서 보이지 않음 |
+
+#### 반영 결과 (AC 4) 와 무편집 경계
+
+- directory.md **T-1430 각주 직후** 에 blank 1 + blockquote **3 행** = **+4 행** 삽입 (195 → **199**, 상한 199 준수). 표 본문 (96 ~ 106 행) · heading (92 행) · 도입 산문 (94 행) · T-1430 각주 (108 ~ 109 행) 는 **문자 1 자도 무편집** — (B) 채택이므로 표 in-place 편집 조건 (AC 4 의 (A) 단서) 이 발동하지 않는다. 각주는 **실측된 claim 만** 서술하고 미측정 (WebModule serve-static) 은 "유보" 로 남겨 새 `비고` 문구를 창작하지 않는다.
+- 무편집 확인 경계 — 3 · 19 · 55 행 blueprint 선언 3 지점 · 52 행 (T-1432) · 77 ~ 79 행 (T-1433) · 81 ~ 82 행 (T-1434) 각주 · 57 ~ 90 행 sub-structure 단락 · 구 111 행 이후 전 구간 · 정본 [modules.md](../architecture/modules.md) · 코드 전부.
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → directory.md 195 → 199 (+4, 상한 199) | audit 3173 → 3288 (+115, cap +115 안) | modules.md 259 (불변)
+$ grep -c '^## ' → directory.md 10 (불변) · audit 12 (불변, `###` 만 추가) | audit $ grep -c '^| REQ-' → 66
+  (불변) | audit $ grep -c '^### 12\.' → 32 → 33 (본 절 1 개만 증가)
+$ git diff -U0 -- docs/architecture/directory.md | grep '^@@' → @@ -110,0 +111,4 @@ ⇒ hunk **1 개** = AC 4
+  허용 구간 (T-1430 각주 직후) 뿐 — 3 · 19 · 55 행 · 52 · 77~79 · 81~82 행 각주 · 57~90 산문 · 구 96~106 표 내부 (99 · 103 행 포함) · 구 108~109 T-1430 각주 · 구 111 행 이후가 전부 hunk 밖
+$ git diff --numstat → 4 0 (directory.md) · 115 0 (audit 순수 추가) · 16 11 (task 파일) ⇒ 삭제 11 행은 전부
+  in-place 치환 짝 (status 1 + AC checkbox 9 + Follow-ups placeholder 1) ⇒ **순수 삭제 0**
+$ git status --porcelain src/ test/ prisma/ web/ → (빈 출력) 코드 무변경 실증 | $ git status --porcelain →
+  M directory.md · M REQ-COVERAGE-AUDIT.md · M T-1435 task 파일 = **3 파일** (상한 3)
+```
+
+합계 diff ≤ 300 LOC · 파일 3 으로 [CLAUDE.md](../../CLAUDE.md) §3 상한 안이다. production code **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A**, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 **N/A** 다 (AC 8).
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **UC-09 `§ 5` sequence participant 병기** — 17 회째 이월.
+2. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축** — ADR 게이트 선행 (본 slice 무편집, 259 행 불변).
+3. **행 번호 → anchor 좌표계 이행** — 11 회째 이월 (본 절도 `96 ~ 106` · `108 ~ 109` 좌표를 쓴다).
+4. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관.
+5. **대상외 2 row (`AssessmentModule` · `SchedulerModule`) 의 두 컬럼** — `src/assessment/` 신설 또는 `src/scheduling/` 개명 정합 시 재발화.
+6. **`§ 12.32` 파생 영향 6 · 7 잔존** — [components.md](../architecture/components.md) 11 행 forward pointer · 외부 참조 **내용** 정합. 여기에 (7) 본 절이 **유보** 한 WebModule serve-static / SPA fallback / ADR-0040 옵션 1 서술의 실측을 더한다.
+
+#### closure 선언
+
+directory.md mapping 표는 이로써 **경로 축 (`§ 12.28`) + 컬럼 내용 축 (본 절)** 이 모두 대조돼, 표 9 row 의 4 컬럼 중 검증 가능 면이 닫힌다. 잔여는 (a) 유보 1 (WebModule serve-static) · (b) 대상외 2 row · (c) 표 미기재 7 module 의 두 컬럼 (창작 불가 — 경로 신설 시 발화) 뿐이며 셋 다 파생 영향에 등재됐다. `§ 12.32` 가 남긴 **잔여 (a) · 파생 영향 5 (5 provider claim 의 두 번째 사본)** 는 본 절 (iii) + 지점 판정표 LlmModule 2 row 로 **해소** 됐다 — 같은 문서 안에서 부분적으로만 각주된 상태가 사라졌다.
+
+#### 한계 —
+
+1. **파일명 축은 닫혔으나 내용 축은 미검증** — `github-adapter.service.ts` 가 표의 "adapter 책임" 을 실제로 수행하는지 (내부 구현 대조) 는 본 축 밖이다. 이름 · 존재만 봤다.
+2. **유보 1 이 남는다** — WebModule 의 serve-static · SPA fallback 서술은 AC 1 (v) 의 4 개 명령 예산 밖이라 판정하지 않았다. 미측정을 참으로 쓰지 않는 대신 미검증 면이 1 개 잔존한다.
+3. **재-stale 은 불가피** — `src/github/dto/` 가 생기거나 5 번째 provider adapter 가 추가되는 순간 본 각주의 `8` · `4` · `0` 수치가 즉시 낡는다. 사람 규약으로 막을 수 없고 파생 영향 4 의 CI drift-guard 축으로만 닫힌다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
