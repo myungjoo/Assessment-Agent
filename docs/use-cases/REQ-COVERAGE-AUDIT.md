@@ -300,12 +300,13 @@ row 1 개 판정에 요구되는 **근거 3 종**:
 | (b) | §4 106 ~ 114 행 9 UC bullet | UC 별 coversReq / adjacent / envelope-cover 나열 9 줄 | `→ uc-covered` 또는 `uc-covered →` 전이일 때만 (해당 UC bullet 의 envelope · adjacent 나열 증감) |
 | (c) | §4 116 행 정합식 | `34 + 15 + 4 + 13 + 0 = 66` | 4 항 중 하나라도 증감하는 전이 전부. 34 (frontmatter union) 은 UC frontmatter 를 고치지 않는 한 불변이라 실제로 움직이는 것은 15 / 4 / 13 / 0 항 |
 | (d) | §5 122 ~ 128 행 표 count 4 값 + 합계 row | `49 / 4 / 13 / 0` · `74 / 6 / 20 / 0 %` · 합계 `**66**` · `**100 %**` + 비고 셀 | (c) 와 동일 트리거. 합계 66 · 100 % 는 row 수 불변이라 **항상 무변**, percentage 4 값은 반올림 재산출 필요 |
-| (e) | `docs/use-cases/INDEX.md` 118 행 | `uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1` | (c) · (d) 발동 후 그 결과 수치를 옮겨 적을 때 |
-| (f) | `docs/PLAN.md` 36 행 | `uc-covered 48 / cross-cutting 4 / infrastructure 13 / gap 1 = 66` + gap 1 건 서술 | (e) 와 동일. gap count 가 바뀌면 gap 서술 문장도 함께 |
+| (e) | `docs/use-cases/INDEX.md` 118 ~ 121 행 | `uc-covered 49 / cross-cutting 4 / infrastructure 13 / gap 0` (118 행 원 출처 4 값 48 / 4 / 13 / 1 은 시점 기록으로 보존) | (c) · (d) 발동 후 그 결과 수치를 옮겨 적을 때 |
+| (f) | `docs/PLAN.md` 36 행 | `uc-covered 49 / cross-cutting 4 / infrastructure 13 / gap 0 = 66` (36 행 앞부분의 옛 4 값 + gap 1 건 서술은 시점 기록으로 보존) | (e) 와 동일. gap count 가 바뀌면 gap 서술 문장도 함께 |
 
 §9.4 · §10 의 이전 요약 문장은 **cascade 갱신 대상이 아니다** — append-only 규약상 각 시점 판정을 그대로 보존하고 이후 상태는 새 bullet 이 가리킨다 (214 행이 200 · 209 행에 대해 쓴 시점 구분 화법이 정본).
 2026-08-03 (T-1412): INDEX.md 의 UC-09 row · description 등록으로 (e) 지점 행 번호가 110 → 118 로 이동 (수치 문자열 무변). §12.6 ~ §12.10 본문의 `110 행` 표기는 시점 기록이라 append-only 규약대로 보존.
 2026-08-03 (T-1413): §4 에 UC-09 bullet 1 행 삽입으로 편집 전 114 행 이하가 +1 (본 각주 이후 구간은 +2) 이동 — (b) · (c) · (d) 셀의 행 pointer 와 현재 값을 동기했다. §9 · §10 · §12.6 ~ §12.10 본문의 `115 행` · `121 ~ 127 행` · `L212` 등 옛 행 표기는 시점 기록이라 append-only 규약대로 보존.
+2026-08-03 (T-1414): §12.4 가 분리 허용으로 남긴 cascade (e) · (f) 를 실행해 INDEX.md 118 ~ 121 행 · PLAN.md 36 행에 현 시점 4 값을 append 했고, 위 표의 (e) · (f) `현재 값` 열을 그 결과로 치환했다. 두 파일의 옛 4 값 문장은 append-only 규약대로 무편집 보존 — 근거 §12.12.
 
 ### 12.4 cascade 순서 + 원자성 규약
 
@@ -864,6 +865,45 @@ audit 파일의 **삭제 열 7 은 전부 in-place 치환의 짝** (38 · 116 ·
 2. **옛 요약 문장 무편집** — §1 18 행 · §8 161 · 162 행 · §9.4 188 행의 `gap 1 건` 서술은 각 시점 판정의 기록이라 §12.3 306 행 규약대로 보존했다. §9 · §10 · §12.6 ~ §12.10 본문의 옛 행 표기 (`115 행` · `121 ~ 127 행` · `L212`) 도 같은 이유로 정정하지 않았다.
 3. **재판정 후보 밖 49 row 는 여전히 미재판정** — §12.8 한계 1 · §12.9 한계 4 · §12.10 한계 4 가 그대로 유효하다. 본 slice 도 REQ-004 **1 row** 만 판정했다.
 4. **UC-09 본문의 질적 충분성은 판정하지 않았다** — (i) · (ii) 는 frontmatter 선언과 본문 hit 의 **실재** 까지만 실측했고, UC-09 가 REQ-004 의 미충족 축 (프런트 노출 · 기간 종료 경계 · 좌표 종합 코멘트 — requirements.md 23 행) 까지 서술로 덮는지는 §12.6 한계 4 와 같은 이유로 범위 밖이다.
+
+### 12.12 cascade (e) · (f) 외부 요약 2 곳 수치 동기 (T-1414)
+
+> 본 절은 [T-1414](../tasks/T-1414-cascade-ef-index-plan-count-resync.md) 가 §12.4 314 행의 **분리 허용** 으로 [T-1413](../tasks/T-1413-req004-gap-to-uc-covered-reclassification.md) 이 이월한 cascade **(e) · (f)** 잔여분을 실행한 기록이다. §12.11 이 확정한 4 값 (`uc-covered 49 / cross-cutting 4 / infrastructure 13 / gap 0 = 66`) 을 audit 문서 밖의 두 요약 지점 — [INDEX.md](INDEX.md) closure 문단 · [PLAN.md](../PLAN.md) Phase P2 셋째 bullet — 으로 **옮겨 적기만** 했고, audit 문서 안의 수치는 한 글자도 재계산하지 않았다. **삽입 위치는 §12.11 마지막 행 뒤 · §11 References 앞** 이고 `###` 이라 `## ` heading count 12 가 불변이다 — §12.6 ~ §12.11 이 승계해 온 위치 규약 그대로다.
+
+#### cascade 실행 기록 — 편집 방식은 전부 append
+
+- **(e) `docs/use-cases/INDEX.md`** — 118 행 원문 (`원 출처 2026-05-25` · `uc-covered 48 … gap 1`) 은 **무편집** 이고, 119 · 120 행의 `2026-08-0N 재판정:` 화법을 승계한 `2026-08-03 재분류:` 줄 **1 개를 120 행 뒤에 append** 했다 (in-place 치환 아님). 새 줄은 T-1411 UC-09 신설 → T-1412 INDEX 등록 → T-1413 실판정 chain 과 갱신된 4 값을 적고, 근거는 §12.11 · 본 절에 위임한다. closure 문단은 118 ~ 121 행이 됐고 `Refs:` 줄은 그 아래 그대로다.
+- **(f) `docs/PLAN.md` 36 행** — 같은 줄 **끝에 문장 1 개를 append** 했다. bold 구간의 `gap 1 건 (REQ-004 …)` 과 `uc-covered 48 / … / gap 1 = 66.` 은 T-0029 시점 기록이라 보존했고, 기존 `2026-08-03 재판정: …` 문장 뒤에 갱신 4 값 + §12.11 · §12.12 pointer 문장을 이어 붙였다. 한 줄 안의 확장이라 행 수 175 는 불변이다.
+- **§12.3 표 (e) · (f) 셀 치환** — (e) row 는 `지점` 열을 `118 행` → `118 ~ 121 행` (append 후 실측), `현재 값` 열을 갱신 4 값 + 원 출처 4 값 보존 부기로, (f) row 는 `현재 값` 열을 갱신 4 값 + 옛 서술 보존 부기로 1:1 치환했다. (a) ~ (d) row 는 T-1413 이 이미 동기해 **무편집** 이며, 표 아래에 T-1414 각주 1 줄을 append 했다. 이로써 §12.3 cascade 6 지점은 **(a) ~ (f) 전건 closure** 다.
+
+#### 불변 검산 (doc-only, R-112 대체)
+
+```
+$ wc -l docs/use-cases/INDEX.md          → 123   (편집 전 122 + append 1)
+$ wc -l docs/PLAN.md                     → 175   (한 줄 in-place 확장이라 불변)
+$ grep -c "^\| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md   → 66    (불변)
+$ grep -c "^## "     docs/use-cases/REQ-COVERAGE-AUDIT.md   → 12    (불변, `###` 만 추가)
+$ git diff -U0 docs/use-cases/INDEX.md | grep -c '^-[^-]'   → 0     (순수 append, 삭제 0)
+$ grep -n "REQ ↔ UC coverage audit closure" docs/use-cases/INDEX.md → 118 (원문 행 위치 불변)
+$ git diff -U0 | grep '^@@'
+@@ -36 +36 @@          (PLAN.md 36 행 — 줄 끝 append, 1:1 치환)
+@@ -120,0 +121 @@      (INDEX.md — 재분류 줄 1 행 append)
+@@ -303,2 +303,2 @@     (§12.3 표 (e) · (f) 셀 — 2 행 1:1 치환)
+@@ -308,0 +309 @@      (§12.3 각주 1 행 append)
+@@ -867,0 +869,39 @@   (§12.12 삽입 — §12.11 마지막 행과 §11 References 사이)
+$ git diff --numstat
+1       1       docs/PLAN.md
+1       0       docs/use-cases/INDEX.md
+42      2       docs/use-cases/REQ-COVERAGE-AUDIT.md
+```
+
+`git diff --numstat` 합계는 3 doc 파일 기준 **삽입 44 / 삭제 3** 이고 삭제 3 은 전부 in-place 치환의 짝 (PLAN 1 + §12.3 표 2) 이라 **순수 삭제 0** 이다. 변경 파일은 INDEX 1 + PLAN 1 + audit 1 + 본 task 파일 1 = **4 개** 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이다.
+
+#### 한계 —
+
+1. **cascade 전건 closure 이후에도 옛 요약은 무편집** — 본 slice 로 §12.3 의 6 지점이 (a) ~ (f) 전건 동기됐지만, §1 18 행 · §8 160 ~ 161 행 · §9.4 188 행의 `gap 1 건` 요약과 INDEX.md 118 행 · PLAN.md 36 행 앞부분의 옛 4 값은 각 시점 판정의 기록이라 §12.3 306 행 append-only 규약대로 **여전히 무편집** 이다. 현 시점은 새 줄 · 새 문장이 가리킨다.
+2. **§11 References bullet 의 UC 개수 표기는 stale** — `docs/use-cases/INDEX.md — 8 UC backbone` · `UC-01 ~ UC-08 — 8 UC 본문` 2 줄이 UC-09 실재와 어긋나나, cascade 6 지점 밖이고 시점 기록인지 현행 index 서술인지 판정이 선행돼야 해 **후속 slice 소관** 이다 (본 slice 무편집).
+3. **재판정 후보 밖 49 row 는 여전히 미재판정** — §12.8 한계 1 · §12.9 한계 4 · §12.11 한계 3 이 그대로 유효하다. 본 slice 는 판정을 **1 건도 하지 않았고** 수치를 옮겨 적기만 했다.
 
 ## 11. References
 

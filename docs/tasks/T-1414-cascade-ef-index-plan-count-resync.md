@@ -99,3 +99,21 @@ plannerNote: "uc-doc-audit-resync 26 번째 slice — T-1413 Follow-up 1 (의존
 2. **audit §11 References bullet 의 UC 개수 표기 갱신** — `docs/use-cases/INDEX.md — 8 UC backbone` · `UC-01 … ~ UC-08 … — 8 UC 본문` 2 줄이 9 UC 실재와 어긋난다. 시점 기록이 아니라 **현행 index 성격의 서술** 이라 정정 대상인지 append 대상인지 판정이 선행돼야 한다.
 3. **audit 198 행 `INDEX.md 104 행` 표기 최신성 점검** — T-1412 Follow-up 4 · T-1413 Follow-up 3 이월. §9.5 시점 기록 안의 stale 후보라 append-only 규약과의 관계 판정이 선행.
 4. **§8 161 · 162 행 · §1 18 행의 `gap 1 건` 결론 문장 처리 방침 확정** — T-1413 Follow-up 4 이월. gap 0 이 된 이후 audit 문서 최상단 요약을 읽는 사람의 오독 여지를 "요약 절 말미에 현 시점 pointer 1 줄 append" 로 닫을지 판정.
+
+## 완료 기록 (2026-08-03)
+
+**Status: DONE.** 변경 파일 **정확히 4 개** — `docs/use-cases/INDEX.md` (+1/-0) · `docs/PLAN.md` (+1/-1) · `docs/use-cases/REQ-COVERAGE-AUDIT.md` (+42/-2) · 본 task 파일. 3 doc 파일 합계 **삽입 44 / 삭제 3** 으로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이며, 삭제 3 은 전부 in-place 치환의 짝 (PLAN 36 행 1 + §12.3 표 (e) · (f) 2) 이라 **순수 삭제 0** 이다 (AC 6).
+
+**AC 1 (cascade (e) INDEX.md)** — 118 행 원문 무편집. 120 행 뒤에 `2026-08-03 재분류:` 줄 1 개 append — T-1411 UC-09 신설 → T-1412 INDEX 등록 → T-1413 실판정 chain · 갱신 4 값 (`uc-covered 49 / cross-cutting 4 / infrastructure 13 / gap 0 = 66`) · 근거 §12.11 · §12.12 위임의 3 요소 충족. `wc -l` = **123**, `git diff -U0 docs/use-cases/INDEX.md | grep -c '^-[^-]'` = **0** (hunk 1 개 · 삭제 0), `Refs:` 줄은 문단 아래 그대로.
+
+**AC 2 (cascade (f) PLAN.md)** — 36 행 줄 끝에 `2026-08-03 재분류 (T-1413): …` 문장 1 개 append. bold 구간의 `gap 1 건 (REQ-004 …)` · `uc-covered 48 / … / gap 1 = 66.` 은 T-0029 시점 기록이라 한 글자도 지우지 않았고, `wc -l` = **175** 불변 · `--numstat` = **1 추가 / 1 삭제** (한 줄 in-place 확장). 34 ~ 35 · 37 ~ 40 행 등 다른 bullet · checkbox 무편집.
+
+**AC 3 ~ 4 (§12.3 표 + 각주)** — (e) row 의 `지점` 열을 append 후 실측대로 `118 행` → `118 ~ 121 행`, `현재 값` 열을 갱신 4 값 + 원 출처 4 값 보존 부기로, (f) row 의 `현재 값` 열을 갱신 4 값 + 옛 서술 보존 부기로 1:1 치환 (`지점` 열 무변). (a) ~ (d) row 무편집, 두 row 모두 **4 컬럼** 유지 · 표 row 수 6 + 헤더 2 불변. T-1413 각주 바로 다음 줄에 blank line 없이 T-1414 각주 1 줄 append.
+
+**AC 5 (§12.12 신설)** — `## 11. References` 바로 앞에 `### 12.12 …` 절 (39 행) 삽입, `grep -c "^## "` = **12** 불변. 구성은 서두 blockquote / cascade (e) · (f) 실행 기록 (편집 방식이 append 임을 명시) + §12.3 셀 치환 기록 / 불변 검산 출력 블록 (AC 6 명령 + 실측 그대로) / 한계 3 항 (① (a) ~ (f) 전건 closure 후에도 §1 18 행 · §8 160 ~ 161 행 · §9.4 188 행 옛 요약 무편집, ② References 의 `8 UC` 표기 stale — 후속 소관, ③ 후보 밖 49 row 미재판정).
+
+**AC 6 (불변 검산)** — `git status --porcelain` 변경 파일 4 개 (위 목록) 이고 `docs/requirements.md` · `UC-01` ~ `UC-09` 본문 · `docs/architecture/api.md` · `data-model.md` · `CLAUDE.md` **미등장**. audit 검산 `grep -c "^| REQ-"` = **66** · `grep -c "^## "` = **12** 불변이며 §3 38 행 REQ-004 row · §4 116 행 정합식 (`34 + 15 + 4 + 13 + 0 = 66`) · §5 표 (`49 / 4 / 13 / 0`) 는 hunk 밖 무변 (`git diff -U0 | grep '^@@'` = 5 hunk: PLAN 36 · INDEX 121 · §12.3 표 2 행 · §12.3 각주 · §12.12 삽입).
+
+**AC 7 (R-110 / R-112 면제)** — 본 task 는 `commitMode: direct` + production code **0 LOC** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 만 본 규칙 면제" 조항으로 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 **N/A** 다 (분기 0, architect / tester dispatch 0).
+
+**Out of Scope 준수** — api.md / data-model.md pointer, audit §11 References bullet, §1 18 행 · §6 · §8 · §9 · §10 · §12.6 ~ §12.11 본문, §3 매트릭스 66 row · §4 · §5 수치, INDEX.md 118 행 · PLAN.md 36 행 앞부분의 in-place 치환, 재판정 후보 17 row, requirements / UC 본문, 코드 계열 전부 **한 글자도 건드리지 않았다**.
