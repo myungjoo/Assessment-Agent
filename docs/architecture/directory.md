@@ -173,13 +173,17 @@ unit test 의 co-location 은 NestJS 표준 — `src/auth/auth.service.spec.ts` 
 
 repo-root `web/src/` 의 실제 구조 (디렉토리 단위 — composition-wiring 스트림 T-0353~T-0394, [ADR-0041](../decisions/ADR-0041-frontend-composition-wiring.md) 이 조립·배선 완료):
 
-- `web/src/components/` — 15 presentational 컴포넌트 (대시보드 시각화 · Admin 패널 · 인증 폼 등, props 소비 stateless).
+- `web/src/components/` — 21 presentational 컴포넌트 (대시보드 시각화 · Admin 패널 · 인증 폼 등, props 소비 stateless).
 - `web/src/views/` — 2 view 컨테이너 (`DashboardView` · `AdminView`, controlled lift-up 으로 상태 소유).
-- `web/src/api/` — thin fetch hook (`apiClient` · `useApiResource` · `auth`, JWT cookie 자동 동반).
+- `web/src/api/` — thin fetch hook 모듈 6 (`apiClient` · `useApiResource` · `auth` 등, JWT cookie 자동 동반).
 - `web/src/AppShell.tsx` — 전역 레이아웃 + 무라우터 view enum 전환 + R-78 배너 슬롯.
-- `web/src/AuthGate.tsx` — 인증 게이트, `web/src/main.tsx` — Vite 진입점.
+- `web/src/AuthGate.tsx` — 인증 게이트, `web/src/App.tsx` — `main.tsx` 와 `AppShell` 사이 thin wrapper, `web/src/main.tsx` — Vite 진입점.
 
 backend endpoint 미shipped 로 의도적 defer 된 잔여 (auto-polling) 는 [modules.md](modules.md) "WebModule 의 frontend 분리" 단락이 이미 박제 — 본 directory.md 범위 밖이라 중복 박제하지 않는다.
+
+> **본 단락 ↔ 실 `web/src/` · `src/web/` 대조 (T-1436 실측 각주)** — 본 단락은 [T-0021](../tasks/T-0021-p2-directory-structure.md) blueprint 가 아니라 [T-0397](../tasks/T-0397-directory-md-web-frontend-doc-sync.md) 의 **현재형 doc-sync 산물** (시점 marker 0) 이라, **순수 카운트 · 파일 열거 축은 [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) 선례대로 in-place 동기** 했다 — `components/` **15 → 21** (`ls web/src/components/*.tsx | grep -v '\.test\.' | wc -l`), `api/` 열거 3 → **모듈 6** (실측 `apiClient` · `auth` · `exportJob` · `exportJobDownload` · `exportJobFlow` · `useApiResource` — 기재 3 개는 모두 실재하나 열거가 불완전했다), 진입 파일에 **`web/src/App.tsx` 추가** (`main.tsx` → `App` → `AppShell` 체인이 실 코드). `views/` **2** (`DashboardView` · `AdminView`) 는 실측 일치라 무편집.
+> **`src/web/` serve 축 (T-1435 각주가 위임한 유보의 closure)** — `@nestjs/serve-static` 사용 · `web/dist/` mount 대상 · 비-`/api/*` fallback 의 실체가 `exclude: ["/api/(.*)"]` 인 점은 **모두 참** 이나 (`src/web/web.module.ts` 17 · 20 · 25 · 44 행), mount 는 **무조건이 아니라 `web/dist/index.html` 존재 시에만** 등록되는 조건부라 (`resolveServeStaticOptions` 가 부재 시 빈 배열 반환 — 같은 파일 41 행) 위 서술과 96 ~ 106 행 표 `WebModule` row 의 무조건 화법은 **부분참** 이다. `web/dist/` 는 git 미추적 (`.gitignore` `dist/`) 이므로 **clean clone 의 SPA serve 등록 수는 0**, 로컬 빌드 후에만 1 이다.
+> 본 각주는 위 두 축의 사실 기록이며 **표 row 재편집이 아니다** — 106 행 row 의 `(controller only)` **거짓** 판정은 111 ~ 113 행 T-1435 각주가 이미 박제했으므로 반복하지 않고 참조만 한다. 역할 · 설계 의도 서술 (`props 소비 stateless` · `controlled lift-up` · `backend src/ 와 빌드 분리` 등) 은 형태 무관 범주라 **검증 불가** 로 분류해 판정 대상에서 뺐다 (판정 근거는 [REQ-COVERAGE-AUDIT § 12.34](../use-cases/REQ-COVERAGE-AUDIT.md)).
 
 ## References
 

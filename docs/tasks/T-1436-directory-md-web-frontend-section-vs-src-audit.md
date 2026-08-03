@@ -85,6 +85,17 @@ planner 사전 확인 (executor 가 AC 1 에서 전부 재측정) — 최소 3 �
 
 `implementer` 단독 (doc-only, 코드 0 LOC — architect · tester 불요. §3.2 direct-mode 면제).
 
+## 결과 (executor 기록)
+
+- **좌표 정정** — frontmatter · AC 1 (i) 이 지정한 `183 ~ 195 행` 은 stale 이었다. `grep -n '^## '` 실측으로 `## Frontend (web/) 의 위치` 는 **167 행**, `## References` 는 **184 행** 이라 실 단락은 **167 ~ 183 행** 이다. 이하 모든 편집 · 판정은 정정 좌표 기준이며, 사실 자체를 [REQ-COVERAGE-AUDIT § 12.34](../use-cases/REQ-COVERAGE-AUDIT.md) 실측 (i) · 한계 1 에 박제했다 (파생 영향 3 anchor 이행의 근거 보강).
+- **AC 1 (iv) 기대값 불성립** — `ls -d web/dist` 는 부재가 아니라 **존재** 를 보고했다. 다만 `git ls-files web/dist` **0** · `git check-ignore` **`.gitignore:6:dist/`** 로 미추적 산출물임이 확인돼, "clean clone 의 SPA serve 등록 수 0" 이라는 운영 의미는 그대로 성립한다. 빌드는 실행하지 않았다.
+- **판정 요약** — 검증 가능 claim **13** = 참 **9** · 부분참 **3** · 거짓 **1** (+ 106 행 승계 1). 검증 불가 5 는 대상 제외.
+- **채택안 (C)** — 카운트 · 열거 축 3 지점은 in-place (`15 → 21` · `api 모듈 6` · `App.tsx` 추가), 조건부 mount 서술 축은 원문 보존 + 각주 3 행. directory.md `199 → 203` (+7/-3, hunk 4), audit `3288 → 3402` (`§ 12.34` 113 행 + 구분 공백 1), modules.md **259 불변**.
+- **T-1435 유보 (web 축) closure 완료** — `§ 12.33` 의 미검증 면 1 개가 0. 아울러 directory.md **6 축 전 구간 대조 완료** 를 `§ 12.34` 에 선언했다.
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+1. **[modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 단락의 동종 카운트 claim 대조** — 정본 쪽은 미대조 상태이며 정본 편집은 ADR 게이트 소관이라 본 slice 에서 손대지 않았다.
+2. **`web/dist/` 조건부 mount 의 운영 문서화** — [deployment.md](../architecture/deployment.md) 가 "빌드 없이 부팅하면 SPA 라우트 미등록" 을 명시하는지 미대조.
+3. **행 번호 → anchor 좌표계 이행 (12 회째 이월)** — 본 slice 가 task 좌표 stale 을 실측으로 확인해 우선순위 근거가 1 건 더 쌓였다.
+4. **산문 tally ↔ 실측 CI drift-guard spec** — in-place 로 박은 `21` · `6` 은 컴포넌트 1 개 추가로 즉시 낡는다 (`pr` mode 소관).

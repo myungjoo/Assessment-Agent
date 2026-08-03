@@ -3272,6 +3272,120 @@ directory.md mapping 표는 이로써 **경로 축 (`§ 12.28`) + 컬럼 내용 
 2. **유보 1 이 남는다** — WebModule 의 serve-static · SPA fallback 서술은 AC 1 (v) 의 4 개 명령 예산 밖이라 판정하지 않았다. 미측정을 참으로 쓰지 않는 대신 미검증 면이 1 개 잔존한다.
 3. **재-stale 은 불가피** — `src/github/dto/` 가 생기거나 5 번째 provider adapter 가 추가되는 순간 본 각주의 `8` · `4` · `0` 수치가 즉시 낡는다. 사람 규약으로 막을 수 없고 파생 영향 4 의 CI drift-guard 축으로만 닫힌다.
 
+### 12.34 directory.md `Frontend (web/) 의 위치` 산문 단락 ↔ 실 `web/src/` · `src/web/` 대조 — 카운트 in-place + 서술 각주 혼합 (T-1436)
+
+> **본 절의 위치** — `§ 12.33` 은 mapping 표 두 컬럼을 닫으면서 `WebModule` row 의 **serve-static · SPA fallback · ADR-0040 옵션 1 shipped** 서술만은 "실측 예산 밖" 이라며 **유보** 로 남겼다 (한계 2 · 파생 영향 6 의 (7)). 본 절이 그 유보를 닫고, 동시에 directory.md 의 **마지막 미대조 산문 단락** 인 `## Frontend (web/) 의 위치` 를 실측한다. **계보** — `T-1430` (mapping 표 경로 축) → `T-1431` (pointer 축) → `T-1432` (트리 축) → `T-1433` (sub-structure 이름 축) → `T-1434` (`용도` 컬럼 축) → `T-1435` (mapping 표 컬럼 내용 축) → **`T-1436` (본 절 — 산문 단락 축 + web 유보 closure)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이며, 상위 slice 가 이미 박제한 지점을 위해 `승계` 가 더해진다. cap 준수를 위해 아래 실측 인용은 **요약형** 이다 (명령 + 핵심 출력만).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ sed -n '183,195p' directory.md → **task 좌표 stale** (183 행 이후는 References) ; $ grep -n '^## ' … → 167 `## Frontend (web/) 의 위치` · 184 `## References` ⇒ 실 단락 **167 ~ 183 행**.
+      $ sed -n '167,183p' … → heading(167) + 도입 산문(169) + 2 항목(171 `repo-root web/` · 172 `src/web/`) + 도입구(174) + 5 항목(176 ~ 180) + 마무리(182).
+      claim 이분 — **검증 가능 13** (디렉토리 존재 · 파일명 · 개수 · 스택 · shipped 여부) · **검증 불가 5** ("빌드 분리" · "props 소비 stateless" ·
+      "controlled lift-up 으로 상태 소유" · "무라우터 view enum + R-78 배너 슬롯" 의 의도 면 · "`web/`=소스, `src/web/`=serve 진입점" 의 역할 규정 — 형태 무관 범주라 판정 제외).
+(ii)  카운트 축 (1 회 실측. test 제외 기준 = 파일명이 `.test.` 를 포함하면 제외)
+      $ ls web/src/components/*.tsx | grep -v '\.test\.' | wc -l → **21** (단락 claim 15)
+      $ ls web/src/views/*.tsx      | grep -v '\.test\.' | wc -l → **2** (claim 2 일치; AdminView · DashboardView)
+      $ ls web/src/api/*.ts | grep -v -e '\.test\.' -e contract | wc -l → **6** (단락 열거 3) → apiClient · auth · exportJob · exportJobDownload · exportJobFlow · useApiResource (기재 3 은 모두 실재)
+      $ ls web/src/*.tsx → App.test / App / AppShell.test / AppShell / AuthGate.test / AuthGate / main ⇒ non-test **4** — 단락 열거 3, **`App.tsx` 미기재**
+(iii) serve 축 (T-1435 유보 closure)  $ ls src/web/ → web.module.spec.ts · web.module.ts (controller 0)
+      $ grep -n "ServeStaticModule\|API_EXCLUDE_PATTERN\|WEB_DIST_PATH\|existsSync" src/web/web.module.ts →
+        13 `existsSync` import / 17 `ServeStaticModule` import / 20 `WEB_DIST_PATH = join(cwd,"web","dist")` / 25 `API_EXCLUDE_PATTERN = "/api/(.*)"` /
+        41 `if (!existsSync(join(distPath,"index.html"))) {` ← **조건부 등록의 실체** / 44 `return [{ rootPath, exclude: [API_EXCLUDE_PATTERN] }]` / 49 `imports: resolveServeStaticOptions(WEB_DIST_PATH).map(...)`
+      ⇒ serve-static 사용 · `web/dist/` mount · 비-`/api/*` fallback(=`exclude`) 은 **참**, 무조건 화법만 **부분참**.
+(iv)  $ ls -d web/dist 2>&1 → `web/dist` ← **기대값(부재)과 다름**. $ git ls-files web/dist | wc -l → 0 ; $ git check-ignore -v web/dist → `.gitignore:6:dist/`
+      ⇒ 미추적 · ignore 대상이라 **clean clone 의 SPA serve 등록 수 0** 이 성립하고 본 트리의 존재는 로컬 빌드 잔여물이다. `pnpm build` 미실행 (측정만).
+(v)   $ ls docs/decisions/ADR-0040-frontend-stack.md ADR-0041-frontend-composition-wiring.md → 둘 다 실재 (본문 재판정 없음) ;
+      $ ls docs/tasks/T-0354-*.md → T-0354-p6-web-module-serve-static.md (실재). 보강 — pnpm-workspace.yaml `packages: - web` / package.json react ^19.2.7 ·
+      vite ^8.0.16 · typescript 5.6.2 / index.html 10 행 `src="/src/main.tsx"` / App.tsx 4 · 7 행 `import AppShell` · `return <AppShell />` / apiClient.ts
+      `credentials` **8** ⇒ workspace · 스택 · 진입점 · thin wrapper · JWT cookie 모두 **참**.
+(vi)  baseline — wc -l directory.md **199** · audit **3288** · modules.md **259** ; grep -c '^## ' → **10** · **12** ;
+      audit grep -c '^| REQ-' → **66** · grep -c '^### 12\.' → **33**  (6 값 전부 기대값 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+판정 3 축 — ① **문서 성격**: 본 단락은 3 · 19 · 55 행이 스스로 `blueprint` 라 선언한 T-0021 구간과 달리 [T-0397](../tasks/T-0397-directory-md-web-frontend-doc-sync.md) 이 P6 에 갱신한 **현재형 doc-sync 산물** 이고, `sed -n '167,183p' … | grep -n "시점\|T-0"` 의 2 hit 도 시점 선언이 아니라 shipped task attribution (T-0354 · T-0353~T-0394) 이다 → **시점 marker 0**. ② **`§ 12.15` 정합**: 그 정본은 *시점 기록* 의 무편집 존속을 명하는데, 시점 marker 가 없는 현재형 서술은 그 보호 대상이 아니다. ③ **선례**: 같은 문서에서 5 회 채택된 "원문 보존 + 각주" 는 전부 blueprint 구간이었고, 시점 marker 부재를 근거로 정본값 1:1 치환을 택한 [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) 쪽이 본 단락 성격에 맞는다.
+
+| 지점 (행) | claim (1 구) | 실측 결과 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 171 | repo-root `web/` 는 pnpm workspace SPA 소스 패키지 | `packages: - web` | 참 | 무편집 | 실측 (v) |
+| 171 | React + Vite (TypeScript) | react ^19.2.7 · vite ^8.0.16 · ts 5.6.2 | 참 | 무편집 | 실측 (v) |
+| 171 | 소스 `web/src/` · 산출물 `web/dist/` | 양쪽 실재 (dist 는 미추적) | 참 | 무편집 | 실측 (ii) · (iv) |
+| 172 | `@nestjs/serve-static` 으로 serve | `web.module.ts` 17 행 import | 참 | 무편집 | 실측 (iii) |
+| 172 | mount 대상이 `web/dist/` | `WEB_DIST_PATH` 20 행 | 참 | 무편집 | 실측 (iii) |
+| 172 | 비-`/api/*` 를 SPA `index.html` 로 fallback | `exclude: ["/api/(.*)"]` 25 · 44 행 | 참 | 무편집 | 실측 (iii) |
+| 172 | (위 mount 의) **무조건** 등록 화법 | 41 행 — `index.html` 부재 시 빈 배열 | 부분참 | 원문 보존 + 각주 부기 | 서술 재작성 축이라 각주가 안전 |
+| 172 | `T-0354 shipped` | task 파일 실재 | 참 | 무편집 | 실측 (v) |
+| 174 | ADR-0041 · `T-0353~T-0394` 스트림 pointer | ADR 2 종 실재 | 참 | 무편집 | 실측 (v), 본문 재판정 없음 |
+| 176 | `components/` **15** presentational | non-test `*.tsx` **21** | 거짓 | in-place `15 → 21` | 순수 수치 + 시점 marker 0 |
+| 177 | `views/` **2** (`DashboardView` · `AdminView`) | **2** 일치 | 참 | 무편집 | 실측 (ii) |
+| 178 | `api/` = `apiClient` · `useApiResource` · `auth` | 실 모듈 **6** (3 개 미기재) | 부분참 | in-place `모듈 6` + `등` | 기재 3 은 실재 — 열거만 불완전 |
+| 179 ~ 180 | 진입 파일 3 (`AppShell` · `AuthGate` · `main`) | non-test **4** (`App.tsx` 미기재) | 부분참 | in-place `App.tsx` 추가 | `main → App → AppShell` 실 체인 |
+| 106 | `WebModule` row `(controller only)` | `src/web/` = module 1 · controller 0 | 거짓 (승계) | 상위 slice 판정 승계 | 113 행 T-1435 각주가 이미 박제 — 중복 각주 회피 |
+
+- 합계 — 검증 가능 13 = **참 9 · 부분참 3 · 거짓 1** + 승계 1 (거짓). 검증 불가 5 는 대상 제외. **카운트 축과 서술 축의 처리를 분리** 한 이유: 176 · 178 · 179~180 은 실측 정수 · 파일명이라 치환해도 새 주장을 창작하지 않지만 (T-1429 형), 172 의 조건부 mount 는 문장 구조를 다시 쓰는 축이라 원문 보존 + 각주가 오도 risk 를 더 낮춘다 — 경계가 "수치 대 서술" 로 기계적으로 그어진다.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | 카운트 · 열거 in-place 동기만 | 기각 | 조건부 mount 부분참 · 유보 closure 가 남지 않아 `§ 12.33` 위임이 미해소로 잔존 |
+| (B) | 단락 무편집 + 각주 blockquote 1 개만 | 기각 | 시점 marker 0 인 현재형 서술에 blueprint 보호를 오적용 — 본문 `15` 잔존으로 오도 risk 최대 |
+| **(C)** | **(A) + (B) 혼합 — 수치는 in-place, 조건부 mount 서술만 각주** | **채택** | 3 축 판정을 지점별로 그대로 집행 + cap 안 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | directory.md 독자가 audit 를 안 읽으면 stale 수치를 그대로 신뢰 — 6 slice 중 가장 약한 처리 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: `sed -n '167,183p' … | grep -n "시점\|T-0"` **2 hit 가 모두 attribution** 이라 시점 marker 0 → append-only 제약이 같은 강도로 걸리지 않는다. ② **독자 오도 risk**: P6 implementer 가 "15 컴포넌트" 를 완전 목록으로 신뢰하면 6 개 컴포넌트 · 3 개 api 모듈 · `App.tsx` 를 못 본 채 배선한다 — (B) · (D) 는 이 risk 를 남긴다. ③ **cap**: (C) 의 실측 diff 는 directory.md `+7/-3` (199 → **203**, 허용 `≤ 203`) · 파일 **3 고정** 이라 300 LOC · 5 파일 상한 안이다 (초과 후보 0 — split 제안 불요). ④ **선례 일관성**: 수치 축은 T-1429, 서술 축은 T-1430 ~ T-1435 의 각주 5 연속을 각각 따르므로 두 선례 중 어느 쪽도 깨지 않는다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **in-place 3 지점** — 176 행 `15 → 21`, 178 행 `thin fetch hook (3 개 열거)` → `thin fetch hook 모듈 6 (… 등)`, 180 행에 `web/src/App.tsx` — `main.tsx` 와 `AppShell` 사이 thin wrapper 추가. 수치 · 파일명은 실측 (ii) 출력과 1:1 이며 **21 개 컴포넌트 · 6 개 api 모듈 전수 열거는 하지 않았다** (카운트 + 미기재 사실만).
+- **각주 1 블록 (3 행)** — 단락 말미 (182 행 뒤) append. 내용은 ① in-place 동기 근거와 3 지점 · ② serve 축 판정 (참 3 + 조건부 → 부분참) 과 `clean clone 등록 수 0` · ③ 표 row 무편집 선언 + 검증 불가 5 제외 + 본 절 pointer.
+- **무편집 경계** — 96 ~ 106 행 mapping 표 (`WebModule` row 포함) · 111 ~ 113 행 T-1435 각주 · `## References` · `Refs:` 말미 전부 무편집이고 **새 pointer 를 추가하지 않았다** (ADR-0040 · ADR-0041 · T-0397 이 이미 등재). 169 · 171 · 172 · 174 · 177 · 182 행 산문도 그대로다.
+
+#### T-1435 유보 (web 축) closure 선언
+
+`§ 12.33` 의 한계 2 · 파생 영향 6 (7) 이 남긴 **유보 1** (WebModule 의 serve-static · SPA fallback · ADR-0040 옵션 1 shipped 서술) 은 본 절 실측 (iii) · (iv) · (v) 로 **해소** 된다 — serve-static 사용 · `web/dist/` mount · 비-`/api/*` fallback · 옵션 1 shipped pointer 는 **참**, 무조건 등록 화법만 **부분참** (조건부). 이로써 `§ 12.33` 의 미검증 면 1 개가 0 이 되고, 106 행 표 row 는 T-1435 각주 (거짓 1) + 본 절 각주 (부분참 1) 두 pointer 로 덮인다 — **표 row 자체는 양쪽 slice 모두 무편집**.
+
+#### directory.md 전 구간 대조 완료 선언
+
+본 절로 directory.md 의 구조 claim **6 축** 이 모두 1 회 이상 실측 대조를 마쳤다 — ① mapping 표 **경로 축** (`§ 12.28` / T-1430) · ② **pointer 축** (`§ 12.29` / T-1431) · ③ **ASCII 트리 축** (`§ 12.30` / T-1432) · ④ **sub-structure 이름 축** (`§ 12.31` / T-1433) · ⑤ **`용도` 컬럼 서술 축** (`§ 12.32` / T-1434) 과 **mapping 표 2 컬럼 축** (`§ 12.33` / T-1435) · ⑥ **`Frontend (web/)` 산문 단락 축** (본 절 / T-1436). **미대조 산문 단락 0**. 잔여는 전부 "창작 불가 (경로 신설 시 발화)" 또는 "정본 modules.md 소관 (ADR 게이트)" 으로 아래 파생 영향에 등재돼 있다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **UC-09 `§ 5` sequence participant 병기** — 18 회째 이월.
+2. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축** — ADR 게이트 선행 (본 slice 무편집, **259 행 불변**).
+3. **행 번호 → anchor 좌표계 이행** — 12 회째 이월. 본 절이 task 좌표 `183 ~ 195` 의 stale (실 `167 ~ 183`) 을 실증해 우선순위가 올라간다.
+4. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관. `21` · `6` 은 컴포넌트 1 개 추가로 즉시 낡는다.
+5. **[modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 단락의 동종 카운트 claim** — 본 slice 는 directory.md 만 닫았고 정본 쪽은 미대조 (정본 편집은 ADR 게이트).
+6. **`§ 12.33` 파생 영향 미소진분** — (1) [components.md](../architecture/components.md) 11 행 forward pointer · (2) 외부 참조 **내용** 정합 · (3) 대상외 2 row (`AssessmentModule` · `SchedulerModule`) 의 두 컬럼 · (4) 표 미기재 7 module 의 두 컬럼. (7) web 유보는 본 절이 소진.
+7. **`web/dist/` 조건부 mount 의 운영 문서화** — [deployment.md](../architecture/deployment.md) 가 "빌드 없이 부팅하면 SPA 라우트 미등록" 을 명시하는지 미대조.
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → directory.md **203** (199 → +4, 허용 ≤ 203) · audit **3402** (3288 → +114 = 절 113 + 구분 공백 1, 허용
+  +115 이내) · modules.md **259** (불변) ; grep -c '^## ' → directory.md **10** · audit **12** (둘 다 불변 —
+  본 절이 `###` 라서) ; audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **34** (33 → 34)
+$ git diff -U0 -- docs/architecture/directory.md | grep '^@@'
+  @@ -176 +176 @@ / @@ -178 +178 @@ / @@ -180 +180 @@ / @@ -183,0 +184,4 @@
+  ⇒ hunk **4**, 전부 AC 4 허용 구간 (in-place 3 지점 + 단락 말미 각주) — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/directory.md → `7  3` ⇒ 삭제 3 은 in-place 치환 (176 · 178 · 180)
+  의 짝이라 **순수 삭제 0**, 추가 7 = 치환 3 + 각주 블록 4.
+$ git status --porcelain src/ test/ prisma/ web/ → (빈 출력 — 코드 무변경)
+$ git status --porcelain → M directory.md · M REQ-COVERAGE-AUDIT.md · M T-1436-*.md  (**3 파일**)
+```
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` coverage 게이트가 모두 **N/A** 다 (본 절 측정 명령은 전부 read-only `ls` · `grep` · `wc` · `git` 이며 빌드 · 테스트를 실행하지 않았다).
+
+#### 한계 —
+
+1. **좌표 stale 이 판정 전에 드러났다** — task 가 지정한 `183 ~ 195` 는 실 `167 ~ 183` 이었다. 명령을 그대로 믿었다면 References 블록을 단락으로 오인했을 것이며, 파생 영향 3 (anchor 이행) 의 비용이 이미 발생 중임을 뜻한다.
+2. **in-place 치환은 재-stale 을 앞당긴다** — `21` · `6` 은 각주가 아니라 본문 수치라 다음 컴포넌트 추가 즉시 낡고 "언제 잰 값인지" 가 본문에 남지 않는다 — 각주 첫 줄이 그 시점을 대신 보관한다.
+3. **역할 · 의도 서술 5 와 `web/dist/` 트리 의존은 미해소** — "props 소비 stateless" 류는 파일 단위 실측으로 참·거짓을 못 가르고 (내부 구현 대조는 본 축 밖), `ls -d web/dist` 는 로컬 빌드 잔여물 때문에 git 추적 · ignore 우회 없이는 정반대 결론이 나온다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
