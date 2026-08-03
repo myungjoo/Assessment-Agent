@@ -1,6 +1,6 @@
 # API contract
 
-> **본 문서는 P2 의 넷째 entry artifact ([T-0030](../tasks/T-0030-p2-api-contract.md)) 의 산출물이다.** [docs/PLAN.md](../PLAN.md) Phase P2 의 "API contract 초안" bullet (L37) 을 cover. 8 UC ([UC-01](../use-cases/UC-01-evaluation-execution.md) ~ [UC-08](../use-cases/UC-08-permission-denied.md)) 의 §5 sequence diagram + §9 component/module mapping 에서 호명된 HTTP endpoint 를 단일 표로 박제하여 P3+ Backend API 구현 task 의 contract source 로 사용한다. **본 문서는 living document** — endpoint 가 새로 식별되거나 기존 endpoint 가 분리·통합되면 architect agent 가 본 표를 갱신한다.
+> **본 문서는 P2 의 넷째 entry artifact ([T-0030](../tasks/T-0030-p2-api-contract.md)) 의 산출물이다.** [docs/PLAN.md](../PLAN.md) Phase P2 의 "API contract 초안" bullet (L37) 을 cover. 9 UC ([UC-01](../use-cases/UC-01-evaluation-execution.md) ~ [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md)) 의 §5 sequence diagram + §9 component/module mapping 에서 호명된 HTTP endpoint 를 단일 표로 박제하여 P3+ Backend API 구현 task 의 contract source 로 사용한다. **본 문서는 living document** — endpoint 가 새로 식별되거나 기존 endpoint 가 분리·통합되면 architect agent 가 본 표를 갱신한다. (UC 범위 표기는 [T-1419](../tasks/T-1419-eight-uc-notation-bulk-resync.md) 가 [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) 실재 반영으로 8 → 9 동기 — 귀속 박제는 [T-1416](../tasks/T-1416-uc09-api-endpoint-attribution.md) 이 이미 수행했고 endpoint 신설 0 이라 § 5 합계 `72 endpoint` / `16 resource prefix` 는 불변. 근거 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) § 12.17.)
 
 ## 1. 개요
 
@@ -9,7 +9,7 @@
 본 문서가 박제하는 것 (총 9 section):
 
 - § 1 개요 / § 2 Protocol & host / § 3 Auth tier / § 4 Resource model — 시스템 차원의 base
-- § 5 Endpoint 표 — **핵심 산출물**, 8 UC §5 sequence 의 호명을 1:1 row 로 박제
+- § 5 Endpoint 표 — **핵심 산출물**, 9 UC §5 sequence 의 호명을 1:1 row 로 박제 ([UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) 포함 — T-1419 표기 동기, row 신설 0)
 - § 6 표준 status code policy / § 7 UC §5 sequence cross-reference / § 8 Out of scope / § 9 References
 
 ## 2. Protocol / host
@@ -61,7 +61,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 
 ## 5. Endpoint 표
 
-본 표는 8 UC §5 sequence diagram + §9 component/module mapping 에서 호명된 endpoint 를 모두 수집. **description 컬럼은 ≤ 1 줄로 압축** — 구체 schema 는 P3 controller task 가 박제.
+본 표는 9 UC §5 sequence diagram + §9 component/module mapping 에서 호명된 endpoint 를 모두 수집 ([UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) 귀속은 [T-1416](../tasks/T-1416-uc09-api-endpoint-attribution.md) 이 104 행 UC 컬럼 병기 + § 7 row 로 박제 — 신설 row 0, 표기 동기 T-1419). **description 컬럼은 ≤ 1 줄로 압축** — 구체 schema 는 P3 controller task 가 박제.
 
 | METHOD | path | UC | description | auth tier |
 | --- | --- | --- | --- | --- |
@@ -205,8 +205,8 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 - **예시 payload** (sample request / response body) — P3 의 e2e test fixture.
 - **OpenAPI / Swagger YAML 자동 생성** — `@nestjs/swagger` 도입은 P3+ 별도 ADR ([ADR-0001 §본문](../decisions/ADR-0001-stack.md) 가 "별도 ADR 불필요" 라 박제했으나 실제 도입 task 는 별도 ADR 권장 — endpoint 표가 source-of-truth 인지 swagger annotation 이 source-of-truth 인지의 단일 결정 필요).
 - **endpoint 별 특수 status code** (예: 이 endpoint 만 회피용 409 반환) — P3 implementation 의 책임.
-- **WebSocket / SSE / streaming endpoint** — 현재 8 UC §5 sequence 어디에도 호명 없음. P5+ 의 realtime feature 도입 시 별도 ADR + 본 문서 갱신.
-- **외부 webhook receiver** (GitHub webhook / Confluence webhook) — 현재 8 UC §5 sequence 어디에도 호명 없음. P4 외부 통합 task 의 책임.
+- **WebSocket / SSE / streaming endpoint** — 현재 9 UC §5 sequence 어디에도 호명 없음. P5+ 의 realtime feature 도입 시 별도 ADR + 본 문서 갱신. (T-1419 가 [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) §5 를 실조회해 호명 0 을 확인한 뒤 8 → 9 로 옮긴 주장 — 근거 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) § 12.17.)
+- **외부 webhook receiver** (GitHub webhook / Confluence webhook) — 현재 9 UC §5 sequence 어디에도 호명 없음. P4 외부 통합 task 의 책임. (위 항목과 같은 T-1419 실측 — UC-09 §5 의 webhook 호명 0.)
 - **API versioning policy** (`/api/v1/*`) — 현 시점 unversioned. 필요 시 별도 ADR.
 - **Rate limiting / throttling / quota / CORS specifics** — P4+ 의 책임.
 - **REQ-004** (사용자 지정 기간 임의 평가문) — 2026-08-03 T-1413 재분류로 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) 상 분류는 `uc-covered` ([UC-09](../use-cases/UC-09-user-defined-period-evaluation.md)) 이고 gap 은 0 건이며, **endpoint 축은 T-1416 으로 본 문서 안에서 해소** 됐다 (UC-09 § 5 가 호명하는 유일 route `POST /api/assessment-evaluation/period` 는 § 5 104 행에 이미 실재하고, § 7 에 UC-09 row 가 신설돼 귀속까지 박제 — endpoint 신설 0). 그럼에도 out-of-scope 로 남는 잔여는 **본 문서 밖 축** 이다 — [data-model.md](data-model.md) § 2 의 entity 도출 판정 (UC-09 가 신규 entity 를 요구하는지 미판정) 과 프런트 기간 지정 UI 부재 (UC-09 118 행 실측 — `web/src` 의 `assessment-evaluation` 참조 0). 근거 REQ-COVERAGE-AUDIT.md § 12.13 · § 12.14.
@@ -219,7 +219,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 - [docs/architecture/components.md](components.md) — "Backend API" component (본 문서의 책임 component) + Contracts 표 (Web UI ↔ Backend API)
 - [docs/architecture/modules.md](modules.md) — 9 NestJS module — 본 문서의 endpoint 가 어느 module controller 의 책임인지 mapping
 - [docs/architecture/directory.md](directory.md) — `src/<module>/<module>.controller.ts` layout — 본 문서의 endpoint 가 디렉토리 어디에 박제될지 conceptual
-- [docs/use-cases/INDEX.md](../use-cases/INDEX.md) — 8 UC backbone 표
+- [docs/use-cases/INDEX.md](../use-cases/INDEX.md) — 9 UC backbone 표 (T-1419 실측 `grep -c "^| UC-"` = 9 — [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) 등록분 반영)
 - [docs/use-cases/UC-01-evaluation-execution.md](../use-cases/UC-01-evaluation-execution.md) ~ [UC-08-permission-denied.md](../use-cases/UC-08-permission-denied.md) — **본 문서의 endpoint source** (각 UC §5 sequence + §9 component/module mapping)
 - [docs/use-cases/REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) — uc-covered 49 REQ 의 분류 / gap 0 추적 (2026-08-03 T-1413 재분류로 REQ-004 이 UC-09 로 전이 — 그 이전 시점 값은 48 REQ · gap 이 1 건)
 - [docs/requirements.md](../requirements.md) — REQ-NNN source of truth (REQ-026 ~ REQ-055 위주)

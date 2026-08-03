@@ -1,6 +1,6 @@
 # Conceptual data model
 
-> **본 문서는 P2 의 다섯째이자 마지막 entry artifact ([T-0031](../tasks/T-0031-p2-data-model.md)) 의 산출물이다.** [docs/PLAN.md](../PLAN.md) Phase P2 의 "데이터 모델 초안" bullet (L38) 을 cover. 8 UC ([UC-01](../use-cases/UC-01-evaluation-execution.md) ~ [UC-08](../use-cases/UC-08-permission-denied.md)) 의 §5 sequence diagram + §6 데이터 단락에서 호명된 **entity (개념적 데이터 단위) + 관계 (cardinality) + 핵심 invariant (REQ-032 raw 미저장)** 를 단일 문서로 박제하여 P3+ Persistence 구현 task 의 contract source 로 사용한다. **본 문서는 living document** — entity 가 새로 식별되거나 기존 관계가 분리·통합되면 architect agent 가 본 표를 갱신한다. 본 task 머지 시 **Phase P2 fully complete**.
+> **본 문서는 P2 의 다섯째이자 마지막 entry artifact ([T-0031](../tasks/T-0031-p2-data-model.md)) 의 산출물이다.** [docs/PLAN.md](../PLAN.md) Phase P2 의 "데이터 모델 초안" bullet (L38) 을 cover. 9 UC ([UC-01](../use-cases/UC-01-evaluation-execution.md) ~ [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md)) 의 §5 sequence diagram + §6 데이터 단락에서 호명된 **entity (개념적 데이터 단위) + 관계 (cardinality) + 핵심 invariant (REQ-032 raw 미저장)** 를 단일 문서로 박제하여 P3+ Persistence 구현 task 의 contract source 로 사용한다. **본 문서는 living document** — entity 가 새로 식별되거나 기존 관계가 분리·통합되면 architect agent 가 본 표를 갱신한다. 본 task 머지 시 **Phase P2 fully complete**. (UC 범위 표기는 [T-1419](../tasks/T-1419-eight-uc-notation-bulk-resync.md) 가 [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) 실재 반영으로 8 → 9 동기 — [T-1418](../tasks/T-1418-data-model-uc09-entity-derivation-judgment.md) 판정이 `신규 entity 0` 이라 § 2 표 row 와 38 행 `13 entity` / `4 module` 은 불변. 근거 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) § 12.17.)
 
 ## 1. 개요
 
@@ -164,7 +164,7 @@ erDiagram
 - **LLM API key 의 encryption-at-rest 구체 mechanism** — 별도 보안 ADR (예: ADR-0005 secret-encryption) 책임. 본 문서는 "encrypted at rest" 박제만.
 - **Soft delete vs hard delete 의 entity 별 specific 결정** — § 5 conceptual 박제, entity 별 적용은 P3.
 - **GroupSummary / PartSummary** 같은 aggregate Summary entity 신설 가능성 — view-time 계산으로 시작, 성능 / 요구에 따라 P5+ 에서 별도 entity 도입 가능.
-- **새 entity 발굴이 8 UC scope 를 벗어나는 경우** — 본 task scope 외, 후속 task 로 follow-up. ADR 없이 신규 entity 결정 금지.
+- **새 entity 발굴이 9 UC scope 를 벗어나는 경우** — 본 task scope 외, 후속 task 로 follow-up. ADR 없이 신규 entity 결정 금지. (scope 표기만 [T-1419](../tasks/T-1419-eight-uc-notation-bulk-resync.md) 가 8 → 9 로 동기 — 게이트 문구는 무편집이며, [T-1418](../tasks/T-1418-data-model-uc09-entity-derivation-judgment.md) 이 UC-09 에 대해 `신규 entity 0` 을 확정해 게이트 발동 조건 [신규 N ≥ 1] 은 현재 미성립. 근거 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) § 12.16 · § 12.17.)
 - **REQ-004** (사용자 지정 기간 임의 평가문) — 2026-08-03 T-1413 재분류로 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) 상 분류는 `uc-covered` ([UC-09](../use-cases/UC-09-user-defined-period-evaluation.md)) 이고 gap 은 0 건이나, UC-09 § 5 기준 entity 도출 (신규 entity 가 필요한지 여부 자체) 은 후속 slice 소관이라 본 § 2 표 row 추가는 미완 — **여전히 out-of-scope** · 근거 REQ-COVERAGE-AUDIT.md § 12.11 · § 12.13. **(2026-08-03 [T-1418](../tasks/T-1418-data-model-uc09-entity-derivation-judgment.md) closure — 그 후속 slice 가 UC-09 § 5 · § 8 · § 9 의 데이터 단위를 § 2 표와 전수 대조해 판정을 닫았다: 결론 `신규 entity 0` (§ 8 (a) User 분기 `DB 상태 변화 0` · (b) Admin 분기 `Assessment 좌표 row 1 개` · § 9 `PersistenceModule` 은 Admin 분기에서만 write) 이라 § 2 표 row 추가는 **불요** 이고, 처리는 Assessment row 의 `source UC` 에 UC-09 를 병기하는 것으로 갈음했다 — 따라서 본 bullet 의 잔여 의무는 **해소** 되고 out-of-scope 로 남는 것은 신규 entity 신설 가능성 자체 (ADR 게이트, 167 행) 뿐이다 · 근거 § 12.16.)**
 - **ER cardinality 의 P3 schema-level 검증** — 본 문서는 MVA conceptual 만, schema-level 정확도는 P3 review 단계.
 - **Cron schedule 영속화 entity** — shipped SchedulingModule(`src/scheduling/`)의 동적 cron schedule 은 [ADR-0042](../decisions/ADR-0042-nestjs-schedule-adoption.md) §Consequences 결정에 따라 단일 process in-memory `SchedulerRegistry` 로만 보유(process 재시작 시 휘발)하며 별도 DB entity 를 신설하지 않는다. 따라서 § 2 entity 목록에 CronSchedule 류 entity 가 의도적으로 없다(REQ-072 / R-72 Admin 런타임 cron 주기 지정의 데이터 측면 = 비영속). 등록 cron 의 DB 영속화(부팅 시 재등록) 및 multi-instance 중복 발화 방지는 후속 task / 별도 ADR(§ 5 schema 게이트) 책임.
@@ -177,8 +177,8 @@ erDiagram
 - [docs/architecture/api.md](api.md) — T-0030 산출물. resource path prefix (`/api/persons` / `/api/assessments` / `/api/llm` 등) 가 본 문서 entity 이름의 1:1 source.
 - [docs/architecture/components.md](components.md) — T-A3 산출물. "DB Persistence" component 의 책임 + raw 미저장 schema-level 강제 출처.
 - [docs/architecture/modules.md](modules.md) — T-A4 산출물. 본 문서의 "책임 module" 컬럼 값의 source (8 NestJS module 명).
-- [docs/use-cases/INDEX.md](../use-cases/INDEX.md) — 8 UC backbone. 본 문서 entity 의 source UC 출처.
-- [docs/use-cases/UC-01-evaluation-execution.md](../use-cases/UC-01-evaluation-execution.md) ~ [UC-08-permission-denied.md](../use-cases/UC-08-permission-denied.md) — 8 UC 본문. 각 UC §5 / §6 의 entity 호명이 본 문서의 source.
+- [docs/use-cases/INDEX.md](../use-cases/INDEX.md) — 9 UC backbone (T-1419 실측 `grep -c "^| UC-"` = 9). 본 문서 entity 의 source UC 출처.
+- [docs/use-cases/UC-01-evaluation-execution.md](../use-cases/UC-01-evaluation-execution.md) ~ [UC-09-user-defined-period-evaluation.md](../use-cases/UC-09-user-defined-period-evaluation.md) — 9 UC 본문. 각 UC §5 / §6 의 entity 호명이 본 문서의 source (UC-09 는 T-1418 판정으로 Assessment row 에 병기 — 신규 entity 0).
 - [docs/use-cases/REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) — T-0029 산출물. uc-covered 48 REQ × entity 매핑 cross-reference.
 - [docs/requirements.md](../requirements.md) — REQ-NNN source of truth. 본 문서의 모든 REQ 인용 출처.
 - [docs/decisions/ADR-0001-stack.md](../decisions/ADR-0001-stack.md) — NestJS / TypeScript stack. 본 문서 entity 의 implementation language 결정 (P3 의 Prisma model class).

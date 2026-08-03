@@ -69,3 +69,4 @@ plannerNote: "uc-doc-audit-resync 31 번째 slice — T-1418 Follow-up 1 (5 회 
 
 1. **UC-09 ↔ `docs/architecture/modules.md` / `components.md` mapping 점검** — T-1418 Follow-up 2 이월 (T-1417 FU3 부터). UC-09 §9 가 `AssessmentModule (controller layer) + AuthModule` 외 6 module 을 지목하는데 두 architecture 문서가 UC-09 를 알지 못한다.
 2. **`data-model.md` 38 행 `13 entity` vs §2 표 실 row 수 14 의 1 어긋남 정정** — T-1418 Follow-up 4 이월. 누계 서술 (`10 → 11` · `11 → 13`) 이 `PermissionDeniedRecord` 를 빠뜨린 것으로 보이며 UC-09 와 무관한 선행 불일치다.
+3. **`api.md` 223 행 링크 범위 (`UC-01 … ~ UC-08-permission-denied.md — 본 문서의 endpoint source`) 정정** — 본 slice 실행 중 신규 발견. 이 행은 `8 UC` 리터럴을 담지 않아 AC 1 의 grep 6 hit 에 들지 않았고 12 지점 열거 밖이라 무편집으로 남겼으나, 링크 범위만 보면 9 UC 실재와 어긋난다 (§ 12.17 한계 4 에 사실 기록). `data-model.md` 181 행 · audit §11 2 줄과 동형 처리 (in-place) 가 유력하다.

@@ -1136,11 +1136,115 @@ data-model.md 의 **삭제 3 은 전부 in-place 치환 / append 의 짝** (28 �
 2. **UC-09 ↔ `modules.md` / `components.md` mapping 미착수** — UC-09 §9 가 6 module 을 지목하는데 두 architecture 문서는 UC-09 를 알지 못한다. 특히 §2 표 `책임 module` 컬럼은 4 module 만 쓰고 **`PersistenceModule` 은 등장하지 않는데**, UC-09 §9 는 영속 책임을 그 이름으로 부른다 — 두 문서의 module 명 층위 차이라 entity 판정과 별개 축이며 본 slice 는 판정하지 않았다 (별도 slice).
 3. **§3 ER diagram · §6 coverage 표 무편집 + §2 row 실수 (14) vs 합계 표기 (13) 미판정** — 판정이 `신규 0` 이라 관계·coverage 가 바뀌지 않아 §3 · §4 · §5 · §6 은 건드리지 않았다. 다만 실측 (iv) 의 `grep -c "^| \*\*"` = **14** 는 38 행의 `13 entity` 표기와 1 어긋나는데 (누계 서술이 `PermissionDeniedRecord` 를 빠뜨린 것으로 보인다), 이는 UC-09 와 무관한 **선행 불일치** 이고 본 slice AC 2 가 수치 불변을 요구하므로 **사실 기록만** 하고 정정하지 않았다 (별도 slice 소관).
 
+### 12.17 `8 UC` 표기 12 지점 §12.15 방침 판정 + 일괄 동기 (T-1419)
+
+> 본 절은 [T-1419](../tasks/T-1419-eight-uc-notation-bulk-resync.md) 가 [T-1418](../tasks/T-1418-data-model-uc09-entity-derivation-judgment.md) 의 **Follow-up 1** ([T-1416](../tasks/T-1416-uc09-api-endpoint-attribution.md) FU3 부터 **5 회 이월**) 을 닫은 기록이다. 남아 있던 것은 판정이 끝난 뒤의 **표기 잔여** 다 — [T-1411](../tasks/T-1411-uc-09-user-defined-period-evaluation.md) 이 UC-09 를 신설하고 [T-1412](../tasks/T-1412-index-uc09-row-registration.md) 가 [INDEX.md](INDEX.md) 에 등록해 실 UC 수가 **9** 인데, architecture 2 문서와 본 문서 §11 의 `8 UC` 표기 12 지점이 아직 그 사실을 반영하지 못했다. 본 절은 §12.15 가 정본으로 확정한 판별 기준 (날짜 stamp = 시점 기록 → pointer append / stamp 없음 = living document → in-place) 의 **2 차 적용이자 첫 다지점 일괄 적용** 이며, 수치를 한 건도 재판정·재계산하지 않았다. **삽입 위치는 §12.16 마지막 행 뒤 · §11 References 앞** 이고 `###` 이라 `## ` heading count 12 가 불변이다 — §12.6 ~ §12.16 이 승계해 온 위치 규약 그대로다.
+
+#### 실측 선행 (편집 전 3 값 — 전제 전건 성립)
+
+```
+(i)   $ grep -n "8 UC" docs/architecture/api.md             → 3 · 12 · 64 · 208 · 209 · 222   (6 hit, 기대값 일치)
+      $ grep -n "8 UC" docs/architecture/data-model.md      → 3 · 167 · 180 · 181             (4 hit, 기대값 일치)
+      $ grep -c "8 UC" docs/use-cases/REQ-COVERAGE-AUDIT.md → 36  (그 중 `## 11. References` 안 1142 · 1143 행 2 줄만 본 slice 대상, 나머지 34 은 Out of Scope)
+(ii)  대상 12 지점의 날짜 stamp 유무 → **전건 stamp 0** (아래 판정 표 4 열)
+(iii) $ wc -l  api.md → 230 · data-model.md → 190 · REQ-COVERAGE-AUDIT.md → 1152   (baseline)
+      $ grep -c "^\| REQ-" REQ-COVERAGE-AUDIT.md → 66 · $ grep -c "^## " → 12       (baseline)
+      $ grep -c "^\| UC-"  INDEX.md              → 9    (9 UC 실재의 1 차 근거)
+      api.md 153 행       `72 endpoint` · `16 resource prefix` · `9 UC cover`        → 실재 확인
+      data-model.md 38 행 `13 entity (+ 1 conceptual mention)` · `4 module` · `9 UC cover` → 실재 확인
+```
+
+3 값 모두 편집 전제와 일치해 **중단 지점은 없었다** — 행 번호 12 개가 전건 기대값과 같아 T-1418 이 남긴 좌표를 그대로 채택했다.
+
+#### 판정 표 — 12 지점 전건 (애매어 0)
+
+| # | 지점 | 문장 성격 | 날짜 stamp | 판정 |
+| --- | --- | --- | --- | --- |
+| 1 | `api.md` 3 행 | 서두 blockquote — 문서 범위 서술, 같은 문장이 **본 문서는 living document** 를 자칭 | 없음 | **in-place** |
+| 2 | `api.md` 12 행 | §1 목차 — §5 표의 현재 내용 서술 | 없음 | **in-place** |
+| 3 | `api.md` 64 행 | §5 표 서두 — 표가 지금 무엇을 수집하는지 서술 | 없음 | **in-place** |
+| 4 | `api.md` 208 행 | §8 Out of scope — `현재` 라는 현행 지시어로 시작하는 **주장** | 없음 | **in-place** (AC 3 (c) 실측 선행 후) |
+| 5 | `api.md` 209 행 | §8 Out of scope — 4 와 동형 주장 | 없음 | **in-place** (AC 3 (c) 실측 선행 후) |
+| 6 | `api.md` 222 행 | §9 References — INDEX.md 를 가리키는 현행 index 서술 | 없음 | **in-place** |
+| 7 | `data-model.md` 3 행 | 서두 blockquote — 1 과 동형, **living document** 자칭 | 없음 | **in-place** |
+| 8 | `data-model.md` 167 행 | §7 Out of scope — ADR 게이트 규범 (§12.16 실측 (iii) 이 이미 `날짜 stamp 없음 = living document` 로 판정) | 없음 | **in-place** (게이트 문구 무편집) |
+| 9 | `data-model.md` 180 행 | §8 References — INDEX.md 현행 index 서술 | 없음 | **in-place** |
+| 10 | `data-model.md` 181 행 | §8 References — UC 본문 링크 범위 서술 | 없음 | **in-place** |
+| 11 | 본 문서 §11 1142 행 | References — INDEX.md 현행 index 서술 | 없음 | **in-place** |
+| 12 | 본 문서 §11 1143 행 | References — UC 본문 링크 범위 서술 | 없음 | **in-place** |
+
+12 행 전건이 **in-place 축** 으로 확정됐다 — §12.15 한계 3 이 예측한 "in-place 치환 대상일 가능성이 높으나 지점별 판정 선행 필요" 를 실판정으로 확인한 결과다. 대비되는 append 축 사례는 §12.15 의 §1 18 행 · §8 · §9 199 행, §12.16 의 `data-model.md` 168 행 — 전부 문장 안에 날짜가 박힌 시점 기록이었다. 1 · 7 의 서두 blockquote 는 `P2 의 넷째/다섯째 entry artifact (T-0030 / T-0031) 의 산출물` 이라는 **출처 절** 을 품지만, 그 절은 날짜가 아니라 산출 task 귀속이고 본 slice 는 그 절을 **한 글자도 건드리지 않았다** — 바뀐 것은 같은 문장의 UC 범위 표기뿐이다.
+
+#### 지점별 갱신 결과
+
+- **`api.md` 6 지점 — 전부 in-place, 각 1 행 → 1 행** (`wc -l` 230 불변). 3 · 12 · 64 행은 `8 UC` → `9 UC` + 링크 범위 `UC-01 ~ UC-08` → `UC-01 ~ UC-09` 로 옮기고 근거 1 구 (T-1419 · UC-09 · 귀속은 T-1416 · endpoint 신설 0) 를 덧붙였다. 222 행은 INDEX.md 실측 (`grep -c "^| UC-"` = 9) 을 근거로 `9 UC backbone 표`. 208 · 209 행은 아래 실측을 선행한 뒤에만 옮겼다. **153 행 합계 · §5 표 body · §7 cross-reference 표는 무편집** — 그래서 `72 endpoint` · `16 resource prefix` hit 가 유지된다.
+- **`data-model.md` 4 지점 — 전부 in-place, 각 1 행 → 1 행** (`wc -l` 190 불변). 3 행은 서두 UC 범위 + 근거 1 구, 180 · 181 행은 References 의 index 서술과 링크 범위. **167 행은 게이트 문구 `ADR 없이 신규 entity 결정 금지.` 를 한 글자도 약화시키지 않고** scope 표기 `8 UC` → `9 UC` 만 바꾼 뒤, T-1418 이 확정한 `신규 entity 0` 결론 때문에 게이트 발동 조건 (`신규 N ≥ 1`) 이 현재 미성립임을 괄호 부기로 인용했다. **38 행 합계 · §2 표 · §3 ER diagram · §4 · §5 · §6 은 무편집.**
+- **본 문서 §11 2 줄 — in-place**. `9 UC backbone` · `9 UC 본문` 으로 옮기고, 후자에는 §9 · §10 · §12.x 안의 `8 UC` 34 hit 가 시점 기록이라 무편집 존속함을 한 구로 명시했다. **같은 §11 의 나머지 bullet 9 줄 · 말미 `Refs:` 줄 · `## 11.` heading 은 무편집.**
+
+#### AC 3 (c) 실측 인용 — UC-09 §5 의 realtime / webhook 호명 0
+
+```
+$ grep -niE "\b(websocket|web socket|sse|server-sent|streaming|webhook|web hook)\b" UC-09-user-defined-period-evaluation.md
+  (no match, exit 1)                                                    ← 파일 전체 174 행 기준 0
+$ awk 'NR>=54 && NR<=101' UC-09-user-defined-period-evaluation.md | grep -niE "\b(websocket|...|webhook)\b"
+  (no match, exit 1)                                                    ← §5 Main flow 범위 0
+$ grep -ciE "\b(websocket|sse|streaming|webhook)\b" UC-09-…            → 0
+```
+
+따라서 `api.md` 208 · 209 행의 주장 (`현재 … §5 sequence 어디에도 호명 없음`) 은 **9 UC 기준으로도 성립** 하며, 표기만 8 → 9 로 옮겼다. **주의** — word boundary 없는 `sse` 패턴은 `a-sse-ssment` 의 부분열에 걸려 위양성 13 hit 를 낸다. 위 실측은 `\b` 를 붙인 결과이며, boundary 없는 1 차 grep 을 그대로 신뢰했다면 "호명 있음" 으로 오판할 뻔했다.
+
+#### closure 선언
+
+- **T-1418 Follow-up 1 closure — 5 회 이월 종결.** T-1416 FU3 → T-1417 FU3(한계) → T-1418 FU1 로 이어진 `8 UC 표기 일괄 판정 + 동기` 항목이 본 절로 닫힌다. 12 지점 전건이 판정 + 집행까지 마쳤고 승계 대상이 남지 않는다.
+- **§12.14 한계 3** (`8 UC 표기는 153 행 1 곳만 갱신`) · **§12.15 한계 3** (`8 UC 표기 일괄 갱신은 미착수`) · **§12.16 한계 1** (`8 UC 표기 잔여 지점은 미착수`) — 3 항이 **동시 소진** 된다. 남는 표기는 전부 시점 기록 (아래 한계 1) 이라 정정 대상이 아니다.
+
+#### 불변 검산 (doc-only, R-112 대체)
+
+```
+$ wc -l docs/architecture/api.md                             → 230  (불변 — 6 지점 모두 1:1)
+$ wc -l docs/architecture/data-model.md                      → 190  (불변 — 4 지점 모두 1:1)
+$ wc -l docs/use-cases/REQ-COVERAGE-AUDIT.md                 → 1152 → 1256  (§12.17 append 104 행)
+$ grep -c "72 endpoint" api.md → 2 · grep -c "16 resource prefix" api.md → 2
+                                        (153 행 합계 hit 무편집 유지 1 + 3 행 부기의 신설 인용 1)
+$ grep -c "^| \*\*"  docs/architecture/data-model.md         → 14   (불변 — row 추가 0)
+$ grep -c "^## "     docs/architecture/data-model.md         → 8    (불변)
+$ grep -c "^| REQ-"  docs/use-cases/REQ-COVERAGE-AUDIT.md    → 66   (불변)
+$ grep -c "^## "     docs/use-cases/REQ-COVERAGE-AUDIT.md    → 12   (불변, `###` 만 추가)
+$ grep -c "8 UC"     api.md → 6 → 0 · data-model.md → 4 → 0
+$ grep -c "8 UC"     REQ-COVERAGE-AUDIT.md                   → 36 → 49
+                                        (§12.16 이전 본문 34 무편집 + §11 1143 행의 인용 1 + 본 절 신설 인용 14)
+$ git status --porcelain → M api.md · M data-model.md · M REQ-COVERAGE-AUDIT.md · M T-1419 task 파일  (정확히 4 개)
+$ git diff --numstat
+6       6       docs/architecture/api.md
+4       4       docs/architecture/data-model.md
+106     2       docs/use-cases/REQ-COVERAGE-AUDIT.md
+$ git diff -U0 | grep '^@@'
+@@ -3 +3 @@            (api.md 3 행 — 서두 in-place, 1:1)
+@@ -12 +12 @@          (api.md 12 행 — 목차 in-place, 1:1)
+@@ -64 +64 @@          (api.md 64 행 — §5 표 서두 in-place, 1:1)
+@@ -208,2 +208,2 @@    (api.md 208 · 209 행 — §8 주장 2 줄 in-place, 2:2)
+@@ -222 +222 @@        (api.md 222 행 — §9 References in-place, 1:1)
+@@ -3 +3 @@            (data-model.md 3 행 — 서두 in-place, 1:1)
+@@ -167 +167 @@        (data-model.md 167 행 — §7 게이트 bullet in-place, 1:1)
+@@ -180,2 +180,2 @@    (data-model.md 180 · 181 행 — §8 References 2 줄 in-place, 2:2)
+@@ -1138,0 +1139,104 @@ (§12.17 삽입 — §12.16 마지막 행과 §11 References 사이, 순수 추가)
+@@ -1142,2 +1246,2 @@   (§11 References 2 줄 — in-place, 2:2)
+```
+
+api.md 6 · data-model.md 4 의 **삭제 10 은 전부 in-place 치환의 짝** 이라 **순수 삭제 0** 이고, 본 문서는 §11 2 줄 in-place (삭제 2, 짝 있음) + §12.17 순수 append 다. `docs/architecture/modules.md` · `components.md` · [INDEX.md](INDEX.md) · `UC-01` ~ `UC-09` 본문 · `docs/PLAN.md` · `docs/requirements.md` · `prisma/` · `src/` · `test/` 는 `git status --porcelain` 에 **미등장** 한다. 변경 파일 **4 개** 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 N/A 다.
+
+#### 한계 —
+
+1. **본 문서 본문의 `8 UC` 34 hit 는 무편집 존속** — §9 · §10 · §12.5 ~ §12.16 안의 값은 실행 당시 grep 출력의 축자 인용이거나 날짜 stamp 를 단 시점 기록이라 §12.15 방침의 보존 대상이다. 본 절이 인용을 위해 새로 쓴 `8 UC` 문자열도 같은 성격 (본 slice 시점의 기록) 이라 이후 정정 대상이 아니다.
+2. **UC-09 ↔ `modules.md` / `components.md` mapping 미착수** — T-1418 Follow-up 2 이월 (T-1417 FU3 부터). UC-09 §9 가 `AssessmentModule` · `AuthModule` 외 6 module 을 지목하는데 두 architecture 문서는 UC-09 를 알지 못한다. 본 slice 는 표기 축만 다뤘고 module 축은 건드리지 않았다 (별도 slice).
+3. **`data-model.md` 38 행 `13 entity` vs §2 표 실 row 수 14 의 1 어긋남 미정정** — T-1418 Follow-up 4 이월. 누계 서술 (`10 → 11` · `11 → 13`) 이 `PermissionDeniedRecord` 를 빠뜨린 것으로 보이며 UC-09 와 무관한 **선행 불일치** 다. 본 slice AC 4 (c) 가 38 행 무편집을 요구하므로 **사실 기록만** 한다 (별도 slice).
+4. **`api.md` 223 행 링크 범위는 무편집** — `UC-01 … ~ UC-08-permission-denied.md — 본 문서의 endpoint source` 는 `8 UC` 리터럴을 담지 않아 본 slice 의 12 지점 열거에 들지 않았다. 링크 범위만 보면 9 UC 와 어긋나므로 후속 slice 의 정정 후보다 (본 절은 사실 기록만).
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
-- [docs/use-cases/INDEX.md](INDEX.md) — 8 UC backbone
-- [docs/use-cases/UC-01-evaluation-execution.md](UC-01-evaluation-execution.md) ~ [UC-08-permission-denied.md](UC-08-permission-denied.md) — 8 UC 본문
+- [docs/use-cases/INDEX.md](INDEX.md) — 9 UC backbone (T-1419 실측 `grep -c "^| UC-"` = 9 — [UC-09](UC-09-user-defined-period-evaluation.md) 등록분 반영, § 12.17)
+- [docs/use-cases/UC-01-evaluation-execution.md](UC-01-evaluation-execution.md) ~ [UC-09-user-defined-period-evaluation.md](UC-09-user-defined-period-evaluation.md) — 9 UC 본문 (본 문서 §9 · §10 · §12.x 안의 `8 UC` 34 hit 는 시점 기록이라 무편집 존속 — § 12.17)
 - [docs/PLAN.md](../PLAN.md) — Phase P2 셋째 bullet
 - [docs/architecture/components.md](../architecture/components.md) — component view (cross-cutting cover)
 - [docs/architecture/modules.md](../architecture/modules.md) — module view
