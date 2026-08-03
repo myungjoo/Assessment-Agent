@@ -2,7 +2,7 @@
 id: T-1430
 title: directory.md 의 `9 module` 좌표 8 지점 + §"9 module 별 디렉토리 mapping" 표 9 row 를 정본 12 module / `src/` 실 shipped 14 디렉토리와 3 축 대조 후 처리 판정 반영 + audit §12.28
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 200
@@ -86,6 +86,17 @@ planner 사전 확인 (executor 가 AC 1 에서 전부 재측정) — `grep -n '
 ## Suggested Sub-agents
 
 `implementer` (doc-only, 단독).
+
+## 완료 기록 (2026-08-04)
+
+- **AC 1 실측** — (i) `9 module|9 NestJS module` grep = **3 · 7 · 19 · 25 · 52 · 81 · 83 · 168** 8 행 (기대 일치). 7 행 괄호 부연이 `8 + 1 = 9` 자기-검산 보유 확인. (ii) 표 row **9** (기대 일치). (iii) `ls src/*/*.module.ts` = **14**, `ls -d src/assessment/ src/scheduler/` **부재** (exit 2). (iv) 정본 `12` + 각주 3 은 카운트 밖 + `AssessmentModule` 미shipped placeholder · `SchedulerModule` 실 명 `SchedulingModule` 원문 인용. (v) `§ 12.15` 판별표 8 지점. (vi) baseline 10 값 전부 일치 — **축 중단 0**.
+- **AC 2 3 축 대조** — ① 일치 **7** · ② 문서 only **2** · ③ 코드 only **7**. 양변 검산 `9 = 7 + 2` · `14 = 7 + 7` 성립.
+- **AC 3 판정** — **(B) marker 부재 지점만 최소 in-place + 표 직후 각주 1 블록** 채택 ((A) 날조/§12.15 위반 · (C) cap 초과 · (D) 근거 완비로 이월 사유 소멸 기각). **81 행 heading · 83 행 도입 산문은 자기-카운트라 무편집** (표 미확장 상태의 12 치환은 자기모순 자동 기각). **7 행 괄호 부연은 함께 치환** (`12 − PersistenceModule 1 = 11` 산술 도출, 자기-검산 구조 보존).
+- **AC 4 반영** — in-place **2 행** (7 · 168) + 각주 **1 블록 2 행**. directory.md `wc -l` **181 → 184** (+3 ≤ +8). ASCII tree · sub-structure · 표 9 row · `common/` `config/` `prisma/` `test/` `web/` 절 · `Refs:` 무편집.
+- **AC 5 / AC 8 불변** — `git status --porcelain` **3 파일** (directory.md · audit · 본 task 파일), `src/` `test/` `prisma/` `web/` 빈 출력. directory.md hunk **3 개** (`-7 +7` · `-96,0 +97,3` · `-168 +171`), numstat `5 2` → **순수 삭제 0**. audit `^## ` **12** · `^| REQ-` **66** 불변, `wc -l` 2518 → 2701. modules.md 259 · api.md 230 · data-model.md 193 · INDEX.md 123 · components.md 190 무편집.
+- **AC 6 파생 영향** — 9 항 (UC-09 §5 병기 12 회째 이월 · 정본 row 신설 ADR 게이트 · 외부 package module 계상 · anchor 좌표계 6 회째 · CI drift-guard · UC §9 이중 관리 · api.md 43 행 명칭 귀속 · 시점 기록 3 문서 · ASCII tree 정합) 을 `§ 12.28` 에 목록만 기록, 본 slice 편집 0.
+- **AC 7 audit** — `## 11. References` 앞에 `### 12.28` 순수 append (10 구성 요소 — 위치 blockquote · 실측 6 항 · 3 축 대조표 · 4 후보 판정표 · 반영 결과 · 무편집 경계 · 파생 영향 · closure 선언 · 불변 검산 · 한계 3 항).
+- **AC 9** — `commitMode: direct` + production code **0 LOC** · 분기 0 이므로 [CLAUDE.md](../../CLAUDE.md) §3.2 doc-only 면제로 R-110 tester 호출 · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 전부 **N/A**.
 
 ## Follow-ups
 

@@ -4,7 +4,7 @@
 
 ## 개요
 
-본 문서는 Assessment-Agent 의 **디렉토리 구조** — [modules.md](modules.md) (T-A4) 가 박제한 9 NestJS module (8 application module + PersistenceModule) 을 그대로 NestJS 표준 디렉토리 (`src/<module>/<module>.module.ts` + controller / service / dto / entities) 로 1:1 mapping 한 single source of truth — 를 박제한다. P3+ 의 implementer 가 새 module 디렉토리를 만들 때 "어디에 무엇을 둘지" 를 본 문서 한 곳만 보면 결정 가능하도록 한다.
+본 문서는 Assessment-Agent 의 **디렉토리 구조** — [modules.md](modules.md) (T-A4) 가 박제한 12 NestJS module (11 application module + PersistenceModule) 을 그대로 NestJS 표준 디렉토리 (`src/<module>/<module>.module.ts` + controller / service / dto / entities) 로 1:1 mapping 하는 single source of truth (아래 매핑 표는 [T-0021](../tasks/T-0021-p2-directory-structure.md) 시점의 9 row — 표 직후 각주가 실 shipped 14 와의 3 축 대조를 박제) — 를 박제한다. P3+ 의 implementer 가 새 module 디렉토리를 만들 때 "어디에 무엇을 둘지" 를 본 문서 한 곳만 보면 결정 가능하도록 한다.
 
 본 디렉토리 구조의 기반 결정은 다음 ADR 이 박제했다:
 
@@ -94,6 +94,9 @@ PersistenceModule 의 특수 sub-structure:
 | **SchedulerModule** | `src/scheduler/` | `dto/` | `@nestjs/schedule` SchedulerRegistry. controller 는 manual trigger endpoint 만 (또는 AssessmentModule 가 trigger endpoint 보유 — [deployment.md](deployment.md) §Scheduler). |
 | **WebModule** | `src/web/` | (controller only) | `@nestjs/serve-static` 으로 repo-root `web/dist/` 를 mount + 비-`/api/*` SPA fallback (ADR-0040 옵션 1 shipped). SPA 소스는 repo-root `web/`. 자세히는 아래 "Frontend (web/) 의 위치" 단락. |
 
+> **표 row 9 ↔ 실 shipped 14 의 3 축 대조 (T-1430 실측 각주)** — 위 표 9 row 는 [T-0021](../tasks/T-0021-p2-directory-structure.md) 시점의 **blueprint** 이고, 현재 `ls src/*/*.module.ts` 실측은 **14** 다. ① 표 경로가 실재 **7** (`auth` / `persistence` / `user` / `github` / `confluence` / `llm` / `web`) · ② 표에 있으나 경로 미실재 **2** — `AssessmentModule` → `src/assessment/` (정본 [modules.md](modules.md) 표가 **미shipped placeholder** 로 규정) · `SchedulerModule` → `src/scheduler/` (정본이 **실 shipped module 명 = `SchedulingModule` (`src/scheduling/`)** 이라 명시) · ③ 실재하나 표 미기재 **7** (`assessment-collection` / `assessment-evaluation` / `export` / `import` / `permission-denied` / `scheduling` / `user-instance-access`). 양변 검산 — `9 = 7 + 2` · `14 = 7 + 7`.
+> 본 각주는 **사실 기록** 이지 표 row 신설이 아니다 — ③ 7 개의 `표준 sub-dir` · `비고` 컬럼은 실측 근거 없이 창작할 수 없어 별도 slice 소관이고, 위 heading 과 도입 산문의 `9` 는 **표 row 수** 를 가리키는 자기-카운트라 표를 늘리지 않는 한 그대로 둔다 (판정 근거는 [REQ-COVERAGE-AUDIT § 12.28](../use-cases/REQ-COVERAGE-AUDIT.md)).
+
 [modules.md](modules.md) 의 dependency graph 방향 (예: AssessmentModule → GithubModule import) 은 본 디렉토리 구조에 직접 영향 없음 — 디렉토리 위치는 각 module 의 독립이며, import 방향은 각 `.module.ts` 의 `imports: [...]` 선언에서만 결정.
 
 ## common/ shared utilities
@@ -165,7 +168,7 @@ backend endpoint 미shipped 로 의도적 defer 된 잔여 (auto-polling) 는 [m
 
 ## References
 
-- [modules.md](modules.md) — T-A4 산출물. 본 문서의 9 module 매핑 source.
+- [modules.md](modules.md) — T-A4 산출물. 본 문서 module ↔ 디렉토리 매핑의 정본 source (현행 정본 표 row **12**).
 - [components.md](components.md) — T-A3 산출물. 본 문서의 module ↔ component 매핑 source.
 - [deployment.md](deployment.md) — T-A2 산출물. monolithic NestJS process 결정이 본 디렉토리의 단일 `src/` root 를 정당화.
 - [INDEX.md](INDEX.md) — architecture document 인덱스 + MVA 원칙.
