@@ -2012,6 +2012,187 @@ $ git diff --numstat -- docs/architecture/data-model.md      →  5  5
 2. **§ 2 표 row ↔ `prisma/schema.prisma` 실 model 축은 여전히 미대조** — 본 절은 표 row 수 (14) 를 **문서 안에서만** 확정했을 뿐, 그 14 개가 실제 Prisma model 로 존재하는지 · 반대로 schema 에만 있는 model 이 있는지는 검사하지 않았다. 38 행이 스스로 "ExportJob/ImportJob 의 구체 Prisma schema 코드·migration 은 후속 task" 라고 적고 있어 **문서 ↔ 코드 불일치가 이미 예고된 상태** 다. § 12.23 이 module 축에서 한 것과 같은 대조를 entity 축에서 하는 별도 slice 가 필요하다.
 3. **채택안이 남긴 미해결** — (a) **3** 행 blockquote 는 `13 entity` 를 여전히 담고 있어 문서 전체를 통독하는 독자에게는 3 행 (13) 과 18 · 38 행 (14) 이 **표면상 모순** 으로 보인다. § 12.15 판별상 보존이 옳지만 "시점 기록임" 이 문장 안에서 자명하지 않은 형태라, 시점 기록에 명시적 marker 를 다는 규약이 필요하다. (b) 축 A 가 밝힌 **누락 경위 (PermissionDeniedRecord 의 tally 미반영)** 는 이력 chain 대조로 도출한 추론이며, 당시 commit 을 직접 추적해 확증하지는 않았다. (c) 축 B 의 `12` 는 T-1425 각주 3 을 배제한 값이라, 향후 그 3 이 정본 row 로 승격되면 (파생 영향 5) 본 절의 3 지점이 다시 동기 대상이 된다.
 
+### 12.25 data-model.md `§ 2` 14 entity 표 vs `prisma/schema.prisma` 15 model 3 축 대조 (T-1427)
+
+> 본 절은 [T-1427](../tasks/T-1427-data-model-entity-vs-prisma-model-audit.md) 이 § 12.24 (T-1426) 의 **한계 ②** 와 그 `Follow-up 1` — "`§ 2` 표 row 자체가 `prisma/schema.prisma` 실 model 과 대조된 적이 없다" — 를 닫은 기록이다. § 12.23 (T-1425) 이 **module 축** 에서 수행한 **문서 ↔ 코드** 3 축 대조 (`modules.md` 정본 12 vs `src/*/*.module.ts` 14) 의 **entity 판** 이며, § 12.24 가 `13 → 14` 로 닫은 축이 **문서 안 자기 정합** 이었던 것과 달리 본 절은 **문서 밖 코드** 를 대조 입력으로 쓴다. 편집 문서는 [data-model.md](../architecture/data-model.md) **하나** (표 직후 각주 append 1 + 행 내 문장 부기 2) 이며 `prisma/` · `src/` · `test/` · [modules.md](../architecture/modules.md) · [INDEX.md](INDEX.md) · [components.md](../architecture/components.md) · `api.md` · `UC-01` ~ `UC-09` 본문 · `docs/decisions/` · [docs/PLAN.md](../PLAN.md) · `docs/requirements.md` 는 **한 글자도 편집하지 않았다** — `prisma/schema.prisma` 는 **read-only 대조 입력** 이다. 삽입 위치는 § 12.24 마지막 행 뒤 · § 11 References 앞이고 `###` 이라 `## ` heading count 12 가 불변이다.
+
+#### 실측 선행 (편집 전 6 항)
+
+§ 12.22 `Follow-up 7` 이 요구한 **scope 포함 명령형** 을 (ii) 에 그대로 적용했다. (i) · (iii) · (iv) 는 대상이 **파일 전체 전수** 라 scope 를 좁히면 오히려 누락이 생기는 축이므로 무-scope `grep -n` 을 쓰되 **행번호 전수를 함께 인용** 해 합산 오류 가능성을 제거했다.
+
+```
+(i)   $ grep -n '^model ' prisma/schema.prisma      $ grep -c '^model ' … → 15  (기대값 일치)
+       55 model Person              97 model Group             114 model Part
+      131 model PersonGroupMembership                          170 model User
+      234 model UserInstanceAccess 257 model ServiceIdentity   294 model Assessment
+      329 model Contribution       361 model Summary           406 model LlmProviderConfig
+      441 model DifficultyMapping  513 model PermissionDeniedRecord
+      614 model ExportJob          649 model ImportJob
+(ii)  $ sed -n '22,36p' docs/architecture/data-model.md | grep -c '^| \*\*'         → 14  (기대값 일치)
+      14 = Person · ServiceIdentity · Group · Part · PersonGroupMembership · User
+         · Assessment · Contribution · Summary · LlmProviderConfig · DifficultyMapping
+         · PermissionDeniedRecord · ExportJob · ImportJob
+      $ sed -n '22,36p' docs/architecture/data-model.md | grep -c '(conceptual mention)'  → 1
+      → 36 행 AuditLog 1 개 (`| *(conceptual mention)* **AuditLog** |` — `^| \*\*` 에 안 걸려
+        (ii) 의 14 에 미포함). 실체 계상 14 와 conceptual 계상 1 이 grep 으로 분리됨을 재확인.
+(iii) $ grep -n '14 entity' docs/architecture/data-model.md   → 18 · 38  (2 지점, 기대값 일치)
+      18 행 → "본 시스템은 다음 **14 entity (+ 1 conceptual mention)** 로 분해된다. …"
+      38 행 → "**합계**: 14 entity (+ 1 conceptual mention) / 4 module (…) / 9 UC cover (…)"
+      $ grep -n '13 entity' docs/architecture/data-model.md   → 3       (1 지점, 기대값 일치)
+      3  행 → "… § 2 표 row 와 38 행 `13 entity` / `4 module` 은 불변. 근거 … § 12.17.)"
+      → § 12.24 가 남긴 시점 기록 blockquote 가 그대로 보존돼 있음을 확인 (무편집 대상).
+(iv)  $ grep -n 'ExportJob' docs/architecture/data-model.md   → 34 · 38 · 57 · 80 · 171  (5 지점)
+      34 행 = § 2 표 row (사실 서술) · 57 행 = § 3 mermaid 관계선 · 80 행 = § 3 관계 11 서술
+        → 셋 다 미구현 전제 없음, 무편집 대상.
+      미구현을 전제한 행 = 38 · 171  (기대값 일치)
+      38 행 → "… ExportJob/ImportJob 의 구체 Prisma schema 코드·migration 은 후속 task
+                (§7 / ADR-0044 §Out of scope). …"
+      171 행 → "**ExportJob / ImportJob 의 구체 Prisma schema 코드 / migration / artifact 저장소**
+                — … `model ExportJob`/`model ImportJob` 코드 + migration SQL + AssessmentModule
+                controller/service 구현 … 은 모두 본 문서 범위 밖 — 후속 task chain …"
+      $ sed -n '614p;649p' prisma/schema.prisma
+      614: model ExportJob {          649: model ImportJob {
+      $ ls prisma/migrations | grep export      → 20260618000000_export_import_job
+      $ grep -n 'CREATE TABLE' prisma/migrations/20260618000000_export_import_job/migration.sql
+      20: CREATE TABLE "ExportJob" (  39: CREATE TABLE "ImportJob" (
+      $ ls -d src/export src/import            → 둘 다 실재 (export.controller.ts · import.controller.ts
+                                                 · export-job.service.ts · import-job.service.ts 등)
+      → **문서 (미구현 전제) ↔ 코드 (shipped) 어긋남 확정**. 축 B 성립.
+(v)   § 12.15 판별표 — 아래 표
+(vi)  $ wc -l data-model.md → 190 · schema.prisma → 666 · REQ-COVERAGE-AUDIT.md → 2028
+      $ grep -c '^## ' data-model.md → 8 · $ grep -c '^## ' audit → 12 · $ grep -c '^| REQ-' audit → 66
+      $ wc -l modules.md → 259 · INDEX.md → 123 · components.md → 190
+      → (vi) 9 값 전부 기대값 일치 (baseline). 축 중단 사유 0.
+```
+
+**§ 12.15 판별표 — (iii) · (iv) 확정 지점**
+
+| 지점 | 성격 | 날짜 · task stamp | 판별 | 처리 |
+| --- | --- | --- | --- | --- |
+| **3** 행 (`38 행 13 entity / 4 module 은 불변`) | T-1419 시점 기록 | **有** (T-1419 · § 12.17) | **보존** | 무편집 (§ 12.24 판별 승계) |
+| **18** 행 (`14 entity (+ 1 conceptual mention)`) | § 2 서두 현행 tally | 無 | **무편집** | 채택안이 (B) 각주라 tally 불변 — 고칠 대상 없음 |
+| **22 ~ 36** 행 (§ 2 표 row 15 줄) | 정본 표 본체 | — | **무편집** | AC 4 가 (A) 채택 시에만 변경 허용 → (B) 채택이라 금지 |
+| **36** 행 직후 (표 끝 ~ 38 행 사이 공백) | 신설 위치 | — | **append** | 코드 only model 각주 blockquote 2 줄 신설 (+3 행) |
+| **38** 행 앞머리 (`**합계**: 14 entity …`) | 현행 tally (living) | 無 | **무편집** | (B) 채택으로 tally 불변 |
+| **38** 행 중간 (`10 → 11` · `11 → 13` shift 이력 + T-1426 정정 문장) | 시점 기록 2 세대 | **有** (T-0039 c25a5de · T-0484/Q-0040 · T-1426) | **보존 + append** | **한 글자도 미편집** 후 행 끝에 T-1427 실측 문장을 덧붙임 |
+| **171** 행 (§ 7 ExportJob/ImportJob bullet) | 범위 선언 + 미구현 전제 혼재 | **有** (T-0484/Q-0040 · T-0505/Q-0042 ADR-0046) | **보존 + append** | 원문 무편집 후 행 끝에 shipped 실측 문장을 덧붙임 |
+
+**38 행 순수-append 성립 근거** — 38 행은 한 행 안에 tally 문장 · shift 이력 2 세대 · T-1426 정정 문장이 공존하지만, 어긋난 부분이 `ExportJob/ImportJob … 은 후속 task` **한 문장** 이고 이 문장이 **그 시점 (T-0484) 에는 참이던 기록** 이라 치환 대상이 아니다. 따라서 기존 문자열을 **byte 단위로 그대로 두고** 행 끝에 실측 문장을 덧붙이는 방식이 성립하며, 이는 § 12.24 가 같은 행에 T-1426 shift 근거를 덧붙인 선례와 동형이다 (행 수 불변, 문서 통독 순서상 독자가 stale 문장 직후에 정정을 읽는다).
+
+#### 3 축 대조표 (AC 2 — 명칭 exact match 1 차 기준)
+
+| # | 코드 model (`schema.prisma` 행) | 문서 § 2 실체 row | 구획 |
+| --- | --- | --- | --- |
+| 1 | `Person` (55) | **Person** | ① 일치 |
+| 2 | `Group` (97) | **Group** | ① 일치 |
+| 3 | `Part` (114) | **Part** | ① 일치 |
+| 4 | `PersonGroupMembership` (131) | **PersonGroupMembership** | ① 일치 |
+| 5 | `User` (170) | **User** | ① 일치 |
+| 6 | `UserInstanceAccess` (234) | — | **③ 코드 only** |
+| 7 | `ServiceIdentity` (257) | **ServiceIdentity** | ① 일치 |
+| 8 | `Assessment` (294) | **Assessment** | ① 일치 |
+| 9 | `Contribution` (329) | **Contribution** | ① 일치 |
+| 10 | `Summary` (361) | **Summary** | ① 일치 |
+| 11 | `LlmProviderConfig` (406) | **LlmProviderConfig** | ① 일치 |
+| 12 | `DifficultyMapping` (441) | **DifficultyMapping** | ① 일치 |
+| 13 | `PermissionDeniedRecord` (513) | **PermissionDeniedRecord** | ① 일치 |
+| 14 | `ExportJob` (614) | **ExportJob** | ① 일치 |
+| 15 | `ImportJob` (649) | **ImportJob** | ① 일치 |
+
+**집계** — ① 일치 **14** (기대 14) · ② 문서 only **0** (기대 0) · ③ 코드 only **1** (기대 1). 15 = 14 + 1, 14 = 14 + 0 으로 양변이 닫힌다. **명칭 exact match 만으로 15 개 중 14 개가 짝지어져 이름-다름/개념-같음 짝은 0 건** 이라 근거 서술이 필요한 항목이 없었다.
+
+**③ 코드 only — `UserInstanceAccess` (234 행)** — `(userId, instanceRef)` 식별자 binding 만 보유하고 token / 자격증명 컬럼을 schema 차원에서 정의하지 않는 model 이며 (231 ~ 233 행 주석이 CLAUDE.md §9 를 근거로 명시), `User` 와 N:1 `onDelete: Cascade`. **소관 module 은 `UserInstanceAccessModule`** (`src/user-instance-access/user-instance-access.module.ts`, T-0238) 로, [modules.md](../architecture/modules.md) **47 ~ 48** 행 T-1425 각주가 "정본 표 미기재 실 shipped module 3" 중 하나로 이미 기록한 module 이다 — 즉 **본 절의 ③ 은 § 12.23 이 module 축에서 남긴 미기재 3 과 같은 뿌리** 이며, entity 축 row 신설은 module 축 row 신설 판정 (파생 영향 5, ADR 선행) 에 종속된다.
+
+**② 문서 only 가 0 인 것과 AuditLog** — `*(conceptual mention)* **AuditLog**` (36 행) 는 `^| \*\*` 에 걸리지 않는 **실체 row 가 아니므로** ② 에 계상하지 않는다. 코드에 `model AuditLog` 가 없는 것은 어긋남이 아니라 **설계 의도대로의 정합** 이다 — 163 행 § 7 이 "Audit log entity 의 구체 schema 는 별도 보안 ADR 필요" 로 out-of-scope 를 못박았고 36 행 row 자신도 "본 task scope 외 — conceptual mention 만" 이라 적어, 문서가 **미실재를 선언** 한 상태와 코드의 부재가 일치한다. 따라서 AuditLog 는 본 대조에서 어긋남 0 건이며 별도 처리 대상이 아니다.
+
+#### 처리 방식 축별 판정 (축 ③ 4 후보 · 축 B 4 후보 — 각 채택 1 · 기각 3)
+
+판정 기준 **4 축** — ① **MVA 범위** (7 행이 못박은 conceptual-only 경계를 넘는가 — 컬럼 type · index · migration 을 문서로 끌어오면 자동 기각), ② **cascade** (18 · 38 행 tally · § 3 mermaid 42 ~ 83 · § 6 REQ → entity coverage 115 ~ 153 · [modules.md](../architecture/modules.md) · [INDEX.md](INDEX.md) · `api.md` 에 새 stale 을 만드는가), ③ **cap** (≤ 300 LOC · 파일 3 고정), ④ **ADR 게이트** (entity 집합의 신설·재배치를 **선언** 하면 본 doc slice 범위 밖).
+
+**축 ③ — 코드 only `UserInstanceAccess`**
+
+| 후보 | 판정 | 근거 |
+| --- | --- | --- |
+| **(A) `§ 2` 표에 row 신설 + tally 14 → 15 다축 동기** | **기각** | 축 ④ 위배 — row 신설은 "이 model 이 conceptual entity 집합의 일원" 이라는 **선언** 이라 ADR 선행 대상이다 (§ 12.23 이 module 축에서 (A) 를 기각한 것과 동형 근거). 축 ② 도 위배 — 15 로 올리면 § 3 mermaid 에 `User ↔ UserInstanceAccess` 관계선 · § 6 REQ → entity coverage row · "책임 module" 컬럼에 **정본 표 미기재** 인 `UserInstanceAccessModule` 명이 동시에 필요해지고, 마지막 것은 [modules.md](../architecture/modules.md) 48 행이 못박은 계상 경계를 문서 간 모순으로 만든다 |
+| **(B) 표 직후 각주 추가 (row 무신설 · tally 불변)** | **채택** | 축 ① 충족 — 이름 · 소관 module · 코드 좌표만 적고 컬럼 type / index / migration 은 인용하지 않아 conceptual-only 경계 안. 축 ② **0** — tally 2 지점 · mermaid · § 6 전부 불변이라 새 stale 원천이 없다. 축 ③ 충족 — 신설 3 행. 축 ④ 회피 — 각주는 **사실 기록** 이지 집합 소속 선언이 아니다 (§ 12.23 이 module 축에서 채택한 선례를 그대로 승계) |
+| **(C) 기존 row 내 부기** | **기각** | 축 ② 위배 — `UserInstanceAccess` 는 `User` 와 N:1 일 뿐 어느 실체 row 의 하위 개념도 아니라 어느 row 에 붙여도 그 row 의 책임 서술이 왜곡된다. 나아가 표 row (22 ~ 36 행) 를 건드리므로 AC 4 가 (A) 채택 시로 한정한 편집 허용 범위를 위반하고, 실체 row 계상 명령의 `^\| \*\*` 패턴 경계도 흐려진다 |
+| **(D) 무편집 이월** | **기각** | § 12.24 한계 ② 가 지목하고 그 `Follow-up 1` 이 명시 요구한 축이며, 실측 6 항이 전부 기대값과 일치해 판정 재료가 완비됐다. 이월 비용 (다음 slice 가 실측을 재수행) 이 편집 비용 (각주 3 행) 을 명백히 넘는다 |
+
+**축 B — 미구현 전제 서술 (38 · 171 행)**
+
+| 후보 | 판정 | 근거 |
+| --- | --- | --- |
+| **(A') 38 · 171 행을 코드 실재 반영해 in-place 정정** | **기각** | § 12.15 판별 위배 — 두 문장 다 **T-0484 / Q-0040 시점에는 참이던 기록** 이고 task stamp 가 박혀 있어 문자 치환하면 이력이 소실된다 (§ 12.24 가 3 행 blockquote 를 보존한 것과 동형). 171 행은 추가로 **치환 대상 자체가 없다** — `본 문서 범위 밖` 이라는 범위 선언은 7 행 MVA 경계상 **여전히 참** 이라 무엇을 무엇으로 바꿀지가 성립하지 않는다 |
+| **(B') 각주 / 부기로 흡수 (원문 보존 + 행 끝 문장 append)** | **채택** | 축 ① 충족 — 코드 좌표 (614 · 649 행) · migration 디렉토리명만 인용하고 SQL 본문 · 컬럼 정의는 끌어오지 않는다. 축 ② **0** — 행 수 불변, 다른 문서 무영향. 축 ③ 충족 — 2 지점 부기. 축 ④ 무관 — entity 집합 선언이 아니라 **구현 상태 사실 기록**. 독자는 stale 문장 **직후** 에 정정을 읽으므로 § 12.24 (A2) 를 기각시킨 "본문 먼저 읽고 각주에서 뒤집기" 문제가 발생하지 않는다 (같은 행 안 부기라 시선 이동 0) |
+| **(C') `§ 7` 만 정정하고 38 행은 이력이라 보존** | **기각** | 38 행 stale 잔존 — § 2 합계 산문은 표 바로 아래라 **독자가 § 7 보다 먼저 읽는** 지점이고, 38 행의 해당 문장은 스스로 `(§7 / ADR-0044 §Out of scope)` 로 § 7 을 가리켜 두 지점이 한 쌍으로 움직여야 한다. 한쪽만 고치면 § 12.24 가 tally 2 지점 동시 동기로 닫은 어긋남과 같은 형태의 문서 내 모순이 새로 생긴다 |
+| **(D') 무편집 이월** | **기각** | 어긋남이 **코드 실측으로 확정** (614 · 649 행 model + migration + `src/export/` · `src/import/`) 됐고 task 정의서 Why 가 명시 지목한 축이다. 축 ① ~ ④ 어디에도 저촉되지 않는 (B') 가 있는 이상 이월 근거 0 |
+
+**채택 = 축 ③ (B) + 축 B (B').** cap 초과로 자동 기각된 후보는 없어 본 절에 남길 split 제안은 없다. **계상 경계 승계** — 각주가 기록한 `UserInstanceAccess` 1 개는 18 · 38 행의 `14 entity` 에 **포함되지 않으며**, 이는 [modules.md](../architecture/modules.md) 48 행이 미기재 3 module 에 대해 못박은 경계와 같은 원리다 (각주 = 사실 기록, 정본 카운트 외).
+
+#### 반영 결과
+
+편집 지점 **3** 개 (AC 4 의 ≤ 6 이내), `wc -l` **190 → 193** (+3, AC 4 의 +4 이내), 순수 삭제 **0**.
+
+| 편집 지점 | 처리 | 내용 |
+| --- | --- | --- |
+| **data-model.md 36 행 직후** (신설 38 ~ 39 행 + 공백 1) | **append** (§ 12.15 판별 — 신설 위치라 보존 대상 없음) | 코드 only model 각주 blockquote 2 줄 — 15 vs 14 실측 · `UserInstanceAccess` (234 행) 의 책임·관계·소관 module (`UserInstanceAccessModule`, modules.md 47 ~ 48 행 각주) · "② 문서 only 0" · **각주는 카운트 대상 아님** 경계 · row 신설은 ADR 선행이라 별도 slice 소관 |
+| **data-model.md 38 행** (편집 후 **41** 행) | **append** (시점 기록 2 세대 보존 — 판별표 근거) | 원문 무편집 후 행 끝에 T-1427 실측 문장 — `후속 task` 전제가 T-0484 시점 기록임 + `model ExportJob` (614) · `model ImportJob` (649) · migration `20260618000000_export_import_job` shipped + 코드 only 1 개에도 tally `14` 불변 |
+| **data-model.md 171 행** (편집 후 **174** 행) | **append** (범위 선언 자체는 참이라 치환 불성립) | 원문 무편집 후 행 끝에 shipped 실측 문장 — 코드 · migration SQL (`CREATE TABLE` 20 · 39 행) · `src/export/` · `src/import/` 실재 + `본 문서 범위 밖` 선언은 7 행 MVA 경계 그대로 불변 + 나머지 열거 항목의 shipped 여부는 미측정 (명칭 축 대조만) 임을 명시 |
+
+#### 무편집 경계
+
+`prisma/` **전체** (대조 입력인 `schema.prisma` 포함) · `src/` · `test/` 일체, [modules.md](../architecture/modules.md) · [components.md](../architecture/components.md) · `api.md`, [INDEX.md](INDEX.md) · `UC-01` ~ `UC-09` 본문, `docs/decisions/ADR-*.md`, [docs/PLAN.md](../PLAN.md), `docs/requirements.md` 는 **전부 무편집** 이고 `git status --porcelain` 에 미등장한다. data-model.md 내부에서도 **3 행 blockquote** · **18 행 tally** · **§ 2 표 row (22 ~ 36 행)** · **§ 3 mermaid ER diagram (42 ~ 83 행)** · **§ 4 ~ § 6 (84 ~ 153 행)** · § 7 의 171 행 외 전 bullet 은 한 글자도 편집하지 않았다 (아래 hunk 목록이 증명).
+
+#### 파생 영향 목록 (본 slice 편집 금지 — 후속 slice 소관)
+
+1. **[INDEX.md](INDEX.md) 58 · 86 행 § 3 산문의 `AssessmentModule` 귀속** — T-1424 Follow-up 1, **5 회째 이월**. **후속 slice 소관**.
+2. **[api.md](../architecture/api.md) 223 행 `UC-01 ~ UC-08` 링크 범위 vs 9 UC** — T-1421 Follow-up 3 잔여 ②. **후속 slice 소관**.
+3. **[UC-09](UC-09-user-defined-period-evaluation.md) `§ 5` sequence participant 병기 미판정** — T-1421 Follow-up 2 가 **9 회째 이월**. **후속 slice 소관**.
+4. **[INDEX.md](INDEX.md) 37 행 UC-07 row 가 `ExportModule` / `ImportModule` 을 미사용** — § 12.23 파생 영향 6. **후속 slice 소관**.
+5. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축** — § 12.23 파생 영향 7 (T-1425 Follow-up 2) 의 3 slice split (① ADR gate → ② 다축 동시 갱신 → ③ INDEX·UC 게이트). 본 절 축 ③ 의 (A) 기각 근거가 이 축에 **직접 종속** 한다 (`UserInstanceAccessModule` 이 미기재 3 중 하나). **후속 slice 소관**.
+6. **외부 package module (`ScheduleModule.forRoot()`) 계상 규약 미판정** — § 12.23 한계 3 (T-1425 Follow-up 3). **후속 slice 소관**.
+7. **행 번호 좌표계 → anchor 좌표계 이행** — § 12.23 한계 4 (T-1425 Follow-up 4), § 12.24 파생 영향 7 로 근거 **2 회 누적**. 본 절의 각주 append 가 38 → 41 · 171 → 174 로 좌표를 **3 행 shift** 시킨 것이 세 번째 발현이다. **후속 slice 소관**.
+8. **산문 tally ↔ 표 row 수 CI drift-guard spec 신설** — § 12.24 한계 1 (T-1426 Follow-up 2). 본 절의 entity 축 문서↔코드 대조도 같은 spec 으로 묶는 안은 아래 한계 2. **후속 slice 소관**.
+
+#### closure 선언
+
+- **§ 12.24 한계 ② / `Follow-up 1` closure** — "§ 2 표 row ↔ `prisma/schema.prisma` 실 model 축은 여전히 미대조" 는 본 절의 3 축 대조표로 닫힌다. 결과는 **① 14 · ② 0 · ③ 1** 이며, § 12.24 가 "문서 ↔ 코드 불일치가 이미 예고된 상태" 로 지목한 38 행 서술도 축 B 로 함께 처리했다.
+- **§ 12.24 가 예고한 어긋남의 실체 확인** — 예고된 어긋남 (`ExportJob/ImportJob 미구현 전제`) 은 실측 결과 **문서가 코드보다 뒤처진** 형태였고, 예고되지 않았던 반대 방향 어긋남 (**코드 only `UserInstanceAccess`**) 이 추가로 1 건 발견됐다. 즉 대조를 실제로 수행하지 않으면 **어느 방향의 어긋남이 있는지조차 알 수 없다** 는 것이 본 절의 실증이다.
+- **§ 12.23 (module 축) 과의 계보** — module 축 미기재 3 · entity 축 코드 only 1 이 **같은 `UserInstanceAccessModule` 뿌리** 로 이어짐이 확인됐다. 두 축의 row 신설 판정은 하나의 ADR 게이트 (파생 영향 5) 로 함께 닫아야 한다.
+
+#### 불변 검산
+
+```
+$ wc -l  docs/architecture/data-model.md                     → 190 → 193  (+3, AC 4 의 +4 이내)
+$ grep -c '^## '  docs/architecture/data-model.md            →   8  (불변)
+$ sed -n '22,36p' data-model.md | grep -c '^| \*\*'          →  14  (불변 — § 2 표 row 무편집)
+$ sed -n '22,36p' data-model.md | grep -c '(conceptual mention)' → 1  (불변)
+$ grep -c '14 entity'  data-model.md                         → 2 → 3  (18 · 41 행 + 신설 각주 39 행의
+                                                                계상 경계 문장 — tally 지점 수는 2 불변)
+$ grep -c '13 entity'  data-model.md                         →   1  (불변 — 3 행 시점 기록)
+$ wc -l  prisma/schema.prisma → 666 (불변) · grep -c '^model ' → 15 (불변)   ← 무편집 실증
+$ wc -l  modules.md → 259 · INDEX.md → 123 · components.md → 190  (불변 — 무편집)
+$ wc -l  docs/use-cases/REQ-COVERAGE-AUDIT.md                → 2028 → 2209  (§ 12.25 append 181 행)
+$ grep -c '^| REQ-' docs/use-cases/REQ-COVERAGE-AUDIT.md     →  66  (불변)
+$ grep -c '^## '    docs/use-cases/REQ-COVERAGE-AUDIT.md     →  12  (불변, `###` 만 추가)
+$ git diff -U0 -- docs/architecture/data-model.md | grep '^@@'
+@@ -38 +38,4 @@        @@ -171 +174 @@
+   → hunk **2 개**. 앞 hunk 는 36 행 직후 각주 3 행 신설 + 38 행 행-끝 부기가 인접해 한 hunk 로
+     합쳐진 것이고, 뒤 hunk 는 § 7 171 행 부기다. § 2 표 (22 ~ 36) · § 3 mermaid (42 ~ 83)
+     · § 4 ~ § 6 (84 ~ 153) · 3 행 blockquote · 18 행 tally 전부 hunk 밖 = 무편집 증명
+$ git diff --numstat -- docs/architecture/data-model.md      →  5  2
+   → 추가 5 (신설 3 + 부기 2) · 삭제 2 → 삭제 2 는 전부 부기된 두 행의 in-place 짝
+     = **순수 삭제 0**
+```
+
+변경 파일은 [data-model.md](../architecture/data-model.md) · 본 audit **2 개** + [T-1427 task 파일](../tasks/T-1427-data-model-entity-vs-prisma-model-audit.md) 의 status frontmatter (driver bookkeeping commit 소관) 이며, 합계 diff ≤ 300 LOC 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 **N/A** 다.
+
+#### 한계 —
+
+1. **본 대조는 명칭 축 뿐** — ① 일치 14 건은 **model 명 == 표 row 명** 만 확인했을 뿐, 각 model 의 **필드 · 관계 · invariant** 가 표의 책임 서술 · § 3 mermaid 관계선 · § 4 raw 미저장 invariant 와 실제로 부합하는지는 검사하지 않았다. 예컨대 § 3 의 관계 11 (`User ↔ ExportJob 1:N`) 이 schema 의 `@relation` 과 cardinality 까지 같은지는 미검증이며, 이는 7 행 MVA 경계상 본 doc slice 가 다루기 어려운 축 (필드 대조는 컬럼 축으로 미끄러진다) 이라 **별도 판정 slice** 가 필요하다.
+2. **문서 ↔ 코드 대조는 코드가 바뀔 때마다 재-stale** — 본 절이 확정한 `15 vs 14 (+1)` 은 `schema.prisma` 에 model 이 하나 추가되는 순간 다시 틀린다. § 12.24 한계 1 이 산문 tally ↔ 표 row 수에 대해 내린 결론 (사람 규약보다 **CI drift-guard spec** 이 견고) 이 본 축에도 그대로 적용되며, 대조 대상이 `grep -c '^model ' prisma/schema.prisma` 와 `sed -n '22,36p' … | grep -c '^| \*\*'` 두 명령이라 **§ 12.24 Follow-up 2 의 module 축 spec 과 한 spec 으로 묶는 안** 이 자연스럽다 (파생 영향 8). 다만 각주 계상 경계 (미기재 module 3 · 코드 only entity 1 을 카운트에서 빼는 규약) 를 spec 이 어떻게 표현할지가 설계 쟁점으로 남는다.
+3. **채택안이 남긴 미해결** — (a) 각주 채택으로 `UserInstanceAccess` 는 여전히 § 3 mermaid · § 6 REQ → entity coverage 어디에도 등장하지 않아, 그 두 절만 읽는 독자에게는 **존재하지 않는 것과 같다** (row 신설은 ADR 게이트 · 파생 영향 5). (b) 축 B 의 부기는 38 · 174 행을 **더 길게** 만들어, 한 행에 시점 기록이 3 세대 (T-0484 · T-1426 · T-1427) 누적됐다 — § 12.24 한계 3 (a) 가 지적한 "시점 기록에 명시적 marker 규약이 필요" 가 본 절에서 더 뚜렷해졌다. (c) 171 행이 열거한 나머지 항목 (artifact 저장소 · retention 정책 · merge conflict 알고리즘) 의 shipped 여부는 **측정하지 않았다** — 부기 문장이 그 사실을 명시하지만, 미측정 항목이 남은 bullet 은 다음 대조에서 재확인 대상이다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
