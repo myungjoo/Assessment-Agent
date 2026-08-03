@@ -90,4 +90,8 @@ plannerNote: "uc-doc-audit-resync 37 번째 slice — T-1424 Follow-up 8. 정본
 
 ## Follow-ups
 
-(생성 시 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+1. **미기재 집합은 2 가 아니라 3 이었다** — task 정의서는 `Follow-up 8` 을 이어받아 `src/export/` · `src/import/` 2 축으로 기술했으나, AC 1 (iv) 실측은 `UserInstanceAccessModule` 을 포함한 **3** 을 냈다. 채택안 (B) 각주가 3 전부를 흡수했다. (후속 slice 는 3 을 기준선으로 삼을 것.)
+2. **정본 표 row 신설 축은 3 slice split 이 필요** — ① "정본 계상 기준 = `AppModule` 등록 여부인가" ADR 확정 (22 행의 [ADR-0003 §1](../decisions/ADR-0003-deployment.md) 인용 서술과 `UserInstanceAccessModule` 비등록 사실이 충돌) → ② modules.md 표 row + 카운트 8 지점 + mermaid + topological + mapping 동시 갱신 → ③ [INDEX.md](../use-cases/INDEX.md) 25 행 어휘 확장 + 37 행 재귀속 + [UC-07](../use-cases/UC-07-export-import.md) `§ 9` `4 module` 수치 재판정. `§ 12.23` 파생 영향 ⑦ 에 동일 내용 박제.
+3. **외부 package module 계상 규약 미판정** — `ScheduleModule.forRoot()` (`@nestjs/schedule`) 가 정본 표 계상 대상인지 어느 문서도 명시하지 않는다 (`§ 12.23` 한계 3). 위 2 의 ① ADR 과 함께 판정하는 편이 자연스럽다.
+4. **행 번호 좌표계 → anchor 좌표계 이행** — 본 slice 의 3 행 append 로 modules.md 46 행 이후가 +3 shift 했고, 기존 journal/task 의 `237 행` · `239 행` 인용이 실제로 어긋났다 (시점 기록이라 정정 안 함). `§ 12.22` 한계 5 가 예고한 취약성의 실발현 — 문서 간 좌표 인용을 heading anchor 기반으로 옮기는 별도 slice 가 필요하다.
+5. **다축 동시 갱신 규약에 코드 축 편입** — T-1423 Follow-up 6 의 6 축 (표 · topological · mermaid · 산문 카운트 · INDEX 25 행 어휘 · INDEX 표 row 귀속) 에 **`src/*/*.module.ts` 집합** 을 7 번째 축으로 추가해야 하고, 사람 규약보다 CI drift-guard spec 이 견고하다 (`§ 12.23` 한계 1).

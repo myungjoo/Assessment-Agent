@@ -44,6 +44,9 @@
 
 위 12 module 은 `AppModule` (root) 의 `imports: [...]` 에 등록되며, AppModule 자체는 root composition 외에 책임을 갖지 않는다.
 
+> **정본 표 미기재 실 shipped module (T-1425 실측 각주)** — 위 표에 row 가 없으나 `src/` 에 실재하는 module 이 **3 개** 있다: `ExportModule` (`src/export/export.module.ts`, T-0488) · `ImportModule` (`src/import/import.module.ts`, T-0489) · `UserInstanceAccessModule` (`src/user-instance-access/user-instance-access.module.ts`, T-0238). 앞의 둘은 `AppModule` 의 `imports` 에 **직접 등록** 돼 있고 (`src/app.module.ts` 77 · 78 행), `UserInstanceAccessModule` 은 **AppModule 비등록** 이며 `src/permission-denied/permission-denied-record.module.ts` **37** 행의 명시 import (non-`@Global()` module 이라 명시 필요) 로만 DI 그래프에 들어온다.
+> 본 각주는 **사실 기록** 이지 정본 표 row 도 카운트 대상도 아니다 — 본 문서 산문의 `12 module` 은 위 표 row 12 만 세며 본 각주의 3 개를 **포함하지 않는다**. 세 module 의 표 row 신설 여부는 "정본 계상 기준을 `AppModule` 등록 여부로 볼 것인가" 의 판정 (22 행이 인용한 [ADR-0003 §1](../decisions/ADR-0003-deployment.md) 의 단일 process 등록 서술과 `UserInstanceAccessModule` 비등록 사실의 충돌) 을 요구해 **별도 slice 소관** 이다 ([REQ-COVERAGE-AUDIT § 12.23](../use-cases/REQ-COVERAGE-AUDIT.md)).
+
 ## 의존성 그래프 (mermaid)
 
 NestJS `@Module({ imports: [...] })` 의 화살표 방향 — A → B 는 "A 가 B 를 import 한다 (즉 A 가 B 의 provider 를 사용)" 를 의미.
