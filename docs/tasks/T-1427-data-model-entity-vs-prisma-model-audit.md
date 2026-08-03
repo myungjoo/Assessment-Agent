@@ -2,12 +2,13 @@
 id: T-1427
 title: data-model.md `§ 2` 14 entity 표를 `prisma/schema.prisma` 15 model 과 3 축 대조 실판정 + 문서 축 처리 후 audit §12.25 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 150
 estimatedFiles: 3
 created: 2026-08-03
+completedAt: 2026-08-03T14:47:00Z
 independentStream: uc-doc-audit-resync
 dependsOn: [T-1426]
 touchesFiles:
@@ -41,30 +42,30 @@ planner 사전 확인 (executor 가 AC 1 에서 재측정) — `grep -c '^model 
 
 ## Acceptance Criteria
 
-- [ ] **AC 1 — 실측 선행 (날조 금지)**: 편집 전에 다음을 직접 측정해 `§ 12.25` 에 **명령과 출력을 함께** 인용한다. 모든 명령은 [T-1424](T-1424-index-uc-row-module-attribution-audit.md) `Follow-up 7` 이 요구한 **scope 포함 형태** (`sed -n '<from>,<to>p' <file> | grep …`) 로 적는다 (무-scope grep 이 다른 표까지 합산해 20 을 냈던 사고의 재발 방지). 기대값과 **다르면 그 축의 편집을 중단** 하고 불성립 사실을 `§ 12.25` 에 기록한다.
+- [x] **AC 1 — 실측 선행 (날조 금지)**: 편집 전에 다음을 직접 측정해 `§ 12.25` 에 **명령과 출력을 함께** 인용한다. 모든 명령은 [T-1424](T-1424-index-uc-row-module-attribution-audit.md) `Follow-up 7` 이 요구한 **scope 포함 형태** (`sed -n '<from>,<to>p' <file> | grep …`) 로 적는다 (무-scope grep 이 다른 표까지 합산해 20 을 냈던 사고의 재발 방지). 기대값과 **다르면 그 축의 편집을 중단** 하고 불성립 사실을 `§ 12.25` 에 기록한다.
   - (i) **코드 축 전수**: `grep -n '^model ' prisma/schema.prisma` 로 **15** 개 model 명 + 행번호 전수를 인용 (`grep -c` 결과 **15** 병기).
   - (ii) **문서 축 전수**: `sed -n '22,36p' docs/architecture/data-model.md | grep -c '^| \*\*'` = **14** (기대) 와 그 14 개 entity 명 전수. 추가로 `sed -n '22,36p' … | grep -c '(conceptual mention)'` = **1** (AuditLog) 을 별도 인용해 실체 계상과 conceptual 계상을 분리한다.
   - (iii) **tally 서술 지점**: `grep -n '14 entity' docs/architecture/data-model.md` 로 T-1426 이 정정한 지점 (기대 **18 · 38**) 을 확정하고 원문 인용. `grep -n '13 entity'` 로 **3** 행 시점 기록 blockquote 가 보존돼 있음도 함께 확인 (무편집 대상 확인용).
   - (iv) **축 B 원자료 — 미구현 전제 서술**: `grep -n 'ExportJob' docs/architecture/data-model.md` 로 지점 전수를 뽑고, 그 중 **"후속 task" / "범위 밖" 으로 미구현을 전제한 행** (기대 **38 · 171**) 을 원문과 함께 인용. 코드 측 `sed -n '614p;649p' prisma/schema.prisma` 출력을 나란히 붙여 어긋남을 **한 표에서** 보인다.
   - (v) **`§ 12.15` 판별**: (iii) · (iv) 가 확정한 각 지점에 대해 **날짜 stamp 유무** 를 근거로 append / in-place 를 판정한 표를 만든다. **38 행** 은 이력 문장 (`10 → 11` · `11 → 13`) 과 T-1426 정정 문장이 공존하므로 **한 글자도 바꾸지 않고 덧붙이는** 방식이 성립하는지 1 구로 근거화한다 (성립 안 하면 그 지점은 무편집).
   - (vi) baseline — `wc -l` data-model.md **190** · schema.prisma **666** · audit **2028**, data-model `grep -c '^## '` **8**, audit `grep -c '^## '` **12** · `grep -c '^| REQ-'` **66**, `modules.md` **259** · `INDEX.md` **123** · `components.md` **190**.
-- [ ] **AC 2 — 3 축 대조표**: AC 1 (i) (ii) 를 **한 표** 로 합쳐 각 model / entity 를 다음 3 구획 중 하나로 분류한다. 분류는 **명칭 exact match** 를 1 차 기준으로 하고, 명칭이 다르나 동일 개념으로 판단되는 짝이 있으면 그 근거를 1 구로 적는다.
+- [x] **AC 2 — 3 축 대조표**: AC 1 (i) (ii) 를 **한 표** 로 합쳐 각 model / entity 를 다음 3 구획 중 하나로 분류한다. 분류는 **명칭 exact match** 를 1 차 기준으로 하고, 명칭이 다르나 동일 개념으로 판단되는 짝이 있으면 그 근거를 1 구로 적는다.
   - **① 일치** (코드 model ∧ 문서 실체 row) — 기대 14.
   - **② 문서 only** (문서 실체 row ∧ 코드 model 부재) — 기대 0. `*(conceptual mention)*` AuditLog 는 실체 row 가 아니므로 **별도 3 행 이내 단락** 으로 "코드 미실재 = 설계 의도대로 정합" 임을 근거화하고 ② 에 계상하지 않는다.
   - **③ 코드 only** (코드 model ∧ 문서 row 부재) — 기대 1 (`UserInstanceAccess`). 각 항목에 대해 **어느 module 소관인지** ([modules.md](../architecture/modules.md) 47 ~ 48 행 T-1425 각주의 `UserInstanceAccessModule` 과의 대응) 를 1 구로 적는다.
-- [ ] **AC 3 — 축별 처리 방식 판정**: 어긋남 축마다 후보 4 개 중 **채택 1 · 기각 3** 인 판정표를 만든다. 기각마다 근거 1 구 (애매어 금지).
+- [x] **AC 3 — 축별 처리 방식 판정**: 어긋남 축마다 후보 4 개 중 **채택 1 · 기각 3** 인 판정표를 만든다. 기각마다 근거 1 구 (애매어 금지).
   - 축 ③ (코드 only) 후보 — (A) **`§ 2` 표에 row 신설** + tally **14 → 15** 다축 동기, (B) **표 직후 각주 추가** (row 무신설 · tally 불변 — [T-1425](T-1425-modules-md-shipped-module-inventory-audit.md) 채택 선례), (C) **기존 row 내 부기**, (D) **무편집 이월**.
   - 축 B (미구현 전제 서술) 후보 — (A') **38 · 171 행을 코드 실재 반영해 in-place 정정**, (B') **각주/부기로 흡수**, (C') **`§ 7` 만 정정하고 38 행은 이력이라 보존**, (D') **무편집 이월**.
   - 판정 기준 **4 축** 명시: ① **MVA 범위** — 7 행이 못박은 conceptual-only 경계를 채택안이 넘지 않는가 (컬럼 type · index · migration 을 문서로 끌어오면 자동 기각), ② **cascade** — 채택안이 **18 · 38 행 tally**, `§ 3` mermaid ER diagram (42 ~ 83 행), `§ 6` REQ → entity coverage (115 ~ 153 행), [modules.md](../architecture/modules.md) · [INDEX.md](../use-cases/INDEX.md) · [api.md](../architecture/api.md) 에 **새 stale 을 만드는가** (만들면 기각 또는 같은 slice 안 closure 를 조건화 — 후자는 cap 기준으로 재판정), ③ **cap** — 예상 diff ≤ 300 LOC · 변경 파일 **3 고정** (초과 후보는 자동 기각 + split 제안을 `§ 12.25` 에 기록), ④ **ADR 게이트** — 채택안이 entity 집합의 신설·재배치를 **선언** 하면 ADR 선행 대상이라 본 doc slice 범위 밖 (T-1425 가 (A) row 신설을 기각한 것과 동형 근거).
-- [ ] **AC 4 — 채택안 반영**: AC 3 채택안대로만 편집한다. 편집은 **행 단위 1:1 in-place 또는 순수 append** 이고, 각 지점마다 AC 1 (v) 의 `§ 12.15` 판별 결과를 따른다.
+- [x] **AC 4 — 채택안 반영**: AC 3 채택안대로만 편집한다. 편집은 **행 단위 1:1 in-place 또는 순수 append** 이고, 각 지점마다 AC 1 (v) 의 `§ 12.15` 판별 결과를 따른다.
   - 편집 지점 총합 **≤ 6 행**, data-model.md `wc -l` 증가 **+4 이내**.
   - **`§ 2` 표 row (22 ~ 36 행) 는 AC 3 이 (A) 를 채택한 경우에만** 변경 가능하며, 그 경우 tally 2 지점 (**18 · 38**) 동시 동기가 의무다 (한쪽만 고치면 T-1426 이 닫은 어긋남의 재발).
   - **`§ 3` mermaid (42 ~ 83 행) · `§ 4` ~ `§ 6` (84 ~ 153 행) 은 무편집** — 관계선·REQ coverage 갱신은 entity 집합 변경을 전제하므로 AC 3 ④ 게이트 소관.
-- [ ] **AC 5 — 무편집 경계**: `prisma/schema.prisma` 를 포함한 `prisma/` 전체 · `src/` · `test/` 일체, `docs/architecture/modules.md` · `components.md` · `api.md`, `docs/use-cases/INDEX.md` · `UC-01` ~ `UC-09` 본문, `docs/decisions/ADR-*.md`, `docs/PLAN.md`, `docs/requirements.md` 는 **전부 무편집** 이고 diff 에 미등장. 이 경계를 `§ 12.25` 에 1 구로 남긴다.
-- [ ] **AC 6 — 파생 영향 목록 (편집 금지)**: 본 slice 가 닫지 않는 동종 잔여를 **목록만** `§ 12.25` 에 남긴다 — 최소 ① [INDEX.md](../use-cases/INDEX.md) **58 · 86 행** §3 산문의 `AssessmentModule` 귀속 (5 회째 이월), ② [api.md](../architecture/api.md) **223 행** `UC-01 ~ UC-08` 링크 범위 vs 9 UC, ③ UC-09 `§ 5` sequence participant 병기 미판정 (9 회째 이월), ④ INDEX **37 행** UC-07 row 의 `ExportModule` / `ImportModule` 미사용, ⑤ 정본 `modules.md` 표 row 신설 축 (T-1425 Follow-up 2 의 3 slice split — ADR 선행), ⑥ 외부 package module 계상 규약 (T-1425 Follow-up 3), ⑦ 행 번호 좌표계 → anchor 좌표계 이행 (T-1426 Follow-up 4 로 근거 2 회 누적), ⑧ 산문 tally ↔ 표 row 수 CI drift-guard spec (T-1426 Follow-up 2). 각 항목에 "후속 slice 소관" 을 명시하고 **본 slice 에서는 편집하지 않는다** (AC 8 이 diff 부재로 검증).
-- [ ] **AC 7 — audit §12.25 절 신설**: `## 11. References` (**2015** 행) 바로 앞 (= `§ 12.24` 뒤) 에 `### 12.25 …` 절을 **순수 append** 로 삽입한다 (audit `grep -c '^## '` = **12 불변** — `###` 이므로). 구성은 `§ 12.23` · `§ 12.24` 화법 승계 — (i) 서두 blockquote (본 절이 T-1426 `Follow-up 1` / 한계 ② 를 닫는다는 위치 규정 + T-1425 문서↔코드 대조의 entity 판이라는 계보), (ii) AC 1 실측 6 항 인용 (`§ 12.15` 판별표 포함), (iii) AC 2 **3 축 대조표** (① ② ③ 구획별 전수 + AuditLog 별도 단락), (iv) AC 3 축별 4 후보 판정표 (기준 4 축 명시) + 채택 결론, (v) AC 4 반영 결과 (편집 지점 목록 + 각 지점의 append/in-place 근거), (vi) AC 5 무편집 경계, (vii) AC 6 파생 영향 목록, (viii) 불변 검산 출력 블록, (ix) **한계 3 항 이상** — 최소: ① 본 대조가 **명칭 축** 이라 model 의 필드·관계·invariant 가 문서 서술과 일치하는지는 여전히 미검증, ② 문서↔코드 대조는 코드가 바뀔 때마다 재stale 되는 구조라 사람 규약보다 CI drift-guard spec 이 견고 (T-1426 Follow-up 2 와 동형 — entity 축 spec 을 module 축 spec 과 한 spec 으로 묶는 안 검토), ③ 채택안이 남긴 미해결 지점.
-- [ ] **AC 8 — 불변 검산**: `git status --porcelain` 변경 파일이 **정확히 3 개** (`docs/architecture/data-model.md` + `docs/use-cases/REQ-COVERAGE-AUDIT.md` + 본 task 파일). 불변 — audit `^## ` **12** · `^| REQ-` **66**, data-model `^## ` **8**, `prisma/schema.prisma` `wc -l` **666** · `grep -c '^model '` **15** (무편집 실증), `modules.md` **259** · `INDEX.md` **123** · `components.md` **190** 무편집. `git diff -U0 -- docs/architecture/data-model.md | grep '^@@'` 로 hunk 목록을 제시해 AC 4 가 허용한 구간 밖이 없음을 보인다. **순수 삭제 0** (삭제 행은 전부 in-place 치환의 짝). 합계 diff ≤ 300 LOC · 파일 ≤ 3.
-- [ ] **AC 9 — R-110 / R-112 면제 확인**: 본 task 는 `commitMode: direct` + production code 0 LOC 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 면제" 조항으로 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 **N/A** 임을 완료 기록에 1 줄 명시 (분기 0).
+- [x] **AC 5 — 무편집 경계**: `prisma/schema.prisma` 를 포함한 `prisma/` 전체 · `src/` · `test/` 일체, `docs/architecture/modules.md` · `components.md` · `api.md`, `docs/use-cases/INDEX.md` · `UC-01` ~ `UC-09` 본문, `docs/decisions/ADR-*.md`, `docs/PLAN.md`, `docs/requirements.md` 는 **전부 무편집** 이고 diff 에 미등장. 이 경계를 `§ 12.25` 에 1 구로 남긴다.
+- [x] **AC 6 — 파생 영향 목록 (편집 금지)**: 본 slice 가 닫지 않는 동종 잔여를 **목록만** `§ 12.25` 에 남긴다 — 최소 ① [INDEX.md](../use-cases/INDEX.md) **58 · 86 행** §3 산문의 `AssessmentModule` 귀속 (5 회째 이월), ② [api.md](../architecture/api.md) **223 행** `UC-01 ~ UC-08` 링크 범위 vs 9 UC, ③ UC-09 `§ 5` sequence participant 병기 미판정 (9 회째 이월), ④ INDEX **37 행** UC-07 row 의 `ExportModule` / `ImportModule` 미사용, ⑤ 정본 `modules.md` 표 row 신설 축 (T-1425 Follow-up 2 의 3 slice split — ADR 선행), ⑥ 외부 package module 계상 규약 (T-1425 Follow-up 3), ⑦ 행 번호 좌표계 → anchor 좌표계 이행 (T-1426 Follow-up 4 로 근거 2 회 누적), ⑧ 산문 tally ↔ 표 row 수 CI drift-guard spec (T-1426 Follow-up 2). 각 항목에 "후속 slice 소관" 을 명시하고 **본 slice 에서는 편집하지 않는다** (AC 8 이 diff 부재로 검증).
+- [x] **AC 7 — audit §12.25 절 신설**: `## 11. References` (**2015** 행) 바로 앞 (= `§ 12.24` 뒤) 에 `### 12.25 …` 절을 **순수 append** 로 삽입한다 (audit `grep -c '^## '` = **12 불변** — `###` 이므로). 구성은 `§ 12.23` · `§ 12.24` 화법 승계 — (i) 서두 blockquote (본 절이 T-1426 `Follow-up 1` / 한계 ② 를 닫는다는 위치 규정 + T-1425 문서↔코드 대조의 entity 판이라는 계보), (ii) AC 1 실측 6 항 인용 (`§ 12.15` 판별표 포함), (iii) AC 2 **3 축 대조표** (① ② ③ 구획별 전수 + AuditLog 별도 단락), (iv) AC 3 축별 4 후보 판정표 (기준 4 축 명시) + 채택 결론, (v) AC 4 반영 결과 (편집 지점 목록 + 각 지점의 append/in-place 근거), (vi) AC 5 무편집 경계, (vii) AC 6 파생 영향 목록, (viii) 불변 검산 출력 블록, (ix) **한계 3 항 이상** — 최소: ① 본 대조가 **명칭 축** 이라 model 의 필드·관계·invariant 가 문서 서술과 일치하는지는 여전히 미검증, ② 문서↔코드 대조는 코드가 바뀔 때마다 재stale 되는 구조라 사람 규약보다 CI drift-guard spec 이 견고 (T-1426 Follow-up 2 와 동형 — entity 축 spec 을 module 축 spec 과 한 spec 으로 묶는 안 검토), ③ 채택안이 남긴 미해결 지점.
+- [x] **AC 8 — 불변 검산**: `git status --porcelain` 변경 파일이 **정확히 3 개** (`docs/architecture/data-model.md` + `docs/use-cases/REQ-COVERAGE-AUDIT.md` + 본 task 파일). 불변 — audit `^## ` **12** · `^| REQ-` **66**, data-model `^## ` **8**, `prisma/schema.prisma` `wc -l` **666** · `grep -c '^model '` **15** (무편집 실증), `modules.md` **259** · `INDEX.md` **123** · `components.md` **190** 무편집. `git diff -U0 -- docs/architecture/data-model.md | grep '^@@'` 로 hunk 목록을 제시해 AC 4 가 허용한 구간 밖이 없음을 보인다. **순수 삭제 0** (삭제 행은 전부 in-place 치환의 짝). 합계 diff ≤ 300 LOC · 파일 ≤ 3.
+- [x] **AC 9 — R-110 / R-112 면제 확인**: 본 task 는 `commitMode: direct` + production code 0 LOC 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 면제" 조항으로 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 **N/A** 임을 완료 기록에 1 줄 명시 (분기 0).
 
 ## Out of Scope
 
@@ -81,6 +82,25 @@ planner 사전 확인 (executor 가 AC 1 에서 재측정) — `grep -c '^model 
 
 `implementer` (doc-only, 단독).
 
+## 완료 기록 (2026-08-03T14:47:00Z)
+
+- **실측 (AC 1)** — `grep -c '^model ' prisma/schema.prisma` = **15**, `sed -n '22,36p' data-model.md | grep -c '^| \*\*'` = **14** (+ `*(conceptual mention)* AuditLog` 1 은 실체 row 아님). 6 항 전건 성립, 중단 지점 0.
+- **3 축 대조 (AC 2)** — ① 일치 **14** · ② 문서 only **0** · ③ 코드 only **1** (`UserInstanceAccess`, `prisma/schema.prisma` 234 행). 15 = 14 + 1 · 14 = 14 + 0 으로 양변 closure. 명칭 exact match 만으로 15 중 14 가 짝지어져 "이름 다름 / 개념 같음" 짝은 **0 건**.
+- **판정 (AC 3)** — 축 ③ 은 **(B) 표 직후 각주** 채택 (표 row 신설 (A) 는 entity 집합의 선언적 변경이라 ADR 게이트 + § 3 mermaid · § 6 coverage 동시 갱신 요구로 기각). 축 B (38 · 171 행의 `ExportJob/ImportJob 미구현` 전제 서술) 는 **(B') 원문 보존 + 행-끝 부기** 채택 — `model ExportJob` (614 행) · `model ImportJob` (649 행) + migration `20260618000000_export_import_job` 이 shipped 라 전제가 더는 성립하지 않으나 그 문장 자체는 T-0484 시점 기록이므로 § 12.15 판별표대로 보존.
+- **반영 (AC 4)** — [data-model.md](../architecture/data-model.md) **3 지점** (36 행 직후 각주 3 행 신설 · 38 행 부기 · 171 행 부기), hunk **2 개** (`@@ -38 +38,4 @@` · `@@ -171 +174 @@`), `git diff --numstat` = `5 2` → **순수 삭제 0**. `wc -l` 190 → **193** (AC 4 의 +4 이내).
+- **계상 경계** — 각주의 `UserInstanceAccess` 1 개는 18 · 38 행 `14 entity` 에 **포함하지 않는다** ([modules.md](../architecture/modules.md) 48 행의 미기재 3 module 계상 경계 승계).
+- **audit (AC 7)** — `### 12.25` 를 `## 11. References` 앞에 순수 append (**181 행**, 2028 → 2209). `^## ` **12** · `^| REQ-` **66** 불변.
+- **검산 (AC 8)** — `prisma/schema.prisma` `wc -l` 666 · `^model ` 15 불변 (무편집 실증), `modules.md` 259 · `INDEX.md` 123 · `components.md` 190 불변. 변경 파일은 data-model.md · audit **2 개** + 본 task 파일 (driver bookkeeping 소관, 별도 commit).
+- **AC 9** — `commitMode: direct` + production code **0 LOC** · 분기 0 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 doc-only 면제로 R-110 tester 호출 · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 전부 **N/A**.
+- direct push `07287548`, main CI run 30824257832 conclusion 은 fire 종료 전 확인.
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append.)
+1. **[INDEX.md](../use-cases/INDEX.md) 58 · 86 행 § 3 산문의 `AssessmentModule` 귀속** — § 12.25 파생 영향 1 (T-1424 Follow-up 1 의 **5 회째 이월**). → **T-1428 로 큐잉됨** (37 행 UC-07 row = 파생 영향 4 와 한 파일에서 동시 closure).
+2. **[api.md](../architecture/api.md) 223 행 `UC-01 ~ UC-08` 링크 범위 vs 9 UC** — § 12.25 파생 영향 2 (T-1421 Follow-up 3 잔여 ②).
+3. **[UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) `§ 5` sequence participant 병기 미판정** — § 12.25 파생 영향 3, **9 회째 이월**.
+4. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축 3 slice split** — § 12.25 파생 영향 5 (ADR gate → 표 row → 파생 동기).
+5. **외부 package module (`ScheduleModule.forRoot()`) 계상 규약 미판정** — § 12.25 파생 영향 6.
+6. **행 번호 좌표계 → anchor 좌표계 이행** — § 12.25 파생 영향 7. 본 slice 의 각주 append 가 38 → 41 · 171 → 174 로 하류 좌표를 밀어 근거가 **3 회째** 누적됐다.
+7. **산문 tally ↔ 표 row 수 + 문서↔코드 model 수 CI drift-guard spec** — § 12.25 파생 영향 8 (T-1426 Follow-up 2). 본 절의 `15 vs 14 (+1)` 은 schema 에 model 이 하나 늘면 즉시 재-stale (한계 2) 이라 사람 규약보다 spec 이 견고하다.
+8. **각주 채택이 남긴 미해결** — `UserInstanceAccess` 가 § 3 mermaid · § 6 REQ → entity coverage 어디에도 등장하지 않아 그 두 절만 읽는 독자에게는 여전히 비가시 (한계 3 (a)).
