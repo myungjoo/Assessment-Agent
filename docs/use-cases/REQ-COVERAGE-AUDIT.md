@@ -2337,6 +2337,171 @@ $ git status --porcelain
 2. **INDEX 병기와 UC 본문 `§ 9` 산정이 별개 좌표계** — 본 절의 부기는 세 지점 모두 "§ 9 의 `N module` 산정 불변" 을 명시해 수치 충돌을 피했지만, 그 결과 **같은 사실이 두 문서에 서로 다른 형식으로 이중 관리** 된다. 어느 한쪽만 갱신되면 다시 어긋나며 (파생 영향 7), 이는 사람 규약으로는 재발을 막을 수 없어 § 12.25 한계 2 와 같은 CI drift-guard 축 (파생 영향 6) 으로만 닫힌다.
 3. **채택안이 남긴 미해결** — (a) `ExportModule` / `ImportModule` 은 여전히 25 행 어휘 집합 · 정본 12 표 어디에도 없어, § 2 표만 읽는 독자에게는 **존재하지 않는 것과 같다** (row 신설은 ADR 게이트 · 파생 영향 3). (b) 32 행 UC-02 row 는 ① 정합으로 분류됐지만 그 근거가 "조회 축이 아직 미shipped" 라 **코드가 shipped 되는 순간 자동으로 stale** 이 되는 조건부 정합이다. (c) 부기로 58 · 86 행이 더 길어져 한 행에 시점 기록 2 세대 (T-0019 · T-1428) 가 누적됐다 — § 12.25 한계 3 (b) 가 지적한 "시점 기록 marker 규약 부재" 가 § 3 산문에서도 반복된다.
 
+### 12.27 api.md `9 NestJS module` 2 지점 + `UC-01 ~ UC-08` 범위 1 지점의 정본 동기 (T-1429)
+
+> **본 절의 위치** — `§ 12.26` 이 [INDEX.md](INDEX.md) 의 `AssessmentModule` 귀속을 닫으며 남긴 **파생 영향 1** ([api.md](../architecture/api.md) **223** 행 `UC-01 ~ UC-08` 링크 범위 ↔ 실재 **9 UC** 어긋남) 을 본 절이 종료한다. 동시에 planner 가 같은 문서에서 사전 확인한 **동종 module 어휘 축 2 지점** (**43** · **220** 행 `9 NestJS module`) 을 정본 [modules.md](../architecture/modules.md) 표 row **12** 로 맞춘다.
+> **계보** — 정본 확정 `T-1422` (modules.md 산문 `11` → 표 실측 **12**) → 파생 1 `T-1423` ([INDEX.md](INDEX.md) 25 행) → 파생 2 `T-1426` ([data-model.md](../architecture/data-model.md) 3 지점) → **파생 3 `T-1429` (api.md 2 지점 — 본 절)**. api.md 는 정본을 복제하는 파생 3 문서 중 **마지막 미동기 문서** 였다. 축 B (UC 범위) 의 계보는 `T-1416` (UC-09 귀속 박제) → `T-1419` (`8 UC` 표기 12 지점 일괄 동기) → **본 절 (링크 범위 표기 잔여 1 지점)** 이다.
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력 그대로)
+
+```
+(i)   축 A 문서 축 전수
+      $ grep -n '[0-9]\+ NestJS module' docs/architecture/api.md
+      43:… [modules.md](modules.md) 의 9 NestJS module (AuthModule / PersistenceModule /
+         UserModule / GithubModule / ConfluenceModule / LlmModule / AssessmentModule /
+         SchedulerModule / WebModule) 안에서 결정 — **신규 module 신설 0**.
+      220:- [docs/architecture/modules.md](modules.md) — 9 NestJS module — 본 문서의 endpoint 가
+          어느 module controller 의 책임인지 mapping
+      → 카운트 표기를 가진 행은 **43 · 220 2 행** (기대값 일치). 그 밖의 행에 `N NestJS module`
+        표기 **0** — 광범위 `module` grep 이 아니라 카운트 표기 보유 행만 전수한 결과다.
+      43 행 괄호 열거를 `/` 로 분해 → AuthModule · PersistenceModule · UserModule ·
+        GithubModule · ConfluenceModule · LlmModule · AssessmentModule · SchedulerModule ·
+        WebModule = **실 열거 9 개**. 표기 `9` 와 열거 `9` 는 **행 안에서 자기정합**
+        (기대 — 표기 9 · 열거 9 일치). 220 행은 열거 없이 카운트만.
+
+(ii)  축 A 정본 축
+      $ sed -n '32,43p' docs/architecture/modules.md | grep -c '^| \*\*'   → 12
+      정본 12 module 명 (표 row 순) — AuthModule / PersistenceModule / UserModule /
+        GithubModule / ConfluenceModule / PermissionDeniedRecordModule / LlmModule /
+        AssessmentModule / AssessmentCollectionModule / AssessmentEvaluationModule /
+        SchedulerModule / WebModule
+      차집합 A — 정본에 있으나 api.md 43 행 열거에 없는 이름: **3 개**
+        `PermissionDeniedRecordModule` · `AssessmentCollectionModule` ·
+        `AssessmentEvaluationModule`   (기대값 일치)
+      차집합 B — api.md 43 행에만 있고 정본에 없는 이름: **0**   (기대값 일치)
+      → 9 + 3 = 12 로 양변이 닫힌다. api.md 열거는 정본의 **진부분집합** 이라 이름 충돌 0.
+      $ sed -n '47,48p' docs/architecture/modules.md
+      "정본 표 미기재 실 shipped module (T-1425 실측 각주) — 위 표에 row 가 없으나 `src/` 에
+       실재하는 module 이 3 개 있다: ExportModule · ImportModule · UserInstanceAccessModule …
+       본 각주는 사실 기록 이지 정본 표 row 도 카운트 대상도 아니다 — 본 문서 산문의 12 module 은
+       위 표 row 12 만 세며 본 각주의 3 개를 포함하지 않는다."
+      → 본 slice 가 대체값으로 **12** (15 아님) 를 쓰는 근거. 각주 3 module 은 계상 밖.
+
+(iii) 축 B
+      $ grep -n 'UC-08-permission-denied.md)' docs/architecture/api.md
+      223:- [docs/use-cases/UC-01-evaluation-execution.md](../use-cases/UC-01-evaluation-execution.md)
+          ~ [UC-08-permission-denied.md](../use-cases/UC-08-permission-denied.md) —
+          **본 문서의 endpoint source** (각 UC §5 sequence + §9 component/module mapping)
+      → 범위 표기는 **223 행 1 곳** (기대값 일치).
+      $ grep -c '9 UC' docs/architecture/api.md   → 7   (행 3 · 12 · 64 · 153 · 208 · 209 · 222)
+      → T-1419 가 이미 동기한 지점이 **7 행** (task 가 대조군으로 명시한 6 행 + References
+        222 행 = 7). 전부 본 slice **무편집 대조군** 이다.
+      $ ls docs/use-cases/UC-0*.md | wc -l   → 9
+      → 실재 UC 파일 **9**. 223 행 범위 종단 `UC-08` 은 실재 UC-09 를 range 밖에 둔다.
+
+(iv)  선례 원문 (화법 승계 판정 재료)
+      INDEX.md 25 행 (T-1423) —
+        "- **주요 module** — [modules.md](../architecture/modules.md) 의 12 NestJS module 명
+          (AuthModule / … / WebModule) 만 사용. 오타 0."
+      data-model.md 40 행 (T-1426) —
+        "- [modules.md](modules.md) — 12 NestJS module 의 책임 분배. 본 문서의 각 entity 가
+          어느 module 의 책임인지 매핑 (§ 2 표 "책임 module" 컬럼)."
+      → 두 선례 모두 **(A) 정본값 in-place 1:1 치환** 이며, 전자는 카운트 + 12 개 전수 열거를
+        함께 확장했다. api.md 43 행은 INDEX 25 행과 **동형** (카운트 + 열거 동시 보유),
+        220 행은 data-model 40 행과 **동형** (References 행 카운트만).
+
+(v)   § 12.15 판별표 — 아래 표
+
+(vi)  baseline
+      $ wc -l  api.md → 230 · audit → 2353 · modules.md → 259 · data-model.md → 193 ·
+               INDEX.md → 123 · components.md → 190
+      $ grep -c '^## ' api.md → 9   ·  grep -cE '^\| (GET|POST|PATCH|PUT|DELETE) ' api.md → 72
+      $ grep -c '^## ' audit  → 12  ·  grep -c '^| REQ-' audit → 66
+      → (vi) 10 값 전부 기대값 일치 (baseline). **축 중단 사유 0** — (i) ~ (iv) 도 전부
+        기대값과 일치해 어느 축도 중단하지 않는다.
+```
+
+**§ 12.15 판별표 — 편집 후보 3 지점 + 대조군**
+
+| 지점 | 성격 | 날짜 · task stamp marker | 판별 | 근거 1 구 |
+| --- | --- | --- | --- | --- |
+| **43** 행 (§ 4 산문 카운트 + 열거) | **파생 서술** (스스로 출처를 `modules.md` 라 밝힘) | **無** (행 안에 시점·task 인용 0) | **in-place 1:1 치환** | 시점 기록 marker 가 없으니 "그때는 참이던 서술" 로 보존할 근거가 없고, 출처를 명시한 파생이라 정본값 치환이 무모순 |
+| **220** 행 (§ 9 References 카운트) | **파생 서술** (modules.md 를 가리키는 pointer) | **無** | **in-place 1:1 치환** | pointer 행의 요약 수치는 대상 문서의 현재값을 가리켜야 하므로 시점 보존 대상이 아님 |
+| **223** 행 (§ 9 References 링크 범위) | **파생 pointer** (UC 파일 실재를 가리킴) | **無** | **in-place 1:1 치환** | 범위 종단은 실재 파일 목록의 현재 최대값이라 시점 기록이 아니라 index 성격 |
+| **3** 행 blockquote | T-0030 산출물 선언 + **T-1419 시점 기록 보유** | **有** (`T-1419 가 … 8 → 9 동기` 명시 + `§ 12.17` 근거 링크) | **무편집** | marker 보유 지점 — 이미 `9 UC` 로 동기돼 있고 재서술은 시점 기록 훼손 |
+| **12 · 64 · 153 · 208 · 209 · 222** 행 | T-1419 동기 완료 지점 (6 행) | 有 (전부 T-1419 · T-1416 인용) | **무편집** | 재서술 금지 (AC 4) — 회귀 0 을 **hunk 부재** 로 증명 |
+
+#### 2 축 대조표 (AC 2 — 축 × 지점 × 정본 근거 × 구획)
+
+| # | 축 | api.md 지점 | 문서 현 서술 | 정본 / 실재 근거 | 구획 | 대체값 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | **A — module 어휘** | **43** (§ 4 산문) | `9 NestJS module (9 개 열거)` | [modules.md](../architecture/modules.md) 32 ~ 43 행 표 row **12** | **② 어긋남 — 근거 확보** | `12 NestJS module` + **12 개 전수 열거** (정본 표 row 순) |
+| 2 | **A — module 어휘** | **220** (§ 9 References) | `9 NestJS module` | 동상 (표 row **12**) | **② 어긋남 — 근거 확보** | `12 NestJS module` (열거 없음 — 원 구조 유지) |
+| 3 | **B — UC 범위** | **223** (§ 9 References) | `UC-01-… ~ UC-08-permission-denied.md` | `ls docs/use-cases/UC-0*.md` = **9** 파일 | **② 어긋남 — 근거 확보** | 범위 종단을 `UC-09-user-defined-period-evaluation.md` 로 |
+| — | 대조군 | **3 · 12 · 64 · 153 · 208 · 209 · 222** | `9 UC` (T-1419 동기 완료) | 동상 (**9** 파일) | **① 정합** | — (무편집) |
+
+**집계** — ① 정합 **7** (대조군 7 행) · ② 어긋남(근거 확보) **3** (43 · 220 · 223, 기대값 일치) · ③ 어긋남(근거 부재) **0** (기대값 일치). ③ 이 0 이므로 **무편집 이월로 넘길 지점은 없다**. ② 3 지점의 대체값은 모두 **정본 표 row 수** 또는 **실재 파일 수** 가 직접 공급하므로 본 slice 안에서 추론 없이 확정된다 (날조 0).
+
+#### 처리 방식 판정 (AC 3 — 4 후보 · 채택 1 · 기각 3)
+
+판정 기준 **4 축** — ① **파생 관계** (본 문서가 스스로 출처를 `modules.md` / UC 파일이라 밝히는 파생 서술인가 — 파생이면 정본값 치환이 무모순), ② **cascade** (`§ 5` 합계 `72 endpoint` / `16 resource prefix` / `9 UC cover` · `§ 7` cross-reference 표 · **3 행 blockquote** 에 새 stale 을 만드는가), ③ **cap** (≤ 300 LOC · 변경 파일 **3 고정**), ④ **선례 일관성** (같은 축을 T-1423 · T-1426 이 이미 처리했으므로 다른 방식이면 파생 3 문서에 서로 다른 규약이 공존하는가).
+
+| 후보 | ① 파생 관계 | ② cascade | ③ cap | ④ 선례 일관성 | 판정 |
+| --- | --- | --- | --- | --- | --- |
+| **(A) 정본값 in-place 1:1 치환** | 3 지점 모두 출처 명시 파생 — 치환이 정본과 무모순 | 신규 stale **0** — 43 · 220 은 module 축이라 endpoint 합계와 무관, 223 은 링크 범위라 `9 UC cover` 표기와 **오히려 정합화** | 3 행 치환 = 3 파일 · 수십 LOC | T-1423 (INDEX 25) · T-1426 (data-model 40) 과 **동일 규약** | **채택** |
+| (B) 원문 보존 + 행-끝 부기 | — | 부기가 길어져 43 행이 열거 2 세대를 갖게 됨 | cap 안 | 같은 축 2 선례가 (A) 라 파생 3 문서에 두 규약 공존 | **기각** — 세 지점 모두 **시점 기록 marker 가 없어** (B') 의 성립 전제 (T-1427 선례) 를 충족하지 않는다 |
+| (C) `§ 9` 말미 각주 블록 신설 | — | 각주 ↔ 본문 이중 관리로 43 행 stale 이 **본문에 그대로 잔존** | cap 안이나 `wc -l` +5 이상 | 파생 3 문서 중 api.md 만 각주 규약 | **기각** — stale 원문을 본문에 남겨 독자가 43 행만 읽으면 여전히 9 를 읽는다 |
+| (D) 무편집 이월 | — | 파생 영향 1 이 **재이월** | 0 LOC | — | **기각** — AC 2 ③ = 0 (근거 완비) 이라 이월 사유가 소멸했다 |
+
+**43 행 괄호 열거 별도 판정** (9 개 유지 / **12 개 전수 확장** / 열거 삭제) — **12 개 전수 확장 채택**. 근거: (a) 카운트만 12 로 바꾸고 열거를 9 로 두면 **한 행 안에서 자기모순** 이라 AC 3 이 자동 기각으로 명시했고, (b) 열거 삭제는 "각 prefix 의 책임 module 이 어느 집합에서 결정되는가" 를 독자가 정본을 열어야만 알게 해 본 행의 기능 (허용 어휘 집합 제시) 을 잃으며, (c) INDEX 25 행 (T-1423) 이 같은 형태 (카운트 + 12 전수 열거) 를 이미 채택해 선례가 있다. 열거 순서는 **정본 표 row 순** 을 그대로 따라 정본 대조를 O(1) 로 만든다.
+
+#### 반영 결과 (AC 4)
+
+| 지점 | 편집 방식 | before → after |
+| --- | --- | --- |
+| **43** | in-place 1:1 치환 (§ 12.15 marker 無) | `9 NestJS module (… 9 개 열거 …)` → `12 NestJS module (AuthModule / PersistenceModule / UserModule / GithubModule / ConfluenceModule / **PermissionDeniedRecordModule** / LlmModule / AssessmentModule / **AssessmentCollectionModule** / **AssessmentEvaluationModule** / SchedulerModule / WebModule)` — 카운트 + 열거 동시, **신규 module 신설 0** 문구 보존 |
+| **220** | in-place 1:1 치환 (marker 無) | `— 9 NestJS module —` → `— 12 NestJS module —`, 나머지 문구 byte 불변 |
+| **223** | in-place 1:1 치환 (marker 無) | `~ [UC-08-permission-denied.md](../use-cases/UC-08-permission-denied.md)` → `~ [UC-09-user-defined-period-evaluation.md](../use-cases/UC-09-user-defined-period-evaluation.md)`, 범위 시작 `UC-01` 과 뒤의 `— **본 문서의 endpoint source** …` 는 불변 |
+
+편집 지점 **정확히 3 행** (AC 2 ② 로 판정된 것만) 이고 전부 행 단위 1:1 치환이라 api.md `wc -l` 은 **230 불변** (AC 4 의 `+2 이내` 충족). 세 지점 모두 § 12.15 판별이 "marker 無 → in-place" 로 일치해 부기 방식이 섞이지 않았다.
+
+#### 무편집 경계 (AC 5)
+
+`src/` · `test/` · `prisma/` · `web/` 일체와 [modules.md](../architecture/modules.md) · [components.md](../architecture/components.md) · [data-model.md](../architecture/data-model.md) · [directory.md](../architecture/directory.md) · [INDEX.md](INDEX.md) · `UC-01` ~ `UC-09` 본문 · `docs/decisions/ADR-*.md` · [PLAN.md](../PLAN.md) · [requirements.md](../requirements.md) 는 **전부 무편집** 이며 `git status --porcelain` 3 파일 밖이라 diff 에 미등장한다. api.md 안에서도 `§ 5` endpoint 표 (66 ~ 153 행) · `§ 7` cross-reference 표 (179 ~ 197 행) · `## 8. Out of scope` 절 · 말미 `Refs:` 줄 · `9 UC` 대조군 7 행은 **hunk 밖** 이다.
+
+#### 파생 영향 (AC 6 — 목록만, 본 slice 편집 금지)
+
+1. **[UC-09](UC-09-user-defined-period-evaluation.md) `§ 5` sequence participant 병기 미판정** — **11 회째 이월**. 후속 slice 소관.
+2. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축** — `ExportModule` / `ImportModule` / `UserInstanceAccessModule` 의 계상 판정은 **ADR 게이트** 선행 (`§ 12.26` 파생 영향 3). 후속 slice 소관.
+3. **외부 package module (`ScheduleModule.forRoot()`) 계상 규약** (`§ 12.26` 파생 영향 4). 후속 slice 소관.
+4. **행 번호 좌표계 → anchor 좌표계 이행** — `§ 12.26` 이 4 회째로 셈했고 본 절 append 로 **5 회째**. 본 절이 43 · 220 · 223 세 행 번호에 전면 의존한 것이 그 누적 근거다. 후속 slice 소관.
+5. **산문 tally ↔ 표 row 수 CI drift-guard spec** (`§ 12.26` 파생 영향 6) — 본 절의 `N NestJS module` 축과 `UC-NN` 범위 종단 축 **둘 다** 같은 spec 의 검사 대상 후보다. 후속 slice 소관.
+6. **각 UC 본문 `§ 9` module 산정 수치의 이중 관리** (`§ 12.26` 파생 영향 7). 후속 slice 소관.
+7. **api.md 43 행 열거에 남는 명칭 귀속 축** — 확장 후 열거에 여전히 `AssessmentModule` (정본 39 행이 **미shipped placeholder** 로 선언) 과 `SchedulerModule` (정본 42 행이 **실 shipped 명은 `SchedulingModule`** 이라 명시) 이 있다. 본 slice 는 **카운트 · 열거 집합** 만 정본과 맞췄고, 개별 명칭의 shipped 정합은 T-1424 가 채택한 `(D) 무편집` / `(B) 병기` 판정을 승계할지 여부와 함께 **후속 slice 소관** 으로 남긴다.
+
+#### closure 선언
+
+본 절로 `§ 12.26` **파생 영향 1** (api.md 223 행 UC 범위) 이 종료된다. 동시에 정본 [modules.md](../architecture/modules.md) 표 row **12** 를 복제하던 파생 3 문서 — [INDEX.md](INDEX.md) (T-1423) · [data-model.md](../architecture/data-model.md) (T-1426) · [api.md](../architecture/api.md) (T-1429, 본 절) — 의 **module 어휘 축이 일괄 closure** 되어, `T-1422` 정본 확정 이후 남아 있던 `9` / `8` 계열 카운트 잔여가 파생 축에서 **0** 이 됐다. 축 B 의 `8 UC` 계열 잔여도 `T-1419` 의 12 지점 + 본 절의 범위 표기 1 지점으로 api.md 안에서 **0** 이다.
+
+#### 불변 검산 (AC 8)
+
+```
+$ wc -l  docs/architecture/api.md → 230 → 230      (in-place 3 행 치환 — 증가 0)
+$ grep -c '^## ' api.md → 9   ·  grep -cE '^\| (GET|POST|PATCH|PUT|DELETE) ' api.md → 72   (불변)
+$ grep -c '9 UC' api.md → 7                        (대조군 7 행 불변 — 회귀 0)
+$ wc -l  modules.md → 259 · data-model.md → 193 · INDEX.md → 123 · components.md → 190
+                                                   (전부 불변 — 무편집 실증)
+$ wc -l  docs/use-cases/REQ-COVERAGE-AUDIT.md → 2353 → 2518   (§ 12.27 append 165 행)
+$ grep -c '^## ' audit → 12  ·  grep -c '^| REQ-' audit → 66   (불변, `###` 만 추가)
+$ git diff -U0 -- docs/architecture/api.md | grep '^@@'
+@@ -43 +43 @@     @@ -220 +220 @@     @@ -223 +223 @@
+   → hunk **3 개** = AC 2 ② 3 지점과 1:1. § 5 endpoint 표 · § 7 표 · 3 · 12 · 64 · 153 ·
+     208 · 209 · 222 행 · § 8 · Refs 줄 전부 hunk 밖 = 무편집 증명
+$ git diff --numstat -- docs/architecture/api.md   →  3  3
+   → 추가 3 · 삭제 3 → 삭제 3 은 전부 치환된 세 행의 in-place 짝 = **순수 삭제 0**
+$ git status --porcelain
+ M docs/architecture/api.md   M docs/use-cases/REQ-COVERAGE-AUDIT.md
+ M docs/tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md   → 정확히 3 파일
+```
+
+변경 파일은 [api.md](../architecture/api.md) · 본 audit · [T-1429 task 파일](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) (`Follow-ups` append — frontmatter `status` 는 STATE single-writer 규약상 driver bookkeeping commit 소관이라 본 commit 에서 무편집) **정확히 3 개** 이며, 합계 diff ≤ 300 LOC 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 **N/A** 다 (AC 9).
+
+#### 한계 —
+
+1. **본 동기는 카운트 · 어휘 집합 축 뿐** — 43 행 열거를 정본 12 명과 집합적으로 일치시켰을 뿐, 각 module 명이 **실 shipped 코드** 와 맞는지는 여전히 미검증이다. 확장 후에도 `AssessmentModule` 은 `src/assessment/` 부재 placeholder 이고 `SchedulerModule` 의 실 디렉토리는 `src/scheduling/` (`SchedulingModule`) 이라, 이 행을 읽고 코드를 찾는 독자는 두 이름에서 헛걸음한다 (파생 영향 7). 정본 표가 그 사실을 각주로 갖고 있어 **문서 축 무모순** 은 성립하지만 **코드 축 정합** 은 별도 slice 다.
+2. **파생이 정본을 복제하는 구조 자체가 잔존** — 본 절은 파생 3 문서를 정본 12 로 맞췄을 뿐 복제 구조를 없애지 않았다. 정본 표에 row 가 하나 추가되는 순간 (파생 영향 2 의 ADR 이 통과하면) **같은 3 문서 4 지점이 동시에 재-stale** 이 되며, 그때는 본 절과 `§ 12.21` · `§ 12.24` 를 그대로 반복해야 한다. 사람 규약으로는 재발을 막을 수 없고 `§ 12.25` · `§ 12.26` 한계 2 와 같은 **CI drift-guard 축** (파생 영향 5) 으로만 닫힌다.
+3. **채택안이 남긴 미해결** — (a) 223 행 범위 표기는 `UC-01 ~ UC-09` 로 맞췄지만 **범위 표기 자체** 가 UC 파일 추가 시 다시 어긋나는 형태라, 종단을 고정 문자열로 두는 한 UC-10 이 생기면 동일 stale 이 재발한다 (열거 대신 "전 UC" 같은 무카운트 화법으로 바꾸는 안은 본 slice 밖). (b) 43 행이 12 개 전수 열거로 길어져 한 행의 가독성이 떨어졌다 — INDEX 25 행 선례와 같은 trade-off 이며 anchor / 표 형태로의 재구성은 파생 영향 4 소관이다. (c) 220 행과 43 행이 **같은 사실 (정본 module 수)** 을 한 문서 안에서 두 번 말하는 이중 관리는 그대로 남았다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source

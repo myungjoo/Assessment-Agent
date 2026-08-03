@@ -88,3 +88,20 @@ planner 사전 확인 (executor 가 AC 1 에서 재측정) — `grep -n '[0-9]\+
 `implementer` (doc-only, 단독).
 
 ## Follow-ups
+
+1. **[UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) `§ 5` sequence participant 병기 판정** — `§ 12.27` 파생 영향 1, **11 회째 이월**.
+2. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축 (ADR 게이트)** — `ExportModule` / `ImportModule` / `UserInstanceAccessModule` 3 module 의 계상 판정 (`§ 12.27` 파생 영향 2).
+3. **외부 package module (`ScheduleModule.forRoot()`) 계상 규약** — `§ 12.27` 파생 영향 3.
+4. **행 번호 좌표계 → anchor 좌표계 이행** — 근거 **5 회 누적** (`§ 12.27` 파생 영향 4). 본 slice 가 43 · 220 · 223 세 행 번호에 전면 의존한 것이 최신 근거.
+5. **산문 tally ↔ 표 row 수 CI drift-guard spec** — `N NestJS module` 축과 `UC-NN` 범위 종단 축 둘 다 같은 spec 후보 (`§ 12.27` 파생 영향 5 · 한계 2).
+6. **각 UC 본문 `§ 9` module 산정 수치의 이중 관리 해소** — `§ 12.27` 파생 영향 6.
+7. **api.md 43 행 열거의 명칭 귀속 축** — `AssessmentModule` (미shipped placeholder) · `SchedulerModule` (실 shipped 명 `SchedulingModule`) 의 shipped 정합 판정 (`§ 12.27` 파생 영향 7 · 한계 1).
+8. **범위 표기 화법 재설계** — 223 행이 고정 종단 (`~ UC-09`) 을 쓰는 한 UC-10 신설 시 동일 stale 재발 (`§ 12.27` 한계 3 (a)).
+
+## 결과 요약 (driver bookkeeping)
+
+- api.md 편집 후보 **3 지점** 을 정본 대조 → **② 어긋남(근거 확보) 3** (`43` · `220` · `223` 행), ① 정합 대조군 7 행, ③ 근거 부재 **0**. 차집합 실측 — 정본 12 − api 9 = `PermissionDeniedRecordModule` · `AssessmentCollectionModule` · `AssessmentEvaluationModule` 3, 역방향 0.
+- 4 후보 중 **(A) 정본값 in-place 1:1 치환** 채택 — (B) 부기는 시점 marker 부재로 전제 불성립, (C) 각주는 stale 본문 잔존, (D) 이월은 근거 완비로 기각. 43 행 괄호 열거는 **12 개 전수 확장** (카운트만 바꾸면 자기모순).
+- 편집 hunk **3 개**, 순수 삭제 **0**, api.md `wc -l` **230 불변** · `^## ` 9 · endpoint row 72 · `9 UC` 7 행 불변 (회귀 0). audit `§ 12.27` 신설 (References 앞 순수 append 165 행, `^## ` 12 · `^| REQ-` 66 불변).
+- `§ 12.26` 파생 영향 1 **closure** + 파생 3 문서 (INDEX · data-model · api) module 어휘 축 **일괄 closure** (T-1422 → T-1423 → T-1426 → T-1429 계보).
+- 변경 3 파일. doc-only · production code 0 LOC 이라 `§ 3.2` direct-mode 면제 (R-110 tester · R-112 4 항목 · `test:cov` 전부 **N/A**, 분기 0).

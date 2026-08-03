@@ -40,7 +40,7 @@
 
 ## 4. Resource model
 
-본 시스템의 endpoint 는 다음 conceptual resource path prefix 로 분리된다. 각 prefix 의 책임 module 은 [modules.md](modules.md) 의 9 NestJS module (AuthModule / PersistenceModule / UserModule / GithubModule / ConfluenceModule / LlmModule / AssessmentModule / SchedulerModule / WebModule) 안에서 결정 — **신규 module 신설 0**.
+본 시스템의 endpoint 는 다음 conceptual resource path prefix 로 분리된다. 각 prefix 의 책임 module 은 [modules.md](modules.md) 의 12 NestJS module (AuthModule / PersistenceModule / UserModule / GithubModule / ConfluenceModule / PermissionDeniedRecordModule / LlmModule / AssessmentModule / AssessmentCollectionModule / AssessmentEvaluationModule / SchedulerModule / WebModule) 안에서 결정 — **신규 module 신설 0**.
 
 | prefix | 책임 module ([modules.md](modules.md)) | 책임 UC | 비고 |
 | --- | --- | --- | --- |
@@ -217,10 +217,10 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 - [docs/PLAN.md](../PLAN.md) Phase P2 의 넷째 bullet (L37) — 본 문서가 cover
 - [docs/architecture/INDEX.md](INDEX.md) — architecture document 목록 + MVA 원칙
 - [docs/architecture/components.md](components.md) — "Backend API" component (본 문서의 책임 component) + Contracts 표 (Web UI ↔ Backend API)
-- [docs/architecture/modules.md](modules.md) — 9 NestJS module — 본 문서의 endpoint 가 어느 module controller 의 책임인지 mapping
+- [docs/architecture/modules.md](modules.md) — 12 NestJS module — 본 문서의 endpoint 가 어느 module controller 의 책임인지 mapping
 - [docs/architecture/directory.md](directory.md) — `src/<module>/<module>.controller.ts` layout — 본 문서의 endpoint 가 디렉토리 어디에 박제될지 conceptual
 - [docs/use-cases/INDEX.md](../use-cases/INDEX.md) — 9 UC backbone 표 (T-1419 실측 `grep -c "^| UC-"` = 9 — [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) 등록분 반영)
-- [docs/use-cases/UC-01-evaluation-execution.md](../use-cases/UC-01-evaluation-execution.md) ~ [UC-08-permission-denied.md](../use-cases/UC-08-permission-denied.md) — **본 문서의 endpoint source** (각 UC §5 sequence + §9 component/module mapping)
+- [docs/use-cases/UC-01-evaluation-execution.md](../use-cases/UC-01-evaluation-execution.md) ~ [UC-09-user-defined-period-evaluation.md](../use-cases/UC-09-user-defined-period-evaluation.md) — **본 문서의 endpoint source** (각 UC §5 sequence + §9 component/module mapping)
 - [docs/use-cases/REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) — uc-covered 49 REQ 의 분류 / gap 0 추적 (2026-08-03 T-1413 재분류로 REQ-004 이 UC-09 로 전이 — 그 이전 시점 값은 48 REQ · gap 이 1 건)
 - [docs/requirements.md](../requirements.md) — REQ-NNN source of truth (REQ-026 ~ REQ-055 위주)
 - [docs/decisions/ADR-0001-stack.md](../decisions/ADR-0001-stack.md) — NestJS / REST / TypeScript 선택 (본 문서의 protocol 기반)
