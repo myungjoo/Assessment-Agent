@@ -2,7 +2,7 @@
 id: T-1432
 title: directory.md `Top-level 디렉토리 트리` ASCII 블록 (21 ~ 50 행) 의 `src/` 하위 11 항목을 실 `src/` 트리와 3 축 대조 후 처리 판정 + audit §12.30
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 230
