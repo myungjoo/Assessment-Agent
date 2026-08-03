@@ -97,3 +97,21 @@ plannerNote: "uc-doc-audit-resync 27 번째 slice — T-1414 Follow-up 1 (의존
 3. **audit §8 161 · 162 행 · §1 18 행의 `gap 1 건` 결론 문장 처리 방침 확정** — T-1413 Follow-up 4 · T-1414 Follow-up 4 이월. §12.10 790 행 한계 2 의 3 지점 중 본 slice 후 **유일하게 남는 1 건**.
 4. **audit §11 References bullet + api.md / data-model.md 의 `8 UC` 표기 일괄 갱신** — T-1414 Follow-up 2 이월 + 본 slice 한계 ②. 시점 기록인지 현행 index 서술인지의 판정이 선행.
 5. **audit 198 행 `INDEX.md 104 행` 표기 최신성 점검** — T-1412 Follow-up 4 · T-1413 Follow-up 3 · T-1414 Follow-up 3 이월.
+
+## 완료 기록 (2026-08-03)
+
+**Status: DONE.** 변경 파일 **정확히 4 개** — `docs/architecture/api.md` (+2/-2) · `docs/architecture/data-model.md` (+1/-1) · `docs/use-cases/REQ-COVERAGE-AUDIT.md` (+45/-0) · 본 task 파일. 3 doc 파일 합계 **삽입 48 / 삭제 3** 으로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이며, 삭제 3 은 전부 in-place 치환의 짝 (api.md 211 · 223 · data-model.md 168) 이라 **순수 삭제 0** 이다 (AC 5).
+
+**AC 1 (api.md 211 행)** — 1 행 in-place 치환. 3 요소 충족 — (i) `gap REQ-004` · `gap 1 건` 표현 제거 후 `2026-08-03 T-1413 재분류로 분류는 uc-covered (UC-09) 이고 gap 은 0 건` 명시, (ii) `UC-09 §5 sequence 가 호명하는 endpoint 는 아직 본 §5 표에 미박제라 여전히 out-of-scope` 잔여 의무 보존, (iii) 근거를 `REQ-COVERAGE-AUDIT.md §12.11 · §12.13` 로 위임. bullet **1 행 유지** · `## 8. Out of scope` 안 위치 (211 행) 불변 · 인접 210 · 212 행 무편집. `… 예정` 전제 문구는 UC-09 실재로 사실이 아니게 돼 남기지 않았고, 그 판정 근거 (날짜 stamp 없는 현행 상태 서술 → §12.3 306 행 append-only 대상 아님) 를 §12.13 에 1 줄 박제했다.
+
+**AC 2 (api.md 223 행)** — `uc-covered 48 REQ 의 분류 / gap 1 (REQ-004) 추적` → `uc-covered 49 REQ 의 분류 / gap 0 추적` + 전이 부기 (`2026-08-03 T-1413 재분류로 REQ-004 이 UC-09 로 전이 — 그 이전 시점 값은 48 REQ · gap 이 1 건`). 옛 값 부기는 검산과 충돌하지 않도록 **옛 리터럴을 재생산하지 않는 표현** 으로 풀어 적었다 (그 사유도 §12.13 에 기록). 링크 target · bullet 순서 · 인접 221 · 222 · 224 행 무편집. 검산 `grep -c "gap 1" docs/architecture/api.md` = **0** · `grep -c "uc-covered 48" docs/architecture/api.md` = **0**.
+
+**AC 3 (data-model.md 168 행)** — AC 1 과 동형 3 요소이되 잔여 의무를 **§2 Entity 표 row 추가 미완** 으로 기술했고, UC-09 가 신규 entity 를 요구하는지 여부는 **판정하지 않고** "UC-09 §5 기준 entity 도출은 후속 slice 소관" 으로만 남겼다 (날조 0). bullet 1 행 · `## 7. Out of scope` 안 위치 (168 행) 불변 · 인접 167 · 169 행 무편집. 검산 `grep -n "REQ-004" docs/architecture/data-model.md` = **168 행 1 건** 이고 그 행에 `gap REQ-004` **미포함**.
+
+**AC 4 (audit §12.13 신설)** — `## 11. References` 바로 앞에 `### 12.13 cascade 밖 P2 artifact 2 종 REQ-004 pointer 동기 (T-1415)` 절 (45 행) 삽입, `grep -c "^## "` = **12** 불변. 구성은 §12.12 화법 승계 — (i) 서두 blockquote (소관 = cascade 6 지점 밖 잔여 pointer closure + 삽입 위치 규약), (ii) 갱신 3 행 기록 각 1 줄 + in-place 인 이유, (iii) §12.10 790 행 한계 2 의 **3 지점 중 2 건 closure · §8 161 행 1 건 잔존**, (iv) 불변 검산 출력 블록 (AC 5 명령 + 실측 그대로), (v) 한계 3 항 (① endpoint / entity 실박제 미완 · 합계 무변, ② `8 UC` 표기 stale 은 후속 소관, ③ 옛 `gap 1 건` 요약 무편집).
+
+**AC 5 (불변 검산)** — `git status --porcelain` 변경 파일 4 개 (위 목록) 이고 `docs/use-cases/INDEX.md` · `docs/PLAN.md` · `docs/requirements.md` · `UC-01` ~ `UC-09` 본문 · `CLAUDE.md` **미등장**. `wc -l` = api.md **229** · data-model.md **190** 불변 (1:1 치환). audit 검산 `grep -c "^| REQ-"` = **66** · `grep -c "^## "` = **12** 불변이며 §3 38 행 · §4 116 행 정합식 (`34 + 15 + 4 + 13 + 0 = 66`) · §5 표 (`49 / 4 / 13 / 0`) · §12.3 표 6 row 는 hunk 밖 무변 (`git diff -U0 | grep '^@@'` = 4 hunk: api 211 · api 223 · data-model 168 · §12.13 삽입).
+
+**AC 6 (R-110 / R-112 면제)** — 본 task 는 `commitMode: direct` + production code **0 LOC** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 "direct-mode doc-only commit 만 본 규칙 면제" 조항으로 tester 호출 (R-110) · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 가 전부 **N/A** 다 (분기 0, architect / tester dispatch 0).
+
+**Out of Scope 준수** — api.md §5 endpoint 표 · 153 행 합계 · §7 cross-reference, data-model.md §2 entity 표 · 38 행 합계, `8 UC` 표기 일체, audit §11 References bullet · §1 18 행 · §6 · §8 · §9 · §10 · §12.1 ~ §12.12 본문 · §12.3 cascade 표 · 각주, INDEX.md · PLAN.md · requirements.md · UC 본문, 재판정 후보 17 row, 코드 계열 전부 **한 글자도 건드리지 않았다**.

@@ -208,7 +208,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 - **외부 webhook receiver** (GitHub webhook / Confluence webhook) — 현재 8 UC §5 sequence 어디에도 호명 없음. P4 외부 통합 task 의 책임.
 - **API versioning policy** (`/api/v1/*`) — 현 시점 unversioned. 필요 시 별도 ADR.
 - **Rate limiting / throttling / quota / CORS specifics** — P4+ 의 책임.
-- **gap REQ-004** (사용자 지정 기간 임의 평가문) — [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) 의 gap 1 건. UC-09 신설 또는 UC-01 확장 후 본 § 5 에 endpoint 추가 예정.
+- **REQ-004** (사용자 지정 기간 임의 평가문) — 2026-08-03 T-1413 재분류로 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) 상 분류는 `uc-covered` ([UC-09](../use-cases/UC-09-user-defined-period-evaluation.md)) 이고 gap 은 0 건이나, UC-09 § 5 sequence 가 호명하는 endpoint 는 아직 본 § 5 표에 미박제라 **여전히 out-of-scope** — 근거 REQ-COVERAGE-AUDIT.md § 12.11 · § 12.13.
 - **PUT 전체 교체 vs PATCH 부분 갱신 선택** — UC-03 §5 / §9 의 `POST/PUT/PATCH/DELETE` 4-method enumeration 중 본 문서는 **PATCH 만 채택** (RFC 5789 — 부분 갱신 표준 + REST 관행). 사용자 의도가 "전체 자원 교체" 인 케이스가 발견되면 별도 row 로 PUT 추가 예정. P3 implementation 에서 controller decorator 선택 확정.
 
 ## 9. References
@@ -220,7 +220,7 @@ resource 이름은 영문 복수 + kebab-case — 자세한 path 규약은 § 5 
 - [docs/architecture/directory.md](directory.md) — `src/<module>/<module>.controller.ts` layout — 본 문서의 endpoint 가 디렉토리 어디에 박제될지 conceptual
 - [docs/use-cases/INDEX.md](../use-cases/INDEX.md) — 8 UC backbone 표
 - [docs/use-cases/UC-01-evaluation-execution.md](../use-cases/UC-01-evaluation-execution.md) ~ [UC-08-permission-denied.md](../use-cases/UC-08-permission-denied.md) — **본 문서의 endpoint source** (각 UC §5 sequence + §9 component/module mapping)
-- [docs/use-cases/REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) — uc-covered 48 REQ 의 분류 / gap 1 (REQ-004) 추적
+- [docs/use-cases/REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) — uc-covered 49 REQ 의 분류 / gap 0 추적 (2026-08-03 T-1413 재분류로 REQ-004 이 UC-09 로 전이 — 그 이전 시점 값은 48 REQ · gap 이 1 건)
 - [docs/requirements.md](../requirements.md) — REQ-NNN source of truth (REQ-026 ~ REQ-055 위주)
 - [docs/decisions/ADR-0001-stack.md](../decisions/ADR-0001-stack.md) — NestJS / REST / TypeScript 선택 (본 문서의 protocol 기반)
 - [docs/decisions/ADR-0003-deployment.md](../decisions/ADR-0003-deployment.md) — monolithic / direct egress / @nestjs/schedule (본 문서의 host model 기반)

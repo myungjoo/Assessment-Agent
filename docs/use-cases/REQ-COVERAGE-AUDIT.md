@@ -905,6 +905,51 @@ $ git diff --numstat
 2. **§11 References bullet 의 UC 개수 표기는 stale** — `docs/use-cases/INDEX.md — 8 UC backbone` · `UC-01 ~ UC-08 — 8 UC 본문` 2 줄이 UC-09 실재와 어긋나나, cascade 6 지점 밖이고 시점 기록인지 현행 index 서술인지 판정이 선행돼야 해 **후속 slice 소관** 이다 (본 slice 무편집).
 3. **재판정 후보 밖 49 row 는 여전히 미재판정** — §12.8 한계 1 · §12.9 한계 4 · §12.11 한계 3 이 그대로 유효하다. 본 slice 는 판정을 **1 건도 하지 않았고** 수치를 옮겨 적기만 했다.
 
+### 12.13 cascade 밖 P2 artifact 2 종 REQ-004 pointer 동기 (T-1415)
+
+> 본 절은 [T-1415](../tasks/T-1415-arch-doc-req004-pointer-resync.md) 가 §12.3 cascade **6 지점 밖** 에 남아 있던 REQ-004 pointer 3 행 — [api.md](../architecture/api.md) 211 · 223 행 · [data-model.md](../architecture/data-model.md) 168 행 — 을 §12.11 이 확정한 4 값 (`uc-covered 49 / cross-cutting 4 / infrastructure 13 / gap 0 = 66`) 에 맞춰 동기한 기록이다. 본 절도 §12.12 와 같이 수치를 **옮겨 적기만** 했고 audit 문서 안의 분류·수치는 한 건도 재판정·재계산하지 않았다. **삽입 위치는 §12.12 마지막 행 뒤 · §11 References 앞** 이고 `###` 이라 `## ` heading count 12 가 불변이다 — §12.6 ~ §12.12 가 승계해 온 위치 규약 그대로다.
+
+#### 갱신 3 행 기록 — 편집 방식은 전부 in-place 치환
+
+- **api.md 211 행** (`## 8. Out of scope` 목록) — `gap REQ-004` · `gap 1 건` 표현과 `UC-09 신설 또는 UC-01 확장 후 … 예정` 전제 문구를 걷어내고, 2026-08-03 T-1413 재분류로 분류가 `uc-covered` (UC-09) · gap 0 건임을 적되 **UC-09 §5 sequence 가 호명하는 endpoint 가 아직 api.md §5 표에 미박제** 라 여전히 out-of-scope 이라는 잔여 의무를 보존했다. 근거는 §12.11 · 본 절로 위임. bullet 1 행 · 목록 내 위치 (211 행) 불변.
+- **api.md 223 행** (`## 9. References` 의 audit bullet) — `uc-covered 48 REQ 의 분류 / gap 1 (REQ-004) 추적` → `uc-covered 49 REQ 의 분류 / gap 0 추적` + 전이 사실 부기. 부기 문구는 아래 검산 (`grep -c "gap 1"` = 0 · `grep -c "uc-covered 48"` = 0) 과 정합하도록 옛 값을 `48 REQ · gap 이 1 건` 으로 풀어 적었다 — 옛 리터럴을 그대로 재생산하면 검산이 깨지기 때문이다. 링크 target · bullet 순서 · 인접 References bullet 은 무편집.
+- **data-model.md 168 행** (`## 7. Out of scope` 목록) — api.md 211 행과 동형이되 잔여 의무를 **§2 Entity 표 row 추가 미완** 으로 적었고, UC-09 가 신규 entity 를 요구하는지 여부 자체는 **판정하지 않고** "UC-09 §5 기준 entity 도출은 후속 slice 소관" 으로만 남겼다 (날조 0). bullet 1 행 · 위치 (168 행) 불변 · 인접 167 · 169 행 무편집.
+
+세 행 모두 날짜 stamp 가 없는 **living document 의 현행 상태 서술** (`Out of scope` 목록 · `References` bullet) 이라 §12.3 306 행의 append-only 보존 대상이 **아니다** — append-only 는 "그 시점의 판정 / 요약" 문장에만 걸린다. 그래서 INDEX.md · PLAN.md (§12.12 (e) · (f)) 처럼 append 하지 않고 **in-place 치환** 하는 편이 규약상 맞는 처리다.
+
+#### §12.10 790 행 한계 2 의 소진 상태
+
+한계 2 가 "승계 task 를 실제로 생성하는 slice 가 한꺼번에 갱신하는 편이 경제적" 이라며 예고한 **3 지점 중 2 건** (api.md 211 행 · data-model.md 168 행) 이 본 slice 로 closure 됐고, **§8 161 행 1 건만 잔존** 한다 — 그 행은 시점 기록인지 현행 결론인지의 처리 방침 확정이 선행돼야 해 본 slice 밖이다 (Follow-up 3).
+
+#### 불변 검산 (doc-only, R-112 대체)
+
+```
+$ wc -l docs/architecture/api.md                             → 229   (1:1 치환 2 건이라 불변)
+$ wc -l docs/architecture/data-model.md                      → 190   (1:1 치환 1 건이라 불변)
+$ grep -c "gap 1"         docs/architecture/api.md           → 0
+$ grep -c "uc-covered 48" docs/architecture/api.md           → 0
+$ grep -n "REQ-004"       docs/architecture/data-model.md    → 168 (1 건 · `gap REQ-004` 미포함)
+$ grep -c "^\| REQ-" docs/use-cases/REQ-COVERAGE-AUDIT.md    → 66    (불변)
+$ grep -c "^## "     docs/use-cases/REQ-COVERAGE-AUDIT.md    → 12    (불변, `###` 만 추가)
+$ git diff -U0 | grep '^@@'
+@@ -211 +211 @@        (api.md 211 행 — 1:1 치환)
+@@ -223 +223 @@        (api.md 223 행 — 1:1 치환)
+@@ -168 +168 @@        (data-model.md 168 행 — 1:1 치환)
+@@ -907,0 +908,45 @@   (§12.13 삽입 — §12.12 마지막 행과 §11 References 사이)
+$ git diff --numstat
+2       2       docs/architecture/api.md
+1       1       docs/architecture/data-model.md
+45      0       docs/use-cases/REQ-COVERAGE-AUDIT.md
+```
+
+3 doc 파일의 **삭제 열 합 = 3** 이고 전부 in-place 치환의 짝이라 **순수 삭제 0** (audit 는 순수 append 라 삭제 0). 변경 파일은 api.md 1 + data-model.md 1 + audit 1 + 본 task 파일 1 = **4 개** 로 [CLAUDE.md](../../CLAUDE.md) §3 상한 (≤ 300 LOC / ≤ 5 파일) 안이다. `docs/use-cases/INDEX.md` · `docs/PLAN.md` · `docs/requirements.md` · UC-01 ~ UC-09 본문 · `CLAUDE.md` 는 `git status --porcelain` 에 등장하지 않는다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A** 이며, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 N/A 다.
+
+#### 한계 —
+
+1. **UC-09 의 endpoint / entity 실박제는 미완** — 본 slice 는 pointer 문장만 동기했고, api.md §5 표의 72 endpoint / 16 prefix 합계 (153 행) 와 data-model.md §2 의 13 entity 합계 (38 행) 는 **무변** 이다. UC-09 §5 sequence 해독 → endpoint row 추가 · entity 도출 판정은 각각 후속 slice 소관이다.
+2. **`8 UC` 표기 stale 은 그대로** — §11 References bullet 의 `8 UC backbone` · `UC-01 ~ UC-08 — 8 UC 본문` 과 api.md 3 · 12 · 64 행 · data-model.md 3 · 38 행의 `8 UC` 표기가 9 UC 실재와 어긋나나, REQ-004 pointer 와 별개 축이고 문서 전반 일괄 판정이 선행돼야 해 **후속 slice 소관** 이다 (§12.12 한계 2 존속, 본 slice 무편집).
+3. **옛 `gap 1 건` 요약은 여전히 무편집** — §1 18 행 · §8 160 ~ 161 행 · §9.4 188 행의 결론 문장은 각 시점 판정의 기록이라 §12.3 306 행 규약대로 보존했다 (§12.12 한계 1 존속). 본 slice 가 in-place 로 고친 3 행은 시점 기록이 아니라 현행 상태 서술이라는 점에서 이들과 성격이 다르다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
