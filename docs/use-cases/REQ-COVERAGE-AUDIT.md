@@ -3048,6 +3048,115 @@ $ git status --porcelain → M directory.md · M REQ-COVERAGE-AUDIT.md · M T-14
 3. **보존 판정이 남긴 독자 부담** — 표 본문은 그대로라 P3+ implementer 는 여전히 `entities/` · `guards/` · `adapters/` · `repositories/` 지시를 만나고, 그중 셋이 flat 파일로 이미 실현됐다는 사실은 각주 3 행을 읽어야만 안다.
 4. **flat suffix 축의 탐지 한계** — 본 절의 flat 측정은 **이름 규약 (`*.guard.ts` · `*.repository.ts` · `*-adapter.service.ts`) 에 의존** 한다. AC 1 (iii) 에서 `*.adapter.ts` 0 만 보고 "adapters/ 미shipped" 로 갈 뻔한 것이 그 증거이며, 다른 이름으로 실현된 책임은 여전히 미탐지일 수 있다.
 
+### 12.32 directory.md sub-structure 표 `용도` 컬럼 6 서술 ↔ 실 파일 책임 대조 — 원문 보존 + 각주 1 블록 (T-1434)
+
+> **본 절의 위치** — `§ 12.31` 은 sub-structure 축 closure 를 선언하면서 **파생 영향 8** 로 "표 `용도` 컬럼 서술 ↔ 실 파일 내용 (책임) 대조" 를 목록만 남겼고, 같은 절 **한계 1** 도 "본 대조는 sub-dir 이름 축 + flat suffix 축뿐" 이라고 잔여를 명시했으며 [directory.md](../architecture/directory.md) 79 행 각주 본문도 같은 문장을 박제했다. 본 절이 그 위임을 실행해 directory.md 의 **마지막 미검증 면 (서술 내용 축)** 을 닫는다. **계보** — `T-1422` → `T-1423` → `T-1426` → `T-1429` → `T-1430` (표 축) → `T-1431` (pointer 축) → `T-1432` (트리 축) → `T-1433` (sub-structure **이름 축**) → **`T-1434` (본 절 — sub-structure **서술 내용 축**)**. 앞 4 축이 이름 · 좌표의 **일치** 를 봤다면 본 축은 서술의 **참·거짓** 을 보므로 판정 enum 이 `참 / 부분참 / 거짓` 3 값으로 갈린다.
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력 그대로)
+
+```
+(i)   서술 축 전수 — $ sed -n '68,75p' docs/architecture/directory.md → 6 row 의 `용도` 컬럼이 **검증 가능 12**
+      (dto 2 · entities 2 · guards 2 · providers 1 · adapters 3 · repositories 2) 와 **검증 불가 3** (providers ·
+      adapters 의 범주 서술 2 + repositories "domain-cohesion 유지" — 형태 무관 / 설계 의도, AC 2 표 미등재) 로 갈린다.
+(ii)  providers/ 축 — $ ls src/llm/providers/*.adapter.ts → anthropic · azure-openai · google-gemini ·
+      openai-compatible 의 `.adapter.ts` **4** (기대 일치 · 표 서술 "5" 와 -1) · $ grep -n "custom\|OpenAI-호환\|
+      openai-compatible" …/openai-compatible.adapter.ts | head -5 → 1 · 13 · 114 행 "OpenaiCompatibleAdapter —
+      custom/openai(OpenAI Chat Completions 호환)" · "두 provider 가 본 wire 포맷 공유" ⇒ **통합 근거 파일 안 확인**.
+(iii) repositories/ 축 — $ grep -n "async \w*(" src/user/user.repository.ts → create · findByEmail · findById ·
+      updateRole · countAll · findAll (**6**, 표 예시 findActiveByGroupId **부재**) · $ grep -rn "findActiveByGroupId" src/ | wc -l → **0** (repo 전역 부재, 기대 일치)
+(iv)  나머지 4 축 — $ ls src/*/*.entity.ts → 빈 출력 (0, T-1433 승계) | $ grep -rn "ecode" src/github/ | wc -l →
+      **31** (기대 0 과 다름 ⇒ 3-instance 라우팅 **shipped**, "0 이면 미shipped" 전건 불성립) · 보강 $ grep -rn
+      '"com"' src/github/ | wc -l → **0** · github-instance-config.ts 34 행 실 예시 key = "public" / "sec" ⇒ key
+      이름 1/3 불일치 | $ ls -d src/*/dto/ → **8** · $ ls src/*/*.controller.ts → **19** (보유 module 10) ⇒ 차집합
+      = controller 보유 · dto 미보유 **2** (permission-denied · user-instance-access) · 역방향 **0** | $ ls
+      src/auth/*.guard.ts → jwt-auth · roles (**2**) · 11 ~ 14 행 "SuperAdmin ⊇ Admin ⊇ User" ⇒ guards/ 서술 참.
+(v)   공통 4 항목 산문 축 (보조, 59 ~ 64 행) — $ ls src/*/*.{module,controller,service,service.spec}.ts →
+      **14 · 19 · 51 · 51** (기대 일치). module 14 는 T-1430 과 일치하나 controller 19 · service 51 은 "module 당 1 개" 전제와 배수 불일치 (1.4 · 3.6 배).
+(vi)  외부 참조 축 (보조 — 존재 여부만, 내용 정합은 범위 밖) — $ grep -c "REQ-038" requirements.md → **2** ·
+      "REQ-044" → **1** · $ ls docs/decisions/ADR-0002-db.md → 실재 (raw text 금지 = 29 · 48 행 REQ-032) ·
+      $ grep -c "GitHub Adapter 묶음 결정" components.md → **0** (실 문구 = 3 행 "… 3-instance 묶음 결정") ⇒ 대상
+      실재 · 인용 문구만 1 낱말 차.
+(vii) baseline — $ wc -l directory.md 191 · audit 3064 · modules.md 259 | $ grep -c '^## ' directory.md 10 ·
+      audit 12 | $ grep -c '^| REQ-' audit 66 | $ grep -c '^### 12\.' audit 31 → 7 값 전부 일치, 중단 지점 **0** ((iv) 의 ecode 31 은 조건절 전건 불성립이라 축 중단 사유가 아니다).
+```
+
+**지점 판정표 (AC 2)** — 판정 축 ① **문서 성격** (3 · 19 · 55 행이 본 문서를 T-0021 blueprint 로 규정하는데 `용도` 서술을 고치면 자기모순인가) · ② **`§ 12.15` 정합** (시점 기록 append-only 대상인가) · ③ **선례** (`§ 12.28` 표 축 · `§ 12.30` 트리 축 · `§ 12.31` 이름 축이 같은 문서에서 3 회 채택한 "원문 보존 + 실측 각주" 화법의 서술 축 적용 가능성).
+
+| row | claim 1 구 | 실측 결과 | 판정 | 처리 | 근거 1 구 |
+| --- | --- | --- | --- | --- | --- |
+| `dto/` | "`class-validator` decorator" 부착 DTO class | `src/*/dto/*.ts` **82** 중 class-validator import **64** | 참 | 무편집 | ③ 책임 · 형태 모두 shipped 라 손댈 근거 0 |
+| `dto/` | "[REQ-038] 조회 endpoint 의 query DTO 등" | `grep -c "REQ-038" requirements.md` **2** (대상 실재) | 참 (존재 축) | 무편집 | 내용 정합 대조는 범위 밖 (AC 7 ⑦) |
+| `entities/` | "domain entity 또는 Prisma generated type 의 re-export wrapper" | `ls src/*/*.entity.ts` **0** — 책임 자체 미shipped | **거짓** | 원문 보존 + T-1433 각주 판정 승계 | ② 79 행 각주가 이미 박제 — 같은 사실의 각주 2 개는 중복 |
+| `entities/` | "raw text 컬럼 0 ([ADR-0002] §2)" | ADR-0002-db.md 실재 (29 · 48 행 REQ-032 raw text 금지) | 참 (존재 축) | 무편집 | pointer 대상 실재 확인으로 충분 |
+| `guards/` | "NestJS RBAC guard (`@UseGuards(RolesGuard)`)" | `src/auth/roles.guard.ts` 실재 | 참 | 무편집 | ③ 형태만 flat — 형태 축은 T-1433 각주 소관 |
+| `guards/` | "[REQ-044] 의 3 권한 (SuperAdmin / Admin / User)" | requirements.md hit **1** + roles.guard.ts 11 ~ 14 행 위계 박제 | 참 | 무편집 | 3 권한 이름 · 포함관계까지 코드와 일치 |
+| `providers/` | "5 LLM provider — custom / Azure OpenAI / Anthropic / Google Gemini / OpenAI" | `*.adapter.ts` **4** — custom + OpenAI 가 `openai-compatible` 1 파일로 통합 | **부분참** | 원문 보존 + 각주 부기 | ③ 5 종 **책임** 은 전부 shipped 이고 파일 수만 4 — 5 번째 파일 신설 오도를 각주가 차단 |
+| `adapters/` | "github 3 instance (`com` / `sec` / `ecode`)" | ecode hit **31** (라우팅 shipped) · `"com"` hit **0** · 실 예시 key `public` | **부분참** | 원문 보존 + 각주 부기 | ③ 3-instance 축은 참, key 이름 1/3 만 다름 — 지우면 shipped 사실이 소실 |
+| `adapters/` | "단일 adapter + sub-config 로 라우팅" | `github-adapter.service.ts` 1 + `github-instance-config.ts` 실재 | 참 | 무편집 | 라우팅 설계 서술이 코드와 일치 |
+| `adapters/` | [components.md](../architecture/components.md) "GitHub Adapter 묶음 결정" 인용 | 완전일치 **0**, 실 문구 = "GitHub Adapter **3-instance** 묶음 결정" (3 행) | **부분참** (pointer) | 원문 보존 + 각주 1 구 | ① 시점 인용이라 문구 교정도 소급 재작성 — 각주로 실 문구만 병기 |
+| `repositories/` | "Prisma client wrapping repository" | `UserRepository` 가 `PrismaService.user` delegate 에 1:1 forwarding | 참 | 무편집 | 책임 서술이 코드와 일치 (형태만 flat 13 파일) |
+| `repositories/` | 예시 메서드 "`UserRepository.findActiveByGroupId(...)`" | `grep -rn … src/` **0** — 전역 부재, 실 surface 6 | **거짓** | 원문 보존 + 각주 부기 | ③ 오도 risk 최대 — 있는 API 로 오인하면 없는 심볼을 호출한다 |
+
+**"거짓" 과 "부분참" 의 구분 1 구** — `repositories/` 의 `findActiveByGroupId` 는 **예시 메서드가 repo 전역에 없어** 독자가 "이미 있는 API" 로 오인하는 순간 없는 심볼을 호출한다 (**거짓**). 반면 `providers/` 의 "5 provider" 와 `adapters/` 의 "3 instance" 는 **책임이 전부 shipped 이고 파일 수 · key 이름만 어긋나** 오도의 결과가 "중복 파일 신설" · "잘못된 env key 기대" 로 한 단계 약하다 (**부분참**). 같은 "불일치" 라도 독자 손해의 종류가 달라 각주 문장도 전자는 부재 사실을, 후자는 통합 근거 · 실 key 를 각각 다르게 적었다.
+
+#### 처리 방식 판정 (AC 3 — 4 후보 · 채택 1 · 기각 3)
+
+판정 축 **4** — ① `§ 12.15` 정합 · ② 독자 오도 risk · ③ cap (≤ 300 LOC · 파일 **3 고정**) · ④ 선례 일관성. **cap 초과 후보 0** 이라 split 제안 없음. (B) vs (C) 의 실질 쟁점은 "표 직후 blockquote 2 개의 가독성" 인데, 본 문서는 각 각주 header 에 **task ID 를 명시하는 attribution 규약** (52 · 77 · 104 행) 을 3 회 지켜왔고 blockquote 는 빈 줄로 분리되면 별도 블록으로 렌더되므로 (B) 를 채택했다.
+
+| 후보 | ① § 12.15 정합 | ② 오도 risk | ③ cap | ④ 선례 일관성 | 판정 |
+| --- | --- | --- | --- | --- | --- |
+| (A) `용도` 컬럼 in-place 재작성 | **위반** — 3 · 19 · 55 행의 T-0021 blueprint 자기규정과 정면 모순 | 해소되나 부분참 2 를 "4 provider" · "public/sec/ecode" 로 고치면 **현재 좌표로의 소급 재작성** | 6 row 중 4 셀 치환 (cap 자체는 안) | 같은 문서 3 축 (`§ 12.28` · `§ 12.30` · `§ 12.31`) 이 3 회 보존 + 각주를 채택한 것과 불일치 | **기각** — ① 위반 |
+| **(B) 표 원문 무편집 + T-1433 각주 (79 행) 뒤에 서술 축 각주 blockquote 1 신설** | **정합** — 시점 기록 보존, 사실만 append | **해소** — 거짓 2 · 부분참 3 이 표 바로 아래에서 박제 | +4 행 · 파일 3 | 3 회 화법의 4 번째 적용이면서 **각주 header 의 task attribution 규약 유지** | **채택** |
+| (C) T-1433 각주 블록에 1 ~ 2 행 append | 정합 | 해소 | +2 행 · 파일 3 | **미흡** — 블록 header 가 "(T-1433 실측 각주) … 이름 축" 이라 서술 축 사실을 그 안에 넣으면 **misattribution** 이고, 79 행의 "별도 slice 소관" 위임 문장과 한 블록에서 충돌 | **기각** — ④ |
+| (D) 전 지점 무편집 + audit 기록만 | 정합 | **최대** — 독자는 directory.md 만 보고 `findActiveByGroupId` 를 호출하거나 5 번째 provider adapter 를 신설한다 | 0 LOC | 3 축이 각주로 닫힌 선례와 불일치 — 서술 축만 재이월 | **기각** |
+
+#### 반영 결과 (AC 4) + 무편집 경계
+
+| 지점 | 편집 방식 | 내용 |
+| --- | --- | --- |
+| [directory.md](../architecture/directory.md) T-1433 각주 직후 (구 79 행 뒤 → 신 **81 ~ 84** 행) | blockquote **3 행** 순수 append (+ 구분 빈 줄 1) | 검증 가능 12 / 불가 3 이분 + 판정 분포 (참 7 · 부분참 3 · 거짓 2) + 거짓 2 (findActiveByGroupId 0 · entities 승계) + 부분참 3 (providers 4 · `com` key 0 · components 문구) + 참 7 요약 + 산문 축 (14 · 19 · 51 · 51) 무편집 선언 + 99 행 사본 잔여 |
+
+`wc -l` 191 → **195** (+4, 상한 +4 충족) 이고 표 본문 (68 ~ 75 행) **내부 편집 0** · 공통 4 항목 산문 (59 ~ 64 행) **무편집** (AC 4 다섯째 bullet 의 기본값 — AC 1 (v) 가 불일치를 실증했으나 채택안 (B) 가 그 축을 각주 1 구로만 흡수) 이다. **무편집 경계** — directory.md 시점 선언 3 지점 (3 · 19 · 55 행) · ASCII 트리 + T-1432 각주 (21 ~ 53 행) · 표 68 ~ 75 행 내부 · T-1433 각주 77 ~ 79 행 · `PersistenceModule` 단락 (구 81 ~ 86 행) · `## 9 module 별 디렉토리 mapping` 표 + T-1430 각주 (구 88 ~ 105 행, **99 행 5 provider 사본 포함**) · 구 109 행 이후 전 구간 · `## References` · `Refs:` 말미, 그리고 [modules.md](../architecture/modules.md) · [components.md](../architecture/components.md) · [api.md](../architecture/api.md) · [data-model.md](../architecture/data-model.md) · `docs/architecture/INDEX.md` · `docs/architecture/p3-*.md` · [INDEX.md](INDEX.md) · `UC-01` ~ `UC-09` 본문 · `docs/decisions/ADR-*.md` · [PLAN.md](../PLAN.md) · [requirements.md](../requirements.md) · `src/` · `test/` · `prisma/` · `web/` · `scripts/` 는 전부 무편집이며 3 파일 밖이라 diff 에 미등장한다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **[UC-09](UC-09-user-defined-period-evaluation.md) `§ 5` sequence participant 병기 미판정** — **16 회째 이월**. 후속 slice 소관.
+2. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축** — ADR 게이트 선행. 후속 slice 소관.
+3. **행 번호 좌표계 → anchor 좌표계 이행** — **10 회째**. 본 절도 30 개 이상 행 번호에 의존했다. 후속 slice 소관.
+4. **산문 tally ↔ 표 row 수 / 트리 항목 수 / sub-dir 종 수 / provider 파일 수 CI drift-guard spec**. 후속 slice 소관.
+5. **신규 — mapping 표 99 행 LlmModule row 의 5 provider 파일명 열거** (`custom.provider.ts` … `openai.provider.ts` — 실 `*.adapter.ts` **4** 와 이름 규약 · 개수가 둘 다 다른, 본 slice 와 동일 claim 의 두 번째 사본). mapping 표 소관 후속 slice.
+6. **[components.md](../architecture/components.md) 11 행 8 열거의 forward pointer 부기** (T-1431 잔여). 후속 slice 소관.
+7. **표 외부 참조 3 (`REQ-038` · `ADR-0002 §2` · components.md "GitHub Adapter 묶음 결정") 의 내용 정합 대조** — 본 slice 는 존재 여부 + 인용 문구까지만 봤다. 후속 slice 소관.
+8. **각 UC 본문 `§ 9` module 산정 수치의 이중 관리**. 후속 slice 소관.
+
+#### closure 선언
+
+[directory.md](../architecture/directory.md) 의 정본 대조 축은 **표** (`§ 12.28`) · **pointer** (`§ 12.28` in-place) · **트리** (`§ 12.30`) · **sub-structure 이름** (`§ 12.31`) · **sub-structure 서술** (본 절) **5 면에서 모두 닫혔다** — 다섯 면 각각에 실측 기반 대조가 박제됐고 미판정 축은 **0** 이다. **닫히지 않은 잔여 2**: (a) mapping 표 99 행의 5 provider 파일명 열거 (파생 영향 5 — 같은 claim 의 두 번째 사본이라 한 문서 안에서 **부분적으로만 각주된 상태**), (b) `용도` 컬럼의 **검증 불가 claim 3** (설계 의도) — 실측으로 참·거짓을 가릴 수 없어 stale 잔여가 아니라 **범위 밖 항목** 이다.
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l directory.md 191 → 195 (+4, 상한 +4) | modules.md 259 → 259 (무편집) | audit 3064 → 3173
+  (+109 = 본 절 108 행 + 구분 빈 줄 1 ⇒ 절 자체가 cap 110 안)
+$ grep -c '^## ' directory.md → 10 (불변) | audit → 12 (불변, `###` 만 추가) | $ grep -c '^| REQ-' audit → 66
+  (불변) | $ grep -c '^### 12\.' audit → 31 → 32 (본 절 1 개만 증가)
+$ git diff -U0 -- docs/architecture/directory.md | grep '^@@' → @@ -80,0 +81,4 @@ ⇒ hunk **1 개** = AC 4 허용
+  구간 (T-1433 각주 직후) 뿐 — 3 · 19 · 55 행 · 59~64 산문 · 68~75 표 내부 · 77~79 T-1433 각주 · 구 81~86
+  Persistence · 구 88~105 mapping 표 (99 행 포함) · 구 109 행 이후가 전부 hunk 밖
+$ git diff --numstat → 4 0 (directory.md) · 109 0 (audit 순수 추가) · 8 1 (task 파일) ⇒ 전체 삭제 1 행 = task
+  파일 `## Follow-ups` placeholder 의 in-place 치환 짝 ⇒ **순수 삭제 0**
+$ git status --porcelain src/ test/ prisma/ web/ → (빈 출력)   코드 무변경 실증
+$ git status --porcelain → M directory.md · M REQ-COVERAGE-AUDIT.md · M T-1434 task 파일 = 3 파일 (상한 3)
+```
+
+합계 diff ≤ 300 LOC · 파일 3 으로 [CLAUDE.md](../../CLAUDE.md) §3 상한 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A**, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 **N/A** 다 (AC 8).
+
+#### 한계 —
+
+1. **본 대조는 검증 가능 claim 축뿐** — `용도` 컬럼의 **검증 불가 3** (`domain-cohesion 유지` 등 설계 의도 · 형태 무관 범주 서술) 의 **타당성** 은 미검증이다. `repositories/` 의 "domain module 안에 두어 domain-cohesion 유지" 는 flat 13 파일로 실현됐는데 그 의도가 지켜졌는지조차 본 축으로는 판정 불가다.
+2. **같은 claim 의 두 번째 사본이 미각주** — 99 행 LlmModule row 는 5 provider 를 **파일명까지** 열거하고 그 파일명 (`custom.provider.ts` 등) 은 실 `*.adapter.ts` 와 이름 규약마저 다르다. mapping 표 소관 (파생 영향 5) 이라 본 slice 가 닫지 않아 **한 문서 안에서 부분적으로만 각주된 상태** 가 남는다.
+3. **blueprint 서술 ↔ 코드 drift 는 시점 기록으로만 흡수** — provider adapter 가 1 개 추가되거나 `findActiveByGroupId` 가 실제로 구현되는 순간 본 각주의 `4` · `0` · `6` 수치가 즉시 재-stale 이 된다. 사람 규약으로 막을 수 없고 파생 영향 4 의 **CI drift-guard 축** 으로만 닫힌다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source

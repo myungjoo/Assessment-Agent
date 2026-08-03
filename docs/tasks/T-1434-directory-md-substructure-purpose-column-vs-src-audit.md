@@ -80,6 +80,13 @@ planner 사전 확인 (executor 가 AC 1 에서 전부 재측정) — `용도` �
 
 `implementer` (doc-only, 단독).
 
+## 완료 기록
+
+- **AC 3 채택안 = (B)** — 표 (68 ~ 75 행) · 공통 4 항목 산문 (59 ~ 64 행) **원문 무편집** + T-1433 각주 (79 행) 직후에 서술 축 각주 blockquote **3 행** 신설 ([directory.md](../architecture/directory.md) `wc -l` 191 → **195**, +4, 상한 +4 충족). (A) 는 3 · 19 · 55 행의 T-0021 시점 blueprint 선언과 자기모순 (`§ 12.15` 위반), (C) 는 "(T-1433 실측 각주) 이름 축" header 블록에 서술 축 사실을 넣는 **misattribution** + 79 행 위임 문장과의 한 블록 충돌, (D) 는 오도 risk 최대 (없는 `findActiveByGroupId` 호출 · 5 번째 provider adapter 신설) 라 각각 기각.
+- **실측 (AC 1)** — `용도` 컬럼 claim 이 **검증 가능 12 · 검증 불가 3** 으로 갈리고 전자의 판정은 **참 7 · 부분참 3 · 거짓 2**. 거짓 2 = `findActiveByGroupId` (`grep -rn … src/` **0**, 실 surface 6) · `entities/` re-export wrapper (`*.entity.ts` **0**, T-1433 승계). 부분참 3 = `providers/` "5 provider" vs `*.adapter.ts` **4** (custom + OpenAI → `openai-compatible` 통합, 파일 1 · 13 · 114 행 주석이 근거) · `adapters/` key `com` **0** (실 예시 `public`) · components.md 인용 문구 1 낱말 차. **기대 정정 1** — `grep -rn "ecode" src/github/` = **31** 이라 "0 이면 3 instance 미shipped" 조건절의 전건이 불성립 (라우팅은 shipped). 보조 축 — 산문 4 항목 **14 · 19 · 51 · 51** · 외부 pointer 3 전부 대상 실재. baseline 7 값 전부 일치 (중단 지점 0).
+- **audit `### 12.32` 신설** — `## 11. References` 앞 순수 append **108 행** (cap 110 안, audit `wc -l` 3064 → **3173** = 절 108 + 구분 빈 줄 1), `^## ` **12** · `^| REQ-` **66** 불변 · `^### 12\.` 31 → **32**, `modules.md` 259 무편집. 변경 파일 **3** · `git diff --numstat` = `4 0` · `109 0` · `8 1` (삭제 1 행 = 본 파일 Follow-ups placeholder 치환 짝 ⇒ 순수 삭제 0) · `git status --porcelain src/ test/ prisma/ web/` 빈 출력.
+- **closure + AC 8** — directory.md 대조 축이 **표 · pointer · 트리 · sub-structure 이름 · sub-structure 서술 5 면 전부** 닫혔다 (`§ 12.32` closure 선언). 잔여는 mapping 표 99 행 사본 (파생 영향 5) 과 검증 불가 claim 3 (범위 밖) 뿐. `commitMode: direct` + production code **0 LOC** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 doc-only 면제로 R-110 tester 호출 · R-112 4 항목 (happy / error / branch / negative) · `pnpm test:cov` 전부 **N/A** (분기 0).
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append.)
+- **[REQ-COVERAGE-AUDIT § 12.32](../use-cases/REQ-COVERAGE-AUDIT.md) 파생 영향 8 항** 이 정본 목록 — 특히 신규 ⑤ mapping 표 99 행 LlmModule row 의 5 provider 파일명 열거 (본 slice 와 동일 claim 의 두 번째 사본, 파일명 규약마저 실 `*.adapter.ts` 와 다름), ④ provider 파일 수 · sub-dir 종 수 CI drift-guard spec (재-stale 을 막는 유일한 축), ③ 행 번호 → anchor 좌표계 이행 (10 회째) 이 우선순위다. 전부 후속 slice 소관 (본 slice 편집 금지).
