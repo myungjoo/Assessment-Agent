@@ -2,7 +2,7 @@
 id: T-1431
 title: 시점 기록성 P1~P3 산출물 3 문서 (components.md · p3-implementation-plan.md · p3-to-p4-transition.md) 의 modules.md 파생 pointer 5 지점을 정본 12 module 과 대조 후 §12.15 처리 판정 + audit §12.29
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 220
@@ -86,3 +86,11 @@ planner 사전 확인 (executor 가 AC 1 에서 전부 재측정) — 세 문서
 ## Follow-ups
 
 (작성 시 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+
+## 완료 기록
+
+- 완료 시각: 2026-08-03T18:56Z (commit 233a4cfe)
+- 결과: References 파생 pointer 4 지점 (p3-implementation-plan 13·243 · p3-to-p4-transition 20·314) 을 정본 12 module 로 in-place 동기 + 시점 단서 병기. freeze 선언 3 개가 §2.x 한정임을 실측해 §1·§6 pointer 만 편집 범위로 판정.
+- components.md 는 AC 1 기대 grep hit 0 (불성립) 이라 중단 규칙 적용, 무편집 보존.
+- audit `§ 12.29` (120 행) 신설 — 실측 5 항 · 5 지점 판정표 · 4 후보 판정 (채택 C) · 파생 영향 9 · 한계 3 박제.
+- 규모: 3 파일 +125/-4 (cap 이내). doc-only 라 R-110 / R-112 면제 (production code 0 LOC).
