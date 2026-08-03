@@ -2,12 +2,13 @@
 id: T-1426
 title: data-model.md 의 `13 entity` 2 지점 · `4 module` · `8 NestJS module 명` 3 지점을 실측 정본과 대조 판정 후 동기 + audit §12.24 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 130
 estimatedFiles: 3
 created: 2026-08-03
+completedAt: 2026-08-03T13:47:00Z
 independentStream: uc-doc-audit-resync
 dependsOn: [T-1425]
 touchesFiles:
