@@ -49,6 +49,9 @@ repo root 의 상위 디렉토리 + `src/` 직접 하위만 (깊이 2 단). 본 
 └── README.md / CLAUDE.md       ← 요구사항 명세 + 운영 규칙
 ```
 
+> **트리 블록 ↔ 실 `src/` 트리 3 축 대조 (T-1432 실측 각주)** — 위 블록은 19 · 52 행이 스스로 규정하듯 [T-0021](../tasks/T-0021-p2-directory-structure.md) 시점의 **blueprint** 이고, 현재 `ls -d src/*/` 실측은 **15** 다. ① 트리 · 실재 양쪽에 있는 것 **8** (`auth` / `common` / `confluence` / `github` / `llm` / `persistence` / `user` / `web`) · ② 트리에 있으나 경로 미실재 **3** — `assessment/` (정본 [modules.md](modules.md) 가 **미shipped placeholder** 로 규정) · `scheduler/` (정본이 **실 shipped module 명 = `SchedulingModule` (`src/scheduling/`)** 이라 명시) · `config/` (정본 표 밖이라 **module 이 아니며**, 아래 `## config/` 단락이 서술하는 loader 자체가 미생성 — `ls src/config*` 빈 출력) · ③ 실재하나 트리 미기재 **7** (`assessment-collection` / `assessment-evaluation` / `export` / `import` / `permission-denied` / `scheduling` / `user-instance-access`). 양변 검산 — `11 = 8 + 3` · `15 = 8 + 7`.
+> 본 각주는 **사실 기록** 이지 블록 재작성이 아니다 — 블록 원문은 시점 blueprint 라 보존이고, 파일 축 (`main.ts` / `app.module.ts` 2 기재 vs 실 `ls src/*.ts` **10**) 과 root 축 (트리 기재 **9** vs tracked root **26** → 미기재 **17**, `scripts/` · `deploy/` · `Dockerfile` 등) 도 같은 사유로 무편집 보존한다 (판정 근거는 [REQ-COVERAGE-AUDIT § 12.30](../use-cases/REQ-COVERAGE-AUDIT.md)).
+
 본 시점 (T-0021) 의 `src/` 실제 내용은 `main.ts` + `app.module.ts` + `app.controller.ts` + `app.service.ts` + `app.service.spec.ts` 의 skeleton — 9 module 디렉토리는 모두 미생성. P3 (Domain core) 의 첫 implementer task 가 `src/auth/auth.module.ts` 등을 생성하면서 본 문서의 trail 을 따른다.
 
 ## 각 module 디렉토리의 표준 sub-structure

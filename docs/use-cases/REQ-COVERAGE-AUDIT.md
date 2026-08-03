@@ -2806,6 +2806,127 @@ $ git status --porcelain → M p3-implementation-plan.md · M p3-to-p4-transitio
 2. **시점 기록 문서가 정본을 복제하는 구조는 잔존** — 정본 표에 row 가 하나 추가되는 순간 본 절이 고친 4 지점 + `§ 12.28` 의 파생 4 문서가 **동시에 재-stale** 이 된다. 사람 규약으로는 막을 수 없고 파생 영향 5 의 **CI drift-guard 축** 으로만 닫힌다.
 3. **보존 판정이 남긴 독자 부담** — ② tally 12 지점과 `components.md` 11 행 열거는 그대로라, 독자는 여전히 `9 module` · `2/5` · `8 module class` 를 만나고 그것이 T-0057 / T-0062 / T-A3 좌표계임은 본 절과 편집된 4 행의 시점 단서를 따라가야만 안다 (파생 영향 8 · 9).
 
+### 12.30 directory.md ASCII 트리 블록 ↔ 실 `src/` 트리 3 축 대조 — 원문 보존 + 각주 1 블록 (T-1432)
+
+> **본 절의 위치** — `§ 12.29` 는 정본 pointer 축 closure 를 선언하면서 **파생 영향 7** 로 "[directory.md](../architecture/directory.md) ASCII tree ↔ 실 `src/` 트리 정합 (T-1430 잔여)" 을 목록만 남겼다. 본 절이 그 위임을 실행한다. **계보** — `T-1422` (정본 확정 `12`) → `T-1423` → `T-1426` → `T-1429` → `T-1430` (같은 문서의 **표 축**) → `T-1431` (파생 **pointer 축**) → **`T-1432` (본 절 — **트리 축**, directory.md 에 남은 마지막 미판정 축)**. 판정은 `§ 12.15` (시점 기록 append-only) 와 `§ 12.28` (표 축 3 축 대조 각주 화법) 의 병용이다.
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력 그대로)
+
+```
+(i)   트리 축 전수 — $ sed -n '21,50p' docs/architecture/directory.md → `src/` 직접 하위 = 디렉토리 11 (auth ·
+      persistence · user · github · confluence · llm · assessment · scheduler · web · common · config) + 파일 2
+      (main.ts · app.module.ts). root 축 열거 9 (src · prisma · test · web · docs · .github/workflows ·
+      package.json · README.md / CLAUDE.md).
+(ii)  코드 축 전수 — $ ls -d src/*/ | sed 's#src/##;s#/##' → assessment-collection · assessment-evaluation ·
+      auth · common · confluence · export · github · import · llm · permission-denied · persistence ·
+      scheduling · user-instance-access · user · web  (= 15, 기대 15 일치)
+      $ ls src/*/*.module.ts | wc -l → 14   |   $ ls src/*.ts | head -20 → app.controller.ts · app.module.spec.ts ·
+      app.module.ts · app.service.spec.ts · app.service.ts · bootstrap.spec.ts · bootstrap.ts · main.ts ·
+      parse-port.spec.ts · parse-port.ts (= 10 — 트리 기재 2 외 8 이 미기재)
+(iii) 3 축 차집합 — ① 양쪽 실재 8 = auth · common · confluence · github · llm · persistence · user · web ·
+      ② 트리 전용 (경로 미실재) 3 = assessment · scheduler · config · ③ 실재 전용 (트리 미기재) 7 =
+      assessment-collection · assessment-evaluation · export · import · permission-denied · scheduling ·
+      user-instance-access.  양변 검산 — 11 = 8 + 3 · 15 = 8 + 7 (둘 다 성립).
+      정본 근거 1 구 — assessment: modules.md 39 행 "평가 결과 조회·sort·filter·시계열 placeholder
+      (미shipped)" · scheduler: modules.md 42 행 "실 shipped module 명 = SchedulingModule (src/scheduling/)" ·
+      config: 정본 표 12 row 밖 = module 아님 (directory.md `## config/` 116~124 행이 서술하는 loader 위치).
+      $ ls src/config* src/common/config* 2>/dev/null → (빈 출력, exit 2)   $ grep -rln
+      "registerAs\|ConfigModule" src/ --include=*.ts → src/auth/ 7 파일뿐 → configuration.ts / validation.ts
+      자체가 미생성 (`## config/` 의 "실제 코드는 후속 task 도입" 서술과 정합).
+(iv)  시점 marker 축 — $ sed -n '3p;19p;52p' docs/architecture/directory.md → 3 "> 본 문서는 P2 의 산출물이다.
+      T-0021 가 … 박제했다." · 19 "본 task 시점에는 `src/` 안에 T-0004 가 박제한 skeleton 만 존재 — 9 module
+      디렉토리는 P3+ 에서 생성되는 blueprint 다." · 52 "본 시점 (T-0021) 의 `src/` 실제 내용은 … skeleton — 9
+      module 디렉토리는 모두 미생성." → 세 지점이 본 블록을 T-0021 blueprint 로 규정 (최강 제약 · 무편집 대상).
+(v)   top-level 축 — $ git ls-files | cut -d/ -f1 | sort -u → 26 항목. (i) 트리 기재 9 를 뺀 미기재 tracked root
+      = 17 — .claude · .dockerignore · .env.example · .eslintrc.cjs · .gitattributes · .gitignore · Dockerfile ·
+      deploy · docker-compose.yml · pnpm-lock.yaml · pnpm-workspace.yaml · prisma-schema.spec.ts ·
+      prisma.config.spec.ts · prisma.config.ts · scripts · tsconfig.build.json · tsconfig.json (검산 26 = 9 + 17).
+(vi)  baseline — $ wc -l directory.md 184 · audit 2822 · modules.md 259 | $ grep -c '^## ' directory.md 10 ·
+      audit 12 | $ grep -c '^| REQ-' audit 66 → 6 값 전부 기대 일치, AC 1 중단 지점 0.
+```
+
+**지점 판정표 (AC 2)** — 판정 축 ① **블록 성격** (코드블록 안 blueprint 를 고치면 19 · 52 행 시점 선언과 자기모순인가) · ② **`§ 12.15` 정합** (시점 기록 append-only 대상인가) · ③ **선례** (`§ 12.28` 표 축 "원문 보존 + 실측 각주" 화법의 트리 축 적용 가능성). root 축 17 항목은 판정 · 근거가 동일한 것끼리 한 row 에 묶되 항목은 전수 명시한다.
+
+| 항목 | 축 | 트리 서술 / 부재 1 구 | 실재 | 판정 | 근거 1 구 |
+| --- | --- | --- | --- | --- | --- |
+| `assessment` | src 하위 | `assessment/ ← AssessmentModule (평가 orchestration + Worker)` | **미실재** | 원문 보존 + 각주 부기 | ① 블록이 T-0021 blueprint 라 행 삭제는 19 행 선언과 자기모순 — 정본 39 행이 **미shipped placeholder** 로 규정 |
+| `scheduler` | src 하위 | `scheduler/ ← SchedulerModule (@nestjs/schedule)` | **미실재** (실현체 `src/scheduling/`) | 원문 보존 + 각주 부기 | ③ 정본 42 행 "실 shipped module 명 = `SchedulingModule`" — 명칭 정정은 정본 축 소관이고 각주가 대응을 박제 |
+| `config` | src 하위 | `config/ ← @nestjs/config 의 configuration loader + validation` | **미실재** (loader 자체 미생성) | 원문 보존 + 각주 부기 (**별도 근거**) | ② 앞 2 개와 달리 정본 표 12 row 밖 = **module 이 아님** — 본 문서 `## config/` 가 스스로 "실제 코드는 후속 task 도입" 미래형이고 실측 빈 출력이 그와 정합 |
+| `assessment-collection` | src 하위 | (트리 부재) | 실재 | 블록 무편집 + 각주 열거 | ① P4 수집 backbone (정본 40 행) 은 T-0021 이후 shipped — 시점 블록에 소급 삽입하면 창작 |
+| `assessment-evaluation` | src 하위 | (트리 부재) | 실재 | 블록 무편집 + 각주 열거 | ① P5 평가 layer (정본 41 행), 위와 동일 시점 사유 |
+| `export` | src 하위 | (트리 부재) | 실재 | 블록 무편집 + 각주 열거 | ① 정본 표 미기재 실 shipped (modules.md 47 행 T-1425 각주 3 중 1) — 계상 판정 선행 |
+| `import` | src 하위 | (트리 부재) | 실재 | 블록 무편집 + 각주 열거 | ① 위와 동일 (T-1425 각주 3 중 1) |
+| `permission-denied` | src 하위 | (트리 부재) | 실재 | 블록 무편집 + 각주 열거 | ① `PermissionDeniedRecordModule` (정본 37 행) 의 실 디렉토리 — row 명과 디렉토리 명이 달라 각주 병기 필요 |
+| `scheduling` | src 하위 | (트리 부재) | 실재 | 블록 무편집 + 각주 열거 | ③ 트리 전용 `scheduler` 의 실현체라 각주가 두 항목을 **짝으로** 박제 |
+| `user-instance-access` | src 하위 | (트리 부재) | 실재 | 블록 무편집 + 각주 열거 | ① 정본 표 미기재 + AppModule 비등록 (modules.md 47~48 행) — 계상은 ADR 게이트 |
+| `scripts` | root | (트리 부재) | 실재 | 무편집 | 19 행이 트리 범위를 "상위 디렉토리 + `src/` 직접 하위 (깊이 2 단)" 로 한정 — driver / lock 운영 스크립트는 애플리케이션 디렉토리 구조 밖 (15 행 범위 정의) |
+| `.claude` | root | (트리 부재) | 실재 | 무편집 | agent 메타 축 — 트리의 `README.md / CLAUDE.md` 행이 운영 규칙 축을 대표 |
+| `.env.example` | root | (트리 부재) | 실재 | 무편집 | 본 문서 `## config/` 단락이 이미 "`.env` / `.env.example` 위치는 repo root" 로 서술 (중복 열거 불요) |
+| `Dockerfile` · `docker-compose.yml` · `.dockerignore` · `deploy` | root | (트리 부재) | 실재 | 무편집 | 배포 산출물 축 = [deployment.md](../architecture/deployment.md) 소관 — 본 문서 15 행이 스스로 범위 밖으로 선언 |
+| `tsconfig.json` · `tsconfig.build.json` · `.eslintrc.cjs` | root | (트리 부재) | 실재 | 무편집 | toolchain config 축 — T-0003 소관이며 깊이 2 단 선택 열거 밖 |
+| `pnpm-lock.yaml` · `pnpm-workspace.yaml` | root | (트리 부재) | 실재 | 무편집 | 트리의 `package.json ← pnpm workspace root` 행이 이미 대표 |
+| `prisma.config.ts` · `prisma.config.spec.ts` · `prisma-schema.spec.ts` | root | (트리 부재) | 실재 | 무편집 | 트리는 `prisma/` **디렉토리** 만 열거 — root 배치 config / spec 파일은 그 부속 |
+| `.gitignore` · `.gitattributes` | root | (트리 부재) | 실재 | 무편집 | VCS 메타 — 디렉토리 구조 서술 대상 아님 (본 문서는 `.env` 의 `.gitignore` 등록 사실만 인용) |
+
+**`config` 별도 1 구** — 트리 전용 3 중 `assessment` · `scheduler` 는 **module 축** (정본 표 row 를 디렉토리로 투영) 인 반면 `config` 는 정본 표에 row 가 아예 없는 **비-module 항목** 이다. 같은 "미실재" 라도 앞 둘의 근거는 "정본이 미shipped / 명칭 상이" 고, `config` 의 근거는 "본 문서 `## config/` (116 ~ 124 행) 이 예고한 loader 파일이 아직 생성되지 않았다" 다. 실측 `ls src/config* src/common/config* 2>/dev/null` 은 빈 출력이고 `ConfigModule` 사용처는 `src/auth/` 뿐이라 문서 내부 자기정합이 유지되므로, 트리 행 삭제 근거가 되지 않는다.
+
+#### 처리 방식 판정 (AC 3 — 4 후보 · 채택 1 · 기각 3)
+
+판정 축 **4** — ① `§ 12.15` 정합 · ② 독자 오도 risk · ③ cap (≤ 300 LOC · 파일 3 고정) · ④ 선례 일관성.
+
+| 후보 | ① § 12.15 정합 | ② 오도 risk | ③ cap | ④ 선례 일관성 | 판정 |
+| --- | --- | --- | --- | --- | --- |
+| (A) ASCII 블록 in-place 전면 재작성 (실 15 로 교체) | **위반** — 19 · 52 행이 블록을 T-0021 blueprint 로 선언해 자기모순 발생 | 해소되나 실재 7 의 `←` 설명 문구를 신설해야 해 **창작 유입** | ~30 행 치환 (cap 자체는 안) | 같은 문서 표 축 (`§ 12.28`) 이 보존 + 각주를 채택한 것과 불일치 | **기각** — ① 위반 + 창작 risk |
+| **(B) 블록 원문 무편집 + 직후 3 축 대조 각주 blockquote 1** | **정합** — 시점 기록은 보존, 사실은 append | **해소** — 각주가 블록 바로 아래에서 미실재 3 을 명시 | +3 행 · 파일 3 | `§ 12.28` 표 축 각주 화법의 **동일 문서 내 확대 적용** | **채택** |
+| (C) 혼합 (트리 전용 3 만 주석 병기 + 실재 전용 7 은 각주) | **부분 위반** — 코드블록 내부를 손대는 순간 (A) 와 같은 ① 발생 | 해소 | +3 ~ 6 행 | 한 블록 안에서 화법이 둘로 갈려 일관성 하락 | **기각** — ① 위반이 (A) 와 동질 |
+| (D) 전 지점 무편집 + audit 기록만 | 정합 | **최대** — 독자는 directory.md 만 보고 `src/assessment/` · `src/scheduler/` · `src/config/` 를 실재로 오인 | 0 LOC | 표 축이 각주로 닫힌 선례와 불일치 — 트리 축만 재이월 | **기각** |
+
+cap 초과 후보 **0** 이라 split 제안 없음. 채택안 (B) 는 `§ 12.28` 이 표 축에서 쓴 "**사실 기록이지 표 row 신설이 아니다**" 화법을 트리 축에 그대로 승계한다.
+
+#### 반영 결과 (AC 4) + 무편집 경계
+
+| 지점 | 편집 방식 | 내용 |
+| --- | --- | --- |
+| [directory.md](../architecture/directory.md) 코드블록 직후 (구 50 행 뒤 → 신 **52 ~ 53** 행) | blockquote **2 행** 순수 append (+ 구분 빈 줄 1) | 3 축 차집합 (**8 / 3 / 7**) + 양변 검산 2 식 + 트리 전용 3 각각의 정본 근거 1 구 + 파일 축 (2 vs 10) · root 축 (9 vs 26, 미기재 17) 의 보존 선언 |
+
+`wc -l` 184 → **187** (+3, 상한 +6 충족) 이고 코드블록 **내부 편집 0** 이다. **무편집 경계** — directory.md 시점 선언 3 지점 (3 · 19 · 구 52 행) · ASCII 코드블록 21 ~ 50 행 **내부** · `## 각 module 디렉토리의 표준 sub-structure` (54 ~ 79 행) · `## 9 module 별 디렉토리 mapping` 표 + T-1430 각주 (81 ~ 100 행) · 102 행 이후 전 구간 · `## References` · `Refs:` 말미, 그리고 [modules.md](../architecture/modules.md) · [components.md](../architecture/components.md) · [api.md](../architecture/api.md) · [data-model.md](../architecture/data-model.md) · `docs/architecture/INDEX.md` · `docs/architecture/p3-*.md` · [INDEX.md](INDEX.md) · `UC-01` ~ `UC-09` 본문 · `docs/decisions/ADR-*.md` · [PLAN.md](../PLAN.md) · [requirements.md](../requirements.md) · `src/` · `test/` · `prisma/` · `web/` · `scripts/` 는 전부 무편집이며 3 파일 밖이라 diff 에 미등장한다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **[UC-09](UC-09-user-defined-period-evaluation.md) `§ 5` sequence participant 병기 미판정** — **14 회째 이월**. 후속 slice 소관.
+2. **정본 [modules.md](../architecture/modules.md) 표 row 신설 축** — `ExportModule` / `ImportModule` / `UserInstanceAccessModule` 계상은 **ADR 게이트** 선행. 후속 slice 소관.
+3. **외부 package module (`ScheduleModule.forRoot()`) 계상 규약**. 후속 slice 소관.
+4. **행 번호 좌표계 → anchor 좌표계 이행** — **8 회째**. 본 절도 20 개 이상 행 번호에 의존했다. 후속 slice 소관.
+5. **산문 tally ↔ 표 row 수 / 트리 항목 수 CI drift-guard spec**. 후속 slice 소관.
+6. **각 UC 본문 `§ 9` module 산정 수치의 이중 관리**. 후속 slice 소관.
+7. **신규 — [directory.md](../architecture/directory.md) `## 각 module 디렉토리의 표준 sub-structure` (54 ~ 79 행) 의 sub-dir 채택 module 열거 ↔ 실 `src/*/` 하위 실측 대조** — 본 slice 가 디렉토리 **이름 축** 만 닫아 발생한 잔여. 후속 slice 소관.
+8. **[components.md](../architecture/components.md) 11 행 8 열거의 forward pointer 부기 여부** (T-1431 잔여). 후속 slice 소관.
+
+#### closure 선언
+
+[directory.md](../architecture/directory.md) 의 정본 대조 축은 **표** (`§ 12.28` / T-1430 각주) · **pointer** (`§ 12.28` 168 행 in-place) · **트리** (본 절) 3 면에서 모두 닫혔다 — 세 면 각각에 실측 기반 3 축 대조가 박제됐고 미판정 축은 **0** 이다. **닫히지 않은 잔여 2**: (a) 표준 sub-structure 단락 (54 ~ 79 행) 의 sub-dir ↔ 실 `src/*/` 하위 대조 (파생 영향 7 — 본 slice 는 디렉토리 이름 축만 다뤘다), (b) 트리 미기재 root **17** 항목 — AC 2 에서 전수 **무편집** 판정했으므로 stale 잔여가 아니라 **범위 밖 항목** 이다.
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l docs/architecture/directory.md 184 → 187   (+3, 상한 +6)   |   modules.md 259 → 259 (무편집)
+$ grep -c '^## ' docs/architecture/directory.md → 10 (불변)   |   audit → 12 (불변, `###` 만 추가)
+$ grep -c '^| REQ-' docs/use-cases/REQ-COVERAGE-AUDIT.md → 66 (불변)
+$ git diff -U0 -- docs/architecture/directory.md | grep '^@@' → @@ -51,0 +52,3 @@
+  → hunk 1 개 = AC 4 허용 구간 (코드블록 직후) 뿐 — 3 · 19 · 52 행 · 21~50 블록 내부 · 81~100 표 · 102 행 이후 전부 hunk 밖
+$ git diff --numstat → 3 0 (directory.md) · audit 순수 추가 → 삭제 0 = 순수 삭제 0 (치환 짝 불요)
+$ git status --porcelain src/ test/ prisma/ web/ → (빈 출력)   코드 무변경 실증
+$ git status --porcelain → M directory.md · M REQ-COVERAGE-AUDIT.md · M T-1432 task 파일 = 3 파일 (상한 3)
+```
+
+합계 diff ≤ 300 LOC · 파일 3 으로 [CLAUDE.md](../../CLAUDE.md) §3 상한 안이다. 코드 변경 **0 LOC** · 분기 0 이라 R-112 의 happy / error / flow / negative 4 항목과 `pnpm test:cov` 는 **N/A**, `commitMode: direct` doc-only 라 §3.2 면제 조항으로 R-110 tester 호출도 **N/A** 다 (AC 8).
+
+#### 한계 —
+
+1. **본 대조는 디렉토리 이름 축뿐** — 각 디렉토리 **내부 파일 구성** (`dto/` · `entities/` · `repositories/` 등 54 ~ 79 행의 표준 sub-structure) 이 실제와 맞는지는 **미검증** 이다 (파생 영향 7).
+2. **blueprint 문서가 코드를 복제하는 구조는 잔존** — `src/` 에 디렉토리가 하나 추가되는 순간 본 각주의 `15` · `8 / 3 / 7` · 두 검산식이 **즉시 재-stale** 이 된다. 사람 규약으로 막을 수 없고 파생 영향 5 의 **CI drift-guard 축** 으로만 닫힌다.
+3. **보존 판정이 남긴 독자 부담** — 트리 본문은 그대로라 독자는 여전히 `src/assessment/` · `src/scheduler/` · `src/config/` 를 만나고, 그것이 T-0021 좌표계임은 각주 2 행을 읽어야만 안다. root 17 · 파일 8 미기재도 각주 한 구절로만 노출된다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
