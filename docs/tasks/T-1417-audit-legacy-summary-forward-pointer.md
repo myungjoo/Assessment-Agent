@@ -2,7 +2,7 @@
 id: T-1417
 title: audit §8 결론 · §1 18 행 옛 gap 요약에 현행 pointer append + §9 198 행 행 표기 부기 + §12.15 방침 확정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 75
