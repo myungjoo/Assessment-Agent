@@ -2,7 +2,8 @@
 id: T-1429
 title: api.md 파생 stale 3 지점 (§4 43 행 · §9 220 행 `9 NestJS module` + §9 223 행 `UC-01 ~ UC-08` 범위) 을 정본 12 module / 9 UC 와 대조 동기 후 audit §12.27 기록
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-03T16:53:00Z
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 190
@@ -105,3 +106,4 @@ planner 사전 확인 (executor 가 AC 1 에서 재측정) — `grep -n '[0-9]\+
 - 편집 hunk **3 개**, 순수 삭제 **0**, api.md `wc -l` **230 불변** · `^## ` 9 · endpoint row 72 · `9 UC` 7 행 불변 (회귀 0). audit `§ 12.27` 신설 (References 앞 순수 append 165 행, `^## ` 12 · `^| REQ-` 66 불변).
 - `§ 12.26` 파생 영향 1 **closure** + 파생 3 문서 (INDEX · data-model · api) module 어휘 축 **일괄 closure** (T-1422 → T-1423 → T-1426 → T-1429 계보).
 - 변경 3 파일. doc-only · production code 0 LOC 이라 `§ 3.2` direct-mode 면제 (R-110 tester · R-112 4 항목 · `test:cov` 전부 **N/A**, 분기 0).
+- direct push `e790bf25`, main CI run 30833429825 **conclusion=success** 를 fire 종료 전 실확인 (R-114 충족).
