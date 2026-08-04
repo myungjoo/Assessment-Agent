@@ -2,7 +2,7 @@
 id: T-1474
 title: pointer 정정 batch 착수 전 방침 확정 — `§ 12.15` append-only ↔ in-place 정정 관계 + ADR 각주 append 의 commit mode 판정 (§3.1 미규정 구간) + 대상 14 건 목록 · slice 분해안 확정 + audit §12.72
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 190
@@ -45,12 +45,12 @@ planner 사전 census — **아래는 전부 가설이며 전제가 아니다** 
 
 ## Acceptance Criteria
 
-- [ ] **AC 1 — 대상 14 건 목록 실측 (날조 금지)**: 편집 전에 `grep -n '부분참' docs/use-cases/REQ-COVERAGE-AUDIT.md` 를 실행하고 결과를 `§ 12.68` (6263 ~ 6326) · `§ 12.69` (6327 ~ 6407) · `§ 12.70` (6408 ~ 6479) · `§ 12.71` (6480 ~ 6564) 구간으로 **분류 계수** 한다. 사용한 명령을 그대로 적는다. planner 기대 (**2 + 11 + 0 + 1 = 14**) 와 다르면 **실측값을 채택** 하고 차이 사유를 1 구로 적는다 (판정표 밖의 산문에도 `부분참` 어휘가 나오므로 **판정표 행만** 계수하고 그 필터 기준을 명시한다). 각 건에서 **대상 파일 · 파일 행 · 주장 좌표 · 실 대응 좌표** 4 값을 승계 추출하고, `wc -l` 로 대상 파일들의 현재 행 수를 실측한다.
-- [ ] **AC 2 — `§ 12.15` append-only ↔ in-place 정정 관계 확정**: `§ 12.15` 의 규칙 문장을 **2 ~ 3 구 인용** 하고, 그 방침이 (a) **audit 문서 자신** 의 절 추가에만 걸리는지 (b) **판정 대상 문서** 의 편집까지 규율하는지를 판별해 결론을 1 ~ 2 구로 확정한다. 그 위에서 14 건의 처리 방식을 **3 분류** 로 판정한다 — **(I) in-place 정정** (좌표 값만 고치는 무손실 수정) / **(II) 각주 · 병기 append** (원 표기를 남겨야 하는 경우) / **(III) 무처리** (정정이 오히려 의미를 훼손하거나 대상이 시점 기록인 경우). 각 분류의 **판정 규칙을 먼저 문장으로** 세운 뒤 14 건을 배정하고 분류별 건수를 보고한다.
-- [ ] **AC 3 — commit mode 판정 (§3.1 미규정 구간)**: `CLAUDE.md` §3.1 표와 판정 규칙 4 개를 근거로 **기존 `docs/decisions/ADR-*.md` 본문의 pointer 좌표 1 줄 수정 · 각주 append** 가 `direct` 인지 `pr` 인지 결론을 낸다. 근거는 §3.1 rule 4 (status 갱신 = direct) 와 "새 ADR 추가 = pr" 의 **경계 해석** 이어야 하고, "동작 변경을 일으키는가" 기준을 1 구로 적용한다. 같은 판정을 `CLAUDE.md` · `docs/requirements.md` · `docs/architecture/*` · `.claude/agents/*` 대상 건에도 각각 적용해 **파일군별 commit mode 표** (1 표, 행 ≤ 6) 를 만든다. **`CLAUDE.md` §3.1 본문 편집은 하지 않는다** — 명문화 필요 여부만 Follow-ups 후보로 1 구 기록한다.
-- [ ] **AC 4 — 정정 batch slice 분해안 확정**: AC 2 · AC 3 결과를 합쳐 **몇 개 slice 로 · 각 slice 가 어느 파일 몇 건을** 처리할지 분해안을 표로 확정한다. 각 slice 는 **cap (≤ 300 LOC · ≤ 5 파일)** 을 만족해야 하며, **audit 절 1 개 + 정정 대상 파일 N 개 + task 파일 1 개** 로 파일 수를 검산한다 (`§ 12.71` 의 행당 실측 비용 방식 승계). commit mode 가 다른 건은 **같은 slice 에 섞지 않는다** ([CLAUDE.md](../../CLAUDE.md) §3.1 rule 3 · §2.5 (e)). 분해안의 **1 순위 slice** 를 지목하고 그 예상 규모를 수치로 적는다.
-- [ ] **AC 5 — audit 절 신설**: [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) 에 **`### 12.72`** 를 `## 11. References` **직전** 에 신설한다. 구성: 위치 · 계보 (`§ 12.71` AC 5 (1) (A) 승계 + 무편집 사유) → AC 1 실측 (14 건 목록표) → AC 2 3 분류 규칙 · 배정 → AC 3 commit mode 표 → AC 4 분해안 표 → 진척 (**정정 축 = 대상 14 건 중 착수 0 · 방침 확정 완료**) → 한계 → 파생 영향 (목록만). **절 ≤ 90 행**. **분할 판단 의무** — AC 1 직후 예상 절 길이를 산출해 (목록표 14 + 헤더 6 + 표 2 개 밖 구조 ~35 ≈ **60 행** 예상) 90 행 초과가 예상되면 **AC 4 분해안을 별도 slice 로 이월** 하고 근거를 1 ~ 2 구로 박제한다.
-- [ ] **AC 6 — 검증 명령**: `wc -l docs/use-cases/REQ-COVERAGE-AUDIT.md` 로 증분을 보고하고 `git diff --stat` 이 **≤ 2 파일 · ≤ 300 LOC** 임을 확인한다. `git status --short` 로 **`docs/decisions/` · `CLAUDE.md` · `docs/requirements.md` · `docs/architecture/` · `.claude/agents/` · `README.md` 가 변경 목록에 없음** 을 명시적으로 검산한다. doc-only 변경이므로 `pnpm test` 는 불요 ([CLAUDE.md](../../CLAUDE.md) §3.2 direct doc-only 면제) — 단 markdown 문법 무손상을 audit 파일의 ` ``` ` fence **짝수 개** 와 신설 표들의 컬럼 수 일치로 확인한다.
+- [x] **AC 1 — 대상 14 건 목록 실측 (날조 금지)**: 편집 전에 `grep -n '부분참' docs/use-cases/REQ-COVERAGE-AUDIT.md` 를 실행하고 결과를 `§ 12.68` (6263 ~ 6326) · `§ 12.69` (6327 ~ 6407) · `§ 12.70` (6408 ~ 6479) · `§ 12.71` (6480 ~ 6564) 구간으로 **분류 계수** 한다. 사용한 명령을 그대로 적는다. planner 기대 (**2 + 11 + 0 + 1 = 14**) 와 다르면 **실측값을 채택** 하고 차이 사유를 1 구로 적는다 (판정표 밖의 산문에도 `부분참` 어휘가 나오므로 **판정표 행만** 계수하고 그 필터 기준을 명시한다). 각 건에서 **대상 파일 · 파일 행 · 주장 좌표 · 실 대응 좌표** 4 값을 승계 추출하고, `wc -l` 로 대상 파일들의 현재 행 수를 실측한다.
+- [x] **AC 2 — `§ 12.15` append-only ↔ in-place 정정 관계 확정**: `§ 12.15` 의 규칙 문장을 **2 ~ 3 구 인용** 하고, 그 방침이 (a) **audit 문서 자신** 의 절 추가에만 걸리는지 (b) **판정 대상 문서** 의 편집까지 규율하는지를 판별해 결론을 1 ~ 2 구로 확정한다. 그 위에서 14 건의 처리 방식을 **3 분류** 로 판정한다 — **(I) in-place 정정** (좌표 값만 고치는 무손실 수정) / **(II) 각주 · 병기 append** (원 표기를 남겨야 하는 경우) / **(III) 무처리** (정정이 오히려 의미를 훼손하거나 대상이 시점 기록인 경우). 각 분류의 **판정 규칙을 먼저 문장으로** 세운 뒤 14 건을 배정하고 분류별 건수를 보고한다.
+- [x] **AC 3 — commit mode 판정 (§3.1 미규정 구간)**: `CLAUDE.md` §3.1 표와 판정 규칙 4 개를 근거로 **기존 `docs/decisions/ADR-*.md` 본문의 pointer 좌표 1 줄 수정 · 각주 append** 가 `direct` 인지 `pr` 인지 결론을 낸다. 근거는 §3.1 rule 4 (status 갱신 = direct) 와 "새 ADR 추가 = pr" 의 **경계 해석** 이어야 하고, "동작 변경을 일으키는가" 기준을 1 구로 적용한다. 같은 판정을 `CLAUDE.md` · `docs/requirements.md` · `docs/architecture/*` · `.claude/agents/*` 대상 건에도 각각 적용해 **파일군별 commit mode 표** (1 표, 행 ≤ 6) 를 만든다. **`CLAUDE.md` §3.1 본문 편집은 하지 않는다** — 명문화 필요 여부만 Follow-ups 후보로 1 구 기록한다.
+- [x] **AC 4 — 정정 batch slice 분해안 확정**: AC 2 · AC 3 결과를 합쳐 **몇 개 slice 로 · 각 slice 가 어느 파일 몇 건을** 처리할지 분해안을 표로 확정한다. 각 slice 는 **cap (≤ 300 LOC · ≤ 5 파일)** 을 만족해야 하며, **audit 절 1 개 + 정정 대상 파일 N 개 + task 파일 1 개** 로 파일 수를 검산한다 (`§ 12.71` 의 행당 실측 비용 방식 승계). commit mode 가 다른 건은 **같은 slice 에 섞지 않는다** ([CLAUDE.md](../../CLAUDE.md) §3.1 rule 3 · §2.5 (e)). 분해안의 **1 순위 slice** 를 지목하고 그 예상 규모를 수치로 적는다.
+- [x] **AC 5 — audit 절 신설**: [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) 에 **`### 12.72`** 를 `## 11. References` **직전** 에 신설한다. 구성: 위치 · 계보 (`§ 12.71` AC 5 (1) (A) 승계 + 무편집 사유) → AC 1 실측 (14 건 목록표) → AC 2 3 분류 규칙 · 배정 → AC 3 commit mode 표 → AC 4 분해안 표 → 진척 (**정정 축 = 대상 14 건 중 착수 0 · 방침 확정 완료**) → 한계 → 파생 영향 (목록만). **절 ≤ 90 행**. **분할 판단 의무** — AC 1 직후 예상 절 길이를 산출해 (목록표 14 + 헤더 6 + 표 2 개 밖 구조 ~35 ≈ **60 행** 예상) 90 행 초과가 예상되면 **AC 4 분해안을 별도 slice 로 이월** 하고 근거를 1 ~ 2 구로 박제한다.
+- [x] **AC 6 — 검증 명령**: `wc -l docs/use-cases/REQ-COVERAGE-AUDIT.md` 로 증분을 보고하고 `git diff --stat` 이 **≤ 2 파일 · ≤ 300 LOC** 임을 확인한다. `git status --short` 로 **`docs/decisions/` · `CLAUDE.md` · `docs/requirements.md` · `docs/architecture/` · `.claude/agents/` · `README.md` 가 변경 목록에 없음** 을 명시적으로 검산한다. doc-only 변경이므로 `pnpm test` 는 불요 ([CLAUDE.md](../../CLAUDE.md) §3.2 direct doc-only 면제) — 단 markdown 문법 무손상을 audit 파일의 ` ``` ` fence **짝수 개** 와 신설 표들의 컬럼 수 일치로 확인한다.
 
 ## Out of Scope
 
@@ -71,4 +71,11 @@ planner 사전 census — **아래는 전부 가설이며 전제가 아니다** 
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 발견 사항을 여기에 append)
+1. **S1 실집행 (다음 slice 1 순위)** — `ADR-0003` 8 건 · `ADR-0001` 2 건 · `ADR-0002` 1 건 = 편집 **8 행**, 파일 5 (ADR 3 + audit 절 1 + task 1), diff ≈ 75 LOC, `commitMode: direct`. 규칙 C 병기 2 건 (#7 · #12, `33–41`) 의 화법 (각주 vs 인라인 괄호) 을 여기서 처음 정한다.
+2. **S2 실집행** — `requirements.md` 2 건 (20 · 39 행) · `directory.md` 1 건 (197 행) = 편집 3 행, 파일 4, diff ≈ 55 LOC, `direct`.
+3. **`CLAUDE.md` §3.1 rule 5 명문화 후보** — "기존 `docs/decisions/*` · `docs/architecture/*` 본문의 **비-결정 수정** (pointer 좌표 · typo) = `direct`". `§ 12.72` AC 3 이 판정 선례를 세웠으므로 시급성 낮음 (본 slice 는 `CLAUDE.md` 무편집 유지).
+4. **정정 slice 의 좌표 재확인 의무** — `§ 12.72` 한계 1 승계: 실 대응 좌표는 판정표 승계값이라 S1 · S2 는 편집 직전 대상 행 · README 행을 **1 회 재대조** 한 뒤 고친다.
+
+## 완료 요약 (2026-08-05)
+
+`§ 12.72` 신설 (**84 행 추가**, 6578 → **6662** 행). 부분참 **14** 건 실측 (raw grep hit 37 → 판정표 행 필터 14; 구간 분포 2 + 11 + 0 + 1 로 planner 기대와 **일치**) · 파일 분포 5 파일 (ADR 군 11 · `requirements.md` 2 · `directory.md` 1, 편집 행은 11) · 3 분류 배정 **(I) 12 · (II) 2 · (III) 0** · commit mode **전량 `direct`** · 분해안 **2 slice (S1 1 순위)** 확정. 판정 대상 파일은 **전부 무편집** (`git status` 검산: `docs/decisions/` · `CLAUDE.md` · `docs/requirements.md` · `docs/architecture/` · `.claude/agents/` · `README.md` 변경 없음). fence 166 (짝수) · 표 컬럼 일치 확인.
