@@ -5558,6 +5558,84 @@ row → 절 매핑 — `Web UI` **`§ 12.44`** (T-1446) · `Backend API` + `Work
 4. **주석 / 실 코드 분리는 수동 판독이다** — (v) ⓐ 의 **14** hit 중 실 코드 **3** 행, (iv) 의 **20** hit 중 호출 지점 **2** 행은 `const` · `await this.fetchFn(` 패턴을 눈으로 가려낸 결과라 자동 검증되지 않았다.
 5. **`## Contracts` row 2 개의 불일치 단서는 판정하지 않았다** — (vii) 이 관측한 `Authorization: token` · `GraphQL v4` 문구는 좌표 · 인용까지이며 참 / 거짓 확정은 파생 영향 (3) 이다.
 
+### 12.58 components.md `## Component diagram` mermaid **`%% External egress` llm_gateway 계열 edge 5 개** (93 ~ 97 행) ↔ 실 `src/llm/providers` outbound 지점 · API key 헤더 대조 — edge 5 전수 부분참 · 헤더 4 종 은닉 확정 · egress 그룹 9/9 마감 (T-1460)
+
+**위치 · 계보** — 본 절은 `§ 12.57` 파생 영향 **(1)** 이 **다음 대조 1 순위** 로 지목한 `%% External egress` **9** edge 중 **후반부 `llm_gateway` 계열 5 개 (93 ~ 97 행)** 를 실 `src/llm` outbound 지점 · provider adapter · API key 헤더와 대조한 결과다. `§ 12.57` 이 앞 4 개 (adapter 계열, 89 ~ 92 행) 를 이미 닫았으므로 **본 절로 `%% External egress` 그룹이 9/9 마감** 되고, edge 축 6 그룹 중 **5 번째 그룹이 완결** 되어 잔여는 `%% User-facing flow` **2** (65 ~ 66 행) · `%% DB persistence boundary` **1** (86 행) 뿐이다. 판정 기준인 **outbound 지점** 정의는 `§ 12.48` · `§ 12.49` → `§ 12.57` 로 이어진 **주입 `fetchFn` 단일 지점** 을 그대로 승계하되, LLM 계열은 gateway 1 개가 adapter N 개를 감싸는 구조라 **층만 추가로 명시** 했다 (창작 없음 — AC 1 (iv)).
+
+#### AC 1 실측 (명령 + 출력)
+
+- (i) `grep -n '^#\{1,3\} ' docs/architecture/components.md` → `1` `# Component view` · **5** `## 개요` · **22** `## Deployment 컨텍스트` · **28** `## Component diagram` · **115** `## Component table` · **212** `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` · **244** `## Contracts` · **270** `## References` — task 본문의 기대 좌표와 **전부 일치 (stale 0)**. `grep -n '^\s*%%\|^```' …` → 블록 **30 ~ 106**, edge 그룹 주석 **32 · 48 · 61 · 64 · 68 · 75 · 79 · 85 · 88 · 99**.
+- (ii) `grep -nE '^\s+[a-z_]+ -- ' docs/architecture/components.md | wc -l` → **23**. `§ 12.54` 산출식 **23 = 2 + 5 + 2 + 4 + 1 + 9** 는 **여전히 성립** 한다 (65 ~ 66 **2** · 69 ~ 73 **5** · 76 ~ 77 **2** · 80 ~ 83 **4** · 86 **1** · 89 ~ 97 **9**). egress **9** 의 from-node 분해 = `github_adapter` **3** (89 ~ 91) · `confluence_adapter` **1** (92) · `llm_gateway` **5** (93 ~ 97) 이고 **본 slice 대상은 뒤 5 개뿐** 이다. 본 절 종료 시 egress **9/9 마감** · 전체 edge **23 중 21 판정 완료** · 잔여 **3** (user-facing 2 · db boundary 1).
+- (iii) `sed -n '93,97p'` → 5 행 모두 `llm_gateway -- "HTTPS REST<br/>(API key)" --> <node>`. 3 컬럼 분해 = 출발 node 전부 `llm_gateway` **1 종** / 도착 node **5 종** (`llm_custom` · `llm_azure` · `llm_anthropic` · `llm_google` · `llm_openai`) / label **전부 동일 문자열 1 종**. `sed -n '39,43p'` → `llm_custom["custom LLM<br/>(사내 OpenAI 호환)"]` · `llm_azure["Azure OpenAI"]` · `llm_anthropic["Anthropic"]` · `llm_google["Google Gemini"]` · `llm_openai["OpenAI"]`.
+- (iv) **outbound 지점 정의 (승계 + 층 명시)** — components.md **205** 행 각주가 "판정 기준인 **outbound 지점** 은 `§ 12.48` · `§ 12.49` 가 확정한 **주입 `fetchFn` 단일 지점** … 정의를 그대로 승계" 라고 적은 그 정의를 본 절도 승계한다. 층 판별 명령 `grep -rn 'globalThis.fetch\|fetchFn\|FetchLike' src/llm --include=*.ts | grep -v spec` → **7** hit 이 **전부 `llm-http-gateway.service.ts`** (**20** · **58** · **60** · **75** · **76** · **90** · **191** 행) 이고 `src/llm/providers` hit 은 **0** 이다. 즉 실 HTTP seam 은 **gateway 층** (**90** 행 기본값 `globalThis.fetch` · **191** 행 `await this.fetchFn(request.url, …)` 호출 **1 지점**) 이며 provider adapter 층은 seam 이 **아니다**.
+- (v) **결선 실측** (5 명령 — 실 credential 값은 옮기지 않고 헤더 이름 · 변수명까지만)
+  - ⓐ `ls src/llm/providers | grep -v spec` → **4** 개 (`anthropic.adapter.ts` · `azure-openai.adapter.ts` · `google-gemini.adapter.ts` · `openai-compatible.adapter.ts`). 도착 node **5** 와 **개수 불일치 (5 ↔ 4)** — planner 가설 유지.
+  - ⓑ `grep -rn 'class .*Adapter\|implements' src/llm/providers --include=*.ts | grep -v spec` → **0 hit**. adapter 는 class 가 아니라 **순수 함수 모듈** 이다 (`grep -rn '^export ' …` → `build*Request` / `parse*Response` 쌍 **4 조** + interface / 상수). 이는 planner 가 예상하지 않은 축이라 판정 근거를 파일 단위로 세었다.
+  - ⓒ `grep -rn 'custom\|openai' src/llm/providers/openai-compatible.adapter.ts | head -15` → **13** 행 `호출처가 넘긴다(custom/openai 두 provider 가 본 wire 포맷 공유)` · **1** 행 `OpenaiCompatibleAdapter — custom/openai(OpenAI Chat Completions 호환)` 로 **`llm_custom` 과 `llm_openai` 가 같은 1 adapter 의 2 중 표기** 임이 자기선언으로 확인된다. 라우팅 근거는 `llm-http-gateway.service.ts` **180** 행 `} else {` (4-way if/else 의 default 분기).
+  - ⓓ `grep -rn 'Authorization\|x-api-key\|api-key\|apiKey' src/llm --include=*.ts | grep -v spec` → 다수 hit 중 **실 헤더 조립 지점은 4** 이고 provider 별로 분리하면 **헤더 형식 4 종** 이다 — `Authorization: Bearer` (`openai-compatible.adapter.ts` **86** 행, custom · openai **공유**) · `api-key` (`azure-openai.adapter.ts` **79**) · `x-api-key` (`anthropic.adapter.ts` **94**) · `x-goog-api-key` (`google-gemini.adapter.ts` **93**). 나머지 hit 은 `LlmProviderConfig.apiKey` 저장 · 암복호화 · redaction 경로라 헤더 축이 아니다.
+  - ⓔ `grep -rn 'baseUrl\|endpoint\|https://' src/llm/providers --include=*.ts | grep -v spec | head -15` → 실 host 리터럴은 **0** 이고 전부 `input.endpointUrl` 을 base 로 쓴다 (`anthropic.adapter.ts` **88** · `azure-openai.adapter.ts` **73** 행 `replace(/\/+$/, "")` trailing slash 정규화 후 path append). path 는 provider 별로 갈린다 — `/v1/messages` (anthropic **89** 행) · `/openai/deployments/<modelId>/chat/completions?api-version=…` (azure **62** · **76**) · `/v1beta/models/<modelId>:generateContent` (gemini **18**) · OpenAI 호환 `chat/completions`.
+- (vi) `grep -rn 'LlmProvider\|provider' src/llm/llm-gateway.interface.ts | head -15` + `sed -n '20,26p'` → `enum LlmProvider { Custom = "custom", AzureOpenai = "azure_openai", Anthropic = "anthropic", GoogleGemini = "google_gemini", Openai = "openai" }` **5 멤버** · **33** 행 `LLM_PROVIDERS` 전량 노출. 도착 node **5** ↔ enum **5** 로 **node 에만 / enum 에만 있는 것 각 0** (개수 1:1) 이나, 이름 문자열은 `llm_azure` ↔ `azure_openai` · `llm_google` ↔ `google_gemini` **2 지점** 이 접미사 절단으로 어긋난다.
+- (vii) `grep -n '^| LLM Gateway ' docs/architecture/components.md` → **266** 행 **1 row** 뿐이라 edge **5** 를 **5 : 1 로 축약** 한다. 그 row 는 이미 `HTTPS REST, API key auth (provider 별 header 다름)` 를 적어 (v) ⓓ 의 헤더 4 종과 정합하며 mermaid label 의 은닉을 반증하는 단서이나, **`## Contracts` 표의 참 / 거짓 판정은 본 절이 하지 않는다 — 파생 영향 (3) 소관** 이다. 좌표 stale 확인: `grep -n '\*\*[0-9]\{3\}\*\* 행' …` 결과 중 components.md **자기 좌표** 는 **212** (**161** 행 각주의 `## GitHub Adapter` heading 참조) 1 개뿐이고 (i) 실측과 일치해 **편집 전 stale 은 0** 이다 (T-1459 가 3 지점을 정정해 이미 해소).
+- (viii) **삽입 파급** (`§ 12.55` (viii) 계수 규칙 승계 — components.md 자기 좌표 토큰만 세고 외부 파일 좌표는 제외, 범위 토큰 `A ~ B` 는 1 지점) — ⓐ `## Component diagram` 절 안 (mermaid 블록 직후 **106** 행 뒤) 삽입 시 밀리는 자기 참조 = **20 지점** (표 row 좌표 **119 ~ 126** 계열 11 · `111` 행 표기 규약 참조 3 · `212` 1 · Contracts row 참조 **252 ~ 256** / **259 ~ 262** / **264 · 265** 4 · 안내 blockquote 3 개 중복 제외분 1). ⓑ 각주군 말미 (**210** 행 뒤) 삽입 시 = **4 지점** (**161** 행 `212` · **197** 행 `252 ~ 256` · **203** 행 `259 ~ 262` · **210** 행 `264 · 265`).
+- (ix) **baseline** — `wc -l` components.md **280** · audit **5574** · ADR-0003 **173** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175**, `grep -c '^## '` components.md **7** · audit **12**, audit `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **57**, components.md `grep -c '^> '` **76** — task 본문 기대치와 **전수 일치**.
+
+#### AC 2 판정표
+
+| 축 | 실측 근거 (행) | 판정 | 근거 1 구 |
+| --- | --- | --- | --- |
+| ① `llm_gateway --> llm_custom` (93 행) | (v) ⓐⓑⓒ — adapter 4 개, gateway **180** 행 `else`, `openai-compatible.adapter.ts` **13** 행 | 부분참 | 결선은 실재하나 전용 adapter 가 없고 `llm_openai` 와 같은 1 adapter · 같은 outbound 지점을 공유한다. |
+| ② `--> llm_azure` (94 행) | `azure-openai.adapter.ts` **64** 행 `buildAzureOpenaiRequest`, gateway **155** 행 분기 | 부분참 | 전용 adapter 는 1:1 이나 실 outbound 은 adapter 가 아니라 gateway **191** 행 단일 지점이라 edge 가 가리키는 층이 어긋난다. |
+| ③ `--> llm_anthropic` (95 행) | `anthropic.adapter.ts` **80** 행, gateway **164** 행 분기 | 부분참 | ② 와 동형 — 전용 adapter 1:1 · outbound 지점은 공유. |
+| ④ `--> llm_google` (96 행) | `google-gemini.adapter.ts` **81** 행, gateway **172** 행 분기 | 부분참 | ② 와 동형 — 전용 adapter 1:1 · outbound 지점은 공유. |
+| ⑤ `--> llm_openai` (97 행) | (v) ⓒ — `openai-compatible.adapter.ts` **1** · **13** 행 | 부분참 | ① 과 같은 adapter · 같은 `else` 분기라 두 edge 가 코드상 구별되지 않는다. |
+| ⑥ label `HTTPS REST<br/>(API key)` (93 ~ 97 공유) | (v) ⓓⓔ — 헤더 **4** 종 · path **4** 종, host 리터럴 **0** | 부분참 | REST 는 참 (전부 HTTPS + JSON path append) 이나 `API key` 단일 표기가 `Authorization: Bearer` / `api-key` / `x-api-key` / `x-goog-api-key` **4 종** 을 뭉뚱그린다. |
+| ⑦ 도착 node **5** ↔ 코드 provider 식별자 집합 | (vi) — `enum LlmProvider` **20 ~ 26** 행 **5 멤버** | 부분참 | 개수는 1:1 (양쪽 전용 **0**) 이나 이름이 `llm_azure` ↔ `azure_openai` · `llm_google` ↔ `google_gemini` **2 지점** 어긋난다. |
+
+- **다중 표기 수치** — edge **5** : 실 outbound 지점 **1** (gateway **191** 행) : adapter **4** 로 **5 : 1 : 4** 이며, `§ 12.57` 이 github 계열에서 잡은 **1 : 2 : 3** 과 **동형 사고** 다 (다이어그램이 도착지 종수를 seam 종수처럼 보이게 한다).
+- 위 판정은 전부 (iv) 의 **outbound 지점 정의 (주입 `fetchFn` 단일 지점, 층 = gateway)** 위에서만 유효하다. **88 행 주석의 `ADR-0003 §4` pointer 축은 `§ 12.57` 이 참으로 닫았으므로 재판정하지 않고 승계 1 구만 병기** 했다.
+- adapter 계열 edge 4 (89 ~ 92 행, `§ 12.57`) · 나머지 edge 그룹 (`§ 12.54` ~ `§ 12.56` 및 파생 영향 (1)) · node 축 (`§ 12.53`) · 표 row 본문 (`§ 12.44` ~ `§ 12.50`, `LLM Gateway` row 는 `§ 12.47`) 은 **재판정하지 않았다**.
+
+#### AC 3 처리 방식 판정
+
+| 후보 | ① append-only (`§ 12.15`) | ② 좌표 drift 파급 | ③ cap | ④ 탐색성 | 판정 |
+| --- | --- | --- | --- | --- | --- |
+| (A) 현행 유지 + 무편집 | 정합 | **0** | 최소 | 낮음 (다이어그램 독자가 audit 5574 행을 따로 열어야 함) | **기각** — AC 2 의 7 축이 **전부 부분참** 이라 오도가 문서에 남는다 (전 축 참이어도 축 ④ 때문에 자동 채택하지 않는다는 규정과 무관하게 기각 사유가 먼저 성립). |
+| (B) 각주군 말미 append (≤ 6 행) + stale 좌표 정정 | 정합 (원문 무편집 + 병기) | **4 지점** ((viii) ⓑ) | +7 행 · 3 파일 | 높음 (같은 문서 각주군에 12 개 선례와 나란히) | **채택** |
+| (C) `## Component diagram` 절 안 삽입 | 정합 | **20 지점** ((viii) ⓐ) | 정정 지점 20 ≥ 4 라 AC 4 규정상 자동 철회 | 가장 높음 | **기각** — 좌표 파급이 (B) 의 **5 배** 이고 정정 diff 만으로 cap 압박이 커진다. split 제안은 파생 영향 (24) 에 기록. |
+| (D) mermaid edge · label in-place 수정 | **위배** (판정 결과를 원문에 덮어씀) | 전 각주 재검토 필요 | — | — | **기각** — ① 축에서 먼저 탈락. |
+
+- **mermaid edge 를 지우거나 병합하거나 label 을 고쳐 쓰는 선택지는 채택하지 않는다** — 다이어그램 구조 변경은 본 doc-audit stream 의 scope 밖이며 처리는 **각주 병기** 로만 한다. **코드를 고쳐 label 을 참으로 만드는 처리도 하지 않는다** (`pr` task 소관).
+
+#### AC 4 반영 결과 + 무편집 경계
+
+- components.md **210** 행 뒤 (각주군 말미 · `## GitHub Adapter …` heading 직전) 에 blockquote **6 행** + 앞 빈 줄 **1** 행을 신설했다 (**280 → 287**, +7 로 상한 이내).
+- in-place 정정 **4 지점** — **161** 행 `212 → 219` (`## GitHub Adapter` heading) · **197** 행 `252 ~ 256 → 259 ~ 263` · **203** 행 `259 ~ 262 → 266 ~ 269` · **210** 행 `264 · 265 → 271 · 272` (전부 `## Contracts` row 좌표). 전부 **숫자 1 개씩 치환** 이고 문장 재작성은 **0** 이다.
+- **AC 4 (B) 의 "≤ 3 지점" 기대를 1 지점 초과** 했다 — 원인은 T-1459 각주가 `## Contracts` row 자기참조 **1 개** 를 새로 보탠 것이라 (viii) ⓑ 실측이 **4** 로 나온 데 있다. 실측대로 4 지점을 정정하는 쪽을 택했다 (3 만 고치면 알면서 stale 을 남기게 된다). (C) 로 올리지 않았으므로 AC 4 의 (C) · (D) 철회 규정과는 무관하다.
+- 삽입 후 재측정 `grep -n '^## '` → **5 · 22 · 28 · 115 · 219 · 251 · 277** 로 **재-drift 8 회째가 그대로 재현** 됐다 (`§ 12.51` 175 → `§ 12.57` 205 → 본 절 **212 → 219**). 항구 해소는 파생 영향 (14) anchor 좌표계 이행 소관이다.
+- **무편집 경계** — mermaid 블록 (30 ~ 106 행) · `다이어그램 표기` bullet (108 ~ 113) · 표 본체 (117 ~ 126) · 1 ~ 4 행 blockquote · `## 개요` 각주 (16 ~ 20) · 안내 blockquote (128 ~ 131) · 각주 13 블록의 판정 문장 · `## Contracts` 표 · 212 행 이후 전 구간 모두 무편집이며, 허용된 in-place 는 stale 숫자 치환 4 지점뿐이다. **secret · token · API key · 실 credential 값은 옮기지 않았다** — 헤더 이름 (`x-api-key` 등) 과 필드 이름 (`apiKey` · `endpointUrl`) 까지만 (CLAUDE.md §9).
+- **R-110 / R-112 면제 (AC 8)** — 본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 전부 **N/A** 다.
+
+#### 파생 영향 (목록만 — 본 slice 편집 금지)
+
+(1) **잔여 edge 대조 2 건** — `%% User-facing flow` **2** (65 ~ 66 행) · `%% DB persistence boundary` **1** (86 행). 본 절로 **`%% External egress` 그룹은 9/9 마감** 되어 edge 축 6 그룹 중 5 개가 완결됐고 전체 **23 중 21 판정 완료** 다. **다음 대조 1 순위는 `%% User-facing flow` 2 개 (65 ~ 66 행)** — from-node 가 `user_browser` · `web_ui` 로 frontend 경계라 `web/` 실 코드 대조 축이 새로 열린다. / (2) `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` 본문 ↔ 코드 대조 (`§ 12.48` FU4 미소진). / (3) **`## Contracts` 표 ↔ 실 계약 표면 대조** — 본 절 (vii) 이 `LLM Gateway` row **1** 개 좌표를 보태 `§ 12.55` **5** · `§ 12.56` **4** · `§ 12.57` **2** 와 합쳐 누적 **12** row 좌표를 확보했다. / (4) row pointer 셀 보강 2 건 (`Scheduler` = `ADR-0042` 미등재 `§ 12.50` FU2 · `Confluence Adapter` `§ 12.49` FU2). / (5) LLM · GitHub adapter ADR pointer 미등재 (`§ 12.47` FU5 · `§ 12.48` FU3). / (6) `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트). / (7) reviewer 규약 미이행 (`§ 12.41` FU2). / (8) `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3). / (9) README 행 번호 pointer drift 전수 sweep. / (10) REQ 번호 체계 잔재 sweep (`§ 12.38` FU3). / (11) `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3). / (12) UC-09 `§ 5` sequence participant 병기 (**48 회째 이월**). / (13) modules.md 카운트 claim 대조 (`§ 12.34` FU1, ADR 게이트). / (14) **행 번호 → anchor 좌표계 이행** (**42 회째 이월** — 본 절 AC 4 의 재-drift 8 회째 재현 + (viii) 의 파급 20 : 4 대비가 근거로 보태진다). / (15) 각주 heading 참조 anchor 이행 축소 scope (`§ 12.51` FU19 미소진). / (16) `§ 12.44` 한계 "mutation 러너 26 개" 정의 미확정. / (17) **`Scheduler` cron → 평가 pipeline 미결선** (`§ 12.50` FU18 — 코드 소관, `pr` task 로만). / (18) `ADR-0003` "단일 DB 인스턴스" 좌표 부재 (`§ 12.46` FU16). / (19) `Web UI` node 의 process subgraph 소속 표기 (`§ 12.53` FU19 미소진). / (20) **node 외연 정의의 문서 미박제** (`§ 12.55` FU20 · `§ 12.56` FU20). / (21) modules.md **200** 행 1:N 매핑 ↔ 디렉토리 외연 상충 해소 (`§ 12.56` FU21 미소진). / (22) **가변 instance 수 ↔ 문서의 고정 표기 정합** (`§ 12.57` FU22) — 본 절이 **LLM "5 provider" 고정 표기 ↔ 실 adapter 4 · 실 config row 수 가변** 에서 **같은 사고를 재관측** 했으므로 GitHub `GITHUB_INSTANCES` 축과 묶어 처리한다. / (23) `worker --> backend_api` 미표기 결선 (`§ 12.56` FU23 미소진). / (24) **(C) 후보 split 제안** — `## Component diagram` 절 내 삽입은 자기참조 **20 지점** 정정을 동반하므로 anchor 이행 (14) 과 묶어 별도 slice 로만 시도한다.
+
+#### 불변 검산 (AC 6)
+
+- `wc -l` → components.md **280 → 287** (+7, 상한 287 이내) · audit **5574 → 5652** (+78, +100 이내 — `§ 12.58` 본문 **77** 행 + 구분 빈 줄 1) · ADR-0003 **173 불변** · requirements.md **97 불변** · deployment.md **232 불변** · directory.md **203 불변** · modules.md **259 불변** · PLAN.md **175 불변**.
+- `grep -c '^## '` components.md **7 불변** · audit **12 불변**, audit `grep -c '^| REQ-'` **66 불변** · `grep -c '^### 12\.'` **57 → 58**, components.md `grep -c '^> '` **76 → 82** (신설 blockquote 6 행).
+- `git diff -U0 -- docs/architecture/components.md | grep '^@@'` → `@@ -161 +161 @@` · `@@ -197 +197 @@` · `@@ -203 +203 @@` · `@@ -210 +210,8 @@` **4 hunk** 이며 전부 각주 구간 (161 ~ 210 행) 이라 **AC 4 허용 구간 밖 hunk 0** 이다.
+- `git diff --numstat` → `11 4 docs/architecture/components.md` — 삭제 **4** 행은 전부 stale 숫자 치환의 짝 (같은 문장의 정정 전 판본) 이라 **순수 삭제 0** 이다.
+- `git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md docs/architecture/modules.md` → **빈 출력**, `git status --porcelain` 전체 → **2 파일** (components.md · REQ-COVERAGE-AUDIT.md) 로 상한 3 이내다. task 파일의 `status` · 완료 기록은 STATE single-writer 원칙 ([CLAUDE.md](../../CLAUDE.md) §9) 상 driver 의 bookkeeping commit 소관이라 본 commit 에서는 건드리지 않았다.
+
+#### 한계
+
+1. **llm_gateway 5 edge 만 닫았다** — 잔여 3 edge (user-facing 2 · db boundary 1) 판정은 파생 영향 (1) 소관이고, `%% External egress` 그룹 자체는 본 절로 마감이다.
+2. **판정은 (iv) 의 outbound 지점 정의에 의존한다** — "결선 = 주입 `fetchFn` 호출 지점" 대신 "request 조립 지점" 을 취하면 ② ~ ④ 는 참으로 뒤집히고 ① · ⑤ 만 부분참으로 남는다. 정의를 바꾸면 판정도 바뀐다.
+3. **측정은 grep 정적 근사다** — 실제 HTTPS 요청 · 인증 성공 여부는 확인하지 않았다 (live 호출 · gated live spec 실행 모두 Out of Scope).
+4. **주석 / 실 코드 분리는 수동 판독이다** — (iv) 의 **7** hit 중 실 호출 지점 **1** 행, (v) ⓓ 의 다수 hit 중 실 헤더 조립 **4** 행은 `headers` 객체 리터럴 패턴을 눈으로 가려낸 결과라 자동 검증되지 않았다.
+5. **`## Contracts` `LLM Gateway` row 의 불일치 단서는 판정하지 않았다** — (vii) 이 관측한 `provider 별 header 다름` 어구는 좌표 · 인용까지이며 참 / 거짓 확정은 파생 영향 (3) 이다.
+6. **in-place 정정이 기대치 (≤ 3) 를 1 지점 초과** 했다 — AC 4 반영 결과에 원인과 선택 근거를 적었으나, 이 초과는 각주가 늘수록 자기참조도 늘어난다는 구조적 신호라 파생 영향 (14) 의 우선순위 근거로 함께 쓴다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
