@@ -4594,6 +4594,113 @@ $ git status --porcelain → M components.md · M REQ-COVERAGE-AUDIT.md (**2 파
 3. **`Worker` 4 요소는 "산출 필드 · helper 실재" 까지다** — 4 요소가 실제로 요구 품질대로 산출되는지 (특히 LLM 정성 평가문의 비결정성) 는 REQ-019 row 가 이미 지적한 별개 축이고, 본 절은 필드 · 호출 배선 실재까지만 판정했다.
 4. **잔여 5 row 는 전부 미판정** — 본 각주도 표 뒤에 있어 5 row 를 덮는 것처럼 읽힐 여지가 있어 첫 구에 한정 선언을 뒀다. blockquote 는 이제 **2 블록** 이다.
 
+### 12.46 components.md `## Component table` **DB Persistence** row ↔ 실 `prisma/schema.prisma` 인벤토리 · `ADR-0002` / `ADR-0003 §1` · REQ 대조 — 원문 보존 + 각주 1 블록 (T-1448)
+
+> **본 절의 위치** — `§ 12.45` 가 "다음 slice 1 순위" 로 지목한 [T-1447](../tasks/T-1447-components-md-backend-api-worker-rows-vs-src-audit.md) **Follow-up 1** (`DB Persistence` row) 을 본 절이 그대로 집행한다. **계보** — `T-1430` ~ `T-1435` (directory.md) → `T-1436` ~ `T-1444` (deployment.md) → `T-1445` (components.md `## 개요`) → `T-1446` (표 row 1) → `T-1447` (표 row 2 ~ 3) → **`T-1448` (본 절 — 표 축의 세 번째 slice)**. **1 순위 근거 (`§ 12.45` 원문)** — 이 row 의 claim 은 `prisma/schema.prisma` **단일 정본** 과 1:1 대조가 가능해 검증 난이도가 가장 낮고, REQ-032 (raw 저장 금지) · REQ-031 (unique constraint) 이 **schema-level 강제** 라 판정이 결정적이다. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이고, 측정은 전부 read-only `find` · `grep` · `sed` · `wc` · `git` 이며 **`DATABASE_URL` 값 · connection string · 실 호스트명은 옮기지 않았다** (CLAUDE.md §9). `prisma/` 는 **읽기 전용** 으로만 다뤘다 (migration · generate 미실행).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/components.md → 1 `# Component view` · 5 `## 개요` · 22 `## Deployment 컨텍스트` · 28 `## Component diagram` · **115 `## Component table`** · **142 `## GitHub Adapter …`** · 174 `## Contracts` · 200 `## References` ⇒ **`DB Persistence` row = 122** — AC 좌표 (115 · 122 · 142) 그대로 **stale 아님**. T-1447 각주 blockquote 는 **134 ~ 140** (7 행) 이고 **141 은 빈 행** 이라 삽입 지점은 "141 행 뒤 · 142 행 heading 앞".
+      $ sed -n '122p' → `| **DB Persistence** | PostgreSQL 16+ 인스턴스 + Prisma client + repository layer. 모든 component 의 영속 저장소. ADR-0002 결정에 따라 schema-as-code (schema.prisma). raw text 컬럼 미정의 (REQ-032 schema-level 강제). | 입력: … Prisma typed query (in-process). 출력: query 결과 row / TCP 5432 의 PostgreSQL 외부 process 와 통신. | REQ-029 … REQ-033 | ADR-0002 (PostgreSQL + Prisma) / ADR-0003 §1 (단일 DB 인스턴스) |`
+      claim 이분 — **검증 가능 16**: 책임 **8** (`PostgreSQL 인스턴스` · `16+` · `Prisma client` · `repository layer` · `모든 component 의 영속 저장소` · `schema-as-code (schema.prisma)` · `raw text 컬럼 미정의` · `REQ-032 schema-level 강제`) / contract **2** (`Prisma typed query (in-process)` · `TCP 5432 외부 process 통신`) / pointer **2** (`ADR-0002` · `ADR-0003 §1 (단일 DB 인스턴스)`) / REQ **4**. **검증 불가 1** (`출력: query 결과 row` — 런타임 반환 형태라 참·거짓 대상이 아니다).
+(ii)  schema 인벤토리 축 — $ wc -l prisma/schema.prisma → **666** ; $ grep -c '^model ' → **15** (`Person` · `Group` · `Part` · `PersonGroupMembership` · `User` · `UserInstanceAccess` · `ServiceIdentity` · `Assessment` · `Contribution` · `Summary` · `LlmProviderConfig` · `DifficultyMapping` · `PermissionDeniedRecord` · `ExportJob` · `ImportJob`) ; $ grep -n '^datasource' -A 4 → **43 ~ 45** 행 `datasource db { provider = "postgresql" }` (**url · version 줄 없음**) ; $ grep -n '^generator' -A 3 → **48 ~ 50** 행 `generator client { provider = "prisma-client-js" }` ⇒ `PostgreSQL 인스턴스` **참** · `Prisma client` **참** · `schema-as-code` **참**.
+      `16+` 축 — schema 안 major version 근거 **0** (datasource 가 provider 한 줄뿐) 이므로 출처를 배포 자산에서 확인: $ grep -n 'image:.*postgres' docker-compose.yml → **14** 행 `image: postgres:16-alpine` ⇒ **버전 근거는 schema 가 아니라 compose 이고, 그 pin 은 16 고정** 이라 "이상 (`+`)" 을 뒷받침하는 정본은 **없다** ⇒ **부분참** (planner 가설 ① 그대로 성립). 배포 자산은 읽기만 했다.
+(iii) repository + raw 컬럼 축 — $ find src -name '*.repository.ts' -not -name '*.spec.ts' | wc -l → **13** (`assessment.repository.ts` · `contribution.repository.ts` · `summary.repository.ts` 외 10) ; $ grep -n 'PrismaService\|prisma\.' src/user/assessment.repository.ts → **37** 행 `import { PrismaService } from "../persistence/prisma.service"` · **94 · 100 · 113** 행 `this.prisma.assessment.…` ⇒ `repository layer` **참** · contract 의 `Prisma typed query (in-process)` **참** (planner 가설 ② 성립, 개수 13 은 실측값).
+      $ grep -nE '^\s+[a-zA-Z]+\s+String' prisma/schema.prisma | grep -iE 'body|content|diff|raw|payload|text|narrative|message|description' → **5 hit** = **300 · 335 · 443** 행 `difficulty String` (`diff` **부분일치** 일 뿐 enum-as-String literal) · **303 · 366** 행 `narrative String` (LLM 생성 평가문 = 평가 **결과**) ⇒ commit diff · PR/issue body · 문서 원문 raw 컬럼 **0** ⇒ `raw text 컬럼 미정의` **참**. **범위 차이** — requirements.md REQ-032 row 의 근거는 `Assessment` · `Contribution` · `Summary` **3 model** 기준인데 본 판정은 **15 model 전수** 라 본 절이 더 넓게 실증했다 (planner 가설 ④ 의 범위 차이 지적이 성립).
+(iv)  contract + pointer 축 — $ grep -c '5432' prisma/schema.prisma → **0** ; $ grep -n '5432' docs/architecture/deployment.md docker-compose.yml → deployment.md **30** 행 (`localhost:5432` / `db:5432` 예시) · docker-compose.yml **22** 행 (`"5432:5432"`) ⇒ `TCP 5432` **참이되 출처가 배포 자산** 이다. $ ls -1 docs/decisions/ADR-0002-*.md docs/decisions/ADR-0003-*.md → `ADR-0002-db.md` · `ADR-0003-deployment.md` (`-deployment-topology.md` 는 **없는 파일명** — `§ 12.45` FU16) ; $ grep -n '^status:' → 각 **4** 행 `status: ACCEPTED` ; $ grep -n 'PostgreSQL\|Prisma' docs/decisions/ADR-0002-db.md → **43** 행 `**Persistence DB 는 PostgreSQL, ORM 은 Prisma** 를 채택한다` · **48** 행 (REQ-032 schema-level 강제 메커니즘) · **49** 행 (REQ-031 unique key + upsert) ⇒ `ADR-0002 (PostgreSQL + Prisma)` **참** · `REQ-032 schema-level 강제` **참**.
+      $ grep -n '^### Decision §' docs/decisions/ADR-0003-deployment.md → **32** `§1 — Monolithic NestJS process (in-process queue OK)` · **46** `§2 — Secret 저장` · **62** `§3 — Scheduler 위치` · **78** `§4 — 외부 네트워크 boundary` (+ `## Alternatives considered` 하위 120 · 129 · 138 · 147 의 동명 4 절) ; $ grep -n 'DB\|단일 DB' → **48 · 58** (secret 의 `DATABASE_URL` 언급) · **68** (cron 설정 row) · **96** (`## Consequences` → `### 긍정` 의 `process 1 개 + DB 1 개 (ADR-0002)`) · **106** ⇒ **"단일 DB 인스턴스" 는 `### Decision §1` ~ `§4` 어디에도 없고 Consequences 96 행에만 있으며 그 행 자신이 정본을 ADR-0002 로 지목** ⇒ `ADR-0003 §1 (단일 DB 인스턴스)` **부분참** (planner 가설 ③ 성립 — 옳은 좌표는 §1 이 아니라 **96** 행 Consequences, 결정 정본은 **ADR-0002**).
+(v)   REQ ID 축 — $ grep -n 'REQ-029\|REQ-031\|REQ-032\|REQ-033' docs/requirements.md → **48 · 50 · 51 · 52** 행 4 ID 전부 실재 ; 병기 대조 — REQ-029 `평가 자료 non-volatile 저장` ↔ `(non-volatile 저장)` · REQ-031 `재수집 중복 방지 + 최근 1주 재수집 OK` ↔ `(재수집 중복 방지 unique constraint)` · REQ-032 `Raw data 저장 금지 — 평가 결과만 보유` ↔ `(raw 저장 금지)` · REQ-033 `commit/문서 별 기여도·난이도·양 보유` ↔ `(commit/문서 단위)` ⇒ **전부 부합**. REQ-031 의 `unique constraint` 병기 뒷받침 — $ grep -n '^\s*@@unique' prisma/schema.prisma → **7 개** (140 · 244 · 273 · 314 · **348** `@@unique([assessmentId, sourceRef])` · 377 · 451) ⇒ 재수집 중복 차단 constraint 실재.
+      `§ 12.15` 강도 — $ sed -n '122p' … | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}|shipped|실측|현황|남은' | wc -l → **0** ⇒ row 1 과 달리 시점 marker **0 의 순수 blueprint 서술** 이라, 무편집 근거는 append-only 방침보다 **1 ~ 4 행 문서 성격 선언 + 거짓 0** 쪽이다.
+(vi)  baseline — $ wc -l → components.md **210** · audit **4610** · schema.prisma **666** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175** ; $ grep -c '^## ' → components.md **7** · audit **12** ; audit $ grep -c '^| REQ-' → **66** · $ grep -c '^### 12\.' → **45** (AC 1 (vi) 기대 14 값 **전부 일치** — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+| 축 | claim (1 구) | 실측 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 책임 | `PostgreSQL … 인스턴스` | schema **44** 행 `provider = "postgresql"` | 참 | 무편집 | provider 선언이 정본과 1:1 |
+| 책임 | `16+` major version | schema 안 근거 **0** ; compose **14** 행 `postgres:16-alpine` (16 고정 pin) | 부분참 | 원문 보존 + 각주 부기 | 버전 출처가 schema 가 아니고 "이상 (`+`)" 근거는 어느 정본에도 없다 |
+| 책임 | `Prisma client` | schema **48 ~ 50** 행 `generator client` = `prisma-client-js` | 참 | 무편집 | generator 선언 실재 |
+| 책임 | `repository layer` | spec 제외 `*.repository.ts` **13** 개 | 참 | 원문 보존 + 각주 부기 | 실 파일 인벤토리로 실증 (개수는 각주에 병기) |
+| 책임 | `모든 component 의 영속 저장소` | 13 repository 가 `PrismaService` 단일 경로 주입 | 참 (근사) | 무편집 | 다른 영속 저장소 자산이 repo 에 없으나 전수 증명은 아님 |
+| 책임 | `ADR-0002 결정에 따라 schema-as-code (schema.prisma)` | schema **666** 행 단일 파일 · `model` **15** · ADR-0002 **43** 행 | 참 | 무편집 | 결정 문장과 실 파일이 동시 실증 |
+| 책임 | `raw text 컬럼 미정의` | raw 본문 후보 grep 실 컬럼 hit = `difficulty` 3 · `narrative` 2 뿐 ⇒ raw 원문 컬럼 **0** | 참 | 원문 보존 + 각주 부기 | **15 model 전수** 로 성립 — REQ-032 근거의 3 model 범위보다 넓다는 사실을 각주에 병기 |
+| 책임 | `REQ-032 schema-level 강제` | ADR-0002 **48** 행이 메커니즘 명시 ; reviewer 자동 점검은 여전히 **0 hit** | 참 (한정) | 원문 보존 + 각주 부기 | 강제의 실효가 컬럼 부재 + policy 의존이라는 한정을 병기 |
+| contract | `Prisma typed query (in-process)` | `assessment.repository.ts` **37** 행 `PrismaService` import · **94 · 100 · 113** 행 호출 | 참 | 무편집 | in-process 주입 경로 실재 |
+| contract | `TCP 5432 의 PostgreSQL 외부 process 와 통신` | schema 안 `5432` **0 hit** ; compose **22** 행 · deployment.md **30** 행 | 참 (출처 상이) | 원문 보존 + 각주 부기 | 사실은 참이나 근거가 schema 가 아니라 배포 자산임을 명시 |
+| pointer | `ADR-0002 (PostgreSQL + Prisma)` | `ADR-0002-db.md` **4** 행 ACCEPTED · **43** 행 결정문 | 참 | 무편집 | 파일 · status · 결정문 일치 |
+| pointer | `ADR-0003 §1 (단일 DB 인스턴스)` | **32** 행 `§1` 의 주제는 `Monolithic NestJS process` ; "DB 1 개" 는 `## Consequences` **96** 행에만 | 부분참 | 원문 보존 + 각주 부기 | **§ 좌표가 주제와 어긋난다** — 옳은 좌표는 96 행이고 결정 정본은 ADR-0002 |
+| REQ | REQ-029 · REQ-031 · REQ-032 · REQ-033 **4 개** + 괄호 병기 문구 | requirements.md **48 · 50 · 51 · 52** 행 실재 · 제목 부합 ; REQ-031 의 `unique constraint` 는 `@@unique` **7** 개 (특히 **348** 행) 로 뒷받침 | 참 | 무편집 | **4 ID 판정이 전부 동일 (실재 + 부합)** 이라 AC 2 묶음 허용 조건에 따라 1 row 로 묶고 ID 를 전부 나열 |
+
+판정 기준 **3 축** — ① **문서 성격**: 1 ~ 4 행 blockquote 가 본 문서를 `P1 T-A3 의 산출물` (blueprint) 로 선언하고, 이 row 에는 shipped 현황 갱신 흔적 (시점 어휘) 이 **0** 이라 blueprint 원문 보존 근거가 강하다. ② **`§ 12.15` 정합**: 시점 marker **0 hit** 이라 append-only 충돌은 없고, 동시에 in-place 치환을 정당화할 "낡음" 도 실증되지 않는다 — 부분참 2 건은 **문서가 거짓** 이 아니라 **근거 출처 · § 좌표가 어긋난** 경우다. ③ **선례**: T-1430 ~ T-1447 의 "원문 보존 + 실측 각주" 를 승계했다 — [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) 의 in-place 1:1 치환은 **거짓 어휘 1 개** 였던 경우, [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 의 혼합은 **거짓 다수** 였던 경우인데, 본 slice 는 **거짓 0 · 부분참 2** 라 치환 대상이 공집합이다.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | row 셀 in-place 동기 (틀린 § 번호 · 낡은 서술 치환) | 기각 | `ADR-0003 §1` 을 `ADR-0003 Consequences` 로 바꾸면 **§ 4 절 체계에 없는 좌표를 표에 새로 창작** 하게 되고, `16+` 를 `16` 으로 낮추면 compose pin 이 바뀔 때마다 blueprint 표가 따라다녀야 해 유지비가 각주보다 크다 |
+| **(B)** | **원문 무편집 + T-1447 각주 blockquote 직후 각주 blockquote 1 개 신설** | **채택** | T-1437 ~ T-1447 화법을 그대로 잇고, 부분참 2 건 (`16+` 출처 · `ADR-0003 §1` 좌표) 과 raw 컬럼 판정의 **범위 차이** 를 같은 화면에 병기해 오도 risk 만 제거하며 cap (+7 행 · 3 파일) 안이다 |
+| (C) | 혼합 (거짓 판정 지점만 in-place, 나머지는 각주) | 기각 | 거짓 판정이 **0** 이라 in-place 항이 공집합이고, 부분참 2 건은 (A) 기각 사유대로 치환 자체가 새 부정확을 만든다 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 이 row 는 DB 계약의 유일한 요약이라 독자가 (a) `16+` 를 schema 가 보증하는 하한으로 오인해 15 로의 다운그레이드 · 17 로의 업그레이드 영향을 잘못 판단하거나, (b) `ADR-0003 §1` 을 열어 DB 결정을 찾다 헛돌 비용이 크다 |
+
+판정 **4 축** — ① **`§ 12.15` 정합**: 시점 marker 0 이라 각주 병기가 append-only 방침과 무충돌이다. ② **오도 risk**: (a) DB 버전 하한 오인 → 실제로는 compose 가 16 을 고정 pin 하는데 "16 이상 아무거나" 로 읽음, (b) raw 컬럼 강제 범위 오인 → REQ-032 근거가 3 model 뿐인데 schema 전체가 자동 강제되는 것으로 읽음 (실제 전수 판정은 본 절이 처음 수행), (c) ADR § 좌표 오인 → `ADR-0003 §1` 에서 DB 결정을 탐색 — 셋 다 실작업 낭비로 직결돼 (D) 를 기각시킨다. ③ **cap**: (B) 의 실측 diff 는 components.md **+7/-0** (210 → **217**, 허용 ≤ 217) · 파일 **3 고정** 이라 상한 안이다 ((A) · (C) 는 치환 대상 공집합이라 애초에 성립하지 않는다). ④ **각주 누적 구조 제약**: markdown 표 중간에 blockquote 를 넣을 수 없어 각주는 표 뒤에 쌓이며 본 slice 로 **3 블록째** 다 — 그래서 첫 구에 **"본 각주는 `DB Persistence` row 한정"** 을 명시했다. 5 ~ 6 블록 시점의 배치 규약 재검토 (표 뒤 나열 vs row 별 anchor) 는 `§ 12.44` 한계 3 소관으로 본 slice 범위 밖이라 파생 영향에만 남긴다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (6 행)** — T-1447 각주 마지막 행 (140) · 빈 행 (141) 뒤, `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` heading 앞에 append (실 증가 **+7** = blockquote 6 + 공백 1). 내용은 ① **`DB Persistence` row 한정 선언 + 잔여 4 row 미판정 명시** + schema 정본 (666 행 · 15 model · 44 · 48 ~ 50 행) + repository **13**, ② `16+` **부분참** (출처가 compose 14 행의 16 고정 pin) + `TCP 5432` 출처 상이, ③ raw 컬럼 **참** + **15 model 전수 vs REQ-032 근거 3 model 범위 차이** + reviewer 자동 점검 0 hit 한정, ④ pointer 1 참 (`ADR-0002` 43 행) · 1 부분참 (`ADR-0003 §1` → 실제는 96 행 Consequences), ⑤ REQ 4 개 **전수 참** + `@@unique` 7 개 뒷받침, ⑥ `§ 12.15` 처리 사유 + 본 절 pointer.
+- **문구 1:1 + 무편집 경계** — 각주의 경로 · model / 컬럼 이름 · 수치 (**666** · **15** · **44** · **48 ~ 50** · **13** · **14** · **22** · **30** · **32** · **43** · **48** · **96** · **348** · `@@unique` **7** · REQ 행 **48 · 50 · 51 · 52**) 는 전부 위 실측 출력 그대로이며, **실측되지 않은 값 (존재하지 않는 model · 임의 카운트 · 없는 절 번호) 은 창작하지 않았고** `DATABASE_URL` 값 · connection string · 실 호스트명 · 비밀번호도 옮기지 않았다 (변수명 언급 0). **1 ~ 4 행 blockquote · 119 ~ 121 행 3 row · 122 행 원문 · 123 ~ 126 행 잔여 4 row · 128 ~ 140 행 기존 각주 2 블록 · 142 행 이후 전 구간** (`## GitHub Adapter …` · `## Contracts` · `## References` · mermaid) 은 그대로다.
+- **새 pointer 0** — 각주가 더한 markdown 링크는 `ADR-0002-db.md` · `ADR-0003-deployment.md` · `deployment.md` · `requirements.md` 와 본 절 pointer 뿐 (전부 row 가 이미 지목했거나 판정 근거로 직접 인용한 대상) 이고, `prisma/schema.prisma` · `docker-compose.yml` · `*.repository.ts` 경로는 **링크 없는 코드 span** 으로만 인용했다. **model / 컬럼 추가 · rename 은 하지 않았다** (Out of Scope — 문서를 실제에 맞출 뿐 실제를 문서에 맞추지 않는다). ADR-0003 의 § 번호 drift 를 발견했지만 **ADR 본문은 고치지 않았다**.
+
+#### T-1447 Follow-up 1 closure + Component table 잔여
+
+- **Follow-up 1 closure** — `§ 12.45` 가 "다음 slice 1 순위" 로 이월한 `DB Persistence` row 진입을 본 절이 수행했고, **검증 가능 16 claim 을 전부 판정 · 각주 반영** 했다 (참 **14** · 부분참 **2** · 거짓 **0**). 승계 대상은 소진되며 **표 잔여는 4 row** 다.
+- **잔여 미판정 4 row** — `LLM Gateway` (123) · `GitHub Adapter` (124) · `Confluence Adapter` (125) · `Scheduler` (126). **다음 slice 1 순위 = 3 adapter 묶음** (`LLM Gateway` + `GitHub Adapter` + `Confluence Adapter`) — 근거: 셋 다 "외부 HTTPS outbound + `ADR-0003 §4` (direct egress)" claim 을 **공유** 하고 `§ 12.41` egress 판정 · `§ 12.45` 의 `fetch` production 5 파일 실측을 그대로 재사용할 수 있어, 따로 판정하면 같은 축을 세 번 재게 된다 (claim 밀도가 높으면 2 slice 로 split). 후순위는 `Scheduler` — `§ 12.45` 가 trigger 축 (정적 `@Cron` 0 · `CRON_TICK_HANDLER` no-op stub) 을 이미 부분 실측해 승계 가능하다.
+- **components.md 진행률** — 본문 절 **7 개** 중 **2 개** (`## 개요` · `## Component table` row 1 ~ 4) 가 대조를 마쳤고 문서 안 실측 각주는 **3 블록** 이다. 누적은 본 절 16 을 더해 **218 row = 참 152 · 부분참 35 · 거짓 31** (`§ 12.35` ~ `§ 12.46` 합 — `§ 12.45` 의 202 + 본 절 16).
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **Component table 잔여 4 row** — 위 목록 참조. 1 순위 3 adapter 묶음 (egress claim 공유 · `§ 12.41` 재사용), 후순위 `Scheduler`.
+2. **표 뒤 각주 blockquote 누적 배치 규약 재검토** — `§ 12.44` 한계 3. 본 slice 로 **3 블록째** 이며 5 ~ 6 블록 시점 재검토 예고는 유효하다.
+3. **`## Deployment 컨텍스트` (22 ~ 26 행)** — "모든 8 component 는 동일 process" claim + ADR pointer 3 종. T-1445 FU1 차순위로 **3 회째 이월** (본 절의 `ADR-0003 §1` 좌표 판정을 승계할 수 있다).
+4. **`## Component diagram` mermaid node ↔ 실 module 대조** — 미판정 (112 행이 `DB Persistence` 의 TCP 5432 를 반복하므로 본 절 판정 승계 가능).
+5. **`@nestjs/config` 미도입 전수 sweep** — `§ 12.39` FU3 미소진 (ADR 게이트).
+6. **reviewer 규약 미이행** — `.claude/agents/reviewer.md` REQ-032 0 hit (`§ 12.41` FU2 미소진). **본 절의 raw 컬럼 판정과 직접 인접** — schema 전수 raw 0 은 실증됐으나 그 상태를 지킬 자동 게이트가 없다.
+7. **`deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합** — `§ 12.41` FU3 미소진.
+8. **README 행 번호 pointer drift 전수 sweep** — 미착수.
+9. **REQ 번호 체계 잔재 전수 sweep** — `§ 12.38` FU3 미소진.
+10. **`CLAUDE.md` §1 pointer 부정확** — T-1442 FU3 미소진.
+11. **UC-09 `§ 5` sequence participant 병기** — 31 회째 이월.
+12. **정본 [modules.md](../architecture/modules.md) 카운트 claim 대조** — `§ 12.34` FU1 미소진 (ADR 게이트).
+13. **행 번호 → anchor 좌표계 이행** — 25 회째 이월.
+14. **`§ 12.44` 미해결 한계** — "mutation 러너 26 개" 정의 미확정 (`pr` mode drift-guard spec 소관).
+15. **`Scheduler` cron → 평가 pipeline 미결선** — `§ 12.45` FU15. **코드 소관** 이라 별도 `pr` task 로만 처리 가능하다.
+16. **`ADR-0003` 의 "단일 DB 인스턴스" 좌표 부재** — 본 절이 실측한 사실 (Decision §1 ~ §4 에 없고 Consequences 96 행에만). ADR 본문 · pointer 정정은 **ADR 소관 별도 task** 이며 본 doc slice 는 components.md 각주 병기까지만 했다.
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 전부 **N/A** 다 (측정은 read-only `find` · `grep` · `sed` · `wc` · `git` 뿐이고 빌드 · 설치 · 테스트 · `prisma migrate` · `prisma generate` · `psql` 은 어느 것도 실행하지 않았다).
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → components.md **217** (210 → +7, 허용 ≤ 217) · audit **4610 → 4717** (+107 = 본 절 106 행 = 4597 ~ 4702 + 구분 공백 1, 허용 +115 이내 · 절 상한 ≤ 115 안) · **prisma/schema.prisma 666 (불변)** · deployment.md **232** (불변) · directory.md **203** (불변) · modules.md **259** (불변) · PLAN.md **175** (불변) · requirements.md **97** (불변)
+$ grep -c '^## ' → components.md **7** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **46** (45 → 46)
+$ git diff -U0 -- docs/architecture/components.md | grep '^@@' → `@@ -141,0 +142,7 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (T-1447 각주 뒤 ~ `## GitHub Adapter …` heading 앞) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/components.md → `7  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md → (빈 출력 — 코드 · schema · frontend · 배포자산 · CI · 의존성 · ADR · PLAN · requirements 무변경)
+$ git status --porcelain → M components.md · M REQ-COVERAGE-AUDIT.md (**2 파일** — task 파일 frontmatter `status` 갱신은 driver 의 bookkeeping commit 소관이라 executor 가 건드리지 않았다. touchesFiles 3 파일 중 실제 편집은 2)
+```
+
+#### 한계 —
+
+1. **`16+` 판정은 "정본 부재" 까지다** — compose 가 16 을 pin 한다는 사실은 실증했으나, 운영 host 에 실제로 어떤 major version 이 떠 있는지는 read-only 문서 대조로 확인할 수 없다. 각주도 "schema 에 근거 없음 + compose 는 16 고정" 까지만 주장한다.
+2. **`모든 component 의 영속 저장소` 는 근사다** — 13 repository 가 `PrismaService` 단일 경로를 쓰는 것은 확인했으나 8 component 각각이 DB 를 쓰는지 · 다른 저장소가 없는지의 전수 증명은 §7 예산 밖이다.
+3. **raw 컬럼 전수 판정은 grep 어휘 목록에 의존한다** — `body|content|diff|raw|payload|text|narrative|message|description` 밖의 이름으로 raw 본문을 담는 컬럼이 있으면 잡히지 않는다. `String` 컬럼 전수 육안 검사는 하지 않았다 (`§ 12.41` FU2 의 자동 게이트 부재와 같은 한계).
+4. **잔여 4 row 는 전부 미판정** — 본 각주도 표 뒤에 있어 4 row 를 덮는 것처럼 읽힐 여지가 있어 첫 구에 한정 선언을 뒀다. blockquote 는 이제 **3 블록** 이다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
