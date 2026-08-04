@@ -5636,6 +5636,85 @@ row → 절 매핑 — `Web UI` **`§ 12.44`** (T-1446) · `Backend API` + `Work
 5. **`## Contracts` `LLM Gateway` row 의 불일치 단서는 판정하지 않았다** — (vii) 이 관측한 `provider 별 header 다름` 어구는 좌표 · 인용까지이며 참 / 거짓 확정은 파생 영향 (3) 이다.
 6. **in-place 정정이 기대치 (≤ 3) 를 1 지점 초과** 했다 — AC 4 반영 결과에 원인과 선택 근거를 적었으나, 이 초과는 각주가 늘수록 자기참조도 늘어난다는 구조적 신호라 파생 영향 (14) 의 우선순위 근거로 함께 쓴다.
 
+### 12.59 components.md `## Component diagram` mermaid **`%% User-facing flow` edge 2 개** (65 ~ 66 행) ↔ 실 `web/src` 브라우저 outbound seam · SPA 서빙 경계 대조 — edge 1 참 · 1 부분참 · label 2 축 부분참 · 층 정합 거짓 확정 · user-facing 그룹 2/2 마감 (T-1461)
+
+**위치 · 계보** — 본 절은 `§ 12.58` 파생 영향 **(1)** 이 **다음 대조 1 순위** 로 지목한 `%% User-facing flow` **2** edge (65 ~ 66 행) 를 실 `web/src` 브라우저 코드 · SPA 서빙 경계와 대조한 결과다. 본 절로 **user-facing 그룹이 2/2 마감** 되어 edge 축 **6 그룹 중 5.5 그룹**이 완결되고 전체 **23 중 22 판정 완료** · 잔여는 `%% DB persistence boundary` **1** (86 행) 하나뿐이다. 앞 5 그룹과 달리 출발 node 가 `user_browser` · `web_ui` 인 **frontend 경계** 라 대조 대상이 `web/src/**` 로 새로 열렸고, 그래서 `§ 12.57` → `§ 12.58` 이 승계해 온 **주입 `fetchFn` 단일 지점** 정의를 쓸 수 없어 **브라우저 outbound seam 정의를 본 절이 신설** 했다 (승계 아님 — AC 1 (iv), 정의는 실측 hit 분포가 결정했다).
+
+#### AC 1 실측 (명령 + 출력)
+
+- (i) `grep -n '^#\{1,3\} ' docs/architecture/components.md` → `1` `# Component view` · **5** `## 개요` · **22** `## Deployment 컨텍스트` · **28** `## Component diagram` · **115** `## Component table` · **219** `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` · **251** `## Contracts` · **277** `## References` — task 본문 기대 좌표와 **전부 일치 (stale 0)**. `grep -n '^\s*%%\|^```' …` → 블록 **30 ~ 106**, 그룹 주석 **32 · 48 · 61 · 64 · 68 · 75 · 79 · 85 · 88 · 99**.
+- (ii) `grep -nE '^\s+[a-z_]+ -- ' … | wc -l` → **23**. `§ 12.54` 산출식 **23 = 2 + 5 + 2 + 4 + 1 + 9** 는 **여전히 성립** 한다 (65 ~ 66 **2** · 69 ~ 73 **5** · 76 ~ 77 **2** · 80 ~ 83 **4** · 86 **1** · 89 ~ 97 **9**). 본 slice 대상은 **앞 2 개 (65 ~ 66 행) 뿐** 이며 종료 시 user-facing **2/2 마감** · 전체 **23 중 22 판정 완료** · 잔여 **1** (db boundary **86** 행).
+- (iii) `sed -n '64,66p'` → `%% User-facing flow` / `user_browser -- "HTTPS REST JSON" --> web_ui` / `web_ui -- "HTTPS REST JSON" --> backend_api`. 3 컬럼 분해 = 출발 `user_browser` · `web_ui` **2 종** / 도착 `web_ui` · `backend_api` **2 종** / label **전부 동일 문자열 1 종** (`HTTPS REST JSON`). `sed -n '46p;51,52p'` → `user_browser["사용자 브라우저<br/>(SuperAdmin / Admin / User)"]` · `web_ui["Web UI<br/>(Frontend SPA)"]` · `backend_api["Backend API<br/>(NestJS controller + service)"]`.
+- (iv) **브라우저 outbound seam 정의 (신설 — 승계 불가)** — components.md **212** 행 각주는 outbound 지점을 "주입 `fetchFn` 단일 지점" 으로 적었으나 이는 **NestJS process 안의 server-side seam** 정의라 브라우저에서 나가는 호출에는 그대로 적용할 수 없다. 그래서 `grep -rn 'fetch(' web/src --include=*.ts --include=*.tsx | grep -v '\.test\.'` → **20 hit / 17 파일** 을 실행 코드와 주석으로 갈랐고, 주석 (`// … 실제 fetch(GET /api/*)` 계열 컴포넌트 자기선언) 을 제외한 **실행 hit 은 `web/src/api/apiClient.ts` 의 61 · 76 행 2 개뿐** 이다. 보조 확인 `grep -rn 'XMLHttpRequest\|axios\|EventSource\|WebSocket\|navigator.sendBeacon' web/src …` → **3 hit 이 전부 "axios/react-query 미도입" 주석** (`apiClient.ts` **4** · `useApiResource.ts` **7** · `AdminView.tsx` **5** 행) 이라 다른 outbound 표면은 **0** 이다. ⇒ **정의: 브라우저 outbound seam = `apiClient.ts` 단일 래퍼 (분산 아님, 수렴)**. 아래 판정은 이 정의 위에서만 유효하다.
+- (v) **결선 실측** (5 명령 — 실 token · cookie 값은 옮기지 않고 옵션명 · 변수명 · path 문자열까지만)
+  - ⓐ `grep -n 'fetch(\|credentials\|REFRESH_PATH' web/src/api/apiClient.ts | head -15` → **61** 행 `response = await fetch(path, {` · **63** 행 `credentials: 'same-origin',` · **76** 행 `refreshResponse = await fetch(REFRESH_PATH, {` · **78** 행 `credentials: 'same-origin',` · **20** 행 `const REFRESH_PATH = '/api/auth/refresh';` · **2** 행 자기선언 (`JWT HttpOnly cookie 자동 동반`) · **52** 행 (`정책(credentials·refresh·ApiError)을 단일 지점에서 강제`).
+  - ⓑ `grep -n 'Content-Type\|application/json\|\.json()\|\.text()' web/src/api/apiClient.ts | head -15` → **39** 행 주석 `Content-Type 이 application/json 이면 JSON, 아니면 text` · **42** 행 `if (contentType.includes('application/json'))` · **43** 행 `return response.json();` · **45** 행 `return response.text();` · **95** 행 `await response.text()` (에러 본문). ⇒ 응답 파싱 분기 **2 종**.
+  - ⓒ `grep -rn 'ServeStatic\|WEB_DIST_PATH\|resolveServeStaticOptions' src/web/web.module.ts src/app.module.ts | grep -v spec` → **10 hit**. 핵심은 `web.module.ts` **20** 행 `export const WEB_DIST_PATH = join(process.cwd(), "web", "dist")` · **30** 행 `export function resolveServeStaticOptions(` · **49 ~ 50** 행 `imports: resolveServeStaticOptions(WEB_DIST_PATH).map((options) => ServeStaticModule.forRoot(options))` 이고 **6 ~ 7** 행이 "dist 부재 시 등록 0" 을, `app.module.ts` **48** 행이 "CI/dev 의 dist 부재 환경은 등록 0 으로 부팅 무변경" 을 자기선언한다. ⇒ SPA 자산 서빙 주체는 **backend 와 같은 NestJS process** 이며 **조건부 등록** 이다.
+  - ⓓ `grep -n 'proxy\|/api\|target' web/vite.config.mts` → **4 ~ 5** 행 주석 (`Vite dev server (5173) 가 /api 요청을 NestJS (localhost:3000) 로 proxy`) · **14** 행 `proxy: {` · **15** 행 `'/api': 'http://localhost:3000',`. ⇒ **dev 2 hop (5173 → 3000) · prod 1 hop (동일 origin)** 의 **2 모드**.
+  - ⓔ `grep -rn 'setGlobalPrefix\|enableCors' src --include=*.ts | grep -v spec` → **0 hit**. `/api` prefix 는 전역 설정이 아니라 controller path 리터럴이고 CORS 설정도 없다 (same-origin 전제와 정합).
+- (vi) `grep -rn 'text/csv\|application/octet-stream\|attachment\|Content-Disposition' src --include=*.controller.ts | grep -v spec | head -10` → **1 hit** — `src/export/export.controller.ts` **435** 행 `다운로드 header(Content-Type / Content-Disposition / Content-Length)를 response 에 설정`. ⇒ backend 가 JSON 아닌 다운로드 응답을 내는 표면이 실재하므로 label 의 `JSON` 단일 표기는 **참으로 뒤집히지 않는다** (hit 0 이었다면 참으로 뒤집었을 축이다).
+- (vii) `grep -n '^| 사용자 브라우저 \|^| Web UI ' docs/architecture/components.md` → **257** · **258** 행 **2 row** 로 edge 2 와 **1:1** 대응이다 (앞 절들의 5 : 1 · 4 : 1 축약과 달리 축약이 없다). 인용 — **257** `HTTPS REST JSON (또는 SPA hydration)`, **258** `HTTPS REST JSON (over TLS)` · `인증 토큰 (JWT 또는 session cookie) 동반 — 구체는 P3 Auth task`. **`## Contracts` 표의 참 / 거짓 판정은 본 절이 하지 않는다 — 파생 영향 (3) 소관** 이다. 좌표 stale 확인: 자기 좌표 토큰 중 **192** 행 `**244 · 245**` (`## Contracts` `Scheduler` 2 row 참조) 이 실 좌표 **264 · 265** 와 어긋나 **편집 전 stale 1 지점** 이 확인됐다 (T-1460 이 정정한 4 지점에 포함되지 않았던 잔재). 나머지 자기 좌표 (**161** `219` · **197** `259 ~ 263` · **203** `266 ~ 269` · **210** `271 · 272` · **217** `273`) 는 (i) 실측과 일치했다.
+- (viii) **삽입 파급** (`§ 12.55` (viii) → `§ 12.58` (viii) 계수 규칙 **그대로 승계** — components.md 자기 좌표 토큰만 세고 외부 파일 좌표는 제외, 범위 토큰 `A ~ B` 는 1 지점) — ⓐ `## Component diagram` 절 안 (mermaid 블록 직후 **106** 행 뒤) 삽입 시 밀리는 자기 참조 = **18 지점** (**161** `219` · **180** `117 ~ 126` · **182** `128` · **184** `119 ~ 126` · `111` · **185** `119` · **187** 각주 7 좌표 묶음 1 · **190** `175` · **192** `126` · `143` · `175` · `244 · 245` · **197** `111` · `259 ~ 263` · **202** `111` · **203** `266 ~ 269` · **210** `271 · 272` · **217** `273`). ⓑ 각주군 말미 (**217** 행 뒤) 삽입 시 = **6 지점** (**161** · **192** · **197** · **203** · **210** · **217** — 전부 목표 좌표가 218 행 이상).
+- (ix) **baseline** — `wc -l` components.md **287** · audit **5652** · ADR-0003 **173** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175**, `grep -c '^## '` components.md **7** · audit **12**, audit `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **58**, components.md `grep -c '^> '` **82** — task 본문 기대치와 **전수 일치**.
+
+#### AC 2 판정표
+
+| 축 | 실측 근거 (행) | 판정 | 근거 1 구 |
+| --- | --- | --- | --- |
+| ① `user_browser --> web_ui` 결선 (65 행) | (v) ⓒ — `web.module.ts` **20 · 30 · 49 ~ 50** 행, `app.module.ts` **48** 행 | 부분참 | 결선은 실재하나 전달물이 REST JSON 이 아닌 `web/dist` 정적 asset 이고 서빙 주체가 SPA 자신이 아니라 같은 NestJS process 의 `WebModule` 이며 dist 부재 시 등록 **0** 인 조건부 결선이다. |
+| ② `web_ui --> backend_api` 결선 (66 행) | (iv) · (v) ⓐ — `apiClient.ts` **61** · **76** 행 (실행 hit **2** / 전체 **20**) | 참 | 브라우저에서 나가는 HTTP 호출이 실재하고 그 seam 이 단일 래퍼로 수렴한다 (다른 outbound 표면 **0**). |
+| ③ label `REST JSON` | (v) ⓑ — **39 · 42 ~ 43 · 45** 행 · (vi) — `export.controller.ts` **435** 행 | 부분참 | REST 는 참이나 `JSON` 단일 표기가 클라이언트 파싱 **2 종** (json / text) 과 backend 의 다운로드 응답 표면을 뭉뚱그린다. |
+| ④ label `HTTPS` scheme | (v) ⓐⓓⓔ — scheme 리터럴 **0**, `setGlobalPrefix` · `enableCors` **0 hit**, `vite.config.mts` **15** 행 | 부분참 | 코드에는 scheme 리터럴이 **0** (상대 path + same-origin) 이고 dev 는 평문 `http://localhost:3000` 이라 HTTPS 는 코드 사실이 아니라 **prod 배포 층 (TLS termination) 의 사실** 이다. |
+| ⑤ `web_ui` node 층 외연 ↔ edge 2 개가 가리키는 층 | (v) ⓒ + components.md **185 ~ 186** 행 각주 (`Web UI node 의 process 소속 표기는 부분참` · `web_ui = web/src/ (+ src/web/)`) | 거짓 | edge 65 의 도착 층은 서빙 측 `src/web/` (process 내부) 이고 edge 66 의 출발 층은 브라우저 실행 측 `web/src/` 라, 두 edge 가 단일 `web_ui` node 를 **같은 층으로** 가리킨다는 표기는 성립하지 않는다. |
+| ⑥ label 이 인증 동반 · 401 refresh 재시도를 은닉 | (v) ⓐ — **63** · **78** 행 `credentials: 'same-origin'`, **20** 행 `REFRESH_PATH`, **2** · **52** 행 자기선언 | 부분참 (은닉 확인) | label 에 인증 축이 **0** 자인데 실 호출은 cookie 자동 동반 + 401 → refresh → retry 를 단일 지점에서 강제한다. |
+| ⑦ dev (vite proxy) 대 prod (동일 origin) 2 모드 | (v) ⓓ — `vite.config.mts` **4 ~ 5 · 14 ~ 15** 행 | 부분참 (뭉뚱그림 확인) | 단일 edge 가 dev 2 hop (5173 → 3000) 과 prod 1 hop (동일 origin ServeStatic) 을 구분 없이 덮는다. |
+
+- **다중 표기 수치** — edge **2** : prod 실 network hop **1** (동일 origin 단일 NestJS process) : 브라우저 outbound seam **1** (`apiClient.ts`, 실 호출 행 **2**) 로 **2 : 1 : 1** 이며, `§ 12.57` 의 `1 : 2 : 3` · `§ 12.58` 의 `5 : 1 : 4` 와 **동형 사고** 다 (다이어그램이 논리 계층 수를 network hop 수처럼 보이게 한다).
+- 위 판정은 전부 (iv) 의 **브라우저 outbound seam 정의 (`apiClient.ts` 단일 래퍼)** 위에서만 유효하며, **그 정의는 앞 절들의 승계가 아니라 본 절 신설** 이다 (server-side `fetchFn` 정의는 브라우저 축에 적용 불가 — components.md **212** 행).
+- egress edge **9** (89 ~ 97 행, `§ 12.57` · `§ 12.58`) · orchestration **5** · scheduler **2** · worker **4** (`§ 12.54` ~ `§ 12.56`) · db boundary **1** (86 행, 파생 영향 (1)) · node 축 (`§ 12.53`) · 표 row 본문 (`§ 12.44` ~ `§ 12.50`) 은 **재판정하지 않았다**.
+
+#### AC 3 처리 방식 판정
+
+| 후보 | ① append-only (`§ 12.15`) | ② 좌표 drift 파급 | ③ cap | ④ 탐색성 | 판정 |
+| --- | --- | --- | --- | --- | --- |
+| (A) 현행 유지 + 무편집 | 정합 | **0** | 최소 | 낮음 (다이어그램 독자가 audit 5652 행을 따로 열어야 함) | **기각** — AC 2 축 ⑤ 가 **거짓** 이라 AC 3 규정상 자동 기각이고, 축 ④ 탐색성도 낮다. |
+| (B) 각주군 말미 append (≤ 6 행) + stale 좌표 정정 | 정합 (원문 무편집 + 병기) | **6 지점** ((viii) ⓑ) | +7 행 · 2 파일 | 높음 (같은 문서 각주군에 13 개 선례와 나란히) | **채택** |
+| (C) `## Component diagram` 절 안 삽입 | 정합 | **18 지점** ((viii) ⓐ) | 정정 18 지점이라 AC 4 규정상 자동 철회 | 가장 높음 | **기각** — 파급이 (B) 의 **3 배** 이고 정정 diff 만으로 cap 압박이 커진다. split 제안은 파생 영향 (25) 에 기록. |
+| (D) mermaid edge · label in-place 수정 | **위배** (판정 결과를 원문에 덮어씀) | 전 각주 재검토 필요 | — | — | **기각** — ① 축에서 먼저 탈락. |
+
+- **mermaid edge 를 지우거나 병합하거나 label 을 고쳐 쓰는 선택지는 채택하지 않는다** — 다이어그램 구조 변경은 본 doc-audit stream 의 scope 밖이며 처리는 **각주 병기** 로만 한다. **코드 (`web/` · `src/`) 를 고쳐 label 을 참으로 만드는 처리도 하지 않는다** (`pr` task 소관).
+
+#### AC 4 반영 결과 + 무편집 경계
+
+- components.md **217** 행 뒤 (각주군 말미 · `## GitHub Adapter …` heading 직전) 에 blockquote **6 행** + 앞 빈 줄 **1** 행을 신설했다 (**287 → 294**, +7 로 상한 이내).
+- in-place 정정 **6 지점** — **161** 행 `219 → 226` (`## GitHub Adapter` heading) · **192** 행 `244 · 245 → 271 · 272` (stale + shift 동시 해소) · **197** 행 `259 ~ 263 → 266 ~ 270` · **203** 행 `266 ~ 269 → 273 ~ 276` · **210** 행 `271 · 272 → 278 · 279` · **217** 행 `273 → 280` (뒤 5 개는 전부 `## Contracts` row 좌표). 전부 **숫자 치환** 이고 문장 재작성은 **0** 이다.
+- **AC 4 (B) 의 "≤ 5 지점" 기대를 1 지점 초과** 했다 — `§ 12.58` 이 같은 사유로 1 지점 초과한 데 이어 **2 회 연속** 이며, 원인은 (a) T-1460 각주가 자기참조 **1** 개를 새로 보탠 것과 (b) (vii) 이 편집 전 stale **1** 지점 (**192** 행) 을 새로 찾아낸 것이다. 실측대로 6 지점을 전부 정정하는 쪽을 택했다 (5 만 고치면 알면서 stale 을 남기게 된다). (C) 로 올리지 않았으므로 (C) · (D) 철회 규정과는 무관하다.
+- 삽입 후 재측정 `grep -n '^## '` → **5 · 22 · 28 · 115 · 226 · 258 · 284** 로 **재-drift 9 회째가 그대로 재현** 됐다 (`§ 12.51` 175 → `§ 12.57` 205 → `§ 12.58` 219 → 본 절 **226**). 항구 해소는 파생 영향 (14) anchor 좌표계 이행 소관이다.
+- **무편집 경계** — mermaid 블록 (30 ~ 106 행) · `다이어그램 표기` bullet (108 ~ 113) · 표 본체 (117 ~ 126) · 1 ~ 4 행 blockquote · `## 개요` 각주 (16 ~ 20) · 안내 blockquote (128 ~ 131) · 각주 14 블록의 판정 문장 · `## Contracts` 표 · 219 행 이후 전 구간 모두 무편집이며, 허용된 in-place 는 stale 숫자 치환 6 지점뿐이다. **secret · token · cookie 값 · 실 credential 은 옮기지 않았다** — 옵션명 (`credentials: 'same-origin'`) · 상수명 (`REFRESH_PATH` · `WEB_DIST_PATH`) · path 문자열까지만 (CLAUDE.md §9).
+- **R-110 / R-112 면제 (AC 8)** — 본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 전부 **N/A** 다.
+
+#### 파생 영향 (목록만 — 본 slice 편집 금지)
+
+(1) **잔여 edge 대조 1 건** — `%% DB persistence boundary` **1** (86 행, `db_persistence -- "TCP 5432<br/>(Prisma client)" --> postgres`). 본 절로 **user-facing 그룹은 2/2 마감** 되어 전체 **23 중 22 판정 완료** 이며, **다음 대조가 edge 축의 마지막 그룹** 이다. / (2) `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` 본문 ↔ 코드 대조 (`§ 12.48` FU4 미소진). / (3) **`## Contracts` 표 ↔ 실 계약 표면 대조** — 본 절 (vii) 이 `사용자 브라우저` · `Web UI` row **2** 개 좌표를 보태 `§ 12.55` **5** · `§ 12.56` **4** · `§ 12.57` **2** · `§ 12.58` **1** 과 합쳐 누적 **14** row 좌표를 확보했고, 특히 `또는 SPA hydration` · `(over TLS)` · `인증 토큰 … 동반` 3 어구가 본 절 축 ③ ④ ⑥ 의 반증 단서다. / (4) row pointer 셀 보강 2 건 (`Scheduler` = `ADR-0042` 미등재 `§ 12.50` FU2 · `Confluence Adapter` `§ 12.49` FU2). / (5) LLM · GitHub adapter ADR pointer 미등재 (`§ 12.47` FU5 · `§ 12.48` FU3). / (6) `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트). / (7) reviewer 규약 미이행 (`§ 12.41` FU2). / (8) `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3). / (9) README 행 번호 pointer drift 전수 sweep. / (10) REQ 번호 체계 잔재 sweep (`§ 12.38` FU3). / (11) `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3). / (12) UC-09 `§ 5` sequence participant 병기 (**49 회째 이월**). / (13) modules.md 카운트 claim 대조 (`§ 12.34` FU1, ADR 게이트). / (14) **행 번호 → anchor 좌표계 이행** (**43 회째 이월** — 본 절 AC 4 의 재-drift 9 회째 재현 + in-place 정정 2 회 연속 초과 + (viii) 의 파급 18 : 6 대비가 근거로 보태진다). / (15) 각주 heading 참조 anchor 이행 축소 scope (`§ 12.51` FU19 미소진). / (16) `§ 12.44` 한계 "mutation 러너 26 개" 정의 미확정. / (17) **`Scheduler` cron → 평가 pipeline 미결선** (`§ 12.50` FU18 — 코드 소관, `pr` task 로만). / (18) `ADR-0003` "단일 DB 인스턴스" 좌표 부재 (`§ 12.46` FU16). / (19) **`Web UI` node 의 process subgraph 소속 표기** (`§ 12.53` FU19 미소진) — 본 절 축 ⑤ 가 **층 외연 실측 (서빙 `src/web/` ↔ 실행 `web/src/`)** 을 보태 거짓 판정까지 확정했으므로 우선순위 근거가 강화됐다. / (20) **node 외연 정의의 문서 미박제** (`§ 12.55` FU20 · `§ 12.56` FU20) — 본 절이 `web_ui` **2 층 외연** 을 관측했으므로 함께 박제 대상이다. / (21) modules.md **200** 행 1:N 매핑 ↔ 디렉토리 외연 상충 해소 (`§ 12.56` FU21 미소진). / (22) 가변 instance 수 ↔ 문서의 고정 표기 정합 (`§ 12.57` FU22 · `§ 12.58` FU22 미소진). / (23) `worker --> backend_api` 미표기 결선 (`§ 12.56` FU23 미소진). / (24) **dev / prod 2 모드의 다이어그램 미분리** (본 절 축 ⑦ 이 참으로 확인 — vite proxy 경로 (5173 → 3000, hop 2) 가 prod 동일 origin 결선 (hop 1) 과 다르다는 사실이 다이어그램에 없다). / (25) **(C) 후보 split 제안** — `## Component diagram` 절 내 삽입은 자기참조 **18 지점** 정정을 동반하므로 anchor 이행 (14) 과 묶어 별도 slice 로만 시도한다.
+
+#### 불변 검산 (AC 6)
+
+- `wc -l` → components.md **287 → 294** (+7, 상한 294 이내) · audit **5652 → 5731** (+79, +100 이내 — `§ 12.59` 본문 **78** 행 + 구분 빈 줄 1) · ADR-0003 **173 불변** · requirements.md **97 불변** · deployment.md **232 불변** · directory.md **203 불변** · modules.md **259 불변** · PLAN.md **175 불변**.
+- `grep -c '^## '` components.md **7 불변** · audit **12 불변**, audit `grep -c '^| REQ-'` **66 불변** · `grep -c '^### 12\.'` **58 → 59**, components.md `grep -c '^> '` **82 → 88** (신설 blockquote 6 행).
+- `git diff -U0 -- docs/architecture/components.md | grep '^@@'` → `@@ -161 +161 @@` · `@@ -192 +192 @@` · `@@ -197 +197 @@` · `@@ -203 +203 @@` · `@@ -210 +210 @@` · `@@ -217 +217,8 @@` **6 hunk** 이며 전부 각주 구간 (161 ~ 217 행) 이라 **AC 4 허용 구간 밖 hunk 0** 이다.
+- `git diff --numstat` → `13 6 docs/architecture/components.md` — 삭제 **6** 행은 전부 stale 숫자 치환의 짝 (같은 문장의 정정 전 판본) 이라 **순수 삭제 0** 이다.
+- `git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md docs/architecture/modules.md` → **빈 출력** — 특히 **`web/` 는 무편집** 이며 (v) ⓐⓑⓓ 의 측정은 전부 read-only grep 이었다. `git status --porcelain` 전체 → **2 파일** (components.md · REQ-COVERAGE-AUDIT.md) 로 상한 3 이내다. task 파일의 `status` · 완료 기록은 STATE single-writer 원칙 ([CLAUDE.md](../../CLAUDE.md) §9) 상 driver 의 bookkeeping commit 소관이라 본 commit 에서는 건드리지 않았다.
+
+#### 한계
+
+1. **user-facing 2 edge 만 닫았다** — 잔여 **1** edge (db boundary **86** 행) 판정은 파생 영향 (1) 소관이고, user-facing 그룹 자체는 본 절로 마감이다.
+2. **판정은 (iv) 의 브라우저 outbound seam 정의에 의존한다** — "결선 = `apiClient.ts` 실행 `fetch(` 지점" 대신 "결선 = 브라우저가 서버와 주고받는 모든 트래픽 (정적 asset 포함)" 을 취하면 축 ① 은 참으로, 축 ⑤ 는 부분참으로 완화된다. 정의를 바꾸면 판정도 바뀐다.
+3. **측정은 grep 정적 근사다** — 실제 HTTPS 요청 · TLS termination · 인증 성공 여부는 확인하지 않았고 브라우저 실행 · dev server 기동 · live smoke 는 전부 Out of Scope 였다.
+4. **주석 / 실행 코드 분리는 수동 판독이다** — (iv) 의 **20** hit 중 실행 **2** 행은 컴포넌트 자기선언 주석 (`실제 fetch(GET /api/*)…`) 을 눈으로 가려낸 결과라 자동 검증되지 않았다.
+5. **`## Contracts` **257** · **258** row 의 불일치 단서는 판정하지 않았다** — `또는 SPA hydration` · `(over TLS)` · `인증 토큰 … 동반` 어구는 좌표 · 인용까지이며 참 / 거짓 확정은 파생 영향 (3) 이다.
+6. **in-place 정정이 기대치 (≤ 5) 를 1 지점 초과** 했고 `§ 12.58` 에 이어 **2 회 연속** 이다 — 각주가 늘수록 자기참조도 늘어난다는 구조적 신호라 파생 영향 (14) 의 우선순위 근거로 함께 쓴다.
+7. **frontend 축은 결선 · message format 한정** — 컴포넌트 인벤토리 · view 구조 · 라우팅 · 인증 정책 자체 (JWT 수명 · refresh 정책 · RBAC) 는 열지 않았다 (`§ 12.44` 및 별도 auth 문서 소관).
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
