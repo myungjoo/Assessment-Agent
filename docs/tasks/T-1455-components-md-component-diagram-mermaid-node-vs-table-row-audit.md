@@ -2,7 +2,7 @@
 id: T-1455
 title: components.md `## Component diagram` (28 ~ 113 행) **mermaid process subgraph node 8 개** ↔ 표 data row 8 · 실 `src/**` module · `다이어그램 표기` 카운트 claim 대조 — T-1454 파생 영향 (1) 집행 + audit §12.53
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 200
