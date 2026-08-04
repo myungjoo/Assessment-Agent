@@ -2,7 +2,7 @@
 id: T-1441
 title: deployment.md `## Secret / 자격증명 저장` 단락 (81 ~ 106 행 — 도입 문단 · `### 운영 환경 secret 주입 방식` · `### 개발 환경 .env 정책` · `### Secret 의 종류 (참고)` · `### Secret rotation 정책`) 의 검증 가능 claim ↔ 실 `deploy/env.prod.example` · `docker-compose.yml` · `deploy/*.service` · `.gitignore` · `package.json` · `src/` 대조 + T-1440 Follow-up 1 계승 + audit §12.39
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-029, REQ-043, REQ-051]
 estimatedDiff: 210
