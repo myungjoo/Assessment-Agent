@@ -2,7 +2,8 @@
 id: T-1440
 title: deployment.md `## 외부 네트워크 boundary` 후반부 (186 ~ 202 행 — `### 권한 부족 (REQ-020) 감지 흐름` · `### 운영 호스트 가정`) 의 검증 가능 claim ↔ 실 `src/github/` · `src/confluence/` · `prisma/schema.prisma` · `docs/requirements.md` 대조 + T-1439 Follow-up 1 계승 + audit §12.38
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-04T03:48:00Z
 commitMode: direct
 coversReq: [REQ-008, REQ-016, REQ-020]
 estimatedDiff: 200
