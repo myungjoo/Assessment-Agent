@@ -178,6 +178,11 @@ cron 과 manual 이 같은 service 메서드 (`EvaluationOrchestrator.runFullAss
 
 Public network 접근 시 corporate egress proxy 가 필요한 경우 표준 `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` 환경변수 사용 — Node.js 의 HTTPS stack 이 native 지원하므로 코드 변경 0.
 
+> **`## 외부 네트워크 boundary` 전반부 (도입 문단 · `### 접근 대상 목록` · `### 지원 LLM 환경` · `### TLS / 사내 인증서 처리`) ↔ 실 `src/github/` · `src/confluence/` · `src/llm/` · `deploy/` 대조 (T-1439 실측 각주)** — 155 행의 **직접 outbound** 는 **참** 이다. `src/github/github-adapter.service.ts` 246 행 · `src/confluence/confluence-adapter.service.ts` 305 행 · `src/llm/llm-http-gateway.service.ts` 76 행이 모두 default `globalThis.fetch` 주입이고, `axios` · `undici` · `HttpModule` · `ProxyAgent` 는 `src/` 전체에서 **0 hit** 라 별도 proxy / bastion 계층이 실제로 없다.
+> **GitHub 3 host 는 실재하나 Confluence host 는 고정형이 아니다** — `src/github/github-live-test-gating.ts` 59 · 64 · 69 행이 `github.com` · `github.sec.samsung.net` · `github.ecodesamsung.com` 을 그대로 열거한다 (단 public 만 API host 가 분리돼 `src/github/github-request.builder.ts` 29 행 `https://api.github.com` 으로 라우팅된다). 반면 `src/confluence/confluence-instance-config.ts` 는 46 행 `baseUrl: string` + 124 행 env `…_BASE_URL` **주입형** 이라, 표의 `confluence.sec.samsung.net` 은 하드코딩된 대상이 아니라 **예시값** 으로 읽어야 한다.
+> **LLM provider 5 종은 명칭 · 개수 모두 일치** — `src/llm/llm-http-gateway.service.ts` 138 행이 `azure_openai / custom / openai / anthropic / google_gemini` 5 종만 지원으로 못박고, gating env 도 `src/llm/llm-live-test-gating.ts` 29 행 `LLM_LIVE_PROVIDER` 로 실재한다. 표의 `REQ TBD` 자체는 지금도 참이지만 (`docs/requirements.md` 66 REQ 중 LLM provider 전용 REQ **0**), 그 조건절 `P2 가 requirements.md 에 추가 시 부여` 는 P2 가 지난 현 시점 기준으로 낡은 표기다.
+> **TLS / proxy 환경변수는 이미 운영 config 에 등재** — `deploy/env.prod.example` 42 ~ 44 행에 `NODE_EXTRA_CA_CERTS` · `HTTPS_PROXY` · `NO_PROXY` 가 (선택 항목 주석 형태로) 있고 `HTTP_PROXY` 만 미등재이며, 금지 대상 `NODE_TLS_REJECT_UNAUTHORIZED` 는 `src/` · `scripts/` 에서 **0 hit** 로 위반이 없다. 본 각주는 사실 기록이지 단락 재작성이 아니며, 운영 호스트 위치 가정 · 인증 방식 컬럼은 형태 무관 · 미측정이라 판정에서 뺐다 (판정 근거는 [REQ-COVERAGE-AUDIT § 12.37](../use-cases/REQ-COVERAGE-AUDIT.md)).
+
 ### 권한 부족 (REQ-020) 감지 흐름
 
 ```

@@ -92,4 +92,9 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 발견한 후속 작업을 여기에 append 한다.)
+1. **`## 외부 네트워크 boundary` 후반부 ↔ 실 `src/` 대조 (다음 slice 1 순위)** — 본 slice 실측 (v) 가 `axios` · `undici` · `HttpModule` **0 hit** 를 확인했으므로 `### 권한 부족 (REQ-020) 감지 흐름` code-block 의 그 표기는 어긋날 가능성이 크다. `PermissionDeniedEvent` · `NotificationService` 심볼 실재 · `PermissionDeniedRecord` model 대조 · "P4 phase 도입 task 책임" 시점 서술 유효성까지 한 slice 로 묶인다 (각주 삽입으로 좌표는 186 ~ 202 행으로 이동).
+2. **deployment.md 잔여 미대조 단락 3** — `## Secret / 자격증명 저장` (env 주입 방식이 `deploy/env.prod.example` 과 대조 가능해 2 순위) → `## DB / Persistence` → `## 개요`.
+3. **`REQ TBD` 표기의 REQ 부여 판단** — LLM provider 5 종은 shipped 인데 [requirements.md](../requirements.md) 66 REQ 중 전용 REQ 가 **0** 이라 표의 `P2 가 추가 시 부여` 조건절이 영구 미충족 상태다. REQ 신설은 owner 게이트라 본 stream 밖이며, 부여 여부가 정해져야 표기를 고칠 수 있다.
+4. **proxy 환경변수의 런타임 존중 여부 검증** — `HTTPS_PROXY` / `NO_PROXY` 가 Node `fetch` (undici) 에서 실제로 적용되는지는 실행 검증이 필요해 본 doc slice 에서 미판정으로 남겼다. smoke 성격이라 `pr` mode 소관.
+5. **UC-08 `§ 5` 권한 부족 흐름 ↔ 실 emitter 정합** — 미대조. Follow-up 1 과 같은 심볼 축이라 판정 승계 여지가 있다.
+6. **행 번호 → anchor 좌표계 이행** (15 회째 이월) — 본 slice 의 각주 5 행 삽입으로 후반부 2 절이 181 → **186** 행으로 밀려 다음 slice 좌표가 다시 낡는다.

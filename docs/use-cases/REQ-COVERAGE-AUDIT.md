@@ -3607,6 +3607,118 @@ $ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1
 1. **각주가 본문의 거짓 route 를 지우지는 않는다** — 117 · 130 행은 여전히 `/admin/…` 이라 각주를 건너뛴 독자에겐 오도가 남는다. blueprint 원본 보존과 오도 제거의 trade-off 를 보존 쪽으로 택한 결과이며 (`§ 12.35` 한계 2 와 같은 구조), flow 도식 자체의 정정은 ADR-0003 §3 ↔ ADR-0042 계보의 재정렬을 요구하는 별도 판단이다.
 2. **본 절은 route 를 api.md endpoint 표와 대조하지 않았다** — 실 `api/schedules` 4 endpoint 가 [api.md](../architecture/api.md) 에 어떻게 적혀 있는지는 out of scope 라 미판정이며, deployment.md 축만 닫았다. 세 문서 (deployment · api · UC-01) 의 route 표기가 서로 어긋날 가능성은 파생 영향 2 로 남는다.
 
+### 12.37 deployment.md `## 외부 네트워크 boundary` 전반부 ↔ 실 `src/github/` · `src/confluence/` · `src/llm/` · `deploy/` 대조 — 원문 보존 + 각주 1 블록 (T-1439)
+
+> **본 절의 위치** — `§ 12.36` 이 deployment.md `## Scheduler 위치` 를 닫으면서 파생 영향 **1** 로 남긴 "잔여 미대조 4 단락, 그중 `## 외부 네트워크 boundary` 가 다음 slice 1 순위" ([T-1438](../tasks/T-1438-deployment-md-scheduler-section-vs-src-audit.md) Follow-up 1) 를 본 절이 **부분** 으로 닫는다 — 단락이 47 행 · 하위 5 절이라 **전반부 4 구간 (도입 문단 · `### 접근 대상 목록` · `### 지원 LLM 환경` · `### TLS / 사내 인증서 처리`) 만** 본 절의 범위이고 후반부 2 절은 다음 slice 로 이월한다. **계보** — `T-1430` ~ `T-1435` (directory.md 6 축) → `T-1436` (산문 단락 축) → `T-1437` (`## 배포 토폴로지` 축) → `T-1438` (`## Scheduler 위치` 축) → **`T-1439` (본 절 — 외부 boundary 전반부 축)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이다. cap 준수를 위해 아래 실측 인용은 **요약형** 이다 (명령 + 핵심 출력만).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/deployment.md → 151 `## 외부 네트워크 boundary` · 157 `### 접근 대상 목록` · 171 `### 지원 LLM 환경 …` · 175 `### TLS / 사내 인증서 처리` · 181 `### 권한 부족 (REQ-020) 감지 흐름` · 193 `### 운영 호스트 가정`
+      ⇒ 전반부 = **151 ~ 180 행** (task 좌표 일치, stale 아님) · 후반부 181 ~ 197 행은 무편집 읽기만.
+      $ sed -n '151,180p' … → heading(151) + ADR-0003 §4 pointer(153) + 채택 선언(155) + 표 9 row(159~169) + LLM 산문 1 문단(173) + TLS 2 문단(177 · 179).
+      claim 이분 — **검증 가능 12** (pointer 실재 · host 문자열 · provider 명칭/개수 · REQ 부여 여부 · 환경변수 등재 · 금지 위반 실재 · dependency 0) · **검증 불가 5** (155 행 "corporate network 또는 VPN 에 위치" 운영 가정 · 표 `인증` 컬럼의 PAT/API key 발급 정책 · 173 행 "어느 provider 도 default 가 아니다" 의 설계 의도 · 173 행 live-verification 의 품질 분리 논증 · 179 행 "Node.js HTTPS stack 이 native 지원" 의 런타임 외부 동작 — 본 slice 미측정).
+(ii)  GitHub host 축 — $ grep -rn "github.sec.samsung.net\|github.ecodesamsung.com\|github.com" src/github --include='*.ts' | grep -v spec | head -15
+      → `github-live-test-gating.ts` **59 `host: "github.com"` · 64 `host: "github.sec.samsung.net"` · 69 `host: "github.ecodesamsung.com"`** ; `github-request.builder.ts` 28 `GITHUB_PUBLIC_HOST = "github.com"` · 29 `GITHUB_PUBLIC_API_BASE = "https://api.github.com"` ; `github-instance-config.ts` 36 "base host(예: github.com / github.sec.samsung.net)" ⇒ 표 3 row **참** (public 만 API host 분리 특례).
+(iii) Confluence 축 — $ grep -n "baseUrl\|host\|samsung" src/confluence/confluence-instance-config.ts | head -15
+      → 46 `baseUrl: string` · 124 `env[confluenceEnvName(key, CONFLUENCE_BASE_URL_SUFFIX)]` · 166 `baseUrl: baseUrlRaw.trim()` ; **고정 host 열거 0 hit** ⇒ **base URL 주입형** — 표의 `confluence.sec.samsung.net` 은 **예시값** 이며 하드코딩 가정이 아니다 (판정 **부분참**).
+(iv)  LLM provider 축 — $ grep -rn "azure\|anthropic\|gemini\|openai\|custom" src/llm --include='*.ts' | grep -v spec | grep -i "provider" | head -12
+      → `llm-http-gateway.service.ts` **138 "지원 provider 는 azure_openai / custom / openai / anthropic / google_gemini"** (+ 13 · 126 행 "milestone-1 의 5 provider") · `dto/create-llm-provider-config.dto.ts` 32 동일 5 종 · `providers/{anthropic,azure-openai,google-gemini,openai-compatible}.adapter` import (38 · 42 · 46 · 50 행) ⇒ 표 5 row · 산문 5 종과 **개수 · 명칭 두 축 모두 일치 (참)**.
+      $ grep -rn "LLM_LIVE_PROVIDER" src … → `llm-live-test-gating.ts` 29 `LLM_LIVE_PROVIDER_ENV = "LLM_LIVE_PROVIDER"` ⇒ 173 행의 gating env 서술 **참**.
+      $ grep -c "REQ-0" docs/requirements.md → **66** ; $ grep -n -i "provider" docs/requirements.md | head -8 → REQ-005 · REQ-029 등 **본문 안의 우연 hit 뿐** — LLM provider 전용 REQ row **0** ⇒ `REQ TBD` 자체는 **여전히 유효** 하나 조건절 `P2 가 requirements.md 에 추가 시 부여` 는 P2 경과 후에도 미부여라 **시점 표기가 낡음** (부분참).
+(v)   직접 outbound 축 — $ grep -rn "globalThis.fetch" src --include='*.ts' | grep -v spec | head -8 → `confluence-adapter.service.ts` 305 · `confluence.module.ts` 15 · `github-adapter.service.ts` 246 · `github.module.ts` 8 · (`llm-http-gateway.service.ts` 76) ⇒ 3 adapter 전부 default `globalThis.fetch` 주입.
+      $ grep -rn "axios\|undici\|HttpModule\|ProxyAgent" src --include='*.ts' | grep -v spec | head -8 → **0 hit** ⇒ 155 행 "app process 직접 outbound · 별도 egress proxy / NAT / bastion 없음" **참**.
+(vi)  TLS / proxy 축 — $ grep -n "NODE_EXTRA_CA_CERTS\|HTTPS_PROXY\|HTTP_PROXY\|NO_PROXY\|NODE_TLS_REJECT_UNAUTHORIZED" deploy/env.prod.example
+      → **42 `# NODE_EXTRA_CA_CERTS=/etc/ssl/certs/corp-ca-bundle.pem` · 43 `# HTTPS_PROXY=http://proxy.example:8080` · 44 `# NO_PROXY=localhost,127.0.0.1,postgres`** (40 행 헤더가 `deployment.md "외부 네트워크" 단락` 을 명시 인용) ; `HTTP_PROXY` **미등재** ; `NODE_TLS_REJECT_UNAUTHORIZED` **미등재**.
+      $ grep -rn "NODE_TLS_REJECT_UNAUTHORIZED" src scripts → **0 hit** ⇒ 177 행 금지 서술의 **위반 0**.
+(vii) pointer 축 — $ ls ADR-0003-deployment.md ADR-0045-llm-provider-deployment-config.md ADR-0048-default-model-id-source.md → **3 개 전부 실재** (pointer 유효까지만, 본문 재판정 없음).
+(viii) baseline — wc -l deployment.md **197** · audit **3623** · directory.md **203** · modules.md **259** ; grep -c '^## ' deployment.md **6** · audit **12** ; audit grep -c '^| REQ-' **66** · grep -c '^### 12\.' **36** (기대 8 값 전부 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+판정 3 축 — ① **문서 성격**: 1 ~ 4 행 blockquote 의 "본 문서는 P1 T-A2 의 산출물" 선언이 그대로 걸리는 P1 blueprint 원본이라 보존 강도가 `§ 12.36` 과 동급으로 높다. ② **`§ 12.15` 정합**: 전반부 30 행에 날짜 stamp 는 **0** 이고 시점성 표현은 `P2 가 requirements.md 에 추가 시 부여` **1 hit** 뿐이라 시점 marker 는 사실상 1 — append-only 가 in-place 를 절대 금지하지는 않으나 근거가 얇아 보존 쪽 가중치가 남는다. ③ **선례**: 수치 축이면 [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) in-place, 서술 축이면 T-1430 ~ T-1435 · T-1437 · T-1438 각주, 혼합은 [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 인데 본 전반부는 **수치 claim 0 · 명칭/등재 축 전부** 라 각주 계열에 든다.
+
+**표 안 claim 의 별도 판정** — `### 접근 대상 목록` 은 markdown 표라 [T-1435](../tasks/T-1435-directory-md-mapping-table-columns-vs-src-audit.md) 의 "mapping 표 컬럼 = 원문 보존 + 각주" 선례를 **승계** 한다. 논증 1 구: 표의 `대상` 컬럼은 9 row 가 `위치` · `인증` · `관련 REQ` 3 컬럼과 한 줄로 묶여 의미를 이루므로 Confluence 1 셀만 "주입형 base URL" 로 바꾸면 나머지 8 row 의 고정-host 화법과 어긋나 **표 내부가 두 어휘로 갈라진다** — 셀 단위 치환의 국소성이 산문보다 낮다.
+
+| 지점 (행) | claim (1 구) | 실측 결과 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 153 | ADR-0003 §4 가 본 결정의 박제처 | 파일 실재 | 참 | 무편집 | 실측 (vii), 본문 재판정 없음 |
+| 155 | app process 가 직접 outbound · proxy / bastion 없음 | `globalThis.fetch` 3 adapter · http lib **0 hit** | 참 | 무편집 + 각주 근거 | 실측 (v) |
+| 161 | github.com (public, PAT) | `github-live-test-gating.ts` 59 행 | 참 | 무편집 + 각주 근거 | public 만 API host 분리 |
+| 162 | github.sec.samsung.net (내부망) | 같은 파일 64 행 | 참 | 무편집 + 각주 근거 | 실측 (ii) |
+| 163 | github.ecodesamsung.com (내부망) | 같은 파일 69 행 | 참 | 무편집 + 각주 근거 | 실측 (ii) |
+| 164 | confluence.sec.samsung.net (+ 추가 사내 Confluence) | `baseUrl` env 주입형 · 고정 host 0 | 부분참 | 원문 보존 + 각주 부기 | 표의 host 는 **예시값** (T-1435 승계) |
+| 165 ~ 169 | LLM provider 5 종 (Azure / Anthropic / Gemini / OpenAI / Custom) | gateway 138 행 5 종과 일치 | 참 | 무편집 + 각주 근거 | 개수 · 명칭 두 축 일치 |
+| 165 | `REQ TBD, P2 가 requirements.md 에 추가 시 부여` | LLM 전용 REQ **0** / P2 는 경과 | 부분참 | 원문 보존 + 각주 부기 | TBD 는 참 · 조건절만 낡음 |
+| 173 | provider 선택 = `LlmProviderConfig` row + `LLM_LIVE_*` gating env | dto 32 행 · gating 29 행 | 참 | 무편집 + 각주 근거 | 실측 (iv) |
+| 173 | ADR-0045 · ADR-0048 pointer | 두 파일 실재 | 참 | 무편집 | 실측 (vii) |
+| 177 | `NODE_EXTRA_CA_CERTS` 사용 · 별도 dependency 0 | `env.prod.example` 42 행 · http lib 0 hit | 참 | 무편집 + 각주 근거 | 운영 config 에 이미 등재 |
+| 177 | `NODE_TLS_REJECT_UNAUTHORIZED=0` 금지 | `src` · `scripts` **0 hit** | 참 (위반 0) | 무편집 + 각주 근거 | 금지 준수 실증 |
+| 179 | `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` 환경변수 사용 | 42 ~ 44 행에 2 개 등재 · `HTTP_PROXY` 미등재 | 부분참 | 원문 보존 + 각주 부기 | 등재 여부만 판정 (동작 미측정) |
+
+- 합계 — 검증 가능 **12 = 참 9 · 부분참 3 · 거짓 0**, 검증 불가 5 는 대상 제외. **거짓 0 은 본 stream 에서 처음** 이며, `§ 12.36` 의 거짓 8 (Scheduler flow 도식) 과 대비된다 — 전반부는 host / 환경변수처럼 **shipped 사실에 붙은 서술** 이라 blueprint 미래형이 섞일 여지가 적었다.
+- **참 확인 축과 stale 표기 축의 분리 판정** — 참 9 (host 3 · outbound · provider 5 종 · gating env · CA 인증서 · 금지 준수 · pointer) 는 문서와 코드가 이미 맞으므로 **무편집이 자연스럽고**, 각주는 근거만 병기한다. stale 표기 축 (165 행 `P2 가 …추가 시 부여`) 은 표기 갱신 여지가 있었으나 **원문 보존 + 각주** 로 수렴했다 — 이유 1 구: 그 조건절을 고치려면 "REQ 를 언제 부여할지" 라는 **새 시점 약속을 창작** 해야 하는데 REQ 신설은 본 slice 의 Out of Scope (requirements.md 무편집) 이므로, 실측 사실 (전용 REQ 0 · P2 경과) 만 각주에 남기는 것이 창작 금지와 양립하는 유일한 처리다.
+- **부분참 3 의 내역 구분** — 164 행은 **표현 층위** (고정 host vs 주입형 예시값), 165 행은 **시점 층위** (조건절이 낡음), 179 행은 **범위 층위** (3 환경변수 중 2 만 config 등재) 로 서로 다른 유형이라 각주에서도 문장을 분리해 적었다.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | 전 지점 in-place 동기 (표 host 셀 · REQ 표기 · proxy 문장 치환) | 기각 | 치환 대상 3 지점이 전부 **창작 없이는 못 고치는 축** (예시값 화법 · 새 REQ 시점 약속 · 미측정 런타임 동작) 이라 AC 4 의 창작 금지와 정면 충돌 |
+| **(B)** | **단락 전반부 원문 무편집 + 전반부 말미 각주 blockquote 1 블록 신설** | **채택** | T-1437 · T-1438 화법을 그대로 잇고, 참 9 의 근거와 부분참 3 의 실측을 같은 화면에 병기해 운영 오도 risk 만 제거 |
+| (C) | 혼합 (표는 각주, 산문 stale 표기만 in-place) | 기각 | stale 표기 (`REQ TBD …`) 가 산문이 아니라 **표 셀 안** 이라 혼합의 분할선이 성립하지 않고, 남는 산문 대상은 179 행 1 개뿐이라 이득이 0 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 운영자가 표의 `confluence.sec.samsung.net` 을 **고정 대상** 으로 읽고 base URL env 주입 (`…_BASE_URL`) 을 빠뜨리면 Confluence 연동이 통째로 실패한다 — 배포 지시 문서에서 가장 비싼 실패 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: 시점 marker 1 (165 행) 뿐이고 그마저 창작 없이는 갱신 불가라 append-only 와 각주가 정합한다. ② **운영 오도 risk**: 본 문서는 **배포 지시 문서** 라 표의 host / 환경변수를 그대로 설정하는 독자를 상정해야 하고 — Confluence host 를 고정으로 읽으면 env 주입 누락, `HTTP_PROXY` 를 등재된 것으로 읽으면 config 부재로 각각 연동 실패가 나므로 risk 가중치가 산문 문서보다 한 단계 높다 (그래서 (D) 기각). ③ **cap**: (B) 의 실측 diff 는 deployment.md `+5/-0` (197 → **202**, 허용 `≤ 202`) · 파일 **3 고정** 이라 300 LOC · 5 파일 상한 안이다. (A) 는 창작 금지 충돌로 자동 기각이며 split 을 하더라도 REQ 부여 판단이 남아 **게이트 성격** 이라 doc slice 로 쪼개는 것 자체가 부적절하다. ④ **선례 일관성**: 명칭 · 등재 축 단독이라 T-1430 ~ T-1435 · T-1437 · T-1438 의 각주 계열을 그대로 잇고, 표 축은 T-1435 승계라 T-1436 의 혼합 (수치 축이 있을 때의 규칙) 과도 모순이 없다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (4 행)** — 179 행 (`### TLS / 사내 인증서 처리` 말미 = 전반부 최말미) 뒤에 append. 내용은 ① 155 행 **직접 outbound 참** 의 근거 (`globalThis.fetch` 3 adapter · http lib 0 hit), ② GitHub 3 host **실재** + public API host 분리 특례 와 Confluence 의 **base URL 주입형 · 예시값** 구분, ③ provider 5 종 **일치** + `LLM_LIVE_PROVIDER` 실재 + `REQ TBD` 조건절의 **시점 낡음**, ④ TLS / proxy 3 환경변수의 **등재 2 · 미등재 1** 과 금지 위반 **0**, ⑤ 검증 불가 / 미측정 제외 선언 + 본 절 pointer.
+- **각주 위치를 전반부 최말미로 잡은 이유** — 대상 claim 이 4 구간 **전체** 에 흩어져 있어 어느 하위 절 말미에 두어도 나머지를 앞지르고, 179 행 뒤는 후반부 (`### 권한 부족 …`) 진입 직전이라 **본 slice 의 범위 경계와 정확히 일치** 한다 (규칙은 선행 절과 같은 "대상 claim 의 최소 공통 구간 말미").
+- **문구 1:1 + 무편집 경계** — 각주의 수치 · 경로 · 심볼명 (`246` · `305` · `76` · `59` · `64` · `69` · `29` · `46` · `124` · `138` · `42 ~ 44` · `66`) 은 전부 위 실측 출력 그대로이고 **실측되지 않은 동작 (proxy 환경변수의 fetch 런타임 지원 여부, 특정 provider 의 default 지정, 인증서 mount 절차) 은 창작하지 않았다**. 1 ~ 4 행 blockquote · 151 ~ 179 행 원문 · **181 ~ 197 행 (후반부 2 절)** · `## 개요` · `## DB / Persistence` · `## 배포 토폴로지` · `## Secret / 자격증명 저장` · `## Scheduler 위치` 는 그대로다. **새 pointer 도 추가하지 않았다** — 각주가 더한 링크는 본 절 1 개뿐이며 ADR-0003 · ADR-0045 · ADR-0048 외 문서는 본문에 등재하지 않았다.
+
+#### T-1438 Follow-up 1 부분 closure 선언
+
+`§ 12.36` 파생 영향 1 이 다음 slice 1 순위로 지정한 `## 외부 네트워크 boundary` 를 본 절이 **전반부만 closure** 한다 — 도입 문단 · `### 접근 대상 목록` · `### 지원 LLM 환경` · `### TLS / 사내 인증서 처리` 4 구간의 검증 가능 claim 12 는 전부 판정 · 각주 반영을 마쳤다. **후반부 2 절 (`### 권한 부족 (REQ-020) 감지 흐름` 181 ~ 192 행 · `### 운영 호스트 가정` 193 ~ 197 행) 은 미대조로 이월** 하며, 본 절 실측 (v) 가 이미 잡은 `axios` · `undici` · `HttpModule` **0 hit** 는 후반부 code-block 의 해당 표기가 어긋남을 강하게 시사하므로 다음 slice 의 1 순위 근거가 된다 (본 slice 는 범위 밖이라 판정하지 않는다).
+
+#### 대조 대상 문서 잔여 갱신
+
+`§ 12.36` 이 선언한 deployment.md **잔여 미대조 4** 는 본 절이 `## 외부 네트워크 boundary` 의 전반부를 닫아 **잔여 3 단락 + 본 단락 후반부 1** 이 된다 — `## 외부 네트워크 boundary` 후반부 · `## Secret / 자격증명 저장` · `## DB / Persistence` · `## 개요`. 우선순위는 아래 파생 영향 1 · 2 에 둔다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **본 단락 후반부 (다음 slice 1 순위)** — `### 권한 부족 (REQ-020) 감지 흐름` code-block 의 `axios / undici / NestJS HttpModule` 표기는 본 절 실측 (v) 의 **0 hit** 와 어긋나고, `PermissionDeniedEvent` · `NotificationService` 심볼 실재 와 `PermissionDeniedRecord` model 대조, "P4 phase 도입 task 책임" 시점 서술의 유효성 (`§ 12.36` 144 행과 같은 유형) 이 함께 걸려 **검증 가능 claim 밀도가 잔여 중 최고** 다.
+2. **deployment.md 잔여 미대조 단락 3** — `## Secret / 자격증명 저장` (env 주입 방식이 `deploy/env.prod.example` 과 대조 가능해 2 순위) → `## DB / Persistence` → `## 개요`.
+3. **UC-08 `§ 5` 권한 부족 흐름 ↔ 실 emitter 정합** — 미대조. 본 절 후반부 slice 와 같은 심볼 축이라 판정 승계 여지가 있다.
+4. **UC-09 `§ 5` sequence participant 병기** — 21 회째 이월.
+5. **정본 [modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 단락 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (정본 편집은 ADR 게이트, **259 행 불변**).
+6. **행 번호 → anchor 좌표계 이행** — 15 회째 이월. 본 절의 각주 5 행 삽입으로 후반부 2 절이 181 → **186** 행으로 밀려 다음 slice 좌표가 다시 낡는다.
+7. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관. 본 절이 인용한 `5 provider` · `66 REQ` 는 provider / REQ 1 개 추가로 즉시 낡는다.
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → deployment.md **202** (197 → +5, 허용 ≤ 202) · audit **3735** (3623 → +112 = 절 111 + 구분 공백 1, 허용 +115 이내) ·
+  directory.md **203** (불변) · modules.md **259** (불변)
+$ grep -c '^## ' → deployment.md **6** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **37** (36 → 37)
+$ git diff -U0 -- docs/architecture/deployment.md | grep '^@@' → `@@ -180,0 +181,5 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (전반부 최말미 각주) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/deployment.md → `5  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ prisma/ web/ deploy/ package.json → (빈 출력 — 코드 · 배포 config 무변경)
+$ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1439-*.md  (**3 파일**)
+```
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` coverage 게이트가 모두 **N/A** 다 (본 절 측정 명령은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 `pnpm build` · `pnpm test` 는 실행하지 않았다).
+
+#### 한계 —
+
+1. **표 셀의 부분참 2 는 각주로만 해소된다** — 164 · 165 행은 여전히 고정 host 화법 · `P2` 조건절을 유지하므로 각주를 건너뛴 독자에겐 오도가 남는다. 창작 금지 (실측 밖 표현 신설 불가) 와 표 정합 (T-1435 승계) 을 우선한 결과이며, 표 자체의 어휘 재설계는 REQ 부여 판단과 묶여 별도 게이트다.
+2. **환경변수는 "등재 여부" 까지만 판정했다** — `HTTPS_PROXY` / `NO_PROXY` 가 Node `fetch` (undici) 런타임에서 실제로 존중되는지는 실행 검증이 필요해 본 절 범위 밖이며 (Out of Scope 의 test 실행 금지), 179 행의 "native 지원" 서술은 **미판정** 으로 남겼다. 이 축은 smoke / e2e 성격이라 `pr` mode slice 소관이다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
