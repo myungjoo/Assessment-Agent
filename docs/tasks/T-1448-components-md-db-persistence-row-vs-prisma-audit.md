@@ -2,7 +2,8 @@
 id: T-1448
 title: components.md `## Component table` **DB Persistence row (122 행)** 의 검증 가능 claim ↔ 실 `prisma/schema.prisma` 인벤토리 · `ADR-0002` / `ADR-0003` · REQ ID 대조 + T-1447 FU1 1 순위 계승 + audit §12.46
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-04T10:05:00Z
 commitMode: direct
 coversReq: [REQ-029, REQ-031, REQ-032, REQ-033]
 estimatedDiff: 200
