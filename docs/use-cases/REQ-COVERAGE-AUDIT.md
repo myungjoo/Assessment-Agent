@@ -4482,6 +4482,118 @@ $ git status --porcelain → M components.md · M REQ-COVERAGE-AUDIT.md (**2 파
 2. **컴포넌트 판정은 "default export 이름이 실재하는가" 까지다** — 각 컴포넌트의 **책임 서술이 실제 구현과 부합하는지** 는 `AppShell` · `AuthGate` · `AdminView` 3 개만 마운트 관계로 확인했고, 나머지 12 개의 props · 내부 동작은 미판정이다. `T-0353~T-0394` chain 도 **양 끝 2 개만** 실재 확인했다.
 3. **표 나머지 7 row 는 전부 미판정** — 본 각주가 표 뒤에 있어 시각적으로 8 row 전체를 덮는 것처럼 읽힐 여지가 있고, 그래서 첫 구에 한정 선언을 뒀다. 후속 slice 가 같은 자리에 각주를 덧붙이면 blockquote 가 누적되므로, 5 ~ 6 블록 시점에는 배치 규약 자체 (표 뒤 나열 vs row 별 anchor) 를 재검토해야 한다.
 
+### 12.45 components.md `## Component table` **Backend API** + **Worker** row ↔ 실 `src/**` controller · service 인벤토리 · `ADR-0001` / `ADR-0003 §1` · REQ 대조 — 원문 보존 + 각주 1 블록 (T-1447)
+
+> **본 절의 위치** — `§ 12.44` 가 "다음 slice 1 순위" 로 지목한 [T-1446](../tasks/T-1446-components-md-web-ui-row-vs-web-src-audit.md) **Follow-up 1** (`Backend API` + `Worker` 2 row 를 한 묶음으로) 을 본 절이 그대로 집행한다. **계보** — `T-1430` ~ `T-1435` (directory.md) → `T-1436` ~ `T-1444` (deployment.md) → `T-1445` (components.md `## 개요`) → `T-1446` (`## Component table` row 1) → **`T-1447` (본 절 — 표 축의 두 번째 slice)**. **2 row 를 한 slice 로 묶은 근거** — 두 row 는 `ADR-0003 §1` monolithic claim 을 **공유** 하고 (`Worker` 는 "Backend 와 동일 process 내 service layer" 라고 스스로 밝힌다) 둘 다 실 `src/**` controller · service 인벤토리와 1:1 대조가 가능해, 따로 판정하면 같은 축을 두 번 재게 된다. 검증 가능 claim 은 합계 **34** (`Backend API` **17** · `Worker` **17**) 로 row 1 (33) 과 같은 자릿수라 cap 안이다. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이고, 측정은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 **secret · connection string · 실 호스트명은 옮기지 않았다** (CLAUDE.md §9).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/components.md → 1 `# Component view` · 5 `## 개요` · 22 `## Deployment 컨텍스트` · 28 `## Component diagram` · **115 `## Component table`** · 134 `## GitHub Adapter …` · 166 `## Contracts` · 192 `## References` ⇒ **`Backend API` row = 120** · **`Worker` row = 121** — AC 좌표 (115 · 120 · 121 · 134) 그대로 **stale 아님**. 단 T-1446 각주 blockquote 는 AC 가 적은 `128 ~ 133` 이 아니라 **128 ~ 132** (5 행) 이고 **133 은 빈 행** 이라, 삽입 지점은 "133 행 뒤 · 134 행 heading 앞" 이다 (좌표 1 행 drift 정정).
+      claim 이분 — **검증 가능 34**: `Backend API` **17** (책임 2 (`NestJS controller + service layer` · `HTTP API entry point`) / 열거 5 표면 5 / 열거 포괄성 1 / `Worker 호출` 1 / `adapter 경유` 1 / ADR pointer 2 / REQ 5) · `Worker` **17** (평가 대상 파이프라인 1 / 4 요소 4 / `동일 process 내 service layer` 1 / trigger 2 경로 2 / pointer 2 (`ADR-0003 §1` · `P5 Evaluation pipeline phase`) / REQ 병기 7). **검증 불가 4** (`논리적 책임 (평가 orchestration) 으로 분리` 성격 서술 · 두 row 의 입출력 contract 셀 (`HTTPS REST JSON` · `in-process method call` 은 배포 시 사실) · `Worker` 의 `(평가 파이프라인)` 부제 — 참·거짓 대상이 아니다).
+(ii)  Backend API 책임 축 — $ find src -name '*.controller.ts' ! -name '*.spec.*' | wc -l → **20** (planner 가설의 19 는 **stale**) ; $ grep -rh '^export class .*Controller' src --include=*.controller.ts | sed 's/.*class //;s/ .*//' | sort -u → **20 이름** (`AppController` · `AssessmentCollectionController` · `AssessmentController` · `AssessmentEvaluationController` · `AuthController` · `BackfillController` · `ContributionController` · `CronScheduleController` · `DifficultyMappingController` · `ExportController` · `GroupController` · `ImportController` · `LlmProviderConfigController` · `PartController` · `PermissionDeniedRecordController` · `PersonController` · `RecentDeletionController` · `SummaryController` · `UserController` · `UserInstanceAccessController`) ; $ grep -rh '@Controller(' src --include=*.controller.ts | sort -u → route prefix **18 종** (`api` · `api/auth` · `api/persons` · `api/groups` · `api/assessments` · `api/summaries` · `api/contributions` · `api/assessment-collection` · `api/assessment-evaluation` · `api/schedules` · `api/llm/providers` · `api/llm/difficulty-mappings` · `api/admin/export` · `api/admin/import` · `api/parts` · `api/users` · `api/users/:id/instance-access` · `api/permission-denied-records`) ⇒ 5 표면 판정: `Auth` **실재** (`AuthController`) · `인원` **실재** (`PersonController`) · `Group` **실재** (`GroupController`) · `평가 조회` **실재** (`AssessmentController` · `SummaryController` · `ContributionController`) · **`RBAC` 이름 상이** (전용 controller 0 — $ ls -1 src/auth/*.ts → `roles.guard.ts` · `roles.decorator.ts` · `jwt-auth.guard.ts` 의 guard layer 이고, 등급 변경 endpoint 는 `src/user/user.controller.ts` **120** 행 `@Patch(":id/role")`). 포괄성 — 5 표면과 이름이 직접 대응하는 controller **6**, 대응 없는 초과 **14** ⇒ 열거는 **부분참**.
+      adapter 경유 축 — $ grep -rln 'globalThis\.fetch\|await fetch(' src --include=*.ts → **8 hit** 중 spec 3 을 뺀 production **5** = `src/confluence/confluence-adapter.service.ts` · `src/confluence/confluence.module.ts` · `src/github/github-adapter.service.ts` · `src/github/github.module.ts` · `src/llm/llm-http-gateway.service.ts` ⇒ 전부 adapter / gateway 계열이라 **참 (근사)** — controller · 도메인 service 의 직접 outbound 는 0 이지만 `fetch` 이외 HTTP 경로 (예: 다른 client lib) 까지 전수 증명한 것은 아니다.
+(iii) Worker 책임 축 — $ grep -rh '^export class .*Service' src --include=*.service.ts | sed 's/.*class //;s/ .*//' | sort -u | wc -l → **43** ; $ ls -1d src/assessment* → `src/assessment-collection` · `src/assessment-evaluation` **2 디렉토리** ; $ grep -rn 'class .*Worker' src --include=*.ts (spec 제외) → **0 hit** ⇒ **문서가 말하는 `Worker` 에 1:1 대응하는 실 class 는 없다** (없다는 것 자체가 실측 결과 — row 자신이 "논리적 책임으로 분리" 라 밝혀 거짓은 아니다). 4 요소 — $ grep -n 'volume\|difficulty\|contribution\|narrative' src/assessment-evaluation/evaluation-scoring.service.ts → **6** 행 (`EvaluationResult` 5 필드 = `unitId` / `narrative` / `difficulty` / `contribution` / `volume`) · **35** 행 (`import { calculateEvaluationVolume } from "./domain/evaluation-volume"`) · **66 ~ 70** 행 (gateway 호출 → `classifyNarrative` → `calculateEvaluationVolume` → 5 필드 조립) ; $ ls -1 src/assessment-evaluation/domain/evaluation-volume.ts → 실재 ⇒ **난이도 · 기여도 · 양 · LLM 정성 평가문 4 요소 전부 shipped** (planner 가설 ③ "일부만 shipped" 는 **반증**).
+      trigger 축 — $ grep -rn '@Cron\|collect' src --include=*.controller.ts → `src/assessment-collection/assessment-collection.controller.ts` **1 ~ 3** 행 주석 (`POST /api/assessment-collection/collect` 가 `CollectionTriggerService.triggerCollection` 에 위임, REQ-040 manual trigger) ⇒ **Backend API manual trigger 참** ; $ grep -rn '@Cron' src --include=*.ts (spec 제외) → `src/app.module.ts` **51** 행 (`정적 @Cron job 정의 0`) · `src/scheduling/cron-schedule.service.ts` **4** 행 (동적 `SchedulerRegistry` 등록) 뿐이고 $ grep -n 'CRON_TICK_HANDLER\|stub' src/scheduling/scheduling.module.ts → **33** · **36** · **41** 행 (`발화 시점만 logging 하는 no-op stub`, 로그 문자열 `cron tick 발화 — 실 평가 pipeline 미결선(stub, Out of Scope)`) ⇒ **Scheduler 자동 trigger 는 미결선** = trigger 축 **부분참**.
+(iv)  monolithic + pointer 축 — $ ls -1 docs/decisions/ADR-0001-*.md docs/decisions/ADR-0003-*.md → `ADR-0001-stack.md` · `ADR-0003-deployment.md` (AC 가 적은 `ADR-0003-deployment-topology.md` 는 **없는 파일명** — Required Reading 쪽 표기 drift) ; $ grep -n '^status:' → 각 **4** 행 `status: ACCEPTED` ; $ grep -n '^#\{1,3\} ' docs/decisions/ADR-0003-deployment.md → **32** 행 `### Decision §1 — Monolithic NestJS process (in-process queue OK)` ⇒ **§ 번호 drift 0** ; $ grep -n '동일 process\|monolith' … → **34** 행 (`단일 NestJS process` + `HTTP API / scheduler / 평가 파이프라인 / LLM gateway / GitHub & Confluence adapter 가 동일 process 안에서 동작`) ⇒ 두 row 공유 monolithic claim **참** ; $ grep -cn 'NestJS' docs/decisions/ADR-0001-stack.md → **16** ⇒ `ADR-0001 (NestJS)` 병기 **참** ; $ grep -n 'Evaluation pipeline\|P5' docs/PLAN.md → **94** 행 `## Phase P5 — Evaluation pipeline` ⇒ phase pointer **참**.
+(v)   REQ ID 축 — $ grep -n 'REQ-005\|REQ-006\|REQ-007\|REQ-015\|REQ-026\|REQ-031\|REQ-032\|REQ-038\|REQ-043\|REQ-044\|REQ-049' docs/requirements.md → **11 ID 전부 실재** (24 · 25 · 26 · 34 · 45 · 50 · 51 · 57 · 62 · 63 · 68 행) ; 괄호 병기 대조 — REQ-043 `모든 기능 ID/Password 보호` ↔ 본문 `(ID/Password 보호)` · REQ-032 `Raw data 저장 금지` ↔ `(raw 저장 금지)` · REQ-031 `재수집 중복 방지 + 최근 1주 재수집 OK` ↔ `(재수집 중복 방지)` · REQ-015 `Confluence 지정 SPACE 평가` ↔ `(Confluence)` · REQ-049 `Admin 이 LLM 모델 지정` ↔ `(LLM 모델 지정)` · REQ-005 ~ 007 `github.com / sec / ecode 평가` ↔ `(3 GitHub)` ⇒ **전부 부합**.
+      `§ 12.15` 강도 — $ sed -n '120,121p' … | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}|shipped|실측|현황|남은' → **0 hit** ⇒ row 1 (시점 어휘 4 hit) 과 달리 두 row 는 **시점 marker 0 의 순수 blueprint 서술** 이라, 무편집 근거가 append-only 방침이 아니라 **1 ~ 4 행 문서 성격 선언 + 거짓 0** 쪽이다.
+(vi)  baseline — $ wc -l → components.md **202** · audit **4498** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175** ; $ grep -c '^## ' → components.md **7** · audit **12** ; audit $ grep -c '^| REQ-' → **66** · $ grep -c '^### 12\.' → **44** (기대 9 값 전부 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+| row | claim (1 구) | 실측 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| Backend API | `NestJS controller + service layer` | controller **20** · service **43** | 참 | 원문 보존 + 각주 부기 | 두 layer 가 실 인벤토리로 동시 실증 |
+| Backend API | `HTTP API entry point` | `@Controller(` prefix **18 종** 전부 `api…` | 참 | 무편집 | 모든 controller 가 HTTP route 를 보유 |
+| Backend API | `Auth` endpoint 진입점 | `AuthController` (`api/auth`) | 참 | 무편집 | 이름 · prefix 1:1 |
+| Backend API | `RBAC` endpoint 진입점 | 전용 controller **0** ; `roles.guard.ts` + `UserController` 120 행 `@Patch(":id/role")` | 부분참 | 원문 보존 + 각주 부기 | 기능은 실재하나 **controller 표면이 아니라 guard layer** 라 이름이 상이 |
+| Backend API | `인원` endpoint 진입점 | `PersonController` (`api/persons`) | 참 | 무편집 | 이름 · prefix 1:1 |
+| Backend API | `Group` endpoint 진입점 | `GroupController` (`api/groups`) | 참 | 무편집 | 이름 · prefix 1:1 |
+| Backend API | `평가 조회` endpoint 진입점 | `AssessmentController` · `SummaryController` · `ContributionController` | 참 | 무편집 | 조회 표면 3 controller 실재 |
+| Backend API | 위 **5 표면 열거의 포괄성** | 이름 대응 **6** / 초과 **14** (20 중) | 부분참 | 원문 보존 + 각주 부기 | 열거가 실제 표면보다 **좁다** — 독자가 backend 범위를 과소 인식 |
+| Backend API | `평가 trigger 시 Worker 를 호출` | `AssessmentCollectionController` → `CollectionTriggerService.triggerCollection` | 참 | 원문 보존 + 각주 부기 | 호출 경로 실재 (피호출자 이름이 `Worker` 가 아닌 점은 아래 row 에서 별도 판정) |
+| Backend API | `외부 시스템 호출은 직접 하지 않고 adapter 경유` | `fetch` 직접 호출 production **5** 파일 전부 adapter / gateway | 참 (근사) | 원문 보존 + 각주 부기 | grep 근사이며 전수 증명이 아님을 각주에 명시 |
+| Backend API | `ADR-0001 (NestJS)` pointer | `ADR-0001-stack.md` ACCEPTED · NestJS 16 hit | 참 | 무편집 | 파일 · status · 내용 일치 |
+| Backend API + Worker | `ADR-0003 §1 (monolithic)` pointer **공유** | `ADR-0003-deployment.md` **32** 행 `### Decision §1 — Monolithic NestJS process` · **34** 행 본문 | 참 | 무편집 | § 번호 drift 0 이고 본문이 "동일 process" 를 명시 — 두 row 판정이 동일해 1 row 로 묶음 |
+| Worker | `commit / 문서 / Confluence page 평가 파이프라인` | `src/assessment-collection` (github · confluence collection service) + `src/assessment-evaluation` | 참 | 무편집 | 3 대상 수집 · 평가 경로가 2 디렉토리로 실재 |
+| Worker | 평가 **4 요소** (난이도 · 기여도 · 양 · LLM 정성 평가문) | `evaluation-scoring.service.ts` 6 · 35 · 66 ~ 70 행 (`EvaluationResult` 5 필드 + `calculateEvaluationVolume`) | 참 | 원문 보존 + 각주 부기 | **4 요소 판정이 전부 동일 (shipped)** 이라 1 row 로 묶음 — planner 가설 ③ 반증 사실을 각주에 병기 |
+| Worker | `Backend 와 동일 process 내 service layer` | service 43 개 단일 process + ADR-0003 34 행 | 참 | 무편집 | ADR 결정과 실 구조가 일치 |
+| Worker | `Backend API 가 trigger` | `POST /api/assessment-collection/collect` manual trigger | 참 | 원문 보존 + 각주 부기 | manual trigger 진입점 실재 |
+| Worker | `Scheduler 가 trigger` | 정적 `@Cron` **0** ; `CRON_TICK_HANDLER` 기본 provider = no-op stub (`scheduling.module.ts` 41 행) | 부분참 | 원문 보존 + 각주 부기 | 등록 인프라는 있으나 **평가 pipeline 으로의 결선이 없다** |
+| Worker | 실 class `Worker` 존재 여부 | `class .*Worker` grep **0 hit** | 참 (부재가 사실) | 원문 보존 + 각주 부기 | row 자신이 논리 분리라 밝혀 거짓 아님 — 억지 대응 class 를 지목하지 않는다 |
+| Worker | `P5 Evaluation pipeline phase` pointer | `PLAN.md` **94** 행 | 참 | 무편집 | phase heading 실재 |
+| Backend API + Worker | REQ **11 개** (REQ-005 ~ 007 · 015 · 026 · 031 · 032 · 038 · 043 · 044 · 049) + 괄호 병기 문구 | requirements.md 24 · 25 · 26 · 34 · 45 · 50 · 51 · 57 · 62 · 63 · 68 행 전부 실재 · 제목 부합 | 참 | 무편집 | **11 ID 판정이 전부 동일 (실재 + 부합)** 이라 AC 2 묶음 허용 조건에 따라 1 row 로 묶고 ID 를 전부 나열 |
+
+판정 기준 **3 축** — ① **문서 성격**: 1 ~ 4 행 blockquote 가 본 문서를 `P1 T-A3 의 산출물` (blueprint) 로 선언하고, row 1 과 달리 두 row 에는 shipped 현황으로 갱신된 흔적 (시점 어휘) 이 **0** 이라 blueprint 원문 보존 근거가 더 강하다. ② **`§ 12.15` 정합**: 시점 marker **0 hit** 이라 append-only 충돌은 없으나, 반대로 in-place 치환을 정당화할 "낡음" 도 실증되지 않는다 — 부분참 3 건은 **문서가 틀렸다기보다 실제가 더 넓어진** 경우다. ③ **선례**: T-1430 ~ T-1446 의 "원문 보존 + 실측 각주" 를 승계했다 — [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) 의 in-place 1:1 치환은 **거짓 어휘 1 개** 였던 경우, [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 의 혼합은 **거짓 다수** 였던 경우인데, 본 slice 는 **거짓 0 · 부분참 3** 이라 치환 대상 자체가 없다.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | 두 row 셀 in-place 동기 (낡은 열거 · 거짓 pointer 치환) | 기각 | **치환 대상이 공집합** — 거짓 pointer 0 (ADR 2 · phase · REQ 11 전부 참) 이고, 열거 부분참은 "틀린 이름" 이 아니라 "빠진 표면 14 개" 라 셀 안 열거를 20 controller 로 확장하면 blueprint row 가 인벤토리 덤프가 된다 |
+| **(B)** | **원문 무편집 + T-1446 각주 blockquote 직후 각주 blockquote 1 개 신설** | **채택** | T-1437 ~ T-1446 화법을 그대로 잇고, 부분참 3 건 (`RBAC` 이름 상이 · 열거 포괄성 · `Scheduler` trigger 미결선) 과 `Worker` class 부재를 같은 화면에 병기해 **오도 risk 만** 제거하며 cap (+8 행 · 3 파일) 안이다 |
+| (C) | 혼합 (거짓 판정 지점만 in-place, 나머지는 각주) | 기각 | 거짓 판정이 **0** 이라 in-place 항이 공집합이고, `Scheduler` trigger 부분참을 셀에서 고치려면 `Scheduler` row (126 행 — 본 slice Out of Scope) 와 동시에 손대야 해 cap · 범위를 동시에 깬다 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 두 row 는 backend 표면의 유일한 요약이라, 독자가 (a) backend 를 5 표면으로 좁게 오인하거나 (b) `Scheduler` 자동 평가가 이미 도는 것으로 오인할 비용이 크다 — (b) 는 "왜 야간 평가가 안 도는가" 를 코드에서 다시 찾게 만든다 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: 시점 marker 0 이라 각주 병기가 append-only 방침과 무충돌이다. ② **오도 risk**: (a) 5 표면 오인 → 이미 있는 controller 를 다시 만들려는 시도, (b) `Scheduler` 자동 trigger 오인 → 미결선 stub 을 shipped 로 착각, (c) `Worker` 를 실 class 로 오인 → 존재하지 않는 심볼 탐색 — 셋 다 실작업 낭비로 직결돼 (D) 를 기각시킨다. ③ **cap**: (B) 의 실측 diff 는 components.md **+8/-0** (202 → **210**, 허용 ≤ 211) · 파일 **3 고정** 이라 상한 안이다 ((A) · (C) 는 치환 대상 공집합이라 애초에 성립하지 않는다). ④ **각주 누적 구조 제약**: markdown 표 중간에 blockquote 를 넣을 수 없어 각주는 표 뒤에 쌓이며 본 slice 로 **2 블록째** 다 — 그래서 첫 구에 **"본 각주는 `Backend API` · `Worker` 2 row 한정"** 을 명시했다. 5 ~ 6 블록 시점의 배치 규약 재검토 (표 뒤 나열 vs row 별 anchor) 는 `§ 12.44` 한계 3 이 이미 제기했고 본 slice 범위 밖이라 파생 영향에만 남긴다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (7 행)** — T-1446 각주 마지막 행 (132) · 빈 행 (133) 뒤, `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` heading 앞에 append (실 증가 **+8** = blockquote 7 + 공백 1). 내용은 ① **2 row 한정 선언 + 잔여 5 row 미판정 명시** + 실 인벤토리 (controller **20** · service **43**), ② `Backend API` 열거 **부분참** (4 표면 실재 · `RBAC` 이름 상이 · 초과 **14**), ③ `Worker 호출` 참 + `adapter 경유` **참 (근사)**, ④ `Worker` 4 요소 **전부 shipped** + 실 class **부재**, ⑤ trigger 축 **부분참** (`Scheduler` 미결선 stub), ⑥ pointer · REQ **전수 참** + `§ 12.15` 처리 사유 + 본 절 pointer.
+- **문구 1:1 + 무편집 경계** — 각주의 경로 · class 이름 · 수치 (**20** · **43** · **14** · **5** · `UserController` **120** · `evaluation-scoring.service.ts` **6** · **35** · `app.module.ts` **51** · `scheduling.module.ts` **41** · ADR-0003 **32** · **34** · PLAN **94** · REQ **11**) 는 전부 위 실측 출력 그대로이며, **실측되지 않은 값 (존재하지 않는 class · 임의 카운트 · 없는 절 번호) 은 창작하지 않았고** secret · connection string · 실 호스트명도 옮기지 않았다. **1 ~ 4 행 blockquote · 119 행 `Web UI` row · 120 ~ 121 행 원문 · 122 ~ 126 행 잔여 5 row · 128 ~ 132 행 T-1446 각주 · 134 행 이후 전 구간** (`## GitHub Adapter …` · `## Contracts` · `## References` · mermaid) 은 그대로다.
+- **새 pointer 0** — 각주가 더한 markdown 링크는 `ADR-0001-stack.md` · `ADR-0003-deployment.md` · `PLAN.md` · `requirements.md` 와 본 절 pointer 뿐 (전부 두 row 가 이미 지목한 대상) 이고, `src/**` 경로 · controller · service 이름은 **링크 없는 코드 span** 으로만 인용했다. **controller / service rename · 파일 추가는 하지 않았다** (Out of Scope — 문서를 실제에 맞출 뿐 실제를 문서에 맞추지 않는다).
+
+#### T-1446 Follow-up 1 closure + Component table 잔여
+
+- **Follow-up 1 closure** — `§ 12.44` 가 "다음 slice 1 순위" 로 이월한 `Backend API` + `Worker` 2 row 진입을 본 절이 수행했고, **검증 가능 34 claim 을 전부 판정 · 각주 반영** 했다 (참 **31** · 부분참 **3** · 거짓 **0**). 승계 대상은 소진되며 **표 잔여는 5 row** 다.
+- **잔여 미판정 5 row** — `DB Persistence` (122) · `LLM Gateway` (123) · `GitHub Adapter` (124) · `Confluence Adapter` (125) · `Scheduler` (126). **다음 slice 1 순위 = `DB Persistence`** — 근거: claim 이 `schema.prisma` 단일 정본과 1:1 대조 가능해 검증 난이도가 가장 낮고, REQ-032 (raw 저장 금지) · REQ-031 (unique constraint) 이 schema-level 강제라 판정이 결정적이다. 차순위는 3 adapter (`§ 12.41` egress 판정 재사용 가능), 후순위 `Scheduler` (본 절이 trigger 축을 이미 부분 실측해 승계 가능).
+- **components.md 진행률** — 본문 절 **7 개** 중 **2 개** (`## 개요` · `## Component table` row 1 ~ 3) 가 대조를 마쳤고 문서 안 실측 각주는 **2 블록** 이다. 누적은 본 절 34 를 더해 **202 row = 참 138 · 부분참 33 · 거짓 31** (`§ 12.35` ~ `§ 12.45` 합 — `§ 12.44` 의 168 + 본 절 34).
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **Component table 잔여 5 row** — 위 목록 참조. 1 순위 `DB Persistence` (`schema.prisma` 대조), 차순위 3 adapter, 후순위 `Scheduler`.
+2. **표 뒤 각주 blockquote 누적 배치 규약 재검토** — `§ 12.44` 한계 3. 본 slice 로 **2 블록째** 이며 5 ~ 6 블록 시점 재검토 예고는 유효하다.
+3. **`## Deployment 컨텍스트` (22 ~ 26 행)** — "모든 8 component 는 동일 process" claim + ADR pointer 3 종. T-1445 FU1 차순위로 **2 회째 이월** (본 절의 monolithic 판정을 그대로 승계할 수 있다).
+4. **`## Component diagram` mermaid node ↔ 실 module 대조** — 미판정.
+5. **`@nestjs/config` 미도입 전수 sweep** — `§ 12.39` FU3 미소진 (ADR 게이트).
+6. **reviewer 규약 미이행** — `.claude/agents/reviewer.md` REQ-032 0 hit (`§ 12.41` FU2 미소진).
+7. **`deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합** — `§ 12.41` FU3 미소진.
+8. **README 행 번호 pointer drift 전수 sweep** — 미착수.
+9. **REQ 번호 체계 잔재 전수 sweep** — `§ 12.38` FU3 미소진.
+10. **`CLAUDE.md` §1 pointer 부정확** — T-1442 FU3 미소진.
+11. **UC-09 `§ 5` sequence participant 병기** — 30 회째 이월.
+12. **정본 [modules.md](../architecture/modules.md) 카운트 claim 대조** — `§ 12.34` FU1 미소진 (ADR 게이트).
+13. **행 번호 → anchor 좌표계 이행** — 24 회째 이월.
+14. **`§ 12.44` 미해결 한계** — "mutation 러너 26 개" 정의 미확정 (`pr` mode drift-guard spec 소관).
+15. **`Scheduler` cron → 평가 pipeline 미결선** — 본 절이 실측한 no-op stub 사실. **문서 소관이 아니라 코드 소관** 이라 별도 `pr` task 로만 처리 가능하며, 본 doc slice 는 사실 기록까지만 한다.
+16. **task 파일 Required Reading 의 `ADR-0003-deployment-topology.md` 표기 drift** — 실 파일명은 `ADR-0003-deployment.md`. 후속 planner 가 task 생성 시 참조하는 파일명 표기를 정정해야 한다.
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 전부 **N/A** 다 (측정은 read-only `ls` · `find` · `grep` · `sed` · `wc` · `git` 뿐이고 빌드 · 설치 · 테스트는 실행하지 않았다).
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → components.md **210** (202 → +8, 허용 ≤ 211) · audit **4498 → 4610** (+112 = 본 절 111 행 = 4485 ~ 4595 + 구분 공백 1, 허용 +130 이내 · 절 상한 ≤ 130 안) · deployment.md **232** (불변) · directory.md **203** (불변) · modules.md **259** (불변) · PLAN.md **175** (불변) · requirements.md **97** (불변)
+$ grep -c '^## ' → components.md **7** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **45** (44 → 45)
+$ git diff -U0 -- docs/architecture/components.md | grep '^@@' → `@@ -133,0 +134,8 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (T-1446 각주 뒤 ~ `## GitHub Adapter …` heading 앞) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/components.md → `8  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md → (빈 출력 — 코드 · frontend · 배포자산 · CI · 의존성 · ADR · PLAN · requirements 무변경)
+$ git status --porcelain → M components.md · M REQ-COVERAGE-AUDIT.md (**2 파일** — task 파일 frontmatter `status` 갱신은 driver 의 bookkeeping commit 소관이라 executor 가 건드리지 않았다. touchesFiles 3 파일 중 실제 편집은 2)
+```
+
+#### 한계 —
+
+1. **`adapter 경유` 는 `fetch` grep 근사다** — `await fetch(` · `globalThis.fetch` 2 패턴만 봤으므로, 다른 HTTP client 나 socket 을 쓰는 직접 outbound 가 있으면 잡히지 않는다. 전수 증명은 §7 예산 밖이라 각주도 "근사" 로만 주장한다.
+2. **controller 열거 대응은 "이름 대응" 까지다** — 초과 **14** 개 중 일부 (예: `AssessmentEvaluationController`) 는 문서의 `평가 조회` 표면에 의미상 포함될 여지가 있으나, 본 절은 **이름 기준** 으로만 갈랐다. 각 controller 의 route 별 책임이 5 표면 중 무엇에 속하는지는 미판정이다.
+3. **`Worker` 4 요소는 "산출 필드 · helper 실재" 까지다** — 4 요소가 실제로 요구 품질대로 산출되는지 (특히 LLM 정성 평가문의 비결정성) 는 REQ-019 row 가 이미 지적한 별개 축이고, 본 절은 필드 · 호출 배선 실재까지만 판정했다.
+4. **잔여 5 row 는 전부 미판정** — 본 각주도 표 뒤에 있어 5 row 를 덮는 것처럼 읽힐 여지가 있어 첫 구에 한정 선언을 뒀다. blockquote 는 이제 **2 블록** 이다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
