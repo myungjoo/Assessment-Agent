@@ -78,6 +78,17 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 `implementer` 단독 (doc-only). 코드 변경 0 이므로 `tester` 불요 (CLAUDE.md §3.2 direct doc-only 면제).
 
+## 실행 결과 (executor)
+
+- **AC 1 ~ AC 7 전부 ok**. 좌표는 task 기재값 (`233` · `265` · `341` · `351` · audit `6228` · `6160` · `6215`) 과 **전량 일치 → stale 0 지점 (10 회 연속)**.
+- **claim 계수** — 대상 절 **26 claim** 중 코드 대조 가능한 **사실 주장 13** 을 축 ① ~ ⑧ 이 **100%** 커버 (전체 대비 **50.0%**). 미커버 13 은 반사실 추론 4 · 원칙 / 예시 3 · 결정 시점 의도 6 으로 **반증 불가** 분류.
+- **판정** — 거짓 **2** (축 ③ config schema 예시 + `P4 task` 미래 시제 · 축 ⑦ `fetchCommits('com', ...)` + `1 provider`) · 부분참 **6** (① ② ④ ⑤ ⑥ ⑧) · 참 **0**. planner 가설 대비 **4 축 정정** (① instance 라우팅이 `GithubInstanceClient` 소관 · ② `'com'` 부재 + config 주도 · ⑤ `_REPOS` 4 번째 차이 축 · ⑦ key-first 패턴이 다른 클래스에 실재).
+- **다중 표기 (산문 축 신설 형식)** — `claim 26 : 사실 주장 13 : 실측 대조 지점 26 : 가설 정정 4`. 표 축의 `row : 결선 : 호출 지점` 은 산문에 부적용임을 근거와 함께 기록.
+- **진척** — components.md = diagram **23/23** + 표 **17/17** + 산문 **1/1** → **문서 전체 판정 종료 · 잔여 축 0**.
+- 산출: [components.md](../architecture/components.md) **263** 행 뒤 각주 **5 행** 추가 (351 → 357) · [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) `### 12.67` **48 행** 신설 (6228 → 6276). `git diff --stat` **3 파일 / +54 LOC** 로 상한 이내. 문법 검산 — `^| ` **29** · `^## ` **7** · fence **2** 전부 불변.
+
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **산문 편집 batch 신설 후보 (본 stream 밖 · in-place 정정이라 `§ 12.15` append-only 위반)** — (1) components.md **240** 행 `실제 구현은 P4 task` 시제 정정 / (2) **241 ~ 247** config 예시를 env 주도 형태 (`GITHUB_INSTANCES` + `_HOST` / `_ORG` / `_TOKEN_ENC` / `_REPOS`) 로 교체 / (3) **255** 행 `githubAdapter.fetchCommits('com', ...)` → `requestForInstance(key, path, query)` 정정 / (4) **261 · 263** 행 `ADR-0004` 번호 재지정 — 마지막 건은 [CLAUDE.md](../../CLAUDE.md) §5 ADR 게이트라 owner 판단 선행.
+- **다음 slice 1 순위 = README 행 번호 pointer drift 전수 sweep** (`§ 12.66` FU (2) = `§ 12.65` FU9) — components.md 축 종료로 architecture 문서 축이 비었고, pointer 축은 대상이 자기 완결적이라 산문 축의 반증 불가 문제가 없다. 상세 우선순위는 `§ 12.67` 파생 영향 (1) ~ (9) 참조.
+- **행 번호 → anchor 좌표계 이행 (FU14) 근거 보강** — 본 slice 가 각주 삽입 파급 **18 지점** 을 처음으로 계수했다 (종전 slice 는 삽입점이 자기 좌표 뒤라 파급 0 이었다).
