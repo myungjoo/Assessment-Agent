@@ -5127,6 +5127,77 @@ row → 절 매핑 — `Web UI` **`§ 12.44`** (T-1446) · `Backend API` + `Work
 3. **`§ 12.50` 의 `표 7 row` 표기와 본 절 (i-b) 의 `data row 8` 은 상충하나 본 절이 확정 판정하지 않았다** — row 본문 · 카운트 claim 재판정은 파생 영향 (1) 소관이라 사실만 기록했다.
 4. **안내 blockquote 도 각주 구간 분량을 +4 행 늘린다** — 탐색성은 매핑 집약으로 개선되지만 총량 축 ① 은 소폭 악화되며, 총량 해소는 파생 영향 (15) · (19) 의 좌표계 · scope 재설계 소관이다.
 
+### 12.52 components.md `## Deployment 컨텍스트` **`모든 8 component`** claim ↔ 표 data row 카운트 · `ADR-0003 §1` 승계 여부 대조 — claim 참 확정 + `§ 12.50` `표 7 row` 오기 확정 판정 (T-1454)
+
+> **본 절의 위치 · 계보** — `§ 12.51` (T-1453) 이 표 뒤 각주 구조를 닫으면서 파생 영향 **(1)** 로 **"`## Deployment 컨텍스트` (22 ~ 26 행) `8 component 동일 process` claim ↔ 표 row 카운트 대조 — 8 회째 이월, 다음 대조 1 순위"** 를, 한계 **3** 으로 **"`§ 12.50` 의 `표 7 row` 표기와 본 절 (i-b) 의 `data row 8` 은 상충하나 본 절이 확정 판정하지 않았다"** 를 남겼다. 본 절은 두 지목이 **동일한 사실 (components.md 의 component 수 claim 이 몇인가)** 을 묻는다는 점에 근거해 한 slice 로 집행하고, 표 data row 수를 **한 번만** 재측정해 두 표기의 참 / 거짓을 동시에 가른다. 대상은 **카운트와 그 claim 문장** 뿐이며 표 row 본문 · 각주 7 블록의 판정 내용은 재판정하지 않는다.
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+- (i) **좌표 재확인** — `grep -n '^#\{1,3\} ' docs/architecture/components.md` → `1:# Component view` / `5:## 개요` / `22:## Deployment 컨텍스트` / `28:## Component diagram` / `115:## Component table` / `180:## GitHub Adapter — 3 instance 묶음 vs 분리 결정` / `212:## Contracts` / `238:## References`. **task 가 예고한 22 · 28 · 115 · 180 · 212 · 238 은 전부 유효**. `grep -n '^> \*\*' …` → 각주 블록 시작행 `133 · 139 · 147 · 154 · 160 · 167 · 173` **7 개** (그 밖 `3` · `16 ~ 19` · `128 ~ 130` 은 표 앞 blockquote 라 각주군이 아니다).
+- (ii) **표 data row 카운트 (본 slice 의 단일 축 측정)** — `grep -c '^| \*\*' docs/architecture/components.md` → **8**. `grep -n '^| \*\*' …` → `119 Web UI` · `120 Backend API` · `121 Worker` · `122 DB Persistence` · `123 LLM Gateway` · `124 GitHub Adapter` · `125 Confluence Adapter` · `126 Scheduler`. `grep -c '^| ' …` → **29** 이나 이는 `## Contracts` 표 (`216 ~ 234` = header 1 + separator 1 + data row 17 = **19** 행) 를 포함한 값이라, `## Component table` 만의 산출식은 **표 본체 `117 ~ 126` 10 행 − header 1 − separator 1 = data row 8** 이다 (29 − 19 = 10 으로 교차 검산).
+- (iii) **claim 문장 인용** — `sed -n '22,27p' …` → `## Deployment 컨텍스트` / (빈 줄) / `본 문서의 **모든 8 component 는 동일 NestJS process 안에서 동작**한다 — [ADR-0003 §1 — Monolithic NestJS process](../decisions/ADR-0003-deployment.md) 가 박제한 결정이다. …` / (빈 줄) / `[ADR-0002 (PostgreSQL + Prisma)] … [ADR-0001 …] 가 모든 component 의 구현 기반 stack 을 박제했다.` / (빈 줄). `grep -n '8 component' …` → **2** hit — **3** 행 (`8 component table`, 1 ~ 4 행 P1 T-A3 blockquote) · **24** 행 (본 slice 의 claim). 즉 claim 문장의 정확한 좌표는 **24** 행이며, task frontmatter 의 `22 ~ 26 행` 은 절 구간 표기다.
+- (iv) **카운트 표기 sweep (components.md 안, 1 명령)** — `grep -n '[0-9] row\|[0-9] component\|[0-9] 블록' …` → **14** hit 이나 카운트 claim 은 **4 지점** 뿐이다: **3** 행 `8 component table` (**일치**) · **20** 행 `` `## Component table` 8 row `` (**일치**) · **24** 행 `모든 8 component` (**일치**) · **128** 행 `아래 blockquote **7 블록**` (**일치** — 각주 블록 실측 7). 나머지 10 hit 은 `row (NNN 행)` 좌표 참조 · `15 model` 등 **카운트 claim 이 아닌 실측 서술** 이다. **불일치 지점 0**.
+- (v) **ADR-0003 §1 승계 여부** — `sed -n '32,45p' docs/decisions/ADR-0003-deployment.md | grep -n 'component\|process'` → 구간 offset `1:### Decision §1 — Monolithic NestJS process (in-process queue OK)` · `3:**결정 (1 줄)**: Backend 는 **단일 NestJS process** 로 시작한다. HTTP API / scheduler / 평가 파이프라인 / LLM gateway / GitHub & Confluence adapter 가 동일 process 안에서 동작한다. …` · `8:` · `9:` · `11:` · `13:` **6** hit. **component 개수를 명시한 구는 0** 이고, 34 행이 열거한 것은 개수가 아니라 책임 **5 범주** 다. 따라서 `8` 은 **ADR 승계값이 아니라 본 문서 자체 카운트** 이며 검증처는 표뿐이다 — **Why ④ 참**.
+- (vi) **audit 상충 2 표기 대조** — `sed -n '5035p' docs/use-cases/REQ-COVERAGE-AUDIT.md` → `row → 절 매핑 — … 이로써 표 **7 row** 대조가 완결됐다 (각주 blockquote **7** 블록 누적, in-place 치환 누적 **0**).` ↔ `§ 12.51` (i-b) **5067** 행 → `**표 data row 는 8 개** 이고 **각주는 7 블록** 이다`. `grep -n '표 \*\*7 row\*\*\|표 7 row' …` → **5035** (`§ 12.50` 본문) · **5127** (`§ 12.51` 한계 3 의 인용) **2** hit — 오기 원본은 **`§ 12.50` 1 절뿐** 이고 5127 은 그 상충을 기록한 인용이라 확산은 없다.
+- (vii) **삽입 파급 실측 (AC 3 입력)** — `sed -n '128,178p' … | grep -no 'row ([0-9]\{2,3\} 행)\|[0-9]\{3\} ~ [0-9]\{3\} 행\|\*\*[0-9]\{1,3\}\*\* 행 \`##\|1 ~ 4 행 blockquote'` 로 자기 참조를 재열거하면 components.md 내부를 가리키는 좌표는 **20** 개다 — 각주 8 블록머리의 `row (119 ~ 126 행)` **8** · **128** 행 `117 ~ 126 행` **1** · **129** 행 매핑의 개별 row 좌표 **8** · **130** 행 `119 ~ 126 행` **1** · **161** 행 `**180** 행 \`## GitHub Adapter …\`` **1** · **174** 행 `1 ~ 4 행 blockquote` **1** (나머지 `**32/78/62** 행` · `**79/131** 행` hit 은 ADR-0003 · PLAN.md 등 **타 문서** 좌표라 파급 대상이 아니다). ⓐ **`## Component diagram` heading 직전 (28 행) 삽입** → 28 행 이후 전 구간이 밀려 표 좌표 · 각주 row 좌표 · heading 좌표가 모두 stale = **19 지점** (유효 잔존은 `1 ~ 4 행 blockquote` 1 지점뿐). ⓑ **각주군 말미 (178 행 뒤) 삽입** → 179 행 이후만 밀리므로 stale 은 **`## GitHub Adapter …` heading 참조 1 지점** (161 행) — **수치 2 개 = ⓐ 19 · ⓑ 1**.
+- (viii) **baseline** — `wc -l` components.md **248** · audit **5143** · ADR-0003 **173** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175** 전부 task 예고와 일치. `grep -c '^## '` components.md **7** · audit **12**, audit `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **51**, components.md `grep -c '^> '` **50** 도 전부 일치 (drift 0).
+
+#### 카운트 판정표 (AC 2 — 카운트 축 한정, row 본문 재판정 0)
+
+| 축 | 실측 근거 (행 번호 포함) | 판정 | 근거 1 구 |
+| --- | --- | --- | --- |
+| ① `## Deployment 컨텍스트` **24** 행 `모든 8 component` ↔ 표 data row | (ii) `grep -c '^\| \*\*'` → **8**, 표 본체 **117 ~ 126** 10 행 − header 1 − separator 1 = **8** (`119 Web UI` ~ `126 Scheduler`) | **참** | claim 의 `8` 과 표 data row 8 이 1:1 이라 어긋남 0 이다. |
+| ② audit `§ 12.50` **5035** 행 `표 **7 row**` 표기 | (vi) 5035 행 원문 ↔ `§ 12.51` (i-b) **5067** 행 `data row 는 8 개 · 각주는 7 블록`, (i) 각주 블록 **7** 개 (`133 ~ 173`) | **거짓 (오기)** | 같은 문장이 세는 각주 blockquote **7 블록** 을 row 수로 옮겨 적은 혼동이며, 실 row 는 8 이다. |
+| ③ `8` 의 ADR-0003 §1 승계 여부 | (v) `sed -n '32,45p' … \| grep -n 'component\|process'` **6** hit 중 개수 명시 **0**, 34 행은 책임 **5 범주** 열거 | **미승계 (본 문서 자체 카운트)** | ADR §1 이 박제한 것은 `동일 process 동작` 결정이지 개수가 아니라, `8` 의 유일한 검증처는 표다. |
+| ④ components.md 안 카운트 표기 정합 | (iv) sweep 의 카운트 claim **4 지점** (**3** · **20** · **24** · **128** 행) 전부 실측 일치, 불일치 **0** | **전수 참** | 문서 내부는 이미 정합하며 어긋난 쪽은 audit `§ 12.50` 단일 지점이다. |
+
+- 축 ① 이 `참` 이므로 **claim 문장 자체는 고칠 대상이 없다** — 이 사실이 AC 3 의 (D) 자동 기각 근거가 된다.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 판정 | 근거 1 구 |
+| --- | --- | --- |
+| (A) 현행 유지 + 무편집 (audit 기록만) | **기각** | 축 ③ (ADR 미승계) · 축 ② (`표 7 row` 오기) 는 **문서 안에 대응 표기가 전무한 새 사실** 이라, audit 에만 두면 components.md 독자가 `8` 의 검증처에 닿는 경로가 없다 (기준 ④ 탐색성). |
+| **(B) 각주군 말미 append (표 뒤 178 행 뒤) + stale 좌표 ≤ 2 지점 정정** | **채택** | 기준 ① append-only 정합 (본문 삭제 0) · 기준 ② 파급 최소 (ⓑ **1 지점**) · 기준 ③ cap (2 파일 · diff ≪ 300 LOC) · 기준 ④ T-1453 안내 blockquote (**128 ~ 131** 행) 의 `row → 블록 → 절` 매핑을 그대로 재사용 — 4 축 전부 우세. |
+| (C) `## Deployment 컨텍스트` 절 안 각주 삽입 (28 행 heading 직전) | **기각** | 기준 ② — (vii) ⓐ 가 stale 좌표 **19 지점** 을 만들어 AC 4 의 `정정 3 지점 이상 시 (B) 로 철회` 조건이 즉시 발동한다. |
+| (D) `8 component` 문구 in-place 치환 | **기각** | 기준 ① — 축 ① 이 `참` 이라 고칠 대상이 없고, 참인 본문을 재작성하는 것은 `§ 12.15` append-only 방침과 정면 충돌한다. |
+
+- **audit 기존 절 (`§ 12.50` 포함) 의 `표 7 row` 표기를 in-place 수정하는 선택지는 후보에 없다** — `§ 12.15` 방침상 금지이며, 확정 판정은 본 절 (`§ 12.52`) 의 pointer 로만 세운다.
+
+#### 반영 결과 (AC 4 — 채택안 (B) 대로만 편집)
+
+- **신규 blockquote 1 블록 (3 행 + 앞 빈 줄 1 행 = +4 행)** 을 마지막 각주 블록 (**178** 행) 뒤 · `## GitHub Adapter …` heading 직전에 삽입했다 (허용 ≤ 5 행). 내용은 ① claim 참 확정 (row 8 산출식) · ③ ADR 미승계 (§1 32 ~ 45 행, 책임 5 범주) · ④ 문서 내부 전수 정합 + ② audit 오기 지목 3 구다.
+- **in-place 좌표 정정 1 지점** — **161** 행의 `**180** 행 \`## GitHub Adapter …\`` → `**184** 행` (숫자 1 개 치환, 문장 재작성 0). 허용 ≤ 2 지점 안이다.
+- **재-drift 재현 확인** — 편집 후 `grep -n '^## ' docs/architecture/components.md` → `5 · 22 · 28 · 115 · 184 · 216 · 242`. `§ 12.51` 이 `175` → `180` 으로 겪은 재-drift 가 본 slice 에서 `180` → `184` 로 **다시 재현** 됐다 (행 번호 좌표는 각주가 붙을 때마다 썩는다 — 파생 영향 (14) 의 직접 증거가 1 건 추가).
+- **무편집 경계** — 표 본체 (**117 ~ 126** 행) · 1 ~ 4 행 blockquote · `## 개요` 각주 (**16 ~ 20** 행) · T-1453 안내 blockquote (**128 ~ 131** 행) · 각주 7 블록의 판정 문장 · mermaid 블록 · `## Contracts` · `## References` 전 구간은 무편집이다. `docs/decisions/ADR-0003-deployment.md` · `docs/PLAN.md` · `docs/requirements.md` 도 인용까지만이며 diff 0 이다.
+
+#### `표 7 row` 표기 확정 판정 pointer
+
+- **확정 판정** — `§ 12.50` **5035** 행의 `표 **7 row**` 는 **오기이며 실 data row 는 8** 이다 (각주 blockquote 7 블록 수를 row 수로 옮겨 적음). `§ 12.15` append-only 방침상 `§ 12.50` 본문은 **무편집 존속** 하며, 현행 사실은 본 절 (`§ 12.52`) 과 components.md 신규 각주가 가리킨다.
+
+#### 파생 영향 (목록만 — 본 slice 편집 금지)
+
+(1) **`## Component diagram` mermaid node ↔ 실 module · 표 8 row 대조** (본 절이 카운트 축을 닫았으므로 **다음 대조 1 순위** — node 수가 8 과 일치하는지 포함) / (2) `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` sub-section 본문 ↔ 코드 대조 (`§ 12.48` FU4 미소진) / (3) `## Contracts` 표 ↔ 실 계약 표면 대조 / (4) row pointer 셀 보강 2 건 (`Scheduler` = `ADR-0042` 미등재 `§ 12.50` FU2 · `Confluence Adapter` `§ 12.49` FU2) / (5) LLM · GitHub adapter ADR pointer 미등재 (`§ 12.47` FU5 · `§ 12.48` FU3) / (6) `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트) / (7) reviewer 규약 미이행 (`§ 12.41` FU2) / (8) `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3) / (9) README 행 번호 pointer drift 전수 sweep / (10) REQ 번호 체계 잔재 sweep (`§ 12.38` FU3) / (11) `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3) / (12) UC-09 `§ 5` sequence participant 병기 (**39 회째 이월**) / (13) modules.md 카운트 claim 대조 (`§ 12.34` FU1, ADR 게이트 — **본 절의 카운트 판정 화법 · 산출식 제시 방식을 그대로 재사용 가능**) / (14) **행 번호 → anchor 좌표계 이행** (**33 회째 이월** — 본 절 (vii) 의 ⓐ **19** vs ⓑ **1** 파급 수치와 `180` → `184` 재-drift 1 건이 재료를 더 보탰다) / (15) 각주 heading 참조 anchor 이행 축소 scope (`§ 12.51` FU19 split 제안 미소진) / (16) `§ 12.44` 한계 "mutation 러너 26 개" 정의 미확정 / (17) `Scheduler` cron → 평가 pipeline 미결선 (`§ 12.50` FU18 — **코드 소관, `pr` task 로만**) / (18) `ADR-0003` "단일 DB 인스턴스" 좌표 부재 (`§ 12.46` FU16) / (19) **AC 3 기각 후보의 split 제안 — 없음** (기각 3 건이 전부 cap 이 아니라 방침 · 파급 사유라 split 대상이 아니다).
+
+#### 불변 검산 (AC 6)
+
+- `wc -l` — components.md **248 → 252** (+4, 허용 ≤ 254) · audit **5143 → 5214** (+71, 본 절 자체 **70** 행 ≤ 100) · **ADR-0003 173 불변** · requirements.md **97 불변** · deployment.md **232 불변** · directory.md **203 불변** · modules.md **259 불변** · PLAN.md **175 불변**.
+- `grep -c` — components.md `^## ` **7 불변** · `^> ` **50 → 53** (신규 각주 3 행) · audit `^## ` **12 불변** · audit `^| REQ-` **66 불변** · audit `^### 12\.` **51 → 52**.
+- `git diff -U0 -- docs/architecture/components.md | grep '^@@'` → `@@ -161 +161 @@` · `@@ -179,0 +180,4 @@` — **hunk 2 개** 이며 둘 다 AC 4 허용 구간 (stale 좌표 1 지점 · 각주군 말미 삽입) 안이다. 허용 구간 밖 hunk **0**.
+- `git diff --numstat -- docs/architecture/components.md` → `5	1	docs/architecture/components.md` — 삭제 **1** 행은 `**180** → **184**` 숫자 치환의 짝이며 **순수 삭제 0** 이다.
+- `git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md` → **빈 출력**. `git status --porcelain` 전체는 **2 파일** (components.md · 본 audit) 로 3 파일 이내다.
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 새 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 모두 **N/A** 다 (검증은 read-only `grep` · `sed` · `wc` · `git` 재측정으로 갈음했고 `pnpm install` · `build` · `test` 는 실행하지 않았다).
+
+#### 한계
+
+1. **카운트 sweep 은 3 패턴 grep 근사다** — `[0-9] row` · `[0-9] component` · `[0-9] 블록` 밖의 표기 (예: 한글 수사 `여덟` · `component 는 8 개` 어순 변형) 가 없다는 전수 증명은 §7 예산 밖이다.
+2. **`8` 의 "정본" 은 여전히 표 자신뿐이다** — 축 ③ 이 ADR 미승계를 확정했으므로, 표 row 가 늘거나 줄면 24 행 claim 이 즉시 거짓이 되는 **자기 참조 결합** 이 남는다 (구조적 해소는 파생 영향 (14) 좌표계 이행 소관).
+3. **`§ 12.50` 오기의 in-place 정정은 끝내 불가하다** — `§ 12.15` append-only 방침상 `표 7 row` 문자열은 audit 에 영구 존속하며, 독자가 `§ 12.52` 를 읽지 않으면 오기를 그대로 받는다. 이 잔여 risk 는 방침의 대가로 수용했다.
+4. **삽입 파급 수치 ⓐ 19 · ⓑ 1 은 (vii) 의 4 패턴 grep 기준이다** — 서술형 좌표 표기가 그 밖에 있으면 ⓐ 는 더 커질 수 있으나, 두 후보의 **대소 관계** 는 뒤집히지 않는다 (ⓑ 는 179 행 이후만 밀리므로 상한이 heading 참조 수다).
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
