@@ -3719,6 +3719,119 @@ $ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1
 1. **표 셀의 부분참 2 는 각주로만 해소된다** — 164 · 165 행은 여전히 고정 host 화법 · `P2` 조건절을 유지하므로 각주를 건너뛴 독자에겐 오도가 남는다. 창작 금지 (실측 밖 표현 신설 불가) 와 표 정합 (T-1435 승계) 을 우선한 결과이며, 표 자체의 어휘 재설계는 REQ 부여 판단과 묶여 별도 게이트다.
 2. **환경변수는 "등재 여부" 까지만 판정했다** — `HTTPS_PROXY` / `NO_PROXY` 가 Node `fetch` (undici) 런타임에서 실제로 존중되는지는 실행 검증이 필요해 본 절 범위 밖이며 (Out of Scope 의 test 실행 금지), 179 행의 "native 지원" 서술은 **미판정** 으로 남겼다. 이 축은 smoke / e2e 성격이라 `pr` mode slice 소관이다.
 
+### 12.38 deployment.md `## 외부 네트워크 boundary` 후반부 ↔ 실 `src/github/` · `src/confluence/` · `prisma/schema.prisma` · `docs/requirements.md` 대조 — 원문 보존 + 각주 1 블록 (T-1440)
+
+> **본 절의 위치** — `§ 12.37` 이 `## 외부 네트워크 boundary` 를 **전반부만** 닫으면서 파생 영향 **1** 로 남긴 "본 단락 후반부 = 다음 slice 1 순위" ([T-1439](../tasks/T-1439-deployment-md-network-boundary-section-vs-src-audit.md) Follow-up 1) 를 본 절이 계승해 **단락 전체를 완결** 한다. **계보** — `T-1430` ~ `T-1435` (directory.md 6 축) → `T-1436` (산문 단락 축) → `T-1437` (`## 배포 토폴로지`) → `T-1438` (`## Scheduler 위치`) → `T-1439` (본 단락 전반부) → **`T-1440` (본 절 — 본 단락 후반부 축)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이며 상위 slice 가 박제한 지점에는 `승계` 가 더해진다. cap 준수를 위해 아래 실측 인용은 **요약형** 이다 (명령 + 핵심 출력만).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/deployment.md → 151 `## 외부 네트워크 boundary` · 157 · 171 · 175 (전반부, `§ 12.37` closure) · **186 `### 권한 부족 (REQ-020) 감지 흐름`** · **198 `### 운영 호스트 가정`** ⇒ 후반부 = **186 ~ 202 행** (AC 좌표 일치 — `§ 12.37` 각주 5 행 삽입 반영분이라 stale 아님).
+      $ sed -n '186,202p' … → heading(186) + fenced code-block(188 ~ 194, 5 단계 flow) + 산문(196) + heading(198) + 산문(200) + 산문(202).
+      claim 이분 — **검증 가능 13** (심볼 4 · 라이브러리 3 · 흐름 2 · REQ 번호 1 · 시점 2 · pointer 1) · **검증 불가 4** (200 행 corporate network 위치 가정 · cloud 이전 시 ADR SUPERSEDE 필요라는 절차 규범 · VPN tunnel / Direct Connect / ExpressRoute 열거의 적절성 · "본 task 의 범위 밖" 이라는 T-0015 시점 자기 서술 — 본 slice 미측정).
+(ii)  transport 축 — **재측정** (T-1439 실측 (v) 승계가 아니라 본 slice 에서 같은 명령을 다시 실행).
+      $ grep -rn "axios\|undici\|HttpModule\|ProxyAgent" src --include='*.ts' | grep -v spec | head -8 → **0 hit** (출력 없음)
+      $ grep -rn "globalThis.fetch" src/github src/confluence … | head -6 → `github-adapter.service.ts` **246 `private readonly fetchFn: FetchLike = globalThis.fetch as unknown as FetchLike`** (+ 152 · 240 주석) · `github.module.ts` 8 · `confluence-adapter.service.ts` 297 · 169 (주석 — "default globalThis.fetch")
+      ⇒ 190 행 3 라이브러리 **거짓**, 실 transport 는 주입형 `globalThis.fetch` (`FetchLike` port).
+(iii) 이벤트 · 알림 심볼 축 — $ grep -rn "PermissionDeniedEvent\|NotificationService\|EventEmitter" src … | head -10 → 10 행 전부 `PermissionDeniedEvent` hit (`confluence-adapter.service.ts` 222 `export interface PermissionDeniedEvent` 등) ; 개별 집계 → `PermissionDeniedEvent` **32** · `NotificationService` **0 hit** · `EventEmitter` **0 hit** (`package.json` 의 `@nestjs/event-emitter` 도 **미등재**).
+      $ grep -rn "PermissionDenied" src/github src/confluence … | head -8 → `github-adapter.service.ts` 202 `interface PermissionDeniedEvent` · 215 `interface PermissionDeniedEmitter` ; `confluence-adapter.service.ts` 237 · 243 `NO_OP_PERMISSION_DENIED_EMITTER` · 258 `CONFLUENCE_PERMISSION_DENIED_EMITTER`
+      $ grep -n "model PermissionDeniedRecord" -A 12 prisma/schema.prisma → **513 `model PermissionDeniedRecord`** (provider / instanceRef / resourceRef / principal? / httpStatus / reason? / createdAt + index 2)
+      ⇒ 실 흐름은 **emit 이되 NestJS EventEmitter 가 아닌 자체 port** 이고 종착점은 **알림이 아니라 record 영속** — `github.module.ts` 61 ~ 62 `provide: PERMISSION_DENIED_EMITTER, useClass: PersistingPermissionDeniedEmitter` → `persisting-permission-denied-emitter.ts` 34 → `permission-denied-record.service.ts` 109 `async record(` → 513 행 model.
+(iv)  REQ 번호 체계 축 — $ grep -n "^| REQ-008 \|^| REQ-016 \|^| REQ-020 " docs/requirements.md | cut -c1-160
+      → 27 `REQ-008 | 20 | 접근 권한(read) 부족 시 인식·통지 | FR | P4 | unit + smoke | DONE` · 35 `REQ-016 | 33 | Confluence 접근 권한 부족 인식·통지 | FR | P4 | unit | DONE` · 39 `REQ-020 | 39 | 조직 기여 큰 인원 → 높은 점수 | FR | P5 | manual + unit | IN_PROGRESS`
+      ⇒ 권한 부족은 **REQ-008 (GitHub) · REQ-016 (Confluence)** 이고 REQ-020 은 점수 산정 축이라 heading 의 `(REQ-020)` 은 **거짓** (현 번호 체계 기준). requirements.md 는 **무편집** 이며 REQ 신설 · 재번호도 없다.
+(v)   시점 서술 축 — $ grep -n '"phase"' docs/STATE.json | head -2 → 3 `"phase": "P4-complete / P5-in-progress"` ⇒ REQ-008 · REQ-016 `DONE` + P4 완료라 196 · 202 행은 **이미 지난 시점을 미래형** 으로 서술한다. 세부 — 4xx 분류는 `permission-denied-record.service.ts` 81 `deriveReason` 이 401/403 → `"permission-denied"` · 404 → `"not-found-or-hidden"` 까지 shipped (429 / 5xx 는 null fallback, `github-adapter.service.ts` 411 `private mapNon2xx` 와 정합) ; 알림 채널은 `Notification` / `notify` **0 hit** 로 미구현.
+      `§ 12.15` 강도 1 구 — 두 행은 **날짜 stamp 가 없고** phase 배정 (현행 계획 서술) 이라 append-only 의 "시점 기록" 보다 "현행 상태 서술" 에 가깝지만, `§ 12.36` 144 행 (`P7 phase 책임` 시점 낡음 — 동일 유형) 이 **원문 보존 + 각주** 로 처리된 직전 선례가 있어 본 절도 그 강도를 승계한다.
+(vi)  pointer 축 — $ ls docs/decisions/ADR-0003-deployment.md → **실재** (파일 존재 = pointer 유효까지만, 본문 재판정 · status 변경 없음).
+(vii) baseline — wc -l deployment.md **202** · audit **3735** · directory.md **203** · modules.md **259** ; grep -c '^## ' deployment.md **6** · audit **12** ; audit grep -c '^| REQ-' **66** · grep -c '^### 12\.' **37** (기대 8 값 전부 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+판정 3 축 — ① **문서 성격**: 1 ~ 4 행 blockquote 가 "본 문서는 P1 T-A2 의 산출물" 을 선언하고 본 후반부는 [T-0015](../tasks/T-0015-adr-0003-deployment-rest.md) 가 채운 P1 blueprint 원본이라 보존 강도가 `§ 12.36` · `§ 12.37` 과 동급이다. ② **`§ 12.15` 정합**: 후반부 17 행에 날짜 stamp 는 **0** 이나 시점 marker 는 196 · 202 행 **2 hit** (`P4 phase 의 도입 task 책임` · `P4 / P7 의 task 책임`) 로 전반부 (1 hit) 보다 짙다 — append-only 가 in-place 를 절대 금지하진 않지만 보존 쪽 가중치가 더 남는다. ③ **선례**: 수치 축이면 [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) in-place, flow 도식 · 서술 축이면 T-1430 ~ T-1435 · T-1437 ~ T-1439 각주, 혼합은 [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 인데 본 후반부는 **수치 claim 0 · flow 도식 + 시점 축** 이라 각주 계열에 든다.
+
+**code-block 안 claim 의 별도 판정** — 188 ~ 194 행은 fenced code-block 이라 [T-1430](../tasks/T-1430-directory-md-module-coordinate-resync.md) ASCII tree 무편집 · `§ 12.36` flow 도식 무편집 선례를 **승계** 하고, 블록 **밖에서 각주로 부인** 한다. 논증 1 구: 이 블록은 개별 심볼 나열이 아니라 **5 단계 화살표 flow 한 덩어리** 라 190 행 transport 만 `globalThis.fetch` 로 고치면 그 뒤 192 · 193 행 (`EventEmitter` · `NotificationService`) 이 여전히 거짓인 채 남아 **독자가 블록 전체를 검증된 지도로 오신** 하게 되고, 5 행 전부를 실 명칭으로 바꾸면 그것은 후보 (A) 의 블록 재작성이라 AC 4 의 `≤ 2 지점` 상한과 창작 금지에 걸린다.
+
+| 지점 (행) | claim (1 구) | 실측 결과 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 186 | heading 의 권한 부족 = `REQ-020` | REQ-020 은 `조직 기여 큰 인원 → 높은 점수` (P5) | 거짓 | 원문 보존 + 각주 부기 | 실 대응은 REQ-008 · REQ-016, 재번호는 owner 게이트 |
+| 189 | `GithubAdapter` / `ConfluenceAdapter` 가 주체 | github 237 행 · confluence 293 행 실재 | 참 | 무편집 + 각주 근거 | 실측 (iii) |
+| 189 | `LlmGatewayService` 도 주체 | `src/` **0 hit** (실체 `LlmHttpGateway` 74 행) | 거짓 | 원문 보존 + 각주 부기 | `src/llm` 권한 부족 emit 경로 **0** |
+| 190 | 외부 HTTPS 호출 = `axios` / `undici` / `HttpModule` | 3 라이브러리 **0 hit** | 거짓 | 원문 보존 + 각주 부기 | 실 transport 는 `globalThis.fetch` (github 246 행) |
+| 191 | 4xx 응답 catch (특히 401 / 403) | `mapNon2xx` github 411 · confluence 491 행 | 참 | 무편집 + 각주 근거 | 401/403 분기에서 emit 후 throw |
+| 192 | `PermissionDeniedEvent` emit | `src/` **32 hit** (github 202 · confluence 222 행) | 참 | 무편집 + 각주 근거 | 심볼명까지 1:1 일치 |
+| 192 | 전달 수단 = NestJS `EventEmitter` | `EventEmitter` **0 hit** · dep 미등재 | 거짓 | 원문 보존 + 각주 부기 | 실제는 자체 `PermissionDeniedEmitter` port + DI token |
+| 193 | `NotificationService` 가 수신 | **0 hit** | 거짓 | 원문 보존 + 각주 부기 | 실 수신자 `PersistingPermissionDeniedEmitter` 34 행 |
+| 193 | Admin 알림 + 해당 User 알림 | push 알림 0 · `GET /api/permission-denied-records` pull 조회 실재 | 부분참 | 원문 보존 + 각주 부기 | audience 2 종은 맞고 전달 방식이 다름 (service 163 행 분기) |
+| 196 | 4xx 분류 (만료 / scope / 비공개 / rate limit) 구현 | `deriveReason` 81 행이 401/403 · 404 만 (429/5xx null) | 부분참 | 원문 보존 + 각주 부기 | 분류 축은 부분 shipped |
+| 196 | 위 구현은 **P4 phase 의 도입 task 책임** | REQ-008 · REQ-016 `DONE` · phase `P4-complete` | 거짓 (시점 낡음) | 원문 보존 + 각주 부기 | `§ 12.36` 144 행과 동일 유형 |
+| 200 | ADR-0003 이 SUPERSEDE 대상 pointer | 파일 실재 | 참 | 무편집 | 실측 (vi), 본문 재판정 없음 |
+| 202 | 도입 4 항목이 **P4 / P7 의 task 책임** | CA / proxy 는 `env.prod.example` 42 ~ 44 (§ 12.37 승계) · 4xx catch 는 shipped · 알림 채널만 미구현 | 부분참 | 원문 보존 + 각주 부기 | 4 항목 중 3 이 이미 지남 |
+
+- 합계 — 검증 가능 **13 = 참 4 · 부분참 3 · 거짓 6**, 검증 불가 4 는 대상 제외. 거짓 6 의 내역은 **심볼 / 라이브러리 어긋남 4** (189 · 190 · 192 · 193) · **REQ 번호 1** (186) · **시점 낡음 1** (196) 이다. `§ 12.37` 의 거짓 0 (전반부) 과 정면 대비되며, 이는 후반부가 **미구현 시점의 blueprint flow 도식** 인 반면 전반부는 shipped 사실에 붙은 서술이었기 때문이다.
+- **거짓 축 · 부분참 축 · 시점 축의 분리 판정** — ① **거짓 (transport · REQ 번호)**: transport 는 code-block 안이라 블록 정합상 각주로 가고, REQ 번호는 블록 밖 heading 이라 in-place 가 기술적으로 가능했으나 **ADR-0003 88 행이 같은 `REQ-020 권한 부족 흐름` 표기를 갖고 153 행이 본 단락의 박제처를 ADR-0003 으로 지목** 하므로 deployment.md 만 고치면 정본 ↔ view 가 새로 어긋난다 (ADR 본문 편집은 본 slice Out of Scope) → 각주로 수렴. ② **부분참 (event / notify)**: `PermissionDeniedEvent` 는 맞고 전달 수단 · 수신자만 다른 **형태 상이** 라 원문을 지우면 맞는 절반까지 잃는다 → 각주가 유일한 무손실 처리. ③ **시점 (P4 / P7)**: 갱신하려면 "이제 어느 phase 책임인가" 라는 **새 배정을 창작** 해야 하는데 phase 재배정은 PLAN 게이트라 실측 사실 (status `DONE` · phase 값 · 미구현 잔여 1) 만 각주에 남긴다.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | 전 지점 in-place 동기 (code-block 재작성 포함) | 기각 | 치환 지점이 **6** 으로 AC 4 의 `≤ 2 지점` 상한을 넘고, 196 · 202 행 시점 축은 새 phase 배정을 창작해야 해 AC 4 창작 금지와 충돌 |
+| **(B)** | **단락 후반부 원문 무편집 + 후반부 말미 각주 blockquote 1 블록 신설** | **채택** | T-1437 ~ T-1439 화법을 그대로 잇고 실 심볼 (`globalThis.fetch` · `PermissionDeniedEmitter` · `PermissionDeniedRecord`) 과 실 REQ 번호를 같은 화면에 병기해 오도 risk 만 제거 |
+| (C) | 혼합 (code-block 은 각주, heading 의 REQ 번호만 in-place) | 기각 | heading 의 `(REQ-020)` 은 **ADR-0003 88 행 표기의 전사** 라 한쪽만 치환하면 정본과 어긋나고, `docs/` 전수 REQ sweep 은 별도 slice 소관 (Out of Scope) 이라 1 지점 선행 치환은 sweep 일관성을 깬다 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 운영자 · 후속 구현자가 code-block 을 실 구현 지도로 읽고 `axios` 설정 · `NotificationService` 를 찾으러 가면 **존재하지 않는 계층을 쫓는** 낭비가 생긴다 — 배포 지시 문서에서 가장 비싼 실패 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: 시점 marker 2 (196 · 202) 가 모두 창작 없이는 갱신 불가라 append-only 와 각주가 정합한다. ② **오도 risk**: 본 문서는 **배포 지시 문서** 라 독자가 code-block 을 배선 지도로 읽는 것을 상정해야 하고 — `axios` 를 찾으면 dependency 자체가 없고 `NotificationService` 를 찾으면 모듈이 없으며 REQ-020 으로 trace 하면 점수 산정 REQ 로 잘못 도달한다. 세 오도 모두 "없는 것을 찾는" 유형이라 산문 문서보다 risk 가중치가 한 단계 높다 (그래서 (D) 기각). ③ **cap**: (B) 의 실측 diff 는 deployment.md `+5/-0` (202 → **207**, 허용 `≤ 207`) · 파일 **3 고정** 이라 300 LOC · 5 파일 상한 안이다. (A) 는 창작 금지 충돌로 자동 기각이며 split 하더라도 phase 재배정 · REQ 재번호가 남아 **게이트 성격** 이라 doc slice 로 쪼개는 것 자체가 부적절하다. ④ **선례 일관성**: flow 도식 + 시점 축 조합은 `§ 12.36` (T-1438) 과 정확히 같은 형상이고 그 절이 (B) 를 채택했으므로 본 절이 다른 후보를 고르면 인접 두 단락의 처리가 갈린다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (4 행)** — 202 행 (`### 운영 호스트 가정` 말미 = 후반부 최말미이자 문서 최말미) 뒤에 append. 내용은 ① 189 행 adapter 3 종의 **실재 2 · 0 hit 1** 과 190 행 transport **거짓** + 실 `globalThis.fetch`, ② 191 행 **참** (`mapNon2xx` 401/403) 과 192 행 **부분참** (event 실재 · `EventEmitter` 0 hit · 자체 port + DI token), ③ 193 행 **거짓** (`NotificationService` 0 hit) 과 실 종착 `PermissionDeniedRecord` 영속 + pull 조회 audience, ④ 196 · 202 행 **시점 낡음** (REQ-008 · REQ-016 `DONE` · phase `P4-complete / P5-in-progress` · 알림 채널만 잔여) + `### 운영 호스트 가정` 의 **검증 불가 선언** + ADR-0003 pointer 실재 + 본 절 pointer.
+- **각주 위치 근거** — 대상 claim 이 `### 권한 부족 …` 과 `### 운영 호스트 가정` **두 하위 절에 걸쳐** 있어 어느 한 절 말미에 두면 나머지를 앞지르므로, 선행 절과 같은 규칙 ("대상 claim 의 최소 공통 구간 말미") 대로 후반부 최말미에 뒀다. 그 위치가 `## 외부 네트워크 boundary` 단락의 끝이자 문서의 끝이라 다음 단락을 침범하지 않는다.
+- **문구 1:1 + 무편집 경계** — 각주의 경로 · 심볼 · 수치 (`237` · `293` · `74` · `246` · `411` · `491` · `32 hit` · `34` · `109` · `513` · `163` · `81` · REQ-008 · REQ-016 · `P4-complete / P5-in-progress`) 는 전부 위 실측 출력 그대로이며, **실측되지 않은 동작 (존재하지 않는 알림 채널 · 미구현 event bus · 새 phase 배정 · 새 REQ 번호) 은 창작하지 않았다**. 1 ~ 4 행 blockquote · **151 ~ 185 행 (전반부 + T-1439 각주)** · 186 ~ 202 행 원문 · `## 개요` · `## DB / Persistence` · `## 배포 토폴로지` · `## Secret / 자격증명 저장` · `## Scheduler 위치` 는 그대로다. **새 pointer 도 추가하지 않았다** — 각주가 더한 링크는 ADR-0003 (이미 200 행에 등재) 과 본 절 2 개뿐이다.
+
+#### T-1439 Follow-up 1 closure + `## 외부 네트워크 boundary` 단락 closure 선언
+
+- **T-1439 Follow-up 1 closure** — `§ 12.37` 이 "다음 slice 1 순위" 로 이월한 후반부 2 절 (`### 권한 부족 (REQ-020) 감지 흐름` · `### 운영 호스트 가정`) 의 검증 가능 claim **13** 을 본 절이 전부 판정 · 각주 반영했다. 이월 근거였던 `axios` · `undici` · `HttpModule` **0 hit** 는 재측정으로 확인됐고 190 행이 **거짓** 으로 확정됐다. 승계 대상이 남지 않는다.
+- **단락 전체 closure** — `## 외부 네트워크 boundary` (151 ~ 202 행) 는 전반부 `§ 12.37` (검증 가능 12) + 후반부 본 절 (검증 가능 13) 으로 **완결** 이며, 단락 안 각주는 전반부 말미 1 블록 + 후반부 말미 1 블록 **2 개** 다. 두 각주는 대상 구간이 겹치지 않아 중복 부기가 없다.
+
+#### 대조 대상 문서 잔여 갱신
+
+`§ 12.37` 이 남긴 deployment.md **잔여 3 단락 + 본 단락 후반부 1** 중 후반부를 본 절이 닫아 **잔여 3 단락** 이 된다 — `## Secret / 자격증명 저장` · `## DB / Persistence` · `## 개요`. 우선순위는 아래 파생 영향 1 · 2 에 둔다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **`## Secret / 자격증명 저장` (다음 slice 1 순위)** — 81 ~ 106 행의 env 주입 방식 · secret 종류 · rotation 정책이 `deploy/env.prod.example` 과 **행 단위로 직접 대조 가능** 해 잔여 3 중 claim 밀도가 가장 높다 (`§ 12.37` 실측 (vi) 이 같은 파일의 40 ~ 44 행을 이미 인용해 대조 경로도 검증됐다).
+2. **deployment.md 잔여 2 단락** — `## DB / Persistence` (15 ~ 49 행, ADR-0002 · `prisma/` 대조) → `## 개요` (5 ~ 14 행).
+3. **REQ 번호 체계 잔재의 전수 sweep** — 권한 부족을 `REQ-020` 으로 지칭하는 다른 지점 ([ADR-0003](../decisions/ADR-0003-deployment.md) 88 행 · [T-0015](../tasks/T-0015-adr-0003-deployment-rest.md) 126 행 등) 은 본 slice 범위 밖이며 **별도 slice + REQ 재번호 owner 게이트** 소관이다.
+4. **UC-08 `§ 5` 권한 부족 흐름 ↔ 실 emitter / record 정합** — 미대조. 본 절의 심볼 판정 (자체 port + record 영속) 을 **승계** 할 여지가 크다.
+5. **UC-09 `§ 5` sequence participant 병기** — 22 회째 이월.
+6. **정본 [modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 단락 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (정본 편집은 ADR 게이트, **259 행 불변**).
+7. **행 번호 → anchor 좌표계 이행** — 16 회째 이월. 본 절 각주는 문서 최말미라 기존 좌표를 밀지 않지만, 잔여 3 단락은 앞쪽이라 다음 slice 부터 다시 밀린다.
+8. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관. 본 절이 인용한 `32 hit` · `66 REQ` 는 심볼 · REQ 1 개 추가로 즉시 낡는다.
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → deployment.md **207** (202 → +5, 허용 ≤ 207) · audit **3735 → 3848** (+113 = 절 112 + 구분 공백 1, 허용 +115 이내) ·
+  directory.md **203** (불변) · modules.md **259** (불변)
+$ grep -c '^## ' → deployment.md **6** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **38** (37 → 38)
+$ git diff -U0 -- docs/architecture/deployment.md | grep '^@@' → `@@ -202,0 +203,5 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (후반부 최말미 각주) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/deployment.md → `5  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ prisma/ web/ deploy/ docs/requirements.md package.json → (빈 출력 — 코드 · 스키마 · requirements 무변경)
+$ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1440-*.md  (**3 파일**)
+```
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` coverage 게이트가 모두 **N/A** 다 (본 절 측정 명령은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 `pnpm build` · `pnpm test` 는 실행하지 않았다).
+
+#### 한계 —
+
+1. **code-block 6 지점은 각주로만 해소된다** — 189 ~ 193 행은 여전히 `LlmGatewayService` · `axios` · `EventEmitter` · `NotificationService` 를 그대로 두므로 각주를 건너뛴 독자에겐 오도가 남는다. 블록 정합 (부분 치환 시 반은 현행 · 반은 blueprint 인 잡종) 과 창작 금지를 우선한 결과이며, 도식 자체의 재작성은 알림 채널 구현 시점의 별도 게이트다.
+2. **heading 의 `(REQ-020)` 은 문서 쌍 단위로만 고칠 수 있다** — deployment.md 186 행과 ADR-0003 88 행이 같은 표기를 공유해 한쪽만 치환하면 새 불일치가 생기므로, 두 문서를 함께 다루는 sweep slice (파생 영향 3) 로 넘겼다. 그때까지 REQ-020 으로 권한 부족을 trace 하는 독자는 각주에 의존한다.
+3. **알림 "인식 경로" 의 충분성은 판정하지 않았다** — pull 조회 (`GET /api/permission-denied-records`) 가 193 행이 뜻한 "Admin 알림 + User 알림" 을 요구 수준으로 충족하는지는 REQ-008 · REQ-016 의 판정 소관 (requirements.md 두 row 가 이미 한계로 명시) 이라, 본 절은 **전달 방식이 push 가 아니라 pull 이라는 사실** 까지만 남겼다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source

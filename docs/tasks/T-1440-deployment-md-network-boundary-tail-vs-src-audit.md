@@ -89,6 +89,22 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 `implementer` 단독 (doc-only, 코드 0 LOC — architect · tester 불요. §3.2 direct-mode 면제).
 
+## 결과 요약
+
+- **AC 1 실측** — 후반부 좌표는 **186 ~ 202 행** 으로 AC 표기와 일치 (stale 아님). 검증 가능 claim **13** · 검증 불가 **4** 로 이분했다. planner 가설 ① ③ ④ 는 실측으로 성립, ② 는 **반증** — `PermissionDeniedEvent` 는 `src/` **32 hit** 로 실재하고 `PermissionDeniedEmitter` port + DI token (`PERMISSION_DENIED_EMITTER` · `CONFLUENCE_PERMISSION_DENIED_EMITTER`) 으로 emit 되나, `NestJS EventEmitter` (0 hit · dep 미등재) 도 `NotificationService` (0 hit) 도 없고 종착점은 `prisma/schema.prisma` 513 행 `model PermissionDeniedRecord` **영속** 이다. transport 는 재측정으로 `axios` · `undici` · `HttpModule` · `ProxyAgent` **0 hit** 확인 (실 transport `globalThis.fetch`).
+- **AC 2 판정** — 검증 가능 **13 = 참 4 · 부분참 3 · 거짓 6**. 거짓 내역은 심볼 / 라이브러리 4 (189 · 190 · 192 · 193) · REQ 번호 1 (186) · 시점 낡음 1 (196).
+- **AC 3 채택** — **(B) 단락 후반부 원문 무편집 + 후반부 말미 각주 blockquote 1 블록**. (A) 는 치환 6 지점 + 창작 필요, (C) 는 heading 의 `(REQ-020)` 이 ADR-0003 88 행 표기의 전사라 한쪽만 치환 시 정본과 어긋남, (D) 는 배포 지시 문서의 오도 risk 로 각각 기각.
+- **AC 4 ~ 6 반영** — deployment.md `+5/-0` (202 → **207**, hunk 1 · 허용 구간 안 · 순수 삭제 0), audit `§ 12.38` 순수 append `+113/-0` (3735 → **3848**), `grep -c '^## '` deployment.md 6 · audit 12 불변 · `^| REQ-` 66 불변 · `^### 12\.` 37 → **38**. `src/` · `test/` · `prisma/` · `web/` · `deploy/` · `docs/requirements.md` · `package.json` 무변경, 변경 파일 **3**.
+- **AC 5 closure** — T-1439 Follow-up 1 을 닫고 `## 외부 네트워크 boundary` 단락 전체 (전반부 `§ 12.37` + 후반부 `§ 12.38`) 를 완결 선언했다. deployment.md 잔여 미대조는 **3 단락** (`## Secret / 자격증명 저장` · `## DB / Persistence` · `## 개요`).
+- **AC 8** — `commitMode: direct` doc-only (production code 0 LOC · 분기 0) 라 R-110 tester 호출 · R-112 4 항목 · `pnpm test:cov` 는 N/A (`§ 12.38` 에 명시). 측정은 전부 read-only.
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견한 후속 작업을 여기에 append 한다.)
+1. **`## Secret / 자격증명 저장` ↔ `deploy/env.prod.example` 대조 (다음 slice 1 순위)** — 81 ~ 106 행의 env 주입 방식 · secret 종류 · rotation 정책이 행 단위로 직접 대조 가능해 잔여 3 중 claim 밀도가 가장 높다.
+2. **deployment.md 잔여 2 단락** — `## DB / Persistence` (ADR-0002 · `prisma/` 대조) → `## 개요`.
+3. **REQ 번호 체계 잔재 전수 sweep** — 권한 부족을 `REQ-020` 으로 지칭하는 [ADR-0003](../decisions/ADR-0003-deployment.md) 88 행 · [T-0015](T-0015-adr-0003-deployment-rest.md) 126 행 등. 문서 쌍 단위 처리 + REQ 재번호 owner 게이트라 별도 slice.
+4. **UC-08 `§ 5` 권한 부족 흐름 ↔ 실 emitter / record 정합** — 본 slice 의 심볼 판정 승계 여지.
+5. **UC-09 `§ 5` sequence participant 병기** — 22 회째 이월.
+6. **정본 [modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (ADR 게이트).
+7. **행 번호 → anchor 좌표계 이행** — 16 회째 이월.
+8. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관.
