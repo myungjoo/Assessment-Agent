@@ -2,7 +2,8 @@
 id: T-1447
 title: components.md `## Component table` **Backend API row (120 행) + Worker row (121 행)** 의 검증 가능 claim ↔ 실 `src/**` controller · service 인벤토리 · `ADR-0001` / `ADR-0003 §1` · REQ ID 대조 + T-1446 FU1 1 순위 계승 + audit §12.45
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-04T09:45:00Z
 commitMode: direct
 coversReq: [REQ-026, REQ-038, REQ-044, REQ-049, REQ-043, REQ-005, REQ-006, REQ-007, REQ-015, REQ-031, REQ-032]
 estimatedDiff: 230
