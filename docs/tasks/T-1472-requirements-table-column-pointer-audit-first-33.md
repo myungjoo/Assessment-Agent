@@ -2,12 +2,13 @@
 id: T-1472
 title: docs/requirements.md `README 행` 표 컬럼 전반 33 지점 (REQ-001 ~ REQ-033) ↔ 실 README 행 대조 — `§ 12.69` 파생 영향 (1) 안 A 집행 + audit §12.70
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 190
 estimatedFiles: 2
 created: 2026-08-04
+completedAt: 2026-08-04T23:10:00Z
 independentStream: uc-doc-audit-resync
 dependsOn: [T-1471]
 touchesFiles:
@@ -73,3 +74,12 @@ planner 사전 census — **아래는 전부 가설이며 전제가 아니다** 
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+
+## Result (2026-08-04T23:10:00Z)
+
+- **DONE** — direct commit `57a844eb` (main). 2 파일 +78/-6.
+- `docs/use-cases/REQ-COVERAGE-AUDIT.md` 에 `### 12.70` **72 행** 신설 (절 ≤ 100 행 관행 유지).
+- `docs/requirements.md` `README 행` 표 컬럼 **전반 33 지점 (REQ-001 ~ REQ-033)** 전수 판정 — **참 33 · 부분참 0 · 거짓 0 (100%)**. 집단 stale offset · REQ 번호 ↔ 좌표 역전 · 중복 좌표 **전부 0**.
+- 산문 축 (`§ 12.68` 26 지점 · `§ 12.69` 41 지점) 과의 비교에서 표 컬럼 참율이 유의하게 높다 — `§ 12.69` 의 "설명 변수는 문서 종류가 아니라 표기 형식" 명제를 지지 (전반 33 의 범위 표기 비중 3.0% ↔ 부분참율 0%).
+- `docs/requirements.md` · `README.md` **무편집** (판정 대상으로만 사용).
+- 다음 slice 지목: 표 컬럼 **후반 33 + 잔여 산문 7 = 40 지점** 합류 → [T-1473](T-1473-pointer-axis-final-batch-latter-33-plus-prose-7.md). 이 slice 로 pointer 축 140 전량 소진 예정.
