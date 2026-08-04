@@ -5810,6 +5810,78 @@ row → 절 매핑 — `Web UI` **`§ 12.44`** (T-1446) · `Backend API` + `Work
 6. **TLS 축은 "은닉" 이 아니라 "미박제" 로 판정 강도가 약하다** — `sslmode` **0 hit** 은 label 이 감췄다는 뜻이 아니라 정책 자체가 코드에 없다는 뜻이고, DB 보안 · 계정 권한 · 백업 정책 판정은 Out of Scope 였다.
 7. **schema 내용 축은 열지 않았다** — model · 인덱스 · N+1 · transaction 경계 · migration 이력은 본 절 범위 밖이며 (`§ 12.48` 및 별도 DB 문서 소관), 본 절은 **process 경계 결선과 그 label** 한정이다.
 
+### 12.61 components.md `## Contracts` 표 축 개시 — 표 census (data row **17** ↔ mermaid edge **23**) + user-facing **2** row (271 · 272 행) ↔ 실 `web/src` 브라우저 outbound seam 대조 — 미등재 edge **0** · fan-out 축약 **6** 확정 · row 2 축 거짓 2 · 부분참 5 (T-1463)
+
+`§ 12.60` 이 db boundary edge 1 개로 **edge 축 23/23 · 6 그룹 전부 마감** 을 선언하며 파생 영향 **(1)** 에서 다음 축 1 순위로 지목한 **`## Contracts` 표 ↔ 실 계약 표면 대조** 를 그대로 승계해 **새 축을 여는 첫 slice** 다. `§ 12.54` (edge 축 첫 slice) 와 같은 2 단 구성 — ① 축 전체의 **census** 를 세워 이후 slice 들의 분모를 확정하고, ② 그 위에서 가장 작은 그룹인 **user-facing 2 row (271 · 272 행)** 만 판정한다. **브라우저 outbound seam 정의는 본 절 신설이 아니라 `§ 12.59` 승계** 다 (판정 대상 row 2 개가 전부 브라우저 outbound 축이라 `§ 12.60` 이 DB connection seam 을 신설해야 했던 것과 달리 승계로 족하다). **edge 축 · node 축 · `## Component table` row 본문 · `## Contracts` 잔여 15 row 는 재판정하지 않는다.**
+
+**AC 1 실측 (명령 → 출력).**
+
+- (i) 좌표 — `grep -n '^#\{1,3\} ' docs/architecture/components.md` → `1` `# Component view` · `5` `## 개요` · `22` `## Deployment 컨텍스트` · `28` `## Component diagram` · `115` `## Component table` · `233` `## GitHub Adapter …` · `265` `## Contracts` · `291` `## References`. task 정의서의 `265` · `291` 은 **stale 아님** (T-1462 삽입점이 226 행 뒤라 Contracts 이후 구간이 함께 밀린 결과가 그대로 반영돼 있었다). `grep -n '^| '` 로 표 2 개를 좌표 분리 — `## Component table` = header `117` · 구분 `118` · data row `119 ~ 126` (**8**), `## Contracts` = header `269` · 구분 `270` · data row `271 ~ 287` (**17**).
+- (ii) census — `awk 'NR>=265' … | grep -c '^| '` → **19**, header · 구분 **2** 를 빼 **data row 17** (기대 일치). header (**269** 행) 컬럼은 **5 종** — `from` (발신 component) · `to` (수신 component) · `sync/async` (호출 규약 분류) · `message format` (전송 형식) · `비고` (근거 ADR / REQ pointer + 단서). 서문 (**267** 행) 은 `다이어그램의 각 화살표를 sync/async + message format 으로 정리` 라 **다이어그램 edge 전수** 를 정리 대상으로 선언한다. `grep -nE '^\s+[a-z_]+ -- ' … | wc -l` → **23** (재확인). `§ 12.54` 산출식 `23 = 2 + 5 + 2 + 4 + 1 + 9` 를 분해 기준으로 쓴 **row 17 : edge 23** 대응은 아래 census 표.
+- (iii) 대상 row — `sed -n '267,272p'` 로 서문 · header · 구분 · data row 2 개를 확인. 5 컬럼 분해는 아래 표.
+- (iv) seam 승계 — `grep -rn 'fetch(' web/src/api/apiClient.ts | grep -v '^\s*//'` → **61** `response = await fetch(path, {` · **76** `refreshResponse = await fetch(REFRESH_PATH, {` **2 행뿐**. `§ 12.59` 가 신설한 정의 (`web/src` 의 `fetch(` hit 20 중 실행 코드 2 행 = seam 은 `apiClient.ts` 단일 래퍼, components.md **219** 행 각주) 가 T-1461 이후 **변경 없이 유효** 함을 재검증한 것이며 재정의가 아니다.
+- (v) row 271 — ⓐ `grep -rn 'createRoot\|hydrateRoot' web/src …` → `main.tsx:2 import { createRoot } from 'react-dom/client';` · `main.tsx:7 createRoot(document.getElementById('root')!).render(` 2 hit, **`hydrateRoot` 0 hit**. ⓑ `grep -rn 'ServeStaticModule\|WEB_DIST_PATH' src/web …` → `web.module.ts` **17** import · **20** `WEB_DIST_PATH` · **48** 주석 · **49** `ServeStaticModule.forRoot` (+ **6** 행 주석). ⓒ `grep -rn 'renderToString\|renderToPipeableStream\|ssr' web …` → **출력 0 행**.
+- (vi) row 272 — ⓐ `grep -rn 'ACCESS_TOKEN_COOKIE\|REFRESH_TOKEN_COOKIE\|httpOnly' src/auth/auth.controller.ts` → **83** `export const ACCESS_TOKEN_COOKIE` · **84** `export const REFRESH_TOKEN_COOKIE` · **90** `httpOnly: true,` · **173 · 174** `res.cookie(…, COOKIE_OPTIONS)` · **181** 주석 (상수 · 옵션 **이름** 까지만 — 값 인용 없음, CLAUDE.md §9). ⓑ `grep -rn 'session\|express-session\|connect.sid' src … | grep -v spec` → hit **1** 이고 그 1 건도 `export-access-denial-message.ts` **14** 행 **주석** 이라 실 session 구현 **0**. ⓒ `grep -rn 'credentials:' web/src/api/apiClient.ts` → **63** · **78** `credentials: 'same-origin',` (+ **8** 행 주석). ⓓ `grep -rn 'https://\|enableCors\|setGlobalPrefix' src/main.ts` → **출력 0 행**.
+- (vii) 컬럼 · pointer — ⓐ `grep -n 'REFRESH_PATH\|async ' web/src/api/apiClient.ts` → **20** `const REFRESH_PATH = '/api/auth/refresh';` · **40** `async function parseBody` · **53** `async function fetchWithRefresh` · **76** refresh 재요청 · **110** `async function request` · **124** `async function requestRaw`. **표에 `sync/async` 정의가 존재한다** — components.md **289** 행 `**sync / async 의미**` 문단이 "sync = 호출자 thread 가 응답까지 await", "async = 외부 HTTPS 경계를 넘는 호출" 로 정의한다 (planner 가설 ④ 의 "정의가 없을 수 있다" 는 **반증**). ⓑ `grep -n '^| REQ-038 \|^| REQ-043 ' docs/requirements.md` → **57** 행 `REQ-038 … | DONE |` · **62** 행 `REQ-043 … | IN_PROGRESS (…` (status 토큰까지만 인용).
+- (viii) 좌표 stale · 삽입 파급 — 계수 규칙은 `§ 12.55` → `§ 12.60` 의 것을 **그대로 승계** 한다 (components.md **자기** 좌표 토큰만 세고 외부 파일 좌표는 제외, 범위 · 나열 토큰 `A ~ B` · `A · B` 는 **1 지점**). 대상 값이 232 이상인 자기 좌표는 **7 지점** — 161 행→`233` (heading) · 197 행→`273 ~ 277` · 203 행→`280 ~ 283` · 210 행→`285 · 286` · 217 행→`287` · 224 행→`271 · 272` · 231 행→`284`. 전부 (i) 실측과 **일치** 하므로 **stale 0 지점** (T-1460 **4** → T-1461 **6** → T-1462 **0** → 본 절 **0** — 2 회 연속 0 으로, 삽입점 뒤 자기 좌표를 같은 commit 에서 정정하는 규율이 자리잡았다). 삽입 파급은 **ⓐ `## Contracts` 절 안 (표 직후) = 0 지점** (대상 값 288 이상인 자기 좌표가 **0**), **ⓑ 각주군 말미 (231 행 뒤) = 7 지점** (위 7 개 전부).
+- (ix) baseline — `wc -l` components.md **301** · audit **5826** · ADR-0003 **173** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175**. `grep -c '^## '` components.md **7** · audit **12**, audit `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **60**, components.md `grep -c '^> '` **94**. **전부 기대와 일치.**
+
+**census 결과 (본 축의 진척 분모).**
+
+| 그룹 (`§ 12.54` 분해) | mermaid edge | `## Contracts` row | 차 |
+| --- | --- | --- | --- |
+| user-facing (65 ~ 66) | 2 | 2 (271 · 272) | 0 |
+| backend orchestration (69 ~ 73) | 5 | 5 (273 ~ 277) | 0 |
+| scheduler (76 ~ 77) | 2 | 2 (278 · 279) | 0 |
+| worker (80 ~ 83) | 4 | 4 (280 ~ 283) | 0 |
+| db boundary (86) | 1 | 1 (284) | 0 |
+| external egress (89 ~ 97) | 9 | 3 (285 · 286 · 287) | **6** |
+| **합계** | **23** | **17** | **6** |
+
+**planner 가설 ⑥ 은 반증됐다** — 기대는 "어느 edge 가 row 를 갖지 않는지" 였으나 실측상 **row 를 갖지 않는 edge 는 0** 이고, 차 **6** 은 전부 external egress 그룹의 **fan-out 축약** 이다: `github_adapter --> gh_com / gh_sec / gh_ecode` **3** edge → row **285** 1 개 (−2), `llm_gateway --> llm_custom / azure / anthropic / google / openai` **5** edge → row **287** 1 개 (−4). 즉 결손이 아니라 **집약** 이며, 이는 그 두 row 의 `to` 셀 (`github.com / sec / ecode` · `외부 LLM provider 5 종`) 이 다중 대상을 한 셀에 적은 결과다. **본 slice 종료 시 Contracts 표 17 중 2 판정 완료 · 잔여 15.** `§ 12.60` 이 확보했다고 적은 **누적 15/17 row 좌표** 는 *좌표* 확보이지 *판정* 완료가 아니며, 본 절이 세우는 2/17 이 **판정** 축의 첫 값이다 (두 수치를 혼동하지 않는다).
+
+**AC 2 판정표 (7 축).**
+
+| 축 | 실측 근거 | 판정 | 근거 1 구 |
+| --- | --- | --- | --- |
+| ① 서문 (267 행) 의 `다이어그램의 각 화살표를` 전수 claim | (ii) ⓐⓒ + census 표 | **부분참** | 미등재 edge **0** 이나 개별 행으로 정리된 것은 **17/23** 이고 **6** edge 가 row 285 · 287 로 fan-out 축약돼 "각 화살표를" 의 축자 해석은 어긋난다. |
+| ② row 271 `message format` 의 `또는 SPA hydration` | (v) ⓐ `hydrateRoot` 0 hit · `main.tsx` 2 · 7 행 `createRoot`, (v) ⓒ SSR grep 0 행 | **거짓** | CSR `createRoot` 만 실재하고 SSR hydration 정본이 `web/` 어디에도 없어 선택지 자체가 성립하지 않는다. |
+| ③ row 271 `from`/`to` 가 가리키는 층 ↔ 실 서빙 주체 | (v) ⓑ `web.module.ts` 20 · 49 행 | **부분참** | 브라우저가 처음 받는 것은 REST JSON 이 아니라 `web/dist` 정적 asset 이고 서빙 주체도 같은 NestJS process 의 `WebModule` 이다 — `§ 12.59` 판정의 **인용 승계** 이며 edge 재판정이 아니다. |
+| ④ row 271 · 272 공통 `HTTPS` · `(over TLS)` | (vi) ⓓ `src/main.ts` 0 행 + `§ 12.59` 의 dev 평문 http | **부분참** | 코드 층 정본 **0** 이고 prod TLS termination 이라는 **배포 층** 에서만 참 (`§ 12.60` 의 `TCP 5432` 판정과 동형). |
+| ⑤ row 272 비고 `JWT 또는 session cookie` 이중 표기 | (vi) ⓐ 83 · 84 · 90 · 173 ~ 174 행, ⓑ 실 hit 0, ⓒ 63 · 78 행 | **부분참** | 실 구현은 **JWT 2 종을 httpOnly cookie 에 싣는 단일 결합 방식** 이라 `또는` 이 배타 선택지를 시사하는 것도, session cookie 를 대안으로 남긴 것도 실재하지 않는다. |
+| ⑥ row 272 비고 `구체는 P3 Auth task` 미래 시제 | (vi) ⓐ + (vii) ⓑ | **거짓** | 구체 (cookie 이름 · 옵션 · 발급 지점) 가 이미 코드에 있어 "구체는 앞으로 정한다" 는 함의가 낡았다 (REQ-043 이 `IN_PROGRESS` 인 것은 guard wiring 축이지 전달 방식 미정이 아니다). |
+| ⑦ `sync/async` 컬럼 값 `sync` + REQ pointer 현재값 | (vii) ⓐ 20 · 40 · 53 · 76 · 110 · 124 행 + 289 행 정의, (vii) ⓑ 57 · 62 행 | **부분참** | 정의는 **존재** 하나 (289 행) `async = 외부 HTTPS 경계` 가 브라우저 → 자기 backend 를 규정하지 않아 실제로 HTTP 경계를 넘는 row 272 가 `sync` 로 분류되고, 401 → refresh → retry 재요청도 단일 셀에 은닉된다. pointer 는 `REQ-038` = **DONE** 정합 · `REQ-043` = **IN_PROGRESS** 미완. |
+
+다중 표기 수치는 row **2** : prod 실 network hop **1** (동일 origin 단일 NestJS process) : 브라우저 outbound seam **1** = **2 : 1 : 1** 로 `§ 12.57` 의 `1 : 2 : 3` · `§ 12.58` 의 `5 : 1 : 4` · `§ 12.59` 의 `2 : 1 : 1` · `§ 12.60` 의 `1 : 1 : 29` 와 같은 형식이며, edge 축 `§ 12.59` 와 **동수** 다 (row 가 이 그룹에서 edge 와 1:1 이라 배율이 그대로 옮겨온다). **위 판정은 전부 (iv) 의 브라우저 outbound seam 정의 위에서만 유효** 하며, 그 정의는 본 절이 신설한 것이 아니라 **`§ 12.59` 승계** 다.
+
+**AC 3 처리 방식 판정 (채택 1 · 기각 3).** 판정 기준 4 축 — ① `§ 12.15` append-only 정합 · ② 좌표 drift 파급 ((viii) 의 **ⓐ 0 지점 / ⓑ 7 지점**) · ③ cap (diff ≤ 300 LOC · 파일 **3** 고정) · ④ 탐색성.
+
+| 후보 | 판정 | 근거 1 구 |
+| --- | --- | --- |
+| (A) 현행 유지 + 무편집 | 기각 | AC 2 축 ② · ⑥ 이 **거짓** 이라 "AC 2 축 중 하나라도 거짓이면 (A) 자동 기각" 조항이 발동한다. |
+| (B) 각주군 말미 (231 행 뒤) append | 기각 | 축 ② 에서 **7 지점** 의 자기 좌표를 밀어 순수 append 가 아니게 되고 (치환 7 회의 오기 위험), 축 ④ 에서도 판정 대상 표 (269 ~ 287) 로부터 **38 행 이상** 떨어져 탐색성이 최악이다. |
+| **(C) `## Contracts` 절 안 (표 직후) 각주 삽입** | **채택** | 축 ② 파급 **0 지점** 이라 in-place 정정이 **0** 인 순수 append 가 되고 (축 ① 도 최상), 축 ④ 에서 판정 대상 표 바로 아래라 탐색 경로가 가장 짧으며, 축 ③ 도 파일 3 · +8 행으로 여유가 크다. |
+| (D) 표 셀 · 서문 in-place 수정 | 기각 | 축 ① 에서 먼저 탈락 — 원문을 고치면 시점 기록이 사라져 append-only 방침과 정면 충돌하고, AC 3 이 "표의 셀 값 · 서문 문구를 고쳐 쓰는 선택지는 채택하지 않는다" 로 사전 배제했다. |
+
+전 축이 참이었더라도 (A) 를 자동 채택하지 않는다는 조항에 따라 축 ④ 를 함께 재고했고, 그 재고 결과가 이번에 **(B) → (C) 로 관행을 바꾼 결정적 근거** 다 — 각주군은 `## Component table` 절 안에 있어 `## Contracts` 표 독자가 닿기 어렵고, 이번 축부터는 판정 대상이 그 표이므로 각주도 표 곁에 두는 편이 옳다.
+
+**AC 4 반영 결과.** (C) 대로 components.md **290 행 뒤 · `## References` 직전** 에 blockquote **7 행 + 앞 빈 줄 1 행** 을 삽입했다 (`wc -l` **301 → 309**, +8 로 상한 내). **in-place 정정 0 지점** ((viii) 이 stale 0 · 파급 0 으로 확정). 편집 후 `grep -n '^## '` 재측정 — `## 개요` 5 · `## Deployment 컨텍스트` 22 · `## Component diagram` 28 · `## Component table` 115 · `## GitHub Adapter …` **233 (불변)** · `## Contracts` 265 · `## References` **291 → 299**. **재-drift 11 회째는 재현되지 않았다** — `§ 12.51` 175 → `§ 12.58` 219 → `§ 12.59` 226 → `§ 12.60` 233 으로 이어진 각주군 말미 좌표의 연쇄 이동이 삽입점을 절 안으로 옮긴 것만으로 끊겼고, 대신 밀린 `## References` 를 가리키는 자기 좌표가 **0** 이라 정정도 불요였다. 무편집 경계 — `## Contracts` 표 본체 (269 ~ 287) · 서문 (267) · 289 행 `sync / async 의미` 문단 · mermaid 블록 (30 ~ 106) · `다이어그램 표기` bullet (108 ~ 113) · `## Component table` 표 본체 (117 ~ 126) · 1 ~ 4 행 blockquote · `## 개요` 각주 (16 ~ 20) · 안내 blockquote (128 ~ 131) · 각주 16 블록 · 233 행 이후 전 구간 **전부 무편집** 이며, secret · 토큰 값 · 실 접속 문자열은 옮겨 적지 않았다 (상수 · 옵션 **이름** 과 path 문자열까지만).
+
+**AC 8 — R-110 / R-112 면제.** 본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode doc-only 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 모두 **N/A** 다.
+
+**파생 영향 (목록만 — 본 slice 편집 금지).** (1) **다음 slice 1 순위 = `## Contracts` 잔여 15 row 중 `Backend API` 발신 5 row (273 ~ 277 행)** — `§ 12.55` 가 orchestration edge 5 를 이미 닫아 판정 입력이 그대로 재사용되므로 한계 비용 최저 (잔여 그룹 분해: Backend API **5** · Scheduler **2** (278 · 279) · Worker **4** (280 ~ 283) · DB→PostgreSQL **1** (284) · 외부 egress **3** (285 ~ 287)) / (2) **census 가 드러낸 fan-out 축약 6 의 표 등재 여부** — 축 ① 결과에 따른 후속이나 row 추가 자체는 `## Contracts` 표 편집이라 본 stream 밖 / (3) `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` 본문 ↔ 코드 대조 (`§ 12.48` FU4) / (4) row pointer 셀 보강 2 건 (`Scheduler` = `ADR-0042` 미등재 `§ 12.50` FU2 · `Confluence Adapter` `§ 12.49` FU2) / (5) LLM · GitHub adapter ADR pointer 미등재 (`§ 12.47` FU5 · `§ 12.48` FU3) / (6) `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트) / (7) reviewer 규약 미이행 (`§ 12.41` FU2) / (8) `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3) / (9) README 행 번호 pointer drift 전수 sweep / (10) REQ 번호 체계 잔재 sweep (`§ 12.38` FU3) / (11) `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3) / (12) UC-09 `§ 5` sequence participant 병기 (**52 회째 이월**) / (13) modules.md 카운트 claim 대조 (`§ 12.34` FU1, ADR 게이트) / (14) **행 번호 → anchor 좌표계 이행** (**46 회째 이월** — 본 절이 삽입점 변경만으로 파급을 7 → 0 으로 줄인 사실이 "좌표계 자체를 바꿔야 한다" 는 근거를 오히려 약화시키지도 강화시키지도 않는다는 점을 함께 기록) / (15) 각주 heading 참조 anchor 이행 축소 scope (`§ 12.51` FU19) / (16) `§ 12.44` 한계 "mutation 러너 26 개" 정의 미확정 / (17) `Scheduler` cron → 평가 pipeline 미결선 (`§ 12.50` FU18 — 코드 소관, `pr` task) / (18) `ADR-0003` "단일 DB 인스턴스" 좌표 부재 (`§ 12.46` FU16 · `§ 12.60` FU17) / (19) `Web UI` node 의 process subgraph 소속 표기 (`§ 12.53` FU19 · `§ 12.59` 층 외연 거짓 — 본 절 축 ③ 이 row 층 표기 근거를 보탰다) / (20) node · row 외연 정의의 문서 미박제 (`§ 12.55` FU20 · `§ 12.59` FU20 · `§ 12.60` FU19) / (21) modules.md **200** 행 1:N 매핑 ↔ 디렉토리 외연 상충 (`§ 12.56` FU21) / (22) 가변 instance 수 ↔ 고정 표기 정합 (`§ 12.57` FU22 · `§ 12.58` FU22) / (23) `worker --> backend_api` 미표기 결선 (`§ 12.56` FU23) / (24) dev / prod 2 모드의 다이어그램 · 표 미분리 (`§ 12.59` FU24 — 본 절 축 ④ 가 row 축 근거를 보탰다) / (25) `prisma migrate deploy` 채널 미표기 + `PostgreSQL 16+` version claim 정정 (`§ 12.60` FU25) / (26) **인증 규약의 문서 단일 정본 부재** — 본 절 축 ⑤ ⑥ 이 `JWT 또는 session cookie` 이중 표기와 미래 시제 stale 을 확정했으나 정정은 표 편집이라 본 stream 밖 / (27) **`sync/async` 컬럼 정의 (289 행) 의 경계 미규정** — 축 ⑦ 이 "자기 backend 로의 HTTP 는 외부인가" 를 정의가 답하지 못함을 확정했다 (정의문 보강은 표 부속 문단 편집이라 본 stream 밖).
+
+**불변 검산.** `wc -l` — components.md **301 → 309** (+8, 상한 309 내) · audit **5826 → 5898** (+72, +100 이내 · 본 절 자체는 **72 행** 으로 ≤ 100 행 상한 내) · ADR-0003 **173 불변** · requirements.md **97 불변** · deployment.md **232 불변** · directory.md **203 불변** · modules.md **259 불변** · PLAN.md **175 불변**. `grep -c '^## '` audit **12 불변** (본 절은 `###`) · components.md **7 불변**, audit `grep -c '^| REQ-'` **66 불변** · `grep -c '^### 12\.'` **60 → 61**, components.md `grep -c '^> '` **94 → 101** (+7 = 신규 blockquote 7 행). `git diff -U0 -- docs/architecture/components.md | grep '^@@'` → **`@@ -290,0 +291,8 @@` 단 1 hunk** 로 AC 4 허용 구간 밖 hunk **0**. `git diff --numstat` → components.md **8 / 0** 으로 **순수 삭제 0**. `git status --porcelain src/ web/ test/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md docs/architecture/modules.md` → **빈 출력** (특히 **`web/` · `src/auth/` 무편집** — 두 경로는 grep read-only 로만 열었다). `git status --porcelain` 전체 **3 파일** (components.md · 본 audit · task 정의서).
+
+**한계.**
+
+1. **census 는 from/to 쌍 대조 기반의 정적 매핑이다** — row 와 edge 를 이름으로 맞췄을 뿐 실 호출 그래프를 실행해 확인하지 않았고, 이름이 같아도 의미가 다른 쌍이 있으면 차 **6** 의 해석이 바뀐다.
+2. **판정은 (iv) 의 브라우저 outbound seam 정의에 의존하며 그 정의는 `§ 12.59` 승계다** — "브라우저 outbound = `apiClient.ts` 단일 래퍼" 대신 "브라우저가 내는 모든 HTTP 요청 (정적 asset · favicon 포함)" 을 취하면 축 ③ 의 강도와 `2 : 1 : 1` 수치가 달라진다.
+3. **잔여 15 row 는 개수 · from/to 쌍만 집계했고 셀 본문은 판정하지 않았다** — 특히 285 · 287 row 의 `to` 셀이 다중 대상을 적은 방식의 참 / 거짓은 후속 slice 소관이다.
+4. **인증 축은 표기 대조까지다** — 미보호 route · 토큰 TTL · secret 관리 · RBAC 모델 적정성은 열지 않았고 (§9 및 `pr` task 소관), `REQ-043` 의 `IN_PROGRESS` 도 status 토큰만 읽었다.
+5. **측정은 grep 정적 근사다** — 브라우저 실행 · TLS 협상 · dev/prod 기동 · `pnpm` 계열 명령은 전부 Out of Scope 였고, `renderToString` **0 hit** 도 번들 후 런타임 동작이 아니라 소스 부재의 근거일 뿐이다.
+6. **(C) 채택으로 각주 위치 관행이 갈렸다** — 이후 `## Contracts` 축 slice 들이 본 각주 뒤에 이어 붙일지, 기존 각주군으로 되돌아갈지는 본 절이 정하지 않았다 (다음 slice 가 축 ② · ④ 를 재측정해 결정한다).
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source

@@ -2,7 +2,7 @@
 id: T-1463
 title: components.md `## Contracts` 표 축 개시 — 표 census (data row 17 ↔ edge 23 대응) + **user-facing 2 row** (271 · 272 행) ↔ 실 `web/src` 브라우저 outbound seam 대조 — `§ 12.60` 파생 영향 (1) 집행 + audit §12.61
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 220
@@ -109,4 +109,11 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+- 다음 slice 1 순위 = `## Contracts` 잔여 15 row 중 `Backend API` 발신 **5** row (273 ~ 277 행) — `§ 12.55` 판정 입력 재사용으로 한계 비용 최저.
+- census 가 드러낸 **fan-out 축약 6** (row 285 ← edge 89 ~ 91 · row 287 ← edge 93 ~ 97) 의 표 등재 여부 — 표 편집이라 본 stream 밖.
+- 인증 규약의 문서 단일 정본 부재 (축 ⑤ ⑥ 확정) · `sync/async` 컬럼 정의 (289 행) 의 "자기 backend 는 외부인가" 경계 미규정 (축 ⑦ 확정) — 정정은 표 · 부속 문단 편집이라 본 stream 밖.
+- 나머지 이월 항목 전량은 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.61` 파생 영향 (1) ~ (27) 참조.
+
+## 결과 요약 (2026-08-05 DONE)
+
+AC 3 에서 **(C) `## Contracts` 절 안 각주 삽입** 채택 (파급 **ⓐ 0 지점** vs **ⓑ 7 지점** + 탐색성). components.md 301 → **309** (blockquote 7 행 + 빈 줄 1, 순수 append · in-place 정정 **0**), audit 5826 → **5898** (`§ 12.61` **72** 행 신설). census 확정 — **row 17 : edge 23**, **미등재 edge 0**, 차 **6** 은 external egress 의 fan-out 축약. 판정 **거짓 2** (`또는 SPA hydration` · `구체는 P3 Auth task`) · **부분참 5**. 진척 **Contracts 표 2/17**.
