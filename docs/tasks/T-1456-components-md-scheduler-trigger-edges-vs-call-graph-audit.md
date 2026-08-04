@@ -2,7 +2,7 @@
 id: T-1456
 title: components.md `## Component diagram` mermaid **`%% Scheduler triggers` edge 2 개** (76 · 77 행) ↔ 실 `src/scheduling/**` 호출 그래프 · edge label `@Cron handler` claim 대조 — T-1455 파생 영향 (1) 집행 1/N + audit §12.54
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 200
