@@ -5715,6 +5715,101 @@ row → 절 매핑 — `Web UI` **`§ 12.44`** (T-1446) · `Backend API` + `Work
 6. **in-place 정정이 기대치 (≤ 5) 를 1 지점 초과** 했고 `§ 12.58` 에 이어 **2 회 연속** 이다 — 각주가 늘수록 자기참조도 늘어난다는 구조적 신호라 파생 영향 (14) 의 우선순위 근거로 함께 쓴다.
 7. **frontend 축은 결선 · message format 한정** — 컴포넌트 인벤토리 · view 구조 · 라우팅 · 인증 정책 자체 (JWT 수명 · refresh 정책 · RBAC) 는 열지 않았다 (`§ 12.44` 및 별도 auth 문서 소관).
 
+### 12.60 components.md `## Component diagram` mermaid **`%% DB persistence boundary` edge 1 개** (86 행) ↔ 실 `src/persistence` DB connection seam 대조 — edge 1 참 · label 2 축 부분참 · node 외연 2 축 부분참 · 은닉 3 종 확인 · db boundary 그룹 1/1 마감 = **edge 축 23/23 종료** (T-1462)
+
+**위치 · 계보** — 본 절은 `§ 12.59` 파생 영향 **(1)** 이 **다음 대조 1 순위** 로 지목한 `%% DB persistence boundary` **1** edge (86 행) 를 실 `src/persistence` Prisma connection seam 과 대조한 결과다. 본 절로 db boundary 그룹이 **1/1 마감** 되어 mermaid edge **23 중 23 판정 완료 · 잔여 0 · 6 그룹 전부 마감 = edge 축 종료** 다 (`§ 12.53` node 축 · `§ 12.44` ~ `§ 12.50` 표 row 축에 이은 **세 번째 축 마감**). 앞 5 그룹과 측정 축이 또 한 번 다르다 — 본 edge 는 process 경계를 넘는 **유일한 non-HTTP 결선** (TCP/libpq) 이라 `§ 12.57` · `§ 12.58` 의 **주입 `fetchFn` 단일 지점** 정의도 `§ 12.59` 가 신설한 **브라우저 outbound seam** 정의도 둘 다 HTTP 축이라 쓸 수 없어, **DB connection seam 정의를 본 절이 신설** 했다 (승계 아님 — AC 1 (iv), 정의는 실측 hit 분포가 결정했다).
+
+#### AC 1 실측 (명령 + 출력)
+
+- (i) `grep -n '^#\{1,3\} ' docs/architecture/components.md` → `1` `# Component view` · **5** `## 개요` · **22** `## Deployment 컨텍스트` · **28** `## Component diagram` · **115** `## Component table` · **226** `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` · **258** `## Contracts` · **284** `## References` — task 본문 기대 좌표와 **전부 일치 (stale 0)**. `grep -n '^\s*%%\|^```' …` → 블록 **30 ~ 106**, 그룹 주석 **32 · 48 · 61 · 64 · 68 · 75 · 79 · 85 · 88 · 99**.
+- (ii) `grep -nE '^\s+[a-z_]+ -- ' … | wc -l` → **23**. `§ 12.54` 산출식 **23 = 2 + 5 + 2 + 4 + 1 + 9** 는 **여전히 성립** 한다 (65 ~ 66 **2** · 69 ~ 73 **5** · 76 ~ 77 **2** · 80 ~ 83 **4** · 86 **1** · 89 ~ 97 **9**). 본 slice 대상은 **86 행 1 개뿐** 이며 종료 시 db boundary **1/1 마감** · 전체 **23 중 23 판정 완료 · 잔여 0 · 6 그룹 전부 마감**.
+- (iii) `sed -n '85,86p'` → `%% DB persistence boundary` / `db_persistence -- "TCP 5432<br/>(Prisma client)" --> postgres`. 3 컬럼 분해 = 출발 `db_persistence` **1** / 도착 `postgres` **1** / label `TCP 5432<br/>(Prisma client)` **1**. `sed -n '58p;61,62p'` → `db_persistence["DB Persistence<br/>(Prisma + repository)"]` · `%% External DB (process 외부, 동일 host 또는 managed)` · `postgres[("PostgreSQL 16+<br/>(ADR-0002)")]`.
+- (iv) **DB connection seam 정의 (신설 — 승계 불가)** — components.md **212** 행 각주의 server-side `fetchFn` 단일 지점도 **219** 행 각주의 브라우저 outbound seam (`apiClient.ts` 단일 래퍼) 도 **HTTP 축** 정의라 TCP/libpq wire 에 적용할 수 없다. 그래서 hit 분포로 새로 세웠다 — ⓐ `grep -rn 'new PrismaClient\|PrismaClient(' src --include=*.ts | grep -v spec` → **0 hit** (생성자 직접 호출이 없다. `PrismaClient` 문자열 자체는 **12** 파일에 있으나 `src/persistence/prisma.service.ts` 를 뺀 **11** 개는 전부 `PrismaClientKnownRequestError` **duck typing 주석** 이라 connection 과 무관 — planner 가설 ③ "service 가 직접 Prisma 를 잡는다" 는 **반증** 됐다). ⓑ `grep -rn 'adapter-pg\|PrismaPg\|new Pool' src prisma --include=*.ts | grep -v spec` → **6 hit / 1 파일** — 전부 `prisma.service.ts` (**7** 행 자기선언 · **18** 행 `import { PrismaPg } from "@prisma/adapter-pg"` · **21 ~ 22** 행 주석 · **24** 행 `export function buildPrismaAdapter(): PrismaPg` · **25** 행 `new PrismaPg({ connectionString: process.env.DATABASE_URL ?? "" })`). ⓒ `grep -rn '\$connect\|\$disconnect\|OnModuleInit' src/persistence/prisma.service.ts` → **4 hit** (**2** 행 주석 · **15** 행 import · **29** 행 `export class PrismaService extends PrismaClient implements OnModuleInit` · **41** 행 `await this.$connect()`). ⇒ **정의: DB connection seam = `src/persistence/prisma.service.ts` 단일 파일 (25 · 34 · 41 행), 분산 아님 · 수렴** 이며 `persistence.module.ts` **12** 행 `@Global()` + **14 ~ 15** 행 `providers`/`exports` 로 **pool singleton 1** 개다. 아래 판정은 이 정의 위에서만 유효하다.
+- (v) **결선 실측** (5 명령 — 실 password · 접속 문자열은 옮기지 않고 변수명 · 옵션명 · image tag · 포트 숫자까지만)
+  - ⓐ `grep -rn '5432' src --include=*.ts | grep -v spec` → **0 hit**. production code 에 포트 리터럴이 **없다**.
+  - ⓑ `grep -rn 'PrismaService' src --include=*.ts | grep -v spec | wc -l` → **143 hit**, `… | cut -d: -f1 | sort -u` → **41 파일**. 파일 종류별로는 `*.module.ts` **11** · `*.repository.ts` **13** · 그 밖 service / helper **16** · `src/persistence/prisma.service.ts` **1** 이다.
+  - ⓒ `grep -rn 'repository\|Repository' src --include=*.ts | grep -v spec | cut -d: -f1 | sort -u | head -15` → hit 파일 **148** 개로 층 자체는 실재하고, 실 구현체는 `*.repository.ts` **13** 개다 (`assessment` · `contribution` · `summary` · `person` · `group` · `part` · `user` · `service-identity` · `person-group-membership` · `difficulty-mapping` · `llm-provider-config` · `permission-denied-record` · `user-instance-access`). 즉 `+ repository` 는 **거짓 축이 아니다**. 다만 repository 를 거치지 않고 `PrismaService` 를 **직접** 주입하는 파일이 **16** 개 (`src/export` **4** · `src/import` **5** · `src/assessment-evaluation` **6** · `src/user/person.service.ts` **1**) 다.
+  - ⓓ `grep -n 'provider\|url\|datasource' prisma/schema.prisma | head -10` + `sed -n '7,12p'` → **43 ~ 45** 행 `datasource db { provider = "postgresql" }` (**url 없음**), **8 ~ 10** 행 주석이 "`datasource.url` 은 schema 가 아닌 `prisma.config.ts` 에서 adapter 로 inject" · "runtime connection 은 PrismaClient 의 adapter 생성자 옵션 (`@prisma/adapter-pg`) 가 `DATABASE_URL` 을 읽어 **pg Pool** 을 구성" 이라고 **자기선언** 한다. ⇒ 실 socket 주체는 pg Pool 이고 Prisma client 는 그 위의 query 표면이다.
+  - ⓔ `grep -rn '5432\|DATABASE_URL' docker-compose.yml .env.example | head -10` → `docker-compose.yml` **22** 행 포트 매핑 (`"5432:5432"`) 과 `DATABASE_URL` 키 **2** 회 · `.env.example` 키 **1** 회 (**값은 인용하지 않는다 — CLAUDE.md §9**). `.github/workflows/ci.yml` 에도 `DATABASE_URL` 키 **5** 회 (**72** 행 등) 가 있다. ⇒ 포트 · 접속 정보가 박제된 실제 층은 **배포 · 로컬 · CI 자산** 이지 production code 가 아니다.
+- (vi) `grep -n 'image:' docker-compose.yml | head -5` → **14** 행 `image: postgres:16-alpine` · **40** 행 `image: assessment-agent:latest`. `grep -n 'postgres:' .github/workflows/ci.yml | head -5` → **50 · 309** 행 service key · **51 · 310** 행 `image: postgres:16-alpine`. ⇒ 실 image tag **3 지점 전부 `16-alpine` 고정 pin** 이고 major 는 서로 같으나 **"이상 (`+`)" 을 뒷받침하는 정본은 0** 이다.
+- (vii) `grep -n '^| DB Persistence ' docs/architecture/components.md` → **277** 행 **1** hit (`## Contracts` 표) — `## Component table` 의 `DB Persistence` row 는 셀 표기가 `| **DB Persistence** |` 라 본 패턴에 걸리지 않고 좌표는 **122** 행이다 (`§ 12.48` 이 이미 닫은 row). 즉 본 slice 의 edge **1** ↔ `## Contracts` row **1** 로 **1:1** 이며 축약이 없다. 인용 — **277** `Prisma client (TCP 5432, libpq protocol)` · `ADR-0002. connection pool singleton.`. **`## Contracts` 표의 참 / 거짓 판정은 본 절이 하지 않는다 — 파생 영향 (1) 소관** 이다. 좌표 stale 확인: `grep -n '\*\*[0-9]\{2,3\}\*\* 행' …` + (i) 대조 결과 자기 좌표 토큰 (**161** `226` · **180** `117 ~ 126` · **182** `128` · **184** `119 ~ 126`·`111` · **185** `119` · **187** 각주 7 좌표 · **190**·**192** `175` 외 · **197** `266 ~ 270` · **203** `273 ~ 276` · **210** `278 · 279` · **217** `280` · **219** `212` · **223** `185 ~ 186` · **224** `264 · 265`) 이 **전부 실 좌표와 일치 — 편집 전 stale 0** 이다 (`§ 12.59` 가 정정한 6 지점이 그대로 유지됐다).
+- (viii) **삽입 파급** (`§ 12.55` (viii) → `§ 12.59` (viii) 계수 규칙 **그대로 승계** — components.md 자기 좌표 토큰만 세고 외부 파일 좌표는 제외, 범위 토큰 `A ~ B` 는 1 지점) — ⓐ `## Component diagram` 절 안 (mermaid 블록 직후 **106** 행 뒤) 삽입 시 밀리는 자기 참조 = **21 지점**. ⓑ 각주군 말미 (**224** 행 뒤) 삽입 시 = **7 지점** (**161** `226` · **192** `271 · 272` · **197** `266 ~ 270` · **203** `273 ~ 276` · **210** `278 · 279` · **217** `280` · **224** `264 · 265` — 전부 목표 좌표가 225 행 이상). ⓑ 의 **7** 은 `§ 12.59` 실측 **6** + T-1461 각주가 보탠 자기참조 **1** 과 정확히 일치하며, AC 4 의 상한 근거로 그대로 쓴다.
+- (ix) **baseline** — `wc -l` components.md **294** · audit **5731** · ADR-0003 **173** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175**, `grep -c '^## '` components.md **7** · audit **12**, audit `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **59**, components.md `grep -c '^> '` **88** — task 본문 기대치와 **전수 일치**.
+
+#### AC 2 판정표
+
+| 축 | 실측 근거 (행) | 판정 | 근거 1 구 |
+| --- | --- | --- | --- |
+| ① `db_persistence --> postgres` 결선 (86 행) | (iv) ⓐⓑⓒ — `prisma.service.ts` **25 · 34 · 41** 행, `persistence.module.ts` **12 · 14 ~ 15** 행 | 참 | process 경계를 넘는 wire 가 실재하고 그 seam 이 단일 파일로 수렴하며 `@Global()` provider 라 pool 은 singleton **1** 이다. |
+| ② label `TCP 5432` 포트 표기 | (v) ⓐ — `src/**` **0 hit** · (v) ⓔ — `docker-compose.yml` **22** 행 · ci.yml `DATABASE_URL` **5** 회 | 부분참 | TCP 전송은 참이나 포트 숫자의 정본이 production code 에 **0** 이고 배포 · 로컬 · CI 자산에만 있어 **환경 층의 사실** 이다 (`§ 12.59` 가 `HTTPS` 를 배포 층 사실로 뒤집은 것과 동형). |
+| ③ label `(Prisma client)` 표기 정밀도 | (v) ⓓ — `schema.prisma` **8 ~ 10 · 43 ~ 45** 행 · (iv) ⓑ — `prisma.service.ts` **18 · 25** 행 | 부분참 | query 표면은 Prisma client 가 맞으나 실제 socket 을 여는 주체는 `@prisma/adapter-pg` 의 `PrismaPg` → **pg Pool** 이고 schema 자신이 그렇게 자기선언한다. |
+| ④ `db_persistence` node 의 `Prisma + repository` 외연 | (v) ⓑⓒ — `PrismaService` **143 hit / 41 파일**, `*.repository.ts` **13**, 비-repository 직접 주입 **16** | 부분참 | repository 층은 실재하나 (거짓 축 아님) `src/export` · `src/import` · `src/assessment-evaluation` · `person.service.ts` 의 **16** 파일이 repository 를 우회해 `PrismaService` 를 직접 주입한다. |
+| ⑤ `postgres` node 의 `PostgreSQL 16+` version claim | (vi) — `docker-compose.yml` **14** 행 · `ci.yml` **51 · 310** 행 (`postgres:16-alpine`), `schema.prisma` **43 ~ 45** 행 (version 정보 **0**) | 부분참 | major **16** 은 3 지점 전수 일치해 참이나 전부 **고정 pin** 이라 `+` (이상) 의 정본이 **0** 이다 (components.md **148** 행 각주의 `§ 12.48` 판정 재확인). |
+| ⑥ label 이 connection pool · TLS(sslmode) · migration 채널을 은닉 | (iv) ⓒ + (v) ⓓⓔ — `persistence.module.ts` **6 · 12 · 14 ~ 15** 행, `sslmode`/`connection_limit` **0 hit**, `ci.yml` **209 · 216** 행 `pnpm prisma migrate deploy` | 참 (은닉 확인) | pool singleton 은 `## Contracts` **277** 행에만 있고 label 에는 **0** 자이며, `prisma migrate deploy` 는 앱 process 밖에서 같은 DB 로 여는 **두 번째 결선** 인데 다이어그램 edge 가 **0** 이다. TLS 는 코드 정본 자체가 없어 은닉 이전에 미박제다. |
+
+- **다중 표기 수치** — edge **1** : 실 connection **1** (`@Global()` singleton pg Pool) : 주입 소비 파일 **29** (repository **13** + 비-repository **16**, 배선용 `*.module.ts` **11** 과 seam 파일 **1** 제외) 로 **1 : 1 : 29** 이며, `§ 12.57` 의 `1 : 2 : 3` · `§ 12.58` 의 `5 : 1 : 4` · `§ 12.59` 의 `2 : 1 : 1` 과 **동형 사고** 다 — 앞 절들이 "논리 계층 수 > 실 지점 수" 였다면 본 절은 반대로 **"1 edge 가 29 호출 지점을 덮는" 역방향 축약** 이다.
+- 위 판정은 전부 (iv) 의 **DB connection seam 정의 (`prisma.service.ts` 단일 파일)** 위에서만 유효하며, **그 정의는 앞 절들의 승계가 아니라 본 절 신설** 이다 (HTTP 축 정의 2 종은 TCP/libpq 결선에 적용 불가 — components.md **212** · **219** 행).
+- user-facing **2** (`§ 12.59`) · egress **9** (`§ 12.57` · `§ 12.58`) · orchestration **5** (`§ 12.55`) · scheduler **2** (`§ 12.54`) · worker **4** (`§ 12.56`) · node 축 (`§ 12.53`) · 표 row 본문 (`§ 12.44` ~ `§ 12.50`) 은 **재판정하지 않았다**.
+
+#### AC 3 처리 방식 판정
+
+| 후보 | ① append-only (`§ 12.15`) | ② 좌표 drift 파급 | ③ cap | ④ 탐색성 | 판정 |
+| --- | --- | --- | --- | --- | --- |
+| (A) 현행 유지 + 무편집 | 정합 | **0** | 최소 | 낮음 (다이어그램 독자가 audit 5731 행을 따로 열어야 함) | **기각** — 거짓 축은 없어 자동 기각 조항에는 걸리지 않으나, 부분참 **4** 축 + 은닉 **1** 축의 판정이 다이어그램만 읽는 독자에게 전혀 닿지 않아 축 ④ 에서 탈락이다. |
+| (B) 각주군 말미 append (≤ 6 행) + stale 좌표 정정 | 정합 (원문 무편집 + 병기) | **7 지점** ((viii) ⓑ) | +7 행 · 2 파일 | 높음 (같은 문서 각주군에 15 개 선례와 나란히) | **채택** |
+| (C) `## Component diagram` 절 안 삽입 | 정합 | **21 지점** ((viii) ⓐ) | 정정 21 지점이라 AC 4 규정상 자동 철회 | 가장 높음 | **기각** — 파급이 (B) 의 **3 배** 이고 정정 diff 만으로 cap 압박이 커진다. split 제안은 파생 영향 (24) 에 기록. |
+| (D) mermaid edge · label · node 텍스트 in-place 수정 | **위배** (판정 결과를 원문에 덮어씀) | 전 각주 재검토 필요 | — | — | **기각** — ① 축에서 먼저 탈락. |
+
+- **mermaid edge 를 지우거나 병합하거나 label · node 텍스트를 고쳐 쓰는 선택지는 채택하지 않는다** — 처리는 **각주 병기** 로만 한다. **코드 (`src/` · `prisma/` · `docker-compose.yml`) 를 고쳐 label 을 참으로 만드는 처리도 하지 않는다** (`pr` task 소관).
+
+#### AC 4 반영 결과 + 무편집 경계
+
+- components.md **224** 행 뒤 (각주군 말미 · `## GitHub Adapter …` heading 직전) 에 blockquote **6 행** + 앞 빈 줄 **1** 행을 신설했다 (**294 → 301**, +7 로 상한 이내).
+- in-place 정정 **7 지점** — **161** 행 `226 → 233` (`## GitHub Adapter` heading) · **192** 행 `271 · 272 → 278 · 279` · **197** 행 `266 ~ 270 → 273 ~ 277` · **203** 행 `273 ~ 276 → 280 ~ 283` · **210** 행 `278 · 279 → 285 · 286` · **217** 행 `280 → 287` · **224** 행 `264 · 265 → 271 · 272` (뒤 6 개는 전부 `## Contracts` row 좌표). 전부 **숫자 치환** 이고 문장 재작성은 **0** 이다.
+- **AC 4 (B) 의 "≤ 7 지점" 상한을 정확히 채웠고 초과는 없다** — `§ 12.58` · `§ 12.59` 가 2 회 연속 기대치를 1 지점씩 초과했던 것과 달리, 본 절은 (viii) ⓑ 실측 **7** 을 상한으로 미리 잡아 **3 회째 초과를 차단** 했다 (초과 원인이 "각주가 늘수록 자기참조가 는다" 는 구조라는 진단이 맞았음을 뒷받침한다).
+- 삽입 후 재측정 `grep -n '^## '` → **5 · 22 · 28 · 115 · 233 · 265 · 291** 로 **재-drift 10 회째가 그대로 재현** 됐다 (`§ 12.51` 175 → `§ 12.57` 205 → `§ 12.58` 219 → `§ 12.59` 226 → 본 절 **233**). 항구 해소는 파생 영향 (13) · (14) anchor 좌표계 이행 소관이다.
+- **무편집 경계** — mermaid 블록 (30 ~ 106 행) · `다이어그램 표기` bullet (108 ~ 113) · 표 본체 (117 ~ 126) · 1 ~ 4 행 blockquote · `## 개요` 각주 (16 ~ 20) · 안내 blockquote (128 ~ 131) · 각주 15 블록의 판정 문장 · `## Contracts` 표 · 233 행 이후 전 구간 모두 무편집이며, 허용된 in-place 는 stale 숫자 치환 7 지점뿐이다. **`prisma/` · `docker-compose.yml` · `.github/` 는 무편집** 이고 (v) ⓓⓔ · (vi) 의 측정은 전부 read-only grep 이었다. **secret · password · 실 접속 문자열은 옮기지 않았다** — 변수명 (`DATABASE_URL`) · 옵션명 (`connectionString`) · image tag (`postgres:16-alpine`) · 포트 숫자까지만 (CLAUDE.md §9).
+- **R-110 / R-112 면제 (AC 8)** — 본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 전부 **N/A** 다.
+
+#### edge 축 종료 선언 (AC 5)
+
+본 절로 mermaid edge **23 개 전량** 의 대조가 끝났다. 그룹별 결과는 다음과 같다 (판정 개수만 — 각 그룹의 근거 전문은 해당 절).
+
+| 그룹 (좌표) | 절 | edge | 참 | 부분참 | 거짓 |
+| --- | --- | --- | --- | --- | --- |
+| `%% Scheduler triggers` (76 ~ 77) | `§ 12.54` | 2 | 0 | 1 | 1 |
+| `%% Backend orchestration` (69 ~ 73) | `§ 12.55` | 5 | 1 | 0 | 4 |
+| `%% Worker pipeline` (80 ~ 83) | `§ 12.56` | 4 | 3 | 1 | 0 |
+| `%% External egress` adapter 계열 (89 ~ 92) | `§ 12.57` | 4 | 2 | 2 | 0 |
+| `%% External egress` llm_gateway 계열 (93 ~ 97) | `§ 12.58` | 5 | 0 | 5 | 0 |
+| `%% User-facing flow` (65 ~ 66) | `§ 12.59` | 2 | 1 | 1 | 0 |
+| `%% DB persistence boundary` (86) | `§ 12.60` (본 절) | 1 | 1 | 0 | 0 |
+| **합계** | — | **23** | **8** | **10** | **5** |
+
+⇒ **edge 축 종료** — 전량 **23** 중 결선이 그대로 참인 것은 **8** (35%) 뿐이고, 부분참 **10** · 거짓 **5** 로 **15 (65%) 가 실 코드와 어긋난다**. 어긋남의 지배적 원인은 (a) **label 이 배포 층 사실을 코드 사실처럼 표기** (`HTTPS` · `TCP 5432` · `@Cron handler`) 와 (b) **1 edge 가 N 지점을 축약하거나 N edge 가 1 지점을 다중 표기** (`1 : 2 : 3` · `5 : 1 : 4` · `2 : 1 : 1` · `1 : 1 : 29`) 두 가지다.
+
+#### 파생 영향 (목록만 — 본 slice 편집 금지)
+
+(1) **다음 축 1 순위 — `## Contracts` 표 ↔ 실 계약 표면 대조**: 본 절 (vii) 이 `DB Persistence` row **1** 개 좌표를 보태 `§ 12.55` **5** · `§ 12.56` **4** · `§ 12.57` **2** · `§ 12.58` **1** · `§ 12.59` **2** 와 합쳐 **누적 15 row 좌표** 를 확보했고, data row 총계는 **17** (편집 후 **271 ~ 287** 행) 이라 **cover 율 15/17 = 88.2%** 다 (잔여 **2** 는 `Scheduler` 계열 **278 · 279** 행으로 `§ 12.54` 가 `@Cron` 중복 지점으로 좌표만 인용했다). 남은 축 후보 (sub-section 본문 · pointer 셀 · 카운트 claim) 중 이것이 1 순위인 이유는 **edge 축 23 개 판정이 그대로 입력으로 재사용되는 유일한 표** 라 한계 비용이 가장 낮기 때문이다. / (2) `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` 본문 ↔ 코드 대조 (`§ 12.48` FU4 미소진). / (3) row pointer 셀 보강 2 건 (`Scheduler` = `ADR-0042` 미등재 `§ 12.50` FU2 · `Confluence Adapter` `§ 12.49` FU2). / (4) LLM · GitHub adapter ADR pointer 미등재 (`§ 12.47` FU5 · `§ 12.48` FU3). / (5) `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트). / (6) reviewer 규약 미이행 (`§ 12.41` FU2). / (7) `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3). / (8) README 행 번호 pointer drift 전수 sweep. / (9) REQ 번호 체계 잔재 sweep (`§ 12.38` FU3). / (10) `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3). / (11) UC-09 `§ 5` sequence participant 병기 (**50 회째 이월**). / (12) modules.md 카운트 claim 대조 (`§ 12.34` FU1, ADR 게이트). / (13) **행 번호 → anchor 좌표계 이행** (**44 회째 이월** — 본 절 AC 4 의 재-drift **10 회째** 재현과 (viii) 파급 **21 : 7** 대비가 근거로 보태진다. 다만 in-place 정정 초과는 본 절에서 **끊겼다**). / (14) 각주 heading 참조 anchor 이행 축소 scope (`§ 12.51` FU19 미소진). / (15) `§ 12.44` 한계 "mutation 러너 26 개" 정의 미확정. / (16) **`Scheduler` cron → 평가 pipeline 미결선** (`§ 12.50` FU18 — 코드 소관, `pr` task 로만). / (17) **`ADR-0003` "단일 DB 인스턴스" 좌표 부재** (`§ 12.46` FU16) — 본 절 축 ① ⑤ 가 **실 instance 근거** (`@Global()` pool singleton **1** · image tag **3 지점 전수 `16-alpine`**) 를 보탰으므로 좌표 확정 시 함께 인용할 수 있다. / (18) `Web UI` node 의 process subgraph 소속 표기 (`§ 12.53` FU19 · `§ 12.59` 가 층 외연 거짓 확정). / (19) **node 외연 정의의 문서 미박제** (`§ 12.55` FU20 · `§ 12.56` FU20 · `§ 12.59` FU20) — 본 절이 `db_persistence` 외연 (`Prisma + repository`) 을 **repository 13 + 비-repository 직접 주입 16** 으로 실측했으므로 함께 박제 대상이다. / (20) modules.md **200** 행 1:N 매핑 ↔ 디렉토리 외연 상충 해소 (`§ 12.56` FU21 미소진). / (21) 가변 instance 수 ↔ 문서의 고정 표기 정합 (`§ 12.57` FU22 · `§ 12.58` FU22 미소진). / (22) `worker --> backend_api` 미표기 결선 (`§ 12.56` FU23 미소진). / (23) dev / prod 2 모드의 다이어그램 미분리 (`§ 12.59` FU24 미소진). / (24) **(C) 후보 split 제안** — `## Component diagram` 절 내 삽입은 자기참조 **21 지점** 정정을 동반하므로 anchor 이행 (13) 과 묶어 별도 slice 로만 시도한다. / (25) **`prisma migrate deploy` 채널 미표기** — 본 절 축 ⑥ 이 확인한 **앱 process 밖 두 번째 DB 결선** (`ci.yml` **209 · 216** 행) 이 다이어그램 · `## Contracts` 어디에도 없다 (`PostgreSQL 16+` version claim 정정도 같은 slice 에서 함께 다룬다 — 축 ⑤ 부분참).
+
+#### 불변 검산 (AC 6)
+
+- `wc -l` → components.md **294 → 301** (+7, 상한 301 이내) · audit **5731 → 5826** (+95, +100 이내 — `§ 12.60` 본문 **94** 행 + 구분 빈 줄 1, 절 전체 **95** 행으로 상한 100 이내) · ADR-0003 **173 불변** · requirements.md **97 불변** · deployment.md **232 불변** · directory.md **203 불변** · modules.md **259 불변** · PLAN.md **175 불변**.
+- `grep -c '^## '` components.md **7 불변** · audit **12 불변**, audit `grep -c '^| REQ-'` **66 불변** · `grep -c '^### 12\.'` **59 → 60**, components.md `grep -c '^> '` **88 → 94** (신설 blockquote 6 행).
+- `git diff -U0 -- docs/architecture/components.md | grep '^@@'` → `@@ -161 +161 @@` · `@@ -192 +192 @@` · `@@ -197 +197 @@` · `@@ -203 +203 @@` · `@@ -210 +210 @@` · `@@ -217 +217 @@` · `@@ -224 +224,8 @@` **7 hunk** 이며 전부 각주 구간 (161 ~ 231 행) 이라 **AC 4 허용 구간 밖 hunk 0** 이다.
+- `git diff --numstat` → `14 7 docs/architecture/components.md` — 삭제 **7** 행은 전부 stale 숫자 치환의 짝 (같은 문장의 정정 전 판본) 이라 **순수 삭제 0** 이다.
+- `git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md docs/architecture/modules.md` → **빈 출력** — 특히 **`prisma/` · `docker-compose.yml` · `.github/` 무편집** 이며 (iv) ~ (vi) 의 측정은 전부 read-only grep 이었다 (DB 접속 · query · migration 실행 **0**). `git status --porcelain` 전체 → **3 파일** (components.md · REQ-COVERAGE-AUDIT.md · task 파일) 로 상한 3 이내다.
+
+#### 한계
+
+1. **db boundary 1 edge 로 edge 축이 종료되지만 "종료" 는 대조 완료를 뜻할 뿐 정정 완료가 아니다** — 부분참 **10** · 거짓 **5** 의 실 원문은 `§ 12.15` append-only 방침상 그대로 남아 있고, 각주 병기가 유일한 보정 수단이다.
+2. **판정은 (iv) 의 DB connection seam 정의에 의존한다** — "결선 = 실제 socket 을 여는 지점" 대신 "결선 = Prisma query 를 발화하는 모든 지점" 을 취하면 축 ① 은 여전히 참이나 다중 표기 수치가 `1 : 1 : 29` 에서 `1 : 29 : 143` 으로 바뀌고 축 ④ 의 강도도 달라진다. 정의를 바꾸면 수치도 바뀐다.
+3. **측정은 grep 정적 근사다** — 실제 TCP 연결 · libpq handshake · pool 크기 · TLS 협상은 확인하지 않았고 `psql` · `prisma migrate` · docker compose 기동은 전부 Out of Scope 였다.
+4. **`PrismaClient` 12 파일 중 11 개를 주석으로 가려낸 것은 수동 판독이다** — `PrismaClientKnownRequestError` duck typing 주석과 실 사용의 분리는 눈으로 확인한 결과라 자동 검증되지 않았다 (planner 가설 ③ 을 반증한 근거가 이 판독이다).
+5. **`## Contracts` **284** row 의 `TCP 5432` · `connection pool singleton` 어구는 판정하지 않았다** — 좌표 · 인용까지이며 참 / 거짓 확정은 파생 영향 (1) 이다.
+6. **TLS 축은 "은닉" 이 아니라 "미박제" 로 판정 강도가 약하다** — `sslmode` **0 hit** 은 label 이 감췄다는 뜻이 아니라 정책 자체가 코드에 없다는 뜻이고, DB 보안 · 계정 권한 · 백업 정책 판정은 Out of Scope 였다.
+7. **schema 내용 축은 열지 않았다** — model · 인덱스 · N+1 · transaction 경계 · migration 이력은 본 절 범위 밖이며 (`§ 12.48` 및 별도 DB 문서 소관), 본 절은 **process 경계 결선과 그 label** 한정이다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
