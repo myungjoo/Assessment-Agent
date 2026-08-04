@@ -4897,6 +4897,88 @@ $ git status --porcelain → **3 파일** (components.md · REQ-COVERAGE-AUDIT.m
 3. **4xx emit 판정은 `mapNon2xx` 주석 · 분기 이름 기준이다** — emit 부수효과의 런타임 실행 여부는 spec 실행 (금지) 없이는 확인되지 않는다.
 4. **잔여 2 row 는 미판정** — 본 각주도 표 뒤에 있어 2 row 를 덮는 것처럼 읽힐 여지가 있어 첫 구에 한정 선언을 뒀다. blockquote 는 이제 **5 블록** 으로 `§ 12.44` 한계 3 이 예고한 임계에 **도달** 했다 (파생 영향 (2)).
 
+### 12.49 components.md `## Component table` **Confluence Adapter** row ↔ 실 `src/confluence/**` 인벤토리 · `ADR-0003 §4` 재승계 · REQ 대조 — 원문 보존 + 각주 1 블록 (T-1451)
+
+> **본 절의 위치 · 계보** — `§ 12.48` (T-1450) 이 `GitHub Adapter` + `Confluence Adapter` 2 row 묶음을 cap 근거로 재-split 한 **첫 slice** 를 집행하며 FU1 로 **"다음 slice 1 순위 = `Confluence Adapter` row 단독"** 을 지목했고, 본 절은 그 재-split 의 **둘째 slice** 다. **계보** — `T-1430` ~ `T-1435` (directory.md) → `T-1436` ~ `T-1444` (deployment.md) → `T-1445` (`## 개요`) → `T-1446` (표 row 1) → `T-1447` (표 row 2 ~ 3) → `T-1448` (표 row 4) → `T-1449` (표 row 5) → `T-1450` (표 row 6) → **`T-1451` (본 절 — 표 축의 여섯 번째 slice, row 7)**. `ADR-0003 §4` pointer 는 `§ 12.47` → `§ 12.48` 판정을 **재승계** 했고 (재측정 1 명령), 그 절감이 본 slice 를 단독 row 로 유지하게 한 split 근거다. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이고, 측정은 전부 read-only `find` · `grep` · `sed` · `wc` · `git` 이며 **Confluence 실호출 · live spec 실행 0** 이다. `CONFLUENCE_<KEY>_TOKEN_ENC` 등은 **변수명 언급까지만** 이고 token · 실 credential 은 옮기지 않았다 (CLAUDE.md §9).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+- (i) 좌표 — `grep -n '^#\{1,3\} ' docs/architecture/components.md` → `1:# Component view` / `5:## 개요` / `22:## Deployment 컨텍스트` / `28:## Component diagram` / `115:## Component table` / `162:## GitHub Adapter — 3 instance 묶음 vs 분리 결정` / `194:## Contracts` / `220:## References`. **task 가 예고한 115 · 125 · 162 좌표는 전부 유효** 했고 `sed -n '125p'` 가 `| **Confluence Adapter** | Confluence (confluence.sec.samsung.net 외 사내 Confluence) 의 adapter. 지정 SPACE 의 page list / page 본문 / version history 조회. 4xx 응답 catch → PermissionDeniedEvent emit. | 입력: … in-process method call (`listPages(spaceKey)`, `fetchPageVersion(pageId, version)` 등). 출력: Confluence REST API 로의 outbound + 응답 데이터 반환. | REQ-015 … REQ-017 … | ADR-0003 §4 (direct egress) / P4 Confluence adapter task |` 를 반환했다.
+- (i-b) **claim 이분** — 검증 가능 **10** 개: ① 호스트 표기 ② 단일 adapter ③ page list 조회 ④ page 본문 조회 ⑤ version history 조회 ⑥ 4xx catch → emit ⑦ emit 대상 event 이름 ⑧ 계약 시그니처 2 개 ⑨ REST outbound ⑩ pointer 2 개 + REQ 3 개. **검증 불가** — "지정 SPACE 의 … 조회" 라는 성격 서술 자체 (운영 env 값 의존), "in-process method call" 의 전수성 (grep 근사).
+- (ii) 책임 · instance — `find src -ipath '*confluence*' -name '*.ts' -not -name '*.spec.ts' | sort` → **10** 개 (`src/confluence/` 7: `confluence-adapter.service.ts` · `confluence-instance-config.ts` · `confluence-live-test-gating.ts` · `confluence-request.builder.ts` · `confluence-space-traversal.service.ts` · `confluence-token-decrypt.ts` · `confluence.module.ts`, `src/assessment-collection/` 2, `src/permission-denied/` 1) — **task 예상 10 과 일치**. `grep -rn 'confluence\.sec\.samsung\.net' src --include='*.ts' | grep -v spec` → **0 hit**. `grep -n 'CONFLUENCE_INSTANCES\|_BASE_URL\|…' src/confluence/confluence-instance-config.ts` → **29** 행 `export const CONFLUENCE_INSTANCES_ENV = "CONFLUENCE_INSTANCES";` · **34** 행 `CONFLUENCE_BASE_URL_SUFFIX = "_BASE_URL"` · **35** 행 `CONFLUENCE_AUTH_USER_SUFFIX = "_AUTH_USER"` (**값 인용 0 — 변수명까지만**).
+- (iii) 단일 adapter · 조회 3 종 — `grep -rn 'export class' src/confluence/*.ts | grep -v spec` → **4** 개 (`confluence-adapter.service.ts:201 ConfluenceDomainError` · `:293 ConfluenceAdapter` · `confluence-space-traversal.service.ts:82 ConfluenceSpaceTraversalService` · `confluence.module.ts:97 ConfluenceModule`). page list 근거 — traversal **61 ~ 65** 행 `SPACE-scoped content list REST path … const CONFLUENCE_CONTENT_PATH = "/content";` + **117 ~ 123** 행 `path: CONFLUENCE_CONTENT_PATH` · `{ spaceKey }` query. page 본문 근거 — `grep -rn 'expand\|body\.storage\|"body"' src/confluence/*.ts | grep -v spec` → **0 hit**, 오히려 traversal **72** 행이 `body raw 는 본 service 가 저장/노출하지 [않는다]` (ADR-0013 §2). version 근거 — `grep -rn 'version' src/confluence/*.ts | grep -v spec` → **2 hit** 모두 주석 (`confluence-adapter.service.ts:190` status 설명 · traversal `:72` ADR 참조) 이고 **전용 호출 경로 0**.
+- (iv) contract — `grep -rn 'listPages\|fetchPageVersion' src --include='*.ts'` → **0 hit**. 실 public 표면 → **326** 행 `async request(input: ConfluenceRequestInput): Promise<unknown>` · **353** 행 `async requestAllPages(input: ConfluenceRequestInput): Promise<unknown[]>`. outbound → `grep -rn 'await fetch(' src/confluence` **0 hit**, 실 지점은 **455** 행 `response = await this.fetchFn(url, { method: "GET", headers });` **단일**. status 분류 → **491** 행 `private mapNon2xx(status, input)` 이 **497** 행 `if (status === 401 || status === 403)` 에서만 **498** 행 `this.permissionDeniedEmitter.emit({ baseUrl, path, status })` 후 throw, **511** 행 `404 → not-found`, 이어 `429 → rate-limited`, 그 외 5xx 계열은 emit 없이 `ConfluenceDomainError` 로만 던진다 (**189 ~ 191** 행 kind union · **222** 행 `interface PermissionDeniedEvent`).
+- (v) pointer · REQ — `grep -n '^### Decision §4' docs/decisions/ADR-0003-deployment.md` → **78** 행 `### Decision §4 — 외부 네트워크 boundary = direct outbound from app process` · **147** 행 `### Decision §4 — 외부 네트워크 boundary` (후자는 Alternatives 표 절 heading, Decision 정본은 78 행). 본 판정 본문은 `§ 12.47` · `§ 12.48` 의 **참 · drift 0 판정을 재승계** 한다. `grep -n 'Phase P4\|Confluence' docs/PLAN.md` → **79** 행 `## Phase P4 — External integrations` · **83** 행 `- [x] Confluence 통합 …` · **84** 행 `- [x] Confluence SPACE 탐색 정책 (R-34)`. `grep -n 'REQ-015\|REQ-016\|REQ-017' docs/requirements.md | cut -c1-160` → **34** `REQ-015 … Confluence 지정 SPACE 평가` · **35** `REQ-016 … Confluence 접근 권한 부족 인식·통지` · **36** `REQ-017 … Confluence SPACE crawling vs hierarchy 탐색 정책 (ADR)`.
+- (vi) baseline — `wc -l` components.md **230** · audit **4913** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175** · schema.prisma **666** 전부 일치. `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **48** 일치. **단 `grep -c '^## ' docs/architecture/components.md` 은 실측 7 로 AC 1 (vi) 의 기대 8 과 다르다** — 위 (i) heading 목록이 `##` 레벨 **7** 개임을 보이므로 **AC 쪽 baseline 이 stale** 이고 (`# Component view` 를 합산한 8 로 보인다), 본 절은 **7 불변** 을 검산 기준으로 쓴다.
+
+#### 지점 판정표 (AC 2)
+
+판정 기준 3 축 — ① **문서 성격**: **1 ~ 4 행** blockquote 가 "본 문서는 P1 T-A3 의 산출물" 을 선언하는 시점 산출물이나, 표 자체는 `Web UI` row 처럼 shipped 현황으로 여러 차례 갱신된 흔적이 있어 blueprint · 현황이 혼재한다. ② `§ 12.15` **정합**: 125 행에 시점 marker (`T-NNNN` · `shipped` · 연도) **0 hit** → 원문을 시점 기록으로 특정할 수 없어 in-place 치환의 정당성이 약하다. ③ **선례**: T-1430 ~ T-1450 의 "원문 보존 + 실측 각주" 가 지배적이고, [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) 의 in-place 1:1 치환 · [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 의 혼합은 좌표 · 어휘가 기계적으로 확정되는 경우에 한정됐다.
+
+| claim (1 구) | 실측 결과 | 판정 | 처리 | 근거 1 구 |
+| --- | --- | --- | --- | --- |
+| "confluence.sec.samsung.net 외 사내 Confluence" | host 리터럴 production 0 hit, baseUrl 은 `CONFLUENCE_INSTANCES` + `_BASE_URL` env 조립 | 부분참 | 원문 보존 + 각주 부기 | 코드에 host 고정 정본이 없고 개수 · 주소가 배포 env 소관이라 문서만으로 참 · 거짓이 닫히지 않는다 |
+| "Confluence … 의 adapter" (단일 dispatch 본체) | `src/confluence/*.ts` `export class` 4 개 중 외부 호출 본체는 `ConfluenceAdapter` (293 행) 1 개 | 참 (근사) | 원문 보존 + 각주 부기 | traversal service (82 행) 는 adapter 위 allowlist 순회 보조라 dispatch 본체 단일성을 깨지 않는다 (grep 근사) |
+| "지정 SPACE 의 page list … 조회" | traversal 65 · 117 ~ 123 행 `/content` + `spaceKey` query | 참 | 무편집 | ADR-0013 §1 page List 기반 순회 default 와 1:1 대응한다 |
+| "page 본문 … 조회" | `expand` · `body.storage` 0 hit, traversal 72 행이 body raw 미저장 명시 | 부분참 | 원문 보존 + 각주 부기 | adapter 가 반환하는 것은 page 메타 배열 (`pages: unknown[]`) 이고 본문 확장 호출 경로가 없다 |
+| "version history 조회" | 전용 호출 경로 0, `version` 은 주석 2 hit 뿐 | 부분참 (근거 0) | 원문 보존 + 각주 부기 | 미구현을 문서에 맞추려 메서드를 새로 만드는 것은 Out of Scope 라 각주로만 가른다 |
+| "4xx 응답 catch → … emit" | `mapNon2xx` 491 행이 401 / 403 만 emit, 404 · 429 · 그 외는 emit 없음 | 부분참 | 원문 보존 + 각주 부기 | `§ 12.48` GitHub 축 실측과 **동형** 이라 표 전체에 같은 화법으로 남기는 편이 일관된다 |
+| "PermissionDeniedEvent emit" (event 이름) | 222 행 `interface PermissionDeniedEvent` + 498 행 emit | 참 | 무편집 | 이름 · payload (baseUrl / path / status) 가 문서 표기와 정확히 일치한다 |
+| "`listPages(spaceKey)`, `fetchPageVersion(pageId, version)` 등" | `src` 전체 0 hit, 실 표면은 `request` · `requestAllPages` | 거짓 | 원문 보존 + 각주 부기 | "등" 이 붙어도 두 예시 모두 부재라 예시로서 성립하지 않으나, in-place 치환은 §12.15 marker 0 hit 상 근거가 약하다 |
+| "Confluence REST API 로의 outbound + 응답 데이터 반환" | `await fetch(` 0 hit, 실 지점은 455 행 주입 `fetchFn` 단일 | 참 (호출 지점 주의) | 원문 보존 + 각주 부기 | REST outbound 사실은 참이고 주입 경계만 각주로 보탠다 |
+| `ADR-0003 §4 (direct egress)` | 78 행 Decision heading 일치 (147 행은 Alternatives 동명 heading) | 참 | **상위 slice 판정 승계** | `§ 12.47` → `§ 12.48` 의 참 · drift 0 판정을 **재승계** 했고 재측정도 1 명령으로 동일 결과였다 |
+| `P4 Confluence adapter task` | PLAN 79 행 Phase heading + 83 행 `[x]` bullet | 참 | 무편집 | phase 좌표 · 완료 표기가 부합한다 |
+| REQ ID 3 개 (REQ-015 · REQ-016 · REQ-017) | requirements.md 34 ~ 36 행 실재, 병기 문구 부합 | 참 (3 ID 묶음) | 무편집 | 세 ID 의 판정 결과 · 처리 · 근거가 동일해 묶음 조건을 충족하며, row 를 `REQ-` 로 시작하지 않게 적어 `^\| REQ-` 66 불변을 지켰다 |
+
+#### 처리 방식 판정 (AC 3)
+
+판정 기준 4 축 — ① `§ 12.15` 정합 (125 행 시점 marker 0 hit) · ② 오도 risk (독자가 표만 읽고 없는 메서드를 호출하려 하거나 4xx 전 범위 · version history 지원을 가정할 비용) · ③ cap (≤ 300 LOC · 파일 3 고정) · ④ 각주 누적 구조 (본 slice 로 **6 블록째** — `§ 12.44` 한계 3 · `§ 12.48` 이 예고한 5 ~ 6 임계 초과).
+
+| 후보 | 판정 | 근거 |
+| --- | --- | --- |
+| (A) row 셀 in-place 동기 | 기각 | 치환 대상이 시그니처 · 호스트 · 4xx 범위 · 조회 3 종으로 **4 지점** 이라 셀 재작성에 가까워지고, marker 0 hit 상 원문이 시점 기록인지 blueprint 인지 가리지 못한 채 P1 산출물을 덮어쓴다 |
+| **(B) 원문 무편집 + T-1450 각주 직후 blockquote 1 개 신설** | **채택** | T-1437 ~ T-1450 화법을 그대로 승계해 표 축 6 slice 의 기록 형식이 균질하고, 거짓 1 · 부분참 5 를 각주 첫 구 한정 선언과 함께 외화해 오도 risk 를 낮추면서 cap 안에 든다 |
+| (C) 혼합 (거짓 지점만 in-place) | 기각 | 거짓은 시그니처 1 지점뿐인데 이를 in-place 로 고치면 같은 셀 안의 부분참 4 건과 판정 화법이 갈려 독자가 어느 값이 실측인지 되레 혼동한다 |
+| (D) 전 지점 무편집 + audit 기록만 | 기각 | 표를 읽는 독자가 audit 절까지 오지 않으면 없는 메서드 2 개를 그대로 호출 계약으로 오인한다 — `§ 12.46` ~ `§ 12.48` 이 각주를 둔 이유와 동일 |
+
+#### 각주 배치 규약 판정 (AC 3.5 — T-1450 FU2 결착)
+
+**결정 — `표 완결까지 현 규약 (표 뒤 blockquote 나열) 유지`.** 근거 셋. (1) 잔여 미판정 row 가 `Scheduler` **1 개뿐** 이라 anchor 규약으로 이행해도 새로 얻는 이득이 마지막 1 블록에만 미친다. (2) anchor 이행은 기존 **6 블록 전부의 재배치** + row 별 anchor 링크 삽입이라 이번 slice 의 cap (≤ 300 LOC · 3 파일) 을 즉시 초과하고, 표 본문까지 건드려 `§ 12.15` 무편집 경계를 깬다. (3) 각 각주 첫 구의 **row 한정 선언** (`본 각주는 … row 한정` + 잔여 row 열거) 이 이미 오도 risk 를 실질적으로 낮추고 있어, 규약 미이행의 잔여 비용이 재배치 비용보다 작다. 다만 블록이 **6** 개로 누적돼 표 뒤 읽기 부담이 커진 것은 사실이므로, **`Scheduler` row 로 표가 완결된 직후 별도 slice 에서 7 블록 일괄 anchor 이행 여부를 재판정** 할 것을 권고한다 (본 slice 는 판정 기록만 — 재설계 · 재배치 0).
+
+#### 반영 결과 (AC 4) + 무편집 경계
+
+- [components.md](../architecture/components.md) 에 **각주 blockquote 1 개 (5 행) + 앞 빈 줄 1 행 = +6 행** 을, T-1450 블록 마지막 행 (구 160 행) 과 `## GitHub Adapter …` heading 사이에 삽입했다. **in-place 치환 0**. `wc -l` **230 → 236** (+6, 허용 +7 이내).
+- 각주 첫 구에 **"본 각주는 `Confluence Adapter` row 한정"** + 잔여 1 row (`Scheduler`) 미판정 선언을 뒀다. 문구 · 파일 이름 · 메서드 이름 · 행 번호 · env 변수명 · § 번호 · REQ ID 는 전부 위 실측 출력과 1:1 이며 **창작 0**.
+- 무편집 확인 — 1 ~ 4 행 blockquote · 119 ~ 124 행 6 row · **125 행 원문** · 126 행 `Scheduler` row · 128 ~ 160 행 기존 각주 5 블록 · 162 행 이후 전 구간 (`## Contracts` · `## References` · mermaid) 전부 무변경 (아래 hunk 1 개로 실증).
+- 새 pointer 추가 **0** — 실측 중 관찰된 `ADR-0013` · `ADR-0018` · `ADR-0019` 등 Confluence 계열 ADR 은 본문 pointer 셀에 넣지 않고 본 절 파생 영향에만 적었다. secret · token 값 인용 **0** (변수명까지만).
+
+#### Component table 잔여 미판정 row
+
+`Scheduler` (126 행) **1 row**. **다음 slice 1 순위** 이며, pointer 축이 `ADR-0003 §3 (@nestjs/schedule in-process)` 라 본 절의 `§4` 승계를 **재승계할 수 없다** (재측정 필요). 이 row 를 닫으면 `## Component table` 전 **7 row** 대조가 완결된다.
+
+#### 파생 영향 (목록만 — 본 slice 편집 금지)
+
+(1) **Component table 잔여 1 row** (`Scheduler` 126 행 — 다음 slice 1 순위, `ADR-0003 §3` 축이라 본 절 승계 불가, 이 row 로 표 전 row 대조 완결) / (2) **`Confluence Adapter` row pointer 셀 보강** — 실측이 드러낸 Confluence 계열 ADR (`ADR-0013` 탐색 정책 · `ADR-0018` transport 계약 · `ADR-0019` same-host auth) 이 pointer 셀에 미등재, 새 pointer 추가는 본 slice 금지라 별도 slice 소관 / (3) **표 뒤 각주 7 블록 일괄 anchor 이행 재판정** (AC 3.5 가 `표 완결까지 유지` 로 결착 — 재판정 시점은 `Scheduler` row 종료 직후) / (4) `## Deployment 컨텍스트` (22 ~ 26 행) "8 component 동일 process" claim (**6 회째 이월**) / (5) `## Component diagram` mermaid node ↔ 실 module 대조 / (6) `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` sub-section (162 ~ 193 행) 본문 ↔ 코드 대조 (`§ 12.48` FU4 미소진) / (7) `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트) / (8) reviewer 규약 미이행 (`§ 12.41` FU2) / (9) `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3) / (10) README 행 번호 pointer drift sweep / (11) REQ 번호 체계 잔재 sweep (`§ 12.38` FU3) / (12) `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3) / (13) UC-09 `§ 5` sequence participant 병기 (**35 회째 이월**) / (14) modules.md 카운트 claim 대조 (`§ 12.34` FU1) / (15) 행 번호 → anchor 좌표계 이행 (**29 회째 이월**) / (16) `§ 12.44` 한계 — "mutation 러너 26 개" 정의 미확정 / (17) `Scheduler` cron → 평가 pipeline 미결선 (`§ 12.45` FU15, 코드 소관 `pr` task) / (18) `ADR-0003` 의 "단일 DB 인스턴스" 좌표 부재 (`§ 12.46` FU16) / (19) LLM provider 배포 config ADR 3 종 pointer 미등재 (`§ 12.47` FU5) / (20) GitHub adapter ADR 3 종 pointer 미등재 (`§ 12.48` FU3) / (21) **AC 1 (vi) baseline 의 `grep -c '^## '` components.md 기대값 8 ↔ 실측 7 drift** — 후속 task 문안이 8 을 재인용하지 않도록 정정 필요.
+
+#### 불변 검산 (AC 6)
+
+- `wc -l` — components.md **230 → 236** (+6, ≤ 237) · audit **4913 → 4995** (+82, ≤ +115) · requirements.md **97 불변** · deployment.md **232 불변** · directory.md **203 불변** · modules.md **259 불변** · PLAN.md **175 불변** · `prisma/schema.prisma` **666 불변**.
+- `grep -c` — components.md `^## ` **7 불변** (AC 기대 8 은 stale, 위 (vi) 참조) · audit `^## ` **12 불변** · audit `^| REQ-` **66 불변** · audit `^### 12\.` **48 → 49**.
+- `git diff -U0 -- docs/architecture/components.md | grep '^@@'` → `@@ -161,0 +162,6 @@` **hunk 1 개** — AC 4 허용 구간 (T-1450 블록 직후 ~ `## GitHub Adapter` heading 직전) 밖 hunk **0**.
+- `git diff --numstat` → `6	0	docs/architecture/components.md` — **순수 삭제 0** (in-place 치환 자체가 0 이라 삭제 행이 없다).
+- `git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md` → **빈 출력** (코드 · schema · frontend · 배포자산 · CI · 의존성 · ADR · PLAN · requirements 무변경). `git status --porcelain` 전체는 **3 파일** (components.md · 본 audit · task 파일) 로 cap 이내.
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 새 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 모두 **N/A** 다 (검증은 read-only 재측정 + 불변 검산으로 갈음).
+
+#### 한계
+
+1. **"3 종 조회" 부분참 판정은 grep 근사다** — `expand` · `body.storage` · version path 가 0 hit 임을 보였을 뿐, 다른 디렉토리가 Confluence 본문 · version API 를 우회 호출하지 않는다는 전수 증명은 §7 예산 밖이다.
+2. **4xx emit 판정은 `mapNon2xx` 분기 · 주석 기준이다** — emit 부수효과의 런타임 실행 여부는 spec 실행 (금지) 없이 확인되지 않는다. 404 를 "권한상 비가시" 로 emit 후보로 보는 코드 주석 (511 행 앞) 이 있어 향후 분류가 바뀔 여지도 남는다.
+3. **호스트 표기 판정은 코드 리터럴 기준이다** — 실 운영 env (`CONFLUENCE_INSTANCES` 값) 를 볼 수 없어 배포 시점에 어떤 사내 Confluence 가 등록되는지는 문서 · 코드로 가릴 수 없다.
+4. **각주 blockquote 가 6 블록으로 누적** 돼 `§ 12.44` 한계 3 이 예고한 임계를 넘겼다. AC 3.5 가 `표 완결까지 현 규약 유지` 로 결착했으므로, 이 부담은 `Scheduler` row 종료 직후의 재판정 (파생 영향 (3)) 으로 이월된다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
