@@ -4701,6 +4701,109 @@ $ git status --porcelain → M components.md · M REQ-COVERAGE-AUDIT.md (**2 파
 3. **raw 컬럼 전수 판정은 grep 어휘 목록에 의존한다** — `body|content|diff|raw|payload|text|narrative|message|description` 밖의 이름으로 raw 본문을 담는 컬럼이 있으면 잡히지 않는다. `String` 컬럼 전수 육안 검사는 하지 않았다 (`§ 12.41` FU2 의 자동 게이트 부재와 같은 한계).
 4. **잔여 4 row 는 전부 미판정** — 본 각주도 표 뒤에 있어 4 row 를 덮는 것처럼 읽힐 여지가 있어 첫 구에 한정 선언을 뒀다. blockquote 는 이제 **3 블록** 이다.
 
+### 12.47 components.md `## Component table` **LLM Gateway** row ↔ 실 `src/llm/**` 인벤토리 · `ADR-0003 §4` · REQ 대조 — 원문 보존 + 각주 1 블록 (T-1449)
+
+> **본 절의 위치** — `§ 12.46` 이 "다음 slice 1 순위" 로 지목한 [T-1448](../tasks/T-1448-components-md-db-persistence-row-vs-prisma-audit.md) **Follow-up 1** 의 **"3 adapter 묶음" (`LLM Gateway` · `GitHub Adapter` · `Confluence Adapter`)** 을 planner 가 예고대로 **2 slice 로 split** 했고, 본 절은 그 **첫 slice = `LLM Gateway` row 단독** 이다. **split 근거** — `§ 12.46` 이 1 row 로 검증 가능 claim **16** 개 · audit **106** 행을 썼는데 3 row 를 한 slice 에 담으면 provider 5 종 · GitHub instance 3 종 · Confluence 계약이 30 claim 을 넘겨 cap (≤ 300 LOC · 각주 ≤ 7 행 · 절 ≤ 115 행) 이 확실히 깨진다. 본 slice 가 세 row 공통축인 `ADR-0003 §4` (direct egress) pointer 를 먼저 확정해 차기 slice 가 그대로 승계한다. **계보** — `T-1430` ~ `T-1435` (directory.md) → `T-1436` ~ `T-1444` (deployment.md) → `T-1445` (components.md `## 개요`) → `T-1446` (표 row 1) → `T-1447` (표 row 2 ~ 3) → `T-1448` (표 row 4) → **`T-1449` (본 절 — 표 축의 네 번째 slice)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이고, 측정은 전부 read-only `ls` · `find` · `grep` · `sed` · `wc` · `git` 이며 **LLM provider 실호출 · live spec 실행 0** 이다. `LLM_LIVE_*` · `LLM_APIKEY_ENC_KEY` 는 **변수명 언급까지만** 이고 apiKey · endpoint 실 URL 은 옮기지 않았다 (CLAUDE.md §9).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/components.md → 1 `# Component view` · 5 `## 개요` · 22 `## Deployment 컨텍스트` · 28 `## Component diagram` · **115 `## Component table`** · **149 `## GitHub Adapter …`** · 181 `## Contracts` · 207 `## References` ⇒ **`LLM Gateway` row = 123** — AC 좌표 (115 · 123 · 149) 그대로 **stale 아님**. T-1448 각주 blockquote 는 **142 ~ 147** 이고 **148 은 빈 행** 이라 삽입 지점은 "148 행 뒤 · 149 행 heading 앞".
+      $ sed -n '123p' → `| **LLM Gateway** | 5 provider (custom / Azure OpenAI / Anthropic / Google Gemini / OpenAI) 의 단일 추상화 service. Admin 이 지정한 provider 별 model 식별자 라우팅. 평가 파이프라인은 본 gateway 만 호출 — 구체 provider API 차이 은닉. | 입력: … in-process method call (generate(prompt, modelId)). 출력: 각 provider 의 외부 HTTPS REST API 로의 outbound + 응답 텍스트 반환. | REQ-049 … REQ-051~055 | ADR-0003 §4 (direct egress) / P4 LLM gateway task |`
+      claim 이분 — **검증 가능 11**: 책임 **5** (`5 provider` 종수 · 5 이름 목록 · 종수 ↔ adapter 파일 수 · `단일 추상화 service` · `Admin 지정 provider 별 model 라우팅` · `평가 파이프라인은 본 gateway 만 호출`) / contract **3** (`in-process method call` · `generate(prompt, modelId)` 시그니처 · `외부 HTTPS REST API outbound`) / pointer **2** (`ADR-0003 §4 (direct egress)` · `P4 LLM gateway task`) / REQ **1 묶음** (REQ-049 · REQ-051 ~ 055 6 ID). **검증 불가 2** (`구체 provider API 차이 은닉` · `응답 텍스트 반환` — 설계 의도 · 런타임 반환 형태 서술이라 참·거짓 대상이 아니다).
+(ii)  provider 인벤토리 축 — $ ls -1 src/llm/providers/ | grep -v '\.spec\.' → **4** (`anthropic.adapter.ts` · `azure-openai.adapter.ts` · `google-gemini.adapter.ts` · `openai-compatible.adapter.ts`) ; $ find src/llm -name '*.ts' -not -name '*.spec.ts' | wc -l → **21** ; $ sed -n '20,26p' src/llm/llm-gateway.interface.ts → `export enum LlmProvider { Custom = "custom", AzureOpenai = "azure_openai", Anthropic = "anthropic", GoogleGemini = "google_gemini", Openai = "openai" }` (**5 멤버**) · **33** 행 `export const LLM_PROVIDERS: readonly LlmProvider[] = Object.values(LlmProvider)` ⇒ **"5 provider" 자체는 참** 이고 5 이름 목록도 enum 과 1:1 대응한다.
+      **공유 구조** — $ sed -n '155,182p' src/llm/llm-http-gateway.service.ts → **155** `if (provider === LlmProvider.AzureOpenai)` · **164** `} else if (… Anthropic)` · **172** `} else if (… GoogleGemini)` · **180** `} else {` → `buildOpenaiCompatibleRequest` ⇒ **`custom` 과 `openai` 는 전용 adapter 없이 `openai-compatible` adapter 를 공유** 한다 (planner 가설 ① 성립 — provider **5** ≠ adapter 파일 **4**). [PLAN.md](../PLAN.md) **85** 행도 같은 4 adapter 를 열거한다.
+(iii) 단일 추상화 + 라우팅 축 — $ grep -n 'class .*Gateway' src/llm/*.ts | grep -v spec → **1 hit** = `llm-http-gateway.service.ts` **74** 행 `export class LlmHttpGateway implements LlmGateway` ⇒ `단일 추상화 service` **참**. $ grep -rn 'llm/providers' src/assessment-evaluation src/assessment-collection --include='*.ts' | wc -l → **0** ; 평가 측 경로는 `assessment-evaluation.module.ts` **36 ~ 37** 행 `LLM_GATEWAY` token → `LlmHttpGateway` `useExisting` 바인딩뿐 ⇒ `평가 파이프라인은 본 gateway 만 호출` **참 (grep 근사이며 전수 증명은 아니다)**.
+      라우팅 — `llm-provider-config-resolver.service.ts` **28** 행 `export class LlmProviderConfigResolver` 가 Admin 이 저장한 `LlmProviderConfig` 단일-row 의 `modelId` 를 형식 검증 후 반환하고 (**70 ~ 79** 행), gateway 는 `config.provider` 값으로 adapter 를 분기한다 (**155 ~ 180** 행) ⇒ `Admin 이 지정한 provider 별 model 식별자 라우팅` **참**.
+(iv)  contract 축 — $ grep -n 'generate' src/llm/llm-gateway.interface.ts | head -8 → **44** · **57** (주석) · **74** ; $ sed -n '74,77p' → `generate(prompt: string, options: LlmGenerateOptions): Promise<LlmGenerateResult>;` ⇒ **`generate(prompt, modelId)` 는 부분참** — 둘째 인자가 `modelId` 스칼라가 아니라 **`modelId` (필수) + `difficulty?` (선택) 2 필드 options 객체** 이고 (**47 ~ 55** 행) 반환도 `narrative` / `provider` / `modelId` 3 필드 객체 (**59 ~ 66** 행) 다 (planner 가설 ② 성립).
+      outbound 축 — $ grep -rn 'await fetch(' src/llm --include='*.ts' | grep -v spec | wc -l → **0** ; 실 호출 지점은 gateway **191** 행 `const response = await this.fetchFn(request.url, {…})` **단일 1 곳** 이고 `fetchFn` 은 **90** 행 생성자 주입 (default `globalThis.fetch`) 이며 4 adapter 는 요청 조립 · 응답 파싱 **순수 함수** 다 (`openai-compatible.adapter.ts` **4 · 10** 행 주석이 "실 fetch 는 하지 않는다" 를 명시) ⇒ `외부 HTTPS REST API outbound` **참 (호출 지점 상이)** · `in-process method call` **참**.
+(v)   pointer + REQ 축 — $ grep -n '^### Decision §' docs/decisions/ADR-0003-deployment.md → **32** `§1` · **46** `§2` · **62** `§3` · **78** `§4 — 외부 네트워크 boundary = direct outbound from app process` (+ `## Alternatives considered` 하위 120 · 129 · 138 · 147 동명 4 절) ; $ sed -n '78,82p' → **80** 행 `Backend process 가 모든 외부 endpoint 에 직접 outbound … 내부 LLM proxy / custom OpenAI 호환 서버 … Azure OpenAI / Anthropic / Google / OpenAI 공개 API 둘 다 같은 process 에서 호출` ⇒ **`ADR-0003 §4 (direct egress)` 는 § 번호 · 주제 모두 참 · drift 0** (planner 가설 ④ 성립 — `§ 12.46` 이 잡은 `§1` 좌표 drift 와 대비된다). $ grep -n 'Phase P4\|LLM provider 추상화' docs/PLAN.md → **79** `## Phase P4 — External integrations` · **85** `- [x] **LLM provider 추상화** … (완료)` ⇒ `P4 LLM gateway task` **참**.
+      $ grep -n 'REQ-049\|REQ-05[1-5]' docs/requirements.md → **68** REQ-049 `Admin 이 LLM 모델 지정` · **70** REQ-051 `custom LLM (OpenAI 호환, 내부 서버, proxy, 3 model 슬롯)` · **71** REQ-052 `Azure OpenAI provider` · **72** REQ-053 `Anthropic provider` · **73** REQ-054 `Google Gemini provider` · **74** REQ-055 `OpenAI provider` ⇒ **6 ID 전부 실재** 하고 괄호 병기 문구 (`Admin LLM 모델 지정` · `5 provider`) 도 실 제목과 부합한다 (REQ-051 ~ 055 가 정확히 5 provider 와 1:1).
+      `§ 12.15` 강도 — $ sed -n '123p' … | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}|shipped|실측|현황|남은' | wc -l → **0** ⇒ 시점 marker **0 의 순수 blueprint 서술** 이라 무편집 근거는 append-only 방침보다 **1 ~ 4 행 문서 성격 선언 + 거짓 0** 쪽이다.
+(vi)  baseline — $ wc -l → components.md **217** · audit **4717** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175** · prisma/schema.prisma **666** ; $ grep -c '^## ' → components.md **7** · audit **12** ; audit $ grep -c '^| REQ-' → **66** · $ grep -c '^### 12\.' → **46** (AC 1 (vi) 기대 12 값 **전부 일치** — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+| 축 | claim (1 구) | 실측 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 책임 | `5 provider` 종수 + 5 이름 목록 | `enum LlmProvider` **20 ~ 26** 행 5 멤버 (`custom` · `azure_openai` · `anthropic` · `google_gemini` · `openai`) | 참 | 원문 보존 + 각주 부기 | enum 정의와 1:1 — 근거 좌표를 각주에 병기 |
+| 책임 | provider 종수 ↔ adapter 파일 수 (1:1 로 읽힐 여지) | `providers/*.adapter.ts` **4** 개 ; **180** 행 `else` 가 `custom` · `openai` → `openai-compatible` 공유 | 부분참 | 원문 보존 + 각주 부기 | row 가 종수만 말하고 **공유 구조를 감춰** 4 ↔ 5 불일치를 오인시킬 수 있다 |
+| 책임 | `단일 추상화 service` | `class .*Gateway` **1 hit** (`LlmHttpGateway`, **74** 행) | 참 | 원문 보존 + 각주 부기 | 구현 class 가 정확히 1 개 — 실측 좌표 병기 |
+| 책임 | `Admin 이 지정한 provider 별 model 식별자 라우팅` | `LlmProviderConfigResolver` **28** 행 + gateway **155 ~ 180** 행 분기 | 참 | 무편집 | Admin 저장 config → `modelId` 해석 → provider 분기 경로가 실재 |
+| 책임 | `평가 파이프라인은 본 gateway 만 호출` | 평가 2 디렉토리의 `llm/providers` import **0 hit** ; `LLM_GATEWAY` token 바인딩만 | 참 (근사) | 원문 보존 + 각주 부기 | grep 근사임을 각주에 1 구로 명시 |
+| contract | `in-process method call` | `assessment-evaluation.module.ts` **36 ~ 37** 행 DI 바인딩 | 참 | 무편집 | 동일 process 내 token 주입이라 서술 그대로 |
+| contract | `generate(prompt, modelId)` | 실 시그니처 `generate(prompt: string, options: LlmGenerateOptions)` (**74 ~ 77** 행) | 부분참 | 원문 보존 + 각주 부기 | 둘째 인자가 스칼라가 아니라 `modelId` + `difficulty?` **options 객체** 다 |
+| contract | `각 provider 의 외부 HTTPS REST API 로의 outbound` | `src/llm` 안 `await fetch(` **0 hit** ; 실 outbound 는 gateway **191** 행 `this.fetchFn` 단일 지점 | 참 (호출 지점 상이) | 원문 보존 + 각주 부기 | "각 provider 의" 가 adapter 별 호출로 읽히나 실제는 **gateway 1 지점 + 순수 함수 adapter** |
+| pointer | `ADR-0003 §4 (direct egress)` | **78** 행 `### Decision §4 — 외부 네트워크 boundary = direct outbound` · **80** 행이 LLM endpoint 직접 호출 명시 | 참 | 원문 보존 + 각주 부기 | § 번호 · 주제 drift **0** — `§ 12.46` 의 `§1` drift 와 대비되는 사실이라 병기 |
+| pointer | `P4 LLM gateway task` | PLAN **79** 행 P4 heading · **85** 행 `[x]` 완료 bullet | 참 | 원문 보존 + 각주 부기 | phase 좌표 · 완료 상태가 일치 |
+| REQ | REQ-049 · REQ-051 · REQ-052 · REQ-053 · REQ-054 · REQ-055 **6 개** + 괄호 병기 문구 | requirements.md **68 · 70 ~ 74** 행 실재 · 제목 부합 | 참 | 무편집 | **6 ID 판정이 전부 동일 (실재 + 부합)** 이라 AC 2 묶음 허용 조건대로 1 row 로 묶고 ID 를 전부 나열 |
+
+판정 기준 **3 축** — ① **문서 성격**: 1 ~ 4 행 blockquote 가 본 문서를 `P1 T-A3 의 산출물` (blueprint) 로 선언하고, 이 row 에는 shipped 현황 갱신 흔적 (시점 어휘) 이 **0** 이라 blueprint 원문 보존 근거가 강하다. ② **`§ 12.15` 정합**: 시점 marker **0 hit** 이라 append-only 충돌은 없고, 동시에 in-place 치환을 정당화할 "낡음" 도 실증되지 않는다 — 부분참 3 건은 **문서가 거짓** 이 아니라 **구조 (adapter 공유) · 시그니처 형태 · 호출 지점** 이 서술보다 한 겹 복잡한 경우다. ③ **선례**: T-1430 ~ T-1448 의 "원문 보존 + 실측 각주" 를 승계했다 — [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) 의 in-place 1:1 치환은 **거짓 어휘 1 개** 였던 경우, [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 의 혼합은 **거짓 다수** 였던 경우인데, 본 slice 는 **거짓 0 · 부분참 3** 이라 치환 대상이 공집합이다.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | row 셀 in-place 동기 (틀린 § 번호 · 낡은 서술 치환) | 기각 | `ADR-0003 §4` 는 drift **0** 이라 치환할 § 번호가 없고, `generate(prompt, modelId)` 를 실 시그니처로 바꾸면 blueprint 표가 **구현 시그니처 변경마다 따라다녀야** 해 유지비가 각주보다 크다 |
+| **(B)** | **원문 무편집 + T-1448 각주 blockquote 직후 각주 blockquote 1 개 신설** | **채택** | T-1437 ~ T-1448 화법을 그대로 잇고, 부분참 3 건 (adapter 공유 구조 · options 객체 시그니처 · outbound 단일 지점) 을 같은 화면에 병기해 오도 risk 만 제거하며 cap (+6 행 · 3 파일) 안이다 |
+| (C) | 혼합 (거짓 판정 지점만 in-place, 나머지는 각주) | 기각 | 거짓 판정이 **0** 이라 in-place 항이 공집합이고, 부분참 3 건은 (A) 기각 사유대로 치환 자체가 새 유지비를 만든다 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 이 row 는 LLM 계약의 유일한 요약이라 독자가 (a) provider 5 종에 adapter 파일이 5 개 있다고 오인해 없는 파일을 찾거나, (b) `generate(prompt, modelId)` 스칼라 시그니처로 코드를 작성해 컴파일 실패할 비용이 크다 |
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+채택안 (B) 대로 **components.md 원문 무편집** 이고, T-1448 각주 blockquote 마지막 행 (147) 과 `## GitHub Adapter …` heading 사이에 **각주 blockquote 1 개 (5 행)** 를 신설했다 — 첫 구에 **"본 각주는 `LLM Gateway` row 한정"** 을 명시하고 잔여 3 row (`GitHub Adapter` · `Confluence Adapter` · `Scheduler`) 가 미판정임을 함께 밝혔다. 문구의 파일 이름 · 시그니처 · 수치 (5 / 4 / 21 / 0) · 행 좌표 · ADR § 번호 · REQ ID 는 위 실측 출력과 1:1 이며 **새로 창작한 값은 없다**.
+
+무편집 경계 — **1 ~ 4 행 blockquote** · **119 ~ 122 행 4 row** · **123 행 `LLM Gateway` row 원문** · **124 ~ 126 행 잔여 3 row** · **128 ~ 147 행 T-1446 / T-1447 / T-1448 각주 3 블록** · **기존 149 행 이후 전 구간** 전부 무변경. 새 pointer 추가 **0** (본문 · `src/llm/**` · `ADR-0003` · `PLAN.md` · `requirements.md` 밖 문서를 표에 등재하지 않았다). apiKey · endpoint 실 URL · 토큰 값 인용 **0**.
+
+#### T-1448 Follow-up 1 split 집행 + Component table 잔여
+
+`§ 12.46` 의 FU1 (`3 adapter 묶음`) 은 본 절이 **예고된 split 의 첫 조각 (`LLM Gateway`)** 을 집행함으로써 **부분 소진** 되었고, 나머지 조각은 아래 (1) 로 이월한다. **Component table 잔여 미판정 row 는 3 개** — `GitHub Adapter` (124 행) · `Confluence Adapter` (125 행) · `Scheduler` (126 행). **다음 slice 1 순위 = `GitHub Adapter` + `Confluence Adapter` 2 row 묶음** 이며, 두 row 의 pointer 셀이 본 row 와 **동일한 `ADR-0003 §4 (direct egress)`** 라 본 절의 **참 · drift 0 판정을 그대로 승계** 할 수 있어 (재측정 불요) 2 row 를 한 slice 에 담아도 cap 안이다. `Scheduler` 는 `ADR-0003 §3` 축이라 후순위.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **Component table 잔여 3 row** — 다음 slice 1 순위는 `GitHub Adapter` + `Confluence Adapter` 2 row 묶음 (egress 축 = `ADR-0003 §4` 판정 승계 가능), `Scheduler` 는 후순위.
+2. **표 뒤 각주 blockquote 누적 배치 규약 재검토** (`§ 12.44` 한계 3) — 본 slice 로 **4 블록째** 이며 예고된 5 ~ 6 블록 임계가 **임박** 했다. row 별 anchor 이행 여부를 다음 slice 전에 결정하는 편이 낫다.
+3. `## Deployment 컨텍스트` (22 ~ 26 행 — "모든 8 component 는 동일 process" claim) — T-1445 FU1 차순위로 **4 회째 이월**.
+4. `## Component diagram` mermaid node ↔ 실 module 대조 — 미착수.
+5. **LLM provider 배포 config ADR 3 종 (`ADR-0014` · `ADR-0015` · `ADR-0045`) 이 `LLM Gateway` row 의 pointer 셀에 미등재** — 본 절이 실측한 사실이나 pointer 보강은 별도 slice 소관 (본 slice 는 새 pointer 추가 금지).
+6. `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3 미소진, ADR 게이트).
+7. reviewer 규약 미이행 (`.claude/agents/reviewer.md` REQ-032 **0 hit** — `§ 12.41` FU2 미소진).
+8. `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3 미소진).
+9. README 행 번호 pointer drift 전수 sweep.
+10. REQ 번호 체계 잔재 전수 sweep (`§ 12.38` FU3 미소진).
+11. `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3 미소진).
+12. UC-09 `§ 5` sequence participant 병기 — **32 회째 이월**.
+13. 정본 [modules.md](../architecture/modules.md) 카운트 claim 대조 (`§ 12.34` FU1 미소진, ADR 게이트).
+14. 행 번호 → anchor 좌표계 이행 — **26 회째 이월**.
+15. `§ 12.44` 미해결 한계 — "mutation 러너 26 개" 정의 미확정 (`pr` mode drift-guard spec 소관).
+16. `Scheduler` cron → 평가 pipeline 미결선 (`§ 12.45` FU15 — **코드 소관, `pr` task 로만 처리 가능**).
+17. `ADR-0003` 의 "단일 DB 인스턴스" 좌표 부재 (`§ 12.46` FU16 — ADR 소관 별도 task).
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 전부 **N/A** 다 (빌드 · 테스트 · 설치 명령을 실행하지 않았다).
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l docs/architecture/components.md → **223** (217 → +6, AC 4 상한 224 이내)
+$ wc -l docs/use-cases/REQ-COVERAGE-AUDIT.md → **4820** (4717 → +103, `§ 12.47` 절 자체는 **103 행** 으로 AC 5 상한 115 이내)
+$ wc -l prisma/schema.prisma → **666 불변** · deployment.md → **232 불변** · directory.md → **203 불변** · modules.md → **259 불변** · PLAN.md → **175 불변** · requirements.md → **97 불변**
+$ grep -c '^## ' docs/architecture/components.md → **7 불변** ; audit → **12 불변** ; audit $ grep -c '^| REQ-' → **66 불변** ; audit $ grep -c '^### 12\.' → **46 → 47**
+$ git diff -U0 -- docs/architecture/components.md | grep '^@@' → `@@ -148,0 +149,6 @@` **단일 hunk** ⇒ AC 4 허용 구간 (147 행 각주 뒤 · 149 행 heading 앞) 밖 hunk **0**
+$ git diff --numstat → `6  0  docs/architecture/components.md` ⇒ **삭제 0 (순수 추가)**
+$ git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md → **빈 출력**
+$ git status --porcelain → **3 파일** (components.md · REQ-COVERAGE-AUDIT.md · T-1449 task 파일)
+```
+
+#### 한계 — 본 절이 증명하지 못한 것
+
+1. **`평가 파이프라인은 본 gateway 만 호출` 은 grep 근사다** — `llm/providers` 문자열 import **0 hit** 로 판정했을 뿐, 동적 require · 재-export 경유 우회가 없다는 전수 증명은 §7 예산 밖이다.
+2. **`외부 HTTPS REST API` 의 실 프로토콜은 검증하지 않았다** — 실호출 금지 제약상 `endpointUrl` 이 실제 HTTPS 인지는 config 값 (런타임) 소관이라 코드로 가릴 수 없다.
+3. **`구체 provider API 차이 은닉` 의 실효는 미측정** — adapter 4 개가 요청 · 응답 형태를 흡수하는 것은 확인했으나 provider 별 오류 코드 · rate limit 차이까지 은닉되는지는 unit spec 통독이 필요해 범위 밖이다.
+4. **잔여 3 row 는 전부 미판정** — 본 각주도 표 뒤에 있어 3 row 를 덮는 것처럼 읽힐 여지가 있어 첫 구에 한정 선언을 뒀다. blockquote 는 이제 **4 블록** 이며 `§ 12.44` 한계 3 이 예고한 배치 규약 임계에 근접했다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
