@@ -2,7 +2,8 @@
 id: T-1446
 title: components.md `## Component table` **Web UI row** (119 행) 의 검증 가능 claim ↔ 실 `web/src/**` 컴포넌트 인벤토리 · `ADR-0040` / `ADR-0041` · `PLAN.md` 122 행 · task pointer 대조 + T-1445 Follow-up 1 계승 (Component table 축 진입) + audit §12.44
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-04T09:10:00Z
 commitMode: direct
 coversReq: [REQ-026, REQ-038, REQ-044]
 estimatedDiff: 200
