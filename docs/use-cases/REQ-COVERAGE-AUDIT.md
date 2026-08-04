@@ -5406,6 +5406,82 @@ row → 절 매핑 — `Web UI` **`§ 12.44`** (T-1446) · `Backend API` + `Work
 3. **호출 그래프 측정은 grep 근사다** — import · 생성자 주입 · 대표 호출 지점까지만 확인했고 런타임 call graph · 분기별 도달 가능성은 실행해 보지 않았다 (`pnpm test` 미실행 — Out of Scope).
 4. **(viii) 의 계수 규칙은 `§ 12.54` 와 다르다** — 본 절은 components.md 자기 좌표 토큰만 세고 외부 파일 (`.ts` · ADR · PLAN) 좌표는 제외해 ⓐ **21** · ⓑ **3** 을 얻었다. `§ 12.54` 의 ⓐ **33** · ⓑ **1** 과 절대값은 비교 불가이나 두 후보의 대소 관계 (ⓐ ≫ ⓑ) 는 동일하다.
 
+### 12.56 components.md `## Component diagram` mermaid **`%% Worker pipeline` edge 4 개** (80 ~ 83 행) ↔ 실 `src/` 호출 그래프 · `worker` node 외연 대조 — edge 3 참 · edge 1 부분참 확정 (T-1458)
+
+**위치 · 계보** — 본 절은 `§ 12.55` 파생 영향 **(1)** 이 **다음 대조 1 순위** 로 명시 지목한 `%% Worker pipeline` **4** edge (80 ~ 83 행) 를 닫는다. `§ 12.54` 가 세운 edge 그룹 split (**23** = user-facing 2 + orchestration 5 + scheduler 2 + worker pipeline 4 + db boundary 1 + external egress 9) 의 **3/6 그룹** 이며, `§ 12.55` 가 orchestration edge 70 ~ 72 를 **거짓** 으로 확정하면서 그 실 소비자를 전부 `worker` 소관 디렉토리로 귀속시킨 방증을 **반대편 결선의 정식 판정** 으로 승격시키는 축이다. node 축 (`§ 12.53`) · 표 row 본문 (`§ 12.44` ~ `§ 12.50`) · 나머지 edge 그룹 · `## Contracts` 표는 본 절의 판정 대상이 **아니다**.
+
+#### AC 1 실측 (명령 + 출력)
+
+- (i) `grep -n '^#\{1,3\} ' docs/architecture/components.md` → `1` `# Component view` · **5** `## 개요` · **22** `## Deployment 컨텍스트` · **28** `## Component diagram` · **115** `## Component table` · **199** `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` · **231** `## Contracts` · **257** `## References` (편집 전 기준). mermaid 블록 경계 · edge 그룹 주석은 `grep -n '^\s*%%'` 로 **30 ~ 106** 블록 안의 **64** (user-facing) · **68** (orchestration) · **75** (scheduler) · **79** (worker pipeline) · **85** (db boundary) · **88** (external egress) · **99** (styling) 이다. AC 의 예고 좌표와 **전부 일치 — stale 0**.
+- (ii) `grep -cE '^\s+[a-z_]+ -- ' docs/architecture/components.md` → **23**. 그룹별로 65 ~ 66 (**2**) · 69 ~ 73 (**5**) · 76 ~ 77 (**2**) · 80 ~ 83 (**4**) · 86 (**1**) · 89 ~ 97 (**9**) 라 `§ 12.54` 산출식 **여전히 성립**. **본 slice 대상은 `%% Worker pipeline` 4 개뿐** 이다.
+- (iii) `sed -n '79,83p'` → `%% Worker pipeline` / `worker -- "in-process method call" --> github_adapter` / `... --> confluence_adapter` / `... --> llm_gateway` / `worker -- "Prisma typed query" --> db_persistence`. 3 컬럼 분해 — **80**: `worker` · `github_adapter` · `in-process method call` / **81**: `worker` · `confluence_adapter` · 동일 label / **82**: `worker` · `llm_gateway` · 동일 label / **83**: `worker` · `db_persistence` · `Prisma typed query`.
+- (iv) **`worker` node 외연 정의** — `ls src` 의 디렉토리 중 `assessment-collection` · `assessment-evaluation` **2** 개가 pipeline 주체다. `grep -rln 'Orchestrator' src --include=*.service.ts | grep -v spec` → **9** 파일이 전부 그 두 디렉토리 안이다 (`collection-orchestrator.service.ts` · `evaluation-orchestrator.service.ts` · `summary-batch-orchestrator.service.ts` 등). components.md **194 ~ 197** 행 각주가 backend_api 외연을 `@Controller(` **20** 중 **13** 로 정의하며 그 여집합에 `assessment-*` **2** 를 `worker` 로 귀속시켰고, [modules.md](../architecture/modules.md) **201** 행 `Worker` row 의 **1:2 매핑** (`AssessmentCollectionModule` + `AssessmentEvaluationModule`) 과도 일치한다. 따라서 본 절은 **디렉토리 외연 = 이 2 개** 를 취한다 — 근거는 `§ 12.53` · `§ 12.55` 승계이며, modules.md **200** 행 `Backend API` row 가 같은 2 module 을 1:N 로 **중복 귀속** 시키는 상충의 해소는 파생 영향 (21) 소관이다 (본 절은 승계 · 명시까지만).
+- (v) **결선 실측** (4 명령, 주석 hit 과 실 코드 hit 을 분리해 셈)
+  - ⓐ `grep -rn 'GithubAdapter\|GithubInstanceClient' src --include=*.ts | grep -v spec | grep -v '^src/github/'` → **26** hit, 그중 실 코드 **4** 행 = `assessment-collection/github-collection.service.ts` **29** (`import { GithubInstanceClient } from "../github/github-instance-client.service"`) · **71** (`constructor(private readonly client: GithubInstanceClient) {}`) · `github-org-repo-enumerate.service.ts` **20** · **28**. 나머지 **22** 는 주석 (`app.module.ts` **35** · module 설명 · `src/confluence` mirror 주석). **전부 worker 외연 안**.
+  - ⓑ `grep -rn 'ConfluenceAdapter\|ConfluenceSpaceTraversalService' src --include=*.ts | grep -v spec | grep -v '^src/confluence/'` → **10** hit, 실 코드 **2** 행 = `assessment-collection/confluence-collection.service.ts` **37** (import) · **54** (`constructor(private readonly traversal: ConfluenceSpaceTraversalService) {}`). **전부 worker 외연 안**.
+  - ⓒ `grep -rn 'LLM_GATEWAY\|LlmHttpGateway' src --include=*.ts | grep -v spec | grep -v '^src/llm/'` → **30** hit, 실 코드 **8** 행 = `assessment-evaluation/assessment-evaluation.module.ts` **36 · 37 · 149 · 150** (`provide: LLM_GATEWAY` / `useExisting: LlmHttpGateway`) · `evaluation-scoring.service.ts` **27 · 56** (`@Inject(LLM_GATEWAY)`) · `summary-narrative.service.ts` **32 · 58**. 잔여는 주석이며 `src/github` **238** · `src/confluence` **294** 행 hit 도 주석 1 구다. **전부 worker 외연 안**.
+  - ⓓ `grep -rn 'PrismaService' src/assessment-collection src/assessment-evaluation --include=*.ts | grep -v spec` → **15** hit, 실 코드 **4** 행 = `assessment-evaluation/evaluation-result-persist.service.ts` **29** (import) · **90** (constructor) · `summary-persist.service.ts` **31** · **82**. import 는 **2/2 전부** `../persistence/prisma.service` 경유라 **우회 0** 이고, `new PrismaClient` **0** · `@prisma/client` **10** hit 은 **전부 `import type`** (타입 전용, 런타임 client 0) 이다. `src/assessment-collection/` 의 실 코드 hit 은 **0** 이며 `assessment-collection.module.ts` **34** 행이 "collection service 자체는 Prisma 의존 0" 을 명시하고, 영속은 `collection-persistence.service.ts` **50** 행이 주입하는 `src/user/contribution.service.ts` **70** 행 `ContributionService` 에 위임된다.
+- (vi) **label · ADR 승계 축** — `sed -n '111p'` → 화살표 label 의 `in-process method call` 은 NestJS DI container 안의 service 메서드 호출이라는 표기 규약 1 구다. `grep -n 'process' docs/decisions/ADR-0003-deployment.md | head` → **32** 행 `### Decision §1 — Monolithic NestJS process (in-process queue OK)` · **34** 행 "HTTP API / scheduler / 평가 파이프라인 / LLM gateway / GitHub & Confluence adapter 가 동일 process 안에서 동작한다". `grep -n 'Prisma typed query' docs/architecture/components.md` → **69** · **83** (mermaid) · **122** (표) · **239** · **249** (`## Contracts`) — 69 행과 83 행은 **문자 단위 동일**.
+- (vii) **중복 claim · 좌표 stale** — `grep -n '^| Worker '` → **246 · 247 · 248 · 249** 행 **4** 개로 edge **4** 개와 **1:1 대응** (GitHub Adapter / Confluence Adapter / LLM Gateway / DB Persistence 순서까지 동일). 판정은 하지 않는다 — 파생 영향 (3) 소관이다. `sed -n '161p'` → 각주가 실 heading 을 **194** 행으로 인용하나 (i) 실측은 **199** 행이라 **stale 확정** (T-1457 각주 +5 행 drift 의 미반영분 — `§ 12.55` 파생 영향 (14) 가 예고한 신규 stale 후보가 실증됐다).
+- (viii) **삽입 파급** (계수 규칙은 `§ 12.55` (viii) 승계 — components.md **자기 좌표 토큰만** 세고 `.ts` · ADR · PLAN 등 외부 파일 좌표는 제외) — ⓐ `## Component diagram` 절 안 (mermaid 블록 **106** 행 직후) 삽입 시 밀리는 자기 좌표 **36** 지점, ⓑ 각주군 말미 (**197** 행 뒤) 삽입 시 **1** 지점 (**197** 행의 `**239 ~ 243**`). ⓐ ≫ ⓑ 의 대소 관계는 `§ 12.51` ~ `§ 12.55` 와 동일하다.
+- (ix) **baseline** — `wc -l` components.md **267** · audit **5422** · ADR-0003 **173** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175**. `grep -c '^## '` components.md **7** · audit **12**, audit `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **55**, components.md `grep -c '^> '` **65**. 전부 AC 예고값과 일치.
+
+#### AC 2 판정표
+
+| 축 | 실측 근거 (행) | 판정 | 근거 1 구 |
+| --- | --- | --- | --- |
+| ① `worker --> github_adapter` (**80** 행) | (v) ⓐ — 실 코드 **4** 행 (`github-collection.service.ts` **29 · 71** · `github-org-repo-enumerate.service.ts` **20 · 28**) | **참** | worker 외연 안에서 `GithubInstanceClient` 를 생성자 주입하는 지점이 **2 service** 로 실재한다 (주입 대상은 adapter 본체가 아니라 같은 `src/github/` 의 얇은 wrapper — node 소속은 동일). |
+| ② `worker --> confluence_adapter` (**81** 행) | (v) ⓑ — 실 코드 **2** 행 (`confluence-collection.service.ts` **37 · 54**) | **참** | `ConfluenceSpaceTraversalService` 생성자 주입 **1 service** 가 실재 — ① 과 같은 wrapper 경유 패턴이다. |
+| ③ `worker --> llm_gateway` (**82** 행) | (v) ⓒ — 실 코드 **8** 행 (`assessment-evaluation.module.ts` **36 · 37 · 149 · 150** 외) | **참** | `LLM_GATEWAY` token → `LlmHttpGateway` useExisting 바인딩 위에서 **2 service** 가 `@Inject` 주입 — `§ 12.47` 각주 (**155** 행) 의 "평가 파이프라인이 본 gateway 만 호출" 과도 정합. |
+| ④ `worker --> db_persistence` (**83** 행) | (v) ⓓ — 실 코드 **4** 행 (evaluation 계열) · collection 계열 **0** · 우회 **0** (`new PrismaClient` **0**, `@prisma/client` **10** 전부 `import type`) | **부분참** | evaluation 절반만 `PrismaService` 를 직접 주입하고 (import **2/2** 가 `../persistence/` 경유), collection 절반은 Prisma 의존 **0** 이라 `src/user/` `ContributionService` 를 경유하는 **간접 경로** 다 — worker 외연의 절반에서만 직접 결선이 성립한다. |
+| ⑤ label `in-process method call` (**80 ~ 82** 행 공유) | (vi) — components.md **111** 행 · ADR-0003 **32 · 34** 행 | **참 (승계)** | 표기 규약과 `Decision §1` 을 그대로 승계하며 `§ 12.55` 가 70 ~ 73 행에 내린 판정과 동일 — **결선 실재 여부와 별개 축** 이다. |
+| ⑥ label `Prisma typed query` (**83** 행) 의 69 행 근거 승계 | (vi) — `grep` 결과 **69 · 83** 문자 단위 동일 / (v) ⓓ | **부분참** | 문자열 동일은 참이나, `§ 12.55` 가 69 행에 세운 "디렉토리군 **26** 파일 전수 `../persistence` 경유 · 우회 0" 근거는 evaluation 계열 **4** 행에만 승계되고 collection 계열은 hit **0** 이라 승계 대상 자체가 없다. |
+
+**판정은 (iv) 의 디렉토리 외연 위에서만 유효** 하다. [modules.md](../architecture/modules.md) **200** 행의 계층형 1:N 매핑 (`Backend API` 가 `AssessmentCollectionModule` + `AssessmentEvaluationModule` 을 포함) 을 취하면 **① ~ ③ 은 그대로 참이되 `§ 12.55` 가 거짓으로 확정한 orchestration edge 70 ~ 72 가 되살아나** 두 외연이 정면 충돌한다 — `§ 12.55` 한계 2 를 승계하며 해소는 파생 영향 (21) 소관이다. 나머지 edge 그룹 · node 축 (`§ 12.53`) · 표 row 본문 (`§ 12.44` ~ `§ 12.50`) · orchestration edge 5 (`§ 12.55`) 는 재판정하지 않았다.
+
+#### AC 3 처리 방식 판정표
+
+| 후보 | ① append-only (`§ 12.15`) | ② 좌표 drift ((viii)) | ③ cap | ④ 탐색성 | 판정 |
+| --- | --- | --- | --- | --- | --- |
+| (A) 현행 유지 + 무편집 | 정합 | **0** | 통과 | **낮음** — 부분참 축 **2** 개 (④ · ⑥) 와 **161** 행 stale 이 문서에 그대로 남아 독자가 audit 절을 따로 찾아야 한다 | **기각** |
+| (B) 각주군 말미 append + stale 숫자 치환 ≤ 2 지점 | 정합 (순수 append) | **1** | 통과 (+6 행 · 3 파일) | **높음** — 다이어그램과 같은 파일 안, 기존 각주 11 블록과 같은 위치 | **채택** |
+| (C) `## Component diagram` 절 안 삽입 + 좌표 전수 정정 | 정합 | **36** | **초과** — 정정 지점이 AC 4 한도 (**≤ 2**) 의 18 배 | 높음 | **기각** |
+| (D) mermaid edge · label in-place 수정 | **위반** — 원문 판정 문장을 덮어써 append-only 를 깬다 | 해당 없음 | 해당 없음 | 해당 없음 | **기각** |
+
+- (A) 기각 근거 — AC 2 축 ① ~ ④ 에 `거짓` 은 없어 **자동 기각 조건에는 걸리지 않았다**. 그러나 ④ · ⑥ 이 부분참이고 (vii) 이 **161** 행 stale 을 실증했으므로 축 ④ (탐색성) 를 함께 재어 무편집을 기각한다 — 부분참을 명시하지 않으면 "worker 전체가 DB 에 직접 결선" 이라는 오도가 남는다.
+- (C) 기각 근거 — (viii) ⓐ **36** 지점이 AC 4 의 정정 한도 (≤ 2 지점) 를 크게 넘어 cap 축에서 자동 기각. split 제안은 파생 영향 (22) 에 기록한다.
+- (D) 기각 근거 — `§ 12.15` append-only 축에서 **먼저** 기각된다. **mermaid edge 를 지우거나 방향을 뒤집거나 label 을 고쳐 쓰는 선택지는 채택하지 않으며**, 다이어그램 구조 변경은 본 doc-audit stream 밖이라 처리는 **각주 병기** 로만 한다. **코드를 고쳐 미결선을 만드는 처리도 금지** — 파생 영향 (17) 의 `pr` task 소관이다.
+
+#### AC 4 반영 결과 + 무편집 경계
+
+- (B) 대로 마지막 각주 블록 뒤 · `## GitHub Adapter …` heading 직전에 blockquote **5** 행 + 앞 빈 줄 **1** 행 = **+6** 행 삽입 (267 → **273**, AC 한도 274 이내). 신규 blockquote 는 (iv) 외연 정의 · ① ~ ③ 참 · ④ 부분참 · ⑤ · ⑥ label 축 · `## Contracts` 대응 row 좌표를 담는다.
+- in-place 정정 **2 지점** (숫자 치환만, 문장 재작성 0) — **161** 행 `**194** 행` → `**205** 행` ((vii) stale + 본 삽입 +6 반영), **197** 행 `**239 ~ 243** 행` → `**245 ~ 249** 행` ((viii) ⓑ 가 센 1 지점).
+- **재-drift 6 회째 재현** — 편집 후 `grep -n '^## ' docs/architecture/components.md` 재측정 결과 `## GitHub Adapter …` **199 → 205** · `## Contracts` **231 → 237** · `## References` **257 → 263** 으로 밀렸다. `§ 12.51` (175 → 180) · `§ 12.52` (180 → 184) · `§ 12.53` (184 → 189) · `§ 12.54` (189 → 194) · `§ 12.55` (194 → 199) 에 이어 **6 회 연속 재현** 이며, 이번에는 밀린 좌표를 인용한 **161** 행 stale 이 실제 결함으로 관측됐다 — 파생 영향 (14) anchor 이행의 근거가 1 건 더 쌓였다.
+- **무편집 경계 준수** — mermaid 블록 (30 ~ 106) · `다이어그램 표기` bullet (108 ~ 113) · 표 본체 (117 ~ 126) · 1 ~ 4 행 blockquote · `## 개요` 각주 (16 ~ 20) · 안내 blockquote (128 ~ 131) · 각주 11 블록의 판정 문장 · `## Contracts` 표 전 구간 무편집. 허용 in-place 는 stale 숫자 치환 **2** 지점뿐이며 secret · token · 실 credential 은 옮겨 적지 않았다 (§9).
+
+#### AC 6 불변 검산
+
+- `wc -l` → components.md **267 → 273** (+6, 한도 274 이내) · audit **5422 → 5498** (+76, 100 이내) · **ADR-0003 173 불변** · **requirements.md 97 불변** · **deployment.md 232 불변** · **directory.md 203 불변** · **modules.md 259 불변** · **PLAN.md 175 불변**.
+- `git diff -U0 -- docs/architecture/components.md | grep '^@@'` → `@@ -161 +161 @@` · `@@ -197 +197,7 @@` **2 hunk** — 둘 다 AC 4 허용 (stale 숫자 치환 · 각주군 말미 append) 이라 **허용 구간 밖 hunk 0**.
+- `git diff --numstat` → `8 2 docs/architecture/components.md` — 삭제 **2** 행은 **161** · **197** 행 stale 숫자 치환의 짝 (같은 행 재출력) 이라 **순수 삭제 0**.
+- `git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md docs/architecture/modules.md` → **빈 출력**. 전체 `git status --porcelain` → **3 파일** (components.md · 본 audit · task 파일).
+- `grep -c '^## '` audit **12 불변** · `grep -c '^| REQ-'` **66 불변** · `grep -c '^### 12\.'` **55 → 56** · components.md `grep -c '^## '` **7 불변** · `grep -c '^> '` **65 → 70**.
+
+#### R-110 / R-112 면제 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 모두 **N/A** 다 (측정은 전부 read-only `grep` · `sed` · `ls` · `wc` · `git`).
+
+#### 파생 영향 (목록만 — 본 slice 편집 금지)
+
+(1) **나머지 edge 그룹 대조 3 건** — `%% User-facing flow` **2** · `%% DB persistence boundary` **1** · `%% External egress` **9** ((ii) 재확인). **다음 대조 1 순위는 `%% External egress` 9 개 (89 ~ 97 행)** — 남은 3 그룹 중 유일하게 다수 edge 를 가지며 adapter · gateway 의 실 outbound 지점이 `§ 12.48` (fetchFn 단일 지점) 으로 이미 부분 실측돼 있어 판정 비용 대비 회수가 크다. / (2) `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` 본문 ↔ 코드 대조 (`§ 12.48` FU4). / (3) **`## Contracts` 표 ↔ 실 계약 표면 대조** — 본 절 (vii) 이 `Worker` from row **4** 개 좌표를 보태 `§ 12.55` 의 `Backend API` from row **5** 개와 합쳐 **9** 개 좌표 확보. / (4) row pointer 셀 보강 2 건 (`Scheduler` = `ADR-0042` 미등재 `§ 12.50` FU2 · `Confluence Adapter` `§ 12.49` FU2). / (5) LLM · GitHub adapter ADR pointer 미등재 (`§ 12.47` FU5 · `§ 12.48` FU3). / (6) `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트). / (7) reviewer 규약 미이행 (`§ 12.41` FU2). / (8) `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3). / (9) README 행 번호 pointer drift 전수 sweep. / (10) REQ 번호 체계 잔재 sweep (`§ 12.38` FU3). / (11) `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3). / (12) UC-09 `§ 5` sequence participant 병기 (**45 회째 이월**). / (13) modules.md 카운트 claim 대조 (`§ 12.34` FU1, ADR 게이트). / (14) **행 번호 → anchor 좌표계 이행** (**39 회째 이월** — 본 절 AC 4 의 재-drift **6 회째** 재현과 (vii) 의 **161** 행 stale 실증이 근거를 1 건 더 보탰다). / (15) 각주 heading 참조 anchor 이행 축소 scope (`§ 12.51` FU19 미소진). / (16) `§ 12.44` 한계 "mutation 러너 26 개" 정의 미확정. / (17) **`Scheduler` cron → 평가 pipeline 미결선** (`§ 12.50` FU18 · `§ 12.54` 재확인 — **코드 소관, `pr` task 로만**). / (18) `ADR-0003` "단일 DB 인스턴스" 좌표 부재 (`§ 12.46` FU16). / (19) `Web UI` node 의 process subgraph 소속 표기 (`§ 12.53` FU19 미소진). / (20) `Backend API` node 외연 정의의 문서 미박제 (`§ 12.55` FU20 — 본 절이 `worker` 외연 (**2 디렉토리**) 까지 추가했으므로 **두 외연을 한 곳에 함께 박제** 하는 편이 낫다). / (21) modules.md **200** 행 1:N 매핑 ↔ 디렉토리 외연 상충 해소 (`§ 12.55` FU21 — 본 절 AC 2 말미가 "계층형을 취하면 orchestration edge 70 ~ 72 가 되살아난다" 는 정면 충돌을 실증해 근거를 보탰다). / (22) **(C) 후보 split 제안** — `## Component diagram` 절 안 각주 배치를 원하면 (viii) ⓐ **36** 지점 정정을 별도 slice 로 쪼개야 하며, 이는 (14) anchor 이행이 선행되면 자연 소멸한다. / (23) **`worker --> backend_api` 미표기 결선** — (v) ⓓ 가 실증한 collection → `src/user/` `ContributionService` 경유 영속 경로는 다이어그램에 대응 edge 가 없다 (역방향 **73** 행은 `§ 12.55` 가 거짓 확정). 신규 edge 추가 여부는 다이어그램 구조 변경이라 별도 판단이 필요하다.
+
+#### 한계
+
+1. **worker pipeline edge 4 개만 닫았다** — 나머지 **12** edge (user-facing 2 · db boundary 1 · external egress 9) 의 결선 · label 판정은 파생 영향 (1) 소관이다.
+2. **④ · ⑥ 의 판정은 외연 정의에 의존한다** — (iv) 의 디렉토리 기준에서 부분참이며, modules.md **200** 행 계층형 매핑을 취하면 collection 의 `ContributionService` 경유가 같은 component 내부 호출이 되어 **참** 으로 뒤집힌다. 본 절은 두 외연의 우열을 판정하지 않았다 — 파생 영향 (21).
+3. **호출 그래프 측정은 grep 근사다** — import · 생성자 주입 · DI 바인딩 지점까지만 확인했고 런타임 call graph · 분기별 도달 가능성은 실행해 보지 않았다 (`pnpm test` 미실행 — Out of Scope).
+4. **주석 / 실 코드 분리는 수동 판독이다** — (v) 의 hit 수 (26 · 10 · 30 · 15) 중 실 코드 행 (4 · 2 · 8 · 4) 은 `import` · `constructor` · `provide:` 패턴을 눈으로 가려낸 결과라 자동 검증되지 않았다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
