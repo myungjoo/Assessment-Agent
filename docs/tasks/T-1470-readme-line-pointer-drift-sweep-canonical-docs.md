@@ -2,7 +2,7 @@
 id: T-1470
 title: README 행 번호 pointer drift 전수 census + 정본 2 파일 (CLAUDE.md · docs/requirements.md) pointer ↔ 실 README 행 대조 — `§ 12.67` 파생 영향 (1) 집행 (components.md 종료 후 첫 pointer 축) + audit §12.68
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 200
