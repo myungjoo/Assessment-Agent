@@ -95,3 +95,9 @@
 
 - planner 는 P 단위 phase 진입 시 본 표를 grep 하여 해당 phase 에 매핑된 REQ row 중 `PLANNED` 상태로 남은 것이 있는지 확인. 있으면 task 생성 후보로.
 - reviewer 의 8 check (1) "주어진 주제 해결" 점검 시 PR 의 task frontmatter `coversReq` 가 본 표의 REQ 와 일치하는지 검증.
+
+> **T-1470 (`§ 12.68`) pointer 판정 각주 — 본 파일 소관 README 행 번호 pointer 요약.** 본 파일이 담은 README pointer 는 **산문 13 지점 + 매핑 표 `README 행` 컬럼 66 지점 = 79** 이며, 그중 **산문 13 지점을 전수 판정** 했다 (표 컬럼 66 은 census · 구조 검사까지만 — 어구 대조는 다음 batch 이월).
+> 판정 결과는 **참 11 · 부분참 2 · 거짓 0** 이다. 부분참 2 는 모두 **범위 표기의 끝 좌표** 에서 났다 — **20 행** 의 `136~139 행` (끝 139 는 빈 줄이고 인용 어구 `pnpm install` 은 **140** 행) 과 **39 행** 의 `19~22 행` (주제가 맞는 행은 **20** 단독이고 19 · 22 는 빈 줄).
+> 표 컬럼 66 값은 구조 검사를 통과했다 — 전부 **1 ≤ N ≤ 151** 범위 안이고 REQ-001 → REQ-066 순으로 **엄격 증가** 한다 (spot-check 6 건 전량 대응).
+> **본 각주는 append-only 기록이며 REQ 본문 · REQ ID · 기존 pointer 표기를 정정하지 않는다** ([REQ-COVERAGE-AUDIT.md](use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.15`). 어긋난 pointer 2 건은 **pointer 정정 batch** 후보로만 이월한다.
+> 상세 판정표 · 전수 census (**126** 지점 / **11** 파일) · 표기 변종 **10** 종은 [REQ-COVERAGE-AUDIT.md](use-cases/REQ-COVERAGE-AUDIT.md) **`§ 12.68`** (T-1470) 에 있다.

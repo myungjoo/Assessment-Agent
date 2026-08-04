@@ -71,6 +71,19 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 `implementer` 단독 (doc-only). 코드 변경 0 이므로 `tester` 불요 (CLAUDE.md §3.2 direct doc-only 면제).
 
+## 결과 (executor 기록)
+
+- **AC 1 ~ AC 7 전량 충족**. 산출물: [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) **`§ 12.68`** 신설 (`## 11. References` 직전 · **64 행** = 상한 100 이내) + [requirements.md](../requirements.md) 파일 말미 각주 blockquote **5 행** (append-only).
+- **census 실측** — README 행 번호 pointer **raw token 63 / 11 파일** (정규식 1 개), 중복 · 연속 토큰 보정 후 **distinct 126 지점** (산문 60 + `requirements.md` 표 컬럼 66). planner 사전 census (**57 지점 / 18 파일**) 는 파일 수 과대 (`UC-04` · `LOOP.md` 실측 pointer 0) · 지점 수 과소 (`CLAUDE.md` 7~8 → **13**, `requirements.md` 12 → 산문 **13** + 표 **66**) 로 **양방향 정정**. `wc -l` README **151** (기대 일치) · `CLAUDE.md` **465** · `requirements.md` **97** · audit **6276**.
+- **판정** — 정본 2 파일 산문 pointer **26 지점 전수** = **참 24 · 부분참 2 · 거짓 0** (대조 좌표 34). 부분참 2 는 모두 **범위 표기의 끝 좌표** — `requirements.md:20` 의 `136~139` (139 = 빈 줄, `pnpm install` 은 140 행) · `requirements.md:39` 의 `19~22` (주제 일치는 20 단독, 19 · 22 는 빈 줄). 단일 좌표 20 지점은 어긋남 **0**.
+- **축 ⑧ 확정** — 표기 **10 변종** 이며 census 정규식 포착률 **24/92 = 26.1%**, 미포착 68 은 전부 README 앵커가 같은 토큰에 없는 형태 (연속 토큰 2 · 표 컬럼 66) → **단일 정규식 전수 포착 불가**.
+- **교차 검증** — 2+ 파일이 같은 좌표를 인용한 지점 **10**, 그중 다른 의미 인용 **2** (README **128** = 범위 끝 ↔ 8 번째 check 본문 / **19~22** = 자기 주장 ↔ 옛 번호 잔재 인용), 의미 상충으로 동시 참 불가한 지점 **0**.
+- **stale 2 지점** — 본 task Required Reading 이 기재한 `CLAUDE.md` pointer 행 **127 · 188** 이 실측 (127 에 pointer 없음 · 188 이 아니라 **186**) 과 어긋나 T-1462 ~ T-1469 의 **10 회 연속 stale 0 기록이 중단**. 삽입 파급은 **0 지점** (말미 append + References 직전 삽입).
+- **무편집 검산** — `git status --short` 에 `CLAUDE.md` · `README.md` · `.claude/agents/reviewer.md` **부재**. `git diff --stat` **3 파일** · doc-only 라 `pnpm` 실행 **0** ([CLAUDE.md](../../CLAUDE.md) §3.2 면제). `grep -c '^## '` requirements.md **4 불변** · audit fence **164** (짝수).
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **pointer 정정 batch (신설 후보)** — 본 slice 가 확정한 부분참 **2** 건의 in-place 정정: `docs/requirements.md` **20 행** `136~139 행` → `136~140 행`, **39 행** `19~22 행` → `20 행`. `§ 12.15` append-only 때문에 본 slice 는 정정하지 않았다.
+- **본 task 파일 Required Reading 좌표 stale 2** — `CLAUDE.md` pointer 행 기재값 **127 · 188** 은 실측 **149 · 186** 계열의 오기다 (실측 전체: 114 · 147 · 149 · 151 · 156 · 160 · 171 · 176 · 184 · 186 · 221 · 251 · 355). 완료된 task 파일이라 본 항목 기록까지만 하고 frontmatter · 본문 좌표는 고치지 않는다.
+- **`CLAUDE.md` §1 pointer 부정확 (`§ 12.67` FU11) 의 대상 축소** — 본 slice 가 §3.2 · §3.3 · §4 · §10 의 README pointer **13/13 참** 을 확인했으므로, FU11 의 잔여 대상은 **§1 (기술 스택 표) 의 비-README pointer** 로 좁혀진다.
+- **다음 batch 지목** — ADR 군 일괄 (6 파일 **27** token = 잔여 산문 34 의 **79.4%**) 이 1 순위, `requirements.md` 표 컬럼 **66** 지점 전수 어구 대조 (33 × 2 분할) 가 2 순위. 상세는 `§ 12.68` AC 6 참조.
