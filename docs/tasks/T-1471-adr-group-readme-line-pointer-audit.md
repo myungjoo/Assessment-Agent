@@ -2,12 +2,13 @@
 id: T-1471
 title: ADR 군 6 파일 (ADR-0001 · 0002 · 0003 · 0004 · 0005 · 0042) 의 README 행 번호 pointer 27 지점 ↔ 실 README 행 대조 — `§ 12.68` 파생 영향 (1) 안 B 집행 + audit §12.69
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 180
 estimatedFiles: 2
 created: 2026-08-04
+completedAt: 2026-08-04T22:47:00Z
 independentStream: uc-doc-audit-resync
 dependsOn: [T-1470]
 touchesFiles:
@@ -73,3 +74,12 @@ planner 사전 census — **아래는 전부 가설이며 전제가 아니다** 
 - **ADR 각주 append 의 commit mode 미규정** — [CLAUDE.md](../../CLAUDE.md) §3.1 표는 `docs/decisions/*` **추가** 를 `pr`, ADR **status 한 줄 갱신** 을 `direct` 로만 규정하고 **기존 ADR 본문에 판정 각주를 append** 하는 경우의 mode 를 규정하지 않는다. 본 slice 는 그래서 6 ADR 을 무편집 판정 대상으로만 다뤘다 — mode 판정 후 각주 반영 여부를 정하는 별도 task 후보.
 - **pointer 정정 batch 후보 누적 13 건** — `§ 12.68` 2 건 (`136~139` → `136~140` · `19~22` → `20`) + 본 slice 11 건 (범위 끝 · 시작이 절 경계를 벗어난 부분참). `§ 12.15` append-only 라 in-place 정정은 **0** 이며 별도 batch 소관.
 - **planner 사전 census 축 ① 반증** — raw token 은 기대 (27 / 6 파일) 와 정확히 일치했으나 수동 보정 후 **41 지점** 이고 밀도 1 위도 `ADR-0002` 가 아니라 `ADR-0003` (11) 이다. 축 ② (대조 좌표 35) 도 **59** 로 반증, 축 ③ (부분참율 상관) 은 **확인**, 축 ④ (`19~22` 재판정) 은 `§ 12.68` 과 동일 판정으로 **상충 없음**.
+
+## Result (2026-08-04T22:47:00Z)
+
+- **DONE** — direct commit `8d4e5844` (main). 2 파일 +84/-1.
+- `docs/use-cases/REQ-COVERAGE-AUDIT.md` 에 `### 12.69` **81 행** 신설 (절 ≤ 100 행 관행 유지).
+- ADR 6 파일 README 행 pointer **41 지점** 전수 판정 — **참 30 · 부분참 11 · 거짓 0**, stale 0 · 삽입 파급 0. 대조 좌표 59 · 포함 관계 17 · 공유 좌표 10.
+- planner 사전 census **27 → 41 정정** (raw token 27 은 일치했으나 수동 보정 후 41), 밀도 1 위도 `ADR-0002` 가 아닌 `ADR-0003` (11) 로 반증. 축 ③ (범위 비중 ↔ 부분참율) 은 범위 비중 43.9% ↔ 부분참율 26.8% 로 **확인**.
+- ADR 6 파일 · `README.md` · `CLAUDE.md` · `docs/requirements.md` **무편집** (판정 대상으로만 사용).
+- 다음 slice 지목: `docs/requirements.md` 표 컬럼 전반 **33** (잔여 73 의 90.4% 를 차지하는 표 컬럼 66 의 전반) → [T-1472](T-1472-requirements-table-column-pointer-audit-first-33.md).
