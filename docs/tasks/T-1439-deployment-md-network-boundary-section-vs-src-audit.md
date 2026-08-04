@@ -2,7 +2,8 @@
 id: T-1439
 title: deployment.md `## 외부 네트워크 boundary` 전반부 (151 ~ 180 행 — 도입 문단 · `### 접근 대상 목록` · `### 지원 LLM 환경` · `### TLS / 사내 인증서 처리`) 의 검증 가능 claim ↔ 실 `src/github/` · `src/confluence/` · `src/llm/` · `deploy/` 대조 + T-1438 Follow-up 1 계승 + audit §12.37
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-04T02:49:52Z
 commitMode: direct
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-016]
 estimatedDiff: 200
