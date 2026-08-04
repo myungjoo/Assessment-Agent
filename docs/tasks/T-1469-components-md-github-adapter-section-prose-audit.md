@@ -2,7 +2,7 @@
 id: T-1469
 title: components.md `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` 절 (233 ~ 263 행) 산문 ↔ 실 `src/github` 구조 · config · env · pointer 대조 — `§ 12.66` 파생 영향 (1) 집행 (components.md 마지막 미판정 산문 축) + audit §12.67
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 230
