@@ -2,7 +2,7 @@
 id: T-1460
 title: components.md `## Component diagram` mermaid **`%% External egress` llm_gateway 계열 edge 5 개** (93 ~ 97 행) ↔ 실 `src/llm/providers` outbound 지점 · API key 헤더 대조 — `§ 12.57` 파생 영향 (1) 집행 + egress 그룹 마감 + audit §12.58
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 220
@@ -108,6 +108,14 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 `implementer` 단독 (doc-only, 코드 0 LOC — architect · tester 불요. §3.2 direct-mode 면제).
 
+## 결과 (2026-08-05 완료)
+
+- **AC 2 판정** — `%% External egress` 의 `llm_gateway` 계열 edge **5** 개 (93 ~ 97 행) 가 **전수 부분참**. 실 outbound 는 `src/llm/providers` 의 provider adapter **4** 종이고, mermaid 가 그리는 `llm_gateway` 는 그 앞단 seam **1** 지점으로 수렴한다 (edge **5** : adapter **4** : seam **1** 불일치). API key 헤더는 provider 별 **4 종** 이 label 에 은닉돼 있다.
+- **AC 3 채택 = (B)** (각주군 말미 append + stale 좌표 숫자 치환). 나머지 3 안은 기각.
+- **AC 4 반영** — components.md **280 → 287** (각주 blockquote 6 행 신설 + 빈 줄 1 행), in-place 정정 **4 지점**. task 파일 예상치 `≤ 3 지점` 을 1 초과했고 (T-1459 각주가 자기참조 좌표 1 개를 새로 보탬) 그 편차 사유를 `§ 12.58` AC 4 반영 결과 · 한계 6 에 박제했다.
+- **AC 5 ~ 9** — audit `§ 12.58` 순수 append (**5574 → 5652**, 본문 77 행), 불변 검산 통과, 파생 영향 **24** 항목 박제. mermaid 본체 · 표 본체 · Contracts 표는 무편집. 변경 파일 **2** · **+89/-4** · direct push `15ea89cf` · main CI **success**.
+- **그룹 마감** — 본 slice 로 `%% External egress` **9/9** 판정 완료 (edge 축 6 그룹 중 **5 번째 그룹 마감**). 잔여는 `%% User-facing flow` **2** (65 ~ 66 행) · `%% DB persistence boundary` **1** (86 행) 뿐.
+
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+- `§ 12.58` 파생 영향 (1) ~ (24) 목록 참조 — 다음 대조 1 순위는 `%% User-facing flow` **2** 개 (65 ~ 66 행) 로 [T-1461](T-1461-components-md-user-facing-flow-edges-vs-web-frontend-audit.md) 이 승계한다.
