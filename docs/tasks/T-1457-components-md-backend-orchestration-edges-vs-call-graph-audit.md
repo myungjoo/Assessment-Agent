@@ -2,7 +2,7 @@
 id: T-1457
 title: components.md `## Component diagram` mermaid **`%% Backend orchestration` edge 5 개** (69 ~ 73 행) ↔ 실 `src/**` 호출 그래프 · `Backend API` node 외연 대조 — `§ 12.54` 파생 영향 (1) 집행 2/6 + audit §12.55
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 220
@@ -107,3 +107,13 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 `implementer` 단독 (doc-only, 코드 0 LOC — architect · tester 불요. §3.2 direct-mode 면제).
 
 ## Follow-ups
+
+- 후속 slice 목록은 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.55` 파생 영향 **(1) ~ (21)** 에 있다. 다음 대조 1 순위는 **`%% Worker pipeline` edge 4 개 (80 ~ 83 행)** 이며, 본 slice 가 새로 세운 항목은 (20) `Backend API` node 외연 정의의 문서 미박제 · (21) modules.md **200** 행 1:N 매핑 ↔ 디렉토리 외연 상충 해소다.
+
+---
+
+**Status: DONE** (2026-08-04)
+
+- **결과** — orchestration edge **5** 개 중 `backend_api --> db_persistence` (69 행) **참**, `--> llm_gateway` (70) · `--> github_adapter` (71) · `--> confluence_adapter` (72) · `--> worker` (73) **4 개 모두 거짓**, label `in-process method call` 의 규약 · `ADR-0003 §1` 승계는 **참** 으로 확정. 판정 기준인 `backend_api` node 외연은 `@Controller(` **20** 개 중 자기 node 보유 디렉토리 (`scheduling` 3 · `assessment-*` 2 · `llm` 2) 를 뺀 **13** 개로 정의했다.
+- **처리** — AC 3 에서 (B) 각주군 말미 append 채택 (좌표 drift ⓐ **21** vs ⓑ **3**). components.md 에 blockquote **4** 행 신설 (+5 행) + **192** 행 stale 좌표 `234 · 235` → `244 · 245` 치환 **1 지점**, audit `§ 12.55` **70** 행 순수 append.
+- **재-drift 5 회째 재현** — 본 삽입으로 `## GitHub Adapter …` heading 이 **194 → 199** 로 밀려 **161** 행 인용이 새로 stale 이 됐다 (파생 영향 (14) 근거).
