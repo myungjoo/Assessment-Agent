@@ -2,7 +2,9 @@
 id: T-1443
 title: deployment.md `## DB / Persistence` 후반부 (40 ~ 55 행 — `### Backup / restore 전략` · `### Raw data 저장 금지 (REQ-032)` · `### 후속 진행`) 의 검증 가능 claim ↔ 실 `prisma/schema.prisma` · `deploy/README.md` · `docs/ops/runbook.md` · `.claude/agents/reviewer.md` · README 대조 + T-1442 Follow-up 1 계승 + audit §12.41
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-04T06:52:00Z
+resultSummary: "deployment.md `## DB / Persistence` 후반부 검증 가능 claim 13 개 대조 (참 7 · 부분참 3 · 거짓 3). 원문 무편집 + 54 행 뒤 각주 1 블록 6 행 append, audit `§ 12.41` 신설 (106 행). 3 파일 +117/-1, direct push 01a8d14f."
 commitMode: direct
 coversReq: [REQ-029, REQ-032, REQ-043]
 estimatedDiff: 200
