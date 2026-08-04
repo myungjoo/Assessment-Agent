@@ -3501,6 +3501,112 @@ $ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1
 1. **planner 기대가 실측에 뒤집힌 사례** — 기대 ② (Scheduler 미shipped) 는 dependency 등재 · `forRoot()` · manual trigger 로 반증됐다. 기대를 그대로 믿고 "미shipped" 를 in-place 로 박았다면 **문서가 코드보다 낡은 게 아니라 틀린 상태** 가 됐을 것이며, AC 1 의 "기대와 다르면 그 축 편집 중단" 규정이 실제로 작동한 지점이다. 다만 `@Cron` **0** 의 의미 (선언형 cron job 이 실제로 도는가) 는 `## Scheduler 위치` 단락 소관이라 본 절은 bullet 의 기반 shipped 여부까지만 판정했다.
 2. **각주가 본문 화법을 고치지는 않는다** — 65 행은 여전히 무조건형이라 각주를 건너뛴 독자에겐 오도가 남는다. blueprint 보존과 오도 제거의 trade-off 를 보존 쪽으로 택한 결과이며, 본문 화법 자체의 정정은 ADR-0040 / T-0399 계보를 건드리는 별도 판단이다.
 
+### 12.36 deployment.md `## Scheduler 위치` 단락 ↔ 실 `src/scheduling/` · `src/app.module.ts` · `prisma/schema.prisma` 대조 — 원문 보존 + 각주 1 블록 (T-1438)
+
+> **본 절의 위치** — `§ 12.35` 가 deployment.md `## 배포 토폴로지` 를 닫으면서 파생 영향 **5** 로 남긴 "잔여 미대조 5 단락, 그중 `## Scheduler 위치` 가 다음 slice 1 순위" ([T-1437](../tasks/T-1437-deployment-md-topology-section-vs-src-audit.md) Follow-up 1) 를 본 절이 닫는다. **계보** — `T-1430` ~ `T-1435` (directory.md 6 축) → `T-1436` (산문 단락 축) → `T-1437` (deployment.md `## 배포 토폴로지` 축) → **`T-1438` (본 절 — `## Scheduler 위치` 축 + `@Cron` **0** 의 의미 판정 closure)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이며 상위 slice 가 박제한 지점에는 `승계` 가 더해진다. cap 준수를 위해 아래 실측 인용은 **요약형** 이다 (명령 + 핵심 출력만).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' deployment.md → 107 `## Scheduler 위치` · 113 · 126 · 138 · 142 (하위 4 절) · 146 `## 외부 네트워크 boundary` ⇒ 실 단락 **107 ~ 145 행** (task 좌표 일치, stale 아님).
+      $ sed -n '107,145p' … → heading(107) + ADR pointer(109) + 채택 선언(111) + `### cron 주기 설정 흐름 (REQ-039)`(113) + code-block(115~122) + 산문(124) + `### Manual trigger 흐름 (REQ-040)`(126) + code-block(128~134) + 산문(136) + `### 동시 실행 방지`(138) + 본문(140) + `### 후속 task 책임`(142) + 본문(144).
+      claim 이분 — **검증 가능 13** (pointer 실재 · route · 심볼 실재 · registry 메서드 · 영속 model · dependency · shipped 여부) · **검증 불가 6** (116 · 129 "Admin UI (…)" 진입점 화법 · 121 "다음 trigger 부터 새 주기" · 133 "평가 파이프라인 진입" · 136 "thin wrapper" 설계 평가 · 140 · 144 의 phase 책임 배분 — 형태 무관 범주).
+(ii)  route 축 — $ grep -n "@Controller\|@Get\|@Post\|@Patch\|@Delete" src/scheduling/cron-schedule.controller.ts → 70 `@Controller("api/schedules")` / 90 `@Get()` / 120 `@Delete(":name")` / 140 `@Post("trigger")` (+ 107 `@Put()` — 위 패턴 밖이라 sed 로 재확인).
+      ⇒ 117 행 `PATCH /admin/schedule` 은 경로 (`/admin/schedule` vs `/api/schedules`) · method (PATCH vs PUT) **두 축 모두 거짓**, 130 행 `POST /admin/evaluation/trigger` 은 method 일치 · 경로 어긋남 ⇒ **부분참** (실 `POST /api/schedules/trigger`).
+(iii) 심볼 축 — $ grep -n "export class\|^  [a-zA-Z]\+(" cron-schedule.service.ts cron-schedule.controller.ts → service 44 `CronScheduleService` / 50 `registerOrReplace(` · 80 `remove(` · 88 `list(` · 94 `exists(` ; controller 78 `CronScheduleController` / 93 `list(` · 107 `upsert(` · 124 `remove(` (+ 147 `trigger(` — async 라 패턴 밖).
+      $ grep -rn "class EvaluationOrchestrator" src → evaluation-orchestrator.service.ts:85 `EvaluationOrchestratorService` ; $ grep -rn "runFullAssessment\|updateCron\|triggerNow" src → **0 hit** ⇒ 문서의 3 심볼 (`ScheduleService.updateCron` · `EvaluationController.triggerNow` · `EvaluationOrchestrator.runFullAssessment`) **실재 0** — 유사 심볼로 임의 치환하지 않고 실 명칭만 인용한다.
+(iv)  영속화 축 — $ grep -n '^model ' prisma/schema.prisma → **15 model** (Person · Group · Part · PersonGroupMembership · User · UserInstanceAccess · ServiceIdentity · Assessment · Contribution · Summary · LlmProviderConfig · DifficultyMapping · PermissionDeniedRecord · ExportJob · ImportJob) ; $ grep -in "cron\|schedule" prisma/schema.prisma → **0 hit** ⇒ cron 설정 영속 대상 **0**.
+      $ grep -rn "SchedulerRegistry" cron-schedule.service.ts → 17 import · 45 주입 · 68 `deleteCronJob(name)` · 73 `new CronJob(...)` · 74 `addCronJob(name, job)` · 89 · 95 `getCronJobs()` ⇒ 등록은 **in-memory registry 전용** 이라 124 행 "process restart 후에도 복원" 은 **미shipped**. 120 행의 두 registry 메서드는 68 · 74 행과 **일치 (참)**.
+(v)   dependency / 시점 축 — $ grep -n "@nestjs/schedule" package.json → 31 `"@nestjs/schedule": "^4.1.2"` ; $ grep -n "ScheduleModule" src/app.module.ts → 14 import · **75 `ScheduleModule.forRoot()`** (주석 8 · 49 행 = T-0412 · ADR-0042 §Decision 2).
+      $ grep -rn "@Cron(" src | grep -v spec → **0 hit** ⇒ `§ 12.35` 실측 (선언형 0 · 등록은 registry 동적형) 과 **일치 확인** (T-1437 Follow-up 1 의 직접 답) ; $ grep -n "addInterval\|addTimeout" cron-schedule.service.ts → **0 hit** ⇒ 111 행 "cron + interval + timeout 을 모두 처리" 는 부분참 (shipped 는 cron 등록뿐) ; $ grep -rln "cron" web/src → `components/SchedulePanel.tsx` 등 **9 파일** ⇒ 144 행이 P7 로 미룬 3 항목이 모두 shipped.
+(vi)  동시 실행 방지 축 — $ grep -rn "RUNNING\|mutex\|isRunning" src/scheduling src/assessment-evaluation | grep -v spec → **0 hit** ⇒ 140 행 미shipped (실재 여부 기록까지만 — 구현 설계 제안 없음).
+(vii) pointer 축 — $ ls ADR-0003-deployment.md ADR-0042-nestjs-schedule-adoption.md T-0412-nestjs-schedule-module-wiring.md → 3 개 전부 실재 (pointer 유효까지만, ADR 본문 재판정 없음).
+(viii) baseline — wc -l deployment.md **192** · audit **3517** · directory.md **203** · modules.md **259** ; grep -c '^## ' deployment.md **6** · audit **12** ; audit grep -c '^| REQ-' **66** · grep -c '^### 12\.' **35** (기대 8 값 전부 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+판정 3 축 — ① **문서 성격**: 1 ~ 4 행 blockquote 가 "본 문서는 P1 T-A2 의 산출물" 을 선언하고 본 단락은 [T-0015](../tasks/T-0015-adr-0003-deployment-rest.md) 가 [ADR-0003](../decisions/ADR-0003-deployment.md) §3 으로 채운 **P1 blueprint 원본** 이다 — `§ 12.35` 단락과 달리 사후 doc-sync (T-0399 류) 가 섞이지 않아 보존 강도가 균질하게 높다. ② **`§ 12.15` 정합**: 단락 내 `grep -n "시점\|T-0\|P5\|P6\|P7"` **3 hit 는 전부 phase 책임 배정** (124 P7 · 140 P5 · 144 P7) 이고 날짜 stamp 는 0 이라 **시점 marker 0** — append-only 가 in-place 를 절대 금지하지는 않으나 blueprint 선언이 보존 쪽 가중치를 준다. ③ **선례**: 수치 축이면 [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) 의 in-place, 서술 축이면 T-1430 ~ T-1435 · T-1437 의 각주, 혼합은 [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 인데 본 단락은 **수치 claim 0 · 명칭/서술 축 전부** 라 각주 계열에 든다.
+
+**code-block 내부 claim 의 별도 판정** — 117 ~ 121 · 129 ~ 133 행은 코드블록 안이라 [T-1430](../tasks/T-1430-directory-md-module-coordinate-resync.md) 의 ASCII tree **무편집** 선례를 **승계** 한다. 논증 1 구: 두 code-block 은 개별 심볼의 나열이 아니라 **flow 도식 한 덩어리** 라 어긋난 행만 실 명칭으로 치환하면 남은 행 (119 행 DB row 갱신 — 미shipped) 과 시제가 섞여 도식이 반은 현행 · 반은 계획인 잡종이 된다. 따라서 각주로만 처리한다.
+
+| 지점 (행) | claim (1 구) | 실측 결과 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 109 | ADR-0003 §3 이 본 결정의 박제처 | 파일 실재 | 참 | 무편집 | 실측 (vii), 본문 재판정 없음 |
+| 111 | 채택 = `@nestjs/schedule` in-process | dep 31 행 + `forRoot()` 75 행 | 참 | 각주에 근거 부기 | 실측 (v) |
+| 111 | cron + interval + timeout 을 모두 처리 | `addInterval` · `addTimeout` **0 hit** | 부분참 | 원문 보존 + 각주 부기 | shipped 는 cron 등록뿐 |
+| 117 | `HTTP PATCH /admin/schedule` | `api/schedules` + `@Put()` (107 행) | 거짓 | 원문 보존 + 각주 부기 | 코드블록 내부 (T-1430 승계) |
+| 118 | `ScheduleService.updateCron(newSpec)` | 실재 **0 hit** | 거짓 | 원문 보존 + 각주 부기 | 실 `CronScheduleService.registerOrReplace` |
+| 119 | DB 의 schedule 설정 row 갱신 | 영속 model **0** | 거짓 (미shipped) | 원문 보존 + 각주 부기 | blueprint 미래 서술로 성립 여지 |
+| 120 | `deleteCronJob` + `addCronJob` 재등록 | service 68 · 74 행 | 참 | 무편집 + 각주 근거 | 실측 (iv) |
+| 124 | cron 식이 DB 저장돼 restart 후 복원 | registry 전용 · 영속 대상 0 | 거짓 (미shipped) | 원문 보존 + 각주 부기 | 119 행과 같은 축 |
+| 130 | `HTTP POST /admin/evaluation/trigger` | 실 `POST /api/schedules/trigger` | 부분참 | 원문 보존 + 각주 부기 | method 일치 · 경로 어긋남 |
+| 131 | `EvaluationController.triggerNow()` | 실재 **0 hit** | 거짓 | 원문 보존 + 각주 부기 | 실 `CronScheduleController.trigger` |
+| 132 · 136 | `EvaluationOrchestrator.runFullAssessment()` 를 cron · manual 이 공유 | 클래스는 `…Service`, 메서드 **0 hit** | 거짓 | 원문 보존 + 각주 부기 | 코드블록(132) 과 산문(136) 이 같은 심볼의 짝 |
+| 140 | in-process mutex 또는 `status=RUNNING` 검사 | **0 hit** | 거짓 (미shipped) | 무편집 + 각주 부기 | P5 책임 명시라 미래 서술 |
+| 144 | 도입 3 항목이 P7 phase 책임 | 3 항목 모두 shipped | 거짓 (시점 낡음) | 원문 보존 + 각주 부기 | dep · `forRoot()` · `SchedulePanel.tsx` |
+
+- 합계 — 검증 가능 **13 = 참 3 · 부분참 2 · 거짓 8**, 검증 불가 6 은 대상 제외. 거짓 8 의 내역은 **미shipped 3** (119 · 124 · 140) · **명칭/route 어긋남 4** (117 · 118 · 131 · 132·136) · **시점 낡음 1** (144) 이다.
+- **미shipped 축과 명칭 어긋남 축의 분리 판정** — 전자는 blueprint 가 "아직 안 만든 것" 을 미래형으로 적은 것이라 문서 자체는 성격상 성립하고 (140 행은 `P5 phase 의 task 책임` 을 명시까지 한다), 후자는 **shipped 코드가 이미 다른 이름으로 존재** 하는 어긋남이라 오독이 곧 오작동으로 이어진다 — 성격이 다르다. 그럼에도 처리가 갈리지 않고 둘 다 `원문 보존 + 각주` 로 수렴한 이유는 명칭 어긋남 6 지점 중 5 가 code-block 안이고 밖의 1 (136 행) 은 132 행과 같은 심볼의 짝이라, 한쪽만 in-place 로 고치면 **문서 내부 불일치** 가 새로 생기기 때문이다. 판정 컬럼에서는 두 축을 구분해 남긴다.
+- **144 행의 시점 낡음** 은 셋 중 어디에도 속하지 않는 제 3 유형 — `§ 12.35` 가 `## 배포 토폴로지` 에서 만난 "planner 기대가 뒤집힌" 축의 연장선이며, 문서가 코드보다 **뒤처진** (앞선 게 아니라) 유일한 지점이다.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | 전 지점 in-place 동기 (route · 심볼을 실 명칭으로 치환) | 기각 | 치환 지점이 ≥ 8 로 AC 4 의 `≤ 3 지점` 상한을 넘고, 119 행 미shipped 축은 치환할 실 명칭 자체가 없어 창작 금지와 충돌 |
+| **(B)** | **단락 원문 무편집 + 단락 말미 각주 blockquote 1 블록 신설** | **채택** | code-block 무편집 선례 (T-1430) 를 승계하면서 실 route · 실 심볼을 같은 화면에 병기해 오도 risk 만 제거 |
+| (C) | 혼합 (코드블록 밖 산문만 in-place, 코드블록은 각주) | 기각 | 코드블록 밖 대상이 136 · 144 둘뿐인데 136 은 132 행의 짝이라 단독 치환 시 문서 내부 불일치가 생겨 혼합의 이득이 0 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 운영자가 audit 를 안 읽으면 문서의 `PATCH /admin/schedule` 을 그대로 호출해 404 를 만난다 — 연결 지시 문서에서 가장 비싼 실패 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: 시점 marker **0** 이라 append-only 가 in-place 를 절대 금지하지는 않지만, 본 단락이 손대지 않은 P1 blueprint 원본이라 보존 가중치가 `§ 12.35` 보다도 크다. ② **운영 오도 risk**: 본 단락의 두 code-block 은 "무엇을 호출하면 평가가 돈다" 를 지시하는 서술이라, 117 · 130 행을 그대로 따르면 실제로 **404** 가 난다 (실 진입점은 `PUT /api/schedules` · `POST /api/schedules/trigger`) — `§ 12.35` 의 조건부 mount 오도보다 한 단계 비싸므로 (D) 는 성립하지 않고, (B) 가 실 route 를 같은 화면에 놓아 risk 를 해소한다. ③ **cap**: (B) 의 실측 diff 는 deployment.md `+5/-0` (192 → **197**, 허용 `≤ 197`) · 파일 **3 고정** 이라 300 LOC · 5 파일 상한 안이다. (A) 는 상한 초과라 자동 기각이며 split 을 하더라도 blueprint flow 도식의 재작성 판단이 남아 **ADR 게이트 성격** 이므로 doc slice 로 쪼개는 것 자체가 부적절하다. ④ **선례 일관성**: 명칭 · 서술 축 단독이라 T-1430 ~ T-1435 · T-1437 의 각주 계열을 그대로 잇고, T-1436 의 혼합 (수치 축이 있을 때의 규칙) 과도 모순이 없다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (4 행)** — 144 행 (`### 후속 task 책임` 말미 = 단락 최말미) 뒤에 append. 내용은 ① 111 · 120 행의 **참** 근거 (dep 31 행 · `forRoot()` 75 행 · service 68 · 74 행) 와 `@Cron` **0** · registry 동적형, ② 두 flow 의 **실 route · 실 심볼 병기** (`api/schedules` · `@Put()` · `@Post("trigger")` · `CronScheduleService.registerOrReplace` · `CronScheduleController.trigger` · `EvaluationOrchestratorService`), ③ **미shipped 축** (영속 model 0 · mutex 0 hit) 과 144 행이 P7 로 미룬 3 항목의 **shipped** 사실, ④ 검증 불가 / 대상외 제외 선언 + 본 절 pointer.
+- **각주 위치를 단락 최말미로 잡은 이유** — 각주 대상 claim 이 4 하위 절 **전체** 에 흩어져 있어 어느 하위 절 말미에 두어도 나머지를 앞지르고, 최말미는 두 code-block 을 읽은 독자가 6 행 안에 만나며 `## 외부 네트워크 boundary` 로 넘어가기 직전이라 단락 경계와도 맞는다 (`§ 12.35` 는 대상이 한 하위 절에 모여 있어 그 절 말미를 택했다 — 규칙은 "대상 claim 의 최소 공통 구간 말미" 로 같다).
+- **문구 1:1 + 무편집 경계** — 각주의 수치 · 경로 · 심볼명 (`31` · `75` · `68` · `74` · `107` · `140` · `api/schedules` · `SchedulePanel.tsx`) 은 전부 위 실측 출력 그대로이고 **실측되지 않은 동작 (실제 cron default 주기 값, 미구현 mutex 의 설계, 영속 model 의 형태) 은 창작하지 않았다**. 1 ~ 4 행 blockquote · 107 ~ 144 행 원문 · `## 개요` · `## DB / Persistence` · `## 배포 토폴로지` · `## Secret / 자격증명 저장` · `## 외부 네트워크 boundary` 전 구간은 그대로다. **새 pointer 도 추가하지 않았다** — ADR-0042 · T-0412 는 본문에 미등재이므로 audit 쪽에만 기록했고, 각주가 더한 링크는 본 절 1 개뿐이다 (T-1435 ~ T-1437 각주와 같은 규약).
+
+#### T-1437 Follow-up 1 (`@Cron` 0 의 의미 판정) closure 선언
+
+`§ 12.35` 실측 (ii) 가 잡은 `@Cron(` **0 hit** 의 의미는 — 실측 (iv) · (v) 로 **"선언형 cron job 이 0 인 것은 미구현이 아니라 설계 그대로"** 로 판정된다. `src/scheduling/cron-schedule.service.ts` 가 `SchedulerRegistry.addCronJob` / `deleteCronJob` 으로 **런타임 동적 등록** 을 수행하고 (68 · 74 행), 그것이 곧 deployment.md 120 행이 적은 flow 이기 때문이다. 다만 그 등록은 **in-memory 전용** 이라 119 · 124 행이 전제한 **DB 영속 · restart 복원은 아직 없다** — 즉 `@Cron` 0 은 "빌드타임 고정 주기를 쓰지 않는다" 는 뜻이고, 그 대가로 **process restart 시 등록된 cron 이 전부 사라진다** 는 운영 사실이 따라붙는다. 본 절의 각주가 이 두 사실을 deployment.md 에 박제해 Follow-up 1 을 **closure** 한다.
+
+#### 대조 대상 문서 잔여 갱신
+
+`§ 12.35` 가 선언한 deployment.md **잔여 미대조 5** 는 본 절이 `## Scheduler 위치` 1 개를 닫아 **잔여 4** 가 된다 — `## 외부 네트워크 boundary` · `## Secret / 자격증명 저장` · `## DB / Persistence` · `## 개요`. 우선순위는 아래 파생 영향 1 에 둔다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **deployment.md 잔여 미대조 단락 4** — 다음 slice 1 순위는 `## 외부 네트워크 boundary` (접근 대상 목록 · TLS · REQ-020 권한 부족 흐름이 실 `src/github/` · `src/confluence/` · `PermissionDeniedRecord` model 과 대조 가능해 검증 가능 claim 밀도가 가장 높다), 이어 `## Secret / 자격증명 저장` · `## DB / Persistence` · `## 개요`.
+2. **UC-01 `§ 5` 의 cron / manual trigger 서술 ↔ 본 절 실측 route 정합** — 미대조. 같은 `PATCH /admin/schedule` 계열 표기가 UC 쪽에도 있으면 본 절 판정을 승계해야 한다.
+3. **UC-09 `§ 5` sequence participant 병기** — 20 회째 이월.
+4. **정본 [modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 단락 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (정본 편집은 ADR 게이트, **259 행 불변**).
+5. **행 번호 → anchor 좌표계 이행** — 14 회째 이월. 본 절의 각주 5 행 삽입으로 `## 외부 네트워크 boundary` 가 146 → **151** 행으로 밀려 후속 task 좌표가 다시 낡는다.
+6. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관. 본 절이 인용한 `15 model` · `9 파일` 은 model / 컴포넌트 1 개 추가로 즉시 낡는다.
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → deployment.md **197** (192 → +5, 허용 ≤ 197) · audit **3623** (3517 → +106 = 절 105 + 구분 공백 1, 허용 +115 이내) ·
+  directory.md **203** (불변) · modules.md **259** (불변)
+$ grep -c '^## ' → deployment.md **6** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **36** (35 → 36)
+$ git diff -U0 -- docs/architecture/deployment.md | grep '^@@' → `@@ -145,0 +146,5 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (단락 최말미 각주) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/deployment.md → `5  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ prisma/ web/ package.json → (빈 출력 — 코드 무변경)
+$ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1438-*.md  (**3 파일**)
+```
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` coverage 게이트가 모두 **N/A** 다 (본 절 측정 명령은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 `pnpm build` · `pnpm test` 는 실행하지 않았다).
+
+#### 한계 —
+
+1. **각주가 본문의 거짓 route 를 지우지는 않는다** — 117 · 130 행은 여전히 `/admin/…` 이라 각주를 건너뛴 독자에겐 오도가 남는다. blueprint 원본 보존과 오도 제거의 trade-off 를 보존 쪽으로 택한 결과이며 (`§ 12.35` 한계 2 와 같은 구조), flow 도식 자체의 정정은 ADR-0003 §3 ↔ ADR-0042 계보의 재정렬을 요구하는 별도 판단이다.
+2. **본 절은 route 를 api.md endpoint 표와 대조하지 않았다** — 실 `api/schedules` 4 endpoint 가 [api.md](../architecture/api.md) 에 어떻게 적혀 있는지는 out of scope 라 미판정이며, deployment.md 축만 닫았다. 세 문서 (deployment · api · UC-01) 의 route 표기가 서로 어긋날 가능성은 파생 영향 2 로 남는다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source

@@ -143,6 +143,11 @@ cron 과 manual 이 같은 service 메서드 (`EvaluationOrchestrator.runFullAss
 
 `@nestjs/schedule` 의 실제 도입 (`pnpm add` + ScheduleModule import) / SchedulerRegistry 의 dynamic cron 등록 코드 / Admin UI 의 cron 편집 컴포넌트는 모두 **P7 phase 의 도입 task 책임**.
 
+> **`## Scheduler 위치` 4 하위 절 ↔ 실 `src/scheduling/` · `prisma/schema.prisma` 대조 (T-1438 실측 각주)** — 기반 채택 (111 행) 은 **참** 이다 (`package.json` 31 행 `"@nestjs/schedule": "^4.1.2"` + `src/app.module.ts` 75 행 `ScheduleModule.forRoot()`). 다만 shipped 는 cron 등록뿐이고 (`addInterval` · `addTimeout` **0 hit**), 등록은 선언형 `@Cron` **0** · `SchedulerRegistry` 동적형이라 120 행의 `deleteCronJob` + `addCronJob` 은 실 `src/scheduling/cron-schedule.service.ts` 68 · 74 행과 **일치** 한다.
+> **두 flow 의 route · 심볼은 실 구현과 어긋난다** — 실 route 는 `@Controller("api/schedules")` 아래 `@Put()` (107 행) · `@Post("trigger")` (140 행) 이라 117 행 `PATCH /admin/schedule` 은 경로 · method 두 축 모두, 130 행 `POST /admin/evaluation/trigger` 는 경로 축이 어긋난다. 118 · 131 · 132 · 136 행의 `ScheduleService.updateCron` · `EvaluationController.triggerNow` · `EvaluationOrchestrator.runFullAssessment` 는 **실재 0 hit** 이다 (실 명칭은 `CronScheduleService.registerOrReplace` · `CronScheduleController.trigger` · `EvaluationOrchestratorService`).
+> **미shipped 축** — cron 설정 영속 model 은 `prisma/schema.prisma` 15 model 중 **0** 이라 119 · 124 행의 DB 저장 · restart 복원은 아직 blueprint 이고 (현 등록은 in-memory registry 전용), 140 행의 mutex / `status=RUNNING` 검사도 **0 hit** 다. 반대로 144 행이 P7 로 미룬 3 항목 중 `pnpm add` + `ScheduleModule` import · dynamic 등록 코드 · Admin UI cron 편집 (`web/src/components/SchedulePanel.tsx`) 은 **이미 shipped** 다.
+> 본 각주는 **사실 기록** 이지 단락 재작성이 아니다 — Admin UI 진입점 서술 · thin wrapper 설계 의도 · phase 책임 배분은 형태 무관 · 검증 불가라 판정에서 뺐다 (판정 근거는 [REQ-COVERAGE-AUDIT § 12.36](../use-cases/REQ-COVERAGE-AUDIT.md)).
+
 ## 외부 네트워크 boundary
 
 본 단락의 결정은 [ADR-0003 §4 — direct outbound from app process](../decisions/ADR-0003-deployment.md) 에서 박제했다.

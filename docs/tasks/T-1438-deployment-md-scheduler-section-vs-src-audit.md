@@ -43,7 +43,7 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 ## Acceptance Criteria
 
-- [ ] **AC 1 — 실측 선행 (날조 금지)**: 편집 전에 다음을 직접 측정해 `§ 12.36` 에 **명령과 출력을 함께** 인용한다. 기대값과 **다르면 그 축의 편집을 중단** 하고 불성립 사실을 `§ 12.36` 에 기록한다 (Why 의 ① ~ ⑤ 는 가설일 뿐이다).
+- [x] **AC 1 — 실측 선행 (날조 금지)**: 편집 전에 다음을 직접 측정해 `§ 12.36` 에 **명령과 출력을 함께** 인용한다. 기대값과 **다르면 그 축의 편집을 중단** 하고 불성립 사실을 `§ 12.36` 에 기록한다 (Why 의 ① ~ ⑤ 는 가설일 뿐이다).
   - (i) **단락 원문 전수 + 좌표 재확인**: `grep -n '^#\{1,3\} ' docs/architecture/deployment.md` 로 heading 좌표를 **먼저 실측** 한 뒤 (본 AC 의 `107 ~ 145 행` 도 stale 일 수 있다 — T-1436 · T-1437 선례) 해당 범위를 `sed -n` 으로 인용한다. 이어 **실측으로 참·거짓을 가릴 수 있는 claim** (route · 클래스/메서드 명칭 · dependency 등재 · 영속 model 존재 · shipped 여부) 만 뽑아 열거하고, 순수 설계 의도 · 후속 책임 배분 서술은 **검증 불가 claim** 으로 분류해 판정 대상에서 제외한다. 이 이분 자체를 남긴다.
   - (ii) **route 축 (117 · 130 행)**: `grep -n "@Controller\|@Get\|@Post\|@Patch\|@Delete" src/scheduling/cron-schedule.controller.ts` 1 회로 실 route 를 인용하고 문서의 `PATCH /admin/schedule` · `POST /admin/evaluation/trigger` 와 **경로 prefix · HTTP method 두 축** 으로 대조한다. 판정은 `참 / 부분참 / 거짓` 중 하나.
   - (iii) **심볼 축 (118 · 131 · 132 · 136 행)**: `grep -n "export class\|^  [a-zA-Z]\+(" src/scheduling/cron-schedule.service.ts src/scheduling/cron-schedule.controller.ts` + `grep -rn "class EvaluationOrchestrator" src --include='*.ts' | grep -v spec` + `grep -rn "runFullAssessment" src --include='*.ts' | head` 로 — `ScheduleService.updateCron` · `EvaluationController.triggerNow` · `EvaluationOrchestrator.runFullAssessment` 3 심볼의 **실재 여부** 를 판정한다. hit 0 이면 "실재 0" 을 그대로 기록한다 (유사 심볼로 임의 치환 금지 — 실측된 실 명칭만 인용).
@@ -52,24 +52,24 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
   - (vi) **동시 실행 방지 축 (140 행)**: `grep -rn "RUNNING\|mutex\|isRunning" src/scheduling src/assessment-evaluation --include='*.ts' | grep -v spec | head` 1 회로 in-process mutex 또는 `status=RUNNING` 검사의 실재 여부만 확인한다. **구현 설계 제안 금지** — 실재 여부 기록까지만.
   - (vii) **pointer 유효성 축**: `ls docs/decisions/ADR-0003-deployment.md docs/decisions/ADR-0042-*.md docs/tasks/T-0412-*.md 2>&1` 로 단락 · 코드 주석이 인용한 근거 파일 실재를 확인한다. **ADR 본문 재판정은 하지 않는다** (파일 존재 = pointer 유효까지만).
   - (viii) baseline — `wc -l` deployment.md **192** · audit **3517** · directory.md **203** · modules.md **259**, `grep -c '^## '` deployment.md **6** · audit **12**, audit `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **35**.
-- [ ] **AC 2 — 지점 판정표**: AC 1 이 뽑은 **검증 가능 claim** 각각에 대해 `in-place 수정` / `원문 보존 + 각주 부기` / `무편집` / `상위 slice 판정 승계` 중 하나를 판정한 표를 만든다. 각 row 는 **지점 (행) · claim 1 구 · 실측 결과 · 판정 (참 / 부분참 / 거짓) · 처리 · 근거 1 구** 6 컬럼.
+- [x] **AC 2 — 지점 판정표**: AC 1 이 뽑은 **검증 가능 claim** 각각에 대해 `in-place 수정` / `원문 보존 + 각주 부기` / `무편집` / `상위 slice 판정 승계` 중 하나를 판정한 표를 만든다. 각 row 는 **지점 (행) · claim 1 구 · 실측 결과 · 판정 (참 / 부분참 / 거짓) · 처리 · 근거 1 구** 6 컬럼.
   - 판정 기준 **3 축** 명시 — ① **문서 성격** (1 ~ 4 행 blockquote 의 P1 T-A2 blueprint 선언에 `§ 12.15` append-only 제약이 어느 강도로 걸리는가), ② `§ 12.15` **정합** (본 단락에 시점 marker 가 있는지 실측 grep 으로 근거를 둔다), ③ **선례** (T-1430 ~ T-1435 · T-1437 의 "원문 보존 + 실측 각주" vs [T-1429](T-1429-api-md-module-vocab-and-uc-range-resync.md) 의 in-place 1:1 치환 vs [T-1436](T-1436-directory-md-web-frontend-section-vs-src-audit.md) 의 혼합 채택).
   - **code-block 내부 claim 의 처리를 별도 판정** 한다 — 117 ~ 121 행 · 129 ~ 133 행은 코드블록 안이라 [T-1430](T-1430-directory-md-module-coordinate-resync.md) 이 ASCII tree 코드블록을 **무편집** 으로 판정한 선례가 걸린다. 그 선례를 승계할지 여부를 **1 구로 논증** 한다 (승계 시 각주로만 처리).
   - **미shipped 축 (영속화 · 동시 실행 방지) 과 명칭 어긋남 축 (route · 심볼) 의 처리를 분리 판정** 한다 — 전자는 blueprint 의 미래 서술로 성립할 여지가 있고, 후자는 **shipped 코드가 이미 다른 이름으로 존재** 하는 어긋남이라 성격이 다르다. 한 slice 안에서 처리가 갈려도 무방하나 그 이유를 반드시 1 구로 적는다.
-- [ ] **AC 3 — 처리 방식 판정**: 후보 4 개 중 **채택 1 · 기각 3** 인 판정표를 만든다. 기각마다 근거 1 구.
+- [x] **AC 3 — 처리 방식 판정**: 후보 4 개 중 **채택 1 · 기각 3** 인 판정표를 만든다. 기각마다 근거 1 구.
   - 후보 — (A) **전 지점 in-place 동기** (route · 심볼을 실 명칭으로 치환), (B) **단락 원문 무편집 + 단락 말미 각주 blockquote 1 개 신설** (T-1437 화법 승계), (C) **혼합** (코드블록 밖 산문만 in-place, 코드블록은 각주), (D) **전 지점 무편집 + audit 기록만**.
   - 판정 기준 **4 축** 명시 — ① `§ 12.15` 정합, ② **운영 오도 risk** (운영자가 문서의 route 로 실제 호출을 시도하면 404 가 되는가 — 본 문서는 연결 지시 문서라 risk 가중치가 높다는 점을 1 구로 논증), ③ **cap** — 예상 diff ≤ 300 LOC · 변경 파일 **3 고정** (초과 후보는 자동 기각 + split 제안 기록), ④ 선례 일관성.
-- [ ] **AC 4 — 채택안 반영**: AC 3 채택안대로만 편집한다. 각 지점은 AC 2 판정 결과를 따른다.
+- [x] **AC 4 — 채택안 반영**: AC 3 채택안대로만 편집한다. 각 지점은 AC 2 판정 결과를 따른다.
   - **deployment.md 편집은 각주 blockquote 1 개 (≤ 4 행) + in-place 치환 (≤ 3 지점) 이내** — `wc -l` 증가 **+5 이내** (192 → ≤ 197).
   - **문구·경로·심볼명은 AC 1 실측 출력과 1:1 일치** 해야 하며, 실측되지 않은 동작 (예: 실제 cron 등록 주기 default 값, 미구현 mutex 의 설계) 을 **새로 창작하지 않는다**.
   - **1 ~ 4 행 blockquote 무편집** · **`## Scheduler 위치` 밖 전 구간 무편집** (`## 개요` · `## DB / Persistence` · `## 배포 토폴로지` · `## Secret / 자격증명 저장` · `## 외부 네트워크 boundary`).
   - **새 pointer 추가 금지** — ADR-0003 · ADR-0042 · T-0412 중 이미 본문에 없는 것을 새로 등재하지 않는다 (audit 쪽에만 기록).
-- [ ] **AC 5 — audit `§ 12.36` 신설**: [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) 의 `## 11. References` (3504 행) **직전** 에 `### 12.36 …` 절을 **순수 append** 한다 (기존 절 수정 0). 구성 — 본 절의 위치 · 계보 1 문단 / AC 1 실측 (명령 + 출력) / AC 2 지점 판정표 / AC 3 처리 판정표 / AC 4 반영 결과 + 무편집 경계 / **T-1437 Follow-up 1 (`@Cron` 0 의 의미 판정) closure 선언** / **deployment.md 잔여 미대조 단락 갱신** (5 → 4, 남은 목록 명시) / 파생 영향 (목록만) / 불변 검산 / 한계. **절 전체 ≤ 115 행** (cap 준수 — 초과 시 실측 인용을 요약형으로 압축).
+- [x] **AC 5 — audit `§ 12.36` 신설**: [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) 의 `## 11. References` (3504 행) **직전** 에 `### 12.36 …` 절을 **순수 append** 한다 (기존 절 수정 0). 구성 — 본 절의 위치 · 계보 1 문단 / AC 1 실측 (명령 + 출력) / AC 2 지점 판정표 / AC 3 처리 판정표 / AC 4 반영 결과 + 무편집 경계 / **T-1437 Follow-up 1 (`@Cron` 0 의 의미 판정) closure 선언** / **deployment.md 잔여 미대조 단락 갱신** (5 → 4, 남은 목록 명시) / 파생 영향 (목록만) / 불변 검산 / 한계. **절 전체 ≤ 115 행** (cap 준수 — 초과 시 실측 인용을 요약형으로 압축).
   - `###` 레벨이라 `grep -c '^## '` **12 불변** · `grep -c '^| REQ-'` **66 불변** · `grep -c '^### 12\.'` **35 → 36**.
-- [ ] **AC 6 — 불변 검산**: 다음을 실행해 출력을 `§ 12.36` 에 인용한다. `wc -l` deployment.md (192 → ≤ 197) · audit (3517 → +115 이내) · directory.md (**203 불변**) · modules.md (**259 불변**), `git diff -U0 -- docs/architecture/deployment.md | grep '^@@'` 로 **hunk 개수 · 위치** 를 보이고 AC 4 허용 구간 밖 hunk **0** 을 실증, `git diff --numstat` 으로 **순수 삭제 0** (삭제 행이 있으면 in-place 치환의 짝임을 1 구로 설명), `git status --porcelain src/ test/ prisma/ web/ package.json` **빈 출력** (코드 무변경), `git status --porcelain` 이 **3 파일** 임을 확인.
-- [ ] **AC 7 — 파생 영향 기록 (목록만, 본 slice 편집 금지)**: `§ 12.36` 말미에 후속 slice 대상을 목록으로 남긴다. 최소 포함 — (1) deployment.md 잔여 미대조 단락 **4** (`## 외부 네트워크 boundary` · `## Secret / 자격증명 저장` · `## DB / Persistence` · `## 개요`) 와 그 우선순위 1 구, (2) UC-01 `§ 5` 의 cron / manual trigger 서술 ↔ 본 slice 실측 route 정합 (미대조), (3) UC-09 `§ 5` sequence participant 병기 (20 회째 이월), (4) 정본 [modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 단락 카운트 claim 대조 (`§ 12.34` Follow-up 1 미소진 — ADR 게이트), (5) 행 번호 → anchor 좌표계 이행 (14 회째), (6) 산문 tally ↔ 실측 CI drift-guard spec (`pr` mode 소관).
-- [ ] **AC 8 — R-110 / R-112 면제 근거 명시**: 본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 **N/A** 임을 `§ 12.36` 에 1 구로 명시한다.
-- [ ] **AC 9 — 언어 · 링크 규약**: 추가 문장은 모두 한국어 (§12), 문서 간 참조는 상대경로 markdown 링크, 수치는 실측 출력과 1:1 일치.
+- [x] **AC 6 — 불변 검산**: 다음을 실행해 출력을 `§ 12.36` 에 인용한다. `wc -l` deployment.md (192 → ≤ 197) · audit (3517 → +115 이내) · directory.md (**203 불변**) · modules.md (**259 불변**), `git diff -U0 -- docs/architecture/deployment.md | grep '^@@'` 로 **hunk 개수 · 위치** 를 보이고 AC 4 허용 구간 밖 hunk **0** 을 실증, `git diff --numstat` 으로 **순수 삭제 0** (삭제 행이 있으면 in-place 치환의 짝임을 1 구로 설명), `git status --porcelain src/ test/ prisma/ web/ package.json` **빈 출력** (코드 무변경), `git status --porcelain` 이 **3 파일** 임을 확인.
+- [x] **AC 7 — 파생 영향 기록 (목록만, 본 slice 편집 금지)**: `§ 12.36` 말미에 후속 slice 대상을 목록으로 남긴다. 최소 포함 — (1) deployment.md 잔여 미대조 단락 **4** (`## 외부 네트워크 boundary` · `## Secret / 자격증명 저장` · `## DB / Persistence` · `## 개요`) 와 그 우선순위 1 구, (2) UC-01 `§ 5` 의 cron / manual trigger 서술 ↔ 본 slice 실측 route 정합 (미대조), (3) UC-09 `§ 5` sequence participant 병기 (20 회째 이월), (4) 정본 [modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 단락 카운트 claim 대조 (`§ 12.34` Follow-up 1 미소진 — ADR 게이트), (5) 행 번호 → anchor 좌표계 이행 (14 회째), (6) 산문 tally ↔ 실측 CI drift-guard spec (`pr` mode 소관).
+- [x] **AC 8 — R-110 / R-112 면제 근거 명시**: 본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 **N/A** 임을 `§ 12.36` 에 1 구로 명시한다.
+- [x] **AC 9 — 언어 · 링크 규약**: 추가 문장은 모두 한국어 (§12), 문서 간 참조는 상대경로 markdown 링크, 수치는 실측 출력과 1:1 일치.
 
 ## Out of Scope
 
@@ -89,4 +89,8 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 발견 사항을 여기에 append.)
+1. **deployment.md 잔여 미대조 단락 4 (다음 slice 1 순위 = `## 외부 네트워크 boundary`)** — 접근 대상 목록 · TLS · REQ-020 권한 부족 흐름이 실 `src/github/` · `src/confluence/` · `PermissionDeniedRecord` model 과 대조 가능해 검증 가능 claim 밀도가 가장 높다. 이어 `## Secret / 자격증명 저장` · `## DB / Persistence` · `## 개요`.
+2. **route 표기 3 문서 정합 (deployment.md · [api.md](../architecture/api.md) · UC-01 `§ 5`)** — 본 slice 는 deployment.md 축만 닫았다. 실 `api/schedules` 4 endpoint 가 api.md endpoint 표 · UC-01 cron / manual trigger 서술과 어긋나는지 미판정 (`§ 12.36` 파생 영향 2 · 한계 2).
+3. **cron 등록의 restart 휘발성** — `@Cron` 0 · registry 동적 등록의 대가로 process restart 시 등록 cron 이 전부 사라진다 (`§ 12.36` closure 선언). 영속 model 신설은 schema 변경이라 §5 BLOCKED 게이트 대상 — doc slice 가 아니라 별도 ADR 판단.
+4. **정본 [modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 단락 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (정본 편집은 ADR 게이트).
+5. **행 번호 → anchor 좌표계 이행** (14 회째 이월) — 본 slice 의 각주 5 행 삽입으로 `## 외부 네트워크 boundary` 가 146 → **151** 행으로 밀려 후속 task 좌표가 다시 낡는다.
