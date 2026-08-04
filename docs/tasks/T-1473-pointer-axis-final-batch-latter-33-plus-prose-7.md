@@ -2,7 +2,7 @@
 id: T-1473
 title: pointer 축 최종 batch — `docs/requirements.md` 표 컬럼 후반 33 지점 (REQ-034 ~ REQ-066) + 산문 잔여 7 (`deployment.md` · `directory.md` · `reviewer.md`) 합류 40 지점 실판정 + audit §12.71
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 200
@@ -76,6 +76,12 @@ planner 사전 census — **아래는 전부 가설이며 전제가 아니다** 
 
 `implementer` 단독 (doc-only). 코드 변경 0 이므로 `tester` 불요 ([CLAUDE.md](../../CLAUDE.md) §3.2 direct doc-only 면제).
 
+## Result (2026-08-05)
+
+`§ 12.71` 신설 (**85 행**, 상한 100 이내). 40 지점 실판정 = **참 39 · 부분참 1 · 거짓 0** (참율 97.5%) — blok A (표 후반 33) **33 : 35 : 33 : 0 : 0**, blok B (산문 7) **7 : 10 : 6 : 1 : 0**. **pointer 축 140 전량 마감** (**140 : 172 : 126 : 14 : 0**, 참율 90.0%, 거짓 0 이 4 batch 연속). 단조 역전 0 · 중복 0 · 전반↔후반 경계 연속 · stale 0 (3 연속) · 삽입 파급 0. 유일 부분참은 `directory.md` 197 행 `L7-22` (폭 16, 절 통째 지시) 이며 `§ 12.70` (b) 명제는 **"폭 지표가 아니라 끝 좌표의 의미 단위 경계 정렬 지표"** 로 정밀화돼 확인됐다. 판정 대상 5 파일 전부 무편집 · in-place 정정 0.
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+- pointer 정정 batch 후보 **14 건** (본 절 +1) — 착수 전 `§ 12.15` append-only ↔ in-place 정정 관계 및 ADR 각주 append 의 commit mode 판정 (§3.1 미규정 구간) 방침 확정 필요 (다음 slice 1 순위).
+- **범위 표기 규약** 신설 후보 — 절 통째 범위 금지 · 끝 좌표를 의미 단위 경계에 정렬 · 대표 단일 좌표 병기 (FU14 anchor 이행을 대체하는 저비용 안).
+- README **140 ~ 148** 9 행 (`# 로컬 빌드 / 테스트` 절의 `pnpm` 명령 안내) 은 REQ 미대응 — 오너 요구사항이 아니라 개발자 실행 절차로 판단했으나 그 경계는 정성이라 별도 확인 여지 (계수까지만, 신설 0).
