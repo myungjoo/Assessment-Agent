@@ -5198,6 +5198,75 @@ row → 절 매핑 — `Web UI` **`§ 12.44`** (T-1446) · `Backend API` + `Work
 3. **`§ 12.50` 오기의 in-place 정정은 끝내 불가하다** — `§ 12.15` append-only 방침상 `표 7 row` 문자열은 audit 에 영구 존속하며, 독자가 `§ 12.52` 를 읽지 않으면 오기를 그대로 받는다. 이 잔여 risk 는 방침의 대가로 수용했다.
 4. **삽입 파급 수치 ⓐ 19 · ⓑ 1 은 (vii) 의 4 패턴 grep 기준이다** — 서술형 좌표 표기가 그 밖에 있으면 ⓐ 는 더 커질 수 있으나, 두 후보의 **대소 관계** 는 뒤집히지 않는다 (ⓑ 는 179 행 이후만 밀리므로 상한이 heading 참조 수다).
 
+### 12.53 components.md `## Component diagram` mermaid **process node 8** ↔ 표 data row 8 · 실 `src/**` module · `다이어그램 표기` 카운트 claim 대조 — node 축 1:1 참 + `Web UI` 소속 부분참 확정 (T-1455)
+
+> **본 절의 위치 · 계보** — `§ 12.52` (T-1454) 가 카운트 축을 닫으면서 파생 영향 **(1)** 로 **"`## Component diagram` mermaid node ↔ 실 module · 표 8 row 대조 (node 수가 8 과 일치하는지 포함) — 다음 대조 1 순위"** 를 지목했다. 본 절은 그 지목을 집행해 다이어그램 구간 (`## Component diagram` **28** 행 ~ `다이어그램 표기` **113** 행) 의 **node 집합 · 이름 · 카운트 · 소속** 을 표 8 row 와 실 `src/**` 인벤토리에 대조한다. **row 본문 (책임 · contract · REQ · pointer) 은 `§ 12.44` ~ `§ 12.50` 이 이미 닫았고 본 절은 재판정하지 않으며**, edge 가 주장하는 결선 · 계약 시그니처도 다루지 않는다 (파생 영향 (1) 소관).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+- (i) **좌표 재확인** — `grep -n '^#\{1,3\} ' docs/architecture/components.md` → `1:# Component view` / `5:## 개요` / `22:## Deployment 컨텍스트` / `28:## Component diagram` / `115:## Component table` / `184:## GitHub Adapter …` / `216:## Contracts` / `242:## References` — **task 예고 좌표 전부 유효 (drift 0)**. `grep -n '^\s*subgraph\|^```' …` → `30:```mermaid` · `33: subgraph external[…]` · `49: subgraph process["NestJS 단일 process (ADR-0003 §1)"]` · `106:``` ` — mermaid 블록 **30 ~ 106**, `external` **33 ~ 44**, `process` **49 ~ 59** 확정.
+- (ii) **node 전수 열거 (본 slice 의 축)** — `sed -n '49,59p' …` → `process` subgraph node **8 개**: `web_ui["Web UI<br/>(Frontend SPA)"]` (**51**) · `backend_api` (**52**) · `worker` (**53**) · `scheduler` (**54**) · `llm_gateway` (**55**) · `github_adapter` (**56**) · `confluence_adapter` (**57**) · `db_persistence` (**58**) (**49** subgraph 선언 · **50** `direction TB` · **59** `end` 제외). `grep -cE '^\s+[a-z_]+\[' …` → **19** = external **9** (**35 ~ 43**) + `user_browser` **1** (**46**) + process **8** (**51 ~ 58**) + `postgres` **1** (**62**) — **산출식 9 + 1 + 8 + 1 = 19** 로 process 안 8 / 밖 11 이 갈린다.
+- (iii) **node ↔ 표 row 1:1 대조 (양방향)** — `grep -n '^| \*\*' …` → **8** row: `119 Web UI` · `120 Backend API` · `121 Worker` · `122 DB Persistence` · `123 LLM Gateway` · `124 GitHub Adapter` · `125 Confluence Adapter` · `126 Scheduler`. node 라벨 첫 구 (`Web UI` · `Backend API` · `Worker` · `Scheduler` · `LLM Gateway` · `GitHub Adapter` · `Confluence Adapter` · `DB Persistence`) 와 집합이 완전히 같다 — **node 에만 있는 것 0 · row 에만 있는 것 0 · 이름이 다른 것 0**. 열거 **순서만** 다르다 (다이어그램은 `Scheduler` 4 번째 · `DB Persistence` 8 번째, 표는 그 반대) 며 이는 이름 정합과 무관하다.
+- (iv) **node ↔ 실 module 매핑** — `ls -d src/*/` → `assessment-collection` · `assessment-evaluation` · `auth` · `common` · `confluence` · `export` · `github` · `import` · `llm` · `permission-denied` · `persistence` · `scheduling` · `user-instance-access` · `user` · `web` **15 개**, `ls -d web/src` → `web/src` 존재. 매핑 — `web_ui` → `web/src/` (+ in-process serve-static `src/web/`) · `backend_api` → **단일 디렉토리 대응 없음** (`auth` · `user` · `export` · `import` · `permission-denied` · `user-instance-access` 등 controller 군 분산) · `worker` → `src/assessment-evaluation/` (+ `src/assessment-collection/`) · `scheduler` → `src/scheduling/` · `llm_gateway` → `src/llm/` · `github_adapter` → `src/github/` · `confluence_adapter` → `src/confluence/` · `db_persistence` → `src/persistence/`. [modules.md](../architecture/modules.md) **199 ~ 206** 행의 `component ↔ module` 표가 같은 갈림을 이미 박제한다 (**200** 행 `Backend API` = **1:N**, 나머지 **1:1**). 디렉토리 존재 확인까지만 했고 파일 내부 · 심볼은 세지 않았다.
+- (v) **`다이어그램 표기` bullet 대조** — `sed -n '108,113p' …` → **108** `다이어그램 표기:` · **110** 노란 점선 박스 (`external`) = 외부 시스템 · **111** `process subgraph — NestJS 단일 process 안의 in-process component 8 개` · **112** PostgreSQL = TCP 5432 외부 process · **113** 사용자 브라우저 = 3 등급 entry point. `grep -n 'in-process component' …` → **111** 행 단일 hit. bullet 1 은 (ii) 의 external 9 node + `classDef ext` (**100** 행) 와 정합, bullet 3 은 `postgres` 가 subgraph 밖 (**62** 행) 이라 정합, bullet 4 는 `user_browser` 가 subgraph 밖 독립 node (**46** 행) 라 정합. bullet 2 의 **개수 8 은 (ii) 실측과 일치** 하나 `Web UI` 의 `in-process` 형용은 (vi) 대로 갈린다.
+- (vi) **`Web UI` 소속 축** — 표 **119** 행 row 본문이 `frontend SPA (React + Vite, 별도 web/ 패키지)` 를 명시하고 [ADR-0040](../decisions/ADR-0040-frontend-stack.md) 이 브라우저 실행 SPA 를 박제하므로, `NestJS 단일 process` subgraph 안의 in-process 실체는 SPA 자체가 아니라 serve-static 진입점 `WebModule` (`src/web/web.module.ts`) 이다 ([modules.md](../architecture/modules.md) **43** 행이 `@nestjs/serve-static` 으로 `web/dist/` mount 라고 서술). subgraph 라벨 승계 축은 [ADR-0003](../decisions/ADR-0003-deployment.md) **34** 행 `Backend 는 **단일 NestJS process** 로 시작한다. HTTP API / scheduler / 평가 파이프라인 / LLM gateway / GitHub & Confluence adapter 가 동일 process 안에서 동작한다` 로 **process 동작 결정은 승계 참** 이다 (개수 미승계는 `§ 12.52` 축 ③ 확정).
+- (vii) **T-1454 파생 drift 확인** — `sed -n '128,131p' …` → **128** 행 `아래 blockquote **7 블록** 은 위 표의 각 row 를 실 코드와 대조한 **실측 각주** 이며`. 각주 블록 시작행 실측 (`awk 'NR>=132 && /^> / && prev !~ /^> /'`) → `133 · 139 · 147 · 154 · 160 · 167 · 173 · 180` **8 개** — T-1454 각주 (**180 ~ 182**) 가 붙어 **표 뒤 blockquote 총수는 7 → 8** 이 됐다. 다만 128 행 문장이 세는 대상은 `위 표의 각 row 를 대조한 실측 각주` 이고 그것은 여전히 **7 블록** (**133 ~ 173**) 이라 **수치 자체는 stale 이 아니며 `아래 blockquote` 라는 범위 표현만 모호해졌다** — 숫자를 8 (본 절 삽입 후 9) 로 치환하면 도리어 "8 블록 전부가 row 각주" 라는 **거짓 문장** 이 된다. 따라서 정정 대상 좌표는 **0 지점** 이고 처리는 신규 각주의 범위 명시로 갈음한다 (**Why ⑤ 는 반증 — "stale" 이 아니라 "범위 모호"**).
+- (viii) **삽입 파급 실측 (AC 3 입력)** — `§ 12.52` (vii) 과 동일 scope (**128 ~ 182** 행 구간) · 동일 패턴으로 재열거하면 components.md 자신을 가리키는 좌표는 **28** 개다 = `§ 12.52` 시점 **20** 개 (128 행 `117 ~ 126` 1 · 129 행 row 좌표 8 · 130 행 `119 ~ 126` 1 · 각주 7 블록머리 `row (NNN 행)` 8 · 161 행 heading 참조 1 · 174 행 `1 ~ 4 행` 1) + T-1454 각주 신규 **8** 개 (180 행 `24` · `117 ~ 126` · `119 ~ 126` · `24` 4 · 182 행 `3` · `20` · `24` · `128` 4). ⓐ **`## Component table` heading 직전 (115 행) 삽입** → 115 이후를 가리키는 좌표가 전부 밀려 **22 지점** stale (잔존 유효는 174 행 `1 ~ 4 행` 1 · 180 행 `24` 2 · 182 행 `3` · `20` · `24` 3 = 6). ⓑ **각주군 말미 (182 행 뒤) 삽입** → 183 행 이후를 가리키는 좌표만 밀리므로 **1 지점** (161 행 `**184** 행 `## GitHub Adapter …``). **수치 2 개 = ⓐ 22 · ⓑ 1**.
+- (ix) **baseline** — `wc -l` components.md **252** · audit **5214** · ADR-0003 **173** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175**, `grep -c '^## '` components.md **7** · audit **12**, audit `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **52**, components.md `grep -c '^> '` **53** — task 예고 (viii) 과 **전부 일치 (drift 0)**. PLAN.md 미완 bullet 은 `grep -n '^- \[ \]'` → **106 · 108 · 109 · 140 · 151** (+ 164 검토 bullet) 로 전부 오너 · credential · dependency 게이트다.
+
+#### 판정표 (AC 2 — node 축 한정, row 본문 · edge 재판정 0)
+
+| 축 | 실측 근거 (행 번호 포함) | 판정 | 근거 1 구 |
+| --- | --- | --- | --- |
+| ① `process` subgraph node 수 ↔ 표 data row **8** | (ii) node **8** (**51 ~ 58**) · (iii) row **8** (**119 ~ 126**), 전체 node **19** = 9+1+8+1 | **참** | 두 카운트가 8 로 일치하고 산출식이 external 9 · `user_browser` 1 · `postgres` 1 을 정확히 배제한다. |
+| ② node 이름 ↔ row 이름 1:1 정합 | (iii) 양방향 차집합 — node 에만 **0** · row 에만 **0** · 이름 상이 **0** | **참** | 8 개 라벨 첫 구가 표 굵은 이름과 문자 단위로 같고, 열거 순서 차이는 정합 축이 아니다. |
+| ③ node ↔ 실 module 매핑 존재 여부 | (iv) `ls -d src/*/` **15** + `web/src`, modules.md **199 ~ 206** 행 표 | **부분참 (8 중 7 대응)** | `Backend API` 만 단일 디렉토리가 없고 controller 군으로 분산되며, 이는 modules.md 가 **1:N** 으로 이미 박제한 구조적 사실이다. |
+| ④ `다이어그램 표기` 4 bullet 의 claim (특히 **111** 행 `in-process component 8 개`) | (v) bullet 1 · 3 · 4 는 (ii) 와 정합, bullet 2 는 개수 **8** 일치 · (vi) `Web UI` 소속 상충 | **부분참** | **개수 claim 은 참** 이나 `Web UI` 는 브라우저 SPA (표 **119** 행 · ADR-0040) 라 `in-process` 형용이 그 1 node 에 한해 성립하지 않는다. |
+| ⑤ subgraph 라벨 `NestJS 단일 process (ADR-0003 §1)` 의 ADR 승계 | (vi) ADR-0003 **34** 행 `동일 process 안에서 동작` 결정 인용 | **참 (process 동작 결정 한정)** | ADR §1 이 박제한 `단일 NestJS process` 결정을 라벨이 그대로 승계하며, 개수 **8** 의 미승계는 `§ 12.52` 축 ③ 이 이미 확정했다. |
+
+- 축 ④ 가 `부분참` 이므로 AC 4 의 "축 ① · ④ 가 모두 `참` 이면 (D) 자동 기각" 조건은 미발동이나, (D) 는 AC 3 의 명시 금지 (다이어그램 구조 변경) 로 별도 기각된다.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 판정 | 근거 1 구 |
+| --- | --- | --- |
+| (A) 현행 유지 + 무편집 (audit 기록만) | **기각** | 기준 ④ 탐색성 — 축 ③ · ④ 의 `부분참` (Backend API 1:N · `Web UI` 소속) 은 components.md 안에 대응 표기가 전무한 새 사실이라, audit 에만 두면 다이어그램 독자가 오도를 그대로 받는다. |
+| **(B) 각주군 말미 append (182 행 뒤) + stale 좌표 ≤ 2 지점 정정** | **채택** | 기준 ① append-only 정합 (본문 삭제 0) · 기준 ② 파급 최소 ((viii) ⓑ **1 지점**) · 기준 ③ cap (변경 2 파일 ≤ 3 · diff ≪ 300 LOC) · 기준 ④ T-1453 안내 blockquote (**128 ~ 131** 행) 의 `row → 블록 → 절` 매핑 재사용 — 4 축 전부 우세. |
+| (C) `## Component diagram` 절 안 각주 삽입 (115 행 heading 직전) | **기각** | 기준 ② — (viii) ⓐ 가 stale 좌표 **22 지점** 을 만들어 AC 4 의 `정정 3 지점 이상 시 (B) 로 철회` 조건이 즉시 발동한다. |
+| (D) mermaid 블록 · bullet 본문 in-place 수정 (node 이동 · 라벨 · 카운트 문구) | **기각** | 기준 ① — 카운트 문구는 축 ① · ④ 상 **개수가 참** 이라 고칠 대상이 없고, 참인 본문을 재작성하는 것은 `§ 12.15` append-only 방침과 정면 충돌한다. |
+
+- **mermaid 블록 안 node 를 subgraph 밖으로 옮기거나 라벨을 고쳐 쓰는 선택지는 채택하지 않는다** — 다이어그램 구조 변경은 본 doc-audit stream 의 scope 밖이며, `Web UI` 소속이 `부분참` 으로 판정돼도 처리는 **각주 병기** 로만 한다.
+
+#### 반영 결과 (AC 4 — 채택안 (B) 대로만 편집)
+
+- **신규 blockquote 1 블록 (4 행 + 앞 빈 줄 1 행 = +5 행)** 을 마지막 각주 블록 (**182** 행) 뒤 · `## GitHub Adapter …` heading 직전에 삽입했다 (허용 ≤ 5 행). 내용은 ① node 8 ↔ row 8 이름 1:1 + 전체 19 산출식 · ② `Web UI` 소속 부분참 (ADR-0040, 실체는 `WebModule`) · ③ module 매핑 7/8 + `Backend API` 1:N · ④ **128** 행 `7 블록` 범위 명시 4 구다.
+- **in-place 좌표 정정 1 지점** — **161** 행의 `**184** 행 `## GitHub Adapter …`` → `**189** 행` (숫자 1 개 치환, 문장 재작성 0). 허용 ≤ 2 지점 안이며, (vii) 이 확정한 대로 **128** 행 `7 블록` 은 치환하지 않았다.
+- **재-drift 재현 확인** — 편집 후 `grep -n '^## ' docs/architecture/components.md` → `5 · 22 · 28 · 115 · 189 · 221 · 247`. `§ 12.51` 이 `175` → `180`, `§ 12.52` 가 `180` → `184` 로 겪은 재-drift 가 본 slice 에서 `184` → `189` 로 **3 회째 재현** 됐다 (행 번호 좌표는 각주가 붙을 때마다 썩는다 — 파생 영향 (14) 의 직접 증거 1 건 추가).
+- **무편집 경계** — mermaid 블록 (**30 ~ 106** 행) · `다이어그램 표기` bullet (**108 ~ 113** 행) · 표 본체 (**117 ~ 126** 행) · 1 ~ 4 행 blockquote · `## 개요` 각주 (**16 ~ 20** 행) · T-1453 안내 blockquote (**128 ~ 131** 행) · 각주 8 블록의 판정 문장 · `## Contracts` · `## References` 전 구간 무편집이다. `docs/decisions/ADR-0003-deployment.md` · [ADR-0040](../decisions/ADR-0040-frontend-stack.md) · [modules.md](../architecture/modules.md) · `docs/PLAN.md` · `docs/requirements.md` 는 인용까지만이며 diff **0**, `src/` · `web/` 은 `ls -d` 존재 확인뿐이라 diff **0** 이다.
+
+#### 파생 영향 (목록만 — 본 slice 편집 금지)
+
+(1) **mermaid edge 가 주장하는 결선 ↔ 실 호출 그래프 대조** (본 절이 node 축만 닫았으므로 **다음 대조 1 순위** — 특히 `scheduler -- "in-process trigger<br/>(@Cron handler)" --> worker` (**76** 행) 는 `§ 12.50` 이 **미결선 (거짓)** 으로 판정한 축이라 edge 표기와 상충할 수 있다) / (2) `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` sub-section 본문 ↔ 코드 대조 (`§ 12.48` FU4 미소진) / (3) `## Contracts` 표 ↔ 실 계약 표면 대조 / (4) row pointer 셀 보강 2 건 (`Scheduler` = `ADR-0042` 미등재 `§ 12.50` FU2 · `Confluence Adapter` `§ 12.49` FU2) / (5) LLM · GitHub adapter ADR pointer 미등재 (`§ 12.47` FU5 · `§ 12.48` FU3) / (6) `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트) / (7) reviewer 규약 미이행 (`§ 12.41` FU2) / (8) `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3) / (9) README 행 번호 pointer drift 전수 sweep / (10) REQ 번호 체계 잔재 sweep (`§ 12.38` FU3) / (11) `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3) / (12) UC-09 `§ 5` sequence participant 병기 (**40 회째 이월**) / (13) modules.md 카운트 claim 대조 (`§ 12.34` FU1, ADR 게이트 — 본 절 (iv) 의 `component ↔ module` 표 인용이 재료다) / (14) **행 번호 → anchor 좌표계 이행** (**34 회째 이월** — 본 절 (viii) 의 ⓐ **22** vs ⓑ **1** 과 `184` → `189` 재-drift 1 건이 재료를 더 보탰다) / (15) 각주 heading 참조 anchor 이행 축소 scope (`§ 12.51` FU19 split 제안 미소진) / (16) `§ 12.44` 한계 "mutation 러너 26 개" 정의 미확정 / (17) `Scheduler` cron → 평가 pipeline 미결선 (`§ 12.50` FU18 — **코드 소관, `pr` task 로만**) / (18) `ADR-0003` "단일 DB 인스턴스" 좌표 부재 (`§ 12.46` FU16) / (19) **`Web UI` node 의 process subgraph 소속 표기** (축 ④ 가 `부분참` 이라 발동 — 다이어그램 구조 변경 또는 subgraph 라벨 재설계는 별도 slice, `§ 12.15` 방침상 각주 병기 이상은 본 stream 밖) / (20) **AC 3 기각 후보의 split 제안 — 없음** (기각 3 건이 전부 방침 · 파급 사유라 cap 사유가 아니다).
+
+#### 불변 검산 (AC 6)
+
+- `wc -l` — components.md **252 → 257** (+5, 허용 ≤ 258) · audit **5214 → 5283** (+69, 본 절 자체 **68** 행 ≤ 100) · **ADR-0003 173 불변** · requirements.md **97 불변** · deployment.md **232 불변** · directory.md **203 불변** · modules.md **259 불변** · PLAN.md **175 불변**.
+- `grep -c` — components.md `^## ` **7 불변** · `^> ` **53 → 57** (신규 각주 4 행) · audit `^## ` **12 불변** · audit `^| REQ-` **66 불변** · audit `^### 12\.` **52 → 53**.
+- `git diff -U0 -- docs/architecture/components.md | grep '^@@'` → `@@ -161 +161 @@` · `@@ -183,0 +184,5 @@` — **hunk 2 개** 이며 둘 다 AC 4 허용 구간 (stale 좌표 1 지점 · 각주군 말미 삽입) 안이다. 허용 구간 밖 hunk **0**.
+- `git diff --numstat -- docs/architecture/components.md` → `6	1	docs/architecture/components.md` — 삭제 **1** 행은 `**184** → **189**` 숫자 치환의 짝이며 **순수 삭제 0** 이다.
+- `git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md` → **빈 출력**. `git status --porcelain` 전체는 **2 파일** (components.md · 본 audit) 로 3 파일 이내다 — task 파일의 `Status` 갱신은 driver 의 bookkeeping commit 소관이다 (STATE single-writer §9).
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 새 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 모두 **N/A** 다 (검증은 read-only `grep` · `sed` · `ls` · `wc` · `git` 재측정으로 갈음했고 `pnpm install` · `build` · `test` 는 실행하지 않았다).
+
+#### 한계
+
+1. **node 축만 닫았다** — edge **20 여 개** 가 주장하는 결선 · 계약 label (`in-process method call` · `HTTPS REST JSON` 등) 은 재판정 대상 밖이라, `web_ui → backend_api` edge 가 `HTTPS REST JSON` 으로 표기된 사실은 축 ④ 의 **방증으로만** 인용했고 그 결선 자체의 참 / 거짓은 파생 영향 (1) 소관으로 남는다.
+2. **module 매핑은 디렉토리 존재 확인 근사다** — `ls -d` 로 top-level 디렉토리만 봤고 파일 내부 · 심볼 · module class 등록 여부는 세지 않았다 (그 축은 `§ 12.44` ~ `§ 12.50` 이 row 별로 이미 닫았다). `Backend API` 의 `1:N` 판정은 modules.md **200** 행 서술 인용에 의존한다.
+3. **`Web UI` 부분참의 구조적 해소는 불가하다** — subgraph 라벨과 node 배치를 고치지 않는 한 다이어그램만 본 독자는 SPA 를 in-process 로 오독할 수 있으며, 본 절은 각주 병기로 완화했을 뿐이다 (파생 영향 (19)).
+4. **삽입 파급 수치 ⓐ 22 · ⓑ 1 은 `§ 12.52` (vii) 과 같은 패턴 · 같은 구간 (128 ~ 182 행) 기준이다** — 그 밖 구간 (1 ~ 127 행) 의 서술형 좌표까지 세면 ⓐ 는 더 커질 수 있으나 두 후보의 **대소 관계** 는 뒤집히지 않는다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
