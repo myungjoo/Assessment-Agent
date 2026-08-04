@@ -2,7 +2,7 @@
 id: T-1461
 title: components.md `## Component diagram` mermaid **`%% User-facing flow` edge 2 개** (65 ~ 66 행) ↔ 실 `web/src` 브라우저 outbound seam · SPA 서빙 경계 대조 — `§ 12.58` 파생 영향 (1) 집행 + audit §12.59
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 220
@@ -109,6 +109,15 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 `implementer` 단독 (doc-only, 코드 0 LOC — architect · tester 불요. §3.2 direct-mode 면제).
 
+## 결과 (2026-08-05 완료)
+
+- **AC 2 판정** — `%% User-facing flow` edge **2** 개 (65 ~ 66 행): edge 1 **참** · 1 **부분참**, label **2** 축 **부분참**, 층 정합 축 **거짓**. 실 web/src 브라우저 outbound seam 과 edge 표기가 **2 : 1 : 1** 다중 표기 관계로 어긋난다.
+- **AC 3 채택 = (B)** (각주군 말미 append + stale 좌표 숫자 치환). (A) · (C) · (D) 기각.
+- **AC 4 반영** — components.md **287 → 294** (실측 blockquote 6 행 신설), in-place 정정 **6 지점** (예상 `≤ 5` 를 1 초과 — `§ 12.58` 에 이어 **2 회 연속** 이며 사유를 `§ 12.59` AC 4 · 한계 6 에 박제).
+- **AC 5 ~ 9** — audit `§ 12.59` 순수 append (**5652 → 5731**, 본문 78 행), 불변 검산 통과 (hunk **6** · 순수 삭제 **0** · `web/` 무편집), 파생 영향 **25** 항목 박제. 변경 파일 **2** · **+92/-6** · direct push `b54c059e` · main CI **success**.
+- **그룹 마감** — user-facing 그룹 **2/2** 판정 완료. edge 축 **23** 개 중 **22** 개가 닫혔고 잔여는 `%% DB persistence boundary` **1** 개 (86 행) 뿐이다.
+- **fire 구조** — LOOP.md §7.5 cron multi-task chain 의 **2 번째이자 마지막 task** (`FIRE-BATCH: T-1460+T-1461`, N=2 상한 도달).
+
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+- `§ 12.59` 파생 영향 (1) ~ (25) 목록 참조 — 다음 대조 1 순위는 `%% DB persistence boundary` **1** 개 (86 행) 로 [T-1462](T-1462-components-md-db-persistence-boundary-edge-vs-prisma-seam-audit.md) 가 승계하며, 닫히면 edge 축 **23/23** 이 마감된다.
