@@ -2,7 +2,8 @@
 id: T-1444
 title: deployment.md `## 개요` (5 ~ 13 행) 의 검증 가능 claim ↔ 실 `Dockerfile` · `docker-compose.yml` · `deploy/` · `docs/architecture/INDEX.md` · `components.md` · `ADR-0003` · `docs/ops/runbook.md` 대조 + T-1443 Follow-up 1 계승 + audit §12.42 (deployment.md 전 단락 대조 완결)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-04T07:50:00Z
 commitMode: direct
 coversReq: [REQ-029, REQ-047]
 estimatedDiff: 200
