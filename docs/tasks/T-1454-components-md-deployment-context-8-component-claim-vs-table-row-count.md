@@ -2,7 +2,7 @@
 id: T-1454
 title: components.md `## Deployment 컨텍스트` (22 ~ 26 행) **"모든 8 component 동일 process" claim** ↔ 표 data row 8 · ADR-0003 §1 대조 + `§ 12.50` "표 7 row" 표기 **확정 판정** — T-1453 파생 영향 (1) 계승 + audit §12.52
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 200
