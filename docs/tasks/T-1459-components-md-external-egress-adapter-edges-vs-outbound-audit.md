@@ -2,7 +2,7 @@
 id: T-1459
 title: components.md `## Component diagram` mermaid **`%% External egress` adapter 계열 edge 4 개** (89 ~ 92 행) ↔ 실 `src/github` · `src/confluence` outbound 지점 · auth 헤더 대조 — `§ 12.56` 파생 영향 (1) 집행 4/6 전반부 + audit §12.57
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 220
@@ -109,6 +109,15 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 `implementer` 단독 (doc-only, 코드 0 LOC — architect · tester 불요. §3.2 direct-mode 면제).
 
+## 결과 (2026-08-05 완료)
+
+- **AC 2 판정** — ① `github_adapter --> gh_com` (89) **참** (public API host 만 `github-request.builder.ts` **29** 행 리터럴) · ② `--> gh_sec` (90) · ③ `--> gh_ecode` (91) **부분참** (두 Enterprise host 는 `github-live-test-gating.ts` **64 · 69** 행 gating 사양에만 있고 실 라우팅은 **88** 행 `resolveGithubApiBaseUrl` 의 임의-host 분기) · ④ `confluence_adapter --> conf` (92) **참** · ⑤ label `HTTPS REST/GraphQL<br/>(PAT auth)` **부분참** (`graphql` **0 hit** → GraphQL 어구 **거짓**, 헤더는 `Authorization: Bearer`) · ⑥ label 92 행 auth **부분참** (Cloud `Basic` / Server `Bearer` **2 분기** 은닉). ADR pointer 축은 **참** (ADR-0003 **78** 행 drift 0).
+- **핵심 실측** — edge 3 개는 **같은 1 지점의 3 중 표기** 다 (실 outbound 지점 **1** = adapter **370** 행 · host 분기 **2** · edge **3** 으로 1 : 2 : 3 불일치). planner 가설 ⑤ (GraphQL 미관측) 는 실측으로 **거짓 확정**, ⑥ 은 Bearer / Basic 2 분기로 확인됐다.
+- **AC 3 채택 = (B)** (각주군 말미 append + stale 숫자 치환). (C) 는 (viii) ⓐ **35** 지점 drift 로 기각, (D) 는 `§ 12.15` append-only 위반 기각, (A) 는 축 ⑤ 에 `거짓` 이 있어 자동 기각.
+- **AC 4 반영** — components.md **273 → 280** (blockquote 6 행 + 빈 줄 1 행), in-place 정정 **3 지점** (**161** 행 `205 → 212` · **197** 행 `245 ~ 249 → 252 ~ 256` · **203** 행 `252 ~ 255 → 259 ~ 262`). task 파일 예상치 `≤ 2 지점` 을 1 초과했고 그 편차 사유를 `§ 12.57` AC 4 절에 박제했다. heading 재-drift **7 회 연속** 재현.
+- **AC 5 ~ 6** — audit `§ 12.57` 순수 append (**5498 → 5574**, +76 · 본문 75 행), `grep -c '^### 12\.'` **56 → 57**, `## ` **12 불변** · `| REQ-` **66 불변**, 허용 구간 밖 hunk **0** · 순수 삭제 **0** · 변경 파일 **3**.
+
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 인접 작업을 발견하면 여기에 append 한다.)
+- 신규 발견 (`§ 12.57` 파생 영향 (22) 에 박제) — **`GITHUB_INSTANCES` 가변 instance 수 ↔ 문서 전반의 "3 GitHub instance" 고정 표기 정합**: instance 수는 env key list 로 정해져 3 고정이 아닌데 mermaid edge 3 · 표 row · Contracts row · PLAN **81** 행이 모두 3 을 고정처럼 적는다.
+- 나머지는 `§ 12.57` 파생 영향 (1) ~ (23) 목록 참조 — 다음 대조 1 순위는 `%% External egress` 의 **llm_gateway 계열 5** 개 (93 ~ 97 행).

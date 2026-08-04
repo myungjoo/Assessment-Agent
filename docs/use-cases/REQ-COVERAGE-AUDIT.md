@@ -5482,6 +5482,82 @@ row → 절 매핑 — `Web UI` **`§ 12.44`** (T-1446) · `Backend API` + `Work
 3. **호출 그래프 측정은 grep 근사다** — import · 생성자 주입 · DI 바인딩 지점까지만 확인했고 런타임 call graph · 분기별 도달 가능성은 실행해 보지 않았다 (`pnpm test` 미실행 — Out of Scope).
 4. **주석 / 실 코드 분리는 수동 판독이다** — (v) 의 hit 수 (26 · 10 · 30 · 15) 중 실 코드 행 (4 · 2 · 8 · 4) 은 `import` · `constructor` · `provide:` 패턴을 눈으로 가려낸 결과라 자동 검증되지 않았다.
 
+### 12.57 components.md `## Component diagram` mermaid **`%% External egress` adapter 계열 edge 4 개** (89 ~ 92 행) ↔ 실 `src/github` · `src/confluence` outbound 지점 · auth 헤더 대조 — edge 2 참 · 2 부분참 · label GraphQL 어구 거짓 확정 (T-1459)
+
+**위치 · 계보** — 본 절은 `§ 12.56` 파생 영향 **(1)** 이 **다음 대조 1 순위** 로 지목한 `%% External egress` **9** edge (89 ~ 97 행) 중 **adapter 계열 4 개 (89 ~ 92 행)** 만 닫는다. `§ 12.54` 가 세운 edge 그룹 split (**23** = user-facing 2 + orchestration 5 + scheduler 2 + worker pipeline 4 + db boundary 1 + external egress 9) 의 **4/6 그룹 전반부** 이며, 그룹이 9 edge · from-node **3 종** (`github_adapter` 3 · `confluence_adapter` 1 · `llm_gateway` 5) 으로 커서 측정 명령 · 판정 축이 두 배가 되므로 `%%` 주석 그룹 단위 split 을 **from-node 단위로 한 번 더 쪼갰다** (audit 절 ≤ 100 행 · cap ≤ 300 LOC 동시 보호). 잔여 `llm_gateway` 계열 **5** 개 (93 ~ 97 행) 는 다음 slice 이월이다. `§ 12.55` (backend_api 외연 13) · `§ 12.56` (worker 외연 2 디렉토리) 이 **node 외연** 을 선결 과제로 삼은 것과 달리 egress 축의 선결 과제는 **"실 outbound 지점을 무엇으로 셈할지"** 이며, 본 절은 새 정의를 창작하지 않고 `§ 12.48` · `§ 12.49` 의 **주입 `fetchFn` 단일 지점** 정의를 승계한다. in-process 결선 축에서 process 경계 밖 egress 축으로 넘어가는 첫 절이다.
+
+#### AC 1 실측 (명령 + 출력)
+
+- (i) `grep -n '^#\{1,3\} ' docs/architecture/components.md` → `1` `# Component view` · **5** `## 개요` · **22** `## Deployment 컨텍스트` · **28** `## Component diagram` · **115** `## Component table` · **205** `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` · **237** `## Contracts` · **263** `## References` (편집 전 기준 — task 파일의 기대 좌표와 일치, stale **0**). `grep -n '^\s*%%\|^```' …` → mermaid 블록 **30 ~ 106**, edge 그룹 주석 **64** (user-facing) · **68** (orchestration) · **75** (scheduler) · **79** (worker) · **85** (db boundary) · **88** (`%% External egress (HTTPS, ADR-0003 §4)`) · **99** (styling).
+- (ii) `grep -nE '^\s+[a-z_]+ -- ' docs/architecture/components.md | wc -l` → **23**. 그룹별로 65 ~ 66 (**2**) · 69 ~ 73 (**5**) · 76 ~ 77 (**2**) · 80 ~ 83 (**4**) · 86 (**1**) · 89 ~ 97 (**9**) 이라 `§ 12.54` 산출식 **여전히 성립**. `%% External egress` **9** 의 from-node 분해 = `github_adapter` **3** (89 ~ 91) · `confluence_adapter` **1** (92) · `llm_gateway` **5** (93 ~ 97) 이며 **본 slice 대상은 앞 4 개뿐**, 나머지 **5** 개는 다음 slice 이월이다.
+- (iii) `sed -n '88,92p'` → `%% External egress (HTTPS, ADR-0003 §4)` / `github_adapter -- "HTTPS REST/GraphQL<br/>(PAT auth)" --> gh_com` / `… --> gh_sec` / `… --> gh_ecode` / `confluence_adapter -- "HTTPS REST<br/>(PAT auth)" --> conf`. 3 컬럼 분해 — **89**: `github_adapter` · `gh_com` · `HTTPS REST/GraphQL<br/>(PAT auth)` / **90**: `github_adapter` · `gh_sec` · 동일 label / **91**: `github_adapter` · `gh_ecode` · 동일 label / **92**: `confluence_adapter` · `conf` · `HTTPS REST<br/>(PAT auth)`. 도착 node id 4 개는 36 ~ 38 행 `external` subgraph 정의와 일치한다 (`§ 12.53` 이 node 축을 닫았다 — 재판정 없음).
+- (iv) **outbound 지점 정의 (승계)** — `grep -rn 'globalThis.fetch\|fetchFn\|FetchLike' src/github src/confluence --include=*.ts | grep -v spec` → **20** hit, 그중 실 호출 지점은 `github-adapter.service.ts` **370** 행 `response = await this.fetchFn(url, { method: "GET", headers })` 와 `confluence-adapter.service.ts` **455** 행 동형 **2** 지점뿐이고 나머지는 타입 선언 (`FetchLike` **154** · `ConfluenceFetchLike` **172**) · `@Optional` 주입 기본값 (**246** · **305** 행 `globalThis.fetch`) · 주석이다. 따라서 **"결선의 실체 = 주입된 `fetchFn` 호출 지점"** 으로 셈하며, 이는 components.md **163** 행 (`§ 12.48`) 의 "실 outbound 는 주입된 `fetchFn` 단일 지점 (**246** 행 기본값 · **370** 행 호출)" 과 **170** 행 (`§ 12.49`) 의 "실 REST outbound 는 **455** 행 주입 `fetchFn` 단일 지점" 을 **그대로 승계한 정의** 다 (새 정의 창작 **0**).
+- (v) **결선 실측** (5 명령 — 실 credential 값은 옮기지 않고 host 문자열 · 변수명까지만)
+  - ⓐ `grep -rn 'api.github.com\|github.sec.samsung.net\|github.ecodesamsung.com' src --include=*.ts | grep -v spec` → **14** hit. 주석 제외 실 코드는 **3** 행 = `github-request.builder.ts` **29** 행 `const GITHUB_PUBLIC_API_BASE = "https://api.github.com"` · `github-live-test-gating.ts` **64** 행 `host: "github.sec.samsung.net"` · **69** 행 `host: "github.ecodesamsung.com"`. 즉 **public API host 만 라우팅 코드 리터럴** 이고 두 Enterprise host 는 **live-test gating 사양** (`GITHUB_LIVE_HOST_SPECS`) 안 값이다.
+  - ⓑ `grep -rn 'baseUrl\|host' src/github/github-instance-client.service.ts | head -20` → **2** hit (**15** 행 주석 · **103** 행 `host: config.host`) 뿐이라 wrapper 는 config 의 host 를 그대로 넘길 뿐 분기가 없다. 실 분기는 `github-request.builder.ts` **88** 행 `export function resolveGithubApiBaseUrl(host: string)` 의 **2 갈래** — public `github.com` → `https://api.github.com` (**29** 행 상수), 그 외 임의 host → **103** 행 `` return `https://${normalized}/api/v3` ``. **host 별 3 분기는 존재하지 않는다**.
+  - ⓒ `grep -rn 'Authorization' src/github src/confluence --include=*.ts | grep -v spec` → GitHub **5** · Confluence **7** 로 분리 집계. GitHub 의 실 헤더 조립은 `github-request.builder.ts` **133** 행 `` Authorization: `Bearer ${input.token}` `` 단일 형식 (**130** 행 주석이 `ADR-0016 §3` fine-grained PAT Bearer form 명시). Confluence 는 `confluence-request.builder.ts` **108 · 111** 행이 `buildAuthorizationHeader` 결과를 싣고 그 함수 (**119 ~ 143** 행) 가 `authUser` 유무로 **Cloud `Basic <base64(authUser:token)>` / Server `Bearer <token>` 2 분기** (`ADR-0018 §3`) 를 가른다.
+  - ⓓ `grep -rni 'graphql' src/github --include=*.ts | grep -v spec` → **0 hit**. GraphQL v4 사용 근거가 production 코드에 **없다** (`§ 12.48` 의 동일 실측 재현).
+  - ⓔ `grep -rn 'baseUrl\|/rest/api\|/wiki' src/confluence --include=*.ts | grep -v spec | head -10` → **66** hit 중 대표 = `confluence-adapter.service.ts` **67** 행 `parseNextCursor(body, baseUrl)` · **118** 행 주석 `https://acme.atlassian.net/wiki/rest/api` · **133** 행 `isSameHost(cursorUrl, baseUrl)`. 도착 instance 는 **config 의 풀 REST base URL** 로 결정되는 파라미터이며 (`grant-instance-access.dto.ts` **31** 행도 "Confluence 의 풀 REST base URL" 로 서술), 고정 단일 host 리터럴은 없다.
+- (vi) **ADR pointer 축** — `grep -n 'egress\|§ *4' docs/decisions/ADR-0003-deployment.md | head` → **78** 행 `### Decision §4 — 외부 네트워크 boundary = direct outbound from app process`, **80** 행 "Backend process 가 모든 외부 endpoint 에 직접 outbound 한다. 별도 egress proxy / NAT gateway / SOCKS bastion 은 사용하지 않는다". 88 행 주석의 `ADR-0003 §4` 는 **실재하는 절을 가리켜 참** 이다 (동명 heading 이 **147** 행 Alternatives 표에도 있으나 Decision 정본은 78 행). **결선 실재와 별개 축** 이다.
+- (vii) **중복 claim · 좌표 stale** — `grep -n '^| GitHub Adapter \|^| Confluence Adapter ' docs/architecture/components.md` → 편집 전 **257** · **258** 행 (편집 후 **264** · **265**). 본 slice 의 edge 4 개 ↔ row **2** 개 대응은 **github 3 : 1 축약 + confluence 1 : 1** 이며, 257 행의 계약 문구 `HTTPS REST v3 / GraphQL v4, PAT auth (Authorization: token ...)` 는 (v) ⓒⓓ 실측 (`Bearer`, GraphQL 0 hit) 과 두 지점에서 어긋나 보이나 **`## Contracts` 표의 참 / 거짓 판정은 하지 않는다 — 파생 영향 (3) 소관** 이다. 좌표 stale 은 `grep -n '\*\*[0-9]\{3\}\*\* 행' …` + (i) 대조로 **편집 전 0** (T-1458 이 161 행 heading 좌표를 이미 정정) 이었고, 본 절의 삽입이 새로 **3 지점** 을 stale 로 만들어 (viii) · AC 4 에서 정정했다.
+- (viii) **삽입 파급** — 계수 규칙은 `§ 12.55` (viii) 승계 (components.md **자기 좌표 토큰만** 세고 외부 파일 좌표는 제외, 범위 토큰 `A ~ B` 는 **1 지점**). ⓐ `## Component diagram` 절 안 (mermaid 블록 직후, 107 행) 삽입 → 108 행 이후 자기 좌표 **35 지점** 이 밀린다 (표 row 좌표 17 · 각주 블록 · heading · Contracts row 18). ⓑ 각주군 말미 (203 행 뒤) 삽입 → 204 행 이후 자기 좌표 **3 지점** (161 행의 heading `205` · 197 행의 `245 ~ 249` · 203 행의 `252 ~ 255`) 만 밀린다. **35 : 3 = 11.7 배** 차이다.
+- (ix) **baseline** — `wc -l` components.md **273** · audit **5498** · ADR-0003 **173** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175**. `grep -c '^## '` components.md **7** · audit **12**, audit `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **56**, components.md `grep -c '^> '` **70**. 전 항목이 task 파일 기대값과 일치했다.
+
+#### AC 2 판정표 (adapter 계열 4 edge + label 2 종)
+
+| # | 축 | 실측 근거 | 판정 | 근거 1 구 |
+| --- | --- | --- | --- | --- |
+| ① | `github_adapter --> gh_com` (89 행) | (v) ⓐⓑ — builder **29** 행 상수 · **88 ~ 103** 행 public 분기 · adapter **370** 행 호출 | **참** | public host 는 라우팅 코드에 리터럴로 실재하고 outbound 지점이 (iv) 정의를 충족한다. |
+| ② | `github_adapter --> gh_sec` (90 행) | (v) ⓐⓑ — gating **64** 행에만 host 문자열, 라우팅은 **103** 행 임의-host Enterprise 분기 | **부분참** | 결선은 실재하나 그 host 전용 코드 경로가 없고 config 값으로 도달하는 일반 분기다. |
+| ③ | `github_adapter --> gh_ecode` (91 행) | (v) ⓐⓑ — gating **69** 행에만 host 문자열, 라우팅 경로는 ② 와 동일 | **부분참** | ② 와 같은 사유 — 다이어그램이 config 값을 고정 결선처럼 보이게 한다. |
+| ④ | `confluence_adapter --> conf` (92 행) | (v) ⓔ + (iv) — adapter **455** 행 단일 outbound, baseUrl 파라미터화 | **참** | 결선 실재 · outbound 지점 1 개가 확인되며 도착 다중성은 node label 이 "외 사내 Confluence" 로 이미 표기한다. |
+| ⑤ | label `HTTPS REST/GraphQL<br/>(PAT auth)` (89 ~ 91 공유) | (v) ⓓ **0 hit** · ⓒ builder **133** 행 `Bearer` | **부분참** | REST (`/api/v3`) 와 PAT 자격은 참이나 **GraphQL 어구는 거짓** 이고 헤더 형식은 `token` 이 아니라 `Bearer` 다. |
+| ⑥ | label `HTTPS REST<br/>(PAT auth)` (92 행) | (v) ⓒ Confluence 분리 셈 — builder **119 ~ 143** 행 2 분기 | **부분참** | REST · PAT 자격은 참이나 실 scheme 이 Cloud `Basic` / Server `Bearer` 로 갈려 단일 표기가 분기를 은닉한다. |
+
+- **① ~ ③ 은 같은 1 지점의 3 중 표기다** — 실 outbound 지점 **1** (adapter 370 행) · host 분기 **2** (public / Enterprise) · 다이어그램 edge **3** 으로 **1 : 2 : 3** 이 어긋난다. instance 수도 `GITHUB_INSTANCES` env key list 기반이라 **3 고정이 아니다** (`§ 12.48` 승계).
+- 위 판정은 전부 **(iv) 의 outbound 지점 정의 위에서만 유효** 하다. ADR pointer 축 ((vi)) 은 표와 별개로 **참 (drift 0)** 이며 결선 실재와 무관한 축이다.
+- `llm_gateway` 계열 **5** edge (93 ~ 97 행) · 나머지 edge 그룹 · node 축 (`§ 12.53`) · 표 row 본문 (`§ 12.44` ~ `§ 12.50`) 은 재판정하지 않았다.
+
+#### AC 3 처리 방식 판정 (채택 1 · 기각 3)
+
+| 후보 | ① append-only 정합 | ② 좌표 drift | ③ cap | ④ 탐색성 | 판정 |
+| --- | --- | --- | --- | --- | --- |
+| (A) 무편집 + audit 기록만 | 정합 | 0 지점 | 여유 | 다이어그램 독자가 GraphQL 오도를 그대로 읽는다 | **기각** — 축 ⑤ 에 `거짓` 이 있어 AC 3 규칙상 자동 기각. |
+| (B) 각주군 말미 append (≤ 6 행) + stale 좌표 정정 | 정합 (원문 무편집 + 병기) | **3 지점** | diff ≤ 300 · 파일 3 | 표 · 각주군 흐름 안에서 1 hop | **채택** |
+| (C) `## Component diagram` 절 안 삽입 | 정합 | **35 지점** ((viii) ⓐ) | 정정 지점 3 이상 → AC 4 가 철회 지시 | 0 hop 으로 가장 짧다 | **기각** — 탐색성 이득 대비 drift 파급이 11.7 배다. |
+| (D) mermaid edge · label in-place 수정 | **위반** (`§ 12.15`) | 소 | — | — | **기각** — ① 축에서 먼저 탈락하며 Out of Scope 의 mermaid 편집 금지에도 저촉. |
+
+- **mermaid edge 를 지우거나 병합하거나 label 을 고쳐 쓰는 선택지는 채택하지 않는다** — 다이어그램 구조 변경은 본 doc-audit stream 의 scope 밖이고 처리는 각주 병기로 한다. **코드를 고쳐 label 을 참으로 만드는 처리도 금지** (`pr` task 소관).
+- 전 축이 참이었더라도 (A) 를 자동 채택하지 않았을 것이다 — 축 ④ 탐색성상 판정 근거가 audit 파일에만 있으면 다이어그램 독자가 닿지 못하기 때문이다.
+
+#### AC 4 반영 결과 · 무편집 경계
+
+(B) 채택대로 마지막 각주 블록 뒤 · `## GitHub Adapter …` heading 직전에 blockquote **6 행 + 앞 빈 줄 1 행** 을 신설했다 (`wc -l` **273 → 280**, +7). in-place 정정은 (viii) ⓑ 가 stale 로 확정한 **3 지점** — 161 행 heading `205 → 212` · 197 행 `245 ~ 249 → 252 ~ 256` · 203 행 `252 ~ 255 → 259 ~ 262` 로 **숫자만 치환** 했고 문장 재작성은 없다. **task 파일이 예상한 `≤ 2 지점` 을 1 지점 초과** 했는데, 이는 planner 추정이 T-1457 · T-1458 의 Contracts row 좌표 인용 **2 건** 을 계산에 넣지 않은 데서 왔고 실측 (viii) 이 3 을 확정했다 — 1 지점을 남겨두면 stale 이 그대로 존속하므로 AC 4 의 "실측 출력과 1:1 일치" 원칙을 우선해 전량 정정하고 본 구로 편차를 박제한다. 재-drift 는 `§ 12.51` (175 → 180) 이래 **7 회째 재현** 이며 편집 후 `grep -n '^## '` 로 `## GitHub Adapter …` **212** · `## Contracts` **244** · `## References` **270** 을 재측정해 반영했다. mermaid 블록 (30 ~ 106) · `다이어그램 표기` bullet (108 ~ 113) · 표 본체 (117 ~ 126) · 1 ~ 4 행 blockquote · `## 개요` 각주 · 안내 blockquote (128 ~ 131) · 각주 12 블록의 판정 문장 · 205 행 이후 전 구간은 **무편집** 이다. secret · token · 실 credential 값은 옮기지 않았다 (host 문자열 · env 변수 이름까지만 — CLAUDE.md §9).
+
+#### R-110 / R-112 면제 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 모두 **N/A** 다 (측정은 전부 read-only `grep` · `sed` · `wc` · `git` 이며 빌드 · 테스트 · 네트워크 호출 **0**).
+
+#### 파생 영향 (목록만 — 본 slice 편집 금지)
+
+(1) **잔여 edge 대조 3 건** — `%% External egress` 의 **llm_gateway 5** (93 ~ 97 행) · `%% User-facing flow` **2** (65 ~ 66 행) · `%% DB persistence boundary` **1** (86 행) ((ii) 재확인). **다음 대조 1 순위는 `llm_gateway` 계열 5 개** — 본 절이 연 egress 축의 후반부이자 유일한 다수 edge 잔여분이며 (iv) 의 outbound 지점 정의를 그대로 재사용할 수 있다 (`llm-http-gateway.service.ts` **191** 행 단일 `fetchFn` — `§ 12.47` 실측). (2) `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` 본문 ↔ 코드 대조 (`§ 12.48` FU4 미소진 — 본 절 (v) ⓐⓑ 의 3 host 실측 · 2 분기 실측을 재료로 보탰다). (3) **`## Contracts` 표 ↔ 실 계약 표면 대조** (본 절 (vii) 이 egress from row **2** (264 · 265 행) 좌표와 `Authorization: token` · `GraphQL v4` 문구 불일치 단서를 보태 `§ 12.55` 의 **5** · `§ 12.56` 의 **4** 와 합쳐 누적 좌표 **11** 확보). (4) row pointer 셀 보강 2 건 (`Scheduler` = `ADR-0042` 미등재 `§ 12.50` FU2 · `Confluence Adapter` `§ 12.49` FU2). (5) LLM · GitHub adapter ADR pointer 미등재 (`§ 12.47` FU5 · `§ 12.48` FU3). (6) `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트). (7) reviewer 규약 미이행 (`§ 12.41` FU2). (8) `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3). (9) README 행 번호 pointer drift 전수 sweep. (10) REQ 번호 체계 잔재 sweep (`§ 12.38` FU3). (11) `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3). (12) UC-09 `§ 5` sequence participant 병기 (**47 회째 이월**). (13) modules.md 카운트 claim 대조 (`§ 12.34` FU1, ADR 게이트). (14) **행 번호 → anchor 좌표계 이행** (**41 회째 이월** — 본 절 AC 4 의 재-drift **7 회째** 재현과 (viii) 의 35 : 3 파급 격차가 근거를 더 보탰다). (15) 각주 heading 참조 anchor 이행 축소 scope (`§ 12.51` FU19 미소진). (16) `§ 12.44` 한계 "mutation 러너 26 개" 정의 미확정. (17) **`Scheduler` cron → 평가 pipeline 미결선** (`§ 12.50` FU18 — 코드 소관, `pr` task 로만). (18) `ADR-0003` "단일 DB 인스턴스" 좌표 부재 (`§ 12.46` FU16). (19) `Web UI` node 의 process subgraph 소속 표기 (`§ 12.53` FU19 미소진). (20) **node 외연 정의의 문서 미박제** (`§ 12.55` FU20 · `§ 12.56` FU20 — backend_api **13** · worker **2 디렉토리**, 본 절의 **outbound 지점 정의** 도 같은 성격이라 함께 박제 대상이다). (21) modules.md **200** 행 1:N 매핑 ↔ 디렉토리 외연 상충 해소 (`§ 12.56` FU21 미소진). (22) **`GITHUB_INSTANCES` 가변 instance 수 ↔ 문서 전반의 "3 GitHub instance" 고정 표기 정합** (본 절 ① ~ ③ 판정이 새로 연 항목 — components.md 표 row · Contracts row · PLAN 81 행이 함께 대상). (23) `worker --> backend_api` 미표기 결선 (`§ 12.56` FU23 미소진).
+
+#### 불변 검산 (AC 6)
+
+- `wc -l` → components.md **273 → 280** (+7, 상한 280 이내) · audit **5498 → 5574** (+76, +100 이내 — `§ 12.57` 본문 **75** 행 + 구분 빈 줄 1) · ADR-0003 **173 불변** · requirements.md **97 불변** · deployment.md **232 불변** · directory.md **203 불변** · modules.md **259 불변** · PLAN.md **175 불변**.
+- `grep -c '^## '` components.md **7 불변** · audit **12 불변**, audit `grep -c '^| REQ-'` **66 불변** · `grep -c '^### 12\.'` **56 → 57**, components.md `grep -c '^> '` **70 → 76** (+6).
+- `git diff -U0 -- docs/architecture/components.md | grep '^@@'` → `@@ -161 +161 @@` · `@@ -197 +197 @@` · `@@ -203 +203,8 @@` **3 hunk** 이며 전부 AC 4 허용 구간 (각주군 말미 신설 + stale 숫자 치환 3 지점) 안이라 **허용 밖 hunk 0**.
+- `git diff --numstat` → `10 3 docs/architecture/components.md` — 삭제 **3** 행은 전부 stale 숫자 치환의 짝 (같은 문장의 정정 전 판본) 이라 **순수 삭제 0**.
+- `git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md docs/architecture/modules.md` → **빈 출력**. `git status --porcelain` 전체는 **3 파일** (components.md · REQ-COVERAGE-AUDIT.md · T-1459 task 파일).
+
+#### 한계
+
+1. **adapter 계열 4 edge 만 닫았다** — 같은 `%% External egress` 그룹의 `llm_gateway` **5** edge (93 ~ 97 행) 와 잔여 3 edge (user-facing 2 · db boundary 1) 판정은 파생 영향 (1) 소관이다.
+2. **판정은 (iv) 의 outbound 지점 정의에 의존한다** — "결선 = 주입 `fetchFn` 호출 지점" 대신 "base URL 조립 지점" 을 취하면 ① ~ ③ 은 builder **88** 행 1 함수의 2 분기가 되어 부분참 범위가 더 넓어지고, "논리적 도달 가능 endpoint" 를 취하면 셋 다 참이 된다. 본 절은 `§ 12.48` · `§ 12.49` 승계 정의만 사용했다.
+3. **측정은 grep 정적 근사다** — 실제 HTTPS 요청 · 인증 성공 여부는 확인하지 않았다 (live 호출 · gated live spec 실행 모두 Out of Scope). `Authorization` 헤더 형식도 조립 코드 판독까지이며 wire 상 관측이 아니다.
+4. **주석 / 실 코드 분리는 수동 판독이다** — (v) ⓐ 의 **14** hit 중 실 코드 **3** 행, (iv) 의 **20** hit 중 호출 지점 **2** 행은 `const` · `await this.fetchFn(` 패턴을 눈으로 가려낸 결과라 자동 검증되지 않았다.
+5. **`## Contracts` row 2 개의 불일치 단서는 판정하지 않았다** — (vii) 이 관측한 `Authorization: token` · `GraphQL v4` 문구는 좌표 · 인용까지이며 참 / 거짓 확정은 파생 영향 (3) 이다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
