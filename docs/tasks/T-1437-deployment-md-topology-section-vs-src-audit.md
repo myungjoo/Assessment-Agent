@@ -2,7 +2,7 @@
 id: T-1437
 title: deployment.md `## 배포 토폴로지` 단락 (50 ~ 76 행) 의 검증 가능 claim ↔ 실 `src/` · `package.json` · `pnpm-workspace.yaml` 대조 + T-1436 Follow-up 2 (조건부 mount 운영 문서화) closure + audit §12.35
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004, REQ-047]
 estimatedDiff: 200
@@ -14,6 +14,8 @@ touchesFiles:
   - docs/architecture/deployment.md
   - docs/use-cases/REQ-COVERAGE-AUDIT.md
   - docs/tasks/T-1437-deployment-md-topology-section-vs-src-audit.md
+completedAt: 2026-08-04T00:52:00Z
+resultCommit: aaa7328d
 plannerNote: "uc-doc-audit-resync 49 번째 slice — T-1436 Follow-up 2 (deployment.md 조건부 mount 미대조) closure + 문서 축을 directory.md → deployment.md 로 이월. doc-only 1.6x"
 ---
 
