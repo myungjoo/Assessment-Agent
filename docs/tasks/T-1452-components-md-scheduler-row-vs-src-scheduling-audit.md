@@ -2,7 +2,7 @@
 id: T-1452
 title: components.md `## Component table` **Scheduler row (126 행)** 의 검증 가능 claim ↔ 실 `src/scheduling/**` 인벤토리 · `ADR-0003 §3` 재측정 · REQ 대조 + T-1451 FU1 (표 완결 slice) + audit §12.50
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-039, REQ-040]
 estimatedDiff: 200
