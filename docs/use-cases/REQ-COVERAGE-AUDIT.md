@@ -4376,6 +4376,112 @@ $ git status --porcelain → M components.md · M REQ-COVERAGE-AUDIT.md · M T-1
 2. **module 판정은 "class 이름이 실재하는가" 까지다** — 각 module 의 **책임 범위가 문서의 component 정의와 실제로 부합하는지** 는 `## Component table` 8 row 와 각 module 의 provider 전수 대조가 필요해 (그리고 그 표가 본 slice 무편집 대상이라) 판정하지 않았다. `AppModule` 등록 여부 · import 그래프의 현행 acyclic 성도 미측정이며, modules.md 의 카운트 claim 은 `§ 12.34` Follow-up 1 소관으로 남는다.
 3. **누적 drift 수치는 선행 절 인용값** — 135 / 76 / 28 / 31 은 `§ 12.35` ~ `§ 12.42` 의 "합계" 문장에 본 절 22 row 를 더한 것이라, 그 절들이 판정된 뒤 코드가 다시 바뀌었다면 현재 사실과 어긋날 수 있다 (재측정은 §7 context 예산상 하지 않았다).
 
+### 12.44 components.md `## Component table` **Web UI** row ↔ 실 `web/src` 컴포넌트 인벤토리 · `PLAN.md` 122 행 · `ADR-0040` / `ADR-0041` / task pointer 대조 — 원문 보존 + 각주 1 블록 (T-1446)
+
+> **본 절의 위치** — `§ 12.43` 이 "components.md 다음 단락 1 순위" 로 지목한 [T-1445](../tasks/T-1445-components-md-overview-section-vs-src-audit.md) **Follow-up 1** (`## Component table` 축 진입) 을 본 절이 계승한다. **계보** — `T-1430` ~ `T-1435` (directory.md) → `T-1436` ~ `T-1444` (deployment.md, `§ 12.42` 로 종료) → `T-1445` (components.md `## 개요`) → **`T-1446` (본 절 — `## Component table` 축의 첫 slice)**. **8 row 를 slice 로 쪼갠 근거** — row 1 (`Web UI`) 하나만으로 검증 가능 claim 이 **33** 개라 선행 slice 표준 분량 (T-1445 = 22 row) 을 이미 넘어, 8 row 를 한 slice 에 담으면 cap (300 LOC / 3 파일 · 절 ≤ 110 행) 이 확실히 깨진다 (deployment.md `## DB / Persistence` 를 `§ 12.41` · `§ 12.42` 전 · 후반으로 쪼갠 선례와 동형). 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이고, 측정은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 **secret · connection string · 실 호스트명은 옮기지 않았다** (CLAUDE.md §9).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/components.md → 1 `# Component view` · 5 `## 개요` · 22 `## Deployment 컨텍스트` · 28 `## Component diagram` · **115 `## Component table`** · 128 `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` · 160 `## Contracts` · 186 `## References` ⇒ 표 header **117** · 구분선 **118** · **Web UI row = 119** · 나머지 7 row = 120 ~ 126 — AC 좌표 (115 · 119) 그대로 **stale 아님**.
+      claim 이분 — **검증 가능 33** (컴포넌트 이름 15 / `AppShell` · `AuthGate` · `AdminView` 책임 3 / `React + Vite` 별도 패키지 1 / 수치 2 / 출처 pointer `PLAN.md` 122 행 1 / task pointer 4 (`T-0885` · `T-0886` · `T-1350` · `T-0353~T-0394`) / ADR 2 / REQ 3 / `modules.md` defer pointer 1 / 잔여 표면 1) · **검증 불가 5** (`사용자 브라우저에서 동작하는 frontend SPA` 성격 서술 · `로그인 / 대시보드 조회 / 인원 CRUD UI / Admin 설정 UI 진입점` 책임 요약 · `Backend API 와 HTTPS REST JSON 으로만 통신` 배포 시 프로토콜 · 입출력 contract 셀 (`사용자 클릭 / form submit`) · `backend status 계약 확정 후 배선한다` 미래 계획 — 참·거짓 대상이 아니다).
+(ii)  컴포넌트 이름 축 — $ ls -1 web/src/*.tsx web/src/views/*.tsx web/src/components/*.tsx | grep -v '\.test\.' | wc -l → **27** ; AC 예시 grep (`^export (default )?function [A-Z]`) 은 **0 hit** 이라 실 export 화법 (`function X(){}` 선언 후 말미 `export default X;`) 에 맞춰 $ grep -rh '^export default [A-Za-z]' web/src --include=*.tsx | sed 's/export default //;s/;//' | sort -u → **26 이름** (`AdminView` · `App` · `AppShell` · `AuthGate` · `DashboardFilterBar` · `DashboardPaginationControl` · `DashboardView` · `DataImportExportPanel` · `DifficultyModelSelector` · `EvaluationDetailPanel` · `EvaluationGuardBanner` · `EvaluationResultTable` · `GroupList` · `GroupMemberList` · `LlmProviderConfigList` · `LoginForm` · `MetricSummaryCards` · `PartList` · `PermissionDeniedRecordList` · `PersonList` · `ReEvaluationTriggerPanel` · `SchedulePanel` · `ScoreDistributionChart` · `SuperAdminSetupForm` · `TrendTimeSeriesPanel` · `UserList` — 27 파일 중 `main.tsx` 만 default export 0).
+      $ for n in <문서 15 이름>; do grep -rl "^export default $n;" web/src --include=*.tsx; done → **15 / 15 전부 1 파일씩 hit** (`AppShell` · `AuthGate` = `web/src/` 직하, `DashboardView` · `AdminView` = `web/src/views/`, 나머지 11 = `web/src/components/`) ⇒ **부재 0 · 이름 상이 0**. 문서에 없는 초과분은 **11** 개 (이름 전수 열거는 위 26 목록으로 갈음 — 별도 나열은 §7 예산상 생략).
+(iii) 수치 축 — $ sed -n '120,124p' docs/PLAN.md | grep -o '10 종\|26 개' | sort | uniq -c → `1 10 종` · `1 26 개` ; $ grep -n '구별 패널\|mutation 러너' docs/PLAN.md → **122** (두 수치가 같은 bullet) ⇒ **출처 일치 참**. 실 코드 근사 — $ grep -o '<[A-Z][A-Za-z]*' web/src/views/AdminView.tsx | sort -u → 마운트 컴포넌트 **10 종** (`DataImportExportPanel` · `DifficultyModelSelector` · `GroupList` · `GroupMemberList` · `LlmProviderConfigList` · `PartList` · `PersonList` · `ReEvaluationTriggerPanel` · `SchedulePanel` · `UserList`, 나머지 hit 은 TS generic · 지역 row 컴포넌트) ⇒ "10 종" 은 **근사 일치** ; $ grep -o 'run[A-Z][A-Za-z]*' web/src/views/AdminView.tsx | sort -u | wc -l → **31** (읽기 · 다운로드 계열 `runFetch` · `runExport` · `runExportJobDownload` · `runJob` · `runApply` 포함) ⇒ "26 개" 는 **정확 재측정 미시행** (naive grep 이 mutation 이 아닌 러너를 포함해 31 을 세므로 26 을 확증도 반증도 못한다 — 출처 일치까지만 판정).
+(iv)  pointer 축 — $ ls -1 docs/decisions/ADR-0040-*.md docs/decisions/ADR-0041-*.md docs/tasks/T-0885-*.md docs/tasks/T-0886-*.md docs/tasks/T-1350-*.md → **5 파일 전부 실재** ; $ ls -1 docs/tasks/T-0353-*.md docs/tasks/T-0394-*.md | wc -l → **2** (chain 양 끝 실재) ; $ grep -n '^status:' … ADR-0040 · ADR-0041 → 각 **4 행 `status: ACCEPTED`** ⇒ 본문의 `(ACCEPTED)` 병기와 **일치** ; $ grep -c '^| REQ-026 \|^| REQ-038 \|^| REQ-044 ' docs/requirements.md → **3** ; $ grep -n "defer\|polling" docs/architecture/modules.md | head -5 → **242** (`의도적 defer … EvaluationGuardBanner 자동 polling … web/src/views/DashboardView.tsx 94 행 주석이 실증`) ⇒ defer 서술 실재.
+(v)   책임 서술 · 잔여 표면 축 — $ grep -n 'EvaluationGuardBanner' web/src/AppShell.tsx → **17** (import) · **111 ~ 112** (`R-78 배너 슬롯` 주석 + `<EvaluationGuardBanner active={…} />`) · $ grep -n 'view 전환' web/src/AppShell.tsx → **24** ⇒ `AppShell` 책임 3 요소 **참** ; $ grep -o '<[A-Z][A-Za-z]*' web/src/AuthGate.tsx | sort -u → **`<LoginForm` 1 종뿐** 이고 $ grep -rn 'SuperAdminSetupForm' web/src --include=*.tsx → `AppShell.tsx` **19** (import) · **51** (`미인증 단계의 두 분기(로그인=AuthGate / 초기 셋업=SuperAdminSetupForm)`) · **116** (본문 영역 분기) ⇒ `AuthGate (로그인 / SuperAdminSetupForm)` 는 **부분참** (셋업 폼은 `AuthGate` 의 자식이 아니라 `AppShell` 의 형제 분기) ; $ sed -n '121,124p' docs/PLAN.md → **123** 행 R-78 bullet 이 `자동 polling 은 backend status 계약 미shipped 로 defer` 를 명시 ⇒ "남은 잔여 표면 1 항목" **참** (`§ 12.15` 시점 marker 방침상 이 서술 자체가 시점 기록이므로 각주 병기로 처리).
+      `§ 12.15` 강도 — $ sed -n '119p' … | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | wc -l → **0** (날짜 stamp 없음) ; 시점 어휘는 `shipped` **2** · `실측` **1** · `남은` **1** = **4 hit** ⇒ row 전체가 shipped 현황 기록이라 in-place 치환은 append-only 방침과 충돌한다.
+(vi)  baseline — $ wc -l → components.md **196** · audit **4392** · deployment.md **232** · directory.md **203** · modules.md **259** ; $ grep -c '^## ' → components.md **7** · audit **12** ; audit $ grep -c '^| REQ-' → **66** · $ grep -c '^### 12\.' → **43** (기대 9 값 전부 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+| claim (1 구) | 실측 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- |
+| 컴포넌트 **15 이름** (`AppShell` · `AuthGate` · `SuperAdminSetupForm` · `DashboardView` · `AdminView` · `GroupMemberList` · `DifficultyModelSelector` · `SchedulePanel` · `ReEvaluationTriggerPanel` · `PersonList` · `GroupList` · `PartList` · `UserList` · `LlmProviderConfigList` · `EvaluationGuardBanner`) | `export default` 15 / 15 hit (실 26 이름 중) | 참 | 원문 보존 + 각주 부기 | 15 이름 **판정이 전부 동일 (실재)** 이라 1 row 로 묶고 이름을 전부 나열했다 (AC 2 묶음 허용 조건) — 초과분 11 개 사실만 각주에 병기 |
+| `AppShell` 책임 3 요소 (전역 레이아웃 · 무라우터 view 전환 · R-78 배너 슬롯) | `AppShell.tsx` 24 · 111 ~ 112 행 | 참 | 원문 보존 + 각주 부기 | 배너 슬롯 · view 전환이 코드 주석과 JSX 로 동시 실증 |
+| `AuthGate` (로그인 / `SuperAdminSetupForm`) | `AuthGate.tsx` = `LoginForm` 1 종 ; 셋업 폼은 `AppShell.tsx` 51 · 116 | 부분참 | 원문 보존 + 각주 부기 | 두 화면이 같은 "미인증 단계" 라는 점은 맞으나 **소유 컴포넌트가 다르다** |
+| `AdminView` 마운트 목록 (`GroupMemberList` 조회 · `DifficultyModelSelector` · export/import · RBAC gating · 5 List 패널 · 2 패널) | 실 JSX 마운트 10 종 일치 | 참 | 원문 보존 + 각주 부기 | 열거된 컴포넌트가 전부 `AdminView.tsx` JSX 에 실재 |
+| `React + Vite`, 별도 `web/` 패키지 | `web/package.json` 7 · 20 행 (`vite ^8.0.16`) | 참 | 원문 보존 + 각주 부기 | ADR-0040 결정과 실 패키지가 일치 |
+| 구별 패널 **10 종** | PLAN 122 행 문자열 + `AdminView` 마운트 10 종 | 참 | 원문 보존 + 각주 부기 | 출처 · 근사 실측 **양쪽 일치** |
+| mutation 러너 **26 개** | PLAN 122 행 문자열 ; naive `run[A-Z]` grep = 31 | 부분참 | 원문 보존 + 각주 부기 (근사 한계 명시) | 출처는 일치하나 **실 코드 정확 재측정을 하지 못했다** — 추정값을 실측인 양 적지 않는다 |
+| 근거 = [PLAN.md](../PLAN.md) **122** 행 | 두 수치가 실제로 122 행에 존재 | 참 | 원문 보존 + 각주 부기 | 행 좌표까지 정확 |
+| `T-0885` pointer (SchedulePanel 마운트) | `docs/tasks/T-0885-*.md` 실재 | 참 | 무편집 | 파일 + 링크 대상 일치 |
+| `T-0886` pointer (ReEvaluationTriggerPanel 마운트) | `docs/tasks/T-0886-*.md` 실재 | 참 | 무편집 | 파일 + 링크 대상 일치 |
+| `T-1350` pointer (수치 근거) | `docs/tasks/T-1350-*.md` 실재 | 참 | 무편집 | 파일 + 링크 대상 일치 |
+| `T-0353~T-0394 composition-wiring chain` | 양 끝 task 파일 2 개 실재 | 참 | 무편집 | 범위 표기의 양 끝점이 실재 (중간 전수 확인은 §7 예산 밖) |
+| [ADR-0040](../decisions/ADR-0040-frontend-stack.md) **(ACCEPTED)** 병기 | `status: ACCEPTED` (4 행) | 참 | 무편집 | 실 status 와 병기 일치 |
+| [ADR-0041](../decisions/ADR-0041-frontend-composition-wiring.md) **(ACCEPTED)** 병기 | `status: ACCEPTED` (4 행) | 참 | 무편집 | 실 status 와 병기 일치 |
+| `REQ-038` (조회/sort/filter/시계열) | `requirements.md` row 실재 | 참 | 무편집 | REQ 번호 실재 |
+| `REQ-026` (인원 CRUD UI) | `requirements.md` row 실재 | 참 | 무편집 | REQ 번호 실재 |
+| `REQ-044` (로그인 UI / 3 등급) | `requirements.md` row 실재 | 참 | 무편집 | REQ 번호 실재 |
+| [modules.md](../architecture/modules.md) 의 defer 서술 pointer | modules.md 242 행 | 참 | 원문 보존 + 각주 부기 | 지목한 서술이 실제 그 문서에 실재 |
+| 남은 잔여 표면 = `EvaluationGuardBanner` 자동 polling **1 항목** | PLAN 123 행 R-78 bullet + modules.md 242 행 | 참 | 원문 보존 + 각주 부기 | 두 정본이 같은 1 항목만 defer 로 명시 |
+
+판정 기준 **3 축** — ① **문서 성격**: 1 ~ 4 행 blockquote 가 본 문서를 `P1 T-A3 의 산출물` (blueprint) 로 선언하지만, 본 row 는 `shipped 컴포넌트는 …` · `… 실측` 화법으로 **이미 여러 차례 현황으로 갱신된 흔적** 이 있어 blueprint 성격만으로 무편집을 정당화할 수 없고, 그래서 판정은 하되 처리는 각주로 갔다. ② **`§ 12.15` 정합**: 본 row 는 날짜 stamp **0** 이나 시점 어휘 **4 hit** (`shipped` 2 · `실측` 1 · `남은` 1) 로 전체가 시점 기록이라 in-place 치환이 append-only 방침과 충돌한다. ③ **선례**: T-1430 ~ T-1445 의 "원문 보존 + 실측 각주" 를 승계했다 — [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) 의 in-place 1:1 치환은 **거짓 지점이 어휘 1 개** 였던 경우이고, [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 의 혼합은 **거짓이 여러 건** 이었던 경우인데, 본 slice 는 **거짓 0 · 부분참 2** 라 치환 대상 자체가 없다.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | Web UI row 셀 in-place 동기 (거짓 이름 · 낡은 카운트 치환) | 기각 | **치환 대상이 존재하지 않는다** — 거짓 이름 0 (15 / 15 실재) 이고 카운트 2 건은 출처 (PLAN 122 행) 와 일치해 "낡음" 이 실증되지 않았다 |
+| **(B)** | **원문 무편집 + `## Component table` 표 직후 각주 blockquote 1 개 신설** | **채택** | T-1437 ~ T-1445 화법을 그대로 잇고, 부분참 2 건 (`AuthGate` 소유 · `26 개` 재측정 한계) 과 초과분 11 개를 같은 화면에 병기해 **오도 risk 만** 제거하며 cap (+6 행 · 3 파일) 안이다 |
+| (C) | 혼합 (거짓 판정 이름만 in-place, 카운트 · 잔여 서술은 각주) | 기각 | 거짓 판정 이름이 **0** 이라 혼합의 in-place 항이 공집합이고, `AuthGate` 부분참을 셀에서 고치려면 **책임 문장 재작성** 이 필요해 시점 기록 (`shipped …`) 안쪽을 손대게 된다 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 이 표는 문서에서 **claim 밀도가 가장 높은 지점** 이라 독자가 `AuthGate` 가 셋업 폼을 소유한다고 오인하거나 `26 개` 를 현행 실측으로 오인할 비용이 크고, 실 컴포넌트 **11 개 초과분** 미인지는 중복 컴포넌트 신설로 직결된다 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: 시점 어휘 4 hit 이 전부 본 row 안이라 append-only + 각주가 정합한다. ② **오도 risk**: (a) `AuthGate` 소유 오인 → 셋업 폼을 `AuthGate` 자식으로 배선하려는 시도, (b) `26 개` 를 현행 실측으로 오인 → drift 미인지, (c) 초과분 11 개 미인지 → 이미 있는 presentational 컴포넌트 재작성 — 셋 다 실작업 낭비로 직결돼 (D) 를 기각시킨다. ③ **cap**: (B) 의 실측 diff 는 components.md **+6/-0** (196 → **202**, 허용 ≤ 203) · 파일 **3 고정** 이라 상한 안이다 ((A) · (C) 는 치환 대상 공집합이라 애초에 성립하지 않는다). ④ **표 안 각주 배치의 구조 제약**: markdown 표 중간에는 blockquote 를 넣을 수 없어 각주는 **표 전체 뒤** (마지막 row `Scheduler` 다음) 로 갈 수밖에 없고, 그 위치가 미판정 7 row 와 시각적으로 인접하므로 **첫 구에 "본 각주는 `Web UI` row 한정" 을 명시** 했다 — 후속 slice 가 같은 자리에 각주를 덧붙일 것이므로 이 배치 · 첫 구 규약이 **Component table 축의 template** 이 된다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (5 행)** — 표 마지막 row (126 행) 뒤 · `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` heading 앞에 append (앞뒤 공백 행 보존, 실 증가 **+6** = blockquote 5 + 공백 1). 내용은 ① **`Web UI` row 한정 선언 + 미판정 7 row 명시**, ② 15 이름 **전수 실재** + 실 26 export · 초과분 11 · 디렉토리 분포, ③ `AuthGate` **부분참** (`SuperAdminSetupForm` = `AppShell` 형제 분기) + `AppShell` · `AdminView` 참, ④ 수치 2 건의 **출처 일치 / 정확 재측정 미시행** 구분, ⑤ pointer 전수 참 (`ADR-0040` · `ADR-0041` `status: ACCEPTED` · task 5 · REQ 3 · modules.md 242 행) + 잔여 1 항목 참, ⑥ `§ 12.15` 처리 사유 + 본 절 pointer.
+- **문구 1:1 + 무편집 경계** — 각주의 경로 · 컴포넌트 이름 · 수치 (**26** · **15** · **11** · **10 종** · **31** · PLAN **122** · **123** · modules **242** · `AppShell.tsx` **24** · **51** · **111 ~ 112** · **116**) 는 전부 위 실측 출력 그대로이며, **실측되지 않은 값 (존재하지 않는 컴포넌트 · 임의 카운트 · 없는 task ID) 은 창작하지 않았고** secret · connection string · 실 호스트명도 옮기지 않았다. **1 ~ 4 행 blockquote · 16 ~ 21 행 T-1445 각주 · 나머지 7 row · 128 행 이후 전 구간** (`## GitHub Adapter …` · `## Contracts` · `## References` · mermaid) 은 그대로다.
+- **새 pointer 0** — 각주가 더한 markdown 링크는 본문에 이미 등재된 `ADR-0040` · `ADR-0041` · `PLAN.md` · `modules.md` 와 본 절 pointer 뿐이고, `web/src` 하위 경로 · `AdminView.tsx` 등은 **링크 없는 코드 span** 으로만 인용했다. **컴포넌트 rename · 파일 추가는 하지 않았다** (Out of Scope — 문서를 실제에 맞출 뿐 실제를 문서에 맞추지 않는다).
+
+#### T-1445 Follow-up 1 closure + Component table 축 진입 선언
+
+- **Follow-up 1 closure** — `§ 12.43` 이 "다음 단락 1 순위" 로 이월한 `## Component table` 진입을 본 절이 수행했고, 그 **row 1 (`Web UI`) 의 검증 가능 33 claim 을 전부 판정 · 각주 반영** 했다. 승계 대상 (축 진입) 은 소진되며, **표 잔여는 7 row** 다.
+- **축 진입 선언** — components.md 는 본문 절 **7 개** 중 **2 개** (`## 개요` · `## Component table` row 1) 가 대조를 마쳤고 문서 안 실측 각주는 **2 블록** 이다. 누적은 본 절 33 을 더해 **168 row = 참 107 · 부분참 30 · 거짓 31** (`§ 12.35` ~ `§ 12.44` 합 — 선행 절 합계 문장 인용 + 본 절 33: 참 31 · 부분참 2 · 거짓 0).
+- **잔여 미판정 7 row** — `Backend API` (120) · `Worker` (121) · `DB Persistence` (122) · `LLM Gateway` (123) · `GitHub Adapter` (124) · `Confluence Adapter` (125) · `Scheduler` (126). **다음 slice 1 순위 = `Backend API` + `Worker`** — 근거: 두 row 는 실 `src` 하위 controller · service 인벤토리와 1:1 대조가 가능해 검증 난이도가 낮고 (`§ 12.43` 이 이미 15 module class 목록을 실측해 둬 재사용 가능), ADR-0003 §1 monolithic claim 을 공유해 한 slice 로 묶는 편이 판정 축이 겹친다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **Component table 잔여 7 row** — 위 목록 참조. 1 순위 `Backend API` + `Worker` (실 controller · service 대조 가능 + monolithic claim 공유), 차순위 `DB Persistence` (`schema.prisma` 대조), 후순위 3 adapter + `Scheduler`.
+2. **`## Deployment 컨텍스트` (22 ~ 26 행)** — "모든 8 component 는 동일 process" claim + ADR pointer 3 종. T-1445 FU1 차순위로 이월된 항목이 본 절에서도 미착수다.
+3. **`## Component diagram` mermaid node ↔ 실 module 대조** — 다이어그램 node 이름이 실 module / 컴포넌트와 일치하는지 미판정.
+4. **`@nestjs/config` 미도입 전수 sweep** — `§ 12.39` FU3 미소진 (ADR 게이트).
+5. **reviewer 규약 미이행** — `.claude/agents/reviewer.md` REQ-032 0 hit (`§ 12.41` FU2 미소진).
+6. **`deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합** — `§ 12.41` FU3 미소진.
+7. **README 행 번호 pointer drift 전수 sweep** — 미착수.
+8. **REQ 번호 체계 잔재 전수 sweep** — `§ 12.38` FU3 미소진.
+9. **`CLAUDE.md` §1 pointer 부정확** — T-1442 FU3 미소진.
+10. **UC-09 `§ 5` sequence participant 병기** — 29 회째 이월.
+11. **정본 [modules.md](../architecture/modules.md) 카운트 claim 대조** — `§ 12.34` FU1 미소진 (ADR 게이트).
+12. **행 번호 → anchor 좌표계 이행** — 23 회째 이월.
+13. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관. 본 절의 "패널 10 종" · "mutation 러너 26 개" 는 컴포넌트 1 개 추가로 즉시 낡으며, 특히 26 개는 **정의 (무엇이 mutation 러너인가) 가 코드에 박제돼 있지 않아** spec 화 전에 정의부터 확정해야 한다.
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 전부 **N/A** 다 (측정은 read-only `ls` · `grep` · `sed` · `wc` · `git` 뿐이고 빌드 · 설치 · 테스트는 실행하지 않았다).
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → components.md **202** (196 → +6, 허용 ≤ 203) · audit **4392 → 4498** (+106 = 본 절 105 행 = 4379 ~ 4483 + 구분 공백 1, 허용 ≤ 110 · +110 이내) · deployment.md **232** (불변) · directory.md **203** (불변) · modules.md **259** (불변) · PLAN.md **175** (불변)
+$ grep -c '^## ' → components.md **7** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **44** (43 → 44)
+$ git diff -U0 -- docs/architecture/components.md | grep '^@@' → `@@ -127,0 +128,6 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (표 마지막 row 126 행 뒤 ~ `## GitHub Adapter …` heading 앞) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/components.md → `6  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md → (빈 출력 — 코드 · frontend · 배포자산 · CI · 의존성 · ADR · PLAN 무변경)
+$ git status --porcelain → M components.md · M REQ-COVERAGE-AUDIT.md (**2 파일** — task 파일 frontmatter `status` 갱신은 driver 의 bookkeeping commit 소관이라 executor 가 건드리지 않았다. touchesFiles 3 파일 중 실제 편집은 2)
+```
+
+#### 한계 —
+
+1. **`mutation 러너 26 개` 는 확증도 반증도 못했다** — naive `run[A-Z]` grep 이 읽기 · 다운로드 러너를 포함해 **31** 을 세므로, 26 이 맞는지는 각 러너가 mutation 인지 1 개씩 분류해야 알 수 있고 그 분류는 §7 예산 밖이다. 각주는 "출처 일치" 까지만 주장한다.
+2. **컴포넌트 판정은 "default export 이름이 실재하는가" 까지다** — 각 컴포넌트의 **책임 서술이 실제 구현과 부합하는지** 는 `AppShell` · `AuthGate` · `AdminView` 3 개만 마운트 관계로 확인했고, 나머지 12 개의 props · 내부 동작은 미판정이다. `T-0353~T-0394` chain 도 **양 끝 2 개만** 실재 확인했다.
+3. **표 나머지 7 row 는 전부 미판정** — 본 각주가 표 뒤에 있어 시각적으로 8 row 전체를 덮는 것처럼 읽힐 여지가 있고, 그래서 첫 구에 한정 선언을 뒀다. 후속 slice 가 같은 자리에 각주를 덧붙이면 blockquote 가 누적되므로, 5 ~ 6 블록 시점에는 배치 규약 자체 (표 뒤 나열 vs row 별 anchor) 를 재검토해야 한다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
