@@ -2,7 +2,7 @@
 id: T-1451
 title: components.md `## Component table` **Confluence Adapter row (125 행)** 의 검증 가능 claim ↔ 실 `src/confluence/**` 인벤토리 · `ADR-0003 §4` 재승계 · REQ 대조 + T-1450 FU1 (재-split 둘째 slice) + audit §12.49
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-015, REQ-016, REQ-017]
 estimatedDiff: 200
