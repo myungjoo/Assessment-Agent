@@ -101,4 +101,7 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 ## Follow-ups
 
-(비어 있음 — 작업 중 발견 사항을 여기에 append)
+1. **`## 개요` (5 ~ 14 행) = 다음 slice 1 순위** — deployment.md 잔여 마지막 단락. 닫으면 문서 전 단락 대조가 완결되고 uc-doc-audit-resync 의 deployment.md 축이 종료된다 (`§ 12.41` 파생 영향 1).
+2. **reviewer 규약 미이행** — `.claude/agents/*.md` 에 `REQ-032` · `raw 본문` **0 hit** 이라 deployment.md 48 행의 "reviewer 가 REQUEST_CHANGES" 는 현행 규약이 아니다. 체크리스트 보강 여부는 `.claude/` 소관의 **별도 direct task** (본 slice 는 audit 기록만).
+3. **backup 실 절차 형식 차이** — `docs/ops/runbook.md` 의 복원 명령은 plain SQL + `psql` 이라 `pg_restore` 실 명령이 미등재. `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 판정은 `§ 12.39` Follow-up 4 와 묶어 처리 후보.
+4. **가설 반증 5 회째 기록** — planner 가설 ②「README 57 행 pointer 는 부정확할 것」이 실측으로 반증됐다 (57 행이 정확). 실측 선행 규율의 유효성 근거로 누적한다.

@@ -4056,6 +4056,112 @@ $ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1
 1. **4 지점의 거짓은 각주로만 해소된다** — 23 · 24 · 25 · 32 행 원문은 그대로라 각주를 건너뛴 독자에겐 `db:5432` 오도와 "P3 에서 결정" 미래형이 남는다. service 이름 1 토큰은 치환 가능했으나 같은 행의 양자 서술 · Unix socket 경로가 함께 걸려 부분 치환이 새 부정합을 만든다는 점, 그리고 23-c 해소가 [CLAUDE.md](../../CLAUDE.md) 편집 (Out of Scope) 을 요구한다는 점을 우선한 결과다.
 2. **후반부 미판정 · pool 실효값 미측정** — 34 ~ 49 행 (backup · REQ-032 · 후속 진행) 은 본 slice 범위 밖이라 REQ-032 의 schema-level 강제 여부를 판정하지 않았고, pool 은 설정 키워드 **0 hit** 까지만 확인했을 뿐 `@prisma/adapter-pg` 가 실제로 적용하는 default 크기 · timeout 값은 런타임 측정 (DB 접속) 이 필요해 **미측정** 으로 남겼다 (Out of Scope — DB 접속 금지).
 
+### 12.41 deployment.md `## DB / Persistence` 후반부 ↔ 실 `prisma/schema.prisma` · backup 자산 · reviewer 규약 대조 — 원문 보존 + 각주 1 블록 (T-1443)
+
+> **본 절의 위치** — `§ 12.40` 이 `## DB / Persistence` **전반부** 를 닫으며 파생 영향 **1** 로 지목한 "후반부 = 다음 slice 1 순위" ([T-1442](../tasks/T-1442-deployment-md-db-persistence-head-vs-prisma-audit.md) Follow-up 1) 를 본 절이 계승한다. 이월 사유였던 "REQ-032 축은 `String` column 전수 판정이 필요해 단독 slice 가 적절" 은 실측으로 확인됐다 (`String` 출현 **74** 회 · `model` **15** 개). **계보** — `T-1430` ~ `T-1435` (directory.md) → `T-1436` (산문 단락) → `T-1437` (`## 배포 토폴로지`) → `T-1438` (`## Scheduler 위치`) → `T-1439` · `T-1440` (network boundary 전 / 후반부) → `T-1441` (`## Secret / 자격증명 저장`) → `T-1442` (DB 전반부) → **`T-1443` (본 절 — DB 후반부)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이고, 실측 인용은 cap 준수를 위해 **요약형** 이며 **schema 의 실 데이터 · connection string · secret 은 옮기지 않고 column / model 이름까지만** 인용한다 (CLAUDE.md §9).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/deployment.md → 40 `### Backup / restore 전략` · 46 `### Raw data 저장 금지 (REQ-032) 의 schema-level 강제` · 52 `### 후속 진행` · 56 `## 배포 토폴로지 (Monolithic vs worker 분리)` ⇒ 본 slice 범위 = **40 ~ 55 행** (AC 좌표 일치 — stale 아님).
+      $ sed -n '40,55p' … → heading(40) + bullet 3(41 ~ 43) + heading(46) + bullet 3(47 ~ 49) + heading(52) + 문단 1(54) ; claim 이분 — **검증 가능 13 축** (backup 도구 1 · restore 명령 1 · README pointer 1 · 요구 충족 경로 1 · 자동화 미도입 1 · phase 배정 1 · raw column 1 · 컬럼화 대상 1 · ADR pointer 1 · reviewer 규약 1 · P3 시점 3) · **검증 불가 3** (43 행 "migration history 도 함께 복원되어 schema 상태가 동기" 라는 미실행 설계 서술 · 42 행 "표준 도구 사용 정책만 박제" 의 정책 선언 타당성 · 41 행 "binary 또는 plain SQL backup 가능" 의 실행 결과 — DB 접속 금지라 셋 다 미측정).
+(ii)  backup 도구 축 — $ grep -rn "pg_dump\|pg_restore" deploy docs/ops scripts package.json | head -8 → `deploy/README.md:227` (`docker compose exec postgres pg_dump -U … > backup.sql`) · `docs/ops/runbook.md:94` ("PostgreSQL 표준 `pg_dump` / `pg_restore` 를 쓴다" — `### 2.2 DB restore(백업 복원)`) · `docs/ops/runbook.md:99` (백업 명령) ⇒ **3 hit, 문서 밖 자산으로 뒷받침됨** ; 단 runbook 의 복원 명령은 `docker compose exec -T postgres psql … < backup.sql` 로 **plain SQL + `psql`** 이라 `pg_restore` 실 명령은 **미등재**.
+(iii) README pointer 축 — $ grep -n "export" README.md | head -6 → **57** `- 평가 자료가 저장된 공간은 쉽게 export하여 backup하고 restore하여 reset할 수도 있어야 한다.` (1 hit) ⇒ 문서가 적은 **"README 57 행" 은 정확** (planner 가설 ②「56 행일 것」을 실측이 **반증** — 가설 반증 5 회째). $ sed -n '54,58p' README.md → 54 `# 평가 자료의 저장` · 56 non-volatile · 57 export / backup / restore · 58 재수집 중복 방지 ⇒ 57 이 요구 문장 본체.
+(iv)  자동화 시점 축 — $ grep -rn "backup" .github/workflows/ci.yml deploy scripts src --include='*' | head -8 → `deploy/README.md:227` **수동 1 줄** + `src/export/*.spec.ts` · `src/import/uploaded-dump-file.spec.ts` 의 **fixture 문자열** (`backup-2026-06-17.json` · `backup.dump`) 뿐 ; $ grep -rn "backup\|pg_dump" src/scheduling → **0 hit** ⇒ cron / scheduler 기반 자동 backup **미도입 (참)**.
+      $ grep -n "^## Phase P7" docs/PLAN.md → **131** ; $ sed -n '131,140p' docs/PLAN.md → 오너 승인 (2026-07-07, Q-0051) + R-72 · R-73 · R-74 · R-50 · **R-57 (Import / export / restore)** 5 bullet 이 전부 `[x] implemented-on-main` ; $ grep -n '"phase"' docs/STATE.json → 3 `"phase": "P4-complete / P5-in-progress"` ⇒ **자동화는 미이행 · phase 배정은 낡음** 두 축 분리.
+(v)   REQ-032 raw column 전수 축 — $ grep -c "String" prisma/schema.prisma → **74** ; $ grep -c "^model " → **15** (`Person` · `Group` · `Part` · `PersonGroupMembership` · `User` · `UserInstanceAccess` · `ServiceIdentity` · `Assessment` · `Contribution` · `Summary` · `LlmProviderConfig` · `DifficultyMapping` · `PermissionDeniedRecord` · `ExportJob` · `ImportJob`).
+      $ grep -n "body\|content\|message\|diff\|patch\|rawText\|raw " prisma/schema.prisma | head -12 → hit 12 건 중 **주석 8** (280 · 281 · 285 · 288 · 321 · 323 · 324 · 356 행 — "raw 본문 컬럼 0" 선언 자체) · **`difficulty` 오탐 3** (300 · 335 · 443) · `hashedPassword` 주석 1 (156) ⇒ **raw 본문 column 0 (참)**. $ grep -nE "^\s+[a-zA-Z]+\s+(String|Json|Bytes)" … | grep -iE "body|content|message|text|raw|payload|narrative" → **303 · 366 `narrative String` 2 건뿐** — schema 주석 357 행이 "narrative 는 LLM 정성 요약 평가문 (LLM 생성 결과물 — raw 아님)" 으로 명시 ; `Json` column 은 `ExportJob.dateRange` · `entitySelector` (618 · 619) 로 **선택 조건** 이고 dump 본문은 `artifactRef` **참조만** 보유.
+(vi)  reviewer 규약 축 — $ grep -rn "REQ-032\|raw data\|raw 본문" .claude/agents/*.md → **0 hit** ; $ grep -rn "REQ-032" .claude/ → **0 hit** ; $ grep -n "String\|schema.prisma\|column" .claude/agents/reviewer.md → **0 hit** (34 행 `# 8 check 구체 sub-check` 에 schema 항목 부재) ⇒ **미이행 규약**. 원문 화법은 "…확인 — raw text 보관 의도이면 REQ-032 위반으로 REQUEST_CHANGES" 로 **현재형 (현행 규약 서술)** 이라 미래 정책 예고가 아니다.
+(vii) P3 시점 축 — $ ls -1 prisma/migrations | wc -l → **14** ; $ grep -rn "class PrismaService" src --include='*.ts' → `src/persistence/prisma.service.ts:29` (1 hit, `src/persistence/persistence.module.ts` 동거) ; $ grep -n '"@prisma/client"\|"prisma"' package.json → 34 `"@prisma/client": "^7.8.0"` · 42 `"prisma": "^7.8.0"` ; $ grep -c "@@index" → **14** · $ grep -c "@@unique" → **19** (`@unique` 별도 다수) ⇒ column 설계 · 인덱스 · unique · install · module **전부 이행**.
+      `§ 12.15` 강도 — 본 후반부의 시점 marker 는 **3 hit** (42 · 49 · 53 행) 이고 전부 "어느 phase 가 언제 한다" 는 당시 계획 기록이며 53 행은 "코드 변경은 0 LOC" 라는 **작성 시점 자기 기술** 이라, 갱신하려면 새 phase 배정을 창작해야 해 append-only 가 `§ 12.40` 과 동일 강도로 걸린다.
+(viii) pointer 유효성 축 — $ grep -n '^## \|^### ' docs/decisions/ADR-0002-db.md | head -12 → 21 `## Context` · **41 `## Decision`** · 53 `## Consequences` · 88 `## Amendment …` · 113 `## References` (`### Decision §2` heading 은 없고 `## Decision` 하위 **번호 목록 2 번** 이 "REQ-032 schema-level 강제") ⇒ 47 행 `Decision §2` pointer **유효** (본문 재판정 · status 변경 없음).
+(ix)  baseline — wc -l deployment.md **219** · audit **4072** · directory.md **203** · modules.md **259** ; grep -c '^## ' deployment.md **6** · audit **12** ; audit grep -c '^| REQ-' **66** · grep -c '^### 12\.' **40** (기대 8 값 전부 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+판정 3 축 — ① **문서 성격**: 1 ~ 4 행 blockquote 의 "본 문서는 P1 T-A2 의 산출물" 선언이 그대로 걸리고, 본 후반부는 [T-0014](../tasks/T-0014-adr-0002-db-selection.md) 가 [ADR-0002](../decisions/ADR-0002-db.md) 를 옮겨 채운 P1 blueprint 원본이라 보존 강도가 `§ 12.40` 과 동급이다. ② **`§ 12.15` 정합**: 날짜 stamp **0** · 시점 marker **3 hit** (42 · 49 · 53 행, 실측 (vii)) 으로 전반부와 같은 밀도이며 53 행은 자기 기술이라 치환 대상으로 가장 부적합하다. ③ **선례**: 수치 축이면 [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) in-place, 서술 · 규약 · 시점 축이면 T-1430 ~ T-1435 · T-1437 ~ T-1442 각주, 혼합은 [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 인데 본 후반부는 **행 번호 pointer 가 실측상 정확** (41 행 README 57) 해 in-place 치환 대상 자체가 0 이라 각주 계열에 든다.
+
+| 지점 (행) | claim (1 구) | 실측 결과 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 41-a | 표준 `pg_dump` / `pg_restore` 로 backup 가능 | `deploy/README.md` 227 · `docs/ops/runbook.md` 94 · 99 실재 | 참 | 무편집 + 각주 근거 | 실측 (ii) 3 hit |
+| 41-b | `pg_restore` 가 실 복원 경로 (43 행과 연동) | runbook 복원 명령은 **plain SQL + `psql`** | 부분참 | 원문 보존 + 각주 부기 | 도구 이름은 유효하나 실 절차와 형식이 다름 |
+| 41-c | pointer — **README 57 행** (export / backup / restore) | README **57 행이 정확히 그 요구 문장** | 참 | 무편집 + 각주 근거 | planner 가설 ② 반증 (실측 우선) |
+| 41-d | README 57 요구를 **본 표준 도구로** 충족 | 실 충족 주 경로는 app-level export / import job (`src/export/` · `src/import/`, PLAN P7 R-57 `[x]`) | 부분참 | 원문 보존 + 각주 부기 | dump 는 보조, 요구 충족 주 경로가 바뀜 |
+| 42-a | 자동 backup 은 아직 없음 (정책만 박제) | 자동화 자산 **0** (`deploy/README.md` 227 수동 1 줄뿐) | 참 | 무편집 + 각주 근거 | 실측 (iv), `src/scheduling` 0 hit |
+| 42-b | 자동 backup 은 **P7 phase 의 task** | P7 **부분 진입** (R-72 · 73 · 74 · 50 · 57 `[x]`) · 현 phase `P4-complete / P5-in-progress` | 부분참 (시점 낡음) | 원문 보존 + 각주 부기 | 새 phase 배정 창작 금지 (AC 4) |
+| 47-a | `schema.prisma` 에 raw 본문 column 미정의 | 전수 — 후보 계열 column **0** (`narrative` 는 LLM 생성물) | 참 | 무편집 + 각주 근거 | 실측 (v), schema 무편집 |
+| 47-b | 평가 결과 (난이도 / 평가문 / metric) 만 컬럼화 | `difficulty` · `narrative` · metric 컬럼 실재 | 참 | 무편집 | 실측 (v) model 15 개 확인 |
+| 47-c | pointer — [ADR-0002](../decisions/ADR-0002-db.md) `Decision §2` | `## Decision` 41 행의 근거 **2** 번 = REQ-032 강제 | 참 | 무편집 | 실측 (viii), ADR 본문 재판정 없음 |
+| 48 | reviewer agent 가 `String` column 추가를 REQ-032 위반으로 **REQUEST_CHANGES** | `.claude/agents/*.md` **0 hit** · reviewer 8 check 에 schema 항목 부재 | 거짓 (미이행 규약) | 원문 보존 + 각주 부기 | `.claude/agents/` 편집은 Out of Scope |
+| 49 | 구체 column 설계 / 인덱스 / unique 는 **P3 에서 진행** | `@@index` **14** · `@@unique` **19** 실재 | 거짓 (시점 낡음) | 원문 보존 + 각주 부기 | 이행 완료를 미래형으로 서술 |
+| 53-a | `prisma` install · PrismaService module 은 **P3 에서 진행** | `package.json` `^7.8.0` · `src/persistence/prisma.service.ts` · migrations **14** | 거짓 (시점 낡음) | 원문 보존 + 각주 부기 | 같은 유형이 `§ 12.40` 32 행에도 있었음 |
+| 53-b | 본 task 와 본 단락은 정책만 박제 · **코드 변경 0 LOC** | T-0014 시점 기술로는 유효 | 참 (시점 한정) | 무편집 + 각주 부기 | 자기 기술이라 `§ 12.15` 보존 최강 |
+
+- 합계 — 검증 가능 **13 row = 참 7 · 부분참 3 · 거짓 3**, 검증 불가 3 은 대상 제외. `§ 12.40` (거짓 4 / 15) 보다도 거짓 비중이 낮은데, 이는 후반부의 핵심 정책 claim (raw column 금지 · backup 도구 · ADR pointer · README pointer) 이 **실제와 그대로 일치** 했기 때문이며, 어긋난 3 건은 전부 "누가 언제 하기로 했는가" 축 (48 은 규약 주체, 49 · 53 은 phase) 이다.
+- **거짓 / 부분참 축 · 시점 축의 분리 판정** — ① **거짓 / 부분참 (41-b · 41-d · 48)**: 41-b · 41-d 는 도구 · 요구 이름이 유효한 채 **실 경로만 갈라진** 형태라 원문 1 토큰 치환으로는 오히려 backup 정책 선언 자체가 지워지고, 48 은 해소하려면 `.claude/agents/reviewer.md` 체크리스트 추가가 필요한데 그것이 Out of Scope 다 (문서를 실제에 맞출 뿐 실제를 문서에 맞추지 않는다) → 셋 다 각주로 수렴. ② **시점 (42-b · 49 · 53-a)**: 갱신하려면 "이제 어느 phase 책임인가" 를 새로 배정해야 하고 그것은 PLAN 게이트라 AC 4 창작 금지와 정면 충돌하며, 특히 42-b 는 **미이행 (자동화) 과 시점 낡음 (phase 배정) 이 겹쳐** 과거형 전환으로도 해소되지 않는다 → 실측 사실만 각주에 병기. 두 축의 처리가 같은 (B) 로 수렴했으나 **사유는 위와 같이 다르다**.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | 전 지점 in-place 동기 (backup 경로 · 규약 · 시점 3 행 재작성) | 기각 | 치환 지점이 **6** 으로 AC 4 의 `≤ 2 지점` 상한을 넘고, 시점 3 행 · 규약 1 행은 새 phase 배정 또는 `.claude/` 편집을 요구해 창작 금지 · Out of Scope 와 충돌 |
+| **(B)** | **원문 무편집 + `### 후속 진행` 말미 각주 blockquote 1 블록 신설** | **채택** | T-1437 ~ T-1442 화법을 그대로 잇고 실 자산 (`deploy/README.md` 227 · runbook 94 · 99) · 실 수치 (`@@index` 14 · `@@unique` 19 · migrations 14) · 미이행 사실 (0 hit) 을 같은 화면에 병기해 오도 risk 만 제거 |
+| (C) | 혼합 (행 번호 pointer 만 in-place, 나머지 각주) | 기각 | 실측 결과 **행 번호 pointer (README 57) 가 정확** 해 in-place 대상이 0 이므로 후보 자체가 공전한다 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 독자가 48 행을 근거로 **reviewer 가 REQ-032 를 자동 차단한다고 신뢰** 하면 schema PR 에서 실재하지 않는 게이트를 믿게 되고, 42 행을 근거로 자동 backup 이 P7 에서 이미 처리됐다고 오인할 수 있다 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: 시점 marker 3 이 전부 창작 없이는 갱신 불가라 append-only 와 각주가 정합한다. ② **오도 risk**: 본 후반부는 **데이터 보호 정책 + 복구 지시** 로 읽히는 단락이라 잘못 따르면 (a) 존재하지 않는 reviewer 자동 차단을 믿고 raw column 을 무심코 추가하거나, (b) 자동 backup 이 이미 돌고 있다고 오인해 백업 부재로 복구 불능에 빠지거나, (c) `pg_restore` 명령을 그대로 시도해 plain SQL dump 에 실패한다 — 셋 다 데이터 손실 · 정책 위반으로 직결돼 (D) 를 기각시킨다. ③ **cap**: (B) 의 실측 diff 는 deployment.md `+7/-0` (219 → **226**, 허용 `≤ 226`) · 파일 **3 고정** 이라 300 LOC · 5 파일 상한 안이다. (A) 는 창작 금지 · Out of Scope 충돌로 자동 기각이며 split 해도 `.claude/agents/` 편집이 남아 doc slice 로 쪼개는 것 자체가 부적절하다. ④ **선례 일관성**: `§ 12.37` ~ `§ 12.40` 이 같은 문서의 인접 단락에서 (B) 를 채택했으므로 본 절이 다른 후보를 고르면 한 문서 안 처리 방식이 갈린다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (6 행)** — 54 행 (`### 후속 진행` 본문 말미) 뒤 · `## 배포 토폴로지 (Monolithic vs worker 분리)` heading 앞에 append (앞뒤 공백 행 보존). 내용은 ① 41-a · 41-c 참 (자산 3 hit + README 57 정확) + 41-b · 41-d 부분참 (`psql` 실 절차 · app-level export / import), ② 42-a 미이행 + 42-b phase 낡음 **축 분리**, ③ 47-a 전수 참 (`model` 15 · `String` 74 · 후보 0 · `narrative` = LLM 생성물 · `artifactRef` 참조만) + 47-c ADR pointer 유효, ④ 48 **0 hit 미이행 규약** + 현재형 화법의 오도 risk, ⑤ 49 · 53 이행 완료 (`@@index` 14 · `@@unique` 19 · `^7.8.0` · `src/persistence/` · migrations 14) + 53-b 시점 한정, ⑥ `§ 12.15` 처리 사유 + 본 절 pointer.
+- **각주 위치 근거 + 문구 1:1 + 무편집 경계** — 대상 claim 이 세 하위 절에 걸쳐 있어 선행 절과 같은 규칙 ("대상 claim 의 최소 공통 구간 말미") 대로 **후반부 최말미** 에 뒀고, `§ 12.40` 이 전반부 말미 (현 34 ~ 38 행) 에 각주를 둔 배치와 동형이다. 각주의 경로 · column / model 이름 · 도구 이름 · 수치 (`deploy/README.md` 227 · `docs/ops/runbook.md` 94 · 99 · README 57 · `narrative` · `artifactRef` · `@@index` 14 · `@@unique` 19 · `^7.8.0` · migrations 14 · `String` 74 · `model` 15 · `P4-complete / P5-in-progress`) 는 전부 위 실측 출력 그대로이며, **실측되지 않은 값 (존재하지 않는 column · 미도입 backup script 경로 · 임의 phase 배정) 은 창작하지 않았고 schema 의 실 데이터 · connection string · secret 도 옮기지 않았다** (이름까지만). 1 ~ 4 행 blockquote · **15 ~ 38 행 (DB 전반부 + T-1442 각주)** · 40 ~ 54 행 원문 · `## 개요` · 56 행 이후 전 구간 (`## 배포 토폴로지` · `## Secret / 자격증명 저장` · `## Scheduler 위치` · `## 외부 네트워크 boundary` 및 T-1437 ~ T-1441 각주) 은 그대로다. **새 pointer 도 추가하지 않았다** — 각주가 더한 markdown 링크는 ADR-0002 (이미 47 행 등재) 와 본 절 2 개뿐이고, 나머지 파일 (`deploy/README.md` · `docs/ops/runbook.md` · `docs/PLAN.md` · `.claude/agents/reviewer.md`) 은 **링크 없는 코드 span** 으로만 인용했다.
+
+#### T-1442 Follow-up 1 closure + `## DB / Persistence` 단락 완결 선언
+
+- **Follow-up 1 closure** — `§ 12.40` 이 "다음 slice 1 순위" 로 이월한 후반부 (당시 34 ~ 49 행, 각주 반영 후 40 ~ 55 행) 의 **검증 가능 13 row 를 본 절이 전부 판정 · 각주 반영** 했다. 이월 근거였던 "REQ-032 는 `String` column 전수 판정 필요" 도 실측 (v) 로 소진됐다. 승계 대상은 남지 않는다.
+- **단락 완결** — 이로써 `## DB / Persistence` (15 ~ 55 행) 는 전반부 (`§ 12.40` 각주 1 블록) + 후반부 (본 절 각주 1 블록) 로 **전 구간 대조 완결** 이며, 단락 안 각주는 이 2 블록뿐이다 (중복 부기 0).
+
+#### 대조 대상 문서 잔여 갱신
+
+`§ 12.40` 이 남긴 deployment.md 잔여 1.5 단락은 본 절 후 **`## 개요` (5 ~ 14 행) 1 개** 로 좁혀진다. 이 마지막 단락을 닫으면 **deployment.md 전 단락 대조가 완결** 된다 (아래 파생 영향 1). **본 각주는 54 행 뒤라 55 행 이후 좌표가 +7 밀리며**, `## 개요` 는 각주 앞이라 좌표 불변이다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **`## 개요` (5 ~ 14 행) = 다음 slice 1 순위** — deployment.md 잔여 마지막 단락. 닫으면 **문서 전 단락 대조가 완결** 되고 uc-doc-audit-resync stream 의 deployment.md 축이 종료된다.
+2. **reviewer 규약 미이행의 처리 경로** — `.claude/agents/reviewer.md` 에 REQ-032 / raw column sub-check 를 추가할지는 **별도 direct task** 소관 (본 slice 는 audit 기록만 — 문서를 실제에 맞출 뿐 실제를 문서에 맞추지 않는다). 추가 시 ADR-0002 근거 2 번 항목과의 정합 판정이 선행돼야 한다.
+3. **README 행 번호 pointer 전수 sweep** — 본 절에서 README 57 은 **정확** 으로 확인됐으나 다른 문서의 README 행 pointer 는 미검증. 전수 sweep 후보.
+4. **`deploy/README.md` ↔ deployment.md 배포 절차 정합** — `§ 12.39` Follow-up 4 미소진 (본 절이 227 행을 인용하며 접점만 확인). 정본 지정 판정 필요.
+5. **`@nestjs/config` 미도입 사실의 전수 sweep** — `§ 12.39` Follow-up 3 미소진 (ADR 재판정 owner 게이트).
+6. **REQ 번호 체계 잔재의 전수 sweep** — `§ 12.38` Follow-up 3 미소진 (owner 게이트).
+7. **`CLAUDE.md` §1 pointer 부정확** — `§ 12.40` Follow-up 3 미소진 (CLAUDE.md 는 §3.1 별개 소관).
+8. **UC-09 `§ 5` sequence participant 병기** — 25 회째 이월.
+9. **정본 [modules.md](../architecture/modules.md) 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (정본 편집은 ADR 게이트, **259 행 불변**).
+10. **행 번호 → anchor 좌표계 이행** — 19 회째 이월. 본 절 각주가 55 행 이후를 +7 미는 것이 근거를 또 한 번 보탠다.
+11. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관. 본 절이 인용한 `74` · `15` · `14` · `19` · `0 hit` 은 schema / migration / agent 정의 1 건 변경으로 즉시 낡는다.
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` coverage 게이트가 모두 **N/A** 다 (본 절 측정 명령은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 `pg_dump` · `pg_restore` · `prisma migrate` · `docker compose up` · `pnpm build` · `pnpm test` 는 실행하지 않았다).
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → deployment.md **226** (219 → +7, 허용 ≤ 226) · audit **4072 → 4178** (+106 = 본 절 106 행, 허용 +110 이내) · directory.md **203** (불변) · modules.md **259** (불변)
+$ grep -c '^## ' → deployment.md **6** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **41** (40 → 41)
+$ git diff -U0 -- docs/architecture/deployment.md | grep '^@@' → `@@ -55,0 +56,7 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (`### 후속 진행` 말미 ~ `## 배포 토폴로지` heading 앞) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/deployment.md → `7  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ prisma/ web/ deploy/ docker-compose.yml .github/ package.json README.md .claude/ → (빈 출력 — 코드 · 스키마 · 배포자산 · CI · 의존성 · 요구사항 정본 · agent 정의 무변경)
+$ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1443-*.md  (**3 파일**)
+```
+
+#### 한계 —
+
+1. **3 지점의 거짓은 각주로만 해소된다** — 48 · 49 · 53 행 원문은 그대로라 각주를 건너뛴 독자에겐 "reviewer 가 REQUEST_CHANGES 한다" 는 현재형 서술과 "P3 에서 진행" 미래형이 남는다. 48 행 해소가 `.claude/agents/reviewer.md` 편집 (Out of Scope) 을, 49 · 53 행 해소가 새 phase 배정 창작 (PLAN 게이트) 을 각각 요구한다는 점을 우선한 결과다.
+2. **backup / restore 의 실행 검증 · runtime 사실은 미측정** — `pg_dump` · `pg_restore` · `psql` 절차가 실제로 동작하는지, migration history 가 복원 후 정말 동기되는지 (43 행) 는 DB 접속 · 명령 실행이 필요해 Out of Scope 로 남겼다. 또한 raw column 판정은 **schema 선언 기준** 이라, 런타임에 `String` column 에 raw 본문이 실제로 적재되는지 (예: `error` · `artifactRef` 의 내용) 는 데이터 조회가 필요해 판정하지 않았다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
