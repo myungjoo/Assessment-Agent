@@ -4804,6 +4804,99 @@ $ git status --porcelain → **3 파일** (components.md · REQ-COVERAGE-AUDIT.m
 3. **`구체 provider API 차이 은닉` 의 실효는 미측정** — adapter 4 개가 요청 · 응답 형태를 흡수하는 것은 확인했으나 provider 별 오류 코드 · rate limit 차이까지 은닉되는지는 unit spec 통독이 필요해 범위 밖이다.
 4. **잔여 3 row 는 전부 미판정** — 본 각주도 표 뒤에 있어 3 row 를 덮는 것처럼 읽힐 여지가 있어 첫 구에 한정 선언을 뒀다. blockquote 는 이제 **4 블록** 이며 `§ 12.44` 한계 3 이 예고한 배치 규약 임계에 근접했다.
 
+### 12.48 components.md `## Component table` **GitHub Adapter** row ↔ 실 `src/github/**` 인벤토리 · `ADR-0003 §4` 승계 · REQ 대조 — 원문 보존 + 각주 1 블록 (T-1450)
+
+> **본 절의 위치** — `§ 12.47` 이 "다음 slice 1 순위" 로 지목한 **`GitHub Adapter` + `Confluence Adapter` 2 row 묶음** 을 planner 가 **cap 근거로 다시 split** 했고, 본 절은 그 **첫 slice = `GitHub Adapter` row 단독** 이다. **split 근거** — `§ 12.47` 은 1 row 로 검증 가능 claim **11** 개 · audit 절 **103** 행을 썼는데 이는 절 상한 **115** 의 **90%** 다. 본 row 만으로도 instance 3 종 · sub-config 3 요소 · sub-section pointer · 계약 시그니처 · 프로토콜 2 종 · 4xx emit · pointer 2 · REQ 5 로 claim 밀도가 `LLM Gateway` row 보다 낮지 않고, `Confluence Adapter` row 도 별도 10 claim 급이라 `ADR-0003 §4` 승계로 절감되는 **~2 claim** 으로는 합산 20+ claim 을 상한 안으로 되돌릴 수 없었다. **계보** — `T-1430` ~ `T-1435` (directory.md) → `T-1436` ~ `T-1444` (deployment.md) → `T-1445` (components.md `## 개요`) → `T-1446` (표 row 1) → `T-1447` (표 row 2 ~ 3) → `T-1448` (표 row 4) → `T-1449` (표 row 5) → **`T-1450` (본 절 — 표 축의 다섯 번째 slice)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이고, 측정은 전부 read-only `find` · `grep` · `sed` · `wc` · `git` 이며 **GitHub 실호출 · live spec 실행 0** 이다. `GITHUB_<KEY>_TOKEN_ENC` 등은 **변수명 언급까지만** 이고 token · 실 credential 은 옮기지 않았다 (CLAUDE.md §9).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/components.md → 1 `# Component view` · 5 `## 개요` · 22 `## Deployment 컨텍스트` · 28 `## Component diagram` · **115 `## Component table`** · **155 `## GitHub Adapter — 3 instance 묶음 vs 분리 결정`** · 187 `## Contracts` · 213 `## References` ⇒ **`GitHub Adapter` row = 124** — AC 좌표 (115 · 124 · 155) 그대로 **stale 아님**. T-1449 각주 blockquote 는 **149 ~ 153**, **154 는 빈 행** 이라 삽입 지점은 "154 행 뒤 · 155 행 heading 앞".
+      $ sed -n '124p' → `| **GitHub Adapter** | 3 GitHub instance (github.com / github.sec.samsung.net / github.ecodesamsung.com) 의 통합 adapter. 단일 service + instance sub-config (URL / PAT / org) — 자세히는 아래 "GitHub Adapter — 3 instance 묶음 결정" sub-section. | 입력: … in-process method call (fetchCommits(instanceKey, repo, range) 등). 출력: 각 GitHub instance 의 외부 HTTPS REST/GraphQL API 로의 outbound + 응답 데이터 반환. 4xx 응답 시 PermissionDeniedEvent emit. | REQ-005 / REQ-006 / REQ-007 (3 GitHub instance), REQ-008 (권한 부족 통지), REQ-014 (Issue 평가) | ADR-0003 §4 (direct egress) / P4 GitHub adapter task |`
+      ⇒ **검증 가능 claim 11 개** — ① instance 목록 3 종 ② 통합 adapter = 단일 service ③ sub-config 3 요소 이름 ④ sub-section pointer 문자열 ⑤ 계약 시그니처 `fetchCommits(...)` ⑥ 프로토콜 `REST/GraphQL` ⑦ outbound 대상 ⑧ `4xx → PermissionDeniedEvent emit` ⑨ `ADR-0003 §4` 좌표 ⑩ `P4 GitHub adapter task` phase pointer ⑪ REQ 5 ID + 병기 문구.
+      ⇒ **검증 불가 claim** — "통합" · "자세히는 아래" 같은 성격 · 안내 어법은 참거짓을 코드로 가릴 수 없어 판정 대상에서 제외했다.
+(ii)  $ find src/github -name '*.ts' -not -name '*.spec.ts' | sort → **7 개** (`github-adapter.service.ts` · `github-instance-client.service.ts` · `github-instance-config.ts` · `github-live-test-gating.ts` · `github-request.builder.ts` · `github-token-decrypt.ts` · `github.module.ts`) — AC 예상 7 과 일치.
+      $ grep -n 'github\.com\|github\.sec\.samsung\.net\|github\.ecodesamsung\.com' src/github/*.ts | grep -v spec → 실 코드 리터럴 3 종은 `github-live-test-gating.ts` **59 / 64 / 69** 행 (`GITHUB_LIVE_HOST_SPECS` 의 `public` / `sec` / `ecode`) 뿐이고, `github-adapter.service.ts` **203** · `github-instance-config.ts` **36** · `github-request.builder.ts` **9** 행 hit 는 주석의 예시다.
+      $ grep -n '_HOST\|_ORG\|_TOKEN_ENC\|GITHUB_INSTANCES' src/github/github-instance-config.ts → **21** `GITHUB_INSTANCES_ENV` · **25** `GITHUB_HOST_SUFFIX = "_HOST"` · **26** `GITHUB_ORG_SUFFIX = "_ORG"` · **27** `GITHUB_TOKEN_ENC_SUFFIX = "_TOKEN_ENC"`, **12 ~ 14** 행 주석 = "`GITHUB_INSTANCES` 가 comma/space-separated key list · env 에 열거된 key 만 · `_HOST` 또는 `_TOKEN_ENC` 부재면 reject". ⇒ instance 개수는 **env 열거 기반이라 3 고정이 아니다**.
+(iii) $ grep -n 'export class' src/github/*.ts | grep -v spec → **4** — `github-adapter.service.ts` **184** `GithubDomainError` (에러 타입) · **237** `GithubAdapter` (본체) · `github-instance-client.service.ts` **47** `GithubInstanceClient` · `github.module.ts` **67** `GithubModule`.
+      $ sed -n '155p' docs/architecture/components.md → `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` ⇔ row 인용구 `GitHub Adapter — 3 instance 묶음 결정` ⇒ **`vs 분리` 2 어절 누락**.
+(iv)  $ grep -rn 'fetchCommits' src --include='*.ts' → **0 hit**.
+      $ grep -n '  async |  public |^  request' src/github/github-adapter.service.ts → **263** `async request(input: GithubRequestInput): Promise<unknown>` · **287** `async requestAllPages(input: GithubRequestInput): Promise<unknown[]>`.
+      $ grep -n 'requestAllPagesForInstance\|async request' src/github/github-instance-client.service.ts → **64** `async requestForInstance(` · **76** `async requestAllPagesForInstance(`.
+      $ grep -rn 'await fetch(' src/github --include='*.ts' | grep -v spec → **0 hit**; 실 outbound 는 `github-adapter.service.ts` **246** 행 `private readonly fetchFn: FetchLike = globalThis.fetch` + **370** 행 `response = await this.fetchFn(url, { method: "GET", headers })` **단일 지점**.
+      $ grep -rni 'graphql' src/github --include='*.ts' | grep -v spec → **0 hit**; REST 근거는 `github-request.builder.ts` **88** 행 `resolveGithubApiBaseUrl` (**29** 행 `https://api.github.com` · **103** 행 `https://<host>/api/v3`).
+      $ grep -n 'mapNon2xx\|permissionDeniedEmitter.emit\|401\|403\|404\|429' src/github/github-adapter.service.ts → **173** `"permission-denied" // 401 / 403` · **174** `"not-found" // 404` · **175** `"rate-limited" // 429` · **382** 행 주석 "4xx(401/403) 는 emit 후 throw" · **406 ~ 411** `mapNon2xx` ("401/403 은 permission-denied 로 분류하며 PermissionDeniedEvent 를 emit … 404 → not-found, 429 → rate-limited, 그 외(5xx 등) → upstream-error").
+(v)   $ grep -n '^### Decision §4' docs/decisions/ADR-0003-deployment.md → **78** `### Decision §4 — 외부 네트워크 boundary = direct outbound from app process` (**147** 행의 동명 heading 은 같은 §4 의 Alternatives 표) ⇒ `§ 12.47` 의 **참 · drift 0 판정 승계**.
+      $ grep -n 'Phase P4\|GitHub 통합' docs/PLAN.md → **79** `## Phase P4 — External integrations` · **81** `- [x] GitHub 통합 — 3 instance 모두 … GITHUB_INSTANCES + per-key _HOST / _ORG / _TOKEN_ENC … 4xx → PermissionDeniedEvent emit`.
+      $ grep -n 'REQ-005\|REQ-006\|REQ-007\|REQ-008\|REQ-014' docs/requirements.md | cut -c1-160 → **24** REQ-005 `github.com 평가` · **25** REQ-006 `github.sec.samsung.net 평가` · **26** REQ-007 `github.ecodesamsung.com 평가` · **27** REQ-008 `접근 권한(read) 부족 시 인식·통지` · **33** REQ-014 `Issue 평가 (본인 follow-up 소비 제외)` — 5 ID 전수 실재.
+(vi)  baseline `wc -l` → components.md **223** · audit **4820** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175** · prisma/schema.prisma **666**; `grep -c '^## '` components.md **7** · audit **12**; audit `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **47**.
+```
+
+#### 지점 판정표 (AC 2)
+
+판정 기준 3 축 — ① **문서 성격**: 1 ~ 4 행 blockquote 가 본 문서를 "P1 T-A3 의 산출물 (blueprint)" 로 선언하나 표는 이미 여러 차례 shipped 현황으로 갱신된 흔적이 있다. ② **`§ 12.15` 정합**: 124 행에 시점 marker (`2026` · `현재` · `시점` · `기준` · `shipped`) **0 hit** — 시점 고정 문장이 아니므로 in-place 치환의 명분이 약하고 append-only 방침이 우선한다. ③ **선례**: `T-1430` ~ `T-1449` 의 "원문 보존 + 실측 각주" 가 표 축 전반의 확립된 화법이다 ([T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) 의 in-place 1:1 치환 · [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 의 혼합은 대상 성격이 달랐다).
+
+| claim | 실측 결과 | 판정 | 처리 | 근거 |
+| --- | --- | --- | --- | --- |
+| ① `3 GitHub instance (github.com / …sec… / …ecode…)` | 3 host 리터럴은 `github-live-test-gating.ts` 55 ~ 72 행 `GITHUB_LIVE_HOST_SPECS` 에만 있고 실 config 는 `GITHUB_INSTANCES` env key list 기반 | 부분참 | 원문 보존 + 각주 부기 | 3 host 는 PLAN 81 행 운영 목표로 실재하나 코드상 3 고정이 아니다 |
+| ② `통합 adapter · 단일 service` | `export class` 4 개 중 외부 호출 본체는 `GithubAdapter` (237 행) 1 개, `GithubInstanceClient` (47 행) 는 instance key 해석 wrapper | 참 (근사) | 원문 보존 + 각주 부기 | dispatch service 는 1 개 — 보조 class 의 역할을 각주에 1 구로 밝혔다 |
+| ③ `instance sub-config (URL / PAT / org)` | 실 suffix 는 `_HOST` / `_ORG` / `_TOKEN_ENC` (25 ~ 27 행), token 은 암호화 ciphertext | 부분참 | 원문 보존 + 각주 부기 | 이름 3 종이 모두 다르고 PAT 평문 표기가 실제 (JIT decrypt) 와 어긋난다 |
+| ④ sub-section pointer `GitHub Adapter — 3 instance 묶음 결정` | 실 heading 은 155 행 `… 3 instance 묶음 vs 분리 결정` | 부분참 | 원문 보존 + 각주 부기 | `vs 분리` 누락 — 문자 단위 불일치를 각주에 실 heading 으로 인용 |
+| ⑤ `fetchCommits(instanceKey, repo, range) 등` | `src` 전체 0 hit, 실 표면은 `request` / `requestAllPages` / `requestForInstance` / `requestAllPagesForInstance` | 거짓 | 원문 보존 + 각주 부기 | "등" 이 예시를 시사하나 예시로도 미실재 — 실 메서드 4 개를 각주에 인용 |
+| ⑥ 프로토콜 `REST/GraphQL` | `graphql` 0 hit, REST 는 `resolveGithubApiBaseUrl` (88 행) 로 실증 | 부분참 | 원문 보존 + 각주 부기 | GraphQL 근거 부재 — REST 전용임을 각주에 명시 |
+| ⑦ `외부 HTTPS … outbound + 응답 데이터 반환` | `await fetch(` 0 hit, 실 outbound 는 주입 `fetchFn` 단일 지점 (246 · 370 행) | 참 (호출 지점 주의) | 원문 보존 + 각주 부기 | outbound 자체는 실재 — 호출 형태만 각주로 보강 |
+| ⑧ `4xx 응답 시 PermissionDeniedEvent emit` | `mapNon2xx` (406 ~ 411 행) 은 401 / 403 만 emit, 404 · 429 · 5xx 는 분류만 | 부분참 | 원문 보존 + 각주 부기 | `4xx` 전체로 읽으면 404 · 429 에도 record 가 남는 것으로 오인된다 |
+| ⑨ `ADR-0003 §4 (direct egress)` | `ADR-0003-deployment.md` 78 행 `### Decision §4` — 주제 · 번호 부합 | 참 | **상위 slice 판정 승계** | `§ 12.47` 이 같은 pointer 를 drift 0 으로 이미 닫았다 (본 slice split 의 근거) |
+| ⑩ `P4 GitHub adapter task` | PLAN 79 행 phase heading + 81 행 GitHub 통합 bullet (`[x]`) | 참 | 무편집 | phase 좌표 · 완료 표기 모두 부합 |
+| ⑪ REQ-005 / 006 / 007 / 008 / 014 + 병기 문구 | requirements.md 24 ~ 27 · 33 행 실재, 제목과 병기 문구 부합 | 참 | 무편집 | 5 ID 의 판정이 동일해 1 row 로 묶었다 |
+
+#### 처리 방식 판정 (AC 3)
+
+판정 기준 4 축 — ① `§ 12.15` 정합, ② 오도 risk (독자가 표만 읽고 계약 메서드 이름 · 프로토콜 · 4xx 처리 범위 · config 이름을 오인하는 비용), ③ cap (≤ 300 LOC · 변경 파일 3 고정), ④ **각주 누적 구조 제약 — 본 slice 로 blockquote 가 5 블록째가 되어 `§ 12.44` 한계 3 이 예고한 5 ~ 6 블록 임계에 실제로 도달** 했다 (배치 규약 재설계는 본 slice 범위 밖이라 파생 영향에 권고로만 남긴다).
+
+| 후보 | 판정 | 근거 |
+| --- | --- | --- |
+| (A) row 셀 in-place 동기 | 기각 | 부분참 · 거짓이 5 지점이라 치환 범위가 셀 3 개에 걸치고, 시점 marker 0 hit 인 문장을 덮어쓰면 `§ 12.15` append-only 와 정면 충돌한다 |
+| (B) 원문 무편집 + T-1449 각주 직후 각주 blockquote 1 개 신설 | **채택** | `§ 12.15` 정합 + `T-1437` ~ `T-1449` 화법 승계 + 오도 risk 를 실측 인용으로 해소 + cap 안전 (+7 행) |
+| (C) 혼합 (거짓 지점만 in-place) | 기각 | 거짓은 ⑤ 1 지점뿐인데 그 셀만 고치면 같은 셀의 부분참 ⑥ ⑧ 과 편집 기준이 갈려 표가 반쯤 갱신된 상태로 남는다 |
+| (D) 전 지점 무편집 + audit 기록만 | 기각 | 계약 메서드 이름이 **거짓** 인데 표 옆에 아무 표시가 없으면 독자가 audit 을 찾아가지 않는 한 오인이 지속된다 |
+
+#### 반영 결과 (AC 4)
+
+- components.md **154 행 뒤 · 155 행 heading 앞** 에 각주 blockquote **6 행 + 빈 행 1** 을 삽입 (223 → **230**, +7). 첫 구에 **"본 각주는 `GitHub Adapter` row 한정"** + 잔여 2 row 미판정 선언을 뒀다.
+- **in-place 치환 0** — 1 ~ 4 행 blockquote · 119 ~ 126 행 8 row 원문 · 128 ~ 153 행 기존 각주 4 블록 · 155 행 이후 전 구간 무편집.
+- 새 pointer 추가 **0** — `ADR-0016` · `ADR-0017` · `ADR-0021` 은 본 절 파생 영향에만 적었다. secret · token 값 인용 **0** (변수명까지만).
+
+#### Component table 잔여 미판정 row
+
+`Confluence Adapter` (125 행) · `Scheduler` (126 행) **2 row**. **다음 slice 1 순위 = `Confluence Adapter` row 단독** — pointer 셀이 본 row 와 같은 `ADR-0003 §4 (direct egress)` 라 본 절의 승계 판정을 **그대로 재승계 가능** 하다 (재측정 1 명령으로 충분). `Scheduler` 는 `ADR-0003 §3` 축이라 후순위다.
+
+#### 파생 영향 (목록만 — 본 slice 편집 금지)
+
+(1) Component table 잔여 2 row (위 1 순위 = `Confluence Adapter` 단독) / (2) **표 뒤 각주 blockquote 누적 배치 규약 재검토** — `§ 12.44` 한계 3 의 임계에 **본 slice 로 5 블록째 도달**, **차기 slice 진입 전 row 별 anchor 이행 여부를 결정할 것을 권고** / (3) GitHub adapter ADR 3 종 ([ADR-0016](../decisions/ADR-0016-github-adapter-http-transport-contract.md) · [ADR-0017](../decisions/ADR-0017-github-instance-config-source.md) · [ADR-0021](../decisions/ADR-0021-github-confluence-live-integration-test-contract.md)) 이 row 의 pointer 셀에 미등재 — 보강은 별도 slice / (4) `## Deployment 컨텍스트` (22 ~ 26 행) "8 component 동일 process" claim (5 회째 이월) / (5) `## Component diagram` mermaid node ↔ 실 module 대조 / (6) `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` sub-section (155 ~ 186 행) 본문 ↔ 코드 대조 (본 slice 는 heading 문자열만 대조) / (7) `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트) / (8) reviewer 규약 미이행 (`§ 12.41` FU2) / (9) `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3) / (10) README 행 번호 pointer drift sweep / (11) REQ 번호 체계 잔재 sweep (`§ 12.38` FU3) / (12) `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3) / (13) UC-09 `§ 5` sequence participant 병기 (34 회째 이월) / (14) modules.md 카운트 claim 대조 (`§ 12.34` FU1) / (15) 행 번호 → anchor 좌표계 이행 (28 회째 이월) / (16) `§ 12.44` 한계 — "mutation 러너 26 개" 정의 미확정 / (17) `Scheduler` cron → 평가 pipeline 미결선 (`§ 12.45` FU15, 코드 소관 `pr` task) / (18) `ADR-0003` 의 "단일 DB 인스턴스" 좌표 부재 (`§ 12.46` FU16) / (19) LLM provider 배포 config ADR 3 종 pointer 미등재 (`§ 12.47` FU5).
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → components.md **223 → 230** (+7, 상한 230 충족) · REQ-COVERAGE-AUDIT.md **4820 → 4913** (+93 — `§ 12.48` 절 자체는 4807 ~ 4898 의 **92 행**, 상한 115 이내) · requirements.md **97 불변** · deployment.md **232 불변** · directory.md **203 불변** · modules.md **259 불변** · PLAN.md **175 불변** · prisma/schema.prisma **666 불변**
+$ grep -c '^## ' → components.md **7 불변** · audit **12 불변** (`###` 레벨 신설) ; audit `grep -c '^| REQ-'` **66 불변** · `grep -c '^### 12\.'` **47 → 48**
+$ git diff -U0 -- docs/architecture/components.md | grep '^@@' → `@@ -154,0 +155,7 @@` ⇒ **hunk 1 개**, 허용 구간 (154 행 뒤 · 155 행 heading 앞) 밖 hunk **0**
+$ git diff --numstat → `7  0  docs/architecture/components.md` ⇒ **삭제 0 (순수 추가)**
+$ git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md → **빈 출력**
+$ git status --porcelain → **3 파일** (components.md · REQ-COVERAGE-AUDIT.md · T-1450 task 파일)
+```
+
+#### R-110 / R-112 면제 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 모두 **N/A** 다.
+
+#### 한계 — 본 절이 증명하지 못한 것
+
+1. **"3 instance" 판정은 코드 리터럴 기준이다** — 실 운영 env (`GITHUB_INSTANCES` 값) 를 볼 수 없어 배포 시점에 몇 instance 가 등록되는지는 문서 · 코드로 가릴 수 없다.
+2. **`통합 adapter` 의 실효는 grep 근사다** — `export class` 목록으로 dispatch 본체가 1 개임을 보였을 뿐, 다른 디렉토리에서 GitHub API 를 직접 부르는 우회가 없다는 전수 증명은 §7 예산 밖이다.
+3. **4xx emit 판정은 `mapNon2xx` 주석 · 분기 이름 기준이다** — emit 부수효과의 런타임 실행 여부는 spec 실행 (금지) 없이는 확인되지 않는다.
+4. **잔여 2 row 는 미판정** — 본 각주도 표 뒤에 있어 2 row 를 덮는 것처럼 읽힐 여지가 있어 첫 구에 한정 선언을 뒀다. blockquote 는 이제 **5 블록** 으로 `§ 12.44` 한계 3 이 예고한 임계에 **도달** 했다 (파생 영향 (2)).
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source

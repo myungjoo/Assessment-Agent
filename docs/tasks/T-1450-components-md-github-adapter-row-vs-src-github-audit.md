@@ -2,7 +2,7 @@
 id: T-1450
 title: components.md `## Component table` **GitHub Adapter row (124 행)** 의 검증 가능 claim ↔ 실 `src/github/**` 인벤토리 · `ADR-0003 §4` 승계 · REQ 대조 + T-1449 FU1 (2 row 묶음) 의 재-split 첫 slice + audit §12.48
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-005, REQ-006, REQ-007, REQ-008, REQ-014]
 estimatedDiff: 200
@@ -106,4 +106,12 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+1. **Component table 잔여 2 row 판정** — 다음 slice 1 순위는 **`Confluence Adapter` row (125 행) 단독** 이다. pointer 셀이 본 row 와 같은 `ADR-0003 §4 (direct egress)` 라 `§ 12.48` 의 승계 판정을 재승계할 수 있어 재측정 1 명령으로 충분하다. `Scheduler` row (126 행) 는 `ADR-0003 §3` 축이라 후순위.
+2. **표 뒤 각주 blockquote 배치 규약 결정 (권고)** — 본 slice 로 blockquote 가 **5 블록** 이 되어 `§ 12.44` 한계 3 이 예고한 임계에 도달했다. **차기 slice 진입 전** "표 뒤 나열 유지 vs row 별 anchor 이행" 을 결정할 것.
+3. **`GitHub Adapter` row pointer 셀 보강** — `ADR-0016` (transport 계약) · `ADR-0017` (config source) · `ADR-0021` (live integration test 계약) 3 종이 미등재임을 `§ 12.48` 이 실측했다. 새 pointer 추가는 본 slice 금지 사항이라 별도 slice 소관.
+4. **`## GitHub Adapter — 3 instance 묶음 vs 분리 결정` sub-section (155 ~ 186 행) 본문 ↔ 코드 대조** — 본 slice 는 heading 문자열만 대조했다.
+
+## 완료 기록
+
+- 완료 시각: 2026-08-04
+- 결과 요약: `GitHub Adapter` row (124 행) 의 검증 가능 claim **11 개** 를 실측 판정 (참 3 · 참 근사 2 · 부분참 5 · 거짓 1 · 승계 1) → 후보 4 개 중 **(B) 원문 보존 + 각주 blockquote 1 개 신설** 채택. components.md 223 → **230** (+7, in-place 치환 0), audit `§ 12.48` 신설 4820 → **4913** (절 92 행). 핵심 실측 — `fetchCommits` **0 hit (거짓)** · `graphql` **0 hit (부분참)** · `mapNon2xx` 는 **401/403 만 emit** · env suffix 는 `_HOST` / `_ORG` / `_TOKEN_ENC`.
