@@ -2,7 +2,7 @@
 id: T-1438
 title: deployment.md `## Scheduler 위치` 단락 (107 ~ 145 행) 의 검증 가능 claim ↔ 실 `src/scheduling/` · `src/app.module.ts` · `prisma/schema.prisma` 대조 + T-1437 Follow-up 1 closure + audit §12.36
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-039, REQ-040]
 estimatedDiff: 200
@@ -15,6 +15,8 @@ touchesFiles:
   - docs/use-cases/REQ-COVERAGE-AUDIT.md
   - docs/tasks/T-1438-deployment-md-scheduler-section-vs-src-audit.md
 plannerNote: "uc-doc-audit-resync 50 번째 slice — T-1437 Follow-up 1 (`## Scheduler 위치` ↔ 실 src/scheduling/ 대조) 1 순위 계승. doc-only 1.6x"
+completedAt: 2026-08-04T01:50:00Z
+resultCommit: 03e812ed
 ---
 
 # T-1438 — deployment.md `## Scheduler 위치` 단락 ↔ 실 `src/scheduling/` 대조
