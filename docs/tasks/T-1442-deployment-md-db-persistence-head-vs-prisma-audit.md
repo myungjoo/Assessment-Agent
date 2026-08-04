@@ -2,7 +2,7 @@
 id: T-1442
 title: deployment.md `## DB / Persistence` 전반부 (15 ~ 33 행 — heading · 도입 2 문단 · `### 배포 토폴로지` · `### Migration 정책`) 의 검증 가능 claim ↔ 실 `docker-compose.yml` · `prisma/` · `src/persistence/` · `.github/workflows/ci.yml` · `package.json` 대조 + T-1441 Follow-up 1 계승 + audit §12.40
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-029, REQ-032, REQ-043]
 estimatedDiff: 200
@@ -97,6 +97,18 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 `implementer` 단독 (doc-only, 코드 0 LOC — architect · tester 불요. §3.2 direct-mode 면제).
 
+## 결과 요약
+
+- **채택안 = (B) 원문 무편집 + `### Migration 정책` 말미 각주 blockquote 1 블록 (5 행)**. AC 3 의 (A) · (C) · (D) 는 각각 치환 지점 7 (`≤ 2` 초과) · 시점 축의 새 phase 배정 창작 필요 · `db:5432` 오도와 CI step 중복 추가 risk 로 기각. 판정 근거 전문은 [REQ-COVERAGE-AUDIT § 12.40](../use-cases/REQ-COVERAGE-AUDIT.md).
+- **판정 합계 — 검증 가능 15 row = 참 8 (전건 불성립 1 포함) · 부분참 3 · 거짓 4**, 검증 불가 3 ("가장 가볍다" 평가 · managed service 전환 전망 · "connection string 만 교체하면 동작" 전망) 은 대상 제외. 거짓 4 = pointer 1 (23-c) · 시점 3 (24-c · 25-b · 32).
+- **planner 가설 검증 결과** — ① PostgreSQL + Prisma 채택 = **참** 확정, ② `postgres:16-alpine` 일치 · 양자 서술은 **부분참** (compose 단일 통합 경로로 확정), ③ service 이름은 실제로 **`postgres`** 라 `db:5432` 예시에 오도 risk 존속 (가설 적중), ④ `DATABASE_URL` 실재 참 + T-0015 시점 서술 낡음, ⑤ PrismaService 실 경로 `src/persistence/prisma.service.ts` 29 행 확인, ⑥ pool / timeout 4 키워드 **0 hit** 로 시점 낡음 + 미결정 잔존 겹침 확정, ⑦ ADR-0003 §1 = Monolithic 이라 worker 조건절 **전건 불성립**, ⑧ `migrate deploy` · `prisma/migrations/` 14 개 tracked = 참이나 **가설 일부 반증** — `prisma migrate dev` 는 `package.json` · CI · Dockerfile · `deploy/` 에서 **0 hit** 이라 개발 명령은 미등재 (부분참), ⑨ ci.yml 209 행 step 실재로 CI 통합 시점 서술 **낡음** 확정.
+- **가설 밖 추가 발견** — 23 행이 인용한 `CLAUDE.md §1` 은 실제로 `기술 스택 (확정)` 이고 `single-operator` 어휘는 CLAUDE.md 전체 **0 hit** 이라 pointer 가 부정확하다 (CLAUDE.md 무편집 — Out of Scope).
+- **불변 검산** — deployment.md 213 → **219** (+6/-0, hunk 1 = `@@ -33,0 +34,6 @@`) · audit 3962 → **4072** (+110, `§ 12.40` 110 행) · directory.md **203** · modules.md **259** 불변 · `^## ` 6 / 12 불변 · `^| REQ-` **66** 불변 · `^### 12\.` 39 → **40** · `src/` · `prisma/` · `deploy/` · `docker-compose.yml` · `.github/` · `package.json` 무변경 · 변경 **3 파일**.
+- **R-110 / R-112** — `commitMode: direct` doc-only (production code 0 LOC · 분기 0) 라 CLAUDE.md §3.2 면제, `prisma migrate` · `docker compose` · `pnpm build` · `pnpm test` 미실행 (측정은 전부 read-only).
+
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 발견한 후속 작업을 여기 append 한다.)
+1. **`## DB / Persistence` 후반부 (현 40 ~ 55 행 — 각주 +6 반영 후) = 다음 slice 1 순위** — `### Backup / restore 전략` · `### Raw data 저장 금지 (REQ-032)` · `### 후속 진행`. REQ-032 축은 `prisma/schema.prisma` 의 `String` column 전수 판정이 필요해 단독 slice 가 적절. 이후 `## 개요` (5 ~ 14 행) 를 닫으면 deployment.md 전 단락 대조 완결.
+2. **README 행 번호 pointer 유효성** — 후반부의 "README 57 행 (export / backup / restore)" 표기는 후반부 slice 소관.
+3. **`CLAUDE.md` §1 pointer 부정확** — 23 행이 `§1` 을 single-operator 컨텍스트로 인용하나 §1 은 기술 스택이다. 운영 규칙 문서 수정은 별도 task 소관 (본 slice 는 audit 기록만).
+4. 이월 — `deploy/README.md` ↔ deployment.md 배포 절차 정합 (`§ 12.39` FU4) · `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트) · REQ 번호 체계 전수 sweep (`§ 12.38` FU3) · UC-09 `§ 5` participant 병기 (24 회째) · modules.md 카운트 claim 대조 (`§ 12.34` FU1) · 행 번호 → anchor 좌표계 이행 (18 회째, 본 각주로 34 행 이후 좌표 **+6** 이동) · 산문 tally drift-guard spec (`pr` mode 소관).

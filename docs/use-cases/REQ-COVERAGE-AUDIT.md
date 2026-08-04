@@ -3946,6 +3946,116 @@ $ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1
 1. **8 지점의 거짓은 각주로만 해소된다** — 89 ~ 91 · 97 · 101 행 원문은 그대로라 각주를 건너뛴 독자에겐 오도가 남는다. 101 행이 ADR-0003 §2 원문의 전사라 두 문서를 함께 다루는 게이트 slice (파생 영향 3) 없이는 정본 정합을 깨지 않고 고칠 수 없다는 제약을 우선한 결과다.
 2. **운영 template 의 완전성 · rotation 실행 가능성은 미판정** — `deploy/env.prod.example` 에 Confluence key 가 **0 hit** 인 사실은 기록했으나 그것이 template 결손인지 Confluence 수집이 아직 운영 대상이 아니라는 의도인지는 `deploy/` 소관 (본 slice 는 `deploy/` 무편집) 이고, 수동 rotation 이 `_TOKEN_ENC` 암호문 체계 (재암호화 필요) 에서 몇 단계인지도 `deploy/README.md` · `encrypt-token-cli.ts` 운영 절차 소관이라 방침 서술을 **검증 불가** 로 분류하는 데 그쳤다.
 
+### 12.40 deployment.md `## DB / Persistence` 전반부 ↔ 실 `docker-compose.yml` · `prisma/` · `src/persistence/` · `.github/workflows/ci.yml` 대조 — 원문 보존 + 각주 1 블록 (T-1442)
+
+> **본 절의 위치** — `§ 12.39` 가 `## Secret / 자격증명 저장` 을 완결하며 파생 영향 **1** 로 지목한 "`## DB / Persistence` = 다음 slice 1 순위" ([T-1441](../tasks/T-1441-deployment-md-secret-section-vs-deploy-audit.md) Follow-up 1) 를 본 절이 계승한다. 다만 그 단락은 **15 ~ 49 행 (35 행 · 하위 5 절)** 로 선행 slice 범위보다 커서, `T-1439` · `T-1440` 이 51 행짜리 `## 외부 네트워크 boundary` 를 2 slice 로 나눈 선례대로 본 절은 **전반부 (15 ~ 33 행 — heading · 도입 2 문단 · `### 배포 토폴로지` · `### Migration 정책`) 만** 닫고 후반부는 이월한다. **계보** — `T-1430` ~ `T-1435` (directory.md) → `T-1436` (산문 단락) → `T-1437` (`## 배포 토폴로지`) → `T-1438` (`## Scheduler 위치`) → `T-1439` · `T-1440` (network boundary 전 / 후반부) → `T-1441` (`## Secret / 자격증명 저장`) → **`T-1442` (본 절 — `## DB / Persistence` 전반부)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이고, 실측 인용은 cap 준수를 위해 **요약형** (명령 + 핵심 출력만) 이며 **connection string 실값 · secret 값은 옮기지 않고 변수 이름까지만** 인용한다 (CLAUDE.md §9).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/deployment.md → 15 `## DB / Persistence` · 21 `### 배포 토폴로지` · 28 `### Migration 정책` · 34 `### Backup / restore 전략` · 40 `### Raw data 저장 금지 (REQ-032) …` · 46 `### 후속 진행` · 50 `## 배포 토폴로지 (Monolithic vs worker 분리)` ⇒ 전반부 = **15 ~ 33 행** (AC 좌표 일치 — stale 아님), 후반부 34 ~ 49 는 다음 slice.
+      $ sed -n '15,33p' … → heading(15) + pointer 문단(17) + 채택 문장(19) + heading(21) + bullet 4(23 ~ 26) + heading(28) + bullet 3(30 ~ 32) ; claim 이분 — **검증 가능 12 축** (채택 1 · image tag 1 · 인스턴스 형태 1 · 접속 경로 1 · env 변수명 1 · 시점 1 · PrismaService 1 · pool 1 · worker 조건절 1 · migrate 명령 2 · migration 위치 / tracked 1 · CI 통합 시점 1 · pointer 2 포함) · **검증 불가 3** ("single-operator 컨텍스트에서 본 형태가 가장 가볍다" 는 평가 · 외부 managed service (RDS / Cloud SQL) 전환 전망 · "connection string 만 교체하면 동작" 이라는 미실행 전망 — 본 slice 미측정).
+(ii)  DB 인스턴스 축 — $ grep -n "image:\|container_name:\|ports:\|5432" docker-compose.yml | head -12 → 14 `image: postgres:16-alpine` · 15 `container_name: assessment-agent-postgres` · 21 `ports:` · 22 `- "5432:5432"` · 40 `image: assessment-agent:latest` · 41 `container_name: assessment-agent-app` · 51 `ports:` ⇒ image tag **1:1 일치** · "PostgreSQL 16 이상" 참.
+      $ sed -n '1,4p' docker-compose.yml → "운영/로컬 통합 docker-compose … `docker compose up -d --build` 한 번으로 postgres + NestJS app 을 함께" ⇒ 양자 서술 중 **compose 경로가 단일 default 로 확정** (host process 직접 기동 자산 0).
+(iii) 접속 경로 축 — $ grep -n '^  [a-z-]\+:' docker-compose.yml | head -8 → 13 `postgres:` · 36 `app:` · 55 `postgres-data:` ⇒ 실 service 이름은 **`postgres`**, 문서 예시 `db` **부재**.
+      $ grep -rn "DATABASE_URL" .env.example docker-compose.yml .github/workflows/ci.yml → `.env.example` **12** · compose 7 · 46 (주석) · ci.yml 66 · 67 · 70 (주석 — `PrismaService 의 buildPrismaAdapter()` 가 `process.env.DATABASE_URL` 을 읽음) ⇒ 표준 명칭 **채택 확인**.
+(iv)  PrismaService · pool 축 — $ grep -rn "class PrismaService" src --include='*.ts' → **`src/persistence/prisma.service.ts:29`** `export class PrismaService extends PrismaClient implements OnModuleInit` (1 hit).
+      $ grep -rn "connection_limit\|pool_timeout\|statement_timeout\|poolSize" src prisma docker-compose.yml .env.example → **0 hit** ⇒ pool / timeout 구체값 **미결정 잔존** ; $ sed -n '1,25p' prisma/schema.prisma → 8 ~ 10 행 주석 "datasource.url 은 `prisma.config.ts` 에서 adapter 로 inject … `@prisma/adapter-pg` 가 DATABASE_URL 을 읽어 pg Pool 을 구성" ⇒ 실 pool 은 **adapter default**.
+(v)   worker 조건절 축 — $ grep -n '^## \|^### ' docs/decisions/ADR-0003-deployment.md | head -12 → 28 `## Decision` · **32 `### Decision §1 — Monolithic NestJS process (in-process queue OK)`** · 46 §2 · 62 §3 · 78 §4 ⇒ worker 분리는 **미결정** = 26 행 조건절의 전건 불성립 (본문 재판정 · status 변경 없음).
+(vi)  Migration 도구 · 누적 축 — $ grep -rn "prisma migrate" package.json .github/workflows/ci.yml Dockerfile deploy/ → ci.yml 172 (주석) · **216 `run: pnpm prisma migrate deploy`** · 306 · 342 · 364 (주석) · Dockerfile 48 (주석) · `deploy/daily-test-step-deps-schema.test.sh` 9 · **112** ; $ grep -rn "migrate dev" (동일 대상) → **0 hit** ⇒ `deploy` 만 실 사용처.
+      $ ls -1 prisma/migrations → `20260525000000_init` … `20260609000000_contribution_source_ref_unique` ; $ ls -1 prisma/migrations | wc -l → **14** ; $ git ls-files prisma/migrations | head -3 → `…/migration.sql` 3 건 ⇒ **git tracked 참**.
+(vii) CI 통합 시점 축 — $ grep -n "Prisma migrate deploy\|migrate deploy" .github/workflows/ci.yml → 47 · 70 · 172 (주석) · **209 `- name: Prisma migrate deploy`** · 216 · 240 ⇒ ci.yml step **이미 실재** ; $ grep -n '"phase"' docs/STATE.json → 3 `"phase": "P4-complete / P5-in-progress"` ⇒ "P3 phase 의 task 에서 … 도입. 본 task 는 정책만 박제" 는 **지난 시점을 미래형으로** 서술.
+      `§ 12.15` 강도 — 본 축은 날짜 stamp 0 · 시점 marker 3 hit (24 · 25 · 32 행) 이고 셋 다 "어느 phase 가 언제 한다" 는 **당시 계획 기록** 이라 append-only 가 in-place 치환보다 무겁게 걸린다 (갱신하려면 새 phase 배정을 창작해야 함).
+(viii) pointer 축 — $ grep -n '^## \|^### ' docs/decisions/ADR-0002-db.md | head -12 → 21 `## Context` · **41 `## Decision`** · 53 `## Consequences` · 88 `## Amendment — 2026-05-25 (T-0033, HQ-0004 해소)` · 113 `## References` ⇒ 17 · 19 · 30 행 pointer **유효**.
+      $ grep -n "^## 1\.\|single-operator\|단일" CLAUDE.md → **31 `## 1. 기술 스택 (확정)`** 뿐 ; $ grep -c "single-operator" CLAUDE.md → **0** ⇒ 23 행의 "`CLAUDE.md` §1 의 single-operator 운영 컨텍스트" pointer **부정확** (§1 은 기술 스택, 어휘 자체가 부재 — CLAUDE.md 는 무편집).
+(ix)  baseline — wc -l deployment.md **213** · audit **3962** · directory.md **203** · modules.md **259** ; grep -c '^## ' deployment.md **6** · audit **12** ; audit grep -c '^| REQ-' **66** · grep -c '^### 12\.' **39** (기대 8 값 전부 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+판정 3 축 — ① **문서 성격**: 1 ~ 4 행 blockquote 가 "본 문서는 P1 T-A2 의 산출물" 을 선언하고 본 단락은 [T-0014](../tasks/T-0014-adr-0002-db-selection.md) 가 [ADR-0002](../decisions/ADR-0002-db.md) 를 옮겨 채운 P1 blueprint 원본이라 보존 강도가 `§ 12.36` ~ `§ 12.39` 와 동급이다. ② **`§ 12.15` 정합**: 날짜 stamp **0** · 시점 marker **3 hit** (24 · 25 · 32 행, 실측 (vii)) 로 `§ 12.39` (4 hit) 보다 옅으나 셋 다 phase 배정 창작 없이는 갱신 불가라 보존 가중치가 그대로 남는다. ③ **선례**: 수치 축이면 [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) in-place, 서술 · 경로 축이면 T-1430 ~ T-1435 · T-1437 ~ T-1441 각주, 혼합은 [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 인데 본 전반부는 **수치 claim 0 · 경로 / 이름 / 명령 + 시점 축** 이라 각주 계열에 든다.
+
+| 지점 (행) | claim (1 구) | 실측 결과 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 17 | 본 단락 결정은 ADR-0002 에 박제 | ADR-0002 **41 행 `## Decision`** 실재 | 참 | 무편집 | 실측 (viii), 본문 재판정 없음 |
+| 19 | 채택 = PostgreSQL + Prisma | compose 14 행 postgres + `prisma/` 실재 | 참 | 무편집 + 각주 근거 | 실측 (ii) · (vi) |
+| 23-a | PostgreSQL **16 이상** · `postgres:16-alpine` | compose 14 행과 **1:1** | 참 | 무편집 + 각주 근거 | image tag 문자열 일치 |
+| 23-b | "동일 host 의 다른 process **또는** 로컬 Docker container" 가 default | 실 경로는 compose 단일 통합 (`postgres` + `app`) · host process 자산 0 | 부분참 | 원문 보존 + 각주 부기 | 양자 중 한쪽만 실제로 확정 |
+| 23-c | pointer — CLAUDE.md **§1** 의 single-operator 컨텍스트 | §1 은 `기술 스택 (확정)` · 어휘 **0 hit** | 거짓 | 원문 보존 + 각주 부기 | CLAUDE.md 편집은 Out of Scope |
+| 24-a | compose 내부 service 이름 (예: **`db:5432`**) | 실 key 는 **`postgres`** (13 행) · `app` | 부분참 | 원문 보존 + 각주 부기 | 예시 표기라 거짓은 아니나 **오도 risk** 존속 |
+| 24-b | `DATABASE_URL` 표준 명칭이 Prisma convention | `.env.example` 12 · ci.yml 66 ~ 70 실재 | 참 | 무편집 + 각주 근거 | 변수 이름까지 1:1 |
+| 24-c | 구체 변수 이름은 **T-0015 의 secret 단락이 결정** | 이미 이행 (`DATABASE_URL` 확정) | 거짓 (시점 낡음) | 원문 보존 + 각주 부기 | `§ 12.39` 95 · 96 행과 동일 유형 |
+| 25-a | PrismaService **singleton** 으로 pool 보유 | `src/persistence/prisma.service.ts` 29 행 실재 | 참 | 무편집 + 각주 근거 | 문서가 module 위치를 안 밝힌 차이만 각주 |
+| 25-b | Pool 크기 · statement timeout 은 **P3 task 에서 결정** | 4 키워드 **0 hit** · 현 phase `P4-complete / P5-in-progress` | 거짓 (시점 낡음 + 미이행) | 원문 보존 + 각주 부기 | 두 축이 겹쳐 각주에서 분리 기술 |
+| 26 | ADR-0003 에서 **worker 분리가 결정되면** … 동일 DB | ADR-0003 §1 = **Monolithic** 채택 | 참 (전건 불성립) | 무편집 + 각주 근거 | 조건문 자체는 거짓이 아니라 조건 미성립 |
+| 30-a | 배포 환경 = `prisma migrate deploy` | ci.yml **216** · daily-test 112 | 참 | 무편집 + 각주 근거 | 실측 (vi) |
+| 30-b | 개발 환경 = `prisma migrate dev` | 대상 전부에서 **0 hit** | 부분참 | 원문 보존 + 각주 부기 | 정책 서술은 유효하나 실 script 미등재 |
+| 31 | `prisma/migrations/` 누적 · git 버전 관리 | **14 개** · `git ls-files` tracked | 참 | 무편집 + 각주 근거 | 실측 (vi) |
+| 32 | CI 통합은 **P3 phase 의 task 에서** 도입 · 본 task 는 정책만 | ci.yml **209 행 step 실재** | 거짓 (시점 낡음) | 원문 보존 + 각주 부기 | 새 phase 배정은 PLAN 게이트라 창작 불가 |
+
+- 합계 — 검증 가능 **15 row = 참 8 (전건 불성립 1 포함) · 부분참 3 · 거짓 4**, 검증 불가 3 은 대상 제외. 거짓 4 의 내역은 **pointer 1** (23-c) · **시점 3** (24-c · 25-b · 32) 이다. `§ 12.39` (거짓 8 / 19) 보다 거짓 비중이 낮은데, 이는 본 전반부의 핵심 claim (DB 종류 · image tag · migration 도구 · migration 디렉토리) 이 **ADR-0002 결정 그대로 구현돼** 문서와 실제가 어긋날 표면이 작았기 때문이다.
+- **거짓 / 부분참 축 · 시점 축의 분리 판정** — ① **거짓 / 부분참 (23-b · 23-c · 24-a · 30-b)**: service 이름 `db` → `postgres` 는 1 토큰 치환으로 고칠 수 있으나 같은 행의 "동일 host … 또는" 양자 서술 · Unix socket 경로가 함께 걸려 있어 한 토큰만 바꾸면 나머지가 부정확한 채 남고, 23-c 는 [CLAUDE.md](../../CLAUDE.md) 편집이 필요한데 그것이 Out of Scope 이며, 30-b 는 정책 서술로 읽으면 지금도 유효하다 → 넷 다 각주로 수렴. ② **시점 (24-c · 25-b · 32)**: 갱신하려면 "이제 어느 phase 책임인가" 를 **새로 배정** 해야 하는데 PLAN 게이트라 창작 금지 (AC 4) 와 정면 충돌하고, 특히 25-b 는 **시점 낡음과 미결정 잔존이 겹쳐** 단순 과거형 전환으로도 해소되지 않는다 → 실측 사실만 각주에 남긴다. 두 축의 처리가 같은 (B) 로 수렴했으나 **사유는 위와 같이 다르다**.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | 전 지점 in-place 동기 (인스턴스 형태 · service 이름 · 시점 3 행 재작성) | 기각 | 치환 지점이 **7** 로 AC 4 의 `≤ 2 지점` 상한을 넘고, 시점 3 행은 새 phase 배정 창작이 필요해 AC 4 창작 금지와 충돌 |
+| **(B)** | **원문 무편집 + `### Migration 정책` 말미 각주 blockquote 1 블록 신설** | **채택** | T-1437 ~ T-1441 화법을 그대로 잇고 실 service 이름 (`postgres`) · 실 경로 (`src/persistence/prisma.service.ts`) · 실 step (`ci.yml` 209) 을 같은 화면에 병기해 오도 risk 만 제거 |
+| (C) | 혼합 (시점 서술만 in-place, 나머지는 각주) | 기각 | 시점 축이야말로 새 배정을 창작해야 하는 축이라 in-place 대상으로 가장 부적합하고, `§ 12.15` append-only 가 marker 3 hit 에 가장 무겁게 걸린다 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 운영자가 `db:5432` 로 접속 문자열을 만들면 compose 내부 이름 해석에 실패하고, migration CI 통합을 **미도입으로 오인** 해 이미 있는 step 을 중복 추가하는 실패로 직결된다 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: 시점 marker 3 이 전부 창작 없이는 갱신 불가라 append-only 와 각주가 정합한다. ② **오도 risk**: 본 단락은 **배포 지시로 읽히는 토폴로지 서술** 이라 잘못 따르면 (a) 존재하지 않는 service 이름으로 접속 문자열을 만들어 app 이 DB 를 못 찾거나, (b) `prisma migrate deploy` 의 CI 통합을 미도입으로 오인해 중복 step 을 넣거나, (c) pool / timeout 이 "P3 에서 결정됨" 으로 오신해 실제로는 adapter default 인 값을 튜닝된 것으로 신뢰한다 — 셋 다 배포 실패 또는 잘못된 용량 가정으로 이어져 (D) 를 기각시킨다. ③ **cap**: (B) 의 실측 diff 는 deployment.md `+6/-0` (213 → **219**, 허용 `≤ 219`) · 파일 **3 고정** 이라 300 LOC · 5 파일 상한 안이다. (A) 는 창작 금지 충돌로 자동 기각이며 split 해도 CLAUDE.md 편집 (Out of Scope) 이 남아 doc slice 로 쪼개는 것 자체가 부적절하다. ④ **선례 일관성**: `§ 12.37` ~ `§ 12.39` 가 같은 문서의 인접 단락에서 (B) 를 채택했으므로 본 절이 다른 후보를 고르면 한 문서 안 처리 방식이 갈린다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (5 행)** — 32 행 (`### Migration 정책` 본문 말미) 뒤 · `### Backup / restore 전략` heading 앞에 append (앞뒤 공백 행 보존). 내용은 ① 19 · 23-a 참 + 23-b **compose 단일 경로 확정**, ② 24-a **실 service 이름 `postgres`** + 오도 risk + 24-b 참 + 24-c 시점 낡음, ③ 25-a 실 경로 `src/persistence/` + 25-b **pool 4 키워드 0 hit** (시점 낡음 · 미결정 분리), ④ 26 전건 불성립 (ADR-0003 §1 Monolithic) + 30 ~ 31 `deploy` 참 / `dev` 0 hit / migration **14 개** tracked, ⑤ 32 **ci.yml 209 step 실재** + `§ 12.15` 처리 사유 + 23-c CLAUDE.md pointer 부정확 + 본 절 pointer.
+- **각주 위치 근거 + 문구 1:1 + 무편집 경계** — 대상 claim 이 두 하위 절 (`### 배포 토폴로지` · `### Migration 정책`) 에 걸쳐 있어 선행 절과 같은 규칙 ("대상 claim 의 최소 공통 구간 말미") 대로 **전반부 최말미** 에 뒀고, T-1439 가 `## 외부 네트워크 boundary` 전반부 말미에 각주를 둔 배치 (현 187 ~ 189 행) 와 동형이다. 각주의 경로 · service 이름 · 변수 이름 · 명령 · 수치 (`postgres` · `assessment-agent-postgres` · `5432:5432` · `postgres:16-alpine` · `DATABASE_URL` · `src/persistence/prisma.service.ts` 29 · `@prisma/adapter-pg` · `14` · `209` · `216` · `112` · `P4-complete / P5-in-progress`) 는 전부 위 실측 출력 그대로이며, **실측되지 않은 값 (존재하지 않는 env 이름 · 미도입 pool 설정값 · 배포 호스트의 실제 경로) 은 창작하지 않았고 connection string 실값 · secret 값도 옮기지 않았다** (변수 이름까지만). 1 ~ 4 행 blockquote · 15 ~ 33 행 원문 · **34 ~ 49 행 (DB 단락 후반부)** · `## 개요` · `## 배포 토폴로지` · `## Scheduler 위치` · `## Secret / 자격증명 저장` · `## 외부 네트워크 boundary` 및 T-1437 ~ T-1441 각주는 그대로다. **새 pointer 도 추가하지 않았다** — 각주가 더한 링크는 ADR-0003 (이미 26 행 등재) · CLAUDE.md (이미 23 행 등재) · 본 절 3 개뿐이다.
+
+#### T-1441 Follow-up 1 의 전반부 closure + 후반부 이월
+
+- **전반부 closure** — `§ 12.39` 가 "다음 slice 1 순위" 로 이월한 근거 (15 ~ 49 행이 ADR-0002 · `prisma/schema.prisma` · `prisma/migrations/` 와 직접 대조 가능) 는 실측으로 확인됐고, 그중 **전반부 15 ~ 33 행의 검증 가능 15 row 를 본 절이 전부 판정 · 각주 반영** 했다. 전반부에는 승계 대상이 남지 않으며 단락 안 각주는 이 1 블록뿐이다 (중복 부기 0).
+- **후반부 이월** — `### Backup / restore 전략` · `### Raw data 저장 금지 (REQ-032)` · `### 후속 진행` (34 ~ 49 행) 은 **미대조** 로 남는다. REQ-032 축은 `prisma/schema.prisma` 의 `String` column 전수 판정이 필요해 단독 slice 가 적절하다는 것이 이월 사유다 (아래 파생 영향 1).
+
+#### 대조 대상 문서 잔여 갱신
+
+`§ 12.39` 가 남긴 deployment.md **잔여 2 단락** 은 본 절 후 **`## DB / Persistence` 후반부 (34 ~ 49 행) + `## 개요` (5 ~ 14 행)** 로 좁혀진다 (단락 수로는 1.5 단락). 우선순위는 아래 파생 영향 1 · 2 에 둔다. **본 각주가 문서 중간 (33 행 뒤) 에 들어가 34 행 이후 전 좌표가 +6 밀린다** — 다음 slice 는 좌표 재실측이 필수다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **`## DB / Persistence` 후반부 (다음 slice 1 순위)** — `### Backup / restore 전략` · `### Raw data 저장 금지 (REQ-032)` · `### 후속 진행`. REQ-032 축은 `prisma/schema.prisma` 의 `String` column 전수 판정이 필요해 **단독 slice** 가 적절하다.
+2. **`## 개요` (5 ~ 14 행)** — 잔여 마지막 단락. 닫으면 deployment.md 전 단락 대조가 완결된다.
+3. **README 행 번호 pointer** — 후반부 36 행 (각주 반영 후 42 행) 의 "README 57 행 (export / backup / restore)" 유효성은 **후반부 slice 소관**.
+4. **[deploy/README.md](../../deploy/README.md) ↔ deployment.md 배포 절차 정합** — `§ 12.39` Follow-up 4 미소진. 정본 지정 판정 필요.
+5. **`@nestjs/config` 미도입 사실의 다른 문서 전수 sweep** — `§ 12.39` Follow-up 3 미소진 (ADR 재판정 owner 게이트).
+6. **REQ 번호 체계 잔재의 전수 sweep** — `§ 12.38` Follow-up 3 미소진 (owner 게이트).
+7. **UC-09 `§ 5` sequence participant 병기** — 24 회째 이월.
+8. **정본 [modules.md](../architecture/modules.md) 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (정본 편집은 ADR 게이트, **259 행 불변**).
+9. **행 번호 → anchor 좌표계 이행** — 18 회째 이월. 본 절 각주가 문서 중간이라 위 "잔여 갱신" 의 +6 이동이 그 근거를 또 한 번 보탠다.
+10. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관. 본 절이 인용한 `14` · `0 hit` · service 이름은 compose / migration 1 건 추가로 즉시 낡는다.
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` coverage 게이트가 모두 **N/A** 다 (본 절 측정 명령은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 `prisma migrate` · `docker compose up` · `pnpm build` · `pnpm test` 는 실행하지 않았다).
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → deployment.md **219** (213 → +6, 허용 ≤ 219) · audit **3962 → 4072** (+110 = 본 절 110 행, 허용 +110 이내) · directory.md **203** (불변) · modules.md **259** (불변)
+$ grep -c '^## ' → deployment.md **6** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **40** (39 → 40)
+$ git diff -U0 -- docs/architecture/deployment.md | grep '^@@' → `@@ -33,0 +34,6 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (`### Migration 정책` 말미 ~ `### Backup / restore 전략` 앞) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/deployment.md → `6  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ prisma/ web/ deploy/ docker-compose.yml .github/ package.json → (빈 출력 — 코드 · 배포자산 · CI · 의존성 무변경)
+$ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1442-*.md  (**3 파일**)
+```
+
+#### 한계 —
+
+1. **4 지점의 거짓은 각주로만 해소된다** — 23 · 24 · 25 · 32 행 원문은 그대로라 각주를 건너뛴 독자에겐 `db:5432` 오도와 "P3 에서 결정" 미래형이 남는다. service 이름 1 토큰은 치환 가능했으나 같은 행의 양자 서술 · Unix socket 경로가 함께 걸려 부분 치환이 새 부정합을 만든다는 점, 그리고 23-c 해소가 [CLAUDE.md](../../CLAUDE.md) 편집 (Out of Scope) 을 요구한다는 점을 우선한 결과다.
+2. **후반부 미판정 · pool 실효값 미측정** — 34 ~ 49 행 (backup · REQ-032 · 후속 진행) 은 본 slice 범위 밖이라 REQ-032 의 schema-level 강제 여부를 판정하지 않았고, pool 은 설정 키워드 **0 hit** 까지만 확인했을 뿐 `@prisma/adapter-pg` 가 실제로 적용하는 default 크기 · timeout 값은 런타임 측정 (DB 접속) 이 필요해 **미측정** 으로 남겼다 (Out of Scope — DB 접속 금지).
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
