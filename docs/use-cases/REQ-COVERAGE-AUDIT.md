@@ -3386,6 +3386,121 @@ $ git status --porcelain → M directory.md · M REQ-COVERAGE-AUDIT.md · M T-14
 2. **in-place 치환은 재-stale 을 앞당긴다** — `21` · `6` 은 각주가 아니라 본문 수치라 다음 컴포넌트 추가 즉시 낡고 "언제 잰 값인지" 가 본문에 남지 않는다 — 각주 첫 줄이 그 시점을 대신 보관한다.
 3. **역할 · 의도 서술 5 와 `web/dist/` 트리 의존은 미해소** — "props 소비 stateless" 류는 파일 단위 실측으로 참·거짓을 못 가르고 (내부 구현 대조는 본 축 밖), `ls -d web/dist` 는 로컬 빌드 잔여물 때문에 git 추적 · ignore 우회 없이는 정반대 결론이 나온다.
 
+### 12.35 deployment.md `## 배포 토폴로지` 단락 ↔ 실 `src/` · `package.json` · `pnpm-workspace.yaml` 대조 — 원문 보존 + 각주 1 블록 (T-1437)
+
+> **본 절의 위치** — `§ 12.34` 가 directory.md 6 축 전 구간 대조 완료를 선언하면서 파생 영향 **7** 로 남긴 **"`web/dist/` 조건부 mount 의 운영 문서화 — [deployment.md](../architecture/deployment.md) 가 '빌드 없이 부팅하면 SPA 라우트 미등록' 을 명시하는지 미대조"** (T-1436 Follow-up 2) 를 본 절이 닫고, 동시에 stream 의 대조 대상 문서를 **directory.md → deployment.md** 로 이월한다. **계보** — `T-1430` ~ `T-1435` (directory.md 6 축) → `T-1436` (산문 단락 축 + web 유보 closure) → **`T-1437` (본 절 — deployment.md `## 배포 토폴로지` 축 + Follow-up 2 closure)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이며 상위 slice 가 박제한 지점에는 `승계` 가 더해진다. cap 준수를 위해 아래 실측 인용은 **요약형** 이다 (명령 + 핵심 출력만).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' deployment.md → 50 `## 배포 토폴로지 …` · 77 `## Secret …` ⇒ 실 단락 **50 ~ 76 행** (task 좌표 일치, stale 아님).
+      $ sed -n '50,76p' … → heading(50) + ADR pointer(52) + 채택 선언(54) + 빌드 분리(56) + `### process 1 개의 책임 범위`(58) + 6 bullet(60~65)
+      + `### REQ-047 …`(67) + 본문(69) + `### worker 분리 전환 시점`(71) + 본문(73) + trade-off(75).
+      claim 이분 — **검증 가능 14** (pointer 실재 · 모듈 존재 · script 존재 · shipped 여부 · 조건부 여부) · **검증 불가 5** (62 "동기 호출 또는
+      Promise.all 로 운영" · 65 "same-origin 이라 CORS 표면 없음" · 69 REQ-047 시나리오 · 73 전환 조건 (a)~(d) · 75 trade-off — 형태 무관 범주).
+(ii)  6 bullet 축 (bullet 당 근거 1) — $ ls src/ → 23 항목 ; $ ls src/*/*.controller.ts | wc -l → **19** ⇒ 60 행 **참**
+      $ grep -rn "@nestjs/schedule" package.json src/ … → package.json:31 `"@nestjs/schedule": "^4.1.2"` / app.module.ts:14 import ·
+        **75 `ScheduleModule.forRoot()`** / scheduling/cron-schedule.service.ts:17 `SchedulerRegistry` · 73 `new CronJob(...)` ;
+        $ grep -rn "@Cron(" src/ | wc -l → **0** (선언형 0 — 등록은 registry 동적형) ; $ grep -n "@Post" …/cron-schedule.controller.ts →
+        140 `@Post("trigger")`  ⇒ 61 행 **참** (planner 기대 ② 미shipped **불성립** → 그 축 편집 **중단**. Q-0026 미승인 영역은
+        driver cron 자동화이지 본 bullet 이 아니다) ; $ ls src/assessment-evaluation/ → 실재 ⇒ 62 행 **참**
+      $ grep -n "provider 식별자" src/llm/dto/create-llm-provider-config.dto.ts → 32 행 `(azure_openai / anthropic / google_gemini /
+        openai / custom)` = **5** (adapter 파일은 4 — `openai-compatible.adapter.ts` 가 openai·custom 겸용) ⇒ 63 행 **참** ;
+      $ ls src/github/ src/confluence/ → 둘 다 실재 ⇒ 64 행 **참** ; $ grep -n "bullmq\|ioredis\|\"redis\"" package.json → **0 hit**
+      ⇒ 54 행 "worker / 외부 큐 broker 미도입" **참**
+(iii) serve-static 조건부 축 (Follow-up 2 closure) — $ grep -n "existsSync\|resolveServeStaticOptions\|API_EXCLUDE_PATTERN\|WEB_DIST_PATH"
+      src/web/web.module.ts → 13 `existsSync` import / 20 `WEB_DIST_PATH = join(cwd,"web","dist")` / 25 `"/api/(.*)"` / 30 helper 선언 /
+      **41 `if (!existsSync(join(distPath, "index.html"))) {`** ← 조건부 등록의 실체 / 44 `return [{ rootPath, exclude }]` / 49 `…map(…)`
+      ⇒ 65 행 무조건 mount 화법 **부분참**. $ sed -n '50,76p' … | grep -n "부재\|미등록\|없으면\|조건" → **0 hit (exit 1)**
+      ⇒ **deployment.md 는 "빌드 없이 부팅하면 SPA 라우트 미등록" 을 어디에도 명시하지 않는다** (Follow-up 2 의 직접 답).
+(iv)  $ grep -n '"build"' package.json web/package.json → 12 `"build": "nest build"` (불변 **참**) · web:8 `"tsc --noEmit -p tsconfig.json
+      && vite build"` (**참**) ; $ cat pnpm-workspace.yaml → `packages:` / `  - web` ⇒ `pnpm --filter web build` 경로 성립 **참**. 빌드 미실행.
+(v)   $ ls ADR-0003-deployment.md ADR-0040-frontend-stack.md T-0399-*.md T-0354-*.md → 4 개 전부 실재 (pointer 유효까지만, 본문 재판정 없음).
+(vi)  baseline — wc -l deployment.md **188** · audit **3402** · directory.md **203** · modules.md **259** ; grep -c '^## ' deployment.md
+      **6** (실측 기록) · audit **12** ; audit grep -c '^| REQ-' **66** · grep -c '^### 12\.' **34** (기대 주어진 6 값 전부 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+판정 3 축 — ① **문서 성격**: 1 ~ 4 행 blockquote 가 "본 문서는 P1 T-A2 의 산출물" 로 **blueprint** 를 선언하되 65 행만은 [T-0399](../tasks/T-0399-deployment-md-web-serve-static-doc-sync.md) 가 P6 에 넣은 **현재형 doc-sync** 라 성격이 혼재한다. 단락 내부 `grep -n "시점\|T-0\|P5\|P6\|P7"` **4 hit 는 전부 attribution (T-0354) 또는 phase 책임 배정 (P5)** 이지 "언제 잰 값" 을 박제한 **시점 marker 가 아니다 (marker 0)**. ② **`§ 12.15` 정합**: 그 정본은 *시점 기록* 의 무편집 존속을 명하므로 marker 0 인 본 단락에 append-only 가 같은 강도로 걸리지는 않는다 — 다만 blueprint 선언이 문서 머리에 살아 있어 T-1436 의 directory.md (blueprint 선언 자체가 없던 구간) 보다 보존 강도가 **한 단계 높다**. ③ **선례**: 순수 수치 축이면 [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) 의 in-place, 서술 축이면 T-1430 ~ T-1435 의 각주이고 T-1436 은 둘을 **혼합** 했는데, 본 단락은 **거짓 0 · 수치 claim 0** 이라 혼합의 in-place 몫이 애초에 발생하지 않는다.
+
+| 지점 (행) | claim (1 구) | 실측 결과 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 52 | ADR-0003 §1 이 본 결정의 박제처 | 파일 실재 | 참 | 무편집 | 실측 (v), 본문 재판정 없음 |
+| 54 | 6 종이 단일 NestJS process 안에서 동작 | 6 종 대응 코드 전부 실재 | 참 | 무편집 | 실측 (ii) |
+| 54 | 별도 worker process / 외부 큐 broker 미도입 | queue dependency **0 hit** | 참 | 각주에 근거 부기 | 실측 (ii) |
+| 56 | root `pnpm build` = NestJS tsc 불변 | `"build": "nest build"` | 참 | 각주에 근거 부기 | 실측 (iv) |
+| 56 | `pnpm --filter web build` 류로 `web/dist/` 산출 | workspace `- web` + web build script | 참 | 각주에 근거 부기 | 실측 (iv) |
+| 60 | HTTP API — controller layer 가 요청 수신 | `src/*/*.controller.ts` **19** | 참 | 각주에 근거 부기 | 실측 (ii) |
+| 61 | Scheduler — `@nestjs/schedule` in-process cron | dep 31 행 + `forRoot()` 75 행 | 참 | 무편집 + 각주 근거 | 기대 불성립 → 편집 중단 |
+| 61 | manual trigger endpoint | `@Post("trigger")` 140 행 | 참 | 각주에 근거 부기 | 실측 (ii) |
+| 62 | 평가 파이프라인이 같은 process | `src/assessment-evaluation/` 실재 | 참 | 각주에 근거 부기 | 실측 (ii) |
+| 63 | LLM gateway 5 provider 단일 추상화 | 식별자 **5** (adapter 파일 4) | 참 | 각주에 근거 부기 | 실측 (ii) |
+| 64 | GitHub / Confluence adapter 동일 process | `src/github/` · `src/confluence/` | 참 | 각주에 근거 부기 | 실측 (ii) |
+| 65 | serve-static · `web/dist/` mount · 비-`/api/*` fallback | 20 · 25 · 44 행 | 참 (승계) | 상위 slice 판정 승계 | `§ 12.34` 가 이미 박제 |
+| 65 | (위 mount 의) **무조건** 등록 화법 | 41 행 — `index.html` 부재 시 빈 배열 | 부분참 | 원문 보존 + 각주 부기 | 서술 재작성 축이라 각주가 안전 |
+| 65 | ADR-0040 §3 · `T-0354 shipped` pointer | 둘 다 실재 | 참 | 무편집 | 실측 (v) |
+
+- 합계 — 검증 가능 **14 = 참 13 (승계 1 포함) · 부분참 1 · 거짓 0**, 검증 불가 5 는 대상 제외. **미shipped 축 (Scheduler) 과 조건부 축 (serve-static) 을 분리 판정** 한 결과: 전자는 실측에서 **미shipped 전제 자체가 성립하지 않아** (dependency · `forRoot()` · manual trigger 실재) 판정이 `참` 으로 뒤집혀 편집 대상에서 빠졌고, 후자는 **shipped 코드의 실 동작과 문서 화법의 어긋남** 이라 성격이 달라 유일한 부분참으로 남는다 — 즉 "문서가 앞선 서술" 과 "문서가 뒤처진 서술" 로 갈리며 전자는 갈림이 소멸, 후자만 처리 대상이다.
+- **중복 각주 회피** — 조건부 mount 의 **소스 트리 축 판정은 `§ 12.34` 와 directory.md 각주에 이미 박제** 됐으므로 본 slice 는 반복하지 않고 참조만 하며, deployment.md 각주는 **운영 축 (빌드 없이 부팅 시 SPA 미등록)** 만 새로 더한다.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | 전 지점 in-place 동기 (65 행 조건부 + 61 행 미shipped 표기) | 기각 | 61 행 미shipped 전제가 실측으로 붕괴 (참) 해 대상이 65 행 서술 1 건뿐이고, 그 1 건은 문장 구조 재작성 축이라 blueprint 문서에서 risk 최대 |
+| **(B)** | **단락 원문 무편집 + 각주 blockquote 1 블록 신설** | **채택** | 거짓 0 · 수치 claim 0 이라 in-place 몫이 없고, 유일한 부분참이 서술 축이라 T-1430 ~ T-1435 화법이 그대로 맞는다 |
+| (C) | 혼합 (조건부 mount 만 in-place, 나머지 각주 승계) | 기각 | T-1436 혼합의 근거였던 "수치 대 서술" 경계가 본 단락엔 부재 — 혼합해도 in-place 몫이 (A) 와 같은 1 건이라 risk 를 그대로 승계 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 운영자가 audit 를 안 읽으면 "부팅하면 SPA 가 뜬다" 오독이 그대로 남는다 — Follow-up 2 가 요구한 것은 **운영 문서 쪽 명시** 다 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: 단락 내 `grep -n "시점\|T-0\|P5\|P6\|P7"` **4 hit 가 모두 attribution / phase 책임 배정** 이라 시점 marker 0 → append-only 가 in-place 를 절대 금지하지는 않으나, 문서 머리의 blueprint 선언 때문에 **보존 쪽 가중치가 크다**. ② **운영 오도 risk**: 본 문서는 배포 · 운영 판단의 근거 문서라 오독 비용이 directory.md 보다 **높다** — 운영자가 65 행을 무조건형으로 읽으면 frontend 빌드를 건너뛴 배포에서 SPA 404 를 만나고도 "serve-static 이 shipped 이니 문서상 떠야 한다" 로 진단이 어긋난다. (B) 는 그 조건을 같은 화면에 놓아 risk 를 없애고 (D) 는 남긴다. ③ **cap**: (B) 의 실측 diff 는 deployment.md `+4/-0` (188 → **192**, 허용 `≤ 192`) · 파일 **3 고정** 이라 300 LOC · 5 파일 상한 안이다 (초과 후보 0 — split 제안 불요). ④ **선례 일관성**: 서술 축 단독이므로 T-1430 ~ T-1435 의 각주 5 연속을 그대로 잇고 T-1436 의 혼합과도 모순이 없다 (혼합은 수치 축이 있을 때의 규칙).
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (3 행)** — 65 행 (6 bullet 말미) 뒤에 append. 내용은 ① 6 bullet 중 5 종 + 54 · 56 행의 **참** 근거를 실측 좌표로 부기, ② **Web UI 정적 serve 만 부분참** 이라는 조건부 사실과 "빌드 없이 부팅하면 API 는 뜨지만 SPA 라우트 미등록", ③ 검증 불가 / 대상외 제외 선언 + 본 절 pointer.
+- **각주 위치를 단락 최말미 (75 행 뒤) 가 아니라 `### process 1 개의 책임 범위` 말미로 잡은 이유** — 주석 대상 claim 이 전부 그 하위 절 안에 있고, 최말미에 두면 독자가 `### REQ-047` · `### worker 분리 전환 시점` 두 절을 건너뛴 뒤에야 조건부 사실을 만나 오도 risk 감쇄 효과가 떨어진다.
+- **문구 1:1 + 무편집 경계** — 각주의 수치 · 파일명 · 경로 (`19` · `31` · `75` · `140` · `41` · `49` · `5` · `nest build` · `packages: - web`) 는 전부 위 실측 출력 그대로이고 **실측되지 않은 동작 (dist 부재 시 반환 status code, 재빌드 절차) 은 창작하지 않았다**. 1 ~ 4 행 blockquote · 50 ~ 65 행 원문 · `### REQ-047 충족 시나리오` · `### worker 분리 전환 시점` · 75 행 trade-off · `## Secret / 자격증명 저장` (편집 후 81 행) 이하 전 구간은 그대로이며 **새 pointer 도 추가하지 않았다** (ADR-0003 · ADR-0040 · T-0399 · T-0354 는 이미 등재 — 각주가 더한 링크는 본 audit 절 1 개뿐, T-1435 · T-1436 각주와 같은 규약).
+
+#### T-1436 Follow-up 2 (조건부 mount 운영 문서화) closure 선언
+
+`§ 12.34` 파생 영향 **7** 이 남긴 질문 — "deployment.md 가 '빌드 없이 부팅하면 SPA 라우트 미등록' 을 명시하는가" — 의 답은 실측 (iii) 의 `grep … "부재\|미등록\|없으면\|조건"` **0 hit** 로 **"명시하지 않았다"** 이며, 본 절의 각주가 그 공백을 채워 **closure** 한다. 이로써 조건부 mount 사실은 **소스 트리 축 (directory.md 각주 · `§ 12.34`) 과 운영 축 (deployment.md 각주 · 본 절)** 양쪽에 박제됐고, 남은 미박제 면은 **정본 [modules.md](../architecture/modules.md) 쪽 (ADR 게이트)** 하나다.
+
+#### 대조 대상 문서 이월 선언
+
+directory.md 는 `§ 12.34` 로 **6 축 · 미대조 산문 단락 0** 이 됐으므로 본 절부터 stream 의 대조 대상은 **deployment.md** 다. deployment.md 의 `## ` 단락은 **6** 개 (`개요` · `DB / Persistence` · `배포 토폴로지` · `Secret / 자격증명 저장` · `Scheduler 위치` · `외부 네트워크 boundary`) 이고 본 절이 그중 **1 개** 를 닫았다 — **잔여 미대조 5**. 우선순위는 아래 파생 영향 5 에 둔다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **UC-09 `§ 5` sequence participant 병기** — 19 회째 이월.
+2. **정본 [modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 단락 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (정본 편집은 ADR 게이트, **259 행 불변**).
+3. **행 번호 → anchor 좌표계 이행** — 13 회째 이월. 본 절은 좌표가 stale 이 아니었으나 각주 4 행 삽입으로 `## Secret` 이 77 → 81 로 밀려 이후 slice 의 task 좌표가 다시 낡는다.
+4. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관. `19` · `5` 는 controller · provider 1 개 추가로 즉시 낡는다.
+5. **deployment.md 잔여 미대조 단락 5** — 특히 `## Scheduler 위치` 의 `### cron 주기 설정 흐름 (REQ-039)` 은 본 절 (ii) 의 Scheduler 판정 (`@Cron` 0 · registry 동적 등록) 과 직결되므로 다음 slice 1 순위, 이어 `## 외부 네트워크 boundary` · `## Secret / 자격증명 저장` · `## DB / Persistence` · `## 개요`.
+6. **`§ 12.34` 파생 영향 미소진분** — (1) UC-09 · (3) anchor · (4) drift-guard · (5) modules.md 카운트 · (6) `§ 12.33` 잔여 4 항목. (7) 은 본 절이 소진.
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → deployment.md **192** (188 → +4, 허용 ≤ 192) · audit **3517** (3402 → +115 = 절 114 + 구분 공백 1, 허용 +115 이내) ·
+  directory.md **203** (불변) · modules.md **259** (불변)
+$ grep -c '^## ' → deployment.md **6** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **35** (34 → 35)
+$ git diff -U0 -- docs/architecture/deployment.md | grep '^@@' → `@@ -66,0 +67,4 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (6 bullet 말미 각주) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/deployment.md → `4  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ prisma/ web/ package.json → (빈 출력 — 코드 무변경)
+$ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1437-*.md  (**3 파일**)
+```
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` coverage 게이트가 모두 **N/A** 다 (본 절 측정 명령은 전부 read-only `ls` · `grep` · `wc` · `cat` · `git` 이며 빌드 · 테스트를 실행하지 않았다 — `pnpm build` · `pnpm --filter web build` 도 미실행).
+
+#### 한계 —
+
+1. **planner 기대가 실측에 뒤집힌 사례** — 기대 ② (Scheduler 미shipped) 는 dependency 등재 · `forRoot()` · manual trigger 로 반증됐다. 기대를 그대로 믿고 "미shipped" 를 in-place 로 박았다면 **문서가 코드보다 낡은 게 아니라 틀린 상태** 가 됐을 것이며, AC 1 의 "기대와 다르면 그 축 편집 중단" 규정이 실제로 작동한 지점이다. 다만 `@Cron` **0** 의 의미 (선언형 cron job 이 실제로 도는가) 는 `## Scheduler 위치` 단락 소관이라 본 절은 bullet 의 기반 shipped 여부까지만 판정했다.
+2. **각주가 본문 화법을 고치지는 않는다** — 65 행은 여전히 무조건형이라 각주를 건너뛴 독자에겐 오도가 남는다. blueprint 보존과 오도 제거의 trade-off 를 보존 쪽으로 택한 결과이며, 본문 화법 자체의 정정은 ADR-0040 / T-0399 계보를 건드리는 별도 판단이다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source

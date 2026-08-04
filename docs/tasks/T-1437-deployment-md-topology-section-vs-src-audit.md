@@ -86,4 +86,8 @@ planner 사전 확인 (executor 가 AC 1 에서 전부 재측정) — 최소 3 �
 
 ## Follow-ups
 
-(생성 시 비어 있음 — sub-agent 가 발견 시 append)
+1. **`## Scheduler 위치` 단락 ↔ 실 `src/scheduling/` 대조 (다음 slice 1 순위)** — 본 slice 실측 (ii) 가 `@Cron(` **0 hit** (선언형 cron job 0, 등록은 `SchedulerRegistry` 동적형) 을 잡았으므로, `### cron 주기 설정 흐름 (REQ-039)` · `### Manual trigger 흐름 (REQ-040)` · `### 동시 실행 방지` 가 실 `cron-schedule.service.ts` · `cron-schedule.controller.ts` 와 맞는지 대조가 필요하다.
+2. **deployment.md 잔여 미대조 단락 4** — `## 외부 네트워크 boundary` · `## Secret / 자격증명 저장` · `## DB / Persistence` · `## 개요` (`§ 12.35` 대조 대상 문서 이월 선언 참조).
+3. **정본 [modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 단락 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (정본 편집은 ADR 게이트).
+4. **planner 기대 검증 절차의 일반화** — 본 slice 에서 planner 사전 기대 ② (Scheduler 미shipped) 가 실측에 반증됐다. task 정의서의 "planner 사전 확인" 문단은 **가설** 이지 전제가 아님을 planner prompt 쪽에도 1 구로 박제할지 검토.
+5. **행 번호 → anchor 좌표계 이행** (13 회째 이월) — 본 slice 의 각주 4 행 삽입으로 `## Secret / 자격증명 저장` 이 77 → **81** 행으로 밀려 후속 task 좌표가 다시 낡는다.
