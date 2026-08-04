@@ -96,4 +96,14 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 ## Follow-ups
 
-(생성 시 비어 있음 — sub-agent 가 발견한 후속 작업을 여기에 append 한다.)
+1. **components.md 다음 단락 1 순위 = `## Component table` (109 행)** — 본 slice 가 11 행에서 확인했듯 이 문서의 **검증 가능 claim 밀도가 가장 높은 곳이 component ↔ 실 module 대응** 이고, 8 row 표는 각 row 가 책임 · 입출력 contract 를 명시해 실 **15** module · 실제 service 와 1:1 대조가 가능하다. 차순위는 `## Deployment 컨텍스트` (16 ~ 21 행 — "모든 8 component 는 동일 process" claim + ADR pointer 3 종, 본 slice 각주 바로 뒤라 좌표 인접).
+2. **`@nestjs/config` 미도입 전수 sweep** — `§ 12.39` FU 미소진 (ADR 게이트). 본 slice 는 components.md 7 행 **1 지점** 을 국소 판정했을 뿐이고, ADR-0003 `§2` (결정) ↔ `src/main.ts` 2 행 주석 (의도적 미도입) ↔ 각 문서 서술의 **정본 지정** 은 미착수다.
+3. **reviewer 규약 미이행** — `.claude/agents/reviewer.md` 에 REQ-032 항목 0 hit (`§ 12.41` FU2 미소진). `.claude/` 소관 별도 direct task.
+4. **`deploy/README.md` ↔ [deployment.md](../architecture/deployment.md) ↔ [runbook.md](../ops/runbook.md) 3 자 정합** — `§ 12.41` FU3 미소진 (**deployment.md 232 행 불변**).
+5. **README 행 번호 pointer drift 전수 sweep** — 선행 절에서 이월.
+6. **REQ 번호 체계 잔재 전수 sweep** — `§ 12.38` FU3 미소진 (owner 게이트).
+7. **`CLAUDE.md` §1 pointer 부정확** — T-1442 FU3 미소진 (§3.1 별개 소관).
+8. **UC-09 `§ 5` sequence participant 병기** — 27 회째 이월.
+9. **정본 [modules.md](../architecture/modules.md) 카운트 claim 대조** — `§ 12.34` FU1 미소진 (**259 행 불변**, ADR 게이트). 본 slice 가 acyclic · `T-0017` 축으로 접점을 재확인했으나 카운트 판정은 미착수.
+10. **행 번호 → anchor 좌표계 이행** — 21 회째 이월. 본 slice 각주가 components.md 16 행 이후를 +6 민 것이 근거를 보탠다.
+11. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관 (실 module **15** · 실재 **6** · 초과 **9** · `@nestjs/config` **0 hit** 은 module 1 개 추가 · dependency 1 건 설치로 즉시 낡는다).

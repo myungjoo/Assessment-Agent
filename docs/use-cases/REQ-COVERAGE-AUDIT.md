@@ -4267,6 +4267,115 @@ $ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1
 2. **pointer 판정은 "대상 절이 실재하는가" 까지다** — INDEX `MVA 원칙` · components `contract 표` · runbook 각 절의 **내용이 문서가 기대하는 바와 실제로 부합하는지** 는 각 문서 본문 전수 판정이 필요해 (그리고 세 문서 모두 본 slice 무편집 대상이라) 판정하지 않았다. `deploy/` 자산도 **파일 실재 기준** 이며 실제 배포 호스트에서 동작하는지는 미측정이다.
 3. **누적 drift 수치는 선행 절 인용값** — (vi) 의 99 / 50 / 20 / 29 는 `§ 12.35` ~ `§ 12.41` 의 "합계" 문장을 그대로 합산한 것이라, 그 절들이 판정 후 코드가 다시 바뀌었다면 현재 사실과 어긋날 수 있다 (재측정은 §7 context 예산상 하지 않았다).
 
+### 12.43 components.md `## 개요` ↔ 실 `src/**/*.module.ts` 인벤토리 · `package.json` dependency · 참조 문서 (`INDEX.md` · `modules.md` · `ADR-0003`) · 현 phase 대조 — 원문 보존 + 각주 1 블록 (T-1445)
+
+> **본 절의 위치** — `§ 12.42` 가 "다음 문서 축 1 순위" 로 지목한 [T-1444](../tasks/T-1444-deployment-md-overview-section-vs-repo-audit.md) **Follow-up 1** ([components.md](../architecture/components.md) 축 진입) 을 본 절이 계승한다. **계보** — `T-1430` ~ `T-1435` (directory.md) → `T-1436` ~ `T-1444` (deployment.md 6 단락 전부, `§ 12.42` 로 그 축 종료) → **`T-1445` (본 절 — components.md 축의 첫 slice, `## 개요`)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이고, 측정은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 **secret · connection string · 실 호스트명은 옮기지 않았다** (CLAUDE.md §9). 본 절은 **components.md 축의 template** 이 되므로 판정표 컬럼 · 각주 배치 규약을 선행 절과 동형으로 유지했다.
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/components.md → 1 `# Component view` · **5 `## 개요`** · **16 `## Deployment 컨텍스트`** · 22 `## Component diagram` · 109 `## Component table` · 122 `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` · 154 `## Contracts` · 180 `## References` ⇒ 본 slice 범위 = **5 (heading) · 7 · 9 · 11 ~ 14 (본문 2 문단 + 하위 4 bullet) · 16 (다음 heading)** — AC 좌표 그대로 **stale 아님** (문서 앞머리라 선행 slice 의 밀림 없음).
+      claim 이분 — **검증 가능 22 축** (7 행 pointer 2 + 토폴로지 5 요소 5 / 9 행 INDEX pointer 1 + 시점 1 / 11 행 modules pointer 1 + module class 8 + acyclic 1 / 12 ~ 14 행 phase 명칭 3) · **검증 불가 4** (7 행 "본 문서는 component view — 시스템을 component 단위로 분해한다" 범위 선언 · 7 행 "그 process 안에 어떤 component 가 들어가는지의 논리적 분해도" 자기규정 · 9 행 "책임 한 문단 + 입출력 contract 까지만 박제" 범위 선언 · 9 행 "구체 module class / 메서드 시그니처 / endpoint URL / DB schema 컬럼은 본 문서의 범위 밖" 자기규정 — 전부 문서 자신의 범위 · 성격 선언이라 참·거짓 대상이 아니다).
+(ii)  운영 토폴로지 5 요소 축 (7 행) — $ grep -n '"@nestjs/config"\|"@nestjs/schedule"' package.json → **31**`"@nestjs/schedule": "^4.1.2",` (**`@nestjs/config` 는 0 hit**) ; $ grep -n '^### Decision §' docs/decisions/ADR-0003-deployment.md → **8 hit** (32 `§1 — Monolithic NestJS process (in-process queue OK)` · 46 `§2 — Secret 저장 = 환경변수 (@nestjs/config 기반)` · 62 `§3 — Scheduler 위치 = @nestjs/schedule (in-process)` · 78 `§4 — 외부 네트워크 boundary = direct outbound from app process` / 120 · 129 · 138 · 147 = `## Alternatives considered` 하위 동명 4 절) ⇒ 실 결정은 **4 개** ; $ grep -rln "@nestjs/config" src/ → **`src/main.ts`** 뿐이고 그 2 행은 `// 외부 의존성(@nestjs/config 등)은 의도적으로 도입하지 않음 (T-0004 Out of Scope).` 주석이다. ⇒ 5 요소 분리 판정 — `단일 NestJS process` **참** (ADR §1) · `@nestjs/schedule` **참** (dependency + ADR §3) · `direct egress` **참** (ADR §4) · `@nestjs/config` **부분참** (ADR §2 가 결정했으나 **미도입** — "문서만의 창작" 이 아니라 **결정 ↔ 구현 gap**, 코드 주석이 미도입을 의도로 명시) · `PostgreSQL` **부분참** (ADR-0003 의 4 결정에 없고 ADR-0002 소관이라 **귀속 상이**, deployment.md 는 실제로 박제).
+(iii) module class 8 명 축 (11 행) — $ ls -1 src/*.module.ts src/*/*.module.ts | wc -l → **15** ; $ grep -rhn '^export class .*Module' src --include=*.module.ts | sed 's/.*export class //' | sort → `AppModule` · `AssessmentCollectionModule` · `AssessmentEvaluationModule` · `AuthModule` · `ConfluenceModule` · `ExportModule` · `GithubModule` · `ImportModule` · `LlmModule` · `PermissionDeniedRecordModule` · `PersistenceModule` · `SchedulingModule` · `UserInstanceAccessModule` · `UserModule` · `WebModule` (**15 class**). ⇒ 문서 8 명 판정 — **실재 6** (`UserModule` · `GithubModule` · `ConfluenceModule` · `LlmModule` · `AuthModule` · `WebModule`) · **이름 상이 1** (`SchedulerModule` → 실 `SchedulingModule`, 디렉토리도 `src/scheduling/`) · **부재 1** (`AssessmentModule` — 책임이 `AssessmentCollectionModule` · `AssessmentEvaluationModule` 2 개로 분화). **초과분 9** (`AppModule` · 위 2 개 · `SchedulingModule` · `PersistenceModule` · `ExportModule` · `ImportModule` · `PermissionDeniedRecordModule` · `UserInstanceAccessModule`).
+      $ grep -n "acyclic\|순환" docs/architecture/modules.md | head -5 → **3** (blockquote — "P1 T-A4 의 산출물 … 의존성 acyclic 검증 … 박제", `T-0017` 명시) · **7** ("module 간 import 의존성 방향이 acyclic 임을 박제") · **139** ("화살표 방향 = imports 방향. cycle 0 (아래 acyclic 검증 참조)") ⇒ 검증은 **실제 수행됨**.
+(iv)  pointer 축 (7 · 9 · 11 행) — $ ls -1 docs/architecture/deployment.md docs/architecture/modules.md docs/architecture/INDEX.md → **3 파일 전부 실재** ; $ grep -n "MVA" docs/architecture/INDEX.md | head -4 → **54** `## MVA 원칙` (1 hit, 절 실재) ; $ ls -1 docs/tasks/T-0016-*.md docs/tasks/T-0017-*.md → `T-0016-t-a3-component-view.md` · `T-0017-t-a4-module-view.md` **둘 다 실재**. ⇒ pointer 대상은 전수 실재하나, 11 행이 modules.md 를 `T-A4 (modules.md)` 로만 부르고 **task ID (`T-0017`) 도 markdown 링크도 두지 않아** pointer 로서 **불완전** (1 ~ 3 행 blockquote 가 `T-0016` 을 링크로 명시한 것과 대비된다).
+(v)   시점 축 (11 ~ 14 행) — $ grep -n "^## Phase P" docs/PLAN.md → 12 `P0` · 18 `P0.5` · **24 `P1 — Architecture (MVA)`** · **30 `P2 — Use case decomposition`** · **47 `P3 — Domain core`** · **79 `P4 — External integrations`** · 94 `P5 — Evaluation pipeline` · 114 `P6` · 131 `P7` · 146 `P8` ; $ sed -n '26p' docs/PLAN.md → P1 **"완료"** ; $ python -c "…json.load…['phase']" → **`P4-complete / P5-in-progress`**. ⇒ **bullet 별로 갈리지 않고 4 bullet 전부 낡음** (T-A4 · P2 · P3 · P4 대상이 모두 완료). 다만 **명칭 축은 갈린다** — `P2 Use case decomposition` · `P4 External integrations` 는 PLAN 30 · 79 행과 1:1 이나 `P3 Persistence layer` 는 PLAN 47 행 실 명칭이 `Phase P3 — Domain core` 라 **상이** (`PersistenceModule` 은 실제로 shipped).
+      `§ 12.15` 강도 — $ awk 'NR>=5 && NR<=14' … | grep -cE "20[0-9]{2}-[0-9]{2}-[0-9]{2}" → **0** (날짜 stamp 없음) ; 시점 marker 는 `T-A4` · `P2` · `P3` · `P4` · `다음 task` **각 1 hit = 5** 로 deployment.md `## 개요` (1 hit) 보다 밀도가 **5 배** 다 — 갱신하려면 새 phase 배정과 module 이름 선택을 창작해야 하는 성격은 같다.
+(vi)  자기규정 축 (9 행) — (iii) 결과를 **재측정 없이 인용** (§7): 9 행은 "구체 NestJS module class … 는 본 문서의 범위 밖" 이라고 선언하면서도 **같은 절 11 행이 module class 이름 8 개를 실제로 열거** 한다. 즉 범위 선언이 스스로 지켜지지 않았고, 그 열거가 `T-A4 가 앞으로 할 mapping 의 예고` 형식이라 검토 대상에서 빠진 채 blueprint 에 굳었다 — 8 명 중 **2 명이 실제와 어긋난** (부재 1 · 이름 상이 1) 원인이 이 구조다. 자기규정 자체는 검증 불가라 판정 대상에서 제외하되, 본 긴장은 각주에 1 구로 병기했다.
+(vii) baseline — $ wc -l → components.md **190** · audit **4283** · deployment.md **232** · directory.md **203** · modules.md **259** ; $ grep -c '^## ' → components.md **7** · audit **12** ; audit $ grep -c '^| REQ-' → **66** · $ grep -c '^### 12\.' → **42** (기대 9 값 전부 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+판정 3 축 — ① **문서 성격**: 1 ~ 3 행 blockquote 의 "본 문서는 **P1 T-A3 의 산출물**" 선언이 본 단락에 가장 강하게 걸린다. `## 개요` 는 문서 자신의 범위·성격을 규정하는 머리말인 동시에 **구현 이전에 쓰인 예고 목록** 을 품고 있어, 손대면 blueprint 가 무엇을 예상했는지의 기록이 사라진다. ② **`§ 12.15` 정합**: 날짜 stamp **0** · 시점 marker **5 hit** (`T-A4` · `P2` · `P3` · `P4` · `다음 task`, 실측 (v)) 로 밀도가 선행 문서보다 높고, 문제의 module class 8 명이 그 시점 marker **안쪽** (`다음 task 들의 책임` 하위 bullet) 에 있어 append-only 가 그대로 걸린다. ③ **선례**: 수치 축이면 [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) in-place, 서술 · 시점 축이면 T-1430 ~ T-1435 · T-1437 ~ T-1444 각주, 혼합은 [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 인데 본 단락의 거짓 2 건은 **시점 marker 안쪽의 심볼명** 이라 in-place 후보이면서 동시에 시점 기록이라, 각주 계열로 수렴한다.
+
+| 지점 (행) | claim (1 구) | 실측 결과 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 7-a | pointer — [deployment.md](../architecture/deployment.md) 실재 | 파일 실재 (`§ 12.35` ~ `§ 12.42` 대조 완료 문서) | 참 | 무편집 | 실측 (iv) |
+| 7-b | pointer — [ADR-0003](../decisions/ADR-0003-deployment.md) 실재 | 파일 실재 · `### Decision §1` ~ `§4` **4** 개 | 참 | 무편집 + 각주 근거 | 실측 (ii) |
+| 7-c | 토폴로지 — **단일 NestJS process** | ADR-0003 `§1 — Monolithic NestJS process` | 참 | 무편집 + 각주 근거 | 실측 (ii) 1:1 |
+| 7-d | 토폴로지 — **PostgreSQL** | ADR-0003 4 결정에 **없음** ([ADR-0002](../decisions/ADR-0002-db.md) 소관) | 부분참 (귀속 상이) | 원문 보존 + 각주 부기 | 사실은 참이나 두 pointer 중 ADR 쪽 귀속이 어긋남 |
+| 7-e | 토폴로지 — **`@nestjs/config`** | ADR-0003 `§2` 는 결정, `package.json` **0 hit** (미도입) | 부분참 (결정 ↔ 구현 gap) | 원문 보존 + 각주 부기 | `src/main.ts` 2 행이 미도입을 의도로 명시 |
+| 7-f | 토폴로지 — **`@nestjs/schedule`** | `package.json` **31** 행 실재 + ADR-0003 `§3` | 참 | 무편집 + 각주 근거 | 실측 (ii) |
+| 7-g | 토폴로지 — **direct egress** | ADR-0003 `§4 — direct outbound from app process` | 참 | 무편집 | 실측 (ii) |
+| 9-a | pointer — [INDEX.md](../architecture/INDEX.md) 의 `MVA 원칙` | INDEX.md **54** 행 `## MVA 원칙` 실재 | 참 | 무편집 + 각주 근거 | 실측 (iv) 1 hit |
+| 9-b | 시점 — "그 구체화는 **다음 task 들의 책임**" | T-A4 · P2 · P3 · P4 **전부 완료**, 현 phase `P4-complete / P5-in-progress` | 부분참 (시점 낡음) | 원문 보존 + 각주 부기 | 새 phase 배정 창작 금지 (AC 4) |
+| 11-a | pointer — **T-A4 (modules.md)** | 파일 실재 · 대상 task 는 `T-0017` 이나 본문 미명시 · 링크 없음 | 부분참 (pointer 불완전) | 원문 보존 + 각주 부기 | 실측 (iv), 1 ~ 3 행이 `T-0016` 을 링크한 것과 대비 |
+| 11-b | module class — `AssessmentModule` | 실 class 목록 **부재**, `AssessmentCollectionModule` · `AssessmentEvaluationModule` 2 개로 분화 | 거짓 | 원문 보존 + 각주 부기 | 시점 marker 안쪽 예고라 `§ 12.15` append-only |
+| 11-c | module class — `UserModule` | `src/user/user.module.ts` 실재 | 참 | 무편집 | 실측 (iii) |
+| 11-d | module class — `GithubModule` | `src/github/github.module.ts` 실재 | 참 | 무편집 | 실측 (iii) |
+| 11-e | module class — `ConfluenceModule` | `src/confluence/confluence.module.ts` 실재 | 참 | 무편집 | 실측 (iii) |
+| 11-f | module class — `LlmModule` | `src/llm/llm.module.ts` 실재 | 참 | 무편집 | 실측 (iii) |
+| 11-g | module class — `AuthModule` | `src/auth/auth.module.ts` 실재 | 참 | 무편집 | 실측 (iii) |
+| 11-h | module class — `SchedulerModule` | 실 class 는 `SchedulingModule` (`src/scheduling/`) | 거짓 (이름 상이) | 원문 보존 + 각주 부기 | 위와 같은 시점 marker 안쪽 |
+| 11-i | module class — `WebModule` | `src/web/web.module.ts` 실재 | 참 | 무편집 | 실측 (iii) |
+| 11-j | **의존성 acyclic 검증** 이 수행됨 | modules.md **3 · 7 · 139** 행 (`cycle 0`) | 참 | 무편집 + 각주 근거 | 실측 (iii) |
+| 12-a | phase 명칭 — `P2 Use case decomposition` | PLAN **30** 행 `## Phase P2 — Use case decomposition` | 참 | 무편집 | 실측 (v) 1:1 |
+| 13-a | phase 명칭 — `P3 Persistence layer` | PLAN **47** 행 실 명칭은 `Phase P3 — Domain core` | 부분참 (명칭 상이) | 원문 보존 + 각주 부기 | 번호는 맞고 `PersistenceModule` 도 shipped |
+| 14-a | phase 명칭 — `P4 External integrations` | PLAN **79** 행 `## Phase P4 — External integrations` | 참 | 무편집 | 실측 (v) 1:1 |
+
+- 합계 — 검증 가능 **22 row = 참 15 · 부분참 5 · 거짓 2**, 검증 불가 4 는 대상 제외. 거짓 2 는 **둘 다 module class 이름** 이고, 부분참 5 는 dependency 귀속 2 · pointer 불완전 1 · 시점 1 · phase 명칭 1 로 축이 흩어져 있다. module class 8 명만 놓고 보면 **6 / 8 = 75% 적중** 인데, 이는 blueprint 가 도메인 경계를 대체로 맞췄고 어긋난 2 건은 **구현 중 책임 분할 (Assessment → Collection + Evaluation)** 과 **명명 관례 (Scheduler → Scheduling)** 라는 자연스러운 진화의 결과다.
+- **시점 축 (9-b · 11-b · 11-h · 13-a) 과 사실 축 (7-c ~ 7-g · 9-a · 11-j · 12-a · 14-a) 의 분리 판정** — ① **사실 축**: dependency · ADR 결정 · pointer 실재 · acyclic 수행은 대부분 참이라 처리가 `무편집` 이고, 각주는 근거 병기 목적뿐이다. 어긋난 7-d · 7-e 도 **문서가 틀린 게 아니라 귀속 · 도입 시점이 어긋난** 형태라 문장 치환으로는 고쳐지지 않는다. ② **시점 축**: 11 ~ 14 행 전체가 `다음 task 들의 책임` 이라는 미래형 프레임 안에 있어, module 이름 2 건을 실 이름으로 치환하면 **"미래 예고" 문장이 "현재 사실" 을 담게 되는 시제 모순** 이 생기고 나머지 6 명 · 초과 9 개와의 정합도 함께 재작성해야 한다 (= `## Component table` 8 row 까지 cascade, cap 즉시 초과). 두 축이 같은 (B) 로 수렴했으나 **사유는 다르다** — 전자는 "고칠 게 없어서", 후자는 "고치면 문장 정체성 · cap 이 함께 무너져서".
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | 전 지점 in-place 동기 (module class 8 명 실 이름 치환 + `@nestjs/config` 삭제) | 기각 | 8 명 치환은 **초과 9 개 · `## Component table` 8 row 와의 정합 재작성** 을 부르고 (cap 초과), `@nestjs/config` 삭제는 **ADR-0003 `§2` 가 실제로 결정한 사실을 지우는** 편집이라 문서를 오히려 덜 정확하게 만든다 |
+| **(B)** | **원문 무편집 + `## 개요` 말미 각주 blockquote 1 블록 신설** | **채택** | T-1437 ~ T-1444 화법을 그대로 잇고, 실 class 15 · 실재 6 · 이름 상이 1 · 부재 1 · 초과 9 · dependency 0 hit / 31 행 · acyclic `cycle 0` · PLAN 47 행 명칭을 같은 화면에 병기해 **오도 risk 만** 제거 |
+| (C) | 혼합 (거짓 2 건만 in-place, 시점 축은 각주) | 기각 | 거짓 2 건이 **시점 marker 안쪽** (`다음 task 들의 책임` 하위 bullet) 이라 치환하면 시제 모순 (미래형 문장에 현재 사실) 이 남고, 같은 bullet 의 나머지 6 명만 예고형으로 남아 한 문장 안 시제가 갈린다 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 본 단락은 **문서 앞머리** 라 노출도가 최상위이고, 독자가 "shipped module 은 이 8 개다" 또는 "`@nestjs/config` 가 도입돼 있다" 고 오인하면 존재하지 않는 `AssessmentModule` · `SchedulerModule` 을 import 하거나 config module 배선을 전제한 코드를 쓰게 된다 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: 시점 marker **5 hit** 이 전부 본 slice 범위 안이고 거짓 2 건이 그 안쪽이라 append-only 와 각주가 정합한다. ② **오도 risk**: 문서 첫 산문 단락이라 **진입 독자 전원이 읽는 위치** 이고, 오독 비용이 (a) 부재 class import 시도, (b) `@nestjs/config` 전제 배선 (실제로는 `T-0004` Out of Scope 로 의도적 미도입), (c) 실 15 module 중 9 개 (`PersistenceModule` · `ExportModule` · `ImportModule` · `PermissionDeniedRecordModule` · `UserInstanceAccessModule` 등) 미인지 — 셋 다 실작업 낭비로 직결돼 (D) 를 기각시킨다. ③ **cap**: (B) 의 실측 diff 는 components.md `+6/-0` (190 → **196**, 허용 `≤ 198`) · 파일 **3 고정** 이라 300 LOC · 5 파일 상한 안이다 ((A) · (C) 는 cascade 로 cap 초과 → 자동 기각, split 하려면 `## Component table` slice 와 묶어야 해 본 slice 경계와 충돌). ④ **선례 일관성**: 본 절이 **components.md 축의 첫 slice** 라 이후 slice (`## Deployment 컨텍스트` · `## Component diagram` · `## Component table` · `## GitHub Adapter …` · `## Contracts` · `## References`) 의 template 이 되며, deployment.md 축 8 블록이 전부 (B) 였던 화법을 문서 경계를 넘어 승계하는 편이 stream 전체의 독해 비용을 낮춘다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (5 행)** — 14 행 (`## 개요` 본문 말미) 뒤 · `## Deployment 컨텍스트` heading 앞에 append (앞뒤 공백 행 보존, 실 증가 **+6** = blockquote 5 + 공백 1). 내용은 ① 토폴로지 **5 요소 분리 판정** (참 3 / `@nestjs/config` 결정 ↔ 구현 gap / `PostgreSQL` 귀속 부분참), ② module class **8 명 개별 판정** (실재 6 · 이름 상이 1 · 부재 1) + 실 **15** · 초과 **9** 개 열거 + 정본 modules.md 가 이미 정합했다는 사실, ③ pointer · acyclic 축 (`cycle 0` · INDEX **54** 행) + `T-A4` pointer 불완전 (대상 `T-0017`), ④ **시점 축 낡음** + `P3 Persistence layer` ↔ PLAN **47** 행 `Domain core` 명칭 상이 + 9 행 자기규정과 11 행 열거의 **자체 긴장** 1 구, ⑤ `§ 12.15` 처리 사유 + 본 절 pointer.
+- **각주 위치 근거 + 문구 1:1 + 무편집 경계** — 대상 claim 이 7 · 9 · 11 ~ 14 행에 걸쳐 있어 선행 절과 같은 규칙 ("대상 claim 의 최소 공통 구간 말미") 대로 **단락 최말미** 에 뒀고, `§ 12.40` ~ `§ 12.42` 배치와 동형이다. 각주의 경로 · class 이름 · dependency 이름 · 절 이름 · 수치 (**15** · **6** · **9** · `31` 행 · `0 hit` · INDEX **54** · modules **139** · PLAN **47** · `P4-complete / P5-in-progress` · **22 row**) 는 전부 위 실측 출력 그대로이며, **실측되지 않은 값 (존재하지 않는 module class · 임의 phase 배정 · 없는 절 이름) 은 창작하지 않았고 secret · connection string · 실 호스트명도 옮기지 않았다**. **1 ~ 4 행 blockquote** 와 **16 행 이후 전 구간** (`## Deployment 컨텍스트` · `## Component diagram` mermaid · **`## Component table` 8 row** · `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` · `## Contracts` · `## References`) 은 그대로다. **새 pointer 도 추가하지 않았다** — 각주가 더한 markdown 링크는 본문에 이미 등재된 ADR-0003 · ADR-0002 · INDEX.md · modules.md 와 본 절 pointer 뿐이고, `docs/PLAN.md` · `src/main.ts` · `package.json` 은 **링크 없는 코드 span** 으로만 인용했다. **module class rename · `@nestjs/config` 설치는 하지 않았다** (Out of Scope).
+
+#### T-1444 Follow-up 1 closure + components.md 축 진입 선언
+
+- **Follow-up 1 closure** — `§ 12.42` 가 "다음 문서 축 1 순위" 로 이월한 [components.md](../architecture/components.md) 진입을 본 절이 수행했고, 그 첫 단락 (`## 개요`) 의 검증 가능 **22 row 를 전부 판정 · 각주 반영** 했다. 문서 축 진입이라는 승계 대상은 소진된다.
+- **축 진입 선언** — components.md 는 `## ` 단락 **7 개** (1 heading 제외 시 본문 절 7) 중 **1 개** (`## 개요`) 가 대조를 마쳤고, 문서 안 실측 각주는 **1 블록** 이다. deployment.md 축 (`§ 12.35` ~ `§ 12.42`, 검증 가능 113 row) 이 종료된 뒤 열린 새 축이며, 누적은 본 절을 더해 **135 row = 참 76 · 부분참 28 · 거짓 31** (`§ 12.35` ~ `§ 12.43` 합, 선행 절 합계 문장 인용 + 본 절 22).
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **components.md 다음 단락 1 순위 = `## Component table` (109 행)** — 근거: 본 절이 11 행에서 확인했듯 이 문서의 **검증 가능 claim 밀도가 가장 높은 곳이 component ↔ 실 module 대응** 이고, 8 row 표는 각 row 가 책임 · 입출력 contract 를 명시해 실 15 module · 실제 service 와 1:1 대조가 가능하다. 차순위는 `## Deployment 컨텍스트` (16 ~ 21 행 — "모든 8 component 는 동일 process" claim + ADR pointer 3 종, 본 절 각주 바로 뒤라 좌표가 인접).
+2. **`@nestjs/config` 미도입 전수 sweep** — `§ 12.39` Follow-up 3 미소진 (ADR 게이트). 본 절은 components.md 7 행 **1 지점** 을 국소 판정했을 뿐이며, ADR-0003 `§2` ↔ `src/main.ts` 주석 ↔ 각 문서 서술의 정본 지정은 미착수다.
+3. **reviewer 규약 미이행** — `.claude/agents/reviewer.md` 에 REQ-032 항목 **0 hit** (`§ 12.41` Follow-up 2 미소진). `.claude/` 소관의 별도 direct task.
+4. **`deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합** — `§ 12.41` Follow-up 3 미소진.
+5. **README 행 번호 pointer drift 전수 sweep** — 선행 절에서 이월.
+6. **REQ 번호 체계 잔재 전수 sweep** — `§ 12.38` Follow-up 3 미소진 (owner 게이트).
+7. **`CLAUDE.md` §1 pointer 부정확** — T-1442 Follow-up 3 미소진 (CLAUDE.md 는 §3.1 별개 소관).
+8. **UC-09 `§ 5` sequence participant 병기** — 27 회째 이월.
+9. **정본 [modules.md](../architecture/modules.md) 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (**259 행 불변**, ADR 게이트). 본 절이 modules.md 를 acyclic · `T-0017` 축으로 읽으며 접점을 다시 확인했으나 카운트 판정은 미착수다.
+10. **행 번호 → anchor 좌표계 이행** — 21 회째 이월. 본 절 각주가 16 행 이후를 +6 미는 것이 근거를 또 보탠다.
+11. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관. 본 절이 인용한 `15` · `6` · `9` · `0 hit` 은 module 1 개 추가 · dependency 1 건 설치로 즉시 낡는다.
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` coverage 게이트가 모두 **N/A** 다 (본 절 측정 명령은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 `pnpm install` · `pnpm build` · `pnpm test` · `prisma migrate` 는 실행하지 않았고, module 배선의 런타임 동작도 측정하지 않았다).
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → components.md **196** (190 → +6, 허용 ≤ 198) · audit **4283 → 4392** (+109 = 본 절 108 행 = 4270 ~ 4377, 허용 ≤ 110 · +110 이내) · deployment.md **232** (불변) · directory.md **203** (불변) · modules.md **259** (불변)
+$ grep -c '^## ' → components.md **7** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **43** (42 → 43)
+$ git diff -U0 -- docs/architecture/components.md | grep '^@@' → `@@ -15,0 +16,6 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (`## 개요` 본문 말미 ~ `## Deployment 컨텍스트` heading 앞) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/components.md → `6  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ prisma/ web/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ → (빈 출력 — 코드 · 스키마 · 배포자산 · CI · 의존성 · ADR · runbook 무변경)
+$ git status --porcelain → M components.md · M REQ-COVERAGE-AUDIT.md · M T-1445-*.md  (**3 파일**)
+```
+
+#### 한계 —
+
+1. **거짓 2 건은 각주로만 해소된다** — 11 행 원문의 `AssessmentModule` · `SchedulerModule` 은 그대로라, 각주를 건너뛴 독자에겐 여전히 존재하는 class 로 읽힐 여지가 남는다. 치환이 **미래형 bullet 의 시제 모순** 과 `## Component table` cascade (cap 초과) 를 부른다는 점을 우선한 결과이며, 정확한 현행 mapping 은 정본 [modules.md](../architecture/modules.md) 가 이미 제공한다.
+2. **module 판정은 "class 이름이 실재하는가" 까지다** — 각 module 의 **책임 범위가 문서의 component 정의와 실제로 부합하는지** 는 `## Component table` 8 row 와 각 module 의 provider 전수 대조가 필요해 (그리고 그 표가 본 slice 무편집 대상이라) 판정하지 않았다. `AppModule` 등록 여부 · import 그래프의 현행 acyclic 성도 미측정이며, modules.md 의 카운트 claim 은 `§ 12.34` Follow-up 1 소관으로 남는다.
+3. **누적 drift 수치는 선행 절 인용값** — 135 / 76 / 28 / 31 은 `§ 12.35` ~ `§ 12.42` 의 "합계" 문장에 본 절 22 row 를 더한 것이라, 그 절들이 판정된 뒤 코드가 다시 바뀌었다면 현재 사실과 어긋날 수 있다 (재측정은 §7 context 예산상 하지 않았다).
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
