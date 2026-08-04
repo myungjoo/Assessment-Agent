@@ -97,4 +97,14 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 발견한 후속 작업을 여기에 append 한다.)
+1. **다음 문서 축 1 순위 = [components.md](../architecture/components.md)** — 본 slice 로 [deployment.md](../architecture/deployment.md) 6 단락 전부가 대조 완결돼 uc-doc-audit-resync 의 deployment.md 축이 종료됐다. components.md 는 3 행 blockquote 가 스스로 밝히듯 **P1 T-A3 blueprint 원본** 이라 같은 "구현 이전 서술 ↔ shipped 코드" drift 표면을 갖고, 8 component table + contract 표로 **검증 가능 claim 밀도가 높아** `§ 12.35` ~ `§ 12.42` 의 판정 template 을 그대로 적용할 수 있다. 차순위는 [INDEX.md](../architecture/INDEX.md) (`MVA 원칙` · 문서 목록 pointer 축).
+2. **reviewer 규약 미이행** — `.claude/agents/reviewer.md` 에 REQ-032 항목 0 hit (`§ 12.41` FU2 미소진). `.claude/` 소관 별도 direct task.
+3. **`deploy/README.md` ↔ deployment.md ↔ [runbook.md](../ops/runbook.md) 3 자 정합** — `§ 12.41` FU4 미소진. 본 slice 가 `deploy/` 15 개 자산을 인용하며 접점을 재확인했으나 정본 지정 판정은 미착수.
+4. **README 행 번호 pointer drift 전수 sweep** — `§ 12.41` FU3 미소진.
+5. **`@nestjs/config` 미도입 전수 sweep** — `§ 12.39` FU3 미소진 (ADR 게이트).
+6. **REQ 번호 체계 잔재 전수 sweep** — `§ 12.38` FU3 미소진 (owner 게이트).
+7. **`CLAUDE.md` §1 pointer 부정확** — `§ 12.40` FU3 미소진 (§3.1 별개 소관).
+8. **UC-09 `§ 5` sequence participant 병기** — 26 회째 이월.
+9. **정본 [modules.md](../architecture/modules.md) 카운트 claim 대조** — `§ 12.34` FU1 미소진 (**259 행 불변**, ADR 게이트).
+10. **행 번호 → anchor 좌표계 이행** — 20 회째 이월. 본 slice 각주가 deployment.md 15 행 이후를 +6 민 것이 근거를 보탠다.
+11. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관 (`deploy/` **15** · docker 언급 **7** · ADR-0003 Decision **4** 는 자산 · heading 1 건 변경으로 즉시 낡는다).

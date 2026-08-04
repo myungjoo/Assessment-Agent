@@ -12,6 +12,12 @@
 
 운영자용 배포·복구·trouble-shoot **실행 절차**(본 view 의 정책을 명령-level 로 푼 플레이북)는 [docs/ops/runbook.md](../ops/runbook.md) 참조.
 
+> **`## 개요` (5 ~ 13 행) ↔ 실 배포 자산 · 참조 문서 대조 (T-1444 실측 각주)** — 7 행이 "다루지 않는다" 고 선언한 세 manifest 는 **repo 실재 여부가 서로 갈린다**: `Dockerfile` · `docker-compose.yml` 은 **repo 루트에 이미 실재** 하고 `deploy/` 에도 배포 자산 **15** 개 (`assessment-agent-redeploy.service` · `assessment-agent-redeploy.timer` · `redeploy.sh` · `docker-entrypoint.sh` · `env.prod.example` · `daily-test*.sh` 등) 가 있는 반면, **Kubernetes manifest 는 부재** 다 (`k8s` · `kubernetes` · `helm` · `chart` 디렉토리 **0**). 문서가 그 내용을 싣지 않는다는 **범위 선언 자체는 여전히 유효** 하나 (본 문서의 docker 언급 **7** 회는 전부 서술 참조이고 manifest 본문은 0 행), 독자가 이를 "repo 에 아직 없다" 로 읽으면 오독이다 — **다루지 않는 것과 없는 것은 다른 축** 이다.
+> **같은 행의 "그것은 P7 (Scheduling & operations) phase 의 운영 task 책임" 은 자산별로 갈린다** — phase 명칭 표기 자체는 정확하지만 (`docs/PLAN.md` **131** 행 `## Phase P7 — Scheduling & operations`), P7 은 이미 부분 진입해 R-72 · R-73 · R-74 · R-50 · R-57 이 `implemented-on-main` 이고 현 phase 표기는 `P4-complete / P5-in-progress` 다. 즉 container / compose / systemd 자산은 **이미 shipped** 라 미래형이 낡았고, Kubernetes 만 여전히 미착수로 남는다.
+> **9 · 11 · 13 행의 pointer · 수치 claim 은 전수 참이다** — [INDEX.md](INDEX.md) **54** 행에 `## MVA 원칙` 이 실재하고, [ADR-0003](../decisions/ADR-0003-deployment.md) 은 `### Decision §1` ~ `§4` **4** 개를 두어 "Deployment 4 결정" 수치와 일치하며 (`## Alternatives considered` 아래의 동명 4 절은 대안 서술이라 별개), [components.md](components.md) 3 행이 "P1 T-A3 의 산출물 … `T-0016` 가 component 분해도 + 8 component table + contract 표 … 박제" 로 자기선언하고, [runbook.md](../ops/runbook.md) 의 `## 1. 배포 (Deploy / Redeploy)` · `## 2. 복구 (Recovery)` · `## 3. Trouble-shoot (증상별 진단)` · `## 4. 운영 전제 체크리스트` 가 13 행의 성격 claim 3 요소와 1:1 대응한다.
+> **9 행의 "ADR 이 결정의 source of truth, 본 문서는 그 반영의 도식 / 텍스트 설명" 은 검증 불가 자기규정이나 실측과 긴장이 있다** — T-1437 ~ T-1443 이 본 문서의 나머지 6 단락에서 판정한 검증 가능 claim 은 **99 건 = 참 50 · 부분참 20 · 거짓 29** 이고, 어긋난 49 건 대부분이 ADR 결정 자체의 오류가 아니라 **구현 이후 갱신되지 않은 view layer 서술** (시점 · 심볼명 · 경로) 이다. 자기규정은 유지되나, view 가 source 를 따라오지 못한 drift 가 누적돼 있다는 사실을 함께 읽어야 한다.
+> `§ 12.15` append-only 방침상 7 행의 시점 서술은 새 phase 배정을 창작하지 않고 원문 보존 + 본 각주 병기로 처리했고, 1 ~ 4 행 blockquote 와 15 행 이후 전 구간은 무편집이다 — 전 판정 근거는 [REQ-COVERAGE-AUDIT § 12.42](../use-cases/REQ-COVERAGE-AUDIT.md).
+
 ## DB / Persistence
 
 본 단락의 결정은 [ADR-0002 — Persistence DB / ORM 선택](../decisions/ADR-0002-db.md) 에서 박제했다. 본 view 는 그 결정을 운영 토폴로지로 풀어낸다.

@@ -4162,6 +4162,111 @@ $ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1
 1. **3 지점의 거짓은 각주로만 해소된다** — 48 · 49 · 53 행 원문은 그대로라 각주를 건너뛴 독자에겐 "reviewer 가 REQUEST_CHANGES 한다" 는 현재형 서술과 "P3 에서 진행" 미래형이 남는다. 48 행 해소가 `.claude/agents/reviewer.md` 편집 (Out of Scope) 을, 49 · 53 행 해소가 새 phase 배정 창작 (PLAN 게이트) 을 각각 요구한다는 점을 우선한 결과다.
 2. **backup / restore 의 실행 검증 · runtime 사실은 미측정** — `pg_dump` · `pg_restore` · `psql` 절차가 실제로 동작하는지, migration history 가 복원 후 정말 동기되는지 (43 행) 는 DB 접속 · 명령 실행이 필요해 Out of Scope 로 남겼다. 또한 raw column 판정은 **schema 선언 기준** 이라, 런타임에 `String` column 에 raw 본문이 실제로 적재되는지 (예: `error` · `artifactRef` 의 내용) 는 데이터 조회가 필요해 판정하지 않았다.
 
+### 12.42 deployment.md `## 개요` ↔ 실 배포 자산 (`Dockerfile` · `docker-compose.yml` · `deploy/`) · 참조 문서 (`INDEX.md` · `components.md` · `ADR-0003` · `runbook.md`) 대조 — 원문 보존 + 각주 1 블록 (T-1444)
+
+> **본 절의 위치** — `§ 12.41` 이 "다음 slice 1 순위" 로 지목한 [T-1443](../tasks/T-1443-deployment-md-db-persistence-tail-vs-prisma-audit.md) **Follow-up 1** (`## 개요` = deployment.md 잔여 마지막 단락) 을 본 절이 계승한다. **계보** — `T-1430` ~ `T-1435` (directory.md) → `T-1436` (산문 단락) → `T-1437` (`## 배포 토폴로지`) → `T-1438` (`## Scheduler 위치`) → `T-1439` · `T-1440` (network boundary 전 / 후반부) → `T-1441` (`## Secret / 자격증명 저장`) → `T-1442` · `T-1443` (DB 전 / 후반부) → **`T-1444` (본 절 — `## 개요`, 문서 전 단락 대조 완결)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이고, 측정은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 **secret · connection string · 실 호스트명은 옮기지 않았다** (CLAUDE.md §9).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/deployment.md | head -6 → 1 `# Deployment view` · **5 `## 개요`** · **15 `## DB / Persistence`** · 21 `### 배포 토폴로지` · 28 `### Migration 정책` · 40 `### Backup / restore 전략`
+      ⇒ 본 slice 범위 = **5 (heading) · 7 ~ 13 (본문 4 문단) · 15 (다음 heading)** — AC 좌표 그대로 **stale 아님** (T-1443 각주가 54 행 뒤라 앞머리를 밀지 않았다).
+      $ sed -n '5,13p' … → heading(5) + 문단 4 (7 view 성격 + MVA + manifest 범위 + P7 시점 / 9 ADR-0002 · ADR-0003 pointer + source-of-truth 자기규정 / 11 components.md pointer / 13 runbook.md pointer + 성격 claim).
+      claim 이분 — **검증 가능 14 축** (manifest 자산 3 · P7 시점 1 · P7 명칭 1 · INDEX pointer 1 · ADR-0002 pointer 1 · ADR-0003 개수 1 · components pointer 3 · runbook pointer 3) · **검증 불가 4** (7 행 "본 문서는 deployment view 를 박제한다" · 7 행 "MVA 원칙에 따라 운영 가능한 최소 결정만 다루고" · 7 행 "구체적인 manifest 는 다루지 않는다" 범위 선언 · 9 행 "ADR 이 source of truth, 본 문서는 도식 / 텍스트 설명" 자기규정 — 전부 문서 자신의 범위 · 성격 선언이라 참·거짓 대상이 아니다).
+(ii)  manifest 자산 축 (7 행) — $ ls -1 Dockerfile docker-compose.yml → **둘 다 실재** (repo 루트) ; $ ls -1 deploy | head -12 → `README.md` · `assessment-agent-redeploy.service` · `assessment-agent-redeploy.timer` · `daily-test-step-collect.test.sh` · `daily-test-step-deps-schema.test.sh` · `daily-test-step-env-source.test.sh` · `daily-test-step-eval-chain.test.sh` · `daily-test-step-eval.test.sh` · `daily-test-step-rediscovery.test.sh` · `daily-test.sh` · `docker-entrypoint.sh` · `env.prod.example` (+ `local-llm-example` · `redeploy.sh` · `seed-llm-config.sh`) ; $ ls -1 deploy | wc -l → **15** ; $ ls -d k8s kubernetes helm chart 2>/dev/null || echo "none" → **none**.
+      ⇒ 세 자산 분리 판정 — `Dockerfile` **실재** · `docker-compose.yml` **실재** · Kubernetes manifest **부재**. 한편 $ grep -c "docker" docs/architecture/deployment.md → **7** 이고 hit 은 7 · 24 · 34 · 36 · 37 · 103 · 120 행의 **서술 참조** 뿐이라 manifest 본문 수록은 **0 행** — 즉 "문서가 다루지 않는다" (범위, 유효) 와 "repo 에 없다" (자산, 절반 거짓) 는 **다른 축** 이다.
+(iii) P7 시점 축 (7 행) — $ grep -n "^## Phase P7" docs/PLAN.md → **131** `## Phase P7 — Scheduling & operations` (문서의 명칭 표기와 1:1) ; $ sed -n '131,140p' docs/PLAN.md → 오너 승인 (2026-07-07, Q-0051) + R-72 · R-73 · R-74 · R-50 · R-57 **5 bullet 전부 `[x] implemented-on-main`** ; $ python -c "…json.load…['phase']" → **`P4-complete / P5-in-progress`**.
+      ⇒ (ii) 와 합쳐 **자산별로 갈림** — container / compose / systemd 자산은 이미 shipped 라 "앞으로 P7 이 한다" 가 낡았고, Kubernetes 는 여전히 미착수라 미래형이 유효하다.
+(iv)  pointer 3 종 축 — $ grep -n "MVA" docs/architecture/INDEX.md | head -4 → **54** `## MVA 원칙` (1 hit, 절 실재) ; $ sed -n '1,5p' docs/architecture/components.md → 1 `# Component view` · **3** `> 본 문서는 P1 T-A3 의 산출물이다. [T-0016](../tasks/T-0016-t-a3-component-view.md) 가 component 분해도 + mermaid 다이어그램 + 8 component table + contract 표 + GitHub Adapter 3-instance 묶음 결정을 박제했다.` · 5 `## 개요` ; $ grep -n '^## ' docs/ops/runbook.md | head -10 → **21** `## 1. 배포 (Deploy / Redeploy)` · **74** `## 2. 복구 (Recovery)` · **117** `## 3. Trouble-shoot (증상별 진단)` · **143** `## 4. 운영 전제 체크리스트` (4 절뿐) ⇒ 13 행의 "배포·복구·trouble-shoot 실행 절차" 3 요소가 heading 과 **1:1 대응**.
+(v)   ADR 개수 축 (9 행) — $ grep -n '^### Decision §' docs/decisions/ADR-0003-deployment.md → **8 hit** (32 · 46 · 62 · 78 = `## Decision` 하위 §1 ~ §4 / 120 · 129 · 138 · 147 = `## Alternatives considered` 하위 동명 4 절) ⇒ **실 결정은 4 개** 이고 ADR 제목 10 행도 `# ADR-0003 — Deployment 토폴로지 4 결정` 이라 "Deployment 4 결정" 수치는 **참**. (ADR 본문 재판정 · status 변경 없음.)
+      `§ 12.15` 강도 — $ awk 'NR>=5 && NR<=13' … | grep -cE "20[0-9]{2}-[0-9]{2}-[0-9]{2}" → **0** (날짜 stamp 없음) ; 시점 marker 는 7 행의 `P7` · `책임` **1 곳뿐** 이라 선행 단락 (3 hit) 보다 밀도가 낮으나, 갱신하려면 새 phase 배정을 창작해야 하는 성격은 같다.
+(vi)  자기규정 축 (9 행) — 본 문서 나머지 6 단락의 누적 판정을 **재측정 없이 인용** (§7): `§ 12.35` 14 = 참 13 · 부분참 1 · 거짓 0 / `§ 12.36` 13 = 참 3 · 부분참 2 · 거짓 8 / `§ 12.37` 12 = 참 9 · 부분참 3 · 거짓 0 / `§ 12.38` 13 = 참 4 · 부분참 3 · 거짓 6 / `§ 12.39` 19 = 참 6 · 부분참 5 · 거짓 8 / `§ 12.40` 15 = 참 8 · 부분참 3 · 거짓 4 / `§ 12.41` 13 = 참 7 · 부분참 3 · 거짓 3 ⇒ **합 99 = 참 50 · 부분참 20 · 거짓 29**. (본 AC 가 적은 `§ 12.36` ~ `§ 12.41` 범위는 slice ID 기준으로 1 절 어긋나 — T-1437 은 `§ 12.35` — 실측대로 **`§ 12.35` ~ `§ 12.41` 7 절** 을 집계했다.)
+(vii) baseline — $ wc -l → deployment.md **226** · audit **4178** · directory.md **203** · modules.md **259** ; $ grep -c '^## ' → deployment.md **6** · audit **12** ; audit $ grep -c '^| REQ-' → **66** · $ grep -c '^### 12\.' → **41** (기대 8 값 전부 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+판정 3 축 — ① **문서 성격**: 1 ~ 4 행 blockquote 의 "본 문서는 P1 T-A2 의 산출물" 선언이 본 단락에 **가장 강하게** 걸린다. `## 개요` 는 문서 자신의 범위·성격을 규정하는 머리말이라 다른 단락보다 blueprint 원본성이 높고, 실제로 검증 가능 claim 14 축 옆에 **검증 불가 자기규정 4** 가 붙어 있어 손대면 문서 정체성 자체를 재작성하게 된다. ② **`§ 12.15` 정합**: 날짜 stamp **0** · 시점 marker **1 hit** (7 행 `P7 … 책임`, 실측 (v)) 으로 밀도는 낮지만 유일한 그 1 곳이 본 slice 의 유일한 갱신 후보이며, 갱신하려면 "이제 어느 phase 책임인가" 를 창작해야 해 append-only 가 그대로 걸린다. ③ **선례**: 수치 축이면 [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) in-place, 서술 · 시점 축이면 T-1430 ~ T-1435 · T-1437 ~ T-1443 각주, 혼합은 [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 인데 본 단락은 **수치 · pointer 축이 전수 참** 이라 in-place 치환 대상이 0 이고, 남은 것은 시점 · 자산 축뿐이라 각주 계열에 든다.
+
+| 지점 (행) | claim (1 구) | 실측 결과 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 7-a | pointer — [INDEX.md](../architecture/INDEX.md) 의 `MVA 원칙` | INDEX.md **54** 행 `## MVA 원칙` 실재 | 참 | 무편집 + 각주 근거 | 실측 (iv) 1 hit |
+| 7-b | 다루지 않는 manifest 로 열거된 `Dockerfile` | repo 루트에 **실재** (문서 미수록은 별개) | 부분참 | 원문 보존 + 각주 부기 | 범위 선언은 유효하나 부재로 오독될 수 있음 |
+| 7-c | 같은 열거의 `docker-compose.yml` | repo 루트에 **실재**, `deploy/` 자산 **15** 개 동반 | 부분참 | 원문 보존 + 각주 부기 | 실측 (ii), 오도 risk 는 각주로 제거 |
+| 7-d | 같은 열거의 Kubernetes manifest | `k8s` · `kubernetes` · `helm` · `chart` **부재** | 참 | 무편집 + 각주 근거 | 실측 (ii) `none` |
+| 7-e | 그 manifest 는 **P7 phase 의 운영 task 책임** | P7 부분 진입 (R-72 · 73 · 74 · 50 · 57 `[x]`) · 현 phase `P4-complete / P5-in-progress` · 자산 이미 shipped | 부분참 (시점 낡음, 자산별로 갈림) | 원문 보존 + 각주 부기 | 새 phase 배정 창작 금지 (AC 4) |
+| 7-f | phase 명칭 표기 `P7 (Scheduling & operations)` | PLAN **131** 행 `## Phase P7 — Scheduling & operations` | 참 | 무편집 | 실측 (iii) 1:1 |
+| 9-a | pointer — [ADR-0002](../decisions/ADR-0002-db.md) (DB) | 파일 실재 · `§ 12.41` (viii) 에서 heading 확인 완료 | 참 | 무편집 | 재측정 없이 선행 절 인용 (§7) |
+| 9-b | [ADR-0003](../decisions/ADR-0003-deployment.md) 은 **Deployment 4 결정** | `### Decision §1` ~ `§4` **4 개** · ADR 제목도 "4 결정" | 참 | 무편집 + 각주 근거 | 실측 (v), `Alternatives` 동명 4 절은 별개 |
+| 11-a | pointer — [components.md](../architecture/components.md) 실재 | 파일 실재 (1 행 `# Component view`) | 참 | 무편집 | 실측 (iv) |
+| 11-b | components.md 는 **T-0016 의 산출물** | 3 행 blockquote 가 "P1 T-A3 의 산출물 … `T-0016` 가 … 박제" 로 자기선언 | 참 | 무편집 + 각주 근거 | 실측 (iv) 원문 인용 |
+| 11-c | 그 문서에 **component 분해 + contract** 가 박제 | 같은 blockquote 에 "component 분해도 + 8 component table + **contract 표**" 명시 | 참 | 무편집 | 실측 (iv) |
+| 13-a | pointer — [runbook.md](../ops/runbook.md) 실재 | 파일 실재 (`## ` 4 절) | 참 | 무편집 | 실측 (iv) |
+| 13-b | 성격 — **배포 · 복구 · trouble-shoot 실행 절차** | `## 1. 배포` · `## 2. 복구` · `## 3. Trouble-shoot` 3 요소 1:1 (+ `## 4. 운영 전제 체크리스트`) | 참 | 무편집 + 각주 근거 | 실측 (iv) heading 대응 |
+| 13-c | 본 view 의 정책을 **명령-level 로 푼 플레이북** | runbook 94 · 99 행 등이 실 명령 (`§ 12.41` (ii) 인용) | 참 | 무편집 | 선행 절 인용 (§7), 재측정 없음 |
+
+- 합계 — 검증 가능 **14 row = 참 11 · 부분참 3 · 거짓 0**, 검증 불가 4 는 대상 제외. **거짓 0 은 본 stream 에서 `§ 12.37` (전반부) 에 이어 두 번째** 이며, 이는 `## 개요` 가 **문서 자신의 범위 선언 + 다른 문서 pointer** 로만 이뤄져 코드와 직접 맞물리는 서술이 거의 없기 때문이다 — pointer 4 종 (INDEX · ADR-0002 · ADR-0003 · components · runbook) 이 전부 유효했고, 실제와 갈린 3 건은 전부 "repo 에 자산이 이미 있는가 / 언제 누가 하는가" 축이다.
+- **시점 축 (7-e) 과 pointer / 수치 축 (7-a · 9-b · 11-b · 13-b) 의 분리 판정** — ① **pointer / 수치 축**: 전수 참이라 처리 자체가 `무편집` 이고, 각주는 "확인했다" 는 근거 병기 목적뿐이다 (치환하면 정확한 문장을 이유 없이 흔든다). ② **시점 / 자산 축 (7-b · 7-c · 7-e)**: 갱신하려면 (a) 열거에서 `Dockerfile` · `docker-compose.yml` 을 빼거나 (b) "이제 어느 phase 책임인가" 를 새로 배정해야 하는데, (a) 는 **문서의 범위 선언 자체를 바꾸는 편집** 이라 blueprint 보존과 충돌하고 (b) 는 PLAN 게이트 · AC 4 창작 금지와 정면 충돌한다 → 실측 사실만 각주에 병기. 두 축이 같은 (B) 로 수렴했으나 **사유는 위와 같이 다르다** — 전자는 "고칠 게 없어서", 후자는 "고칠 수단이 금지돼서".
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | 전 지점 in-place 동기 (manifest 열거 재작성 + 시점 문구 교체) | 기각 | 참 11 row 는 치환 대상이 아예 없고, 남은 3 건의 치환은 **범위 선언 문장 재작성 또는 새 phase 배정 창작** 을 요구해 AC 4 창작 금지 · blueprint 보존과 충돌 |
+| **(B)** | **원문 무편집 + `## 개요` 말미 각주 blockquote 1 블록 신설** | **채택** | T-1437 ~ T-1443 화법을 그대로 잇고, 실 자산 (`Dockerfile` · `docker-compose.yml` · `deploy/` 15) · 부재 사실 (k8s `none`) · pointer 유효 근거 (INDEX 54 · ADR-0003 §1 ~ §4 · components 3 행 · runbook 4 절) 를 같은 화면에 병기해 오도 risk 만 제거 |
+| (C) | 혼합 (수치 · pointer 만 in-place, 시점은 각주) | 기각 | 실측 결과 **수치 · pointer 축이 전수 참** 이라 in-place 대상이 0 이므로 후보가 공전한다 (`§ 12.41` 의 (C) 기각과 같은 형태) |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 본 단락은 **문서 첫 산문 단락** 이라 노출도가 가장 높아, 독자가 "이 repo 에는 Dockerfile / compose 가 아직 없고 배포는 P7 에서 시작한다" 고 오인하면 실재하는 `deploy/` 15 개 자산 · `redeploy.sh` · systemd timer 를 놓친 채 새 배포 경로를 중복 구축하게 된다 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: 시점 marker 1 (7 행) 이 창작 없이는 갱신 불가라 append-only 와 각주가 정합한다. ② **오도 risk**: 첫 산문 단락이라 **문서 진입 독자 전원이 읽는 위치** 이고, 오독의 비용이 (a) 실재 배포 자산 중복 구축, (b) `deploy/README.md` · runbook 플레이북 미인지로 인한 잘못된 수동 배포, (c) "P7 은 아직" 이라는 인식으로 이미 `implemented-on-main` 인 R-72 ~ R-57 재착수 — 셋 다 실작업 낭비로 직결돼 (D) 를 기각시킨다. ③ **cap**: (B) 의 실측 diff 는 deployment.md `+6/-0` (226 → **232**, 허용 `≤ 233`) · 파일 **3 고정** 이라 300 LOC · 5 파일 상한 안이다 ((A) 는 창작 금지 충돌로 자동 기각이며 split 해도 PLAN 편집이 남아 doc slice 로 쪼개는 것 자체가 부적절). ④ **선례 일관성**: `§ 12.35` ~ `§ 12.41` 이 같은 문서의 나머지 6 단락에서 모두 (B) 를 채택했으므로 마지막 단락만 다른 후보를 고르면 한 문서 안 처리 방식이 갈린다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (5 행)** — 13 행 (`## 개요` 본문 말미) 뒤 · `## DB / Persistence` heading 앞에 append (앞뒤 공백 행 보존, 실 증가 **+6** = blockquote 5 + 공백 1). 내용은 ① manifest 3 자산 **분리 판정** (Dockerfile · compose 실재 / k8s 부재) + "다루지 않는 것 ≠ 없는 것" 축 구분 + 문서 내 docker 언급 7 회가 전부 서술 참조라는 사실, ② 7-e **시점 낡음 + 자산별 갈림** (PLAN 131 · R-72 ~ R-57 `[x]` · 현 phase 표기), ③ pointer · 수치 축 **전수 참** 근거 (INDEX 54 · ADR-0003 §1 ~ §4 · components 3 행 · runbook 4 절), ④ 9 행 자기규정과 T-1437 ~ T-1443 누적 실측 (**99 = 참 50 · 부분참 20 · 거짓 29**) 사이의 긴장 1 구, ⑤ `§ 12.15` 처리 사유 + 본 절 pointer.
+- **각주 위치 근거 + 문구 1:1 + 무편집 경계** — 대상 claim 이 7 · 9 · 11 · 13 행 네 문단에 걸쳐 있어 선행 절과 같은 규칙 ("대상 claim 의 최소 공통 구간 말미") 대로 **단락 최말미** 에 뒀고, `§ 12.40` · `§ 12.41` 이 각각 전 / 후반부 말미에 각주를 둔 배치와 동형이다. 각주의 경로 · 절 이름 · 수치 (`Dockerfile` · `docker-compose.yml` · `deploy/` **15** · k8s **0** · docker 언급 **7** · PLAN **131** · `P4-complete / P5-in-progress` · INDEX **54** · ADR-0003 `§1` ~ `§4` **4** · components **3** 행 · runbook `## 1` ~ `## 4` · 99 / 50 / 20 / 29) 는 전부 위 실측 출력 그대로이며, **실측되지 않은 값 (존재하지 않는 manifest 경로 · 임의 phase 배정 · 없는 절 이름) 은 창작하지 않았고 secret · connection string · 실 호스트명도 옮기지 않았다**. **1 ~ 4 행 blockquote** 와 **15 행 이후 전 구간** (`## DB / Persistence` · `## 배포 토폴로지` · `## Secret / 자격증명 저장` · `## Scheduler 위치` · `## 외부 네트워크 boundary` 및 T-1437 ~ T-1443 각주 전부) 은 그대로다. **새 pointer 도 추가하지 않았다** — 각주가 더한 markdown 링크는 본문에 이미 등재된 INDEX.md · ADR-0003 · components.md · runbook.md 와 본 절 pointer 뿐이고, `docs/PLAN.md` 는 **링크 없는 코드 span** 으로만 인용했다.
+
+#### T-1443 Follow-up 1 closure + deployment.md 전 단락 대조 완결 선언
+
+- **Follow-up 1 closure** — `§ 12.41` 이 "다음 slice 1 순위" 로 이월한 `## 개요` (당시 5 ~ 14 행, 현 5 ~ 13 행) 의 **검증 가능 14 row 를 본 절이 전부 판정 · 각주 반영** 했다. 승계 대상은 남지 않는다.
+- **문서 완결 매핑 (1 줄)** — `## 개요` = T-1444 / `§ 12.42` (본 절) · `## DB / Persistence` = T-1442 (전반부) + T-1443 (후반부) / `§ 12.40` · `§ 12.41` · `## 배포 토폴로지 (Monolithic vs worker 분리)` = T-1437 / `§ 12.35` · `## Secret / 자격증명 저장` = T-1441 / `§ 12.39` · `## Scheduler 위치` = T-1438 / `§ 12.36` · `## 외부 네트워크 boundary` = T-1439 (전반부) + T-1440 (후반부) / `§ 12.37` · `§ 12.38`.
+- **완결 선언** — 이로써 [deployment.md](../architecture/deployment.md) 는 `## ` 단락 **6 개 전부** 가 실측 대조를 마쳤고, 문서 안 실측 각주는 **8 블록** (전 / 후반부로 갈린 2 단락이 각 2 블록) 이며 중복 부기는 0 이다. uc-doc-audit-resync stream 의 **deployment.md 축은 본 절로 종료** 된다. 누적 판정은 검증 가능 **113 row = 참 61 · 부분참 23 · 거짓 29** (`§ 12.35` ~ `§ 12.42` 합).
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **deployment.md 축 종료 → 다음 문서 축 1 순위 = [components.md](../architecture/components.md)** — 근거: 본 절이 11 행 pointer 를 판정하며 확인했듯 components.md 는 **P1 T-A3 blueprint 원본** (3 행 자기선언) 이라 deployment.md 와 동일한 "구현 이전 서술 ↔ shipped 코드" drift 표면을 갖고, 8 component table + contract 표라는 **검증 가능 claim 밀도가 높아** 같은 판정 template 을 그대로 적용할 수 있다. 차순위는 [INDEX.md](../architecture/INDEX.md) (`MVA 원칙` · 문서 목록 pointer 축).
+2. **reviewer 규약 미이행** — `.claude/agents/reviewer.md` 에 REQ-032 항목 **0 hit** (`§ 12.41` Follow-up 2 미소진). `.claude/` 소관의 별도 direct task.
+3. **`deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합** — `§ 12.41` Follow-up 4 미소진. 본 절이 `deploy/` 15 개 자산을 인용하며 접점을 다시 확인했으나 정본 지정 판정은 미착수.
+4. **README 행 번호 pointer drift 전수 sweep** — `§ 12.41` Follow-up 3 미소진.
+5. **`@nestjs/config` 미도입 사실의 전수 sweep** — `§ 12.39` Follow-up 3 미소진 (ADR 게이트).
+6. **REQ 번호 체계 잔재 전수 sweep** — `§ 12.38` Follow-up 3 미소진 (owner 게이트).
+7. **`CLAUDE.md` §1 pointer 부정확** — `§ 12.40` Follow-up 3 미소진 (CLAUDE.md 는 §3.1 별개 소관).
+8. **UC-09 `§ 5` sequence participant 병기** — 26 회째 이월.
+9. **정본 [modules.md](../architecture/modules.md) 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (**259 행 불변**, ADR 게이트).
+10. **행 번호 → anchor 좌표계 이행** — 20 회째 이월. 본 절 각주가 15 행 이후를 +6 미는 것이 근거를 또 보탠다.
+11. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관. 본 절이 인용한 `15` · `7` · `4` · `0` 은 배포 자산 · ADR heading 1 건 변경으로 즉시 낡는다.
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` coverage 게이트가 모두 **N/A** 다 (본 절 측정 명령은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 `docker build` · `docker compose up` · `pnpm build` · `pnpm test` · `prisma migrate` 는 실행하지 않았고, 배포 호스트 · 실 container 상태도 측정하지 않았다).
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → deployment.md **232** (226 → +6, 허용 ≤ 233) · audit **4178 → 4283** (+105 = 본 절 105 행 = 4165 ~ 4269, 허용 ≤ 110 · +110 이내) · directory.md **203** (불변) · modules.md **259** (불변)
+$ grep -c '^## ' → deployment.md **6** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **42** (41 → 42)
+$ git diff -U0 -- docs/architecture/deployment.md | grep '^@@' → `@@ -14,0 +15,6 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (`## 개요` 본문 말미 ~ `## DB / Persistence` heading 앞) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/deployment.md → `6  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ prisma/ web/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ → (빈 출력 — 코드 · 스키마 · 배포자산 · CI · 의존성 · ADR · runbook 무변경)
+$ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1444-*.md  (**3 파일**)
+```
+
+#### 한계 —
+
+1. **3 건의 부분참은 각주로만 해소된다** — 7 행 원문의 manifest 열거와 "P7 phase 의 운영 task 책임" 은 그대로라, 각주를 건너뛴 독자에겐 여전히 "Dockerfile / compose 는 이 repo 밖 이야기" 로 읽힐 여지가 남는다. 열거 수정이 **문서 범위 선언 재작성** 을, 시점 수정이 **새 phase 배정 창작** (PLAN 게이트) 을 각각 요구한다는 점을 우선한 결과다.
+2. **pointer 판정은 "대상 절이 실재하는가" 까지다** — INDEX `MVA 원칙` · components `contract 표` · runbook 각 절의 **내용이 문서가 기대하는 바와 실제로 부합하는지** 는 각 문서 본문 전수 판정이 필요해 (그리고 세 문서 모두 본 slice 무편집 대상이라) 판정하지 않았다. `deploy/` 자산도 **파일 실재 기준** 이며 실제 배포 호스트에서 동작하는지는 미측정이다.
+3. **누적 drift 수치는 선행 절 인용값** — (vi) 의 99 / 50 / 20 / 29 는 `§ 12.35` ~ `§ 12.41` 의 "합계" 문장을 그대로 합산한 것이라, 그 절들이 판정 후 코드가 다시 바뀌었다면 현재 사실과 어긋날 수 있다 (재측정은 §7 context 예산상 하지 않았다).
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
