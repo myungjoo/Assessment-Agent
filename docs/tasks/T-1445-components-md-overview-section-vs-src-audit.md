@@ -2,7 +2,8 @@
 id: T-1445
 title: components.md `## 개요` (5 ~ 14 행) 의 검증 가능 claim ↔ 실 `src/**/*.module.ts` 인벤토리 · `package.json` dependency · `docs/architecture/INDEX.md` · `ADR-0003` · 현 phase 대조 + T-1444 Follow-up 1 계승 (components.md 축 진입) + audit §12.43
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-04T08:50:00Z
 commitMode: direct
 coversReq: [REQ-004, REQ-030]
 estimatedDiff: 200
