@@ -2,7 +2,7 @@
 id: T-1464
 title: components.md `## Contracts` 표 **Backend API 발신 5 row** (273 ~ 277 행) ↔ 실 `src/` 호출 그래프 · in-process seam 대조 — `§ 12.61` 파생 영향 (1) 집행 + audit §12.62
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 230
@@ -117,3 +117,10 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 - 다음 slice 1 순위 = `## Contracts` 잔여 10 row 중 `Scheduler` 발신 **2** row (278 · 279 행) — 대응 edge 2 개 (76 · 77 행) 의 판정 입력 재사용으로 한계 비용 최저.
 - `## Contracts` 각주 위치 관행 (`§ 12.61` 한계 6 미결) 은 본 slice AC 3 축 ④ 가 확정한다 — 확정 후 다음 slice 는 재고하지 않는다.
 - 나머지 이월 항목 전량은 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.62` 파생 영향 (1) ~ (29) 참조.
+
+## 결과 요약 (2026-08-04 DONE)
+
+`## Contracts` 표 **Backend API 발신 5 row** (273 ~ 277 행) 판정 — **참 1 · 부분참 3 · 거짓 1**. 273 행 (`DB Persistence`, `singleton 경유`) 은 **참**, 274 행 (`LLM Gateway`) 은 **거짓**, 275 · 276 · 277 행은 **부분참** (실 발신 주체가 `worker` 인 오기 축 포함). `sync / async` 정의문 (289 행) 은 in-process 5 row 를 가르는 **판별력 0**, 비고 셀 **REQ pointer 부재는 결손 아님** (표 컬럼 규약상 `## Component table` 만 REQ 컬럼 보유). 277 행 `구체는 P5` 미래 시제는 row 272 의 동형 축과 달리 **참** 으로 갈렸다 (동형 축이라도 결론은 복사되지 않는다는 선례 26 번째).
+
+AC 3 에서 **각주 위치 관행 (C)** (= `## Contracts` 절 안 삽입) 을 확정해 `§ 12.61` 한계 6 을 닫았다 — 이후 slice 는 재고하지 않는다. components.md 309 → **317** (blockquote 7 행 append, in-place 정정 **0** 지점), audit 5898 → **5968** (`§ 12.62` **71** 행 신설). 2 파일 +78/-0, direct push `1ca8ed3a`, main CI **success**. 진척 **Contracts 표 7/17** (orchestration 5/5 마감).
+
