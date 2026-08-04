@@ -2,7 +2,7 @@
 id: T-1453
 title: components.md `## Component table` 뒤 **각주 blockquote 7 블록 누적 구조 재판정** (좌표 drift 실측 + 처리 방식 판정) — T-1452 FU1 계승 + audit §12.51
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 200
