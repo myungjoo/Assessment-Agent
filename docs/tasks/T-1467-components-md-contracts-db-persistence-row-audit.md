@@ -2,7 +2,7 @@
 id: T-1467
 title: components.md `## Contracts` 표 **`DB Persistence → PostgreSQL` 1 row** (284 행) ↔ 실 `src/persistence` wire 표면 대조 — `§ 12.64` 파생 영향 (1) 집행 + `§ 12.60` 이월 회수 + audit §12.65
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 210
