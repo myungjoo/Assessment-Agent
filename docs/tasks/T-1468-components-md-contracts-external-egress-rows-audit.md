@@ -2,7 +2,7 @@
 id: T-1468
 title: components.md `## Contracts` 표 **외부 egress 3 row** (285 ~ 287 행) ↔ 실 `src` outbound · auth 헤더 · 4xx 처리 대조 — `§ 12.65` 파생 영향 (1) 집행 (3 row 1 slice 통합 권고 채택) + `## Contracts` 표 축 17/17 마감 + audit §12.66
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 230
