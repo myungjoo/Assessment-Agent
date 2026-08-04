@@ -2,7 +2,7 @@
 id: T-1465
 title: components.md `## Contracts` 표 **Scheduler 발신 2 row** (278 · 279 행) ↔ 실 `src/scheduling/` 호출 그래프 대조 — `§ 12.62` 파생 영향 (1) 집행 + audit §12.63
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 215
