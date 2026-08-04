@@ -5057,6 +5057,76 @@ row → 절 매핑 — `Web UI` **`§ 12.44`** (T-1446) · `Backend API` + `Work
 3. **출력 축 미결선 판정은 기본 provider 기준이다** — `CRON_TICK_HANDLER` 는 override 가능한 token 이라 운영 조립에서 실 handler 가 주입될 여지가 있고, 런타임 확인은 spec 실행 (금지) 없이는 불가하다.
 4. **각주 blockquote 가 7 블록으로 누적** 돼 표 뒤 읽기 부담이 임계를 넘겼다. `§ 12.49` AC 3.5 의 결착 (`표 완결까지 현 규약 유지`) 조건이 본 절로 소멸했으므로, 일괄 anchor 이행 재판정은 파생 영향 (1) 로 즉시 이월된다.
 
+### 12.51 components.md `## Component table` 뒤 각주 blockquote **7 블록 누적 구조** 재판정 — 안내 blockquote 1 개 신설 + stale 좌표 1 지점 정정 (T-1453)
+
+> **본 절의 위치 · 계보** — `§ 12.50` (T-1452) 이 `Scheduler` row 를 닫으며 파생 영향 **(1)** 로 **"표 뒤 각주 7 블록 일괄 anchor 이행 재판정 — 표가 완결됐으므로 다음 slice 1 순위 후보"** 를, 한계 **4** 로 **"`§ 12.49` AC 3.5 의 결착 (`표 완결까지 현 규약 유지`) 조건이 본 절로 소멸"** 을 지목했고, 본 절이 그 지목을 집행한다. 즉 본 slice 는 **새 row 대조가 아니라 이미 쌓인 각주 7 블록의 구조 자체** 를 판정 대상으로 삼는다 — 각 블록 안의 `참 / 부분참 / 거짓` 판정 내용은 `§ 12.44` ~ `§ 12.50` 이 이미 닫았으므로 **재검토하지 않는다**. **계보** — `T-1445` (`## 개요`) → `T-1446` ~ `T-1452` (표 8 row / 각주 7 블록) → **`T-1453` (본 절 — 표 축 여덟 번째 slice, 구조 판정)**. 측정은 전부 read-only `grep` · `sed` · `wc` · `git` 이며 빌드 · 테스트 실행 **0**, token · 실 credential 인용 **0** (CLAUDE.md §9).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+- (i) **좌표 재확인** — `grep -n '^#\{1,3\} ' docs/architecture/components.md` → `1:# Component view` / `5:## 개요` / `22:## Deployment 컨텍스트` / `28:## Component diagram` / `115:## Component table` / `175:## GitHub Adapter — 3 instance 묶음 vs 분리 결정` / `207:## Contracts` / `233:## References`. **task 가 예고한 115 · 175 · 207 · 233 은 전부 유효** 했다 (`§ 12.50` (i) 이 박제한 `168` · `200` · `226` 은 T-1452 각주 +7 행으로 이미 밀린 값 — 본 절 축 ② 의 첫 방증). `grep -n '^> \*\*' …` → `3` · `16` ~ `19` · `128` · `130` · `131` · `134` · `135` · `137` ~ `139` · `142` ~ `146` · `149` ~ `152` · `155` ~ `159` · `162` ~ `166` · `168` ~ `173`. 빈 줄 분리 기준 **각주 블록 시작행은 128 · 134 · 142 · 149 · 155 · 162 · 168 = 7 블록** (task 예상과 일치). `grep -c '^> ' …` → **46** = 3 행 1 + `## 개요` 각주 (16 ~ 20 행) 5 + 표 뒤 각주 구간 **40**.
+- (i-b) **표 row 수 (본 절이 발견한 카운트 어긋남)** — `grep -c '^| \*\*' docs/architecture/components.md` → **8**, `grep -n '^| \*\*' …` → `119 Web UI` · `120 Backend API` · `121 Worker` · `122 DB Persistence` · `123 LLM Gateway` · `124 GitHub Adapter` · `125 Confluence Adapter` · `126 Scheduler`. 즉 **표 data row 는 8 개** 이고 **각주는 7 블록** 이다 (`§ 12.45` 가 `Backend API` + `Worker` 2 row 를 1 블록으로 묶었다). `§ 12.50` 5035 행의 `표 **7 row** 대조가 완결` 표기는 **블록 수와 row 수를 혼동** 한 것으로 보이며, 확정 판정은 본 절 파생 영향 **(1)** 소관이다 (row 본문 재판정은 본 slice Out of Scope).
+- (ii) **분량 대조** — 표 본체 `117 ~ 126` = **10 행** (header 1 + separator 1 + data row 8), `sed -n '117,126p' … | wc -c` → **6334** byte. 각주 구간 `128 ~ 173` = **46 행** (blockquote 40 + 블록 사이 빈 줄 6), `sed -n '128,173p' … | wc -c` → **25149** byte. 비율 **행 4.6 배 · byte 3.97 배** — Why ① 의 "4 배 이상" 은 행 기준 참, byte 기준으로는 3.97 배로 **근소 미달** 이라 본 절은 "약 4 배" 로만 적는다 (인상 서술 0).
+- (iii) **자기 참조 좌표 drift (본 slice 핵심 증거, 2 명령)** — ① `sed -n '128,173p' … | grep -no 'row ([0-9]\{2,3\} 행)'` → 구간 offset `1:row (119 행)` · `7:row (120 행)` · `7:row (121 행)` · `15:row (122 행)` · `22:row (123 행)` · `28:row (124 행)` · `35:row (125 행)` · `41:row (126 행)` = **8 지점**. ② `sed -n '128,173p' … | grep -no '\*\*[0-9]\{1,3\}\*\* 행 \`##\|[0-9] ~ [0-9] 행 blockquote'` → offset `12` · `18` (`**32** 행`) · `25` · `32` · `39` (`**78**` · `**79** 행`) · **`29` (`**155** 행 \`##`)** · `42` (`1 ~ 4 행 blockquote`) · `46` (`**62**` · `**131** 행`). **자기 참조 좌표는 10 지점** (row 8 + heading 1 + `1 ~ 4 행` 1) 이고 나머지 `32` · `62` · `78` · `79` · `131` 은 ADR-0003 · PLAN.md **타 파일** 좌표라 본 축 대상 밖이다.
+- (iii-b) **drift 판정** — offset 29 = 절대 **156** 행의 `실 heading 은 **155** 행 \`## GitHub Adapter — 3 instance 묶음 vs 분리 결정\`` 은 (i) 실측 `175` 와 어긋나 **stale 확정 (1 지점)** — **Why ② 참**. 반면 row 좌표 8 지점과 `1 ~ 4 행 blockquote` 1 지점은 **전부 유효** 하다 (참조 대상이 각주 구간보다 **앞** 이라 각주 누적의 영향을 받지 않는다) — **Why ③ 참**. 즉 drift 는 **"각주 → 뒤쪽 좌표" 참조에만** 발생하며, T-1450 각주가 박제한 시점의 heading 은 실제로 155 행이었으나 T-1451 · T-1452 각주 **+20 행** 누적으로 밀렸다.
+- (iv) **외부 참조 안정성** — `grep -o '(\.\./use-cases/REQ-COVERAGE-AUDIT\.md[^)]*)' docs/architecture/components.md | sort -u` → **`(../use-cases/REQ-COVERAGE-AUDIT.md)` 1 종뿐**, `grep -c 'use-cases/REQ-COVERAGE-AUDIT\.md' …` → **8** hit. anchor fragment · 행 번호 fragment **0** 이라 audit 절 번호 · 행 이동에 **불변** — **Why ④ 참**. `## Component table` row 좌표 `119` ~ `126` 도 (i-b) 출력과 1:1 로 **여전히 유효**.
+- (v) **결착 조건 소멸 확인** — `§ 12.49` **4946** 행 `**결정 — \`표 완결까지 현 규약 (표 뒤 blockquote 나열) 유지\`.**` ↔ `§ 12.50` **5035** 행 `이로써 표 **7 row** 대조가 완결됐다 (각주 blockquote **7** 블록 누적, in-place 치환 누적 **0**).` + 한계 4 (**5058** 행) `\`§ 12.49\` AC 3.5 의 결착 (\`표 완결까지 현 규약 유지\`) 조건이 본 절로 소멸했으므로 …`. **유예 조건 소멸이 실측으로 확인** 돼 본 재판정의 전제가 선다.
+- (vi) **baseline** — `wc -l` components.md **243** · audit **5073** · requirements.md **97** · deployment.md **232** · directory.md **203** · modules.md **259** · PLAN.md **175** 전부 일치 (단 task Required Reading 의 `docs/architecture/requirements.md` 경로는 **부재** — 실 경로는 `docs/requirements.md` 다). `grep -c '^## '` components.md **7** · audit **12**, audit `grep -c '^| REQ-'` **66** · `grep -c '^### 12\.'` **50** 전부 일치.
+
+#### 구조 판정표 (AC 2 — 구조만, 각주 판정 내용 재검토 0)
+
+| 축 (1 구) | 실측 수치 | 판정 | 근거 1 구 |
+| --- | --- | --- | --- |
+| ① 분량 비율 (표 : 각주) | 표 10 행 / 6334 byte ↔ 각주 46 행 / 25149 byte = **행 4.6 배 · byte 3.97 배** | 문제 있음 | 표를 읽으러 온 독자가 다음 `##` 까지 가려면 표의 약 4 배 분량을 지나야 한다 |
+| ② 자기 참조 좌표 drift | 자기 참조 **10 지점** 중 stale **1** (156 행 `155` → 실 `175`), 누적 원인 +20 행 | 문제 있음 (국소) | 각주가 뒤쪽 heading 을 행 번호로 가리키는 한 이후 각주 추가마다 같은 지점이 다시 썩는다 |
+| ③ 외부 참조 안정성 | audit 링크 **8 hit / 1 종**, anchor · 행 fragment **0**, row 좌표 8 지점 전부 유효 | 문제 없음 | 파일 링크 + 앞쪽 좌표만 참조해 각주 누적 · 절 번호 증가 어느 쪽에도 영향받지 않는다 |
+| ④ 탐색성 | `## Component table` **115** → 다음 `##` **175** = **60 행**, 그중 각주 **46 행 (76.7%)** | 문제 있음 | 표 직후 60 행 구간의 3/4 이 각주라 `row → 근거 절` 진입점이 한 곳에 모여 있지 않다 |
+
+#### 처리 방식 판정 (AC 3)
+
+판정 기준 **4 축** — ① `§ 12.15` **append-only 정합** (`옛 요약의 수치·판정 문구는 … 무편집 보존하고, 현행 상태는 pointer 문장 append 로만 가리킨다`) · ② **오도 risk** (stale 좌표 방치 비용 ↔ 대량 치환의 판정 이력 훼손 비용) · ③ **cap** (≤ 300 LOC · 변경 파일 3 고정) · ④ **가역성 · 확장성** (되돌리기 비용 + 후속 각주가 계속 붙을 때).
+
+| 후보 | 판정 | 근거 |
+| --- | --- | --- |
+| (A) 현행 유지 + 무편집 (audit 기록만) | 기각 | drift **1 지점** 이 실측으로 확정됐는데 방치하면 독자가 156 행 표기대로 155 행 (실제로는 다른 각주 본문) 을 여는 오도가 남는다 — 축 ② 미충족 |
+| **(B) 최소 개입 — 안내 blockquote 1 개 신설 + stale 좌표만 in-place 정정** | **채택** | 기존 각주 본문 **문장 재작성 0** 이라 축 ① 정합, stale 1 지점만 숫자 치환해 축 ② 해소, 2 hunk · **+6 / -1** 로 축 ③ 여유, revert 1 commit · 후속 각주는 매핑 1 행 추가로 확장돼 축 ④ 충족 |
+| (C) 7 블록 전면 anchor 이행 | 기각 | 자기 참조 10 지점 중 실 drift 는 **1** 뿐이라 46 행 전면 치환의 편익이 비용에 못 미치고, cap 안에 들어도 7 블록 본문을 훑어 재작성하면 판정 밀도가 무너진다 — **split 제안으로 이월** (파생 영향 (19)) |
+| (D) audit 이관 (각주 7 블록 → 요약 1 블록 + 링크) | 기각 | `§ 12.15` 의 `무편집 보존` 방침과 **정면 충돌** — 40 행 판정 본문을 components.md 에서 걷어내면 표 옆 근거가 사라지고 되돌리기 비용도 최악이라 축 ① · ④ 동시 미충족 |
+
+#### 반영 결과 (AC 4) + 무편집 경계
+
+- [components.md](../architecture/components.md) 의 각주 첫 블록 (구 128 행) **직전** 에 안내 blockquote **4 행 + 뒤 빈 줄 1 행 = +5 행** 을 삽입했다. 내용은 ⓐ 각주 7 블록의 성격 + 표 본문 보존 선언 (`§ 12.15`), ⓑ **`row → 각주 블록 → audit 절` 매핑 8 row 전량**, ⓒ 좌표 표기 주의 (박제 시점 좌표 · row 좌표는 안정), ⓓ 본 절 pointer 다.
+- **in-place 정정은 1 지점** — 구 156 행 (현 161 행) 의 `**155** 행` → `**180** 행`. **숫자 1 개 치환** 이며 문장은 한 글자도 재작성하지 않았다. 정정값이 (i) 실측 `175` 가 아니라 `180` 인 이유는 안내 blockquote **+5 행** 이 heading 을 밀었기 때문으로, **축 ② 문제의 실례가 본 편집 안에서 재현** 됐다 (편집 후 `grep -n '^## GitHub Adapter'` → `180` 으로 재측정해 반영).
+- 무편집 확인 — **1 ~ 4 행 blockquote** · `## 개요` 각주 (16 ~ 20 행) · **표 본체 117 ~ 126 행 전량** · 각주 7 블록의 **판정 문장 전부** · 구 175 행 이후 (`## GitHub Adapter …` sub-section · `## Contracts` · `## References` · mermaid) 전 구간 무변경 (아래 hunk 2 개로 실증).
+- 문구 · 행 번호 · § 번호 · task ID 는 전부 위 실측 출력과 1:1 이며 **창작 0**. secret · token 인용 **0**.
+
+#### 좌표계 이행 판단 재료 (이행 자체는 본 slice 밖)
+
+- drift 가 **"각주 → 뒤쪽 heading" 참조 1 지점에만** 발생하고 row 좌표 8 지점 · audit 링크 8 hit 은 전부 안정이라, 이월 항목 **(15)** 의 전면 이행보다 **heading 참조만 anchor 화** 하는 축소 scope 이 비용 대비 효율적이라는 재료가 실측으로 섰다.
+- 또한 본 편집이 정정값을 `175` → `180` 으로 한 번 더 옮긴 사실이, **행 번호 좌표는 정정해도 다음 각주에서 다시 썩는다** 는 구조적 결론의 직접 증거다.
+
+#### 파생 영향 (목록만 — 본 slice 편집 금지)
+
+(1) **`## Deployment 컨텍스트` (22 ~ 26 행) "8 component 동일 process" claim ↔ 표 row 카운트 대조** (`§ 12.50` FU3 — **8 회째 이월, 다음 대조 1 순위 후보**; 본 절 (i-b) 실측이 **표 data row = 8** 임을 확인해 어긋남의 방향이 뒤집혔을 가능성 — `§ 12.50` 의 `표 7 row` 표기 자체를 함께 판정할 것) / (2) `## Component diagram` mermaid node ↔ 실 module 대조 / (3) `## GitHub Adapter — 3 instance 묶음 vs 분리 결정` sub-section 본문 ↔ 코드 대조 (`§ 12.48` FU4 미소진) / (4) `## Contracts` 표 ↔ 실 계약 표면 대조 / (5) **row pointer 셀 보강 2 건** (`Scheduler` = `ADR-0042` 미등재 `§ 12.50` FU2 · `Confluence Adapter` `§ 12.49` FU2) / (6) LLM · GitHub adapter ADR pointer 미등재 (`§ 12.47` FU5 · `§ 12.48` FU3) / (7) `@nestjs/config` 미도입 전수 sweep (`§ 12.39` FU3, ADR 게이트) / (8) reviewer 규약 미이행 (`§ 12.41` FU2) / (9) `deploy/README.md` ↔ deployment.md ↔ runbook 3 자 정합 (`§ 12.41` FU3) / (10) README 행 번호 pointer drift 전수 sweep / (11) REQ 번호 체계 잔재 sweep (`§ 12.38` FU3) / (12) `CLAUDE.md` §1 pointer 부정확 (T-1442 FU3) / (13) UC-09 `§ 5` sequence participant 병기 (**37 회째 이월**) / (14) modules.md 카운트 claim 대조 (`§ 12.34` FU1, ADR 게이트) / (15) **행 번호 → anchor 좌표계 이행** (**31 회째 이월 — 본 절 (iii) drift 실측이 "heading 참조 한정 축소 scope" 재료를 보강했다**) / (16) `§ 12.44` 한계 "mutation 러너 26 개" 정의 미확정 / (17) `Scheduler` cron → 평가 pipeline 미결선 (`§ 12.50` FU18 — **코드 소관, `pr` task 로만**) / (18) `ADR-0003` "단일 DB 인스턴스" 좌표 부재 (`§ 12.46` FU16) / (19) **후보 (C) split 제안** — 각주 heading 참조의 anchor 이행을 별도 slice 로 (기각 사유가 cap 이 아니라 판정 밀도였으므로 scope 를 heading 참조로 좁혀 재상정).
+
+#### 불변 검산 (AC 6)
+
+- `wc -l` — components.md **243 → 248** (+5, 허용 ≤ 248) · audit **5073 → 5143** (+70, 본 절 자체 **70 행** ≤ 105) · requirements.md **97 불변** · deployment.md **232 불변** · directory.md **203 불변** · modules.md **259 불변** · PLAN.md **175 불변**.
+- `grep -c` — components.md `^## ` **7 불변** · `^> ` **46 → 50** (안내 blockquote 4 행) · audit `^## ` **12 불변** · audit `^| REQ-` **66 불변** · audit `^### 12\.` **50 → 51**.
+- `git diff -U0 -- docs/architecture/components.md | grep '^@@'` → `@@ -127,0 +128,5 @@` · `@@ -156 +161 @@` — **hunk 2 개** 이며 둘 다 AC 4 허용 구간 (각주 첫 블록 직전 삽입 · stale 좌표 1 지점) 안이다. 허용 구간 밖 hunk **0**.
+- `git diff --numstat` → `6	1	docs/architecture/components.md` — 삭제 **1** 행은 `**155** → **180**` 숫자 치환의 짝이며 **순수 삭제 0** 이다.
+- `git status --porcelain src/ test/ web/ prisma/ deploy/ docker-compose.yml Dockerfile .github/ package.json README.md .claude/ docs/decisions/ docs/ops/ docs/PLAN.md docs/requirements.md` → **빈 출력**. `git status --porcelain` 전체는 **2 파일** (components.md · 본 audit — task 파일 `status` 갱신은 driver 소관) 로 3 파일 cap 이내.
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 새 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 tester 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` 가 모두 **N/A** 다 (검증은 read-only 재측정 + 위 불변 검산으로 갈음).
+
+#### 한계
+
+1. **분량 비율의 "임계" 자체는 규범이 아니다** — 행 4.6 배 · byte 3.97 배는 사실이나 "몇 배부터 과다" 를 정하는 정본이 없어, 축 ① 의 `문제 있음` 은 탐색성 축 ④ (76.7%) 와 함께 읽을 때만 성립한다.
+2. **drift 탐지는 2 명령 grep 근사다** — `row (NNN 행)` · `**NNN** 행 \`##` · `N ~ N 행 blockquote` 3 패턴 밖의 자기 참조 표기 (예: 문장 안 서술형 좌표) 가 없다는 전수 증명은 §7 예산 밖이다.
+3. **`§ 12.50` 의 `표 7 row` 표기와 본 절 (i-b) 의 `data row 8` 은 상충하나 본 절이 확정 판정하지 않았다** — row 본문 · 카운트 claim 재판정은 파생 영향 (1) 소관이라 사실만 기록했다.
+4. **안내 blockquote 도 각주 구간 분량을 +4 행 늘린다** — 탐색성은 매핑 집약으로 개선되지만 총량 축 ① 은 소폭 악화되며, 총량 해소는 파생 영향 (15) · (19) 의 좌표계 · scope 재설계 소관이다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source
