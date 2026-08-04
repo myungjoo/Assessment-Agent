@@ -3832,6 +3832,120 @@ $ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1
 2. **heading 의 `(REQ-020)` 은 문서 쌍 단위로만 고칠 수 있다** — deployment.md 186 행과 ADR-0003 88 행이 같은 표기를 공유해 한쪽만 치환하면 새 불일치가 생기므로, 두 문서를 함께 다루는 sweep slice (파생 영향 3) 로 넘겼다. 그때까지 REQ-020 으로 권한 부족을 trace 하는 독자는 각주에 의존한다.
 3. **알림 "인식 경로" 의 충분성은 판정하지 않았다** — pull 조회 (`GET /api/permission-denied-records`) 가 193 행이 뜻한 "Admin 알림 + User 알림" 을 요구 수준으로 충족하는지는 REQ-008 · REQ-016 의 판정 소관 (requirements.md 두 row 가 이미 한계로 명시) 이라, 본 절은 **전달 방식이 push 가 아니라 pull 이라는 사실** 까지만 남겼다.
 
+### 12.39 deployment.md `## Secret / 자격증명 저장` 단락 ↔ 실 `deploy/env.prod.example` · `docker-compose.yml` · `deploy/*.service` · `.gitignore` · `package.json` · `src/` 대조 — 원문 보존 + 각주 1 블록 (T-1441)
+
+> **본 절의 위치** — `§ 12.38` 이 `## 외부 네트워크 boundary` 를 완결하며 파생 영향 **1** 로 지목한 "`## Secret / 자격증명 저장` = 다음 slice 1 순위" ([T-1440](../tasks/T-1440-deployment-md-network-boundary-tail-vs-src-audit.md) Follow-up 1) 를 본 절이 계승한다. **계보** — `T-1430` ~ `T-1435` (directory.md 6 축) → `T-1436` (산문 단락 축) → `T-1437` (`## 배포 토폴로지`) → `T-1438` (`## Scheduler 위치`) → `T-1439` · `T-1440` (`## 외부 네트워크 boundary` 전 / 후반부) → **`T-1441` (본 절 — `## Secret / 자격증명 저장`)**. 판정 enum 은 선행 절과 같은 `참 / 부분참 / 거짓` 3 값이다. cap 준수를 위해 아래 실측 인용은 **요약형** (명령 + 핵심 출력만) 이며, **secret 값 · placeholder 실값은 옮겨 적지 않고 변수 이름까지만** 인용한다 (CLAUDE.md §9).
+
+#### 실측 (AC 1 — 편집 전 측정, 명령과 출력)
+
+```
+(i)   $ grep -n '^#\{1,3\} ' docs/architecture/deployment.md → 81 `## Secret / 자격증명 저장` · 87 `### 운영 환경 secret 주입 방식` · 93 `### 개발 환경 .env 정책` · 99 `### Secret 의 종류 (참고)` · 103 `### Secret rotation 정책` · 107 `## Scheduler 위치` ⇒ 단락 = **81 ~ 106 행** (AC 좌표 일치 — stale 아님).
+      $ sed -n '81,106p' … → heading(81) + pointer(83) + 채택 문장(85) + heading(87) + bullet 3(89 ~ 91) + heading(93) + bullet 3(95 ~ 97) + heading(99) + 산문(101) + heading(103) + 산문(105) ; claim 이분 — **검증 가능 16 축** (패키지 · 배선 3 · 주입 경로 3 · `.env` / template 3 · secret 종류 6 항목 · pointer 1 포함) · **검증 불가 5** (파일 권한 `0600` 권장 · owner `assessment-agent` 전용 user 권장 · 수동 rotation 방침 · P7 / P8 vault 도입 전망 · "도입 task 의 reviewer 가 schema 일관성 점검" 이라는 절차 규범 — 본 slice 미측정).
+(ii)  `@nestjs/config` 축 — $ grep -n '"@nestjs/' package.json → 26 ~ 32 · 47 ~ 49 의 **10 행 = `common` · `core` · `jwt` · `passport` · `platform-express` · `schedule` · `serve-static` · `cli` · `schematics` · `testing`** ⇒ `@nestjs/config` **미등재**.
+      $ grep -rn "@nestjs/config\|ConfigModule" src --include='*.ts' | grep -v spec → **7 hit 이며 7 이 전부 주석** (`| grep -v "//"` → **0**): `auth.controller.ts` 37 · `auth.module.ts` 30 · `auth.service.ts` 103 · `jwt.strategy.ts` 17 · 49 · `resolve-jwt-secret.ts` 12 (전부 "ConfigModule + Joi schema 도입 시점" 미래형) · **`src/main.ts` 2 `외부 의존성(@nestjs/config 등)은 의도적으로 도입하지 않음 (T-0004 Out of Scope)`** ; $ grep -rn "process\.env" src … | wc -l → **24** ⇒ 실 패턴은 `process.env` 직접 read.
+(iii) 운영 주입 방식 축 — $ grep -rn "EnvironmentFile\|env_file\|--env-file" docker-compose.yml deploy/ → **4 hit** = `docker-compose.yml` 47 `env_file:` (48 행 `- .env`) · `deploy/docker-entrypoint.sh` 4 (주석) · `deploy/seed-llm-config.sh` 86 · 87 (주석) ⇒ `EnvironmentFile` **0** · `--env-file` **0**.
+      $ grep -n "ExecStart\|Environment=" deploy/assessment-agent-redeploy.service → 9 `Environment=REPO_DIR=/opt/assessment-agent` · 11 `ExecStart=/opt/assessment-agent/deploy/redeploy.sh` (unit 은 `Type=oneshot` + `Description=… 야간 재배포`) ⇒ **앱 실행 unit 이 아니라 재배포 oneshot**.
+      $ git grep -n "etc/assessment-agent\.env" -- deploy docker-compose.yml .github scripts → **0 hit** (hit 은 docs 3 건 + 본 task 파일뿐 — 배포 호스트 상태는 측정 대상 아님) ; $ ls .github/workflows/ → **ci.yml 1 개** · $ grep -rn "secrets\." .github/workflows/ → 254 `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` **1 회** ⇒ 배포 workflow 부재.
+(iv)  `.env` 등록 · template 축 — $ grep -n "env" .gitignore → 15 `.env` · 16 `.env.*` · 17 `!.env.example` ⇒ **이미 등록** (예외 등록까지) ; $ ls -1 .env.example deploy/env.prod.example → **둘 다 실재** · $ git ls-files … → **둘 다 tracked** · $ wc -l .env.example → **20**.
+(v)   Secret 종류 축 — $ grep -n '^[A-Z_]\+=' deploy/env.prod.example → **active 6 = `POSTGRES_USER`(8) · `POSTGRES_PASSWORD`(9) · `POSTGRES_DB`(10) · `DATABASE_URL`(15) · `PORT`(18) · `AUTH_JWT_SECRET`(23)**.
+      $ grep -n '^# [A-Z_]\+=' deploy/env.prod.example → **주석 처리 optional 15** = `LLM_APIKEY_ENC_KEY`(28) · `SEED_LLM_*` 5(34 ~ 38) · `NODE_EXTRA_CA_CERTS`(42) · `HTTPS_PROXY`(43) · `NO_PROXY`(44) · 테스트용 `DATABASE_URL`(63) · `GITHUB_INSTANCES`(73) · `GITHUB_PUBLIC_HOST`(74) · `_ORG`(75) · `_REPOS`(76) · `_TOKEN_ENC`(80) ; $ grep -n "CONFLUENCE" deploy/env.prod.example → **0 hit**.
+      $ grep -rn "LLM_APIKEY_ENC_KEY\|AUTH_JWT_SECRET" src --include='*.ts' | grep -v spec → `auth.*` 의 `AUTH_JWT_SECRET` · `AUTH_JWT_REFRESH_SECRET` (`auth.service.ts` 6 · 18 행) ; `LLM_APIKEY_ENC_KEY` 는 `github-token-decrypt.ts` 26 · `confluence-token-decrypt.ts` 30 · `github-instance-client.service.ts` 31 · `encrypt-token-cli.ts` 18 · 26 ⇒ **token 복호 master key 로 재사용**.
+      $ grep -n "apiKey" prisma/schema.prisma → 392 ~ 395 주석 + **410 `apiKey      String`** (`LlmProviderConfig`, AES-256-GCM envelope · never-read-back) ⇒ LLM key 의 저장소는 **DB**.
+      $ grep -rn "OAuth\|oauth" src … → **0 hit** · `express-session\|SESSION_SECRET` → **0** · `vault\|Vault` (src · package.json) → **0** ; $ grep -n "INSTANCES\|_TOKEN_ENC" src/github/github-instance-config.ts src/confluence/confluence-instance-config.ts → 27 `GITHUB_TOKEN_ENC_SUFFIX = "_TOKEN_ENC"` · 29 `CONFLUENCE_INSTANCES_ENV = "CONFLUENCE_INSTANCES"` ⇒ 자격은 **instance 별 암호문 env**.
+(vi)  시점 서술 축 — $ grep -n '"phase"' docs/STATE.json → 3 `"phase": "P4-complete / P5-in-progress"` ⇒ 95 · 96 · 105 행의 `P3 / P4 / P7 … 처리 / 작성 / 책임` 은 이미 지난 시점을 미래형으로 서술한다.
+      $ sed -n '81,106p' … | grep -n "P[0-9] \|본 task\|별도 task\|도입 task\|책임" → **4 hit** (95 · 96 · 101 · 105 행) ⇒ 본 단락의 시점 marker 밀도는 `§ 12.38` 후반부 (2 hit) 보다 짙다. 날짜 stamp 는 **0**.
+(vii) pointer 축 — $ grep -n '^## \|^### ' docs/decisions/ADR-0003-deployment.md → **46 `### Decision §2 — Secret 저장 = 환경변수 (@nestjs/config 기반)`** 실재 ⇒ 83 행 pointer 유효 (본문 재판정 · status 변경 없음). 단 그 §2 의 근거 5 가 "`@nestjs/config` 자체는 별도 task 가 사용자 승인 후 도입, 본 ADR 은 패턴만 박제" 로 **유보** 해 두었고, §2 의 `secret 의 종류 (참고)` 문장이 deployment.md 101 행과 **동일 원문** 이다.
+(viii) baseline — wc -l deployment.md **207** · audit **3848** · directory.md **203** · modules.md **259** ; grep -c '^## ' deployment.md **6** · audit **12** ; audit grep -c '^| REQ-' **66** · grep -c '^### 12\.' **38** (기대 8 값 전부 일치 — 전건 성립).
+```
+
+#### 지점 판정표 (AC 2)
+
+판정 3 축 — ① **문서 성격**: 1 ~ 4 행 blockquote 가 "본 문서는 P1 T-A2 의 산출물" 을 선언하고 본 단락은 [T-0015](../tasks/T-0015-adr-0003-deployment-rest.md) 가 [ADR-0003](../decisions/ADR-0003-deployment.md) §2 를 옮겨 채운 P1 blueprint 원본이라 보존 강도가 `§ 12.36` ~ `§ 12.38` 과 동급이다. ② **`§ 12.15` 정합**: 날짜 stamp **0**, 시점 marker **4 hit** (실측 (vi)) 로 선행 4 절 중 가장 짙다 — append-only 가 in-place 를 절대 금지하진 않지만 보존 쪽 가중치가 가장 크게 남는다. ③ **선례**: 수치 축이면 [T-1429](../tasks/T-1429-api-md-module-vocab-and-uc-range-resync.md) in-place, 서술 · 흐름 축이면 T-1430 ~ T-1435 · T-1437 ~ T-1440 각주, 혼합은 [T-1436](../tasks/T-1436-directory-md-web-frontend-section-vs-src-audit.md) 인데 본 단락은 **수치 claim 0 · 배선 / 경로 / 열거 + 시점 축** 이라 각주 계열에 든다.
+
+| 지점 (행) | claim (1 구) | 실측 결과 | 판정 | 처리 | 근거 (1 구) |
+| --- | --- | --- | --- | --- | --- |
+| 83 | 본 단락 결정은 ADR-0003 §2 에 박제 | ADR-0003 **46 행** `### Decision §2` 실재 | 참 | 무편집 | 실측 (vii), 본문 재판정 없음 |
+| 85 | secret 주입 = 환경변수 (`process.env`) | `src/` `process.env` **24 곳** | 참 | 무편집 + 각주 근거 | 실 패턴이 문서와 일치 |
+| 85 | `@nestjs/config` 의 `ConfigModule` 패턴 **채택** | dep **미등재** · `src/` hit 7 **전부 주석** · `main.ts` 2 행 자인 | 부분참 | 원문 보존 + 각주 부기 | ADR 결정은 실재하나 구현 미도입 (§2 근거 5 가 유보) |
+| 85 | 개발 = `.env` (`.gitignore` 등록 필수) | `.gitignore` 15 ~ 17 행 등록 | 참 | 무편집 + 각주 근거 | 실측 (iv) |
+| 85 | 운영 = process supervisor 의 환경변수 주입 | 실 경로는 compose `env_file: - .env` | 부분참 | 원문 보존 + 각주 부기 | supervisor 계열은 맞으나 실 주체가 docker compose |
+| 89 | systemd `EnvironmentFile=/etc/assessment-agent.env` | 실 자산 **0 hit** · unit 은 재배포 oneshot | 거짓 | 원문 보존 + 각주 부기 | `deploy/*.service` 에 앱 실행 unit 자체가 없음 |
+| 90 | Docker `--env-file` 또는 orchestrator secret object | `--env-file` **0 hit** · secret object 미사용 | 부분참 | 원문 보존 + 각주 부기 | compose 를 쓰는 것은 맞고 디렉티브가 `env_file` |
+| 91 | CI/CD 가 deployment step 환경변수로 inject | workflow **ci.yml 1 개** · 배포 job 없음 | 거짓 | 원문 보존 + 각주 부기 | 실 배포는 systemd timer + `redeploy.sh` |
+| 95 | `.env` 등록은 **P3 / P4 도입 task 가 처리** | 이미 등록 (15 ~ 17 행) | 거짓 (시점 낡음) | 원문 보존 + 각주 부기 | `§ 12.36` 144 행과 동일 유형 |
+| 96 | `.env.example` 을 commit 해 schema 공유 | `.env.example` **실재 · tracked · 20 행** | 참 | 무편집 + 각주 근거 | 실측 (iv) |
+| 96 | 본 task 는 작성하지 않음 — **별도 task 가 작성** | 이행 완료 + 운영본은 `deploy/env.prod.example` | 거짓 (시점 낡음) | 원문 보존 + 각주 부기 | 이름이 `.env.example` 이 아닌 차이도 함께 기록 |
+| 97 | `ConfigModule.forRoot({ … validationSchema })` **강제** | 미도입 — boot 검증 layer **0** | 거짓 | 원문 보존 + 각주 부기 | (ii) 의 주석 7 이 전부 "도입 시점" 미래형 |
+| 101-a | GitHub 3 instance 의 PAT 또는 **OAuth token** | `GITHUB_INSTANCES` + `_TOKEN_ENC` **암호문** · OAuth **0 hit** | 부분참 | 원문 보존 + 각주 부기 | env 경유는 맞고 형태가 평문 PAT 아님 |
+| 101-b | Confluence 의 PAT | `CONFLUENCE_INSTANCES` + `_TOKEN_ENC` 실재 · 운영 template **0 hit** | 부분참 | 원문 보존 + 각주 부기 | 코드엔 있고 `env.prod.example` 엔 미등재 |
+| 101-c | LLM provider 5 종의 **API key** (env) | 저장소는 DB `LlmProviderConfig.apiKey` (410 행) · env 는 `LLM_APIKEY_ENC_KEY` 뿐 | 거짓 | 원문 보존 + 각주 부기 | 저장 위치 축이 env → DB (암호화 저장) 로 바뀜 |
+| 101-d | DB 의 `DATABASE_URL` | `env.prod.example` **15 행** · `.env.example` 12 행 | 참 | 무편집 + 각주 근거 | 변수 이름까지 1:1 |
+| 101-e | Backend 의 **JWT secret** | `AUTH_JWT_SECRET` 23 행 + `AUTH_JWT_REFRESH_SECRET` | 참 | 무편집 + 각주 근거 | 오히려 2 종으로 늘었다 |
+| 101-f | 또는 **session secret** | `express-session` · `SESSION_SECRET` **0 hit** | 거짓 | 원문 보존 + 각주 부기 | session 인증 자체가 채택되지 않음 (JWT) |
+| 105 | 구체 도입은 **P3 / P4 / P7 의 task 책임** | phase `P4-complete / P5-in-progress` · 다수 shipped | 거짓 (시점 낡음) | 원문 보존 + 각주 부기 | 새 phase 배정은 PLAN 게이트라 창작 불가 |
+
+- 합계 — 검증 가능 **19 row (16 축 · 열거 6 항목 분리 반영) = 참 6 · 부분참 5 · 거짓 8**, 검증 불가 5 는 대상 제외. 거짓 8 의 내역은 **주입 경로 2** (89 · 91) · **배선 1** (97) · **열거 2** (101-c · 101-f) · **시점 3** (95 · 96 · 105) 이다. `§ 12.38` 후반부 (거짓 6 / 13) 보다도 거짓 비중이 높은데, 이는 본 단락이 **구현 이전에 쓰인 blueprint 인데 그 뒤 실제 배포 경로 (docker compose + systemd timer) 와 자격 암호화 저장이 다른 형태로 확정** 됐기 때문이다.
+- **거짓 축 · 시점 축의 분리 판정** — ① **거짓 (의존성 · 주입 경로 · 열거)**: 101 행은 ADR-0003 §2 의 `secret 의 종류 (참고)` **원문 전사** 라 deployment.md 만 고치면 정본 ↔ view 가 새로 어긋나고 (ADR 본문 편집은 Out of Scope · owner 게이트), 89 ~ 91 행은 세 bullet 이 한 덩어리라 하나만 치환하면 나머지 둘이 거짓인 채 남아 독자가 목록 전체를 검증된 지침으로 오신한다 → 각주로 수렴. ② **시점 (95 · 96 · 105)**: 갱신하려면 "이제 어느 phase 책임인가" 를 **새로 배정** 해야 하는데 그것은 PLAN 게이트라, 실측 사실 (`.gitignore` 등록 · template 2 종 실재 · 현 phase 값) 만 각주에 남긴다. 두 축의 처리가 같은 (B) 로 수렴했으나 **사유는 위와 같이 다르다**.
+
+#### 처리 방식 판정 (AC 3 — 채택 1 · 기각 3)
+
+| 후보 | 내용 | 판정 | 근거 (1 구) |
+| --- | --- | --- | --- |
+| (A) | 전 지점 in-place 동기 (주입 방식 · secret 종류 재작성 포함) | 기각 | 치환 지점이 **8** 로 AC 4 의 `≤ 2 지점` 상한을 넘고, 시점 3 행은 새 phase 배정 창작이 필요해 AC 4 창작 금지와 충돌 |
+| **(B)** | **단락 원문 무편집 + 단락 말미 각주 blockquote 1 블록 신설** | **채택** | T-1437 ~ T-1440 화법을 그대로 잇고 실 경로 (`env_file: - .env`) · 실 변수 이름 (`AUTH_JWT_SECRET` · `_TOKEN_ENC` · `LLM_APIKEY_ENC_KEY`) 을 같은 화면에 병기해 오도 risk 만 제거 |
+| (C) | 혼합 (시점 서술만 in-place, 나머지는 각주) | 기각 | 시점 축이야말로 새 배정을 창작해야 하는 축이라 in-place 대상으로 가장 부적합하고, `§ 12.15` append-only 가 시점 marker 4 hit 에 가장 무겁게 걸린다 |
+| (D) | 전 지점 무편집 + audit 기록만 | 기각 | 운영자가 `@nestjs/config` 를 설치하거나 `/etc/assessment-agent.env` 를 만들고 `0600` 을 걸어도 앱이 그 파일을 읽지 않아 **secret 이 주입되지 않은 채 기동** 하는 실패로 직결된다 |
+
+판정 4 축 — ① **`§ 12.15` 정합**: 시점 marker 4 가 전부 창작 없이는 갱신 불가라 append-only 와 각주가 정합한다. ② **오도 risk**: 본 단락은 **secret 취급 지침** 이라 잘못 따르면 (a) 존재하지 않는 주입 경로를 만들어 앱이 자격 없이 기동하거나, (b) LLM API key 를 env 평문으로 두어 **DB 암호화 저장의 보호를 우회** 하거나, (c) `.env.example` 이 이미 있는데 새로 만들어 실값 commit risk 를 키운다 — 특히 (b) 는 문서 오도가 곧 **자격증명 노출 표면 확대** 라 산문 · 배선 문서보다 risk 가중치가 한 단계 더 높다 (그래서 (D) 기각). ③ **cap**: (B) 의 실측 diff 는 deployment.md `+6/-0` (207 → **213**, 허용 `≤ 213`) · 파일 **3 고정** 이라 300 LOC · 5 파일 상한 안이다. (A) 는 창작 금지 충돌로 자동 기각이며 split 해도 ADR-0003 §2 동시 편집 (owner 게이트) 이 남아 doc slice 로 쪼개는 것 자체가 부적절하다. ④ **선례 일관성**: `§ 12.37` · `§ 12.38` 이 인접 단락에서 (B) 를 채택했으므로 본 절이 다른 후보를 고르면 같은 문서 안 처리 방식이 갈린다.
+
+#### 반영 결과 + 무편집 경계 (AC 4)
+
+- **각주 1 블록 (5 행)** — 105 행 (`### Secret rotation 정책` 말미 = 단락 최말미) 뒤 · `## Scheduler 위치` 앞에 append (앞뒤 공백 행 보존). 내용은 ① `@nestjs/config` **미도입** (dep 미등재 · 주석 7 · `main.ts` 2 행 · `process.env` 24 곳) + 97 행 강제 부재, ② 운영 주입은 systemd 아닌 **compose `env_file: - .env`** (`EnvironmentFile` · `--env-file` 0 hit · unit 은 재배포 oneshot · 배포 workflow 부재), ③ 95 · 96 행 **시점 낡음** (`.gitignore` 15 ~ 17 · template 2 종 실재), ④ 101 행 **6 항목 참 2 · 부분참 2 · 거짓 2** + `POSTGRES_PASSWORD` 누락, ⑤ 105 행 시점 낡음 + 검증 불가 항목 제외 선언 + 83 행 pointer 유효 + 본 절 pointer.
+- **각주 위치 근거 + 문구 1:1 + 무편집 경계** — 대상 claim 이 네 하위 절 (`### 운영 환경 secret 주입 방식` · `### 개발 환경 .env 정책` · `### Secret 의 종류` · `### Secret rotation 정책`) 에 걸쳐 있어 어느 한 절 말미에 두면 나머지를 앞지르므로 선행 절과 같은 규칙 ("대상 claim 의 최소 공통 구간 말미") 대로 단락 최말미에 뒀다. 각주의 경로 · 변수 이름 · 수치 (`7` · `24` · `47 ~ 48` · `15 ~ 17` · `20` · `15` · `23` · `410` · `254` · `46` · `P4-complete / P5-in-progress`) 는 전부 위 실측 출력 그대로이며, **실측되지 않은 값 (존재하지 않는 env 이름 · 미도입 vault · 배포 호스트의 실제 파일) 은 창작하지 않았고 secret 값 · placeholder 실값도 옮기지 않았다** (변수 이름까지만). 1 ~ 4 행 blockquote · 81 ~ 106 행 원문 · `## 개요` · `## DB / Persistence` · `## 배포 토폴로지` · `## Scheduler 위치` · `## 외부 네트워크 boundary` 및 T-1437 ~ T-1440 각주는 그대로다. **새 pointer 도 추가하지 않았다** — 각주가 더한 링크는 ADR-0003 (이미 83 행에 등재) 과 본 절 2 개뿐이다.
+
+#### T-1440 Follow-up 1 closure + `## Secret / 자격증명 저장` 단락 closure 선언
+
+- **T-1440 Follow-up 1 closure** — `§ 12.38` 이 "다음 slice 1 순위" 로 이월한 근거 (81 ~ 106 행이 `deploy/env.prod.example` 과 행 단위 대조 가능) 는 실측으로 확인됐고, 그 단락의 검증 가능 claim **19 row 를 본 절이 전부 판정 · 각주 반영** 했다 — 승계 대상이 남지 않는다. **단락 closure** — `## Secret / 자격증명 저장` (81 ~ 106 행) 은 본 절로 **완결** 이며 단락 안 각주는 말미 1 블록뿐이다 (중복 부기 0).
+
+#### 대조 대상 문서 잔여 갱신
+
+`§ 12.38` 이 남긴 deployment.md **잔여 3 단락** 중 본 절이 1 을 닫아 **잔여 2 단락** 이 된다 — `## DB / Persistence` (15 ~ 49 행) · `## 개요` (5 ~ 14 행). 우선순위는 아래 파생 영향 1 · 2 에 둔다.
+
+#### 파생 영향 (AC 7 — 목록만, 본 slice 편집 금지)
+
+1. **`## DB / Persistence` (다음 slice 1 순위)** — 15 ~ 49 행의 배포 토폴로지 · migration 정책 · backup 전략 · raw data 저장 금지 schema 강제가 [ADR-0002](../decisions/ADR-0002-db.md) · `prisma/schema.prisma` · `prisma/migrations/` 자산과 **직접 대조 가능** 해 잔여 2 중 claim 밀도가 높다.
+2. **`## 개요` (5 ~ 14 행)** — 잔여 마지막 단락. 닫으면 deployment.md 전 단락 대조가 완결된다.
+3. **`@nestjs/config` 미도입 사실의 다른 문서 전수 sweep** — 같은 "채택" 서술이 [ADR-0003](../decisions/ADR-0003-deployment.md) §2 · [T-0015](../tasks/T-0015-adr-0003-deployment-rest.md) 등에 있는지는 본 slice 범위 밖이며 **별도 slice + ADR 재판정 owner 게이트** 소관이다.
+4. **[deploy/README.md](../../deploy/README.md) ↔ deployment.md 배포 절차 정합** — 두 문서가 같은 주제 (env 주입 · 재배포) 를 각자 서술한다. 정본 지정 판정이 필요하며 본 slice 는 무편집.
+5. **REQ 번호 체계 잔재의 전수 sweep** — `§ 12.38` Follow-up 3 미소진 (owner 게이트).
+6. **UC-09 `§ 5` sequence participant 병기** — 23 회째 이월.
+7. **정본 [modules.md](../architecture/modules.md) "WebModule 의 frontend 분리" 단락 카운트 claim 대조** — `§ 12.34` Follow-up 1 미소진 (정본 편집은 ADR 게이트, **259 행 불변**).
+8. **행 번호 → anchor 좌표계 이행** — 17 회째 이월. 본 절 각주는 문서 중간이라 `## Scheduler 위치` 이후 좌표가 **+6 밀린다** (다음 slice 는 좌표 재실측 필수).
+9. **산문 tally ↔ 실측 CI drift-guard spec** — `pr` mode 소관. 본 절이 인용한 `24 곳` · `7 hit` · env key 목록은 변수 1 개 추가로 즉시 낡는다.
+
+#### 불변 검산 (AC 6)
+
+```
+$ wc -l → deployment.md **213** (207 → +6, 허용 ≤ 213) · audit **3848 → 3962** (+114 = 절 114, 허용 +115 이내) ·
+  directory.md **203** (불변) · modules.md **259** (불변)
+$ grep -c '^## ' → deployment.md **6** (불변 — 각주가 blockquote) · audit **12** (불변 — 본 절이 `###`) ;
+  audit grep -c '^| REQ-' → **66** (불변) · grep -c '^### 12\.' → **39** (38 → 39)
+$ git diff -U0 -- docs/architecture/deployment.md | grep '^@@' → `@@ -106,0 +107,6 @@`
+  ⇒ hunk **1**, AC 4 허용 구간 (단락 최말미 각주) 안 — 허용 밖 hunk **0**.
+$ git diff --numstat -- docs/architecture/deployment.md → `6  0` ⇒ 삭제 **0** (in-place 치환 0 이라 짝 설명 불요).
+$ git status --porcelain src/ test/ prisma/ web/ deploy/ docker-compose.yml .gitignore package.json → (빈 출력 — 코드 · 배포자산 · 의존성 무변경)
+$ git status --porcelain → M deployment.md · M REQ-COVERAGE-AUDIT.md · M T-1441-*.md  (**3 파일**)
+```
+
+#### R-110 / R-112 면제 근거 (AC 8)
+
+본 task 는 `commitMode: direct` doc-only 로 production code **0 LOC** · 분기 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 의 direct-mode 면제 조항에 따라 `tester` 호출 · happy / error / flow / negative 4 항목 · `pnpm test:cov` coverage 게이트가 모두 **N/A** 다 (본 절 측정 명령은 전부 read-only `ls` · `grep` · `sed` · `wc` · `git` 이며 `pnpm build` · `pnpm test` · `docker compose` 는 실행하지 않았다).
+
+#### 한계 —
+
+1. **8 지점의 거짓은 각주로만 해소된다** — 89 ~ 91 · 97 · 101 행 원문은 그대로라 각주를 건너뛴 독자에겐 오도가 남는다. 101 행이 ADR-0003 §2 원문의 전사라 두 문서를 함께 다루는 게이트 slice (파생 영향 3) 없이는 정본 정합을 깨지 않고 고칠 수 없다는 제약을 우선한 결과다.
+2. **운영 template 의 완전성 · rotation 실행 가능성은 미판정** — `deploy/env.prod.example` 에 Confluence key 가 **0 hit** 인 사실은 기록했으나 그것이 template 결손인지 Confluence 수집이 아직 운영 대상이 아니라는 의도인지는 `deploy/` 소관 (본 slice 는 `deploy/` 무편집) 이고, 수동 rotation 이 `_TOKEN_ENC` 암호문 체계 (재암호화 필요) 에서 몇 단계인지도 `deploy/README.md` · `encrypt-token-cli.ts` 운영 절차 소관이라 방침 서술을 **검증 불가** 로 분류하는 데 그쳤다.
+
 ## 11. References
 
 - [docs/requirements.md](../requirements.md) — 66 REQ row source

@@ -91,6 +91,18 @@ planner 사전 확인 — **아래는 전부 가설이며 전제가 아니다** 
 
 `implementer` 단독 (doc-only, 코드 0 LOC — architect · tester 불요. §3.2 direct-mode 면제).
 
+## 결과 요약
+
+- **채택안 = (B) 원문 무편집 + 단락 말미 각주 blockquote 1 블록 (5 행)**. AC 3 의 (A) · (C) · (D) 는 각각 치환 지점 8 (`≤ 2` 초과) · 시점 축의 새 phase 배정 창작 필요 · secret 미주입 기동 risk 로 기각.
+- **판정 합계 — 검증 가능 19 row = 참 6 · 부분참 5 · 거짓 8**, 검증 불가 5 (파일 권한 `0600` 권장 · 전용 user 권장 · 수동 rotation 방침 · vault 전망 · reviewer 점검 규범) 는 대상 제외. 거짓 8 = 주입 경로 2 (89 · 91) · 배선 1 (97) · 열거 2 (101-c LLM key · 101-f session secret) · 시점 3 (95 · 96 · 105).
+- **planner 가설 검증 결과** — ① `@nestjs/config` 미도입 = **부분참 / 거짓** 확정 (dep 미등재 · `src/` hit 7 전부 주석 · `main.ts` 2 행 자인 · `process.env` 24 곳), ② systemd 경로 어긋남 = **거짓** 확정 (실 경로는 compose `env_file: - .env`, unit 은 재배포 oneshot), ③ `.gitignore` 이미 등록 = 확인 (15 ~ 17 행), ④ **가설 일부 반증** — `.env.example` 이 repo 루트에 **실재 · tracked (20 행)** 라 "commit 해 schema 공유" 는 참이고 낡은 것은 "본 task 는 작성하지 않음" 시점 서술뿐, ⑤ LLM key 는 env 아닌 **DB `LlmProviderConfig.apiKey`** (거짓) · JWT 는 `AUTH_JWT_SECRET` (+ refresh) 로 참, ⑥ 105 행 phase 서술 낡음 확인, ⑦ rotation 방침은 검증 불가 분류.
+- **불변 검산** — deployment.md 207 → **213** (+6/-0, hunk 1 = `@@ -106,0 +107,6 @@`) · audit 3848 → **3962** (+114, `§ 12.39` 114 행) · directory.md **203** · modules.md **259** 불변 · `^## ` 6 / 12 불변 · `^| REQ-` **66** 불변 · `^### 12\.` 38 → **39** · `src/` · `deploy/` · `docker-compose.yml` · `.gitignore` · `package.json` 무변경 · 변경 **3 파일**.
+- **R-110 / R-112** — `commitMode: direct` doc-only (production code 0 LOC · 분기 0) 라 CLAUDE.md §3.2 면제, `pnpm build` · `pnpm test` · `docker compose` 미실행 (측정은 전부 read-only).
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견한 후속 작업을 여기에 append 한다.)
+1. **`## DB / Persistence` (15 ~ 49 행) = 다음 slice 1 순위** — ADR-0002 · `prisma/schema.prisma` · `prisma/migrations/` 와 직접 대조 가능. 이후 `## 개요` (5 ~ 14 행) 를 닫으면 deployment.md 전 단락 대조 완결.
+2. **`@nestjs/config` 미도입 사실의 다른 문서 전수 sweep** — ADR-0003 §2 · T-0015 등의 동일 "채택" 서술은 ADR 재판정 owner 게이트 소관 (본 slice 범위 밖).
+3. **`deploy/README.md` ↔ deployment.md 배포 절차 정합** — 같은 주제를 두 문서가 각자 서술, 정본 지정 판정 필요.
+4. **`deploy/env.prod.example` 의 Confluence key 부재** — template 결손인지 의도인지 미판정 (`deploy/` 소관, 본 slice 무편집).
+5. 이월 — REQ 번호 체계 전수 sweep (`§ 12.38` Follow-up 3) · UC-09 `§ 5` participant 병기 (23 회째) · modules.md 카운트 claim 대조 (`§ 12.34` Follow-up 1) · 행 번호 → anchor 좌표계 이행 (17 회째, 본 각주로 `## Scheduler 위치` 이후 좌표 **+6** 이동) · 산문 tally drift-guard spec (`pr` mode 소관).
