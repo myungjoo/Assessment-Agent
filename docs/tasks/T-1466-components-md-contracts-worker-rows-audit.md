@@ -2,7 +2,7 @@
 id: T-1466
 title: components.md `## Contracts` 표 **Worker 발신 4 row** (280 ~ 283 행) ↔ 실 `src/assessment-*` 호출 그래프 대조 — `§ 12.63` 파생 영향 (1) 집행 + audit §12.64
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 220
