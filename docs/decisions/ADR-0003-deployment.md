@@ -71,7 +71,7 @@ Assessment-Agent 의 운영 토폴로지는 **process 구조 (단일 vs worker �
 4. **운영 단순성** — Backend process 1 개만 살아 있으면 scheduler 도 동작. systemd / Docker container 도 1 개.
 5. **새 dependency 추가 회피** — `@nestjs/schedule` 자체는 별도 task (P7 Scheduling & operations 진입 시) 가 사용자 승인 후 도입.
 
-**default cron 시각**: KST 02:00 ([README.md](../../README.md) L72 의 예시). Admin 이 UI 에서 변경 가능. 실제 default 값은 도입 task 가 박제.
+**default cron 시각**: KST 02:00 ([README.md](../../README.md) 72 행 의 예시). Admin 이 UI 에서 변경 가능. 실제 default 값은 도입 task 가 박제.
 
 **전환 조건**: HA / multi-instance 가 도입되면 in-process scheduler 가 instance 별로 동시 실행되어 중복 trigger 위험. 그때 별도 ADR 로 distributed scheduler (예: PostgreSQL advisory lock 기반 leader election / Redis 기반 lock / 외부 cron service) 로 전환.
 

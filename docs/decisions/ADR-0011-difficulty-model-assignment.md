@@ -11,7 +11,7 @@ supersedes: null
 
 ## Context
 
-본 ADR 은 [docs/PLAN.md L86](../PLAN.md) Phase P4 의 **"3 난이도 모델 할당 (R-97) — ADR 로 박제"** 의무를 박제한다 — 동 bullet 이 명시한 "ADR 로 박제" 가 본 ADR 의 single source of truth 트리거. [docs/architecture/p4-implementation-plan.md §3 ADR 후보 (b)](../architecture/p4-implementation-plan.md) 와 §2 표 T-0136 row 도 DifficultyMapping entity 진입 시 본 ADR 신설을 트리거로 박제한다. [CLAUDE.md §1](../../CLAUDE.md) ("코드보다 ADR이 먼저다") + [§3.1 rule 3](../../CLAUDE.md) (ADR + 코드 혼합 task 는 split) 에 따라, **DifficultyMapping entity·repository 코드 task (T-0137 잠정) 의 선행 결정 ADR** 을 본 ADR 이 단독 박제하여 후속 entity / repository / service / routing task 가 일관된 contract 위에서 구현되게 한다.
+본 ADR 은 [docs/PLAN.md 86 행](../PLAN.md) Phase P4 의 **"3 난이도 모델 할당 (R-97) — ADR 로 박제"** 의무를 박제한다 — 동 bullet 이 명시한 "ADR 로 박제" 가 본 ADR 의 single source of truth 트리거. [docs/architecture/p4-implementation-plan.md §3 ADR 후보 (b)](../architecture/p4-implementation-plan.md) 와 §2 표 T-0136 row 도 DifficultyMapping entity 진입 시 본 ADR 신설을 트리거로 박제한다. [CLAUDE.md §1](../../CLAUDE.md) ("코드보다 ADR이 먼저다") + [§3.1 rule 3](../../CLAUDE.md) (ADR + 코드 혼합 task 는 split) 에 따라, **DifficultyMapping entity·repository 코드 task (T-0137 잠정) 의 선행 결정 ADR** 을 본 ADR 이 단독 박제하여 후속 entity / repository / service / routing task 가 일관된 contract 위에서 구현되게 한다.
 
 ### 결정 대상 3 축
 
@@ -25,7 +25,7 @@ supersedes: null
 
 - **REQ-049** ([docs/requirements.md](../requirements.md)) — Admin 이 LLM 모델을 지정. DifficultyMapping 이 난이도별 model 지정의 영속 단위. 본 ADR 이 그 매핑 단위의 cardinality·의미 결정.
 - **REQ-050** ([docs/requirements.md](../requirements.md)) — 3 난이도 모델 매핑. 본 ADR 이 easy / medium / hard 3 슬롯 고정 + 슬롯 ↔ model 매핑을 박제.
-- **REQ-097 (= R-97)** ([docs/PLAN.md L86](../PLAN.md)) — 평가 항목별 난이도 분류 + 어떤 난이도가 어떤 model 로 처리될지의 routing 정책. 본 ADR 이 그 routing 의 정적 매핑 backbone 결정 (실 routing 호출은 T-0137+ LlmGateway).
+- **REQ-097 (= R-97)** ([docs/PLAN.md 86 행](../PLAN.md)) — 평가 항목별 난이도 분류 + 어떤 난이도가 어떤 model 로 처리될지의 routing 정책. 본 ADR 이 그 routing 의 정적 매핑 backbone 결정 (실 routing 호출은 T-0137+ LlmGateway).
 
 ### 선행 코드 박제 (T-0135 정합)
 
@@ -105,7 +105,7 @@ supersedes: null
 
 ## References
 
-- [docs/PLAN.md L86](../PLAN.md) — Phase P4 "3 난이도 모델 할당 (R-97) — ADR 로 박제" (본 ADR 의 직접 motivation)
+- [docs/PLAN.md 86 행](../PLAN.md) — Phase P4 "3 난이도 모델 할당 (R-97) — ADR 로 박제" (본 ADR 의 직접 motivation)
 - [docs/architecture/p4-implementation-plan.md §2 T-0136 row](../architecture/p4-implementation-plan.md) — 책임 task / 신설 사유 / dependsOn (T-0135)
 - [docs/architecture/p4-implementation-plan.md §3 후보 (b)](../architecture/p4-implementation-plan.md) — "LLM provider 추상화 / 3 난이도 모델 할당" ADR 후보 (트리거 시점 = T-0136)
 - [docs/architecture/p4-implementation-plan.md §4](../architecture/p4-implementation-plan.md) — T-0136 게이트 미발화 (외부 dependency 0) 박제
