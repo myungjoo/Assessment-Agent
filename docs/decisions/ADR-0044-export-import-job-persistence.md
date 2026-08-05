@@ -14,7 +14,7 @@ supersedes: null
 
 ## Context
 
-[UC-07](../use-cases/UC-07-export-import.md) 은 Admin 이 평가 자료를 (a) **Export** (read-only, DB → file artifact 다운로드) 또는 (b) **Import / Restore** (destructive write, file artifact 업로드 → DB 복원) 하는 dump / load 대칭 흐름을 박제한다 ([REQ-030](../requirements.md)). [api.md](../architecture/api.md) L56·L122~124·L176 가 `GET /api/admin/export` + `POST /api/admin/import` 계약 (resource path / Admin role / content type) 을 정의하나, **구현 controller·service·영속 entity 가 전부 부재**하다 (Q-0040 context — `ExportController`/`ImportController` 0, `prisma/schema.prisma` 의 Export/Import job 테이블 0).
+[UC-07](../use-cases/UC-07-export-import.md) 은 Admin 이 평가 자료를 (a) **Export** (read-only, DB → file artifact 다운로드) 또는 (b) **Import / Restore** (destructive write, file artifact 업로드 → DB 복원) 하는 dump / load 대칭 흐름을 박제한다 ([REQ-030](../requirements.md)). [api.md](../architecture/api.md) 56·122~124·176 행 가 `GET /api/admin/export` + `POST /api/admin/import` 계약 (resource path / Admin role / content type) 을 정의하나, **구현 controller·service·영속 entity 가 전부 부재**하다 (Q-0040 context — `ExportController`/`ImportController` 0, `prisma/schema.prisma` 의 Export/Import job 테이블 0).
 
 핵심 외력:
 
@@ -32,7 +32,7 @@ supersedes: null
 
 ### Decision §1 — ExportJob / ImportJob 영속 entity 도입 + 책임·필드 박제
 
-**채택: export/import 의 비동기 진행 추적·재시도·감사를 위해 `ExportJob` / `ImportJob` 두 영속 entity 를 도입한다. 책임 module 은 [AssessmentModule](../architecture/modules.md) ([api.md](../architecture/api.md) L56 `/api/admin` = AssessmentModule controller 정합).**
+**채택: export/import 의 비동기 진행 추적·재시도·감사를 위해 `ExportJob` / `ImportJob` 두 영속 entity 를 도입한다. 책임 module 은 [AssessmentModule](../architecture/modules.md) ([api.md](../architecture/api.md) 56 행 `/api/admin` = AssessmentModule controller 정합).**
 
 두 entity 의 공통 필드 (개념 수준 + 구체 컬럼 의도 — 구체 type 은 후속 schema task):
 
@@ -109,7 +109,7 @@ supersedes: null
 
 **§5 와의 정합**: 본 §6 은 §5 의 "AuditLog 의 구체 schema 결정은 별도 보안 ADR 책임" 경계 결정을 **변경하지 않는다** — export-source 가 잠정적으로 `PermissionDeniedRecord` 를 가리킬 뿐, AuditLog entity 자체의 구체 schema 결정을 본 amend 가 내리지 않으므로 §5 의 책임 경계는 불변이다.
 
-**instant 컬럼 = 5 model 모두 `createdAt` 선택 근거**: [UC-07 §6.1](../use-cases/UC-07-export-import.md) 의 range scope `[start, end)` 판정이 의미하는 "record 가 생성/발생한 시각" 과 정합 — Assessment 는 평가 record 생성, Person/Group/LlmProviderConfig 는 master record 생성, PermissionDeniedRecord 는 감사 사건 발생 시각이 모두 `createdAt` 으로 자연스럽다 (`src/export/export-job.service.ts` L89~92 inline 주석과 정합).
+**instant 컬럼 = 5 model 모두 `createdAt` 선택 근거**: [UC-07 §6.1](../use-cases/UC-07-export-import.md) 의 range scope `[start, end)` 판정이 의미하는 "record 가 생성/발생한 시각" 과 정합 — Assessment 는 평가 record 생성, Person/Group/LlmProviderConfig 는 master record 생성, PermissionDeniedRecord 는 감사 사건 발생 시각이 모두 `createdAt` 으로 자연스럽다 (`src/export/export-job.service.ts` 89~92 행 inline 주석과 정합).
 
 **source-of-truth cross-reference**: 본 §6 매핑의 사실 source 는 `src/export/export-job.service.ts` 의 `EXPORT_ENTITY_SOURCES` (T-0497, PR #408, squash 86c07c7) 다. 본 ADR 은 contract source 로서 그 코드 사실을 사후 박제하며, 향후 `ExportEntity` union 변경 / model 치환 변경은 본 §6 amend 가 선행해야 한다 ([CLAUDE.md §7.3](../../CLAUDE.md) "코드보다 ADR 이 먼저다" 정신 — T-0497 은 reviewer follow-up 으로 본 사후 박제 task 가 발급됐다).
 
@@ -165,7 +165,7 @@ DB 영속 job entity 로 status / artifactRef / error / restoredRowCount 를 추
 
 - [docs/use-cases/UC-07-export-import.md](../use-cases/UC-07-export-import.md) — 본 ADR 의 직접 상류 (3 invariant / Export·Import 흐름 / §6 scope·mode 옵션 / §8 NFR async job)
 - [docs/architecture/data-model.md](../architecture/data-model.md) — §2 entity 표 (ExportJob/ImportJob row 추가 대상) / §4 raw 미저장 invariant / §2 AuditLog conceptual mention 경계
-- [docs/architecture/api.md](../architecture/api.md) — L56·L122~124·L176 `GET /api/admin/export` / `POST /api/admin/import` 계약 (본 ADR 이 구현 채울 대상)
+- [docs/architecture/api.md](../architecture/api.md) — 56·122~124·176 행 `GET /api/admin/export` / `POST /api/admin/import` 계약 (본 ADR 이 구현 채울 대상)
 - [docs/decisions/ADR-0033-evaluation-result-persistence.md](ADR-0033-evaluation-result-persistence.md) — reset-and-recreate + `$transaction` all-or-nothing 패턴 (본 ADR Import atomicity 의 동형 source)
 - [docs/decisions/ADR-0035-aggregate-summary-evaluation.md](ADR-0035-aggregate-summary-evaluation.md) — Summary `@@unique` (snapshot 재구성 중복 차단 정합)
 - [docs/decisions/ADR-0002-db.md](ADR-0002-db.md) — PostgreSQL + Prisma stack (job entity 의 실 구현 form)

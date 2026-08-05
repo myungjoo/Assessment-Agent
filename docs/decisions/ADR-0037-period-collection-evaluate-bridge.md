@@ -19,16 +19,16 @@ supersedes: null
 
 - **수집 layer** — [CollectionEntryService.collectForPerson(person, since, assessmentId): Promise<Contribution[]>](../../src/assessment-collection/collection-entry.service.ts) 가 `buildCollectionSpec → collectActivities → filterActivitiesByAuthor → persistActivities` 4단계를 조립해 **영속화된 `Contribution[]`** 을 반환한다([ADR-0030](ADR-0030-assessment-collection-enumerate.md) §5). 그 중간 산출인 [CollectionOrchestratorService.collectActivities(spec): Promise<Activity[]>](../../src/assessment-collection/collection-orchestrator.service.ts) 가 **in-memory `Activity[]`** 를 (persist 없이) 산출한다.
 - **평가 layer** — [EvaluationOrchestratorService.evaluateActivities(activities, options): Promise<EvaluationResult[]>](../../src/assessment-evaluation/evaluation-orchestrator.service.ts) 가 `Activity[]` 를 받아 정규화 → dedup → scoring 으로 `EvaluationResult[]` 를 산출한다(in-memory, DB write 0). 이 결과는 [EvaluationResultPersistService.persist(context, results, mode)](../../src/assessment-evaluation/evaluation-result-persist.service.ts) 로 `Assessment`/`Contribution` 에 영속화된다(ADR-0033 reset-and-recreate).
-- **HTTP 진입** — 기존 [POST /api/assessment-evaluation/evaluate](../../src/assessment-evaluation/assessment-evaluation.controller.ts) 는 controller 주석(L26~27)에 박제된 대로 **"이미 수집된 `Activity[]` 직접 수신"** 계약만 노출한다. period/personId → 수집 → `Activity[]` 변환 bridge 는 명시적으로 controller 밖(후속 bridge slice)으로 deferred 돼 있다. [ADR-0032](ADR-0032-p5-evaluation-contract.md) §Follow-ups 의 "controller / DTO / endpoint / R-9 사용자 지정 기간" 도 같은 piece 를 deferred 했다.
+- **HTTP 진입** — 기존 [POST /api/assessment-evaluation/evaluate](../../src/assessment-evaluation/assessment-evaluation.controller.ts) 는 controller 주석(26~27 행)에 박제된 대로 **"이미 수집된 `Activity[]` 직접 수신"** 계약만 노출한다. period/personId → 수집 → `Activity[]` 변환 bridge 는 명시적으로 controller 밖(후속 bridge slice)으로 deferred 돼 있다. [ADR-0032](ADR-0032-p5-evaluation-contract.md) §Follow-ups 의 "controller / DTO / endpoint / R-9 사용자 지정 기간" 도 같은 piece 를 deferred 했다.
 
-즉 [README R-9](../../README.md)(L98 PLAN 참조 — "Admin·User 가 임의 기간의 평가문을 요청")가 요구하는 **"period/personId 를 입력으로 임의 기간 평가문을 요청"** 의 end-to-end 경로가 평가 layer 에서 미충족이다. caller 는 평가 전에 `Activity[]` 를 어딘가에서 따로 만들어 넘겨야 하는데, 그 source 가 미결정 상태다.
+즉 [README R-9](../../README.md)(98 행 PLAN 참조 — "Admin·User 가 임의 기간의 평가문을 요청")가 요구하는 **"period/personId 를 입력으로 임의 기간 평가문을 요청"** 의 end-to-end 경로가 평가 layer 에서 미충족이다. caller 는 평가 전에 `Activity[]` 를 어딘가에서 따로 만들어 넘겨야 하는데, 그 source 가 미결정 상태다.
 
 핵심 사실 — **building block 은 이미 다 존재하고, 본 ADR 은 wire 와 그 경계만 결정한다**:
 
 - `collectActivities`(in-memory `Activity[]`) 와 `evaluateActivities`(`Activity[]` → `EvaluationResult[]`) 의 시그니처는 정확히 맞물린다(`Activity[]` in/out). 새 매퍼·새 알고리즘 0.
 - `collectForPerson` 은 그 안에 **`persistActivities`(Contribution FK persist)를 포함**한다 — 즉 수집 layer 가 이미 `Contribution` 을 자체 FK 로 영속화한다. 한편 평가 layer 도 `EvaluationResultPersistService` 로 `Assessment`/`Contribution` 에 write 한다. 두 write 가 같은 `Contribution` table 을 향하므로 **double-write 경계**(중복/충돌 회피)가 본 bridge 의 핵심 design 산물이다.
 - `Assessment` 는 immutable + `@@unique([personId, period, scope, periodStart])`([ADR-0006](ADR-0006-assessment-data-model.md) §1), 평가 영속화는 reset-and-recreate(ADR-0033 §3). 같은 `(personId, period)` 에 대한 concurrent bridge 호출이 이 unique 제약 위에서 어떻게 직렬화/idempotent 한지가 결정돼야 한다.
-- [README 보안 특성](../../README.md) — 평가 trigger 는 Admin(L72~74), User 는 read-only(L86). 그런데 R-9 는 "Admin·User 임의 기간 평가문 요청" 을 요구한다. 이 두 요구의 화해가 period RBAC 결정이다([Q-0031 decision](../STATE.json) 옵션 (c) 가 이를 human-approve).
+- [README 보안 특성](../../README.md) — 평가 trigger 는 Admin(72~74 행), User 는 read-only(86 행). 그런데 R-9 는 "Admin·User 임의 기간 평가문 요청" 을 요구한다. 이 두 요구의 화해가 period RBAC 결정이다([Q-0031 decision](../STATE.json) 옵션 (c) 가 이를 human-approve).
 
 따라서 본 ADR 은 **새 module 도입이 아니라**, (a) period RBAC(Admin full / User ephemeral), (b) double-write 경계, (c) 동시 호출 idempotency, (d) `EvaluationResult[]` source-of, (e) 새 dependency/credential 경계를 decide 한다. backbone 을 먼저 박제(de-risk)하고 impl chain 으로 분해한다.
 
@@ -37,8 +37,8 @@ supersedes: null
 - **[Q-0031 decision](../STATE.json)** — 사용자가 AskUserQuestion 으로 옵션 (1) "period→collection→evaluate bridge ADR + impl" 진입을 승인. 핵심 결정 (a) period RBAC = 옵션 (c) **Admin write + User ephemeral**, (b) double-write 경계 + 동시호출 idempotency 는 **architect 가 ADR 에서 PROPOSE → 사용자가 ADR PR 에서 검토**, (c) `EvaluationResult[]` source-of = bridge 가 `collectForPerson`/`collectActivities` 로 **fresh collect(in-memory)** 후 evaluate. 본 ADR 의 §Decision 1~5 가 task §Acceptance Criteria 5 결정 + impl-slice 분해와 1:1 cover.
 - **[Q-0032 decision](../STATE.json)** — Q-0031 이 PROPOSE 로 남긴 §Decision 2/3 를 사용자가 ADR PR 검토에서 확정. (a) **§Decision 2(double-write 경계, evaluation-side single-writer): as-proposed 수용**(이의 없음 — collection-side persist 우회 + 평가 영속화 일원화 확정). (b) **§Decision 3(idempotency): 옵션 (2) 경계 수정 — first-write-wins read-through 로 amend**. 핵심 근거(사용자 발화): "이 활동/평가는 사람이 적는 것이 아니라 LLM/Agent 가 적는(생성하는) 것이다" — 같은 좌표 재생성은 churn / 낭비 compute 만 발생하므로 동일 좌표 중복 호출은 `ConflictException(409)` 전파가 아니라 **기존 저장본을 read 해 반환**해야 한다. (c) **overwrite / 이미 영속화된 평가문 재평가는 DEFERRED**(별도 후속 ADR/task — §Follow-ups). 본 task T-0320 이 이 결정을 §Decision 2/3·§Consequences·§Follow-ups·frontmatter 에 박제한다.
 - **[CLAUDE.md §5](../../CLAUDE.md)** — 새 외부 dependency / DB schema migration / live credential 은 BLOCKED. 본 결정은 **새 dependency 0**(내장 Prisma + 기존 `LlmHttpGateway` mocked-LLM unit + 기존 `JwtAuthGuard`/`RolesGuard`/`@Roles`), **새 credential 0**(`DATABASE_URL` 은 [ADR-0004](ADR-0004-smoke-e2e-db-mode.md) 가 이미 CI 에 주입). **DB schema 변경도 0**(새 table·새 컬럼·새 unique 모두 미동반 — 기존 entity·unique·guard 재사용만) → 본 milestone 은 §5 BLOCKED 게이트를 어느 항목도 발화하지 않는다. live-LLM 검증만 후속 §5 credential 게이트(§Decision 5).
-- **README R-9 / PLAN P5 L98** — "Admin·User 가 임의 기간의 평가문을 요청". 본 bridge 의 직접 요구 출처. period/personId 입력으로 임의 기간 평가문을 산출하는 경로.
-- **[README 보안 특성](../../README.md)** — 평가 trigger = Admin(L72~74) / User read-only(L86). period RBAC 화해의 source(§Decision 1).
+- **README R-9 / PLAN P5 98 행** — "Admin·User 가 임의 기간의 평가문을 요청". 본 bridge 의 직접 요구 출처. period/personId 입력으로 임의 기간 평가문을 산출하는 경로.
+- **[README 보안 특성](../../README.md)** — 평가 trigger = Admin(72~74 행) / User read-only(86 행). period RBAC 화해의 source(§Decision 1).
 - **[ADR-0031](ADR-0031-collection-manual-trigger.md)** — collection manual-trigger endpoint(`POST /api/assessment-collection/collect`, Admin RBAC, Assessment row 를 endpoint 가 생성). 본 bridge 의 endpoint RBAC/orchestration 패턴 precedent.
 - **[ADR-0033](ADR-0033-evaluation-result-persistence.md)** — evaluation-side reset-and-recreate write semantics(`$transaction` delete-if-exists → create) + fill/reeval 모드 + partial-reset + P2002→ConflictException. double-write 경계의 evaluation 축 + idempotency 의 source.
 - **[ADR-0035](ADR-0035-aggregate-summary-evaluation.md)** §Follow-ups — controller/endpoint·source-of 미결 항목을 본 ADR 이 함께 확정(§Decision 4 가 Summary endpoint 의 source 도 박제).
@@ -149,7 +149,7 @@ bridge 가 `collectForPerson`(persistActivities 포함)을 그대로 호출해 p
 
 ### B. User 경로를 아예 금지(Admin only bridge) (미채택)
 
-README "평가 trigger = Admin / User read-only" 를 문자 그대로 해석해 bridge 를 Admin 전용으로 두고 User 의 평가문 요청을 막는 안. 미채택 — R-9(PLAN L98)가 "Admin·User 가 임의 기간의 평가문을 요청" 을 명시 요구하므로 User 금지는 R-9 미충족이다. [Q-0031](../STATE.json) 이 옵션 (c) ephemeral 화해를 human-approve 했다 — ephemeral(DB write 0) 경로가 read-only 모델을 보존하면서 R-9 를 충족하므로 Admin-only 보다 우월(요구 충족 + 보안 보존 동시).
+README "평가 trigger = Admin / User read-only" 를 문자 그대로 해석해 bridge 를 Admin 전용으로 두고 User 의 평가문 요청을 막는 안. 미채택 — R-9(PLAN 98 행)가 "Admin·User 가 임의 기간의 평가문을 요청" 을 명시 요구하므로 User 금지는 R-9 미충족이다. [Q-0031](../STATE.json) 이 옵션 (c) ephemeral 화해를 human-approve 했다 — ephemeral(DB write 0) 경로가 read-only 모델을 보존하면서 R-9 를 충족하므로 Admin-only 보다 우월(요구 충족 + 보안 보존 동시).
 
 ### C. User 경로도 영속(persist)하되 별도 User-owned scope 로 격리 (미채택)
 
@@ -176,7 +176,7 @@ bridge 가 수집을 새로 하지 않고 이미 영속화된 `Contribution[]` �
 - [src/assessment-evaluation/evaluation-result-persist.service.ts](../../src/assessment-evaluation/evaluation-result-persist.service.ts) — `persist`/`PersistMode`(Admin 영속화 단일 경로).
 - [src/assessment-evaluation/assessment-evaluation.controller.ts](../../src/assessment-evaluation/assessment-evaluation.controller.ts) — 기존 POST /evaluate(source-of 박제 위치 — bridge 가 상위 wire 추가).
 - [README.md](../../README.md) R-9(임의 기간 평가문 요청) / 보안 특성(평가 trigger=Admin / User read-only) — 외력.
-- [docs/PLAN.md](../PLAN.md) P5 L98 — R-9 임의 기간 평가문 요청 bullet.
+- [docs/PLAN.md](../PLAN.md) P5 98 행 — R-9 임의 기간 평가문 요청 bullet.
 - [Q-0031](../STATE.json) — 본 bridge 진입 승인(옵션 1) + RBAC(c)/double-write/idempotency/source-of 결정 + §2/§3 PROPOSE→ADR PR 검토 지정.
 - [CLAUDE.md §3.1 / §5 / §12](../../CLAUDE.md) — commitMode / BLOCKED 게이트 / 언어 정책.
 
