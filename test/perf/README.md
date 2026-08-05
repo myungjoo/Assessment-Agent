@@ -527,8 +527,19 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   **membership 수에 비례해 query 가 늘어나므로**(service 주석의 "N+1 query 의 P0 acceptable
   패턴"), slice 1 의 flat 단일 SELECT 와 달리 이 경로의 REQ-048 충족을 처음 증거화한다.
   **측정만 하며 N+1 최적화는 하지 않는다**(production code 변경 0, mock 짝은 불변).
+- **slice 3** — `group-persons-scale-realdb.perf-spec.ts` (T-1504) — slice 2 와 **같은 route**
+  (`GET /api/groups/:id/persons`)를 **다른 규모** 로 측정한다. slice 2 가 `GroupController` 조회
+  **route 폭** 을 고정된 소규모 seed 로 훑는 축이라면, 본 slice 는 단일 route 의 **규모 축**
+  (membership 5건 vs 60건)이다. `findPersonsByGroupId` 는 membership 수 = 요청당 query 수이므로,
+  규모가 커져도 REQ-048 임계(p95 < 3000ms)가 유지되는지를 처음 증거화한다. 두 표본의 baseline 한
+  줄은 **관찰 기록** 일 뿐 **대소 관계(`large.p95 > small.p95`)를 assert 하지 않는다** — latency 는
+  wall-clock 이라 비결정적이라 대소 assert 는 flaky 하기 때문이다. 여기서의 "대규모" 는 단일
+  route 의 **상대 비교용 표본** 이며 **REQ-047 의 실 scale 부하 검증이 아니다**(100~200명 /
+  50~100 repo / 배치 부하 축은 미착수). 여기서도 **측정만 하며 N+1 최적화는 하지 않는다**.
 - **잔여** — 실측 범위는 아직 endpoint 소수뿐이고 나머지 read perf-spec 은 여전히 service mock
-  이다. 남은 endpoint 의 실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
+  이다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
+  뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
+  실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
   `postgresql://postgres:postgres@localhost:5432/assessment_test?schema=public`) export +
   `pnpm prisma migrate deploy` 후 `pnpm test:perf`. CI 는 `perf test` step 이
