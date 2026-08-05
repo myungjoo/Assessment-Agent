@@ -14,7 +14,7 @@
 
 본 doc 의 기반:
 
-- [docs/PLAN.md](../PLAN.md) Phase P3 (L47–66) + Phase P4 (L70–80) — phase boundary 의 1 차 source.
+- [docs/PLAN.md](../PLAN.md) Phase P3 (47~66 행) + Phase P4 (70~80 행) — phase boundary 의 1 차 source.
 - [docs/architecture/p3-implementation-plan.md](p3-implementation-plan.md) §6 P3 → P4 전이 조건 — entity 5/11 / module 2/5 / ADR 1/4 / test-quality 4/4 progress 박제 source.
 - [docs/architecture/data-model.md](data-model.md) — 11 entity inventory source (박제 5 + 미박제 6 = 11).
 - [docs/architecture/modules.md](modules.md) — 현행 정본 표 row 기준 **12 NestJS module** 의 source. P3 scope 5 module 중 2 박제 + 3 미박제 (이 tally 는 T-0062 시점 좌표계 — §2 이하 진척 수치와 함께 역사 박제로 보존, [REQ-COVERAGE-AUDIT § 12.29](../use-cases/REQ-COVERAGE-AUDIT.md)).
@@ -77,12 +77,12 @@
 
 ### 2.4 test-quality — progress 4/4 (확장 closure, 9-cell matrix fully closed)
 
-P3 test-quality 4 bullet (PLAN.md L63–66) 의 closure 박제:
+P3 test-quality 4 bullet (PLAN.md 63~66 행) 의 closure 박제:
 
-- **L63 unit branch coverage 100% closure** — T-0042 (PersonService.update P2002 + patch.email undefined branch unit, 96.66% → 100% branch coverage).
-- **L64 smoke domain endpoint 확장 closure** — T-0043 (persons.smoke 5 endpoint mock-DB) + T-0053 (persons.smoke real PostgreSQL cutover, 888a960 PR-49) + T-0059 (parts.smoke real PostgreSQL, 3f71c64) + T-0061 (groups.smoke real PostgreSQL, 2238e51).
-- **L65 e2e domain endpoint 확장 closure** — T-0044 (persons.e2e mock-DB) + T-0054 (persons.e2e real PostgreSQL cutover, 2d52128 PR-50) + T-0060 (parts.e2e real PostgreSQL, acef3f4) + T-0062 (groups.e2e real PostgreSQL, 3398ad9).
-- **L66 smoke/e2e real PostgreSQL CI 전환 closure** — ADR-0004 (T-0051) + CI Postgres services (T-0052 3983dca) + persons/parts/groups domain × smoke/e2e 6-cell real-DB cutover (T-0053/T-0054/T-0059/T-0060/T-0061/T-0062).
+- **63 행 unit branch coverage 100% closure** — T-0042 (PersonService.update P2002 + patch.email undefined branch unit, 96.66% → 100% branch coverage).
+- **64 행 smoke domain endpoint 확장 closure** — T-0043 (persons.smoke 5 endpoint mock-DB) + T-0053 (persons.smoke real PostgreSQL cutover, 888a960 PR-49) + T-0059 (parts.smoke real PostgreSQL, 3f71c64) + T-0061 (groups.smoke real PostgreSQL, 2238e51).
+- **65 행 e2e domain endpoint 확장 closure** — T-0044 (persons.e2e mock-DB) + T-0054 (persons.e2e real PostgreSQL cutover, 2d52128 PR-50) + T-0060 (parts.e2e real PostgreSQL, acef3f4) + T-0062 (groups.e2e real PostgreSQL, 3398ad9).
+- **66 행 smoke/e2e real PostgreSQL CI 전환 closure** — ADR-0004 (T-0051) + CI Postgres services (T-0052 3983dca) + persons/parts/groups domain × smoke/e2e 6-cell real-DB cutover (T-0053/T-0054/T-0059/T-0060/T-0061/T-0062).
 
 **9-cell matrix fully closed milestone** — backbone 3 도메인 (persons / parts / groups) × 3 layer (unit / smoke / e2e) = 9 cell 의 R-112/R-113 cover + real PostgreSQL CI infra 위에서 first-class 동작. **mock 시대 종결**의 모든 도메인 cover 완성 — session #19 turn 3 시점 T-0062 머지로 박제.
 
@@ -129,7 +129,7 @@ P3 진행 중 service/controller-with-R-112-spec backbone 의 systematic underes
 
 **test-quality 9-cell matrix 의 retroactive 확장 박제**: Group + Part 도메인 의 CRUD-U layer 추가로 unit / integration spec 의 R-112 4 카테고리 cover 가 PATCH endpoint 까지 확장 박제. **단** smoke / e2e 의 PATCH endpoint 박제는 별도 후속 task (T-0075 Follow-ups 의 "parts.e2e PATCH endpoint" + "groups.e2e PATCH endpoint" 2 후보). 9-cell matrix 자체의 박제 marker (mock 시대 종결) 는 T-0062 closure 시점 freeze 유지 — 본 refresh 는 spec layer 안의 R-112 cover 확장만 박제.
 
-**inline-amend × 0.4 sub-multiplier dogfood**: 본 task 는 T-0070 14 회차 milestone refinement + T-0073 inline-amend × 0.4 1 회차 박제 (estimate-model.md §3.2.2) 후 inline-amend dogfood 3 회차. T-0076 본 task 자체가 2 파일 envelope (transition doc + PLAN.md L70-74) 의 ~120 LOC estimate — inline-amend × 0.4 sub-multiplier 의 추가 dogfood 데이터 1 회차로 누적.
+**inline-amend × 0.4 sub-multiplier dogfood**: 본 task 는 T-0070 14 회차 milestone refinement + T-0073 inline-amend × 0.4 1 회차 박제 (estimate-model.md §3.2.2) 후 inline-amend dogfood 3 회차. T-0076 본 task 자체가 2 파일 envelope (transition doc + PLAN.md 70~74 행) 의 ~120 LOC estimate — inline-amend × 0.4 sub-multiplier 의 추가 dogfood 데이터 1 회차로 누적.
 
 ### 2.7 T-0125 closure 시점 refresh (controller RBAC chain 3/3 + @CurrentUser decorator)
 
@@ -157,7 +157,7 @@ ACCEPTED 8 개 — ADR-0001 (stack) / ADR-0002 (db) / ADR-0003 (deployment) / AD
 - **T-0121 / T-0122 / T-0123** — Assessment / Contribution / Summary controller 에 `JwtAuthGuard` + `RolesGuard` + `@Roles` 적용. 3 controller × 4 endpoint = **12 endpoint 에 RBAC enforce 박제** (`src/user/assessment.controller.ts` / `contribution.controller.ts` / `summary.controller.ts`).
 - **T-0120 + T-0124** — api.md §5 doc-sync (RBAC enforced 박제 15+ row).
 - **T-0125** — `@CurrentUser()` decorator 추출 (PR-126 머지 7b2e1f3) — controller 의 인증 사용자 주입 cross-cutting 패턴 박제.
-- Auth/RBAC bullet (PLAN.md L59 — SuperAdmin/Admin/User + R-84) 의 **enforce 완료 박제** — AuthModule 의 JWT credential + guard chain 위에서 평가 도메인 HTTP layer 가 RBAC 보호됨.
+- Auth/RBAC bullet (PLAN.md 59 행 — SuperAdmin/Admin/User + R-84) 의 **enforce 완료 박제** — AuthModule 의 JWT credential + guard chain 위에서 평가 도메인 HTTP layer 가 RBAC 보호됨.
 
 **T-0125 closure 시점 잔여 estimate refresh**: §4.1 의 "잔여 P3 backbone task estimate ~5~6 task" 박제 (T-0076 session #22 freeze) 는 **수정하지 않음** — 본 §2.7 은 진척만 박제. T-0125 closure 시점 잔여 estimate refresh: AuthModule 박제 완료 + ADR-0008 ACCEPTED 후 잔여 = cross-cutting R-59 schema-level enforcement 강화 + AssessmentModule 추출 (선택) = 약 2~3 task 추가 (Group/Part/User read-only RBAC 확장 + LlmModule scaffold 별도).
 
@@ -185,7 +185,7 @@ ACCEPTED 8 개 — ADR-0001 (stack) / ADR-0002 (db) / ADR-0003 (deployment) / AD
 
 ### 옵션 (b) strict-completion
 
-**정의**: PLAN.md L51–66 의 13 bullet 전부 + entity 11/11 + module 5/5 + ADR 4/4 박제 후 P4 진입.
+**정의**: PLAN.md 51~66 행 의 13 bullet 전부 + entity 11/11 + module 5/5 + ADR 4/4 박제 후 P4 진입.
 
 **장점**:
 
@@ -308,7 +308,7 @@ P3 잔여 backbone task 0 — 즉시 P4 진입, 잔여 work 가 P4 안에서 병
 
 ## 6. References
 
-- [docs/PLAN.md](../PLAN.md) Phase P3 (L47–66) + Phase P4 (L70–80) — phase boundary 의 1 차 source.
+- [docs/PLAN.md](../PLAN.md) Phase P3 (47~66 행) + Phase P4 (70~80 행) — phase boundary 의 1 차 source.
 - [docs/architecture/p3-implementation-plan.md](p3-implementation-plan.md) §6 P3 → P4 전이 조건 — entity 5/11 / module 2/5 / ADR 1/4 / test-quality 4/4 progress 박제 source.
 - [docs/architecture/data-model.md](data-model.md) — 11 entity inventory source.
 - [docs/architecture/modules.md](modules.md) — module 어휘의 정본 source (현행 정본 표 row **12**; 본문 §2 의 `9` 좌표는 T-0062 시점 박제라 보존 — [REQ-COVERAGE-AUDIT § 12.29](../use-cases/REQ-COVERAGE-AUDIT.md)).
