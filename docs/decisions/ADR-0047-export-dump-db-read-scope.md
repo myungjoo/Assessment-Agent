@@ -135,7 +135,7 @@ supersedes: null
 - [src/export/export-dump.ts](../../src/export/export-dump.ts) — `ExportDump` envelope + `ExportRecord` (materialization 입력 contract)
 - [src/export/export-scope-select.ts](../../src/export/export-scope-select.ts) — `ExportEntity` 5 union + `ExportRecord` 타입 (full-record 확장 대상)
 - [prisma/schema.prisma](../../prisma/schema.prisma) — 5 export entity 컬럼 정의 (특히 `LlmProviderConfig.apiKey` secret deny source)
-- [docs/architecture/data-model.md](../architecture/data-model.md) — L171 artifact 저장소 deferred (ADR-0046 이 닫은 부분 + 본 ADR 이 닫는 DB-read 부분)
+- [docs/architecture/data-model.md](../architecture/data-model.md) — 171 행 artifact 저장소 deferred (ADR-0046 이 닫은 부분 + 본 ADR 이 닫는 DB-read 부분)
 - [docs/STATE.json](../STATE.json) — Q-0043 decision (옵션1 — 본 ADR 의 외력)
 - [README.md](../../README.md) — REQ-030 (Export) / REQ-032 (raw 미저장)
 - [CLAUDE.md §3.1 / §5 / §12](../../CLAUDE.md) — commitMode / BLOCKED 게이트 / 언어 정책
