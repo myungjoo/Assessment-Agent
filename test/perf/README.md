@@ -547,7 +547,15 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   필터 + 다중 row 조회라 slice 1 의 flat 목록·slice 2·3 의 N+1 loop 와 구조가 다르다. `truncateAll`
   명단에 `"User"` 가 있어 `afterEach` 는 truncate 후 **원본 id 그대로** actor 를 재-seed 한다
   (`reseedAuthenticatedActors`). 여기서도 **측정만 하며 production code 와 mock 짝은 불변** 이다.
-- **잔여** — 실측 범위는 endpoint 3 개(조회 route 6)뿐이고 나머지 read perf-spec 은 여전히 service mock
+- **slice 5** — `contribution-read-realdb.perf-spec.ts` (T-1508) — 실측 대상을 **네 번째 endpoint
+  도메인** 인 `ContributionController` 로 넓혀 조회 2 route(`GET /api/contributions?assessmentId=` ·
+  `GET /api/contributions/:id`)를 측정한다. slice 4 와의 차이는 **조회 구조** 다 — ① **부모→자식 FK
+  fan-out**: `findByAssessment` 가 부모(`Assessment`) id 로 자식 다중 row 를 `createdAt` 오름차순으로
+  긁고, 그 필터는 명시 `@@index` 가 아니라 **`@@unique([assessmentId, sourceRef])` composite unique
+  index 의 prefix** 를 탄다. ② **3-level FK chain seed**(`Person → Assessment → Contribution`, 자식은
+  row 마다 다른 `sourceRef` + 명시 `createdAt`). slice 4 처럼 인증·RBAC guard 를 실 JWT 로 통과하며,
+  여기서도 **측정만 하며 production code 와 mock 짝은 불변** 이다.
+- **잔여** — 실측 범위는 endpoint 4 개(조회 route 8)뿐이고 나머지 read perf-spec 은 여전히 service mock
   이다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
