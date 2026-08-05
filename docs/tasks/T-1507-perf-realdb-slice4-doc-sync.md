@@ -2,7 +2,8 @@
 id: T-1507
 title: 실 DB round-trip slice 4(T-1506) 인증 경유 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-05T20:41:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -137,3 +138,18 @@ slice 4 의 질적 차이는 개수 증가(endpoint 2 → 3)에 더해 **새 축
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-05)
+
+`docs/PLAN.md` `142 행` · `docs/ops/load-resilience-test-plan.md` `§ 5` item 5 ·
+`docs/requirements.md` REQ-048 3 지점을 slice 4 (T-1506, main `861add36`) 시점으로 동기화했다.
+direct commit `378f2739`, 3 파일 +13/-5, main CI run success. AC 10/10 ok.
+
+- 계수 함정 검산: read glob 이 32 → 33 이지만 실 DB read 가 2 → 3 이라 **mock 잔존 30 개 불변** —
+  세 문서 모두에 그 이유 구절을 병기했다.
+- 잔여 ① 서술을 실측 endpoint 2 개 → **3 개 (조회 route 6)** 로 갱신하고 인증·RBAC guard 실 통과 축을
+  박제했다.
+- 완료 선언 0: PLAN `140 행` checkbox `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 item 5 미완 결론 유지
+  (실 scale 부하 · baseline 확정 · web 렌더 측정 축이 살아 있음).
+- 후속은 planner 가 T-1508 (pr-mode, 실 DB perf slice 5 — 인증 경유 `GET /api/contributions`
+  부모→자식 FK fan-out 조회 p95 실측) 로 큐잉했다.
