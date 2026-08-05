@@ -27,13 +27,13 @@ augments: [ADR-0029, ADR-0033]
 >
 > ---
 >
-> *(이하 원문 — 미채택 설계안. 당시 main 구현 미인지 상태에서 작성됨.)* 본 ADR 은 P5 evaluation pipeline 의 평가 metric 정책 중 [REQ-022](../requirements.md) ([README.md](../../README.md) L41 / R-41) "문서 작성 중 습관적으로 update 를 하여 중간 저장을 하여 update 횟수만 늘어나는 경우에 대해 advantage/disadvantage 둘 다 있어서는 안된다" 를 박제하려 했다. 본 ADR 은 **평가 metric layer** 의 점수 산출 정책만 design-level 로 결정하며, impl chain (어느 helper / DTO / service 가 합산 logic 을 가지는가) 은 별도 후속 task 로 분해한다. [ADR-0029](ADR-0029-assessment-collection-orchestrator.md) (collection-layer dedup) 와 [ADR-0033](ADR-0033-evaluation-result-persistence.md) (Assessment persist 키) 를 보강(augment)한다 — 둘 다 수집·저장 layer 책임이고 본 ADR 은 직교한 metric layer 책임이다.
+> *(이하 원문 — 미채택 설계안. 당시 main 구현 미인지 상태에서 작성됨.)* 본 ADR 은 P5 evaluation pipeline 의 평가 metric 정책 중 [REQ-022](../requirements.md) ([README.md](../../README.md) 41 행 / R-41) "문서 작성 중 습관적으로 update 를 하여 중간 저장을 하여 update 횟수만 늘어나는 경우에 대해 advantage/disadvantage 둘 다 있어서는 안된다" 를 박제하려 했다. 본 ADR 은 **평가 metric layer** 의 점수 산출 정책만 design-level 로 결정하며, impl chain (어느 helper / DTO / service 가 합산 logic 을 가지는가) 은 별도 후속 task 로 분해한다. [ADR-0029](ADR-0029-assessment-collection-orchestrator.md) (collection-layer dedup) 와 [ADR-0033](ADR-0033-evaluation-result-persistence.md) (Assessment persist 키) 를 보강(augment)한다 — 둘 다 수집·저장 layer 책임이고 본 ADR 은 직교한 metric layer 책임이다.
 
 ## Context
 
-### 트리거 — README L41 / REQ-022 가 P5 PLANNED 로만 남아 있다
+### 트리거 — README 41 행 / REQ-022 가 P5 PLANNED 로만 남아 있다
 
-[README.md](../../README.md) L41 은 "문서 작성 중 습관적으로 update 를 하여 중간 저장을 하여 update 횟수만 늘어나는 경우에 대해 advantage/disadvantage 둘 다 있어서는 안된다" 를 요구한다 (R-41). [requirements.md](../requirements.md) L41 의 [REQ-022](../requirements.md) ("문서 update 횟수 중립화 — advantage/disadvantage 둘 다 없음", FR / P5 / unit) 가 이를 표로 매핑하나 **PLANNED** 상태이며, 현재 어느 ADR 도 본 정책을 박제하지 않았다. Q-0045 옵션1 run-side 사슬(T-0556~T-0571)이 닫혀 chain 이 비었고 standing 게이트가 모두 외부 의존·미승인 상태이므로, cron 자율 진행이 가능한 forward-looking P5 metric 정책 ADR 을 우선 박제한다.
+[README.md](../../README.md) 41 행 은 "문서 작성 중 습관적으로 update 를 하여 중간 저장을 하여 update 횟수만 늘어나는 경우에 대해 advantage/disadvantage 둘 다 있어서는 안된다" 를 요구한다 (R-41). [requirements.md](../requirements.md) 41 행 의 [REQ-022](../requirements.md) ("문서 update 횟수 중립화 — advantage/disadvantage 둘 다 없음", FR / P5 / unit) 가 이를 표로 매핑하나 **PLANNED** 상태이며, 현재 어느 ADR 도 본 정책을 박제하지 않았다. Q-0045 옵션1 run-side 사슬(T-0556~T-0571)이 닫혀 chain 이 비었고 standing 게이트가 모두 외부 의존·미승인 상태이므로, cron 자율 진행이 가능한 forward-looking P5 metric 정책 ADR 을 우선 박제한다.
 
 ### Q (본 ADR 이 답하는 질문)
 
@@ -45,7 +45,7 @@ augments: [ADR-0029, ADR-0033]
 
 ### 인접 abusing 방지 set (REQ-012 / REQ-021) 과 본 REQ-022 의 위치 차이
 
-[REQ-012](../requirements.md) (L31, 코드 abusing — commit/PR 숫자만 늘리기) 와 [REQ-021](../requirements.md) (L40, 문서 abusing — 의미 없는 기여의 단순 반복) 은 **악의(abuse) detect** 책임이다. 본 [REQ-022](../requirements.md) 는 그 부분집합이 아니라 **더 넓은 surface** 다 — 악의 없는 정상적 작업 습관(중간 저장을 위한 빈번한 save)까지 cover 한다. 개발자가 abuse 의도 없이 단지 작업 안전을 위해 자주 저장해도 그 update 횟수가 점수에 advantage / disadvantage 어느 쪽으로도 작용해선 안 된다. 따라서 REQ-022 는 abusing 방지 set(REQ-012/021)의 부분집합이 아니라, 그것과 부분 overlap 하되 더 넓은 "정상 습관 중립화" surface 를 갖는다(§Decision 3 가 경계를 명시).
+[REQ-012](../requirements.md) (31 행, 코드 abusing — commit/PR 숫자만 늘리기) 와 [REQ-021](../requirements.md) (40 행, 문서 abusing — 의미 없는 기여의 단순 반복) 은 **악의(abuse) detect** 책임이다. 본 [REQ-022](../requirements.md) 는 그 부분집합이 아니라 **더 넓은 surface** 다 — 악의 없는 정상적 작업 습관(중간 저장을 위한 빈번한 save)까지 cover 한다. 개발자가 abuse 의도 없이 단지 작업 안전을 위해 자주 저장해도 그 update 횟수가 점수에 advantage / disadvantage 어느 쪽으로도 작용해선 안 된다. 따라서 REQ-022 는 abusing 방지 set(REQ-012/021)의 부분집합이 아니라, 그것과 부분 overlap 하되 더 넓은 "정상 습관 중립화" surface 를 갖는다(§Decision 3 가 경계를 명시).
 
 ## Decision
 
@@ -84,7 +84,7 @@ augments: [ADR-0029, ADR-0033]
 
 ### A. 점수 산출 단계에서 update 횟수 축 제거 — 동일 author + 동일 document N 회 → 1 event 합산 (채택)
 
-본 ADR 의 채택안(§Decision 1). update 횟수가 점수 함수의 인자로 흐르지 않으므로 advantage(가산)·disadvantage(감산) 양쪽이 구조적으로 동시 차단된다. trade-off: collapse 시 `(author, documentKey)` join logic 의 정합 비용(§Consequences negative)이 발생하나, R-41 의 "둘 다 없음" 을 만족하는 가장 직접적이고 검증 가능한 해법이다. 합산된 1 event 의 평가는 최종 content delta 기준이라 "실제로 무엇을 기여했는가" 의 질 평가(README L36~39)와 정합한다.
+본 ADR 의 채택안(§Decision 1). update 횟수가 점수 함수의 인자로 흐르지 않으므로 advantage(가산)·disadvantage(감산) 양쪽이 구조적으로 동시 차단된다. trade-off: collapse 시 `(author, documentKey)` join logic 의 정합 비용(§Consequences negative)이 발생하나, R-41 의 "둘 다 없음" 을 만족하는 가장 직접적이고 검증 가능한 해법이다. 합산된 1 event 의 평가는 최종 content delta 기준이라 "실제로 무엇을 기여했는가" 의 질 평가(README 36~39 행)와 정합한다.
 
 ### B. update 횟수 = positive metric — 횟수가 많을수록 가산 (현 default 가정, 명시 기각)
 
@@ -126,8 +126,8 @@ update 간 시간 간격이 임계(예: 10 분) 미만이면 "중간 저장" 으
 
 ## References
 
-- [README.md](../../README.md) L36~41 — 평가 목표 (R-40 abusing 방지 / R-41 update 횟수 중립화 원 표현)
-- [docs/requirements.md](../requirements.md) L31 / 40 / 41 — REQ-012 (코드 abusing) / REQ-021 (문서 abusing) / REQ-022 (update 횟수 중립화) 매핑
+- [README.md](../../README.md) 36~41 행 — 평가 목표 (R-40 abusing 방지 / R-41 update 횟수 중립화 원 표현)
+- [docs/requirements.md](../requirements.md) 31 / 40 / 41 행 — REQ-012 (코드 abusing) / REQ-021 (문서 abusing) / REQ-022 (update 횟수 중립화) 매핑
 - [docs/PLAN.md](../PLAN.md) Phase P5 bullet 102 (R-41 인용) — 본 ADR 의 PLAN surface
 - [docs/decisions/ADR-0029-assessment-collection-orchestrator.md](ADR-0029-assessment-collection-orchestrator.md) line 27 / 64 — collection-layer dedup (본 ADR 과 직교 단언 근거)
 - [docs/decisions/ADR-0033-evaluation-result-persistence.md](ADR-0033-evaluation-result-persistence.md) — Assessment persist 키 (영속 시점 vs 점수 산출 시점 직교)

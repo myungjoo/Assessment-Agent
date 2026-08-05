@@ -15,9 +15,9 @@ supersedes: null
 
 P4 의 GitHub / Confluence adapter 는 권한 거부(401 / 403 / 권한 비가시 404) 를 만나면 `PermissionDeniedEvent` 를 `PermissionDeniedEmitter` port 로 흘려보낸다 ([ADR-0016 Decision §4](ADR-0016-github-adapter-http-transport-contract.md) / [ADR-0018 Decision §4](ADR-0018-confluence-adapter-http-transport-contract.md) 의 4xx → PermissionDeniedEvent emit 경계). 그러나 그 이벤트를 **영속화하는 실 entity 는 아직 없다**:
 
-- GitHub 측 ([src/github/github-adapter.service.ts](../../src/github/github-adapter.service.ts) L198~225) — `PermissionDeniedEvent { host, path, status }` (configured host / REST path / HTTP status). token 평문 절대 미포함([CLAUDE.md §9](../../CLAUDE.md)).
-- Confluence 측 ([src/confluence/confluence-adapter.service.ts](../../src/confluence/confluence-adapter.service.ts) L215~230) — `PermissionDeniedEvent { baseUrl, path, status }` (풀 REST API base URL / REST path / HTTP status). GitHub 와 **동형이되 `host` 대신 `baseUrl`** 로 식별(Cloud/Server 비대칭 정합, [ADR-0018 Decision §2](ADR-0018-confluence-adapter-http-transport-contract.md)). adapter 간 직접 import 의존을 피해 Confluence 전용 신규 interface 로 자기충족.
-- 두 adapter 모두 default 가 `NO_OP_PERMISSION_DENIED_EMITTER` — 현재는 emit 을 **부수효과 없이 swallow** 하고 도메인 error throw 흐름만 유지한다. 영속화 record 는 아직 deferred 상태로, [prisma/schema.prisma](../../prisma/schema.prisma) 헤더(L39~41)가 `PermissionDeniedRecord` 를 명시적으로 후속 task 의 Out of Scope 로 표기했다.
+- GitHub 측 ([src/github/github-adapter.service.ts](../../src/github/github-adapter.service.ts) 198~225 행) — `PermissionDeniedEvent { host, path, status }` (configured host / REST path / HTTP status). token 평문 절대 미포함([CLAUDE.md §9](../../CLAUDE.md)).
+- Confluence 측 ([src/confluence/confluence-adapter.service.ts](../../src/confluence/confluence-adapter.service.ts) 215~230 행) — `PermissionDeniedEvent { baseUrl, path, status }` (풀 REST API base URL / REST path / HTTP status). GitHub 와 **동형이되 `host` 대신 `baseUrl`** 로 식별(Cloud/Server 비대칭 정합, [ADR-0018 Decision §2](ADR-0018-confluence-adapter-http-transport-contract.md)). adapter 간 직접 import 의존을 피해 Confluence 전용 신규 interface 로 자기충족.
+- 두 adapter 모두 default 가 `NO_OP_PERMISSION_DENIED_EMITTER` — 현재는 emit 을 **부수효과 없이 swallow** 하고 도메인 error throw 흐름만 유지한다. 영속화 record 는 아직 deferred 상태로, [prisma/schema.prisma](../../prisma/schema.prisma) 헤더(39~41 행)가 `PermissionDeniedRecord` 를 명시적으로 후속 task 의 Out of Scope 로 표기했다.
 
 사용자가 [docs/STATE.json](../STATE.json) `humanQuestions[Q-0019]`(session #51)에서 **PermissionDeniedRecord DB migration 을 승인**했다 — [CLAUDE.md §5](../../CLAUDE.md) DB schema 게이트 OPEN, 외부 credential 0(CI 실 PostgreSQL 이미 존재, [ADR-0004](ADR-0004-smoke-e2e-db-mode.md)). 그 decision 은 (i) ADR-first 선행 박제, (ii) [ADR-0004](ADR-0004-smoke-e2e-db-mode.md) migrate-deploy 패턴 준수, (iii) 후속 구현 task 의 R-112 4종 + negative cases 충분 cover + regression test 를 제약으로 명시했다.
 
@@ -25,10 +25,10 @@ milestone-3 이 [ADR-0021](ADR-0021-github-confluence-live-integration-test-cont
 
 ### REQ 외력
 
-- **REQ-044** ([README.md](../../README.md) L19~22, L33) — instance / SPACE 별 권한 분리 + 권한 부족 가시화. 본 ADR 의 record 가 그 "가시화" 의 영속화 측(audit trail)을 박제한다. adapter 의 in-memory emit 위상([ADR-0016 §4](ADR-0016-github-adapter-http-transport-contract.md) / [ADR-0018 §4](ADR-0018-confluence-adapter-http-transport-contract.md))은 휘발성이라 운영자가 "어느 instance 에서 언제 권한이 거부됐는가" 를 사후 조회할 수 없다 — record 가 그 audit 조회를 가능케 한다.
-- **REQ-016** ([README.md](../../README.md) L33) — 권한 부족의 user/admin audience 분리. 본 record 가 그 audience 분리 view 의 data source 다(view-time 분리, 본 ADR 은 entity 만).
+- **REQ-044** ([README.md](../../README.md) 19~22, 33 행) — instance / SPACE 별 권한 분리 + 권한 부족 가시화. 본 ADR 의 record 가 그 "가시화" 의 영속화 측(audit trail)을 박제한다. adapter 의 in-memory emit 위상([ADR-0016 §4](ADR-0016-github-adapter-http-transport-contract.md) / [ADR-0018 §4](ADR-0018-confluence-adapter-http-transport-contract.md))은 휘발성이라 운영자가 "어느 instance 에서 언제 권한이 거부됐는가" 를 사후 조회할 수 없다 — record 가 그 audit 조회를 가능케 한다.
+- **REQ-016** ([README.md](../../README.md) 33 행) — 권한 부족의 user/admin audience 분리. 본 record 가 그 audience 분리 view 의 data source 다(view-time 분리, 본 ADR 은 entity 만).
 - **REQ-059 / [ADR-0006](ADR-0006-assessment-data-model.md)** — raw 미저장 invariant. record 는 권한 거부의 **메타**(host / path / status / 시각)만 보유하고 응답 본문 / token 평문은 저장하지 않는다 — Assessment / Contribution 의 raw-transient 정합.
-- **REQ-029** ([README.md](../../README.md) L56) — non-volatile 저장. record 는 [ADR-0004](ADR-0004-smoke-e2e-db-mode.md) 의 실 PostgreSQL durability path 위에 영속화된다.
+- **REQ-029** ([README.md](../../README.md) 56 행) — non-volatile 저장. record 는 [ADR-0004](ADR-0004-smoke-e2e-db-mode.md) 의 실 PostgreSQL durability path 위에 영속화된다.
 
 ### prisma 컨벤션 (본 ADR 이 따를 source)
 
@@ -68,7 +68,7 @@ milestone-3 이 [ADR-0021](ADR-0021-github-confluence-live-integration-test-cont
 
 **`updatedAt` 미정의 (immutable)** — record 는 한 번 기록되면 갱신되지 않는 audit row 다(Assessment / Contribution / Summary 의 immutable 패턴 정합, [ADR-0012](ADR-0012-cross-cutting-field-policy.md) mutable-only `updatedAt`). 정정이 필요하면 새 row.
 
-**token 평문·secret 미포함 invariant ([§9](../../CLAUDE.md)) 를 schema 차원에서 박제** — record schema 는 token / Authorization header / 응답 본문을 담는 컬럼을 **정의하지 않는다**. 이벤트가 이미 식별 메타(host / path / status)만 싣고 token 평문을 배제하므로([github-adapter.service.ts](../../src/github/github-adapter.service.ts) L199~201 주석 invariant), record 도 그 invariant 를 schema 차원(컬럼 부재)으로 보장한다 — schema 에 자리가 없으면 저장 자체가 불가([ADR-0006](ADR-0006-assessment-data-model.md) raw 미저장 schema-level 강제와 동형 기법).
+**token 평문·secret 미포함 invariant ([§9](../../CLAUDE.md)) 를 schema 차원에서 박제** — record schema 는 token / Authorization header / 응답 본문을 담는 컬럼을 **정의하지 않는다**. 이벤트가 이미 식별 메타(host / path / status)만 싣고 token 평문을 배제하므로([github-adapter.service.ts](../../src/github/github-adapter.service.ts) 199~201 행 주석 invariant), record 도 그 invariant 를 schema 차원(컬럼 부재)으로 보장한다 — schema 에 자리가 없으면 저장 자체가 불가([ADR-0006](ADR-0006-assessment-data-model.md) raw 미저장 schema-level 강제와 동형 기법).
 
 ### Decision §2 — 무엇을 / 언제 영속화
 
@@ -104,10 +104,10 @@ milestone-3 이 [ADR-0021](ADR-0021-github-confluence-live-integration-test-cont
 ### Decision §6 — adapter 이벤트 → 영속화 흐름
 
 - **결정: event-emitter 패턴 (`PermissionDeniedEmitter` port 를 영속화 어댑터로 구현)** — `PermissionDeniedEvent` 가 영속화로 흐르는 경로는, adapter 가 service 를 **직접 호출** 하는 대신 **기존 `PermissionDeniedEmitter` port 의 실 구현체** 로 영속화를 얹는다. 즉 후속 task 가 `NO_OP_PERMISSION_DENIED_EMITTER` 를 **영속화 emitter**(예: `PrismaPermissionDeniedEmitter` — `emit(event)` → repository 호출 → 1 row insert)로 교체하고, GithubModule / ConfluenceModule wiring 에서 그 emitter 를 주입한다. 사유:
-  1. **adapter 결합도 0 보존** — adapter 는 이미 `PermissionDeniedEmitter` port 만 의존하고 영속화 구현을 모른다([github-adapter.service.ts](../../src/github/github-adapter.service.ts) L211~217 port + L229~232 `@Optional` 주입 주석). emitter 패턴은 이 port 를 그대로 재사용해 **adapter 코드 변경 0** 으로 영속화를 얹는다 — service 직접 호출은 adapter 에 repository / Prisma 의존을 새로 끌어들여 adapter leaf 경계([ADR-0016 §6](ADR-0016-github-adapter-http-transport-contract.md) adapter leaf)를 깬다.
+  1. **adapter 결합도 0 보존** — adapter 는 이미 `PermissionDeniedEmitter` port 만 의존하고 영속화 구현을 모른다([github-adapter.service.ts](../../src/github/github-adapter.service.ts) 211~217 행 port + 229~232 행 `@Optional` 주입 주석). emitter 패턴은 이 port 를 그대로 재사용해 **adapter 코드 변경 0** 으로 영속화를 얹는다 — service 직접 호출은 adapter 에 repository / Prisma 의존을 새로 끌어들여 adapter leaf 경계([ADR-0016 §6](ADR-0016-github-adapter-http-transport-contract.md) adapter leaf)를 깬다.
   2. **두 adapter 단일 경로** — GitHub / Confluence 가 같은 port 형태를 공유하므로([ADR-0018](ADR-0018-confluence-adapter-http-transport-contract.md) Confluence 전용 동형 interface) 영속화 emitter 를 양측에 주입하면 단일 영속화 경로. 단 두 이벤트의 shape 비대칭(`host` vs `baseUrl`)은 영속화 emitter 가 `instanceRef` 로 정규화(Decision §1)하며 흡수한다 — adapter 별 emitter 구현이 자기 이벤트 shape 를 record 로 매핑.
   3. **testability** — emitter 가 작은 함수형 port 라 adapter unit 은 mock emitter 로, 영속화 emitter 는 repository mock 으로 각각 독립 unit-test 가능(skip 본문 미테스트 risk 회피, 현 spec 의 mock emitter 패턴 정합).
-- **emit 후 도메인 error throw 흐름 유지** — 영속화 emitter 로 교체해도 adapter 는 emit 후 도메인 error 를 그대로 throw 한다([ADR-0016 §4](ADR-0016-github-adapter-http-transport-contract.md) "emit 후에도 도메인 error throw", `NO_OP` 주석 L219~225 정합) — 영속화는 부가 audit 일 뿐 제어 흐름을 바꾸지 않는다. 영속화 실패(DB 장애)가 adapter 흐름을 깨지 않도록 emitter 내부 error 처리 위상은 후속 구현 task 책임(본 ADR 은 흐름 결정만).
+- **emit 후 도메인 error throw 흐름 유지** — 영속화 emitter 로 교체해도 adapter 는 emit 후 도메인 error 를 그대로 throw 한다([ADR-0016 §4](ADR-0016-github-adapter-http-transport-contract.md) "emit 후에도 도메인 error throw", `NO_OP` 주석 219~225 행 정합) — 영속화는 부가 audit 일 뿐 제어 흐름을 바꾸지 않는다. 영속화 실패(DB 장애)가 adapter 흐름을 깨지 않도록 emitter 내부 error 처리 위상은 후속 구현 task 책임(본 ADR 은 흐름 결정만).
 
 ### migration 절차 (후속 task 가 따를 reference)
 
@@ -165,9 +165,9 @@ milestone-3 이 [ADR-0021](ADR-0021-github-confluence-live-integration-test-cont
 ## References
 
 - [docs/STATE.json](../STATE.json) `humanQuestions[Q-0019]` — PermissionDeniedRecord DB migration 승인(§5 DB schema 게이트 OPEN, 외부 credential 0, ADR-0004 migrate-deploy 준수, R-112 4종 + negative + regression 제약) — 본 ADR 의 직접 motivation
-- [src/github/github-adapter.service.ts](../../src/github/github-adapter.service.ts) L198~225 — GitHub `PermissionDeniedEvent { host, path, status }` + `PermissionDeniedEmitter` port + `NO_OP_PERMISSION_DENIED_EMITTER`(영속화 record 가 mirror 할 이벤트 shape single source, token 평문 미포함 invariant)
-- [src/confluence/confluence-adapter.service.ts](../../src/confluence/confluence-adapter.service.ts) L215~247 — Confluence `PermissionDeniedEvent { baseUrl, path, status }`(GitHub 와 동형이되 host 대신 baseUrl) + 동형 port — record 의 `instanceRef` 정규화 근거
-- [prisma/schema.prisma](../../prisma/schema.prisma) — prisma 컨벤션 source(cuid PK / `createdAt @default(now())` / immutable entity `updatedAt` 미정의 / enum-as-String literal / `@@unique`·`@@index` 관례) + 헤더 L39~41 의 PermissionDeniedRecord deferral
+- [src/github/github-adapter.service.ts](../../src/github/github-adapter.service.ts) 198~225 행 — GitHub `PermissionDeniedEvent { host, path, status }` + `PermissionDeniedEmitter` port + `NO_OP_PERMISSION_DENIED_EMITTER`(영속화 record 가 mirror 할 이벤트 shape single source, token 평문 미포함 invariant)
+- [src/confluence/confluence-adapter.service.ts](../../src/confluence/confluence-adapter.service.ts) 215~247 행 — Confluence `PermissionDeniedEvent { baseUrl, path, status }`(GitHub 와 동형이되 host 대신 baseUrl) + 동형 port — record 의 `instanceRef` 정규화 근거
+- [prisma/schema.prisma](../../prisma/schema.prisma) — prisma 컨벤션 source(cuid PK / `createdAt @default(now())` / immutable entity `updatedAt` 미정의 / enum-as-String literal / `@@unique`·`@@index` 관례) + 헤더 39~41 행 의 PermissionDeniedRecord deferral
 - [docs/decisions/ADR-0004-smoke-e2e-db-mode.md](ADR-0004-smoke-e2e-db-mode.md) — CI 실 PostgreSQL + `prisma migrate deploy` 패턴(후속 migration task reference)
 - [docs/decisions/ADR-0006-assessment-data-model.md](ADR-0006-assessment-data-model.md) — raw 미저장 invariant(REQ-059) + cascade 정책 + view-time 집계(Decision §1/§3/§5 정합 source)
 - [docs/decisions/ADR-0012-cross-cutting-field-policy.md](ADR-0012-cross-cutting-field-policy.md) — UTC 저장 / mutable-only `updatedAt` / immutable createdAt-only(Decision §1 timestamp 정합)
