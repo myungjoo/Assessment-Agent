@@ -2,7 +2,7 @@
 id: T-1493
 title: 범위 표기 규약 — `§ 12.76 R5` 개정 판단 (존치 조건 삭제 · 예시 목록 stale 실증 · 식별자 범위 계수 제외 · `§` prefix 좌표 편입) + 개정 형식 · 인용 좌표 확정 + 비-ADR 선행 순서 판정 (audit §12.91)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 120
