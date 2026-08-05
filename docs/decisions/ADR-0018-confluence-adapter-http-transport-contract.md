@@ -28,9 +28,9 @@ supersedes: null
 
 ### REQ 외력 (본 ADR 이 cover)
 
-- **REQ-009 / REQ-010 / REQ-015** ([docs/requirements.md](../requirements.md), README L31–33) — 지정된 Confluence Service 내 지정된 SPACE 들 내 문서 작성 / 업데이트 활동 평가 backbone. 본 ADR 의 축 (1)~(5) 가 그 "지정 Service / 다중 SPACE 의 page 수집" 의 transport 계층 (Cloud/Server 라우팅 / auth / error / pagination) 을 박제한다.
-- **REQ-016 / REQ-044** ([README.md](../../README.md) L19–22, L33) — 접근 권한 (read) 부족 시 AA 사용자·관리자 인식·대응. 본 ADR 의 축 (4) 4xx → PermissionDeniedEvent emit 위상이 권한 부족 가시화의 transport 측 경계를 박제 ([modules.md](../architecture/modules.md) ConfluenceModule "4xx catch → PermissionDeniedEvent emit" 책임과 직결).
-- **REQ-034 ([README.md](../../README.md) L34) = R-34** — Confluence SPACE crawling vs hierarchy 탐색 정책. [ADR-0013](ADR-0013-confluence-space-traversal-policy.md) 가 page List 기반을 선택했다. 본 ADR 의 축 (5) pagination cursor 가 그 List API 의 paging contract 의 transport-level 구체화.
+- **REQ-009 / REQ-010 / REQ-015** ([docs/requirements.md](../requirements.md), README 31~33 행) — 지정된 Confluence Service 내 지정된 SPACE 들 내 문서 작성 / 업데이트 활동 평가 backbone. 본 ADR 의 축 (1)~(5) 가 그 "지정 Service / 다중 SPACE 의 page 수집" 의 transport 계층 (Cloud/Server 라우팅 / auth / error / pagination) 을 박제한다.
+- **REQ-016 / REQ-044** ([README.md](../../README.md) 19~22 행, 33 행) — 접근 권한 (read) 부족 시 AA 사용자·관리자 인식·대응. 본 ADR 의 축 (4) 4xx → PermissionDeniedEvent emit 위상이 권한 부족 가시화의 transport 측 경계를 박제 ([modules.md](../architecture/modules.md) ConfluenceModule "4xx catch → PermissionDeniedEvent emit" 책임과 직결).
+- **REQ-034 ([README.md](../../README.md) 34 행) = R-34** — Confluence SPACE crawling vs hierarchy 탐색 정책. [ADR-0013](ADR-0013-confluence-space-traversal-policy.md) 가 page List 기반을 선택했다. 본 ADR 의 축 (5) pagination cursor 가 그 List API 의 paging contract 의 transport-level 구체화.
 - **REQ-059 / [ADR-0006](ADR-0006-assessment-data-model.md)** — raw 미저장 invariant. 본 ADR 의 축 (5) pagination 수집 단위 (page 메타 + version) 가 이 invariant 위에서 성립 — page body raw 는 transient.
 
 ### 선행 박제 정합 (milestone-1/GitHub transport 패턴 / adapter leaf)
@@ -181,9 +181,9 @@ supersedes: null
 
 ## References
 
-- [README.md L9–22](../../README.md) — Confluence 통합 REQ source (지정 Confluence Service + 다중 SPACE 관리 + 작성자 평가 + 권한 부족 가시화)
+- [README.md 9~22 행](../../README.md) — Confluence 통합 REQ source (지정 Confluence Service + 다중 SPACE 관리 + 작성자 평가 + 권한 부족 가시화)
 - [docs/STATE.json](../STATE.json) `humanQuestions[Q-0017]` — P4 milestone-3 승인 + 4 EXACT 제약 (내장 fetch / mocked test / live defer / milestone-1 패턴 재현) — 본 ADR 의 직접 motivation
-- [docs/PLAN.md L83~84](../PLAN.md) — Phase P4 Confluence 통합 + R-34 ADR 의무
+- [docs/PLAN.md 83~84 행](../PLAN.md) — Phase P4 Confluence 통합 + R-34 ADR 의무
 - [docs/requirements.md](../requirements.md) — REQ-009/010/015 (Confluence 다중 SPACE 활동 평가) / REQ-016 (권한 가시화) / REQ-017 = R-34 (탐색 정책 ADR) / REQ-034 / REQ-044 / REQ-059 (raw 미저장) source of truth
 - [docs/architecture/modules.md](../architecture/modules.md) — ConfluenceModule row (외부 adapter leaf, 4xx → PermissionDeniedEvent emit 책임)
 - [docs/architecture/p4-implementation-plan.md](../architecture/p4-implementation-plan.md) §2 T-0142/T-0143 row — 본 ADR 이 unblock 하는 후속 scaffold/exploration task 의 책임 표기. **T-0142 row 의 "Confluence client dependency (SDK / fetch 택일) + token credential = §5 BLOCKED 게이트" 표기 중 dependency 게이트는 본 ADR Decision §1 (내장 fetch, dep 0) 로 supersede 된다. token credential 게이트만 후속 live-run task 로 잔류** — 동 row 의 inline 정합 update 는 별도 후속 direct doc-sync task (본 ADR scope 외)

@@ -14,11 +14,11 @@ supersedes: null
 
 ## Context
 
-[ADR-0032](ADR-0032-p5-evaluation-contract.md) 가 평가 단위 계약을 박제하고 그 구현 chain (T-0287~T-0293, PR #239~#245) 이 매퍼 / scoring service / dedup / orchestrator / controller 를 전부 main 에 안착시켰다. 그러나 ADR-0032 §3 / §Consequences / §Follow-ups 가 **명시적으로 deferred** 한 단 하나의 piece 가 "평가 결과 영속화 schema" 다 — orchestrator ([evaluation-orchestrator.service.ts](../../src/assessment-evaluation/evaluation-orchestrator.service.ts) L38–39 "본 orchestrator 는 in-memory 반환만 (DB write 0)") 와 controller ([assessment-evaluation.controller.ts](../../src/assessment-evaluation/assessment-evaluation.controller.ts) L28–29 "in-memory 결과 반환만") 가 둘 다 주석으로 "§5 schema 게이트 deferred" 를 박제해 둔 상태다. 즉 평가는 계산되지만 **REQ-029 (non-volatile 저장) 가 평가 layer 에서 미충족** — 매 trigger 마다 결과가 휘발한다.
+[ADR-0032](ADR-0032-p5-evaluation-contract.md) 가 평가 단위 계약을 박제하고 그 구현 chain (T-0287~T-0293, PR #239~#245) 이 매퍼 / scoring service / dedup / orchestrator / controller 를 전부 main 에 안착시켰다. 그러나 ADR-0032 §3 / §Consequences / §Follow-ups 가 **명시적으로 deferred** 한 단 하나의 piece 가 "평가 결과 영속화 schema" 다 — orchestrator ([evaluation-orchestrator.service.ts](../../src/assessment-evaluation/evaluation-orchestrator.service.ts) 38~39 행 "본 orchestrator 는 in-memory 반환만 (DB write 0)") 와 controller ([assessment-evaluation.controller.ts](../../src/assessment-evaluation/assessment-evaluation.controller.ts) 28~29 행 "in-memory 결과 반환만") 가 둘 다 주석으로 "§5 schema 게이트 deferred" 를 박제해 둔 상태다. 즉 평가는 계산되지만 **REQ-029 (non-volatile 저장) 가 평가 layer 에서 미충족** — 매 trigger 마다 결과가 휘발한다.
 
 핵심 사실 — **저장 대상 table 은 이미 존재한다**:
 
-- [ADR-0006](ADR-0006-assessment-data-model.md) (ACCEPTED) + T-0110 이 `Assessment` / `Contribution` / `Summary` 3 model 을 [prisma/schema.prisma](../../prisma/schema.prisma) L274–349 에 박제 완료했고, migration [`20260531000000_assessment_contribution_summary`](../../prisma/migrations/20260531000000_assessment_contribution_summary/migration.sql) 가 적용돼 있다.
+- [ADR-0006](ADR-0006-assessment-data-model.md) (ACCEPTED) + T-0110 이 `Assessment` / `Contribution` / `Summary` 3 model 을 [prisma/schema.prisma](../../prisma/schema.prisma) 274~349 행 에 박제 완료했고, migration [`20260531000000_assessment_contribution_summary`](../../prisma/migrations/20260531000000_assessment_contribution_summary/migration.sql) 가 적용돼 있다.
 - `Assessment` 는 `@@unique([personId, period, scope, periodStart])` + `@@index([personId, period, periodStart])` 를 이미 가지며, `onDelete: Cascade` (Person→Assessment, Assessment→Contribution, Person→Summary) FK 도 박제돼 있다.
 - [AssessmentRepository](../../src/user/assessment.repository.ts) (T-0111) 가 `create` / `findById` / `findByPerson` / `delete` 4 primitive 와 P2002 (unique 위반) / P2025 (부재 삭제) propagation 정책까지 구현했다.
 
@@ -28,8 +28,8 @@ supersedes: null
 
 - **[Q-0029 decision](../STATE.json)** — 사용자가 P5 "평가 결과 영속화" 진입을 option (1) 로 승인하며 4 종 scope (entity 매핑 방향 / R-59 raw 미저장 재확인 / 재평가·partial-reset semantics / Prisma migrate-deploy 재사용) 를 attach. 본 ADR 의 §Decision 1~4 가 1:1 cover.
 - **[CLAUDE.md §5](../../CLAUDE.md)** — 새 외부 dependency / DB schema migration / live credential 은 BLOCKED. 본 결정은 **새 dependency 0** (내장 Prisma 만), **새 credential 0** (DATABASE_URL 은 [ADR-0004](ADR-0004-smoke-e2e-db-mode.md) 가 이미 CI 에 주입). DB schema 변경은 1 줄 (`@@unique([assessmentId, sourceRef])`) 에 한정하며 본 ADR 이 그 결정의 ADR 이다 (CLAUDE.md §5 "DB schema 변경은 ADR 동반" 충족).
-- **REQ-029** ([README.md L56](../../README.md)) — 평가 자료 non-volatile 저장. 본 ADR 이 평가 layer 에서 이를 충족하는 마지막 piece.
-- **R-59 / REQ-032** ([README.md L59](../../README.md), [data-model.md §4](../architecture/data-model.md)) — raw data 저장 금지. 본 ADR 의 매핑이 이 invariant 를 위반하지 않음을 §Decision 2 에서 재확인.
+- **REQ-029** ([README.md 56 행](../../README.md)) — 평가 자료 non-volatile 저장. 본 ADR 이 평가 layer 에서 이를 충족하는 마지막 piece.
+- **R-59 / REQ-032** ([README.md 59 행](../../README.md), [data-model.md §4](../architecture/data-model.md)) — raw data 저장 금지. 본 ADR 의 매핑이 이 invariant 를 위반하지 않음을 §Decision 2 에서 재확인.
 - **REQ-037 / REQ-041** ([README.md](../../README.md)) — "평가 없는 부분 일괄 평가 + Reset & Reeval" / "Admin manual delete". 재평가/partial-reset semantics 의 source.
 - **[ADR-0004](ADR-0004-smoke-e2e-db-mode.md)** (ACCEPTED) — `pnpm prisma migrate deploy` + CI 실 PostgreSQL 16 container 패턴. 본 ADR 의 migration 전략이 그대로 재사용 (재발명 0).
 - **[ADR-0022](ADR-0022-permission-denied-record-data-model.md) / Q-0019 PermissionDeniedRecord** — migration 명명·구조의 homolog 패턴 ([20260604000000_permission_denied_record](../../prisma/migrations/20260604000000_permission_denied_record/migration.sql)).
@@ -59,7 +59,7 @@ supersedes: null
 **채택: 영속화 model 은 평가-파생 데이터 (난이도·기여도 수치·양·LLM narrative·참조 식별자) 만 저장하며 raw activity payload (commit message 전문 / diff / issue body / Confluence page 본문 HTML) 를 저장하지 않는다 — schema 차원 부재로 강제 ([ADR-0006](ADR-0006-assessment-data-model.md) §4 의 invariant 를 본 영속화 path 에서 재확인).**
 
 - **저장되는 derived 필드**: `Contribution` 의 `difficulty` (LLM 분류 결과) / `contributionScore` (enum → Decimal 변환값) / `volume` (deterministic metric) / `sourceType` / `sourceUrl` / `sourceRef` (참조 식별자 — pointer 일 뿐 본문 아님). `Assessment` 의 동형 aggregate 수치 + `narrative` (LLM 생성 결과물 — raw 인용 아님, R-59 적용 외).
-- **명시적으로 제외 (저장 안 함)**: commit message 본문 / diff / PR description / issue body / Confluence page 본문 HTML / 첨부 raw — 이들은 `EvaluationResult` 가 애초에 필드로 보유하지 않고 ([evaluation-result.ts](../../src/assessment-evaluation/domain/evaluation-result.ts) L17–20 의 raw-not-stored 주석), 대상 schema 도 raw 컬럼이 부재하므로 **구조적으로 저장 불가**. 본 매핑은 이 invariant 를 새로 위반할 표면을 만들지 않는다 — 새 컬럼을 추가하지 않으므로.
+- **명시적으로 제외 (저장 안 함)**: commit message 본문 / diff / PR description / issue body / Confluence page 본문 HTML / 첨부 raw — 이들은 `EvaluationResult` 가 애초에 필드로 보유하지 않고 ([evaluation-result.ts](../../src/assessment-evaluation/domain/evaluation-result.ts) 17~20 행 의 raw-not-stored 주석), 대상 schema 도 raw 컬럼이 부재하므로 **구조적으로 저장 불가**. 본 매핑은 이 invariant 를 새로 위반할 표면을 만들지 않는다 — 새 컬럼을 추가하지 않으므로.
 - **재수집 경로 보존 (REQ-031)**: 외부 본문이 필요하면 `Contribution.sourceUrl` + `sourceRef` (= `unitId`) 로 재수집 — 본문 저장 없이 pointer 만으로 충분. 본 ADR 의 §1 매핑이 `unitId` → `sourceRef` 를 명시해 재수집 가능성을 보장.
 - **narrative quote 위생**: `narrative` 안에 raw 본문이 quote 형태로 끼어들지 않도록 하는 prompt 책임은 scoring service slice (ADR-0032 §3) 의 기존 책임이며 본 영속화 slice 가 추가로 변경하지 않는다 (저장 시점에 별도 sanitize 도입 0 — 입력 텍스트를 그대로 저장하되, 입력 자체가 raw-free 임은 상류 계약이 보장).
 
@@ -71,7 +71,7 @@ semantics 박제:
 
 - **idempotency key = `(personId, period, scope, periodStart)`**. ADR-0006 이 이미 박제한 `Assessment.@@unique` 가 그대로 "한 person 의 한 기간·scope 평가는 정확히 1 row" 를 보장한다. `EvaluationResult.unitId` 가 아니라 이 4-tuple 이 Assessment-level idempotency 의 key 다 (`unitId` 는 Contribution-level — §1 매핑).
 - **재평가 = reset-and-recreate (append 아님, in-place update 아님)**. Assessment 는 immutable (ADR-0006 §1 — `updatedAt` 미정의, AssessmentRepository 에 update 메서드 부재). 따라서 같은 4-tuple 로 재평가가 들어오면:
-  1. 기존 Assessment row 를 `delete` (component `Contribution[]` 은 `onDelete: Cascade` 가 동반 삭제 — schema.prisma L322).
+  1. 기존 Assessment row 를 `delete` (component `Contribution[]` 은 `onDelete: Cascade` 가 동반 삭제 — schema.prisma 322 행).
   2. 새 Assessment + 새 Contribution[] 를 `create`.
   - 이 delete→create 는 **단일 트랜잭션 (`prisma.$transaction`)** 으로 묶어 부분 실패 시 이전 평가가 유실되지 않도록 한다 (atomicity — 구현 slice 의 write service 책임). versioning (history row 누적) 은 본 v1 채택 안 함 (§Alternatives B).
   - **upsert 표현**: Prisma `upsert` 는 component Contribution 의 reset 을 자동 cascade 하지 않으므로 (upsert 는 Assessment row 만 갱신, 자식은 별도) 본 ADR 은 단순 `delete-if-exists` → `create` 패턴을 채택한다 (idempotency key 로 findUnique → 있으면 delete → create). "upsert" 라는 단어보다 **"reset-and-recreate keyed by the unique tuple"** 가 정확한 표현이다.
@@ -137,12 +137,12 @@ ADR-0032 §4 평가-side dedup 이 이미 중복을 제거하므로 schema uniqu
 - [ADR-0004](ADR-0004-smoke-e2e-db-mode.md) — migrate-deploy + CI 실 PostgreSQL 패턴 (본 ADR 의 migration 전략 재사용 source)
 - [ADR-0002](ADR-0002-db.md) — PostgreSQL + Prisma stack 기반
 - [ADR-0022](ADR-0022-permission-denied-record-data-model.md) — PermissionDeniedRecord (Q-0019 migration 명명·구조 homolog)
-- [prisma/schema.prisma](../../prisma/schema.prisma) — Assessment(L274~) / Contribution(L309~) / Summary(L335~) model + `@@unique`/cascade (본 ADR 의 매핑 대상)
+- [prisma/schema.prisma](../../prisma/schema.prisma) — Assessment(274 행~) / Contribution(309 행~) / Summary(335 행~) model + `@@unique`/cascade (본 ADR 의 매핑 대상)
 - [src/user/assessment.repository.ts](../../src/user/assessment.repository.ts) — 기존 AssessmentRepository (재사용 대상)
 - [src/assessment-evaluation/domain/evaluation-result.ts](../../src/assessment-evaluation/domain/evaluation-result.ts) — in-memory EvaluationResult shape (매핑 source)
 - [src/assessment-evaluation/evaluation-orchestrator.service.ts](../../src/assessment-evaluation/evaluation-orchestrator.service.ts) / [assessment-evaluation.controller.ts](../../src/assessment-evaluation/assessment-evaluation.controller.ts) — persist hook 지점
 - [docs/architecture/data-model.md §4](../architecture/data-model.md) — raw 미저장 invariant
-- [README.md](../../README.md) L56 (REQ-029) / L59 (R-59·REQ-032) — 외력
+- [README.md](../../README.md) 56 행 (REQ-029) / 59 행 (R-59·REQ-032) — 외력
 - [CLAUDE.md §3.1 / §5 / §12](../../CLAUDE.md) — commitMode / BLOCKED 게이트 / 언어 정책
 
 ## Follow-ups
