@@ -2,7 +2,7 @@
 id: T-1496
 title: 범위 표기 규약 축 S3 batch 16 — 비-ADR `L` 축 architecture 상위 3 파일 (`api.md` · `modules.md` · `race-patterns.md`) 개정판 R5 · R1 · R4 정규화 + 범위 밖 대상 좌표 · R7 재심 · 한 행 7 좌표 체인 판정 (audit §12.94)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 140

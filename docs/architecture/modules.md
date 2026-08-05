@@ -254,6 +254,6 @@ composition-wiring 스트림 (T-0353~T-0394, [ADR-0041](../decisions/ADR-0041-fr
 - [docs/architecture/deployment.md](deployment.md) — T-A2 산출물. 본 module 들이 동작하는 운영 토폴로지.
 - [docs/architecture/INDEX.md](INDEX.md) — architecture document 인덱스 + MVA 원칙.
 - [docs/requirements.md](../requirements.md) — REQ-NNN source of truth. 본 문서의 모든 REQ 인용 출처.
-- [README.md](../../README.md) — L7–18 (REQ-005~007 GitHub) / L19–22 (REQ-044 3 권한) / L33–41 (REQ-015 Confluence) / L45–51 (REQ-026 인원) / L68–71 (REQ-038 UI) / L96–103 (REQ-049 / REQ-051~055 LLM) / L109–128 (REQ-039 cron, REQ-044 RBAC).
+- [README.md](../../README.md) — 7~18 행 (REQ-005~007 GitHub) / 19~22 행 (REQ-044 3 권한) / 33~41 행 (REQ-015 Confluence) / 45~51 행 (REQ-026 인원) / 68~71 행 (REQ-038 UI) / 96~103 행 (REQ-049 / REQ-051~055 LLM) / 109~128 행 (REQ-039 cron, REQ-044 RBAC).
 
 Refs: T-0014, T-0015, T-0016, T-0017, T-0217, T-0251, T-0255, T-0266, T-0269, T-0276, T-0295, T-0395, ADR-0001, ADR-0002, ADR-0003, ADR-0022, ADR-0029, ADR-0030, ADR-0031, ADR-0032, ADR-0040, ADR-0041, REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-026, REQ-031, REQ-032, REQ-033, REQ-038, REQ-039, REQ-040, REQ-044, REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055

@@ -62,7 +62,7 @@
 ### 원인
 
 - integrator 가 feature branch push → `pull_request` event → CI first run trigger.
-- CI 의 `reviewer agent approval 검증` step ([.github/workflows/ci.yml](../../.github/workflows/ci.yml) L82-115) 은 PR 의 comments 를 조회.
+- CI 의 `reviewer agent approval 검증` step ([.github/workflows/ci.yml](../../.github/workflows/ci.yml) 82~115 행) 은 PR 의 comments 를 조회.
 - reviewer sub-agent 가 약 10-30 초 후 `gh pr comment` post — 그 전에 first run step 이 실행되면 matches 0 → exit 1 → first run fail (race).
 - GitHub 의 `issue_comment: [created]` trigger 가 comment post 시 발화 → second run (event=issue_comment) 자동 실행 → comments 1+ 존재 → step pass → second run green.
 - **issue_comment trigger 의 main-HEAD-context 의존** (T-0061 박제): `issue_comment` event 는 default branch (main) HEAD context 위에서 발화. feature branch 의 CI 가 안 도는 경우 발생 (workflow 정책 / GitHub event delay) → `gh run rerun <firstRunId>` ad-hoc fallback 필요.
@@ -162,20 +162,20 @@
 2. T-0098 stale-cron-PR cleanup 패턴 1:1 mirror (직전은 13 PR + 13 branch / 본 회차는 1 PR + 1 branch).
 3. **lesson**: cron 활성 중 manual /loop 는 cron-safe doc-only direct task OR cron suspend 후 진입 정공법. substantive pr-mode 시도는 race-loss 후 폐기 비용 부담.
 4. **doc-only direct edit 동시 수행 race** 는 LOOP.md §4 ff-only graceful 흡수로 무손실 처리 (`git reset --soft HEAD~1` + `git stash --include-untracked` audit 보존 + `git merge --ff-only origin/main`) — PR/branch cleanup 불요 (pr-mode race 의 폐기 비용 0, 4 회차 실증).
-5. cross-ref: [CLAUDE.md](../../CLAUDE.md) §10 (동시 실행 정책) + [docs/tasks/T-0098-stale-cron-pr-cleanup.md](../tasks/T-0098-stale-cron-pr-cleanup.md) (cleanup 패턴 mirror) + [docs/progress/journal-2026-05-30.md](../progress/journal-2026-05-30.md) L7 (race-condition 2 차 사례 source) + [docs/progress/journal-2026-05-31.md](../progress/journal-2026-05-31.md) L3 (4 회차 ff-only absorb source).
+5. cross-ref: [CLAUDE.md](../../CLAUDE.md) §10 (동시 실행 정책) + [docs/tasks/T-0098-stale-cron-pr-cleanup.md](../tasks/T-0098-stale-cron-pr-cleanup.md) (cleanup 패턴 mirror) + [docs/progress/journal-2026-05-30.md](../progress/journal-2026-05-30.md) 7 행 (race-condition 2 차 사례 source) + [docs/progress/journal-2026-05-31.md](../progress/journal-2026-05-31.md) 3 행 (4 회차 ff-only absorb source).
 
 ## §8 observed cumulative
 
 - 7 + 7 + 1 + 1 + 1 + 4 = **21 회차 누적** (gh worktree 7 + reviewer-gate 7 + Windows CRLF 1 + Git Bash MSYS 1 + harness phantom 1 + cron-vs-manual overlap 4).
 - 다음 회차 시점 update 책임 — architect agent follow-up (race 발견 추가 회차 누적 시 §2~§7 enumeration 갱신).
 - **21 회차 누적 marker — ADR 신설 검토 후보** (race-handling policy escalation — 본 doc 의 observation 을 decision 으로 escalate). 특히 cron-vs-manual overlap 은 CLAUDE.md §10 동시 실행 정책 갱신 (cron 간격 권장 / 사용 시간대 분리 강화 / 강한 mutex 도입) 의 박제 source.
-- **integrator agent 의 race-aware 평가 절차** — procedural source 는 [.claude/agents/integrator.md](../../.claude/agents/integrator.md) L52-69 의 5 step 체크리스트, 본 doc 와 cross-reference 동기.
+- **integrator agent 의 race-aware 평가 절차** — procedural source 는 [.claude/agents/integrator.md](../../.claude/agents/integrator.md) 52~69 행 의 5 step 체크리스트, 본 doc 와 cross-reference 동기.
 - **anti-pattern (사용 금지)**: `close+reopen` (issue_comment trigger 우회 목적의 close-then-reopen 은 PR review state reset → `gh run rerun` 사용) / `gh pr merge --force` (4-게이트 우회) / `--no-verify` (pre-commit hook 우회, CLAUDE.md §9 위반).
 
 ## §9 References
 
-- [.claude/agents/integrator.md](../../.claude/agents/integrator.md) L52-69 — procedural source.
-- [.github/workflows/ci.yml](../../.github/workflows/ci.yml) L13-16 (issue_comment trigger) + L82-115 (reviewer-gate step).
+- [.claude/agents/integrator.md](../../.claude/agents/integrator.md) 52~69 행 — procedural source.
+- [.github/workflows/ci.yml](../../.github/workflows/ci.yml) 13~16 행 (issue_comment trigger) + 82~115 행 (reviewer-gate step).
 - [docs/progress/journal-2026-05-26.md](../progress/journal-2026-05-26.md) — T-0059 / T-0060 worktree race 4-5 회차 박제 source.
 - [docs/progress/journal-2026-05-27.md](../progress/journal-2026-05-27.md) — T-0061 / T-0062 race-fix `gh run rerun` 첫 SUCCESS 박제 source.
 - [docs/tasks/T-0100-gitattributes-eol-lf-permanent-fix.md](../tasks/T-0100-gitattributes-eol-lf-permanent-fix.md) — Windows CRLF trap 영구 fix.
