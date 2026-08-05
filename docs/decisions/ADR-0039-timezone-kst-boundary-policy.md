@@ -11,13 +11,13 @@ supersedes: null
 
 ## Context
 
-[docs/PLAN.md](../PLAN.md) L109 — 사용자가 2026-06-11 결정으로 "그동안 deferred 였던 timezone 쟁점 (Asia/Seoul vs UTC, Q-0034 context (5)) 을 **KST(Asia/Seoul)** 로 확정" 을 박제하면서, 적용 대상 4 종 (R-61 자정 / 주간·월간 시작 / R-9 사용자 지정 기간 / 시각화 표시) 의 세부 결정은 "구현 진입 시 **ADR 로 박제** — 본 bullet 은 사용자 결정의 박제이며 **ADR-first 로 처리**" 라고 명시했다. 본 ADR 이 그 ADR-first 의무를 이행한다 — 즉 사용자 결정의 design-level 박제만 닫고, impl chain (helper / DTO / boundary 계산 / view-layer formatter) 은 본 ADR ACCEPTED flip 후 별도 후속 task 분해로 미룬다.
+[docs/PLAN.md](../PLAN.md) 109 행 — 사용자가 2026-06-11 결정으로 "그동안 deferred 였던 timezone 쟁점 (Asia/Seoul vs UTC, Q-0034 context (5)) 을 **KST(Asia/Seoul)** 로 확정" 을 박제하면서, 적용 대상 4 종 (R-61 자정 / 주간·월간 시작 / R-9 사용자 지정 기간 / 시각화 표시) 의 세부 결정은 "구현 진입 시 **ADR 로 박제** — 본 bullet 은 사용자 결정의 박제이며 **ADR-first 로 처리**" 라고 명시했다. 본 ADR 이 그 ADR-first 의무를 이행한다 — 즉 사용자 결정의 design-level 박제만 닫고, impl chain (helper / DTO / boundary 계산 / view-layer formatter) 은 본 ADR ACCEPTED flip 후 별도 후속 task 분해로 미룬다.
 
-### Q-0026 deferred 이력 (ADR-0035 §Decision3 / L41)
+### Q-0026 deferred 이력 (ADR-0035 §Decision3 / 41 행)
 
-[ADR-0035 §Decision3 + L41](ADR-0035-aggregate-summary-evaluation.md) 는 일/주/월 요약 평가의 **시점 경계 (`isPeriodEvaluable`)** 가 "Asia/Seoul vs UTC 결정" 에 의존함을 명시적으로 박제하고, 그 결정 자체를 [STATE.json Q-0026 deferred](../STATE.json) ("1 주 재수집 window / timezone 보정 — SinceDerivationService 가 직전 periodStart 에서 1 주를 빼는 보정 + Asia/Seoul vs UTC 결정") 후속으로 미뤘다. ADR-0035 §Decision3 본문은 "timezone 은 **단일 결정으로 두 곳 (SinceDerivation 의 period 경계 + isPeriodEvaluable 의 자정 경계) 에 일관 적용**" 만 박제하고 그 값 (Asia/Seoul 권장 — README "KST 새벽 2시" 운영 맥락 정합) 자체는 Q-0026 후속 task 가 확정한다고 적었다. 본 ADR 이 그 Q-0026 후속의 timezone 값 결정 부분을 닫는다 (1 주 재수집 window 자체는 인접하지만 별도 surface — Out of scope 참조).
+[ADR-0035 §Decision3 + 41 행](ADR-0035-aggregate-summary-evaluation.md) 는 일/주/월 요약 평가의 **시점 경계 (`isPeriodEvaluable`)** 가 "Asia/Seoul vs UTC 결정" 에 의존함을 명시적으로 박제하고, 그 결정 자체를 [STATE.json Q-0026 deferred](../STATE.json) ("1 주 재수집 window / timezone 보정 — SinceDerivationService 가 직전 periodStart 에서 1 주를 빼는 보정 + Asia/Seoul vs UTC 결정") 후속으로 미뤘다. ADR-0035 §Decision3 본문은 "timezone 은 **단일 결정으로 두 곳 (SinceDerivation 의 period 경계 + isPeriodEvaluable 의 자정 경계) 에 일관 적용**" 만 박제하고 그 값 (Asia/Seoul 권장 — README "KST 새벽 2시" 운영 맥락 정합) 자체는 Q-0026 후속 task 가 확정한다고 적었다. 본 ADR 이 그 Q-0026 후속의 timezone 값 결정 부분을 닫는다 (1 주 재수집 window 자체는 인접하지만 별도 surface — Out of scope 참조).
 
-또한 [ADR-0029 L107](ADR-0029-assessment-collection-orchestrator.md) 의 "incremental since 도출 — 직전 periodStart 에서 1 주 빼기 / timezone 보정" + [ADR-0006 L54/L122](ADR-0006-assessment-data-model.md) 의 "`periodStart` timezone 정책은 별도 cross-cutting ADR 위임" + [ADR-0033](ADR-0033-evaluation-result-persistence.md) 의 `(period, periodStart, periodEnd)` 키 형태 — 세 곳의 timezone 결정 위임 표기를 본 ADR 이 일관 결정으로 닫는다.
+또한 [ADR-0029 107 행](ADR-0029-assessment-collection-orchestrator.md) 의 "incremental since 도출 — 직전 periodStart 에서 1 주 빼기 / timezone 보정" + [ADR-0006 54/122 행](ADR-0006-assessment-data-model.md) 의 "`periodStart` timezone 정책은 별도 cross-cutting ADR 위임" + [ADR-0033](ADR-0033-evaluation-result-persistence.md) 의 `(period, periodStart, periodEnd)` 키 형태 — 세 곳의 timezone 결정 위임 표기를 본 ADR 이 일관 결정으로 닫는다.
 
 ### ADR-0012 §1 (저장 UTC) 와의 관계
 
@@ -27,13 +27,13 @@ supersedes: null
 
 본 ADR 이 닫아야 하는 4 surface 를 명시한다 (impl chain 의 적용 대상 set):
 
-- **(1) R-61 자정** — [README L61](../../README.md) "종료된 날짜의 활동에 대해서는 (실행 당일은 자정이 될 때까지는 아직 끝나지 않았으니 하지 말자)" 의 "자정" 의미.
+- **(1) R-61 자정** — [README 61 행](../../README.md) "종료된 날짜의 활동에 대해서는 (실행 당일은 자정이 될 때까지는 아직 끝나지 않았으니 하지 말자)" 의 "자정" 의미.
 - **(2) 주간 시작** — 일/주/월 요약 평가 (ADR-0035 §Decision3) 의 주간 granularity 시작 시점.
 - **(3) 월간 시작** — 동일 ADR-0035 §Decision3 의 월간 granularity 시작 시점.
-- **(4) R-9 사용자 지정 기간** — [README L9](../../README.md) "사용자가 지정한 기간동안 어떠한 주요 활동이 있었는지" 의 기간 해석.
+- **(4) R-9 사용자 지정 기간** — [README 9 행](../../README.md) "사용자가 지정한 기간동안 어떠한 주요 활동이 있었는지" 의 기간 해석.
 - **(부수) 시각화 표시** — 모든 조회 endpoint / Web UI 의 시각 표시 default. (impl 위치는 P6 frontend 책임이나 default 정책은 본 ADR 이 박제.)
 
-### 사용자 결정 직접 인용 (PLAN.md L109, 2026-06-11)
+### 사용자 결정 직접 인용 (PLAN.md 109 행, 2026-06-11)
 
 > timezone = KST(Asia/Seoul) 확정 반영 — 사용자 결정 (2026-06-11). 그동안 deferred 였던 timezone 쟁점 (Asia/Seoul vs UTC, Q-0034 context (5) 참조) 을 사용자가 **KST(Asia/Seoul)** 로 확정. 적용 대상: P5 일/주/월 요약 경계 (위 R-61 자정 룰의 "자정" = KST 자정), 주간/월간 시작 시점 판정, 사용자 지정 기간 (R-9) 해석, 시각화 표시. 세부 (저장은 UTC timestamptz 유지 + 경계 계산·표시만 KST 등 표준 패턴) 는 구현 진입 시 **ADR 로 박제** — 본 bullet 은 사용자 결정의 박제이며 ADR-first 로 처리. 새 dependency 0.
 
@@ -95,8 +95,8 @@ supersedes: null
 
 ## Alternatives
 
-- **(1) UTC boundary 채택** — boundary 계산도 UTC 자정 기준 (`[YYYY-MM-DD T00:00:00Z, T+1 T00:00:00Z)`) 으로 박제. 장점: 저장과 boundary 가 동일 timezone 으로 단순. 단점: R-61 "자정" 의 사용자 직관 (한국 운영자의 KST 자정) 과 9 시간 drift — 6 월 10 일 23:30 KST 활동이 UTC 기준으로는 6 월 10 일 14:30 이라 "6 월 10 일 활동" 으로 분류되지만, 사용자 직관 (KST 6 월 10 일) 과는 align. 그러나 6 월 11 일 02:00 KST 활동 = UTC 17:00 (6 월 10 일) 은 사용자 직관 "6 월 11 일 활동" 인데 UTC boundary 는 "6 월 10 일 활동" 으로 분류 → **사용자 직관 위배** + 사용자 결정 (PLAN L109, KST 확정) **위반**. → **기각**.
-- **(2) Web UI 만 KST 변환 + 저장 / boundary 모두 UTC** — 표시 layer 만 KST 변환, boundary 계산은 UTC 자정 기준 유지. 장점: backend 단순. 단점: R-61 자정의 의미가 KST 자정 (사용자 직관) 과 어긋나며 (위 (1) 와 동일 risk), Web UI 가 KST 표시하는데 boundary 가 UTC 라면 사용자가 "6 월 10 일 활동" 으로 본 row 가 일별 요약에서는 "6 월 11 일" 로 잡히는 등 silent drift. 사용자 결정 (PLAN L109) **위반**. → **기각**.
+- **(1) UTC boundary 채택** — boundary 계산도 UTC 자정 기준 (`[YYYY-MM-DD T00:00:00Z, T+1 T00:00:00Z)`) 으로 박제. 장점: 저장과 boundary 가 동일 timezone 으로 단순. 단점: R-61 "자정" 의 사용자 직관 (한국 운영자의 KST 자정) 과 9 시간 drift — 6 월 10 일 23:30 KST 활동이 UTC 기준으로는 6 월 10 일 14:30 이라 "6 월 10 일 활동" 으로 분류되지만, 사용자 직관 (KST 6 월 10 일) 과는 align. 그러나 6 월 11 일 02:00 KST 활동 = UTC 17:00 (6 월 10 일) 은 사용자 직관 "6 월 11 일 활동" 인데 UTC boundary 는 "6 월 10 일 활동" 으로 분류 → **사용자 직관 위배** + 사용자 결정 (PLAN 109 행, KST 확정) **위반**. → **기각**.
+- **(2) Web UI 만 KST 변환 + 저장 / boundary 모두 UTC** — 표시 layer 만 KST 변환, boundary 계산은 UTC 자정 기준 유지. 장점: backend 단순. 단점: R-61 자정의 의미가 KST 자정 (사용자 직관) 과 어긋나며 (위 (1) 와 동일 risk), Web UI 가 KST 표시하는데 boundary 가 UTC 라면 사용자가 "6 월 10 일 활동" 으로 본 row 가 일별 요약에서는 "6 월 11 일" 로 잡히는 등 silent drift. 사용자 결정 (PLAN 109 행) **위반**. → **기각**.
 - **(3) `Asia/Seoul` + 사용자별 timezone preference column** — 사용자별 / 조직별 timezone 선택 + 본 ADR 의 default = `Asia/Seoul`. 장점: 다국적 확장 대비 + multi-tenant 미래 친화. 단점: User entity schema migration (`tz: String?` 등) + 모든 boundary 계산 / 표시 함수가 user context 의존 + 본 ADR 단계의 over-engineering. 현재 README 매핑 = 단일조직 한국 운영이라 즉시 가치 0 → 본 ADR 단계 **over-engineering 회피**. 확장 시 별도 ADR 로 재진입. → **기각** (현 단계).
 - **(4) Asia/Seoul 일요일 시작 주간** — §Decision3 (b) 의 월요일 시작 대신 일요일 시작 (미국 관행). 장점: 미국 표준 calendar UI 정합. 단점: 한국 운영 관행 (주 시작 = 월요일, ISO-8601 정합) 위배 + README "KST 새벽 2시" 운영 맥락과 자연 정합. → **기각** (월요일 시작 채택).
 
@@ -116,13 +116,13 @@ supersedes: null
 
 ## References
 
-- [docs/PLAN.md](../PLAN.md) L109 — 사용자 결정 (2026-06-11, timezone=KST/Asia/Seoul) 직접 박제.
-- [README.md](../../README.md) L61 — R-61 자정 (당일 자정 전까지는 평가 미실시). L72 — R-72 Admin cron 주기 지정 ("예: 매일 KST 새벽 2시" 운영 맥락). L9 — R-9 사용자 지정 기간 평가.
-- [docs/requirements.md](../requirements.md) L23 — REQ-004 사용자 지정 기간. L53 — REQ-034 일별 활동 + 자정.
+- [docs/PLAN.md](../PLAN.md) 109 행 — 사용자 결정 (2026-06-11, timezone=KST/Asia/Seoul) 직접 박제.
+- [README.md](../../README.md) 61 행 — R-61 자정 (당일 자정 전까지는 평가 미실시). 72 행 — R-72 Admin cron 주기 지정 ("예: 매일 KST 새벽 2시" 운영 맥락). 9 행 — R-9 사용자 지정 기간 평가.
+- [docs/requirements.md](../requirements.md) 23 행 — REQ-004 사용자 지정 기간. 53 행 — REQ-034 일별 활동 + 자정.
 - [docs/decisions/ADR-0012-cross-cutting-field-policy.md](ADR-0012-cross-cutting-field-policy.md) §1 — **저장 timezone = UTC single source** (본 ADR 이 보존, 변경 0).
-- [docs/decisions/ADR-0035-aggregate-summary-evaluation.md](ADR-0035-aggregate-summary-evaluation.md) §Decision3 + L41 + L86 — Aggregate Summary 의 시점 경계 timezone 결정 위임 → 본 ADR 이 닫는다.
-- [docs/decisions/ADR-0029-assessment-collection-orchestrator.md](ADR-0029-assessment-collection-orchestrator.md) L107 — incremental since 도출 timezone 의존 표기 → 본 ADR 위임 닫음.
-- [docs/decisions/ADR-0006-assessment-data-model.md](ADR-0006-assessment-data-model.md) L54 / L122 — `periodStart` timezone 정책 위임 표기 → 본 ADR 이 boundary timezone 결정 단일 source.
+- [docs/decisions/ADR-0035-aggregate-summary-evaluation.md](ADR-0035-aggregate-summary-evaluation.md) §Decision3 + 41 + 86 행 — Aggregate Summary 의 시점 경계 timezone 결정 위임 → 본 ADR 이 닫는다.
+- [docs/decisions/ADR-0029-assessment-collection-orchestrator.md](ADR-0029-assessment-collection-orchestrator.md) 107 행 — incremental since 도출 timezone 의존 표기 → 본 ADR 위임 닫음.
+- [docs/decisions/ADR-0006-assessment-data-model.md](ADR-0006-assessment-data-model.md) 54 / 122 행 — `periodStart` timezone 정책 위임 표기 → 본 ADR 이 boundary timezone 결정 단일 source.
 - [docs/decisions/ADR-0033-evaluation-result-persistence.md](ADR-0033-evaluation-result-persistence.md) — `(period, periodStart, periodEnd)` 키 형태 (본 ADR 의 반열림 구간 표기 정합).
 - [docs/decisions/ADR-0037-period-collection-evaluate-bridge.md](ADR-0037-period-collection-evaluate-bridge.md) — PeriodBridge §Decision5 의 boundary timezone 결정 위임 (본 ADR 이 닫는다, helper 경유 의무 박제).
 - **Q-0026** ([docs/STATE.json](../STATE.json)) — "1 주 재수집 window / timezone 보정 (SinceDerivationService 가 직전 periodStart 에서 1 주를 빼는 보정 + Asia/Seoul vs UTC 결정)". 본 ADR 이 **timezone 값 결정 부분만** 닫는다 (Asia/Seoul 확정). 1 주 재수집 window 자체는 본 ADR Out of scope (ADR-0029 / ADR-0035 후속 책임).
