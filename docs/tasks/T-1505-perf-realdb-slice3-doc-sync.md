@@ -2,7 +2,7 @@
 id: T-1505
 title: 실 DB round-trip slice 3(T-1504) 규모 민감도 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 45
@@ -127,3 +127,9 @@ slice 3 항목을 박제했으므로 본 task 는 **인용만** 한다.
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 기록
+
+- 완료: 2026-08-05T18:50Z (direct commit, main `f0245a18`).
+- 결과: `docs/PLAN.md` `142 행` (perf-spec 개수 36→37 · slice 3 도달 · 잔여 재조준 + T-1504 링크) · `docs/ops/load-resilience-test-plan.md` `§ 5` item 5 (규모 축 병기, 2 endpoint 유지) · `docs/requirements.md` REQ-048 한계 절 (규모 민감도 축 · membership 5 vs 60 · 관찰 성격) 3 지점 동기. 3 파일 +14/-7.
+- 검증: main CI run 31035894625 success. AC 1~9 전부 ok. 완료 선언 0 — PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` · item 5 미완 결론 불변 (AC 7).
