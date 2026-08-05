@@ -139,6 +139,7 @@ historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-00
 2. 변경 대상이 `pr` 컬럼 파일을 하나라도 포함하면 → `pr`.
 3. 한 task가 두 종류를 모두 건드려야 한다면 **task를 두 개로 split**한다 (먼저 direct doc task, 다음 pr code task — 또는 그 반대 순서 중 의존성에 맞는 것).
 4. 새 ADR 자체는 `pr` (아키텍처 결정은 reviewer 점검 대상). 단, ADR의 status 갱신(예: PROPOSED→ACCEPTED) 한 줄 수정은 `direct`.
+5. 기존 `docs/decisions/*` · `docs/architecture/*` 본문의 **비-결정 수정** (행 좌표 pointer 정정 · typo · 표기 정규화) 은 `direct`. 단 **결정 내용 자체** (ADR 의 Decision · Consequences 의 실질, architecture 문서의 구조 판단) 변경은 종전대로 `pr`. 근거: [REQ-COVERAGE-AUDIT.md](docs/use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.72` AC 3 — 본 rule 은 새 판정이 아니라 `§ 12.73` ~ `§ 12.76` 4 slice 가 실제로 `direct` 로 집행한 **선례의 명문화** 다.
 
 **Driver loop은 task의 `commitMode` 를 따라 자동 분기한다**. 자세한 절차는 [docs/LOOP.md](docs/LOOP.md) §1 참조.
 
@@ -447,6 +448,12 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 - "PR open 후 reviewer dispatch" 같이 일부 영어 토큰이 문장 안에 들어와도 OK (technical noun을 한국어로 어색하게 번역하지 않는다).
 - 코드 블록(\`\`\`) 안은 코드 그대로 — 한국어 강제 안 함.
 - 다른 사람이 영어로 inbound한 PR comment·issue에 답할 때는 그쪽 언어를 따른다.
+
+### 범위 좌표 표기 (행 범위)
+
+- **정본 pointer** — 문서 안에서 행 범위를 가리키는 표기의 정본은 [docs/use-cases/REQ-COVERAGE-AUDIT.md](docs/use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.76` 의 조문 `R1` ~ `R7` 이며, 인용은 `§ 12.76 R3` 형태로 한다. 본 소절은 **pointer 일 뿐 정본이 아니다** — 조문 전문 · 예시 · 근거는 이곳에 복제하지 않는다 (복제하면 규약이 막으려는 drift 를 규약 자체가 만든다).
+- **실무 요약 3 점** (조문 번호 참조를 동반한 축약) — ① 구분자는 물결 `~` 하나 (`R1`). ② 단일 행은 `20 행` 으로 적고 `20~20` 은 쓰지 않는다 (`R4`). ③ 신규 표기에 `L` prefix 를 쓰지 않는다 (`R5`).
+- **적용 범위 · 발효** — 5 문서군 (`README.md` + `CLAUDE.md` / `docs/requirements.md` / `docs/architecture/*.md` / `docs/decisions/ADR-*.md` / `.claude/agents/*.md`) 한정이며 `docs/tasks/*` · `docs/progress/*` · 코드 주석은 범위 밖이다. **신규 작성분부터 적용** 하고 **전면 소급 치환은 금지** 한다 (`§ 12.76` AC 3 승계).
 
 ### 과거와의 호환
 
