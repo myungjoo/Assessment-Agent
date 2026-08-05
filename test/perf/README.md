@@ -505,9 +505,9 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   gate 와 분리된다.
 - perf job 은 상시 PR CI 와 분리한다(follow-up #4).
 
-## 실 DB round-trip baseline (첫 slice)
+## 실 DB round-trip baseline (slice 목록)
 
-- `person-read-realdb.perf-spec.ts` (T-1500) — 위 mock 배치와 달리 **mock override 0** 으로
+- **slice 1** — `person-read-realdb.perf-spec.ts` (T-1500) — 위 mock 배치와 달리 **mock override 0** 으로
   `createE2EApp()`(AppModule 전체)을 부트스트랩하고 `moduleRef.get(PrismaService)` 로 얻은 실
   client 로 seed 한 뒤 `GET /api/persons` 를 반복 측정하는 **첫 실 DB round-trip perf-spec**.
   [load-resilience-test-plan.md](../../docs/ops/load-resilience-test-plan.md) `§ 5` item 5("실
@@ -520,6 +520,15 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   위반)·비현실적 임계 주입(`p95MaxMs: 0`)으로 도달해 실 측정 시간에 의존하지 않는다.
   `afterEach(truncateAll)`(ADR-0004 `§ Cleanup`) 로 row leak 0, `afterAll` 의 `app.close()` +
   `prisma.$disconnect()` 로 connection 누수 0.
+- **slice 2** — `group-read-realdb.perf-spec.ts` (T-1502) — 같은 부트스트랩·정리 구조를 승계하되
+  `GroupController` 조회 3 route(`GET /api/groups` · `:id` · `:id/persons`)를 측정한다. slice 1
+  과의 차이는 **N+1 indirect navigation 측정** — `GroupService.findPersonsByGroupId` 가
+  `PersonGroupMembership` 에서 personId[] 를 뽑은 뒤 `PersonRepository.findById` 를 loop 호출해
+  **membership 수에 비례해 query 가 늘어나므로**(service 주석의 "N+1 query 의 P0 acceptable
+  패턴"), slice 1 의 flat 단일 SELECT 와 달리 이 경로의 REQ-048 충족을 처음 증거화한다.
+  **측정만 하며 N+1 최적화는 하지 않는다**(production code 변경 0, mock 짝은 불변).
+- **잔여** — 실측 범위는 아직 endpoint 소수뿐이고 나머지 read perf-spec 은 여전히 service mock
+  이다. 남은 endpoint 의 실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
   `postgresql://postgres:postgres@localhost:5432/assessment_test?schema=public`) export +
   `pnpm prisma migrate deploy` 후 `pnpm test:perf`. CI 는 `perf test` step 이
