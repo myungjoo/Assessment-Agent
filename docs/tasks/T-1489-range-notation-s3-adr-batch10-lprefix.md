@@ -2,7 +2,7 @@
 id: T-1489
 title: 범위 표기 규약 축 S3 batch 10 — `L` 축 ADR 3 파일 (`ADR-0023` · `ADR-0032` · `ADR-0004`) R5·R4 정규화 + label 전체 좌표 · 좌표 약칭화 · 파일명 결합 label 판정 (audit §12.87)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 130
