@@ -2,7 +2,7 @@
 id: T-1483
 title: 범위 표기 규약 축 S3 batch 4 — 잔여 혼용 ADR 3 파일 (`ADR-0018` · `ADR-0033` · `ADR-0035`) R1·R5 정규화 (audit §12.81)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 150
@@ -93,3 +93,10 @@ commit mode 는 [CLAUDE.md](../../CLAUDE.md) §3.1 **rule 5** (기존 `docs/deci
 - **개구간 표기 형태 정합** — 본 slice 가 처음 도입한 `274 행~` (끝 좌표 없는 개구간) 형태를 후속 slice 가 그대로 승계하는지 감시. 불일치 발생 시 `R8` 조문화 판단에 함께 묶는다 (`§ 12.81` 한계 5).
 - **회색지대 조문화 판단** — 개구간 (`274 행~`) · 양끝 prefix 병기 · 복수 좌표 병기 (`85/88 행`, `§ 12.80` 한계 5) 3 종을 `R8` 로 묶어 조문화할지 여부. 선례가 2 ~ 3 slice 더 쌓인 뒤 판단.
 - **`§ 12.76 R5` 예시 갱신** — 존치 파일 목록 (`p3-implementation-plan.md` · `ADR-0005` · `reviewer.md`) 의 stale 이 `§ 12.79` 파생 (3) 부터 이월 중. 조문 편집이라 별도 slice 에서 append-only 준수 방식과 함께 판단.
+
+## 완료 요약 (2026-08-05)
+
+- 혼용 ADR 3 파일(`ADR-0018` · `ADR-0033` · `ADR-0035`) 후보 **38 행 / 54 좌표 전량 정정** (면제 0 · 범위 밖 15 좌표). 파일별 추가 = 삭제 (5/8/25) 로 결정 내용 무편집 검산 통과.
+- cap 가드 평가: 정정 좌표 54 ≤ 70, diff +95/-39 ≤ 250 LOC → **batch 5 이월 0**.
+- 회색지대 3 종(개구간 · 양끝 prefix · 코드 파일 대상 좌표) 첫 실판정 수행, audit `§ 12.81` 신설(54 행, 7101 → 7156 행).
+- 5 파일 +95/-39, direct commit `55bda9e4` main push. doc-only 라 `pnpm test` 면제 (CLAUDE.md §3.2).
