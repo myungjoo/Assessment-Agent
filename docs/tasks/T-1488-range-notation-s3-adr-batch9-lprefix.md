@@ -2,7 +2,7 @@
 id: T-1488
 title: 범위 표기 규약 축 S3 batch 9 — `L` 축 ADR 3 파일 (`ADR-0037` · `ADR-0038` · `ADR-0044`) R5·R4 정규화 + 식별자 범위 · 혼합 단일/범위 병기 · 반복 label 판정 (audit §12.86)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 140
