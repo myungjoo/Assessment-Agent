@@ -2,7 +2,7 @@
 id: T-1490
 title: 범위 표기 규약 축 S3 batch 11 — `L` 축 ADR 3 파일 (`ADR-0002` · `ADR-0027` · `ADR-0029`) R5·R4 정규화 + 7 좌표 슬래시 체인 · 자기 문서 내부 좌표 · 식별자 범위 단독 파일의 R5 존치 판정 (audit §12.88)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 120
