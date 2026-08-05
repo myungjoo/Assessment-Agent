@@ -132,11 +132,15 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **첫 실 DB round-trip 실측 도달**(T-1500, main `0395c51e`):
-   [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts) 가
-   mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` **1 endpoint** 의
-   p95 < 3000ms 를 실측했다(정본 서술 =
-   [`test/perf/README.md`](../../test/perf/README.md) 의 `## 실 DB round-trip baseline (첫 slice)`).
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 2 까지 도달**: slice 1(T-1500, main
+   `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
+   가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
+   slice 2(T-1502, main `97198504`) 의
+   [`group-read-realdb.perf-spec.ts`](../../test/perf/group-read-realdb.perf-spec.ts) 가 같은 구조로
+   `GET /api/groups` 목록 · `:id` · `:id/persons` 를 측정해 **N+1 indirect navigation**
+   (`findPersonsByGroupId` 의 membership 비례 query) 경로에서도 같은 임계 충족을 증거화했다. 따라서
+   실측 범위는 **2 endpoint (조회 4 route)** 다(정본 서술 =
+   [`test/perf/README.md`](../../test/perf/README.md) 의 `## 실 DB round-trip baseline (slice 목록)`).
    단 **본 item 은 미완** — `buildBaselineReport` + `formatBaselineLine` 은 **관찰 전용**
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 미사용이라 baseline 파일 확정이
    성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
