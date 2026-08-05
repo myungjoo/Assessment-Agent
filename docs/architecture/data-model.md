@@ -1,6 +1,6 @@
 # Conceptual data model
 
-> **본 문서는 P2 의 다섯째이자 마지막 entry artifact ([T-0031](../tasks/T-0031-p2-data-model.md)) 의 산출물이다.** [docs/PLAN.md](../PLAN.md) Phase P2 의 "데이터 모델 초안" bullet (L38) 을 cover. 9 UC ([UC-01](../use-cases/UC-01-evaluation-execution.md) ~ [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md)) 의 §5 sequence diagram + §6 데이터 단락에서 호명된 **entity (개념적 데이터 단위) + 관계 (cardinality) + 핵심 invariant (REQ-032 raw 미저장)** 를 단일 문서로 박제하여 P3+ Persistence 구현 task 의 contract source 로 사용한다. **본 문서는 living document** — entity 가 새로 식별되거나 기존 관계가 분리·통합되면 architect agent 가 본 표를 갱신한다. 본 task 머지 시 **Phase P2 fully complete**. (UC 범위 표기는 [T-1419](../tasks/T-1419-eight-uc-notation-bulk-resync.md) 가 [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) 실재 반영으로 8 → 9 동기 — [T-1418](../tasks/T-1418-data-model-uc09-entity-derivation-judgment.md) 판정이 `신규 entity 0` 이라 § 2 표 row 와 38 행 `13 entity` / `4 module` 은 불변. 근거 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) § 12.17.)
+> **본 문서는 P2 의 다섯째이자 마지막 entry artifact ([T-0031](../tasks/T-0031-p2-data-model.md)) 의 산출물이다.** [docs/PLAN.md](../PLAN.md) Phase P2 의 "데이터 모델 초안" bullet (38 행) 을 cover. 9 UC ([UC-01](../use-cases/UC-01-evaluation-execution.md) ~ [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md)) 의 §5 sequence diagram + §6 데이터 단락에서 호명된 **entity (개념적 데이터 단위) + 관계 (cardinality) + 핵심 invariant (REQ-032 raw 미저장)** 를 단일 문서로 박제하여 P3+ Persistence 구현 task 의 contract source 로 사용한다. **본 문서는 living document** — entity 가 새로 식별되거나 기존 관계가 분리·통합되면 architect agent 가 본 표를 갱신한다. 본 task 머지 시 **Phase P2 fully complete**. (UC 범위 표기는 [T-1419](../tasks/T-1419-eight-uc-notation-bulk-resync.md) 가 [UC-09](../use-cases/UC-09-user-defined-period-evaluation.md) 실재 반영으로 8 → 9 동기 — [T-1418](../tasks/T-1418-data-model-uc09-entity-derivation-judgment.md) 판정이 `신규 entity 0` 이라 § 2 표 row 와 38 행 `13 entity` / `4 module` 은 불변. 근거 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) § 12.17.)
 
 ## 1. 개요
 
@@ -75,7 +75,7 @@ erDiagram
 6. **Person ↔ Summary (1:N)** — 일·주·월 요약은 Person 단위 default. Group/Part aggregate Summary 는 view-time 계산 (별도 entity 아님, § 7 GroupSummary note 와 정합). **aggregate 평가 영속화 reality ([ADR-0035](../decisions/ADR-0035-aggregate-summary-evaluation.md), T-0305~T-0310 shipped)**:
    - **schema-level idempotency**: `Summary` 에 `@@unique([personId, period, periodStart])` 가 박제됨 ([T-0305](../tasks/T-0305-summary-unique-migration.md) — 한 person 의 한 granularity·구간 (`period` ∈ `["day","week","month"]`) 요약은 정확히 1 row, 같은 좌표 Summary 중복을 schema 차원 차단). Assessment idempotency key `@@unique([personId, period, scope, periodStart])` 의 Summary-level mirror (`scope` 없음 — 요약은 period 단위 rollup 이라 3-tuple).
    - **재집계 = Summary 단위 reset-and-recreate**: 같은 idempotency key `(personId, period, periodStart)` 로 재집계가 들어오면 기존 `Summary` row 를 `delete` → 새 `Summary` 를 `create`. 이 delete→create 는 단일 `prisma.$transaction` 으로 묶어 atomicity 보장 (`SummaryPersistService`, T-0309). in-place update 아님 — Summary 는 immutable (ADR-0006). `fill` (존재 시 no-op) / `reeval` (존재 시 reset-and-recreate) 두 모드 + partial-reset (`personId`+`period` prefix delete `resetByPeriod`) 는 ADR-0033 단위 영속화 패턴 mirror (ADR-0035 §Decision 4).
-   - **집계 규칙 = field-level 분리**: deterministic `metricScore` (LLM 무관 결정적 순수 함수 `aggregateMetricScore`, T-0306) + LLM 정성 `narrative` (한 (person, period, periodStart) 좌표의 단위 묶음 1 = batch prompt 1 호출, `SummaryNarrativeService`, T-0307) 의 두 축 분리. 두 축을 결합해 한 Summary row 로 write (`SummaryPersistService`, T-0309), 시점 게이트 (`isPeriodEvaluable`, T-0306) → persist 위임은 `SummaryAggregateOrchestratorService` (T-0310) 가 compose. README L63 "LLM 정성 평가 + Metric 수치 함께 보유" 의 schema-level 표현 (ADR-0035 §Decision 1).
+   - **집계 규칙 = field-level 분리**: deterministic `metricScore` (LLM 무관 결정적 순수 함수 `aggregateMetricScore`, T-0306) + LLM 정성 `narrative` (한 (person, period, periodStart) 좌표의 단위 묶음 1 = batch prompt 1 호출, `SummaryNarrativeService`, T-0307) 의 두 축 분리. 두 축을 결합해 한 Summary row 로 write (`SummaryPersistService`, T-0309), 시점 게이트 (`isPeriodEvaluable`, T-0306) → persist 위임은 `SummaryAggregateOrchestratorService` (T-0310) 가 compose. README 63 행 "LLM 정성 평가 + Metric 수치 함께 보유" 의 schema-level 표현 (ADR-0035 §Decision 1).
 7. **User ↔ Person (0..1:0..1)** — 선택적 매핑. SuperAdmin / Admin 등급 User 가 본인 Person 을 가지지 않는 경우도 가능 (외부 관리자). User 등급 User 가 본인 Person 과 매핑되어 본인 평가 결과 조회 (UC-08 user audience). **자동 매핑 정책** (예: 첫 로긴 시 동명 Person 자동 link) 은 P3 AuthModule 책임 — 본 문서는 관계만 박제.
 8. **LlmProviderConfig ↔ DifficultyMapping (1:N)** — 3 난이도 슬롯 (easy / medium / hard) 이 각각 어느 provider 의 어느 model 을 사용할지 매핑. DifficultyMapping row 3 개 고정.
 9. **ServiceIdentity ↔ PermissionDeniedRecord (1:N)** — 외부 4xx 가 발생한 ServiceIdentity 단위 (예: 특정 GitHub instance + 특정 user ID 의 권한 부족). audience 분기 (UC-08 user / admin) 는 record 의 `audience` 필드로.
@@ -86,7 +86,7 @@ erDiagram
 
 ## 4. Raw 미저장 invariant (REQ-032)
 
-본 시스템의 **핵심 architectural invariant** — [README.md](../../README.md) L59 ("🔥 Raw data 저장 금지") + [REQ-032](../requirements.md) 가 박제.
+본 시스템의 **핵심 architectural invariant** — [README.md](../../README.md) 59 행 ("🔥 Raw data 저장 금지") + [REQ-032](../requirements.md) 가 박제.
 
 **적용 범위**:
 
@@ -152,7 +152,7 @@ erDiagram
 - REQ-031 (재수집 중복 방지) — Contribution / Assessment / Summary 의 unique constraint. **shipped — [ADR-0033](../decisions/ADR-0033-evaluation-result-persistence.md) / [T-0298](../tasks/T-0298-contribution-source-ref-unique-migration.md) + [ADR-0035](../decisions/ADR-0035-aggregate-summary-evaluation.md) / [T-0305](../tasks/T-0305-summary-unique-migration.md)**: `Assessment.@@unique([personId, period, scope, periodStart])` (ADR-0006) + `Contribution.@@unique([assessmentId, sourceRef])` (ADR-0033 §4) + `Summary.@@unique([personId, period, periodStart])` (ADR-0035 §Decision 4) 로 schema-level idempotency 박제 완료.
 - REQ-033 (commit/문서 단위) — Contribution entity.
 - REQ-034 / REQ-035 (일·주·월 요약) — Summary entity. **aggregate 평가로 영속화 shipped** ([ADR-0035](../decisions/ADR-0035-aggregate-summary-evaluation.md), T-0306~T-0310 — deterministic `metricScore` + LLM 정성 `narrative` 를 `(personId, period, periodStart)` 좌표 1 row 로 reset-and-recreate write, § 3 관계 6 참조).
-- REQ-036 (상대 비교 + LLM + Metric) — Assessment, Summary. Summary 의 "LLM 정성 + Metric 수치 함께 보유" (README L63) 가 ADR-0035 의 `narrative` + `metricScore` field-level 분리로 충족.
+- REQ-036 (상대 비교 + LLM + Metric) — Assessment, Summary. Summary 의 "LLM 정성 + Metric 수치 함께 보유" (README 63 행) 가 ADR-0035 의 `narrative` + `metricScore` field-level 분리로 충족.
 
 ## 7. Out of scope
 
@@ -175,7 +175,7 @@ erDiagram
 
 ## 8. References
 
-- [docs/PLAN.md](../PLAN.md) Phase P2 의 다섯째 bullet (L38) — 본 문서가 cover. 본 task 머지 시 **Phase P2 fully complete**.
+- [docs/PLAN.md](../PLAN.md) Phase P2 의 다섯째 bullet (38 행) — 본 문서가 cover. 본 task 머지 시 **Phase P2 fully complete**.
 - [docs/architecture/INDEX.md](INDEX.md) — architecture document 목록 + MVA 원칙. 본 문서가 row 갱신 대상.
 - [docs/architecture/api.md](api.md) — T-0030 산출물. resource path prefix (`/api/persons` / `/api/assessments` / `/api/llm` 등) 가 본 문서 entity 이름의 1:1 source.
 - [docs/architecture/components.md](components.md) — T-A3 산출물. "DB Persistence" component 의 책임 + raw 미저장 schema-level 강제 출처.

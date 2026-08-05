@@ -37,7 +37,7 @@
 
 ## 3. 화면별 endpoint 소비 맵
 
-### 3.1 로그인 / SuperAdmin 초기 셋업 ([PLAN.md](../PLAN.md) P6 L115)
+### 3.1 로그인 / SuperAdmin 초기 셋업 ([PLAN.md](../PLAN.md) P6 115 행)
 
 | 화면 요소 | 소비 endpoint | auth tier | 비고 |
 | --- | --- | --- | --- |
@@ -46,7 +46,7 @@
 | 본인 등급 확인 | `GET /api/auth/me` | User+ | 부팅 시 라우팅 가드 (로그인 여부 + role) |
 | 비밀번호 변경 | `PATCH /api/users/:id/password` | User(self)/Admin+ | self 변경은 User 도 가능 |
 
-### 3.2 시각화 대시보드 (정렬·필터·시계열, REQ-038) ([PLAN.md](../PLAN.md) P6 L116)
+### 3.2 시각화 대시보드 (정렬·필터·시계열, REQ-038) ([PLAN.md](../PLAN.md) P6 116 행)
 
 REQ-038 의 핵심 — 이름/ID/지표별 sort·filter + 일/주/월 시계열. **데이터는 이미 영속화** 되어 있어 frontend 는 조회 endpoint 만 소비한다 (User 등급도 read 가능).
 
@@ -60,7 +60,7 @@ REQ-038 의 핵심 — 이름/ID/지표별 sort·filter + 일/주/월 시계열.
 
 **집단·전체·filter 인원 단위 시각화** (REQ-038): 현 endpoint 는 personId 단위 조회라, 집단/전체 aggregate 는 frontend 가 N 인원을 fan-out fetch 후 client-side 집계하거나, backend aggregate endpoint 가 선행돼야 한다 (§5 gap).
 
-### 3.3 Admin 패널 (인원·그룹·재평가·import/export·스케줄) ([PLAN.md](../PLAN.md) P6 L117)
+### 3.3 Admin 패널 (인원·그룹·재평가·import/export·스케줄) ([PLAN.md](../PLAN.md) P6 117 행)
 
 | 화면 요소 | 소비 endpoint | auth tier | 비고 |
 | --- | --- | --- | --- |
@@ -78,7 +78,7 @@ REQ-038 의 핵심 — 이름/ID/지표별 sort·filter + 일/주/월 시계열.
 | **스케줄 (cron 주기 지정)** | — | — | **gap (§5) — endpoint 미존재, P7** |
 | **재평가 batch (bulk delete·reeval·reset)** | `DELETE /api/assessments` `POST /api/assessments/reeval` `…/reset` | Admin+ | **미구현 — P5 (UC-06 batch), api.md** |
 
-### 3.4 평가 진행 중 시각화 보호 배너 (R-78 / REQ-042) ([PLAN.md](../PLAN.md) P6 L118)
+### 3.4 평가 진행 중 시각화 보호 배너 (R-78 / REQ-042) ([PLAN.md](../PLAN.md) P6 118 행)
 
 ADR-0040 §6 의 결정 — frontend 가 (a) 평가 실행 상태를 조회해 전역 배너를 토글하고, (b) 조회 화면은 이미 영속화된 데이터만 fetch 한다. (b) 는 §3.2 의 조회 endpoint 가 본질적으로 영속 데이터만 반환하므로 **자연 충족**. (a) 의 "실행 상태 조회" 가 핵심 gap:
 

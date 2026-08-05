@@ -2,7 +2,7 @@
 id: T-1497
 title: 범위 표기 규약 축 S3 batch 17 — 비-ADR `L` 축 architecture 상위 3 파일 (`data-model.md` · `frontend-api-contract.md` · `directory.md`) 개정판 R5 · R4 · R1 정규화 + heading 안 좌표 (anchor slug) · 같은 행 숫자 충돌 · 이미 정규화된 좌표와의 행 내 혼용 판정 (audit §12.95)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 130
