@@ -37,8 +37,8 @@ supersedes: null
 
 ### REQ 외력
 
-- **REQ-016** ([README.md](../../README.md) L33) — 권한 부족의 user/admin audience 분리. 본 ADR 의 grant/revoke 가 그 audience 의 binding 관리 기반(누가 어느 instance 의 audit 를 보는가)을 Admin 이 runtime 에 관리하도록 한다 — [ADR-0023](ADR-0023-permission-denied-audit-query-rbac-contract.md)/[ADR-0024](ADR-0024-user-instance-binding-data-model.md) 가 READ audience 를 박제했고 본 ADR 이 그 audience 를 채우는 WRITE 경로를 박제한다.
-- **REQ-044** ([README.md](../../README.md) L19~22, L33) — instance / SPACE 별 권한 분리 + 권한 거부 가시화. 본 ADR 의 grant 가 non-Admin 운영자에게 자기 instance 를 부여해 ADR-0024 의 "safe but useless"(non-Admin 영구 빈 결과) 를 실 가시화로 전환한다 — binding 0 시작이 안전 기본값이고, 본 grant 경로가 운영 가치를 활성한다.
+- **REQ-016** ([README.md](../../README.md) 33 행) — 권한 부족의 user/admin audience 분리. 본 ADR 의 grant/revoke 가 그 audience 의 binding 관리 기반(누가 어느 instance 의 audit 를 보는가)을 Admin 이 runtime 에 관리하도록 한다 — [ADR-0023](ADR-0023-permission-denied-audit-query-rbac-contract.md)/[ADR-0024](ADR-0024-user-instance-binding-data-model.md) 가 READ audience 를 박제했고 본 ADR 이 그 audience 를 채우는 WRITE 경로를 박제한다.
+- **REQ-044** ([README.md](../../README.md) 19~22, 33 행) — instance / SPACE 별 권한 분리 + 권한 거부 가시화. 본 ADR 의 grant 가 non-Admin 운영자에게 자기 instance 를 부여해 ADR-0024 의 "safe but useless"(non-Admin 영구 빈 결과) 를 실 가시화로 전환한다 — binding 0 시작이 안전 기본값이고, 본 grant 경로가 운영 가치를 활성한다.
 
 ### 기존 RBAC stack / repository (본 ADR 이 따를 source)
 

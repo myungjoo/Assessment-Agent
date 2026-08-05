@@ -118,7 +118,7 @@ T-0033 (P3 첫 task) 의 `pnpm add prisma @prisma/client pg` 실행 시점 박�
 - [ADR-0001](ADR-0001-stack.md) — Backend / language / package manager / test / CI 스택 (선행 ADR)
 - [README.md](../../README.md) 54~64 행 — 저장 정책 / non-volatile / 재수집 / raw 금지
 - [README.md](../../README.md) 88~92 행 — 성능 NFR (1 h 처리 + 3 초 조회)
-- [docs/requirements.md](../requirements.md) L48 / L50 / L51 / L52 / L55 / L66 / L67 — REQ-029 / 031 / 032 / 033 / 036 / 047 / 048
+- [docs/requirements.md](../requirements.md) 48 / 50 / 51 / 52 / 55 / 66 / 67 행 — REQ-029 / 031 / 032 / 033 / 036 / 047 / 048
 - [docs/architecture/INDEX.md](../architecture/INDEX.md) — ADR / view 문서 매핑
 - [docs/architecture/deployment.md](../architecture/deployment.md) — 본 ADR 의 view layer
 - Prisma docs: <https://www.prisma.io/docs>
