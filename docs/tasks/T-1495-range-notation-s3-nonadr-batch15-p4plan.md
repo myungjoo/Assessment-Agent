@@ -2,7 +2,7 @@
 id: T-1495
 title: 범위 표기 규약 축 S3 batch 15 — 비-ADR `L` 축 상위 2 파일 (`p4-implementation-plan.md` · `p3-to-p4-transition.md`) 개정판 R5 · R1 · R4 정규화 + 첫 다-파일 batch · 비-좌표 `~` 공존 · 파일 간 일관 적용 판정 (audit §12.93)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 130
