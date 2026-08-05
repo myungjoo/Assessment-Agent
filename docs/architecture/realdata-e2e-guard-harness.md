@@ -31,10 +31,10 @@ build-time 경로의 정확성이 어긋나면 (예: issueNumber 전파 drift / 
 
 ## §3 composer 설계 계약 (4 불변식)
 
-모든 composer 가 공유하는 4 불변식. `test/helpers/realdata-e2e-result-issue-action.ts` 상단 주석 (L1~60, T-0584) 이 일반화 출처. 본 4 불변식은 cron 자율 실행 (network/credential 0) 의 토대 — 깨지면 live wiring 이 그 손상을 그대로 운영에 전파한다. 가드 sweep 의 존재 이유.
+모든 composer 가 공유하는 4 불변식. `test/helpers/realdata-e2e-result-issue-action.ts` 상단 주석 (1~60 행, T-0584) 이 일반화 출처. 본 4 불변식은 cron 자율 실행 (network/credential 0) 의 토대 — 깨지면 live wiring 이 그 손상을 그대로 운영에 전파한다. 가드 sweep 의 존재 이유.
 
 1. **build-time 완결 — dependency-free** : 실 네트워크 호출 0 · env 읽기 0 · DB 접근 0 · live-LLM 0 · credential 0. 외부 템플릿 / 해시 / CLI 라이브러리 0 — 내장 string / 배열 / 객체 연산만. cloud cron 자율 실행 가능. 새 dependency 도입 금지 (CLAUDE.md §5 BLOCKED 사유). 위반 예: composer 가 `Date.now()` / `process.env` / `fetch()` 를 호출하면 본 불변식 위반.
-2. **raw 미저장 정합 (R-59 / REQ-032)** : composer 산출 객체는 narrative 본문 · raw 활동 본문 · credential 을 **반환하지 않는다**. 식별자 (issueNumber / sha / dateToken) · argv · 정규화된 본문 marker 만 담는다. 가드 에러 메시지도 raw 본문을 누설하지 않는다 (test/helpers/realdata-e2e-result-issue-action.ts L23~27 의 일반화). data-model.md §4 (Contribution 본문 비저장) 와 동형 invariant.
+2. **raw 미저장 정합 (R-59 / REQ-032)** : composer 산출 객체는 narrative 본문 · raw 활동 본문 · credential 을 **반환하지 않는다**. 식별자 (issueNumber / sha / dateToken) · argv · 정규화된 본문 marker 만 담는다. 가드 에러 메시지도 raw 본문을 누설하지 않는다 (test/helpers/realdata-e2e-result-issue-action.ts 23~27 행 의 일반화). data-model.md §4 (Contribution 본문 비저장) 와 동형 invariant.
 3. **결정론적 출력** : 동일 입력 → byte-identical 출력. 입력 외 상태 (시각 · 난수 · env · `Date.now()` · `Math.random()`) 의존 0. 입력 순서가 흔들려도 결정론적 정렬 · 정규화로 산출이 동일 (예: `resolveRealDataResultIssueAction` T-0584 의 "후보 2+ → 가장 작은 number 를 update" 멱등 회귀 보호 — gh search 가 marker 매칭 이슈를 다수 반환해도 신규를 만들지 않고 최초 박제분에 누적 갱신).
 4. **무공유 — 입력 mutate 0** : composer 는 입력 객체 / 배열을 **변형하지 않는다** (읽기만). 매 호출마다 새 산출 객체를 반환 — 입력 / 이전 호출 산출과 무공유 (alias 0). 두 번 호출 deep-equal · 참조 분리는 가드 test 의 표준 negative case (예: T-0726 의 "두 번 호출 산출이 deep-equal · 참조-무공유 유지" 결정성 test).
 

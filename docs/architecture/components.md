@@ -110,7 +110,7 @@ graph TB
 - **노란 점선 박스 (`external`)** — 외부 시스템. HTTPS 경계 너머. 점선 stroke 으로 시각 구분.
 - **process subgraph** — NestJS 단일 process 안의 in-process component 8 개. 화살표 label 의 "in-process method call" 은 NestJS DI container 안의 service 메서드 호출.
 - **PostgreSQL** — DB Persistence component 가 TCP 5432 로 접근하는 외부 process. ADR-0002 의 결정에 따라 동일 host 또는 managed service.
-- **사용자 브라우저** — 분홍 박스. SuperAdmin / Admin / User 3 등급 ([README.md](../../README.md) L19–22, REQ-044) 의 entry point.
+- **사용자 브라우저** — 분홍 박스. SuperAdmin / Admin / User 3 등급 ([README.md](../../README.md) 19~22 행, REQ-044) 의 entry point.
 
 ## Component table
 
@@ -352,6 +352,6 @@ graph TB
 - [docs/requirements.md](../requirements.md) — REQ-NNN source of truth. 본 문서의 모든 REQ 인용 출처.
 - [docs/architecture/deployment.md](deployment.md) — T-A2 산출물. 본 문서의 운영 토폴로지 cross-reference.
 - [docs/architecture/INDEX.md](INDEX.md) — architecture document 인덱스 + MVA 원칙.
-- [README.md](../../README.md) — 7–18 (REQ-005~007 GitHub) / 19–22 (REQ-044 권한) / 33–41 (REQ-015 Confluence) / 45–51 (REQ-026 인원) / 68–71 (REQ-038 UI) / 96–103 (REQ-049 / REQ-051~055 LLM).
+- [README.md](../../README.md) — 7~18 행 (REQ-005~007 GitHub) / 19~22 행 (REQ-044 권한) / 33~41 행 (REQ-015 Confluence) / 45~51 행 (REQ-026 인원) / 68~71 행 (REQ-038 UI) / 96~103 행 (REQ-049 / REQ-051~055 LLM).
 
 Refs: T-0016, REQ-005, REQ-006, REQ-007, REQ-015, REQ-026, REQ-038, REQ-044, REQ-049, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055

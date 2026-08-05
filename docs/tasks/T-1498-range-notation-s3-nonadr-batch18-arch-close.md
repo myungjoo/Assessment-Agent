@@ -2,7 +2,7 @@
 id: T-1498
 title: 범위 표기 규약 축 S3 batch 18 — 비-ADR `L` 축 architecture 잔여 3 파일 (`realdata-e2e-guard-harness.md` · `components.md` · `deployment.md`) 마감 slice — 개정판 R5 · R1 · R4 정규화 + 좌표 대상이 소스 코드 파일인 첫 사례 · 이미 `~` 구분자를 쓴 범위 좌표 · 비-ADR 유일 en dash 좌표와 `L` prefix 없는 bare 좌표 census 사각 (audit §12.96)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 140

@@ -146,7 +146,7 @@ Admin UI (cron 주기 변경)
   → 다음 trigger 부터 새 주기로 동작
 ```
 
-cron 표현식 (예: `"0 2 * * *"` = KST 02:00 매일) 이 DB 에 저장되어 process restart 후에도 복원. 초기 default 는 [README.md](../../README.md) L72 예시 (KST 02:00). 실제 default 값과 cron 표현식 schema validation 은 P7 phase 의 도입 task 가 박제.
+cron 표현식 (예: `"0 2 * * *"` = KST 02:00 매일) 이 DB 에 저장되어 process restart 후에도 복원. 초기 default 는 [README.md](../../README.md) 72 행 예시 (KST 02:00). 실제 default 값과 cron 표현식 schema validation 은 P7 phase 의 도입 task 가 박제.
 
 ### Manual trigger 흐름 (REQ-040)
 
