@@ -2,7 +2,7 @@
 id: T-1501
 title: 실 DB round-trip 첫 실측을 PLAN P7 · load-resilience `§ 5` item 5 · REQ-048 재판정 3 문서에 반영 (doc-sync)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 45
@@ -121,3 +121,18 @@ T-1500 의 Out of Scope 가 이 3 문서 갱신을 "실측이 머지된 뒤 별�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## Result (2026-08-05)
+
+`Status: DONE` — main `74560c8c` (direct push, PR 없음). 3 문서 +11/-3:
+
+- [PLAN.md](../PLAN.md) `142 행` P7 성능검증 REQ-048 sub-bullet — 실 DB round-trip 첫 실측 반영,
+  잔여 사유 (endpoint 1 개 · read perf-spec 30 개 mock 잔존) 재서술, checkbox `[ ]` 유지.
+- [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§ 5` item 5 — 실측 도달 +
+  미완 사유 + 잔여 명시 (완료 선언 없음).
+- [requirements.md](../requirements.md) REQ-048 재판정 — 한계 문장을 "부분 해소" 로 정정,
+  status `IN_PROGRESS` 유지 (실 scale 미검증 · web 렌더 축 불변).
+
+AC 1~7 전부 ok. 인용 수치는 실측 확인 (`test/perf/*.perf-spec.ts` 35 개 · read 계열 31 개 ·
+`person-read-realdb.perf-spec.ts` 최초 commit `0395c51e`). 후속: 나머지 mock read perf-spec 의
+실 DB cutover 는 T-1502 (pr-mode, `GET /api/groups` 축) 로 이월.
