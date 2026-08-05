@@ -2,7 +2,7 @@
 id: T-1492
 title: 범위 표기 규약 축 S3 batch 13 — `L` 축 ADR 마감 slice (`ADR-0047` 단독) R5·R4 정규화 + 동일 좌표의 문서 간 일관 적용 첫 판정 · R5 존치 재량 경로 3 번째 · 면제 확정 좌표 registry 박제 (audit §12.90)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 70
