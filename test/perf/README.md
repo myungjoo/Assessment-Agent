@@ -505,6 +505,31 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   gate 와 분리된다.
 - perf job 은 상시 PR CI 와 분리한다(follow-up #4).
 
+## 실 DB round-trip baseline (첫 slice)
+
+- `person-read-realdb.perf-spec.ts` (T-1500) — 위 mock 배치와 달리 **mock override 0** 으로
+  `createE2EApp()`(AppModule 전체)을 부트스트랩하고 `moduleRef.get(PrismaService)` 로 얻은 실
+  client 로 seed 한 뒤 `GET /api/persons` 를 반복 측정하는 **첫 실 DB round-trip perf-spec**.
+  [load-resilience-test-plan.md](../../docs/ops/load-resilience-test-plan.md) `§ 5` item 5("실
+  Postgres round-trip baseline 미실측")의 **첫 실측**이자, [requirements.md](../../docs/requirements.md)
+  REQ-048 재판정이 유일 잔여 서버측 한계로 적시한 지점을 endpoint 1 개 범위에서 해소한다.
+- **책임 경계** — mock spec = 배선 latency(즉시 반환, DB 왕복 0) 로 harness 정확성 검증. 본
+  spec = **round-trip 포함 latency**(실 SELECT 발화) 로 REQ-048 임계가 실 query 경로에서도
+  성립하는지의 **실측 증거**. 검증도 mock 의 호출 횟수 대신 **응답 body 가 seed 한 row 값과
+  일치**함으로 실 query 발화를 입증하고, fail 분기도 **실 DB 미존재 row 의 404**(errorRate
+  위반)·비현실적 임계 주입(`p95MaxMs: 0`)으로 도달해 실 측정 시간에 의존하지 않는다.
+  `afterEach(truncateAll)`(ADR-0004 `§ Cleanup`) 로 row leak 0, `afterAll` 의 `app.close()` +
+  `prisma.$disconnect()` 로 connection 누수 0.
+- **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
+  `postgresql://postgres:postgres@localhost:5432/assessment_test?schema=public`) export +
+  `pnpm prisma migrate deploy` 후 `pnpm test:perf`. CI 는 `perf test` step 이
+  `services.postgres` + migrate deploy + e2e **이후**라 전제를 자동 충족한다(workflow 편집
+  불요 — 기존 `testRegex` 가 새 spec 을 자동 picking).
+- **임계값 3000ms 는 불변** — `DEFAULT_P95_MAX_MS = 3000`(REQ-048)을 바꾸지 않고
+  `writeBaselineFile`/`confirmOrCompareBaseline` 로 baseline 을 확정하지도 않는다
+  (`buildBaselineReport` + `formatBaselineLine` 한 줄 **관찰 전용**). 임계 fix · baseline 확정 ·
+  나머지 endpoint 의 실 DB cutover 는 별도 slice.
+
 ## 후속 harness (DB-backed baseline / S1·S3)
 
 실 조회 endpoint round-trip latency **baseline 실측**(실 Postgres)·S1 배치 부하·S3 동시성
