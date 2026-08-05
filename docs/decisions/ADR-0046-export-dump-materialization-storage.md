@@ -23,7 +23,7 @@ supersedes: null
 핵심 사실 — **선행 ADR 이 이 두 결정을 명시적으로 deferred 했다**:
 
 - [ADR-0044](ADR-0044-export-import-job-persistence.md) §Out of scope / §Consequences (부정) 는 `artifactRef` 를 "artifact 의 pointer (참조 식별자) 일 뿐 본문이 아니다" 로만 박제하고, **"artifact 저장소 mechanism (로컬 파일시스템 vs S3-호환 object storage) 의 구체 선택" 을 새 외부 dependency 가능성을 이유로 본 task 밖, 필요 시 별도 §5 게이트 / ADR** 로 미뤘다. 본 ADR 이 바로 그 deferred 결정을 닫는다.
-- [data-model.md L171](../architecture/data-model.md) 도 동일하게 "artifact 저장소 mechanism (로컬 파일시스템 vs S3-호환 object storage — 새 외부 dependency 가능성 시 별도 §5 게이트)" 를 후속으로 남겨 두었다.
+- [data-model.md 171 행](../architecture/data-model.md) 도 동일하게 "artifact 저장소 mechanism (로컬 파일시스템 vs S3-호환 object storage — 새 외부 dependency 가능성 시 별도 §5 게이트)" 를 후속으로 남겨 두었다.
 
 따라서 본 ADR 은 **새 entity 도입이 아니라** (ExportJob/ImportJob 은 ADR-0044 가 이미 박제), envelope 가 어떤 byte stream 전략으로 다운로드 본문이 되는지 (Decision 1) 와 그 산출물 artifact 가 어느 저장 위치에 사는지 (Decision 2) 를 **새 외부 dependency 0 옵션 우선** 으로 decide 한다.
 
@@ -133,7 +133,7 @@ dump artifact 를 S3-호환 object storage 에 써 두고 pre-signed URL 로 Adm
 - [src/export/export-dump.ts](../../src/export/export-dump.ts) — `ExportDump` envelope (materialization 입력)
 - [src/export/export-artifact-descriptor.ts](../../src/export/export-artifact-descriptor.ts) — `ExportArtifactDescriptor` (다운로드 메타 single-source)
 - [src/export/export-chunk-plan.ts](../../src/export/export-chunk-plan.ts) / [export-chunk-stream-progress.ts](../../src/export/export-chunk-stream-progress.ts) / [export-chunk-resume-plan.ts](../../src/export/export-chunk-resume-plan.ts) / [export-chunk-integrity-reconcile.ts](../../src/export/export-chunk-integrity-reconcile.ts) — chunk 경계/진행/재개/무결성 산정 helper (materialization 이 byte slice 로 소비)
-- [docs/architecture/data-model.md](../architecture/data-model.md) — §2 ExportJob/ImportJob / L171 artifact 저장소 deferred (본 ADR 이 닫는 대상)
+- [docs/architecture/data-model.md](../architecture/data-model.md) — §2 ExportJob/ImportJob / 171 행 artifact 저장소 deferred (본 ADR 이 닫는 대상)
 - [docs/STATE.json](../STATE.json) — Q-0042 decision (게이트1 승인 — 본 ADR 의 외력)
 - [README.md](../../README.md) — REQ-030 (Export) / REQ-032 (raw 미저장)
 - [CLAUDE.md §3.1 / §5 / §12](../../CLAUDE.md) — commitMode / BLOCKED 게이트 / 언어 정책
