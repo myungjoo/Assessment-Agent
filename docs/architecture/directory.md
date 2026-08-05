@@ -194,7 +194,7 @@ backend endpoint 미shipped 로 의도적 defer 된 잔여 (auto-polling) 는 [m
 - [ADR-0001](../decisions/ADR-0001-stack.md) — NestJS / TypeScript / pnpm / Jest framework 기반.
 - [ADR-0002](../decisions/ADR-0002-db.md) — PostgreSQL + Prisma. `prisma/` 디렉토리 위치 결정의 source.
 - [ADR-0003](../decisions/ADR-0003-deployment.md) — Monolithic process / secret env-only / `@nestjs/schedule` / direct egress 결정이 본 디렉토리 구조의 4 단락 (top-level / config / prisma / scheduler) 의 source.
-- [README.md](../../README.md) L7-22 (REQ-005~007 GitHub 3 instance), L96-103 (REQ-049 / REQ-051~055 LLM 5 provider — `llm/providers/<name>.provider.ts` sub-dir 결정의 source).
+- [README.md](../../README.md) L16-18 (REQ-005~007 GitHub 3 instance), L96-103 (REQ-049 / REQ-051~055 LLM 5 provider — `llm/providers/<name>.provider.ts` sub-dir 결정의 source).
 - [ADR-0040](../decisions/ADR-0040-frontend-stack.md) — frontend 스택 결정. 옵션 1 (별도 `web/` React+Vite 패키지) + 옵션 2 serve 방식 결합 채택의 source.
 - [ADR-0041](../decisions/ADR-0041-frontend-composition-wiring.md) — frontend composition-wiring 결정. `web/src/` 의 컴포넌트 ↔ view ↔ api 배선 구조의 source.
 - [T-0021](../tasks/T-0021-p2-directory-structure.md) — 본 문서 신설 task.
