@@ -15,7 +15,7 @@ supersedes: null
 
 사용자가 [docs/STATE.json](../STATE.json) `humanQuestions[Q-0017]` 으로 P4 milestone-3 (GitHub adapter + Confluence adapter) 를 승인했다. 그 승인은 **4 EXACT 제약**을 명시한다 — (1) HTTP transport = Node 내장 `globalThis.fetch` (injectable `FetchLike`), **새 외부 dependency 0** (octokit / axios / node-fetch 추가 금지), (2) test = mocked-fetch unit (실 token 없이 public CI green), (3) 실 token live 통합은 별도 [§5](../../CLAUDE.md) credential 게이트 task 로 deferred, (4) milestone-1 패턴 (내장 fetch + mocked test + live defer) 재현.
 
-[docs/PLAN.md L81](../PLAN.md) ("GitHub 통합 — 3 instance 모두: github.com / github.sec.samsung.net / github.ecodesamsung.com. 각 instance 의 URL·org·token 설정 분리") 이 이 milestone 의 source 다. [CLAUDE.md §1](../../CLAUDE.md) ("코드보다 ADR이 먼저다") + [§3.1 rule 4](../../CLAUDE.md) (새 ADR = pr-mode) 정합으로, `GithubAdapter` scaffold 코드 task 의 **선행 결정 ADR** 을 본 task 가 단독 박제한다. milestone-1 이 [ADR-0014](ADR-0014-llm-api-key-encryption-at-rest.md) (key 암호화) + [ADR-0015](ADR-0015-llm-live-integration-test-contract.md) (live-test 계약) 를 코드보다 먼저 박제한 것과 동형 — milestone-3 은 [ADR-0013](ADR-0013-confluence-space-traversal-policy.md) 이 **Confluence 측 탐색 정책만** cover 하므로, GitHub adapter 의 **HTTP transport 계약** (내장 fetch / 3 host variant 라우팅 / auth header shape / non-2xx 도메인 매핑 / REST Link pagination / adapter↔gateway interface 경계) 을 cross-cutting 결정으로 본 ADR 이 확정한다.
+[docs/PLAN.md 81 행](../PLAN.md) ("GitHub 통합 — 3 instance 모두: github.com / github.sec.samsung.net / github.ecodesamsung.com. 각 instance 의 URL·org·token 설정 분리") 이 이 milestone 의 source 다. [CLAUDE.md §1](../../CLAUDE.md) ("코드보다 ADR이 먼저다") + [§3.1 rule 4](../../CLAUDE.md) (새 ADR = pr-mode) 정합으로, `GithubAdapter` scaffold 코드 task 의 **선행 결정 ADR** 을 본 task 가 단독 박제한다. milestone-1 이 [ADR-0014](ADR-0014-llm-api-key-encryption-at-rest.md) (key 암호화) + [ADR-0015](ADR-0015-llm-live-integration-test-contract.md) (live-test 계약) 를 코드보다 먼저 박제한 것과 동형 — milestone-3 은 [ADR-0013](ADR-0013-confluence-space-traversal-policy.md) 이 **Confluence 측 탐색 정책만** cover 하므로, GitHub adapter 의 **HTTP transport 계약** (내장 fetch / 3 host variant 라우팅 / auth header shape / non-2xx 도메인 매핑 / REST Link pagination / adapter↔gateway interface 경계) 을 cross-cutting 결정으로 본 ADR 이 확정한다.
 
 ### 결정 대상 6 축
 
@@ -30,8 +30,8 @@ supersedes: null
 
 ### REQ 외력 (본 ADR 이 cover)
 
-- **REQ-005 / REQ-006 / REQ-007 / REQ-008** ([docs/requirements.md](../requirements.md), README L7–18) — 지정된 GitHub Service (3 instance) 의 commit / PR / Issue 활동 평가 backbone. 본 ADR 의 축 (1)~(5) 가 그 "3 instance 의 활동 수집" 의 transport 계층 (host 라우팅 / auth / error / pagination) 을 박제한다.
-- **REQ-044** ([README.md](../../README.md) L19–22) — instance 별 권한 분리. 본 ADR 의 축 (4) 4xx → PermissionDeniedEvent emit 위상이 권한 부족 가시화의 transport 측 경계를 박제 ([modules.md](../architecture/modules.md) "4xx catch → PermissionDeniedEvent emit" 책임과 직결).
+- **REQ-005 / REQ-006 / REQ-007 / REQ-008** ([docs/requirements.md](../requirements.md), README 7~18 행) — 지정된 GitHub Service (3 instance) 의 commit / PR / Issue 활동 평가 backbone. 본 ADR 의 축 (1)~(5) 가 그 "3 instance 의 활동 수집" 의 transport 계층 (host 라우팅 / auth / error / pagination) 을 박제한다.
+- **REQ-044** ([README.md](../../README.md) 19~22 행) — instance 별 권한 분리. 본 ADR 의 축 (4) 4xx → PermissionDeniedEvent emit 위상이 권한 부족 가시화의 transport 측 경계를 박제 ([modules.md](../architecture/modules.md) "4xx catch → PermissionDeniedEvent emit" 책임과 직결).
 - **REQ-059 / [ADR-0006](ADR-0006-assessment-data-model.md)** — raw 미저장 invariant. 본 ADR 의 축 (5) pagination 수집 단위 (commit / issue / PR 메타) 가 이 invariant 위에서 성립 — raw 본문 transient.
 
 ### 선행 박제 정합 (milestone-1 transport 패턴 / adapter leaf)
@@ -152,7 +152,7 @@ supersedes: null
 ## References
 
 - [docs/STATE.json](../STATE.json) `humanQuestions[Q-0017]` — P4 milestone-3 승인 + 4 EXACT 제약 (내장 fetch / mocked test / live defer / milestone-1 패턴 재현) — 본 ADR 의 직접 motivation
-- [docs/PLAN.md L81](../PLAN.md) — Phase P4 "GitHub 통합 — 3 instance 모두 (github.com / github.sec.samsung.net / github.ecodesamsung.com), 각 instance URL·org·token 설정 분리"
+- [docs/PLAN.md 81 행](../PLAN.md) — Phase P4 "GitHub 통합 — 3 instance 모두 (github.com / github.sec.samsung.net / github.ecodesamsung.com), 각 instance URL·org·token 설정 분리"
 - [docs/requirements.md](../requirements.md) — REQ-005/006/007/008 (GitHub 3 instance 활동 평가) / REQ-044 (instance 권한 분리) / REQ-059 (raw 미저장) source of truth
 - [docs/architecture/modules.md](../architecture/modules.md) — GithubModule row (단일 module + instance sub-config, adapter leaf, 4xx catch → PermissionDeniedEvent emit) — 책임 module + 트리거 source
 - [src/llm/llm-http-gateway.service.ts](../../src/llm/llm-http-gateway.service.ts) — milestone-1 `FetchLike` `@Optional` 주입 + dispatch + non-2xx throw 패턴 (Decision §1/§4/§6 mirror reference)

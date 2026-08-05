@@ -13,7 +13,7 @@ supersedes: null
 
 ## Context
 
-[ADR-0016 §2](ADR-0016-github-adapter-http-transport-contract.md) 는 GithubAdapter 의 transport 계약 (내장 fetch / 3 host variant base URL 라우팅 / `Authorization: Bearer` header / non-2xx 도메인 매핑 / Link rel=next pagination) 을 확정하면서, **각 instance 의 sub-config (host / org / token) 의 실 설정 source 형태 (env vs DB config) 는 "GithubAdapter 코드 task 책임" 으로 명시적으로 deferred** 했다. 그 결과 현재 [src/github/github-adapter.service.ts](../../src/github/github-adapter.service.ts) 는 이미 복호화된 평문 token + host 를 **호출 인자** (`GithubRequestInput { host, token, path, query }`) 로만 받고, 그 인자를 **어디서 채우는지** 의 설정 source 는 미확정 상태로 남아 있다 ([github-adapter.service.ts](../../src/github/github-adapter.service.ts) L24–25 "GithubModule wiring / instance sub-config 의 실 설정 source(env/DB)" 를 본 slice 밖으로 명시 deferral).
+[ADR-0016 §2](ADR-0016-github-adapter-http-transport-contract.md) 는 GithubAdapter 의 transport 계약 (내장 fetch / 3 host variant base URL 라우팅 / `Authorization: Bearer` header / non-2xx 도메인 매핑 / Link rel=next pagination) 을 확정하면서, **각 instance 의 sub-config (host / org / token) 의 실 설정 source 형태 (env vs DB config) 는 "GithubAdapter 코드 task 책임" 으로 명시적으로 deferred** 했다. 그 결과 현재 [src/github/github-adapter.service.ts](../../src/github/github-adapter.service.ts) 는 이미 복호화된 평문 token + host 를 **호출 인자** (`GithubRequestInput { host, token, path, query }`) 로만 받고, 그 인자를 **어디서 채우는지** 의 설정 source 는 미확정 상태로 남아 있다 ([github-adapter.service.ts](../../src/github/github-adapter.service.ts) 24~25 행 "GithubModule wiring / instance sub-config 의 실 설정 source(env/DB)" 를 본 slice 밖으로 명시 deferral).
 
 본 결정은 **두 후속 slice 의 공통 선행** 이다 — (i) `GithubModule` (`github.module.ts`) NestJS wiring (AppModule 등록 + adapter provider 배선), (ii) token JIT decrypt ([ADR-0016 §6](ADR-0016-github-adapter-http-transport-contract.md) / [ADR-0014](ADR-0014-llm-api-key-encryption-at-rest.md) cipher 호출) 의 입력 소스. config source 가 정해지지 않으면 두 slice 모두 inline 으로 architecture 결정을 끌어들여 reviewer-risk + diff 비대화를 유발한다. [CLAUDE.md §1](../../CLAUDE.md) ("코드보다 ADR이 먼저다") + [§3.1 rule 4](../../CLAUDE.md) (새 ADR = pr-mode) 정합으로, 본 ADR 이 그 config-source 결정을 단독 박제한다.
 
@@ -27,16 +27,16 @@ supersedes: null
 
 ### REQ 외력 (본 ADR 이 cover)
 
-- **REQ-005 / REQ-006 / REQ-007 / REQ-008** ([docs/requirements.md](../requirements.md), README L7–18) — 지정된 GitHub Service 3 instance (github.com / github.sec.samsung.net / github.ecodesamsung.com) 의 활동 평가 backbone. 본 ADR 이 "각 instance 의 host / org / token 을 어떤 source 로 설정하는지" 를 박제해 그 3 instance 활성화의 설정 경로를 확정한다.
-- **REQ-044** ([README.md](../../README.md) L19–22) — instance 별 권한 분리. env 에 정의된 instance 만 활성 (자동 발견 안 함, [ADR-0016 §2](ADR-0016-github-adapter-http-transport-contract.md) allowlist 순회 정합) — 권한·설정 경계가 명시 instance-key 집합으로 한정된다.
+- **REQ-005 / REQ-006 / REQ-007 / REQ-008** ([docs/requirements.md](../requirements.md), README 7~18 행) — 지정된 GitHub Service 3 instance (github.com / github.sec.samsung.net / github.ecodesamsung.com) 의 활동 평가 backbone. 본 ADR 이 "각 instance 의 host / org / token 을 어떤 source 로 설정하는지" 를 박제해 그 3 instance 활성화의 설정 경로를 확정한다.
+- **REQ-044** ([README.md](../../README.md) 19~22 행) — instance 별 권한 분리. env 에 정의된 instance 만 활성 (자동 발견 안 함, [ADR-0016 §2](ADR-0016-github-adapter-http-transport-contract.md) allowlist 순회 정합) — 권한·설정 경계가 명시 instance-key 집합으로 한정된다.
 
 ### 선행 박제 정합 (milestone-1 env-as-config 패턴)
 
 본 ADR 이 mirror 하는 기존 env-as-config-source 선례 (직접 reference):
 
-- [src/llm/llm-apikey-cipher.service.ts](../../src/llm/llm-apikey-cipher.service.ts) L48–73 (`resolveKey`) — `process.env[ENC_KEY_ENV]` 직접 read + env 부재 / 길이 미달 시 fail-fast throw + 평문 fallback 금지. **env 가 secret/config source 이고 새 dependency 0 인 기존 선례.** 본 ADR 의 token-at-rest 위상이 동일 cipher 접근을 재사용.
-- [src/auth/auth.module.ts](../../src/auth/auth.module.ts) L60–73 — `JwtModule.registerAsync` 의 `useFactory` 가 `process.env.AUTH_JWT_SECRET ?? ""` 를 module init 시점에 read. **NestJS module 이 env 를 config source 로 쓰는 기존 선례** (`@nestjs/config` 없이 `process.env` 직접). 본 ADR 의 `GithubModule` wiring 이 동형 `registerAsync`/`useFactory` 로 env→instance config 를 binding.
-- [src/llm/llm-live-test-gating.ts](../../src/llm/llm-live-test-gating.ts) L54–93 (`resolveLiveTestGating`) — `process.env` 를 인자 (`env: NodeJS.ProcessEnv`) 로 받아 config 객체를 계산하는 **부수효과 0 순수 함수** + 부재/빈/공백 env 의 malformed 방어 + 실값을 코드에 안 적음 ([CLAUDE.md §9](../../CLAUDE.md)). 본 ADR 의 축 (3) env→instance config parser 경계가 이 패턴을 mirror (unit-testable, 부수효과 0).
+- [src/llm/llm-apikey-cipher.service.ts](../../src/llm/llm-apikey-cipher.service.ts) 48~73 행 (`resolveKey`) — `process.env[ENC_KEY_ENV]` 직접 read + env 부재 / 길이 미달 시 fail-fast throw + 평문 fallback 금지. **env 가 secret/config source 이고 새 dependency 0 인 기존 선례.** 본 ADR 의 token-at-rest 위상이 동일 cipher 접근을 재사용.
+- [src/auth/auth.module.ts](../../src/auth/auth.module.ts) 60~73 행 — `JwtModule.registerAsync` 의 `useFactory` 가 `process.env.AUTH_JWT_SECRET ?? ""` 를 module init 시점에 read. **NestJS module 이 env 를 config source 로 쓰는 기존 선례** (`@nestjs/config` 없이 `process.env` 직접). 본 ADR 의 `GithubModule` wiring 이 동형 `registerAsync`/`useFactory` 로 env→instance config 를 binding.
+- [src/llm/llm-live-test-gating.ts](../../src/llm/llm-live-test-gating.ts) 54~93 행 (`resolveLiveTestGating`) — `process.env` 를 인자 (`env: NodeJS.ProcessEnv`) 로 받아 config 객체를 계산하는 **부수효과 0 순수 함수** + 부재/빈/공백 env 의 malformed 방어 + 실값을 코드에 안 적음 ([CLAUDE.md §9](../../CLAUDE.md)). 본 ADR 의 축 (3) env→instance config parser 경계가 이 패턴을 mirror (unit-testable, 부수효과 0).
 
 ### ADR cross-reference (번호 정합 박제)
 
@@ -127,7 +127,7 @@ supersedes: null
 - [src/auth/auth.module.ts](../../src/auth/auth.module.ts) — `process.env.AUTH_JWT_SECRET` `registerAsync`/`useFactory` (Decision §1 NestJS module env-source reference)
 - [src/llm/llm-live-test-gating.ts](../../src/llm/llm-live-test-gating.ts) — `resolveLiveTestGating` 순수 함수 env→config 변환 + malformed 방어 (Decision §3 parser 경계 reference)
 - [src/github/github-adapter.service.ts](../../src/github/github-adapter.service.ts) — 현 `GithubRequestInput { host, token, path }` 인자 + "instance sub-config 의 실 설정 source(env/DB)" deferral (본 ADR 이 채울 입력 source)
-- [docs/PLAN.md L81](../PLAN.md) — Phase P4 "GitHub 통합 — 3 instance 모두, 각 instance URL·org·token 설정 분리" (본 결정의 직접 구현 경로)
+- [docs/PLAN.md 81 행](../PLAN.md) — Phase P4 "GitHub 통합 — 3 instance 모두, 각 instance URL·org·token 설정 분리" (본 결정의 직접 구현 경로)
 - [docs/requirements.md](../requirements.md) — REQ-005/006/007/008 (GitHub 3 instance) / REQ-044 (instance 권한 분리) source of truth
 - [docs/architecture/modules.md](../architecture/modules.md) — GithubModule row (단일 module + instance sub-config) — 책임 module + pointer 추가 대상
 - [docs/architecture/INDEX.md](../architecture/INDEX.md) — ADR 목록 row 추가 대상 (본 ADR-0017 row)

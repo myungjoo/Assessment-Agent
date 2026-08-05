@@ -32,9 +32,9 @@ milestone-1 (LLM) 이 [ADR-0015](ADR-0015-llm-live-integration-test-contract.md)
 
 ### REQ 외력
 
-- **REQ-005 / REQ-006 / REQ-007 / REQ-008** ([docs/requirements.md](../requirements.md), README L7–18) — GitHub 3 instance (commit / PR / Issue) 활동 평가 backbone. 본 ADR 의 GitHub live 계약이 그 transport 의 실 동작 검증을 박제.
-- **REQ-009 / REQ-010 / REQ-015** ([docs/requirements.md](../requirements.md), README L31–33) — Confluence 지정 SPACE 내 문서 작성/업데이트 활동 평가 backbone. 본 ADR 의 Confluence live 계약이 그 transport 의 실 동작 검증을 박제.
-- **REQ-016 / REQ-044** ([README.md](../../README.md) L19–22, L33) — instance/SPACE 권한 분리 + 권한 부족 가시화. live 경로의 non-2xx → 도메인 error 매핑 (Decision §(iv)) 이 그 권한 경계의 live-side 정합을 박제.
+- **REQ-005 / REQ-006 / REQ-007 / REQ-008** ([docs/requirements.md](../requirements.md), README 7~18 행) — GitHub 3 instance (commit / PR / Issue) 활동 평가 backbone. 본 ADR 의 GitHub live 계약이 그 transport 의 실 동작 검증을 박제.
+- **REQ-009 / REQ-010 / REQ-015** ([docs/requirements.md](../requirements.md), README 31~33 행) — Confluence 지정 SPACE 내 문서 작성/업데이트 활동 평가 backbone. 본 ADR 의 Confluence live 계약이 그 transport 의 실 동작 검증을 박제.
+- **REQ-016 / REQ-044** ([README.md](../../README.md) 19~22 행, 33 행) — instance/SPACE 권한 분리 + 권한 부족 가시화. live 경로의 non-2xx → 도메인 error 매핑 (Decision §(iv)) 이 그 권한 경계의 live-side 정합을 박제.
 - **REQ-059 / [ADR-0006](ADR-0006-assessment-data-model.md)** — raw 미저장 invariant. live round-trip 도 메타 비어있지 않음만 assert (Decision §(iii)) 해 raw-transient 정합 유지.
 - **[CLAUDE.md §3.2 R-112](../../CLAUDE.md)** — gating 판정 로직 (env 읽기·완전성 검사) 은 skip 본문에 묻으면 unit-test 불가하므로, entrypoint-helper 분리 원칙을 mirror 해 **순수 helper 함수** 로 분리하고 happy/error/negative test 를 후속 task 가 강제한다 (본 ADR 은 helper 의 gating semantics 위상만 박제, 코드는 [T-0204](../tasks/)/[T-0205](../tasks/) scope).
 
