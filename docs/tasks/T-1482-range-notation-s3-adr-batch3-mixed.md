@@ -2,7 +2,7 @@
 id: T-1482
 title: 범위 표기 규약 축 S3 batch 3 — 잔여 혼용 ADR 3 파일 (`ADR-0008` · `ADR-0013` · `ADR-0014`) R1·R5 정규화 (audit §12.80)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 140
@@ -91,3 +91,10 @@ commit mode 는 [CLAUDE.md](../../CLAUDE.md) §3.1 **rule 5** (기존 `docs/deci
 - **S3 batch 4 후보** — 잔여 혼용 ADR (`ADR-0018` · `ADR-0033` · `ADR-0035`) 또는 en dash 단독 (`ADR-0016` · `ADR-0017` · `ADR-0021`) 중 3 파일. `§ 12.80` 파생 (1) 의 1 순위.
 - **복수 좌표 병기 형식 판정** — `L85/L88` 을 최소 변경으로 `85/88 행` 으로 뒀으나 `85 · 88 행` 형태와의 통일 여부는 조문 명문이 없다 (`§ 12.80` 한계 5). 회색지대라 별도 slice 에서 조문 보강 여부 판단.
 - **`ADR-0008` `R5` 잔류** — 149 행이 `R7` 시점 기록 면제라 파일이 `L` 보유 집합에 남는다. 잔여 집계 (26 ADR) 를 다룰 slice 가 면제 잔류분을 별도 계상할지 판단 필요.
+
+## 완료 요약 (2026-08-05)
+
+- `ADR-0008` · `ADR-0013` · `ADR-0014` 후보 35 행 중 **34 행 정정** (`R7` 면제 1 행 = `ADR-0008`:149 CI lint 회차 기록). 파일별 추가 = 삭제 (14/14 · 13/13 · 7/7) 로 결정 내용 무편집 검산 통과.
+- audit `§ 12.80` 신설 (54 행 ≤ 60, `## 11. References` 직전 7034 행 재실측 삽입). `REQ-COVERAGE-AUDIT.md` 7047 → 7101 행.
+- 자기 준수 grep hit 11 은 전량 대조표의 원 표기 인용 (`R6` 예외), ADR 몫 0. markdown 무손상 (fence 짝수 · 표 컬럼 6 균일 · heading 12.79 → 12.80 연속 · 링크/행 수 불변).
+- 5 파일 +91/-35, direct commit `c53dc3f7` main push. doc-only 라 `pnpm test` 면제 (CLAUDE.md §3.2).
